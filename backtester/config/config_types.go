@@ -120,13 +120,11 @@ type CurrencySettings struct {
 	// USDTrackingPair is used for price tracking data only
 	USDTrackingPair bool `json:"-"`
 
-	InitialBaseFunds   *decimal.Decimal `json:"initial-base-funds,omitempty"`
-	InitialQuoteFunds  *decimal.Decimal `json:"initial-quote-funds,omitempty"`
-	InitialLegacyFunds float64          `json:"initial-funds,omitempty"`
+	SpotDetails    *SpotDetails    `json:"spot-details,omitempty"`
+	FuturesDetails *FuturesDetails `json:"futures-details,omitempty"`
 
-	Leverage Leverage `json:"leverage"`
-	BuySide  MinMax   `json:"buy-side"`
-	SellSide MinMax   `json:"sell-side"`
+	BuySide  MinMax `json:"buy-side"`
+	SellSide MinMax `json:"sell-side"`
 
 	MinimumSlippagePercent decimal.Decimal `json:"min-slippage-percent"`
 	MaximumSlippagePercent decimal.Decimal `json:"max-slippage-percent"`
@@ -134,11 +132,26 @@ type CurrencySettings struct {
 	MakerFee decimal.Decimal `json:"maker-fee-override"`
 	TakerFee decimal.Decimal `json:"taker-fee-override"`
 
-	MaximumHoldingsRatio decimal.Decimal `json:"maximum-holdings-ratio"`
+	MaximumHoldingsRatio    decimal.Decimal `json:"maximum-holdings-ratio"`
+	SkipCandleVolumeFitting bool            `json:"skip-candle-volume-fitting"`
 
 	CanUseExchangeLimits          bool `json:"use-exchange-order-limits"`
-	SkipCandleVolumeFitting       bool `json:"skip-candle-volume-fitting"`
 	ShowExchangeOrderLimitWarning bool `json:"-"`
+}
+
+type SpotDetails struct {
+	InitialBaseFunds  *decimal.Decimal `json:"initial-base-funds,omitempty"`
+	InitialQuoteFunds *decimal.Decimal `json:"initial-quote-funds,omitempty"`
+}
+
+type FuturesDetails struct {
+	Leverage Leverage `json:"leverage"`
+	// CollateralCurrency if the asset is futures, then this field
+	// allows a user to nominate another currency to be used as collateral
+	// while trading futures contracts
+	// This currency is a reference to a funding item setup in
+	// strategy
+	CollateralCurrency string `json:"collateral-currency"`
 }
 
 // APIData defines all fields to configure API based data

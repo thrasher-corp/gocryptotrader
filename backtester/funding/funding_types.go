@@ -77,6 +77,8 @@ type Item struct {
 	pairedWith         *Item
 	usdTrackingCandles *kline.DataFromKline
 	snapshot           map[time.Time]ItemSnapshot
+	collateral         bool
+	collateralCandles  map[currency.Code]kline.DataFromKline
 }
 
 // Pair holds two currencies that are associated with each other

@@ -225,11 +225,14 @@ func NewFromConfig(cfg *config.Config, templatePath, output string) (*BackTest, 
 				cfg.CurrencySettings[i].Base+cfg.CurrencySettings[i].Quote,
 				err)
 		}
-		portfolioRisk.CurrencySettings[cfg.CurrencySettings[i].ExchangeName][a][curr] = &risk.CurrencySettings{
-			MaximumOrdersWithLeverageRatio: cfg.CurrencySettings[i].Leverage.MaximumOrdersWithLeverageRatio,
-			MaxLeverageRate:                cfg.CurrencySettings[i].Leverage.MaximumLeverageRate,
-			MaximumHoldingRatio:            cfg.CurrencySettings[i].MaximumHoldingsRatio,
+		portSet := &risk.CurrencySettings{
+			MaximumHoldingRatio: cfg.CurrencySettings[i].MaximumHoldingsRatio,
 		}
+		if cfg.CurrencySettings[i].FuturesDetails != nil {
+			portSet.MaximumOrdersWithLeverageRatio = cfg.CurrencySettings[i].FuturesDetails.Leverage.MaximumOrdersWithLeverageRatio
+			portSet.MaxLeverageRate = cfg.CurrencySettings[i].FuturesDetails.Leverage.MaximumLeverageRate
+		}
+		portfolioRisk.CurrencySettings[cfg.CurrencySettings[i].ExchangeName][a][curr] = portSet
 		if cfg.CurrencySettings[i].MakerFee.GreaterThan(cfg.CurrencySettings[i].TakerFee) {
 			log.Warnf(log.BackTester, "maker fee '%v' should not exceed taker fee '%v'. Please review config",
 				cfg.CurrencySettings[i].MakerFee,
@@ -265,11 +268,13 @@ func NewFromConfig(cfg *config.Config, templatePath, output string) (*BackTest, 
 			}
 		} else {
 			var bFunds, qFunds decimal.Decimal
-			if cfg.CurrencySettings[i].InitialBaseFunds != nil {
-				bFunds = *cfg.CurrencySettings[i].InitialBaseFunds
-			}
-			if cfg.CurrencySettings[i].InitialQuoteFunds != nil {
-				qFunds = *cfg.CurrencySettings[i].InitialQuoteFunds
+			if cfg.CurrencySettings[i].SpotDetails != nil {
+				if cfg.CurrencySettings[i].SpotDetails.InitialBaseFunds != nil {
+					bFunds = *cfg.CurrencySettings[i].SpotDetails.InitialBaseFunds
+				}
+				if cfg.CurrencySettings[i].SpotDetails.InitialQuoteFunds != nil {
+					qFunds = *cfg.CurrencySettings[i].SpotDetails.InitialQuoteFunds
+				}
 			}
 			baseItem, err = funding.CreateItem(
 				cfg.CurrencySettings[i].ExchangeName,
@@ -494,24 +499,27 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 					cfg.CurrencySettings[i].ShowExchangeOrderLimitWarning = true
 				}
 			}
-
+			var lev exchange.Leverage
+			if cfg.CurrencySettings[i].FuturesDetails != nil {
+				lev = exchange.Leverage{
+					CanUseLeverage:                 cfg.CurrencySettings[i].FuturesDetails.Leverage.CanUseLeverage,
+					MaximumLeverageRate:            cfg.CurrencySettings[i].FuturesDetails.Leverage.MaximumLeverageRate,
+					MaximumOrdersWithLeverageRatio: cfg.CurrencySettings[i].FuturesDetails.Leverage.MaximumOrdersWithLeverageRatio,
+				}
+			}
 			resp.CurrencySettings = append(resp.CurrencySettings, exchange.Settings{
-				Exchange:            cfg.CurrencySettings[i].ExchangeName,
-				MinimumSlippageRate: cfg.CurrencySettings[i].MinimumSlippagePercent,
-				MaximumSlippageRate: cfg.CurrencySettings[i].MaximumSlippagePercent,
-				Pair:                pair,
-				Asset:               a,
-				ExchangeFee:         takerFee,
-				MakerFee:            takerFee,
-				TakerFee:            makerFee,
-				UseRealOrders:       realOrders,
-				BuySide:             buyRule,
-				SellSide:            sellRule,
-				Leverage: exchange.Leverage{
-					CanUseLeverage:                 cfg.CurrencySettings[i].Leverage.CanUseLeverage,
-					MaximumLeverageRate:            cfg.CurrencySettings[i].Leverage.MaximumLeverageRate,
-					MaximumOrdersWithLeverageRatio: cfg.CurrencySettings[i].Leverage.MaximumOrdersWithLeverageRatio,
-				},
+				Exchange:                cfg.CurrencySettings[i].ExchangeName,
+				MinimumSlippageRate:     cfg.CurrencySettings[i].MinimumSlippagePercent,
+				MaximumSlippageRate:     cfg.CurrencySettings[i].MaximumSlippagePercent,
+				Pair:                    pair,
+				Asset:                   a,
+				ExchangeFee:             takerFee,
+				MakerFee:                takerFee,
+				TakerFee:                makerFee,
+				UseRealOrders:           realOrders,
+				BuySide:                 buyRule,
+				SellSide:                sellRule,
+				Leverage:                lev,
 				Limits:                  limits,
 				SkipCandleVolumeFitting: cfg.CurrencySettings[i].SkipCandleVolumeFitting,
 				CanUseExchangeLimits:    cfg.CurrencySettings[i].CanUseExchangeLimits,

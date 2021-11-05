@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -75,15 +76,15 @@ func (c *Config) PrintSetting() {
 		log.Infof(log.BackTester, currStr[:61])
 		log.Info(log.BackTester, "-------------------------------------------------------------")
 		log.Infof(log.BackTester, "Exchange: %v", c.CurrencySettings[i].ExchangeName)
-		if !c.StrategySettings.UseExchangeLevelFunding {
-			if c.CurrencySettings[i].InitialBaseFunds != nil {
+		if !c.StrategySettings.UseExchangeLevelFunding && c.CurrencySettings[i].SpotDetails != nil {
+			if c.CurrencySettings[i].SpotDetails.InitialBaseFunds != nil {
 				log.Infof(log.BackTester, "Initial base funds: %v %v",
-					c.CurrencySettings[i].InitialBaseFunds.Round(8),
+					c.CurrencySettings[i].SpotDetails.InitialBaseFunds.Round(8),
 					c.CurrencySettings[i].Base)
 			}
-			if c.CurrencySettings[i].InitialQuoteFunds != nil {
+			if c.CurrencySettings[i].SpotDetails.InitialQuoteFunds != nil {
 				log.Infof(log.BackTester, "Initial quote funds: %v %v",
-					c.CurrencySettings[i].InitialQuoteFunds.Round(8),
+					c.CurrencySettings[i].SpotDetails.InitialQuoteFunds.Round(8),
 					c.CurrencySettings[i].Quote)
 			}
 		}
@@ -93,7 +94,10 @@ func (c *Config) PrintSetting() {
 		log.Infof(log.BackTester, "Maximum slippage percent: %v", c.CurrencySettings[i].MaximumSlippagePercent.Round(8))
 		log.Infof(log.BackTester, "Buy rules: %+v", c.CurrencySettings[i].BuySide)
 		log.Infof(log.BackTester, "Sell rules: %+v", c.CurrencySettings[i].SellSide)
-		log.Infof(log.BackTester, "Leverage rules: %+v", c.CurrencySettings[i].Leverage)
+		if c.CurrencySettings[i].FuturesDetails != nil && c.CurrencySettings[i].Asset == asset.Futures.String() {
+			log.Infof(log.BackTester, "Leverage rules: %+v", c.CurrencySettings[i].FuturesDetails.Leverage)
+
+		}
 		log.Infof(log.BackTester, "Can use exchange defined order execution limits: %+v", c.CurrencySettings[i].CanUseExchangeLimits)
 	}
 
@@ -269,41 +273,45 @@ func (c *Config) validateCurrencySettings() error {
 		return errNoCurrencySettings
 	}
 	for i := range c.CurrencySettings {
-		if c.CurrencySettings[i].InitialLegacyFunds > 0 {
-			// temporarily migrate legacy start config value
-			log.Warn(log.BackTester, "config field 'initial-funds' no longer supported, please use 'initial-quote-funds'")
-			log.Warnf(log.BackTester, "temporarily setting 'initial-quote-funds' to 'initial-funds' value of %v", c.CurrencySettings[i].InitialLegacyFunds)
-			iqf := decimal.NewFromFloat(c.CurrencySettings[i].InitialLegacyFunds)
-			c.CurrencySettings[i].InitialQuoteFunds = &iqf
+		if c.CurrencySettings[i].SpotDetails == nil && c.CurrencySettings[i].FuturesDetails == nil {
+			// woah nelly!
 		}
-		if c.StrategySettings.UseExchangeLevelFunding {
-			if c.CurrencySettings[i].InitialQuoteFunds != nil &&
-				c.CurrencySettings[i].InitialQuoteFunds.GreaterThan(decimal.Zero) {
-				return fmt.Errorf("non-nil quote %w", errBadInitialFunds)
-			}
-			if c.CurrencySettings[i].InitialBaseFunds != nil &&
-				c.CurrencySettings[i].InitialBaseFunds.GreaterThan(decimal.Zero) {
-				return fmt.Errorf("non-nil base %w", errBadInitialFunds)
-			}
-		} else {
-			if c.CurrencySettings[i].InitialQuoteFunds == nil &&
-				c.CurrencySettings[i].InitialBaseFunds == nil {
-				return fmt.Errorf("nil base and quote %w", errBadInitialFunds)
-			}
-			if c.CurrencySettings[i].InitialQuoteFunds != nil &&
-				c.CurrencySettings[i].InitialBaseFunds != nil &&
-				c.CurrencySettings[i].InitialBaseFunds.IsZero() &&
-				c.CurrencySettings[i].InitialQuoteFunds.IsZero() {
-				return fmt.Errorf("base or quote funds set to zero %w", errBadInitialFunds)
-			}
-			if c.CurrencySettings[i].InitialQuoteFunds == nil {
-				c.CurrencySettings[i].InitialQuoteFunds = &decimal.Zero
-			}
-			if c.CurrencySettings[i].InitialBaseFunds == nil {
-				c.CurrencySettings[i].InitialBaseFunds = &decimal.Zero
+		if c.CurrencySettings[i].SpotDetails != nil {
+			// if c.CurrencySettings[i].SpotDetails.InitialLegacyFunds > 0 {
+			// 	// temporarily migrate legacy start config value
+			// 	log.Warn(log.BackTester, "config field 'initial-funds' no longer supported, please use 'initial-quote-funds'")
+			// 	log.Warnf(log.BackTester, "temporarily setting 'initial-quote-funds' to 'initial-funds' value of %v", c.CurrencySettings[i].InitialLegacyFunds)
+			// 	iqf := decimal.NewFromFloat(c.CurrencySettings[i].SpotDetails.InitialLegacyFunds)
+			// 	c.CurrencySettings[i].SpotDetails.InitialQuoteFunds = &iqf
+			// }
+			if c.StrategySettings.UseExchangeLevelFunding {
+				if c.CurrencySettings[i].SpotDetails.InitialQuoteFunds != nil &&
+					c.CurrencySettings[i].SpotDetails.InitialQuoteFunds.GreaterThan(decimal.Zero) {
+					return fmt.Errorf("non-nil quote %w", errBadInitialFunds)
+				}
+				if c.CurrencySettings[i].SpotDetails.InitialBaseFunds != nil &&
+					c.CurrencySettings[i].SpotDetails.InitialBaseFunds.GreaterThan(decimal.Zero) {
+					return fmt.Errorf("non-nil base %w", errBadInitialFunds)
+				}
+			} else {
+				if c.CurrencySettings[i].SpotDetails.InitialQuoteFunds == nil &&
+					c.CurrencySettings[i].SpotDetails.InitialBaseFunds == nil {
+					return fmt.Errorf("nil base and quote %w", errBadInitialFunds)
+				}
+				if c.CurrencySettings[i].SpotDetails.InitialQuoteFunds != nil &&
+					c.CurrencySettings[i].SpotDetails.InitialBaseFunds != nil &&
+					c.CurrencySettings[i].SpotDetails.InitialBaseFunds.IsZero() &&
+					c.CurrencySettings[i].SpotDetails.InitialQuoteFunds.IsZero() {
+					return fmt.Errorf("base or quote funds set to zero %w", errBadInitialFunds)
+				}
+				if c.CurrencySettings[i].SpotDetails.InitialQuoteFunds == nil {
+					c.CurrencySettings[i].SpotDetails.InitialQuoteFunds = &decimal.Zero
+				}
+				if c.CurrencySettings[i].SpotDetails.InitialBaseFunds == nil {
+					c.CurrencySettings[i].SpotDetails.InitialBaseFunds = &decimal.Zero
+				}
 			}
 		}
-
 		if c.CurrencySettings[i].Base == "" {
 			return errUnsetCurrency
 		}
