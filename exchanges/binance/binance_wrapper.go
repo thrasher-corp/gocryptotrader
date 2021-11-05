@@ -954,14 +954,14 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submi
 		o, err := b.FuturesNewOrder(
 			ctx,
 			&FuturesNewOrderRequest{
-				symbol:           s.Pair,
-				side:             reqSide,
-				orderType:        oType,
-				timeInForce:      "GTC",
-				newClientOrderID: s.ClientOrderID,
-				quantity:         s.Amount,
-				price:            s.Price,
-				reduceOnly:       s.ReduceOnly,
+				Symbol:           s.Pair,
+				Side:             reqSide,
+				OrderType:        oType,
+				TimeInForce:      "GTC",
+				NewClientOrderID: s.ClientOrderID,
+				Quantity:         s.Amount,
+				Price:            s.Price,
+				ReduceOnly:       s.ReduceOnly,
 			},
 		)
 		if err != nil {
