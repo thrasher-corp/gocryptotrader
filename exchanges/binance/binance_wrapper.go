@@ -956,18 +956,11 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submi
 			&FuturesNewOrderRequest{
 				symbol:           s.Pair,
 				side:             reqSide,
-				positionSide:     "",
 				orderType:        oType,
 				timeInForce:      "GTC",
 				newClientOrderID: s.ClientOrderID,
-				closePosition:    "",
-				workingType:      "",
-				newOrderRespType: "",
 				quantity:         s.Amount,
 				price:            s.Price,
-				stopPrice:        0,
-				activationPrice:  0,
-				callbackRate:     0,
 				reduceOnly:       s.ReduceOnly,
 			},
 		)

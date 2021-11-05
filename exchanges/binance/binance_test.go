@@ -906,21 +906,12 @@ func TestFuturesNewOrder(t *testing.T) {
 	_, err := b.FuturesNewOrder(
 		context.Background(),
 		&FuturesNewOrderRequest{
-			symbol:           currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"),
-			side:             "BUY",
-			positionSide:     "",
-			orderType:        "LIMIT",
-			timeInForce:      "GTC",
-			newClientOrderID: "",
-			closePosition:    "",
-			workingType:      "",
-			newOrderRespType: "",
-			quantity:         1,
-			price:            1,
-			stopPrice:        0,
-			activationPrice:  0,
-			callbackRate:     0,
-			reduceOnly:       false,
+			symbol:      currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"),
+			side:        "BUY",
+			orderType:   "LIMIT",
+			timeInForce: "GTC",
+			quantity:    1,
+			price:       1,
 		},
 	)
 	if err != nil {
