@@ -224,25 +224,25 @@ func (s *Statistic) PrintTotalResults() {
 
 	log.Info(log.BackTester, "------------------Total Results------------------------------")
 	log.Info(log.BackTester, "------------------Orders-------------------------------------")
-	log.Infof(log.BackTester, "Total buy orders: %v", convert.IntToCommaSeparatedString(s.TotalBuyOrders, ","))
-	log.Infof(log.BackTester, "Total sell orders: %v", convert.IntToCommaSeparatedString(s.TotalSellOrders, ","))
-	log.Infof(log.BackTester, "Total orders: %v\n\n", convert.IntToCommaSeparatedString(s.TotalOrders, ","))
+	log.Infof(log.BackTester, "Total buy orders: %v", convert.IntToHumanFriendlyString(s.TotalBuyOrders, ","))
+	log.Infof(log.BackTester, "Total sell orders: %v", convert.IntToHumanFriendlyString(s.TotalSellOrders, ","))
+	log.Infof(log.BackTester, "Total orders: %v\n\n", convert.IntToHumanFriendlyString(s.TotalOrders, ","))
 
 	if s.BiggestDrawdown != nil {
 		log.Info(log.BackTester, "------------------Biggest Drawdown-----------------------")
 		log.Infof(log.BackTester, "Exchange: %v Asset: %v Currency: %v", s.BiggestDrawdown.Exchange, s.BiggestDrawdown.Asset, s.BiggestDrawdown.Pair)
-		log.Infof(log.BackTester, "Highest Price: %s", convert.DecimalToCommaSeparatedString(s.BiggestDrawdown.MaxDrawdown.Highest.Value, 8, ".", ","))
+		log.Infof(log.BackTester, "Highest Price: %s", convert.DecimalToHumanFriendlyString(s.BiggestDrawdown.MaxDrawdown.Highest.Value, 8, ".", ","))
 		log.Infof(log.BackTester, "Highest Price Time: %v", s.BiggestDrawdown.MaxDrawdown.Highest.Time)
-		log.Infof(log.BackTester, "Lowest Price: %s", convert.DecimalToCommaSeparatedString(s.BiggestDrawdown.MaxDrawdown.Lowest.Value, 8, ".", ","))
+		log.Infof(log.BackTester, "Lowest Price: %s", convert.DecimalToHumanFriendlyString(s.BiggestDrawdown.MaxDrawdown.Lowest.Value, 8, ".", ","))
 		log.Infof(log.BackTester, "Lowest Price Time: %v", s.BiggestDrawdown.MaxDrawdown.Lowest.Time)
-		log.Infof(log.BackTester, "Calculated Drawdown: %s%%", convert.DecimalToCommaSeparatedString(s.BiggestDrawdown.MaxDrawdown.DrawdownPercent, 2, ".", ","))
-		log.Infof(log.BackTester, "Difference: %s", convert.DecimalToCommaSeparatedString(s.BiggestDrawdown.MaxDrawdown.Highest.Value.Sub(s.BiggestDrawdown.MaxDrawdown.Lowest.Value), 8, ".", ","))
-		log.Infof(log.BackTester, "Drawdown length: %v\n\n", convert.IntToCommaSeparatedString(s.BiggestDrawdown.MaxDrawdown.IntervalDuration, ","))
+		log.Infof(log.BackTester, "Calculated Drawdown: %s%%", convert.DecimalToHumanFriendlyString(s.BiggestDrawdown.MaxDrawdown.DrawdownPercent, 2, ".", ","))
+		log.Infof(log.BackTester, "Difference: %s", convert.DecimalToHumanFriendlyString(s.BiggestDrawdown.MaxDrawdown.Highest.Value.Sub(s.BiggestDrawdown.MaxDrawdown.Lowest.Value), 8, ".", ","))
+		log.Infof(log.BackTester, "Drawdown length: %v\n\n", convert.IntToHumanFriendlyString(s.BiggestDrawdown.MaxDrawdown.IntervalDuration, ","))
 	}
 	if s.BestMarketMovement != nil && s.BestStrategyResults != nil {
 		log.Info(log.BackTester, "------------------Orders----------------------------------")
-		log.Infof(log.BackTester, "Best performing market movement: %v %v %v %v%%", s.BestMarketMovement.Exchange, s.BestMarketMovement.Asset, s.BestMarketMovement.Pair, convert.DecimalToCommaSeparatedString(s.BestMarketMovement.MarketMovement, 2, ".", ","))
-		log.Infof(log.BackTester, "Best performing strategy movement: %v %v %v %v%%\n\n", s.BestStrategyResults.Exchange, s.BestStrategyResults.Asset, s.BestStrategyResults.Pair, convert.DecimalToCommaSeparatedString(s.BestStrategyResults.StrategyMovement, 2, ".", ","))
+		log.Infof(log.BackTester, "Best performing market movement: %v %v %v %v%%", s.BestMarketMovement.Exchange, s.BestMarketMovement.Asset, s.BestMarketMovement.Pair, convert.DecimalToHumanFriendlyString(s.BestMarketMovement.MarketMovement, 2, ".", ","))
+		log.Infof(log.BackTester, "Best performing strategy movement: %v %v %v %v%%\n\n", s.BestStrategyResults.Exchange, s.BestStrategyResults.Asset, s.BestStrategyResults.Pair, convert.DecimalToHumanFriendlyString(s.BestStrategyResults.StrategyMovement, 2, ".", ","))
 	}
 }
 

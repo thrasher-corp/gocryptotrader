@@ -23,7 +23,7 @@ var (
 	// ErrAlreadyExists used when a matching item or pair is already in the funding manager
 	ErrAlreadyExists = errors.New("funding already exists")
 	// ErrUSDTrackingDisabled used when attempting to track USD values when disabled
-	ErrUSDTrackingDisabled        = errors.New("usd tracking disabled")
+	ErrUSDTrackingDisabled        = errors.New("USD tracking disabled")
 	errCannotAllocate             = errors.New("cannot allocate funds")
 	errZeroAmountReceived         = errors.New("amount received less than or equal to zero")
 	errNegativeAmountReceived     = errors.New("received negative decimal")

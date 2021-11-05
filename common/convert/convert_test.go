@@ -154,32 +154,32 @@ func TestBoolPtr(t *testing.T) {
 	}
 }
 
-func TestFloatToCommaSeparatedString(t *testing.T) {
+func TestFloatToHumanFriendlyString(t *testing.T) {
 	t.Parallel()
-	test := FloatToCommaSeparatedString(0, 3, ".", ",")
+	test := FloatToHumanFriendlyString(0, 3, ".", ",")
 	if strings.Contains(test, ",") {
 		t.Error("unexpected ','")
 	}
-	test = FloatToCommaSeparatedString(100, 3, ".", ",")
+	test = FloatToHumanFriendlyString(100, 3, ".", ",")
 	if strings.Contains(test, ",") {
 		t.Error("unexpected ','")
 	}
-	test = FloatToCommaSeparatedString(1000, 3, ".", ",")
+	test = FloatToHumanFriendlyString(1000, 3, ".", ",")
 	if !strings.Contains(test, ",") {
 		t.Error("expected ','")
 	}
 
-	test = FloatToCommaSeparatedString(-1000, 3, ".", ",")
+	test = FloatToHumanFriendlyString(-1000, 3, ".", ",")
 	if !strings.Contains(test, ",") {
 		t.Error("expected ','")
 	}
 
-	test = FloatToCommaSeparatedString(-1000, 3000000, ".", ",")
+	test = FloatToHumanFriendlyString(-1000, 10, ".", ",")
 	if !strings.Contains(test, ",") {
 		t.Error("expected ','")
 	}
 
-	test = FloatToCommaSeparatedString(1000.1337, 1, ".", ",")
+	test = FloatToHumanFriendlyString(1000.1337, 1, ".", ",")
 	if !strings.Contains(test, ",") {
 		t.Error("expected ','")
 	}
@@ -192,24 +192,24 @@ func TestFloatToCommaSeparatedString(t *testing.T) {
 	}
 }
 
-func TestDecimalToCommaSeparatedString(t *testing.T) {
+func TestDecimalToHumanFriendlyString(t *testing.T) {
 	t.Parallel()
-	test := DecimalToCommaSeparatedString(decimal.Zero, 0, ".", ",")
+	test := DecimalToHumanFriendlyString(decimal.Zero, 0, ".", ",")
 	if strings.Contains(test, ",") {
 		t.Log(test)
 		t.Error("unexpected ','")
 	}
-	test = DecimalToCommaSeparatedString(decimal.NewFromInt(100), 0, ".", ",")
+	test = DecimalToHumanFriendlyString(decimal.NewFromInt(100), 0, ".", ",")
 	if strings.Contains(test, ",") {
 		t.Log(test)
 		t.Error("unexpected ','")
 	}
-	test = DecimalToCommaSeparatedString(decimal.NewFromInt(1000), 0, ".", ",")
+	test = DecimalToHumanFriendlyString(decimal.NewFromInt(1000), 0, ".", ",")
 	if !strings.Contains(test, ",") {
 		t.Error("expected ','")
 	}
 
-	test = DecimalToCommaSeparatedString(decimal.NewFromFloat(1000.1337), 1, ".", ",")
+	test = DecimalToHumanFriendlyString(decimal.NewFromFloat(1000.1337), 1, ".", ",")
 	if !strings.Contains(test, ",") {
 		t.Error("expected ','")
 	}
@@ -221,17 +221,17 @@ func TestDecimalToCommaSeparatedString(t *testing.T) {
 		t.Error("expected decimal place")
 	}
 
-	test = DecimalToCommaSeparatedString(decimal.NewFromFloat(-1000.1337), 1, ".", ",")
+	test = DecimalToHumanFriendlyString(decimal.NewFromFloat(-1000.1337), 1, ".", ",")
 	if !strings.Contains(test, ",") {
 		t.Error("expected ','")
 	}
 
-	test = DecimalToCommaSeparatedString(decimal.NewFromFloat(-1000.1337), 100000, ".", ",")
+	test = DecimalToHumanFriendlyString(decimal.NewFromFloat(-1000.1337), 100000, ".", ",")
 	if !strings.Contains(test, ",") {
 		t.Error("expected ','")
 	}
 
-	test = DecimalToCommaSeparatedString(decimal.NewFromFloat(1000.1), 10, ".", ",")
+	test = DecimalToHumanFriendlyString(decimal.NewFromFloat(1000.1), 10, ".", ",")
 	if !strings.Contains(test, ",") {
 		t.Error("expected ','")
 	}
@@ -244,29 +244,29 @@ func TestDecimalToCommaSeparatedString(t *testing.T) {
 	}
 }
 
-func TestIntToCommaSeparatedString(t *testing.T) {
+func TestIntToHumanFriendlyString(t *testing.T) {
 	t.Parallel()
-	test := IntToCommaSeparatedString(0, ",")
+	test := IntToHumanFriendlyString(0, ",")
 	if strings.Contains(test, ",") {
 		t.Log(test)
 		t.Error("unexpected ','")
 	}
-	test = IntToCommaSeparatedString(100, ",")
+	test = IntToHumanFriendlyString(100, ",")
 	if strings.Contains(test, ",") {
 		t.Log(test)
 		t.Error("unexpected ','")
 	}
-	test = IntToCommaSeparatedString(1000, ",")
+	test = IntToHumanFriendlyString(1000, ",")
 	if !strings.Contains(test, ",") {
 		t.Error("expected ','")
 	}
 
-	test = IntToCommaSeparatedString(-1000, ",")
+	test = IntToHumanFriendlyString(-1000, ",")
 	if !strings.Contains(test, ",") {
 		t.Error("expected ','")
 	}
 
-	test = IntToCommaSeparatedString(1000000, ",")
+	test = IntToHumanFriendlyString(1000000, ",")
 	if !strings.Contains(test, ",") {
 		t.Error("expected ','")
 	}
@@ -276,8 +276,8 @@ func TestIntToCommaSeparatedString(t *testing.T) {
 	}
 }
 
-func TestNumberToCommaSeparatedString(t *testing.T) {
-	resp := numberToCommaSeparatedString("1", 1337, ".", ",", false)
+func TestNumberToHumanFriendlyString(t *testing.T) {
+	resp := numberToHumanFriendlyString("1", 1337, ".", ",", false)
 	if strings.Contains(resp, ".") {
 		t.Error("expected no comma")
 	}

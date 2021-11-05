@@ -104,26 +104,26 @@ type PrettyNumbers struct{}
 
 // Decimal2 renders a decimal nicely with 2 decimal places
 func (p *PrettyNumbers) Decimal2(d decimal.Decimal) string {
-	return convert.DecimalToCommaSeparatedString(d, 2, ".", ",")
+	return convert.DecimalToHumanFriendlyString(d, 2, ".", ",")
 }
 
 // Decimal8 renders a decimal nicely with 8 decimal places
 func (p *PrettyNumbers) Decimal8(d decimal.Decimal) string {
-	return convert.DecimalToCommaSeparatedString(d, 8, ".", ",")
+	return convert.DecimalToHumanFriendlyString(d, 8, ".", ",")
 }
 
 // Decimal64 renders a decimal nicely with the idea not to limit decimal places
 // and to make you nostalgic for Nintendo
 func (p *PrettyNumbers) Decimal64(d decimal.Decimal) string {
-	return convert.DecimalToCommaSeparatedString(d, 64, ".", ",")
+	return convert.DecimalToHumanFriendlyString(d, 64, ".", ",")
 }
 
 // Float8 renders a float nicely with 8 decimal places
 func (p *PrettyNumbers) Float8(f float64) string {
-	return convert.FloatToCommaSeparatedString(f, 8, ".", ",")
+	return convert.FloatToHumanFriendlyString(f, 8, ".", ",")
 }
 
 // Int renders an int nicely
 func (p *PrettyNumbers) Int(i int64) string {
-	return convert.IntToCommaSeparatedString(i, ",")
+	return convert.IntToHumanFriendlyString(i, ",")
 }

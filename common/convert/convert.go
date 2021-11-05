@@ -85,21 +85,21 @@ func BoolPtr(condition bool) *bool {
 	return &b
 }
 
-// IntToCommaSeparatedString converts an int to a comma separated string at the thousand point
+// IntToHumanFriendlyString converts an int to a comma separated string at the thousand point
 // eg 1000 becomes 1,000
-func IntToCommaSeparatedString(number int64, thousandsSep string) string {
+func IntToHumanFriendlyString(number int64, thousandsSep string) string {
 	neg := false
 	if number < 0 {
 		number = -number
 		neg = true
 	}
 	str := fmt.Sprintf("%v", number)
-	return numberToCommaSeparatedString(str, 0, "", thousandsSep, neg)
+	return numberToHumanFriendlyString(str, 0, "", thousandsSep, neg)
 }
 
-// FloatToCommaSeparatedString converts a float to a comma separated string at the thousand point
+// FloatToHumanFriendlyString converts a float to a comma separated string at the thousand point
 // eg 1000 becomes 1,000
-func FloatToCommaSeparatedString(number float64, decimals uint, decPoint, thousandsSep string) string {
+func FloatToHumanFriendlyString(number float64, decimals uint, decPoint, thousandsSep string) string {
 	neg := false
 	if number < 0 {
 		number = -number
@@ -107,12 +107,12 @@ func FloatToCommaSeparatedString(number float64, decimals uint, decPoint, thousa
 	}
 	dec := int(decimals)
 	str := fmt.Sprintf("%."+strconv.Itoa(dec)+"F", number)
-	return numberToCommaSeparatedString(str, dec, decPoint, thousandsSep, neg)
+	return numberToHumanFriendlyString(str, dec, decPoint, thousandsSep, neg)
 }
 
-// DecimalToCommaSeparatedString converts a decimal number to a comma separated string at the thousand point
+// DecimalToHumanFriendlyString converts a decimal number to a comma separated string at the thousand point
 // eg 1000 becomes 1,000
-func DecimalToCommaSeparatedString(number decimal.Decimal, rounding int, decPoint, thousandsSep string) string {
+func DecimalToHumanFriendlyString(number decimal.Decimal, rounding int, decPoint, thousandsSep string) string {
 	neg := false
 	if number.LessThan(decimal.Zero) {
 		number = number.Abs()
@@ -125,10 +125,10 @@ func DecimalToCommaSeparatedString(number decimal.Decimal, rounding int, decPoin
 	} else if len(rnd[1]) < rounding {
 		rounding = len(rnd[1])
 	}
-	return numberToCommaSeparatedString(number.StringFixed(int32(rounding)), rounding, decPoint, thousandsSep, neg)
+	return numberToHumanFriendlyString(number.StringFixed(int32(rounding)), rounding, decPoint, thousandsSep, neg)
 }
 
-func numberToCommaSeparatedString(str string, dec int, decPoint, thousandsSep string, neg bool) string {
+func numberToHumanFriendlyString(str string, dec int, decPoint, thousandsSep string, neg bool) string {
 	var prefix, suffix string
 	if len(str)-(dec+1) < 0 {
 		dec = 0

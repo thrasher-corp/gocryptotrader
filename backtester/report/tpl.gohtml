@@ -33,6 +33,8 @@
 	<script type="application/javascript"  src="https://code.highcharts.com/modules/stock-tools.js"></script>
 	<script type="application/javascript"  src="https://code.highcharts.com/stock/modules/heikinashi.js"></script>
 	<script type="application/javascript"  src="https://code.highcharts.com/stock/modules/hollowcandlestick.js"></script>
+	<script  type="application/javascript" src="https://code.highcharts.com/modules/exporting.js"></script>
+	<script  type="application/javascript" src="https://code.highcharts.com/modules/export-data.js"></script>
 	<style>
 		h2 {
 			padding-top:  75px;
@@ -750,6 +752,11 @@
 				<div id="usdtotals" style="max-height: 800px;min-height: 75vh;" >
 					<script>
 						Highcharts.chart('usdtotals', {
+							stockTools: {
+								gui: {
+									buttons:[ 'simpleShapes', 'lines', 'crookedLines', 'measure', 'advanced', 'toggleAnnotations', 'verticalLabels', 'flags', 'zoomChange', 'currentPriceIndicator' ]
+								}
+							},
 							title: {
 								text: 'Holding value over strategy duration'
 							},
@@ -812,6 +819,11 @@
 				<div id="holdingsovertime" style="max-height: 800px;min-height: 75vh;" >
 					<script>
 						Highcharts.chart('holdingsovertime', {
+							stockTools: {
+								gui: {
+									buttons:[ 'simpleShapes', 'lines', 'crookedLines', 'measure', 'advanced', 'toggleAnnotations', 'verticalLabels', 'flags', 'zoomChange', 'currentPriceIndicator' ]
+								}
+							},
 							title: {
 								text: 'Holdings over strategy duration'
 							},
@@ -884,6 +896,11 @@
 
 
 							Highcharts.stockChart('{{.Exchange}}{{.Asset}}{{.Pair}}', {
+								stockTools: {
+									gui: {
+										buttons:[ 'indicators', 'separator', 'simpleShapes', 'lines', 'crookedLines', 'measure', 'advanced', 'toggleAnnotations', 'verticalLabels', 'flags', 'zoomChange', 'currentPriceIndicator' ]
+									}
+								},
 								yAxis: [{
 									labels: {
 										align: 'left'
