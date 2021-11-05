@@ -205,6 +205,8 @@ type BatchCancelOrderData struct {
 	Msg           string  `json:"msg"`
 }
 
+// FuturesNewOrderRequest stores all the data needed to submit a
+// delivery/coin-margined-futures order.
 type FuturesNewOrderRequest struct {
 	symbol           currency.Pair
 	side             string
