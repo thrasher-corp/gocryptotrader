@@ -233,7 +233,7 @@ func (by *Bybit) GetUSDTRiskLimit(symbol currency.Pair) ([]RiskInfo, error) {
 	return resp.Data, by.SendHTTPRequest(exchange.RestUSDTMargined, path, &resp)
 }
 
-// CreateUSDTFuturesOrder sends a new futures order to the exchange
+// CreateUSDTFuturesOrder sends a new USDT futures order to the exchange
 func (by *Bybit) CreateUSDTFuturesOrder(symbol currency.Pair, side, orderType, timeInForce,
 	orderLinkID, takeProfitTriggerBy, stopLossTriggerBy string,
 	quantity, price, takeProfit, stopLoss float64, closeOnTrigger, reduceOnly bool) (FuturesOrderData, error) {
@@ -294,8 +294,8 @@ func (by *Bybit) CreateUSDTFuturesOrder(symbol currency.Pair, side, orderType, t
 	return resp.Data, by.SendAuthHTTPRequest(exchange.RestUSDTMargined, http.MethodPost, ufuturesCreateOrder, params, &resp, bybitAuthRate)
 }
 
-// GetUSDTActiveFuturesOrders gets list of futures active orders
-func (by *Bybit) GetUSDTActiveFuturesOrders(symbol currency.Pair, orderStatus, direction, orderID, orderLinkID string, page, limit int64) ([]FuturesActiveOrders, error) {
+// GetActiveUSDTFuturesOrders gets list of USDT futures active orders
+func (by *Bybit) GetActiveUSDTFuturesOrders(symbol currency.Pair, orderStatus, direction, orderID, orderLinkID string, page, limit int64) ([]FuturesActiveOrders, error) {
 	resp := struct {
 		Result struct {
 			Data        []FuturesActiveOrders `json:"data"`
@@ -332,8 +332,8 @@ func (by *Bybit) GetUSDTActiveFuturesOrders(symbol currency.Pair, orderStatus, d
 	return resp.Result.Data, by.SendAuthHTTPRequest(exchange.RestUSDTMargined, http.MethodGet, ufuturesGetActiveOrders, params, &resp, bybitAuthRate)
 }
 
-// CancelUSDTActiveFuturesOrders cancels futures unfilled or partially filled orders
-func (by *Bybit) CancelUSDTActiveFuturesOrders(symbol currency.Pair, orderID, orderLinkID string) (string, error) {
+// CancelActiveUSDTFuturesOrders cancels USDT futures unfilled or partially filled orders
+func (by *Bybit) CancelActiveUSDTFuturesOrders(symbol currency.Pair, orderID, orderLinkID string) (string, error) {
 	resp := struct {
 		Data struct {
 			OrderID string `json:"order_id"`
@@ -357,8 +357,8 @@ func (by *Bybit) CancelUSDTActiveFuturesOrders(symbol currency.Pair, orderID, or
 	return resp.Data.OrderID, by.SendAuthHTTPRequest(exchange.RestUSDTMargined, http.MethodPost, ufuturesCancelActiveOrder, params, &resp, bybitAuthRate)
 }
 
-// CancelAllUSDTActiveFuturesOrders cancels all futures unfilled or partially filled orders
-func (by *Bybit) CancelAllUSDTActiveFuturesOrders(symbol currency.Pair) ([]string, error) {
+// CancelAllActiveUSDTFuturesOrders cancels all USDT futures unfilled or partially filled orders
+func (by *Bybit) CancelAllActiveUSDTFuturesOrders(symbol currency.Pair) ([]string, error) {
 	resp := struct {
 		Data []string `json:"result"`
 	}{}
@@ -452,6 +452,234 @@ func (by *Bybit) GetActiveUSDTRealtimeOrders(symbol currency.Pair, orderID, orde
 			return data, err
 		}
 		data = append(data, resp.Data)
+	}
+	return data, nil
+}
+
+// CreateConditionalUSDTFuturesOrder sends a new conditional USDT futures order to the exchange
+func (by *Bybit) CreateConditionalUSDTFuturesOrder(symbol currency.Pair, side, orderType, timeInForce,
+	orderLinkID, takeProfitTriggerBy, stopLossTriggerBy, triggerBy string,
+	quantity, price, takeProfit, stopLoss, basePrice, stopPrice float64, closeOnTrigger, reduceOnly bool) (USDTFuturesConditionalOrderResp, error) {
+	resp := struct {
+		Data USDTFuturesConditionalOrderResp `json:"result"`
+	}{}
+	params := url.Values{}
+	symbolValue, err := by.FormatSymbol(symbol, asset.USDTMarginedFutures)
+	if err != nil {
+		return resp.Data, err
+	}
+	params.Set("symbol", symbolValue)
+	params.Set("side", side)
+	params.Set("order_type", orderType)
+	if quantity != 0 {
+		params.Set("qty", strconv.FormatFloat(quantity, 'f', -1, 64))
+	} else {
+		return resp.Data, errors.New("quantity can't be zero or missing")
+	}
+	if price != 0 {
+		params.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
+	}
+	if basePrice != 0 {
+		params.Set("base_price", strconv.FormatFloat(basePrice, 'f', -1, 64))
+	} else {
+		return resp.Data, errors.New("basePrice can't be empty or missing")
+	}
+	if stopPrice != 0 {
+		params.Set("stop_px", strconv.FormatFloat(stopPrice, 'f', -1, 64))
+	} else {
+		return resp.Data, errors.New("stopPrice can't be empty or missing")
+	}
+	if timeInForce != "" {
+		params.Set("time_in_force", timeInForce)
+	} else {
+		return resp.Data, errors.New("timeInForce can't be empty or missing")
+	}
+	if triggerBy != "" {
+		params.Set("trigger_by", triggerBy)
+	}
+	if closeOnTrigger {
+		params.Set("close_on_trigger", "true")
+	}
+	if reduceOnly {
+		params.Set("reduce_only", "true")
+	}
+	if orderLinkID != "" {
+		params.Set("order_link_id", orderLinkID)
+	}
+	if takeProfit != 0 {
+		params.Set("take_profit", strconv.FormatFloat(takeProfit, 'f', -1, 64))
+	}
+	if stopLoss != 0 {
+		params.Set("stop_loss", strconv.FormatFloat(stopLoss, 'f', -1, 64))
+	}
+	if takeProfitTriggerBy != "" {
+		params.Set("tp_trigger_by", takeProfitTriggerBy)
+	}
+	if stopLossTriggerBy != "" {
+		params.Set("sl_trigger_by", stopLossTriggerBy)
+	}
+	return resp.Data, by.SendAuthHTTPRequest(exchange.RestUSDTMargined, http.MethodPost, ufuturesCreateConditionalOrder, params, &resp, bybitAuthRate)
+}
+
+// GetConditionalUSDTFuturesOrders gets list of USDT futures conditional orders
+func (by *Bybit) GetConditionalUSDTFuturesOrders(symbol currency.Pair, stopOrderStatus, direction, stopOrderID, orderLinkID string, limit, page int64) ([]USDTFuturesConditionalOrders, error) {
+	resp := struct {
+		Result struct {
+			Data        []USDTFuturesConditionalOrders `json:"data"`
+			CurrentPage int64                          `json:"current_page"`
+			LastPage    int64                          `json:"last_page"`
+		} `json:"result"`
+	}{}
+	params := url.Values{}
+	symbolValue, err := by.FormatSymbol(symbol, asset.USDTMarginedFutures)
+	if err != nil {
+		return resp.Result.Data, err
+	}
+	params.Set("symbol", symbolValue)
+	if stopOrderStatus != "" {
+		params.Set("stop_order_status", stopOrderStatus)
+	}
+	if direction != "" {
+		params.Set("order", direction)
+	}
+	if limit > 0 && limit <= 50 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if page != 0 {
+		params.Set("page", strconv.FormatInt(page, 10))
+	}
+	if stopOrderID != "" {
+		params.Set("stop_order_id", stopOrderID)
+	}
+	if orderLinkID != "" {
+		params.Set("order_link_id", orderLinkID)
+	}
+	return resp.Result.Data, by.SendAuthHTTPRequest(exchange.RestUSDTMargined, http.MethodGet, ufuturesGetConditionalOrders, params, &resp, bybitAuthRate)
+}
+
+// CancelConditionalUSDTFuturesOrders cancels untriggered conditional orders
+func (by *Bybit) CancelConditionalUSDTFuturesOrders(symbol currency.Pair, stopOrderID, orderLinkID string) (string, error) {
+	resp := struct {
+		Result struct {
+			StopOrderID string `json:"stop_order_id"`
+		} `json:"result"`
+	}{}
+	params := url.Values{}
+	symbolValue, err := by.FormatSymbol(symbol, asset.USDTMarginedFutures)
+	if err != nil {
+		return "", err
+	}
+	params.Set("symbol", symbolValue)
+	if stopOrderID == "" && orderLinkID == "" {
+		return "", errors.New("one among stopOrderID or orderLinkID should be present")
+	}
+	if stopOrderID != "" {
+		params.Set("stop_order_id", stopOrderID)
+	}
+	if orderLinkID != "" {
+		params.Set("order_link_id", orderLinkID)
+	}
+	return resp.Result.StopOrderID, by.SendAuthHTTPRequest(exchange.RestUSDTMargined, http.MethodPost, ufuturesCancelConditionalOrder, params, &resp, bybitAuthRate)
+}
+
+// CancelAllConditionalUSDTFuturesOrders cancels all untriggered conditional orders
+func (by *Bybit) CancelAllConditionalUSDTFuturesOrders(symbol currency.Pair) ([]string, error) {
+	resp := struct {
+		Data []string `json:"result"`
+	}{}
+	params := url.Values{}
+	symbolValue, err := by.FormatSymbol(symbol, asset.USDTMarginedFutures)
+	if err != nil {
+		return resp.Data, err
+	}
+	params.Set("symbol", symbolValue)
+	return resp.Data, by.SendAuthHTTPRequest(exchange.RestUSDTMargined, http.MethodPost, ufuturesCancelAllConditionalOrders, params, &resp, bybitAuthRate)
+}
+
+// ReplaceConditionalUSDTFuturesOrders modify unfilled or partially filled conditional orders
+func (by *Bybit) ReplaceConditionalUSDTFuturesOrders(symbol currency.Pair, stopOrderID, orderLinkID, takeProfitTriggerBy, stopLossTriggerBy string,
+	updatedQty, updatedPrice, takeProfitPrice, stopLossPrice, orderTriggerPrice float64) (string, error) {
+	resp := struct {
+		Data struct {
+			OrderID string `json:"stop_order_id"`
+		} `json:"result"`
+	}{}
+
+	params := url.Values{}
+	symbolValue, err := by.FormatSymbol(symbol, asset.USDTMarginedFutures)
+	if err != nil {
+		return "", err
+	}
+	params.Set("symbol", symbolValue)
+	if stopOrderID == "" && orderLinkID == "" {
+		return "", errors.New("one among stopOrderID or orderLinkID should be present")
+	}
+	if stopOrderID != "" {
+		params.Set("stop_order_id", stopOrderID)
+	}
+	if orderLinkID != "" {
+		params.Set("order_link_id", orderLinkID)
+	}
+	if updatedQty != 0 {
+		params.Set("p_r_qty", strconv.FormatFloat(updatedQty, 'f', -1, 64))
+	}
+	if updatedPrice != 0 {
+		params.Set("p_r_price", strconv.FormatFloat(updatedPrice, 'f', -1, 64))
+	}
+	if orderTriggerPrice != 0 {
+		params.Set("p_r_trigger_price", strconv.FormatFloat(orderTriggerPrice, 'f', -1, 64))
+	}
+	if takeProfitPrice != 0 {
+		params.Set("take_profit", strconv.FormatFloat(takeProfitPrice, 'f', -1, 64))
+	}
+	if stopLossPrice != 0 {
+		params.Set("stop_loss", strconv.FormatFloat(stopLossPrice, 'f', -1, 64))
+	}
+	if takeProfitTriggerBy != "" {
+		params.Set("tp_trigger_by", takeProfitTriggerBy)
+	}
+	if stopLossTriggerBy != "" {
+		params.Set("sl_trigger_by", stopLossTriggerBy)
+	}
+	return resp.Data.OrderID, by.SendAuthHTTPRequest(exchange.RestUSDTMargined, http.MethodPost, ufuturesReplaceConditionalOrder, params, &resp, bybitAuthRate)
+}
+
+// GetConditionalUSDTRealtimeOrders query real time considitional order data
+func (by *Bybit) GetConditionalUSDTRealtimeOrders(symbol currency.Pair, stopOrderID, orderLinkID string) ([]FuturesConditionalRealtimeOrder, error) {
+	var data []FuturesConditionalRealtimeOrder
+	params := url.Values{}
+	symbolValue, err := by.FormatSymbol(symbol, asset.USDTMarginedFutures)
+	if err != nil {
+		return data, err
+	}
+	params.Set("symbol", symbolValue)
+	if stopOrderID != "" {
+		params.Set("stop_order_id", stopOrderID)
+	}
+	if orderLinkID != "" {
+		params.Set("order_link_id", orderLinkID)
+	}
+
+	if stopOrderID == "" && orderLinkID == "" {
+		resp := struct {
+			Result []FuturesConditionalRealtimeOrder `json:"result"`
+		}{}
+		err = by.SendAuthHTTPRequest(exchange.RestUSDTMargined, http.MethodGet, ufuturesGetConditionalRealtimeOrders, params, &resp, bybitAuthRate)
+		if err != nil {
+			return data, err
+		}
+		for _, d := range resp.Result {
+			data = append(data, d)
+		}
+	} else {
+		resp := struct {
+			Result FuturesConditionalRealtimeOrder `json:"result"`
+		}{}
+		err = by.SendAuthHTTPRequest(exchange.RestUSDTMargined, http.MethodGet, ufuturesGetConditionalRealtimeOrders, params, &resp, bybitAuthRate)
+		if err != nil {
+			return data, err
+		}
+		data = append(data, resp.Result)
 	}
 	return data, nil
 }

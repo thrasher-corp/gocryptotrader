@@ -199,41 +199,62 @@ type FuturesActiveOrders struct {
 
 // FuturesRealtimeOrderData stores futures realtime order data
 type FuturesRealtimeOrderData struct {
-	UserID              int64                  `json:"user_id"`
-	Symbol              string                 `json:"symbol"`
-	Side                string                 `json:"side"`
-	OrderType           string                 `json:"order_type"`
-	Price               float64                `json:"price"`
-	Qty                 float64                `json:"qty"`
-	TimeInForce         string                 `json:"time_in_force"`
-	OrderStatus         string                 `json:"order_status"`
-	ExtensionField      map[string]interface{} `json:"ext_fields"`
-	LeavesQty           float64                `json:"leaves_qty"`
-	LeaveValue          float64                `json:"leaves_value"`
-	CumulativeQty       float64                `json:"cum_exec_qty"`
-	CumulativeValue     float64                `json:"cum_exec_value"`
-	CumulativeFee       float64                `json:"cum_exec_fee"`
-	RejectReason        string                 `json:"reject_reason"`
-	OrderLinkID         string                 `json:"order_link_id"`
-	CreatedAt           string                 `json:"create_at"`
-	UpdatedAt           string                 `json:"updated_at"`
-	OrderID             string                 `json:"order_id"`
-	TakeProfit          float64                `json:"take_profit"`
-	StopLoss            float64                `json:"stop_loss"`
-	TakeProfitTriggerBy string                 `json:"tp_trigger_by"`
-	StopLossTriggerBy   string                 `json:"sl_trigger_by"`
+	UserID              int64   `json:"user_id"`
+	Symbol              string  `json:"symbol"`
+	Side                string  `json:"side"`
+	OrderType           string  `json:"order_type"`
+	Price               float64 `json:"price"`
+	Qty                 float64 `json:"qty"`
+	TimeInForce         string  `json:"time_in_force"`
+	OrderStatus         string  `json:"order_status"`
+	OrderLinkID         string  `json:"order_link_id"`
+	TakeProfit          float64 `json:"take_profit"`
+	StopLoss            float64 `json:"stop_loss"`
+	TakeProfitTriggerBy string  `json:"tp_trigger_by"`
+	StopLossTriggerBy   string  `json:"sl_trigger_by"`
 }
 
 type FuturesActiveRealtimeOrder struct {
 	FuturesRealtimeOrderData
+
+	ExtensionField  map[string]interface{} `json:"ext_fields"`
+	LeavesQty       float64                `json:"leaves_qty"`
+	LeaveValue      float64                `json:"leaves_value"`
+	CumulativeQty   float64                `json:"cum_exec_qty"`
+	CumulativeValue float64                `json:"cum_exec_value"`
+	CumulativeFee   float64                `json:"cum_exec_fee"`
+	RejectReason    string                 `json:"reject_reason"`
+	CreatedAt       string                 `json:"create_at"`
+	UpdatedAt       string                 `json:"updated_at"`
+	OrderID         string                 `json:"order_id"`
+
 	CancelType string `json:"cancel_type"`
 }
 
 type FuturesConditionalRealtimeOrder struct {
 	FuturesRealtimeOrderData
+
+	ExtensionField  map[string]interface{} `json:"ext_fields"`
+	LeavesQty       float64                `json:"leaves_qty"`
+	LeaveValue      float64                `json:"leaves_value"`
+	CumulativeQty   float64                `json:"cum_exec_qty"`
+	CumulativeValue float64                `json:"cum_exec_value"`
+	CumulativeFee   float64                `json:"cum_exec_fee"`
+	RejectReason    string                 `json:"reject_reason"`
+	CreatedAt       string                 `json:"create_at"`
+	UpdatedAt       string                 `json:"updated_at"`
+	OrderID         string                 `json:"order_id"`
+
 	BasePrice string `json:"base_price"`
 	StopPrice string `json:"stop_px"`
 	TriggerBy string `json:"trigger_by"`
+}
+
+type USDTFuturesConditionalRealtimeOrder struct {
+	FuturesRealtimeOrderData
+	TriggerPrice float64 `json:"trigger_price"`
+	CreatedAt    string  `json:"create_at"`
+	UpdatedAt    string  `json:"updated_at"`
 }
 
 // FuturesConditionalOrderData stores futures conditional order data
@@ -247,39 +268,55 @@ type FuturesConditionalOrderData struct {
 	TimeInForce         string  `json:"time_in_force"`
 	TriggerBy           string  `json:"trigger_by"`
 	BasePrice           string  `json:"base_price"`
-	Remark              string  `json:"remark"`
-	RejectReason        string  `json:"reject_reason"`
-	StopPrice           string  `json:"stop_px"`
 	StopOrderID         string  `json:"stop_order_id"`
 	OrderLinkID         string  `json:"order_link_id"`
-	CreatedAt           string  `json:"create_at"`
-	TakeProfit          float64 `json:"take_profit"`
-	StopLoss            float64 `json:"stop_loss"`
 	TakeProfitTriggerBy string  `json:"tp_trigger_by"`
 	StopLossTriggerBy   string  `json:"sl_trigger_by"`
 }
 
+// FuturesConditionalOrderResp stores futures conditional order response
+type FuturesConditionalOrderResp struct {
+	FuturesConditionalOrderData
+	Remark       string  `json:"remark"`
+	RejectReason string  `json:"reject_reason"`
+	StopPrice    string  `json:"stop_px"`
+	TakeProfit   float64 `json:"take_profit"`
+	StopLoss     float64 `json:"stop_loss"`
+	CreatedAt    string  `json:"created_at"`
+	UpdatedAt    string  `json:"updated_at"`
+}
+
+// USDTFuturesConditionalOrderResp stores USDT futures conditional order response
+type USDTFuturesConditionalOrderResp struct {
+	FuturesConditionalOrderData
+	OrderStatus    string `json:"order_status"`
+	TriggerPrice   int64  `json:"trigger_price"`
+	ReduceOnly     bool   `json:"reduce_only"`
+	CloseOnTrigger bool   `json:"close_on_trigger"`
+	CreatedAt      string `json:"created_time"`
+	UpdatedAt      string `json:"updated_time"`
+}
+
 type FuturesConditionalOrders struct {
-	UserID              int64   `json:"user_id"`
-	StopOrderStatus     string  `json:"stop_order_status"`
-	Symbol              string  `json:"symbol"`
-	Side                string  `json:"side"`
-	OrderType           string  `json:"order_type"`
-	Price               float64 `json:"price"`
-	Qty                 float64 `json:"qty"`
-	TimeInForce         string  `json:"time_in_force"`
-	StopOrderType       string  `json:"stop_order_type"`
-	TriggerBy           string  `json:"trigger_by"`
-	BasePrice           string  `json:"base_price"`
-	OrderLinkID         string  `json:"order_link_id"`
-	CreatedAt           string  `json:"create_at"`
-	UpdatedAt           string  `json:"updated_at"`
-	StopPrice           string  `json:"stop_px"`
-	StopOrderID         string  `json:"stop_order_id"`
-	TakeProfit          float64 `json:"take_profit"`
-	StopLoss            float64 `json:"stop_loss"`
-	TakeProfitTriggerBy string  `json:"tp_trigger_by"`
-	StopLossTriggerBy   string  `json:"sl_trigger_by"`
+	FuturesConditionalOrderData
+	StopOrderStatus string  `json:"stop_order_status"`
+	StopOrderType   string  `json:"stop_order_type"`
+	CreatedAt       string  `json:"created_at"`
+	UpdatedAt       string  `json:"updated_at"`
+	StopPrice       string  `json:"stop_px"`
+	StopOrderID     string  `json:"stop_order_id"`
+	TakeProfit      float64 `json:"take_profit"`
+	StopLoss        float64 `json:"stop_loss"`
+}
+
+type USDTFuturesConditionalOrders struct {
+	FuturesConditionalOrderData
+	OrderStatus  string  `json:"order_status"`
+	TriggerPrice int64   `json:"trigger_price"`
+	CreatedAt    string  `json:"created_time"`
+	UpdatedAt    string  `json:"updated_time"`
+	TakeProfit   float64 `json:"take_profit"`
+	StopLoss     float64 `json:"stop_loss"`
 }
 
 type FuturesCancelOrderData struct {

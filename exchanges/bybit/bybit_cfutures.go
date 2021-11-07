@@ -612,9 +612,9 @@ func (by *Bybit) GetActiveRealtimeOrders(symbol currency.Pair, orderID, orderLin
 // CreateConditionalFuturesOrder sends a new conditional futures order to the exchange
 func (by *Bybit) CreateConditionalFuturesOrder(symbol currency.Pair, side, orderType, timeInForce,
 	orderLinkID, takeProfitTriggerBy, stopLossTriggerBy, triggerBy string,
-	quantity, price, takeProfit, stopLoss, basePrice, stopPrice float64, closeOnTrigger bool) (FuturesConditionalOrderData, error) {
+	quantity, price, takeProfit, stopLoss, basePrice, stopPrice float64, closeOnTrigger bool) (FuturesConditionalOrderResp, error) {
 	resp := struct {
-		Data FuturesConditionalOrderData `json:"result"`
+		Data FuturesConditionalOrderResp `json:"result"`
 	}{}
 	params := url.Values{}
 	symbolValue, err := by.FormatSymbol(symbol, asset.CoinMarginedFutures)
