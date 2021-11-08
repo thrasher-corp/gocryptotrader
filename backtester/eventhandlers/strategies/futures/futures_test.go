@@ -1,4 +1,4 @@
-package rsi
+package futures
 
 import (
 	"errors"
@@ -30,8 +30,8 @@ func TestName(t *testing.T) {
 func TestSupportsSimultaneousProcessing(t *testing.T) {
 	t.Parallel()
 	s := Strategy{}
-	if !s.SupportsSimultaneousProcessing() {
-		t.Error("expected true")
+	if s.SupportsSimultaneousProcessing() {
+		t.Error("expected false")
 	}
 }
 

@@ -410,7 +410,7 @@ func TestEnhanceCandles(t *testing.T) {
 				VolumeAdjustedPrice: decimal.NewFromInt(1337),
 				SlippageRate:        decimal.NewFromInt(1),
 				CostBasis:           decimal.NewFromInt(1337),
-				Detail:              nil,
+				SpotOrder:           nil,
 			},
 		},
 		Timestamp: tt,
@@ -427,7 +427,7 @@ func TestEnhanceCandles(t *testing.T) {
 				VolumeAdjustedPrice: decimal.NewFromInt(1337),
 				SlippageRate:        decimal.NewFromInt(1),
 				CostBasis:           decimal.NewFromInt(1337),
-				Detail: &gctorder.Detail{
+				SpotOrder: &gctorder.Detail{
 					Date: tt,
 					Side: gctorder.Buy,
 				},
@@ -447,7 +447,7 @@ func TestEnhanceCandles(t *testing.T) {
 				VolumeAdjustedPrice: decimal.NewFromInt(1337),
 				SlippageRate:        decimal.NewFromInt(1),
 				CostBasis:           decimal.NewFromInt(1337),
-				Detail: &gctorder.Detail{
+				SpotOrder: &gctorder.Detail{
 					Date: tt,
 					Side: gctorder.Sell,
 				},

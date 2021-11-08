@@ -117,7 +117,7 @@ func TestEvaluateOrder(t *testing.T) {
 	_, err = r.EvaluateOrder(o, h, compliance.Snapshot{
 		Orders: []compliance.SnapshotOrder{
 			{
-				Detail: &gctorder.Detail{
+				SpotOrder: &gctorder.Detail{
 					Leverage: 3,
 				},
 			},

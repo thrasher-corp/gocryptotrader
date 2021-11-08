@@ -134,16 +134,17 @@ func TestLoadDataAPI(t *testing.T) {
 	cfg := &config.Config{
 		CurrencySettings: []config.CurrencySettings{
 			{
-				ExchangeName:      "Binance",
-				Asset:             asset.Spot.String(),
-				Base:              cp.Base.String(),
-				Quote:             cp.Quote.String(),
-				InitialQuoteFunds: leet,
-				Leverage:          config.Leverage{},
-				BuySide:           config.MinMax{},
-				SellSide:          config.MinMax{},
-				MakerFee:          decimal.Zero,
-				TakerFee:          decimal.Zero,
+				ExchangeName: "Binance",
+				Asset:        asset.Spot.String(),
+				Base:         cp.Base.String(),
+				Quote:        cp.Quote.String(),
+				SpotDetails: &config.SpotDetails{
+					InitialQuoteFunds: leet,
+				},
+				BuySide:  config.MinMax{},
+				SellSide: config.MinMax{},
+				MakerFee: decimal.Zero,
+				TakerFee: decimal.Zero,
 			},
 		},
 		DataSettings: config.DataSettings{
@@ -190,16 +191,17 @@ func TestLoadDataDatabase(t *testing.T) {
 	cfg := &config.Config{
 		CurrencySettings: []config.CurrencySettings{
 			{
-				ExchangeName:      "Binance",
-				Asset:             asset.Spot.String(),
-				Base:              cp.Base.String(),
-				Quote:             cp.Quote.String(),
-				InitialQuoteFunds: leet,
-				Leverage:          config.Leverage{},
-				BuySide:           config.MinMax{},
-				SellSide:          config.MinMax{},
-				MakerFee:          decimal.Zero,
-				TakerFee:          decimal.Zero,
+				ExchangeName: "Binance",
+				Asset:        asset.Spot.String(),
+				Base:         cp.Base.String(),
+				Quote:        cp.Quote.String(),
+				SpotDetails: &config.SpotDetails{
+					InitialQuoteFunds: leet,
+				},
+				BuySide:  config.MinMax{},
+				SellSide: config.MinMax{},
+				MakerFee: decimal.Zero,
+				TakerFee: decimal.Zero,
 			},
 		},
 		DataSettings: config.DataSettings{
@@ -257,16 +259,17 @@ func TestLoadDataCSV(t *testing.T) {
 	cfg := &config.Config{
 		CurrencySettings: []config.CurrencySettings{
 			{
-				ExchangeName:      "Binance",
-				Asset:             asset.Spot.String(),
-				Base:              cp.Base.String(),
-				Quote:             cp.Quote.String(),
-				InitialQuoteFunds: leet,
-				Leverage:          config.Leverage{},
-				BuySide:           config.MinMax{},
-				SellSide:          config.MinMax{},
-				MakerFee:          decimal.Zero,
-				TakerFee:          decimal.Zero,
+				ExchangeName: "Binance",
+				Asset:        asset.Spot.String(),
+				Base:         cp.Base.String(),
+				Quote:        cp.Quote.String(),
+				SpotDetails: &config.SpotDetails{
+					InitialQuoteFunds: leet,
+				},
+				BuySide:  config.MinMax{},
+				SellSide: config.MinMax{},
+				MakerFee: decimal.Zero,
+				TakerFee: decimal.Zero,
 			},
 		},
 		DataSettings: config.DataSettings{
@@ -314,16 +317,17 @@ func TestLoadDataLive(t *testing.T) {
 	cfg := &config.Config{
 		CurrencySettings: []config.CurrencySettings{
 			{
-				ExchangeName:      "Binance",
-				Asset:             asset.Spot.String(),
-				Base:              cp.Base.String(),
-				Quote:             cp.Quote.String(),
-				InitialQuoteFunds: leet,
-				Leverage:          config.Leverage{},
-				BuySide:           config.MinMax{},
-				SellSide:          config.MinMax{},
-				MakerFee:          decimal.Zero,
-				TakerFee:          decimal.Zero,
+				ExchangeName: "Binance",
+				Asset:        asset.Spot.String(),
+				Base:         cp.Base.String(),
+				Quote:        cp.Quote.String(),
+				SpotDetails: &config.SpotDetails{
+					InitialQuoteFunds: leet,
+				},
+				BuySide:  config.MinMax{},
+				SellSide: config.MinMax{},
+				MakerFee: decimal.Zero,
+				TakerFee: decimal.Zero,
 			},
 		},
 		DataSettings: config.DataSettings{

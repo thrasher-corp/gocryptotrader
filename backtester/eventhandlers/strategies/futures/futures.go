@@ -1,4 +1,4 @@
-package rsi
+package futures
 
 import (
 	"errors"

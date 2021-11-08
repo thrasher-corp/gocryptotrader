@@ -584,32 +584,46 @@ func addCurrencySetting(reader *bufio.Reader, usingExchangeLevelFunding bool) (*
 	var f float64
 	fmt.Println("Enter the currency base. eg BTC")
 	setting.Base = quickParse(reader)
-	if !usingExchangeLevelFunding {
-		fmt.Println("Enter the initial base funds. eg 0")
-		parseNum := quickParse(reader)
-		if parseNum != "" {
-			f, err = strconv.ParseFloat(parseNum, 64)
-			if err != nil {
-				return nil, err
+	switch setting.Asset {
+	case asset.Spot.String():
+		setting.SpotDetails = &config.SpotDetails{}
+		if !usingExchangeLevelFunding {
+			fmt.Println("Enter the initial base funds. eg 0")
+			parseNum := quickParse(reader)
+			if parseNum != "" {
+				f, err = strconv.ParseFloat(parseNum, 64)
+				if err != nil {
+					return nil, err
+				}
+				iqf := decimal.NewFromFloat(f)
+				setting.SpotDetails.InitialBaseFunds = &iqf
 			}
-			iqf := decimal.NewFromFloat(f)
-			setting.InitialBaseFunds = &iqf
 		}
+	case asset.Futures.String():
+
 	}
+
 	fmt.Println("Enter the currency quote. eg USDT")
 	setting.Quote = quickParse(reader)
-	if !usingExchangeLevelFunding {
-		fmt.Println("Enter the initial quote funds. eg 10000")
-		parseNum := quickParse(reader)
-		if parseNum != "" {
-			f, err = strconv.ParseFloat(parseNum, 64)
-			if err != nil {
-				return nil, err
+
+	switch setting.Asset {
+	case asset.Spot.String():
+		if !usingExchangeLevelFunding {
+			fmt.Println("Enter the initial quote funds. eg 10000")
+			parseNum := quickParse(reader)
+			if parseNum != "" {
+				f, err = strconv.ParseFloat(parseNum, 64)
+				if err != nil {
+					return nil, err
+				}
+				iqf := decimal.NewFromFloat(f)
+				setting.SpotDetails.InitialQuoteFunds = &iqf
 			}
-			iqf := decimal.NewFromFloat(f)
-			setting.InitialQuoteFunds = &iqf
 		}
+	case asset.Futures.String():
+
 	}
+
 	fmt.Println("Enter the maker-fee. eg 0.001")
 	parseNum := quickParse(reader)
 	if parseNum != "" {

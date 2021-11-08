@@ -104,16 +104,15 @@ func TestPrintSettings(t *testing.T) {
 		},
 		CurrencySettings: []CurrencySettings{
 			{
-				ExchangeName:      testExchange,
-				Asset:             asset.Spot.String(),
-				Base:              currency.BTC.String(),
-				Quote:             currency.USDT.String(),
-				InitialQuoteFunds: initialQuoteFunds1,
-				BuySide:           minMax,
-				SellSide:          minMax,
-				Leverage: Leverage{
-					CanUseLeverage: false,
+				ExchangeName: testExchange,
+				Asset:        asset.Spot.String(),
+				Base:         currency.BTC.String(),
+				Quote:        currency.USDT.String(),
+				SpotDetails: &SpotDetails{
+					InitialQuoteFunds: initialQuoteFunds1,
 				},
+				BuySide:  minMax,
+				SellSide: minMax,
 				MakerFee: makerFee,
 				TakerFee: takerFee,
 			},
@@ -167,16 +166,15 @@ func TestGenerateConfigForDCAAPICandles(t *testing.T) {
 		},
 		CurrencySettings: []CurrencySettings{
 			{
-				ExchangeName:      testExchange,
-				Asset:             asset.Spot.String(),
-				Base:              currency.BTC.String(),
-				Quote:             currency.USDT.String(),
-				InitialQuoteFunds: initialQuoteFunds2,
-				BuySide:           minMax,
-				SellSide:          minMax,
-				Leverage: Leverage{
-					CanUseLeverage: false,
+				ExchangeName: testExchange,
+				Asset:        asset.Spot.String(),
+				Base:         currency.BTC.String(),
+				Quote:        currency.USDT.String(),
+				SpotDetails: &SpotDetails{
+					InitialQuoteFunds: initialQuoteFunds2,
 				},
+				BuySide:  minMax,
+				SellSide: minMax,
 				MakerFee: makerFee,
 				TakerFee: takerFee,
 			},
@@ -243,7 +241,6 @@ func TestGenerateConfigForDCAAPICandlesExchangeLevelFunding(t *testing.T) {
 				Quote:        currency.USDT.String(),
 				BuySide:      minMax,
 				SellSide:     minMax,
-				Leverage:     Leverage{},
 				MakerFee:     makerFee,
 				TakerFee:     takerFee,
 			},
@@ -254,7 +251,6 @@ func TestGenerateConfigForDCAAPICandlesExchangeLevelFunding(t *testing.T) {
 				Quote:        currency.USDT.String(),
 				BuySide:      minMax,
 				SellSide:     minMax,
-				Leverage:     Leverage{},
 				MakerFee:     makerFee,
 				TakerFee:     takerFee,
 			},
@@ -304,16 +300,15 @@ func TestGenerateConfigForDCAAPITrades(t *testing.T) {
 		},
 		CurrencySettings: []CurrencySettings{
 			{
-				ExchangeName:      "ftx",
-				Asset:             asset.Spot.String(),
-				Base:              currency.BTC.String(),
-				Quote:             currency.USDT.String(),
-				InitialQuoteFunds: initialQuoteFunds2,
-				BuySide:           minMax,
-				SellSide:          minMax,
-				Leverage: Leverage{
-					CanUseLeverage: false,
+				ExchangeName: "ftx",
+				Asset:        asset.Spot.String(),
+				Base:         currency.BTC.String(),
+				Quote:        currency.USDT.String(),
+				SpotDetails: &SpotDetails{
+					InitialQuoteFunds: initialQuoteFunds2,
 				},
+				BuySide:                 minMax,
+				SellSide:                minMax,
 				MakerFee:                makerFee,
 				TakerFee:                takerFee,
 				SkipCandleVolumeFitting: true,
@@ -372,30 +367,28 @@ func TestGenerateConfigForDCAAPICandlesMultipleCurrencies(t *testing.T) {
 		},
 		CurrencySettings: []CurrencySettings{
 			{
-				ExchangeName:      testExchange,
-				Asset:             asset.Spot.String(),
-				Base:              currency.BTC.String(),
-				Quote:             currency.USDT.String(),
-				InitialQuoteFunds: initialQuoteFunds2,
-				BuySide:           minMax,
-				SellSide:          minMax,
-				Leverage: Leverage{
-					CanUseLeverage: false,
+				ExchangeName: testExchange,
+				Asset:        asset.Spot.String(),
+				Base:         currency.BTC.String(),
+				Quote:        currency.USDT.String(),
+				SpotDetails: &SpotDetails{
+					InitialQuoteFunds: initialQuoteFunds2,
 				},
+				BuySide:  minMax,
+				SellSide: minMax,
 				MakerFee: makerFee,
 				TakerFee: takerFee,
 			},
 			{
-				ExchangeName:      testExchange,
-				Asset:             asset.Spot.String(),
-				Base:              currency.ETH.String(),
-				Quote:             currency.USDT.String(),
-				InitialQuoteFunds: initialQuoteFunds2,
-				BuySide:           minMax,
-				SellSide:          minMax,
-				Leverage: Leverage{
-					CanUseLeverage: false,
+				ExchangeName: testExchange,
+				Asset:        asset.Spot.String(),
+				Base:         currency.ETH.String(),
+				Quote:        currency.USDT.String(),
+				SpotDetails: &SpotDetails{
+					InitialQuoteFunds: initialQuoteFunds2,
 				},
+				BuySide:  minMax,
+				SellSide: minMax,
 				MakerFee: makerFee,
 				TakerFee: takerFee,
 			},
@@ -446,30 +439,28 @@ func TestGenerateConfigForDCAAPICandlesSimultaneousProcessing(t *testing.T) {
 		},
 		CurrencySettings: []CurrencySettings{
 			{
-				ExchangeName:      testExchange,
-				Asset:             asset.Spot.String(),
-				Base:              currency.BTC.String(),
-				Quote:             currency.USDT.String(),
-				InitialQuoteFunds: initialQuoteFunds1,
-				BuySide:           minMax,
-				SellSide:          minMax,
-				Leverage: Leverage{
-					CanUseLeverage: false,
+				ExchangeName: testExchange,
+				Asset:        asset.Spot.String(),
+				Base:         currency.BTC.String(),
+				Quote:        currency.USDT.String(),
+				SpotDetails: &SpotDetails{
+					InitialQuoteFunds: initialQuoteFunds1,
 				},
+				BuySide:  minMax,
+				SellSide: minMax,
 				MakerFee: makerFee,
 				TakerFee: takerFee,
 			},
 			{
-				ExchangeName:      testExchange,
-				Asset:             asset.Spot.String(),
-				Base:              currency.ETH.String(),
-				Quote:             currency.USDT.String(),
-				InitialQuoteFunds: initialQuoteFunds2,
-				BuySide:           minMax,
-				SellSide:          minMax,
-				Leverage: Leverage{
-					CanUseLeverage: false,
+				ExchangeName: testExchange,
+				Asset:        asset.Spot.String(),
+				Base:         currency.ETH.String(),
+				Quote:        currency.USDT.String(),
+				SpotDetails: &SpotDetails{
+					InitialQuoteFunds: initialQuoteFunds2,
 				},
+				BuySide:  minMax,
+				SellSide: minMax,
 				MakerFee: makerFee,
 				TakerFee: takerFee,
 			},
@@ -520,16 +511,15 @@ func TestGenerateConfigForDCALiveCandles(t *testing.T) {
 		},
 		CurrencySettings: []CurrencySettings{
 			{
-				ExchangeName:      testExchange,
-				Asset:             asset.Spot.String(),
-				Base:              currency.BTC.String(),
-				Quote:             currency.USDT.String(),
-				InitialQuoteFunds: initialQuoteFunds2,
-				BuySide:           minMax,
-				SellSide:          minMax,
-				Leverage: Leverage{
-					CanUseLeverage: false,
+				ExchangeName: testExchange,
+				Asset:        asset.Spot.String(),
+				Base:         currency.BTC.String(),
+				Quote:        currency.USDT.String(),
+				SpotDetails: &SpotDetails{
+					InitialQuoteFunds: initialQuoteFunds2,
 				},
+				BuySide:  minMax,
+				SellSide: minMax,
 				MakerFee: makerFee,
 				TakerFee: takerFee,
 			},
@@ -587,31 +577,29 @@ func TestGenerateConfigForRSIAPICustomSettings(t *testing.T) {
 		},
 		CurrencySettings: []CurrencySettings{
 			{
-				ExchangeName:      testExchange,
-				Asset:             asset.Spot.String(),
-				Base:              currency.BTC.String(),
-				Quote:             currency.USDT.String(),
-				InitialQuoteFunds: initialQuoteFunds2,
-				BuySide:           minMax,
-				SellSide:          minMax,
-				Leverage: Leverage{
-					CanUseLeverage: false,
+				ExchangeName: testExchange,
+				Asset:        asset.Spot.String(),
+				Base:         currency.BTC.String(),
+				Quote:        currency.USDT.String(),
+				SpotDetails: &SpotDetails{
+					InitialQuoteFunds: initialQuoteFunds2,
 				},
+				BuySide:  minMax,
+				SellSide: minMax,
 				MakerFee: makerFee,
 				TakerFee: takerFee,
 			},
 			{
-				ExchangeName:      testExchange,
-				Asset:             asset.Spot.String(),
-				Base:              currency.ETH.String(),
-				Quote:             currency.USDT.String(),
-				InitialBaseFunds:  initialBaseFunds,
-				InitialQuoteFunds: initialQuoteFunds1,
-				BuySide:           minMax,
-				SellSide:          minMax,
-				Leverage: Leverage{
-					CanUseLeverage: false,
+				ExchangeName: testExchange,
+				Asset:        asset.Spot.String(),
+				Base:         currency.ETH.String(),
+				Quote:        currency.USDT.String(),
+				SpotDetails: &SpotDetails{
+					InitialBaseFunds:  initialBaseFunds,
+					InitialQuoteFunds: initialQuoteFunds1,
 				},
+				BuySide:  minMax,
+				SellSide: minMax,
 				MakerFee: makerFee,
 				TakerFee: takerFee,
 			},
@@ -663,16 +651,15 @@ func TestGenerateConfigForDCACSVCandles(t *testing.T) {
 		},
 		CurrencySettings: []CurrencySettings{
 			{
-				ExchangeName:      testExchange,
-				Asset:             asset.Spot.String(),
-				Base:              currency.BTC.String(),
-				Quote:             currency.USDT.String(),
-				InitialQuoteFunds: initialQuoteFunds2,
-				BuySide:           minMax,
-				SellSide:          minMax,
-				Leverage: Leverage{
-					CanUseLeverage: false,
+				ExchangeName: testExchange,
+				Asset:        asset.Spot.String(),
+				Base:         currency.BTC.String(),
+				Quote:        currency.USDT.String(),
+				SpotDetails: &SpotDetails{
+					InitialQuoteFunds: initialQuoteFunds2,
 				},
+				BuySide:  minMax,
+				SellSide: minMax,
 				MakerFee: makerFee,
 				TakerFee: takerFee,
 			},
@@ -722,13 +709,12 @@ func TestGenerateConfigForDCACSVTrades(t *testing.T) {
 		},
 		CurrencySettings: []CurrencySettings{
 			{
-				ExchangeName:      testExchange,
-				Asset:             asset.Spot.String(),
-				Base:              currency.BTC.String(),
-				Quote:             currency.USDT.String(),
-				InitialQuoteFunds: initialQuoteFunds2,
-				Leverage: Leverage{
-					CanUseLeverage: false,
+				ExchangeName: testExchange,
+				Asset:        asset.Spot.String(),
+				Base:         currency.BTC.String(),
+				Quote:        currency.USDT.String(),
+				SpotDetails: &SpotDetails{
+					InitialQuoteFunds: initialQuoteFunds2,
 				},
 				MakerFee: makerFee,
 				TakerFee: takerFee,
@@ -775,16 +761,15 @@ func TestGenerateConfigForDCADatabaseCandles(t *testing.T) {
 		},
 		CurrencySettings: []CurrencySettings{
 			{
-				ExchangeName:      testExchange,
-				Asset:             asset.Spot.String(),
-				Base:              currency.BTC.String(),
-				Quote:             currency.USDT.String(),
-				InitialQuoteFunds: initialQuoteFunds2,
-				BuySide:           minMax,
-				SellSide:          minMax,
-				Leverage: Leverage{
-					CanUseLeverage: false,
+				ExchangeName: testExchange,
+				Asset:        asset.Spot.String(),
+				Base:         currency.BTC.String(),
+				Quote:        currency.USDT.String(),
+				SpotDetails: &SpotDetails{
+					InitialQuoteFunds: initialQuoteFunds2,
 				},
+				BuySide:  minMax,
+				SellSide: minMax,
 				MakerFee: makerFee,
 				TakerFee: takerFee,
 			},
@@ -870,7 +855,6 @@ func TestGenerateConfigForTop2Bottom2(t *testing.T) {
 				Quote:        currency.USDT.String(),
 				BuySide:      minMax,
 				SellSide:     minMax,
-				Leverage:     Leverage{},
 				MakerFee:     makerFee,
 				TakerFee:     takerFee,
 			},
@@ -881,7 +865,6 @@ func TestGenerateConfigForTop2Bottom2(t *testing.T) {
 				Quote:        currency.USDT.String(),
 				BuySide:      minMax,
 				SellSide:     minMax,
-				Leverage:     Leverage{},
 				MakerFee:     makerFee,
 				TakerFee:     takerFee,
 			},
@@ -892,7 +875,6 @@ func TestGenerateConfigForTop2Bottom2(t *testing.T) {
 				Quote:        currency.BTC.String(),
 				BuySide:      minMax,
 				SellSide:     minMax,
-				Leverage:     Leverage{},
 				MakerFee:     makerFee,
 				TakerFee:     takerFee,
 			},
@@ -903,7 +885,6 @@ func TestGenerateConfigForTop2Bottom2(t *testing.T) {
 				Quote:        currency.BTC.String(),
 				BuySide:      minMax,
 				SellSide:     minMax,
-				Leverage:     Leverage{},
 				MakerFee:     makerFee,
 				TakerFee:     takerFee,
 			},
@@ -914,7 +895,6 @@ func TestGenerateConfigForTop2Bottom2(t *testing.T) {
 				Quote:        currency.USDT.String(),
 				BuySide:      minMax,
 				SellSide:     minMax,
-				Leverage:     Leverage{},
 				MakerFee:     makerFee,
 				TakerFee:     takerFee,
 			},
@@ -925,7 +905,6 @@ func TestGenerateConfigForTop2Bottom2(t *testing.T) {
 				Quote:        currency.BTC.String(),
 				BuySide:      minMax,
 				SellSide:     minMax,
-				Leverage:     Leverage{},
 				MakerFee:     makerFee,
 				TakerFee:     takerFee,
 			},
@@ -1013,11 +992,11 @@ func TestValidateCurrencySettings(t *testing.T) {
 	}
 	c.CurrencySettings = append(c.CurrencySettings, CurrencySettings{})
 	err = c.validateCurrencySettings()
-	if !errors.Is(err, errBadInitialFunds) {
-		t.Errorf("received: %v, expected: %v", err, errBadInitialFunds)
+	if !errors.Is(err, errNoCurrencySettings) {
+		t.Errorf("received: %v, expected: %v", err, errNoCurrencySettings)
 	}
 	leet := decimal.NewFromInt(1337)
-	c.CurrencySettings[0].InitialQuoteFunds = &leet
+	c.CurrencySettings[0].SpotDetails = &SpotDetails{InitialQuoteFunds: &leet}
 	err = c.validateCurrencySettings()
 	if !errors.Is(err, errUnsetCurrency) {
 		t.Errorf("received: %v, expected: %v", err, errUnsetCurrency)
@@ -1198,12 +1177,14 @@ func TestValidate(t *testing.T) {
 		StrategySettings: StrategySettings{Name: dca},
 		CurrencySettings: []CurrencySettings{
 			{
-				ExchangeName:      testExchange,
-				Asset:             asset.Spot.String(),
-				Base:              currency.BTC.String(),
-				Quote:             currency.USDT.String(),
-				InitialBaseFunds:  initialBaseFunds,
-				InitialQuoteFunds: initialQuoteFunds2,
+				ExchangeName: testExchange,
+				Asset:        asset.Spot.String(),
+				Base:         currency.BTC.String(),
+				Quote:        currency.USDT.String(),
+				SpotDetails: &SpotDetails{
+					InitialBaseFunds:  initialBaseFunds,
+					InitialQuoteFunds: initialQuoteFunds2,
+				},
 				BuySide: MinMax{
 					MinimumSize:  decimal.NewFromInt(1),
 					MaximumSize:  decimal.NewFromInt(10),

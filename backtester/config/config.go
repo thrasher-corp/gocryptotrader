@@ -274,7 +274,7 @@ func (c *Config) validateCurrencySettings() error {
 	}
 	for i := range c.CurrencySettings {
 		if c.CurrencySettings[i].SpotDetails == nil && c.CurrencySettings[i].FuturesDetails == nil {
-			// woah nelly!
+			return fmt.Errorf("%w please add spot or future currency details", errNoCurrencySettings)
 		}
 		if c.CurrencySettings[i].SpotDetails != nil {
 			// if c.CurrencySettings[i].SpotDetails.InitialLegacyFunds > 0 {
