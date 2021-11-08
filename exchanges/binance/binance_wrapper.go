@@ -231,6 +231,7 @@ func (b *Binance) Setup(exch *config.Exchange) error {
 		Features:              &b.Features.Supports.WebsocketCapabilities,
 		SortBuffer:            true,
 		SortBufferByUpdateIDs: true,
+		TradeFeed:             b.Features.Enabled.TradeFeed,
 	})
 	if err != nil {
 		return err
