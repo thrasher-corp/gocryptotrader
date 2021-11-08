@@ -4,7 +4,8 @@
  "strategy-settings": {
   "name": "dollarcostaverage",
   "use-simultaneous-signal-processing": false,
-  "use-exchange-level-funding": false
+  "use-exchange-level-funding": false,
+  "disable-usd-tracking": false
  },
  "currency-settings": [
   {
@@ -94,6 +95,5 @@
  },
  "statistic-settings": {
   "risk-free-rate": "0.03"
- },
- "gocryptotrader-config-path": ""
+ }
 }

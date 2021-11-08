@@ -3,36 +3,43 @@ package funding
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
+	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
+	"github.com/thrasher-corp/gocryptotrader/backtester/funding/trackingcurrencies"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	fbase "github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
-	exchangeratehost "github.com/thrasher-corp/gocryptotrader/currency/forexprovider/exchangerate.host"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 var (
 	// ErrFundsNotFound used when funds are requested but the funding is not found in the manager
 	ErrFundsNotFound = errors.New("funding not found")
 	// ErrAlreadyExists used when a matching item or pair is already in the funding manager
-	ErrAlreadyExists              = errors.New("funding already exists")
+	ErrAlreadyExists = errors.New("funding already exists")
+	// ErrUSDTrackingDisabled used when attempting to track USD values when disabled
+	ErrUSDTrackingDisabled        = errors.New("USD tracking disabled")
 	errCannotAllocate             = errors.New("cannot allocate funds")
 	errZeroAmountReceived         = errors.New("amount received less than or equal to zero")
 	errNegativeAmountReceived     = errors.New("received negative decimal")
 	errNotEnoughFunds             = errors.New("not enough funds")
 	errCannotTransferToSameFunds  = errors.New("cannot send funds to self")
 	errTransferMustBeSameCurrency = errors.New("cannot transfer to different currency")
+	errCannotMatchTrackingToItem  = errors.New("cannot match tracking data to funding items")
 )
 
 // SetupFundingManager creates the funding holder. It carries knowledge about levels of funding
 // across all execution handlers and enables fund transfers
-func SetupFundingManager(usingExchangeLevelFunding bool) *FundManager {
-	return &FundManager{usingExchangeLevelFunding: usingExchangeLevelFunding}
+func SetupFundingManager(usingExchangeLevelFunding, disableUSDTracking bool) *FundManager {
+	return &FundManager{
+		usingExchangeLevelFunding: usingExchangeLevelFunding,
+		disableUSDTracking:        disableUSDTracking,
+	}
 }
 
 // CreateItem creates a new funding item
@@ -51,7 +58,101 @@ func CreateItem(exch string, a asset.Item, ci currency.Code, initialFunds, trans
 		initialFunds: initialFunds,
 		available:    initialFunds,
 		transferFee:  transferFee,
+		snapshot:     make(map[time.Time]ItemSnapshot),
 	}, nil
+}
+
+// CreateSnapshot creates a Snapshot for an event's point in time
+// as funding.snapshots is a map, it allows for the last event
+// in the chronological list to establish the canon at X time
+func (f *FundManager) CreateSnapshot(t time.Time) {
+	for i := range f.items {
+		if f.items[i].snapshot == nil {
+			f.items[i].snapshot = make(map[time.Time]ItemSnapshot)
+		}
+		iss := ItemSnapshot{
+			Available: f.items[i].available,
+			Time:      t,
+		}
+		if !f.disableUSDTracking {
+			var usdClosePrice decimal.Decimal
+			if f.items[i].usdTrackingCandles == nil {
+				continue
+			}
+			usdCandles := f.items[i].usdTrackingCandles.GetStream()
+			for j := range usdCandles {
+				if usdCandles[j].GetTime().Equal(t) {
+					usdClosePrice = usdCandles[j].ClosePrice()
+					break
+				}
+			}
+			iss.USDClosePrice = usdClosePrice
+			iss.USDValue = usdClosePrice.Mul(f.items[i].available)
+		}
+
+		f.items[i].snapshot[t] = iss
+	}
+}
+
+// AddUSDTrackingData adds USD tracking data to a funding item
+// only in the event that it is not USD and there is data
+func (f *FundManager) AddUSDTrackingData(k *kline.DataFromKline) error {
+	if f == nil || f.items == nil {
+		return common.ErrNilArguments
+	}
+	if f.disableUSDTracking {
+		return ErrUSDTrackingDisabled
+	}
+	baseSet := false
+	quoteSet := false
+	for i := range f.items {
+		if baseSet && quoteSet {
+			return nil
+		}
+		if strings.EqualFold(f.items[i].exchange, k.Item.Exchange) &&
+			f.items[i].asset == k.Item.Asset {
+			if f.items[i].currency == k.Item.Pair.Base {
+				if f.items[i].usdTrackingCandles == nil &&
+					trackingcurrencies.CurrencyIsUSDTracked(k.Item.Pair.Quote) {
+					f.items[i].usdTrackingCandles = k
+				}
+				baseSet = true
+			}
+			if trackingcurrencies.CurrencyIsUSDTracked(f.items[i].currency) {
+				if f.items[i].usdTrackingCandles == nil {
+					usdCandles := gctkline.Item{
+						Exchange: k.Item.Exchange,
+						Pair:     currency.Pair{Delimiter: k.Item.Pair.Delimiter, Base: f.items[i].currency, Quote: currency.USD},
+						Asset:    k.Item.Asset,
+						Interval: k.Item.Interval,
+						Candles:  make([]gctkline.Candle, len(k.Item.Candles)),
+					}
+					copy(usdCandles.Candles, k.Item.Candles)
+					for j := range usdCandles.Candles {
+						// usd stablecoins do not always match in value,
+						// this is a simplified implementation that can allow
+						// USD tracking for many different currencies across many exchanges
+						// without retrieving n candle history and exchange rates
+						usdCandles.Candles[j].Open = 1
+						usdCandles.Candles[j].High = 1
+						usdCandles.Candles[j].Low = 1
+						usdCandles.Candles[j].Close = 1
+					}
+					cpy := *k
+					cpy.Item = usdCandles
+					if err := cpy.Load(); err != nil {
+						return err
+					}
+					f.items[i].usdTrackingCandles = &cpy
+				}
+				quoteSet = true
+			}
+		}
+	}
+	if baseSet {
+		return nil
+	}
+	return fmt.Errorf("%w %v %v %v", errCannotMatchTrackingToItem, k.Item.Exchange, k.Item.Asset, k.Item.Pair)
 }
 
 // CreatePair adds two funding items and associates them with one another
@@ -79,65 +180,52 @@ func (f *FundManager) Reset() {
 	*f = FundManager{}
 }
 
+// USDTrackingDisabled clears all settings
+func (f *FundManager) USDTrackingDisabled() bool {
+	return f.disableUSDTracking
+}
+
 // GenerateReport builds report data for result HTML report
-func (f *FundManager) GenerateReport(startDate, endDate time.Time) *Report {
-	report := &Report{}
-	var items []ReportItem
-	var erh exchangeratehost.ExchangeRateHost
-	var skipAPICheck bool
-	err := erh.Setup(fbase.Settings{Enabled: true})
-	if err != nil {
-		log.Errorf(log.CommunicationMgr, "issue setting up exchangerate.host API %v", err)
-		skipAPICheck = true
+func (f *FundManager) GenerateReport() *Report {
+	report := Report{
+		USDTotalsOverTime:         make(map[time.Time]ItemSnapshot),
+		UsingExchangeLevelFunding: f.usingExchangeLevelFunding,
+		DisableUSDTracking:        f.disableUSDTracking,
 	}
+	var items []ReportItem
 	for i := range f.items {
-		// exact conversion not required for initial version
-		fInitialFunds, _ := f.items[i].initialFunds.Float64()
-		fFinalFunds, _ := f.items[i].available.Float64()
-		var initialWorthDecimal, finalWorthDecimal decimal.Decimal
-		if !skipAPICheck {
-			// calculating totals for shared funding across multiple currency pairs is difficult
-			// converting totals using a free API is better suited as an initial concept
-			// TODO convert currencies without external dependency
-			if strings.Contains(f.items[i].currency.String(), "USD") {
-				// not worth converting
-				initialWorthDecimal = f.items[i].initialFunds
-				finalWorthDecimal = f.items[i].available
-			} else {
-				from := f.items[i].currency.String()
-				to := "USD"
-				if from == "BTC" {
-					// api has conversion difficulties for BTC to USD only
-					to = "BUSD"
-				}
-				if fInitialFunds > 0 {
-					initialWorth, err := erh.ConvertCurrency(from, to, "", "", "crypto", startDate, fInitialFunds, 0)
-					if err != nil {
-						log.Errorf(log.CommunicationMgr, "issue converting %v to %v at %v on exchangerate.host API %v", from, to, startDate, err)
-					} else {
-						initialWorthDecimal = decimal.NewFromFloat(initialWorth.Result)
-					}
-				}
-				if fFinalFunds > 0 {
-					finalWorth, err := erh.ConvertCurrency(from, to, "", "", "crypto", endDate, fFinalFunds, 0)
-					if err != nil {
-						log.Errorf(log.CommunicationMgr, "issue converting %v to %v at %v on exchangerate.host API %v", from, to, endDate, err)
-					} else {
-						finalWorthDecimal = decimal.NewFromFloat(finalWorth.Result)
-					}
-				}
+		item := ReportItem{
+			Exchange:     f.items[i].exchange,
+			Asset:        f.items[i].asset,
+			Currency:     f.items[i].currency,
+			InitialFunds: f.items[i].initialFunds,
+			TransferFee:  f.items[i].transferFee,
+			FinalFunds:   f.items[i].available,
+		}
+		if !f.disableUSDTracking &&
+			f.items[i].usdTrackingCandles != nil {
+			usdStream := f.items[i].usdTrackingCandles.GetStream()
+			item.USDInitialFunds = f.items[i].initialFunds.Mul(usdStream[0].ClosePrice())
+			item.USDFinalFunds = f.items[i].available.Mul(usdStream[len(usdStream)-1].ClosePrice())
+			item.USDInitialCostForOne = usdStream[0].ClosePrice()
+			item.USDFinalCostForOne = usdStream[len(usdStream)-1].ClosePrice()
+			item.USDPairCandle = f.items[i].usdTrackingCandles
+		}
+
+		var pricingOverTime []ItemSnapshot
+		for _, v := range f.items[i].snapshot {
+			pricingOverTime = append(pricingOverTime, v)
+			if !f.disableUSDTracking {
+				usdTotalForPeriod := report.USDTotalsOverTime[v.Time]
+				usdTotalForPeriod.Time = v.Time
+				usdTotalForPeriod.USDValue = usdTotalForPeriod.USDValue.Add(v.USDValue)
+				report.USDTotalsOverTime[v.Time] = usdTotalForPeriod
 			}
 		}
-		item := ReportItem{
-			Exchange:        f.items[i].exchange,
-			Asset:           f.items[i].asset,
-			Currency:        f.items[i].currency,
-			InitialFunds:    f.items[i].initialFunds,
-			InitialFundsUSD: initialWorthDecimal.Round(2),
-			TransferFee:     f.items[i].transferFee,
-			FinalFunds:      f.items[i].available,
-			FinalFundsUSD:   finalWorthDecimal.Round(2),
-		}
+		sort.Slice(pricingOverTime, func(i, j int) bool {
+			return pricingOverTime[i].Time.Before(pricingOverTime[j].Time)
+		})
+		item.Snapshots = pricingOverTime
 
 		if f.items[i].initialFunds.IsZero() {
 			item.ShowInfinite = true
@@ -147,15 +235,11 @@ func (f *FundManager) GenerateReport(startDate, endDate time.Time) *Report {
 		if f.items[i].pairedWith != nil {
 			item.PairedWith = f.items[i].pairedWith.currency
 		}
-		report.InitialTotalUSD = report.InitialTotalUSD.Add(initialWorthDecimal).Round(2)
-		report.FinalTotalUSD = report.FinalTotalUSD.Add(finalWorthDecimal).Round(2)
+
 		items = append(items, item)
 	}
-	if !report.InitialTotalUSD.IsZero() {
-		report.Difference = report.FinalTotalUSD.Sub(report.InitialTotalUSD).Div(report.InitialTotalUSD).Mul(decimal.NewFromInt(100))
-	}
 	report.Items = items
-	return report
+	return &report
 }
 
 // Transfer allows transferring funds from one pretend exchange to another

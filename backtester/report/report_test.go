@@ -13,7 +13,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics/currencystatistics"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -66,12 +65,13 @@ func TestGenerateReport(t *testing.T) {
 				Watermark: "Binance - SPOT - BTC-USDT",
 				Candles: []DetailedCandle{
 					{
-						Time:           time.Now().Add(-time.Hour * 5).Unix(),
-						Open:           decimal.NewFromInt(1337),
-						High:           decimal.NewFromInt(1339),
-						Low:            decimal.NewFromInt(1336),
-						Close:          decimal.NewFromInt(1338),
-						Volume:         decimal.NewFromInt(3),
+						UnixMilli:      time.Date(2020, 12, 12, 0, 0, 0, 0, time.UTC).UnixMilli(),
+						Open:           1337,
+						High:           1339,
+						Low:            1336,
+						Close:          1338,
+						Volume:         3,
+						VolumeColour:   "rgba(47, 194, 27, 0.8)",
 						MadeOrder:      true,
 						OrderDirection: gctorder.Buy,
 						OrderAmount:    decimal.NewFromInt(1337),
@@ -79,16 +79,15 @@ func TestGenerateReport(t *testing.T) {
 						Text:           "hi",
 						Position:       "aboveBar",
 						Colour:         "green",
-						PurchasePrice:  decimal.NewFromInt(50),
-						VolumeColour:   "rgba(47, 194, 27, 0.8)",
+						PurchasePrice:  50,
 					},
 					{
-						Time:           time.Now().Add(-time.Hour * 4).Unix(),
-						Open:           decimal.NewFromInt(1332),
-						High:           decimal.NewFromInt(1332),
-						Low:            decimal.NewFromInt(1330),
-						Close:          decimal.NewFromInt(1331),
-						Volume:         decimal.NewFromInt(2),
+						UnixMilli:      time.Date(2020, 12, 12, 1, 0, 0, 0, time.UTC).UnixMilli(),
+						Open:           1332,
+						High:           1332,
+						Low:            1330,
+						Close:          1331,
+						Volume:         2,
 						MadeOrder:      true,
 						OrderDirection: gctorder.Buy,
 						OrderAmount:    decimal.NewFromInt(1337),
@@ -96,16 +95,16 @@ func TestGenerateReport(t *testing.T) {
 						Text:           "hi",
 						Position:       "aboveBar",
 						Colour:         "green",
-						PurchasePrice:  decimal.NewFromInt(50),
+						PurchasePrice:  50,
 						VolumeColour:   "rgba(252, 3, 3, 0.8)",
 					},
 					{
-						Time:           time.Now().Add(-time.Hour * 3).Unix(),
-						Open:           decimal.NewFromInt(1337),
-						High:           decimal.NewFromInt(1339),
-						Low:            decimal.NewFromInt(1336),
-						Close:          decimal.NewFromInt(1338),
-						Volume:         decimal.NewFromInt(3),
+						UnixMilli:      time.Date(2020, 12, 12, 2, 0, 0, 0, time.UTC).UnixMilli(),
+						Open:           1337,
+						High:           1339,
+						Low:            1336,
+						Close:          1338,
+						Volume:         3,
 						MadeOrder:      true,
 						OrderDirection: gctorder.Buy,
 						OrderAmount:    decimal.NewFromInt(1337),
@@ -113,16 +112,16 @@ func TestGenerateReport(t *testing.T) {
 						Text:           "hi",
 						Position:       "aboveBar",
 						Colour:         "green",
-						PurchasePrice:  decimal.NewFromInt(50),
+						PurchasePrice:  50,
 						VolumeColour:   "rgba(47, 194, 27, 0.8)",
 					},
 					{
-						Time:           time.Now().Add(-time.Hour * 2).Unix(),
-						Open:           decimal.NewFromInt(1337),
-						High:           decimal.NewFromInt(1339),
-						Low:            decimal.NewFromInt(1336),
-						Close:          decimal.NewFromInt(1338),
-						Volume:         decimal.NewFromInt(3),
+						UnixMilli:      time.Date(2020, 12, 12, 3, 0, 0, 0, time.UTC).UnixMilli(),
+						Open:           1337,
+						High:           1339,
+						Low:            1336,
+						Close:          1338,
+						Volume:         3,
 						MadeOrder:      true,
 						OrderDirection: gctorder.Buy,
 						OrderAmount:    decimal.NewFromInt(1337),
@@ -130,16 +129,16 @@ func TestGenerateReport(t *testing.T) {
 						Text:           "hi",
 						Position:       "aboveBar",
 						Colour:         "green",
-						PurchasePrice:  decimal.NewFromInt(50),
+						PurchasePrice:  50,
 						VolumeColour:   "rgba(252, 3, 3, 0.8)",
 					},
 					{
-						Time:         time.Now().Unix(),
-						Open:         decimal.NewFromInt(1337),
-						High:         decimal.NewFromInt(1339),
-						Low:          decimal.NewFromInt(1336),
-						Close:        decimal.NewFromInt(1338),
-						Volume:       decimal.NewFromInt(3),
+						UnixMilli:    time.Date(2020, 12, 12, 4, 0, 0, 0, time.UTC).UnixMilli(),
+						Open:         1337,
+						High:         1339,
+						Low:          1336,
+						Close:        1338,
+						Volume:       3,
 						VolumeColour: "rgba(47, 194, 27, 0.8)",
 					},
 				},
@@ -152,12 +151,12 @@ func TestGenerateReport(t *testing.T) {
 				Watermark: "BITTREX - SPOT - BTC-USD - 1d",
 				Candles: []DetailedCandle{
 					{
-						Time:           time.Now().Add(-time.Hour * 5).Unix(),
-						Open:           decimal.NewFromInt(1337),
-						High:           decimal.NewFromInt(1339),
-						Low:            decimal.NewFromInt(1336),
-						Close:          decimal.NewFromInt(1338),
-						Volume:         decimal.NewFromInt(3),
+						UnixMilli:      time.Date(2020, 12, 12, 0, 0, 0, 0, time.UTC).UnixMilli(),
+						Open:           1337,
+						High:           1339,
+						Low:            1336,
+						Close:          1338,
+						Volume:         3,
 						MadeOrder:      true,
 						OrderDirection: gctorder.Buy,
 						OrderAmount:    decimal.NewFromInt(1337),
@@ -165,16 +164,16 @@ func TestGenerateReport(t *testing.T) {
 						Text:           "hi",
 						Position:       "aboveBar",
 						Colour:         "green",
-						PurchasePrice:  decimal.NewFromInt(50),
+						PurchasePrice:  50,
 						VolumeColour:   "rgba(47, 194, 27, 0.8)",
 					},
 					{
-						Time:           time.Now().Add(-time.Hour * 4).Unix(),
-						Open:           decimal.NewFromInt(1332),
-						High:           decimal.NewFromInt(1332),
-						Low:            decimal.NewFromInt(1330),
-						Close:          decimal.NewFromInt(1331),
-						Volume:         decimal.NewFromInt(2),
+						UnixMilli:      time.Date(2020, 12, 12, 1, 0, 0, 0, time.UTC).UnixMilli(),
+						Open:           1332,
+						High:           1332,
+						Low:            1330,
+						Close:          1331,
+						Volume:         2,
 						MadeOrder:      true,
 						OrderDirection: gctorder.Buy,
 						OrderAmount:    decimal.NewFromInt(1337),
@@ -182,16 +181,16 @@ func TestGenerateReport(t *testing.T) {
 						Text:           "hi",
 						Position:       "aboveBar",
 						Colour:         "green",
-						PurchasePrice:  decimal.NewFromInt(50),
+						PurchasePrice:  50,
 						VolumeColour:   "rgba(252, 3, 3, 0.8)",
 					},
 					{
-						Time:           time.Now().Add(-time.Hour * 3).Unix(),
-						Open:           decimal.NewFromInt(1337),
-						High:           decimal.NewFromInt(1339),
-						Low:            decimal.NewFromInt(1336),
-						Close:          decimal.NewFromInt(1338),
-						Volume:         decimal.NewFromInt(3),
+						UnixMilli:      time.Date(2020, 12, 12, 2, 0, 0, 0, time.UTC).UnixMilli(),
+						Open:           1337,
+						High:           1339,
+						Low:            1336,
+						Close:          1338,
+						Volume:         3,
 						MadeOrder:      true,
 						OrderDirection: gctorder.Buy,
 						OrderAmount:    decimal.NewFromInt(1337),
@@ -199,16 +198,16 @@ func TestGenerateReport(t *testing.T) {
 						Text:           "hi",
 						Position:       "aboveBar",
 						Colour:         "green",
-						PurchasePrice:  decimal.NewFromInt(50),
+						PurchasePrice:  50,
 						VolumeColour:   "rgba(47, 194, 27, 0.8)",
 					},
 					{
-						Time:           time.Now().Add(-time.Hour * 2).Unix(),
-						Open:           decimal.NewFromInt(1337),
-						High:           decimal.NewFromInt(1339),
-						Low:            decimal.NewFromInt(1336),
-						Close:          decimal.NewFromInt(1338),
-						Volume:         decimal.NewFromInt(3),
+						UnixMilli:      time.Date(2020, 12, 12, 3, 0, 0, 0, time.UTC).UnixMilli(),
+						Open:           1337,
+						High:           1339,
+						Low:            1336,
+						Close:          1338,
+						Volume:         3,
 						MadeOrder:      true,
 						OrderDirection: gctorder.Buy,
 						OrderAmount:    decimal.NewFromInt(1337),
@@ -216,44 +215,44 @@ func TestGenerateReport(t *testing.T) {
 						Text:           "hi",
 						Position:       "aboveBar",
 						Colour:         "green",
-						PurchasePrice:  decimal.NewFromInt(50),
+						PurchasePrice:  50,
 						VolumeColour:   "rgba(252, 3, 3, 0.8)",
 					},
 					{
-						Time:         time.Now().Unix(),
-						Open:         decimal.NewFromInt(1337),
-						High:         decimal.NewFromInt(1339),
-						Low:          decimal.NewFromInt(1336),
-						Close:        decimal.NewFromInt(1338),
-						Volume:       decimal.NewFromInt(3),
+						UnixMilli:    time.Date(2020, 12, 12, 4, 0, 0, 0, time.UTC).UnixMilli(),
+						Open:         1337,
+						High:         1339,
+						Low:          1336,
+						Close:        1338,
+						Volume:       3,
 						VolumeColour: "rgba(47, 194, 27, 0.8)",
 					},
 				},
 			},
 		},
 		Statistics: &statistics.Statistic{
-			Funding:      &funding.Report{},
 			StrategyName: "testStrat",
-			ExchangeAssetPairStatistics: map[string]map[asset.Item]map[currency.Pair]*currencystatistics.CurrencyStatistic{
+			RiskFreeRate: decimal.NewFromFloat(0.03),
+			ExchangeAssetPairStatistics: map[string]map[asset.Item]map[currency.Pair]*statistics.CurrencyPairStatistic{
 				e: {
 					a: {
-						p: &currencystatistics.CurrencyStatistic{
-							MaxDrawdown:              currencystatistics.Swing{},
+						p: &statistics.CurrencyPairStatistic{
+							MaxDrawdown:              statistics.Swing{},
 							LowestClosePrice:         decimal.NewFromInt(100),
 							HighestClosePrice:        decimal.NewFromInt(200),
 							MarketMovement:           decimal.NewFromInt(100),
 							StrategyMovement:         decimal.NewFromInt(100),
-							RiskFreeRate:             decimal.NewFromInt(1),
 							CompoundAnnualGrowthRate: decimal.NewFromInt(1),
 							BuyOrders:                1,
 							SellOrders:               1,
 							FinalHoldings:            holdings.Holding{},
 							FinalOrders:              compliance.Snapshot{},
+							ArithmeticRatios:         &statistics.Ratios{},
+							GeometricRatios:          &statistics.Ratios{},
 						},
 					},
 				},
 			},
-			RiskFreeRate:    decimal.NewFromFloat(0.03),
 			TotalBuyOrders:  1337,
 			TotalSellOrders: 1330,
 			TotalOrders:     200,
@@ -261,14 +260,14 @@ func TestGenerateReport(t *testing.T) {
 				Exchange: e,
 				Asset:    a,
 				Pair:     p,
-				MaxDrawdown: currencystatistics.Swing{
-					Highest: currencystatistics.Iteration{
+				MaxDrawdown: statistics.Swing{
+					Highest: statistics.ValueAtTime{
 						Time:  time.Now(),
-						Price: decimal.NewFromInt(1337),
+						Value: decimal.NewFromInt(1337),
 					},
-					Lowest: currencystatistics.Iteration{
+					Lowest: statistics.ValueAtTime{
 						Time:  time.Now(),
-						Price: decimal.NewFromInt(137),
+						Value: decimal.NewFromInt(137),
 					},
 					DrawdownPercent: decimal.NewFromInt(100),
 				},
@@ -279,14 +278,14 @@ func TestGenerateReport(t *testing.T) {
 				Exchange: e,
 				Asset:    a,
 				Pair:     p,
-				MaxDrawdown: currencystatistics.Swing{
-					Highest: currencystatistics.Iteration{
+				MaxDrawdown: statistics.Swing{
+					Highest: statistics.ValueAtTime{
 						Time:  time.Now(),
-						Price: decimal.NewFromInt(1337),
+						Value: decimal.NewFromInt(1337),
 					},
-					Lowest: currencystatistics.Iteration{
+					Lowest: statistics.ValueAtTime{
 						Time:  time.Now(),
-						Price: decimal.NewFromInt(137),
+						Value: decimal.NewFromInt(137),
 					},
 					DrawdownPercent: decimal.NewFromInt(100),
 				},
@@ -297,23 +296,32 @@ func TestGenerateReport(t *testing.T) {
 				Exchange: e,
 				Asset:    a,
 				Pair:     p,
-				MaxDrawdown: currencystatistics.Swing{
-					Highest: currencystatistics.Iteration{
+				MaxDrawdown: statistics.Swing{
+					Highest: statistics.ValueAtTime{
 						Time:  time.Now(),
-						Price: decimal.NewFromInt(1337),
+						Value: decimal.NewFromInt(1337),
 					},
-					Lowest: currencystatistics.Iteration{
+					Lowest: statistics.ValueAtTime{
 						Time:  time.Now(),
-						Price: decimal.NewFromInt(137),
+						Value: decimal.NewFromInt(137),
 					},
 					DrawdownPercent: decimal.NewFromInt(100),
 				},
 				MarketMovement:   decimal.NewFromInt(1337),
 				StrategyMovement: decimal.NewFromInt(1337),
 			},
+			CurrencyPairStatistics: nil,
+			WasAnyDataMissing:      false,
+			FundingStatistics:      nil,
 		},
 	}
 	d.OutputPath = tempDir
+	d.Config.StrategySettings.DisableUSDTracking = true
+	d.Statistics.FundingStatistics = &statistics.FundingStatistics{
+		Report: &funding.Report{
+			DisableUSDTracking: true,
+		},
+	}
 	err = d.GenerateReport()
 	if err != nil {
 		t.Error(err)
@@ -339,10 +347,10 @@ func TestEnhanceCandles(t *testing.T) {
 		t.Error(err)
 	}
 
-	d.Statistics.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*currencystatistics.CurrencyStatistic)
-	d.Statistics.ExchangeAssetPairStatistics[testExchange] = make(map[asset.Item]map[currency.Pair]*currencystatistics.CurrencyStatistic)
-	d.Statistics.ExchangeAssetPairStatistics[testExchange][asset.Spot] = make(map[currency.Pair]*currencystatistics.CurrencyStatistic)
-	d.Statistics.ExchangeAssetPairStatistics[testExchange][asset.Spot][currency.NewPair(currency.BTC, currency.USDT)] = &currencystatistics.CurrencyStatistic{}
+	d.Statistics.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*statistics.CurrencyPairStatistic)
+	d.Statistics.ExchangeAssetPairStatistics[testExchange] = make(map[asset.Item]map[currency.Pair]*statistics.CurrencyPairStatistic)
+	d.Statistics.ExchangeAssetPairStatistics[testExchange][asset.Spot] = make(map[currency.Pair]*statistics.CurrencyPairStatistic)
+	d.Statistics.ExchangeAssetPairStatistics[testExchange][asset.Spot][currency.NewPair(currency.BTC, currency.USDT)] = &statistics.CurrencyPairStatistic{}
 
 	d.AddKlineItem(&gctkline.Item{
 		Exchange: testExchange,

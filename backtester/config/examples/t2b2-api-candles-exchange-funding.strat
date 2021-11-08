@@ -21,6 +21,7 @@
     "transfer-fee": "0"
    }
   ],
+  "disable-usd-tracking": false,
   "custom-settings": {
    "mfi-high": 68,
    "mfi-low": 32,
@@ -225,6 +226,5 @@
  },
  "statistic-settings": {
   "risk-free-rate": "0.03"
- },
- "gocryptotrader-config-path": ""
+ }
 }

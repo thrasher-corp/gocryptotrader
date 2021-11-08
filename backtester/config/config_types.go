@@ -28,14 +28,13 @@ var (
 
 // Config defines what is in an individual strategy config
 type Config struct {
-	Nickname                 string             `json:"nickname"`
-	Goal                     string             `json:"goal"`
-	StrategySettings         StrategySettings   `json:"strategy-settings"`
-	CurrencySettings         []CurrencySettings `json:"currency-settings"`
-	DataSettings             DataSettings       `json:"data-settings"`
-	PortfolioSettings        PortfolioSettings  `json:"portfolio-settings"`
-	StatisticSettings        StatisticSettings  `json:"statistic-settings"`
-	GoCryptoTraderConfigPath string             `json:"gocryptotrader-config-path"`
+	Nickname          string             `json:"nickname"`
+	Goal              string             `json:"goal"`
+	StrategySettings  StrategySettings   `json:"strategy-settings"`
+	CurrencySettings  []CurrencySettings `json:"currency-settings"`
+	DataSettings      DataSettings       `json:"data-settings"`
+	PortfolioSettings PortfolioSettings  `json:"portfolio-settings"`
+	StatisticSettings StatisticSettings  `json:"statistic-settings"`
 }
 
 // DataSettings is a container for each type of data retrieval setting.
@@ -57,7 +56,10 @@ type StrategySettings struct {
 	SimultaneousSignalProcessing bool                   `json:"use-simultaneous-signal-processing"`
 	UseExchangeLevelFunding      bool                   `json:"use-exchange-level-funding"`
 	ExchangeLevelFunding         []ExchangeLevelFunding `json:"exchange-level-funding,omitempty"`
-	CustomSettings               map[string]interface{} `json:"custom-settings,omitempty"`
+	// If true, won't track USD values against currency pair
+	// bool language is opposite to encourage use by default
+	DisableUSDTracking bool                   `json:"disable-usd-tracking"`
+	CustomSettings     map[string]interface{} `json:"custom-settings,omitempty"`
 }
 
 // ExchangeLevelFunding allows the portfolio manager to access
@@ -114,6 +116,8 @@ type CurrencySettings struct {
 	Asset        string `json:"asset"`
 	Base         string `json:"base"`
 	Quote        string `json:"quote"`
+	// USDTrackingPair is used for price tracking data only
+	USDTrackingPair bool `json:"-"`
 
 	InitialBaseFunds   *decimal.Decimal `json:"initial-base-funds,omitempty"`
 	InitialQuoteFunds  *decimal.Decimal `json:"initial-quote-funds,omitempty"`
@@ -150,10 +154,11 @@ type CSVData struct {
 
 // DatabaseData defines all fields to configure database based data
 type DatabaseData struct {
-	StartDate        time.Time        `json:"start-date"`
-	EndDate          time.Time        `json:"end-date"`
-	ConfigOverride   *database.Config `json:"config-override"`
-	InclusiveEndDate bool             `json:"inclusive-end-date"`
+	StartDate        time.Time       `json:"start-date"`
+	EndDate          time.Time       `json:"end-date"`
+	Config           database.Config `json:"config"`
+	Path             string          `json:"path"`
+	InclusiveEndDate bool            `json:"inclusive-end-date"`
 }
 
 // LiveData defines all fields to configure live data

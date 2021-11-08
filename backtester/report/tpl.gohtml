@@ -20,8 +20,21 @@
 	<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.5.0/js/bootstrap.min.js"></script>
 	<!-- MDB core JavaScript -->
 	<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.19.1/js/mdb.min.js"></script>
-	<!-- Tradingview lightweight charts -->
-	<script type="application/javascript" src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+	<!-- Highcharts -->
+	<link rel="stylesheet" type="text/css" href="https://code.highcharts.com/css/stocktools/gui.css">
+	<link rel="stylesheet" type="text/css" href="https://code.highcharts.com/css/annotations/popup.css">
+	<script type="application/javascript"  src="https://code.highcharts.com/stock/highstock.js"></script>
+	<script type="application/javascript"  src="https://code.highcharts.com/stock/modules/data.js"></script>
+	<script type="application/javascript"  src="https://code.highcharts.com/stock/indicators/indicators-all.js"></script>
+	<script type="application/javascript"  src="https://code.highcharts.com/stock/modules/drag-panes.js"></script>
+	<script type="application/javascript"  src="https://code.highcharts.com/modules/annotations-advanced.js"></script>
+	<script type="application/javascript"  src="https://code.highcharts.com/modules/price-indicator.js"></script>
+	<script type="application/javascript"  src="https://code.highcharts.com/modules/full-screen.js"></script>
+	<script type="application/javascript"  src="https://code.highcharts.com/modules/stock-tools.js"></script>
+	<script type="application/javascript"  src="https://code.highcharts.com/stock/modules/heikinashi.js"></script>
+	<script type="application/javascript"  src="https://code.highcharts.com/stock/modules/hollowcandlestick.js"></script>
+	<script  type="application/javascript" src="https://code.highcharts.com/modules/exporting.js"></script>
+	<script  type="application/javascript" src="https://code.highcharts.com/modules/export-data.js"></script>
 	<style>
 		h2 {
 			padding-top:  75px;
@@ -72,32 +85,25 @@
 						<a class="nav-link" href="#executive-summary">Executive Summary</a>
 					</li>
 					<li class="nav-item">
-						<a class="nav-link" href="#config">Config</a>
+						<a class="nav-link" href="#config">Config Settings</a>
 					</li>
-					<li class="nav-item">
-						<a class="nav-link" href="#strategy-settings">Strategy Settings</a>
-					</li>
-					<li class="nav-item">
-						<a class="nav-link" href="#currency-settings">Currency Settings</a>
-					</li>
-					<li class="nav-item">
-						<a class="nav-link" href="#funding-settings">Funding Settings</a>
-					</li>
-					<li class="nav-item">
-						<a class="nav-link" href="#portfolio-settings">Portfolio Settings</a>
-					</li>
-					<li class="nav-item">
-						<a class="nav-link" href="#statistics-settings">Statistics Settings</a>
-					</li>
+					{{ if .Warnings}}
 					<li class="nav-item">
 						<a class="nav-link" href="#warnings">Warnings</a>
 					</li>
+					{{end}}
 					<li class="nav-item">
 						<a class="nav-link" href="#charts">Charts</a>
 					</li>
 					<li class="nav-item">
-						<a class="nav-link" href="#statistics">Statistics</a>
+						<a class="nav-link" href="#strategy-statistics">Strategy Statistics</a>
 					</li>
+					<li class="nav-item">
+						<a class="nav-link" href="#currency-statistics">Pair Statistics</a>
+					</li>
+						<li class="nav-item">
+							<a class="nav-link" href="#funding-statistics">Funding Statistics</a>
+						</li>
 					<li class="nav-item">
 						<a class="nav-link" href="#orders">Orders</a>
 					</li>
@@ -126,7 +132,6 @@
 	<div >
 		<h1>Results for {{.Statistics.StrategyName}} {{.Config.Nickname }}</h1>
 	</div>
-	<div >
 		<div class="card card-cascade narrower">
 			<div class="view view-cascade bg-dark">
 				<h2 id="executive-summary" class="px-4 card-header-title text-light">Executive Summary</h2>
@@ -203,10 +208,7 @@
 						</tbody>
 					</table>
 				{{ end }}
-				{{if $.Config.StrategySettings.UseExchangeLevelFunding}}
-					<div class="alert alert-warning" role="alert" data-mdb-color="warning">
-						This strategy is using Exchange Level Funding. Different statistics are shown. USD conversion rates are approximate using https://api.exchangerate.host
-					</div>
+								{{if .Config.StrategySettings.UseExchangeLevelFunding}}
 					<h5>Funding results</h5>
 					<table class="table table-hover table-bordered table-striped">
 						<thead>
@@ -215,24 +217,28 @@
 							<th>Asset</th>
 							<th>Currency</th>
 							<th>Initial Funds</th>
-							<th>Initial Fund in USD</th>
 							<th>Final Funds</th>
-							<th>Final Funds in USD</th>
+							{{ if eq .Config.StrategySettings.DisableUSDTracking false }}
+								<th>Initial Fund in USD</th>
+								<th>Final Funds in USD</th>
+							{{end}}
 							<th>Difference</th>
 						</tr>
 						</thead>
 						<tbody>
-						{{ range .Statistics.Funding.Items}}
+						{{ range .Statistics.FundingStatistics.Report.Items}}
 							<tr>
 								<td>{{.Exchange}}</td>
 								<td>{{.Asset}}</td>
 								<td>{{.Currency}}</td>
-								<td>{{.InitialFunds}} {{.Currency}}</td>
-								<td>${{.InitialFundsUSD}}</td>
-								<td>{{.FinalFunds}} {{.Currency}}</td>
-								<td>${{.FinalFundsUSD}}</td>
+								<td>{{ $.Prettify.Decimal8 .InitialFunds}} {{.Currency}}</td>
+								<td>{{  $.Prettify.Decimal8 .FinalFunds }} {{.Currency}}</td>
+								{{ if eq $.Config.StrategySettings.DisableUSDTracking false }}
+									<td>${{ $.Prettify.Decimal2 .USDInitialFunds}}</td>
+									<td>${{ $.Prettify.Decimal2 .USDFinalFunds}}</td>
+								{{ end }}
 								{{if .ShowInfinite}}
-									<td>∞%</td>
+									<td>Infinity%</td>
 								{{ else }}
 									<td>{{ .Difference}}%</td>
 								{{ end }}
@@ -240,23 +246,7 @@
 						{{end}}
 						</tbody>
 					</table>
-					<h5>Totals</h5>
-					<table class="table table-hover table-bordered table-striped">
-						<tbody>
-						<tr>
-							<td><b>Initial Total Funds in USD</b></td>
-							<td><b>${{  .Statistics.Funding.InitialTotalUSD}}</b></td>
-						</tr>
-						<tr>
-							<td><b>Final Total Funds in USD</b></td>
-							<td><b>${{  .Statistics.Funding.FinalTotalUSD}}</b></td>
-						</tr>
-						<tr>
-							<td><b>Difference</b></td>
-							<td><b>{{ .Statistics.Funding.Difference}}%</b></td>
-						</tr>
-						</tbody>
-					</table>
+
 					<h5>Pair market movement</h5>
 					<table class="table table-hover table-bordered table-striped">
 						<thead>
@@ -275,7 +265,7 @@
 										<td>{{ $exchange}}</td>
 										<td>{{ $asset}}</td>
 										<td>{{ $pair}}</td>
-										<td>{{ .MarketMovement}}%</td>
+										<td>{{ $.Prettify.Decimal8 .MarketMovement}}%</td>
 									</tr>
 								{{end}}
 							{{end}}
@@ -283,7 +273,8 @@
 						</tbody>
 					</table>
 				{{else}}
-					<table class="table table-hover table-bordered table-striped">
+									<h5>Pair market movement</h5>
+									<table class="table table-hover table-bordered table-striped">
 						<thead>
 						<tr>
 							<th>Exchange</th>
@@ -309,54 +300,49 @@
 										<td>{{ $exchange}}</td>
 										<td>{{ $asset}}</td>
 										<td>{{ $pair}}</td>
-										<td>{{ .InitialHoldings.BaseInitialFunds }} {{.FinalHoldings.Pair.Base}}</td>
-										<td>{{ .InitialHoldings.QuoteInitialFunds }} {{.FinalHoldings.Pair.Quote}}</td>
-										<td>{{ .InitialHoldings.TotalInitialValue }} {{.FinalHoldings.Pair.Quote}}</td>
-										<td>{{ .FinalHoldings.BaseSize }} {{ .FinalHoldings.Pair.Base}}</td>
-										<td>{{ .FinalHoldings.QuoteSize }} {{ .FinalHoldings.Pair.Quote}}</td>
-										<td>{{ .FinalHoldings.TotalValue }} {{ .FinalHoldings.Pair.Quote}}</td>
+										<td>{{ $.Prettify.Decimal8 .InitialHoldings.BaseInitialFunds }} {{.FinalHoldings.Pair.Base}}</td>
+										<td>{{ $.Prettify.Decimal8 .InitialHoldings.QuoteInitialFunds }} {{.FinalHoldings.Pair.Quote}}</td>
+										<td>{{ $.Prettify.Decimal8 .InitialHoldings.TotalInitialValue }} {{.FinalHoldings.Pair.Quote}}</td>
+										<td>{{ $.Prettify.Decimal8 .FinalHoldings.BaseSize }} {{ .FinalHoldings.Pair.Base}}</td>
+										<td>{{ $.Prettify.Decimal8 .FinalHoldings.QuoteSize }} {{ .FinalHoldings.Pair.Quote}}</td>
+										<td>{{ $.Prettify.Decimal8 .FinalHoldings.TotalValue }} {{ .FinalHoldings.Pair.Quote}}</td>
 										<td>{{  .IsStrategyProfitable }}</td>
 										<td> {{ .DoesPerformanceBeatTheMarket }}</td>
-										<td>{{  .StrategyMovement }}%</td>
-										<td>{{  .MarketMovement}}%</td>
+										<td>{{ $.Prettify.Decimal8 .StrategyMovement }}%</td>
+										<td>{{ $.Prettify.Decimal8 .MarketMovement}}%</td>
 									</tr>
 								{{end}}
 							{{end}}
 						{{end}}
 						</tbody>
 					</table>
-
-					<h5>Totals</h5>
+				{{end}}
+				{{ if eq .Config.StrategySettings.DisableUSDTracking false}}
+					<h5>USD Totals</h5>
 					<table class="table table-hover table-bordered table-striped">
 						<tbody>
 						<tr>
 							<td><b>Initial Total Funds in USD</b></td>
-							<td><b>${{   .Statistics.Funding.InitialTotalUSD}}</b></td>
+							<td><b>${{  $.Prettify.Decimal2 .Statistics.FundingStatistics.TotalUSDStatistics.InitialHoldingValue.Value}}</b></td>
 						</tr>
 						<tr>
 							<td><b>Final Total Funds in USD</b></td>
-							<td><b>${{   .Statistics.Funding.FinalTotalUSD}}</b></td>
+							<td><b>${{  $.Prettify.Decimal2 .Statistics.FundingStatistics.TotalUSDStatistics.FinalHoldingValue.Value}}</b></td>
 						</tr>
 						<tr>
 							<td><b>Difference</b></td>
-							<td><b>{{  .Statistics.Funding.Difference}}%</b></td>
+							<td><b>{{ $.Prettify.Decimal8 .Statistics.FundingStatistics.TotalUSDStatistics.HoldingValueDifference}}%</b></td>
 						</tr>
 						</tbody>
 					</table>
-
 				{{end}}
 			</div>
-
 		</div>
-	</div>
-	<div >
 		<div class="card card-cascade narrower">
 			<div class="view view-cascade bg-primary">
 				<h2 id="config" class="px-4 card-header-title text-light">Config</h2>
 			</div>
 		</div>
-	</div>
-	<div >
 		<div class="card card-cascade narrower">
 			<div class="view view-cascade bg-info">
 				<h2 id="strategy-settings" class="px-4 card-header-title text-light">Strategy Settings</h2>
@@ -380,8 +366,6 @@
 				</table>
 			</div>
 		</div>
-	</div>
-	<div >
 		<div class="card card-cascade narrower">
 			<div class="view view-cascade bg-info">
 				<h2 id="currency-settings" class="px-4 card-header-title text-light">Currency Settings</h2>
@@ -408,62 +392,63 @@
 					</thead>
 					<tbody>
 					{{ range .Config.CurrencySettings}}
-						<tr>
-							<td>{{.ExchangeName}}</td>
-							<td>{{.Asset}}</td>
-							<td>{{.Base}}</td>
-							<td>{{.Quote}}</td>
-							<td>{{.BuySide.MinimumSize}} {{.Base}}</td>
-							<td>{{.BuySide.MaximumSize}} {{.Base}}</td>
-							<td>{{.BuySide.MaximumTotal}} {{.Quote}}</td>
-							<td>{{.SellSide.MinimumSize}} {{.Base}}</td>
-							<td>{{.SellSide.MaximumSize}} {{.Base}}</td>
-							<td>{{.SellSide.MaximumTotal}} {{.Quote}}</td>
-							<td>{{.MinimumSlippagePercent}}%</td>
-							<td>{{.MaximumSlippagePercent}}%</td>
-							<td>{{.TakerFee}}</td>
-							<td>{{.MaximumHoldingsRatio}}</td>
-						</tr>
+						{{if .USDTrackingPair}}
+						{{else}}
+							<tr>
+								<td>{{.ExchangeName}}</td>
+								<td>{{.Asset}}</td>
+								<td>{{.Base}}</td>
+								<td>{{.Quote}}</td>
+								<td>{{ $.Prettify.Decimal64 .BuySide.MinimumSize}} {{.Base}}</td>
+								<td>{{ $.Prettify.Decimal64 .BuySide.MaximumSize}} {{.Base}}</td>
+								<td>{{ $.Prettify.Decimal64 .BuySide.MaximumTotal}} {{.Quote}}</td>
+								<td>{{ $.Prettify.Decimal64 .SellSide.MinimumSize}} {{.Base}}</td>
+								<td>{{ $.Prettify.Decimal64 .SellSide.MaximumSize}} {{.Base}}</td>
+								<td>{{ $.Prettify.Decimal64 .SellSide.MaximumTotal}} {{.Quote}}</td>
+								<td>{{ $.Prettify.Decimal64 .MinimumSlippagePercent}}%</td>
+								<td>{{ $.Prettify.Decimal64 .MaximumSlippagePercent}}%</td>
+								<td>{{.TakerFee}}</td>
+								<td>{{.MaximumHoldingsRatio}}</td>
+							</tr>
+						{{end}}
 					{{end}}
 					</tbody>
 				</table>
 			</div>
 		</div>
-	</div>
-	<div >
-		<div class="card card-cascade narrower">
-			<div class="view view-cascade bg-info">
-				<h2 id="funding-settings" class="px-4 card-header-title text-light">Funding Settings</h2>
-			</div>
-			<div class="card-body card-body-cascade ">
-				<table class="table table-hover table-bordered table-striped">
-					<thead>
-					<tr>
-						<th>Exchange Name</th>
-						<th>Asset</th>
-						<th>Currency</th>
-						<th>Paired With</th>
-						<th>Initial Funds</th>
-						<th>Transfer Fee</th>
-					</tr>
-					</thead>
-					<tbody>
-					{{ range .Statistics.Funding.Items}}
+	{{ if .Statistics.FundingStatistics.Report }}
+			<div class="card card-cascade narrower">
+				<div class="view view-cascade bg-info">
+					<h2 id="funding-settings" class="px-4 card-header-title text-light">Funding Settings</h2>
+				</div>
+				<div class="card-body card-body-cascade ">
+					<table class="table table-hover table-bordered table-striped">
+						<thead>
 						<tr>
-							<td>{{.Exchange}}</td>
-							<td>{{.Asset}}</td>
-							<td>{{.Currency}}</td>
-							<td>{{.PairedWith}}</td>
-							<td>{{ .InitialFunds}}</td>
-							<td>{{ .TransferFee}}</td>
+							<th>Exchange Name</th>
+							<th>Asset</th>
+							<th>Currency</th>
+							<th>Paired With</th>
+							<th>Initial Funds</th>
+							<th>Transfer Fee</th>
 						</tr>
-					{{end}}
-					</tbody>
-				</table>
+						</thead>
+						<tbody>
+						{{ range .Statistics.FundingStatistics.Report.Items}}
+							<tr>
+								<td>{{.Exchange}}</td>
+								<td>{{.Asset}}</td>
+								<td>{{.Currency}}</td>
+								<td>{{.PairedWith}}</td>
+								<td>{{ $.Prettify.Decimal8 .InitialFunds}}</td>
+								<td>{{ $.Prettify.Decimal64 .TransferFee}}</td>
+							</tr>
+						{{end}}
+						</tbody>
+					</table>
+				</div>
 			</div>
-		</div>
-	</div>
-	<div >
+	{{ end }}
 		<div class="card card-cascade narrower">
 			<div class="view view-cascade bg-info">
 				<h2 id="portfolio-settings" class="px-4 card-header-title text-light">Portfolio Settings</h2>
@@ -488,19 +473,17 @@
 						<td>{{.Config.PortfolioSettings.Leverage.CanUseLeverage}}</td>
 						<td>{{.Config.PortfolioSettings.Leverage.MaximumLeverageRate}}</td>
 						<td>{{.Config.PortfolioSettings.Leverage.MaximumOrdersWithLeverageRatio}}</td>
-						<td>{{.Config.PortfolioSettings.BuySide.MinimumSize}}</td>
-						<td>{{.Config.PortfolioSettings.BuySide.MaximumSize}}</td>
-						<td>{{ .Config.PortfolioSettings.BuySide.MaximumTotal}}</td>
-						<td>{{.Config.PortfolioSettings.SellSide.MinimumSize}}</td>
-						<td>{{.Config.PortfolioSettings.SellSide.MaximumSize}}</td>
-						<td>{{ .Config.PortfolioSettings.SellSide.MaximumTotal}}</td>
+						<td>{{ $.Prettify.Decimal64 .Config.PortfolioSettings.BuySide.MinimumSize}}</td>
+						<td>{{ $.Prettify.Decimal64 .Config.PortfolioSettings.BuySide.MaximumSize}}</td>
+						<td>{{ $.Prettify.Decimal64 .Config.PortfolioSettings.BuySide.MaximumTotal}}</td>
+						<td>{{ $.Prettify.Decimal64 .Config.PortfolioSettings.SellSide.MinimumSize}}</td>
+						<td>{{ $.Prettify.Decimal64 .Config.PortfolioSettings.SellSide.MaximumSize}}</td>
+						<td>{{ $.Prettify.Decimal64 .Config.PortfolioSettings.SellSide.MaximumTotal}}</td>
 					</tr>
 					</tbody>
 				</table>
 			</div>
 		</div>
-	</div>
-	<div >
 		<div class="card card-cascade narrower">
 			<div class="view view-cascade bg-info">
 				<h2 id="statistics-settings"  class="px-4 card-header-title text-light">Statistics Settings</h2>
@@ -514,11 +497,12 @@
 					</thead>
 					<tbody>
 					<tr>
-						<td>{{.Config.StatisticSettings.RiskFreeRate}}</td>
+						<td>{{ .Config.StatisticSettings.RiskFreeRate}}</td>
 					</tr>
 					</tbody>
 				</table>
 			</div>
+			{{ if .Warnings }}
 			<div class="view view-cascade bg-warning">
 				<h2 id="warnings" class="px-4 card-header-title text-light">Warnings</h2>
 			</div>
@@ -535,378 +519,921 @@
 					</thead>
 					<tbody>
 					{{ range .Config.CurrencySettings}}
-						{{if  .ShowExchangeOrderLimitWarning}}
-							<tr>
-								<td>{{.ExchangeName}}</td>
-								<td>{{.Asset}}</td>
-								<td>{{.Base}}</td>
-								<td>{{.Quote}}</td>
-								<td>order execution limits supported but disabled, live results may differ</td>
-							</tr>
+						{{if .USDTrackingPair}}
+						{{else}}
+							{{if  .ShowExchangeOrderLimitWarning}}
+								<tr>
+									<td>{{.ExchangeName}}</td>
+									<td>{{.Asset}}</td>
+									<td>{{.Base}}</td>
+									<td>{{.Quote}}</td>
+									<td>order execution limits supported but disabled, live results may differ</td>
+								</tr>
+							{{end}}
+							{{ range $.Warnings}}
+								<tr>
+									<td>{{.Exchange}}</td>
+									<td>{{.Asset}}</td>
+									<td>{{.Pair.Base}}</td>
+									<td>{{.Pair.Quote}}</td>
+									<td>{{.Message}}</td>
+								</tr>
+							{{end}}
 						{{end}}
-					{{end}}
-					{{ range .Warnings}}
-						<tr>
-							<td>{{.Exchange}}</td>
-							<td>{{.Asset}}</td>
-							<td>{{.Pair.Base}}</td>
-							<td>{{.Pair.Quote}}</td>
-							<td>{{.Message}}</td>
-						</tr>
 					{{end}}
 					</tbody>
 				</table>
 			</div>
-		</div>
-	</div>
-	<div>
+			{{end}}
 		<div class="card card-cascade narrower">
 			<div class="view view-cascade bg-success">
 				<h2 id="charts" class="px-4 card-header-title text-light">Charts</h2>
 			</div>
+			<script>
+				Highcharts.theme = {
+					colors: ['#2b908f', '#90ee7e', '#f45b5b', '#7798BF', '#aaeeee', '#ff0066',
+						'#eeaaee', '#55BF3B', '#DF5353', '#7798BF', '#aaeeee'],
+					chart: {
+						backgroundColor: {
+							linearGradient: { x1: 0, y1: 0, x2: 1, y2: 1 },
+							stops: [
+								[0, '#2a2a2b'],
+								[1, '#3e3e40']
+							]
+						},
+						style: {
+							fontFamily: '\'Unica One\', sans-serif'
+						},
+						plotBorderColor: '#606063'
+					},
+					title: {
+						style: {
+							color: '#E0E0E3',
+							textTransform: 'uppercase',
+							fontSize: '20px'
+						}
+					},
+					subtitle: {
+						style: {
+							color: '#E0E0E3',
+							textTransform: 'uppercase'
+						}
+					},
+					xAxis: {
+						gridLineColor: '#707073',
+						labels: {
+							style: {
+								color: '#E0E0E3'
+							}
+						},
+						lineColor: '#707073',
+						minorGridLineColor: '#505053',
+						tickColor: '#707073',
+						title: {
+							style: {
+								color: '#A0A0A3'
+							}
+						}
+					},
+					yAxis: {
+						gridLineColor: '#707073',
+						labels: {
+							style: {
+								color: '#E0E0E3'
+							}
+						},
+						lineColor: '#707073',
+						minorGridLineColor: '#505053',
+						tickColor: '#707073',
+						tickWidth: 1,
+						title: {
+							style: {
+								color: '#A0A0A3'
+							}
+						}
+					},
+					tooltip: {
+						backgroundColor: 'rgba(0, 0, 0, 0.85)',
+						style: {
+							color: '#F0F0F0'
+						}
+					},
+					plotOptions: {
+						series: {
+							dataLabels: {
+								color: '#F0F0F3',
+								style: {
+									fontSize: '13px'
+								}
+							},
+							marker: {
+								lineColor: '#333'
+							}
+						},
+						boxplot: {
+							fillColor: '#505053'
+						},
+						candlestick: {
+							lineColor: 'white'
+						},
+						errorbar: {
+							color: 'white'
+						}
+					},
+					legend: {
+						backgroundColor: 'rgba(0, 0, 0, 0.5)',
+						itemStyle: {
+							color: '#E0E0E3'
+						},
+						itemHoverStyle: {
+							color: '#FFF'
+						},
+						itemHiddenStyle: {
+							color: '#606063'
+						},
+						title: {
+							style: {
+								color: '#C0C0C0'
+							}
+						}
+					},
+					credits: {
+						style: {
+							color: '#666'
+						}
+					},
+					labels: {
+						style: {
+							color: '#707073'
+						}
+					},
+					drilldown: {
+						activeAxisLabelStyle: {
+							color: '#F0F0F3'
+						},
+						activeDataLabelStyle: {
+							color: '#F0F0F3'
+						}
+					},
+					navigation: {
+						buttonOptions: {
+							symbolStroke: '#DDDDDD',
+							theme: {
+								fill: '#505053'
+							}
+						}
+					},
+					// scroll charts
+					rangeSelector: {
+						buttonTheme: {
+							fill: '#505053',
+							stroke: '#000000',
+							style: {
+								color: '#CCC'
+							},
+							states: {
+								hover: {
+									fill: '#707073',
+									stroke: '#000000',
+									style: {
+										color: 'white'
+									}
+								},
+								select: {
+									fill: '#000003',
+									stroke: '#000000',
+									style: {
+										color: 'white'
+									}
+								}
+							}
+						},
+						inputBoxBorderColor: '#505053',
+						inputStyle: {
+							backgroundColor: '#333',
+							color: 'silver'
+						},
+						labelStyle: {
+							color: 'silver'
+						}
+					},
+					navigator: {
+						handles: {
+							backgroundColor: '#666',
+							borderColor: '#AAA'
+						},
+						outlineColor: '#CCC',
+						maskFill: 'rgba(255,255,255,0.1)',
+						series: {
+							color: '#7798BF',
+							lineColor: '#A6C7ED'
+						},
+						xAxis: {
+							gridLineColor: '#505053'
+						}
+					},
+					scrollbar: {
+						barBackgroundColor: '#808083',
+						barBorderColor: '#808083',
+						buttonArrowColor: '#CCC',
+						buttonBackgroundColor: '#606063',
+						buttonBorderColor: '#606063',
+						rifleColor: '#FFF',
+						trackBackgroundColor: '#404043',
+						trackBorderColor: '#404043'
+					}
+				};
+				// Apply the theme
+				Highcharts.setOptions(Highcharts.theme);
+			</script>
+			{{ if eq $.Config.StrategySettings.DisableUSDTracking false }}
 			<div class="card-body card-body-cascade ">
+				<h3>USD Totals</h3>
+				<div id="usdtotals" style="max-height: 800px;min-height: 75vh;" >
+					<script>
+						Highcharts.chart('usdtotals', {
+							stockTools: {
+								gui: {
+									buttons:[ 'simpleShapes', 'lines', 'crookedLines', 'measure', 'advanced', 'toggleAnnotations', 'verticalLabels', 'flags', 'zoomChange', 'currentPriceIndicator' ]
+								}
+							},
+							title: {
+								text: 'Holding value over strategy duration'
+							},
+							yAxis: {
+								type: 'logarithmic',
+								title: {
+									text: 'USD'
+								}
+							},
+							xAxis: {
+								type: 'datetime'
+							},
+							legend: {
+								layout: 'vertical',
+								align: 'right',
+								verticalAlign: 'middle'
+							},
+							plotOptions: {
+								series: {
+									label: {
+										connectorAllowed: false
+									},
+								}
+							},
+							series: [
+								{{ range .USDTotalsChart }}
+								{
+									name: {{.Name}},
+									pointStart: {{ $.Statistics.StartDate.UnixMilli }},
+									pointInterval: {{$.Statistics.CandleInterval.Duration.Milliseconds}},
+									data: [
+										{{ range .DataPoints }}
+											[{{.UnixMilli}}, {{.Value}}],
+										{{end}}
+									]
+								},
+								{{end}}
+							],
+							responsive: {
+								rules: [{
+									condition: {
+										maxWidth: 500
+									},
+									chartOptions: {
+										legend: {
+											layout: 'horizontal',
+											align: 'center',
+											verticalAlign: 'bottom'
+										}
+									}
+								}]
+							}
+
+						});
+					</script>
+
+				</div>
+				{{end }}
+				<h3>Holdings Over Time</h3>
+				<div id="holdingsovertime" style="max-height: 800px;min-height: 75vh;" >
+					<script>
+						Highcharts.chart('holdingsovertime', {
+							stockTools: {
+								gui: {
+									buttons:[ 'simpleShapes', 'lines', 'crookedLines', 'measure', 'advanced', 'toggleAnnotations', 'verticalLabels', 'flags', 'zoomChange', 'currentPriceIndicator' ]
+								}
+							},
+							title: {
+								text: 'Holdings over strategy duration'
+							},
+							yAxis: {
+								type: 'logarithmic',
+								title: {
+									text: 'Quantity'
+								}
+							},
+							xAxis: {
+								type: 'datetime'
+							},
+							legend: {
+								layout: 'vertical',
+								align: 'right',
+								verticalAlign: 'middle'
+							},
+							plotOptions: {
+								series: {
+									label: {
+										connectorAllowed: false
+									},
+								}
+							},
+							series: [
+								{{ range .HoldingsOverTimeChart }}
+								{
+									pointStart: {{ $.Statistics.StartDate.UnixMilli }},
+									pointInterval: {{$.Statistics.CandleInterval.Duration.Milliseconds}},
+									name: {{.Name}},
+									data: [
+										{{ range .DataPoints }}
+											[{{.UnixMilli}},{{.Value}}],
+										{{end}}
+									]
+								},
+								{{end}}
+							],
+							responsive: {
+								rules: [{
+									condition: {
+										maxWidth: 500
+									},
+									chartOptions: {
+										legend: {
+											layout: 'horizontal',
+											align: 'center',
+											verticalAlign: 'bottom'
+										}
+									}
+								}]
+							}
+
+						});
+					</script>
+				</div>
 				{{ range .EnhancedCandles}}
-					{{ if .IsOverLimit}}
-						<p>Note: Number of candles processed is higher than chart can render. Only showing the first 1,100</p>
-					{{end}}
-					<div id="{{.Exchange}}{{.Asset}}{{.Pair}}" >
-						<h3>{{.Exchange}} {{.Asset}} {{.Pair}}</h3>
+					<h3>{{.Exchange}} {{.Asset}} {{.Pair}} Transactions</h3>
+					<div id="{{.Exchange}}{{.Asset}}{{.Pair}}" style="max-height: 800px;min-height: 75vh;" >
 						<script>
-							var chart = LightweightCharts.createChart(document.getElementById("{{.Exchange}}{{.Asset}}{{.Pair}}"), {
-								width: document.getElementById("{{.Exchange}}{{.Asset}}{{.Pair}}").offsetWidth,
-								height: 800,
-								layout: {
-									backgroundColor: '#000',
-									textColor: 'rgba(255, 255, 255, 0.9)',
+							// split the data set into ohlc and volume
+							var ohlc = [],
+									volume = [],
+									i = 0;
+
+							{{ range .Candles}}
+							ohlc.push([{{.UnixMilli}},{{.Open}},{{.High}},{{.Low}},{{.Close}}]);
+							volume.push([{{.UnixMilli}},{{.Volume}}]);
+							{{end}}
+
+
+							Highcharts.stockChart('{{.Exchange}}{{.Asset}}{{.Pair}}', {
+								stockTools: {
+									gui: {
+										buttons:[ 'indicators', 'separator', 'simpleShapes', 'lines', 'crookedLines', 'measure', 'advanced', 'toggleAnnotations', 'verticalLabels', 'flags', 'zoomChange', 'currentPriceIndicator' ]
+									}
 								},
-								grid: {
-									vertLines: {
-										color: 'rgba(197, 203, 206, 0)',
+								yAxis: [{
+									labels: {
+										align: 'left'
 									},
-									horzLines: {
-										color: 'rgba(197, 203, 206, 0)',
+									height: '80%',
+									resize: {
+										enabled: true
+									}
+								}, {
+									labels: {
+										align: 'left'
 									},
+									top: '80%',
+									height: '20%',
+									offset: 0
+								}],
+								xAxis: {
+									type: 'datetime'
 								},
-								crosshair: {
-									mode: LightweightCharts.CrosshairMode.Normal,
+								series: [{
+									pointStart: {{ $.Statistics.StartDate.UnixMilli }},
+									pointInterval: {{$.Statistics.CandleInterval.Duration.Milliseconds}},
+									type: 'candlestick',
+									id: '{{.Exchange}}{{.Asset}}{{.Pair}}-ohlc',
+									name: '{{.Exchange}} {{.Asset}} {{.Pair}} Prices',
+									data: ohlc,
+									tooltip: {
+										valueDecimals: 4
+									},
+									color: Highcharts.getOptions().colors[0],
 								},
-								rightPriceScale: {
-									borderColor: 'rgba(197, 203, 206, 0.8)',
+									{
+										type: 'flags',
+										name: 'Flags on series',
+										allowOverlapX: true,
+										pointStart: {{ $.Statistics.StartDate.UnixMilli }},
+										pointInterval: {{$.Statistics.CandleInterval.Duration.Milliseconds}},
+										data:
+												[
+													{{range .Candles}}
+													{{ if .Text }}
+													{
+														x: {{.UnixMilli}},
+														title: {{.Text}},
+														text: {{.OrderAmount}} + ' @ ' + {{.PurchasePrice}}
+													},
+													{{end}}
+													{{end}}
+												],
+										onSeries: '{{.Exchange}}{{.Asset}}{{.Pair}}-ohlc',
+										shape: 'squarepin',
+										color: Highcharts.getOptions().colors[0], // same as onSeries
+										fillColor: Highcharts.getOptions().colors[0],
+										width: 16,
+										style: { // text style
+											color: 'white'
+										},
+										states: {
+											hover: {
+												fillColor: '#395C84' // darker
+											}
+										}
+									},
+									{
+										type: 'column',
+										id: '{{.Exchange}}{{.Asset}}{{.Pair}}-volume',
+										name: '{{.Exchange}} {{.Asset}} {{.Pair}} Volume',
+										data: volume,
+										yAxis: 1
+									}],
+
+								navigator: {
+									series: {
+										color: Highcharts.getOptions().colors[0]
+									}
 								},
-								timeScale: {
-									borderColor: 'rgba(197, 203, 206, 0.8)',
-									timeVisible: true,
-								},
-								watermark: {
-									color: 'rgba(11, 94, 29, 0.4)',
-									visible: true,
-									text: {{.Watermark}},
-									fontSize: 72,
-									horzAlign: 'center',
-									vertAlign: 'center',
-								},
-								priceScale: {
-									autoScale: true,
+								responsive: {
+									rules: [{
+										condition: {
+											maxWidth: 800
+										},
+										chartOptions: {
+											rangeSelector: {
+												inputEnabled: true
+											}
+										}
+									}]
 								}
 							});
-
-							var candleSeries = chart.addCandlestickSeries({
-								upColor: 'rgba(47, 194, 27, 0)',
-								downColor: 'rgba(252, 3, 3, 1)',
-								borderDownColor: 'rgba(252, 3, 3, 1)',
-								borderUpColor: 'rgba(47, 194, 27, 1)',
-								wickDownColor: 'rgba(252, 3, 3, 1)',
-								wickUpColor: 'rgba(47, 194, 27, 1)',
-							});
-
-							candleSeries.setData([
-								{{ range .Candles}}
-								{ time: {{.Time }}, open: {{.Open}}, high: {{.High}}, low: {{.Low}}, close: {{.Close}} },
-								{{ end }}
-							])
-
-							candleSeries.setMarkers([
-								{{ range .Candles}}
-								{ time: {{.Time }}, position: {{printf "%s" .Position }}, color: {{printf "%s" .Colour }}, shape: {{printf "%s" .Shape }}, text: {{printf "%s" .Text }} },
-								{{end}}
-							])
-							candleSeries.applyOptions({
-								priceFormat: {
-									type: 'volume',
-									precision: 8,
-								},
-							});
-
-							var volumeSeries = chart.addHistogramSeries({
-								priceFormat: {
-									type: 'volume',
-								},
-								priceScaleId: '',
-								scaleMargins: {
-									top: 0.95,
-									bottom: 0,
-								}})
-
-							volumeSeries.setData([
-								{{ range .Candles}}
-								{ time: {{.Time }}, value: {{.Volume}}, color: {{printf "%s" .VolumeColour}} },
-								{{end}}
-							])
-
-							chart.timeScale().fitContent();
 						</script>
 					</div>
 				{{end}}
 			</div>
 		</div>
-	</div>
-	<div >
-		<div class="card card-cascade narrower">
-			<div class="view view-cascade bg-primary">
-				<h2 id="statistics"  class="px-4 card-header-title text-light">Statistics</h2>
-			</div>
-			<div class="card-body card-body-cascade ">
-				<table class="table table-hover table-bordered table-striped">
-					<tbody>
-					<tr>
-						<td><b>Strategy Name</b></td>
-						<td>{{.Statistics.StrategyName}}</td>
-					</tr>
-					<tr>
-						<td><b>Risk Free Rate</b></td>
-						<td>{{.Statistics.RiskFreeRate}}%</td>
-					</tr>
-					<tr>
-						<td><b>Total Buy Orders</b></td>
-						<td>{{.Statistics.TotalBuyOrders}}</td>
-					</tr>
-					<tr>
-						<td><b>Total Sell Orders</b></td>
-						<td>{{.Statistics.TotalSellOrders}}</td>
-					</tr>
-					<tr>
-						<td><b>Total Orders</b></td>
-						<td>{{.Statistics.TotalOrders}}</td>
-					</tr>
-					{{ if .Statistics.BiggestDrawdown}}
-						<tr>
-							<td><b>Biggest Drawdown</b></td>
-							<td><b>Start:</b> {{.Statistics.BiggestDrawdown.MaxDrawdown.Highest.Time }} <b>End:</b> {{.Statistics.BiggestDrawdown.MaxDrawdown.Lowest.Time }} <b>Drop:</b> {{.Statistics.BiggestDrawdown.MaxDrawdown.DrawdownPercent}}%</td>
-						</tr>
-					{{end}}
-					{{ if .Statistics.BestMarketMovement}}
-						<tr>
-							<td><b>Best performing market movement</b></td>
-							<td>{{.Statistics.BestMarketMovement.Exchange }} {{.Statistics.BestMarketMovement.Asset}} {{.Statistics.BestMarketMovement.Pair}} {{.Statistics.BestMarketMovement.MarketMovement}}%</td>
-						</tr>
-					{{end}}
-					{{ if .Statistics.BestStrategyResults}}
-						<tr>
-							<td><b>Best performing strategy movement</b></td>
-							<td>{{.Statistics.BestStrategyResults.Exchange }} {{.Statistics.BestStrategyResults.Asset}} {{.Statistics.BestStrategyResults.Pair}} {{.Statistics.BestStrategyResults.StrategyMovement}}%</td>
-						</tr>
-					{{ end}}
-					</tbody>
-				</table>
-			</div>
-		</div>
-		{{ range $exchange, $unused := .Statistics.ExchangeAssetPairStatistics}}
-			{{ range $asset, $unused := .}}
-				{{ range $pair, $val := .}}
-					<div class="card card-cascade narrower">
-						<div class="view view-cascade bg-info">
-							<h2  class="px-4 card-header-title text-light">Statistics for {{$exchange}} {{ $asset}} {{ $pair}}</h2>
-						</div>
-						<div class="card-body card-body-cascade ">
-							{{if $.Config.StrategySettings.UseExchangeLevelFunding}}
-								<div class="alert alert-warning" role="alert" data-mdb-color="warning">
-									This strategy is using Exchange Level Funding. Calculation of ratios and strategic performance may be inaccurate
-								</div>
-							{{end}}
-							<table class="table table-hover table-bordered table-striped">
-								<tbody>
-								<tr>
-									<td><b>Base Initial Funds</b></td>
-									<td>{{ $val.FinalHoldings.BaseInitialFunds}} {{$val.FinalHoldings.Pair.Base}}</td>
-								</tr>
-								<tr>
-									<td><b>Quote Initial Funds</b></td>
-									<td>{{ $val.FinalHoldings.QuoteInitialFunds}} {{$val.FinalHoldings.Pair.Quote}}</td>
-								</tr>
 
-								<tr>
-									<td><b>Buy Orders</b></td>
-									<td>{{$val.BuyOrders}}</td>
-								</tr>
-								<tr>
-									<td><b>Buy Value</b></td>
-									<td>{{ $val.FinalHoldings.BoughtValue}} {{$val.FinalHoldings.Pair.Quote}}</td>
-								</tr>
-								<tr>
-									<td><b>Buy Amount</b></td>
-									<td>{{ $val.FinalHoldings.BoughtAmount}} {{$val.FinalHoldings.Pair.Base}} </td>
-								</tr>
-								<tr>
-									<td><b>Sell Orders</b></td>
-									<td>{{$val.SellOrders}}</td>
-								</tr>
-								<tr>
-									<td><b>Sell Value</b></td>
-									<td>{{ $val.FinalHoldings.SoldValue}} {{$val.FinalHoldings.Pair.Quote}}</td>
-								</tr>
-								<tr>
-									<td><b>Sell Amount</b></td>
-									<td>{{ $val.FinalHoldings.SoldAmount}} {{$val.FinalHoldings.Pair.Base}}</td>
-								</tr>
-								<tr>
-									<td><b>Total Orders</b></td>
-									<td>{{$val.TotalOrders}}</td>
-								</tr>
-								{{ if $val.MaxDrawdown.Highest.Price.IsZero }}
-								{{else}}
+
+			<div class="card card-cascade narrower">
+				<div class="view view-cascade bg-primary">
+					<h2 id="strategy-statistics"  class="px-4 card-header-title text-light">Strategy Statistics</h2>
+				</div>
+				<div class="card-body card-body-cascade ">
+					<table class="table table-hover table-bordered table-striped">
+						<tbody>
+						<tr>
+							<td><b>Strategy Name</b></td>
+							<td>{{.Statistics.StrategyName}}</td>
+						</tr>
+						<tr>
+							<td><b>Risk Free Rate</b></td>
+							<td>{{.Statistics.RiskFreeRate}}%</td>
+						</tr>
+						<tr>
+							<td><b>Total Buy Orders</b></td>
+							<td>{{ $.Prettify.Int .Statistics.TotalBuyOrders}}</td>
+						</tr>
+						<tr>
+							<td><b>Total Sell Orders</b></td>
+							<td>{{$.Prettify.Int .Statistics.TotalSellOrders}}</td>
+						</tr>
+						<tr>
+							<td><b>Total Orders</b></td>
+							<td>{{$.Prettify.Int .Statistics.TotalOrders}}</td>
+						</tr>
+						{{ if .Statistics.BiggestDrawdown}}
+							<tr>
+								<td><b>Biggest Drawdown</b></td>
+								<td><b>Start:</b> {{.Statistics.BiggestDrawdown.MaxDrawdown.Highest.Time }} <b>End:</b> {{.Statistics.BiggestDrawdown.MaxDrawdown.Lowest.Time }} <b>Drop:</b> {{ $.Prettify.Decimal2 .Statistics.BiggestDrawdown.MaxDrawdown.DrawdownPercent}}%</td>
+							</tr>
+						{{end}}
+						{{ if .Statistics.BestMarketMovement}}
+							<tr>
+								<td><b>Best performing market movement</b></td>
+								<td>{{.Statistics.BestMarketMovement.Exchange }} {{.Statistics.BestMarketMovement.Asset}} {{.Statistics.BestMarketMovement.Pair}} {{ $.Prettify.Decimal2 .Statistics.BestMarketMovement.MarketMovement}}%</td>
+							</tr>
+						{{end}}
+						{{ if .Statistics.BestStrategyResults}}
+							<tr>
+								<td><b>Best performing strategy movement</b></td>
+								<td>{{.Statistics.BestStrategyResults.Exchange }} {{.Statistics.BestStrategyResults.Asset}} {{.Statistics.BestStrategyResults.Pair}} {{ $.Prettify.Decimal2 .Statistics.BestStrategyResults.StrategyMovement}}%</td>
+							</tr>
+						{{ end}}
+						</tbody>
+					</table>
+				</div>
+			</div>
+			{{ range $exchange, $unused := .Statistics.ExchangeAssetPairStatistics}}
+				{{ range $asset, $unused := .}}
+					{{ range $pair, $val := .}}
+						<div class="card card-cascade narrower">
+							<div class="view view-cascade bg-primary">
+								<h2 id="currency-statistics" class="px-4 card-header-title text-light">Pair Statistics for {{$exchange}} {{ $asset}} {{ $pair}}</h2>
+							</div>
+							<div class="card-body card-body-cascade ">
+								<table class="table table-hover table-bordered table-striped">
+									<tbody>
 									<tr>
-										<td><b>Biggest Drawdown</b></td>
-										<td><b>Start:</b> {{ $val.MaxDrawdown.Highest.Time }} <b>End:</b> {{ $val.MaxDrawdown.Lowest.Time }} <b>Drop:</b> {{printf "%.8v" $val.MaxDrawdown.DrawdownPercent}}%</td>
+										<td><b>Base Initial Funds</b></td>
+										<td>{{ $.Prettify.Decimal8 $val.FinalHoldings.BaseInitialFunds}} {{$val.FinalHoldings.Pair.Base}}</td>
 									</tr>
-								{{ end }}
-								<tr>
-									<td><b>Starting Close Price</b></td>
-									<td>{{ $val.StartingClosePrice}} {{$val.FinalHoldings.Pair.Quote}}</td>
-								</tr>
-								<tr>
-									<td><b>Ending Close Price</b></td>
-									<td>{{ $val.EndingClosePrice}} {{ $val.FinalHoldings.Pair.Quote }}</td>
-								</tr>
-								<tr>
-									<td><b>Lowest Close Price</b></td>
-									<td>{{ $val.LowestClosePrice}} {{$val.FinalHoldings.Pair.Quote}}</td>
-								</tr>
-								<tr>
-									<td><b>Highest Close Price</b></td>
-									<td>{{ $val.HighestClosePrice}} {{ $val.FinalHoldings.Pair.Quote}}</td>
-								</tr>
-								<tr>
-									<td><b>Highest Committed Funds</b></td>
-									<td>{{ $val.HighestCommittedFunds.Value}} at {{ $val.HighestCommittedFunds.Time}}</td>
-								</tr>
-								<tr>
-									<td><b>Market Movement</b></td>
-									<td>{{ $val.MarketMovement}}%</td>
-								</tr>
-								<tr>
-									<td><b>Strategy Movement</b></td>
-									<td>{{  $val.StrategyMovement}}%</td>
-								</tr>
-								<tr>
-									<td><b>Did it beat the market?</b></td>
-									<td>{{ .DoesPerformanceBeatTheMarket }}</td>
-								</tr>
-								<tr>
-									<td><b>Total Value Lost to Volume Sizing</b></td>
-									<td>{{ $val.FinalHoldings.TotalValueLostToVolumeSizing}} {{$val.FinalHoldings.Pair.Quote}}</td>
-								</tr>
-								<tr>
-									<td><b>Total Value Lost to Slippage</b></td>
-									<td>{{ $val.FinalHoldings.TotalValueLostToSlippage}} {{ $val.FinalHoldings.Pair.Quote }}</td>
-								</tr>
-								<tr>
-									<td><b>Total Value Lost</b></td>
-									<td>{{ $val.FinalHoldings.TotalValueLost}} {{$val.FinalHoldings.Pair.Quote}}</td>
-								</tr>
-								<tr>
-									<td><b>Total Fees</b></td>
-									<td>{{ $val.FinalHoldings.TotalFees}} {{ $val.FinalHoldings.Pair.Quote }}</td>
-								</tr>
-								<tr>
-									<td><b>Final Funds</b></td>
-									<td>{{ $val.FinalHoldings.QuoteSize}} {{ $val.FinalHoldings.Pair.Quote}}</td>
-								</tr>
-								<tr>
-									<td><b>Final Holdings</b></td>
-									<td>{{ $val.FinalHoldings.BaseSize}} {{$val.FinalHoldings.Pair.Base}}</td>
-								</tr>
-								<tr>
-									<td><b>Final Holdings Value</b></td>
-									<td>{{ $val.FinalHoldings.BaseValue}} {{ $val.FinalHoldings.Pair.Quote }}</td>
-								</tr>
-								<tr>
-									<td><b>Total Value</b></td>
-									<td><b>{{ $val.FinalHoldings.TotalValue}} {{ $val.FinalHoldings.Pair.Quote}}</b></td>
-								</tr>
-								</tbody>
-							</table>
-							Rates
-							<table class="table table-hover table-bordered table-striped">
-								<tbody>
-								<tr>
-									<td><b>Risk Free Rate</b></td>
-									<td>{{$val.RiskFreeRate}}%</td>
-								</tr>
-								<tr>
-									<td><b>Compound Annual Growth Rate</b></td>
-									<td>{{$val.CompoundAnnualGrowthRate}}%</td>
-								</tr>
-								</tbody>
-							</table>
-							{{if  $val.ShowMissingDataWarning}}
-								<h3 class="bg-warning">Missing data was detected during this backtesting run<br />
-									Ratio calculations will be skewed</h3>
-							{{end}}
-							Arithmetic Ratios
-							<table class="table table-hover table-bordered table-striped">
-								<tbody>
-								<tr>
-									<td><b>Sharpe Ratio</b></td>
-									<td>{{$val.ArithmeticRatios.SharpeRatio}}</td>
-								</tr>
-								<tr>
-									<td><b>Sortino Ratio</b></td>
-									<td>{{$val.ArithmeticRatios.SortinoRatio}}</td>
-								</tr>
-								<tr>
-									<td><b>Information Ratio</b></td>
-									<td>{{$val.ArithmeticRatios.InformationRatio}}</td>
-								</tr>
-								<tr>
-									<td><b>Calmar Ratio</b></td>
-									<td>{{$val.ArithmeticRatios.CalmarRatio}}</td>
-								</tr>
-								</tbody>
-							</table>
-							Geometric Ratios
-							<table class="table table-hover table-bordered table-striped">
-								<tbody>
-								<tr>
-									<td><b>Sharpe Ratio</b></td>
-									<td>{{$val.GeometricRatios.SharpeRatio}}</td>
-								</tr>
-								<tr>
-									<td><b>Sortino Ratio</b></td>
-									<td>{{$val.GeometricRatios.SortinoRatio}}</td>
-								</tr>
-								<tr>
-									<td><b>Information Ratio</b></td>
-									<td>{{$val.GeometricRatios.InformationRatio}}</td>
-								</tr>
-								<tr>
-									<td><b>Calmar Ratio</b></td>
-									<td>{{$val.GeometricRatios.CalmarRatio}}</td>
-								</tr>
-								</tbody>
-							</table>
+									<tr>
+										<td><b>Quote Initial Funds</b></td>
+										<td>{{ $.Prettify.Decimal8 $val.FinalHoldings.QuoteInitialFunds}} {{$val.FinalHoldings.Pair.Quote}}</td>
+									</tr>
+
+									<tr>
+										<td><b>Buy Orders</b></td>
+										<td>{{ $.Prettify.Int $val.BuyOrders}}</td>
+									</tr>
+									<tr>
+										<td><b>Buy Value</b></td>
+										<td>{{ $.Prettify.Decimal8 $val.FinalHoldings.BoughtValue}} {{$val.FinalHoldings.Pair.Quote}}</td>
+									</tr>
+									<tr>
+										<td><b>Buy Amount</b></td>
+										<td>{{ $.Prettify.Decimal8 $val.FinalHoldings.BoughtAmount}} {{$val.FinalHoldings.Pair.Base}} </td>
+									</tr>
+									<tr>
+										<td><b>Sell Orders</b></td>
+										<td>{{ $.Prettify.Int $val.SellOrders}}</td>
+									</tr>
+									<tr>
+										<td><b>Sell Value</b></td>
+										<td>{{ $.Prettify.Decimal8 $val.FinalHoldings.SoldValue}} {{$val.FinalHoldings.Pair.Quote}}</td>
+									</tr>
+									<tr>
+										<td><b>Sell Amount</b></td>
+										<td>{{ $.Prettify.Decimal8 $val.FinalHoldings.SoldAmount}} {{$val.FinalHoldings.Pair.Base}}</td>
+									</tr>
+									<tr>
+										<td><b>Total Orders</b></td>
+										<td>{{ $.Prettify.Int $val.TotalOrders}}</td>
+									</tr>
+									{{ if $val.MaxDrawdown.Highest.Value.IsZero }}
+									{{else}}
+										<tr>
+											<td><b>Biggest Drawdown</b></td>
+											<td><b>Start:</b> {{ $val.MaxDrawdown.Highest.Time }} <b>End:</b> {{ $val.MaxDrawdown.Lowest.Time }} <b>Drop:</b> $ {{ $.Prettify.Decimal8 $val.MaxDrawdown.DrawdownPercent}}%</td>
+										</tr>
+									{{ end }}
+									<tr>
+										<td><b>Starting Close Price</b></td>
+										<td>{{ $.Prettify.Decimal8 $val.StartingClosePrice}} {{$val.FinalHoldings.Pair.Quote}}</td>
+									</tr>
+									<tr>
+										<td><b>Ending Close Price</b></td>
+										<td>{{ $.Prettify.Decimal8 $val.EndingClosePrice}} {{ $val.FinalHoldings.Pair.Quote }}</td>
+									</tr>
+									<tr>
+										<td><b>Lowest Close Price</b></td>
+										<td>{{ $.Prettify.Decimal8 $val.LowestClosePrice}} {{$val.FinalHoldings.Pair.Quote}}</td>
+									</tr>
+									<tr>
+										<td><b>Highest Close Price</b></td>
+										<td>{{ $.Prettify.Decimal8 $val.HighestClosePrice}} {{ $val.FinalHoldings.Pair.Quote}}</td>
+									</tr>
+									<tr>
+										<td><b>Highest Committed Funds</b></td>
+										<td>{{ $.Prettify.Decimal8 $val.HighestCommittedFunds.Value}} at {{ $val.HighestCommittedFunds.Time}}</td>
+									</tr>
+									<tr>
+										<td><b>Market Movement</b></td>
+										<td>{{ $.Prettify.Decimal8 $val.MarketMovement}}%</td>
+									</tr>
+									{{ if eq $.Statistics.FundingStatistics.Report.UsingExchangeLevelFunding false }}
+										<tr>
+											<td><b>Strategy Movement</b></td>
+											<td>{{ $.Prettify.Decimal8 $val.StrategyMovement}}%</td>
+										</tr>
+										<tr>
+											<td><b>Did it beat the market?</b></td>
+											<td>{{ .DoesPerformanceBeatTheMarket }}</td>
+										</tr>
+									{{ end }}
+									<tr>
+										<td><b>Total Value Lost to Volume Sizing</b></td>
+										<td>{{ $.Prettify.Decimal8 $val.FinalHoldings.TotalValueLostToVolumeSizing}} {{$val.FinalHoldings.Pair.Quote}}</td>
+									</tr>
+									<tr>
+										<td><b>Total Value Lost to Slippage</b></td>
+										<td>{{ $.Prettify.Decimal8 $val.FinalHoldings.TotalValueLostToSlippage}} {{ $val.FinalHoldings.Pair.Quote }}</td>
+									</tr>
+									<tr>
+										<td><b>Total Value Lost</b></td>
+										<td>{{ $.Prettify.Decimal8 $val.FinalHoldings.TotalValueLost}} {{$val.FinalHoldings.Pair.Quote}}</td>
+									</tr>
+									<tr>
+										<td><b>Total Fees</b></td>
+										<td>{{ $.Prettify.Decimal8 $val.FinalHoldings.TotalFees}} {{ $val.FinalHoldings.Pair.Quote }}</td>
+									</tr>
+									<tr>
+										<td><b>Final Funds</b></td>
+										<td>{{ $.Prettify.Decimal8 $val.FinalHoldings.QuoteSize}} {{ $val.FinalHoldings.Pair.Quote}}</td>
+									</tr>
+									<tr>
+										<td><b>Final Holdings</b></td>
+										<td>{{ $.Prettify.Decimal8 $val.FinalHoldings.BaseSize}} {{$val.FinalHoldings.Pair.Base}}</td>
+									</tr>
+									{{ if eq $.Statistics.FundingStatistics.Report.UsingExchangeLevelFunding false }}
+										<tr>
+											<td><b>Final Holdings Value</b></td>
+											<td>{{ $.Prettify.Decimal8 $val.FinalHoldings.BaseValue}} {{ $val.FinalHoldings.Pair.Quote }}</td>
+										</tr>
+										<tr>
+											<td><b>Total Value</b></td>
+											<td><b>{{ $.Prettify.Decimal8 $val.FinalHoldings.TotalValue}} {{ $val.FinalHoldings.Pair.Quote}}</b></td>
+										</tr>
+									{{end }}
+									</tbody>
+								</table>
+								{{ if eq  $.Statistics.FundingStatistics.Report.UsingExchangeLevelFunding false }}
+									Rates
+									<table class="table table-hover table-bordered table-striped">
+										<tbody>
+										<tr>
+											<td><b>Risk Free Rate</b></td>
+											<td>{{$.Statistics.RiskFreeRate}}%</td>
+										</tr>
+										<tr>
+											<td><b>Compound Annual Growth Rate</b></td>
+											<td>{{ $.Prettify.Decimal8 $val.CompoundAnnualGrowthRate}}%</td>
+										</tr>
+										</tbody>
+									</table>
+									{{if  $val.ShowMissingDataWarning}}
+										<h3 class="bg-warning">Missing data was detected during this backtesting run<br />
+											Ratio calculations will be skewed</h3>
+									{{end}}
+									Arithmetic Ratios
+									<table class="table table-hover table-bordered table-striped">
+										<tbody>
+										<tr>
+											<td><b>Sharpe Ratio</b></td>
+											<td>{{$val.ArithmeticRatios.SharpeRatio}}</td>
+										</tr>
+										<tr>
+											<td><b>Sortino Ratio</b></td>
+											<td>{{$val.ArithmeticRatios.SortinoRatio}}</td>
+										</tr>
+										<tr>
+											<td><b>Information Ratio</b></td>
+											<td>{{$val.ArithmeticRatios.InformationRatio}}</td>
+										</tr>
+										<tr>
+											<td><b>Calmar Ratio</b></td>
+											<td>{{$val.ArithmeticRatios.CalmarRatio}}</td>
+										</tr>
+										</tbody>
+									</table>
+									Geometric Ratios
+									<table class="table table-hover table-bordered table-striped">
+										<tbody>
+										<tr>
+											<td><b>Sharpe Ratio</b></td>
+											<td>{{$val.GeometricRatios.SharpeRatio}}</td>
+										</tr>
+										<tr>
+											<td><b>Sortino Ratio</b></td>
+											<td>{{$val.GeometricRatios.SortinoRatio}}</td>
+										</tr>
+										<tr>
+											<td><b>Information Ratio</b></td>
+											<td>{{$val.GeometricRatios.InformationRatio}}</td>
+										</tr>
+										<tr>
+											<td><b>Calmar Ratio</b></td>
+											<td>{{$val.GeometricRatios.CalmarRatio}}</td>
+										</tr>
+										</tbody>
+									</table>
+								{{end }}
+							</div>
 						</div>
-					</div>
+					{{end}}
 				{{end}}
 			{{end}}
-		{{end}}
+	{{ if $.Config.StrategySettings.DisableUSDTracking }}
+	{{ if $.Statistics.FundingStatistics.Report.UsingExchangeLevelFunding }}
+	<div class="card card-cascade narrower">
+		<div class="view view-cascade bg-alert alert-warning">
+			<h2  id="funding-statistics"  class="px-4 card-header-title">Exchange level funding ratios require USD Tracking setting enabled</h2>
+		</div>
 	</div>
-	<div >
+	{{end}}
+	{{end}}
+		{{ range .Statistics.FundingStatistics.Items }}
+			<div class="card card-cascade narrower">
+				<div class="view view-cascade bg-primary">
+					<h2  id="funding-statistics"  class="px-4 card-header-title text-light"> Funding Statistics for {{.ReportItem.Exchange}} {{.ReportItem.Asset}} {{.ReportItem.Currency}}</h2>
+				</div>
+				<div class="card-body card-body-cascade ">
+					<table class="table table-hover table-bordered table-striped">
+						<tbody>
+						<tr>
+							<td><b>Initial Funds</b></td>
+							<td>{{ $.Prettify.Decimal8 .ReportItem.InitialFunds}}</td>
+						</tr>
+						<tr>
+							<td><b>Final Funds</b></td>
+							<td>{{ $.Prettify.Decimal8 .ReportItem.FinalFunds}}</td>
+						</tr>
+						<tr>
+							<td><b>Difference</b></td>
+							{{ if .ReportItem.ShowInfinite}}
+								<td>Infinity%</td>
+							{{else}}
+							<td>{{ $.Prettify.Decimal8 .ReportItem.Difference}}%</td>
+							{{end}}
+						</tr>
+						{{ if eq $.Config.StrategySettings.DisableUSDTracking false }}
+							<tr>
+							<td><b>Starting Close Price</b></td>
+							<td>{{$.Prettify.Decimal8 .StartingClosePrice.Value}} at {{.StartingClosePrice.Time}}</td>
+						</tr>
+						<tr>
+							<td><b>Ending Close Price</b></td>
+							<td>{{$.Prettify.Decimal8 .EndingClosePrice.Value}} at {{.EndingClosePrice.Time}}</td>
+						</tr>
+						<tr>
+							<td><b>Highest Close Price</b></td>
+							<td>{{$.Prettify.Decimal8 .HighestClosePrice.Value}} at {{.HighestClosePrice.Time}}</td>
+						</tr>
+						<tr>
+							<td><b>Lowest Close Price</b></td>
+							<td>{{$.Prettify.Decimal8 .LowestClosePrice.Value}} at {{.LowestClosePrice.Time}}</td>
+						</tr>
+						<tr>
+							<td><b>Market Movement</b></td>
+							<td>{{$.Prettify.Decimal8 .MarketMovement}}</td>
+						</tr>
+						<tr>
+							<td><b>Strategy Movement</b></td>
+							{{ if .ReportItem.ShowInfinite}}
+								<td>{{$.Prettify.Decimal8 .StrategyMovement}}</td>
+							{{ else }}
+								<td>Infinity%</td>
+							{{end}}
+						</tr>
+						<tr>
+							<td><b>Did Strategy Beat The Market?</b></td>
+							<td>{{.DidStrategyBeatTheMarket}}</td>
+						</tr>
+						<tr>
+							<td><b>Compound Annual Growth Rate</b></td>
+							<td>{{$.Prettify.Decimal8 .CompoundAnnualGrowthRate}}%</td>
+						</tr>
+						{{end}}
+						</tbody>
+					</table>
+				</div>
+			</div>
+		{{end}}
+		{{ if eq $.Config.StrategySettings.DisableUSDTracking false }}
+				<div class="card card-cascade narrower">
+					<div class="view view-cascade bg-primary">
+						<h2  class="px-4 card-header-title text-light">USD Totals Funding Statistics</h2>
+					</div>
+					<div class="card-body card-body-cascade ">
+						<table class="table table-hover table-bordered table-striped">
+							<tbody>
+							<tr>
+								<td><b>Initial Total USD Value</b></td>
+								<td>${{$.Prettify.Decimal8 .Statistics.FundingStatistics.TotalUSDStatistics.InitialHoldingValue.Value}}</td>
+							</tr>
+							<tr>
+								<td><b>Final Total USD Value</b></td>
+								<td>${{$.Prettify.Decimal8 .Statistics.FundingStatistics.TotalUSDStatistics.FinalHoldingValue.Value}}</td>
+							</tr>
+							<tr>
+								<td><b>Difference</b></td>
+								<td>{{$.Prettify.Decimal8 .Statistics.FundingStatistics.TotalUSDStatistics.HoldingValueDifference}}%</td>
+							</tr>
+							<tr>
+								<td><b>Risk Free Rate</b></td>
+								<td>{{$.Prettify.Decimal8 .Statistics.FundingStatistics.TotalUSDStatistics.RiskFreeRate}}</td>
+							</tr>
+							<tr>
+								<td><b>Benchmark movement</b></td>
+								<td>{{$.Prettify.Decimal8 .Statistics.FundingStatistics.TotalUSDStatistics.BenchmarkMarketMovement}}</td>
+							</tr>
+							<tr>
+								<td><b>Overall strategy movement</b></td>
+								<td>{{$.Prettify.Decimal8 .Statistics.FundingStatistics.TotalUSDStatistics.StrategyMovement}}</td>
+							</tr>
+							<tr>
+								<td><b>Did strategy beat the benchmark?</b></td>
+								<td>{{.Statistics.FundingStatistics.TotalUSDStatistics.DidStrategyBeatTheMarket}}</td>
+							</tr>
+							<tr>
+								<td><b>Did overall strategy make a profit?</b></td>
+								<td>{{.Statistics.FundingStatistics.TotalUSDStatistics.DidStrategyMakeProfit}}</td>
+							</tr>
+							<tr>
+								<td><b>Highest Holdings</b></td>
+								<td>${{$.Prettify.Decimal8 .Statistics.FundingStatistics.TotalUSDStatistics.HighestHoldingValue.Value}} at {{.Statistics.FundingStatistics.TotalUSDStatistics.HighestHoldingValue.Time}}</td>
+							</tr>
+							<tr>
+								<td><b>Lowest Holdings</b></td>
+								<td>${{$.Prettify.Decimal8 .Statistics.FundingStatistics.TotalUSDStatistics.LowestHoldingValue.Value}} at {{.Statistics.FundingStatistics.TotalUSDStatistics.LowestHoldingValue.Time}}</td>
+							</tr>
+							<tr>
+								<td><b>Total Buy Orders</b></td>
+								<td>{{$.Prettify.Int .Statistics.FundingStatistics.TotalUSDStatistics.BuyOrders }}</td>
+							</tr>
+							<tr>
+								<td><b>Total Sell Orders</b></td>
+								<td>{{$.Prettify.Int .Statistics.FundingStatistics.TotalUSDStatistics.SellOrders }}</td>
+							</tr>
+							<tr>
+								<td><b>Total Orders</b></td>
+								<td>{{$.Prettify.Int .Statistics.FundingStatistics.TotalUSDStatistics.TotalOrders }}</td>
+							</tr>
+							<tr>
+								<td><b>Max Drawdown</b></td>
+								<td><b>Start:</b> {{ .Statistics.FundingStatistics.TotalUSDStatistics.MaxDrawdown.Highest.Time }} <b>End:</b> {{ .Statistics.FundingStatistics.TotalUSDStatistics.MaxDrawdown.Lowest.Time }} <b>Drop:</b> {{ $.Prettify.Decimal8 .Statistics.FundingStatistics.TotalUSDStatistics.MaxDrawdown.DrawdownPercent}}%</td>
+							</tr>
+							</tbody>
+						</table>
+
+						{{if  $.Statistics.WasAnyDataMissing}}
+							<h3 class="bg-warning">Missing data was detected during this backtesting run<br />
+								Ratio calculations will be skewed</h3>
+						{{end}}
+						Arithmetic Ratios
+						<table class="table table-hover table-bordered table-striped">
+							<tbody>
+							<tr>
+								<td><b>Sharpe Ratio</b></td>
+								<td>{{ .Statistics.FundingStatistics.TotalUSDStatistics.ArithmeticRatios.SharpeRatio}}</td>
+							</tr>
+							<tr>
+								<td><b>Sortino Ratio</b></td>
+								<td>{{ .Statistics.FundingStatistics.TotalUSDStatistics.ArithmeticRatios.SortinoRatio}}</td>
+							</tr>
+							<tr>
+								<td><b>Information Ratio</b></td>
+								<td>{{ .Statistics.FundingStatistics.TotalUSDStatistics.ArithmeticRatios.InformationRatio}}</td>
+							</tr>
+							<tr>
+								<td><b>Calmar Ratio</b></td>
+								<td>{{ .Statistics.FundingStatistics.TotalUSDStatistics.ArithmeticRatios.CalmarRatio}}</td>
+							</tr>
+							</tbody>
+						</table>
+						Geometric Ratios
+						<table class="table table-hover table-bordered table-striped">
+							<tbody>
+							<tr>
+								<td><b>Sharpe Ratio</b></td>
+								<td>{{ .Statistics.FundingStatistics.TotalUSDStatistics.GeometricRatios.SharpeRatio}}</td>
+							</tr>
+							<tr>
+								<td><b>Sortino Ratio</b></td>
+								<td>{{ .Statistics.FundingStatistics.TotalUSDStatistics.GeometricRatios.SortinoRatio}}</td>
+							</tr>
+							<tr>
+								<td><b>Information Ratio</b></td>
+								<td>{{ .Statistics.FundingStatistics.TotalUSDStatistics.GeometricRatios.InformationRatio}}</td>
+							</tr>
+							<tr>
+								<td><b>Calmar Ratio</b></td>
+								<td>{{ .Statistics.FundingStatistics.TotalUSDStatistics.GeometricRatios.CalmarRatio}}</td>
+							</tr>
+							</tbody>
+						</table>
+					</div>
+				</div>
+		{{ end }}
+
 		<div class="card card-cascade narrower">
 			<div class="view view-cascade bg-danger">
 				<h2 id="orders" class="px-4 card-header-title text-light">Orders</h2>
 			</div>
 			<div class="card-body card-body-cascade ">
-
 				{{ range $exchange, $unused :=  .Statistics.ExchangeAssetPairStatistics}}
 					{{ range $asset, $unused := .}}
 						{{ range $pair, $val := .}}
@@ -929,13 +1456,13 @@
 									{{range $val.FinalOrders.Orders}}
 										<tr>
 											<td>{{ .Detail.Date }}</td>
-											<td>{{ .ClosePrice}} {{$pair.Quote}}</td>
+											<td>{{  $.Prettify.Decimal8 .ClosePrice}} {{$pair.Quote}}</td>
 											<td>{{ .Detail.Side }}</td>
-											<td>{{ .Detail.Price }} {{$pair.Quote}}</td>
-											<td>{{ .Detail.Amount }} {{$pair.Base}}</td>
-											<td>{{.Detail.Fee }} {{$pair.Quote}}</td>
-											<td>{{ .CostBasis }} {{$pair.Quote}}</td>
-											<td>{{ .SlippageRate }}%</td>
+											<td>{{$.Prettify.Float8  .Detail.Price }} {{$pair.Quote}}</td>
+											<td>{{$.Prettify.Float8  .Detail.Amount }} {{$pair.Base}}</td>
+											<td>{{$.Prettify.Float8 .Detail.Fee }} {{$pair.Quote}}</td>
+											<td>{{ $.Prettify.Decimal8 .CostBasis }} {{$pair.Quote}}</td>
+											<td>{{ $.Prettify.Decimal8 .SlippageRate }}%</td>
 										</tr>
 									{{end}}
 									</tbody>
@@ -946,17 +1473,16 @@
 				{{end}}
 			</div>
 		</div>
-	</div>
-	<div >
+
 		<div class="card card-cascade narrower">
-			<div class="view view-cascade bg-warning">
+			<div class="view view-cascade bg-secondary">
 				<h2 id="events"  class="px-4 card-header-title text-light">Events</h2>
 			</div>
 			<div class="card-body card-body-cascade ">
 				{{ range $exchange, $unused := .Statistics.ExchangeAssetPairStatistics}}
 					{{ range $asset, $unused :=.}}
 						{{ range $pair, $data := .}}
-							<div >
+							<div>
 								<h3>{{$exchange}} {{$asset}} {{ $pair }}</h3>
 							</div>
 							<div >
@@ -975,18 +1501,18 @@
 										<tr>
 											{{ if ne $ev.FillEvent nil }}
 												<td><b>{{$ev.FillEvent.GetTime}}</b></td>
-												<td>{{$ev.FillEvent.GetClosePrice}} {{$pair.Quote}}</td>
+												<td>{{$.Prettify.Decimal8 $ev.FillEvent.GetClosePrice}} {{$pair.Quote}}</td>
 												<td>{{$ev.FillEvent.GetDirection}}</td>
 												<td>{{$ev.FillEvent.GetReason}}</td>
 											{{ else if ne $ev.SignalEvent nil}}
 												<td>{{$ev.SignalEvent.GetTime}}</td>
-												<td>{{ $ev.SignalEvent.GetPrice}} {{$pair.Quote}}</td>
+												<td>{{ $.Prettify.Decimal8 $ev.SignalEvent.GetPrice}} {{$pair.Quote}}</td>
 												<td>{{$ev.SignalEvent.GetDirection}}</td>
 												<td>{{$ev.SignalEvent.GetReason}}</td>
 											{{ end }}
-											<td>{{ $ev.Holdings.BaseSize}} {{$pair.Base}}</td>
-											<td>{{ $ev.Holdings.QuoteSize}} {{$pair.Quote}}</td>
-											<td>{{ $ev.Holdings.TotalValue}} {{$pair.Quote}}</td>
+											<td>{{ $.Prettify.Decimal8 $ev.Holdings.BaseSize}} {{$pair.Base}}</td>
+											<td>{{ $.Prettify.Decimal8 $ev.Holdings.QuoteSize}} {{$pair.Quote}}</td>
+											<td>{{ $.Prettify.Decimal8 $ev.Holdings.TotalValue}} {{$pair.Quote}}</td>
 										</tr>
 									{{end}}
 									</tbody>

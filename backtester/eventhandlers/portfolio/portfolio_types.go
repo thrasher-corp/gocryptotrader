@@ -9,7 +9,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/risk"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/settings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
@@ -38,13 +37,16 @@ type Portfolio struct {
 	riskFreeRate              decimal.Decimal
 	sizeManager               SizeHandler
 	riskManager               risk.Handler
-	exchangeAssetPairSettings map[string]map[asset.Item]map[currency.Pair]*settings.Settings
+	exchangeAssetPairSettings map[string]map[asset.Item]map[currency.Pair]*Settings
 }
 
 // Handler contains all functions expected to operate a portfolio manager
 type Handler interface {
 	OnSignal(signal.Event, *exchange.Settings, funding.IPairReserver) (*order.Order, error)
 	OnFill(fill.Event, funding.IPairReader) (*fill.Fill, error)
+
+	GetLatestOrderSnapshotForEvent(common.EventHandler) (compliance.Snapshot, error)
+	GetLatestOrderSnapshots() ([]compliance.Snapshot, error)
 
 	ViewHoldingAtTimePeriod(common.EventHandler) (*holdings.Holding, error)
 	setHoldingsForOffset(*holdings.Holding, bool) error
@@ -61,4 +63,15 @@ type Handler interface {
 // SizeHandler is the interface to help size orders
 type SizeHandler interface {
 	SizeOrder(order.Event, decimal.Decimal, *exchange.Settings) (*order.Order, error)
+}
+
+// Settings holds all important information for the portfolio manager
+// to assess purchasing decisions
+type Settings struct {
+	Fee               decimal.Decimal
+	BuySideSizing     exchange.MinMax
+	SellSideSizing    exchange.MinMax
+	Leverage          exchange.Leverage
+	HoldingsSnapshots []holdings.Holding
+	ComplianceManager compliance.Manager
 }

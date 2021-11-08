@@ -43,7 +43,7 @@ func TestSetCustomSettings(t *testing.T) {
 
 func TestOnSignal(t *testing.T) {
 	s := Strategy{}
-	_, err := s.OnSignal(nil, nil)
+	_, err := s.OnSignal(nil, nil, nil)
 	if !errors.Is(err, common.ErrNilEvent) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
 	}
@@ -76,7 +76,7 @@ func TestOnSignal(t *testing.T) {
 		RangeHolder: &gctkline.IntervalRangeHolder{},
 	}
 	var resp signal.Event
-	resp, err = s.OnSignal(da, nil)
+	resp, err = s.OnSignal(da, nil, nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -111,7 +111,7 @@ func TestOnSignal(t *testing.T) {
 	}
 	da.RangeHolder = ranger
 	da.RangeHolder.SetHasDataFromCandles(da.Item.Candles)
-	resp, err = s.OnSignal(da, nil)
+	resp, err = s.OnSignal(da, nil, nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -122,7 +122,7 @@ func TestOnSignal(t *testing.T) {
 
 func TestOnSignals(t *testing.T) {
 	s := Strategy{}
-	_, err := s.OnSignal(nil, nil)
+	_, err := s.OnSignal(nil, nil, nil)
 	if !errors.Is(err, common.ErrNilEvent) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
 	}
@@ -155,7 +155,7 @@ func TestOnSignals(t *testing.T) {
 		RangeHolder: &gctkline.IntervalRangeHolder{},
 	}
 	var resp []signal.Event
-	resp, err = s.OnSimultaneousSignals([]data.Handler{da}, nil)
+	resp, err = s.OnSimultaneousSignals([]data.Handler{da}, nil, nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -193,7 +193,7 @@ func TestOnSignals(t *testing.T) {
 	}
 	da.RangeHolder = ranger
 	da.RangeHolder.SetHasDataFromCandles(da.Item.Candles)
-	resp, err = s.OnSimultaneousSignals([]data.Handler{da}, nil)
+	resp, err = s.OnSimultaneousSignals([]data.Handler{da}, nil, nil)
 	if err != nil {
 		t.Error(err)
 	}

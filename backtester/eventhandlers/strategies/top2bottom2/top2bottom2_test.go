@@ -93,7 +93,7 @@ func TestSetCustomSettings(t *testing.T) {
 func TestOnSignal(t *testing.T) {
 	t.Parallel()
 	s := Strategy{}
-	if _, err := s.OnSignal(nil, nil); !errors.Is(err, errStrategyOnlySupportsSimultaneousProcessing) {
+	if _, err := s.OnSignal(nil, nil, nil); !errors.Is(err, errStrategyOnlySupportsSimultaneousProcessing) {
 		t.Errorf("received: %v, expected: %v", err, errStrategyOnlySupportsSimultaneousProcessing)
 	}
 }
@@ -101,7 +101,7 @@ func TestOnSignal(t *testing.T) {
 func TestOnSignals(t *testing.T) {
 	t.Parallel()
 	s := Strategy{}
-	_, err := s.OnSignal(nil, nil)
+	_, err := s.OnSignal(nil, nil, nil)
 	if !errors.Is(err, errStrategyOnlySupportsSimultaneousProcessing) {
 		t.Errorf("received: %v, expected: %v", err, errStrategyOnlySupportsSimultaneousProcessing)
 	}
@@ -130,13 +130,13 @@ func TestOnSignals(t *testing.T) {
 		Base:        d,
 		RangeHolder: &gctkline.IntervalRangeHolder{},
 	}
-	_, err = s.OnSimultaneousSignals([]data.Handler{da}, nil)
+	_, err = s.OnSimultaneousSignals([]data.Handler{da}, nil, nil)
 	if !strings.Contains(err.Error(), errStrategyCurrencyRequirements.Error()) {
 		// common.Errs type doesn't keep type
 		t.Errorf("received: %v, expected: %v", err, errStrategyCurrencyRequirements)
 	}
 
-	_, err = s.OnSimultaneousSignals([]data.Handler{da, da, da, da}, nil)
+	_, err = s.OnSimultaneousSignals([]data.Handler{da, da, da, da}, nil, nil)
 	if !strings.Contains(err.Error(), base.ErrTooMuchBadData.Error()) {
 		// common.Errs type doesn't keep type
 		t.Errorf("received: %v, expected: %v", err, base.ErrTooMuchBadData)

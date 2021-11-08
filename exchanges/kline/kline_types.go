@@ -49,6 +49,8 @@ var (
 	// ErrWholeNumberScaling returns when old interval data cannot neatly fit into new interval size
 	ErrWholeNumberScaling = errors.New("new interval must scale properly into new candle")
 	errNilKline           = errors.New("kline item is nil")
+	// ErrNotFoundAtTime returned when looking up a candle at a specific time
+	ErrNotFoundAtTime = errors.New("candle not found at time")
 
 	// SupportedIntervals is a list of all supported intervals
 	SupportedIntervals = []Interval{

@@ -44,11 +44,11 @@ func pair(t *testing.T) *funding.Pair {
 
 func TestCreate(t *testing.T) {
 	t.Parallel()
-	_, err := Create(nil, pair(t), riskFreeRate)
+	_, err := Create(nil, pair(t))
 	if !errors.Is(err, common.ErrNilEvent) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
 	}
-	_, err = Create(&fill.Fill{}, pair(t), riskFreeRate)
+	_, err = Create(&fill.Fill{}, pair(t))
 	if err != nil {
 		t.Error(err)
 	}
@@ -56,7 +56,7 @@ func TestCreate(t *testing.T) {
 
 func TestUpdate(t *testing.T) {
 	t.Parallel()
-	h, err := Create(&fill.Fill{}, pair(t), riskFreeRate)
+	h, err := Create(&fill.Fill{}, pair(t))
 	if err != nil {
 		t.Error(err)
 	}
@@ -74,7 +74,7 @@ func TestUpdate(t *testing.T) {
 
 func TestUpdateValue(t *testing.T) {
 	t.Parallel()
-	h, err := Create(&fill.Fill{}, pair(t), riskFreeRate)
+	h, err := Create(&fill.Fill{}, pair(t))
 	if err != nil {
 		t.Error(err)
 	}
@@ -101,7 +101,7 @@ func TestUpdateBuyStats(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	h, err := Create(&fill.Fill{}, p, riskFreeRate)
+	h, err := Create(&fill.Fill{}, p)
 	if err != nil {
 		t.Error(err)
 	}
@@ -230,7 +230,7 @@ func TestUpdateSellStats(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	h, err := Create(&fill.Fill{}, p, riskFreeRate)
+	h, err := Create(&fill.Fill{}, p)
 	if err != nil {
 		t.Error(err)
 	}

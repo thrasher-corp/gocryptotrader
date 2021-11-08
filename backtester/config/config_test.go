@@ -140,7 +140,7 @@ func TestPrintSettings(t *testing.T) {
 			DatabaseData: &DatabaseData{
 				StartDate:        startDate,
 				EndDate:          endDate,
-				ConfigOverride:   nil,
+				Config:           database.Config{},
 				InclusiveEndDate: false,
 			},
 		},
@@ -225,6 +225,7 @@ func TestGenerateConfigForDCAAPICandlesExchangeLevelFunding(t *testing.T) {
 			Name:                         dca,
 			SimultaneousSignalProcessing: true,
 			UseExchangeLevelFunding:      true,
+			DisableUSDTracking:           true,
 			ExchangeLevelFunding: []ExchangeLevelFunding{
 				{
 					ExchangeName: testExchange,
@@ -514,7 +515,8 @@ func TestGenerateConfigForDCALiveCandles(t *testing.T) {
 		Nickname: "ExampleStrategyDCALiveCandles",
 		Goal:     "To demonstrate live trading proof of concept against candle data",
 		StrategySettings: StrategySettings{
-			Name: dca,
+			Name:               dca,
+			DisableUSDTracking: true,
 		},
 		CurrencySettings: []CurrencySettings{
 			{
@@ -656,7 +658,8 @@ func TestGenerateConfigForDCACSVCandles(t *testing.T) {
 		Nickname: "ExampleStrategyDCACSVCandles",
 		Goal:     "To demonstrate the DCA strategy using CSV candle data",
 		StrategySettings: StrategySettings{
-			Name: dca,
+			Name:               dca,
+			DisableUSDTracking: true,
 		},
 		CurrencySettings: []CurrencySettings{
 			{
@@ -714,7 +717,8 @@ func TestGenerateConfigForDCACSVTrades(t *testing.T) {
 		Nickname: "ExampleStrategyDCACSVTrades",
 		Goal:     "To demonstrate the DCA strategy using CSV trade data",
 		StrategySettings: StrategySettings{
-			Name: dca,
+			Name:               dca,
+			DisableUSDTracking: true,
 		},
 		CurrencySettings: []CurrencySettings{
 			{
@@ -791,7 +795,7 @@ func TestGenerateConfigForDCADatabaseCandles(t *testing.T) {
 			DatabaseData: &DatabaseData{
 				StartDate: startDate,
 				EndDate:   endDate,
-				ConfigOverride: &database.Config{
+				Config: database.Config{
 					Enabled: true,
 					Verbose: false,
 					Driver:  "sqlite",
