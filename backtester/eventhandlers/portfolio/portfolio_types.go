@@ -17,6 +17,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
+const notEnoughFundsTo = "not enough funds to"
+
 var (
 	errInvalidDirection     = errors.New("invalid direction")
 	errRiskManagerUnset     = errors.New("risk manager unset")

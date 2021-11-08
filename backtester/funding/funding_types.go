@@ -52,17 +52,27 @@ type IPairReader interface {
 	QuoteAvailable() decimal.Decimal
 }
 
+type ICollateralReader interface {
+	Currency() currency.Code
+	InitialFunds() decimal.Decimal
+	AvailableFunds() decimal.Decimal
+}
+
 // IPairReserver limits funding usage for portfolio event handling
 type IPairReserver interface {
-	IPairReader
 	CanPlaceOrder(order.Side) bool
 	Reserve(decimal.Decimal, order.Side) error
+	GetPairReader() (IPairReader, error)
+	GetCollateralReader() (ICollateralReader, error)
 }
 
 // IPairReleaser limits funding usage for exchange event handling
 type IPairReleaser interface {
 	IncreaseAvailable(decimal.Decimal, order.Side)
 	Release(decimal.Decimal, decimal.Decimal, order.Side) error
+}
+
+type ICollateralReleaser interface {
 }
 
 // Item holds funding data per currency item
@@ -85,6 +95,13 @@ type Item struct {
 type Pair struct {
 	Base  *Item
 	Quote *Item
+}
+
+// CollateralPair consists of a currency pair for a futures contract
+// and associates it with an addition collateral pair to take funding from
+type CollateralPair struct {
+	Contract   *Pair
+	Collateral *Item
 }
 
 // Report holds all funding data for result reporting

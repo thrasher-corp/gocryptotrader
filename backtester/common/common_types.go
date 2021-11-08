@@ -22,7 +22,9 @@ const (
 	CouldNotBuy order.Side = "COULD NOT BUY"
 	// CouldNotSell is flagged when a SELL  signal is raised in the strategy/signal phase, but the
 	// portfolio manager or exchange cannot place an order
-	CouldNotSell order.Side = "COULD NOT SELL"
+	CouldNotSell  order.Side = "COULD NOT SELL"
+	CouldNotShort order.Side = "COULD NOT SHORT"
+	CouldNotLong  order.Side = "COULD NOT LONG"
 	// MissingData is signalled during the strategy/signal phase when data has been identified as missing
 	// No buy or sell events can occur
 	MissingData order.Side = "MISSING DATA"

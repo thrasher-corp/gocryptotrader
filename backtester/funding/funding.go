@@ -23,7 +23,9 @@ var (
 	// ErrAlreadyExists used when a matching item or pair is already in the funding manager
 	ErrAlreadyExists = errors.New("funding already exists")
 	// ErrUSDTrackingDisabled used when attempting to track USD values when disabled
-	ErrUSDTrackingDisabled        = errors.New("USD tracking disabled")
+	ErrUSDTrackingDisabled = errors.New("USD tracking disabled")
+	// ErrNotCollateral is returned when a user requests collateral from a non-collateral pair
+	ErrNotCollateral              = errors.New("not a collateral pair")
 	errCannotAllocate             = errors.New("cannot allocate funds")
 	errZeroAmountReceived         = errors.New("amount received less than or equal to zero")
 	errNegativeAmountReceived     = errors.New("received negative decimal")
@@ -388,6 +390,14 @@ func (p *Pair) QuoteAvailable() decimal.Decimal {
 	return p.Quote.available
 }
 
+func (p *Pair) GetPairReader() (IPairReader, error) {
+	return p, nil
+}
+
+func (p *Pair) GetCollateralReader() (ICollateralReader, error) {
+	return nil, ErrNotCollateral
+}
+
 // Reserve allocates an amount of funds to be used at a later time
 // it prevents multiple events from claiming the same resource
 // changes which currency to affect based on the order side
@@ -448,6 +458,10 @@ func (p *Pair) CanPlaceOrder(side order.Side) bool {
 		return p.Base.CanPlaceOrder()
 	}
 	return false
+}
+
+func (c *CollateralPair) CanPlaceOrder(_ order.Side) bool {
+	return c.Collateral.CanPlaceOrder()
 }
 
 // Reserve allocates an amount of funds to be used at a later time

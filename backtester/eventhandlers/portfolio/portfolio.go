@@ -46,31 +46,6 @@ func (p *Portfolio) Reset() {
 	p.exchangeAssetPairSettings = nil
 }
 
-// GetLatestOrderSnapshotForEvent gets orders related to the event
-func (p *Portfolio) GetLatestOrderSnapshotForEvent(e common.EventHandler) (compliance.Snapshot, error) {
-	eapSettings, ok := p.exchangeAssetPairSettings[e.GetExchange()][e.GetAssetType()][e.Pair()]
-	if !ok {
-		return compliance.Snapshot{}, fmt.Errorf("%w for %v %v %v", errNoPortfolioSettings, e.GetExchange(), e.GetAssetType(), e.Pair())
-	}
-	return eapSettings.ComplianceManager.GetLatestSnapshot(), nil
-}
-
-// GetLatestOrderSnapshots returns the latest snapshots from all stored pair data
-func (p *Portfolio) GetLatestOrderSnapshots() ([]compliance.Snapshot, error) {
-	var resp []compliance.Snapshot
-	for _, exchangeMap := range p.exchangeAssetPairSettings {
-		for _, assetMap := range exchangeMap {
-			for _, pairMap := range assetMap {
-				resp = append(resp, pairMap.ComplianceManager.GetLatestSnapshot())
-			}
-		}
-	}
-	if len(resp) == 0 {
-		return nil, errNoPortfolioSettings
-	}
-	return resp, nil
-}
-
 // OnSignal receives the event from the strategy on whether it has signalled to buy, do nothing or sell
 // on buy/sell, the portfolio manager will size the order and assess the risk of the order
 // if successful, it will pass on an order.Order to be used by the exchange event handler to place an order based on
@@ -122,13 +97,18 @@ func (p *Portfolio) OnSignal(ev signal.Event, cs *exchange.Settings, funds fundi
 		return o, nil
 	}
 
-	if !funds.CanPlaceOrder(ev.GetDirection()) {
-		if ev.GetDirection() == gctorder.Sell {
-			o.AppendReason("no holdings to sell")
+	dir := ev.GetDirection()
+	if !funds.CanPlaceOrder(dir) {
+		o.AppendReason(notEnoughFundsTo + " " + dir.Lower())
+		switch ev.GetDirection() {
+		case gctorder.Sell:
 			o.SetDirection(common.CouldNotSell)
-		} else if ev.GetDirection() == gctorder.Buy {
-			o.AppendReason("not enough funds to buy")
+		case gctorder.Buy:
 			o.SetDirection(common.CouldNotBuy)
+		case gctorder.Short:
+			o.SetDirection(common.CouldNotShort)
+		case gctorder.Long:
+			o.SetDirection(common.CouldNotLong)
 		}
 		ev.SetDirection(o.Direction)
 		return o, nil
@@ -139,10 +119,22 @@ func (p *Portfolio) OnSignal(ev signal.Event, cs *exchange.Settings, funds fundi
 	o.BuyLimit = ev.GetBuyLimit()
 	o.SellLimit = ev.GetSellLimit()
 	var sizingFunds decimal.Decimal
-	if ev.GetDirection() == gctorder.Sell {
-		sizingFunds = funds.BaseAvailable()
-	} else {
-		sizingFunds = funds.QuoteAvailable()
+	if ev.GetAssetType() == asset.Spot {
+		pReader, err := funds.GetPairReader()
+		if err != nil {
+			return nil, err
+		}
+		if ev.GetDirection() == gctorder.Sell {
+			sizingFunds = pReader.BaseAvailable()
+		} else {
+			sizingFunds = pReader.QuoteAvailable()
+		}
+	} else if ev.GetAssetType() == asset.Futures {
+		cReader, err := funds.GetCollateralReader()
+		if err != nil {
+			return nil, err
+		}
+		sizingFunds = cReader.AvailableFunds()
 	}
 	sizedOrder := p.sizeOrder(ev, cs, o, sizingFunds, funds)
 
@@ -275,6 +267,31 @@ func (p *Portfolio) OnFill(ev fill.Event, funding funding.IPairReader) (*fill.Fi
 		return nil, fmt.Errorf("%w expected fill event", common.ErrInvalidDataType)
 	}
 	return fe, nil
+}
+
+// GetLatestOrderSnapshotForEvent gets orders related to the event
+func (p *Portfolio) GetLatestOrderSnapshotForEvent(e common.EventHandler) (compliance.Snapshot, error) {
+	eapSettings, ok := p.exchangeAssetPairSettings[e.GetExchange()][e.GetAssetType()][e.Pair()]
+	if !ok {
+		return compliance.Snapshot{}, fmt.Errorf("%w for %v %v %v", errNoPortfolioSettings, e.GetExchange(), e.GetAssetType(), e.Pair())
+	}
+	return eapSettings.ComplianceManager.GetLatestSnapshot(), nil
+}
+
+// GetLatestOrderSnapshots returns the latest snapshots from all stored pair data
+func (p *Portfolio) GetLatestOrderSnapshots() ([]compliance.Snapshot, error) {
+	var resp []compliance.Snapshot
+	for _, exchangeMap := range p.exchangeAssetPairSettings {
+		for _, assetMap := range exchangeMap {
+			for _, pairMap := range assetMap {
+				resp = append(resp, pairMap.ComplianceManager.GetLatestSnapshot())
+			}
+		}
+	}
+	if len(resp) == 0 {
+		return nil, errNoPortfolioSettings
+	}
+	return resp, nil
 }
 
 // addComplianceSnapshot gets the previous snapshot of compliance events, updates with the latest fillevent
