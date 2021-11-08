@@ -216,10 +216,9 @@ type FuturesRealtimeOrderData struct {
 
 type FuturesActiveRealtimeOrder struct {
 	FuturesRealtimeOrderData
-
 	ExtensionField  map[string]interface{} `json:"ext_fields"`
 	LeavesQty       float64                `json:"leaves_qty"`
-	LeaveValue      float64                `json:"leaves_value"`
+	LeaveValue      float64                `json:"leaves_value,string"`
 	CumulativeQty   float64                `json:"cum_exec_qty"`
 	CumulativeValue float64                `json:"cum_exec_value"`
 	CumulativeFee   float64                `json:"cum_exec_fee"`
@@ -252,9 +251,15 @@ type FuturesConditionalRealtimeOrder struct {
 
 type USDTFuturesConditionalRealtimeOrder struct {
 	FuturesRealtimeOrderData
-	TriggerPrice float64 `json:"trigger_price"`
-	CreatedAt    string  `json:"create_at"`
-	UpdatedAt    string  `json:"updated_at"`
+	StopOrderID    string `json:"stop_order_id"`
+	OrderStatus    string `json:"order_status"`
+	TriggerPrice   int64  `json:"trigger_price"`
+	CreatedAt      string `json:"created_time"`
+	UpdatedAt      string `json:"updated_time"`
+	BasePrice      string `json:"base_price"`
+	TriggerBy      string `json:"trigger_by"`
+	ReduceOnly     bool   `json:"reduce_only"`
+	CloseOnTrigger bool   `json:"close_on_trigger"`
 }
 
 // FuturesConditionalOrderData stores futures conditional order data

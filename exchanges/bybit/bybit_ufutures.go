@@ -645,8 +645,8 @@ func (by *Bybit) ReplaceConditionalUSDTFuturesOrders(symbol currency.Pair, stopO
 }
 
 // GetConditionalUSDTRealtimeOrders query real time considitional order data
-func (by *Bybit) GetConditionalUSDTRealtimeOrders(symbol currency.Pair, stopOrderID, orderLinkID string) ([]FuturesConditionalRealtimeOrder, error) {
-	var data []FuturesConditionalRealtimeOrder
+func (by *Bybit) GetConditionalUSDTRealtimeOrders(symbol currency.Pair, stopOrderID, orderLinkID string) ([]USDTFuturesConditionalRealtimeOrder, error) {
+	var data []USDTFuturesConditionalRealtimeOrder
 	params := url.Values{}
 	symbolValue, err := by.FormatSymbol(symbol, asset.USDTMarginedFutures)
 	if err != nil {
@@ -662,7 +662,7 @@ func (by *Bybit) GetConditionalUSDTRealtimeOrders(symbol currency.Pair, stopOrde
 
 	if stopOrderID == "" && orderLinkID == "" {
 		resp := struct {
-			Result []FuturesConditionalRealtimeOrder `json:"result"`
+			Result []USDTFuturesConditionalRealtimeOrder `json:"result"`
 		}{}
 		err = by.SendAuthHTTPRequest(exchange.RestUSDTMargined, http.MethodGet, ufuturesGetConditionalRealtimeOrders, params, &resp, bybitAuthRate)
 		if err != nil {
@@ -673,7 +673,7 @@ func (by *Bybit) GetConditionalUSDTRealtimeOrders(symbol currency.Pair, stopOrde
 		}
 	} else {
 		resp := struct {
-			Result FuturesConditionalRealtimeOrder `json:"result"`
+			Result USDTFuturesConditionalRealtimeOrder `json:"result"`
 		}{}
 		err = by.SendAuthHTTPRequest(exchange.RestUSDTMargined, http.MethodGet, ufuturesGetConditionalRealtimeOrders, params, &resp, bybitAuthRate)
 		if err != nil {
