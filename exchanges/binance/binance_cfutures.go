@@ -1037,6 +1037,9 @@ func (b *Binance) FuturesNewOrder(ctx context.Context, x *FuturesNewOrderRequest
 	if x.CallbackRate != 0 {
 		params.Set("callbackRate", strconv.FormatFloat(x.CallbackRate, 'f', -1, 64))
 	}
+	if x.PriceProtect {
+		params.Set("priceProtect", "TRUE")
+	}
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPost, cfuturesOrder, params, cFuturesOrdersDefaultRate, &resp)
 }
 

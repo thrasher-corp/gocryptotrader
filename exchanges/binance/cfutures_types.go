@@ -223,6 +223,7 @@ type FuturesNewOrderRequest struct {
 	ActivationPrice  float64
 	CallbackRate     float64
 	ReduceOnly       bool
+	PriceProtect     bool
 }
 
 // FuturesOrderPlaceData stores futures order data
