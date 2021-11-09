@@ -216,37 +216,34 @@ type FuturesRealtimeOrderData struct {
 
 type FuturesActiveRealtimeOrder struct {
 	FuturesRealtimeOrderData
-	ExtensionField  map[string]interface{} `json:"ext_fields"`
-	LeavesQty       float64                `json:"leaves_qty"`
-	LeaveValue      float64                `json:"leaves_value,string"`
-	CumulativeQty   float64                `json:"cum_exec_qty"`
-	CumulativeValue float64                `json:"cum_exec_value"`
-	CumulativeFee   float64                `json:"cum_exec_fee"`
-	RejectReason    string                 `json:"reject_reason"`
-	CreatedAt       string                 `json:"create_at"`
-	UpdatedAt       string                 `json:"updated_at"`
-	OrderID         string                 `json:"order_id"`
-
-	CancelType string `json:"cancel_type"`
+	ExtensionField     map[string]interface{} `json:"ext_fields"`
+	LastExecutionTime  string                 `json:"last_exec_time"`
+	LastExecutionPrice string                 `json:"last_exec_price"`
+	LeavesQty          float64                `json:"leaves_qty"`
+	LeaveValue         float64                `json:"leaves_value,string"`
+	CumulativeQty      float64                `json:"cum_exec_qty,string"`
+	CumulativeValue    float64                `json:"cum_exec_value,string"`
+	CumulativeFee      float64                `json:"cum_exec_fee,string"`
+	RejectReason       string                 `json:"reject_reason"`
+	CancelType         string                 `json:"cancel_type"`
+	CreatedAt          string                 `json:"create_at"`
+	UpdatedAt          string                 `json:"updated_at"`
+	OrderID            string                 `json:"order_id"`
 }
 
 type FuturesConditionalRealtimeOrder struct {
 	FuturesRealtimeOrderData
-
 	ExtensionField  map[string]interface{} `json:"ext_fields"`
 	LeavesQty       float64                `json:"leaves_qty"`
-	LeaveValue      float64                `json:"leaves_value"`
-	CumulativeQty   float64                `json:"cum_exec_qty"`
-	CumulativeValue float64                `json:"cum_exec_value"`
-	CumulativeFee   float64                `json:"cum_exec_fee"`
+	LeaveValue      float64                `json:"leaves_value,string"`
+	CumulativeQty   float64                `json:"cum_exec_qty,string"`
+	CumulativeValue float64                `json:"cum_exec_value,string"`
+	CumulativeFee   float64                `json:"cum_exec_fee,string"`
 	RejectReason    string                 `json:"reject_reason"`
+	CancelType      string                 `json:"cancel_type"`
 	CreatedAt       string                 `json:"create_at"`
 	UpdatedAt       string                 `json:"updated_at"`
 	OrderID         string                 `json:"order_id"`
-
-	BasePrice string `json:"base_price"`
-	StopPrice string `json:"stop_px"`
-	TriggerBy string `json:"trigger_by"`
 }
 
 type USDTFuturesConditionalRealtimeOrder struct {
@@ -375,43 +372,58 @@ type AnnouncementInfo struct {
 	CreatedAt string `json:"created_at"`
 }
 
-type Position struct {
-	ID                     int64                  `json:"id"`
-	PositionID             int64                  `json:"position_idx"`
-	Mode                   int64                  `json:"mode"`
-	UserID                 int64                  `json:"user_id"`
-	RiskID                 int64                  `json:"risk_id"`
-	Symbol                 string                 `json:"symbol"`
-	Side                   string                 `json:"side"`
-	Size                   int64                  `json:"size"`
-	PositionValue          float64                `json:"position_value,string"`
-	EntryPrice             float64                `json:"entry_price,string"`
-	IsIsolated             bool                   `json:"is_isolated"`
-	AutoAddMargin          int64                  `json:"auto_add_margin"`
-	Leverage               float64                `json:"leverage,string"`
-	EffectiveLeverage      float64                `json:"effective_leverage,string"`
-	PositionMargin         float64                `json:"position_margin,string"`
-	LiquidationPrice       float64                `json:"liq_price,string"`
-	BankruptcyPrice        float64                `json:"bust_price,string"`
-	OccupiedClosingFee     float64                `json:"occ_closing_fee,string"`
-	OccupiedFundingFee     float64                `json:"occ_funding_fee,string"`
-	TakeProfit             float64                `json:"take_profit,string"`
-	StopLoss               float64                `json:"stop_loss,string"`
-	TrailingStop           float64                `json:"trailing_stop,string"`
-	PositionStatus         string                 `json:"position_status"`
-	DeleverageIndicator    int64                  `json:"deleverage_indicator"`
-	CalculatedData         string                 `json:"oc_calc_data"`
-	OrderMargin            float64                `json:"order_margin,string"`
-	WalletBalance          float64                `json:"wallet_balance,string"`
-	RealisedPNL            float64                `json:"realised_pnl,string"`
-	UnrealisedPNL          float64                `json:"unrealised_pnl"`
-	AccumulatedRealisedPNL float64                `json:"cum_realised_pnl,string"`
-	CrossSequence          int64                  `json:"cross_seq"`
-	PositionSequence       int64                  `json:"position_seq"`
-	CreatedAt              string                 `json:"created_at"`
-	UpdateAt               string                 `json:"updated_at"`
-	TakeProfitStopLossMode string                 `json:"tp_sl_mode"` // present in GetPositions API
-	ExtensionField         map[string]interface{} `json:"ext_fields"` // present in SetTradingAndStop API
+type PositionData struct {
+	UserID                 int64   `json:"user_id"`
+	Symbol                 string  `json:"symbol"`
+	Side                   string  `json:"side"`
+	Size                   int64   `json:"size"`
+	PositionValue          float64 `json:"position_value,string"`
+	EntryPrice             float64 `json:"entry_price,string"`
+	LiquidationPrice       float64 `json:"liq_price,string"`
+	BankruptcyPrice        float64 `json:"bust_price,string"`
+	Leverage               float64 `json:"leverage,string"`
+	IsIsolated             bool    `json:"is_isolated"`
+	AutoAddMargin          int64   `json:"auto_add_margin"`
+	PositionMargin         float64 `json:"position_margin,string"`
+	OccupiedClosingFee     float64 `json:"occ_closing_fee,string"`
+	RealisedPNL            float64 `json:"realised_pnl,string"`
+	UnrealisedPNL          float64 `json:"unrealised_pnl"`
+	AccumulatedRealisedPNL float64 `json:"cum_realised_pnl,string"`
+
+	DeleverageIndicator int64   `json:"deleverage_indicator"`
+	RiskID              int64   `json:"risk_id"`
+	TakeProfit          float64 `json:"take_profit,string"`
+	StopLoss            float64 `json:"stop_loss,string"`
+	TrailingStop        float64 `json:"trailing_stop,string"`
+}
+
+type PositionResp struct {
+	PositionData
+	PositionID             int64   `json:"position_idx"`
+	Mode                   int64   `json:"mode"`
+	ID                     int64   `json:"id"`
+	EffectiveLeverage      float64 `json:"effective_leverage,string"`
+	OccupiedFundingFee     float64 `json:"occ_funding_fee,string"`
+	PositionStatus         string  `json:"position_status"`
+	CalculatedData         string  `json:"oc_calc_data"`
+	OrderMargin            float64 `json:"order_margin,string"`
+	WalletBalance          float64 `json:"wallet_balance,string"`
+	CrossSequence          int64   `json:"cross_seq"`
+	PositionSequence       int64   `json:"position_seq"`
+	TakeProfitStopLossMode string  `json:"tp_sl_mode"`
+	CreatedAt              string  `json:"created_at"`
+	UpdateAt               string  `json:"updated_at"`
+}
+
+type SetTradingAndStopResp struct {
+	PositionData
+	ExtensionField map[string]interface{} `json:"ext_fields"`
+}
+
+type USDTPositionResp struct {
+	PositionData
+	FreeQty                int64  `json:"free_qty"`
+	TakeProfitStopLossMode string `json:"tp_sl_mode"`
 }
 
 type Trade struct {

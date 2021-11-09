@@ -828,13 +828,13 @@ func (by *Bybit) GetConditionalRealtimeOrders(symbol currency.Pair, stopOrderID,
 }
 
 // GetPositions returns list of user positions
-func (by *Bybit) GetPositions(symbol currency.Pair) ([]Position, error) {
-	var data []Position
+func (by *Bybit) GetPositions(symbol currency.Pair) ([]PositionResp, error) {
+	var data []PositionResp
 	params := url.Values{}
 
 	if !symbol.IsEmpty() {
 		resp := struct {
-			Data Position `json:"result"`
+			Data PositionResp `json:"result"`
 		}{}
 
 		symbolValue, err := by.FormatSymbol(symbol, asset.CoinMarginedFutures)
@@ -850,7 +850,7 @@ func (by *Bybit) GetPositions(symbol currency.Pair) ([]Position, error) {
 		data = append(data, resp.Data)
 	} else {
 		resp := struct {
-			Data []Position `json:"result"`
+			Data []PositionResp `json:"result"`
 		}{}
 		err := by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesPosition, params, &resp, bybitAuthRate)
 		if err != nil {
@@ -883,9 +883,9 @@ func (by *Bybit) SetMargin(symbol currency.Pair, margin string) (float64, error)
 }
 
 // SetTradingAndStop sets take profit, stop loss, and trailing stop for your open position
-func (by *Bybit) SetTradingAndStop(symbol currency.Pair, takeProfit, stopLoss, trailingStop, newTrailingActive, stopLossQty, takeProfitQty float64, takeProfitTriggerBy, stopLossTriggerBy string) (Position, error) {
+func (by *Bybit) SetTradingAndStop(symbol currency.Pair, takeProfit, stopLoss, trailingStop, newTrailingActive, stopLossQty, takeProfitQty float64, takeProfitTriggerBy, stopLossTriggerBy string) (SetTradingAndStopResp, error) {
 	resp := struct {
-		Data Position `json:"result"`
+		Data SetTradingAndStopResp `json:"result"`
 	}{}
 	params := url.Values{}
 	symbolValue, err := by.FormatSymbol(symbol, asset.CoinMarginedFutures)

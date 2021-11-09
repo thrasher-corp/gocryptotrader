@@ -683,3 +683,63 @@ func (by *Bybit) GetConditionalUSDTRealtimeOrders(symbol currency.Pair, stopOrde
 	}
 	return data, nil
 }
+
+// GetUSDTPositions returns list of user positions
+func (by *Bybit) GetUSDTPositions(symbol currency.Pair) ([]USDTPositionResp, error) {
+	var data []USDTPositionResp
+	params := url.Values{}
+
+	if !symbol.IsEmpty() {
+		resp := struct {
+			Result []USDTPositionResp `json:"result"`
+		}{}
+
+		symbolValue, err := by.FormatSymbol(symbol, asset.USDTMarginedFutures)
+		if err != nil {
+			return data, err
+		}
+		params.Set("symbol", symbolValue)
+
+		err = by.SendAuthHTTPRequest(exchange.RestUSDTMargined, http.MethodGet, ufuturesPosition, params, &resp, bybitAuthRate)
+		if err != nil {
+			return data, err
+		}
+		data = resp.Result
+	} else {
+		resp := struct {
+			Result []struct {
+				IsValid bool             `json:"is_valid"`
+				Data    USDTPositionResp `json:"data"`
+			} `json:"result"`
+		}{}
+		err := by.SendAuthHTTPRequest(exchange.RestUSDTMargined, http.MethodGet, ufuturesPosition, params, &resp, bybitAuthRate)
+		if err != nil {
+			return data, err
+		}
+		for _, d := range resp.Result {
+			data = append(data, d.Data)
+		}
+	}
+	return data, nil
+}
+
+// SetAutoAddMargin sets auto add margin
+func (by *Bybit) SetAutoAddMargin(symbol currency.Pair, autoAddMargin bool, side string) error {
+	params := url.Values{}
+	symbolValue, err := by.FormatSymbol(symbol, asset.CoinMarginedFutures)
+	if err != nil {
+		return err
+	}
+	params.Set("symbol", symbolValue)
+	if side != "" {
+		params.Set("side", side)
+	} else {
+		return errors.New("timeInForce can't be empty or missing")
+	}
+	if autoAddMargin {
+		params.Set("take_profit", "true")
+	} else {
+		params.Set("take_profit", "false")
+	}
+	return by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesSetTrading, params, &struct{}{}, bybitAuthRate)
+}
