@@ -4,7 +4,7 @@ go 1.13
 
 require (
 	github.com/cpuguy83/go-md2man/v2 v2.0.0 // indirect
-	github.com/d5/tengo/v2 v2.8.0
+	github.com/d5/tengo/v2 v2.9.0
 	github.com/friendsofgo/errors v0.9.2 // indirect
 	github.com/gofrs/uuid v4.1.0+incompatible
 	github.com/google/go-querystring v1.1.0
