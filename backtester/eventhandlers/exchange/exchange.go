@@ -27,7 +27,7 @@ func (e *Exchange) Reset() {
 
 // ExecuteOrder assesses the portfolio manager's order event and if it passes validation
 // will send an order to the exchange/fake order manager to be stored and raise a fill event
-func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *engine.OrderManager, funds funding.IPairReleaser) (*fill.Fill, error) {
+func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *engine.OrderManager, funds funding.IFundReleaser) (*fill.Fill, error) {
 	f := &fill.Fill{
 		Base: event.Base{
 			Offset:       o.GetOffset(),
@@ -112,31 +112,67 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 	f.ExchangeFee = calculateExchangeFee(adjustedPrice, limitReducedAmount, cs.ExchangeFee)
 
 	orderID, err := e.placeOrder(context.TODO(), adjustedPrice, limitReducedAmount, cs.UseRealOrders, cs.CanUseExchangeLimits, f, orderManager)
-	if err != nil {
-		fundErr := funds.Release(eventFunds, eventFunds, f.GetDirection())
+	switch cs.Asset {
+	case asset.Spot:
+		pr, fundErr := funds.GetPairReleaser()
 		if fundErr != nil {
-			f.AppendReason(fundErr.Error())
-		}
-		if f.GetDirection() == gctorder.Buy {
-			f.SetDirection(common.CouldNotBuy)
-		} else if f.GetDirection() == gctorder.Sell {
-			f.SetDirection(common.CouldNotSell)
-		}
-		return f, err
-	}
-	switch f.GetDirection() {
-	case gctorder.Buy:
-		err = funds.Release(eventFunds, eventFunds.Sub(limitReducedAmount.Mul(adjustedPrice)), f.GetDirection())
-		if err != nil {
 			return f, err
 		}
-		funds.IncreaseAvailable(limitReducedAmount, f.GetDirection())
-	case gctorder.Sell:
-		err = funds.Release(eventFunds, eventFunds.Sub(limitReducedAmount), f.GetDirection())
 		if err != nil {
+			fundErr = pr.Release(eventFunds, eventFunds, f.GetDirection())
+			if fundErr != nil {
+				f.AppendReason(fundErr.Error())
+			}
+			if f.GetDirection() == gctorder.Buy {
+				f.SetDirection(common.CouldNotBuy)
+			} else if f.GetDirection() == gctorder.Sell {
+				f.SetDirection(common.CouldNotSell)
+			}
 			return f, err
 		}
-		funds.IncreaseAvailable(limitReducedAmount.Mul(adjustedPrice), f.GetDirection())
+		switch f.GetDirection() {
+		case gctorder.Buy:
+			fundErr = pr.Release(eventFunds, eventFunds.Sub(limitReducedAmount.Mul(adjustedPrice)), f.GetDirection())
+			if fundErr != nil {
+				return f, err
+			}
+			pr.IncreaseAvailable(limitReducedAmount, f.GetDirection())
+		case gctorder.Sell:
+			fundErr = pr.Release(eventFunds, eventFunds.Sub(limitReducedAmount), f.GetDirection())
+			if fundErr != nil {
+				return f, fundErr
+			}
+			pr.IncreaseAvailable(limitReducedAmount.Mul(adjustedPrice), f.GetDirection())
+		}
+	case asset.Futures:
+		cr, fundErr := funds.GetCollateralReleaser()
+		if fundErr != nil {
+			return f, fundErr
+		}
+		if err != nil {
+			fundErr = cr.ReleaseContracts(o.GetAmount())
+			if fundErr != nil {
+				return f, fundErr
+			}
+			if o.GetLinkedOrderID() != "" {
+				switch f.GetDirection() {
+				case gctorder.Short:
+					f.SetDirection(common.CouldNotCloseLong)
+				case gctorder.Long:
+					f.SetDirection(common.CouldNotCloseShort)
+				}
+			} else {
+				switch f.GetDirection() {
+				case gctorder.Short:
+					f.SetDirection(common.CouldNotShort)
+				case gctorder.Long:
+					f.SetDirection(common.CouldNotLong)
+				}
+			}
+			return f, err
+		}
+		// realising pnl for a closed futures order occurs in the
+		// portfolio OnFill function
 	}
 
 	ords := orderManager.GetOrdersSnapshot("")

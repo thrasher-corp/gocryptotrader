@@ -24,13 +24,28 @@ type IFundingManager interface {
 	Reset()
 	IsUsingExchangeLevelFunding() bool
 	GetFundingForEAC(string, asset.Item, currency.Code) (*Item, error)
-	GetFundingForEvent(common.EventHandler) (*Pair, error)
-	GetFundingForEAP(string, asset.Item, currency.Pair) (*Pair, error)
+	GetFundingForEvent(common.EventHandler) (IFundingPair, error)
+	GetFundingForEAP(string, asset.Item, currency.Pair) (IFundingPair, error)
 	Transfer(decimal.Decimal, *Item, *Item, bool) error
 	GenerateReport() *Report
 	AddUSDTrackingData(*kline.DataFromKline) error
 	CreateSnapshot(time.Time)
 	USDTrackingDisabled() bool
+}
+
+// IFundingPair allows conversion into various
+// funding interfaces
+type IFundingPair interface {
+	FundReader() IFundReader
+	FundReserver() IFundReserver
+	FundReleaser() IFundReleaser
+}
+
+// IFundReader allows a connoisseur to read
+// either collateral or pair details
+type IFundReader interface {
+	GetPairReader() (IPairReader, error)
+	GetCollateralReader() (ICollateralReader, error)
 }
 
 // IFundTransferer allows for funding amounts to be transferred
@@ -39,8 +54,23 @@ type IFundTransferer interface {
 	IsUsingExchangeLevelFunding() bool
 	Transfer(decimal.Decimal, *Item, *Item, bool) error
 	GetFundingForEAC(string, asset.Item, currency.Code) (*Item, error)
-	GetFundingForEvent(common.EventHandler) (*Pair, error)
-	GetFundingForEAP(string, asset.Item, currency.Pair) (*Pair, error)
+	GetFundingForEvent(common.EventHandler) (IFundingPair, error)
+	GetFundingForEAP(string, asset.Item, currency.Pair) (IFundingPair, error)
+}
+
+// IFundReserver limits funding usage for portfolio event handling
+type IFundReserver interface {
+	IFundReader
+	CanPlaceOrder(order.Side) bool
+	Reserve(decimal.Decimal, order.Side) error
+}
+
+// IFundReleaser allows a connoisseur to read
+// or release pair or collateral funds
+type IFundReleaser interface {
+	IFundReader
+	GetPairReleaser() (IPairReleaser, error)
+	GetCollateralReleaser() (ICollateralReleaser, error)
 }
 
 // IPairReader is used to limit pair funding functions
@@ -52,27 +82,26 @@ type IPairReader interface {
 	QuoteAvailable() decimal.Decimal
 }
 
+// ICollateralReader is used to read data from
+// collateral pairs
 type ICollateralReader interface {
-	Currency() currency.Code
+	ContractCurrency() currency.Code
+	CollateralCurrency() currency.Code
 	InitialFunds() decimal.Decimal
 	AvailableFunds() decimal.Decimal
 }
 
-// IPairReserver limits funding usage for portfolio event handling
-type IPairReserver interface {
-	CanPlaceOrder(order.Side) bool
-	Reserve(decimal.Decimal, order.Side) error
-	GetPairReader() (IPairReader, error)
-	GetCollateralReader() (ICollateralReader, error)
-}
-
 // IPairReleaser limits funding usage for exchange event handling
 type IPairReleaser interface {
+	IPairReader
 	IncreaseAvailable(decimal.Decimal, order.Side)
 	Release(decimal.Decimal, decimal.Decimal, order.Side) error
 }
 
 type ICollateralReleaser interface {
+	ICollateralReader
+	TakeProfit(decimal.Decimal, decimal.Decimal) error
+	ReleaseContracts(decimal.Decimal) error
 }
 
 // Item holds funding data per currency item
@@ -97,10 +126,10 @@ type Pair struct {
 	Quote *Item
 }
 
-// CollateralPair consists of a currency pair for a futures contract
+// Collateral consists of a currency pair for a futures contract
 // and associates it with an addition collateral pair to take funding from
-type CollateralPair struct {
-	Contract   *Pair
+type Collateral struct {
+	Contract   *Item
 	Collateral *Item
 }
 

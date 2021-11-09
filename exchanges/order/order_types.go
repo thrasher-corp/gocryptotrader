@@ -118,13 +118,14 @@ type ModifyResponse struct {
 // Futures order is a concept which holds both the opening and closing orders
 // for a futures contract. This allows for PNL calculations
 type Futures struct {
-	Side            Side
-	UnrealisedPNL   decimal.Decimal
-	RealisedPNL     decimal.Decimal
-	UnderlyingAsset currency.Code
-	OpeningPosition *Detail
-	ClosingPosition *Detail
-	PNLHistory      []PNLHistory
+	Side               Side
+	UnrealisedPNL      decimal.Decimal
+	RealisedPNL        decimal.Decimal
+	UnderlyingAsset    currency.Code
+	CollateralCurrency currency.Code
+	OpeningPosition    *Detail
+	ClosingPosition    *Detail
+	PNLHistory         []PNLHistory
 }
 
 // UpsertPNLEntry upserts an entry to PNLHistory field

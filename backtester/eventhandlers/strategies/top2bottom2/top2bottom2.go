@@ -67,7 +67,7 @@ func (s *Strategy) SupportsSimultaneousProcessing() bool {
 type mfiFundEvent struct {
 	event signal.Event
 	mfi   decimal.Decimal
-	funds funding.IPairReader
+	funds funding.IFundReader
 }
 
 // ByPrice used for sorting orders by order date
@@ -152,7 +152,7 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundTransf
 		mfiFundEvents = append(mfiFundEvents, mfiFundEvent{
 			event: &es,
 			mfi:   latestMFI,
-			funds: funds,
+			funds: funds.FundReader(),
 		})
 	}
 

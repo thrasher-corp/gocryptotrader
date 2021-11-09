@@ -14,7 +14,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 var (
@@ -24,8 +23,7 @@ var (
 	ErrAlreadyExists = errors.New("funding already exists")
 	// ErrUSDTrackingDisabled used when attempting to track USD values when disabled
 	ErrUSDTrackingDisabled = errors.New("USD tracking disabled")
-	// ErrNotCollateral is returned when a user requests collateral from a non-collateral pair
-	ErrNotCollateral              = errors.New("not a collateral pair")
+
 	errCannotAllocate             = errors.New("cannot allocate funds")
 	errZeroAmountReceived         = errors.New("amount received less than or equal to zero")
 	errNegativeAmountReceived     = errors.New("received negative decimal")
@@ -42,6 +40,15 @@ func SetupFundingManager(usingExchangeLevelFunding, disableUSDTracking bool) *Fu
 		usingExchangeLevelFunding: usingExchangeLevelFunding,
 		disableUSDTracking:        disableUSDTracking,
 	}
+}
+
+// CreateFuturesCurrencyCode converts a currency pair into a code
+// The main reasoning is that as a contract, it exists as an item even if
+// it is formatted as BTC-1231. To treat it as a pair in the funding system
+// would cause an increase in funds for BTC, when it is an increase in contracts
+// This function is basic, but is important be explicit in why this is occurring
+func CreateFuturesCurrencyCode(b, q currency.Code) currency.Code {
+	return currency.NewCode(fmt.Sprintf("%s-%s", b, q))
 }
 
 // CreateItem creates a new funding item
@@ -331,22 +338,12 @@ func (f *FundManager) IsUsingExchangeLevelFunding() bool {
 }
 
 // GetFundingForEvent This will construct a funding based on a backtesting event
-func (f *FundManager) GetFundingForEvent(ev common.EventHandler) (*Pair, error) {
+func (f *FundManager) GetFundingForEvent(ev common.EventHandler) (IFundingPair, error) {
 	return f.GetFundingForEAP(ev.GetExchange(), ev.GetAssetType(), ev.Pair())
 }
 
-// GetFundingForEAC This will construct a funding based on the exchange, asset, currency code
-func (f *FundManager) GetFundingForEAC(exch string, a asset.Item, c currency.Code) (*Item, error) {
-	for i := range f.items {
-		if f.items[i].BasicEqual(exch, a, c, currency.Code{}) {
-			return f.items[i], nil
-		}
-	}
-	return nil, ErrFundsNotFound
-}
-
 // GetFundingForEAP This will construct a funding based on the exchange, asset, currency pair
-func (f *FundManager) GetFundingForEAP(exch string, a asset.Item, p currency.Pair) (*Pair, error) {
+func (f *FundManager) GetFundingForEAP(exch string, a asset.Item, p currency.Pair) (IFundingPair, error) {
 	var resp Pair
 	for i := range f.items {
 		if f.items[i].BasicEqual(exch, a, p.Base, p.Quote) {
@@ -366,207 +363,12 @@ func (f *FundManager) GetFundingForEAP(exch string, a asset.Item, p currency.Pai
 	return &resp, nil
 }
 
-// BaseInitialFunds returns the initial funds
-// from the base in a currency pair
-func (p *Pair) BaseInitialFunds() decimal.Decimal {
-	return p.Base.initialFunds
-}
-
-// QuoteInitialFunds returns the initial funds
-// from the quote in a currency pair
-func (p *Pair) QuoteInitialFunds() decimal.Decimal {
-	return p.Quote.initialFunds
-}
-
-// BaseAvailable returns the available funds
-// from the base in a currency pair
-func (p *Pair) BaseAvailable() decimal.Decimal {
-	return p.Base.available
-}
-
-// QuoteAvailable returns the available funds
-// from the quote in a currency pair
-func (p *Pair) QuoteAvailable() decimal.Decimal {
-	return p.Quote.available
-}
-
-func (p *Pair) GetPairReader() (IPairReader, error) {
-	return p, nil
-}
-
-func (p *Pair) GetCollateralReader() (ICollateralReader, error) {
-	return nil, ErrNotCollateral
-}
-
-// Reserve allocates an amount of funds to be used at a later time
-// it prevents multiple events from claiming the same resource
-// changes which currency to affect based on the order side
-func (p *Pair) Reserve(amount decimal.Decimal, side order.Side) error {
-	switch side {
-	case order.Buy:
-		return p.Quote.Reserve(amount)
-	case order.Sell:
-		return p.Base.Reserve(amount)
-	default:
-		return fmt.Errorf("%w for %v %v %v. Unknown side %v",
-			errCannotAllocate,
-			p.Base.exchange,
-			p.Base.asset,
-			p.Base.currency,
-			side)
-	}
-}
-
-// Release reduces the amount of funding reserved and adds any difference
-// back to the available amount
-// changes which currency to affect based on the order side
-func (p *Pair) Release(amount, diff decimal.Decimal, side order.Side) error {
-	switch side {
-	case order.Buy:
-		return p.Quote.Release(amount, diff)
-	case order.Sell:
-		return p.Base.Release(amount, diff)
-	default:
-		return fmt.Errorf("%w for %v %v %v. Unknown side %v",
-			errCannotAllocate,
-			p.Base.exchange,
-			p.Base.asset,
-			p.Base.currency,
-			side)
-	}
-}
-
-// IncreaseAvailable adds funding to the available amount
-// changes which currency to affect based on the order side
-func (p *Pair) IncreaseAvailable(amount decimal.Decimal, side order.Side) {
-	switch side {
-	case order.Buy:
-		p.Base.IncreaseAvailable(amount)
-	case order.Sell:
-		p.Quote.IncreaseAvailable(amount)
-	}
-}
-
-// CanPlaceOrder does a > 0 check to see if there are any funds
-// to place an order with
-// changes which currency to affect based on the order side
-func (p *Pair) CanPlaceOrder(side order.Side) bool {
-	switch side {
-	case order.Buy:
-		return p.Quote.CanPlaceOrder()
-	case order.Sell:
-		return p.Base.CanPlaceOrder()
-	}
-	return false
-}
-
-func (c *CollateralPair) CanPlaceOrder(_ order.Side) bool {
-	return c.Collateral.CanPlaceOrder()
-}
-
-// Reserve allocates an amount of funds to be used at a later time
-// it prevents multiple events from claiming the same resource
-func (i *Item) Reserve(amount decimal.Decimal) error {
-	if amount.LessThanOrEqual(decimal.Zero) {
-		return errZeroAmountReceived
-	}
-	if amount.GreaterThan(i.available) {
-		return fmt.Errorf("%w for %v %v %v. Requested %v Available: %v",
-			errCannotAllocate,
-			i.exchange,
-			i.asset,
-			i.currency,
-			amount,
-			i.available)
-	}
-	i.available = i.available.Sub(amount)
-	i.reserved = i.reserved.Add(amount)
-	return nil
-}
-
-// Release reduces the amount of funding reserved and adds any difference
-// back to the available amount
-func (i *Item) Release(amount, diff decimal.Decimal) error {
-	if amount.LessThanOrEqual(decimal.Zero) {
-		return errZeroAmountReceived
-	}
-	if diff.IsNegative() {
-		return fmt.Errorf("%w diff", errNegativeAmountReceived)
-	}
-	if amount.GreaterThan(i.reserved) {
-		return fmt.Errorf("%w for %v %v %v. Requested %v Reserved: %v",
-			errCannotAllocate,
-			i.exchange,
-			i.asset,
-			i.currency,
-			amount,
-			i.reserved)
-	}
-	i.reserved = i.reserved.Sub(amount)
-	i.available = i.available.Add(diff)
-	return nil
-}
-
-// IncreaseAvailable adds funding to the available amount
-func (i *Item) IncreaseAvailable(amount decimal.Decimal) {
-	if amount.IsNegative() || amount.IsZero() {
-		return
-	}
-	i.available = i.available.Add(amount)
-}
-
-// CanPlaceOrder checks if the item has any funds available
-func (i *Item) CanPlaceOrder() bool {
-	return i.available.GreaterThan(decimal.Zero)
-}
-
-// Equal checks for equality via an Item to compare to
-func (i *Item) Equal(item *Item) bool {
-	if i == nil && item == nil {
-		return true
-	}
-	if item == nil || i == nil {
-		return false
-	}
-	if i.currency == item.currency &&
-		i.asset == item.asset &&
-		i.exchange == item.exchange {
-		if i.pairedWith == nil && item.pairedWith == nil {
-			return true
-		}
-		if i.pairedWith == nil || item.pairedWith == nil {
-			return false
-		}
-		if i.pairedWith.currency == item.pairedWith.currency &&
-			i.pairedWith.asset == item.pairedWith.asset &&
-			i.pairedWith.exchange == item.pairedWith.exchange {
-			return true
+// GetFundingForEAC This will construct a funding based on the exchange, asset, currency code
+func (f *FundManager) GetFundingForEAC(exch string, a asset.Item, c currency.Code) (*Item, error) {
+	for i := range f.items {
+		if f.items[i].BasicEqual(exch, a, c, currency.Code{}) {
+			return f.items[i], nil
 		}
 	}
-	return false
-}
-
-// BasicEqual checks for equality via passed in values
-func (i *Item) BasicEqual(exch string, a asset.Item, currency, pairedCurrency currency.Code) bool {
-	return i != nil &&
-		i.exchange == exch &&
-		i.asset == a &&
-		i.currency == currency &&
-		(i.pairedWith == nil ||
-			(i.pairedWith != nil && i.pairedWith.currency == pairedCurrency))
-}
-
-// MatchesCurrency checks that an item's currency is equal
-func (i *Item) MatchesCurrency(c currency.Code) bool {
-	return i != nil && i.currency == c
-}
-
-// MatchesItemCurrency checks that an item's currency is equal
-func (i *Item) MatchesItemCurrency(item *Item) bool {
-	return i != nil && item != nil && i.currency == item.currency
-}
-
-// MatchesExchange checks that an item's exchange is equal
-func (i *Item) MatchesExchange(item *Item) bool {
-	return i != nil && item != nil && i.exchange == item.exchange
+	return nil, ErrFundsNotFound
 }

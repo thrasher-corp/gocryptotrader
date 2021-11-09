@@ -44,15 +44,15 @@ type Portfolio struct {
 
 // Handler contains all functions expected to operate a portfolio manager
 type Handler interface {
-	OnSignal(signal.Event, *exchange.Settings, funding.IPairReserver) (*order.Order, error)
-	OnFill(fill.Event, funding.IPairReader) (*fill.Fill, error)
+	OnSignal(signal.Event, *exchange.Settings, funding.IFundReserver) (*order.Order, error)
+	OnFill(fill.Event, funding.IFundReleaser) (*fill.Fill, error)
 
 	GetLatestOrderSnapshotForEvent(common.EventHandler) (compliance.Snapshot, error)
 	GetLatestOrderSnapshots() ([]compliance.Snapshot, error)
 
 	ViewHoldingAtTimePeriod(common.EventHandler) (*holdings.Holding, error)
 	setHoldingsForOffset(*holdings.Holding, bool) error
-	UpdateHoldings(common.DataEventHandler, funding.IPairReader) error
+	UpdateHoldings(common.DataEventHandler, funding.IFundReleaser) error
 
 	GetComplianceManager(string, asset.Item, currency.Pair) (*compliance.Manager, error)
 

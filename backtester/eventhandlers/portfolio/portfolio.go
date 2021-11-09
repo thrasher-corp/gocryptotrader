@@ -50,7 +50,7 @@ func (p *Portfolio) Reset() {
 // on buy/sell, the portfolio manager will size the order and assess the risk of the order
 // if successful, it will pass on an order.Order to be used by the exchange event handler to place an order based on
 // the portfolio manager's recommendations
-func (p *Portfolio) OnSignal(ev signal.Event, cs *exchange.Settings, funds funding.IPairReserver) (*order.Order, error) {
+func (p *Portfolio) OnSignal(ev signal.Event, cs *exchange.Settings, funds funding.IFundReserver) (*order.Order, error) {
 	if ev == nil || cs == nil {
 		return nil, common.ErrNilArguments
 	}
@@ -167,7 +167,7 @@ func (p *Portfolio) evaluateOrder(d common.Directioner, originalOrderSignal, siz
 	return evaluatedOrder, nil
 }
 
-func (p *Portfolio) sizeOrder(d common.Directioner, cs *exchange.Settings, originalOrderSignal *order.Order, sizingFunds decimal.Decimal, funds funding.IPairReserver) *order.Order {
+func (p *Portfolio) sizeOrder(d common.Directioner, cs *exchange.Settings, originalOrderSignal *order.Order, sizingFunds decimal.Decimal, funds funding.IFundReserver) *order.Order {
 	sizedOrder, err := p.sizeManager.SizeOrder(originalOrderSignal, sizingFunds, cs)
 	if err != nil {
 		originalOrderSignal.AppendReason(err.Error())
@@ -210,7 +210,7 @@ func (p *Portfolio) sizeOrder(d common.Directioner, cs *exchange.Settings, origi
 }
 
 // OnFill processes the event after an order has been placed by the exchange. Its purpose is to track holdings for future portfolio decisions.
-func (p *Portfolio) OnFill(ev fill.Event, funding funding.IPairReader) (*fill.Fill, error) {
+func (p *Portfolio) OnFill(ev fill.Event, funding funding.IFundReleaser) (*fill.Fill, error) {
 	if ev == nil {
 		return nil, common.ErrNilEvent
 	}
@@ -220,19 +220,36 @@ func (p *Portfolio) OnFill(ev fill.Event, funding funding.IPairReader) (*fill.Fi
 	}
 	var err error
 
+	if ev.GetLinkedOrderID() != "" {
+		// this means we're closing an order
+		snap := lookup.ComplianceManager.GetLatestSnapshot()
+		for i := range snap.Orders {
+			if ev.GetLinkedOrderID() == snap.Orders[i].FuturesOrder.OpeningPosition.ID {
+				snap.Orders[i].FuturesOrder.ClosingPosition = ev.GetOrder()
+				snap.Orders[i].FuturesOrder.RealisedPNL = snap.Orders[i].FuturesOrder.UnrealisedPNL
+
+			}
+		}
+	}
+
+	fp, err := funding.GetPairReleaser()
+	if err != nil {
+		return nil, err
+	}
+
 	// Get the holding from the previous iteration, create it if it doesn't yet have a timestamp
 	h := lookup.GetHoldingsForTime(ev.GetTime().Add(-ev.GetInterval().Duration()))
 	if !h.Timestamp.IsZero() {
-		h.Update(ev, funding)
+		h.Update(ev, fp)
 	} else {
 		h = lookup.GetLatestHoldings()
 		if h.Timestamp.IsZero() {
-			h, err = holdings.Create(ev, funding)
+			h, err = holdings.Create(ev, fp)
 			if err != nil {
 				return nil, err
 			}
 		} else {
-			h.Update(ev, funding)
+			h.Update(ev, fp)
 		}
 	}
 	err = p.setHoldingsForOffset(&h, true)
@@ -247,25 +264,25 @@ func (p *Portfolio) OnFill(ev fill.Event, funding funding.IPairReader) (*fill.Fi
 	if err != nil {
 		log.Error(log.BackTester, err)
 	}
+	fe, ok := ev.(*fill.Fill)
+	if !ok {
+		return nil, fmt.Errorf("%w expected fill event", common.ErrInvalidDataType)
+	}
 
 	direction := ev.GetDirection()
 	if direction == common.DoNothing ||
 		direction == common.CouldNotBuy ||
 		direction == common.CouldNotSell ||
 		direction == common.MissingData ||
+		direction == common.CouldNotCloseLong ||
+		direction == common.CouldNotCloseShort ||
+		direction == common.CouldNotLong ||
+		direction == common.CouldNotShort ||
 		direction == "" {
-		fe, ok := ev.(*fill.Fill)
-		if !ok {
-			return nil, fmt.Errorf("%w expected fill event", common.ErrInvalidDataType)
-		}
 		fe.ExchangeFee = decimal.Zero
 		return fe, nil
 	}
 
-	fe, ok := ev.(*fill.Fill)
-	if !ok {
-		return nil, fmt.Errorf("%w expected fill event", common.ErrInvalidDataType)
-	}
 	return fe, nil
 }
 
@@ -368,7 +385,7 @@ func (p *Portfolio) GetFee(exchangeName string, a asset.Item, cp currency.Pair) 
 }
 
 // UpdateHoldings updates the portfolio holdings for the data event
-func (p *Portfolio) UpdateHoldings(ev common.DataEventHandler, funds funding.IPairReader) error {
+func (p *Portfolio) UpdateHoldings(ev common.DataEventHandler, funds funding.IFundReleaser) error {
 	if ev == nil {
 		return common.ErrNilEvent
 	}
@@ -384,9 +401,12 @@ func (p *Portfolio) UpdateHoldings(ev common.DataEventHandler, funds funding.IPa
 			ev.Pair())
 	}
 	h := lookup.GetLatestHoldings()
-	if h.Timestamp.IsZero() {
-		var err error
-		h, err = holdings.Create(ev, funds)
+	if h.Timestamp.IsZero() && ev.GetAssetType() == asset.Spot {
+		f, err := funds.GetPairReader()
+		if err != nil {
+			return err
+		}
+		h, err = holdings.Create(ev, f)
 		if err != nil {
 			return err
 		}
@@ -518,29 +538,29 @@ func (e *Settings) GetHoldingsForTime(t time.Time) holdings.Holding {
 // CalculatePNL will analyse any futures orders that have been placed over the backtesting run
 // that are not closed and calculate their PNL
 func (p *Portfolio) CalculatePNL(e common.DataEventHandler) error {
-	orders, err := p.GetLatestOrderSnapshotForEvent(e)
+	snapshot, err := p.GetLatestOrderSnapshotForEvent(e)
 	if err != nil {
 		return err
 	}
-	for i := range orders.Orders {
-		if orders.Orders[i].FuturesOrder == nil {
+	for i := range snapshot.Orders {
+		if snapshot.Orders[i].FuturesOrder == nil {
 			continue
 		}
-		if orders.Orders[i].FuturesOrder.ClosingPosition != nil {
+		if snapshot.Orders[i].FuturesOrder.ClosingPosition != nil {
 			continue
 		}
 
-		if orders.Orders[i].FuturesOrder.OpeningPosition.Leverage == 0 {
-			orders.Orders[i].FuturesOrder.OpeningPosition.Leverage = 1
+		if snapshot.Orders[i].FuturesOrder.OpeningPosition.Leverage == 0 {
+			snapshot.Orders[i].FuturesOrder.OpeningPosition.Leverage = 1
 		}
-		leverage := decimal.NewFromFloat(orders.Orders[i].FuturesOrder.OpeningPosition.Leverage)
-		openPrice := decimal.NewFromFloat(orders.Orders[i].FuturesOrder.OpeningPosition.Price)
-		openAmount := decimal.NewFromFloat(orders.Orders[i].FuturesOrder.OpeningPosition.Amount)
+		leverage := decimal.NewFromFloat(snapshot.Orders[i].FuturesOrder.OpeningPosition.Leverage)
+		openPrice := decimal.NewFromFloat(snapshot.Orders[i].FuturesOrder.OpeningPosition.Price)
+		openAmount := decimal.NewFromFloat(snapshot.Orders[i].FuturesOrder.OpeningPosition.Amount)
 
 		changeInPosition := e.ClosePrice().Sub(openPrice).Mul(openAmount).Mul(leverage)
-		orders.Orders[i].FuturesOrder.UnrealisedPNL = changeInPosition
-		orders.Orders[i].FuturesOrder.OpeningPosition.UnrealisedPNL = changeInPosition
-		orders.Orders[i].FuturesOrder.UpsertPNLEntry(gctorder.PNLHistory{
+		snapshot.Orders[i].FuturesOrder.UnrealisedPNL = changeInPosition
+		snapshot.Orders[i].FuturesOrder.OpeningPosition.UnrealisedPNL = changeInPosition
+		snapshot.Orders[i].FuturesOrder.UpsertPNLEntry(gctorder.PNLHistory{
 			Time:          e.GetTime(),
 			UnrealisedPNL: changeInPosition,
 		})

@@ -25,7 +25,7 @@ var (
 type ExecutionHandler interface {
 	SetExchangeAssetCurrencySettings(string, asset.Item, currency.Pair, *Settings)
 	GetCurrencySettings(string, asset.Item, currency.Pair) (Settings, error)
-	ExecuteOrder(order.Event, data.Handler, *engine.OrderManager, funding.IPairReleaser) (*fill.Fill, error)
+	ExecuteOrder(order.Event, data.Handler, *engine.OrderManager, funding.IFundReleaser) (*fill.Fill, error)
 	Reset()
 }
 

@@ -25,6 +25,9 @@ const (
 	CouldNotSell  order.Side = "COULD NOT SELL"
 	CouldNotShort order.Side = "COULD NOT SHORT"
 	CouldNotLong  order.Side = "COULD NOT LONG"
+
+	CouldNotCloseShort order.Side = "COULD NOT CLOSE SHORT"
+	CouldNotCloseLong  order.Side = "COULD NOT CLOSE LONG"
 	// MissingData is signalled during the strategy/signal phase when data has been identified as missing
 	// No buy or sell events can occur
 	MissingData order.Side = "MISSING DATA"
