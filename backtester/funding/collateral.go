@@ -48,3 +48,36 @@ func (c *Collateral) GetPairReader() (IPairReader, error) {
 func (c *Collateral) GetCollateralReader() (ICollateralReader, error) {
 	return c, nil
 }
+
+func (c *Collateral) Reserve(amount decimal.Decimal, _ order.Side) error {
+	return c.Collateral.Reserve(amount)
+}
+
+func (c *Collateral) ReleaseContracts(amount decimal.Decimal) error {
+	return c.Contract.Release(amount, decimal.Zero)
+}
+
+// FundReader
+func (c *Collateral) FundReader() IFundReader {
+	return c
+}
+
+// FundReserver
+func (c *Collateral) FundReserver() IFundReserver {
+	return c
+}
+
+// GetPairReleaser
+func (c *Collateral) GetPairReleaser() (IPairReleaser, error) {
+	return nil, ErrNotPair
+}
+
+// GetCollateralReleaser
+func (c *Collateral) GetCollateralReleaser() (ICollateralReleaser, error) {
+	return c, nil
+}
+
+// FundReleaser
+func (c *Collateral) FundReleaser() IFundReleaser {
+	return c
+}
