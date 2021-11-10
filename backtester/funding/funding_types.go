@@ -31,6 +31,7 @@ type IFundingManager interface {
 	AddUSDTrackingData(*kline.DataFromKline) error
 	CreateSnapshot(time.Time)
 	USDTrackingDisabled() bool
+	LiquidateByCollateral(currency.Code) error
 }
 
 // IFundingPair allows conversion into various
@@ -102,6 +103,7 @@ type ICollateralReleaser interface {
 	ICollateralReader
 	TakeProfit(decimal.Decimal, decimal.Decimal, decimal.Decimal) error
 	ReleaseContracts(decimal.Decimal) error
+	Liquidate()
 }
 
 // Item holds funding data per currency item

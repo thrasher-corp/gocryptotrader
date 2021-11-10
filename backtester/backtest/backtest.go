@@ -268,7 +268,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string) (*BackTest, 
 				if err != nil && !errors.Is(err, funding.ErrAlreadyExists) {
 					return nil, err
 				}
-			case asset.Futures:
+			case asset.Futures, asset.USDTMarginedFutures, asset.CoinMarginedFutures:
 				// setup contract items
 				c := funding.CreateFuturesCurrencyCode(b, q)
 				futureItem, err = funding.CreateItem(cfg.CurrencySettings[i].ExchangeName,
@@ -1022,10 +1022,18 @@ func (bt *BackTest) updateStatsForDataEvent(ev common.DataEventHandler, funds fu
 		log.Error(log.BackTester, err)
 	}
 
-	err = bt.Portfolio.CalculatePNL(ev)
-	if err != nil {
-		log.Error(log.BackTester, err)
+	if ev.GetAssetType() == asset.Futures {
+		var cr funding.ICollateralReleaser
+		cr, err = funds.GetCollateralReleaser()
+		if err != nil {
+			return err
+		}
+		err = bt.Portfolio.CalculatePNL(ev, cr)
+		if err != nil {
+			log.Error(log.BackTester, err)
+		}
 	}
+
 	return nil
 }
 

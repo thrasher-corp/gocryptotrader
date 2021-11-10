@@ -24,6 +24,7 @@ var (
 	errSizeLessThanZero                 = errors.New("size less than zero")
 	errMaxSizeMinSizeMismatch           = errors.New("maximum size must be greater to minimum size")
 	errMinMaxEqual                      = errors.New("minimum and maximum limits cannot be equal")
+	errPerpetualsUnsupported            = errors.New("perpetual futures not yet supported")
 )
 
 // Config defines what is in an individual strategy config
@@ -98,7 +99,7 @@ type PortfolioSettings struct {
 type Leverage struct {
 	CanUseLeverage                 bool            `json:"can-use-leverage"`
 	MaximumOrdersWithLeverageRatio decimal.Decimal `json:"maximum-orders-with-leverage-ratio"`
-	MaximumLeverageRate            decimal.Decimal `json:"maximum-leverage-rate"`
+	MaximumLeverageRate            float64         `json:"maximum-leverage-rate"`
 }
 
 // MinMax are the rules which limit the placement of orders.

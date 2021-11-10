@@ -59,7 +59,7 @@ type Handler interface {
 	SetFee(string, asset.Item, currency.Pair, decimal.Decimal)
 	GetFee(string, asset.Item, currency.Pair) decimal.Decimal
 
-	CalculatePNL(common.DataEventHandler) error
+	CalculatePNL(common.DataEventHandler, funding.ICollateralReleaser) error
 
 	Reset()
 }

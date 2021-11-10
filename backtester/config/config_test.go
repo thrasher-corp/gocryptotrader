@@ -24,7 +24,7 @@ const (
 	testExchange = "binance"
 	dca          = "dollarcostaverage"
 	// change this if you modify a config and want it to save to the example folder
-	saveConfig = false
+	saveConfig = !false
 )
 
 var (
@@ -1195,5 +1195,80 @@ func TestValidate(t *testing.T) {
 	}
 	if err := c.Validate(); !errors.Is(err, nil) {
 		t.Errorf("received %v expected %v", err, nil)
+	}
+}
+
+func TestGenerateConfigForFuturesAPICandles(t *testing.T) {
+	cfg := Config{
+		Nickname: "ExampleStrategyFuturesAPICandles",
+		Goal:     "To demonstrate DCA strategy using API candles",
+		StrategySettings: StrategySettings{
+			Name:                         dca,
+			UseExchangeLevelFunding:      true,
+			SimultaneousSignalProcessing: true,
+			DisableUSDTracking:           true,
+			ExchangeLevelFunding: []ExchangeLevelFunding{
+				{
+					ExchangeName: testExchange,
+					Asset:        asset.USDTMarginedFutures.String(),
+					Currency:     "usdt",
+					InitialFunds: *initialQuoteFunds2,
+					TransferFee:  decimal.Zero,
+					Collateral:   true,
+				},
+			},
+		},
+		CurrencySettings: []CurrencySettings{
+			{
+				ExchangeName: testExchange,
+				Asset:        asset.USDTMarginedFutures.String(),
+				Base:         "BTC",
+				Quote:        "USDT211231",
+				FuturesDetails: &FuturesDetails{
+					CollateralCurrency: "USDT",
+					Leverage: Leverage{
+						CanUseLeverage:      true,
+						MaximumLeverageRate: 1,
+					},
+				},
+				BuySide:  minMax,
+				SellSide: minMax,
+				MakerFee: makerFee,
+				TakerFee: takerFee,
+			},
+		},
+		DataSettings: DataSettings{
+			Interval: kline.OneDay.Duration(),
+			DataType: common.CandleStr,
+			APIData: &APIData{
+				StartDate:        startDate,
+				EndDate:          endDate,
+				InclusiveEndDate: false,
+			},
+		},
+		PortfolioSettings: PortfolioSettings{
+			BuySide:  minMax,
+			SellSide: minMax,
+			Leverage: Leverage{
+				CanUseLeverage: true,
+			},
+		},
+		StatisticSettings: StatisticSettings{
+			RiskFreeRate: decimal.NewFromFloat(0.03),
+		},
+	}
+	if saveConfig {
+		result, err := json.MarshalIndent(cfg, "", " ")
+		if err != nil {
+			t.Fatal(err)
+		}
+		p, err := os.Getwd()
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = ioutil.WriteFile(filepath.Join(p, "examples", "futures-api-candles.strat"), result, 0770)
+		if err != nil {
+			t.Error(err)
+		}
 	}
 }

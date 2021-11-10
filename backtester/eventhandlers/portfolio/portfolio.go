@@ -537,7 +537,7 @@ func (e *Settings) GetHoldingsForTime(t time.Time) holdings.Holding {
 
 // CalculatePNL will analyse any futures orders that have been placed over the backtesting run
 // that are not closed and calculate their PNL
-func (p *Portfolio) CalculatePNL(e common.DataEventHandler) error {
+func (p *Portfolio) CalculatePNL(e common.DataEventHandler, funds funding.ICollateralReleaser) error {
 	snapshot, err := p.GetLatestOrderSnapshotForEvent(e)
 	if err != nil {
 		return err
@@ -549,15 +549,25 @@ func (p *Portfolio) CalculatePNL(e common.DataEventHandler) error {
 		if snapshot.Orders[i].FuturesOrder.ClosingPosition != nil {
 			continue
 		}
-
 		if snapshot.Orders[i].FuturesOrder.OpeningPosition.Leverage == 0 {
 			snapshot.Orders[i].FuturesOrder.OpeningPosition.Leverage = 1
 		}
+
 		leverage := decimal.NewFromFloat(snapshot.Orders[i].FuturesOrder.OpeningPosition.Leverage)
 		openPrice := decimal.NewFromFloat(snapshot.Orders[i].FuturesOrder.OpeningPosition.Price)
 		openAmount := decimal.NewFromFloat(snapshot.Orders[i].FuturesOrder.OpeningPosition.Amount)
 
 		changeInPosition := e.ClosePrice().Sub(openPrice).Mul(openAmount).Mul(leverage)
+		// determine if we've been liquidated
+		if changeInPosition.IsNegative() && changeInPosition.Abs().GreaterThanOrEqual(funds.AvailableFunds()) {
+			funds.Liquidate()
+			snapshot.Orders[i].FuturesOrder.UnrealisedPNL = decimal.Zero
+			snapshot.Orders[i].FuturesOrder.RealisedPNL = decimal.Zero
+			or := snapshot.Orders[i].FuturesOrder.OpeningPosition.Copy()
+			or.Side = common.Liquidated
+			snapshot.Orders[i].FuturesOrder.ClosingPosition = &or
+			return nil
+		}
 		snapshot.Orders[i].FuturesOrder.UnrealisedPNL = changeInPosition
 		snapshot.Orders[i].FuturesOrder.OpeningPosition.UnrealisedPNL = changeInPosition
 		snapshot.Orders[i].FuturesOrder.UpsertPNLEntry(gctorder.PNLHistory{

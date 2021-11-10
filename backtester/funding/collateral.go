@@ -81,3 +81,8 @@ func (c *Collateral) GetCollateralReleaser() (ICollateralReleaser, error) {
 func (c *Collateral) FundReleaser() IFundReleaser {
 	return c
 }
+
+func (c *Collateral) Liquidate() {
+	c.Collateral.available = decimal.Zero
+	c.Contract.available = decimal.Zero
+}

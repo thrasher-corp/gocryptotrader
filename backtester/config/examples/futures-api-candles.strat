@@ -1,20 +1,35 @@
 {
- "nickname": "ExampleStrategyDCAAPICandles",
+ "nickname": "ExampleStrategyFuturesAPICandles",
  "goal": "To demonstrate DCA strategy using API candles",
  "strategy-settings": {
   "name": "dollarcostaverage",
-  "use-simultaneous-signal-processing": false,
-  "use-exchange-level-funding": false,
-  "disable-usd-tracking": false
+  "use-simultaneous-signal-processing": true,
+  "use-exchange-level-funding": true,
+  "exchange-level-funding": [
+   {
+    "exchange-name": "binance",
+    "asset": "usdtmarginedfutures",
+    "currency": "usdt",
+    "initial-funds": "100000",
+    "transfer-fee": "0",
+    "collateral": true
+   }
+  ],
+  "disable-usd-tracking": true
  },
  "currency-settings": [
   {
    "exchange-name": "binance",
-   "asset": "spot",
+   "asset": "usdtmarginedfutures",
    "base": "BTC",
-   "quote": "USDT",
-   "spot-details": {
-    "initial-quote-funds": "100000"
+   "quote": "USDT211231",
+   "futures-details": {
+    "leverage": {
+     "can-use-leverage": true,
+     "maximum-orders-with-leverage-ratio": "0",
+     "maximum-leverage-rate": 1
+    },
+    "collateral-currency": "USDT"
    },
    "buy-side": {
     "minimum-size": "0.005",
@@ -46,9 +61,9 @@
  },
  "portfolio-settings": {
   "leverage": {
-   "can-use-leverage": false,
+   "can-use-leverage": true,
    "maximum-orders-with-leverage-ratio": "0",
-   "maximum-leverage-rate": "0"
+   "maximum-leverage-rate": 0
   },
   "buy-side": {
    "minimum-size": "0.005",

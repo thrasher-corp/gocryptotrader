@@ -372,3 +372,28 @@ func (f *FundManager) GetFundingForEAC(exch string, a asset.Item, c currency.Cod
 	}
 	return nil, ErrFundsNotFound
 }
+
+// LiquidateByCollateral will remove all collateral value
+// and all contracts
+func (f *FundManager) LiquidateByCollateral(c currency.Code) error {
+	found := false
+	for i := range f.items {
+		if f.items[i].currency == c && f.items[i].collateral && f.items[i].asset == asset.Futures {
+			f.items[i].available = decimal.Zero
+			f.items[i].reserved = decimal.Zero
+			found = true
+		}
+	}
+	if !found {
+		return ErrNotCollateral
+	}
+	for i := range f.items {
+		if f.items[i].pairedWith != nil &&
+			f.items[i].pairedWith.currency == c &&
+			f.items[i].asset == asset.Futures {
+			f.items[i].available = decimal.Zero
+			f.items[i].reserved = decimal.Zero
+		}
+	}
+	return nil
+}

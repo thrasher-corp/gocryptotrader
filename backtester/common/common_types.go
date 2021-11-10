@@ -28,6 +28,7 @@ const (
 
 	CouldNotCloseShort order.Side = "COULD NOT CLOSE SHORT"
 	CouldNotCloseLong  order.Side = "COULD NOT CLOSE LONG"
+	Liquidated         order.Side = "LIQUIDATED"
 	// MissingData is signalled during the strategy/signal phase when data has been identified as missing
 	// No buy or sell events can occur
 	MissingData order.Side = "MISSING DATA"

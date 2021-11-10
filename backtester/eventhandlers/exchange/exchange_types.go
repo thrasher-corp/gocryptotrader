@@ -71,5 +71,5 @@ type MinMax struct {
 type Leverage struct {
 	CanUseLeverage                 bool
 	MaximumOrdersWithLeverageRatio decimal.Decimal
-	MaximumLeverageRate            decimal.Decimal
+	MaximumLeverageRate            float64
 }

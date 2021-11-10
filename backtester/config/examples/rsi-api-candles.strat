@@ -18,11 +18,8 @@
    "asset": "spot",
    "base": "BTC",
    "quote": "USDT",
-   "initial-quote-funds": "100000",
-   "leverage": {
-    "can-use-leverage": false,
-    "maximum-orders-with-leverage-ratio": "0",
-    "maximum-leverage-rate": "0"
+   "spot-details": {
+    "initial-quote-funds": "100000"
    },
    "buy-side": {
     "minimum-size": "0.005",
@@ -39,20 +36,17 @@
    "maker-fee-override": "0.001",
    "taker-fee-override": "0.002",
    "maximum-holdings-ratio": "0",
-   "use-exchange-order-limits": false,
-   "skip-candle-volume-fitting": false
+   "skip-candle-volume-fitting": false,
+   "use-exchange-order-limits": false
   },
   {
    "exchange-name": "binance",
    "asset": "spot",
    "base": "ETH",
    "quote": "USDT",
-   "initial-base-funds": "10",
-   "initial-quote-funds": "1000000",
-   "leverage": {
-    "can-use-leverage": false,
-    "maximum-orders-with-leverage-ratio": "0",
-    "maximum-leverage-rate": "0"
+   "spot-details": {
+    "initial-base-funds": "10",
+    "initial-quote-funds": "1000000"
    },
    "buy-side": {
     "minimum-size": "0.005",
@@ -69,8 +63,8 @@
    "maker-fee-override": "0.001",
    "taker-fee-override": "0.002",
    "maximum-holdings-ratio": "0",
-   "use-exchange-order-limits": false,
-   "skip-candle-volume-fitting": false
+   "skip-candle-volume-fitting": false,
+   "use-exchange-order-limits": false
   }
  ],
  "data-settings": {
