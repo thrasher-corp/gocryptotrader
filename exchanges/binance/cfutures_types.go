@@ -359,6 +359,25 @@ type FuturesAccountBalanceData struct {
 	UpdateTime         int64   `json:"updateTime"`
 }
 
+// FuturesAccountInformationPositions  holds account position data
+type FuturesAccountInformationPositions struct {
+	Symbol                 string    `json:"symbol"`
+	Amount                 float64   `json:"positionAmt,string"`
+	InitialMargin          float64   `json:"initialMargin,string"`
+	MaintMargin            float64   `json:"maintMargin,string"`
+	UnrealizedProfit       float64   `json:"unrealizedProfit,string"`
+	PositionInitialMargin  float64   `json:"positionInitialMargin,string"`
+	OpenOrderInitialMargin float64   `json:"openOrderInitialMargin,string"`
+	Leverage               float64   `json:"leverage,string"`
+	Isolated               bool      `json:"isolated"`
+	PositionSide           string    `json:"positionSide"`
+	EntryPrice             float64   `json:"entryPrice,string"`
+	MaxQty                 float64   `json:"maxQty,string"`
+	UpdateTime             time.Time `json:"updateTime"`
+	NotionalValue          float64   `json:"notionalValue,string"`
+	IsolatedWallet         float64   `json:"isolatedWallet,string"`
+}
+
 // FuturesAccountInformation stores account information for futures account
 type FuturesAccountInformation struct {
 	Assets []struct {
@@ -370,30 +389,17 @@ type FuturesAccountInformation struct {
 		InitialMargin          float64 `json:"initialMargin,string"`
 		PositionInitialMargin  float64 `json:"positionInitialMargin,string"`
 		OpenOrderInitialMargin float64 `json:"openOrderInitialMargin,string"`
-		Leverage               float64 `json:"leverage,string"`
-		Isolated               bool    `json:"isolated"`
-		PositionSide           string  `json:"positionSide"`
-		EntryPrice             float64 `json:"entryPrice,string"`
-		MaxQty                 float64 `json:"maxQty,string"`
+		MaxWithdrawAmount      float64 `json:"maxWithdrawAmount,string"`
+		CrossWalletBalance     float64 `json:"crossWalletBalance,string"`
+		CrossUnPNL             float64 `json:"crossUnPnl,string"`
+		AvailableBalance       float64 `json:"availableBalance,string"`
 	} `json:"assets"`
-	Positions []struct {
-		Symbol                 string  `json:"symbol"`
-		InitialMargin          float64 `json:"initialMargin,string"`
-		MaintMargin            float64 `json:"maintMargin,string"`
-		UnrealizedProfit       float64 `json:"unrealizedProfit,string"`
-		PositionInitialMargin  float64 `json:"positionInitialMargin,string"`
-		OpenOrderInitialMargin float64 `json:"openOrderInitialMargin,string"`
-		Leverage               float64 `json:"leverage,string"`
-		Isolated               bool    `json:"isolated"`
-		PositionSide           string  `json:"positionSide"`
-		EntryPrice             float64 `json:"entryPrice,string"`
-		MaxQty                 float64 `json:"maxQty,string"`
-	} `json:"positions"`
-	CanDeposit  bool  `json:"canDeposit"`
-	CanTrade    bool  `json:"canTrade"`
-	CanWithdraw bool  `json:"canWithdraw"`
-	FeeTier     int64 `json:"feeTier"`
-	UpdateTime  int64 `json:"updateTime"`
+	Positions   []FuturesAccountInformationPositions `json:"positions"`
+	CanDeposit  bool                                 `json:"canDeposit"`
+	CanTrade    bool                                 `json:"canTrade"`
+	CanWithdraw bool                                 `json:"canWithdraw"`
+	FeeTier     int64                                `json:"feeTier"`
+	UpdateTime  time.Time                            `json:"updateTime"`
 }
 
 // GenericAuthResponse is a general data response for a post auth request
