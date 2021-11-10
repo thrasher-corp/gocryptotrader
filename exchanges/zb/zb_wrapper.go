@@ -160,6 +160,7 @@ func (z *ZB) Setup(exch *config.Exchange) error {
 		return err
 	}
 
+	// NOTE: https://www.zb.com/help/rate
 	err = z.Fees.LoadStatic(fee.Options{
 		GlobalCommissions: map[asset.Item]fee.Commission{
 			asset.Spot: {Maker: 0.002, Taker: 0.002},
