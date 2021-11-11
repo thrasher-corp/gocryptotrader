@@ -3,6 +3,7 @@ package yobit
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math"
 	"sort"
 	"strconv"
@@ -681,4 +682,30 @@ func (y *Yobit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a as
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (y *Yobit) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	return kline.Item{}, common.ErrFunctionNotSupported
+}
+
+// UpdateCommissionFees updates current fees associated with account
+// NOTE: Commission rates don't seem to be scaled by trading volume and there
+// is no maker taker differentiation.
+func (b *Yobit) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
+	if a != asset.Spot {
+		return fmt.Errorf("%s: %w", a, asset.ErrNotSupported)
+	}
+
+	info, err := b.GetInfo(ctx)
+	if err != nil {
+		return err
+	}
+
+	for key, val := range info.Pairs {
+		pair, err := currency.NewPairFromString(key)
+		if err != nil {
+			return err
+		}
+		err = b.Fees.LoadDynamic(val.Fee/100, val.Fee/100, a, pair)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

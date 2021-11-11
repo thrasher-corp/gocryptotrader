@@ -976,6 +976,7 @@ func TestGetAvailableTransferChains(t *testing.T) {
 }
 
 func TestGetWithdrawalFees(t *testing.T) {
+	t.Parallel()
 	_, err := z.GetWithdrawalFees(context.Background())
 	if err != nil {
 		t.Fatal(err)
@@ -983,7 +984,7 @@ func TestGetWithdrawalFees(t *testing.T) {
 }
 
 func TestUpdateTransferFees(t *testing.T) {
-	z.Verbose = true
+	t.Parallel()
 	err := z.UpdateTransferFees(context.Background())
 	if err != nil {
 		t.Fatal(err)
