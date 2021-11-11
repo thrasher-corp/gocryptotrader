@@ -264,60 +264,9 @@ func (b *Binance) Run() {
 		b.PrintEnabledPairs()
 	}
 
-	forceUpdate := false
-	format, err := b.GetPairFormat(asset.Spot, false)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s failed to get enabled currencies. Err %s\n",
-			b.Name,
-			err)
-		return
-	}
-	pairs, err := b.GetEnabledPairs(asset.Spot)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s failed to get enabled currencies. Err %s\n",
-			b.Name,
-			err)
-		return
-	}
-
-	avail, err := b.GetAvailablePairs(asset.Spot)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s failed to get available currencies. Err %s\n",
-			b.Name,
-			err)
-		return
-	}
-
-	if !common.StringDataContains(pairs.Strings(), format.Delimiter) ||
-		!common.StringDataContains(avail.Strings(), format.Delimiter) {
-		var enabledPairs currency.Pairs
-		enabledPairs, err = currency.NewPairsFromStrings([]string{
-			currency.BTC.String() +
-				format.Delimiter +
-				currency.USDT.String()})
-		if err != nil {
-			log.Errorf(log.ExchangeSys, "%s failed to update currencies. Err %s\n",
-				b.Name,
-				err)
-		} else {
-			log.Warn(log.ExchangeSys,
-				"Available pairs for Binance reset due to config upgrade, please enable the ones you would like to use again")
-			forceUpdate = true
-
-			err = b.UpdatePairs(enabledPairs, asset.Spot, true, true)
-			if err != nil {
-				log.Errorf(log.ExchangeSys,
-					"%s failed to update currencies. Err: %s\n",
-					b.Name,
-					err)
-			}
-		}
-	}
-
 	a := b.GetAssetTypes(true)
 	for x := range a {
-		err = b.UpdateOrderExecutionLimits(context.TODO(), a[x])
-		if err != nil {
+		if err := b.UpdateOrderExecutionLimits(context.TODO(), a[x]); err != nil {
 			log.Errorf(log.ExchangeSys,
 				"%s failed to set exchange order execution limits. Err: %v",
 				b.Name,
@@ -325,11 +274,11 @@ func (b *Binance) Run() {
 		}
 	}
 
-	if !b.GetEnabledFeatures().AutoPairUpdates && !forceUpdate {
+	if !b.GetEnabledFeatures().AutoPairUpdates {
 		return
 	}
-	err = b.UpdateTradablePairs(context.TODO(), forceUpdate)
-	if err != nil {
+
+	if err := b.UpdateTradablePairs(context.TODO(), false); err != nil {
 		log.Errorf(log.ExchangeSys,
 			"%s failed to update tradable pairs. Err: %s",
 			b.Name,
