@@ -161,6 +161,7 @@ func (z *ZB) Setup(exch *config.Exchange) error {
 	}
 
 	// NOTE: https://www.zb.com/help/rate
+	// ALSO: Cannot determine dynamic fee rate as volume is not returned in API
 	err = z.Fees.LoadStatic(fee.Options{
 		GlobalCommissions: map[asset.Item]fee.Commission{
 			asset.Spot: {Maker: 0.002, Taker: 0.002},
@@ -1002,4 +1003,30 @@ func (z *ZB) GetAvailableTransferChains(ctx context.Context, cryptocurrency curr
 		availableChains = append(availableChains, chains[x].Blockchain)
 	}
 	return availableChains, nil
+}
+
+// UpdateTransferFees updates transfer fees for cryptocurrency withdrawal and
+// deposits for this exchange
+func (z *ZB) UpdateTransferFees(ctx context.Context) error {
+	fees, err := z.GetWithdrawalFees(ctx)
+	if err != nil {
+		return err
+	}
+	var transferFees []fee.Transfer
+	for code, values := range fees {
+		for x := range values {
+			newFee := fee.Transfer{
+				Currency: currency.NewCode(code),
+				Chain:    values[x].ChainName,
+			}
+			if values[x].CanDeposit {
+				newFee.Deposit = fee.Convert(0)
+			}
+			if values[x].CanWithdraw {
+				newFee.Withdrawal = fee.Convert(values[x].Fee)
+			}
+			transferFees = append(transferFees, newFee)
+		}
+	}
+	return z.Fees.LoadTransferFees(transferFees)
 }

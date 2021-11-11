@@ -425,3 +425,15 @@ type TradeHistory []struct {
 	TradeType string  `json:"trade_type"`
 	Type      string  `json:"type"`
 }
+
+// FeeInformation defines fee information
+type FeeInformation struct {
+	ChainName     string  `json:"chainName"`
+	Fee           float64 `json:"fee"`
+	MainChainName string  `json:"mainChainName"`
+	CanDeposit    bool    `json:"canDeposit"`
+	CanWithdraw   bool    `json:"canWithdraw"`
+}
+
+// AllFeeInformation defines fee information for all currencies
+type AllFeeInformation map[string][]FeeInformation

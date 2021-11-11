@@ -19,24 +19,28 @@ import (
 )
 
 const (
-	zbTradeURL                        = "https://api.zb.land"
-	zbMarketURL                       = "https://trade.zb.land/api"
-	zbAPIVersion                      = "v1"
-	zbData                            = "data"
-	zbAccountInfo                     = "getAccountInfo"
-	zbMarkets                         = "markets"
-	zbKline                           = "kline"
-	zbOrder                           = "order"
-	zbCancelOrder                     = "cancelOrder"
-	zbTicker                          = "ticker"
-	zbTrades                          = "trades"
-	zbTickers                         = "allTicker"
-	zbDepth                           = "depth"
-	zbUnfinishedOrdersIgnoreTradeType = "getUnfinishedOrdersIgnoreTradeType"
-	zbGetOrdersGet                    = "getOrders"
-	zbWithdraw                        = "withdraw"
-	zbDepositAddress                  = "getUserAddress"
-	zbMultiChainDepositAddress        = "getPayinAddress"
+	// Unauthenticated
+	zbTradeURL    = "https://api.zb.land"
+	zbMarketURL   = "https://trade.zb.land"
+	zbAPIVersion  = "v1"
+	zbData        = "data"
+	zbMarkets     = "markets"
+	zbKline       = "kline"
+	zbTicker      = "ticker"
+	zbTrades      = "trades"
+	zbTickers     = "allTicker"
+	zbDepth       = "depth"
+	zbTransferFee = "/api/getFeeInfo"
+
+	// Authenticated
+	zbCancelOrder                     = "/api/cancelOrder"
+	zbOrder                           = "/api/order"
+	zbAccountInfo                     = "/api/getAccountInfo"
+	zbUnfinishedOrdersIgnoreTradeType = "/api/getUnfinishedOrdersIgnoreTradeType"
+	zbGetOrdersGet                    = "/api/getOrders"
+	zbWithdraw                        = "/api/withdraw"
+	zbDepositAddress                  = "/api/getUserAddress"
+	zbMultiChainDepositAddress        = "/api/getPayinAddress"
 )
 
 // ZB is the overarching type across this package
@@ -52,7 +56,7 @@ func (z *ZB) SpotNewOrder(ctx context.Context, arg SpotNewOrderRequestParams) (i
 
 	vals := url.Values{}
 	vals.Set("accesskey", z.API.Credentials.Key)
-	vals.Set("method", "order")
+	vals.Set("method", zbOrder)
 	vals.Set("amount", strconv.FormatFloat(arg.Amount, 'f', -1, 64))
 	vals.Set("currency", arg.Symbol)
 	vals.Set("price", strconv.FormatFloat(arg.Price, 'f', -1, 64))
@@ -81,7 +85,7 @@ func (z *ZB) CancelExistingOrder(ctx context.Context, orderID int64, symbol stri
 
 	vals := url.Values{}
 	vals.Set("accesskey", z.API.Credentials.Key)
-	vals.Set("method", "cancelOrder")
+	vals.Set("method", zbCancelOrder)
 	vals.Set("id", strconv.FormatInt(orderID, 10))
 	vals.Set("currency", symbol)
 
@@ -104,7 +108,7 @@ func (z *ZB) GetAccountInformation(ctx context.Context) (AccountsResponse, error
 
 	vals := url.Values{}
 	vals.Set("accesskey", z.API.Credentials.Key)
-	vals.Set("method", "getAccountInfo")
+	vals.Set("method", zbAccountInfo)
 
 	return result, z.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, vals, &result, request.Auth)
 }
@@ -453,7 +457,7 @@ func (z *ZB) Withdraw(ctx context.Context, currency, address, safepassword strin
 	vals.Set("currency", currency)
 	vals.Set("fees", strconv.FormatFloat(fees, 'f', -1, 64))
 	vals.Set("itransfer", strconv.FormatBool(itransfer))
-	vals.Set("method", "withdraw")
+	vals.Set("method", zbWithdraw)
 	vals.Set("receiveAddr", address)
 	vals.Set("safePwd", safepassword)
 
@@ -467,4 +471,26 @@ func (z *ZB) Withdraw(ctx context.Context, currency, address, safepassword strin
 	}
 
 	return resp.ID, nil
+}
+
+// GetMarkets returns market information including pricing, symbols and
+// each symbols decimal precision
+func (z *ZB) GetWithdrawalFees(ctx context.Context) (AllFeeInformation, error) {
+	var res struct {
+		Code    int                         `json:"code"`
+		Message string                      `json:"message"`
+		Result  map[string][]FeeInformation `json:"result"`
+	}
+	err := z.SendHTTPRequest(ctx,
+		exchange.RestSpotSupplementary,
+		zbTransferFee,
+		&res,
+		request.UnAuth)
+	if err != nil {
+		return nil, err
+	}
+	if res.Code != 1000 {
+		return nil, errors.New(res.Message)
+	}
+	return res.Result, nil
 }

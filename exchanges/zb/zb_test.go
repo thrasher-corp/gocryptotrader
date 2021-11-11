@@ -974,3 +974,18 @@ func TestGetAvailableTransferChains(t *testing.T) {
 		t.Error("expected 3 results")
 	}
 }
+
+func TestGetWithdrawalFees(t *testing.T) {
+	_, err := z.GetWithdrawalFees(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestUpdateTransferFees(t *testing.T) {
+	z.Verbose = true
+	err := z.UpdateTransferFees(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+}

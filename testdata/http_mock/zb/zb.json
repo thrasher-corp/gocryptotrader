@@ -1,5 +1,2443 @@
 {
  "routes": {
+  "/api/getFeeInfo": {
+   "GET": [
+    {
+     "data": {
+      "code": 1000,
+      "message": "success",
+      "result": {
+       "1000HOKK": [
+        {
+         "canDeposit": false,
+         "canWithdraw": false,
+         "chainName": "1000HOKK",
+         "fee": 20000000,
+         "mainChainName": "ETH"
+        }
+       ],
+       "1000KISHU": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "1000KISHU",
+         "fee": 4000000,
+         "mainChainName": "ETH"
+        }
+       ],
+       "1BOX": [
+        {
+         "canDeposit": true,
+         "canWithdraw": false,
+         "chainName": "1BOX",
+         "fee": 0.1,
+         "mainChainName": "BSC"
+        }
+       ],
+       "1INCH": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "1INCH",
+         "fee": 3,
+         "mainChainName": "ETH"
+        }
+       ],
+       "AAA": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "AAA",
+         "fee": 1500,
+         "mainChainName": "ETH"
+        }
+       ],
+       "AAVE": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "AAVE",
+         "fee": 0.1,
+         "mainChainName": "ETH"
+        }
+       ],
+       "ACC": [
+        {
+         "canDeposit": false,
+         "canWithdraw": false,
+         "chainName": "ACC",
+         "fee": 0.1,
+         "mainChainName": "MAIN-ACC"
+        }
+       ],
+       "ACH": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "ACH",
+         "fee": 100,
+         "mainChainName": "ETH"
+        }
+       ],
+       "AD": [
+        {
+         "canDeposit": false,
+         "canWithdraw": false,
+         "chainName": "AD",
+         "fee": 0.01,
+         "mainChainName": "MAIN-AD"
+        }
+       ],
+       "ADA": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "ADA",
+         "fee": 1,
+         "mainChainName": "ADA"
+        }
+       ],
+       "AE": [
+        {
+         "canDeposit": false,
+         "canWithdraw": false,
+         "chainName": "AE",
+         "fee": 0.1,
+         "mainChainName": "AE"
+        }
+       ],
+       "AGLD": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "AGLD",
+         "fee": 10,
+         "mainChainName": "ETH"
+        }
+       ],
+       "AKITA": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "AKITA",
+         "fee": 2600000,
+         "mainChainName": "ETH"
+        }
+       ],
+       "ALGO": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "ALGO",
+         "fee": 0.2,
+         "mainChainName": "ALGO"
+        }
+       ],
+       "AMC": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "ERC20",
+         "fee": 48,
+         "mainChainName": "ETH"
+        }
+       ],
+       "AMP": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "AMP",
+         "fee": 600,
+         "mainChainName": "ETH"
+        }
+       ],
+       "ANKR": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "ANKR",
+         "fee": 200,
+         "mainChainName": "ETH"
+        }
+       ],
+       "ARPA": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "ARPA",
+         "fee": 0.1,
+         "mainChainName": "ETH"
+        }
+       ],
+       "ATOM": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "ATOM",
+         "fee": 0.01,
+         "mainChainName": "ATOM"
+        }
+       ],
+       "AUCTION": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "AUCTION",
+         "fee": 0.1,
+         "mainChainName": "ETH"
+        }
+       ],
+       "AUDIO": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "AUDIO",
+         "fee": 6,
+         "mainChainName": "ETH"
+        }
+       ],
+       "AVAX": [
+        {
+         "canDeposit": true,
+         "canWithdraw": false,
+         "chainName": "AVAX",
+         "fee": 0.1,
+         "mainChainName": "AVAX"
+        }
+       ],
+       "AXS": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "AXS",
+         "fee": 0.2,
+         "mainChainName": "ETH"
+        }
+       ],
+       "B91": [
+        {
+         "canDeposit": false,
+         "canWithdraw": true,
+         "chainName": "B91",
+         "fee": 4,
+         "mainChainName": "ETH"
+        }
+       ],
+       "BAR": [
+        {
+         "canDeposit": false,
+         "canWithdraw": false,
+         "chainName": "BAR",
+         "fee": 0.5,
+         "mainChainName": "BAR"
+        }
+       ],
+       "BAT": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "BAT",
+         "fee": 40,
+         "mainChainName": "ETH"
+        }
+       ],
+       "BCD": [
+        {
+         "canDeposit": false,
+         "canWithdraw": false,
+         "chainName": "BCD",
+         "fee": 0.001,
+         "mainChainName": "BTC"
+        }
+       ],
+       "BCH": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "BCH",
+         "fee": 0.0005,
+         "mainChainName": "BCH"
+        }
+       ],
+       "BCHA": [
+        {
+         "canDeposit": false,
+         "canWithdraw": false,
+         "chainName": "BCHA",
+         "fee": 0.01,
+         "mainChainName": "BCHA"
+        }
+       ],
+       "BCW": [
+        {
+         "canDeposit": false,
+         "canWithdraw": true,
+         "chainName": "BCW",
+         "fee": 30,
+         "mainChainName": "ETH"
+        }
+       ],
+       "BDM": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "BDM",
+         "fee": 5,
+         "mainChainName": "ETH"
+        }
+       ],
+       "BDS": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "BDS",
+         "fee": 100,
+         "mainChainName": "EOS"
+        }
+       ],
+       "BED": [
+        {
+         "canDeposit": false,
+         "canWithdraw": false,
+         "chainName": "BED",
+         "fee": 0.5,
+         "mainChainName": "BED"
+        }
+       ],
+       "BGH": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "BGH",
+         "fee": 0.1,
+         "mainChainName": "BGH"
+        }
+       ],
+       "BGPT": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "BGPT",
+         "fee": 200,
+         "mainChainName": "ETH"
+        }
+       ],
+       "BKH": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "BKH",
+         "fee": 1,
+         "mainChainName": "TRX"
+        }
+       ],
+       "BNA": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "BNA",
+         "fee": 200,
+         "mainChainName": "ETH"
+        }
+       ],
+       "BNT": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "BNT",
+         "fee": 6,
+         "mainChainName": "ETH"
+        }
+       ],
+       "BOND": [
+        {
+         "canDeposit": true,
+         "canWithdraw": false,
+         "chainName": "BOND",
+         "fee": 0.1,
+         "mainChainName": "ETH"
+        }
+       ],
+       "BRC": [
+        {
+         "canDeposit": false,
+         "canWithdraw": true,
+         "chainName": "BRC",
+         "fee": 5,
+         "mainChainName": "ETH"
+        }
+       ],
+       "BSV": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "BSV",
+         "fee": 0.001,
+         "mainChainName": "BSV"
+        }
+       ],
+       "BTC": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "BTC",
+         "fee": 0.0005,
+         "mainChainName": "BTC"
+        }
+       ],
+       "BTH": [
+        {
+         "canDeposit": false,
+         "canWithdraw": false,
+         "chainName": "BTH",
+         "fee": 0.1,
+         "mainChainName": "BTH"
+        }
+       ],
+       "BTM": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "BTM",
+         "fee": 10,
+         "mainChainName": "BTM"
+        }
+       ],
+       "BTMC": [
+        {
+         "canDeposit": false,
+         "canWithdraw": false,
+         "chainName": "BTMC",
+         "fee": 10,
+         "mainChainName": "BTMC"
+        }
+       ],
+       "BTN": [
+        {
+         "canDeposit": true,
+         "canWithdraw": false,
+         "chainName": "BTN",
+         "fee": 0.005,
+         "mainChainName": "BTC"
+        }
+       ],
+       "BTP": [
+        {
+         "canDeposit": false,
+         "canWithdraw": false,
+         "chainName": "BTP",
+         "fee": 0.001,
+         "mainChainName": "BTP"
+        }
+       ],
+       "BTRST": [
+        {
+         "canDeposit": false,
+         "canWithdraw": false,
+         "chainName": "BTRST",
+         "fee": 0.1,
+         "mainChainName": "ETH"
+        }
+       ],
+       "BTS": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "BTS",
+         "fee": 3,
+         "mainChainName": "BTS"
+        }
+       ],
+       "BZZ": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "BZZ",
+         "fee": 1,
+         "mainChainName": "ETH"
+        }
+       ],
+       "CART": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "CART",
+         "fee": 20,
+         "mainChainName": "ETH"
+        }
+       ],
+       "CATE": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "CATE",
+         "fee": 3000000,
+         "mainChainName": "BSC"
+        }
+       ],
+       "CATE-OLD": [
+        {
+         "canDeposit": false,
+         "canWithdraw": true,
+         "chainName": "CATE-OLD",
+         "fee": 2000000,
+         "mainChainName": "BSC"
+        }
+       ],
+       "CDC": [
+        {
+         "canDeposit": false,
+         "canWithdraw": false,
+         "chainName": "CDC",
+         "fee": 1000,
+         "mainChainName": "ETH"
+        }
+       ],
+       "CELO": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "CELO",
+         "fee": 0.001,
+         "mainChainName": "CELO"
+        }
+       ],
+       "CELR": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "CELR",
+         "fee": 200,
+         "mainChainName": "ETH"
+        }
+       ],
+       "CENNZ": [
+        {
+         "canDeposit": false,
+         "canWithdraw": false,
+         "chainName": "CENNZ",
+         "fee": 5,
+         "mainChainName": "MAIN-CENNZ"
+        }
+       ],
+       "CERE": [
+        {
+         "canDeposit": false,
+         "canWithdraw": false,
+         "chainName": "CERE",
+         "fee": 0.1,
+         "mainChainName": "ETH"
+        }
+       ],
+       "CFX": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "CFX",
+         "fee": 0.5,
+         "mainChainName": "CFX"
+        }
+       ],
+       "CHAT": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "CHAT",
+         "fee": 2000,
+         "mainChainName": "ETH"
+        }
+       ],
+       "CHZ": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "CHZ",
+         "fee": 10,
+         "mainChainName": "ETH"
+        }
+       ],
+       "CLV": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "CLV",
+         "fee": 8,
+         "mainChainName": "ETH"
+        }
+       ],
+       "CMD": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "CMD",
+         "fee": 0.1,
+         "mainChainName": "CMD"
+        }
+       ],
+       "COMP": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "COMP",
+         "fee": 0.05,
+         "mainChainName": "ETH"
+        }
+       ],
+       "COTI": [
+        {
+         "canDeposit": false,
+         "canWithdraw": false,
+         "chainName": "COTI",
+         "fee": 55,
+         "mainChainName": "ETH"
+        }
+       ],
+       "CRO": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "CRO",
+         "fee": 0.01,
+         "mainChainName": "CRO"
+        }
+       ],
+       "CRU": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "CRU",
+         "fee": 0.1,
+         "mainChainName": "ETH"
+        }
+       ],
+       "CRV": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "CRV",
+         "fee": 10,
+         "mainChainName": "ETH"
+        }
+       ],
+       "CSPR": [
+        {
+         "canDeposit": false,
+         "canWithdraw": false,
+         "chainName": "CSPR",
+         "fee": 0.1,
+         "mainChainName": "CSPR"
+        }
+       ],
+       "DAI": [
+        {
+         "canDeposit": true,
+         "canWithdraw": false,
+         "chainName": "DAI",
+         "fee": 0.1,
+         "mainChainName": "ETH"
+        }
+       ],
+       "DASH": [
+        {
+         "canDeposit": true,
+         "canWithdraw": false,
+         "chainName": "DASH",
+         "fee": 0.002,
+         "mainChainName": "DASH"
+        }
+       ],
+       "DAWN": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "DAWN",
+         "fee": 3,
+         "mainChainName": "ETH"
+        }
+       ],
+       "DDM": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "DDM",
+         "fee": 0.2,
+         "mainChainName": "DDM"
+        }
+       ],
+       "DDX": [
+        {
+         "canDeposit": true,
+         "canWithdraw": false,
+         "chainName": "DDX",
+         "fee": 0.1,
+         "mainChainName": "ETH"
+        }
+       ],
+       "DENT": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "DENT",
+         "fee": 1400,
+         "mainChainName": "ETH"
+        }
+       ],
+       "DFL": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "BEP20",
+         "fee": 5,
+         "mainChainName": "BITBSC"
+        },
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "ERC20",
+         "fee": 10,
+         "mainChainName": "ETH"
+        }
+       ],
+       "DIP": [
+        {
+         "canDeposit": false,
+         "canWithdraw": true,
+         "chainName": "DIP",
+         "fee": 1.5,
+         "mainChainName": "ETH"
+        }
+       ],
+       "DMD": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "DMD",
+         "fee": 0.03,
+         "mainChainName": "EOS"
+        }
+       ],
+       "DNA": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "DNA",
+         "fee": 20,
+         "mainChainName": "MAIN-DNA"
+        }
+       ],
+       "DNT": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "DNT",
+         "fee": 60,
+         "mainChainName": "ETH"
+        }
+       ],
+       "DOGE": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "DOGE",
+         "fee": 20,
+         "mainChainName": "DOGE"
+        }
+       ],
+       "DOM": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "DOM",
+         "fee": 0.1,
+         "mainChainName": "DOM"
+        }
+       ],
+       "DORA": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "DORA",
+         "fee": 1.5,
+         "mainChainName": "ETH"
+        }
+       ],
+       "DOT": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "DOT",
+         "fee": 0.1,
+         "mainChainName": "DOT"
+        }
+       ],
+       "DSF": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "DSF",
+         "fee": 55,
+         "mainChainName": "ETH"
+        }
+       ],
+       "DYDX": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "DYDX",
+         "fee": 5,
+         "mainChainName": "ETH"
+        }
+       ],
+       "EDO": [
+        {
+         "canDeposit": false,
+         "canWithdraw": false,
+         "chainName": "EDO",
+         "fee": 4,
+         "mainChainName": "ETH"
+        }
+       ],
+       "EFI": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "EFI",
+         "fee": 20,
+         "mainChainName": "ETH"
+        }
+       ],
+       "ENJ": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "ENJ",
+         "fee": 5,
+         "mainChainName": "ETH"
+        }
+       ],
+       "ENS": [
+        {
+         "canDeposit": true,
+         "canWithdraw": false,
+         "chainName": "ENS",
+         "fee": 0.1,
+         "mainChainName": "ETH"
+        }
+       ],
+       "ENTC": [
+        {
+         "canDeposit": true,
+         "canWithdraw": false,
+         "chainName": "ENTC",
+         "fee": 10,
+         "mainChainName": "HC"
+        }
+       ],
+       "EOS": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "EOS",
+         "fee": 0.1,
+         "mainChainName": "EOS"
+        }
+       ],
+       "EP": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "EP",
+         "fee": 2,
+         "mainChainName": "EP"
+        }
+       ],
+       "EPC": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "EPC",
+         "fee": 40,
+         "mainChainName": "QTUM"
+        }
+       ],
+       "ETC": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "ETC",
+         "fee": 0.01,
+         "mainChainName": "ETC"
+        }
+       ],
+       "ETH": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "ETH",
+         "fee": 0.01,
+         "mainChainName": "ETH"
+        }
+       ],
+       "ETZ": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "ETZ",
+         "fee": 0.01,
+         "mainChainName": "ETZ"
+        }
+       ],
+       "FARM": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "FARM",
+         "fee": 0.05,
+         "mainChainName": "ETH"
+        }
+       ],
+       "FET": [
+        {
+         "canDeposit": true,
+         "canWithdraw": false,
+         "chainName": "FET",
+         "fee": 30,
+         "mainChainName": "ETH"
+        }
+       ],
+       "FIL": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "FIL",
+         "fee": 0.002,
+         "mainChainName": "FIL"
+        }
+       ],
+       "FLOW": [
+        {
+         "canDeposit": true,
+         "canWithdraw": false,
+         "chainName": "FLOW",
+         "fee": 0.1,
+         "mainChainName": "FLOW"
+        }
+       ],
+       "FN": [
+        {
+         "canDeposit": false,
+         "canWithdraw": false,
+         "chainName": "FN",
+         "fee": 0,
+         "mainChainName": "FN"
+        }
+       ],
+       "FOMP": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "FOMP",
+         "fee": 0.05,
+         "mainChainName": "HT"
+        }
+       ],
+       "FORTH": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "FORTH",
+         "fee": 1.3,
+         "mainChainName": "ETH"
+        }
+       ],
+       "FUN": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "FUN",
+         "fee": 250,
+         "mainChainName": "ETH"
+        }
+       ],
+       "FX": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "FX",
+         "fee": 28,
+         "mainChainName": "ETH"
+        }
+       ],
+       "GALA": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "GALA",
+         "fee": 200,
+         "mainChainName": "ETH"
+        }
+       ],
+       "GLM": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "GLM",
+         "fee": 20,
+         "mainChainName": "ETH"
+        }
+       ],
+       "GLS": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "GLS",
+         "fee": 0.1,
+         "mainChainName": "GLS"
+        }
+       ],
+       "GRAM": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "GRAM",
+         "fee": 1000,
+         "mainChainName": "ETH"
+        }
+       ],
+       "GRIN": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "GRIN",
+         "fee": 1,
+         "mainChainName": "GRIN"
+        }
+       ],
+       "GRT": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "GRT",
+         "fee": 15,
+         "mainChainName": "ETH"
+        }
+       ],
+       "GST": [
+        {
+         "canDeposit": false,
+         "canWithdraw": false,
+         "chainName": "GST",
+         "fee": 0.01,
+         "mainChainName": "MAIN-GST"
+        }
+       ],
+       "GTC": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "GTC",
+         "fee": 1.7,
+         "mainChainName": "ETH"
+        }
+       ],
+       "GUCS": [
+        {
+         "canDeposit": false,
+         "canWithdraw": false,
+         "chainName": "GUCS",
+         "fee": 0.01,
+         "mainChainName": "GUCS"
+        }
+       ],
+       "GUSD": [
+        {
+         "canDeposit": false,
+         "canWithdraw": true,
+         "chainName": "GUSD",
+         "fee": 5,
+         "mainChainName": "ETH"
+        }
+       ],
+       "GUSDT": [
+        {
+         "canDeposit": false,
+         "canWithdraw": false,
+         "chainName": "GUSDT",
+         "fee": 10,
+         "mainChainName": "ETH"
+        }
+       ],
+       "HC": [
+        {
+         "canDeposit": true,
+         "canWithdraw": false,
+         "chainName": "HC",
+         "fee": 0.01,
+         "mainChainName": "HC"
+        }
+       ],
+       "HCT": [
+        {
+         "canDeposit": true,
+         "canWithdraw": false,
+         "chainName": "HCT",
+         "fee": 1,
+         "mainChainName": "AVAX"
+        }
+       ],
+       "HLC": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "HLC",
+         "fee": 100,
+         "mainChainName": "ETH"
+        }
+       ],
+       "HNS": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "HNS",
+         "fee": 0.2,
+         "mainChainName": "HNS"
+        }
+       ],
+       "HOTC": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "HOTC",
+         "fee": 150,
+         "mainChainName": "ETH"
+        }
+       ],
+       "HPY": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "HPY",
+         "fee": 100,
+         "mainChainName": "QTUM"
+        }
+       ],
+       "HX": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "HX",
+         "fee": 0.1,
+         "mainChainName": "HX"
+        }
+       ],
+       "ICP": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "ICP",
+         "fee": 0.01,
+         "mainChainName": "ICP"
+        }
+       ],
+       "ICX": [
+        {
+         "canDeposit": false,
+         "canWithdraw": false,
+         "chainName": "ICX",
+         "fee": 3,
+         "mainChainName": "ICX"
+        }
+       ],
+       "IDV": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "IDV",
+         "fee": 230,
+         "mainChainName": "ETH"
+        }
+       ],
+       "IMX": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "IMX",
+         "fee": 15,
+         "mainChainName": "ETH"
+        }
+       ],
+       "INK": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "INK",
+         "fee": 60,
+         "mainChainName": "QTUM"
+        }
+       ],
+       "IOTX": [
+        {
+         "canDeposit": false,
+         "canWithdraw": false,
+         "chainName": "IOTX",
+         "fee": 0.1,
+         "mainChainName": "IOTX"
+        }
+       ],
+       "JASMY": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "JASMY",
+         "fee": 600,
+         "mainChainName": "ETH"
+        }
+       ],
+       "KAN": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "KAN",
+         "fee": 350,
+         "mainChainName": "ETH"
+        }
+       ],
+       "KAVA": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "KAVA",
+         "fee": 0.1,
+         "mainChainName": "KAVA"
+        }
+       ],
+       "KEEP": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "KEEP",
+         "fee": 45,
+         "mainChainName": "ETH"
+        }
+       ],
+       "KNC": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "KNC",
+         "fee": 10,
+         "mainChainName": "ETH"
+        }
+       ],
+       "KPG": [
+        {
+         "canDeposit": false,
+         "canWithdraw": false,
+         "chainName": "KPG",
+         "fee": 0.05,
+         "mainChainName": "KPG"
+        }
+       ],
+       "KRL": [
+        {
+         "canDeposit": false,
+         "canWithdraw": false,
+         "chainName": "KRL",
+         "fee": 0.1,
+         "mainChainName": "ETH"
+        }
+       ],
+       "KSM": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "KSM",
+         "fee": 0.01,
+         "mainChainName": "KSM"
+        }
+       ],
+       "LAT": [
+        {
+         "canDeposit": false,
+         "canWithdraw": false,
+         "chainName": "LAT",
+         "fee": 1,
+         "mainChainName": "LAT"
+        }
+       ],
+       "LBTC": [
+        {
+         "canDeposit": true,
+         "canWithdraw": false,
+         "chainName": "LBTC",
+         "fee": 0.0001,
+         "mainChainName": "LBTC"
+        }
+       ],
+       "LCX": [
+        {
+         "canDeposit": false,
+         "canWithdraw": false,
+         "chainName": "LCX",
+         "fee": 0.1,
+         "mainChainName": "ETH"
+        }
+       ],
+       "LEO": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "LEO",
+         "fee": 5,
+         "mainChainName": "ETH"
+        }
+       ],
+       "LIKE": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "LIKE",
+         "fee": 1,
+         "mainChainName": "LIKE"
+        }
+       ],
+       "LINK": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "LINK",
+         "fee": 0.5,
+         "mainChainName": "ETH"
+        }
+       ],
+       "LPT": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "LPT",
+         "fee": 1,
+         "mainChainName": "ETH"
+        }
+       ],
+       "LTC": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "LTC",
+         "fee": 0.005,
+         "mainChainName": "LTC"
+        }
+       ],
+       "LTG": [
+        {
+         "canDeposit": false,
+         "canWithdraw": false,
+         "chainName": "LTG",
+         "fee": 0.6,
+         "mainChainName": "LTG"
+        }
+       ],
+       "LUCKY": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "LUCKY",
+         "fee": 20,
+         "mainChainName": "ETH"
+        }
+       ],
+       "LUNA": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "LUNA",
+         "fee": 0.01,
+         "mainChainName": "LUNA"
+        }
+       ],
+       "LVN": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "LVN",
+         "fee": 250,
+         "mainChainName": "ETH"
+        }
+       ],
+       "M": [
+        {
+         "canDeposit": false,
+         "canWithdraw": false,
+         "chainName": "M",
+         "fee": 0.01,
+         "mainChainName": "M"
+        }
+       ],
+       "MANA": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "MANA",
+         "fee": 20,
+         "mainChainName": "ETH"
+        }
+       ],
+       "MATIC": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "MATIC",
+         "fee": 40,
+         "mainChainName": "ETH"
+        }
+       ],
+       "MCO": [
+        {
+         "canDeposit": false,
+         "canWithdraw": true,
+         "chainName": "MCO",
+         "fee": 0.6,
+         "mainChainName": "ETH"
+        }
+       ],
+       "MIR": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "MIR",
+         "fee": 2,
+         "mainChainName": "ETH"
+        }
+       ],
+       "MITH": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "MITH",
+         "fee": 500,
+         "mainChainName": "ETH"
+        }
+       ],
+       "MLN": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "MLN",
+         "fee": 0.2,
+         "mainChainName": "ETH"
+        }
+       ],
+       "MNC": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "MNC",
+         "fee": 9000,
+         "mainChainName": "ETH"
+        }
+       ],
+       "MTL": [
+        {
+         "canDeposit": true,
+         "canWithdraw": false,
+         "chainName": "MTL",
+         "fee": 3,
+         "mainChainName": "ETH"
+        }
+       ],
+       "NBS": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "NBS",
+         "fee": 5,
+         "mainChainName": "NBS"
+        }
+       ],
+       "NEAR": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "NEAR",
+         "fee": 0.1,
+         "mainChainName": "NEAR"
+        }
+       ],
+       "NEO": [
+        {
+         "canDeposit": false,
+         "canWithdraw": false,
+         "chainName": "NEO",
+         "fee": 0,
+         "mainChainName": "NEO"
+        }
+       ],
+       "NIFTSY": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "NIFTSY",
+         "fee": 800,
+         "mainChainName": "ETH"
+        }
+       ],
+       "NKN": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "NKN",
+         "fee": 25,
+         "mainChainName": "ETH"
+        }
+       ],
+       "NU": [
+        {
+         "canDeposit": true,
+         "canWithdraw": false,
+         "chainName": "NU",
+         "fee": 75,
+         "mainChainName": "ETH"
+        }
+       ],
+       "NWT": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "NWT",
+         "fee": 20,
+         "mainChainName": "TRX"
+        }
+       ],
+       "O3": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "O3",
+         "fee": 5,
+         "mainChainName": "ETH"
+        }
+       ],
+       "OGN": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "OGN",
+         "fee": 6,
+         "mainChainName": "ETH"
+        }
+       ],
+       "OMG": [
+        {
+         "canDeposit": true,
+         "canWithdraw": false,
+         "chainName": "OMG",
+         "fee": 3,
+         "mainChainName": "ETH"
+        }
+       ],
+       "ONT": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "ONT",
+         "fee": 1,
+         "mainChainName": "MAIN-ONT"
+        }
+       ],
+       "OOE": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "OOE",
+         "fee": 10,
+         "mainChainName": "BSC"
+        }
+       ],
+       "ORN": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "ORN",
+         "fee": 2,
+         "mainChainName": "ETH"
+        }
+       ],
+       "PAX": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "PAX",
+         "fee": 5,
+         "mainChainName": "ETH"
+        }
+       ],
+       "PDX": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "PDX",
+         "fee": 1300,
+         "mainChainName": "ETH"
+        }
+       ],
+       "PERP": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "PERP",
+         "fee": 2.1,
+         "mainChainName": "ETH"
+        }
+       ],
+       "PLA": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "PLA",
+         "fee": 20,
+         "mainChainName": "ETH"
+        }
+       ],
+       "POLS": [
+        {
+         "canDeposit": true,
+         "canWithdraw": false,
+         "chainName": "POLS",
+         "fee": 20,
+         "mainChainName": "ETH"
+        }
+       ],
+       "POLY": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "POLY",
+         "fee": 120,
+         "mainChainName": "ETH"
+        }
+       ],
+       "POND": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "POND",
+         "fee": 80,
+         "mainChainName": "ETH"
+        }
+       ],
+       "QC": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "fee": 5,
+         "mainChainName": "TRUE"
+        },
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "ERC20",
+         "fee": 20,
+         "mainChainName": "ETH"
+        },
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "QRC20",
+         "fee": 5,
+         "mainChainName": "QTUM"
+        }
+       ],
+       "QETH": [
+        {
+         "canDeposit": false,
+         "canWithdraw": false,
+         "chainName": "QETH",
+         "fee": 0.01,
+         "mainChainName": "ETH"
+        }
+       ],
+       "QFIL": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "QFIL",
+         "fee": 0.05,
+         "mainChainName": "ETH"
+        }
+       ],
+       "QNT": [
+        {
+         "canDeposit": true,
+         "canWithdraw": false,
+         "chainName": "QNT",
+         "fee": 0.1,
+         "mainChainName": "ETH"
+        }
+       ],
+       "QTUM": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "QTUM",
+         "fee": 0.01,
+         "mainChainName": "QTUM"
+        }
+       ],
+       "QUICK": [
+        {
+         "canDeposit": true,
+         "canWithdraw": false,
+         "chainName": "QUICK",
+         "fee": 0.03,
+         "mainChainName": "ETH"
+        }
+       ],
+       "QUN": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "QUN",
+         "fee": 200,
+         "mainChainName": "ETH"
+        }
+       ],
+       "RAD": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "RAD",
+         "fee": 2,
+         "mainChainName": "ETH"
+        }
+       ],
+       "RAI": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "RAI",
+         "fee": 6,
+         "mainChainName": "ETH"
+        }
+       ],
+       "RARE": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "RARE",
+         "fee": 15,
+         "mainChainName": "ETH"
+        }
+       ],
+       "RARI": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "RARI",
+         "fee": 1,
+         "mainChainName": "ETH"
+        }
+       ],
+       "RCN": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "RCN",
+         "fee": 70,
+         "mainChainName": "ETH"
+        }
+       ],
+       "REN": [
+        {
+         "canDeposit": true,
+         "canWithdraw": false,
+         "chainName": "REN",
+         "fee": 60,
+         "mainChainName": "ETH"
+        }
+       ],
+       "REQ": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "REQ",
+         "fee": 77,
+         "mainChainName": "ETH"
+        }
+       ],
+       "REV": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "REV",
+         "fee": 5,
+         "mainChainName": "REV"
+        }
+       ],
+       "RGT": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "RGT",
+         "fee": 2.3,
+         "mainChainName": "ETH"
+        }
+       ],
+       "RLY": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "RLY",
+         "fee": 30,
+         "mainChainName": "ETH"
+        }
+       ],
+       "ROSE": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "ROSE",
+         "fee": 0.001,
+         "mainChainName": "ROSE"
+        }
+       ],
+       "RSR": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "RSR",
+         "fee": 20,
+         "mainChainName": "ETH"
+        }
+       ],
+       "RTF": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "RTF",
+         "fee": 0.05,
+         "mainChainName": "TRUE"
+        }
+       ],
+       "SAFE": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "SAFE",
+         "fee": 1,
+         "mainChainName": "SAFE"
+        }
+       ],
+       "SANA": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "SANA",
+         "fee": 666,
+         "mainChainName": "ETH"
+        }
+       ],
+       "SAND": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "SAND",
+         "fee": 25,
+         "mainChainName": "ETH"
+        }
+       ],
+       "SDN": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "SDN",
+         "fee": 1,
+         "mainChainName": "SDN"
+        }
+       ],
+       "SDOG": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "SDOG",
+         "fee": 10000000,
+         "mainChainName": "ETH"
+        }
+       ],
+       "SHIB": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "SHIB",
+         "fee": 2600000,
+         "mainChainName": "ETH"
+        }
+       ],
+       "SLP": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "SLP",
+         "fee": 105,
+         "mainChainName": "ETH"
+        }
+       ],
+       "SLT": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "SLT",
+         "fee": 100,
+         "mainChainName": "ETH"
+        }
+       ],
+       "SNT": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "SNT",
+         "fee": 60,
+         "mainChainName": "ETH"
+        }
+       ],
+       "SNX": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "SNX",
+         "fee": 0.5,
+         "mainChainName": "ETH"
+        }
+       ],
+       "SOL": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "SOL",
+         "fee": 0.01,
+         "mainChainName": "SOL"
+        }
+       ],
+       "SRM": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "SRM",
+         "fee": 2.5,
+         "mainChainName": "ETH"
+        }
+       ],
+       "STAR": [
+        {
+         "canDeposit": false,
+         "canWithdraw": false,
+         "chainName": "STAR",
+         "fee": 0.1,
+         "mainChainName": "STAR"
+        }
+       ],
+       "STORJ": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "STORJ",
+         "fee": 12,
+         "mainChainName": "ETH"
+        }
+       ],
+       "SUB": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "SUB",
+         "fee": 20,
+         "mainChainName": "ETH"
+        }
+       ],
+       "SUKU": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "SUKU",
+         "fee": 60,
+         "mainChainName": "ETH"
+        }
+       ],
+       "SUSHI": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "SUSHI",
+         "fee": 2,
+         "mainChainName": "ETH"
+        }
+       ],
+       "SWFTC": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "SWFTC",
+         "fee": 3000,
+         "mainChainName": "ETH"
+        }
+       ],
+       "SWRV": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "SWRV",
+         "fee": 0.1,
+         "mainChainName": "ETH"
+        }
+       ],
+       "THETA": [
+        {
+         "canDeposit": false,
+         "canWithdraw": false,
+         "chainName": "THETA",
+         "fee": 0.1,
+         "mainChainName": "THETA"
+        }
+       ],
+       "TLM": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "TLM",
+         "fee": 60,
+         "mainChainName": "ETH"
+        }
+       ],
+       "TOPC": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "TOPC",
+         "fee": 2000,
+         "mainChainName": "ETH"
+        }
+       ],
+       "TRAC": [
+        {
+         "canDeposit": false,
+         "canWithdraw": false,
+         "chainName": "TRAC",
+         "fee": 0.1,
+         "mainChainName": "ETH"
+        }
+       ],
+       "TRIBE": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "TRIBE",
+         "fee": 29,
+         "mainChainName": "ETH"
+        }
+       ],
+       "TRU": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "TRU",
+         "fee": 26,
+         "mainChainName": "ETH"
+        }
+       ],
+       "TRUE": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "TRUE",
+         "fee": 1,
+         "mainChainName": "TRUE"
+        }
+       ],
+       "TRX": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "TRX",
+         "fee": 1,
+         "mainChainName": "TRX"
+        }
+       ],
+       "TSR": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "TSR",
+         "fee": 800,
+         "mainChainName": "ETH"
+        }
+       ],
+       "TUSD": [
+        {
+         "canDeposit": false,
+         "canWithdraw": false,
+         "chainName": "TUSD",
+         "fee": 5,
+         "mainChainName": "ETH"
+        }
+       ],
+       "TV": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "TV",
+         "fee": 1,
+         "mainChainName": "TV"
+        }
+       ],
+       "UBTC": [
+        {
+         "canDeposit": false,
+         "canWithdraw": false,
+         "chainName": "UBTC",
+         "fee": 0.001,
+         "mainChainName": "BTC"
+        }
+       ],
+       "UFC": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "UFC",
+         "fee": 10,
+         "mainChainName": "MAIN-UFC"
+        }
+       ],
+       "UFO": [
+        {
+         "canDeposit": false,
+         "canWithdraw": false,
+         "chainName": "UFO",
+         "fee": 0.01,
+         "mainChainName": "UFO"
+        }
+       ],
+       "ULU": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "ULU",
+         "fee": 0.05,
+         "mainChainName": "ETH"
+        }
+       ],
+       "UMA": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "UMA",
+         "fee": 0.8,
+         "mainChainName": "ETH"
+        }
+       ],
+       "UNI": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "UNI",
+         "fee": 1,
+         "mainChainName": "ETH"
+        }
+       ],
+       "USDC": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "ERC20",
+         "fee": 5,
+         "mainChainName": "ETH"
+        },
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "TRC20",
+         "fee": 1,
+         "mainChainName": "TRX"
+        }
+       ],
+       "USDT": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "TRC20",
+         "fee": 1,
+         "mainChainName": "TRX"
+        },
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "OMNI",
+         "fee": 5,
+         "mainChainName": "BTC"
+        },
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "ERC20",
+         "fee": 15,
+         "mainChainName": "ETH"
+        }
+       ],
+       "UZ": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "UZ",
+         "fee": 0.1,
+         "mainChainName": "TRX"
+        }
+       ],
+       "VBT": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "VBT",
+         "fee": 250,
+         "mainChainName": "ETH"
+        }
+       ],
+       "VSYS": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "VSYS",
+         "fee": 1,
+         "mainChainName": "VSYS"
+        }
+       ],
+       "WAVES": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "WAVES",
+         "fee": 0.01,
+         "mainChainName": "WAVES"
+        }
+       ],
+       "WAXP": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "WAXP",
+         "fee": 5,
+         "mainChainName": "WAXP"
+        }
+       ],
+       "WNCG": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "WNCG",
+         "fee": 20,
+         "mainChainName": "ETH"
+        }
+       ],
+       "XCH": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "XCH",
+         "fee": 0.0013,
+         "mainChainName": "XCH"
+        }
+       ],
+       "XEC": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "XEC",
+         "fee": 5000,
+         "mainChainName": "XEC"
+        }
+       ],
+       "XEM": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "XEM",
+         "fee": 4,
+         "mainChainName": "XEM"
+        }
+       ],
+       "XFLR": [
+        {
+         "canDeposit": false,
+         "canWithdraw": false,
+         "chainName": "XFLR",
+         "fee": 10,
+         "mainChainName": "XFLR"
+        }
+       ],
+       "XLM": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "XLM",
+         "fee": 0.1,
+         "mainChainName": "XLM"
+        }
+       ],
+       "XMR": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "XMR",
+         "fee": 0.001,
+         "mainChainName": "XMR"
+        }
+       ],
+       "XRP": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "XRP",
+         "fee": 0.1,
+         "mainChainName": "XRP"
+        }
+       ],
+       "XTZ": [
+        {
+         "canDeposit": false,
+         "canWithdraw": false,
+         "chainName": "XTZ",
+         "fee": 0.1,
+         "mainChainName": "XTZ"
+        }
+       ],
+       "XUC": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "XUC",
+         "fee": 1,
+         "mainChainName": "ETH"
+        }
+       ],
+       "XWC": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "XWC",
+         "fee": 0.01,
+         "mainChainName": "MAIN-XWC"
+        }
+       ],
+       "XWCC": [
+        {
+         "canDeposit": false,
+         "canWithdraw": true,
+         "chainName": "XWCC",
+         "fee": 1,
+         "mainChainName": "XWCC"
+        }
+       ],
+       "XYM": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "XYM",
+         "fee": 5,
+         "mainChainName": "XYM"
+        }
+       ],
+       "XYO": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "XYO",
+         "fee": 1000,
+         "mainChainName": "ETH"
+        }
+       ],
+       "YFI": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "YFI",
+         "fee": 0.0005,
+         "mainChainName": "ETH"
+        }
+       ],
+       "YFII": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "YFII",
+         "fee": 0.0001,
+         "mainChainName": "ETH"
+        }
+       ],
+       "YGG": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "YGG",
+         "fee": 6,
+         "mainChainName": "ETH"
+        }
+       ],
+       "YTNB": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "YTNB",
+         "fee": 8,
+         "mainChainName": "ETH"
+        }
+       ],
+       "ZB": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "fee": 5,
+         "mainChainName": "TRUE"
+        },
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "ERC20",
+         "fee": 10,
+         "mainChainName": "ETH"
+        }
+       ],
+       "ZKN": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "ZKN",
+         "fee": 3,
+         "mainChainName": "BSC"
+        }
+       ],
+       "ZRX": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "ZRX",
+         "fee": 10,
+         "mainChainName": "ETH"
+        }
+       ],
+       "bitCNY": [
+        {
+         "canDeposit": true,
+         "canWithdraw": true,
+         "chainName": "bitCNY",
+         "fee": 20,
+         "mainChainName": "BTS"
+        }
+       ]
+      }
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
   "/api/getPayinAddress": {
    "GET": [
     {
