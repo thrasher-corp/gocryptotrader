@@ -336,11 +336,21 @@ func (b *Binance) FetchTradablePairs(ctx context.Context, a asset.Item) ([]strin
 		}
 		for u := range uInfo.Symbols {
 			if uInfo.Symbols[u].Status == "TRADING" {
-				curr, err := currency.NewPairFromString(uInfo.Symbols[u].Symbol)
-				if err != nil {
-					return nil, err
+				var curr currency.Pair
+				if strings.Contains(uInfo.Symbols[u].Symbol, currency.UnderscoreDelimiter) {
+					index := strings.Index(uInfo.Symbols[u].Symbol, currency.UnderscoreDelimiter)
+					curr, err = currency.NewPairFromStrings(uInfo.Symbols[u].Symbol[0:index], uInfo.Symbols[u].Symbol[index:])
+					if err != nil {
+						return nil, err
+					}
+					pairs = append(pairs, format.Format(curr))
+				} else {
+					curr, err = currency.NewPairFromString(uInfo.Symbols[u].Symbol)
+					if err != nil {
+						return nil, err
+					}
+					pairs = append(pairs, format.Format(curr))
 				}
-				pairs = append(pairs, format.Format(curr))
 			}
 		}
 	}
@@ -1741,4 +1751,71 @@ func (b *Binance) GetAvailableTransferChains(ctx context.Context, cryptocurrency
 		}
 	}
 	return availableChains, nil
+}
+
+// GetEnabledPairs is a method that returns the enabled currency pairs of
+// the exchange by asset type, if the asset type is disabled this will return no
+// enabled pairs
+// overrides default implementation to use optional delimiter
+func (b *Binance) GetEnabledPairs(a asset.Item) (currency.Pairs, error) {
+	err := b.CurrencyPairs.IsAssetEnabled(a)
+	if err != nil {
+		return nil, nil // nolint:nilerr // non-fatal error
+	}
+	format, err := b.GetPairFormat(a, false)
+	if err != nil {
+		return nil, err
+	}
+	enabledPairs, err := b.CurrencyPairs.GetPairs(a, true)
+	if err != nil {
+		return nil, err
+	}
+	if a == asset.USDTMarginedFutures || a == asset.CoinMarginedFutures {
+		var resp currency.Pairs
+		for i := range enabledPairs {
+			pair := enabledPairs[i]
+			if pair.Delimiter == currency.UnderscoreDelimiter {
+				// we cannot remove expiring contract delimiters from requests
+				pair = pair.Format(currency.UnderscoreDelimiter, format.Uppercase)
+			} else {
+				pair = pair.Format(format.Delimiter, format.Uppercase)
+			}
+			resp = append(resp, pair)
+		}
+		return resp, nil
+	}
+
+	return enabledPairs.Format(format.Delimiter,
+			format.Index,
+			format.Uppercase),
+		nil
+}
+
+// FormatExchangeCurrency is a method that formats and returns a currency pair
+// based on the user currency display preferences
+// overrides default implementation to use optional delimiter
+func (b *Binance) FormatExchangeCurrency(p currency.Pair, a asset.Item) (currency.Pair, error) {
+	pairFmt, err := b.GetPairFormat(a, true)
+	if err != nil {
+		return currency.Pair{}, err
+	}
+	if p.Delimiter == currency.UnderscoreDelimiter &&
+		(a == asset.USDTMarginedFutures || a == asset.CoinMarginedFutures) {
+		return p.Format(currency.UnderscoreDelimiter, pairFmt.Uppercase), nil
+	}
+	return p.Format(pairFmt.Delimiter, pairFmt.Uppercase), nil
+}
+
+// FormatSymbol formats the given pair to a string suitable for exchange API requests
+// overrides default implementation to use optional delimiter
+func (b *Binance) FormatSymbol(p currency.Pair, a asset.Item) (string, error) {
+	pairFmt, err := b.GetPairFormat(a, true)
+	if err != nil {
+		return p.String(), err
+	}
+	if p.Delimiter == currency.UnderscoreDelimiter &&
+		(a == asset.USDTMarginedFutures || a == asset.CoinMarginedFutures) {
+		return p.Format(currency.UnderscoreDelimiter, pairFmt.Uppercase).String(), nil
+	}
+	return pairFmt.Format(p), nil
 }
