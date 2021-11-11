@@ -1770,7 +1770,7 @@ func (b *Binance) GetEnabledPairs(a asset.Item) (currency.Pairs, error) {
 	if err != nil {
 		return nil, err
 	}
-	if a == asset.USDTMarginedFutures || a == asset.CoinMarginedFutures {
+	if a == asset.USDTMarginedFutures {
 		var resp currency.Pairs
 		for i := range enabledPairs {
 			pair := enabledPairs[i]
@@ -1799,8 +1799,7 @@ func (b *Binance) FormatExchangeCurrency(p currency.Pair, a asset.Item) (currenc
 	if err != nil {
 		return currency.Pair{}, err
 	}
-	if p.Delimiter == currency.UnderscoreDelimiter &&
-		(a == asset.USDTMarginedFutures || a == asset.CoinMarginedFutures) {
+	if p.Delimiter == currency.UnderscoreDelimiter && a == asset.USDTMarginedFutures {
 		return p.Format(currency.UnderscoreDelimiter, pairFmt.Uppercase), nil
 	}
 	return p.Format(pairFmt.Delimiter, pairFmt.Uppercase), nil
@@ -1813,8 +1812,7 @@ func (b *Binance) FormatSymbol(p currency.Pair, a asset.Item) (string, error) {
 	if err != nil {
 		return p.String(), err
 	}
-	if p.Delimiter == currency.UnderscoreDelimiter &&
-		(a == asset.USDTMarginedFutures || a == asset.CoinMarginedFutures) {
+	if p.Delimiter == currency.UnderscoreDelimiter && a == asset.USDTMarginedFutures {
 		return p.Format(currency.UnderscoreDelimiter, pairFmt.Uppercase).String(), nil
 	}
 	return pairFmt.Format(p), nil

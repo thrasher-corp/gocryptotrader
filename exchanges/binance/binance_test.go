@@ -172,7 +172,7 @@ func TestUExchangeInfo(t *testing.T) {
 
 func TestUFuturesOrderbook(t *testing.T) {
 	t.Parallel()
-	_, err := b.UFuturesOrderbook(context.Background(), currency.Pair{Delimiter: "_", Base: currency.BTC, Quote: currency.USDT}, 1000)
+	_, err := b.UFuturesOrderbook(context.Background(), currency.NewPair(currency.BTC, currency.USDT), 1000)
 	if err != nil {
 		t.Error(err)
 	}
