@@ -13,7 +13,8 @@
     "initial-funds": "100000",
     "transfer-fee": "0"
    }
-  ]
+  ],
+  "disable-usd-tracking": true
  },
  "currency-settings": [
   {
@@ -101,6 +102,5 @@
  },
  "statistic-settings": {
   "risk-free-rate": "0.03"
- },
- "gocryptotrader-config-path": ""
+ }
 }

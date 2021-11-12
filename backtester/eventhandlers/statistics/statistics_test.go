@@ -9,7 +9,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics/currencystatistics"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
@@ -94,7 +93,7 @@ func TestAddSignalEventForTime(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, errExchangeAssetPairStatsUnset)
 	}
 	s.setupMap(exch, a)
-	s.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*currencystatistics.CurrencyStatistic)
+	s.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*CurrencyPairStatistic)
 	err = s.SetEventForOffset(&signal.Signal{})
 	if !errors.Is(err, errCurrencyStatisticsUnset) {
 		t.Errorf("received: %v, expected: %v", err, errCurrencyStatisticsUnset)
@@ -149,7 +148,7 @@ func TestAddExchangeEventForTime(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, errExchangeAssetPairStatsUnset)
 	}
 	s.setupMap(exch, a)
-	s.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*currencystatistics.CurrencyStatistic)
+	s.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*CurrencyPairStatistic)
 	err = s.SetEventForOffset(&order.Order{})
 	if !errors.Is(err, errCurrencyStatisticsUnset) {
 		t.Errorf("received: %v, expected: %v", err, errCurrencyStatisticsUnset)
@@ -209,7 +208,7 @@ func TestAddFillEventForTime(t *testing.T) {
 		t.Error(err)
 	}
 	s.setupMap(exch, a)
-	s.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*currencystatistics.CurrencyStatistic)
+	s.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*CurrencyPairStatistic)
 	err = s.SetEventForOffset(&fill.Fill{})
 	if !errors.Is(err, errCurrencyStatisticsUnset) {
 		t.Errorf("received: %v, expected: %v", err, errCurrencyStatisticsUnset)
@@ -264,7 +263,7 @@ func TestAddHoldingsForTime(t *testing.T) {
 	if !errors.Is(err, errExchangeAssetPairStatsUnset) {
 		t.Errorf("received: %v, expected: %v", err, errExchangeAssetPairStatsUnset)
 	}
-	s.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*currencystatistics.CurrencyStatistic)
+	s.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*CurrencyPairStatistic)
 	err = s.AddHoldingsForTime(&holdings.Holding{})
 	if !errors.Is(err, errCurrencyStatisticsUnset) {
 		t.Errorf("received: %v, expected: %v", err, errCurrencyStatisticsUnset)
@@ -310,7 +309,6 @@ func TestAddHoldingsForTime(t *testing.T) {
 		TotalValueLostToVolumeSizing: eleet,
 		TotalValueLostToSlippage:     eleet,
 		TotalValueLost:               eleet,
-		RiskFreeRate:                 eleet,
 	})
 	if err != nil {
 		t.Error(err)
@@ -334,7 +332,7 @@ func TestAddComplianceSnapshotForTime(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, errExchangeAssetPairStatsUnset)
 	}
 	s.setupMap(exch, a)
-	s.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*currencystatistics.CurrencyStatistic)
+	s.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*CurrencyPairStatistic)
 	err = s.AddComplianceSnapshotForTime(compliance.Snapshot{}, &fill.Fill{})
 	if !errors.Is(err, errCurrencyStatisticsUnset) {
 		t.Errorf("received: %v, expected: %v", err, errCurrencyStatisticsUnset)
@@ -393,14 +391,12 @@ func TestSetStrategyName(t *testing.T) {
 func TestPrintTotalResults(t *testing.T) {
 	t.Parallel()
 	s := Statistic{
-		Funding: &funding.Report{
-			Items: []funding.ReportItem{{}},
-		},
+		FundingStatistics: &FundingStatistics{},
 	}
 	s.BiggestDrawdown = s.GetTheBiggestDrawdownAcrossCurrencies([]FinalResultsHolder{
 		{
 			Exchange: "test",
-			MaxDrawdown: currencystatistics.Swing{
+			MaxDrawdown: Swing{
 				DrawdownPercent: eleet,
 			},
 		},
@@ -410,7 +406,7 @@ func TestPrintTotalResults(t *testing.T) {
 			Exchange:         "test",
 			Asset:            asset.Spot,
 			Pair:             currency.NewPair(currency.BTC, currency.DOGE),
-			MaxDrawdown:      currencystatistics.Swing{},
+			MaxDrawdown:      Swing{},
 			MarketMovement:   eleet,
 			StrategyMovement: eleet,
 		},
@@ -421,7 +417,7 @@ func TestPrintTotalResults(t *testing.T) {
 			MarketMovement: eleet,
 		},
 	})
-	s.PrintTotalResults(true)
+	s.PrintTotalResults()
 }
 
 func TestGetBestStrategyPerformer(t *testing.T) {
@@ -437,7 +433,7 @@ func TestGetBestStrategyPerformer(t *testing.T) {
 			Exchange:         "test",
 			Asset:            asset.Spot,
 			Pair:             currency.NewPair(currency.BTC, currency.DOGE),
-			MaxDrawdown:      currencystatistics.Swing{},
+			MaxDrawdown:      Swing{},
 			MarketMovement:   eleet,
 			StrategyMovement: eleet,
 		},
@@ -445,7 +441,7 @@ func TestGetBestStrategyPerformer(t *testing.T) {
 			Exchange:         "test2",
 			Asset:            asset.Spot,
 			Pair:             currency.NewPair(currency.BTC, currency.DOGE),
-			MaxDrawdown:      currencystatistics.Swing{},
+			MaxDrawdown:      Swing{},
 			MarketMovement:   eleeb,
 			StrategyMovement: eleeb,
 		},
@@ -467,13 +463,13 @@ func TestGetTheBiggestDrawdownAcrossCurrencies(t *testing.T) {
 	result = s.GetTheBiggestDrawdownAcrossCurrencies([]FinalResultsHolder{
 		{
 			Exchange: "test",
-			MaxDrawdown: currencystatistics.Swing{
+			MaxDrawdown: Swing{
 				DrawdownPercent: eleet,
 			},
 		},
 		{
 			Exchange: "test2",
-			MaxDrawdown: currencystatistics.Swing{
+			MaxDrawdown: Swing{
 				DrawdownPercent: eleeb,
 			},
 		},
@@ -577,9 +573,9 @@ func TestPrintAllEventsChronologically(t *testing.T) {
 func TestCalculateTheResults(t *testing.T) {
 	t.Parallel()
 	s := Statistic{}
-	err := s.CalculateAllResults(&funding.FundManager{})
-	if err != nil {
-		t.Error(err)
+	err := s.CalculateAllResults()
+	if !errors.Is(err, common.ErrNilArguments) {
+		t.Errorf("received: %v, expected: %v", err, common.ErrNilArguments)
 	}
 
 	tt := time.Now().Add(-gctkline.OneDay.Duration() * 7)
@@ -741,7 +737,7 @@ func TestCalculateTheResults(t *testing.T) {
 	s.ExchangeAssetPairStatistics[exch][a][p2].Events[1].Holdings.QuoteInitialFunds = eleet
 	s.ExchangeAssetPairStatistics[exch][a][p2].Events[1].Holdings.TotalValue = eleeet
 
-	funds := &funding.FundManager{}
+	funds := funding.SetupFundingManager(false, false)
 	pBase, err := funding.CreateItem(exch, a, p.Base, eleeet, decimal.Zero)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
@@ -775,8 +771,133 @@ func TestCalculateTheResults(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	err = s.CalculateAllResults(funds)
+	s.FundManager = funds
+	err = s.CalculateAllResults()
+	if !errors.Is(err, errMissingSnapshots) {
+		t.Errorf("received '%v' expected '%v'", err, errMissingSnapshots)
+	}
+	err = s.CalculateAllResults()
+	if !errors.Is(err, errMissingSnapshots) {
+		t.Errorf("received '%v' expected '%v'", err, errMissingSnapshots)
+	}
+
+	funds = funding.SetupFundingManager(false, true)
+	err = funds.AddPair(pair)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	err = funds.AddPair(pair2)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	s.FundManager = funds
+	err = s.CalculateAllResults()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+}
+
+func TestCalculateMaxDrawdown(t *testing.T) {
+	tt1 := time.Now().Add(-gctkline.OneDay.Duration() * 7).Round(gctkline.OneDay.Duration())
+	exch := testExchange
+	a := asset.Spot
+	p := currency.NewPair(currency.BTC, currency.USDT)
+	var events []common.DataEventHandler
+	for i := int64(0); i < 100; i++ {
+		tt1 = tt1.Add(gctkline.OneDay.Duration())
+		even := event.Base{
+			Exchange:     exch,
+			Time:         tt1,
+			Interval:     gctkline.OneDay,
+			CurrencyPair: p,
+			AssetType:    a,
+		}
+		if i == 50 {
+			// throw in a wrench, a spike in price
+			events = append(events, &kline.Kline{
+				Base:  even,
+				Close: decimal.NewFromInt(1336),
+				High:  decimal.NewFromInt(1336),
+				Low:   decimal.NewFromInt(1336),
+			})
+		} else {
+			events = append(events, &kline.Kline{
+				Base:  even,
+				Close: decimal.NewFromInt(1337).Sub(decimal.NewFromInt(i)),
+				High:  decimal.NewFromInt(1337).Sub(decimal.NewFromInt(i)),
+				Low:   decimal.NewFromInt(1337).Sub(decimal.NewFromInt(i)),
+			})
+		}
+	}
+
+	tt1 = tt1.Add(gctkline.OneDay.Duration())
+	even := event.Base{
+		Exchange:     exch,
+		Time:         tt1,
+		Interval:     gctkline.OneDay,
+		CurrencyPair: p,
+		AssetType:    a,
+	}
+	events = append(events, &kline.Kline{
+		Base:  even,
+		Close: decimal.NewFromInt(1338),
+		High:  decimal.NewFromInt(1338),
+		Low:   decimal.NewFromInt(1338),
+	})
+
+	tt1 = tt1.Add(gctkline.OneDay.Duration())
+	even = event.Base{
+		Exchange:     exch,
+		Time:         tt1,
+		Interval:     gctkline.OneDay,
+		CurrencyPair: p,
+		AssetType:    a,
+	}
+	events = append(events, &kline.Kline{
+		Base:  even,
+		Close: decimal.NewFromInt(1337),
+		High:  decimal.NewFromInt(1337),
+		Low:   decimal.NewFromInt(1337),
+	})
+
+	tt1 = tt1.Add(gctkline.OneDay.Duration())
+	even = event.Base{
+		Exchange:     exch,
+		Time:         tt1,
+		Interval:     gctkline.OneDay,
+		CurrencyPair: p,
+		AssetType:    a,
+	}
+	events = append(events, &kline.Kline{
+		Base:  even,
+		Close: decimal.NewFromInt(1339),
+		High:  decimal.NewFromInt(1339),
+		Low:   decimal.NewFromInt(1339),
+	})
+
+	_, err := CalculateBiggestEventDrawdown(nil)
+	if !errors.Is(err, errReceivedNoData) {
+		t.Errorf("received %v expected %v", err, errReceivedNoData)
+	}
+
+	resp, err := CalculateBiggestEventDrawdown(events)
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v expected %v", err, nil)
+	}
+	if resp.Highest.Value != decimal.NewFromInt(1337) && !resp.Lowest.Value.Equal(decimal.NewFromInt(1238)) {
+		t.Error("unexpected max drawdown")
+	}
+}
+
+func TestCalculateBiggestValueAtTimeDrawdown(t *testing.T) {
+	var interval gctkline.Interval
+	_, err := CalculateBiggestValueAtTimeDrawdown(nil, interval)
+	if !errors.Is(err, errReceivedNoData) {
+		t.Errorf("received %v expected %v", err, errReceivedNoData)
+	}
+
+	_, err = CalculateBiggestValueAtTimeDrawdown(nil, interval)
+	if !errors.Is(err, errReceivedNoData) {
+		t.Errorf("received %v expected %v", err, errReceivedNoData)
 	}
 }

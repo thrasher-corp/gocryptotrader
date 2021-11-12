@@ -327,6 +327,9 @@ func TotalCandlesPerInterval(start, end time.Time, interval Interval) (out float
 // IntervalsPerYear helps determine the number of intervals in a year
 // used in CAGR calculation to know the amount of time of an interval in a year
 func (i *Interval) IntervalsPerYear() float64 {
+	if i.Duration() == 0 {
+		return 0
+	}
 	return float64(OneYear.Duration().Nanoseconds()) / float64(i.Duration().Nanoseconds())
 }
 
@@ -469,6 +472,17 @@ func (h *IntervalRangeHolder) HasDataAtDate(t time.Time) bool {
 	}
 
 	return false
+}
+
+// GetClosePriceAtTime returns the close price of a candle
+// at a given time
+func (k *Item) GetClosePriceAtTime(t time.Time) (float64, error) {
+	for i := range k.Candles {
+		if k.Candles[i].Time.Equal(t) {
+			return k.Candles[i].Close, nil
+		}
+	}
+	return -1, fmt.Errorf("%w at %v", ErrNotFoundAtTime, t)
 }
 
 // SetHasDataFromCandles will calculate whether there is data in each candle

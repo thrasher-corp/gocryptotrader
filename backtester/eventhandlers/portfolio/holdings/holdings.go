@@ -9,7 +9,7 @@ import (
 )
 
 // Create makes a Holding struct to track total values of strategy holdings over the course of a backtesting run
-func Create(ev common.EventHandler, funding funding.IPairReader, riskFreeRate decimal.Decimal) (Holding, error) {
+func Create(ev common.EventHandler, funding funding.IPairReader) (Holding, error) {
 	if ev == nil {
 		return Holding{}, common.ErrNilEvent
 	}
@@ -26,7 +26,6 @@ func Create(ev common.EventHandler, funding funding.IPairReader, riskFreeRate de
 		QuoteSize:         funding.QuoteInitialFunds(),
 		BaseInitialFunds:  funding.BaseInitialFunds(),
 		BaseSize:          funding.BaseInitialFunds(),
-		RiskFreeRate:      riskFreeRate,
 		TotalInitialValue: funding.BaseInitialFunds().Mul(funding.QuoteInitialFunds()).Add(funding.QuoteInitialFunds()),
 	}, nil
 }

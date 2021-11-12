@@ -43,6 +43,4 @@ type Holding struct {
 	TotalValueLostToVolumeSizing decimal.Decimal `json:"total-value-lost-to-volume-sizing"`
 	TotalValueLostToSlippage     decimal.Decimal `json:"total-value-lost-to-slippage"`
 	TotalValueLost               decimal.Decimal `json:"total-value-lost"`
-
-	RiskFreeRate decimal.Decimal `json:"risk-free-rate"`
 }

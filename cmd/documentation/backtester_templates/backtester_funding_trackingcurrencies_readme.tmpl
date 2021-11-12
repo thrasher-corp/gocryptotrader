@@ -1,0 +1,31 @@
+{{define "backtester funding trackingcurrencies" -}}
+{{template "backtester-header" .}}
+## {{.CapitalName}} package overview
+
+### What does the tracking currencies package do?
+The tracking currencies package is responsible breaking up a user's strategy currencies into pairs with a USD equivalent pair in order to track strategy performance against a singular currency. For example, you are wanting to backtest on Binance using XRP/DOGE, the tracking currencies will also retrieve XRP/BUSD and DOGE/BUSD pair data for use in calculating how much a currency is worth at every candle point.
+
+### What if the exchange does not support USD?
+The tracking currencies package will check supported currencies against a list of USD equivalent USD backed stablecoins. So if your select exchange only supports BUSD or USDT based pairs, then the GoCryptoTrader Backtester will break up config pairs into the equivalent. See below list for currently supported stablecoin equivalency
+
+| Currency |
+|----------|
+|USD       |
+|USDT      |
+|BUSD      |
+|USDC      |
+|DAI       |
+|TUSD      |
+|ZUSD      |
+|PAX       |
+
+### How do I disable this?
+If you need to disable this functionality, for example, you are using Live, Database or CSV based trade data, then under `strategy-settings` in your config, set `disable-usd-tracking` to `true`
+
+### Can I supply my own list of equivalent currencies instead of USD?
+This is currently not supported. If this is a feature you would like to have, please raise an issue on GitHub or in our Slack channel
+
+### Please click GoDocs chevron above to view current GoDoc information for this package
+{{template "contributions"}}
+{{template "donations" .}}
+{{end}}

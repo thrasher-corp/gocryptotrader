@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -18,7 +19,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
-	gctconfig "github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	dbPSQL "github.com/thrasher-corp/gocryptotrader/database/drivers/postgres"
 	dbsqlite3 "github.com/thrasher-corp/gocryptotrader/database/drivers/sqlite3"
@@ -64,8 +64,7 @@ func main() {
 			BuySide:  config.MinMax{},
 			SellSide: config.MinMax{},
 		},
-		StatisticSettings:        config.StatisticSettings{},
-		GoCryptoTraderConfigPath: "",
+		StatisticSettings: config.StatisticSettings{},
 	}
 	fmt.Println("-----Strategy Settings-----")
 	var err error
@@ -118,29 +117,11 @@ func main() {
 		}
 	}
 
-	fmt.Println("-----GoCryptoTrader config Settings-----")
-	firstRun = true
-	for err != nil || firstRun {
-		firstRun = false
-		fmt.Printf("Enter the path to the GoCryptoTrader config you wish to use. Leave blank to use \"%v\"\n", gctconfig.DefaultFilePath())
-		path := quickParse(reader)
-		if path != "" {
-			cfg.GoCryptoTraderConfigPath = path
-		} else {
-			cfg.GoCryptoTraderConfigPath = gctconfig.DefaultFilePath()
-		}
-		_, err = os.Stat(cfg.GoCryptoTraderConfigPath)
-		if err != nil {
-			log.Println(err)
-		}
-	}
-
 	var resp []byte
 	resp, err = json.MarshalIndent(cfg, "", " ")
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	fmt.Println("Write strategy config to file? If no, the output will be on screen y/n")
 	yn := quickParse(reader)
 	if yn == y || yn == yes {
@@ -274,8 +255,11 @@ func parseStrategySettings(cfg *config.Config, reader *bufio.Reader) error {
 	if strings.Contains(customSettings, y) {
 		cfg.StrategySettings.CustomSettings = customSettingsLoop(reader)
 	}
-	fmt.Println("Will this strategy use simultaneous processing? y/n")
+	fmt.Println("Do you wish to have strategy performance tracked against USD? y/n")
 	yn := quickParse(reader)
+	cfg.StrategySettings.DisableUSDTracking = !strings.Contains(yn, y)
+	fmt.Println("Will this strategy use simultaneous processing? y/n")
+	yn = quickParse(reader)
 	cfg.StrategySettings.SimultaneousSignalProcessing = strings.Contains(yn, y)
 	if !cfg.StrategySettings.SimultaneousSignalProcessing {
 		return nil
@@ -410,64 +394,61 @@ func parseDatabase(reader *bufio.Reader, cfg *config.Config) error {
 	fmt.Println("Is the end date inclusive? y/n")
 	input = quickParse(reader)
 	cfg.DataSettings.DatabaseData.InclusiveEndDate = input == y || input == yes
-
-	fmt.Println("Do you wish to override GoCryptoTrader's database config? y/n")
+	cfg.DataSettings.DatabaseData.Config = database.Config{
+		Enabled: true,
+	}
+	fmt.Println("Do you want database verbose output? y/n")
 	input = quickParse(reader)
-	if input == y || input == yes {
-		cfg.DataSettings.DatabaseData.ConfigOverride = &database.Config{
-			Enabled: true,
-		}
-		fmt.Println("Do you want database verbose output? y/n")
-		input = quickParse(reader)
-		cfg.DataSettings.DatabaseData.ConfigOverride.Verbose = input == y || input == yes
+	cfg.DataSettings.DatabaseData.Config.Verbose = input == y || input == yes
 
-		fmt.Printf("What database driver to use? %v %v or %v\n", database.DBPostgreSQL, database.DBSQLite, database.DBSQLite3)
-		cfg.DataSettings.DatabaseData.ConfigOverride.Driver = quickParse(reader)
+	fmt.Printf("What database driver to use? %v %v or %v\n", database.DBPostgreSQL, database.DBSQLite, database.DBSQLite3)
+	cfg.DataSettings.DatabaseData.Config.Driver = quickParse(reader)
+	if cfg.DataSettings.DatabaseData.Config.Driver == database.DBSQLite || cfg.DataSettings.DatabaseData.Config.Driver == database.DBSQLite3 {
+		fmt.Printf("What is the path to the database directory? Leaving blank will use: '%v'", filepath.Join(gctcommon.GetDefaultDataDir(runtime.GOOS), "database"))
+		cfg.DataSettings.DatabaseData.Path = quickParse(reader)
+	}
+	fmt.Println("What is the database host?")
+	cfg.DataSettings.DatabaseData.Config.Host = quickParse(reader)
 
-		fmt.Println("What is the database host?")
-		cfg.DataSettings.DatabaseData.ConfigOverride.Host = quickParse(reader)
+	fmt.Println("What is the database username?")
+	cfg.DataSettings.DatabaseData.Config.Username = quickParse(reader)
 
-		fmt.Println("What is the database username?")
-		cfg.DataSettings.DatabaseData.ConfigOverride.Username = quickParse(reader)
+	fmt.Println("What is the database password? eg 1234")
+	cfg.DataSettings.DatabaseData.Config.Password = quickParse(reader)
 
-		fmt.Println("What is the database password? eg 1234")
-		cfg.DataSettings.DatabaseData.ConfigOverride.Password = quickParse(reader)
+	fmt.Println("What is the database? eg database.db")
+	cfg.DataSettings.DatabaseData.Config.Database = quickParse(reader)
 
-		fmt.Println("What is the database? eg database.db")
-		cfg.DataSettings.DatabaseData.ConfigOverride.Database = quickParse(reader)
-
-		if cfg.DataSettings.DatabaseData.ConfigOverride.Driver == database.DBPostgreSQL {
-			fmt.Println("What is the database SSLMode? eg disable")
-			cfg.DataSettings.DatabaseData.ConfigOverride.SSLMode = quickParse(reader)
-		}
-		fmt.Println("What is the database Port? eg 1337")
-		input = quickParse(reader)
-		var port float64
-		if input != "" {
-			port, err = strconv.ParseFloat(input, 64)
-			if err != nil {
-				return err
-			}
-		}
-		cfg.DataSettings.DatabaseData.ConfigOverride.Port = uint16(port)
-		err = database.DB.SetConfig(cfg.DataSettings.DatabaseData.ConfigOverride)
+	if cfg.DataSettings.DatabaseData.Config.Driver == database.DBPostgreSQL {
+		fmt.Println("What is the database SSLMode? eg disable")
+		cfg.DataSettings.DatabaseData.Config.SSLMode = quickParse(reader)
+	}
+	fmt.Println("What is the database Port? eg 1337")
+	input = quickParse(reader)
+	var port float64
+	if input != "" {
+		port, err = strconv.ParseFloat(input, 64)
 		if err != nil {
-			return fmt.Errorf("database failed to set config: %w", err)
-		}
-		if cfg.DataSettings.DatabaseData.ConfigOverride.Driver == database.DBPostgreSQL {
-			_, err = dbPSQL.Connect(cfg.DataSettings.DatabaseData.ConfigOverride)
-			if err != nil {
-				return fmt.Errorf("database failed to connect: %v", err)
-			}
-		} else if cfg.DataSettings.DatabaseData.ConfigOverride.Driver == database.DBSQLite ||
-			cfg.DataSettings.DatabaseData.ConfigOverride.Driver == database.DBSQLite3 {
-			_, err = dbsqlite3.Connect(cfg.DataSettings.DatabaseData.ConfigOverride.Database)
-			if err != nil {
-				return fmt.Errorf("database failed to connect: %v", err)
-			}
+			return err
 		}
 	}
-
+	cfg.DataSettings.DatabaseData.Config.Port = uint16(port)
+	err = database.DB.SetConfig(&cfg.DataSettings.DatabaseData.Config)
+	if err != nil {
+		return fmt.Errorf("database failed to set config: %w", err)
+	}
+	if cfg.DataSettings.DatabaseData.Config.Driver == database.DBPostgreSQL {
+		_, err = dbPSQL.Connect(&cfg.DataSettings.DatabaseData.Config)
+		if err != nil {
+			return fmt.Errorf("database failed to connect: %v", err)
+		}
+	} else if cfg.DataSettings.DatabaseData.Config.Driver == database.DBSQLite ||
+		cfg.DataSettings.DatabaseData.Config.Driver == database.DBSQLite3 {
+		_, err = dbsqlite3.Connect(cfg.DataSettings.DatabaseData.Config.Database)
+		if err != nil {
+			return fmt.Errorf("database failed to connect: %v", err)
+		}
+	}
 	return nil
 }
 

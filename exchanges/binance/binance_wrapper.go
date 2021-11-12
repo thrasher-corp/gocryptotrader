@@ -252,6 +252,7 @@ func (b *Binance) Setup(exch *config.Exchange) error {
 		Features:              &b.Features.Supports.WebsocketCapabilities,
 		SortBuffer:            true,
 		SortBufferByUpdateIDs: true,
+		TradeFeed:             b.Features.Enabled.TradeFeed,
 	})
 	if err != nil {
 		return err
@@ -284,60 +285,9 @@ func (b *Binance) Run() {
 		b.PrintEnabledPairs()
 	}
 
-	forceUpdate := false
-	format, err := b.GetPairFormat(asset.Spot, false)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s failed to get enabled currencies. Err %s\n",
-			b.Name,
-			err)
-		return
-	}
-	pairs, err := b.GetEnabledPairs(asset.Spot)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s failed to get enabled currencies. Err %s\n",
-			b.Name,
-			err)
-		return
-	}
-
-	avail, err := b.GetAvailablePairs(asset.Spot)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s failed to get available currencies. Err %s\n",
-			b.Name,
-			err)
-		return
-	}
-
-	if !common.StringDataContains(pairs.Strings(), format.Delimiter) ||
-		!common.StringDataContains(avail.Strings(), format.Delimiter) {
-		var enabledPairs currency.Pairs
-		enabledPairs, err = currency.NewPairsFromStrings([]string{
-			currency.BTC.String() +
-				format.Delimiter +
-				currency.USDT.String()})
-		if err != nil {
-			log.Errorf(log.ExchangeSys, "%s failed to update currencies. Err %s\n",
-				b.Name,
-				err)
-		} else {
-			log.Warn(log.ExchangeSys,
-				"Available pairs for Binance reset due to config upgrade, please enable the ones you would like to use again")
-			forceUpdate = true
-
-			err = b.UpdatePairs(enabledPairs, asset.Spot, true, true)
-			if err != nil {
-				log.Errorf(log.ExchangeSys,
-					"%s failed to update currencies. Err: %s\n",
-					b.Name,
-					err)
-			}
-		}
-	}
-
 	a := b.GetAssetTypes(true)
 	for x := range a {
-		err = b.UpdateOrderExecutionLimits(context.TODO(), a[x])
-		if err != nil {
+		if err := b.UpdateOrderExecutionLimits(context.TODO(), a[x]); err != nil {
 			log.Errorf(log.ExchangeSys,
 				"%s failed to set exchange order execution limits. Err: %v",
 				b.Name,
@@ -345,11 +295,11 @@ func (b *Binance) Run() {
 		}
 	}
 
-	if !b.GetEnabledFeatures().AutoPairUpdates && !forceUpdate {
+	if !b.GetEnabledFeatures().AutoPairUpdates {
 		return
 	}
-	err = b.UpdateTradablePairs(context.TODO(), forceUpdate)
-	if err != nil {
+
+	if err := b.UpdateTradablePairs(context.TODO(), false); err != nil {
 		log.Errorf(log.ExchangeSys,
 			"%s failed to update tradable pairs. Err: %s",
 			b.Name,
@@ -949,27 +899,35 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submi
 		var oType string
 		switch s.Type {
 		case order.Limit:
-			oType = "LIMIT"
+			oType = cfuturesLimit
 		case order.Market:
-			oType = "MARKET"
+			oType = cfuturesMarket
 		case order.Stop:
-			oType = "STOP"
+			oType = cfuturesStop
 		case order.TakeProfit:
-			oType = "TAKE_PROFIT"
+			oType = cfuturesTakeProfit
 		case order.StopMarket:
-			oType = "STOP_MARKET"
+			oType = cfuturesStopMarket
 		case order.TakeProfitMarket:
-			oType = "TAKE_PROFIT_MARKET"
+			oType = cfuturesTakeProfitMarket
 		case order.TrailingStop:
-			oType = "TRAILING_STOP_MARKET"
+			oType = cfuturesTrailingStopMarket
 		default:
 			return submitOrderResponse, errors.New("invalid type, check api docs for updates")
 		}
-		o, err := b.FuturesNewOrder(ctx,
-			s.Pair, reqSide,
-			"", oType, "GTC", "",
-			s.ClientOrderID, "", "",
-			s.Amount, s.Price, 0, 0, 0, s.ReduceOnly)
+		o, err := b.FuturesNewOrder(
+			ctx,
+			&FuturesNewOrderRequest{
+				Symbol:           s.Pair,
+				Side:             reqSide,
+				OrderType:        oType,
+				TimeInForce:      "GTC",
+				NewClientOrderID: s.ClientOrderID,
+				Quantity:         s.Amount,
+				Price:            s.Price,
+				ReduceOnly:       s.ReduceOnly,
+			},
+		)
 		if err != nil {
 			return submitOrderResponse, err
 		}

@@ -65,6 +65,14 @@ const (
 	cfuturesNotionalBracket       = "/dapi/v1/leverageBracket"
 	cfuturesUsersForceOrders      = "/dapi/v1/forceOrders"
 	cfuturesADLQuantile           = "/dapi/v1/adlQuantile"
+
+	cfuturesLimit              = "LIMIT"
+	cfuturesMarket             = "MARKET"
+	cfuturesStop               = "STOP"
+	cfuturesTakeProfit         = "TAKE_PROFIT"
+	cfuturesStopMarket         = "STOP_MARKET"
+	cfuturesTakeProfitMarket   = "TAKE_PROFIT_MARKET"
+	cfuturesTrailingStopMarket = "TRAILING_STOP_MARKET"
 )
 
 // FuturesExchangeInfo stores CoinMarginedFutures, data
@@ -973,60 +981,64 @@ func (b *Binance) GetFuturesBasisData(ctx context.Context, pair, contractType, p
 }
 
 // FuturesNewOrder sends a new futures order to the exchange
-func (b *Binance) FuturesNewOrder(ctx context.Context, symbol currency.Pair, side, positionSide, orderType, timeInForce,
-	newClientOrderID, closePosition, workingType, newOrderRespType string,
-	quantity, price, stopPrice, activationPrice, callbackRate float64, reduceOnly bool) (FuturesOrderPlaceData, error) {
+func (b *Binance) FuturesNewOrder(ctx context.Context, x *FuturesNewOrderRequest) (
+	FuturesOrderPlaceData,
+	error,
+) {
 	var resp FuturesOrderPlaceData
 	params := url.Values{}
-	symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
+	symbolValue, err := b.FormatSymbol(x.Symbol, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp, err
 	}
 	params.Set("symbol", symbolValue)
-	params.Set("side", side)
-	if positionSide != "" {
-		if !common.StringDataCompare(validPositionSide, positionSide) {
+	params.Set("side", x.Side)
+	if x.PositionSide != "" {
+		if !common.StringDataCompare(validPositionSide, x.PositionSide) {
 			return resp, errors.New("invalid positionSide")
 		}
-		params.Set("positionSide", positionSide)
+		params.Set("positionSide", x.PositionSide)
 	}
-	params.Set("type", orderType)
-	params.Set("timeInForce", timeInForce)
-	if reduceOnly {
+	params.Set("type", x.OrderType)
+	params.Set("timeInForce", x.TimeInForce)
+	if x.ReduceOnly {
 		params.Set("reduceOnly", "true")
 	}
-	if newClientOrderID != "" {
-		params.Set("newClientOrderID", newClientOrderID)
+	if x.NewClientOrderID != "" {
+		params.Set("newClientOrderID", x.NewClientOrderID)
 	}
-	if closePosition != "" {
-		params.Set("closePosition", closePosition)
+	if x.ClosePosition != "" {
+		params.Set("closePosition", x.ClosePosition)
 	}
-	if workingType != "" {
-		if !common.StringDataCompare(validWorkingType, workingType) {
+	if x.WorkingType != "" {
+		if !common.StringDataCompare(validWorkingType, x.WorkingType) {
 			return resp, errors.New("invalid workingType")
 		}
-		params.Set("workingType", workingType)
+		params.Set("workingType", x.WorkingType)
 	}
-	if newOrderRespType != "" {
-		if !common.StringDataCompare(validNewOrderRespType, newOrderRespType) {
+	if x.NewOrderRespType != "" {
+		if !common.StringDataCompare(validNewOrderRespType, x.NewOrderRespType) {
 			return resp, errors.New("invalid newOrderRespType")
 		}
-		params.Set("newOrderRespType", newOrderRespType)
+		params.Set("newOrderRespType", x.NewOrderRespType)
 	}
-	if quantity != 0 {
-		params.Set("quantity", strconv.FormatFloat(quantity, 'f', -1, 64))
+	if x.Quantity != 0 {
+		params.Set("quantity", strconv.FormatFloat(x.Quantity, 'f', -1, 64))
 	}
-	if price != 0 {
-		params.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
+	if x.Price != 0 {
+		params.Set("price", strconv.FormatFloat(x.Price, 'f', -1, 64))
 	}
-	if stopPrice != 0 {
-		params.Set("stopPrice", strconv.FormatFloat(stopPrice, 'f', -1, 64))
+	if x.StopPrice != 0 {
+		params.Set("stopPrice", strconv.FormatFloat(x.StopPrice, 'f', -1, 64))
 	}
-	if activationPrice != 0 {
-		params.Set("activationPrice", strconv.FormatFloat(activationPrice, 'f', -1, 64))
+	if x.ActivationPrice != 0 {
+		params.Set("activationPrice", strconv.FormatFloat(x.ActivationPrice, 'f', -1, 64))
 	}
-	if callbackRate != 0 {
-		params.Set("callbackRate", strconv.FormatFloat(callbackRate, 'f', -1, 64))
+	if x.CallbackRate != 0 {
+		params.Set("callbackRate", strconv.FormatFloat(x.CallbackRate, 'f', -1, 64))
+	}
+	if x.PriceProtect {
+		params.Set("priceProtect", "TRUE")
 	}
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPost, cfuturesOrder, params, cFuturesOrdersDefaultRate, &resp)
 }

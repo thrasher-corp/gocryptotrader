@@ -40,6 +40,7 @@ See below for a set of tables and fields, expected values and what they can do
 | CustomSettings | This is a map where you can enter custom settings for a strategy. The RSI strategy allows for customisation of the upper, lower and length variables to allow you to change them from 70, 30 and 14 respectively to 69, 36, 12 | `"custom-settings": { "rsi-high": 70, "rsi-low": 30, "rsi-period": 14 } ` |
 | UseExchangeLevelFunding | Allows shared funding at an exchange asset level. You can set funding for `USDT` and all pairs that feature `USDT` will have access to those funds when making orders. See [this](/backtester/funding/README.md) for more information | `false` |
 | ExchangeLevelFunding | An array of exchange level funding settings.  See below, or [this](/backtester/funding/README.md) for more information | `[]` |
+| DisableUSDTracking | If `false`, will track all currencies used in your strategy against USD equivalent candles. For example, if you are running a strategy for BTC/XRP, then the GoCryptoTrader Backtester will also retreive candles data for BTC/USD and XRP/USD to then track strategy performance against a single currency. This also tracks against USDT and other USD tracked stablecoins, so one exchange supporting USDT and another BUSD will still allow unified strategy performance analysis. If disabled, will not track against USD, this can be especially helpful when running strategies under live, database and CSV based data  | `false` |
 
 ##### Funding Config Settings
 
@@ -114,8 +115,29 @@ See below for a set of tables and fields, expected values and what they can do
 | Interval | The candle interval in `time.Duration` format eg set as`15000000000` for a value of `time.Second * 15` | `15000000000` |
 | StartDate | The start date to retrieve data | `2021-01-23T11:00:00+11:00` |
 | EndDate | The end date to retrieve data | `2021-01-24T11:00:00+11:00` |
-| ConfigOverride | Override GoCryptoTrader's config database data with custom settings | `true` |
+| Config | This is the same struct used as your GoCryptoTrader database config. See below tables for breakdown | `see below` |
+| Path | If using SQLite, the path to the directory, not the file. Leaving blank will use GoCryptoTrader's default database path | `` |
 | InclusiveEndDate | When enabled, the end date's candle is included in the results. ie `2021-01-24T11:00:00+11:00` with a one hour candle, the final candle will be `2021-01-24T11:00:00+11:00` to `2021-01-24T12:00:00+11:00` | `false` |
+
+##### database
+
+| Config | Description | Example |
+| ------ | ----------- | ------- |
+| enabled | Enabled or disables the database connection subsystem |  `true` |
+| verbose | Displays more information to the logger which can be helpful for debugging | `false` |
+| driver | The SQL driver to use. Can be `postgres` or `sqlite` | `sqlite` |
+| connectionDetails | See below |  |
+
+##### connectionDetails
+
+| Config | Description | Example |
+| ------ | ----------- | ------- |
+| host | The host address of the database |  `localhost` |
+| port |  The port used to connect to the database |  `5432` |
+| username | An optional username to connect to the database | `username` |
+| password | An optional password to connect to the database | `password` |
+| database | The name of the database | `database.db` |
+| sslmode | The connection type of the database for Postgres databases only | `disable` |
 
 #### LiveData
 

@@ -3,6 +3,7 @@ package portfolio
 import (
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
@@ -10,7 +11,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/risk"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/settings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
@@ -44,6 +44,31 @@ func Setup(sh SizeHandler, r risk.Handler, riskFreeRate decimal.Decimal) (*Portf
 // Reset returns the portfolio manager to its default state
 func (p *Portfolio) Reset() {
 	p.exchangeAssetPairSettings = nil
+}
+
+// GetLatestOrderSnapshotForEvent gets orders related to the event
+func (p *Portfolio) GetLatestOrderSnapshotForEvent(e common.EventHandler) (compliance.Snapshot, error) {
+	eapSettings, ok := p.exchangeAssetPairSettings[e.GetExchange()][e.GetAssetType()][e.Pair()]
+	if !ok {
+		return compliance.Snapshot{}, fmt.Errorf("%w for %v %v %v", errNoPortfolioSettings, e.GetExchange(), e.GetAssetType(), e.Pair())
+	}
+	return eapSettings.ComplianceManager.GetLatestSnapshot(), nil
+}
+
+// GetLatestOrderSnapshots returns the latest snapshots from all stored pair data
+func (p *Portfolio) GetLatestOrderSnapshots() ([]compliance.Snapshot, error) {
+	var resp []compliance.Snapshot
+	for _, exchangeMap := range p.exchangeAssetPairSettings {
+		for _, assetMap := range exchangeMap {
+			for _, pairMap := range assetMap {
+				resp = append(resp, pairMap.ComplianceManager.GetLatestSnapshot())
+			}
+		}
+	}
+	if len(resp) == 0 {
+		return nil, errNoPortfolioSettings
+	}
+	return resp, nil
 }
 
 // OnSignal receives the event from the strategy on whether it has signalled to buy, do nothing or sell
@@ -209,7 +234,7 @@ func (p *Portfolio) OnFill(ev fill.Event, funding funding.IPairReader) (*fill.Fi
 	} else {
 		h = lookup.GetLatestHoldings()
 		if h.Timestamp.IsZero() {
-			h, err = holdings.Create(ev, funding, p.riskFreeRate)
+			h, err = holdings.Create(ev, funding)
 			if err != nil {
 				return nil, err
 			}
@@ -324,7 +349,7 @@ func (p *Portfolio) UpdateHoldings(ev common.DataEventHandler, funds funding.IPa
 	h := lookup.GetLatestHoldings()
 	if h.Timestamp.IsZero() {
 		var err error
-		h, err = holdings.Create(ev, funds, p.riskFreeRate)
+		h, err = holdings.Create(ev, funds)
 		if err != nil {
 			return err
 		}
@@ -358,14 +383,11 @@ func (p *Portfolio) setHoldingsForOffset(h *holdings.Holding, overwriteExisting 
 	if h.Timestamp.IsZero() {
 		return errHoldingsNoTimestamp
 	}
-	lookup := p.exchangeAssetPairSettings[h.Exchange][h.Asset][h.Pair]
-	if lookup == nil {
-		var err error
-		lookup, err = p.SetupCurrencySettingsMap(h.Exchange, h.Asset, h.Pair)
-		if err != nil {
-			return err
-		}
+	lookup, ok := p.exchangeAssetPairSettings[h.Exchange][h.Asset][h.Pair]
+	if !ok {
+		return fmt.Errorf("%w for %v %v %v", errNoPortfolioSettings, h.Exchange, h.Asset, h.Pair)
 	}
+
 	if overwriteExisting && len(lookup.HoldingsSnapshots) == 0 {
 		return errNoHoldings
 	}
@@ -404,28 +426,54 @@ func (p *Portfolio) ViewHoldingAtTimePeriod(ev common.EventHandler) (*holdings.H
 }
 
 // SetupCurrencySettingsMap ensures a map is created and no panics happen
-func (p *Portfolio) SetupCurrencySettingsMap(exch string, a asset.Item, cp currency.Pair) (*settings.Settings, error) {
-	if exch == "" {
+func (p *Portfolio) SetupCurrencySettingsMap(settings *exchange.Settings) (*Settings, error) {
+	if settings == nil {
+		return nil, errNoPortfolioSettings
+	}
+	if settings.Exchange == "" {
 		return nil, errExchangeUnset
 	}
-	if a == "" {
+	if settings.Asset == "" {
 		return nil, errAssetUnset
 	}
-	if cp.IsEmpty() {
+	if settings.Pair.IsEmpty() {
 		return nil, errCurrencyPairUnset
 	}
 	if p.exchangeAssetPairSettings == nil {
-		p.exchangeAssetPairSettings = make(map[string]map[asset.Item]map[currency.Pair]*settings.Settings)
+		p.exchangeAssetPairSettings = make(map[string]map[asset.Item]map[currency.Pair]*Settings)
 	}
-	if p.exchangeAssetPairSettings[exch] == nil {
-		p.exchangeAssetPairSettings[exch] = make(map[asset.Item]map[currency.Pair]*settings.Settings)
+	if p.exchangeAssetPairSettings[settings.Exchange] == nil {
+		p.exchangeAssetPairSettings[settings.Exchange] = make(map[asset.Item]map[currency.Pair]*Settings)
 	}
-	if p.exchangeAssetPairSettings[exch][a] == nil {
-		p.exchangeAssetPairSettings[exch][a] = make(map[currency.Pair]*settings.Settings)
+	if p.exchangeAssetPairSettings[settings.Exchange][settings.Asset] == nil {
+		p.exchangeAssetPairSettings[settings.Exchange][settings.Asset] = make(map[currency.Pair]*Settings)
 	}
-	if _, ok := p.exchangeAssetPairSettings[exch][a][cp]; !ok {
-		p.exchangeAssetPairSettings[exch][a][cp] = &settings.Settings{}
+	if _, ok := p.exchangeAssetPairSettings[settings.Exchange][settings.Asset][settings.Pair]; !ok {
+		p.exchangeAssetPairSettings[settings.Exchange][settings.Asset][settings.Pair] = &Settings{}
 	}
 
-	return p.exchangeAssetPairSettings[exch][a][cp], nil
+	return p.exchangeAssetPairSettings[settings.Exchange][settings.Asset][settings.Pair], nil
+}
+
+// GetLatestHoldings returns the latest holdings after being sorted by time
+func (e *Settings) GetLatestHoldings() holdings.Holding {
+	if len(e.HoldingsSnapshots) == 0 {
+		return holdings.Holding{}
+	}
+
+	return e.HoldingsSnapshots[len(e.HoldingsSnapshots)-1]
+}
+
+// GetHoldingsForTime returns the holdings for a time period, or an empty holding if not found
+func (e *Settings) GetHoldingsForTime(t time.Time) holdings.Holding {
+	if e.HoldingsSnapshots == nil {
+		// no holdings yet
+		return holdings.Holding{}
+	}
+	for i := len(e.HoldingsSnapshots) - 1; i >= 0; i-- {
+		if e.HoldingsSnapshots[i].Timestamp.Equal(t) {
+			return e.HoldingsSnapshots[i]
+		}
+	}
+	return holdings.Holding{}
 }

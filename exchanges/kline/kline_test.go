@@ -844,7 +844,11 @@ func TestHasDataAtDate(t *testing.T) {
 
 func TestIntervalsPerYear(t *testing.T) {
 	t.Parallel()
-	i := OneYear
+	var i Interval
+	if i.IntervalsPerYear() != 0 {
+		t.Error("expected 0")
+	}
+	i = OneYear
 	if i.IntervalsPerYear() != 1.0 {
 		t.Error("expected 1")
 	}
@@ -898,7 +902,7 @@ func BenchmarkJustifyIntervalTimeStoringUnixValues2(b *testing.B) {
 func TestConvertToNewInterval(t *testing.T) {
 	_, err := ConvertToNewInterval(nil, OneMin)
 	if !errors.Is(err, errNilKline) {
-		t.Errorf("received '%v' expectec '%v'", err, errNilKline)
+		t.Errorf("received '%v' expected '%v'", err, errNilKline)
 	}
 
 	old := &Item{
@@ -936,23 +940,23 @@ func TestConvertToNewInterval(t *testing.T) {
 
 	_, err = ConvertToNewInterval(old, 0)
 	if !errors.Is(err, ErrUnsetInterval) {
-		t.Errorf("received '%v' expectec '%v'", err, ErrUnsetInterval)
+		t.Errorf("received '%v' expected '%v'", err, ErrUnsetInterval)
 	}
 	_, err = ConvertToNewInterval(old, OneMin)
 	if !errors.Is(err, ErrCanOnlyDownscaleCandles) {
-		t.Errorf("received '%v' expectec '%v'", err, ErrCanOnlyDownscaleCandles)
+		t.Errorf("received '%v' expected '%v'", err, ErrCanOnlyDownscaleCandles)
 	}
 	old.Interval = ThreeDay
 	_, err = ConvertToNewInterval(old, OneWeek)
 	if !errors.Is(err, ErrWholeNumberScaling) {
-		t.Errorf("received '%v' expectec '%v'", err, ErrWholeNumberScaling)
+		t.Errorf("received '%v' expected '%v'", err, ErrWholeNumberScaling)
 	}
 
 	old.Interval = OneDay
 	newInterval := ThreeDay
 	newCandle, err := ConvertToNewInterval(old, newInterval)
 	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expectec '%v'", err, nil)
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 	if len(newCandle.Candles) != 1 {
 		t.Error("expected one candle")
@@ -975,9 +979,36 @@ func TestConvertToNewInterval(t *testing.T) {
 	})
 	newCandle, err = ConvertToNewInterval(old, newInterval)
 	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expectec '%v'", err, nil)
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 	if len(newCandle.Candles) != 1 {
 		t.Error("expected one candle")
+	}
+}
+
+func TestGetClosePriceAtTime(t *testing.T) {
+	tt := time.Now()
+	k := Item{
+		Candles: []Candle{
+			{
+				Time:  tt,
+				Close: 1337,
+			},
+			{
+				Time:  tt.Add(time.Hour),
+				Close: 1338,
+			},
+		},
+	}
+	price, err := k.GetClosePriceAtTime(tt)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	if price != 1337 {
+		t.Errorf("received '%v' expected '%v'", price, 1337)
+	}
+	_, err = k.GetClosePriceAtTime(tt.Add(time.Minute))
+	if !errors.Is(err, ErrNotFoundAtTime) {
+		t.Errorf("received '%v' expected '%v'", err, ErrNotFoundAtTime)
 	}
 }

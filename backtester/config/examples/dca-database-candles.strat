@@ -4,7 +4,8 @@
  "strategy-settings": {
   "name": "dollarcostaverage",
   "use-simultaneous-signal-processing": false,
-  "use-exchange-level-funding": false
+  "use-exchange-level-funding": false,
+  "disable-usd-tracking": false
  },
  "currency-settings": [
   {
@@ -43,7 +44,7 @@
   "database-data": {
    "start-date": "2020-08-01T00:00:00+10:00",
    "end-date": "2020-12-01T00:00:00+11:00",
-   "config-override": {
+   "config": {
     "enabled": true,
     "verbose": false,
     "driver": "sqlite",
@@ -56,6 +57,7 @@
      "sslmode": ""
     }
    },
+   "path": "",
    "inclusive-end-date": false
   }
  },
@@ -78,6 +80,5 @@
  },
  "statistic-settings": {
   "risk-free-rate": "0.03"
- },
- "gocryptotrader-config-path": ""
+ }
 }

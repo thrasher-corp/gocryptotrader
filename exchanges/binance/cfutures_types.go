@@ -3,6 +3,7 @@ package binance
 import (
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -204,13 +205,34 @@ type BatchCancelOrderData struct {
 	Msg           string  `json:"msg"`
 }
 
+// FuturesNewOrderRequest stores all the data needed to submit a
+// delivery/coin-margined-futures order.
+type FuturesNewOrderRequest struct {
+	Symbol           currency.Pair
+	Side             string
+	PositionSide     string
+	OrderType        string
+	TimeInForce      string
+	NewClientOrderID string
+	ClosePosition    string
+	WorkingType      string
+	NewOrderRespType string
+	Quantity         float64
+	Price            float64
+	StopPrice        float64
+	ActivationPrice  float64
+	CallbackRate     float64
+	ReduceOnly       bool
+	PriceProtect     bool
+}
+
 // FuturesOrderPlaceData stores futures order data
 type FuturesOrderPlaceData struct {
-	ClientOrderID string  `json:"clientOrderID"`
+	ClientOrderID string  `json:"clientOrderId"`
 	CumQty        float64 `json:"cumQty,string"`
 	CumBase       float64 `json:"cumBase,string"`
-	ExecuteQty    float64 `json:"executeQty,string"`
-	OrderID       int64   `json:"orderID,string"`
+	ExecuteQty    float64 `json:"executedQty,string"`
+	OrderID       int64   `json:"orderId"`
 	AvgPrice      float64 `json:"avgPrice,string"`
 	OrigQty       float64 `json:"origQty,string"`
 	Price         float64 `json:"price,string"`
@@ -218,7 +240,7 @@ type FuturesOrderPlaceData struct {
 	Side          string  `json:"side"`
 	PositionSide  string  `json:"positionSide"`
 	Status        string  `json:"status"`
-	StopPrice     int64   `json:"stopPrice"`
+	StopPrice     float64 `json:"stopPrice,string"`
 	ClosePosition bool    `json:"closePosition"`
 	Symbol        string  `json:"symbol"`
 	Pair          string  `json:"pair"`

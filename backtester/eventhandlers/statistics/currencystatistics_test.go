@@ -1,28 +1,24 @@
-package currencystatistics
+package statistics
 
 import (
 	"testing"
 	"time"
 
 	"github.com/shopspring/decimal"
-	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
-	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-const testExchange = "binance"
-
 func TestCalculateResults(t *testing.T) {
 	t.Parallel()
-	cs := CurrencyStatistic{}
+	cs := CurrencyPairStatistic{}
 	tt1 := time.Now()
 	tt2 := time.Now().Add(gctkline.OneDay.Duration())
 	exch := testExchange
@@ -40,7 +36,6 @@ func TestCalculateResults(t *testing.T) {
 			ChangeInTotalValuePercent: decimal.NewFromFloat(0.1333),
 			Timestamp:                 tt1,
 			QuoteInitialFunds:         decimal.NewFromInt(1337),
-			RiskFreeRate:              decimal.NewFromInt(1),
 		},
 		Transactions: compliance.Snapshot{
 			Orders: []compliance.SnapshotOrder{
@@ -80,7 +75,6 @@ func TestCalculateResults(t *testing.T) {
 			ChangeInTotalValuePercent: decimal.NewFromFloat(0.1337),
 			Timestamp:                 tt2,
 			QuoteInitialFunds:         decimal.NewFromInt(1337),
-			RiskFreeRate:              decimal.NewFromInt(1),
 		},
 		Transactions: compliance.Snapshot{
 			Orders: []compliance.SnapshotOrder{
@@ -115,19 +109,7 @@ func TestCalculateResults(t *testing.T) {
 	}
 
 	cs.Events = append(cs.Events, ev, ev2)
-	b, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.NewFromInt(13337), decimal.Zero)
-	if err != nil {
-		t.Fatal(err)
-	}
-	q, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, decimal.NewFromInt(13337), decimal.Zero)
-	if err != nil {
-		t.Fatal(err)
-	}
-	pair, err := funding.CreatePair(b, q)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = cs.CalculateResults(pair)
+	err := cs.CalculateResults(decimal.NewFromFloat(0.03))
 	if err != nil {
 		t.Error(err)
 	}
@@ -137,7 +119,7 @@ func TestCalculateResults(t *testing.T) {
 }
 
 func TestPrintResults(t *testing.T) {
-	cs := CurrencyStatistic{}
+	cs := CurrencyPairStatistic{}
 	tt1 := time.Now()
 	tt2 := time.Now().Add(gctkline.OneDay.Duration())
 	exch := testExchange
@@ -228,112 +210,12 @@ func TestPrintResults(t *testing.T) {
 	}
 
 	cs.Events = append(cs.Events, ev, ev2)
-	b, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.NewFromInt(1), decimal.Zero)
-	if err != nil {
-		t.Fatal(err)
-	}
-	q, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, decimal.NewFromInt(100), decimal.Zero)
-	if err != nil {
-		t.Fatal(err)
-	}
-	pair, err := funding.CreatePair(b, q)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = cs.CalculateResults(pair)
-	if err != nil {
-		t.Error(err)
-	}
-	cs.PrintResults(exch, a, p, pair, true)
-}
-
-func TestCalculateMaxDrawdown(t *testing.T) {
-	tt1 := time.Now().Add(-gctkline.OneDay.Duration() * 7).Round(gctkline.OneDay.Duration())
-	exch := testExchange
-	a := asset.Spot
-	p := currency.NewPair(currency.BTC, currency.USDT)
-	var events []common.DataEventHandler
-	for i := int64(0); i < 100; i++ {
-		tt1 = tt1.Add(gctkline.OneDay.Duration())
-		even := event.Base{
-			Exchange:     exch,
-			Time:         tt1,
-			Interval:     gctkline.OneDay,
-			CurrencyPair: p,
-			AssetType:    a,
-		}
-		if i == 50 {
-			// throw in a wrench, a spike in price
-			events = append(events, &kline.Kline{
-				Base:  even,
-				Close: decimal.NewFromInt(1336),
-				High:  decimal.NewFromInt(1336),
-				Low:   decimal.NewFromInt(1336),
-			})
-		} else {
-			events = append(events, &kline.Kline{
-				Base:  even,
-				Close: decimal.NewFromInt(1337).Sub(decimal.NewFromInt(i)),
-				High:  decimal.NewFromInt(1337).Sub(decimal.NewFromInt(i)),
-				Low:   decimal.NewFromInt(1337).Sub(decimal.NewFromInt(i)),
-			})
-		}
-	}
-
-	tt1 = tt1.Add(gctkline.OneDay.Duration())
-	even := event.Base{
-		Exchange:     exch,
-		Time:         tt1,
-		Interval:     gctkline.OneDay,
-		CurrencyPair: p,
-		AssetType:    a,
-	}
-	events = append(events, &kline.Kline{
-		Base:  even,
-		Close: decimal.NewFromInt(1338),
-		High:  decimal.NewFromInt(1338),
-		Low:   decimal.NewFromInt(1338),
-	})
-
-	tt1 = tt1.Add(gctkline.OneDay.Duration())
-	even = event.Base{
-		Exchange:     exch,
-		Time:         tt1,
-		Interval:     gctkline.OneDay,
-		CurrencyPair: p,
-		AssetType:    a,
-	}
-	events = append(events, &kline.Kline{
-		Base:  even,
-		Close: decimal.NewFromInt(1337),
-		High:  decimal.NewFromInt(1337),
-		Low:   decimal.NewFromInt(1337),
-	})
-
-	tt1 = tt1.Add(gctkline.OneDay.Duration())
-	even = event.Base{
-		Exchange:     exch,
-		Time:         tt1,
-		Interval:     gctkline.OneDay,
-		CurrencyPair: p,
-		AssetType:    a,
-	}
-	events = append(events, &kline.Kline{
-		Base:  even,
-		Close: decimal.NewFromInt(1339),
-		High:  decimal.NewFromInt(1339),
-		Low:   decimal.NewFromInt(1339),
-	})
-
-	resp := calculateMaxDrawdown(events)
-	if resp.Highest.Price != decimal.NewFromInt(1337) && !resp.Lowest.Price.Equal(decimal.NewFromInt(1238)) {
-		t.Error("unexpected max drawdown")
-	}
+	cs.PrintResults(exch, a, p, true)
 }
 
 func TestCalculateHighestCommittedFunds(t *testing.T) {
 	t.Parallel()
-	c := CurrencyStatistic{}
+	c := CurrencyPairStatistic{}
 	c.calculateHighestCommittedFunds()
 	if !c.HighestCommittedFunds.Time.IsZero() {
 		t.Error("expected no time with not committed funds")

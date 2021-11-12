@@ -23,7 +23,6 @@ func (d *Data) GenerateReport() error {
 	if err != nil {
 		return err
 	}
-
 	for i := range d.OriginalCandles {
 		for j := range d.OriginalCandles[i].Candles {
 			if d.OriginalCandles[i].Candles[j].ValidationIssues == "" {
@@ -43,6 +42,8 @@ func (d *Data) GenerateReport() error {
 			d.EnhancedCandles[i].Candles = d.EnhancedCandles[i].Candles[:maxChartLimit]
 		}
 	}
+	d.USDTotalsChart = d.CreateUSDTotalsChart()
+	d.HoldingsOverTimeChart = d.CreateHoldingsOverTimeChart()
 
 	tmpl := template.Must(
 		template.ParseFiles(
@@ -80,6 +81,66 @@ func (d *Data) GenerateReport() error {
 	}
 	log.Infof(log.BackTester, "successfully saved report to %v\\%v", d.OutputPath, fileName)
 	return nil
+}
+
+// CreateUSDTotalsChart used for creating a chart in the HTML report
+// to show how much the overall assets are worth over time
+func (d *Data) CreateUSDTotalsChart() []TotalsChart {
+	if d.Statistics.FundingStatistics == nil || d.Statistics.FundingStatistics.Report.DisableUSDTracking {
+		return nil
+	}
+	var response []TotalsChart
+	var usdTotalChartPlot []ChartPlot
+	for i := range d.Statistics.FundingStatistics.TotalUSDStatistics.HoldingValues {
+		usdTotalChartPlot = append(usdTotalChartPlot, ChartPlot{
+			Value:     d.Statistics.FundingStatistics.TotalUSDStatistics.HoldingValues[i].Value.InexactFloat64(),
+			UnixMilli: d.Statistics.FundingStatistics.TotalUSDStatistics.HoldingValues[i].Time.UTC().UnixMilli(),
+		})
+	}
+	response = append(response, TotalsChart{
+		Name:       "Total USD value",
+		DataPoints: usdTotalChartPlot,
+	})
+
+	for i := range d.Statistics.FundingStatistics.Items {
+		var plots []ChartPlot
+		for j := range d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots {
+			plots = append(plots, ChartPlot{
+				Value:     d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots[j].USDValue.InexactFloat64(),
+				UnixMilli: d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots[j].Time.UTC().UnixMilli(),
+			})
+		}
+		response = append(response, TotalsChart{
+			Name:       fmt.Sprintf("%v %v %v USD value", d.Statistics.FundingStatistics.Items[i].ReportItem.Exchange, d.Statistics.FundingStatistics.Items[i].ReportItem.Asset, d.Statistics.FundingStatistics.Items[i].ReportItem.Currency),
+			DataPoints: plots,
+		})
+	}
+
+	return response
+}
+
+// CreateHoldingsOverTimeChart used for creating a chart in the HTML report
+// to show how many holdings of each type was held over the time of backtesting
+func (d *Data) CreateHoldingsOverTimeChart() []TotalsChart {
+	if d.Statistics.FundingStatistics == nil {
+		return nil
+	}
+	var response []TotalsChart
+	for i := range d.Statistics.FundingStatistics.Items {
+		var plots []ChartPlot
+		for j := range d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots {
+			plots = append(plots, ChartPlot{
+				Value:     d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots[j].Available.InexactFloat64(),
+				UnixMilli: d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots[j].Time.UTC().UnixMilli(),
+			})
+		}
+		response = append(response, TotalsChart{
+			Name:       fmt.Sprintf("%v %v %v holdings", d.Statistics.FundingStatistics.Items[i].ReportItem.Exchange, d.Statistics.FundingStatistics.Items[i].ReportItem.Asset, d.Statistics.FundingStatistics.Items[i].ReportItem.Currency),
+			DataPoints: plots,
+		})
+	}
+
+	return response
 }
 
 // AddKlineItem appends a SET of candles for the report to enhance upon
@@ -133,12 +194,12 @@ func (d *Data) enhanceCandles() error {
 			_, offset := time.Now().Zone()
 			tt := d.OriginalCandles[intVal].Candles[j].Time.Add(time.Duration(offset) * time.Second)
 			enhancedCandle := DetailedCandle{
-				Time:         tt.Unix(),
-				Open:         decimal.NewFromFloat(d.OriginalCandles[intVal].Candles[j].Open),
-				High:         decimal.NewFromFloat(d.OriginalCandles[intVal].Candles[j].High),
-				Low:          decimal.NewFromFloat(d.OriginalCandles[intVal].Candles[j].Low),
-				Close:        decimal.NewFromFloat(d.OriginalCandles[intVal].Candles[j].Close),
-				Volume:       decimal.NewFromFloat(d.OriginalCandles[intVal].Candles[j].Volume),
+				UnixMilli:    tt.UTC().UnixMilli(),
+				Open:         d.OriginalCandles[intVal].Candles[j].Open,
+				High:         d.OriginalCandles[intVal].Candles[j].High,
+				Low:          d.OriginalCandles[intVal].Candles[j].Low,
+				Close:        d.OriginalCandles[intVal].Candles[j].Close,
+				Volume:       d.OriginalCandles[intVal].Candles[j].Volume,
 				VolumeColour: "rgba(50, 204, 30, 0.5)",
 			}
 			if j != 0 {
@@ -169,7 +230,7 @@ func (d *Data) enhanceCandles() error {
 				// an order was placed here, can enhance chart!
 				enhancedCandle.MadeOrder = true
 				enhancedCandle.OrderAmount = decimal.NewFromFloat(statsForCandles.FinalOrders.Orders[k].Amount)
-				enhancedCandle.PurchasePrice = decimal.NewFromFloat(statsForCandles.FinalOrders.Orders[k].Price)
+				enhancedCandle.PurchasePrice = statsForCandles.FinalOrders.Orders[k].Price
 				enhancedCandle.OrderDirection = statsForCandles.FinalOrders.Orders[k].Side
 				if enhancedCandle.OrderDirection == order.Buy {
 					enhancedCandle.Colour = "green"
@@ -197,7 +258,6 @@ func (d *DetailedCandle) copyCloseFromPreviousEvent(enhancedKline *DetailedKline
 	d.High = enhancedKline.Candles[len(enhancedKline.Candles)-1].Close
 	d.Low = enhancedKline.Candles[len(enhancedKline.Candles)-1].Close
 	d.Close = enhancedKline.Candles[len(enhancedKline.Candles)-1].Close
-
 	d.Colour = "white"
 	d.Position = "aboveBar"
 	d.Shape = "arrowDown"

@@ -6,7 +6,6 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
-	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -14,7 +13,7 @@ import (
 
 func TestSizingAccuracy(t *testing.T) {
 	t.Parallel()
-	globalMinMax := config.MinMax{
+	globalMinMax := exchange.MinMax{
 		MinimumSize:  decimal.Zero,
 		MaximumSize:  decimal.NewFromInt(1),
 		MaximumTotal: decimal.NewFromInt(10),
@@ -39,7 +38,7 @@ func TestSizingAccuracy(t *testing.T) {
 
 func TestSizingOverMaxSize(t *testing.T) {
 	t.Parallel()
-	globalMinMax := config.MinMax{
+	globalMinMax := exchange.MinMax{
 		MinimumSize:  decimal.Zero,
 		MaximumSize:  decimal.NewFromFloat(0.5),
 		MaximumTotal: decimal.NewFromInt(1337),
@@ -63,7 +62,7 @@ func TestSizingOverMaxSize(t *testing.T) {
 
 func TestSizingUnderMinSize(t *testing.T) {
 	t.Parallel()
-	globalMinMax := config.MinMax{
+	globalMinMax := exchange.MinMax{
 		MinimumSize:  decimal.NewFromInt(1),
 		MaximumSize:  decimal.NewFromInt(2),
 		MaximumTotal: decimal.NewFromInt(1337),
@@ -84,7 +83,7 @@ func TestSizingUnderMinSize(t *testing.T) {
 
 func TestMaximumBuySizeEqualZero(t *testing.T) {
 	t.Parallel()
-	globalMinMax := config.MinMax{
+	globalMinMax := exchange.MinMax{
 		MinimumSize:  decimal.NewFromInt(1),
 		MaximumSize:  decimal.Zero,
 		MaximumTotal: decimal.NewFromInt(1437),
@@ -104,7 +103,7 @@ func TestMaximumBuySizeEqualZero(t *testing.T) {
 }
 func TestMaximumSellSizeEqualZero(t *testing.T) {
 	t.Parallel()
-	globalMinMax := config.MinMax{
+	globalMinMax := exchange.MinMax{
 		MinimumSize:  decimal.NewFromInt(1),
 		MaximumSize:  decimal.Zero,
 		MaximumTotal: decimal.NewFromInt(1437),
@@ -125,7 +124,7 @@ func TestMaximumSellSizeEqualZero(t *testing.T) {
 
 func TestSizingErrors(t *testing.T) {
 	t.Parallel()
-	globalMinMax := config.MinMax{
+	globalMinMax := exchange.MinMax{
 		MinimumSize:  decimal.NewFromInt(1),
 		MaximumSize:  decimal.NewFromInt(2),
 		MaximumTotal: decimal.NewFromInt(1337),
@@ -146,7 +145,7 @@ func TestSizingErrors(t *testing.T) {
 
 func TestCalculateSellSize(t *testing.T) {
 	t.Parallel()
-	globalMinMax := config.MinMax{
+	globalMinMax := exchange.MinMax{
 		MinimumSize:  decimal.NewFromInt(1),
 		MaximumSize:  decimal.NewFromInt(2),
 		MaximumTotal: decimal.NewFromInt(1337),

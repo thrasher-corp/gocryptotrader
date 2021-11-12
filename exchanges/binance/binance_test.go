@@ -894,7 +894,17 @@ func TestFuturesNewOrder(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
 	}
-	_, err := b.FuturesNewOrder(context.Background(), currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), "BUY", "", "LIMIT", "GTC", "", "", "", "", 1, 1, 0, 0, 0, false)
+	_, err := b.FuturesNewOrder(
+		context.Background(),
+		&FuturesNewOrderRequest{
+			Symbol:      currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"),
+			Side:        "BUY",
+			OrderType:   "LIMIT",
+			TimeInForce: "GTC",
+			Quantity:    1,
+			Price:       1,
+		},
+	)
 	if err != nil {
 		t.Error(err)
 	}
