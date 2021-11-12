@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -2660,18 +2661,18 @@ func TestGetEnabledPairs(t *testing.T) {
 		{
 			name: "spot-BTC-USDT",
 			pairs: currency.Pairs{
-				currency.NewPairWithDelimiter("btc", "usdt", currency.DashDelimiter),
+				currency.NewPairWithDelimiter("btc", "usdt", ""),
 			},
 			asset:        asset.Spot,
-			expectedPair: currency.NewPairWithDelimiter("BTC", "USDT", ""),
+			expectedPair: currency.NewPairWithDelimiter("BTC", "USDT", currency.DashDelimiter),
 		},
 		{
 			name: "margin-LTO-USDT",
 			pairs: currency.Pairs{
-				currency.NewPairWithDelimiter("lto", "usdt", currency.DashDelimiter),
+				currency.NewPairWithDelimiter("lto", "usdt", ""),
 			},
 			asset:        asset.Margin,
-			expectedPair: currency.NewPairWithDelimiter("LTO", "USDT", ""),
+			expectedPair: currency.NewPairWithDelimiter("LTO", "USDT", currency.DashDelimiter),
 		},
 		{
 			name: "coinmarginedfutures-BTCUSD-PERP",
@@ -2720,7 +2721,10 @@ func TestGetEnabledPairs(t *testing.T) {
 				t.Error(err)
 			}
 			if !result.Contains(tt.expectedPair, true) {
-				t.Errorf("expected '%v' received '%+v'", tt.expectedPair, result)
+				t.Fatalf("expected '%v' received '%+v'", tt.expectedPair, result)
+			}
+			if tt.expectedPair.Delimiter != result[0].Delimiter {
+				t.Errorf("expected '%v' received '%+v'", tt.expectedPair.Delimiter, result[0].Delimiter)
 			}
 		})
 	}
@@ -2846,4 +2850,11 @@ func TestFormatSymbol(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestSplit(t *testing.T) {
+	hello := "one-two"
+	moto := strings.Split(hello, "-")
+	t.Log(moto[0])
+	t.Log(moto[1])
 }

@@ -339,18 +339,17 @@ func (b *Binance) FetchTradablePairs(ctx context.Context, a asset.Item) ([]strin
 				var curr currency.Pair
 				if strings.Contains(uInfo.Symbols[u].Symbol, currency.UnderscoreDelimiter) {
 					index := strings.Index(uInfo.Symbols[u].Symbol, currency.UnderscoreDelimiter)
-					curr, err = currency.NewPairFromStrings(uInfo.Symbols[u].Symbol[0:index], uInfo.Symbols[u].Symbol[index:])
+					curr, err = currency.NewPairFromStrings(uInfo.Symbols[u].Symbol[:index], uInfo.Symbols[u].Symbol[index:])
 					if err != nil {
 						return nil, err
 					}
-					pairs = append(pairs, format.Format(curr))
 				} else {
 					curr, err = currency.NewPairFromString(uInfo.Symbols[u].Symbol)
 					if err != nil {
 						return nil, err
 					}
-					pairs = append(pairs, format.Format(curr))
 				}
+				pairs = append(pairs, format.Format(curr))
 			}
 		}
 	}
@@ -1771,18 +1770,15 @@ func (b *Binance) GetEnabledPairs(a asset.Item) (currency.Pairs, error) {
 		return nil, err
 	}
 	if a == asset.USDTMarginedFutures {
-		var resp currency.Pairs
 		for i := range enabledPairs {
-			pair := enabledPairs[i]
-			if pair.Delimiter == currency.UnderscoreDelimiter {
+			if enabledPairs[i].Delimiter == currency.UnderscoreDelimiter {
 				// we cannot remove expiring contract delimiters from requests
-				pair = pair.Format(currency.UnderscoreDelimiter, format.Uppercase)
+				enabledPairs[i] = enabledPairs[i].Format(currency.UnderscoreDelimiter, format.Uppercase)
 			} else {
-				pair = pair.Format(format.Delimiter, format.Uppercase)
+				enabledPairs[i] = enabledPairs[i].Format(format.Delimiter, format.Uppercase)
 			}
-			resp = append(resp, pair)
 		}
-		return resp, nil
+		return enabledPairs, nil
 	}
 
 	return enabledPairs.Format(format.Delimiter,
