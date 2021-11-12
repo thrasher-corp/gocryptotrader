@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -2850,11 +2849,4 @@ func TestFormatSymbol(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestSplit(t *testing.T) {
-	hello := "one-two"
-	moto := strings.Split(hello, "-")
-	t.Log(moto[0])
-	t.Log(moto[1])
 }
