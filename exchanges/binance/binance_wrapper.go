@@ -1774,9 +1774,9 @@ func (b *Binance) GetEnabledPairs(a asset.Item) (currency.Pairs, error) {
 			if enabledPairs[i].Delimiter == currency.UnderscoreDelimiter {
 				// we cannot remove expiring contract delimiters from requests
 				enabledPairs[i] = enabledPairs[i].Format(currency.UnderscoreDelimiter, format.Uppercase)
-			} else {
-				enabledPairs[i] = enabledPairs[i].Format(format.Delimiter, format.Uppercase)
+				continue
 			}
+			enabledPairs[i] = enabledPairs[i].Format(format.Delimiter, format.Uppercase)
 		}
 		return enabledPairs, nil
 	}
