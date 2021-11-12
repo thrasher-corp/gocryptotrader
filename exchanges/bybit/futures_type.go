@@ -372,7 +372,7 @@ type AnnouncementInfo struct {
 	CreatedAt string `json:"created_at"`
 }
 
-type PositionData struct {
+type Position struct {
 	UserID                 int64   `json:"user_id"`
 	Symbol                 string  `json:"symbol"`
 	Side                   string  `json:"side"`
@@ -382,14 +382,17 @@ type PositionData struct {
 	LiquidationPrice       float64 `json:"liq_price,string"`
 	BankruptcyPrice        float64 `json:"bust_price,string"`
 	Leverage               float64 `json:"leverage,string"`
-	IsIsolated             bool    `json:"is_isolated"`
-	AutoAddMargin          int64   `json:"auto_add_margin"`
 	PositionMargin         float64 `json:"position_margin,string"`
 	OccupiedClosingFee     float64 `json:"occ_closing_fee,string"`
 	RealisedPNL            float64 `json:"realised_pnl,string"`
-	UnrealisedPNL          float64 `json:"unrealised_pnl"`
 	AccumulatedRealisedPNL float64 `json:"cum_realised_pnl,string"`
+}
 
+type PositionData struct {
+	Position
+	IsIsolated          bool    `json:"is_isolated"`
+	AutoAddMargin       int64   `json:"auto_add_margin"`
+	UnrealisedPNL       float64 `json:"unrealised_pnl"`
 	DeleverageIndicator int64   `json:"deleverage_indicator"`
 	RiskID              int64   `json:"risk_id"`
 	TakeProfit          float64 `json:"take_profit,string"`
@@ -426,28 +429,37 @@ type USDTPositionResp struct {
 	TakeProfitStopLossMode string `json:"tp_sl_mode"`
 }
 
-type Trade struct {
-	ClosedSize     float64 `json:"closed_size"`
-	CrossSequence  int64   `json:"cross_seq"`
-	ExecutionFee   float64 `json:"exec_fee,string"`
+type UpdateMarginResp struct {
+	Position
+	FreeQty int64 `json:"free_qty"`
+}
+
+type TradeData struct {
+	OrderID        string  `json:"order_id"`
+	OrderLinkedID  string  `json:"order_link_id"`
+	OrderSide      string  `json:"side"`
+	Symbol         string  `json:"symbol"`
 	ExecutionID    string  `json:"exec_id"`
+	OrderPrice     float64 `json:"order_price"`
+	OrderQty       float64 `json:"order_qty"`
+	OrderType      string  `json:"order_type"`
+	FeeRate        float64 `json:"fee_rate"`
+	ExecutionFee   float64 `json:"exec_fee,string"`
 	ExecutionPrice float64 `json:"exec_price,string"`
 	ExecutionQty   float64 `json:"exec_qty"`
 	ExecutionType  string  `json:"exec_type"`
 	ExecutionValue float64 `json:"exec_value,string"`
-	FeeRate        float64 `json:"fee_rate"`
-	LastLiquidilty string  `json:"last_liquidity_ind"`
 	LeavesQty      float64 `json:"leaves_qty"`
-	NthFill        int64   `json:"nth_fill"`
-	OrderID        string  `json:"order_id"`
-	OrderLinkedID  string  `json:"order_link_id"`
-	OrderPrice     float64 `json:"order_price"`
-	OrderQty       float64 `json:"order_qty"`
-	OrderType      string  `json:"order_type"`
-	OrderSide      string  `json:"side"`
-	Symbol         string  `json:"symbol"`
-	UserID         int64   `json:"user_id"`
-	TradeTime      int64   `json:"trade_time_ms"`
+	ClosedSize     float64 `json:"closed_size"`
+	LastLiquidilty string  `json:"last_liquidity_ind"`
+	TradeTimeMs    int64   `json:"trade_time_ms"`
+}
+
+type TradeResp struct {
+	TradeData
+	CrossSequence int64 `json:"cross_seq"`
+	NthFill       int64 `json:"nth_fill"`
+	UserID        int64 `json:"user_id"`
 }
 
 type ClosedTrades struct {

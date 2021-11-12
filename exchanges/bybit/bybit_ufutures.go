@@ -42,9 +42,9 @@ const (
 
 	ufuturesPosition         = "/private/linear/position/list"
 	ufuturesSetAutoAddMargin = "/private/linear/position/set-auto-add-margin"
-	ufuturesMarginSwitch     = "/private/linear/position/switch-isolated"
-	ufuturesPositionSwitch   = "/private/linear/tpsl/switch-mode"
-	ufuturesAddMargin        = "/private/linear/position/add-margin"
+	ufuturesSwitchMargin     = "/private/linear/position/switch-isolated"
+	ufuturesSwitchPosition   = "/private/linear/tpsl/switch-mode"
+	ufuturesUpdateMargin     = "/private/linear/position/add-margin"
 	ufuturesSetLeverage      = "/private/linear/position/set-leverage"
 	ufuturesSetTradingStop   = "/private/linear/position/trading-stop"
 	ufuturesGetTrades        = "/private/linear/trade/execution/list"
@@ -709,7 +709,7 @@ func (by *Bybit) GetUSDTPositions(symbol currency.Pair) ([]USDTPositionResp, err
 		resp := struct {
 			Result []struct {
 				IsValid bool             `json:"is_valid"`
-				Data    USDTPositionResp `json:"data"`
+				Result  USDTPositionResp `json:"data"`
 			} `json:"result"`
 		}{}
 		err := by.SendAuthHTTPRequest(exchange.RestUSDTMargined, http.MethodGet, ufuturesPosition, params, &resp, bybitAuthRate)
@@ -717,7 +717,7 @@ func (by *Bybit) GetUSDTPositions(symbol currency.Pair) ([]USDTPositionResp, err
 			return data, err
 		}
 		for _, d := range resp.Result {
-			data = append(data, d.Data)
+			data = append(data, d.Result)
 		}
 	}
 	return data, nil
@@ -726,7 +726,7 @@ func (by *Bybit) GetUSDTPositions(symbol currency.Pair) ([]USDTPositionResp, err
 // SetAutoAddMargin sets auto add margin
 func (by *Bybit) SetAutoAddMargin(symbol currency.Pair, autoAddMargin bool, side string) error {
 	params := url.Values{}
-	symbolValue, err := by.FormatSymbol(symbol, asset.CoinMarginedFutures)
+	symbolValue, err := by.FormatSymbol(symbol, asset.USDTMarginedFutures)
 	if err != nil {
 		return err
 	}
@@ -734,12 +734,237 @@ func (by *Bybit) SetAutoAddMargin(symbol currency.Pair, autoAddMargin bool, side
 	if side != "" {
 		params.Set("side", side)
 	} else {
-		return errors.New("timeInForce can't be empty or missing")
+		return errors.New("side can't be empty or missing")
 	}
 	if autoAddMargin {
 		params.Set("take_profit", "true")
 	} else {
 		params.Set("take_profit", "false")
 	}
-	return by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesSetTrading, params, &struct{}{}, bybitAuthRate)
+	return by.SendAuthHTTPRequest(exchange.RestUSDTMargined, http.MethodPost, ufuturesSetAutoAddMargin, params, &struct{}{}, bybitAuthRate)
+}
+
+// ChangeUSDTMargin switches margin between cross or isolated
+func (by *Bybit) ChangeUSDTMargin(symbol currency.Pair, buyLeverage, sellLeverage float64, isIsolated bool) error {
+	params := url.Values{}
+	symbolValue, err := by.FormatSymbol(symbol, asset.USDTMarginedFutures)
+	if err != nil {
+		return err
+	}
+	params.Set("symbol", symbolValue)
+	params.Set("buy_leverage", strconv.FormatFloat(buyLeverage, 'f', -1, 64))
+	params.Set("sell_leverage", strconv.FormatFloat(sellLeverage, 'f', -1, 64))
+
+	if isIsolated {
+		params.Set("is_isolated", "true")
+	} else {
+		params.Set("is_isolated", "false")
+	}
+
+	return by.SendAuthHTTPRequest(exchange.RestUSDTMargined, http.MethodPost, ufuturesSwitchMargin, params, &struct{}{}, bybitAuthRate)
+}
+
+// ChangeUSDTMode switches mode between full or partial position
+func (by *Bybit) ChangeUSDTMode(symbol currency.Pair, takeProfitStopLoss string) (string, error) {
+	resp := struct {
+		Result struct {
+			Mode string `json:"tp_sl_mode"`
+		} `json:"result"`
+	}{}
+	params := url.Values{}
+	symbolValue, err := by.FormatSymbol(symbol, asset.USDTMarginedFutures)
+	if err != nil {
+		return resp.Result.Mode, err
+	}
+	params.Set("symbol", symbolValue)
+	if takeProfitStopLoss != "" {
+		params.Set("tp_sl_mode", takeProfitStopLoss)
+	} else {
+		return resp.Result.Mode, errors.New("takeProfitStopLoss can't be empty or missing")
+	}
+
+	return resp.Result.Mode, by.SendAuthHTTPRequest(exchange.RestUSDTMargined, http.MethodPost, ufuturesSwitchPosition, params, &resp, bybitAuthRate)
+}
+
+// SetUSDTMargin updates margin
+func (by *Bybit) SetUSDTMargin(symbol currency.Pair, side, margin string) (UpdateMarginResp, error) {
+	resp := struct {
+		Result struct {
+			Data             UpdateMarginResp
+			WalletBalance    float64
+			AvailableBalance float64
+		} `json:"result"`
+	}{}
+	params := url.Values{}
+	symbolValue, err := by.FormatSymbol(symbol, asset.USDTMarginedFutures)
+	if err != nil {
+		return resp.Result.Data, err
+	}
+	params.Set("symbol", symbolValue)
+	if side != "" {
+		params.Set("side", side)
+	} else {
+		return resp.Result.Data, errors.New("side can't be empty")
+	}
+	if margin != "" {
+		params.Set("margin", margin)
+	} else {
+		return resp.Result.Data, errors.New("margin can't be empty")
+	}
+	return resp.Result.Data, by.SendAuthHTTPRequest(exchange.RestUSDTMargined, http.MethodPost, ufuturesUpdateMargin, params, &resp, bybitAuthRate)
+}
+
+// SetUSDTLeverage sets leverage
+func (by *Bybit) SetUSDTLeverage(symbol currency.Pair, buyLeverage, sellLeverage float64) error {
+	params := url.Values{}
+	symbolValue, err := by.FormatSymbol(symbol, asset.USDTMarginedFutures)
+	if err != nil {
+		return err
+	}
+	params.Set("symbol", symbolValue)
+	if buyLeverage > 0 {
+		params.Set("buy_leverage", strconv.FormatFloat(buyLeverage, 'f', -1, 64))
+	} else {
+		return errors.New("buyLeverage can't be zero or less then it")
+	}
+	if sellLeverage > 0 {
+		params.Set("sell_leverage", strconv.FormatFloat(sellLeverage, 'f', -1, 64))
+	} else {
+		return errors.New("sellLeverage can't be zero or less then it")
+	}
+
+	return by.SendAuthHTTPRequest(exchange.RestUSDTMargined, http.MethodPost, ufuturesSetLeverage, params, &struct{}{}, bybitAuthRate)
+}
+
+// SetUSDTTradingAndStop sets take profit, stop loss, and trailing stop for your open position
+func (by *Bybit) SetUSDTTradingAndStop(symbol currency.Pair, takeProfit, stopLoss, trailingStop, stopLossQty, takeProfitQty float64, side, takeProfitTriggerBy, stopLossTriggerBy string) error {
+	params := url.Values{}
+	symbolValue, err := by.FormatSymbol(symbol, asset.USDTMarginedFutures)
+	if err != nil {
+		return err
+	}
+	params.Set("symbol", symbolValue)
+	if side != "" {
+		params.Set("side", side)
+	} else {
+		return errors.New("side can't be empty")
+	}
+	if takeProfit >= 0 {
+		params.Set("take_profit", strconv.FormatFloat(takeProfit, 'f', -1, 64))
+	}
+	if stopLoss >= 0 {
+		params.Set("stop_loss", strconv.FormatFloat(stopLoss, 'f', -1, 64))
+	}
+	if trailingStop >= 0 {
+		params.Set("trailing_stop", strconv.FormatFloat(trailingStop, 'f', -1, 64))
+	}
+	if takeProfitQty != 0 {
+		params.Set("tp_size", strconv.FormatFloat(takeProfitQty, 'f', -1, 64))
+	}
+	if stopLossQty != 0 {
+		params.Set("sl_size", strconv.FormatFloat(stopLossQty, 'f', -1, 64))
+	}
+	if takeProfitTriggerBy != "" {
+		params.Set("tp_trigger_by", takeProfitTriggerBy)
+	}
+	if stopLossTriggerBy != "" {
+		params.Set("sl_trigger_by", stopLossTriggerBy)
+	}
+
+	return by.SendAuthHTTPRequest(exchange.RestUSDTMargined, http.MethodPost, ufuturesSetTradingStop, params, &struct{}{}, bybitAuthRate)
+}
+
+// GetUSDTTradeRecords returns list of user trades
+func (by *Bybit) GetUSDTTradeRecords(symbol currency.Pair, executionType string, startTime, endTime, page, limit int64) ([]TradeData, error) {
+	params := url.Values{}
+	resp := struct {
+		Data struct {
+			CurrentPage int64       `json:"current_page"`
+			Trades      []TradeData `json:"data"`
+		} `json:"result"`
+	}{}
+
+	symbolValue, err := by.FormatSymbol(symbol, asset.USDTMarginedFutures)
+	if err != nil {
+		return resp.Data.Trades, err
+	}
+	params.Set("symbol", symbolValue)
+	if executionType != "" {
+		params.Set("exec_type", executionType)
+	}
+	if startTime != 0 {
+		params.Set("start_time", strconv.FormatInt(startTime, 10))
+	}
+	if endTime != 0 {
+		params.Set("end_time", strconv.FormatInt(endTime, 10))
+	}
+	if page != 0 {
+		params.Set("page", strconv.FormatInt(page, 10))
+	}
+	if limit > 0 && limit <= 200 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	return resp.Data.Trades, by.SendAuthHTTPRequest(exchange.RestUSDTMargined, http.MethodGet, ufuturesGetTrades, params, &resp, bybitAuthRate)
+}
+
+// GetClosedUSDTTrades returns closed profit and loss records
+func (by *Bybit) GetClosedUSDTTrades(symbol currency.Pair, executionType string, startTime, endTime, page, limit int64) ([]ClosedTrades, error) {
+	params := url.Values{}
+
+	resp := struct {
+		Data struct {
+			CurrentPage int64          `json:"current_page"`
+			Trades      []ClosedTrades `json:"data"`
+		} `json:"result"`
+	}{}
+
+	symbolValue, err := by.FormatSymbol(symbol, asset.USDTMarginedFutures)
+	if err != nil {
+		return resp.Data.Trades, err
+	}
+	params.Set("symbol", symbolValue)
+	if executionType != "" {
+		params.Set("execution_type", executionType)
+	}
+	if startTime != 0 {
+		params.Set("start_time", strconv.FormatInt(startTime, 10))
+	}
+	if endTime != 0 {
+		params.Set("end_time", strconv.FormatInt(endTime, 10))
+	}
+	if page > 0 && page <= 50 {
+		params.Set("page", strconv.FormatInt(page, 10))
+	}
+	if limit > 0 && limit <= 50 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	return resp.Data.Trades, by.SendAuthHTTPRequest(exchange.RestUSDTMargined, http.MethodGet, ufuturesGetClosedTrades, params, &resp, bybitAuthRate)
+}
+
+// SetUSDTRiskLimit sets risk limit
+func (by *Bybit) SetUSDTRiskLimit(symbol currency.Pair, side string, riskID int64) (int64, error) {
+	resp := struct {
+		Result struct {
+			RiskID int64 `json:"risk_id"`
+		} `json:"result"`
+	}{}
+
+	params := url.Values{}
+	symbolValue, err := by.FormatSymbol(symbol, asset.USDTMarginedFutures)
+	if err != nil {
+		return resp.Result.RiskID, err
+	}
+	params.Set("symbol", symbolValue)
+	if side != "" {
+		params.Set("side", side)
+	} else {
+		return 0, errors.New("side can't be empty")
+	}
+	if riskID > 0 {
+		params.Set("risk_id", strconv.FormatInt(riskID, 10))
+	} else {
+		return resp.Result.RiskID, errors.New("riskID can't be zero or lesser")
+	}
+
+	return resp.Result.RiskID, by.SendAuthHTTPRequest(exchange.RestUSDTMargined, http.MethodPost, ufuturesSetRiskLimit, params, &resp, bybitAuthRate)
 }

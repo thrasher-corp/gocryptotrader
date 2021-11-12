@@ -51,7 +51,7 @@ const (
 	cfuturesGetConditionalRealtimeOrders = "/private/stop-order"
 
 	cfuturesPosition        = "/private/position/list"
-	cfuturesChangeMargin    = "/private/position/change-position-margin"
+	cfuturesUpdateMargin    = "/private/position/change-position-margin"
 	cfuturesSetTrading      = "/private/position/trading-stop"
 	cfuturesSetLeverage     = "/private/position/leverage/save"
 	cfuturesGetTrades       = "/private/execution/list"
@@ -879,7 +879,7 @@ func (by *Bybit) SetMargin(symbol currency.Pair, margin string) (float64, error)
 	} else {
 		return resp.Data, errors.New("margin can't be empty")
 	}
-	return resp.Data, by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesChangeMargin, params, &resp, bybitAuthRate)
+	return resp.Data, by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesUpdateMargin, params, &resp, bybitAuthRate)
 }
 
 // SetTradingAndStop sets take profit, stop loss, and trailing stop for your open position
@@ -946,13 +946,13 @@ func (by *Bybit) SetLeverage(symbol currency.Pair, leverage float64, leverageOnl
 }
 
 // GetUserTradeRecords returns list of user trades
-func (by *Bybit) GetUserTradeRecords(symbol currency.Pair, orderID, order string, startTime, page, limit int64) ([]Trade, error) {
+func (by *Bybit) GetUserTradeRecords(symbol currency.Pair, orderID, order string, startTime, page, limit int64) ([]TradeResp, error) {
 	params := url.Values{}
 
 	resp := struct {
 		Data struct {
-			OrderID string  `json:"order_id"`
-			Trades  []Trade `json:"trade_list"`
+			OrderID string      `json:"order_id"`
+			Trades  []TradeResp `json:"trade_list"`
 		} `json:"result"`
 	}{}
 
