@@ -217,7 +217,12 @@ func NewFromConfig(cfg *config.Config, templatePath, output string) (*BackTest, 
 		}
 		curr = curr.Format(requestFormat.Delimiter, requestFormat.Uppercase)
 		err = exchBase.CurrencyPairs.EnablePair(a, curr)
-		if err != nil && !errors.Is(err, currency.ErrPairAlreadyEnabled) {
+		if errors.Is(err, currency.ErrPairNotFound) {
+			exchBase.CurrencyPairs.Pairs[a].Available.Add(curr)
+			exchBase.CurrencyPairs.Pairs[a].Enabled.Add(curr)
+			exch.SetPairs(exchBase.CurrencyPairs.Pairs[a].Enabled, a, true)
+			exch.SetPairs(exchBase.CurrencyPairs.Pairs[a].Available, a, false)
+
 			return nil, fmt.Errorf(
 				"could not enable currency %v %v %v. Err %w",
 				cfg.CurrencySettings[i].ExchangeName,

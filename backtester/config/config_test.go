@@ -1209,8 +1209,8 @@ func TestGenerateConfigForFuturesAPICandles(t *testing.T) {
 			DisableUSDTracking:           true,
 			ExchangeLevelFunding: []ExchangeLevelFunding{
 				{
-					ExchangeName: testExchange,
-					Asset:        asset.USDTMarginedFutures.String(),
+					ExchangeName: "ftx",
+					Asset:        asset.Futures.String(),
 					Currency:     "usdt",
 					InitialFunds: *initialQuoteFunds2,
 					TransferFee:  decimal.Zero,
@@ -1220,10 +1220,10 @@ func TestGenerateConfigForFuturesAPICandles(t *testing.T) {
 		},
 		CurrencySettings: []CurrencySettings{
 			{
-				ExchangeName: testExchange,
-				Asset:        asset.USDTMarginedFutures.String(),
+				ExchangeName: "ftx",
+				Asset:        asset.Futures.String(),
 				Base:         "BTC",
-				Quote:        "USDT211231",
+				Quote:        "0924",
 				FuturesDetails: &FuturesDetails{
 					CollateralCurrency: "USDT",
 					Leverage: Leverage{
@@ -1241,8 +1241,8 @@ func TestGenerateConfigForFuturesAPICandles(t *testing.T) {
 			Interval: kline.OneDay.Duration(),
 			DataType: common.CandleStr,
 			APIData: &APIData{
-				StartDate:        startDate,
-				EndDate:          endDate,
+				StartDate:        time.Date(2021, 1, 14, 0, 0, 0, 0, time.UTC),
+				EndDate:          time.Date(2021, 9, 24, 0, 0, 0, 0, time.UTC),
 				InclusiveEndDate: false,
 			},
 		},

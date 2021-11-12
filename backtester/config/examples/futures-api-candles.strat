@@ -7,8 +7,8 @@
   "use-exchange-level-funding": true,
   "exchange-level-funding": [
    {
-    "exchange-name": "binance",
-    "asset": "usdtmarginedfutures",
+    "exchange-name": "ftx",
+    "asset": "futures",
     "currency": "usdt",
     "initial-funds": "100000",
     "transfer-fee": "0",
@@ -19,10 +19,10 @@
  },
  "currency-settings": [
   {
-   "exchange-name": "binance",
-   "asset": "usdtmarginedfutures",
+   "exchange-name": "ftx",
+   "asset": "futures",
    "base": "BTC",
-   "quote": "USDT211231",
+   "quote": "0924",
    "futures-details": {
     "leverage": {
      "can-use-leverage": true,
@@ -54,8 +54,8 @@
   "interval": 86400000000000,
   "data-type": "candle",
   "api-data": {
-   "start-date": "2020-08-01T00:00:00+10:00",
-   "end-date": "2020-12-01T00:00:00+11:00",
+   "start-date": "2021-01-14T00:00:00Z",
+   "end-date": "2021-09-24T00:00:00Z",
    "inclusive-end-date": false
   }
  },

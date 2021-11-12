@@ -183,7 +183,7 @@
   "leverage": {
    "can-use-leverage": false,
    "maximum-orders-with-leverage-ratio": "0",
-   "maximum-leverage-rate": "0"
+   "maximum-leverage-rate": 0
   },
   "buy-side": {
    "minimum-size": "0.005",
