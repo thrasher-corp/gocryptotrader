@@ -295,62 +295,67 @@ func (b *Binance) FetchTradablePairs(ctx context.Context, a asset.Item) ([]strin
 	if err != nil {
 		return nil, err
 	}
+	tradingStatus := "TRADING"
 	var pairs []string
 	switch a {
 	case asset.Spot, asset.Margin:
-		info, err := b.GetExchangeInfo(ctx)
+		var info ExchangeInfo
+		info, err = b.GetExchangeInfo(ctx)
 		if err != nil {
 			return nil, err
 		}
 		for x := range info.Symbols {
-			if info.Symbols[x].Status == "TRADING" {
-				pair := info.Symbols[x].BaseAsset +
-					format.Delimiter +
-					info.Symbols[x].QuoteAsset
-				if a == asset.Spot && info.Symbols[x].IsSpotTradingAllowed {
-					pairs = append(pairs, pair)
-				}
-				if a == asset.Margin && info.Symbols[x].IsMarginTradingAllowed {
-					pairs = append(pairs, pair)
-				}
+			if info.Symbols[x].Status != tradingStatus {
+				continue
+			}
+			pair := info.Symbols[x].BaseAsset +
+				format.Delimiter +
+				info.Symbols[x].QuoteAsset
+			if a == asset.Spot && info.Symbols[x].IsSpotTradingAllowed {
+				pairs = append(pairs, pair)
+			}
+			if a == asset.Margin && info.Symbols[x].IsMarginTradingAllowed {
+				pairs = append(pairs, pair)
 			}
 		}
 	case asset.CoinMarginedFutures:
-		cInfo, err := b.FuturesExchangeInfo(ctx)
+		var cInfo CExchangeInfo
+		cInfo, err = b.FuturesExchangeInfo(ctx)
 		if err != nil {
 			return pairs, err
 		}
 		for z := range cInfo.Symbols {
-			if cInfo.Symbols[z].ContractStatus == "TRADING" {
-				curr, err := currency.NewPairFromString(cInfo.Symbols[z].Symbol)
-				if err != nil {
-					return nil, err
-				}
-				pairs = append(pairs, format.Format(curr))
+			if cInfo.Symbols[z].ContractStatus != tradingStatus {
+				continue
 			}
+			var curr currency.Pair
+			curr, err = currency.NewPairFromString(cInfo.Symbols[z].Symbol)
+			if err != nil {
+				return nil, err
+			}
+			pairs = append(pairs, format.Format(curr))
 		}
 	case asset.USDTMarginedFutures:
-		uInfo, err := b.UExchangeInfo(ctx)
+		var uInfo UFuturesExchangeInfo
+		uInfo, err = b.UExchangeInfo(ctx)
 		if err != nil {
 			return pairs, err
 		}
 		for u := range uInfo.Symbols {
-			if uInfo.Symbols[u].Status == "TRADING" {
-				var curr currency.Pair
-				if strings.Contains(uInfo.Symbols[u].Symbol, currency.UnderscoreDelimiter) {
-					index := strings.Index(uInfo.Symbols[u].Symbol, currency.UnderscoreDelimiter)
-					curr, err = currency.NewPairFromStrings(uInfo.Symbols[u].Symbol[:index], uInfo.Symbols[u].Symbol[index:])
-					if err != nil {
-						return nil, err
-					}
-				} else {
-					curr, err = currency.NewPairFromString(uInfo.Symbols[u].Symbol)
-					if err != nil {
-						return nil, err
-					}
-				}
-				pairs = append(pairs, format.Format(curr))
+			if uInfo.Symbols[u].Status != tradingStatus {
+				continue
 			}
+			var curr currency.Pair
+			if strings.Contains(uInfo.Symbols[u].Symbol, currency.UnderscoreDelimiter) {
+				index := strings.Index(uInfo.Symbols[u].Symbol, currency.UnderscoreDelimiter)
+				curr, err = currency.NewPairFromStrings(uInfo.Symbols[u].Symbol[:index], uInfo.Symbols[u].Symbol[index:])
+			} else {
+				curr, err = currency.NewPairFromString(uInfo.Symbols[u].Symbol)
+			}
+			if err != nil {
+				return nil, err
+			}
+			pairs = append(pairs, format.Format(curr))
 		}
 	}
 	return pairs, nil
