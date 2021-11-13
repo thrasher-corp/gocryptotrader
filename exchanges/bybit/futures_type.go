@@ -486,7 +486,7 @@ type ClosedTrades struct {
 type FundingFee struct {
 	Symbol        string  `json:"symbol"`
 	Side          string  `json:"side"`
-	Size          float64 `json:"qty"`
+	Size          float64 `json:"size"`
 	FundingRate   float64 `json:"funding_rate"`
 	ExecutionFee  float64 `json:"exec_fee"`
 	ExecutionTime int64   `json:"exec_timestamp"`

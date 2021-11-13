@@ -82,12 +82,7 @@ func (by *Bybit) GetUSDTFuturesKlineData(symbol currency.Pair, interval string, 
 	params.Set("from", strconv.FormatInt(startTime.Unix(), 10))
 
 	path := common.EncodeURLValues(ufuturesKline, params)
-	err := by.SendHTTPRequest(exchange.RestUSDTMargined, path, &resp)
-	if err != nil {
-		return resp.Data, err
-	}
-
-	return resp.Data, nil
+	return resp.Data, by.SendHTTPRequest(exchange.RestUSDTMargined, path, &resp)
 }
 
 // GetUSDTPublicTrades gets past public trades for USDTMarginedFutures.
@@ -967,4 +962,39 @@ func (by *Bybit) SetUSDTRiskLimit(symbol currency.Pair, side string, riskID int6
 	}
 
 	return resp.Result.RiskID, by.SendAuthHTTPRequest(exchange.RestUSDTMargined, http.MethodPost, ufuturesSetRiskLimit, params, &resp, bybitAuthRate)
+}
+
+// GetPredictedUSDTFundingRate returns predicted funding rates and fees
+func (by *Bybit) GetPredictedUSDTFundingRate(symbol currency.Pair) (float64, float64, error) {
+	params := url.Values{}
+	resp := struct {
+		Result struct {
+			PredictedFundingRate float64 `json:"predicted_funding_rate"`
+			PredictedFundingFee  float64 `json:"predicted_funding_fee"`
+		} `json:"result"`
+	}{}
+
+	symbolValue, err := by.FormatSymbol(symbol, asset.USDTMarginedFutures)
+	if err != nil {
+		return resp.Result.PredictedFundingRate, resp.Result.PredictedFundingFee, err
+	}
+	params.Set("symbol", symbolValue)
+
+	return resp.Result.PredictedFundingRate, resp.Result.PredictedFundingFee, by.SendAuthHTTPRequest(exchange.RestUSDTMargined, http.MethodGet, ufuturesPredictFundingRate, params, &resp, bybitAuthRate)
+}
+
+// GetLastUSDTFundingFee returns last funding fees
+func (by *Bybit) GetLastUSDTFundingFee(symbol currency.Pair) (FundingFee, error) {
+	params := url.Values{}
+	resp := struct {
+		Result FundingFee `json:"result"`
+	}{}
+
+	symbolValue, err := by.FormatSymbol(symbol, asset.USDTMarginedFutures)
+	if err != nil {
+		return resp.Result, err
+	}
+	params.Set("symbol", symbolValue)
+
+	return resp.Result, by.SendAuthHTTPRequest(exchange.RestUSDTMargined, http.MethodGet, ufuturesGetMyLastFundingFee, params, &resp, bybitAuthRate)
 }
