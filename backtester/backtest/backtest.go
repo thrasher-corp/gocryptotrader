@@ -173,7 +173,10 @@ func NewFromConfig(cfg *config.Config, templatePath, output string) (*BackTest, 
 			}
 		}
 
-		bt.exchangeManager.Add(exch)
+		err = bt.exchangeManager.Add(exch)
+		if err != nil {
+			return nil, err
+		}
 		emm[cfg.CurrencySettings[i].ExchangeName] = exch
 	}
 

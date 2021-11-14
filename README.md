@@ -146,16 +146,16 @@ Binaries will be published once the codebase reaches a stable condition.
 |--|--|
 | [thrasher-](https://github.com/thrasher-) | 660 |
 | [shazbert](https://github.com/shazbert) | 226 |
-| [gloriousCode](https://github.com/gloriousCode) | 191 |
+| [gloriousCode](https://github.com/gloriousCode) | 192 |
 | [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 88 |
 | [xtda](https://github.com/xtda) | 47 |
-| [dependabot[bot]](https://github.com/apps/dependabot) | 29 |
-| [lrascao](https://github.com/lrascao) | 15 |
+| [dependabot[bot]](https://github.com/apps/dependabot) | 41 |
+| [lrascao](https://github.com/lrascao) | 17 |
 | [Rots](https://github.com/Rots) | 15 |
 | [vazha](https://github.com/vazha) | 15 |
 | [ermalguni](https://github.com/ermalguni) | 14 |
+| [ydm](https://github.com/ydm) | 14 |
 | [MadCozBadd](https://github.com/MadCozBadd) | 13 |
-| [ydm](https://github.com/ydm) | 13 |
 | [vadimzhukck](https://github.com/vadimzhukck) | 10 |
 | [140am](https://github.com/140am) | 8 |
 | [marcofranssen](https://github.com/marcofranssen) | 8 |

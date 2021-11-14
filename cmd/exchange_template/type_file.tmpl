@@ -1,3 +1,50 @@
 {{define "type"}}
 package {{.Name}}
+
+import (
+    "github.com/thrasher-corp/gocryptotrader/exchanges/bank"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
+)
+
+// transferFee defines transfer fees. Subject to change.
+// NOTE: This is an example of a fixed value fee for withdrawals, in some rare
+// cases a percentage can be used. 
+var transferFee = []fee.Transfer{
+	{Currency: currency.BTC, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.0004)},
+	{Currency: currency.ETH, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.005)},
+	{Currency: currency.ETC, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.005)},
+	{Currency: currency.LTC, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.001)},
+	{Currency: currency.BCH, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.0002)},
+}
+
+// bankTransferFees defines bank transfer fees. Subject to change.
+// NOTE: This is an example of a percentage value. 
+var bankTransferFees = []fee.Transfer{
+	{Currency: currency.USD,
+		BankTransfer:      bank.WireTransfer,
+		Withdrawal:        fee.Convert(0.001),
+		MinimumWithdrawal: fee.Convert(60),
+		Deposit:           fee.Convert(0.001),
+		MinimumDeposit:    fee.Convert(60),
+		IsPercentage:      true},
+	{Currency: currency.EUR,
+		BankTransfer:      bank.WireTransfer,
+		Withdrawal:        fee.Convert(0.001),
+		MinimumWithdrawal: fee.Convert(60),
+		Deposit:           fee.Convert(0.001),
+		MinimumDeposit:    fee.Convert(60),
+		IsPercentage:      true},
+
+	{Currency: currency.USD,
+		BankTransfer:      bank.ExpressWireTransfer,
+		Withdrawal:        fee.Convert(0.01),
+		MinimumWithdrawal: fee.Convert(100),
+		IsPercentage:      true},
+	{Currency: currency.EUR,
+		BankTransfer:      bank.ExpressWireTransfer,
+		Withdrawal:        fee.Convert(0.01),
+		MinimumWithdrawal: fee.Convert(100),
+		IsPercentage:      true},
+}
+
 {{end}}
