@@ -407,9 +407,9 @@ func (by *Bybit) GetAnnouncement() ([]AnnouncementInfo, error) {
 // CreateCoinFuturesOrder sends a new futures order to the exchange
 func (by *Bybit) CreateCoinFuturesOrder(symbol currency.Pair, side, orderType, timeInForce,
 	orderLinkID, takeProfitTriggerBy, stopLossTriggerBy string,
-	quantity, price, takeProfit, stopLoss float64, closeOnTrigger, reduceOnly bool) (FuturesOrderData, error) {
+	quantity, price, takeProfit, stopLoss float64, closeOnTrigger, reduceOnly bool) (FuturesOrderDataResp, error) {
 	resp := struct {
-		Data FuturesOrderData `json:"result"`
+		Data FuturesOrderDataResp `json:"result"`
 	}{}
 
 	params := url.Values{}
@@ -458,11 +458,11 @@ func (by *Bybit) CreateCoinFuturesOrder(symbol currency.Pair, side, orderType, t
 }
 
 // GetActiveCoinFuturesOrders gets list of futures active orders
-func (by *Bybit) GetActiveCoinFuturesOrders(symbol currency.Pair, orderStatus, direction, cursor string, limit int64) ([]FuturesActiveOrders, error) {
+func (by *Bybit) GetActiveCoinFuturesOrders(symbol currency.Pair, orderStatus, direction, cursor string, limit int64) ([]FuturesActiveOrderResp, error) {
 	resp := struct {
 		Result struct {
-			Data   []FuturesActiveOrders `json:"data"`
-			Cursor string                `json:"cursor"`
+			Data   []FuturesActiveOrderResp `json:"data"`
+			Cursor string                   `json:"cursor"`
 		} `json:"result"`
 	}{}
 
@@ -488,9 +488,9 @@ func (by *Bybit) GetActiveCoinFuturesOrders(symbol currency.Pair, orderStatus, d
 }
 
 // CancelActiveCoinFuturesOrders cancels futures unfilled or partially filled orders
-func (by *Bybit) CancelActiveCoinFuturesOrders(symbol currency.Pair, orderID, orderLinkID string) (FuturesOrderData, error) {
+func (by *Bybit) CancelActiveCoinFuturesOrders(symbol currency.Pair, orderID, orderLinkID string) (FuturesOrderDataResp, error) {
 	resp := struct {
-		Data FuturesOrderData `json:"result"`
+		Data FuturesOrderDataResp `json:"result"`
 	}{}
 	params := url.Values{}
 	symbolValue, err := by.FormatSymbol(symbol, asset.CoinMarginedFutures)
@@ -511,9 +511,9 @@ func (by *Bybit) CancelActiveCoinFuturesOrders(symbol currency.Pair, orderID, or
 }
 
 // CancelAllActiveCoinFuturesOrders cancels all futures unfilled or partially filled orders
-func (by *Bybit) CancelAllActiveCoinFuturesOrders(symbol currency.Pair) ([]FuturesOrderData, error) {
+func (by *Bybit) CancelAllActiveCoinFuturesOrders(symbol currency.Pair) ([]FuturesOrderDataResp, error) {
 	resp := struct {
-		Data []FuturesOrderData `json:"result"`
+		Data []FuturesOrderDataResp `json:"result"`
 	}{}
 	params := url.Values{}
 	symbolValue, err := by.FormatSymbol(symbol, asset.CoinMarginedFutures)
@@ -672,11 +672,11 @@ func (by *Bybit) CreateConditionalCoinFuturesOrder(symbol currency.Pair, side, o
 }
 
 // GetConditionalCoinFuturesOrders gets list of futures conditional orders
-func (by *Bybit) GetConditionalCoinFuturesOrders(symbol currency.Pair, stopOrderStatus, direction, cursor string, limit int64) ([]FuturesConditionalOrders, error) {
+func (by *Bybit) GetConditionalCoinFuturesOrders(symbol currency.Pair, stopOrderStatus, direction, cursor string, limit int64) ([]CoinFuturesConditionalOrders, error) {
 	resp := struct {
 		Result struct {
-			Data   []FuturesConditionalOrders `json:"data"`
-			Cursor string                     `json:"cursor"`
+			Data   []CoinFuturesConditionalOrders `json:"data"`
+			Cursor string                         `json:"cursor"`
 		} `json:"result"`
 	}{}
 	params := url.Values{}
@@ -726,9 +726,9 @@ func (by *Bybit) CancelConditionalCoinFuturesOrders(symbol currency.Pair, stopOr
 }
 
 // CancelAllConditionalCoinFuturesOrders cancels all untriggered conditional orders
-func (by *Bybit) CancelAllConditionalCoinFuturesOrders(symbol currency.Pair) ([]FuturesCancelOrderData, error) {
+func (by *Bybit) CancelAllConditionalCoinFuturesOrders(symbol currency.Pair) ([]FuturesCancelOrderResp, error) {
 	resp := struct {
-		Data []FuturesCancelOrderData `json:"result"`
+		Data []FuturesCancelOrderResp `json:"result"`
 	}{}
 	params := url.Values{}
 	symbolValue, err := by.FormatSymbol(symbol, asset.CoinMarginedFutures)
@@ -787,9 +787,9 @@ func (by *Bybit) ReplaceConditionalCoinFuturesOrders(symbol currency.Pair, stopO
 	return resp.Data.OrderID, by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesReplaceConditionalOrder, params, &resp, bybitAuthRate)
 }
 
-// GetConditionalRealtimeCoinOrders query real time considitional order data
-func (by *Bybit) GetConditionalRealtimeCoinOrders(symbol currency.Pair, stopOrderID, orderLinkID string) ([]FuturesConditionalRealtimeOrder, error) {
-	var data []FuturesConditionalRealtimeOrder
+// GetConditionalRealtimeCoinOrders query real time conditional order data
+func (by *Bybit) GetConditionalRealtimeCoinOrders(symbol currency.Pair, stopOrderID, orderLinkID string) ([]CoinFuturesConditionalRealtimeOrder, error) {
+	var data []CoinFuturesConditionalRealtimeOrder
 	params := url.Values{}
 	symbolValue, err := by.FormatSymbol(symbol, asset.CoinMarginedFutures)
 	if err != nil {
@@ -805,7 +805,7 @@ func (by *Bybit) GetConditionalRealtimeCoinOrders(symbol currency.Pair, stopOrde
 
 	if stopOrderID == "" && orderLinkID == "" {
 		resp := struct {
-			Data []FuturesConditionalRealtimeOrder `json:"result"`
+			Data []CoinFuturesConditionalRealtimeOrder `json:"result"`
 		}{}
 		err = by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetConditionalRealtimeOrders, params, &resp, bybitAuthRate)
 		if err != nil {
@@ -816,7 +816,7 @@ func (by *Bybit) GetConditionalRealtimeCoinOrders(symbol currency.Pair, stopOrde
 		}
 	} else {
 		resp := struct {
-			Data FuturesConditionalRealtimeOrder `json:"result"`
+			Data CoinFuturesConditionalRealtimeOrder `json:"result"`
 		}{}
 		err = by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetConditionalRealtimeOrders, params, &resp, bybitAuthRate)
 		if err != nil {

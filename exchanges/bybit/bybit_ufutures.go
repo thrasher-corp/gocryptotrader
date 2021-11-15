@@ -231,9 +231,9 @@ func (by *Bybit) GetUSDTRiskLimit(symbol currency.Pair) ([]RiskInfo, error) {
 // CreateUSDTFuturesOrder sends a new USDT futures order to the exchange
 func (by *Bybit) CreateUSDTFuturesOrder(symbol currency.Pair, side, orderType, timeInForce,
 	orderLinkID, takeProfitTriggerBy, stopLossTriggerBy string,
-	quantity, price, takeProfit, stopLoss float64, closeOnTrigger, reduceOnly bool) (FuturesOrderData, error) {
+	quantity, price, takeProfit, stopLoss float64, closeOnTrigger, reduceOnly bool) (FuturesOrderDataResp, error) {
 	resp := struct {
-		Data FuturesOrderData `json:"result"`
+		Data FuturesOrderDataResp `json:"result"`
 	}{}
 
 	params := url.Values{}
@@ -290,12 +290,12 @@ func (by *Bybit) CreateUSDTFuturesOrder(symbol currency.Pair, side, orderType, t
 }
 
 // GetActiveUSDTFuturesOrders gets list of USDT futures active orders
-func (by *Bybit) GetActiveUSDTFuturesOrders(symbol currency.Pair, orderStatus, direction, orderID, orderLinkID string, page, limit int64) ([]FuturesActiveOrders, error) {
+func (by *Bybit) GetActiveUSDTFuturesOrders(symbol currency.Pair, orderStatus, direction, orderID, orderLinkID string, page, limit int64) ([]FuturesActiveOrderResp, error) {
 	resp := struct {
 		Result struct {
-			Data        []FuturesActiveOrders `json:"data"`
-			CurrentPage int64                 `json:"current_page"`
-			LastPage    int64                 `json:"last_page"`
+			Data        []FuturesActiveOrderResp `json:"data"`
+			CurrentPage int64                    `json:"current_page"`
+			LastPage    int64                    `json:"last_page"`
 		} `json:"result"`
 	}{}
 
@@ -639,7 +639,7 @@ func (by *Bybit) ReplaceConditionalUSDTFuturesOrders(symbol currency.Pair, stopO
 	return resp.Data.OrderID, by.SendAuthHTTPRequest(exchange.RestUSDTMargined, http.MethodPost, ufuturesReplaceConditionalOrder, params, &resp, bybitAuthRate)
 }
 
-// GetConditionalUSDTRealtimeOrders query real time considitional order data
+// GetConditionalUSDTRealtimeOrders query real time conditional order data
 func (by *Bybit) GetConditionalUSDTRealtimeOrders(symbol currency.Pair, stopOrderID, orderLinkID string) ([]USDTFuturesConditionalRealtimeOrder, error) {
 	var data []USDTFuturesConditionalRealtimeOrder
 	params := url.Values{}
@@ -704,7 +704,7 @@ func (by *Bybit) GetUSDTPositions(symbol currency.Pair) ([]USDTPositionResp, err
 		resp := struct {
 			Result []struct {
 				IsValid bool             `json:"is_valid"`
-				Result  USDTPositionResp `json:"data"`
+				Data    USDTPositionResp `json:"data"`
 			} `json:"result"`
 		}{}
 		err := by.SendAuthHTTPRequest(exchange.RestUSDTMargined, http.MethodGet, ufuturesPosition, params, &resp, bybitAuthRate)
@@ -712,7 +712,7 @@ func (by *Bybit) GetUSDTPositions(symbol currency.Pair) ([]USDTPositionResp, err
 			return data, err
 		}
 		for _, d := range resp.Result {
-			data = append(data, d.Result)
+			data = append(data, d.Data)
 		}
 	}
 	return data, nil
