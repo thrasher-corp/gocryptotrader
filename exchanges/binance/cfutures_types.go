@@ -554,36 +554,51 @@ type UFuturesExchangeInfo struct {
 		Limit         int64  `json:"limit"`
 		RateLimitType string `json:"rateLimitType"`
 	} `json:"rateLimits"`
-	ServerTime int64 `json:"serverTime"`
-	Symbols    []struct {
-		Symbol                   string  `json:"symbol"`
-		Status                   string  `json:"status"`
-		MaintenanceMarginPercent float64 `json:"maintMarginPercent,string"`
-		RequiredMarginPercent    float64 `json:"requiredMarginPercent,string"`
-		BaseAsset                string  `json:"baseAsset"`
-		QuoteAsset               string  `json:"quoteAsset"`
-		PricePrecision           int64   `json:"pricePrecision"`
-		QuantityPrecision        int64   `json:"quantityPrecision"`
-		BaseAssetPrecision       int64   `json:"baseAssetPrecision"`
-		QuotePrecision           int64   `json:"quotePrecision"`
-		Filters                  []struct {
-			MinPrice          float64 `json:"minPrice,string"`
-			MaxPrice          float64 `json:"maxPrice,string"`
-			FilterType        string  `json:"filterType"`
-			TickSize          float64 `json:"tickSize,string"`
-			StepSize          float64 `json:"stepSize,string"`
-			MaxQty            float64 `json:"maxQty,string"`
-			MinQty            float64 `json:"minQty,string"`
-			Limit             int64   `json:"limit"`
-			MultiplierDown    float64 `json:"multiplierDown,string"`
-			MultiplierUp      float64 `json:"multiplierUp,string"`
-			MultiplierDecimal float64 `json:"multiplierDecimal,string"`
-			Notional          float64 `json:"notional,string"`
-		} `json:"filters"`
-		OrderTypes  []string `json:"orderTypes"`
-		TimeInForce []string `json:"timeInForce"`
-	} `json:"symbols"`
-	Timezone string `json:"timezone"`
+	ServerTime int64                `json:"serverTime"`
+	Symbols    []UFuturesSymbolInfo `json:"symbols"`
+	Timezone   string               `json:"timezone"`
+}
+
+// UFuturesSymbolInfo contains details of a currency symbol
+// for a usdt margined future contract
+type UFuturesSymbolInfo struct {
+	Symbol                   string    `json:"symbol"`
+	Pair                     string    `json:"pair"`
+	ContractType             string    `json:"contractType"`
+	DeliveryDate             time.Time `json:"deliveryDate"`
+	OnboardDate              time.Time `json:"onboardDate"`
+	Status                   string    `json:"status"`
+	MaintenanceMarginPercent float64   `json:"maintMarginPercent,string"`
+	RequiredMarginPercent    float64   `json:"requiredMarginPercent,string"`
+	BaseAsset                string    `json:"baseAsset"`
+	QuoteAsset               string    `json:"quoteAsset"`
+	MarginAsset              string    `json:"marginAsset"`
+	PricePrecision           int64     `json:"pricePrecision"`
+	QuantityPrecision        int64     `json:"quantityPrecision"`
+	BaseAssetPrecision       int64     `json:"baseAssetPrecision"`
+	QuotePrecision           int64     `json:"quotePrecision"`
+	UnderlyingType           string    `json:"underlyingType"`
+	UnderlyingSubType        []string  `json:"underlyingSubType"`
+	SettlePlan               float64   `json:"settlePlan"`
+	TriggerProtect           float64   `json:"triggerProtect,string"`
+	Filters                  []struct {
+		FilterType        string  `json:"filterType"`
+		MinPrice          float64 `json:"minPrice,string"`
+		MaxPrice          float64 `json:"maxPrice,string"`
+		TickSize          float64 `json:"tickSize,string"`
+		StepSize          float64 `json:"stepSize,string"`
+		MaxQty            float64 `json:"maxQty,string"`
+		MinQty            float64 `json:"minQty,string"`
+		Limit             int64   `json:"limit"`
+		MultiplierDown    float64 `json:"multiplierDown,string"`
+		MultiplierUp      float64 `json:"multiplierUp,string"`
+		MultiplierDecimal float64 `json:"multiplierDecimal,string"`
+		Notional          float64 `json:"notional,string"`
+	} `json:"filters"`
+	OrderTypes      []string `json:"OrderType"`
+	TimeInForce     []string `json:"timeInForce"`
+	LiquidationFee  float64  `json:"liquidationFee,string"`
+	MarketTakeBound float64  `json:"marketTakeBound,string"`
 }
 
 // CExchangeInfo stores exchange info for cfutures

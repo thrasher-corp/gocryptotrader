@@ -173,55 +173,57 @@ func (o *OKCoin) Run() {
 	}
 
 	forceUpdate := false
-	format, err := o.GetPairFormat(asset.Spot, false)
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%s failed to update currencies. Err: %s\n",
-			o.Name,
-			err)
-		return
-	}
-	enabled, err := o.CurrencyPairs.GetPairs(asset.Spot, true)
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%s failed to update currencies. Err: %s\n",
-			o.Name,
-			err)
-		return
-	}
-
-	avail, err := o.CurrencyPairs.GetPairs(asset.Spot, false)
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%s failed to update currencies. Err: %s\n",
-			o.Name,
-			err)
-		return
-	}
-
-	if !common.StringDataContains(enabled.Strings(), format.Delimiter) ||
-		!common.StringDataContains(avail.Strings(), format.Delimiter) {
-		var p currency.Pairs
-		p, err = currency.NewPairsFromStrings([]string{currency.BTC.String() +
-			format.Delimiter +
-			currency.USD.String()})
+	if !o.BypassConfigFormatUpgrades {
+		format, err := o.GetPairFormat(asset.Spot, false)
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
-				"%s failed to update currencies.\n",
-				o.Name)
-		} else {
-			log.Warnf(log.ExchangeSys,
-				"Enabled pairs for %v reset due to config upgrade, please enable the ones you would like again.\n",
-				o.Name)
-			forceUpdate = true
+				"%s failed to update currencies. Err: %s\n",
+				o.Name,
+				err)
+			return
+		}
+		enabled, err := o.CurrencyPairs.GetPairs(asset.Spot, true)
+		if err != nil {
+			log.Errorf(log.ExchangeSys,
+				"%s failed to update currencies. Err: %s\n",
+				o.Name,
+				err)
+			return
+		}
 
-			err = o.UpdatePairs(p, asset.Spot, true, true)
+		avail, err := o.CurrencyPairs.GetPairs(asset.Spot, false)
+		if err != nil {
+			log.Errorf(log.ExchangeSys,
+				"%s failed to update currencies. Err: %s\n",
+				o.Name,
+				err)
+			return
+		}
+
+		if !common.StringDataContains(enabled.Strings(), format.Delimiter) ||
+			!common.StringDataContains(avail.Strings(), format.Delimiter) {
+			var p currency.Pairs
+			p, err = currency.NewPairsFromStrings([]string{currency.BTC.String() +
+				format.Delimiter +
+				currency.USD.String()})
 			if err != nil {
 				log.Errorf(log.ExchangeSys,
-					"%s failed to update currencies. Err: %s\n",
-					o.Name,
-					err)
-				return
+					"%s failed to update currencies.\n",
+					o.Name)
+			} else {
+				log.Warnf(log.ExchangeSys,
+					"Enabled pairs for %v reset due to config upgrade, please enable the ones you would like again.\n",
+					o.Name)
+				forceUpdate = true
+
+				err = o.UpdatePairs(p, asset.Spot, true, true)
+				if err != nil {
+					log.Errorf(log.ExchangeSys,
+						"%s failed to update currencies. Err: %s\n",
+						o.Name,
+						err)
+					return
+				}
 			}
 		}
 	}
@@ -230,7 +232,7 @@ func (o *OKCoin) Run() {
 		return
 	}
 
-	err = o.UpdateTradablePairs(context.TODO(), forceUpdate)
+	err := o.UpdateTradablePairs(context.TODO(), forceUpdate)
 	if err != nil {
 		log.Errorf(log.ExchangeSys,
 			"%s failed to update tradable pairs. Err: %s",

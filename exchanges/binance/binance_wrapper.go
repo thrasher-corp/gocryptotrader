@@ -84,6 +84,7 @@ func (b *Binance) SetDefaults() {
 		},
 		ConfigFormat: &currency.PairFormat{
 			Uppercase: true,
+			Delimiter: currency.UnderscoreDelimiter,
 		},
 	}
 	err := b.StoreAssetPairFormat(asset.Spot, fmt1)
@@ -264,6 +265,7 @@ func (b *Binance) Run() {
 		b.PrintEnabledPairs()
 	}
 
+	forceUpdate := false
 	a := b.GetAssetTypes(true)
 	for x := range a {
 		if err := b.UpdateOrderExecutionLimits(context.TODO(), a[x]); err != nil {
@@ -272,13 +274,62 @@ func (b *Binance) Run() {
 				b.Name,
 				err)
 		}
+		if a[x] == asset.USDTMarginedFutures && !b.BypassConfigFormatUpgrades {
+			format, err := b.GetPairFormat(asset.USDTMarginedFutures, false)
+			if err != nil {
+				log.Errorf(log.ExchangeSys, "%s failed to get enabled currencies. Err %s\n",
+					b.Name,
+					err)
+				return
+			}
+			var enabled, avail currency.Pairs
+			enabled, err = b.CurrencyPairs.GetPairs(asset.USDTMarginedFutures, true)
+			if err != nil {
+				log.Errorf(log.ExchangeSys, "%s failed to get enabled currencies. Err %s\n",
+					b.Name,
+					err)
+				return
+			}
+
+			avail, err = b.CurrencyPairs.GetPairs(asset.USDTMarginedFutures, false)
+			if err != nil {
+				log.Errorf(log.ExchangeSys, "%s failed to get available currencies. Err %s\n",
+					b.Name,
+					err)
+				return
+			}
+			if !common.StringDataContains(enabled.Strings(), format.Delimiter) ||
+				!common.StringDataContains(avail.Strings(), format.Delimiter) {
+
+				var enabledPairs currency.Pairs
+				enabledPairs, err = currency.NewPairsFromStrings([]string{
+					currency.BTC.String() + format.Delimiter + currency.USDT.String(),
+				})
+				if err != nil {
+					log.Errorf(log.ExchangeSys, "%s failed to update currencies. Err %s\n",
+						b.Name,
+						err)
+				} else {
+					log.Warnf(log.ExchangeSys,
+						"%s: Enabled and available pairs reset due to config upgrade, please enable the ones you would like to use again. Defaulting to %v", b.Name, enabledPairs)
+					forceUpdate = true
+					err = b.UpdatePairs(enabledPairs, a[x], true, true)
+					if err != nil {
+						log.Errorf(log.ExchangeSys,
+							"%s failed to update currencies. Err: %s\n",
+							b.Name,
+							err)
+					}
+				}
+			}
+		}
 	}
 
-	if !b.GetEnabledFeatures().AutoPairUpdates {
+	if !b.GetEnabledFeatures().AutoPairUpdates || !forceUpdate {
 		return
 	}
 
-	if err := b.UpdateTradablePairs(context.TODO(), false); err != nil {
+	if err := b.UpdateTradablePairs(context.TODO(), forceUpdate); err != nil {
 		log.Errorf(log.ExchangeSys,
 			"%s failed to update tradable pairs. Err: %s",
 			b.Name,
@@ -346,15 +397,18 @@ func (b *Binance) FetchTradablePairs(ctx context.Context, a asset.Item) ([]strin
 				continue
 			}
 			var curr currency.Pair
-			if strings.Contains(uInfo.Symbols[u].Symbol, currency.UnderscoreDelimiter) {
-				index := strings.Index(uInfo.Symbols[u].Symbol, currency.UnderscoreDelimiter)
-				curr, err = currency.NewPairFromStrings(uInfo.Symbols[u].Symbol[:index], uInfo.Symbols[u].Symbol[index:])
+			if uInfo.Symbols[u].ContractType == "PERPETUAL" {
+				curr, err = currency.NewPairFromStrings(uInfo.Symbols[u].BaseAsset, uInfo.Symbols[u].QuoteAsset)
+				if err != nil {
+					return nil, err
+				}
 			} else {
 				curr, err = currency.NewPairFromString(uInfo.Symbols[u].Symbol)
+				if err != nil {
+					return nil, err
+				}
 			}
-			if err != nil {
-				return nil, err
-			}
+
 			pairs = append(pairs, format.Format(curr))
 		}
 	}
@@ -1757,41 +1811,6 @@ func (b *Binance) GetAvailableTransferChains(ctx context.Context, cryptocurrency
 	return availableChains, nil
 }
 
-// GetEnabledPairs is a method that returns the enabled currency pairs of
-// the exchange by asset type, if the asset type is disabled this will return no
-// enabled pairs
-// overrides default implementation to use optional delimiter
-func (b *Binance) GetEnabledPairs(a asset.Item) (currency.Pairs, error) {
-	err := b.CurrencyPairs.IsAssetEnabled(a)
-	if err != nil {
-		return nil, nil // nolint:nilerr // non-fatal error
-	}
-	format, err := b.GetPairFormat(a, false)
-	if err != nil {
-		return nil, err
-	}
-	enabledPairs, err := b.CurrencyPairs.GetPairs(a, true)
-	if err != nil {
-		return nil, err
-	}
-	if a == asset.USDTMarginedFutures {
-		for i := range enabledPairs {
-			if enabledPairs[i].Delimiter == currency.UnderscoreDelimiter {
-				// we cannot remove expiring contract delimiters from requests
-				enabledPairs[i] = enabledPairs[i].Format(currency.UnderscoreDelimiter, format.Uppercase)
-				continue
-			}
-			enabledPairs[i] = enabledPairs[i].Format(format.Delimiter, format.Uppercase)
-		}
-		return enabledPairs, nil
-	}
-
-	return enabledPairs.Format(format.Delimiter,
-			format.Index,
-			format.Uppercase),
-		nil
-}
-
 // FormatExchangeCurrency is a method that formats and returns a currency pair
 // based on the user currency display preferences
 // overrides default implementation to use optional delimiter
@@ -1800,8 +1819,8 @@ func (b *Binance) FormatExchangeCurrency(p currency.Pair, a asset.Item) (currenc
 	if err != nil {
 		return currency.Pair{}, err
 	}
-	if p.Delimiter == currency.UnderscoreDelimiter && a == asset.USDTMarginedFutures {
-		return p.Format(currency.UnderscoreDelimiter, pairFmt.Uppercase), nil
+	if a == asset.USDTMarginedFutures {
+		return b.formatUSDTMarginedFuturesPair(p, pairFmt), nil
 	}
 	return p.Format(pairFmt.Delimiter, pairFmt.Uppercase), nil
 }
@@ -1813,8 +1832,22 @@ func (b *Binance) FormatSymbol(p currency.Pair, a asset.Item) (string, error) {
 	if err != nil {
 		return p.String(), err
 	}
-	if p.Delimiter == currency.UnderscoreDelimiter && a == asset.USDTMarginedFutures {
-		return p.Format(currency.UnderscoreDelimiter, pairFmt.Uppercase).String(), nil
+	if a == asset.USDTMarginedFutures {
+		p = b.formatUSDTMarginedFuturesPair(p, pairFmt)
+		return p.String(), nil
 	}
 	return pairFmt.Format(p), nil
+}
+
+// formatUSDTMarginedFuturesPair Binance USDTMarginedFutures pairs have a delimiter
+// only if the contract has an expiry date
+func (b *Binance) formatUSDTMarginedFuturesPair(p currency.Pair, pairFmt currency.PairFormat) currency.Pair {
+	quote := p.Quote.String()
+	for _, c := range quote {
+		if c < '0' || c > '9' {
+			// character rune is alphabetic, cannot be expiring contract
+			return p.Format(pairFmt.Delimiter, pairFmt.Uppercase)
+		}
+	}
+	return p.Format(currency.UnderscoreDelimiter, pairFmt.Uppercase)
 }

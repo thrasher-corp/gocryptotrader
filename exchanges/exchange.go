@@ -595,6 +595,7 @@ func (b *Base) SetupDefaults(exch *config.Exchange) error {
 	}
 
 	b.HTTPDebugging = exch.HTTPDebugging
+	b.BypassConfigFormatUpgrades = exch.CurrencyPairs.BypassConfigFormatUpgrades
 	b.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 	b.SetCurrencyPairFormat()
 

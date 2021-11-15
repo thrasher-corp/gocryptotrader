@@ -222,6 +222,7 @@ type Base struct {
 	HTTPUserAgent                 string
 	HTTPRecording                 bool
 	HTTPDebugging                 bool
+	BypassConfigFormatUpgrades    bool
 	WebsocketResponseCheckTimeout time.Duration
 	WebsocketResponseMaxLimit     time.Duration
 	WebsocketOrderbookBufferLimit int64

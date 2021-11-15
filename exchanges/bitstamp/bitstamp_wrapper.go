@@ -203,51 +203,53 @@ func (b *Bitstamp) Run() {
 	}
 
 	forceUpdate := false
-	format, err := b.GetPairFormat(asset.Spot, false)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s failed to get pair format. Err %s\n",
-			b.Name,
-			err)
-		return
-	}
-
-	enabled, err := b.CurrencyPairs.GetPairs(asset.Spot, true)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s failed to get enabled currencies. Err %s\n",
-			b.Name,
-			err)
-		return
-	}
-
-	avail, err := b.CurrencyPairs.GetPairs(asset.Spot, false)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s failed to get available currencies. Err %s\n",
-			b.Name,
-			err)
-		return
-	}
-
-	if !common.StringDataContains(enabled.Strings(), format.Delimiter) ||
-		!common.StringDataContains(avail.Strings(), format.Delimiter) {
-		var enabledPairs currency.Pairs
-		enabledPairs, err = currency.NewPairsFromStrings([]string{
-			currency.BTC.String() + format.Delimiter + currency.USD.String(),
-		})
+	if !b.BypassConfigFormatUpgrades {
+		format, err := b.GetPairFormat(asset.Spot, false)
 		if err != nil {
-			log.Errorf(log.ExchangeSys, "%s failed to update currencies. Err %s\n",
+			log.Errorf(log.ExchangeSys, "%s failed to get pair format. Err %s\n",
 				b.Name,
 				err)
-		} else {
-			log.Warn(log.ExchangeSys,
-				"Bitstamp: Enabled and available pairs reset due to config upgrade, please enable the ones you would like to use again")
-			forceUpdate = true
+			return
+		}
 
-			err = b.UpdatePairs(enabledPairs, asset.Spot, true, true)
+		enabled, err := b.CurrencyPairs.GetPairs(asset.Spot, true)
+		if err != nil {
+			log.Errorf(log.ExchangeSys, "%s failed to get enabled currencies. Err %s\n",
+				b.Name,
+				err)
+			return
+		}
+
+		avail, err := b.CurrencyPairs.GetPairs(asset.Spot, false)
+		if err != nil {
+			log.Errorf(log.ExchangeSys, "%s failed to get available currencies. Err %s\n",
+				b.Name,
+				err)
+			return
+		}
+
+		if !common.StringDataContains(enabled.Strings(), format.Delimiter) ||
+			!common.StringDataContains(avail.Strings(), format.Delimiter) {
+			var enabledPairs currency.Pairs
+			enabledPairs, err = currency.NewPairsFromStrings([]string{
+				currency.BTC.String() + format.Delimiter + currency.USD.String(),
+			})
 			if err != nil {
-				log.Errorf(log.ExchangeSys,
-					"%s failed to update currencies. Err: %s\n",
+				log.Errorf(log.ExchangeSys, "%s failed to update currencies. Err %s\n",
 					b.Name,
 					err)
+			} else {
+				log.Warn(log.ExchangeSys,
+					"Bitstamp: Enabled and available pairs reset due to config upgrade, please enable the ones you would like to use again")
+				forceUpdate = true
+
+				err = b.UpdatePairs(enabledPairs, asset.Spot, true, true)
+				if err != nil {
+					log.Errorf(log.ExchangeSys,
+						"%s failed to update currencies. Err: %s\n",
+						b.Name,
+						err)
+				}
 			}
 		}
 	}
@@ -256,7 +258,7 @@ func (b *Bitstamp) Run() {
 		return
 	}
 
-	err = b.UpdateTradablePairs(context.TODO(), forceUpdate)
+	err := b.UpdateTradablePairs(context.TODO(), forceUpdate)
 	if err != nil {
 		log.Errorf(log.ExchangeSys,
 			"%s failed to update tradable pairs. Err: %s",
