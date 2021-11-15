@@ -245,8 +245,8 @@ func (o *OKEX) Run() {
 
 	forceUpdate := false
 	if !o.BypassConfigFormatUpgrades {
-
-		enabled, err := o.GetEnabledPairs(asset.Spot)
+		var enabled, avail currency.Pairs
+		enabled, err = o.GetEnabledPairs(asset.Spot)
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
 				"%s failed to update tradable pairs. Err: %s",
@@ -255,7 +255,7 @@ func (o *OKEX) Run() {
 			return
 		}
 
-		avail, err := o.GetAvailablePairs(asset.Spot)
+		avail, err = o.GetAvailablePairs(asset.Spot)
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
 				"%s failed to update tradable pairs. Err: %s",

@@ -300,7 +300,6 @@ func (b *Binance) Run() {
 			}
 			if !common.StringDataContains(enabled.Strings(), format.Delimiter) ||
 				!common.StringDataContains(avail.Strings(), format.Delimiter) {
-
 				var enabledPairs currency.Pairs
 				enabledPairs, err = currency.NewPairsFromStrings([]string{
 					currency.BTC.String() + format.Delimiter + currency.USDT.String(),
