@@ -2769,3 +2769,17 @@ func TestFormatSymbol(t *testing.T) {
 		})
 	}
 }
+
+func TestFormatUSDTMarginedFuturesPair(t *testing.T) {
+	t.Parallel()
+	pairFormat := currency.PairFormat{Uppercase: true}
+	resp := b.formatUSDTMarginedFuturesPair(currency.NewPair(currency.DOGE, currency.USDT), pairFormat)
+	if resp.String() != "DOGEUSDT" {
+		t.Errorf("received '%v' expected '%v'", resp.String(), "DOGEUSDT")
+	}
+
+	resp = b.formatUSDTMarginedFuturesPair(currency.NewPair(currency.DOGE, currency.NewCode("1234567890")), pairFormat)
+	if resp.String() != "DOGE_1234567890" {
+		t.Errorf("received '%v' expected '%v'", resp.String(), "DOGE_1234567890")
+	}
+}
