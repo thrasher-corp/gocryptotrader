@@ -12,10 +12,6 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 )
 
-const (
-	totalWrappers = 25
-)
-
 func main() {
 	var err error
 	engine.Bot, err = engine.New()
@@ -61,10 +57,18 @@ func main() {
 	wg.Wait()
 	log.Println("Done.")
 
+	var dummyInterface exchange.IBotExchange
+	totalWrappers := reflect.TypeOf(&dummyInterface).Elem().NumMethod()
+
 	log.Println()
 	for name, funcs := range results {
 		pct := float64(totalWrappers-len(funcs)) / float64(totalWrappers) * 100
-		log.Printf("Exchange %s wrapper coverage [%d/%d - %.2f%%] | Total missing: %d", name, totalWrappers-len(funcs), totalWrappers, pct, len(funcs))
+		log.Printf("Exchange %s wrapper coverage [%d/%d - %.2f%%] | Total missing: %d",
+			name,
+			totalWrappers-len(funcs),
+			totalWrappers,
+			pct,
+			len(funcs))
 		log.Printf("\t Wrappers not implemented:")
 
 		for x := range funcs {
