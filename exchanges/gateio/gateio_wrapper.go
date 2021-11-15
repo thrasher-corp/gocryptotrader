@@ -149,12 +149,15 @@ func (g *Gateio) SetDefaults() {
 
 // Setup sets user configuration
 func (g *Gateio) Setup(exch *config.Exchange) error {
+	err := exch.Validate()
+	if err != nil {
+		return err
+	}
 	if !exch.Enabled {
 		g.SetEnabled(false)
 		return nil
 	}
-
-	err := g.SetupDefaults(exch)
+	err = g.SetupDefaults(exch)
 	if err != nil {
 		return err
 	}
@@ -185,12 +188,16 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 }
 
 // Start starts the GateIO go routine
-func (g *Gateio) Start(wg *sync.WaitGroup) {
+func (g *Gateio) Start(wg *sync.WaitGroup) error {
+	if wg == nil {
+		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
+	}
 	wg.Add(1)
 	go func() {
 		g.Run()
 		wg.Done()
 	}()
+	return nil
 }
 
 // Run implements the GateIO wrapper
@@ -682,6 +689,9 @@ func (g *Gateio) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *with
 
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (g *Gateio) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
+	if feeBuilder == nil {
+		return 0, fmt.Errorf("%T %w", feeBuilder, common.ErrNilPointer)
+	}
 	if !g.AllowAuthenticatedRequest() && // Todo check connection status
 		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		feeBuilder.FeeType = exchange.OfflineTradeFee

@@ -6,6 +6,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	dbpsql "github.com/thrasher-corp/gocryptotrader/database/drivers/postgres"
 	dbsqlite3 "github.com/thrasher-corp/gocryptotrader/database/drivers/sqlite3"
@@ -68,6 +69,9 @@ func (m *DatabaseConnectionManager) IsConnected() bool {
 
 // Start sets up the database connection manager to maintain a SQL connection
 func (m *DatabaseConnectionManager) Start(wg *sync.WaitGroup) (err error) {
+	if wg == nil {
+		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
+	}
 	if m == nil {
 		return fmt.Errorf("%s %w", DatabaseConnectionManagerName, ErrNilSubsystem)
 	}

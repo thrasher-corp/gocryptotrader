@@ -143,12 +143,15 @@ func (b *Bitmex) SetDefaults() {
 
 // Setup takes in the supplied exchange configuration details and sets params
 func (b *Bitmex) Setup(exch *config.Exchange) error {
+	err := exch.Validate()
+	if err != nil {
+		return err
+	}
 	if !exch.Enabled {
 		b.SetEnabled(false)
 		return nil
 	}
-
-	err := b.SetupDefaults(exch)
+	err = b.SetupDefaults(exch)
 	if err != nil {
 		return err
 	}
@@ -180,12 +183,16 @@ func (b *Bitmex) Setup(exch *config.Exchange) error {
 }
 
 // Start starts the Bitmex go routine
-func (b *Bitmex) Start(wg *sync.WaitGroup) {
+func (b *Bitmex) Start(wg *sync.WaitGroup) error {
+	if wg == nil {
+		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
+	}
 	wg.Add(1)
 	go func() {
 		b.Run()
 		wg.Done()
 	}()
+	return nil
 }
 
 // Run implements the Bitmex wrapper
@@ -718,6 +725,9 @@ func (b *Bitmex) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *with
 
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (b *Bitmex) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
+	if feeBuilder == nil {
+		return 0, fmt.Errorf("%T %w", feeBuilder, common.ErrNilPointer)
+	}
 	if !b.AllowAuthenticatedRequest() && // Todo check connection status
 		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		feeBuilder.FeeType = exchange.OfflineTradeFee

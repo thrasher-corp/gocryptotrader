@@ -148,12 +148,15 @@ func (h *HitBTC) SetDefaults() {
 
 // Setup sets user exchange configuration settings
 func (h *HitBTC) Setup(exch *config.Exchange) error {
+	err := exch.Validate()
+	if err != nil {
+		return err
+	}
 	if !exch.Enabled {
 		h.SetEnabled(false)
 		return nil
 	}
-
-	err := h.SetupDefaults(exch)
+	err = h.SetupDefaults(exch)
 	if err != nil {
 		return err
 	}
@@ -187,12 +190,16 @@ func (h *HitBTC) Setup(exch *config.Exchange) error {
 }
 
 // Start starts the HitBTC go routine
-func (h *HitBTC) Start(wg *sync.WaitGroup) {
+func (h *HitBTC) Start(wg *sync.WaitGroup) error {
+	if wg == nil {
+		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
+	}
 	wg.Add(1)
 	go func() {
 		h.Run()
 		wg.Done()
 	}()
+	return nil
 }
 
 // Run implements the HitBTC wrapper
@@ -685,6 +692,9 @@ func (h *HitBTC) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *with
 
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (h *HitBTC) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
+	if feeBuilder == nil {
+		return 0, fmt.Errorf("%T %w", feeBuilder, common.ErrNilPointer)
+	}
 	if !h.AllowAuthenticatedRequest() && // Todo check connection status
 		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		feeBuilder.FeeType = exchange.OfflineTradeFee

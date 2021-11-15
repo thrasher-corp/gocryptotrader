@@ -212,12 +212,16 @@ func (o *OKEX) SetDefaults() {
 }
 
 // Start starts the OKGroup go routine
-func (o *OKEX) Start(wg *sync.WaitGroup) {
+func (o *OKEX) Start(wg *sync.WaitGroup) error {
+	if wg == nil {
+		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
+	}
 	wg.Add(1)
 	go func() {
 		o.Run()
 		wg.Done()
 	}()
+	return nil
 }
 
 // Run implements the OKEX wrapper

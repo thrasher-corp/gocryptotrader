@@ -2,6 +2,7 @@ package bitflyer
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"strconv"
 	"strings"
@@ -108,6 +109,10 @@ func (b *Bitflyer) SetDefaults() {
 
 // Setup takes in the supplied exchange configuration details and sets params
 func (b *Bitflyer) Setup(exch *config.Exchange) error {
+	err := exch.Validate()
+	if err != nil {
+		return err
+	}
 	if !exch.Enabled {
 		b.SetEnabled(false)
 		return nil
@@ -116,12 +121,16 @@ func (b *Bitflyer) Setup(exch *config.Exchange) error {
 }
 
 // Start starts the Bitflyer go routine
-func (b *Bitflyer) Start(wg *sync.WaitGroup) {
+func (b *Bitflyer) Start(wg *sync.WaitGroup) error {
+	if wg == nil {
+		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
+	}
 	wg.Add(1)
 	go func() {
 		b.Run()
 		wg.Done()
 	}()
+	return nil
 }
 
 // Run implements the Bitflyer wrapper
@@ -443,6 +452,9 @@ func (b *Bitflyer) GetOrderHistory(_ context.Context, _ *order.GetOrdersRequest)
 
 // GetFeeByType returns an estimate of fee based on the type of transaction
 func (b *Bitflyer) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
+	if feeBuilder == nil {
+		return 0, fmt.Errorf("%T %w", feeBuilder, common.ErrNilPointer)
+	}
 	if !b.AllowAuthenticatedRequest() && // Todo check connection status
 		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		feeBuilder.FeeType = exchange.OfflineTradeFee

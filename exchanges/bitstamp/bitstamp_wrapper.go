@@ -3,6 +3,7 @@ package bitstamp
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sort"
 	"strconv"
 	"sync"
@@ -147,12 +148,15 @@ func (b *Bitstamp) SetDefaults() {
 
 // Setup sets configuration values to bitstamp
 func (b *Bitstamp) Setup(exch *config.Exchange) error {
+	err := exch.Validate()
+	if err != nil {
+		return err
+	}
 	if !exch.Enabled {
 		b.SetEnabled(false)
 		return nil
 	}
-
-	err := b.SetupDefaults(exch)
+	err = b.SetupDefaults(exch)
 	if err != nil {
 		return err
 	}
@@ -184,12 +188,16 @@ func (b *Bitstamp) Setup(exch *config.Exchange) error {
 }
 
 // Start starts the Bitstamp go routine
-func (b *Bitstamp) Start(wg *sync.WaitGroup) {
+func (b *Bitstamp) Start(wg *sync.WaitGroup) error {
+	if wg == nil {
+		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
+	}
 	wg.Add(1)
 	go func() {
 		b.Run()
 		wg.Done()
 	}()
+	return nil
 }
 
 // Run implements the Bitstamp wrapper
@@ -351,6 +359,9 @@ func (b *Bitstamp) FetchTicker(ctx context.Context, p currency.Pair, assetType a
 
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (b *Bitstamp) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
+	if feeBuilder == nil {
+		return 0, fmt.Errorf("%T %w", feeBuilder, common.ErrNilPointer)
+	}
 	if (!b.AllowAuthenticatedRequest() || b.SkipAuthCheck) && // Todo check connection status
 		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		feeBuilder.FeeType = exchange.OfflineTradeFee

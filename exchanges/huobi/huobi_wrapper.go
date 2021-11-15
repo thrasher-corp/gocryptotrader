@@ -179,12 +179,15 @@ func (h *HUOBI) SetDefaults() {
 
 // Setup sets user configuration
 func (h *HUOBI) Setup(exch *config.Exchange) error {
+	err := exch.Validate()
+	if err != nil {
+		return err
+	}
 	if !exch.Enabled {
 		h.SetEnabled(false)
 		return nil
 	}
-
-	err := h.SetupDefaults(exch)
+	err = h.SetupDefaults(exch)
 	if err != nil {
 		return err
 	}
@@ -227,12 +230,16 @@ func (h *HUOBI) Setup(exch *config.Exchange) error {
 }
 
 // Start starts the HUOBI go routine
-func (h *HUOBI) Start(wg *sync.WaitGroup) {
+func (h *HUOBI) Start(wg *sync.WaitGroup) error {
+	if wg == nil {
+		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
+	}
 	wg.Add(1)
 	go func() {
 		h.Run()
 		wg.Done()
 	}()
+	return nil
 }
 
 // Run implements the HUOBI wrapper
@@ -1297,6 +1304,9 @@ func (h *HUOBI) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *withd
 
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (h *HUOBI) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
+	if feeBuilder == nil {
+		return 0, fmt.Errorf("%T %w", feeBuilder, common.ErrNilPointer)
+	}
 	if !h.AllowAuthenticatedRequest() && // Todo check connection status
 		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		feeBuilder.FeeType = exchange.OfflineTradeFee

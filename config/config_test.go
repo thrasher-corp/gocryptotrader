@@ -2358,3 +2358,15 @@ func TestMigrateConfig(t *testing.T) {
 		})
 	}
 }
+
+func TestExchangeConfigValidate(t *testing.T) {
+	err := (*Exchange)(nil).Validate()
+	if !errors.Is(err, ErrExchangeConfigIsNil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrExchangeConfigIsNil)
+	}
+
+	err = (&Exchange{}).Validate()
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+}

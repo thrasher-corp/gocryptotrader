@@ -132,12 +132,15 @@ func (g *Gemini) SetDefaults() {
 
 // Setup sets exchange configuration parameters
 func (g *Gemini) Setup(exch *config.Exchange) error {
+	err := exch.Validate()
+	if err != nil {
+		return err
+	}
 	if !exch.Enabled {
 		g.SetEnabled(false)
 		return nil
 	}
-
-	err := g.SetupDefaults(exch)
+	err = g.SetupDefaults(exch)
 	if err != nil {
 		return err
 	}
@@ -186,12 +189,16 @@ func (g *Gemini) Setup(exch *config.Exchange) error {
 }
 
 // Start starts the Gemini go routine
-func (g *Gemini) Start(wg *sync.WaitGroup) {
+func (g *Gemini) Start(wg *sync.WaitGroup) error {
+	if wg == nil {
+		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
+	}
 	wg.Add(1)
 	go func() {
 		g.Run()
 		wg.Done()
 	}()
+	return nil
 }
 
 // Run implements the Gemini wrapper
@@ -649,6 +656,9 @@ func (g *Gemini) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *with
 
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (g *Gemini) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
+	if feeBuilder == nil {
+		return 0, fmt.Errorf("%T %w", feeBuilder, common.ErrNilPointer)
+	}
 	if (!g.AllowAuthenticatedRequest() || g.SkipAuthCheck) && // Todo check connection status
 		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		feeBuilder.FeeType = exchange.OfflineTradeFee
