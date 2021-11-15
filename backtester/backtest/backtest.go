@@ -403,18 +403,9 @@ func NewFromConfig(cfg *config.Config, templatePath, output string) (*BackTest, 
 
 	bt.Exchange = &e
 	for i := range e.CurrencySettings {
-		var lookup *portfolio.Settings
-
-		lookup, err = p.SetupCurrencySettingsMap(&e.CurrencySettings[i])
+		err = p.SetupCurrencySettingsMap(&e.CurrencySettings[i], emm[e.CurrencySettings[i].Exchange])
 		if err != nil {
 			return nil, err
-		}
-		lookup.Fee = e.CurrencySettings[i].TakerFee
-		lookup.Leverage = e.CurrencySettings[i].Leverage
-		lookup.BuySideSizing = e.CurrencySettings[i].BuySide
-		lookup.SellSideSizing = e.CurrencySettings[i].SellSide
-		lookup.ComplianceManager = compliance.Manager{
-			Snapshots: []compliance.Snapshot{},
 		}
 	}
 	bt.Portfolio = p

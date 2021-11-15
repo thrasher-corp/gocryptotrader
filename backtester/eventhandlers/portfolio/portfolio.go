@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	gctexchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -483,18 +484,18 @@ func (p *Portfolio) ViewHoldingAtTimePeriod(ev common.EventHandler) (*holdings.H
 }
 
 // SetupCurrencySettingsMap ensures a map is created and no panics happen
-func (p *Portfolio) SetupCurrencySettingsMap(settings *exchange.Settings) (*Settings, error) {
+func (p *Portfolio) SetupCurrencySettingsMap(settings *exchange.Settings, exch gctexchange.IBotExchange) error {
 	if settings == nil {
-		return nil, errNoPortfolioSettings
+		return errNoPortfolioSettings
 	}
 	if settings.Exchange == "" {
-		return nil, errExchangeUnset
+		return errExchangeUnset
 	}
 	if settings.Asset == "" {
-		return nil, errAssetUnset
+		return errAssetUnset
 	}
 	if settings.Pair.IsEmpty() {
-		return nil, errCurrencyPairUnset
+		return errCurrencyPairUnset
 	}
 	if p.exchangeAssetPairSettings == nil {
 		p.exchangeAssetPairSettings = make(map[string]map[asset.Item]map[currency.Pair]*Settings)
@@ -505,11 +506,20 @@ func (p *Portfolio) SetupCurrencySettingsMap(settings *exchange.Settings) (*Sett
 	if p.exchangeAssetPairSettings[settings.Exchange][settings.Asset] == nil {
 		p.exchangeAssetPairSettings[settings.Exchange][settings.Asset] = make(map[currency.Pair]*Settings)
 	}
-	if _, ok := p.exchangeAssetPairSettings[settings.Exchange][settings.Asset][settings.Pair]; !ok {
-		p.exchangeAssetPairSettings[settings.Exchange][settings.Asset][settings.Pair] = &Settings{}
+	if _, ok := p.exchangeAssetPairSettings[settings.Exchange][settings.Asset][settings.Pair]; ok {
+		return nil
 	}
-
-	return p.exchangeAssetPairSettings[settings.Exchange][settings.Asset][settings.Pair], nil
+	p.exchangeAssetPairSettings[settings.Exchange][settings.Asset][settings.Pair] = &Settings{
+		Fee:            settings.ExchangeFee,
+		BuySideSizing:  settings.BuySide,
+		SellSideSizing: settings.SellSide,
+		Leverage:       settings.Leverage,
+		ComplianceManager: compliance.Manager{
+			Snapshots: []compliance.Snapshot{},
+		},
+		Exchange: exch,
+	}
+	return nil
 }
 
 // GetLatestHoldings returns the latest holdings after being sorted by time
@@ -538,6 +548,10 @@ func (e *Settings) GetHoldingsForTime(t time.Time) holdings.Holding {
 // CalculatePNL will analyse any futures orders that have been placed over the backtesting run
 // that are not closed and calculate their PNL
 func (p *Portfolio) CalculatePNL(e common.DataEventHandler, funds funding.ICollateralReleaser) error {
+	settings, ok := p.exchangeAssetPairSettings[e.GetExchange()][e.GetAssetType()][e.Pair()]
+	if !ok {
+		return errNoPortfolioSettings
+	}
 	snapshot, err := p.GetLatestOrderSnapshotForEvent(e)
 	if err != nil {
 		return err
@@ -553,13 +567,18 @@ func (p *Portfolio) CalculatePNL(e common.DataEventHandler, funds funding.IColla
 			snapshot.Orders[i].FuturesOrder.OpeningPosition.Leverage = 1
 		}
 
-		leverage := decimal.NewFromFloat(snapshot.Orders[i].FuturesOrder.OpeningPosition.Leverage)
-		openPrice := decimal.NewFromFloat(snapshot.Orders[i].FuturesOrder.OpeningPosition.Price)
-		openAmount := decimal.NewFromFloat(snapshot.Orders[i].FuturesOrder.OpeningPosition.Amount)
-
-		changeInPosition := e.ClosePrice().Sub(openPrice).Mul(openAmount).Mul(leverage)
-		// determine if we've been liquidated
-		if changeInPosition.IsNegative() && changeInPosition.Abs().GreaterThanOrEqual(funds.AvailableFunds()) {
+		result, err := settings.Exchange.CalculatePNL(&gctexchange.PNLCalculator{
+			Asset:         e.GetAssetType(),
+			Leverage:      snapshot.Orders[i].FuturesOrder.OpeningPosition.Leverage,
+			OpeningPrice:  snapshot.Orders[i].FuturesOrder.OpeningPosition.Price,
+			OpeningAmount: snapshot.Orders[i].FuturesOrder.OpeningPosition.Amount,
+			CurrentPrice:  e.ClosePrice().InexactFloat64(),
+			Collateral:    funds.AvailableFunds(),
+		})
+		if err != nil {
+			return err
+		}
+		if result.IsLiquidated {
 			funds.Liquidate()
 			snapshot.Orders[i].FuturesOrder.UnrealisedPNL = decimal.Zero
 			snapshot.Orders[i].FuturesOrder.RealisedPNL = decimal.Zero
@@ -568,13 +587,13 @@ func (p *Portfolio) CalculatePNL(e common.DataEventHandler, funds funding.IColla
 			snapshot.Orders[i].FuturesOrder.ClosingPosition = &or
 			return nil
 		}
-		snapshot.Orders[i].FuturesOrder.UnrealisedPNL = changeInPosition
-		snapshot.Orders[i].FuturesOrder.OpeningPosition.UnrealisedPNL = changeInPosition
+
+		snapshot.Orders[i].FuturesOrder.UnrealisedPNL = result.PNL
+		snapshot.Orders[i].FuturesOrder.OpeningPosition.UnrealisedPNL = result.PNL
 		snapshot.Orders[i].FuturesOrder.UpsertPNLEntry(gctorder.PNLHistory{
 			Time:          e.GetTime(),
-			UnrealisedPNL: changeInPosition,
+			UnrealisedPNL: result.PNL,
 		})
-
 	}
 	return nil
 }

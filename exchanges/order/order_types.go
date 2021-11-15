@@ -125,6 +125,7 @@ type Futures struct {
 	CollateralCurrency currency.Code
 	OpeningPosition    *Detail
 	ClosingPosition    *Detail
+	ClosingPositions   []Detail
 	PNLHistory         []PNLHistory
 }
 

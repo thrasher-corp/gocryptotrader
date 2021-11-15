@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	gctexchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
@@ -78,4 +79,5 @@ type Settings struct {
 	Leverage          exchange.Leverage
 	HoldingsSnapshots []holdings.Holding
 	ComplianceManager compliance.Manager
+	Exchange          gctexchange.IBotExchange
 }

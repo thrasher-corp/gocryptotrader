@@ -80,6 +80,8 @@ type IBotExchange interface {
 	GetHistoricCandlesExtended(ctx context.Context, p currency.Pair, a asset.Item, timeStart, timeEnd time.Time, interval kline.Interval) (kline.Item, error)
 	DisableRateLimiter() error
 	EnableRateLimiter() error
+	CalculatePNL(*PNLCalculator) (*PNLResult, error)
+	CurrencyStateManagement
 
 	GetWebsocket() (*stream.Websocket, error)
 	IsWebsocketEnabled() bool
@@ -93,8 +95,6 @@ type IBotExchange interface {
 	GetOrderExecutionLimits(a asset.Item, cp currency.Pair) (*order.Limits, error)
 	CheckOrderExecutionLimits(a asset.Item, cp currency.Pair, price, amount float64, orderType order.Type) error
 	UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error
-
-	CurrencyStateManagement
 }
 
 // CurrencyStateManagement defines functionality for currency state management

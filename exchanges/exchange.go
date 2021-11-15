@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
@@ -1458,4 +1459,49 @@ func (b *Base) UpdateCurrencyStates(ctx context.Context, a asset.Item) error {
 // on the supplied cryptocurrency
 func (b *Base) GetAvailableTransferChains(_ context.Context, _ currency.Code) ([]string, error) {
 	return nil, common.ErrFunctionNotSupported
+}
+
+type PNLCalculator struct {
+	OrderID       string
+	Asset         asset.Item
+	Leverage      float64
+	OpeningPrice  float64
+	OpeningAmount float64
+	CurrentPrice  float64
+	Collateral    decimal.Decimal
+}
+
+type PNLResult struct {
+	PNL          decimal.Decimal
+	IsLiquidated bool
+}
+
+var ErrUnsetLeverage error
+
+// CalculatePNL is an overridable function to allow PNL to be calculated on an
+// open position
+// It will also determine whether the position is considered to be liquidated
+// for live trading, an overrided function may wish to confirm the liquidation by
+// requesting the status of the asset
+func (b *Base) CalculatePNL(calc *PNLCalculator) (*PNLResult, error) {
+	if !calc.Asset.IsFutures() {
+		return nil, common.ErrFunctionNotSupported
+	}
+	if calc.Leverage == 0 {
+		// you really should have set this earlier
+		return nil, ErrUnsetLeverage
+	}
+	var result *PNLResult
+	cp := decimal.NewFromFloat(calc.CurrentPrice)
+	op := decimal.NewFromFloat(calc.OpeningPrice)
+	lv := decimal.NewFromFloat(calc.Leverage)
+	result.PNL = cp.Sub(op).Mul(op).Mul(lv)
+	if result.PNL.IsNegative() && calc.Collateral.LessThanOrEqual(result.PNL.Abs()) {
+		// calculating whether something is liquidated changes per exchange
+		// If your chosen exchange has its own liquidation formula, please ensure
+		// it is implemented there rather than rely on this base function
+		result.IsLiquidated = true
+	}
+
+	return result, nil
 }
