@@ -106,8 +106,7 @@ func (l *LocalBitcoins) SetDefaults() {
 
 // Setup sets exchange configuration parameters
 func (l *LocalBitcoins) Setup(exch *config.Exchange) error {
-	err := exch.Validate()
-	if err != nil {
+	if err := exch.Validate(); err != nil {
 		return err
 	}
 	if !exch.Enabled {

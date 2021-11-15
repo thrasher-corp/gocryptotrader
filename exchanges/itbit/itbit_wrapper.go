@@ -107,8 +107,7 @@ func (i *ItBit) SetDefaults() {
 
 // Setup sets the exchange parameters from exchange config
 func (i *ItBit) Setup(exch *config.Exchange) error {
-	err := exch.Validate()
-	if err != nil {
+	if err := exch.Validate(); err != nil {
 		return err
 	}
 	if !exch.Enabled {

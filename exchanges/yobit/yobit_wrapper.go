@@ -113,8 +113,7 @@ func (y *Yobit) SetDefaults() {
 
 // Setup sets exchange configuration parameters for Yobit
 func (y *Yobit) Setup(exch *config.Exchange) error {
-	err := exch.Validate()
-	if err != nil {
+	if err := exch.Validate(); err != nil {
 		return err
 	}
 	if !exch.Enabled {

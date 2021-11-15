@@ -109,8 +109,7 @@ func (b *Bitflyer) SetDefaults() {
 
 // Setup takes in the supplied exchange configuration details and sets params
 func (b *Bitflyer) Setup(exch *config.Exchange) error {
-	err := exch.Validate()
-	if err != nil {
+	if err := exch.Validate(); err != nil {
 		return err
 	}
 	if !exch.Enabled {
