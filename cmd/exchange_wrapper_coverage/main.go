@@ -77,7 +77,9 @@ func main() {
 // errValue extract reflection type
 var errValue = reflect.TypeOf(errors.New(""))
 
-// testWrappers
+// testWrappers searches the functions returns for common.ErrNotYetImplemented
+// for checking if the wrapper function has been implemented yet. This uses
+// reflection so it can dynamically scale to GCT's exchange interface, IBotExchange.
 func testWrappers(e exchange.IBotExchange) ([]string, error) {
 	iExchange := reflect.TypeOf(&e).Elem()
 	actualExchange := reflect.ValueOf(e)

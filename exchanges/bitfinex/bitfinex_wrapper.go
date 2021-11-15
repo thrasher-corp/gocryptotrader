@@ -189,7 +189,7 @@ func (b *Bitfinex) Setup(exch *config.Exchange) error {
 		return err
 	}
 	if !exch.Enabled {
-		b.Enabled = false
+		b.SetEnabled(false)
 		return nil
 	}
 	err = b.SetupDefaults(exch)
