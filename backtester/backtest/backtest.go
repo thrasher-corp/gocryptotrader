@@ -133,7 +133,8 @@ func NewFromConfig(cfg *config.Config, templatePath, output string) (*BackTest, 
 				a,
 				cq,
 				cfg.StrategySettings.ExchangeLevelFunding[i].InitialFunds,
-				cfg.StrategySettings.ExchangeLevelFunding[i].TransferFee)
+				cfg.StrategySettings.ExchangeLevelFunding[i].TransferFee,
+				cfg.StrategySettings.ExchangeLevelFunding[i].Collateral)
 			if err != nil {
 				return nil, err
 			}
@@ -216,20 +217,27 @@ func NewFromConfig(cfg *config.Config, templatePath, output string) (*BackTest, 
 			return nil, fmt.Errorf("could not format currency %v, %w", curr, err)
 		}
 		curr = curr.Format(requestFormat.Delimiter, requestFormat.Uppercase)
-		err = exchBase.CurrencyPairs.EnablePair(a, curr)
-		if errors.Is(err, currency.ErrPairNotFound) {
-			exchBase.CurrencyPairs.Pairs[a].Available.Add(curr)
-			exchBase.CurrencyPairs.Pairs[a].Enabled.Add(curr)
-			exch.SetPairs(exchBase.CurrencyPairs.Pairs[a].Enabled, a, true)
-			exch.SetPairs(exchBase.CurrencyPairs.Pairs[a].Available, a, false)
-
-			return nil, fmt.Errorf(
-				"could not enable currency %v %v %v. Err %w",
-				cfg.CurrencySettings[i].ExchangeName,
-				cfg.CurrencySettings[i].Asset,
-				cfg.CurrencySettings[i].Base+cfg.CurrencySettings[i].Quote,
-				err)
+		var avail, enab currency.Pairs
+		avail, err = exch.GetAvailablePairs(a)
+		if err != nil {
+			return nil, fmt.Errorf("could not format currency %v, %w", curr, err)
 		}
+		enab, err = exch.GetEnabledPairs(a)
+		if err != nil {
+			return nil, fmt.Errorf("could not format currency %v, %w", curr, err)
+		}
+
+		avail = avail.Add(curr)
+		enab = enab.Add(curr)
+		err = exch.SetPairs(enab, a, true)
+		if err != nil {
+			return nil, fmt.Errorf("could not format currency %v, %w", curr, err)
+		}
+		err = exch.SetPairs(avail, a, false)
+		if err != nil {
+			return nil, fmt.Errorf("could not format currency %v, %w", curr, err)
+		}
+
 		portSet := &risk.CurrencySettings{
 			MaximumHoldingRatio: cfg.CurrencySettings[i].MaximumHoldingsRatio,
 		}
@@ -253,7 +261,8 @@ func NewFromConfig(cfg *config.Config, templatePath, output string) (*BackTest, 
 					a,
 					b,
 					decimal.Zero,
-					decimal.Zero)
+					decimal.Zero,
+					false)
 				if err != nil {
 					return nil, err
 				}
@@ -261,7 +270,8 @@ func NewFromConfig(cfg *config.Config, templatePath, output string) (*BackTest, 
 					a,
 					q,
 					decimal.Zero,
-					decimal.Zero)
+					decimal.Zero,
+					false)
 				if err != nil {
 					return nil, err
 				}
@@ -280,7 +290,15 @@ func NewFromConfig(cfg *config.Config, templatePath, output string) (*BackTest, 
 					a,
 					c,
 					decimal.Zero,
-					decimal.Zero)
+					decimal.Zero,
+					false)
+				if err != nil {
+					return nil, err
+				}
+				if cfg.CurrencySettings[i].FuturesDetails == nil {
+					return nil, errors.New("what the fuck")
+				}
+				err = funds.LinkCollateralCurrency(futureItem, currency.NewCode(cfg.CurrencySettings[i].FuturesDetails.CollateralCurrency))
 				if err != nil {
 					return nil, err
 				}
@@ -288,6 +306,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string) (*BackTest, 
 				if err != nil {
 					return nil, err
 				}
+
 			default:
 				return nil, fmt.Errorf("%w %v unsupported", errInvalidConfigAsset, a)
 			}
@@ -306,7 +325,8 @@ func NewFromConfig(cfg *config.Config, templatePath, output string) (*BackTest, 
 				a,
 				curr.Base,
 				bFunds,
-				decimal.Zero)
+				decimal.Zero,
+				false)
 			if err != nil {
 				return nil, err
 			}
@@ -315,7 +335,8 @@ func NewFromConfig(cfg *config.Config, templatePath, output string) (*BackTest, 
 				a,
 				curr.Quote,
 				qFunds,
-				decimal.Zero)
+				decimal.Zero,
+				false)
 			if err != nil {
 				return nil, err
 			}

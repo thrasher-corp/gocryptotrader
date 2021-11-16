@@ -31,6 +31,7 @@ var (
 	errCannotTransferToSameFunds  = errors.New("cannot send funds to self")
 	errTransferMustBeSameCurrency = errors.New("cannot transfer to different currency")
 	errCannotMatchTrackingToItem  = errors.New("cannot match tracking data to funding items")
+	errNotFutures                 = errors.New("item linking collateral currencies must be a futures asset")
 )
 
 // SetupFundingManager creates the funding holder. It carries knowledge about levels of funding
@@ -52,7 +53,7 @@ func CreateFuturesCurrencyCode(b, q currency.Code) currency.Code {
 }
 
 // CreateItem creates a new funding item
-func CreateItem(exch string, a asset.Item, ci currency.Code, initialFunds, transferFee decimal.Decimal) (*Item, error) {
+func CreateItem(exch string, a asset.Item, ci currency.Code, initialFunds, transferFee decimal.Decimal, isCollateral bool) (*Item, error) {
 	if initialFunds.IsNegative() {
 		return nil, fmt.Errorf("%v %v %v %w initial funds: %v", exch, a, ci, errNegativeAmountReceived, initialFunds)
 	}
@@ -68,7 +69,23 @@ func CreateItem(exch string, a asset.Item, ci currency.Code, initialFunds, trans
 		available:    initialFunds,
 		transferFee:  transferFee,
 		snapshot:     make(map[time.Time]ItemSnapshot),
+		collateral:   isCollateral,
 	}, nil
+}
+
+// LinkCollateralCurrency links an item to an existing currency code
+// for collateral purposes
+func (f *FundManager) LinkCollateralCurrency(item *Item, code currency.Code) error {
+	if !item.asset.IsFutures() {
+		return errNotFutures
+	}
+	for i := range f.items {
+		if f.items[i].currency.Match(code) && f.items[i].asset == item.asset {
+			item.pairedWith = f.items[i]
+			return nil
+		}
+	}
+	return ErrFundsNotFound
 }
 
 // CreateSnapshot creates a Snapshot for an event's point in time
@@ -345,13 +362,21 @@ func (f *FundManager) GetFundingForEvent(ev common.EventHandler) (IFundingPair, 
 // GetFundingForEAP This will construct a funding based on the exchange, asset, currency pair
 func (f *FundManager) GetFundingForEAP(exch string, a asset.Item, p currency.Pair) (IFundingPair, error) {
 	var resp Pair
+
 	for i := range f.items {
-		if f.items[i].BasicEqual(exch, a, p.Base, p.Quote) {
-			resp.Base = f.items[i]
-			continue
-		}
-		if f.items[i].BasicEqual(exch, a, p.Quote, p.Base) {
-			resp.Quote = f.items[i]
+		if a.IsFutures() {
+			if f.items[i].BasicEqual(exch, a, currency.NewCode(p.String()), currency.USDT) {
+				resp.Base = f.items[i]
+				resp.Quote = f.items[i].pairedWith
+			}
+		} else {
+			if f.items[i].BasicEqual(exch, a, p.Base, p.Quote) {
+				resp.Base = f.items[i]
+				continue
+			}
+			if f.items[i].BasicEqual(exch, a, p.Quote, p.Base) {
+				resp.Quote = f.items[i]
+			}
 		}
 	}
 	if resp.Base == nil {
