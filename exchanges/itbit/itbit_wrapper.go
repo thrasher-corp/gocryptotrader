@@ -671,12 +671,8 @@ func (i *ItBit) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pa
 
 // UpdateCommissionFees updates current fees associated with account
 func (i *ItBit) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
-	if a != asset.Spot {
-		return common.ErrNotYetImplemented
-	}
-
 	// TODO: Itbit has volume discounts, but no API endpoint to get the exact
 	// volume numbers. When support is added, this needs to be updated to
 	// calculate the accurate volume fee. This is also called Paxos now.
-	return nil
+	return common.ErrNotYetImplemented
 }

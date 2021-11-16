@@ -980,10 +980,6 @@ func (c *CoinbasePro) ValidateCredentials(ctx context.Context, assetType asset.I
 
 // UpdateCommissionFees updates current fees associated with account
 func (c *CoinbasePro) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
-	if a != asset.Spot {
-		return common.ErrNotYetImplemented
-	}
-
 	// TODO: To get commission fees OAuth2 needs to be implemented.
-	return nil
+	return common.ErrNotYetImplemented
 }

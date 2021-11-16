@@ -14,14 +14,13 @@ type assetTranslatorStore struct {
 }
 
 // Seed seeds a currency translation pair
-func (a *assetTranslatorStore) Seed(orig, alt string) error {
+func (a *assetTranslatorStore) Seed(orig, alt string) {
 	a.l.Lock()
 	if a.Assets == nil {
 		a.Assets = make(map[string]string)
 	}
 	a.Assets[orig] = alt
 	a.l.Unlock()
-	return nil
 }
 
 // LookupAltname converts a currency into its altname (ZUSD -> USD)

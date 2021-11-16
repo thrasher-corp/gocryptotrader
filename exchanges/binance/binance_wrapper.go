@@ -1839,9 +1839,9 @@ func (b *Binance) UpdateTransferFees(ctx context.Context) error {
 // getFee returns fee based off order type
 func (b *Binance) getFee(o order.Type, avgPrice, execQuantity float64, a asset.Item) (float64, error) {
 	if o == order.Market {
-		return b.Fees.CalculateTaker(avgPrice, execQuantity, a, currency.Pair{})
+		return b.Fees.CalculateTaker(avgPrice, execQuantity, a, fee.OmitPair)
 	} else if o == order.Limit {
-		return b.Fees.CalculateMaker(avgPrice, execQuantity, a, currency.Pair{})
+		return b.Fees.CalculateMaker(avgPrice, execQuantity, a, fee.OmitPair)
 	}
 	return 0, nil
 }

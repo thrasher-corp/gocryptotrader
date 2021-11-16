@@ -1,8 +1,6 @@
 package itbit
 
-import (
-	"time"
-)
+import "time"
 
 // GeneralReturn is a generalized return type to capture any errors
 type GeneralReturn struct {

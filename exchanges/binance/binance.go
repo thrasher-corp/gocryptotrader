@@ -985,19 +985,8 @@ func (b *Binance) GetAllCoinsInformation(ctx context.Context) ([]AllCoinsInfo, e
 		nil,
 		spotDefaultRate,
 		&response)
-	if err != nil {
-		return nil, err
-	}
-	return response, nil
+	return response, err
 }
-
-// // GetDepositAddressForCurrency retrieves the wallet address for a given currency
-// func (b *Binance) GetDepositAddressForCurrency(ctx context.Context, currency string) (string, error) {
-// 	resp := struct {
-// 		Address    string `json:"address"`
-// 		Success    bool   `json:"success"`
-// 		AddressTag string `json:"addressTag"`
-// 	}{}
 
 // WithdrawHistory gets the status of recent withdrawals
 // status `param` used as string to prevent default value 0 (for int) interpreting as EmailSent status

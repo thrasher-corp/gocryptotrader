@@ -129,8 +129,7 @@ func (e *EXMO) Setup(exch *config.Exchange) error {
 		e.SetEnabled(false)
 		return nil
 	}
-	err := e.SetupDefaults(exch)
-	if err != nil {
+	if err := e.SetupDefaults(exch); err != nil {
 		return err
 	}
 

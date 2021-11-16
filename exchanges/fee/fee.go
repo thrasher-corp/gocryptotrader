@@ -26,6 +26,7 @@ var (
 	errTakerInvalid            = errors.New("taker is invalid")
 	errMakerInvalid            = errors.New("maker is invalid")
 	errMakerBiggerThanTaker    = errors.New("maker cannot be bigger than taker")
+	errNoTransferFees          = errors.New("missing transfer fees to load")
 
 	// OmitPair is a an empty pair designation for unused pair variables
 	OmitPair = currency.Pair{}
@@ -200,13 +201,12 @@ func (d *Definitions) getCommission(a asset.Item, pair currency.Pair) (*Commissi
 			return nil, fmt.Errorf("pair %w", errCommissionRateNotFound)
 		}
 		return c, nil
-	} else {
-		c, ok := d.globalCommissions[a]
-		if !ok {
-			return nil, fmt.Errorf("global %w", errCommissionRateNotFound)
-		}
-		return c, nil
 	}
+	c, ok := d.globalCommissions[a]
+	if !ok {
+		return nil, fmt.Errorf("global %w", errCommissionRateNotFound)
+	}
+	return c, nil
 }
 
 // CalculateMaker returns the fee amount derived from the price, amount and fee
@@ -572,8 +572,6 @@ func (d *Definitions) SetBankTransferFee(c currency.Code, transType bank.Transfe
 	tFee.Deposit = Convert(deposit)     // TODO: need min and max settings
 	return nil
 }
-
-var errNoTransferFees = errors.New("missing transfer fees to load")
 
 // LoadTransferFees allows the loading of current transfer fees for
 // cryptocurrency deposit and withdrawals

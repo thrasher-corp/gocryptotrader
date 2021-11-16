@@ -246,8 +246,8 @@ func (d Deposit) GetFee(amount float64) (decimal.Decimal, error) {
 }
 
 // Display displays current working internal data for use in RPC outputs
-func (w Deposit) Display() (string, error) {
-	data, err := json.Marshal(w)
+func (d Deposit) Display() (string, error) {
+	data, err := json.Marshal(d)
 	if err != nil {
 		return "", err
 	}

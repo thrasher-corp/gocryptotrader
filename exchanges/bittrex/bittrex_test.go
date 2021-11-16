@@ -642,7 +642,6 @@ func TestUpdateCommissionFees(t *testing.T) {
 
 func TestUpdateTransferFees(t *testing.T) {
 	t.Parallel()
-	// b.Verbose = true
 	err := b.UpdateTransferFees(context.Background())
 	if err != nil {
 		t.Fatal(err)

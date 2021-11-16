@@ -430,11 +430,17 @@ func TestSeedAssets(t *testing.T) {
 	if r := a.LookupAltname("ZUSD"); r != "" {
 		t.Error("unexpected result")
 	}
-	a.Seed("ZUSD", "USD")
+	err := a.Seed("ZUSD", "USD")
+	if err != nil {
+		t.Fatal(err)
+	}
 	if r := a.LookupAltname("ZUSD"); r != "USD" {
 		t.Error("unexpected result")
 	}
-	a.Seed("ZUSD", "BLA")
+	err = a.Seed("ZUSD", "BLA")
+	if err != nil {
+		t.Fatal(err)
+	}
 	if r := a.LookupAltname("ZUSD"); r != "USD" {
 		t.Error("unexpected result")
 	}
