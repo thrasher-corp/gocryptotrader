@@ -23,7 +23,9 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/bank"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -524,26 +526,29 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Response: jsonifyInterface([]interface{}{getFundingHistoryResponse}),
 		})
 
-		// TODO: Add fee functions
-		// feeType := fee.Builder{
-		// 	Type:          fee.Trade,
-		// 	Pair:          p,
-		// 	PurchasePrice: config.OrderSubmission.Price,
-		// 	Amount:        config.OrderSubmission.Amount,
-		// }
-		// var getFeeByTypeResponse float64
-		// getFeeByTypeResponse, err = e.GetFeeByType(&feeType)
-		// msg = ""
-		// if err != nil {
-		// 	msg = err.Error()
-		// 	responseContainer.ErrorCount++
-		// }
-		// responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
-		// 	SentParams: jsonifyInterface([]interface{}{feeType}),
-		// 	Function:   "GetFeeByType-Trade",
-		// 	Error:      msg,
-		// 	Response:   jsonifyInterface([]interface{}{getFeeByTypeResponse}),
-		// })
+		var commissionFees *fee.CommissionInternal
+		commissionFees, err = e.GetCommissionFee(assetTypes[i], p)
+		fees := struct {
+			Maker            float64
+			IsMakerAFixedFee bool
+			Taker            float64
+			IsTakerAFixedFee bool
+		}{}
+		msg = ""
+		if err != nil {
+			msg = err.Error()
+			responseContainer.ErrorCount++
+		} else {
+			fees.Maker, fees.IsMakerAFixedFee = commissionFees.GetMaker()
+			fees.Taker, fees.IsTakerAFixedFee = commissionFees.GetTaker()
+		}
+
+		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
+			SentParams: jsonifyInterface([]interface{}{assetTypes[i], p}),
+			Function:   "GetCommissionFee",
+			Error:      msg,
+			Response:   jsonifyInterface([]interface{}{fees}),
+		})
 
 		s := &order.Submit{
 			Pair:      p,
@@ -710,25 +715,19 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Response:   getDepositAddressResponse,
 		})
 
-		// feeType = fee.Builder{
-		// 	Type:          fee.Withdrawal,
-		// 	Pair:          p,
-		// 	PurchasePrice: config.OrderSubmission.Price,
-		// 	Amount:        config.OrderSubmission.Amount,
-		// }
-		// var GetFeeByTypeResponse float64
-		// GetFeeByTypeResponse, err = e.GetFeeByType(&feeType)
-		// msg = ""
-		// if err != nil {
-		// 	msg = err.Error()
-		// 	responseContainer.ErrorCount++
-		// }
-		// responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
-		// 	SentParams: jsonifyInterface([]interface{}{feeType}),
-		// 	Function:   "GetFeeByType-Crypto-Withdraw",
-		// 	Error:      msg,
-		// 	Response:   jsonifyInterface([]interface{}{GetFeeByTypeResponse}),
-		// })
+		var transferFee fee.Transfer
+		transferFee, err = e.GetTransferFee(currency.BTC, "")
+		msg = ""
+		if err != nil {
+			msg = err.Error()
+			responseContainer.ErrorCount++
+		}
+		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
+			SentParams: jsonifyInterface([]interface{}{currency.BTC, ""}),
+			Function:   "GetTransferFee",
+			Error:      msg,
+			Response:   jsonifyInterface([]interface{}{transferFee}),
+		})
 
 		withdrawRequest := withdraw.Request{
 			Currency: p.Quote,
@@ -755,27 +754,24 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Response:   withdrawCryptocurrencyFundsResponse,
 		})
 
-		// feeType = fee.Builder{
-		// 	Type:                fee.InternationalBankWithdrawal,
-		// 	Pair:                p,
-		// 	PurchasePrice:       config.OrderSubmission.Price,
-		// 	Amount:              config.OrderSubmission.Amount,
-		// 	FiatCurrency:        currency.AUD,
-		// 	BankTransactionType: exchange.WireTransfer,
-		// }
-		// var getFeeByTypeFiatResponse float64
-		// getFeeByTypeFiatResponse, err = e.GetFeeByType(&feeType)
-		// msg = ""
-		// if err != nil {
-		// 	msg = err.Error()
-		// 	responseContainer.ErrorCount++
-		// }
-		// responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
-		// 	SentParams: jsonifyInterface([]interface{}{feeType}),
-		// 	Function:   "GetFeeByType-FIAT-Withdraw",
-		// 	Error:      msg,
-		// 	Response:   jsonifyInterface([]interface{}{getFeeByTypeFiatResponse}),
-		// })
+		enabledPairs, _ := e.GetEnabledPairs(assetTypes[i])
+		fiat := enabledPairs.GetFiat()
+		if len(fiat) == 0 {
+			fiat = currency.Currencies{currency.BTC}
+		}
+		var bankTransferFee fee.Transfer
+		bankTransferFee, err = e.GetBankTransferFee(fiat[0], bank.WireTransfer)
+		msg = ""
+		if err != nil {
+			msg = err.Error()
+			responseContainer.ErrorCount++
+		}
+		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
+			SentParams: jsonifyInterface([]interface{}{fiat[0], bank.WireTransfer}),
+			Function:   "GetBankTransferFee",
+			Error:      msg,
+			Response:   jsonifyInterface([]interface{}{bankTransferFee}),
+		})
 
 		withdrawRequestFiat := withdraw.Request{
 			Currency: p.Quote,
