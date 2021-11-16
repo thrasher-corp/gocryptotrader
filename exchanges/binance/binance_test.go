@@ -172,7 +172,7 @@ func TestUExchangeInfo(t *testing.T) {
 
 func TestUFuturesOrderbook(t *testing.T) {
 	t.Parallel()
-	_, err := b.UFuturesOrderbook(context.Background(), currency.Pair{Delimiter: "_", Base: currency.BTC, Quote: currency.USDT}, 1000)
+	_, err := b.UFuturesOrderbook(context.Background(), currency.NewPair(currency.BTC, currency.USDT), 1000)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2645,5 +2645,141 @@ func TestWsOutboundAccountPosition(t *testing.T) {
 	payload := []byte(`{"stream":"jTfvpakT2yT0hVIo5gYWVihZhdM2PrBgJUZ5PyfZ4EVpCkx4Uoxk5timcrQc","data":{"e":"outboundAccountPosition","E":1616628815745,"u":1616628815745,"B":[{"a":"BTC","f":"0.00225109","l":"0.00123000"},{"a":"BNB","f":"0.00000000","l":"0.00000000"},{"a":"USDT","f":"54.43390661","l":"0.00000000"}]}}`)
 	if err := b.wsHandleData(payload); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestFormatExchangeCurrency(t *testing.T) {
+	t.Parallel()
+	type testos struct {
+		name              string
+		pair              currency.Pair
+		asset             asset.Item
+		expectedDelimiter string
+	}
+	testerinos := []testos{
+		{
+			name:              "spot-btcusdt",
+			pair:              currency.NewPairWithDelimiter("BTC", "USDT", currency.UnderscoreDelimiter),
+			asset:             asset.Spot,
+			expectedDelimiter: "",
+		},
+		{
+			name:              "coinmarginedfutures-btcusd_perp",
+			pair:              currency.NewPairWithDelimiter("BTCUSD", "PERP", currency.DashDelimiter),
+			asset:             asset.CoinMarginedFutures,
+			expectedDelimiter: currency.UnderscoreDelimiter,
+		},
+		{
+			name:              "coinmarginedfutures-btcusd_211231",
+			pair:              currency.NewPairWithDelimiter("BTCUSD", "211231", currency.DashDelimiter),
+			asset:             asset.CoinMarginedFutures,
+			expectedDelimiter: currency.UnderscoreDelimiter,
+		},
+		{
+			name:              "margin-ltousdt",
+			pair:              currency.NewPairWithDelimiter("LTO", "USDT", currency.UnderscoreDelimiter),
+			asset:             asset.Margin,
+			expectedDelimiter: "",
+		},
+		{
+			name:              "usdtmarginedfutures-btcusdt",
+			pair:              currency.NewPairWithDelimiter("btc", "usdt", currency.DashDelimiter),
+			asset:             asset.USDTMarginedFutures,
+			expectedDelimiter: "",
+		},
+		{
+			name:              "usdtmarginedfutures-btcusdt_211231",
+			pair:              currency.NewPairWithDelimiter("btcusdt", "211231", currency.UnderscoreDelimiter),
+			asset:             asset.USDTMarginedFutures,
+			expectedDelimiter: currency.UnderscoreDelimiter,
+		},
+	}
+	for i := range testerinos {
+		tt := testerinos[i]
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			result, err := b.FormatExchangeCurrency(tt.pair, tt.asset)
+			if err != nil {
+				t.Error(err)
+			}
+			if result.Delimiter != tt.expectedDelimiter {
+				t.Errorf("received '%v' expected '%v'", result.Delimiter, tt.expectedDelimiter)
+			}
+		})
+	}
+}
+
+func TestFormatSymbol(t *testing.T) {
+	t.Parallel()
+	type testos struct {
+		name           string
+		pair           currency.Pair
+		asset          asset.Item
+		expectedString string
+	}
+	testerinos := []testos{
+		{
+			name:           "spot-BTCUSDT",
+			pair:           currency.NewPairWithDelimiter("BTC", "USDT", currency.UnderscoreDelimiter),
+			asset:          asset.Spot,
+			expectedString: "BTCUSDT",
+		},
+		{
+			name:           "coinmarginedfutures-btcusdperp",
+			pair:           currency.NewPairWithDelimiter("BTCUSD", "PERP", currency.DashDelimiter),
+			asset:          asset.CoinMarginedFutures,
+			expectedString: "BTCUSD_PERP",
+		},
+		{
+			name:           "coinmarginedfutures-BTCUSD_211231",
+			pair:           currency.NewPairWithDelimiter("BTCUSD", "211231", currency.DashDelimiter),
+			asset:          asset.CoinMarginedFutures,
+			expectedString: "BTCUSD_211231",
+		},
+		{
+			name:           "margin-LTOUSDT",
+			pair:           currency.NewPairWithDelimiter("LTO", "USDT", currency.UnderscoreDelimiter),
+			asset:          asset.Margin,
+			expectedString: "LTOUSDT",
+		},
+		{
+			name:           "usdtmarginedfutures-BTCUSDT",
+			pair:           currency.NewPairWithDelimiter("btc", "usdt", currency.DashDelimiter),
+			asset:          asset.USDTMarginedFutures,
+			expectedString: "BTCUSDT",
+		},
+		{
+			name:           "usdtmarginedfutures-BTCUSDT_211231",
+			pair:           currency.NewPairWithDelimiter("btcusdt", "211231", currency.UnderscoreDelimiter),
+			asset:          asset.USDTMarginedFutures,
+			expectedString: "BTCUSDT_211231",
+		},
+	}
+	for i := range testerinos {
+		tt := testerinos[i]
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			result, err := b.FormatSymbol(tt.pair, tt.asset)
+			if err != nil {
+				t.Error(err)
+			}
+			if result != tt.expectedString {
+				t.Errorf("received '%v' expected '%v'", result, tt.expectedString)
+			}
+		})
+	}
+}
+
+func TestFormatUSDTMarginedFuturesPair(t *testing.T) {
+	t.Parallel()
+	pairFormat := currency.PairFormat{Uppercase: true}
+	resp := b.formatUSDTMarginedFuturesPair(currency.NewPair(currency.DOGE, currency.USDT), pairFormat)
+	if resp.String() != "DOGEUSDT" {
+		t.Errorf("received '%v' expected '%v'", resp.String(), "DOGEUSDT")
+	}
+
+	resp = b.formatUSDTMarginedFuturesPair(currency.NewPair(currency.DOGE, currency.NewCode("1234567890")), pairFormat)
+	if resp.String() != "DOGE_1234567890" {
+		t.Errorf("received '%v' expected '%v'", resp.String(), "DOGE_1234567890")
 	}
 }

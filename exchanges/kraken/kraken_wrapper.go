@@ -260,54 +260,56 @@ func (k *Kraken) Run() {
 	}
 
 	forceUpdate := false
-	format, err := k.GetPairFormat(asset.UseDefault(), false)
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%s failed to update tradable pairs. Err: %s",
-			k.Name,
-			err)
-		return
-	}
-	enabled, err := k.GetEnabledPairs(asset.UseDefault())
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%s failed to update tradable pairs. Err: %s",
-			k.Name,
-			err)
-		return
-	}
-
-	avail, err := k.GetAvailablePairs(asset.UseDefault())
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%s failed to update tradable pairs. Err: %s",
-			k.Name,
-			err)
-		return
-	}
-
-	if !common.StringDataContains(enabled.Strings(), format.Delimiter) ||
-		!common.StringDataContains(avail.Strings(), format.Delimiter) ||
-		common.StringDataContains(avail.Strings(), "ZUSD") {
-		var p currency.Pairs
-		p, err = currency.NewPairsFromStrings([]string{currency.XBT.String() +
-			format.Delimiter +
-			currency.USD.String()})
+	if !k.BypassConfigFormatUpgrades {
+		format, err := k.GetPairFormat(asset.UseDefault(), false)
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
-				"%s failed to update currencies. Err: %s\n",
+				"%s failed to update tradable pairs. Err: %s",
 				k.Name,
 				err)
-		} else {
-			log.Warn(log.ExchangeSys, "Available pairs for Kraken reset due to config upgrade, please enable the ones you would like again")
-			forceUpdate = true
+			return
+		}
+		enabled, err := k.GetEnabledPairs(asset.UseDefault())
+		if err != nil {
+			log.Errorf(log.ExchangeSys,
+				"%s failed to update tradable pairs. Err: %s",
+				k.Name,
+				err)
+			return
+		}
 
-			err = k.UpdatePairs(p, asset.UseDefault(), true, true)
+		avail, err := k.GetAvailablePairs(asset.UseDefault())
+		if err != nil {
+			log.Errorf(log.ExchangeSys,
+				"%s failed to update tradable pairs. Err: %s",
+				k.Name,
+				err)
+			return
+		}
+
+		if !common.StringDataContains(enabled.Strings(), format.Delimiter) ||
+			!common.StringDataContains(avail.Strings(), format.Delimiter) ||
+			common.StringDataContains(avail.Strings(), "ZUSD") {
+			var p currency.Pairs
+			p, err = currency.NewPairsFromStrings([]string{currency.XBT.String() +
+				format.Delimiter +
+				currency.USD.String()})
 			if err != nil {
 				log.Errorf(log.ExchangeSys,
 					"%s failed to update currencies. Err: %s\n",
 					k.Name,
 					err)
+			} else {
+				log.Warnf(log.ExchangeSys, exchange.ResetConfigPairsWarningMessage, k.Name, asset.UseDefault(), p)
+				forceUpdate = true
+
+				err = k.UpdatePairs(p, asset.UseDefault(), true, true)
+				if err != nil {
+					log.Errorf(log.ExchangeSys,
+						"%s failed to update currencies. Err: %s\n",
+						k.Name,
+						err)
+				}
 			}
 		}
 	}
@@ -316,7 +318,7 @@ func (k *Kraken) Run() {
 		return
 	}
 
-	err = k.UpdateTradablePairs(context.TODO(), forceUpdate)
+	err := k.UpdateTradablePairs(context.TODO(), forceUpdate)
 	if err != nil {
 		log.Errorf(log.ExchangeSys,
 			"%s failed to update tradable pairs. Err: %s",

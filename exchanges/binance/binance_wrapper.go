@@ -84,6 +84,7 @@ func (b *Binance) SetDefaults() {
 		},
 		ConfigFormat: &currency.PairFormat{
 			Uppercase: true,
+			Delimiter: currency.UnderscoreDelimiter,
 		},
 	}
 	err := b.StoreAssetPairFormat(asset.Spot, fmt1)
@@ -264,6 +265,7 @@ func (b *Binance) Run() {
 		b.PrintEnabledPairs()
 	}
 
+	forceUpdate := false
 	a := b.GetAssetTypes(true)
 	for x := range a {
 		if err := b.UpdateOrderExecutionLimits(context.TODO(), a[x]); err != nil {
@@ -272,13 +274,60 @@ func (b *Binance) Run() {
 				b.Name,
 				err)
 		}
+		if a[x] == asset.USDTMarginedFutures && !b.BypassConfigFormatUpgrades {
+			format, err := b.GetPairFormat(asset.USDTMarginedFutures, false)
+			if err != nil {
+				log.Errorf(log.ExchangeSys, "%s failed to get enabled currencies. Err %s\n",
+					b.Name,
+					err)
+				return
+			}
+			var enabled, avail currency.Pairs
+			enabled, err = b.CurrencyPairs.GetPairs(asset.USDTMarginedFutures, true)
+			if err != nil {
+				log.Errorf(log.ExchangeSys, "%s failed to get enabled currencies. Err %s\n",
+					b.Name,
+					err)
+				return
+			}
+
+			avail, err = b.CurrencyPairs.GetPairs(asset.USDTMarginedFutures, false)
+			if err != nil {
+				log.Errorf(log.ExchangeSys, "%s failed to get available currencies. Err %s\n",
+					b.Name,
+					err)
+				return
+			}
+			if !common.StringDataContains(enabled.Strings(), format.Delimiter) ||
+				!common.StringDataContains(avail.Strings(), format.Delimiter) {
+				var enabledPairs currency.Pairs
+				enabledPairs, err = currency.NewPairsFromStrings([]string{
+					currency.BTC.String() + format.Delimiter + currency.USDT.String(),
+				})
+				if err != nil {
+					log.Errorf(log.ExchangeSys, "%s failed to update currencies. Err %s\n",
+						b.Name,
+						err)
+				} else {
+					log.Warnf(log.ExchangeSys, exchange.ResetConfigPairsWarningMessage, b.Name, a[x], enabledPairs)
+					forceUpdate = true
+					err = b.UpdatePairs(enabledPairs, a[x], true, true)
+					if err != nil {
+						log.Errorf(log.ExchangeSys,
+							"%s failed to update currencies. Err: %s\n",
+							b.Name,
+							err)
+					}
+				}
+			}
+		}
 	}
 
-	if !b.GetEnabledFeatures().AutoPairUpdates {
+	if !b.GetEnabledFeatures().AutoPairUpdates && !forceUpdate {
 		return
 	}
 
-	if err := b.UpdateTradablePairs(context.TODO(), false); err != nil {
+	if err := b.UpdateTradablePairs(context.TODO(), forceUpdate); err != nil {
 		log.Errorf(log.ExchangeSys,
 			"%s failed to update tradable pairs. Err: %s",
 			b.Name,
@@ -295,53 +344,70 @@ func (b *Binance) FetchTradablePairs(ctx context.Context, a asset.Item) ([]strin
 	if err != nil {
 		return nil, err
 	}
+	tradingStatus := "TRADING"
 	var pairs []string
 	switch a {
 	case asset.Spot, asset.Margin:
-		info, err := b.GetExchangeInfo(ctx)
+		var info ExchangeInfo
+		info, err = b.GetExchangeInfo(ctx)
 		if err != nil {
 			return nil, err
 		}
 		for x := range info.Symbols {
-			if info.Symbols[x].Status == "TRADING" {
-				pair := info.Symbols[x].BaseAsset +
-					format.Delimiter +
-					info.Symbols[x].QuoteAsset
-				if a == asset.Spot && info.Symbols[x].IsSpotTradingAllowed {
-					pairs = append(pairs, pair)
-				}
-				if a == asset.Margin && info.Symbols[x].IsMarginTradingAllowed {
-					pairs = append(pairs, pair)
-				}
+			if info.Symbols[x].Status != tradingStatus {
+				continue
+			}
+			pair := info.Symbols[x].BaseAsset +
+				format.Delimiter +
+				info.Symbols[x].QuoteAsset
+			if a == asset.Spot && info.Symbols[x].IsSpotTradingAllowed {
+				pairs = append(pairs, pair)
+			}
+			if a == asset.Margin && info.Symbols[x].IsMarginTradingAllowed {
+				pairs = append(pairs, pair)
 			}
 		}
 	case asset.CoinMarginedFutures:
-		cInfo, err := b.FuturesExchangeInfo(ctx)
+		var cInfo CExchangeInfo
+		cInfo, err = b.FuturesExchangeInfo(ctx)
 		if err != nil {
 			return pairs, err
 		}
 		for z := range cInfo.Symbols {
-			if cInfo.Symbols[z].ContractStatus == "TRADING" {
-				curr, err := currency.NewPairFromString(cInfo.Symbols[z].Symbol)
-				if err != nil {
-					return nil, err
-				}
-				pairs = append(pairs, format.Format(curr))
+			if cInfo.Symbols[z].ContractStatus != tradingStatus {
+				continue
 			}
+			var curr currency.Pair
+			curr, err = currency.NewPairFromString(cInfo.Symbols[z].Symbol)
+			if err != nil {
+				return nil, err
+			}
+			pairs = append(pairs, format.Format(curr))
 		}
 	case asset.USDTMarginedFutures:
-		uInfo, err := b.UExchangeInfo(ctx)
+		var uInfo UFuturesExchangeInfo
+		uInfo, err = b.UExchangeInfo(ctx)
 		if err != nil {
 			return pairs, err
 		}
 		for u := range uInfo.Symbols {
-			if uInfo.Symbols[u].Status == "TRADING" {
-				curr, err := currency.NewPairFromString(uInfo.Symbols[u].Symbol)
+			if uInfo.Symbols[u].Status != tradingStatus {
+				continue
+			}
+			var curr currency.Pair
+			if uInfo.Symbols[u].ContractType == "PERPETUAL" {
+				curr, err = currency.NewPairFromStrings(uInfo.Symbols[u].BaseAsset, uInfo.Symbols[u].QuoteAsset)
 				if err != nil {
 					return nil, err
 				}
-				pairs = append(pairs, format.Format(curr))
+			} else {
+				curr, err = currency.NewPairFromString(uInfo.Symbols[u].Symbol)
+				if err != nil {
+					return nil, err
+				}
 			}
+
+			pairs = append(pairs, format.Format(curr))
 		}
 	}
 	return pairs, nil
@@ -1741,4 +1807,45 @@ func (b *Binance) GetAvailableTransferChains(ctx context.Context, cryptocurrency
 		}
 	}
 	return availableChains, nil
+}
+
+// FormatExchangeCurrency is a method that formats and returns a currency pair
+// based on the user currency display preferences
+// overrides default implementation to use optional delimiter
+func (b *Binance) FormatExchangeCurrency(p currency.Pair, a asset.Item) (currency.Pair, error) {
+	pairFmt, err := b.GetPairFormat(a, true)
+	if err != nil {
+		return currency.Pair{}, err
+	}
+	if a == asset.USDTMarginedFutures {
+		return b.formatUSDTMarginedFuturesPair(p, pairFmt), nil
+	}
+	return p.Format(pairFmt.Delimiter, pairFmt.Uppercase), nil
+}
+
+// FormatSymbol formats the given pair to a string suitable for exchange API requests
+// overrides default implementation to use optional delimiter
+func (b *Binance) FormatSymbol(p currency.Pair, a asset.Item) (string, error) {
+	pairFmt, err := b.GetPairFormat(a, true)
+	if err != nil {
+		return p.String(), err
+	}
+	if a == asset.USDTMarginedFutures {
+		p = b.formatUSDTMarginedFuturesPair(p, pairFmt)
+		return p.String(), nil
+	}
+	return pairFmt.Format(p), nil
+}
+
+// formatUSDTMarginedFuturesPair Binance USDTMarginedFutures pairs have a delimiter
+// only if the contract has an expiry date
+func (b *Binance) formatUSDTMarginedFuturesPair(p currency.Pair, pairFmt currency.PairFormat) currency.Pair {
+	quote := p.Quote.String()
+	for _, c := range quote {
+		if c < '0' || c > '9' {
+			// character rune is alphabetic, cannot be expiring contract
+			return p.Format(pairFmt.Delimiter, pairFmt.Uppercase)
+		}
+	}
+	return p.Format(currency.UnderscoreDelimiter, pairFmt.Uppercase)
 }
