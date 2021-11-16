@@ -1,5 +1,12 @@
 package currency
 
+import (
+	"errors"
+	"fmt"
+)
+
+var errEmptyPairString = errors.New("empty pair string")
+
 // GetDefaultExchangeRates returns the currency exchange rates based off the
 // default fiat values
 func GetDefaultExchangeRates() (Conversions, error) {
@@ -100,24 +107,23 @@ func CopyPairFormat(p Pair, pairs []Pair, exact bool) Pair {
 // FormatPairs formats a string array to a list of currency pairs with the
 // supplied currency pair format
 func FormatPairs(pairs []string, delimiter, index string) (Pairs, error) {
-	var result Pairs
+	var result = make(Pairs, len(pairs))
 	for x := range pairs {
 		if pairs[x] == "" {
-			continue
+			return nil, fmt.Errorf("%w in slice %v", errEmptyPairString, pairs)
 		}
-		var p Pair
 		var err error
-		if delimiter != "" {
-			p, err = NewPairDelimiter(pairs[x], delimiter)
-		} else if index != "" {
-			p, err = NewPairFromIndex(pairs[x], index)
-		} else {
-			p, err = NewPairFromStrings(pairs[x][0:3], pairs[x][3:])
+		switch {
+		case delimiter != "":
+			result[x], err = NewPairDelimiter(pairs[x], delimiter)
+		case index != "":
+			result[x], err = NewPairFromIndex(pairs[x], index)
+		default:
+			result[x], err = NewPairFromStrings(pairs[x][:3], pairs[x][3:])
 		}
 		if err != nil {
 			return nil, err
 		}
-		result = append(result, p)
 	}
 	return result, nil
 }
