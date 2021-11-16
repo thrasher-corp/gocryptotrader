@@ -2,6 +2,7 @@ package currency
 
 import (
 	"encoding/json"
+	"errors"
 	"testing"
 )
 
@@ -523,16 +524,12 @@ func TestContainsCurrency(t *testing.T) {
 }
 
 func TestFormatPairs(t *testing.T) {
-	newP, err := FormatPairs([]string{""}, "-", "")
-	if err != nil {
-		t.Error("FormatPairs() error", err)
+	_, err := FormatPairs([]string{""}, "-", "")
+	if !errors.Is(err, errEmptyPairString) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errEmptyPairString)
 	}
 
-	if len(newP) > 0 {
-		t.Error("TestFormatPairs: Empty string returned a valid pair")
-	}
-
-	newP, err = FormatPairs([]string{defaultPairWDelimiter}, "-", "")
+	newP, err := FormatPairs([]string{defaultPairWDelimiter}, "-", "")
 	if err != nil {
 		t.Error("FormatPairs() error", err)
 	}
