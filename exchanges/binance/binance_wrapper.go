@@ -309,8 +309,7 @@ func (b *Binance) Run() {
 						b.Name,
 						err)
 				} else {
-					log.Warnf(log.ExchangeSys,
-						"%s: Enabled and available pairs reset due to config upgrade, please enable the ones you would like to use again. Defaulting to %v", b.Name, enabledPairs)
+					log.Warnf(log.ExchangeSys, exchange.ResetConfigPairsWarningMessage, b.Name, a[x], enabledPairs)
 					forceUpdate = true
 					err = b.UpdatePairs(enabledPairs, a[x], true, true)
 					if err != nil {
@@ -324,7 +323,7 @@ func (b *Binance) Run() {
 		}
 	}
 
-	if !b.GetEnabledFeatures().AutoPairUpdates || !forceUpdate {
+	if !b.GetEnabledFeatures().AutoPairUpdates && !forceUpdate {
 		return
 	}
 

@@ -246,9 +246,8 @@ func (c *CoinbasePro) Run() {
 					c.Name,
 					err)
 			} else {
-				log.Warn(log.ExchangeSys,
-					"Enabled pairs for CoinbasePro reset due to config upgrade, please enable the ones you would like to use again")
 				forceUpdate = true
+				log.Warnf(log.ExchangeSys, exchange.ResetConfigPairsWarningMessage, c.Name, asset.Spot, p)
 
 				err = c.UpdatePairs(p, asset.Spot, true, true)
 				if err != nil {

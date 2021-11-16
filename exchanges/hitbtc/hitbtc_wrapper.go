@@ -233,8 +233,7 @@ func (h *HitBTC) Run() {
 		if !common.StringDataContains(enabled.Strings(), format.Delimiter) ||
 			!common.StringDataContains(avail.Strings(), format.Delimiter) {
 			enabledPairs := []string{currency.BTC.String() + format.Delimiter + currency.USD.String()}
-			log.Warn(log.ExchangeSys,
-				"Available pairs for HitBTC reset due to config upgrade, please enable the ones you would like again.")
+			log.Warnf(log.ExchangeSys, exchange.ResetConfigPairsWarningMessage, h.Name, asset.Spot, enabledPairs)
 			forceUpdate = true
 			var p currency.Pairs
 			p, err = currency.NewPairsFromStrings(enabledPairs)

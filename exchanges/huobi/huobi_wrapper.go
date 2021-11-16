@@ -300,9 +300,7 @@ func (h *HUOBI) Run() {
 				Delimiter: format.Delimiter,
 			},
 		}
-		log.Warn(log.ExchangeSys,
-			"Available and enabled pairs for Huobi reset due to config upgrade, please enable the ones you would like again")
-
+		log.Warnf(log.ExchangeSys, exchange.ResetConfigPairsWarningMessage, h.Name, asset.Spot, enabledPairs)
 		err = h.UpdatePairs(enabledPairs, asset.Spot, true, true)
 		if err != nil {
 			log.Errorf(log.ExchangeSys,

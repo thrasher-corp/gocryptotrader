@@ -239,8 +239,8 @@ func (b *Bitstamp) Run() {
 					b.Name,
 					err)
 			} else {
-				log.Warn(log.ExchangeSys,
-					"Bitstamp: Enabled and available pairs reset due to config upgrade, please enable the ones you would like to use again")
+				log.Warnf(log.ExchangeSys,
+					exchange.ResetConfigPairsWarningMessage, b.Name, asset.Spot, enabledPairs)
 				forceUpdate = true
 
 				err = b.UpdatePairs(enabledPairs, asset.Spot, true, true)

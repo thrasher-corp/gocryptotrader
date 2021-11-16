@@ -220,7 +220,6 @@ func (b *BTCMarkets) Run() {
 
 	if !common.StringDataContains(pairs.Strings(), format.Delimiter) ||
 		!common.StringDataContains(avail.Strings(), format.Delimiter) {
-		log.Warnln(log.ExchangeSys, "Available pairs for BTC Markets reset due to config upgrade, please enable the pairs you would like again.")
 		forceUpdate = true
 	}
 	if forceUpdate {
@@ -230,6 +229,7 @@ func (b *BTCMarkets) Run() {
 			Delimiter: format.Delimiter,
 		},
 		}
+		log.Warnf(log.ExchangeSys, exchange.ResetConfigPairsWarningMessage, b.Name, asset.Spot, enabledPairs)
 		err = b.UpdatePairs(enabledPairs, asset.Spot, true, true)
 		if err != nil {
 			log.Errorf(log.ExchangeSys,

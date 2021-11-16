@@ -300,7 +300,7 @@ func (k *Kraken) Run() {
 					k.Name,
 					err)
 			} else {
-				log.Warn(log.ExchangeSys, "Available pairs for Kraken reset due to config upgrade, please enable the ones you would like again")
+				log.Warnf(log.ExchangeSys, exchange.ResetConfigPairsWarningMessage, k.Name, asset.UseDefault(), p)
 				forceUpdate = true
 
 				err = k.UpdatePairs(p, asset.UseDefault(), true, true)

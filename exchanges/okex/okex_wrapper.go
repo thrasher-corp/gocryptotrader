@@ -276,9 +276,7 @@ func (o *OKEX) Run() {
 					"%s failed to update currencies.\n",
 					o.Name)
 			} else {
-				log.Warnf(log.ExchangeSys,
-					"Enabled pairs for %v reset due to config upgrade, please enable the ones you would like again.",
-					o.Name)
+				log.Warnf(log.ExchangeSys, exchange.ResetConfigPairsWarningMessage, o.Name, asset.Spot, p)
 
 				err = o.UpdatePairs(p, asset.Spot, true, forceUpdate)
 				if err != nil {

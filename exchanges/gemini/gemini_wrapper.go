@@ -236,8 +236,7 @@ func (g *Gemini) Run() {
 					g.Name,
 					err)
 			} else {
-				log.Warn(log.ExchangeSys,
-					"Available pairs for Gemini reset due to config upgrade, please enable the ones you would like to use again")
+				log.Warnf(log.ExchangeSys, exchange.ResetConfigPairsWarningMessage, g.Name, asset.Spot, enabledPairs)
 				forceUpdate = true
 
 				err = g.UpdatePairs(enabledPairs, asset.Spot, true, true)

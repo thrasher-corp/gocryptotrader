@@ -226,8 +226,7 @@ func (c *COINUT) Run() {
 					c.Name,
 					err)
 			} else {
-				log.Warn(log.ExchangeSys,
-					"Enabled pairs for Coinut reset due to config upgrade, please enable the ones you would like to use again")
+				log.Warnf(log.ExchangeSys, exchange.ResetConfigPairsWarningMessage, c.Name, asset.Spot, p)
 				forceUpdate = true
 
 				err = c.UpdatePairs(p, asset.Spot, true, true)
