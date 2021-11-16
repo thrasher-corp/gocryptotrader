@@ -304,7 +304,7 @@ func TestGetCurrencies(t *testing.T) {
 	contains(t, []Code{BTC, USD, LTC, NZD, USDT}, pairs.GetCurrencies())
 }
 
-func contains(t *testing.T, c1 []Code, c2 []Code) {
+func contains(t *testing.T, c1, c2 []Code) {
 	t.Helper()
 codes:
 	for x := range c1 {
