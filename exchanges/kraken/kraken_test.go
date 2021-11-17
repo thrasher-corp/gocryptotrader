@@ -61,8 +61,6 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-// TestGetServerTime API endpoint test
-
 func TestStart(t *testing.T) {
 	t.Parallel()
 	err := k.Start(nil)
