@@ -3,6 +3,7 @@ package yobit
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math"
 	"sort"
 	"strconv"
@@ -112,6 +113,9 @@ func (y *Yobit) SetDefaults() {
 
 // Setup sets exchange configuration parameters for Yobit
 func (y *Yobit) Setup(exch *config.Exchange) error {
+	if err := exch.Validate(); err != nil {
+		return err
+	}
 	if !exch.Enabled {
 		y.SetEnabled(false)
 		return nil
@@ -120,12 +124,16 @@ func (y *Yobit) Setup(exch *config.Exchange) error {
 }
 
 // Start starts the WEX go routine
-func (y *Yobit) Start(wg *sync.WaitGroup) {
+func (y *Yobit) Start(wg *sync.WaitGroup) error {
+	if wg == nil {
+		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
+	}
 	wg.Add(1)
 	go func() {
 		y.Run()
 		wg.Done()
 	}()
+	return nil
 }
 
 // Run implements the Yobit wrapper
@@ -543,6 +551,9 @@ func (y *Yobit) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *withd
 
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (y *Yobit) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
+	if feeBuilder == nil {
+		return 0, fmt.Errorf("%T %w", feeBuilder, common.ErrNilPointer)
+	}
 	if !y.AllowAuthenticatedRequest() && // Todo check connection status
 		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		feeBuilder.FeeType = exchange.OfflineTradeFee

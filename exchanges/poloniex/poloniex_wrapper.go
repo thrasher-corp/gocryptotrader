@@ -152,12 +152,15 @@ func (p *Poloniex) SetDefaults() {
 
 // Setup sets user exchange configuration settings
 func (p *Poloniex) Setup(exch *config.Exchange) error {
+	err := exch.Validate()
+	if err != nil {
+		return err
+	}
 	if !exch.Enabled {
 		p.SetEnabled(false)
 		return nil
 	}
-
-	err := p.SetupDefaults(exch)
+	err = p.SetupDefaults(exch)
 	if err != nil {
 		return err
 	}
@@ -190,12 +193,16 @@ func (p *Poloniex) Setup(exch *config.Exchange) error {
 }
 
 // Start starts the Poloniex go routine
-func (p *Poloniex) Start(wg *sync.WaitGroup) {
+func (p *Poloniex) Start(wg *sync.WaitGroup) error {
+	if wg == nil {
+		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
+	}
 	wg.Add(1)
 	go func() {
 		p.Run()
 		wg.Done()
 	}()
+	return nil
 }
 
 // Run implements the Poloniex wrapper
@@ -793,6 +800,9 @@ func (p *Poloniex) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *wi
 
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (p *Poloniex) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
+	if feeBuilder == nil {
+		return 0, fmt.Errorf("%T %w", feeBuilder, common.ErrNilPointer)
+	}
 	if (!p.AllowAuthenticatedRequest() || p.SkipAuthCheck) && // Todo check connection status
 		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		feeBuilder.FeeType = exchange.OfflineTradeFee

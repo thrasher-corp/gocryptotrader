@@ -2,9 +2,11 @@ package yobit
 
 import (
 	"context"
+	"errors"
 	"log"
 	"math"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
@@ -48,6 +50,20 @@ func TestMain(m *testing.M) {
 	}
 
 	os.Exit(m.Run())
+}
+
+func TestStart(t *testing.T) {
+	t.Parallel()
+	err := y.Start(nil)
+	if !errors.Is(err, common.ErrNilPointer) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrNilPointer)
+	}
+	var testWg sync.WaitGroup
+	err = y.Start(&testWg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	testWg.Wait()
 }
 
 func TestFetchTradablePairs(t *testing.T) {

@@ -2,13 +2,16 @@ package bitfinex
 
 import (
 	"context"
+	"errors"
 	"log"
 	"net/http"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -60,6 +63,20 @@ func TestMain(m *testing.M) {
 	}
 	b.WebsocketSubdChannels = make(map[int]WebsocketChanInfo)
 	os.Exit(m.Run())
+}
+
+func TestStart(t *testing.T) {
+	t.Parallel()
+	err := b.Start(nil)
+	if !errors.Is(err, common.ErrNilPointer) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrNilPointer)
+	}
+	var testWg sync.WaitGroup
+	err = b.Start(&testWg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	testWg.Wait()
 }
 
 func TestGetV2MarginFunding(t *testing.T) {

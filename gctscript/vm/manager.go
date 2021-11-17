@@ -6,6 +6,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -46,6 +47,9 @@ func (g *GctScriptManager) IsRunning() bool {
 
 // Start starts gctscript subsystem and creates shutdown channel
 func (g *GctScriptManager) Start(wg *sync.WaitGroup) (err error) {
+	if wg == nil {
+		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
+	}
 	if !atomic.CompareAndSwapInt32(&g.started, 0, 1) {
 		return fmt.Errorf("%s %s", caseName, ErrScriptFailedValidation)
 	}

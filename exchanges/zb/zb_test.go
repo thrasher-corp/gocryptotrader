@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -51,6 +52,20 @@ func setupWsAuth(t *testing.T) {
 	}
 	go z.wsReadData()
 	wsSetupRan = true
+}
+
+func TestStart(t *testing.T) {
+	t.Parallel()
+	err := z.Start(nil)
+	if !errors.Is(err, common.ErrNilPointer) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrNilPointer)
+	}
+	var testWg sync.WaitGroup
+	err = z.Start(&testWg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	testWg.Wait()
 }
 
 func TestSpotNewOrder(t *testing.T) {

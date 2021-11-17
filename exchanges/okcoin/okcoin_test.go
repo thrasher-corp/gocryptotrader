@@ -3,10 +3,12 @@ package okcoin
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -79,6 +81,20 @@ func TestMain(m *testing.M) {
 
 func areTestAPIKeysSet() bool {
 	return o.ValidateAPICredentials()
+}
+
+func TestStart(t *testing.T) {
+	t.Parallel()
+	err := o.Start(nil)
+	if !errors.Is(err, common.ErrNilPointer) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrNilPointer)
+	}
+	var testWg sync.WaitGroup
+	err = o.Start(&testWg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	testWg.Wait()
 }
 
 func testStandardErrorHandling(t *testing.T, err error) {

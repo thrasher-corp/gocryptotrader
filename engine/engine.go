@@ -861,13 +861,15 @@ func (bot *Engine) LoadExchange(name string, wg *sync.WaitGroup) error {
 	}
 
 	if wg != nil {
-		exch.Start(wg)
-	} else {
-		tempWG := sync.WaitGroup{}
-		exch.Start(&tempWG)
-		tempWG.Wait()
+		return exch.Start(wg)
 	}
 
+	tempWG := sync.WaitGroup{}
+	err = exch.Start(&tempWG)
+	if err != nil {
+		return err
+	}
+	tempWG.Wait()
 	return nil
 }
 

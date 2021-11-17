@@ -2,10 +2,12 @@ package huobi
 
 import (
 	"context"
+	"errors"
 	"log"
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -81,6 +83,20 @@ func setupWsTests(t *testing.T) {
 	}
 
 	wsSetupRan = true
+}
+
+func TestStart(t *testing.T) {
+	t.Parallel()
+	err := h.Start(nil)
+	if !errors.Is(err, common.ErrNilPointer) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrNilPointer)
+	}
+	var testWg sync.WaitGroup
+	err = h.Start(&testWg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	testWg.Wait()
 }
 
 func TestGetCurrenciesIncludingChains(t *testing.T) {

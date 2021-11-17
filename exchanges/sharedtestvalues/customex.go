@@ -28,7 +28,8 @@ func (c *CustomEx) Setup(exch *config.Exchange) error {
 	return nil
 }
 
-func (c *CustomEx) Start(wg *sync.WaitGroup) {
+func (c *CustomEx) Start(wg *sync.WaitGroup) error {
+	return nil
 }
 
 func (c *CustomEx) SetDefaults() {

@@ -132,12 +132,15 @@ func (c *COINUT) SetDefaults() {
 
 // Setup sets the current exchange configuration
 func (c *COINUT) Setup(exch *config.Exchange) error {
+	err := exch.Validate()
+	if err != nil {
+		return err
+	}
 	if !exch.Enabled {
 		c.SetEnabled(false)
 		return nil
 	}
-
-	err := c.SetupDefaults(exch)
+	err = c.SetupDefaults(exch)
 	if err != nil {
 		return err
 	}
@@ -171,12 +174,16 @@ func (c *COINUT) Setup(exch *config.Exchange) error {
 }
 
 // Start starts the COINUT go routine
-func (c *COINUT) Start(wg *sync.WaitGroup) {
+func (c *COINUT) Start(wg *sync.WaitGroup) error {
+	if wg == nil {
+		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
+	}
 	wg.Add(1)
 	go func() {
 		c.Run()
 		wg.Done()
 	}()
+	return nil
 }
 
 // Run implements the COINUT wrapper
@@ -830,6 +837,9 @@ func (c *COINUT) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *with
 
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (c *COINUT) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
+	if feeBuilder == nil {
+		return 0, fmt.Errorf("%T %w", feeBuilder, common.ErrNilPointer)
+	}
 	if !c.AllowAuthenticatedRequest() && // Todo check connection status
 		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		feeBuilder.FeeType = exchange.OfflineTradeFee

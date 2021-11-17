@@ -2,12 +2,15 @@ package lbank
 
 import (
 	"context"
+	"errors"
 	"log"
 	"os"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -49,6 +52,20 @@ func TestMain(m *testing.M) {
 
 func areTestAPIKeysSet() bool {
 	return l.AllowAuthenticatedRequest()
+}
+
+func TestStart(t *testing.T) {
+	t.Parallel()
+	err := l.Start(nil)
+	if !errors.Is(err, common.ErrNilPointer) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrNilPointer)
+	}
+	var testWg sync.WaitGroup
+	err = l.Start(&testWg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	testWg.Wait()
 }
 
 func TestGetTicker(t *testing.T) {

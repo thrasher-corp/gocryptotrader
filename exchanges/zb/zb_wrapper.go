@@ -149,12 +149,15 @@ func (z *ZB) SetDefaults() {
 
 // Setup sets user configuration
 func (z *ZB) Setup(exch *config.Exchange) error {
+	err := exch.Validate()
+	if err != nil {
+		return err
+	}
 	if !exch.Enabled {
 		z.SetEnabled(false)
 		return nil
 	}
-
-	err := z.SetupDefaults(exch)
+	err = z.SetupDefaults(exch)
 	if err != nil {
 		return err
 	}
@@ -186,12 +189,16 @@ func (z *ZB) Setup(exch *config.Exchange) error {
 }
 
 // Start starts the OKEX go routine
-func (z *ZB) Start(wg *sync.WaitGroup) {
+func (z *ZB) Start(wg *sync.WaitGroup) error {
+	if wg == nil {
+		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
+	}
 	wg.Add(1)
 	go func() {
 		z.Run()
 		wg.Done()
 	}()
+	return nil
 }
 
 // Run implements the OKEX wrapper
@@ -680,6 +687,9 @@ func (z *ZB) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *withdraw
 
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (z *ZB) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
+	if feeBuilder == nil {
+		return 0, fmt.Errorf("%T %w", feeBuilder, common.ErrNilPointer)
+	}
 	if (!z.AllowAuthenticatedRequest() || z.SkipAuthCheck) && // Todo check connection status
 		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		feeBuilder.FeeType = exchange.OfflineTradeFee

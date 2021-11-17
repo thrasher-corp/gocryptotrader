@@ -166,12 +166,15 @@ func (f *FTX) SetDefaults() {
 
 // Setup takes in the supplied exchange configuration details and sets params
 func (f *FTX) Setup(exch *config.Exchange) error {
+	err := exch.Validate()
+	if err != nil {
+		return err
+	}
 	if !exch.Enabled {
 		f.SetEnabled(false)
 		return nil
 	}
-
-	err := f.SetupDefaults(exch)
+	err = f.SetupDefaults(exch)
 	if err != nil {
 		return err
 	}
@@ -203,12 +206,16 @@ func (f *FTX) Setup(exch *config.Exchange) error {
 }
 
 // Start starts the FTX go routine
-func (f *FTX) Start(wg *sync.WaitGroup) {
+func (f *FTX) Start(wg *sync.WaitGroup) error {
+	if wg == nil {
+		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
+	}
 	wg.Add(1)
 	go func() {
 		f.Run()
 		wg.Done()
 	}()
+	return nil
 }
 
 // Run implements the FTX wrapper
@@ -1092,6 +1099,9 @@ func (f *FTX) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetOr
 
 // GetFeeByType returns an estimate of fee based on the type of transaction
 func (f *FTX) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
+	if feeBuilder == nil {
+		return 0, fmt.Errorf("%T %w", feeBuilder, common.ErrNilPointer)
+	}
 	return f.GetFee(ctx, feeBuilder)
 }
 

@@ -569,6 +569,11 @@ func (b *Base) SetAPIKeys(apiKey, apiSecret, clientID string) {
 
 // SetupDefaults sets the exchange settings based on the supplied config
 func (b *Base) SetupDefaults(exch *config.Exchange) error {
+	err := exch.Validate()
+	if err != nil {
+		return err
+	}
+
 	b.Enabled = true
 	b.LoadedByConfig = true
 	b.Config = exch
@@ -587,7 +592,7 @@ func (b *Base) SetupDefaults(exch *config.Exchange) error {
 		exch.HTTPTimeout = DefaultHTTPTimeout
 	}
 
-	err := b.SetHTTPClientTimeout(exch.HTTPTimeout)
+	err = b.SetHTTPClientTimeout(exch.HTTPTimeout)
 	if err != nil {
 		return err
 	}

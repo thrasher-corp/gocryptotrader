@@ -24,7 +24,7 @@ import (
 // GoCryptoTrader
 type IBotExchange interface {
 	Setup(exch *config.Exchange) error
-	Start(wg *sync.WaitGroup)
+	Start(wg *sync.WaitGroup) error
 	SetDefaults()
 	GetName() string
 	IsEnabled() bool

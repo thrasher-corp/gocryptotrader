@@ -29,6 +29,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 )
 
+// errExchangeConfigIsNil defines an error when the config is nil
+var errExchangeConfigIsNil = errors.New("exchange config is nil")
+
 // GetCurrencyConfig returns currency configurations
 func (c *Config) GetCurrencyConfig() CurrencyConfig {
 	return c.Currency
@@ -1892,4 +1895,12 @@ func (c *Config) GetDataPath(elem ...string) string {
 		baseDir = common.GetDefaultDataDir(runtime.GOOS)
 	}
 	return filepath.Join(append([]string{baseDir}, elem...)...)
+}
+
+// Validate checks if exchange config is valid
+func (c *Exchange) Validate() error {
+	if c == nil {
+		return errExchangeConfigIsNil
+	}
+	return nil
 }

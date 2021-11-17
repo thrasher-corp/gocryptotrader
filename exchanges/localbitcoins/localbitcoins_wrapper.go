@@ -106,6 +106,9 @@ func (l *LocalBitcoins) SetDefaults() {
 
 // Setup sets exchange configuration parameters
 func (l *LocalBitcoins) Setup(exch *config.Exchange) error {
+	if err := exch.Validate(); err != nil {
+		return err
+	}
 	if !exch.Enabled {
 		l.SetEnabled(false)
 		return nil
@@ -114,12 +117,16 @@ func (l *LocalBitcoins) Setup(exch *config.Exchange) error {
 }
 
 // Start starts the LocalBitcoins go routine
-func (l *LocalBitcoins) Start(wg *sync.WaitGroup) {
+func (l *LocalBitcoins) Start(wg *sync.WaitGroup) error {
+	if wg == nil {
+		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
+	}
 	wg.Add(1)
 	go func() {
 		l.Run()
 		wg.Done()
 	}()
+	return nil
 }
 
 // Run implements the LocalBitcoins wrapper
@@ -512,6 +519,9 @@ func (l *LocalBitcoins) WithdrawFiatFundsToInternationalBank(_ context.Context, 
 
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (l *LocalBitcoins) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
+	if feeBuilder == nil {
+		return 0, fmt.Errorf("%T %w", feeBuilder, common.ErrNilPointer)
+	}
 	if (!l.AllowAuthenticatedRequest() || l.SkipAuthCheck) && // Todo check connection status
 		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		feeBuilder.FeeType = exchange.OfflineTradeFee

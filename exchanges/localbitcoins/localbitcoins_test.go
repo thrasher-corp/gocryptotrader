@@ -2,6 +2,8 @@ package localbitcoins
 
 import (
 	"context"
+	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -23,6 +25,20 @@ const (
 )
 
 var l LocalBitcoins
+
+func TestStart(t *testing.T) {
+	t.Parallel()
+	err := l.Start(nil)
+	if !errors.Is(err, common.ErrNilPointer) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrNilPointer)
+	}
+	var testWg sync.WaitGroup
+	err = l.Start(&testWg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	testWg.Wait()
+}
 
 func TestGetTicker(t *testing.T) {
 	t.Parallel()
