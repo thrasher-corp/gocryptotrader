@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -61,6 +62,21 @@ func TestMain(m *testing.M) {
 }
 
 // TestGetServerTime API endpoint test
+
+func TestStart(t *testing.T) {
+	t.Parallel()
+	err := k.Start(nil)
+	if !errors.Is(err, common.ErrNilPointer) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrNilPointer)
+	}
+	var testWg sync.WaitGroup
+	err = k.Start(&testWg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	testWg.Wait()
+}
+
 func TestGetServerTime(t *testing.T) {
 	t.Parallel()
 	_, err := k.GetServerTime(context.Background())

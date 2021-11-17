@@ -21,8 +21,10 @@ func main() {
 
 	engine.Bot.Settings = engine.Settings{
 		DisableExchangeAutoPairUpdates: true,
+		EnableDryRun:                   true,
 	}
 
+	engine.Bot.Config.PurgeExchangeAPICredentials()
 	engine.Bot.ExchangeManager = engine.SetupExchangeManager()
 
 	log.Printf("Loading exchanges..")
@@ -78,15 +80,13 @@ func main() {
 	}
 }
 
-// errValue extract reflection type
-var errValue = reflect.TypeOf(errors.New(""))
-
-// testWrappers searches the functions returns for common.ErrNotYetImplemented
-// for checking if the wrapper function has been implemented yet. This uses
-// reflection so it can dynamically scale to GCT's exchange interface, IBotExchange.
+// testWrappers executes and checks each IBotExchange's function return for the
+// error common.ErrNotYetImplemented to verify whether the wrapper function has
+// been implemented yet.
 func testWrappers(e exchange.IBotExchange) ([]string, error) {
 	iExchange := reflect.TypeOf(&e).Elem()
 	actualExchange := reflect.ValueOf(e)
+	errType := reflect.TypeOf(common.ErrNotYetImplemented)
 
 	var funcs []string
 	for x := 0; x < iExchange.NumMethod(); x++ {
@@ -95,15 +95,13 @@ func testWrappers(e exchange.IBotExchange) ([]string, error) {
 		inputs := make([]reflect.Value, method.Type().NumIn())
 		for y := 0; y < method.Type().NumIn(); y++ {
 			input := method.Type().In(y)
-			// Initial stage of fuzzing wrapper functions in core GCT
-			// functionality, for now, zero value all inputs.
 			inputs[y] = reflect.Zero(input)
 		}
 
 		outputs := method.Call(inputs)
 		for y := range outputs {
 			incoming := outputs[y].Interface()
-			if reflect.TypeOf(incoming) == errValue {
+			if reflect.TypeOf(incoming) == errType {
 				err, ok := incoming.(error)
 				if !ok {
 					return nil, fmt.Errorf("%s type assertion failure for %v", name, incoming)
@@ -111,7 +109,8 @@ func testWrappers(e exchange.IBotExchange) ([]string, error) {
 				if errors.Is(err, common.ErrNotYetImplemented) {
 					funcs = append(funcs, name)
 				}
-				break // found error; there should not be another error in this slice.
+				// found error; there should not be another error in this slice.
+				break
 			}
 		}
 	}

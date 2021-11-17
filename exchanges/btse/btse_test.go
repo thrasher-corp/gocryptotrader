@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -56,6 +57,20 @@ func TestMain(m *testing.M) {
 
 func areTestAPIKeysSet() bool {
 	return b.ValidateAPICredentials()
+}
+
+func TestStart(t *testing.T) {
+	t.Parallel()
+	err := b.Start(nil)
+	if !errors.Is(err, common.ErrNilPointer) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrNilPointer)
+	}
+	var testWg sync.WaitGroup
+	err = b.Start(&testWg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	testWg.Wait()
 }
 
 func TestFetchFundingHistory(t *testing.T) {
