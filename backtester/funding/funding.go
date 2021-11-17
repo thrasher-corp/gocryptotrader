@@ -361,15 +361,16 @@ func (f *FundManager) GetFundingForEvent(ev common.EventHandler) (IFundingPair, 
 
 // GetFundingForEAP This will construct a funding based on the exchange, asset, currency pair
 func (f *FundManager) GetFundingForEAP(exch string, a asset.Item, p currency.Pair) (IFundingPair, error) {
-	var resp Pair
-
 	for i := range f.items {
 		if a.IsFutures() {
+			var resp Collateral
 			if f.items[i].BasicEqual(exch, a, currency.NewCode(p.String()), currency.USDT) {
-				resp.Base = f.items[i]
-				resp.Quote = f.items[i].pairedWith
+				resp.Contract = f.items[i]
+				resp.Collateral = f.items[i].pairedWith
+				return &resp, nil
 			}
 		} else {
+			var resp Pair
 			if f.items[i].BasicEqual(exch, a, p.Base, p.Quote) {
 				resp.Base = f.items[i]
 				continue
@@ -377,15 +378,16 @@ func (f *FundManager) GetFundingForEAP(exch string, a asset.Item, p currency.Pai
 			if f.items[i].BasicEqual(exch, a, p.Quote, p.Base) {
 				resp.Quote = f.items[i]
 			}
+			if resp.Base == nil {
+				return nil, fmt.Errorf("base %w", ErrFundsNotFound)
+			}
+			if resp.Quote == nil {
+				return nil, fmt.Errorf("quote %w", ErrFundsNotFound)
+			}
+			return &resp, nil
 		}
 	}
-	if resp.Base == nil {
-		return nil, fmt.Errorf("base %w", ErrFundsNotFound)
-	}
-	if resp.Quote == nil {
-		return nil, fmt.Errorf("quote %w", ErrFundsNotFound)
-	}
-	return &resp, nil
+	return nil, fmt.Errorf("%v %v %v %w", exch, a, p, ErrFundsNotFound)
 }
 
 // GetFundingForEAC This will construct a funding based on the exchange, asset, currency code

@@ -9,7 +9,7 @@ import (
 )
 
 // Create makes a Holding struct to track total values of strategy holdings over the course of a backtesting run
-func Create(ev ClosePriceReader, funding funding.IPairReader) (Holding, error) {
+func Create(ev ClosePriceReader, funding funding.IFundReader) (Holding, error) {
 	if ev == nil {
 		return Holding{}, common.ErrNilEvent
 	}

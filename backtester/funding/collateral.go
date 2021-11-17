@@ -2,6 +2,7 @@ package funding
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -42,7 +43,7 @@ func (c *Collateral) AvailableFunds() decimal.Decimal {
 }
 
 func (c *Collateral) GetPairReader() (IPairReader, error) {
-	return nil, ErrNotPair
+	return nil, fmt.Errorf("could not return pair reader for %v %v %v %v %w", c.Contract.exchange, c.Collateral.asset, c.ContractCurrency(), c.CollateralCurrency(), ErrNotPair)
 }
 
 func (c *Collateral) GetCollateralReader() (ICollateralReader, error) {
@@ -69,7 +70,7 @@ func (c *Collateral) FundReserver() IFundReserver {
 
 // GetPairReleaser
 func (c *Collateral) GetPairReleaser() (IPairReleaser, error) {
-	return nil, ErrNotPair
+	return nil, fmt.Errorf("could not get pair releaser for %v %v %v %v %w", c.Contract.exchange, c.Collateral.asset, c.ContractCurrency(), c.CollateralCurrency(), ErrNotPair)
 }
 
 // GetCollateralReleaser

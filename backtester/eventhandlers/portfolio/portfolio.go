@@ -402,11 +402,7 @@ func (p *Portfolio) UpdateHoldings(ev common.DataEventHandler, funds funding.IFu
 			ev.Pair())
 	}
 	h := lookup.GetLatestHoldings()
-	if h.Timestamp.IsZero() && ev.GetAssetType() == asset.Spot {
-		f, err := funds.GetPairReader()
-		if err != nil {
-			return err
-		}
+	if h.Timestamp.IsZero() {
 		h, err = holdings.Create(ev, f)
 		if err != nil {
 			return err
