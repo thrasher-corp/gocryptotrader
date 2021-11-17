@@ -132,10 +132,12 @@ func (l *Lbank) Setup(exch *config.Exchange) error {
 		return err
 	}
 
+	// NOTE: https://www.lbank.info/fees.html
 	err = l.Fees.LoadStatic(fee.Options{
 		GlobalCommissions: map[asset.Item]fee.Commission{
-			asset.Spot: {Maker: 0.002, Taker: 0.002},
+			asset.Spot: {Maker: 0.001, Taker: 0.001},
 		},
+		ChainTransfer: transferFees,
 	})
 	if err != nil {
 		return err

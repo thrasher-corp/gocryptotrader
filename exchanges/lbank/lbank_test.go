@@ -528,11 +528,3 @@ func TestUpdateTicker(t *testing.T) {
 		t.Error(err)
 	}
 }
-
-func TestUpdateTickers(t *testing.T) {
-	t.Parallel()
-	err := l.UpdateTickers(context.Background(), asset.Spot)
-	if err != nil {
-		t.Error(err)
-	}
-}
