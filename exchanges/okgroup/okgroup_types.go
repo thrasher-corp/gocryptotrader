@@ -5,6 +5,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 )
 
 // Order types
@@ -1516,4 +1517,12 @@ type WebsocketErrorResponse struct {
 	Event     string `json:"event"`
 	Message   string `json:"message"`
 	ErrorCode int64  `json:"errorCode"`
+}
+
+var okexBankTransferFees = []fee.Transfer{
+	{},
+}
+
+var okcoinBankTransferFees = []fee.Transfer{
+	{},
 }

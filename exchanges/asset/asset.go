@@ -31,6 +31,7 @@ const (
 	DownsideProfitContract = Item("downsideprofitcontract")
 	CoinMarginedFutures    = Item("coinmarginedfutures")
 	USDTMarginedFutures    = Item("usdtmarginedfutures")
+	Options                = Item("options")
 )
 
 var supported = Items{

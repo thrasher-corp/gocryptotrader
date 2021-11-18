@@ -45,11 +45,28 @@ func (o *OKGroup) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	err = o.Fees.LoadStatic(fee.Options{
-		GlobalCommissions: map[asset.Item]fee.Commission{
-			asset.Spot: {Maker: 0.0005, Taker: 0.0015},
-		},
-	})
+	switch o.ExchangeName {
+	case "OKEX":
+		// NOTE: https://www.okex.com/fees.html
+		err = o.Fees.LoadStatic(fee.Options{
+			GlobalCommissions: map[asset.Item]fee.Commission{
+				asset.Spot:          {Maker: 0.0008, Taker: 0.001},
+				asset.Futures:       {Maker: 0.0008, Taker: 0.001},
+				asset.PerpetualSwap: {Maker: 0.0008, Taker: 0.001},
+				// Options not yet supported by GCT.
+				asset.Options: {Maker: 0.0008, Taker: 0.001},
+			},
+		})
+	case "OKCOIN International":
+		// NOTE: https://www.okcoin.com/balance/fee
+		err = o.Fees.LoadStatic(fee.Options{
+			GlobalCommissions: map[asset.Item]fee.Commission{
+				asset.Spot: {Maker: 0.001, Taker: 0.002},
+			},
+		})
+	default:
+		return fmt.Errorf("exchange %s unhandled", o.ExchangeName)
+	}
 	if err != nil {
 		return err
 	}
@@ -769,14 +786,32 @@ func (o *OKGroup) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 
 // UpdateCommissionFees updates current fees associated with account
 func (o *OKGroup) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
-	if a != asset.Spot {
-		return common.ErrNotYetImplemented
-	}
+	// if a != asset.Spot {
+	// 	return common.ErrNotYetImplemented
+	// }
+	// resp, err := o.GetAccountWithdrawalFee(ctx, "")
+	// if err != nil {
+	// 	return err
+	// }
+	// // TODO: integrate
+	// fmt.Println(resp)
+	return common.ErrNotYetImplemented
+}
+
+// UpdateTransferFees updates transfer fees for cryptocurrency withdrawal and
+// deposits for this exchange
+func (o *OKGroup) UpdateTransferFees(ctx context.Context) error {
 	resp, err := o.GetAccountWithdrawalFee(ctx, "")
 	if err != nil {
 		return err
 	}
-	// TODO: integrate
-	fmt.Println(resp)
-	return common.ErrNotYetImplemented
+	transferFee := []fee.Transfer{}
+	for x := range resp {
+		transferFee = append(transferFee, fee.Transfer{
+			Currency:   currency.NewCode(resp[x].Currency),
+			Withdrawal: fee.Convert(resp[x].MaxFee),
+			Deposit:    fee.Convert(0), // Default on deposit
+		})
+	}
+	return o.Fees.LoadTransferFees(transferFee)
 }
