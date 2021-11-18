@@ -39,6 +39,8 @@ const (
 	DefaultWebsocketResponseMaxLimit = time.Second * 7
 	// DefaultWebsocketOrderbookBufferLimit is the maximum number of orderbook updates that get stored before being applied
 	DefaultWebsocketOrderbookBufferLimit = 5
+	// ResetConfigPairsWarningMessage is displayed when a currency pair format in the config needs to be updated
+	ResetConfigPairsWarningMessage = "%s Enabled and available pairs for %s reset due to config upgrade, please enable the ones you would like to use again. Defaulting to %v"
 )
 
 var (
@@ -569,6 +571,11 @@ func (b *Base) SetAPIKeys(apiKey, apiSecret, clientID string) {
 
 // SetupDefaults sets the exchange settings based on the supplied config
 func (b *Base) SetupDefaults(exch *config.Exchange) error {
+	err := exch.Validate()
+	if err != nil {
+		return err
+	}
+
 	b.Enabled = true
 	b.LoadedByConfig = true
 	b.Config = exch
@@ -587,7 +594,7 @@ func (b *Base) SetupDefaults(exch *config.Exchange) error {
 		exch.HTTPTimeout = DefaultHTTPTimeout
 	}
 
-	err := b.SetHTTPClientTimeout(exch.HTTPTimeout)
+	err = b.SetHTTPClientTimeout(exch.HTTPTimeout)
 	if err != nil {
 		return err
 	}
@@ -597,6 +604,7 @@ func (b *Base) SetupDefaults(exch *config.Exchange) error {
 	}
 
 	b.HTTPDebugging = exch.HTTPDebugging
+	b.BypassConfigFormatUpgrades = exch.CurrencyPairs.BypassConfigFormatUpgrades
 	b.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 	b.SetCurrencyPairFormat()
 

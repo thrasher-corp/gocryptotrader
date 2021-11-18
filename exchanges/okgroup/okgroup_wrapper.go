@@ -32,12 +32,15 @@ import (
 
 // Setup sets user exchange configuration settings
 func (o *OKGroup) Setup(exch *config.Exchange) error {
+	err := exch.Validate()
+	if err != nil {
+		return err
+	}
 	if !exch.Enabled {
 		o.SetEnabled(false)
 		return nil
 	}
-
-	err := o.SetupDefaults(exch)
+	err = o.SetupDefaults(exch)
 	if err != nil {
 		return err
 	}

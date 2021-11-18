@@ -423,3 +423,21 @@ func (a *wsListStatus) UnmarshalJSON(data []byte) error {
 	a.Data.TransactionTime = aux.Data.TransactionTime.Time()
 	return nil
 }
+
+// UnmarshalJSON deserialises the JSON info, including the timestamp
+func (u *UFuturesSymbolInfo) UnmarshalJSON(data []byte) error {
+	type Alias UFuturesSymbolInfo
+	aux := &struct {
+		DeliveryDate binanceTime `json:"deliveryDate"`
+		OnboardDate  binanceTime `json:"onboardDate"`
+		*Alias
+	}{
+		Alias: (*Alias)(u),
+	}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	u.DeliveryDate = aux.DeliveryDate.Time()
+	u.OnboardDate = aux.OnboardDate.Time()
+	return nil
+}

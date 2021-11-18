@@ -149,12 +149,15 @@ func (h *HitBTC) SetDefaults() {
 
 // Setup sets user exchange configuration settings
 func (h *HitBTC) Setup(exch *config.Exchange) error {
+	err := exch.Validate()
+	if err != nil {
+		return err
+	}
 	if !exch.Enabled {
 		h.SetEnabled(false)
 		return nil
 	}
-
-	err := h.SetupDefaults(exch)
+	err = h.SetupDefaults(exch)
 	if err != nil {
 		return err
 	}
@@ -199,12 +202,16 @@ func (h *HitBTC) Setup(exch *config.Exchange) error {
 }
 
 // Start starts the HitBTC go routine
-func (h *HitBTC) Start(wg *sync.WaitGroup) {
+func (h *HitBTC) Start(wg *sync.WaitGroup) error {
+	if wg == nil {
+		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
+	}
 	wg.Add(1)
 	go func() {
 		h.Run()
 		wg.Done()
 	}()
+	return nil
 }
 
 // Run implements the HitBTC wrapper
@@ -215,40 +222,8 @@ func (h *HitBTC) Run() {
 	}
 
 	forceUpdate := false
-	format, err := h.GetPairFormat(asset.Spot, false)
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%s failed to update tradable pairs. Err: %s",
-			h.Name,
-			err)
-		return
-	}
-	enabled, err := h.GetEnabledPairs(asset.Spot)
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%s failed to update tradable pairs. Err: %s",
-			h.Name,
-			err)
-		return
-	}
-
-	avail, err := h.GetAvailablePairs(asset.Spot)
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%s failed to update tradable pairs. Err: %s",
-			h.Name,
-			err)
-		return
-	}
-
-	if !common.StringDataContains(enabled.Strings(), format.Delimiter) ||
-		!common.StringDataContains(avail.Strings(), format.Delimiter) {
-		enabledPairs := []string{currency.BTC.String() + format.Delimiter + currency.USD.String()}
-		log.Warn(log.ExchangeSys,
-			"Available pairs for HitBTC reset due to config upgrade, please enable the ones you would like again.")
-		forceUpdate = true
-		var p currency.Pairs
-		p, err = currency.NewPairsFromStrings(enabledPairs)
+	if !h.BypassConfigFormatUpgrades {
+		format, err := h.GetPairFormat(asset.Spot, false)
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
 				"%s failed to update tradable pairs. Err: %s",
@@ -256,11 +231,44 @@ func (h *HitBTC) Run() {
 				err)
 			return
 		}
-		err = h.UpdatePairs(p, asset.Spot, true, true)
+		enabled, err := h.GetEnabledPairs(asset.Spot)
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
-				"%s failed to update enabled currencies.\n",
-				h.Name)
+				"%s failed to update tradable pairs. Err: %s",
+				h.Name,
+				err)
+			return
+		}
+
+		avail, err := h.GetAvailablePairs(asset.Spot)
+		if err != nil {
+			log.Errorf(log.ExchangeSys,
+				"%s failed to update tradable pairs. Err: %s",
+				h.Name,
+				err)
+			return
+		}
+
+		if !common.StringDataContains(enabled.Strings(), format.Delimiter) ||
+			!common.StringDataContains(avail.Strings(), format.Delimiter) {
+			enabledPairs := []string{currency.BTC.String() + format.Delimiter + currency.USD.String()}
+			log.Warnf(log.ExchangeSys, exchange.ResetConfigPairsWarningMessage, h.Name, asset.Spot, enabledPairs)
+			forceUpdate = true
+			var p currency.Pairs
+			p, err = currency.NewPairsFromStrings(enabledPairs)
+			if err != nil {
+				log.Errorf(log.ExchangeSys,
+					"%s failed to update tradable pairs. Err: %s",
+					h.Name,
+					err)
+				return
+			}
+			err = h.UpdatePairs(p, asset.Spot, true, true)
+			if err != nil {
+				log.Errorf(log.ExchangeSys,
+					"%s failed to update enabled currencies.\n",
+					h.Name)
+			}
 		}
 	}
 
@@ -268,7 +276,7 @@ func (h *HitBTC) Run() {
 		return
 	}
 
-	err = h.UpdateTradablePairs(context.TODO(), forceUpdate)
+	err := h.UpdateTradablePairs(context.TODO(), forceUpdate)
 	if err != nil {
 		log.Errorf(log.ExchangeSys,
 			"%s failed to update tradable pairs. Err: %s",

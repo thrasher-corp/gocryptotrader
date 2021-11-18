@@ -171,12 +171,15 @@ func (c *Coinbene) SetDefaults() {
 
 // Setup takes in the supplied exchange configuration details and sets params
 func (c *Coinbene) Setup(exch *config.Exchange) error {
+	err := exch.Validate()
+	if err != nil {
+		return err
+	}
 	if !exch.Enabled {
 		c.SetEnabled(false)
 		return nil
 	}
-
-	err := c.SetupDefaults(exch)
+	err = c.SetupDefaults(exch)
 	if err != nil {
 		return err
 	}
@@ -218,12 +221,16 @@ func (c *Coinbene) Setup(exch *config.Exchange) error {
 }
 
 // Start starts the Coinbene go routine
-func (c *Coinbene) Start(wg *sync.WaitGroup) {
+func (c *Coinbene) Start(wg *sync.WaitGroup) error {
+	if wg == nil {
+		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
+	}
 	wg.Add(1)
 	go func() {
 		c.Run()
 		wg.Done()
 	}()
+	return nil
 }
 
 // Run implements the Coinbene wrapper

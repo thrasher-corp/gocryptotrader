@@ -1096,12 +1096,15 @@ Add websocket functionality if supported to Setup:
 ```go
 // Setup takes in the supplied exchange configuration details and sets params
 func (f *FTX) Setup(exch *config.Exchange) error {
+	err := exch.Validate()
+	if err != nil {
+		return err
+	}
 	if !exch.Enabled {
 		f.SetEnabled(false)
 		return nil
 	}
-
-	err := f.SetupDefaults(exch)
+	err = f.SetupDefaults(exch)
 	if err != nil {
 		return err
 	}

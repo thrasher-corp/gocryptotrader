@@ -108,6 +108,9 @@ func (i *ItBit) SetDefaults() {
 
 // Setup sets the exchange parameters from exchange config
 func (i *ItBit) Setup(exch *config.Exchange) error {
+	if err := exch.Validate(); err != nil {
+		return err
+	}
 	if !exch.Enabled {
 		i.SetEnabled(false)
 		return nil
@@ -125,12 +128,16 @@ func (i *ItBit) Setup(exch *config.Exchange) error {
 }
 
 // Start starts the ItBit go routine
-func (i *ItBit) Start(wg *sync.WaitGroup) {
+func (i *ItBit) Start(wg *sync.WaitGroup) error {
+	if wg == nil {
+		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
+	}
 	wg.Add(1)
 	go func() {
 		i.Run()
 		wg.Done()
 	}()
+	return nil
 }
 
 // Run implements the ItBit wrapper

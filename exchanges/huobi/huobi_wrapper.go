@@ -180,12 +180,15 @@ func (h *HUOBI) SetDefaults() {
 
 // Setup sets user configuration
 func (h *HUOBI) Setup(exch *config.Exchange) error {
+	err := exch.Validate()
+	if err != nil {
+		return err
+	}
 	if !exch.Enabled {
 		h.SetEnabled(false)
 		return nil
 	}
-
-	err := h.SetupDefaults(exch)
+	err = h.SetupDefaults(exch)
 	if err != nil {
 		return err
 	}
@@ -240,12 +243,16 @@ func (h *HUOBI) Setup(exch *config.Exchange) error {
 }
 
 // Start starts the HUOBI go routine
-func (h *HUOBI) Start(wg *sync.WaitGroup) {
+func (h *HUOBI) Start(wg *sync.WaitGroup) error {
+	if wg == nil {
+		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
+	}
 	wg.Add(1)
 	go func() {
 		h.Run()
 		wg.Done()
 	}()
+	return nil
 }
 
 // Run implements the HUOBI wrapper
@@ -313,9 +320,7 @@ func (h *HUOBI) Run() {
 				Delimiter: format.Delimiter,
 			},
 		}
-		log.Warn(log.ExchangeSys,
-			"Available and enabled pairs for Huobi reset due to config upgrade, please enable the ones you would like again")
-
+		log.Warnf(log.ExchangeSys, exchange.ResetConfigPairsWarningMessage, h.Name, asset.Spot, enabledPairs)
 		err = h.UpdatePairs(enabledPairs, asset.Spot, true, true)
 		if err != nil {
 			log.Errorf(log.ExchangeSys,

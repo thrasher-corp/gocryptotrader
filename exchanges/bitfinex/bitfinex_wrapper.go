@@ -185,12 +185,15 @@ func (b *Bitfinex) SetDefaults() {
 
 // Setup takes in the supplied exchange configuration details and sets params
 func (b *Bitfinex) Setup(exch *config.Exchange) error {
+	err := exch.Validate()
+	if err != nil {
+		return err
+	}
 	if !exch.Enabled {
 		b.SetEnabled(false)
 		return nil
 	}
-
-	err := b.SetupDefaults(exch)
+	err = b.SetupDefaults(exch)
 	if err != nil {
 		return err
 	}
@@ -244,12 +247,16 @@ func (b *Bitfinex) Setup(exch *config.Exchange) error {
 }
 
 // Start starts the Bitfinex go routine
-func (b *Bitfinex) Start(wg *sync.WaitGroup) {
+func (b *Bitfinex) Start(wg *sync.WaitGroup) error {
+	if wg == nil {
+		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
+	}
 	wg.Add(1)
 	go func() {
 		b.Run()
 		wg.Done()
 	}()
+	return nil
 }
 
 // Run implements the Bitfinex wrapper

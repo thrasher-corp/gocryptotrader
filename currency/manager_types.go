@@ -8,12 +8,13 @@ import (
 
 // PairsManager manages asset pairs
 type PairsManager struct {
-	RequestFormat   *PairFormat               `json:"requestFormat,omitempty"`
-	ConfigFormat    *PairFormat               `json:"configFormat,omitempty"`
-	UseGlobalFormat bool                      `json:"useGlobalFormat,omitempty"`
-	LastUpdated     int64                     `json:"lastUpdated,omitempty"`
-	Pairs           map[asset.Item]*PairStore `json:"pairs"`
-	m               sync.RWMutex
+	BypassConfigFormatUpgrades bool                      `json:"bypassConfigFormatUpgrades"`
+	RequestFormat              *PairFormat               `json:"requestFormat,omitempty"`
+	ConfigFormat               *PairFormat               `json:"configFormat,omitempty"`
+	UseGlobalFormat            bool                      `json:"useGlobalFormat,omitempty"`
+	LastUpdated                int64                     `json:"lastUpdated,omitempty"`
+	Pairs                      map[asset.Item]*PairStore `json:"pairs"`
+	m                          sync.RWMutex
 }
 
 // PairStore stores a currency pair store

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -32,6 +33,20 @@ var p Poloniex
 
 func areTestAPIKeysSet() bool {
 	return p.ValidateAPICredentials()
+}
+
+func TestStart(t *testing.T) {
+	t.Parallel()
+	err := p.Start(nil)
+	if !errors.Is(err, common.ErrNilPointer) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrNilPointer)
+	}
+	var testWg sync.WaitGroup
+	err = p.Start(&testWg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	testWg.Wait()
 }
 
 func TestGetTicker(t *testing.T) {

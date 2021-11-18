@@ -133,12 +133,15 @@ func (g *Gemini) SetDefaults() {
 
 // Setup sets exchange configuration parameters
 func (g *Gemini) Setup(exch *config.Exchange) error {
+	err := exch.Validate()
+	if err != nil {
+		return err
+	}
 	if !exch.Enabled {
 		g.SetEnabled(false)
 		return nil
 	}
-
-	err := g.SetupDefaults(exch)
+	err = g.SetupDefaults(exch)
 	if err != nil {
 		return err
 	}
@@ -199,12 +202,16 @@ func (g *Gemini) Setup(exch *config.Exchange) error {
 }
 
 // Start starts the Gemini go routine
-func (g *Gemini) Start(wg *sync.WaitGroup) {
+func (g *Gemini) Start(wg *sync.WaitGroup) error {
+	if wg == nil {
+		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
+	}
 	wg.Add(1)
 	go func() {
 		g.Run()
 		wg.Done()
 	}()
+	return nil
 }
 
 // Run implements the Gemini wrapper
@@ -214,50 +221,51 @@ func (g *Gemini) Run() {
 	}
 
 	forceUpdate := false
-	format, err := g.GetPairFormat(asset.Spot, false)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s failed to get enabled currencies. Err %s\n",
-			g.Name,
-			err)
-		return
-	}
-
-	enabled, err := g.CurrencyPairs.GetPairs(asset.Spot, true)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s failed to get enabled currencies. Err %s\n",
-			g.Name,
-			err)
-		return
-	}
-
-	avail, err := g.CurrencyPairs.GetPairs(asset.Spot, false)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s failed to get available currencies. Err %s\n",
-			g.Name,
-			err)
-		return
-	}
-
-	if !common.StringDataContains(enabled.Strings(), format.Delimiter) ||
-		!common.StringDataContains(avail.Strings(), format.Delimiter) {
-		var enabledPairs currency.Pairs
-		enabledPairs, err = currency.NewPairsFromStrings([]string{
-			currency.BTC.String() + format.Delimiter + currency.USD.String()})
+	if !g.BypassConfigFormatUpgrades {
+		format, err := g.GetPairFormat(asset.Spot, false)
 		if err != nil {
-			log.Errorf(log.ExchangeSys, "%s failed to update currencies. Err %s\n",
+			log.Errorf(log.ExchangeSys, "%s failed to get enabled currencies. Err %s\n",
 				g.Name,
 				err)
-		} else {
-			log.Warn(log.ExchangeSys,
-				"Available pairs for Gemini reset due to config upgrade, please enable the ones you would like to use again")
-			forceUpdate = true
+			return
+		}
 
-			err = g.UpdatePairs(enabledPairs, asset.Spot, true, true)
+		enabled, err := g.CurrencyPairs.GetPairs(asset.Spot, true)
+		if err != nil {
+			log.Errorf(log.ExchangeSys, "%s failed to get enabled currencies. Err %s\n",
+				g.Name,
+				err)
+			return
+		}
+
+		avail, err := g.CurrencyPairs.GetPairs(asset.Spot, false)
+		if err != nil {
+			log.Errorf(log.ExchangeSys, "%s failed to get available currencies. Err %s\n",
+				g.Name,
+				err)
+			return
+		}
+
+		if !common.StringDataContains(enabled.Strings(), format.Delimiter) ||
+			!common.StringDataContains(avail.Strings(), format.Delimiter) {
+			var enabledPairs currency.Pairs
+			enabledPairs, err = currency.NewPairsFromStrings([]string{
+				currency.BTC.String() + format.Delimiter + currency.USD.String()})
 			if err != nil {
-				log.Errorf(log.ExchangeSys,
-					"%s failed to update currencies. Err: %s\n",
+				log.Errorf(log.ExchangeSys, "%s failed to update currencies. Err %s\n",
 					g.Name,
 					err)
+			} else {
+				log.Warnf(log.ExchangeSys, exchange.ResetConfigPairsWarningMessage, g.Name, asset.Spot, enabledPairs)
+				forceUpdate = true
+
+				err = g.UpdatePairs(enabledPairs, asset.Spot, true, true)
+				if err != nil {
+					log.Errorf(log.ExchangeSys,
+						"%s failed to update currencies. Err: %s\n",
+						g.Name,
+						err)
+				}
 			}
 		}
 	}
@@ -265,7 +273,7 @@ func (g *Gemini) Run() {
 	if !g.GetEnabledFeatures().AutoPairUpdates && !forceUpdate {
 		return
 	}
-	err = g.UpdateTradablePairs(context.TODO(), forceUpdate)
+	err := g.UpdateTradablePairs(context.TODO(), forceUpdate)
 	if err != nil {
 		log.Errorf(log.ExchangeSys,
 			"%s failed to update tradable pairs. Err: %s",

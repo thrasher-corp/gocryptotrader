@@ -153,12 +153,15 @@ func (p *Poloniex) SetDefaults() {
 
 // Setup sets user exchange configuration settings
 func (p *Poloniex) Setup(exch *config.Exchange) error {
+	err := exch.Validate()
+	if err != nil {
+		return err
+	}
 	if !exch.Enabled {
 		p.SetEnabled(false)
 		return nil
 	}
-
-	err := p.SetupDefaults(exch)
+	err = p.SetupDefaults(exch)
 	if err != nil {
 		return err
 	}
@@ -201,12 +204,16 @@ func (p *Poloniex) Setup(exch *config.Exchange) error {
 }
 
 // Start starts the Poloniex go routine
-func (p *Poloniex) Start(wg *sync.WaitGroup) {
+func (p *Poloniex) Start(wg *sync.WaitGroup) error {
+	if wg == nil {
+		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
+	}
 	wg.Add(1)
 	go func() {
 		p.Run()
 		wg.Done()
 	}()
+	return nil
 }
 
 // Run implements the Poloniex wrapper

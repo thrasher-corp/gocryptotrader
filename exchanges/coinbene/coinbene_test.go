@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
@@ -55,6 +56,20 @@ func TestMain(m *testing.M) {
 
 func areTestAPIKeysSet() bool {
 	return c.AllowAuthenticatedRequest()
+}
+
+func TestStart(t *testing.T) {
+	t.Parallel()
+	err := c.Start(nil)
+	if !errors.Is(err, common.ErrNilPointer) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrNilPointer)
+	}
+	var testWg sync.WaitGroup
+	err = c.Start(&testWg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	testWg.Wait()
 }
 
 func TestGetAllPairs(t *testing.T) {

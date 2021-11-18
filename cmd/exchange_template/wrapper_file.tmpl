@@ -2,8 +2,9 @@
 package {{.Name}}
 
 import (
-	"sync"
 	"context"
+	"fmt"
+	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -130,12 +131,18 @@ func ({{.Variable}} *{{.CapitalName}}) SetDefaults() {
 
 // Setup takes in the supplied exchange configuration details and sets params
 func ({{.Variable}} *{{.CapitalName}}) Setup(exch *config.Exchange) error {
+	err := exch.Validate()
+	if err != nil {
+		return err
+	}
 	if !exch.Enabled {
 		{{.Variable}}.SetEnabled(false)
 		return nil
 	}
-
-	{{.Variable}}.SetupDefaults(exch)
+	err = {{.Variable}}.SetupDefaults(exch)
+	if err != nil {
+		return err
+	}
 
 
 	// This loads the static fees associated with the exchange which will most
@@ -194,12 +201,16 @@ func ({{.Variable}} *{{.CapitalName}}) Setup(exch *config.Exchange) error {
 }
 
 // Start starts the {{.CapitalName}} go routine
-func ({{.Variable}} *{{.CapitalName}}) Start(wg *sync.WaitGroup) {
+func ({{.Variable}} *{{.CapitalName}}) Start(wg *sync.WaitGroup) error {
+	if wg == nil {
+		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
+	}
 	wg.Add(1)
 	go func() {
 		{{.Variable}}.Run()
 		wg.Done()
 	}()
+	return nil
 }
 
 // Run implements the {{.CapitalName}} wrapper

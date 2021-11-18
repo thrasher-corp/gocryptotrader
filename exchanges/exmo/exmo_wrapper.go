@@ -125,6 +125,9 @@ func (e *EXMO) SetDefaults() {
 
 // Setup takes in the supplied exchange configuration details and sets params
 func (e *EXMO) Setup(exch *config.Exchange) error {
+	if err := exch.Validate(); err != nil {
+		return err
+	}
 	if !exch.Enabled {
 		e.SetEnabled(false)
 		return nil
@@ -144,12 +147,16 @@ func (e *EXMO) Setup(exch *config.Exchange) error {
 }
 
 // Start starts the EXMO go routine
-func (e *EXMO) Start(wg *sync.WaitGroup) {
+func (e *EXMO) Start(wg *sync.WaitGroup) error {
+	if wg == nil {
+		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
+	}
 	wg.Add(1)
 	go func() {
 		e.Run()
 		wg.Done()
 	}()
+	return nil
 }
 
 // Run implements the EXMO wrapper

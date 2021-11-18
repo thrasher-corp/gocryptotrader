@@ -122,12 +122,15 @@ func (l *Lbank) SetDefaults() {
 
 // Setup sets exchange configuration profile
 func (l *Lbank) Setup(exch *config.Exchange) error {
+	err := exch.Validate()
+	if err != nil {
+		return err
+	}
 	if !exch.Enabled {
 		l.SetEnabled(false)
 		return nil
 	}
-
-	err := l.SetupDefaults(exch)
+	err = l.SetupDefaults(exch)
 	if err != nil {
 		return err
 	}
@@ -154,12 +157,16 @@ func (l *Lbank) Setup(exch *config.Exchange) error {
 }
 
 // Start starts the Lbank go routine
-func (l *Lbank) Start(wg *sync.WaitGroup) {
+func (l *Lbank) Start(wg *sync.WaitGroup) error {
+	if wg == nil {
+		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
+	}
 	wg.Add(1)
 	go func() {
 		l.Run()
 		wg.Done()
 	}()
+	return nil
 }
 
 // Run implements the Lbank wrapper

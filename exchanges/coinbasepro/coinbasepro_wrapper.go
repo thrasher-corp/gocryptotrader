@@ -151,12 +151,15 @@ func (c *CoinbasePro) SetDefaults() {
 
 // Setup initialises the exchange parameters with the current configuration
 func (c *CoinbasePro) Setup(exch *config.Exchange) error {
+	err := exch.Validate()
+	if err != nil {
+		return err
+	}
 	if !exch.Enabled {
 		c.SetEnabled(false)
 		return nil
 	}
-
-	err := c.SetupDefaults(exch)
+	err = c.SetupDefaults(exch)
 	if err != nil {
 		return err
 	}
@@ -198,12 +201,16 @@ func (c *CoinbasePro) Setup(exch *config.Exchange) error {
 }
 
 // Start starts the coinbasepro go routine
-func (c *CoinbasePro) Start(wg *sync.WaitGroup) {
+func (c *CoinbasePro) Start(wg *sync.WaitGroup) error {
+	if wg == nil {
+		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
+	}
 	wg.Add(1)
 	go func() {
 		c.Run()
 		wg.Done()
 	}()
+	return nil
 }
 
 // Run implements the coinbasepro wrapper
@@ -218,54 +225,55 @@ func (c *CoinbasePro) Run() {
 	}
 
 	forceUpdate := false
-	format, err := c.GetPairFormat(asset.Spot, false)
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%s failed to update currencies. Err: %s\n",
-			c.Name,
-			err)
-		return
-	}
-	enabled, err := c.CurrencyPairs.GetPairs(asset.Spot, true)
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%s failed to update currencies. Err: %s\n",
-			c.Name,
-			err)
-		return
-	}
-
-	avail, err := c.CurrencyPairs.GetPairs(asset.Spot, false)
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%s failed to update currencies. Err: %s\n",
-			c.Name,
-			err)
-		return
-	}
-
-	if !common.StringDataContains(enabled.Strings(), format.Delimiter) ||
-		!common.StringDataContains(avail.Strings(), format.Delimiter) {
-		var p currency.Pairs
-		p, err = currency.NewPairsFromStrings([]string{currency.BTC.String() +
-			format.Delimiter +
-			currency.USD.String()})
+	if !c.BypassConfigFormatUpgrades {
+		format, err := c.GetPairFormat(asset.Spot, false)
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
 				"%s failed to update currencies. Err: %s\n",
 				c.Name,
 				err)
-		} else {
-			log.Warn(log.ExchangeSys,
-				"Enabled pairs for CoinbasePro reset due to config upgrade, please enable the ones you would like to use again")
-			forceUpdate = true
+			return
+		}
+		enabled, err := c.CurrencyPairs.GetPairs(asset.Spot, true)
+		if err != nil {
+			log.Errorf(log.ExchangeSys,
+				"%s failed to update currencies. Err: %s\n",
+				c.Name,
+				err)
+			return
+		}
 
-			err = c.UpdatePairs(p, asset.Spot, true, true)
+		avail, err := c.CurrencyPairs.GetPairs(asset.Spot, false)
+		if err != nil {
+			log.Errorf(log.ExchangeSys,
+				"%s failed to update currencies. Err: %s\n",
+				c.Name,
+				err)
+			return
+		}
+
+		if !common.StringDataContains(enabled.Strings(), format.Delimiter) ||
+			!common.StringDataContains(avail.Strings(), format.Delimiter) {
+			var p currency.Pairs
+			p, err = currency.NewPairsFromStrings([]string{currency.BTC.String() +
+				format.Delimiter +
+				currency.USD.String()})
 			if err != nil {
 				log.Errorf(log.ExchangeSys,
 					"%s failed to update currencies. Err: %s\n",
 					c.Name,
 					err)
+			} else {
+				forceUpdate = true
+				log.Warnf(log.ExchangeSys, exchange.ResetConfigPairsWarningMessage, c.Name, asset.Spot, p)
+
+				err = c.UpdatePairs(p, asset.Spot, true, true)
+				if err != nil {
+					log.Errorf(log.ExchangeSys,
+						"%s failed to update currencies. Err: %s\n",
+						c.Name,
+						err)
+				}
 			}
 		}
 	}
@@ -274,7 +282,7 @@ func (c *CoinbasePro) Run() {
 		return
 	}
 
-	err = c.UpdateTradablePairs(context.TODO(), forceUpdate)
+	err := c.UpdateTradablePairs(context.TODO(), forceUpdate)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", c.Name, err)
 	}
