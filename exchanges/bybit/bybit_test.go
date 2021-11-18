@@ -59,6 +59,8 @@ func areTestAPIKeysSet() bool {
 	return by.ValidateAPICredentials()
 }
 
+// test cases for SPOT
+
 func TestGetAllPairs(t *testing.T) {
 	t.Parallel()
 
@@ -225,6 +227,8 @@ func TestGetWalletBalance(t *testing.T) {
 	t.Logf("%+v", r)
 }
 
+// test cases for WS SPOT
+
 func TestWsSubscription(t *testing.T) {
 	t.Parallel()
 
@@ -356,6 +360,8 @@ func TestWsTicker(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// test cases for CoinMarginedFutures
 
 func TestGetFuturesOrderbook(t *testing.T) {
 	pair, err := currency.NewPairFromString("BTCUSD")
@@ -857,3 +863,391 @@ func TestGetAssetExchangeRecords(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+// test cases for USDTMarginedFutures
+
+func TestGetUSDTFuturesKlineData(t *testing.T) {
+	pair, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = by.GetUSDTFuturesKlineData(pair, "M", 5, time.Time{})
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = by.GetUSDTFuturesKlineData(pair, "60", 5, time.Unix(1577836800, 0))
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetUSDTPublicTrades(t *testing.T) {
+	pair, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = by.GetUSDTPublicTrades(pair, 1000)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetUSDTMarkPriceKline(t *testing.T) {
+	pair, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = by.GetUSDTMarkPriceKline(pair, "D", 0, time.Unix(1577836800, 0))
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetUSDTIndexPriceKline(t *testing.T) {
+	pair, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = by.GetUSDTIndexPriceKline(pair, "D", 0, time.Unix(1577836800, 0))
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetUSDTPremiumIndexPriceKline(t *testing.T) {
+	pair, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = by.GetUSDTPremiumIndexPriceKline(pair, "D", 0, time.Unix(1577836800, 0))
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetUSDTLastFundingRate(t *testing.T) {
+	pair, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = by.GetUSDTLastFundingRate(pair)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetUSDTRiskLimit(t *testing.T) {
+	pair, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = by.GetUSDTRiskLimit(pair)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCreateUSDTFuturesOrder(t *testing.T) {
+	pair, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = by.CreateUSDTFuturesOrder(pair, "Buy", "Limit", "GTC", "", "", "", 1, 1, 0, 0, false, false)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetActiveUSDTFuturesOrders(t *testing.T) {
+	pair, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = by.GetActiveUSDTFuturesOrders(pair, "", "", "", "", 0, 0)
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = by.GetActiveUSDTFuturesOrders(pair, "Filled", "", "", "", 0, 50)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCancelActiveUSDTFuturesOrders(t *testing.T) {
+	pair, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = by.CancelActiveUSDTFuturesOrders(pair, "3bd1844f-f3c0-4e10-8c25-10fea03763f6", "")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCancelAllActiveUSDTFuturesOrders(t *testing.T) {
+	pair, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = by.CancelAllActiveUSDTFuturesOrders(pair)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestReplaceActiveUSDTFuturesOrders(t *testing.T) {
+	pair, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = by.ReplaceActiveUSDTFuturesOrders(pair, "3bd1844f-f3c0-4e10-8c25-10fea03763f6", "", "", "", 1, 2, 0, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetActiveUSDTRealtimeOrders(t *testing.T) {
+	pair, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = by.GetActiveUSDTRealtimeOrders(pair, "", "")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCreateConditionalUSDTFuturesOrder(t *testing.T) {
+	pair, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = by.CreateConditionalUSDTFuturesOrder(pair, "Buy", "Limit", "GTC", "", "", "", "", 1, 0.5, 0, 0, 1, 1, false, false)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetConditionalUSDTFuturesOrders(t *testing.T) {
+	pair, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = by.GetConditionalUSDTFuturesOrders(pair, "", "", "", "", 0, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCancelConditionalUSDTFuturesOrders(t *testing.T) {
+	pair, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = by.CancelConditionalUSDTFuturesOrders(pair, "c1025629-e85b-4c26-b4f3-76e86ad9f8c", "")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCancelAllConditionalUSDTFuturesOrders(t *testing.T) {
+	pair, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = by.CancelAllConditionalUSDTFuturesOrders(pair)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestReplaceConditionalUSDTFuturesOrders(t *testing.T) {
+	pair, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = by.ReplaceConditionalUSDTFuturesOrders(pair, "c1025629-e85b-4c26-b4f3-76e86ad9f8c", "", "", "", 0, 0, 0, 0, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetConditionalUSDTRealtimeOrders(t *testing.T) {
+	pair, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = by.GetConditionalUSDTRealtimeOrders(pair, "", "")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetUSDTPositions(t *testing.T) {
+	pair, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = by.GetUSDTPositions(pair)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestSetAutoAddMargin(t *testing.T) {
+	pair, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = by.SetAutoAddMargin(pair, true, "10")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestChangeUSDTMarginn(t *testing.T) {
+	pair, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = by.ChangeUSDTMargin(pair, 1, 1, true)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestChangeUSDTMode(t *testing.T) {
+	pair, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = by.ChangeUSDTMode(pair, "Partial")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestSetUSDTMargin(t *testing.T) {
+	pair, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = by.SetUSDTMargin(pair, "Buy", "10")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+//
+//
+
+func TestSetUSDTLeverage(t *testing.T) {
+	pair, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = by.SetUSDTLeverage(pair, 10, 10)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestSetUSDTTradingAndStop(t *testing.T) {
+	pair, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = by.SetUSDTTradingAndStop(pair, 0, 0, 0, 0, 0, "", "", "")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetUSDTTradeRecords(t *testing.T) {
+	pair, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = by.GetUSDTTradeRecords(pair, "", 0, 0, 0, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetClosedUSDTTrades(t *testing.T) {
+	pair, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = by.GetClosedUSDTTrades(pair, "", 0, 0, 0, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestSetUSDTRiskLimit(t *testing.T) {
+	pair, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = by.SetUSDTRiskLimit(pair, "Buy", 2)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetPredictedUSDTFundingRate(t *testing.T) {
+	pair, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, _, err = by.GetPredictedUSDTFundingRate(pair)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetLastUSDTFundingFee(t *testing.T) {
+	pair, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = by.GetLastUSDTFundingFee(pair)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+// test cases for Futures

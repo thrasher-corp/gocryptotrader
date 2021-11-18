@@ -130,9 +130,9 @@ func (by *Bybit) GetActiveFuturesOrders(symbol currency.Pair, orderStatus, direc
 }
 
 // CancelActiveFuturesOrders cancels futures unfilled or partially filled orders
-func (by *Bybit) CancelActiveFuturesOrders(symbol currency.Pair, orderID, orderLinkID string) (FuturesOrderData, error) {
+func (by *Bybit) CancelActiveFuturesOrders(symbol currency.Pair, orderID, orderLinkID string) (FuturesOrderCancelResp, error) {
 	resp := struct {
-		Result FuturesOrderData `json:"result"`
+		Result FuturesOrderCancelResp `json:"result"`
 	}{}
 	params := url.Values{}
 	symbolValue, err := by.FormatSymbol(symbol, asset.Futures)
