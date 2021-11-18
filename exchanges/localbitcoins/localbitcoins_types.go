@@ -340,3 +340,9 @@ type Price struct {
 	Price  float64
 	Amount float64
 }
+
+// TransferFee defines the deposit and withdrawal fee.
+type TransferFee struct {
+	Deposit    float64 `json:"deposit_fee,string"`
+	Withdrawal float64 `json:"outgoing_fee,string"`
+}

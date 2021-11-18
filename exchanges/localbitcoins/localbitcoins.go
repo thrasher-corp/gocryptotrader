@@ -19,7 +19,7 @@ import (
 const (
 	localbitcoinsAPIURL = "https://localbitcoins.com"
 
-	// Autheticated Calls
+	// Authenticated Calls
 	localbitcoinsAPIAccountInfo        = "api/account_info"
 	localbitcoinsAPIMyself             = "myself/"
 	localbitcoinsAPIAds                = "ads/"
@@ -57,7 +57,7 @@ const (
 	localbitcoinsAPIWalletSendPin      = "wallet-send-pin/"
 	localbitcoinsAPIWalletAddress      = "wallet-addr/"
 
-	// Un-Autheticated Calls
+	// Un-Authenticated Calls
 	localbitcoinsAPICountryCodes   = "/api/countrycodes/"
 	localbitcoinsAPICurrencies     = "/api/currencies/"
 	localbitcoinsAPIPaymentMethods = "/api/payment_methods/"
@@ -68,44 +68,40 @@ const (
 	localbitcoinsAPIOnlineBuy      = "/buy-bitcoins-online/"
 	localbitcoinsAPIOrderbook      = "/orderbook.json"
 	localbitcoinsAPITrades         = "/trades.json"
+	localbitcoinsAPITransferFees   = "/api/fees/"
 
-	// Trade Types
-	tradeTypeLocalSell  = "LOCAL_SELL"
-	tradeTypeLocalBuy   = "LOCAL_BUY"
-	tradeTypeOnlineSell = "ONLINE_SELL"
-	tradeTypeOnlineBuy  = "ONLINE_BUY"
+	// // Trade Types
+	// tradeTypeLocalSell  = "LOCAL_SELL"
+	// tradeTypeLocalBuy   = "LOCAL_BUY"
+	// tradeTypeOnlineSell = "ONLINE_SELL"
+	// tradeTypeOnlineBuy  = "ONLINE_BUY"
 
-	// Reference Types
-	refTypeShort   = "SHORT"
-	refTypeLong    = "LONG"
-	refTypeNumbers = "NUMBERS"
-	refTypeLetters = "LETTERS"
+	// // Reference Types
+	// refTypeShort   = "SHORT"
+	// refTypeLong    = "LONG"
+	// refTypeNumbers = "NUMBERS"
+	// refTypeLetters = "LETTERS"
 
-	// Feedback Values
-	feedbackTrust                = "trust"
-	feedbackPositive             = "positive"
-	feedbackNeutral              = "neutral"
-	feedbackBlock                = "block"
-	feedbackBlockWithoutFeedback = "block_without_feedback"
+	// // Feedback Values
+	// feedbackTrust                = "trust"
+	// feedbackPositive             = "positive"
+	// feedbackNeutral              = "neutral"
+	// feedbackBlock                = "block"
+	// feedbackBlockWithoutFeedback = "block_without_feedback"
 
-	// State Values
-	stateNotOpened           = "NOT_OPENED"
-	stateWaitingForPayment   = "WAITING_FOR_PAYMENT"
-	statePaid                = "PAID"
-	stateNotPaid             = "DIDNT_PAID"
-	statePaidLate            = "PAID_IN_LATE"
-	statePartlyPaid          = "PAID_PARTLY"
-	statePaidAndConfirmed    = "PAID_AND_CONFIRMED"
-	statePaidLateConfirmed   = "PAID_IN_LATE_AND_CONFIRMED"
-	statePaidPartlyConfirmed = "PAID_PARTLY_AND_CONFIRMED"
+	// // State Values
+	// stateNotOpened           = "NOT_OPENED"
+	// stateWaitingForPayment   = "WAITING_FOR_PAYMENT"
+	// statePaid                = "PAID"
+	// stateNotPaid             = "DIDNT_PAID"
+	// statePaidLate            = "PAID_IN_LATE"
+	// statePartlyPaid          = "PAID_PARTLY"
+	// statePaidAndConfirmed    = "PAID_AND_CONFIRMED"
+	// statePaidLateConfirmed   = "PAID_IN_LATE_AND_CONFIRMED"
+	// statePaidPartlyConfirmed = "PAID_PARTLY_AND_CONFIRMED"
 
 	// String response used with order status
 	null = "null"
-)
-
-var (
-	// Payment Methods
-	paymentMethodOne string
 )
 
 // LocalBitcoins is the overarching type across the localbitcoins package
@@ -117,25 +113,24 @@ type LocalBitcoins struct {
 // LocalBitcoins user. The response contains the same information that is found
 // on an account's public profile page.
 func (l *LocalBitcoins) GetAccountInformation(ctx context.Context, username string, self bool) (AccountInfo, error) {
-	type response struct {
+	resp := struct {
 		Data AccountInfo `json:"data"`
-	}
-	resp := response{}
+	}{}
 
+	var err error
 	if self {
-		err := l.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, localbitcoinsAPIMyself, nil, &resp)
-		if err != nil {
-			return resp.Data, err
-		}
+		err = l.SendAuthenticatedHTTPRequest(ctx,
+			exchange.RestSpot,
+			http.MethodGet,
+			localbitcoinsAPIMyself,
+			nil,
+			&resp)
 	} else {
 		path := fmt.Sprintf("/%s/%s/", localbitcoinsAPIAccountInfo, username)
-		err := l.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp, request.Unset)
-		if err != nil {
-			return resp.Data, err
-		}
+		err = l.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp, request.Unset)
 	}
 
-	return resp.Data, nil
+	return resp.Data, err
 }
 
 // Getads returns information of single advertisement based on the ad ID, if
@@ -656,6 +651,18 @@ func (l *LocalBitcoins) GetBitcoinsOnlineAd(ctx context.Context) error {
 func (l *LocalBitcoins) GetTicker(ctx context.Context) (map[string]Ticker, error) {
 	result := make(map[string]Ticker)
 	return result, l.SendHTTPRequest(ctx, exchange.RestSpot, localbitcoinsAPITicker, &result, tickerLimiter)
+}
+
+// GetTransferFees returns the fee structure.
+func (l *LocalBitcoins) GetTransferFees(ctx context.Context) (TransferFee, error) {
+	resp := struct {
+		Data TransferFee `json:"data"`
+	}{}
+	err := l.SendHTTPRequest(ctx, exchange.RestSpot,
+		localbitcoinsAPITransferFees,
+		&resp,
+		request.Unset)
+	return resp.Data, err
 }
 
 // GetTradableCurrencies returns a list of tradable fiat currencies

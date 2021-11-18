@@ -36,7 +36,7 @@ const (
 	pubGetHealth           = "/gethealth"
 	pubGetChats            = "/getchats"
 
-	// Autheticated Endpoints
+	// Authenticated Endpoints
 	// privGetPermissions             = "/me/getpermissions"
 	// privGetBalance                 = "/me/getbalance"
 	// privMarginStatus               = "/me/getcollateral"

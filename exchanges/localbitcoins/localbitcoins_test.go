@@ -384,3 +384,11 @@ func TestUpdateTickers(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestGetTransferFees(t *testing.T) {
+	t.Parallel()
+	_, err := l.GetTransferFees(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+}

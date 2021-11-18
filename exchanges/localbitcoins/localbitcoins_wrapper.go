@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -106,14 +107,30 @@ func (l *LocalBitcoins) SetDefaults() {
 
 // Setup sets exchange configuration parameters
 func (l *LocalBitcoins) Setup(exch *config.Exchange) error {
-	if err := exch.Validate(); err != nil {
+	err := exch.Validate()
+	if err != nil {
 		return err
 	}
 	if !exch.Enabled {
 		l.SetEnabled(false)
 		return nil
 	}
-	return l.SetupDefaults(exch)
+	err = l.SetupDefaults(exch)
+	if err != nil {
+		return err
+	}
+	// Note: https://localbitcoins.com/fees
+	return l.Fees.LoadStatic(fee.Options{
+		GlobalCommissions: map[asset.Item]fee.Commission{
+			// When ads are deployed fees are 1% otherwise no trading fees.
+			asset.Spot: {Taker: 0.01},
+		},
+		ChainTransfer: []fee.Transfer{{
+			Currency:   currency.BTC,
+			Deposit:    fee.Convert(0), // Default on.
+			Withdrawal: fee.Convert(0.0006),
+		}},
+	})
 }
 
 // Start starts the LocalBitcoins go routine
@@ -678,4 +695,25 @@ func (l *LocalBitcoins) GetHistoricCandles(ctx context.Context, pair currency.Pa
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (l *LocalBitcoins) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	return kline.Item{}, common.ErrFunctionNotSupported
+}
+
+// UpdateCommissionFees updates current fees associated with account
+func (l *LocalBitcoins) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
+	// LocalBitcoins users who create advertisements are charged a 1% fee for
+	// every completed trade.
+	return common.ErrNotYetImplemented
+}
+
+// UpdateTransferFees updates transfer fees for cryptocurrency withdrawal and
+// deposits for this exchange
+func (l *LocalBitcoins) UpdateTransferFees(ctx context.Context) error {
+	fees, err := l.GetTransferFees(ctx)
+	if err != nil {
+		return err
+	}
+	return l.Fees.LoadTransferFees([]fee.Transfer{{
+		Currency:   currency.BTC,
+		Withdrawal: fee.Convert(fees.Withdrawal),
+		Deposit:    fee.Convert(fees.Deposit),
+	}})
 }

@@ -2555,6 +2555,21 @@
     }
    ]
   },
+  "/api/fees/": {
+   "GET": [
+    {
+     "data": {
+      "data": {
+       "deposit_fee": "0E-8",
+       "outgoing_fee": "0.00006000"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
   "/api/myself/": {
    "GET": [
     {

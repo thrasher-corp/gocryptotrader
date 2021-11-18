@@ -1316,7 +1316,7 @@ func (b *Bitfinex) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscriptio
 	return nil
 }
 
-// WsSendAuth sends a autheticated event payload
+// WsSendAuth sends a authenticated event payload
 func (b *Bitfinex) WsSendAuth() error {
 	if !b.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
 		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled",

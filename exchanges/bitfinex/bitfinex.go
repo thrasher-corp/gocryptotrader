@@ -1653,7 +1653,7 @@ func (b *Bitfinex) SendHTTPRequest(ctx context.Context, ep exchange.URL, path st
 	})
 }
 
-// SendAuthenticatedHTTPRequest sends an autheticated http request and json
+// SendAuthenticatedHTTPRequest sends an authenticated http request and json
 // unmarshals result to a supplied variable
 func (b *Bitfinex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method, path string, params map[string]interface{}, result interface{}, endpoint request.EndpointLimit) error {
 	if !b.AllowAuthenticatedRequest() {
@@ -1706,7 +1706,7 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 	})
 }
 
-// SendAuthenticatedHTTPRequestV2 sends an autheticated http request and json
+// SendAuthenticatedHTTPRequestV2 sends an authenticated http request and json
 // unmarshals result to a supplied variable
 func (b *Bitfinex) SendAuthenticatedHTTPRequestV2(ctx context.Context, ep exchange.URL, method, path string, params map[string]interface{}, result interface{}, endpoint request.EndpointLimit) error {
 	if !b.AllowAuthenticatedRequest() {
