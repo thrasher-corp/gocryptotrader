@@ -354,7 +354,7 @@ func (s *Statistic) PrintAllEventsChronologically() {
 								currencyStatistic.Events[i].DataEvent.GetExchange(),
 								currencyStatistic.Events[i].DataEvent.GetAssetType(),
 								currencyStatistic.Events[i].DataEvent.Pair(),
-								currencyStatistic.Events[i].DataEvent.ClosePrice().Round(8),
+								currencyStatistic.Events[i].DataEvent.GetClosePrice().Round(8),
 								currencyStatistic.Events[i].DataEvent.GetReason()))
 					default:
 						errs = append(errs, fmt.Errorf("%v %v %v unexpected data received %+v", exch, a, pair, currencyStatistic.Events[i]))

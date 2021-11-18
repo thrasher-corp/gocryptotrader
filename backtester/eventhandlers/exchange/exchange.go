@@ -40,7 +40,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 		},
 		Direction:  o.GetDirection(),
 		Amount:     o.GetAmount(),
-		ClosePrice: data.Latest().ClosePrice(),
+		ClosePrice: data.Latest().GetClosePrice(),
 	}
 	eventFunds := o.GetAllocatedFunds()
 	cs, err := e.GetCurrencySettings(o.GetExchange(), o.GetAssetType(), o.Pair())

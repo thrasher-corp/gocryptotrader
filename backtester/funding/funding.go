@@ -74,10 +74,7 @@ func (f *FundManager) CreateSnapshot(t time.Time) {
 			Available: f.items[i].available,
 			Time:      t,
 		}
-		if trackingcurrencies.CurrencyIsUSDTracked(f.items[i].currency) {
-			iss.USDValue = f.items[i].available
-			iss.USDClosePrice = decimal.NewFromInt(1)
-		} else if !f.disableUSDTracking && !trackingcurrencies.CurrencyIsUSDTracked(f.items[i].currency) {
+		if !f.disableUSDTracking {
 			var usdClosePrice decimal.Decimal
 			if f.items[i].usdTrackingCandles == nil {
 				continue
@@ -85,7 +82,7 @@ func (f *FundManager) CreateSnapshot(t time.Time) {
 			usdCandles := f.items[i].usdTrackingCandles.GetStream()
 			for j := range usdCandles {
 				if usdCandles[j].GetTime().Equal(t) {
-					usdClosePrice = usdCandles[j].ClosePrice()
+					usdClosePrice = usdCandles[j].GetClosePrice()
 					break
 				}
 			}
@@ -108,6 +105,7 @@ func (f *FundManager) AddUSDTrackingData(k *kline.DataFromKline) error {
 	}
 	baseSet := false
 	quoteSet := false
+	var basePairedWith currency.Code
 	for i := range f.items {
 		if baseSet && quoteSet {
 			return nil
@@ -118,10 +116,16 @@ func (f *FundManager) AddUSDTrackingData(k *kline.DataFromKline) error {
 				if f.items[i].usdTrackingCandles == nil &&
 					trackingcurrencies.CurrencyIsUSDTracked(k.Item.Pair.Quote) {
 					f.items[i].usdTrackingCandles = k
+					if f.items[i].pairedWith != nil {
+						basePairedWith = f.items[i].pairedWith.currency
+					}
 				}
 				baseSet = true
 			}
 			if trackingcurrencies.CurrencyIsUSDTracked(f.items[i].currency) {
+				if f.items[i].pairedWith != nil && f.items[i].currency != basePairedWith {
+					continue
+				}
 				if f.items[i].usdTrackingCandles == nil {
 					usdCandles := gctkline.Item{
 						Exchange: k.Item.Exchange,
@@ -208,10 +212,10 @@ func (f *FundManager) GenerateReport() *Report {
 		if !f.disableUSDTracking &&
 			f.items[i].usdTrackingCandles != nil {
 			usdStream := f.items[i].usdTrackingCandles.GetStream()
-			item.USDInitialFunds = f.items[i].initialFunds.Mul(usdStream[0].ClosePrice())
-			item.USDFinalFunds = f.items[i].available.Mul(usdStream[len(usdStream)-1].ClosePrice())
-			item.USDInitialCostForOne = usdStream[0].ClosePrice()
-			item.USDFinalCostForOne = usdStream[len(usdStream)-1].ClosePrice()
+			item.USDInitialFunds = f.items[i].initialFunds.Mul(usdStream[0].GetClosePrice())
+			item.USDFinalFunds = f.items[i].available.Mul(usdStream[len(usdStream)-1].GetClosePrice())
+			item.USDInitialCostForOne = usdStream[0].GetClosePrice()
+			item.USDFinalCostForOne = usdStream[len(usdStream)-1].GetClosePrice()
 			item.USDPairCandle = f.items[i].usdTrackingCandles
 		}
 

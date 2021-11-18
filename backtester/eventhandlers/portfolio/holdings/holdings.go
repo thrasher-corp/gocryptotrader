@@ -9,13 +9,14 @@ import (
 )
 
 // Create makes a Holding struct to track total values of strategy holdings over the course of a backtesting run
-func Create(ev common.EventHandler, funding funding.IPairReader) (Holding, error) {
+func Create(ev ClosePriceReader, funding funding.IPairReader) (Holding, error) {
 	if ev == nil {
 		return Holding{}, common.ErrNilEvent
 	}
 	if funding.QuoteInitialFunds().LessThan(decimal.Zero) {
 		return Holding{}, ErrInitialFundsZero
 	}
+
 	return Holding{
 		Offset:            ev.GetOffset(),
 		Pair:              ev.Pair(),
@@ -26,7 +27,7 @@ func Create(ev common.EventHandler, funding funding.IPairReader) (Holding, error
 		QuoteSize:         funding.QuoteInitialFunds(),
 		BaseInitialFunds:  funding.BaseInitialFunds(),
 		BaseSize:          funding.BaseInitialFunds(),
-		TotalInitialValue: funding.BaseInitialFunds().Mul(funding.QuoteInitialFunds()).Add(funding.QuoteInitialFunds()),
+		TotalInitialValue: funding.QuoteInitialFunds().Add(funding.BaseInitialFunds().Mul(ev.GetClosePrice())),
 	}, nil
 }
 
@@ -40,7 +41,7 @@ func (h *Holding) Update(e fill.Event, f funding.IPairReader) {
 // UpdateValue calculates the holding's value for a data event's time and price
 func (h *Holding) UpdateValue(d common.DataEventHandler) {
 	h.Timestamp = d.GetTime()
-	latest := d.ClosePrice()
+	latest := d.GetClosePrice()
 	h.Offset = d.GetOffset()
 	h.updateValue(latest)
 }

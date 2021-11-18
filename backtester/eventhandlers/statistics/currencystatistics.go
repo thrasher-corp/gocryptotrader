@@ -24,9 +24,9 @@ func (c *CurrencyPairStatistic) CalculateResults(riskFreeRate decimal.Decimal) e
 	first := c.Events[0]
 	sep := fmt.Sprintf("%v %v %v |\t", first.DataEvent.GetExchange(), first.DataEvent.GetAssetType(), first.DataEvent.Pair())
 
-	firstPrice := first.DataEvent.ClosePrice()
+	firstPrice := first.DataEvent.GetClosePrice()
 	last := c.Events[len(c.Events)-1]
-	lastPrice := last.DataEvent.ClosePrice()
+	lastPrice := last.DataEvent.GetClosePrice()
 	for i := range last.Transactions.Orders {
 		if last.Transactions.Orders[i].Side == gctorder.Buy {
 			c.BuyOrders++
@@ -35,7 +35,7 @@ func (c *CurrencyPairStatistic) CalculateResults(riskFreeRate decimal.Decimal) e
 		}
 	}
 	for i := range c.Events {
-		price := c.Events[i].DataEvent.ClosePrice()
+		price := c.Events[i].DataEvent.GetClosePrice()
 		if c.LowestClosePrice.IsZero() || price.LessThan(c.LowestClosePrice) {
 			c.LowestClosePrice = price
 		}
@@ -65,17 +65,17 @@ func (c *CurrencyPairStatistic) CalculateResults(riskFreeRate decimal.Decimal) e
 		if c.Events[i].SignalEvent != nil && c.Events[i].SignalEvent.GetDirection() == common.MissingData {
 			c.ShowMissingDataWarning = true
 		}
-		if c.Events[i-1].DataEvent.ClosePrice().IsZero() ||
-			(c.Events[i].DataEvent.ClosePrice().IsZero() && !c.Events[i-1].DataEvent.ClosePrice().IsZero()) {
+		if c.Events[i-1].DataEvent.GetClosePrice().IsZero() ||
+			(c.Events[i].DataEvent.GetClosePrice().IsZero() && !c.Events[i-1].DataEvent.GetClosePrice().IsZero()) {
 			// closing price for the current candle or previous candle is missing, use the previous
 			// benchmark rate to allow some consistency
 			c.ShowMissingDataWarning = true
 			benchmarkRates[i] = benchmarkRates[i-1]
 			continue
 		}
-		benchmarkRates[i] = c.Events[i].DataEvent.ClosePrice().Sub(
-			c.Events[i-1].DataEvent.ClosePrice()).Div(
-			c.Events[i-1].DataEvent.ClosePrice())
+		benchmarkRates[i] = c.Events[i].DataEvent.GetClosePrice().Sub(
+			c.Events[i-1].DataEvent.GetClosePrice()).Div(
+			c.Events[i-1].DataEvent.GetClosePrice())
 	}
 
 	// remove the first entry as its zero and impacts
@@ -131,8 +131,8 @@ func (c *CurrencyPairStatistic) PrintResults(e string, a asset.Item, p currency.
 	})
 	last := c.Events[len(c.Events)-1]
 	first := c.Events[0]
-	c.StartingClosePrice = first.DataEvent.ClosePrice()
-	c.EndingClosePrice = last.DataEvent.ClosePrice()
+	c.StartingClosePrice = first.DataEvent.GetClosePrice()
+	c.EndingClosePrice = last.DataEvent.GetClosePrice()
 	c.TotalOrders = c.BuyOrders + c.SellOrders
 	last.Holdings.TotalValueLost = last.Holdings.TotalValueLostToSlippage.Add(last.Holdings.TotalValueLostToVolumeSizing)
 	sep := fmt.Sprintf("%v %v %v |\t", e, a, p)
@@ -217,15 +217,15 @@ func CalculateBiggestEventDrawdown(closePrices []common.DataEventHandler) (Swing
 		return Swing{}, fmt.Errorf("%w to calculate drawdowns", errReceivedNoData)
 	}
 	var swings []Swing
-	lowestPrice := closePrices[0].LowPrice()
-	highestPrice := closePrices[0].HighPrice()
+	lowestPrice := closePrices[0].GetLowPrice()
+	highestPrice := closePrices[0].GetHighPrice()
 	lowestTime := closePrices[0].GetTime()
 	highestTime := closePrices[0].GetTime()
 	interval := closePrices[0].GetInterval()
 
 	for i := range closePrices {
-		currHigh := closePrices[i].HighPrice()
-		currLow := closePrices[i].LowPrice()
+		currHigh := closePrices[i].GetHighPrice()
+		currLow := closePrices[i].GetLowPrice()
 		currTime := closePrices[i].GetTime()
 		if lowestPrice.GreaterThan(currLow) && !currLow.IsZero() {
 			lowestPrice = currLow
@@ -262,7 +262,7 @@ func CalculateBiggestEventDrawdown(closePrices []common.DataEventHandler) (Swing
 			lowestTime = currTime
 		}
 	}
-	if (len(swings) > 0 && swings[len(swings)-1].Lowest.Value != closePrices[len(closePrices)-1].LowPrice()) || swings == nil {
+	if (len(swings) > 0 && swings[len(swings)-1].Lowest.Value != closePrices[len(closePrices)-1].GetLowPrice()) || swings == nil {
 		// need to close out the final drawdown
 		if lowestTime.Equal(highestTime) {
 			// create distinction if the greatest drawdown occurs within the same candle
@@ -309,8 +309,8 @@ func CalculateBiggestEventDrawdown(closePrices []common.DataEventHandler) (Swing
 
 func (c *CurrencyPairStatistic) calculateHighestCommittedFunds() {
 	for i := range c.Events {
-		if c.Events[i].Holdings.BaseSize.Mul(c.Events[i].DataEvent.ClosePrice()).GreaterThan(c.HighestCommittedFunds.Value) {
-			c.HighestCommittedFunds.Value = c.Events[i].Holdings.BaseSize.Mul(c.Events[i].DataEvent.ClosePrice())
+		if c.Events[i].Holdings.BaseSize.Mul(c.Events[i].DataEvent.GetClosePrice()).GreaterThan(c.HighestCommittedFunds.Value) {
+			c.HighestCommittedFunds.Value = c.Events[i].Holdings.BaseSize.Mul(c.Events[i].DataEvent.GetClosePrice())
 			c.HighestCommittedFunds.Time = c.Events[i].Holdings.Timestamp
 		}
 	}

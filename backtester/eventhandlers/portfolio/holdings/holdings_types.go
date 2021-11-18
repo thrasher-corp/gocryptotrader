@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
+	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
@@ -43,4 +44,11 @@ type Holding struct {
 	TotalValueLostToVolumeSizing decimal.Decimal `json:"total-value-lost-to-volume-sizing"`
 	TotalValueLostToSlippage     decimal.Decimal `json:"total-value-lost-to-slippage"`
 	TotalValueLost               decimal.Decimal `json:"total-value-lost"`
+}
+
+// ClosePriceReader is used for holdings calculations
+// without needing to consider event types
+type ClosePriceReader interface {
+	common.EventHandler
+	GetClosePrice() decimal.Decimal
 }

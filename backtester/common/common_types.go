@@ -65,10 +65,10 @@ type EventHandler interface {
 // DataEventHandler interface used for loading and interacting with Data
 type DataEventHandler interface {
 	EventHandler
-	ClosePrice() decimal.Decimal
-	HighPrice() decimal.Decimal
-	LowPrice() decimal.Decimal
-	OpenPrice() decimal.Decimal
+	GetClosePrice() decimal.Decimal
+	GetHighPrice() decimal.Decimal
+	GetLowPrice() decimal.Decimal
+	GetOpenPrice() decimal.Decimal
 }
 
 // Directioner dictates the side of an order
