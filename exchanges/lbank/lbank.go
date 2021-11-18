@@ -376,7 +376,9 @@ func (l *Lbank) USD2RMBRate(ctx context.Context) (ExchangeRateResponse, error) {
 func (l *Lbank) GetWithdrawConfig(ctx context.Context, assetCode string) ([]WithdrawConfigResponse, error) {
 	var resp []WithdrawConfigResponse
 	params := url.Values{}
-	params.Set("assetCode", assetCode)
+	if assetCode != "" {
+		params.Set("assetCode", assetCode)
+	}
 	path := fmt.Sprintf("/v%s/%s?%s", lbankAPIVersion, lbankWithdrawConfig, params.Encode())
 	return resp, l.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
 }

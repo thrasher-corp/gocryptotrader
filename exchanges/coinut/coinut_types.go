@@ -708,14 +708,14 @@ type wsOrderContainer struct {
 // to change.
 // NOTE: https://coinut.zendesk.com/hc/en-us/articles/360001471394-What-is-the-minimum-amount-to-deposit-withdraw-
 var transferFees = []fee.Transfer{
-	{Currency: currency.BTC, Deposit: fee.Convert(0), Withdrawal: fee.ConvertWithMinimumAmount(0.0015, 0.0004)},
-	{Currency: currency.LTC, Deposit: fee.Convert(0), Withdrawal: fee.ConvertWithMinimumAmount(0.01, 0.001)},
-	{Currency: currency.ETH, Deposit: fee.Convert(0), Withdrawal: fee.ConvertWithMinimumAmount(0.05, 0.003)},
-	{Currency: currency.XMR, Deposit: fee.Convert(0), Withdrawal: fee.ConvertWithMinimumAmount(0.1, 0.04)},
-	{Currency: currency.USDT, Deposit: fee.Convert(0), Withdrawal: fee.ConvertWithMinimumAmount(20, 10), Chain: "ERC20"},
-	{Currency: currency.USDT, Deposit: fee.Convert(0), Withdrawal: fee.ConvertWithMinimumAmount(30, 10), Chain: "OMNI"},
-	{Currency: currency.DAI, Deposit: fee.Convert(0), Withdrawal: fee.ConvertWithMinimumAmount(20, 10)},
-	{Currency: currency.XSGD, Deposit: fee.Convert(0), Withdrawal: fee.ConvertWithMinimumAmount(20, 10)},
+	{Currency: currency.BTC, Deposit: fee.Convert(0), Withdrawal: fee.ConvertWithMinimumAmount(0.0004, 0.0015)},
+	{Currency: currency.LTC, Deposit: fee.Convert(0), Withdrawal: fee.ConvertWithMinimumAmount(0.001, 0.01)},
+	{Currency: currency.ETH, Deposit: fee.Convert(0), Withdrawal: fee.ConvertWithMinimumAmount(0.003, 0.05)},
+	{Currency: currency.XMR, Deposit: fee.Convert(0), Withdrawal: fee.ConvertWithMinimumAmount(0.04, 0.1)},
+	{Currency: currency.USDT, Deposit: fee.Convert(0), Withdrawal: fee.ConvertWithMinimumAmount(10, 20), Chain: "ERC20"},
+	{Currency: currency.USDT, Deposit: fee.Convert(0), Withdrawal: fee.ConvertWithMinimumAmount(10, 30), Chain: "OMNI"},
+	{Currency: currency.DAI, Deposit: fee.Convert(0), Withdrawal: fee.ConvertWithMinimumAmount(10, 20)},
+	{Currency: currency.XSGD, Deposit: fee.Convert(0), Withdrawal: fee.ConvertWithMinimumAmount(10, 20)},
 }
 
 // bankTransfers defines fiat currency banking withdrawal and deposit fees.

@@ -184,10 +184,15 @@ type ExchangeRateResponse struct {
 
 // WithdrawConfigResponse stores info about withdrawal configurations
 type WithdrawConfigResponse struct {
-	AssetCode   string `json:"assetCode"`
-	Minimum     string `json:"min"`
-	CanWithDraw bool   `json:"canWithDraw"`
-	Fee         string `json:"fee"`
+	AmountScale         int           `json:"amountScale,string"`
+	Chain               string        `json:"chain"`
+	AssetCode           currency.Code `json:"assetCode"`
+	Minimum             float64       `json:"min,string"`
+	TransferAmountScale float64       `json:"transferAmtScale,string"`
+	CanWithDraw         bool          `json:"canWithDraw"`
+	Fee                 float64       `json:"fee,string"`
+	MinimumTransfer     float64       `json:"minTransfer,string"`
+	Type                int           `json:"type,string"`
 }
 
 // WithdrawResponse stores info about the withdrawal

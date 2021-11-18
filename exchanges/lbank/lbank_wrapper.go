@@ -1002,10 +1002,25 @@ func (l *Lbank) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pa
 
 // UpdateCommissionFees updates current fees associated with account
 func (l *Lbank) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
-	if a != asset.Spot {
-		return common.ErrNotYetImplemented
-	}
-	// TODO: Integrate getwithdrawalfees
-	// fee, err := l.GetWithdrawConfig()
+	// No commission rates API found.
 	return common.ErrNotYetImplemented
+}
+
+// UpdateTransferFees updates transfer fees for cryptocurrency withdrawal and
+// deposits for this exchange
+func (l *Lbank) UpdateTransferFees(ctx context.Context) error {
+	withdrawFees, err := l.GetWithdrawConfig(ctx, "")
+	if err != nil {
+		return err
+	}
+	transferFee := []fee.Transfer{}
+	for x := range withdrawFees {
+		transferFee = append(transferFee, fee.Transfer{
+			Currency:   withdrawFees[x].AssetCode,
+			Withdrawal: fee.ConvertWithMinimumAmount(withdrawFees[x].Fee, withdrawFees[x].Minimum),
+			Deposit:    fee.Convert(0), // Default on deposit
+			Chain:      withdrawFees[x].Chain,
+		})
+	}
+	return l.Fees.LoadTransferFees(transferFee)
 }

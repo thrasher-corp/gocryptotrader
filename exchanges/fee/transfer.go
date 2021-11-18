@@ -108,7 +108,8 @@ func (t Transfer) validate() error {
 	if t.Withdrawal != nil {
 		err := t.Withdrawal.Validate()
 		if err != nil {
-			return fmt.Errorf("withdrawal %w", err)
+			fmt.Println(t)
+			return fmt.Errorf("%s withdrawal %w", t.Currency, err)
 		}
 
 		if t.MaximumWithdrawal != nil {

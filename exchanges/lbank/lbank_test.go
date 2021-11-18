@@ -267,9 +267,10 @@ func TestUSD2RMBRate(t *testing.T) {
 }
 
 func TestGetWithdrawConfig(t *testing.T) {
+	l.Verbose = true
 	t.Parallel()
 	_, err := l.GetWithdrawConfig(context.Background(),
-		currency.ETH.Lower().String())
+		"")
 	if err != nil {
 		t.Error(err)
 	}

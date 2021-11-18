@@ -204,10 +204,10 @@ func (m MinMax) LessThan(_ Value) (bool, error) {
 }
 
 // ConvertWithMinimumAmount returns a value with a minimum amount required
-func ConvertWithMinimumAmount(minAmount, fee float64) Value {
+func ConvertWithMinimumAmount(fee, minAmount float64) Value {
 	return WithMinimumAmount{
-		MinimumAmount: decimal.NewFromFloat(minAmount),
 		Fee:           decimal.NewFromFloat(fee),
+		MinimumAmount: decimal.NewFromFloat(minAmount),
 	}
 }
 
@@ -238,10 +238,10 @@ func (m WithMinimumAmount) Display() (string, error) {
 // Display implements Value interface
 func (m WithMinimumAmount) Validate() error {
 	if m.Fee.LessThan(decimal.Zero) {
-		return errors.New("invalid fee")
+		return fmt.Errorf("invalid fee %s", m.Fee)
 	}
 	if m.MinimumAmount.LessThanOrEqual(decimal.Zero) {
-		return errors.New("invalid minimum amount")
+		return fmt.Errorf("invalid minimum amount %s", m.MinimumAmount)
 	}
 	return nil
 }
