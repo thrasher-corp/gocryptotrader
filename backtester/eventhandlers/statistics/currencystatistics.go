@@ -45,7 +45,9 @@ func (c *CurrencyPairStatistic) CalculateResults(riskFreeRate decimal.Decimal) e
 	}
 
 	oneHundred := decimal.NewFromInt(100)
-	c.MarketMovement = lastPrice.Sub(firstPrice).Div(firstPrice).Mul(oneHundred)
+	if !firstPrice.IsZero() {
+		c.MarketMovement = lastPrice.Sub(firstPrice).Div(firstPrice).Mul(oneHundred)
+	}
 	if first.Holdings.TotalValue.GreaterThan(decimal.Zero) {
 		c.StrategyMovement = last.Holdings.TotalValue.Sub(first.Holdings.TotalValue).Div(first.Holdings.TotalValue).Mul(oneHundred)
 	}
@@ -62,6 +64,14 @@ func (c *CurrencyPairStatistic) CalculateResults(riskFreeRate decimal.Decimal) e
 		}
 		if c.Events[i].SignalEvent != nil && c.Events[i].SignalEvent.GetDirection() == common.MissingData {
 			c.ShowMissingDataWarning = true
+		}
+		if c.Events[i-1].DataEvent.ClosePrice().IsZero() ||
+			(c.Events[i].DataEvent.ClosePrice().IsZero() && !c.Events[i-1].DataEvent.ClosePrice().IsZero()) {
+			// closing price for the current candle or previous candle is missing, use the previous
+			// benchmark rate to allow some consistency
+			c.ShowMissingDataWarning = true
+			benchmarkRates[i] = benchmarkRates[i-1]
+			continue
 		}
 		benchmarkRates[i] = c.Events[i].DataEvent.ClosePrice().Sub(
 			c.Events[i-1].DataEvent.ClosePrice()).Div(
@@ -221,7 +231,7 @@ func CalculateBiggestEventDrawdown(closePrices []common.DataEventHandler) (Swing
 			lowestPrice = currLow
 			lowestTime = currTime
 		}
-		if highestPrice.LessThan(currHigh) && highestPrice.IsPositive() {
+		if highestPrice.LessThan(currHigh) {
 			if lowestTime.Equal(highestTime) {
 				// create distinction if the greatest drawdown occurs within the same candle
 				lowestTime = lowestTime.Add(interval.Duration() - time.Nanosecond)
@@ -231,18 +241,20 @@ func CalculateBiggestEventDrawdown(closePrices []common.DataEventHandler) (Swing
 				log.Error(log.BackTester, err)
 				continue
 			}
-			swings = append(swings, Swing{
-				Highest: ValueAtTime{
-					Time:  highestTime,
-					Value: highestPrice,
-				},
-				Lowest: ValueAtTime{
-					Time:  lowestTime,
-					Value: lowestPrice,
-				},
-				DrawdownPercent:  lowestPrice.Sub(highestPrice).Div(highestPrice).Mul(decimal.NewFromInt(100)),
-				IntervalDuration: int64(len(intervals.Ranges[0].Intervals)),
-			})
+			if highestPrice.IsPositive() && lowestPrice.IsPositive() {
+				swings = append(swings, Swing{
+					Highest: ValueAtTime{
+						Time:  highestTime,
+						Value: highestPrice,
+					},
+					Lowest: ValueAtTime{
+						Time:  lowestTime,
+						Value: lowestPrice,
+					},
+					DrawdownPercent:  lowestPrice.Sub(highestPrice).Div(highestPrice).Mul(decimal.NewFromInt(100)),
+					IntervalDuration: int64(len(intervals.Ranges[0].Intervals)),
+				})
+			}
 			// reset the drawdown
 			highestPrice = currHigh
 			highestTime = currTime

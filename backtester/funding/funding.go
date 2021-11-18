@@ -74,7 +74,10 @@ func (f *FundManager) CreateSnapshot(t time.Time) {
 			Available: f.items[i].available,
 			Time:      t,
 		}
-		if !f.disableUSDTracking {
+		if trackingcurrencies.CurrencyIsUSDTracked(f.items[i].currency) {
+			iss.USDValue = f.items[i].available
+			iss.USDClosePrice = decimal.NewFromInt(1)
+		} else if !f.disableUSDTracking && !trackingcurrencies.CurrencyIsUSDTracked(f.items[i].currency) {
 			var usdClosePrice decimal.Decimal
 			if f.items[i].usdTrackingCandles == nil {
 				continue

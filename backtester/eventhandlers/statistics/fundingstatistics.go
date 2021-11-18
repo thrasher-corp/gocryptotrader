@@ -7,6 +7,7 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
+	"github.com/thrasher-corp/gocryptotrader/backtester/funding/trackingcurrencies"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	gctmath "github.com/thrasher-corp/gocryptotrader/common/math"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -176,7 +177,6 @@ func CalculateIndividualFundingStatistics(disableUSDTracking bool, reportItem *f
 			item.HighestClosePrice.Time = closePrices[i].Time
 		}
 	}
-
 	for i := range relatedStats {
 		if relatedStats[i].stat == nil {
 			return nil, fmt.Errorf("%w related stats", common.ErrNilArguments)
@@ -213,6 +213,9 @@ func CalculateIndividualFundingStatistics(disableUSDTracking bool, reportItem *f
 				Value: item.ReportItem.Snapshots[j].USDValue,
 			}
 		}
+	}
+	if trackingcurrencies.CurrencyIsUSDTracked(item.ReportItem.Currency) {
+		return item, nil
 	}
 	if item.ReportItem.USDPairCandle == nil {
 		return nil, fmt.Errorf("%w usd candles missing", errMissingSnapshots)
