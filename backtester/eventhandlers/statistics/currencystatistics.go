@@ -65,9 +65,8 @@ func (c *CurrencyPairStatistic) CalculateResults(riskFreeRate decimal.Decimal) e
 		if c.Events[i].SignalEvent != nil && c.Events[i].SignalEvent.GetDirection() == common.MissingData {
 			c.ShowMissingDataWarning = true
 		}
-		if c.Events[i-1].DataEvent.GetClosePrice().IsZero() ||
-			(c.Events[i].DataEvent.GetClosePrice().IsZero() && !c.Events[i-1].DataEvent.GetClosePrice().IsZero()) {
-			// closing price for the current candle or previous candle is missing, use the previous
+		if c.Events[i].DataEvent.GetClosePrice().IsZero() || c.Events[i-1].DataEvent.GetClosePrice().IsZero() {
+			// closing price for the current candle or previous candle is zero, use the previous
 			// benchmark rate to allow some consistency
 			c.ShowMissingDataWarning = true
 			benchmarkRates[i] = benchmarkRates[i-1]
