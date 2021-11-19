@@ -52,7 +52,7 @@ func (s *Strategy) OnSignal(d data.Handler, _ funding.IFundTransferer, _ portfol
 		return &es, nil
 	}
 
-	es.SetPrice(d.Latest().ClosePrice())
+	es.SetPrice(d.Latest().GetClosePrice())
 	es.SetDirection(order.Buy)
 	es.AppendReason("DCA purchases on every iteration")
 	return &es, nil

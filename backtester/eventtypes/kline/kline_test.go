@@ -11,7 +11,7 @@ func TestClose(t *testing.T) {
 	k := Kline{
 		Close: decimal.NewFromInt(1337),
 	}
-	if !k.ClosePrice().Equal(decimal.NewFromInt(1337)) {
+	if !k.GetClosePrice().Equal(decimal.NewFromInt(1337)) {
 		t.Error("expected decimal.NewFromInt(1337)")
 	}
 }
@@ -21,7 +21,7 @@ func TestHigh(t *testing.T) {
 	k := Kline{
 		High: decimal.NewFromInt(1337),
 	}
-	if !k.HighPrice().Equal(decimal.NewFromInt(1337)) {
+	if !k.GetHighPrice().Equal(decimal.NewFromInt(1337)) {
 		t.Error("expected decimal.NewFromInt(1337)")
 	}
 }
@@ -31,7 +31,7 @@ func TestLow(t *testing.T) {
 	k := Kline{
 		Low: decimal.NewFromInt(1337),
 	}
-	if !k.LowPrice().Equal(decimal.NewFromInt(1337)) {
+	if !k.GetLowPrice().Equal(decimal.NewFromInt(1337)) {
 		t.Error("expected decimal.NewFromInt(1337)")
 	}
 }
@@ -41,7 +41,7 @@ func TestOpen(t *testing.T) {
 	k := Kline{
 		Open: decimal.NewFromInt(1337),
 	}
-	if !k.OpenPrice().Equal(decimal.NewFromInt(1337)) {
+	if !k.GetOpenPrice().Equal(decimal.NewFromInt(1337)) {
 		t.Error("expected decimal.NewFromInt(1337)")
 	}
 }

@@ -176,7 +176,6 @@ func CalculateIndividualFundingStatistics(disableUSDTracking bool, reportItem *f
 			item.HighestClosePrice.Time = closePrices[i].Time
 		}
 	}
-
 	for i := range relatedStats {
 		if relatedStats[i].stat == nil {
 			return nil, fmt.Errorf("%w related stats", common.ErrNilArguments)

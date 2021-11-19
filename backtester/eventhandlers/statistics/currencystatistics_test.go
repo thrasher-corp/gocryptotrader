@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
+	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
@@ -105,6 +106,7 @@ func TestCalculateResults(t *testing.T) {
 		SignalEvent: &signal.Signal{
 			Base:       even2,
 			ClosePrice: decimal.NewFromInt(1337),
+			Direction:  common.MissingData,
 		},
 	}
 
@@ -115,6 +117,41 @@ func TestCalculateResults(t *testing.T) {
 	}
 	if !cs.MarketMovement.Equal(decimal.NewFromFloat(-33.15)) {
 		t.Error("expected -33.15")
+	}
+	ev3 := ev2
+	ev3.DataEvent = &kline.Kline{
+		Base:   even2,
+		Open:   decimal.NewFromInt(1339),
+		Close:  decimal.NewFromInt(1339),
+		Low:    decimal.NewFromInt(1339),
+		High:   decimal.NewFromInt(1339),
+		Volume: decimal.NewFromInt(1339),
+	}
+	cs.Events = append(cs.Events, ev, ev3)
+	cs.Events[0].DataEvent = &kline.Kline{
+		Base:   even2,
+		Open:   decimal.Zero,
+		Close:  decimal.Zero,
+		Low:    decimal.Zero,
+		High:   decimal.Zero,
+		Volume: decimal.Zero,
+	}
+	err = cs.CalculateResults(decimal.NewFromFloat(0.03))
+	if err != nil {
+		t.Error(err)
+	}
+
+	cs.Events[1].DataEvent = &kline.Kline{
+		Base:   even2,
+		Open:   decimal.Zero,
+		Close:  decimal.Zero,
+		Low:    decimal.Zero,
+		High:   decimal.Zero,
+		Volume: decimal.Zero,
+	}
+	err = cs.CalculateResults(decimal.NewFromFloat(0.03))
+	if err != nil {
+		t.Error(err)
 	}
 }
 
