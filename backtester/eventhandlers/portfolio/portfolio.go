@@ -567,7 +567,7 @@ func (p *Portfolio) CalculatePNL(e common.DataEventHandler, funds funding.IColla
 		result, err := settings.Exchange.CalculatePNL(&gctexchange.PNLCalculator{
 			Asset:         e.GetAssetType(),
 			Leverage:      snapshot.Orders[i].FuturesOrder.OpeningPosition.Leverage,
-			OpeningPrice:  snapshot.Orders[i].FuturesOrder.OpeningPosition.Price,
+			EntryPrice:    snapshot.Orders[i].FuturesOrder.OpeningPosition.Price,
 			OpeningAmount: snapshot.Orders[i].FuturesOrder.OpeningPosition.Amount,
 			CurrentPrice:  e.GetClosePrice().InexactFloat64(),
 			Collateral:    funds.AvailableFunds(),

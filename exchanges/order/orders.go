@@ -714,6 +714,10 @@ func StringToOrderSide(side string) (Side, error) {
 		return Bid, nil
 	case strings.EqualFold(side, Ask.String()):
 		return Ask, nil
+	case strings.EqualFold(side, Long.String()):
+		return Long, nil
+	case strings.EqualFold(side, Short.String()):
+		return Short, nil
 	case strings.EqualFold(side, AnySide.String()):
 		return AnySide, nil
 	default:

@@ -20,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
@@ -1462,18 +1463,26 @@ func (b *Base) GetAvailableTransferChains(_ context.Context, _ currency.Code) ([
 }
 
 type PNLCalculator struct {
-	OrderID       string
-	Asset         asset.Item
-	Leverage      float64
-	OpeningPrice  float64
-	OpeningAmount float64
-	CurrentPrice  float64
-	Collateral    decimal.Decimal
+	CalculateOffline bool
+	Underlying       currency.Code
+	OrderID          string
+	Asset            asset.Item
+	Side             order.Side
+	Leverage         float64
+	EntryPrice       float64
+	OpeningAmount    float64
+	Amount           float64
+	CurrentPrice     float64
+	Collateral       decimal.Decimal
 }
 
 type PNLResult struct {
-	PNL          decimal.Decimal
-	IsLiquidated bool
+	MarginFraction            decimal.Decimal
+	EstimatedLiquidationPrice decimal.Decimal
+	UnrealisedPNL             decimal.Decimal
+	RealisedPNL               decimal.Decimal
+	Collateral                decimal.Decimal
+	IsLiquidated              bool
 }
 
 var ErrUnsetLeverage error
@@ -1488,15 +1497,15 @@ func (b *Base) CalculatePNL(calc *PNLCalculator) (*PNLResult, error) {
 		return nil, common.ErrFunctionNotSupported
 	}
 	if calc.Leverage == 0 {
-		// you really should have set this earlier
+		// you really should have set this earlier, idiot
 		return nil, ErrUnsetLeverage
 	}
 	var result *PNLResult
 	cp := decimal.NewFromFloat(calc.CurrentPrice)
-	op := decimal.NewFromFloat(calc.OpeningPrice)
+	op := decimal.NewFromFloat(calc.EntryPrice)
 	lv := decimal.NewFromFloat(calc.Leverage)
-	result.PNL = cp.Sub(op).Mul(op).Mul(lv)
-	if result.PNL.IsNegative() && calc.Collateral.LessThanOrEqual(result.PNL.Abs()) {
+	result.UnrealisedPNL = cp.Sub(op).Mul(op).Mul(lv)
+	if result.UnrealisedPNL.IsNegative() && calc.Collateral.LessThanOrEqual(result.UnrealisedPNL.Abs()) {
 		// calculating whether something is liquidated changes per exchange
 		// If your chosen exchange has its own liquidation formula, please ensure
 		// it is implemented there rather than rely on this base function

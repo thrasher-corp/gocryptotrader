@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -246,6 +247,16 @@ func (f *FTX) Run() {
 			"%s failed to update tradable pairs. Err: %s",
 			f.Name,
 			err)
+	}
+
+	if err = f.CurrencyPairs.IsAssetEnabled(asset.Futures); err == nil {
+		err = f.StoreCollateralWeightings()
+		if err != nil {
+			log.Errorf(log.ExchangeSys,
+				"%s failed to store collateral weightings. Err: %s",
+				f.Name,
+				err)
+		}
 	}
 }
 
@@ -1253,4 +1264,51 @@ func (f *FTX) GetAvailableTransferChains(ctx context.Context, cryptocurrency cur
 		}
 	}
 	return availableChains, nil
+}
+
+func (f *FTX) CalculatePNL(pnl *exchange.PNLCalculator) (*exchange.PNLResult, error) {
+	var result *exchange.PNLResult
+	if !pnl.CalculateOffline {
+
+		collat, err := f.CalculateCollateral(pnl.Underlying, pnl.Amount, pnl.EntryPrice, result.UnrealisedPNL.IsPositive())
+		if err != nil {
+			return nil, err
+		}
+		result.Collateral = decimal.NewFromFloat(collat)
+		return result, nil
+	} else {
+		ctx := context.Background()
+		info, err := f.GetAccountInfo(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if info.Liquidating || info.Collateral == 0 {
+			result.IsLiquidated = true
+			return result, nil
+		}
+		for i := range info.Positions {
+			ftxSide := order.Side(info.Positions[i].Side)
+			var pnlSide order.Side
+			switch ftxSide {
+			case order.Sell:
+				pnlSide = order.Short
+			case order.Buy:
+				pnlSide = order.Long
+			default:
+				return nil, order.ErrSideIsInvalid
+			}
+			if info.Positions[i].EntryPrice == pnl.EntryPrice && pnl.Side == pnlSide {
+				result.UnrealisedPNL = decimal.NewFromFloat(info.Positions[i].UnrealizedPnL)
+				result.RealisedPNL = decimal.NewFromFloat(info.Positions[i].RealizedPnL)
+				var collat float64
+				collat, err = f.CalculateCollateral(pnl.Underlying, info.Positions[i].Size, info.Positions[i].EntryPrice, result.UnrealisedPNL.IsPositive())
+				if err != nil {
+					return nil, err
+				}
+				result.Collateral = decimal.NewFromFloat(collat)
+				return result, nil
+			}
+		}
+	}
+	return nil, nil
 }
