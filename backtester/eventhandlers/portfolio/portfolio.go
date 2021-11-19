@@ -245,7 +245,7 @@ func (p *Portfolio) OnFill(ev fill.Event, funding funding.IFundReleaser) (*fill.
 	} else {
 		h = lookup.GetLatestHoldings()
 		if h.Timestamp.IsZero() {
-			h, err = holdings.Create(ev, fp)
+			h, err = holdings.Create(ev, funding)
 			if err != nil {
 				return nil, err
 			}
@@ -402,14 +402,15 @@ func (p *Portfolio) UpdateHoldings(ev common.DataEventHandler, funds funding.IFu
 			ev.Pair())
 	}
 	h := lookup.GetLatestHoldings()
+	var err error
 	if h.Timestamp.IsZero() {
-		h, err = holdings.Create(ev, f)
+		h, err = holdings.Create(ev, funds)
 		if err != nil {
 			return err
 		}
 	}
 	h.UpdateValue(ev)
-	err := p.setHoldingsForOffset(&h, true)
+	err = p.setHoldingsForOffset(&h, true)
 	if errors.Is(err, errNoHoldings) {
 		err = p.setHoldingsForOffset(&h, false)
 	}
@@ -568,7 +569,7 @@ func (p *Portfolio) CalculatePNL(e common.DataEventHandler, funds funding.IColla
 			Leverage:      snapshot.Orders[i].FuturesOrder.OpeningPosition.Leverage,
 			OpeningPrice:  snapshot.Orders[i].FuturesOrder.OpeningPosition.Price,
 			OpeningAmount: snapshot.Orders[i].FuturesOrder.OpeningPosition.Amount,
-			CurrentPrice:  e.ClosePrice().InexactFloat64(),
+			CurrentPrice:  e.GetClosePrice().InexactFloat64(),
 			Collateral:    funds.AvailableFunds(),
 		})
 		if err != nil {

@@ -5,30 +5,40 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 // Create makes a Holding struct to track total values of strategy holdings over the course of a backtesting run
-func Create(ev ClosePriceReader, funding funding.IFundReader) (Holding, error) {
+func Create(ev ClosePriceReader, fundReader funding.IFundReader) (Holding, error) {
 	if ev == nil {
 		return Holding{}, common.ErrNilEvent
 	}
-	if funding.QuoteInitialFunds().LessThan(decimal.Zero) {
-		return Holding{}, ErrInitialFundsZero
-	}
+	if ev.GetAssetType().IsFutures() {
 
-	return Holding{
-		Offset:            ev.GetOffset(),
-		Pair:              ev.Pair(),
-		Asset:             ev.GetAssetType(),
-		Exchange:          ev.GetExchange(),
-		Timestamp:         ev.GetTime(),
-		QuoteInitialFunds: funding.QuoteInitialFunds(),
-		QuoteSize:         funding.QuoteInitialFunds(),
-		BaseInitialFunds:  funding.BaseInitialFunds(),
-		BaseSize:          funding.BaseInitialFunds(),
-		TotalInitialValue: funding.QuoteInitialFunds().Add(funding.BaseInitialFunds().Mul(ev.GetClosePrice())),
-	}, nil
+	} else {
+		funds, err := fundReader.GetPairReader()
+		if err != nil {
+			return Holding{}, err
+		}
+		if funds.QuoteInitialFunds().LessThan(decimal.Zero) {
+			return Holding{}, ErrInitialFundsZero
+		}
+
+		return Holding{
+			Offset:            ev.GetOffset(),
+			Pair:              ev.Pair(),
+			Asset:             ev.GetAssetType(),
+			Exchange:          ev.GetExchange(),
+			Timestamp:         ev.GetTime(),
+			QuoteInitialFunds: funds.QuoteInitialFunds(),
+			QuoteSize:         funds.QuoteInitialFunds(),
+			BaseInitialFunds:  funds.BaseInitialFunds(),
+			BaseSize:          funds.BaseInitialFunds(),
+			TotalInitialValue: funds.QuoteInitialFunds().Add(funds.BaseInitialFunds().Mul(ev.GetClosePrice())),
+		}, nil
+	}
+	return Holding{}, asset.ErrNotSupported
 }
 
 // Update calculates holding statistics for the events time
