@@ -51,7 +51,6 @@ func TestSetRealOrderDefaults(t *testing.T) {
 // TestSetup Sets defaults for test environment
 func TestMain(m *testing.M) {
 	o.SetDefaults()
-	o.ExchangeName = OKGroupExchange
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig("../../testdata/configtest.json", true)
 	if err != nil {

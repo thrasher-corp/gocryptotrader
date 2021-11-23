@@ -5,6 +5,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/bank"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 )
 
@@ -1519,10 +1520,23 @@ type WebsocketErrorResponse struct {
 	ErrorCode int64  `json:"errorCode"`
 }
 
-var okexBankTransferFees = []fee.Transfer{
-	{},
+var okcoinBankTransferFees = []fee.Transfer{
+	{BankTransfer: bank.WireTransfer,
+		Currency:   currency.USD,
+		Deposit:    fee.Convert(0),
+		Withdrawal: fee.ConvertWithMinimumAmount(0, 50)},
+	{BankTransfer: bank.WireTransfer,
+		Currency:   currency.EUR,
+		Deposit:    fee.Convert(0),
+		Withdrawal: fee.Convert(0)},
 }
 
-var okcoinBankTransferFees = []fee.Transfer{
-	{},
-}
+// Signature Bank: international wire	USD	Free	Free	No minimum	$50	1-5 business days
+// Prime Trust: international wire	EUR	Free	€35 	€100	No minimum	1-5 business days
+// Far Eastern International Bank: international wire	USD	Free	Free	$100 	$100 	1-5 business days
+// Royal Business Bank - international wire	USD	Free	$35	$100	$100	5 business days
+// MasterCard & Visa (credit & debit)*
+
+// USD/EUR	3.99%	N/A	$10 / €10 	N/A	Instant to trade
+// Etana**	USD	Free	Free	$1	$1	1-2 business days
+// TED & Pix***	BRL	Free	Free	R$50	N/A	Instant to trade

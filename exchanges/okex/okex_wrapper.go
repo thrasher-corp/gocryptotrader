@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/okgroup"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -205,7 +206,6 @@ func (o *OKEX) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 	o.Websocket = stream.New()
-	o.APIVersion = okExAPIVersion
 	o.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	o.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	o.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -669,4 +669,40 @@ func (o *OKEX) GetRecentTrades(ctx context.Context, p currency.Pair, assetType a
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
 func (o *OKEX) CancelBatchOrders(_ context.Context, _ []order.Cancel) (order.CancelBatchResponse, error) {
 	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
+}
+
+// UpdateCommissionFees updates current fees associated with account
+func (o *OKEX) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
+	// if a != asset.Spot {
+	// 	return common.ErrNotYetImplemented
+	// }
+	// // TODO: Implement LEO discounts
+	// info, err := o.GetAccountFees(ctx)
+	// if err != nil {
+	// 	return err
+	// }
+	// if len(info) < 1 {
+	// 	return errors.New("no returned data")
+	// }
+	// return b.Fees.LoadDynamic(info[0].MakerFees, info[0].TakerFees, a, fee.OmitPair)
+	return nil
+}
+
+// UpdateTransferFees updates transfer fees for cryptocurrency withdrawal and
+// deposits for this exchange
+func (o *OKEX) UpdateTransferFees(ctx context.Context) error {
+	withdrawFees, err := o.GetAccountWithdrawalFee(ctx, "")
+	if err != nil {
+		return err
+	}
+
+	transferFee := []fee.Transfer{}
+	for x := range withdrawFees {
+		transferFee = append(transferFee, fee.Transfer{
+			Currency:   currency.NewCode(withdrawFees[x].Currency),
+			Withdrawal: fee.Convert(withdrawFees[x].MaxFee),
+			Deposit:    fee.Convert(0), // Default on deposit
+		})
+	}
+	return o.Fees.LoadTransferFees(transferFee)
 }
