@@ -2261,3 +2261,12 @@ func TestUpdateTickers(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestGetTradingFee(t *testing.T) {
+	t.Parallel()
+	o.Verbose = true
+	_, err := o.GetTradingFee(context.Background(), asset.Spot, currency.Pair{})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
