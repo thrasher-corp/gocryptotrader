@@ -28,13 +28,13 @@ const (
 	Version5       = "/v5/"
 
 	// API subsections
-	AccountSubsection = "account"
-	SpotSubsection    = "spot"
-	MarginSubsection  = "margin"
-	FuturesSubsection = "futures"
-	SwapSubsection    = "swap"
-	ETTSubsection     = "ett"
-	OptionSubsection  = "option"
+	AccountSubsection = "/account"
+	SpotSubsection    = "/spot"
+	MarginSubsection  = "/margin"
+	FuturesSubsection = "/futures"
+	SwapSubsection    = "/swap"
+	ETTSubsection     = "/ett"
+	OptionSubsection  = "/option"
 
 	// Accounts common api endpoint
 	Accounts = "accounts"
@@ -569,7 +569,7 @@ func (o *OKGroup) GetErrorCode(code interface{}) error {
 // SendHTTPRequest sends an authenticated http request to a desired
 // path with a JSON payload (of present)
 // URL arguments must be in the request path and not as url.URL values
-func (o *OKGroup) SendHTTPRequest(ctx context.Context, ep exchange.URL, httpMethod, requestType, requestPath, apiVersion string, data, result interface{}, authenticated bool) (err error) {
+func (o *OKGroup) SendHTTPRequest(ctx context.Context, ep exchange.URL, httpMethod, apiVersion, requestType, requestPath string, data, result interface{}, authenticated bool) (err error) {
 	if authenticated && !o.AllowAuthenticatedRequest() {
 		return fmt.Errorf("%s %w", o.Name, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
 	}
@@ -594,16 +594,26 @@ func (o *OKGroup) SendHTTPRequest(ctx context.Context, ep exchange.URL, httpMeth
 		headers := make(map[string]string)
 		headers["Content-Type"] = "application/json"
 		if authenticated {
-			signPath := fmt.Sprintf("/%v%v%v%v", OKGroupAPIPath,
-				requestType, apiVersion, requestPath)
+			var input string
+			if apiVersion == Version5 {
+				input = utcTime + httpMethod + "/api/v5/" + requestPath
+			} else {
+				signPath := fmt.Sprintf("/%v%v%v%v",
+					OKGroupAPIPath,
+					requestType,
+					apiVersion,
+					requestPath)
+				input = utcTime + httpMethod + signPath + string(payload)
+			}
 
 			var hmac []byte
 			hmac, err = crypto.GetHMAC(crypto.HashSHA256,
-				[]byte(utcTime+httpMethod+signPath+string(payload)),
+				[]byte(input),
 				[]byte(o.API.Credentials.Secret))
 			if err != nil {
 				return nil, err
 			}
+
 			headers["OK-ACCESS-KEY"] = o.API.Credentials.Key
 			headers["OK-ACCESS-SIGN"] = crypto.Base64Encode(hmac)
 			headers["OK-ACCESS-TIMESTAMP"] = utcTime

@@ -20,7 +20,7 @@ import (
 const (
 	okExRateInterval = time.Second
 	okExRequestRate  = 6
-	okExAPIURL       = "https://www.okex.com/api/"
+	okExAPIURL       = "https://www.okex.com/api"
 	okExExchangeName = "OKEX"
 	// OkExWebsocketURL WebsocketURL
 	OkExWebsocketURL = "wss://real.okex.com:8443/ws/v3"
@@ -49,7 +49,7 @@ const (
 	okGroupMarginPairsData = "accounts/availability"
 	Instruments            = "instruments"
 
-	okgroupTradeFee = "trade_fee"
+	okgroupTradeFee = "account/trade-fee"
 )
 
 // OKEX bases all account, spot and margin methods off okgroup implementation
@@ -127,7 +127,9 @@ func (o *OKEX) GetMarginRates(ctx context.Context, instrumentID currency.Pair) (
 	var resp okgroup.MarginCurrencyData
 	resp.Data = make(map[string]okgroup.MarginData)
 	var result []map[string]interface{}
-	err := o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, okgroup.Version3,
+	err := o.SendHTTPRequest(ctx, exchange.RestSpot,
+		http.MethodGet,
+		okgroup.Version3,
 		okgroup.MarginSubsection,
 		fmt.Sprintf(okGroupMarginPairData, instrumentID),
 		nil,
@@ -585,28 +587,53 @@ func (o *OKEX) GetETTSettlementPriceHistory(ctx context.Context, ett string) (re
 
 // GetTradingFee returns trading fee based on the asset item and pair, pair can
 // be ommited.
-func (o *OKEX) GetTradingFee(ctx context.Context, a asset.Item, pair currency.Pair) (interface{}, error) {
-	var subsection string
+func (o *OKEX) GetTradingFee(ctx context.Context, a asset.Item, instrumentID, underlying currency.Pair, category string) ([]okgroup.FeeInformation, error) {
+	vals := url.Values{}
+
 	switch a {
 	case asset.Spot:
-		subsection = okgroup.SpotSubsection
+		vals.Set("instType", "SPOT")
+		if !instrumentID.IsEmpty() {
+			vals.Set("instId", instrumentID.String())
+		}
 	case asset.Futures:
-		subsection = okgroup.FuturesSubsection
+		vals.Set("instType", "FUTURES")
+		if !underlying.IsEmpty() {
+			vals.Set("uly", underlying.String())
+		}
 	case asset.PerpetualSwap:
-		subsection = okgroup.SwapSubsection
+		vals.Set("instType", "SWAP")
+		if !underlying.IsEmpty() {
+			vals.Set("uly", underlying.String())
+		}
 	case asset.Options:
-		subsection = okgroup.OptionSubsection
+		vals.Set("instType", "OPTION")
+		if !underlying.IsEmpty() {
+			vals.Set("uly", underlying.String())
+		}
+	case asset.Margin:
+		vals.Set("instType", "MARGIN")
+		if !instrumentID.IsEmpty() {
+			vals.Set("instId", instrumentID.String())
+		}
 	default:
 		return nil, fmt.Errorf("%s %w", a, asset.ErrNotSupported)
 	}
 
-	var resp interface{}
-	return resp, o.SendHTTPRequest(ctx,
+	if category != "" {
+		vals.Set("category", category)
+	}
+
+	resp := struct {
+		Code int                      `json:"code,string"`
+		Data []okgroup.FeeInformation `json:"data"`
+	}{}
+	return resp.Data, o.SendHTTPRequest(ctx,
 		exchange.RestSpot,
 		http.MethodGet,
-		okgroup.Version3,
-		subsection,
-		okgroupTradeFee,
+		okgroup.Version5,
+		"",
+		common.EncodeURLValues(okgroupTradeFee, vals),
 		nil,
 		&resp,
 		true)

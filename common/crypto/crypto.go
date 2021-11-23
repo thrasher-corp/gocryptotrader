@@ -31,11 +31,7 @@ func HexEncodeToString(input []byte) string {
 
 // Base64Decode takes in a Base64 string and returns a byte array and an error
 func Base64Decode(input string) ([]byte, error) {
-	result, err := base64.StdEncoding.DecodeString(input)
-	if err != nil {
-		return nil, err
-	}
-	return result, nil
+	return base64.StdEncoding.DecodeString(input)
 }
 
 // Base64Encode takes in a byte array then returns an encoded base64 string
@@ -52,13 +48,10 @@ func GetRandomSalt(input []byte, saltLen int) ([]byte, error) {
 	if _, err := io.ReadFull(rand.Reader, salt); err != nil {
 		return nil, err
 	}
-
-	var result []byte
 	if input != nil {
-		result = input
+		return append(input, salt...), nil
 	}
-	result = append(result, salt...)
-	return result, nil
+	return salt, nil
 }
 
 // GetMD5 returns a MD5 hash of a byte array

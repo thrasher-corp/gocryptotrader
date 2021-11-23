@@ -21,6 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/okgroup"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -2264,8 +2265,14 @@ func TestUpdateTickers(t *testing.T) {
 
 func TestGetTradingFee(t *testing.T) {
 	t.Parallel()
-	o.Verbose = true
-	_, err := o.GetTradingFee(context.Background(), asset.Spot, currency.Pair{})
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+	_, err := o.GetTradingFee(context.Background(),
+		asset.Spot,
+		currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "-"),
+		fee.OmitPair,
+		"")
 	if err != nil {
 		t.Fatal(err)
 	}

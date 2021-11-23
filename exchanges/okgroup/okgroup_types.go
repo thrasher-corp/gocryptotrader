@@ -1520,6 +1520,21 @@ type WebsocketErrorResponse struct {
 	ErrorCode int64  `json:"errorCode"`
 }
 
+// FeeInformation defines the current fee structure for the instrument or
+// category
+type FeeInformation struct {
+	Category       float64 `json:"category,string"`
+	Delivery       string  `json:"delivery"`
+	Excercise      string  `json:"exercise"`
+	InstrumentType string  `json:"instType"`
+	Level          string  `json:"level"`
+	// NOTE: A negative rate for maker or taker means rate of commission not rebate so
+	// an inversion needs to take place.
+	Maker     float64 `json:"maker,string"`
+	Taker     float64 `json:"taker,string"`
+	Timestamp int64   `json:"ts,string"`
+}
+
 var okcoinBankTransferFees = []fee.Transfer{
 	{BankTransfer: bank.WireTransfer,
 		Currency:   currency.USD,
