@@ -75,7 +75,7 @@ const (
 func (h *HUOBI) QuerySwapIndexPriceInfo(ctx context.Context, code currency.Pair) (SwapIndexPriceData, error) {
 	var resp SwapIndexPriceData
 	path := huobiSwapIndexPriceInfo
-	if code != (currency.Pair{}) {
+	if !code.IsEmpty() {
 		codeValue, err := h.FormatSymbol(code, asset.CoinMarginedFutures)
 		if err != nil {
 			return resp, err
@@ -472,7 +472,7 @@ func (h *HUOBI) GetSwapAssetsAndPositions(ctx context.Context, code currency.Pai
 func (h *HUOBI) GetSwapAllSubAccAssets(ctx context.Context, code currency.Pair) (SubAccountsAssetData, error) {
 	var resp SubAccountsAssetData
 	req := make(map[string]interface{})
-	if code != (currency.Pair{}) {
+	if !code.IsEmpty() {
 		codeValue, err := h.FormatSymbol(code, asset.CoinMarginedFutures)
 		if err != nil {
 			return resp, err
@@ -561,7 +561,7 @@ func (h *HUOBI) GetSwapSettlementRecords(ctx context.Context, code currency.Pair
 func (h *HUOBI) GetAvailableLeverage(ctx context.Context, code currency.Pair) (AvailableLeverageData, error) {
 	var resp AvailableLeverageData
 	req := make(map[string]interface{})
-	if code != (currency.Pair{}) {
+	if !code.IsEmpty() {
 		codeValue, err := h.FormatSymbol(code, asset.CoinMarginedFutures)
 		if err != nil {
 			return resp, err
@@ -782,7 +782,7 @@ func (h *HUOBI) GetSwapOrderDetails(ctx context.Context, contractCode currency.P
 func (h *HUOBI) GetSwapOrderInfo(ctx context.Context, contractCode currency.Pair, orderID, clientOrderID string) (SwapOrderInfo, error) {
 	var resp SwapOrderInfo
 	req := make(map[string]interface{})
-	if contractCode != (currency.Pair{}) {
+	if !contractCode.IsEmpty() {
 		codeValue, err := h.FormatSymbol(contractCode, asset.CoinMarginedFutures)
 		if err != nil {
 			return resp, err
@@ -971,7 +971,7 @@ func (h *HUOBI) GetSwapTriggerOrderHistory(ctx context.Context, contractCode cur
 // GetSwapMarkets gets data of swap markets
 func (h *HUOBI) GetSwapMarkets(ctx context.Context, contract currency.Pair) ([]SwapMarketsData, error) {
 	vals := url.Values{}
-	if contract != (currency.Pair{}) {
+	if !contract.IsEmpty() {
 		codeValue, err := h.FormatSymbol(contract, asset.CoinMarginedFutures)
 		if err != nil {
 			return nil, err
