@@ -481,8 +481,8 @@ func (h *HUOBI) FGetAccountInfo(ctx context.Context, symbol currency.Code) (FUse
 }
 
 // FGetPositionsInfo gets positions info for futures account
-func (h *HUOBI) FGetPositionsInfo(ctx context.Context, symbol currency.Code) (FUserAccountData, error) {
-	var resp FUserAccountData
+func (h *HUOBI) FGetPositionsInfo(ctx context.Context, symbol currency.Code) (FUsersPositionsInfo, error) {
+	var resp FUsersPositionsInfo
 	req := make(map[string]interface{})
 	if symbol != (currency.Code{}) {
 		codeValue, err := h.formatFuturesCode(symbol)
