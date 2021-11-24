@@ -2277,3 +2277,14 @@ func TestGetTradingFee(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestUpdateTransferFees(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+	_, err := o.GetAccountWithdrawalFee(context.Background(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+}

@@ -389,19 +389,11 @@ func (o *OKCoin) CancelBatchOrders(ctx context.Context, orders []order.Cancel) (
 
 // UpdateCommissionFees updates current fees associated with account
 func (o *OKCoin) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
-	// if a != asset.Spot {
-	// 	return common.ErrNotYetImplemented
-	// }
-	// // TODO: Implement LEO discounts
-	// info, err := o.GetAccountFees(ctx)
-	// if err != nil {
-	// 	return err
-	// }
-	// if len(info) < 1 {
-	// 	return errors.New("no returned data")
-	// }
-	// return b.Fees.LoadDynamic(info[0].MakerFees, info[0].TakerFees, a, fee.OmitPair)
-	return nil
+	info, err := o.GetTradingFee(ctx, a, fee.OmitPair, "")
+	if err != nil {
+		return err
+	}
+	return o.Fees.LoadDynamic(info.Maker, info.Taker, a, fee.OmitPair)
 }
 
 // UpdateTransferFees updates transfer fees for cryptocurrency withdrawal and

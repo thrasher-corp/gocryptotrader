@@ -672,24 +672,26 @@ func (o *OKEX) CancelBatchOrders(_ context.Context, _ []order.Cancel) (order.Can
 }
 
 // UpdateCommissionFees updates current fees associated with account
+// NOTE: This is a version 5 endpoint and requires a version 5 API KEY to work.
 func (o *OKEX) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
-	// if a != asset.Spot {
-	// 	return common.ErrNotYetImplemented
-	// }
-	// // TODO: Implement LEO discounts
-	// info, err := o.GetAccountFees(ctx)
-	// if err != nil {
-	// 	return err
-	// }
-	// if len(info) < 1 {
-	// 	return errors.New("no returned data")
-	// }
-	// return b.Fees.LoadDynamic(info[0].MakerFees, info[0].TakerFees, a, fee.OmitPair)
-	return nil
+	info, err := o.GetTradingFee(ctx, a, fee.OmitPair, fee.OmitPair, "1")
+	if err != nil {
+		return err
+	}
+	if len(info) < 1 {
+		return errors.New("no returned data")
+	}
+
+	// Actual commission rates comes back inverted positive values are actually
+	// a rebate
+	maker := info[0].Maker * -1
+	taker := info[0].Taker * -1
+	return o.Fees.LoadDynamic(maker, taker, a, fee.OmitPair)
 }
 
 // UpdateTransferFees updates transfer fees for cryptocurrency withdrawal and
 // deposits for this exchange
+// NOTE: This is a version 1 endpoint and requires a version 1 API KEY to work.
 func (o *OKEX) UpdateTransferFees(ctx context.Context) error {
 	withdrawFees, err := o.GetAccountWithdrawalFee(ctx, "")
 	if err != nil {

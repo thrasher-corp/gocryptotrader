@@ -1544,6 +1544,21 @@ var okcoinBankTransferFees = []fee.Transfer{
 		Currency:   currency.EUR,
 		Deposit:    fee.Convert(0),
 		Withdrawal: fee.Convert(0)},
+
+	{BankTransfer: bank.WireTransfer,
+		Currency:   currency.EUR,
+		Deposit:    fee.Convert(0),
+		Withdrawal: fee.Convert(0)},
+
+	{BankTransfer: bank.WireTransfer,
+		Currency:   currency.EUR,
+		Deposit:    fee.Convert(0),
+		Withdrawal: fee.Convert(0)},
+
+	{BankTransfer: bank.WireTransfer,
+		Currency:   currency.EUR,
+		Deposit:    fee.Convert(0),
+		Withdrawal: fee.Convert(0)},
 }
 
 // Signature Bank: international wire	USD	Free	Free	No minimum	$50	1-5 business days
