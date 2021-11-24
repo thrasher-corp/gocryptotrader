@@ -25,8 +25,8 @@ func NewSubLogger(name string) (*SubLogger, error) {
 	return registerNewSubLogger(name), nil
 }
 
-func newLogger(c *Config) *Logger {
-	return &Logger{
+func newLogger(c *Config) Logger {
+	return Logger{
 		Timestamp:         c.AdvancedSettings.TimeStampFormat,
 		Spacer:            c.AdvancedSettings.Spacer,
 		ErrorHeader:       c.AdvancedSettings.Headers.Error,
@@ -42,29 +42,28 @@ func (l *Logger) newLogEvent(data, header, slName string, w io.Writer) error {
 		return errors.New("io.Writer not set")
 	}
 
-	e, ok := eventPool.Get().(*Event)
+	pool, ok := eventPool.Get().(*[]byte)
 	if !ok {
-		return errors.New("unable to type asset event")
+		return errors.New("unable to type assert slice of bytes pointer")
 	}
-	e.output = w
-	e.data = append(e.data, []byte(header)...)
-	if l.ShowLogSystemName {
-		e.data = append(e.data, l.Spacer...)
-		e.data = append(e.data, slName...)
-	}
-	e.data = append(e.data, l.Spacer...)
-	if l.Timestamp != "" {
-		e.data = time.Now().AppendFormat(e.data, l.Timestamp)
-	}
-	e.data = append(e.data, l.Spacer...)
-	e.data = append(e.data, []byte(data)...)
-	if data == "" || data[len(data)-1] != '\n' {
-		e.data = append(e.data, '\n')
-	}
-	_, err := e.output.Write(e.data)
 
-	e.data = e.data[:0]
-	eventPool.Put(e)
+	*pool = append(*pool, header...)
+	if l.ShowLogSystemName {
+		*pool = append(*pool, l.Spacer...)
+		*pool = append(*pool, slName...)
+	}
+	*pool = append(*pool, l.Spacer...)
+	if l.Timestamp != "" {
+		*pool = time.Now().AppendFormat(*pool, l.Timestamp)
+	}
+	*pool = append(*pool, l.Spacer...)
+	*pool = append(*pool, data...)
+	if data == "" || data[len(data)-1] != '\n' {
+		*pool = append(*pool, '\n')
+	}
+	_, err := w.Write(*pool)
+	*pool = (*pool)[:0]
+	eventPool.Put(pool)
 
 	return err
 }
@@ -98,6 +97,5 @@ func SetLevel(s, level string) (*Levels, error) {
 		return nil, fmt.Errorf("logger %v not found", s)
 	}
 	logger.Levels = splitLevel(level)
-
 	return &logger.Levels, nil
 }

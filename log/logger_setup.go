@@ -1,35 +1,51 @@
 package log
 
 import (
+	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 )
 
-func getWriters(s *SubLoggerConfig) io.Writer {
-	mw := MultiWriter()
-	m := mw.(*multiWriter) // nolint // type assert not required
+var (
+	errSubloggerConfigIsNil  = errors.New("sublogger config is nil")
+	errUnhandledOutputWriter = errors.New("unhandled output writer")
+)
 
+func getWriters(s *SubLoggerConfig) (io.Writer, error) {
+	if s == nil {
+		return nil, errSubloggerConfigIsNil
+	}
+	mw, err := MultiWriter()
+	if err != nil {
+		return nil, err
+	}
 	outputWriters := strings.Split(s.Output, "|")
 	for x := range outputWriters {
-		switch outputWriters[x] {
+		var writer io.Writer
+		switch strings.ToLower(outputWriters[x]) {
 		case "stdout", "console":
-			m.Add(os.Stdout)
+			writer = os.Stdout
 		case "stderr":
-			m.Add(os.Stderr)
+			writer = os.Stderr
 		case "file":
 			if FileLoggingConfiguredCorrectly {
-				m.Add(GlobalLogFile)
+				writer = GlobalLogFile
 			}
 		default:
-			m.Add(ioutil.Discard)
+			// Note: Do not want to add a ioutil.discard here as this adds
+			// additional routines for every write for no reason.
+			return nil, fmt.Errorf("%w: %s", errUnhandledOutputWriter, outputWriters[x])
+		}
+		err = mw.Add(writer)
+		if err != nil {
+			return nil, err
 		}
 	}
-	return m
+	return mw, nil
 }
 
 // GenDefaultSettings return struct with known sane/working logger settings
@@ -76,8 +92,11 @@ func configureSubLogger(logger, levels string, output io.Writer) error {
 // SetupSubLoggers configure all sub loggers with provided configuration values
 func SetupSubLoggers(s []SubLoggerConfig) {
 	for x := range s {
-		output := getWriters(&s[x])
-		err := configureSubLogger(strings.ToUpper(s[x].Name), s[x].Level, output)
+		output, err := getWriters(&s[x])
+		if err != nil {
+			return
+		}
+		err = configureSubLogger(strings.ToUpper(s[x].Name), s[x].Level, output)
 		if err != nil {
 			continue
 		}
@@ -97,7 +116,7 @@ func SetupGlobalLogger() {
 
 	for x := range subLoggers {
 		subLoggers[x].Levels = splitLevel(GlobalLogConfig.Level)
-		subLoggers[x].output = getWriters(&GlobalLogConfig.SubLoggerConfig)
+		subLoggers[x].output, _ = getWriters(&GlobalLogConfig.SubLoggerConfig)
 	}
 
 	logger = newLogger(GlobalLogConfig)

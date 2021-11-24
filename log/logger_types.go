@@ -10,10 +10,12 @@ const (
 	spacer          = " | "
 	// DefaultMaxFileSize for logger rotation file
 	DefaultMaxFileSize int64 = 100
+
+	defaultCapacityForSliceOfBytes = 100
 )
 
 var (
-	logger = &Logger{}
+	logger = Logger{}
 	// FileLoggingConfiguredCorrectly flag set during config check if file logging meets requirements
 	FileLoggingConfiguredCorrectly bool
 	// GlobalLogConfig holds global configuration options for logger
@@ -23,9 +25,8 @@ var (
 
 	eventPool = &sync.Pool{
 		New: func() interface{} {
-			return &Event{
-				data: make([]byte, 0, 80),
-			}
+			sliceOBytes := make([]byte, 0, defaultCapacityForSliceOfBytes)
+			return &sliceOBytes
 		},
 	}
 
@@ -90,12 +91,6 @@ type Levels struct {
 type SubLogger struct {
 	name string
 	Levels
-	output io.Writer
-}
-
-// Event holds the data sent to the log and which multiwriter to send to
-type Event struct {
-	data   []byte
 	output io.Writer
 }
 

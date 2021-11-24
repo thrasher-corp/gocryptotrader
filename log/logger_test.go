@@ -3,7 +3,9 @@ package log
 import (
 	"bytes"
 	"errors"
+	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"strings"
 	"testing"
@@ -13,6 +15,19 @@ import (
 
 func TestMain(m *testing.M) {
 	setupTestLoggers()
+	tempDir, err := ioutil.TempDir(os.TempDir(), "")
+	if err != nil {
+		log.Fatal("Cannot create temporary file", err)
+	}
+	log.Println("temp dir created at:", tempDir)
+	defer func() {
+		err := os.Remove(tempDir)
+		if err != nil {
+			log.Println("failed to remove temp file:", tempDir)
+		}
+	}()
+
+	LogPath = tempDir
 	os.Exit(m.Run())
 }
 
@@ -73,33 +88,141 @@ func SetupTestDisabled(t *testing.T) {
 }
 
 func TestAddWriter(t *testing.T) {
-	mw := MultiWriter()
-	m := mw.(*multiWriter) // nolint // type assert not required
+	_, err := MultiWriter(ioutil.Discard, ioutil.Discard)
+	if !errors.Is(err, errWriterAlreadyLoaded) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errWriterAlreadyLoaded)
+	}
 
-	m.Add(ioutil.Discard)
-	m.Add(os.Stdin)
-	m.Add(os.Stdout)
+	mw, err := MultiWriter()
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+	err = mw.Add(ioutil.Discard)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = mw.Add(os.Stdin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = mw.Add(os.Stdout)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	if total := len(m.writers); total != 3 {
+	if total := len(mw.writers); total != 3 {
 		t.Errorf("expected m.Writers to be 3 %v", total)
 	}
 }
 
 func TestRemoveWriter(t *testing.T) {
-	mw := MultiWriter()
-	m := mw.(*multiWriter) // nolint // type assert not required
+	mw, err := MultiWriter()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = mw.Add(ioutil.Discard)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = mw.Add(os.Stdin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = mw.Add(os.Stdout)
+	if err != nil {
+		t.Fatal(err)
+	}
+	total := len(mw.writers)
+	err = mw.Remove(os.Stdin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = mw.Remove(os.Stdout)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = mw.Remove(&bytes.Buffer{})
+	if !errors.Is(err, errWriterNotFound) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errWriterNotFound)
+	}
 
-	m.Add(ioutil.Discard)
-	m.Add(os.Stdin)
-	m.Add(os.Stdout)
+	if len(mw.writers) != total-2 {
+		t.Errorf("expected m.Writers to be %v got %v", total-2, len(mw.writers))
+	}
+}
 
-	total := len(m.writers)
+type WriteShorter struct{}
 
-	m.Remove(os.Stdin)
-	m.Remove(os.Stdout)
+func (w *WriteShorter) Write(p []byte) (int, error) {
+	return 1, nil
+}
 
-	if len(m.writers) != total-2 {
-		t.Errorf("expected m.Writers to be %v got %v", total-2, len(m.writers))
+type WriteError struct{}
+
+func (w *WriteError) Write(p []byte) (int, error) {
+	return 0, errWriteError
+}
+
+var errWriteError = errors.New("write error")
+
+func TestMultiWriterWrite(t *testing.T) {
+	mw, err := MultiWriter(ioutil.Discard, &bytes.Buffer{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	payload := "woooooooooooooooooooooooooooooooooooow"
+	l, err := mw.Write([]byte(payload))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if l != len(payload) {
+		t.Fatal("unexpected return")
+	}
+
+	mw, err = MultiWriter(&WriteShorter{}, ioutil.Discard)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = mw.Write([]byte(payload))
+	if !errors.Is(err, io.ErrShortWrite) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, io.ErrShortWrite)
+	}
+
+	mw, err = MultiWriter(&WriteError{}, ioutil.Discard)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = mw.Write([]byte(payload))
+	if !errors.Is(err, errWriteError) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errWriteError)
+	}
+}
+
+func TestGetWriters(t *testing.T) {
+	_, err := getWriters(nil)
+	if !errors.Is(err, errSubloggerConfigIsNil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errSubloggerConfigIsNil)
+	}
+
+	outputWriters := "stDout|stderr|filE"
+
+	_, err = getWriters(&SubLoggerConfig{Output: outputWriters})
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	outputWriters = "stdout|stderr|file|noobs"
+	_, err = getWriters(&SubLoggerConfig{Output: outputWriters})
+	if !errors.Is(err, errUnhandledOutputWriter) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errUnhandledOutputWriter)
+	}
+}
+
+func TestGenDefaultSettings(t *testing.T) {
+	cfg := GenDefaultSettings()
+	if cfg.Enabled == nil {
+		t.Fatal("unexpected items in struct")
 	}
 }
 
@@ -235,18 +358,175 @@ func TestInfo(t *testing.T) {
 	if w.String() == "" {
 		t.Error("expected Info() to write output to buffer")
 	}
-
-	sl.output = nil
 	w.Reset()
 
-	_, err := SetLevel("TESTYMCTESTALOT", "INFO")
+	Infof(sl, "%s", "hello")
+
+	if w.String() == "" {
+		t.Error("expected Info() to write output to buffer")
+	}
+	w.Reset()
+
+	Infoln(sl, "hello", "hello")
+
+	if w.String() == "" {
+		t.Error("expected Info() to write output to buffer")
+	}
+	w.Reset()
+
+	_, err := SetLevel("TESTYMCTESTALOT", "")
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	Info(sl, "HelloHello")
+
+	if w.String() != "" {
+		t.Error("Expected output buffer to be empty but wrote to output", w.String())
+	}
+
+	Infoln(sl, "HelloHello")
+
+	if w.String() != "" {
+		t.Error("Expected output buffer to be empty but wrote to output", w.String())
+	}
+}
+
+func TestDebug(t *testing.T) {
+	w := &bytes.Buffer{}
+
+	sl := registerNewSubLogger("TESTYMCTESTALOT")
+	sl.Levels = splitLevel("INFO|WARN|DEBUG|ERROR")
+	sl.output = w
+
+	Debug(sl, "Hello")
+
+	if w.String() == "" {
+		t.Error("expected Info() to write output to buffer")
+	}
+	w.Reset()
+
+	Debugf(sl, "%s", "hello")
+
+	if w.String() == "" {
+		t.Error("expected Info() to write output to buffer")
+	}
+	w.Reset()
+
+	Debugln(sl, "hello", "hello")
+
+	if w.String() == "" {
+		t.Error("expected Info() to write output to buffer")
+	}
+	w.Reset()
+
+	_, err := SetLevel("TESTYMCTESTALOT", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	Debug(sl, "HelloHello")
 
 	if w.String() != "" {
-		t.Error("Expected output buffer to be empty but Debug wrote to output")
+		t.Error("Expected output buffer to be empty but wrote to output", w.String())
+	}
+
+	Debugln(sl, "HelloHello")
+
+	if w.String() != "" {
+		t.Error("Expected output buffer to be empty but wrote to output", w.String())
+	}
+}
+
+func TestWarn(t *testing.T) {
+	w := &bytes.Buffer{}
+
+	sl := registerNewSubLogger("TESTYMCTESTALOT")
+	sl.Levels = splitLevel("INFO|WARN|DEBUG|ERROR")
+	sl.output = w
+
+	Warn(sl, "Hello")
+
+	if w.String() == "" {
+		t.Error("expected Info() to write output to buffer")
+	}
+	w.Reset()
+
+	Warnf(sl, "%s", "hello")
+
+	if w.String() == "" {
+		t.Error("expected Info() to write output to buffer")
+	}
+	w.Reset()
+
+	Warnln(sl, "hello", "hello")
+
+	if w.String() == "" {
+		t.Error("expected Info() to write output to buffer")
+	}
+	w.Reset()
+
+	_, err := SetLevel("TESTYMCTESTALOT", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	Warn(sl, "HelloHello")
+
+	if w.String() != "" {
+		t.Error("Expected output buffer to be empty but wrote to output", w.String())
+	}
+
+	Warnln(sl, "HelloHello")
+
+	if w.String() != "" {
+		t.Error("Expected output buffer to be empty but wrote to output", w.String())
+	}
+}
+
+func TestError(t *testing.T) {
+	w := &bytes.Buffer{}
+
+	sl := registerNewSubLogger("TESTYMCTESTALOT")
+	sl.Levels = splitLevel("INFO|WARN|DEBUG|ERROR")
+	sl.output = w
+
+	Error(sl, "Hello")
+
+	if w.String() == "" {
+		t.Error("expected Info() to write output to buffer")
+	}
+	w.Reset()
+
+	Errorf(sl, "%s", "hello")
+
+	if w.String() == "" {
+		t.Error("expected Info() to write output to buffer")
+	}
+	w.Reset()
+
+	Errorln(sl, "hello", "hello")
+
+	if w.String() == "" {
+		t.Error("expected Info() to write output to buffer")
+	}
+	w.Reset()
+
+	_, err := SetLevel("TESTYMCTESTALOT", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	Error(sl, "HelloHello")
+
+	if w.String() != "" {
+		t.Error("Expected output buffer to be empty but wrote to output", w.String())
+	}
+
+	Errorln(sl, "HelloHello")
+
+	if w.String() != "" {
+		t.Error("Expected output buffer to be empty but wrote to output", w.String())
 	}
 }
 
@@ -288,5 +568,57 @@ func TestNewSubLogger(t *testing.T) {
 	_, err = NewSubLogger("TESTERINOS")
 	if !errors.Is(err, errSubLoggerAlreadyregistered) {
 		t.Fatalf("received: %v but expected: %v", err, errSubLoggerAlreadyregistered)
+	}
+}
+
+func BenchmarkNewLogEvent(b *testing.B) {
+	var bro bytes.Buffer
+	l := Logger{Spacer: " "}
+	for i := 0; i < b.N; i++ {
+		_ = l.newLogEvent("somedata", "header", "sublog", &bro)
+	}
+}
+
+func TestRotateWrite(t *testing.T) {
+	empty := Rotate{Rotate: convert.BoolPtr(true), FileName: "test.txt"}
+	payload := make([]byte, defaultMaxSize*megabyte+1)
+	_, err := empty.Write(payload)
+	if !errors.Is(err, errExceedsMaxFileSize) {
+		t.Fatalf("received: %v but expected: %v", err, errExceedsMaxFileSize)
+	}
+
+	empty.MaxSize = 1
+	payload = make([]byte, 1*megabyte+1)
+	_, err = empty.Write(payload)
+	if !errors.Is(err, errExceedsMaxFileSize) {
+		t.Fatalf("received: %v but expected: %v", err, errExceedsMaxFileSize)
+	}
+
+	// test write
+	payload = make([]byte, 1*megabyte-1)
+	_, err = empty.Write(payload)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v but expected: %v", err, nil)
+	}
+
+	// test rotate
+	payload = make([]byte, 1*megabyte)
+	_, err = empty.Write(payload)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v but expected: %v", err, nil)
+	}
+}
+
+func TestOpenNew(t *testing.T) {
+	empty := Rotate{}
+	err := empty.openNew()
+	if !errors.Is(err, errFileNameIsEmpty) {
+		t.Fatalf("received: %v but expected: %v", err, errFileNameIsEmpty)
+	}
+
+	empty.FileName = "wow.txt"
+	err = empty.openNew()
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v but expected: %v", err, nil)
 	}
 }
