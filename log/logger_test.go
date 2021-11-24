@@ -20,15 +20,13 @@ func TestMain(m *testing.M) {
 		log.Fatal("Cannot create temporary file", err)
 	}
 	log.Println("temp dir created at:", tempDir)
-	defer func() {
-		err := os.Remove(tempDir)
-		if err != nil {
-			log.Println("failed to remove temp file:", tempDir)
-		}
-	}()
-
 	LogPath = tempDir
-	os.Exit(m.Run())
+	r := m.Run()
+	err = os.Remove(tempDir)
+	if err != nil {
+		log.Println("failed to remove temp file:", tempDir)
+	}
+	os.Exit(r)
 }
 
 func setupTestLoggers() {
@@ -220,8 +218,7 @@ func TestGetWriters(t *testing.T) {
 }
 
 func TestGenDefaultSettings(t *testing.T) {
-	cfg := GenDefaultSettings()
-	if cfg.Enabled == nil {
+	if cfg := GenDefaultSettings(); cfg.Enabled == nil {
 		t.Fatal("unexpected items in struct")
 	}
 }
