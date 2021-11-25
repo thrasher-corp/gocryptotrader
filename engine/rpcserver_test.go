@@ -161,7 +161,6 @@ func (f fExchange) SetCommissionFee(a asset.Item, pair currency.Pair, maker, tak
 
 // SetBankTransferFee overrides interface function
 func (f fExchange) SetBankTransferFee(c currency.Code, transType bank.Transfer, withdraw, deposit float64, isPercentage bool) error {
-
 	return nil
 }
 

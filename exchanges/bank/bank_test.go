@@ -45,7 +45,7 @@ func TestString(t *testing.T) {
 
 func TestValidate(t *testing.T) {
 	t.Parallel()
-	err := (Transfer)(255).Validate()
+	err := Transfer(255).Validate()
 	if !errors.Is(err, ErrUnknownTransfer) {
 		t.Fatalf("received: %v but expected: %v", err, ErrUnknownTransfer)
 	}

@@ -236,7 +236,8 @@ func (b *Binance) Setup(exch *config.Exchange) error {
 			asset.USDTMarginedFutures: {Maker: 0.02, Taker: 0.04},
 			asset.CoinMarginedFutures: {Maker: 0.01, Taker: 0.05},
 		},
-		BankTransfer: bankTransferFees,
+		ChainTransfer: transferFees,
+		BankTransfer:  bankTransferFees,
 	})
 	if err != nil {
 		return err
@@ -1505,7 +1506,8 @@ func (b *Binance) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 					return nil, err
 				}
 			case req.OrderID != "" && req.StartTime.IsZero() && req.EndTime.IsZero():
-				fromID, err := strconv.ParseInt(req.OrderID, 10, 64)
+				var fromID int64
+				fromID, err = strconv.ParseInt(req.OrderID, 10, 64)
 				if err != nil {
 					return nil, err
 				}
@@ -1563,7 +1565,8 @@ func (b *Binance) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 					return nil, err
 				}
 			case req.OrderID != "" && req.StartTime.IsZero() && req.EndTime.IsZero():
-				fromID, err := strconv.ParseInt(req.OrderID, 10, 64)
+				var fromID int64
+				fromID, err = strconv.ParseInt(req.OrderID, 10, 64)
 				if err != nil {
 					return nil, err
 				}

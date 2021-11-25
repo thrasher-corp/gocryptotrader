@@ -682,7 +682,7 @@ func (o *OKEX) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
 		return errors.New("no returned data")
 	}
 
-	// Actual commission rates comes back inverted positive values are actually
+	// Actual commission rates comes back inverted, positive values are actually
 	// a rebate
 	maker := info[0].Maker * -1
 	taker := info[0].Taker * -1

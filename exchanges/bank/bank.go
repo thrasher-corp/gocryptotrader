@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-// Custom types for different internation banking options
+// Custom types for different international banking options
 const (
 	NotApplicable Transfer = iota + 1
 	WireTransfer
