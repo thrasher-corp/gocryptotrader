@@ -24,7 +24,6 @@ var Exchanges = []string{
 	"btc markets",
 	"btse",
 	"coinbasepro",
-	"coinbene",
 	"coinut",
 	"exmo",
 	"ftx",

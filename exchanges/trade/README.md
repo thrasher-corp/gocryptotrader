@@ -69,7 +69,6 @@ _b in this context is an `IBotExchange` implemented struct_
 | Bittrex | Yes | Yes | No |
 | BTCMarkets | Yes | Yes       | No  |
 | BTSE | Yes | Yes | No |
-| Coinbene | Yes | Yes | No |
 | CoinbasePro | Yes | Yes | No|
 | COINUT | Yes | Yes | No |
 | Exmo | Yes | NA | No |
