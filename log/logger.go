@@ -19,10 +19,18 @@ func NewSubLogger(name string) (*SubLogger, error) {
 		return nil, errEmptyLoggerName
 	}
 	name = strings.ToUpper(name)
-	if _, ok := subLoggers[name]; ok {
+	if _, ok := SubLoggers[name]; ok {
 		return nil, errSubLoggerAlreadyregistered
 	}
 	return registerNewSubLogger(name), nil
+}
+
+// SetOutput overrides the default output with a new writer
+func (s *SubLogger) SetOutput(o io.Writer) {
+	RWM.Lock()
+	defer RWM.Unlock()
+
+	s.output = o
 }
 
 func newLogger(c *Config) Logger {
@@ -74,7 +82,7 @@ func CloseLogger() error {
 }
 
 func validSubLogger(s string) (bool, *SubLogger) {
-	if v, found := subLoggers[s]; found {
+	if v, found := SubLoggers[s]; found {
 		return true, v
 	}
 	return false, nil

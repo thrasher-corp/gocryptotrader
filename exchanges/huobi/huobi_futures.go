@@ -90,7 +90,7 @@ func (h *HUOBI) FGetContractInfo(ctx context.Context, symbol, contractType strin
 		}
 		params.Set("contract_type", contractType)
 	}
-	if code != (currency.Pair{}) {
+	if !code.IsEmpty() {
 		codeValue, err := h.FormatSymbol(code, asset.Futures)
 		if err != nil {
 			return resp, err
@@ -105,7 +105,7 @@ func (h *HUOBI) FGetContractInfo(ctx context.Context, symbol, contractType strin
 func (h *HUOBI) FIndexPriceInfo(ctx context.Context, symbol currency.Code) (FContractIndexPriceInfo, error) {
 	var resp FContractIndexPriceInfo
 	params := url.Values{}
-	if symbol != (currency.Code{}) {
+	if !symbol.IsEmpty() {
 		codeValue, err := h.formatFuturesCode(symbol)
 		if err != nil {
 			return resp, err
@@ -129,7 +129,7 @@ func (h *HUOBI) FContractPriceLimitations(ctx context.Context, symbol, contractT
 		}
 		params.Set("contract_type", contractType)
 	}
-	if code != (currency.Pair{}) {
+	if !code.IsEmpty() {
 		codeValue, err := h.FormatSymbol(code, asset.Futures)
 		if err != nil {
 			return resp, err
@@ -153,7 +153,7 @@ func (h *HUOBI) FContractOpenInterest(ctx context.Context, symbol, contractType 
 		}
 		params.Set("contract_type", contractType)
 	}
-	if code != (currency.Pair{}) {
+	if !code.IsEmpty() {
 		codeValue, err := h.FormatSymbol(code, asset.Futures)
 		if err != nil {
 			return resp, err
@@ -283,7 +283,7 @@ func (h *HUOBI) FRequestPublicBatchTrades(ctx context.Context, symbol currency.P
 func (h *HUOBI) FQueryInsuranceAndClawbackData(ctx context.Context, symbol currency.Code) (FClawbackRateAndInsuranceData, error) {
 	var resp FClawbackRateAndInsuranceData
 	params := url.Values{}
-	if symbol != (currency.Code{}) {
+	if !symbol.IsEmpty() {
 		codeValue, err := h.formatFuturesCode(symbol)
 		if err != nil {
 			return resp, err
@@ -298,7 +298,7 @@ func (h *HUOBI) FQueryInsuranceAndClawbackData(ctx context.Context, symbol curre
 func (h *HUOBI) FQueryHistoricalInsuranceData(ctx context.Context, symbol currency.Code) (FHistoricalInsuranceRecordsData, error) {
 	var resp FHistoricalInsuranceRecordsData
 	params := url.Values{}
-	if symbol != (currency.Code{}) {
+	if !symbol.IsEmpty() {
 		codeValue, err := h.formatFuturesCode(symbol)
 		if err != nil {
 			return resp, err
@@ -313,7 +313,7 @@ func (h *HUOBI) FQueryHistoricalInsuranceData(ctx context.Context, symbol curren
 func (h *HUOBI) FQueryTieredAdjustmentFactor(ctx context.Context, symbol currency.Code) (FTieredAdjustmentFactorInfo, error) {
 	var resp FTieredAdjustmentFactorInfo
 	params := url.Values{}
-	if symbol != (currency.Code{}) {
+	if !symbol.IsEmpty() {
 		codeValue, err := h.formatFuturesCode(symbol)
 		if err != nil {
 			return resp, err
@@ -355,7 +355,7 @@ func (h *HUOBI) FQueryHisOpenInterest(ctx context.Context, symbol, contractType,
 func (h *HUOBI) FQuerySystemStatus(ctx context.Context, symbol currency.Code) (FContractOIData, error) {
 	var resp FContractOIData
 	params := url.Values{}
-	if symbol != (currency.Code{}) {
+	if !symbol.IsEmpty() {
 		codeValue, err := h.formatFuturesCode(symbol)
 		if err != nil {
 			return resp, err
@@ -470,7 +470,7 @@ func (h *HUOBI) FGetBasisData(ctx context.Context, symbol currency.Pair, period,
 func (h *HUOBI) FGetAccountInfo(ctx context.Context, symbol currency.Code) (FUserAccountData, error) {
 	var resp FUserAccountData
 	req := make(map[string]interface{})
-	if symbol != (currency.Code{}) {
+	if !symbol.IsEmpty() {
 		codeValue, err := h.formatFuturesCode(symbol)
 		if err != nil {
 			return resp, err
@@ -481,10 +481,10 @@ func (h *HUOBI) FGetAccountInfo(ctx context.Context, symbol currency.Code) (FUse
 }
 
 // FGetPositionsInfo gets positions info for futures account
-func (h *HUOBI) FGetPositionsInfo(ctx context.Context, symbol currency.Code) (FUserAccountData, error) {
-	var resp FUserAccountData
+func (h *HUOBI) FGetPositionsInfo(ctx context.Context, symbol currency.Code) (FUsersPositionsInfo, error) {
+	var resp FUsersPositionsInfo
 	req := make(map[string]interface{})
-	if symbol != (currency.Code{}) {
+	if !symbol.IsEmpty() {
 		codeValue, err := h.formatFuturesCode(symbol)
 		if err != nil {
 			return resp, err
@@ -498,7 +498,7 @@ func (h *HUOBI) FGetPositionsInfo(ctx context.Context, symbol currency.Code) (FU
 func (h *HUOBI) FGetAllSubAccountAssets(ctx context.Context, symbol currency.Code) (FSubAccountAssetsInfo, error) {
 	var resp FSubAccountAssetsInfo
 	req := make(map[string]interface{})
-	if symbol != (currency.Code{}) {
+	if !symbol.IsEmpty() {
 		codeValue, err := h.formatFuturesCode(symbol)
 		if err != nil {
 			return resp, err
@@ -597,7 +597,7 @@ func (h *HUOBI) FGetOrderLimits(ctx context.Context, symbol, orderPriceType stri
 func (h *HUOBI) FContractTradingFee(ctx context.Context, symbol currency.Code) (FContractTradingFeeData, error) {
 	var resp FContractTradingFeeData
 	req := make(map[string]interface{})
-	if symbol != (currency.Code{}) {
+	if !symbol.IsEmpty() {
 		codeValue, err := h.formatFuturesCode(symbol)
 		if err != nil {
 			return resp, err
@@ -611,7 +611,7 @@ func (h *HUOBI) FContractTradingFee(ctx context.Context, symbol currency.Code) (
 func (h *HUOBI) FGetTransferLimits(ctx context.Context, symbol currency.Code) (FTransferLimitData, error) {
 	var resp FTransferLimitData
 	req := make(map[string]interface{})
-	if symbol != (currency.Code{}) {
+	if !symbol.IsEmpty() {
 		codeValue, err := h.formatFuturesCode(symbol)
 		if err != nil {
 			return resp, err
@@ -625,7 +625,7 @@ func (h *HUOBI) FGetTransferLimits(ctx context.Context, symbol currency.Code) (F
 func (h *HUOBI) FGetPositionLimits(ctx context.Context, symbol currency.Code) (FPositionLimitData, error) {
 	var resp FPositionLimitData
 	req := make(map[string]interface{})
-	if symbol != (currency.Code{}) {
+	if !symbol.IsEmpty() {
 		codeValue, err := h.formatFuturesCode(symbol)
 		if err != nil {
 			return resp, err
@@ -685,7 +685,7 @@ func (h *HUOBI) FGetTransferRecords(ctx context.Context, symbol, transferType st
 func (h *HUOBI) FGetAvailableLeverage(ctx context.Context, symbol currency.Code) (FAvailableLeverageData, error) {
 	var resp FAvailableLeverageData
 	req := make(map[string]interface{})
-	if symbol != (currency.Code{}) {
+	if !symbol.IsEmpty() {
 		codeValue, err := h.formatFuturesCode(symbol)
 		if err != nil {
 			return resp, err
@@ -708,7 +708,7 @@ func (h *HUOBI) FOrder(ctx context.Context, contractCode currency.Pair, symbol, 
 		}
 		req["contract_type"] = contractType
 	}
-	if contractCode != (currency.Pair{}) {
+	if !contractCode.IsEmpty() {
 		codeValue, err := h.FormatSymbol(contractCode, asset.Futures)
 		if err != nil {
 			return resp, err
@@ -797,7 +797,7 @@ func (h *HUOBI) FCancelAllOrders(ctx context.Context, contractCode currency.Pair
 		}
 		req["contract_type"] = contractType
 	}
-	if contractCode != (currency.Pair{}) {
+	if !contractCode.IsEmpty() {
 		codeValue, err := h.FormatSymbol(contractCode, asset.Futures)
 		if err != nil {
 			return resp, err
@@ -818,7 +818,7 @@ func (h *HUOBI) FFlashCloseOrder(ctx context.Context, contractCode currency.Pair
 		}
 		req["contract_type"] = contractType
 	}
-	if contractCode != (currency.Pair{}) {
+	if !contractCode.IsEmpty() {
 		codeValue, err := h.FormatSymbol(contractCode, asset.Futures)
 		if err != nil {
 			return resp, err
@@ -924,7 +924,7 @@ func (h *HUOBI) FGetOrderHistory(ctx context.Context, contractCode currency.Pair
 		return resp, fmt.Errorf("invalid createDate")
 	}
 	req["create_date"] = createDate
-	if contractCode != (currency.Pair{}) {
+	if !contractCode.IsEmpty() {
 		codeValue, err := h.FormatSymbol(contractCode, asset.Futures)
 		if err != nil {
 			return resp, err
@@ -957,7 +957,7 @@ func (h *HUOBI) FTradeHistory(ctx context.Context, contractCode currency.Pair, s
 		return resp, fmt.Errorf("invalid tradeType")
 	}
 	req["trade_type"] = tType
-	if contractCode != (currency.Pair{}) {
+	if !contractCode.IsEmpty() {
 		codeValue, err := h.FormatSymbol(contractCode, asset.Futures)
 		if err != nil {
 			return resp, err
@@ -990,7 +990,7 @@ func (h *HUOBI) FPlaceTriggerOrder(ctx context.Context, contractCode currency.Pa
 		}
 		req["contract_type"] = contractType
 	}
-	if contractCode != (currency.Pair{}) {
+	if !contractCode.IsEmpty() {
 		codeValue, err := h.FormatSymbol(contractCode, asset.Futures)
 		if err != nil {
 			return resp, err
@@ -1032,7 +1032,7 @@ func (h *HUOBI) FCancelAllTriggerOrders(ctx context.Context, contractCode curren
 	var resp FCancelOrderData
 	req := make(map[string]interface{})
 	req["symbol"] = symbol
-	if contractCode != (currency.Pair{}) {
+	if !contractCode.IsEmpty() {
 		codeValue, err := h.FormatSymbol(contractCode, asset.Futures)
 		if err != nil {
 			return resp, err
@@ -1053,7 +1053,7 @@ func (h *HUOBI) FQueryTriggerOpenOrders(ctx context.Context, contractCode curren
 	var resp FTriggerOpenOrders
 	req := make(map[string]interface{})
 	req["symbol"] = symbol
-	if contractCode != (currency.Pair{}) {
+	if !contractCode.IsEmpty() {
 		codeValue, err := h.FormatSymbol(contractCode, asset.Futures)
 		if err != nil {
 			return resp, err
@@ -1074,7 +1074,7 @@ func (h *HUOBI) FQueryTriggerOrderHistory(ctx context.Context, contractCode curr
 	var resp FTriggerOrderHistoryData
 	req := make(map[string]interface{})
 	req["symbol"] = symbol
-	if contractCode != (currency.Pair{}) {
+	if !contractCode.IsEmpty() {
 		codeValue, err := h.FormatSymbol(contractCode, asset.Futures)
 		if err != nil {
 			return resp, err

@@ -84,7 +84,7 @@ func configureSubLogger(logger, levels string, output io.Writer) error {
 	logPtr.output = output
 
 	logPtr.Levels = splitLevel(levels)
-	subLoggers[logger] = logPtr
+	SubLoggers[logger] = logPtr
 
 	return nil
 }
@@ -114,9 +114,9 @@ func SetupGlobalLogger() {
 		}
 	}
 
-	for x := range subLoggers {
-		subLoggers[x].Levels = splitLevel(GlobalLogConfig.Level)
-		subLoggers[x].output, _ = getWriters(&GlobalLogConfig.SubLoggerConfig)
+	for x := range SubLoggers {
+		SubLoggers[x].Levels = splitLevel(GlobalLogConfig.Level)
+		SubLoggers[x].output, _ = getWriters(&GlobalLogConfig.SubLoggerConfig)
 	}
 
 	logger = newLogger(GlobalLogConfig)
@@ -147,7 +147,7 @@ func registerNewSubLogger(logger string) *SubLogger {
 	}
 
 	temp.Levels = splitLevel("INFO|WARN|DEBUG|ERROR")
-	subLoggers[logger] = &temp
+	SubLoggers[logger] = &temp
 
 	return &temp
 }

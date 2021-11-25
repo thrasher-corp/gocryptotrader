@@ -4,7 +4,7 @@ import "io"
 
 // Global vars related to the logger package
 var (
-	subLoggers = map[string]*SubLogger{}
+	SubLoggers = map[string]*SubLogger{}
 
 	Global           *SubLogger
 	BackTester       *SubLogger
