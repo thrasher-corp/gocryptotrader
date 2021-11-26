@@ -28,9 +28,8 @@ func NewSubLogger(name string) (*SubLogger, error) {
 // SetOutput overrides the default output with a new writer
 func (sl *SubLogger) SetOutput(o io.Writer) {
 	RWM.Lock()
-	defer RWM.Unlock()
-
 	sl.output = o
+	RWM.Unlock()
 }
 
 func (sl *SubLogger) getFields() *logFields {
