@@ -45,14 +45,14 @@ func (f *Fill) GetTotal() decimal.Decimal {
 	return f.Total
 }
 
-// GetExchangeFee returns the exchange fee
-func (f *Fill) GetExchangeFee() decimal.Decimal {
-	return f.ExchangeFee
+// GetTradingFee returns the exchange trading fee
+func (f *Fill) GetTradingFee() decimal.Decimal {
+	return f.TradingFee
 }
 
-// SetExchangeFee sets the exchange fee
-func (f *Fill) SetExchangeFee(fee decimal.Decimal) {
-	f.ExchangeFee = fee
+// SetTradingFee sets the exchange trading fee
+func (f *Fill) SetTradingFee(fee decimal.Decimal) {
+	f.TradingFee = fee
 }
 
 // GetOrder returns the order

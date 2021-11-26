@@ -234,7 +234,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string) (*BackTest, 
 			MaximumHoldingRatio:            cfg.CurrencySettings[i].MaximumHoldingsRatio,
 		}
 		if cfg.CurrencySettings[i].MakerFee.GreaterThan(cfg.CurrencySettings[i].TakerFee) {
-			log.Warnf(log.BackTester, "maker fee '%v' should not exceed taker fee '%v'. Please review config",
+			log.Warnf(log.BackTester, "maker fee rate '%v' should not exceed taker fee rate '%v'. Please review config",
 				cfg.CurrencySettings[i].MakerFee,
 				cfg.CurrencySettings[i].TakerFee)
 		}
@@ -382,7 +382,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string) (*BackTest, 
 		if err != nil {
 			return nil, err
 		}
-		lookup.Fee = e.CurrencySettings[i].TakerFee
+		lookup.Fee = e.CurrencySettings[i].TakerFeeRate
 		lookup.Leverage = e.CurrencySettings[i].Leverage
 		lookup.BuySideSizing = e.CurrencySettings[i].BuySide
 		lookup.SellSideSizing = e.CurrencySettings[i].SellSide
@@ -504,9 +504,8 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 				MaximumSlippageRate: cfg.CurrencySettings[i].MaximumSlippagePercent,
 				Pair:                pair,
 				Asset:               a,
-				ExchangeFee:         takerFee,
-				MakerFee:            takerFee,
-				TakerFee:            makerFee,
+				MakerFeeRate:        makerFee,
+				TakerFeeRate:        takerFee,
 				UseRealOrders:       realOrders,
 				BuySide:             buyRule,
 				SellSide:            sellRule,

@@ -244,7 +244,7 @@ func TestAddFillEventForTime(t *testing.T) {
 		ClosePrice:          eleet,
 		VolumeAdjustedPrice: eleet,
 		PurchasePrice:       eleet,
-		ExchangeFee:         eleet,
+		TradingFee:          eleet,
 		Slippage:            eleet,
 	})
 	if err != nil {
@@ -545,7 +545,7 @@ func TestPrintAllEventsChronologically(t *testing.T) {
 		ClosePrice:          eleet,
 		VolumeAdjustedPrice: eleet,
 		PurchasePrice:       eleet,
-		ExchangeFee:         eleet,
+		TradingFee:          eleet,
 		Slippage:            eleet,
 	})
 	if err != nil {

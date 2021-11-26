@@ -332,7 +332,7 @@ func (s *Statistic) PrintAllEventsChronologically() {
 									currencyStatistic.Events[i].FillEvent.Pair(),
 									currencyStatistic.Events[i].FillEvent.GetPurchasePrice().Round(8),
 									currencyStatistic.Events[i].FillEvent.GetAmount().Round(8),
-									currencyStatistic.Events[i].FillEvent.GetExchangeFee().Round(8),
+									currencyStatistic.Events[i].FillEvent.GetTradingFee().Round(8),
 									currencyStatistic.Events[i].FillEvent.GetTotal().Round(8),
 									currencyStatistic.Events[i].FillEvent.GetDirection(),
 									currencyStatistic.Events[i].FillEvent.GetReason(),

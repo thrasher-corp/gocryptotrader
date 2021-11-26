@@ -119,7 +119,6 @@ func TestUpdateBuyStats(t *testing.T) {
 		ClosePrice:          decimal.NewFromInt(500),
 		VolumeAdjustedPrice: decimal.NewFromInt(500),
 		PurchasePrice:       decimal.NewFromInt(500),
-		ExchangeFee:         decimal.Zero,
 		Slippage:            decimal.Zero,
 		Order: &order.Detail{
 			Price:       500,
@@ -179,7 +178,6 @@ func TestUpdateBuyStats(t *testing.T) {
 		ClosePrice:          decimal.NewFromInt(500),
 		VolumeAdjustedPrice: decimal.NewFromInt(500),
 		PurchasePrice:       decimal.NewFromInt(500),
-		ExchangeFee:         decimal.Zero,
 		Slippage:            decimal.Zero,
 		Order: &order.Detail{
 			Price:       500,
@@ -247,7 +245,6 @@ func TestUpdateSellStats(t *testing.T) {
 		ClosePrice:          decimal.NewFromInt(500),
 		VolumeAdjustedPrice: decimal.NewFromInt(500),
 		PurchasePrice:       decimal.NewFromInt(500),
-		ExchangeFee:         decimal.Zero,
 		Slippage:            decimal.Zero,
 		Order: &order.Detail{
 			Price:       500,
@@ -310,7 +307,6 @@ func TestUpdateSellStats(t *testing.T) {
 		ClosePrice:          decimal.NewFromInt(500),
 		VolumeAdjustedPrice: decimal.NewFromInt(500),
 		PurchasePrice:       decimal.NewFromInt(500),
-		ExchangeFee:         decimal.Zero,
 		Slippage:            decimal.Zero,
 		Order: &order.Detail{
 			Price:       500,

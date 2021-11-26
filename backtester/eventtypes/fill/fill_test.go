@@ -59,13 +59,13 @@ func TestGetPurchasePrice(t *testing.T) {
 	}
 }
 
-func TestSetExchangeFee(t *testing.T) {
+func TestSetGetTradingFee(t *testing.T) {
 	t.Parallel()
 	f := Fill{
-		ExchangeFee: decimal.NewFromInt(1),
+		TradingFee: decimal.NewFromInt(1),
 	}
-	f.SetExchangeFee(decimal.NewFromInt(1337))
-	if !f.GetExchangeFee().Equal(decimal.NewFromInt(1337)) {
+	f.SetTradingFee(decimal.NewFromInt(1337))
+	if !f.GetTradingFee().Equal(decimal.NewFromInt(1337)) {
 		t.Error("expected decimal.NewFromInt(1337)")
 	}
 }

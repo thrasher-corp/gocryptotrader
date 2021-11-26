@@ -16,7 +16,7 @@ type Fill struct {
 	VolumeAdjustedPrice decimal.Decimal `json:"volume-adjusted-price"`
 	PurchasePrice       decimal.Decimal `json:"purchase-price"`
 	Total               decimal.Decimal `json:"total"`
-	ExchangeFee         decimal.Decimal `json:"exchange-fee"`
+	TradingFee          decimal.Decimal `json:"trading-fee"`
 	Slippage            decimal.Decimal `json:"slippage"`
 	Order               *order.Detail   `json:"-"`
 }
@@ -33,7 +33,7 @@ type Event interface {
 	GetSlippageRate() decimal.Decimal
 	GetPurchasePrice() decimal.Decimal
 	GetTotal() decimal.Decimal
-	GetExchangeFee() decimal.Decimal
-	SetExchangeFee(decimal.Decimal)
+	GetTradingFee() decimal.Decimal
+	SetTradingFee(decimal.Decimal)
 	GetOrder() *order.Detail
 }

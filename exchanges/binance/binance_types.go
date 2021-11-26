@@ -909,7 +909,7 @@ var bankTransferFees = []fee.Transfer{
 		Deposit:  fee.Convert(0), Withdrawal: fee.Convert(15)},
 }
 
-// Tier defines maker and taker fees for a fee tier
+// Tier defines maker and taker fees rates for a fee tier
 type Tier struct {
 	Maker float64
 	Taker float64

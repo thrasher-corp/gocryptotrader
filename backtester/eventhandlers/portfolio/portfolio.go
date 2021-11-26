@@ -265,7 +265,7 @@ func (p *Portfolio) OnFill(ev fill.Event, funding funding.IPairReader) (*fill.Fi
 		if !ok {
 			return nil, fmt.Errorf("%w expected fill event", common.ErrInvalidDataType)
 		}
-		fe.ExchangeFee = decimal.Zero
+		fe.TradingFee = decimal.Zero
 		return fe, nil
 	}
 

@@ -87,8 +87,8 @@ func (c *Config) PrintSetting() {
 					c.CurrencySettings[i].Quote)
 			}
 		}
-		log.Infof(log.BackTester, "Maker fee: %v", c.CurrencySettings[i].TakerFee.Round(8))
-		log.Infof(log.BackTester, "Taker fee: %v", c.CurrencySettings[i].MakerFee.Round(8))
+		log.Infof(log.BackTester, "Maker fee rate: %v", c.CurrencySettings[i].MakerFee.Round(8))
+		log.Infof(log.BackTester, "Taker fee rate: %v", c.CurrencySettings[i].TakerFee.Round(8))
 		log.Infof(log.BackTester, "Minimum slippage percent %v", c.CurrencySettings[i].MinimumSlippagePercent.Round(8))
 		log.Infof(log.BackTester, "Maximum slippage percent: %v", c.CurrencySettings[i].MaximumSlippagePercent.Round(8))
 		log.Infof(log.BackTester, "Buy rules: %+v", c.CurrencySettings[i].BuySide)

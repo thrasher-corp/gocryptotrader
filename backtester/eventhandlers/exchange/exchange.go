@@ -47,7 +47,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 	if err != nil {
 		return f, err
 	}
-	f.ExchangeFee = cs.ExchangeFee // defaulting to just using taker fee right now without orderbook
+	f.TradingFee = cs.TakerFeeRate // defaulting to just using taker fee rate right now without orderbook
 	f.Direction = o.GetDirection()
 	if o.GetDirection() != gctorder.Buy && o.GetDirection() != gctorder.Sell {
 		return f, nil
@@ -70,7 +70,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 			return f, err
 		}
 		// calculate an estimated slippage rate
-		adjustedPrice, amount = slippage.CalculateSlippageByOrderbook(ob, o.GetDirection(), eventFunds, f.ExchangeFee)
+		adjustedPrice, amount = slippage.CalculateSlippageByOrderbook(ob, o.GetDirection(), eventFunds, f.TradingFee)
 		f.Slippage = adjustedPrice.Sub(f.ClosePrice).Div(f.ClosePrice).Mul(decimal.NewFromInt(100))
 	} else {
 		adjustedPrice, amount, err = e.sizeOfflineOrder(high, low, volume, &cs, f)
@@ -108,7 +108,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 	if err != nil {
 		return f, err
 	}
-	f.ExchangeFee = calculateExchangeFee(adjustedPrice, limitReducedAmount, cs.ExchangeFee)
+	f.TradingFee = calculateExchangeFee(adjustedPrice, limitReducedAmount, cs.TakerFeeRate)
 
 	orderID, err := e.placeOrder(context.TODO(), adjustedPrice, limitReducedAmount, cs.UseRealOrders, cs.CanUseExchangeLimits, f, orderManager)
 	if err != nil {
@@ -148,7 +148,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 		ords[i].CloseTime = o.GetTime()
 		f.Order = &ords[i]
 		f.PurchasePrice = decimal.NewFromFloat(ords[i].Price)
-		f.Total = f.PurchasePrice.Mul(limitReducedAmount).Add(f.ExchangeFee)
+		f.Total = f.PurchasePrice.Mul(limitReducedAmount).Add(f.TradingFee)
 	}
 
 	if f.Order == nil {
@@ -231,7 +231,7 @@ func (e *Exchange) placeOrder(ctx context.Context, price, amount decimal.Decimal
 	var orderID string
 	p, _ := price.Float64()
 	a, _ := amount.Float64()
-	fee, _ := f.ExchangeFee.Float64()
+	fee, _ := f.TradingFee.Float64()
 	o := &gctorder.Submit{
 		Price:       p,
 		Amount:      a,
@@ -297,7 +297,7 @@ func (e *Exchange) sizeOfflineOrder(high, low, volume decimal.Decimal, cs *Setti
 	adjustedPrice = applySlippageToPrice(f.GetDirection(), f.GetVolumeAdjustedPrice(), slippageRate)
 
 	f.Slippage = slippageRate.Mul(decimal.NewFromInt(100)).Sub(decimal.NewFromInt(100))
-	f.ExchangeFee = calculateExchangeFee(adjustedPrice, adjustedAmount, cs.TakerFee)
+	f.TradingFee = calculateExchangeFee(adjustedPrice, adjustedAmount, cs.TakerFeeRate)
 	return adjustedPrice, adjustedAmount, nil
 }
 

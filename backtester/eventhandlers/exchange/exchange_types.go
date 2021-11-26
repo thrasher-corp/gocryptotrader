@@ -42,9 +42,10 @@ type Settings struct {
 	Pair  currency.Pair
 	Asset asset.Item
 
-	ExchangeFee decimal.Decimal
-	MakerFee    decimal.Decimal
-	TakerFee    decimal.Decimal
+	// Maker and taker fee rates e.g. 2% or 0.2 as a percentage == 0.002 as a
+	// rate which is what this system supports for calculations.
+	MakerFeeRate decimal.Decimal // Rate when you provide liquidity from the books
+	TakerFeeRate decimal.Decimal // Rate when you remove liquidity from the books
 
 	BuySide  MinMax
 	SellSide MinMax

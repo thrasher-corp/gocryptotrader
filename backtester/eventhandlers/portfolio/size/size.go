@@ -27,13 +27,13 @@ func (s *Size) SizeOrder(o order.Event, amountAvailable decimal.Decimal, cs *exc
 	switch retOrder.GetDirection() {
 	case gctorder.Buy:
 		// check size against currency specific settings
-		amount, err = s.calculateBuySize(retOrder.Price, amountAvailable, cs.ExchangeFee, o.GetBuyLimit(), cs.BuySide)
+		amount, err = s.calculateBuySize(retOrder.Price, amountAvailable, cs.TakerFeeRate, o.GetBuyLimit(), cs.BuySide)
 		if err != nil {
 			return nil, err
 		}
 		// check size against portfolio specific settings
 		var portfolioSize decimal.Decimal
-		portfolioSize, err = s.calculateBuySize(retOrder.Price, amountAvailable, cs.ExchangeFee, o.GetBuyLimit(), s.BuySide)
+		portfolioSize, err = s.calculateBuySize(retOrder.Price, amountAvailable, cs.TakerFeeRate, o.GetBuyLimit(), s.BuySide)
 		if err != nil {
 			return nil, err
 		}
@@ -44,12 +44,12 @@ func (s *Size) SizeOrder(o order.Event, amountAvailable decimal.Decimal, cs *exc
 
 	case gctorder.Sell:
 		// check size against currency specific settings
-		amount, err = s.calculateSellSize(retOrder.Price, amountAvailable, cs.ExchangeFee, o.GetSellLimit(), cs.SellSide)
+		amount, err = s.calculateSellSize(retOrder.Price, amountAvailable, cs.TakerFeeRate, o.GetSellLimit(), cs.SellSide)
 		if err != nil {
 			return nil, err
 		}
 		// check size against portfolio specific settings
-		portfolioSize, err := s.calculateSellSize(retOrder.Price, amountAvailable, cs.ExchangeFee, o.GetSellLimit(), s.SellSide)
+		portfolioSize, err := s.calculateSellSize(retOrder.Price, amountAvailable, cs.TakerFeeRate, o.GetSellLimit(), s.SellSide)
 		if err != nil {
 			return nil, err
 		}
