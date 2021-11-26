@@ -26,11 +26,30 @@ func NewSubLogger(name string) (*SubLogger, error) {
 }
 
 // SetOutput overrides the default output with a new writer
-func (s *SubLogger) SetOutput(o io.Writer) {
+func (sl *SubLogger) SetOutput(o io.Writer) {
 	RWM.Lock()
 	defer RWM.Unlock()
 
-	s.output = o
+	sl.output = o
+}
+
+func (sl *SubLogger) getFields() *logFields {
+	RWM.RLock()
+	defer RWM.RUnlock()
+
+	if !enabled() && sl == nil {
+		return nil
+	}
+
+	return &logFields{
+		info:   sl.Info,
+		warn:   sl.Warn,
+		debug:  sl.Debug,
+		error:  sl.Error,
+		name:   sl.name,
+		output: sl.output,
+		logger: logger,
+	}
 }
 
 func newLogger(c *Config) Logger {

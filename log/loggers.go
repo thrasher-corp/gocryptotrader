@@ -134,22 +134,3 @@ func enabled() bool {
 		GlobalLogConfig.Enabled != nil &&
 		*GlobalLogConfig.Enabled
 }
-
-func (sl *SubLogger) getFields() *logFields {
-	RWM.RLock()
-	defer RWM.RUnlock()
-
-	if !enabled() && sl == nil {
-		return nil
-	}
-
-	return &logFields{
-		info:   sl.Info,
-		warn:   sl.Warn,
-		debug:  sl.Debug,
-		error:  sl.Error,
-		name:   sl.name,
-		output: sl.output,
-		logger: logger,
-	}
-}
