@@ -48,7 +48,10 @@ func TestCreateUSDTrackingPairs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	em.Add(excher)
+	err = em.Add(excher)
+	if err != nil {
+		t.Fatal(err)
+	}
 	resp, err := CreateUSDTrackingPairs([]TrackingPair{s1}, em)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
