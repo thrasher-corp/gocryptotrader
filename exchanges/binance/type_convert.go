@@ -441,3 +441,43 @@ func (u *UFuturesSymbolInfo) UnmarshalJSON(data []byte) error {
 	u.OnboardDate = aux.OnboardDate.Time()
 	return nil
 }
+
+// UnmarshalJSON deserialises the JSON info, including the timestamp
+func (a *FuturesAccountInformationPositions) UnmarshalJSON(data []byte) error {
+	type Alias FuturesAccountInformationPositions
+
+	aux := &struct {
+		UpdateTime binanceTime `json:"updateTime"`
+		*Alias
+	}{
+		Alias: (*Alias)(a),
+	}
+
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+
+	a.UpdateTime = aux.UpdateTime.Time()
+
+	return nil
+}
+
+// UnmarshalJSON deserialises the JSON info, including the timestamp
+func (a *FuturesAccountInformation) UnmarshalJSON(data []byte) error {
+	type Alias FuturesAccountInformation
+
+	aux := &struct {
+		UpdateTime binanceTime `json:"updateTime"`
+		*Alias
+	}{
+		Alias: (*Alias)(a),
+	}
+
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+
+	a.UpdateTime = aux.UpdateTime.Time()
+
+	return nil
+}

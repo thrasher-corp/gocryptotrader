@@ -102,7 +102,7 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundTransf
 		if err != nil {
 			return nil, err
 		}
-		es.SetPrice(d[i].Latest().ClosePrice())
+		es.SetPrice(d[i].Latest().GetClosePrice())
 		offset := d[i].Offset()
 
 		if offset <= int(s.mfiPeriod.IntPart()) {

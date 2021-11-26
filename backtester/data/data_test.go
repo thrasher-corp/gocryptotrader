@@ -74,10 +74,10 @@ func TestStream(t *testing.T) {
 	f.GetAssetType()
 	f.GetReason()
 	f.AppendReason("fake")
-	f.ClosePrice()
-	f.HighPrice()
-	f.LowPrice()
-	f.OpenPrice()
+	f.GetClosePrice()
+	f.GetHighPrice()
+	f.GetLowPrice()
+	f.GetOpenPrice()
 
 	d.AppendStream(fakeDataHandler{time: 1})
 	d.AppendStream(fakeDataHandler{time: 4})
@@ -208,18 +208,18 @@ func (t fakeDataHandler) GetReason() string {
 func (t fakeDataHandler) AppendReason(string) {
 }
 
-func (t fakeDataHandler) ClosePrice() decimal.Decimal {
+func (t fakeDataHandler) GetClosePrice() decimal.Decimal {
 	return decimal.Zero
 }
 
-func (t fakeDataHandler) HighPrice() decimal.Decimal {
+func (t fakeDataHandler) GetHighPrice() decimal.Decimal {
 	return decimal.Zero
 }
 
-func (t fakeDataHandler) LowPrice() decimal.Decimal {
+func (t fakeDataHandler) GetLowPrice() decimal.Decimal {
 	return decimal.Zero
 }
 
-func (t fakeDataHandler) OpenPrice() decimal.Decimal {
+func (t fakeDataHandler) GetOpenPrice() decimal.Decimal {
 	return decimal.Zero
 }
