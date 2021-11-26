@@ -1073,10 +1073,8 @@ func (b *Bittrex) UpdateTransferFees(ctx context.Context) error {
 			Chain:    data[i].CoinType,
 		}
 		if data[i].Status == "ONLINE" {
-			// Turn off
 			newFees.Deposit = fee.Convert(0)
 			newFees.Withdrawal = fee.Convert(data[i].TxFee)
-			continue
 		} // else will turn off asset.
 		transferFees = append(transferFees, newFees)
 	}
