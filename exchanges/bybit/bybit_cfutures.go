@@ -115,9 +115,9 @@ func (by *Bybit) GetFuturesOrderbook(symbol currency.Pair) (Orderbook, error) {
 }
 
 // GetFuturesKlineData gets futures kline data for CoinMarginedFutures.
-func (by *Bybit) GetFuturesKlineData(symbol currency.Pair, interval string, limit int64, startTime time.Time) ([]FuturesCandleStick, error) {
+func (by *Bybit) GetFuturesKlineData(symbol currency.Pair, interval string, limit int64, startTime time.Time) ([]FuturesCandleStickWithStringParam, error) {
 	resp := struct {
-		Data []FuturesCandleStick `json:"result"`
+		Data []FuturesCandleStickWithStringParam `json:"result"`
 	}{}
 
 	params := url.Values{}
@@ -353,9 +353,9 @@ func (by *Bybit) GetAccountRatio(symbol currency.Pair, period string, limit int6
 }
 
 // GetRiskLimit returns risk limit
-func (by *Bybit) GetRiskLimit(symbol currency.Pair) ([]RiskInfo, error) {
+func (by *Bybit) GetRiskLimit(symbol currency.Pair) ([]RiskInfoWithStringParam, error) {
 	resp := struct {
-		Data []RiskInfo `json:"result"`
+		Data []RiskInfoWithStringParam `json:"result"`
 	}{}
 
 	params := url.Values{}

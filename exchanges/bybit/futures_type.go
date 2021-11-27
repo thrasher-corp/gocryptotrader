@@ -27,6 +27,20 @@ type FuturesCandleStick struct {
 	Symbol   string  `json:"symbol"`
 	Interval string  `json:"interval"`
 	OpenTime int64   `json:"open_time"`
+	Open     float64 `json:"open"`
+	High     float64 `json:"high"`
+	Low      float64 `json:"low"`
+	Close    float64 `json:"close"`
+	Volume   float64 `json:"volume"`
+	TurnOver float64 `json:"turnover"`
+}
+
+// FuturesCandleStickWithStringParam holds kline data
+type FuturesCandleStickWithStringParam struct {
+	ID       int64   `json:"id"`
+	Symbol   string  `json:"symbol"`
+	Interval string  `json:"interval"`
+	OpenTime int64   `json:"open_time"`
 	Open     float64 `json:"open,string"`
 	High     float64 `json:"high,string"`
 	Low      float64 `json:"low,string"`
@@ -67,7 +81,6 @@ type SymbolPriceTicker struct {
 
 // FuturesPublicTradesData stores recent public trades for futures
 type FuturesPublicTradesData struct {
-	ID             int64     `json:"id"`
 	Symbol         string    `json:"symbol"`
 	Price          float64   `json:"price"`
 	Qty            float64   `json:"qty"`
@@ -351,6 +364,19 @@ type RiskInfo struct {
 	ID             int64    `json:"id"`
 	Symbol         string   `json:"symbol"`
 	Limit          int64    `json:"limit"`
+	MaintainMargin float64  `json:"maintain_margin"`
+	StartingMargin float64  `json:"starting_margin"`
+	Section        []string `json:"section"`
+	IsLowestRisk   int64    `json:"is_lowest_risk"`
+	CreatedAt      string   `json:"create_at"`
+	UpdateAt       string   `json:"updated_at"`
+	MaxLeverage    float64  `json:"max_leverage"`
+}
+
+type RiskInfoWithStringParam struct {
+	ID             int64    `json:"id"`
+	Symbol         string   `json:"symbol"`
+	Limit          int64    `json:"limit"`
 	MaintainMargin float64  `json:"maintain_margin,string"`
 	StartingMargin float64  `json:"starting_margin,string"`
 	Section        []string `json:"section"`
@@ -366,6 +392,12 @@ type FundingInfo struct {
 	FundingRateTimestamp int64   `json:"funding_rate_timestamp"`
 }
 
+type USDTFundingInfo struct {
+	Symbol               string  `json:"symbol"`
+	FundingRate          float64 `json:"funding_rate"`
+	FundingRateTimestamp string  `json:"funding_rate_timestamp"`
+}
+
 type AnnouncementInfo struct {
 	ID        int64  `json:"id"`
 	Title     string `json:"title"`
@@ -375,6 +407,22 @@ type AnnouncementInfo struct {
 }
 
 type Position struct {
+	UserID                 int64   `json:"user_id"`
+	Symbol                 string  `json:"symbol"`
+	Side                   string  `json:"side"`
+	Size                   int64   `json:"size"`
+	PositionValue          float64 `json:"position_value"`
+	EntryPrice             float64 `json:"entry_price"`
+	LiquidationPrice       float64 `json:"liq_price"`
+	BankruptcyPrice        float64 `json:"bust_price"`
+	Leverage               float64 `json:"leverage"`
+	PositionMargin         float64 `json:"position_margin"`
+	OccupiedClosingFee     float64 `json:"occ_closing_fee"`
+	RealisedPNL            float64 `json:"realised_pnl"`
+	AccumulatedRealisedPNL float64 `json:"cum_realised_pnl"`
+}
+
+type PositionWithStringParam struct {
 	UserID                 int64   `json:"user_id"`
 	Symbol                 string  `json:"symbol"`
 	Side                   string  `json:"side"`
@@ -397,13 +445,25 @@ type PositionData struct {
 	UnrealisedPNL       float64 `json:"unrealised_pnl"`
 	DeleverageIndicator int64   `json:"deleverage_indicator"`
 	RiskID              int64   `json:"risk_id"`
+	TakeProfit          float64 `json:"take_profit"`
+	StopLoss            float64 `json:"stop_loss"`
+	TrailingStop        float64 `json:"trailing_stop"`
+}
+
+type PositionDataWithStringParam struct {
+	PositionWithStringParam
+	IsIsolated          bool    `json:"is_isolated"`
+	AutoAddMargin       int64   `json:"auto_add_margin"`
+	UnrealisedPNL       float64 `json:"unrealised_pnl"`
+	DeleverageIndicator int64   `json:"deleverage_indicator"`
+	RiskID              int64   `json:"risk_id"`
 	TakeProfit          float64 `json:"take_profit,string"`
 	StopLoss            float64 `json:"stop_loss,string"`
 	TrailingStop        float64 `json:"trailing_stop,string"`
 }
 
 type PositionResp struct {
-	PositionData
+	PositionDataWithStringParam
 	PositionID             int64   `json:"position_idx"`
 	Mode                   int64   `json:"mode"`
 	ID                     int64   `json:"id"`

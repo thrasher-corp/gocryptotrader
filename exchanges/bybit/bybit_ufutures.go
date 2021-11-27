@@ -193,9 +193,9 @@ func (by *Bybit) GetUSDTPremiumIndexPriceKline(symbol currency.Pair, interval st
 }
 
 // GetUSDTLastFundingRate returns latest generated funding fee
-func (by *Bybit) GetUSDTLastFundingRate(symbol currency.Pair) (FundingInfo, error) {
+func (by *Bybit) GetUSDTLastFundingRate(symbol currency.Pair) (USDTFundingInfo, error) {
 	resp := struct {
-		Data FundingInfo `json:"result"`
+		Data USDTFundingInfo `json:"result"`
 	}{}
 
 	params := url.Values{}
@@ -494,9 +494,13 @@ func (by *Bybit) CreateConditionalUSDTFuturesOrder(symbol currency.Pair, side, o
 	}
 	if closeOnTrigger {
 		params.Set("close_on_trigger", "true")
+	} else {
+		params.Set("close_on_trigger", "false")
 	}
 	if reduceOnly {
 		params.Set("reduce_only", "true")
+	} else {
+		params.Set("reduce_only", "false")
 	}
 	if orderLinkID != "" {
 		params.Set("order_link_id", orderLinkID)

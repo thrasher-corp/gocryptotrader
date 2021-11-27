@@ -82,6 +82,14 @@ func (by *Bybit) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
+	err = by.StoreAssetPairFormat(asset.USDTMarginedFutures, fmt1)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+	err = by.StoreAssetPairFormat(asset.Futures, fmt1)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 
 	// Fill out the capabilities/features that the exchange supports
 	by.Features = exchange.Features{
@@ -114,6 +122,8 @@ func (by *Bybit) SetDefaults() {
 		exchange.RestSpot:         bybitAPIURL,
 		exchange.WebsocketSpot:    bybitWSURLPublicTopicV2,
 		exchange.RestCoinMargined: bybitAPIURL,
+		exchange.RestUSDTMargined: bybitAPIURL,
+		exchange.RestFutures:      bybitAPIURL,
 	})
 	by.Websocket = stream.New()
 	by.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
