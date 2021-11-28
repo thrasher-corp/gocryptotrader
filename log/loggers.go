@@ -128,9 +128,3 @@ func displayError(err error) {
 		log.Printf("Logger write error: %v\n", err)
 	}
 }
-
-func enabled() bool {
-	return GlobalLogConfig != nil &&
-		GlobalLogConfig.Enabled != nil &&
-		*GlobalLogConfig.Enabled
-}

@@ -36,7 +36,10 @@ func (sl *SubLogger) getFields() *logFields {
 	RWM.RLock()
 	defer RWM.RUnlock()
 
-	if !enabled() && sl == nil {
+	if sl == nil ||
+		(GlobalLogConfig != nil &&
+			GlobalLogConfig.Enabled != nil &&
+			!*GlobalLogConfig.Enabled) {
 		return nil
 	}
 

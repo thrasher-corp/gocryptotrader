@@ -80,11 +80,6 @@ func BenchmarkInfo(b *testing.B) {
 	}
 }
 
-func SetupTestDisabled(t *testing.T) {
-	t.Helper()
-	SetupDisabled()
-}
-
 func TestAddWriter(t *testing.T) {
 	_, err := MultiWriter(ioutil.Discard, ioutil.Discard)
 	if !errors.Is(err, errWriterAlreadyLoaded) {
