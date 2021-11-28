@@ -66,6 +66,9 @@ func (mw *multiWriter) Write(p []byte) (n int, err error) {
 
 	for range mw.writers {
 		// NOTE: These results do not necessarily reflect the current io.writer
+		// due to the go scheduler and writer finishing at different times, the
+		// response coming from the channel might not match up with the for loop
+		// writer.
 		d := <-results
 		if d.err != nil {
 			return d.n, d.err
