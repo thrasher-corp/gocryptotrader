@@ -86,11 +86,6 @@
    "clientID": "ClientID",
    "otpSecret": "-"
   },
-  "coinbene": {
-   "key": "Key",
-   "secret": "Secret",
-   "otpSecret": "-"
-  },
   "coinut": {
    "key": "Key",
    "clientID": "ClientID",

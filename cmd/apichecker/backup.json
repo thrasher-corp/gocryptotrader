@@ -79,28 +79,6 @@
    "Disabled": false
   },
   {
-   "Name": "CoinbeneSpot",
-   "CheckType": "GitHub Sha Check",
-   "Data": {
-    "GitHubData": {
-     "Repo": "Coinbene/API-SPOT-v2-Documents",
-     "Sha": "e9135a782ba6016bcf008778be368882ad7c784d"
-    }
-   },
-   "Disabled": false
-  },
-  {
-   "Name": "CoinbeneSwap",
-   "CheckType": "GitHub Sha Check",
-   "Data": {
-    "GitHubData": {
-     "Repo": "Coinbene/API-SWAP-Documents",
-     "Sha": "6b7871dae4d2af028a33dde956fbce101e2f9acd"
-    }
-   },
-   "Disabled": false
-  },
-  {
    "Name": "Coinut",
    "CheckType": "GitHub Sha Check",
    "Data": {
