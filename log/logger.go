@@ -111,20 +111,20 @@ func validSubLogger(s string) (bool, *SubLogger) {
 
 // Level retries the current sublogger levels
 func Level(s string) (*Levels, error) {
-	found, logger := validSubLogger(s)
+	found, subLogger := validSubLogger(s)
 	if !found {
 		return nil, fmt.Errorf("logger %v not found", s)
 	}
 
-	return &logger.Levels, nil
+	return &subLogger.Levels, nil
 }
 
 // SetLevel sets sublogger levels
 func SetLevel(s, level string) (*Levels, error) {
-	found, logger := validSubLogger(s)
+	found, subLogger := validSubLogger(s)
 	if !found {
 		return nil, fmt.Errorf("logger %v not found", s)
 	}
-	logger.Levels = splitLevel(level)
-	return &logger.Levels, nil
+	subLogger.Levels = splitLevel(level)
+	return &subLogger.Levels, nil
 }
