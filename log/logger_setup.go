@@ -69,14 +69,17 @@ func GenDefaultSettings() *Config {
 	}
 }
 
+// TODO: protec
 func configureSubLogger(subLogger, levels string, output io.Writer) error {
+	RWM.Lock()
+	defer RWM.Unlock()
 	logPtr, found := SubLoggers[subLogger]
 	if !found {
 		return fmt.Errorf("sub logger %v not found", subLogger)
 	}
 
-	logPtr.output = output
-	logPtr.Levels = splitLevel(levels)
+	logPtr.SetOutput(output)
+	logPtr.SetLevels(splitLevel(levels))
 	SubLoggers[subLogger] = logPtr
 	return nil
 }
@@ -109,15 +112,14 @@ func SetupGlobalLogger() error {
 		}
 	}
 
-	var err error
 	for x := range SubLoggers {
-		SubLoggers[x].Levels = splitLevel(GlobalLogConfig.Level)
-		SubLoggers[x].output, err = getWriters(&GlobalLogConfig.SubLoggerConfig)
+		SubLoggers[x].SetLevels(splitLevel(GlobalLogConfig.Level))
+		writers, err := getWriters(&GlobalLogConfig.SubLoggerConfig)
 		if err != nil {
 			return err
 		}
+		SubLoggers[x].SetOutput(writers)
 	}
-
 	logger = newLogger(GlobalLogConfig)
 	return nil
 }
@@ -140,14 +142,15 @@ func splitLevel(level string) (l Levels) {
 }
 
 func registerNewSubLogger(subLogger string) *SubLogger {
-	temp := SubLogger{
+	temp := &SubLogger{
 		name:   strings.ToUpper(subLogger),
 		output: os.Stdout,
+		levels: splitLevel("INFO|WARN|DEBUG|ERROR"),
 	}
-
-	temp.Levels = splitLevel("INFO|WARN|DEBUG|ERROR")
-	SubLoggers[subLogger] = &temp
-	return &temp
+	RWM.Lock()
+	SubLoggers[subLogger] = temp
+	RWM.Unlock()
+	return temp
 }
 
 // register all loggers at package init()

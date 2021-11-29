@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"strings"
 	"time"
 )
 
@@ -12,47 +11,6 @@ var (
 	errEmptyLoggerName            = errors.New("cannot have empty logger name")
 	errSubLoggerAlreadyregistered = errors.New("sub logger already registered")
 )
-
-// NewSubLogger allows for a new sub logger to be registered.
-func NewSubLogger(name string) (*SubLogger, error) {
-	if name == "" {
-		return nil, errEmptyLoggerName
-	}
-	name = strings.ToUpper(name)
-	if _, ok := SubLoggers[name]; ok {
-		return nil, errSubLoggerAlreadyregistered
-	}
-	return registerNewSubLogger(name), nil
-}
-
-// SetOutput overrides the default output with a new writer
-func (sl *SubLogger) SetOutput(o io.Writer) {
-	RWM.Lock()
-	sl.output = o
-	RWM.Unlock()
-}
-
-func (sl *SubLogger) getFields() *logFields {
-	RWM.RLock()
-	defer RWM.RUnlock()
-
-	if sl == nil ||
-		(GlobalLogConfig != nil &&
-			GlobalLogConfig.Enabled != nil &&
-			!*GlobalLogConfig.Enabled) {
-		return nil
-	}
-
-	return &logFields{
-		info:   sl.Info,
-		warn:   sl.Warn,
-		debug:  sl.Debug,
-		error:  sl.Error,
-		name:   sl.name,
-		output: sl.output,
-		logger: logger,
-	}
-}
 
 func newLogger(c *Config) Logger {
 	return Logger{
@@ -103,20 +61,24 @@ func CloseLogger() error {
 }
 
 // Level retries the current sublogger levels
-func Level(s string) (*Levels, error) {
-	subLogger, found := SubLoggers[s]
+func Level(name string) (Levels, error) {
+	RWM.RLock()
+	defer RWM.RUnlock()
+	subLogger, found := SubLoggers[name]
 	if !found {
-		return nil, fmt.Errorf("logger %v not found", s)
+		return Levels{}, fmt.Errorf("logger %s not found", name)
 	}
-	return &subLogger.Levels, nil
+	return subLogger.levels, nil
 }
 
 // SetLevel sets sublogger levels
-func SetLevel(s, level string) (*Levels, error) {
+func SetLevel(s, level string) (Levels, error) {
+	RWM.Lock()
+	defer RWM.Unlock()
 	subLogger, found := SubLoggers[s]
 	if !found {
-		return nil, fmt.Errorf("sub logger %v not found", s)
+		return Levels{}, fmt.Errorf("sub logger %v not found", s)
 	}
-	subLogger.Levels = splitLevel(level)
-	return &subLogger.Levels, nil
+	subLogger.levels = splitLevel(level)
+	return subLogger.levels, nil
 }

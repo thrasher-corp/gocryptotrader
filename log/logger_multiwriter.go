@@ -41,18 +41,18 @@ func (mw *multiWriter) Remove(writer io.Writer) error {
 }
 
 // Write concurrent safe Write for each writer
-func (mw *multiWriter) Write(p []byte) (n int, err error) {
+func (mw *multiWriter) Write(p []byte) (int, error) {
 	type data struct {
 		n   int
 		err error
 	}
-	mw.mu.RLock()
-	defer mw.mu.RUnlock()
 
 	results := make(chan data, len(mw.writers))
+	mw.mu.RLock()
+	defer mw.mu.RUnlock()
 	for x := range mw.writers {
 		go func(w io.Writer, p []byte, ch chan<- data) {
-			n, err = w.Write(p)
+			n, err := w.Write(p)
 			if err != nil {
 				ch <- data{n, fmt.Errorf("%T %w", w, err)}
 				return

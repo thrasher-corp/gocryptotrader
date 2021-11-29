@@ -86,14 +86,6 @@ type Levels struct {
 	Info, Debug, Warn, Error bool
 }
 
-// SubLogger defines a sub logger can be used externally for packages wanted to
-// leverage GCT library logger features.
-type SubLogger struct {
-	name string
-	Levels
-	output io.Writer
-}
-
 type multiWriter struct {
 	writers []io.Writer
 	mu      sync.RWMutex

@@ -81,6 +81,7 @@ func BenchmarkInfo(b *testing.B) {
 }
 
 func TestAddWriter(t *testing.T) {
+	t.Parallel()
 	_, err := MultiWriter(ioutil.Discard, ioutil.Discard)
 	if !errors.Is(err, errWriterAlreadyLoaded) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errWriterAlreadyLoaded)
@@ -109,6 +110,7 @@ func TestAddWriter(t *testing.T) {
 }
 
 func TestRemoveWriter(t *testing.T) {
+	t.Parallel()
 	mw, err := MultiWriter()
 	if err != nil {
 		t.Fatal(err)
@@ -159,6 +161,7 @@ func (w *WriteError) Write(p []byte) (int, error) {
 var errWriteError = errors.New("write error")
 
 func TestMultiWriterWrite(t *testing.T) {
+	t.Parallel()
 	mw, err := MultiWriter(ioutil.Discard, &bytes.Buffer{})
 	if err != nil {
 		t.Fatal(err)
@@ -193,6 +196,7 @@ func TestMultiWriterWrite(t *testing.T) {
 }
 
 func TestGetWriters(t *testing.T) {
+	t.Parallel()
 	_, err := getWriters(nil)
 	if !errors.Is(err, errSubloggerConfigIsNil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errSubloggerConfigIsNil)
@@ -213,12 +217,14 @@ func TestGetWriters(t *testing.T) {
 }
 
 func TestGenDefaultSettings(t *testing.T) {
+	t.Parallel()
 	if cfg := GenDefaultSettings(); cfg.Enabled == nil {
 		t.Fatal("unexpected items in struct")
 	}
 }
 
 func TestLevel(t *testing.T) {
+	t.Parallel()
 	_, err := Level("LOG")
 	if err != nil {
 		t.Errorf("Failed to get log %s levels skipping", err)
@@ -231,6 +237,7 @@ func TestLevel(t *testing.T) {
 }
 
 func TestSetLevel(t *testing.T) {
+	t.Parallel()
 	newLevel, err := SetLevel("LOG", "ERROR")
 	if err != nil {
 		t.Skipf("Failed to get log %s levels skipping", err)
@@ -251,20 +258,20 @@ func TestSetLevel(t *testing.T) {
 }
 
 func TestCloseLogger(t *testing.T) {
+	t.Parallel()
 	if err := CloseLogger(); err != nil {
 		t.Errorf("CloseLogger() failed %v", err)
 	}
 }
 
 func TestConfigureSubLogger(t *testing.T) {
+	t.Parallel()
 	err := configureSubLogger("LOG", "INFO", os.Stdin)
 	if err != nil {
 		t.Skipf("configureSubLogger() returned unexpected error %v", err)
 	}
-	if (Global.Levels != Levels{
-		Info:  true,
-		Debug: false,
-	}) {
+	levels := Global.GetLevels()
+	if (levels != Levels{Info: true, Debug: false}) {
 		t.Error("configureSubLogger() incorrectly configure subLogger")
 	}
 	if Global.name != "LOG" {
@@ -273,6 +280,7 @@ func TestConfigureSubLogger(t *testing.T) {
 }
 
 func TestSplitLevel(t *testing.T) {
+	t.Parallel()
 	levelsInfoDebug := splitLevel("INFO|DEBUG")
 
 	expected := Levels{
@@ -311,8 +319,11 @@ func BenchmarkInfoln(b *testing.B) {
 }
 
 func TestNewLogEvent(t *testing.T) {
+	t.Parallel()
 	w := &bytes.Buffer{}
+	RWM.Lock()
 	err := logger.newLogEvent("out", "header", "SUBLOGGER", w)
+	RWM.Unlock()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -321,18 +332,21 @@ func TestNewLogEvent(t *testing.T) {
 		t.Error("newLogEvent() failed expected output got empty string")
 	}
 
+	RWM.Lock()
 	err = logger.newLogEvent("out", "header", "SUBLOGGER", nil)
+	RWM.Unlock()
 	if err == nil {
 		t.Error("Error expected with output is set to nil")
 	}
 }
 
 func TestInfo(t *testing.T) {
+	t.Parallel()
 	w := &bytes.Buffer{}
 
-	sl := registerNewSubLogger("TESTYMCTESTALOT")
-	sl.Levels = splitLevel("INFO|WARN|DEBUG|ERROR")
-	sl.output = w
+	sl := registerNewSubLogger("TESTYMCTESTALOTINFO")
+	sl.SetLevels(splitLevel("INFO|WARN|DEBUG|ERROR"))
+	sl.SetOutput(w)
 
 	Info(sl, "Hello")
 
@@ -355,7 +369,7 @@ func TestInfo(t *testing.T) {
 	}
 	w.Reset()
 
-	_, err := SetLevel("TESTYMCTESTALOT", "")
+	_, err := SetLevel("TESTYMCTESTALOTINFO", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -374,11 +388,12 @@ func TestInfo(t *testing.T) {
 }
 
 func TestDebug(t *testing.T) {
+	t.Parallel()
 	w := &bytes.Buffer{}
 
-	sl := registerNewSubLogger("TESTYMCTESTALOT")
-	sl.Levels = splitLevel("INFO|WARN|DEBUG|ERROR")
-	sl.output = w
+	sl := registerNewSubLogger("TESTYMCTESTALOTDEBUG")
+	sl.SetLevels(splitLevel("INFO|WARN|DEBUG|ERROR"))
+	sl.SetOutput(w)
 
 	Debug(sl, "Hello")
 
@@ -401,7 +416,7 @@ func TestDebug(t *testing.T) {
 	}
 	w.Reset()
 
-	_, err := SetLevel("TESTYMCTESTALOT", "")
+	_, err := SetLevel("TESTYMCTESTALOTDEBUG", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -420,11 +435,12 @@ func TestDebug(t *testing.T) {
 }
 
 func TestWarn(t *testing.T) {
+	t.Parallel()
 	w := &bytes.Buffer{}
 
-	sl := registerNewSubLogger("TESTYMCTESTALOT")
-	sl.Levels = splitLevel("INFO|WARN|DEBUG|ERROR")
-	sl.output = w
+	sl := registerNewSubLogger("TESTYMCTESTALOTWARN")
+	sl.SetLevels(splitLevel("INFO|WARN|DEBUG|ERROR"))
+	sl.SetOutput(w)
 
 	Warn(sl, "Hello")
 
@@ -447,7 +463,7 @@ func TestWarn(t *testing.T) {
 	}
 	w.Reset()
 
-	_, err := SetLevel("TESTYMCTESTALOT", "")
+	_, err := SetLevel("TESTYMCTESTALOTWARN", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -466,11 +482,12 @@ func TestWarn(t *testing.T) {
 }
 
 func TestError(t *testing.T) {
+	t.Parallel()
 	w := &bytes.Buffer{}
 
-	sl := registerNewSubLogger("TESTYMCTESTALOT")
-	sl.Levels = splitLevel("INFO|WARN|DEBUG|ERROR")
-	sl.output = w
+	sl := registerNewSubLogger("TESTYMCTESTALOTERROR")
+	sl.SetLevels(splitLevel("INFO|WARN|DEBUG|ERROR"))
+	sl.SetOutput(w)
 
 	Error(sl, "Hello")
 
@@ -493,7 +510,7 @@ func TestError(t *testing.T) {
 	}
 	w.Reset()
 
-	_, err := SetLevel("TESTYMCTESTALOT", "")
+	_, err := SetLevel("TESTYMCTESTALOTERROR", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -512,9 +529,12 @@ func TestError(t *testing.T) {
 }
 
 func TestSubLoggerName(t *testing.T) {
+	t.Parallel()
 	w := &bytes.Buffer{}
 	registerNewSubLogger("sublogger")
+	RWM.Lock()
 	err := logger.newLogEvent("out", "header", "SUBLOGGER", w)
+	RWM.Unlock()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -522,9 +542,13 @@ func TestSubLoggerName(t *testing.T) {
 		t.Error("Expected SUBLOGGER in output")
 	}
 
+	RWM.Lock()
 	logger.ShowLogSystemName = false
+	RWM.Unlock()
 	w.Reset()
+	RWM.Lock()
 	err = logger.newLogEvent("out", "header", "SUBLOGGER", w)
+	RWM.Unlock()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -534,6 +558,7 @@ func TestSubLoggerName(t *testing.T) {
 }
 
 func TestNewSubLogger(t *testing.T) {
+	t.Parallel()
 	_, err := NewSubLogger("")
 	if !errors.Is(err, errEmptyLoggerName) {
 		t.Fatalf("received: %v but expected: %v", err, errEmptyLoggerName)
@@ -561,6 +586,7 @@ func BenchmarkNewLogEvent(b *testing.B) {
 }
 
 func TestRotateWrite(t *testing.T) {
+	t.Parallel()
 	empty := Rotate{Rotate: convert.BoolPtr(true), FileName: "test.txt"}
 	payload := make([]byte, defaultMaxSize*megabyte+1)
 	_, err := empty.Write(payload)
@@ -591,6 +617,7 @@ func TestRotateWrite(t *testing.T) {
 }
 
 func TestOpenNew(t *testing.T) {
+	t.Parallel()
 	empty := Rotate{}
 	err := empty.openNew()
 	if !errors.Is(err, errFileNameIsEmpty) {
