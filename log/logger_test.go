@@ -52,7 +52,7 @@ func setupTestLoggers() error {
 		},
 		SubLoggers: []SubLoggerConfig{
 			{
-				Name:   "TEST",
+				Name:   "lOg",
 				Level:  "INFO|DEBUG|WARN|ERROR",
 				Output: "stdout",
 			}},

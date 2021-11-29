@@ -79,6 +79,6 @@ func SetLevel(s, level string) (Levels, error) {
 	if !found {
 		return Levels{}, fmt.Errorf("sub logger %v not found", s)
 	}
-	subLogger.levels = splitLevel(level)
+	subLogger.SetLevels(splitLevel(level))
 	return subLogger.levels, nil
 }
