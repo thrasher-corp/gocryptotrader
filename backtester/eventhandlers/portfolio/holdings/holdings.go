@@ -1,6 +1,8 @@
 package holdings
 
 import (
+	"fmt"
+
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
@@ -14,9 +16,25 @@ func Create(ev ClosePriceReader, fundReader funding.IFundReader) (Holding, error
 	if ev == nil {
 		return Holding{}, common.ErrNilEvent
 	}
-	if ev.GetAssetType().IsFutures() {
 
-	} else {
+	if ev.GetAssetType().IsFutures() {
+		funds, err := fundReader.GetCollateralReader()
+		if err != nil {
+			return Holding{}, err
+		}
+		return Holding{
+			Offset:            ev.GetOffset(),
+			Pair:              ev.Pair(),
+			Asset:             ev.GetAssetType(),
+			Exchange:          ev.GetExchange(),
+			Timestamp:         ev.GetTime(),
+			QuoteInitialFunds: funds.InitialFunds(),
+			QuoteSize:         funds.InitialFunds(),
+			BaseInitialFunds:  decimal.Zero,
+			BaseSize:          decimal.Zero,
+			TotalInitialValue: funds.InitialFunds(),
+		}, nil
+	} else if ev.GetAssetType() == asset.Spot {
 		funds, err := fundReader.GetPairReader()
 		if err != nil {
 			return Holding{}, err
@@ -38,7 +56,7 @@ func Create(ev ClosePriceReader, fundReader funding.IFundReader) (Holding, error
 			TotalInitialValue: funds.QuoteInitialFunds().Add(funds.BaseInitialFunds().Mul(ev.GetClosePrice())),
 		}, nil
 	}
-	return Holding{}, asset.ErrNotSupported
+	return Holding{}, fmt.Errorf("%v %w", ev.GetAssetType(), asset.ErrNotSupported)
 }
 
 // Update calculates holding statistics for the events time

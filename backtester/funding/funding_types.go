@@ -90,6 +90,7 @@ type ICollateralReader interface {
 	CollateralCurrency() currency.Code
 	InitialFunds() decimal.Decimal
 	AvailableFunds() decimal.Decimal
+	CurrentHoldings() decimal.Decimal
 }
 
 // IPairReleaser limits funding usage for exchange event handling

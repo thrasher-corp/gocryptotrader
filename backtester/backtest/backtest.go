@@ -38,6 +38,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/report"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
+	gctconfig "github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	gctdatabase "github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/engine"
@@ -156,10 +157,19 @@ func NewFromConfig(cfg *config.Config, templatePath, output string) (*BackTest, 
 		if err != nil {
 			return nil, err
 		}
-		_, err = exch.GetDefaultConfig()
+		var conf *gctconfig.Exchange
+		conf, err = exch.GetDefaultConfig()
 		if err != nil {
 			return nil, err
 		}
+		conf.Enabled = true
+		// because for some reason we're supposed to set this
+		// even if no websocket is enabled
+		err = exch.Setup(conf)
+		if err != nil {
+			return nil, err
+		}
+
 		exchBase := exch.GetBase()
 		err = exch.UpdateTradablePairs(context.Background(), true)
 		if err != nil {
@@ -1109,10 +1119,13 @@ func (bt *BackTest) processFillEvent(ev fill.Event, funds funding.IFundReleaser)
 	if err != nil {
 		log.Error(log.BackTester, err)
 	}
-
-	err = bt.Statistic.AddHoldingsForTime(holding)
-	if err != nil {
-		log.Error(log.BackTester, err)
+	if holding == nil {
+		log.Error(log.BackTester, "why is holdings nill?")
+	} else {
+		err = bt.Statistic.AddHoldingsForTime(holding)
+		if err != nil {
+			log.Error(log.BackTester, err)
+		}
 	}
 
 	var cp *compliance.Manager

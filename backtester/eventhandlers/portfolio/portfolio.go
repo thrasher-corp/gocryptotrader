@@ -233,32 +233,33 @@ func (p *Portfolio) OnFill(ev fill.Event, funding funding.IFundReleaser) (*fill.
 		}
 	}
 
-	fp, err := funding.GetPairReleaser()
-	if err != nil {
-		return nil, err
-	}
-
-	// Get the holding from the previous iteration, create it if it doesn't yet have a timestamp
-	h := lookup.GetHoldingsForTime(ev.GetTime().Add(-ev.GetInterval().Duration()))
-	if !h.Timestamp.IsZero() {
-		h.Update(ev, fp)
-	} else {
-		h = lookup.GetLatestHoldings()
-		if h.Timestamp.IsZero() {
-			h, err = holdings.Create(ev, funding)
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			h.Update(ev, fp)
+	if ev.GetAssetType() == asset.Spot {
+		fp, err := funding.GetPairReleaser()
+		if err != nil {
+			return nil, err
 		}
-	}
-	err = p.setHoldingsForOffset(&h, true)
-	if errors.Is(err, errNoHoldings) {
-		err = p.setHoldingsForOffset(&h, false)
-	}
-	if err != nil {
-		log.Error(log.BackTester, err)
+		// Get the holding from the previous iteration, create it if it doesn't yet have a timestamp
+		h := lookup.GetHoldingsForTime(ev.GetTime().Add(-ev.GetInterval().Duration()))
+		if !h.Timestamp.IsZero() {
+			h.Update(ev, fp)
+		} else {
+			h = lookup.GetLatestHoldings()
+			if h.Timestamp.IsZero() {
+				h, err = holdings.Create(ev, funding)
+				if err != nil {
+					return nil, err
+				}
+			} else {
+				h.Update(ev, fp)
+			}
+		}
+		err = p.setHoldingsForOffset(&h, true)
+		if errors.Is(err, errNoHoldings) {
+			err = p.setHoldingsForOffset(&h, false)
+		}
+		if err != nil {
+			log.Error(log.BackTester, err)
+		}
 	}
 
 	err = p.addComplianceSnapshot(ev)
@@ -565,12 +566,14 @@ func (p *Portfolio) CalculatePNL(e common.DataEventHandler, funds funding.IColla
 		}
 
 		result, err := settings.Exchange.CalculatePNL(&gctexchange.PNLCalculator{
-			Asset:         e.GetAssetType(),
-			Leverage:      snapshot.Orders[i].FuturesOrder.OpeningPosition.Leverage,
-			EntryPrice:    snapshot.Orders[i].FuturesOrder.OpeningPosition.Price,
-			OpeningAmount: snapshot.Orders[i].FuturesOrder.OpeningPosition.Amount,
-			CurrentPrice:  e.GetClosePrice().InexactFloat64(),
-			Collateral:    funds.AvailableFunds(),
+			Asset:              e.GetAssetType(),
+			Leverage:           snapshot.Orders[i].FuturesOrder.OpeningPosition.Leverage,
+			EntryPrice:         snapshot.Orders[i].FuturesOrder.OpeningPosition.Price,
+			OpeningAmount:      snapshot.Orders[i].FuturesOrder.OpeningPosition.Amount,
+			CurrentPrice:       e.GetClosePrice().InexactFloat64(),
+			CollateralAmount:   funds.AvailableFunds(),
+			CalculateOffline:   true,
+			CollateralCurrency: funds.CollateralCurrency(),
 		})
 		if err != nil {
 			return err
@@ -585,11 +588,11 @@ func (p *Portfolio) CalculatePNL(e common.DataEventHandler, funds funding.IColla
 			return nil
 		}
 
-		snapshot.Orders[i].FuturesOrder.UnrealisedPNL = result.PNL
-		snapshot.Orders[i].FuturesOrder.OpeningPosition.UnrealisedPNL = result.PNL
+		snapshot.Orders[i].FuturesOrder.UnrealisedPNL = result.UnrealisedPNL
+		snapshot.Orders[i].FuturesOrder.OpeningPosition.UnrealisedPNL = result.UnrealisedPNL
 		snapshot.Orders[i].FuturesOrder.UpsertPNLEntry(gctorder.PNLHistory{
 			Time:          e.GetTime(),
-			UnrealisedPNL: result.PNL,
+			UnrealisedPNL: result.UnrealisedPNL,
 		})
 	}
 	return nil

@@ -185,25 +185,40 @@ func (f *FTX) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	err = f.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            ftxWSURL,
-		RunningURL:            wsEndpoint,
-		Connector:             f.WsConnect,
-		Subscriber:            f.Subscribe,
-		Unsubscriber:          f.Unsubscribe,
-		GenerateSubscriptions: f.GenerateDefaultSubscriptions,
-		Features:              &f.Features.Supports.WebsocketCapabilities,
-		TradeFeed:             f.Features.Enabled.TradeFeed,
-		FillsFeed:             f.Features.Enabled.FillsFeed,
-	})
-	if err != nil {
-		return err
+	if exch.Websocket != nil && *exch.Websocket {
+		err = f.Websocket.Setup(&stream.WebsocketSetup{
+			ExchangeConfig:        exch,
+			DefaultURL:            ftxWSURL,
+			RunningURL:            wsEndpoint,
+			Connector:             f.WsConnect,
+			Subscriber:            f.Subscribe,
+			Unsubscriber:          f.Unsubscribe,
+			GenerateSubscriptions: f.GenerateDefaultSubscriptions,
+			Features:              &f.Features.Supports.WebsocketCapabilities,
+			TradeFeed:             f.Features.Enabled.TradeFeed,
+			FillsFeed:             f.Features.Enabled.FillsFeed,
+		})
+		if err != nil {
+			return err
+		}
 	}
-	return f.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-	})
+
+	if err = f.CurrencyPairs.IsAssetEnabled(asset.Futures); err == nil {
+		err = f.LoadCollateralWeightings()
+		if err != nil {
+			log.Errorf(log.ExchangeSys,
+				"%s failed to store collateral weightings. Err: %s",
+				f.Name,
+				err)
+		}
+	}
+	if exch.Websocket != nil && *exch.Websocket {
+		return f.Websocket.SetupNewConnection(stream.ConnectionSetup{
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		})
+	}
+	return nil
 }
 
 // Start starts the FTX go routine
@@ -249,15 +264,6 @@ func (f *FTX) Run() {
 			err)
 	}
 
-	if err = f.CurrencyPairs.IsAssetEnabled(asset.Futures); err == nil {
-		err = f.StoreCollateralWeightings()
-		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s failed to store collateral weightings. Err: %s",
-				f.Name,
-				err)
-		}
-	}
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
@@ -1268,9 +1274,8 @@ func (f *FTX) GetAvailableTransferChains(ctx context.Context, cryptocurrency cur
 
 func (f *FTX) CalculatePNL(pnl *exchange.PNLCalculator) (*exchange.PNLResult, error) {
 	var result *exchange.PNLResult
-	if !pnl.CalculateOffline {
-
-		collat, err := f.CalculateCollateral(pnl.Underlying, pnl.Amount, pnl.EntryPrice, result.UnrealisedPNL.IsPositive())
+	if pnl.CalculateOffline {
+		collat, err := f.CalculateCollateral(pnl.CollateralCurrency, pnl.Amount, pnl.EntryPrice, true)
 		if err != nil {
 			return nil, err
 		}

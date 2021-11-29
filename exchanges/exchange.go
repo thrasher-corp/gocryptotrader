@@ -1463,17 +1463,18 @@ func (b *Base) GetAvailableTransferChains(_ context.Context, _ currency.Code) ([
 }
 
 type PNLCalculator struct {
-	CalculateOffline bool
-	Underlying       currency.Code
-	OrderID          string
-	Asset            asset.Item
-	Side             order.Side
-	Leverage         float64
-	EntryPrice       float64
-	OpeningAmount    float64
-	Amount           float64
-	CurrentPrice     float64
-	Collateral       decimal.Decimal
+	CalculateOffline   bool
+	Underlying         currency.Code
+	OrderID            string
+	Asset              asset.Item
+	Side               order.Side
+	Leverage           float64
+	EntryPrice         float64
+	OpeningAmount      float64
+	Amount             float64
+	CurrentPrice       float64
+	CollateralAmount   decimal.Decimal
+	CollateralCurrency currency.Code
 }
 
 type PNLResult struct {
@@ -1505,7 +1506,7 @@ func (b *Base) CalculatePNL(calc *PNLCalculator) (*PNLResult, error) {
 	op := decimal.NewFromFloat(calc.EntryPrice)
 	lv := decimal.NewFromFloat(calc.Leverage)
 	result.UnrealisedPNL = cp.Sub(op).Mul(op).Mul(lv)
-	if result.UnrealisedPNL.IsNegative() && calc.Collateral.LessThanOrEqual(result.UnrealisedPNL.Abs()) {
+	if result.UnrealisedPNL.IsNegative() && calc.CollateralAmount.LessThanOrEqual(result.UnrealisedPNL.Abs()) {
 		// calculating whether something is liquidated changes per exchange
 		// If your chosen exchange has its own liquidation formula, please ensure
 		// it is implemented there rather than rely on this base function

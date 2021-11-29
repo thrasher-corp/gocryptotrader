@@ -87,3 +87,7 @@ func (c *Collateral) Liquidate() {
 	c.Collateral.available = decimal.Zero
 	c.Contract.available = decimal.Zero
 }
+
+func (c *Collateral) CurrentHoldings() decimal.Decimal {
+	return c.Contract.available
+}
