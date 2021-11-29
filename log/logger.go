@@ -102,28 +102,20 @@ func CloseLogger() error {
 	return GlobalLogFile.Close()
 }
 
-func validSubLogger(s string) (bool, *SubLogger) {
-	if v, found := SubLoggers[s]; found {
-		return true, v
-	}
-	return false, nil
-}
-
 // Level retries the current sublogger levels
 func Level(s string) (*Levels, error) {
-	found, subLogger := validSubLogger(s)
+	subLogger, found := SubLoggers[s]
 	if !found {
 		return nil, fmt.Errorf("logger %v not found", s)
 	}
-
 	return &subLogger.Levels, nil
 }
 
 // SetLevel sets sublogger levels
 func SetLevel(s, level string) (*Levels, error) {
-	found, subLogger := validSubLogger(s)
+	subLogger, found := SubLoggers[s]
 	if !found {
-		return nil, fmt.Errorf("logger %v not found", s)
+		return nil, fmt.Errorf("sub logger %v not found", s)
 	}
 	subLogger.Levels = splitLevel(level)
 	return &subLogger.Levels, nil

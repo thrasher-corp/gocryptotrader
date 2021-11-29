@@ -250,17 +250,6 @@ func TestSetLevel(t *testing.T) {
 	}
 }
 
-func TestValidSubLogger(t *testing.T) {
-	b, logPtr := validSubLogger("LOG")
-
-	if !b {
-		t.Skip("validSubLogger() should return found, pointer if valid logger found")
-	}
-	if logPtr == nil {
-		t.Error("validSubLogger() should return a pointer and not nil")
-	}
-}
-
 func TestCloseLogger(t *testing.T) {
 	if err := CloseLogger(); err != nil {
 		t.Errorf("CloseLogger() failed %v", err)

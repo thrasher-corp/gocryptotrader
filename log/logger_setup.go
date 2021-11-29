@@ -75,17 +75,15 @@ func GenDefaultSettings() Config {
 	}
 }
 
-func configureSubLogger(logger, levels string, output io.Writer) error {
-	found, logPtr := validSubLogger(logger)
+func configureSubLogger(subLogger, levels string, output io.Writer) error {
+	logPtr, found := SubLoggers[subLogger]
 	if !found {
-		return fmt.Errorf("logger %v not found", logger)
+		return fmt.Errorf("sub logger %v not found", subLogger)
 	}
 
 	logPtr.output = output
-
 	logPtr.Levels = splitLevel(levels)
-	SubLoggers[logger] = logPtr
-
+	SubLoggers[subLogger] = logPtr
 	return nil
 }
 
@@ -140,15 +138,14 @@ func splitLevel(level string) (l Levels) {
 	return
 }
 
-func registerNewSubLogger(logger string) *SubLogger {
+func registerNewSubLogger(subLogger string) *SubLogger {
 	temp := SubLogger{
-		name:   strings.ToUpper(logger),
+		name:   strings.ToUpper(subLogger),
 		output: os.Stdout,
 	}
 
 	temp.Levels = splitLevel("INFO|WARN|DEBUG|ERROR")
-	SubLoggers[logger] = &temp
-
+	SubLoggers[subLogger] = &temp
 	return &temp
 }
 
