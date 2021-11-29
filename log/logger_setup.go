@@ -19,10 +19,7 @@ func getWriters(s *SubLoggerConfig) (io.Writer, error) {
 	if s == nil {
 		return nil, errSubloggerConfigIsNil
 	}
-	mw, err := MultiWriter()
-	if err != nil {
-		return nil, err
-	}
+	var writers []io.Writer
 	outputWriters := strings.Split(s.Output, "|")
 	for x := range outputWriters {
 		var writer io.Writer
@@ -40,12 +37,9 @@ func getWriters(s *SubLoggerConfig) (io.Writer, error) {
 			// additional routines for every write for no reason.
 			return nil, fmt.Errorf("%w: %s", errUnhandledOutputWriter, outputWriters[x])
 		}
-		err = mw.Add(writer)
-		if err != nil {
-			return nil, err
-		}
+		writers = append(writers, writer)
 	}
-	return mw, nil
+	return MultiWriter(writers...)
 }
 
 // GenDefaultSettings return struct with known sane/working logger settings
