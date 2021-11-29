@@ -2,6 +2,7 @@ package log
 
 import (
 	"errors"
+	"fmt"
 	"io"
 )
 
@@ -49,19 +50,19 @@ func (mw *multiWriter) Write(p []byte) (n int, err error) {
 	defer mw.mu.RUnlock()
 
 	results := make(chan data, len(mw.writers))
-	for _, wr := range mw.writers {
-		go func(w io.Writer, p []byte, ch chan data) {
+	for x := range mw.writers {
+		go func(w io.Writer, p []byte, ch chan<- data) {
 			n, err = w.Write(p)
 			if err != nil {
-				ch <- data{n, err}
+				ch <- data{n, fmt.Errorf("%T %w", w, err)}
 				return
 			}
 			if n != len(p) {
-				ch <- data{n, io.ErrShortWrite}
+				ch <- data{n, fmt.Errorf("%T %w", w, io.ErrShortWrite)}
 				return
 			}
 			ch <- data{n, nil}
-		}(wr, p, results)
+		}(mw.writers[x], p, results)
 	}
 
 	for range mw.writers {
