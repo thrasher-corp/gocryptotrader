@@ -84,12 +84,18 @@ func NewFromSettings(settings *Settings, flagSet map[string]bool) (*Engine, erro
 
 	b.Config, err = loadConfigWithSettings(settings, flagSet)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load config. Err: %s", err)
+		return nil, fmt.Errorf("failed to load config. Err: %w", err)
 	}
 
 	if *b.Config.Logging.Enabled {
-		gctlog.SetupGlobalLogger()
-		gctlog.SetupSubLoggers(b.Config.Logging.SubLoggers)
+		err = gctlog.SetupGlobalLogger()
+		if err != nil {
+			return nil, fmt.Errorf("failed to setup global logger. Err: %w", err)
+		}
+		err = gctlog.SetupSubLoggers(b.Config.Logging.SubLoggers)
+		if err != nil {
+			return nil, fmt.Errorf("failed to setup sub loggers. Err: %w", err)
+		}
 		gctlog.Infoln(gctlog.Global, "Logger initialised.")
 	}
 
@@ -99,12 +105,12 @@ func NewFromSettings(settings *Settings, flagSet map[string]bool) (*Engine, erro
 
 	err = utils.AdjustGoMaxProcs(settings.GoMaxProcs)
 	if err != nil {
-		return nil, fmt.Errorf("unable to adjust runtime GOMAXPROCS value. Err: %s", err)
+		return nil, fmt.Errorf("unable to adjust runtime GOMAXPROCS value. Err: %w", err)
 	}
 
 	b.gctScriptManager, err = gctscript.NewManager(&b.Config.GCTScript)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create script manager. Err: %s", err)
+		return nil, fmt.Errorf("failed to create script manager. Err: %w", err)
 	}
 
 	b.ExchangeManager = SetupExchangeManager()

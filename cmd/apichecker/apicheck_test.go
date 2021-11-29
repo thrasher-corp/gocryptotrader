@@ -29,7 +29,7 @@ func TestMain(m *testing.M) {
 	c := log.GenDefaultSettings()
 	c.Enabled = convert.BoolPtr(true)
 	log.RWM.Lock()
-	log.GlobalLogConfig = &c
+	log.GlobalLogConfig = c
 	log.RWM.Unlock()
 	log.Infoln(log.Global, "set verbose to true for more detailed output")
 	var err error

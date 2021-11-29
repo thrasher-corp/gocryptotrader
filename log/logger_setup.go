@@ -49,8 +49,8 @@ func getWriters(s *SubLoggerConfig) (io.Writer, error) {
 }
 
 // GenDefaultSettings return struct with known sane/working logger settings
-func GenDefaultSettings() Config {
-	return Config{
+func GenDefaultSettings() *Config {
+	return &Config{
 		Enabled: convert.BoolPtr(true),
 		SubLoggerConfig: SubLoggerConfig{
 			Level:  "INFO|DEBUG|WARN|ERROR",
@@ -88,22 +88,25 @@ func configureSubLogger(subLogger, levels string, output io.Writer) error {
 }
 
 // SetupSubLoggers configure all sub loggers with provided configuration values
-func SetupSubLoggers(s []SubLoggerConfig) {
+func SetupSubLoggers(s []SubLoggerConfig) error {
 	for x := range s {
 		output, err := getWriters(&s[x])
 		if err != nil {
-			return
+			return err
 		}
 		err = configureSubLogger(strings.ToUpper(s[x].Name), s[x].Level, output)
 		if err != nil {
-			continue
+			return err
 		}
 	}
+	return nil
 }
 
 // SetupGlobalLogger setup the global loggers with the default global config values
-func SetupGlobalLogger() {
+func SetupGlobalLogger() error {
 	RWM.Lock()
+	defer RWM.Unlock()
+
 	if FileLoggingConfiguredCorrectly {
 		GlobalLogFile = &Rotate{
 			FileName: GlobalLogConfig.LoggerFileConfig.FileName,
@@ -112,13 +115,17 @@ func SetupGlobalLogger() {
 		}
 	}
 
+	var err error
 	for x := range SubLoggers {
 		SubLoggers[x].Levels = splitLevel(GlobalLogConfig.Level)
-		SubLoggers[x].output, _ = getWriters(&GlobalLogConfig.SubLoggerConfig)
+		SubLoggers[x].output, err = getWriters(&GlobalLogConfig.SubLoggerConfig)
+		if err != nil {
+			return err
+		}
 	}
 
 	logger = newLogger(GlobalLogConfig)
-	RWM.Unlock()
+	return nil
 }
 
 func splitLevel(level string) (l Levels) {

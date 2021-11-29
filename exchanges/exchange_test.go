@@ -3,6 +3,7 @@ package exchange
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net"
 	"net/http"
 	"os"
@@ -29,11 +30,14 @@ const (
 )
 
 func TestMain(m *testing.M) {
-	c := log.GenDefaultSettings()
 	log.RWM.Lock()
-	log.GlobalLogConfig = &c
+	log.GlobalLogConfig = log.GenDefaultSettings()
 	log.RWM.Unlock()
-	log.SetupGlobalLogger()
+	err := log.SetupGlobalLogger()
+	if err != nil {
+		fmt.Println("Cannot setup global logger. Error:", err)
+		os.Exit(1)
+	}
 	os.Exit(m.Run())
 }
 
