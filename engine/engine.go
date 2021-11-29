@@ -90,11 +90,11 @@ func NewFromSettings(settings *Settings, flagSet map[string]bool) (*Engine, erro
 	if *b.Config.Logging.Enabled {
 		err = gctlog.SetupGlobalLogger()
 		if err != nil {
-			return nil, fmt.Errorf("failed to setup global logger. Err: %w", err)
+			return nil, fmt.Errorf("failed to setup global logger. %w", err)
 		}
 		err = gctlog.SetupSubLoggers(b.Config.Logging.SubLoggers)
 		if err != nil {
-			return nil, fmt.Errorf("failed to setup sub loggers. Err: %w", err)
+			return nil, fmt.Errorf("failed to setup sub loggers. %w", err)
 		}
 		gctlog.Infoln(gctlog.Global, "Logger initialised.")
 	}

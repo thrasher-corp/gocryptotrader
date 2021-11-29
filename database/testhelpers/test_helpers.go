@@ -122,8 +122,7 @@ func EnableVerboseTestOutput() error {
 	log.RWM.Lock()
 	log.GlobalLogConfig = log.GenDefaultSettings()
 	log.RWM.Unlock()
-	err := log.SetupGlobalLogger()
-	if err != nil {
+	if err := log.SetupGlobalLogger(); err != nil {
 		return err
 	}
 	DBLogger := database.Logger{}

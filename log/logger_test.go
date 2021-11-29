@@ -14,7 +14,10 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	setupTestLoggers()
+	err := setupTestLoggers()
+	if err != nil {
+		log.Fatal("cannot set up test loggers", err)
+	}
 	tempDir, err := ioutil.TempDir(os.TempDir(), "")
 	if err != nil {
 		log.Fatal("Cannot create temporary file", err)
@@ -29,7 +32,7 @@ func TestMain(m *testing.M) {
 	os.Exit(r)
 }
 
-func setupTestLoggers() {
+func setupTestLoggers() error {
 	logTest := Config{
 		Enabled: convert.BoolPtr(true),
 		SubLoggerConfig: SubLoggerConfig{
@@ -57,11 +60,13 @@ func setupTestLoggers() {
 	RWM.Lock()
 	GlobalLogConfig = &logTest
 	RWM.Unlock()
-	SetupGlobalLogger()
-	SetupSubLoggers(logTest.SubLoggers)
+	if err := SetupGlobalLogger(); err != nil {
+		return err
+	}
+	return SetupSubLoggers(logTest.SubLoggers)
 }
 
-func SetupDisabled() {
+func SetupDisabled() error {
 	logTest := Config{
 		Enabled: convert.BoolPtr(false),
 	}
@@ -69,8 +74,10 @@ func SetupDisabled() {
 	GlobalLogConfig = &logTest
 	RWM.Unlock()
 
-	SetupGlobalLogger()
-	SetupSubLoggers(logTest.SubLoggers)
+	if err := SetupGlobalLogger(); err != nil {
+		return err
+	}
+	return SetupSubLoggers(logTest.SubLoggers)
 }
 
 func BenchmarkInfo(b *testing.B) {
@@ -296,7 +303,9 @@ func TestSplitLevel(t *testing.T) {
 }
 
 func BenchmarkInfoDisabled(b *testing.B) {
-	SetupDisabled()
+	if err := SetupDisabled(); err != nil {
+		b.Fatal(err)
+	}
 
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {

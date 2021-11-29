@@ -12,11 +12,11 @@ func NewSubLogger(name string) (*SubLogger, error) {
 	}
 	name = strings.ToUpper(name)
 	RWM.RLock()
-	_, ok := SubLoggers[name]
-	RWM.RUnlock()
-	if ok {
+	if _, ok := SubLoggers[name]; ok {
+		RWM.RUnlock()
 		return nil, errSubLoggerAlreadyregistered
 	}
+	RWM.RUnlock()
 	return registerNewSubLogger(name), nil
 }
 

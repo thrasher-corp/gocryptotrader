@@ -33,8 +33,7 @@ func TestMain(m *testing.M) {
 	log.RWM.Lock()
 	log.GlobalLogConfig = log.GenDefaultSettings()
 	log.RWM.Unlock()
-	err := log.SetupGlobalLogger()
-	if err != nil {
+	if err := log.SetupGlobalLogger(); err != nil {
 		fmt.Println("Cannot setup global logger. Error:", err)
 		os.Exit(1)
 	}

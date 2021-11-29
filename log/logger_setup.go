@@ -69,7 +69,6 @@ func GenDefaultSettings() *Config {
 	}
 }
 
-// TODO: protec
 func configureSubLogger(subLogger, levels string, output io.Writer) error {
 	RWM.Lock()
 	defer RWM.Unlock()
