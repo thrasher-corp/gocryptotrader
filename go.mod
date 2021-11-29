@@ -1,6 +1,6 @@
 module github.com/thrasher-corp/gocryptotrader
 
-go 1.13
+go 1.17
 
 require (
 	github.com/cpuguy83/go-md2man/v2 v2.0.0 // indirect
