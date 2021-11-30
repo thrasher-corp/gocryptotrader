@@ -2,6 +2,7 @@ package kline
 
 import (
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -511,7 +512,11 @@ func TestItem_SortCandlesByTimestamp(t *testing.T) {
 func setupTest(t *testing.T) {
 	t.Helper()
 	if verbose {
-		testhelpers.EnableVerboseTestOutput()
+		err := testhelpers.EnableVerboseTestOutput()
+		if err != nil {
+			fmt.Printf("failed to enable verbose test output: %v", err)
+			os.Exit(1)
+		}
 	}
 
 	var err error

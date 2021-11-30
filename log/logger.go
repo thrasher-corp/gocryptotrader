@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"strings"
 	"time"
 )
 
@@ -13,28 +12,8 @@ var (
 	errSubLoggerAlreadyregistered = errors.New("sub logger already registered")
 )
 
-// NewSubLogger allows for a new sub logger to be registered.
-func NewSubLogger(name string) (*SubLogger, error) {
-	if name == "" {
-		return nil, errEmptyLoggerName
-	}
-	name = strings.ToUpper(name)
-	if _, ok := SubLoggers[name]; ok {
-		return nil, errSubLoggerAlreadyregistered
-	}
-	return registerNewSubLogger(name), nil
-}
-
-// SetOutput overrides the default output with a new writer
-func (s *SubLogger) SetOutput(o io.Writer) {
-	RWM.Lock()
-	defer RWM.Unlock()
-
-	s.output = o
-}
-
-func newLogger(c *Config) *Logger {
-	return &Logger{
+func newLogger(c *Config) Logger {
+	return Logger{
 		Timestamp:         c.AdvancedSettings.TimeStampFormat,
 		Spacer:            c.AdvancedSettings.Spacer,
 		ErrorHeader:       c.AdvancedSettings.Headers.Error,
@@ -50,29 +29,28 @@ func (l *Logger) newLogEvent(data, header, slName string, w io.Writer) error {
 		return errors.New("io.Writer not set")
 	}
 
-	e, ok := eventPool.Get().(*Event)
+	pool, ok := eventPool.Get().(*[]byte)
 	if !ok {
-		return errors.New("unable to type asset event")
+		return errors.New("unable to type assert slice of bytes pointer")
 	}
-	e.output = w
-	e.data = append(e.data, []byte(header)...)
-	if l.ShowLogSystemName {
-		e.data = append(e.data, l.Spacer...)
-		e.data = append(e.data, slName...)
-	}
-	e.data = append(e.data, l.Spacer...)
-	if l.Timestamp != "" {
-		e.data = time.Now().AppendFormat(e.data, l.Timestamp)
-	}
-	e.data = append(e.data, l.Spacer...)
-	e.data = append(e.data, []byte(data)...)
-	if data == "" || data[len(data)-1] != '\n' {
-		e.data = append(e.data, '\n')
-	}
-	_, err := e.output.Write(e.data)
 
-	e.data = e.data[:0]
-	eventPool.Put(e)
+	*pool = append(*pool, header...)
+	if l.ShowLogSystemName {
+		*pool = append(*pool, l.Spacer...)
+		*pool = append(*pool, slName...)
+	}
+	*pool = append(*pool, l.Spacer...)
+	if l.Timestamp != "" {
+		*pool = time.Now().AppendFormat(*pool, l.Timestamp)
+	}
+	*pool = append(*pool, l.Spacer...)
+	*pool = append(*pool, data...)
+	if data == "" || data[len(data)-1] != '\n' {
+		*pool = append(*pool, '\n')
+	}
+	_, err := w.Write(*pool)
+	*pool = (*pool)[:0]
+	eventPool.Put(pool)
 
 	return err
 }
@@ -82,30 +60,25 @@ func CloseLogger() error {
 	return GlobalLogFile.Close()
 }
 
-func validSubLogger(s string) (bool, *SubLogger) {
-	if v, found := SubLoggers[s]; found {
-		return true, v
-	}
-	return false, nil
-}
-
 // Level retries the current sublogger levels
-func Level(s string) (*Levels, error) {
-	found, logger := validSubLogger(s)
+func Level(name string) (Levels, error) {
+	RWM.RLock()
+	defer RWM.RUnlock()
+	subLogger, found := SubLoggers[name]
 	if !found {
-		return nil, fmt.Errorf("logger %v not found", s)
+		return Levels{}, fmt.Errorf("logger %s not found", name)
 	}
-
-	return &logger.Levels, nil
+	return subLogger.levels, nil
 }
 
 // SetLevel sets sublogger levels
-func SetLevel(s, level string) (*Levels, error) {
-	found, logger := validSubLogger(s)
+func SetLevel(s, level string) (Levels, error) {
+	RWM.Lock()
+	defer RWM.Unlock()
+	subLogger, found := SubLoggers[s]
 	if !found {
-		return nil, fmt.Errorf("logger %v not found", s)
+		return Levels{}, fmt.Errorf("sub logger %v not found", s)
 	}
-	logger.Levels = splitLevel(level)
-
-	return &logger.Levels, nil
+	subLogger.SetLevels(splitLevel(level))
+	return subLogger.levels, nil
 }

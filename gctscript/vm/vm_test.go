@@ -33,7 +33,7 @@ func TestMain(m *testing.M) {
 	c := log.GenDefaultSettings()
 	c.Enabled = convert.BoolPtr(false)
 	log.RWM.Lock()
-	log.GlobalLogConfig = &c
+	log.GlobalLogConfig = c
 	log.RWM.Unlock()
 	os.Exit(m.Run())
 }

@@ -64,9 +64,12 @@ func main() {
 
 	var bt *backtest.BackTest
 	var cfg *config.Config
-	logConfig := log.GenDefaultSettings()
-	log.GlobalLogConfig = &logConfig
-	log.SetupGlobalLogger()
+	log.GlobalLogConfig = log.GenDefaultSettings()
+	err = log.SetupGlobalLogger()
+	if err != nil {
+		fmt.Printf("Could not setup global logger. Error: %v.\n", err)
+		os.Exit(1)
+	}
 
 	cfg, err = config.ReadConfigFromFile(configPath)
 	if err != nil {

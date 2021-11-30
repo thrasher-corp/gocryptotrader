@@ -1,40 +1,50 @@
 package log
 
 import (
+	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 )
 
-func getWriters(s *SubLoggerConfig) io.Writer {
-	mw := MultiWriter()
-	m := mw.(*multiWriter) // nolint // type assert not required
+var (
+	errSubloggerConfigIsNil  = errors.New("sublogger config is nil")
+	errUnhandledOutputWriter = errors.New("unhandled output writer")
+)
 
+func getWriters(s *SubLoggerConfig) (io.Writer, error) {
+	if s == nil {
+		return nil, errSubloggerConfigIsNil
+	}
+	var writers []io.Writer
 	outputWriters := strings.Split(s.Output, "|")
 	for x := range outputWriters {
-		switch outputWriters[x] {
+		var writer io.Writer
+		switch strings.ToLower(outputWriters[x]) {
 		case "stdout", "console":
-			m.Add(os.Stdout)
+			writer = os.Stdout
 		case "stderr":
-			m.Add(os.Stderr)
+			writer = os.Stderr
 		case "file":
 			if FileLoggingConfiguredCorrectly {
-				m.Add(GlobalLogFile)
+				writer = GlobalLogFile
 			}
 		default:
-			m.Add(ioutil.Discard)
+			// Note: Do not want to add a ioutil.discard here as this adds
+			// additional routines for every write for no reason.
+			return nil, fmt.Errorf("%w: %s", errUnhandledOutputWriter, outputWriters[x])
 		}
+		writers = append(writers, writer)
 	}
-	return m
+	return MultiWriter(writers...)
 }
 
 // GenDefaultSettings return struct with known sane/working logger settings
-func GenDefaultSettings() Config {
-	return Config{
+func GenDefaultSettings() *Config {
+	return &Config{
 		Enabled: convert.BoolPtr(true),
 		SubLoggerConfig: SubLoggerConfig{
 			Level:  "INFO|DEBUG|WARN|ERROR",
@@ -59,34 +69,40 @@ func GenDefaultSettings() Config {
 	}
 }
 
-func configureSubLogger(logger, levels string, output io.Writer) error {
-	found, logPtr := validSubLogger(logger)
+func configureSubLogger(subLogger, levels string, output io.Writer) error {
+	RWM.Lock()
+	defer RWM.Unlock()
+	logPtr, found := SubLoggers[subLogger]
 	if !found {
-		return fmt.Errorf("logger %v not found", logger)
+		return fmt.Errorf("sub logger %v not found", subLogger)
 	}
 
-	logPtr.output = output
-
-	logPtr.Levels = splitLevel(levels)
-	SubLoggers[logger] = logPtr
-
+	logPtr.SetOutput(output)
+	logPtr.SetLevels(splitLevel(levels))
+	SubLoggers[subLogger] = logPtr
 	return nil
 }
 
 // SetupSubLoggers configure all sub loggers with provided configuration values
-func SetupSubLoggers(s []SubLoggerConfig) {
+func SetupSubLoggers(s []SubLoggerConfig) error {
 	for x := range s {
-		output := getWriters(&s[x])
-		err := configureSubLogger(strings.ToUpper(s[x].Name), s[x].Level, output)
+		output, err := getWriters(&s[x])
 		if err != nil {
-			continue
+			return err
+		}
+		err = configureSubLogger(strings.ToUpper(s[x].Name), s[x].Level, output)
+		if err != nil {
+			return err
 		}
 	}
+	return nil
 }
 
 // SetupGlobalLogger setup the global loggers with the default global config values
-func SetupGlobalLogger() {
+func SetupGlobalLogger() error {
 	RWM.Lock()
+	defer RWM.Unlock()
+
 	if FileLoggingConfiguredCorrectly {
 		GlobalLogFile = &Rotate{
 			FileName: GlobalLogConfig.LoggerFileConfig.FileName,
@@ -96,12 +112,15 @@ func SetupGlobalLogger() {
 	}
 
 	for x := range SubLoggers {
-		SubLoggers[x].Levels = splitLevel(GlobalLogConfig.Level)
-		SubLoggers[x].output = getWriters(&GlobalLogConfig.SubLoggerConfig)
+		SubLoggers[x].SetLevels(splitLevel(GlobalLogConfig.Level))
+		writers, err := getWriters(&GlobalLogConfig.SubLoggerConfig)
+		if err != nil {
+			return err
+		}
+		SubLoggers[x].SetOutput(writers)
 	}
-
 	logger = newLogger(GlobalLogConfig)
-	RWM.Unlock()
+	return nil
 }
 
 func splitLevel(level string) (l Levels) {
@@ -121,16 +140,16 @@ func splitLevel(level string) (l Levels) {
 	return
 }
 
-func registerNewSubLogger(logger string) *SubLogger {
-	temp := SubLogger{
-		name:   strings.ToUpper(logger),
+func registerNewSubLogger(subLogger string) *SubLogger {
+	temp := &SubLogger{
+		name:   strings.ToUpper(subLogger),
 		output: os.Stdout,
+		levels: splitLevel("INFO|WARN|DEBUG|ERROR"),
 	}
-
-	temp.Levels = splitLevel("INFO|WARN|DEBUG|ERROR")
-	SubLoggers[logger] = &temp
-
-	return &temp
+	RWM.Lock()
+	SubLoggers[subLogger] = temp
+	RWM.Unlock()
+	return temp
 }
 
 // register all loggers at package init()
