@@ -147,7 +147,7 @@ func (g *Gemini) Setup(exch *config.Exchange) error {
 	}
 
 	// NOTE: https://www.gemini.com/fees/activetrader-fee-schedule#section-active-trader-fee-schedule
-	err = g.Fees.LoadStatic(fee.Options{
+	err = g.Fees.LoadStaticFees(fee.Options{
 		GlobalCommissions: map[asset.Item]fee.Commission{
 			asset.Spot: {Maker: 0.0025, Taker: 0.0035},
 		},
@@ -823,5 +823,5 @@ func (g *Gemini) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
 
 	makerFee := float64(notionVolume.APIMakerFeeBPS) / 1e4
 	takerFee := float64(notionVolume.APITakerFeeBPS) / 1e4
-	return g.Fees.LoadDynamic(makerFee, takerFee, a, fee.OmitPair)
+	return g.Fees.LoadDynamicFeeRate(makerFee, takerFee, a, fee.OmitPair)
 }

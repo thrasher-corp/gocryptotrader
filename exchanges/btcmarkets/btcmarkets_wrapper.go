@@ -152,7 +152,7 @@ func (b *BTCMarkets) Setup(exch *config.Exchange) error {
 	}
 
 	// NOTE: https://www.btcmarkets.net/fees
-	err = b.Fees.LoadStatic(fee.Options{
+	err = b.Fees.LoadStaticFees(fee.Options{
 		GlobalCommissions: map[asset.Item]fee.Commission{
 			asset.Spot: {Maker: 0.0085, Taker: 0.0085},
 		},
@@ -1069,7 +1069,7 @@ func (b *BTCMarkets) UpdateCommissionFees(ctx context.Context, a asset.Item) err
 	}
 
 	for x := range temp.FeeByMarkets {
-		err = b.Fees.LoadDynamic(temp.FeeByMarkets[x].MakerFeeRate,
+		err = b.Fees.LoadDynamicFeeRate(temp.FeeByMarkets[x].MakerFeeRate,
 			temp.FeeByMarkets[x].TakerFeeRate,
 			a,
 			temp.FeeByMarkets[x].MarketID)
@@ -1101,5 +1101,5 @@ func (b *BTCMarkets) UpdateTransferFees(ctx context.Context) error {
 			Withdrawal: fee.Convert(temp[x].Fee),
 		})
 	}
-	return b.Fees.LoadTransferFees(transferFees)
+	return b.Fees.LoadChainTransferFees(transferFees)
 }

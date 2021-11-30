@@ -157,7 +157,7 @@ func (b *Bittrex) Setup(exch *config.Exchange) error {
 	}
 
 	// Note: https://bittrexglobal.zendesk.com/hc/en-us/articles/360009625260-What-fees-does-Bittrex-Global-charge-
-	err = b.Fees.LoadStatic(fee.Options{
+	err = b.Fees.LoadStaticFees(fee.Options{
 		GlobalCommissions: map[asset.Item]fee.Commission{
 			asset.Spot: {Maker: 0.0075, Taker: 0.0075},
 		},
@@ -1047,7 +1047,7 @@ func (b *Bittrex) UpdateCommissionFees(ctx context.Context, a asset.Item) error 
 	}
 
 	for i := range fees {
-		err = b.Fees.LoadDynamic(fees[i].MakerRate,
+		err = b.Fees.LoadDynamicFeeRate(fees[i].MakerRate,
 			fees[i].TakerRate,
 			a,
 			fees[i].MarketSymbol)
@@ -1078,5 +1078,5 @@ func (b *Bittrex) UpdateTransferFees(ctx context.Context) error {
 		} // else will turn off asset.
 		transferFees = append(transferFees, newFees)
 	}
-	return b.Fees.LoadTransferFees(transferFees)
+	return b.Fees.LoadChainTransferFees(transferFees)
 }

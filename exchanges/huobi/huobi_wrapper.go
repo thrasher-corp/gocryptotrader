@@ -194,7 +194,7 @@ func (h *HUOBI) Setup(exch *config.Exchange) error {
 	}
 
 	// NOTE: https://www.huobi.com/en-us/fee/
-	err = h.Fees.LoadStatic(fee.Options{
+	err = h.Fees.LoadStaticFees(fee.Options{
 		GlobalCommissions: map[asset.Item]fee.Commission{
 			asset.Spot:                {Maker: 0.002, Taker: 0.002},
 			asset.CoinMarginedFutures: {Maker: 0.002, Taker: 0.002},
@@ -1849,7 +1849,7 @@ func (h *HUOBI) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
 				if err != nil {
 					return err
 				}
-				err = h.Fees.LoadDynamic(fees[y].ActualMakerRate, fees[y].ActualTakerRate, a, p)
+				err = h.Fees.LoadDynamicFeeRate(fees[y].ActualMakerRate, fees[y].ActualTakerRate, a, p)
 				if err != nil {
 					return err
 				}
@@ -1875,7 +1875,7 @@ func (h *HUOBI) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
 			filter := currency.NewCode(contractFees.ContractTradingFeeData[x].Symbol)
 			contracts := avail.GetPairsByFilter(filter)
 			for y := range contracts {
-				err = h.Fees.LoadDynamic(contractFees.ContractTradingFeeData[x].CloseMakerFee,
+				err = h.Fees.LoadDynamicFeeRate(contractFees.ContractTradingFeeData[x].CloseMakerFee,
 					contractFees.ContractTradingFeeData[x].CloseTakerFee,
 					a,
 					contracts[y])
@@ -1897,7 +1897,7 @@ func (h *HUOBI) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
 			if err != nil {
 				return err
 			}
-			err = h.Fees.LoadDynamic(swapFee.Data[x].CloseMakerFee,
+			err = h.Fees.LoadDynamicFeeRate(swapFee.Data[x].CloseMakerFee,
 				swapFee.Data[x].CloseTakerFee,
 				a,
 				pair)

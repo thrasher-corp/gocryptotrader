@@ -48,7 +48,7 @@ func (o *OKGroup) Setup(exch *config.Exchange) error {
 	switch o.Name {
 	case "OKEX":
 		// NOTE: https://www.okex.com/fees.html
-		err = o.Fees.LoadStatic(fee.Options{
+		err = o.Fees.LoadStaticFees(fee.Options{
 			GlobalCommissions: map[asset.Item]fee.Commission{
 				asset.Spot:          {Maker: 0.0008, Taker: 0.001},
 				asset.Futures:       {Maker: 0.0002, Taker: 0.0005},
@@ -59,7 +59,7 @@ func (o *OKGroup) Setup(exch *config.Exchange) error {
 		})
 	case "OKCOIN International":
 		// NOTE: https://www.okcoin.com/balance/fee
-		err = o.Fees.LoadStatic(fee.Options{
+		err = o.Fees.LoadStaticFees(fee.Options{
 			GlobalCommissions: map[asset.Item]fee.Commission{
 				asset.Spot: {Maker: 0.001, Taker: 0.002},
 			},

@@ -13,34 +13,34 @@ import (
 var one = decimal.NewFromInt(1)
 var two = decimal.NewFromInt(2)
 
-func TestLoadDynamic(t *testing.T) {
+func TestLoadDynamicFeeRate(t *testing.T) {
 	t.Parallel()
-	err := (*Definitions)(nil).LoadDynamic(0, 0, asset.Spot, OmitPair)
+	err := (*Definitions)(nil).LoadDynamicFeeRate(0, 0, asset.Spot, OmitPair)
 	if !errors.Is(err, ErrDefinitionsAreNil) {
 		t.Fatalf("received: %v but expected: %v", err, ErrDefinitionsAreNil)
 	}
 
-	err = (&Definitions{}).LoadDynamic(-1, 0, asset.Spot, OmitPair)
+	err = (&Definitions{}).LoadDynamicFeeRate(-1, 0, asset.Spot, OmitPair)
 	if !errors.Is(err, errMakerInvalid) {
 		t.Fatalf("received: %v but expected: %v", err, errMakerInvalid)
 	}
 
-	err = (&Definitions{}).LoadDynamic(0, -1, asset.Spot, OmitPair)
+	err = (&Definitions{}).LoadDynamicFeeRate(0, -1, asset.Spot, OmitPair)
 	if !errors.Is(err, errTakerInvalid) {
 		t.Fatalf("received: %v but expected: %v", err, errTakerInvalid)
 	}
 
-	err = (&Definitions{}).LoadDynamic(30, 12, asset.Spot, OmitPair)
+	err = (&Definitions{}).LoadDynamicFeeRate(30, 12, asset.Spot, OmitPair)
 	if !errors.Is(err, errMakerBiggerThanTaker) {
 		t.Fatalf("received: %v but expected: %v", err, errMakerBiggerThanTaker)
 	}
 
-	err = (&Definitions{}).LoadDynamic(1, 1, "bruh", OmitPair)
+	err = (&Definitions{}).LoadDynamicFeeRate(1, 1, "bruh", OmitPair)
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Fatalf("received: %v but expected: %v", err, asset.ErrNotSupported)
 	}
 
-	err = (&Definitions{}).LoadDynamic(1, 1, asset.Spot, OmitPair)
+	err = (&Definitions{}).LoadDynamicFeeRate(1, 1, asset.Spot, OmitPair)
 	if !errors.Is(err, errCommissionRateNotFound) {
 		t.Fatalf("received: %v but expected: %v", err, errCommissionRateNotFound)
 	}
@@ -50,14 +50,14 @@ func TestLoadDynamic(t *testing.T) {
 			asset.Spot: {},
 		},
 	}
-	err = d.LoadDynamic(1, 1, asset.Spot, OmitPair)
+	err = d.LoadDynamicFeeRate(1, 1, asset.Spot, OmitPair)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: %v but expected: %v", err, nil)
 	}
 }
 
-func TestLoadStatic(t *testing.T) {
-	err := (*Definitions)(nil).LoadStatic(Options{})
+func TestLoadStaticFees(t *testing.T) {
+	err := (*Definitions)(nil).LoadStaticFees(Options{})
 	if !errors.Is(err, ErrDefinitionsAreNil) {
 		t.Fatalf("received: %v but expected: %v", err, ErrDefinitionsAreNil)
 	}
@@ -67,7 +67,7 @@ func TestLoadStatic(t *testing.T) {
 		chainTransfer:     make(map[*currency.Item]map[string]*transfer),
 		bankTransfer:      make(map[bank.Transfer]map[*currency.Item]*transfer),
 	}
-	err = d.LoadStatic(Options{
+	err = d.LoadStaticFees(Options{
 		GlobalCommissions: map[asset.Item]Commission{
 			asset.Spot: {Maker: -1},
 		},
@@ -76,7 +76,7 @@ func TestLoadStatic(t *testing.T) {
 		t.Fatalf("received: %v but expected: %v", err, errMakerInvalid)
 	}
 
-	err = d.LoadStatic(Options{
+	err = d.LoadStaticFees(Options{
 		GlobalCommissions: map[asset.Item]Commission{
 			asset.Spot: {},
 		},

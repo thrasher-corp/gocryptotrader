@@ -165,7 +165,7 @@ func (b *Bitstamp) Setup(exch *config.Exchange) error {
 	// NOTE: https://www.bitstamp.net/fee-schedule/
 	// NOTE: There is also non standard processing which that has intentionally
 	// been excluded.
-	err = b.Fees.LoadStatic(fee.Options{
+	err = b.Fees.LoadStaticFees(fee.Options{
 		GlobalCommissions: map[asset.Item]fee.Commission{
 			// This will be a general loading of global commissions for worse
 			// case but once the fee manager is operational it will be broken
@@ -987,7 +987,7 @@ func (b *Bitstamp) UpdateCommissionFees(ctx context.Context, a asset.Item) error
 		for quote, val := range balance.TransactionFees {
 			// NOTE: There is no differentiation between maker and taker fees
 			ratio := val / 100
-			err = b.Fees.LoadDynamic(ratio, ratio, a, currency.NewPair(base, quote))
+			err = b.Fees.LoadDynamicFeeRate(ratio, ratio, a, currency.NewPair(base, quote))
 			if err != nil {
 				return err
 			}
@@ -995,5 +995,5 @@ func (b *Bitstamp) UpdateCommissionFees(ctx context.Context, a asset.Item) error
 	}
 	// Note: Because we want to limit multiple request to the same endpoint,
 	// loading of transfers fees is done in this function.
-	return b.Fees.LoadTransferFees(transferFees)
+	return b.Fees.LoadChainTransferFees(transferFees)
 }

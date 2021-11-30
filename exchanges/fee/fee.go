@@ -65,11 +65,13 @@ type Definitions struct {
 	mtx          sync.RWMutex
 }
 
-// LoadDynamic loads the current dynamic account fee structure for maker and
-// taker values. The pair is an optional paramater if ommited will designate
-// global/exchange maker, taker fees irrespective of individual trading
-// operations.
-func (d *Definitions) LoadDynamic(maker, taker float64, a asset.Item, pair currency.Pair) error {
+// LoadDynamicFeeRate loads the current dynamic account fee rate for maker and
+// taker values. As a standard this is loaded as a rate e.g. 0.2% fee as a rate
+// would be 0.2/100 == 0.002.
+//
+// The pair is an optional paramater if ommited will designate global/exchange
+// maker, taker fees irrespective of individual trading operations.
+func (d *Definitions) LoadDynamicFeeRate(maker, taker float64, a asset.Item, pair currency.Pair) error {
 	if d == nil {
 		return ErrDefinitionsAreNil
 	}
@@ -87,8 +89,8 @@ func (d *Definitions) LoadDynamic(maker, taker float64, a asset.Item, pair curre
 	defer d.mtx.Unlock()
 	var c *CommissionInternal
 	if !pair.IsEmpty() {
-		// NOTE: These will create maps, as we can initially start out as global
-		// commission rates and update ad-hoc.
+		// NOTE: These will create maps when needed, this system initially
+		// starts out as a global commission rate and is updated ad-hoc.
 		m1, ok := d.pairCommissions[a]
 		if !ok {
 			m1 = make(map[*currency.Item]map[*currency.Item]*CommissionInternal)
@@ -115,10 +117,11 @@ func (d *Definitions) LoadDynamic(maker, taker float64, a asset.Item, pair curre
 	return nil
 }
 
-// LoadStatic loads predefined custom long term fee structures for items like
-// worst case scenario values, transfer fees to and from exchanges, and
-// international bank transfer rates.
-func (d *Definitions) LoadStatic(o Options) error {
+// LoadStaticFees loads predefined custom long term fee structures for trading
+// fees (which will automatically be loaded as worst case scenario fees),
+// transfer fees to and from blockchains/wallets/exchanges, and bank transfer
+// fees.
+func (d *Definitions) LoadStaticFees(o Options) error {
 	if d == nil {
 		return ErrDefinitionsAreNil
 	}
@@ -129,12 +132,12 @@ func (d *Definitions) LoadStatic(o Options) error {
 
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
-	// Loads global commission rates based on asset item
+	// Loads global commission rates based on asset item.
 	for a, value := range o.GlobalCommissions {
 		d.globalCommissions[a] = value.convert()
 	}
 
-	// Loads pair specific commission rates
+	// Loads pair specific commission rates.
 	for a, incoming := range o.PairCommissions {
 		for pair, value := range incoming {
 			m1, ok := d.pairCommissions[a]
@@ -150,7 +153,7 @@ func (d *Definitions) LoadStatic(o Options) error {
 		}
 	}
 
-	// Loads exchange withdrawal and deposit fees
+	// Loads blockchain/wallet/exchange withdrawal and deposit fees.
 	for x := range o.ChainTransfer {
 		chainTransfer, ok := d.chainTransfer[o.ChainTransfer[x].Currency.Item]
 		if !ok {
@@ -160,7 +163,7 @@ func (d *Definitions) LoadStatic(o Options) error {
 		chainTransfer[o.ChainTransfer[x].Chain] = o.ChainTransfer[x].convert()
 	}
 
-	// Loads international banking withdrawal and deposit fees
+	// Loads international banking withdrawal and deposit fees.
 	for x := range o.BankTransfer {
 		transferFees, ok := d.bankTransfer[o.BankTransfer[x].BankTransfer]
 		if !ok {
@@ -226,7 +229,8 @@ func (d *Definitions) CalculateMaker(price, amount float64, a asset.Item, pair c
 }
 
 // CalculateWorstCaseMaker returns the fee amount derived from the price, amount
-// and fee percentage using the worst-case scenario trading fee.
+// and fee percentage using the worst-case scenario trading fee. This is usually
+// the initial loaded fee in an exchanges wrapper.go setup function.
 func (d *Definitions) CalculateWorstCaseMaker(price, amount float64, a asset.Item, pair currency.Pair) (float64, error) {
 	if d == nil {
 		return 0, ErrDefinitionsAreNil
@@ -242,7 +246,7 @@ func (d *Definitions) CalculateWorstCaseMaker(price, amount float64, a asset.Ite
 }
 
 // GetMaker returns the maker fee value and if it is a percentage or whole
-// number
+// number.
 func (d *Definitions) GetMaker(a asset.Item, pair currency.Pair) (fee float64, isSetAmount bool, err error) {
 	if d == nil {
 		return 0, false, ErrDefinitionsAreNil
@@ -275,7 +279,8 @@ func (d *Definitions) CalculateTaker(price, amount float64, a asset.Item, pair c
 }
 
 // CalculateWorstCaseTaker returns the fee amount derived from the price, amount
-// and fee percentage using the worst-case scenario trading fee.
+// and fee percentage using the worst-case scenario trading fee. This is usually
+// the initial loaded fee in an exchanges wrapper.go setup function.
 func (d *Definitions) CalculateWorstCaseTaker(price, amount float64, a asset.Item, pair currency.Pair) (float64, error) {
 	if d == nil {
 		return 0, ErrDefinitionsAreNil
@@ -290,7 +295,7 @@ func (d *Definitions) CalculateWorstCaseTaker(price, amount float64, a asset.Ite
 	return c.CalculateWorstCaseTaker(price, amount)
 }
 
-// GetTaker returns the taker fee value and if it is a percentage or real number
+// GetTaker returns the taker fee value and if it is a percentage or real number.
 func (d *Definitions) GetTaker(a asset.Item, pair currency.Pair) (fee float64, isSetAmount bool, err error) {
 	if d == nil {
 		return 0, false, ErrDefinitionsAreNil
@@ -306,7 +311,8 @@ func (d *Definitions) GetTaker(a asset.Item, pair currency.Pair) (fee float64, i
 	return
 }
 
-// CalculateDeposit returns calculated fee from the amount
+// CalculateDeposit returns calculated fee from the amount, chain can be omitted
+// as a it refers to the main chain.
 func (d *Definitions) CalculateDeposit(c currency.Code, chain string, amount float64) (float64, error) {
 	if d == nil {
 		return 0, ErrDefinitionsAreNil
@@ -321,7 +327,8 @@ func (d *Definitions) CalculateDeposit(c currency.Code, chain string, amount flo
 	return t.calculate(t.Deposit, amount)
 }
 
-// GetDeposit returns the deposit fee associated with the currency
+// GetDeposit returns the deposit fee associated with the currency, chain can be
+// omitted as a it refers to the main chain.
 func (d *Definitions) GetDeposit(c currency.Code, chain string) (fee Value, isPercentage bool, err error) {
 	if d == nil {
 		return nil, false, ErrDefinitionsAreNil
@@ -336,7 +343,8 @@ func (d *Definitions) GetDeposit(c currency.Code, chain string) (fee Value, isPe
 	return t.Deposit, t.Percentage, nil
 }
 
-// CalculateDeposit returns calculated fee from the amount
+// CalculateDeposit returns calculated fee from the amount, chain can be omitted
+// as a it refers to the main chain.
 func (d *Definitions) CalculateWithdrawal(c currency.Code, chain string, amount float64) (float64, error) {
 	if d == nil {
 		return 0, ErrDefinitionsAreNil
@@ -351,7 +359,8 @@ func (d *Definitions) CalculateWithdrawal(c currency.Code, chain string, amount 
 	return t.calculate(t.Withdrawal, amount)
 }
 
-// GetWithdrawal returns the withdrawal fee associated with the currency
+// GetWithdrawal returns the withdrawal fee associated with the currency, chain
+// can be omitted as a it refers to the main chain.
 func (d *Definitions) GetWithdrawal(c currency.Code, chain string) (fee Value, isPercentage bool, err error) {
 	d.mtx.RLock()
 	defer d.mtx.RUnlock()
@@ -362,7 +371,7 @@ func (d *Definitions) GetWithdrawal(c currency.Code, chain string) (fee Value, i
 	return t.Withdrawal, t.Percentage, nil
 }
 
-// get returns the fee structure by the currency and its chain type
+// get returns the fee structure by the currency and its chain type.
 func (d *Definitions) get(c currency.Code, chain string) (*transfer, error) {
 	if c.String() == "" {
 		return nil, errCurrencyIsEmpty
@@ -375,7 +384,7 @@ func (d *Definitions) get(c currency.Code, chain string) (*transfer, error) {
 	return s, nil
 }
 
-// GetAllFees returns a snapshot of the full fee definitions, super cool.
+// GetAllFees returns a snapshot of the full fee definitions.
 func (d *Definitions) GetAllFees() (Options, error) {
 	if d == nil {
 		return Options{}, ErrDefinitionsAreNil
@@ -427,7 +436,7 @@ func (d *Definitions) GetAllFees() (Options, error) {
 }
 
 // SetCommissionFee sets new global fees and forces custom control for that
-// asset
+// asset. TODO: Add write control when this gets changed.
 func (d *Definitions) SetCommissionFee(a asset.Item, pair currency.Pair, maker, taker float64, setAmount bool) error {
 	if d == nil {
 		return ErrDefinitionsAreNil
@@ -450,7 +459,7 @@ func (d *Definitions) SetCommissionFee(a asset.Item, pair currency.Pair, maker, 
 	return c.set(maker, taker, setAmount)
 }
 
-// GetTransferFee returns a snapshot of the current Commission rate for the
+// GetTransferFee returns a snapshot of the current transfer fees for the
 // asset type.
 func (d *Definitions) GetTransferFee(c currency.Code, chain string) (Transfer, error) {
 	if d == nil {
@@ -470,9 +479,9 @@ func (d *Definitions) GetTransferFee(c currency.Code, chain string) (Transfer, e
 	return t.convert(), nil
 }
 
-// SetTransferFees sets new transfer fees
-// TODO: need min and max settings might deprecate due to complexity of value
-// types
+// SetTransferFees sets new transfer fees.
+// TODO: Need min and max settings, might deprecate due to complexity of value
+// types. Or expand out the RPC to set custom values.
 func (d *Definitions) SetTransferFee(c currency.Code, chain string, withdraw, deposit float64, isPercentage bool) error {
 	if d == nil {
 		return ErrDefinitionsAreNil
@@ -507,8 +516,8 @@ func (d *Definitions) SetTransferFee(c currency.Code, chain string, withdraw, de
 	return nil
 }
 
-// GetBankTransferFee returns a snapshot of the current bank transfer rate for the
-// asset.
+// GetBankTransferFee returns a snapshot of the current bank transfer fees for
+// the asset.
 func (d *Definitions) GetBankTransferFee(c currency.Code, transType bank.Transfer) (Transfer, error) {
 	if d == nil {
 		return Transfer{}, ErrDefinitionsAreNil
@@ -533,8 +542,8 @@ func (d *Definitions) GetBankTransferFee(c currency.Code, transType bank.Transfe
 }
 
 // SetBankTransferFee sets new bank transfer fees
-// TODO: need min and max settings might deprecate due to complexity of value
-// types
+// TODO: Need min and max settings, might deprecate due to complexity of value
+// types. Or expand out the RPC to set custom values.
 func (d *Definitions) SetBankTransferFee(c currency.Code, transType bank.Transfer, withdraw, deposit float64, isPercentage bool) error {
 	if d == nil {
 		return ErrDefinitionsAreNil
@@ -573,9 +582,9 @@ func (d *Definitions) SetBankTransferFee(c currency.Code, transType bank.Transfe
 	return nil
 }
 
-// LoadTransferFees allows the loading of current transfer fees for
-// cryptocurrency deposit and withdrawals
-func (d *Definitions) LoadTransferFees(fees []Transfer) error {
+// LoadChainTransferFees allows the loading of current transfer fees for
+// cryptocurrency deposit and withdrawals.
+func (d *Definitions) LoadChainTransferFees(fees []Transfer) error {
 	if d == nil {
 		return ErrDefinitionsAreNil
 	}

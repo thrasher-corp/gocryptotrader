@@ -136,7 +136,7 @@ func (l *Lbank) Setup(exch *config.Exchange) error {
 	}
 
 	// NOTE: https://www.lbank.info/fees.html
-	err = l.Fees.LoadStatic(fee.Options{
+	err = l.Fees.LoadStaticFees(fee.Options{
 		GlobalCommissions: map[asset.Item]fee.Commission{
 			asset.Spot: {Maker: 0.001, Taker: 0.001},
 		},
@@ -1022,5 +1022,5 @@ func (l *Lbank) UpdateTransferFees(ctx context.Context) error {
 			Chain:      withdrawFees[x].Chain,
 		})
 	}
-	return l.Fees.LoadTransferFees(transferFee)
+	return l.Fees.LoadChainTransferFees(transferFee)
 }

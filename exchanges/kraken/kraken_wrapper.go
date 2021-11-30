@@ -210,7 +210,7 @@ func (k *Kraken) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	err = k.Fees.LoadStatic(fee.Options{
+	err = k.Fees.LoadStaticFees(fee.Options{
 		GlobalCommissions: map[asset.Item]fee.Commission{
 			asset.Spot: {Maker: 0.0016, Taker: 0.0016},
 		},
@@ -1582,7 +1582,7 @@ func (k *Kraken) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
 		if err != nil {
 			return err
 		}
-		err = k.Fees.LoadDynamic(maker.Fee, taker.Fee, a, pair)
+		err = k.Fees.LoadDynamicFeeRate(maker.Fee, taker.Fee, a, pair)
 		if err != nil {
 			return err
 		}

@@ -137,7 +137,7 @@ func (e *EXMO) Setup(exch *config.Exchange) error {
 	}
 
 	// Note: https://exmo.com/en/wallet/commissions
-	return e.Fees.LoadStatic(fee.Options{
+	return e.Fees.LoadStaticFees(fee.Options{
 		GlobalCommissions: map[asset.Item]fee.Commission{
 			asset.Spot: {Maker: 0.003, Taker: 0.003},
 		},
@@ -769,7 +769,7 @@ func (e *EXMO) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
 			if err != nil {
 				return err
 			}
-			err = e.Fees.LoadDynamic(pairInfo[x].TradeMakerFee/100,
+			err = e.Fees.LoadDynamicFeeRate(pairInfo[x].TradeMakerFee/100,
 				pairInfo[x].TradeTakerFee/100,
 				a,
 				pair)

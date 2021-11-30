@@ -157,7 +157,7 @@ func (b *Bitmex) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	err = b.Fees.LoadStatic(fee.Options{
+	err = b.Fees.LoadStaticFees(fee.Options{
 		GlobalCommissions: map[asset.Item]fee.Commission{
 			// Bitmex is offering maker rebates of '-0.0001'
 			asset.Futures:           {Maker: -0.0001, Taker: 0.0005},
@@ -892,5 +892,5 @@ func (b *Bitmex) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
 	if err != nil {
 		return err
 	}
-	return b.Fees.LoadDynamic(info.MakerFee, info.TakerFee, a, fee.OmitPair)
+	return b.Fees.LoadDynamicFeeRate(info.MakerFee, info.TakerFee, a, fee.OmitPair)
 }

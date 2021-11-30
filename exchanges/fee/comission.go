@@ -23,7 +23,7 @@ type Commission struct {
 	WorstCaseTaker float64
 }
 
-// convert returns a internal commission rate type
+// convert returns an internal commission rate type
 func (c Commission) convert() *CommissionInternal {
 	// If worst case scenario variables have not be assigned this defaults them
 	// to maker and taker. Reduces specific loading code on the exchange wrapper

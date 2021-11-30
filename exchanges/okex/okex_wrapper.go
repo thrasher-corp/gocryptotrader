@@ -686,7 +686,7 @@ func (o *OKEX) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
 	// a rebate.
 	maker := info[0].Maker * -1
 	taker := info[0].Taker * -1
-	return o.Fees.LoadDynamic(maker, taker, a, fee.OmitPair)
+	return o.Fees.LoadDynamicFeeRate(maker, taker, a, fee.OmitPair)
 }
 
 // UpdateTransferFees updates transfer fees for cryptocurrency withdrawal and
@@ -706,5 +706,5 @@ func (o *OKEX) UpdateTransferFees(ctx context.Context) error {
 			Deposit:    fee.Convert(0), // Default on deposit
 		})
 	}
-	return o.Fees.LoadTransferFees(transferFee)
+	return o.Fees.LoadChainTransferFees(transferFee)
 }

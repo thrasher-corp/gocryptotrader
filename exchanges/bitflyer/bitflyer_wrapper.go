@@ -122,7 +122,7 @@ func (b *Bitflyer) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	return b.Fees.LoadStatic(fee.Options{
+	return b.Fees.LoadStaticFees(fee.Options{
 		// NOTE: https://bitflyer.com/en-us/commission
 		// TODO: Account level integration for fees.
 		GlobalCommissions: map[asset.Item]fee.Commission{

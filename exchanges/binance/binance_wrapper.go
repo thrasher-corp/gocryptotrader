@@ -228,7 +228,7 @@ func (b *Binance) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	err = b.Fees.LoadStatic(fee.Options{
+	err = b.Fees.LoadStaticFees(fee.Options{
 		// Note: https://www.binance.com/en/fee/trading
 		GlobalCommissions: map[asset.Item]fee.Commission{
 			asset.Spot:                {Maker: 0.01, Taker: 0.01},
@@ -1874,7 +1874,7 @@ func (b *Binance) UpdateCommissionFees(ctx context.Context, a asset.Item) error 
 			return err
 		}
 
-		return b.Fees.LoadDynamic(
+		return b.Fees.LoadDynamicFeeRate(
 			// Divided by 10000 e.g. 10 is returned as integer / 100 = 0.1%
 			// actual trading fee / 100 resultant gives 0.001 for loadable
 			// commission rate.
@@ -1892,7 +1892,7 @@ func (b *Binance) UpdateCommissionFees(ctx context.Context, a asset.Item) error 
 		if !ok {
 			return errFeeTierNotFound
 		}
-		return b.Fees.LoadDynamic(f.Maker, f.Taker, a, fee.OmitPair)
+		return b.Fees.LoadDynamicFeeRate(f.Maker, f.Taker, a, fee.OmitPair)
 	case asset.CoinMarginedFutures:
 		accData, err := b.GetFuturesAccountInfo(ctx)
 		if err != nil {
@@ -1903,7 +1903,7 @@ func (b *Binance) UpdateCommissionFees(ctx context.Context, a asset.Item) error 
 		if !ok {
 			return errFeeTierNotFound
 		}
-		return b.Fees.LoadDynamic(f.Maker, f.Taker, a, fee.OmitPair)
+		return b.Fees.LoadDynamicFeeRate(f.Maker, f.Taker, a, fee.OmitPair)
 	case asset.Margin:
 		return nil
 	default:
@@ -1950,7 +1950,7 @@ func (b *Binance) UpdateTransferFees(ctx context.Context) error {
 			})
 		}
 	}
-	return b.Fees.LoadTransferFees(transferFee)
+	return b.Fees.LoadChainTransferFees(transferFee)
 }
 
 // getFee returns fee based off order type

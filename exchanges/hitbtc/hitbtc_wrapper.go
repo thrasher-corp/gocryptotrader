@@ -163,7 +163,7 @@ func (h *HitBTC) Setup(exch *config.Exchange) error {
 	}
 
 	// NOTE: https://hitbtc.com/fee-tier
-	err = h.Fees.LoadStatic(fee.Options{
+	err = h.Fees.LoadStaticFees(fee.Options{
 		GlobalCommissions: map[asset.Item]fee.Commission{
 			asset.Spot: {Maker: 0.0009, Taker: 0.0009},
 		},
@@ -963,7 +963,7 @@ func (h *HitBTC) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
 			return err
 		}
 
-		err = h.Fees.LoadDynamic(fees[x].Maker, fees[x].Taker, a, pair)
+		err = h.Fees.LoadDynamicFeeRate(fees[x].Maker, fees[x].Taker, a, pair)
 		if err != nil {
 			return err
 		}

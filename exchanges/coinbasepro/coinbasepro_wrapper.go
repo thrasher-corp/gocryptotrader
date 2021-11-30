@@ -164,7 +164,7 @@ func (c *CoinbasePro) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	err = c.Fees.LoadStatic(fee.Options{
+	err = c.Fees.LoadStaticFees(fee.Options{
 		GlobalCommissions: map[asset.Item]fee.Commission{
 			asset.Spot: {Maker: 0.005, Taker: 0.005},
 		},

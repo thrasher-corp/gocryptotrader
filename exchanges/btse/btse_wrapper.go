@@ -183,7 +183,7 @@ func (b *BTSE) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	err = b.Fees.LoadStatic(fee.Options{
+	err = b.Fees.LoadStaticFees(fee.Options{
 		GlobalCommissions: map[asset.Item]fee.Commission{
 			asset.Spot:    {Maker: 0.001, Taker: 0.0012},
 			asset.Futures: {Maker: -0.0001, Taker: 0.0004},
@@ -1125,7 +1125,7 @@ func (b *BTSE) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
 		if err != nil {
 			return err
 		}
-		err = b.Fees.LoadDynamic(feeTiers[x].MakerFee, feeTiers[x].TakerFee, a, pair)
+		err = b.Fees.LoadDynamicFeeRate(feeTiers[x].MakerFee, feeTiers[x].TakerFee, a, pair)
 		if err != nil {
 			return err
 		}

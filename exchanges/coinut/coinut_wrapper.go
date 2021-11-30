@@ -147,7 +147,7 @@ func (c *COINUT) Setup(exch *config.Exchange) error {
 	}
 
 	// NOTE: https://coinut.zendesk.com/hc/en-us/articles/360001416133-Fee-schedule
-	err = c.Fees.LoadStatic(fee.Options{
+	err = c.Fees.LoadStaticFees(fee.Options{
 		// There seems to be no API endpoint to determine your current maker or
 		// taker fee rate.
 		GlobalCommissions: map[asset.Item]fee.Commission{

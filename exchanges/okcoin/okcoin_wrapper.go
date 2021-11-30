@@ -394,7 +394,7 @@ func (o *OKCoin) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
 	if err != nil {
 		return err
 	}
-	return o.Fees.LoadDynamic(info.Maker, info.Taker, a, fee.OmitPair)
+	return o.Fees.LoadDynamicFeeRate(info.Maker, info.Taker, a, fee.OmitPair)
 }
 
 // UpdateTransferFees updates transfer fees for cryptocurrency withdrawal and
@@ -433,5 +433,5 @@ func (o *OKCoin) UpdateTransferFees(ctx context.Context) error {
 			})
 		}
 	}
-	return o.Fees.LoadTransferFees(transferFee)
+	return o.Fees.LoadChainTransferFees(transferFee)
 }

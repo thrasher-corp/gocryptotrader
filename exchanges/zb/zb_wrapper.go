@@ -165,7 +165,7 @@ func (z *ZB) Setup(exch *config.Exchange) error {
 
 	// NOTE: https://www.zb.com/help/rate
 	// ALSO: Cannot determine dynamic fee rate as volume is not returned in API
-	err = z.Fees.LoadStatic(fee.Options{
+	err = z.Fees.LoadStaticFees(fee.Options{
 		GlobalCommissions: map[asset.Item]fee.Commission{
 			asset.Spot: {Maker: 0.002, Taker: 0.002},
 		},
@@ -1035,5 +1035,5 @@ func (z *ZB) UpdateTransferFees(ctx context.Context) error {
 			transferFees = append(transferFees, newFee)
 		}
 	}
-	return z.Fees.LoadTransferFees(transferFees)
+	return z.Fees.LoadChainTransferFees(transferFees)
 }

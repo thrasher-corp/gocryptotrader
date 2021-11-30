@@ -164,7 +164,7 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	err = g.Fees.LoadStatic(fee.Options{
+	err = g.Fees.LoadStaticFees(fee.Options{
 		GlobalCommissions: map[asset.Item]fee.Commission{
 			asset.Spot:    {Maker: 0.002, Taker: 0.002},
 			asset.Futures: {Maker: 0, Taker: 0.00075},
@@ -930,7 +930,7 @@ func (g *Gateio) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
 	if err != nil {
 		return err
 	}
-	return g.Fees.LoadDynamic(tradingFees.MakerFee,
+	return g.Fees.LoadDynamicFeeRate(tradingFees.MakerFee,
 		tradingFees.TakerFee,
 		a,
 		fee.OmitPair)

@@ -120,7 +120,7 @@ func (l *LocalBitcoins) Setup(exch *config.Exchange) error {
 		return err
 	}
 	// Note: https://localbitcoins.com/fees
-	return l.Fees.LoadStatic(fee.Options{
+	return l.Fees.LoadStaticFees(fee.Options{
 		GlobalCommissions: map[asset.Item]fee.Commission{
 			// When ads are deployed fees are 1% otherwise no trading fees.
 			asset.Spot: {Taker: 0.01},
@@ -711,7 +711,7 @@ func (l *LocalBitcoins) UpdateTransferFees(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	return l.Fees.LoadTransferFees([]fee.Transfer{{
+	return l.Fees.LoadChainTransferFees([]fee.Transfer{{
 		Currency:   currency.BTC,
 		Withdrawal: fee.Convert(fees.Withdrawal),
 		Deposit:    fee.Convert(fees.Deposit),

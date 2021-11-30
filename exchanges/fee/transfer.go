@@ -221,6 +221,7 @@ func (t transfer) calculate(val Value, amount float64) (float64, error) {
 	}
 	if !t.Percentage { // TODO: Needs to be checked, might need to have the
 		// p value at the interface layer
+
 		// Returns the whole number
 		feeFloat, _ := fee.Float64()
 		return feeFloat, nil

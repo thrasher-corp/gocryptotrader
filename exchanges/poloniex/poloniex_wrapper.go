@@ -166,7 +166,7 @@ func (p *Poloniex) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	err = p.Fees.LoadStatic(fee.Options{
+	err = p.Fees.LoadStaticFees(fee.Options{
 		GlobalCommissions: map[asset.Item]fee.Commission{
 			asset.Spot: {Maker: 0.002, Taker: 0.002},
 		},
@@ -1008,5 +1008,5 @@ func (p *Poloniex) UpdateCommissionFees(ctx context.Context, a asset.Item) error
 	if err != nil {
 		return err
 	}
-	return p.Fees.LoadDynamic(fees.MakerFee, fees.TakerFee, a, fee.OmitPair)
+	return p.Fees.LoadDynamicFeeRate(fees.MakerFee, fees.TakerFee, a, fee.OmitPair)
 }

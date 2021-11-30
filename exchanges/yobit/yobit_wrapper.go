@@ -126,7 +126,7 @@ func (y *Yobit) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	return y.Fees.LoadStatic(fee.Options{
+	return y.Fees.LoadStaticFees(fee.Options{
 		GlobalCommissions: map[asset.Item]fee.Commission{
 			asset.Spot: {Maker: 0.002, Taker: 0.002},
 		},
@@ -709,7 +709,7 @@ func (b *Yobit) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
 		if err != nil {
 			return err
 		}
-		err = b.Fees.LoadDynamic(val.Fee/100, val.Fee/100, a, pair)
+		err = b.Fees.LoadDynamicFeeRate(val.Fee/100, val.Fee/100, a, pair)
 		if err != nil {
 			return err
 		}

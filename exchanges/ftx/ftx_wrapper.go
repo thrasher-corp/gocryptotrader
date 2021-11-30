@@ -185,7 +185,7 @@ func (f *FTX) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	err = f.Fees.LoadStatic(fee.Options{
+	err = f.Fees.LoadStaticFees(fee.Options{
 		GlobalCommissions: map[asset.Item]fee.Commission{
 			asset.Spot:    {Maker: 0.0002, Taker: 0.0007},
 			asset.Futures: {Maker: 0.0002, Taker: 0.0007},
@@ -1259,5 +1259,5 @@ func (f *FTX) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
 	if err != nil {
 		return err
 	}
-	return f.Fees.LoadDynamic(ai.MakerFee, ai.TakerFee, a, fee.OmitPair)
+	return f.Fees.LoadDynamicFeeRate(ai.MakerFee, ai.TakerFee, a, fee.OmitPair)
 }

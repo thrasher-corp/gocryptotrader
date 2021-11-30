@@ -120,7 +120,7 @@ func (i *ItBit) Setup(exch *config.Exchange) error {
 		return err
 	}
 	// NOTE: Cannot confirm fees
-	return i.Fees.LoadStatic(fee.Options{
+	return i.Fees.LoadStaticFees(fee.Options{
 		GlobalCommissions: map[asset.Item]fee.Commission{
 			asset.Spot: {Maker: 0.002, Taker: 0.0035},
 		},
