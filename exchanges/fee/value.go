@@ -19,8 +19,7 @@ type Value interface {
 }
 
 // Convert returns a pointer to a float64 for use in explicit exported
-// parameters to define functionality. TODO: Maybe return a *fee.Value type
-// consideration
+// parameters to define functionality
 func Convert(f float64) Value {
 	return Standard{Decimal: decimal.NewFromFloat(f)}
 }

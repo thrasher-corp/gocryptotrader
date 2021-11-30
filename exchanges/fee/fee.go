@@ -75,12 +75,21 @@ func (d *Definitions) LoadDynamicFeeRate(maker, taker float64, a asset.Item, pai
 	if d == nil {
 		return ErrDefinitionsAreNil
 	}
-	if taker < 0 {
-		return errTakerInvalid
-	}
 	if maker > taker {
 		return errMakerBiggerThanTaker
 	}
+
+	if maker >= defaultPercentageRateThreshold {
+		return fmt.Errorf("%w exceeds percentage rate threshold %f",
+			errMakerInvalid,
+			defaultPercentageRateThreshold)
+	}
+	if taker >= defaultPercentageRateThreshold {
+		return fmt.Errorf("%w exceeds percentage rate threshold %f",
+			errTakerInvalid,
+			defaultPercentageRateThreshold)
+	}
+
 	if !a.IsValid() {
 		return fmt.Errorf("%s: %w", a, asset.ErrNotSupported)
 	}
@@ -89,8 +98,8 @@ func (d *Definitions) LoadDynamicFeeRate(maker, taker float64, a asset.Item, pai
 	defer d.mtx.Unlock()
 	var c *CommissionInternal
 	if !pair.IsEmpty() {
-		// NOTE: These will create maps when needed, this system initially
-		// starts out as a global commission rate and is updated ad-hoc.
+		// NOTE: These will create maps when needed, this system can initially
+		// start out as a global commission rate and is updated ad-hoc.
 		m1, ok := d.pairCommissions[a]
 		if !ok {
 			m1 = make(map[*currency.Item]map[*currency.Item]*CommissionInternal)

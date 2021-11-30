@@ -13,6 +13,12 @@ import (
 var one = decimal.NewFromInt(1)
 var two = decimal.NewFromInt(2)
 
+func TestNewFeeDefinitions(t *testing.T) {
+	if NewFeeDefinitions() == nil {
+		t.Fatal("unexpected value")
+	}
+}
+
 func TestLoadDynamicFeeRate(t *testing.T) {
 	t.Parallel()
 	err := (*Definitions)(nil).LoadDynamicFeeRate(0, 0, asset.Spot, OmitPair)

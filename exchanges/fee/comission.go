@@ -1,10 +1,17 @@
 package fee
 
 import (
+	"fmt"
 	"sync"
 
 	"github.com/shopspring/decimal"
 )
+
+// defaultPercentageRateThreshold defines an upper bounds on current percentage
+// rates to filter out any abnormal or incorrectly inputted percentage rates.
+// This is currently set to 15% which is astronomically high compared to
+// the general exchange mean commissions.
+var defaultPercentageRateThreshold = 0.15
 
 // Commission defines a trading fee structure snapshot
 type Commission struct {
@@ -47,12 +54,25 @@ func (c Commission) convert() *CommissionInternal {
 
 // validate validates commission variables
 func (c Commission) validate() error {
-	if c.Taker < 0 {
-		return errTakerInvalid
-	}
+	// In all instances providing liquidity (maker) has a lower fees compared to
+	// taking liquidity (taker).
 	if c.Maker > c.Taker {
 		return errMakerBiggerThanTaker
 	}
+
+	if !c.IsSetAmount {
+		if c.Maker >= defaultPercentageRateThreshold {
+			return fmt.Errorf("%w exceeds percentage rate threshold %f",
+				errMakerInvalid,
+				defaultPercentageRateThreshold)
+		}
+		if c.Taker >= defaultPercentageRateThreshold {
+			return fmt.Errorf("%w exceeds percentage rate threshold %f",
+				errTakerInvalid,
+				defaultPercentageRateThreshold)
+		}
+	}
+
 	return nil
 }
 
