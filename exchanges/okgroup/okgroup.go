@@ -28,13 +28,11 @@ const (
 	Version5       = "/v5/"
 
 	// API subsections
-	AccountSubsection = "/account"
-	SpotSubsection    = "/spot"
-	MarginSubsection  = "/margin"
-	FuturesSubsection = "/futures"
-	SwapSubsection    = "/swap"
-	ETTSubsection     = "/ett"
-	OptionSubsection  = "/option"
+	AccountSubsection = "account"
+	SpotSubsection    = "spot"
+	MarginSubsection  = "margin"
+	FuturesSubsection = "futures"
+	SwapSubsection    = "swap"
 
 	// Accounts common api endpoint
 	Accounts = "accounts"
@@ -589,8 +587,13 @@ func (o *OKGroup) SendHTTPRequest(ctx context.Context, ep exchange.URL, httpMeth
 				return nil, err
 			}
 		}
-
-		path := endpoint + requestType + apiVersion + requestPath
+		var slash string
+		if !strings.HasSuffix(endpoint, "/") && !strings.HasPrefix(requestType, "/") {
+			// Due to the usage of a common package and mixing of versions of
+			// API endpoints, this is a quick check to repair paths.
+			slash = "/"
+		}
+		path := endpoint + slash + requestType + apiVersion + requestPath
 		headers := make(map[string]string)
 		headers["Content-Type"] = "application/json"
 		if authenticated {

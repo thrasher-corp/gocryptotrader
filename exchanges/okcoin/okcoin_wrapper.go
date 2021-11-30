@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 	"sync"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -399,18 +400,38 @@ func (o *OKCoin) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
 // UpdateTransferFees updates transfer fees for cryptocurrency withdrawal and
 // deposits for this exchange
 func (o *OKCoin) UpdateTransferFees(ctx context.Context) error {
-	withdrawFees, err := o.GetAccountWithdrawalFee(ctx, "")
+	// The docs suggest: 'if left blank, information for all tokens will be
+	// returned', but this is not true, so get all enabled and derive all
+	// crypto from enabled trading pairs.
+	enabled, err := o.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return err
 	}
 
+	cryptos := enabled.GetCrypto()
+
 	transferFee := []fee.Transfer{}
-	for x := range withdrawFees {
-		transferFee = append(transferFee, fee.Transfer{
-			Currency:   currency.NewCode(withdrawFees[x].Currency),
-			Withdrawal: fee.Convert(withdrawFees[x].MaxFee),
-			Deposit:    fee.Convert(0), // Default on deposit
-		})
+	for x := range cryptos {
+		withdrawFees, err := o.GetAccountWithdrawalFee(ctx, "USDT")
+		if err != nil {
+			return err
+		}
+
+		for y := range withdrawFees {
+			code := withdrawFees[y].Currency
+			details := strings.Split(code, "-")
+			chain := ""
+			if len(details) > 1 {
+				code = details[0]
+				chain = strings.Join(details[1:], "-")
+			}
+			transferFee = append(transferFee, fee.Transfer{
+				Currency:   currency.NewCode(code),
+				Withdrawal: fee.Convert(withdrawFees[x].MaxFee),
+				Deposit:    fee.Convert(0), // Default on deposit
+				Chain:      chain,
+			})
+		}
 	}
 	return o.Fees.LoadTransferFees(transferFee)
 }

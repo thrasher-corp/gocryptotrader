@@ -784,35 +784,3 @@ func (o *OKGroup) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 	ret.SortCandlesByTimestamp(false)
 	return ret, nil
 }
-
-// UpdateCommissionFees updates current fees associated with account
-func (o *OKGroup) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
-	// if a != asset.Spot {
-	// 	return common.ErrNotYetImplemented
-	// }
-	// resp, err := o.GetAccountWithdrawalFee(ctx, "")
-	// if err != nil {
-	// 	return err
-	// }
-	// // TODO: integrate
-	// fmt.Println(resp)
-	return common.ErrNotYetImplemented
-}
-
-// UpdateTransferFees updates transfer fees for cryptocurrency withdrawal and
-// deposits for this exchange
-func (o *OKGroup) UpdateTransferFees(ctx context.Context) error {
-	resp, err := o.GetAccountWithdrawalFee(ctx, "")
-	if err != nil {
-		return err
-	}
-	transferFee := []fee.Transfer{}
-	for x := range resp {
-		transferFee = append(transferFee, fee.Transfer{
-			Currency:   currency.NewCode(resp[x].Currency),
-			Withdrawal: fee.Convert(resp[x].MaxFee),
-			Deposit:    fee.Convert(0), // Default on deposit
-		})
-	}
-	return o.Fees.LoadTransferFees(transferFee)
-}

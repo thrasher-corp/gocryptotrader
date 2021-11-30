@@ -44,15 +44,15 @@ type FeeInfo struct {
 func (o *OKCoin) GetTradingFee(ctx context.Context, a asset.Item, instrumentID currency.Pair, category string) (FeeInfo, error) {
 	vals := url.Values{}
 
-	var wow string
+	var requestType string
 	switch a {
 	case asset.Spot:
-		wow = "spot"
+		requestType = "spot"
 		if !instrumentID.IsEmpty() {
 			vals.Set("instId", instrumentID.String())
 		}
 	case asset.Margin:
-		wow = "margin"
+		requestType = "margin"
 		if !instrumentID.IsEmpty() {
 			vals.Set("instId", instrumentID.String())
 		}
@@ -69,7 +69,7 @@ func (o *OKCoin) GetTradingFee(ctx context.Context, a asset.Item, instrumentID c
 		exchange.RestSpot,
 		http.MethodGet,
 		okgroup.Version3,
-		wow,
+		requestType,
 		common.EncodeURLValues(okgroupTradeFee, vals),
 		nil,
 		&resp,

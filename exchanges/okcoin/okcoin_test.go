@@ -1127,11 +1127,8 @@ func TestUpdateTransferFees(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
-	o.Verbose = true
-	_, err := o.GetAccountWithdrawalFee(context.Background(), "")
+	err := o.UpdateTransferFees(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	// TODO: Broken
 }
