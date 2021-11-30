@@ -1,6 +1,7 @@
 package log
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -9,16 +10,20 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 )
 
+var (
+	errExceedsMaxFileSize = errors.New("exceeds max file size")
+	errFileNameIsEmpty    = errors.New("filename is empty")
+)
+
 // Write implementation to satisfy io.Writer handles length check and rotation
 func (r *Rotate) Write(output []byte) (n int, err error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	outputLen := int64(len(output))
-
 	if outputLen > r.maxSize() {
 		return 0, fmt.Errorf(
-			"write length %v exceeds max file size %v", outputLen, r.maxSize(),
+			"write length %v %w %v", outputLen, errExceedsMaxFileSize, r.maxSize(),
 		)
 	}
 
@@ -40,13 +45,11 @@ func (r *Rotate) Write(output []byte) (n int, err error) {
 
 	n, err = r.output.Write(output)
 	r.size += int64(n)
-
 	return n, err
 }
 
 func (r *Rotate) openOrCreateFile(n int64) error {
 	logFile := filepath.Join(LogPath, r.FileName)
-
 	info, err := os.Stat(logFile)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -73,6 +76,9 @@ func (r *Rotate) openOrCreateFile(n int64) error {
 }
 
 func (r *Rotate) openNew() error {
+	if r.FileName == "" {
+		return fmt.Errorf("cannot open new file: %w", errFileNameIsEmpty)
+	}
 	name := filepath.Join(LogPath, r.FileName)
 	_, err := os.Stat(name)
 
@@ -93,7 +99,6 @@ func (r *Rotate) openNew() error {
 
 	r.output = file
 	r.size = 0
-
 	return nil
 }
 
@@ -118,17 +123,12 @@ func (r *Rotate) rotateFile() (err error) {
 	if err != nil {
 		return
 	}
-
-	err = r.openNew()
-	if err != nil {
-		return
-	}
-	return nil
+	return r.openNew()
 }
 
 func (r *Rotate) maxSize() int64 {
 	if r.MaxSize == 0 {
-		return int64(defaultMaxSize * megabyte)
+		return defaultMaxSize * megabyte
 	}
-	return r.MaxSize * int64(megabyte)
+	return r.MaxSize * megabyte
 }

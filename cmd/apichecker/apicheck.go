@@ -101,11 +101,14 @@ func main() {
 	flag.BoolVar(&create, "create", false, "specifies whether to automatically create trello list, card and checklist in a given board")
 	flag.Parse()
 	var err error
-	c := log.GenDefaultSettings()
 	log.RWM.Lock()
-	log.GlobalLogConfig = &c
+	log.GlobalLogConfig = log.GenDefaultSettings()
 	log.RWM.Unlock()
-	log.SetupGlobalLogger()
+	err = log.SetupGlobalLogger()
+	if err != nil {
+		fmt.Printf("Could not setup global logger. Error: %v.\n", err)
+		os.Exit(1)
+	}
 	configData, err = readFileData(jsonFile)
 	if err != nil {
 		log.Error(log.Global, err)

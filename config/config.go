@@ -1267,7 +1267,7 @@ func (c *Config) CheckLoggerConfig() error {
 	defer m.Unlock()
 
 	if c.Logging.Enabled == nil || c.Logging.Output == "" {
-		c.Logging = log.GenDefaultSettings()
+		c.Logging = *log.GenDefaultSettings()
 	}
 
 	if c.Logging.AdvancedSettings.ShowLogSystemName == nil {

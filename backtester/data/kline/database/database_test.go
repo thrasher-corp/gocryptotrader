@@ -30,7 +30,11 @@ const (
 
 func TestMain(m *testing.M) {
 	if verbose {
-		testhelpers.EnableVerboseTestOutput()
+		err := testhelpers.EnableVerboseTestOutput()
+		if err != nil {
+			fmt.Printf("failed to enable verbose test output: %v", err)
+			os.Exit(1)
+		}
 	}
 	var err error
 	testhelpers.PostgresTestDatabase = testhelpers.GetConnectionDetails()

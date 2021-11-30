@@ -6,8 +6,8 @@ import (
 )
 
 const (
-	defaultMaxSize = 250
-	megabyte       = 1024 * 1024
+	defaultMaxSize int64 = 250
+	megabyte       int64 = 1024 * 1024
 )
 
 // Rotate struct for each instance of Rotate
