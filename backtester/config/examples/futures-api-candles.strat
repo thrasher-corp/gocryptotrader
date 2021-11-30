@@ -32,14 +32,10 @@
     "collateral-currency": "USDT"
    },
    "buy-side": {
-    "minimum-size": "0.005",
-    "maximum-size": "2",
-    "maximum-total": "40000"
+    "maximum-total": "1000"
    },
    "sell-side": {
-    "minimum-size": "0.005",
-    "maximum-size": "2",
-    "maximum-total": "40000"
+    "maximum-total": "1000"
    },
    "min-slippage-percent": "0",
    "max-slippage-percent": "0",
@@ -66,14 +62,10 @@
    "maximum-leverage-rate": 0
   },
   "buy-side": {
-   "minimum-size": "0.005",
-   "maximum-size": "2",
-   "maximum-total": "40000"
+   "maximum-total": "1000"
   },
   "sell-side": {
-   "minimum-size": "0.005",
-   "maximum-size": "2",
-   "maximum-total": "40000"
+   "maximum-total": "1000"
   }
  },
  "statistic-settings": {

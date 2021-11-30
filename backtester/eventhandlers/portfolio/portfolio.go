@@ -550,6 +550,7 @@ func (p *Portfolio) CalculatePNL(e common.DataEventHandler, funds funding.IColla
 	if !ok {
 		return errNoPortfolioSettings
 	}
+
 	snapshot, err := p.GetLatestOrderSnapshotForEvent(e)
 	if err != nil {
 		return err
@@ -565,7 +566,8 @@ func (p *Portfolio) CalculatePNL(e common.DataEventHandler, funds funding.IColla
 			snapshot.Orders[i].FuturesOrder.OpeningPosition.Leverage = 1
 		}
 
-		result, err := settings.Exchange.CalculatePNL(&gctexchange.PNLCalculator{
+		var result *gctexchange.PNLResult
+		result, err = settings.Exchange.CalculatePNL(&gctexchange.PNLCalculator{
 			Asset:              e.GetAssetType(),
 			Leverage:           snapshot.Orders[i].FuturesOrder.OpeningPosition.Leverage,
 			EntryPrice:         snapshot.Orders[i].FuturesOrder.OpeningPosition.Price,
@@ -574,10 +576,14 @@ func (p *Portfolio) CalculatePNL(e common.DataEventHandler, funds funding.IColla
 			CollateralAmount:   funds.AvailableFunds(),
 			CalculateOffline:   true,
 			CollateralCurrency: funds.CollateralCurrency(),
+			Amount:             snapshot.Orders[i].FuturesOrder.OpeningPosition.Amount,
+			MarkPrice:          e.GetClosePrice().InexactFloat64(),
+			PrevMarkPrice:      e.GetOpenPrice().InexactFloat64(),
 		})
 		if err != nil {
 			return err
 		}
+
 		if result.IsLiquidated {
 			funds.Liquidate()
 			snapshot.Orders[i].FuturesOrder.UnrealisedPNL = decimal.Zero
@@ -587,12 +593,13 @@ func (p *Portfolio) CalculatePNL(e common.DataEventHandler, funds funding.IColla
 			snapshot.Orders[i].FuturesOrder.ClosingPosition = &or
 			return nil
 		}
-
+		snapshot.Orders[i].FuturesOrder.RealisedPNL.Add(snapshot.Orders[i].FuturesOrder.UnrealisedPNL)
 		snapshot.Orders[i].FuturesOrder.UnrealisedPNL = result.UnrealisedPNL
 		snapshot.Orders[i].FuturesOrder.OpeningPosition.UnrealisedPNL = result.UnrealisedPNL
 		snapshot.Orders[i].FuturesOrder.UpsertPNLEntry(gctorder.PNLHistory{
 			Time:          e.GetTime(),
 			UnrealisedPNL: result.UnrealisedPNL,
+			RealisedPNL:   snapshot.Orders[i].FuturesOrder.RealisedPNL,
 		})
 	}
 	return nil

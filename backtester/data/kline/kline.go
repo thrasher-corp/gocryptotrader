@@ -29,7 +29,7 @@ func (d *DataFromKline) Load() error {
 
 	klineData := make([]common.DataEventHandler, len(d.Item.Candles))
 	for i := range d.Item.Candles {
-		klineData[i] = &kline.Kline{
+		klinerino := &kline.Kline{
 			Base: event.Base{
 				Offset:       int64(i + 1),
 				Exchange:     d.Item.Exchange,
@@ -45,6 +45,7 @@ func (d *DataFromKline) Load() error {
 			Volume:           decimal.NewFromFloat(d.Item.Candles[i].Volume),
 			ValidationIssues: d.Item.Candles[i].ValidationIssues,
 		}
+		klineData[i] = klinerino
 		d.addedTimes[d.Item.Candles[i].Time] = true
 	}
 

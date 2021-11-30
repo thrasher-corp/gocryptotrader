@@ -1227,8 +1227,8 @@ func TestGenerateConfigForFuturesAPICandles(t *testing.T) {
 				FuturesDetails: &FuturesDetails{
 					CollateralCurrency: "USDT",
 					Leverage: Leverage{
-						CanUseLeverage:      true,
-						MaximumLeverageRate: 1,
+						CanUseLeverage:           true,
+						MaximumOrderLeverageRate: 1,
 					},
 				},
 				BuySide:  minMax,

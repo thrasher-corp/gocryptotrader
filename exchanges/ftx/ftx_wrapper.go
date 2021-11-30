@@ -1272,15 +1272,23 @@ func (f *FTX) GetAvailableTransferChains(ctx context.Context, cryptocurrency cur
 	return availableChains, nil
 }
 
+func (f *FTX) CalculateUnrealisedPNL(positionSize, markPrice, prevMarkPrice float64) float64 {
+	return positionSize * (markPrice - prevMarkPrice)
+}
+
 func (f *FTX) CalculatePNL(pnl *exchange.PNLCalculator) (*exchange.PNLResult, error) {
-	var result *exchange.PNLResult
+	var result exchange.PNLResult
 	if pnl.CalculateOffline {
 		collat, err := f.CalculateCollateral(pnl.CollateralCurrency, pnl.Amount, pnl.EntryPrice, true)
 		if err != nil {
 			return nil, err
 		}
 		result.Collateral = decimal.NewFromFloat(collat)
-		return result, nil
+		// TODO add mark price somehow
+		// need mark price candles + mark price from 30 second ago candles
+		uPNL := f.CalculateUnrealisedPNL(pnl.Amount, pnl.MarkPrice, pnl.PrevMarkPrice)
+		result.UnrealisedPNL = decimal.NewFromFloat(uPNL)
+		return &result, nil
 	} else {
 		ctx := context.Background()
 		info, err := f.GetAccountInfo(ctx)
@@ -1289,7 +1297,7 @@ func (f *FTX) CalculatePNL(pnl *exchange.PNLCalculator) (*exchange.PNLResult, er
 		}
 		if info.Liquidating || info.Collateral == 0 {
 			result.IsLiquidated = true
-			return result, nil
+			return &result, nil
 		}
 		for i := range info.Positions {
 			ftxSide := order.Side(info.Positions[i].Side)
@@ -1311,7 +1319,7 @@ func (f *FTX) CalculatePNL(pnl *exchange.PNLCalculator) (*exchange.PNLResult, er
 					return nil, err
 				}
 				result.Collateral = decimal.NewFromFloat(collat)
-				return result, nil
+				return &result, nil
 			}
 		}
 	}

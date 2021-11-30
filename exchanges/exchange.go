@@ -1472,6 +1472,8 @@ type PNLCalculator struct {
 	EntryPrice         float64
 	OpeningAmount      float64
 	Amount             float64
+	MarkPrice          float64
+	PrevMarkPrice      float64
 	CurrentPrice       float64
 	CollateralAmount   decimal.Decimal
 	CollateralCurrency currency.Code

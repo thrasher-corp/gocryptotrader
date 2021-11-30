@@ -147,6 +147,7 @@ func (f *Futures) UpsertPNLEntry(entry PNLHistory) {
 type PNLHistory struct {
 	Time          time.Time
 	UnrealisedPNL decimal.Decimal
+	RealisedPNL   decimal.Decimal
 }
 
 // Detail contains all properties of an order

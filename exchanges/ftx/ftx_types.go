@@ -3,7 +3,6 @@ package ftx
 import (
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -883,7 +882,7 @@ type StakeReward struct {
 }
 
 // CollateralWeightHolder stores collateral weights over the lifecycle of the application
-type CollateralWeightHolder map[currency.Code]CollateralWeight
+type CollateralWeightHolder map[string]CollateralWeight
 
 type CollateralWeight struct {
 	Initial   float64

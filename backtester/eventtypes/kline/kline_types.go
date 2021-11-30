@@ -1,6 +1,8 @@
 package kline
 
 import (
+	"time"
+
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 )
@@ -15,4 +17,11 @@ type Kline struct {
 	High             decimal.Decimal
 	Volume           decimal.Decimal
 	ValidationIssues string
+	FuturesData      *FuturesData
+}
+
+type FuturesData struct {
+	Time          time.Time
+	MarkPrice     decimal.Decimal
+	PrevMarkPrice decimal.Decimal
 }

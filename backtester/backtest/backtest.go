@@ -253,7 +253,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string) (*BackTest, 
 		}
 		if cfg.CurrencySettings[i].FuturesDetails != nil {
 			portSet.MaximumOrdersWithLeverageRatio = cfg.CurrencySettings[i].FuturesDetails.Leverage.MaximumOrdersWithLeverageRatio
-			portSet.MaxLeverageRate = cfg.CurrencySettings[i].FuturesDetails.Leverage.MaximumLeverageRate
+			portSet.MaxLeverageRate = cfg.CurrencySettings[i].FuturesDetails.Leverage.MaximumOrderLeverageRate
 		}
 		portfolioRisk.CurrencySettings[cfg.CurrencySettings[i].ExchangeName][a][curr] = portSet
 		if cfg.CurrencySettings[i].MakerFee.GreaterThan(cfg.CurrencySettings[i].TakerFee) {
@@ -550,7 +550,7 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 			if cfg.CurrencySettings[i].FuturesDetails != nil {
 				lev = exchange.Leverage{
 					CanUseLeverage:                 cfg.CurrencySettings[i].FuturesDetails.Leverage.CanUseLeverage,
-					MaximumLeverageRate:            cfg.CurrencySettings[i].FuturesDetails.Leverage.MaximumLeverageRate,
+					MaximumLeverageRate:            cfg.CurrencySettings[i].FuturesDetails.Leverage.MaximumOrderLeverageRate,
 					MaximumOrdersWithLeverageRatio: cfg.CurrencySettings[i].FuturesDetails.Leverage.MaximumOrdersWithLeverageRatio,
 				}
 			}

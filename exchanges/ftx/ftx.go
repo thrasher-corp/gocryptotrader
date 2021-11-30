@@ -1471,7 +1471,7 @@ func (f *FTX) FetchExchangeLimits(ctx context.Context) ([]order.MinMaxLevel, err
 }
 
 func (f *FTX) CalculateCollateral(code currency.Code, amount, price float64, isPositiveBalance bool) (float64, error) {
-	collateralWeight, ok := f.collateralWeight[code]
+	collateralWeight, ok := f.collateralWeight[code.Upper().String()]
 	if !ok {
 		return 0, errCoinMustBeSpecified
 	}
@@ -1486,7 +1486,7 @@ func (f *FTX) CalculateCollateral(code currency.Code, amount, price float64, isP
 }
 
 func (f *FTX) CalculateExpectedPosition(code currency.Code, positionSize float64, side order.Side) (float64, error) {
-	collateralWeight, ok := f.collateralWeight[code]
+	collateralWeight, ok := f.collateralWeight[code.Upper().String()]
 	if !ok {
 		return 0, errCoinMustBeSpecified
 	}
@@ -1496,136 +1496,136 @@ func (f *FTX) CalculateExpectedPosition(code currency.Code, positionSize float64
 // LoadCollateralWeightings sets the collateral weights for
 // currencies supported by FTX
 func (f *FTX) LoadCollateralWeightings() error {
-	f.collateralWeight = make(map[currency.Code]CollateralWeight)
+	f.collateralWeight = make(map[string]CollateralWeight)
 	// taken from https://help.ftx.com/hc/en-us/articles/360031149632-Non-USD-Collateral
 	// sets default, then uses the latest from FTX
-	f.collateralWeight.load(currency.NewCode("1INCH"), 0.9, 0.85, 0.0005)
-	f.collateralWeight.load(currency.NewCode("AAPL"), 0.9, 0.85, 0.005)
-	f.collateralWeight.load(currency.NewCode("AAVE"), 0.9, 0.85, 0.0025)
-	f.collateralWeight.load(currency.NewCode("ABNB"), 0.9, 0.85, 0.005)
-	f.collateralWeight.load(currency.NewCode("ACB"), 0.9, 0.85, 0.0025)
-	f.collateralWeight.load(currency.NewCode("ALPHA"), 0.9, 0.85, 0.00025)
-	f.collateralWeight.load(currency.NewCode("AMC"), 0.9, 0.85, 0.0025)
-	f.collateralWeight.load(currency.NewCode("AMD"), 0.9, 0.85, 0.005)
-	f.collateralWeight.load(currency.NewCode("AMZN"), 0.9, 0.85, 0.03)
-	f.collateralWeight.load(currency.NewCode("APHA"), 0.9, 0.85, 0.001)
-	f.collateralWeight.load(currency.NewCode("ARKK"), 0.9, 0.85, 0.005)
-	f.collateralWeight.load(currency.NewCode("AUD"), 0.99, 0.98, 0.00001)
-	f.collateralWeight.load(currency.NewCode("BABA"), 0.9, 0.85, 0.01)
-	f.collateralWeight.load(currency.NewCode("BADGER"), 0.85, 0.8, 0.0025)
-	f.collateralWeight.load(currency.NewCode("BAND"), 0.85, 0.8, 0.001)
-	f.collateralWeight.load(currency.NewCode("BAO"), 0.85, 0.8, 0.000025)
-	f.collateralWeight.load(currency.NewCode("BB"), 0.9, 0.85, 0.0025)
-	f.collateralWeight.load(currency.NewCode("BCH"), 0.95, 0.9, 0.0008)
-	f.collateralWeight.load(currency.NewCode("BILI"), 0.9, 0.85, 0.005)
-	f.collateralWeight.load(currency.NewCode("BITW"), 0.9, 0.85, 0.005)
-	f.collateralWeight.load(currency.NewCode("BNB"), 0.95, 0.9, 0.0005)
-	f.collateralWeight.load(currency.NewCode("BNT"), 0.9, 0.85, 0.0025)
-	f.collateralWeight.load(currency.NewCode("BNTX"), 0.9, 0.85, 0.005)
-	f.collateralWeight.load(currency.NewCode("BRL"), 0.99, 0.98, 0.00001)
-	f.collateralWeight.load(currency.NewCode("BRZ"), 0.99, 0.98, 0.00001)
-	f.collateralWeight.load(currency.NewCode("BTC"), 0.975, 0.95, 0.002)
-	f.collateralWeight.load(currency.NewCode("BTMX"), 0.7, 0.65, 0.0008)
-	f.collateralWeight.load(currency.NewCode("BUSD"), 1, 1, 0)
-	f.collateralWeight.load(currency.NewCode("BVOL"), 0.85, 0.8, 0.005)
-	f.collateralWeight.load(currency.NewCode("BYND"), 0.9, 0.85, 0.0075)
-	f.collateralWeight.load(currency.NewCode("CAD"), 0.99, 0.98, 0.00001)
-	f.collateralWeight.load(currency.NewCode("CEL"), 0.85, 0.8, 0.001)
-	f.collateralWeight.load(currency.NewCode("CGC"), 0.9, 0.85, 0.0025)
-	f.collateralWeight.load(currency.NewCode("CHF"), 0.99, 0.98, 0.00001)
-	f.collateralWeight.load(currency.NewCode("COIN"), 0.85, 0.8, 0.01)
-	f.collateralWeight.load(currency.NewCode("COMP"), 0.9, 0.85, 0.002)
-	f.collateralWeight.load(currency.NewCode("COPE"), 0.6, 0.55, 0.02)
-	f.collateralWeight.load(currency.NewCode("CRON"), 0.9, 0.85, 0.001)
-	f.collateralWeight.load(currency.NewCode("CUSDT"), 0.9, 0.85, 0.00001)
-	f.collateralWeight.load(currency.NewCode("DAI"), 0.9, 0.85, 0.00005)
-	f.collateralWeight.load(currency.NewCode("DOGE"), 0.95, 0.9, 0.00002)
-	f.collateralWeight.load(currency.NewCode("ETH"), 0.95, 0.9, 0.0004)
-	f.collateralWeight.load(currency.NewCode("STETH"), 0.9, 0.85, 0.0012)
-	f.collateralWeight.load(currency.NewCode("ETHE"), 0.9, 0.85, 0.0025)
-	f.collateralWeight.load(currency.NewCode("EUR"), 0.99, 0.98, 0.00001)
-	f.collateralWeight.load(currency.NewCode("FB"), 0.9, 0.85, 0.01)
-	f.collateralWeight.load(currency.NewCode("FIDA"), 0.85, 0.8, 0.001)
-	f.collateralWeight.load(currency.NewCode("FTM"), 0.85, 0.8, 0.0005)
-	f.collateralWeight.load(currency.NewCode("FTT"), 0.95, 0.95, 0.0005)
-	f.collateralWeight.load(currency.NewCode("GBP"), 0.99, 0.98, 0.00001)
-	f.collateralWeight.load(currency.NewCode("GBTC"), 0.9, 0.85, 0.0025)
-	f.collateralWeight.load(currency.NewCode("GDX"), 0.9, 0.85, 0.0025)
-	f.collateralWeight.load(currency.NewCode("GDXJ"), 0.9, 0.85, 0.005)
-	f.collateralWeight.load(currency.NewCode("GLD"), 0.9, 0.85, 0.005)
-	f.collateralWeight.load(currency.NewCode("GLXY"), 0.9, 0.85, 0.005)
-	f.collateralWeight.load(currency.NewCode("GME"), 0.9, 0.85, 0.005)
-	f.collateralWeight.load(currency.NewCode("GOOGL"), 0.9, 0.85, 0.025)
-	f.collateralWeight.load(currency.NewCode("GRT"), 0.9, 0.85, 0.00025)
-	f.collateralWeight.load(currency.NewCode("HKD"), 0.99, 0.98, 0.00001)
-	f.collateralWeight.load(currency.NewCode("HOLY"), 0.9, 0.85, 0.0005)
-	f.collateralWeight.load(currency.NewCode("HOOD"), 0.85, 0.8, 0.005)
-	f.collateralWeight.load(currency.NewCode("HT"), 0.9, 0.85, 0.0003)
-	f.collateralWeight.load(currency.NewCode("HUSD"), 1, 1, 0)
-	f.collateralWeight.load(currency.NewCode("HXRO"), 0.85, 0.8, 0.001)
-	f.collateralWeight.load(currency.NewCode("IBVOL"), 0.85, 0.8, 0.015)
-	f.collateralWeight.load(currency.NewCode("KIN"), 0.85, 0.8, 0.000008)
-	f.collateralWeight.load(currency.NewCode("KNC"), 0.95, 0.9, 0.001)
-	f.collateralWeight.load(currency.NewCode("LEO"), 0.85, 0.8, 0.001)
-	f.collateralWeight.load(currency.NewCode("LINK"), 0.95, 0.9, 0.0004)
-	f.collateralWeight.load(currency.NewCode("LRC"), 0.85, 0.8, 0.0005)
-	f.collateralWeight.load(currency.NewCode("LTC"), 0.95, 0.9, 0.0004)
-	f.collateralWeight.load(currency.NewCode("MATIC"), 0.85, 0.8, 0.00004)
-	f.collateralWeight.load(currency.NewCode("MKR"), 0.9, 0.85, 0.007)
-	f.collateralWeight.load(currency.NewCode("MOB"), 0.6, 0.55, 0.005)
-	f.collateralWeight.load(currency.NewCode("MRNA"), 0.9, 0.85, 0.005)
-	f.collateralWeight.load(currency.NewCode("MSTR"), 0.9, 0.85, 0.008)
-	f.collateralWeight.load(currency.NewCode("NFLX"), 0.9, 0.85, 0.01)
-	f.collateralWeight.load(currency.NewCode("NIO"), 0.9, 0.85, 0.004)
-	f.collateralWeight.load(currency.NewCode("NOK"), 0.9, 0.85, 0.001)
-	f.collateralWeight.load(currency.NewCode("NVDA"), 0.9, 0.85, 0.01)
-	f.collateralWeight.load(currency.NewCode("OKB"), 0.9, 0.85, 0.0003)
-	f.collateralWeight.load(currency.NewCode("OMG"), 0.85, 0.8, 0.001)
-	f.collateralWeight.load(currency.NewCode("USDP"), 1, 1, 0)
-	f.collateralWeight.load(currency.NewCode("PAXG"), 0.95, 0.9, 0.002)
-	f.collateralWeight.load(currency.NewCode("PENN"), 0.9, 0.85, 0.005)
-	f.collateralWeight.load(currency.NewCode("PFE"), 0.9, 0.85, 0.004)
-	f.collateralWeight.load(currency.NewCode("PYPL"), 0.9, 0.85, 0.008)
-	f.collateralWeight.load(currency.NewCode("RAY"), 0.85, 0.8, 0.0005)
-	f.collateralWeight.load(currency.NewCode("REN"), 0.9, 0.85, 0.00025)
-	f.collateralWeight.load(currency.NewCode("RSR"), 0.85, 0.8, 0.0001)
-	f.collateralWeight.load(currency.NewCode("RUNE"), 0.85, 0.8, 0.001)
-	f.collateralWeight.load(currency.NewCode("SECO"), 0.9, 0.85, 0.0005)
-	f.collateralWeight.load(currency.NewCode("SGD"), 0.99, 0.98, 0.00001)
-	f.collateralWeight.load(currency.NewCode("SLV"), 0.9, 0.85, 0.0025)
-	f.collateralWeight.load(currency.NewCode("SNX"), 0.85, 0.8, 0.001)
-	f.collateralWeight.load(currency.NewCode("SOL"), 0.9, 0.85, 0.0004)
-	f.collateralWeight.load(currency.NewCode("STSOL"), 0.9, 0.85, 0.0004)
-	f.collateralWeight.load(currency.NewCode("MSOL"), 0.9, 0.85, 0.0004)
-	f.collateralWeight.load(currency.NewCode("SPY"), 0.9, 0.85, 0.01)
-	f.collateralWeight.load(currency.NewCode("SQ"), 0.9, 0.85, 0.008)
-	f.collateralWeight.load(currency.NewCode("SRM"), 0.9, 0.85, 0.0005)
-	f.collateralWeight.load(currency.NewCode("SUSHI"), 0.95, 0.9, 0.001)
-	f.collateralWeight.load(currency.NewCode("SXP"), 0.9, 0.85, 0.0005)
-	f.collateralWeight.load(currency.NewCode("TLRY"), 0.9, 0.85, 0.001)
-	f.collateralWeight.load(currency.NewCode("TOMO"), 0.85, 0.8, 0.0005)
-	f.collateralWeight.load(currency.NewCode("TRX"), 0.9, 0.85, 0.00001)
-	f.collateralWeight.load(currency.NewCode("TRY"), 0.99, 0.98, 0.00001)
-	f.collateralWeight.load(currency.NewCode("TRYB"), 0.9, 0.85, 0.00001)
-	f.collateralWeight.load(currency.NewCode("TSLA"), 0.9, 0.85, 0.01)
-	f.collateralWeight.load(currency.NewCode("TSM"), 0.9, 0.85, 0.015)
-	f.collateralWeight.load(currency.NewCode("TUSD"), 1, 1, 0)
-	f.collateralWeight.load(currency.NewCode("TWTR"), 0.9, 0.85, 0.004)
-	f.collateralWeight.load(currency.NewCode("UBER"), 0.9, 0.85, 0.004)
-	f.collateralWeight.load(currency.NewCode("UNI"), 0.95, 0.9, 0.001)
-	f.collateralWeight.load(currency.NewCode("USD"), 1, 1, 0)
-	f.collateralWeight.load(currency.NewCode("USDC"), 1, 1, 0)
-	f.collateralWeight.load(currency.NewCode("USDT"), 0.975, 0.95, 0.00001)
-	f.collateralWeight.load(currency.NewCode("USO"), 0.9, 0.85, 0.0025)
-	f.collateralWeight.load(currency.NewCode("WBTC"), 0.975, 0.95, 0.005)
-	f.collateralWeight.load(currency.NewCode("WUSDC"), 1, 1, 0)
-	f.collateralWeight.load(currency.NewCode("WUSDT"), 0.975, 0.95, 0.00001)
-	f.collateralWeight.load(currency.NewCode("XAUT"), 0.95, 0.9, 0.002)
-	f.collateralWeight.load(currency.NewCode("XRP"), 0.95, 0.9, 0.00002)
-	f.collateralWeight.load(currency.NewCode("YFI"), 0.9, 0.85, 0.015)
-	f.collateralWeight.load(currency.NewCode("ZAR"), 0.99, 0.98, 0.00001)
-	f.collateralWeight.load(currency.NewCode("ZM"), 0.9, 0.85, 0.01)
-	f.collateralWeight.load(currency.NewCode("ZRX"), 0.85, 0.8, 0.001)
+	f.collateralWeight.load("1INCH", 0.9, 0.85, 0.0005)
+	f.collateralWeight.load("AAPL", 0.9, 0.85, 0.005)
+	f.collateralWeight.load("AAVE", 0.9, 0.85, 0.0025)
+	f.collateralWeight.load("ABNB", 0.9, 0.85, 0.005)
+	f.collateralWeight.load("ACB", 0.9, 0.85, 0.0025)
+	f.collateralWeight.load("ALPHA", 0.9, 0.85, 0.00025)
+	f.collateralWeight.load("AMC", 0.9, 0.85, 0.0025)
+	f.collateralWeight.load("AMD", 0.9, 0.85, 0.005)
+	f.collateralWeight.load("AMZN", 0.9, 0.85, 0.03)
+	f.collateralWeight.load("APHA", 0.9, 0.85, 0.001)
+	f.collateralWeight.load("ARKK", 0.9, 0.85, 0.005)
+	f.collateralWeight.load("AUD", 0.99, 0.98, 0.00001)
+	f.collateralWeight.load("BABA", 0.9, 0.85, 0.01)
+	f.collateralWeight.load("BADGER", 0.85, 0.8, 0.0025)
+	f.collateralWeight.load("BAND", 0.85, 0.8, 0.001)
+	f.collateralWeight.load("BAO", 0.85, 0.8, 0.000025)
+	f.collateralWeight.load("BB", 0.9, 0.85, 0.0025)
+	f.collateralWeight.load("BCH", 0.95, 0.9, 0.0008)
+	f.collateralWeight.load("BILI", 0.9, 0.85, 0.005)
+	f.collateralWeight.load("BITW", 0.9, 0.85, 0.005)
+	f.collateralWeight.load("BNB", 0.95, 0.9, 0.0005)
+	f.collateralWeight.load("BNT", 0.9, 0.85, 0.0025)
+	f.collateralWeight.load("BNTX", 0.9, 0.85, 0.005)
+	f.collateralWeight.load("BRL", 0.99, 0.98, 0.00001)
+	f.collateralWeight.load("BRZ", 0.99, 0.98, 0.00001)
+	f.collateralWeight.load("BTC", 0.975, 0.95, 0.002)
+	f.collateralWeight.load("BTMX", 0.7, 0.65, 0.0008)
+	f.collateralWeight.load("BUSD", 1, 1, 0)
+	f.collateralWeight.load("BVOL", 0.85, 0.8, 0.005)
+	f.collateralWeight.load("BYND", 0.9, 0.85, 0.0075)
+	f.collateralWeight.load("CAD", 0.99, 0.98, 0.00001)
+	f.collateralWeight.load("CEL", 0.85, 0.8, 0.001)
+	f.collateralWeight.load("CGC", 0.9, 0.85, 0.0025)
+	f.collateralWeight.load("CHF", 0.99, 0.98, 0.00001)
+	f.collateralWeight.load("COIN", 0.85, 0.8, 0.01)
+	f.collateralWeight.load("COMP", 0.9, 0.85, 0.002)
+	f.collateralWeight.load("COPE", 0.6, 0.55, 0.02)
+	f.collateralWeight.load("CRON", 0.9, 0.85, 0.001)
+	f.collateralWeight.load("CUSDT", 0.9, 0.85, 0.00001)
+	f.collateralWeight.load("DAI", 0.9, 0.85, 0.00005)
+	f.collateralWeight.load("DOGE", 0.95, 0.9, 0.00002)
+	f.collateralWeight.load("ETH", 0.95, 0.9, 0.0004)
+	f.collateralWeight.load("STETH", 0.9, 0.85, 0.0012)
+	f.collateralWeight.load("ETHE", 0.9, 0.85, 0.0025)
+	f.collateralWeight.load("EUR", 0.99, 0.98, 0.00001)
+	f.collateralWeight.load("FB", 0.9, 0.85, 0.01)
+	f.collateralWeight.load("FIDA", 0.85, 0.8, 0.001)
+	f.collateralWeight.load("FTM", 0.85, 0.8, 0.0005)
+	f.collateralWeight.load("FTT", 0.95, 0.95, 0.0005)
+	f.collateralWeight.load("GBP", 0.99, 0.98, 0.00001)
+	f.collateralWeight.load("GBTC", 0.9, 0.85, 0.0025)
+	f.collateralWeight.load("GDX", 0.9, 0.85, 0.0025)
+	f.collateralWeight.load("GDXJ", 0.9, 0.85, 0.005)
+	f.collateralWeight.load("GLD", 0.9, 0.85, 0.005)
+	f.collateralWeight.load("GLXY", 0.9, 0.85, 0.005)
+	f.collateralWeight.load("GME", 0.9, 0.85, 0.005)
+	f.collateralWeight.load("GOOGL", 0.9, 0.85, 0.025)
+	f.collateralWeight.load("GRT", 0.9, 0.85, 0.00025)
+	f.collateralWeight.load("HKD", 0.99, 0.98, 0.00001)
+	f.collateralWeight.load("HOLY", 0.9, 0.85, 0.0005)
+	f.collateralWeight.load("HOOD", 0.85, 0.8, 0.005)
+	f.collateralWeight.load("HT", 0.9, 0.85, 0.0003)
+	f.collateralWeight.load("HUSD", 1, 1, 0)
+	f.collateralWeight.load("HXRO", 0.85, 0.8, 0.001)
+	f.collateralWeight.load("IBVOL", 0.85, 0.8, 0.015)
+	f.collateralWeight.load("KIN", 0.85, 0.8, 0.000008)
+	f.collateralWeight.load("KNC", 0.95, 0.9, 0.001)
+	f.collateralWeight.load("LEO", 0.85, 0.8, 0.001)
+	f.collateralWeight.load("LINK", 0.95, 0.9, 0.0004)
+	f.collateralWeight.load("LRC", 0.85, 0.8, 0.0005)
+	f.collateralWeight.load("LTC", 0.95, 0.9, 0.0004)
+	f.collateralWeight.load("MATIC", 0.85, 0.8, 0.00004)
+	f.collateralWeight.load("MKR", 0.9, 0.85, 0.007)
+	f.collateralWeight.load("MOB", 0.6, 0.55, 0.005)
+	f.collateralWeight.load("MRNA", 0.9, 0.85, 0.005)
+	f.collateralWeight.load("MSTR", 0.9, 0.85, 0.008)
+	f.collateralWeight.load("NFLX", 0.9, 0.85, 0.01)
+	f.collateralWeight.load("NIO", 0.9, 0.85, 0.004)
+	f.collateralWeight.load("NOK", 0.9, 0.85, 0.001)
+	f.collateralWeight.load("NVDA", 0.9, 0.85, 0.01)
+	f.collateralWeight.load("OKB", 0.9, 0.85, 0.0003)
+	f.collateralWeight.load("OMG", 0.85, 0.8, 0.001)
+	f.collateralWeight.load("USDP", 1, 1, 0)
+	f.collateralWeight.load("PAXG", 0.95, 0.9, 0.002)
+	f.collateralWeight.load("PENN", 0.9, 0.85, 0.005)
+	f.collateralWeight.load("PFE", 0.9, 0.85, 0.004)
+	f.collateralWeight.load("PYPL", 0.9, 0.85, 0.008)
+	f.collateralWeight.load("RAY", 0.85, 0.8, 0.0005)
+	f.collateralWeight.load("REN", 0.9, 0.85, 0.00025)
+	f.collateralWeight.load("RSR", 0.85, 0.8, 0.0001)
+	f.collateralWeight.load("RUNE", 0.85, 0.8, 0.001)
+	f.collateralWeight.load("SECO", 0.9, 0.85, 0.0005)
+	f.collateralWeight.load("SGD", 0.99, 0.98, 0.00001)
+	f.collateralWeight.load("SLV", 0.9, 0.85, 0.0025)
+	f.collateralWeight.load("SNX", 0.85, 0.8, 0.001)
+	f.collateralWeight.load("SOL", 0.9, 0.85, 0.0004)
+	f.collateralWeight.load("STSOL", 0.9, 0.85, 0.0004)
+	f.collateralWeight.load("MSOL", 0.9, 0.85, 0.0004)
+	f.collateralWeight.load("SPY", 0.9, 0.85, 0.01)
+	f.collateralWeight.load("SQ", 0.9, 0.85, 0.008)
+	f.collateralWeight.load("SRM", 0.9, 0.85, 0.0005)
+	f.collateralWeight.load("SUSHI", 0.95, 0.9, 0.001)
+	f.collateralWeight.load("SXP", 0.9, 0.85, 0.0005)
+	f.collateralWeight.load("TLRY", 0.9, 0.85, 0.001)
+	f.collateralWeight.load("TOMO", 0.85, 0.8, 0.0005)
+	f.collateralWeight.load("TRX", 0.9, 0.85, 0.00001)
+	f.collateralWeight.load("TRY", 0.99, 0.98, 0.00001)
+	f.collateralWeight.load("TRYB", 0.9, 0.85, 0.00001)
+	f.collateralWeight.load("TSLA", 0.9, 0.85, 0.01)
+	f.collateralWeight.load("TSM", 0.9, 0.85, 0.015)
+	f.collateralWeight.load("TUSD", 1, 1, 0)
+	f.collateralWeight.load("TWTR", 0.9, 0.85, 0.004)
+	f.collateralWeight.load("UBER", 0.9, 0.85, 0.004)
+	f.collateralWeight.load("UNI", 0.95, 0.9, 0.001)
+	f.collateralWeight.load("USD", 1, 1, 0)
+	f.collateralWeight.load("USDC", 1, 1, 0)
+	f.collateralWeight.load("USDT", 0.975, 0.95, 0.00001)
+	f.collateralWeight.load("USO", 0.9, 0.85, 0.0025)
+	f.collateralWeight.load("WBTC", 0.975, 0.95, 0.005)
+	f.collateralWeight.load("WUSDC", 1, 1, 0)
+	f.collateralWeight.load("WUSDT", 0.975, 0.95, 0.00001)
+	f.collateralWeight.load("XAUT", 0.95, 0.9, 0.002)
+	f.collateralWeight.load("XRP", 0.95, 0.9, 0.00002)
+	f.collateralWeight.load("YFI", 0.9, 0.85, 0.015)
+	f.collateralWeight.load("ZAR", 0.99, 0.98, 0.00001)
+	f.collateralWeight.load("ZM", 0.9, 0.85, 0.01)
+	f.collateralWeight.load("ZRX", 0.85, 0.8, 0.001)
 
 	if !f.GetAuthenticatedAPISupport(exchange.RestAuthentication) {
 		return nil
@@ -1639,7 +1639,7 @@ func (f *FTX) LoadCollateralWeightings() error {
 		if !coins[i].Collateral {
 			continue
 		}
-		f.collateralWeight.loadTotal(currency.NewCode(coins[i].ID), coins[i].CollateralWeight)
+		f.collateralWeight.loadTotal(coins[i].ID, coins[i].CollateralWeight)
 	}
 
 	futures, err := f.GetFutures(ctx)
@@ -1647,7 +1647,7 @@ func (f *FTX) LoadCollateralWeightings() error {
 		return err
 	}
 	for i := range futures {
-		f.collateralWeight.loadIMF(currency.NewCode(futures[i].Underlying), futures[i].IMFFactor)
+		f.collateralWeight.loadIMF(futures[i].Underlying, futures[i].IMFFactor)
 	}
 
 	return nil
@@ -1657,7 +1657,7 @@ func (c CollateralWeightHolder) isLoaded() bool {
 	return len(c) > 0
 }
 
-func (c CollateralWeightHolder) loadTotal(code currency.Code, weighting float64) {
+func (c CollateralWeightHolder) loadTotal(code string, weighting float64) {
 	butts, ok := c[code]
 	if !ok {
 		butts = CollateralWeight{Total: weighting}
@@ -1667,7 +1667,7 @@ func (c CollateralWeightHolder) loadTotal(code currency.Code, weighting float64)
 	c[code] = butts
 }
 
-func (c CollateralWeightHolder) loadIMF(code currency.Code, imf float64) {
+func (c CollateralWeightHolder) loadIMF(code string, imf float64) {
 	butts, ok := c[code]
 	if !ok {
 		butts = CollateralWeight{IMFFactor: imf}
@@ -1677,7 +1677,7 @@ func (c CollateralWeightHolder) loadIMF(code currency.Code, imf float64) {
 	c[code] = butts
 }
 
-func (c CollateralWeightHolder) load(code currency.Code, initial, total, imfFactor float64) {
+func (c CollateralWeightHolder) load(code string, initial, total, imfFactor float64) {
 	c[code] = CollateralWeight{
 		Initial:   initial,
 		Total:     total,
