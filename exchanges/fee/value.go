@@ -29,30 +29,6 @@ func Convert(f float64) Value {
 	return Standard{Decimal: decimal.NewFromFloat(f)}
 }
 
-// ConvertWithAmount takes in two fees for when fees are based on amount
-// thresholds
-func ConvertWithAmount(feeWhenLower, feeWhenHigherOrEqual, amount float64) Value {
-	return Switch{
-		FeeWhenLower:         decimal.NewFromFloat(feeWhenLower),
-		FeeWhenHigherOrEqual: decimal.NewFromFloat(feeWhenHigherOrEqual),
-		Amount:               decimal.NewFromFloat(amount),
-	}
-}
-
-// ConvertBlockchain is a placeholder for blockchain specific fees
-func ConvertBlockchain(blockchain string) Value {
-	return Blockchain(blockchain)
-}
-
-// ConvertWithMaxAndMin returns a fee value with maximum and minimum fees
-func ConvertWithMaxAndMin(fee, maximum, minimum float64) Value {
-	return MinMax{
-		Fee:     decimal.NewFromFloat(fee),
-		Maximum: decimal.NewFromFloat(maximum),
-		Minimum: decimal.NewFromFloat(minimum),
-	}
-}
-
 // Standard standard float fee
 type Standard struct {
 	decimal.Decimal
@@ -85,6 +61,16 @@ func (s Standard) LessThan(val Value) (bool, error) {
 	return s.GreaterThan(decimal.Zero) &&
 		other.GreaterThan(decimal.Zero) &&
 		s.Decimal.LessThan(other.Decimal), nil
+}
+
+// ConvertWithAmount takes in two fees for when fees are based on amount
+// thresholds
+func ConvertWithAmount(feeWhenLower, feeWhenHigherOrEqual, amount float64) Value {
+	return Switch{
+		FeeWhenLower:         decimal.NewFromFloat(feeWhenLower),
+		FeeWhenHigherOrEqual: decimal.NewFromFloat(feeWhenHigherOrEqual),
+		Amount:               decimal.NewFromFloat(amount),
+	}
 }
 
 // Switch defines a holder for upper and lower bands of fees based on an amount
@@ -128,6 +114,11 @@ func (s Switch) LessThan(_ Value) (bool, error) {
 	return false, errCannotCompare
 }
 
+// ConvertBlockchain is a placeholder for blockchain specific fees
+func ConvertBlockchain(blockchain string) Value {
+	return Blockchain(blockchain)
+}
+
 // Blockchain is a subtype implementing the value interface to designate
 // certain fee options as a blockchain componant. This will be deprecated in
 // the future when another PR can help resolve this.
@@ -144,16 +135,25 @@ func (b Blockchain) Display() (string, error) {
 }
 
 // Display implements Value interface
-func (s Blockchain) Validate() error {
-	if s == "" {
+func (b Blockchain) Validate() error {
+	if b == "" {
 		return errBlockchainEmpty
 	}
 	return nil
 }
 
 // Display implements Value interface
-func (s Blockchain) LessThan(_ Value) (bool, error) {
+func (b Blockchain) LessThan(_ Value) (bool, error) {
 	return false, errCannotCompare
+}
+
+// ConvertWithMaxAndMin returns a fee value with maximum and minimum fees
+func ConvertWithMaxAndMin(fee, maximum, minimum float64) Value {
+	return MinMax{
+		Fee:     decimal.NewFromFloat(fee),
+		Maximum: decimal.NewFromFloat(maximum),
+		Minimum: decimal.NewFromFloat(minimum),
+	}
 }
 
 // MinMax implements the value interface for when there are min and max fees
