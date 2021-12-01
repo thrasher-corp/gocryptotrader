@@ -51,7 +51,8 @@ func NewFeeDefinitions() *Definitions {
 // TODO: Eventually upgrade with key manager for different fees associated
 // with different accounts/keys.
 type Definitions struct {
-	// Commission is the holder for the up to date comission rates for the assets.
+	// Commission is the holder for the up to date commission rates for the
+	// assets.
 	globalCommissions map[asset.Item]*CommissionInternal
 	// pairCommissions is the holder for the up to date commissions rates for
 	// the specific trading pairs.
@@ -409,7 +410,7 @@ func (d *Definitions) GetAllFees() (Options, error) {
 			out := val.convert()
 			out.Currency = currency.Code{Item: currencyItem, UpperCase: true}
 			out.Chain = chain
-			op.ChainTransfer = append(op.ChainTransfer, out)
+			op.ChainTransfer = append(op.ChainTransfer, *out)
 		}
 	}
 
@@ -418,7 +419,7 @@ func (d *Definitions) GetAllFees() (Options, error) {
 			out := val.convert()
 			out.Currency = currency.Code{Item: currencyItem, UpperCase: true}
 			out.BankTransfer = bankProtocol
-			op.BankTransfer = append(op.BankTransfer, out)
+			op.BankTransfer = append(op.BankTransfer, *out)
 		}
 	}
 	return op, nil
@@ -451,20 +452,20 @@ func (d *Definitions) SetCommissionFee(a asset.Item, pair currency.Pair, maker, 
 
 // GetTransferFee returns a snapshot of the current transfer fees for the
 // asset type.
-func (d *Definitions) GetTransferFee(c currency.Code, chain string) (Transfer, error) {
+func (d *Definitions) GetTransferFee(c currency.Code, chain string) (*Transfer, error) {
 	if d == nil {
-		return Transfer{}, ErrDefinitionsAreNil
+		return nil, ErrDefinitionsAreNil
 	}
 
 	if c.String() == "" {
-		return Transfer{}, errCurrencyIsEmpty
+		return nil, errCurrencyIsEmpty
 	}
 
 	d.mtx.RLock()
 	defer d.mtx.RUnlock()
 	t, ok := d.chainTransfer[c.Item][chain]
 	if !ok {
-		return Transfer{}, errRateNotFound
+		return nil, errRateNotFound
 	}
 	return t.convert(), nil
 }
@@ -508,25 +509,25 @@ func (d *Definitions) SetTransferFee(c currency.Code, chain string, withdraw, de
 
 // GetBankTransferFee returns a snapshot of the current bank transfer fees for
 // the asset.
-func (d *Definitions) GetBankTransferFee(c currency.Code, transType bank.Transfer) (Transfer, error) {
+func (d *Definitions) GetBankTransferFee(c currency.Code, transType bank.Transfer) (*Transfer, error) {
 	if d == nil {
-		return Transfer{}, ErrDefinitionsAreNil
+		return nil, ErrDefinitionsAreNil
 	}
 
 	if c.String() == "" {
-		return Transfer{}, errCurrencyIsEmpty
+		return nil, errCurrencyIsEmpty
 	}
 
 	err := transType.Validate()
 	if err != nil {
-		return Transfer{}, err
+		return nil, err
 	}
 
 	d.mtx.RLock()
 	defer d.mtx.RUnlock()
 	t, ok := d.bankTransfer[transType][c.Item]
 	if !ok {
-		return Transfer{}, errRateNotFound
+		return nil, errRateNotFound
 	}
 	return t.convert(), nil
 }
@@ -600,7 +601,7 @@ func (d *Definitions) LoadChainTransferFees(fees []Transfer) error {
 			m1[fees[x].Chain] = fees[x].convert()
 			continue
 		}
-		err = val.update(fees[x])
+		err = val.update(&fees[x])
 		if err != nil {
 			return fmt.Errorf("loading crypto fees error: %w", err)
 		}

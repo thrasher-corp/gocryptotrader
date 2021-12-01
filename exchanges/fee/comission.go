@@ -27,7 +27,7 @@ type Commission struct {
 	// the orderbooks
 	WorstCaseMaker float64
 	// WorstCaseTaker defines the worst case fee when you remove liqudity for
-	//the orderbooks
+	// the orderbooks
 	WorstCaseTaker float64
 }
 
@@ -91,7 +91,7 @@ type CommissionInternal struct {
 	// the orderbooks
 	worstCaseMaker decimal.Decimal
 	// WorstCaseTaker defines the worst case fee when you remove liqudity for
-	//the orderbooks
+	// the orderbooks
 	worstCaseTaker decimal.Decimal
 
 	mtx sync.Mutex // protected so this can be exported for external strategies

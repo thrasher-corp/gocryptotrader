@@ -46,7 +46,7 @@ type Transfer struct {
 }
 
 // convert returns an internal transfer struct
-func (t Transfer) convert() *transfer {
+func (t *Transfer) convert() *transfer {
 	c := transfer{Percentage: t.IsPercentage}
 	if t.Deposit != nil {
 		c.DepositEnabled = true
@@ -73,7 +73,7 @@ func (t Transfer) convert() *transfer {
 }
 
 // validate validates transfer values
-func (t Transfer) validate() error {
+func (t *Transfer) validate() error {
 	if t.Currency.IsEmpty() {
 		return errCurrencyIsEmpty
 	}
@@ -165,8 +165,8 @@ type transfer struct {
 
 // convert returns an package exportable type snapshot of current internal
 // transfer details
-func (t transfer) convert() Transfer {
-	return Transfer{
+func (t *transfer) convert() *Transfer {
+	return &Transfer{
 		IsPercentage:      t.Percentage,
 		Deposit:           t.Deposit,
 		MaximumDeposit:    t.MaximumDeposit,
@@ -178,9 +178,13 @@ func (t transfer) convert() Transfer {
 }
 
 // update updates using incoming transfer information
-func (t *transfer) update(incoming Transfer) error {
+func (t *transfer) update(incoming *Transfer) error {
 	if t == nil {
-		return errTransferIsNil
+		return fmt.Errorf("internal %w", errTransferIsNil)
+	}
+
+	if incoming == nil {
+		return fmt.Errorf("incoming %w", errTransferIsNil)
 	}
 
 	if t.Percentage != incoming.IsPercentage {
@@ -223,12 +227,14 @@ func (t *transfer) update(incoming Transfer) error {
 }
 
 // calculate returns the transfer fee total based on internal loaded values
-func (t transfer) calculate(val Value, amount float64) (float64, error) {
+func (t *transfer) calculate(val Value, amount float64) (float64, error) {
 	if amount == 0 {
 		return 0, errAmountIsZero
 	}
 	// When getting fee it is highly dependant on underlying interface value
 	// see value.go for different amount tier systems definitions.
+	// NOTE: The amount param is used to validate if this potential transaction
+	// can succeed based on value interface requirements.
 	fee, err := val.GetFee(amount)
 	if err != nil {
 		return 0, err

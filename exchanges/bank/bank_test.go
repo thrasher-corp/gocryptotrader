@@ -6,6 +6,7 @@ import (
 )
 
 func TestString(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		Value  Transfer
 		Return string

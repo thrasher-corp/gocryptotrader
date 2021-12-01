@@ -715,7 +715,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Response:   getDepositAddressResponse,
 		})
 
-		var transferFee fee.Transfer
+		var transferFee *fee.Transfer
 		transferFee, err = e.GetTransferFee(currency.BTC, "")
 		msg = ""
 		if err != nil {
@@ -759,7 +759,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		if len(fiat) == 0 {
 			fiat = currency.Currencies{currency.BTC}
 		}
-		var bankTransferFee fee.Transfer
+		var bankTransferFee *fee.Transfer
 		bankTransferFee, err = e.GetBankTransferFee(fiat[0], bank.WireTransfer)
 		msg = ""
 		if err != nil {

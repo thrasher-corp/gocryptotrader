@@ -170,7 +170,6 @@ func (b *Bitstamp) GetBalance(ctx context.Context) (Balances, error) {
 		if ID.IsEmpty() {
 			ID = currency.NewCode(serviceID[0])
 		} else {
-
 			translations, ok := stableTranslation[ID.Item]
 			if !ok && !strings.Contains(serviceID[0], ID.String()) {
 				ID = currency.NewCode(serviceID[0])

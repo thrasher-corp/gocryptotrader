@@ -207,7 +207,7 @@ func TestValueConvertConvertWithMinimumAmount(t *testing.T) {
 		t.Fatal("unexpected result")
 	}
 
-	fee, err = val.GetFee(4.9)
+	_, err = val.GetFee(4.9)
 	if !errors.Is(err, errAmountIsLessThanMinimumRequired) {
 		t.Fatalf("received: %v but expected: %v", err, errAmountIsLessThanMinimumRequired)
 	}

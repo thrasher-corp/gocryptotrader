@@ -115,8 +115,7 @@ func (i *ItBit) Setup(exch *config.Exchange) error {
 		i.SetEnabled(false)
 		return nil
 	}
-	err := i.SetupDefaults(exch)
-	if err != nil {
+	if err := i.SetupDefaults(exch); err != nil {
 		return err
 	}
 	// NOTE: Cannot confirm fees

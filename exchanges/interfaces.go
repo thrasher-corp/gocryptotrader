@@ -108,11 +108,11 @@ type FeeManagement interface {
 	SetCommissionFee(a asset.Item, pair currency.Pair, maker, taker float64, isSetAmount bool) error
 
 	UpdateTransferFees(ctx context.Context) error
-	GetTransferFee(c currency.Code, chain string) (fee.Transfer, error)
+	GetTransferFee(c currency.Code, chain string) (*fee.Transfer, error)
 	SetTransferFee(c currency.Code, chain string, withdraw, deposit float64, isPercentage bool) error
 
 	UpdateBankTransferFees(ctx context.Context) error
-	GetBankTransferFee(c currency.Code, transType bank.Transfer) (fee.Transfer, error)
+	GetBankTransferFee(c currency.Code, transType bank.Transfer) (*fee.Transfer, error)
 	SetBankTransferFee(c currency.Code, transType bank.Transfer, withdraw, deposit float64, isPercentage bool) error
 }
 

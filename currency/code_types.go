@@ -2497,7 +2497,7 @@ var (
 	NAFT             = NewCode("NAFT")
 	SHIBLITE         = NewCode("SHIBLITE")
 	BHD              = NewCode("BHD")
-	THN              = NewCode("THN")
+	THN              = NewCode("THN") // nolint:misspell // false positive
 	DOGEDASH         = NewCode("DOGEDASH")
 	FARA             = NewCode("FARA")
 	FIL120           = NewCode("FIL120")
@@ -2797,7 +2797,7 @@ var (
 	SBR              = NewCode("SBR")
 	BMARS            = NewCode("BMARS")
 	GOMI             = NewCode("GOMI")
-	ONOT             = NewCode("ONOT")
+	ONOT             = NewCode("ONOT") // nolint:misspell // false positive
 	GOKU             = NewCode("GOKU")
 	MINTYS           = NewCode("MINTYS")
 	PONYO            = NewCode("PONYO")

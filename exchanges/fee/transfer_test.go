@@ -9,7 +9,7 @@ import (
 )
 
 func TestConvert(t *testing.T) {
-	internal := Transfer{
+	tr := Transfer{
 		Deposit:        Convert(1),
 		MinimumDeposit: Convert(2),
 		MaximumDeposit: Convert(3),
@@ -17,7 +17,9 @@ func TestConvert(t *testing.T) {
 		Withdrawal:        Convert(4),
 		MinimumWithdrawal: Convert(5),
 		MaximumWithdrawal: Convert(6),
-	}.convert()
+	}
+
+	internal := tr.convert()
 
 	if !internal.DepositEnabled {
 		t.Fatal("should be enabled")
@@ -177,13 +179,17 @@ func TestValidate(t *testing.T) {
 
 func TestUpdate(t *testing.T) {
 	var tr *transfer
-	err := tr.update(Transfer{})
+	err := tr.update(&Transfer{})
 	if !errors.Is(err, errTransferIsNil) {
 		t.Fatalf("received: %v but expected: %v", err, errTransferIsNil)
 	}
 
 	tr = new(transfer)
-	incoming := Transfer{
+	err = tr.update(nil)
+	if !errors.Is(err, errTransferIsNil) {
+		t.Fatalf("received: %v but expected: %v", err, errTransferIsNil)
+	}
+	incoming := &Transfer{
 		Deposit:        Convert(1),
 		MinimumDeposit: Convert(2),
 		MaximumDeposit: Convert(3),
@@ -254,7 +260,7 @@ func TestUpdate(t *testing.T) {
 		t.Fatal("unexpected value")
 	}
 
-	err = tr.update(Transfer{})
+	err = tr.update(&Transfer{})
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: %v but expected: %v", err, nil)
 	}

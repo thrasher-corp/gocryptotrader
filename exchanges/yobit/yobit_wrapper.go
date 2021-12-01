@@ -121,11 +121,9 @@ func (y *Yobit) Setup(exch *config.Exchange) error {
 		y.SetEnabled(false)
 		return nil
 	}
-	err := y.SetupDefaults(exch)
-	if err != nil {
+	if err := y.SetupDefaults(exch); err != nil {
 		return err
 	}
-
 	return y.Fees.LoadStaticFees(fee.Options{
 		GlobalCommissions: map[asset.Item]fee.Commission{
 			asset.Spot: {Maker: 0.002, Taker: 0.002},
@@ -694,12 +692,12 @@ func (y *Yobit) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pa
 // UpdateCommissionFees updates current fees associated with account
 // NOTE: Commission rates don't seem to be scaled by trading volume and there
 // is no maker taker differentiation.
-func (b *Yobit) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
+func (y *Yobit) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
 	if a != asset.Spot {
 		return fmt.Errorf("%s: %w", a, asset.ErrNotSupported)
 	}
 
-	info, err := b.GetInfo(ctx)
+	info, err := y.GetInfo(ctx)
 	if err != nil {
 		return err
 	}
@@ -709,7 +707,7 @@ func (b *Yobit) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
 		if err != nil {
 			return err
 		}
-		err = b.Fees.LoadDynamicFeeRate(val.Fee/100, val.Fee/100, a, pair)
+		err = y.Fees.LoadDynamicFeeRate(val.Fee/100, val.Fee/100, a, pair)
 		if err != nil {
 			return err
 		}

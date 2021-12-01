@@ -117,8 +117,8 @@ func (b *Bitflyer) Setup(exch *config.Exchange) error {
 		b.SetEnabled(false)
 		return nil
 	}
-	err := b.SetupDefaults(exch)
-	if err != nil {
+
+	if err := b.SetupDefaults(exch); err != nil {
 		return err
 	}
 

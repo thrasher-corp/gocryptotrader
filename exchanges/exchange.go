@@ -1482,7 +1482,7 @@ func (b *Base) SetCommissionFee(a asset.Item, pair currency.Pair, maker, taker f
 }
 
 // GetTransferFee returns the transfer fees to and from an exchange via crypto
-func (b *Base) GetTransferFee(c currency.Code, chain string) (fee.Transfer, error) {
+func (b *Base) GetTransferFee(c currency.Code, chain string) (*fee.Transfer, error) {
 	return b.Fees.GetTransferFee(c, chain)
 }
 
@@ -1493,7 +1493,7 @@ func (b *Base) SetTransferFee(c currency.Code, chain string, withdraw, deposit f
 
 // GetBankTransferFee returns the transfer fees to and from an exchange via
 // a bankerino
-func (b *Base) GetBankTransferFee(c currency.Code, transType bank.Transfer) (fee.Transfer, error) {
+func (b *Base) GetBankTransferFee(c currency.Code, transType bank.Transfer) (*fee.Transfer, error) {
 	return b.Fees.GetBankTransferFee(c, transType)
 }
 

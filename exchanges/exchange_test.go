@@ -2421,56 +2421,49 @@ func TestAssetWebsocketFunctionality(t *testing.T) {
 
 func TestGetAllFees(t *testing.T) {
 	t.Parallel()
-	_, err := (&Base{}).GetAllFees()
-	if !errors.Is(err, fee.ErrDefinitionsAreNil) {
+	if _, err := (&Base{}).GetAllFees(); !errors.Is(err, fee.ErrDefinitionsAreNil) {
 		t.Fatalf("received: %v but expected: %v", err, fee.ErrDefinitionsAreNil)
 	}
 }
 
 func TestGetCommissionFee(t *testing.T) {
 	t.Parallel()
-	_, err := (&Base{}).GetCommissionFee(asset.Spot, fee.OmitPair)
-	if !errors.Is(err, fee.ErrDefinitionsAreNil) {
+	if _, err := (&Base{}).GetCommissionFee(asset.Spot, fee.OmitPair); !errors.Is(err, fee.ErrDefinitionsAreNil) {
 		t.Fatalf("received: %v but expected: %v", err, fee.ErrDefinitionsAreNil)
 	}
 }
 
 func TestSetCommissionFee(t *testing.T) {
 	t.Parallel()
-	err := (&Base{}).SetCommissionFee(asset.Spot, fee.OmitPair, -1, -1, true)
-	if !errors.Is(err, fee.ErrDefinitionsAreNil) {
+	if err := (&Base{}).SetCommissionFee(asset.Spot, fee.OmitPair, -1, -1, true); !errors.Is(err, fee.ErrDefinitionsAreNil) {
 		t.Fatalf("received: %v but expected: %v", err, fee.ErrDefinitionsAreNil)
 	}
 }
 
 func TestGetTransferFee(t *testing.T) {
 	t.Parallel()
-	_, err := (&Base{}).GetTransferFee(currency.Code{}, "")
-	if !errors.Is(err, fee.ErrDefinitionsAreNil) {
+	if _, err := (&Base{}).GetTransferFee(currency.Code{}, ""); !errors.Is(err, fee.ErrDefinitionsAreNil) {
 		t.Fatalf("received: %v but expected: %v", err, fee.ErrDefinitionsAreNil)
 	}
 }
 
 func TestSetTransferFee(t *testing.T) {
 	t.Parallel()
-	err := (&Base{}).SetTransferFee(currency.Code{}, "", 0, 0, false)
-	if !errors.Is(err, fee.ErrDefinitionsAreNil) {
+	if err := (&Base{}).SetTransferFee(currency.Code{}, "", 0, 0, false); !errors.Is(err, fee.ErrDefinitionsAreNil) {
 		t.Fatalf("received: %v but expected: %v", err, fee.ErrDefinitionsAreNil)
 	}
 }
 
 func TestGetBankTransferFee(t *testing.T) {
 	t.Parallel()
-	_, err := (&Base{}).GetBankTransferFee(currency.Code{}, 0)
-	if !errors.Is(err, fee.ErrDefinitionsAreNil) {
+	if _, err := (&Base{}).GetBankTransferFee(currency.Code{}, 0); !errors.Is(err, fee.ErrDefinitionsAreNil) {
 		t.Fatalf("received: %v but expected: %v", err, fee.ErrDefinitionsAreNil)
 	}
 }
 
 func TestSetBankTransferFee(t *testing.T) {
 	t.Parallel()
-	err := (&Base{}).SetBankTransferFee(currency.Code{}, 0, -1, -1, true)
-	if !errors.Is(err, fee.ErrDefinitionsAreNil) {
+	if err := (&Base{}).SetBankTransferFee(currency.Code{}, 0, -1, -1, true); !errors.Is(err, fee.ErrDefinitionsAreNil) {
 		t.Fatalf("received: %v but expected: %v", err, fee.ErrDefinitionsAreNil)
 	}
 }
