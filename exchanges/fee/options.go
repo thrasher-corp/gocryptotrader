@@ -51,7 +51,11 @@ func (o Options) validate() error {
 	}
 
 	for x := range o.BankTransfer {
-		err := o.BankTransfer[x].validate()
+		err := o.BankTransfer[x].BankTransfer.Validate()
+		if err != nil {
+			return fmt.Errorf("bank transfer error: %w", err)
+		}
+		err = o.BankTransfer[x].validate()
 		if err != nil {
 			return fmt.Errorf("bank transfer error: %w", err)
 		}

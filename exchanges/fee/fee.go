@@ -3,6 +3,7 @@ package fee
 import (
 	"errors"
 	"fmt"
+	"math"
 	"sync"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -75,28 +76,19 @@ func (d *Definitions) LoadDynamicFeeRate(maker, taker float64, a asset.Item, pai
 	if d == nil {
 		return ErrDefinitionsAreNil
 	}
-	if maker > taker {
-		return errMakerBiggerThanTaker
-	}
 
-	if maker >= defaultPercentageRateThreshold {
-		return fmt.Errorf("%w exceeds percentage rate threshold %f",
-			errMakerInvalid,
-			defaultPercentageRateThreshold)
-	}
-	if taker >= defaultPercentageRateThreshold {
-		return fmt.Errorf("%w exceeds percentage rate threshold %f",
-			errTakerInvalid,
-			defaultPercentageRateThreshold)
+	if err := checkCommissionRates(maker, taker); err != nil {
+		return err
 	}
 
 	if !a.IsValid() {
 		return fmt.Errorf("%s: %w", a, asset.ErrNotSupported)
 	}
 
+	var c *CommissionInternal
+
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
-	var c *CommissionInternal
 	if !pair.IsEmpty() {
 		// NOTE: These will create maps when needed, this system can initially
 		// start out as a global commission rate and is updated ad-hoc.
@@ -198,27 +190,15 @@ func (d *Definitions) GetCommissionFee(a asset.Item, pair currency.Pair) (*Commi
 // getCommission returns the internal commission rate based on provided params
 func (d *Definitions) getCommission(a asset.Item, pair currency.Pair) (*CommissionInternal, error) {
 	if len(d.pairCommissions) != 0 && !pair.IsEmpty() {
-		m1, ok := d.pairCommissions[a]
-		if !ok {
-			return nil, fmt.Errorf("pair %w", errCommissionRateNotFound)
+		if c, ok := d.pairCommissions[a][pair.Base.Item][pair.Quote.Item]; ok {
+			return c, nil
 		}
-
-		m2, ok := m1[pair.Base.Item]
-		if !ok {
-			return nil, fmt.Errorf("pair %w", errCommissionRateNotFound)
-		}
-
-		c, ok := m2[pair.Quote.Item]
-		if !ok {
-			return nil, fmt.Errorf("pair %w", errCommissionRateNotFound)
-		}
+		return nil, fmt.Errorf("pair %w for %s %s", errCommissionRateNotFound, a, pair)
+	}
+	if c, ok := d.globalCommissions[a]; ok {
 		return c, nil
 	}
-	c, ok := d.globalCommissions[a]
-	if !ok {
-		return nil, fmt.Errorf("global %w", errCommissionRateNotFound)
-	}
-	return c, nil
+	return nil, fmt.Errorf("global %w for %s", errCommissionRateNotFound, a)
 }
 
 // CalculateMaker returns the fee amount derived from the price, amount and fee
@@ -446,13 +426,14 @@ func (d *Definitions) GetAllFees() (Options, error) {
 
 // SetCommissionFee sets new global fees and forces custom control for that
 // asset. TODO: Add write control when this gets changed.
-func (d *Definitions) SetCommissionFee(a asset.Item, pair currency.Pair, maker, taker float64, setAmount bool) error {
+func (d *Definitions) SetCommissionFee(a asset.Item, pair currency.Pair, maker, taker float64, isFixedAmount bool) error {
 	if d == nil {
 		return ErrDefinitionsAreNil
 	}
 
-	if taker < 0 {
-		return errTakerInvalid
+	err := checkCommissionRates(maker, taker)
+	if err != nil {
+		return err
 	}
 
 	if !a.IsValid() {
@@ -465,7 +446,7 @@ func (d *Definitions) SetCommissionFee(a asset.Item, pair currency.Pair, maker, 
 	if err != nil {
 		return err
 	}
-	return c.set(maker, taker, setAmount)
+	return c.set(maker, taker, isFixedAmount)
 }
 
 // GetTransferFee returns a snapshot of the current transfer fees for the
@@ -627,36 +608,22 @@ func (d *Definitions) LoadChainTransferFees(fees []Transfer) error {
 	return nil
 }
 
-// LoadBankTransferFees allows the loading of current banking transfer fees for
-// banking deposit and withdrawals
-func (d *Definitions) LoadBankTransferFees(fees map[bank.Transfer]map[currency.Code]Transfer) error {
-	if d == nil {
-		return ErrDefinitionsAreNil
+// checkCommissionRates checks and validates maker and taker rates
+func checkCommissionRates(maker, taker float64) error {
+	if maker > taker {
+		return errMakerBiggerThanTaker
 	}
 
-	if len(fees) == 0 {
-		return errNoTransferFees
+	// Abs so we check threshold levels in positive and negative direction.
+	if math.Abs(maker) >= defaultPercentageRateThreshold {
+		return fmt.Errorf("%w exceeds percentage rate threshold %f",
+			errMakerInvalid,
+			defaultPercentageRateThreshold)
 	}
-
-	d.mtx.Lock()
-	defer d.mtx.Unlock()
-	for bankType, m1 := range fees {
-		for code, incomingVal := range m1 {
-			trAssets, ok := d.bankTransfer[bankType]
-			if !ok {
-				trAssets = make(map[*currency.Item]*transfer)
-				d.bankTransfer[bankType] = trAssets
-			}
-			trVal, ok := trAssets[code.Item]
-			if !ok {
-				trAssets[code.Item] = incomingVal.convert()
-				continue
-			}
-			err := trVal.update(incomingVal)
-			if err != nil {
-				return fmt.Errorf("loading banking fees error: %w", err)
-			}
-		}
+	if math.Abs(taker) >= defaultPercentageRateThreshold {
+		return fmt.Errorf("%w exceeds percentage rate threshold %f",
+			errTakerInvalid,
+			defaultPercentageRateThreshold)
 	}
 	return nil
 }

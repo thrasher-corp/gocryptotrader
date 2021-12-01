@@ -2,6 +2,7 @@ package fee
 
 import (
 	"fmt"
+	"math"
 	"sync"
 
 	"github.com/shopspring/decimal"
@@ -15,9 +16,9 @@ var defaultPercentageRateThreshold = 0.15
 
 // Commission defines a trading fee structure snapshot
 type Commission struct {
-	// IsSetAmount defines if the value is a set amount (15 USD) rather than a
+	// isFixedAmount defines if the value is a set amount (15 USD) rather than a
 	// percentage e.g. 0.8% == 0.008.
-	IsSetAmount bool
+	IsFixedAmount bool
 	// Maker defines the fee when you provide liqudity for the orderbooks
 	Maker float64
 	// Taker defines the fee when you remove liqudity for the orderbooks
@@ -44,7 +45,7 @@ func (c Commission) convert() *CommissionInternal {
 		wct = decimal.NewFromFloat(c.Taker)
 	}
 	return &CommissionInternal{
-		setAmount:      c.IsSetAmount,
+		isFixedAmount:  c.IsFixedAmount,
 		maker:          decimal.NewFromFloat(c.Maker),
 		taker:          decimal.NewFromFloat(c.Taker),
 		worstCaseMaker: wcm,
@@ -60,13 +61,14 @@ func (c Commission) validate() error {
 		return errMakerBiggerThanTaker
 	}
 
-	if !c.IsSetAmount {
-		if c.Maker >= defaultPercentageRateThreshold {
+	if !c.IsFixedAmount {
+		// Abs so we check threshold levels in positive and negative direction.
+		if math.Abs(c.Maker) >= defaultPercentageRateThreshold {
 			return fmt.Errorf("%w exceeds percentage rate threshold %f",
 				errMakerInvalid,
 				defaultPercentageRateThreshold)
 		}
-		if c.Taker >= defaultPercentageRateThreshold {
+		if math.Abs(c.Taker) >= defaultPercentageRateThreshold {
 			return fmt.Errorf("%w exceeds percentage rate threshold %f",
 				errTakerInvalid,
 				defaultPercentageRateThreshold)
@@ -78,9 +80,9 @@ func (c Commission) validate() error {
 
 // CommissionInternal defines a trading fee structure for internal tracking
 type CommissionInternal struct {
-	// SetAmount defines if the value is a set amount (15 USD) rather than a
-	// percentage e.g. 0.8% == 0.008.
-	setAmount bool
+	// isFixedAmount defines if the value is a fixed amount (15 USD) rather than
+	// a percentage e.g. 0.8% == 0.008.
+	isFixedAmount bool
 	// Maker defines the fee when you provide liqudity for the orderbooks
 	maker decimal.Decimal
 	// Taker defines the fee when you remove liqudity for the orderbooks
@@ -104,7 +106,7 @@ func (c *CommissionInternal) convert() Commission {
 	worstCaseMaker, _ := c.worstCaseMaker.Float64()
 	worstCaseTaker, _ := c.worstCaseTaker.Float64()
 	return Commission{
-		IsSetAmount:    c.setAmount,
+		IsFixedAmount:  c.isFixedAmount,
 		Maker:          maker,
 		Taker:          taker,
 		WorstCaseMaker: worstCaseMaker,
@@ -169,43 +171,43 @@ func (c *CommissionInternal) CalculateWorstCaseTaker(price, amount float64) (flo
 }
 
 // GetMaker returns the maker fee and type
-func (c *CommissionInternal) GetMaker() (fee float64, isSetAmount bool) {
+func (c *CommissionInternal) GetMaker() (fee float64, isFixedAmount bool) {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
 	rVal, _ := c.maker.Float64()
-	return rVal, c.setAmount
+	return rVal, c.isFixedAmount
 }
 
 // GetTaker returns the taker fee and type
-func (c *CommissionInternal) GetTaker() (fee float64, isSetAmount bool) {
+func (c *CommissionInternal) GetTaker() (fee float64, isFixedAmount bool) {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
 	rVal, _ := c.taker.Float64()
-	return rVal, c.setAmount
+	return rVal, c.isFixedAmount
 }
 
 // GetWorstCaseMaker returns the worst-case maker fee and type
-func (c *CommissionInternal) GetWorstCaseMaker() (fee float64, isSetAmount bool) {
+func (c *CommissionInternal) GetWorstCaseMaker() (fee float64, isFixedAmount bool) {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
 	rVal, _ := c.worstCaseMaker.Float64()
-	return rVal, c.setAmount
+	return rVal, c.isFixedAmount
 }
 
 // GetWorstCaseTaker returns the worst-case taker fee and type
-func (c *CommissionInternal) GetWorstCaseTaker() (fee float64, isSetAmount bool) {
+func (c *CommissionInternal) GetWorstCaseTaker() (fee float64, isFixedAmount bool) {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
 	rVal, _ := c.worstCaseTaker.Float64()
-	return rVal, c.setAmount
+	return rVal, c.isFixedAmount
 }
 
 // set sets the commision values for update
-func (c *CommissionInternal) set(maker, taker float64, setAmount bool) error {
+func (c *CommissionInternal) set(maker, taker float64, isFixedAmount bool) error {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
 	// These should not change, and a package update might need to occur.
-	if c.setAmount != setAmount {
+	if c.isFixedAmount != isFixedAmount {
 		return errFeeTypeMismatch
 	}
 	c.maker = decimal.NewFromFloat(maker)
@@ -216,7 +218,7 @@ func (c *CommissionInternal) set(maker, taker float64, setAmount bool) error {
 // calculate returns the commission fee total based on internal loaded values
 func (c *CommissionInternal) calculate(fee decimal.Decimal, price, amount float64) (float64, error) {
 	// TODO: Add fees based on volume of this asset
-	if c.setAmount {
+	if c.isFixedAmount {
 		// Returns the whole number
 		setValue, _ := fee.Float64()
 		return setValue, nil

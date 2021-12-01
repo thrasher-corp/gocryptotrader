@@ -8,9 +8,13 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-var errInvalid = errors.New("invalid value")
+var (
+	errInvalid         = errors.New("invalid value")
+	errCannotCompare   = errors.New("cannot compare")
+	errBlockchainEmpty = errors.New("blockchain string is empty")
+)
 
-// Value defines fee value calculation functionality
+// Value defines custom fee value calculation functionality
 type Value interface {
 	GetFee(amount float64) (decimal.Decimal, error)
 	Display() (string, error)
@@ -18,13 +22,13 @@ type Value interface {
 	LessThan(val Value) (bool, error)
 }
 
-// Convert returns a pointer to a float64 for use in explicit exported
-// parameters to define functionality
+// Convert returns a "Standard" struct depicting a single float value that
+// implements the value interface.
 func Convert(f float64) Value {
 	return Standard{Decimal: decimal.NewFromFloat(f)}
 }
 
-// ConvertWithAmount takes in two fees for when fees are based of amount
+// ConvertWithAmount takes in two fees for when fees are based on amount
 // thresholds
 func ConvertWithAmount(feeWhenLower, feeWhenHigherOrEqual, amount float64) Value {
 	return Switch{
@@ -75,7 +79,7 @@ func (s Standard) Validate() error {
 func (s Standard) LessThan(val Value) (bool, error) {
 	other, ok := val.(Standard)
 	if !ok {
-		return false, fmt.Errorf("cannot compare a non standard value %t", val)
+		return false, fmt.Errorf("%w a non standard value %t", errCannotCompare, val)
 	}
 	return s.GreaterThan(decimal.Zero) &&
 		other.GreaterThan(decimal.Zero) &&
@@ -101,10 +105,7 @@ func (s Switch) GetFee(amount float64) (decimal.Decimal, error) {
 // Display implements Value interface
 func (s Switch) Display() (string, error) {
 	data, err := json.Marshal(s)
-	if err != nil {
-		return "", err
-	}
-	return string(data), nil
+	return string(data), err
 }
 
 // Display implements Value interface
@@ -123,7 +124,7 @@ func (s Switch) Validate() error {
 
 // Display implements Value interface
 func (s Switch) LessThan(_ Value) (bool, error) {
-	return false, errors.New("cannot compare")
+	return false, errCannotCompare
 }
 
 // Blockchain is a subtype implementing the value interface to designate
@@ -144,14 +145,14 @@ func (b Blockchain) Display() (string, error) {
 // Display implements Value interface
 func (s Blockchain) Validate() error {
 	if s == "" {
-		return errors.New("blockchain string is empty")
+		return errBlockchainEmpty
 	}
 	return nil
 }
 
 // Display implements Value interface
 func (s Blockchain) LessThan(_ Value) (bool, error) {
-	return false, errors.New("cannot compare")
+	return false, errCannotCompare
 }
 
 // MinMax implements the value interface for when there are min and max fees
@@ -177,29 +178,26 @@ func (m MinMax) GetFee(amount float64) (decimal.Decimal, error) {
 // Display implements Value interface
 func (m MinMax) Display() (string, error) {
 	data, err := json.Marshal(m)
-	if err != nil {
-		return "", err
-	}
-	return string(data), nil
+	return string(data), err
 }
 
 // Display implements Value interface
 func (m MinMax) Validate() error {
 	if m.Fee.LessThan(decimal.Zero) {
-		return errors.New("invalid fee")
+		return fmt.Errorf("%w fee", errInvalid)
 	}
 	if m.Maximum.LessThan(decimal.Zero) {
-		return errors.New("invalid maximum fee")
+		return fmt.Errorf("%w maximum fee", errInvalid)
 	}
 	if m.Minimum.LessThan(decimal.Zero) {
-		return errors.New("invalid minimum fee")
+		return fmt.Errorf("%w minimum fee", errInvalid)
 	}
 	return nil
 }
 
 // Display implements Value interface
 func (m MinMax) LessThan(_ Value) (bool, error) {
-	return false, errors.New("cannot compare")
+	return false, errCannotCompare
 }
 
 // ConvertWithMinimumAmount returns a value with a minimum amount required
@@ -216,11 +214,13 @@ type WithMinimumAmount struct {
 	Fee           decimal.Decimal `json:"fee"`
 }
 
+var errAmountIsLessThanMinimumRequired = errors.New("amount is less than minimum required")
+
 // GetFee implements Value interface
 func (m WithMinimumAmount) GetFee(amount float64) (decimal.Decimal, error) {
 	amt := decimal.NewFromFloat(amount)
 	if amt.LessThan(m.MinimumAmount) {
-		return decimal.Zero, errors.New("amount is less than minimum")
+		return decimal.Zero, errAmountIsLessThanMinimumRequired
 	}
 	return m.Fee, nil
 }
@@ -228,24 +228,21 @@ func (m WithMinimumAmount) GetFee(amount float64) (decimal.Decimal, error) {
 // Display implements Value interface
 func (m WithMinimumAmount) Display() (string, error) {
 	data, err := json.Marshal(m)
-	if err != nil {
-		return "", err
-	}
-	return string(data), nil
+	return string(data), err
 }
 
 // Display implements Value interface
 func (m WithMinimumAmount) Validate() error {
 	if m.Fee.LessThan(decimal.Zero) {
-		return fmt.Errorf("invalid fee %s", m.Fee)
+		return fmt.Errorf("%w fee %s", errInvalid, m.Fee)
 	}
 	if m.MinimumAmount.LessThanOrEqual(decimal.Zero) {
-		return fmt.Errorf("invalid minimum amount %s", m.MinimumAmount)
+		return fmt.Errorf("%w minimum amount %s", errInvalid, m.MinimumAmount)
 	}
 	return nil
 }
 
 // LessThan implements Value interface
 func (m WithMinimumAmount) LessThan(_ Value) (bool, error) {
-	return false, errors.New("cannot compare")
+	return false, errCannotCompare
 }

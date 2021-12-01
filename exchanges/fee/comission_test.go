@@ -9,16 +9,16 @@ import (
 
 func TestExternalInternalConvert(t *testing.T) {
 	c := Commission{
-		IsSetAmount: true,
-		Maker:       1,
-		Taker:       2,
+		IsFixedAmount: true,
+		Maker:         1,
+		Taker:         2,
 	}
 
 	cInternal := c.convert()
 	if cInternal == nil {
 		t.Fatal("should not be nil")
 	}
-	if !c.IsSetAmount {
+	if !c.IsFixedAmount {
 		t.Fatal("unexpected value")
 	}
 	if !cInternal.maker.Equal(one) {
@@ -36,7 +36,7 @@ func TestExternalInternalConvert(t *testing.T) {
 
 	c = cInternal.convert()
 
-	if !c.IsSetAmount {
+	if !c.IsFixedAmount {
 		t.Fatal("unexpected value")
 	}
 	if c.Maker != 1 {
@@ -225,7 +225,7 @@ func TestInternalSet(t *testing.T) {
 }
 
 func TestInternalCalculate(t *testing.T) {
-	v, err := (&CommissionInternal{setAmount: true}).calculate(two, 50000, 1)
+	v, err := (&CommissionInternal{isFixedAmount: true}).calculate(two, 50000, 1)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: %v but expected: %v", err, nil)
 	}

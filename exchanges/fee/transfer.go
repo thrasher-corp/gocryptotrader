@@ -17,11 +17,11 @@ var (
 )
 
 // Transfer defines usually static whole number values. But has the option of
-// being percentage value. Pointer values to define functionality. NOTE: Please
-// use fee package Convert function to define pointer type.
+// being percentage value. NOTE: Please see value.go for Value interface
+// functionality and general implementations.
 type Transfer struct {
-	// IsPercentage defines if the transfer fee is a percentage rather than a set
-	// amount.
+	// IsPercentage defines if the transfer fee is a percentage rather than a
+	// fixed amount.
 	IsPercentage bool
 	// Deposit defines a deposit fee
 	Deposit Value
@@ -37,7 +37,7 @@ type Transfer struct {
 	MaximumWithdrawal Value
 	// Currency defines a currency identifier
 	Currency currency.Code
-	// Defines the chain that it can be withdrawn or depositted with. e.g. BEP20
+	// Defines the chain that it can be withdrawn or deposited with. e.g. BEP20
 	// for BNB or other wrapped tokens on the same protocol.
 	Chain string
 	// BankTransfer defines the bank transfer protocol for delivering or
@@ -74,6 +74,9 @@ func (t Transfer) convert() *transfer {
 
 // validate validates transfer values
 func (t Transfer) validate() error {
+	if t.Currency.IsEmpty() {
+		return errCurrencyIsEmpty
+	}
 	if t.Deposit != nil {
 		err := t.Deposit.Validate()
 		if err != nil {
@@ -108,7 +111,6 @@ func (t Transfer) validate() error {
 	if t.Withdrawal != nil {
 		err := t.Withdrawal.Validate()
 		if err != nil {
-			fmt.Println(t)
 			return fmt.Errorf("%s withdrawal %w", t.Currency, err)
 		}
 
@@ -186,6 +188,7 @@ func (t *transfer) update(incoming Transfer) error {
 	}
 
 	if incoming.Deposit != nil {
+		t.DepositEnabled = true
 		t.Deposit = incoming.Deposit
 		if incoming.MinimumDeposit != nil {
 			t.MinimumDeposit = incoming.MinimumDeposit
@@ -193,9 +196,15 @@ func (t *transfer) update(incoming Transfer) error {
 		if incoming.MaximumDeposit != nil {
 			t.MaximumDeposit = incoming.MaximumDeposit
 		}
+	} else {
+		t.DepositEnabled = false
+		t.Deposit = nil
+		t.MaximumDeposit = nil
+		t.MinimumDeposit = nil
 	}
 
 	if incoming.Withdrawal != nil {
+		t.WithdrawalEnabled = true
 		t.Withdrawal = incoming.Withdrawal
 		if incoming.MinimumWithdrawal != nil {
 			t.MinimumWithdrawal = incoming.MinimumWithdrawal
@@ -203,6 +212,11 @@ func (t *transfer) update(incoming Transfer) error {
 		if incoming.MaximumWithdrawal != nil {
 			t.MaximumWithdrawal = incoming.MaximumWithdrawal
 		}
+	} else {
+		t.Withdrawal = nil
+		t.WithdrawalEnabled = false
+		t.MaximumWithdrawal = nil
+		t.MinimumWithdrawal = nil
 	}
 
 	return nil

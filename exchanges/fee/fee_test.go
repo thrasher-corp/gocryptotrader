@@ -26,37 +26,35 @@ func TestLoadDynamicFeeRate(t *testing.T) {
 		t.Fatalf("received: %v but expected: %v", err, ErrDefinitionsAreNil)
 	}
 
-	err = (&Definitions{}).LoadDynamicFeeRate(-1, 0, asset.Spot, OmitPair)
-	if !errors.Is(err, errMakerInvalid) {
-		t.Fatalf("received: %v but expected: %v", err, errMakerInvalid)
-	}
-
-	err = (&Definitions{}).LoadDynamicFeeRate(0, -1, asset.Spot, OmitPair)
-	if !errors.Is(err, errTakerInvalid) {
-		t.Fatalf("received: %v but expected: %v", err, errTakerInvalid)
-	}
-
 	err = (&Definitions{}).LoadDynamicFeeRate(30, 12, asset.Spot, OmitPair)
 	if !errors.Is(err, errMakerBiggerThanTaker) {
 		t.Fatalf("received: %v but expected: %v", err, errMakerBiggerThanTaker)
 	}
 
-	err = (&Definitions{}).LoadDynamicFeeRate(1, 1, "bruh", OmitPair)
+	err = (&Definitions{}).LoadDynamicFeeRate(10, 10, asset.Spot, OmitPair)
+	if !errors.Is(err, errMakerInvalid) {
+		t.Fatalf("received: %v but expected: %v", err, errMakerInvalid)
+	}
+
+	err = (&Definitions{}).LoadDynamicFeeRate(0, 10, asset.Spot, OmitPair)
+	if !errors.Is(err, errTakerInvalid) {
+		t.Fatalf("received: %v but expected: %v", err, errTakerInvalid)
+	}
+
+	err = (&Definitions{}).LoadDynamicFeeRate(.002, .002, "bruh", OmitPair)
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Fatalf("received: %v but expected: %v", err, asset.ErrNotSupported)
 	}
 
-	err = (&Definitions{}).LoadDynamicFeeRate(1, 1, asset.Spot, OmitPair)
+	err = (&Definitions{}).LoadDynamicFeeRate(.002, .002, asset.Spot, OmitPair)
 	if !errors.Is(err, errCommissionRateNotFound) {
 		t.Fatalf("received: %v but expected: %v", err, errCommissionRateNotFound)
 	}
 
 	d := &Definitions{
-		globalCommissions: map[asset.Item]*CommissionInternal{
-			asset.Spot: {},
-		},
+		pairCommissions: make(map[asset.Item]map[*currency.Item]map[*currency.Item]*CommissionInternal),
 	}
-	err = d.LoadDynamicFeeRate(1, 1, asset.Spot, OmitPair)
+	err = d.LoadDynamicFeeRate(.002, .002, asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: %v but expected: %v", err, nil)
 	}
@@ -70,6 +68,7 @@ func TestLoadStaticFees(t *testing.T) {
 
 	d := &Definitions{
 		globalCommissions: make(map[asset.Item]*CommissionInternal),
+		pairCommissions:   make(map[asset.Item]map[*currency.Item]map[*currency.Item]*CommissionInternal),
 		chainTransfer:     make(map[*currency.Item]map[string]*transfer),
 		bankTransfer:      make(map[bank.Transfer]map[*currency.Item]*transfer),
 	}
@@ -86,6 +85,11 @@ func TestLoadStaticFees(t *testing.T) {
 		GlobalCommissions: map[asset.Item]Commission{
 			asset.Spot: {},
 		},
+		PairCommissions: map[asset.Item]map[currency.Pair]Commission{
+			asset.Spot: {
+				currency.NewPair(currency.BTC, currency.USDT): {},
+			},
+		},
 		ChainTransfer: []Transfer{
 			{Currency: currency.BTC},
 		},
@@ -95,6 +99,42 @@ func TestLoadStaticFees(t *testing.T) {
 	})
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: %v but expected: %v", err, nil)
+	}
+}
+
+func TestGetCommision(t *testing.T) {
+	d := &Definitions{
+		pairCommissions: map[asset.Item]map[*currency.Item]map[*currency.Item]*CommissionInternal{
+			asset.Spot: {
+				currency.BTC.Item: {
+					currency.USDT.Item: &CommissionInternal{
+						maker: decimal.NewFromFloat(0.002),
+					},
+				},
+			},
+		},
+		globalCommissions: map[asset.Item]*CommissionInternal{
+			asset.Spot: {maker: decimal.NewFromFloat(0.002)},
+		},
+	}
+
+	_, err := d.getCommission(asset.Spot, currency.NewPair(currency.BTC, currency.POOLZ))
+	if !errors.Is(err, errCommissionRateNotFound) {
+		t.Fatalf("received: %v but expected: %v", err, errCommissionRateNotFound)
+	}
+
+	_, err = d.getCommission(asset.Spot, OmitPair)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v but expected: %v", err, nil)
+	}
+
+	com, err := d.getCommission(asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !com.maker.Equal(decimal.NewFromFloat(0.002)) {
+		t.Fatal("unexpected result", com.maker)
 	}
 }
 
@@ -113,8 +153,8 @@ func TestCalculateMaker(t *testing.T) {
 	}
 
 	_, err = d.CalculateMaker(50000, 1, asset.Futures, OmitPair)
-	if !errors.Is(err, errRateNotFound) {
-		t.Fatalf("received: %v but expected: %v", err, errRateNotFound)
+	if !errors.Is(err, errCommissionRateNotFound) {
+		t.Fatalf("received: %v but expected: %v", err, errCommissionRateNotFound)
 	}
 
 	val, err := d.CalculateMaker(50000, 1, asset.Spot, OmitPair)
@@ -142,8 +182,8 @@ func TestCalculateWorstCaseMaker(t *testing.T) {
 	}
 
 	_, err = d.CalculateWorstCaseMaker(50000, 1, asset.Futures, OmitPair)
-	if !errors.Is(err, errRateNotFound) {
-		t.Fatalf("received: %v but expected: %v", err, errRateNotFound)
+	if !errors.Is(err, errCommissionRateNotFound) {
+		t.Fatalf("received: %v but expected: %v", err, errCommissionRateNotFound)
 	}
 
 	val, err := d.CalculateWorstCaseMaker(50000, 1, asset.Spot, OmitPair)
@@ -169,8 +209,8 @@ func TestGetMaker(t *testing.T) {
 	}
 
 	_, _, err = d.GetMaker(asset.Futures, OmitPair)
-	if !errors.Is(err, errRateNotFound) {
-		t.Fatalf("received: %v but expected: %v", err, errRateNotFound)
+	if !errors.Is(err, errCommissionRateNotFound) {
+		t.Fatalf("received: %v but expected: %v", err, errCommissionRateNotFound)
 	}
 
 	fee, isSetAmount, err := d.GetMaker(asset.Spot, OmitPair)
@@ -200,8 +240,8 @@ func TestCalculateTaker(t *testing.T) {
 	}
 
 	_, err = d.CalculateTaker(50000, 1, asset.Futures, OmitPair)
-	if !errors.Is(err, errRateNotFound) {
-		t.Fatalf("received: %v but expected: %v", err, errRateNotFound)
+	if !errors.Is(err, errCommissionRateNotFound) {
+		t.Fatalf("received: %v but expected: %v", err, errCommissionRateNotFound)
 	}
 
 	val, err := d.CalculateTaker(50000, 1, asset.Spot, OmitPair)
@@ -229,8 +269,8 @@ func TestCalculateWorstCaseTaker(t *testing.T) {
 	}
 
 	_, err = d.CalculateWorstCaseTaker(50000, 1, asset.Futures, OmitPair)
-	if !errors.Is(err, errRateNotFound) {
-		t.Fatalf("received: %v but expected: %v", err, errRateNotFound)
+	if !errors.Is(err, errCommissionRateNotFound) {
+		t.Fatalf("received: %v but expected: %v", err, errCommissionRateNotFound)
 	}
 
 	val, err := d.CalculateWorstCaseTaker(50000, 1, asset.Spot, OmitPair)
@@ -257,8 +297,8 @@ func TestGetTaker(t *testing.T) {
 	}
 
 	_, _, err = d.GetTaker(asset.Futures, OmitPair)
-	if !errors.Is(err, errRateNotFound) {
-		t.Fatalf("received: %v but expected: %v", err, errRateNotFound)
+	if !errors.Is(err, errCommissionRateNotFound) {
+		t.Fatalf("received: %v but expected: %v", err, errCommissionRateNotFound)
 	}
 
 	fee, isSetAmount, err := d.GetTaker(asset.Spot, OmitPair)
@@ -371,11 +411,6 @@ func TestGetWithdrawal(t *testing.T) {
 	}
 
 	_, _, err = (&Definitions{}).GetWithdrawal(currency.BTC, "")
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Fatalf("received: %v but expected: %v", err, asset.ErrNotSupported)
-	}
-
-	_, _, err = (&Definitions{}).GetWithdrawal(currency.BTC, "")
 	if !errors.Is(err, errTransferFeeNotFound) {
 		t.Fatalf("received: %v but expected: %v", err, errTransferFeeNotFound)
 	}
@@ -412,6 +447,9 @@ func TestGetAllFees(t *testing.T) {
 		globalCommissions: map[asset.Item]*CommissionInternal{
 			asset.Spot: {},
 		},
+		pairCommissions: map[asset.Item]map[*currency.Item]map[*currency.Item]*CommissionInternal{
+			asset.Spot: {currency.BTC.Item: {currency.USDT.Item: {}}},
+		},
 		chainTransfer: map[*currency.Item]map[string]*transfer{
 			currency.BTC.Item: {"": {}},
 		},
@@ -432,8 +470,8 @@ func TestGetCommissionFee(t *testing.T) {
 	}
 
 	_, err = (&Definitions{}).GetCommissionFee(asset.Spot, OmitPair)
-	if !errors.Is(err, errRateNotFound) {
-		t.Fatalf("received: %v but expected: %v", err, errRateNotFound)
+	if !errors.Is(err, errCommissionRateNotFound) {
+		t.Fatalf("received: %v but expected: %v", err, errCommissionRateNotFound)
 	}
 
 	_, err = (&Definitions{
@@ -457,19 +495,14 @@ func TestSetCommissionFee(t *testing.T) {
 		t.Fatalf("received: %v but expected: %v", err, errMakerInvalid)
 	}
 
-	err = (&Definitions{}).SetCommissionFee("", OmitPair, 0, -1, true)
-	if !errors.Is(err, errTakerInvalid) {
-		t.Fatalf("received: %v but expected: %v", err, errTakerInvalid)
-	}
-
-	err = (&Definitions{}).SetCommissionFee("", OmitPair, 0, 0, true)
+	err = (&Definitions{}).SetCommissionFee("cows", OmitPair, 0, 0, true)
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Fatalf("received: %v but expected: %v", err, asset.ErrNotSupported)
 	}
 
 	err = (&Definitions{}).SetCommissionFee(asset.Spot, OmitPair, 0, 0, true)
-	if !errors.Is(err, errRateNotFound) {
-		t.Fatalf("received: %v but expected: %v", err, errRateNotFound)
+	if !errors.Is(err, errCommissionRateNotFound) {
+		t.Fatalf("received: %v but expected: %v", err, errCommissionRateNotFound)
 	}
 
 	err = (&Definitions{
@@ -491,11 +524,6 @@ func TestGetTransferFee(t *testing.T) {
 	_, err = (&Definitions{}).GetTransferFee(currency.Code{}, "")
 	if !errors.Is(err, errCurrencyIsEmpty) {
 		t.Fatalf("received: %v but expected: %v", err, errCurrencyIsEmpty)
-	}
-
-	_, err = (&Definitions{}).GetTransferFee(currency.BTC, "")
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Fatalf("received: %v but expected: %v", err, asset.ErrNotSupported)
 	}
 
 	_, err = (&Definitions{}).GetTransferFee(currency.BTC, "")
@@ -527,11 +555,6 @@ func TestSetTransferFee(t *testing.T) {
 	err = (&Definitions{}).SetTransferFee(currency.Code{}, "", 0, -1, true)
 	if !errors.Is(err, errDepositIsInvalid) {
 		t.Fatalf("received: %v but expected: %v", err, errDepositIsInvalid)
-	}
-
-	err = (&Definitions{}).SetTransferFee(currency.Code{}, "", 0, 0, true)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Fatalf("received: %v but expected: %v", err, asset.ErrNotSupported)
 	}
 
 	err = (&Definitions{}).SetTransferFee(currency.Code{}, "", 0, 0, true)
@@ -639,6 +662,49 @@ func TestSetBankTransferFee(t *testing.T) {
 			bank.WireTransfer: {currency.USD.Item: {}},
 		},
 	}).SetBankTransferFee(currency.USD, bank.WireTransfer, 0, 0, true)
+	if !errors.Is(err, errFeeTypeMismatch) {
+		t.Fatalf("received: %v but expected: %v", err, errFeeTypeMismatch)
+	}
+}
+
+func TestLoadChainTransferFees(t *testing.T) {
+	var def *Definitions
+	err := def.LoadChainTransferFees(nil)
+	if !errors.Is(err, ErrDefinitionsAreNil) {
+		t.Fatalf("received: %v but expected: %v", err, ErrDefinitionsAreNil)
+	}
+	def = &Definitions{chainTransfer: make(map[*currency.Item]map[string]*transfer)}
+	err = def.LoadChainTransferFees(nil)
+	if !errors.Is(err, errNoTransferFees) {
+		t.Fatalf("received: %v but expected: %v", err, errNoTransferFees)
+	}
+
+	newTransfers := []Transfer{{
+		Deposit: Convert(-1), // This should fail
+	}}
+
+	err = def.LoadChainTransferFees(newTransfers)
+	if !errors.Is(err, errCurrencyIsEmpty) {
+		t.Fatalf("received: %v but expected: %v", err, errCurrencyIsEmpty)
+	}
+
+	newTransfers = []Transfer{{
+		Currency: currency.BTC,
+		Deposit:  Convert(1),
+	}}
+
+	err = def.LoadChainTransferFees(newTransfers)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v but expected: %v", err, nil)
+	}
+
+	newTransfers = []Transfer{{
+		Currency:     currency.BTC,
+		Deposit:      Convert(2),
+		IsPercentage: true, // This should fail
+	}}
+
+	err = def.LoadChainTransferFees(newTransfers)
 	if !errors.Is(err, errFeeTypeMismatch) {
 		t.Fatalf("received: %v but expected: %v", err, errFeeTypeMismatch)
 	}

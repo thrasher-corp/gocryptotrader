@@ -4073,7 +4073,7 @@ func (s *RPCServer) GetAllFees(_ context.Context, r *gctrpc.GetAllFeesRequest) (
 			Taker:          val.Taker,
 			WorstCaseMaker: val.WorstCaseMaker,
 			WorstCaseTaker: val.WorstCaseTaker,
-			IsSetAmount:    val.IsSetAmount,
+			IsSetAmount:    val.IsFixedAmount,
 		})
 	}
 
@@ -4090,7 +4090,7 @@ func (s *RPCServer) GetAllFees(_ context.Context, r *gctrpc.GetAllFeesRequest) (
 				Taker:          val.Taker,
 				WorstCaseMaker: val.WorstCaseMaker,
 				WorstCaseTaker: val.WorstCaseTaker,
-				IsSetAmount:    val.IsSetAmount,
+				IsSetAmount:    val.IsFixedAmount,
 			})
 		}
 	}
