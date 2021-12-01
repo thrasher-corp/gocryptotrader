@@ -18,7 +18,6 @@ type Event interface {
 	GetSellLimit() decimal.Decimal
 	GetBuyLimit() decimal.Decimal
 	GetAmount() decimal.Decimal
-	GetLinkedOrderID() string
 }
 
 // Signal contains everything needed for a strategy to raise a signal event
@@ -43,9 +42,4 @@ type Signal struct {
 	// the order will not be placed
 	Amount    decimal.Decimal
 	Direction order.Side
-	// CloseOrderID is the order ID of the futures order
-	// to that is being closed. This linking allows the
-	// more detailed order.Futures struct to close out
-	// and have more detailed performance tracking
-	CloseOrderID string
 }

@@ -716,9 +716,9 @@ func TestCalculatePNL(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
-	futuresOrder := &gctorder.Futures{
-		Side: gctorder.Short,
-		OpeningPosition: &gctorder.Detail{
+	futuresOrder := &gctorder.FuturesTracker{
+		CurrentDirection: gctorder.Short,
+		ShortPositions: &gctorder.Detail{
 			Price:     1336,
 			Amount:    20,
 			Exchange:  exch,
@@ -756,7 +756,7 @@ func TestCalculatePNL(t *testing.T) {
 	err = s.ComplianceManager.AddSnapshot([]compliance.SnapshotOrder{
 		{
 			ClosePrice: decimal.NewFromInt(1336),
-			SpotOrder:  futuresOrder.OpeningPosition,
+			SpotOrder:  futuresOrder.ShortPositions,
 		},
 	}, tt, 1, false)
 	err = p.CalculatePNL(ev, nil)
@@ -765,7 +765,7 @@ func TestCalculatePNL(t *testing.T) {
 	}
 
 	// coverage of logic
-	futuresOrder.ClosingPosition = futuresOrder.OpeningPosition
+	futuresOrder.LongPositions = futuresOrder.ShortPositions
 
 	err = s.ComplianceManager.AddSnapshot([]compliance.SnapshotOrder{
 		{

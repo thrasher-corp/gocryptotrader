@@ -225,8 +225,8 @@ func (p *Portfolio) OnFill(ev fill.Event, funding funding.IFundReleaser) (*fill.
 		// this means we're closing an order
 		snap := lookup.ComplianceManager.GetLatestSnapshot()
 		for i := range snap.Orders {
-			if ev.GetLinkedOrderID() == snap.Orders[i].FuturesOrder.OpeningPosition.ID {
-				snap.Orders[i].FuturesOrder.ClosingPosition = ev.GetOrder()
+			if ev.GetLinkedOrderID() == snap.Orders[i].FuturesOrder.ShortPositions.ID {
+				snap.Orders[i].FuturesOrder.LongPositions = ev.GetOrder()
 				snap.Orders[i].FuturesOrder.RealisedPNL = snap.Orders[i].FuturesOrder.UnrealisedPNL
 
 			}
@@ -341,16 +341,16 @@ func (p *Portfolio) addComplianceSnapshot(fillEvent fill.Event) error {
 			var linked bool
 			for i := range prevSnap.Orders {
 				if prevSnap.Orders[i].FuturesOrder != nil &&
-					prevSnap.Orders[i].FuturesOrder.OpeningPosition != nil &&
-					prevSnap.Orders[i].FuturesOrder.OpeningPosition.ID == fillEvent.GetLinkedOrderID() {
-					prevSnap.Orders[i].FuturesOrder.ClosingPosition = fo
+					prevSnap.Orders[i].FuturesOrder.ShortPositions != nil &&
+					prevSnap.Orders[i].FuturesOrder.ShortPositions.ID == fillEvent.GetLinkedOrderID() {
+					prevSnap.Orders[i].FuturesOrder.LongPositions = fo
 					linked = true
 				}
 			}
 			if !linked {
-				snapOrder.FuturesOrder = &gctorder.Futures{
-					Side:            fillEvent.GetDirection(),
-					OpeningPosition: fo,
+				snapOrder.FuturesOrder = &gctorder.FuturesTracker{
+					CurrentDirection: fillEvent.GetDirection(),
+					ShortPositions:   fo,
 				}
 				prevSnap.Orders = append(prevSnap.Orders, snapOrder)
 			}
@@ -559,24 +559,24 @@ func (p *Portfolio) CalculatePNL(e common.DataEventHandler, funds funding.IColla
 		if snapshot.Orders[i].FuturesOrder == nil {
 			continue
 		}
-		if snapshot.Orders[i].FuturesOrder.ClosingPosition != nil {
+		if snapshot.Orders[i].FuturesOrder.LongPositions != nil {
 			continue
 		}
-		if snapshot.Orders[i].FuturesOrder.OpeningPosition.Leverage == 0 {
-			snapshot.Orders[i].FuturesOrder.OpeningPosition.Leverage = 1
+		if snapshot.Orders[i].FuturesOrder.ShortPositions.Leverage == 0 {
+			snapshot.Orders[i].FuturesOrder.ShortPositions.Leverage = 1
 		}
 
 		var result *gctexchange.PNLResult
 		result, err = settings.Exchange.CalculatePNL(&gctexchange.PNLCalculator{
 			Asset:              e.GetAssetType(),
-			Leverage:           snapshot.Orders[i].FuturesOrder.OpeningPosition.Leverage,
-			EntryPrice:         snapshot.Orders[i].FuturesOrder.OpeningPosition.Price,
-			OpeningAmount:      snapshot.Orders[i].FuturesOrder.OpeningPosition.Amount,
+			Leverage:           snapshot.Orders[i].FuturesOrder.ShortPositions.Leverage,
+			EntryPrice:         snapshot.Orders[i].FuturesOrder.ShortPositions.Price,
+			OpeningAmount:      snapshot.Orders[i].FuturesOrder.ShortPositions.Amount,
 			CurrentPrice:       e.GetClosePrice().InexactFloat64(),
 			CollateralAmount:   funds.AvailableFunds(),
 			CalculateOffline:   true,
 			CollateralCurrency: funds.CollateralCurrency(),
-			Amount:             snapshot.Orders[i].FuturesOrder.OpeningPosition.Amount,
+			Amount:             snapshot.Orders[i].FuturesOrder.ShortPositions.Amount,
 			MarkPrice:          e.GetClosePrice().InexactFloat64(),
 			PrevMarkPrice:      e.GetOpenPrice().InexactFloat64(),
 		})
@@ -588,14 +588,14 @@ func (p *Portfolio) CalculatePNL(e common.DataEventHandler, funds funding.IColla
 			funds.Liquidate()
 			snapshot.Orders[i].FuturesOrder.UnrealisedPNL = decimal.Zero
 			snapshot.Orders[i].FuturesOrder.RealisedPNL = decimal.Zero
-			or := snapshot.Orders[i].FuturesOrder.OpeningPosition.Copy()
+			or := snapshot.Orders[i].FuturesOrder.ShortPositions.Copy()
 			or.Side = common.Liquidated
-			snapshot.Orders[i].FuturesOrder.ClosingPosition = &or
+			snapshot.Orders[i].FuturesOrder.LongPositions = &or
 			return nil
 		}
 		snapshot.Orders[i].FuturesOrder.RealisedPNL.Add(snapshot.Orders[i].FuturesOrder.UnrealisedPNL)
 		snapshot.Orders[i].FuturesOrder.UnrealisedPNL = result.UnrealisedPNL
-		snapshot.Orders[i].FuturesOrder.OpeningPosition.UnrealisedPNL = result.UnrealisedPNL
+		snapshot.Orders[i].FuturesOrder.ShortPositions.UnrealisedPNL = result.UnrealisedPNL
 		snapshot.Orders[i].FuturesOrder.UpsertPNLEntry(gctorder.PNLHistory{
 			Time:          e.GetTime(),
 			UnrealisedPNL: result.UnrealisedPNL,

@@ -115,41 +115,6 @@ type ModifyResponse struct {
 	OrderID string
 }
 
-// Futures order is a concept which holds both the opening and closing orders
-// for a futures contract. This allows for PNL calculations
-type Futures struct {
-	Side               Side
-	UnrealisedPNL      decimal.Decimal
-	RealisedPNL        decimal.Decimal
-	UnderlyingAsset    currency.Code
-	CollateralCurrency currency.Code
-	OpeningPosition    *Detail
-	ClosingPosition    *Detail
-	ClosingPositions   []Detail
-	PNLHistory         []PNLHistory
-}
-
-// UpsertPNLEntry upserts an entry to PNLHistory field
-// with some basic checks
-func (f *Futures) UpsertPNLEntry(entry PNLHistory) {
-	if entry.Time.IsZero() {
-		return
-	}
-	for i := range f.PNLHistory {
-		if entry.Time.Equal(f.PNLHistory[i].Time) {
-			f.PNLHistory[i] = entry
-			return
-		}
-	}
-	f.PNLHistory = append(f.PNLHistory, entry)
-}
-
-type PNLHistory struct {
-	Time          time.Time
-	UnrealisedPNL decimal.Decimal
-	RealisedPNL   decimal.Decimal
-}
-
 // Detail contains all properties of an order
 // Each exchange has their own requirements, so not all fields
 // are required to be populated

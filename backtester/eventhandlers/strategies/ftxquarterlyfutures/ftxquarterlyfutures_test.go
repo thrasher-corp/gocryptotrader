@@ -1,4 +1,4 @@
-package futures
+package ftxquarterlyfutures
 
 import (
 	"errors"

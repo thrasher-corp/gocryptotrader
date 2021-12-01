@@ -1,4 +1,4 @@
-package futures
+package ftxquarterlyfutures
 
 import (
 	"errors"
@@ -72,7 +72,7 @@ func (s *Strategy) OnSignal(d data.Handler, _ funding.IFundTransferer, p portfol
 	if err != nil {
 		return nil, err
 	}
-	es.SetPrice(d.Latest().ClosePrice())
+	es.SetPrice(d.Latest().GetClosePrice())
 
 	if offset := d.Offset(); offset <= int(s.rsiPeriod.IntPart()) {
 		es.AppendReason("Not enough data for signal generation")
@@ -99,17 +99,17 @@ func (s *Strategy) OnSignal(d data.Handler, _ funding.IFundTransferer, p portfol
 		return nil, err
 	}
 
-	var unrealisedOrder *order.Detail
+	var o *order.FuturesTracker
 	for i := range currentOrders.Orders {
 		if currentOrders.Orders[i].FuturesOrder != nil {
-			if currentOrders.Orders[i].FuturesOrder.ClosingPosition == nil {
-				if currentOrders.Orders[i].FuturesOrder.Side == order.Short || currentOrders.Orders[i].FuturesOrder.Side == order.Long {
-					unrealisedOrder = currentOrders.Orders[i].FuturesOrder.OpeningPosition
+			if currentOrders.Orders[i].FuturesOrder.LongPositions == nil {
+				if currentOrders.Orders[i].FuturesOrder.CurrentDirection == order.Short || currentOrders.Orders[i].FuturesOrder.CurrentDirection == order.Long {
+					o = currentOrders.Orders[i].FuturesOrder
 				}
 			}
 		}
 	}
-	if unrealisedOrder == nil {
+	if o.ShortPositions == nil {
 		switch {
 		case latestRSIValue.GreaterThanOrEqual(s.rsiHigh):
 			es.SetDirection(order.Short)
@@ -120,22 +120,21 @@ func (s *Strategy) OnSignal(d data.Handler, _ funding.IFundTransferer, p portfol
 		}
 		es.AppendReason(fmt.Sprintf("RSI at %v", latestRSIValue))
 	} else {
-		p := decimal.NewFromFloat(unrealisedOrder.Price)
+		price := decimal.NewFromFloat(o.ShortPositions.Price)
 		if latestRSIValue.LessThanOrEqual(s.rsiLow) ||
 			latestRSIValue.GreaterThanOrEqual(s.rsiHigh) ||
-			(!s.stopLoss.IsZero() && latest.ClosePrice().LessThanOrEqual(s.stopLoss)) ||
-			(!s.takeProfit.IsZero() && latest.ClosePrice().GreaterThanOrEqual(s.takeProfit)) ||
-			(!s.trailingStop.IsZero() && latest.ClosePrice().Sub(p).Div(p).Mul(decimal.NewFromInt(100)).LessThanOrEqual(s.trailingStop)) ||
-			unrealisedOrder.UnrealisedPNL.GreaterThanOrEqual(s.highestUnrealised) ||
-			unrealisedOrder.UnrealisedPNL.LessThanOrEqual(s.lowestUnrealised) {
+			(!s.stopLoss.IsZero() && latest.GetClosePrice().LessThanOrEqual(s.stopLoss)) ||
+			(!s.takeProfit.IsZero() && latest.GetClosePrice().GreaterThanOrEqual(s.takeProfit)) ||
+			(!s.trailingStop.IsZero() && latest.GetClosePrice().Sub(price).Div(price).Mul(decimal.NewFromInt(100)).LessThanOrEqual(s.trailingStop)) ||
+			o.ShortPositions.UnrealisedPNL.GreaterThanOrEqual(s.highestUnrealised) ||
+			o.ShortPositions.UnrealisedPNL.LessThanOrEqual(s.lowestUnrealised) {
 			// set up the counter order to close the position
-			es.SetAmount(decimal.NewFromFloat(unrealisedOrder.Amount))
-			if unrealisedOrder.Side == order.Short {
+			es.SetAmount(decimal.NewFromFloat(o.ShortPositions.Amount))
+			if o.ShortPositions.Side == order.Short {
 				es.SetDirection(order.Long)
-			} else if unrealisedOrder.Side == order.Long {
+			} else if o.ShortPositions.Side == order.Long {
 				es.SetDirection(order.Short)
 			}
-			es.SetCloseOrderID(unrealisedOrder.ID)
 		}
 	}
 
