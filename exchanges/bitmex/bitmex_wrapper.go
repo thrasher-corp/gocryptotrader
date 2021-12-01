@@ -169,7 +169,7 @@ func (b *Bitmex) Setup(exch *config.Exchange) error {
 				Currency: currency.BTC,
 				Deposit:  fee.Convert(0),
 				// TODO: Withdrawals are subject to current blockchain fees
-				// Would need to add a seperate link that implements the
+				// Would need to add a separate link that implements the
 				// fee.Value interface to generate correct fee withdraws
 				// ad-hoc, which can be added in a separate PR.
 				Withdrawal:     fee.ConvertBlockchain(currency.BTC.String()),

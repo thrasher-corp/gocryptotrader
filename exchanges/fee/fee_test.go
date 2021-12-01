@@ -102,7 +102,7 @@ func TestLoadStaticFees(t *testing.T) {
 	}
 }
 
-func TestGetCommision(t *testing.T) {
+func TestGetcommission(t *testing.T) {
 	d := &Definitions{
 		pairCommissions: map[asset.Item]map[*currency.Item]map[*currency.Item]*CommissionInternal{
 			asset.Spot: {

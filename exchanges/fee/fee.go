@@ -70,7 +70,7 @@ type Definitions struct {
 // taker values. As a standard this is loaded as a rate e.g. 0.2% fee as a rate
 // would be 0.2/100 == 0.002.
 //
-// The pair is an optional paramater if ommited will designate global/exchange
+// The pair is an optional paramater if omitted will designate global/exchange
 // maker, taker fees irrespective of individual trading operations.
 func (d *Definitions) LoadDynamicFeeRate(maker, taker float64, a asset.Item, pair currency.Pair) error {
 	if d == nil {

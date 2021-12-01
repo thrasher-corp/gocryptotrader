@@ -1449,7 +1449,7 @@ func (a *AssetWebsocketSupport) IsAssetWebsocketSupported(aType asset.Item) bool
 	return a.unsupported == nil || !a.unsupported[aType]
 }
 
-// UpdateCommissionFees updates all commision fees associated with an account
+// UpdateCommissionFees updates all commission fees associated with an account
 // asset
 func (b *Base) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
 	return common.ErrNotYetImplemented

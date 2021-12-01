@@ -202,7 +202,7 @@ func (c *CommissionInternal) GetWorstCaseTaker() (fee float64, isFixedAmount boo
 	return rVal, c.isFixedAmount
 }
 
-// set sets the commision values for update
+// set sets the commission values for update
 func (c *CommissionInternal) set(maker, taker float64, isFixedAmount bool) error {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()

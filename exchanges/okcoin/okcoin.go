@@ -40,7 +40,7 @@ type FeeInfo struct {
 }
 
 // GetTradingFee returns trading fee based on the asset item and pair, pair can
-// be ommited.
+// be omitted.
 func (o *OKCoin) GetTradingFee(ctx context.Context, a asset.Item, instrumentID currency.Pair, category string) (FeeInfo, error) {
 	vals := url.Values{}
 

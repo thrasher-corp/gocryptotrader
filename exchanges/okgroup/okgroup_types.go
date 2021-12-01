@@ -1525,7 +1525,7 @@ type WebsocketErrorResponse struct {
 type FeeInformation struct {
 	Category       float64 `json:"category,string"`
 	Delivery       string  `json:"delivery"`
-	Excercise      string  `json:"exercise"`
+	Exercise       string  `json:"exercise"`
 	InstrumentType string  `json:"instType"`
 	Level          string  `json:"level"`
 	// NOTE: A negative rate for maker or taker means rate of commission not rebate so

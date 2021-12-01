@@ -592,7 +592,7 @@ func (o *OKEX) GetETTSettlementPriceHistory(ctx context.Context, ett string) (re
 }
 
 // GetTradingFee returns trading fee based on the asset item and pair, pair can
-// be ommited.
+// be omitted.
 func (o *OKEX) GetTradingFee(ctx context.Context, a asset.Item, instrumentID, underlying currency.Pair, category string) ([]okgroup.FeeInformation, error) {
 	vals := url.Values{}
 
