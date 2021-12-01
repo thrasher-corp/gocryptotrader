@@ -9,9 +9,10 @@ import (
 )
 
 var (
-	errInvalid         = errors.New("invalid value")
-	errCannotCompare   = errors.New("cannot compare")
-	errBlockchainEmpty = errors.New("blockchain string is empty")
+	errInvalid                         = errors.New("invalid value")
+	errCannotCompare                   = errors.New("cannot compare")
+	errBlockchainEmpty                 = errors.New("blockchain string is empty")
+	errAmountIsLessThanMinimumRequired = errors.New("amount is less than minimum required")
 )
 
 // Value defines custom fee value calculation functionality
@@ -213,8 +214,6 @@ type WithMinimumAmount struct {
 	MinimumAmount decimal.Decimal `json:"withMinimumAmount"`
 	Fee           decimal.Decimal `json:"fee"`
 }
-
-var errAmountIsLessThanMinimumRequired = errors.New("amount is less than minimum required")
 
 // GetFee implements Value interface
 func (m WithMinimumAmount) GetFee(amount float64) (decimal.Decimal, error) {
