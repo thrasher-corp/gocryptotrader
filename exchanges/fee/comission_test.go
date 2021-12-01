@@ -8,6 +8,7 @@ import (
 )
 
 func TestExternalInternalConvert(t *testing.T) {
+	t.Parallel()
 	c := Commission{
 		IsFixedAmount: true,
 		Maker:         1,
@@ -54,6 +55,7 @@ func TestExternalInternalConvert(t *testing.T) {
 }
 
 func TestValidateCommission(t *testing.T) {
+	t.Parallel()
 	c := Commission{}
 	err := c.validate()
 	if !errors.Is(err, nil) {
@@ -81,6 +83,7 @@ func TestValidateCommission(t *testing.T) {
 }
 
 func TestInternalCalculateMaker(t *testing.T) {
+	t.Parallel()
 	_, err := (*CommissionInternal)(nil).CalculateMaker(0, 0)
 	if !errors.Is(err, errPriceIsZero) {
 		t.Fatalf("received: %v but expected: %v", err, errPriceIsZero)
@@ -103,6 +106,7 @@ func TestInternalCalculateMaker(t *testing.T) {
 }
 
 func TestInternalCalculateTaker(t *testing.T) {
+	t.Parallel()
 	_, err := (*CommissionInternal)(nil).CalculateTaker(0, 0)
 	if !errors.Is(err, errPriceIsZero) {
 		t.Fatalf("received: %v but expected: %v", err, errPriceIsZero)
@@ -125,6 +129,7 @@ func TestInternalCalculateTaker(t *testing.T) {
 }
 
 func TestInternalCalculateWorstCaseMaker(t *testing.T) {
+	t.Parallel()
 	_, err := (*CommissionInternal)(nil).CalculateWorstCaseMaker(0, 0)
 	if !errors.Is(err, errPriceIsZero) {
 		t.Fatalf("received: %v but expected: %v", err, errPriceIsZero)
@@ -147,6 +152,7 @@ func TestInternalCalculateWorstCaseMaker(t *testing.T) {
 }
 
 func TestInternalCalculateWorstCaseTaker(t *testing.T) {
+	t.Parallel()
 	_, err := (*CommissionInternal)(nil).CalculateWorstCaseTaker(0, 0)
 	if !errors.Is(err, errPriceIsZero) {
 		t.Fatalf("received: %v but expected: %v", err, errPriceIsZero)
@@ -169,6 +175,7 @@ func TestInternalCalculateWorstCaseTaker(t *testing.T) {
 }
 
 func TestInternalGetMaker(t *testing.T) {
+	t.Parallel()
 	fee, isSetAmount := (&CommissionInternal{maker: one}).GetMaker()
 	if fee != 1 {
 		t.Fatalf("received: %v but expected: %v", fee, 1)
@@ -180,6 +187,7 @@ func TestInternalGetMaker(t *testing.T) {
 }
 
 func TestInternalGetWorstCaseMaker(t *testing.T) {
+	t.Parallel()
 	fee, isSetAmount := (&CommissionInternal{worstCaseMaker: one}).GetWorstCaseMaker()
 	if fee != 1 {
 		t.Fatalf("received: %v but expected: %v", fee, 1)
@@ -191,6 +199,7 @@ func TestInternalGetWorstCaseMaker(t *testing.T) {
 }
 
 func TestInternalGetTaker(t *testing.T) {
+	t.Parallel()
 	fee, isSetAmount := (&CommissionInternal{taker: one}).GetTaker()
 	if fee != 1 {
 		t.Fatalf("received: %v but expected: %v", fee, 1)
@@ -202,6 +211,7 @@ func TestInternalGetTaker(t *testing.T) {
 }
 
 func TestInternalGetWorstCaseTaker(t *testing.T) {
+	t.Parallel()
 	fee, isSetAmount := (&CommissionInternal{worstCaseTaker: one}).GetWorstCaseTaker()
 	if fee != 1 {
 		t.Fatalf("received: %v but expected: %v", fee, 1)
@@ -213,6 +223,7 @@ func TestInternalGetWorstCaseTaker(t *testing.T) {
 }
 
 func TestInternalSet(t *testing.T) {
+	t.Parallel()
 	err := (&CommissionInternal{}).set(0, 0, true)
 	if !errors.Is(err, errFeeTypeMismatch) {
 		t.Fatalf("received: %v but expected: %v", err, errFeeTypeMismatch)
@@ -225,6 +236,7 @@ func TestInternalSet(t *testing.T) {
 }
 
 func TestInternalCalculate(t *testing.T) {
+	t.Parallel()
 	v, err := (&CommissionInternal{isFixedAmount: true}).calculate(two, 50000, 1)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: %v but expected: %v", err, nil)
@@ -245,6 +257,7 @@ func TestInternalCalculate(t *testing.T) {
 }
 
 func TestLoad(t *testing.T) {
+	t.Parallel()
 	c := &CommissionInternal{}
 	c.load(1, 2)
 

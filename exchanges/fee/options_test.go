@@ -10,6 +10,7 @@ import (
 )
 
 func TestOptionsValidate(t *testing.T) {
+	t.Parallel()
 	err := (&Options{
 		GlobalCommissions: map[asset.Item]Commission{
 			asset.Spot: {Maker: -1},

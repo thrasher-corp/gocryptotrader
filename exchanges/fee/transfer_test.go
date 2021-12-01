@@ -9,6 +9,7 @@ import (
 )
 
 func TestConvert(t *testing.T) {
+	t.Parallel()
 	tr := Transfer{
 		Deposit:        Convert(1),
 		MinimumDeposit: Convert(2),
@@ -102,6 +103,7 @@ func (g *lessThanError) LessThan(val Value) (bool, error) {
 }
 
 func TestValidate(t *testing.T) {
+	t.Parallel()
 	tr := Transfer{}
 	err := tr.validate()
 	if !errors.Is(err, errCurrencyIsEmpty) {
@@ -178,6 +180,7 @@ func TestValidate(t *testing.T) {
 }
 
 func TestUpdate(t *testing.T) {
+	t.Parallel()
 	var tr *transfer
 	err := tr.update(&Transfer{})
 	if !errors.Is(err, errTransferIsNil) {
@@ -306,6 +309,7 @@ func (g *getFeeError) Validate() error                                { return n
 func (g *getFeeError) LessThan(val Value) (bool, error)               { return false, nil }
 
 func TestTransferCalculate(t *testing.T) {
+	t.Parallel()
 	_, err := (&transfer{}).calculate(nil, 0)
 	if !errors.Is(err, errAmountIsZero) {
 		t.Fatalf("received: %v but expected: %v", err, errAmountIsZero)

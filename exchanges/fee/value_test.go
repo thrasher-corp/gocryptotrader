@@ -8,6 +8,7 @@ import (
 )
 
 func TestValueConvert(t *testing.T) {
+	t.Parallel()
 	val := Convert(-1)
 	fee, err := val.GetFee(1)
 	if err != nil {
@@ -39,6 +40,7 @@ func TestValueConvert(t *testing.T) {
 }
 
 func TestValueConvertWithAmount(t *testing.T) {
+	t.Parallel()
 	val := ConvertWithAmount(0.005, 0.002, 1)
 	fee, err := val.GetFee(.9)
 	if err != nil {
@@ -97,6 +99,7 @@ func TestValueConvertWithAmount(t *testing.T) {
 }
 
 func TestValueConvertBlockchain(t *testing.T) {
+	t.Parallel()
 	val := ConvertBlockchain("BTC")
 	_, err := val.GetFee(1)
 	if err != nil {
@@ -130,6 +133,7 @@ func TestValueConvertBlockchain(t *testing.T) {
 }
 
 func TestValueConvertWithMaxAndMin(t *testing.T) {
+	t.Parallel()
 	val := ConvertWithMaxAndMin(1, 100, 20)
 	fee, err := val.GetFee(.5)
 	if err != nil {
@@ -197,6 +201,7 @@ func TestValueConvertWithMaxAndMin(t *testing.T) {
 }
 
 func TestValueConvertConvertWithMinimumAmount(t *testing.T) {
+	t.Parallel()
 	val := ConvertWithMinimumAmount(1, 5)
 	fee, err := val.GetFee(5)
 	if err != nil {
