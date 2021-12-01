@@ -3,11 +3,13 @@ package bybit
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -705,8 +707,6 @@ func (by *Bybit) SendAuthHTTPRequest(ePath exchange.URL, method, path string, pa
 			return err
 		}
 		recvWindow = time.Duration(recvWindowParam) * time.Millisecond
-	} else {
-		params.Set("recvWindow", strconv.FormatInt(convert.RecvWindow(recvWindow), 10))
 	}
 	params.Set("recvWindow", strconv.FormatInt(convert.RecvWindow(recvWindow), 10))
 	params.Set("timestamp", strconv.FormatInt(time.Now().Unix()*1000, 10))
@@ -718,21 +718,34 @@ func (by *Bybit) SendAuthHTTPRequest(ePath exchange.URL, method, path string, pa
 		log.Debugf(log.ExchangeSys, "sent path: %s", path)
 	}
 
-	path = common.EncodeURLValues(path, params)
-	path += "&sign=" + hmacSignedStr
-
 	headers := make(map[string]string)
+	var payload []byte
+	switch method {
+	case http.MethodPost:
+		headers["Content-Type"] = "application/json"
+		m := make(map[string]string)
+		m["api_key"] = by.API.Credentials.Key
 
-	switch {
-	case method == http.MethodPost:
+		for k, v := range params {
+			m[k] = strings.Join(v, "")
+		}
+		m["sign"] = hmacSignedStr
+		payload, err = json.Marshal(m)
+		if err != nil {
+			return err
+		}
+	default:
 		headers["Content-Type"] = "application/x-www-form-urlencoded"
+		path = common.EncodeURLValues(path, params)
+		path += "&sign=" + hmacSignedStr
+		endpointPath += path
 	}
 
 	return by.SendPayload(context.Background(), &request.Item{
 		Method:        method,
-		Path:          endpointPath + path,
+		Path:          endpointPath,
 		Headers:       headers,
-		Body:          bytes.NewBuffer(nil),
+		Body:          bytes.NewBuffer(payload),
 		Result:        &result,
 		AuthRequest:   true,
 		Verbose:       by.Verbose,
