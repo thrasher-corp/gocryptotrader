@@ -1000,7 +1000,7 @@ message Commission {
     double taker = 4;
     double worst_case_maker = 5;
     double worst_case_taker = 6;
-    bool is_set_amount = 7;
+    bool is_fixed_amount = 7;
 }
 
 message TransferFees {
@@ -1024,7 +1024,7 @@ message SetCommissionRequest {
     string pair = 3;
     double maker = 4;
     double taker = 5;
-    bool is_set_amount = 6;
+    bool is_fixed_amount = 6;
 }
 
 message SetTransferFeeRequest {

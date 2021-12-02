@@ -222,11 +222,11 @@ func setCommissionFees(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.SetCommission(context.Background(),
 		&gctrpc.SetCommissionRequest{
-			Exchange:    exchange,
-			Asset:       asset,
-			Maker:       maker,
-			Taker:       taker,
-			IsSetAmount: !percentage,
+			Exchange:      exchange,
+			Asset:         asset,
+			Maker:         maker,
+			Taker:         taker,
+			IsFixedAmount: !percentage,
 		})
 	if err != nil {
 		return err

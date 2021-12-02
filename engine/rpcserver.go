@@ -4073,7 +4073,7 @@ func (s *RPCServer) GetAllFees(_ context.Context, r *gctrpc.GetAllFeesRequest) (
 			Taker:          val.Taker,
 			WorstCaseMaker: val.WorstCaseMaker,
 			WorstCaseTaker: val.WorstCaseTaker,
-			IsSetAmount:    val.IsFixedAmount,
+			IsFixedAmount:  val.IsFixedAmount,
 		})
 	}
 
@@ -4090,7 +4090,7 @@ func (s *RPCServer) GetAllFees(_ context.Context, r *gctrpc.GetAllFeesRequest) (
 				Taker:          val.Taker,
 				WorstCaseMaker: val.WorstCaseMaker,
 				WorstCaseTaker: val.WorstCaseTaker,
-				IsSetAmount:    val.IsFixedAmount,
+				IsFixedAmount:  val.IsFixedAmount,
 			})
 		}
 	}
@@ -4185,7 +4185,7 @@ func (s *RPCServer) SetCommission(_ context.Context, r *gctrpc.SetCommissionRequ
 		}
 	}
 
-	err = exch.SetCommissionFee(asset.Item(r.Asset), pair, r.Maker, r.Taker, r.IsSetAmount)
+	err = exch.SetCommissionFee(asset.Item(r.Asset), pair, r.Maker, r.Taker, r.IsFixedAmount)
 	if err != nil {
 		return nil, err
 	}
