@@ -987,7 +987,7 @@ func (c *CoinbasePro) ValidateCredentials(ctx context.Context, assetType asset.I
 }
 
 // UpdateCommissionFees updates current fees associated with account
-func (c *CoinbasePro) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
+func (c *CoinbasePro) UpdateCommissionFees(_ context.Context, _ asset.Item) error {
 	// TODO: To get commission fees OAuth2 needs to be implemented.
 	return common.ErrNotYetImplemented
 }

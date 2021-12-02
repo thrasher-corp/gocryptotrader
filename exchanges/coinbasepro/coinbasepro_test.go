@@ -830,9 +830,4 @@ func TestUpdateCommissionFees(t *testing.T) {
 	if !errors.Is(err, common.ErrNotYetImplemented) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrNotYetImplemented)
 	}
-
-	err = c.UpdateCommissionFees(context.Background(), asset.Spot)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
 }
