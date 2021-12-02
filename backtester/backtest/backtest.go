@@ -562,6 +562,7 @@ func getFees(exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item) (
 			"Could not retrieve offline fees for %v. %v",
 			exch.GetName(),
 			err)
+		return
 	}
 	// TODO: Return commission rate and abstract all fee calcs to fee package.
 	maker, _ := fees.GetWorstCaseMaker()
