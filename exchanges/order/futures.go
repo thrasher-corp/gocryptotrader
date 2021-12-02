@@ -32,6 +32,13 @@ func (f *FuturesTracker) TrackNewOrder(d *Detail) error {
 		return errors.New("not the same")
 	}
 
+	for i := range f.ShortPositions {
+		if f.ShortPositions[i].ID == d.ID {
+			f.ShortPositions[i] = d.Copy()
+			break
+		}
+	}
+
 	if d.Side.IsShort() {
 		f.ShortPositions = append(f.ShortPositions, d.Copy())
 	} else {

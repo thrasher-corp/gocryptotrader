@@ -583,7 +583,7 @@ func TestGetSnapshotAtTime(t *testing.T) {
 	}
 	err = s.ComplianceManager.AddSnapshot([]compliance.SnapshotOrder{
 		{
-			SpotOrder: &gctorder.Detail{
+			Order: &gctorder.Detail{
 				Exchange:  "exch",
 				AssetType: asset.Spot,
 				Pair:      cp,
@@ -611,7 +611,7 @@ func TestGetSnapshotAtTime(t *testing.T) {
 	if len(ss.Orders) != 1 {
 		t.Fatal("expected 1")
 	}
-	if ss.Orders[0].SpotOrder.Amount != 1337 {
+	if ss.Orders[0].Order.Amount != 1337 {
 		t.Error("expected 1")
 	}
 }
@@ -635,7 +635,7 @@ func TestGetLatestSnapshot(t *testing.T) {
 	}
 	err = s.ComplianceManager.AddSnapshot([]compliance.SnapshotOrder{
 		{
-			SpotOrder: &gctorder.Detail{
+			Order: &gctorder.Detail{
 				Exchange:  "exch",
 				AssetType: asset.Spot,
 				Pair:      cp,
@@ -654,7 +654,7 @@ func TestGetLatestSnapshot(t *testing.T) {
 	err = s.ComplianceManager.AddSnapshot([]compliance.SnapshotOrder{
 		ss[0].Orders[0],
 		{
-			SpotOrder: &gctorder.Detail{
+			Order: &gctorder.Detail{
 				Exchange:  "exch",
 				AssetType: asset.Spot,
 				Pair:      cp,
@@ -756,7 +756,7 @@ func TestCalculatePNL(t *testing.T) {
 	err = s.ComplianceManager.AddSnapshot([]compliance.SnapshotOrder{
 		{
 			ClosePrice: decimal.NewFromInt(1336),
-			SpotOrder:  futuresOrder.ShortPositions,
+			Order:      futuresOrder.ShortPositions,
 		},
 	}, tt, 1, false)
 	err = p.CalculatePNL(ev, nil)

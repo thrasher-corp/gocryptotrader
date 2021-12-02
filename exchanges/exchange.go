@@ -1462,6 +1462,14 @@ func (b *Base) GetAvailableTransferChains(_ context.Context, _ currency.Code) ([
 	return nil, common.ErrFunctionNotSupported
 }
 
+type CollateralCalculator struct {
+	CollateralCurrency currency.Code
+	Asset              asset.Item
+	Side               order.Side
+	CollateralAmount   decimal.Decimal
+	EntryPrice         float64
+}
+
 type PNLCalculator struct {
 	CalculateOffline   bool
 	Underlying         currency.Code
@@ -1516,4 +1524,17 @@ func (b *Base) CalculatePNL(calc *PNLCalculator) (*PNLResult, error) {
 	}
 
 	return result, nil
+}
+
+// ScaleCollateral is an overridable function to allow PNL to be calculated on an
+// open position
+// It will also determine whether the position is considered to be liquidated
+// for live trading, an overrided function may wish to confirm the liquidation by
+// requesting the status of the asset
+func (b *Base) ScaleCollateral(calc *CollateralCalculator) (decimal.Decimal, error) {
+	if !calc.Asset.IsFutures() {
+		return decimal.Zero, common.ErrFunctionNotSupported
+	}
+
+	return calc.CollateralAmount, nil
 }

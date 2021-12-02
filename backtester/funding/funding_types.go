@@ -86,6 +86,7 @@ type IPairReader interface {
 // ICollateralReader is used to read data from
 // collateral pairs
 type ICollateralReader interface {
+	UnderlyingAsset() currency.Code
 	ContractCurrency() currency.Code
 	CollateralCurrency() currency.Code
 	InitialFunds() decimal.Decimal

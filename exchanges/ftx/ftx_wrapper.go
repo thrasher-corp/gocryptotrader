@@ -1276,10 +1276,19 @@ func (f *FTX) CalculateUnrealisedPNL(positionSize, markPrice, prevMarkPrice floa
 	return positionSize * (markPrice - prevMarkPrice)
 }
 
+func (f *FTX) ScaleCollateral(calculator exchange.CollateralCalculator) (decimal.Decimal, error) {
+	collat, err := f.CalculateCollateral(calculator.CollateralCurrency, calculator.CollateralAmount.InexactFloat64(), calculator.EntryPrice, true)
+	if err != nil {
+		return decimal.Zero, err
+	}
+
+	return decimal.NewFromFloat(collat), nil
+}
+
 func (f *FTX) CalculatePNL(pnl *exchange.PNLCalculator) (*exchange.PNLResult, error) {
 	var result exchange.PNLResult
 	if pnl.CalculateOffline {
-		collat, err := f.CalculateCollateral(pnl.CollateralCurrency, pnl.Amount, pnl.EntryPrice, true)
+		collat, err := f.CalculateCollateral(pnl.CollateralCurrency, pnl.CollateralAmount.InexactFloat64(), pnl.EntryPrice, true)
 		if err != nil {
 			return nil, err
 		}

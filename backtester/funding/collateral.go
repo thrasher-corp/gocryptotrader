@@ -30,6 +30,11 @@ func (c *Collateral) ContractCurrency() currency.Code {
 	return c.Contract.currency
 }
 
+func (c *Collateral) UnderlyingAsset() currency.Code {
+	// somehow get the underlying
+	return c.Contract.currency
+}
+
 func (c *Collateral) CollateralCurrency() currency.Code {
 	return c.Collateral.currency
 }
