@@ -315,10 +315,11 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 
 func TestGetAccountInfo(t *testing.T) {
 	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys set")
+	}
 	_, err := g.UpdateAccountInfo(context.Background(), asset.Spot)
-	if !areTestAPIKeysSet() && err == nil {
-		t.Error("GetAccountInfo() Expected error")
-	} else if err != nil {
+	if err != nil {
 		t.Error("GetAccountInfo() error", err)
 	}
 }
@@ -818,8 +819,12 @@ func TestGetTradingFees(t *testing.T) {
 func TestUpdateCommissionFees(t *testing.T) {
 	t.Parallel()
 	err := g.UpdateCommissionFees(context.Background(), asset.Futures)
-	if !errors.Is(err, common.ErrNotYetImplemented) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrNotYetImplemented)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
+	}
+
+	if !areTestAPIKeysSet() {
+		t.Skip("api keys not set")
 	}
 
 	err = g.UpdateCommissionFees(context.Background(), asset.Spot)
