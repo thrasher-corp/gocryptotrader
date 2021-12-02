@@ -120,7 +120,7 @@ func ConvertBlockchain(blockchain string) Value {
 }
 
 // Blockchain is a subtype implementing the value interface to designate
-// certain fee options as a blockchain componant. This will be changed in
+// certain fee options as a blockchain component. This will be changed in
 // the future when another PR can help resolve this.
 type Blockchain string
 
