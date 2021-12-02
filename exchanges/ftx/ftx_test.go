@@ -1329,7 +1329,7 @@ func TestCompatibleOrderVars(t *testing.T) {
 	orderVars, err = f.compatibleOrderVars("buy",
 		"closed",
 		"limit",
-		0,
+		.1,
 		0,
 		9500)
 	if !errors.Is(err, nil) {
