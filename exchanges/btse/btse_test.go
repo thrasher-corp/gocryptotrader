@@ -881,6 +881,9 @@ func TestUpdateCommissionFees(t *testing.T) {
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
 	}
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys not set, skipping test")
+	}
 	err = b.UpdateCommissionFees(context.Background(), asset.Futures)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
