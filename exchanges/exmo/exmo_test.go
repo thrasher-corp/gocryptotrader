@@ -398,6 +398,10 @@ func TestGetAvailableTransferChains(t *testing.T) {
 
 func TestGetPairInfo(t *testing.T) {
 	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys not set, skipping test")
+	}
+
 	_, err := e.GetPairInfo(context.Background())
 	if err != nil {
 		t.Fatal(err)
@@ -409,6 +413,10 @@ func TestUpdateCommissionFees(t *testing.T) {
 	err := e.UpdateCommissionFees(context.Background(), asset.Spot)
 	if !errors.Is(err, common.ErrNotYetImplemented) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrNotYetImplemented)
+	}
+
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys not set, skipping test")
 	}
 
 	err = e.UpdateCommissionFees(context.Background(), asset.Margin)
