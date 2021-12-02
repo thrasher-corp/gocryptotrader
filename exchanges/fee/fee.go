@@ -518,8 +518,7 @@ func (d *Definitions) GetBankTransferFee(c currency.Code, transType bank.Transfe
 		return nil, errCurrencyIsEmpty
 	}
 
-	err := transType.Validate()
-	if err != nil {
+	if err := transType.Validate(); err != nil {
 		return nil, err
 	}
 
@@ -544,8 +543,7 @@ func (d *Definitions) SetBankTransferFee(c currency.Code, transType bank.Transfe
 		return errCurrencyIsEmpty
 	}
 
-	err := transType.Validate()
-	if err != nil {
+	if err := transType.Validate(); err != nil {
 		return err
 	}
 

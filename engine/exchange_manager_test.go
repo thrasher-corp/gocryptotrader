@@ -27,8 +27,7 @@ func TestExchangeManagerAdd(t *testing.T) {
 	m := SetupExchangeManager()
 	b := new(bitfinex.Bitfinex)
 	b.SetDefaults()
-	err := m.Add(b)
-	if err != nil {
+	if err := m.Add(b); err != nil {
 		t.Fatal(err)
 	}
 	exchanges, err := m.GetExchanges()
