@@ -27,7 +27,7 @@ var (
 // transferFees defines exchange crypto currency transfer fees, subject to
 // change.
 // NOTE: https://www.btse.com/en/deposit-withdrawal-fees
-var transferFees = []fee.Transfer{
+var defaultTransferFees = []fee.Transfer{
 	{Currency: currency.AAVE, Deposit: fee.Convert(0), MinimumWithdrawal: fee.Convert(0.4003), Withdrawal: fee.Convert(0.1003)},
 	{Currency: currency.ADA, Deposit: fee.Convert(0), MinimumWithdrawal: fee.Convert(8), Withdrawal: fee.Convert(1)},
 	{Currency: currency.ATOM, Deposit: fee.Convert(0), MinimumWithdrawal: fee.Convert(.02), Withdrawal: fee.Convert(.01)},

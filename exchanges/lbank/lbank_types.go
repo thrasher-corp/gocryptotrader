@@ -280,7 +280,7 @@ var errorCodes = map[int64]string{
 	10105: "Request has been cancelled",
 }
 
-var transferFees = []fee.Transfer{
+var defaultTransferFees = []fee.Transfer{
 	{Currency: currency.TENSET, Deposit: fee.Convert(0)},
 	{Currency: currency.TENSET, Chain: "ERC20", Deposit: fee.Convert(0), Withdrawal: fee.ConvertWithMinimumAmount(0.04, 1800), IsPercentage: true},
 	{Currency: currency.ONEINCH, Deposit: fee.Convert(0), Withdrawal: fee.ConvertWithMinimumAmount(0.16, 32)},

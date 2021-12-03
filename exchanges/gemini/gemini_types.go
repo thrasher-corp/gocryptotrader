@@ -338,7 +338,7 @@ type wsL2MarketData struct {
 	AuctionEvents []wsAuctionResult `json:"auction_events"`
 }
 
-var transferFees = []fee.Transfer{
+var defaultTransferFees = []fee.Transfer{
 	{Currency: currency.ZRX, Deposit: fee.Convert(0), Withdrawal: fee.Convert(1)},
 	{Currency: currency.AAVE, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.01)},
 	{Currency: currency.AMP, Deposit: fee.Convert(0), Withdrawal: fee.Convert(10)},

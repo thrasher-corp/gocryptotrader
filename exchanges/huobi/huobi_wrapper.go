@@ -1845,7 +1845,7 @@ func (h *HUOBI) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
 
 			for y := range fees {
 				var p currency.Pair
-				p, err = enabled.DeriveFrom(fees[y].Symbol)
+				p, err = enabled.DerivePairFrom(fees[y].Symbol)
 				if err != nil {
 					return err
 				}

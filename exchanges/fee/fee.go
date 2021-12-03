@@ -29,7 +29,7 @@ var (
 	errMakerBiggerThanTaker    = errors.New("maker cannot be bigger than taker")
 	errNoTransferFees          = errors.New("missing transfer fees to load")
 
-	// OmitPair is a an empty pair designation for unused pair variables
+	// OmitPair is an empty pair designation for unused pair variables
 	OmitPair = currency.Pair{}
 
 	// AllAllowed defines a potential bank transfer when all foreign exchange
@@ -333,8 +333,8 @@ func (d *Schedule) GetDeposit(c currency.Code, chain string) (fee Value, isPerce
 	return t.Deposit, t.Percentage, nil
 }
 
-// CalculateDeposit returns calculated fee from the amount, chain can be omitted
-// as a it refers to the main chain.
+// CalculateWithdrawal returns calculated fee from the amount, chain can be
+// omitted as a it refers to the main chain.
 func (d *Schedule) CalculateWithdrawal(c currency.Code, chain string, amount float64) (float64, error) {
 	if d == nil {
 		return 0, ErrScheduleIsNil
@@ -350,7 +350,7 @@ func (d *Schedule) CalculateWithdrawal(c currency.Code, chain string, amount flo
 }
 
 // GetWithdrawal returns the withdrawal fee associated with the currency, chain
-// can be omitted as a it refers to the main chain.
+// can be omitted as it refers to the main chain.
 func (d *Schedule) GetWithdrawal(c currency.Code, chain string) (fee Value, isPercentage bool, err error) {
 	d.mtx.RLock()
 	defer d.mtx.RUnlock()
@@ -470,7 +470,7 @@ func (d *Schedule) GetTransferFee(c currency.Code, chain string) (*Transfer, err
 	return t.convert(), nil
 }
 
-// SetTransferFees sets new transfer fees.
+// SetTransferFee sets new transfer fees.
 // TODO: Need min and max settings, might deprecate due to complexity of value
 // types. Or expand out the RPC to set custom values.
 func (d *Schedule) SetTransferFee(c currency.Code, chain string, withdraw, deposit float64, isPercentage bool) error {
@@ -497,13 +497,13 @@ func (d *Schedule) SetTransferFee(c currency.Code, chain string, withdraw, depos
 		return errTransferFeeNotFound
 	}
 
-	// These should not change, and a package update might need to occur.
 	if t.Percentage != isPercentage {
+		// These should not change, and a package update might need to occur.
 		return errFeeTypeMismatch
 	}
 
-	t.Withdrawal = Convert(withdraw) // TODO: need min and max settings
-	t.Deposit = Convert(deposit)     // TODO: need min and max settings
+	t.Withdrawal = Convert(withdraw)
+	t.Deposit = Convert(deposit)
 	return nil
 }
 
@@ -566,8 +566,8 @@ func (d *Schedule) SetBankTransferFee(c currency.Code, transType bank.Transfer, 
 		return errFeeTypeMismatch
 	}
 
-	tFee.Withdrawal = Convert(withdraw) // TODO: need min and max settings
-	tFee.Deposit = Convert(deposit)     // TODO: need min and max settings
+	tFee.Withdrawal = Convert(withdraw)
+	tFee.Deposit = Convert(deposit)
 	return nil
 }
 

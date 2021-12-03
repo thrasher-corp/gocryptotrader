@@ -169,7 +169,7 @@ func (z *ZB) Setup(exch *config.Exchange) error {
 		GlobalCommissions: map[asset.Item]fee.Commission{
 			asset.Spot: {Maker: 0.002, Taker: 0.002},
 		},
-		ChainTransfer: transferFees,
+		ChainTransfer: defaultTransferFees,
 	})
 	if err != nil {
 		return err

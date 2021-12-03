@@ -171,8 +171,8 @@ type MultiChainDepositAddressResponse struct {
 	} `json:"message"`
 }
 
-// transferFees the large list of predefined transfer fees fees prone to change
-var transferFees = []fee.Transfer{
+// defaultTransferFees the large list of predefined transfer fees fees prone to change
+var defaultTransferFees = []fee.Transfer{
 	{Currency: currency.ZB, Deposit: fee.Convert(0), Withdrawal: fee.ConvertWithMaxAndMin(10, 2e6, 0)},
 	{Currency: currency.BTC, Deposit: fee.ConvertWithMinimumAmount(0, 0.0001), Withdrawal: fee.ConvertWithMaxAndMin(0.0005, 60, 0)},
 	{Currency: currency.LTC, Deposit: fee.ConvertWithMinimumAmount(0, 0.005), Withdrawal: fee.ConvertWithMaxAndMin(0.005, 20000, 0)},

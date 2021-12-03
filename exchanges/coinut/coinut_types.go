@@ -704,10 +704,10 @@ type wsOrderContainer struct {
 	} `json:"commission"`
 }
 
-// transferFees defines crypto currency withdrawal and deposit fees. Subject
+// defaultTransferFees defines crypto currency withdrawal and deposit fees. Subject
 // to change.
 // NOTE: https://coinut.zendesk.com/hc/en-us/articles/360001471394-What-is-the-minimum-amount-to-deposit-withdraw-
-var transferFees = []fee.Transfer{
+var defaultTransferFees = []fee.Transfer{
 	{Currency: currency.BTC, Deposit: fee.Convert(0), Withdrawal: fee.ConvertWithMinimumAmount(0.0004, 0.0015)},
 	{Currency: currency.LTC, Deposit: fee.Convert(0), Withdrawal: fee.ConvertWithMinimumAmount(0.001, 0.01)},
 	{Currency: currency.ETH, Deposit: fee.Convert(0), Withdrawal: fee.ConvertWithMinimumAmount(0.003, 0.05)},

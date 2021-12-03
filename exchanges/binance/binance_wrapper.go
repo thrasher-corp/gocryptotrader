@@ -234,7 +234,7 @@ func (b *Binance) Setup(exch *config.Exchange) error {
 			asset.USDTMarginedFutures: {Maker: 0.02, Taker: 0.04},
 			asset.CoinMarginedFutures: {Maker: 0.01, Taker: 0.05},
 		},
-		ChainTransfer: transferFees,
+		ChainTransfer: defaultTransferFees,
 		BankTransfer:  bankTransferFees,
 	})
 	if err != nil {

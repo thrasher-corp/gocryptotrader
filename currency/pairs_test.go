@@ -240,9 +240,9 @@ func TestContains(t *testing.T) {
 	}
 }
 
-func TestDeriveFrom(t *testing.T) {
+func TestDerivePairFrom(t *testing.T) {
 	t.Parallel()
-	_, err := Pairs{}.DeriveFrom("")
+	_, err := Pairs{}.DerivePairFrom("")
 	if !errors.Is(err, errPairsEmpty) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errPairsEmpty)
 	}
@@ -255,17 +255,17 @@ func TestDeriveFrom(t *testing.T) {
 		NewPairWithDelimiter(SAFEMARS.String(), "LTC", "-"),
 	}
 
-	_, err = testCases.DeriveFrom("")
+	_, err = testCases.DerivePairFrom("")
 	if !errors.Is(err, errSymbolEmpty) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errSymbolEmpty)
 	}
 
-	_, err = testCases.DeriveFrom("btcUSD")
+	_, err = testCases.DerivePairFrom("btcUSD")
 	if !errors.Is(err, ErrPairNotFound) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, ErrPairNotFound)
 	}
 
-	got, err := testCases.DeriveFrom("USDCUSD")
+	got, err := testCases.DerivePairFrom("USDCUSD")
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}

@@ -214,7 +214,7 @@ func (k *Kraken) Setup(exch *config.Exchange) error {
 		GlobalCommissions: map[asset.Item]fee.Commission{
 			asset.Spot: {Maker: 0.0016, Taker: 0.0016},
 		},
-		ChainTransfer: transferFees,
+		ChainTransfer: defaultTransferFees,
 	})
 	if err != nil {
 		return err
@@ -1578,7 +1578,7 @@ func (k *Kraken) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
 		if !ok {
 			return errors.New("cannot match string")
 		}
-		pair, err := avail.DeriveFrom(key)
+		pair, err := avail.DerivePairFrom(key)
 		if err != nil {
 			return err
 		}

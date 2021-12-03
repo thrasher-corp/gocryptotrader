@@ -434,7 +434,7 @@ type WsError struct {
 // CandleResponse holds OHLCV data for exchange
 type CandleResponse [][6]string
 
-var transferFees = []fee.Transfer{
+var defaultTransferFees = []fee.Transfer{
 	{Currency: currency.BTC, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.0003)},
 	{Currency: currency.LTC, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.001)},
 	{Currency: currency.ETH, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.005)},

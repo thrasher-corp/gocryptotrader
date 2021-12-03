@@ -385,9 +385,9 @@ type WsTrade struct {
 	Timestamp int64
 }
 
-// transferFees the large list of predefined deposit withdrawal fees
+// defaultTransferFees the large list of predefined deposit withdrawal fees
 // Prone to change, using highest value
-var transferFees = []fee.Transfer{
+var defaultTransferFees = []fee.Transfer{
 	{Currency: currency.ZRX, Deposit: fee.Convert(0), Withdrawal: fee.Convert(5)},
 	{Currency: currency.ARDR, Deposit: fee.Convert(0), Withdrawal: fee.Convert(2)},
 	{Currency: currency.REP, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.1)},

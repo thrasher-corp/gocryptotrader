@@ -156,7 +156,7 @@ func (b *BTCMarkets) Setup(exch *config.Exchange) error {
 		GlobalCommissions: map[asset.Item]fee.Commission{
 			asset.Spot: {Maker: 0.0085, Taker: 0.0085},
 		},
-		ChainTransfer: transferFees,
+		ChainTransfer: defaultTransferFees,
 		BankTransfer:  bankTransferFees,
 	})
 	if err != nil {

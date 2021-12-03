@@ -101,16 +101,12 @@ type CommissionInternal struct {
 func (c *CommissionInternal) convert() Commission {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
-	maker, _ := c.maker.Float64()
-	taker, _ := c.taker.Float64()
-	worstCaseMaker, _ := c.worstCaseMaker.Float64()
-	worstCaseTaker, _ := c.worstCaseTaker.Float64()
 	return Commission{
 		IsFixedAmount:  c.isFixedAmount,
-		Maker:          maker,
-		Taker:          taker,
-		WorstCaseMaker: worstCaseMaker,
-		WorstCaseTaker: worstCaseTaker,
+		Maker:          c.maker.InexactFloat64(),
+		Taker:          c.taker.InexactFloat64(),
+		WorstCaseMaker: c.worstCaseMaker.InexactFloat64(),
+		WorstCaseTaker: c.worstCaseTaker.InexactFloat64(),
 	}
 }
 
@@ -174,7 +170,7 @@ func (c *CommissionInternal) CalculateWorstCaseTaker(price, amount float64) (flo
 func (c *CommissionInternal) GetMaker() (fee float64, isFixedAmount bool) {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
-	rVal, _ := c.maker.Float64()
+	rVal := c.maker.InexactFloat64()
 	return rVal, c.isFixedAmount
 }
 
@@ -182,7 +178,7 @@ func (c *CommissionInternal) GetMaker() (fee float64, isFixedAmount bool) {
 func (c *CommissionInternal) GetTaker() (fee float64, isFixedAmount bool) {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
-	rVal, _ := c.taker.Float64()
+	rVal := c.taker.InexactFloat64()
 	return rVal, c.isFixedAmount
 }
 
@@ -190,7 +186,7 @@ func (c *CommissionInternal) GetTaker() (fee float64, isFixedAmount bool) {
 func (c *CommissionInternal) GetWorstCaseMaker() (fee float64, isFixedAmount bool) {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
-	rVal, _ := c.worstCaseMaker.Float64()
+	rVal := c.worstCaseMaker.InexactFloat64()
 	return rVal, c.isFixedAmount
 }
 
@@ -198,7 +194,7 @@ func (c *CommissionInternal) GetWorstCaseMaker() (fee float64, isFixedAmount boo
 func (c *CommissionInternal) GetWorstCaseTaker() (fee float64, isFixedAmount bool) {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
-	rVal, _ := c.worstCaseTaker.Float64()
+	rVal := c.worstCaseTaker.InexactFloat64()
 	return rVal, c.isFixedAmount
 }
 
@@ -206,8 +202,8 @@ func (c *CommissionInternal) GetWorstCaseTaker() (fee float64, isFixedAmount boo
 func (c *CommissionInternal) set(maker, taker float64, isFixedAmount bool) error {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
-	// These should not change, and a package update might need to occur.
 	if c.isFixedAmount != isFixedAmount {
+		// These should not change, and a package update might need to occur.
 		return errFeeTypeMismatch
 	}
 	c.maker = decimal.NewFromFloat(maker)
@@ -220,13 +216,13 @@ func (c *CommissionInternal) calculate(fee decimal.Decimal, price, amount float6
 	// TODO: Add fees based on volume of this asset
 	if c.isFixedAmount {
 		// Returns the whole number
-		setValue, _ := fee.Float64()
+		setValue := fee.InexactFloat64()
 		return setValue, nil
 	}
 	// Return fee derived from percentage, price and amount values
 	// TODO: Add rebate for negative values
 	var val = decimal.NewFromFloat(price).Mul(decimal.NewFromFloat(amount)).Mul(fee)
-	rVal, _ := val.Float64()
+	rVal := val.InexactFloat64()
 	return rVal, nil
 }
 

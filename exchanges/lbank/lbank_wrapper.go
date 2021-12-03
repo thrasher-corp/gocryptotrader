@@ -140,7 +140,7 @@ func (l *Lbank) Setup(exch *config.Exchange) error {
 		GlobalCommissions: map[asset.Item]fee.Commission{
 			asset.Spot: {Maker: 0.001, Taker: 0.001},
 		},
-		ChainTransfer: transferFees,
+		ChainTransfer: defaultTransferFees,
 	})
 	if err != nil {
 		return err

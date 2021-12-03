@@ -174,7 +174,7 @@ func (b *Bitstamp) Setup(exch *config.Exchange) error {
 			asset.Spot: {Maker: 0.005, Taker: 0.005},
 		},
 		BankTransfer:  bankTransfer,
-		ChainTransfer: transferFees,
+		ChainTransfer: defaultTransferFees,
 	})
 	if err != nil {
 		return err

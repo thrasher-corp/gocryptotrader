@@ -234,8 +234,8 @@ var bankTransferFees = []fee.Transfer{
 	{Currency: currency.KRW, BankTransfer: bank.WireTransfer, Deposit: fee.Convert(0), Withdrawal: fee.Convert(1000)},
 }
 
-// transferFees the large list of predefined fees. Prone to change.
-var transferFees = []fee.Transfer{
+// defaultTransferFees the large list of predefined fees. Prone to change.
+var defaultTransferFees = []fee.Transfer{
 	{Currency: currency.BTC, Deposit: fee.ConvertWithAmount(0.001, 0, 0.005), Withdrawal: fee.Convert(0.001)},
 	{Currency: currency.ETH, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.01)},
 	{Currency: currency.DASH, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.01)},

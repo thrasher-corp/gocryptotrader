@@ -220,9 +220,9 @@ func (p Pairs) GetRandomPair() Pair {
 	return Pair{}
 }
 
-// DeriveFrom is able to match the incoming string without a delimiter against
-// all contained pairs
-func (p Pairs) DeriveFrom(symbol string) (Pair, error) {
+// DerivePairFrom is able to match the incoming string without a delimiter
+// against all contained pairs
+func (p Pairs) DerivePairFrom(symbol string) (Pair, error) {
 	if len(p) == 0 {
 		return Pair{}, errPairsEmpty
 	}

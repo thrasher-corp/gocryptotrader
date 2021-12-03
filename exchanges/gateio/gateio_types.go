@@ -171,8 +171,8 @@ type TradesResponse struct {
 	TimeUnix int64   `json:"time_unix"`
 }
 
-// transferFees the large list of predefined transfer fees. Prone to change.
-var transferFees = []fee.Transfer{
+// defaultTransferFees the large list of predefined transfer fees. Prone to change.
+var defaultTransferFees = []fee.Transfer{
 	{Currency: currency.GT, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.25)},
 	{Currency: currency.USDT, Deposit: fee.Convert(0), Withdrawal: fee.Convert(40)},
 	{Currency: currency.BTC, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.001)},

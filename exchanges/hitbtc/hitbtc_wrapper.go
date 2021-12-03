@@ -955,9 +955,9 @@ func (h *HitBTC) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
 	for x := range fees {
 		var pair currency.Pair
 		if fees[x].Symbol == "BONDUSD" { // No such trading pair
-			pair, err = avail.DeriveFrom("BONDUSDT")
+			pair, err = avail.DerivePairFrom("BONDUSDT")
 		} else {
-			pair, err = avail.DeriveFrom(fees[x].Symbol)
+			pair, err = avail.DerivePairFrom(fees[x].Symbol)
 		}
 		if err != nil {
 			return err

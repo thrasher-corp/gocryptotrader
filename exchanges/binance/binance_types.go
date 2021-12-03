@@ -941,7 +941,7 @@ var usdMarginedFeeTier = map[int64]Tier{
 	9: {Maker: 0, Taker: 0.00017},
 }
 
-var transferFees = []fee.Transfer{
+var defaultTransferFees = []fee.Transfer{
 	{Currency: currency.ONEINCH, Chain: "BEP20", Deposit: fee.Convert(0), Withdrawal: fee.ConvertWithMinimumAmount(0.074, 0.15)},
 	{Currency: currency.ONEINCH, Chain: "ERC20", Deposit: fee.Convert(0), Withdrawal: fee.ConvertWithMinimumAmount(8.57, 17)},
 	{Currency: currency.AGLD, Chain: "ERC20", Deposit: fee.Convert(0), Withdrawal: fee.ConvertWithMinimumAmount(12, 24)},

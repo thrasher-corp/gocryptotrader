@@ -206,9 +206,9 @@ var internationalBank = []fee.Transfer{
 		IsPercentage: true},
 }
 
-// transferFees the large list of predefined withdrawal fees
+// defaultTransferFees the large list of predefined withdrawal fees
 // Prone to change, using highest value
-var transferFees = []fee.Transfer{
+var defaultTransferFees = []fee.Transfer{
 	{IsPercentage: true, Currency: currency.ZERO07, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.0005)},
 	{IsPercentage: true, Currency: currency.BIT16, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.0005)},
 	{IsPercentage: true, Currency: currency.TWO015, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.0005)},

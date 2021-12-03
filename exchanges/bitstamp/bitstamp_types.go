@@ -278,9 +278,9 @@ var bankTransfer = []fee.Transfer{
 		Withdrawal:   fee.ConvertWithMaxAndMin(0.001, 25, 0)},
 }
 
-// transferFees defines crypto transfer fees to and from the exchange. Subject
+// defaultTransferFees defines crypto transfer fees to and from the exchange. Subject
 // to change.
-var transferFees = []fee.Transfer{
+var defaultTransferFees = []fee.Transfer{
 	{Currency: currency.BTC, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.0005)},
 	{Currency: currency.XRP, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.02)},
 	{Currency: currency.LTC, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.001)},

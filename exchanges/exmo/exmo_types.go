@@ -175,9 +175,9 @@ type PairInformation struct {
 	Updated                 int64   `json:"updated,string"`
 }
 
-// transferFees the large list of predefined withdrawal and deposit fees.
+// defaultTransferFees the large list of predefined withdrawal and deposit fees.
 // Prone to change.
-var transferFees = []fee.Transfer{
+var defaultTransferFees = []fee.Transfer{
 	{Currency: currency.EXM, Deposit: fee.Convert(0), Withdrawal: fee.Convert(50)},
 	{Currency: currency.ADA, Deposit: fee.Convert(0), Withdrawal: fee.Convert(1)},
 	{Currency: currency.ALGO, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0.01)},

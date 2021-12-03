@@ -414,9 +414,9 @@ type CancelOrderResponse struct {
 	Pending interface{} `json:"pending"`
 }
 
-// transferFees the list of predefined withdrawal and deposit fees. Prone to
+// defaultTransferFees the list of predefined withdrawal and deposit fees. Prone to
 // change
-var transferFees = []fee.Transfer{
+var defaultTransferFees = []fee.Transfer{
 	{Currency: currency.ZUSD, Deposit: fee.Convert(0), Withdrawal: fee.Convert(5)},
 	{Currency: currency.ZEUR, Deposit: fee.Convert(0), Withdrawal: fee.Convert(5)},
 	{Currency: currency.USD, Deposit: fee.Convert(0), Withdrawal: fee.Convert(5)},

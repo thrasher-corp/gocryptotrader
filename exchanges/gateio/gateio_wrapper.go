@@ -169,7 +169,7 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 			asset.Spot:    {Maker: 0.002, Taker: 0.002},
 			asset.Futures: {Maker: 0, Taker: 0.00075},
 		},
-		ChainTransfer: transferFees,
+		ChainTransfer: defaultTransferFees,
 	})
 	if err != nil {
 		return err

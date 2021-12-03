@@ -243,10 +243,8 @@ func (t *transfer) calculate(val Value, amount float64) (float64, error) {
 		// p value at the interface layer
 
 		// Returns the whole number
-		feeFloat, _ := fee.Float64()
-		return feeFloat, nil
+		return fee.InexactFloat64(), nil
 	}
 	// Return fee derived from percentage and amount values
-	rVal, _ := decimal.NewFromFloat(amount).Mul(fee).Float64()
-	return rVal, nil
+	return decimal.NewFromFloat(amount).Mul(fee).InexactFloat64(), nil
 }
