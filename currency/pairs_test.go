@@ -252,6 +252,7 @@ func TestDeriveFrom(t *testing.T) {
 		NewPair(USDC, USD),
 		NewPair(BTC, LTC),
 		NewPair(LTC, SAFEMARS),
+		NewPairWithDelimiter(SAFEMARS.String(), "LTC", "-"),
 	}
 
 	_, err = testCases.DeriveFrom("")

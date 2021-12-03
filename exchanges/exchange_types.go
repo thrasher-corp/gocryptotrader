@@ -191,7 +191,7 @@ type Base struct {
 
 	AssetWebsocketSupport
 
-	Fees *fee.Definitions
+	Fees *fee.Schedule
 	*currencystate.States
 }
 

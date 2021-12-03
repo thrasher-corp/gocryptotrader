@@ -220,8 +220,8 @@ func (p Pairs) GetRandomPair() Pair {
 	return Pair{}
 }
 
-// DeriveFrom matches symbol string to the available pairs list when no
-// delimiter is supplied.
+// DeriveFrom is able to match the incoming string without a delimiter against
+// all contained pairs
 func (p Pairs) DeriveFrom(symbol string) (Pair, error) {
 	if len(p) == 0 {
 		return Pair{}, errPairsEmpty
@@ -233,7 +233,7 @@ func (p Pairs) DeriveFrom(symbol string) (Pair, error) {
 pairs:
 	for x := range p {
 		if p[x].Len() != len(symbol) {
-			continue // Optim.
+			continue
 		}
 		base := p[x].Base.Lower().String()
 		baseLength := len(base)

@@ -36,7 +36,7 @@ The purpose of this component is to sychronize the account fees for the supplied
 ./gocryptotrader 
 ```
 
-+ Configuration paramaters 
++ Configuration parameters 
 
 | Config | Description | Example |
 | ------ | ----------- | ------- |

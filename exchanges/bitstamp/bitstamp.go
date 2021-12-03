@@ -126,7 +126,7 @@ func (b *Bitstamp) GetTradingPairs(ctx context.Context) ([]TradingPair, error) {
 }
 
 // GetTransactions returns transaction information
-// value paramater ["time"] = "minute", "hour", "day" will collate your
+// value parameter ["time"] = "minute", "hour", "day" will collate your
 // response into time intervals.
 func (b *Bitstamp) GetTransactions(ctx context.Context, currencyPair, timePeriod string) ([]Transactions, error) {
 	var transactions []Transactions

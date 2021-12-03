@@ -31,7 +31,6 @@ import (
 )
 
 var (
-	errAssetUnhandled  = errors.New("asset is unhandled")
 	errFeeTierNotFound = errors.New("fee tier not found")
 )
 
@@ -1907,7 +1906,7 @@ func (b *Binance) UpdateCommissionFees(ctx context.Context, a asset.Item) error 
 	case asset.Margin:
 		return nil
 	default:
-		return fmt.Errorf("%s: %w", a, errAssetUnhandled)
+		return fmt.Errorf("%s: %w", a, asset.ErrNotSupported)
 	}
 }
 

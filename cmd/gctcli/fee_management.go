@@ -52,8 +52,8 @@ var exchangeFeeManagementCommand = &cli.Command{
 						},
 						&cli.BoolFlag{
 							Name:   "percentage",
-							Usage:  "if the fees are a set value or percentage",
-							Value:  true, // Default to true
+							Usage:  "if the fees are a fixed amount or a percentage",
+							Value:  true,
 							Hidden: true,
 						},
 					},
@@ -62,7 +62,7 @@ var exchangeFeeManagementCommand = &cli.Command{
 				{
 					Name:      "transfer",
 					Usage:     "sets new withdrawal and deposit values for an exchange",
-					ArgsUsage: "<exchange> <currency> <asset> <withdraw> <deposit> <setvalue>",
+					ArgsUsage: "<exchange> <currency> <asset> <withdraw> <deposit> <fixedamount>",
 					Flags: []cli.Flag{
 						&cli.StringFlag{
 							Name:  "exchange",
@@ -85,9 +85,9 @@ var exchangeFeeManagementCommand = &cli.Command{
 							Usage: "the deposit fee",
 						},
 						&cli.BoolFlag{
-							Name:   "setvalue",
-							Usage:  "if the fees are a set value or percentage",
-							Value:  true, // Default to a set value
+							Name:   "fixedAmount",
+							Usage:  "if the fees are a fixed amount or a percentage",
+							Value:  true,
 							Hidden: true,
 						},
 					},
@@ -120,8 +120,8 @@ var exchangeFeeManagementCommand = &cli.Command{
 						},
 						&cli.BoolFlag{
 							Name:   "setvalue",
-							Usage:  "if the fees are a set value or percentage",
-							Value:  true, // Default to a set value
+							Usage:  "if the fees are a fixed amount or a percentage",
+							Value:  true,
 							Hidden: true,
 						},
 					},
@@ -284,15 +284,15 @@ func setTransferFees(c *cli.Context) error {
 		deposit = f
 	}
 
-	var setValue bool
-	if c.IsSet("setvalue") {
-		setValue = c.Bool("setvalue")
+	var fixedAmount bool
+	if c.IsSet("fixedamount") {
+		fixedAmount = c.Bool("fixedamount")
 	} else {
 		b, err := strconv.ParseBool(c.Args().Get(5))
 		if err != nil {
 			return err
 		}
-		setValue = b
+		fixedAmount = b
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -309,7 +309,7 @@ func setTransferFees(c *cli.Context) error {
 			Chain:        chain,
 			Withdraw:     withdraw,
 			Deposit:      deposit,
-			IsPercentage: !setValue,
+			IsPercentage: !fixedAmount,
 		})
 	if err != nil {
 		return err

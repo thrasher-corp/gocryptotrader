@@ -2705,7 +2705,6 @@ var (
 	MTA              = NewCode("MTA")
 	MBF              = NewCode("MBF")
 	Y1D1S            = NewCode("Y1D1S")
-	not              = NewCode("not")
 	GMCOIN           = NewCode("GMCOIN")
 	KISHU            = NewCode("KISHU")
 	OPX              = NewCode("OPX")

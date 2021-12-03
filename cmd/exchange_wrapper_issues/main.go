@@ -526,8 +526,6 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Response: jsonifyInterface([]interface{}{getFundingHistoryResponse}),
 		})
 
-		var commissionFees *fee.CommissionInternal
-		commissionFees, err = e.GetCommissionFee(assetTypes[i], p)
 		fees := struct {
 			Maker            float64
 			IsMakerAFixedFee bool
@@ -535,6 +533,8 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			IsTakerAFixedFee bool
 		}{}
 		msg = ""
+		var commissionFees *fee.CommissionInternal
+		commissionFees, err = e.GetCommissionFee(assetTypes[i], p)
 		if err != nil {
 			msg = err.Error()
 			responseContainer.ErrorCount++

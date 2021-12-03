@@ -639,7 +639,7 @@ func (b *Base) SetupDefaults(exch *config.Exchange) error {
 	}
 	b.CanVerifyOrderbook = !exch.Orderbook.VerificationBypass
 
-	b.Fees = fee.NewFeeDefinitions()
+	b.Fees = fee.NewFeeSchedule()
 	b.States = currencystate.NewCurrencyStates()
 	return nil
 }

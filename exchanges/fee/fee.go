@@ -12,9 +12,9 @@ import (
 )
 
 var (
-	// ErrDefinitionsAreNil defines if the exchange specific fee definitions
-	// have bot been loaded or set up.
-	ErrDefinitionsAreNil = errors.New("fee definitions are nil")
+	// ErrScheduleIsNil defines if the exchange specific fee schedule has bot
+	// been loaded or set up.
+	ErrScheduleIsNil = errors.New("fee Schedule is nil")
 
 	errCurrencyIsEmpty         = errors.New("currency is empty")
 	errTransferFeeNotFound     = errors.New("transfer fee not found")
@@ -37,9 +37,9 @@ var (
 	AllAllowed = currency.NewCode("ALLALLOWED")
 )
 
-// NewFeeDefinitions generates a new fee struct for exchange usage
-func NewFeeDefinitions() *Definitions {
-	return &Definitions{
+// NewFeeSchedule generates a new fee struct for exchange usage
+func NewFeeSchedule() *Schedule {
+	return &Schedule{
 		globalCommissions: make(map[asset.Item]*CommissionInternal),
 		pairCommissions:   make(map[asset.Item]map[*currency.Item]map[*currency.Item]*CommissionInternal),
 		chainTransfer:     make(map[*currency.Item]map[string]*transfer),
@@ -47,10 +47,10 @@ func NewFeeDefinitions() *Definitions {
 	}
 }
 
-// Definitions defines the full fee definitions for different currencies
+// Schedule defines the full fee schedule for different currencies
 // TODO: Eventually upgrade with key manager for different fees associated
 // with different accounts/keys.
-type Definitions struct {
+type Schedule struct {
 	// Commission is the holder for the up to date commission rates for the
 	// assets.
 	globalCommissions map[asset.Item]*CommissionInternal
@@ -58,10 +58,10 @@ type Definitions struct {
 	// the specific trading pairs.
 	pairCommissions map[asset.Item]map[*currency.Item]map[*currency.Item]*CommissionInternal
 	// transfer defines a map of currencies with differing withdrawal and
-	// deposit fee definitions. These will commonly be real values.
+	// deposit fee schedule. These will commonly be real values.
 	chainTransfer map[*currency.Item]map[string]*transfer
 	// bankTransfer defines a map of currencies with differing withdrawal and
-	// deposit fee definitions for banking. These will commonly be fixed real
+	// deposit fee schedule for banking. These will commonly be fixed real
 	// values.
 	bankTransfer map[bank.Transfer]map[*currency.Item]*transfer
 	mtx          sync.RWMutex
@@ -71,11 +71,11 @@ type Definitions struct {
 // taker values. As a standard this is loaded as a rate e.g. 0.2% fee as a rate
 // would be 0.2/100 == 0.002.
 //
-// The pair is an optional paramater if omitted will designate global/exchange
+// The pair is an optional parameter if omitted will designate global/exchange
 // maker, taker fees irrespective of individual trading operations.
-func (d *Definitions) LoadDynamicFeeRate(maker, taker float64, a asset.Item, pair currency.Pair) error {
+func (d *Schedule) LoadDynamicFeeRate(maker, taker float64, a asset.Item, pair currency.Pair) error {
 	if d == nil {
-		return ErrDefinitionsAreNil
+		return ErrScheduleIsNil
 	}
 
 	if err := checkCommissionRates(maker, taker); err != nil {
@@ -123,9 +123,9 @@ func (d *Definitions) LoadDynamicFeeRate(maker, taker float64, a asset.Item, pai
 // fees (which will automatically be loaded as worst case scenario fees),
 // transfer fees to and from blockchains/wallets/exchanges, and bank transfer
 // fees.
-func (d *Definitions) LoadStaticFees(o Options) error {
+func (d *Schedule) LoadStaticFees(o Options) error {
 	if d == nil {
-		return ErrDefinitionsAreNil
+		return ErrScheduleIsNil
 	}
 
 	if err := o.validate(); err != nil {
@@ -179,9 +179,9 @@ func (d *Definitions) LoadStaticFees(o Options) error {
 
 // GetCommissionFee returns a pointer of the current commission rate for the
 // asset type.
-func (d *Definitions) GetCommissionFee(a asset.Item, pair currency.Pair) (*CommissionInternal, error) {
+func (d *Schedule) GetCommissionFee(a asset.Item, pair currency.Pair) (*CommissionInternal, error) {
 	if d == nil {
-		return nil, ErrDefinitionsAreNil
+		return nil, ErrScheduleIsNil
 	}
 	d.mtx.RLock()
 	defer d.mtx.RUnlock()
@@ -189,7 +189,7 @@ func (d *Definitions) GetCommissionFee(a asset.Item, pair currency.Pair) (*Commi
 }
 
 // getCommission returns the internal commission rate based on provided params
-func (d *Definitions) getCommission(a asset.Item, pair currency.Pair) (*CommissionInternal, error) {
+func (d *Schedule) getCommission(a asset.Item, pair currency.Pair) (*CommissionInternal, error) {
 	if len(d.pairCommissions) != 0 && !pair.IsEmpty() {
 		if c, ok := d.pairCommissions[a][pair.Base.Item][pair.Quote.Item]; ok {
 			return c, nil
@@ -204,9 +204,9 @@ func (d *Definitions) getCommission(a asset.Item, pair currency.Pair) (*Commissi
 
 // CalculateMaker returns the fee amount derived from the price, amount and fee
 // percentage.
-func (d *Definitions) CalculateMaker(price, amount float64, a asset.Item, pair currency.Pair) (float64, error) {
+func (d *Schedule) CalculateMaker(price, amount float64, a asset.Item, pair currency.Pair) (float64, error) {
 	if d == nil {
-		return 0, ErrDefinitionsAreNil
+		return 0, ErrScheduleIsNil
 	}
 
 	d.mtx.RLock()
@@ -221,9 +221,9 @@ func (d *Definitions) CalculateMaker(price, amount float64, a asset.Item, pair c
 // CalculateWorstCaseMaker returns the fee amount derived from the price, amount
 // and fee percentage using the worst-case scenario trading fee. This is usually
 // the initial loaded fee in an exchanges wrapper.go setup function.
-func (d *Definitions) CalculateWorstCaseMaker(price, amount float64, a asset.Item, pair currency.Pair) (float64, error) {
+func (d *Schedule) CalculateWorstCaseMaker(price, amount float64, a asset.Item, pair currency.Pair) (float64, error) {
 	if d == nil {
-		return 0, ErrDefinitionsAreNil
+		return 0, ErrScheduleIsNil
 	}
 
 	d.mtx.RLock()
@@ -237,9 +237,9 @@ func (d *Definitions) CalculateWorstCaseMaker(price, amount float64, a asset.Ite
 
 // GetMaker returns the maker fee value and if it is a percentage or whole
 // number.
-func (d *Definitions) GetMaker(a asset.Item, pair currency.Pair) (fee float64, isSetAmount bool, err error) {
+func (d *Schedule) GetMaker(a asset.Item, pair currency.Pair) (fee float64, isSetAmount bool, err error) {
 	if d == nil {
-		return 0, false, ErrDefinitionsAreNil
+		return 0, false, ErrScheduleIsNil
 	}
 
 	d.mtx.RLock()
@@ -254,9 +254,9 @@ func (d *Definitions) GetMaker(a asset.Item, pair currency.Pair) (fee float64, i
 
 // CalculateTaker returns the fee amount derived from the price, amount and fee
 // percentage.
-func (d *Definitions) CalculateTaker(price, amount float64, a asset.Item, pair currency.Pair) (float64, error) {
+func (d *Schedule) CalculateTaker(price, amount float64, a asset.Item, pair currency.Pair) (float64, error) {
 	if d == nil {
-		return 0, ErrDefinitionsAreNil
+		return 0, ErrScheduleIsNil
 	}
 
 	d.mtx.RLock()
@@ -271,9 +271,9 @@ func (d *Definitions) CalculateTaker(price, amount float64, a asset.Item, pair c
 // CalculateWorstCaseTaker returns the fee amount derived from the price, amount
 // and fee percentage using the worst-case scenario trading fee. This is usually
 // the initial loaded fee in an exchanges wrapper.go setup function.
-func (d *Definitions) CalculateWorstCaseTaker(price, amount float64, a asset.Item, pair currency.Pair) (float64, error) {
+func (d *Schedule) CalculateWorstCaseTaker(price, amount float64, a asset.Item, pair currency.Pair) (float64, error) {
 	if d == nil {
-		return 0, ErrDefinitionsAreNil
+		return 0, ErrScheduleIsNil
 	}
 
 	d.mtx.RLock()
@@ -286,9 +286,9 @@ func (d *Definitions) CalculateWorstCaseTaker(price, amount float64, a asset.Ite
 }
 
 // GetTaker returns the taker fee value and if it is a percentage or real number.
-func (d *Definitions) GetTaker(a asset.Item, pair currency.Pair) (fee float64, isSetAmount bool, err error) {
+func (d *Schedule) GetTaker(a asset.Item, pair currency.Pair) (fee float64, isSetAmount bool, err error) {
 	if d == nil {
-		return 0, false, ErrDefinitionsAreNil
+		return 0, false, ErrScheduleIsNil
 	}
 
 	d.mtx.RLock()
@@ -303,9 +303,9 @@ func (d *Definitions) GetTaker(a asset.Item, pair currency.Pair) (fee float64, i
 
 // CalculateDeposit returns calculated fee from the amount, chain can be omitted
 // as a it refers to the main chain.
-func (d *Definitions) CalculateDeposit(c currency.Code, chain string, amount float64) (float64, error) {
+func (d *Schedule) CalculateDeposit(c currency.Code, chain string, amount float64) (float64, error) {
 	if d == nil {
-		return 0, ErrDefinitionsAreNil
+		return 0, ErrScheduleIsNil
 	}
 
 	d.mtx.RLock()
@@ -319,9 +319,9 @@ func (d *Definitions) CalculateDeposit(c currency.Code, chain string, amount flo
 
 // GetDeposit returns the deposit fee associated with the currency, chain can be
 // omitted as a it refers to the main chain.
-func (d *Definitions) GetDeposit(c currency.Code, chain string) (fee Value, isPercentage bool, err error) {
+func (d *Schedule) GetDeposit(c currency.Code, chain string) (fee Value, isPercentage bool, err error) {
 	if d == nil {
-		return nil, false, ErrDefinitionsAreNil
+		return nil, false, ErrScheduleIsNil
 	}
 
 	d.mtx.RLock()
@@ -335,9 +335,9 @@ func (d *Definitions) GetDeposit(c currency.Code, chain string) (fee Value, isPe
 
 // CalculateDeposit returns calculated fee from the amount, chain can be omitted
 // as a it refers to the main chain.
-func (d *Definitions) CalculateWithdrawal(c currency.Code, chain string, amount float64) (float64, error) {
+func (d *Schedule) CalculateWithdrawal(c currency.Code, chain string, amount float64) (float64, error) {
 	if d == nil {
-		return 0, ErrDefinitionsAreNil
+		return 0, ErrScheduleIsNil
 	}
 
 	d.mtx.RLock()
@@ -351,7 +351,7 @@ func (d *Definitions) CalculateWithdrawal(c currency.Code, chain string, amount 
 
 // GetWithdrawal returns the withdrawal fee associated with the currency, chain
 // can be omitted as a it refers to the main chain.
-func (d *Definitions) GetWithdrawal(c currency.Code, chain string) (fee Value, isPercentage bool, err error) {
+func (d *Schedule) GetWithdrawal(c currency.Code, chain string) (fee Value, isPercentage bool, err error) {
 	d.mtx.RLock()
 	defer d.mtx.RUnlock()
 	t, err := d.get(c, chain)
@@ -362,7 +362,7 @@ func (d *Definitions) GetWithdrawal(c currency.Code, chain string) (fee Value, i
 }
 
 // get returns the fee structure by the currency and its chain type.
-func (d *Definitions) get(c currency.Code, chain string) (*transfer, error) {
+func (d *Schedule) get(c currency.Code, chain string) (*transfer, error) {
 	if c.String() == "" {
 		return nil, errCurrencyIsEmpty
 	}
@@ -374,10 +374,10 @@ func (d *Definitions) get(c currency.Code, chain string) (*transfer, error) {
 	return s, nil
 }
 
-// GetAllFees returns a snapshot of the full fee definitions.
-func (d *Definitions) GetAllFees() (Options, error) {
+// GetAllFees returns a snapshot of the full fee Schedule.
+func (d *Schedule) GetAllFees() (Options, error) {
 	if d == nil {
-		return Options{}, ErrDefinitionsAreNil
+		return Options{}, ErrScheduleIsNil
 	}
 
 	d.mtx.RLock()
@@ -427,9 +427,9 @@ func (d *Definitions) GetAllFees() (Options, error) {
 
 // SetCommissionFee sets new global fees and forces custom control for that
 // asset. TODO: Add write control when this gets changed.
-func (d *Definitions) SetCommissionFee(a asset.Item, pair currency.Pair, maker, taker float64, isFixedAmount bool) error {
+func (d *Schedule) SetCommissionFee(a asset.Item, pair currency.Pair, maker, taker float64, isFixedAmount bool) error {
 	if d == nil {
-		return ErrDefinitionsAreNil
+		return ErrScheduleIsNil
 	}
 
 	err := checkCommissionRates(maker, taker)
@@ -452,9 +452,9 @@ func (d *Definitions) SetCommissionFee(a asset.Item, pair currency.Pair, maker, 
 
 // GetTransferFee returns a snapshot of the current transfer fees for the
 // asset type.
-func (d *Definitions) GetTransferFee(c currency.Code, chain string) (*Transfer, error) {
+func (d *Schedule) GetTransferFee(c currency.Code, chain string) (*Transfer, error) {
 	if d == nil {
-		return nil, ErrDefinitionsAreNil
+		return nil, ErrScheduleIsNil
 	}
 
 	if c.String() == "" {
@@ -473,9 +473,9 @@ func (d *Definitions) GetTransferFee(c currency.Code, chain string) (*Transfer, 
 // SetTransferFees sets new transfer fees.
 // TODO: Need min and max settings, might deprecate due to complexity of value
 // types. Or expand out the RPC to set custom values.
-func (d *Definitions) SetTransferFee(c currency.Code, chain string, withdraw, deposit float64, isPercentage bool) error {
+func (d *Schedule) SetTransferFee(c currency.Code, chain string, withdraw, deposit float64, isPercentage bool) error {
 	if d == nil {
-		return ErrDefinitionsAreNil
+		return ErrScheduleIsNil
 	}
 
 	if withdraw < 0 {
@@ -509,9 +509,9 @@ func (d *Definitions) SetTransferFee(c currency.Code, chain string, withdraw, de
 
 // GetBankTransferFee returns a snapshot of the current bank transfer fees for
 // the asset.
-func (d *Definitions) GetBankTransferFee(c currency.Code, transType bank.Transfer) (*Transfer, error) {
+func (d *Schedule) GetBankTransferFee(c currency.Code, transType bank.Transfer) (*Transfer, error) {
 	if d == nil {
-		return nil, ErrDefinitionsAreNil
+		return nil, ErrScheduleIsNil
 	}
 
 	if c.String() == "" {
@@ -534,9 +534,9 @@ func (d *Definitions) GetBankTransferFee(c currency.Code, transType bank.Transfe
 // SetBankTransferFee sets new bank transfer fees
 // TODO: Need min and max settings, might deprecate due to complexity of value
 // types. Or expand out the RPC to set custom values.
-func (d *Definitions) SetBankTransferFee(c currency.Code, transType bank.Transfer, withdraw, deposit float64, isPercentage bool) error {
+func (d *Schedule) SetBankTransferFee(c currency.Code, transType bank.Transfer, withdraw, deposit float64, isPercentage bool) error {
 	if d == nil {
-		return ErrDefinitionsAreNil
+		return ErrScheduleIsNil
 	}
 
 	if c.String() == "" {
@@ -573,9 +573,9 @@ func (d *Definitions) SetBankTransferFee(c currency.Code, transType bank.Transfe
 
 // LoadChainTransferFees allows the loading of current transfer fees for
 // cryptocurrency deposit and withdrawals.
-func (d *Definitions) LoadChainTransferFees(fees []Transfer) error {
+func (d *Schedule) LoadChainTransferFees(fees []Transfer) error {
 	if d == nil {
-		return ErrDefinitionsAreNil
+		return ErrScheduleIsNil
 	}
 
 	if len(fees) == 0 {
