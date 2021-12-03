@@ -114,9 +114,10 @@ func (f *FeeManager) monitor() {
 				wg.Add(1)
 				go update(exchs[x], &wg, exchs[x].GetAssetTypes(true))
 			}
-			wg.Wait() // This causes some variability in the timer due to
+			// This causes some variability in the timer due to
 			// longest length of request time. Can do time.Ticker but don't
 			// want routines to stack behind, this is more uniform.
+			wg.Wait()
 			timer.Reset(f.sleep)
 		}
 	}
@@ -127,12 +128,12 @@ func update(exch exchange.IBotExchange, wg *sync.WaitGroup, enabledAssets asset.
 
 	// Commission fees are maker and taker fees associated with different asset
 	// types
-	for y := range enabledAssets {
-		err := exch.UpdateCommissionFees(context.TODO(), enabledAssets[y])
+	for x := range enabledAssets {
+		err := exch.UpdateCommissionFees(context.TODO(), enabledAssets[x])
 		if err != nil && !errors.Is(err, common.ErrNotYetImplemented) {
 			log.Errorf(log.ExchangeSys, "Fee manager %s %s: %v",
 				exch.GetName(),
-				enabledAssets[y],
+				enabledAssets[x],
 				err)
 		}
 	}

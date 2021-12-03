@@ -37,29 +37,7 @@ const (
 	pubGetChats            = "/getchats"
 
 	// Authenticated Endpoints
-	// privGetPermissions             = "/me/getpermissions"
-	// privGetBalance                 = "/me/getbalance"
-	// privMarginStatus               = "/me/getcollateral"
-	// privGetCollateralAcc           = "/me/getcollateralaccounts"
-	// privGetDepositAddress          = "/me/getaddresses"
-	// privDepositHistory             = "/me/getcoinins"
-	// privTransactionHistory         = "/me/getcoinouts"
-	// privBankAccSummary             = "/me/getbankaccounts"
-	// privGetDeposits                = "/me/getdeposits"
-	// privWithdraw                   = "/me/withdraw"
-	// privDepositCancellationHistory = "/me/getwithdrawals"
-	// privSendOrder                  = "/me/sendchildorder"
-	// privCancelOrder                = "/me/cancelchildorder"
-	// privParentOrder                = "/me/sendparentorder"
-	// privCancelParentOrder          = "/me/cancelparentorder"
-	// privCancelOrders               = "/me/cancelallchildorders"
-	// privListOrders                 = "/me/getchildorders"
-	// privListParentOrders           = "/me/getparentorders"
-	// privParentOrderDetails         = "/me/getparentorder"
-	// privExecutions                 = "/me/getexecutions"
-	// privOpenInterest               = "/me/getpositions"
-	// privMarginChange               = "/me/getcollateralhistory"
-	// privTradingCommission          = "/me/gettradingcommission"
+	// Note: Not yet implemented
 
 	orders request.EndpointLimit = iota
 	lowVolume

@@ -144,8 +144,10 @@ func (b *Bitstamp) GetEURUSDConversionRate(ctx context.Context) (EURUSDConversio
 	return rate, b.SendHTTPRequest(ctx, exchange.RestSpot, path, &rate)
 }
 
-// GetBalance returns full balance of currency held on the exchange
-// This is done to keep items in order because maps have randomized access.
+// GetBalance returns full balance of currency held on the exchange.
+// This has a non-standard approach to keep items in the exact order from the
+// API endpoint, so as to provide correct scaling for all balances because Go
+// maps have randomized access.
 func (b *Bitstamp) GetBalance(ctx context.Context) (Balances, error) {
 	var balance json.RawMessage
 	err := b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitstampAPIBalance, true, nil, &balance)
@@ -199,9 +201,17 @@ func (b *Bitstamp) GetBalance(ctx context.Context) (Balances, error) {
 			balances[ID] = balance
 		}
 
+		if len(element) != 2 {
+			return nil, errors.New("cannot determine value out of element")
+		}
+
 		value, err := strconv.ParseFloat(element[1], 64)
 		if err != nil {
 			return nil, err
+		}
+
+		if len(serviceID) != 2 {
+			return nil, errors.New("service id trailing info not found")
 		}
 
 		switch serviceID[1] {
