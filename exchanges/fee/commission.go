@@ -19,14 +19,14 @@ type Commission struct {
 	// isFixedAmount defines if the value is a set amount (15 USD) rather than a
 	// percentage e.g. 0.8% == 0.008.
 	IsFixedAmount bool
-	// Maker defines the fee when you provide liqudity for the orderbooks
+	// Maker defines the fee when you provide liquidity for the orderbooks
 	Maker float64
-	// Taker defines the fee when you remove liqudity for the orderbooks
+	// Taker defines the fee when you remove liquidity for the orderbooks
 	Taker float64
-	// WorstCaseMaker defines the worst case fee when you provide liqudity for
+	// WorstCaseMaker defines the worst case fee when you provide liquidity for
 	// the orderbooks
 	WorstCaseMaker float64
-	// WorstCaseTaker defines the worst case fee when you remove liqudity for
+	// WorstCaseTaker defines the worst case fee when you remove liquidity for
 	// the orderbooks
 	WorstCaseTaker float64
 }
@@ -83,21 +83,21 @@ type CommissionInternal struct {
 	// isFixedAmount defines if the value is a fixed amount (15 USD) rather than
 	// a percentage e.g. 0.8% == 0.008.
 	isFixedAmount bool
-	// Maker defines the fee when you provide liqudity for the orderbooks
+	// Maker defines the fee when you provide liquidity for the orderbooks
 	maker decimal.Decimal
-	// Taker defines the fee when you remove liqudity for the orderbooks
+	// Taker defines the fee when you remove liquidity for the orderbooks
 	taker decimal.Decimal
-	// WorstCaseMaker defines the worst case fee when you provide liqudity for
+	// WorstCaseMaker defines the worst case fee when you provide liquidity for
 	// the orderbooks
 	worstCaseMaker decimal.Decimal
-	// WorstCaseTaker defines the worst case fee when you remove liqudity for
+	// WorstCaseTaker defines the worst case fee when you remove liquidity for
 	// the orderbooks
 	worstCaseTaker decimal.Decimal
 
 	mtx sync.Mutex // protected so this can be exported for external strategies
 }
 
-// convert returns a friendly package exportedable type
+// convert returns a friendly package exportable type
 func (c *CommissionInternal) convert() Commission {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
@@ -216,14 +216,11 @@ func (c *CommissionInternal) calculate(fee decimal.Decimal, price, amount float6
 	// TODO: Add fees based on volume of this asset
 	if c.isFixedAmount {
 		// Returns the whole number
-		setValue := fee.InexactFloat64()
-		return setValue, nil
+		return fee.InexactFloat64(), nil
 	}
-	// Return fee derived from percentage, price and amount values
 	// TODO: Add rebate for negative values
 	var val = decimal.NewFromFloat(price).Mul(decimal.NewFromFloat(amount)).Mul(fee)
-	rVal := val.InexactFloat64()
-	return rVal, nil
+	return val.InexactFloat64(), nil
 }
 
 // load protected loader for maker and taker fee updates

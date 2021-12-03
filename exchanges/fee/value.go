@@ -17,9 +17,16 @@ var (
 
 // Value defines custom fee value calculation functionality
 type Value interface {
+	// GetFee returns the fee, either a percentage or fixed amount. The amount
+	// param is only used as a switch for if fees scale with potential amounts.
 	GetFee(amount float64) (decimal.Decimal, error)
+	// Display displays either the float64 value or the JSON of the struct as a
+	// string to be unmarshalled via GRPC if needed.
 	Display() (string, error)
+	// Validate checks current stored struct values for any issues.
 	Validate() error
+	// LessThan determines if the current fee is less than another. Most of
+	// the time this is not needed.
 	LessThan(val Value) (bool, error)
 }
 
@@ -34,17 +41,19 @@ type Standard struct {
 	decimal.Decimal
 }
 
-// GetFee implements Value interface
+// GetFee returns the fee, either a percentage or fixed amount. The amount
+// param is only used as a switch for if fees scale with potential amounts.
 func (s Standard) GetFee(amount float64) (decimal.Decimal, error) {
 	return s.Decimal, nil
 }
 
-// Display implements Value interface
+// Display displays either the float64 value or the JSON of the struct as a
+// string to be unmarshalled via GRPC if needed.
 func (s Standard) Display() (string, error) {
 	return s.String(), nil
 }
 
-// Display implements Value interface
+// Validate checks current stored struct values for any issues.
 func (s Standard) Validate() error {
 	if s.Decimal.LessThan(decimal.Zero) {
 		return errInvalid
@@ -52,7 +61,8 @@ func (s Standard) Validate() error {
 	return nil
 }
 
-// Display implements Value interface
+// LessThan determines if the current fee is less than another. Most of the time
+// this is not needed.
 func (s Standard) LessThan(val Value) (bool, error) {
 	other, ok := val.(Standard)
 	if !ok {
@@ -80,7 +90,8 @@ type Switch struct {
 	Amount               decimal.Decimal `json:"amount"`
 }
 
-// GetFee implements Value interface
+// GetFee returns the fee, either a percentage or fixed amount. The amount
+// param is only used as a switch for if fees scale with potential amounts.
 func (s Switch) GetFee(amount float64) (decimal.Decimal, error) {
 	amt := decimal.NewFromFloat(amount)
 	if amt.GreaterThanOrEqual(s.Amount) {
@@ -89,13 +100,14 @@ func (s Switch) GetFee(amount float64) (decimal.Decimal, error) {
 	return s.FeeWhenLower, nil
 }
 
-// Display implements Value interface
+// Display displays either the float64 value or the JSON of the struct as a
+// string to be unmarshalled via GRPC if needed.
 func (s Switch) Display() (string, error) {
 	data, err := json.Marshal(s)
 	return string(data), err
 }
 
-// Display implements Value interface
+// Validate checks current stored struct values for any issues.
 func (s Switch) Validate() error {
 	if s.FeeWhenLower.LessThan(decimal.Zero) {
 		return fmt.Errorf("fee when lower %w", errInvalid)
@@ -109,7 +121,8 @@ func (s Switch) Validate() error {
 	return nil
 }
 
-// Display implements Value interface
+// LessThan determines if the current fee is less than another. Most of the time
+// this is not needed.
 func (s Switch) LessThan(_ Value) (bool, error) {
 	return false, errCannotCompare
 }
@@ -124,17 +137,19 @@ func ConvertBlockchain(blockchain string) Value {
 // the future when another PR can help resolve this.
 type Blockchain string
 
-// GetFee implements Value interface
+// GetFee returns the fee, either a percentage or fixed amount. The amount
+// param is only used as a switch for if fees scale with potential amounts.
 func (b Blockchain) GetFee(amount float64) (decimal.Decimal, error) {
 	return decimal.Zero, nil
 }
 
-// Display implements Value interface
+// Display displays either the float64 value or the JSON of the struct as a
+// string to be unmarshalled via GRPC if needed.
 func (b Blockchain) Display() (string, error) {
 	return fmt.Sprintf("current fees are %s blockchain transaction fees", b), nil
 }
 
-// Display implements Value interface
+// Validate checks current stored struct values for any issues.
 func (b Blockchain) Validate() error {
 	if b == "" {
 		return errBlockchainEmpty
@@ -142,7 +157,8 @@ func (b Blockchain) Validate() error {
 	return nil
 }
 
-// Display implements Value interface
+// LessThan determines if the current fee is less than another. Most of the time
+// this is not needed.
 func (b Blockchain) LessThan(_ Value) (bool, error) {
 	return false, errCannotCompare
 }
@@ -163,7 +179,8 @@ type MinMax struct {
 	Fee     decimal.Decimal `json:"fee"`
 }
 
-// GetFee implements Value interface
+// GetFee returns the fee, either a percentage or fixed amount. The amount
+// param is only used as a switch for if fees scale with potential amounts.
 func (m MinMax) GetFee(amount float64) (decimal.Decimal, error) {
 	amt := decimal.NewFromFloat(amount)
 	potential := amt.Mul(m.Fee)
@@ -176,13 +193,14 @@ func (m MinMax) GetFee(amount float64) (decimal.Decimal, error) {
 	return potential, nil
 }
 
-// Display implements Value interface
+// Display displays either the float64 value or the JSON of the struct as a
+// string to be unmarshalled via GRPC if needed.
 func (m MinMax) Display() (string, error) {
 	data, err := json.Marshal(m)
 	return string(data), err
 }
 
-// Display implements Value interface
+// Validate checks current stored struct values for any issues.
 func (m MinMax) Validate() error {
 	if m.Fee.LessThan(decimal.Zero) {
 		return fmt.Errorf("%w fee", errInvalid)
@@ -196,7 +214,8 @@ func (m MinMax) Validate() error {
 	return nil
 }
 
-// Display implements Value interface
+// LessThan determines if the current fee is less than another. Most of the time
+// this is not needed.
 func (m MinMax) LessThan(_ Value) (bool, error) {
 	return false, errCannotCompare
 }
@@ -209,13 +228,15 @@ func ConvertWithMinimumAmount(fee, minAmount float64) Value {
 	}
 }
 
-// WithMinimumAmount
+// WithMinimumAmount defines a fee that requires atleast a minimum amount to
+// be allowed for the transfer.
 type WithMinimumAmount struct {
 	MinimumAmount decimal.Decimal `json:"withMinimumAmount"`
 	Fee           decimal.Decimal `json:"fee"`
 }
 
-// GetFee implements Value interface
+// GetFee returns the fee, either a percentage or fixed amount. The amount
+// param is only used as a switch for if fees scale with potential amounts.
 func (m WithMinimumAmount) GetFee(amount float64) (decimal.Decimal, error) {
 	amt := decimal.NewFromFloat(amount)
 	if amt.LessThan(m.MinimumAmount) {
@@ -224,13 +245,14 @@ func (m WithMinimumAmount) GetFee(amount float64) (decimal.Decimal, error) {
 	return m.Fee, nil
 }
 
-// Display implements Value interface
+// Display displays either the float64 value or the JSON of the struct as a
+// string to be unmarshalled via GRPC if needed.
 func (m WithMinimumAmount) Display() (string, error) {
 	data, err := json.Marshal(m)
 	return string(data), err
 }
 
-// Display implements Value interface
+// Validate checks current stored struct values for any issues.
 func (m WithMinimumAmount) Validate() error {
 	if m.Fee.LessThan(decimal.Zero) {
 		return fmt.Errorf("%w fee %s", errInvalid, m.Fee)
@@ -241,7 +263,8 @@ func (m WithMinimumAmount) Validate() error {
 	return nil
 }
 
-// LessThan implements Value interface
+// LessThan determines if the current fee is less than another. Most of the time
+// this is not needed.
 func (m WithMinimumAmount) LessThan(_ Value) (bool, error) {
 	return false, errCannotCompare
 }

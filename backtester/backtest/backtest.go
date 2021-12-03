@@ -564,7 +564,7 @@ func getFees(exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item) (
 			err)
 		return
 	}
-	// TODO: Return commission rate and abstract all fee calcs to fee package.
+	// TODO: Return commission rate pointer to expose all fees to the back tester
 	maker, _ := fees.GetWorstCaseMaker()
 	taker, _ := fees.GetWorstCaseTaker()
 	return decimal.NewFromFloat(maker), decimal.NewFromFloat(taker)
