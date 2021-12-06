@@ -26,7 +26,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
-	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 )
 
 const (
@@ -257,14 +256,14 @@ func (b *Base) GetPairAssetType(c currency.Pair) (asset.Item, error) {
 
 // GetClientBankAccounts returns banking details associated with
 // a client for withdrawal purposes
-func (b *Base) GetClientBankAccounts(exchangeName, withdrawalCurrency string) (*banking.Account, error) {
+func (b *Base) GetClientBankAccounts(exchangeName, withdrawalCurrency string) (*bank.Account, error) {
 	cfg := config.GetConfig()
 	return cfg.GetClientBankAccounts(exchangeName, withdrawalCurrency)
 }
 
 // GetExchangeBankAccounts returns banking details associated with an
 // exchange for funding purposes
-func (b *Base) GetExchangeBankAccounts(id, depositCurrency string) (*banking.Account, error) {
+func (b *Base) GetExchangeBankAccounts(id, depositCurrency string) (*bank.Account, error) {
 	cfg := config.GetConfig()
 	return cfg.GetExchangeBankAccounts(b.Name, id, depositCurrency)
 }

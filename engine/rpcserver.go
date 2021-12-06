@@ -44,7 +44,6 @@ import (
 	gctscript "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
-	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 	"github.com/thrasher-corp/gocryptotrader/utils"
 	"google.golang.org/grpc"
@@ -1690,7 +1689,7 @@ func (s *RPCServer) WithdrawFiatFunds(ctx context.Context, r *gctrpc.WithdrawFia
 		return nil, err
 	}
 
-	bankAccount, err := banking.GetBankAccountByID(r.BankAccountId)
+	bankAccount, err := bank.GetBankAccountByID(r.BankAccountId)
 	if err != nil {
 		base := exch.GetBase()
 		if base == nil {

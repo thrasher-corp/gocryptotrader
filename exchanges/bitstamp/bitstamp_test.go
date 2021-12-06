@@ -12,9 +12,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/bank"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -389,7 +389,7 @@ func TestWithdrawFiat(t *testing.T) {
 
 	var withdrawFiatRequest = withdraw.Request{
 		Fiat: withdraw.FiatRequest{
-			Bank: banking.Account{
+			Bank: bank.Account{
 				AccountName:    "Satoshi Nakamoto",
 				AccountNumber:  "12345",
 				BankAddress:    "123 Fake St",
@@ -429,7 +429,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 
 	var withdrawFiatRequest = withdraw.Request{
 		Fiat: withdraw.FiatRequest{
-			Bank: banking.Account{
+			Bank: bank.Account{
 				AccountName:    "Satoshi Nakamoto",
 				AccountNumber:  "12345",
 				BankAddress:    "123 Fake St",

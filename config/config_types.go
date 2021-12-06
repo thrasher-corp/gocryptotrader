@@ -8,11 +8,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/communications/base"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/bank"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	gctscript "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
-	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 )
 
 // Constants declared here are filename strings and test strings
@@ -93,7 +93,7 @@ type Config struct {
 	RemoteControl        RemoteControlConfig       `json:"remoteControl"`
 	Portfolio            portfolio.Base            `json:"portfolioAddresses"`
 	Exchanges            []Exchange                `json:"exchanges"`
-	BankAccounts         []banking.Account         `json:"bankAccounts"`
+	BankAccounts         []bank.Account            `json:"bankAccounts"`
 
 	// Deprecated config settings, will be removed at a future date
 	Webserver           *WebserverConfig          `json:"webserver,omitempty"`
@@ -153,7 +153,7 @@ type Exchange struct {
 	CurrencyPairs                 *currency.PairsManager `json:"currencyPairs"`
 	API                           APIConfig              `json:"api"`
 	Features                      *FeaturesConfig        `json:"features"`
-	BankAccounts                  []banking.Account      `json:"bankAccounts,omitempty"`
+	BankAccounts                  []bank.Account         `json:"bankAccounts,omitempty"`
 	Orderbook                     Orderbook              `json:"orderbook"`
 
 	// Deprecated settings which will be removed in a future update

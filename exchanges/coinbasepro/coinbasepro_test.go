@@ -18,11 +18,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/bank"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -408,7 +408,7 @@ func TestWithdrawFiat(t *testing.T) {
 		Amount:   100,
 		Currency: currency.USD,
 		Fiat: withdraw.FiatRequest{
-			Bank: banking.Account{
+			Bank: bank.Account{
 				BankName: "Federal Reserve Bank",
 			},
 		},
@@ -432,7 +432,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 		Amount:   100,
 		Currency: currency.USD,
 		Fiat: withdraw.FiatRequest{
-			Bank: banking.Account{
+			Bank: bank.Account{
 				BankName: "Federal Reserve Bank",
 			},
 		},

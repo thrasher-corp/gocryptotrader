@@ -24,9 +24,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/bank"
 	gctscript "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	"github.com/thrasher-corp/gocryptotrader/log"
-	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 )
 
 // errExchangeConfigIsNil defines an error when the config is nil
@@ -39,7 +39,7 @@ func (c *Config) GetCurrencyConfig() CurrencyConfig {
 
 // GetExchangeBankAccounts returns banking details associated with an exchange
 // for depositing funds
-func (c *Config) GetExchangeBankAccounts(exchangeName, id, depositingCurrency string) (*banking.Account, error) {
+func (c *Config) GetExchangeBankAccounts(exchangeName, id, depositingCurrency string) (*bank.Account, error) {
 	m.Lock()
 	defer m.Unlock()
 
@@ -63,7 +63,7 @@ func (c *Config) GetExchangeBankAccounts(exchangeName, id, depositingCurrency st
 
 // UpdateExchangeBankAccounts updates the configuration for the associated
 // exchange bank
-func (c *Config) UpdateExchangeBankAccounts(exchangeName string, bankCfg []banking.Account) error {
+func (c *Config) UpdateExchangeBankAccounts(exchangeName string, bankCfg []bank.Account) error {
 	m.Lock()
 	defer m.Unlock()
 
@@ -79,7 +79,7 @@ func (c *Config) UpdateExchangeBankAccounts(exchangeName string, bankCfg []banki
 
 // GetClientBankAccounts returns banking details used for a given exchange
 // and currency
-func (c *Config) GetClientBankAccounts(exchangeName, targetCurrency string) (*banking.Account, error) {
+func (c *Config) GetClientBankAccounts(exchangeName, targetCurrency string) (*bank.Account, error) {
 	m.Lock()
 	defer m.Unlock()
 
@@ -96,7 +96,7 @@ func (c *Config) GetClientBankAccounts(exchangeName, targetCurrency string) (*ba
 }
 
 // UpdateClientBankAccounts updates the configuration for a bank
-func (c *Config) UpdateClientBankAccounts(bankCfg *banking.Account) error {
+func (c *Config) UpdateClientBankAccounts(bankCfg *bank.Account) error {
 	m.Lock()
 	defer m.Unlock()
 
@@ -117,7 +117,7 @@ func (c *Config) CheckClientBankAccounts() {
 
 	if len(c.BankAccounts) == 0 {
 		c.BankAccounts = append(c.BankAccounts,
-			banking.Account{
+			bank.Account{
 				ID:                  "test-bank-01",
 				BankName:            "Test Bank",
 				BankAddress:         "42 Bank Street",
@@ -1073,7 +1073,7 @@ func (c *Config) CheckBankAccountConfig() {
 			}
 		}
 	}
-	banking.SetAccounts(c.BankAccounts...)
+	bank.SetAccounts(c.BankAccounts...)
 }
 
 // CheckCurrencyConfigValues checks to see if the currency config values are correct or not

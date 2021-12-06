@@ -31,7 +31,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
-	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -777,7 +776,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Currency: p.Quote,
 			Amount:   config.OrderSubmission.Amount,
 			Fiat: withdraw.FiatRequest{
-				Bank: banking.Account{
+				Bank: bank.Account{
 					AccountName:    config.BankDetails.BankAccountName,
 					AccountNumber:  config.BankDetails.BankAccountNumber,
 					SWIFTCode:      config.BankDetails.SwiftCode,

@@ -10,9 +10,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/bank"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
-	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -52,7 +52,7 @@ func TestSubmitWithdrawal(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	bank := banking.Account{
+	newAccount := bank.Account{
 		Enabled:             true,
 		ID:                  "test-bank-01",
 		BankName:            "Test Bank",
@@ -69,7 +69,7 @@ func TestSubmitWithdrawal(t *testing.T) {
 		SupportedExchanges:  "Binance",
 	}
 
-	banking.AppendAccounts(bank)
+	bank.AppendAccounts(newAccount)
 
 	req := &withdraw.Request{
 		Exchange:    exchangeName,
@@ -78,7 +78,7 @@ func TestSubmitWithdrawal(t *testing.T) {
 		Amount:      1.0,
 		Type:        withdraw.Fiat,
 		Fiat: withdraw.FiatRequest{
-			Bank: bank,
+			Bank: newAccount,
 		},
 	}
 	_, err = m.SubmitWithdrawal(context.Background(), req)

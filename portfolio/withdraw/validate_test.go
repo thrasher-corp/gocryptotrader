@@ -8,9 +8,9 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/bank"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/validate"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
-	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 )
 
 const (
@@ -35,7 +35,7 @@ var (
 	invalidCurrencyFiatRequest = &Request{
 		Exchange: "Binance",
 		Fiat: FiatRequest{
-			Bank: banking.Account{},
+			Bank: bank.Account{},
 		},
 		Currency: currency.BTC,
 		Amount:   1,
@@ -92,16 +92,17 @@ var (
 		Type:        Crypto,
 	}
 
-	invalidCryptoNonWhiteListedAddressRequest = &Request{
-		Exchange: "Binance",
-		Crypto: CryptoRequest{
-			Address: testBTCAddress,
-		},
-		Currency:    currency.BTC,
-		Description: "Test Withdrawal",
-		Amount:      0.1,
-		Type:        Crypto,
-	}
+	// TODO: Implement in separate PR.
+	// invalidCryptoNonWhiteListedAddressRequest = &Request{
+	// 	Exchange: "Binance",
+	// 	Crypto: CryptoRequest{
+	// 		Address: testBTCAddress,
+	// 	},
+	// 	Currency:    currency.BTC,
+	// 	Description: "Test Withdrawal",
+	// 	Amount:      0.1,
+	// 	Type:        Crypto,
+	// }
 
 	invalidType = &Request{
 		Exchange: "test",
@@ -128,7 +129,7 @@ func TestMain(m *testing.M) {
 		os.Exit(0)
 	}
 	p.Addresses[1].SupportedExchanges = "BTC Markets,Binance"
-	banking.AppendAccounts(banking.Account{
+	bank.AppendAccounts(bank.Account{
 		Enabled:             true,
 		ID:                  "test-bank-01",
 		BankName:            "Test Bank",
@@ -208,11 +209,11 @@ func TestValidateFiat(t *testing.T) {
 			"",
 			errors.New(ErrStrAmountMustBeGreaterThanZero + ", " +
 				ErrStrNoCurrencySet + ", " +
-				banking.ErrBankAccountDisabled + ", " +
+				bank.ErrBankAccountDisabled + ", " +
 				fmt.Sprintf("Exchange %s not supported by bank account",
 					invalidRequest.Exchange) + ", " +
-				banking.ErrAccountCannotBeEmpty + ", " +
-				banking.ErrIBANSwiftNotSet),
+				bank.ErrAccountCannotBeEmpty + ", " +
+				bank.ErrIBANSwiftNotSet),
 			nil,
 		},
 		{
@@ -227,12 +228,12 @@ func TestValidateFiat(t *testing.T) {
 			Fiat,
 			"",
 			errors.New(ErrStrCurrencyNotFiat + ", " +
-				banking.ErrBankAccountDisabled + ", " +
+				bank.ErrBankAccountDisabled + ", " +
 				fmt.Sprintf("Exchange %s not supported by bank account",
 					invalidRequest.Exchange) + ", " +
-				banking.ErrAccountCannotBeEmpty + ", " +
-				banking.ErrCurrencyNotSupportedByAccount + ", " +
-				banking.ErrIBANSwiftNotSet),
+				bank.ErrAccountCannotBeEmpty + ", " +
+				bank.ErrCurrencyNotSupportedByAccount + ", " +
+				bank.ErrIBANSwiftNotSet),
 			nil,
 		},
 	}
@@ -244,7 +245,7 @@ func TestValidateFiat(t *testing.T) {
 				test.request.Type = test.requestType
 			}
 			if test.bankAccountID != "" {
-				v, err := banking.GetBankAccountByID(test.bankAccountID)
+				v, err := bank.GetBankAccountByID(test.bankAccountID)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -264,7 +265,7 @@ func TestValidateCrypto(t *testing.T) {
 	testCases := []struct {
 		name    string
 		request *Request
-		output  interface{}
+		output  error
 	}{
 		{
 			"Valid",
@@ -276,11 +277,11 @@ func TestValidateCrypto(t *testing.T) {
 			invalidRequest,
 			errors.New(ErrStrAmountMustBeGreaterThanZero + ", " +
 				ErrStrNoCurrencySet + ", " +
-				banking.ErrBankAccountDisabled + ", " +
+				bank.ErrBankAccountDisabled + ", " +
 				fmt.Sprintf("Exchange %s not supported by bank account",
 					invalidRequest.Exchange) + ", " +
-				banking.ErrAccountCannotBeEmpty + ", " +
-				banking.ErrIBANSwiftNotSet),
+				bank.ErrAccountCannotBeEmpty + ", " +
+				bank.ErrIBANSwiftNotSet),
 		},
 		{
 			"Invalid-Nil",
@@ -316,11 +317,10 @@ func TestValidateCrypto(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			err := test.request.Validate()
 			if err != nil {
-				tErr, _ := test.output.(error)
-				if err.Error() != tErr.Error() {
+				if err.Error() != test.output.Error() {
 					t.Fatalf("Test Name %s expecting error [%v] but received [%s]",
 						test.name,
-						tErr,
+						test.output,
 						err)
 				}
 			}

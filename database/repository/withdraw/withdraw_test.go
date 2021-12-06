@@ -14,7 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database/drivers"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
 	"github.com/thrasher-corp/gocryptotrader/database/testhelpers"
-	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/bank"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -126,7 +126,7 @@ func seedWithdrawData() {
 				Description: test,
 				Amount:      1.0,
 				Fiat: withdraw.FiatRequest{
-					Bank: banking.Account{
+					Bank: bank.Account{
 						Enabled:             false,
 						ID:                  fmt.Sprintf("test-%v", x),
 						BankName:            fmt.Sprintf("test-%v-bank", x),

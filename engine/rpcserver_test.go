@@ -36,7 +36,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
-	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 	"github.com/thrasher-corp/goose"
 	"google.golang.org/grpc/metadata"
@@ -1387,7 +1386,7 @@ func TestParseEvents(t *testing.T) {
 			resp.RequestDetails.Currency = currency.AUD
 			resp.RequestDetails.Type = 1
 			resp.RequestDetails.Fiat = withdraw.FiatRequest{
-				Bank: banking.Account{
+				Bank: bank.Account{
 					Enabled:             false,
 					ID:                  fmt.Sprintf("test-%v", x),
 					BankName:            fmt.Sprintf("test-%v-bank", x),

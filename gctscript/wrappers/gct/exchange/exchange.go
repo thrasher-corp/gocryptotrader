@@ -12,12 +12,12 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/bank"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -150,8 +150,8 @@ func (e Exchange) WithdrawalFiatFunds(ctx context.Context, bankAccountID string,
 	if err != nil {
 		return "", err
 	}
-	var v *banking.Account
-	v, err = banking.GetBankAccountByID(bankAccountID)
+	var v *bank.Account
+	v, err = bank.GetBankAccountByID(bankAccountID)
 	if err != nil {
 		v, err = ex.GetBase().GetExchangeBankAccounts(bankAccountID, request.Currency.String())
 		if err != nil {

@@ -7,7 +7,7 @@ import (
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/common/cache"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/bank"
 )
 
 // RequestType used for easy matching of int type to Word
@@ -66,7 +66,7 @@ type CryptoRequest struct {
 
 // FiatRequest used for fiat withdrawal requests
 type FiatRequest struct {
-	Bank banking.Account
+	Bank bank.Account
 
 	IsExpressWire bool
 	// Intermediary bank information

@@ -18,9 +18,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/bank"
 	gctscript "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	"github.com/thrasher-corp/gocryptotrader/log"
-	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 )
 
 const (
@@ -58,7 +58,7 @@ func TestGetCurrencyConfig(t *testing.T) {
 
 func TestGetClientBankAccounts(t *testing.T) {
 	t.Parallel()
-	cfg := &Config{BankAccounts: []banking.Account{
+	cfg := &Config{BankAccounts: []bank.Account{
 		{
 			SupportedCurrencies: "USD",
 			SupportedExchanges:  "Kraken",
@@ -82,7 +82,7 @@ func TestGetExchangeBankAccounts(t *testing.T) {
 		Exchanges: []Exchange{{
 			Name:    bfx,
 			Enabled: true,
-			BankAccounts: []banking.Account{
+			BankAccounts: []bank.Account{
 				{
 					SupportedCurrencies: "USD",
 					SupportedExchanges:  bfx,
@@ -103,7 +103,7 @@ func TestGetExchangeBankAccounts(t *testing.T) {
 func TestCheckBankAccountConfig(t *testing.T) {
 	t.Parallel()
 	cfg := &Config{
-		BankAccounts: []banking.Account{
+		BankAccounts: []bank.Account{
 			{
 				Enabled: true,
 			},
@@ -114,7 +114,7 @@ func TestCheckBankAccountConfig(t *testing.T) {
 	if cfg.BankAccounts[0].Enabled {
 		t.Error("validation should have changed it to false")
 	}
-	cfg.BankAccounts[0] = banking.Account{
+	cfg.BankAccounts[0] = bank.Account{
 		Enabled:             true,
 		ID:                  "1337",
 		BankName:            "1337",
@@ -147,7 +147,7 @@ func TestUpdateExchangeBankAccounts(t *testing.T) {
 			},
 		},
 	}
-	b := []banking.Account{{Enabled: false}}
+	b := []bank.Account{{Enabled: false}}
 	err := cfg.UpdateExchangeBankAccounts(bfx, b)
 	if err != nil {
 		t.Error("UpdateExchangeBankAccounts error", err)
@@ -173,20 +173,20 @@ func TestUpdateExchangeBankAccounts(t *testing.T) {
 func TestUpdateClientBankAccounts(t *testing.T) {
 	t.Parallel()
 	cfg := &Config{
-		BankAccounts: []banking.Account{
+		BankAccounts: []bank.Account{
 			{
 				BankName:      testString,
 				AccountNumber: "1337",
 			},
 		},
 	}
-	b := banking.Account{Enabled: false, BankName: testString, AccountNumber: "1337"}
+	b := bank.Account{Enabled: false, BankName: testString, AccountNumber: "1337"}
 	err := cfg.UpdateClientBankAccounts(&b)
 	if err != nil {
 		t.Error("UpdateClientBankAccounts error", err)
 	}
 
-	err = cfg.UpdateClientBankAccounts(&banking.Account{})
+	err = cfg.UpdateClientBankAccounts(&bank.Account{})
 	if err == nil {
 		t.Error("UpdateClientBankAccounts error")
 	}
@@ -212,7 +212,7 @@ func TestCheckClientBankAccounts(t *testing.T) {
 		t.Error("expected a placeholder account")
 	}
 	cfg.BankAccounts = nil
-	cfg.BankAccounts = []banking.Account{
+	cfg.BankAccounts = []bank.Account{
 		{
 			Enabled: true,
 		},
@@ -223,7 +223,7 @@ func TestCheckClientBankAccounts(t *testing.T) {
 		t.Error("unexpected result")
 	}
 
-	b := banking.Account{
+	b := bank.Account{
 		Enabled:             true,
 		BankName:            "Commonwealth Bank of Awesome",
 		BankAddress:         "123 Fake Street",
@@ -234,7 +234,7 @@ func TestCheckClientBankAccounts(t *testing.T) {
 		AccountNumber:       "1231006505",
 		SupportedCurrencies: "USD",
 	}
-	cfg.BankAccounts = []banking.Account{b}
+	cfg.BankAccounts = []bank.Account{b}
 	cfg.CheckClientBankAccounts()
 	if cfg.BankAccounts[0].Enabled ||
 		cfg.BankAccounts[0].SupportedExchanges != "ALL" {
@@ -245,7 +245,7 @@ func TestCheckClientBankAccounts(t *testing.T) {
 	// transfers)
 	b.SupportedCurrencies = "AUD"
 	b.SWIFTCode = "BACXSI22"
-	cfg.BankAccounts = []banking.Account{b}
+	cfg.BankAccounts = []bank.Account{b}
 	cfg.CheckClientBankAccounts()
 	if cfg.BankAccounts[0].Enabled {
 		t.Error("unexpected result")
@@ -253,7 +253,7 @@ func TestCheckClientBankAccounts(t *testing.T) {
 
 	// Valid AU bank
 	b.BSBNumber = "061337"
-	cfg.BankAccounts = []banking.Account{b}
+	cfg.BankAccounts = []bank.Account{b}
 	cfg.CheckClientBankAccounts()
 	if !cfg.BankAccounts[0].Enabled {
 		t.Error("unexpected result")
@@ -263,7 +263,7 @@ func TestCheckClientBankAccounts(t *testing.T) {
 	b.Enabled = true
 	b.IBAN = "SI56290000170073837"
 	b.SWIFTCode = "BACXSI22"
-	cfg.BankAccounts = []banking.Account{b}
+	cfg.BankAccounts = []bank.Account{b}
 	cfg.CheckClientBankAccounts()
 	if !cfg.BankAccounts[0].Enabled {
 		t.Error("unexpected result")
@@ -1625,7 +1625,7 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 
 	cfg.Exchanges = cpy
 	// Check bank account validation for exchange
-	cfg.Exchanges[0].BankAccounts = []banking.Account{
+	cfg.Exchanges[0].BankAccounts = []bank.Account{
 		{
 			Enabled: true,
 		},
