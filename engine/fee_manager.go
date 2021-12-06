@@ -45,7 +45,7 @@ func SetupFeeManager(interval time.Duration, em iExchangeManager) (*FeeManager, 
 	}
 	f.sleep = interval
 	f.iExchangeManager = em
-	f.shutdown = make(chan struct{})
+
 	return &f, nil
 }
 
@@ -60,6 +60,7 @@ func (f *FeeManager) Start() error {
 		return fmt.Errorf("%s %w", FeeManagerName, ErrSubSystemAlreadyStarted)
 	}
 	f.wg.Add(1)
+	f.shutdown = make(chan struct{})
 	go f.monitor()
 	log.Debugln(log.ExchangeSys, "Fee manager started.")
 	return nil
@@ -114,9 +115,9 @@ func (f *FeeManager) monitor() {
 				wg.Add(1)
 				go update(exchs[x], &wg, exchs[x].GetAssetTypes(true))
 			}
-			// This causes some variability in the timer due to
-			// longest length of request time. Can do time.Ticker but don't
-			// want routines to stack behind, this is more uniform.
+			// This causes some variability in the timer due to longest length
+			// of request time. Can do time.Ticker but don't want routines to
+			// stack behind, this is more uniform.
 			wg.Wait()
 			timer.Reset(f.sleep)
 		}

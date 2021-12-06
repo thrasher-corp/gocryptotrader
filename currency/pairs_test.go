@@ -176,7 +176,8 @@ func TestGetPairsByFilter(t *testing.T) {
 
 	filtered := pairs.GetPairsByFilter(LTC)
 	if !filtered.Contains(NewPair(LTC, USDT), true) &&
-		!filtered.Contains(NewPair(LTC, USD), true) {
+		!filtered.Contains(NewPair(LTC, USD), true) &&
+		filtered.Contains(NewPair(BTC, USD), true) {
 		t.Error("TestRemovePairsByFilter unexpected result")
 	}
 }
@@ -270,8 +271,12 @@ func TestDerivePairFrom(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	if got.Upper().String() != "USDCUSD" {
-		t.Fatalf("received: '%v' but expected: '%v'", got.Upper().String(), "USDCUSD")
+	if got.Upper().Base != USDC {
+		t.Fatalf("received: '%v' but expected: '%v'", got.Upper().Base, USD)
+	}
+
+	if got.Upper().Quote != USD {
+		t.Fatalf("received: '%v' but expected: '%v'", got.Upper().Quote, USDC)
 	}
 }
 

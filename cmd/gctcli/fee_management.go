@@ -32,7 +32,7 @@ var exchangeFeeManagementCommand = &cli.Command{
 				{
 					Name:      "commission",
 					Usage:     "sets new maker and taker values for an exchange",
-					ArgsUsage: "<exchange> <asset> <maker> <taker> <percentage>",
+					ArgsUsage: "<exchange> <asset> <maker> <taker> <fixedamount>",
 					Flags: []cli.Flag{
 						&cli.StringFlag{
 							Name:  "exchange",
@@ -51,9 +51,8 @@ var exchangeFeeManagementCommand = &cli.Command{
 							Usage: "the taker fee",
 						},
 						&cli.BoolFlag{
-							Name:   "percentage",
+							Name:   "fixedamount",
 							Usage:  "if the fees are a fixed amount or a percentage",
-							Value:  true,
 							Hidden: true,
 						},
 					},
@@ -62,7 +61,7 @@ var exchangeFeeManagementCommand = &cli.Command{
 				{
 					Name:      "transfer",
 					Usage:     "sets new withdrawal and deposit values for an exchange",
-					ArgsUsage: "<exchange> <currency> <asset> <withdraw> <deposit> <fixedamount>",
+					ArgsUsage: "<exchange> <currency> <asset> <withdraw> <deposit> <percentage>",
 					Flags: []cli.Flag{
 						&cli.StringFlag{
 							Name:  "exchange",
@@ -85,9 +84,8 @@ var exchangeFeeManagementCommand = &cli.Command{
 							Usage: "the deposit fee",
 						},
 						&cli.BoolFlag{
-							Name:   "fixedAmount",
+							Name:   "percentage",
 							Usage:  "if the fees are a fixed amount or a percentage",
-							Value:  true,
 							Hidden: true,
 						},
 					},
@@ -202,15 +200,15 @@ func setCommissionFees(c *cli.Context) error {
 		taker = f
 	}
 
-	var percentage bool
-	if c.IsSet("percentage") {
-		percentage = c.Bool("percentage")
+	var fixedAmount bool
+	if c.IsSet("fixedamount") {
+		fixedAmount = c.Bool("fixedamount")
 	} else {
 		b, err := strconv.ParseBool(c.Args().Get(4))
 		if err != nil {
 			return err
 		}
-		percentage = b
+		fixedAmount = b
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -226,7 +224,7 @@ func setCommissionFees(c *cli.Context) error {
 			Asset:         asset,
 			Maker:         maker,
 			Taker:         taker,
-			IsFixedAmount: !percentage,
+			IsFixedAmount: fixedAmount,
 		})
 	if err != nil {
 		return err
@@ -284,15 +282,15 @@ func setTransferFees(c *cli.Context) error {
 		deposit = f
 	}
 
-	var fixedAmount bool
-	if c.IsSet("fixedamount") {
-		fixedAmount = c.Bool("fixedamount")
+	var percentage bool
+	if c.IsSet("percentage") {
+		percentage = c.Bool("percentage")
 	} else {
 		b, err := strconv.ParseBool(c.Args().Get(5))
 		if err != nil {
 			return err
 		}
-		fixedAmount = b
+		percentage = b
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -309,7 +307,7 @@ func setTransferFees(c *cli.Context) error {
 			Chain:        chain,
 			Withdraw:     withdraw,
 			Deposit:      deposit,
-			IsPercentage: !fixedAmount,
+			IsPercentage: percentage,
 		})
 	if err != nil {
 		return err
@@ -371,15 +369,15 @@ func setBankTransferFees(c *cli.Context) error {
 		deposit = f
 	}
 
-	var setValue bool
+	var percentage bool
 	if c.IsSet("setvalue") {
-		setValue = c.Bool("setvalue")
+		percentage = c.Bool("percentage")
 	} else {
 		b, err := strconv.ParseBool(c.Args().Get(5))
 		if err != nil {
 			return err
 		}
-		setValue = b
+		percentage = b
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -396,7 +394,7 @@ func setBankTransferFees(c *cli.Context) error {
 			BankType:     int32(bank),
 			Withdraw:     withdraw,
 			Deposit:      deposit,
-			IsPercentage: !setValue,
+			IsPercentage: percentage,
 		})
 	if err != nil {
 		return err

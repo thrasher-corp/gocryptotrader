@@ -151,17 +151,14 @@ func loadConfigWithSettings(settings *Settings, flagSet map[string]bool) (*confi
 func validateSettings(b *Engine, s *Settings, flagSet map[string]bool) {
 	b.Settings = *s
 
-	b.Settings.EnableDataHistoryManager = (flagSet["datahistorymanager"] &&
-		b.Settings.EnableDatabaseManager) ||
+	b.Settings.EnableDataHistoryManager = (flagSet["datahistorymanager"] && b.Settings.EnableDatabaseManager) ||
 		b.Config.DataHistoryManager.Enabled
 
-	b.Settings.EnableFeeManager = (flagSet["feemanager"] &&
-		b.Settings.EnableFeeManager) ||
+	b.Settings.EnableFeeManager = (flagSet["feemanager"] && b.Settings.EnableFeeManager) ||
 		b.Config.FeeManager.Enabled != nil &&
 			*b.Config.FeeManager.Enabled
 
-	b.Settings.EnableCurrencyStateManager = (flagSet["currencystatemanager"] &&
-		b.Settings.EnableCurrencyStateManager) ||
+	b.Settings.EnableCurrencyStateManager = (flagSet["currencystatemanager"] && b.Settings.EnableCurrencyStateManager) ||
 		b.Config.CurrencyStateManager.Enabled != nil &&
 			*b.Config.CurrencyStateManager.Enabled
 

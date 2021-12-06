@@ -149,13 +149,13 @@ func (b *Bitstamp) GetEURUSDConversionRate(ctx context.Context) (EURUSDConversio
 // API endpoint, so as to provide correct scaling for all balances because Go
 // maps have randomized access.
 func (b *Bitstamp) GetBalance(ctx context.Context) (Balances, error) {
-	var balance json.RawMessage
-	err := b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitstampAPIBalance, true, nil, &balance)
+	var response json.RawMessage
+	err := b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitstampAPIBalance, true, nil, &response)
 	if err != nil {
 		return nil, err
 	}
 
-	data := string(balance)
+	data := string(response)
 	data = strings.Trim(data, "{")
 	data = strings.Trim(data, "}")
 	run := strings.Split(data, ",")

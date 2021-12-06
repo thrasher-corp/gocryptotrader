@@ -454,21 +454,253 @@ func TestGetAllFees(t *testing.T) {
 
 	d := Schedule{
 		globalCommissions: map[asset.Item]*CommissionInternal{
-			asset.Spot: {},
+			asset.Spot: {
+				isFixedAmount:  true,
+				maker:          decimal.NewFromInt(1),
+				taker:          decimal.NewFromInt(2),
+				worstCaseMaker: decimal.NewFromInt(3),
+				worstCaseTaker: decimal.NewFromInt(4),
+			},
 		},
 		pairCommissions: map[asset.Item]map[*currency.Item]map[*currency.Item]*CommissionInternal{
-			asset.Spot: {currency.BTC.Item: {currency.USDT.Item: {}}},
+			asset.Spot: {currency.BTC.Item: {currency.USDT.Item: {
+				isFixedAmount:  true,
+				maker:          decimal.NewFromInt(1),
+				taker:          decimal.NewFromInt(2),
+				worstCaseMaker: decimal.NewFromInt(3),
+				worstCaseTaker: decimal.NewFromInt(4),
+			}}},
 		},
 		chainTransfer: map[*currency.Item]map[string]*transfer{
-			currency.BTC.Item: {"": {}},
+			currency.BTC.Item: {"erc20": {
+				Percentage:        true,
+				DepositEnabled:    true,
+				Deposit:           Convert(1),
+				MinimumDeposit:    Convert(2),
+				MaximumDeposit:    Convert(3),
+				WithdrawalEnabled: true,
+				Withdrawal:        Convert(4),
+				MinimumWithdrawal: Convert(5),
+				MaximumWithdrawal: Convert(6),
+			}},
 		},
 		bankTransfer: map[bank.Transfer]map[*currency.Item]*transfer{
-			bank.WireTransfer: {currency.BTC.Item: {}},
+			bank.WireTransfer: {currency.AUD.Item: {
+				Percentage:        true,
+				DepositEnabled:    true,
+				Deposit:           Convert(1),
+				MinimumDeposit:    Convert(2),
+				MaximumDeposit:    Convert(3),
+				WithdrawalEnabled: true,
+				Withdrawal:        Convert(4),
+				MinimumWithdrawal: Convert(5),
+				MaximumWithdrawal: Convert(6),
+			}},
 		},
 	}
-	_, err = d.GetAllFees()
+	options, err := d.GetAllFees()
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: %v but expected: %v", err, nil)
+	}
+
+	if options.GlobalCommissions == nil {
+		t.Fatal("unexpected values")
+	}
+
+	globes, ok := options.GlobalCommissions[asset.Spot]
+	if !ok {
+		t.Fatal("not founderino")
+	}
+
+	if !globes.IsFixedAmount {
+		t.Fatal("unexpected value")
+	}
+
+	if globes.Maker != 1 {
+		t.Fatal("unexpected value")
+	}
+
+	if globes.Taker != 2 {
+		t.Fatal("unexpected value")
+	}
+
+	if globes.WorstCaseMaker != 3 {
+		t.Fatal("unexpected value")
+	}
+
+	if globes.WorstCaseTaker != 4 {
+		t.Fatal("unexpected value")
+	}
+
+	if options.PairCommissions == nil {
+		t.Fatal("unexpected values")
+	}
+
+	var pairs Commission
+	for _, c := range options.PairCommissions[asset.Spot] {
+		pairs = c
+	}
+
+	if !pairs.IsFixedAmount {
+		t.Fatal("unexpected value")
+	}
+
+	if pairs.Maker != 1 {
+		t.Fatal("unexpected value")
+	}
+
+	if pairs.Taker != 2 {
+		t.Fatal("unexpected value")
+	}
+
+	if pairs.WorstCaseMaker != 3 {
+		t.Fatal("unexpected value")
+	}
+
+	if pairs.WorstCaseTaker != 4 {
+		t.Fatal("unexpected value")
+	}
+
+	if options.ChainTransfer == nil {
+		t.Fatal("unexpected values")
+	}
+
+	chaino := options.ChainTransfer[0]
+	if chaino.BankTransfer != 0 {
+		t.Fatal("unexpected value")
+	}
+
+	if chaino.Currency != currency.BTC {
+		t.Fatal("unexpected value")
+	}
+
+	if chaino.Chain != "erc20" {
+		t.Fatal("unexpected value")
+	}
+
+	depositFee, err := chaino.Deposit.GetFee(1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !depositFee.Equal(decimal.NewFromInt(1)) {
+		t.Fatal("unexpected value")
+	}
+
+	minDepositFee, err := chaino.MinimumDeposit.GetFee(1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !minDepositFee.Equal(decimal.NewFromInt(2)) {
+		t.Fatal("unexpected value")
+	}
+
+	maxDepositFee, err := chaino.MaximumDeposit.GetFee(1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !maxDepositFee.Equal(decimal.NewFromInt(3)) {
+		t.Fatal("unexpected value")
+	}
+
+	withdrawalFee, err := chaino.Withdrawal.GetFee(1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !withdrawalFee.Equal(decimal.NewFromInt(4)) {
+		t.Fatal("unexpected value")
+	}
+
+	minWithdrawalFee, err := chaino.MinimumWithdrawal.GetFee(1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !minWithdrawalFee.Equal(decimal.NewFromInt(5)) {
+		t.Fatal("unexpected value")
+	}
+
+	maxWithdrawalFee, err := chaino.MaximumWithdrawal.GetFee(1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !maxWithdrawalFee.Equal(decimal.NewFromInt(6)) {
+		t.Fatal("unexpected value")
+	}
+
+	if options.BankTransfer == nil {
+		t.Fatal("unexpected values")
+	}
+
+	banko := options.BankTransfer[0]
+	if banko.BankTransfer != bank.WireTransfer {
+		t.Fatal("unexpected value")
+	}
+
+	if banko.Currency != currency.AUD {
+		t.Fatal("unexpected value")
+	}
+
+	if banko.Chain != "" {
+		t.Fatal("unexpected value")
+	}
+
+	depositFee, err = banko.Deposit.GetFee(1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !depositFee.Equal(decimal.NewFromInt(1)) {
+		t.Fatal("unexpected value")
+	}
+
+	minDepositFee, err = banko.MinimumDeposit.GetFee(1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !minDepositFee.Equal(decimal.NewFromInt(2)) {
+		t.Fatal("unexpected value")
+	}
+
+	maxDepositFee, err = banko.MaximumDeposit.GetFee(1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !maxDepositFee.Equal(decimal.NewFromInt(3)) {
+		t.Fatal("unexpected value")
+	}
+
+	withdrawalFee, err = banko.Withdrawal.GetFee(1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !withdrawalFee.Equal(decimal.NewFromInt(4)) {
+		t.Fatal("unexpected value")
+	}
+
+	minWithdrawalFee, err = banko.MinimumWithdrawal.GetFee(1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !minWithdrawalFee.Equal(decimal.NewFromInt(5)) {
+		t.Fatal("unexpected value")
+	}
+
+	maxWithdrawalFee, err = banko.MaximumWithdrawal.GetFee(1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !maxWithdrawalFee.Equal(decimal.NewFromInt(6)) {
+		t.Fatal("unexpected value")
 	}
 }
 
@@ -484,13 +716,39 @@ func TestGetCommissionFee(t *testing.T) {
 		t.Fatalf("received: %v but expected: %v", err, errCommissionRateNotFound)
 	}
 
-	_, err = (&Schedule{
+	fee, err := (&Schedule{
 		globalCommissions: map[asset.Item]*CommissionInternal{
-			asset.Spot: {},
+			asset.Spot: {
+				isFixedAmount:  true,
+				maker:          decimal.NewFromInt(1),
+				taker:          decimal.NewFromInt(2),
+				worstCaseMaker: decimal.NewFromInt(3),
+				worstCaseTaker: decimal.NewFromInt(4),
+			},
 		},
 	}).GetCommissionFee(asset.Spot, OmitPair)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: %v but expected: %v", err, nil)
+	}
+
+	if !fee.isFixedAmount {
+		t.Fatal("unexpected value")
+	}
+
+	if !fee.maker.Equal(decimal.NewFromInt(1)) {
+		t.Fatal("unexpected value")
+	}
+
+	if !fee.taker.Equal(decimal.NewFromInt(2)) {
+		t.Fatal("unexpected value")
+	}
+
+	if !fee.worstCaseMaker.Equal(decimal.NewFromInt(3)) {
+		t.Fatal("unexpected value")
+	}
+
+	if !fee.worstCaseTaker.Equal(decimal.NewFromInt(4)) {
+		t.Fatal("unexpected value")
 	}
 }
 
@@ -543,13 +801,17 @@ func TestGetTransferFee(t *testing.T) {
 		t.Fatalf("received: %v but expected: %v", err, errRateNotFound)
 	}
 
-	_, err = (&Schedule{
+	fees, err := (&Schedule{
 		chainTransfer: map[*currency.Item]map[string]*transfer{
 			currency.BTC.Item: {"": {}},
 		},
 	}).GetTransferFee(currency.BTC, "")
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: %v but expected: %v", err, nil)
+	}
+
+	if fees == nil {
+		t.Fatal("unexpected values")
 	}
 }
 
@@ -621,13 +883,17 @@ func TestGetBankTransferFee(t *testing.T) {
 		t.Fatalf("received: %v but expected: %v", err, errRateNotFound)
 	}
 
-	_, err = (&Schedule{
+	fees, err := (&Schedule{
 		bankTransfer: map[bank.Transfer]map[*currency.Item]*transfer{
 			bank.WireTransfer: {currency.USD.Item: {}},
 		},
 	}).GetBankTransferFee(currency.USD, bank.WireTransfer)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: %v but expected: %v", err, nil)
+	}
+
+	if fees == nil {
+		t.Fatal("unexpected values")
 	}
 }
 
