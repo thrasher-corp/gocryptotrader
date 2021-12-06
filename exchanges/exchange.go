@@ -1471,20 +1471,18 @@ type CollateralCalculator struct {
 }
 
 type PNLCalculator struct {
-	CalculateOffline   bool
-	Underlying         currency.Code
-	OrderID            string
-	Asset              asset.Item
-	Side               order.Side
-	Leverage           float64
-	EntryPrice         float64
-	OpeningAmount      float64
-	Amount             float64
-	MarkPrice          float64
-	PrevMarkPrice      float64
-	CurrentPrice       float64
-	CollateralAmount   decimal.Decimal
-	CollateralCurrency currency.Code
+	CalculateOffline bool
+	Underlying       currency.Code
+	OrderID          string
+	Asset            asset.Item
+	Side             order.Side
+	Leverage         float64
+	EntryPrice       float64
+	OpeningAmount    float64
+	Amount           float64
+	MarkPrice        float64
+	PrevMarkPrice    float64
+	CurrentPrice     float64
 }
 
 type PNLResult struct {

@@ -97,8 +97,8 @@ type PortfolioSettings struct {
 // Leverage rules are used to allow or limit the use of leverage in orders
 // when supported
 type Leverage struct {
-	CanUseLeverage                 bool  `json:"can-use-leverage"`
-	MaximumOrdersWithLeverageRatio int64 `json:"maximum-orders-with-leverage-ratio"`
+	CanUseLeverage                 bool    `json:"can-use-leverage"`
+	MaximumOrdersWithLeverageRatio float64 `json:"maximum-orders-with-leverage-ratio"`
 	// this means you can place an order with higher leverage rate. eg have $100 in collateral,
 	// but place an order for $200 using 2x leverage
 	MaximumOrderLeverageRate float64 `json:"maximum-leverage-rate"`

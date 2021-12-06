@@ -227,19 +227,19 @@ func NewFromConfig(cfg *config.Config, templatePath, output string) (*BackTest, 
 			return nil, fmt.Errorf("could not format currency %v, %w", curr, err)
 		}
 		curr = curr.Format(requestFormat.Delimiter, requestFormat.Uppercase)
-		var avail, enab currency.Pairs
+		var avail, enabled currency.Pairs
 		avail, err = exch.GetAvailablePairs(a)
 		if err != nil {
 			return nil, fmt.Errorf("could not format currency %v, %w", curr, err)
 		}
-		enab, err = exch.GetEnabledPairs(a)
+		enabled, err = exch.GetEnabledPairs(a)
 		if err != nil {
 			return nil, fmt.Errorf("could not format currency %v, %w", curr, err)
 		}
 
 		avail = avail.Add(curr)
-		enab = enab.Add(curr)
-		err = exch.SetPairs(enab, a, true)
+		enabled = enabled.Add(curr)
+		err = exch.SetPairs(enabled, a, true)
 		if err != nil {
 			return nil, fmt.Errorf("could not format currency %v, %w", curr, err)
 		}
@@ -252,7 +252,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string) (*BackTest, 
 			MaximumHoldingRatio: cfg.CurrencySettings[i].MaximumHoldingsRatio,
 		}
 		if cfg.CurrencySettings[i].FuturesDetails != nil {
-			portSet.MaximumOrdersWithLeverageRatio = cfg.CurrencySettings[i].FuturesDetails.Leverage.MaximumOrdersWithLeverageRatio
+			portSet.MaximumOrdersWithLeverageRatio = decimal.NewFromFloat(cfg.CurrencySettings[i].FuturesDetails.Leverage.MaximumOrdersWithLeverageRatio)
 			portSet.MaxLeverageRate = cfg.CurrencySettings[i].FuturesDetails.Leverage.MaximumOrderLeverageRate
 		}
 		portfolioRisk.CurrencySettings[cfg.CurrencySettings[i].ExchangeName][a][curr] = portSet
@@ -551,7 +551,7 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 				lev = exchange.Leverage{
 					CanUseLeverage:                 cfg.CurrencySettings[i].FuturesDetails.Leverage.CanUseLeverage,
 					MaximumLeverageRate:            cfg.CurrencySettings[i].FuturesDetails.Leverage.MaximumOrderLeverageRate,
-					MaximumOrdersWithLeverageRatio: cfg.CurrencySettings[i].FuturesDetails.Leverage.MaximumOrdersWithLeverageRatio,
+					MaximumOrdersWithLeverageRatio: decimal.NewFromFloat(cfg.CurrencySettings[i].FuturesDetails.Leverage.MaximumOrdersWithLeverageRatio),
 				}
 			}
 			resp.CurrencySettings = append(resp.CurrencySettings, exchange.Settings{

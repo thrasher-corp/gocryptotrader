@@ -53,6 +53,7 @@ func parseRaw(t *testing.T, input string) interface{} {
 				Fills:       fills,
 			},
 		},
+		CollateralWeightHolder{},
 	}
 
 	if err := x.wsHandleData([]byte(input)); err != nil {

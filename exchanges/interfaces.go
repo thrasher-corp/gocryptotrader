@@ -81,10 +81,8 @@ type IBotExchange interface {
 	GetHistoricCandlesExtended(ctx context.Context, p currency.Pair, a asset.Item, timeStart, timeEnd time.Time, interval kline.Interval) (kline.Item, error)
 	DisableRateLimiter() error
 	EnableRateLimiter() error
-	CalculatePNL(*PNLCalculator) (*PNLResult, error)
-	ScaleCollateral(*CollateralCalculator) (decimal.Decimal, error)
 	CurrencyStateManagement
-
+	FuturesManagement
 	GetWebsocket() (*stream.Websocket, error)
 	IsWebsocketEnabled() bool
 	SupportsWebsocket() bool
@@ -107,4 +105,13 @@ type CurrencyStateManagement interface {
 	CanTrade(c currency.Code, a asset.Item) error
 	CanWithdraw(c currency.Code, a asset.Item) error
 	CanDeposit(c currency.Code, a asset.Item) error
+}
+
+type PNLManagement interface {
+	CalculatePNL(*PNLCalculator) (*PNLResult, error)
+}
+
+type CollateralManagement interface {
+	ScaleCollateral(*CollateralCalculator) (decimal.Decimal, error)
+	CalculateCollateral(calculator *CollateralCalculator) (decimal.Decimal, error)
 }

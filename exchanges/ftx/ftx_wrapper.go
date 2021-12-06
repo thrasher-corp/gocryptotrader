@@ -1288,11 +1288,13 @@ func (f *FTX) ScaleCollateral(calculator exchange.CollateralCalculator) (decimal
 func (f *FTX) CalculatePNL(pnl *exchange.PNLCalculator) (*exchange.PNLResult, error) {
 	var result exchange.PNLResult
 	if pnl.CalculateOffline {
-		collat, err := f.CalculateCollateral(pnl.CollateralCurrency, pnl.CollateralAmount.InexactFloat64(), pnl.EntryPrice, true)
-		if err != nil {
-			return nil, err
-		}
-		result.Collateral = decimal.NewFromFloat(collat)
+		// TODO remove this as its not needed here and should be done seperately
+		//collat, err := f.CalculateCollateral(pnl.CollateralCurrency, pnl.CollateralAmount.InexactFloat64(), pnl.EntryPrice, true)
+		//if err != nil {
+		//	return nil, err
+		//}
+		//result.Collateral = decimal.NewFromFloat(collat)
+
 		// TODO add mark price somehow
 		// need mark price candles + mark price from 30 second ago candles
 		uPNL := f.CalculateUnrealisedPNL(pnl.Amount, pnl.MarkPrice, pnl.PrevMarkPrice)
