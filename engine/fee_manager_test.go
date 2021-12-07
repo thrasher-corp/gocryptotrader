@@ -49,8 +49,8 @@ func (f *feeExchange) GetAuthenticatedAPISupport(_ uint8) bool {
 
 func TestSetupFeeManager(t *testing.T) {
 	t.Parallel()
-	_, err := SetupFeeManager(0, nil)
-	if !errors.Is(err, errNilExchangeManager) {
+
+	if _, err := SetupFeeManager(0, nil); !errors.Is(err, errNilExchangeManager) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNilExchangeManager)
 	}
 
