@@ -36,6 +36,7 @@ func (c *CoinbasePro) GetDefaultConfig() (*config.Exchange, error) {
 	exchCfg := new(config.Exchange)
 	exchCfg.Name = c.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
+	exchCfg.WebsocketTrafficTimeout = config.DefaultWebsocketTrafficTimeout
 	exchCfg.BaseCurrencies = c.BaseCurrencies
 
 	err := c.SetupDefaults(exchCfg)

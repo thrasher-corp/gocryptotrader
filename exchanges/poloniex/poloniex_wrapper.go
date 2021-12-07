@@ -36,6 +36,7 @@ func (p *Poloniex) GetDefaultConfig() (*config.Exchange, error) {
 	exchCfg := new(config.Exchange)
 	exchCfg.Name = p.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
+	exchCfg.WebsocketTrafficTimeout = config.DefaultWebsocketTrafficTimeout
 	exchCfg.BaseCurrencies = p.BaseCurrencies
 
 	err := p.SetupDefaults(exchCfg)

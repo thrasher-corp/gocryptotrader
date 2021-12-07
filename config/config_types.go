@@ -29,18 +29,19 @@ const (
 	defaultWebsocketResponseCheckTimeout = time.Millisecond * 30
 	defaultWebsocketResponseMaxLimit     = time.Second * 7
 	defaultWebsocketOrderbookBufferLimit = 5
-	defaultWebsocketTrafficTimeout       = time.Second * 30
-	maxAuthFailures                      = 3
-	defaultNTPAllowedDifference          = 50000000
-	defaultNTPAllowedNegativeDifference  = 50000000
-	DefaultAPIKey                        = "Key"
-	DefaultAPISecret                     = "Secret"
-	DefaultAPIClientID                   = "ClientID"
-	defaultDataHistoryMonitorCheckTimer  = time.Minute
-	defaultFeeManagerDelay               = time.Minute * 10
-	defaultCurrencyStateManagerDelay     = time.Minute
-	defaultMaxJobsPerCycle               = 5
-	DefaultOrderbookPublishPeriod        = time.Second * 10
+	// DefaultWebsocketTrafficTimeout defines a default websocket traffic timeout
+	DefaultWebsocketTrafficTimeout      = time.Second * 30
+	maxAuthFailures                     = 3
+	defaultNTPAllowedDifference         = 50000000
+	defaultNTPAllowedNegativeDifference = 50000000
+	DefaultAPIKey                       = "Key"
+	DefaultAPISecret                    = "Secret"
+	DefaultAPIClientID                  = "ClientID"
+	defaultDataHistoryMonitorCheckTimer = time.Minute
+	defaultFeeManagerDelay              = time.Minute * 10
+	defaultCurrencyStateManagerDelay    = time.Minute
+	defaultMaxJobsPerCycle              = 5
+	DefaultOrderbookPublishPeriod       = time.Second * 10
 )
 
 // Constants here hold some messages

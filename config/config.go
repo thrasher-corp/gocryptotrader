@@ -1015,8 +1015,8 @@ func (c *Config) CheckExchangeConfigValues() error {
 				log.Warnf(log.ConfigMgr,
 					"Exchange %s Websocket response traffic timeout value not set, defaulting to %v.",
 					c.Exchanges[i].Name,
-					defaultWebsocketTrafficTimeout)
-				c.Exchanges[i].WebsocketTrafficTimeout = defaultWebsocketTrafficTimeout
+					DefaultWebsocketTrafficTimeout)
+				c.Exchanges[i].WebsocketTrafficTimeout = DefaultWebsocketTrafficTimeout
 			}
 			if c.Exchanges[i].Orderbook.WebsocketBufferLimit <= 0 {
 				log.Warnf(log.ConfigMgr,

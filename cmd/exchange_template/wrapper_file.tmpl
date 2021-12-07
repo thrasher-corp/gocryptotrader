@@ -33,6 +33,7 @@ func ({{.Variable}} *{{.CapitalName}}) GetDefaultConfig() (*config.Exchange, err
 	exchCfg := new(config.Exchange)
 	exchCfg.Name = {{.Variable}}.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
+	// exchCfg.WebsocketTrafficTimeout = config.DefaultWebsocketTrafficTimeout // Can be omitted if websocket protocol is unavailable
 	exchCfg.BaseCurrencies = {{.Variable}}.BaseCurrencies
 
 	{{.Variable}}.SetupDefaults(exchCfg)

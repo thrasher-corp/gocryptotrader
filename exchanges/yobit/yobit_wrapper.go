@@ -36,6 +36,7 @@ func (y *Yobit) GetDefaultConfig() (*config.Exchange, error) {
 	exchCfg := new(config.Exchange)
 	exchCfg.Name = y.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
+	exchCfg.WebsocketTrafficTimeout = config.DefaultWebsocketTrafficTimeout
 	exchCfg.BaseCurrencies = y.BaseCurrencies
 
 	err := y.SetupDefaults(exchCfg)

@@ -35,6 +35,7 @@ func (b *Bitstamp) GetDefaultConfig() (*config.Exchange, error) {
 	exchCfg := new(config.Exchange)
 	exchCfg.Name = b.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
+	exchCfg.WebsocketTrafficTimeout = config.DefaultWebsocketTrafficTimeout
 	exchCfg.BaseCurrencies = b.BaseCurrencies
 	err := b.SetupDefaults(exchCfg)
 	if err != nil {
@@ -163,7 +164,7 @@ func (b *Bitstamp) Setup(exch *config.Exchange) error {
 	}
 
 	// NOTE: https://www.bitstamp.net/fee-schedule/
-	// NOTE: There is also non standard processing which that has intentionally
+	// NOTE: There is also non standard processing which has intentionally
 	// been excluded.
 	err = b.Fees.LoadStaticFees(fee.Options{
 		GlobalCommissions: map[asset.Item]fee.Commission{

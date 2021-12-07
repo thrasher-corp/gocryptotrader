@@ -30,6 +30,7 @@ func (o *OKCoin) GetDefaultConfig() (*config.Exchange, error) {
 	exchCfg := new(config.Exchange)
 	exchCfg.Name = o.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
+	exchCfg.WebsocketTrafficTimeout = config.DefaultWebsocketTrafficTimeout
 	exchCfg.BaseCurrencies = o.BaseCurrencies
 
 	err := o.SetupDefaults(exchCfg)

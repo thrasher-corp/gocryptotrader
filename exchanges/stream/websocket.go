@@ -38,7 +38,7 @@ var (
 	errRunningURLIsEmpty                    = errors.New("running url cannot be empty")
 	errInvalidWebsocketURL                  = errors.New("invalid websocket url")
 	errExchangeConfigNameUnset              = errors.New("exchange config name unset")
-	errInvalidTrafficTimeout                = errors.New("invalid traffic timeout")
+	errInvalidTrafficTimeout                = errors.New("invalid websocket traffic timeout")
 	errWebsocketSubscriberUnset             = errors.New("websocket subscriber function needs to be set")
 	errWebsocketUnsubscriberUnset           = errors.New("websocket unsubscriber functionality allowed but unsubscriber function not set")
 	errWebsocketConnectorUnset              = errors.New("websocket connector function not set")

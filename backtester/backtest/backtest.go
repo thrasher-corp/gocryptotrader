@@ -38,6 +38,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/report"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
+	gctconfig "github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	gctdatabase "github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/engine"
@@ -155,7 +156,13 @@ func NewFromConfig(cfg *config.Config, templatePath, output string) (*BackTest, 
 		if err != nil {
 			return nil, err
 		}
-		_, err = exch.GetDefaultConfig()
+		var exchConfig *gctconfig.Exchange
+		exchConfig, err = exch.GetDefaultConfig()
+		if err != nil {
+			return nil, err
+		}
+		exchConfig.Enabled = true
+		err = exch.Setup(exchConfig)
 		if err != nil {
 			return nil, err
 		}
