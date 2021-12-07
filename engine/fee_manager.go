@@ -159,5 +159,4 @@ func update(exch exchange.IBotExchange, wg *sync.WaitGroup, enabledAssets asset.
 			exch.GetName(),
 			err)
 	}
-
 }
