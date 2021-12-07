@@ -102,6 +102,8 @@ func ({{.Variable}} *{{.CapitalName}}) SetDefaults() {
 			RESTCapabilities: protocol.Features{
 				TickerFetching: true,
 				OrderbookFetching: true,
+				RequiresAuthenticationForTradeFees:    true, // Only if trading fees require authentication
+				RequiresAuthenticationForTransferFees: true, // Only if transfer fees require authentication
 			},
 			WebsocketCapabilities: protocol.Features{
 				TickerFetching: true,
