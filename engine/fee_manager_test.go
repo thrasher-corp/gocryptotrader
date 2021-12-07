@@ -99,14 +99,6 @@ func TestFeeManagerStartStop(t *testing.T) {
 	if !errors.Is(err, ErrNilSubsystem) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, ErrNilSubsystem)
 	}
-
-	// fm = new(FeeManager)
-	// fm.iExchangeManager = &feeExchangeManager{}
-
-	// err = fm.Stop()
-	// if !errors.Is(err, nil) {
-	// 	t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	// }
 }
 
 func TestFeeManagerIsRunning(t *testing.T) {
