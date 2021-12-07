@@ -1462,38 +1462,6 @@ func (b *Base) GetAvailableTransferChains(_ context.Context, _ currency.Code) ([
 	return nil, common.ErrFunctionNotSupported
 }
 
-type CollateralCalculator struct {
-	CollateralCurrency currency.Code
-	Asset              asset.Item
-	Side               order.Side
-	CollateralAmount   decimal.Decimal
-	EntryPrice         float64
-}
-
-type PNLCalculator struct {
-	CalculateOffline bool
-	Underlying       currency.Code
-	OrderID          string
-	Asset            asset.Item
-	Side             order.Side
-	Leverage         float64
-	EntryPrice       float64
-	OpeningAmount    float64
-	Amount           float64
-	MarkPrice        float64
-	PrevMarkPrice    float64
-	CurrentPrice     float64
-}
-
-type PNLResult struct {
-	MarginFraction            decimal.Decimal
-	EstimatedLiquidationPrice decimal.Decimal
-	UnrealisedPNL             decimal.Decimal
-	RealisedPNL               decimal.Decimal
-	Collateral                decimal.Decimal
-	IsLiquidated              bool
-}
-
 var ErrUnsetLeverage error
 
 // CalculatePNL is an overridable function to allow PNL to be calculated on an
@@ -1501,7 +1469,7 @@ var ErrUnsetLeverage error
 // It will also determine whether the position is considered to be liquidated
 // for live trading, an overrided function may wish to confirm the liquidation by
 // requesting the status of the asset
-func (b *Base) CalculatePNL(calc *PNLCalculator) (*PNLResult, error) {
+func (b *Base) CalculatePNL(calc *order.PNLCalculator) (*order.PNLResult, error) {
 	if !calc.Asset.IsFutures() {
 		return nil, common.ErrFunctionNotSupported
 	}
@@ -1509,7 +1477,7 @@ func (b *Base) CalculatePNL(calc *PNLCalculator) (*PNLResult, error) {
 		// you really should have set this earlier, idiot
 		return nil, ErrUnsetLeverage
 	}
-	var result *PNLResult
+	var result *order.PNLResult
 	cp := decimal.NewFromFloat(calc.CurrentPrice)
 	op := decimal.NewFromFloat(calc.EntryPrice)
 	lv := decimal.NewFromFloat(calc.Leverage)
@@ -1529,7 +1497,7 @@ func (b *Base) CalculatePNL(calc *PNLCalculator) (*PNLResult, error) {
 // It will also determine whether the position is considered to be liquidated
 // for live trading, an overrided function may wish to confirm the liquidation by
 // requesting the status of the asset
-func (b *Base) ScaleCollateral(calc *CollateralCalculator) (decimal.Decimal, error) {
+func (b *Base) ScaleCollateral(calc *order.CollateralCalculator) (decimal.Decimal, error) {
 	if !calc.Asset.IsFutures() {
 		return decimal.Zero, common.ErrFunctionNotSupported
 	}

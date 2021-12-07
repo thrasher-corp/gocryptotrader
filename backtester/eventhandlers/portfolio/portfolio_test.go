@@ -716,7 +716,7 @@ func TestCalculatePNL(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
-	futuresOrder := &gctorder.FuturesTracker{
+	futuresOrder := &gctorder.PositionTracker{
 		CurrentDirection: gctorder.Short,
 		ShortPositions: &gctorder.Detail{
 			Price:     1336,

@@ -545,7 +545,7 @@ func (p *Portfolio) CalculatePNL(e common.DataEventHandler, funds funding.IColla
 	}
 	for i := range snapshot.Orders {
 		if snapshot.FuturesTracker == nil {
-			snapshot.FuturesTracker = &gctorder.FuturesTracker{
+			snapshot.FuturesTracker = &gctorder.PositionTracker{
 				Exchange:        e.GetExchange(),
 				Asset:           e.GetAssetType(),
 				ContractPair:    e.Pair(),

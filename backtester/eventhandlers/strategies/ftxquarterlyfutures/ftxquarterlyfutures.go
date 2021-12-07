@@ -99,7 +99,7 @@ func (s *Strategy) OnSignal(d data.Handler, _ funding.IFundTransferer, p portfol
 		return nil, err
 	}
 
-	var o *order.FuturesTracker
+	var o *order.PositionTracker
 	for i := range currentOrders.Orders {
 		if currentOrders.Orders[i].FuturesOrder != nil {
 			if currentOrders.Orders[i].FuturesOrder.LongPositions == nil {

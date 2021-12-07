@@ -5,7 +5,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
@@ -82,7 +81,10 @@ type IBotExchange interface {
 	DisableRateLimiter() error
 	EnableRateLimiter() error
 	CurrencyStateManagement
-	FuturesManagement
+
+	order.PNLManagement
+	order.CollateralManagement
+
 	GetWebsocket() (*stream.Websocket, error)
 	IsWebsocketEnabled() bool
 	SupportsWebsocket() bool
@@ -105,13 +107,4 @@ type CurrencyStateManagement interface {
 	CanTrade(c currency.Code, a asset.Item) error
 	CanWithdraw(c currency.Code, a asset.Item) error
 	CanDeposit(c currency.Code, a asset.Item) error
-}
-
-type PNLManagement interface {
-	CalculatePNL(*PNLCalculator) (*PNLResult, error)
-}
-
-type CollateralManagement interface {
-	ScaleCollateral(*CollateralCalculator) (decimal.Decimal, error)
-	CalculateCollateral(calculator *CollateralCalculator) (decimal.Decimal, error)
 }

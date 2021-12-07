@@ -1276,7 +1276,7 @@ func (f *FTX) CalculateUnrealisedPNL(positionSize, markPrice, prevMarkPrice floa
 	return positionSize * (markPrice - prevMarkPrice)
 }
 
-func (f *FTX) ScaleCollateral(calculator exchange.CollateralCalculator) (decimal.Decimal, error) {
+func (f *FTX) ScaleCollateral(calculator order.CollateralCalculator) (decimal.Decimal, error) {
 	collat, err := f.CalculateCollateral(calculator.CollateralCurrency, calculator.CollateralAmount.InexactFloat64(), calculator.EntryPrice, true)
 	if err != nil {
 		return decimal.Zero, err
@@ -1285,8 +1285,8 @@ func (f *FTX) ScaleCollateral(calculator exchange.CollateralCalculator) (decimal
 	return decimal.NewFromFloat(collat), nil
 }
 
-func (f *FTX) CalculatePNL(pnl *exchange.PNLCalculator) (*exchange.PNLResult, error) {
-	var result exchange.PNLResult
+func (f *FTX) CalculatePNL(pnl *order.PNLCalculator) (*order.PNLResult, error) {
+	var result order.PNLResult
 	if pnl.CalculateOffline {
 		// TODO remove this as its not needed here and should be done seperately
 		//collat, err := f.CalculateCollateral(pnl.CollateralCurrency, pnl.CollateralAmount.InexactFloat64(), pnl.EntryPrice, true)
