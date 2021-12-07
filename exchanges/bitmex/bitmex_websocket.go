@@ -12,7 +12,6 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -660,7 +659,7 @@ func (b *Bitmex) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription)
 
 // WebsocketSendAuth sends an authenticated subscription
 func (b *Bitmex) websocketSendAuth() error {
-	if !b.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+	if !b.IsAuthenticatedWebsocketSupported() {
 		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", b.Name)
 	}
 	b.Websocket.SetCanUseAuthenticatedEndpoints(true)

@@ -13,7 +13,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -367,7 +366,7 @@ func (c *CoinbasePro) GenerateDefaultSubscriptions() ([]stream.ChannelSubscripti
 	var subscriptions []stream.ChannelSubscription
 	for i := range channels {
 		if (channels[i] == "user" || channels[i] == "full") &&
-			!c.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+			!c.IsAuthenticatedWebsocketSupported() {
 			continue
 		}
 		for j := range enabledCurrencies {

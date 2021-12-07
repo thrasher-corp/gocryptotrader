@@ -348,16 +348,16 @@ func (b *Base) SetConfigPairs() error {
 	return nil
 }
 
-// GetAuthenticatedAPISupport returns whether the exchange supports
-// authenticated API requests
-func (b *Base) GetAuthenticatedAPISupport(endpoint uint8) bool {
-	switch endpoint {
-	case RestAuthentication:
-		return b.API.AuthenticatedSupport
-	case WebsocketAuthentication:
-		return b.API.AuthenticatedWebsocketSupport
-	}
-	return false
+// IsAuthenticatedWebsocketSupported returns whether the exchange supports
+// authenticated API requests for the websocket protocol.
+func (b *Base) IsAuthenticatedWebsocketSupported() bool {
+	return b.API.AuthenticatedWebsocketSupport
+}
+
+// IsAuthenticatedRESTSupported returns whether the exchange supports
+// authenticated API requests for the REST protocol.
+func (b *Base) IsAuthenticatedRESTSupported() bool {
+	return b.API.AuthenticatedSupport
 }
 
 // GetName is a method that returns the name of the exchange base
@@ -1511,4 +1511,16 @@ func (b *Base) UpdateCurrencyStates(ctx context.Context, a asset.Item) error {
 // on the supplied cryptocurrency
 func (b *Base) GetAvailableTransferChains(_ context.Context, _ currency.Code) ([]string, error) {
 	return nil, common.ErrFunctionNotSupported
+}
+
+// IsRESTAuthenticationRequiredForTradeFees returns if authentication is
+// required to fetch trade fees.
+func (b *Base) IsRESTAuthenticationRequiredForTradeFees() bool {
+	return b.Features.Supports.RESTCapabilities.RequiresAuthenticationForTradeFees
+}
+
+// IsRESTAuthenticationRequiredForTransferFees returns if authentication is
+// required to fetch transfer fees.
+func (b *Base) IsRESTAuthenticationRequiredForTransferFees() bool {
+	return b.Features.Supports.RESTCapabilities.RequiresAuthenticationForTransferFees
 }

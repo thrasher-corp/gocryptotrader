@@ -13,7 +13,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -561,7 +560,7 @@ func (h *HitBTC) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription)
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (h *HitBTC) wsLogin() error {
-	if !h.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+	if !h.IsAuthenticatedWebsocketSupported() {
 		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", h.Name)
 	}
 	h.Websocket.SetCanUseAuthenticatedEndpoints(true)

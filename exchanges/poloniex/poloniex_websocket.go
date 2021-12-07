@@ -14,7 +14,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -517,7 +516,7 @@ func (p *Poloniex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription,
 		Channel: strconv.FormatInt(wsTickerDataID, 10),
 	})
 
-	if p.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+	if p.IsAuthenticatedWebsocketSupported() {
 		subscriptions = append(subscriptions, stream.ChannelSubscription{
 			Channel: strconv.FormatInt(wsAccountNotificationID, 10),
 		})

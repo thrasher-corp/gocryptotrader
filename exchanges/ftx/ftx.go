@@ -1214,7 +1214,7 @@ func (f *FTX) SendAuthHTTPRequest(ctx context.Context, ep exchange.URL, method, 
 
 // GetFee returns an estimate of fee based on type of transaction
 func (f *FTX) GetFee(price, amount float64, maker bool) (float64, error) {
-	if !f.GetAuthenticatedAPISupport(exchange.RestAuthentication) {
+	if !f.IsAuthenticatedRESTSupported() {
 		if maker {
 			return f.Fees.CalculateWorstCaseMaker(price, amount, asset.Spot, currency.Pair{})
 		}

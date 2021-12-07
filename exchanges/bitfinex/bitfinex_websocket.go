@@ -17,7 +17,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -1318,7 +1317,7 @@ func (b *Bitfinex) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscriptio
 
 // WsSendAuth sends a authenticated event payload
 func (b *Bitfinex) WsSendAuth() error {
-	if !b.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+	if !b.IsAuthenticatedWebsocketSupported() {
 		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled",
 			b.Name)
 	}

@@ -13,7 +13,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -682,7 +681,7 @@ func (c *COINUT) Unsubscribe(channelToUnsubscribe []stream.ChannelSubscription) 
 }
 
 func (c *COINUT) wsAuthenticate() error {
-	if !c.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+	if !c.IsAuthenticatedWebsocketSupported() {
 		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled",
 			c.Name)
 	}

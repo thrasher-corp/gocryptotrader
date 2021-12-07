@@ -12,7 +12,6 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -44,7 +43,7 @@ func (b *BTSE) WsConnect() error {
 	b.Websocket.Wg.Add(1)
 	go b.wsReadData()
 
-	if b.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+	if b.IsAuthenticatedWebsocketSupported() {
 		err = b.WsAuthenticate()
 		if err != nil {
 			b.Websocket.DataHandler <- err

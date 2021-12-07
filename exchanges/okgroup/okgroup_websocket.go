@@ -14,7 +14,6 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -195,7 +194,7 @@ func (o *OKGroup) WsConnect() error {
 	o.Websocket.Wg.Add(1)
 	go o.WsReadData()
 
-	if o.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+	if o.IsAuthenticatedWebsocketSupported() {
 		err = o.WsLogin()
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
@@ -796,7 +795,7 @@ func (o *OKGroup) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 		switch assets[x] {
 		case asset.Spot:
 			channels := defaultSpotSubscribedChannels
-			if o.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+			if o.IsAuthenticatedWebsocketSupported() {
 				channels = append(channels,
 					okGroupWsSpotMarginAccount,
 					okGroupWsSpotAccount,
@@ -819,7 +818,7 @@ func (o *OKGroup) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 			}
 		case asset.Futures:
 			channels := defaultFuturesSubscribedChannels
-			if o.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+			if o.IsAuthenticatedWebsocketSupported() {
 				channels = append(channels,
 					okGroupWsFuturesAccount,
 					okGroupWsFuturesPosition,
@@ -880,7 +879,7 @@ func (o *OKGroup) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 			}
 		case asset.PerpetualSwap:
 			channels := defaultSwapSubscribedChannels
-			if o.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+			if o.IsAuthenticatedWebsocketSupported() {
 				channels = append(channels,
 					okGroupWsSwapAccount,
 					okGroupWsSwapPosition,

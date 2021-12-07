@@ -25,7 +25,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
@@ -342,8 +341,8 @@ func (bot *Engine) GetAuthAPISupportedExchanges() []string {
 	var exchangeNames []string
 	exchanges := bot.GetExchanges()
 	for x := range exchanges {
-		if !exchanges[x].GetAuthenticatedAPISupport(exchange.RestAuthentication) &&
-			!exchanges[x].GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+		if !exchanges[x].IsAuthenticatedRESTSupported() &&
+			!exchanges[x].IsAuthenticatedWebsocketSupported() {
 			continue
 		}
 		exchangeNames = append(exchangeNames, exchanges[x].GetName())
@@ -706,7 +705,7 @@ func (bot *Engine) GetAllExchangeCryptocurrencyDepositAddresses() map[string]map
 		go func(x int) {
 			defer depositSyncer.Done()
 			exchName := exchanges[x].GetName()
-			if !exchanges[x].GetAuthenticatedAPISupport(exchange.RestAuthentication) {
+			if !exchanges[x].IsAuthenticatedRESTSupported() {
 				if bot.Settings.Verbose {
 					log.Debugf(log.ExchangeSys, "GetAllExchangeCryptocurrencyDepositAddresses: Skippping %s due to disabled authenticated API support.\n", exchName)
 				}

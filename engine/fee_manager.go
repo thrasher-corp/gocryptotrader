@@ -100,7 +100,6 @@ func (f *FeeManager) monitor() {
 		select {
 		case <-f.shutdown:
 			return
-
 		case <-timer.C:
 			exchs, err := f.GetExchanges()
 			if err != nil {
@@ -109,9 +108,6 @@ func (f *FeeManager) monitor() {
 					err)
 			}
 			for x := range exchs {
-				if !exchs[x].GetAuthenticatedAPISupport(exchange.RestAuthentication) {
-					continue
-				}
 				wg.Add(1)
 				go update(exchs[x], &wg, exchs[x].GetAssetTypes(true))
 			}
@@ -127,16 +123,23 @@ func (f *FeeManager) monitor() {
 func update(exch exchange.IBotExchange, wg *sync.WaitGroup, enabledAssets asset.Items) {
 	defer wg.Done()
 
-	// Commission fees are maker and taker fees associated with different asset
-	// types
-	for x := range enabledAssets {
-		err := exch.UpdateCommissionFees(context.TODO(), enabledAssets[x])
-		if err != nil && !errors.Is(err, common.ErrNotYetImplemented) {
-			log.Errorf(log.ExchangeSys, "Fee manager %s %s: %v",
-				exch.GetName(),
-				enabledAssets[x],
-				err)
+	if (exch.IsRESTAuthenticationRequiredForTradeFees() && exch.IsAuthenticatedRESTSupported()) ||
+		!exch.IsRESTAuthenticationRequiredForTradeFees() {
+		// Commission fees are maker and taker fees associated with different asset
+		// types
+		for x := range enabledAssets {
+			err := exch.UpdateCommissionFees(context.TODO(), enabledAssets[x])
+			if err != nil && !errors.Is(err, common.ErrNotYetImplemented) {
+				log.Errorf(log.ExchangeSys, "Fee manager %s %s: %v",
+					exch.GetName(),
+					enabledAssets[x],
+					err)
+			}
 		}
+	}
+
+	if exch.IsRESTAuthenticationRequiredForTransferFees() && !exch.IsAuthenticatedRESTSupported() {
+		return
 	}
 
 	// Transfer fees are the common exchange interaction withdrawal and deposit
@@ -156,4 +159,5 @@ func update(exch exchange.IBotExchange, wg *sync.WaitGroup, enabledAssets asset.
 			exch.GetName(),
 			err)
 	}
+
 }

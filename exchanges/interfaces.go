@@ -43,7 +43,8 @@ type IBotExchange interface {
 	GetAvailablePairs(a asset.Item) (currency.Pairs, error)
 	FetchAccountInfo(ctx context.Context, a asset.Item) (account.Holdings, error)
 	UpdateAccountInfo(ctx context.Context, a asset.Item) (account.Holdings, error)
-	GetAuthenticatedAPISupport(endpoint uint8) bool
+	IsAuthenticatedWebsocketSupported() bool
+	IsAuthenticatedRESTSupported() bool
 	SetPairs(pairs currency.Pairs, a asset.Item, enabled bool) error
 	GetAssetTypes(enabled bool) asset.Items
 	GetRecentTrades(ctx context.Context, p currency.Pair, a asset.Item) ([]trade.Data, error)
@@ -114,6 +115,9 @@ type FeeManagement interface {
 	UpdateBankTransferFees(ctx context.Context) error
 	GetBankTransferFee(c currency.Code, transType bank.Transfer) (*fee.Transfer, error)
 	SetBankTransferFee(c currency.Code, transType bank.Transfer, withdraw, deposit float64, isPercentage bool) error
+
+	IsRESTAuthenticationRequiredForTradeFees() bool
+	IsRESTAuthenticationRequiredForTransferFees() bool
 }
 
 // CurrencyStateManagement defines functionality for currency state management

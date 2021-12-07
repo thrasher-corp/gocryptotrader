@@ -14,7 +14,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -332,7 +331,7 @@ func (z *ZB) wsFixInvalidJSON(json []byte) []byte {
 }
 
 func (z *ZB) wsAddSubUser(username, password string) (*WsGetSubUserListResponse, error) {
-	if !z.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+	if !z.IsAuthenticatedWebsocketSupported() {
 		return nil, fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", z.Name)
 	}
 	request := WsAddSubUserRequest{
@@ -375,7 +374,7 @@ func (z *ZB) wsAddSubUser(username, password string) (*WsGetSubUserListResponse,
 }
 
 func (z *ZB) wsGetSubUserList() (*WsGetSubUserListResponse, error) {
-	if !z.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+	if !z.IsAuthenticatedWebsocketSupported() {
 		return nil,
 			fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", z.Name)
 	}
@@ -411,7 +410,7 @@ func (z *ZB) wsGetSubUserList() (*WsGetSubUserListResponse, error) {
 }
 
 func (z *ZB) wsDoTransferFunds(pair currency.Code, amount float64, fromUserName, toUserName string) (*WsRequestResponse, error) {
-	if !z.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+	if !z.IsAuthenticatedWebsocketSupported() {
 		return nil,
 			fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", z.Name)
 	}
@@ -452,7 +451,7 @@ func (z *ZB) wsDoTransferFunds(pair currency.Code, amount float64, fromUserName,
 }
 
 func (z *ZB) wsCreateSubUserKey(assetPerm, entrustPerm, leverPerm, moneyPerm bool, keyName, toUserID string) (*WsRequestResponse, error) {
-	if !z.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+	if !z.IsAuthenticatedWebsocketSupported() {
 		return nil,
 			fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", z.Name)
 	}
@@ -495,7 +494,7 @@ func (z *ZB) wsCreateSubUserKey(assetPerm, entrustPerm, leverPerm, moneyPerm boo
 }
 
 func (z *ZB) wsSubmitOrder(pair currency.Pair, amount, price float64, tradeType int64) (*WsSubmitOrderResponse, error) {
-	if !z.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+	if !z.IsAuthenticatedWebsocketSupported() {
 		return nil,
 			fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", z.Name)
 	}
@@ -535,7 +534,7 @@ func (z *ZB) wsSubmitOrder(pair currency.Pair, amount, price float64, tradeType 
 }
 
 func (z *ZB) wsCancelOrder(pair currency.Pair, orderID int64) (*WsCancelOrderResponse, error) {
-	if !z.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+	if !z.IsAuthenticatedWebsocketSupported() {
 		return nil,
 			fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", z.Name)
 	}
@@ -573,7 +572,7 @@ func (z *ZB) wsCancelOrder(pair currency.Pair, orderID int64) (*WsCancelOrderRes
 }
 
 func (z *ZB) wsGetOrder(pair currency.Pair, orderID int64) (*WsGetOrderResponse, error) {
-	if !z.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+	if !z.IsAuthenticatedWebsocketSupported() {
 		return nil,
 			fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", z.Name)
 	}
@@ -611,7 +610,7 @@ func (z *ZB) wsGetOrder(pair currency.Pair, orderID int64) (*WsGetOrderResponse,
 }
 
 func (z *ZB) wsGetOrders(pair currency.Pair, pageIndex, tradeType int64) (*WsGetOrdersResponse, error) {
-	if !z.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+	if !z.IsAuthenticatedWebsocketSupported() {
 		return nil,
 			fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", z.Name)
 	}
@@ -650,7 +649,7 @@ func (z *ZB) wsGetOrders(pair currency.Pair, pageIndex, tradeType int64) (*WsGet
 }
 
 func (z *ZB) wsGetOrdersIgnoreTradeType(pair currency.Pair, pageIndex, pageSize int64) (*WsGetOrdersIgnoreTradeTypeResponse, error) {
-	if !z.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+	if !z.IsAuthenticatedWebsocketSupported() {
 		return nil,
 			fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", z.Name)
 	}
@@ -689,7 +688,7 @@ func (z *ZB) wsGetOrdersIgnoreTradeType(pair currency.Pair, pageIndex, pageSize 
 }
 
 func (z *ZB) wsGetAccountInfoRequest() (*WsGetAccountInfoResponse, error) {
-	if !z.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+	if !z.IsAuthenticatedWebsocketSupported() {
 		return nil,
 			fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", z.Name)
 	}

@@ -44,4 +44,10 @@ type Features struct {
 	MultiChainDeposits                bool `json:"multiChainDeposits,omitempty"`
 	MultiChainWithdrawals             bool `json:"multiChainWithdrawals,omitempty"`
 	MultiChainDepositRequiresChainSet bool `json:"multiChainDepositRequiresChainSet,omitempty"`
+	// RequiresAuthenticationForCommissionRates defines if the exchange needs
+	// authentication to fetch current trading fees.
+	RequiresAuthenticationForTradeFees bool `json:"requiresAuthenticationForTradeFees,omitempty"`
+	// RequiresAuthenticationForTransferFees defines if the exchange needs
+	// authentication to fetch current transfer fees (withdraw/deposit).
+	RequiresAuthenticationForTransferFees bool `json:"requiresAuthenticationForTransferFees,omitempty"`
 }

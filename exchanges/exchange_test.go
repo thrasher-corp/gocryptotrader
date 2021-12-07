@@ -723,29 +723,27 @@ func TestLoadConfigPairs(t *testing.T) {
 	}
 }
 
-// TestGetAuthenticatedAPISupport logic test
-func TestGetAuthenticatedAPISupport(t *testing.T) {
+func TestIsAuthenticatedWebsocketSupported(t *testing.T) {
 	t.Parallel()
-
-	base := Base{
-		API: API{
-			AuthenticatedSupport:          true,
-			AuthenticatedWebsocketSupport: false,
-		},
-	}
-
-	if !base.GetAuthenticatedAPISupport(RestAuthentication) {
-		t.Fatal("Expected RestAuthentication to return true")
-	}
-	if base.GetAuthenticatedAPISupport(WebsocketAuthentication) {
+	base := Base{}
+	if base.IsAuthenticatedWebsocketSupported() {
 		t.Fatal("Expected WebsocketAuthentication to return false")
 	}
 	base.API.AuthenticatedWebsocketSupport = true
-	if !base.GetAuthenticatedAPISupport(WebsocketAuthentication) {
+	if !base.IsAuthenticatedWebsocketSupported() {
 		t.Fatal("Expected WebsocketAuthentication to return true")
 	}
-	if base.GetAuthenticatedAPISupport(2) {
-		t.Fatal("Expected default case of 'false' to be returned")
+}
+
+func TestIsAuthenticatedRESTSupported(t *testing.T) {
+	t.Parallel()
+	base := Base{}
+	if base.IsAuthenticatedRESTSupported() {
+		t.Fatal("Expected RestAuthentication to return false")
+	}
+	base.API.AuthenticatedSupport = true
+	if !base.IsAuthenticatedRESTSupported() {
+		t.Fatal("Expected RestAuthentication to return true")
 	}
 }
 
@@ -2512,5 +2510,29 @@ func TestGetAvailableTransferChains(t *testing.T) {
 	var b Base
 	if _, err := b.GetAvailableTransferChains(context.Background(), currency.BTC); !errors.Is(err, common.ErrFunctionNotSupported) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrFunctionNotSupported)
+	}
+}
+
+func TestIsRESTAuthenticationRequiredForTradeFees(t *testing.T) {
+	t.Parallel()
+	var b Base
+	if supported := b.IsRESTAuthenticationRequiredForTradeFees(); supported {
+		t.Fatalf("received: %v, expected: %v", supported, false)
+	}
+	b.Features.Supports.RESTCapabilities.RequiresAuthenticationForTradeFees = true
+	if supported := b.IsRESTAuthenticationRequiredForTradeFees(); !supported {
+		t.Fatalf("received: %v, expected: %v", supported, true)
+	}
+}
+
+func TestIsRESTAuthenticationRequiredForTransferFees(t *testing.T) {
+	t.Parallel()
+	var b Base
+	if supported := b.IsRESTAuthenticationRequiredForTransferFees(); supported {
+		t.Fatalf("received: %v, expected: %v", supported, false)
+	}
+	b.Features.Supports.RESTCapabilities.RequiresAuthenticationForTransferFees = true
+	if supported := b.IsRESTAuthenticationRequiredForTransferFees(); !supported {
+		t.Fatalf("received: %v, expected: %v", supported, true)
 	}
 }
