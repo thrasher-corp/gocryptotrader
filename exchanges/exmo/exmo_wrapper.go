@@ -113,9 +113,12 @@ func (e *EXMO) SetDefaults() {
 		},
 	}
 
-	e.Requester = request.New(e.Name,
+	e.Requester, err = request.New(e.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(request.NewBasicRateLimit(exmoRateInterval, exmoRequestRate)))
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 	e.API.Endpoints = e.NewEndpoints()
 	err = e.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot: exmoAPIURL,

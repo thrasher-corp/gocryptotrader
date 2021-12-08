@@ -96,8 +96,11 @@ func (i *ItBit) SetDefaults() {
 		},
 	}
 
-	i.Requester = request.New(i.Name,
+	i.Requester, err = request.New(i.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 	i.API.Endpoints = i.NewEndpoints()
 	err = i.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot: itbitAPIURL,

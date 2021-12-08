@@ -123,9 +123,12 @@ func (b *Bittrex) SetDefaults() {
 		},
 	}
 
-	b.Requester = request.New(b.Name,
+	b.Requester, err = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(request.NewBasicRateLimit(ratePeriod, rateLimit)))
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 
 	b.API.Endpoints = b.NewEndpoints()
 

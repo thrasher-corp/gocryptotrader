@@ -73,8 +73,11 @@ func (a *Alphapoint) SetDefaults() {
 		},
 	}
 
-	a.Requester = request.New(a.Name,
+	a.Requester, err = request.New(a.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs

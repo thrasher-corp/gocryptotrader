@@ -18,6 +18,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"golang.org/x/time/rate"
 )
 
@@ -126,12 +127,15 @@ func TestNewRateLimit(t *testing.T) {
 func TestCheckRequest(t *testing.T) {
 	t.Parallel()
 
-	r := New("TestRequest",
+	r, err := New("TestRequest",
 		new(http.Client))
+	if err != nil {
+		t.Fatal(err)
+	}
 	ctx := context.Background()
 
 	var check *Item
-	_, err := check.validateRequest(ctx, &Requester{})
+	_, err = check.validateRequest(ctx, &Requester{})
 	if err == nil {
 		t.Fatal(unexpected)
 	}
@@ -179,7 +183,7 @@ func TestCheckRequest(t *testing.T) {
 	}
 
 	// Test user agent set
-	r.UserAgent = "r00t axxs"
+	r.userAgent = "r00t axxs"
 	req, err := check.validateRequest(ctx, r)
 	if err != nil {
 		t.Fatal(err)
@@ -226,10 +230,13 @@ var globalshell = GlobalLimitTest{
 
 func TestDoRequest(t *testing.T) {
 	t.Parallel()
-	r := New("test", new(http.Client), WithLimiter(&globalshell))
+	r, err := New("test", new(http.Client), WithLimiter(&globalshell))
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ctx := context.Background()
-	err := (*Requester)(nil).SendPayload(ctx, Unset, nil)
+	err = (*Requester)(nil).SendPayload(ctx, Unset, nil)
 	if !errors.Is(errRequestSystemIsNil, err) {
 		t.Fatalf("expected: %v but received: %v", errRequestSystemIsNil, err)
 	}
@@ -305,8 +312,16 @@ func TestDoRequest(t *testing.T) {
 	// reset jobs
 	r.jobs = 0
 
+	r._HTTPClient, err = newProtectedClient(common.NewHTTPClientWithTimeout(0))
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	// timeout checker
-	r.HTTPClient.Timeout = time.Millisecond * 50
+	err = r._HTTPClient.setHTTPClientTimeout(time.Millisecond * 50)
+	if err != nil {
+		t.Fatal(err)
+	}
 	err = r.SendPayload(ctx, UnAuth, func() (*Item, error) {
 		return &Item{Path: testURL + "/timeout"}, nil
 	})
@@ -314,7 +329,10 @@ func TestDoRequest(t *testing.T) {
 		t.Fatalf("received: %v but expected: %v", err, errFailedToRetryRequest)
 	}
 	// reset timeout
-	r.HTTPClient.Timeout = 0
+	err = r._HTTPClient.setHTTPClientTimeout(0)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Check JSON
 	var resp struct {
@@ -403,7 +421,10 @@ func TestDoRequest_Retries(t *testing.T) {
 	backoff := func(n int) time.Duration {
 		return 0
 	}
-	r := New("test", new(http.Client), WithBackoff(backoff))
+	r, err := New("test", new(http.Client), WithBackoff(backoff))
+	if err != nil {
+		t.Fatal(err)
+	}
 	var failed int32
 	var wg sync.WaitGroup
 	wg.Add(4)
@@ -444,8 +465,11 @@ func TestDoRequest_RetryNonRecoverable(t *testing.T) {
 	backoff := func(n int) time.Duration {
 		return 0
 	}
-	r := New("test", new(http.Client), WithBackoff(backoff))
-	err := r.SendPayload(context.Background(), Unset, func() (*Item, error) {
+	r, err := New("test", new(http.Client), WithBackoff(backoff))
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = r.SendPayload(context.Background(), Unset, func() (*Item, error) {
 		return &Item{
 			Method: http.MethodGet,
 			Path:   testURL + "/always-retry",
@@ -466,8 +490,11 @@ func TestDoRequest_NotRetryable(t *testing.T) {
 	backoff := func(n int) time.Duration {
 		return time.Duration(n) * time.Millisecond
 	}
-	r := New("test", new(http.Client), WithRetryPolicy(retry), WithBackoff(backoff))
-	err := r.SendPayload(context.Background(), Unset, func() (*Item, error) {
+	r, err := New("test", new(http.Client), WithRetryPolicy(retry), WithBackoff(backoff))
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = r.SendPayload(context.Background(), Unset, func() (*Item, error) {
 		return &Item{
 			Method: http.MethodGet,
 			Path:   testURL + "/always-retry",
@@ -480,17 +507,22 @@ func TestDoRequest_NotRetryable(t *testing.T) {
 
 func TestGetNonce(t *testing.T) {
 	t.Parallel()
-	r := New("test",
+	r, err := New("test",
 		new(http.Client),
 		WithLimiter(&globalshell))
-
+	if err != nil {
+		t.Fatal(err)
+	}
 	if n1, n2 := r.GetNonce(false), r.GetNonce(false); n1 == n2 {
 		t.Fatal(unexpected)
 	}
 
-	r2 := New("test",
+	r2, err := New("test",
 		new(http.Client),
 		WithLimiter(&globalshell))
+	if err != nil {
+		t.Fatal(err)
+	}
 	if n1, n2 := r2.GetNonce(true), r2.GetNonce(true); n1 == n2 {
 		t.Fatal(unexpected)
 	}
@@ -498,9 +530,12 @@ func TestGetNonce(t *testing.T) {
 
 func TestGetNonceMillis(t *testing.T) {
 	t.Parallel()
-	r := New("test",
+	r, err := New("test",
 		new(http.Client),
 		WithLimiter(&globalshell))
+	if err != nil {
+		t.Fatal(err)
+	}
 	if m1, m2 := r.GetNonceMilli(), r.GetNonceMilli(); m1 == m2 {
 		log.Fatal(unexpected)
 	}
@@ -508,9 +543,17 @@ func TestGetNonceMillis(t *testing.T) {
 
 func TestSetProxy(t *testing.T) {
 	t.Parallel()
-	r := New("test",
+	var r *Requester
+	err := r.SetProxy(nil)
+	if !errors.Is(err, errRequestSystemIsNil) {
+		t.Fatalf("received: '%v', but expected: '%v'", err, errRequestSystemIsNil)
+	}
+	r, err = New("test",
 		&http.Client{Transport: new(http.Transport)},
 		WithLimiter(&globalshell))
+	if err != nil {
+		t.Fatal(err)
+	}
 	u, err := url.Parse("http://www.google.com")
 	if err != nil {
 		t.Fatal(err)
@@ -530,9 +573,12 @@ func TestSetProxy(t *testing.T) {
 }
 
 func TestBasicLimiter(t *testing.T) {
-	r := New("test",
+	r, err := New("test",
 		new(http.Client),
 		WithLimiter(NewBasicRateLimit(time.Second, 1)))
+	if err != nil {
+		t.Fatal(err)
+	}
 	i := Item{
 		Path:   "http://www.google.com",
 		Method: http.MethodGet,
@@ -540,7 +586,7 @@ func TestBasicLimiter(t *testing.T) {
 	ctx := context.Background()
 
 	tn := time.Now()
-	err := r.SendPayload(ctx, Unset, func() (*Item, error) { return &i, nil })
+	err = r.SendPayload(ctx, Unset, func() (*Item, error) { return &i, nil })
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -561,13 +607,16 @@ func TestBasicLimiter(t *testing.T) {
 }
 
 func TestEnableDisableRateLimit(t *testing.T) {
-	r := New("TestRequest",
+	r, err := New("TestRequest",
 		new(http.Client),
 		WithLimiter(NewBasicRateLimit(time.Minute, 1)))
+	if err != nil {
+		t.Fatal(err)
+	}
 	ctx := context.Background()
 
 	var resp interface{}
-	err := r.SendPayload(ctx, Auth, func() (*Item, error) {
+	err = r.SendPayload(ctx, Auth, func() (*Item, error) {
 		return &Item{
 			Method:      http.MethodGet,
 			Path:        testURL,
@@ -633,5 +682,53 @@ func TestEnableDisableRateLimit(t *testing.T) {
 		t.Fatal("rate limiting failure")
 	case <-ti.C:
 		// Correct test
+	}
+}
+
+func TestSetHTTPClient(t *testing.T) {
+	var r *Requester
+	err := r.SetHTTPClient(nil)
+	if !errors.Is(err, errRequestSystemIsNil) {
+		t.Fatalf("received: '%v', but expected: '%v'", err, errRequestSystemIsNil)
+	}
+	client := new(http.Client)
+	r = new(Requester)
+	err = r.SetHTTPClient(client)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v', but expected: '%v'", err, nil)
+	}
+	err = r.SetHTTPClient(client)
+	if !errors.Is(err, errCannotReuseHTTPClient) {
+		t.Fatalf("received: '%v', but expected: '%v'", err, errCannotReuseHTTPClient)
+	}
+}
+
+func TestSetHTTPClientTimeout(t *testing.T) {
+	var r *Requester
+	err := r.SetHTTPClientTimeout(0)
+	if !errors.Is(err, errRequestSystemIsNil) {
+		t.Fatalf("received: '%v', but expected: '%v'", err, errRequestSystemIsNil)
+	}
+	r = new(Requester)
+	err = r.SetHTTPClient(common.NewHTTPClientWithTimeout(2))
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = r.SetHTTPClientTimeout(time.Second)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v', but expected: '%v'", err, nil)
+	}
+}
+
+func TestSetHTTPClientUserAgent(t *testing.T) {
+	var r *Requester
+	err := r.SetHTTPClientUserAgent("")
+	if !errors.Is(err, errRequestSystemIsNil) {
+		t.Fatalf("received: '%v', but expected: '%v'", err, errRequestSystemIsNil)
+	}
+	r = new(Requester)
+	err = r.SetHTTPClientUserAgent("")
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v', but expected: '%v'", err, nil)
 	}
 }

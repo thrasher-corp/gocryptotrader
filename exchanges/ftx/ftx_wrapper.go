@@ -150,9 +150,12 @@ func (f *FTX) SetDefaults() {
 		},
 	}
 
-	f.Requester = request.New(f.Name,
+	f.Requester, err = request.New(f.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(request.NewBasicRateLimit(ratePeriod, rateLimit)))
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 	f.API.Endpoints = f.NewEndpoints()
 	err = f.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:      ftxAPIURL,
