@@ -1010,7 +1010,7 @@ func (f fakeDepositExchange) GetName() string {
 	return "fake"
 }
 
-func (f fakeDepositExchange) GetAuthenticatedAPISupport(endpoint uint8) bool {
+func (f fakeDepositExchange) IsAuthenticatedRESTSupported() bool {
 	return f.SupportsAuth
 }
 
