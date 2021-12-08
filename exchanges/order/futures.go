@@ -11,41 +11,55 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
-// SetupExchangeAssetPositionTracker creates a futures order tracker for a specific exchange
-func SetupExchangeAssetPositionTracker(exch string, item asset.Item, offlineCalculation bool, calculation PNLManagement) (*ExchangeAssetPositionTracker, error) {
-	if exch == "" {
+// SetupPositionController creates a futures order tracker for a specific exchange
+func SetupPositionController(setup *PositionControllerSetup) (*PositionController, error) {
+	if setup.Exchange == "" {
 		return nil, errExchangeNameEmpty
 	}
-	if !item.IsValid() || !item.IsFutures() {
+	if !setup.Asset.IsValid() || !setup.Asset.IsFutures() {
 		return nil, errNotFutureAsset
 	}
-	if calculation == nil {
+	if setup.Pair.IsEmpty() {
+		return nil, ErrPairIsEmpty
+	}
+	if setup.Underlying.IsEmpty() {
+		return nil, errEmptyUnderlying
+	}
+	if setup.PNLCalculator == nil {
 		return nil, errMissingPNLCalculationFunctions
 	}
-	return &ExchangeAssetPositionTracker{
-		Exchange:              strings.ToLower(exch),
-		Asset:                 item,
-		PNLCalculation:        calculation,
-		OfflinePNLCalculation: offlineCalculation,
+	return &PositionController{
+		exchange:              strings.ToLower(setup.Exchange),
+		asset:                 setup.Asset,
+		pair:                  setup.Pair,
+		underlying:            setup.Underlying,
+		pnlCalculation:        setup.PNLCalculator,
+		offlinePNLCalculation: setup.OfflineCalculation,
+		orderPositions:        make(map[string]*PositionTracker),
 	}, nil
 }
 
 // TrackNewOrder upserts an order to the tracker and updates position
 // status and exposure. PNL is calculated separately as it requires mark prices
-func (e *ExchangeAssetPositionTracker) TrackNewOrder(d *Detail) error {
+func (e *PositionController) TrackNewOrder(d *Detail) error {
 	if d == nil {
 		return ErrSubmissionIsNil
 	}
-	if d.AssetType != e.Asset {
+	if d.AssetType != e.asset {
 		return errAssetMismatch
 	}
-	if len(e.Positions) > 0 {
-		for i := range e.Positions {
-			if e.Positions[i].Status == Open && i != len(e.Positions)-1 {
-				return fmt.Errorf("%w %v at position %v/%v", errPositionDiscrepancy, e.Positions[i], i, len(e.Positions)-1)
+	if tracker, ok := e.orderPositions[d.ID]; ok {
+		// this has already been associated
+		// update the tracker
+		return tracker.TrackNewOrder(d)
+	}
+	if len(e.positions) > 0 {
+		for i := range e.positions {
+			if e.positions[i].status == Open && i != len(e.positions)-1 {
+				return fmt.Errorf("%w %v at position %v/%v", errPositionDiscrepancy, e.positions[i], i, len(e.positions)-1)
 			}
 		}
-		err := e.Positions[len(e.Positions)-1].TrackNewOrder(d)
+		err := e.positions[len(e.positions)-1].TrackNewOrder(d)
 		if !errors.Is(err, errPositionClosed) {
 			return err
 		}
@@ -54,18 +68,33 @@ func (e *ExchangeAssetPositionTracker) TrackNewOrder(d *Detail) error {
 	if err != nil {
 		return err
 	}
-	e.Positions = append(e.Positions, tracker)
+	e.positions = append(e.positions, tracker)
 
-	return tracker.TrackNewOrder(d)
+	err = tracker.TrackNewOrder(d)
+	if err != nil {
+		return err
+	}
+	e.orderPositions[d.ID] = tracker
+	return nil
+}
+
+func (e *PositionController) CalculateLatestPNL(pnlCalculator *PNLCalculator) (*PNLResult, error) {
+	if len(e.positions) == 0 {
+		return nil, errNoPositions
+	}
+	latest := e.positions[len(e.positions)-1]
+	pnlCalculator.CalculateOffline = e.offlinePNLCalculation
+	pnlCalculator.Amount = latest.exposure.InexactFloat64()
+	return latest.pnlCalculation.CalculatePNL(pnlCalculator)
 }
 
 // SetupPositionTracker creates a new position tracker to track n futures orders
 // until the position(s) are closed
-func (e *ExchangeAssetPositionTracker) SetupPositionTracker(item asset.Item, pair currency.Pair, underlying currency.Code) (*PositionTracker, error) {
-	if e.Exchange == "" {
+func (e *PositionController) SetupPositionTracker(item asset.Item, pair currency.Pair, underlying currency.Code) (*PositionTracker, error) {
+	if e.exchange == "" {
 		return nil, errExchangeNameEmpty
 	}
-	if e.PNLCalculation == nil {
+	if e.pnlCalculation == nil {
 		return nil, errMissingPNLCalculationFunctions
 	}
 	if !item.IsValid() || !item.IsFutures() {
@@ -76,22 +105,22 @@ func (e *ExchangeAssetPositionTracker) SetupPositionTracker(item asset.Item, pai
 	}
 
 	return &PositionTracker{
-		Exchange:              strings.ToLower(e.Exchange),
-		Asset:                 item,
-		ContractPair:          pair,
-		UnderlyingAsset:       underlying,
-		Status:                Open,
-		PNLCalculation:        e.PNLCalculation,
-		OfflinePNLCalculation: e.OfflinePNLCalculation,
+		exchange:              strings.ToLower(e.exchange),
+		asset:                 item,
+		contractPair:          pair,
+		underlyingAsset:       underlying,
+		status:                Open,
+		pnlCalculation:        e.pnlCalculation,
+		offlinePNLCalculation: e.offlinePNLCalculation,
 	}, nil
 }
 
 // TrackPNL calculates the PNL based on a position tracker's exposure
 // and current pricing. Adds the entry to PNL history to track over time
 func (p *PositionTracker) TrackPNL(t time.Time, markPrice, prevMarkPrice decimal.Decimal) error {
-	pnl, err := p.PNLCalculation.CalculatePNL(&PNLCalculator{
-		CalculateOffline: p.OfflinePNLCalculation,
-		Amount:           p.Exposure.InexactFloat64(),
+	pnl, err := p.pnlCalculation.CalculatePNL(&PNLCalculator{
+		CalculateOffline: p.offlinePNLCalculation,
+		Amount:           p.exposure.InexactFloat64(),
 		MarkPrice:        markPrice.InexactFloat64(),
 		PrevMarkPrice:    prevMarkPrice.InexactFloat64(),
 	})
@@ -107,20 +136,20 @@ func (p *PositionTracker) TrackPNL(t time.Time, markPrice, prevMarkPrice decimal
 // TrackNewOrder knows how things are going for a given
 // futures contract
 func (p *PositionTracker) TrackNewOrder(d *Detail) error {
-	if p.Status == Closed {
+	if p.status == Closed {
 		return errPositionClosed
 	}
 	if d == nil {
 		return ErrSubmissionIsNil
 	}
-	if !p.ContractPair.Equal(d.Pair) {
-		return fmt.Errorf("%w pair '%v' received: '%v'", errOrderNotEqualToTracker, d.Pair, p.ContractPair)
+	if !p.contractPair.Equal(d.Pair) {
+		return fmt.Errorf("%w pair '%v' received: '%v'", errOrderNotEqualToTracker, d.Pair, p.contractPair)
 	}
-	if p.Exchange != strings.ToLower(d.Exchange) {
-		return fmt.Errorf("%w exchange '%v' received: '%v'", errOrderNotEqualToTracker, d.Exchange, p.Exchange)
+	if p.exchange != strings.ToLower(d.Exchange) {
+		return fmt.Errorf("%w exchange '%v' received: '%v'", errOrderNotEqualToTracker, d.Exchange, p.exchange)
 	}
-	if p.Asset != d.AssetType {
-		return fmt.Errorf("%w asset '%v' received: '%v'", errOrderNotEqualToTracker, d.AssetType, p.Asset)
+	if p.asset != d.AssetType {
+		return fmt.Errorf("%w asset '%v' received: '%v'", errOrderNotEqualToTracker, d.AssetType, p.asset)
 	}
 	if d.Side == "" {
 		return ErrSideIsInvalid
@@ -128,66 +157,66 @@ func (p *PositionTracker) TrackNewOrder(d *Detail) error {
 	if d.ID == "" {
 		return ErrOrderIDNotSet
 	}
-	if len(p.ShortPositions) == 0 && len(p.LongPositions) == 0 {
-		p.EntryPrice = decimal.NewFromFloat(d.Price)
+	if len(p.shortPositions) == 0 && len(p.longPositions) == 0 {
+		p.entryPrice = decimal.NewFromFloat(d.Price)
 	}
 
-	for i := range p.ShortPositions {
-		if p.ShortPositions[i].ID == d.ID {
+	for i := range p.shortPositions {
+		if p.shortPositions[i].ID == d.ID {
 			// update, not overwrite
-			ord := p.ShortPositions[i].Copy()
+			ord := p.shortPositions[i].Copy()
 			ord.UpdateOrderFromDetail(d)
-			p.ShortPositions[i] = ord
+			p.shortPositions[i] = ord
 			break
 		}
 	}
 
 	if d.Side.IsShort() {
-		p.ShortPositions = append(p.ShortPositions, d.Copy())
+		p.shortPositions = append(p.shortPositions, d.Copy())
 	} else {
-		p.LongPositions = append(p.LongPositions, d.Copy())
+		p.longPositions = append(p.longPositions, d.Copy())
 	}
 	var shortSide, longSide, averageLeverage decimal.Decimal
 
-	for i := range p.ShortPositions {
-		shortSide = shortSide.Add(decimal.NewFromFloat(p.ShortPositions[i].Amount))
-		averageLeverage = decimal.NewFromFloat(p.ShortPositions[i].Leverage)
+	for i := range p.shortPositions {
+		shortSide = shortSide.Add(decimal.NewFromFloat(p.shortPositions[i].Amount))
+		averageLeverage = decimal.NewFromFloat(p.shortPositions[i].Leverage)
 	}
-	for i := range p.LongPositions {
-		longSide = longSide.Add(decimal.NewFromFloat(p.LongPositions[i].Amount))
-		averageLeverage = decimal.NewFromFloat(p.LongPositions[i].Leverage)
+	for i := range p.longPositions {
+		longSide = longSide.Add(decimal.NewFromFloat(p.longPositions[i].Amount))
+		averageLeverage = decimal.NewFromFloat(p.longPositions[i].Leverage)
 	}
 
-	averageLeverage.Div(decimal.NewFromInt(int64(len(p.ShortPositions))).Add(decimal.NewFromInt(int64(len(p.LongPositions)))))
+	averageLeverage.Div(decimal.NewFromInt(int64(len(p.shortPositions))).Add(decimal.NewFromInt(int64(len(p.longPositions)))))
 
 	switch {
 	case longSide.GreaterThan(shortSide):
-		p.CurrentDirection = Long
+		p.currentDirection = Long
 	case shortSide.GreaterThan(longSide):
-		p.CurrentDirection = Short
+		p.currentDirection = Short
 	default:
-		p.CurrentDirection = UnknownSide
+		p.currentDirection = UnknownSide
 	}
-	if p.CurrentDirection.IsLong() {
-		p.Exposure = longSide.Sub(shortSide)
+	if p.currentDirection.IsLong() {
+		p.exposure = longSide.Sub(shortSide)
 	} else {
-		p.Exposure = shortSide.Sub(longSide)
+		p.exposure = shortSide.Sub(longSide)
 	}
-	if p.Exposure.Equal(decimal.Zero) {
+	if p.exposure.Equal(decimal.Zero) {
 		// the order is closed
-		p.Status = Closed
-		p.ClosingPrice = decimal.NewFromFloat(d.Price)
-		p.RealisedPNL = p.UnrealisedPNL
-		p.UnrealisedPNL = decimal.Zero
+		p.status = Closed
+		p.closingPrice = decimal.NewFromFloat(d.Price)
+		p.realisedPNL = p.unrealisedPNL
+		p.unrealisedPNL = decimal.Zero
 	}
-	if p.Exposure.IsNegative() {
+	if p.exposure.IsNegative() {
 		// tracking here has changed!
-		if p.CurrentDirection.IsLong() {
-			p.CurrentDirection = Short
+		if p.currentDirection.IsLong() {
+			p.currentDirection = Short
 		} else {
-			p.CurrentDirection = Long
+			p.currentDirection = Long
 		}
-		p.Exposure = p.Exposure.Abs()
+		p.exposure = p.exposure.Abs()
 	}
 	return nil
 }
@@ -198,13 +227,13 @@ func (p *PositionTracker) UpsertPNLEntry(entry PNLHistory) error {
 	if entry.Time.IsZero() {
 		return errTimeUnset
 	}
-	for i := range p.PNLHistory {
-		if entry.Time.Equal(p.PNLHistory[i].Time) {
-			p.PNLHistory[i] = entry
+	for i := range p.pnlHistory {
+		if entry.Time.Equal(p.pnlHistory[i].Time) {
+			p.pnlHistory[i] = entry
 			return nil
 		}
 	}
-	p.PNLHistory = append(p.PNLHistory, entry)
+	p.pnlHistory = append(p.pnlHistory, entry)
 	return nil
 }
 

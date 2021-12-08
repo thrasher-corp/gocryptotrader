@@ -42,7 +42,7 @@ type store struct {
 	commsManager    iCommsManager
 	exchangeManager iExchangeManager
 	wg              *sync.WaitGroup
-	futuresTrackers map[string]order.ExchangeAssetPositionTracker
+	futuresTrackers map[string]order.PositionController
 }
 
 // OrderManager processes and stores orders across enabled exchanges

@@ -81,9 +81,3 @@ func (o *Order) SetLeverage(l decimal.Decimal) {
 func (o *Order) GetAllocatedFunds() decimal.Decimal {
 	return o.AllocatedFunds
 }
-
-// GetLinkedOrderID returns the order ID of a linked
-// futures order
-func (o *Order) GetLinkedOrderID() string {
-	return o.LinkedOrderID
-}

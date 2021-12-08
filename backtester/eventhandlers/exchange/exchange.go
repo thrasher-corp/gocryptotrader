@@ -41,7 +41,6 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 		Direction:  o.GetDirection(),
 		Amount:     o.GetAmount(),
 		ClosePrice: data.Latest().GetClosePrice(),
-		LinkedOrderID: o.GetLinkedOrderID(),
 	}
 	eventFunds := o.GetAllocatedFunds()
 	cs, err := e.GetCurrencySettings(o.GetExchange(), o.GetAssetType(), o.Pair())
@@ -154,20 +153,11 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 			if fundErr != nil {
 				return f, fundErr
 			}
-			if o.GetLinkedOrderID() != "" {
-				switch f.GetDirection() {
-				case gctorder.Short:
-					f.SetDirection(common.CouldNotCloseLong)
-				case gctorder.Long:
-					f.SetDirection(common.CouldNotCloseShort)
-				}
-			} else {
-				switch f.GetDirection() {
-				case gctorder.Short:
-					f.SetDirection(common.CouldNotShort)
-				case gctorder.Long:
-					f.SetDirection(common.CouldNotLong)
-				}
+			switch f.GetDirection() {
+			case gctorder.Short:
+				f.SetDirection(common.CouldNotShort)
+			case gctorder.Long:
+				f.SetDirection(common.CouldNotLong)
 			}
 			return f, err
 		}

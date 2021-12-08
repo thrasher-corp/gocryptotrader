@@ -18,6 +18,8 @@ var (
 	errPositionClosed                 = errors.New("the position is closed, time for a new one")
 	errPositionDiscrepancy            = errors.New("there is a position considered open, but it is not the latest, please review")
 	errAssetMismatch                  = errors.New("provided asset does not match")
+	errEmptyUnderlying                = errors.New("underlying asset unset")
+	errNoPositions                    = errors.New("there are no positions")
 )
 
 type PNLManagement interface {
@@ -26,7 +28,7 @@ type PNLManagement interface {
 
 type CollateralManagement interface {
 	ScaleCollateral(*CollateralCalculator) (decimal.Decimal, error)
-	CalculateCollateral(calculator *CollateralCalculator) (decimal.Decimal, error)
+	CalculateTotalCollateral([]CollateralCalculator) (decimal.Decimal, error)
 }
 
 type CollateralCalculator struct {
@@ -34,7 +36,7 @@ type CollateralCalculator struct {
 	Asset              asset.Item
 	Side               Side
 	CollateralAmount   decimal.Decimal
-	EntryPrice         float64
+	USDPrice           decimal.Decimal
 }
 
 type PNLCalculator struct {
@@ -61,15 +63,18 @@ type PNLResult struct {
 	IsLiquidated              bool
 }
 
-// ExchangeAssetPositionTracker will track the performance of
+// PositionController will track the performance of
 // po
-type ExchangeAssetPositionTracker struct {
-	Exchange              string
-	Asset                 asset.Item
-	Positions             []*PositionTracker
-	PNL                   decimal.Decimal
-	PNLCalculation        PNLManagement
-	OfflinePNLCalculation bool
+type PositionController struct {
+	exchange              string
+	asset                 asset.Item
+	pair                  currency.Pair
+	underlying            currency.Code
+	positions             []*PositionTracker
+	orderPositions        map[string]*PositionTracker
+	pnl                   decimal.Decimal
+	pnlCalculation        PNLManagement
+	offlinePNLCalculation bool
 }
 
 // PositionTracker tracks futures orders until the overall position is considered closed
@@ -80,23 +85,23 @@ type ExchangeAssetPositionTracker struct {
 // completely within this position tracker, however, can still provide a good
 // timeline of performance until the position is closed
 type PositionTracker struct {
-	Exchange              string
-	Asset                 asset.Item
-	ContractPair          currency.Pair
-	UnderlyingAsset       currency.Code
-	Exposure              decimal.Decimal
-	CurrentDirection      Side
-	Status                Status
-	AverageLeverage       decimal.Decimal
-	UnrealisedPNL         decimal.Decimal
-	RealisedPNL           decimal.Decimal
-	ShortPositions        []Detail
-	LongPositions         []Detail
-	PNLHistory            []PNLHistory
-	EntryPrice            decimal.Decimal
-	ClosingPrice          decimal.Decimal
-	OfflinePNLCalculation bool
-	PNLCalculation        PNLManagement
+	exchange              string
+	asset                 asset.Item
+	contractPair          currency.Pair
+	underlyingAsset       currency.Code
+	exposure              decimal.Decimal
+	currentDirection      Side
+	status                Status
+	averageLeverage       decimal.Decimal
+	unrealisedPNL         decimal.Decimal
+	realisedPNL           decimal.Decimal
+	shortPositions        []Detail
+	longPositions         []Detail
+	pnlHistory            []PNLHistory
+	entryPrice            decimal.Decimal
+	closingPrice          decimal.Decimal
+	offlinePNLCalculation bool
+	pnlCalculation        PNLManagement
 }
 
 // PNLHistory tracks how a futures contract
@@ -105,4 +110,15 @@ type PNLHistory struct {
 	Time          time.Time
 	UnrealisedPNL decimal.Decimal
 	RealisedPNL   decimal.Decimal
+}
+
+// PositionControllerSetup holds the parameters
+// required to set up a position controller
+type PositionControllerSetup struct {
+	Exchange           string
+	Asset              asset.Item
+	Pair               currency.Pair
+	Underlying         currency.Code
+	OfflineCalculation bool
+	PNLCalculator      PNLManagement
 }

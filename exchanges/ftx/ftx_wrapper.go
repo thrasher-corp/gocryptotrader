@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"sort"
 	"strconv"
 	"strings"
@@ -1276,27 +1277,9 @@ func (f *FTX) CalculateUnrealisedPNL(positionSize, markPrice, prevMarkPrice floa
 	return positionSize * (markPrice - prevMarkPrice)
 }
 
-func (f *FTX) ScaleCollateral(calculator order.CollateralCalculator) (decimal.Decimal, error) {
-	collat, err := f.CalculateCollateral(calculator.CollateralCurrency, calculator.CollateralAmount.InexactFloat64(), calculator.EntryPrice, true)
-	if err != nil {
-		return decimal.Zero, err
-	}
-
-	return decimal.NewFromFloat(collat), nil
-}
-
 func (f *FTX) CalculatePNL(pnl *order.PNLCalculator) (*order.PNLResult, error) {
 	var result order.PNLResult
 	if pnl.CalculateOffline {
-		// TODO remove this as its not needed here and should be done seperately
-		//collat, err := f.CalculateCollateral(pnl.CollateralCurrency, pnl.CollateralAmount.InexactFloat64(), pnl.EntryPrice, true)
-		//if err != nil {
-		//	return nil, err
-		//}
-		//result.Collateral = decimal.NewFromFloat(collat)
-
-		// TODO add mark price somehow
-		// need mark price candles + mark price from 30 second ago candles
 		uPNL := f.CalculateUnrealisedPNL(pnl.Amount, pnl.MarkPrice, pnl.PrevMarkPrice)
 		result.UnrealisedPNL = decimal.NewFromFloat(uPNL)
 		return &result, nil
@@ -1324,15 +1307,31 @@ func (f *FTX) CalculatePNL(pnl *order.PNLCalculator) (*order.PNLResult, error) {
 			if info.Positions[i].EntryPrice == pnl.EntryPrice && pnl.Side == pnlSide {
 				result.UnrealisedPNL = decimal.NewFromFloat(info.Positions[i].UnrealizedPnL)
 				result.RealisedPNL = decimal.NewFromFloat(info.Positions[i].RealizedPnL)
-				var collat float64
-				collat, err = f.CalculateCollateral(pnl.Underlying, info.Positions[i].Size, info.Positions[i].EntryPrice, result.UnrealisedPNL.IsPositive())
-				if err != nil {
-					return nil, err
-				}
-				result.Collateral = decimal.NewFromFloat(collat)
 				return &result, nil
 			}
 		}
 	}
-	return nil, nil
+	return &result, nil
+}
+
+func (f *FTX) CalculateTotalCollateral(collateralAssets []order.CollateralCalculator) (decimal.Decimal, error) {
+	var result decimal.Decimal
+	for i := range collateralAssets {
+		collateralWeight, ok := f.collateralWeight[collateralAssets[i].CollateralCurrency.Upper().String()]
+		if !ok {
+			return decimal.Zero, errCoinMustBeSpecified
+		}
+		if collateralAssets[i].CollateralAmount.IsPositive() {
+			if collateralWeight.IMFFactor == 0 {
+				return decimal.Zero, errCoinMustBeSpecified
+			}
+			what := decimal.NewFromFloat(collateralWeight.Total)
+			what2 := decimal.NewFromFloat(1.1 / collateralWeight.IMFFactor * math.Sqrt(collateralAssets[i].CollateralAmount.InexactFloat64()))
+			result = result.Add(collateralAssets[i].CollateralAmount.Mul(collateralAssets[i].USDPrice).Mul(decimal.Min(what, what2)))
+
+		} else {
+			result = result.Add(collateralAssets[i].CollateralAmount.Mul(collateralAssets[i].USDPrice))
+		}
+	}
+	return result, nil
 }

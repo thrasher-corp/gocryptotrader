@@ -20,11 +20,6 @@ type Order struct {
 	AllocatedFunds decimal.Decimal
 	BuyLimit       decimal.Decimal
 	SellLimit      decimal.Decimal
-	// LinkedOrderID is the order ID of the futures order
-	// to that is being closed. This linking allows the
-	// more detailed order.Futures struct to close out
-	// and have more detailed performance tracking
-	LinkedOrderID string
 }
 
 // Event inherits common event interfaces along with extra functions related to handling orders
@@ -41,5 +36,4 @@ type Event interface {
 	GetID() string
 	IsLeveraged() bool
 	GetAllocatedFunds() decimal.Decimal
-	GetLinkedOrderID() string
 }

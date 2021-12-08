@@ -1470,21 +1470,6 @@ func (f *FTX) FetchExchangeLimits(ctx context.Context) ([]order.MinMaxLevel, err
 	return limits, nil
 }
 
-func (f *FTX) CalculateCollateral(code currency.Code, amount, price float64, isPositiveBalance bool) (float64, error) {
-	collateralWeight, ok := f.collateralWeight[code.Upper().String()]
-	if !ok {
-		return 0, errCoinMustBeSpecified
-	}
-	if isPositiveBalance {
-		if collateralWeight.IMFFactor == 0 {
-			return 0, errCoinMustBeSpecified
-		}
-		return amount * price * math.Min(collateralWeight.Total, 1.1/collateralWeight.IMFFactor*math.Sqrt(amount)), nil
-	}
-	// im not sure this is what FTX means
-	return amount * price, nil
-}
-
 func (f *FTX) CalculateExpectedPosition(code currency.Code, positionSize float64, side order.Side) (float64, error) {
 	collateralWeight, ok := f.collateralWeight[code.Upper().String()]
 	if !ok {

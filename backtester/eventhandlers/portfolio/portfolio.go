@@ -135,12 +135,12 @@ func (p *Portfolio) OnSignal(ev signal.Event, cs *exchange.Settings, funds fundi
 			return nil, err
 		}
 		sizingFunds = cReader.AvailableFunds()
-		sizingFunds, err = lookup.Exchange.ScaleCollateral(&gctexchange.CollateralCalculator{
+		sizingFunds, err = lookup.Exchange.ScaleCollateral(&gctorder.CollateralCalculator{
 			CollateralCurrency: cReader.CollateralCurrency(),
 			Asset:              ev.GetAssetType(),
 			Side:               ev.GetDirection(),
 			CollateralAmount:   sizingFunds,
-			EntryPrice:         ev.GetPrice().InexactFloat64(),
+			USDPrice:           ev.GetPrice(),
 		})
 		if err != nil {
 			return nil, err
@@ -341,7 +341,12 @@ func (p *Portfolio) addComplianceSnapshot(fillEvent fill.Event) error {
 			}
 		}
 	}
-	return complianceManager.AddSnapshot(prevSnap.Orders, fillEvent.GetTime(), fillEvent.GetOffset(), false)
+	snap := &compliance.Snapshot{
+		Offset:    fillEvent.GetOffset(),
+		Timestamp: fillEvent.GetTime(),
+		Orders:    prevSnap.Orders,
+	}
+	return complianceManager.AddSnapshot(snap, false)
 }
 
 // GetComplianceManager returns the order snapshots for a given exchange, asset, pair
@@ -543,52 +548,32 @@ func (p *Portfolio) CalculatePNL(e common.DataEventHandler, funds funding.IColla
 	if err != nil {
 		return err
 	}
-	for i := range snapshot.Orders {
-		if snapshot.FuturesTracker == nil {
-			snapshot.FuturesTracker = &gctorder.PositionTracker{
-				Exchange:        e.GetExchange(),
-				Asset:           e.GetAssetType(),
-				ContractPair:    e.Pair(),
-				UnderlyingAsset: funds.UnderlyingAsset(),
-			}
-		}
 
-		// should futures tracker reference the interface function?
-		// eg it can call calculate pnl via using the exchange's implementation?
-		snapshot.FuturesTracker.TrackNewOrder()
-
-		var result *gctexchange.PNLResult
-		result, err = settings.Exchange.CalculatePNL(&gctexchange.PNLCalculator{
+	if snapshot.FuturesTracker == nil {
+		snapshot.FuturesTracker, err = gctorder.SetupPositionController(&gctorder.PositionControllerSetup{
+			Exchange:           e.GetExchange(),
 			Asset:              e.GetAssetType(),
-			Leverage:           snapshot.Orders[i].FuturesOrder.ShortPositions.Leverage,
-			EntryPrice:         snapshot.Orders[i].FuturesOrder.ShortPositions.Price,
-			OpeningAmount:      snapshot.Orders[i].FuturesOrder.ShortPositions.Amount,
-			CurrentPrice:       e.GetClosePrice().InexactFloat64(),
-			CollateralAmount:   funds.AvailableFunds(),
-			CalculateOffline:   true,
-			CollateralCurrency: funds.CollateralCurrency(),
-			Amount:             snapshot.Orders[i].FuturesOrder.ShortPositions.Amount,
-			MarkPrice:          e.GetClosePrice().InexactFloat64(),
-			PrevMarkPrice:      e.GetOpenPrice().InexactFloat64(),
+			Pair:               e.Pair(),
+			Underlying:         e.Pair().Base,
+			OfflineCalculation: true,
+			PNLCalculator:      settings.Exchange,
 		})
 		if err != nil {
 			return err
 		}
-
-		if result.IsLiquidated {
-			funds.Liquidate()
-			snapshot.Orders[i].FuturesOrder.UnrealisedPNL = decimal.Zero
-			snapshot.Orders[i].FuturesOrder.RealisedPNL = decimal.Zero
-			snapshot.Orders[i].FuturesOrder.CurrentDirection = common.Liquidated
-			return nil
-		}
-		snapshot.Orders[i].FuturesOrder.RealisedPNL.Add(snapshot.Orders[i].FuturesOrder.UnrealisedPNL)
-		snapshot.Orders[i].FuturesOrder.UnrealisedPNL = result.UnrealisedPNL
-		snapshot.Orders[i].FuturesOrder.UpsertPNLEntry(gctorder.PNLHistory{
-			Time:          e.GetTime(),
-			UnrealisedPNL: result.UnrealisedPNL,
-			RealisedPNL:   snapshot.Orders[i].FuturesOrder.RealisedPNL,
-		})
 	}
+
+	for i := range snapshot.Orders {
+		err = snapshot.FuturesTracker.TrackNewOrder(snapshot.Orders[i].Order)
+		if err != nil {
+			return err
+		}
+	}
+
+	_, err = snapshot.FuturesTracker.CalculateLatestPNL(&gctorder.PNLCalculator{
+		MarkPrice:     e.GetClosePrice().InexactFloat64(),
+		PrevMarkPrice: e.GetOpenPrice().InexactFloat64(),
+	})
+
 	return nil
 }

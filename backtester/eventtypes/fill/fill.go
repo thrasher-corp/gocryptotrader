@@ -64,9 +64,3 @@ func (f *Fill) GetOrder() *order.Detail {
 func (f *Fill) GetSlippageRate() decimal.Decimal {
 	return f.Slippage
 }
-
-// GetLinkedOrderID returns the order ID of a linked 
-// futures order
-func (f *Fill) GetLinkedOrderID() string {
-	return f.LinkedOrderID
-}

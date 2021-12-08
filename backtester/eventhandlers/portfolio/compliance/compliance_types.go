@@ -21,10 +21,10 @@ type Manager struct {
 // Snapshot consists of the timestamp the snapshot is from, along with all orders made
 // up until that time
 type Snapshot struct {
-	Offset         int64                  `json:"offset"`
-	Timestamp      time.Time              `json:"timestamp"`
-	Orders         []SnapshotOrder        `json:"orders"`
-	FuturesTracker *order.PositionTracker `json:"futures-order"`
+	Offset         int64                     `json:"offset"`
+	Timestamp      time.Time                 `json:"timestamp"`
+	Orders         []SnapshotOrder           `json:"orders"`
+	FuturesTracker *order.PositionController `json:"futures-tracker"`
 }
 
 // SnapshotOrder adds some additional data that's only relevant for backtesting

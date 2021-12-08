@@ -1462,34 +1462,13 @@ func (b *Base) GetAvailableTransferChains(_ context.Context, _ currency.Code) ([
 	return nil, common.ErrFunctionNotSupported
 }
 
-var ErrUnsetLeverage error
-
 // CalculatePNL is an overridable function to allow PNL to be calculated on an
 // open position
 // It will also determine whether the position is considered to be liquidated
 // for live trading, an overrided function may wish to confirm the liquidation by
 // requesting the status of the asset
 func (b *Base) CalculatePNL(calc *order.PNLCalculator) (*order.PNLResult, error) {
-	if !calc.Asset.IsFutures() {
-		return nil, common.ErrFunctionNotSupported
-	}
-	if calc.Leverage == 0 {
-		// you really should have set this earlier, idiot
-		return nil, ErrUnsetLeverage
-	}
-	var result *order.PNLResult
-	cp := decimal.NewFromFloat(calc.CurrentPrice)
-	op := decimal.NewFromFloat(calc.EntryPrice)
-	lv := decimal.NewFromFloat(calc.Leverage)
-	result.UnrealisedPNL = cp.Sub(op).Mul(op).Mul(lv)
-	if result.UnrealisedPNL.IsNegative() && calc.CollateralAmount.LessThanOrEqual(result.UnrealisedPNL.Abs()) {
-		// calculating whether something is liquidated changes per exchange
-		// If your chosen exchange has its own liquidation formula, please ensure
-		// it is implemented there rather than rely on this base function
-		result.IsLiquidated = true
-	}
-
-	return result, nil
+	return nil, common.ErrFunctionNotSupported
 }
 
 // ScaleCollateral is an overridable function to allow PNL to be calculated on an
@@ -1498,9 +1477,9 @@ func (b *Base) CalculatePNL(calc *order.PNLCalculator) (*order.PNLResult, error)
 // for live trading, an overrided function may wish to confirm the liquidation by
 // requesting the status of the asset
 func (b *Base) ScaleCollateral(calc *order.CollateralCalculator) (decimal.Decimal, error) {
-	if !calc.Asset.IsFutures() {
-		return decimal.Zero, common.ErrFunctionNotSupported
-	}
+	return decimal.Zero, common.ErrFunctionNotSupported
+}
 
-	return calc.CollateralAmount, nil
+func (b *Base) CalculateTotalCollateral([]order.CollateralCalculator) (decimal.Decimal, error) {
+	return decimal.Zero, common.ErrFunctionNotSupported
 }
