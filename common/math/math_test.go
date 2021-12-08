@@ -709,7 +709,7 @@ func TestDecimalStandardDeviation2(t *testing.T) {
 		superMean = append(superMean, result)
 	}
 	superMeany := superMean[0].Add(superMean[1].Add(superMean[2].Add(superMean[3].Add(superMean[4].Add(superMean[5]))))).Div(decimal.NewFromInt(5))
-	fSuperMeany, _ := superMeany.Float64()
+	fSuperMeany := superMeany.InexactFloat64()
 	manualCalculation := decimal.NewFromFloat(math.Sqrt(fSuperMeany))
 	var codeCalcu decimal.Decimal
 	codeCalcu, err = DecimalSampleStandardDeviation(r)

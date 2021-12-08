@@ -380,9 +380,7 @@ func DecimalGeometricMean(values []decimal.Decimal) (decimal.Decimal, error) {
 // DecimalPow is lovely because shopspring decimal cannot
 // handle ^0.x and instead returns 1
 func DecimalPow(x, y decimal.Decimal) decimal.Decimal {
-	fX, _ := x.Float64()
-	fY, _ := y.Float64()
-	pow := math.Pow(fX, fY)
+	pow := math.Pow(x.InexactFloat64(), y.InexactFloat64())
 	return decimal.NewFromFloat(pow)
 }
 
