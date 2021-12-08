@@ -44,10 +44,10 @@ func (c *CurrencyLayer) Setup(config base.Settings) error {
 	c.Verbose = config.Verbose
 	c.PrimaryProvider = config.PrimaryProvider
 	// Rate limit is based off a monthly counter - Open limit used.
-	c.Requester = request.New(c.Name,
+	var err error
+	c.Requester, err = request.New(c.Name,
 		common.NewHTTPClientWithTimeout(base.DefaultTimeOut))
-
-	return nil
+	return err
 }
 
 // GetRates is a wrapper function to return rates for GoCryptoTrader

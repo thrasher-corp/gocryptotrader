@@ -68,7 +68,7 @@ type IBotExchange interface {
 	WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error)
 	WithdrawFiatFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error)
 	WithdrawFiatFundsToInternationalBank(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error)
-	SetHTTPClientUserAgent(ua string)
+	SetHTTPClientUserAgent(ua string) error
 	GetHTTPClientUserAgent() string
 	SetClientProxyAddress(addr string) error
 	SupportsREST() bool

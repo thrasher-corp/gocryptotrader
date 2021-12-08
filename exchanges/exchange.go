@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
@@ -20,7 +19,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -46,50 +44,39 @@ var (
 	ErrAuthenticatedRequestWithoutCredentialsSet = errors.New("authenticated HTTP request called but not supported due to unset/default API keys")
 
 	errEndpointStringNotFound = errors.New("endpoint string not found")
-	errTransportNotSet        = errors.New("transport not set, cannot set timeout")
-
-	// ErrPairNotFound is an error message for when unable to find a currency pair
-	ErrPairNotFound = errors.New("pair not found")
 )
 
-func (b *Base) checkAndInitRequester() {
-	if b.Requester == nil {
-		b.Requester = request.New(b.Name,
-			&http.Client{Transport: new(http.Transport)})
-	}
-}
+// func (b *Base) checkAndInitRequester() {
+// 	if b.Requester == nil {
+// 		b.Requester = request.New(b.Name,
+// 			&http.Client{Transport: new(http.Transport)})
+// 	}
+// }
 
-// SetHTTPClientTimeout sets the timeout value for the exchanges HTTP Client and
-// also the underlying transports idle connection timeout
-func (b *Base) SetHTTPClientTimeout(t time.Duration) error {
-	b.checkAndInitRequester()
-	b.Requester.HTTPClient.Timeout = t
-	tr, ok := b.Requester.HTTPClient.Transport.(*http.Transport)
-	if !ok {
-		return errTransportNotSet
-	}
-	tr.IdleConnTimeout = t
-	return nil
-}
+// // SetHTTPClientTimeout sets the timeout value for the exchanges HTTP Client and
+// // also the underlying transports idle connection timeout
+// func (b *Base) SetHTTPClientTimeout(t time.Duration) error {
+// 	return b.Requester.SetHTTPClientTimeout(t)
+// }
 
-// SetHTTPClient sets exchanges HTTP client
-func (b *Base) SetHTTPClient(h *http.Client) {
-	b.checkAndInitRequester()
-	b.Requester.HTTPClient = h
-}
+// // SetHTTPClient sets exchanges HTTP client
+// func (b *Base) SetHTTPClient(h *http.Client) {
+// 	// b.checkAndInitRequester()
+// 	b.Requester.HTTPClient = h
+// }
 
-// GetHTTPClient gets the exchanges HTTP client
-func (b *Base) GetHTTPClient() *http.Client {
-	b.checkAndInitRequester()
-	return b.Requester.HTTPClient
-}
+// // GetHTTPClient gets the exchanges HTTP client
+// func (b *Base) GetHTTPClient() *http.Client {
+// 	b.checkAndInitRequester()
+// 	return b.Requester.HTTPClient
+// }
 
-// SetHTTPClientUserAgent sets the exchanges HTTP user agent
-func (b *Base) SetHTTPClientUserAgent(ua string) {
-	b.checkAndInitRequester()
-	b.Requester.UserAgent = ua
-	b.HTTPUserAgent = ua
-}
+// // SetHTTPClientUserAgent sets the exchanges HTTP user agent
+// func (b *Base) SetHTTPClientUserAgent(ua string) error {
+// 	// b.checkAndInitRequester()
+// 	b.Requester.UserAgent = ua
+// 	b.HTTPUserAgent = ua
+// }
 
 // GetHTTPClientUserAgent gets the exchanges HTTP user agent
 func (b *Base) GetHTTPClientUserAgent() string {

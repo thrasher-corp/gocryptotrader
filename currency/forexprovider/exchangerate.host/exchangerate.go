@@ -34,9 +34,10 @@ func (e *ExchangeRateHost) Setup(config base.Settings) error {
 	e.RESTPollingDelay = config.RESTPollingDelay
 	e.Verbose = config.Verbose
 	e.PrimaryProvider = config.PrimaryProvider
-	e.Requester = request.New(e.Name,
+	var err error
+	e.Requester, err = request.New(e.Name,
 		common.NewHTTPClientWithTimeout(base.DefaultTimeOut))
-	return nil
+	return err
 }
 
 // GetLatestRates returns a list of forex rates based on the supplied params

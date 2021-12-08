@@ -113,8 +113,11 @@ func (c *COINUT) SetDefaults() {
 		},
 	}
 
-	c.Requester = request.New(c.Name,
+	c.Requester, err = request.New(c.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 	c.API.Endpoints = c.NewEndpoints()
 	err = c.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:      coinutAPIURL,
