@@ -241,9 +241,9 @@ func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRe
 		}
 
 		if p.HTTPDebugging {
-			dump, err := httputil.DumpResponse(resp, false)
+			dump, dumpErr := httputil.DumpResponse(resp, false)
 			if err != nil {
-				log.Errorf(log.RequestSys, "DumpResponse invalid response: %v:", err)
+				log.Errorf(log.RequestSys, "DumpResponse invalid response: %v:", dumpErr)
 			}
 			log.Debugf(log.RequestSys, "DumpResponse Headers (%v):\n%s", p.Path, dump)
 			log.Debugf(log.RequestSys, "DumpResponse Body (%v):\n %s", p.Path, string(contents))

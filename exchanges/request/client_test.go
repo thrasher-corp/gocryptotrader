@@ -47,8 +47,7 @@ func TestCheckAndRegister(t *testing.T) {
 
 func TestNewProtectedClient(t *testing.T) {
 	t.Parallel()
-	_, err := newProtectedClient(nil)
-	if !errors.Is(err, errHTTPClientIsNil) {
+	if _, err := newProtectedClient(nil); !errors.Is(err, errHTTPClientIsNil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errHTTPClientIsNil)
 	}
 
