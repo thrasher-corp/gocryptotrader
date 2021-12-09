@@ -1288,14 +1288,18 @@ func updateFile(name string) error {
 // SendGetReq sends get req
 func sendGetReq(path string, result interface{}) error {
 	var requester *request.Requester
+	var err error
 	if strings.Contains(path, "github") {
-		requester = request.New("Apichecker",
+		requester, err = request.New("Apichecker",
 			common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 			request.WithLimiter(request.NewBasicRateLimit(time.Hour, 60)))
 	} else {
-		requester = request.New("Apichecker",
+		requester, err = request.New("Apichecker",
 			common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 			request.WithLimiter(request.NewBasicRateLimit(time.Second, 100)))
+	}
+	if err != nil {
+		return err
 	}
 	item := &request.Item{
 		Method:  http.MethodGet,
@@ -1309,9 +1313,12 @@ func sendGetReq(path string, result interface{}) error {
 
 // sendAuthReq sends auth req
 func sendAuthReq(method, path string, result interface{}) error {
-	requester := request.New("Apichecker",
+	requester, err := request.New("Apichecker",
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(request.NewBasicRateLimit(time.Second*10, 100)))
+	if err != nil {
+		return err
+	}
 	item := &request.Item{
 		Method:  method,
 		Path:    path,

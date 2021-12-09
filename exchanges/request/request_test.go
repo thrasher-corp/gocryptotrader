@@ -237,8 +237,8 @@ func TestDoRequest(t *testing.T) {
 
 	ctx := context.Background()
 	err = (*Requester)(nil).SendPayload(ctx, Unset, nil)
-	if !errors.Is(errRequestSystemIsNil, err) {
-		t.Fatalf("expected: %v but received: %v", errRequestSystemIsNil, err)
+	if !errors.Is(ErrRequestSystemIsNil, err) {
+		t.Fatalf("expected: %v but received: %v", ErrRequestSystemIsNil, err)
 	}
 	err = r.SendPayload(ctx, Unset, nil)
 	if !errors.Is(errRequestFunctionIsNil, err) {
@@ -545,8 +545,8 @@ func TestSetProxy(t *testing.T) {
 	t.Parallel()
 	var r *Requester
 	err := r.SetProxy(nil)
-	if !errors.Is(err, errRequestSystemIsNil) {
-		t.Fatalf("received: '%v', but expected: '%v'", err, errRequestSystemIsNil)
+	if !errors.Is(err, ErrRequestSystemIsNil) {
+		t.Fatalf("received: '%v', but expected: '%v'", err, ErrRequestSystemIsNil)
 	}
 	r, err = New("test",
 		&http.Client{Transport: new(http.Transport)},
@@ -688,8 +688,8 @@ func TestEnableDisableRateLimit(t *testing.T) {
 func TestSetHTTPClient(t *testing.T) {
 	var r *Requester
 	err := r.SetHTTPClient(nil)
-	if !errors.Is(err, errRequestSystemIsNil) {
-		t.Fatalf("received: '%v', but expected: '%v'", err, errRequestSystemIsNil)
+	if !errors.Is(err, ErrRequestSystemIsNil) {
+		t.Fatalf("received: '%v', but expected: '%v'", err, ErrRequestSystemIsNil)
 	}
 	client := new(http.Client)
 	r = new(Requester)
@@ -706,8 +706,8 @@ func TestSetHTTPClient(t *testing.T) {
 func TestSetHTTPClientTimeout(t *testing.T) {
 	var r *Requester
 	err := r.SetHTTPClientTimeout(0)
-	if !errors.Is(err, errRequestSystemIsNil) {
-		t.Fatalf("received: '%v', but expected: '%v'", err, errRequestSystemIsNil)
+	if !errors.Is(err, ErrRequestSystemIsNil) {
+		t.Fatalf("received: '%v', but expected: '%v'", err, ErrRequestSystemIsNil)
 	}
 	r = new(Requester)
 	err = r.SetHTTPClient(common.NewHTTPClientWithTimeout(2))
@@ -723,12 +723,32 @@ func TestSetHTTPClientTimeout(t *testing.T) {
 func TestSetHTTPClientUserAgent(t *testing.T) {
 	var r *Requester
 	err := r.SetHTTPClientUserAgent("")
-	if !errors.Is(err, errRequestSystemIsNil) {
-		t.Fatalf("received: '%v', but expected: '%v'", err, errRequestSystemIsNil)
+	if !errors.Is(err, ErrRequestSystemIsNil) {
+		t.Fatalf("received: '%v', but expected: '%v'", err, ErrRequestSystemIsNil)
 	}
 	r = new(Requester)
 	err = r.SetHTTPClientUserAgent("")
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v', but expected: '%v'", err, nil)
+	}
+}
+
+func TestGetHTTPClientUserAgent(t *testing.T) {
+	var r *Requester
+	_, err := r.GetHTTPClientUserAgent()
+	if !errors.Is(err, ErrRequestSystemIsNil) {
+		t.Fatalf("received: '%v', but expected: '%v'", err, ErrRequestSystemIsNil)
+	}
+	r = new(Requester)
+	err = r.SetHTTPClientUserAgent("sillyness")
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v', but expected: '%v'", err, nil)
+	}
+	ua, err := r.GetHTTPClientUserAgent()
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v', but expected: '%v'", err, nil)
+	}
+	if ua != "sillyness" {
+		t.Fatal("unexpected value")
 	}
 }

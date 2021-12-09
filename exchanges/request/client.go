@@ -2,7 +2,6 @@ package request
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 	"net/url"
 	"sync"
@@ -10,20 +9,22 @@ import (
 )
 
 var (
-	trackthis                ClientTracker
-	errCannotSetProxy        = errors.New("cannot set proxy")
+	// trackthis is the global to maintain sanity between clients across all
+	// services using the request package.
+	trackthis                clientTracker
 	errNoProxyURLSupplied    = errors.New("no proxy URL supplied")
 	errCannotReuseHTTPClient = errors.New("cannot reuse http client")
 	errHTTPClientIsNil       = errors.New("http client is nil")
 )
 
-type ClientTracker struct {
+// clientTracker attempts to maintain service/http.Client segregation
+type clientTracker struct {
 	clients []*http.Client
 	sync.Mutex
 }
 
 // checkAndRegister stops the sharing of the same http.Client between services.
-func (c *ClientTracker) checkAndRegister(newClient *http.Client) error {
+func (c *clientTracker) checkAndRegister(newClient *http.Client) error {
 	if newClient == nil {
 		return errHTTPClientIsNil
 	}
@@ -44,11 +45,10 @@ type client struct {
 	m         sync.RWMutex
 }
 
-// NewProtectedClient registers a http.Client to inhibit cross service usage and
+// newProtectedClient registers a http.Client to inhibit cross service usage and
 // return a thread safe holder (*request.Client) with getter and setters for
 // timeouts and transports.
 func newProtectedClient(newClient *http.Client) (*client, error) {
-
 	if err := trackthis.checkAndRegister(newClient); err != nil {
 		return nil, err
 	}
@@ -57,17 +57,21 @@ func newProtectedClient(newClient *http.Client) (*client, error) {
 
 // setProxy sets a proxy address for the client transport
 func (c *client) setProxy(p *url.URL) error {
-	if p.String() == "" {
+	if p == nil || p.String() == "" {
 		return errNoProxyURLSupplied
 	}
 	c.m.Lock()
 	defer c.m.Unlock()
-	t, ok := c.protected.Transport.(*http.Transport)
+	// Check transport first so we don't set something and then error.
+	tr, ok := c.protected.Transport.(*http.Transport)
 	if !ok {
-		return fmt.Errorf("transport not set: %w", errCannotSetProxy)
+		return errTransportNotSet
 	}
-	t.Proxy = http.ProxyURL(p)
-	t.TLSHandshakeTimeout = proxyTLSTimeout
+	// This closes idle connections before an attempt at reassignment and
+	// boots any dangly routines.
+	tr.CloseIdleConnections()
+	tr.Proxy = http.ProxyURL(p)
+	tr.TLSHandshakeTimeout = proxyTLSTimeout
 	return nil
 }
 
@@ -81,6 +85,9 @@ func (c *client) setHTTPClientTimeout(timeout time.Duration) error {
 	if !ok {
 		return errTransportNotSet
 	}
+	// This closes idle connections before an attempt at reassignment and
+	// boots any dangly routines.
+	tr.CloseIdleConnections()
 	tr.IdleConnTimeout = timeout
 	c.protected.Timeout = timeout
 	return nil
