@@ -24,22 +24,22 @@ func (c *clientTracker) contains(ohhhWOOOOOOOW *http.Client) bool {
 
 func TestCheckAndRegister(t *testing.T) {
 	t.Parallel()
-	err := trackthis.checkAndRegister(nil)
+	err := tracker.checkAndRegister(nil)
 	if !errors.Is(err, errHTTPClientIsNil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errHTTPClientIsNil)
 	}
 
 	newLovelyClient := new(http.Client)
-	err = trackthis.checkAndRegister(newLovelyClient)
+	err = tracker.checkAndRegister(newLovelyClient)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	if !trackthis.contains(newLovelyClient) {
+	if !tracker.contains(newLovelyClient) {
 		t.Fatalf("received: '%v' but expected: '%v'", false, true)
 	}
 
-	err = trackthis.checkAndRegister(newLovelyClient)
+	err = tracker.checkAndRegister(newLovelyClient)
 	if !errors.Is(err, errCannotReuseHTTPClient) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errCannotReuseHTTPClient)
 	}
