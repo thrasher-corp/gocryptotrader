@@ -69,7 +69,7 @@ type IBotExchange interface {
 	WithdrawFiatFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error)
 	WithdrawFiatFundsToInternationalBank(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error)
 	SetHTTPClientUserAgent(ua string) error
-	GetHTTPClientUserAgent() string
+	GetHTTPClientUserAgent() (string, error)
 	SetClientProxyAddress(addr string) error
 	SupportsREST() bool
 	GetSubscriptions() ([]stream.ChannelSubscription, error)

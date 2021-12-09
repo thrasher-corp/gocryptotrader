@@ -191,64 +191,6 @@ func TestSetDefaultEndpoints(t *testing.T) {
 	}
 }
 
-// func TestHTTPClient(t *testing.T) {
-// 	t.Parallel()
-// 	r := Base{Name: "asdf"}
-// 	err := r.SetHTTPClientTimeout(time.Second * 5)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-
-// 	if r.GetHTTPClient().Timeout != time.Second*5 {
-// 		t.Fatalf("TestHTTPClient unexpected value")
-// 	}
-
-// 	r.Requester = nil
-// 	newClient := new(http.Client)
-// 	newClient.Timeout = time.Second * 10
-
-// 	r.SetHTTPClient(newClient)
-// 	if r.GetHTTPClient().Timeout != time.Second*10 {
-// 		t.Fatalf("TestHTTPClient unexpected value")
-// 	}
-
-// 	r.Requester = nil
-// 	if r.GetHTTPClient() == nil {
-// 		t.Fatalf("TestHTTPClient unexpected value")
-// 	}
-
-// 	b := Base{Name: "RAWR"}
-
-// 	b.Requester = request.New(b.Name, new(http.Client))
-// 	err = b.SetHTTPClientTimeout(time.Second * 5)
-// 	if !errors.Is(err, errTransportNotSet) {
-// 		t.Fatalf("received: %v but expected: %v", err, errTransportNotSet)
-// 	}
-
-// 	b.Requester = request.New(b.Name, &http.Client{Transport: new(http.Transport)})
-// 	err = b.SetHTTPClientTimeout(time.Second * 5)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-
-// 	if b.GetHTTPClient().Timeout != time.Second*5 {
-// 		t.Fatalf("TestHTTPClient unexpected value")
-// 	}
-
-// 	newClient = new(http.Client)
-// 	newClient.Timeout = time.Second * 10
-
-// 	b.SetHTTPClient(newClient)
-// 	if b.GetHTTPClient().Timeout != time.Second*10 {
-// 		t.Fatalf("TestHTTPClient unexpected value")
-// 	}
-
-// 	b.SetHTTPClientUserAgent("epicUserAgent")
-// 	if !strings.Contains(b.GetHTTPClientUserAgent(), "epicUserAgent") {
-// 		t.Error("user agent not set properly")
-// 	}
-// }
-
 func TestSetClientProxyAddress(t *testing.T) {
 	t.Parallel()
 
@@ -290,13 +232,6 @@ func TestSetClientProxyAddress(t *testing.T) {
 	if newBase.Websocket.GetProxyAddress() != "http://www.valid.com" {
 		t.Error("SetClientProxyAddress error", err)
 	}
-
-	// // Nil out transport
-	// newBase.Requester.HTTPClient.Transport = nil
-	// err = newBase.SetClientProxyAddress("http://www.valid.com")
-	// if err == nil {
-	// 	t.Error("error cannot be nil")
-	// }
 }
 
 func TestSetFeatureDefaults(t *testing.T) {
@@ -1269,7 +1204,16 @@ func TestSetAPIKeys(t *testing.T) {
 func TestSetupDefaults(t *testing.T) {
 	t.Parallel()
 
-	var b = Base{Name: "awesomeTest"}
+	newRequester, err := request.New("testSetupDefaults",
+		common.NewHTTPClientWithTimeout(0))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var b = Base{
+		Name:      "awesomeTest",
+		Requester: newRequester,
+	}
 	cfg := config.Exchange{
 		HTTPTimeout: time.Duration(-1),
 		API: config.APIConfig{
@@ -1277,7 +1221,7 @@ func TestSetupDefaults(t *testing.T) {
 		},
 	}
 
-	err := b.SetupDefaults(&cfg)
+	err = b.SetupDefaults(&cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2056,25 +2000,34 @@ func TestCheckTransientError(t *testing.T) {
 
 func TestDisableEnableRateLimiter(t *testing.T) {
 	b := Base{}
-	// b.checkAndInitRequester()
 	err := b.EnableRateLimiter()
-	if err == nil {
-		t.Fatal("error cannot be nil")
+	if !errors.Is(err, request.ErrRequestSystemIsNil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, request.ErrRequestSystemIsNil)
 	}
 
-	err = b.DisableRateLimiter()
+	b.Requester, err = request.New("testingRateLimiter", common.NewHTTPClientWithTimeout(0))
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	err = b.DisableRateLimiter()
-	if err == nil {
-		t.Fatal("error cannot be nil")
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	err = b.DisableRateLimiter()
+	if !errors.Is(err, request.ErrRateLimiterAlreadyDisabled) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, request.ErrRateLimiterAlreadyDisabled)
 	}
 
 	err = b.EnableRateLimiter()
-	if err != nil {
-		t.Fatal(err)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	err = b.EnableRateLimiter()
+	if !errors.Is(err, request.ErrRateLimiterAlreadyEnabled) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, request.ErrRateLimiterAlreadyEnabled)
 	}
 }
 

@@ -46,43 +46,6 @@ var (
 	errEndpointStringNotFound = errors.New("endpoint string not found")
 )
 
-// func (b *Base) checkAndInitRequester() {
-// 	if b.Requester == nil {
-// 		b.Requester = request.New(b.Name,
-// 			&http.Client{Transport: new(http.Transport)})
-// 	}
-// }
-
-// // SetHTTPClientTimeout sets the timeout value for the exchanges HTTP Client and
-// // also the underlying transports idle connection timeout
-// func (b *Base) SetHTTPClientTimeout(t time.Duration) error {
-// 	return b.Requester.SetHTTPClientTimeout(t)
-// }
-
-// // SetHTTPClient sets exchanges HTTP client
-// func (b *Base) SetHTTPClient(h *http.Client) {
-// 	// b.checkAndInitRequester()
-// 	b.Requester.HTTPClient = h
-// }
-
-// // GetHTTPClient gets the exchanges HTTP client
-// func (b *Base) GetHTTPClient() *http.Client {
-// 	b.checkAndInitRequester()
-// 	return b.Requester.HTTPClient
-// }
-
-// // SetHTTPClientUserAgent sets the exchanges HTTP user agent
-// func (b *Base) SetHTTPClientUserAgent(ua string) error {
-// 	// b.checkAndInitRequester()
-// 	b.Requester.UserAgent = ua
-// 	b.HTTPUserAgent = ua
-// }
-
-// GetHTTPClientUserAgent gets the exchanges HTTP user agent
-func (b *Base) GetHTTPClientUserAgent() string {
-	return b.HTTPUserAgent
-}
-
 // SetClientProxyAddress sets a proxy address for REST and websocket requests
 func (b *Base) SetClientProxyAddress(addr string) error {
 	if addr == "" {
@@ -594,7 +557,10 @@ func (b *Base) SetupDefaults(exch *config.Exchange) error {
 
 	b.HTTPDebugging = exch.HTTPDebugging
 	b.BypassConfigFormatUpgrades = exch.CurrencyPairs.BypassConfigFormatUpgrades
-	b.SetHTTPClientUserAgent(exch.HTTPUserAgent)
+	err = b.SetHTTPClientUserAgent(exch.HTTPUserAgent)
+	if err != nil {
+		return err
+	}
 	b.SetCurrencyPairFormat()
 
 	err = b.SetConfigPairs()

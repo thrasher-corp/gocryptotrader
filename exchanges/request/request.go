@@ -20,7 +20,9 @@ import (
 )
 
 var (
-	errRequestSystemIsNil     = errors.New("request system is nil")
+	// ErrRequestSystemIsNil defines and error if the request system has not
+	// been set up yet.
+	ErrRequestSystemIsNil     = errors.New("request system is nil")
 	errMaxRequestJobs         = errors.New("max request jobs reached")
 	errRequestFunctionIsNil   = errors.New("request function is nil")
 	errRequestItemNil         = errors.New("request item is nil")
@@ -57,7 +59,7 @@ func New(name string, httpRequester *http.Client, opts ...RequesterOption) (*Req
 // SendPayload handles sending HTTP/HTTPS requests
 func (r *Requester) SendPayload(ctx context.Context, ep EndpointLimit, newRequest Generate) error {
 	if r == nil {
-		return errRequestSystemIsNil
+		return ErrRequestSystemIsNil
 	}
 
 	if ctx == nil {
@@ -315,7 +317,7 @@ func (r *Requester) GetNonceMilli() nonce.Value {
 // SetProxy sets a proxy address for the client transport
 func (r *Requester) SetProxy(p *url.URL) error {
 	if r == nil {
-		return errRequestSystemIsNil
+		return ErrRequestSystemIsNil
 	}
 	return r._HTTPClient.setProxy(p)
 }
@@ -323,7 +325,7 @@ func (r *Requester) SetProxy(p *url.URL) error {
 // SetHTTPClient sets exchanges HTTP client
 func (r *Requester) SetHTTPClient(newClient *http.Client) error {
 	if r == nil {
-		return errRequestSystemIsNil
+		return ErrRequestSystemIsNil
 	}
 	protectedClient, err := newProtectedClient(newClient)
 	if err != nil {
@@ -337,7 +339,7 @@ func (r *Requester) SetHTTPClient(newClient *http.Client) error {
 // also the underlying transports idle connection timeout
 func (r *Requester) SetHTTPClientTimeout(timeout time.Duration) error {
 	if r == nil {
-		return errRequestSystemIsNil
+		return ErrRequestSystemIsNil
 	}
 	return r._HTTPClient.setHTTPClientTimeout(timeout)
 }
@@ -345,8 +347,16 @@ func (r *Requester) SetHTTPClientTimeout(timeout time.Duration) error {
 // SetHTTPClientUserAgent sets the exchanges HTTP user agent
 func (r *Requester) SetHTTPClientUserAgent(userAgent string) error {
 	if r == nil {
-		return errRequestSystemIsNil
+		return ErrRequestSystemIsNil
 	}
 	r.userAgent = userAgent
 	return nil
+}
+
+// GetHTTPClientUserAgent gets the exchanges HTTP user agent
+func (r *Requester) GetHTTPClientUserAgent() (string, error) {
+	if r == nil {
+		return "", ErrRequestSystemIsNil
+	}
+	return r.userAgent, nil
 }
