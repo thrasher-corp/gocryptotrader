@@ -43,8 +43,20 @@ func (f *feeExchange) GetName() string {
 	return "test fee exchange"
 }
 
-func (f *feeExchange) GetAuthenticatedAPISupport(_ uint8) bool {
+func (f *feeExchange) IsAuthenticatedRESTSupported() bool {
 	return true
+}
+
+func (f *feeExchange) IsRESTAuthenticationRequiredForTradeFees() bool {
+	return true
+}
+
+func (f *feeExchange) IsRESTAuthenticationRequiredForTransferFees() bool {
+	return true
+}
+
+func (f *feeExchange) GetAssetTypes(_ bool) asset.Items {
+	return asset.Items{asset.Spot}
 }
 
 func TestSetupFeeManager(t *testing.T) {
@@ -125,6 +137,7 @@ func TestFeeManagerIsRunning(t *testing.T) {
 	if fm.IsRunning() {
 		t.Fatal("unexpected result")
 	}
+
 }
 
 func TestFeeManagerUpdate(t *testing.T) {
