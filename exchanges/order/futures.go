@@ -13,6 +13,9 @@ import (
 
 // SetupPositionController creates a futures order tracker for a specific exchange
 func SetupPositionController(setup *PositionControllerSetup) (*PositionController, error) {
+	if setup == nil {
+		return nil, errNilSetup
+	}
 	if setup.Exchange == "" {
 		return nil, errExchangeNameEmpty
 	}
@@ -39,6 +42,10 @@ func SetupPositionController(setup *PositionControllerSetup) (*PositionControlle
 	}, nil
 }
 
+func (e *PositionController) GetPositions() []*PositionTracker {
+	return e.positions
+}
+
 // TrackNewOrder upserts an order to the tracker and updates position
 // status and exposure. PNL is calculated separately as it requires mark prices
 func (e *PositionController) TrackNewOrder(d *Detail) error {
@@ -59,9 +66,13 @@ func (e *PositionController) TrackNewOrder(d *Detail) error {
 				return fmt.Errorf("%w %v at position %v/%v", errPositionDiscrepancy, e.positions[i], i, len(e.positions)-1)
 			}
 		}
-		err := e.positions[len(e.positions)-1].TrackNewOrder(d)
-		if !errors.Is(err, errPositionClosed) {
-			return err
+		if e.positions[len(e.positions)-1].status == Open {
+			err := e.positions[len(e.positions)-1].TrackNewOrder(d)
+			if err != nil && !errors.Is(err, errPositionClosed) {
+				return err
+			}
+			e.orderPositions[d.ID] = e.positions[len(e.positions)-1]
+			return nil
 		}
 	}
 	tracker, err := e.SetupPositionTracker(d.AssetType, d.Pair, d.Pair.Base)
@@ -133,6 +144,21 @@ func (p *PositionTracker) TrackPNL(t time.Time, markPrice, prevMarkPrice decimal
 	})
 }
 
+func (p *PositionTracker) CalculateClosedPositionPNL() (decimal.Decimal, error) {
+	if p.status != Closed {
+		return decimal.Zero, errors.New("not closed")
+	}
+
+	var shortStanding, longStanding decimal.Decimal
+	for i := range p.shortPositions {
+		shortStanding = shortStanding.Add(decimal.NewFromFloat(p.shortPositions[i].Amount).Mul(decimal.NewFromFloat(p.shortPositions[i].Price)))
+	}
+	for i := range p.longPositions {
+		longStanding = longStanding.Add(decimal.NewFromFloat(p.longPositions[i].Amount).Mul(decimal.NewFromFloat(p.longPositions[i].Price)))
+	}
+	return longStanding.Sub(shortStanding).Abs(), nil
+}
+
 // TrackNewOrder knows how things are going for a given
 // futures contract
 func (p *PositionTracker) TrackNewOrder(d *Detail) error {
@@ -167,6 +193,14 @@ func (p *PositionTracker) TrackNewOrder(d *Detail) error {
 			ord := p.shortPositions[i].Copy()
 			ord.UpdateOrderFromDetail(d)
 			p.shortPositions[i] = ord
+			break
+		}
+	}
+	for i := range p.longPositions {
+		if p.longPositions[i].ID == d.ID {
+			ord := p.longPositions[i].Copy()
+			ord.UpdateOrderFromDetail(d)
+			p.longPositions[i] = ord
 			break
 		}
 	}
@@ -208,6 +242,7 @@ func (p *PositionTracker) TrackNewOrder(d *Detail) error {
 		p.closingPrice = decimal.NewFromFloat(d.Price)
 		p.realisedPNL = p.unrealisedPNL
 		p.unrealisedPNL = decimal.Zero
+		return nil
 	}
 	if p.exposure.IsNegative() {
 		// tracking here has changed!
@@ -219,6 +254,10 @@ func (p *PositionTracker) TrackNewOrder(d *Detail) error {
 		p.exposure = p.exposure.Abs()
 	}
 	return nil
+}
+
+func (p *PositionTracker) TrackPrice(price decimal.Decimal) decimal.Decimal {
+	return p.exposure.Mul(price)
 }
 
 // UpsertPNLEntry upserts an entry to PNLHistory field

@@ -193,40 +193,71 @@ func TestTrackNewOrder(t *testing.T) {
 
 func TestSetupFuturesTracker(t *testing.T) {
 	t.Parallel()
-	//_, err := SetupPositionController("", "", false, nil)
-	//if !errors.Is(err, errExchangeNameEmpty) {
-	//	t.Error(err)
-	//}
-	//
-	//_, err = SetupPositionController("test", "", false, nil)
-	//if !errors.Is(err, errNotFutureAsset) {
-	//	t.Error(err)
-	//}
-	//
-	//_, err = SetupPositionController("test", asset.Futures, false, nil)
-	//if !errors.Is(err, errMissingPNLCalculationFunctions) {
-	//	t.Error(err)
-	//}
-	//
-	//resp, err := SetupPositionController("test", asset.Futures, false, &FakePNL{})
-	//if !errors.Is(err, nil) {
-	//	t.Error(err)
-	//}
-	//if resp.exchange != "test" {
-	//	t.Errorf("expected 'test' received %v", resp.Exchange)
-	//}
+
+	_, err := SetupPositionController(nil)
+	if !errors.Is(err, errNilSetup) {
+		t.Error(err)
+	}
+
+	setup := &PositionControllerSetup{}
+	_, err = SetupPositionController(setup)
+	if !errors.Is(err, errExchangeNameEmpty) {
+		t.Error(err)
+	}
+	setup.Exchange = "test"
+	_, err = SetupPositionController(setup)
+	if !errors.Is(err, errNotFutureAsset) {
+		t.Error(err)
+	}
+	setup.Asset = asset.Futures
+	_, err = SetupPositionController(setup)
+	if !errors.Is(err, ErrPairIsEmpty) {
+		t.Error(err)
+	}
+
+	setup.Pair = currency.NewPair(currency.BTC, currency.USDT)
+	_, err = SetupPositionController(setup)
+	if !errors.Is(err, errEmptyUnderlying) {
+		t.Error(err)
+	}
+
+	setup.Underlying = currency.BTC
+	_, err = SetupPositionController(setup)
+	if !errors.Is(err, errMissingPNLCalculationFunctions) {
+		t.Error(err)
+	}
+
+	setup.PNLCalculator = &FakePNL{}
+	resp, err := SetupPositionController(setup)
+	if !errors.Is(err, nil) {
+		t.Error(err)
+	}
+	if resp.exchange != "test" {
+		t.Errorf("expected 'test' received %v", resp.exchange)
+	}
 }
 
 func TestExchangeTrackNewOrder(t *testing.T) {
 	t.Parallel()
-	resp, err := SetupPositionController(nil)
+	exch := "test"
+	item := asset.Futures
+	pair := currency.NewPair(currency.BTC, currency.USDT)
+	setup := &PositionControllerSetup{
+		Exchange:      exch,
+		Asset:         item,
+		Pair:          pair,
+		Underlying:    pair.Base,
+		PNLCalculator: &FakePNL{},
+	}
+	resp, err := SetupPositionController(setup)
 	if !errors.Is(err, nil) {
 		t.Error(err)
 	}
+
 	err = resp.TrackNewOrder(&Detail{
-		Exchange:  "test",
-		AssetType: asset.Futures,
-		Pair:      currency.NewPair(currency.BTC, currency.USDT),
+		Exchange:  exch,
+		AssetType: item,
+		Pair:      pair,
 		Side:      Short,
 		ID:        "1",
 		Amount:    1,
@@ -239,9 +270,9 @@ func TestExchangeTrackNewOrder(t *testing.T) {
 	}
 
 	err = resp.TrackNewOrder(&Detail{
-		Exchange:  "test",
-		AssetType: asset.Futures,
-		Pair:      currency.NewPair(currency.BTC, currency.USDT),
+		Exchange:  exch,
+		AssetType: item,
+		Pair:      pair,
 		Side:      Short,
 		ID:        "1",
 		Amount:    1,
@@ -254,9 +285,9 @@ func TestExchangeTrackNewOrder(t *testing.T) {
 	}
 
 	err = resp.TrackNewOrder(&Detail{
-		Exchange:  "test",
-		AssetType: asset.Futures,
-		Pair:      currency.NewPair(currency.BTC, currency.USDT),
+		Exchange:  exch,
+		AssetType: item,
+		Pair:      pair,
 		Side:      Long,
 		ID:        "2",
 		Amount:    2,
@@ -273,9 +304,9 @@ func TestExchangeTrackNewOrder(t *testing.T) {
 	resp.positions[0].status = Open
 	resp.positions = append(resp.positions, resp.positions...)
 	err = resp.TrackNewOrder(&Detail{
-		Exchange:  "test",
-		AssetType: asset.Futures,
-		Pair:      currency.NewPair(currency.BTC, currency.USDT),
+		Exchange:  exch,
+		AssetType: item,
+		Pair:      pair,
 		Side:      Long,
 		ID:        "2",
 		Amount:    2,
@@ -289,9 +320,9 @@ func TestExchangeTrackNewOrder(t *testing.T) {
 
 	resp.positions[0].status = Closed
 	err = resp.TrackNewOrder(&Detail{
-		Exchange:  "test",
+		Exchange:  exch,
+		Pair:      pair,
 		AssetType: asset.USDTMarginedFutures,
-		Pair:      currency.NewPair(currency.BTC, currency.USDT),
 		Side:      Long,
 		ID:        "2",
 		Amount:    2,

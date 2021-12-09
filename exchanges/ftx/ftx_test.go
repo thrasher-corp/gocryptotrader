@@ -3,8 +3,10 @@ package ftx
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"os"
+	"sort"
 	"sync"
 	"testing"
 	"time"
@@ -271,6 +273,7 @@ func TestGetPositions(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
+	f.Verbose = true
 	_, err := f.GetPositions(context.Background())
 	if err != nil {
 		t.Error(err)
@@ -1719,4 +1722,66 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 			nil,
 			err)
 	}
+}
+
+func TestRealsies(t *testing.T) {
+	f.Verbose = true
+	result, err := f.FetchOrderHistory(context.Background(), "BTC-1231", time.Time{}, time.Time{}, "100")
+	if err != nil {
+		t.Error(err)
+	}
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].CreatedAt.Before(result[j].CreatedAt)
+	})
+
+	pair := currency.NewPair(currency.BTC, currency.NewCode("1231"))
+	var orders []order.Detail
+	for i := range result {
+		price := result[i].Price
+		if price == 0 {
+			price = result[i].AvgFillPrice
+		}
+		side, err := order.StringToOrderSide(result[i].Side)
+		if err != nil {
+			t.Error(err)
+		}
+		orders = append(orders, order.Detail{
+			Side:      side,
+			Pair:      pair,
+			ID:        fmt.Sprintf("%v", result[i].ID),
+			Price:     price,
+			Amount:    result[i].Size,
+			Status:    order.Status(result[i].Status),
+			AssetType: asset.Futures,
+			Exchange:  f.Name,
+			Date:      result[i].CreatedAt,
+		})
+	}
+
+	exch := f.Name
+	item := asset.Futures
+	setup := &order.PositionControllerSetup{
+		Exchange:      exch,
+		Asset:         item,
+		Pair:          pair,
+		Underlying:    pair.Base,
+		PNLCalculator: &f,
+	}
+	p, err := order.SetupPositionController(setup)
+	if err != nil {
+		t.Error(err)
+	}
+	for i := range orders {
+		err = p.TrackNewOrder(&orders[i])
+		if err != nil {
+			t.Error(err)
+		}
+	}
+	pos := p.GetPositions()
+	for i := range pos {
+		pnl, _ := pos[i].CalculatePNL()
+		t.Logf("%+v", pnl.String())
+
+	}
+
 }

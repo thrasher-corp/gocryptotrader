@@ -20,6 +20,7 @@ var (
 	errAssetMismatch                  = errors.New("provided asset does not match")
 	errEmptyUnderlying                = errors.New("underlying asset unset")
 	errNoPositions                    = errors.New("there are no positions")
+	errNilSetup                       = errors.New("nil setup received")
 )
 
 type PNLManagement interface {
