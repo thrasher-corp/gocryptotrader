@@ -137,7 +137,6 @@ func TestFeeManagerIsRunning(t *testing.T) {
 	if fm.IsRunning() {
 		t.Fatal("unexpected result")
 	}
-
 }
 
 func TestFeeManagerUpdate(t *testing.T) {
