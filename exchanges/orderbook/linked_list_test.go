@@ -5,29 +5,31 @@ import (
 	"fmt"
 	"testing"
 	"time"
+
+	"github.com/shopspring/decimal"
 )
 
 var ask = Items{
-	Item{Price: 1337, Amount: 1},
-	Item{Price: 1338, Amount: 1},
-	Item{Price: 1339, Amount: 1},
-	Item{Price: 1340, Amount: 1},
-	Item{Price: 1341, Amount: 1},
-	Item{Price: 1342, Amount: 1},
-	Item{Price: 1343, Amount: 1},
-	Item{Price: 1344, Amount: 1},
-	Item{Price: 1345, Amount: 1},
-	Item{Price: 1346, Amount: 1},
-	Item{Price: 1347, Amount: 1},
-	Item{Price: 1348, Amount: 1},
-	Item{Price: 1349, Amount: 1},
-	Item{Price: 1350, Amount: 1},
-	Item{Price: 1351, Amount: 1},
-	Item{Price: 1352, Amount: 1},
-	Item{Price: 1353, Amount: 1},
-	Item{Price: 1354, Amount: 1},
-	Item{Price: 1355, Amount: 1},
-	Item{Price: 1356, Amount: 1},
+	Item{Price: decimal.NewFromInt(1337), Amount: decimal.NewFromInt(1)},
+	Item{Price: decimal.NewFromInt(1338), Amount: decimal.NewFromInt(1)},
+	Item{Price: decimal.NewFromInt(1339), Amount: decimal.NewFromInt(1)},
+	Item{Price: decimal.NewFromInt(1340), Amount: decimal.NewFromInt(1)},
+	Item{Price: decimal.NewFromInt(1341), Amount: decimal.NewFromInt(1)},
+	Item{Price: decimal.NewFromInt(1342), Amount: decimal.NewFromInt(1)},
+	Item{Price: decimal.NewFromInt(1343), Amount: decimal.NewFromInt(1)},
+	Item{Price: decimal.NewFromInt(1344), Amount: decimal.NewFromInt(1)},
+	Item{Price: decimal.NewFromInt(1345), Amount: decimal.NewFromInt(1)},
+	Item{Price: decimal.NewFromInt(1346), Amount: decimal.NewFromInt(1)},
+	Item{Price: decimal.NewFromInt(1347), Amount: decimal.NewFromInt(1)},
+	Item{Price: decimal.NewFromInt(1348), Amount: decimal.NewFromInt(1)},
+	Item{Price: decimal.NewFromInt(1349), Amount: decimal.NewFromInt(1)},
+	Item{Price: decimal.NewFromInt(1350), Amount: decimal.NewFromInt(1)},
+	Item{Price: decimal.NewFromInt(1351), Amount: decimal.NewFromInt(1)},
+	Item{Price: decimal.NewFromInt(1352), Amount: decimal.NewFromInt(1)},
+	Item{Price: decimal.NewFromInt(1353), Amount: decimal.NewFromInt(1)},
+	Item{Price: decimal.NewFromInt(1354), Amount: decimal.NewFromInt(1)},
+	Item{Price: decimal.NewFromInt(1355), Amount: decimal.NewFromInt(1)},
+	Item{Price: decimal.NewFromInt(1356), Amount: decimal.NewFromInt(1)},
 }
 
 // Display displays depth content for tests
@@ -44,12 +46,12 @@ func TestLoad(t *testing.T) {
 
 	stack := newStack()
 	list.load(Items{
-		{Price: 1, Amount: 1},
-		{Price: 3, Amount: 1},
-		{Price: 5, Amount: 1},
-		{Price: 7, Amount: 1},
-		{Price: 9, Amount: 1},
-		{Price: 11, Amount: 1},
+		{Price: decimal.NewFromInt(1), Amount: decimal.NewFromInt(1)},
+		{Price: decimal.NewFromInt(3), Amount: decimal.NewFromInt(1)},
+		{Price: decimal.NewFromInt(5), Amount: decimal.NewFromInt(1)},
+		{Price: decimal.NewFromInt(7), Amount: decimal.NewFromInt(1)},
+		{Price: decimal.NewFromInt(9), Amount: decimal.NewFromInt(1)},
+		{Price: decimal.NewFromInt(11), Amount: decimal.NewFromInt(1)},
 	}, stack)
 
 	if stack.getCount() != 0 {
@@ -59,9 +61,9 @@ func TestLoad(t *testing.T) {
 	Check(t, list, 6, 36, 6)
 
 	list.load(Items{
-		{Price: 1, Amount: 1},
-		{Price: 3, Amount: 1},
-		{Price: 5, Amount: 1},
+		{Price: decimal.NewFromInt(1), Amount: decimal.NewFromInt(1)},
+		{Price: decimal.NewFromInt(3), Amount: decimal.NewFromInt(1)},
+		{Price: decimal.NewFromInt(5), Amount: decimal.NewFromInt(1)},
 	}, stack)
 
 	if stack.getCount() != 3 {
@@ -71,10 +73,10 @@ func TestLoad(t *testing.T) {
 	Check(t, list, 3, 9, 3)
 
 	list.load(Items{
-		{Price: 1, Amount: 1},
-		{Price: 3, Amount: 1},
-		{Price: 5, Amount: 1},
-		{Price: 7, Amount: 1},
+		{Price: decimal.NewFromInt(1), Amount: decimal.NewFromInt(1)},
+		{Price: decimal.NewFromInt(3), Amount: decimal.NewFromInt(1)},
+		{Price: decimal.NewFromInt(5), Amount: decimal.NewFromInt(1)},
+		{Price: decimal.NewFromInt(7), Amount: decimal.NewFromInt(1)},
 	}, stack)
 
 	if stack.getCount() != 2 {
@@ -107,18 +109,18 @@ func TestUpdateInsertByPrice(t *testing.T) {
 	a := asks{}
 	stack := newStack()
 	asksSnapshot := Items{
-		{Price: 1, Amount: 1},
-		{Price: 3, Amount: 1},
-		{Price: 5, Amount: 1},
-		{Price: 7, Amount: 1},
-		{Price: 9, Amount: 1},
-		{Price: 11, Amount: 1},
+		{Price: decimal.NewFromInt(1), Amount: decimal.NewFromInt(1)},
+		{Price: decimal.NewFromInt(3), Amount: decimal.NewFromInt(1)},
+		{Price: decimal.NewFromInt(5), Amount: decimal.NewFromInt(1)},
+		{Price: decimal.NewFromInt(7), Amount: decimal.NewFromInt(1)},
+		{Price: decimal.NewFromInt(9), Amount: decimal.NewFromInt(1)},
+		{Price: decimal.NewFromInt(11), Amount: decimal.NewFromInt(1)},
 	}
 	a.load(asksSnapshot, stack)
 
 	// Update one instance with matching price
 	a.updateInsertByPrice(Items{
-		{Price: 1, Amount: 2},
+		{Price: decimal.NewFromInt(1), Amount: decimal.NewFromInt(2)},
 	}, stack, 0, getNow())
 
 	Check(t, a, 7, 37, 6)
@@ -129,7 +131,7 @@ func TestUpdateInsertByPrice(t *testing.T) {
 
 	// Insert at head
 	a.updateInsertByPrice(Items{
-		{Price: 0.5, Amount: 2},
+		{Price: decimal.NewFromFloat(0.5), Amount: decimal.NewFromInt(2)},
 	}, stack, 0, getNow())
 
 	Check(t, a, 9, 38, 7)
@@ -140,7 +142,7 @@ func TestUpdateInsertByPrice(t *testing.T) {
 
 	// Insert at tail
 	a.updateInsertByPrice(Items{
-		{Price: 12, Amount: 2},
+		{Price: decimal.NewFromInt(12), Amount: decimal.NewFromInt(2)},
 	}, stack, 0, getNow())
 
 	Check(t, a, 11, 62, 8)
@@ -151,9 +153,9 @@ func TestUpdateInsertByPrice(t *testing.T) {
 
 	// Insert between price and up to and beyond max allowable depth level
 	a.updateInsertByPrice(Items{
-		{Price: 11.5, Amount: 2},
-		{Price: 10.5, Amount: 2},
-		{Price: 13, Amount: 2},
+		{Price: decimal.NewFromFloat(11.5), Amount: decimal.NewFromInt(2)},
+		{Price: decimal.NewFromFloat(10.5), Amount: decimal.NewFromInt(2)},
+		{Price: decimal.NewFromInt(13), Amount: decimal.NewFromInt(2)},
 	}, stack, 10, getNow())
 
 	Check(t, a, 15, 106, 10)
@@ -164,7 +166,7 @@ func TestUpdateInsertByPrice(t *testing.T) {
 
 	// delete at tail
 	a.updateInsertByPrice(Items{
-		{Price: 12, Amount: 0},
+		{Price: decimal.NewFromInt(12), Amount: decimal.NewFromInt(0)},
 	}, stack, 0, getNow())
 
 	Check(t, a, 13, 82, 9)
@@ -175,7 +177,7 @@ func TestUpdateInsertByPrice(t *testing.T) {
 
 	// delete at mid
 	a.updateInsertByPrice(Items{
-		{Price: 7, Amount: 0},
+		{Price: decimal.NewFromInt(7), Amount: decimal.NewFromInt(0)},
 	}, stack, 0, getNow())
 
 	Check(t, a, 12, 75, 8)
@@ -186,7 +188,7 @@ func TestUpdateInsertByPrice(t *testing.T) {
 
 	// delete at head
 	a.updateInsertByPrice(Items{
-		{Price: 0.5, Amount: 0},
+		{Price: decimal.NewFromFloat(0.5), Amount: decimal.NewFromInt(0)},
 	}, stack, 0, getNow())
 
 	Check(t, a, 10, 74, 7)
@@ -200,12 +202,12 @@ func TestUpdateInsertByPrice(t *testing.T) {
 
 	// rebuild everything again
 	a.updateInsertByPrice(Items{
-		{Price: 1, Amount: 1},
-		{Price: 3, Amount: 1},
-		{Price: 5, Amount: 1},
-		{Price: 7, Amount: 1},
-		{Price: 9, Amount: 1},
-		{Price: 11, Amount: 1},
+		{Price: decimal.NewFromInt(1), Amount: decimal.NewFromInt(1)},
+		{Price: decimal.NewFromInt(3), Amount: decimal.NewFromInt(1)},
+		{Price: decimal.NewFromInt(5), Amount: decimal.NewFromInt(1)},
+		{Price: decimal.NewFromInt(7), Amount: decimal.NewFromInt(1)},
+		{Price: decimal.NewFromInt(9), Amount: decimal.NewFromInt(1)},
+		{Price: decimal.NewFromInt(11), Amount: decimal.NewFromInt(1)},
 	}, stack, 0, getNow())
 
 	Check(t, a, 6, 36, 6)
@@ -216,18 +218,18 @@ func TestUpdateInsertByPrice(t *testing.T) {
 
 	b := bids{}
 	bidsSnapshot := Items{
-		{Price: 11, Amount: 1},
-		{Price: 9, Amount: 1},
-		{Price: 7, Amount: 1},
-		{Price: 5, Amount: 1},
-		{Price: 3, Amount: 1},
-		{Price: 1, Amount: 1},
+		{Price: decimal.NewFromInt(11), Amount: decimal.NewFromInt(1)},
+		{Price: decimal.NewFromInt(9), Amount: decimal.NewFromInt(1)},
+		{Price: decimal.NewFromInt(7), Amount: decimal.NewFromInt(1)},
+		{Price: decimal.NewFromInt(5), Amount: decimal.NewFromInt(1)},
+		{Price: decimal.NewFromInt(3), Amount: decimal.NewFromInt(1)},
+		{Price: decimal.NewFromInt(1), Amount: decimal.NewFromInt(1)},
 	}
 	b.load(bidsSnapshot, stack)
 
 	// Update one instance with matching price
 	b.updateInsertByPrice(Items{
-		{Price: 11, Amount: 2},
+		{Price: decimal.NewFromInt(11), Amount: decimal.NewFromInt(2)},
 	}, stack, 0, getNow())
 
 	Check(t, b, 7, 47, 6)
@@ -238,7 +240,7 @@ func TestUpdateInsertByPrice(t *testing.T) {
 
 	// Insert at head
 	b.updateInsertByPrice(Items{
-		{Price: 12, Amount: 2},
+		{Price: decimal.NewFromInt(12), Amount: decimal.NewFromInt(2)},
 	}, stack, 0, getNow())
 
 	Check(t, b, 9, 71, 7)
@@ -249,7 +251,7 @@ func TestUpdateInsertByPrice(t *testing.T) {
 
 	// Insert at tail
 	b.updateInsertByPrice(Items{
-		{Price: 0.5, Amount: 2},
+		{Price: decimal.NewFromFloat(0.5), Amount: decimal.NewFromInt(2)},
 	}, stack, 0, getNow())
 
 	Check(t, b, 11, 72, 8)
@@ -260,9 +262,9 @@ func TestUpdateInsertByPrice(t *testing.T) {
 
 	// Insert between price and up to and beyond max allowable depth level
 	b.updateInsertByPrice(Items{
-		{Price: 11.5, Amount: 2},
-		{Price: 10.5, Amount: 2},
-		{Price: 13, Amount: 2},
+		{Price: decimal.NewFromFloat(11.5), Amount: decimal.NewFromInt(2)},
+		{Price: decimal.NewFromFloat(10.5), Amount: decimal.NewFromInt(2)},
+		{Price: decimal.NewFromInt(13), Amount: decimal.NewFromInt(2)},
 	}, stack, 10, getNow())
 
 	Check(t, b, 15, 141, 10)
@@ -273,7 +275,7 @@ func TestUpdateInsertByPrice(t *testing.T) {
 
 	// Insert between price and up to and beyond max allowable depth level
 	b.updateInsertByPrice(Items{
-		{Price: 1, Amount: 0},
+		{Price: decimal.NewFromInt(1), Amount: decimal.NewFromInt(0)},
 	}, stack, 0, getNow())
 
 	Check(t, b, 14, 140, 9)
@@ -284,7 +286,7 @@ func TestUpdateInsertByPrice(t *testing.T) {
 
 	// delete at mid
 	b.updateInsertByPrice(Items{
-		{Price: 10.5, Amount: 0},
+		{Price: decimal.NewFromFloat(10.5), Amount: decimal.NewFromInt(0)},
 	}, stack, 0, getNow())
 
 	Check(t, b, 12, 119, 8)
@@ -295,7 +297,7 @@ func TestUpdateInsertByPrice(t *testing.T) {
 
 	// delete at head
 	b.updateInsertByPrice(Items{
-		{Price: 13, Amount: 0},
+		{Price: decimal.NewFromInt(13), Amount: decimal.NewFromInt(0)},
 	}, stack, 0, getNow())
 
 	Check(t, b, 10, 93, 7)
@@ -309,12 +311,12 @@ func TestUpdateInsertByPrice(t *testing.T) {
 
 	// rebuild everything again
 	b.updateInsertByPrice(Items{
-		{Price: 1, Amount: 1},
-		{Price: 3, Amount: 1},
-		{Price: 5, Amount: 1},
-		{Price: 7, Amount: 1},
-		{Price: 9, Amount: 1},
-		{Price: 11, Amount: 1},
+		{Price: decimal.NewFromInt(1), Amount: decimal.NewFromInt(1)},
+		{Price: decimal.NewFromInt(3), Amount: decimal.NewFromInt(1)},
+		{Price: decimal.NewFromInt(5), Amount: decimal.NewFromInt(1)},
+		{Price: decimal.NewFromInt(7), Amount: decimal.NewFromInt(1)},
+		{Price: decimal.NewFromInt(9), Amount: decimal.NewFromInt(1)},
+		{Price: decimal.NewFromInt(11), Amount: decimal.NewFromInt(1)},
 	}, stack, 0, getNow())
 
 	Check(t, b, 6, 36, 6)
@@ -328,12 +330,12 @@ func TestCleanup(t *testing.T) {
 	a := asks{}
 	stack := newStack()
 	asksSnapshot := Items{
-		{Price: 1, Amount: 1},
-		{Price: 3, Amount: 1},
-		{Price: 5, Amount: 1},
-		{Price: 7, Amount: 1},
-		{Price: 9, Amount: 1},
-		{Price: 11, Amount: 1},
+		{Price: decimal.NewFromInt(1), Amount: decimal.NewFromInt(1)},
+		{Price: decimal.NewFromInt(3), Amount: decimal.NewFromInt(1)},
+		{Price: decimal.NewFromInt(5), Amount: decimal.NewFromInt(1)},
+		{Price: decimal.NewFromInt(7), Amount: decimal.NewFromInt(1)},
+		{Price: decimal.NewFromInt(9), Amount: decimal.NewFromInt(1)},
+		{Price: decimal.NewFromInt(11), Amount: decimal.NewFromInt(1)},
 	}
 	a.load(asksSnapshot, stack)
 
@@ -359,12 +361,12 @@ func BenchmarkUpdateInsertByPrice_Amend(b *testing.B) {
 
 	updates := Items{
 		{
-			Price:  1337, // Amend
-			Amount: 2,
+			Price:  decimal.NewFromInt(1337), // Amend
+			Amount: decimal.NewFromInt(2),
 		},
 		{
-			Price:  1337, // Amend
-			Amount: 1,
+			Price:  decimal.NewFromInt(1337), // Amend
+			Amount: decimal.NewFromInt(1),
 		},
 	}
 
@@ -382,12 +384,12 @@ func BenchmarkUpdateInsertByPrice_Insert_Delete(b *testing.B) {
 
 	updates := Items{
 		{
-			Price:  1337.5, // Insert
-			Amount: 2,
+			Price:  decimal.NewFromFloat(1337.5), // Insert
+			Amount: decimal.NewFromInt(2),
 		},
 		{
-			Price:  1337.5, // Delete
-			Amount: 0,
+			Price:  decimal.NewFromFloat(1337.5), // Delete
+			Amount: decimal.NewFromInt(0),
 		},
 	}
 
@@ -400,22 +402,22 @@ func TestUpdateByID(t *testing.T) {
 	a := asks{}
 	s := newStack()
 	asksSnapshot := Items{
-		{Price: 1, Amount: 1, ID: 1},
-		{Price: 3, Amount: 1, ID: 3},
-		{Price: 5, Amount: 1, ID: 5},
-		{Price: 7, Amount: 1, ID: 7},
-		{Price: 9, Amount: 1, ID: 9},
-		{Price: 11, Amount: 1, ID: 11},
+		{Price: decimal.NewFromInt(1), Amount: decimal.NewFromInt(1), ID: 1},
+		{Price: decimal.NewFromInt(3), Amount: decimal.NewFromInt(1), ID: 3},
+		{Price: decimal.NewFromInt(5), Amount: decimal.NewFromInt(1), ID: 5},
+		{Price: decimal.NewFromInt(7), Amount: decimal.NewFromInt(1), ID: 7},
+		{Price: decimal.NewFromInt(9), Amount: decimal.NewFromInt(1), ID: 9},
+		{Price: decimal.NewFromInt(11), Amount: decimal.NewFromInt(1), ID: 11},
 	}
 	a.load(asksSnapshot, s)
 
 	err := a.updateByID(Items{
-		{Price: 1, Amount: 1, ID: 1},
-		{Price: 3, Amount: 1, ID: 3},
-		{Price: 5, Amount: 1, ID: 5},
-		{Price: 7, Amount: 1, ID: 7},
-		{Price: 9, Amount: 1, ID: 9},
-		{Price: 11, Amount: 1, ID: 11},
+		{Price: decimal.NewFromInt(1), Amount: decimal.NewFromInt(1), ID: 1},
+		{Price: decimal.NewFromInt(3), Amount: decimal.NewFromInt(1), ID: 3},
+		{Price: decimal.NewFromInt(5), Amount: decimal.NewFromInt(1), ID: 5},
+		{Price: decimal.NewFromInt(7), Amount: decimal.NewFromInt(1), ID: 7},
+		{Price: decimal.NewFromInt(9), Amount: decimal.NewFromInt(1), ID: 9},
+		{Price: decimal.NewFromInt(11), Amount: decimal.NewFromInt(1), ID: 11},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -424,24 +426,24 @@ func TestUpdateByID(t *testing.T) {
 	Check(t, a, 6, 36, 6)
 
 	err = a.updateByID(Items{
-		{Price: 11, Amount: 1, ID: 1337},
+		{Price: decimal.NewFromInt(11), Amount: decimal.NewFromInt(1), ID: 1337},
 	})
 	if !errors.Is(err, errIDCannotBeMatched) {
 		t.Fatalf("expecting %s but received %v", errIDCannotBeMatched, err)
 	}
 
 	err = a.updateByID(Items{ // Simulate Bitmex updating
-		{Price: 0, Amount: 1337, ID: 3},
+		{Price: decimal.NewFromInt(0), Amount: decimal.NewFromInt(1337), ID: 3},
 	})
 	if !errors.Is(err, nil) {
 		t.Fatalf("expecting %v but received %v", nil, err)
 	}
 
-	if a.retrieve()[1].Price == 0 {
+	if a.retrieve()[1].Price.Equal(decimal.Zero) {
 		t.Fatal("price should not be replaced with zero")
 	}
 
-	if a.retrieve()[1].Amount != 1337 {
+	if !a.retrieve()[1].Amount.Equal(decimal.NewFromInt(1337)) {
 		t.Fatal("unexpected value for update")
 	}
 }
@@ -451,23 +453,23 @@ func BenchmarkUpdateByID(b *testing.B) {
 	asks := linkedList{}
 	s := newStack()
 	asksSnapshot := Items{
-		{Price: 1, Amount: 1, ID: 1},
-		{Price: 3, Amount: 1, ID: 3},
-		{Price: 5, Amount: 1, ID: 5},
-		{Price: 7, Amount: 1, ID: 7},
-		{Price: 9, Amount: 1, ID: 9},
-		{Price: 11, Amount: 1, ID: 11},
+		{Price: decimal.NewFromInt(1), Amount: decimal.NewFromInt(1), ID: 1},
+		{Price: decimal.NewFromInt(3), Amount: decimal.NewFromInt(1), ID: 3},
+		{Price: decimal.NewFromInt(5), Amount: decimal.NewFromInt(1), ID: 5},
+		{Price: decimal.NewFromInt(7), Amount: decimal.NewFromInt(1), ID: 7},
+		{Price: decimal.NewFromInt(9), Amount: decimal.NewFromInt(1), ID: 9},
+		{Price: decimal.NewFromInt(11), Amount: decimal.NewFromInt(1), ID: 11},
 	}
 	asks.load(asksSnapshot, s)
 
 	for i := 0; i < b.N; i++ {
 		err := asks.updateByID(Items{
-			{Price: 1, Amount: 1, ID: 1},
-			{Price: 3, Amount: 1, ID: 3},
-			{Price: 5, Amount: 1, ID: 5},
-			{Price: 7, Amount: 1, ID: 7},
-			{Price: 9, Amount: 1, ID: 9},
-			{Price: 11, Amount: 1, ID: 11},
+			{Price: decimal.NewFromInt(1), Amount: decimal.NewFromInt(1), ID: 1},
+			{Price: decimal.NewFromInt(3), Amount: decimal.NewFromInt(1), ID: 3},
+			{Price: decimal.NewFromInt(5), Amount: decimal.NewFromInt(1), ID: 5},
+			{Price: decimal.NewFromInt(7), Amount: decimal.NewFromInt(1), ID: 7},
+			{Price: decimal.NewFromInt(9), Amount: decimal.NewFromInt(1), ID: 9},
+			{Price: decimal.NewFromInt(11), Amount: decimal.NewFromInt(1), ID: 11},
 		})
 		if err != nil {
 			b.Fatal(err)
@@ -479,18 +481,18 @@ func TestDeleteByID(t *testing.T) {
 	a := asks{}
 	s := newStack()
 	asksSnapshot := Items{
-		{Price: 1, Amount: 1, ID: 1},
-		{Price: 3, Amount: 1, ID: 3},
-		{Price: 5, Amount: 1, ID: 5},
-		{Price: 7, Amount: 1, ID: 7},
-		{Price: 9, Amount: 1, ID: 9},
-		{Price: 11, Amount: 1, ID: 11},
+		{Price: decimal.NewFromInt(1), Amount: decimal.NewFromInt(1), ID: 1},
+		{Price: decimal.NewFromInt(3), Amount: decimal.NewFromInt(1), ID: 3},
+		{Price: decimal.NewFromInt(5), Amount: decimal.NewFromInt(1), ID: 5},
+		{Price: decimal.NewFromInt(7), Amount: decimal.NewFromInt(1), ID: 7},
+		{Price: decimal.NewFromInt(9), Amount: decimal.NewFromInt(1), ID: 9},
+		{Price: decimal.NewFromInt(11), Amount: decimal.NewFromInt(1), ID: 11},
 	}
 	a.load(asksSnapshot, s)
 
 	// Delete at head
 	err := a.deleteByID(Items{
-		{Price: 1, Amount: 1, ID: 1},
+		{Price: decimal.NewFromInt(1), Amount: decimal.NewFromInt(1), ID: 1},
 	}, s, false)
 	if err != nil {
 		t.Fatal(err)
@@ -500,7 +502,7 @@ func TestDeleteByID(t *testing.T) {
 
 	// Delete at tail
 	err = a.deleteByID(Items{
-		{Price: 1, Amount: 1, ID: 11},
+		{Price: decimal.NewFromInt(1), Amount: decimal.NewFromInt(1), ID: 11},
 	}, s, false)
 	if err != nil {
 		t.Fatal(err)
@@ -510,7 +512,7 @@ func TestDeleteByID(t *testing.T) {
 
 	// Delete in middle
 	err = a.deleteByID(Items{
-		{Price: 1, Amount: 1, ID: 5},
+		{Price: decimal.NewFromInt(1), Amount: decimal.NewFromInt(1), ID: 5},
 	}, s, false)
 	if err != nil {
 		t.Fatal(err)
@@ -520,7 +522,7 @@ func TestDeleteByID(t *testing.T) {
 
 	// Intentional error
 	err = a.deleteByID(Items{
-		{Price: 11, Amount: 1, ID: 1337},
+		{Price: decimal.NewFromInt(11), Amount: decimal.NewFromInt(1), ID: 1337},
 	}, s, false)
 	if !errors.Is(err, errIDCannotBeMatched) {
 		t.Fatalf("expecting %s but received %v", errIDCannotBeMatched, err)
@@ -528,7 +530,7 @@ func TestDeleteByID(t *testing.T) {
 
 	// Error bypass
 	err = a.deleteByID(Items{
-		{Price: 11, Amount: 1, ID: 1337},
+		{Price: decimal.NewFromInt(11), Amount: decimal.NewFromInt(1), ID: 1337},
 	}, s, true)
 	if err != nil {
 		t.Fatal(err)
@@ -539,18 +541,18 @@ func TestUpdateInsertByIDAsk(t *testing.T) {
 	a := asks{}
 	s := newStack()
 	asksSnapshot := Items{
-		{Price: 1, Amount: 1, ID: 1},
-		{Price: 3, Amount: 1, ID: 3},
-		{Price: 5, Amount: 1, ID: 5},
-		{Price: 7, Amount: 1, ID: 7},
-		{Price: 9, Amount: 1, ID: 9},
-		{Price: 11, Amount: 1, ID: 11},
+		{Price: decimal.NewFromInt(1), Amount: decimal.NewFromInt(1), ID: 1},
+		{Price: decimal.NewFromInt(3), Amount: decimal.NewFromInt(1), ID: 3},
+		{Price: decimal.NewFromInt(5), Amount: decimal.NewFromInt(1), ID: 5},
+		{Price: decimal.NewFromInt(7), Amount: decimal.NewFromInt(1), ID: 7},
+		{Price: decimal.NewFromInt(9), Amount: decimal.NewFromInt(1), ID: 9},
+		{Price: decimal.NewFromInt(11), Amount: decimal.NewFromInt(1), ID: 11},
 	}
 	a.load(asksSnapshot, s)
 
 	// Update one instance with matching ID
 	err := a.updateInsertByID(Items{
-		{Price: 1, Amount: 2, ID: 1},
+		{Price: decimal.NewFromInt(1), Amount: decimal.NewFromInt(2), ID: 1},
 	}, s)
 	if err != nil {
 		t.Fatal(err)
@@ -563,12 +565,12 @@ func TestUpdateInsertByIDAsk(t *testing.T) {
 
 	// Update all instances with matching ID in order
 	err = a.updateInsertByID(Items{
-		{Price: 1, Amount: 2, ID: 1},
-		{Price: 3, Amount: 2, ID: 3},
-		{Price: 5, Amount: 2, ID: 5},
-		{Price: 7, Amount: 2, ID: 7},
-		{Price: 9, Amount: 2, ID: 9},
-		{Price: 11, Amount: 2, ID: 11},
+		{Price: decimal.NewFromInt(1), Amount: decimal.NewFromInt(2), ID: 1},
+		{Price: decimal.NewFromInt(3), Amount: decimal.NewFromInt(2), ID: 3},
+		{Price: decimal.NewFromInt(5), Amount: decimal.NewFromInt(2), ID: 5},
+		{Price: decimal.NewFromInt(7), Amount: decimal.NewFromInt(2), ID: 7},
+		{Price: decimal.NewFromInt(9), Amount: decimal.NewFromInt(2), ID: 9},
+		{Price: decimal.NewFromInt(11), Amount: decimal.NewFromInt(2), ID: 11},
 	}, s)
 	if err != nil {
 		t.Fatal(err)
@@ -578,12 +580,12 @@ func TestUpdateInsertByIDAsk(t *testing.T) {
 
 	// Update all instances with matching ID in backwards
 	err = a.updateInsertByID(Items{
-		{Price: 11, Amount: 2, ID: 11},
-		{Price: 9, Amount: 2, ID: 9},
-		{Price: 7, Amount: 2, ID: 7},
-		{Price: 5, Amount: 2, ID: 5},
-		{Price: 3, Amount: 2, ID: 3},
-		{Price: 1, Amount: 2, ID: 1},
+		{Price: decimal.NewFromInt(11), Amount: decimal.NewFromInt(2), ID: 11},
+		{Price: decimal.NewFromInt(9), Amount: decimal.NewFromInt(2), ID: 9},
+		{Price: decimal.NewFromInt(7), Amount: decimal.NewFromInt(2), ID: 7},
+		{Price: decimal.NewFromInt(5), Amount: decimal.NewFromInt(2), ID: 5},
+		{Price: decimal.NewFromInt(3), Amount: decimal.NewFromInt(2), ID: 3},
+		{Price: decimal.NewFromInt(1), Amount: decimal.NewFromInt(2), ID: 1},
 	}, s)
 	if err != nil {
 		t.Fatal(err)
@@ -593,12 +595,12 @@ func TestUpdateInsertByIDAsk(t *testing.T) {
 
 	// Update all instances with matching ID all over the ship
 	err = a.updateInsertByID(Items{
-		{Price: 11, Amount: 2, ID: 11},
-		{Price: 3, Amount: 2, ID: 3},
-		{Price: 7, Amount: 2, ID: 7},
-		{Price: 9, Amount: 2, ID: 9},
-		{Price: 1, Amount: 2, ID: 1},
-		{Price: 5, Amount: 2, ID: 5},
+		{Price: decimal.NewFromInt(11), Amount: decimal.NewFromInt(2), ID: 11},
+		{Price: decimal.NewFromInt(3), Amount: decimal.NewFromInt(2), ID: 3},
+		{Price: decimal.NewFromInt(7), Amount: decimal.NewFromInt(2), ID: 7},
+		{Price: decimal.NewFromInt(9), Amount: decimal.NewFromInt(2), ID: 9},
+		{Price: decimal.NewFromInt(1), Amount: decimal.NewFromInt(2), ID: 1},
+		{Price: decimal.NewFromInt(5), Amount: decimal.NewFromInt(2), ID: 5},
 	}, s)
 	if err != nil {
 		t.Fatal(err)
@@ -608,12 +610,12 @@ func TestUpdateInsertByIDAsk(t *testing.T) {
 
 	// Update all instances move one before ID in middle
 	err = a.updateInsertByID(Items{
-		{Price: 1, Amount: 2, ID: 1},
-		{Price: 3, Amount: 2, ID: 3},
-		{Price: 2, Amount: 2, ID: 5},
-		{Price: 7, Amount: 2, ID: 7},
-		{Price: 9, Amount: 2, ID: 9},
-		{Price: 11, Amount: 2, ID: 11},
+		{Price: decimal.NewFromInt(1), Amount: decimal.NewFromInt(2), ID: 1},
+		{Price: decimal.NewFromInt(3), Amount: decimal.NewFromInt(2), ID: 3},
+		{Price: decimal.NewFromInt(2), Amount: decimal.NewFromInt(2), ID: 5},
+		{Price: decimal.NewFromInt(7), Amount: decimal.NewFromInt(2), ID: 7},
+		{Price: decimal.NewFromInt(9), Amount: decimal.NewFromInt(2), ID: 9},
+		{Price: decimal.NewFromInt(11), Amount: decimal.NewFromInt(2), ID: 11},
 	}, s)
 	if err != nil {
 		t.Fatal(err)
@@ -623,12 +625,12 @@ func TestUpdateInsertByIDAsk(t *testing.T) {
 
 	// Update all instances move one before ID at head
 	err = a.updateInsertByID(Items{
-		{Price: 1, Amount: 2, ID: 1},
-		{Price: 3, Amount: 2, ID: 3},
-		{Price: .5, Amount: 2, ID: 5},
-		{Price: 7, Amount: 2, ID: 7},
-		{Price: 9, Amount: 2, ID: 9},
-		{Price: 11, Amount: 2, ID: 11},
+		{Price: decimal.NewFromInt(1), Amount: decimal.NewFromInt(2), ID: 1},
+		{Price: decimal.NewFromInt(3), Amount: decimal.NewFromInt(2), ID: 3},
+		{Price: decimal.NewFromFloat(.5), Amount: decimal.NewFromInt(2), ID: 5},
+		{Price: decimal.NewFromInt(7), Amount: decimal.NewFromInt(2), ID: 7},
+		{Price: decimal.NewFromInt(9), Amount: decimal.NewFromInt(2), ID: 9},
+		{Price: decimal.NewFromInt(11), Amount: decimal.NewFromInt(2), ID: 11},
 	}, s)
 	if err != nil {
 		t.Fatal(err)
@@ -641,12 +643,12 @@ func TestUpdateInsertByIDAsk(t *testing.T) {
 
 	// Update all instances move one after ID
 	err = a.updateInsertByID(Items{
-		{Price: 1, Amount: 2, ID: 1},
-		{Price: 3, Amount: 2, ID: 3},
-		{Price: 8, Amount: 2, ID: 5},
-		{Price: 7, Amount: 2, ID: 7},
-		{Price: 9, Amount: 2, ID: 9},
-		{Price: 11, Amount: 2, ID: 11},
+		{Price: decimal.NewFromInt(1), Amount: decimal.NewFromInt(2), ID: 1},
+		{Price: decimal.NewFromInt(3), Amount: decimal.NewFromInt(2), ID: 3},
+		{Price: decimal.NewFromInt(8), Amount: decimal.NewFromInt(2), ID: 5},
+		{Price: decimal.NewFromInt(7), Amount: decimal.NewFromInt(2), ID: 7},
+		{Price: decimal.NewFromInt(9), Amount: decimal.NewFromInt(2), ID: 9},
+		{Price: decimal.NewFromInt(11), Amount: decimal.NewFromInt(2), ID: 11},
 	}, s)
 	if err != nil {
 		t.Fatal(err)
@@ -659,12 +661,12 @@ func TestUpdateInsertByIDAsk(t *testing.T) {
 
 	// Update all instances move one after ID to tail
 	err = a.updateInsertByID(Items{
-		{Price: 1, Amount: 2, ID: 1},
-		{Price: 3, Amount: 2, ID: 3},
-		{Price: 12, Amount: 2, ID: 5},
-		{Price: 7, Amount: 2, ID: 7},
-		{Price: 9, Amount: 2, ID: 9},
-		{Price: 11, Amount: 2, ID: 11},
+		{Price: decimal.NewFromInt(1), Amount: decimal.NewFromInt(2), ID: 1},
+		{Price: decimal.NewFromInt(3), Amount: decimal.NewFromInt(2), ID: 3},
+		{Price: decimal.NewFromInt(12), Amount: decimal.NewFromInt(2), ID: 5},
+		{Price: decimal.NewFromInt(7), Amount: decimal.NewFromInt(2), ID: 7},
+		{Price: decimal.NewFromInt(9), Amount: decimal.NewFromInt(2), ID: 9},
+		{Price: decimal.NewFromInt(11), Amount: decimal.NewFromInt(2), ID: 11},
 	}, s)
 	if err != nil {
 		t.Fatal(err)
@@ -674,13 +676,13 @@ func TestUpdateInsertByIDAsk(t *testing.T) {
 
 	// Update all instances then pop new instance
 	err = a.updateInsertByID(Items{
-		{Price: 1, Amount: 2, ID: 1},
-		{Price: 3, Amount: 2, ID: 3},
-		{Price: 12, Amount: 2, ID: 5},
-		{Price: 7, Amount: 2, ID: 7},
-		{Price: 9, Amount: 2, ID: 9},
-		{Price: 11, Amount: 2, ID: 11},
-		{Price: 10, Amount: 2, ID: 10},
+		{Price: decimal.NewFromInt(1), Amount: decimal.NewFromInt(2), ID: 1},
+		{Price: decimal.NewFromInt(3), Amount: decimal.NewFromInt(2), ID: 3},
+		{Price: decimal.NewFromInt(12), Amount: decimal.NewFromInt(2), ID: 5},
+		{Price: decimal.NewFromInt(7), Amount: decimal.NewFromInt(2), ID: 7},
+		{Price: decimal.NewFromInt(9), Amount: decimal.NewFromInt(2), ID: 9},
+		{Price: decimal.NewFromInt(11), Amount: decimal.NewFromInt(2), ID: 11},
+		{Price: decimal.NewFromInt(10), Amount: decimal.NewFromInt(2), ID: 10},
 	}, s)
 	if err != nil {
 		t.Fatal(err)
@@ -693,13 +695,13 @@ func TestUpdateInsertByIDAsk(t *testing.T) {
 
 	// Update all instances pop at head
 	err = a.updateInsertByID(Items{
-		{Price: 0.5, Amount: 2, ID: 0},
-		{Price: 1, Amount: 2, ID: 1},
-		{Price: 3, Amount: 2, ID: 3},
-		{Price: 12, Amount: 2, ID: 5},
-		{Price: 7, Amount: 2, ID: 7},
-		{Price: 9, Amount: 2, ID: 9},
-		{Price: 11, Amount: 2, ID: 11},
+		{Price: decimal.NewFromFloat(0.5), Amount: decimal.NewFromInt(2), ID: 0},
+		{Price: decimal.NewFromInt(1), Amount: decimal.NewFromInt(2), ID: 1},
+		{Price: decimal.NewFromInt(3), Amount: decimal.NewFromInt(2), ID: 3},
+		{Price: decimal.NewFromInt(12), Amount: decimal.NewFromInt(2), ID: 5},
+		{Price: decimal.NewFromInt(7), Amount: decimal.NewFromInt(2), ID: 7},
+		{Price: decimal.NewFromInt(9), Amount: decimal.NewFromInt(2), ID: 9},
+		{Price: decimal.NewFromInt(11), Amount: decimal.NewFromInt(2), ID: 11},
 	}, s)
 	if err != nil {
 		t.Fatal(err)
@@ -709,7 +711,7 @@ func TestUpdateInsertByIDAsk(t *testing.T) {
 
 	// bookmark head and move to mid
 	err = a.updateInsertByID(Items{
-		{Price: 7.5, Amount: 2, ID: 0},
+		{Price: decimal.NewFromFloat(7.5), Amount: decimal.NewFromInt(2), ID: 0},
 	}, s)
 	if err != nil {
 		t.Fatal(err)
@@ -719,7 +721,7 @@ func TestUpdateInsertByIDAsk(t *testing.T) {
 
 	// bookmark head and move to tail
 	err = a.updateInsertByID(Items{
-		{Price: 12.5, Amount: 2, ID: 1},
+		{Price: decimal.NewFromFloat(12.5), Amount: decimal.NewFromInt(2), ID: 1},
 	}, s)
 	if err != nil {
 		t.Fatal(err)
@@ -729,7 +731,7 @@ func TestUpdateInsertByIDAsk(t *testing.T) {
 
 	// move tail location to head
 	err = a.updateInsertByID(Items{
-		{Price: 2.5, Amount: 2, ID: 1},
+		{Price: decimal.NewFromFloat(2.5), Amount: decimal.NewFromInt(2), ID: 1},
 	}, s)
 	if err != nil {
 		t.Fatal(err)
@@ -739,7 +741,7 @@ func TestUpdateInsertByIDAsk(t *testing.T) {
 
 	// move tail location to mid
 	err = a.updateInsertByID(Items{
-		{Price: 8, Amount: 2, ID: 5},
+		{Price: decimal.NewFromInt(8), Amount: decimal.NewFromInt(2), ID: 5},
 	}, s)
 	if err != nil {
 		t.Fatal(err)
@@ -749,7 +751,7 @@ func TestUpdateInsertByIDAsk(t *testing.T) {
 
 	// insert at tail dont match
 	err = a.updateInsertByID(Items{
-		{Price: 30, Amount: 2, ID: 1234},
+		{Price: decimal.NewFromInt(30), Amount: decimal.NewFromInt(2), ID: 1234},
 	}, s)
 	if err != nil {
 		t.Fatal(err)
@@ -759,7 +761,7 @@ func TestUpdateInsertByIDAsk(t *testing.T) {
 
 	// insert between last and 2nd last
 	err = a.updateInsertByID(Items{
-		{Price: 12, Amount: 2, ID: 12345},
+		{Price: decimal.NewFromInt(12), Amount: decimal.NewFromInt(2), ID: 12345},
 	}, s)
 	if err != nil {
 		t.Fatal(err)
@@ -769,7 +771,7 @@ func TestUpdateInsertByIDAsk(t *testing.T) {
 
 	// readjust at end
 	err = a.updateInsertByID(Items{
-		{Price: 29, Amount: 3, ID: 1234},
+		{Price: decimal.NewFromInt(29), Amount: decimal.NewFromInt(3), ID: 1234},
 	}, s)
 	if err != nil {
 		t.Fatal(err)
@@ -779,7 +781,7 @@ func TestUpdateInsertByIDAsk(t *testing.T) {
 
 	// readjust further and decrease price past tail
 	err = a.updateInsertByID(Items{
-		{Price: 31, Amount: 3, ID: 1234},
+		{Price: decimal.NewFromInt(31), Amount: decimal.NewFromInt(3), ID: 1234},
 	}, s)
 	if err != nil {
 		t.Fatal(err)
@@ -792,13 +794,13 @@ func TestUpdateInsertByIDAsk(t *testing.T) {
 
 	// insert with no liquidity and jumbled
 	err = a.updateInsertByID(Items{
-		{Price: 11, Amount: 2, ID: 11},
-		{Price: 9, Amount: 2, ID: 9},
-		{Price: 7, Amount: 2, ID: 7},
-		{Price: 0.5, Amount: 2, ID: 0},
-		{Price: 12, Amount: 2, ID: 5},
-		{Price: 1, Amount: 2, ID: 1},
-		{Price: 3, Amount: 2, ID: 3},
+		{Price: decimal.NewFromInt(11), Amount: decimal.NewFromInt(2), ID: 11},
+		{Price: decimal.NewFromInt(9), Amount: decimal.NewFromInt(2), ID: 9},
+		{Price: decimal.NewFromInt(7), Amount: decimal.NewFromInt(2), ID: 7},
+		{Price: decimal.NewFromFloat(0.5), Amount: decimal.NewFromInt(2), ID: 0},
+		{Price: decimal.NewFromInt(12), Amount: decimal.NewFromInt(2), ID: 5},
+		{Price: decimal.NewFromInt(1), Amount: decimal.NewFromInt(2), ID: 1},
+		{Price: decimal.NewFromInt(3), Amount: decimal.NewFromInt(2), ID: 3},
 	}, s)
 	if err != nil {
 		t.Fatal(err)
@@ -811,18 +813,18 @@ func TestUpdateInsertByIDBids(t *testing.T) {
 	b := bids{}
 	s := newStack()
 	bidsSnapshot := Items{
-		{Price: 11, Amount: 1, ID: 11},
-		{Price: 9, Amount: 1, ID: 9},
-		{Price: 7, Amount: 1, ID: 7},
-		{Price: 5, Amount: 1, ID: 5},
-		{Price: 3, Amount: 1, ID: 3},
-		{Price: 1, Amount: 1, ID: 1},
+		{Price: decimal.NewFromInt(11), Amount: decimal.NewFromInt(1), ID: 11},
+		{Price: decimal.NewFromInt(9), Amount: decimal.NewFromInt(1), ID: 9},
+		{Price: decimal.NewFromInt(7), Amount: decimal.NewFromInt(1), ID: 7},
+		{Price: decimal.NewFromInt(5), Amount: decimal.NewFromInt(1), ID: 5},
+		{Price: decimal.NewFromInt(3), Amount: decimal.NewFromInt(1), ID: 3},
+		{Price: decimal.NewFromInt(1), Amount: decimal.NewFromInt(1), ID: 1},
 	}
 	b.load(bidsSnapshot, s)
 
 	// Update one instance with matching ID
 	err := b.updateInsertByID(Items{
-		{Price: 1, Amount: 2, ID: 1},
+		{Price: decimal.NewFromInt(1), Amount: decimal.NewFromInt(2), ID: 1},
 	}, s)
 	if err != nil {
 		t.Fatal(err)
@@ -835,12 +837,12 @@ func TestUpdateInsertByIDBids(t *testing.T) {
 
 	// Update all instances with matching ID in order
 	err = b.updateInsertByID(Items{
-		{Price: 1, Amount: 2, ID: 1},
-		{Price: 3, Amount: 2, ID: 3},
-		{Price: 5, Amount: 2, ID: 5},
-		{Price: 7, Amount: 2, ID: 7},
-		{Price: 9, Amount: 2, ID: 9},
-		{Price: 11, Amount: 2, ID: 11},
+		{Price: decimal.NewFromInt(1), Amount: decimal.NewFromInt(2), ID: 1},
+		{Price: decimal.NewFromInt(3), Amount: decimal.NewFromInt(2), ID: 3},
+		{Price: decimal.NewFromInt(5), Amount: decimal.NewFromInt(2), ID: 5},
+		{Price: decimal.NewFromInt(7), Amount: decimal.NewFromInt(2), ID: 7},
+		{Price: decimal.NewFromInt(9), Amount: decimal.NewFromInt(2), ID: 9},
+		{Price: decimal.NewFromInt(11), Amount: decimal.NewFromInt(2), ID: 11},
 	}, s)
 	if err != nil {
 		t.Fatal(err)
@@ -850,12 +852,12 @@ func TestUpdateInsertByIDBids(t *testing.T) {
 
 	// Update all instances with matching ID in backwards
 	err = b.updateInsertByID(Items{
-		{Price: 11, Amount: 2, ID: 11},
-		{Price: 9, Amount: 2, ID: 9},
-		{Price: 7, Amount: 2, ID: 7},
-		{Price: 5, Amount: 2, ID: 5},
-		{Price: 3, Amount: 2, ID: 3},
-		{Price: 1, Amount: 2, ID: 1},
+		{Price: decimal.NewFromInt(11), Amount: decimal.NewFromInt(2), ID: 11},
+		{Price: decimal.NewFromInt(9), Amount: decimal.NewFromInt(2), ID: 9},
+		{Price: decimal.NewFromInt(7), Amount: decimal.NewFromInt(2), ID: 7},
+		{Price: decimal.NewFromInt(5), Amount: decimal.NewFromInt(2), ID: 5},
+		{Price: decimal.NewFromInt(3), Amount: decimal.NewFromInt(2), ID: 3},
+		{Price: decimal.NewFromInt(1), Amount: decimal.NewFromInt(2), ID: 1},
 	}, s)
 	if err != nil {
 		t.Fatal(err)
@@ -865,12 +867,12 @@ func TestUpdateInsertByIDBids(t *testing.T) {
 
 	// Update all instances with matching ID all over the ship
 	err = b.updateInsertByID(Items{
-		{Price: 11, Amount: 2, ID: 11},
-		{Price: 3, Amount: 2, ID: 3},
-		{Price: 7, Amount: 2, ID: 7},
-		{Price: 9, Amount: 2, ID: 9},
-		{Price: 1, Amount: 2, ID: 1},
-		{Price: 5, Amount: 2, ID: 5},
+		{Price: decimal.NewFromInt(11), Amount: decimal.NewFromInt(2), ID: 11},
+		{Price: decimal.NewFromInt(3), Amount: decimal.NewFromInt(2), ID: 3},
+		{Price: decimal.NewFromInt(7), Amount: decimal.NewFromInt(2), ID: 7},
+		{Price: decimal.NewFromInt(9), Amount: decimal.NewFromInt(2), ID: 9},
+		{Price: decimal.NewFromInt(1), Amount: decimal.NewFromInt(2), ID: 1},
+		{Price: decimal.NewFromInt(5), Amount: decimal.NewFromInt(2), ID: 5},
 	}, s)
 	if err != nil {
 		t.Fatal(err)
@@ -880,12 +882,12 @@ func TestUpdateInsertByIDBids(t *testing.T) {
 
 	// Update all instances move one before ID in middle
 	err = b.updateInsertByID(Items{
-		{Price: 1, Amount: 2, ID: 1},
-		{Price: 3, Amount: 2, ID: 3},
-		{Price: 2, Amount: 2, ID: 5},
-		{Price: 7, Amount: 2, ID: 7},
-		{Price: 9, Amount: 2, ID: 9},
-		{Price: 11, Amount: 2, ID: 11},
+		{Price: decimal.NewFromInt(1), Amount: decimal.NewFromInt(2), ID: 1},
+		{Price: decimal.NewFromInt(3), Amount: decimal.NewFromInt(2), ID: 3},
+		{Price: decimal.NewFromInt(2), Amount: decimal.NewFromInt(2), ID: 5},
+		{Price: decimal.NewFromInt(7), Amount: decimal.NewFromInt(2), ID: 7},
+		{Price: decimal.NewFromInt(9), Amount: decimal.NewFromInt(2), ID: 9},
+		{Price: decimal.NewFromInt(11), Amount: decimal.NewFromInt(2), ID: 11},
 	}, s)
 	if err != nil {
 		t.Fatal(err)
@@ -895,12 +897,12 @@ func TestUpdateInsertByIDBids(t *testing.T) {
 
 	// Update all instances move one before ID at head
 	err = b.updateInsertByID(Items{
-		{Price: 1, Amount: 2, ID: 1},
-		{Price: 3, Amount: 2, ID: 3},
-		{Price: .5, Amount: 2, ID: 5},
-		{Price: 7, Amount: 2, ID: 7},
-		{Price: 9, Amount: 2, ID: 9},
-		{Price: 11, Amount: 2, ID: 11},
+		{Price: decimal.NewFromInt(1), Amount: decimal.NewFromInt(2), ID: 1},
+		{Price: decimal.NewFromInt(3), Amount: decimal.NewFromInt(2), ID: 3},
+		{Price: decimal.NewFromFloat(.5), Amount: decimal.NewFromInt(2), ID: 5},
+		{Price: decimal.NewFromInt(7), Amount: decimal.NewFromInt(2), ID: 7},
+		{Price: decimal.NewFromInt(9), Amount: decimal.NewFromInt(2), ID: 9},
+		{Price: decimal.NewFromInt(11), Amount: decimal.NewFromInt(2), ID: 11},
 	}, s)
 	if err != nil {
 		t.Fatal(err)
@@ -913,12 +915,12 @@ func TestUpdateInsertByIDBids(t *testing.T) {
 
 	// Update all instances move one after ID
 	err = b.updateInsertByID(Items{
-		{Price: 1, Amount: 2, ID: 1},
-		{Price: 3, Amount: 2, ID: 3},
-		{Price: 8, Amount: 2, ID: 5},
-		{Price: 7, Amount: 2, ID: 7},
-		{Price: 9, Amount: 2, ID: 9},
-		{Price: 11, Amount: 2, ID: 11},
+		{Price: decimal.NewFromInt(1), Amount: decimal.NewFromInt(2), ID: 1},
+		{Price: decimal.NewFromInt(3), Amount: decimal.NewFromInt(2), ID: 3},
+		{Price: decimal.NewFromInt(8), Amount: decimal.NewFromInt(2), ID: 5},
+		{Price: decimal.NewFromInt(7), Amount: decimal.NewFromInt(2), ID: 7},
+		{Price: decimal.NewFromInt(9), Amount: decimal.NewFromInt(2), ID: 9},
+		{Price: decimal.NewFromInt(11), Amount: decimal.NewFromInt(2), ID: 11},
 	}, s)
 	if err != nil {
 		t.Fatal(err)
@@ -931,12 +933,12 @@ func TestUpdateInsertByIDBids(t *testing.T) {
 
 	// Update all instances move one after ID to tail
 	err = b.updateInsertByID(Items{
-		{Price: 1, Amount: 2, ID: 1},
-		{Price: 3, Amount: 2, ID: 3},
-		{Price: 12, Amount: 2, ID: 5},
-		{Price: 7, Amount: 2, ID: 7},
-		{Price: 9, Amount: 2, ID: 9},
-		{Price: 11, Amount: 2, ID: 11},
+		{Price: decimal.NewFromInt(1), Amount: decimal.NewFromInt(2), ID: 1},
+		{Price: decimal.NewFromInt(3), Amount: decimal.NewFromInt(2), ID: 3},
+		{Price: decimal.NewFromInt(12), Amount: decimal.NewFromInt(2), ID: 5},
+		{Price: decimal.NewFromInt(7), Amount: decimal.NewFromInt(2), ID: 7},
+		{Price: decimal.NewFromInt(9), Amount: decimal.NewFromInt(2), ID: 9},
+		{Price: decimal.NewFromInt(11), Amount: decimal.NewFromInt(2), ID: 11},
 	}, s)
 	if err != nil {
 		t.Fatal(err)
@@ -946,13 +948,13 @@ func TestUpdateInsertByIDBids(t *testing.T) {
 
 	// Update all instances then pop new instance
 	err = b.updateInsertByID(Items{
-		{Price: 1, Amount: 2, ID: 1},
-		{Price: 3, Amount: 2, ID: 3},
-		{Price: 12, Amount: 2, ID: 5},
-		{Price: 7, Amount: 2, ID: 7},
-		{Price: 9, Amount: 2, ID: 9},
-		{Price: 11, Amount: 2, ID: 11},
-		{Price: 10, Amount: 2, ID: 10},
+		{Price: decimal.NewFromInt(1), Amount: decimal.NewFromInt(2), ID: 1},
+		{Price: decimal.NewFromInt(3), Amount: decimal.NewFromInt(2), ID: 3},
+		{Price: decimal.NewFromInt(12), Amount: decimal.NewFromInt(2), ID: 5},
+		{Price: decimal.NewFromInt(7), Amount: decimal.NewFromInt(2), ID: 7},
+		{Price: decimal.NewFromInt(9), Amount: decimal.NewFromInt(2), ID: 9},
+		{Price: decimal.NewFromInt(11), Amount: decimal.NewFromInt(2), ID: 11},
+		{Price: decimal.NewFromInt(10), Amount: decimal.NewFromInt(2), ID: 10},
 	}, s)
 	if err != nil {
 		t.Fatal(err)
@@ -965,13 +967,13 @@ func TestUpdateInsertByIDBids(t *testing.T) {
 
 	// Update all instances pop at tail
 	err = b.updateInsertByID(Items{
-		{Price: 0.5, Amount: 2, ID: 0},
-		{Price: 1, Amount: 2, ID: 1},
-		{Price: 3, Amount: 2, ID: 3},
-		{Price: 12, Amount: 2, ID: 5},
-		{Price: 7, Amount: 2, ID: 7},
-		{Price: 9, Amount: 2, ID: 9},
-		{Price: 11, Amount: 2, ID: 11},
+		{Price: decimal.NewFromFloat(0.5), Amount: decimal.NewFromInt(2), ID: 0},
+		{Price: decimal.NewFromInt(1), Amount: decimal.NewFromInt(2), ID: 1},
+		{Price: decimal.NewFromInt(3), Amount: decimal.NewFromInt(2), ID: 3},
+		{Price: decimal.NewFromInt(12), Amount: decimal.NewFromInt(2), ID: 5},
+		{Price: decimal.NewFromInt(7), Amount: decimal.NewFromInt(2), ID: 7},
+		{Price: decimal.NewFromInt(9), Amount: decimal.NewFromInt(2), ID: 9},
+		{Price: decimal.NewFromInt(11), Amount: decimal.NewFromInt(2), ID: 11},
 	}, s)
 	if err != nil {
 		t.Fatal(err)
@@ -981,7 +983,7 @@ func TestUpdateInsertByIDBids(t *testing.T) {
 
 	// bookmark head and move to mid
 	err = b.updateInsertByID(Items{
-		{Price: 9.5, Amount: 2, ID: 5},
+		{Price: decimal.NewFromFloat(9.5), Amount: decimal.NewFromInt(2), ID: 5},
 	}, s)
 	if err != nil {
 		t.Fatal(err)
@@ -991,7 +993,7 @@ func TestUpdateInsertByIDBids(t *testing.T) {
 
 	// bookmark head and move to tail
 	err = b.updateInsertByID(Items{
-		{Price: 0.25, Amount: 2, ID: 11},
+		{Price: decimal.NewFromFloat(0.25), Amount: decimal.NewFromInt(2), ID: 11},
 	}, s)
 	if err != nil {
 		t.Fatal(err)
@@ -1001,7 +1003,7 @@ func TestUpdateInsertByIDBids(t *testing.T) {
 
 	// move tail location to head
 	err = b.updateInsertByID(Items{
-		{Price: 10, Amount: 2, ID: 11},
+		{Price: decimal.NewFromInt(10), Amount: decimal.NewFromInt(2), ID: 11},
 	}, s)
 	if err != nil {
 		t.Fatal(err)
@@ -1011,7 +1013,7 @@ func TestUpdateInsertByIDBids(t *testing.T) {
 
 	// move tail location to mid
 	err = b.updateInsertByID(Items{
-		{Price: 7.5, Amount: 2, ID: 0},
+		{Price: decimal.NewFromFloat(7.5), Amount: decimal.NewFromInt(2), ID: 0},
 	}, s)
 	if err != nil {
 		t.Fatal(err)
@@ -1021,7 +1023,7 @@ func TestUpdateInsertByIDBids(t *testing.T) {
 
 	// insert at head dont match
 	err = b.updateInsertByID(Items{
-		{Price: 30, Amount: 2, ID: 1234},
+		{Price: decimal.NewFromInt(30), Amount: decimal.NewFromInt(2), ID: 1234},
 	}, s)
 	if err != nil {
 		t.Fatal(err)
@@ -1031,7 +1033,7 @@ func TestUpdateInsertByIDBids(t *testing.T) {
 
 	// insert between last and 2nd last
 	err = b.updateInsertByID(Items{
-		{Price: 1.5, Amount: 2, ID: 12345},
+		{Price: decimal.NewFromFloat(1.5), Amount: decimal.NewFromInt(2), ID: 12345},
 	}, s)
 	if err != nil {
 		t.Fatal(err)
@@ -1040,7 +1042,7 @@ func TestUpdateInsertByIDBids(t *testing.T) {
 
 	// readjust at end
 	err = b.updateInsertByID(Items{
-		{Price: 1, Amount: 3, ID: 1},
+		{Price: decimal.NewFromInt(1), Amount: decimal.NewFromInt(3), ID: 1},
 	}, s)
 	if err != nil {
 		t.Fatal(err)
@@ -1049,7 +1051,7 @@ func TestUpdateInsertByIDBids(t *testing.T) {
 
 	// readjust further and decrease price past tail
 	err = b.updateInsertByID(Items{
-		{Price: .9, Amount: 3, ID: 1},
+		{Price: decimal.NewFromFloat(.9), Amount: decimal.NewFromInt(3), ID: 1},
 	}, s)
 	if err != nil {
 		t.Fatal(err)
@@ -1061,13 +1063,13 @@ func TestUpdateInsertByIDBids(t *testing.T) {
 
 	// insert with no liquidity and jumbled
 	err = b.updateInsertByID(Items{
-		{Price: 0.5, Amount: 2, ID: 0},
-		{Price: 1, Amount: 2, ID: 1},
-		{Price: 3, Amount: 2, ID: 3},
-		{Price: 12, Amount: 2, ID: 5},
-		{Price: 7, Amount: 2, ID: 7},
-		{Price: 9, Amount: 2, ID: 9},
-		{Price: 11, Amount: 2, ID: 11},
+		{Price: decimal.NewFromFloat(0.5), Amount: decimal.NewFromInt(2), ID: 0},
+		{Price: decimal.NewFromInt(1), Amount: decimal.NewFromInt(2), ID: 1},
+		{Price: decimal.NewFromInt(3), Amount: decimal.NewFromInt(2), ID: 3},
+		{Price: decimal.NewFromInt(12), Amount: decimal.NewFromInt(2), ID: 5},
+		{Price: decimal.NewFromInt(7), Amount: decimal.NewFromInt(2), ID: 7},
+		{Price: decimal.NewFromInt(9), Amount: decimal.NewFromInt(2), ID: 9},
+		{Price: decimal.NewFromInt(11), Amount: decimal.NewFromInt(2), ID: 11},
 	}, s)
 	if err != nil {
 		t.Fatal(err)
@@ -1080,22 +1082,22 @@ func TestInsertUpdatesBid(t *testing.T) {
 	b := bids{}
 	s := newStack()
 	bidsSnapshot := Items{
-		{Price: 11, Amount: 1, ID: 11},
-		{Price: 9, Amount: 1, ID: 9},
-		{Price: 7, Amount: 1, ID: 7},
-		{Price: 5, Amount: 1, ID: 5},
-		{Price: 3, Amount: 1, ID: 3},
-		{Price: 1, Amount: 1, ID: 1},
+		{Price: decimal.NewFromInt(11), Amount: decimal.NewFromInt(1), ID: 11},
+		{Price: decimal.NewFromInt(9), Amount: decimal.NewFromInt(1), ID: 9},
+		{Price: decimal.NewFromInt(7), Amount: decimal.NewFromInt(1), ID: 7},
+		{Price: decimal.NewFromInt(5), Amount: decimal.NewFromInt(1), ID: 5},
+		{Price: decimal.NewFromInt(3), Amount: decimal.NewFromInt(1), ID: 3},
+		{Price: decimal.NewFromInt(1), Amount: decimal.NewFromInt(1), ID: 1},
 	}
 	b.load(bidsSnapshot, s)
 
 	err := b.insertUpdates(Items{
-		{Price: 11, Amount: 1, ID: 11},
-		{Price: 9, Amount: 1, ID: 9},
-		{Price: 7, Amount: 1, ID: 7},
-		{Price: 5, Amount: 1, ID: 5},
-		{Price: 3, Amount: 1, ID: 3},
-		{Price: 1, Amount: 1, ID: 1},
+		{Price: decimal.NewFromInt(11), Amount: decimal.NewFromInt(1), ID: 11},
+		{Price: decimal.NewFromInt(9), Amount: decimal.NewFromInt(1), ID: 9},
+		{Price: decimal.NewFromInt(7), Amount: decimal.NewFromInt(1), ID: 7},
+		{Price: decimal.NewFromInt(5), Amount: decimal.NewFromInt(1), ID: 5},
+		{Price: decimal.NewFromInt(3), Amount: decimal.NewFromInt(1), ID: 3},
+		{Price: decimal.NewFromInt(1), Amount: decimal.NewFromInt(1), ID: 1},
 	}, s)
 	if !errors.Is(err, errCollisionDetected) {
 		t.Fatalf("expected error %s but received %v", errCollisionDetected, err)
@@ -1105,7 +1107,7 @@ func TestInsertUpdatesBid(t *testing.T) {
 
 	// Insert at head
 	err = b.insertUpdates(Items{
-		{Price: 12, Amount: 1, ID: 11},
+		{Price: decimal.NewFromInt(12), Amount: decimal.NewFromInt(1), ID: 11},
 	}, s)
 	if err != nil {
 		t.Fatal(err)
@@ -1115,7 +1117,7 @@ func TestInsertUpdatesBid(t *testing.T) {
 
 	// Insert at tail
 	err = b.insertUpdates(Items{
-		{Price: 0.5, Amount: 1, ID: 12},
+		{Price: decimal.NewFromFloat(0.5), Amount: decimal.NewFromInt(1), ID: 12},
 	}, s)
 	if err != nil {
 		t.Fatal(err)
@@ -1125,7 +1127,7 @@ func TestInsertUpdatesBid(t *testing.T) {
 
 	// Insert at mid
 	err = b.insertUpdates(Items{
-		{Price: 5.5, Amount: 1, ID: 13},
+		{Price: decimal.NewFromFloat(5.5), Amount: decimal.NewFromInt(1), ID: 13},
 	}, s)
 	if err != nil {
 		t.Fatal(err)
@@ -1138,7 +1140,7 @@ func TestInsertUpdatesBid(t *testing.T) {
 
 	// Add one at head
 	err = b.insertUpdates(Items{
-		{Price: 5.5, Amount: 1, ID: 13},
+		{Price: decimal.NewFromFloat(5.5), Amount: decimal.NewFromInt(1), ID: 13},
 	}, s)
 	if err != nil {
 		t.Fatal(err)
@@ -1151,22 +1153,22 @@ func TestInsertUpdatesAsk(t *testing.T) {
 	a := asks{}
 	s := newStack()
 	askSnapshot := Items{
-		{Price: 1, Amount: 1, ID: 1},
-		{Price: 3, Amount: 1, ID: 3},
-		{Price: 5, Amount: 1, ID: 5},
-		{Price: 7, Amount: 1, ID: 7},
-		{Price: 9, Amount: 1, ID: 9},
-		{Price: 11, Amount: 1, ID: 11},
+		{Price: decimal.NewFromInt(1), Amount: decimal.NewFromInt(1), ID: 1},
+		{Price: decimal.NewFromInt(3), Amount: decimal.NewFromInt(1), ID: 3},
+		{Price: decimal.NewFromInt(5), Amount: decimal.NewFromInt(1), ID: 5},
+		{Price: decimal.NewFromInt(7), Amount: decimal.NewFromInt(1), ID: 7},
+		{Price: decimal.NewFromInt(9), Amount: decimal.NewFromInt(1), ID: 9},
+		{Price: decimal.NewFromInt(11), Amount: decimal.NewFromInt(1), ID: 11},
 	}
 	a.load(askSnapshot, s)
 
 	err := a.insertUpdates(Items{
-		{Price: 11, Amount: 1, ID: 11},
-		{Price: 9, Amount: 1, ID: 9},
-		{Price: 7, Amount: 1, ID: 7},
-		{Price: 5, Amount: 1, ID: 5},
-		{Price: 3, Amount: 1, ID: 3},
-		{Price: 1, Amount: 1, ID: 1},
+		{Price: decimal.NewFromInt(11), Amount: decimal.NewFromInt(1), ID: 11},
+		{Price: decimal.NewFromInt(9), Amount: decimal.NewFromInt(1), ID: 9},
+		{Price: decimal.NewFromInt(7), Amount: decimal.NewFromInt(1), ID: 7},
+		{Price: decimal.NewFromInt(5), Amount: decimal.NewFromInt(1), ID: 5},
+		{Price: decimal.NewFromInt(3), Amount: decimal.NewFromInt(1), ID: 3},
+		{Price: decimal.NewFromInt(1), Amount: decimal.NewFromInt(1), ID: 1},
 	}, s)
 	if !errors.Is(err, errCollisionDetected) {
 		t.Fatalf("expected error %s but received %v", errCollisionDetected, err)
@@ -1176,7 +1178,7 @@ func TestInsertUpdatesAsk(t *testing.T) {
 
 	// Insert at tail
 	err = a.insertUpdates(Items{
-		{Price: 12, Amount: 1, ID: 11},
+		{Price: decimal.NewFromInt(12), Amount: decimal.NewFromInt(1), ID: 11},
 	}, s)
 	if err != nil {
 		t.Fatal(err)
@@ -1186,7 +1188,7 @@ func TestInsertUpdatesAsk(t *testing.T) {
 
 	// Insert at head
 	err = a.insertUpdates(Items{
-		{Price: 0.5, Amount: 1, ID: 12},
+		{Price: decimal.NewFromFloat(0.5), Amount: decimal.NewFromInt(1), ID: 12},
 	}, s)
 	if err != nil {
 		t.Fatal(err)
@@ -1196,7 +1198,7 @@ func TestInsertUpdatesAsk(t *testing.T) {
 
 	// Insert at mid
 	err = a.insertUpdates(Items{
-		{Price: 5.5, Amount: 1, ID: 13},
+		{Price: decimal.NewFromFloat(5.5), Amount: decimal.NewFromInt(1), ID: 13},
 	}, s)
 	if err != nil {
 		t.Fatal(err)
@@ -1209,7 +1211,7 @@ func TestInsertUpdatesAsk(t *testing.T) {
 
 	// Add one at head
 	err = a.insertUpdates(Items{
-		{Price: 5.5, Amount: 1, ID: 13},
+		{Price: decimal.NewFromFloat(5.5), Amount: decimal.NewFromInt(1), ID: 13},
 	}, s)
 	if err != nil {
 		t.Fatal(err)
@@ -1236,14 +1238,14 @@ func Check(t *testing.T, depth interface{}, liquidity, value float64, nodeCount 
 
 	liquidityTotal, valueTotal := ll.amount()
 
-	if liquidityTotal != liquidity {
+	if !liquidityTotal.Equal(decimal.NewFromFloat(liquidity)) {
 		ll.display()
 		t.Fatalf("mismatched liquidity expecting %v but received %v",
 			liquidity,
 			liquidityTotal)
 	}
 
-	if valueTotal != value {
+	if !valueTotal.Equal(decimal.NewFromFloat(value)) {
 		ll.display()
 		t.Fatalf("mismatched total value expecting %v but received %v",
 			value,
@@ -1262,15 +1264,15 @@ func Check(t *testing.T, depth interface{}, liquidity, value float64, nodeCount 
 	}
 
 	var tail *Node
-	var price float64
+	var price decimal.Decimal
 	for tip := ll.head; ; tip = tip.Next {
 		switch {
-		case price == 0:
+		case price.Equal(decimal.Zero):
 			price = tip.Value.Price
-		case isBid && price < tip.Value.Price:
+		case isBid && price.LessThan(tip.Value.Price):
 			ll.display()
 			t.Fatal("Bid pricing out of order should be descending")
-		case isAsk && price > tip.Value.Price:
+		case isAsk && price.GreaterThan(tip.Value.Price):
 			ll.display()
 			t.Fatal("Ask pricing out of order should be ascending")
 		default:
@@ -1283,20 +1285,20 @@ func Check(t *testing.T, depth interface{}, liquidity, value float64, nodeCount 
 		}
 	}
 
-	var liqReversed, valReversed float64
+	var liqReversed, valReversed decimal.Decimal
 	var nodeReversed int
 	for tip := tail; tip != nil; tip = tip.Prev {
-		liqReversed += tip.Value.Amount
-		valReversed += tip.Value.Amount * tip.Value.Price
+		liqReversed = liqReversed.Add(tip.Value.Amount)
+		valReversed = valReversed.Add(tip.Value.Amount.Mul(tip.Value.Price))
 		nodeReversed++
 	}
 
-	if liquidity-liqReversed != 0 {
+	if !decimal.NewFromFloat(liquidity).Sub(liqReversed).Equal(decimal.Zero) {
 		ll.display()
 		fmt.Println(liquidity, liqReversed)
 		t.Fatalf("mismatched liquidity when reversing direction expecting %v but received %v",
 			0,
-			liquidity-liqReversed)
+			decimal.NewFromFloat(liquidity).Sub(liqReversed))
 	}
 
 	if nodeCount-nodeReversed != 0 {
@@ -1306,12 +1308,12 @@ func Check(t *testing.T, depth interface{}, liquidity, value float64, nodeCount 
 			nodeCount-nodeReversed)
 	}
 
-	if value-valReversed != 0 {
+	if !decimal.NewFromFloat(value).Sub(valReversed).Equal(decimal.Zero) {
 		ll.display()
 		fmt.Println(valReversed, value)
 		t.Fatalf("mismatched total book value when reversing direction expecting %v but received %v",
 			0,
-			value-valReversed)
+			decimal.NewFromFloat(value).Sub(valReversed))
 	}
 }
 
@@ -1319,22 +1321,22 @@ func TestAmount(t *testing.T) {
 	a := asks{}
 	s := newStack()
 	askSnapshot := Items{
-		{Price: 1, Amount: 1, ID: 1},
-		{Price: 3, Amount: 1, ID: 3},
-		{Price: 5, Amount: 1, ID: 5},
-		{Price: 7, Amount: 1, ID: 7},
-		{Price: 9, Amount: 1, ID: 9},
-		{Price: 11, Amount: 1, ID: 11},
+		{Price: decimal.NewFromInt(1), Amount: decimal.NewFromInt(1), ID: 1},
+		{Price: decimal.NewFromInt(3), Amount: decimal.NewFromInt(1), ID: 3},
+		{Price: decimal.NewFromInt(5), Amount: decimal.NewFromInt(1), ID: 5},
+		{Price: decimal.NewFromInt(7), Amount: decimal.NewFromInt(1), ID: 7},
+		{Price: decimal.NewFromInt(9), Amount: decimal.NewFromInt(1), ID: 9},
+		{Price: decimal.NewFromInt(11), Amount: decimal.NewFromInt(1), ID: 11},
 	}
 	a.load(askSnapshot, s)
 
 	liquidity, value := a.amount()
-	if liquidity != 6 {
-		t.Fatalf("incorrect liquidity calculation expected 6 but received %f", liquidity)
+	if !liquidity.Equal(decimal.NewFromInt(6)) {
+		t.Fatalf("incorrect liquidity calculation expected 6 but received %s", liquidity)
 	}
 
-	if value != 36 {
-		t.Fatalf("incorrect value calculation expected 36 but received %f", value)
+	if !value.Equal(decimal.NewFromInt(36)) {
+		t.Fatalf("incorrect value calculation expected 36 but received %s", value)
 	}
 }
 
@@ -1342,9 +1344,8 @@ func TestShiftBookmark(t *testing.T) {
 	bookmarkedNode := &Node{
 		Value: Item{
 			ID:     1337,
-			Amount: 1,
-			Price:  2,
-		},
+			Amount: decimal.NewFromInt(1),
+			Price:  decimal.NewFromInt(2)},
 		Next:    nil,
 		Prev:    nil,
 		shelved: time.Time{},
@@ -1394,12 +1395,15 @@ func TestShiftBookmark(t *testing.T) {
 	// associate tips prev field with the correct prev node
 	tip.Prev = tipprev
 
-	if !shiftBookmark(tip, &bookmarkedNode, nil, Item{Amount: 1336, ID: 1337, Price: 9999}) {
+	if !shiftBookmark(tip, &bookmarkedNode, nil, Item{
+		Amount: decimal.NewFromInt(1336),
+		ID:     1337,
+		Price:  decimal.NewFromInt(9999)}) {
 		t.Fatal("There should be liquidity so we don't need to set tip to bookmark")
 	}
 
-	if bookmarkedNode.Value.Price != 9999 ||
-		bookmarkedNode.Value.Amount != 1336 ||
+	if !bookmarkedNode.Value.Price.Equal(decimal.NewFromInt(9999)) ||
+		!bookmarkedNode.Value.Amount.Equal(decimal.NewFromInt(1336)) ||
 		bookmarkedNode.Value.ID != 1337 {
 		t.Fatal("bookmarked details are not set correctly with shift")
 	}
@@ -1426,7 +1430,10 @@ func TestShiftBookmark(t *testing.T) {
 
 	var nilBookmark *Node
 
-	if shiftBookmark(tip, &nilBookmark, nil, Item{Amount: 1336, ID: 1337, Price: 9999}) {
+	if shiftBookmark(tip, &nilBookmark, nil, Item{
+		Amount: decimal.NewFromInt(1336),
+		ID:     1337,
+		Price:  decimal.NewFromInt(9999)}) {
 		t.Fatal("there should not be a bookmarked node")
 	}
 
@@ -1439,7 +1446,10 @@ func TestShiftBookmark(t *testing.T) {
 	bookmarkedNode.Next = originalBookmarkNext
 	tip.Next = nil
 
-	if !shiftBookmark(tip, &bookmarkedNode, &head, Item{Amount: 1336, ID: 1337, Price: 9999}) {
+	if !shiftBookmark(tip, &bookmarkedNode, &head, Item{
+		Amount: decimal.NewFromInt(1336),
+		ID:     1337,
+		Price:  decimal.NewFromInt(9999)}) {
 		t.Fatal("There should be liquidity so we don't need to set tip to bookmark")
 	}
 

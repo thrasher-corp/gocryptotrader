@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -38,7 +39,9 @@ func TestSubscribeToExchangeOrderbooks(t *testing.T) {
 		Pair:     p,
 		Asset:    asset.Spot,
 		Exchange: "SubscribeToExchangeOrderbooks",
-		Bids:     []Item{{Price: 100, Amount: 1}, {Price: 99, Amount: 1}},
+		Bids: []Item{
+			{Price: decimal.NewFromInt(100), Amount: decimal.NewFromInt(1)},
+			{Price: decimal.NewFromInt(99), Amount: decimal.NewFromInt(1)}},
 	}
 
 	err = b.Process()
@@ -66,19 +69,28 @@ func TestVerify(t *testing.T) {
 		t.Fatalf("expecting %v error but received %v", nil, err)
 	}
 
-	b.Asks = []Item{{ID: 1337, Price: 99, Amount: 1}, {ID: 1337, Price: 100, Amount: 1}}
+	b.Asks = []Item{
+		{ID: 1337, Price: decimal.NewFromInt(99), Amount: decimal.NewFromInt(1)},
+		{ID: 1337, Price: decimal.NewFromInt(100), Amount: decimal.NewFromInt(1)},
+	}
 	err = b.Verify()
 	if !errors.Is(err, errIDDuplication) {
 		t.Fatalf("expecting %s error but received %v", errIDDuplication, err)
 	}
 
-	b.Asks = []Item{{Price: 100, Amount: 1}, {Price: 100, Amount: 1}}
+	b.Asks = []Item{
+		{Price: decimal.NewFromInt(100), Amount: decimal.NewFromInt(1)},
+		{Price: decimal.NewFromInt(100), Amount: decimal.NewFromInt(1)},
+	}
 	err = b.Verify()
 	if !errors.Is(err, errDuplication) {
 		t.Fatalf("expecting %s error but received %v", errDuplication, err)
 	}
 
-	b.Asks = []Item{{Price: 100, Amount: 1}, {Price: 99, Amount: 1}}
+	b.Asks = []Item{
+		{Price: decimal.NewFromInt(100), Amount: decimal.NewFromInt(1)},
+		{Price: decimal.NewFromInt(99), Amount: decimal.NewFromInt(1)},
+	}
 	b.IsFundingRate = true
 	err = b.Verify()
 	if !errors.Is(err, errPeriodUnset) {
@@ -91,31 +103,46 @@ func TestVerify(t *testing.T) {
 		t.Fatalf("expecting %s error but received %v", errPriceOutOfOrder, err)
 	}
 
-	b.Asks = []Item{{Price: 100, Amount: 1}, {Price: 100, Amount: 0}}
+	b.Asks = []Item{
+		{Price: decimal.NewFromInt(100), Amount: decimal.NewFromInt(1)},
+		{Price: decimal.NewFromInt(100), Amount: decimal.NewFromInt(0)},
+	}
 	err = b.Verify()
 	if !errors.Is(err, errAmountInvalid) {
 		t.Fatalf("expecting %s error but received %v", errAmountInvalid, err)
 	}
 
-	b.Asks = []Item{{Price: 100, Amount: 1}, {Price: 0, Amount: 100}}
+	b.Asks = []Item{
+		{Price: decimal.NewFromInt(100), Amount: decimal.NewFromInt(1)},
+		{Price: decimal.NewFromInt(0), Amount: decimal.NewFromInt(100)},
+	}
 	err = b.Verify()
 	if !errors.Is(err, errPriceNotSet) {
 		t.Fatalf("expecting %s error but received %v", errPriceNotSet, err)
 	}
 
-	b.Bids = []Item{{ID: 1337, Price: 100, Amount: 1}, {ID: 1337, Price: 99, Amount: 1}}
+	b.Bids = []Item{
+		{ID: 1337, Price: decimal.NewFromInt(100), Amount: decimal.NewFromInt(1)},
+		{ID: 1337, Price: decimal.NewFromInt(99), Amount: decimal.NewFromInt(1)},
+	}
 	err = b.Verify()
 	if !errors.Is(err, errIDDuplication) {
 		t.Fatalf("expecting %s error but received %v", errIDDuplication, err)
 	}
 
-	b.Bids = []Item{{Price: 100, Amount: 1}, {Price: 100, Amount: 1}}
+	b.Bids = []Item{
+		{Price: decimal.NewFromInt(100), Amount: decimal.NewFromInt(1)},
+		{Price: decimal.NewFromInt(100), Amount: decimal.NewFromInt(1)},
+	}
 	err = b.Verify()
 	if !errors.Is(err, errDuplication) {
 		t.Fatalf("expecting %s error but received %v", errDuplication, err)
 	}
 
-	b.Bids = []Item{{Price: 99, Amount: 1}, {Price: 100, Amount: 1}}
+	b.Bids = []Item{
+		{Price: decimal.NewFromInt(99), Amount: decimal.NewFromInt(1)},
+		{Price: decimal.NewFromInt(100), Amount: decimal.NewFromInt(1)},
+	}
 	b.IsFundingRate = true
 	err = b.Verify()
 	if !errors.Is(err, errPeriodUnset) {
@@ -128,13 +155,19 @@ func TestVerify(t *testing.T) {
 		t.Fatalf("expecting %s error but received %v", errPriceOutOfOrder, err)
 	}
 
-	b.Bids = []Item{{Price: 100, Amount: 1}, {Price: 100, Amount: 0}}
+	b.Bids = []Item{
+		{Price: decimal.NewFromInt(100), Amount: decimal.NewFromInt(1)},
+		{Price: decimal.NewFromInt(100), Amount: decimal.NewFromInt(0)},
+	}
 	err = b.Verify()
 	if !errors.Is(err, errAmountInvalid) {
 		t.Fatalf("expecting %s error but received %v", errAmountInvalid, err)
 	}
 
-	b.Bids = []Item{{Price: 100, Amount: 1}, {Price: 0, Amount: 100}}
+	b.Bids = []Item{
+		{Price: decimal.NewFromInt(100), Amount: decimal.NewFromInt(1)},
+		{Price: decimal.NewFromInt(0), Amount: decimal.NewFromInt(100)},
+	}
 	err = b.Verify()
 	if !errors.Is(err, errPriceNotSet) {
 		t.Fatalf("expecting %s error but received %v", errPriceNotSet, err)
@@ -148,13 +181,15 @@ func TestCalculateTotalBids(t *testing.T) {
 		t.Fatal(err)
 	}
 	base := Base{
-		Pair:        curr,
-		Bids:        []Item{{Price: 100, Amount: 10}},
+		Pair: curr,
+		Bids: []Item{
+			{Price: decimal.NewFromInt(100), Amount: decimal.NewFromInt(10)},
+		},
 		LastUpdated: time.Now(),
 	}
 
 	a, b := base.TotalBidsAmount()
-	if a != 10 && b != 1000 {
+	if !a.Equal(decimal.NewFromInt(10)) && !b.Equal(decimal.NewFromInt(1000)) {
 		t.Fatal("TestCalculateTotalBids expected a = 10 and b = 1000")
 	}
 }
@@ -167,11 +202,13 @@ func TestCalculateTotalAsks(t *testing.T) {
 	}
 	base := Base{
 		Pair: curr,
-		Asks: []Item{{Price: 100, Amount: 10}},
+		Asks: []Item{
+			{Price: decimal.NewFromInt(100), Amount: decimal.NewFromInt(10)},
+		},
 	}
 
 	a, b := base.TotalAsksAmount()
-	if a != 10 && b != 1000 {
+	if !a.Equal(decimal.NewFromInt(10)) && !b.Equal(decimal.NewFromInt(1000)) {
 		t.Fatal("TestCalculateTotalAsks expected a = 10 and b = 1000")
 	}
 }
@@ -182,9 +219,13 @@ func TestGetOrderbook(t *testing.T) {
 		t.Fatal(err)
 	}
 	base := &Base{
-		Pair:     c,
-		Asks:     []Item{{Price: 100, Amount: 10}},
-		Bids:     []Item{{Price: 200, Amount: 10}},
+		Pair: c,
+		Asks: []Item{
+			{Price: decimal.NewFromInt(100), Amount: decimal.NewFromInt(10)},
+		},
+		Bids: []Item{
+			{Price: decimal.NewFromInt(200), Amount: decimal.NewFromInt(10)},
+		},
 		Exchange: "Exchange",
 		Asset:    asset.Spot,
 	}
@@ -241,9 +282,13 @@ func TestGetDepth(t *testing.T) {
 		t.Fatal(err)
 	}
 	base := &Base{
-		Pair:     c,
-		Asks:     []Item{{Price: 100, Amount: 10}},
-		Bids:     []Item{{Price: 200, Amount: 10}},
+		Pair: c,
+		Asks: []Item{
+			{Price: decimal.NewFromInt(100), Amount: decimal.NewFromInt(10)},
+		},
+		Bids: []Item{
+			{Price: decimal.NewFromInt(200), Amount: decimal.NewFromInt(10)},
+		},
 		Exchange: "Exchange",
 		Asset:    asset.Spot,
 	}
@@ -326,9 +371,13 @@ func TestCreateNewOrderbook(t *testing.T) {
 		t.Fatal(err)
 	}
 	base := &Base{
-		Pair:     c,
-		Asks:     []Item{{Price: 100, Amount: 10}},
-		Bids:     []Item{{Price: 200, Amount: 10}},
+		Pair: c,
+		Asks: []Item{
+			{Price: decimal.NewFromInt(100), Amount: decimal.NewFromInt(10)},
+		},
+		Bids: []Item{
+			{Price: decimal.NewFromInt(200), Amount: decimal.NewFromInt(10)},
+		},
 		Exchange: "testCreateNewOrderbook",
 		Asset:    asset.Spot,
 	}
@@ -348,12 +397,12 @@ func TestCreateNewOrderbook(t *testing.T) {
 	}
 
 	a, b := result.TotalAsksAmount()
-	if a != 10 && b != 1000 {
+	if !a.Equal(decimal.NewFromInt(10)) && !b.Equal(decimal.NewFromInt(1000)) {
 		t.Fatal("TestCreateNewOrderbook CalculateTotalAsks value is incorrect")
 	}
 
 	a, b = result.TotalBidsAmount()
-	if a != 10 && b != 2000 {
+	if !a.Equal(decimal.NewFromInt(10)) && !b.Equal(decimal.NewFromInt(2000)) {
 		t.Fatal("TestCreateNewOrderbook CalculateTotalBids value is incorrect")
 	}
 }
@@ -364,8 +413,12 @@ func TestProcessOrderbook(t *testing.T) {
 		t.Fatal(err)
 	}
 	base := Base{
-		Asks:     []Item{{Price: 100, Amount: 10}},
-		Bids:     []Item{{Price: 200, Amount: 10}},
+		Asks: []Item{
+			{Price: decimal.NewFromInt(100), Amount: decimal.NewFromInt(10)},
+		},
+		Bids: []Item{
+			{Price: decimal.NewFromInt(200), Amount: decimal.NewFromInt(10)},
+		},
 		Exchange: "ProcessOrderbook",
 	}
 
@@ -433,7 +486,9 @@ func TestProcessOrderbook(t *testing.T) {
 		t.Fatal("TestProcessOrderbook result pair is incorrect")
 	}
 
-	base.Asks = []Item{{Price: 200, Amount: 200}}
+	base.Asks = []Item{
+		{Price: decimal.NewFromInt(200), Amount: decimal.NewFromInt(200)},
+	}
 	base.Asset = "monthly"
 	err = base.Process()
 	if err != nil {
@@ -446,11 +501,13 @@ func TestProcessOrderbook(t *testing.T) {
 	}
 
 	a, b := result.TotalAsksAmount()
-	if a != 200 && b != 40000 {
+	if !a.Equal(decimal.NewFromInt(200)) && !b.Equal(decimal.NewFromInt(40000)) {
 		t.Fatal("TestProcessOrderbook CalculateTotalsAsks incorrect values")
 	}
 
-	base.Bids = []Item{{Price: 420, Amount: 200}}
+	base.Bids = []Item{
+		{Price: decimal.NewFromInt(420), Amount: decimal.NewFromInt(200)},
+	}
 	base.Exchange = "Blah"
 	base.Asset = "quarterly"
 	err = base.Process()
@@ -463,7 +520,7 @@ func TestProcessOrderbook(t *testing.T) {
 		t.Fatal("TestProcessOrderbook failed to create new orderbook")
 	}
 
-	if a != 200 && b != 84000 {
+	if !a.Equal(decimal.NewFromInt(200)) && !b.Equal(decimal.NewFromInt(84000)) {
 		t.Fatal("TestProcessOrderbook CalculateTotalsBids incorrect values")
 	}
 
@@ -493,11 +550,19 @@ func TestProcessOrderbook(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			newName := "Exchange" + strconv.FormatInt(rand.Int63(), 10) // nolint:gosec // no need to import crypo/rand for testing
-			newPairs := currency.NewPair(currency.NewCode("BTC"+strconv.FormatInt(rand.Int63(), 10)),
-				currency.NewCode("USD"+strconv.FormatInt(rand.Int63(), 10))) // nolint:gosec // no need to import crypo/rand for testing
+			newPairs := currency.NewPair(
+				currency.NewCode("BTC"+strconv.FormatInt(rand.Int63(), 10)), // nolint:gosec // no need to import crypo/rand for testing
+				currency.NewCode("USD"+strconv.FormatInt(rand.Int63(), 10)), // nolint:gosec // no need to import crypo/rand for testing
+			)
 
-			asks := []Item{{Price: rand.Float64(), Amount: rand.Float64()}} // nolint:gosec // no need to import crypo/rand for testing
-			bids := []Item{{Price: rand.Float64(), Amount: rand.Float64()}} // nolint:gosec // no need to import crypo/rand for testing
+			asks := []Item{{
+				Price:  decimal.NewFromFloat(rand.Float64()), // nolint:gosec // no need to import crypo/rand for testing
+				Amount: decimal.NewFromFloat(rand.Float64()), // nolint:gosec // no need to import crypo/rand for testing
+			}}
+			bids := []Item{{
+				Price:  decimal.NewFromFloat(rand.Float64()), // nolint:gosec // no need to import crypo/rand for testing
+				Amount: decimal.NewFromFloat(rand.Float64()), // nolint:gosec // no need to import crypo/rand for testing
+			}}
 			base := &Base{
 				Pair:     newPairs,
 				Asks:     asks,
@@ -558,7 +623,10 @@ func deployUnorderedSlice() Items {
 	var items []Item
 	rand.Seed(time.Now().UnixNano())
 	for i := 0; i < 1000; i++ {
-		items = append(items, Item{Amount: 1, Price: rand.Float64(), ID: rand.Int63()}) // nolint:gosec // Not needed in tests
+		items = append(items, Item{
+			Amount: decimal.NewFromFloat(1),
+			Price:  decimal.NewFromFloat(rand.Float64()), // nolint:gosec // Not needed in tests
+			ID:     rand.Int63()})                        // nolint:gosec // Not needed in tests
 	}
 	return items
 }
@@ -596,7 +664,10 @@ func deploySliceOrdered() Items {
 	rand.Seed(time.Now().UnixNano())
 	var items []Item
 	for i := 0; i < 1000; i++ {
-		items = append(items, Item{Amount: 1, Price: float64(i + 1), ID: rand.Int63()}) // nolint:gosec // Not needed in tests
+		items = append(items, Item{
+			Amount: decimal.NewFromFloat(1),
+			Price:  decimal.NewFromFloat(float64(i + 1)),
+			ID:     rand.Int63()}) // nolint:gosec // Not needed in tests
 	}
 	return items
 }

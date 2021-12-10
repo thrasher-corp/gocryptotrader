@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bitstamp"
@@ -18,8 +19,8 @@ func TestSimulate(t *testing.T) {
 		t.Error(err)
 	}
 
-	r := o.SimulateOrder(10000000, true)
+	r := o.SimulateOrder(decimal.NewFromInt(10000000), true)
 	t.Log(r.Status)
-	r = o.SimulateOrder(2171, false)
+	r = o.SimulateOrder(decimal.NewFromInt(2171), false)
 	t.Log(r.Status)
 }

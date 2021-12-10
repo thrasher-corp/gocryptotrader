@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/alert"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -79,7 +80,7 @@ func (d *Depth) Retrieve() *Base {
 
 // TotalBidAmounts returns the total amount of bids and the total orderbook
 // bids value
-func (d *Depth) TotalBidAmounts() (liquidity, value float64) {
+func (d *Depth) TotalBidAmounts() (liquidity, value decimal.Decimal) {
 	d.m.Lock()
 	defer d.m.Unlock()
 	return d.bids.amount()
@@ -87,7 +88,7 @@ func (d *Depth) TotalBidAmounts() (liquidity, value float64) {
 
 // TotalAskAmounts returns the total amount of asks and the total orderbook
 // asks value
-func (d *Depth) TotalAskAmounts() (liquidity, value float64) {
+func (d *Depth) TotalAskAmounts() (liquidity, value decimal.Decimal) {
 	d.m.Lock()
 	defer d.m.Unlock()
 	return d.asks.amount()

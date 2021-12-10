@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -55,8 +56,8 @@ type Exchange struct {
 
 // Item stores the amount and price values
 type Item struct {
-	Amount float64
-	Price  float64
+	Amount decimal.Decimal
+	Price  decimal.Decimal
 	ID     int64
 
 	// Funding rate field
@@ -101,7 +102,7 @@ type byOBPrice []Item
 
 func (a byOBPrice) Len() int           { return len(a) }
 func (a byOBPrice) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-func (a byOBPrice) Less(i, j int) bool { return a[i].Price < a[j].Price }
+func (a byOBPrice) Less(i, j int) bool { return a[i].Price.LessThan(a[j].Price) }
 
 type options struct {
 	exchange         string

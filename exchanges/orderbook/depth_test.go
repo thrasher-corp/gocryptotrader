@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
@@ -19,7 +20,7 @@ func TestGetLength(t *testing.T) {
 		t.Errorf("expected len %v, but received %v", 0, d.GetAskLength())
 	}
 
-	d.asks.load([]Item{{Price: 1337}}, d.stack)
+	d.asks.load([]Item{{Price: decimal.NewFromInt(1337)}}, d.stack)
 
 	if d.GetAskLength() != 1 {
 		t.Errorf("expected len %v, but received %v", 1, d.GetAskLength())
@@ -30,7 +31,7 @@ func TestGetLength(t *testing.T) {
 		t.Errorf("expected len %v, but received %v", 0, d.GetBidLength())
 	}
 
-	d.bids.load([]Item{{Price: 1337}}, d.stack)
+	d.bids.load([]Item{{Price: decimal.NewFromInt(1337)}}, d.stack)
 
 	if d.GetBidLength() != 1 {
 		t.Errorf("expected len %v, but received %v", 1, d.GetBidLength())
@@ -39,8 +40,8 @@ func TestGetLength(t *testing.T) {
 
 func TestRetrieve(t *testing.T) {
 	d := newDepth(id)
-	d.asks.load([]Item{{Price: 1337}}, d.stack)
-	d.bids.load([]Item{{Price: 1337}}, d.stack)
+	d.asks.load([]Item{{Price: decimal.NewFromInt(1337)}}, d.stack)
+	d.bids.load([]Item{{Price: decimal.NewFromInt(1337)}}, d.stack)
 	d.options = options{
 		exchange:         "THE BIG ONE!!!!!!",
 		pair:             currency.NewPair(currency.THETA, currency.USD),
@@ -78,8 +79,8 @@ func TestTotalAmounts(t *testing.T) {
 	d := newDepth(id)
 
 	liquidity, value := d.TotalBidAmounts()
-	if liquidity != 0 || value != 0 {
-		t.Fatalf("liquidity expected %f received %f value expected %f received %f",
+	if !liquidity.Equal(decimal.Zero) || !value.Equal(decimal.Zero) {
+		t.Fatalf("liquidity expected %f received %s value expected %f received %s",
 			0.,
 			liquidity,
 			0.,
@@ -87,20 +88,24 @@ func TestTotalAmounts(t *testing.T) {
 	}
 
 	liquidity, value = d.TotalAskAmounts()
-	if liquidity != 0 || value != 0 {
-		t.Fatalf("liquidity expected %f received %f value expected %f received %f",
+	if !liquidity.Equal(decimal.Zero) || !value.Equal(decimal.Zero) {
+		t.Fatalf("liquidity expected %f received %s value expected %f received %s",
 			0.,
 			liquidity,
 			0.,
 			value)
 	}
 
-	d.asks.load([]Item{{Price: 1337, Amount: 1}}, d.stack)
-	d.bids.load([]Item{{Price: 1337, Amount: 10}}, d.stack)
+	d.asks.load([]Item{{
+		Price: decimal.NewFromInt(1337), Amount: decimal.NewFromInt(1)},
+	}, d.stack)
+	d.bids.load([]Item{
+		{Price: decimal.NewFromInt(1337), Amount: decimal.NewFromInt(10)},
+	}, d.stack)
 
 	liquidity, value = d.TotalBidAmounts()
-	if liquidity != 10 || value != 13370 {
-		t.Fatalf("liquidity expected %f received %f value expected %f received %f",
+	if !liquidity.Equal(decimal.NewFromInt(10)) || !value.Equal(decimal.NewFromInt(13370)) {
+		t.Fatalf("liquidity expected %f received %s value expected %f received %s",
 			10.,
 			liquidity,
 			13370.,
@@ -108,8 +113,8 @@ func TestTotalAmounts(t *testing.T) {
 	}
 
 	liquidity, value = d.TotalAskAmounts()
-	if liquidity != 1 || value != 1337 {
-		t.Fatalf("liquidity expected %f received %f value expected %f received %f",
+	if !liquidity.Equal(decimal.NewFromInt(1)) || !value.Equal(decimal.NewFromInt(1337)) {
+		t.Fatalf("liquidity expected %f received %s value expected %f received %s",
 			1.,
 			liquidity,
 			1337.,
@@ -119,20 +124,30 @@ func TestTotalAmounts(t *testing.T) {
 
 func TestLoadSnapshot(t *testing.T) {
 	d := newDepth(id)
-	d.LoadSnapshot(Items{{Price: 1337, Amount: 1}}, Items{{Price: 1337, Amount: 10}}, 0, time.Time{}, false)
-	if d.Retrieve().Asks[0].Price != 1337 || d.Retrieve().Bids[0].Price != 1337 {
+	d.LoadSnapshot(Items{
+		{Price: decimal.NewFromInt(1337), Amount: decimal.NewFromInt(1)},
+	},
+		Items{
+			{Price: decimal.NewFromInt(1337), Amount: decimal.NewFromInt(10)},
+		}, 0, time.Time{}, false)
+	if !d.Retrieve().Asks[0].Price.Equal(decimal.NewFromInt(1337)) ||
+		!d.Retrieve().Bids[0].Price.Equal(decimal.NewFromInt(1337)) {
 		t.Fatal("not set")
 	}
 }
 
 func TestFlush(t *testing.T) {
 	d := newDepth(id)
-	d.LoadSnapshot(Items{{Price: 1337, Amount: 1}}, Items{{Price: 1337, Amount: 10}}, 0, time.Time{}, false)
+	d.LoadSnapshot(
+		Items{{Price: decimal.NewFromInt(1337), Amount: decimal.NewFromInt(1)}},
+		Items{{Price: decimal.NewFromInt(1337), Amount: decimal.NewFromInt(10)}}, 0, time.Time{}, false)
 	d.Flush()
 	if len(d.Retrieve().Asks) != 0 || len(d.Retrieve().Bids) != 0 {
 		t.Fatal("not flushed")
 	}
-	d.LoadSnapshot(Items{{Price: 1337, Amount: 1}}, Items{{Price: 1337, Amount: 10}}, 0, time.Time{}, false)
+	d.LoadSnapshot(
+		Items{{Price: decimal.NewFromInt(1337), Amount: decimal.NewFromInt(1)}},
+		Items{{Price: decimal.NewFromInt(1337), Amount: decimal.NewFromInt(10)}}, 0, time.Time{}, false)
 	d.Flush()
 	if len(d.Retrieve().Asks) != 0 || len(d.Retrieve().Bids) != 0 {
 		t.Fatal("not flushed")
@@ -141,12 +156,19 @@ func TestFlush(t *testing.T) {
 
 func TestUpdateBidAskByPrice(t *testing.T) {
 	d := newDepth(id)
-	d.LoadSnapshot(Items{{Price: 1337, Amount: 1, ID: 1}}, Items{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Time{}, false)
-	d.UpdateBidAskByPrice(Items{{Price: 1337, Amount: 2, ID: 1}}, Items{{Price: 1337, Amount: 2, ID: 2}}, 0, 0, time.Time{})
-	if d.Retrieve().Asks[0].Amount != 2 || d.Retrieve().Bids[0].Amount != 2 {
+	d.LoadSnapshot(
+		Items{{Price: decimal.NewFromInt(1337), Amount: decimal.NewFromInt(1), ID: 1}},
+		Items{{Price: decimal.NewFromInt(1337), Amount: decimal.NewFromInt(10), ID: 2}}, 0, time.Time{}, false)
+	d.UpdateBidAskByPrice(
+		Items{{Price: decimal.NewFromInt(1337), Amount: decimal.NewFromInt(2), ID: 1}},
+		Items{{Price: decimal.NewFromInt(1337), Amount: decimal.NewFromInt(2), ID: 2}}, 0, 0, time.Time{})
+	if !d.Retrieve().Asks[0].Amount.Equal(decimal.NewFromInt(2)) ||
+		!d.Retrieve().Bids[0].Amount.Equal(decimal.NewFromInt(2)) {
 		t.Fatal("orderbook amounts not updated correctly")
 	}
-	d.UpdateBidAskByPrice(Items{{Price: 1337, Amount: 0, ID: 1}}, Items{{Price: 1337, Amount: 0, ID: 2}}, 0, 0, time.Time{})
+	d.UpdateBidAskByPrice(
+		Items{{Price: decimal.NewFromInt(1337), Amount: decimal.NewFromInt(0), ID: 1}},
+		Items{{Price: decimal.NewFromInt(1337), Amount: decimal.NewFromInt(0), ID: 2}}, 0, 0, time.Time{})
 	if d.GetAskLength() != 0 || d.GetBidLength() != 0 {
 		t.Fatal("orderbook amounts not updated correctly")
 	}
@@ -154,8 +176,12 @@ func TestUpdateBidAskByPrice(t *testing.T) {
 
 func TestDeleteBidAskByID(t *testing.T) {
 	d := newDepth(id)
-	d.LoadSnapshot(Items{{Price: 1337, Amount: 1, ID: 1}}, Items{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Time{}, false)
-	err := d.DeleteBidAskByID(Items{{Price: 1337, Amount: 2, ID: 1}}, Items{{Price: 1337, Amount: 2, ID: 2}}, false, 0, time.Time{})
+	d.LoadSnapshot(
+		Items{{Price: decimal.NewFromInt(1337), Amount: decimal.NewFromInt(1), ID: 1}},
+		Items{{Price: decimal.NewFromInt(1337), Amount: decimal.NewFromInt(10), ID: 2}}, 0, time.Time{}, false)
+	err := d.DeleteBidAskByID(
+		Items{{Price: decimal.NewFromInt(1337), Amount: decimal.NewFromInt(2), ID: 1}},
+		Items{{Price: decimal.NewFromInt(1337), Amount: decimal.NewFromInt(2), ID: 2}}, false, 0, time.Time{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -163,17 +189,20 @@ func TestDeleteBidAskByID(t *testing.T) {
 		t.Fatal("items not deleted")
 	}
 
-	err = d.DeleteBidAskByID(Items{{Price: 1337, Amount: 2, ID: 1}}, nil, false, 0, time.Time{})
+	err = d.DeleteBidAskByID(
+		Items{{Price: decimal.NewFromInt(1337), Amount: decimal.NewFromInt(2), ID: 1}}, nil, false, 0, time.Time{})
 	if !errors.Is(err, errIDCannotBeMatched) {
 		t.Fatalf("error expected %v received %v", errIDCannotBeMatched, err)
 	}
 
-	err = d.DeleteBidAskByID(nil, Items{{Price: 1337, Amount: 2, ID: 2}}, false, 0, time.Time{})
+	err = d.DeleteBidAskByID(nil,
+		Items{{Price: decimal.NewFromInt(1337), Amount: decimal.NewFromInt(2), ID: 2}}, false, 0, time.Time{})
 	if !errors.Is(err, errIDCannotBeMatched) {
 		t.Fatalf("error expected %v received %v", errIDCannotBeMatched, err)
 	}
 
-	err = d.DeleteBidAskByID(nil, Items{{Price: 1337, Amount: 2, ID: 2}}, true, 0, time.Time{})
+	err = d.DeleteBidAskByID(nil,
+		Items{{Price: decimal.NewFromInt(1337), Amount: decimal.NewFromInt(2), ID: 2}}, true, 0, time.Time{})
 	if !errors.Is(err, nil) {
 		t.Fatalf("error expected %v received %v", nil, err)
 	}
@@ -181,22 +210,29 @@ func TestDeleteBidAskByID(t *testing.T) {
 
 func TestUpdateBidAskByID(t *testing.T) {
 	d := newDepth(id)
-	d.LoadSnapshot(Items{{Price: 1337, Amount: 1, ID: 1}}, Items{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Time{}, false)
-	err := d.UpdateBidAskByID(Items{{Price: 1337, Amount: 2, ID: 1}}, Items{{Price: 1337, Amount: 2, ID: 2}}, 0, time.Time{})
+	d.LoadSnapshot(
+		Items{{Price: decimal.NewFromInt(1337), Amount: decimal.NewFromInt(1), ID: 1}},
+		Items{{Price: decimal.NewFromInt(1337), Amount: decimal.NewFromInt(10), ID: 2}}, 0, time.Time{}, false)
+	err := d.UpdateBidAskByID(
+		Items{{Price: decimal.NewFromInt(1337), Amount: decimal.NewFromInt(2), ID: 1}},
+		Items{{Price: decimal.NewFromInt(1337), Amount: decimal.NewFromInt(2), ID: 2}}, 0, time.Time{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if d.Retrieve().Asks[0].Amount != 2 || d.Retrieve().Bids[0].Amount != 2 {
+	if !d.Retrieve().Asks[0].Amount.Equal(decimal.NewFromInt(2)) ||
+		!d.Retrieve().Bids[0].Amount.Equal(decimal.NewFromInt(2)) {
 		t.Fatal("orderbook amounts not updated correctly")
 	}
 
 	// random unmatching IDs
-	err = d.UpdateBidAskByID(Items{{Price: 1337, Amount: 2, ID: 666}}, nil, 0, time.Time{})
+	err = d.UpdateBidAskByID(
+		Items{{Price: decimal.NewFromInt(1337), Amount: decimal.NewFromInt(2), ID: 666}}, nil, 0, time.Time{})
 	if !errors.Is(err, errIDCannotBeMatched) {
 		t.Fatalf("error expected %v received %v", errIDCannotBeMatched, err)
 	}
 
-	err = d.UpdateBidAskByID(nil, Items{{Price: 1337, Amount: 2, ID: 69}}, 0, time.Time{})
+	err = d.UpdateBidAskByID(nil,
+		Items{{Price: decimal.NewFromInt(1337), Amount: decimal.NewFromInt(2), ID: 69}}, 0, time.Time{})
 	if !errors.Is(err, errIDCannotBeMatched) {
 		t.Fatalf("error expected %v received %v", errIDCannotBeMatched, err)
 	}
@@ -204,8 +240,12 @@ func TestUpdateBidAskByID(t *testing.T) {
 
 func TestInsertBidAskByID(t *testing.T) {
 	d := newDepth(id)
-	d.LoadSnapshot(Items{{Price: 1337, Amount: 1, ID: 1}}, Items{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Time{}, false)
-	err := d.InsertBidAskByID(Items{{Price: 1338, Amount: 2, ID: 3}}, Items{{Price: 1336, Amount: 2, ID: 4}}, 0, time.Time{})
+	d.LoadSnapshot(
+		Items{{Price: decimal.NewFromInt(1337), Amount: decimal.NewFromInt(1), ID: 1}},
+		Items{{Price: decimal.NewFromInt(1337), Amount: decimal.NewFromInt(10), ID: 2}}, 0, time.Time{}, false)
+	err := d.InsertBidAskByID(
+		Items{{Price: decimal.NewFromInt(1338), Amount: decimal.NewFromInt(2), ID: 3}},
+		Items{{Price: decimal.NewFromInt(1336), Amount: decimal.NewFromInt(2), ID: 4}}, 0, time.Time{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -216,19 +256,27 @@ func TestInsertBidAskByID(t *testing.T) {
 
 func TestUpdateInsertByID(t *testing.T) {
 	d := newDepth(id)
-	d.LoadSnapshot(Items{{Price: 1337, Amount: 1, ID: 1}}, Items{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Time{}, false)
+	d.LoadSnapshot(
+		Items{{Price: decimal.NewFromInt(1337), Amount: decimal.NewFromInt(1), ID: 1}},
+		Items{{Price: decimal.NewFromInt(1337), Amount: decimal.NewFromInt(10), ID: 2}}, 0, time.Time{}, false)
 
-	err := d.UpdateInsertByID(Items{{Price: 1338, Amount: 0, ID: 3}}, Items{{Price: 1336, Amount: 2, ID: 4}}, 0, time.Time{})
+	err := d.UpdateInsertByID(
+		Items{{Price: decimal.NewFromInt(1338), Amount: decimal.NewFromInt(0), ID: 3}},
+		Items{{Price: decimal.NewFromInt(1336), Amount: decimal.NewFromInt(2), ID: 4}}, 0, time.Time{})
 	if !errors.Is(err, errAmountCannotBeLessOrEqualToZero) {
 		t.Fatalf("expected: %v but received: %v", errAmountCannotBeLessOrEqualToZero, err)
 	}
 
-	err = d.UpdateInsertByID(Items{{Price: 1338, Amount: 2, ID: 3}}, Items{{Price: 1336, Amount: 0, ID: 4}}, 0, time.Time{})
+	err = d.UpdateInsertByID(
+		Items{{Price: decimal.NewFromInt(1338), Amount: decimal.NewFromInt(2), ID: 3}},
+		Items{{Price: decimal.NewFromInt(1336), Amount: decimal.NewFromInt(0), ID: 4}}, 0, time.Time{})
 	if !errors.Is(err, errAmountCannotBeLessOrEqualToZero) {
 		t.Fatalf("expected: %v but received: %v", errAmountCannotBeLessOrEqualToZero, err)
 	}
 
-	err = d.UpdateInsertByID(Items{{Price: 1338, Amount: 2, ID: 3}}, Items{{Price: 1336, Amount: 2, ID: 4}}, 0, time.Time{})
+	err = d.UpdateInsertByID(
+		Items{{Price: decimal.NewFromInt(1338), Amount: decimal.NewFromInt(2), ID: 3}},
+		Items{{Price: decimal.NewFromInt(1336), Amount: decimal.NewFromInt(2), ID: 4}}, 0, time.Time{})
 	if err != nil {
 		t.Fatal(err)
 	}

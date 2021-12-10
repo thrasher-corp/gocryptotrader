@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -199,20 +200,20 @@ func (s *Service) Retrieve(exchange string, p currency.Pair, a asset.Item) (*Bas
 
 // TotalBidsAmount returns the total amount of bids and the total orderbook
 // bids value
-func (b *Base) TotalBidsAmount() (amountCollated, total float64) {
+func (b *Base) TotalBidsAmount() (amountCollated, total decimal.Decimal) {
 	for x := range b.Bids {
-		amountCollated += b.Bids[x].Amount
-		total += b.Bids[x].Amount * b.Bids[x].Price
+		amountCollated = amountCollated.Add(b.Bids[x].Amount)
+		total = total.Add(b.Bids[x].Amount.Mul(b.Bids[x].Price))
 	}
 	return amountCollated, total
 }
 
 // TotalAsksAmount returns the total amount of asks and the total orderbook
 // asks value
-func (b *Base) TotalAsksAmount() (amountCollated, total float64) {
-	for y := range b.Asks {
-		amountCollated += b.Asks[y].Amount
-		total += b.Asks[y].Amount * b.Asks[y].Price
+func (b *Base) TotalAsksAmount() (amountCollated, total decimal.Decimal) {
+	for x := range b.Asks {
+		amountCollated = amountCollated.Add(b.Asks[x].Amount)
+		total = total.Add(b.Asks[x].Amount.Mul(b.Asks[x].Price))
 	}
 	return amountCollated, total
 }
@@ -257,7 +258,7 @@ type checker func(current Item, previous Item) error
 
 // asc specifically defines ascending price check
 var asc = func(current Item, previous Item) error {
-	if current.Price < previous.Price {
+	if current.Price.LessThan(previous.Price) {
 		return errPriceOutOfOrder
 	}
 	return nil
@@ -265,7 +266,7 @@ var asc = func(current Item, previous Item) error {
 
 // dsc specifically defines descending price check
 var dsc = func(current Item, previous Item) error {
-	if current.Price > previous.Price {
+	if current.Price.GreaterThan(previous.Price) {
 		return errPriceOutOfOrder
 	}
 	return nil
@@ -274,10 +275,10 @@ var dsc = func(current Item, previous Item) error {
 // checkAlignment validates full orderbook
 func checkAlignment(depth Items, fundingRate, priceDuplication, isIDAligned bool, c checker) error {
 	for i := range depth {
-		if depth[i].Price == 0 {
+		if depth[i].Price.Equal(decimal.Zero) {
 			return errPriceNotSet
 		}
-		if depth[i].Amount <= 0 {
+		if depth[i].Amount.LessThanOrEqual(decimal.Zero) {
 			return errAmountInvalid
 		}
 		if fundingRate && depth[i].Period == 0 {

@@ -5,6 +5,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/shopspring/decimal"
 )
 
 func TestPushPop(t *testing.T) {
@@ -70,7 +72,7 @@ func BenchmarkWithoutStack(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		for j := 0; j < 100000; j++ {
 			n = new(Node)
-			n.Value.Price = 1337
+			n.Value.Price = decimal.NewFromInt(1337)
 		}
 	}
 }
@@ -85,7 +87,7 @@ func BenchmarkWithStack(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		for j := 0; j < 100000; j++ {
 			n = stack.Pop()
-			n.Value.Price = 1337
+			n.Value.Price = decimal.NewFromInt(1337)
 			stack.Push(n, tn)
 		}
 	}

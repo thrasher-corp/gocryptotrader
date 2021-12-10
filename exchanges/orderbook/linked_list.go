@@ -3,6 +3,8 @@ package orderbook
 import (
 	"errors"
 	"fmt"
+
+	"github.com/shopspring/decimal"
 )
 
 var errIDCannotBeMatched = errors.New("cannot match ID on linked list")
@@ -18,7 +20,7 @@ type linkedList struct {
 
 // comparison defines expected functionality to compare between two reference
 // price levels
-type comparison func(float64, float64) bool
+type comparison func(decimal.Decimal, decimal.Decimal) bool
 
 // load iterates across new items and refreshes linked list. It creates a linked
 // list exactly the same as the item slice that is supplied, if items is of nil
@@ -78,7 +80,7 @@ updates:
 			if updts[x].ID != tip.Value.ID { // Filter IDs that don't match
 				continue
 			}
-			if updts[x].Price > 0 {
+			if updts[x].Price.GreaterThan(decimal.Zero) {
 				// Only apply changes when zero values are not present, Bitmex
 				// for example sends 0 price values.
 				tip.Value.Price = updts[x].Price
@@ -146,10 +148,10 @@ func (ll *linkedList) cleanup(maxChainLength int, stack *stack) {
 }
 
 // amount returns total depth liquidity and value
-func (ll *linkedList) amount() (liquidity, value float64) {
+func (ll *linkedList) amount() (liquidity, value decimal.Decimal) {
 	for tip := ll.head; tip != nil; tip = tip.Next {
-		liquidity += tip.Value.Amount
-		value += tip.Value.Amount * tip.Value.Price
+		liquidity = liquidity.Add(tip.Value.Amount)
+		value = value.Add(tip.Value.Amount.Mul(tip.Value.Price))
 	}
 	return
 }
@@ -167,7 +169,7 @@ func (ll *linkedList) retrieve() Items {
 
 // updateInsertByPrice amends, inserts, moves and cleaves length of depth by
 // updates
-func (ll *linkedList) updateInsertByPrice(updts Items, stack *stack, maxChainLength int, compare func(float64, float64) bool, tn now) {
+func (ll *linkedList) updateInsertByPrice(updts Items, stack *stack, maxChainLength int, compare func(decimal.Decimal, decimal.Decimal) bool, tn now) {
 	for x := range updts {
 		for tip := &ll.head; ; tip = &(*tip).Next {
 			if *tip == nil {
@@ -175,7 +177,7 @@ func (ll *linkedList) updateInsertByPrice(updts Items, stack *stack, maxChainLen
 				break
 			}
 			if (*tip).Value.Price == updts[x].Price { // Match check
-				if updts[x].Amount <= 0 { // Capture delete update
+				if updts[x].Amount.LessThanOrEqual(decimal.Zero) { // Capture delete update
 					stack.Push(deleteAtTip(ll, tip), tn)
 				} else { // Amend current amount value
 					(*tip).Value.Amount = updts[x].Amount
@@ -188,7 +190,7 @@ func (ll *linkedList) updateInsertByPrice(updts Items, stack *stack, maxChainLen
 				// optimisation for when select exchanges send a delete update
 				// to a non-existent price level (OTC/Hidden order) so we can
 				// break instantly and reduce the traversal of the entire chain.
-				if updts[x].Amount > 0 {
+				if updts[x].Amount.GreaterThan(decimal.Zero) {
 					insertAtTip(ll, tip, updts[x], stack)
 				}
 				break // Continue updates
@@ -197,7 +199,7 @@ func (ll *linkedList) updateInsertByPrice(updts Items, stack *stack, maxChainLen
 			if (*tip).Next == nil { // Tip is at tail
 				// This check below is just a catch all in the event the above
 				// zero value check fails
-				if updts[x].Amount > 0 {
+				if updts[x].Amount.GreaterThan(decimal.Zero) {
 					insertAtTail(ll, tip, updts[x], stack)
 				}
 				break
@@ -220,7 +222,7 @@ func (ll *linkedList) updateInsertByPrice(updts Items, stack *stack, maxChainLen
 func (ll *linkedList) updateInsertByID(updts Items, stack *stack, compare comparison) error {
 updates:
 	for x := range updts {
-		if updts[x].Amount <= 0 {
+		if updts[x].Amount.LessThanOrEqual(decimal.Zero) {
 			return errAmountCannotBeLessOrEqualToZero
 		}
 		// bookmark allows for saving of a position of a node in the event that
@@ -313,7 +315,7 @@ func (ll *linkedList) insertUpdates(updts Items, stack *stack, comp comparison) 
 			}
 
 			if (*tip).Value.Price == updts[x].Price { // Price already found
-				return fmt.Errorf("%w for price %f",
+				return fmt.Errorf("%w for price %s",
 					errCollisionDetected,
 					updts[x].Price)
 			}
@@ -349,8 +351,8 @@ type bids struct {
 }
 
 // bidCompare ensures price is in correct descending alignment (can inline)
-func bidCompare(left, right float64) bool {
-	return left < right
+func bidCompare(left, right decimal.Decimal) bool {
+	return left.LessThan(right)
 }
 
 // updateInsertByPrice amends, inserts, moves and cleaves length of depth by
@@ -376,8 +378,8 @@ type asks struct {
 }
 
 // askCompare ensures price is in correct ascending alignment (can inline)
-func askCompare(left, right float64) bool {
-	return left > right
+func askCompare(left, right decimal.Decimal) bool {
+	return left.GreaterThan(right)
 }
 
 // updateInsertByPrice amends, inserts, moves and cleaves length of depth by

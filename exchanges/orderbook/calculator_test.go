@@ -5,6 +5,7 @@ import (
 	"math"
 	"testing"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 )
 
@@ -13,12 +14,12 @@ func testSetup() Base {
 		Exchange: "a",
 		Pair:     currency.NewPair(currency.BTC, currency.USD),
 		Asks: []Item{
-			{Price: 7000, Amount: 1},
-			{Price: 7001, Amount: 2},
+			{Price: decimal.NewFromInt(7000), Amount: decimal.NewFromInt(1)},
+			{Price: decimal.NewFromInt(7001), Amount: decimal.NewFromInt(2)},
 		},
 		Bids: []Item{
-			{Price: 6999, Amount: 1},
-			{Price: 6998, Amount: 2},
+			{Price: decimal.NewFromInt(6999), Amount: decimal.NewFromInt(1)},
+			{Price: decimal.NewFromInt(6998), Amount: decimal.NewFromInt(2)},
 		},
 	}
 }
@@ -28,29 +29,29 @@ func TestWhaleBomb(t *testing.T) {
 	b := testSetup()
 
 	// invalid price amount
-	_, err := b.WhaleBomb(-1, true)
+	_, err := b.WhaleBomb(decimal.NewFromInt(-1), true)
 	if err == nil {
 		t.Error("unexpected result")
 	}
 
 	// valid
-	_, err = b.WhaleBomb(7001, true)
+	_, err = b.WhaleBomb(decimal.NewFromInt(7001), true)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
 	// invalid
-	_, err = b.WhaleBomb(7002, true)
+	_, err = b.WhaleBomb(decimal.NewFromInt(7002), true)
 	if err == nil {
 		t.Error("unexpected result")
 	}
 
 	// valid
-	_, err = b.WhaleBomb(6998, false)
+	_, err = b.WhaleBomb(decimal.NewFromInt(6998), false)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
 	// invalid
-	_, err = b.WhaleBomb(6997, false)
+	_, err = b.WhaleBomb(decimal.NewFromInt(6997), false)
 	if err == nil {
 		t.Error("unexpected result")
 	}
@@ -59,33 +60,33 @@ func TestWhaleBomb(t *testing.T) {
 func TestSimulateOrder(t *testing.T) {
 	t.Parallel()
 	b := testSetup()
-	b.SimulateOrder(8000, true)
-	b.SimulateOrder(1.5, false)
+	b.SimulateOrder(decimal.NewFromInt(8000), true)
+	b.SimulateOrder(decimal.NewFromFloat(1.5), false)
 }
 
 func TestOrderSummary(t *testing.T) {
 	var o orderSummary
-	if p := o.MaximumPrice(false); p != 0 {
+	if p := o.MaximumPrice(false); !p.Equal(decimal.Zero) {
 		t.Error("unexpected result")
 	}
-	if p := o.MinimumPrice(false); p != 0 {
+	if p := o.MinimumPrice(false); !p.Equal(decimal.Zero) {
 		t.Error("unexpected result")
 	}
 
 	o = orderSummary{
-		{Price: 1337, Amount: 1},
-		{Price: 9001, Amount: 1},
+		{Price: decimal.NewFromInt(1337), Amount: decimal.NewFromInt(1)},
+		{Price: decimal.NewFromInt(9001), Amount: decimal.NewFromInt(1)},
 	}
-	if p := o.MaximumPrice(false); p != 1337 {
+	if p := o.MaximumPrice(false); !p.Equal(decimal.NewFromInt(1337)) {
 		t.Error("unexpected result")
 	}
-	if p := o.MaximumPrice(true); p != 9001 {
+	if p := o.MaximumPrice(true); !p.Equal(decimal.NewFromInt(9001)) {
 		t.Error("unexpected result")
 	}
-	if p := o.MinimumPrice(false); p != 1337 {
+	if p := o.MinimumPrice(false); !p.Equal(decimal.NewFromInt(1337)) {
 		t.Error("unexpected result")
 	}
-	if p := o.MinimumPrice(true); p != 9001 {
+	if p := o.MinimumPrice(true); !p.Equal(decimal.NewFromInt(9001)) {
 		t.Error("unexpected result")
 	}
 
@@ -101,37 +102,37 @@ func TestGetAveragePrice(t *testing.T) {
 	}
 	b.Pair = cp
 	b.Bids = []Item{}
-	_, err = b.GetAveragePrice(false, 5)
+	_, err = b.GetAveragePrice(false, decimal.NewFromInt(5))
 	if errors.Is(errNotEnoughLiquidity, err) {
 		t.Error("expected: %w, received %w", errNotEnoughLiquidity, err)
 	}
 	b = Base{}
 	b.Pair = cp
 	b.Asks = []Item{
-		{Amount: 5, Price: 1},
-		{Amount: 5, Price: 2},
-		{Amount: 5, Price: 3},
-		{Amount: 5, Price: 4},
+		{Amount: decimal.NewFromInt(5), Price: decimal.NewFromInt(1)},
+		{Amount: decimal.NewFromInt(5), Price: decimal.NewFromInt(2)},
+		{Amount: decimal.NewFromInt(5), Price: decimal.NewFromInt(3)},
+		{Amount: decimal.NewFromInt(5), Price: decimal.NewFromInt(4)},
 	}
-	_, err = b.GetAveragePrice(true, -2)
+	_, err = b.GetAveragePrice(true, decimal.NewFromInt(-2))
 	if !errors.Is(err, errAmountInvalid) {
 		t.Errorf("expected: %v, received %v", errAmountInvalid, err)
 	}
-	avgPrice, err := b.GetAveragePrice(true, 15)
+	avgPrice, err := b.GetAveragePrice(true, decimal.NewFromInt(15))
 	if err != nil {
 		t.Error(err)
 	}
-	if avgPrice != 2 {
-		t.Errorf("avg price calculation failed: expected 2, received %f", avgPrice)
+	if !avgPrice.Equal(decimal.NewFromInt(2)) {
+		t.Errorf("avg price calculation failed: expected 2, received %s", avgPrice)
 	}
-	avgPrice, err = b.GetAveragePrice(true, 18)
+	avgPrice, err = b.GetAveragePrice(true, decimal.NewFromInt(18))
 	if err != nil {
 		t.Error(err)
 	}
-	if math.Round(avgPrice*1000)/1000 != 2.333 {
-		t.Errorf("avg price calculation failed: expected 2.333, received %f", math.Round(avgPrice*1000)/1000)
+	if math.Round(avgPrice.InexactFloat64()*1000)/1000 != 2.333 {
+		t.Errorf("avg price calculation failed: expected 2.333, received %f", math.Round(avgPrice.InexactFloat64()*1000)/1000)
 	}
-	_, err = b.GetAveragePrice(true, 25)
+	_, err = b.GetAveragePrice(true, decimal.NewFromInt(25))
 	if !errors.Is(err, errNotEnoughLiquidity) {
 		t.Errorf("expected: %v, received %v", errNotEnoughLiquidity, err)
 	}
@@ -139,18 +140,18 @@ func TestGetAveragePrice(t *testing.T) {
 
 func TestFindNominalAmount(t *testing.T) {
 	b := Items{
-		{Amount: 5, Price: 1},
-		{Amount: 5, Price: 2},
-		{Amount: 5, Price: 3},
-		{Amount: 5, Price: 4},
+		{Amount: decimal.NewFromInt(5), Price: decimal.NewFromInt(1)},
+		{Amount: decimal.NewFromInt(5), Price: decimal.NewFromInt(2)},
+		{Amount: decimal.NewFromInt(5), Price: decimal.NewFromInt(3)},
+		{Amount: decimal.NewFromInt(5), Price: decimal.NewFromInt(4)},
 	}
-	nomAmt, remainingAmt := b.FindNominalAmount(15)
-	if nomAmt != 30 && remainingAmt != 0 {
+	nomAmt, remainingAmt := b.FindNominalAmount(decimal.NewFromInt(15))
+	if !nomAmt.Equal(decimal.NewFromInt(30)) && !remainingAmt.Equal(decimal.Zero) {
 		t.Errorf("invalid return")
 	}
 	b = Items{}
-	nomAmt, remainingAmt = b.FindNominalAmount(15)
-	if nomAmt != 0 && remainingAmt != 30 {
+	nomAmt, remainingAmt = b.FindNominalAmount(decimal.NewFromInt(15))
+	if !nomAmt.Equal(decimal.Zero) && !remainingAmt.Equal(decimal.NewFromInt(30)) {
 		t.Errorf("invalid return")
 	}
 }
