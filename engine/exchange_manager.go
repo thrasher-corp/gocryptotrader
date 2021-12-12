@@ -96,12 +96,16 @@ func (m *ExchangeManager) RemoveExchange(exchName string) error {
 	if m.Len() == 0 {
 		return ErrNoExchangesLoaded
 	}
-	_, err := m.GetExchangeByName(exchName)
+	exch, err := m.GetExchangeByName(exchName)
 	if err != nil {
 		return err
 	}
 	m.m.Lock()
 	defer m.m.Unlock()
+	err = exch.GetBase().Requester.Shutdown()
+	if err != nil {
+		return err
+	}
 	delete(m.exchanges, strings.ToLower(exchName))
 	log.Infof(log.ExchangeSys, "%s exchange unloaded successfully.\n", exchName)
 	return nil

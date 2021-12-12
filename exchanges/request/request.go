@@ -352,3 +352,11 @@ func (r *Requester) GetHTTPClientUserAgent() (string, error) {
 	}
 	return r.userAgent, nil
 }
+
+// Shutdown releases persistent memory for garbage collection.
+func (r *Requester) Shutdown() error {
+	if r == nil {
+		return ErrRequestSystemIsNil
+	}
+	return r._HTTPClient.release()
+}

@@ -45,6 +45,38 @@ func TestCheckAndRegister(t *testing.T) {
 	}
 }
 
+func TestDeRegister(t *testing.T) {
+	t.Parallel()
+	err := tracker.deRegister(nil)
+	if !errors.Is(err, errHTTPClientIsNil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errHTTPClientIsNil)
+	}
+
+	newLovelyClient := new(http.Client)
+	err = tracker.deRegister(newLovelyClient)
+	if !errors.Is(err, errHTTPClientNotFound) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errHTTPClientNotFound)
+	}
+
+	err = tracker.checkAndRegister(newLovelyClient)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if !tracker.contains(newLovelyClient) {
+		t.Fatalf("received: '%v' but expected: '%v'", false, true)
+	}
+
+	err = tracker.deRegister(newLovelyClient)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if tracker.contains(newLovelyClient) {
+		t.Fatalf("received: '%v' but expected: '%v'", true, false)
+	}
+}
+
 func TestNewProtectedClient(t *testing.T) {
 	t.Parallel()
 	if _, err := newProtectedClient(nil); !errors.Is(err, errHTTPClientIsNil) {
@@ -91,5 +123,26 @@ func TestClientSetHTTPClientTimeout(t *testing.T) {
 	err = (&client{protected: common.NewHTTPClientWithTimeout(0)}).setHTTPClientTimeout(time.Second)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+}
+
+func TestRelease(t *testing.T) {
+	t.Parallel()
+	newLovelyClient, err := newProtectedClient(common.NewHTTPClientWithTimeout(0))
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if !tracker.contains(newLovelyClient.protected) {
+		t.Fatalf("received: '%v' but expected: '%v'", false, true)
+	}
+
+	err = newLovelyClient.release()
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if tracker.contains(newLovelyClient.protected) {
+		t.Fatalf("received: '%v' but expected: '%v'", true, false)
 	}
 }
