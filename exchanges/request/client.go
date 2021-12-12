@@ -15,6 +15,7 @@ var (
 	errNoProxyURLSupplied    = errors.New("no proxy URL supplied")
 	errCannotReuseHTTPClient = errors.New("cannot reuse http client")
 	errHTTPClientIsNil       = errors.New("http client is nil")
+	errHTTPClientNotFound    = errors.New("http client not found")
 )
 
 // clientTracker attempts to maintain service/http.Client segregation
@@ -37,6 +38,25 @@ func (c *clientTracker) checkAndRegister(newClient *http.Client) error {
 	}
 	c.clients = append(c.clients, newClient)
 	return nil
+}
+
+// deRegister removes the *http.Client from being tracked
+func (c *clientTracker) deRegister(newClient *http.Client) error {
+	if newClient == nil {
+		return errHTTPClientIsNil
+	}
+	c.Lock()
+	defer c.Unlock()
+	for x := range c.clients {
+		if newClient != c.clients[x] {
+			continue
+		}
+		c.clients[x] = c.clients[len(c.clients)-1]
+		c.clients[len(c.clients)-1] = nil
+		c.clients = c.clients[:len(c.clients)-1]
+		return nil
+	}
+	return errHTTPClientNotFound
 }
 
 // client wraps over a http client for better protection
@@ -99,4 +119,12 @@ func (c *client) do(request *http.Request) (resp *http.Response, err error) {
 	resp, err = c.protected.Do(request)
 	c.m.RUnlock()
 	return
+}
+
+// release de-registers the underlying client
+func (c *client) release() error {
+	c.m.Lock()
+	err := tracker.deRegister(c.protected)
+	c.m.Unlock()
+	return err
 }
