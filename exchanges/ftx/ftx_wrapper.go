@@ -97,27 +97,29 @@ func (f *FTX) SetDefaults() {
 			REST:      true,
 			Websocket: true,
 			RESTCapabilities: protocol.Features{
-				TickerFetching:                     true,
-				TickerBatching:                     true,
-				KlineFetching:                      true,
-				TradeFetching:                      true,
-				OrderbookFetching:                  true,
-				AutoPairUpdates:                    true,
-				AccountInfo:                        true,
-				GetOrder:                           true,
-				GetOrders:                          true,
-				CancelOrders:                       true,
-				CancelOrder:                        true,
-				SubmitOrder:                        true,
-				TradeFee:                           true,
-				FiatDepositFee:                     true,
-				FiatWithdrawalFee:                  true,
-				CryptoWithdrawalFee:                true,
-				CryptoDeposit:                      true,
-				CryptoWithdrawal:                   true,
-				MultiChainDeposits:                 true,
-				MultiChainWithdrawals:              true,
-				RequiresAuthenticationForTradeFees: true,
+				TickerFetching:                        true,
+				TickerBatching:                        true,
+				KlineFetching:                         true,
+				TradeFetching:                         true,
+				OrderbookFetching:                     true,
+				AutoPairUpdates:                       true,
+				AccountInfo:                           true,
+				GetOrder:                              true,
+				GetOrders:                             true,
+				CancelOrders:                          true,
+				CancelOrder:                           true,
+				SubmitOrder:                           true,
+				TradeFee:                              true,
+				FiatDepositFee:                        true,
+				FiatWithdrawalFee:                     true,
+				CryptoWithdrawalFee:                   true,
+				CryptoDeposit:                         true,
+				CryptoWithdrawal:                      true,
+				MultiChainDeposits:                    true,
+				MultiChainWithdrawals:                 true,
+				RequiresAuthenticationForTradeFees:    true,
+				RequiresAuthenticationForTransferFees: true,
+				TransferFeesAreInlined:                true,
 			},
 			WebsocketCapabilities: protocol.Features{
 				OrderbookFetching: true,
@@ -1265,4 +1267,13 @@ func (f *FTX) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
 		return err
 	}
 	return f.Fees.LoadDynamicFeeRate(ai.MakerFee, ai.TakerFee, a, fee.OmitPair)
+}
+
+// UpdateTransferFees updates transfer fees for cryptocurrency withdrawal and
+// deposits for this exchange
+func (f *FTX) UpdateTransferFees(ctx context.Context) error {
+	// NOTE: All transfer fees will need to be done ad-hoc as the API endpoint
+	// will not give you a rate and is required to have an address and amount
+	// to determine correct fee.
+	return common.ErrNotYetImplemented
 }

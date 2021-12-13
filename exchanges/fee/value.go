@@ -9,8 +9,10 @@ import (
 )
 
 var (
+	// ErrCannotCompare defines an error when you cannot compare between
+	// interfaces
+	ErrCannotCompare                   = errors.New("cannot compare")
 	errInvalid                         = errors.New("invalid value")
-	errCannotCompare                   = errors.New("cannot compare")
 	errBlockchainEmpty                 = errors.New("blockchain string is empty")
 	errAmountIsLessThanMinimumRequired = errors.New("amount is less than minimum required")
 )
@@ -66,7 +68,7 @@ func (s Standard) Validate() error {
 func (s Standard) LessThan(val Value) (bool, error) {
 	other, ok := val.(Standard)
 	if !ok {
-		return false, fmt.Errorf("%w a non standard value %t", errCannotCompare, val)
+		return false, fmt.Errorf("%w a non standard value %t", ErrCannotCompare, val)
 	}
 	return s.GreaterThan(decimal.Zero) &&
 		other.GreaterThan(decimal.Zero) &&
@@ -124,7 +126,7 @@ func (s Switch) Validate() error {
 // LessThan determines if the current fee is less than another. Most of the time
 // this is not needed.
 func (s Switch) LessThan(_ Value) (bool, error) {
-	return false, errCannotCompare
+	return false, ErrCannotCompare
 }
 
 // ConvertBlockchain is a placeholder for blockchain specific fees
@@ -160,7 +162,7 @@ func (b Blockchain) Validate() error {
 // LessThan determines if the current fee is less than another. Most of the time
 // this is not needed.
 func (b Blockchain) LessThan(_ Value) (bool, error) {
-	return false, errCannotCompare
+	return false, ErrCannotCompare
 }
 
 // ConvertWithMaxAndMin returns a fee value with maximum and minimum fees
@@ -217,7 +219,7 @@ func (m MinMax) Validate() error {
 // LessThan determines if the current fee is less than another. Most of the time
 // this is not needed.
 func (m MinMax) LessThan(_ Value) (bool, error) {
-	return false, errCannotCompare
+	return false, ErrCannotCompare
 }
 
 // ConvertWithMinimumAmount returns a value with a minimum amount required
@@ -266,5 +268,5 @@ func (m WithMinimumAmount) Validate() error {
 // LessThan determines if the current fee is less than another. Most of the time
 // this is not needed.
 func (m WithMinimumAmount) LessThan(_ Value) (bool, error) {
-	return false, errCannotCompare
+	return false, ErrCannotCompare
 }

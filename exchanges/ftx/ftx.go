@@ -55,6 +55,7 @@ const (
 	getDepositHistory        = "/wallet/deposits"
 	getWithdrawalHistory     = "/wallet/withdrawals"
 	withdrawRequest          = "/wallet/withdrawals"
+	withdrawalFee            = "/wallet/withdrawal_fee"
 	getOpenOrders            = "/orders"
 	getOrderHistory          = "/orders/history"
 	getOpenTriggerOrders     = "/conditional_orders"
@@ -139,6 +140,7 @@ var (
 	errSubaccountTransferSourceDestinationMustNotBeEqual = errors.New("subaccount transfer source and destination must not be the same value")
 	errUnrecognisedOrderStatus                           = errors.New("unrecognised order status received")
 	errInvalidOrderAmounts                               = errors.New("filled amount should not exceed order amount")
+	errCoinAddressSizeNotSet                             = errors.New("coin, address and size must be specified")
 
 	validResolutionData = []int64{15, 60, 300, 900, 3600, 14400, 86400}
 )
@@ -557,7 +559,7 @@ func (f *FTX) FetchWithdrawalHistory(ctx context.Context) ([]WithdrawItem, error
 // Withdraw sends a withdrawal request
 func (f *FTX) Withdraw(ctx context.Context, coin currency.Code, address, tag, password, chain, code string, size float64) (*WithdrawItem, error) {
 	if coin.IsEmpty() || address == "" || size == 0 {
-		return nil, errors.New("coin, address and size must be specified")
+		return nil, errCoinAddressSizeNotSet
 	}
 
 	req := make(map[string]interface{})
@@ -580,6 +582,28 @@ func (f *FTX) Withdraw(ctx context.Context, coin currency.Code, address, tag, pa
 		Data WithdrawItem `json:"result"`
 	}{}
 	return &resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, withdrawRequest, req, &resp)
+}
+
+// GetWithdrawalFee gets the potential fee for the withdraw.
+func (f *FTX) GetWithdrawalFee(ctx context.Context, coin currency.Code, size float64, address, tag string) (WithdrawalFee, error) {
+	if coin.IsEmpty() || address == "" || size == 0 {
+		return WithdrawalFee{}, errCoinAddressSizeNotSet
+	}
+
+	vals := url.Values{}
+	vals.Set("coin", coin.Upper().String())
+	vals.Set("size", strconv.FormatFloat(size, 'f', -1, 64))
+	vals.Set("address", address)
+
+	if tag != "" {
+		vals.Set("tag", tag)
+	}
+
+	path := common.EncodeURLValues(withdrawalFee, vals)
+	resp := struct {
+		Data WithdrawalFee `json:"result"`
+	}{}
+	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp)
 }
 
 // GetOpenOrders gets open orders

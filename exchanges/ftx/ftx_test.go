@@ -1681,3 +1681,21 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 			err)
 	}
 }
+
+func TestGetWithdrawalFee(t *testing.T) {
+	t.Parallel()
+	_, err := f.GetWithdrawalFee(context.Background(),
+		currency.ETH,
+		1,
+		"", "")
+	if !errors.Is(err, errCoinAddressSizeNotSet) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errCoinAddressSizeNotSet)
+	}
+	_, err = f.GetWithdrawalFee(context.Background(),
+		currency.ETH,
+		10,
+		"", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+}

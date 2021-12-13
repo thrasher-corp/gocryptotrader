@@ -7,6 +7,7 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 )
 
 func TestWithdrawGetFees(t *testing.T) {
@@ -74,7 +75,7 @@ func TestWithdrawDisplay(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var newVal Withdrawal
+	var newVal TransferWithdrawalFee
 	err = json.Unmarshal([]byte(out), &newVal)
 	if err != nil {
 		t.Fatal(err)
@@ -112,8 +113,8 @@ func TestWithdrawValidate(t *testing.T) {
 
 func TestWithdrawLessThan(t *testing.T) {
 	_, err := getDeposit(currency.Code{}).LessThan(nil)
-	if !errors.Is(err, errCannotCompare) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errCannotCompare)
+	if !errors.Is(err, fee.ErrCannotCompare) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, fee.ErrCannotCompare)
 	}
 }
 
@@ -164,7 +165,7 @@ func TestDepositDisplay(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var newVal Deposit
+	var newVal TransferDepositFee
 	err = json.Unmarshal([]byte(out), &newVal)
 	if err != nil {
 		t.Fatal(err)
@@ -191,7 +192,7 @@ func TestDepositValidate(t *testing.T) {
 
 func TestDepositLessThan(t *testing.T) {
 	_, err := getDeposit(currency.Code{}).LessThan(nil)
-	if !errors.Is(err, errCannotCompare) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errCannotCompare)
+	if !errors.Is(err, fee.ErrCannotCompare) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, fee.ErrCannotCompare)
 	}
 }

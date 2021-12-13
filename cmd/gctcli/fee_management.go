@@ -51,9 +51,8 @@ var exchangeFeeManagementCommand = &cli.Command{
 							Usage: "the taker fee",
 						},
 						&cli.BoolFlag{
-							Name:   "fixedamount",
-							Usage:  "if the fees are a fixed amount or a percentage",
-							Hidden: true,
+							Name:  "fixedamount",
+							Usage: "if the fees are a fixed amount or a percentage",
 						},
 					},
 					Action: setCommissionFees,
@@ -84,9 +83,8 @@ var exchangeFeeManagementCommand = &cli.Command{
 							Usage: "the deposit fee",
 						},
 						&cli.BoolFlag{
-							Name:   "percentage",
-							Usage:  "if the fees are a fixed amount or a percentage",
-							Hidden: true,
+							Name:  "percentage",
+							Usage: "if the fees are a fixed amount or a percentage",
 						},
 					},
 					Action: setTransferFees,
@@ -94,7 +92,7 @@ var exchangeFeeManagementCommand = &cli.Command{
 				{
 					Name:      "banktransfer",
 					Usage:     "sets new withdrawal and deposit values for an exchange bank transfer",
-					ArgsUsage: "<exchange> <currency> <banktype> <withdraw> <deposit> <setvalue>",
+					ArgsUsage: "<exchange> <currency> <banktype> <withdraw> <deposit> <percentage>",
 					Flags: []cli.Flag{
 						&cli.StringFlag{
 							Name:  "exchange",
@@ -106,7 +104,7 @@ var exchangeFeeManagementCommand = &cli.Command{
 						},
 						&cli.IntFlag{
 							Name:  "banktype",
-							Usage: "banking type refer too bank.Transfer type",
+							Usage: "banking type refer to bank.Transfer type",
 						},
 						&cli.Float64Flag{
 							Name:  "withdraw",
@@ -117,10 +115,8 @@ var exchangeFeeManagementCommand = &cli.Command{
 							Usage: "the deposit fee",
 						},
 						&cli.BoolFlag{
-							Name:   "setvalue",
-							Usage:  "if the fees are a fixed amount or a percentage",
-							Value:  true,
-							Hidden: true,
+							Name:  "percentage",
+							Usage: "if the fees are a fixed amount or a percentage",
 						},
 					},
 					Action: setBankTransferFees,
@@ -204,11 +200,13 @@ func setCommissionFees(c *cli.Context) error {
 	if c.IsSet("fixedamount") {
 		fixedAmount = c.Bool("fixedamount")
 	} else {
-		b, err := strconv.ParseBool(c.Args().Get(4))
-		if err != nil {
-			return err
+		var err error
+		if c.Args().Get(4) != "" {
+			fixedAmount, err = strconv.ParseBool(c.Args().Get(4))
+			if err != nil {
+				return err
+			}
 		}
-		fixedAmount = b
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -286,11 +284,13 @@ func setTransferFees(c *cli.Context) error {
 	if c.IsSet("percentage") {
 		percentage = c.Bool("percentage")
 	} else {
-		b, err := strconv.ParseBool(c.Args().Get(5))
-		if err != nil {
-			return err
+		var err error
+		if c.Args().Get(5) != "" {
+			percentage, err = strconv.ParseBool(c.Args().Get(5))
+			if err != nil {
+				return err
+			}
 		}
-		percentage = b
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -370,14 +370,16 @@ func setBankTransferFees(c *cli.Context) error {
 	}
 
 	var percentage bool
-	if c.IsSet("setvalue") {
+	if c.IsSet("percentage") {
 		percentage = c.Bool("percentage")
 	} else {
-		b, err := strconv.ParseBool(c.Args().Get(5))
-		if err != nil {
-			return err
+		var err error
+		if c.Args().Get(5) != "" {
+			percentage, err = strconv.ParseBool(c.Args().Get(5))
+			if err != nil {
+				return err
+			}
 		}
-		percentage = b
 	}
 
 	conn, cancel, err := setupClient(c)

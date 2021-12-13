@@ -1480,3 +1480,8 @@ func (b *Base) IsRESTAuthenticationRequiredForTradeFees() bool {
 func (b *Base) IsRESTAuthenticationRequiredForTransferFees() bool {
 	return b.Features.Supports.RESTCapabilities.RequiresAuthenticationForTransferFees
 }
+
+// IsTransferFeesInlined returns if fetching transfer fees is inlined
+func (b *Base) IsTransferFeesInlined() bool {
+	return b.Features.Supports.RESTCapabilities.TransferFeesAreInlined
+}

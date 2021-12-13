@@ -118,6 +118,7 @@ type FeeManagement interface {
 
 	IsRESTAuthenticationRequiredForTradeFees() bool
 	IsRESTAuthenticationRequiredForTransferFees() bool
+	IsTransferFeesInlined() bool
 }
 
 // CurrencyStateManagement defines functionality for currency state management

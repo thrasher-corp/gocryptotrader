@@ -4191,7 +4191,7 @@ func (s *RPCServer) SetCommission(_ context.Context, r *gctrpc.SetCommissionRequ
 	return &gctrpc.GenericResponse{Status: MsgStatusSuccess}, nil
 }
 
-// GetAllFees returns the full fee definitions for an exchange
+// SetTransferFee sets transfer fees for an asset
 func (s *RPCServer) SetTransferFee(_ context.Context, r *gctrpc.SetTransferFeeRequest) (*gctrpc.GenericResponse, error) {
 	exch, err := s.GetExchangeByName(r.Exchange)
 	if err != nil {

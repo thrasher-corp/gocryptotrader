@@ -303,6 +303,14 @@ type WithdrawItem struct {
 	DestinationName string    `json:"destinationName"`
 }
 
+// WithdrawalFee defines withdrawal fees
+type WithdrawalFee struct {
+	Method    string  `json:"method"`
+	Address   string  `json:"address"`
+	Fee       float64 `json:"fee"`
+	Congested bool    `json:"congested"`
+}
+
 // OrderData stores open order data
 type OrderData struct {
 	CreatedAt     time.Time `json:"createdAt"`

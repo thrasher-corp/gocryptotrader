@@ -22,7 +22,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 ### Current Features
 
-+ Exchange fee definitions to provide individual accessibility to exchange scoped fee structure inlcuding:
++ Exchange fee definitions to provide individual accessibility to exchange scoped fee structure including:
     - Commission rates which include maker and taker.
     - Exchange deposit and withdrawal transfer fees to and from blockchains.
     - Exchange deposit and withdrawal banking transfer fees. 

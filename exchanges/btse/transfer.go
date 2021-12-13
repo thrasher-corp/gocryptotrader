@@ -13,7 +13,6 @@ import (
 var (
 	errBelowMinimumAmount    = errors.New("amount is less than minimum amount")
 	errCurrencyCodeIsEmpty   = errors.New("currency code is empty")
-	errCannotCompare         = errors.New("cannot compare")
 	errInvalidMinimumInUSD   = errors.New("invalid minimum in USD")
 	errInvalidPercentageRate = errors.New("invalid percentage rate")
 	errInvalidMinimumCharge  = errors.New("invalid minimum charge")
@@ -114,7 +113,7 @@ var bankTransferFees = []fee.Transfer{
 }
 
 func getWithdrawal(c currency.Code, percentageRate, minimumCharge decimal.Decimal, usdValuedMinCharge bool) fee.Value {
-	return &Withdrawal{
+	return &TransferWithdrawalFee{
 		Code:              c,
 		MinimumInUSD:      minimumAmountInUSD, // $100 USD value.
 		PercentageRate:    percentageRate,     // 0.1% fee
@@ -123,9 +122,10 @@ func getWithdrawal(c currency.Code, percentageRate, minimumCharge decimal.Decima
 	}
 }
 
-// Withdrawal defines a value structure that implements the fee.Value interface.
-// Can have minimum charge in USD terms.
-type Withdrawal struct {
+// TransferWithdrawalFee defines a data structure that implements the fee.Value
+// interface. This overrides the default implementation so it can have minimum
+// charge in USD terms and use foreign exchange rates.
+type TransferWithdrawalFee struct {
 	Code              currency.Code   `json:"code"`
 	MinimumInUSD      decimal.Decimal `json:"minimumInUSD"`
 	PercentageRate    decimal.Decimal `json:"percentageRate"`
@@ -134,135 +134,130 @@ type Withdrawal struct {
 }
 
 // GetFee returns the fee based off the amount requested
-func (w Withdrawal) GetFee(amount float64) (decimal.Decimal, error) {
+func (t TransferWithdrawalFee) GetFee(amount float64) (decimal.Decimal, error) {
 	amt := decimal.NewFromFloat(amount)
-	potentialFee := amt.Mul(w.PercentageRate)
-	if w.Code.Item == currency.USD.Item {
-		if amt.LessThan(w.MinimumInUSD) {
+	potentialFee := amt.Mul(t.PercentageRate)
+	if t.Code.Item == currency.USD.Item {
+		if amt.LessThan(t.MinimumInUSD) {
 			return decimal.Zero, errBelowMinimumAmount
 		}
-		if potentialFee.LessThanOrEqual(w.MinimumCharge) {
-			return w.MinimumCharge, nil
+		if potentialFee.LessThanOrEqual(t.MinimumCharge) {
+			return t.MinimumCharge, nil
 		}
 		return potentialFee, nil
 	}
 	// attempt to attain correct foreign exchange value compared to USD
-	fxRate, err := currency.ConvertCurrency(1, w.Code, currency.USD)
+	fxRate, err := currency.ConvertCurrency(1, t.Code, currency.USD)
 	if err != nil {
 		return decimal.Zero, err
 	}
 
 	fxRateDec := decimal.NewFromFloat(fxRate)
 	valueInUSD := amt.Mul(fxRateDec)
-	if valueInUSD.LessThan(w.MinimumInUSD) {
+	if valueInUSD.LessThan(t.MinimumInUSD) {
 		return decimal.Zero, errBelowMinimumAmount
 	}
 
-	if w.USDValueMinCharge {
+	if t.USDValueMinCharge {
 		// In the event the min amount is a USD amount and you need to convert
 		// the 25 USD amount to another currency ie EUR :. 25 USD =~= 21.53 EUR
 		feeInUSD := valueInUSD.Mul(potentialFee)
-		if feeInUSD.LessThanOrEqual(w.MinimumCharge) {
+		if feeInUSD.LessThanOrEqual(t.MinimumCharge) {
 			// Return the minimum charge in the current currency
 			invRate := decimal.NewFromFloat(1 / fxRate) // Gets inverse
-			return w.MinimumCharge.Mul(invRate), nil
+			return t.MinimumCharge.Mul(invRate), nil
 		}
-	} else if potentialFee.LessThanOrEqual(w.MinimumCharge) {
+	} else if potentialFee.LessThanOrEqual(t.MinimumCharge) {
 		// Return the minimum charge in the current currency
-		return w.MinimumCharge, nil
+		return t.MinimumCharge, nil
 	}
 	return potentialFee, nil
 }
 
 // Display displays current working internal data for use in RPC outputs
-func (w Withdrawal) Display() (string, error) {
-	data, err := json.Marshal(w)
-	if err != nil {
-		return "", err
-	}
-	return string(data), nil
+func (t TransferWithdrawalFee) Display() (string, error) {
+	data, err := json.Marshal(t)
+	return string(data), err
 }
 
 // Validate validates current values
-func (w *Withdrawal) Validate() error {
-	if w.Code.IsEmpty() {
+func (t *TransferWithdrawalFee) Validate() error {
+	if t.Code.IsEmpty() {
 		return errCurrencyCodeIsEmpty
 	}
-	if w.MinimumInUSD.LessThanOrEqual(decimal.Zero) {
+	if t.MinimumInUSD.LessThanOrEqual(decimal.Zero) {
 		return errInvalidMinimumInUSD
 	}
-	if w.PercentageRate.LessThanOrEqual(decimal.Zero) {
+	if t.PercentageRate.LessThanOrEqual(decimal.Zero) {
 		return errInvalidPercentageRate
 	}
-	if w.MinimumCharge.LessThanOrEqual(decimal.Zero) {
+	if t.MinimumCharge.LessThanOrEqual(decimal.Zero) {
 		return errInvalidMinimumCharge
 	}
 	return nil
 }
 
 // LessThan implements value interface, not needed.
-func (w *Withdrawal) LessThan(_ fee.Value) (bool, error) {
-	return false, errors.New("cannot compare")
+func (t *TransferWithdrawalFee) LessThan(_ fee.Value) (bool, error) {
+	return false, fee.ErrCannotCompare
 }
 
 func getDeposit(c currency.Code) fee.Value {
-	return &Deposit{
+	return &TransferDepositFee{
 		Code:             c,
 		MinimumAmountUSD: minimumAmountInUSD,
 		Fee:              minimumDepositCharge,
 	}
 }
 
-// Deposit defines a fee of $3 USD which will be applied to single deposits of
-// less than $100 USD or its equivalent.
-type Deposit struct {
+// TransferDepositFee defines a data structure that implements the fee.Value
+// interface. This overrides the default implementation so it can have minimum
+// charge in USD terms and use foreign exchange rates.
+type TransferDepositFee struct {
 	Code             currency.Code   `json:"code"`
 	MinimumAmountUSD decimal.Decimal `json:"minimumAmountUSD"`
 	Fee              decimal.Decimal `json:"fee"`
 }
 
 // GetFee returns the fee based off the amount requested
-func (d Deposit) GetFee(amount float64) (decimal.Decimal, error) {
+func (t TransferDepositFee) GetFee(amount float64) (decimal.Decimal, error) {
 	amt := decimal.NewFromFloat(amount)
-	if d.Code.Item == currency.USD.Item {
-		if amt.LessThan(d.MinimumAmountUSD) {
-			return d.Fee, nil
+	if t.Code.Item == currency.USD.Item {
+		if amt.LessThan(t.MinimumAmountUSD) {
+			return t.Fee, nil
 		}
 		return decimal.Zero, nil
 	}
 	// attempt to attain correct foreign exchange value compared to USD
-	fxRate, err := currency.ConvertCurrency(1, d.Code, currency.USD)
+	fxRate, err := currency.ConvertCurrency(1, t.Code, currency.USD)
 	if err != nil {
 		return decimal.Zero, err
 	}
 
 	fxRateDec := decimal.NewFromFloat(fxRate)
 	valueInUSD := amt.Mul(fxRateDec)
-	if valueInUSD.LessThan(d.MinimumAmountUSD) {
+	if valueInUSD.LessThan(t.MinimumAmountUSD) {
 		invRate := decimal.NewFromFloat(1 / fxRate) // Gets inverse
-		return d.Fee.Mul(invRate), nil
+		return t.Fee.Mul(invRate), nil
 	}
 	return decimal.Zero, nil
 }
 
 // Display displays current working internal data for use in RPC outputs
-func (d Deposit) Display() (string, error) {
-	data, err := json.Marshal(d)
-	if err != nil {
-		return "", err
-	}
-	return string(data), nil
+func (t TransferDepositFee) Display() (string, error) {
+	data, err := json.Marshal(t)
+	return string(data), err
 }
 
 // Validate validates current values
-func (d *Deposit) Validate() error {
-	if d.Code.IsEmpty() {
+func (t *TransferDepositFee) Validate() error {
+	if t.Code.IsEmpty() {
 		return errCurrencyCodeIsEmpty
 	}
 	return nil
 }
 
 // LessThan implements value interface, not needed.
-func (d *Deposit) LessThan(_ fee.Value) (bool, error) {
-	return false, errCannotCompare
+func (t *TransferDepositFee) LessThan(_ fee.Value) (bool, error) {
+	return false, fee.ErrCannotCompare
 }

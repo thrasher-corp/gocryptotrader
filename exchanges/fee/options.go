@@ -19,6 +19,9 @@ type Options struct {
 	// ChainTransfer defines deposit and withdrawal fees between cryptocurrency
 	// wallets and exchanges. These will commonly be fixed values.
 	ChainTransfer []Transfer
+	// ChainTranfersInlined defines if transfer rates cannot be
+	// pre-loaded/stored and must be called ad-hoc.
+	ChainTranfersInlined bool
 	// BankTransfer defines a map of currencies with differing withdrawal and
 	// deposit fee definitions for banking. These will commonly be fixed real
 	// values.

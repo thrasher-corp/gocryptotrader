@@ -34,8 +34,8 @@ func TestValueConvert(t *testing.T) {
 	}
 
 	_, err = val.LessThan(&getFeeError{})
-	if !errors.Is(err, errCannotCompare) {
-		t.Fatalf("received: %v but expected: %v", err, errCannotCompare)
+	if !errors.Is(err, ErrCannotCompare) {
+		t.Fatalf("received: %v but expected: %v", err, ErrCannotCompare)
 	}
 }
 
@@ -93,8 +93,8 @@ func TestValueConvertWithAmount(t *testing.T) {
 	}
 
 	_, err = val.LessThan(&getFeeError{})
-	if !errors.Is(err, errCannotCompare) {
-		t.Fatalf("received: %v but expected: %v", err, errCannotCompare)
+	if !errors.Is(err, ErrCannotCompare) {
+		t.Fatalf("received: %v but expected: %v", err, ErrCannotCompare)
 	}
 }
 
@@ -121,8 +121,8 @@ func TestValueConvertBlockchain(t *testing.T) {
 	}
 
 	_, err = val.LessThan(&getFeeError{})
-	if !errors.Is(err, errCannotCompare) {
-		t.Fatalf("received: %v but expected: %v", err, errCannotCompare)
+	if !errors.Is(err, ErrCannotCompare) {
+		t.Fatalf("received: %v but expected: %v", err, ErrCannotCompare)
 	}
 
 	val = ConvertBlockchain("")
@@ -177,8 +177,8 @@ func TestValueConvertWithMaxAndMin(t *testing.T) {
 	}
 
 	_, err = val.LessThan(&getFeeError{})
-	if !errors.Is(err, errCannotCompare) {
-		t.Fatalf("received: %v but expected: %v", err, errCannotCompare)
+	if !errors.Is(err, ErrCannotCompare) {
+		t.Fatalf("received: %v but expected: %v", err, ErrCannotCompare)
 	}
 
 	val = ConvertWithMaxAndMin(-1, 100, 20)
@@ -232,8 +232,8 @@ func TestValueConvertConvertWithMinimumAmount(t *testing.T) {
 	}
 
 	_, err = val.LessThan(&getFeeError{})
-	if !errors.Is(err, errCannotCompare) {
-		t.Fatalf("received: %v but expected: %v", err, errCannotCompare)
+	if !errors.Is(err, ErrCannotCompare) {
+		t.Fatalf("received: %v but expected: %v", err, ErrCannotCompare)
 	}
 
 	val = ConvertWithMinimumAmount(-1, 5)
