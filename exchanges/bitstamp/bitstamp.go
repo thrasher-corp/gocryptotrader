@@ -230,6 +230,8 @@ func (b *Bitstamp) GetBalance(ctx context.Context) (Balances, error) {
 	return balances, nil
 }
 
+// stableTranslation holds the current common stable coin translations for a
+// fiat currency
 var stableTranslation = map[*currency.Item][]currency.Code{
 	currency.USD.Item: {currency.USDT.Lower(), currency.USDC.Lower()},
 	currency.EUR.Item: {currency.EURT.Lower()},

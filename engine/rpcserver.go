@@ -4210,10 +4210,17 @@ func (s *RPCServer) SetTransferFee(_ context.Context, r *gctrpc.SetTransferFeeRe
 
 // GetAllFees returns the full fee definitions for an exchange
 func (s *RPCServer) SetBankTransferFee(_ context.Context, r *gctrpc.SetBankTransferFeeRequest) (*gctrpc.GenericResponse, error) {
+	bankType := bank.Transfer(r.BankType)
+	err := bankType.Validate()
+	if err != nil {
+		return nil, err
+	}
+
 	exch, err := s.GetExchangeByName(r.Exchange)
 	if err != nil {
 		return nil, err
 	}
+
 	err = exch.SetBankTransferFee(currency.NewCode(r.Currency),
 		bank.Transfer(r.BankType),
 		r.Withdraw,
