@@ -9,6 +9,7 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // SetupPositionController creates a futures order tracker for a specific exchange
@@ -89,24 +90,11 @@ func (e *PositionController) TrackNewOrder(d *Detail) error {
 	return nil
 }
 
-func (e *PositionController) CalculateLatestPNL(pnlCalculator *PNLCalculator) (*PNLResult, error) {
-	if len(e.positions) == 0 {
-		return nil, errNoPositions
-	}
-	latest := e.positions[len(e.positions)-1]
-	pnlCalculator.CalculateOffline = e.offlinePNLCalculation
-	pnlCalculator.Amount = latest.exposure.InexactFloat64()
-	return latest.pnlCalculation.CalculatePNL(pnlCalculator)
-}
-
 // SetupPositionTracker creates a new position tracker to track n futures orders
 // until the position(s) are closed
 func (e *PositionController) SetupPositionTracker(item asset.Item, pair currency.Pair, underlying currency.Code) (*PositionTracker, error) {
 	if e.exchange == "" {
 		return nil, errExchangeNameEmpty
-	}
-	if e.pnlCalculation == nil {
-		return nil, errMissingPNLCalculationFunctions
 	}
 	if !item.IsValid() || !item.IsFutures() {
 		return nil, errNotFutureAsset
@@ -115,48 +103,76 @@ func (e *PositionController) SetupPositionTracker(item asset.Item, pair currency
 		return nil, ErrPairIsEmpty
 	}
 
-	return &PositionTracker{
-		exchange:              strings.ToLower(e.exchange),
-		asset:                 item,
-		contractPair:          pair,
-		underlyingAsset:       underlying,
-		status:                Open,
-		pnlCalculation:        e.pnlCalculation,
-		offlinePNLCalculation: e.offlinePNLCalculation,
-	}, nil
+	resp := &PositionTracker{
+		exchange:        strings.ToLower(e.exchange),
+		asset:           item,
+		contractPair:    pair,
+		underlyingAsset: underlying,
+		status:          Open,
+		pnlCalculation:  e.pnlCalculation,
+	}
+	if e.pnlCalculation == nil {
+		log.Warnf(log.OrderMgr, "no pnl calculation functions supplied for %v %v %v, using default calculations", e.exchange, e.asset, e.pair)
+		e.pnlCalculation = resp
+	}
+	return resp, nil
 }
 
-// TrackPNL calculates the PNL based on a position tracker's exposure
+// CalculatePNL this is a localised generic way of calculating open
+// positions' worth
+func (p *PositionTracker) CalculatePNL(calc *PNLCalculator) (*PNLResult, error) {
+	result := &PNLResult{}
+	var amount, price decimal.Decimal
+	if calc.OrderBasedCalculation != nil {
+		result.Time = calc.OrderBasedCalculation.Date
+		amount = decimal.NewFromFloat(calc.OrderBasedCalculation.Amount)
+		price = decimal.NewFromFloat(calc.OrderBasedCalculation.Price)
+		if (p.currentDirection == Long && calc.OrderBasedCalculation.Side.IsShort()) ||
+			(p.currentDirection == Short && calc.OrderBasedCalculation.Side.IsLong()) {
+			currPos := p.exposure.Mul(price)
+			result.UnrealisedPNL = currPos.Sub(price.Mul(amount))
+
+		} else if (p.currentDirection == Long && calc.OrderBasedCalculation.Side.IsLong()) ||
+			(p.currentDirection == Short && calc.OrderBasedCalculation.Side.IsShort()) {
+			currPos := p.exposure.Mul(price)
+			result.UnrealisedPNL = currPos.Add(price.Mul(amount))
+		}
+		return result, nil
+	} else if calc.TimeBasedCalculation != nil {
+		price = decimal.NewFromFloat(calc.TimeBasedCalculation.CurrentPrice)
+		result.UnrealisedPNL = p.exposure.Mul(price)
+		return result, nil
+	}
+
+	return nil, errMissingPNLCalculationFunctions
+}
+
+// TrackPNLByTime calculates the PNL based on a position tracker's exposure
 // and current pricing. Adds the entry to PNL history to track over time
-func (p *PositionTracker) TrackPNL(t time.Time, markPrice, prevMarkPrice decimal.Decimal) error {
+func (p *PositionTracker) TrackPNLByTime(t time.Time, currentPrice float64) error {
+	defer func() {
+		p.latestPrice = decimal.NewFromFloat(currentPrice)
+	}()
 	pnl, err := p.pnlCalculation.CalculatePNL(&PNLCalculator{
-		CalculateOffline: p.offlinePNLCalculation,
-		Amount:           p.exposure.InexactFloat64(),
-		MarkPrice:        markPrice.InexactFloat64(),
-		PrevMarkPrice:    prevMarkPrice.InexactFloat64(),
+		TimeBasedCalculation: &TimeBasedCalculation{
+			currentPrice,
+		},
 	})
 	if err != nil {
 		return err
 	}
-	return p.UpsertPNLEntry(PNLHistory{
+	return p.UpsertPNLEntry(PNLResult{
 		Time:          t,
 		UnrealisedPNL: pnl.UnrealisedPNL,
+		RealisedPNL:   pnl.RealisedPNL,
 	})
 }
 
-func (p *PositionTracker) CalculateClosedPositionPNL() (decimal.Decimal, error) {
+func (p *PositionTracker) GetRealisedPNL() (decimal.Decimal, error) {
 	if p.status != Closed {
-		return decimal.Zero, errors.New("not closed")
+		return decimal.Zero, errors.New("position not closed")
 	}
-
-	var shortStanding, longStanding decimal.Decimal
-	for i := range p.shortPositions {
-		shortStanding = shortStanding.Add(decimal.NewFromFloat(p.shortPositions[i].Amount).Mul(decimal.NewFromFloat(p.shortPositions[i].Price)))
-	}
-	for i := range p.longPositions {
-		longStanding = longStanding.Add(decimal.NewFromFloat(p.longPositions[i].Amount).Mul(decimal.NewFromFloat(p.longPositions[i].Price)))
-	}
-	return longStanding.Sub(shortStanding).Abs(), nil
+	return p.realisedPNL, nil
 }
 
 // TrackNewOrder knows how things are going for a given
@@ -231,21 +247,27 @@ func (p *PositionTracker) TrackNewOrder(d *Detail) error {
 	default:
 		p.currentDirection = UnknownSide
 	}
+
+	result, err := p.CalculatePNL(&PNLCalculator{OrderBasedCalculation: d})
+	if err != nil {
+		return err
+	}
+	err = p.UpsertPNLEntry(*result)
+	if err != nil {
+		return err
+	}
+
 	if p.currentDirection.IsLong() {
 		p.exposure = longSide.Sub(shortSide)
 	} else {
 		p.exposure = shortSide.Sub(longSide)
 	}
 	if p.exposure.Equal(decimal.Zero) {
-		// the order is closed
 		p.status = Closed
 		p.closingPrice = decimal.NewFromFloat(d.Price)
 		p.realisedPNL = p.unrealisedPNL
 		p.unrealisedPNL = decimal.Zero
-		return nil
-	}
-	if p.exposure.IsNegative() {
-		// tracking here has changed!
+	} else if p.exposure.IsNegative() {
 		if p.currentDirection.IsLong() {
 			p.currentDirection = Short
 		} else {
@@ -262,7 +284,7 @@ func (p *PositionTracker) TrackPrice(price decimal.Decimal) decimal.Decimal {
 
 // UpsertPNLEntry upserts an entry to PNLHistory field
 // with some basic checks
-func (p *PositionTracker) UpsertPNLEntry(entry PNLHistory) error {
+func (p *PositionTracker) UpsertPNLEntry(entry PNLResult) error {
 	if entry.Time.IsZero() {
 		return errTimeUnset
 	}

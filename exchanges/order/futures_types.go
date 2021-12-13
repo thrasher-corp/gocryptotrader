@@ -41,27 +41,32 @@ type CollateralCalculator struct {
 }
 
 type PNLCalculator struct {
+	OrderBasedCalculation    *Detail
+	TimeBasedCalculation     *TimeBasedCalculation
+	ExchangeBasedCalculation *ExchangeBasedCalculation
+}
+
+type TimeBasedCalculation struct {
+	CurrentPrice float64
+}
+
+type ExchangeBasedCalculation struct {
 	CalculateOffline bool
 	Underlying       currency.Code
-	OrderID          string
 	Asset            asset.Item
 	Side             Side
 	Leverage         float64
 	EntryPrice       float64
-	OpeningAmount    float64
+	EntryAmount      float64
 	Amount           float64
-	MarkPrice        float64
-	PrevMarkPrice    float64
 	CurrentPrice     float64
+	PreviousPrice    float64
 }
 
 type PNLResult struct {
-	MarginFraction            decimal.Decimal
-	EstimatedLiquidationPrice decimal.Decimal
-	UnrealisedPNL             decimal.Decimal
-	RealisedPNL               decimal.Decimal
-	Collateral                decimal.Decimal
-	IsLiquidated              bool
+	Time          time.Time
+	UnrealisedPNL decimal.Decimal
+	RealisedPNL   decimal.Decimal
 }
 
 // PositionController will track the performance of
@@ -98,19 +103,12 @@ type PositionTracker struct {
 	realisedPNL           decimal.Decimal
 	shortPositions        []Detail
 	longPositions         []Detail
-	pnlHistory            []PNLHistory
+	pnlHistory            []PNLResult
 	entryPrice            decimal.Decimal
 	closingPrice          decimal.Decimal
 	offlinePNLCalculation bool
 	pnlCalculation        PNLManagement
-}
-
-// PNLHistory tracks how a futures contract
-// pnl is going over the history of exposure
-type PNLHistory struct {
-	Time          time.Time
-	UnrealisedPNL decimal.Decimal
-	RealisedPNL   decimal.Decimal
+	latestPrice           decimal.Decimal
 }
 
 // PositionControllerSetup holds the parameters

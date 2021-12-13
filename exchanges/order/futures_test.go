@@ -41,12 +41,12 @@ func TestTrackPNL(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Error(err)
 	}
-	err = f.TrackPNL(time.Now(), decimal.Zero, decimal.Zero)
+	err = f.TrackPNLByTime(time.Now(), decimal.Zero, decimal.Zero)
 	if !errors.Is(err, nil) {
 		t.Error(err)
 	}
 	fPNL.err = errMissingPNLCalculationFunctions
-	err = f.TrackPNL(time.Now(), decimal.Zero, decimal.Zero)
+	err = f.TrackPNLByTime(time.Now(), decimal.Zero, decimal.Zero)
 	if !errors.Is(err, errMissingPNLCalculationFunctions) {
 		t.Error(err)
 	}

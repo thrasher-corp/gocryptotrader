@@ -1779,8 +1779,11 @@ func TestRealsies(t *testing.T) {
 	}
 	pos := p.GetPositions()
 	for i := range pos {
-		pnl, _ := pos[i].CalculatePNL()
-		t.Logf("%+v", pnl.String())
+		lol, err := pos[i].GetRealisedPNL()
+		if err != nil {
+			t.Error(err)
+		}
+		t.Logf("%v", lol)
 
 	}
 

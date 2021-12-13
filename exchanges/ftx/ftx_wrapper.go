@@ -1279,8 +1279,11 @@ func (f *FTX) CalculateUnrealisedPNL(positionSize, markPrice, prevMarkPrice floa
 
 func (f *FTX) CalculatePNL(pnl *order.PNLCalculator) (*order.PNLResult, error) {
 	var result order.PNLResult
-	if pnl.CalculateOffline {
-		uPNL := f.CalculateUnrealisedPNL(pnl.Amount, pnl.MarkPrice, pnl.PrevMarkPrice)
+	if pnl.ExchangeBasedCalculation == nil {
+		return nil, order.ErrAmountExceedsMax
+	}
+	if pnl.ExchangeBasedCalculation.CalculateOffline {
+		uPNL := f.CalculateUnrealisedPNL(pnl.ExchangeBasedCalculation.Amount, pnl.ExchangeBasedCalculation.CurrentPrice, pnl.ExchangeBasedCalculation.PreviousPrice)
 		result.UnrealisedPNL = decimal.NewFromFloat(uPNL)
 		return &result, nil
 	} else {
@@ -1290,7 +1293,7 @@ func (f *FTX) CalculatePNL(pnl *order.PNLCalculator) (*order.PNLResult, error) {
 			return nil, err
 		}
 		if info.Liquidating || info.Collateral == 0 {
-			result.IsLiquidated = true
+			// result.IsLiquidated = true
 			return &result, nil
 		}
 		for i := range info.Positions {
@@ -1304,7 +1307,7 @@ func (f *FTX) CalculatePNL(pnl *order.PNLCalculator) (*order.PNLResult, error) {
 			default:
 				return nil, order.ErrSideIsInvalid
 			}
-			if info.Positions[i].EntryPrice == pnl.EntryPrice && pnl.Side == pnlSide {
+			if info.Positions[i].EntryPrice == pnl.ExchangeBasedCalculation.EntryPrice && pnl.ExchangeBasedCalculation.Side == pnlSide {
 				result.UnrealisedPNL = decimal.NewFromFloat(info.Positions[i].UnrealizedPnL)
 				result.RealisedPNL = decimal.NewFromFloat(info.Positions[i].RealizedPnL)
 				return &result, nil
