@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -180,15 +181,15 @@ func (a *Alphapoint) UpdateOrderbook(ctx context.Context, p currency.Pair, asset
 
 	for x := range orderbookNew.Bids {
 		orderBook.Bids = append(orderBook.Bids, orderbook.Item{
-			Amount: orderbookNew.Bids[x].Quantity,
-			Price:  orderbookNew.Bids[x].Price,
+			Amount: decimal.NewFromFloat(orderbookNew.Bids[x].Quantity),
+			Price:  decimal.NewFromFloat(orderbookNew.Bids[x].Price),
 		})
 	}
 
 	for x := range orderbookNew.Asks {
 		orderBook.Asks = append(orderBook.Asks, orderbook.Item{
-			Amount: orderbookNew.Asks[x].Quantity,
-			Price:  orderbookNew.Asks[x].Price,
+			Amount: decimal.NewFromFloat(orderbookNew.Asks[x].Quantity),
+			Price:  decimal.NewFromFloat(orderbookNew.Asks[x].Price),
 		})
 	}
 

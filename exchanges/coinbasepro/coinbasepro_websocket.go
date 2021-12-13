@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
@@ -283,7 +284,9 @@ func (c *CoinbasePro) ProcessSnapshot(snapshot *WebsocketOrderbookSnapshot) erro
 		}
 
 		base.Bids = append(base.Bids,
-			orderbook.Item{Price: price, Amount: amount})
+			orderbook.Item{
+				Price:  decimal.NewFromFloat(price),
+				Amount: decimal.NewFromFloat(amount)})
 	}
 
 	for i := range snapshot.Asks {
@@ -298,7 +301,9 @@ func (c *CoinbasePro) ProcessSnapshot(snapshot *WebsocketOrderbookSnapshot) erro
 		}
 
 		base.Asks = append(base.Asks,
-			orderbook.Item{Price: price, Amount: amount})
+			orderbook.Item{
+				Price:  decimal.NewFromFloat(price),
+				Amount: decimal.NewFromFloat(amount)})
 	}
 
 	pair, err := currency.NewPairFromString(snapshot.ProductID)
@@ -329,9 +334,13 @@ func (c *CoinbasePro) ProcessUpdate(update WebsocketL2Update) error {
 		}
 
 		if update.Changes[i][0].(string) == order.Buy.Lower() {
-			bids = append(bids, orderbook.Item{Price: price, Amount: volume})
+			bids = append(bids, orderbook.Item{
+				Price:  decimal.NewFromFloat(price),
+				Amount: decimal.NewFromFloat(volume)})
 		} else {
-			asks = append(asks, orderbook.Item{Price: price, Amount: volume})
+			asks = append(asks, orderbook.Item{
+				Price:  decimal.NewFromFloat(price),
+				Amount: decimal.NewFromFloat(volume)})
 		}
 	}
 

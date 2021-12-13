@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -441,14 +442,14 @@ func (c *CoinbasePro) UpdateOrderbook(ctx context.Context, p currency.Pair, asse
 	}
 	for x := range obNew.Bids {
 		book.Bids = append(book.Bids, orderbook.Item{
-			Amount: obNew.Bids[x].Amount,
-			Price:  obNew.Bids[x].Price})
+			Amount: decimal.NewFromFloat(obNew.Bids[x].Amount),
+			Price:  decimal.NewFromFloat(obNew.Bids[x].Price)})
 	}
 
 	for x := range obNew.Asks {
 		book.Asks = append(book.Asks, orderbook.Item{
-			Amount: obNew.Asks[x].Amount,
-			Price:  obNew.Asks[x].Price})
+			Amount: decimal.NewFromFloat(obNew.Asks[x].Amount),
+			Price:  decimal.NewFromFloat(obNew.Asks[x].Price)})
 	}
 	err = book.Process()
 	if err != nil {

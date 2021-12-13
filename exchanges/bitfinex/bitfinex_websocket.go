@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
@@ -38,6 +39,11 @@ type checksum struct {
 // checksumStore quick global for now
 var checksumStore = make(map[int]*checksum)
 var cMtx sync.Mutex
+
+var (
+	negativeOne = decimal.NewFromInt(-1)
+	one         = decimal.NewFromInt(1)
+)
 
 // WsConnect starts a new websocket connection
 func (b *Bitfinex) WsConnect() error {
@@ -1096,13 +1102,13 @@ func (b *Bitfinex) WsInsertSnapshot(p currency.Pair, assetType asset.Item, books
 	for i := range books {
 		item := orderbook.Item{
 			ID:     books[i].ID,
-			Amount: books[i].Amount,
-			Price:  books[i].Price,
+			Amount: decimal.NewFromFloat(books[i].Amount),
+			Price:  decimal.NewFromFloat(books[i].Price),
 			Period: books[i].Period,
 		}
 		if fundingRate {
-			if item.Amount < 0 {
-				item.Amount *= -1
+			if item.Amount.LessThan(decimal.Zero) {
+				item.Amount = item.Amount.Mul(negativeOne)
 				book.Bids = append(book.Bids, item)
 			} else {
 				book.Asks = append(book.Asks, item)
@@ -1111,7 +1117,7 @@ func (b *Bitfinex) WsInsertSnapshot(p currency.Pair, assetType asset.Item, books
 			if books[i].Amount > 0 {
 				book.Bids = append(book.Bids, item)
 			} else {
-				item.Amount *= -1
+				item.Amount = item.Amount.Mul(negativeOne)
 				book.Asks = append(book.Asks, item)
 			}
 		}
@@ -1134,8 +1140,8 @@ func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType asset.Item, book
 	for i := range book {
 		item := orderbook.Item{
 			ID:     book[i].ID,
-			Amount: book[i].Amount,
-			Price:  book[i].Price,
+			Amount: decimal.NewFromFloat(book[i].Amount),
+			Price:  decimal.NewFromFloat(book[i].Price),
 			Period: book[i].Period,
 		}
 
@@ -1143,7 +1149,7 @@ func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType asset.Item, book
 			orderbookUpdate.Action = buffer.UpdateInsert
 			if fundingRate {
 				if book[i].Amount < 0 {
-					item.Amount *= -1
+					item.Amount = item.Amount.Mul(negativeOne)
 					orderbookUpdate.Bids = append(orderbookUpdate.Bids, item)
 				} else {
 					orderbookUpdate.Asks = append(orderbookUpdate.Asks, item)
@@ -1152,7 +1158,7 @@ func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType asset.Item, book
 				if book[i].Amount > 0 {
 					orderbookUpdate.Bids = append(orderbookUpdate.Bids, item)
 				} else {
-					item.Amount *= -1
+					item.Amount = item.Amount.Mul(negativeOne)
 					orderbookUpdate.Asks = append(orderbookUpdate.Asks, item)
 				}
 			}
@@ -1598,14 +1604,14 @@ func validateCRC32(book *orderbook.Base, token int) error {
 
 	// ensure '-' (negative amount) is passed back to string buffer as
 	// this is needed for calcs - These get swapped if funding rate
-	bidmod := float64(1)
+	bidmod := one
 	if book.IsFundingRate {
-		bidmod = -1
+		bidmod = negativeOne
 	}
 
-	askMod := float64(-1)
+	askMod := negativeOne
 	if book.IsFundingRate {
-		askMod = 1
+		askMod = one
 	}
 
 	var check strings.Builder
@@ -1613,14 +1619,14 @@ func validateCRC32(book *orderbook.Base, token int) error {
 		if i < len(bids) {
 			check.WriteString(strconv.FormatInt(bids[i].ID, 10))
 			check.WriteString(":")
-			check.WriteString(strconv.FormatFloat(bidmod*bids[i].Amount, 'f', -1, 64))
+			check.WriteString(bidmod.Mul(bids[i].Amount).String())
 			check.WriteString(":")
 		}
 
 		if i < len(asks) {
 			check.WriteString(strconv.FormatInt(asks[i].ID, 10))
 			check.WriteString(":")
-			check.WriteString(strconv.FormatFloat(askMod*asks[i].Amount, 'f', -1, 64))
+			check.WriteString(askMod.Mul(asks[i].Amount).String())
 			check.WriteString(":")
 		}
 	}

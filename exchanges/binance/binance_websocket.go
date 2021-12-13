@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -490,14 +491,14 @@ func (b *Binance) SeedLocalCacheWithBook(p currency.Pair, orderbookNew *OrderBoo
 	var newOrderBook orderbook.Base
 	for i := range orderbookNew.Bids {
 		newOrderBook.Bids = append(newOrderBook.Bids, orderbook.Item{
-			Amount: orderbookNew.Bids[i].Quantity,
-			Price:  orderbookNew.Bids[i].Price,
+			Amount: decimal.NewFromFloat(orderbookNew.Bids[i].Quantity),
+			Price:  decimal.NewFromFloat(orderbookNew.Bids[i].Price),
 		})
 	}
 	for i := range orderbookNew.Asks {
 		newOrderBook.Asks = append(newOrderBook.Asks, orderbook.Item{
-			Amount: orderbookNew.Asks[i].Quantity,
-			Price:  orderbookNew.Asks[i].Price,
+			Amount: decimal.NewFromFloat(orderbookNew.Asks[i].Quantity),
+			Price:  decimal.NewFromFloat(orderbookNew.Asks[i].Price),
 		})
 	}
 
@@ -644,7 +645,11 @@ func (b *Binance) ProcessUpdate(cp currency.Pair, a asset.Item, ws *WebsocketDep
 		if err != nil {
 			return err
 		}
-		updateBid = append(updateBid, orderbook.Item{Price: p, Amount: a})
+		updateBid = append(updateBid,
+			orderbook.Item{
+				Price:  decimal.NewFromFloat(p),
+				Amount: decimal.NewFromFloat(a),
+			})
 	}
 
 	var updateAsk []orderbook.Item
@@ -665,7 +670,11 @@ func (b *Binance) ProcessUpdate(cp currency.Pair, a asset.Item, ws *WebsocketDep
 		if err != nil {
 			return err
 		}
-		updateAsk = append(updateAsk, orderbook.Item{Price: p, Amount: a})
+		updateAsk = append(updateAsk,
+			orderbook.Item{
+				Price:  decimal.NewFromFloat(p),
+				Amount: decimal.NewFromFloat(a),
+			})
 	}
 
 	return b.Websocket.Orderbook.Update(&buffer.Update{

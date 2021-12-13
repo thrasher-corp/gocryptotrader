@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -336,16 +337,16 @@ func (b *Bithumb) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 	for i := range orderbookNew.Data.Bids {
 		book.Bids = append(book.Bids,
 			orderbook.Item{
-				Amount: orderbookNew.Data.Bids[i].Quantity,
-				Price:  orderbookNew.Data.Bids[i].Price,
+				Amount: decimal.NewFromFloat(orderbookNew.Data.Bids[i].Quantity),
+				Price:  decimal.NewFromFloat(orderbookNew.Data.Bids[i].Price),
 			})
 	}
 
 	for i := range orderbookNew.Data.Asks {
 		book.Asks = append(book.Asks,
 			orderbook.Item{
-				Amount: orderbookNew.Data.Asks[i].Quantity,
-				Price:  orderbookNew.Data.Asks[i].Price,
+				Amount: decimal.NewFromFloat(orderbookNew.Data.Asks[i].Quantity),
+				Price:  decimal.NewFromFloat(orderbookNew.Data.Asks[i].Price),
 			})
 	}
 

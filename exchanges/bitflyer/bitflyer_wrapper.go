@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -287,14 +288,14 @@ func (b *Bitflyer) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 
 	for x := range orderbookNew.Asks {
 		book.Asks = append(book.Asks, orderbook.Item{
-			Price:  orderbookNew.Asks[x].Price,
-			Amount: orderbookNew.Asks[x].Size})
+			Price:  decimal.NewFromFloat(orderbookNew.Asks[x].Price),
+			Amount: decimal.NewFromFloat(orderbookNew.Asks[x].Size)})
 	}
 
 	for x := range orderbookNew.Bids {
 		book.Bids = append(book.Bids, orderbook.Item{
-			Price:  orderbookNew.Bids[x].Price,
-			Amount: orderbookNew.Bids[x].Size})
+			Price:  decimal.NewFromFloat(orderbookNew.Bids[x].Price),
+			Amount: decimal.NewFromFloat(orderbookNew.Bids[x].Size)})
 	}
 
 	err = book.Process()

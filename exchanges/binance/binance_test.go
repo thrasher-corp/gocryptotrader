@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -2235,10 +2236,10 @@ func TestWsDepthUpdate(t *testing.T) {
 	if exp, got := seedLastUpdateID, ob.LastUpdateID; got != exp {
 		t.Fatalf("Unexpected Last update id of orderbook for old update. Exp: %d, got: %d", exp, got)
 	}
-	if exp, got := 2.3, ob.Asks[2].Amount; got != exp {
+	if exp, got := decimal.NewFromFloat(2.3), ob.Asks[2].Amount; !got.Equal(exp) {
 		t.Fatalf("Ask altered by outdated update. Exp: %f, got %f", exp, got)
 	}
-	if exp, got := 0.163526, ob.Bids[1].Amount; got != exp {
+	if exp, got := decimal.NewFromFloat(0.163526), ob.Bids[1].Amount; !got.Equal(exp) {
 		t.Fatalf("Bid altered by outdated update. Exp: %f, got %f", exp, got)
 	}
 
@@ -2268,13 +2269,13 @@ func TestWsDepthUpdate(t *testing.T) {
 	if exp, got := int64(165), ob.LastUpdateID; got != exp {
 		t.Fatalf("Unexpected Last update id of orderbook for new update. Exp: %d, got: %d", exp, got)
 	}
-	if exp, got := 2.3, ob.Asks[2].Amount; got != exp {
+	if exp, got := decimal.NewFromFloat(2.3), ob.Asks[2].Amount; !got.Equal(exp) {
 		t.Fatalf("Unexpected Ask amount. Exp: %f, got %f", exp, got)
 	}
-	if exp, got := 1.9, ob.Asks[3].Amount; got != exp {
+	if exp, got := decimal.NewFromFloat(1.9), ob.Asks[3].Amount; !got.Equal(exp) {
 		t.Fatalf("Unexpected Ask amount. Exp: %f, got %f", exp, got)
 	}
-	if exp, got := 0.163526, ob.Bids[1].Amount; got != exp {
+	if exp, got := decimal.NewFromFloat(0.163526), ob.Bids[1].Amount; !got.Equal(exp) {
 		t.Fatalf("Unexpected Bid amount. Exp: %f, got %f", exp, got)
 	}
 

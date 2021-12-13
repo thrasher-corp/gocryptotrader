@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -284,8 +285,8 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 				continue
 			}
 			newOB.Asks = append(newOB.Asks, orderbook.Item{
-				Price:  price,
-				Amount: amount,
+				Price:  decimal.NewFromFloat(price),
+				Amount: decimal.NewFromFloat(amount),
 			})
 		}
 		for j := range t.Data.BuyQuote {
@@ -303,8 +304,8 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 				continue
 			}
 			newOB.Bids = append(newOB.Bids, orderbook.Item{
-				Price:  price,
-				Amount: amount,
+				Price:  decimal.NewFromFloat(price),
+				Amount: decimal.NewFromFloat(amount),
 			})
 		}
 		p, err := currency.NewPairFromString(t.Topic[strings.Index(t.Topic, ":")+1 : strings.Index(t.Topic, currency.UnderscoreDelimiter)])

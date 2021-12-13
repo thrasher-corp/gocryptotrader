@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -494,8 +495,8 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, p currency.
 		var book orderbook.Base
 		for i := range data {
 			item := orderbook.Item{
-				Price:  data[i].Price,
-				Amount: float64(data[i].Size),
+				Price:  decimal.NewFromFloat(data[i].Price),
+				Amount: decimal.NewFromInt(data[i].Size),
 				ID:     data[i].ID,
 			}
 			switch {
@@ -523,8 +524,8 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, p currency.
 		var asks, bids []orderbook.Item
 		for i := range data {
 			nItem := orderbook.Item{
-				Price:  data[i].Price,
-				Amount: float64(data[i].Size),
+				Price:  decimal.NewFromFloat(data[i].Price),
+				Amount: decimal.NewFromInt(data[i].Size),
 				ID:     data[i].ID,
 			}
 			if strings.EqualFold(data[i].Side, "Sell") {

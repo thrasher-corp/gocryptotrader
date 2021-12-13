@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
@@ -1578,28 +1579,28 @@ func TestGetHistoricTrades(t *testing.T) {
 
 var testOb = orderbook.Base{
 	Asks: []orderbook.Item{
-		{Price: 0.05005, Amount: 0.00000500},
-		{Price: 0.05010, Amount: 0.00000500},
-		{Price: 0.05015, Amount: 0.00000500},
-		{Price: 0.05020, Amount: 0.00000500},
-		{Price: 0.05025, Amount: 0.00000500},
-		{Price: 0.05030, Amount: 0.00000500},
-		{Price: 0.05035, Amount: 0.00000500},
-		{Price: 0.05040, Amount: 0.00000500},
-		{Price: 0.05045, Amount: 0.00000500},
-		{Price: 0.05050, Amount: 0.00000500},
+		{Price: decimal.NewFromFloat(0.05005), Amount: decimal.NewFromFloat(0.00000500)},
+		{Price: decimal.NewFromFloat(0.05010), Amount: decimal.NewFromFloat(0.00000500)},
+		{Price: decimal.NewFromFloat(0.05015), Amount: decimal.NewFromFloat(0.00000500)},
+		{Price: decimal.NewFromFloat(0.05020), Amount: decimal.NewFromFloat(0.00000500)},
+		{Price: decimal.NewFromFloat(0.05025), Amount: decimal.NewFromFloat(0.00000500)},
+		{Price: decimal.NewFromFloat(0.05030), Amount: decimal.NewFromFloat(0.00000500)},
+		{Price: decimal.NewFromFloat(0.05035), Amount: decimal.NewFromFloat(0.00000500)},
+		{Price: decimal.NewFromFloat(0.05040), Amount: decimal.NewFromFloat(0.00000500)},
+		{Price: decimal.NewFromFloat(0.05045), Amount: decimal.NewFromFloat(0.00000500)},
+		{Price: decimal.NewFromFloat(0.05050), Amount: decimal.NewFromFloat(0.00000500)},
 	},
 	Bids: []orderbook.Item{
-		{Price: 0.05000, Amount: 0.00000500},
-		{Price: 0.04995, Amount: 0.00000500},
-		{Price: 0.04990, Amount: 0.00000500},
-		{Price: 0.04980, Amount: 0.00000500},
-		{Price: 0.04975, Amount: 0.00000500},
-		{Price: 0.04970, Amount: 0.00000500},
-		{Price: 0.04965, Amount: 0.00000500},
-		{Price: 0.04960, Amount: 0.00000500},
-		{Price: 0.04955, Amount: 0.00000500},
-		{Price: 0.04950, Amount: 0.00000500},
+		{Price: decimal.NewFromFloat(0.05000), Amount: decimal.NewFromFloat(0.00000500)},
+		{Price: decimal.NewFromFloat(0.04995), Amount: decimal.NewFromFloat(0.00000500)},
+		{Price: decimal.NewFromFloat(0.04990), Amount: decimal.NewFromFloat(0.00000500)},
+		{Price: decimal.NewFromFloat(0.04980), Amount: decimal.NewFromFloat(0.00000500)},
+		{Price: decimal.NewFromFloat(0.04975), Amount: decimal.NewFromFloat(0.00000500)},
+		{Price: decimal.NewFromFloat(0.04970), Amount: decimal.NewFromFloat(0.00000500)},
+		{Price: decimal.NewFromFloat(0.04965), Amount: decimal.NewFromFloat(0.00000500)},
+		{Price: decimal.NewFromFloat(0.04960), Amount: decimal.NewFromFloat(0.00000500)},
+		{Price: decimal.NewFromFloat(0.04955), Amount: decimal.NewFromFloat(0.00000500)},
+		{Price: decimal.NewFromFloat(0.04950), Amount: decimal.NewFromFloat(0.00000500)},
 	},
 }
 
@@ -1612,16 +1613,16 @@ func TestChecksum(t *testing.T) {
 
 func TestReOrderbyID(t *testing.T) {
 	asks := []orderbook.Item{
-		{ID: 4, Price: 100, Amount: 0.00000500},
-		{ID: 3, Price: 100, Amount: 0.00000500},
-		{ID: 2, Price: 100, Amount: 0.00000500},
-		{ID: 1, Price: 100, Amount: 0.00000500},
-		{ID: 5, Price: 101, Amount: 0.00000500},
-		{ID: 6, Price: 102, Amount: 0.00000500},
-		{ID: 8, Price: 103, Amount: 0.00000500},
-		{ID: 7, Price: 103, Amount: 0.00000500},
-		{ID: 9, Price: 104, Amount: 0.00000500},
-		{ID: 10, Price: 105, Amount: 0.00000500},
+		{ID: 4, Price: decimal.NewFromFloat(100), Amount: decimal.NewFromFloat(0.00000500)},
+		{ID: 3, Price: decimal.NewFromFloat(100), Amount: decimal.NewFromFloat(0.00000500)},
+		{ID: 2, Price: decimal.NewFromFloat(100), Amount: decimal.NewFromFloat(0.00000500)},
+		{ID: 1, Price: decimal.NewFromFloat(100), Amount: decimal.NewFromFloat(0.00000500)},
+		{ID: 5, Price: decimal.NewFromFloat(101), Amount: decimal.NewFromFloat(0.00000500)},
+		{ID: 6, Price: decimal.NewFromFloat(102), Amount: decimal.NewFromFloat(0.00000500)},
+		{ID: 8, Price: decimal.NewFromFloat(103), Amount: decimal.NewFromFloat(0.00000500)},
+		{ID: 7, Price: decimal.NewFromFloat(103), Amount: decimal.NewFromFloat(0.00000500)},
+		{ID: 9, Price: decimal.NewFromFloat(104), Amount: decimal.NewFromFloat(0.00000500)},
+		{ID: 10, Price: decimal.NewFromFloat(105), Amount: decimal.NewFromFloat(0.00000500)},
 	}
 	reOrderByID(asks)
 
@@ -1632,16 +1633,16 @@ func TestReOrderbyID(t *testing.T) {
 	}
 
 	bids := []orderbook.Item{
-		{ID: 4, Price: 100, Amount: 0.00000500},
-		{ID: 3, Price: 100, Amount: 0.00000500},
-		{ID: 2, Price: 100, Amount: 0.00000500},
-		{ID: 1, Price: 100, Amount: 0.00000500},
-		{ID: 5, Price: 99, Amount: 0.00000500},
-		{ID: 6, Price: 98, Amount: 0.00000500},
-		{ID: 8, Price: 97, Amount: 0.00000500},
-		{ID: 7, Price: 97, Amount: 0.00000500},
-		{ID: 9, Price: 96, Amount: 0.00000500},
-		{ID: 10, Price: 95, Amount: 0.00000500},
+		{ID: 4, Price: decimal.NewFromFloat(100), Amount: decimal.NewFromFloat(0.00000500)},
+		{ID: 3, Price: decimal.NewFromFloat(100), Amount: decimal.NewFromFloat(0.00000500)},
+		{ID: 2, Price: decimal.NewFromFloat(100), Amount: decimal.NewFromFloat(0.00000500)},
+		{ID: 1, Price: decimal.NewFromFloat(100), Amount: decimal.NewFromFloat(0.00000500)},
+		{ID: 5, Price: decimal.NewFromFloat(99), Amount: decimal.NewFromFloat(0.00000500)},
+		{ID: 6, Price: decimal.NewFromFloat(98), Amount: decimal.NewFromFloat(0.00000500)},
+		{ID: 8, Price: decimal.NewFromFloat(97), Amount: decimal.NewFromFloat(0.00000500)},
+		{ID: 7, Price: decimal.NewFromFloat(97), Amount: decimal.NewFromFloat(0.00000500)},
+		{ID: 9, Price: decimal.NewFromFloat(96), Amount: decimal.NewFromFloat(0.00000500)},
+		{ID: 10, Price: decimal.NewFromFloat(95), Amount: decimal.NewFromFloat(0.00000500)},
 	}
 	reOrderByID(bids)
 

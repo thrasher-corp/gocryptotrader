@@ -11,6 +11,7 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -439,16 +440,16 @@ func (b *Bitfinex) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 		for x := range orderbookNew.Asks {
 			o.Asks = append(o.Asks, orderbook.Item{
 				ID:     orderbookNew.Asks[x].OrderID,
-				Price:  orderbookNew.Asks[x].Rate,
-				Amount: orderbookNew.Asks[x].Amount,
+				Price:  decimal.NewFromFloat(orderbookNew.Asks[x].Rate),
+				Amount: decimal.NewFromFloat(orderbookNew.Asks[x].Amount),
 				Period: int64(orderbookNew.Asks[x].Period),
 			})
 		}
 		for x := range orderbookNew.Bids {
 			o.Bids = append(o.Bids, orderbook.Item{
 				ID:     orderbookNew.Bids[x].OrderID,
-				Price:  orderbookNew.Bids[x].Rate,
-				Amount: orderbookNew.Bids[x].Amount,
+				Price:  decimal.NewFromFloat(orderbookNew.Bids[x].Rate),
+				Amount: decimal.NewFromFloat(orderbookNew.Bids[x].Amount),
 				Period: int64(orderbookNew.Bids[x].Period),
 			})
 		}
@@ -456,15 +457,15 @@ func (b *Bitfinex) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 		for x := range orderbookNew.Asks {
 			o.Asks = append(o.Asks, orderbook.Item{
 				ID:     orderbookNew.Asks[x].OrderID,
-				Price:  orderbookNew.Asks[x].Price,
-				Amount: orderbookNew.Asks[x].Amount,
+				Price:  decimal.NewFromFloat(orderbookNew.Asks[x].Price),
+				Amount: decimal.NewFromFloat(orderbookNew.Asks[x].Amount),
 			})
 		}
 		for x := range orderbookNew.Bids {
 			o.Bids = append(o.Bids, orderbook.Item{
 				ID:     orderbookNew.Bids[x].OrderID,
-				Price:  orderbookNew.Bids[x].Price,
-				Amount: orderbookNew.Bids[x].Amount,
+				Price:  decimal.NewFromFloat(orderbookNew.Bids[x].Price),
+				Amount: decimal.NewFromFloat(orderbookNew.Bids[x].Amount),
 			})
 		}
 	}

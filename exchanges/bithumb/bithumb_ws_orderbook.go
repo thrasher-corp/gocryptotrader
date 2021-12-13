@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -28,7 +29,10 @@ const (
 func (b *Bithumb) processBooks(updates *WsOrderbooks) error {
 	var bids, asks []orderbook.Item
 	for x := range updates.List {
-		i := orderbook.Item{Price: updates.List[x].Price, Amount: updates.List[x].Quantity}
+		i := orderbook.Item{
+			Price:  decimal.NewFromFloat(updates.List[x].Price),
+			Amount: decimal.NewFromFloat(updates.List[x].Quantity),
+		}
 		if updates.List[x].OrderSide == "bid" {
 			bids = append(bids, i)
 			continue
@@ -428,14 +432,14 @@ func (b *Bithumb) SeedLocalCacheWithBook(p currency.Pair, o *Orderbook) error {
 	var newOrderBook orderbook.Base
 	for i := range o.Data.Bids {
 		newOrderBook.Bids = append(newOrderBook.Bids, orderbook.Item{
-			Amount: o.Data.Bids[i].Quantity,
-			Price:  o.Data.Bids[i].Price,
+			Amount: decimal.NewFromFloat(o.Data.Bids[i].Quantity),
+			Price:  decimal.NewFromFloat(o.Data.Bids[i].Price),
 		})
 	}
 	for i := range o.Data.Asks {
 		newOrderBook.Asks = append(newOrderBook.Asks, orderbook.Item{
-			Amount: o.Data.Asks[i].Quantity,
-			Price:  o.Data.Asks[i].Price,
+			Amount: decimal.NewFromFloat(o.Data.Asks[i].Quantity),
+			Price:  decimal.NewFromFloat(o.Data.Asks[i].Price),
 		})
 	}
 

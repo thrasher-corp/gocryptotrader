@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -52,15 +53,15 @@ func (b *Bittrex) ProcessUpdateOB(pair currency.Pair, message *OrderbookUpdateMe
 	var updateBids []orderbook.Item
 	for x := range message.BidDeltas {
 		updateBids = append(updateBids, orderbook.Item{
-			Price:  message.BidDeltas[x].Rate,
-			Amount: message.BidDeltas[x].Quantity,
+			Price:  decimal.NewFromFloat(message.BidDeltas[x].Rate),
+			Amount: decimal.NewFromFloat(message.BidDeltas[x].Quantity),
 		})
 	}
 	var updateAsks []orderbook.Item
 	for x := range message.AskDeltas {
 		updateAsks = append(updateAsks, orderbook.Item{
-			Price:  message.AskDeltas[x].Rate,
-			Amount: message.AskDeltas[x].Quantity,
+			Price:  decimal.NewFromFloat(message.AskDeltas[x].Rate),
+			Amount: decimal.NewFromFloat(message.AskDeltas[x].Quantity),
 		})
 	}
 
@@ -124,14 +125,14 @@ func (b *Bittrex) SeedLocalCacheWithOrderBook(p currency.Pair, sequence int64, o
 	var newOrderBook orderbook.Base
 	for i := range orderbookNew.Bid {
 		newOrderBook.Bids = append(newOrderBook.Bids, orderbook.Item{
-			Amount: orderbookNew.Bid[i].Quantity,
-			Price:  orderbookNew.Bid[i].Rate,
+			Amount: decimal.NewFromFloat(orderbookNew.Bid[i].Quantity),
+			Price:  decimal.NewFromFloat(orderbookNew.Bid[i].Rate),
 		})
 	}
 	for i := range orderbookNew.Ask {
 		newOrderBook.Asks = append(newOrderBook.Asks, orderbook.Item{
-			Amount: orderbookNew.Ask[i].Quantity,
-			Price:  orderbookNew.Ask[i].Rate,
+			Amount: decimal.NewFromFloat(orderbookNew.Ask[i].Quantity),
+			Price:  decimal.NewFromFloat(orderbookNew.Ask[i].Rate),
 		})
 	}
 

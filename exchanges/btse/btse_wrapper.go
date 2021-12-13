@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -361,16 +362,16 @@ func (b *BTSE) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType a
 			continue
 		}
 		book.Bids = append(book.Bids, orderbook.Item{
-			Price:  a.BuyQuote[x].Price,
-			Amount: a.BuyQuote[x].Size})
+			Price:  decimal.NewFromFloat(a.BuyQuote[x].Price),
+			Amount: decimal.NewFromFloat(a.BuyQuote[x].Size)})
 	}
 	for x := range a.SellQuote {
 		if b.orderbookFilter(a.SellQuote[x].Price, a.SellQuote[x].Size) {
 			continue
 		}
 		book.Asks = append(book.Asks, orderbook.Item{
-			Price:  a.SellQuote[x].Price,
-			Amount: a.SellQuote[x].Size})
+			Price:  decimal.NewFromFloat(a.SellQuote[x].Price),
+			Amount: decimal.NewFromFloat(a.SellQuote[x].Size)})
 	}
 	book.Asks.Reverse() // Reverse asks for correct alignment
 	book.Pair = p

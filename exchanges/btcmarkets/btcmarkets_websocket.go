@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -96,8 +97,8 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 				return err
 			}
 			bids = append(bids, orderbook.Item{
-				Amount:     amount,
-				Price:      price,
+				Amount:     decimal.NewFromFloat(amount),
+				Price:      decimal.NewFromFloat(price),
 				OrderCount: int64(ob.Bids[x][2].(float64)),
 			})
 		}
@@ -112,8 +113,8 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 				return err
 			}
 			asks = append(asks, orderbook.Item{
-				Amount:     amount,
-				Price:      price,
+				Amount:     decimal.NewFromFloat(amount),
+				Price:      decimal.NewFromFloat(price),
 				OrderCount: int64(ob.Asks[x][2].(float64)),
 			})
 		}

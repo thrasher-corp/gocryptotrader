@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -392,12 +393,12 @@ func (b *Bitmex) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 		switch {
 		case strings.EqualFold(orderbookNew[i].Side, order.Sell.String()):
 			book.Asks = append(book.Asks, orderbook.Item{
-				Amount: float64(orderbookNew[i].Size),
-				Price:  orderbookNew[i].Price})
+				Amount: decimal.NewFromInt(orderbookNew[i].Size),
+				Price:  decimal.NewFromFloat(orderbookNew[i].Price)})
 		case strings.EqualFold(orderbookNew[i].Side, order.Buy.String()):
 			book.Bids = append(book.Bids, orderbook.Item{
-				Amount: float64(orderbookNew[i].Size),
-				Price:  orderbookNew[i].Price})
+				Amount: decimal.NewFromInt(orderbookNew[i].Size),
+				Price:  decimal.NewFromFloat(orderbookNew[i].Price)})
 		default:
 			return book,
 				fmt.Errorf("could not process orderbook, order side [%s] could not be matched",

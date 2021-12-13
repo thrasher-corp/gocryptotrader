@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -379,8 +380,8 @@ func (b *Bittrex) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 	for x := range orderbookData.Bid {
 		book.Bids = append(book.Bids,
 			orderbook.Item{
-				Amount: orderbookData.Bid[x].Quantity,
-				Price:  orderbookData.Bid[x].Rate,
+				Amount: decimal.NewFromFloat(orderbookData.Bid[x].Quantity),
+				Price:  decimal.NewFromFloat(orderbookData.Bid[x].Rate),
 			},
 		)
 	}
@@ -388,8 +389,8 @@ func (b *Bittrex) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 	for x := range orderbookData.Ask {
 		book.Asks = append(book.Asks,
 			orderbook.Item{
-				Amount: orderbookData.Ask[x].Quantity,
-				Price:  orderbookData.Ask[x].Rate,
+				Amount: decimal.NewFromFloat(orderbookData.Ask[x].Quantity),
+				Price:  decimal.NewFromFloat(orderbookData.Ask[x].Rate),
 			},
 		)
 	}

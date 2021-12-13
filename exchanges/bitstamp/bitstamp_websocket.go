@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -267,7 +268,9 @@ func (b *Bitstamp) wsUpdateOrderbook(update websocketOrderBook, p currency.Pair,
 			b.Websocket.DataHandler <- err
 			continue
 		}
-		asks = append(asks, orderbook.Item{Price: target, Amount: amount})
+		asks = append(asks, orderbook.Item{
+			Price:  decimal.NewFromFloat(target),
+			Amount: decimal.NewFromFloat(amount)})
 	}
 	for i := range update.Bids {
 		target, err := strconv.ParseFloat(update.Bids[i][0], 64)
@@ -281,7 +284,9 @@ func (b *Bitstamp) wsUpdateOrderbook(update websocketOrderBook, p currency.Pair,
 			continue
 		}
 
-		bids = append(bids, orderbook.Item{Price: target, Amount: amount})
+		bids = append(bids, orderbook.Item{
+			Price:  decimal.NewFromFloat(target),
+			Amount: decimal.NewFromFloat(amount)})
 	}
 	return b.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
 		Bids:            bids,
@@ -313,14 +318,14 @@ func (b *Bitstamp) seedOrderBook(ctx context.Context) error {
 		var newOrderBook orderbook.Base
 		for i := range orderbookSeed.Asks {
 			newOrderBook.Asks = append(newOrderBook.Asks, orderbook.Item{
-				Price:  orderbookSeed.Asks[i].Price,
-				Amount: orderbookSeed.Asks[i].Amount,
+				Price:  decimal.NewFromFloat(orderbookSeed.Asks[i].Price),
+				Amount: decimal.NewFromFloat(orderbookSeed.Asks[i].Amount),
 			})
 		}
 		for i := range orderbookSeed.Bids {
 			newOrderBook.Bids = append(newOrderBook.Bids, orderbook.Item{
-				Price:  orderbookSeed.Bids[i].Price,
-				Amount: orderbookSeed.Bids[i].Amount,
+				Price:  decimal.NewFromFloat(orderbookSeed.Bids[i].Price),
+				Amount: decimal.NewFromFloat(orderbookSeed.Bids[i].Amount),
 			})
 		}
 		newOrderBook.Pair = p[x]
