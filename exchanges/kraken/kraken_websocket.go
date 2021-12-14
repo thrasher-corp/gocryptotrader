@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -868,11 +869,19 @@ func (k *Kraken) wsProcessOrderBookPartial(channelData *WebsocketChannelData, as
 		if len(asks) < 3 {
 			return errors.New("unexpected asks length")
 		}
-		price, err := strconv.ParseFloat(asks[0].(string), 64)
+		priceString, ok := asks[0].(string)
+		if !ok {
+			return errors.New("ask price assertion failure")
+		}
+		price, err := decimal.NewFromString(priceString)
 		if err != nil {
 			return err
 		}
-		amount, err := strconv.ParseFloat(asks[1].(string), 64)
+		amountString, ok := asks[1].(string)
+		if !ok {
+			return errors.New("ask amount assertion failure")
+		}
+		amount, err := decimal.NewFromString(amountString)
 		if err != nil {
 			return err
 		}
@@ -898,11 +907,19 @@ func (k *Kraken) wsProcessOrderBookPartial(channelData *WebsocketChannelData, as
 		if len(bids) < 3 {
 			return errors.New("unexpected bids length")
 		}
-		price, err := strconv.ParseFloat(bids[0].(string), 64)
+		priceString, ok := bids[0].(string)
+		if !ok {
+			return errors.New("bid price assertion failure")
+		}
+		price, err := decimal.NewFromString(priceString)
 		if err != nil {
 			return err
 		}
-		amount, err := strconv.ParseFloat(bids[1].(string), 64)
+		amountString, ok := bids[1].(string)
+		if !ok {
+			return errors.New("bid amount assertion failure")
+		}
+		amount, err := decimal.NewFromString(amountString)
 		if err != nil {
 			return err
 		}
@@ -950,7 +967,7 @@ func (k *Kraken) wsProcessOrderBookUpdate(channelData *WebsocketChannelData, ask
 			return errors.New("price type assertion failure")
 		}
 
-		price, err := strconv.ParseFloat(priceStr, 64)
+		price, err := decimal.NewFromString(priceStr)
 		if err != nil {
 			return err
 		}
@@ -960,7 +977,7 @@ func (k *Kraken) wsProcessOrderBookUpdate(channelData *WebsocketChannelData, ask
 			return errors.New("amount type assertion failure")
 		}
 
-		amount, err := strconv.ParseFloat(amountStr, 64)
+		amount, err := decimal.NewFromString(amountStr)
 		if err != nil {
 			return err
 		}
@@ -1013,7 +1030,7 @@ func (k *Kraken) wsProcessOrderBookUpdate(channelData *WebsocketChannelData, ask
 			return errors.New("price type assertion failure")
 		}
 
-		price, err := strconv.ParseFloat(priceStr, 64)
+		price, err := decimal.NewFromString(priceStr)
 		if err != nil {
 			return err
 		}
@@ -1023,7 +1040,7 @@ func (k *Kraken) wsProcessOrderBookUpdate(channelData *WebsocketChannelData, ask
 			return errors.New("amount type assertion failure")
 		}
 
-		amount, err := strconv.ParseFloat(amountStr, 64)
+		amount, err := decimal.NewFromString(amountStr)
 		if err != nil {
 			return err
 		}
@@ -1100,16 +1117,16 @@ func validateCRC32(b *orderbook.Base, token uint32, decPrice, decAmount int) err
 
 	var checkStr strings.Builder
 	for i := 0; i < 10; i++ {
-		priceStr := trim(strconv.FormatFloat(b.Asks[i].Price, 'f', decPrice, 64))
+		priceStr := trim(strconv.FormatFloat(b.Asks[i].Price.InexactFloat64(), 'f', decPrice, 64))
 		checkStr.WriteString(priceStr)
-		amountStr := trim(strconv.FormatFloat(b.Asks[i].Amount, 'f', decAmount, 64))
+		amountStr := trim(strconv.FormatFloat(b.Asks[i].Amount.InexactFloat64(), 'f', decAmount, 64))
 		checkStr.WriteString(amountStr)
 	}
 
 	for i := 0; i < 10; i++ {
-		priceStr := trim(strconv.FormatFloat(b.Bids[i].Price, 'f', decPrice, 64))
+		priceStr := trim(strconv.FormatFloat(b.Bids[i].Price.InexactFloat64(), 'f', decPrice, 64))
 		checkStr.WriteString(priceStr)
-		amountStr := trim(strconv.FormatFloat(b.Bids[i].Amount, 'f', decAmount, 64))
+		amountStr := trim(strconv.FormatFloat(b.Bids[i].Amount.InexactFloat64(), 'f', decAmount, 64))
 		checkStr.WriteString(amountStr)
 	}
 

@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -279,11 +280,11 @@ func (l *Lbank) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType 
 		return book, err
 	}
 	for i := range a.Data.Asks {
-		price, convErr := strconv.ParseFloat(a.Data.Asks[i][0], 64)
+		price, convErr := decimal.NewFromString(a.Data.Asks[i][0])
 		if convErr != nil {
 			return book, convErr
 		}
-		amount, convErr := strconv.ParseFloat(a.Data.Asks[i][1], 64)
+		amount, convErr := decimal.NewFromString(a.Data.Asks[i][1])
 		if convErr != nil {
 			return book, convErr
 		}
@@ -292,11 +293,11 @@ func (l *Lbank) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType 
 			Amount: amount})
 	}
 	for i := range a.Data.Bids {
-		price, convErr := strconv.ParseFloat(a.Data.Bids[i][0], 64)
+		price, convErr := decimal.NewFromString(a.Data.Bids[i][0])
 		if convErr != nil {
 			return book, convErr
 		}
-		amount, convErr := strconv.ParseFloat(a.Data.Bids[i][1], 64)
+		amount, convErr := decimal.NewFromString(a.Data.Bids[i][1])
 		if convErr != nil {
 			return book, convErr
 		}

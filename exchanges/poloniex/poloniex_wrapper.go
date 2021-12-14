@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -377,15 +378,15 @@ func (p *Poloniex) UpdateOrderbook(ctx context.Context, c currency.Pair, assetTy
 
 		for y := range data.Bids {
 			book.Bids = append(book.Bids, orderbook.Item{
-				Amount: data.Bids[y].Amount,
-				Price:  data.Bids[y].Price,
+				Amount: decimal.NewFromFloat(data.Bids[y].Amount),
+				Price:  decimal.NewFromFloat(data.Bids[y].Price),
 			})
 		}
 
 		for y := range data.Asks {
 			book.Asks = append(book.Asks, orderbook.Item{
-				Amount: data.Asks[y].Amount,
-				Price:  data.Asks[y].Price,
+				Amount: decimal.NewFromFloat(data.Asks[y].Amount),
+				Price:  decimal.NewFromFloat(data.Asks[y].Price),
 			})
 		}
 		err = book.Process()

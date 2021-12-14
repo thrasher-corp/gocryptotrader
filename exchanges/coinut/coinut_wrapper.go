@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -499,14 +500,14 @@ func (c *COINUT) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 
 	for x := range orderbookNew.Buy {
 		book.Bids = append(book.Bids, orderbook.Item{
-			Amount: orderbookNew.Buy[x].Quantity,
-			Price:  orderbookNew.Buy[x].Price})
+			Amount: decimal.NewFromFloat(orderbookNew.Buy[x].Quantity),
+			Price:  decimal.NewFromFloat(orderbookNew.Buy[x].Price)})
 	}
 
 	for x := range orderbookNew.Sell {
 		book.Asks = append(book.Asks, orderbook.Item{
-			Amount: orderbookNew.Sell[x].Quantity,
-			Price:  orderbookNew.Sell[x].Price})
+			Amount: decimal.NewFromFloat(orderbookNew.Sell[x].Quantity),
+			Price:  decimal.NewFromFloat(orderbookNew.Sell[x].Price)})
 	}
 	err = book.Process()
 	if err != nil {

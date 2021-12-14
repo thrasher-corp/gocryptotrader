@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -467,16 +468,32 @@ func (h *HUOBI) WsProcessOrderbook(update *WsDepth, symbol string) error {
 
 	var bids, asks []orderbook.Item
 	for i := range update.Tick.Bids {
+		priceFloat, ok := update.Tick.Bids[i][0].(float64)
+		if !ok {
+			return errors.New("bid price assertion failure")
+		}
+		amountFloat, ok := update.Tick.Bids[i][1].(float64)
+		if !ok {
+			return errors.New("bid amount assertion failure")
+		}
 		bids = append(bids, orderbook.Item{
-			Price:  update.Tick.Bids[i][0].(float64),
-			Amount: update.Tick.Bids[i][1].(float64),
+			Price:  decimal.NewFromFloat(priceFloat),
+			Amount: decimal.NewFromFloat(amountFloat),
 		})
 	}
 
 	for i := range update.Tick.Asks {
+		priceFloat, ok := update.Tick.Asks[i][0].(float64)
+		if !ok {
+			return errors.New("ask price assertion failure")
+		}
+		amountFloat, ok := update.Tick.Asks[i][1].(float64)
+		if !ok {
+			return errors.New("ask amount assertion failure")
+		}
 		asks = append(asks, orderbook.Item{
-			Price:  update.Tick.Asks[i][0].(float64),
-			Amount: update.Tick.Asks[i][1].(float64),
+			Price:  decimal.NewFromFloat(priceFloat),
+			Amount: decimal.NewFromFloat(amountFloat),
 		})
 	}
 

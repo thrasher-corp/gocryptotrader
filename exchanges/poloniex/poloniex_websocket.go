@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -422,7 +423,7 @@ func (p *Poloniex) WsProcessOrderbookSnapshot(data []interface{}) error {
 
 	var book orderbook.Base
 	for price, volume := range askData {
-		p, err := strconv.ParseFloat(price, 64)
+		p, err := decimal.NewFromString(price)
 		if err != nil {
 			return err
 		}
@@ -431,7 +432,7 @@ func (p *Poloniex) WsProcessOrderbookSnapshot(data []interface{}) error {
 			return fmt.Errorf("%w ask volume data not string",
 				errTypeAssertionFailure)
 		}
-		a, err := strconv.ParseFloat(v, 64)
+		a, err := decimal.NewFromString(v)
 		if err != nil {
 			return err
 		}
@@ -439,7 +440,7 @@ func (p *Poloniex) WsProcessOrderbookSnapshot(data []interface{}) error {
 	}
 
 	for price, volume := range bidData {
-		p, err := strconv.ParseFloat(price, 64)
+		p, err := decimal.NewFromString(price)
 		if err != nil {
 			return err
 		}
@@ -448,7 +449,7 @@ func (p *Poloniex) WsProcessOrderbookSnapshot(data []interface{}) error {
 			return fmt.Errorf("%w bid volume data not string",
 				errTypeAssertionFailure)
 		}
-		a, err := strconv.ParseFloat(v, 64)
+		a, err := decimal.NewFromString(v)
 		if err != nil {
 			return err
 		}
@@ -481,7 +482,7 @@ func (p *Poloniex) WsProcessOrderbookUpdate(sequenceNumber float64, data []inter
 	if !ok {
 		return fmt.Errorf("%w price not string", errTypeAssertionFailure)
 	}
-	price, err := strconv.ParseFloat(ps, 64)
+	price, err := decimal.NewFromString(ps)
 	if err != nil {
 		return err
 	}
@@ -489,7 +490,7 @@ func (p *Poloniex) WsProcessOrderbookUpdate(sequenceNumber float64, data []inter
 	if !ok {
 		return fmt.Errorf("%w volume not string", errTypeAssertionFailure)
 	}
-	volume, err := strconv.ParseFloat(vs, 64)
+	volume, err := decimal.NewFromString(vs)
 	if err != nil {
 		return err
 	}

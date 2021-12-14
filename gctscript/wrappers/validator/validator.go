@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
@@ -57,14 +58,14 @@ func (w Wrapper) Orderbook(ctx context.Context, exch string, pair currency.Pair,
 		Pair:     pair,
 		Bids: []orderbook.Item{
 			{
-				Amount: 1,
-				Price:  1,
+				Amount: decimal.NewFromInt(1),
+				Price:  decimal.NewFromInt(1),
 			},
 		},
 		Asks: []orderbook.Item{
 			{
-				Amount: 1,
-				Price:  1,
+				Amount: decimal.NewFromInt(1),
+				Price:  decimal.NewFromInt(1),
 			},
 		},
 	}, nil

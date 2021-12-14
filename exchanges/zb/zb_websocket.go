@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -122,16 +123,32 @@ func (z *ZB) wsHandleData(respRaw []byte) error {
 
 		var book orderbook.Base
 		for i := range depth.Asks {
+			amount, ok := depth.Asks[i][1].(float64)
+			if !ok {
+				return errors.New("ask amount type assertion failure")
+			}
+			price, ok := depth.Asks[i][0].(float64)
+			if !ok {
+				return errors.New("ask price type assertion failure")
+			}
 			book.Asks = append(book.Asks, orderbook.Item{
-				Amount: depth.Asks[i][1].(float64),
-				Price:  depth.Asks[i][0].(float64),
+				Amount: decimal.NewFromFloat(amount),
+				Price:  decimal.NewFromFloat(price),
 			})
 		}
 
 		for i := range depth.Bids {
+			amount, ok := depth.Bids[i][1].(float64)
+			if !ok {
+				return errors.New("bid amount type assertion failure")
+			}
+			price, ok := depth.Bids[i][0].(float64)
+			if !ok {
+				return errors.New("bid price type assertion failure")
+			}
 			book.Bids = append(book.Bids, orderbook.Item{
-				Amount: depth.Bids[i][1].(float64),
-				Price:  depth.Bids[i][0].(float64),
+				Amount: decimal.NewFromFloat(amount),
+				Price:  decimal.NewFromFloat(price),
 			})
 		}
 

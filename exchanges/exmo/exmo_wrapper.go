@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -296,13 +297,14 @@ func (e *EXMO) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType a
 		}
 
 		for y := range data.Ask {
-			var price, amount float64
-			price, err = strconv.ParseFloat(data.Ask[y][0], 64)
+			var price decimal.Decimal
+			price, err = decimal.NewFromString(data.Ask[y][0])
 			if err != nil {
 				return book, err
 			}
 
-			amount, err = strconv.ParseFloat(data.Ask[y][1], 64)
+			var amount decimal.Decimal
+			amount, err = decimal.NewFromString(data.Ask[y][1])
 			if err != nil {
 				return book, err
 			}
@@ -314,13 +316,14 @@ func (e *EXMO) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType a
 		}
 
 		for y := range data.Bid {
-			var price, amount float64
-			price, err = strconv.ParseFloat(data.Bid[y][0], 64)
+			var price decimal.Decimal
+			price, err = decimal.NewFromString(data.Bid[y][0])
 			if err != nil {
 				return book, err
 			}
 
-			amount, err = strconv.ParseFloat(data.Bid[y][1], 64)
+			var amount decimal.Decimal
+			amount, err = decimal.NewFromString(data.Bid[y][1])
 			if err != nil {
 				return book, err
 			}

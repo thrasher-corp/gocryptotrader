@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
@@ -355,7 +356,9 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 			if err != nil {
 				return err
 			}
-			asks = append(asks, orderbook.Item{Amount: amount, Price: price})
+			asks = append(asks, orderbook.Item{
+				Amount: decimal.NewFromFloat(amount),
+				Price:  decimal.NewFromFloat(price)})
 		}
 
 		for i := range data.Bids {
@@ -367,7 +370,9 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 			if err != nil {
 				return err
 			}
-			bids = append(bids, orderbook.Item{Amount: amount, Price: price})
+			bids = append(bids, orderbook.Item{
+				Amount: decimal.NewFromFloat(amount),
+				Price:  decimal.NewFromFloat(price)})
 		}
 
 		var p currency.Pair

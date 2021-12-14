@@ -18,6 +18,7 @@ import (
 	grpcauth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/pquerna/otp/totp"
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
@@ -447,37 +448,29 @@ func (s *RPCServer) GetOrderbook(ctx context.Context, r *gctrpc.GetOrderbookRequ
 		return nil, err
 	}
 
-	bids := make([]*gctrpc.OrderbookItem, 0, len(ob.Bids))
-	asks := make([]*gctrpc.OrderbookItem, 0, len(ob.Asks))
-	ch := make(chan bool)
-
-	go func() {
-		for _, b := range ob.Bids {
-			bids = append(bids, &gctrpc.OrderbookItem{
-				Amount: b.Amount,
-				Price:  b.Price,
-			})
+	bids := make([]*gctrpc.OrderbookItem, len(ob.Bids))
+	for x := range ob.Bids {
+		bids[x] = &gctrpc.OrderbookItem{
+			Amount: ob.Bids[x].Amount.InexactFloat64(),
+			Price:  ob.Bids[x].Price.InexactFloat64(),
 		}
-		ch <- true
-	}()
-
-	for _, a := range ob.Asks {
-		asks = append(asks, &gctrpc.OrderbookItem{
-			Amount: a.Amount,
-			Price:  a.Price,
-		})
 	}
-	<-ch
 
-	resp := &gctrpc.OrderbookResponse{
+	asks := make([]*gctrpc.OrderbookItem, len(ob.Asks))
+	for x := range ob.Asks {
+		asks[x] = &gctrpc.OrderbookItem{
+			Amount: ob.Asks[x].Amount.InexactFloat64(),
+			Price:  ob.Asks[x].Price.InexactFloat64(),
+		}
+	}
+
+	return &gctrpc.OrderbookResponse{
 		Pair:        r.Pair,
 		Bids:        bids,
 		Asks:        asks,
 		LastUpdated: s.unixTimestamp(ob.LastUpdated),
 		AssetType:   r.AssetType,
-	}
-
-	return resp, nil
+	}, nil
 }
 
 // GetOrderbooks returns a list of orderbooks for all enabled exchanges and all
@@ -524,15 +517,15 @@ func (s *RPCServer) GetOrderbooks(ctx context.Context, _ *gctrpc.GetOrderbooksRe
 				}
 				for i := range resp.Bids {
 					ob.Bids = append(ob.Bids, &gctrpc.OrderbookItem{
-						Amount: resp.Bids[i].Amount,
-						Price:  resp.Bids[i].Price,
+						Amount: resp.Bids[i].Amount.InexactFloat64(),
+						Price:  resp.Bids[i].Price.InexactFloat64(),
 					})
 				}
 
 				for i := range resp.Asks {
 					ob.Asks = append(ob.Asks, &gctrpc.OrderbookItem{
-						Amount: resp.Asks[i].Amount,
-						Price:  resp.Asks[i].Price,
+						Amount: resp.Asks[i].Amount.InexactFloat64(),
+						Price:  resp.Asks[i].Price.InexactFloat64(),
 					})
 				}
 				obs = append(obs, ob)
@@ -1256,19 +1249,19 @@ func (s *RPCServer) SimulateOrder(ctx context.Context, r *gctrpc.SimulateOrderRe
 		buy = false
 	}
 
-	result := o.SimulateOrder(r.Amount, buy)
+	result := o.SimulateOrder(decimal.NewFromFloat(r.Amount), buy)
 	var resp gctrpc.SimulateOrderResponse
 	for x := range result.Orders {
 		resp.Orders = append(resp.Orders, &gctrpc.OrderbookItem{
-			Price:  result.Orders[x].Price,
-			Amount: result.Orders[x].Amount,
+			Price:  result.Orders[x].Price.InexactFloat64(),
+			Amount: result.Orders[x].Amount.InexactFloat64(),
 		})
 	}
 
-	resp.Amount = result.Amount
-	resp.MaximumPrice = result.MaximumPrice
-	resp.MinimumPrice = result.MinimumPrice
-	resp.PercentageGainLoss = result.PercentageGainOrLoss
+	resp.Amount = result.Amount.InexactFloat64()
+	resp.MaximumPrice = result.MaximumPrice.InexactFloat64()
+	resp.MinimumPrice = result.MinimumPrice.InexactFloat64()
+	resp.PercentageGainLoss = result.PercentageGainOrLoss.InexactFloat64()
 	resp.Status = result.Status
 	return &resp, nil
 }
@@ -1307,22 +1300,22 @@ func (s *RPCServer) WhaleBomb(ctx context.Context, r *gctrpc.WhaleBombRequest) (
 		buy = false
 	}
 
-	result, err := o.WhaleBomb(r.PriceTarget, buy)
+	result, err := o.WhaleBomb(decimal.NewFromFloat(r.PriceTarget), buy)
 	if err != nil {
 		return nil, err
 	}
 	var resp gctrpc.SimulateOrderResponse
 	for x := range result.Orders {
 		resp.Orders = append(resp.Orders, &gctrpc.OrderbookItem{
-			Price:  result.Orders[x].Price,
-			Amount: result.Orders[x].Amount,
+			Price:  result.Orders[x].Price.InexactFloat64(),
+			Amount: result.Orders[x].Amount.InexactFloat64(),
 		})
 	}
 
-	resp.Amount = result.Amount
-	resp.MaximumPrice = result.MaximumPrice
-	resp.MinimumPrice = result.MinimumPrice
-	resp.PercentageGainLoss = result.PercentageGainOrLoss
+	resp.Amount = result.Amount.InexactFloat64()
+	resp.MaximumPrice = result.MaximumPrice.InexactFloat64()
+	resp.MinimumPrice = result.MinimumPrice.InexactFloat64()
+	resp.PercentageGainLoss = result.PercentageGainOrLoss.InexactFloat64()
 	resp.Status = result.Status
 	return &resp, err
 }
@@ -2054,15 +2047,15 @@ func (s *RPCServer) GetOrderbookStream(r *gctrpc.GetOrderbookStreamRequest, stre
 		bids := make([]*gctrpc.OrderbookItem, len(base.Bids))
 		for i := range base.Bids {
 			bids[i] = &gctrpc.OrderbookItem{
-				Amount: base.Bids[i].Amount,
-				Price:  base.Bids[i].Price,
+				Amount: base.Bids[i].Amount.InexactFloat64(),
+				Price:  base.Bids[i].Price.InexactFloat64(),
 				Id:     base.Bids[i].ID}
 		}
 		asks := make([]*gctrpc.OrderbookItem, len(base.Asks))
 		for i := range base.Asks {
 			asks[i] = &gctrpc.OrderbookItem{
-				Amount: base.Asks[i].Amount,
-				Price:  base.Asks[i].Price,
+				Amount: base.Asks[i].Amount.InexactFloat64(),
+				Price:  base.Asks[i].Price.InexactFloat64(),
 				Id:     base.Asks[i].ID}
 		}
 		err := stream.Send(&gctrpc.OrderbookResponse{
@@ -2119,15 +2112,15 @@ func (s *RPCServer) GetExchangeOrderbookStream(r *gctrpc.GetExchangeOrderbookStr
 		bids := make([]*gctrpc.OrderbookItem, len(ob.Bids))
 		for i := range ob.Bids {
 			bids[i] = &gctrpc.OrderbookItem{
-				Amount: ob.Bids[i].Amount,
-				Price:  ob.Bids[i].Price,
+				Amount: ob.Bids[i].Amount.InexactFloat64(),
+				Price:  ob.Bids[i].Price.InexactFloat64(),
 				Id:     ob.Bids[i].ID}
 		}
 		asks := make([]*gctrpc.OrderbookItem, len(ob.Asks))
 		for i := range ob.Asks {
 			asks[i] = &gctrpc.OrderbookItem{
-				Amount: ob.Asks[i].Amount,
-				Price:  ob.Asks[i].Price,
+				Amount: ob.Asks[i].Amount.InexactFloat64(),
+				Price:  ob.Asks[i].Price.InexactFloat64(),
 				Id:     ob.Asks[i].ID}
 		}
 		err := stream.Send(&gctrpc.OrderbookResponse{

@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -14,12 +15,12 @@ import (
 
 var (
 	itemArray = [][]orderbook.Item{
-		{{Price: 1000, Amount: 1, ID: 1000}},
-		{{Price: 2000, Amount: 1, ID: 2000}},
-		{{Price: 3000, Amount: 1, ID: 3000}},
-		{{Price: 3000, Amount: 2, ID: 4000}},
-		{{Price: 4000, Amount: 0, ID: 6000}},
-		{{Price: 5000, Amount: 1, ID: 5000}},
+		{{Price: decimal.NewFromInt(1000), Amount: decimal.NewFromInt(1), ID: 1000}},
+		{{Price: decimal.NewFromInt(2000), Amount: decimal.NewFromInt(1), ID: 2000}},
+		{{Price: decimal.NewFromInt(3000), Amount: decimal.NewFromInt(1), ID: 3000}},
+		{{Price: decimal.NewFromInt(3000), Amount: decimal.NewFromInt(2), ID: 4000}},
+		{{Price: decimal.NewFromInt(4000), Amount: decimal.NewFromInt(0), ID: 6000}},
+		{{Price: decimal.NewFromInt(5000), Amount: decimal.NewFromInt(1), ID: 5000}},
 	}
 
 	cp, _ = currency.NewPairFromString("BTCUSD")
@@ -30,8 +31,8 @@ const (
 )
 
 func createSnapshot() (holder *Orderbook, asks, bids orderbook.Items, err error) {
-	asks = orderbook.Items{{Price: 4000, Amount: 1, ID: 6}}
-	bids = orderbook.Items{{Price: 4000, Amount: 1, ID: 6}}
+	asks = orderbook.Items{{Price: decimal.NewFromInt(4000), Amount: decimal.NewFromInt(1), ID: 6}}
+	bids = orderbook.Items{{Price: decimal.NewFromInt(4000), Amount: decimal.NewFromInt(1), ID: 6}}
 
 	book := &orderbook.Base{
 		Exchange:         exchangeName,
@@ -62,8 +63,8 @@ func bidAskGenerator() []orderbook.Item {
 			price = 1
 		}
 		response = append(response, orderbook.Item{
-			Amount: float64(rand.Intn(10)), // nolint:gosec // no need to import crypo/rand for testing
-			Price:  price,
+			Amount: decimal.NewFromInt(rand.Int63n(10)), // nolint:gosec // no need to import crypo/rand for testing
+			Price:  decimal.NewFromFloat(price),
 			ID:     int64(i),
 		})
 	}
@@ -299,7 +300,7 @@ func TestInsertWithIDs(t *testing.T) {
 	holder.obBufferLimit = 5
 	for i := range itemArray {
 		asks := itemArray[i]
-		if asks[0].Amount <= 0 {
+		if asks[0].Amount.LessThanOrEqual(decimal.Zero) {
 			continue
 		}
 		bids := itemArray[i]
@@ -365,7 +366,7 @@ func TestOutOfOrderIDs(t *testing.T) {
 		t.Fatal(err)
 	}
 	outOFOrderIDs := []int64{2, 1, 5, 3, 4, 6, 7}
-	if itemArray[0][0].Price != 1000 {
+	if !itemArray[0][0].Price.Equal(decimal.NewFromInt(1000)) {
 		t.Errorf("expected sorted price to be 3000, received: %v",
 			itemArray[1][0].Price)
 	}
@@ -387,7 +388,7 @@ func TestOutOfOrderIDs(t *testing.T) {
 	book := holder.ob[cp.Base][cp.Quote][asset.Spot]
 	cpy := book.ob.Retrieve()
 	// Index 1 since index 0 is price 7000
-	if cpy.Asks[1].Price != 2000 {
+	if !cpy.Asks[1].Price.Equal(decimal.NewFromInt(2000)) {
 		t.Errorf("expected sorted price to be 2000, received: %v", cpy.Asks[1].Price)
 	}
 }
@@ -397,7 +398,7 @@ func TestOrderbookLastUpdateID(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if exp := float64(1000); itemArray[0][0].Price != exp {
+	if exp := decimal.NewFromInt(1000); !itemArray[0][0].Price.Equal(exp) {
 		t.Errorf("expected sorted price to be %f, received: %v",
 			exp, itemArray[1][0].Price)
 	}
@@ -430,11 +431,11 @@ func TestRunUpdateWithoutSnapshot(t *testing.T) {
 	var holder Orderbook
 	var snapShot1 orderbook.Base
 	asks := []orderbook.Item{
-		{Price: 4000, Amount: 1, ID: 8},
+		{Price: decimal.NewFromInt(4000), Amount: decimal.NewFromInt(1), ID: 8},
 	}
 	bids := []orderbook.Item{
-		{Price: 5999, Amount: 1, ID: 8},
-		{Price: 4000, Amount: 1, ID: 9},
+		{Price: decimal.NewFromInt(5999), Amount: decimal.NewFromInt(1), ID: 8},
+		{Price: decimal.NewFromInt(4000), Amount: decimal.NewFromInt(1), ID: 9},
 	}
 	snapShot1.Asks = asks
 	snapShot1.Bids = bids
@@ -501,10 +502,10 @@ func TestLoadSnapshot(t *testing.T) {
 	var snapShot1 orderbook.Base
 	snapShot1.Exchange = "SnapshotWithOverride"
 	asks := []orderbook.Item{
-		{Price: 4000, Amount: 1, ID: 8},
+		{Price: decimal.NewFromInt(4000), Amount: decimal.NewFromInt(1), ID: 8},
 	}
 	bids := []orderbook.Item{
-		{Price: 4000, Amount: 1, ID: 9},
+		{Price: decimal.NewFromInt(4000), Amount: decimal.NewFromInt(1), ID: 9},
 	}
 	snapShot1.Asks = asks
 	snapShot1.Bids = bids
@@ -540,31 +541,31 @@ func TestInsertingSnapShots(t *testing.T) {
 	var snapShot1 orderbook.Base
 	snapShot1.Exchange = "WSORDERBOOKTEST1"
 	asks := []orderbook.Item{
-		{Price: 6000, Amount: 1, ID: 1},
-		{Price: 6001, Amount: 0.5, ID: 2},
-		{Price: 6002, Amount: 2, ID: 3},
-		{Price: 6003, Amount: 3, ID: 4},
-		{Price: 6004, Amount: 5, ID: 5},
-		{Price: 6005, Amount: 2, ID: 6},
-		{Price: 6006, Amount: 1.5, ID: 7},
-		{Price: 6007, Amount: 0.5, ID: 8},
-		{Price: 6008, Amount: 23, ID: 9},
-		{Price: 6009, Amount: 9, ID: 10},
-		{Price: 6010, Amount: 7, ID: 11},
+		{Price: decimal.NewFromInt(6000), Amount: decimal.NewFromInt(1), ID: 1},
+		{Price: decimal.NewFromInt(6001), Amount: decimal.NewFromFloat(0.5), ID: 2},
+		{Price: decimal.NewFromInt(6002), Amount: decimal.NewFromInt(2), ID: 3},
+		{Price: decimal.NewFromInt(6003), Amount: decimal.NewFromInt(3), ID: 4},
+		{Price: decimal.NewFromInt(6004), Amount: decimal.NewFromInt(5), ID: 5},
+		{Price: decimal.NewFromInt(6005), Amount: decimal.NewFromInt(2), ID: 6},
+		{Price: decimal.NewFromInt(6006), Amount: decimal.NewFromFloat(1.5), ID: 7},
+		{Price: decimal.NewFromInt(6007), Amount: decimal.NewFromFloat(0.5), ID: 8},
+		{Price: decimal.NewFromInt(6008), Amount: decimal.NewFromInt(23), ID: 9},
+		{Price: decimal.NewFromInt(6009), Amount: decimal.NewFromInt(9), ID: 10},
+		{Price: decimal.NewFromInt(6010), Amount: decimal.NewFromInt(7), ID: 11},
 	}
 
 	bids := []orderbook.Item{
-		{Price: 5999, Amount: 1, ID: 12},
-		{Price: 5998, Amount: 0.5, ID: 13},
-		{Price: 5997, Amount: 2, ID: 14},
-		{Price: 5996, Amount: 3, ID: 15},
-		{Price: 5995, Amount: 5, ID: 16},
-		{Price: 5994, Amount: 2, ID: 17},
-		{Price: 5993, Amount: 1.5, ID: 18},
-		{Price: 5992, Amount: 0.5, ID: 19},
-		{Price: 5991, Amount: 23, ID: 20},
-		{Price: 5990, Amount: 9, ID: 21},
-		{Price: 5989, Amount: 7, ID: 22},
+		{Price: decimal.NewFromInt(5999), Amount: decimal.NewFromInt(1), ID: 12},
+		{Price: decimal.NewFromInt(5998), Amount: decimal.NewFromFloat(0.5), ID: 13},
+		{Price: decimal.NewFromInt(5997), Amount: decimal.NewFromInt(2), ID: 14},
+		{Price: decimal.NewFromInt(5996), Amount: decimal.NewFromInt(3), ID: 15},
+		{Price: decimal.NewFromInt(5995), Amount: decimal.NewFromInt(5), ID: 16},
+		{Price: decimal.NewFromInt(5994), Amount: decimal.NewFromInt(2), ID: 17},
+		{Price: decimal.NewFromInt(5993), Amount: decimal.NewFromFloat(1.5), ID: 18},
+		{Price: decimal.NewFromInt(5992), Amount: decimal.NewFromFloat(0.5), ID: 19},
+		{Price: decimal.NewFromInt(5991), Amount: decimal.NewFromInt(23), ID: 20},
+		{Price: decimal.NewFromInt(5990), Amount: decimal.NewFromInt(9), ID: 21},
+		{Price: decimal.NewFromInt(5989), Amount: decimal.NewFromInt(7), ID: 22},
 	}
 
 	snapShot1.Asks = asks
@@ -578,31 +579,31 @@ func TestInsertingSnapShots(t *testing.T) {
 	var snapShot2 orderbook.Base
 	snapShot2.Exchange = "WSORDERBOOKTEST2"
 	asks = []orderbook.Item{
-		{Price: 51, Amount: 1, ID: 1},
-		{Price: 52, Amount: 0.5, ID: 2},
-		{Price: 53, Amount: 2, ID: 3},
-		{Price: 54, Amount: 3, ID: 4},
-		{Price: 55, Amount: 5, ID: 5},
-		{Price: 56, Amount: 2, ID: 6},
-		{Price: 57, Amount: 1.5, ID: 7},
-		{Price: 58, Amount: 0.5, ID: 8},
-		{Price: 59, Amount: 23, ID: 9},
-		{Price: 50, Amount: 9, ID: 10},
-		{Price: 60, Amount: 7, ID: 11},
+		{Price: decimal.NewFromInt(51), Amount: decimal.NewFromInt(1), ID: 1},
+		{Price: decimal.NewFromInt(52), Amount: decimal.NewFromFloat(0.5), ID: 2},
+		{Price: decimal.NewFromInt(53), Amount: decimal.NewFromInt(2), ID: 3},
+		{Price: decimal.NewFromInt(54), Amount: decimal.NewFromInt(3), ID: 4},
+		{Price: decimal.NewFromInt(55), Amount: decimal.NewFromInt(5), ID: 5},
+		{Price: decimal.NewFromInt(56), Amount: decimal.NewFromInt(2), ID: 6},
+		{Price: decimal.NewFromInt(57), Amount: decimal.NewFromFloat(1.5), ID: 7},
+		{Price: decimal.NewFromInt(58), Amount: decimal.NewFromFloat(0.5), ID: 8},
+		{Price: decimal.NewFromInt(59), Amount: decimal.NewFromInt(23), ID: 9},
+		{Price: decimal.NewFromInt(50), Amount: decimal.NewFromInt(9), ID: 10},
+		{Price: decimal.NewFromInt(60), Amount: decimal.NewFromInt(7), ID: 11},
 	}
 
 	bids = []orderbook.Item{
-		{Price: 49, Amount: 1, ID: 12},
-		{Price: 48, Amount: 0.5, ID: 13},
-		{Price: 47, Amount: 2, ID: 14},
-		{Price: 46, Amount: 3, ID: 15},
-		{Price: 45, Amount: 5, ID: 16},
-		{Price: 44, Amount: 2, ID: 17},
-		{Price: 43, Amount: 1.5, ID: 18},
-		{Price: 42, Amount: 0.5, ID: 19},
-		{Price: 41, Amount: 23, ID: 20},
-		{Price: 40, Amount: 9, ID: 21},
-		{Price: 39, Amount: 7, ID: 22},
+		{Price: decimal.NewFromInt(49), Amount: decimal.NewFromInt(1), ID: 12},
+		{Price: decimal.NewFromInt(48), Amount: decimal.NewFromFloat(0.5), ID: 13},
+		{Price: decimal.NewFromInt(47), Amount: decimal.NewFromInt(2), ID: 14},
+		{Price: decimal.NewFromInt(46), Amount: decimal.NewFromInt(3), ID: 15},
+		{Price: decimal.NewFromInt(45), Amount: decimal.NewFromInt(5), ID: 16},
+		{Price: decimal.NewFromInt(44), Amount: decimal.NewFromInt(2), ID: 17},
+		{Price: decimal.NewFromInt(43), Amount: decimal.NewFromFloat(1.5), ID: 18},
+		{Price: decimal.NewFromInt(42), Amount: decimal.NewFromFloat(0.5), ID: 19},
+		{Price: decimal.NewFromInt(41), Amount: decimal.NewFromInt(23), ID: 20},
+		{Price: decimal.NewFromInt(40), Amount: decimal.NewFromInt(9), ID: 21},
+		{Price: decimal.NewFromInt(39), Amount: decimal.NewFromInt(7), ID: 22},
 	}
 
 	snapShot2.Asks = asks
@@ -621,31 +622,31 @@ func TestInsertingSnapShots(t *testing.T) {
 	var snapShot3 orderbook.Base
 	snapShot3.Exchange = "WSORDERBOOKTEST3"
 	asks = []orderbook.Item{
-		{Price: 511, Amount: 1, ID: 1},
-		{Price: 52, Amount: 0.5, ID: 2},
-		{Price: 53, Amount: 2, ID: 3},
-		{Price: 54, Amount: 3, ID: 4},
-		{Price: 55, Amount: 5, ID: 5},
-		{Price: 56, Amount: 2, ID: 6},
-		{Price: 57, Amount: 1.5, ID: 7},
-		{Price: 58, Amount: 0.5, ID: 8},
-		{Price: 59, Amount: 23, ID: 9},
-		{Price: 50, Amount: 9, ID: 10},
-		{Price: 60, Amount: 7, ID: 11},
+		{Price: decimal.NewFromInt(511), Amount: decimal.NewFromInt(1), ID: 1},
+		{Price: decimal.NewFromInt(52), Amount: decimal.NewFromFloat(0.5), ID: 2},
+		{Price: decimal.NewFromInt(53), Amount: decimal.NewFromInt(2), ID: 3},
+		{Price: decimal.NewFromInt(54), Amount: decimal.NewFromInt(3), ID: 4},
+		{Price: decimal.NewFromInt(55), Amount: decimal.NewFromInt(5), ID: 5},
+		{Price: decimal.NewFromInt(56), Amount: decimal.NewFromInt(2), ID: 6},
+		{Price: decimal.NewFromInt(57), Amount: decimal.NewFromFloat(1.5), ID: 7},
+		{Price: decimal.NewFromInt(58), Amount: decimal.NewFromFloat(0.5), ID: 8},
+		{Price: decimal.NewFromInt(59), Amount: decimal.NewFromInt(23), ID: 9},
+		{Price: decimal.NewFromInt(50), Amount: decimal.NewFromInt(9), ID: 10},
+		{Price: decimal.NewFromInt(60), Amount: decimal.NewFromInt(7), ID: 11},
 	}
 
 	bids = []orderbook.Item{
-		{Price: 49, Amount: 1, ID: 12},
-		{Price: 48, Amount: 0.5, ID: 13},
-		{Price: 47, Amount: 2, ID: 14},
-		{Price: 46, Amount: 3, ID: 15},
-		{Price: 45, Amount: 5, ID: 16},
-		{Price: 44, Amount: 2, ID: 17},
-		{Price: 43, Amount: 1.5, ID: 18},
-		{Price: 42, Amount: 0.5, ID: 19},
-		{Price: 41, Amount: 23, ID: 20},
-		{Price: 40, Amount: 9, ID: 21},
-		{Price: 39, Amount: 7, ID: 22},
+		{Price: decimal.NewFromInt(49), Amount: decimal.NewFromInt(1), ID: 12},
+		{Price: decimal.NewFromInt(48), Amount: decimal.NewFromFloat(0.5), ID: 13},
+		{Price: decimal.NewFromInt(47), Amount: decimal.NewFromInt(2), ID: 14},
+		{Price: decimal.NewFromInt(46), Amount: decimal.NewFromInt(3), ID: 15},
+		{Price: decimal.NewFromInt(45), Amount: decimal.NewFromInt(5), ID: 16},
+		{Price: decimal.NewFromInt(44), Amount: decimal.NewFromInt(2), ID: 17},
+		{Price: decimal.NewFromInt(43), Amount: decimal.NewFromFloat(1.5), ID: 18},
+		{Price: decimal.NewFromInt(42), Amount: decimal.NewFromFloat(0.5), ID: 19},
+		{Price: decimal.NewFromInt(41), Amount: decimal.NewFromInt(23), ID: 20},
+		{Price: decimal.NewFromInt(40), Amount: decimal.NewFromInt(9), ID: 21},
+		{Price: decimal.NewFromInt(39), Amount: decimal.NewFromInt(7), ID: 22},
 	}
 
 	snapShot3.Asks = asks
@@ -792,7 +793,10 @@ func deploySliceOrdered(size int) orderbook.Items {
 	rand.Seed(time.Now().UnixNano())
 	var items []orderbook.Item
 	for i := 0; i < size; i++ {
-		items = append(items, orderbook.Item{Amount: 1, Price: rand.Float64() + float64(i), ID: rand.Int63()}) // nolint:gosec // Not needed for tests
+		items = append(items, orderbook.Item{
+			Amount: decimal.NewFromInt(1),
+			Price:  decimal.NewFromFloat(rand.Float64() + float64(i)), // nolint:gosec // Not needed for tests
+			ID:     rand.Int63()})                                     // nolint:gosec // Not needed for tests
 	}
 	return items
 }
@@ -829,7 +833,7 @@ func TestUpdateByIDAndAction(t *testing.T) {
 		Action: Amend,
 		Bids: []orderbook.Item{
 			{
-				Price: 100,
+				Price: decimal.NewFromInt(100),
 				ID:    6969,
 			},
 		},
@@ -843,16 +847,16 @@ func TestUpdateByIDAndAction(t *testing.T) {
 		Action: UpdateInsert,
 		Bids: []orderbook.Item{
 			{
-				Price:  0,
+				Price:  decimal.NewFromInt(0),
 				ID:     1337,
-				Amount: 1,
+				Amount: decimal.NewFromInt(1),
 			},
 		},
 		Asks: []orderbook.Item{
 			{
-				Price:  100,
+				Price:  decimal.NewFromInt(100),
 				ID:     1337,
-				Amount: 1,
+				Amount: decimal.NewFromInt(1),
 			},
 		},
 	})
@@ -862,10 +866,10 @@ func TestUpdateByIDAndAction(t *testing.T) {
 
 	cpy := book.Retrieve()
 
-	if cpy.Bids[len(cpy.Bids)-1].Price != 0 {
+	if !cpy.Bids[len(cpy.Bids)-1].Price.Equal(decimal.Zero) {
 		t.Fatal("did not append bid item")
 	}
-	if cpy.Asks[len(cpy.Asks)-1].Price != 100 {
+	if !cpy.Asks[len(cpy.Asks)-1].Price.Equal(decimal.NewFromInt(100)) {
 		t.Fatal("did not append ask item")
 	}
 
@@ -874,16 +878,16 @@ func TestUpdateByIDAndAction(t *testing.T) {
 		Action: UpdateInsert,
 		Bids: []orderbook.Item{
 			{
-				Price:  0,
+				Price:  decimal.NewFromInt(0),
 				ID:     1337,
-				Amount: 100,
+				Amount: decimal.NewFromInt(100),
 			},
 		},
 		Asks: []orderbook.Item{
 			{
-				Price:  100,
+				Price:  decimal.NewFromInt(100),
 				ID:     1337,
-				Amount: 100,
+				Amount: decimal.NewFromInt(100),
 			},
 		},
 	})
@@ -893,11 +897,11 @@ func TestUpdateByIDAndAction(t *testing.T) {
 
 	cpy = book.Retrieve()
 
-	if cpy.Bids[len(cpy.Bids)-1].Amount != 100 {
+	if !cpy.Bids[len(cpy.Bids)-1].Amount.Equal(decimal.NewFromInt(100)) {
 		t.Fatal("did not update bid amount", cpy.Bids[len(cpy.Bids)-1].Amount)
 	}
 
-	if cpy.Asks[len(cpy.Asks)-1].Amount != 100 {
+	if !cpy.Asks[len(cpy.Asks)-1].Amount.Equal(decimal.NewFromInt(100)) {
 		t.Fatal("did not update ask amount")
 	}
 
@@ -906,16 +910,16 @@ func TestUpdateByIDAndAction(t *testing.T) {
 		Action: UpdateInsert,
 		Bids: []orderbook.Item{
 			{
-				Price:  100,
+				Price:  decimal.NewFromInt(100),
 				ID:     1337,
-				Amount: 99,
+				Amount: decimal.NewFromInt(99),
 			},
 		},
 		Asks: []orderbook.Item{
 			{
-				Price:  0,
+				Price:  decimal.NewFromInt(0),
 				ID:     1337,
-				Amount: 99,
+				Amount: decimal.NewFromInt(99),
 			},
 		},
 	})
@@ -925,11 +929,13 @@ func TestUpdateByIDAndAction(t *testing.T) {
 
 	cpy = book.Retrieve()
 
-	if cpy.Bids[0].Amount != 99 && cpy.Bids[0].Price != 100 {
+	if !cpy.Bids[0].Amount.Equal(decimal.NewFromInt(99)) &&
+		!cpy.Bids[0].Price.Equal(decimal.NewFromInt(100)) {
 		t.Fatal("did not adjust bid item placement and details")
 	}
 
-	if cpy.Asks[0].Amount != 99 && cpy.Asks[0].Amount != 0 {
+	if !cpy.Asks[0].Amount.Equal(decimal.NewFromInt(99)) &&
+		!cpy.Asks[0].Amount.Equal(decimal.NewFromInt(0)) {
 		t.Fatal("did not adjust ask item placement and details")
 	}
 
@@ -940,9 +946,9 @@ func TestUpdateByIDAndAction(t *testing.T) {
 		Action: Delete,
 		Asks: []orderbook.Item{
 			{
-				Price:  0,
+				Price:  decimal.NewFromInt(0),
 				ID:     1337,
-				Amount: 99,
+				Amount: decimal.NewFromInt(99),
 			},
 		},
 	})
@@ -953,9 +959,9 @@ func TestUpdateByIDAndAction(t *testing.T) {
 		Action: Delete,
 		Bids: []orderbook.Item{
 			{
-				Price:  0,
+				Price:  decimal.NewFromInt(0),
 				ID:     1337,
-				Amount: 99,
+				Amount: decimal.NewFromInt(99),
 			},
 		},
 	})
@@ -990,7 +996,7 @@ func TestUpdateByIDAndAction(t *testing.T) {
 	}
 
 	update := book.Retrieve().Asks[0]
-	update.Amount = 1337
+	update.Amount = decimal.NewFromInt(1337)
 
 	err = holder.updateByIDAndAction(&Update{
 		Action: Amend,
@@ -1002,7 +1008,7 @@ func TestUpdateByIDAndAction(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if book.Retrieve().Asks[0].Amount != 1337 {
+	if !book.Retrieve().Asks[0].Amount.Equal(decimal.NewFromInt(1337)) {
 		t.Fatal("element not updated")
 	}
 }
@@ -1018,10 +1024,10 @@ func TestFlushOrderbook(t *testing.T) {
 	var snapShot1 orderbook.Base
 	snapShot1.Exchange = "Snapshooooot"
 	asks := []orderbook.Item{
-		{Price: 4000, Amount: 1, ID: 8},
+		{Price: decimal.NewFromInt(4000), Amount: decimal.NewFromInt(1), ID: 8},
 	}
 	bids := []orderbook.Item{
-		{Price: 4000, Amount: 1, ID: 9},
+		{Price: decimal.NewFromInt(4000), Amount: decimal.NewFromInt(1), ID: 9},
 	}
 	snapShot1.Asks = asks
 	snapShot1.Bids = bids

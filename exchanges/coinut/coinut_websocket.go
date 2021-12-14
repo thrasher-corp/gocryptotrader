@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -515,16 +516,16 @@ func (c *COINUT) WsProcessOrderbookSnapshot(ob *WsOrderbookSnapshot) error {
 	var bids []orderbook.Item
 	for i := range ob.Buy {
 		bids = append(bids, orderbook.Item{
-			Amount: ob.Buy[i].Volume,
-			Price:  ob.Buy[i].Price,
+			Amount: decimal.NewFromFloat(ob.Buy[i].Volume),
+			Price:  decimal.NewFromFloat(ob.Buy[i].Price),
 		})
 	}
 
 	var asks []orderbook.Item
 	for i := range ob.Sell {
 		asks = append(asks, orderbook.Item{
-			Amount: ob.Sell[i].Volume,
-			Price:  ob.Sell[i].Price,
+			Amount: decimal.NewFromFloat(ob.Sell[i].Volume),
+			Price:  decimal.NewFromFloat(ob.Sell[i].Price),
 		})
 	}
 
@@ -583,9 +584,19 @@ func (c *COINUT) WsProcessOrderbookUpdate(update *WsOrderbookUpdate) error {
 		Asset:    asset.Spot,
 	}
 	if strings.EqualFold(update.Side, order.Buy.Lower()) {
-		bufferUpdate.Bids = []orderbook.Item{{Price: update.Price, Amount: update.Volume}}
+		bufferUpdate.Bids = []orderbook.Item{
+			{
+				Price:  decimal.NewFromFloat(update.Price),
+				Amount: decimal.NewFromFloat(update.Volume),
+			},
+		}
 	} else {
-		bufferUpdate.Asks = []orderbook.Item{{Price: update.Price, Amount: update.Volume}}
+		bufferUpdate.Asks = []orderbook.Item{
+			{
+				Price:  decimal.NewFromFloat(update.Price),
+				Amount: decimal.NewFromFloat(update.Volume),
+			},
+		}
 	}
 	return c.Websocket.Orderbook.Update(bufferUpdate)
 }

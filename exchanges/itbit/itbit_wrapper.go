@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"net/url"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -222,12 +222,13 @@ func (i *ItBit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType 
 	}
 
 	for x := range orderbookNew.Bids {
-		var price, amount float64
-		price, err = strconv.ParseFloat(orderbookNew.Bids[x][0], 64)
+		var price decimal.Decimal
+		price, err = decimal.NewFromString(orderbookNew.Bids[x][0])
 		if err != nil {
 			return book, err
 		}
-		amount, err = strconv.ParseFloat(orderbookNew.Bids[x][1], 64)
+		var amount decimal.Decimal
+		amount, err = decimal.NewFromString(orderbookNew.Bids[x][1])
 		if err != nil {
 			return book, err
 		}
@@ -239,12 +240,13 @@ func (i *ItBit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType 
 	}
 
 	for x := range orderbookNew.Asks {
-		var price, amount float64
-		price, err = strconv.ParseFloat(orderbookNew.Asks[x][0], 64)
+		var price decimal.Decimal
+		price, err = decimal.NewFromString(orderbookNew.Asks[x][0])
 		if err != nil {
 			return book, err
 		}
-		amount, err = strconv.ParseFloat(orderbookNew.Asks[x][1], 64)
+		var amount decimal.Decimal
+		amount, err = decimal.NewFromString(orderbookNew.Asks[x][1])
 		if err != nil {
 			return book, err
 		}

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -134,8 +135,8 @@ func (o *OKGroup) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.
 		}
 
 		book.Bids = append(book.Bids, orderbook.Item{
-			Amount:            amount,
-			Price:             price,
+			Amount:            decimal.NewFromFloat(amount),
+			Price:             decimal.NewFromFloat(price),
 			LiquidationOrders: liquidationOrders,
 			OrderCount:        orderCount,
 		})
@@ -166,8 +167,8 @@ func (o *OKGroup) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.
 		}
 
 		book.Asks = append(book.Asks, orderbook.Item{
-			Amount:            amount,
-			Price:             price,
+			Amount:            decimal.NewFromFloat(amount),
+			Price:             decimal.NewFromFloat(price),
 			LiquidationOrders: liquidationOrders,
 			OrderCount:        orderCount,
 		})

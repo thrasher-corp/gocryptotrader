@@ -32,11 +32,9 @@ func EstimateSlippagePercentage(maximumSlippageRate, minimumSlippageRate decimal
 // CalculateSlippageByOrderbook will analyse a provided orderbook and return the result of attempting to
 // place the order on there
 func CalculateSlippageByOrderbook(ob *orderbook.Base, side gctorder.Side, amountOfFunds, feeRate decimal.Decimal) (price, amount decimal.Decimal) {
-	funds, _ := amountOfFunds.Float64()
-	fee, _ := feeRate.Float64()
-	result := ob.SimulateOrder(funds, side == gctorder.Buy)
-	rate := (result.MinimumPrice - result.MaximumPrice) / result.MaximumPrice
-	price = decimal.NewFromFloat(result.MinimumPrice * (rate + 1))
-	amount = decimal.NewFromFloat(result.Amount * (1 - fee))
+	result := ob.SimulateOrder(amountOfFunds, side == gctorder.Buy)
+	rate := result.MinimumPrice.Sub(result.MaximumPrice).Div(result.MaximumPrice)
+	price = result.MinimumPrice.Mul(rate.Add(decimal.NewFromInt(1)))
+	amount = result.Amount.Mul(decimal.NewFromInt(1).Sub(feeRate))
 	return
 }

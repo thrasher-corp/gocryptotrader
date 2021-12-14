@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
@@ -757,7 +758,9 @@ func TestGetSpecificOrderbook(t *testing.T) {
 	e := CreateTestBot(t)
 
 	var bids []orderbook.Item
-	bids = append(bids, orderbook.Item{Price: 1000, Amount: 1})
+	bids = append(bids, orderbook.Item{
+		Price:  decimal.NewFromInt(1000),
+		Amount: decimal.NewFromInt(1)})
 
 	base := orderbook.Base{
 		Pair:     currency.NewPair(currency.BTC, currency.USD),
@@ -782,7 +785,7 @@ func TestGetSpecificOrderbook(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if ob.Bids[0].Price != 1000 {
+	if !ob.Bids[0].Price.Equal(decimal.NewFromInt(1000)) {
 		t.Fatal("Unexpected result")
 	}
 

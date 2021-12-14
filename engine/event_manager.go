@@ -314,7 +314,7 @@ func (e *Event) processOrderbook() error {
 
 	if e.Condition.CheckBids {
 		for x := range ob.Bids {
-			subtotal := ob.Bids[x].Amount * ob.Bids[x].Price
+			subtotal := ob.Bids[x].Amount.InexactFloat64() * ob.Bids[x].Price.InexactFloat64()
 			err = e.shouldProcessEvent(subtotal, e.Condition.OrderbookAmount)
 			if err == nil {
 				log.Debugf(log.EventMgr, "Events: Bid Amount: %f Price: %v Subtotal: %v\n", ob.Bids[x].Amount, ob.Bids[x].Price, subtotal)
@@ -324,7 +324,7 @@ func (e *Event) processOrderbook() error {
 
 	if e.Condition.CheckAsks {
 		for x := range ob.Asks {
-			subtotal := ob.Asks[x].Amount * ob.Asks[x].Price
+			subtotal := ob.Asks[x].Amount.InexactFloat64() * ob.Asks[x].Price.InexactFloat64()
 			err = e.shouldProcessEvent(subtotal, e.Condition.OrderbookAmount)
 			if err == nil {
 				log.Debugf(log.EventMgr, "Events: Ask Amount: %f Price: %v Subtotal: %v\n", ob.Asks[x].Amount, ob.Asks[x].Price, subtotal)

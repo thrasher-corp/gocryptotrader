@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -532,8 +533,8 @@ func (g *Gemini) wsProcessUpdate(result *wsL2MarketData) error {
 			return err
 		}
 		obItem := orderbook.Item{
-			Amount: amount,
-			Price:  price,
+			Amount: decimal.NewFromFloat(amount),
+			Price:  decimal.NewFromFloat(price),
 		}
 		if result.Changes[x][0] == "buy" {
 			bids = append(bids, obItem)

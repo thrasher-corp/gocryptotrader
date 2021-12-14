@@ -74,15 +74,15 @@ func ExchangeOrderbook(args ...objects.Object) (objects.Object, error) {
 
 	for x := range ob.Asks {
 		temp := make(map[string]objects.Object, 2)
-		temp["amount"] = &objects.Float{Value: ob.Asks[x].Amount}
-		temp["price"] = &objects.Float{Value: ob.Asks[x].Price}
+		temp["amount"] = &objects.Float{Value: ob.Asks[x].Amount.InexactFloat64()}
+		temp["price"] = &objects.Float{Value: ob.Asks[x].Price.InexactFloat64()}
 		asks.Value = append(asks.Value, &objects.Map{Value: temp})
 	}
 
 	for x := range ob.Bids {
 		temp := make(map[string]objects.Object, 2)
-		temp["amount"] = &objects.Float{Value: ob.Bids[x].Amount}
-		temp["price"] = &objects.Float{Value: ob.Bids[x].Price}
+		temp["amount"] = &objects.Float{Value: ob.Bids[x].Amount.InexactFloat64()}
+		temp["price"] = &objects.Float{Value: ob.Bids[x].Price.InexactFloat64()}
 		bids.Value = append(bids.Value, &objects.Map{Value: temp})
 	}
 

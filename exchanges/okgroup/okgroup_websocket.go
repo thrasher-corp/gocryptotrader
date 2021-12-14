@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -649,7 +650,9 @@ func (o *OKGroup) AppendWsOrderbookItems(entries [][]interface{}) ([]orderbook.I
 		if err != nil {
 			return nil, err
 		}
-		items = append(items, orderbook.Item{Amount: amount, Price: price})
+		items = append(items, orderbook.Item{
+			Amount: decimal.NewFromFloat(amount),
+			Price:  decimal.NewFromFloat(price)})
 	}
 	return items, nil
 }
@@ -768,13 +771,13 @@ func (o *OKGroup) CalculateUpdateOrderbookChecksum(orderbookData *orderbook.Base
 	var checksum strings.Builder
 	for i := 0; i < allowableIterations; i++ {
 		if len(orderbookData.Bids)-1 >= i {
-			price := strconv.FormatFloat(orderbookData.Bids[i].Price, 'f', -1, 64)
-			amount := strconv.FormatFloat(orderbookData.Bids[i].Amount, 'f', -1, 64)
+			price := strconv.FormatFloat(orderbookData.Bids[i].Price.InexactFloat64(), 'f', -1, 64)
+			amount := strconv.FormatFloat(orderbookData.Bids[i].Amount.InexactFloat64(), 'f', -1, 64)
 			checksum.WriteString(price + delimiterColon + amount + delimiterColon)
 		}
 		if len(orderbookData.Asks)-1 >= i {
-			price := strconv.FormatFloat(orderbookData.Asks[i].Price, 'f', -1, 64)
-			amount := strconv.FormatFloat(orderbookData.Asks[i].Amount, 'f', -1, 64)
+			price := strconv.FormatFloat(orderbookData.Asks[i].Price.InexactFloat64(), 'f', -1, 64)
+			amount := strconv.FormatFloat(orderbookData.Asks[i].Amount.InexactFloat64(), 'f', -1, 64)
 			checksum.WriteString(price + delimiterColon + amount + delimiterColon)
 		}
 	}

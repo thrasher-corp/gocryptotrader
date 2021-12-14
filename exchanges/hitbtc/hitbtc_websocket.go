@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -300,15 +301,15 @@ func (h *HitBTC) WsProcessOrderbookSnapshot(ob WsOrderbook) error {
 	var newOrderBook orderbook.Base
 	for i := range ob.Params.Bid {
 		newOrderBook.Bids = append(newOrderBook.Bids, orderbook.Item{
-			Amount: ob.Params.Bid[i].Size,
-			Price:  ob.Params.Bid[i].Price,
+			Amount: decimal.NewFromFloat(ob.Params.Bid[i].Size),
+			Price:  decimal.NewFromFloat(ob.Params.Bid[i].Price),
 		})
 	}
 
 	for i := range ob.Params.Ask {
 		newOrderBook.Asks = append(newOrderBook.Asks, orderbook.Item{
-			Amount: ob.Params.Ask[i].Size,
-			Price:  ob.Params.Ask[i].Price,
+			Amount: decimal.NewFromFloat(ob.Params.Ask[i].Size),
+			Price:  decimal.NewFromFloat(ob.Params.Ask[i].Price),
 		})
 	}
 
@@ -419,15 +420,15 @@ func (h *HitBTC) WsProcessOrderbookUpdate(update WsOrderbook) error {
 	var bids, asks []orderbook.Item
 	for i := range update.Params.Bid {
 		bids = append(bids, orderbook.Item{
-			Price:  update.Params.Bid[i].Price,
-			Amount: update.Params.Bid[i].Size,
+			Price:  decimal.NewFromFloat(update.Params.Bid[i].Price),
+			Amount: decimal.NewFromFloat(update.Params.Bid[i].Size),
 		})
 	}
 
 	for i := range update.Params.Ask {
 		asks = append(asks, orderbook.Item{
-			Price:  update.Params.Ask[i].Price,
-			Amount: update.Params.Ask[i].Size,
+			Price:  decimal.NewFromFloat(update.Params.Ask[i].Price),
+			Amount: decimal.NewFromFloat(update.Params.Ask[i].Size),
 		})
 	}
 

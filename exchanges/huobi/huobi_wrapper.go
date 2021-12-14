@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -556,15 +557,15 @@ func (h *HUOBI) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType 
 
 		for x := range orderbookNew.Bids {
 			book.Bids = append(book.Bids, orderbook.Item{
-				Amount: orderbookNew.Bids[x][1],
-				Price:  orderbookNew.Bids[x][0],
+				Amount: decimal.NewFromFloat(orderbookNew.Bids[x][1]),
+				Price:  decimal.NewFromFloat(orderbookNew.Bids[x][0]),
 			})
 		}
 
 		for x := range orderbookNew.Asks {
 			book.Asks = append(book.Asks, orderbook.Item{
-				Amount: orderbookNew.Asks[x][1],
-				Price:  orderbookNew.Asks[x][0],
+				Amount: decimal.NewFromFloat(orderbookNew.Asks[x][1]),
+				Price:  decimal.NewFromFloat(orderbookNew.Asks[x][0]),
 			})
 		}
 
@@ -577,14 +578,14 @@ func (h *HUOBI) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType 
 
 		for x := range orderbookNew.Asks {
 			book.Asks = append(book.Asks, orderbook.Item{
-				Amount: orderbookNew.Asks[x].Quantity,
-				Price:  orderbookNew.Asks[x].Price,
+				Amount: decimal.NewFromFloat(orderbookNew.Asks[x].Quantity),
+				Price:  decimal.NewFromFloat(orderbookNew.Asks[x].Price),
 			})
 		}
 		for y := range orderbookNew.Bids {
 			book.Bids = append(book.Bids, orderbook.Item{
-				Amount: orderbookNew.Bids[y].Quantity,
-				Price:  orderbookNew.Bids[y].Price,
+				Amount: decimal.NewFromFloat(orderbookNew.Bids[y].Quantity),
+				Price:  decimal.NewFromFloat(orderbookNew.Bids[y].Price),
 			})
 		}
 
@@ -597,14 +598,14 @@ func (h *HUOBI) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType 
 
 		for x := range orderbookNew.Tick.Asks {
 			book.Asks = append(book.Asks, orderbook.Item{
-				Amount: orderbookNew.Tick.Asks[x][1],
-				Price:  orderbookNew.Tick.Asks[x][0],
+				Amount: decimal.NewFromFloat(orderbookNew.Tick.Asks[x][1]),
+				Price:  decimal.NewFromFloat(orderbookNew.Tick.Asks[x][0]),
 			})
 		}
 		for y := range orderbookNew.Tick.Bids {
 			book.Bids = append(book.Bids, orderbook.Item{
-				Amount: orderbookNew.Tick.Bids[y][1],
-				Price:  orderbookNew.Tick.Bids[y][0],
+				Amount: decimal.NewFromFloat(orderbookNew.Tick.Bids[y][1]),
+				Price:  decimal.NewFromFloat(orderbookNew.Tick.Bids[y][0]),
 			})
 		}
 	}

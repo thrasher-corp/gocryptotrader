@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -479,21 +480,20 @@ func (f *FTX) WsProcessUpdateOB(data *WsOrderbookData, p currency.Pair, a asset.
 		UpdateTime: timestampFromFloat64(data.Time),
 	}
 
-	var err error
 	for x := range data.Bids {
 		update.Bids = append(update.Bids, orderbook.Item{
-			Price:  data.Bids[x][0],
-			Amount: data.Bids[x][1],
+			Price:  decimal.NewFromFloat(data.Bids[x][0]),
+			Amount: decimal.NewFromFloat(data.Bids[x][1]),
 		})
 	}
 	for x := range data.Asks {
 		update.Asks = append(update.Asks, orderbook.Item{
-			Price:  data.Asks[x][0],
-			Amount: data.Asks[x][1],
+			Price:  decimal.NewFromFloat(data.Asks[x][0]),
+			Amount: decimal.NewFromFloat(data.Asks[x][1]),
 		})
 	}
 
-	err = f.Websocket.Orderbook.Update(&update)
+	err := f.Websocket.Orderbook.Update(&update)
 	if err != nil {
 		return err
 	}
@@ -543,14 +543,14 @@ func (f *FTX) WsProcessPartialOB(data *WsOrderbookData, p currency.Pair, a asset
 	var bids, asks []orderbook.Item
 	for x := range data.Bids {
 		bids = append(bids, orderbook.Item{
-			Price:  data.Bids[x][0],
-			Amount: data.Bids[x][1],
+			Price:  decimal.NewFromFloat(data.Bids[x][0]),
+			Amount: decimal.NewFromFloat(data.Bids[x][1]),
 		})
 	}
 	for x := range data.Asks {
 		asks = append(asks, orderbook.Item{
-			Price:  data.Asks[x][0],
-			Amount: data.Asks[x][1],
+			Price:  decimal.NewFromFloat(data.Asks[x][0]),
+			Amount: decimal.NewFromFloat(data.Asks[x][1]),
 		})
 	}
 
@@ -592,13 +592,13 @@ func (f *FTX) CalcUpdateOBChecksum(data *orderbook.Base) int64 {
 	var price, amount string
 	for i := 0; i < 100; i++ {
 		if len(data.Bids)-1 >= i {
-			price = checksumParseNumber(data.Bids[i].Price)
-			amount = checksumParseNumber(data.Bids[i].Amount)
+			price = checksumParseNumber(data.Bids[i].Price.InexactFloat64())
+			amount = checksumParseNumber(data.Bids[i].Amount.InexactFloat64())
 			checksum.WriteString(price + ":" + amount + ":")
 		}
 		if len(data.Asks)-1 >= i {
-			price = checksumParseNumber(data.Asks[i].Price)
-			amount = checksumParseNumber(data.Asks[i].Amount)
+			price = checksumParseNumber(data.Asks[i].Price.InexactFloat64())
+			amount = checksumParseNumber(data.Asks[i].Amount.InexactFloat64())
 			checksum.WriteString(price + ":" + amount + ":")
 		}
 	}

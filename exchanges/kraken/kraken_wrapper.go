@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -535,14 +536,14 @@ func (k *Kraken) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 		}
 		for x := range orderbookNew.Bids {
 			book.Bids = append(book.Bids, orderbook.Item{
-				Amount: orderbookNew.Bids[x].Amount,
-				Price:  orderbookNew.Bids[x].Price,
+				Amount: decimal.NewFromFloat(orderbookNew.Bids[x].Amount),
+				Price:  decimal.NewFromFloat(orderbookNew.Bids[x].Price),
 			})
 		}
 		for y := range orderbookNew.Asks {
 			book.Asks = append(book.Asks, orderbook.Item{
-				Amount: orderbookNew.Asks[y].Amount,
-				Price:  orderbookNew.Asks[y].Price,
+				Amount: decimal.NewFromFloat(orderbookNew.Asks[y].Amount),
+				Price:  decimal.NewFromFloat(orderbookNew.Asks[y].Price),
 			})
 		}
 	case asset.Futures:
@@ -553,14 +554,14 @@ func (k *Kraken) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 		}
 		for x := range futuresOB.Orderbook.Asks {
 			book.Asks = append(book.Asks, orderbook.Item{
-				Price:  futuresOB.Orderbook.Asks[x][0],
-				Amount: futuresOB.Orderbook.Asks[x][1],
+				Price:  decimal.NewFromFloat(futuresOB.Orderbook.Asks[x][0]),
+				Amount: decimal.NewFromFloat(futuresOB.Orderbook.Asks[x][1]),
 			})
 		}
 		for y := range futuresOB.Orderbook.Bids {
 			book.Bids = append(book.Bids, orderbook.Item{
-				Price:  futuresOB.Orderbook.Bids[y][0],
-				Amount: futuresOB.Orderbook.Bids[y][1],
+				Price:  decimal.NewFromFloat(futuresOB.Orderbook.Bids[y][0]),
+				Amount: decimal.NewFromFloat(futuresOB.Orderbook.Bids[y][1]),
 			})
 		}
 	default:

@@ -840,14 +840,14 @@ func (m *syncManager) PrintOrderbookSummary(result *orderbook.Base, protocol str
 	switch {
 	case result.Pair.Quote.IsFiatCurrency() && result.Pair.Quote != m.fiatDisplayCurrency && !m.fiatDisplayCurrency.IsEmpty():
 		origCurrency := result.Pair.Quote.Upper()
-		bidValueResult = printConvertCurrencyFormat(origCurrency, bidsValue, m.fiatDisplayCurrency)
-		askValueResult = printConvertCurrencyFormat(origCurrency, asksValue, m.fiatDisplayCurrency)
+		bidValueResult = printConvertCurrencyFormat(origCurrency, bidsValue.InexactFloat64(), m.fiatDisplayCurrency)
+		askValueResult = printConvertCurrencyFormat(origCurrency, asksValue.InexactFloat64(), m.fiatDisplayCurrency)
 	case result.Pair.Quote.IsFiatCurrency() && result.Pair.Quote == m.fiatDisplayCurrency && !m.fiatDisplayCurrency.IsEmpty():
-		bidValueResult = printCurrencyFormat(bidsValue, m.fiatDisplayCurrency)
-		askValueResult = printCurrencyFormat(asksValue, m.fiatDisplayCurrency)
+		bidValueResult = printCurrencyFormat(bidsValue.InexactFloat64(), m.fiatDisplayCurrency)
+		askValueResult = printCurrencyFormat(asksValue.InexactFloat64(), m.fiatDisplayCurrency)
 	default:
-		bidValueResult = strconv.FormatFloat(bidsValue, 'f', -1, 64)
-		askValueResult = strconv.FormatFloat(asksValue, 'f', -1, 64)
+		bidValueResult = strconv.FormatFloat(bidsValue.InexactFloat64(), 'f', -1, 64)
+		askValueResult = strconv.FormatFloat(asksValue.InexactFloat64(), 'f', -1, 64)
 	}
 
 	log.Infof(log.OrderBook, book,
