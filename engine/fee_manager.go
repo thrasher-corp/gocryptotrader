@@ -22,6 +22,8 @@ const (
 	DefaultFeeManagerDelay = time.Minute * 10
 )
 
+var errNilManager = errors.New("manager has not been set")
+
 // FeeManager manages full fee structures across all enabled exchanges
 type FeeManager struct {
 	started  int32
@@ -54,6 +56,10 @@ func (f *FeeManager) Start() error {
 	log.Debugln(log.ExchangeSys, "Fee manager starting...")
 	if f == nil {
 		return fmt.Errorf("%s %w", FeeManagerName, ErrNilSubsystem)
+	}
+
+	if f.iExchangeManager == nil {
+		return errNilManager
 	}
 
 	if !atomic.CompareAndSwapInt32(&f.started, 0, 1) {
