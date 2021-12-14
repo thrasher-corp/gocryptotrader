@@ -292,7 +292,7 @@ func checkAlignment(depth Items, fundingRate, priceDuplication, isIDAligned bool
 			if isIDAligned && depth[i].ID < depth[prev].ID {
 				return errIDOutOfOrder
 			}
-			if !priceDuplication && depth[i].Price == depth[prev].Price {
+			if !priceDuplication && depth[i].Price.Equal(depth[prev].Price) {
 				return errDuplication
 			}
 			if depth[i].ID != 0 && depth[i].ID == depth[prev].ID {

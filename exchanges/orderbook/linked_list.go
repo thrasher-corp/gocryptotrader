@@ -176,7 +176,7 @@ func (ll *linkedList) updateInsertByPrice(updts Items, stack *stack, maxChainLen
 				insertHeadSpecific(ll, updts[x], stack)
 				break
 			}
-			if (*tip).Value.Price == updts[x].Price { // Match check
+			if (*tip).Value.Price.Equal(updts[x].Price) { // Match check
 				if updts[x].Amount.LessThanOrEqual(decimal.Zero) { // Capture delete update
 					stack.Push(deleteAtTip(ll, tip), tn)
 				} else { // Amend current amount value
@@ -314,7 +314,7 @@ func (ll *linkedList) insertUpdates(updts Items, stack *stack, comp comparison) 
 				break // Continue updates
 			}
 
-			if (*tip).Value.Price == updts[x].Price { // Price already found
+			if (*tip).Value.Price.Equal(updts[x].Price) { // Price already found
 				return fmt.Errorf("%w for price %s",
 					errCollisionDetected,
 					updts[x].Price)
