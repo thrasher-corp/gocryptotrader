@@ -1019,11 +1019,25 @@ func (l *Lbank) UpdateTransferFees(ctx context.Context) error {
 	}
 	transferFee := []fee.Transfer{}
 	for x := range withdrawFees {
+		var actualFee = withdrawFees[x].Fee
+		isPercentage := withdrawFees[x].Type == 2
+		if isPercentage {
+			actualFee /= 100
+		}
+		var withdrawal fee.Value
+		if withdrawFees[x].Minimum == 0 {
+			withdrawal = fee.Convert(withdrawFees[x].Fee)
+		} else {
+			withdrawal = fee.ConvertWithMinimumAmount(withdrawFees[x].Fee, withdrawFees[x].Minimum)
+		}
+
 		transferFee = append(transferFee, fee.Transfer{
-			Currency:   withdrawFees[x].AssetCode,
-			Withdrawal: fee.ConvertWithMinimumAmount(withdrawFees[x].Fee, withdrawFees[x].Minimum),
-			Deposit:    fee.Convert(0), // Default on deposit
-			Chain:      withdrawFees[x].Chain,
+			Currency:      withdrawFees[x].AssetCode,
+			Withdrawal:    withdrawal,
+			Deposit:       fee.Convert(0), // Default on deposit
+			Chain:         withdrawFees[x].Chain,
+			IsPercentage:  isPercentage,
+			AllowOverride: true,
 		})
 	}
 	return l.Fees.LoadChainTransferFees(transferFee)

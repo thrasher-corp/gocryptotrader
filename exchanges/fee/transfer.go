@@ -23,6 +23,10 @@ type Transfer struct {
 	// IsPercentage defines if the transfer fee is a percentage rather than a
 	// fixed amount.
 	IsPercentage bool
+	// AllowOverride allows the overriding of the IsPercentage value if there is
+	// a conflict for when exchanges change fee schedule types from a percentage
+	// value to a fixed amount and vice versa.
+	AllowOverride bool
 	// Deposit defines a deposit fee
 	Deposit Value
 	// MinimumDeposit defines the minimal allowable deposit amount
@@ -187,8 +191,13 @@ func (t *transfer) update(incoming *Transfer) error {
 		return fmt.Errorf("incoming %w", errTransferIsNil)
 	}
 
-	if t.Percentage != incoming.IsPercentage {
-		return errFeeTypeMismatch
+	if t.Percentage != incoming.IsPercentage && !incoming.AllowOverride {
+		return fmt.Errorf("%s %s transfer fee percentage: %v incoming: %v %w",
+			incoming.Currency,
+			incoming.Chain,
+			t.Percentage,
+			incoming.IsPercentage,
+			errFeeTypeMismatch)
 	}
 
 	if incoming.Deposit != nil {

@@ -587,7 +587,7 @@ func (d *Schedule) LoadChainTransferFees(fees []Transfer) error {
 	for x := range fees {
 		err := fees[x].validate()
 		if err != nil {
-			return fmt.Errorf("loading crypto fees error: %w", err)
+			return fmt.Errorf("validating chain transfer fees error: %w", err)
 		}
 		m1, ok := d.chainTransfer[fees[x].Currency.Item]
 		if !ok {
@@ -601,7 +601,7 @@ func (d *Schedule) LoadChainTransferFees(fees []Transfer) error {
 		}
 		err = val.update(&fees[x])
 		if err != nil {
-			return fmt.Errorf("loading crypto fees error: %w", err)
+			return fmt.Errorf("updating chain transfer fees error: %w", err)
 		}
 	}
 	return nil

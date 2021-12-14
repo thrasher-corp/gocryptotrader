@@ -391,3 +391,11 @@ func TestGetHistoricTrades(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestUpdateCommissionFees(t *testing.T) {
+	t.Parallel()
+	err := i.UpdateCommissionFees(context.Background(), asset.Futures)
+	if !errors.Is(err, common.ErrNotYetImplemented) {
+		t.Fatalf("received: '%v' but expect: '%v'", err, common.ErrNotYetImplemented)
+	}
+}

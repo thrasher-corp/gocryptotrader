@@ -396,6 +396,9 @@ func (o *OKCoin) CancelBatchOrders(ctx context.Context, orders []order.Cancel) (
 
 // UpdateCommissionFees updates current fees associated with account
 func (o *OKCoin) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
+	if a != asset.Spot {
+		return fmt.Errorf("%v %w", a, asset.ErrNotSupported)
+	}
 	info, err := o.GetTradingFee(ctx, a, fee.OmitPair, "")
 	if err != nil {
 		return err

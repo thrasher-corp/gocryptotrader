@@ -1094,3 +1094,15 @@ func TestGetUserCommission(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestUpdateCommissionFees(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("credentials not set")
+	}
+
+	err := b.UpdateCommissionFees(context.Background(), asset.Spot)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expect: '%v'", err, nil)
+	}
+}

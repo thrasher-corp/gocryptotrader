@@ -1699,3 +1699,28 @@ func TestGetWithdrawalFee(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestUpdateCommissionFees(t *testing.T) {
+	t.Parallel()
+	err := f.UpdateCommissionFees(context.Background(), asset.Futures)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("received: '%v' but expect: '%v'", err, asset.ErrNotSupported)
+	}
+
+	if !areTestAPIKeysSet() {
+		t.Skip("credentials not set")
+	}
+
+	err = f.UpdateCommissionFees(context.Background(), asset.Spot)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expect: '%v'", err, nil)
+	}
+}
+
+func TestUpdateTransferFees(t *testing.T) {
+	t.Parallel()
+	err := f.UpdateTransferFees(context.Background())
+	if !errors.Is(err, common.ErrNotYetImplemented) {
+		t.Fatalf("received: '%v' but expect: '%v'", err, common.ErrNotYetImplemented)
+	}
+}

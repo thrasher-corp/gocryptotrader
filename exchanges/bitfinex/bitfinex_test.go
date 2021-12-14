@@ -1627,3 +1627,37 @@ func TestAccetableMethodStore(t *testing.T) {
 		t.Error("incorrect values")
 	}
 }
+
+func TestUpdateCommissionFees(t *testing.T) {
+	t.Parallel()
+	err := b.UpdateCommissionFees(context.Background(), asset.Futures)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("received: '%v' but expect: '%v'", err, asset.ErrNotSupported)
+	}
+
+	if !areTestAPIKeysSet() {
+		t.Skip("credentials not set")
+	}
+
+	err = b.UpdateCommissionFees(context.Background(), asset.Spot)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expect: '%v'", err, nil)
+	}
+}
+
+func TestUpdateTransferFees(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("credentials not set")
+	}
+
+	err := b.UpdateTransferFees(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = b.Fees.GetTransferFee(currency.BTC, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+}

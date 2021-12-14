@@ -546,3 +546,24 @@ func TestUpdateTicker(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestUpdateCommissionFees(t *testing.T) {
+	t.Parallel()
+	err := l.UpdateCommissionFees(context.Background(), asset.Futures)
+	if !errors.Is(err, common.ErrNotYetImplemented) {
+		t.Fatalf("received: '%v' but expect: '%v'", err, common.ErrNotYetImplemented)
+	}
+}
+
+func TestUpdateTransferFees(t *testing.T) {
+	t.Parallel()
+	err := l.UpdateTransferFees(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = l.Fees.GetTransferFee(currency.BTC, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+}

@@ -385,6 +385,14 @@ func TestUpdateTickers(t *testing.T) {
 	}
 }
 
+func TestUpdateCommissionFees(t *testing.T) {
+	t.Parallel()
+	err := l.UpdateCommissionFees(context.Background(), asset.Futures)
+	if !errors.Is(err, common.ErrNotYetImplemented) {
+		t.Fatalf("received: '%v' but expect: '%v'", err, common.ErrNotYetImplemented)
+	}
+}
+
 func TestGetTransferFees(t *testing.T) {
 	t.Parallel()
 	_, err := l.GetTransferFees(context.Background())

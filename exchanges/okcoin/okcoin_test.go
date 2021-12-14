@@ -1122,6 +1122,23 @@ func TestGetTradingFee(t *testing.T) {
 	}
 }
 
+func TestUpdateCommissionFees(t *testing.T) {
+	t.Parallel()
+	err := o.UpdateCommissionFees(context.Background(), asset.Futures)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("received: '%v' but expect: '%v'", err, asset.ErrNotSupported)
+	}
+
+	if !areTestAPIKeysSet() {
+		t.Skip("credentials not set")
+	}
+
+	err = o.UpdateCommissionFees(context.Background(), asset.Spot)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expect: '%v'", err, nil)
+	}
+}
+
 func TestUpdateTransferFees(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {

@@ -994,3 +994,20 @@ func TestGetAvailableTransferChains(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestUpdateCommissionFees(t *testing.T) {
+	t.Parallel()
+	err := p.UpdateCommissionFees(context.Background(), asset.Futures)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("received: '%v' but expect: '%v'", err, asset.ErrNotSupported)
+	}
+
+	if !areTestAPIKeysSet() {
+		t.Skip("credentials not set")
+	}
+
+	err = p.UpdateCommissionFees(context.Background(), asset.Spot)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expect: '%v'", err, nil)
+	}
+}
