@@ -1007,7 +1007,7 @@ func (p *Poloniex) GetAvailableTransferChains(ctx context.Context, cryptocurrenc
 // UpdateCommissionFees updates current fees associated with account
 func (p *Poloniex) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
 	if a != asset.Spot {
-		return common.ErrNotYetImplemented
+		return fmt.Errorf("%v %w", a, asset.ErrNotSupported)
 	}
 	fees, err := p.GetFeeInfo(ctx)
 	if err != nil {

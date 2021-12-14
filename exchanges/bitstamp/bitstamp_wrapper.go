@@ -973,7 +973,7 @@ func (b *Bitstamp) GetHistoricCandlesExtended(ctx context.Context, pair currency
 // UpdateCommissionFees updates current fees associated with account
 func (b *Bitstamp) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
 	if a != asset.Spot {
-		return common.ErrNotYetImplemented
+		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
 	}
 
 	balances, err := b.GetBalance(ctx)

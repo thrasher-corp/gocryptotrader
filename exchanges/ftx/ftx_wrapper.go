@@ -1260,7 +1260,7 @@ func (f *FTX) GetAvailableTransferChains(ctx context.Context, cryptocurrency cur
 // UpdateCommissionFees updates all the fees associated with the asset type.
 func (f *FTX) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
 	if a != asset.Spot && a != asset.Futures {
-		return fmt.Errorf("%s %s", a, asset.ErrNotSupported)
+		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
 	}
 	ai, err := f.GetAccountInfo(ctx)
 	if err != nil {

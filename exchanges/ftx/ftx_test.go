@@ -1691,10 +1691,16 @@ func TestGetWithdrawalFee(t *testing.T) {
 	if !errors.Is(err, errCoinAddressSizeNotSet) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errCoinAddressSizeNotSet)
 	}
+
+	if !areTestAPIKeysSet() {
+		t.Skip("credentials not set")
+	}
+
 	_, err = f.GetWithdrawalFee(context.Background(),
 		currency.ETH,
 		10,
-		"", "")
+		"0x6aa6fAB25616Fddf7B6a831485255f234ED303E2",
+		"")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1702,7 +1708,7 @@ func TestGetWithdrawalFee(t *testing.T) {
 
 func TestUpdateCommissionFees(t *testing.T) {
 	t.Parallel()
-	err := f.UpdateCommissionFees(context.Background(), asset.Futures)
+	err := f.UpdateCommissionFees(context.Background(), asset.CoinMarginedFutures)
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Fatalf("received: '%v' but expect: '%v'", err, asset.ErrNotSupported)
 	}

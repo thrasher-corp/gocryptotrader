@@ -1205,7 +1205,7 @@ func (b *Bitfinex) GetAvailableTransferChains(ctx context.Context, cryptocurrenc
 // UpdateCommissionFees updates current fees associated with account
 func (b *Bitfinex) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
 	if a != asset.Spot {
-		return common.ErrNotYetImplemented
+		return fmt.Errorf("%v %w", a, asset.ErrNotSupported)
 	}
 	// TODO: Implement LEO discounts
 	info, err := b.GetAccountFees(ctx)
