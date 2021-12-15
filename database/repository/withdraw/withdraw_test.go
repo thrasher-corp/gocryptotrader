@@ -133,7 +133,7 @@ func seedWithdrawData() {
 						AccountName:         "hello",
 						AccountNumber:       fmt.Sprintf("test-%v", x),
 						BSBNumber:           "123456",
-						SupportedCurrencies: "BTC-AUD",
+						SupportedCurrencies: currency.Currencies{currency.BTC, currency.AUD},
 						SupportedExchanges:  testExchanges[0].Name,
 					},
 				},

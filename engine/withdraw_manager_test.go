@@ -65,7 +65,7 @@ func TestSubmitWithdrawal(t *testing.T) {
 		BSBNumber:           "123456",
 		SWIFTCode:           "91272837",
 		IBAN:                "98218738671897",
-		SupportedCurrencies: "AUD,USD",
+		SupportedCurrencies: currency.Currencies{currency.AUD, currency.USD},
 		SupportedExchanges:  "Binance",
 	}
 

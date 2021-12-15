@@ -60,16 +60,16 @@ func TestGetClientBankAccounts(t *testing.T) {
 	t.Parallel()
 	cfg := &Config{BankAccounts: []bank.Account{
 		{
-			SupportedCurrencies: "USD",
+			SupportedCurrencies: currency.Currencies{currency.USD},
 			SupportedExchanges:  "Kraken",
 		},
 	}}
 
-	_, err := cfg.GetClientBankAccounts("Kraken", "USD")
+	_, err := cfg.GetClientBankAccounts("Kraken", currency.USD)
 	if err != nil {
 		t.Error("GetExchangeBankAccounts error", err)
 	}
-	_, err = cfg.GetClientBankAccounts("noob exchange", "USD")
+	_, err = cfg.GetClientBankAccounts("noob exchange", currency.USD)
 	if err == nil {
 		t.Fatal("error cannot be nil")
 	}
@@ -84,19 +84,34 @@ func TestGetExchangeBankAccounts(t *testing.T) {
 			Enabled: true,
 			BankAccounts: []bank.Account{
 				{
-					SupportedCurrencies: "USD",
+					ID:                  "1337",
+					SupportedCurrencies: currency.Currencies{currency.USD},
+					SupportedExchanges:  bfx,
+				},
+				{
+					ID:                  "1336",
+					SupportedCurrencies: currency.Currencies{currency.USD},
 					SupportedExchanges:  bfx,
 				},
 			},
 		}},
 	}
-	_, err := cfg.GetExchangeBankAccounts(bfx, "", "USD")
-	if err != nil {
-		t.Error("GetExchangeBankAccounts error", err)
+	_, err := cfg.GetExchangeBankAccounts(bfx, "1336", currency.USD)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v', but expected '%v'", err, nil)
 	}
-	_, err = cfg.GetExchangeBankAccounts("Not an exchange", "", "Not a currency")
-	if err == nil {
-		t.Error("GetExchangeBankAccounts, no error returned for invalid exchange")
+	_, err = cfg.GetExchangeBankAccounts(bfx, "1336", currency.NewCode("Not a currency"))
+	if !errors.Is(err, errCurrencyNotSupported) {
+		t.Fatalf("received: '%v', but expected '%v'", err, errCurrencyNotSupported)
+	}
+	_, err = cfg.GetExchangeBankAccounts("Not an exchange", "", currency.NewCode("Not a currency"))
+	if !errors.Is(err, errBankDetailsNotFound) {
+		t.Fatalf("received: '%v', but expected '%v'", err, errBankDetailsNotFound)
+	}
+	// found exchaange but no account - test break optim.
+	_, err = cfg.GetExchangeBankAccounts(bfx, "", currency.NewCode("Not a currency"))
+	if !errors.Is(err, errBankDetailsNotFound) {
+		t.Fatalf("received: '%v', but expected '%v'", err, errBankDetailsNotFound)
 	}
 }
 
@@ -128,7 +143,7 @@ func TestCheckBankAccountConfig(t *testing.T) {
 		IBAN:                "1337",
 		BSBNumber:           "1337",
 		BankCode:            1337,
-		SupportedCurrencies: "1337",
+		SupportedCurrencies: currency.Currencies{currency.NewCode("1337")},
 		SupportedExchanges:  "1337",
 	}
 	cfg.CheckBankAccountConfig()
@@ -232,7 +247,7 @@ func TestCheckClientBankAccounts(t *testing.T) {
 		BankCountry:         "Genesis",
 		AccountName:         "Satoshi Nakamoto",
 		AccountNumber:       "1231006505",
-		SupportedCurrencies: "USD",
+		SupportedCurrencies: currency.Currencies{currency.USD},
 	}
 	cfg.BankAccounts = []bank.Account{b}
 	cfg.CheckClientBankAccounts()
@@ -243,7 +258,7 @@ func TestCheckClientBankAccounts(t *testing.T) {
 
 	// AU based bank, with no BSB number (required for domestic and international
 	// transfers)
-	b.SupportedCurrencies = "AUD"
+	b.SupportedCurrencies = currency.Currencies{currency.AUD}
 	b.SWIFTCode = "BACXSI22"
 	cfg.BankAccounts = []bank.Account{b}
 	cfg.CheckClientBankAccounts()
@@ -1648,7 +1663,7 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 	cfg.Exchanges[0].BankAccounts[0].BankPostalCity = testString
 	cfg.Exchanges[0].BankAccounts[0].BankCountry = testString
 	cfg.Exchanges[0].BankAccounts[0].AccountName = testString
-	cfg.Exchanges[0].BankAccounts[0].SupportedCurrencies = "monopoly moneys"
+	cfg.Exchanges[0].BankAccounts[0].SupportedCurrencies = currency.Currencies{currency.NewCode("monopoly moneys")}
 	cfg.Exchanges[0].BankAccounts[0].IBAN = "some iban"
 	cfg.Exchanges[0].BankAccounts[0].SWIFTCode = "some swifty"
 
@@ -1669,7 +1684,7 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 	cfg.Exchanges[0].BankAccounts[0].BankPostalCity = testString
 	cfg.Exchanges[0].BankAccounts[0].BankCountry = testString
 	cfg.Exchanges[0].BankAccounts[0].AccountName = testString
-	cfg.Exchanges[0].BankAccounts[0].SupportedCurrencies = "AUD"
+	cfg.Exchanges[0].BankAccounts[0].SupportedCurrencies = currency.Currencies{currency.AUD}
 	cfg.Exchanges[0].BankAccounts[0].BSBNumber = "some BSB nonsense"
 	cfg.Exchanges[0].BankAccounts[0].IBAN = ""
 	cfg.Exchanges[0].BankAccounts[0].SWIFTCode = ""

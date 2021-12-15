@@ -4,7 +4,6 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/validate"
 )
 
@@ -23,18 +22,18 @@ func (r *Request) Validate(opt ...validate.Checker) (err error) {
 		allErrors = append(allErrors, ErrStrAmountMustBeGreaterThanZero)
 	}
 
-	if (r.Currency == currency.Code{}) {
+	if r.Currency.IsEmpty() {
 		allErrors = append(allErrors, ErrStrNoCurrencySet)
 	}
 
 	switch r.Type {
 	case Fiat:
-		if (r.Currency != currency.Code{}) && !r.Currency.IsFiatCurrency() {
+		if !r.Currency.IsEmpty() && !r.Currency.IsFiatCurrency() {
 			allErrors = append(allErrors, ErrStrCurrencyNotFiat)
 		}
 		allErrors = append(allErrors, r.validateFiat()...)
 	case Crypto:
-		if (r.Currency != currency.Code{}) && !r.Currency.IsCryptocurrency() {
+		if !r.Currency.IsEmpty() && !r.Currency.IsCryptocurrency() {
 			allErrors = append(allErrors, ErrStrCurrencyNotCrypto)
 		}
 		allErrors = append(allErrors, r.validateCrypto()...)
@@ -80,4 +79,19 @@ func (r *Request) validateCrypto() []string {
 		resp = append(resp, ErrStrFeeCannotBeNegative)
 	}
 	return resp
+}
+
+// IsEmpty checks to see if details have been set for the fiat request
+func (f *FiatRequest) IsEmpty() bool {
+	return f.Bank.IsEmpty() &&
+		f.IntermediaryBankAccountNumber == 0 &&
+		f.IntermediaryBankName == "" &&
+		f.IntermediaryBankAddress == "" &&
+		f.IntermediaryBankCity == "" &&
+		f.IntermediaryBankCountry == "" &&
+		f.IntermediaryBankPostalCode == "" &&
+		f.IntermediarySwiftCode == "" &&
+		f.IntermediaryBankCode == 0 &&
+		f.IntermediaryIBAN == "" &&
+		f.WireCurrency == ""
 }

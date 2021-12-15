@@ -153,7 +153,7 @@ func (e Exchange) WithdrawalFiatFunds(ctx context.Context, bankAccountID string,
 	var v *bank.Account
 	v, err = bank.GetBankAccountByID(bankAccountID)
 	if err != nil {
-		v, err = ex.GetBase().GetExchangeBankAccounts(bankAccountID, request.Currency.String())
+		v, err = ex.GetBase().GetExchangeBankAccounts(bankAccountID, request.Currency)
 		if err != nil {
 			return "", err
 		}

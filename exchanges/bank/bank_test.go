@@ -30,6 +30,30 @@ func TestString(t *testing.T) {
 		{WesternUnion, "WesternUnion"},
 		{MoneyGram, "MoneyGram"},
 		{Contact, "Contact"},
+		{ExpressWireTransfer, "ExpressWireTransfer"},
+		{PayIDOsko, "PayID/Osko"},
+		{BankCardVisa, "BankCard Visa"},
+		{BankCardMastercard, "BankCard Mastercard"},
+		{BankCardMIR, "BankCard MIR"},
+		{CreditCardMastercard, "CreditCard Mastercard"},
+		{Sofort, "Sofort"},
+		{P2P, "P2P"},
+		{Etana, "Etana"},
+		{FasterPaymentService, "FasterPaymentService(FPS)"},
+		{MobileMoney, "MobileMoney"},
+		{CashTransfer, "CashTransfer"},
+		{YandexMoney, "YandexMoney"},
+		{GEOPay, "GEOPay"},
+		{SettlePay, "SettlePay"},
+		{ExchangeFiatDWChannelSignetUSD, "ExchangeFiatDWChannelSignetUSD"},
+		{ExchangeFiatDWChannelSwiftSignatureBar, "ExchangeFiatDWChannelSignetUSD"},
+		{AutomaticClearingHouse, "AutomaticClearingHouse"},
+		{FedWire, "FedWire"},
+		{TelegraphicTransfer, "TelegraphicTransfer"},
+		{SDDomesticCheque, "SDDomesticCheque"},
+		{Xfers, "Xfers"},
+		{ExmoGiftCard, "ExmoGiftCard"},
+		{Terminal, "Terminal"},
 		{255, ""},
 	}
 
@@ -53,5 +77,9 @@ func TestValidate(t *testing.T) {
 	err = NotApplicable.Validate()
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: %v but expected: %v", err, nil)
+	}
+	err = Transfer(0).Validate()
+	if !errors.Is(err, ErrTransferTypeUnset) {
+		t.Fatalf("received: %v but expected: %v", err, ErrTransferTypeUnset)
 	}
 }

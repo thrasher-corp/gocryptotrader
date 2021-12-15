@@ -402,7 +402,7 @@ func TestGetClientBankAccounts(t *testing.T) {
 
 	var b Base
 	var r *bank.Account
-	r, err = b.GetClientBankAccounts("Kraken", "USD")
+	r, err = b.GetClientBankAccounts("Kraken", currency.USD)
 	if err != nil {
 		t.Error(err)
 	}
@@ -411,7 +411,7 @@ func TestGetClientBankAccounts(t *testing.T) {
 		t.Error("incorrect bank name")
 	}
 
-	_, err = b.GetClientBankAccounts("MEOW", "USD")
+	_, err = b.GetClientBankAccounts("MEOW", currency.USD)
 	if err == nil {
 		t.Error("an error should have been thrown for a non-existent exchange")
 	}
@@ -425,7 +425,7 @@ func TestGetExchangeBankAccounts(t *testing.T) {
 	}
 
 	var b = Base{Name: "Bitfinex"}
-	r, err := b.GetExchangeBankAccounts("", "USD")
+	r, err := b.GetExchangeBankAccounts("", currency.USD)
 	if err != nil {
 		t.Error(err)
 	}

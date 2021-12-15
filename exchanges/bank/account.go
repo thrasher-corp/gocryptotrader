@@ -33,21 +33,21 @@ var (
 // Account holds differing bank account details by supported funding
 // currency
 type Account struct {
-	Enabled             bool    `json:"enabled"`
-	ID                  string  `json:"id,omitempty"`
-	BankName            string  `json:"bankName"`
-	BankAddress         string  `json:"bankAddress"`
-	BankPostalCode      string  `json:"bankPostalCode"`
-	BankPostalCity      string  `json:"bankPostalCity"`
-	BankCountry         string  `json:"bankCountry"`
-	AccountName         string  `json:"accountName"`
-	AccountNumber       string  `json:"accountNumber"`
-	SWIFTCode           string  `json:"swiftCode"`
-	IBAN                string  `json:"iban"`
-	BSBNumber           string  `json:"bsbNumber,omitempty"`
-	BankCode            float64 `json:"bank_code,omitempty"`
-	SupportedCurrencies string  `json:"supportedCurrencies"`
-	SupportedExchanges  string  `json:"supportedExchanges,omitempty"`
+	Enabled             bool                `json:"enabled"`
+	ID                  string              `json:"id,omitempty"`
+	BankName            string              `json:"bankName"`
+	BankAddress         string              `json:"bankAddress"`
+	BankPostalCode      string              `json:"bankPostalCode"`
+	BankPostalCity      string              `json:"bankPostalCity"`
+	BankCountry         string              `json:"bankCountry"`
+	AccountName         string              `json:"accountName"`
+	AccountNumber       string              `json:"accountNumber"`
+	SWIFTCode           string              `json:"swiftCode"`
+	IBAN                string              `json:"iban"`
+	BSBNumber           string              `json:"bsbNumber,omitempty"`
+	BankCode            float64             `json:"bank_code,omitempty"`
+	SupportedCurrencies currency.Currencies `json:"supportedCurrencies"`
+	SupportedExchanges  string              `json:"supportedExchanges,omitempty"`
 }
 
 // SetAccounts safely overwrites bank account slice
@@ -98,7 +98,7 @@ func (b *Account) Validate() error {
 		b.BankPostalCity == "" ||
 		b.BankCountry == "" ||
 		b.AccountName == "" ||
-		b.SupportedCurrencies == "" {
+		b.SupportedCurrencies == nil {
 		return fmt.Errorf(
 			"banking details for %s is enabled but variables not set correctly",
 			b.BankName)
@@ -108,9 +108,7 @@ func (b *Account) Validate() error {
 		b.SupportedExchanges = "ALL"
 	}
 
-	if strings.Contains(strings.ToUpper(
-		b.SupportedCurrencies),
-		currency.AUD.String()) {
+	if b.SupportedCurrencies.Contains(currency.AUD) {
 		if b.BSBNumber == "" {
 			return fmt.Errorf(
 				"banking details for %s is enabled but BSB/SWIFT values not set",
@@ -140,7 +138,7 @@ func (b *Account) ValidateForWithdrawal(exchange string, cur currency.Code) (err
 		err = append(err, ErrAccountCannotBeEmpty)
 	}
 
-	if !common.StringDataCompareInsensitive(strings.Split(b.SupportedCurrencies, ","), cur.String()) {
+	if !b.SupportedCurrencies.Contains(cur) {
 		err = append(err, ErrCurrencyNotSupportedByAccount)
 	}
 
@@ -154,4 +152,15 @@ func (b *Account) ValidateForWithdrawal(exchange string, cur currency.Code) (err
 		}
 	}
 	return
+}
+
+// IsEmpty checks to see if the account has been set
+func (b *Account) IsEmpty() bool {
+	return b.BankName == "" &&
+		b.BankAddress == "" &&
+		b.BankPostalCode == "" &&
+		b.BankPostalCity == "" &&
+		b.BankCountry == "" &&
+		b.AccountName == "" &&
+		b.SupportedCurrencies == nil
 }

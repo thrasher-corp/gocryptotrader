@@ -29,8 +29,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-// errExchangeConfigIsNil defines an error when the config is nil
-var errExchangeConfigIsNil = errors.New("exchange config is nil")
+var (
+	// errExchangeConfigIsNil defines an error when the config is nil
+	errExchangeConfigIsNil  = errors.New("exchange config is nil")
+	errBankDetailsNotFound  = errors.New("bank details not found")
+	errCurrencyNotSupported = errors.New("currency not supported")
+)
 
 // GetCurrencyConfig returns currency configurations
 func (c *Config) GetCurrencyConfig() CurrencyConfig {
@@ -39,25 +43,35 @@ func (c *Config) GetCurrencyConfig() CurrencyConfig {
 
 // GetExchangeBankAccounts returns banking details associated with an exchange
 // for depositing funds
-func (c *Config) GetExchangeBankAccounts(exchangeName, id, depositingCurrency string) (*bank.Account, error) {
+func (c *Config) GetExchangeBankAccounts(exchangeName, id string, depositingCurrency currency.Code) (*bank.Account, error) {
 	m.Lock()
 	defer m.Unlock()
 
 	for x := range c.Exchanges {
-		if strings.EqualFold(c.Exchanges[x].Name, exchangeName) {
-			for y := range c.Exchanges[x].BankAccounts {
-				if strings.EqualFold(c.Exchanges[x].BankAccounts[y].ID, id) {
-					if common.StringDataCompareInsensitive(
-						strings.Split(c.Exchanges[x].BankAccounts[y].SupportedCurrencies, ","),
-						depositingCurrency) {
-						return &c.Exchanges[x].BankAccounts[y], nil
-					}
-				}
-			}
+		if !strings.EqualFold(c.Exchanges[x].Name, exchangeName) {
+			continue
 		}
+		for y := range c.Exchanges[x].BankAccounts {
+			if !strings.EqualFold(c.Exchanges[x].BankAccounts[y].ID, id) {
+				continue
+			}
+			if !c.Exchanges[x].BankAccounts[y].SupportedCurrencies.Contains(depositingCurrency) {
+				return nil, fmt.Errorf("%s %s %w for %s supported list: %s",
+					exchangeName,
+					id,
+					errCurrencyNotSupported,
+					depositingCurrency,
+					c.Exchanges[x].BankAccounts[y].SupportedCurrencies)
+			}
+			cpy := c.Exchanges[x].BankAccounts[y]
+			copy(cpy.SupportedCurrencies, c.Exchanges[x].BankAccounts[y].SupportedCurrencies)
+			return &cpy, nil
+		}
+		break
 	}
-	return nil, fmt.Errorf("exchange %s bank details not found for %s",
+	return nil, fmt.Errorf("exchange %s %w for %s",
 		exchangeName,
+		errBankDetailsNotFound,
 		depositingCurrency)
 }
 
@@ -68,25 +82,25 @@ func (c *Config) UpdateExchangeBankAccounts(exchangeName string, bankCfg []bank.
 	defer m.Unlock()
 
 	for i := range c.Exchanges {
-		if strings.EqualFold(c.Exchanges[i].Name, exchangeName) {
-			c.Exchanges[i].BankAccounts = bankCfg
-			return nil
+		if !strings.EqualFold(c.Exchanges[i].Name, exchangeName) {
+			continue
 		}
+		c.Exchanges[i].BankAccounts = bankCfg
+		return nil
 	}
-	return fmt.Errorf("exchange %s not found",
-		exchangeName)
+	return fmt.Errorf("exchange %s not found", exchangeName)
 }
 
 // GetClientBankAccounts returns banking details used for a given exchange
 // and currency
-func (c *Config) GetClientBankAccounts(exchangeName, targetCurrency string) (*bank.Account, error) {
+func (c *Config) GetClientBankAccounts(exchangeName string, targetCurrency currency.Code) (*bank.Account, error) {
 	m.Lock()
 	defer m.Unlock()
 
 	for x := range c.BankAccounts {
 		if (strings.Contains(c.BankAccounts[x].SupportedExchanges, exchangeName) ||
 			c.BankAccounts[x].SupportedExchanges == "ALL") &&
-			strings.Contains(c.BankAccounts[x].SupportedCurrencies, targetCurrency) {
+			c.BankAccounts[x].SupportedCurrencies.Contains(targetCurrency) {
 			return &c.BankAccounts[x], nil
 		}
 	}
@@ -128,7 +142,7 @@ func (c *Config) CheckClientBankAccounts() {
 				AccountNumber:       "0234",
 				SWIFTCode:           "91272837",
 				IBAN:                "98218738671897",
-				SupportedCurrencies: "USD",
+				SupportedCurrencies: currency.Currencies{currency.USD},
 				SupportedExchanges:  "Kraken,Bitstamp",
 			},
 		)

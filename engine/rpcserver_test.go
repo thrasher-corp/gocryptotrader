@@ -1393,7 +1393,7 @@ func TestParseEvents(t *testing.T) {
 					AccountName:         "hello",
 					AccountNumber:       fmt.Sprintf("test-%v", x),
 					BSBNumber:           "123456",
-					SupportedCurrencies: "BTC-AUD",
+					SupportedCurrencies: currency.Currencies{currency.BTC, currency.AUD},
 					SupportedExchanges:  exchangeName,
 				},
 			}
@@ -2079,11 +2079,16 @@ func TestSetBankTransferFee(t *testing.T) {
 	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
 
 	_, err = s.SetBankTransferFee(context.Background(), &gctrpc.SetBankTransferFeeRequest{Exchange: "wow"})
+	if !errors.Is(err, bank.ErrTransferTypeUnset) {
+		t.Fatalf("received: %v, but expected: %v", err, bank.ErrTransferTypeUnset)
+	}
+
+	_, err = s.SetBankTransferFee(context.Background(), &gctrpc.SetBankTransferFeeRequest{Exchange: "wow", BankType: 1})
 	if !errors.Is(err, ErrExchangeNotFound) {
 		t.Fatalf("received: %v, but expected: %v", err, ErrExchangeNotFound)
 	}
 
-	_, err = s.SetBankTransferFee(context.Background(), &gctrpc.SetBankTransferFeeRequest{Exchange: "fake"})
+	_, err = s.SetBankTransferFee(context.Background(), &gctrpc.SetBankTransferFeeRequest{Exchange: "fake", BankType: 1})
 	if err != nil {
 		t.Fatal(err)
 	}

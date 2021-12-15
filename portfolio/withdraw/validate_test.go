@@ -142,7 +142,7 @@ func TestMain(m *testing.M) {
 		BSBNumber:           "123456",
 		SWIFTCode:           "91272837",
 		IBAN:                "98218738671897",
-		SupportedCurrencies: "AUD,USD",
+		SupportedCurrencies: currency.Currencies{currency.AUD, currency.USD},
 		SupportedExchanges:  "test-exchange",
 	},
 	)
@@ -151,6 +151,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestValid(t *testing.T) {
+	t.Parallel()
 	err := invalidType.Validate()
 	if err != nil {
 		if err.Error() != ErrInvalidRequest.Error() {
@@ -160,6 +161,7 @@ func TestValid(t *testing.T) {
 }
 
 func TestExchangeNameUnset(t *testing.T) {
+	t.Parallel()
 	r := Request{}
 	err := r.Validate()
 	if err != nil {
@@ -170,6 +172,7 @@ func TestExchangeNameUnset(t *testing.T) {
 }
 
 func TestValidateFiat(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name          string
 		request       *Request
@@ -213,6 +216,7 @@ func TestValidateFiat(t *testing.T) {
 				fmt.Sprintf("Exchange %s not supported by bank account",
 					invalidRequest.Exchange) + ", " +
 				bank.ErrAccountCannotBeEmpty + ", " +
+				bank.ErrCurrencyNotSupportedByAccount + ", " +
 				bank.ErrIBANSwiftNotSet),
 			nil,
 		},
@@ -241,6 +245,7 @@ func TestValidateFiat(t *testing.T) {
 	for _, tests := range testCases {
 		test := tests
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 			if test.requestType < 3 {
 				test.request.Type = test.requestType
 			}
@@ -262,6 +267,7 @@ func TestValidateFiat(t *testing.T) {
 }
 
 func TestValidateCrypto(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name    string
 		request *Request
@@ -281,6 +287,7 @@ func TestValidateCrypto(t *testing.T) {
 				fmt.Sprintf("Exchange %s not supported by bank account",
 					invalidRequest.Exchange) + ", " +
 				bank.ErrAccountCannotBeEmpty + ", " +
+				bank.ErrCurrencyNotSupportedByAccount + ", " +
 				bank.ErrIBANSwiftNotSet),
 		},
 		{
@@ -315,6 +322,7 @@ func TestValidateCrypto(t *testing.T) {
 	for _, tests := range testCases {
 		test := tests
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 			err := test.request.Validate()
 			if err != nil {
 				if err.Error() != test.output.Error() {
@@ -325,5 +333,16 @@ func TestValidateCrypto(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestIsEmpty(t *testing.T) {
+	t.Parallel()
+	if !(&FiatRequest{}).IsEmpty() {
+		t.Fatalf("received: '%v', but expected: '%v'", (&FiatRequest{}).IsEmpty(), true)
+	}
+
+	if (&FiatRequest{IntermediaryBankName: "wow"}).IsEmpty() {
+		t.Fatalf("received: '%v', but expected: '%v'", (&FiatRequest{}).IsEmpty(), false)
 	}
 }

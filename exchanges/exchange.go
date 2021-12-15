@@ -209,14 +209,14 @@ func (b *Base) GetPairAssetType(c currency.Pair) (asset.Item, error) {
 
 // GetClientBankAccounts returns banking details associated with
 // a client for withdrawal purposes
-func (b *Base) GetClientBankAccounts(exchangeName, withdrawalCurrency string) (*bank.Account, error) {
+func (b *Base) GetClientBankAccounts(exchangeName string, withdrawalCurrency currency.Code) (*bank.Account, error) {
 	cfg := config.GetConfig()
 	return cfg.GetClientBankAccounts(exchangeName, withdrawalCurrency)
 }
 
 // GetExchangeBankAccounts returns banking details associated with an
 // exchange for funding purposes
-func (b *Base) GetExchangeBankAccounts(id, depositCurrency string) (*bank.Account, error) {
+func (b *Base) GetExchangeBankAccounts(id string, depositCurrency currency.Code) (*bank.Account, error) {
 	cfg := config.GetConfig()
 	return cfg.GetExchangeBankAccounts(b.Name, id, depositCurrency)
 }

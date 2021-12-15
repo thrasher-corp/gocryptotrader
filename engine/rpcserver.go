@@ -1696,7 +1696,7 @@ func (s *RPCServer) WithdrawFiatFunds(ctx context.Context, r *gctrpc.WithdrawFia
 			return nil, errExchangeBaseNotFound
 		}
 		bankAccount, err = base.GetExchangeBankAccounts(r.BankAccountId,
-			r.Currency)
+			currency.NewCode(r.Currency))
 		if err != nil {
 			return nil, err
 		}
@@ -1796,7 +1796,7 @@ func (s *RPCServer) WithdrawalEventByID(_ context.Context, r *gctrpc.WithdrawalE
 			Fee:        v.RequestDetails.Crypto.FeeAmount,
 		}
 	} else if v.RequestDetails.Type == withdraw.Fiat {
-		if v.RequestDetails.Fiat != (withdraw.FiatRequest{}) {
+		if !v.RequestDetails.Fiat.IsEmpty() {
 			resp.Event.Request.Fiat = new(gctrpc.FiatWithdrawalEvent)
 			resp.Event.Request.Fiat = &gctrpc.FiatWithdrawalEvent{
 				BankName:      v.RequestDetails.Fiat.Bank.BankName,
@@ -3617,7 +3617,7 @@ func parseMultipleEvents(ret []*withdraw.Response) *gctrpc.WithdrawalEventsByExc
 				Fee:        ret[x].RequestDetails.Crypto.FeeAmount,
 			}
 		} else if ret[x].RequestDetails.Type == withdraw.Fiat {
-			if ret[x].RequestDetails.Fiat != (withdraw.FiatRequest{}) {
+			if !ret[x].RequestDetails.Fiat.IsEmpty() {
 				tempEvent.Request.Fiat = new(gctrpc.FiatWithdrawalEvent)
 				tempEvent.Request.Fiat = &gctrpc.FiatWithdrawalEvent{
 					BankName:      ret[x].RequestDetails.Fiat.Bank.BankName,
@@ -3702,7 +3702,7 @@ func parseSingleEvents(ret *withdraw.Response) *gctrpc.WithdrawalEventsByExchang
 			Fee:        ret.RequestDetails.Crypto.FeeAmount,
 		}
 	} else if ret.RequestDetails.Type == withdraw.Fiat {
-		if ret.RequestDetails.Fiat != (withdraw.FiatRequest{}) {
+		if !ret.RequestDetails.Fiat.IsEmpty() {
 			tempEvent.Request.Fiat = new(gctrpc.FiatWithdrawalEvent)
 			tempEvent.Request.Fiat = &gctrpc.FiatWithdrawalEvent{
 				BankName:      ret.RequestDetails.Fiat.Bank.BankName,

@@ -52,8 +52,12 @@ const (
 	Terminal            // Exmo
 )
 
-// ErrUnknownTransfer defines an unknown bank transfer type error
-var ErrUnknownTransfer = errors.New("unknown bank transfer type")
+var (
+	// ErrUnknownTransfer defines an unknown bank transfer type error
+	ErrUnknownTransfer = errors.New("unknown bank transfer type")
+	// ErrTransferTypeUnset defines an error when the transfer type is unset
+	ErrTransferTypeUnset = errors.New("unknown bank transfer type")
+)
 
 // Transfer defines the different fee types associated with bank
 // transactions to and from an exchange.
@@ -156,6 +160,8 @@ func (b Transfer) String() string {
 // Validates an international bank transaction option
 func (b Transfer) Validate() error {
 	switch b {
+	case 0:
+		return ErrTransferTypeUnset
 	case NotApplicable,
 		WireTransfer,
 		ExpressWireTransfer,

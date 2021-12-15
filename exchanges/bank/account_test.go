@@ -1,7 +1,6 @@
 package bank
 
 import (
-	"os"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -21,7 +20,7 @@ var (
 		SWIFTCode:           "91272837",
 		BSBNumber:           "123456",
 		IBAN:                "98218738671897",
-		SupportedCurrencies: "AUD,USD",
+		SupportedCurrencies: currency.Currencies{currency.AUD, currency.USD},
 		SupportedExchanges:  "test-exchange",
 	}
 	invalidAccount = Account{
@@ -37,14 +36,10 @@ var (
 		SWIFTCode:           "",
 		BSBNumber:           "",
 		IBAN:                "",
-		SupportedCurrencies: "",
+		SupportedCurrencies: nil,
 		SupportedExchanges:  "",
 	}
 )
-
-func TestMain(m *testing.M) {
-	os.Exit(m.Run())
-}
 
 func TestGetBankAccountByID(t *testing.T) {
 	t.Parallel()
@@ -70,7 +65,7 @@ func TestAccount_Validate(t *testing.T) {
 	}
 
 	invalid = testBankAccounts[0]
-	invalid.SupportedCurrencies = "AUD"
+	invalid.SupportedCurrencies = currency.Currencies{currency.AUD}
 	invalid.BSBNumber = ""
 	if err := invalid.Validate(); err == nil {
 		t.Error("Expected error when Currency is AUD but no BSB set")
@@ -88,7 +83,7 @@ func TestAccount_Validate(t *testing.T) {
 	invalid = testBankAccounts[0]
 	invalid.SWIFTCode = ""
 	invalid.IBAN = ""
-	invalid.SupportedCurrencies = "USD"
+	invalid.SupportedCurrencies = currency.Currencies{currency.USD}
 	if err := invalid.Validate(); err == nil {
 		t.Error("Expected error when no Swift/IBAN set")
 	}
@@ -136,9 +131,17 @@ func TestAccount_ValidateForWithdrawal(t *testing.T) {
 			t.Fatal(errWith)
 		}
 	}
+
+	errWith = acc.ValidateForWithdrawal("test-exchange", currency.XBY)
+	if errWith != nil {
+		if errWith[2] != ErrCurrencyNotSupportedByAccount {
+			t.Fatal(errWith)
+		}
+	}
 }
 
 func TestSetAccounts(t *testing.T) {
+	t.Parallel()
 	SetAccounts()
 	if len(accounts) != 0 {
 		t.Error("expected 0")
@@ -150,6 +153,7 @@ func TestSetAccounts(t *testing.T) {
 }
 
 func TestAppendAccounts(t *testing.T) {
+	t.Parallel()
 	SetAccounts()
 	if len(accounts) != 0 {
 		t.Error("expected 0")
@@ -157,5 +161,19 @@ func TestAppendAccounts(t *testing.T) {
 	AppendAccounts(validAccount, invalidAccount)
 	if len(accounts) != 2 {
 		t.Error("expected 2")
+	}
+	AppendAccounts(validAccount, invalidAccount)
+	if len(accounts) != 2 {
+		t.Error("expected 2")
+	}
+}
+
+func TestIsEmpty(t *testing.T) {
+	t.Parallel()
+	if !invalidAccount.IsEmpty() {
+		t.Fatalf("received: '%v', but expected: '%v'", invalidAccount.IsEmpty(), true)
+	}
+	if validAccount.IsEmpty() {
+		t.Fatalf("received: '%v', but expected: '%v'", validAccount.IsEmpty(), false)
 	}
 }
