@@ -782,6 +782,12 @@ func (bot *Engine) GetAllExchangeCryptocurrencyDepositAddresses() map[string]map
 							err)
 						continue
 					}
+					if depositAddr == nil {
+						log.Errorf(log.Global, "%s failed to get cryptocurrency deposit address for %s. Err: Deposit address came back as nil.\n",
+							exchName,
+							cryptocurrency)
+						continue
+					}
 					depositAddrs = append(depositAddrs, *depositAddr)
 				}
 				cryptoAddr[cryptocurrency] = depositAddrs

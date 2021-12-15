@@ -29,6 +29,8 @@ import (
 // Therefore this OKGroup_Wrapper can be shared between OKEX and OKCoin.
 // When circumstances change, wrapper funcs can be split appropriately
 
+var errNoAccountDepositAddress = errors.New("no account deposit address")
+
 // Setup sets user exchange configuration settings
 func (o *OKGroup) Setup(exch *config.Exchange) error {
 	err := exch.Validate()
@@ -428,10 +430,15 @@ func (o *OKGroup) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (o *OKGroup) GetDepositAddress(ctx context.Context, p currency.Code, _, _ string) (*deposit.Address, error) {
-	wallet, err := o.GetAccountDepositAddressForCurrency(ctx, p.Lower().String())
-	if err != nil || len(wallet) == 0 {
+func (o *OKGroup) GetDepositAddress(ctx context.Context, c currency.Code, _, _ string) (*deposit.Address, error) {
+	wallet, err := o.GetAccountDepositAddressForCurrency(ctx, c.Lower().String())
+	if err != nil {
 		return nil, err
+	}
+	if len(wallet) == 0 {
+		return nil, fmt.Errorf("%w for currency %s",
+			errNoAccountDepositAddress,
+			c)
 	}
 	return &deposit.Address{
 		Address: wallet[0].Address,
