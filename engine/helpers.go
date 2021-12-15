@@ -691,10 +691,7 @@ func (bot *Engine) GetCryptocurrencyDepositAddressesByExchange(exchName string) 
 func (bot *Engine) GetExchangeCryptocurrencyDepositAddress(ctx context.Context, exchName, accountID, chain string, item currency.Code, bypassCache bool) (*deposit.Address, error) {
 	if bot.DepositAddressManager != nil && bot.DepositAddressManager.IsSynced() && !bypassCache {
 		resp, err := bot.DepositAddressManager.GetDepositAddressByExchangeAndCurrency(exchName, chain, item)
-		if err != nil {
-			return nil, err
-		}
-		return &resp, nil
+		return &resp, err
 	}
 	exch, err := bot.GetExchangeByName(exchName)
 	if err != nil {
@@ -780,12 +777,6 @@ func (bot *Engine) GetAllExchangeCryptocurrencyDepositAddresses() map[string]map
 							exchName,
 							cryptocurrency,
 							err)
-						continue
-					}
-					if depositAddr == nil {
-						log.Errorf(log.Global, "%s failed to get cryptocurrency deposit address for %s. Err: Deposit address came back as nil.\n",
-							exchName,
-							cryptocurrency)
 						continue
 					}
 					depositAddrs = append(depositAddrs, *depositAddr)
