@@ -25,43 +25,24 @@ func (b *Base) WhaleBomb(priceTarget decimal.Decimal, buy bool) (*WhaleBombResul
 	if priceTarget.LessThan(decimal.Zero) {
 		return nil, errors.New("price target is invalid")
 	}
-	if buy {
-		a, orders := b.findAmount(priceTarget, true)
-		min, max := orders.MinimumPrice(false), orders.MaximumPrice(true)
-		var err error
-		if max.LessThan(priceTarget) {
-			err = errors.New("unable to hit price target due to insufficient orderbook items")
-		}
-		status := fmt.Sprintf("Buying %s %s worth of %s will send the price from %s to %s [%.2f%%] and take %d orders.",
-			a.Round(2),
-			b.Pair.Quote,
-			b.Pair.Base,
-			min,
-			max,
-			math.CalculatePercentageGainOrLoss(max.InexactFloat64(), min.InexactFloat64()),
-			len(orders))
-		return &WhaleBombResult{
-			Amount:       a,
-			Orders:       orders,
-			MinimumPrice: min,
-			MaximumPrice: max,
-			Status:       status,
-		}, err
+	direction := "Buying"
+	if !buy {
+		direction = "Selling"
 	}
-
-	a, orders := b.findAmount(priceTarget, false)
+	a, orders := b.findAmount(priceTarget, buy)
 	min, max := orders.MinimumPrice(false), orders.MaximumPrice(true)
 	var err error
-	if min.LessThan(priceTarget) {
+	if priceTarget.LessThan(min) || priceTarget.GreaterThan(max) {
 		err = errors.New("unable to hit price target due to insufficient orderbook items")
 	}
-	status := fmt.Sprintf("Selling %s %s worth of %s will send the price from %s to %s [%.2f%%] and take %d orders.",
+	status := fmt.Sprintf("%s %s %s worth of %s will send the price from %s to %s [%.2f%%] and take %d orders.",
+		direction,
 		a.Round(2),
-		b.Pair.Base,
 		b.Pair.Quote,
-		max,
+		b.Pair.Base,
 		min,
-		math.CalculatePercentageGainOrLoss(min.InexactFloat64(), max.InexactFloat64()),
+		max,
+		math.CalculatePercentageGainOrLoss(max.InexactFloat64(), min.InexactFloat64()),
 		len(orders))
 	return &WhaleBombResult{
 		Amount:       a,

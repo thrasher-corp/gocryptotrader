@@ -367,7 +367,7 @@ func TestOutOfOrderIDs(t *testing.T) {
 	}
 	outOFOrderIDs := []int64{2, 1, 5, 3, 4, 6, 7}
 	if !itemArray[0][0].Price.Equal(decimal.NewFromInt(1000)) {
-		t.Errorf("expected sorted price to be 3000, received: %v",
+		t.Errorf("expected sorted price to be 3000, received: %s",
 			itemArray[1][0].Price)
 	}
 	holder.bufferEnabled = true
@@ -389,7 +389,7 @@ func TestOutOfOrderIDs(t *testing.T) {
 	cpy := book.ob.Retrieve()
 	// Index 1 since index 0 is price 7000
 	if !cpy.Asks[1].Price.Equal(decimal.NewFromInt(2000)) {
-		t.Errorf("expected sorted price to be 2000, received: %v", cpy.Asks[1].Price)
+		t.Errorf("expected sorted price to be 2000, received: %s", cpy.Asks[1].Price)
 	}
 }
 
@@ -399,7 +399,7 @@ func TestOrderbookLastUpdateID(t *testing.T) {
 		t.Fatal(err)
 	}
 	if exp := decimal.NewFromInt(1000); !itemArray[0][0].Price.Equal(exp) {
-		t.Errorf("expected sorted price to be %f, received: %v",
+		t.Errorf("expected sorted price to be %s, received: %s",
 			exp, itemArray[1][0].Price)
 	}
 

@@ -2237,10 +2237,10 @@ func TestWsDepthUpdate(t *testing.T) {
 		t.Fatalf("Unexpected Last update id of orderbook for old update. Exp: %d, got: %d", exp, got)
 	}
 	if exp, got := decimal.NewFromFloat(2.3), ob.Asks[2].Amount; !got.Equal(exp) {
-		t.Fatalf("Ask altered by outdated update. Exp: %f, got %f", exp, got)
+		t.Fatalf("Ask altered by outdated update. Exp: %s, got %s", exp, got)
 	}
 	if exp, got := decimal.NewFromFloat(0.163526), ob.Bids[1].Amount; !got.Equal(exp) {
-		t.Fatalf("Bid altered by outdated update. Exp: %f, got %f", exp, got)
+		t.Fatalf("Bid altered by outdated update. Exp: %s, got %s", exp, got)
 	}
 
 	update2 := []byte(`{"stream":"btcusdt@depth","data":{
@@ -2270,13 +2270,13 @@ func TestWsDepthUpdate(t *testing.T) {
 		t.Fatalf("Unexpected Last update id of orderbook for new update. Exp: %d, got: %d", exp, got)
 	}
 	if exp, got := decimal.NewFromFloat(2.3), ob.Asks[2].Amount; !got.Equal(exp) {
-		t.Fatalf("Unexpected Ask amount. Exp: %f, got %f", exp, got)
+		t.Fatalf("Unexpected Ask amount. Exp: %s, got %s", exp, got)
 	}
 	if exp, got := decimal.NewFromFloat(1.9), ob.Asks[3].Amount; !got.Equal(exp) {
-		t.Fatalf("Unexpected Ask amount. Exp: %f, got %f", exp, got)
+		t.Fatalf("Unexpected Ask amount. Exp: %s, got %s", exp, got)
 	}
 	if exp, got := decimal.NewFromFloat(0.163526), ob.Bids[1].Amount; !got.Equal(exp) {
-		t.Fatalf("Unexpected Bid amount. Exp: %f, got %f", exp, got)
+		t.Fatalf("Unexpected Bid amount. Exp: %s, got %s", exp, got)
 	}
 
 	// reset order book sync status

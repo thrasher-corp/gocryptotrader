@@ -800,7 +800,7 @@ func (m *syncManager) FormatCurrency(p currency.Pair) currency.Pair {
 }
 
 const (
-	book = "%s %s %s %s: ORDERBOOK: Bids len: %d Amount: %f %s. Total value: %s Asks len: %d Amount: %f %s. Total value: %s"
+	book = "%s %s %s %s: ORDERBOOK: Bids len: %d Amount: %s %s. Total value: %s Asks len: %d Amount: %s %s. Total value: %s"
 )
 
 // PrintOrderbookSummary outputs orderbook results
