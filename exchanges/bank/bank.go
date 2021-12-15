@@ -56,7 +56,7 @@ var (
 	// ErrUnknownTransfer defines an unknown bank transfer type error
 	ErrUnknownTransfer = errors.New("unknown bank transfer type")
 	// ErrTransferTypeUnset defines an error when the transfer type is unset
-	ErrTransferTypeUnset = errors.New("unknown bank transfer type")
+	ErrTransferTypeUnset = errors.New("transfer type is unset")
 )
 
 // Transfer defines the different fee types associated with bank

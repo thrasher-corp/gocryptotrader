@@ -45,8 +45,8 @@ func TestOptionsValidate(t *testing.T) {
 			{},
 		},
 	}).validate()
-	if !errors.Is(err, bank.ErrUnknownTransfer) {
-		t.Fatalf("received: %v but expected: %v", err, bank.ErrUnknownTransfer)
+	if !errors.Is(err, bank.ErrTransferTypeUnset) {
+		t.Fatalf("received: %v but expected: %v", err, bank.ErrTransferTypeUnset)
 	}
 
 	err = (&Options{

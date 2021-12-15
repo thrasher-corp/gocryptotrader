@@ -108,7 +108,7 @@ func TestGetExchangeBankAccounts(t *testing.T) {
 	if !errors.Is(err, errBankDetailsNotFound) {
 		t.Fatalf("received: '%v', but expected '%v'", err, errBankDetailsNotFound)
 	}
-	// found exchaange but no account - test break optim.
+	// found exchange but no account - test break optim.
 	_, err = cfg.GetExchangeBankAccounts(bfx, "", currency.NewCode("Not a currency"))
 	if !errors.Is(err, errBankDetailsNotFound) {
 		t.Fatalf("received: '%v', but expected '%v'", err, errBankDetailsNotFound)
