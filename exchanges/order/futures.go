@@ -265,9 +265,11 @@ func (p *PositionTracker) CalculatePNL(calc *PNLCalculator) (*PNLResult, error) 
 		if (p.currentDirection.IsShort() && calc.OrderBasedCalculation.Side.IsLong() || p.currentDirection.IsLong() && calc.OrderBasedCalculation.Side.IsShort()) &&
 			p.exposure.LessThan(decimal.NewFromFloat(calc.OrderBasedCalculation.Amount)) {
 			// we need to handle the pnl twice as we're flipping direction
-			result2 := &PNLResult{}
+			result2 := &PNLResult{
+				Time: result.Time,
+			}
 
-			one := p.exposure.Sub(decimal.NewFromFloat(calc.OrderBasedCalculation.Amount)).Abs()
+			one := p.exposure.Sub(amount).Abs()
 			result, err = p.idkYet(calc, result, one, price)
 			if err != nil {
 				return nil, err
@@ -278,18 +280,18 @@ func (p *PositionTracker) CalculatePNL(calc *PNLCalculator) (*PNLResult, error) 
 			} else if calc.OrderBasedCalculation.Side.IsLong() {
 				calc.OrderBasedCalculation.Side = Short
 			}
-			two := decimal.NewFromFloat(calc.OrderBasedCalculation.Amount).Sub(p.exposure).Abs()
+			two := amount.Sub(p.exposure).Abs()
 			result2, err = p.idkYet(calc, result2, two, price)
 			if err != nil {
 				return nil, err
 			}
-			result.UnrealisedPNL = result.UnrealisedPNL.Add(result2.UnrealisedPNL)
-			p.unrealisedPNL = result.UnrealisedPNL
+			p.unrealisedPNL = result2.UnrealisedPNL
 			if calc.OrderBasedCalculation.Side.IsShort() {
 				calc.OrderBasedCalculation.Side = Long
 			} else if calc.OrderBasedCalculation.Side.IsLong() {
 				calc.OrderBasedCalculation.Side = Short
 			}
+			return result2, nil
 		}
 
 		result, err = p.idkYet(calc, result, amount, price)
@@ -308,13 +310,14 @@ func (p *PositionTracker) CalculatePNL(calc *PNLCalculator) (*PNLResult, error) 
 }
 
 func (p *PositionTracker) idkYet(calc *PNLCalculator, result *PNLResult, amount decimal.Decimal, price decimal.Decimal) (*PNLResult, error) {
+	hello := amount.Mul(price)
 	switch {
 	case p.currentDirection.IsShort() && calc.OrderBasedCalculation.Side.IsShort(),
 		p.currentDirection.IsLong() && calc.OrderBasedCalculation.Side.IsLong():
-		result.UnrealisedPNL = p.unrealisedPNL.Add(amount.Mul(price))
+		result.UnrealisedPNL = p.unrealisedPNL.Add(hello)
 	case p.currentDirection.IsShort() && calc.OrderBasedCalculation.Side.IsLong(),
 		p.currentDirection.IsLong() && calc.OrderBasedCalculation.Side.IsShort():
-		result.UnrealisedPNL = p.unrealisedPNL.Sub(amount.Mul(price))
+		result.UnrealisedPNL = p.unrealisedPNL.Sub(hello)
 	default:
 		return nil, fmt.Errorf("%v %v %v %v whats wrong", p.currentDirection, calc.OrderBasedCalculation.Side, result.UnrealisedPNL, amount.Mul(price))
 	}
