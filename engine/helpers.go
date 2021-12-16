@@ -682,10 +682,7 @@ func (bot *Engine) GetExchangeCryptocurrencyDepositAddress(ctx context.Context, 
 		bot.DepositAddressManager.IsSynced() &&
 		!bypassCache {
 		resp, err := bot.DepositAddressManager.GetDepositAddressByExchangeAndCurrency(exchName, chain, item)
-		if err != nil {
-			return nil, err
-		}
-		return &resp, nil
+		return &resp, err
 	}
 	exch, err := bot.GetExchangeByName(exchName)
 	if err != nil {

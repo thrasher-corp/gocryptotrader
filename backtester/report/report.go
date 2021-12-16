@@ -79,7 +79,7 @@ func (d *Data) GenerateReport() error {
 	if err != nil {
 		return err
 	}
-	log.Infof(log.BackTester, "successfully saved report to %v\\%v", d.OutputPath, fileName)
+	log.Infof(log.BackTester, "successfully saved report to %v", filepath.Join(d.OutputPath, fileName))
 	return nil
 }
 
