@@ -30,7 +30,10 @@ func (by *Bybit) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = by.BaseCurrencies
 
-	by.SetupDefaults(exchCfg)
+	err := by.SetupDefaults(exchCfg)
+	if err != nil {
+		return nil, err
+	}
 
 	if by.Features.Supports.RESTCapabilities.AutoPairUpdates {
 		err := by.UpdateTradablePairs(true)
@@ -119,11 +122,12 @@ func (by *Bybit) SetDefaults() {
 	// NOTE: SET THE URLs HERE
 	by.API.Endpoints = by.NewEndpoints()
 	by.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
-		exchange.RestSpot:         bybitAPIURL,
-		exchange.WebsocketSpot:    bybitWSURLPublicTopicV2,
-		exchange.RestCoinMargined: bybitAPIURL,
-		exchange.RestUSDTMargined: bybitAPIURL,
-		exchange.RestFutures:      bybitAPIURL,
+		exchange.RestSpot:              bybitAPIURL,
+		exchange.RestCoinMargined:      bybitAPIURL,
+		exchange.RestUSDTMargined:      bybitAPIURL,
+		exchange.RestFutures:           bybitAPIURL,
+		exchange.WebsocketSpot:         bybitWSBaseURL + wsSpotPublicTopicV2,
+		exchange.WebsocketCoinMargined: bybitWSBaseURL + wsCoinMargined,
 	})
 	by.Websocket = stream.New()
 	by.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -152,7 +156,7 @@ func (by *Bybit) Setup(exch *config.ExchangeConfig) error {
 			Verbose:                          exch.Verbose,
 			AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
 			WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-			DefaultURL:                       bybitWSURLPublicTopicV2,
+			DefaultURL:                       bybitWSBaseURL + wsSpotPublicTopicV2,
 			ExchangeName:                     exch.Name,
 			RunningURL:                       wsRunningEndpoint,
 			Connector:                        by.WsConnect,

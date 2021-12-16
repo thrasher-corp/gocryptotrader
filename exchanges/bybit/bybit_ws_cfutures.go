@@ -16,7 +16,6 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
@@ -24,26 +23,26 @@ import (
 )
 
 const (
-	bybitWSBaseURL      = "wss://stream.bybit.com/"
-	wsSpotPublicTopicV2 = "spot/quote/ws/v2"
-	bybitWebsocketTimer = 30 * time.Second
-	wsOrderbook         = "depth"
-	wsTicker            = "bookTicker"
-	wsTrades            = "trade"
-	wsMarkets           = "kline"
+	wsCoinMargined = "realtime"
+	/*
+		wsOrderbook    = "depth"
+		wsTicker       = "bookTicker"
+		wsTrades       = "trade"
+		wsMarkets      = "kline"
 
-	wsAccountInfoStr = "outboundAccountInfo"
-	wsOrderStr       = "executionReport"
-	wsOrderFilledStr = "ticketInfo"
+		wsAccountInfoStr = "outboundAccountInfo"
+		wsOrderStr       = "executionReport"
+		wsOrderFilledStr = "ticketInfo"
 
-	wsUpdate    = "update"
-	wsPartial   = "partial"
-	subscribe   = "sub"
-	unsubscribe = "cancel"
+		wsUpdate    = "update"
+		wsPartial   = "partial"
+		subscribe   = "sub"
+		unsubscribe = "cancel"
+	*/
 )
 
-// WsConnect connects to a websocket feed
-func (by *Bybit) WsConnect() error {
+// WsCMFConnect connects to a CMF websocket feed
+func (by *Bybit) WsCMFConnect() error {
 	if !by.Websocket.IsEnabled() || !by.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
@@ -72,8 +71,8 @@ func (by *Bybit) WsConnect() error {
 	return nil
 }
 
-// WsAuth sends an authentication message to receive auth data
-func (by *Bybit) WsAuth() error {
+// WsCMFAuth sends an authentication message to receive auth data
+func (by *Bybit) WsCMFAuth() error {
 	intNonce := (time.Now().Unix() + 1) * 1000
 	strNonce := strconv.FormatInt(intNonce, 10)
 	hmac := crypto.GetHMAC(
@@ -90,7 +89,7 @@ func (by *Bybit) WsAuth() error {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (by *Bybit) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
+func (by *Bybit) SubscribeCMF(channelsToSubscribe []stream.ChannelSubscription) error {
 	var errs common.Errors
 	for i := range channelsToSubscribe {
 		var sub WsReq
@@ -123,7 +122,7 @@ func (by *Bybit) Subscribe(channelsToSubscribe []stream.ChannelSubscription) err
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (by *Bybit) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+func (by *Bybit) UnsubscribeCMF(channelsToUnsubscribe []stream.ChannelSubscription) error {
 	var errs common.Errors
 
 	for i := range channelsToUnsubscribe {
@@ -157,7 +156,7 @@ func (by *Bybit) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription)
 }
 
 // wsReadData gets and passes on websocket messages for processing
-func (by *Bybit) wsReadData() {
+func (by *Bybit) wsCMFReadData() {
 	by.Websocket.Wg.Add(1)
 	defer by.Websocket.Wg.Done()
 
@@ -180,7 +179,7 @@ func (by *Bybit) wsReadData() {
 }
 
 // GenerateDefaultSubscriptions generates default subscription
-func (by *Bybit) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
+func (by *Bybit) GenerateDefaultSubscriptionsCMF() ([]stream.ChannelSubscription, error) {
 	var subscriptions []stream.ChannelSubscription
 	var channels = []string{wsTicker, wsTrades, wsOrderbook}
 	assets := by.GetAssetTypes(true)
@@ -211,24 +210,7 @@ func (by *Bybit) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 	return subscriptions, nil
 }
 
-func stringToOrderStatus(status string) (order.Status, error) {
-	switch status {
-	case "NEW":
-		return order.New, nil
-	case "CANCELED":
-		return order.Cancelled, nil
-	case "REJECTED":
-		return order.Rejected, nil
-	case "TRADE":
-		return order.PartiallyFilled, nil
-	case "EXPIRED":
-		return order.Expired, nil
-	default:
-		return order.UnknownStatus, errors.New(status + " not recognised as order status")
-	}
-}
-
-func (by *Bybit) wsHandleData(respRaw []byte) error {
+func (by *Bybit) wsCMFHandleData(respRaw []byte) error {
 	var multiStreamData map[string]interface{}
 	err := json.Unmarshal(respRaw, &multiStreamData)
 	if err != nil {
@@ -405,47 +387,4 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 	}
 
 	return nil
-}
-
-func (by *Bybit) wsUpdateOrderbook(update WsOrderbookData, p currency.Pair, assetType asset.Item) error {
-	if len(update.Asks) == 0 && len(update.Bids) == 0 {
-		return errors.New("no orderbook data")
-	}
-	var asks, bids []orderbook.Item
-	for i := range update.Asks {
-		target, err := strconv.ParseFloat(update.Asks[i][0], 64)
-		if err != nil {
-			by.Websocket.DataHandler <- err
-			continue
-		}
-		amount, err := strconv.ParseFloat(update.Asks[i][1], 64)
-		if err != nil {
-			by.Websocket.DataHandler <- err
-			continue
-		}
-		asks = append(asks, orderbook.Item{Price: target, Amount: amount})
-	}
-	for i := range update.Bids {
-		target, err := strconv.ParseFloat(update.Bids[i][0], 64)
-		if err != nil {
-			by.Websocket.DataHandler <- err
-			continue
-		}
-		amount, err := strconv.ParseFloat(update.Bids[i][1], 64)
-		if err != nil {
-			by.Websocket.DataHandler <- err
-			continue
-		}
-
-		bids = append(bids, orderbook.Item{Price: target, Amount: amount})
-	}
-	return by.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
-		Bids:            bids,
-		Asks:            asks,
-		Pair:            p,
-		LastUpdated:     time.Unix(update.Time, 0),
-		Asset:           assetType,
-		Exchange:        by.Name,
-		VerifyOrderbook: by.CanVerifyOrderbook,
-	})
 }
