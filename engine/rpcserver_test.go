@@ -2192,14 +2192,14 @@ func (d *errorMe) Validate() error                                { return nil }
 func (d *errorMe) LessThan(val fee.Value) (bool, error)           { return false, nil }
 
 func TestAddTransferFee(t *testing.T) {
-	_, err := addTransferFee(fee.Transfer{
+	_, err := addTransferFee(&fee.Transfer{
 		Deposit: &errorMe{Error: errTestError},
 	})
 	if !errors.Is(err, errTestError) {
 		t.Fatalf("received: %v, but expected: %v", err, errTestError)
 	}
 
-	_, err = addTransferFee(fee.Transfer{
+	_, err = addTransferFee(&fee.Transfer{
 		Deposit:        &errorMe{Error: nil},
 		MaximumDeposit: &errorMe{Error: errTestError},
 	})
@@ -2207,7 +2207,7 @@ func TestAddTransferFee(t *testing.T) {
 		t.Fatalf("received: %v, but expected: %v", err, errTestError)
 	}
 
-	_, err = addTransferFee(fee.Transfer{
+	_, err = addTransferFee(&fee.Transfer{
 		Deposit:        &errorMe{Error: nil},
 		MaximumDeposit: &errorMe{Error: errTestError},
 	})
@@ -2215,13 +2215,13 @@ func TestAddTransferFee(t *testing.T) {
 		t.Fatalf("received: %v, but expected: %v", err, errTestError)
 	}
 
-	_, err = addTransferFee(fee.Transfer{
+	_, err = addTransferFee(&fee.Transfer{
 		Withdrawal: &errorMe{Error: errTestError},
 	})
 	if !errors.Is(err, errTestError) {
 		t.Fatalf("received: %v, but expected: %v", err, errTestError)
 	}
-	_, err = addTransferFee(fee.Transfer{
+	_, err = addTransferFee(&fee.Transfer{
 		Withdrawal:        &errorMe{Error: nil},
 		MaximumWithdrawal: &errorMe{Error: errTestError},
 	})
@@ -2229,7 +2229,7 @@ func TestAddTransferFee(t *testing.T) {
 		t.Fatalf("received: %v, but expected: %v", err, errTestError)
 	}
 
-	_, err = addTransferFee(fee.Transfer{
+	_, err = addTransferFee(&fee.Transfer{
 		Withdrawal:        &errorMe{Error: nil},
 		MinimumWithdrawal: &errorMe{Error: errTestError},
 	})
@@ -2237,7 +2237,7 @@ func TestAddTransferFee(t *testing.T) {
 		t.Fatalf("received: %v, but expected: %v", err, errTestError)
 	}
 
-	tf, err := addTransferFee(fee.Transfer{
+	tf, err := addTransferFee(&fee.Transfer{
 		Currency:     currency.BTC,
 		Chain:        "ERC-69420",
 		IsPercentage: true,
