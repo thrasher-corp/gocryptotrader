@@ -20,3 +20,10 @@ func WithRetryPolicy(p RetryPolicy) RequesterOption {
 		r.retryPolicy = p
 	}
 }
+
+// WithReporter configures the reporter for a Requester.
+func WithReporter(rep Reporter) RequesterOption {
+	return func(r *Requester) {
+		r.reporter = rep
+	}
+}
