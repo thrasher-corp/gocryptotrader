@@ -2182,56 +2182,56 @@ func TestCurrencyStateTradingPair(t *testing.T) {
 	}
 }
 
-type destructo struct {
+type errorMe struct {
 	Error error
 }
 
-func (d *destructo) GetFee(amount float64) (decimal.Decimal, error) { return decimal.Zero, nil }
-func (d *destructo) Display() (string, error)                       { return "", d.Error }
-func (d *destructo) Validate() error                                { return nil }
-func (d *destructo) LessThan(val fee.Value) (bool, error)           { return false, nil }
+func (d *errorMe) GetFee(amount float64) (decimal.Decimal, error) { return decimal.Zero, nil }
+func (d *errorMe) Display() (string, error)                       { return "", d.Error }
+func (d *errorMe) Validate() error                                { return nil }
+func (d *errorMe) LessThan(val fee.Value) (bool, error)           { return false, nil }
 
 func TestAddTransferFee(t *testing.T) {
 	_, err := addTransferFee(fee.Transfer{
-		Deposit: &destructo{Error: errTestError},
+		Deposit: &errorMe{Error: errTestError},
 	})
 	if !errors.Is(err, errTestError) {
 		t.Fatalf("received: %v, but expected: %v", err, errTestError)
 	}
 
 	_, err = addTransferFee(fee.Transfer{
-		Deposit:        &destructo{Error: nil},
-		MaximumDeposit: &destructo{Error: errTestError},
+		Deposit:        &errorMe{Error: nil},
+		MaximumDeposit: &errorMe{Error: errTestError},
 	})
 	if !errors.Is(err, errTestError) {
 		t.Fatalf("received: %v, but expected: %v", err, errTestError)
 	}
 
 	_, err = addTransferFee(fee.Transfer{
-		Deposit:        &destructo{Error: nil},
-		MaximumDeposit: &destructo{Error: errTestError},
+		Deposit:        &errorMe{Error: nil},
+		MaximumDeposit: &errorMe{Error: errTestError},
 	})
 	if !errors.Is(err, errTestError) {
 		t.Fatalf("received: %v, but expected: %v", err, errTestError)
 	}
 
 	_, err = addTransferFee(fee.Transfer{
-		Withdrawal: &destructo{Error: errTestError},
+		Withdrawal: &errorMe{Error: errTestError},
 	})
 	if !errors.Is(err, errTestError) {
 		t.Fatalf("received: %v, but expected: %v", err, errTestError)
 	}
 	_, err = addTransferFee(fee.Transfer{
-		Withdrawal:        &destructo{Error: nil},
-		MaximumWithdrawal: &destructo{Error: errTestError},
+		Withdrawal:        &errorMe{Error: nil},
+		MaximumWithdrawal: &errorMe{Error: errTestError},
 	})
 	if !errors.Is(err, errTestError) {
 		t.Fatalf("received: %v, but expected: %v", err, errTestError)
 	}
 
 	_, err = addTransferFee(fee.Transfer{
-		Withdrawal:        &destructo{Error: nil},
-		MinimumWithdrawal: &destructo{Error: errTestError},
+		Withdrawal:        &errorMe{Error: nil},
+		MinimumWithdrawal: &errorMe{Error: errTestError},
 	})
 	if !errors.Is(err, errTestError) {
 		t.Fatalf("received: %v, but expected: %v", err, errTestError)
@@ -2242,8 +2242,8 @@ func TestAddTransferFee(t *testing.T) {
 		Chain:        "ERC-69420",
 		IsPercentage: true,
 		BankTransfer: bank.ExpressWireTransfer,
-		Withdrawal:   &destructo{Error: nil},
-		Deposit:      &destructo{Error: nil},
+		Withdrawal:   &errorMe{Error: nil},
+		Deposit:      &errorMe{Error: nil},
 	})
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: %v, but expected: %v", err, nil)

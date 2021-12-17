@@ -176,7 +176,6 @@ func (b *Bitstamp) GetBalance(ctx context.Context) (Balances, error) {
 			if !ok && !strings.Contains(serviceID[0], ID.String()) {
 				ID = currency.NewCode(serviceID[0])
 			} else {
-				fmt.Println(serviceID[0])
 				for y := range translations {
 					if strings.Contains(serviceID[0], translations[y].String()) {
 						ID = currency.NewCode(serviceID[0])
@@ -212,7 +211,6 @@ func (b *Bitstamp) GetBalance(ctx context.Context) (Balances, error) {
 		}
 
 		if len(serviceID) < 2 {
-			fmt.Println(serviceID)
 			return nil, errors.New("service id not enough info returned")
 		}
 
