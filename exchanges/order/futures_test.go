@@ -33,10 +33,11 @@ func TestTrackPNL(t *testing.T) {
 	fPNL := &FakePNL{
 		result: &PNLResult{},
 	}
-	e := PositionController{
-		exchange:       exch,
-		pnlCalculation: fPNL,
+	e := PositionTrackerController{
+		exchange:               exch,
+		exchangePNLCalculation: fPNL,
 	}
+	setup := &PositionControllerSetup{}
 	f, err := e.SetupPositionTracker(item, pair, pair.Base)
 	if !errors.Is(err, nil) {
 		t.Error(err)
@@ -85,9 +86,9 @@ func TestTrackNewOrder(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Error(err)
 	}
-	e := PositionController{
-		exchange:       "test",
-		pnlCalculation: &FakePNL{},
+	e := PositionTrackerController{
+		exchange:               "test",
+		exchangePNLCalculation: &FakePNL{},
 	}
 	f, err := e.SetupPositionTracker(item, pair, pair.Base)
 	if !errors.Is(err, nil) {
@@ -194,41 +195,41 @@ func TestTrackNewOrder(t *testing.T) {
 func TestSetupFuturesTracker(t *testing.T) {
 	t.Parallel()
 
-	_, err := SetupPositionController(nil)
+	_, err := SetupPositionTrackerController(nil)
 	if !errors.Is(err, errNilSetup) {
 		t.Error(err)
 	}
 
 	setup := &PositionControllerSetup{}
-	_, err = SetupPositionController(setup)
+	_, err = SetupPositionTrackerController(setup)
 	if !errors.Is(err, errExchangeNameEmpty) {
 		t.Error(err)
 	}
 	setup.Exchange = "test"
-	_, err = SetupPositionController(setup)
+	_, err = SetupPositionTrackerController(setup)
 	if !errors.Is(err, errNotFutureAsset) {
 		t.Error(err)
 	}
 	setup.Asset = asset.Futures
-	_, err = SetupPositionController(setup)
+	_, err = SetupPositionTrackerController(setup)
 	if !errors.Is(err, ErrPairIsEmpty) {
 		t.Error(err)
 	}
 
 	setup.Pair = currency.NewPair(currency.BTC, currency.USDT)
-	_, err = SetupPositionController(setup)
+	_, err = SetupPositionTrackerController(setup)
 	if !errors.Is(err, errEmptyUnderlying) {
 		t.Error(err)
 	}
 
 	setup.Underlying = currency.BTC
-	_, err = SetupPositionController(setup)
+	_, err = SetupPositionTrackerController(setup)
 	if !errors.Is(err, errMissingPNLCalculationFunctions) {
 		t.Error(err)
 	}
 
-	setup.PNLCalculator = &FakePNL{}
-	resp, err := SetupPositionController(setup)
+	setup.ExchangePNLCalculation = &FakePNL{}
+	resp, err := SetupPositionTrackerController(setup)
 	if !errors.Is(err, nil) {
 		t.Error(err)
 	}
@@ -243,13 +244,13 @@ func TestExchangeTrackNewOrder(t *testing.T) {
 	item := asset.Futures
 	pair := currency.NewPair(currency.BTC, currency.USDT)
 	setup := &PositionControllerSetup{
-		Exchange:      exch,
-		Asset:         item,
-		Pair:          pair,
-		Underlying:    pair.Base,
-		PNLCalculator: &FakePNL{},
+		Exchange:               exch,
+		Asset:                  item,
+		Pair:                   pair,
+		Underlying:             pair.Base,
+		ExchangePNLCalculation: &FakePNL{},
 	}
-	resp, err := SetupPositionController(setup)
+	resp, err := SetupPositionTrackerController(setup)
 	if !errors.Is(err, nil) {
 		t.Error(err)
 	}

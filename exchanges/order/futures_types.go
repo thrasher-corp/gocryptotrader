@@ -21,66 +21,61 @@ var (
 	errEmptyUnderlying                = errors.New("underlying asset unset")
 	errNoPositions                    = errors.New("there are no positions")
 	errNilSetup                       = errors.New("nil setup received")
+	// ErrNilPNLCalculator is raised when pnl calculation is requested for
+	// an exchange, but the fields are not set properly
+	ErrNilPNLCalculator = errors.New("nil pnl calculator received")
+	// ErrPositionLiquidated is raised when checking PNL status only for
+	// it to be liquidated
+	ErrPositionLiquidated = errors.New("position liquidated")
 )
 
+// PNLManagement is an interface to allow multiple
+// ways of calculating PNL to be used for futures positions
 type PNLManagement interface {
 	CalculatePNL(*PNLCalculator) (*PNLResult, error)
 }
 
+// CollateralManagement is an interface that allows
+// multiple ways of calculating the size of collateral
+// on an exchange
 type CollateralManagement interface {
 	ScaleCollateral(*CollateralCalculator) (decimal.Decimal, error)
 	CalculateTotalCollateral([]CollateralCalculator) (decimal.Decimal, error)
 }
 
-type CollateralCalculator struct {
-	CollateralCurrency currency.Code
-	Asset              asset.Item
-	Side               Side
-	CollateralAmount   decimal.Decimal
-	USDPrice           decimal.Decimal
-}
-
-type PNLCalculator struct {
-	OrderBasedCalculation    *Detail
-	TimeBasedCalculation     *TimeBasedCalculation
-	ExchangeBasedCalculation *ExchangeBasedCalculation
-}
-
-type TimeBasedCalculation struct {
-	CurrentPrice float64
-}
-
-type ExchangeBasedCalculation struct {
-	CalculateOffline bool
-	Underlying       currency.Code
-	Asset            asset.Item
-	Side             Side
-	Leverage         float64
-	EntryPrice       float64
-	EntryAmount      float64
-	Amount           float64
-	CurrentPrice     float64
-	PreviousPrice    float64
-}
-
-type PNLResult struct {
-	Time          time.Time
-	UnrealisedPNL decimal.Decimal
-	RealisedPNL   decimal.Decimal
-}
-
-// PositionController will track the performance of
-// po
 type PositionController struct {
-	exchange              string
-	asset                 asset.Item
-	pair                  currency.Pair
-	underlying            currency.Code
-	positions             []*PositionTracker
-	orderPositions        map[string]*PositionTracker
-	pnl                   decimal.Decimal
-	pnlCalculation        PNLManagement
-	offlinePNLCalculation bool
+	positionTrackerControllers map[string]map[asset.Item]map[currency.Pair]*PositionTrackerController
+}
+
+// PositionTrackerController will track the performance of
+// futures positions over time. If an old position tracker
+// is closed, then the position controller will create a new one
+// to track the current positions
+type PositionTrackerController struct {
+	exchange   string
+	asset      asset.Item
+	pair       currency.Pair
+	underlying currency.Code
+	positions  []*PositionTracker
+	// order positions allows for an easier time knowing which order is
+	// part of which position tracker
+	orderPositions             map[string]*PositionTracker
+	pnl                        decimal.Decimal
+	offlinePNLCalculation      bool
+	useExchangePNLCalculations bool
+	exchangePNLCalculation     PNLManagement
+}
+
+// PositionControllerSetup holds the parameters
+// required to set up a position controller
+type PositionControllerSetup struct {
+	Exchange                  string
+	Asset                     asset.Item
+	Pair                      currency.Pair
+	Underlying                currency.Code
+	OfflineCalculation        bool
+	UseExchangePNLCalculation bool
+	ExchangePNLCalculation    PNLManagement
 }
 
 // PositionTracker tracks futures orders until the overall position is considered closed
@@ -107,17 +102,65 @@ type PositionTracker struct {
 	entryPrice            decimal.Decimal
 	closingPrice          decimal.Decimal
 	offlinePNLCalculation bool
-	pnlCalculation        PNLManagement
-	latestPrice           decimal.Decimal
+	PNLManagement
+	latestPrice decimal.Decimal
 }
 
-// PositionControllerSetup holds the parameters
-// required to set up a position controller
-type PositionControllerSetup struct {
-	Exchange           string
+type PositionTrackerSetup struct {
+	Pair       currency.Pair
+	EntryPrice float64
+	Underlying currency.Code
+	Asset      asset.Item
+	Side       Side
+}
+
+// CollateralCalculator is used to determine
+// the size of collateral holdings for an exchange
+// eg on FTX, the collateral is scaled depending on what
+// currency it is
+type CollateralCalculator struct {
+	CollateralCurrency currency.Code
 	Asset              asset.Item
-	Pair               currency.Pair
-	Underlying         currency.Code
-	OfflineCalculation bool
-	PNLCalculator      PNLManagement
+	Side               Side
+	CollateralAmount   decimal.Decimal
+	USDPrice           decimal.Decimal
+}
+
+// PNLCalculator is used to calculate PNL values
+// for an open position
+type PNLCalculator struct {
+	OrderBasedCalculation    *Detail
+	TimeBasedCalculation     *TimeBasedCalculation
+	ExchangeBasedCalculation *ExchangeBasedCalculation
+}
+
+// TimeBasedCalculation will update PNL values
+// based on the current time
+type TimeBasedCalculation struct {
+	Time         time.Time
+	CurrentPrice float64
+}
+
+// ExchangeBasedCalculation are the fields required to
+// calculate PNL using an exchange's custom PNL calculations
+// eg FTX uses a different method than Binance to calculate PNL
+// values
+type ExchangeBasedCalculation struct {
+	CalculateOffline bool
+	Underlying       currency.Code
+	Asset            asset.Item
+	Side             Side
+	Leverage         float64
+	EntryPrice       float64
+	EntryAmount      float64
+	Amount           float64
+	CurrentPrice     float64
+	PreviousPrice    float64
+}
+
+// PNLResult stores pnl history at a point in time
+type PNLResult struct {
+	Time          time.Time
+	UnrealisedPNL decimal.Decimal
+	RealisedPNL   decimal.Decimal
 }

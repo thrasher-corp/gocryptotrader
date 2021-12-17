@@ -34,10 +34,11 @@ func SetupOrderManager(exchangeManager iExchangeManager, communicationsManager i
 	return &OrderManager{
 		shutdown: make(chan struct{}),
 		orderStore: store{
-			Orders:          make(map[string][]*order.Detail),
-			exchangeManager: exchangeManager,
-			commsManager:    communicationsManager,
-			wg:              wg,
+			Orders:                  make(map[string][]*order.Detail),
+			exchangeManager:         exchangeManager,
+			commsManager:            communicationsManager,
+			wg:                      wg,
+			futuresPositionTrackers: order.SetupPositionControllerReal(),
 		},
 		verbose: verbose,
 	}, nil
@@ -835,6 +836,12 @@ func (s *store) updateExisting(od *order.Detail) error {
 	for x := range r {
 		if r[x].ID == od.ID {
 			r[x].UpdateOrderFromDetail(od)
+			if r[x].AssetType.IsFutures() {
+				err := s.futuresPositionTrackers.TrackNewOrder(r[x])
+				if err != nil {
+					return err
+				}
+			}
 			return nil
 		}
 	}
@@ -854,6 +861,12 @@ func (s *store) modifyExisting(id string, mod *order.Modify) error {
 	for x := range r {
 		if r[x].ID == id {
 			r[x].UpdateOrderFromModify(mod)
+			if r[x].AssetType.IsFutures() {
+				err := s.futuresPositionTrackers.TrackNewOrder(r[x])
+				if err != nil {
+					return err
+				}
+			}
 			return nil
 		}
 	}
@@ -890,6 +903,12 @@ func (s *store) upsert(od *order.Detail) (resp *OrderUpsertResponse, err error) 
 				OrderDetails: r[x].Copy(),
 				IsNewOrder:   false,
 			}
+			if od.AssetType.IsFutures() {
+				err = s.futuresPositionTrackers.TrackNewOrder(od)
+				if err != nil {
+					return nil, err
+				}
+			}
 			return resp, nil
 		}
 	}
@@ -899,6 +918,12 @@ func (s *store) upsert(od *order.Detail) (resp *OrderUpsertResponse, err error) 
 	resp = &OrderUpsertResponse{
 		OrderDetails: od.Copy(),
 		IsNewOrder:   true,
+	}
+	if od.AssetType.IsFutures() {
+		err = s.futuresPositionTrackers.TrackNewOrder(od)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return resp, nil
 }
@@ -969,6 +994,9 @@ func (s *store) add(det *order.Detail) error {
 	orders = append(orders, det)
 	s.Orders[strings.ToLower(det.Exchange)] = orders
 
+	if det.AssetType.IsFutures() {
+		return s.futuresPositionTrackers.TrackNewOrder(det)
+	}
 	return nil
 }
 

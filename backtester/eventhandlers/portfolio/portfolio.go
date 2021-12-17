@@ -550,13 +550,13 @@ func (p *Portfolio) CalculatePNL(e common.DataEventHandler, funds funding.IColla
 	}
 
 	if snapshot.FuturesTracker == nil {
-		snapshot.FuturesTracker, err = gctorder.SetupPositionController(&gctorder.PositionControllerSetup{
-			Exchange:           e.GetExchange(),
-			Asset:              e.GetAssetType(),
-			Pair:               e.Pair(),
-			Underlying:         e.Pair().Base,
-			OfflineCalculation: true,
-			PNLCalculator:      settings.Exchange,
+		snapshot.FuturesTracker, err = gctorder.SetupPositionTrackerController(&gctorder.PositionControllerSetup{
+			Exchange:               e.GetExchange(),
+			Asset:                  e.GetAssetType(),
+			Pair:                   e.Pair(),
+			Underlying:             e.Pair().Base,
+			OfflineCalculation:     true,
+			ExchangePNLCalculation: settings.Exchange,
 		})
 		if err != nil {
 			return err

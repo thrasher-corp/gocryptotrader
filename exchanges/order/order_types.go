@@ -4,7 +4,6 @@ import (
 	"errors"
 	"time"
 
-	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
@@ -147,7 +146,6 @@ type Detail struct {
 	Type                 Type
 	Side                 Side
 	Status               Status
-	UnrealisedPNL        decimal.Decimal
 	AssetType            asset.Item
 	Date                 time.Time
 	CloseTime            time.Time

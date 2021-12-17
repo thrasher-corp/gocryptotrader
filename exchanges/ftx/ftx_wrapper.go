@@ -1278,40 +1278,38 @@ func (f *FTX) CalculateUnrealisedPNL(positionSize, markPrice, prevMarkPrice floa
 }
 
 func (f *FTX) CalculatePNL(pnl *order.PNLCalculator) (*order.PNLResult, error) {
-	var result order.PNLResult
 	if pnl.ExchangeBasedCalculation == nil {
-		return nil, order.ErrAmountExceedsMax
+		return nil, fmt.Errorf("%v %w", f.Name, order.ErrNilPNLCalculator)
 	}
+	var result order.PNLResult
 	if pnl.ExchangeBasedCalculation.CalculateOffline {
 		uPNL := f.CalculateUnrealisedPNL(pnl.ExchangeBasedCalculation.Amount, pnl.ExchangeBasedCalculation.CurrentPrice, pnl.ExchangeBasedCalculation.PreviousPrice)
 		result.UnrealisedPNL = decimal.NewFromFloat(uPNL)
 		return &result, nil
-	} else {
-		ctx := context.Background()
-		info, err := f.GetAccountInfo(ctx)
-		if err != nil {
-			return nil, err
+	}
+
+	info, err := f.GetAccountInfo(context.Background())
+	if err != nil {
+		return nil, err
+	}
+	if info.Liquidating || info.Collateral == 0 {
+		return &result, order.ErrPositionLiquidated
+	}
+	for i := range info.Positions {
+		ftxSide := order.Side(info.Positions[i].Side)
+		var pnlSide order.Side
+		switch {
+		case ftxSide.IsShort():
+			pnlSide = order.Short
+		case ftxSide.IsLong():
+			pnlSide = order.Long
+		default:
+			return nil, order.ErrSideIsInvalid
 		}
-		if info.Liquidating || info.Collateral == 0 {
-			// result.IsLiquidated = true
+		if info.Positions[i].EntryPrice == pnl.ExchangeBasedCalculation.EntryPrice && pnl.ExchangeBasedCalculation.Side == pnlSide {
+			result.UnrealisedPNL = decimal.NewFromFloat(info.Positions[i].UnrealizedPnL)
+			result.RealisedPNL = decimal.NewFromFloat(info.Positions[i].RealizedPnL)
 			return &result, nil
-		}
-		for i := range info.Positions {
-			ftxSide := order.Side(info.Positions[i].Side)
-			var pnlSide order.Side
-			switch ftxSide {
-			case order.Sell:
-				pnlSide = order.Short
-			case order.Buy:
-				pnlSide = order.Long
-			default:
-				return nil, order.ErrSideIsInvalid
-			}
-			if info.Positions[i].EntryPrice == pnl.ExchangeBasedCalculation.EntryPrice && pnl.ExchangeBasedCalculation.Side == pnlSide {
-				result.UnrealisedPNL = decimal.NewFromFloat(info.Positions[i].UnrealizedPnL)
-				result.RealisedPNL = decimal.NewFromFloat(info.Positions[i].RealizedPnL)
-				return &result, nil
-			}
 		}
 	}
 	return &result, nil

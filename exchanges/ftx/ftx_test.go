@@ -1784,13 +1784,14 @@ func TestCalculatePNLFromOrders(t *testing.T) {
 	exch := f.Name
 	item := asset.Futures
 	setup := &order.PositionControllerSetup{
-		Exchange:      exch,
-		Asset:         item,
-		Pair:          pair,
-		Underlying:    pair.Base,
-		PNLCalculator: &f,
+		Exchange:                  exch,
+		Asset:                     item,
+		Pair:                      pair,
+		Underlying:                pair.Base,
+		ExchangePNLCalculation:    &f,
+		UseExchangePNLCalculation: false,
 	}
-	p, err := order.SetupPositionController(setup)
+	p, err := order.SetupPositionTrackerController(setup)
 	if err != nil {
 		t.Error(err)
 	}

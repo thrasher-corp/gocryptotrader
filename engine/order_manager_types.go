@@ -37,12 +37,12 @@ type orderManagerConfig struct {
 
 // store holds all orders by exchange
 type store struct {
-	m               sync.RWMutex
-	Orders          map[string][]*order.Detail
-	commsManager    iCommsManager
-	exchangeManager iExchangeManager
-	wg              *sync.WaitGroup
-	futuresTrackers map[string]order.PositionController
+	m                       sync.RWMutex
+	Orders                  map[string][]*order.Detail
+	commsManager            iCommsManager
+	exchangeManager         iExchangeManager
+	wg                      *sync.WaitGroup
+	futuresPositionTrackers *order.PositionController
 }
 
 // OrderManager processes and stores orders across enabled exchanges
