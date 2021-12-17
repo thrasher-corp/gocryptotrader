@@ -23,12 +23,14 @@ const (
 var (
 	MaxRequestJobs   = DefaultMaxRequestJobs
 	MaxRetryAttempts = DefaultMaxRetryAttempts
+	globalReporter   Reporter
 )
 
 // Requester struct for the request client
 type Requester struct {
 	HTTPClient         *http.Client
 	limiter            Limiter
+	reporter           Reporter
 	Name               string
 	UserAgent          string
 	maxRetries         int

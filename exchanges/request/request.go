@@ -39,6 +39,7 @@ func New(name string, httpRequester *http.Client, opts ...RequesterOption) *Requ
 		retryPolicy: DefaultRetryPolicy,
 		maxRetries:  MaxRetryAttempts,
 		timedLock:   timedmutex.NewTimedMutex(DefaultMutexLockTimeout),
+		reporter:    globalReporter,
 	}
 
 	for _, o := range opts {
@@ -150,7 +151,14 @@ func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRe
 			}
 		}
 
+		start := time.Now()
+
 		resp, err := r.HTTPClient.Do(req)
+
+		if r.reporter != nil {
+			r.reporter.Latency(r.Name, p.Method, p.Path, time.Since(start))
+		}
+
 		if retry, checkErr := r.retryPolicy(resp, err); checkErr != nil {
 			return checkErr
 		} else if retry {
