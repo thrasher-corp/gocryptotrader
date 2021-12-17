@@ -47,7 +47,8 @@ const (
 	okGroupPerpTickers     = "instruments/ticker"
 	okGroupMarginPairData  = "accounts/%s/availability"
 	okGroupMarginPairsData = "accounts/availability"
-	Instruments            = "instruments"
+
+	instruments = "instruments"
 
 	okgroupTradeFee = "account/trade-fee"
 
@@ -75,7 +76,7 @@ func (o *OKEX) GetSwapMarkets(ctx context.Context) ([]okgroup.SwapInstrumentsDat
 func (o *OKEX) GetSwapInstruments(ctx context.Context) ([]okgroup.PerpSwapInstrumentData, error) {
 	var resp []okgroup.PerpSwapInstrumentData
 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, okgroup.Version3, SwapSubsection,
-		Instruments,
+		instruments,
 		nil, &resp, false)
 }
 
@@ -185,7 +186,7 @@ func (o *OKEX) GetMarginRates(ctx context.Context, instrumentID currency.Pair) (
 // GetSpotMarkets gets perpetual swap markets' data
 func (o *OKEX) GetSpotMarkets(ctx context.Context) ([]okgroup.TradingPairData, error) {
 	var resp []okgroup.TradingPairData
-	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, okgroup.Version3, SpotSubsection, Instruments, nil, &resp, false)
+	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, okgroup.Version3, SpotSubsection, instruments, nil, &resp, false)
 }
 
 // GetFundingRate gets funding rate of a given currency

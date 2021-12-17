@@ -327,7 +327,7 @@ func (r *Requester) SetHTTPClient(newClient *http.Client) error {
 	return nil
 }
 
-// SetClientTimeout sets the timeout value for the exchanges HTTP Client and
+// SetHTTPClientTimeout sets the timeout value for the exchanges HTTP Client and
 // also the underlying transports idle connection timeout
 func (r *Requester) SetHTTPClientTimeout(timeout time.Duration) error {
 	if r == nil {

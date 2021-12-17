@@ -157,7 +157,7 @@ func (b Transfer) String() string {
 	}
 }
 
-// Validates an international bank transaction option
+// Validate validates an international bank transaction option
 func (b Transfer) Validate() error {
 	switch b {
 	case 0:

@@ -68,6 +68,11 @@ const (
 	huobiFeeRate                     = "/reference/transact-fee-rate"
 )
 
+var (
+	errNoPairs         = errors.New("at least one pair is required to complete request")
+	errMaxRequestPairs = errors.New("pairs exceed the max request limit of 10")
+)
+
 // HUOBI is the overarching type across this package
 type HUOBI struct {
 	exchange.Base
@@ -820,23 +825,14 @@ func (h *HUOBI) QueryWithdrawQuotas(ctx context.Context, cryptocurrency string) 
 	return resp.WithdrawQuota, nil
 }
 
-// CommissionRates defines exchange user fee rates for calculation in trading
-type CommissionRates struct {
-	Symbol          string  `json:"symbol"`
-	ActualMakerRate float64 `json:"actualMakerRate,string"`
-	ActualTakerRate float64 `json:"actualTakerRate,string"`
-	TakerFeeRate    float64 `json:"takerFeeRate,string"`
-	MakerFeeRate    float64 `json:"makerFeeRate,string"`
-}
-
-// GetCurrenciesIncludingChains returns currency and chain data
+// GetFeeRates returns commission rates for supplied pairs
 func (h *HUOBI) GetFeeRates(ctx context.Context, pairs currency.Pairs) ([]CommissionRates, error) {
 	if len(pairs) == 0 {
-		return nil, errors.New("need some pairs fam")
+		return nil, errNoPairs
 	}
 
 	if len(pairs) > 10 {
-		return nil, errors.New("too many pairs to get information from fam")
+		return nil, errMaxRequestPairs
 	}
 
 	vals := url.Values{}

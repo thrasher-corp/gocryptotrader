@@ -559,7 +559,11 @@ func (f *FTX) FetchWithdrawalHistory(ctx context.Context) ([]WithdrawItem, error
 // Withdraw sends a withdrawal request
 func (f *FTX) Withdraw(ctx context.Context, coin currency.Code, address, tag, password, chain, code string, size float64) (*WithdrawItem, error) {
 	if coin.IsEmpty() || address == "" || size == 0 {
-		return nil, errCoinAddressSizeNotSet
+		return nil, fmt.Errorf("%w coin: '%v' address '%v' size '%v'",
+			errCoinAddressSizeNotSet,
+			coin,
+			address,
+			size)
 	}
 
 	req := make(map[string]interface{})
@@ -587,7 +591,11 @@ func (f *FTX) Withdraw(ctx context.Context, coin currency.Code, address, tag, pa
 // GetWithdrawalFee gets the potential fee for the withdraw.
 func (f *FTX) GetWithdrawalFee(ctx context.Context, coin currency.Code, size float64, address, tag string) (WithdrawalFee, error) {
 	if coin.IsEmpty() || address == "" || size == 0 {
-		return WithdrawalFee{}, errCoinAddressSizeNotSet
+		return WithdrawalFee{}, fmt.Errorf("%w coin: '%v' address '%v' size '%v'",
+			errCoinAddressSizeNotSet,
+			coin,
+			address,
+			size)
 	}
 
 	vals := url.Values{}

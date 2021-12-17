@@ -24,15 +24,21 @@ import (
 const (
 	// OKGroupAPIPath const to help with api url formatting
 	OKGroupAPIPath = "api/"
-	Version3       = "/v3/"
-	Version5       = "/v5/"
+	// Version3 defines a version 3 string for the API endpoint
+	Version3 = "/v3/"
+	// Version5 defines a version 5 string for the API endpoint
+	Version5 = "/v5/"
 
-	// API subsections
+	// AccountSubsection defines an api subsection for accounts
 	AccountSubsection = "account"
-	SpotSubsection    = "spot"
-	MarginSubsection  = "margin"
+	// SpotSubsection defines an api subsection for spot
+	SpotSubsection = "spot"
+	// MarginSubsection defines an api subsection for margin
+	MarginSubsection = "margin"
+	// FuturesSubsection defines an api subsection for futures
 	FuturesSubsection = "futures"
-	SwapSubsection    = "swap"
+	// SwapSubsection defines an api subsection for swaps
+	SwapSubsection = "swap"
 
 	// Accounts common api endpoint
 	Accounts = "accounts"

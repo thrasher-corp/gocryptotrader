@@ -732,10 +732,10 @@ type WsGetTradesResponseTrades struct {
 	Timestamp time.Time `json:"timestamp"`
 }
 
-// commissionRate defines a maker and taker rate for a currency pair. NOTE:
+// CommissionRate defines a maker and taker rate for a currency pair. NOTE:
 // Symbols have no delimiter so they will need to be matched with internal
 // systems.
-type commissionRate struct {
+type CommissionRate struct {
 	Symbol string  `json:"symbol"`
 	Taker  float64 `json:"take_rate,string"`
 	Maker  float64 `json:"make_rate,string"`

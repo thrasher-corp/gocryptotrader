@@ -2680,3 +2680,44 @@ func TestUpdateCommissionFees(t *testing.T) {
 		t.Fatalf("received: '%v' but expected '%v'", err, nil)
 	}
 }
+
+var elevenPairs = currency.Pairs{
+	currency.NewPair(currency.BTC, currency.USDT),
+	currency.NewPair(currency.ETH, currency.USDT),
+	currency.NewPair(currency.LTC, currency.USDT),
+	currency.NewPair(currency.XRP, currency.USDT),
+	currency.NewPair(currency.BCH, currency.USDT),
+	currency.NewPair(currency.XLM, currency.USDT),
+	currency.NewPair(currency.ADA, currency.USDT),
+	currency.NewPair(currency.SHIB, currency.USDT),
+	currency.NewPair(currency.SOL, currency.USDT),
+	currency.NewPair(currency.DOT, currency.USDT),
+	currency.NewPair(currency.BSV, currency.USDT),
+}
+
+var tenPairs = elevenPairs[:10]
+
+func TestGetFeeRates(t *testing.T) {
+	_, err := h.GetFeeRates(context.Background(), nil)
+	if !errors.Is(err, errNoPairs) {
+		t.Fatalf("received: '%v' but expected '%v'", err, errNoPairs)
+	}
+
+	_, err = h.GetFeeRates(context.Background(), elevenPairs)
+	if !errors.Is(err, errMaxRequestPairs) {
+		t.Fatalf("received: '%v' but expected '%v'", err, errMaxRequestPairs)
+	}
+
+	if !areTestAPIKeysSet() {
+		t.Skip("no credentials set in test package")
+	}
+
+	f, err := h.GetFeeRates(context.Background(), tenPairs)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected '%v'", err, nil)
+	}
+
+	if len(f) != 10 {
+		t.Fatal("incorrect results returned")
+	}
+}

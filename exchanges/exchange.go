@@ -1415,7 +1415,7 @@ func (b *Base) UpdateTransferFees(ctx context.Context) error {
 	return common.ErrNotYetImplemented
 }
 
-// UpdateBankFees updates all fees associated with banking transfers
+// UpdateBankTransferFees updates all fees associated with banking transfers
 func (b *Base) UpdateBankTransferFees(ctx context.Context) error {
 	return common.ErrNotYetImplemented
 }

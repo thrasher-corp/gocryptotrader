@@ -473,8 +473,8 @@ func (z *ZB) Withdraw(ctx context.Context, currency, address, safepassword strin
 	return resp.ID, nil
 }
 
-// GetMarkets returns market information including pricing, symbols and
-// each symbols decimal precision
+// GetWithdrawalFees returns the withdrawal fees for all supported assets on
+// the exchange
 func (z *ZB) GetWithdrawalFees(ctx context.Context) (AllFeeInformation, error) {
 	var res struct {
 		Code    int                         `json:"code"`

@@ -422,6 +422,7 @@ func (g *Gateio) GenerateSignature(message string) ([]byte, error) {
 		[]byte(g.API.Credentials.Secret))
 }
 
+// GenerateV4Signature returns a hash for version 4 authenticated requests
 func (g *Gateio) GenerateV4Signature(tn int64, method, url, payload string) ([]byte, error) {
 	payloadHash, err := crypto.GetSHA512([]byte(payload))
 	if err != nil {

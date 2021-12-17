@@ -4208,7 +4208,7 @@ func (s *RPCServer) SetTransferFee(_ context.Context, r *gctrpc.SetTransferFeeRe
 	return &gctrpc.GenericResponse{Status: MsgStatusSuccess}, nil
 }
 
-// GetAllFees returns the full fee definitions for an exchange
+// SetBankTransferFee sets bank transfer fees for an asset
 func (s *RPCServer) SetBankTransferFee(_ context.Context, r *gctrpc.SetBankTransferFeeRequest) (*gctrpc.GenericResponse, error) {
 	bankType := bank.Transfer(r.BankType)
 	err := bankType.Validate()

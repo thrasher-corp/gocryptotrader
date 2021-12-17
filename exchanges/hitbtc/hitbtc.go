@@ -448,14 +448,13 @@ func (h *HitBTC) GetFeeInfo(ctx context.Context, currencyPair string) (Fee, erro
 }
 
 // GetTradingCommission returns fee rates on currency pairs
-func (h *HitBTC) GetTradingCommission(ctx context.Context) ([]commissionRate, error) {
-	var result []commissionRate
+func (h *HitBTC) GetTradingCommission(ctx context.Context) ([]CommissionRate, error) {
+	var result []CommissionRate
 	err := h.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
 		apiV3TradingFee,
 		url.Values{},
 		tradingRequests,
 		&result)
-
 	return result, err
 }
 

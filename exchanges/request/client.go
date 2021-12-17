@@ -41,14 +41,14 @@ func (c *clientTracker) checkAndRegister(newClient *http.Client) error {
 }
 
 // deRegister removes the *http.Client from being tracked
-func (c *clientTracker) deRegister(newClient *http.Client) error {
-	if newClient == nil {
+func (c *clientTracker) deRegister(oldClient *http.Client) error {
+	if oldClient == nil {
 		return errHTTPClientIsNil
 	}
 	c.Lock()
 	defer c.Unlock()
 	for x := range c.clients {
-		if newClient != c.clients[x] {
+		if oldClient != c.clients[x] {
 			continue
 		}
 		c.clients[x] = c.clients[len(c.clients)-1]

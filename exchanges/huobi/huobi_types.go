@@ -1227,3 +1227,12 @@ var (
 		"cancelled": 6,
 	}
 )
+
+// CommissionRates defines exchange user fee rates for calculation in trading
+type CommissionRates struct {
+	Symbol          string  `json:"symbol"`
+	ActualMakerRate float64 `json:"actualMakerRate,string"`
+	ActualTakerRate float64 `json:"actualTakerRate,string"`
+	TakerFeeRate    float64 `json:"takerFeeRate,string"`
+	MakerFeeRate    float64 `json:"makerFeeRate,string"`
+}
