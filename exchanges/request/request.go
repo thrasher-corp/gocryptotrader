@@ -37,7 +37,7 @@ var (
 func New(name string, httpRequester *http.Client, opts ...RequesterOption) (*Requester, error) {
 	protectedClient, err := newProtectedClient(httpRequester)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("cannot set up a new requester for %s: %w", name, err)
 	}
 	r := &Requester{
 		_HTTPClient: protectedClient,
