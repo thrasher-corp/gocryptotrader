@@ -323,9 +323,8 @@ codes:
 	}
 }
 
-//  2575473	       474.2 ns/op	     112 B/op	       3 allocs/op
 // 4526858	       280.2 ns/op	      48 B/op	       1 allocs/op
-
+// Prior  2575473	       474.2 ns/op	     112 B/op	       3 allocs/op
 func BenchmarkGetCrypto(b *testing.B) {
 	pairs := Pairs{
 		NewPair(BTC, USD),
