@@ -26,11 +26,11 @@ var errNilManager = errors.New("manager has not been set")
 
 // FeeManager manages full fee structures across all enabled exchanges
 type FeeManager struct {
-	started  int32
-	shutdown chan struct{}
-	wg       sync.WaitGroup
-	iExchangeManager
-	sleep time.Duration
+	started         int32
+	shutdown        chan struct{}
+	wg              sync.WaitGroup
+	exchangeManager iExchangeManager
+	sleep           time.Duration
 }
 
 // SetupFeeManager applies configuration parameters before running
@@ -46,7 +46,7 @@ func SetupFeeManager(interval time.Duration, em iExchangeManager) (*FeeManager, 
 		interval = DefaultFeeManagerDelay
 	}
 	f.sleep = interval
-	f.iExchangeManager = em
+	f.exchangeManager = em
 
 	return &f, nil
 }
@@ -58,7 +58,7 @@ func (f *FeeManager) Start() error {
 		return fmt.Errorf("%s %w", FeeManagerName, ErrNilSubsystem)
 	}
 
-	if f.iExchangeManager == nil {
+	if f.exchangeManager == nil {
 		return errNilManager
 	}
 
@@ -107,15 +107,21 @@ func (f *FeeManager) monitor() {
 		case <-f.shutdown:
 			return
 		case <-timer.C:
-			exchs, err := f.GetExchanges()
+			exchs, err := f.exchangeManager.GetExchanges()
 			if err != nil {
 				log.Errorf(log.Global,
 					"Fee manager failed to get exchanges error: %v",
 					err)
 			}
+			wg.Add(len(exchs))
 			for x := range exchs {
-				wg.Add(1)
-				go update(exchs[x], &wg, exchs[x].GetAssetTypes(true))
+				go func(exch exchange.IBotExchange, wg *sync.WaitGroup) {
+					err := update(exch, exch.GetAssetTypes(true))
+					if err != nil {
+						log.Errorf(log.Global, "Fee manager: %s %v", exch.GetName(), err)
+					}
+					wg.Done()
+				}(exchs[x], &wg)
 			}
 			// This causes some variability in the timer due to longest length
 			// of request time. Can do time.Ticker but don't want routines to
@@ -126,9 +132,7 @@ func (f *FeeManager) monitor() {
 	}
 }
 
-func update(exch exchange.IBotExchange, wg *sync.WaitGroup, enabledAssets asset.Items) {
-	defer wg.Done()
-
+func update(exch exchange.IBotExchange, enabledAssets asset.Items) error {
 	if (exch.IsRESTAuthenticationRequiredForTradeFees() && exch.IsAuthenticatedRESTSupported()) ||
 		!exch.IsRESTAuthenticationRequiredForTradeFees() {
 		// Commission fees are maker and taker fees associated with different asset
@@ -136,8 +140,7 @@ func update(exch exchange.IBotExchange, wg *sync.WaitGroup, enabledAssets asset.
 		for x := range enabledAssets {
 			err := exch.UpdateCommissionFees(context.TODO(), enabledAssets[x])
 			if err != nil && !errors.Is(err, common.ErrNotYetImplemented) {
-				log.Errorf(log.ExchangeSys, "Fee manager %s %s: %v",
-					exch.GetName(),
+				return fmt.Errorf("update commission fees for %s: %w",
 					enabledAssets[x],
 					err)
 			}
@@ -145,24 +148,21 @@ func update(exch exchange.IBotExchange, wg *sync.WaitGroup, enabledAssets asset.
 	}
 
 	if exch.IsRESTAuthenticationRequiredForTransferFees() && !exch.IsAuthenticatedRESTSupported() {
-		return
+		return nil
 	}
 
 	// Transfer fees are the common exchange interaction withdrawal and deposit
 	// fees
 	err := exch.UpdateTransferFees(context.TODO())
 	if err != nil && !errors.Is(err, common.ErrNotYetImplemented) {
-		log.Errorf(log.ExchangeSys, "Fee manager %s: %v",
-			exch.GetName(),
-			err)
+		return fmt.Errorf("update chain transfer fees: %w", err)
 	}
 
 	// Bank fees are the common exchange banking interaction withdrawal and
 	// deposit fees
 	err = exch.UpdateBankTransferFees(context.TODO())
 	if err != nil && !errors.Is(err, common.ErrNotYetImplemented) {
-		log.Errorf(log.ExchangeSys, "Fee manager %s: %v",
-			exch.GetName(),
-			err)
+		return fmt.Errorf("update bank transfer fees: %w", err)
 	}
+	return nil
 }

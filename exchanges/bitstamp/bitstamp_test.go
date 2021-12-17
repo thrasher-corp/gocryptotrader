@@ -115,6 +115,7 @@ func TestGetEURUSDConversionRate(t *testing.T) {
 
 func TestGetBalance(t *testing.T) {
 	t.Parallel()
+	b.Verbose = true
 	_, err := b.GetBalance(context.Background())
 	switch {
 	case areTestAPIKeysSet() && err != nil && !mockTests:

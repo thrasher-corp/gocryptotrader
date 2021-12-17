@@ -607,6 +607,46 @@ func (d *Schedule) LoadChainTransferFees(fees []Transfer) error {
 	return nil
 }
 
+// LoadBankTransferFees allows the loading of current banking transfer fees for
+// fiat deposit and withdrawals.
+func (d *Schedule) LoadBankTransferFees(fees []Transfer) error {
+	if d == nil {
+		return ErrScheduleIsNil
+	}
+
+	if len(fees) == 0 {
+		return errNoTransferFees
+	}
+
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
+	for x := range fees {
+		err := fees[x].validate()
+		if err != nil {
+			return fmt.Errorf("validating bank transfer fees error: %w", err)
+		}
+		err = fees[x].BankTransfer.Validate()
+		if err != nil {
+			return fmt.Errorf("validating bank transfer type error: %w", err)
+		}
+		m1, ok := d.bankTransfer[fees[x].BankTransfer]
+		if !ok {
+			m1 = make(map[*currency.Item]*transfer)
+			d.bankTransfer[fees[x].BankTransfer] = m1
+		}
+		val, ok := m1[fees[x].Currency.Item]
+		if !ok {
+			m1[fees[x].Currency.Item] = fees[x].convert()
+			continue
+		}
+		err = val.update(&fees[x])
+		if err != nil {
+			return fmt.Errorf("updating bank transfer fees error: %w", err)
+		}
+	}
+	return nil
+}
+
 // checkCommissionRates checks and validates maker and taker rates
 func checkCommissionRates(maker, taker float64) error {
 	if maker > taker {

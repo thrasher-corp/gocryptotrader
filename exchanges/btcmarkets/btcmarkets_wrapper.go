@@ -16,6 +16,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/bank"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -1095,16 +1096,20 @@ func (b *BTCMarkets) UpdateTransferFees(ctx context.Context) error {
 
 	var transferFees []fee.Transfer
 	for x := range temp {
-		if temp[x].AssetName.Item == currency.AUD.Item {
-			// Filter out fiat bank transfer
-			continue
-		}
-
-		transferFees = append(transferFees, fee.Transfer{
+		transfer := fee.Transfer{
 			Currency:   temp[x].AssetName,
 			Deposit:    fee.Convert(0),
 			Withdrawal: fee.Convert(temp[x].Fee),
-		})
+		}
+		if temp[x].AssetName.Item == currency.AUD.Item {
+			transfer.BankTransfer = bank.WireTransfer
+			err := b.Fees.LoadBankTransferFees(transferFees)
+			if err != nil {
+				return err
+			}
+			continue
+		}
+		transferFees = append(transferFees, transfer)
 	}
 	return b.Fees.LoadChainTransferFees(transferFees)
 }

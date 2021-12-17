@@ -703,13 +703,12 @@ func (b *Base) SetPairs(pairs currency.Pairs, assetType asset.Item, enabled bool
 // UpdatePairs updates the exchange currency pairs for either enabledPairs or
 // availablePairs
 func (b *Base) UpdatePairs(exchangeProducts currency.Pairs, assetType asset.Item, enabled, force bool) error {
-	exchangeProducts = exchangeProducts.Upper()
 	var products currency.Pairs
 	for x := range exchangeProducts {
 		if exchangeProducts[x].String() == "" {
 			continue
 		}
-		products = append(products, exchangeProducts[x])
+		products = append(products, exchangeProducts[x].Upper())
 	}
 
 	var updateType string

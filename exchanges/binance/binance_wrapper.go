@@ -1874,7 +1874,7 @@ func (b *Binance) formatUSDTMarginedFuturesPair(p currency.Pair, pairFmt currenc
 func (b *Binance) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
 	switch a {
 	case asset.Spot:
-		account, err := b.GetAccount(ctx)
+		userAccount, err := b.GetAccount(ctx)
 		if err != nil {
 			return err
 		}
@@ -1883,8 +1883,8 @@ func (b *Binance) UpdateCommissionFees(ctx context.Context, a asset.Item) error 
 			// Divided by 10000 e.g. 10 is returned as integer / 100 = 0.1%
 			// actual trading fee / 100 resultant gives 0.001 for loadable
 			// commission rate.
-			float64(account.MakerCommission)/10000,
-			float64(account.TakerCommission)/10000,
+			float64(userAccount.MakerCommission)/10000,
+			float64(userAccount.TakerCommission)/10000,
 			a,
 			fee.OmitPair,
 		)
@@ -1932,10 +1932,10 @@ func (b *Binance) UpdateTransferFees(ctx context.Context) error {
 				chain = coins[x].NetworkList[y].Network
 			}
 
-			var deposit fee.Value
+			var depositFee fee.Value
 			if coins[x].NetworkList[y].DepositEnable {
 				// Turn on with zero fees for deposits
-				deposit = fee.Convert(0)
+				depositFee = fee.Convert(0)
 			}
 
 			var withdrawal, maxWithdraw, minWithdraw fee.Value
@@ -1950,7 +1950,7 @@ func (b *Binance) UpdateTransferFees(ctx context.Context) error {
 				Withdrawal:        withdrawal,
 				MinimumWithdrawal: minWithdraw,
 				MaximumWithdrawal: maxWithdraw,
-				Deposit:           deposit,
+				Deposit:           depositFee,
 				Chain:             chain.String(),
 			})
 		}

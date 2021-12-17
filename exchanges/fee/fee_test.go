@@ -991,3 +991,55 @@ func TestLoadChainTransferFees(t *testing.T) {
 		t.Fatalf("received: %v but expected: %v", err, errFeeTypeMismatch)
 	}
 }
+
+func TestLoadBankTransferFees(t *testing.T) {
+	t.Parallel()
+	var def *Schedule
+	err := def.LoadBankTransferFees(nil)
+	if !errors.Is(err, ErrScheduleIsNil) {
+		t.Fatalf("received: %v but expected: %v", err, ErrScheduleIsNil)
+	}
+	def = &Schedule{bankTransfer: make(map[bank.Transfer]map[*currency.Item]*transfer)}
+	err = def.LoadBankTransferFees(nil)
+	if !errors.Is(err, errNoTransferFees) {
+		t.Fatalf("received: %v but expected: %v", err, errNoTransferFees)
+	}
+
+	newTransfers := []Transfer{{
+		Deposit: Convert(-1), // This should fail
+	}}
+
+	err = def.LoadBankTransferFees(newTransfers)
+	if !errors.Is(err, errCurrencyIsEmpty) {
+		t.Fatalf("received: %v but expected: %v", err, errCurrencyIsEmpty)
+	}
+
+	newTransfers = []Transfer{{
+		Currency: currency.BTC,
+		Deposit:  Convert(1),
+	}}
+
+	err = def.LoadBankTransferFees(newTransfers)
+	if !errors.Is(err, bank.ErrTransferTypeUnset) {
+		t.Fatalf("received: %v but expected: %v", err, bank.ErrTransferTypeUnset)
+	}
+
+	newTransfers[0].BankTransfer = bank.WebMoney
+
+	err = def.LoadBankTransferFees(newTransfers)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v but expected: %v", err, nil)
+	}
+
+	newTransfers = []Transfer{{
+		Currency:     currency.BTC,
+		Deposit:      Convert(2),
+		BankTransfer: bank.WebMoney,
+		IsPercentage: true, // This should fail
+	}}
+
+	err = def.LoadBankTransferFees(newTransfers)
+	if !errors.Is(err, errFeeTypeMismatch) {
+		t.Fatalf("received: %v but expected: %v", err, errFeeTypeMismatch)
+	}
+}

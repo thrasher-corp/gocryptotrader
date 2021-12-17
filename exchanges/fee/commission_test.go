@@ -237,7 +237,7 @@ func TestInternalSet(t *testing.T) {
 
 func TestInternalCalculate(t *testing.T) {
 	t.Parallel()
-	v, err := (&CommissionInternal{isFixedAmount: true}).calculate(two, 50000, 1)
+	v, err := calculate(true, two, 50000, 1)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: %v but expected: %v", err, nil)
 	}
@@ -246,7 +246,7 @@ func TestInternalCalculate(t *testing.T) {
 		t.Fatal("unexpected value")
 	}
 
-	v, err = (&CommissionInternal{}).calculate(one, 50000, 0.01)
+	v, err = calculate(false, one, 50000, 0.01)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: %v but expected: %v", err, nil)
 	}

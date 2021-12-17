@@ -253,7 +253,7 @@ pairs:
 	return Pair{}, fmt.Errorf("%w for symbol string %s", ErrPairNotFound, symbol)
 }
 
-// GetCrypto returns all the cryptos contained in the list.
+// GetCrypto returns all the crypto currencies contained in the list.
 func (p Pairs) GetCrypto() Currencies {
 	m := make(map[*Item]bool)
 	for x := range p {
@@ -271,7 +271,7 @@ func (p Pairs) GetCrypto() Currencies {
 	return cryptos
 }
 
-// GetFiat returns all the cryptos contained in the list.
+// GetFiat returns all the the fiat currencies contained in the list.
 func (p Pairs) GetFiat() Currencies {
 	m := make(map[*Item]bool)
 	for x := range p {

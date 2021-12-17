@@ -3,7 +3,6 @@ package engine
 import (
 	"context"
 	"errors"
-	"sync"
 	"testing"
 
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -85,7 +84,7 @@ func TestFeeManagerStartStop(t *testing.T) {
 	}
 
 	fm = new(FeeManager)
-	fm.iExchangeManager = &feeExchangeManager{}
+	fm.exchangeManager = &feeExchangeManager{}
 	err = fm.Start()
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
@@ -125,7 +124,7 @@ func TestFeeManagerIsRunning(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNilManager)
 	}
 
-	fm.iExchangeManager = &feeExchangeManager{}
+	fm.exchangeManager = &feeExchangeManager{}
 
 	err = fm.Start()
 	if !errors.Is(err, nil) {
@@ -148,12 +147,24 @@ func TestFeeManagerIsRunning(t *testing.T) {
 
 func TestFeeManagerUpdate(t *testing.T) {
 	t.Parallel()
-	var wg sync.WaitGroup
-	wg.Add(1)
-	update(&feeExchange{
-		ErrorUpdateCommissionFees:   errTestError,
-		ErrorUpdateTransferFees:     errTestError,
-		ErrorUpdateBankTransferFees: errTestError,
-	}, &wg, asset.Items{asset.Spot})
-	wg.Wait()
+
+	err := update(&feeExchange{ErrorUpdateCommissionFees: errTestError}, asset.Items{asset.Spot})
+	if !errors.Is(err, errTestError) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errTestError)
+	}
+
+	err = update(&feeExchange{ErrorUpdateTransferFees: errTestError}, asset.Items{asset.Spot})
+	if !errors.Is(err, errTestError) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errTestError)
+	}
+
+	err = update(&feeExchange{ErrorUpdateBankTransferFees: errTestError}, asset.Items{asset.Spot})
+	if !errors.Is(err, errTestError) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errTestError)
+	}
+
+	err = update(&feeExchange{}, asset.Items{asset.Spot})
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 }

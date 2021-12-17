@@ -89,6 +89,19 @@ func CreateTestBot(t *testing.T) *Engine {
 					Pairs:           pairs2,
 				},
 			},
+			{
+				Name:                    "notenabled",
+				WebsocketTrafficTimeout: time.Second,
+				API: config.APIConfig{
+					Credentials: config.APICredentialsConfig{},
+				},
+				CurrencyPairs: &currency.PairsManager{
+					RequestFormat:   cFormat,
+					ConfigFormat:    cFormat,
+					UseGlobalFormat: true,
+					Pairs:           pairs2,
+				},
+			},
 		}}}
 	if err := bot.LoadExchange(testExchange, nil); err != nil {
 		t.Fatalf("SetupTest: Failed to load exchange: %s", err)
@@ -986,8 +999,31 @@ func TestGetCryptocurrenciesByExchange(t *testing.T) {
 	t.Parallel()
 	e := CreateTestBot(t)
 	_, err := e.GetCryptocurrenciesByExchange("Bitfinex", false, false, asset.Spot)
-	if err != nil {
-		t.Fatalf("Err %s", err)
+	if !errors.Is(err, ErrExchangeNotFound) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrExchangeNotFound)
+	}
+
+	_, err = e.GetCryptocurrenciesByExchange("notenabled", true, false, asset.Spot)
+	if !errors.Is(err, errExchangeNotEnabled) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errExchangeNotEnabled)
+	}
+
+	availCryptos, err := e.GetCryptocurrenciesByExchange("bitstamp", false, true, asset.Spot)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if !availCryptos.Contains(currency.BTC) {
+		t.Fatal("unexpected result")
+	}
+
+	enabledCryptos, err := e.GetCryptocurrenciesByExchange("bitstamp", false, true, asset.Spot)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if !enabledCryptos.Contains(currency.BTC) && !enabledCryptos.Contains(currency.USDT) {
+		t.Fatal("unexpected result")
 	}
 }
 

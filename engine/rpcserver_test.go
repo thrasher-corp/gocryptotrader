@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -2178,5 +2179,97 @@ func TestCurrencyStateTradingPair(t *testing.T) {
 		})
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: %v, but expected: %v", err, nil)
+	}
+}
+
+type destructo struct {
+	Error error
+}
+
+func (d *destructo) GetFee(amount float64) (decimal.Decimal, error) { return decimal.Zero, nil }
+func (d *destructo) Display() (string, error)                       { return "", d.Error }
+func (d *destructo) Validate() error                                { return nil }
+func (d *destructo) LessThan(val fee.Value) (bool, error)           { return false, nil }
+
+func TestAddTransferFee(t *testing.T) {
+	_, err := addTransferFee(fee.Transfer{
+		Deposit: &destructo{Error: errTestError},
+	})
+	if !errors.Is(err, errTestError) {
+		t.Fatalf("received: %v, but expected: %v", err, errTestError)
+	}
+
+	_, err = addTransferFee(fee.Transfer{
+		Deposit:        &destructo{Error: nil},
+		MaximumDeposit: &destructo{Error: errTestError},
+	})
+	if !errors.Is(err, errTestError) {
+		t.Fatalf("received: %v, but expected: %v", err, errTestError)
+	}
+
+	_, err = addTransferFee(fee.Transfer{
+		Deposit:        &destructo{Error: nil},
+		MaximumDeposit: &destructo{Error: errTestError},
+	})
+	if !errors.Is(err, errTestError) {
+		t.Fatalf("received: %v, but expected: %v", err, errTestError)
+	}
+
+	_, err = addTransferFee(fee.Transfer{
+		Withdrawal: &destructo{Error: errTestError},
+	})
+	if !errors.Is(err, errTestError) {
+		t.Fatalf("received: %v, but expected: %v", err, errTestError)
+	}
+	_, err = addTransferFee(fee.Transfer{
+		Withdrawal:        &destructo{Error: nil},
+		MaximumWithdrawal: &destructo{Error: errTestError},
+	})
+	if !errors.Is(err, errTestError) {
+		t.Fatalf("received: %v, but expected: %v", err, errTestError)
+	}
+
+	_, err = addTransferFee(fee.Transfer{
+		Withdrawal:        &destructo{Error: nil},
+		MinimumWithdrawal: &destructo{Error: errTestError},
+	})
+	if !errors.Is(err, errTestError) {
+		t.Fatalf("received: %v, but expected: %v", err, errTestError)
+	}
+
+	tf, err := addTransferFee(fee.Transfer{
+		Currency:     currency.BTC,
+		Chain:        "ERC-69420",
+		IsPercentage: true,
+		BankTransfer: bank.ExpressWireTransfer,
+		Withdrawal:   &destructo{Error: nil},
+		Deposit:      &destructo{Error: nil},
+	})
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v, but expected: %v", err, nil)
+	}
+
+	if tf.Currency != "BTC" {
+		t.Fatal("unexpected value")
+	}
+
+	if tf.Chain != "ERC-69420" {
+		t.Fatal("unexpected value")
+	}
+
+	if !tf.IsPercentage {
+		t.Fatal("unexpected value")
+	}
+
+	if tf.TransferType != bank.ExpressWireTransfer.String() {
+		t.Fatal("unexpected value")
+	}
+
+	if !tf.DepositEnabled {
+		t.Fatal("unexpected value")
+	}
+
+	if !tf.WithdrawalEnabled {
+		t.Fatal("unexpected value")
 	}
 }

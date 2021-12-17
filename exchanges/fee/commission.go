@@ -120,8 +120,10 @@ func (c *CommissionInternal) CalculateMaker(price, amount float64) (float64, err
 	}
 
 	c.mtx.Lock()
-	defer c.mtx.Unlock()
-	return c.calculate(c.maker, price, amount)
+	fee := c.maker
+	isFixedAmount := c.isFixedAmount
+	c.mtx.Unlock()
+	return calculate(isFixedAmount, fee, price, amount)
 }
 
 // CalculateTaker returns the calculated taker fees
@@ -134,8 +136,10 @@ func (c *CommissionInternal) CalculateTaker(price, amount float64) (float64, err
 	}
 
 	c.mtx.Lock()
-	defer c.mtx.Unlock()
-	return c.calculate(c.taker, price, amount)
+	fee := c.taker
+	isFixedAmount := c.isFixedAmount
+	c.mtx.Unlock()
+	return calculate(isFixedAmount, fee, price, amount)
 }
 
 // CalculateWorstCaseMaker returns the worst-case calculated maker fees
@@ -148,8 +152,10 @@ func (c *CommissionInternal) CalculateWorstCaseMaker(price, amount float64) (flo
 	}
 
 	c.mtx.Lock()
-	defer c.mtx.Unlock()
-	return c.calculate(c.worstCaseMaker, price, amount)
+	fee := c.worstCaseMaker
+	isFixedAmount := c.isFixedAmount
+	c.mtx.Unlock()
+	return calculate(isFixedAmount, fee, price, amount)
 }
 
 // CalculateWorstCaseTaker returns the worst-case calculated taker fees
@@ -162,8 +168,10 @@ func (c *CommissionInternal) CalculateWorstCaseTaker(price, amount float64) (flo
 	}
 
 	c.mtx.Lock()
-	defer c.mtx.Unlock()
-	return c.calculate(c.worstCaseTaker, price, amount)
+	fee := c.worstCaseTaker
+	isFixedAmount := c.isFixedAmount
+	c.mtx.Unlock()
+	return calculate(isFixedAmount, fee, price, amount)
 }
 
 // GetMaker returns the maker fee and type
@@ -208,9 +216,9 @@ func (c *CommissionInternal) set(maker, taker float64, isFixedAmount bool) error
 }
 
 // calculate returns the commission fee total based on internal loaded values
-func (c *CommissionInternal) calculate(fee decimal.Decimal, price, amount float64) (float64, error) {
+func calculate(isFixedAmount bool, fee decimal.Decimal, price, amount float64) (float64, error) {
 	// TODO: Add fees based on volume of this asset
-	if c.isFixedAmount {
+	if isFixedAmount {
 		// Returns the whole number
 		return fee.InexactFloat64(), nil
 	}
