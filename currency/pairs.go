@@ -264,9 +264,12 @@ func (p Pairs) GetCrypto() Currencies {
 			m[p[x].Quote.Item] = p[x].Quote.UpperCase
 		}
 	}
-	var cryptos []Code
+	var cryptos = make([]Code, len(m))
+	var target int
 	for code, upper := range m {
-		cryptos = append(cryptos, Code{Item: code, UpperCase: upper})
+		cryptos[target].Item = code
+		cryptos[target].UpperCase = upper
+		target++
 	}
 	return cryptos
 }
@@ -282,9 +285,12 @@ func (p Pairs) GetFiat() Currencies {
 			m[p[x].Quote.Item] = p[x].Quote.UpperCase
 		}
 	}
-	var fiat []Code
+	var fiat = make([]Code, len(m))
+	var target int
 	for code, upper := range m {
-		fiat = append(fiat, Code{Item: code, UpperCase: upper})
+		fiat[target].Item = code
+		fiat[target].UpperCase = upper
+		target++
 	}
 	return fiat
 }
@@ -297,9 +303,12 @@ func (p Pairs) GetCurrencies() Currencies {
 		m[p[x].Base.Item] = p[x].Base.UpperCase
 		m[p[x].Quote.Item] = p[x].Quote.UpperCase
 	}
-	var currencies []Code
+	var currencies = make([]Code, len(m))
+	var target int
 	for code, upper := range m {
-		currencies = append(currencies, Code{Item: code, UpperCase: upper})
+		currencies[target].Item = code
+		currencies[target].UpperCase = upper
+		target++
 	}
 	return currencies
 }
