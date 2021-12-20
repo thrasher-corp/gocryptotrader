@@ -1103,7 +1103,7 @@ func (b *BTCMarkets) UpdateTransferFees(ctx context.Context) error {
 		}
 		if temp[x].AssetName.Item == currency.AUD.Item {
 			transfer.BankTransfer = bank.WireTransfer
-			err := b.Fees.LoadBankTransferFees(transferFees)
+			err := b.Fees.LoadBankTransferFees([]fee.Transfer{transfer})
 			if err != nil {
 				return err
 			}
