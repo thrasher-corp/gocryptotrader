@@ -20,7 +20,6 @@ var (
 	errPositionDiscrepancy            = errors.New("there is a position considered open, but it is not the latest, please review")
 	errAssetMismatch                  = errors.New("provided asset does not match")
 	errEmptyUnderlying                = errors.New("underlying asset unset")
-	errNoPositions                    = errors.New("there are no positions")
 	errNilSetup                       = errors.New("nil setup received")
 	errNilOrder                       = errors.New("nil order received")
 	errNoPNLHistory                   = errors.New("no pnl history")
@@ -48,6 +47,11 @@ type CollateralManagement interface {
 	CalculateTotalCollateral([]CollateralCalculator) (decimal.Decimal, error)
 }
 
+// PositionController manages all futures orders
+// across all exchanges assets and pairs
+// its purpose is to handle the minutia of tracking
+// and so all you need to do is send all orders to
+// the position controller and its all tracked happily
 type PositionController struct {
 	positionTrackerControllers map[string]map[asset.Item]map[currency.Pair]*MultiPositionTracker
 }
@@ -111,6 +115,8 @@ type PositionTracker struct {
 	latestPrice decimal.Decimal
 }
 
+// PositionTrackerSetup contains all required fields to
+// setup a position tracker
 type PositionTrackerSetup struct {
 	Pair       currency.Pair
 	EntryPrice float64

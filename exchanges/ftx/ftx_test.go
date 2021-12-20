@@ -1824,3 +1824,42 @@ func TestCalculatePNLFromOrders(t *testing.T) {
 		t.Errorf("expected nil err, received '%v', expected -0.0029, received '%v'", err, pnl)
 	}
 }
+
+func TestScaleCollateral(t *testing.T) {
+	ai, err := f.GetAccountInfo(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+	t.Log(ai.Collateral)
+	walletInfo, err := f.GetAllWalletBalances(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+	t.Log(walletInfo)
+	myCollat := 0.0
+	for _, v := range walletInfo {
+		for v2 := range v {
+			coin := v[v2].Coin
+			if coin == "USD" {
+				myCollat += v[v2].Total
+				continue
+			}
+			tick, err := f.FetchTicker(context.Background(), currency.NewPairWithDelimiter(coin, "usd", "-"), asset.Spot)
+			if err != nil {
+				t.Error(err)
+			}
+			scaled, err := f.ScaleCollateral(&order.CollateralCalculator{
+				CollateralCurrency: currency.NewCode(coin),
+				Asset:              asset.Spot,
+				Side:               order.Buy,
+				CollateralAmount:   decimal.NewFromFloat(v[v2].Total),
+				USDPrice:           decimal.NewFromFloat(tick.Last),
+			})
+			if err != nil {
+				t.Error(err)
+			}
+			myCollat += scaled.InexactFloat64()
+		}
+	}
+	t.Log(myCollat)
+}

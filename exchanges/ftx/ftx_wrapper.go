@@ -1273,17 +1273,15 @@ func (f *FTX) GetAvailableTransferChains(ctx context.Context, cryptocurrency cur
 	return availableChains, nil
 }
 
-func (f *FTX) CalculateUnrealisedPNL(positionSize, markPrice, prevMarkPrice float64) float64 {
-	return positionSize * (markPrice - prevMarkPrice)
-}
-
+// CalculatePNL uses a high-tech algorithm to calculate your pnl
 func (f *FTX) CalculatePNL(pnl *order.PNLCalculator) (*order.PNLResult, error) {
 	if pnl.ExchangeBasedCalculation == nil {
 		return nil, fmt.Errorf("%v %w", f.Name, order.ErrNilPNLCalculator)
 	}
 	var result order.PNLResult
 	if pnl.ExchangeBasedCalculation.CalculateOffline {
-		uPNL := f.CalculateUnrealisedPNL(pnl.ExchangeBasedCalculation.Amount, pnl.ExchangeBasedCalculation.CurrentPrice, pnl.ExchangeBasedCalculation.PreviousPrice)
+		uPNL := pnl.ExchangeBasedCalculation.Amount * (pnl.ExchangeBasedCalculation.CurrentPrice - pnl.ExchangeBasedCalculation.PreviousPrice)
+		result.RealisedPNL = result.RealisedPNL.Add(result.UnrealisedPNL)
 		result.UnrealisedPNL = decimal.NewFromFloat(uPNL)
 		return &result, nil
 	}
@@ -1315,6 +1313,7 @@ func (f *FTX) CalculatePNL(pnl *order.PNLCalculator) (*order.PNLResult, error) {
 	return &result, nil
 }
 
+// ScaleCollateral takes your totals and scales them according to FTX's rules
 func (f *FTX) ScaleCollateral(calc *order.CollateralCalculator) (decimal.Decimal, error) {
 	var result decimal.Decimal
 	collateralWeight, ok := f.collateralWeight[calc.CollateralCurrency.Upper().String()]
@@ -1325,33 +1324,24 @@ func (f *FTX) ScaleCollateral(calc *order.CollateralCalculator) (decimal.Decimal
 		if collateralWeight.IMFFactor == 0 {
 			return decimal.Zero, errCoinMustBeSpecified
 		}
-		what := decimal.NewFromFloat(collateralWeight.Total)
-		what2 := decimal.NewFromFloat(1.1 / collateralWeight.IMFFactor * math.Sqrt(calc.CollateralAmount.InexactFloat64()))
-		result = result.Add(calc.CollateralAmount.Mul(calc.USDPrice).Mul(decimal.Min(what, what2)))
+		total := decimal.NewFromFloat(collateralWeight.Total)
+		weight := decimal.NewFromFloat(1.1 / collateralWeight.IMFFactor * math.Sqrt(calc.CollateralAmount.InexactFloat64()))
+		result = result.Add(calc.CollateralAmount.Mul(calc.USDPrice).Mul(decimal.Min(total, weight)))
 	} else {
 		result = result.Add(calc.CollateralAmount.Mul(calc.USDPrice))
 	}
 	return result, nil
 }
 
+// CalculateTotalCollateral scales collateral and determines how much you have in USD (maybe)
 func (f *FTX) CalculateTotalCollateral(collateralAssets []order.CollateralCalculator) (decimal.Decimal, error) {
 	var result decimal.Decimal
 	for i := range collateralAssets {
-		collateralWeight, ok := f.collateralWeight[collateralAssets[i].CollateralCurrency.Upper().String()]
-		if !ok {
-			return decimal.Zero, errCoinMustBeSpecified
+		collateral, err := f.ScaleCollateral(&collateralAssets[i])
+		if err != nil {
+			return decimal.Zero, err
 		}
-		if collateralAssets[i].CollateralAmount.IsPositive() {
-			if collateralWeight.IMFFactor == 0 {
-				return decimal.Zero, errCoinMustBeSpecified
-			}
-			what := decimal.NewFromFloat(collateralWeight.Total)
-			what2 := decimal.NewFromFloat(1.1 / collateralWeight.IMFFactor * math.Sqrt(collateralAssets[i].CollateralAmount.InexactFloat64()))
-			result = result.Add(collateralAssets[i].CollateralAmount.Mul(collateralAssets[i].USDPrice).Mul(decimal.Min(what, what2)))
-
-		} else {
-			result = result.Add(collateralAssets[i].CollateralAmount.Mul(collateralAssets[i].USDPrice))
-		}
+		result = result.Add(collateral)
 	}
 	return result, nil
 }

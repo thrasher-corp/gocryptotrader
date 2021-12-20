@@ -11,12 +11,17 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
+// SetupPositionController creates a position controller
+// to track futures orders
 func SetupPositionController() *PositionController {
 	return &PositionController{
 		positionTrackerControllers: make(map[string]map[asset.Item]map[currency.Pair]*MultiPositionTracker),
 	}
 }
 
+// TrackNewOrder sets up the maps to then creaste a
+// multi position tracker which funnels down into the
+// position tracker, to then track an order's pnl
 func (c *PositionController) TrackNewOrder(d *Detail) error {
 	if d == nil {
 		return errNilOrder
@@ -77,6 +82,7 @@ func SetupMultiPositionTracker(setup *PositionControllerSetup) (*MultiPositionTr
 	}, nil
 }
 
+// GetPositions returns all positions
 func (e *MultiPositionTracker) GetPositions() []*PositionTracker {
 	return e.positions
 }
@@ -187,6 +193,8 @@ func (p *PositionTracker) TrackPNLByTime(t time.Time, currentPrice float64) erro
 	})
 }
 
+// GetRealisedPNL returns the realised pnl if the order
+// is closed
 func (p *PositionTracker) GetRealisedPNL() (decimal.Decimal, error) {
 	if p.status != Closed {
 		return decimal.Zero, fmt.Errorf("%v %v %v %w", p.exchange, p.asset, p.contractPair, errPositionNotClosed)
@@ -194,6 +202,8 @@ func (p *PositionTracker) GetRealisedPNL() (decimal.Decimal, error) {
 	return p.realisedPNL, nil
 }
 
+// GetLatestPNLSnapshot takes the latest pnl history value
+// and returns it
 func (p *PositionTracker) GetLatestPNLSnapshot() (PNLResult, error) {
 	if len(p.pnlHistory) == 0 {
 		return PNLResult{}, fmt.Errorf("%v %v %v %w", p.exchange, p.asset, p.contractPair, errNoPNLHistory)
