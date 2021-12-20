@@ -1791,7 +1791,7 @@ func TestCalculatePNLFromOrders(t *testing.T) {
 		ExchangePNLCalculation:    &f,
 		UseExchangePNLCalculation: false,
 	}
-	p, err := order.SetupPositionTrackerController(setup)
+	p, err := order.SetupMultiPositionTracker(setup)
 	if err != nil {
 		t.Error(err)
 	}

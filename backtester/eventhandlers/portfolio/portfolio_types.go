@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	gctexchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 const notEnoughFundsTo = "not enough funds to"
@@ -60,7 +61,9 @@ type Handler interface {
 	SetFee(string, asset.Item, currency.Pair, decimal.Decimal)
 	GetFee(string, asset.Item, currency.Pair) decimal.Decimal
 
-	CalculatePNL(common.DataEventHandler, funding.ICollateralReleaser) error
+	CalculatePNL(common.DataEventHandler) error
+	GetLatestPNLForEvent(handler common.EventHandler) (*PNLSummary, error)
+	GetLatestPNLs() []PNLSummary
 
 	Reset()
 }
@@ -80,4 +83,14 @@ type Settings struct {
 	HoldingsSnapshots []holdings.Holding
 	ComplianceManager compliance.Manager
 	Exchange          gctexchange.IBotExchange
+	FuturesTracker    *gctorder.MultiPositionTracker
+}
+
+// PNLSummary holds a PNL result along with 
+// exchange details
+type PNLSummary struct {
+	Exchange string
+	Item     asset.Item
+	Pair     currency.Pair
+	PNL      gctorder.PNLResult
 }

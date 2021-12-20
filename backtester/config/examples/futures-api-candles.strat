@@ -26,16 +26,21 @@
    "futures-details": {
     "leverage": {
      "can-use-leverage": true,
-     "maximum-orders-with-leverage-ratio": "0",
-     "maximum-leverage-rate": 1
+     "maximum-orders-with-leverage-ratio": 0,
+     "maximum-leverage-rate": 1,
+     "maximum-collateral-leverage-rate": 0
     },
     "collateral-currency": "USDT"
    },
    "buy-side": {
-    "maximum-total": "1000"
+    "minimum-size": "0.005",
+    "maximum-size": "2",
+    "maximum-total": "40000"
    },
    "sell-side": {
-    "maximum-total": "1000"
+    "minimum-size": "0.005",
+    "maximum-size": "2",
+    "maximum-total": "40000"
    },
    "min-slippage-percent": "0",
    "max-slippage-percent": "0",
@@ -43,7 +48,8 @@
    "taker-fee-override": "0.002",
    "maximum-holdings-ratio": "0",
    "skip-candle-volume-fitting": false,
-   "use-exchange-order-limits": false
+   "use-exchange-order-limits": false,
+   "use-exchange-pnl-calculation": false
   }
  ],
  "data-settings": {
@@ -58,14 +64,19 @@
  "portfolio-settings": {
   "leverage": {
    "can-use-leverage": true,
-   "maximum-orders-with-leverage-ratio": "0",
-   "maximum-leverage-rate": 0
+   "maximum-orders-with-leverage-ratio": 0,
+   "maximum-leverage-rate": 0,
+   "maximum-collateral-leverage-rate": 0
   },
   "buy-side": {
-   "maximum-total": "1000"
+   "minimum-size": "0.005",
+   "maximum-size": "2",
+   "maximum-total": "40000"
   },
   "sell-side": {
-   "maximum-total": "1000"
+   "minimum-size": "0.005",
+   "maximum-size": "2",
+   "maximum-total": "40000"
   }
  },
  "statistic-settings": {

@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	gctexchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -143,6 +144,9 @@ func (p *Portfolio) OnSignal(ev signal.Event, cs *exchange.Settings, funds fundi
 			USDPrice:           ev.GetPrice(),
 		})
 		if err != nil {
+			if errors.Is(err, gctcommon.ErrFunctionNotSupported) {
+
+			}
 			return nil, err
 		}
 
@@ -334,12 +338,6 @@ func (p *Portfolio) addComplianceSnapshot(fillEvent fill.Event) error {
 		}
 		snapOrder.Order = fo
 		prevSnap.Orders = append(prevSnap.Orders, snapOrder)
-		if fo.AssetType == asset.Futures {
-			err = prevSnap.FuturesTracker.TrackNewOrder(fillEvent.GetOrder())
-			if err != nil {
-				return err
-			}
-		}
 	}
 	snap := &compliance.Snapshot{
 		Offset:    fillEvent.GetOffset(),
@@ -497,6 +495,24 @@ func (p *Portfolio) SetupCurrencySettingsMap(settings *exchange.Settings, exch g
 	if _, ok := p.exchangeAssetPairSettings[settings.Exchange][settings.Asset][settings.Pair]; ok {
 		return nil
 	}
+
+	var pnl gctorder.PNLManagement
+	if settings.UseExchangePNLCalculation {
+		pnl = exch
+	}
+	ptc, err := gctorder.SetupMultiPositionTracker(&gctorder.PositionControllerSetup{
+		Exchange:                  exch.GetName(),
+		Asset:                     settings.Asset,
+		Pair:                      settings.Pair,
+		Underlying:                settings.Pair.Base,
+		OfflineCalculation:        !settings.UseRealOrders,
+		UseExchangePNLCalculation: settings.UseExchangePNLCalculation,
+		ExchangePNLCalculation:    pnl,
+	})
+	if err != nil {
+		return fmt.Errorf("unable to setup currency settings %w", err)
+	}
+
 	p.exchangeAssetPairSettings[settings.Exchange][settings.Asset][settings.Pair] = &Settings{
 		Fee:            settings.ExchangeFee,
 		BuySideSizing:  settings.BuySide,
@@ -505,7 +521,8 @@ func (p *Portfolio) SetupCurrencySettingsMap(settings *exchange.Settings, exch g
 		ComplianceManager: compliance.Manager{
 			Snapshots: []compliance.Snapshot{},
 		},
-		Exchange: exch,
+		Exchange:       exch,
+		FuturesTracker: ptc,
 	}
 	return nil
 }
@@ -535,7 +552,7 @@ func (e *Settings) GetHoldingsForTime(t time.Time) holdings.Holding {
 
 // CalculatePNL will analyse any futures orders that have been placed over the backtesting run
 // that are not closed and calculate their PNL
-func (p *Portfolio) CalculatePNL(e common.DataEventHandler, funds funding.ICollateralReleaser) error {
+func (p *Portfolio) CalculatePNL(e common.DataEventHandler) error {
 	if !e.GetAssetType().IsFutures() {
 		return nil // or err
 	}
@@ -549,31 +566,79 @@ func (p *Portfolio) CalculatePNL(e common.DataEventHandler, funds funding.IColla
 		return err
 	}
 
-	if snapshot.FuturesTracker == nil {
-		snapshot.FuturesTracker, err = gctorder.SetupPositionTrackerController(&gctorder.PositionControllerSetup{
-			Exchange:               e.GetExchange(),
-			Asset:                  e.GetAssetType(),
-			Pair:                   e.Pair(),
-			Underlying:             e.Pair().Base,
-			OfflineCalculation:     true,
-			ExchangePNLCalculation: settings.Exchange,
-		})
-		if err != nil {
-			return err
-		}
-	}
-
 	for i := range snapshot.Orders {
-		err = snapshot.FuturesTracker.TrackNewOrder(snapshot.Orders[i].Order)
+		err = settings.FuturesTracker.TrackNewOrder(snapshot.Orders[i].Order)
 		if err != nil {
 			return err
 		}
 	}
-
-	_, err = snapshot.FuturesTracker.CalculateLatestPNL(&gctorder.PNLCalculator{
-		MarkPrice:     e.GetClosePrice().InexactFloat64(),
-		PrevMarkPrice: e.GetOpenPrice().InexactFloat64(),
-	})
-
+	pnl, err := p.GetLatestPNLForEvent(e)
+	if err != nil {
+		return err
+	}
+	log.Infof(log.BackTester, "%+v", pnl)
 	return nil
+}
+
+// GetLatestPNLForEvent takes in an event and returns the latest PNL data
+// if it exists
+func (p *Portfolio) GetLatestPNLForEvent(e common.EventHandler) (*PNLSummary, error) {
+	if !e.GetAssetType().IsFutures() {
+		return nil, errors.New("not a future")
+	}
+	settings, ok := p.exchangeAssetPairSettings[e.GetExchange()][e.GetAssetType()][e.Pair()]
+	if !ok {
+		return nil, fmt.Errorf("%v %v %v %w", e.GetExchange(), e.GetAssetType(), e.Pair(), errNoPortfolioSettings)
+	}
+
+	if settings.FuturesTracker == nil {
+		return nil, errors.New("no futures tracker")
+	}
+	positions := settings.FuturesTracker.GetPositions()
+	if positions == nil {
+		return nil, nil
+	}
+	pnl, err := positions[len(positions)-1].GetLatestPNLSnapshot()
+	if err != nil {
+		return nil, err
+	}
+
+	return &PNLSummary{
+		Exchange: e.GetExchange(),
+		Item:     e.GetAssetType(),
+		Pair:     e.Pair(),
+		PNL:      pnl,
+	}, nil
+}
+
+// GetLatestPNLs returns all PNL details in one array
+func (p *Portfolio) GetLatestPNLs() []PNLSummary {
+	var result []PNLSummary
+	for exchK := range p.exchangeAssetPairSettings {
+		for assetK := range p.exchangeAssetPairSettings[exchK] {
+			if !assetK.IsFutures() {
+				continue
+			}
+			for pairK, settings := range p.exchangeAssetPairSettings[exchK][assetK] {
+				if settings == nil {
+					continue
+				}
+				if settings.FuturesTracker == nil {
+					continue
+				}
+				positions := settings.FuturesTracker.GetPositions()
+				pnl, err := positions[len(positions)-1].GetLatestPNLSnapshot()
+				if err != nil {
+					continue
+				}
+				result = append(result, PNLSummary{
+					Exchange: exchK,
+					Item:     assetK,
+					Pair:     pairK,
+					PNL:      pnl,
+				})
+			}
+		}
+	}
+	return result
 }

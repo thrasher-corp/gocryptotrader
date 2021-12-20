@@ -32,7 +32,8 @@
    "taker-fee-override": "0.002",
    "maximum-holdings-ratio": "0",
    "skip-candle-volume-fitting": false,
-   "use-exchange-order-limits": false
+   "use-exchange-order-limits": false,
+   "use-exchange-pnl-calculation": false
   }
  ],
  "data-settings": {
@@ -45,8 +46,9 @@
  "portfolio-settings": {
   "leverage": {
    "can-use-leverage": false,
-   "maximum-orders-with-leverage-ratio": "0",
-   "maximum-leverage-rate": 0
+   "maximum-orders-with-leverage-ratio": 0,
+   "maximum-leverage-rate": 0,
+   "maximum-collateral-leverage-rate": 0
   },
   "buy-side": {
    "minimum-size": "0",

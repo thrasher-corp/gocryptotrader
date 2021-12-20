@@ -54,9 +54,10 @@ type Settings struct {
 	MinimumSlippageRate decimal.Decimal
 	MaximumSlippageRate decimal.Decimal
 
-	Limits                  *gctorder.Limits
-	CanUseExchangeLimits    bool
-	SkipCandleVolumeFitting bool
+	Limits                    *gctorder.Limits
+	CanUseExchangeLimits      bool
+	SkipCandleVolumeFitting   bool
+	UseExchangePNLCalculation bool
 }
 
 // MinMax are the rules which limit the placement of orders.

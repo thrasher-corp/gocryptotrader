@@ -1315,6 +1315,25 @@ func (f *FTX) CalculatePNL(pnl *order.PNLCalculator) (*order.PNLResult, error) {
 	return &result, nil
 }
 
+func (f *FTX) ScaleCollateral(calc *order.CollateralCalculator) (decimal.Decimal, error) {
+	var result decimal.Decimal
+	collateralWeight, ok := f.collateralWeight[calc.CollateralCurrency.Upper().String()]
+	if !ok {
+		return decimal.Zero, errCoinMustBeSpecified
+	}
+	if calc.CollateralAmount.IsPositive() {
+		if collateralWeight.IMFFactor == 0 {
+			return decimal.Zero, errCoinMustBeSpecified
+		}
+		what := decimal.NewFromFloat(collateralWeight.Total)
+		what2 := decimal.NewFromFloat(1.1 / collateralWeight.IMFFactor * math.Sqrt(calc.CollateralAmount.InexactFloat64()))
+		result = result.Add(calc.CollateralAmount.Mul(calc.USDPrice).Mul(decimal.Min(what, what2)))
+	} else {
+		result = result.Add(calc.CollateralAmount.Mul(calc.USDPrice))
+	}
+	return result, nil
+}
+
 func (f *FTX) CalculateTotalCollateral(collateralAssets []order.CollateralCalculator) (decimal.Decimal, error) {
 	var result decimal.Decimal
 	for i := range collateralAssets {

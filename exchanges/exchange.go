@@ -1467,8 +1467,8 @@ func (b *Base) GetAvailableTransferChains(_ context.Context, _ currency.Code) ([
 // It will also determine whether the position is considered to be liquidated
 // for live trading, an overrided function may wish to confirm the liquidation by
 // requesting the status of the asset
-func (b *Base) CalculatePNL(calc *order.PNLCalculator) (*order.PNLResult, error) {
-	return nil, common.ErrFunctionNotSupported
+func (b *Base) CalculatePNL(*order.PNLCalculator) (*order.PNLResult, error) {
+	return nil, common.ErrNotYetImplemented
 }
 
 // ScaleCollateral is an overridable function to allow PNL to be calculated on an
@@ -1476,10 +1476,10 @@ func (b *Base) CalculatePNL(calc *order.PNLCalculator) (*order.PNLResult, error)
 // It will also determine whether the position is considered to be liquidated
 // for live trading, an overrided function may wish to confirm the liquidation by
 // requesting the status of the asset
-func (b *Base) ScaleCollateral(calc *order.CollateralCalculator) (decimal.Decimal, error) {
-	return decimal.Zero, common.ErrFunctionNotSupported
+func (b *Base) ScaleCollateral(*order.CollateralCalculator) (decimal.Decimal, error) {
+	return decimal.Zero, common.ErrNotYetImplemented
 }
 
 func (b *Base) CalculateTotalCollateral([]order.CollateralCalculator) (decimal.Decimal, error) {
-	return decimal.Zero, common.ErrFunctionNotSupported
+	return decimal.Zero, common.ErrNotYetImplemented
 }

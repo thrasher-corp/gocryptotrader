@@ -38,7 +38,7 @@ func SetupOrderManager(exchangeManager iExchangeManager, communicationsManager i
 			exchangeManager:         exchangeManager,
 			commsManager:            communicationsManager,
 			wg:                      wg,
-			futuresPositionTrackers: order.SetupPositionControllerReal(),
+			futuresPositionTrackers: order.SetupPositionController(),
 		},
 		verbose: verbose,
 	}, nil

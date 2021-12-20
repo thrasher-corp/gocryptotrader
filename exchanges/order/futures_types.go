@@ -15,12 +15,17 @@ var (
 	errTimeUnset                      = errors.New("time unset")
 	errMissingPNLCalculationFunctions = errors.New("futures tracker requires exchange PNL calculation functions")
 	errOrderNotEqualToTracker         = errors.New("order does not match tracker data")
-	errPositionClosed                 = errors.New("the position is closed, time for a new one")
+	errPositionClosed                 = errors.New("the position is closed")
+	errPositionNotClosed              = errors.New("the position is not closed")
 	errPositionDiscrepancy            = errors.New("there is a position considered open, but it is not the latest, please review")
 	errAssetMismatch                  = errors.New("provided asset does not match")
 	errEmptyUnderlying                = errors.New("underlying asset unset")
 	errNoPositions                    = errors.New("there are no positions")
 	errNilSetup                       = errors.New("nil setup received")
+	errNilOrder                       = errors.New("nil order received")
+	errNoPNLHistory                   = errors.New("no pnl history")
+	errCannotCalculateUnrealisedPNL   = errors.New("cannot calculate unrealised PNL, order is not open")
+
 	// ErrNilPNLCalculator is raised when pnl calculation is requested for
 	// an exchange, but the fields are not set properly
 	ErrNilPNLCalculator = errors.New("nil pnl calculator received")
@@ -44,14 +49,14 @@ type CollateralManagement interface {
 }
 
 type PositionController struct {
-	positionTrackerControllers map[string]map[asset.Item]map[currency.Pair]*PositionTrackerController
+	positionTrackerControllers map[string]map[asset.Item]map[currency.Pair]*MultiPositionTracker
 }
 
-// PositionTrackerController will track the performance of
+// MultiPositionTracker will track the performance of
 // futures positions over time. If an old position tracker
 // is closed, then the position controller will create a new one
 // to track the current positions
-type PositionTrackerController struct {
+type MultiPositionTracker struct {
 	exchange   string
 	asset      asset.Item
 	pair       currency.Pair

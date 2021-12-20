@@ -555,21 +555,22 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 				}
 			}
 			resp.CurrencySettings = append(resp.CurrencySettings, exchange.Settings{
-				Exchange:                cfg.CurrencySettings[i].ExchangeName,
-				MinimumSlippageRate:     cfg.CurrencySettings[i].MinimumSlippagePercent,
-				MaximumSlippageRate:     cfg.CurrencySettings[i].MaximumSlippagePercent,
-				Pair:                    pair,
-				Asset:                   a,
-				ExchangeFee:             takerFee,
-				MakerFee:                takerFee,
-				TakerFee:                makerFee,
-				UseRealOrders:           realOrders,
-				BuySide:                 buyRule,
-				SellSide:                sellRule,
-				Leverage:                lev,
-				Limits:                  limits,
-				SkipCandleVolumeFitting: cfg.CurrencySettings[i].SkipCandleVolumeFitting,
-				CanUseExchangeLimits:    cfg.CurrencySettings[i].CanUseExchangeLimits,
+				Exchange:                  cfg.CurrencySettings[i].ExchangeName,
+				MinimumSlippageRate:       cfg.CurrencySettings[i].MinimumSlippagePercent,
+				MaximumSlippageRate:       cfg.CurrencySettings[i].MaximumSlippagePercent,
+				Pair:                      pair,
+				Asset:                     a,
+				ExchangeFee:               takerFee,
+				MakerFee:                  takerFee,
+				TakerFee:                  makerFee,
+				UseRealOrders:             realOrders,
+				BuySide:                   buyRule,
+				SellSide:                  sellRule,
+				Leverage:                  lev,
+				Limits:                    limits,
+				SkipCandleVolumeFitting:   cfg.CurrencySettings[i].SkipCandleVolumeFitting,
+				CanUseExchangeLimits:      cfg.CurrencySettings[i].CanUseExchangeLimits,
+				UseExchangePNLCalculation: cfg.CurrencySettings[i].UseExchangePNLCalculation,
 			})
 		}
 	}
@@ -1019,13 +1020,13 @@ func (bt *BackTest) processSimultaneousDataEvents() error {
 			// too much bad data is a severe error and backtesting must cease
 			return err
 		}
-		log.Error(log.BackTester, err)
+		log.Errorf(log.BackTester, "OnSimultaneousSignals %v", err)
 		return nil
 	}
 	for i := range signals {
 		err = bt.Statistic.SetEventForOffset(signals[i])
 		if err != nil {
-			log.Error(log.BackTester, err)
+			log.Errorf(log.BackTester, "SetEventForOffset %v %v %v %v", signals[i].GetExchange(), signals[i].GetAssetType(), signals[i].Pair(), err)
 		}
 		bt.EventQueue.AppendEvent(signals[i])
 	}
@@ -1041,23 +1042,27 @@ func (bt *BackTest) updateStatsForDataEvent(ev common.DataEventHandler, funds fu
 		if err == statistics.ErrAlreadyProcessed {
 			return err
 		}
-		log.Error(log.BackTester, err)
+		log.Errorf(log.BackTester, "SetupEventForTime %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 	}
 	// update portfolio manager with the latest price
 	err = bt.Portfolio.UpdateHoldings(ev, funds)
 	if err != nil {
-		log.Error(log.BackTester, err)
+		log.Errorf(log.BackTester, "UpdateHoldings %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 	}
 
-	if ev.GetAssetType() == asset.Futures {
+	if ev.GetAssetType().IsFutures() {
 		var cr funding.ICollateralReleaser
 		cr, err = funds.GetCollateralReleaser()
 		if err != nil {
 			return err
 		}
-		err = bt.Portfolio.CalculatePNL(ev, cr)
+		err = bt.Portfolio.CalculatePNL(ev)
 		if err != nil {
-			log.Error(log.BackTester, err)
+			if errors.Is(err, gctorder.ErrPositionLiquidated) {
+				cr.Liquidate()
+			} else {
+				log.Errorf(log.BackTester, "CalculatePNL %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
+			}
 		}
 	}
 
@@ -1068,18 +1073,18 @@ func (bt *BackTest) updateStatsForDataEvent(ev common.DataEventHandler, funds fu
 func (bt *BackTest) processSignalEvent(ev signal.Event, funds funding.IFundReserver) {
 	cs, err := bt.Exchange.GetCurrencySettings(ev.GetExchange(), ev.GetAssetType(), ev.Pair())
 	if err != nil {
-		log.Error(log.BackTester, err)
+		log.Errorf(log.BackTester, "GetCurrencySettings %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 		return
 	}
 	var o *order.Order
 	o, err = bt.Portfolio.OnSignal(ev, &cs, funds)
 	if err != nil {
-		log.Error(log.BackTester, err)
+		log.Errorf(log.BackTester, "OnSignal %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 		return
 	}
 	err = bt.Statistic.SetEventForOffset(o)
 	if err != nil {
-		log.Error(log.BackTester, err)
+		log.Errorf(log.BackTester, "SetEventForOffset %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 	}
 
 	bt.EventQueue.AppendEvent(o)
@@ -1097,7 +1102,7 @@ func (bt *BackTest) processOrderEvent(ev order.Event, funds funding.IFundRelease
 	}
 	err = bt.Statistic.SetEventForOffset(f)
 	if err != nil {
-		log.Error(log.BackTester, err)
+		log.Errorf(log.BackTester, "SetEventForOffset %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 	}
 	bt.EventQueue.AppendEvent(f)
 }
@@ -1105,13 +1110,13 @@ func (bt *BackTest) processOrderEvent(ev order.Event, funds funding.IFundRelease
 func (bt *BackTest) processFillEvent(ev fill.Event, funds funding.IFundReleaser) {
 	t, err := bt.Portfolio.OnFill(ev, funds)
 	if err != nil {
-		log.Error(log.BackTester, err)
+		log.Errorf(log.BackTester, "OnFill %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 		return
 	}
 
 	err = bt.Statistic.SetEventForOffset(t)
 	if err != nil {
-		log.Error(log.BackTester, err)
+		log.Errorf(log.BackTester, "SetEventForOffset %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 	}
 
 	var holding *holdings.Holding
@@ -1124,20 +1129,20 @@ func (bt *BackTest) processFillEvent(ev fill.Event, funds funding.IFundReleaser)
 	} else {
 		err = bt.Statistic.AddHoldingsForTime(holding)
 		if err != nil {
-			log.Error(log.BackTester, err)
+			log.Errorf(log.BackTester, "AddHoldingsForTime %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 		}
 	}
 
 	var cp *compliance.Manager
 	cp, err = bt.Portfolio.GetComplianceManager(ev.GetExchange(), ev.GetAssetType(), ev.Pair())
 	if err != nil {
-		log.Error(log.BackTester, err)
+		log.Errorf(log.BackTester, "GetComplianceManager %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 	}
 
 	snap := cp.GetLatestSnapshot()
 	err = bt.Statistic.AddComplianceSnapshotForTime(snap, ev)
 	if err != nil {
-		log.Error(log.BackTester, err)
+		log.Errorf(log.BackTester, "AddComplianceSnapshotForTime %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 	}
 }
 

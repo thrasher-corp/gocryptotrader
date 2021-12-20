@@ -143,6 +143,7 @@ type CurrencySettings struct {
 
 	CanUseExchangeLimits          bool `json:"use-exchange-order-limits"`
 	ShowExchangeOrderLimitWarning bool `json:"-"`
+	UseExchangePNLCalculation     bool `json:"use-exchange-pnl-calculation"`
 }
 
 type SpotDetails struct {
