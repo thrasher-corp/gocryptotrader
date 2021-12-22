@@ -239,6 +239,11 @@ type WsReq struct {
 	Parameters interface{} `json:"params"`
 }
 
+type WsCoinReq struct {
+	Topic string   `json:"op"`
+	Args  []string `json:"args"`
+}
+
 type WsParams struct {
 	Symbol     string `json:"symbol"`
 	IsBinary   bool   `json:"binary"`
@@ -271,7 +276,7 @@ type WsOrderbookData struct {
 	Asks    [][2]string `json:"a"`
 }
 
-// WsOrderbookData stores ws orderbook data
+// WsOrderbook stores ws orderbook data
 type WsOrderbook struct {
 	Topic      string          `json:"topic"`
 	Parameters WsParams        `json:"params"`
@@ -292,24 +297,6 @@ type WsTrade struct {
 	Topic      string      `json:"topic"`
 	Parameters WsParams    `json:"params"`
 	TradeData  WsTradeData `json:"data"`
-}
-
-// WsKlineData stores ws kline data
-type WsKlineData struct {
-	StartTime int64   `json:"t"`
-	Symbol    string  `json:"s"`
-	Close     float64 `json:"c"`
-	Open      float64 `json:"o"`
-	High      float64 `json:"h"`
-	Low       float64 `json:"l"`
-	Volume    float64 `json:"v"`
-}
-
-// WsKline stores ws kline data
-type WsKline struct {
-	Topic      string       `json:"topic"`
-	Parameters WsParams     `json:"params"`
-	Ticker     WsTickerData `json:"data"`
 }
 
 // wsAccountInfo defines websocket account info data
@@ -355,4 +342,239 @@ type wsOrderUpdate struct {
 	AccountID                         string    `json:"A"`
 	IsClose                           bool      `json:"C"`
 	Leverage                          string    `json:"v"`
+}
+
+type WsCoinOrderbookData struct {
+	Price  string `json:"price"`
+	Symbol string `json:"symbol"`
+	ID     int64  `json:"id"`
+	Side   string `json:"side"`
+	Size   int    `json:"size"`
+}
+
+type WsCoinOrderbook struct {
+	Topic  string                `json:"topic"`
+	Type   string                `json:"string"`
+	OBData []WsCoinOrderbookData `json:"data"`
+}
+
+type WsCoinDeltaOrderbook struct {
+	Topic  string `json:"topic"`
+	Type   string `json:"string"`
+	OBData struct {
+		Delete []WsCoinOrderbookData `json:"delete"`
+		Update []WsCoinOrderbookData `json:"update"`
+		Insert []WsCoinOrderbookData `json:"insert"`
+	} `json:"data"`
+}
+
+type WsCoinTradeData struct {
+	Time               time.Time `json:"timestamp"`
+	TimeInMilliseconds int64     `json:"trade_time_ms"`
+	Symbol             string    `json:"symbol"`
+	Side               string    `json:"side"`
+	Size               int       `json:"size"`
+	Price              float64   `json:"price"`
+	Direction          string    `json:"tick_direction"`
+	ID                 string    `json:"trade_id"`
+}
+
+type WsCoinTrade struct {
+	Topic     string            `json:"topic"`
+	TradeData []WsCoinTradeData `json:"data"`
+}
+
+type WsCoinKlineData struct {
+	StartTime int64   `json:"start"`
+	EndTime   int64   `json:"end"`
+	Close     float64 `json:"close"`
+	Open      float64 `json:"open"`
+	High      float64 `json:"high"`
+	Low       float64 `json:"low"`
+	Volume    float64 `json:"volume"`
+	TurnOver  float64 `json:"turnover"`
+	Confirm   bool    `json:"confirm"`
+	Timestamp int64   `json:"timestamp"`
+}
+
+type WsCoinKline struct {
+	Topic     string            `json:"topic"`
+	KlineData []WsCoinKlineData `json:"data"`
+}
+
+type WsInsuranceData struct {
+	Currency      string    `json:"currency"`
+	Timestamp     time.Time `json:"timestamp"`
+	WalletBalance float64   `json:"wallet_balance"`
+}
+
+type WsCoinInsurance struct {
+	Topic string            `json:"topic"`
+	Data  []WsInsuranceData `json:"data"`
+}
+
+type WsCoinTickerData struct {
+	ID                    string    `json:"id"`
+	Symbol                string    `json:"symbol"`
+	LastPrice             float64   `json:"last_price,string"`
+	BidPrice              float64   `json:"bid1_price"`
+	AskPrice              float64   `json:"ask1_price"`
+	LastDirection         string    `json:"last_tick_direction"`
+	PrevPrice24h          float64   `json:"prev_price_24h,string"`
+	Price24hPercentChange int64     `json:"price_24h_pcnt_e6"`
+	HighPrice24h          float64   `json:"high_price_24h,string"`
+	LowPrice24h           float64   `json:"low_price_24h,string"`
+	PrevPrice1h           float64   `json:"prev_price_1h,string"`
+	MarkPrice             float64   `json:"mark_price,string"`
+	IndexPrice            float64   `json:"index_price,string"`
+	OpenInterest          int64     `json:"open_interest"`
+	OpenValue             int64     `json:"open_value_e8"`
+	TotalTurnOver         int64     `json:"total_turnover_e8"`
+	TurnOver24h           int64     `json:"turnover_24h_e8"`
+	TotalVolume           int64     `json:"total_volume"`
+	Volume24h             int64     `json:"volume_24h"`
+	FundingRate           int64     `json:"funding_rate_e6"`
+	PredictedFundingRate  int64     `json:"predicted_funding_rate_e6"`
+	CreatedAt             time.Time `json:"created_at"`
+	UpdateAt              time.Time `json:"updated_at"`
+}
+
+type WsCoinTicker struct {
+	Topic  string           `json:"topic"`
+	Ticker WsCoinTickerData `json:"data"`
+}
+
+type WsLiquidationData struct {
+	Symbol    string  `json:"symbol"`
+	Side      string  `json:"side"`
+	Price     float64 `json:"price,string"`
+	Qty       int64   `json:"qty"`
+	Timestamp int64   `json:"time"`
+}
+
+type WsCoinLiquidation struct {
+	Topic string            `json:"topic"`
+	Data  WsLiquidationData `json:"data"`
+}
+
+type WsCoinPositionData struct {
+	UserID              int64   `json:"user_id"`
+	Symbol              string  `json:"symbol"`
+	Side                string  `json:"side"`
+	Size                int64   `json:"size"`
+	PositionValue       float64 `json:"position_value,string"`
+	EntryPrice          float64 `json:"entry_price,string"`
+	LiquidPrice         float64 `json:"liq_price,string"`
+	BustPrice           float64 `json:"bust_price,string"`
+	Leverage            float64 `json:"leverage,string"`
+	OrderMargin         float64 `json:"order_margin,string"`
+	PositionMargin      float64 `json:"position_margin,string"`
+	AvailableBalance    float64 `json:"available_balance,string"`
+	TakeProfit          float64 `json:"take_profit,string"`
+	TakeProfitTriggerBy string  `json:"tp_trigger_by"`
+	StopLoss            float64 `json:"stop_loss,string"`
+	StopLossTriggerBy   string  `json:"sl_trigger_by"`
+	RealisedPNL         float64 `json:"realised_pnl,string"`
+	TrailingStop        float64 `json:"trailing_stop,string"`
+	TrailingActive      float64 `json:"trailing_active,string"`
+	WalletBalance       float64 `json:"wallet_balance,string"`
+	RiskID              int64   `json:"risk_id"`
+	ClosingFee          float64 `json:"occ_closing_fee,string"`
+	FundingFee          float64 `json:"occ_funding_fee,string"`
+	AutoAddMargin       int64   `json:"auto_add_margin"`
+	TotalPNL            float64 `json:"cum_realised_pnl,string"`
+	Status              string  `json:"position_status"`
+	Version             int64   `json:"position_seq"`
+}
+
+type WsCoinPosition struct {
+	Topic  string               `json:"topic"`
+	Action string               `json:"action"`
+	Data   []WsCoinPositionData `json:"data"`
+}
+
+type WsCoinExecutionData struct {
+	Symbol        string    `json:"symbol"`
+	Side          string    `json:"side"`
+	OrderID       string    `json:"order_id"`
+	ExecutionID   string    `json:"exec_id"`
+	OrderLinkID   string    `json:"order_link_id"`
+	Price         float64   `json:"price,string"`
+	OrderQty      int64     `json:"order_qty"`
+	ExecutionType string    `json:"exec_type"`
+	ExecutionQty  int64     `json:"exec_qty"`
+	ExecutionFee  float64   `json:"exec_fee,string"`
+	LeavesQty     int64     `json:"leaves_qty"`
+	IsMaker       bool      `json:"is_maker"`
+	Time          time.Time `json:"trade_time"`
+}
+
+type WsCoinExecution struct {
+	Topic string                `json:"topic"`
+	Data  []WsCoinExecutionData `json:"data"`
+}
+
+type WsCoinOrderData struct {
+	OrderID              string    `json:"order_id"`
+	OrderLinkID          string    `json:"order_link_id"`
+	Symbol               string    `json:"symbol"`
+	Side                 string    `json:"side"`
+	OrderType            string    `json:"order_type"`
+	Price                float64   `json:"price,string"`
+	OrderQty             int64     `json:"qty"`
+	TimeInForce          string    `json:"time_in_force"`
+	CreateType           string    `json:"create_type"`
+	CancelType           string    `json:"cancel_type"`
+	OrderStatus          string    `json:"order_status"`
+	LeavesQty            int64     `json:"leaves_qty"`
+	CummulativeExecQty   int64     `json:"cum_exec_qty"`
+	CummulativeExecValue float64   `json:"cum_exec_value,string"`
+	CummulativeExecFee   float64   `json:"cum_exec_fee,string"`
+	Time                 time.Time `json:"timestamp"`
+	TakeProfit           float64   `json:"take_profit,string"`
+	StopLoss             float64   `json:"stop_loss,string"`
+	TrailingStop         float64   `json:"trailing_stop,string"`
+	TrailingActive       float64   `json:"trailing_active,string"`
+	LastExecPrice        float64   `json:"last_exec_price,string"`
+	ReduceOnly           bool      `json:"reduce_only"`
+	CloseOnTrigger       bool      `json:"close_on_trigger"`
+}
+
+type WsCoinOrder struct {
+	Topic string            `json:"topic"`
+	Data  []WsCoinOrderData `json:"data"`
+}
+
+type WsCoinStopOrderData struct {
+	OrderID        string    `json:"order_id"`
+	OrderLinkID    string    `json:"order_link_id"`
+	UserID         int64     `json:"user_id"`
+	Symbol         string    `json:"symbol"`
+	Side           string    `json:"side"`
+	OrderType      string    `json:"order_type"`
+	Price          float64   `json:"price,string"`
+	OrderQty       int64     `json:"qty"`
+	TimeInForce    string    `json:"time_in_force"`
+	CreateType     string    `json:"create_type"`
+	CancelType     string    `json:"cancel_type"`
+	OrderStatus    string    `json:"order_status"`
+	StopOrderType  string    `json:"stop_order_type"`
+	TriggerBy      string    `json:"trigger_by"`
+	TriggerPrice   float64   `json:"trigger_price,string"`
+	Time           time.Time `json:"timestamp"`
+	CloseOnTrigger bool      `json:"close_on_trigger"`
+}
+
+type WsCoinStopOrder struct {
+	Topic string                `json:"topic"`
+	Data  []WsCoinStopOrderData `json:"data"`
+}
+
+type WsCoinWalletData struct {
+	WalletBalance    float64 `json:"wallet_balance"`
+	AvailableBalance float64 `json:"available_balance"`
+}
+type WsCoinWallet struct {
+	Topic string             `json:"topic"`
+	Data  []WsCoinWalletData `json:"data"`
 }

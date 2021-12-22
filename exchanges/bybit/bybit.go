@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -28,8 +29,8 @@ type Bybit struct {
 const (
 	bybitAPIURL = "https://api.bybit.com"
 
-	sideBuy  = "BUY"
-	sideSell = "SELL"
+	sideBuy  = "Buy"
+	sideSell = "Sell"
 
 	// Public endpoints
 	bybitSpotGetSymbols   = "/spot/v1/symbols"
@@ -201,9 +202,9 @@ func (by *Bybit) GetTrades(symbol string, limit int64) ([]TradeItem, error) {
 	for x := range resp.Data {
 		tradeSide := ""
 		if resp.Data[x].IsBuyerMaker {
-			tradeSide = sideBuy
+			tradeSide = order.Buy.String()
 		} else {
-			tradeSide = sideSell
+			tradeSide = order.Sell.String()
 		}
 
 		trades = append(trades, TradeItem{
