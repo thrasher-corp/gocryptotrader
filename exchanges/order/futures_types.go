@@ -33,9 +33,9 @@ var (
 	ErrPositionLiquidated = errors.New("position liquidated")
 )
 
-// PNLManagement is an interface to allow multiple
+// PNLCalculation is an interface to allow multiple
 // ways of calculating PNL to be used for futures positions
-type PNLManagement interface {
+type PNLCalculation interface {
 	CalculatePNL(*PNLCalculator) (*PNLResult, error)
 }
 
@@ -72,7 +72,7 @@ type MultiPositionTracker struct {
 	pnl                        decimal.Decimal
 	offlinePNLCalculation      bool
 	useExchangePNLCalculations bool
-	exchangePNLCalculation     PNLManagement
+	exchangePNLCalculation     PNLCalculation
 }
 
 // PositionControllerSetup holds the parameters
@@ -84,7 +84,7 @@ type PositionControllerSetup struct {
 	Underlying                currency.Code
 	OfflineCalculation        bool
 	UseExchangePNLCalculation bool
-	ExchangePNLCalculation    PNLManagement
+	ExchangePNLCalculation    PNLCalculation
 }
 
 // PositionTracker tracks futures orders until the overall position is considered closed
@@ -101,6 +101,7 @@ type PositionTracker struct {
 	underlyingAsset       currency.Code
 	exposure              decimal.Decimal
 	currentDirection      Side
+	openingDirection      Side
 	status                Status
 	averageLeverage       decimal.Decimal
 	unrealisedPNL         decimal.Decimal
@@ -111,18 +112,20 @@ type PositionTracker struct {
 	entryPrice            decimal.Decimal
 	closingPrice          decimal.Decimal
 	offlinePNLCalculation bool
-	PNLManagement
-	latestPrice decimal.Decimal
+	PNLCalculation
+	latestPrice               decimal.Decimal
+	useExchangePNLCalculation bool
 }
 
 // PositionTrackerSetup contains all required fields to
 // setup a position tracker
 type PositionTrackerSetup struct {
-	Pair       currency.Pair
-	EntryPrice float64
-	Underlying currency.Code
-	Asset      asset.Item
-	Side       Side
+	Pair                      currency.Pair
+	EntryPrice                float64
+	Underlying                currency.Code
+	Asset                     asset.Item
+	Side                      Side
+	UseExchangePNLCalculation bool
 }
 
 // CollateralCalculator is used to determine
@@ -135,6 +138,7 @@ type CollateralCalculator struct {
 	Side               Side
 	CollateralAmount   decimal.Decimal
 	USDPrice           decimal.Decimal
+	IsLiquidating      bool
 }
 
 // PNLCalculator is used to calculate PNL values
@@ -157,6 +161,7 @@ type TimeBasedCalculation struct {
 // eg FTX uses a different method than Binance to calculate PNL
 // values
 type ExchangeBasedCalculation struct {
+	Pair             currency.Pair
 	CalculateOffline bool
 	Underlying       currency.Code
 	Asset            asset.Item
@@ -167,6 +172,9 @@ type ExchangeBasedCalculation struct {
 	Amount           float64
 	CurrentPrice     float64
 	PreviousPrice    float64
+	Time             time.Time
+	OrderID          string
+	Fee              decimal.Decimal
 }
 
 // PNLResult stores pnl history at a point in time
@@ -174,4 +182,7 @@ type PNLResult struct {
 	Time          time.Time
 	UnrealisedPNL decimal.Decimal
 	RealisedPNL   decimal.Decimal
+	Price         decimal.Decimal
+	Exposure      decimal.Decimal
+	Fee           decimal.Decimal
 }

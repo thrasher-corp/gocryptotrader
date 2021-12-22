@@ -1273,43 +1273,48 @@ func (f *FTX) GetAvailableTransferChains(ctx context.Context, cryptocurrency cur
 	return availableChains, nil
 }
 
+// entry price
+// side
+// current price
+// previous price
+// amount
+
 // CalculatePNL uses a high-tech algorithm to calculate your pnl
 func (f *FTX) CalculatePNL(pnl *order.PNLCalculator) (*order.PNLResult, error) {
 	if pnl.ExchangeBasedCalculation == nil {
 		return nil, fmt.Errorf("%v %w", f.Name, order.ErrNilPNLCalculator)
 	}
 	var result order.PNLResult
-	if pnl.ExchangeBasedCalculation.CalculateOffline {
-		uPNL := pnl.ExchangeBasedCalculation.Amount * (pnl.ExchangeBasedCalculation.CurrentPrice - pnl.ExchangeBasedCalculation.PreviousPrice)
-		result.RealisedPNL = result.RealisedPNL.Add(result.UnrealisedPNL)
-		result.UnrealisedPNL = decimal.NewFromFloat(uPNL)
-		return &result, nil
-	}
+	result.Time = pnl.ExchangeBasedCalculation.Time
 
-	info, err := f.GetAccountInfo(context.Background())
-	if err != nil {
-		return nil, err
-	}
-	if info.Liquidating || info.Collateral == 0 {
-		return &result, order.ErrPositionLiquidated
-	}
-	for i := range info.Positions {
-		ftxSide := order.Side(info.Positions[i].Side)
-		var pnlSide order.Side
-		switch {
-		case ftxSide.IsShort():
-			pnlSide = order.Short
-		case ftxSide.IsLong():
-			pnlSide = order.Long
-		default:
-			return nil, order.ErrSideIsInvalid
+	if !pnl.ExchangeBasedCalculation.CalculateOffline {
+		info, err := f.GetAccountInfo(context.Background())
+		if err != nil {
+			return nil, err
 		}
-		if info.Positions[i].EntryPrice == pnl.ExchangeBasedCalculation.EntryPrice && pnl.ExchangeBasedCalculation.Side == pnlSide {
-			result.UnrealisedPNL = decimal.NewFromFloat(info.Positions[i].UnrealizedPnL)
-			result.RealisedPNL = decimal.NewFromFloat(info.Positions[i].RealizedPnL)
-			return &result, nil
+		if info.Liquidating || info.Collateral == 0 {
+			return &result, order.ErrPositionLiquidated
+		}
+		for i := range info.Positions {
+			pair, err := currency.NewPairFromString(info.Positions[i].Future)
+			if err != nil {
+				return nil, err
+			}
+			if !pnl.ExchangeBasedCalculation.Pair.Equal(pair) {
+				continue
+			}
+			if info.Positions[i].EntryPrice == pnl.ExchangeBasedCalculation.EntryPrice {
+				result.UnrealisedPNL = decimal.NewFromFloat(info.Positions[i].UnrealizedPNL)
+				result.RealisedPNL = decimal.NewFromFloat(info.Positions[i].RealizedPNL)
+				result.Price = decimal.NewFromFloat(info.Positions[i].Cost)
+				return &result, nil
+			}
 		}
 	}
+	uPNL := pnl.ExchangeBasedCalculation.Amount * (pnl.ExchangeBasedCalculation.CurrentPrice - pnl.ExchangeBasedCalculation.PreviousPrice)
+	result.RealisedPNL = result.RealisedPNL.Add(result.UnrealisedPNL)
+	result.UnrealisedPNL = decimal.NewFromFloat(uPNL)
+	result.Price = decimal.NewFromFloat(pnl.ExchangeBasedCalculation.CurrentPrice)
 	return &result, nil
 }
 
@@ -1324,9 +1329,14 @@ func (f *FTX) ScaleCollateral(calc *order.CollateralCalculator) (decimal.Decimal
 		if collateralWeight.IMFFactor == 0 {
 			return decimal.Zero, errCoinMustBeSpecified
 		}
-		total := decimal.NewFromFloat(collateralWeight.Total)
-		weight := decimal.NewFromFloat(1.1 / collateralWeight.IMFFactor * math.Sqrt(calc.CollateralAmount.InexactFloat64()))
-		result = result.Add(calc.CollateralAmount.Mul(calc.USDPrice).Mul(decimal.Min(total, weight)))
+		var scaling decimal.Decimal
+		if calc.IsLiquidating {
+			scaling = decimal.NewFromFloat(collateralWeight.Total)
+		} else {
+			scaling = decimal.NewFromFloat(collateralWeight.Initial)
+		}
+		weight := decimal.NewFromFloat(1.1 / (1 + collateralWeight.IMFFactor*math.Sqrt(calc.CollateralAmount.InexactFloat64())))
+		result = calc.CollateralAmount.Mul(calc.USDPrice).Mul(decimal.Min(scaling, weight))
 	} else {
 		result = result.Add(calc.CollateralAmount.Mul(calc.USDPrice))
 	}

@@ -1826,25 +1826,28 @@ func TestCalculatePNLFromOrders(t *testing.T) {
 }
 
 func TestScaleCollateral(t *testing.T) {
+	f.Verbose = true
 	ai, err := f.GetAccountInfo(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
-	t.Log(ai.Collateral)
 	walletInfo, err := f.GetAllWalletBalances(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
-	t.Log(walletInfo)
 	myCollat := 0.0
+	liquidationVersion := 0.0
+	usdHo := 0.0
 	for _, v := range walletInfo {
 		for v2 := range v {
 			coin := v[v2].Coin
 			if coin == "USD" {
 				myCollat += v[v2].Total
+				usdHo += v[v2].USDValue
+				liquidationVersion += v[v2].Total
 				continue
 			}
-			tick, err := f.FetchTicker(context.Background(), currency.NewPairWithDelimiter(coin, "usd", "-"), asset.Spot)
+			tick, err := f.GetMarket(context.Background(), currency.NewPairWithDelimiter(coin, "usd", "/").String())
 			if err != nil {
 				t.Error(err)
 			}
@@ -1853,13 +1856,153 @@ func TestScaleCollateral(t *testing.T) {
 				Asset:              asset.Spot,
 				Side:               order.Buy,
 				CollateralAmount:   decimal.NewFromFloat(v[v2].Total),
-				USDPrice:           decimal.NewFromFloat(tick.Last),
+				USDPrice:           decimal.NewFromFloat(tick.Price),
 			})
 			if err != nil {
 				t.Error(err)
 			}
 			myCollat += scaled.InexactFloat64()
+			usdHo += v[v2].USDValue
+
+			scaled, err = f.ScaleCollateral(&order.CollateralCalculator{
+				CollateralCurrency: currency.NewCode(coin),
+				Asset:              asset.Spot,
+				Side:               order.Buy,
+				CollateralAmount:   decimal.NewFromFloat(v[v2].Total),
+				USDPrice:           decimal.NewFromFloat(tick.Price),
+				IsLiquidating:      true,
+			})
+			if err != nil {
+				t.Error(err)
+			}
+
+			liquidationVersion += scaled.InexactFloat64()
 		}
 	}
-	t.Log(myCollat)
+	t.Logf("%v collateral", ai.Collateral)
+	t.Logf("%v my calcs", myCollat)
+	t.Logf("%v liquidation calcs", liquidationVersion)
+	t.Logf("%v usd total", usdHo)
+}
+
+func TestCalculatePNLFromOrders1(t *testing.T) {
+	f.Verbose = true
+	resp, err := f.GetFills(context.Background(), "BTC-1231", "200", time.Time{}, time.Time{})
+	result := resp
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].Time.Before(result[j].Time)
+	})
+
+	pair := currency.NewPair(currency.BTC, currency.NewCode("1231"))
+	var orders []order.Detail
+	for i := range result {
+		price := result[i].Price
+		side, err := order.StringToOrderSide(result[i].Side)
+		if err != nil {
+			t.Error(err)
+		}
+		orders = append(orders, order.Detail{
+			Side:      side,
+			Pair:      pair,
+			ID:        fmt.Sprintf("%v", result[i].ID),
+			Price:     price,
+			Amount:    result[i].Size,
+			AssetType: asset.Futures,
+			Exchange:  f.Name,
+			Fee:       result[i].Fee,
+			Date:      result[i].Time,
+		})
+	}
+
+	exch := f.Name
+	item := asset.Futures
+	setup := &order.PositionControllerSetup{
+		Exchange:   exch,
+		Asset:      item,
+		Pair:       pair,
+		Underlying: pair.Base,
+		//ExchangePNLCalculation:    &f,
+		//UseExchangePNLCalculation: true,
+		//OfflineCalculation:        true,
+	}
+	p, err := order.SetupMultiPositionTracker(setup)
+	if err != nil {
+		t.Error(err)
+	}
+	for i := range orders {
+		err = p.TrackNewOrder(&orders[i])
+		if err != nil {
+			t.Error(err)
+		}
+	}
+	positions := p.GetPositions()
+	for i := range positions {
+		t.Log(positions[i].GetLatestPNLSnapshot())
+	}
+}
+
+func TestCalculatePNLFromOrders3(t *testing.T) {
+	pressXToJSON := `{"success":true,"result":[
+	{"id":102334270248,"clientId":null,"market":"BTC-1231","type":"market","side":"sell","price":null,"size":0.0001,"status":"closed","filledSize":0.0001,"remainingSize":0.0,"reduceOnly":true,"liquidation":false,"avgFillPrice":49068.0,"postOnly":false,"ioc":true,"createdAt":"2021-12-06T02:20:41.551614+00:00","future":"BTC-1231"},
+	{"id":102334231437,"clientId":null,"market":"BTC-1231","type":"market","side":"sell","price":null,"size":0.0004,"status":"closed","filledSize":0.0004,"remainingSize":0.0,"reduceOnly":false,"liquidation":false,"avgFillPrice":49050.0,"postOnly":false,"ioc":true,"createdAt":"2021-12-06T02:20:27.615861+00:00","future":"BTC-1231"},
+	{"id":102333965786,"clientId":null,"market":"BTC-1231","type":"limit","side":"buy","price":49072.0,"size":0.0003,"status":"closed","filledSize":0.0003,"remainingSize":0.0,"reduceOnly":false,"liquidation":false,"avgFillPrice":49030.0,"postOnly":false,"ioc":false,"createdAt":"2021-12-06T02:19:04.483189+00:00","future":"BTC-1231"},
+	{"id":102333762284,"clientId":null,"market":"BTC-1231","type":"limit","side":"buy","price":49072.0,"size":0.0001,"status":"closed","filledSize":0.0001,"remainingSize":0.0,"reduceOnly":false,"liquidation":false,"avgFillPrice":49061.0,"postOnly":false,"ioc":false,"createdAt":"2021-12-06T02:18:07.703362+00:00","future":"BTC-1231"},
+	{"id":102333732631,"clientId":null,"market":"BTC-1231","type":"limit","side":"buy","price":49072.0,"size":0.0001,"status":"closed","filledSize":0.0001,"remainingSize":0.0,"reduceOnly":false,"liquidation":false,"avgFillPrice":49063.0,"postOnly":false,"ioc":false,"createdAt":"2021-12-06T02:18:02.044371+00:00","future":"BTC-1231"}
+],"hasMoreData":false}`
+	resp := struct {
+		Data []OrderData `json:"result"`
+	}{}
+	err := json.Unmarshal([]byte(pressXToJSON), &resp)
+	if err != nil {
+		t.Fatal()
+	}
+	result := resp.Data
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].CreatedAt.Before(result[j].CreatedAt)
+	})
+
+	pair := currency.NewPair(currency.BTC, currency.NewCode("1231"))
+	var orders []order.Detail
+	for i := range result {
+		price := result[i].AvgFillPrice
+		side, err := order.StringToOrderSide(result[i].Side)
+		if err != nil {
+			t.Error(err)
+		}
+		orders = append(orders, order.Detail{
+			Side:      side,
+			Pair:      pair,
+			ID:        fmt.Sprintf("%v", result[i].ID),
+			Price:     price,
+			Amount:    result[i].Size,
+			Status:    order.Status(result[i].Status),
+			AssetType: asset.Futures,
+			Exchange:  f.Name,
+			Date:      result[i].CreatedAt,
+		})
+	}
+
+	exch := f.Name
+	item := asset.Futures
+	setup := &order.PositionControllerSetup{
+		Exchange:                  exch,
+		Asset:                     item,
+		Pair:                      pair,
+		Underlying:                pair.Base,
+		ExchangePNLCalculation:    &f,
+		UseExchangePNLCalculation: false,
+	}
+	p, err := order.SetupMultiPositionTracker(setup)
+	if err != nil {
+		t.Error(err)
+	}
+	for i := range orders {
+		err = p.TrackNewOrder(&orders[i])
+		if err != nil {
+			t.Error(err)
+		}
+	}
+	pos := p.GetPositions()
+	pnl, _ := pos[0].GetRealisedPNL()
+	t.Logf("%v", pnl)
 }

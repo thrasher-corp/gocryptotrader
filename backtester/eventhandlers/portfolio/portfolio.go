@@ -496,7 +496,7 @@ func (p *Portfolio) SetupCurrencySettingsMap(settings *exchange.Settings, exch g
 		return nil
 	}
 
-	var pnl gctorder.PNLManagement
+	var pnl gctorder.PNLCalculation
 	if settings.UseExchangePNLCalculation {
 		pnl = exch
 	}

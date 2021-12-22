@@ -82,7 +82,7 @@ type IBotExchange interface {
 	EnableRateLimiter() error
 	CurrencyStateManagement
 
-	order.PNLManagement
+	order.PNLCalculation
 	order.CollateralManagement
 
 	GetWebsocket() (*stream.Websocket, error)

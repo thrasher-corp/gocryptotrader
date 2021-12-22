@@ -184,21 +184,26 @@ type IndexWeights struct {
 
 // PositionData stores data of an open position
 type PositionData struct {
+	CollateralUsed               float64 `json:"collateralUsed"`
 	Cost                         float64 `json:"cost"`
+	CumulativeBuySize            float64 `json:"cumulativeBuySize"`
+	CumulativeSellSize           float64 `json:"cumulativeSellSize"`
 	EntryPrice                   float64 `json:"entryPrice"`
+	EstimatedLiquidationPrice    float64 `json:"estimatedLiquidationPrice"`
 	Future                       string  `json:"future"`
 	InitialMarginRequirement     float64 `json:"initialMarginRequirement"`
 	LongOrderSize                float64 `json:"longOrderSize"`
 	MaintenanceMarginRequirement float64 `json:"maintenanceMarginRequirement"`
 	NetSize                      float64 `json:"netSize"`
 	OpenSize                     float64 `json:"openSize"`
-	RealizedPnL                  float64 `json:"realizedPnL"`
+	RealizedPNL                  float64 `json:"realizedPnl"`
+	RecentAverageOpenPrice       float64 `json:"recentAverageOpenPrice"`
+	RecentBreakEvenPrice         float64 `json:"recentBreakEvenPrice"`
+	RecentPnl                    float64 `json:"recentPnl"`
 	ShortOrderSize               float64 `json:"shortOrderSize"`
 	Side                         string  `json:"side"`
 	Size                         float64 `json:"size"`
-	UnrealizedPnL                float64 `json:"unrealizedPnL"`
-	CollateralUsed               float64 `json:"collateralUsed"`
-	EstimatedLiquidationPrice    float64 `json:"estimatedLiquidationPrice"`
+	UnrealizedPNL                float64 `json:"unrealizedPnl"`
 }
 
 // AccountInfoData stores account data
