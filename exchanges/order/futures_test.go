@@ -431,9 +431,9 @@ func TestGetLatestPNLSnapshot(t *testing.T) {
 	}
 
 	pnl := PNLResult{
-		Time:          time.Now(),
-		UnrealisedPNL: decimal.NewFromInt(1337),
-		RealisedPNL:   decimal.NewFromInt(1337),
+		Time:                  time.Now(),
+		UnrealisedPNL:         decimal.NewFromInt(1337),
+		RealisedPNLBeforeFees: decimal.NewFromInt(1337),
 	}
 	pt.pnlHistory = append(pt.pnlHistory, pnl)
 

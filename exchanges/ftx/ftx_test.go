@@ -1805,22 +1805,22 @@ func TestCalculatePNLFromOrders(t *testing.T) {
 	if len(pos) != 6 {
 		t.Fatal("expected 6 positions")
 	}
-	if pnl, err := pos[0].GetRealisedPNL(); !pnl.Equal(decimal.NewFromFloat(0.1223)) || err != nil {
+	if pnl := pos[0].GetRealisedPNL(); !pnl.Equal(decimal.NewFromFloat(0.1223)) {
 		t.Errorf("expected nil err, received '%v', expected 0.1223, received '%v'", err, pnl)
 	}
-	if pnl, err := pos[1].GetRealisedPNL(); !pnl.Equal(decimal.NewFromFloat(0.0148)) || err != nil {
+	if pnl := pos[1].GetRealisedPNL(); !pnl.Equal(decimal.NewFromFloat(0.0148)) {
 		t.Errorf("expected nil err, received '%v', expected 0.0148, received '%v'", err, pnl)
 	}
-	if pnl, err := pos[2].GetRealisedPNL(); !pnl.Equal(decimal.NewFromFloat(0.0092)) || err != nil {
+	if pnl := pos[2].GetRealisedPNL(); !pnl.Equal(decimal.NewFromFloat(0.0092)) {
 		t.Errorf("expected nil err, received '%v', expected 0.0092, received '%v'", err, pnl)
 	}
-	if pnl, err := pos[3].GetRealisedPNL(); !pnl.Equal(decimal.NewFromFloat(-0.0054)) || err != nil {
+	if pnl := pos[3].GetRealisedPNL(); !pnl.Equal(decimal.NewFromFloat(-0.0054)) {
 		t.Errorf("expected nil err, received '%v', expected -0.0054, received '%v'", err, pnl)
 	}
-	if pnl, err := pos[4].GetRealisedPNL(); !pnl.Equal(decimal.NewFromFloat(0.0387)) || err != nil {
+	if pnl := pos[4].GetRealisedPNL(); !pnl.Equal(decimal.NewFromFloat(0.0387)) {
 		t.Errorf("expected nil err, received '%v', expected 0.0387, received '%v'", err, pnl)
 	}
-	if pnl, err := pos[5].GetRealisedPNL(); !pnl.Equal(decimal.NewFromFloat(-0.0029)) || err != nil {
+	if pnl := pos[5].GetRealisedPNL(); !pnl.Equal(decimal.NewFromFloat(-0.0029)) {
 		t.Errorf("expected nil err, received '%v', expected -0.0029, received '%v'", err, pnl)
 	}
 }
@@ -1937,7 +1937,8 @@ func TestCalculatePNLFromOrders1(t *testing.T) {
 	}
 	positions := p.GetPositions()
 	for i := range positions {
-		t.Log(positions[i].GetLatestPNLSnapshot())
+		sn, _ := positions[i].GetLatestPNLSnapshot()
+		t.Logf("%v %v", sn.Time, positions[i].GetRealisedPNL())
 	}
 }
 
@@ -2003,6 +2004,6 @@ func TestCalculatePNLFromOrders3(t *testing.T) {
 		}
 	}
 	pos := p.GetPositions()
-	pnl, _ := pos[0].GetRealisedPNL()
+	pnl := pos[0].GetRealisedPNL()
 	t.Logf("%v", pnl)
 }

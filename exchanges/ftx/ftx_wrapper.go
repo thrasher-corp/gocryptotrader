@@ -1305,14 +1305,14 @@ func (f *FTX) CalculatePNL(pnl *order.PNLCalculator) (*order.PNLResult, error) {
 			}
 			if info.Positions[i].EntryPrice == pnl.ExchangeBasedCalculation.EntryPrice {
 				result.UnrealisedPNL = decimal.NewFromFloat(info.Positions[i].UnrealizedPNL)
-				result.RealisedPNL = decimal.NewFromFloat(info.Positions[i].RealizedPNL)
+				result.RealisedPNLBeforeFees = decimal.NewFromFloat(info.Positions[i].RealizedPNL)
 				result.Price = decimal.NewFromFloat(info.Positions[i].Cost)
 				return &result, nil
 			}
 		}
 	}
 	uPNL := pnl.ExchangeBasedCalculation.Amount * (pnl.ExchangeBasedCalculation.CurrentPrice - pnl.ExchangeBasedCalculation.PreviousPrice)
-	result.RealisedPNL = result.RealisedPNL.Add(result.UnrealisedPNL)
+	result.RealisedPNLBeforeFees = result.RealisedPNLBeforeFees.Add(result.UnrealisedPNL)
 	result.UnrealisedPNL = decimal.NewFromFloat(uPNL)
 	result.Price = decimal.NewFromFloat(pnl.ExchangeBasedCalculation.CurrentPrice)
 	return &result, nil

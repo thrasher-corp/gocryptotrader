@@ -179,10 +179,10 @@ type ExchangeBasedCalculation struct {
 
 // PNLResult stores pnl history at a point in time
 type PNLResult struct {
-	Time          time.Time
-	UnrealisedPNL decimal.Decimal
-	RealisedPNL   decimal.Decimal
-	Price         decimal.Decimal
-	Exposure      decimal.Decimal
-	Fee           decimal.Decimal
+	Time                  time.Time
+	UnrealisedPNL         decimal.Decimal
+	RealisedPNLBeforeFees decimal.Decimal
+	Price                 decimal.Decimal
+	Exposure              decimal.Decimal
+	Fee                   decimal.Decimal
 }
