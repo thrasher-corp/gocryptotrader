@@ -4106,3 +4106,81 @@ func (s *RPCServer) CurrencyStateTradingPair(_ context.Context, r *gctrpc.Curren
 		cp,
 		asset.Item(r.Asset))
 }
+
+// GetFuturesPositions returns pnl positions for an exchange asset pair
+func (s *RPCServer) GetFuturesPositions(_ context.Context, r *gctrpc.GetFuturesPositionsRequest) (*gctrpc.GetFuturesPositionsResponse, error) {
+	exch, err := s.GetExchangeByName(r.Exchange)
+	if err != nil {
+		return nil, err
+	}
+
+	cp, err := currency.NewPairFromString(r.Pair.String())
+	if err != nil {
+		return nil, err
+	}
+
+	a := asset.Item(r.Asset)
+	err = checkParams(r.Exchange, exch, a, cp)
+	if err != nil {
+		return nil, err
+	}
+
+	pos, err := s.OrderManager.orderStore.futuresPositionTrackers.GetPositionsForExchange(r.Exchange, a, cp)
+	if err != nil {
+		return nil, err
+	}
+	response := &gctrpc.GetFuturesPositionsResponse{}
+	for i := range pos {
+		stats := pos[i].GetStats()
+		response.TotalOrders += int64(len(stats.Orders))
+		details := &gctrpc.FuturePosition{
+			Status:           stats.Status.String(),
+			CurrentDirection: stats.LatestDirection.String(),
+			UnrealisedPNL:    stats.UnrealisedPNL.String(),
+			RealisedPNL:      stats.RealisedPNL.String(),
+		}
+		if len(stats.PNLHistory) > 0 {
+			details.OpeningDate = stats.PNLHistory[0].Time.Format(common.SimpleTimeFormatWithTimezone)
+			if stats.Status == order.Closed {
+				details.ClosingDate = stats.PNLHistory[len(stats.PNLHistory)-1].Time.Format(common.SimpleTimeFormatWithTimezone)
+			}
+		}
+		for j := range stats.Orders {
+			var trades []*gctrpc.TradeHistory
+			for k := range stats.Orders[j].Trades {
+				trades = append(trades, &gctrpc.TradeHistory{
+					CreationTime: stats.Orders[j].Trades[k].Timestamp.Unix(),
+					Id:           stats.Orders[j].Trades[k].TID,
+					Price:        stats.Orders[j].Trades[k].Price,
+					Amount:       stats.Orders[j].Trades[k].Amount,
+					Exchange:     stats.Orders[j].Trades[k].Exchange,
+					AssetType:    stats.Asset.String(),
+					OrderSide:    stats.Orders[j].Trades[k].Side.String(),
+					Fee:          stats.Orders[j].Trades[k].Fee,
+					Total:        stats.Orders[j].Trades[k].Total,
+				})
+			}
+			details.Orders = append(details.Orders, &gctrpc.OrderDetails{
+				Exchange:      stats.Orders[j].Exchange,
+				Id:            stats.Orders[j].ID,
+				ClientOrderId: stats.Orders[j].ClientOrderID,
+				BaseCurrency:  stats.Orders[j].Pair.Base.String(),
+				QuoteCurrency: stats.Orders[j].Pair.Quote.String(),
+				AssetType:     stats.Orders[j].AssetType.String(),
+				OrderSide:     stats.Orders[j].Side.String(),
+				OrderType:     stats.Orders[j].Type,
+				CreationTime:  stats.Orders[j].Date.Unix(),
+				UpdateTime:    stats.Orders[j].LastUpdated.Unix(),
+				Status:        stats.Orders[j].Status.String(),
+				Price:         stats.Orders[j].Price,
+				Amount:        stats.Orders[j].Amount,
+				Fee:           stats.Orders[j].Fee,
+				Cost:          stats.Orders[j].Cost,
+				Trades:        trades,
+			})
+		}
+		response.Positions = append(response.Positions, details)
+	}
+
+	return response, nil
+}

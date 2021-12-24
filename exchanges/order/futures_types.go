@@ -2,6 +2,7 @@ package order
 
 import (
 	"errors"
+	"sync"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -24,6 +25,8 @@ var (
 	errNilOrder                       = errors.New("nil order received")
 	errNoPNLHistory                   = errors.New("no pnl history")
 	errCannotCalculateUnrealisedPNL   = errors.New("cannot calculate unrealised PNL, order is not open")
+	errExchangeNotFound               = errors.New("exchange not found")
+	errAssetNotFound                  = errors.New("asset not found")
 
 	// ErrNilPNLCalculator is raised when pnl calculation is requested for
 	// an exchange, but the fields are not set properly
@@ -53,6 +56,7 @@ type CollateralManagement interface {
 // and so all you need to do is send all orders to
 // the position controller and its all tracked happily
 type PositionController struct {
+	m                          sync.Mutex
 	positionTrackerControllers map[string]map[asset.Item]map[currency.Pair]*MultiPositionTracker
 }
 
@@ -61,6 +65,7 @@ type PositionController struct {
 // is closed, then the position controller will create a new one
 // to track the current positions
 type MultiPositionTracker struct {
+	m          sync.Mutex
 	exchange   string
 	asset      asset.Item
 	pair       currency.Pair
@@ -95,6 +100,7 @@ type PositionControllerSetup struct {
 // completely within this position tracker, however, can still provide a good
 // timeline of performance until the position is closed
 type PositionTracker struct {
+	m                     sync.Mutex
 	exchange              string
 	asset                 asset.Item
 	contractPair          currency.Pair
@@ -175,6 +181,7 @@ type ExchangeBasedCalculation struct {
 	Time             time.Time
 	OrderID          string
 	Fee              decimal.Decimal
+	PNLHistory       []PNLResult
 }
 
 // PNLResult stores pnl history at a point in time
@@ -185,4 +192,22 @@ type PNLResult struct {
 	Price                 decimal.Decimal
 	Exposure              decimal.Decimal
 	Fee                   decimal.Decimal
+}
+
+// PositionStats is a basic holder
+// for position information
+type PositionStats struct {
+	Exchange         string
+	Asset            asset.Item
+	Pair             currency.Pair
+	Underlying       currency.Code
+	Orders           []Detail
+	RealisedPNL      decimal.Decimal
+	UnrealisedPNL    decimal.Decimal
+	LatestDirection  Side
+	Status           Status
+	OpeningDirection Side
+	OpeningPrice     decimal.Decimal
+	LatestPrice      decimal.Decimal
+	PNLHistory       []PNLResult
 }

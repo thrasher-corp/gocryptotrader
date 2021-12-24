@@ -63,12 +63,12 @@ func TestTrackPNL(t *testing.T) {
 func TestUpsertPNLEntry(t *testing.T) {
 	t.Parallel()
 	f := &PositionTracker{}
-	err := f.UpsertPNLEntry(PNLResult{})
+	err := f.upsertPNLEntry(PNLResult{})
 	if !errors.Is(err, errTimeUnset) {
 		t.Error(err)
 	}
 	tt := time.Now()
-	err = f.UpsertPNLEntry(PNLResult{Time: tt})
+	err = f.upsertPNLEntry(PNLResult{Time: tt})
 	if !errors.Is(err, nil) {
 		t.Error(err)
 	}
@@ -76,7 +76,7 @@ func TestUpsertPNLEntry(t *testing.T) {
 		t.Errorf("expected 1 received %v", len(f.pnlHistory))
 	}
 
-	err = f.UpsertPNLEntry(PNLResult{Time: tt})
+	err = f.upsertPNLEntry(PNLResult{Time: tt})
 	if !errors.Is(err, nil) {
 		t.Error(err)
 	}

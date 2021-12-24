@@ -1705,6 +1705,86 @@
         ]
       }
     },
+    "/v1/getfuturespositions": {
+      "get": {
+        "operationId": "GoCryptoTrader_GetFuturesPositions",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetFuturesPositionsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "asset",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.delimiter",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.base",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.quote",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "startDate",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "endDate",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "positionLimit",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "int64"
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
     "/v1/gethistoriccandles": {
       "get": {
         "operationId": "GoCryptoTrader_GetHistoricCandles",
@@ -3805,6 +3885,35 @@
         }
       }
     },
+    "gctrpcFuturePosition": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string"
+        },
+        "currentDirection": {
+          "type": "string"
+        },
+        "unrealisedPNL": {
+          "type": "string"
+        },
+        "realisedPNL": {
+          "type": "string"
+        },
+        "openingDate": {
+          "type": "string"
+        },
+        "closingDate": {
+          "type": "string"
+        },
+        "orders": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/gctrpcOrderDetails"
+          }
+        }
+      }
+    },
     "gctrpcGCTScript": {
       "type": "object",
       "properties": {
@@ -4177,6 +4286,21 @@
           "type": "array",
           "items": {
             "$ref": "#/definitions/gctrpcForexRatesConversion"
+          }
+        }
+      }
+    },
+    "gctrpcGetFuturesPositionsResponse": {
+      "type": "object",
+      "properties": {
+        "totalOrders": {
+          "type": "string",
+          "format": "int64"
+        },
+        "positions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/gctrpcFuturePosition"
           }
         }
       }

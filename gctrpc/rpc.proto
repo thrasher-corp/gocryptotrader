@@ -1023,6 +1023,32 @@ message CurrencyState {
     bool trading_enabled = 5;
 }
 
+message GetFuturesPositionsRequest {
+    string exchange =1;
+    string asset = 2;
+    CurrencyPair pair = 3;
+    string	start_date = 4;
+    string	end_date = 5;
+    int64 status = 6;
+    int64 positionLimit = 7;
+}
+
+
+message GetFuturesPositionsResponse {
+    int64 totalOrders = 1;
+    repeated FuturePosition positions = 2;
+}
+
+message FuturePosition {
+    string status = 1;
+    string currentDirection = 2;
+    string unrealisedPNL = 3;
+    string realisedPNL = 4;
+    string openingDate = 5;
+    string closingDate = 6;
+    repeated OrderDetails orders = 7;
+}
+
 service GoCryptoTrader {
     rpc GetInfo (GetInfoRequest) returns (GetInfoResponse) {
         option (google.api.http) = {
@@ -1610,6 +1636,11 @@ service GoCryptoTrader {
     rpc CurrencyStateTradingPair (CurrencyStateTradingPairRequest) returns (GenericResponse) {
         option (google.api.http) = {
             get: "/v1/currencystatetradingpair"
+        };
+    }
+    rpc GetFuturesPositions (GetFuturesPositionsRequest) returns (GetFuturesPositionsResponse) {
+        option (google.api.http) = {
+            get: "/v1/getfuturespositions"
         };
     }
 }
