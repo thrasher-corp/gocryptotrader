@@ -50,7 +50,7 @@ type Features struct {
 	// RequiresAuthenticationForTransferFees defines if the exchange needs
 	// authentication to fetch current transfer fees (withdraw/deposit).
 	RequiresAuthenticationForTransferFees bool `json:"requiresAuthenticationForTransferFees,omitempty"`
-	// TransferFeesAreInlined defines if the calls need to be done per request
-	// as the exchange does not provide rates for external calculations.
-	TransferFeesAreInlined bool `json:"TransferFeesAreInlined,omitempty"`
+	// TransferFeesRequireExternalCall defines if the calls need to be done per
+	// request as the exchange does not provide rates for external calculations.
+	TransferFeesRequireExternalCall bool `json:"transferFeesRequireExternalCall,omitempty"`
 }

@@ -119,7 +119,7 @@ func (f *FTX) SetDefaults() {
 				MultiChainWithdrawals:                 true,
 				RequiresAuthenticationForTradeFees:    true,
 				RequiresAuthenticationForTransferFees: true,
-				TransferFeesAreInlined:                true,
+				TransferFeesRequireExternalCall:       true,
 			},
 			WebsocketCapabilities: protocol.Features{
 				OrderbookFetching: true,
