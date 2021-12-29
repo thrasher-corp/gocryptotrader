@@ -574,6 +574,7 @@ type WsCoinWalletData struct {
 	WalletBalance    float64 `json:"wallet_balance"`
 	AvailableBalance float64 `json:"available_balance"`
 }
+
 type WsCoinWallet struct {
 	Topic string             `json:"topic"`
 	Data  []WsCoinWalletData `json:"data"`

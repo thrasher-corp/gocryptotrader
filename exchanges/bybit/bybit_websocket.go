@@ -37,10 +37,10 @@ const (
 	wsOrderStr       = "executionReport"
 	wsOrderFilledStr = "ticketInfo"
 
-	wsUpdate    = "update"
-	wsPartial   = "partial"
-	subscribe   = "sub"
-	unsubscribe = "cancel"
+	wsUpdate  = "update"
+	wsPartial = "partial"
+	sub       = "sub"    // event for subscribe
+	cancel    = "cancel" // event for unsubscribe
 )
 
 // WsConnect connects to a websocket feed
@@ -94,9 +94,9 @@ func (by *Bybit) WsAuth() error {
 func (by *Bybit) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
 	var errs common.Errors
 	for i := range channelsToSubscribe {
-		var sub WsReq
-		sub.Topic = channelsToSubscribe[i].Channel
-		sub.Event = subscribe
+		var subReq WsReq
+		subReq.Topic = channelsToSubscribe[i].Channel
+		subReq.Event = sub
 
 		a, err := by.GetPairAssetType(channelsToSubscribe[i].Currency)
 		if err != nil {
@@ -109,8 +109,8 @@ func (by *Bybit) Subscribe(channelsToSubscribe []stream.ChannelSubscription) err
 			errs = append(errs, err)
 			continue
 		}
-		sub.Symbol = formattedPair.String()
-		err = by.Websocket.Conn.SendJSONMessage(sub)
+		subReq.Symbol = formattedPair.String()
+		err = by.Websocket.Conn.SendJSONMessage(subReq)
 		if err != nil {
 			errs = append(errs, err)
 			continue
@@ -129,7 +129,7 @@ func (by *Bybit) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription)
 
 	for i := range channelsToUnsubscribe {
 		var unSub WsReq
-		unSub.Event = unsubscribe
+		unSub.Event = cancel
 		unSub.Topic = channelsToUnsubscribe[i].Channel
 
 		a, err := by.GetPairAssetType(channelsToUnsubscribe[i].Currency)
@@ -237,10 +237,10 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 	}
 
 	if method, ok := multiStreamData["event"].(string); ok {
-		if strings.EqualFold(method, subscribe) {
+		if strings.EqualFold(method, sub) {
 			return nil
 		}
-		if strings.EqualFold(method, unsubscribe) {
+		if strings.EqualFold(method, cancel) {
 			return nil
 		}
 	}

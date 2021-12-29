@@ -29,17 +29,19 @@ import (
 
 const (
 	wsCoinMarginedPath = "realtime"
-	coinSubscribe      = "subscribe"
-	coinUnsubscribe    = "unsubscribe"
+	subscribe          = "subscribe"
+	unsubscribe        = "unsubscribe"
 	dot                = "."
 
-	wsCoinOrder25           = "orderBookL2_25"
-	wsCoinOrder200          = "orderBook_200"
-	wsCoinTrade             = "trade"
-	wsCoinInsurance         = "insurance"
-	wsCoinInstrument        = "instrument_info"
-	wsCoinMarket            = "klineV2"
-	wsCoinLiquidation       = "liquidation"
+	// public endpoints
+	wsOrder25       = "orderBookL2_25"
+	wsOrder200      = "orderBook_200"
+	wsTrade         = "trade"
+	wsCoinInsurance = "insurance"
+	wsInstrument    = "instrument_info"
+	wsCoinMarket    = "klineV2"
+	wsLiquidation   = "liquidation"
+
 	wsOrderbookSnapshot     = "snapshot"
 	wsOrderbookDelta        = "delta"
 	wsOrderbookActionDelete = "delete"
@@ -47,6 +49,7 @@ const (
 	wsOrderbookActionInsert = "insert"
 	wsKlineV2               = "klineV2"
 
+	// private endpoints
 	wsCoinPosition  = "position"
 	wsCoinExecution = "execution"
 	wsCoinOrder     = "order"
@@ -114,7 +117,7 @@ func (by *Bybit) SubscribeCoin(channelsToSubscribe []stream.ChannelSubscription)
 	var errs common.Errors
 	for i := range channelsToSubscribe {
 		var sub WsCoinReq
-		sub.Topic = coinSubscribe
+		sub.Topic = subscribe
 
 		a, err := by.GetPairAssetType(channelsToSubscribe[i].Currency)
 		if err != nil {
@@ -155,7 +158,7 @@ func (by *Bybit) UnsubscribeCoin(channelsToUnsubscribe []stream.ChannelSubscript
 
 	for i := range channelsToUnsubscribe {
 		var unSub WsCoinReq
-		unSub.Topic = coinUnsubscribe
+		unSub.Topic = unsubscribe
 
 		a, err := by.GetPairAssetType(channelsToUnsubscribe[i].Currency)
 		if err != nil {
@@ -220,7 +223,7 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 
 		if wsType, ok := multiStreamData["type"].(string); ok {
 			switch topics[0] {
-			case wsCoinOrder25, wsCoinOrder200:
+			case wsOrder25, wsOrder200:
 				switch wsType {
 				case wsOrderbookSnapshot:
 					var response WsCoinOrderbook
@@ -396,7 +399,7 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 				}
 				by.Websocket.DataHandler <- response.Data
 
-			case wsCoinInstrument:
+			case wsInstrument:
 				var response WsCoinTicker
 				err := json.Unmarshal(respRaw, &response)
 				if err != nil {
@@ -418,11 +421,11 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 					Volume:       float64(response.Ticker.Volume24h),
 					Close:        response.Ticker.PrevPrice24h,
 					LastUpdated:  response.Ticker.UpdateAt,
-					AssetType:    asset.Spot,
+					AssetType:    asset.CoinMarginedFutures,
 					Pair:         p,
 				}
 
-			case wsCoinLiquidation:
+			case wsLiquidation:
 				var response WsCoinLiquidation
 				err = json.Unmarshal(respRaw, &response)
 				if err != nil {
