@@ -1280,7 +1280,7 @@ func (f *FTX) GetAvailableTransferChains(ctx context.Context, cryptocurrency cur
 // amount
 
 // CalculatePNL uses a high-tech algorithm to calculate your pnl
-func (f *FTX) CalculatePNL(pnl *order.PNLCalculator) (*order.PNLResult, error) {
+func (f *FTX) CalculatePNL(pnl *order.PNLCalculatorRequest) (*order.PNLResult, error) {
 	if pnl.ExchangeBasedCalculation == nil {
 		return nil, fmt.Errorf("%v %w", f.Name, order.ErrNilPNLCalculator)
 	}
@@ -1354,4 +1354,36 @@ func (f *FTX) CalculateTotalCollateral(collateralAssets []order.CollateralCalcul
 		result = result.Add(collateral)
 	}
 	return result, nil
+}
+
+func (f *FTX) GetFuturesPositions(a asset.Item, cp currency.Pair, start, end time.Time) ([]order.Detail, error) {
+	if !a.IsFutures() {
+		return nil, fmt.Errorf("%w futures asset type only", common.ErrFunctionNotSupported)
+	}
+	fills, err := f.GetFills(context.Background(), cp, "200", start, end)
+	if err != nil {
+		return nil, err
+	}
+	var resp []order.Detail
+	var side order.Side
+	for i := range fills {
+		price := fills[i].Price
+		side, err = order.StringToOrderSide(fills[i].Side)
+		if err != nil {
+			return nil, err
+		}
+		resp = append(resp, order.Detail{
+			Side:      side,
+			Pair:      cp,
+			ID:        fmt.Sprintf("%v", fills[i].ID),
+			Price:     price,
+			Amount:    fills[i].Size,
+			AssetType: a,
+			Exchange:  f.Name,
+			Fee:       fills[i].Fee,
+			Date:      fills[i].Time,
+		})
+	}
+
+	return resp, nil
 }

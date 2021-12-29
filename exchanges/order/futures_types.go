@@ -25,8 +25,9 @@ var (
 	errNilOrder                       = errors.New("nil order received")
 	errNoPNLHistory                   = errors.New("no pnl history")
 	errCannotCalculateUnrealisedPNL   = errors.New("cannot calculate unrealised PNL, order is not open")
-	errExchangeNotFound               = errors.New("exchange not found")
-	errAssetNotFound                  = errors.New("asset not found")
+	ErrPositionsNotLoadedForExchange  = errors.New("no positions loaded for exchange")
+	ErrPositionsNotLoadedForAsset     = errors.New("no positions loaded for asset")
+	ErrPositionsNotLoadedForPair      = errors.New("no positions loaded for pair")
 
 	// ErrNilPNLCalculator is raised when pnl calculation is requested for
 	// an exchange, but the fields are not set properly
@@ -39,7 +40,7 @@ var (
 // PNLCalculation is an interface to allow multiple
 // ways of calculating PNL to be used for futures positions
 type PNLCalculation interface {
-	CalculatePNL(*PNLCalculator) (*PNLResult, error)
+	CalculatePNL(*PNLCalculatorRequest) (*PNLResult, error)
 }
 
 // CollateralManagement is an interface that allows
@@ -147,9 +148,16 @@ type CollateralCalculator struct {
 	IsLiquidating      bool
 }
 
-// PNLCalculator is used to calculate PNL values
+type PNLCalculator struct{}
+
+// PNLCalculatorRequest is used to calculate PNL values
 // for an open position
-type PNLCalculator struct {
+type PNLCalculatorRequest struct {
+	OpeningDirection         Side
+	CurrentDirection         Side
+	Exposure                 decimal.Decimal
+	EntryPrice               decimal.Decimal
+	PNLHistory               []PNLResult
 	OrderBasedCalculation    *Detail
 	TimeBasedCalculation     *TimeBasedCalculation
 	ExchangeBasedCalculation *ExchangeBasedCalculation

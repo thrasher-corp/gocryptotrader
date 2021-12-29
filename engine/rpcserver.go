@@ -4113,8 +4113,7 @@ func (s *RPCServer) GetFuturesPositions(_ context.Context, r *gctrpc.GetFuturesP
 	if err != nil {
 		return nil, err
 	}
-
-	cp, err := currency.NewPairFromString(r.Pair.String())
+	cp, err := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
 	if err != nil {
 		return nil, err
 	}
@@ -4124,10 +4123,47 @@ func (s *RPCServer) GetFuturesPositions(_ context.Context, r *gctrpc.GetFuturesP
 	if err != nil {
 		return nil, err
 	}
+	var start, end time.Time
+	if r.StartDate != "" {
+		start, err = time.Parse(common.SimpleTimeFormat, r.StartDate)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if r.EndDate != "" {
+		end, err = time.Parse(common.SimpleTimeFormat, r.EndDate)
+		if err != nil {
+			return nil, err
+		}
+	}
+	err = common.StartEndTimeCheck(start, end)
+	if err != nil {
+		return nil, err
+	}
 
 	pos, err := s.OrderManager.orderStore.futuresPositionTrackers.GetPositionsForExchange(r.Exchange, a, cp)
 	if err != nil {
-		return nil, err
+		if errors.Is(err, order.ErrPositionsNotLoadedForExchange) ||
+			errors.Is(err, order.ErrPositionsNotLoadedForAsset) ||
+			errors.Is(err, order.ErrPositionsNotLoadedForPair) {
+			var orders []order.Detail
+			orders, err = exch.GetFuturesPositions(a, cp, start, end)
+			if err != nil {
+				return nil, err
+			}
+			for i := range orders {
+				err = s.OrderManager.orderStore.futuresPositionTrackers.TrackNewOrder(&orders[i])
+				if err != nil {
+					return nil, err
+				}
+			}
+			pos, err = s.OrderManager.orderStore.futuresPositionTrackers.GetPositionsForExchange(r.Exchange, a, cp)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			return nil, err
+		}
 	}
 	response := &gctrpc.GetFuturesPositionsResponse{}
 	for i := range pos {
@@ -4168,7 +4204,7 @@ func (s *RPCServer) GetFuturesPositions(_ context.Context, r *gctrpc.GetFuturesP
 				QuoteCurrency: stats.Orders[j].Pair.Quote.String(),
 				AssetType:     stats.Orders[j].AssetType.String(),
 				OrderSide:     stats.Orders[j].Side.String(),
-				OrderType:     stats.Orders[j].Type,
+				OrderType:     stats.Orders[j].Type.String(),
 				CreationTime:  stats.Orders[j].Date.Unix(),
 				UpdateTime:    stats.Orders[j].LastUpdated.Unix(),
 				Status:        stats.Orders[j].Status.String(),

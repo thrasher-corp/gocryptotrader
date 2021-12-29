@@ -17,7 +17,7 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-var startTime, endTime, order string
+var startTime, endTime, o string
 var limit int
 
 var getInfoCommand = &cli.Command{
@@ -3742,7 +3742,7 @@ var getAuditEventCommand = &cli.Command{
 			Aliases:     []string{"o"},
 			Usage:       "order results by ascending/descending",
 			Value:       "asc",
-			Destination: &order,
+			Destination: &o,
 		},
 		&cli.IntFlag{
 			Name:        "limit",
@@ -3769,7 +3769,7 @@ func getAuditEvent(c *cli.Context) error {
 
 	if !c.IsSet("order") {
 		if c.Args().Get(2) != "" {
-			order = c.Args().Get(2)
+			o = c.Args().Get(2)
 		}
 	}
 
@@ -3810,7 +3810,7 @@ func getAuditEvent(c *cli.Context) error {
 			StartDate: negateLocalOffset(s),
 			EndDate:   negateLocalOffset(e),
 			Limit:     int32(limit),
-			OrderBy:   order,
+			OrderBy:   o,
 		})
 
 	if err != nil {
@@ -4736,4 +4736,180 @@ func negateLocalOffset(t time.Time) string {
 	loc := time.FixedZone("", -offset)
 
 	return t.In(loc).Format(common.SimpleTimeFormat)
+}
+
+func getFuturesPositions(c *cli.Context) error {
+	/*
+		Exchange
+		Asset
+		Pair
+		StartDate
+		EndDate
+		Status
+		PositionLimit
+	*/
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		return cli.ShowCommandHelp(c, "getfuturesposition")
+	}
+
+	var exchangeName string
+	if c.IsSet("exchange") {
+		exchangeName = c.String("exchange")
+	} else {
+		exchangeName = c.Args().First()
+	}
+
+	var assetType string
+	if c.IsSet("asset") {
+		assetType = c.String("asset")
+	} else {
+		assetType = c.Args().Get(1)
+	}
+
+	if !validAsset(assetType) {
+		return errInvalidAsset
+	}
+
+	var currencyPair string
+	if c.IsSet("pair") {
+		currencyPair = c.String("pair")
+	} else {
+		currencyPair = c.Args().Get(2)
+	}
+	if !validPair(currencyPair) {
+		return errInvalidPair
+	}
+
+	p, err := currency.NewPairDelimiter(currencyPair, pairDelimiter)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("%v", currencyPair)
+	fmt.Printf("%v", p)
+
+	if !c.IsSet("start") {
+		if c.Args().Get(3) != "" {
+			startTime = c.Args().Get(3)
+		}
+	}
+
+	if !c.IsSet("end") {
+		if c.Args().Get(4) != "" {
+			endTime = c.Args().Get(4)
+		}
+	}
+	var limit64 int64
+	if c.IsSet("limit") {
+		limit64 = c.Int64("limit")
+	} else if c.Args().Get(5) != "" {
+		limit64, err = strconv.ParseInt(c.Args().Get(5), 10, 64)
+		if err != nil {
+			return err
+		}
+	}
+
+	var status string
+	if c.IsSet("status") {
+		status = c.String("status")
+	} else if c.Args().Get(6) != "" {
+		status = c.Args().Get(6)
+	}
+	if !strings.EqualFold(status, "any") &&
+		!strings.EqualFold(status, "open") &&
+		!strings.EqualFold(status, "closed") &&
+		status != "" {
+		return errors.New("unrecognised status")
+	}
+
+	var s, e time.Time
+	s, err = time.Parse(common.SimpleTimeFormat, startTime)
+	if err != nil {
+		return fmt.Errorf("invalid time format for start: %v", err)
+	}
+	e, err = time.Parse(common.SimpleTimeFormat, endTime)
+	if err != nil {
+		return fmt.Errorf("invalid time format for end: %v", err)
+	}
+
+	if e.Before(s) {
+		return errors.New("start cannot be after end")
+	}
+
+	conn, cancel, err := setupClient(c)
+	if err != nil {
+		return err
+	}
+	defer closeConn(conn, cancel)
+
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+	result, err := client.GetFuturesPositions(c.Context,
+		&gctrpc.GetFuturesPositionsRequest{
+			Exchange: exchangeName,
+			Asset:    assetType,
+			Pair: &gctrpc.CurrencyPair{
+				Delimiter: p.Delimiter,
+				Base:      p.Base.String(),
+				Quote:     p.Quote.String(),
+			},
+			StartDate:     negateLocalOffset(s),
+			EndDate:       negateLocalOffset(e),
+			Status:        status,
+			PositionLimit: limit64,
+		})
+	if err != nil {
+		return err
+	}
+
+	jsonOutput(result)
+	return nil
+}
+
+var getFuturesPositionsCommand = &cli.Command{
+	Name:      "getfuturesposition",
+	Usage:     "will retrieve all futures positions in a timeframe, then calculate PNL based on that. Note, the dates have an impact on PNL calculations, ensure your start date is not after a new position is opened",
+	ArgsUsage: "<exchange> <pair> <asset> <interval> <start> <end>",
+	Action:    getFuturesPositions,
+	Flags: []cli.Flag{
+		&cli.StringFlag{
+			Name:    "exchange",
+			Aliases: []string{"e"},
+			Usage:   "the exchange to find the missing candles",
+		},
+		&cli.StringFlag{
+			Name:    "asset",
+			Aliases: []string{"a"},
+			Usage:   "the asset type of the currency pair",
+		},
+		&cli.StringFlag{
+			Name:    "pair",
+			Aliases: []string{"p"},
+			Usage:   "the currency pair",
+		},
+		&cli.StringFlag{
+			Name:        "start",
+			Aliases:     []string{"sd"},
+			Usage:       "<start> rounded down to the nearest hour",
+			Value:       time.Now().AddDate(-1, 0, 0).Truncate(time.Hour).Format(common.SimpleTimeFormat),
+			Destination: &startTime,
+		},
+		&cli.StringFlag{
+			Name:        "end",
+			Aliases:     []string{"ed"},
+			Usage:       "<end> rounded down to the nearest hour",
+			Value:       time.Now().Truncate(time.Hour).Format(common.SimpleTimeFormat),
+			Destination: &endTime,
+		},
+		&cli.Int64Flag{
+			Name:    "limit",
+			Aliases: []string{"l"},
+			Usage:   "the number of positions (not orders) to return",
+			Value:   86400,
+		},
+		&cli.StringFlag{
+			Name:    "status",
+			Aliases: []string{"s"},
+			Usage:   "limit return to position statuses - open, closed, any",
+			Value:   "ANY",
+		},
+	},
 }

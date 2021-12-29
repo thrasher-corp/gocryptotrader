@@ -163,6 +163,7 @@ func main() {
 		tradeCommand,
 		dataHistoryCommands,
 		currencyStateManagementCommand,
+		getFuturesPositionsCommand,
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())

@@ -840,13 +840,17 @@ func (f *FTX) DeleteTriggerOrder(ctx context.Context, orderID string) (string, e
 }
 
 // GetFills gets fills' data
-func (f *FTX) GetFills(ctx context.Context, market, limit string, startTime, endTime time.Time) ([]FillsData, error) {
+func (f *FTX) GetFills(ctx context.Context, market currency.Pair, limit string, startTime, endTime time.Time) ([]FillsData, error) {
 	resp := struct {
 		Data []FillsData `json:"result"`
 	}{}
 	params := url.Values{}
-	if market != "" {
-		params.Set("market", market)
+	if !market.IsEmpty() {
+		fp, err := f.FormatExchangeCurrency(market, asset.Futures)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("market", fp.String())
 	}
 	if limit != "" {
 		params.Set("limit", limit)

@@ -15,7 +15,7 @@ type FakePNL struct {
 	result *PNLResult
 }
 
-func (f *FakePNL) CalculatePNL(*PNLCalculator) (*PNLResult, error) {
+func (f *FakePNL) CalculatePNL(*PNLCalculatorRequest) (*PNLResult, error) {
 	if f.err != nil {
 		return nil, f.err
 	}
@@ -454,12 +454,12 @@ func TestCalculatePNL(t *testing.T) {
 		t.Error(err)
 	}
 
-	_, err = pt.CalculatePNL(&PNLCalculator{})
+	_, err = pt.CalculatePNL(&PNLCalculatorRequest{})
 	if !errors.Is(err, errMissingPNLCalculationFunctions) {
 		t.Error(err)
 	}
 	tt := time.Now()
-	result, err := pt.CalculatePNL(&PNLCalculator{
+	result, err := pt.CalculatePNL(&PNLCalculatorRequest{
 		TimeBasedCalculation: &TimeBasedCalculation{
 			Time:         tt,
 			CurrentPrice: 1337,
@@ -474,7 +474,7 @@ func TestCalculatePNL(t *testing.T) {
 
 	pt.status = Open
 	pt.currentDirection = Long
-	result, err = pt.CalculatePNL(&PNLCalculator{
+	result, err = pt.CalculatePNL(&PNLCalculatorRequest{
 		OrderBasedCalculation: &Detail{
 			Date:      tt,
 			Price:     1337,
@@ -491,7 +491,7 @@ func TestCalculatePNL(t *testing.T) {
 	}
 
 	pt.exposure = decimal.NewFromInt(5)
-	result, err = pt.CalculatePNL(&PNLCalculator{
+	result, err = pt.CalculatePNL(&PNLCalculatorRequest{
 		OrderBasedCalculation: &Detail{
 			Date:      tt,
 			Price:     1337,

@@ -1467,7 +1467,7 @@ func (b *Base) GetAvailableTransferChains(_ context.Context, _ currency.Code) ([
 // It will also determine whether the position is considered to be liquidated
 // for live trading, an overrided function may wish to confirm the liquidation by
 // requesting the status of the asset
-func (b *Base) CalculatePNL(*order.PNLCalculator) (*order.PNLResult, error) {
+func (b *Base) CalculatePNL(*order.PNLCalculatorRequest) (*order.PNLResult, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -1482,4 +1482,8 @@ func (b *Base) ScaleCollateral(*order.CollateralCalculator) (decimal.Decimal, er
 
 func (b *Base) CalculateTotalCollateral([]order.CollateralCalculator) (decimal.Decimal, error) {
 	return decimal.Zero, common.ErrNotYetImplemented
+}
+
+func (b *Base) GetFuturesPositions(asset.Item, currency.Pair, time.Time, time.Time) ([]order.Detail, error) {
+	return nil, common.ErrNotYetImplemented
 }

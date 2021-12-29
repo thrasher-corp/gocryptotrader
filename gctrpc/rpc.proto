@@ -1029,7 +1029,7 @@ message GetFuturesPositionsRequest {
     CurrencyPair pair = 3;
     string	start_date = 4;
     string	end_date = 5;
-    int64 status = 6;
+    string status = 6;
     int64 positionLimit = 7;
 }
 
