@@ -143,11 +143,11 @@ func TestAccount_ValidateForWithdrawal(t *testing.T) {
 func TestSetAccounts(t *testing.T) {
 	t.Parallel()
 	SetAccounts()
-	if len(accounts) != 0 {
+	if getLengthOfAccounts() != 0 {
 		t.Error("expected 0")
 	}
 	SetAccounts(validAccount, invalidAccount)
-	if len(accounts) != 2 {
+	if getLengthOfAccounts() != 2 {
 		t.Error("expected 2")
 	}
 }
@@ -155,15 +155,15 @@ func TestSetAccounts(t *testing.T) {
 func TestAppendAccounts(t *testing.T) {
 	t.Parallel()
 	SetAccounts()
-	if len(accounts) != 0 {
+	if getLengthOfAccounts() != 0 {
 		t.Error("expected 0")
 	}
 	AppendAccounts(validAccount, invalidAccount)
-	if len(accounts) != 2 {
+	if getLengthOfAccounts() != 2 {
 		t.Error("expected 2")
 	}
 	AppendAccounts(validAccount, invalidAccount)
-	if len(accounts) != 2 {
+	if getLengthOfAccounts() != 2 {
 		t.Error("expected 2")
 	}
 }
@@ -176,4 +176,10 @@ func TestIsEmpty(t *testing.T) {
 	if validAccount.IsEmpty() {
 		t.Fatalf("received: '%v', but expected: '%v'", validAccount.IsEmpty(), false)
 	}
+}
+
+func getLengthOfAccounts() int {
+	m.Lock()
+	defer m.Unlock()
+	return len(accounts)
 }
