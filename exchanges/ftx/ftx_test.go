@@ -226,9 +226,22 @@ func TestGetFuture(t *testing.T) {
 
 func TestGetFutureStats(t *testing.T) {
 	t.Parallel()
-	_, err := f.GetFutureStats(context.Background(), "BTC-PERP")
+	perp, err := f.GetFutureStats(context.Background(), "BTC-PERP")
 	if err != nil {
 		t.Error(err)
+	}
+
+	if perp.Greeks != nil {
+		t.Fatal("greeks should not be contained in perpetual")
+	}
+
+	f, err := f.GetFutureStats(context.Background(), "BTC-MOVE-2021Q4")
+	if err != nil {
+		t.Error(err)
+	}
+
+	if f.Greeks == nil {
+		t.Fatal("no greeks returned for futures contract")
 	}
 }
 
