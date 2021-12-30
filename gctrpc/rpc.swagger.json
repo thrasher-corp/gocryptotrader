@@ -1777,6 +1777,12 @@
             "required": false,
             "type": "string",
             "format": "int64"
+          },
+          {
+            "name": "verbose",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
           }
         ],
         "tags": [
@@ -4295,6 +4301,18 @@
         "totalOrders": {
           "type": "string",
           "format": "int64"
+        },
+        "totalRealisedPNL": {
+          "type": "number",
+          "format": "double"
+        },
+        "totalUnrealisedPNL": {
+          "type": "number",
+          "format": "double"
+        },
+        "totalPNL": {
+          "type": "number",
+          "format": "double"
         },
         "positions": {
           "type": "array",

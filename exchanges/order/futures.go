@@ -34,27 +34,28 @@ func (c *PositionController) TrackNewOrder(d *Detail) error {
 		return common.ErrNilPointer
 	}
 	c.m.Lock()
+	defer c.m.Unlock()
 	if _, ok := c.positionTrackerControllers[strings.ToLower(d.Exchange)]; !ok {
 		c.positionTrackerControllers[strings.ToLower(d.Exchange)] = make(map[asset.Item]map[currency.Pair]*MultiPositionTracker)
 	}
 	if _, ok := c.positionTrackerControllers[strings.ToLower(d.Exchange)][d.AssetType]; !ok {
 		c.positionTrackerControllers[strings.ToLower(d.Exchange)][d.AssetType] = make(map[currency.Pair]*MultiPositionTracker)
 	}
-	if _, ok := c.positionTrackerControllers[strings.ToLower(d.Exchange)][d.AssetType][d.Pair]; !ok {
-		ptc, err := SetupMultiPositionTracker(&PositionControllerSetup{
+	var err error
+	mpt, ok := c.positionTrackerControllers[strings.ToLower(d.Exchange)][d.AssetType][d.Pair]
+	if !ok {
+		mpt, err = SetupMultiPositionTracker(&PositionControllerSetup{
 			Exchange:   strings.ToLower(d.Exchange),
 			Asset:      d.AssetType,
 			Pair:       d.Pair,
 			Underlying: d.Pair.Base,
 		})
 		if err != nil {
-			c.m.Unlock()
 			return err
 		}
-		c.positionTrackerControllers[strings.ToLower(d.Exchange)][d.AssetType][d.Pair] = ptc
+		c.positionTrackerControllers[strings.ToLower(d.Exchange)][d.AssetType][d.Pair] = mpt
 	}
-	c.m.Unlock()
-	return c.positionTrackerControllers[strings.ToLower(d.Exchange)][d.AssetType][d.Pair].TrackNewOrder(d)
+	return mpt.TrackNewOrder(d)
 }
 
 func (c *PositionController) GetPositionsForExchange(exch string, item asset.Item, pair currency.Pair) ([]*PositionTracker, error) {
@@ -147,7 +148,7 @@ func (e *MultiPositionTracker) TrackNewOrder(d *Detail) error {
 		}
 		if e.positions[len(e.positions)-1].status == Open {
 			err := e.positions[len(e.positions)-1].TrackNewOrder(d)
-			if err != nil && !errors.Is(err, errPositionClosed) {
+			if err != nil && !errors.Is(err, ErrPositionClosed) {
 				return err
 			}
 			e.orderPositions[d.ID] = e.positions[len(e.positions)-1]
@@ -243,25 +244,25 @@ func (p *PositionTracker) TrackPNLByTime(t time.Time, currentPrice float64) erro
 	if p == nil {
 		return common.ErrNilPointer
 	}
+	p.m.Lock()
 	defer func() {
 		p.latestPrice = decimal.NewFromFloat(currentPrice)
+		p.m.Unlock()
 	}()
-	pnl, err := p.PNLCalculation.CalculatePNL(&PNLCalculatorRequest{
-		TimeBasedCalculation: &TimeBasedCalculation{
-			Time:         t,
-			CurrentPrice: currentPrice,
-		},
-	})
-	if err != nil {
-		return err
+	price := decimal.NewFromFloat(currentPrice)
+	result := &PNLResult{
+		Time:  t,
+		Price: price,
 	}
-	p.m.Lock()
-	defer p.m.Unlock()
-	p.pnlHistory, err = p.upsertPNLEntry(p.pnlHistory, &PNLResult{
-		Time:                  pnl.Time,
-		UnrealisedPNL:         pnl.UnrealisedPNL,
-		RealisedPNLBeforeFees: pnl.RealisedPNLBeforeFees,
-	})
+	diff := price.Sub(p.entryPrice)
+	result.UnrealisedPNL = p.exposure.Mul(diff)
+	result.Price = price
+	if len(p.pnlHistory) > 0 {
+		result.RealisedPNLBeforeFees = p.pnlHistory[len(p.pnlHistory)-1].RealisedPNLBeforeFees
+		result.Exposure = p.pnlHistory[len(p.pnlHistory)-1].Exposure
+	}
+	var err error
+	p.pnlHistory, err = upsertPNLEntry(p.pnlHistory, result)
 	return err
 }
 
@@ -291,7 +292,7 @@ func (p *PositionTracker) TrackNewOrder(d *Detail) error {
 	p.m.Lock()
 	defer p.m.Unlock()
 	if p.status == Closed {
-		return errPositionClosed
+		return ErrPositionClosed
 	}
 	if d == nil {
 		return ErrSubmissionIsNil
@@ -358,34 +359,83 @@ func (p *PositionTracker) TrackNewOrder(d *Detail) error {
 
 	var result *PNLResult
 	var err error
-	if p.useExchangePNLCalculation {
-		cal := &ExchangeBasedCalculation{
-			Underlying:   p.underlyingAsset,
-			Asset:        p.asset,
-			Side:         d.Side,
-			Leverage:     d.Leverage,
-			EntryPrice:   p.entryPrice.InexactFloat64(),
-			Amount:       d.Amount,
-			CurrentPrice: d.Price,
-			Pair:         p.contractPair,
-			Time:         d.Date,
-		}
-		if len(p.pnlHistory) != 0 {
-			cal.PreviousPrice = p.pnlHistory[len(p.pnlHistory)-1].Price.InexactFloat64()
-		}
-		result, err = p.PNLCalculation.CalculatePNL(&PNLCalculatorRequest{ExchangeBasedCalculation: cal})
-	} else {
-		result, err = p.PNLCalculation.CalculatePNL(&PNLCalculatorRequest{OrderBasedCalculation: d})
+	cal := &PNLCalculatorRequest{
+		Underlying:       p.underlyingAsset,
+		Asset:            p.asset,
+		OrderDirection:   d.Side,
+		Leverage:         d.Leverage,
+		EntryPrice:       p.entryPrice.InexactFloat64(),
+		Amount:           d.Amount,
+		CurrentPrice:     d.Price,
+		Pair:             p.contractPair,
+		Time:             d.Date,
+		OpeningDirection: p.openingDirection,
+		CurrentDirection: p.currentDirection,
+		PNLHistory:       p.pnlHistory,
+		Exposure:         p.exposure,
+		Fee:              decimal.NewFromFloat(d.Fee),
 	}
-	if err != nil {
-		if !errors.Is(err, ErrPositionLiquidated) {
+	if len(p.pnlHistory) != 0 {
+		cal.PreviousPrice = p.pnlHistory[len(p.pnlHistory)-1].Price.InexactFloat64()
+	}
+	amount := decimal.NewFromFloat(d.Amount)
+	if (cal.OrderDirection.IsShort() && cal.CurrentDirection.IsLong() || cal.OrderDirection.IsLong() && cal.CurrentDirection.IsShort()) &&
+		cal.Exposure.LessThan(amount) {
+		// latest order swaps directions!
+		// split the order to calculate PNL from each direction
+		first := amount.Sub(cal.Exposure)
+		second := cal.Exposure.Sub(amount).Abs()
+		cal.Fee = cal.Fee.Div(decimal.NewFromInt(2))
+		result, err = createPNLResult(
+			cal.Time,
+			cal.OrderDirection,
+			first,
+			decimal.NewFromFloat(d.Price),
+			cal.Fee,
+			cal.OpeningDirection,
+			cal.CurrentDirection,
+			cal.PNLHistory)
+		if err != nil {
 			return err
 		}
-		result.UnrealisedPNL = decimal.Zero
-		result.RealisedPNLBeforeFees = decimal.Zero
-		p.status = Closed
+		p.pnlHistory, err = upsertPNLEntry(cal.PNLHistory, result)
+		if err != nil {
+			return err
+		}
+
+		if cal.OrderDirection.IsLong() {
+			cal.OrderDirection = Short
+		} else if cal.OrderDirection.IsShort() {
+			cal.OrderDirection = Long
+		}
+		if cal.OpeningDirection.IsLong() {
+			cal.OpeningDirection = Short
+		} else if cal.OpeningDirection.IsShort() {
+			cal.OpeningDirection = Long
+		}
+
+		cal.EntryPrice = d.Price
+		result, err = createPNLResult(
+			cal.Time.Add(1),
+			cal.OrderDirection,
+			second,
+			decimal.NewFromFloat(d.Price),
+			cal.Fee,
+			cal.OpeningDirection,
+			cal.CurrentDirection,
+			cal.PNLHistory)
+	} else {
+		result, err = p.PNLCalculation.CalculatePNL(cal)
+		if err != nil {
+			if !errors.Is(err, ErrPositionLiquidated) {
+				return err
+			}
+			result.UnrealisedPNL = decimal.Zero
+			result.RealisedPNLBeforeFees = decimal.Zero
+			p.status = Closed
+		}
 	}
-	p.pnlHistory, err = p.upsertPNLEntry(p.pnlHistory, result)
+	p.pnlHistory, err = upsertPNLEntry(p.pnlHistory, result)
 	if err != nil {
 		return err
 	}
@@ -407,6 +457,7 @@ func (p *PositionTracker) TrackNewOrder(d *Detail) error {
 		p.status = Closed
 		p.closingPrice = decimal.NewFromFloat(d.Price)
 		p.realisedPNL = p.calculateRealisedPNL(p.pnlHistory)
+		p.unrealisedPNL = decimal.Zero
 	} else if p.exposure.IsNegative() {
 		if p.currentDirection.IsLong() {
 			p.currentDirection = Short
@@ -427,92 +478,23 @@ func (p *PNLCalculator) CalculatePNL(calc *PNLCalculatorRequest) (*PNLResult, er
 	if calc == nil {
 		return nil, ErrNilPNLCalculator
 	}
-	result := &PNLResult{}
 	var price, amount decimal.Decimal
-	var err error
-	if calc.OrderBasedCalculation != nil {
-		price = decimal.NewFromFloat(calc.OrderBasedCalculation.Price)
-		amount = decimal.NewFromFloat(calc.OrderBasedCalculation.Amount)
-		fee := decimal.NewFromFloat(calc.OrderBasedCalculation.Fee)
-		// seperate this out for before here, to do this twice
-		if (calc.CurrentDirection.IsShort() && calc.OrderBasedCalculation.Side.IsLong() || calc.CurrentDirection.IsLong() && calc.OrderBasedCalculation.Side.IsShort()) &&
-			calc.Exposure.LessThan(amount) {
-
-			// latest order swaps directions!
-			first := amount.Sub(calc.Exposure)
-			second := calc.Exposure.Sub(amount).Abs()
-			fee = fee.Div(decimal.NewFromInt(2))
-			result, err = createPNLResult(
-				calc.OrderBasedCalculation.Date,
-				calc.OrderBasedCalculation.Side,
-				first,
-				price,
-				fee,
-				calc.OpeningDirection,
-				calc.CurrentDirection,
-				calc.PNLHistory)
-			if err != nil {
-				return nil, err
-			}
-			p.pnlHistory, err = p.upsertPNLEntry(calc.PNLHistory, result)
-			if err != nil {
-				return nil, err
-			}
-
-			if calc.OrderBasedCalculation.Side.IsLong() {
-				calc.OrderBasedCalculation.Side = Short
-			} else if calc.OrderBasedCalculation.Side.IsShort() {
-				calc.OrderBasedCalculation.Side = Long
-			}
-			if calc.OpeningDirection.IsLong() {
-				calc.OpeningDirection = Short
-			} else if calc.OpeningDirection.IsShort() {
-				calc.OpeningDirection = Long
-			}
-
-			calc.EntryPrice = price
-			result, err = createPNLResult(
-				calc.OrderBasedCalculation.Date.Add(1),
-				calc.OrderBasedCalculation.Side,
-				second,
-				price,
-				fee,
-				calc.OpeningDirection,
-				calc.CurrentDirection,
-				calc.PNLHistory)
-			if err != nil {
-				return nil, err
-			}
-			return result, nil
-		}
-		result, err = createPNLResult(
-			calc.OrderBasedCalculation.Date,
-			calc.OrderBasedCalculation.Side,
-			amount,
-			price,
-			fee,
-			calc.OpeningDirection,
-			calc.CurrentDirection,
-			calc.PNLHistory)
-		if err != nil {
-			return nil, err
-		}
-
-		return result, nil
-	} else if calc.TimeBasedCalculation != nil {
-		result.Time = calc.TimeBasedCalculation.Time
-		price = decimal.NewFromFloat(calc.TimeBasedCalculation.CurrentPrice)
-		diff := price.Sub(calc.EntryPrice)
-		result.UnrealisedPNL = calc.Exposure.Mul(diff)
-		result.Price = price
-		if len(calc.PNLHistory) > 0 {
-			result.RealisedPNLBeforeFees = calc.PNLHistory[len(calc.PNLHistory)-1].RealisedPNLBeforeFees
-			result.Exposure = calc.PNLHistory[len(calc.PNLHistory)-1].Exposure
-		}
-		return result, nil
+	price = decimal.NewFromFloat(calc.CurrentPrice)
+	amount = decimal.NewFromFloat(calc.Amount)
+	result, err := createPNLResult(
+		calc.Time,
+		calc.OrderDirection,
+		amount,
+		price,
+		calc.Fee,
+		calc.OpeningDirection,
+		calc.CurrentDirection,
+		calc.PNLHistory)
+	if err != nil {
+		return nil, err
 	}
 
-	return nil, errMissingPNLCalculationFunctions
+	return result, nil
 }
 
 func createPNLResult(t time.Time, side Side, amount, price, fee decimal.Decimal, openingDirection, currentDirection Side, pnlHistory []PNLResult) (*PNLResult, error) {
@@ -586,7 +568,7 @@ func (p *PositionTracker) calculateRealisedPNL(pnlHistory []PNLResult) decimal.D
 
 // upsertPNLEntry upserts an entry to PNLHistory field
 // with some basic checks
-func (p *PositionTracker) upsertPNLEntry(pnlHistory []PNLResult, entry *PNLResult) ([]PNLResult, error) {
+func upsertPNLEntry(pnlHistory []PNLResult, entry *PNLResult) ([]PNLResult, error) {
 	if entry.Time.IsZero() {
 		return nil, errTimeUnset
 	}

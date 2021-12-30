@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -4141,32 +4142,30 @@ func (s *RPCServer) GetFuturesPositions(_ context.Context, r *gctrpc.GetFuturesP
 		return nil, err
 	}
 
+	orders, err := exch.GetFuturesPositions(a, cp, start, end)
+	if err != nil {
+		return nil, err
+	}
+	sort.Slice(orders, func(i, j int) bool {
+		return orders[i].Date.Before(orders[j].Date)
+	})
+	for i := range orders {
+		err = s.OrderManager.orderStore.futuresPositionTrackers.TrackNewOrder(&orders[i])
+		if err != nil {
+			if !errors.Is(err, order.ErrPositionClosed) {
+				return nil, err
+			}
+		}
+	}
 	pos, err := s.OrderManager.orderStore.futuresPositionTrackers.GetPositionsForExchange(r.Exchange, a, cp)
 	if err != nil {
-		if errors.Is(err, order.ErrPositionsNotLoadedForExchange) ||
-			errors.Is(err, order.ErrPositionsNotLoadedForAsset) ||
-			errors.Is(err, order.ErrPositionsNotLoadedForPair) {
-			var orders []order.Detail
-			orders, err = exch.GetFuturesPositions(a, cp, start, end)
-			if err != nil {
-				return nil, err
-			}
-			for i := range orders {
-				err = s.OrderManager.orderStore.futuresPositionTrackers.TrackNewOrder(&orders[i])
-				if err != nil {
-					return nil, err
-				}
-			}
-			pos, err = s.OrderManager.orderStore.futuresPositionTrackers.GetPositionsForExchange(r.Exchange, a, cp)
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			return nil, err
-		}
+		return nil, err
 	}
 	response := &gctrpc.GetFuturesPositionsResponse{}
 	for i := range pos {
+		if r.PositionLimit > 0 && len(response.Positions) >= int(r.PositionLimit) {
+			break
+		}
 		stats := pos[i].GetStats()
 		response.TotalOrders += int64(len(stats.Orders))
 		details := &gctrpc.FuturePosition{
@@ -4180,6 +4179,12 @@ func (s *RPCServer) GetFuturesPositions(_ context.Context, r *gctrpc.GetFuturesP
 			if stats.Status == order.Closed {
 				details.ClosingDate = stats.PNLHistory[len(stats.PNLHistory)-1].Time.Format(common.SimpleTimeFormatWithTimezone)
 			}
+		}
+		response.TotalRealisedPNL += stats.RealisedPNL.InexactFloat64()
+		response.TotalUnrealisedPNL += stats.UnrealisedPNL.InexactFloat64()
+		if !r.Verbose {
+			response.Positions = append(response.Positions, details)
+			continue
 		}
 		for j := range stats.Orders {
 			var trades []*gctrpc.TradeHistory
@@ -4217,6 +4222,6 @@ func (s *RPCServer) GetFuturesPositions(_ context.Context, r *gctrpc.GetFuturesP
 		}
 		response.Positions = append(response.Positions, details)
 	}
-
+	response.TotalPNL = response.TotalRealisedPNL + response.TotalUnrealisedPNL
 	return response, nil
 }

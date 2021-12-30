@@ -4784,8 +4784,6 @@ func getFuturesPositions(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("%v", currencyPair)
-	fmt.Printf("%v", p)
 
 	if !c.IsSet("start") {
 		if c.Args().Get(3) != "" {
@@ -4798,14 +4796,15 @@ func getFuturesPositions(c *cli.Context) error {
 			endTime = c.Args().Get(4)
 		}
 	}
-	var limit64 int64
 	if c.IsSet("limit") {
-		limit64 = c.Int64("limit")
+		limit = c.Int("limit")
 	} else if c.Args().Get(5) != "" {
+		var limit64 int64
 		limit64, err = strconv.ParseInt(c.Args().Get(5), 10, 64)
 		if err != nil {
 			return err
 		}
+		limit = int(limit64)
 	}
 
 	var status string
@@ -4819,6 +4818,16 @@ func getFuturesPositions(c *cli.Context) error {
 		!strings.EqualFold(status, "closed") &&
 		status != "" {
 		return errors.New("unrecognised status")
+	}
+
+	var verbose bool
+	if c.IsSet("verbose") {
+		verbose = c.Bool("verbose")
+	} else if c.Args().Get(6) != "" {
+		verbose, err = strconv.ParseBool(c.Args().Get(7))
+		if err != nil {
+			return err
+		}
 	}
 
 	var s, e time.Time
@@ -4854,7 +4863,8 @@ func getFuturesPositions(c *cli.Context) error {
 			StartDate:     negateLocalOffset(s),
 			EndDate:       negateLocalOffset(e),
 			Status:        status,
-			PositionLimit: limit64,
+			PositionLimit: int64(limit),
+			Verbose:       verbose,
 		})
 	if err != nil {
 		return err
@@ -4899,17 +4909,23 @@ var getFuturesPositionsCommand = &cli.Command{
 			Value:       time.Now().Truncate(time.Hour).Format(common.SimpleTimeFormat),
 			Destination: &endTime,
 		},
-		&cli.Int64Flag{
-			Name:    "limit",
-			Aliases: []string{"l"},
-			Usage:   "the number of positions (not orders) to return",
-			Value:   86400,
+		&cli.IntFlag{
+			Name:        "limit",
+			Aliases:     []string{"l"},
+			Usage:       "the number of positions (not orders) to return",
+			Value:       86400,
+			Destination: &limit,
 		},
 		&cli.StringFlag{
 			Name:    "status",
 			Aliases: []string{"s"},
 			Usage:   "limit return to position statuses - open, closed, any",
 			Value:   "ANY",
+		},
+		&cli.BoolFlag{
+			Name:    "verbose",
+			Aliases: []string{"v"},
+			Usage:   "includes all orders in the response",
 		},
 	},
 }

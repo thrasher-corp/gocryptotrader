@@ -11,12 +11,26 @@ import (
 )
 
 var (
+	// ErrPositionClosed returned when attempting to amend a closed position
+	ErrPositionClosed = errors.New("the position is closed")
+	// ErrPositionsNotLoadedForExchange returned when no position data exists for an exchange
+	ErrPositionsNotLoadedForExchange = errors.New("no positions loaded for exchange")
+	// ErrPositionsNotLoadedForAsset returned when no position data exists for an asset
+	ErrPositionsNotLoadedForAsset = errors.New("no positions loaded for asset")
+	// ErrPositionsNotLoadedForPair returned when no position data exists for a pair
+	ErrPositionsNotLoadedForPair = errors.New("no positions loaded for pair")
+	// ErrNilPNLCalculator is raised when pnl calculation is requested for
+	// an exchange, but the fields are not set properly
+	ErrNilPNLCalculator = errors.New("nil pnl calculator received")
+	// ErrPositionLiquidated is raised when checking PNL status only for
+	// it to be liquidated
+	ErrPositionLiquidated = errors.New("position liquidated")
+
 	errExchangeNameEmpty              = errors.New("exchange name empty")
 	errNotFutureAsset                 = errors.New("asset type is not futures")
 	errTimeUnset                      = errors.New("time unset")
 	errMissingPNLCalculationFunctions = errors.New("futures tracker requires exchange PNL calculation functions")
 	errOrderNotEqualToTracker         = errors.New("order does not match tracker data")
-	errPositionClosed                 = errors.New("the position is closed")
 	errPositionNotClosed              = errors.New("the position is not closed")
 	errPositionDiscrepancy            = errors.New("there is a position considered open, but it is not the latest, please review")
 	errAssetMismatch                  = errors.New("provided asset does not match")
@@ -25,16 +39,6 @@ var (
 	errNilOrder                       = errors.New("nil order received")
 	errNoPNLHistory                   = errors.New("no pnl history")
 	errCannotCalculateUnrealisedPNL   = errors.New("cannot calculate unrealised PNL, order is not open")
-	ErrPositionsNotLoadedForExchange  = errors.New("no positions loaded for exchange")
-	ErrPositionsNotLoadedForAsset     = errors.New("no positions loaded for asset")
-	ErrPositionsNotLoadedForPair      = errors.New("no positions loaded for pair")
-
-	// ErrNilPNLCalculator is raised when pnl calculation is requested for
-	// an exchange, but the fields are not set properly
-	ErrNilPNLCalculator = errors.New("nil pnl calculator received")
-	// ErrPositionLiquidated is raised when checking PNL status only for
-	// it to be liquidated
-	ErrPositionLiquidated = errors.New("position liquidated")
 )
 
 // PNLCalculation is an interface to allow multiple
@@ -153,14 +157,24 @@ type PNLCalculator struct{}
 // PNLCalculatorRequest is used to calculate PNL values
 // for an open position
 type PNLCalculatorRequest struct {
-	OpeningDirection         Side
-	CurrentDirection         Side
-	Exposure                 decimal.Decimal
-	EntryPrice               decimal.Decimal
-	PNLHistory               []PNLResult
-	OrderBasedCalculation    *Detail
-	TimeBasedCalculation     *TimeBasedCalculation
-	ExchangeBasedCalculation *ExchangeBasedCalculation
+	Pair             currency.Pair
+	CalculateOffline bool
+	Underlying       currency.Code
+	Asset            asset.Item
+	Leverage         float64
+	EntryPrice       float64
+	EntryAmount      float64
+	Amount           float64
+	CurrentPrice     float64
+	PreviousPrice    float64
+	Time             time.Time
+	OrderID          string
+	Fee              decimal.Decimal
+	PNLHistory       []PNLResult
+	Exposure         decimal.Decimal
+	OrderDirection   Side
+	OpeningDirection Side
+	CurrentDirection Side
 }
 
 // TimeBasedCalculation will update PNL values
@@ -175,21 +189,6 @@ type TimeBasedCalculation struct {
 // eg FTX uses a different method than Binance to calculate PNL
 // values
 type ExchangeBasedCalculation struct {
-	Pair             currency.Pair
-	CalculateOffline bool
-	Underlying       currency.Code
-	Asset            asset.Item
-	Side             Side
-	Leverage         float64
-	EntryPrice       float64
-	EntryAmount      float64
-	Amount           float64
-	CurrentPrice     float64
-	PreviousPrice    float64
-	Time             time.Time
-	OrderID          string
-	Fee              decimal.Decimal
-	PNLHistory       []PNLResult
 }
 
 // PNLResult stores pnl history at a point in time

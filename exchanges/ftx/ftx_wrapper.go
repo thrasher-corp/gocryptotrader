@@ -1281,13 +1281,13 @@ func (f *FTX) GetAvailableTransferChains(ctx context.Context, cryptocurrency cur
 
 // CalculatePNL uses a high-tech algorithm to calculate your pnl
 func (f *FTX) CalculatePNL(pnl *order.PNLCalculatorRequest) (*order.PNLResult, error) {
-	if pnl.ExchangeBasedCalculation == nil {
+	if pnl == nil {
 		return nil, fmt.Errorf("%v %w", f.Name, order.ErrNilPNLCalculator)
 	}
 	var result order.PNLResult
-	result.Time = pnl.ExchangeBasedCalculation.Time
+	result.Time = pnl.Time
 
-	if !pnl.ExchangeBasedCalculation.CalculateOffline {
+	if !pnl.CalculateOffline {
 		info, err := f.GetAccountInfo(context.Background())
 		if err != nil {
 			return nil, err
@@ -1300,10 +1300,10 @@ func (f *FTX) CalculatePNL(pnl *order.PNLCalculatorRequest) (*order.PNLResult, e
 			if err != nil {
 				return nil, err
 			}
-			if !pnl.ExchangeBasedCalculation.Pair.Equal(pair) {
+			if !pnl.Pair.Equal(pair) {
 				continue
 			}
-			if info.Positions[i].EntryPrice == pnl.ExchangeBasedCalculation.EntryPrice {
+			if info.Positions[i].EntryPrice == pnl.EntryPrice {
 				result.UnrealisedPNL = decimal.NewFromFloat(info.Positions[i].UnrealizedPNL)
 				result.RealisedPNLBeforeFees = decimal.NewFromFloat(info.Positions[i].RealizedPNL)
 				result.Price = decimal.NewFromFloat(info.Positions[i].Cost)
@@ -1311,10 +1311,10 @@ func (f *FTX) CalculatePNL(pnl *order.PNLCalculatorRequest) (*order.PNLResult, e
 			}
 		}
 	}
-	uPNL := pnl.ExchangeBasedCalculation.Amount * (pnl.ExchangeBasedCalculation.CurrentPrice - pnl.ExchangeBasedCalculation.PreviousPrice)
+	uPNL := pnl.Amount * (pnl.CurrentPrice - pnl.PreviousPrice)
 	result.RealisedPNLBeforeFees = result.RealisedPNLBeforeFees.Add(result.UnrealisedPNL)
 	result.UnrealisedPNL = decimal.NewFromFloat(uPNL)
-	result.Price = decimal.NewFromFloat(pnl.ExchangeBasedCalculation.CurrentPrice)
+	result.Price = decimal.NewFromFloat(pnl.CurrentPrice)
 	return &result, nil
 }
 

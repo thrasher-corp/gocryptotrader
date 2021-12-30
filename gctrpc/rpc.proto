@@ -1031,12 +1031,16 @@ message GetFuturesPositionsRequest {
     string	end_date = 5;
     string status = 6;
     int64 positionLimit = 7;
+    bool verbose = 8;
 }
 
 
 message GetFuturesPositionsResponse {
     int64 totalOrders = 1;
-    repeated FuturePosition positions = 2;
+    double totalRealisedPNL = 2;
+    double totalUnrealisedPNL = 3;
+    double totalPNL = 4;
+    repeated FuturePosition positions = 5;
 }
 
 message FuturePosition {

@@ -198,7 +198,7 @@ func TestTrackNewOrder(t *testing.T) {
 	}
 
 	err = f.TrackNewOrder(od)
-	if !errors.Is(err, errPositionClosed) {
+	if !errors.Is(err, ErrPositionClosed) {
 		t.Error(err)
 	}
 	if f.currentDirection != UnknownSide {
