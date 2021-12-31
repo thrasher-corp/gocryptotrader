@@ -1273,12 +1273,6 @@ func (f *FTX) GetAvailableTransferChains(ctx context.Context, cryptocurrency cur
 	return availableChains, nil
 }
 
-// entry price
-// side
-// current price
-// previous price
-// amount
-
 // CalculatePNL uses a high-tech algorithm to calculate your pnl
 func (f *FTX) CalculatePNL(pnl *order.PNLCalculatorRequest) (*order.PNLResult, error) {
 	if pnl == nil {

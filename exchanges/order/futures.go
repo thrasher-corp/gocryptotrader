@@ -64,17 +64,20 @@ func (c *PositionController) GetPositionsForExchange(exch string, item asset.Ite
 	}
 	c.m.Lock()
 	defer c.m.Unlock()
+	if !item.IsFutures() {
+		return nil, fmt.Errorf("%v %v %v %w", exch, item, pair, errNotFutureAsset)
+	}
 	exchM, ok := c.positionTrackerControllers[exch]
 	if !ok {
-		return nil, ErrPositionsNotLoadedForExchange
+		return nil, fmt.Errorf("%v %v %v %w", exch, item, pair, ErrPositionsNotLoadedForExchange)
 	}
 	itemM, ok := exchM[item]
 	if !ok {
-		return nil, ErrPositionsNotLoadedForAsset
+		return nil, fmt.Errorf("%v %v %v %w", exch, item, pair, ErrPositionsNotLoadedForAsset)
 	}
 	multiPositionTracker, ok := itemM[pair]
 	if !ok {
-		return nil, ErrPositionsNotLoadedForPair
+		return nil, fmt.Errorf("%v %v %v %w", exch, item, pair, ErrPositionsNotLoadedForPair)
 	}
 	return multiPositionTracker.GetPositions(), nil
 }
@@ -204,12 +207,15 @@ func (e *MultiPositionTracker) SetupPositionTracker(setup *PositionTrackerSetup)
 		entryPrice:                decimal.NewFromFloat(setup.EntryPrice),
 		currentDirection:          setup.Side,
 		openingDirection:          setup.Side,
-		useExchangePNLCalculation: e.useExchangePNLCalculations,
+		useExchangePNLCalculation: setup.UseExchangePNLCalculation,
 	}
-	if !e.useExchangePNLCalculations {
+	if !setup.UseExchangePNLCalculation {
 		// use position tracker's pnl calculation by default
 		resp.PNLCalculation = &PNLCalculator{}
 	} else {
+		if e.exchangePNLCalculation == nil {
+			return nil, ErrNilPNLCalculator
+		}
 		resp.PNLCalculation = e.exchangePNLCalculation
 	}
 	return resp, nil
@@ -271,7 +277,7 @@ func (p *PositionTracker) TrackPNLByTime(t time.Time, currentPrice float64) erro
 func (p *PositionTracker) GetRealisedPNL() decimal.Decimal {
 	p.m.Lock()
 	defer p.m.Unlock()
-	return p.calculateRealisedPNL(p.pnlHistory)
+	return calculateRealisedPNL(p.pnlHistory)
 }
 
 // GetLatestPNLSnapshot takes the latest pnl history value
@@ -456,7 +462,7 @@ func (p *PositionTracker) TrackNewOrder(d *Detail) error {
 	if p.exposure.Equal(decimal.Zero) {
 		p.status = Closed
 		p.closingPrice = decimal.NewFromFloat(d.Price)
-		p.realisedPNL = p.calculateRealisedPNL(p.pnlHistory)
+		p.realisedPNL = calculateRealisedPNL(p.pnlHistory)
 		p.unrealisedPNL = decimal.Zero
 	} else if p.exposure.IsNegative() {
 		if p.currentDirection.IsLong() {
@@ -553,7 +559,7 @@ func createPNLResult(t time.Time, side Side, amount, price, fee decimal.Decimal,
 	return response, nil
 }
 
-func (p *PositionTracker) calculateRealisedPNL(pnlHistory []PNLResult) decimal.Decimal {
+func calculateRealisedPNL(pnlHistory []PNLResult) decimal.Decimal {
 	var realisedPNL, totalFees decimal.Decimal
 	for i := range pnlHistory {
 		realisedPNL = realisedPNL.Add(pnlHistory[i].RealisedPNLBeforeFees)
@@ -562,8 +568,7 @@ func (p *PositionTracker) calculateRealisedPNL(pnlHistory []PNLResult) decimal.D
 	if realisedPNL.IsZero() {
 		return decimal.Zero
 	}
-	fullyDone := realisedPNL.Sub(totalFees)
-	return fullyDone
+	return realisedPNL.Sub(totalFees)
 }
 
 // upsertPNLEntry upserts an entry to PNLHistory field
