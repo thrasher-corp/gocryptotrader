@@ -230,6 +230,15 @@ func TestGetFutureStats(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+
+	future, err := f.GetFutureStats(context.Background(), "BTC-MOVE-2021Q4")
+	if err != nil {
+		t.Error(err)
+	}
+
+	if future.Greeks == nil {
+		t.Fatal("no greeks returned for futures contract")
+	}
 }
 
 func TestGetFundingRates(t *testing.T) {

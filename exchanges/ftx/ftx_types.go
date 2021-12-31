@@ -163,6 +163,11 @@ type FutureStatsData struct {
 	PredictedExpirationPrice float64   `json:"predictedExpirationPrice"`
 	OpenInterest             float64   `json:"openInterest"`
 	StrikePrice              float64   `json:"strikePrice"`
+	Greeks                   *struct {
+		ImpliedVolatility float64 `json:"impliedVolatility"`
+		Delta             float64 `json:"delta"`
+		Gamma             float64 `json:"gamma"`
+	} `json:"greeks"`
 }
 
 // FundingRatesData stores data on funding rates
