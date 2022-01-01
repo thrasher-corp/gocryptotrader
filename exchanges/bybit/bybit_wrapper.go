@@ -128,6 +128,8 @@ func (by *Bybit) SetDefaults() {
 		exchange.RestFutures:           bybitAPIURL,
 		exchange.WebsocketSpot:         bybitWSBaseURL + wsSpotPublicTopicV2,
 		exchange.WebsocketCoinMargined: bybitWSBaseURL + wsCoinMarginedPath,
+		exchange.WebsocketUSDTMargined: bybitWSBaseURL + wsUSDTMarginedPathPublic,
+		exchange.WebsocketFutures:      bybitWSBaseURL + wsFuturesPath,
 	})
 	by.Websocket = stream.New()
 	by.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit

@@ -239,7 +239,7 @@ type WsReq struct {
 	Parameters interface{} `json:"params"`
 }
 
-type WsCoinReq struct {
+type WsFuturesReq struct {
 	Topic string   `json:"op"`
 	Args  []string `json:"args"`
 }
@@ -344,7 +344,7 @@ type wsOrderUpdate struct {
 	Leverage                          string    `json:"v"`
 }
 
-type WsCoinOrderbookData struct {
+type WsFuturesOrderbookData struct {
 	Price  string `json:"price"`
 	Symbol string `json:"symbol"`
 	ID     int64  `json:"id"`
@@ -352,23 +352,31 @@ type WsCoinOrderbookData struct {
 	Size   int    `json:"size"`
 }
 
-type WsCoinOrderbook struct {
-	Topic  string                `json:"topic"`
-	Type   string                `json:"string"`
-	OBData []WsCoinOrderbookData `json:"data"`
+type WsFuturesOrderbook struct {
+	Topic  string                   `json:"topic"`
+	Type   string                   `json:"string"`
+	OBData []WsFuturesOrderbookData `json:"data"`
+}
+
+type WsUSDTOrderbook struct {
+	Topic string `json:"topic"`
+	Type  string `json:"string"`
+	Data  struct {
+		OBData []WsFuturesOrderbookData `json:"order_book"`
+	} `json:"data"`
 }
 
 type WsCoinDeltaOrderbook struct {
 	Topic  string `json:"topic"`
 	Type   string `json:"string"`
 	OBData struct {
-		Delete []WsCoinOrderbookData `json:"delete"`
-		Update []WsCoinOrderbookData `json:"update"`
-		Insert []WsCoinOrderbookData `json:"insert"`
+		Delete []WsFuturesOrderbookData `json:"delete"`
+		Update []WsFuturesOrderbookData `json:"update"`
+		Insert []WsFuturesOrderbookData `json:"insert"`
 	} `json:"data"`
 }
 
-type WsCoinTradeData struct {
+type WsFuturesTradeData struct {
 	Time               time.Time `json:"timestamp"`
 	TimeInMilliseconds int64     `json:"trade_time_ms"`
 	Symbol             string    `json:"symbol"`
@@ -379,12 +387,12 @@ type WsCoinTradeData struct {
 	ID                 string    `json:"trade_id"`
 }
 
-type WsCoinTrade struct {
-	Topic     string            `json:"topic"`
-	TradeData []WsCoinTradeData `json:"data"`
+type WsFuturesTrade struct {
+	Topic     string               `json:"topic"`
+	TradeData []WsFuturesTradeData `json:"data"`
 }
 
-type WsCoinKlineData struct {
+type WsFuturesKlineData struct {
 	StartTime int64   `json:"start"`
 	EndTime   int64   `json:"end"`
 	Close     float64 `json:"close"`
@@ -397,9 +405,9 @@ type WsCoinKlineData struct {
 	Timestamp int64   `json:"timestamp"`
 }
 
-type WsCoinKline struct {
-	Topic     string            `json:"topic"`
-	KlineData []WsCoinKlineData `json:"data"`
+type WsFuturesKline struct {
+	Topic     string               `json:"topic"`
+	KlineData []WsFuturesKlineData `json:"data"`
 }
 
 type WsInsuranceData struct {
@@ -413,7 +421,7 @@ type WsCoinInsurance struct {
 	Data  []WsInsuranceData `json:"data"`
 }
 
-type WsCoinTickerData struct {
+type WsFuturesTickerData struct {
 	ID                    string    `json:"id"`
 	Symbol                string    `json:"symbol"`
 	LastPrice             float64   `json:"last_price,string"`
@@ -422,6 +430,7 @@ type WsCoinTickerData struct {
 	LastDirection         string    `json:"last_tick_direction"`
 	PrevPrice24h          float64   `json:"prev_price_24h,string"`
 	Price24hPercentChange int64     `json:"price_24h_pcnt_e6"`
+	Price1hPercentChange  int64     `json:"price_1h_pcnt_e6"`
 	HighPrice24h          float64   `json:"high_price_24h,string"`
 	LowPrice24h           float64   `json:"low_price_24h,string"`
 	PrevPrice1h           float64   `json:"prev_price_1h,string"`
@@ -437,11 +446,13 @@ type WsCoinTickerData struct {
 	PredictedFundingRate  int64     `json:"predicted_funding_rate_e6"`
 	CreatedAt             time.Time `json:"created_at"`
 	UpdateAt              time.Time `json:"updated_at"`
+	NextFundingAt         time.Time `json:"next_funding_time"`
+	CountDownHour         int64     `json:"countdown_hour"`
 }
 
-type WsCoinTicker struct {
-	Topic  string           `json:"topic"`
-	Ticker WsCoinTickerData `json:"data"`
+type WsFuturesTicker struct {
+	Topic  string              `json:"topic"`
+	Ticker WsFuturesTickerData `json:"data"`
 }
 
 type WsLiquidationData struct {
@@ -452,12 +463,12 @@ type WsLiquidationData struct {
 	Timestamp int64   `json:"time"`
 }
 
-type WsCoinLiquidation struct {
+type WsFuturesLiquidation struct {
 	Topic string            `json:"topic"`
 	Data  WsLiquidationData `json:"data"`
 }
 
-type WsCoinPositionData struct {
+type WsFuturesPositionData struct {
 	UserID              int64   `json:"user_id"`
 	Symbol              string  `json:"symbol"`
 	Side                string  `json:"side"`
@@ -487,13 +498,13 @@ type WsCoinPositionData struct {
 	Version             int64   `json:"position_seq"`
 }
 
-type WsCoinPosition struct {
-	Topic  string               `json:"topic"`
-	Action string               `json:"action"`
-	Data   []WsCoinPositionData `json:"data"`
+type WsFuturesPosition struct {
+	Topic  string                  `json:"topic"`
+	Action string                  `json:"action"`
+	Data   []WsFuturesPositionData `json:"data"`
 }
 
-type WsCoinExecutionData struct {
+type WsFuturesExecutionData struct {
 	Symbol        string    `json:"symbol"`
 	Side          string    `json:"side"`
 	OrderID       string    `json:"order_id"`
@@ -509,12 +520,12 @@ type WsCoinExecutionData struct {
 	Time          time.Time `json:"trade_time"`
 }
 
-type WsCoinExecution struct {
-	Topic string                `json:"topic"`
-	Data  []WsCoinExecutionData `json:"data"`
+type WsFuturesExecution struct {
+	Topic string                   `json:"topic"`
+	Data  []WsFuturesExecutionData `json:"data"`
 }
 
-type WsCoinOrderData struct {
+type WsOrderData struct {
 	OrderID              string    `json:"order_id"`
 	OrderLinkID          string    `json:"order_link_id"`
 	Symbol               string    `json:"symbol"`
@@ -530,7 +541,6 @@ type WsCoinOrderData struct {
 	CummulativeExecQty   int64     `json:"cum_exec_qty"`
 	CummulativeExecValue float64   `json:"cum_exec_value,string"`
 	CummulativeExecFee   float64   `json:"cum_exec_fee,string"`
-	Time                 time.Time `json:"timestamp"`
 	TakeProfit           float64   `json:"take_profit,string"`
 	StopLoss             float64   `json:"stop_loss,string"`
 	TrailingStop         float64   `json:"trailing_stop,string"`
@@ -538,14 +548,17 @@ type WsCoinOrderData struct {
 	LastExecPrice        float64   `json:"last_exec_price,string"`
 	ReduceOnly           bool      `json:"reduce_only"`
 	CloseOnTrigger       bool      `json:"close_on_trigger"`
+	Time                 time.Time `json:"timestamp"`   // present in CoinMarginedFutures
+	CreateTime           time.Time `json:"create_time"` // present in USDTMarginedFutures
+	UpdateTime           time.Time `json:"update_time"` // present in USDTMarginedFutures
 }
 
-type WsCoinOrder struct {
-	Topic string            `json:"topic"`
-	Data  []WsCoinOrderData `json:"data"`
+type WsOrder struct {
+	Topic string        `json:"topic"`
+	Data  []WsOrderData `json:"data"`
 }
 
-type WsCoinStopOrderData struct {
+type WsStopOrderData struct {
 	OrderID        string    `json:"order_id"`
 	OrderLinkID    string    `json:"order_link_id"`
 	UserID         int64     `json:"user_id"`
@@ -565,9 +578,34 @@ type WsCoinStopOrderData struct {
 	CloseOnTrigger bool      `json:"close_on_trigger"`
 }
 
-type WsCoinStopOrder struct {
+type WsFuturesStopOrder struct {
+	Topic string            `json:"topic"`
+	Data  []WsStopOrderData `json:"data"`
+}
+
+type WsUSDTStopOrderData struct {
+	OrderID        string    `json:"stop_order_id"`
+	OrderLinkID    string    `json:"order_link_id"`
+	UserID         int64     `json:"user_id"`
+	Symbol         string    `json:"symbol"`
+	Side           string    `json:"side"`
+	OrderType      string    `json:"order_type"`
+	Price          float64   `json:"price,string"`
+	OrderQty       int64     `json:"qty"`
+	TimeInForce    string    `json:"time_in_force"`
+	OrderStatus    string    `json:"order_status"`
+	StopOrderType  string    `json:"stop_order_type"`
+	TriggerBy      string    `json:"trigger_by"`
+	TriggerPrice   float64   `json:"trigger_price,string"`
+	ReduceOnly     bool      `json:"reduce_only"`
+	CloseOnTrigger bool      `json:"close_on_trigger"`
+	CreateTime     time.Time `json:"create_time"`
+	UpdateTime     time.Time `json:"update_time"`
+}
+
+type WsUSDTFuturesStopOrder struct {
 	Topic string                `json:"topic"`
-	Data  []WsCoinStopOrderData `json:"data"`
+	Data  []WsUSDTStopOrderData `json:"data"`
 }
 
 type WsCoinWalletData struct {

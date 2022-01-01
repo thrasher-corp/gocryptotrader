@@ -21,14 +21,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-// TODO
-// do we need multiple connection? by.Websocket.Conn
-
 const (
-	wsUSDTMarginedPath        = "realtime_public"
+	wsUSDTMarginedPathPublic  = "realtime_public"
 	wsUSDTMarginedPathPrivate = "realtime_private"
 
-	wsUSDTMarket = "candle"
+	wsUSDTKline = "candle"
 )
 
 // WsUSDTConnect connects to a USDT websocket feed
@@ -88,7 +85,7 @@ func (by *Bybit) WsUSDTAuth() error {
 func (by *Bybit) SubscribeUSDT(channelsToSubscribe []stream.ChannelSubscription) error {
 	var errs common.Errors
 	for i := range channelsToSubscribe {
-		var sub WsCoinReq
+		var sub WsFuturesReq
 		sub.Topic = subscribe
 
 		a, err := by.GetPairAssetType(channelsToSubscribe[i].Currency)
@@ -121,7 +118,7 @@ func (by *Bybit) UnsubscribeUSDT(channelsToUnsubscribe []stream.ChannelSubscript
 	var errs common.Errors
 
 	for i := range channelsToUnsubscribe {
-		var unSub WsCoinReq
+		var unSub WsFuturesReq
 		unSub.Topic = unsubscribe
 
 		a, err := by.GetPairAssetType(channelsToUnsubscribe[i].Currency)
@@ -185,18 +182,18 @@ func (by *Bybit) wsUSDTHandleData(respRaw []byte) error {
 			return errors.New(by.Name + " - topic could not be extracted from response")
 		}
 
-		if wsType, ok := multiStreamData["type"].(string); ok {
-			switch topics[0] {
-			case wsOrder25, wsOrder200:
+		switch topics[0] {
+		case wsOrder25, wsOrder200:
+			if wsType, ok := multiStreamData["type"].(string); ok {
 				switch wsType {
 				case wsOrderbookSnapshot:
-					var response WsCoinOrderbook
+					var response WsUSDTOrderbook
 					err := json.Unmarshal(respRaw, &response)
 					if err != nil {
 						return err
 					}
 
-					p, err := currency.NewPairFromString(response.OBData[0].Symbol)
+					p, err := currency.NewPairFromString(response.Data.OBData[0].Symbol)
 					if err != nil {
 						return err
 					}
@@ -205,7 +202,7 @@ func (by *Bybit) wsUSDTHandleData(respRaw []byte) error {
 					if err != nil {
 						return err
 					}
-					err = by.processOrderbook(response.OBData,
+					err = by.processOrderbook(response.Data.OBData,
 						response.Type,
 						p,
 						a)
@@ -279,59 +276,20 @@ func (by *Bybit) wsUSDTHandleData(respRaw []byte) error {
 				default:
 					by.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: by.Name + stream.UnhandledMessage + "unsupported orderbook operation"}
 				}
+			}
 
-			case wsTrades:
-				if !by.IsSaveTradeDataEnabled() {
-					return nil
-				}
-				var response WsCoinTrade
-				err := json.Unmarshal(respRaw, &response)
-				if err != nil {
-					return err
-				}
-				var trades []trade.Data
-				for i := range response.TradeData {
-					p, err := currency.NewPairFromString(response.TradeData[0].Symbol)
-					if err != nil {
-						return err
-					}
-
-					var a asset.Item
-					a, err = by.GetPairAssetType(p)
-					if err != nil {
-						return err
-					}
-
-					var oSide order.Side
-					oSide, err = order.StringToOrderSide(response.TradeData[i].Side)
-					if err != nil {
-						by.Websocket.DataHandler <- order.ClassificationError{
-							Exchange: by.Name,
-							Err:      err,
-						}
-					}
-
-					trades = append(trades, trade.Data{
-						TID:          response.TradeData[i].ID,
-						Exchange:     by.Name,
-						CurrencyPair: p,
-						AssetType:    a,
-						Side:         oSide,
-						Price:        response.TradeData[i].Price,
-						Amount:       float64(response.TradeData[i].Size),
-						Timestamp:    response.TradeData[i].Time,
-					})
-				}
-				return by.AddTradesToBuffer(trades...)
-
-			case wsKlineV2:
-				var response WsCoinKline
-				err = json.Unmarshal(respRaw, &response)
-				if err != nil {
-					return err
-				}
-
-				p, err := currency.NewPairFromString(topics[len(topics)-1])
+		case wsTrades:
+			if !by.IsSaveTradeDataEnabled() {
+				return nil
+			}
+			var response WsFuturesTrade
+			err := json.Unmarshal(respRaw, &response)
+			if err != nil {
+				return err
+			}
+			var trades []trade.Data
+			for i := range response.TradeData {
+				p, err := currency.NewPairFromString(response.TradeData[0].Symbol)
 				if err != nil {
 					return err
 				}
@@ -341,240 +299,280 @@ func (by *Bybit) wsUSDTHandleData(respRaw []byte) error {
 				if err != nil {
 					return err
 				}
-				for i := range response.KlineData {
-					by.Websocket.DataHandler <- stream.KlineData{
-						Pair:       p,
-						AssetType:  a,
-						Exchange:   by.Name,
-						OpenPrice:  response.KlineData[i].Open,
-						HighPrice:  response.KlineData[i].High,
-						LowPrice:   response.KlineData[i].Low,
-						ClosePrice: response.KlineData[i].Close,
-						Volume:     response.KlineData[i].Volume,
-						Timestamp:  time.Unix(response.KlineData[i].Timestamp, 0),
-					}
-				}
 
-			case wsInstrument:
-				var response WsCoinTicker
-				err := json.Unmarshal(respRaw, &response)
+				var oSide order.Side
+				oSide, err = order.StringToOrderSide(response.TradeData[i].Side)
 				if err != nil {
-					return err
-				}
-
-				p, err := currency.NewPairFromString(response.Ticker.Symbol)
-				if err != nil {
-					return err
-				}
-
-				by.Websocket.DataHandler <- &ticker.Price{
-					ExchangeName: by.Name,
-					Last:         response.Ticker.LastPrice,
-					High:         response.Ticker.HighPrice24h,
-					Low:          response.Ticker.LowPrice24h,
-					Bid:          response.Ticker.BidPrice,
-					Ask:          response.Ticker.AskPrice,
-					Volume:       float64(response.Ticker.Volume24h),
-					Close:        response.Ticker.PrevPrice24h,
-					LastUpdated:  response.Ticker.UpdateAt,
-					AssetType:    asset.USDTMarginedFutures,
-					Pair:         p,
-				}
-
-			case wsLiquidation:
-				var response WsCoinLiquidation
-				err = json.Unmarshal(respRaw, &response)
-				if err != nil {
-					return err
-				}
-				by.Websocket.DataHandler <- response.Data
-
-			case wsCoinPosition:
-				var response WsCoinPosition
-				err = json.Unmarshal(respRaw, &response)
-				if err != nil {
-					return err
-				}
-				by.Websocket.DataHandler <- response.Data
-
-			case wsCoinExecution:
-				var response WsCoinExecution
-				err = json.Unmarshal(respRaw, &response)
-				if err != nil {
-					return err
-				}
-
-				for i := range response.Data {
-					var p currency.Pair
-					p, err = currency.NewPairFromString(response.Data[i].Symbol)
-					if err != nil {
-						return err
-					}
-
-					var a asset.Item
-					a, err = by.GetPairAssetType(p)
-					if err != nil {
-						return err
-					}
-					var oStatus order.Status
-					oStatus, err = order.StringToOrderStatus(response.Data[i].ExecutionType)
-					if err != nil {
-						by.Websocket.DataHandler <- order.ClassificationError{
-							Exchange: by.Name,
-							OrderID:  response.Data[i].OrderID,
-							Err:      err,
-						}
-					}
-					var oSide order.Side
-					oSide, err = order.StringToOrderSide(response.Data[i].Side)
-					if err != nil {
-						by.Websocket.DataHandler <- order.ClassificationError{
-							Exchange: by.Name,
-							OrderID:  response.Data[i].OrderID,
-							Err:      err,
-						}
-					}
-					by.Websocket.DataHandler <- &order.Modify{
-						Exchange:  by.Name,
-						ID:        response.Data[i].OrderID,
-						AssetType: a,
-						Pair:      p,
-						Status:    oStatus,
-						Trades: []order.TradeHistory{
-							{
-								Price:     response.Data[i].Price,
-								Amount:    float64(response.Data[i].OrderQty),
-								Exchange:  by.Name,
-								TID:       response.Data[i].ExecutionID,
-								Side:      oSide,
-								Timestamp: response.Data[i].Time,
-								IsMaker:   response.Data[i].IsMaker,
-							},
-						},
+					by.Websocket.DataHandler <- order.ClassificationError{
+						Exchange: by.Name,
+						Err:      err,
 					}
 				}
 
-			case wsCoinOrder:
-				var response WsCoinOrder
-				err = json.Unmarshal(respRaw, &response)
-				if err != nil {
-					return err
-				}
-				for x := range response.Data {
-					var p currency.Pair
-					var a asset.Item
-					p, a, err = by.GetRequestFormattedPairAndAssetType(response.Data[x].Symbol)
-					if err != nil {
-						return err
-					}
-					var oSide order.Side
-					oSide, err = order.StringToOrderSide(response.Data[x].Side)
-					if err != nil {
-						by.Websocket.DataHandler <- order.ClassificationError{
-							Exchange: by.Name,
-							OrderID:  response.Data[x].OrderID,
-							Err:      err,
-						}
-					}
-					var oType order.Type
-					oType, err = order.StringToOrderType(response.Data[x].OrderType)
-					if err != nil {
-						by.Websocket.DataHandler <- order.ClassificationError{
-							Exchange: by.Name,
-							OrderID:  response.Data[x].OrderID,
-							Err:      err,
-						}
-					}
-					var oStatus order.Status
-					oStatus, err = order.StringToOrderStatus(response.Data[x].OrderStatus)
-					if err != nil {
-						by.Websocket.DataHandler <- order.ClassificationError{
-							Exchange: by.Name,
-							OrderID:  response.Data[x].OrderID,
-							Err:      err,
-						}
-					}
-					by.Websocket.DataHandler <- &order.Detail{
-						Price:     response.Data[x].Price,
-						Amount:    float64(response.Data[x].OrderQty),
-						Exchange:  by.Name,
-						ID:        response.Data[x].OrderID,
-						Type:      oType,
-						Side:      oSide,
-						Status:    oStatus,
-						AssetType: a,
-						Date:      response.Data[x].Time,
-						Pair:      p,
-					}
-				}
-
-			case wsCoinStopOrder:
-				var response WsCoinStopOrder
-				err = json.Unmarshal(respRaw, &response)
-				if err != nil {
-					return err
-				}
-				for x := range response.Data {
-					var p currency.Pair
-					var a asset.Item
-					p, a, err = by.GetRequestFormattedPairAndAssetType(response.Data[x].Symbol)
-					if err != nil {
-						return err
-					}
-					var oSide order.Side
-					oSide, err = order.StringToOrderSide(response.Data[x].Side)
-					if err != nil {
-						by.Websocket.DataHandler <- order.ClassificationError{
-							Exchange: by.Name,
-							OrderID:  response.Data[x].OrderID,
-							Err:      err,
-						}
-					}
-					var oType order.Type
-					oType, err = order.StringToOrderType(response.Data[x].OrderType)
-					if err != nil {
-						by.Websocket.DataHandler <- order.ClassificationError{
-							Exchange: by.Name,
-							OrderID:  response.Data[x].OrderID,
-							Err:      err,
-						}
-					}
-					var oStatus order.Status
-					oStatus, err = order.StringToOrderStatus(response.Data[x].OrderStatus)
-					if err != nil {
-						by.Websocket.DataHandler <- order.ClassificationError{
-							Exchange: by.Name,
-							OrderID:  response.Data[x].OrderID,
-							Err:      err,
-						}
-					}
-					by.Websocket.DataHandler <- &order.Detail{
-						Price:     response.Data[x].Price,
-						Amount:    float64(response.Data[x].OrderQty),
-						Exchange:  by.Name,
-						ID:        response.Data[x].OrderID,
-						AccountID: strconv.FormatInt(response.Data[x].UserID, 10),
-						Type:      oType,
-						Side:      oSide,
-						Status:    oStatus,
-						AssetType: a,
-						Date:      response.Data[x].Time,
-						Pair:      p,
-					}
-				}
-
-			case wsCoinWallet:
-				var response WsCoinWallet
-				err = json.Unmarshal(respRaw, &response)
-				if err != nil {
-					return err
-				}
-				by.Websocket.DataHandler <- response.Data
-
-			default:
-				by.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: by.Name + stream.UnhandledMessage + string(respRaw)}
+				trades = append(trades, trade.Data{
+					TID:          response.TradeData[i].ID,
+					Exchange:     by.Name,
+					CurrencyPair: p,
+					AssetType:    a,
+					Side:         oSide,
+					Price:        response.TradeData[i].Price,
+					Amount:       float64(response.TradeData[i].Size),
+					Timestamp:    response.TradeData[i].Time,
+				})
 			}
+			return by.AddTradesToBuffer(trades...)
+
+		case wsUSDTKline:
+			var response WsFuturesKline
+			err = json.Unmarshal(respRaw, &response)
+			if err != nil {
+				return err
+			}
+
+			p, err := currency.NewPairFromString(topics[len(topics)-1])
+			if err != nil {
+				return err
+			}
+
+			var a asset.Item
+			a, err = by.GetPairAssetType(p)
+			if err != nil {
+				return err
+			}
+			for i := range response.KlineData {
+				by.Websocket.DataHandler <- stream.KlineData{
+					Pair:       p,
+					AssetType:  a,
+					Exchange:   by.Name,
+					OpenPrice:  response.KlineData[i].Open,
+					HighPrice:  response.KlineData[i].High,
+					LowPrice:   response.KlineData[i].Low,
+					ClosePrice: response.KlineData[i].Close,
+					Volume:     response.KlineData[i].Volume,
+					Timestamp:  time.Unix(response.KlineData[i].Timestamp, 0),
+				}
+			}
+
+		case wsInstrument:
+			var response WsFuturesTicker
+			err := json.Unmarshal(respRaw, &response)
+			if err != nil {
+				return err
+			}
+
+			p, err := currency.NewPairFromString(response.Ticker.Symbol)
+			if err != nil {
+				return err
+			}
+
+			by.Websocket.DataHandler <- &ticker.Price{
+				ExchangeName: by.Name,
+				Last:         response.Ticker.LastPrice,
+				High:         response.Ticker.HighPrice24h,
+				Low:          response.Ticker.LowPrice24h,
+				Bid:          response.Ticker.BidPrice,
+				Ask:          response.Ticker.AskPrice,
+				Volume:       float64(response.Ticker.Volume24h),
+				Close:        response.Ticker.PrevPrice24h,
+				LastUpdated:  response.Ticker.UpdateAt,
+				AssetType:    asset.USDTMarginedFutures,
+				Pair:         p,
+			}
+
+		case wsLiquidation:
+			var response WsFuturesLiquidation
+			err = json.Unmarshal(respRaw, &response)
+			if err != nil {
+				return err
+			}
+			by.Websocket.DataHandler <- response.Data
+
+		case wsPosition:
+			var response WsFuturesPosition
+			err = json.Unmarshal(respRaw, &response)
+			if err != nil {
+				return err
+			}
+			by.Websocket.DataHandler <- response.Data
+
+		case wsExecution:
+			var response WsFuturesExecution
+			err = json.Unmarshal(respRaw, &response)
+			if err != nil {
+				return err
+			}
+
+			for i := range response.Data {
+				var p currency.Pair
+				p, err = currency.NewPairFromString(response.Data[i].Symbol)
+				if err != nil {
+					return err
+				}
+
+				var a asset.Item
+				a, err = by.GetPairAssetType(p)
+				if err != nil {
+					return err
+				}
+				var oStatus order.Status
+				oStatus, err = order.StringToOrderStatus(response.Data[i].ExecutionType)
+				if err != nil {
+					by.Websocket.DataHandler <- order.ClassificationError{
+						Exchange: by.Name,
+						OrderID:  response.Data[i].OrderID,
+						Err:      err,
+					}
+				}
+				var oSide order.Side
+				oSide, err = order.StringToOrderSide(response.Data[i].Side)
+				if err != nil {
+					by.Websocket.DataHandler <- order.ClassificationError{
+						Exchange: by.Name,
+						OrderID:  response.Data[i].OrderID,
+						Err:      err,
+					}
+				}
+				by.Websocket.DataHandler <- &order.Modify{
+					Exchange:  by.Name,
+					ID:        response.Data[i].OrderID,
+					AssetType: a,
+					Pair:      p,
+					Status:    oStatus,
+					Trades: []order.TradeHistory{
+						{
+							Price:     response.Data[i].Price,
+							Amount:    float64(response.Data[i].OrderQty),
+							Exchange:  by.Name,
+							TID:       response.Data[i].ExecutionID,
+							Side:      oSide,
+							Timestamp: response.Data[i].Time,
+							IsMaker:   response.Data[i].IsMaker,
+						},
+					},
+				}
+			}
+
+		case wsOrder:
+			var response WsOrder
+			err = json.Unmarshal(respRaw, &response)
+			if err != nil {
+				return err
+			}
+			for x := range response.Data {
+				var p currency.Pair
+				var a asset.Item
+				p, a, err = by.GetRequestFormattedPairAndAssetType(response.Data[x].Symbol)
+				if err != nil {
+					return err
+				}
+				var oSide order.Side
+				oSide, err = order.StringToOrderSide(response.Data[x].Side)
+				if err != nil {
+					by.Websocket.DataHandler <- order.ClassificationError{
+						Exchange: by.Name,
+						OrderID:  response.Data[x].OrderID,
+						Err:      err,
+					}
+				}
+				var oType order.Type
+				oType, err = order.StringToOrderType(response.Data[x].OrderType)
+				if err != nil {
+					by.Websocket.DataHandler <- order.ClassificationError{
+						Exchange: by.Name,
+						OrderID:  response.Data[x].OrderID,
+						Err:      err,
+					}
+				}
+				var oStatus order.Status
+				oStatus, err = order.StringToOrderStatus(response.Data[x].OrderStatus)
+				if err != nil {
+					by.Websocket.DataHandler <- order.ClassificationError{
+						Exchange: by.Name,
+						OrderID:  response.Data[x].OrderID,
+						Err:      err,
+					}
+				}
+				by.Websocket.DataHandler <- &order.Detail{
+					Price:     response.Data[x].Price,
+					Amount:    float64(response.Data[x].OrderQty),
+					Exchange:  by.Name,
+					ID:        response.Data[x].OrderID,
+					Type:      oType,
+					Side:      oSide,
+					Status:    oStatus,
+					AssetType: a,
+					Date:      response.Data[x].CreateTime,
+					Pair:      p,
+				}
+			}
+
+		case wsStopOrder:
+			var response WsUSDTFuturesStopOrder
+			err = json.Unmarshal(respRaw, &response)
+			if err != nil {
+				return err
+			}
+			for x := range response.Data {
+				var p currency.Pair
+				var a asset.Item
+				p, a, err = by.GetRequestFormattedPairAndAssetType(response.Data[x].Symbol)
+				if err != nil {
+					return err
+				}
+				var oSide order.Side
+				oSide, err = order.StringToOrderSide(response.Data[x].Side)
+				if err != nil {
+					by.Websocket.DataHandler <- order.ClassificationError{
+						Exchange: by.Name,
+						OrderID:  response.Data[x].OrderID,
+						Err:      err,
+					}
+				}
+				var oType order.Type
+				oType, err = order.StringToOrderType(response.Data[x].OrderType)
+				if err != nil {
+					by.Websocket.DataHandler <- order.ClassificationError{
+						Exchange: by.Name,
+						OrderID:  response.Data[x].OrderID,
+						Err:      err,
+					}
+				}
+				var oStatus order.Status
+				oStatus, err = order.StringToOrderStatus(response.Data[x].OrderStatus)
+				if err != nil {
+					by.Websocket.DataHandler <- order.ClassificationError{
+						Exchange: by.Name,
+						OrderID:  response.Data[x].OrderID,
+						Err:      err,
+					}
+				}
+				by.Websocket.DataHandler <- &order.Detail{
+					Price:     response.Data[x].Price,
+					Amount:    float64(response.Data[x].OrderQty),
+					Exchange:  by.Name,
+					ID:        response.Data[x].OrderID,
+					AccountID: strconv.FormatInt(response.Data[x].UserID, 10),
+					Type:      oType,
+					Side:      oSide,
+					Status:    oStatus,
+					AssetType: a,
+					Date:      response.Data[x].CreateTime,
+					Pair:      p,
+				}
+			}
+
+		case wsWallet:
+			var response WsFuturesWallet
+			err = json.Unmarshal(respRaw, &response)
+			if err != nil {
+				return err
+			}
+			by.Websocket.DataHandler <- response.Data
+
+		default:
+			by.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: by.Name + stream.UnhandledMessage + string(respRaw)}
 		}
+
 	}
 	return nil
 }

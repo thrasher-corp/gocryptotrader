@@ -50,14 +50,14 @@ const (
 	wsKlineV2               = "klineV2"
 
 	// private endpoints
-	wsCoinPosition  = "position"
-	wsCoinExecution = "execution"
-	wsCoinOrder     = "order"
-	wsCoinStopOrder = "stop_order"
-	wsCoinWallet    = "wallet"
+	wsPosition  = "position"
+	wsExecution = "execution"
+	wsOrder     = "order"
+	wsStopOrder = "stop_order"
+	wsWallet    = "wallet"
 )
 
-var pingRequest = WsCoinReq{Topic: stream.Ping}
+var pingRequest = WsFuturesReq{Topic: stream.Ping}
 
 // WsCoinConnect connects to a CMF websocket feed
 func (by *Bybit) WsCoinConnect() error {
@@ -116,7 +116,7 @@ func (by *Bybit) WsCoinAuth() error {
 func (by *Bybit) SubscribeCoin(channelsToSubscribe []stream.ChannelSubscription) error {
 	var errs common.Errors
 	for i := range channelsToSubscribe {
-		var sub WsCoinReq
+		var sub WsFuturesReq
 		sub.Topic = subscribe
 
 		a, err := by.GetPairAssetType(channelsToSubscribe[i].Currency)
@@ -157,7 +157,7 @@ func (by *Bybit) UnsubscribeCoin(channelsToUnsubscribe []stream.ChannelSubscript
 	var errs common.Errors
 
 	for i := range channelsToUnsubscribe {
-		var unSub WsCoinReq
+		var unSub WsFuturesReq
 		unSub.Topic = unsubscribe
 
 		a, err := by.GetPairAssetType(channelsToUnsubscribe[i].Currency)
@@ -226,7 +226,7 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 			case wsOrder25, wsOrder200:
 				switch wsType {
 				case wsOrderbookSnapshot:
-					var response WsCoinOrderbook
+					var response WsFuturesOrderbook
 					err := json.Unmarshal(respRaw, &response)
 					if err != nil {
 						return err
@@ -320,7 +320,7 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 				if !by.IsSaveTradeDataEnabled() {
 					return nil
 				}
-				var response WsCoinTrade
+				var response WsFuturesTrade
 				err := json.Unmarshal(respRaw, &response)
 				if err != nil {
 					return err
@@ -361,7 +361,7 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 				return by.AddTradesToBuffer(trades...)
 
 			case wsKlineV2:
-				var response WsCoinKline
+				var response WsFuturesKline
 				err = json.Unmarshal(respRaw, &response)
 				if err != nil {
 					return err
@@ -400,7 +400,7 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 				by.Websocket.DataHandler <- response.Data
 
 			case wsInstrument:
-				var response WsCoinTicker
+				var response WsFuturesTicker
 				err := json.Unmarshal(respRaw, &response)
 				if err != nil {
 					return err
@@ -426,23 +426,23 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 				}
 
 			case wsLiquidation:
-				var response WsCoinLiquidation
+				var response WsFuturesLiquidation
 				err = json.Unmarshal(respRaw, &response)
 				if err != nil {
 					return err
 				}
 				by.Websocket.DataHandler <- response.Data
 
-			case wsCoinPosition:
-				var response WsCoinPosition
+			case wsPosition:
+				var response WsFuturesPosition
 				err = json.Unmarshal(respRaw, &response)
 				if err != nil {
 					return err
 				}
 				by.Websocket.DataHandler <- response.Data
 
-			case wsCoinExecution:
-				var response WsCoinExecution
+			case wsExecution:
+				var response WsFuturesExecution
 				err = json.Unmarshal(respRaw, &response)
 				if err != nil {
 					return err
@@ -498,7 +498,7 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 					}
 				}
 
-			case wsCoinOrder:
+			case wsOrder:
 				var response WsCoinOrder
 				err = json.Unmarshal(respRaw, &response)
 				if err != nil {
@@ -552,7 +552,7 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 					}
 				}
 
-			case wsCoinStopOrder:
+			case wsStopOrder:
 				var response WsCoinStopOrder
 				err = json.Unmarshal(respRaw, &response)
 				if err != nil {
@@ -607,7 +607,7 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 					}
 				}
 
-			case wsCoinWallet:
+			case wsWallet:
 				var response WsCoinWallet
 				err = json.Unmarshal(respRaw, &response)
 				if err != nil {
@@ -624,7 +624,7 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 }
 
 // processOrderbook processes orderbook updates
-func (by *Bybit) processOrderbook(data []WsCoinOrderbookData, action string, p currency.Pair, a asset.Item) error {
+func (by *Bybit) processOrderbook(data []WsFuturesOrderbookData, action string, p currency.Pair, a asset.Item) error {
 	if len(data) < 1 {
 		return errors.New("no orderbook data")
 	}
