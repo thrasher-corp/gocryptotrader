@@ -34,13 +34,13 @@ const (
 	dot                = "."
 
 	// public endpoints
-	wsOrder25       = "orderBookL2_25"
-	wsOrder200      = "orderBook_200"
-	wsTrade         = "trade"
-	wsCoinInsurance = "insurance"
-	wsInstrument    = "instrument_info"
-	wsCoinMarket    = "klineV2"
-	wsLiquidation   = "liquidation"
+	wsOrder25     = "orderBookL2_25"
+	wsOrder200    = "orderBook_200"
+	wsTrade       = "trade"
+	wsInsurance   = "insurance"
+	wsInstrument  = "instrument_info"
+	wsCoinMarket  = "klineV2"
+	wsLiquidation = "liquidation"
 
 	wsOrderbookSnapshot     = "snapshot"
 	wsOrderbookDelta        = "delta"
@@ -391,8 +391,8 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 					}
 				}
 
-			case wsCoinInsurance:
-				var response WsCoinInsurance
+			case wsInsurance:
+				var response WsInsurance
 				err = json.Unmarshal(respRaw, &response)
 				if err != nil {
 					return err
@@ -400,7 +400,7 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 				by.Websocket.DataHandler <- response.Data
 
 			case wsInstrument:
-				var response WsFuturesTicker
+				var response WsTicker
 				err := json.Unmarshal(respRaw, &response)
 				if err != nil {
 					return err
@@ -499,7 +499,7 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 				}
 
 			case wsOrder:
-				var response WsCoinOrder
+				var response WsOrder
 				err = json.Unmarshal(respRaw, &response)
 				if err != nil {
 					return err
@@ -553,7 +553,7 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 				}
 
 			case wsStopOrder:
-				var response WsCoinStopOrder
+				var response WsFuturesStopOrder
 				err = json.Unmarshal(respRaw, &response)
 				if err != nil {
 					return err
@@ -608,7 +608,7 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 				}
 
 			case wsWallet:
-				var response WsCoinWallet
+				var response WsFuturesWallet
 				err = json.Unmarshal(respRaw, &response)
 				if err != nil {
 					return err

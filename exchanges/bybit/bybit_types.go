@@ -250,8 +250,8 @@ type WsParams struct {
 	SymbolName string `json:"symbolName"`
 }
 
-// WsTickerData stores ws ticker data
-type WsTickerData struct {
+// WsSpotTickerData stores ws ticker data
+type WsSpotTickerData struct {
 	Symbol  string  `json:"symbol"`
 	Bid     float64 `json:"bidPrice,string"`
 	Ask     float64 `json:"askPrice,string"`
@@ -260,11 +260,11 @@ type WsTickerData struct {
 	Time    int64   `json:"time"`
 }
 
-// WsTicker stores ws ticker data
-type WsTicker struct {
-	Topic      string       `json:"topic"`
-	Parameters WsParams     `json:"params"`
-	Ticker     WsTickerData `json:"data"`
+// WsSpotTicker stores ws ticker data
+type WsSpotTicker struct {
+	Topic      string           `json:"topic"`
+	Parameters WsParams         `json:"params"`
+	Ticker     WsSpotTickerData `json:"data"`
 }
 
 // WsOrderbookData stores ws orderbook data
@@ -416,12 +416,12 @@ type WsInsuranceData struct {
 	WalletBalance float64   `json:"wallet_balance"`
 }
 
-type WsCoinInsurance struct {
+type WsInsurance struct {
 	Topic string            `json:"topic"`
 	Data  []WsInsuranceData `json:"data"`
 }
 
-type WsFuturesTickerData struct {
+type WsTickerData struct {
 	ID                    string    `json:"id"`
 	Symbol                string    `json:"symbol"`
 	LastPrice             float64   `json:"last_price,string"`
@@ -450,6 +450,53 @@ type WsFuturesTickerData struct {
 	CountDownHour         int64     `json:"countdown_hour"`
 }
 
+type WsTicker struct {
+	Topic  string       `json:"topic"`
+	Ticker WsTickerData `json:"data"`
+}
+
+type WsFuturesTickerData struct {
+	ID                    string    `json:"id"`
+	Symbol                string    `json:"symbol"`
+	SymbolName            string    `json:"symbol_name"`
+	SymbolYear            int64     `json:"symbol_year"`
+	ContractType          string    `json:"contract_type"`
+	Coin                  string    `json:"coin"`
+	QuoteSymbol           string    `json:"quote_symbol"`
+	Mode                  string    `json:"mode"`
+	IsUpBorrowable        int64     `json:"is_up_borrowable"`
+	ImportTime            int64     `json:"import_time_e9"`
+	StartTradingTime      int64     `json:"start_trading_time_e9"`
+	TimeToSettle          int64     `json:"settle_time_e9"`
+	SettleFeeRate         int64     `json:"settle_fee_rate_e8"`
+	ContractStatus        string    `json:"contract_status"`
+	SystemSubsidy         int64     `json:"system_subsidy_e8"`
+	LastPrice             float64   `json:"last_price,string"`
+	BidPrice              float64   `json:"bid1_price"`
+	AskPrice              float64   `json:"ask1_price"`
+	LastDirection         string    `json:"last_tick_direction"`
+	PrevPrice24h          float64   `json:"prev_price_24h,string"`
+	Price24hPercentChange int64     `json:"price_24h_pcnt_e6"`
+	Price1hPercentChange  int64     `json:"price_1h_pcnt_e6"`
+	HighPrice24h          float64   `json:"high_price_24h,string"`
+	LowPrice24h           float64   `json:"low_price_24h,string"`
+	PrevPrice1h           float64   `json:"prev_price_1h,string"`
+	MarkPrice             float64   `json:"mark_price,string"`
+	IndexPrice            float64   `json:"index_price,string"`
+	OpenInterest          int64     `json:"open_interest"`
+	OpenValue             int64     `json:"open_value_e8"`
+	TotalTurnOver         int64     `json:"total_turnover_e8"`
+	TurnOver24h           int64     `json:"turnover_24h_e8"`
+	TotalVolume           int64     `json:"total_volume"`
+	Volume24h             int64     `json:"volume_24h"`
+	FairBasis             int64     `json:"fair_basis_e8"`
+	FairBasisRate         int64     `json:"fair_basis_rate_e8"`
+	BasisInYear           int64     `json:"basis_in_year_e8"`
+	ExpectPrice           float64   `json:"expect_price,string"`
+	CreatedAt             time.Time `json:"created_at"`
+	UpdateAt              time.Time `json:"updated_at"`
+}
+
 type WsFuturesTicker struct {
 	Topic  string              `json:"topic"`
 	Ticker WsFuturesTickerData `json:"data"`
@@ -473,6 +520,9 @@ type WsFuturesPositionData struct {
 	Symbol              string  `json:"symbol"`
 	Side                string  `json:"side"`
 	Size                int64   `json:"size"`
+	PositionID          int64   `json:"position_idx"` // present in Futures position struct only
+	Mode                int64   `json:"mode"`         // present in Futures position struct only
+	Isolated            bool    `json:"isolated"`     // present in Futures position struct only
 	PositionValue       float64 `json:"position_value,string"`
 	EntryPrice          float64 `json:"entry_price,string"`
 	LiquidPrice         float64 `json:"liq_price,string"`
@@ -548,9 +598,9 @@ type WsOrderData struct {
 	LastExecPrice        float64   `json:"last_exec_price,string"`
 	ReduceOnly           bool      `json:"reduce_only"`
 	CloseOnTrigger       bool      `json:"close_on_trigger"`
-	Time                 time.Time `json:"timestamp"`   // present in CoinMarginedFutures
-	CreateTime           time.Time `json:"create_time"` // present in USDTMarginedFutures
-	UpdateTime           time.Time `json:"update_time"` // present in USDTMarginedFutures
+	Time                 time.Time `json:"timestamp"`   // present in CoinMarginedFutures and Futures only
+	CreateTime           time.Time `json:"create_time"` // present in USDTMarginedFutures only
+	UpdateTime           time.Time `json:"update_time"` // present in USDTMarginedFutures only
 }
 
 type WsOrder struct {
@@ -608,12 +658,12 @@ type WsUSDTFuturesStopOrder struct {
 	Data  []WsUSDTStopOrderData `json:"data"`
 }
 
-type WsCoinWalletData struct {
+type WsFuturesWalletData struct {
 	WalletBalance    float64 `json:"wallet_balance"`
 	AvailableBalance float64 `json:"available_balance"`
 }
 
-type WsCoinWallet struct {
-	Topic string             `json:"topic"`
-	Data  []WsCoinWalletData `json:"data"`
+type WsFuturesWallet struct {
+	Topic string                `json:"topic"`
+	Data  []WsFuturesWalletData `json:"data"`
 }

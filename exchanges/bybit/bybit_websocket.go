@@ -379,7 +379,7 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 			})
 
 		case wsTicker:
-			var data WsTicker
+			var data WsSpotTicker
 			err := json.Unmarshal(respRaw, &data)
 			if err != nil {
 				return err

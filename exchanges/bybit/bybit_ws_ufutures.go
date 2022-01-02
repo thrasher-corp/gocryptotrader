@@ -354,7 +354,7 @@ func (by *Bybit) wsUSDTHandleData(respRaw []byte) error {
 			}
 
 		case wsInstrument:
-			var response WsFuturesTicker
+			var response WsTicker
 			err := json.Unmarshal(respRaw, &response)
 			if err != nil {
 				return err

@@ -351,6 +351,7 @@ func (by *Bybit) wsFuturesHandleData(respRaw []byte) error {
 			}
 
 		case wsInstrument:
+			// TODO: handle ticker properly in all 3 futures
 			var response WsFuturesTicker
 			err := json.Unmarshal(respRaw, &response)
 			if err != nil {
@@ -376,8 +377,8 @@ func (by *Bybit) wsFuturesHandleData(respRaw []byte) error {
 				Pair:         p,
 			}
 
-		case wsLiquidation:
-			var response WsFuturesLiquidation
+		case wsInsurance:
+			var response WsInsurance
 			err = json.Unmarshal(respRaw, &response)
 			if err != nil {
 				return err
