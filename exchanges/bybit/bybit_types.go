@@ -455,6 +455,16 @@ type WsTicker struct {
 	Ticker WsTickerData `json:"data"`
 }
 
+type WsDeltaTicker struct {
+	Topic string `json:"topic"`
+	Type  string `json:"string"`
+	Data  struct {
+		Delete []WsTickerData `json:"delete"`
+		Update []WsTickerData `json:"update"`
+		Insert []WsTickerData `json:"insert"`
+	} `json:"data"`
+}
+
 type WsFuturesTickerData struct {
 	ID                    string    `json:"id"`
 	Symbol                string    `json:"symbol"`
@@ -500,6 +510,16 @@ type WsFuturesTickerData struct {
 type WsFuturesTicker struct {
 	Topic  string              `json:"topic"`
 	Ticker WsFuturesTickerData `json:"data"`
+}
+
+type WsDeltaFuturesTicker struct {
+	Topic string `json:"topic"`
+	Type  string `json:"string"`
+	Data  struct {
+		Delete []WsFuturesTickerData `json:"delete"`
+		Update []WsFuturesTickerData `json:"update"`
+		Insert []WsFuturesTickerData `json:"insert"`
+	} `json:"data"`
 }
 
 type WsLiquidationData struct {

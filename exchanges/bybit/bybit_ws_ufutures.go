@@ -186,7 +186,7 @@ func (by *Bybit) wsUSDTHandleData(respRaw []byte) error {
 		case wsOrder25, wsOrder200:
 			if wsType, ok := multiStreamData["type"].(string); ok {
 				switch wsType {
-				case wsOrderbookSnapshot:
+				case wsOperationSnapshot:
 					var response WsUSDTOrderbook
 					err := json.Unmarshal(respRaw, &response)
 					if err != nil {
@@ -210,7 +210,7 @@ func (by *Bybit) wsUSDTHandleData(respRaw []byte) error {
 						return err
 					}
 
-				case wsOrderbookDelta:
+				case wsOperationDelta:
 					var response WsCoinDeltaOrderbook
 					err := json.Unmarshal(respRaw, &response)
 					if err != nil {
@@ -354,29 +354,136 @@ func (by *Bybit) wsUSDTHandleData(respRaw []byte) error {
 			}
 
 		case wsInstrument:
-			var response WsTicker
-			err := json.Unmarshal(respRaw, &response)
-			if err != nil {
-				return err
-			}
+			if wsType, ok := multiStreamData["type"].(string); ok {
+				switch wsType {
+				case wsOperationSnapshot:
+					var response WsTicker
+					err := json.Unmarshal(respRaw, &response)
+					if err != nil {
+						return err
+					}
 
-			p, err := currency.NewPairFromString(response.Ticker.Symbol)
-			if err != nil {
-				return err
-			}
+					p, err := currency.NewPairFromString(response.Ticker.Symbol)
+					if err != nil {
+						return err
+					}
 
-			by.Websocket.DataHandler <- &ticker.Price{
-				ExchangeName: by.Name,
-				Last:         response.Ticker.LastPrice,
-				High:         response.Ticker.HighPrice24h,
-				Low:          response.Ticker.LowPrice24h,
-				Bid:          response.Ticker.BidPrice,
-				Ask:          response.Ticker.AskPrice,
-				Volume:       float64(response.Ticker.Volume24h),
-				Close:        response.Ticker.PrevPrice24h,
-				LastUpdated:  response.Ticker.UpdateAt,
-				AssetType:    asset.USDTMarginedFutures,
-				Pair:         p,
+					var a asset.Item
+					a, err = by.GetPairAssetType(p)
+					if err != nil {
+						return err
+					}
+					by.Websocket.DataHandler <- &ticker.Price{
+						ExchangeName: by.Name,
+						Last:         response.Ticker.LastPrice,
+						High:         response.Ticker.HighPrice24h,
+						Low:          response.Ticker.LowPrice24h,
+						Bid:          response.Ticker.BidPrice,
+						Ask:          response.Ticker.AskPrice,
+						Volume:       float64(response.Ticker.Volume24h),
+						Close:        response.Ticker.PrevPrice24h,
+						LastUpdated:  response.Ticker.UpdateAt,
+						AssetType:    a,
+						Pair:         p,
+					}
+
+				case wsOperationDelta:
+					var response WsDeltaTicker
+					err := json.Unmarshal(respRaw, &response)
+					if err != nil {
+						return err
+					}
+
+					if len(response.Data.Delete) > 0 {
+						for _, t := range response.Data.Delete {
+							p, err := currency.NewPairFromString(t.Symbol)
+							if err != nil {
+								return err
+							}
+
+							var a asset.Item
+							a, err = by.GetPairAssetType(p)
+							if err != nil {
+								return err
+							}
+
+							by.Websocket.DataHandler <- &ticker.Price{
+								ExchangeName: by.Name,
+								Last:         t.LastPrice,
+								High:         t.HighPrice24h,
+								Low:          t.LowPrice24h,
+								Bid:          t.BidPrice,
+								Ask:          t.AskPrice,
+								Volume:       float64(t.Volume24h),
+								Close:        t.PrevPrice24h,
+								LastUpdated:  t.UpdateAt,
+								AssetType:    a,
+								Pair:         p,
+							}
+						}
+					}
+
+					if len(response.Data.Update) > 0 {
+						for _, t := range response.Data.Update {
+							p, err := currency.NewPairFromString(t.Symbol)
+							if err != nil {
+								return err
+							}
+
+							var a asset.Item
+							a, err = by.GetPairAssetType(p)
+							if err != nil {
+								return err
+							}
+
+							by.Websocket.DataHandler <- &ticker.Price{
+								ExchangeName: by.Name,
+								Last:         t.LastPrice,
+								High:         t.HighPrice24h,
+								Low:          t.LowPrice24h,
+								Bid:          t.BidPrice,
+								Ask:          t.AskPrice,
+								Volume:       float64(t.Volume24h),
+								Close:        t.PrevPrice24h,
+								LastUpdated:  t.UpdateAt,
+								AssetType:    a,
+								Pair:         p,
+							}
+						}
+					}
+
+					if len(response.Data.Insert) > 0 {
+						for _, t := range response.Data.Insert {
+							p, err := currency.NewPairFromString(t.Symbol)
+							if err != nil {
+								return err
+							}
+
+							var a asset.Item
+							a, err = by.GetPairAssetType(p)
+							if err != nil {
+								return err
+							}
+
+							by.Websocket.DataHandler <- &ticker.Price{
+								ExchangeName: by.Name,
+								Last:         t.LastPrice,
+								High:         t.HighPrice24h,
+								Low:          t.LowPrice24h,
+								Bid:          t.BidPrice,
+								Ask:          t.AskPrice,
+								Volume:       float64(t.Volume24h),
+								Close:        t.PrevPrice24h,
+								LastUpdated:  t.UpdateAt,
+								AssetType:    a,
+								Pair:         p,
+							}
+						}
+					}
+
+				default:
+					by.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: by.Name + stream.UnhandledMessage + "unsupported ticker operation"}
+				}
 			}
 
 		case wsLiquidation:
