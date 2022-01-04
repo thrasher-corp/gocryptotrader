@@ -160,7 +160,7 @@ func (e *MultiPositionTracker) TrackNewOrder(d *Detail) error {
 	}
 	setup := &PositionTrackerSetup{
 		Pair:                      d.Pair,
-		EntryPrice:                d.Price,
+		EntryPrice:                decimal.NewFromFloat(d.Price),
 		Underlying:                d.Pair.Base,
 		Asset:                     d.AssetType,
 		Side:                      d.Side,
@@ -204,10 +204,11 @@ func (e *MultiPositionTracker) SetupPositionTracker(setup *PositionTrackerSetup)
 		contractPair:              setup.Pair,
 		underlyingAsset:           setup.Underlying,
 		status:                    Open,
-		entryPrice:                decimal.NewFromFloat(setup.EntryPrice),
+		entryPrice:                setup.EntryPrice,
 		currentDirection:          setup.Side,
 		openingDirection:          setup.Side,
 		useExchangePNLCalculation: setup.UseExchangePNLCalculation,
+		offlinePNLCalculation:     e.offlinePNLCalculation,
 	}
 	if !setup.UseExchangePNLCalculation {
 		// use position tracker's pnl calculation by default
@@ -275,6 +276,9 @@ func (p *PositionTracker) TrackPNLByTime(t time.Time, currentPrice float64) erro
 // GetRealisedPNL returns the realised pnl if the order
 // is closed
 func (p *PositionTracker) GetRealisedPNL() decimal.Decimal {
+	if p == nil {
+		return decimal.Zero
+	}
 	p.m.Lock()
 	defer p.m.Unlock()
 	return calculateRealisedPNL(p.pnlHistory)
@@ -365,14 +369,18 @@ func (p *PositionTracker) TrackNewOrder(d *Detail) error {
 
 	var result *PNLResult
 	var err error
+	var price, amount, leverage decimal.Decimal
+	price = decimal.NewFromFloat(d.Price)
+	amount = decimal.NewFromFloat(d.Amount)
+	leverage = decimal.NewFromFloat(d.Leverage)
 	cal := &PNLCalculatorRequest{
 		Underlying:       p.underlyingAsset,
 		Asset:            p.asset,
 		OrderDirection:   d.Side,
-		Leverage:         d.Leverage,
-		EntryPrice:       p.entryPrice.InexactFloat64(),
-		Amount:           d.Amount,
-		CurrentPrice:     d.Price,
+		Leverage:         leverage,
+		EntryPrice:       p.entryPrice,
+		Amount:           amount,
+		CurrentPrice:     price,
 		Pair:             p.contractPair,
 		Time:             d.Date,
 		OpeningDirection: p.openingDirection,
@@ -380,11 +388,11 @@ func (p *PositionTracker) TrackNewOrder(d *Detail) error {
 		PNLHistory:       p.pnlHistory,
 		Exposure:         p.exposure,
 		Fee:              decimal.NewFromFloat(d.Fee),
+		CalculateOffline: p.offlinePNLCalculation,
 	}
 	if len(p.pnlHistory) != 0 {
-		cal.PreviousPrice = p.pnlHistory[len(p.pnlHistory)-1].Price.InexactFloat64()
+		cal.PreviousPrice = p.pnlHistory[len(p.pnlHistory)-1].Price
 	}
-	amount := decimal.NewFromFloat(d.Amount)
 	if (cal.OrderDirection.IsShort() && cal.CurrentDirection.IsLong() || cal.OrderDirection.IsLong() && cal.CurrentDirection.IsShort()) &&
 		cal.Exposure.LessThan(amount) {
 		// latest order swaps directions!
@@ -392,15 +400,8 @@ func (p *PositionTracker) TrackNewOrder(d *Detail) error {
 		first := amount.Sub(cal.Exposure)
 		second := cal.Exposure.Sub(amount).Abs()
 		cal.Fee = cal.Fee.Div(decimal.NewFromInt(2))
-		result, err = createPNLResult(
-			cal.Time,
-			cal.OrderDirection,
-			first,
-			decimal.NewFromFloat(d.Price),
-			cal.Fee,
-			cal.OpeningDirection,
-			cal.CurrentDirection,
-			cal.PNLHistory)
+		cal.Amount = first
+		result, err = p.PNLCalculation.CalculatePNL(cal)
 		if err != nil {
 			return err
 		}
@@ -419,17 +420,10 @@ func (p *PositionTracker) TrackNewOrder(d *Detail) error {
 		} else if cal.OpeningDirection.IsShort() {
 			cal.OpeningDirection = Long
 		}
-
-		cal.EntryPrice = d.Price
-		result, err = createPNLResult(
-			cal.Time.Add(1),
-			cal.OrderDirection,
-			second,
-			decimal.NewFromFloat(d.Price),
-			cal.Fee,
-			cal.OpeningDirection,
-			cal.CurrentDirection,
-			cal.PNLHistory)
+		cal.Amount = second
+		cal.EntryPrice = price
+		cal.Time = cal.Time.Add(1)
+		result, err = p.PNLCalculation.CalculatePNL(cal)
 	} else {
 		result, err = p.PNLCalculation.CalculatePNL(cal)
 		if err != nil {
@@ -484,77 +478,56 @@ func (p *PNLCalculator) CalculatePNL(calc *PNLCalculatorRequest) (*PNLResult, er
 	if calc == nil {
 		return nil, ErrNilPNLCalculator
 	}
-	var price, amount decimal.Decimal
-	price = decimal.NewFromFloat(calc.CurrentPrice)
-	amount = decimal.NewFromFloat(calc.Amount)
-	result, err := createPNLResult(
-		calc.Time,
-		calc.OrderDirection,
-		amount,
-		price,
-		calc.Fee,
-		calc.OpeningDirection,
-		calc.CurrentDirection,
-		calc.PNLHistory)
-	if err != nil {
-		return nil, err
-	}
-
-	return result, nil
-}
-
-func createPNLResult(t time.Time, side Side, amount, price, fee decimal.Decimal, openingDirection, currentDirection Side, pnlHistory []PNLResult) (*PNLResult, error) {
 	var previousPNL *PNLResult
-	if len(pnlHistory) > 0 {
-		previousPNL = &pnlHistory[len(pnlHistory)-1]
+	if len(calc.PNLHistory) > 0 {
+		previousPNL = &calc.PNLHistory[len(calc.PNLHistory)-1]
 	}
 	var prevExposure decimal.Decimal
 	if previousPNL != nil {
 		prevExposure = previousPNL.Exposure
 	}
 	var currentExposure, realisedPNL, unrealisedPNL, first, second decimal.Decimal
-	if openingDirection.IsLong() {
-		first = price
+	if calc.OpeningDirection.IsLong() {
+		first = calc.CurrentPrice
 		if previousPNL != nil {
 			second = previousPNL.Price
 		}
-	} else if openingDirection.IsShort() {
+	} else if calc.OpeningDirection.IsShort() {
 		if previousPNL != nil {
 			first = previousPNL.Price
-			second = price
+			second = calc.CurrentPrice
 		}
 	}
 	switch {
-	case currentDirection.IsShort() && side.IsShort(),
-		currentDirection.IsLong() && side.IsLong():
+	case calc.OpeningDirection.IsShort() && calc.OrderDirection.IsShort(),
+		calc.OpeningDirection.IsLong() && calc.OrderDirection.IsLong():
 		// appending to your position
-		currentExposure = prevExposure.Add(amount)
+		currentExposure = prevExposure.Add(calc.Amount)
 		unrealisedPNL = currentExposure.Mul(first.Sub(second))
-	case currentDirection.IsShort() && side.IsLong(),
-		currentDirection.IsLong() && side.IsShort():
+	case calc.OpeningDirection.IsShort() && calc.OrderDirection.IsLong(),
+		calc.OpeningDirection.IsLong() && calc.OrderDirection.IsShort():
 		// selling/closing your position by "amount"
-		currentExposure = prevExposure.Sub(amount)
+		currentExposure = prevExposure.Sub(calc.Amount)
 		unrealisedPNL = currentExposure.Mul(first.Sub(second))
-		step1 := first.Sub(second)
-		realisedPNL = amount.Mul(step1)
+		realisedPNL = calc.Amount.Mul(first.Sub(second))
 	default:
-		return nil, fmt.Errorf("%v %v %v %w", currentDirection, side, currentExposure, errCannotCalculateUnrealisedPNL)
+		return nil, fmt.Errorf("%w openinig direction: '%v' order direction: '%v' exposure: '%v'", errCannotCalculateUnrealisedPNL, calc.OpeningDirection, calc.OrderDirection, currentExposure)
 	}
-	totalFees := fee
-	for i := range pnlHistory {
-		totalFees = totalFees.Add(pnlHistory[i].Fee)
+	totalFees := calc.Fee
+	for i := range calc.PNLHistory {
+		totalFees = totalFees.Add(calc.PNLHistory[i].Fee)
 	}
 	if !unrealisedPNL.IsZero() {
 		unrealisedPNL = unrealisedPNL.Sub(totalFees)
 	}
 
 	response := &PNLResult{
-		Time:                  t,
+		Time:                  calc.Time,
 		UnrealisedPNL:         unrealisedPNL,
 		RealisedPNLBeforeFees: realisedPNL,
-		Price:                 price,
+		Price:                 calc.CurrentPrice,
 		Exposure:              currentExposure,
-		Fee:                   fee,
+		Fee:                   calc.Fee,
 	}
 	return response, nil
 }

@@ -31,14 +31,13 @@ var (
 	errTimeUnset                      = errors.New("time unset")
 	errMissingPNLCalculationFunctions = errors.New("futures tracker requires exchange PNL calculation functions")
 	errOrderNotEqualToTracker         = errors.New("order does not match tracker data")
-	errPositionNotClosed              = errors.New("the position is not closed")
 	errPositionDiscrepancy            = errors.New("there is a position considered open, but it is not the latest, please review")
 	errAssetMismatch                  = errors.New("provided asset does not match")
 	errEmptyUnderlying                = errors.New("underlying asset unset")
 	errNilSetup                       = errors.New("nil setup received")
 	errNilOrder                       = errors.New("nil order received")
 	errNoPNLHistory                   = errors.New("no pnl history")
-	errCannotCalculateUnrealisedPNL   = errors.New("cannot calculate unrealised PNL, order is not open")
+	errCannotCalculateUnrealisedPNL   = errors.New("cannot calculate unrealised PNL")
 )
 
 // PNLCalculation is an interface to allow multiple
@@ -132,7 +131,7 @@ type PositionTracker struct {
 // setup a position tracker
 type PositionTrackerSetup struct {
 	Pair                      currency.Pair
-	EntryPrice                float64
+	EntryPrice                decimal.Decimal
 	Underlying                currency.Code
 	Asset                     asset.Item
 	Side                      Side
@@ -161,12 +160,12 @@ type PNLCalculatorRequest struct {
 	CalculateOffline bool
 	Underlying       currency.Code
 	Asset            asset.Item
-	Leverage         float64
-	EntryPrice       float64
-	EntryAmount      float64
-	Amount           float64
-	CurrentPrice     float64
-	PreviousPrice    float64
+	Leverage         decimal.Decimal
+	EntryPrice       decimal.Decimal
+	EntryAmount      decimal.Decimal
+	Amount           decimal.Decimal
+	CurrentPrice     decimal.Decimal
+	PreviousPrice    decimal.Decimal
 	Time             time.Time
 	OrderID          string
 	Fee              decimal.Decimal

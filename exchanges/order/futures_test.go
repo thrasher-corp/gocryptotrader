@@ -23,39 +23,6 @@ func (f *FakePNL) CalculatePNL(*PNLCalculatorRequest) (*PNLResult, error) {
 	return f.result, nil
 }
 
-func TestTrackPNL(t *testing.T) {
-	/*
-		t.Parallel()
-		exch := "test"
-		item := asset.Futures
-		pair, err := currency.NewPairFromStrings("BTC", "1231")
-		if !errors.Is(err, nil) {
-			t.Error(err)
-		}
-		fPNL := &FakePNL{
-			result: &PNLResult{
-				Time: time.Now(),
-			},
-		}
-		e := MultiPositionTracker{
-			exchange:                   exch,
-			useExchangePNLCalculations: true,
-			exchangePNLCalculation:     fPNL,
-		}
-		setup := &PositionTrackerSetup{
-			Pair:                      pair,
-			Asset:                     item,
-			UseExchangePNLCalculation: true,
-		}
-
-		f, err := e.SetupPositionTracker(setup)
-		if !errors.Is(err, nil) {
-			t.Error(err)
-		}
-
-	*/
-}
-
 func TestUpsertPNLEntry(t *testing.T) {
 	t.Parallel()
 	var results []PNLResult
@@ -66,23 +33,23 @@ func TestUpsertPNLEntry(t *testing.T) {
 	}
 	tt := time.Now()
 	result.Time = tt
-	list, err := upsertPNLEntry(results, result)
+	results, err = upsertPNLEntry(results, result)
 	if !errors.Is(err, nil) {
 		t.Error(err)
 	}
-	if len(list) != 1 {
-		t.Errorf("expected 1 received %v", len(list))
+	if len(results) != 1 {
+		t.Errorf("expected 1 received %v", len(results))
 	}
 	result.Fee = decimal.NewFromInt(1337)
-	list, err = upsertPNLEntry(results, result)
+	results, err = upsertPNLEntry(results, result)
 	if !errors.Is(err, nil) {
 		t.Error(err)
 	}
-	if len(list) != 1 {
-		t.Errorf("expected 1 received %v", len(list))
+	if len(results) != 1 {
+		t.Errorf("expected 1 received %v", len(results))
 	}
-	if !list[0].Fee.Equal(result.Fee) {
-		t.Errorf("expected %v received %v", result.Fee, list[0].Fee)
+	if !results[0].Fee.Equal(result.Fee) {
+		t.Errorf("expected %v received %v", result.Fee, results[0].Fee)
 	}
 }
 
@@ -135,7 +102,7 @@ func TestTrackNewOrder(t *testing.T) {
 	if !errors.Is(err, errTimeUnset) {
 		t.Error(err)
 	}
-
+	f.openingDirection = Long
 	od.Date = time.Now()
 	err = f.TrackNewOrder(od)
 	if !errors.Is(err, nil) {
@@ -342,9 +309,6 @@ func TestExchangeTrackNewOrder(t *testing.T) {
 		ID:        "2",
 		Amount:    2,
 	})
-	if !errors.Is(err, errCannotCalculateUnrealisedPNL) {
-		t.Error(err)
-	}
 	if len(resp.positions) != 2 {
 		t.Errorf("expected '2' received %v", len(resp.positions))
 	}
@@ -582,34 +546,6 @@ func TestCalculateRealisedPNL(t *testing.T) {
 	}
 }
 
-func TestCreatePNLResult(t *testing.T) {
-	t.Parallel()
-	result, err := createPNLResult(time.Now(), Buy, decimal.NewFromInt(1), decimal.NewFromInt(1), decimal.NewFromInt(1), Long, Short, nil)
-	if err != nil {
-		t.Error(err)
-	}
-	t.Log(result)
-}
-
-func TestTrackPNLByTime(t *testing.T) {
-	t.Parallel()
-	p := &PositionTracker{}
-	err := p.TrackPNLByTime(time.Now(), 1)
-	if err != nil {
-		t.Error(err)
-	}
-
-	err = p.TrackPNLByTime(time.Now(), 2)
-	if err != nil {
-		t.Error(err)
-	}
-	if !p.latestPrice.Equal(decimal.NewFromInt(2)) {
-		t.Error("expected 2")
-	}
-	t.Log(p.latestPrice)
-
-}
-
 func TestSetupPositionTracker(t *testing.T) {
 	t.Parallel()
 	m := &MultiPositionTracker{}
@@ -688,67 +624,44 @@ func TestSetupPositionTracker(t *testing.T) {
 
 func TestCalculatePNL(t *testing.T) {
 	t.Parallel()
-	/*
-		t.Parallel()
-		pt := PositionTracker{}
-		_, err := pt.CalculatePNL(nil)
-		if !errors.Is(err, ErrNilPNLCalculator) {
-			t.Error(err)
-		}
+	p := &PNLCalculator{}
+	_, err := p.CalculatePNL(nil)
+	if !errors.Is(err, ErrNilPNLCalculator) {
+		t.Errorf("received '%v' expected '%v", err, ErrNilPNLCalculator)
+	}
+	_, err = p.CalculatePNL(&PNLCalculatorRequest{})
+	if !errors.Is(err, errCannotCalculateUnrealisedPNL) {
+		t.Errorf("received '%v' expected '%v", err, errCannotCalculateUnrealisedPNL)
+	}
 
-		_, err = pt.CalculatePNL(&PNLCalculatorRequest{})
-		if !errors.Is(err, errMissingPNLCalculationFunctions) {
-			t.Error(err)
-		}
-		tt := time.Now()
-		result, err := pt.CalculatePNL(&PNLCalculatorRequest{
-			TimeBasedCalculation: &TimeBasedCalculation{
-				Time:         tt,
-				CurrentPrice: 1337,
-			},
-		})
-		if !errors.Is(err, nil) {
-			t.Error(err)
-		}
-		if !result.Time.Equal(tt) {
-			t.Error("unexpected result")
-		}
+	_, err = p.CalculatePNL(&PNLCalculatorRequest{
+		OrderDirection:   Short,
+		CurrentDirection: Long,
+	})
+	if !errors.Is(err, errCannotCalculateUnrealisedPNL) {
+		t.Errorf("received '%v' expected '%v", err, errCannotCalculateUnrealisedPNL)
+	}
 
-		pt.status = Open
-		pt.currentDirection = Long
-		result, err = pt.CalculatePNL(&PNLCalculatorRequest{
-			OrderBasedCalculation: &Detail{
-				Date:      tt,
-				Price:     1337,
-				Exchange:  "test",
-				AssetType: asset.Spot,
-				Side:      Long,
-				Status:    Active,
-				Pair:      currency.NewPair(currency.BTC, currency.USDT),
-				Amount:    5,
-			},
-		})
-		if !errors.Is(err, nil) {
-			t.Error(err)
-		}
+}
 
-		pt.exposure = decimal.NewFromInt(5)
-		result, err = pt.CalculatePNL(&PNLCalculatorRequest{
-			OrderBasedCalculation: &Detail{
-				Date:      tt,
-				Price:     1337,
-				Exchange:  "test",
-				AssetType: asset.Spot,
-				Side:      Short,
-				Status:    Active,
-				Pair:      currency.NewPair(currency.BTC, currency.USDT),
-				Amount:    10,
-			},
-		})
-		if !errors.Is(err, nil) {
-			t.Error(err)
-		}
+func TestTrackPNLByTime(t *testing.T) {
+	t.Parallel()
+	p := &PositionTracker{}
+	err := p.TrackPNLByTime(time.Now(), 1)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v", err, nil)
+	}
 
-	*/
-
+	err = p.TrackPNLByTime(time.Now(), 2)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v", err, nil)
+	}
+	if !p.latestPrice.Equal(decimal.NewFromInt(2)) {
+		t.Error("expected 2")
+	}
+	p = nil
+	err = p.TrackPNLByTime(time.Now(), 2)
+	if !errors.Is(err, common.ErrNilPointer) {
+		t.Errorf("received '%v' expected '%v", err, common.ErrNilPointer)
+	}
 }

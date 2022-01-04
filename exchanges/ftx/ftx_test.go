@@ -30,7 +30,7 @@ const (
 	apiSecret               = ""
 	subaccount              = ""
 	canManipulateRealOrders = false
-	spotPair                = "FTT/BTC"
+	spotPairStr             = "FTT/BTC"
 	futuresPair             = "DOGE-PERP"
 	testLeverageToken       = "ADAMOON"
 
@@ -42,7 +42,10 @@ const (
 	authEndTime            = validFTTBTCEndTime
 )
 
-var f FTX
+var (
+	f        FTX
+	spotPair = currency.NewPair(currency.FTT, currency.BTC)
+)
 
 func TestMain(m *testing.M) {
 	f.SetDefaults()
@@ -119,7 +122,7 @@ func TestGetHistoricalIndex(t *testing.T) {
 
 func TestGetMarket(t *testing.T) {
 	t.Parallel()
-	_, err := f.GetMarket(context.Background(), spotPair)
+	_, err := f.GetMarket(context.Background(), spotPairStr)
 	if err != nil {
 		t.Error(err)
 	}
@@ -127,7 +130,7 @@ func TestGetMarket(t *testing.T) {
 
 func TestGetOrderbook(t *testing.T) {
 	t.Parallel()
-	_, err := f.GetOrderbook(context.Background(), spotPair, 5)
+	_, err := f.GetOrderbook(context.Background(), spotPairStr, 5)
 	if err != nil {
 		t.Error(err)
 	}
@@ -141,13 +144,13 @@ func TestGetTrades(t *testing.T) {
 		t.Error("empty market should return an error")
 	}
 	_, err = f.GetTrades(context.Background(),
-		spotPair, validFTTBTCEndTime, validFTTBTCStartTime, 5)
+		spotPairStr, validFTTBTCEndTime, validFTTBTCStartTime, 5)
 	if err != errStartTimeCannotBeAfterEndTime {
 		t.Errorf("should have thrown errStartTimeCannotBeAfterEndTime, got %v", err)
 	}
 	// test optional params
 	var trades []TradeData
-	trades, err = f.GetTrades(context.Background(), spotPair, 0, 0, 0)
+	trades, err = f.GetTrades(context.Background(), spotPairStr, 0, 0, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -155,7 +158,7 @@ func TestGetTrades(t *testing.T) {
 		t.Error("default limit should return 20 items")
 	}
 	trades, err = f.GetTrades(context.Background(),
-		spotPair, validFTTBTCStartTime, validFTTBTCEndTime, 5)
+		spotPairStr, validFTTBTCStartTime, validFTTBTCEndTime, 5)
 	if err != nil {
 		t.Error(err)
 	}
@@ -163,7 +166,7 @@ func TestGetTrades(t *testing.T) {
 		t.Error("limit of 5 should return 5 items")
 	}
 	trades, err = f.GetTrades(context.Background(),
-		spotPair, invalidFTTBTCStartTime, invalidFTTBTCEndTime, 5)
+		spotPairStr, invalidFTTBTCStartTime, invalidFTTBTCEndTime, 5)
 	if err != nil {
 		t.Error(err)
 	}
@@ -182,19 +185,19 @@ func TestGetHistoricalData(t *testing.T) {
 	}
 	// test empty resolution
 	_, err = f.GetHistoricalData(context.Background(),
-		spotPair, 0, 5, time.Time{}, time.Time{})
+		spotPairStr, 0, 5, time.Time{}, time.Time{})
 	if err == nil {
 		t.Error("empty resolution should return an error")
 	}
 	_, err = f.GetHistoricalData(context.Background(),
-		spotPair, 86400, 5, time.Unix(validFTTBTCEndTime, 0),
+		spotPairStr, 86400, 5, time.Unix(validFTTBTCEndTime, 0),
 		time.Unix(validFTTBTCStartTime, 0))
 	if err != errStartTimeCannotBeAfterEndTime {
 		t.Errorf("should have thrown errStartTimeCannotBeAfterEndTime, got %v", err)
 	}
 	var o []OHLCVData
 	o, err = f.GetHistoricalData(context.Background(),
-		spotPair, 86400, 5, time.Time{}, time.Time{})
+		spotPairStr, 86400, 5, time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
 	}
@@ -202,7 +205,7 @@ func TestGetHistoricalData(t *testing.T) {
 		t.Error("limit of 5 should return 5 items")
 	}
 	o, err = f.GetHistoricalData(context.Background(),
-		spotPair, 86400, 5, time.Unix(invalidFTTBTCStartTime, 0),
+		spotPairStr, 86400, 5, time.Unix(invalidFTTBTCStartTime, 0),
 		time.Unix(invalidFTTBTCEndTime, 0))
 	if err != nil {
 		t.Error(err)
@@ -525,7 +528,7 @@ func TestGetOpenOrders(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = f.GetOpenOrders(context.Background(), spotPair)
+	_, err = f.GetOpenOrders(context.Background(), spotPairStr)
 	if err != nil {
 		t.Error(err)
 	}
@@ -542,12 +545,12 @@ func TestFetchOrderHistory(t *testing.T) {
 		t.Error(err)
 	}
 	_, err = f.FetchOrderHistory(context.Background(),
-		spotPair, time.Unix(authStartTime, 0), time.Unix(authEndTime, 0), "2")
+		spotPairStr, time.Unix(authStartTime, 0), time.Unix(authEndTime, 0), "2")
 	if err != nil {
 		t.Error(err)
 	}
 	_, err = f.FetchOrderHistory(context.Background(),
-		spotPair, time.Unix(authEndTime, 0), time.Unix(authStartTime, 0), "2")
+		spotPairStr, time.Unix(authEndTime, 0), time.Unix(authStartTime, 0), "2")
 	if err != errStartTimeCannotBeAfterEndTime {
 		t.Errorf("should have thrown errStartTimeCannotBeAfterEndTime, got %v", err)
 	}
@@ -563,7 +566,7 @@ func TestGetOpenTriggerOrders(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = f.GetOpenTriggerOrders(context.Background(), spotPair, "")
+	_, err = f.GetOpenTriggerOrders(context.Background(), spotPairStr, "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -591,12 +594,12 @@ func TestGetTriggerOrderHistory(t *testing.T) {
 		t.Error(err)
 	}
 	_, err = f.GetTriggerOrderHistory(context.Background(),
-		spotPair, time.Time{}, time.Time{}, order.Buy.Lower(), "stop", "1")
+		spotPairStr, time.Time{}, time.Time{}, order.Buy.Lower(), "stop", "1")
 	if err != nil {
 		t.Error(err)
 	}
 	_, err = f.GetTriggerOrderHistory(context.Background(),
-		spotPair,
+		spotPairStr,
 		time.Unix(authStartTime, 0),
 		time.Unix(authEndTime, 0),
 		order.Buy.Lower(),
@@ -606,7 +609,7 @@ func TestGetTriggerOrderHistory(t *testing.T) {
 		t.Error(err)
 	}
 	_, err = f.GetTriggerOrderHistory(context.Background(),
-		spotPair,
+		spotPairStr,
 		time.Unix(authEndTime, 0),
 		time.Unix(authStartTime, 0),
 		order.Buy.Lower(),
@@ -623,7 +626,7 @@ func TestOrder(t *testing.T) {
 		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
 	}
 	_, err := f.Order(context.Background(),
-		spotPair,
+		spotPairStr,
 		order.Buy.Lower(),
 		"limit",
 		false, false, false,
@@ -640,7 +643,7 @@ func TestSubmitOrder(t *testing.T) {
 		t.Skip("skipping test, either api keys or canManipulateRealOrders isn't set correctly")
 	}
 
-	currencyPair, err := currency.NewPairFromString(spotPair)
+	currencyPair, err := currency.NewPairFromString(spotPairStr)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -666,7 +669,7 @@ func TestTriggerOrder(t *testing.T) {
 		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
 	}
 	_, err := f.TriggerOrder(context.Background(),
-		spotPair,
+		spotPairStr,
 		order.Buy.Lower(),
 		order.Stop.Lower(),
 		"", "",
@@ -682,7 +685,7 @@ func TestCancelOrder(t *testing.T) {
 		t.Skip("skipping test, either api keys or canManipulateRealOrders isn't set correctly")
 	}
 
-	currencyPair, err := currency.NewPairFromString(spotPair)
+	currencyPair, err := currency.NewPairFromString(spotPairStr)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -741,7 +744,8 @@ func TestGetFills(t *testing.T) {
 		t.Skip()
 	}
 	// optional params
-	_, err := f.GetFills(context.Background(), "", "", time.Time{}, time.Time{})
+
+	_, err := f.GetFills(context.Background(), spotPair, "", time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
 	}
@@ -1267,7 +1271,7 @@ func TestGetOTCQuoteStatus(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := f.GetOTCQuoteStatus(context.Background(), spotPair, "1")
+	_, err := f.GetOTCQuoteStatus(context.Background(), spotPairStr, "1")
 	if err != nil {
 		t.Error(err)
 	}
@@ -1811,10 +1815,10 @@ func TestCalculatePNLFromOrders(t *testing.T) {
 	if pnl := pos[1].GetRealisedPNL(); !pnl.Equal(decimal.NewFromFloat(0.0148)) {
 		t.Errorf("expected nil err, received '%v', expected 0.0148, received '%v'", err, pnl)
 	}
-	if pnl := pos[2].GetRealisedPNL(); !pnl.Equal(decimal.NewFromFloat(0.0092)) {
+	if pnl := pos[2].GetRealisedPNL(); !pnl.Equal(decimal.NewFromFloat(-0.0004)) {
 		t.Errorf("expected nil err, received '%v', expected 0.0092, received '%v'", err, pnl)
 	}
-	if pnl := pos[3].GetRealisedPNL(); !pnl.Equal(decimal.NewFromFloat(-0.0054)) {
+	if pnl := pos[3].GetRealisedPNL(); !pnl.Equal(decimal.NewFromFloat(0.0098)) {
 		t.Errorf("expected nil err, received '%v', expected -0.0054, received '%v'", err, pnl)
 	}
 	if pnl := pos[4].GetRealisedPNL(); !pnl.Equal(decimal.NewFromFloat(0.0387)) {
@@ -1826,7 +1830,9 @@ func TestCalculatePNLFromOrders(t *testing.T) {
 }
 
 func TestScaleCollateral(t *testing.T) {
-	f.Verbose = true
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test, api keys not set")
+	}
 	ai, err := f.GetAccountInfo(context.Background())
 	if err != nil {
 		t.Error(err)
@@ -1886,8 +1892,10 @@ func TestScaleCollateral(t *testing.T) {
 }
 
 func TestCalculatePNLFromOrders1(t *testing.T) {
-	f.Verbose = true
-	resp, err := f.GetFills(context.Background(), "BTC-1231", "200", time.Time{}, time.Time{})
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test, api keys not set")
+	}
+	resp, err := f.GetFills(context.Background(), spotPair, "200", time.Time{}, time.Time{})
 	result := resp
 	sort.Slice(result, func(i, j int) bool {
 		return result[i].Time.Before(result[j].Time)
@@ -1937,8 +1945,10 @@ func TestCalculatePNLFromOrders1(t *testing.T) {
 	}
 	positions := p.GetPositions()
 	for i := range positions {
-		sn, _ := positions[i].GetLatestPNLSnapshot()
-		t.Logf("%v %v", sn.Time, positions[i].GetRealisedPNL())
+		_, err = positions[i].GetLatestPNLSnapshot()
+		if err != nil {
+			t.Error(err)
+		}
 	}
 }
 
@@ -1991,7 +2001,8 @@ func TestCalculatePNLFromOrders3(t *testing.T) {
 		Pair:                      pair,
 		Underlying:                pair.Base,
 		ExchangePNLCalculation:    &f,
-		UseExchangePNLCalculation: false,
+		UseExchangePNLCalculation: true,
+		OfflineCalculation:        true,
 	}
 	p, err := order.SetupMultiPositionTracker(setup)
 	if err != nil {

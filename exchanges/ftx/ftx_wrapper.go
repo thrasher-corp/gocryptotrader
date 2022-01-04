@@ -1280,35 +1280,37 @@ func (f *FTX) CalculatePNL(pnl *order.PNLCalculatorRequest) (*order.PNLResult, e
 	}
 	var result order.PNLResult
 	result.Time = pnl.Time
+	if pnl.CalculateOffline {
+		result.Fee = pnl.Fee
+		result.UnrealisedPNL = pnl.Amount.Mul(pnl.CurrentPrice.Sub(pnl.PreviousPrice))
+		result.Price = pnl.CurrentPrice
+		ftxPNLCalculation := pnl.Amount.Mul(pnl.CurrentPrice.Sub(pnl.EntryPrice))
+		result.RealisedPNLBeforeFees = ftxPNLCalculation.Sub(result.UnrealisedPNL)
+		return &result, nil
+	}
 
-	if !pnl.CalculateOffline {
-		info, err := f.GetAccountInfo(context.Background())
+	ep := pnl.EntryPrice.InexactFloat64()
+	info, err := f.GetAccountInfo(context.Background())
+	if err != nil {
+		return nil, err
+	}
+	if info.Liquidating || info.Collateral == 0 {
+		return &result, order.ErrPositionLiquidated
+	}
+	for i := range info.Positions {
+		pair, err := currency.NewPairFromString(info.Positions[i].Future)
 		if err != nil {
 			return nil, err
 		}
-		if info.Liquidating || info.Collateral == 0 {
-			return &result, order.ErrPositionLiquidated
+		if !pnl.Pair.Equal(pair) {
+			continue
 		}
-		for i := range info.Positions {
-			pair, err := currency.NewPairFromString(info.Positions[i].Future)
-			if err != nil {
-				return nil, err
-			}
-			if !pnl.Pair.Equal(pair) {
-				continue
-			}
-			if info.Positions[i].EntryPrice == pnl.EntryPrice {
-				result.UnrealisedPNL = decimal.NewFromFloat(info.Positions[i].UnrealizedPNL)
-				result.RealisedPNLBeforeFees = decimal.NewFromFloat(info.Positions[i].RealizedPNL)
-				result.Price = decimal.NewFromFloat(info.Positions[i].Cost)
-				return &result, nil
-			}
+		if info.Positions[i].EntryPrice == ep {
+			result.UnrealisedPNL = decimal.NewFromFloat(info.Positions[i].UnrealizedPNL)
+			result.RealisedPNLBeforeFees = decimal.NewFromFloat(info.Positions[i].RealizedPNL)
+			result.Price = decimal.NewFromFloat(info.Positions[i].Cost)
 		}
 	}
-	uPNL := pnl.Amount * (pnl.CurrentPrice - pnl.PreviousPrice)
-	result.RealisedPNLBeforeFees = result.RealisedPNLBeforeFees.Add(result.UnrealisedPNL)
-	result.UnrealisedPNL = decimal.NewFromFloat(uPNL)
-	result.Price = decimal.NewFromFloat(pnl.CurrentPrice)
 	return &result, nil
 }
 
