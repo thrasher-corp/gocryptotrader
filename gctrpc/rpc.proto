@@ -1034,7 +1034,6 @@ message GetFuturesPositionsRequest {
     bool verbose = 8;
 }
 
-
 message GetFuturesPositionsResponse {
     int64 totalOrders = 1;
     double totalRealisedPNL = 2;
@@ -1052,6 +1051,26 @@ message FuturePosition {
     string closingDate = 6;
     repeated OrderDetails orders = 7;
 }
+
+message GetCollateralRequest {
+    string exchange =1;
+    string asset = 2;
+    string subAccount = 3;
+    bool includeBreakdown = 4;
+    bool calculateOffline = 5;
+}
+
+message GetCollateralResponse {
+    string totalCollateral = 1;
+    repeated CollateralForCurrency currencyBreakdown = 2;
+}
+
+message CollateralForCurrency {
+    string currency = 1;
+    string scaledCollateral = 2;
+    string scaledToCurrency = 3;
+}
+
 
 service GoCryptoTrader {
     rpc GetInfo (GetInfoRequest) returns (GetInfoResponse) {
@@ -1645,6 +1664,11 @@ service GoCryptoTrader {
     rpc GetFuturesPositions (GetFuturesPositionsRequest) returns (GetFuturesPositionsResponse) {
         option (google.api.http) = {
             get: "/v1/getfuturespositions"
+        };
+    }
+    rpc GetCollateral (GetCollateralRequest) returns (GetCollateralResponse) {
+        option (google.api.http) = {
+            get: "/v1/getcollateral"
         };
     }
 }

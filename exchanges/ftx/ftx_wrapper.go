@@ -1318,48 +1318,77 @@ func (f *FTX) CalculatePNL(pnl *order.PNLCalculatorRequest) (*order.PNLResult, e
 }
 
 // ScaleCollateral takes your totals and scales them according to FTX's rules
-func (f *FTX) ScaleCollateral(calc *order.CollateralCalculator) (decimal.Decimal, error) {
+func (f *FTX) ScaleCollateral(ctx context.Context, calc *order.CollateralCalculator) (decimal.Decimal, error) {
 	var result decimal.Decimal
-	if calc.CollateralCurrency == currency.USD {
-		return calc.CollateralAmount, nil
-	}
-	collateralWeight, ok := f.collateralWeight[calc.CollateralCurrency.Upper().String()]
-	if !ok {
-		return decimal.Zero, fmt.Errorf("%v %w", calc.CollateralCurrency, errCollateralCurrencyNotFound)
-	}
-	if calc.CollateralAmount.IsPositive() {
-		if collateralWeight.IMFFactor == 0 {
-			return decimal.Zero, fmt.Errorf("%v %w", calc.CollateralCurrency, errCollateralIMFMissing)
+	if calc.CalculateOffline {
+		if calc.CollateralCurrency == currency.USD {
+			return calc.CollateralAmount, nil
 		}
-		var scaling decimal.Decimal
-		if calc.IsLiquidating {
-			scaling = decimal.NewFromFloat(collateralWeight.Total)
+		collateralWeight, ok := f.collateralWeight[calc.CollateralCurrency.Upper().String()]
+		if !ok {
+			return decimal.Zero, fmt.Errorf("%v %w", calc.CollateralCurrency, errCollateralCurrencyNotFound)
+		}
+		if calc.CollateralAmount.IsPositive() {
+			if collateralWeight.IMFFactor == 0 {
+				return decimal.Zero, fmt.Errorf("%v %w", calc.CollateralCurrency, errCollateralIMFMissing)
+			}
+			var scaling decimal.Decimal
+			if calc.IsLiquidating {
+				scaling = decimal.NewFromFloat(collateralWeight.Total)
+			} else {
+				scaling = decimal.NewFromFloat(collateralWeight.Initial)
+			}
+			weight := decimal.NewFromFloat(1.1 / (1 + collateralWeight.IMFFactor*math.Sqrt(calc.CollateralAmount.InexactFloat64())))
+			result = calc.CollateralAmount.Mul(calc.USDPrice).Mul(decimal.Min(scaling, weight))
 		} else {
-			scaling = decimal.NewFromFloat(collateralWeight.Initial)
+			result = result.Add(calc.CollateralAmount.Mul(calc.USDPrice))
 		}
-		weight := decimal.NewFromFloat(1.1 / (1 + collateralWeight.IMFFactor*math.Sqrt(calc.CollateralAmount.InexactFloat64())))
-		result = calc.CollateralAmount.Mul(calc.USDPrice).Mul(decimal.Min(scaling, weight))
-	} else {
-		result = result.Add(calc.CollateralAmount.Mul(calc.USDPrice))
+		return result, nil
 	}
-	return result, nil
+	wallet, err := f.GetCoins(ctx)
+	if err != nil {
+		return decimal.Zero, err
+	}
+	balances, err := f.GetBalances(ctx)
+	if err != nil {
+		return decimal.Zero, err
+	}
+	for i := range wallet {
+		if currency.NewCode(wallet[i].ID) != calc.CollateralCurrency {
+			continue
+		}
+		for j := range balances {
+			if currency.NewCode(balances[j].Coin) != calc.CollateralCurrency {
+				continue
+			}
+			scaled := wallet[i].CollateralWeight * balances[j].USDValue
+			result = decimal.NewFromFloat(scaled)
+			return result, nil
+		}
+	}
+	return decimal.Zero, fmt.Errorf("%v %w", calc.CollateralCurrency, errCollateralCurrencyNotFound)
 }
 
 // CalculateTotalCollateral scales collateral and determines how much collateral you can use for positions
-func (f *FTX) CalculateTotalCollateral(collateralAssets []order.CollateralCalculator) (decimal.Decimal, error) {
-	var result decimal.Decimal
+func (f *FTX) CalculateTotalCollateral(ctx context.Context, collateralAssets []order.CollateralCalculator) (*order.TotalCollateralResponse, error) {
+	var result order.TotalCollateralResponse
 	for i := range collateralAssets {
-		collateral, err := f.ScaleCollateral(&collateralAssets[i])
+		collateral, err := f.ScaleCollateral(ctx, &collateralAssets[i])
 		if err != nil {
 			if errors.Is(err, errCollateralCurrencyNotFound) {
 				log.Error(log.ExchangeSys, err)
 				continue
 			}
-			return decimal.Zero, err
+			return nil, err
 		}
-		result = result.Add(collateral)
+		result.TotalCollateral = result.TotalCollateral.Add(collateral)
+		result.BreakdownByCurrency = append(result.BreakdownByCurrency, order.CollateralByCurrency{
+			Currency:      collateralAssets[i].CollateralCurrency,
+			Amount:        collateral,
+			ValueCurrency: currency.USD,
+		})
 	}
-	return result, nil
+	return &result, nil
 }
 
 // GetFuturesPositions returns all futures positions within provided params

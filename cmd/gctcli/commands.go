@@ -4723,31 +4723,63 @@ func findMissingSavedCandleIntervals(c *cli.Context) error {
 	return nil
 }
 
-// negateLocalOffset helps negate the offset of time generation
-// when the unix time gets to rpcserver, it no longer is the same time
-// that was sent as it handles it as a UTC value, even though when
-// using starttime it is generated as your local time
-// eg 2020-01-01 12:00:00 +10 will convert into
-// 2020-01-01 12:00:00 +00 when at RPCServer
-// so this function will minus the offset from the local sent time
-// to allow for proper use at RPCServer
-func negateLocalOffset(t time.Time) string {
-	_, offset := time.Now().Zone()
-	loc := time.FixedZone("", -offset)
-
-	return t.In(loc).Format(common.SimpleTimeFormat)
+var getFuturesPositionsCommand = &cli.Command{
+	Name:      "getfuturesposition",
+	Usage:     "will retrieve all futures positions in a timeframe, then calculate PNL based on that. Note, the dates have an impact on PNL calculations, ensure your start date is not after a new position is opened",
+	ArgsUsage: "<exchange> <pair> <asset> <interval> <start> <end>",
+	Action:    getFuturesPositions,
+	Flags: []cli.Flag{
+		&cli.StringFlag{
+			Name:    "exchange",
+			Aliases: []string{"e"},
+			Usage:   "the exchange to retrieve futures positions from",
+		},
+		&cli.StringFlag{
+			Name:    "asset",
+			Aliases: []string{"a"},
+			Usage:   "the asset type of the currency pair, must be a futures type",
+		},
+		&cli.StringFlag{
+			Name:    "pair",
+			Aliases: []string{"p"},
+			Usage:   "the currency pair",
+		},
+		&cli.StringFlag{
+			Name:        "start",
+			Aliases:     []string{"sd"},
+			Usage:       "<start> rounded down to the nearest hour, ensure your starting position is within this window for accurate calculations",
+			Value:       time.Now().AddDate(-1, 0, 0).Truncate(time.Hour).Format(common.SimpleTimeFormat),
+			Destination: &startTime,
+		},
+		&cli.StringFlag{
+			Name:        "end",
+			Aliases:     []string{"ed"},
+			Usage:       "<end> rounded down to the nearest hour, ensure your last position is within this window for accurate calculations",
+			Value:       time.Now().Truncate(time.Hour).Format(common.SimpleTimeFormat),
+			Destination: &endTime,
+		},
+		&cli.IntFlag{
+			Name:        "limit",
+			Aliases:     []string{"l"},
+			Usage:       "the number of positions (not orders) to return",
+			Value:       86400,
+			Destination: &limit,
+		},
+		&cli.StringFlag{
+			Name:    "status",
+			Aliases: []string{"s"},
+			Usage:   "limit return to position statuses - open, closed, any",
+			Value:   "ANY",
+		},
+		&cli.BoolFlag{
+			Name:    "verbose",
+			Aliases: []string{"v"},
+			Usage:   "includes all orders that make up a position in the response",
+		},
+	},
 }
 
 func getFuturesPositions(c *cli.Context) error {
-	/*
-		Exchange
-		Asset
-		Pair
-		StartDate
-		EndDate
-		Status
-		PositionLimit
-	*/
 	if c.NArg() == 0 && c.NumFlags() == 0 {
 		return cli.ShowCommandHelp(c, "getfuturesposition")
 	}
@@ -4872,60 +4904,4 @@ func getFuturesPositions(c *cli.Context) error {
 
 	jsonOutput(result)
 	return nil
-}
-
-var getFuturesPositionsCommand = &cli.Command{
-	Name:      "getfuturesposition",
-	Usage:     "will retrieve all futures positions in a timeframe, then calculate PNL based on that. Note, the dates have an impact on PNL calculations, ensure your start date is not after a new position is opened",
-	ArgsUsage: "<exchange> <pair> <asset> <interval> <start> <end>",
-	Action:    getFuturesPositions,
-	Flags: []cli.Flag{
-		&cli.StringFlag{
-			Name:    "exchange",
-			Aliases: []string{"e"},
-			Usage:   "the exchange to find the missing candles",
-		},
-		&cli.StringFlag{
-			Name:    "asset",
-			Aliases: []string{"a"},
-			Usage:   "the asset type of the currency pair",
-		},
-		&cli.StringFlag{
-			Name:    "pair",
-			Aliases: []string{"p"},
-			Usage:   "the currency pair",
-		},
-		&cli.StringFlag{
-			Name:        "start",
-			Aliases:     []string{"sd"},
-			Usage:       "<start> rounded down to the nearest hour",
-			Value:       time.Now().AddDate(-1, 0, 0).Truncate(time.Hour).Format(common.SimpleTimeFormat),
-			Destination: &startTime,
-		},
-		&cli.StringFlag{
-			Name:        "end",
-			Aliases:     []string{"ed"},
-			Usage:       "<end> rounded down to the nearest hour",
-			Value:       time.Now().Truncate(time.Hour).Format(common.SimpleTimeFormat),
-			Destination: &endTime,
-		},
-		&cli.IntFlag{
-			Name:        "limit",
-			Aliases:     []string{"l"},
-			Usage:       "the number of positions (not orders) to return",
-			Value:       86400,
-			Destination: &limit,
-		},
-		&cli.StringFlag{
-			Name:    "status",
-			Aliases: []string{"s"},
-			Usage:   "limit return to position statuses - open, closed, any",
-			Value:   "ANY",
-		},
-		&cli.BoolFlag{
-			Name:    "verbose",
-			Aliases: []string{"v"},
-			Usage:   "includes all orders in the response",
-		},
-	},
 }

@@ -19,6 +19,7 @@ import (
 	grpcauth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/pquerna/otp/totp"
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
@@ -4109,7 +4110,7 @@ func (s *RPCServer) CurrencyStateTradingPair(_ context.Context, r *gctrpc.Curren
 }
 
 // GetFuturesPositions returns pnl positions for an exchange asset pair
-func (s *RPCServer) GetFuturesPositions(_ context.Context, r *gctrpc.GetFuturesPositionsRequest) (*gctrpc.GetFuturesPositionsResponse, error) {
+func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuturesPositionsRequest) (*gctrpc.GetFuturesPositionsResponse, error) {
 	exch, err := s.GetExchangeByName(r.Exchange)
 	if err != nil {
 		return nil, err
@@ -4142,7 +4143,7 @@ func (s *RPCServer) GetFuturesPositions(_ context.Context, r *gctrpc.GetFuturesP
 		return nil, err
 	}
 
-	orders, err := exch.GetFuturesPositions(a, cp, start, end)
+	orders, err := exch.GetFuturesPositions(ctx, a, cp, start, end)
 	if err != nil {
 		return nil, err
 	}
@@ -4150,14 +4151,14 @@ func (s *RPCServer) GetFuturesPositions(_ context.Context, r *gctrpc.GetFuturesP
 		return orders[i].Date.Before(orders[j].Date)
 	})
 	for i := range orders {
-		err = s.OrderManager.orderStore.futuresPositionTrackers.TrackNewOrder(&orders[i])
+		_, err = s.OrderManager.UpsertOrder(&orders[i])
 		if err != nil {
 			if !errors.Is(err, order.ErrPositionClosed) {
 				return nil, err
 			}
 		}
 	}
-	pos, err := s.OrderManager.orderStore.futuresPositionTrackers.GetPositionsForExchange(r.Exchange, a, cp)
+	pos, err := s.OrderManager.GetFuturesPositionsForExchange(r.Exchange, a, cp)
 	if err != nil {
 		return nil, err
 	}
@@ -4224,4 +4225,63 @@ func (s *RPCServer) GetFuturesPositions(_ context.Context, r *gctrpc.GetFuturesP
 	}
 	response.TotalPNL = response.TotalRealisedPNL + response.TotalUnrealisedPNL
 	return response, nil
+}
+
+// GetCollateral returns pnl positions for an exchange asset pair
+func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRequest) (*gctrpc.GetCollateralResponse, error) {
+	exch, err := s.GetExchangeByName(r.Exchange)
+	if err != nil {
+		return nil, err
+	}
+
+	a := asset.Item(r.Asset)
+	err = checkParams(r.Exchange, exch, a, currency.Pair{})
+	if err != nil {
+		return nil, err
+	}
+	ai, err := exch.FetchAccountInfo(ctx.a)
+	if err != nil {
+		return nil, err
+	}
+
+	var calculators []order.CollateralCalculator
+	var acc account.SubAccount
+	if r.SubAccount != "" {
+		for i := range ai.Accounts {
+			if strings.EqualFold(r.SubAccount, ai.Accounts[i].ID) {
+				acc = ai.Accounts[i]
+				break
+
+			}
+		}
+	} else if len(ai.Accounts) > 0 {
+		acc = ai.Accounts[0]
+	}
+	for j := range acc.Currencies {
+		calculators = append(calculators, order.CollateralCalculator{
+			CalculateOffline:   r.CalculateOffline,
+			CollateralCurrency: ai.Accounts[i].Currencies[j].CurrencyName,
+			Asset:              a,
+			CollateralAmount:   decimal.NewFromFloat(ai.Accounts[i].Currencies[j].TotalValue),
+		})
+	}
+
+	collateral, err := exch.CalculateTotalCollateral(ctx, calculators)
+	if err != nil {
+		return nil, err
+	}
+
+	result := &gctrpc.GetCollateralResponse{
+		TotalCollateral: collateral.TotalCollateral.String(),
+	}
+	if r.IncludeBreakdown {
+		for i := range collateral.BreakdownByCurrency {
+			result.CurrencyBreakdown = append(result.CurrencyBreakdown, &gctrpc.CollateralForCurrency{
+				Currency:         collateral.BreakdownByCurrency[i].Currency.String(),
+				ScaledCollateral: collateral.BreakdownByCurrency[i].Amount.String(),
+				ScaledToCurrency: collateral.BreakdownByCurrency[i].ValueCurrency.String(),
+			})
+		}
+	}
+	return result, nil
 }

@@ -113,6 +113,7 @@ type GoCryptoTraderClient interface {
 	CurrencyStateWithdraw(ctx context.Context, in *CurrencyStateWithdrawRequest, opts ...grpc.CallOption) (*GenericResponse, error)
 	CurrencyStateTradingPair(ctx context.Context, in *CurrencyStateTradingPairRequest, opts ...grpc.CallOption) (*GenericResponse, error)
 	GetFuturesPositions(ctx context.Context, in *GetFuturesPositionsRequest, opts ...grpc.CallOption) (*GetFuturesPositionsResponse, error)
+	GetCollateral(ctx context.Context, in *GetCollateralRequest, opts ...grpc.CallOption) (*GetCollateralResponse, error)
 }
 
 type goCryptoTraderClient struct {
@@ -1116,6 +1117,15 @@ func (c *goCryptoTraderClient) GetFuturesPositions(ctx context.Context, in *GetF
 	return out, nil
 }
 
+func (c *goCryptoTraderClient) GetCollateral(ctx context.Context, in *GetCollateralRequest, opts ...grpc.CallOption) (*GetCollateralResponse, error) {
+	out := new(GetCollateralResponse)
+	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTrader/GetCollateral", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // GoCryptoTraderServer is the server API for GoCryptoTrader service.
 // All implementations must embed UnimplementedGoCryptoTraderServer
 // for forward compatibility
@@ -1215,6 +1225,7 @@ type GoCryptoTraderServer interface {
 	CurrencyStateWithdraw(context.Context, *CurrencyStateWithdrawRequest) (*GenericResponse, error)
 	CurrencyStateTradingPair(context.Context, *CurrencyStateTradingPairRequest) (*GenericResponse, error)
 	GetFuturesPositions(context.Context, *GetFuturesPositionsRequest) (*GetFuturesPositionsResponse, error)
+	GetCollateral(context.Context, *GetCollateralRequest) (*GetCollateralResponse, error)
 	mustEmbedUnimplementedGoCryptoTraderServer()
 }
 
@@ -1506,6 +1517,9 @@ func (UnimplementedGoCryptoTraderServer) CurrencyStateTradingPair(context.Contex
 }
 func (UnimplementedGoCryptoTraderServer) GetFuturesPositions(context.Context, *GetFuturesPositionsRequest) (*GetFuturesPositionsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetFuturesPositions not implemented")
+}
+func (UnimplementedGoCryptoTraderServer) GetCollateral(context.Context, *GetCollateralRequest) (*GetCollateralResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetCollateral not implemented")
 }
 func (UnimplementedGoCryptoTraderServer) mustEmbedUnimplementedGoCryptoTraderServer() {}
 
@@ -3248,6 +3262,24 @@ func _GoCryptoTrader_GetFuturesPositions_Handler(srv interface{}, ctx context.Co
 	return interceptor(ctx, in, info, handler)
 }
 
+func _GoCryptoTrader_GetCollateral_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetCollateralRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GoCryptoTraderServer).GetCollateral(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/gctrpc.GoCryptoTrader/GetCollateral",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GoCryptoTraderServer).GetCollateral(ctx, req.(*GetCollateralRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // GoCryptoTrader_ServiceDesc is the grpc.ServiceDesc for GoCryptoTrader service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -3610,6 +3642,10 @@ var GoCryptoTrader_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetFuturesPositions",
 			Handler:    _GoCryptoTrader_GetFuturesPositions_Handler,
+		},
+		{
+			MethodName: "GetCollateral",
+			Handler:    _GoCryptoTrader_GetCollateral_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

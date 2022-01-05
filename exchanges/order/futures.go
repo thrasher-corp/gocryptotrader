@@ -58,6 +58,8 @@ func (c *PositionController) TrackNewOrder(d *Detail) error {
 	return mpt.TrackNewOrder(d)
 }
 
+// GetPositionsForExchange returns all positions for an
+// exchange, asset pair that is stored in the position controller
 func (c *PositionController) GetPositionsForExchange(exch string, item asset.Item, pair currency.Pair) ([]*PositionTracker, error) {
 	if c == nil {
 		return nil, common.ErrNilPointer
@@ -222,6 +224,7 @@ func (e *MultiPositionTracker) SetupPositionTracker(setup *PositionTrackerSetup)
 	return resp, nil
 }
 
+// GetStats returns a summary of a future position
 func (p *PositionTracker) GetStats() PositionStats {
 	if p == nil {
 		return PositionStats{}
@@ -419,7 +422,7 @@ func (p *PositionTracker) TrackNewOrder(d *Detail) error {
 		} else if p.openingDirection.IsShort() {
 			p.openingDirection = Long
 		}
-		
+
 		cal.Amount = second
 		cal.EntryPrice = price
 		cal.Time = cal.Time.Add(1)

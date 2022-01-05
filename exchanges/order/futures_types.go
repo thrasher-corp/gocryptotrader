@@ -1,6 +1,7 @@
 package order
 
 import (
+	"context"
 	"errors"
 	"sync"
 	"time"
@@ -50,8 +51,24 @@ type PNLCalculation interface {
 // multiple ways of calculating the size of collateral
 // on an exchange
 type CollateralManagement interface {
-	ScaleCollateral(*CollateralCalculator) (decimal.Decimal, error)
-	CalculateTotalCollateral([]CollateralCalculator) (decimal.Decimal, error)
+	ScaleCollateral(context.Context, *CollateralCalculator) (decimal.Decimal, error)
+	CalculateTotalCollateral(context.Context, []CollateralCalculator) (*TotalCollateralResponse, error)
+}
+
+// TotalCollateralResponse holds all collateral
+type TotalCollateralResponse struct {
+	TotalCollateral     decimal.Decimal
+	BreakdownByCurrency []CollateralByCurrency
+}
+
+// CollateralByCurrency individual collateral contribution
+// along with what the potentially scaled collateral
+// currency it is represented as
+// eg in FTX ValueCurrency is USD
+type CollateralByCurrency struct {
+	Currency      currency.Code
+	Amount        decimal.Decimal
+	ValueCurrency currency.Code
 }
 
 // PositionController manages all futures orders
@@ -143,6 +160,7 @@ type PositionTrackerSetup struct {
 // eg on FTX, the collateral is scaled depending on what
 // currency it is
 type CollateralCalculator struct {
+	CalculateOffline   bool
 	CollateralCurrency currency.Code
 	Asset              asset.Item
 	Side               Side

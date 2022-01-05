@@ -225,6 +225,19 @@ func (m *OrderManager) Cancel(ctx context.Context, cancel *order.Cancel) error {
 	return nil
 }
 
+// GetFuturesPositionsForExchange returns futures positions stored within
+// the order manager's futures position tracker that match the provided params
+func (m *OrderManager) GetFuturesPositionsForExchange(exch string, item asset.Item, pair currency.Pair) ([]*order.PositionTracker, error) {
+	if m == nil {
+		return nil, fmt.Errorf("order manager %w", ErrNilSubsystem)
+	}
+	if atomic.LoadInt32(&m.started) == 0 {
+		return nil, fmt.Errorf("order manager %w", ErrSubSystemNotStarted)
+	}
+
+	return m.orderStore.futuresPositionTrackers.GetPositionsForExchange(exch, item, pair)
+}
+
 // GetOrderInfo calls the exchange's wrapper GetOrderInfo function
 // and stores the result in the order manager
 func (m *OrderManager) GetOrderInfo(ctx context.Context, exchangeName, orderID string, cp currency.Pair, a asset.Item) (order.Detail, error) {
@@ -839,7 +852,9 @@ func (s *store) updateExisting(od *order.Detail) error {
 			if r[x].AssetType.IsFutures() {
 				err := s.futuresPositionTrackers.TrackNewOrder(r[x])
 				if err != nil {
-					return err
+					if !errors.Is(err, order.ErrPositionClosed) {
+						return err
+					}
 				}
 			}
 			return nil
@@ -864,7 +879,9 @@ func (s *store) modifyExisting(id string, mod *order.Modify) error {
 			if r[x].AssetType.IsFutures() {
 				err := s.futuresPositionTrackers.TrackNewOrder(r[x])
 				if err != nil {
-					return err
+					if !errors.Is(err, order.ErrPositionClosed) {
+						return err
+					}
 				}
 			}
 			return nil
@@ -886,6 +903,14 @@ func (s *store) upsert(od *order.Detail) (resp *OrderUpsertResponse, err error) 
 	}
 	s.m.Lock()
 	defer s.m.Unlock()
+	if od.AssetType.IsFutures() {
+		err = s.futuresPositionTrackers.TrackNewOrder(od)
+		if err != nil {
+			if !errors.Is(err, order.ErrPositionClosed) {
+				return nil, err
+			}
+		}
+	}
 	r, ok := s.Orders[lName]
 	if !ok {
 		od.GenerateInternalOrderID()
@@ -903,12 +928,6 @@ func (s *store) upsert(od *order.Detail) (resp *OrderUpsertResponse, err error) 
 				OrderDetails: r[x].Copy(),
 				IsNewOrder:   false,
 			}
-			if od.AssetType.IsFutures() {
-				err = s.futuresPositionTrackers.TrackNewOrder(od)
-				if err != nil {
-					return nil, err
-				}
-			}
 			return resp, nil
 		}
 	}
@@ -918,12 +937,6 @@ func (s *store) upsert(od *order.Detail) (resp *OrderUpsertResponse, err error) 
 	resp = &OrderUpsertResponse{
 		OrderDetails: od.Copy(),
 		IsNewOrder:   true,
-	}
-	if od.AssetType.IsFutures() {
-		err = s.futuresPositionTrackers.TrackNewOrder(od)
-		if err != nil {
-			return nil, err
-		}
 	}
 	return resp, nil
 }
@@ -995,7 +1008,10 @@ func (s *store) add(det *order.Detail) error {
 	s.Orders[strings.ToLower(det.Exchange)] = orders
 
 	if det.AssetType.IsFutures() {
-		return s.futuresPositionTrackers.TrackNewOrder(det)
+		err = s.futuresPositionTrackers.TrackNewOrder(det)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }

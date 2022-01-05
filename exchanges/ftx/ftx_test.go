@@ -1759,12 +1759,13 @@ func TestScaleCollateral(t *testing.T) {
 				t.Error(err)
 			}
 			var scaled decimal.Decimal
-			scaled, err = f.ScaleCollateral(&order.CollateralCalculator{
+			scaled, err = f.ScaleCollateral(context.Background(), &order.CollateralCalculator{
 				CollateralCurrency: currency.NewCode(coin),
 				Asset:              asset.Spot,
 				Side:               order.Buy,
 				CollateralAmount:   decimal.NewFromFloat(v[v2].Total),
 				USDPrice:           decimal.NewFromFloat(tick.Price),
+				CalculateOffline:   true,
 			})
 			if err != nil {
 				if errors.Is(err, errCollateralCurrencyNotFound) {
@@ -1775,19 +1776,28 @@ func TestScaleCollateral(t *testing.T) {
 			localScaling += scaled.InexactFloat64()
 			providedUSDValue += v[v2].USDValue
 
-			scaled, err = f.ScaleCollateral(&order.CollateralCalculator{
+			scaled, err = f.ScaleCollateral(context.Background(), &order.CollateralCalculator{
 				CollateralCurrency: currency.NewCode(coin),
 				Asset:              asset.Spot,
 				Side:               order.Buy,
 				CollateralAmount:   decimal.NewFromFloat(v[v2].Total),
 				USDPrice:           decimal.NewFromFloat(tick.Price),
 				IsLiquidating:      true,
+				CalculateOffline:   true,
 			})
 			if err != nil {
 				t.Error(err)
 			}
-
 			liquidationScaling += scaled.InexactFloat64()
+
+			_, err = f.ScaleCollateral(context.Background(), &order.CollateralCalculator{
+				CollateralCurrency: currency.NewCode(coin),
+				Asset:              asset.Spot,
+				Side:               order.Buy,
+			})
+			if err != nil {
+				t.Error(err)
+			}
 		}
 	}
 	if (math.Abs((localScaling-accountInfo.Collateral)/accountInfo.Collateral) * 100) > 5 {
@@ -1815,6 +1825,7 @@ func TestCalculateTotalCollateral(t *testing.T) {
 					Side:               order.Buy,
 					CollateralAmount:   total,
 					USDPrice:           total,
+					CalculateOffline:   true,
 				})
 				continue
 			}
@@ -1829,20 +1840,29 @@ func TestCalculateTotalCollateral(t *testing.T) {
 				Side:               order.Buy,
 				CollateralAmount:   decimal.NewFromFloat(v[v2].Total),
 				USDPrice:           decimal.NewFromFloat(tick.Price),
+				CalculateOffline:   true,
 			})
 		}
 	}
-	total, err := f.CalculateTotalCollateral(scales)
+	total, err := f.CalculateTotalCollateral(context.Background(), scales)
 	if err != nil {
 		t.Error(err)
 	}
-	localScaling := total.InexactFloat64()
+	localScaling := total.TotalCollateral.InexactFloat64()
 	accountInfo, err := f.GetAccountInfo(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
 	if (math.Abs((localScaling-accountInfo.Collateral)/accountInfo.Collateral) * 100) > 5 {
 		t.Errorf("collateral scaling less than 95%% accurate, received '%v' expected roughly '%v'", localScaling, accountInfo.Collateral)
+	}
+
+	for i := range scales {
+		scales[i].CalculateOffline = false
+	}
+	_, err = f.CalculateTotalCollateral(context.Background(), scales)
+	if err != nil {
+		t.Error(err)
 	}
 }
 

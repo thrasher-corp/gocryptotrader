@@ -1159,6 +1159,60 @@
         ]
       }
     },
+    "/v1/getcollateral": {
+      "get": {
+        "operationId": "GoCryptoTrader_GetCollateral",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetCollateralResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "asset",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "subAccount",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "includeBreakdown",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "calculateOffline",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
     "/v1/getcommunicationrelayers": {
       "get": {
         "operationId": "GoCryptoTrader_GetCommunicationRelayers",
@@ -3562,6 +3616,20 @@
         }
       }
     },
+    "gctrpcCollateralForCurrency": {
+      "type": "object",
+      "properties": {
+        "currency": {
+          "type": "string"
+        },
+        "scaledCollateral": {
+          "type": "string"
+        },
+        "scaledToCurrency": {
+          "type": "string"
+        }
+      }
+    },
     "gctrpcCommunicationRelayer": {
       "type": "object",
       "properties": {
@@ -4080,6 +4148,20 @@
           "type": "array",
           "items": {
             "type": "string"
+          }
+        }
+      }
+    },
+    "gctrpcGetCollateralResponse": {
+      "type": "object",
+      "properties": {
+        "totalCollateral": {
+          "type": "string"
+        },
+        "currencyBreakdown": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/gctrpcCollateralForCurrency"
           }
         }
       }
