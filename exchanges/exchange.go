@@ -1465,25 +1465,25 @@ func (b *Base) GetAvailableTransferChains(_ context.Context, _ currency.Code) ([
 // CalculatePNL is an overridable function to allow PNL to be calculated on an
 // open position
 // It will also determine whether the position is considered to be liquidated
-// for live trading, an overrided function may wish to confirm the liquidation by
+// For live trading, an overrided function may wish to confirm the liquidation by
 // requesting the status of the asset
 func (b *Base) CalculatePNL(*order.PNLCalculatorRequest) (*order.PNLResult, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
-// ScaleCollateral is an overridable function to allow PNL to be calculated on an
-// open position
-// It will also determine whether the position is considered to be liquidated
-// for live trading, an overrided function may wish to confirm the liquidation by
-// requesting the status of the asset
+// ScaleCollateral is an overridable function to determine how much
+// collateral is usable in futures positions
 func (b *Base) ScaleCollateral(*order.CollateralCalculator) (decimal.Decimal, error) {
 	return decimal.Zero, common.ErrNotYetImplemented
 }
 
+// CalculateTotalCollateral takes in n collateral calculators to determine an overall
+// standing in a singular currency. See FTX's implementation
 func (b *Base) CalculateTotalCollateral([]order.CollateralCalculator) (decimal.Decimal, error) {
 	return decimal.Zero, common.ErrNotYetImplemented
 }
 
-func (b *Base) GetFuturesPositions(asset.Item, currency.Pair, time.Time, time.Time) ([]order.Detail, error) {
+// GetFuturesPositions returns futures positions according to the provided parameters
+func (b *Base) GetFuturesPositions(context.Context, asset.Item, currency.Pair, time.Time, time.Time) ([]order.Detail, error) {
 	return nil, common.ErrNotYetImplemented
 }

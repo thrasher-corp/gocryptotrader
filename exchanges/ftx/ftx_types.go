@@ -889,6 +889,8 @@ type StakeReward struct {
 // CollateralWeightHolder stores collateral weights over the lifecycle of the application
 type CollateralWeightHolder map[string]CollateralWeight
 
+// CollateralWeight holds collateral information provided by FTX
+// it is used to scale collateral when the currency is not in USD
 type CollateralWeight struct {
 	Initial   float64
 	Total     float64

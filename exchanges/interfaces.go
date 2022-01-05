@@ -84,7 +84,7 @@ type IBotExchange interface {
 
 	order.PNLCalculation
 	order.CollateralManagement
-	GetFuturesPositions(asset.Item, currency.Pair, time.Time, time.Time) ([]order.Detail, error)
+	GetFuturesPositions(context.Context, asset.Item, currency.Pair, time.Time, time.Time) ([]order.Detail, error)
 
 	GetWebsocket() (*stream.Websocket, error)
 	IsWebsocketEnabled() bool

@@ -140,6 +140,8 @@ var (
 	errSubaccountTransferSourceDestinationMustNotBeEqual = errors.New("subaccount transfer source and destination must not be the same value")
 	errUnrecognisedOrderStatus                           = errors.New("unrecognised order status received")
 	errInvalidOrderAmounts                               = errors.New("filled amount should not exceed order amount")
+	errCollateralCurrencyNotFound                        = errors.New("no collateral scaling information found")
+	errCollateralIMFMissing                              = errors.New("cannot scale collateral, missing IMF information")
 
 	validResolutionData = []int64{15, 60, 300, 900, 3600, 14400, 86400}
 )

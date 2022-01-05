@@ -2,12 +2,11 @@ package ftx
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
+	"math"
 	"os"
-	"sort"
 	"sync"
 	"testing"
 	"time"
@@ -1730,110 +1729,11 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	}
 }
 
-func TestCalculatePNLFromOrders(t *testing.T) {
-	pressXToJSON := `{"success":true,"result":[
-	{"id":102360167561,"clientId":null,"market":"BTC-1231","type":"market","side":"sell","price":null,"size":0.0001,"status":"closed","filledSize":0.0001,"remainingSize":0.0,"reduceOnly":true,"liquidation":false,"avgFillPrice":49318.0,"postOnly":false,"ioc":true,"createdAt":"2021-12-06T04:31:09.246156+00:00","future":"BTC-1231"},
-	{"id":102359914432,"clientId":null,"market":"BTC-1231","type":"market","side":"buy","price":null,"size":0.0002,"status":"closed","filledSize":0.0002,"remainingSize":0.0,"reduceOnly":false,"liquidation":false,"avgFillPrice":49311.0,"postOnly":false,"ioc":true,"createdAt":"2021-12-06T04:30:02.546539+00:00","future":"BTC-1231"},
-	{"id":102359875376,"clientId":null,"market":"BTC-1231","type":"market","side":"sell","price":null,"size":0.0001,"status":"closed","filledSize":0.0001,"remainingSize":0.0,"reduceOnly":false,"liquidation":false,"avgFillPrice":49289.0,"postOnly":false,"ioc":true,"createdAt":"2021-12-06T04:29:48.461182+00:00","future":"BTC-1231"},
-	{"id":102357575195,"clientId":null,"market":"BTC-1231","type":"market","side":"buy","price":null,"size":0.0009,"status":"closed","filledSize":0.0009,"remainingSize":0.0,"reduceOnly":true,"liquidation":false,"avgFillPrice":49205.0,"postOnly":false,"ioc":true,"createdAt":"2021-12-06T04:17:35.686416+00:00","future":"BTC-1231"},
-	{"id":102356768854,"clientId":null,"market":"BTC-1231","type":"market","side":"sell","price":null,"size":0.0009,"status":"closed","filledSize":0.0009,"remainingSize":0.0,"reduceOnly":false,"liquidation":false,"avgFillPrice":49248.0,"postOnly":false,"ioc":true,"createdAt":"2021-12-06T04:13:28.891973+00:00","future":"BTC-1231"},
-	{"id":102334270248,"clientId":null,"market":"BTC-1231","type":"market","side":"sell","price":null,"size":0.0001,"status":"closed","filledSize":0.0001,"remainingSize":0.0,"reduceOnly":true,"liquidation":false,"avgFillPrice":49068.0,"postOnly":false,"ioc":true,"createdAt":"2021-12-06T02:20:41.551614+00:00","future":"BTC-1231"},
-	{"id":102334231437,"clientId":null,"market":"BTC-1231","type":"market","side":"sell","price":null,"size":0.0004,"status":"closed","filledSize":0.0004,"remainingSize":0.0,"reduceOnly":false,"liquidation":false,"avgFillPrice":49050.0,"postOnly":false,"ioc":true,"createdAt":"2021-12-06T02:20:27.615861+00:00","future":"BTC-1231"},
-	{"id":102333965786,"clientId":null,"market":"BTC-1231","type":"limit","side":"buy","price":49072.0,"size":0.0003,"status":"closed","filledSize":0.0003,"remainingSize":0.0,"reduceOnly":false,"liquidation":false,"avgFillPrice":49030.0,"postOnly":false,"ioc":false,"createdAt":"2021-12-06T02:19:04.483189+00:00","future":"BTC-1231"},
-	{"id":102333762284,"clientId":null,"market":"BTC-1231","type":"limit","side":"buy","price":49072.0,"size":0.0001,"status":"closed","filledSize":0.0001,"remainingSize":0.0,"reduceOnly":false,"liquidation":false,"avgFillPrice":49061.0,"postOnly":false,"ioc":false,"createdAt":"2021-12-06T02:18:07.703362+00:00","future":"BTC-1231"},
-	{"id":102333732631,"clientId":null,"market":"BTC-1231","type":"limit","side":"buy","price":49072.0,"size":0.0001,"status":"closed","filledSize":0.0001,"remainingSize":0.0,"reduceOnly":false,"liquidation":false,"avgFillPrice":49063.0,"postOnly":false,"ioc":false,"createdAt":"2021-12-06T02:18:02.044371+00:00","future":"BTC-1231"},
-	{"id":102321616290,"clientId":null,"market":"BTC-1231","type":"market","side":"buy","price":null,"size":0.0001,"status":"closed","filledSize":0.0001,"remainingSize":0.0,"reduceOnly":true,"liquidation":false,"avgFillPrice":48637.0,"postOnly":false,"ioc":true,"createdAt":"2021-12-06T01:28:35.419340+00:00","future":"BTC-1231"},
-	{"id":102321498868,"clientId":null,"market":"BTC-1231","type":"market","side":"buy","price":null,"size":0.0001,"status":"closed","filledSize":0.0001,"remainingSize":0.0,"reduceOnly":false,"liquidation":false,"avgFillPrice":48624.0,"postOnly":false,"ioc":true,"createdAt":"2021-12-06T01:28:07.428170+00:00","future":"BTC-1231"},
-	{"id":102321095447,"clientId":null,"market":"BTC-1231","type":"market","side":"sell","price":null,"size":0.0001,"status":"closed","filledSize":0.0001,"remainingSize":0.0,"reduceOnly":false,"liquidation":false,"avgFillPrice":48633.0,"postOnly":false,"ioc":true,"createdAt":"2021-12-06T01:26:34.077562+00:00","future":"BTC-1231"},
-	{"id":102320767608,"clientId":null,"market":"BTC-1231","type":"market","side":"sell","price":null,"size":0.0001,"status":"closed","filledSize":0.0001,"remainingSize":0.0,"reduceOnly":false,"liquidation":false,"avgFillPrice":48720.0,"postOnly":false,"ioc":true,"createdAt":"2021-12-06T01:25:32.920109+00:00","future":"BTC-1231"},
-	{"id":101062637645,"clientId":null,"market":"BTC-1231","type":"market","side":"buy","price":null,"size":0.0002,"status":"closed","filledSize":0.0002,"remainingSize":0.0,"reduceOnly":true,"liquidation":false,"avgFillPrice":57487.0,"postOnly":false,"ioc":true,"createdAt":"2021-12-02T01:45:32.636504+00:00","future":"BTC-1231"},
-	{"id":101062454431,"clientId":null,"market":"BTC-1231","type":"market","side":"sell","price":null,"size":0.0001,"status":"closed","filledSize":0.0001,"remainingSize":0.0,"reduceOnly":false,"liquidation":false,"avgFillPrice":57561.0,"postOnly":false,"ioc":true,"createdAt":"2021-12-02T01:44:44.588077+00:00","future":"BTC-1231"},
-	{"id":101062444084,"clientId":null,"market":"BTC-1231","type":"market","side":"sell","price":null,"size":0.0001,"status":"closed","filledSize":0.0001,"remainingSize":0.0,"reduceOnly":false,"liquidation":false,"avgFillPrice":57561.0,"postOnly":false,"ioc":true,"createdAt":"2021-12-02T01:44:40.982596+00:00","future":"BTC-1231"},
-	{"id":92221164777,"clientId":null,"market":"BTC-1231","type":"market","side":"buy","price":null,"size":0.0001,"status":"closed","filledSize":0.0001,"remainingSize":0.0,"reduceOnly":true,"liquidation":false,"avgFillPrice":61679.0,"postOnly":false,"ioc":true,"createdAt":"2021-11-01T02:25:43.913874+00:00","future":"BTC-1231"},
-	{"id":92186217479,"clientId":null,"market":"BTC-1231","type":"market","side":"sell","price":null,"size":0.0001,"status":"closed","filledSize":0.0001,"remainingSize":0.0,"reduceOnly":false,"liquidation":false,"avgFillPrice":62902.0,"postOnly":false,"ioc":true,"createdAt":"2021-10-31T23:38:26.914224+00:00","future":"BTC-1231"}
-],"hasMoreData":false}`
-	resp := struct {
-		Data []OrderData `json:"result"`
-	}{}
-	err := json.Unmarshal([]byte(pressXToJSON), &resp)
-	if err != nil {
-		t.Fatal()
-	}
-	result := resp.Data
-	sort.Slice(result, func(i, j int) bool {
-		return result[i].CreatedAt.Before(result[j].CreatedAt)
-	})
-
-	pair := currency.NewPair(currency.BTC, currency.NewCode("1231"))
-	var orders []order.Detail
-	for i := range result {
-		price := result[i].AvgFillPrice
-		side, err := order.StringToOrderSide(result[i].Side)
-		if err != nil {
-			t.Error(err)
-		}
-		orders = append(orders, order.Detail{
-			Side:      side,
-			Pair:      pair,
-			ID:        fmt.Sprintf("%v", result[i].ID),
-			Price:     price,
-			Amount:    result[i].Size,
-			Status:    order.Status(result[i].Status),
-			AssetType: asset.Futures,
-			Exchange:  f.Name,
-			Date:      result[i].CreatedAt,
-		})
-	}
-
-	exch := f.Name
-	item := asset.Futures
-	setup := &order.PositionControllerSetup{
-		Exchange:                  exch,
-		Asset:                     item,
-		Pair:                      pair,
-		Underlying:                pair.Base,
-		ExchangePNLCalculation:    &f,
-		UseExchangePNLCalculation: false,
-	}
-	p, err := order.SetupMultiPositionTracker(setup)
-	if err != nil {
-		t.Error(err)
-	}
-	for i := range orders {
-		err = p.TrackNewOrder(&orders[i])
-		if err != nil {
-			t.Error(err)
-		}
-	}
-	pos := p.GetPositions()
-	if len(pos) != 6 {
-		t.Fatal("expected 6 positions")
-	}
-	if pnl := pos[0].GetRealisedPNL(); !pnl.Equal(decimal.NewFromFloat(0.1223)) {
-		t.Errorf("expected nil err, received '%v', expected 0.1223, received '%v'", err, pnl)
-	}
-	if pnl := pos[1].GetRealisedPNL(); !pnl.Equal(decimal.NewFromFloat(0.0148)) {
-		t.Errorf("expected nil err, received '%v', expected 0.0148, received '%v'", err, pnl)
-	}
-	if pnl := pos[2].GetRealisedPNL(); !pnl.Equal(decimal.NewFromFloat(-0.0004)) {
-		t.Errorf("expected nil err, received '%v', expected 0.0092, received '%v'", err, pnl)
-	}
-	if pnl := pos[3].GetRealisedPNL(); !pnl.Equal(decimal.NewFromFloat(0.0098)) {
-		t.Errorf("expected nil err, received '%v', expected -0.0054, received '%v'", err, pnl)
-	}
-	if pnl := pos[4].GetRealisedPNL(); !pnl.Equal(decimal.NewFromFloat(0.0387)) {
-		t.Errorf("expected nil err, received '%v', expected 0.0387, received '%v'", err, pnl)
-	}
-	if pnl := pos[5].GetRealisedPNL(); !pnl.Equal(decimal.NewFromFloat(-0.0029)) {
-		t.Errorf("expected nil err, received '%v', expected -0.0029, received '%v'", err, pnl)
-	}
-}
-
 func TestScaleCollateral(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test, api keys not set")
 	}
-	ai, err := f.GetAccountInfo(context.Background())
+	accountInfo, err := f.GetAccountInfo(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
@@ -1841,23 +1741,25 @@ func TestScaleCollateral(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	myCollat := 0.0
-	liquidationVersion := 0.0
-	usdHo := 0.0
+	localScaling := 0.0
+	liquidationScaling := 0.0
+	providedUSDValue := 0.0
 	for _, v := range walletInfo {
 		for v2 := range v {
 			coin := v[v2].Coin
 			if coin == "USD" {
-				myCollat += v[v2].Total
-				usdHo += v[v2].USDValue
-				liquidationVersion += v[v2].Total
+				localScaling += v[v2].Total
+				providedUSDValue += v[v2].USDValue
+				liquidationScaling += v[v2].Total
 				continue
 			}
-			tick, err := f.GetMarket(context.Background(), currency.NewPairWithDelimiter(coin, "usd", "/").String())
+			var tick MarketData
+			tick, err = f.GetMarket(context.Background(), currency.NewPairWithDelimiter(coin, "usd", "/").String())
 			if err != nil {
 				t.Error(err)
 			}
-			scaled, err := f.ScaleCollateral(&order.CollateralCalculator{
+			var scaled decimal.Decimal
+			scaled, err = f.ScaleCollateral(&order.CollateralCalculator{
 				CollateralCurrency: currency.NewCode(coin),
 				Asset:              asset.Spot,
 				Side:               order.Buy,
@@ -1865,10 +1767,13 @@ func TestScaleCollateral(t *testing.T) {
 				USDPrice:           decimal.NewFromFloat(tick.Price),
 			})
 			if err != nil {
+				if errors.Is(err, errCollateralCurrencyNotFound) {
+					continue
+				}
 				t.Error(err)
 			}
-			myCollat += scaled.InexactFloat64()
-			usdHo += v[v2].USDValue
+			localScaling += scaled.InexactFloat64()
+			providedUSDValue += v[v2].USDValue
 
 			scaled, err = f.ScaleCollateral(&order.CollateralCalculator{
 				CollateralCurrency: currency.NewCode(coin),
@@ -1882,114 +1787,84 @@ func TestScaleCollateral(t *testing.T) {
 				t.Error(err)
 			}
 
-			liquidationVersion += scaled.InexactFloat64()
+			liquidationScaling += scaled.InexactFloat64()
 		}
 	}
-	t.Logf("%v collateral", ai.Collateral)
-	t.Logf("%v my calcs", myCollat)
-	t.Logf("%v liquidation calcs", liquidationVersion)
-	t.Logf("%v usd total", usdHo)
+	if (math.Abs((localScaling-accountInfo.Collateral)/accountInfo.Collateral) * 100) > 5 {
+		t.Errorf("collateral scaling less than 95%% accurate, received '%v' expected roughly '%v'", localScaling, accountInfo.Collateral)
+	}
 }
 
-func TestCalculatePNLFromOrders1(t *testing.T) {
+func TestCalculateTotalCollateral(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test, api keys not set")
 	}
-	resp, err := f.GetFills(context.Background(), spotPair, "200", time.Time{}, time.Time{})
-	result := resp
-	sort.Slice(result, func(i, j int) bool {
-		return result[i].Time.Before(result[j].Time)
-	})
-
-	pair := currency.NewPair(currency.BTC, currency.NewCode("1231"))
-	var orders []order.Detail
-	for i := range result {
-		price := result[i].Price
-		side, err := order.StringToOrderSide(result[i].Side)
-		if err != nil {
-			t.Error(err)
-		}
-		orders = append(orders, order.Detail{
-			Side:      side,
-			Pair:      pair,
-			ID:        fmt.Sprintf("%v", result[i].ID),
-			Price:     price,
-			Amount:    result[i].Size,
-			AssetType: asset.Futures,
-			Exchange:  f.Name,
-			Fee:       result[i].Fee,
-			Date:      result[i].Time,
-		})
-	}
-
-	exch := f.Name
-	item := asset.Futures
-	setup := &order.PositionControllerSetup{
-		Exchange:   exch,
-		Asset:      item,
-		Pair:       pair,
-		Underlying: pair.Base,
-		//ExchangePNLCalculation:    &f,
-		//UseExchangePNLCalculation: true,
-		//OfflineCalculation:        true,
-	}
-	p, err := order.SetupMultiPositionTracker(setup)
+	walletInfo, err := f.GetAllWalletBalances(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
-	for i := range orders {
-		err = p.TrackNewOrder(&orders[i])
-		if err != nil {
-			t.Error(err)
+	var scales []order.CollateralCalculator
+	for _, v := range walletInfo {
+		for v2 := range v {
+			coin := v[v2].Coin
+			if coin == "USD" {
+				total := decimal.NewFromFloat(v[v2].Total)
+				scales = append(scales, order.CollateralCalculator{
+					CollateralCurrency: currency.NewCode(coin),
+					Asset:              asset.Spot,
+					Side:               order.Buy,
+					CollateralAmount:   total,
+					USDPrice:           total,
+				})
+				continue
+			}
+			var tick MarketData
+			tick, err = f.GetMarket(context.Background(), currency.NewPairWithDelimiter(coin, "usd", "/").String())
+			if err != nil {
+				t.Error(err)
+			}
+			scales = append(scales, order.CollateralCalculator{
+				CollateralCurrency: currency.NewCode(coin),
+				Asset:              asset.Spot,
+				Side:               order.Buy,
+				CollateralAmount:   decimal.NewFromFloat(v[v2].Total),
+				USDPrice:           decimal.NewFromFloat(tick.Price),
+			})
 		}
 	}
-	positions := p.GetPositions()
-	for i := range positions {
-		_, err = positions[i].GetLatestPNLSnapshot()
-		if err != nil {
-			t.Error(err)
-		}
+	total, err := f.CalculateTotalCollateral(scales)
+	if err != nil {
+		t.Error(err)
+	}
+	localScaling := total.InexactFloat64()
+	accountInfo, err := f.GetAccountInfo(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+	if (math.Abs((localScaling-accountInfo.Collateral)/accountInfo.Collateral) * 100) > 5 {
+		t.Errorf("collateral scaling less than 95%% accurate, received '%v' expected roughly '%v'", localScaling, accountInfo.Collateral)
 	}
 }
 
-func TestCalculatePNLFromOrders3(t *testing.T) {
-	pressXToJSON := `{"success":true,"result":[
-	{"id":102334270248,"clientId":null,"market":"BTC-1231","type":"market","side":"sell","price":null,"size":0.0001,"status":"closed","filledSize":0.0001,"remainingSize":0.0,"reduceOnly":true,"liquidation":false,"avgFillPrice":49068.0,"postOnly":false,"ioc":true,"createdAt":"2021-12-06T02:20:41.551614+00:00","future":"BTC-1231"},
-	{"id":102334231437,"clientId":null,"market":"BTC-1231","type":"market","side":"sell","price":null,"size":0.0004,"status":"closed","filledSize":0.0004,"remainingSize":0.0,"reduceOnly":false,"liquidation":false,"avgFillPrice":49050.0,"postOnly":false,"ioc":true,"createdAt":"2021-12-06T02:20:27.615861+00:00","future":"BTC-1231"},
-	{"id":102333965786,"clientId":null,"market":"BTC-1231","type":"limit","side":"buy","price":49072.0,"size":0.0003,"status":"closed","filledSize":0.0003,"remainingSize":0.0,"reduceOnly":false,"liquidation":false,"avgFillPrice":49030.0,"postOnly":false,"ioc":false,"createdAt":"2021-12-06T02:19:04.483189+00:00","future":"BTC-1231"},
-	{"id":102333762284,"clientId":null,"market":"BTC-1231","type":"limit","side":"buy","price":49072.0,"size":0.0001,"status":"closed","filledSize":0.0001,"remainingSize":0.0,"reduceOnly":false,"liquidation":false,"avgFillPrice":49061.0,"postOnly":false,"ioc":false,"createdAt":"2021-12-06T02:18:07.703362+00:00","future":"BTC-1231"},
-	{"id":102333732631,"clientId":null,"market":"BTC-1231","type":"limit","side":"buy","price":49072.0,"size":0.0001,"status":"closed","filledSize":0.0001,"remainingSize":0.0,"reduceOnly":false,"liquidation":false,"avgFillPrice":49063.0,"postOnly":false,"ioc":false,"createdAt":"2021-12-06T02:18:02.044371+00:00","future":"BTC-1231"}
-],"hasMoreData":false}`
-	resp := struct {
-		Data []OrderData `json:"result"`
-	}{}
-	err := json.Unmarshal([]byte(pressXToJSON), &resp)
-	if err != nil {
-		t.Fatal()
+func TestCalculatePNL(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test, api keys not set")
 	}
-	result := resp.Data
-	sort.Slice(result, func(i, j int) bool {
-		return result[i].CreatedAt.Before(result[j].CreatedAt)
-	})
-
+	f.Verbose = true
 	pair := currency.NewPair(currency.BTC, currency.NewCode("1231"))
+	positions, err := f.GetFuturesPositions(context.Background(), asset.Futures, pair, time.Date(2021, 1, 6, 4, 28, 0, 0, time.UTC), time.Date(2021, 12, 31, 4, 32, 0, 0, time.UTC))
 	var orders []order.Detail
-	for i := range result {
-		price := result[i].AvgFillPrice
-		side, err := order.StringToOrderSide(result[i].Side)
-		if err != nil {
-			t.Error(err)
-		}
+	for i := range positions {
 		orders = append(orders, order.Detail{
-			Side:      side,
+			Side:      positions[i].Side,
 			Pair:      pair,
-			ID:        fmt.Sprintf("%v", result[i].ID),
-			Price:     price,
-			Amount:    result[i].Size,
-			Status:    order.Status(result[i].Status),
+			ID:        fmt.Sprintf("%v", positions[i].ID),
+			Price:     positions[i].Price,
+			Amount:    positions[i].Amount,
 			AssetType: asset.Futures,
 			Exchange:  f.Name,
-			Date:      result[i].CreatedAt,
+			Fee:       positions[i].Fee,
+			Date:      positions[i].Date,
 		})
 	}
 
@@ -2000,9 +1875,8 @@ func TestCalculatePNLFromOrders3(t *testing.T) {
 		Asset:                     item,
 		Pair:                      pair,
 		Underlying:                pair.Base,
-		ExchangePNLCalculation:    &f,
 		UseExchangePNLCalculation: true,
-		OfflineCalculation:        true,
+		ExchangePNLCalculation:    &f,
 	}
 	p, err := order.SetupMultiPositionTracker(setup)
 	if err != nil {
@@ -2014,7 +1888,25 @@ func TestCalculatePNLFromOrders3(t *testing.T) {
 			t.Error(err)
 		}
 	}
-	pos := p.GetPositions()
-	pnl := pos[0].GetRealisedPNL()
-	t.Logf("%v", pnl)
+	results := p.GetPositions()
+	for i := range results {
+		_, err = results[i].GetLatestPNLSnapshot()
+		if err != nil {
+			t.Error(err)
+		}
+	}
+}
+
+func TestGetFuturesPositions(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test, api keys not set")
+	}
+	cp := currency.NewPair(currency.BTC, currency.NewCode("1231"))
+	start := time.Now().Add(-time.Hour * 24 * 365)
+	end := time.Now()
+	a := asset.Futures
+	_, err := f.GetFuturesPositions(context.Background(), a, cp, start, end)
+	if err != nil {
+		t.Error(err)
+	}
 }

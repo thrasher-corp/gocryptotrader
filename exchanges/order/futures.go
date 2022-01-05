@@ -409,31 +409,33 @@ func (p *PositionTracker) TrackNewOrder(d *Detail) error {
 		if err != nil {
 			return err
 		}
-
 		if cal.OrderDirection.IsLong() {
 			cal.OrderDirection = Short
 		} else if cal.OrderDirection.IsShort() {
 			cal.OrderDirection = Long
 		}
-		if cal.OpeningDirection.IsLong() {
-			cal.OpeningDirection = Short
-		} else if cal.OpeningDirection.IsShort() {
-			cal.OpeningDirection = Long
+		if p.openingDirection.IsLong() {
+			p.openingDirection = Short
+		} else if p.openingDirection.IsShort() {
+			p.openingDirection = Long
 		}
+		
 		cal.Amount = second
 		cal.EntryPrice = price
 		cal.Time = cal.Time.Add(1)
+		cal.PNLHistory = p.pnlHistory
 		result, err = p.PNLCalculation.CalculatePNL(cal)
+
 	} else {
 		result, err = p.PNLCalculation.CalculatePNL(cal)
-		if err != nil {
-			if !errors.Is(err, ErrPositionLiquidated) {
-				return err
-			}
-			result.UnrealisedPNL = decimal.Zero
-			result.RealisedPNLBeforeFees = decimal.Zero
-			p.status = Closed
+	}
+	if err != nil {
+		if !errors.Is(err, ErrPositionLiquidated) {
+			return err
 		}
+		result.UnrealisedPNL = decimal.Zero
+		result.RealisedPNLBeforeFees = decimal.Zero
+		p.status = Closed
 	}
 	p.pnlHistory, err = upsertPNLEntry(p.pnlHistory, result)
 	if err != nil {
@@ -495,8 +497,8 @@ func (p *PNLCalculator) CalculatePNL(calc *PNLCalculatorRequest) (*PNLResult, er
 	} else if calc.OpeningDirection.IsShort() {
 		if previousPNL != nil {
 			first = previousPNL.Price
-			second = calc.CurrentPrice
 		}
+		second = calc.CurrentPrice
 	}
 	switch {
 	case calc.OpeningDirection.IsShort() && calc.OrderDirection.IsShort(),

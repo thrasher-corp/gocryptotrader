@@ -151,6 +151,9 @@ type CollateralCalculator struct {
 	IsLiquidating      bool
 }
 
+// PNLCalculator implements the PNLCalculation interface
+// to call CalculatePNL and is used when a user wishes to have a
+// consistent method of calculating PNL across different exchanges
 type PNLCalculator struct{}
 
 // PNLCalculatorRequest is used to calculate PNL values
@@ -176,21 +179,7 @@ type PNLCalculatorRequest struct {
 	CurrentDirection Side
 }
 
-// TimeBasedCalculation will update PNL values
-// based on the current time
-type TimeBasedCalculation struct {
-	Time         time.Time
-	CurrentPrice float64
-}
-
-// ExchangeBasedCalculation are the fields required to
-// calculate PNL using an exchange's custom PNL calculations
-// eg FTX uses a different method than Binance to calculate PNL
-// values
-type ExchangeBasedCalculation struct {
-}
-
-// PNLResult stores pnl history at a point in time
+// PNLResult stores a PNL result from a point in time
 type PNLResult struct {
 	Time                  time.Time
 	UnrealisedPNL         decimal.Decimal
@@ -198,6 +187,7 @@ type PNLResult struct {
 	Price                 decimal.Decimal
 	Exposure              decimal.Decimal
 	Fee                   decimal.Decimal
+	IsLiquidated          bool
 }
 
 // PositionStats is a basic holder
