@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -93,14 +94,61 @@ func (f fExchange) GetHistoricCandlesExtended(ctx context.Context, p currency.Pa
 
 // FetchAccountInfo overrides testExchange's fetch account info function
 // to do the bare minimum required with no API calls or credentials required
-func (f fExchange) FetchAccountInfo(ctx context.Context, a asset.Item) (account.Holdings, error) {
+func (f fExchange) FetchAccountInfo(_ context.Context, a asset.Item) (account.Holdings, error) {
 	return account.Holdings{
 		Exchange: f.GetName(),
 		Accounts: []account.SubAccount{
 			{
-				ID:         "1337",
-				AssetType:  a,
-				Currencies: nil,
+				ID:        "1337",
+				AssetType: a,
+				Currencies: []account.Balance{
+					{
+						CurrencyName: currency.USD,
+						TotalValue:   1337,
+					},
+				},
+			},
+		},
+	}, nil
+}
+
+// GetFuturesPositions overrides testExchange's GetFuturesPositions function
+func (f fExchange) GetFuturesPositions(_ context.Context, a asset.Item, cp currency.Pair, _ time.Time, _ time.Time) ([]order.Detail, error) {
+	return []order.Detail{
+		{
+			Price:     1337,
+			Amount:    1337,
+			Fee:       1.337,
+			FeeAsset:  currency.Code{},
+			Exchange:  f.GetName(),
+			ID:        "test",
+			Side:      order.Long,
+			Status:    order.Open,
+			AssetType: a,
+			Date:      time.Now(),
+			Pair:      cp,
+		},
+	}, nil
+}
+
+// CalculateTotalCollateral overrides testExchange's CalculateTotalCollateral function
+func (f fExchange) CalculateTotalCollateral(context.Context, []order.CollateralCalculator) (*order.TotalCollateralResponse, error) {
+	return &order.TotalCollateralResponse{
+		TotalCollateral: decimal.NewFromInt(1337),
+		BreakdownByCurrency: []order.CollateralByCurrency{
+			{
+				Currency: currency.USD,
+				Amount:   decimal.NewFromInt(1330),
+			},
+			{
+				Currency:      currency.DOGE,
+				Amount:        decimal.NewFromInt(10),
+				ValueCurrency: currency.USD,
+			},
+			{
+				Currency:      currency.XRP,
+				Amount:        decimal.NewFromInt(-3),
+				ValueCurrency: currency.USD,
 			},
 		},
 	}, nil
@@ -1975,5 +2023,136 @@ func TestCurrencyStateTradingPair(t *testing.T) {
 		})
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: %v, but expected: %v", err, nil)
+	}
+}
+
+func TestGetFuturesPositions(t *testing.T) {
+	t.Parallel()
+	em := SetupExchangeManager()
+	exch, err := em.NewExchangeByName(testExchange)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := exch.GetBase()
+	b.Name = fakeExchangeName
+	b.Enabled = true
+
+	cp, err := currency.NewPairFromString("btc-usd")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
+	b.CurrencyPairs.Pairs[asset.Futures] = &currency.PairStore{
+		AssetEnabled: convert.BoolPtr(true),
+		ConfigFormat: &currency.PairFormat{},
+		Available:    currency.Pairs{cp},
+		Enabled:      currency.Pairs{cp},
+	}
+	fakeExchange := fExchange{
+		IBotExchange: exch,
+	}
+	em.Add(fakeExchange)
+	var wg sync.WaitGroup
+	om, err := SetupOrderManager(em, &CommunicationManager{}, &wg, false)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected '%v'", err, nil)
+	}
+	om.started = 1
+	s := RPCServer{
+		Engine: &Engine{
+			ExchangeManager: em,
+			currencyStateManager: &CurrencyStateManager{
+				started: 1, iExchangeManager: em,
+			},
+			OrderManager: om,
+		},
+	}
+
+	r, err := s.GetFuturesPositions(context.Background(), &gctrpc.GetFuturesPositionsRequest{
+		Exchange: fakeExchangeName,
+		Asset:    asset.Futures.String(),
+		Pair: &gctrpc.CurrencyPair{
+			Delimiter: currency.DashDelimiter,
+			Base:      cp.Base.String(),
+			Quote:     cp.Quote.String(),
+		},
+		Verbose: true,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+	if r == nil {
+		t.Fatal("expected not nil response")
+	}
+	if len(r.Positions) != 1 {
+		t.Fatal("expected 1 position")
+	}
+	if r.TotalOrders != 1 {
+		t.Fatal("expected 1 order")
+	}
+}
+
+func TestGetCollateral(t *testing.T) {
+	t.Parallel()
+	em := SetupExchangeManager()
+	exch, err := em.NewExchangeByName(testExchange)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := exch.GetBase()
+	b.Name = fakeExchangeName
+	b.Enabled = true
+
+	cp, err := currency.NewPairFromString("btc-usd")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
+	b.CurrencyPairs.Pairs[asset.Futures] = &currency.PairStore{
+		AssetEnabled: convert.BoolPtr(true),
+		ConfigFormat: &currency.PairFormat{},
+		Available:    currency.Pairs{cp},
+		Enabled:      currency.Pairs{cp},
+	}
+	fakeExchange := fExchange{
+		IBotExchange: exch,
+	}
+	em.Add(fakeExchange)
+	s := RPCServer{
+		Engine: &Engine{
+			ExchangeManager: em,
+			currencyStateManager: &CurrencyStateManager{
+				started: 1, iExchangeManager: em,
+			},
+		},
+	}
+
+	r, err := s.GetCollateral(context.Background(), &gctrpc.GetCollateralRequest{
+		Exchange: fakeExchangeName,
+		Asset:    asset.Futures.String(),
+	})
+	if err != nil {
+		t.Error(err)
+	}
+	if len(r.CurrencyBreakdown) > 0 {
+		t.Error("expected no breakdown")
+	}
+
+	r, err = s.GetCollateral(context.Background(), &gctrpc.GetCollateralRequest{
+		Exchange:         fakeExchangeName,
+		Asset:            asset.Futures.String(),
+		IncludeBreakdown: true,
+		SubAccount:       "1337",
+	})
+	if err != nil {
+		t.Error(err)
+	}
+	if len(r.CurrencyBreakdown) != 3 {
+		t.Error("expected 3 currencies")
+	}
+	if r.TotalCollateral != "1337" {
+		t.Error("expected 1337")
 	}
 }

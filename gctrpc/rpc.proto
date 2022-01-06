@@ -1023,6 +1023,55 @@ message CurrencyState {
     bool trading_enabled = 5;
 }
 
+message GetFuturesPositionsRequest {
+    string exchange =1;
+    string asset = 2;
+    CurrencyPair pair = 3;
+    string	start_date = 4;
+    string	end_date = 5;
+    string status = 6;
+    int64 positionLimit = 7;
+    bool verbose = 8;
+}
+
+message GetFuturesPositionsResponse {
+    int64 totalOrders = 1;
+    double totalRealisedPNL = 2;
+    double totalUnrealisedPNL = 3;
+    double totalPNL = 4;
+    repeated FuturePosition positions = 5;
+}
+
+message FuturePosition {
+    string status = 1;
+    string currentDirection = 2;
+    string unrealisedPNL = 3;
+    string realisedPNL = 4;
+    string openingDate = 5;
+    string closingDate = 6;
+    repeated OrderDetails orders = 7;
+}
+
+message GetCollateralRequest {
+    string exchange =1;
+    string asset = 2;
+    string subAccount = 3;
+    bool includeBreakdown = 4;
+    bool calculateOffline = 5;
+}
+
+message GetCollateralResponse {
+    string totalCollateral = 1;
+    repeated CollateralForCurrency currencyBreakdown = 2;
+}
+
+message CollateralForCurrency {
+    string currency = 1;
+    string scaledCollateral = 2;
+    string scaledToCurrency = 3;
+}
+
+
 service GoCryptoTrader {
     rpc GetInfo (GetInfoRequest) returns (GetInfoResponse) {
         option (google.api.http) = {
@@ -1610,6 +1659,16 @@ service GoCryptoTrader {
     rpc CurrencyStateTradingPair (CurrencyStateTradingPairRequest) returns (GenericResponse) {
         option (google.api.http) = {
             get: "/v1/currencystatetradingpair"
+        };
+    }
+    rpc GetFuturesPositions (GetFuturesPositionsRequest) returns (GetFuturesPositionsResponse) {
+        option (google.api.http) = {
+            get: "/v1/getfuturespositions"
+        };
+    }
+    rpc GetCollateral (GetCollateralRequest) returns (GetCollateralResponse) {
+        option (google.api.http) = {
+            get: "/v1/getcollateral"
         };
     }
 }

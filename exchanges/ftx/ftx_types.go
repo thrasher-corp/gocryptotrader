@@ -163,11 +163,6 @@ type FutureStatsData struct {
 	PredictedExpirationPrice float64   `json:"predictedExpirationPrice"`
 	OpenInterest             float64   `json:"openInterest"`
 	StrikePrice              float64   `json:"strikePrice"`
-	Greeks                   *struct {
-		ImpliedVolatility float64 `json:"impliedVolatility"`
-		Delta             float64 `json:"delta"`
-		Gamma             float64 `json:"gamma"`
-	} `json:"greeks"`
 }
 
 // FundingRatesData stores data on funding rates
@@ -184,21 +179,26 @@ type IndexWeights struct {
 
 // PositionData stores data of an open position
 type PositionData struct {
+	CollateralUsed               float64 `json:"collateralUsed"`
 	Cost                         float64 `json:"cost"`
+	CumulativeBuySize            float64 `json:"cumulativeBuySize"`
+	CumulativeSellSize           float64 `json:"cumulativeSellSize"`
 	EntryPrice                   float64 `json:"entryPrice"`
+	EstimatedLiquidationPrice    float64 `json:"estimatedLiquidationPrice"`
 	Future                       string  `json:"future"`
 	InitialMarginRequirement     float64 `json:"initialMarginRequirement"`
 	LongOrderSize                float64 `json:"longOrderSize"`
 	MaintenanceMarginRequirement float64 `json:"maintenanceMarginRequirement"`
 	NetSize                      float64 `json:"netSize"`
 	OpenSize                     float64 `json:"openSize"`
-	RealizedPnL                  float64 `json:"realizedPnL"`
+	RealizedPNL                  float64 `json:"realizedPnl"`
+	RecentAverageOpenPrice       float64 `json:"recentAverageOpenPrice"`
+	RecentBreakEvenPrice         float64 `json:"recentBreakEvenPrice"`
+	RecentPnl                    float64 `json:"recentPnl"`
 	ShortOrderSize               float64 `json:"shortOrderSize"`
 	Side                         string  `json:"side"`
 	Size                         float64 `json:"size"`
-	UnrealizedPnL                float64 `json:"unrealizedPnL"`
-	CollateralUsed               float64 `json:"collateralUsed"`
-	EstimatedLiquidationPrice    float64 `json:"estimatedLiquidationPrice"`
+	UnrealizedPNL                float64 `json:"unrealizedPnl"`
 }
 
 // AccountInfoData stores account data
@@ -879,4 +879,15 @@ type StakeReward struct {
 	Notes  string    `json:"notes"`
 	Status string    `json:"status"`
 	Time   time.Time `json:"time"`
+}
+
+// CollateralWeightHolder stores collateral weights over the lifecycle of the application
+type CollateralWeightHolder map[string]CollateralWeight
+
+// CollateralWeight holds collateral information provided by FTX
+// it is used to scale collateral when the currency is not in USD
+type CollateralWeight struct {
+	Initial   float64
+	Total     float64
+	IMFFactor float64
 }

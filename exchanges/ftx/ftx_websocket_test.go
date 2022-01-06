@@ -53,6 +53,7 @@ func parseRaw(t *testing.T, input string) interface{} {
 				Fills:       fills,
 			},
 		},
+		CollateralWeightHolder{},
 	}
 
 	if err := x.wsHandleData([]byte(input)); err != nil {
@@ -358,7 +359,7 @@ func TestParsingMarketsData(t *testing.T) {
 			"future": {
 				"name": "ADA-0626",
 				"underlying": "ADA",
-				"description": "Cardano June 2020 Futures",
+				"description": "Cardano June 2020 FuturesTracker",
 				"type": "future", "expiry": "2020-06-26T003:00:00+00:00", 
 				"perpetual": false, 
 				"expired": false, 

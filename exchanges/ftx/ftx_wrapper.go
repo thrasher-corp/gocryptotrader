@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -184,25 +186,40 @@ func (f *FTX) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	err = f.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            ftxWSURL,
-		RunningURL:            wsEndpoint,
-		Connector:             f.WsConnect,
-		Subscriber:            f.Subscribe,
-		Unsubscriber:          f.Unsubscribe,
-		GenerateSubscriptions: f.GenerateDefaultSubscriptions,
-		Features:              &f.Features.Supports.WebsocketCapabilities,
-		TradeFeed:             f.Features.Enabled.TradeFeed,
-		FillsFeed:             f.Features.Enabled.FillsFeed,
-	})
-	if err != nil {
-		return err
+	if exch.Websocket != nil && *exch.Websocket {
+		err = f.Websocket.Setup(&stream.WebsocketSetup{
+			ExchangeConfig:        exch,
+			DefaultURL:            ftxWSURL,
+			RunningURL:            wsEndpoint,
+			Connector:             f.WsConnect,
+			Subscriber:            f.Subscribe,
+			Unsubscriber:          f.Unsubscribe,
+			GenerateSubscriptions: f.GenerateDefaultSubscriptions,
+			Features:              &f.Features.Supports.WebsocketCapabilities,
+			TradeFeed:             f.Features.Enabled.TradeFeed,
+			FillsFeed:             f.Features.Enabled.FillsFeed,
+		})
+		if err != nil {
+			return err
+		}
 	}
-	return f.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-	})
+
+	if err = f.CurrencyPairs.IsAssetEnabled(asset.Futures); err == nil {
+		err = f.LoadCollateralWeightings()
+		if err != nil {
+			log.Errorf(log.ExchangeSys,
+				"%s failed to store collateral weightings. Err: %s",
+				f.Name,
+				err)
+		}
+	}
+	if exch.Websocket != nil && *exch.Websocket {
+		return f.Websocket.SetupNewConnection(stream.ConnectionSetup{
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		})
+	}
+	return nil
 }
 
 // Start starts the FTX go routine
@@ -247,6 +264,7 @@ func (f *FTX) Run() {
 			f.Name,
 			err)
 	}
+
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
@@ -800,7 +818,7 @@ func (s *OrderData) GetCompatible(ctx context.Context, f *FTX) (OrderVars, error
 }
 
 // GetOrderInfo returns order information based on order ID
-func (f *FTX) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
+func (f *FTX) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pair, _ asset.Item) (order.Detail, error) {
 	var resp order.Detail
 	orderData, err := f.GetOrderStatus(ctx, orderID)
 	if err != nil {
@@ -1253,4 +1271,158 @@ func (f *FTX) GetAvailableTransferChains(ctx context.Context, cryptocurrency cur
 		}
 	}
 	return availableChains, nil
+}
+
+// CalculatePNL determines the PNL of a given position based on the PNLCalculatorRequest
+func (f *FTX) CalculatePNL(pnl *order.PNLCalculatorRequest) (*order.PNLResult, error) {
+	if pnl == nil {
+		return nil, fmt.Errorf("%v %w", f.Name, order.ErrNilPNLCalculator)
+	}
+	var result order.PNLResult
+	result.Time = pnl.Time
+	if pnl.CalculateOffline {
+		// PNLCalculator matches FTX's pnl calculation method
+		calc := order.PNLCalculator{}
+		return calc.CalculatePNL(pnl)
+	}
+
+	ep := pnl.EntryPrice.InexactFloat64()
+	info, err := f.GetAccountInfo(context.Background())
+	if err != nil {
+		return nil, err
+	}
+	if info.Liquidating || info.Collateral == 0 {
+		result.IsLiquidated = true
+		return &result, order.ErrPositionLiquidated
+	}
+	for i := range info.Positions {
+		var pair currency.Pair
+		pair, err = currency.NewPairFromString(info.Positions[i].Future)
+		if err != nil {
+			return nil, err
+		}
+		if !pnl.Pair.Equal(pair) {
+			continue
+		}
+		if info.Positions[i].EntryPrice != ep {
+			continue
+		}
+		result.UnrealisedPNL = decimal.NewFromFloat(info.Positions[i].UnrealizedPNL)
+		result.RealisedPNLBeforeFees = decimal.NewFromFloat(info.Positions[i].RealizedPNL)
+		result.Price = decimal.NewFromFloat(info.Positions[i].Cost)
+		return &result, nil
+	}
+	// order no longer active, use offline calculation
+	pnl.CalculateOffline = true
+	return f.CalculatePNL(pnl)
+}
+
+// ScaleCollateral takes your totals and scales them according to FTX's rules
+func (f *FTX) ScaleCollateral(ctx context.Context, calc *order.CollateralCalculator) (decimal.Decimal, error) {
+	var result decimal.Decimal
+	if calc.CalculateOffline {
+		if calc.CollateralCurrency == currency.USD {
+			return calc.CollateralAmount, nil
+		}
+		collateralWeight, ok := f.collateralWeight[calc.CollateralCurrency.Upper().String()]
+		if !ok {
+			return decimal.Zero, fmt.Errorf("%v %w", calc.CollateralCurrency, errCollateralCurrencyNotFound)
+		}
+		if calc.CollateralAmount.IsPositive() {
+			if collateralWeight.IMFFactor == 0 {
+				return decimal.Zero, fmt.Errorf("%v %w", calc.CollateralCurrency, errCollateralIMFMissing)
+			}
+			var scaling decimal.Decimal
+			if calc.IsLiquidating {
+				scaling = decimal.NewFromFloat(collateralWeight.Total)
+			} else {
+				scaling = decimal.NewFromFloat(collateralWeight.Initial)
+			}
+			weight := decimal.NewFromFloat(1.1 / (1 + collateralWeight.IMFFactor*math.Sqrt(calc.CollateralAmount.InexactFloat64())))
+			result = calc.CollateralAmount.Mul(calc.USDPrice).Mul(decimal.Min(scaling, weight))
+		} else {
+			result = result.Add(calc.CollateralAmount.Mul(calc.USDPrice))
+		}
+		return result, nil
+	}
+	wallet, err := f.GetCoins(ctx)
+	if err != nil {
+		return decimal.Zero, err
+	}
+	balances, err := f.GetBalances(ctx)
+	if err != nil {
+		return decimal.Zero, err
+	}
+	for i := range wallet {
+		if currency.NewCode(wallet[i].ID) != calc.CollateralCurrency {
+			continue
+		}
+		for j := range balances {
+			if currency.NewCode(balances[j].Coin) != calc.CollateralCurrency {
+				continue
+			}
+			scaled := wallet[i].CollateralWeight * balances[j].USDValue
+			result = decimal.NewFromFloat(scaled)
+			return result, nil
+		}
+	}
+	return decimal.Zero, fmt.Errorf("%v %w", calc.CollateralCurrency, errCollateralCurrencyNotFound)
+}
+
+// CalculateTotalCollateral scales collateral and determines how much collateral you can use for positions
+func (f *FTX) CalculateTotalCollateral(ctx context.Context, collateralAssets []order.CollateralCalculator) (*order.TotalCollateralResponse, error) {
+	var result order.TotalCollateralResponse
+	for i := range collateralAssets {
+		collateral, err := f.ScaleCollateral(ctx, &collateralAssets[i])
+		if err != nil {
+			if errors.Is(err, errCollateralCurrencyNotFound) {
+				log.Error(log.ExchangeSys, err)
+				continue
+			}
+			return nil, err
+		}
+		result.TotalCollateral = result.TotalCollateral.Add(collateral)
+		result.BreakdownByCurrency = append(result.BreakdownByCurrency, order.CollateralByCurrency{
+			Currency:      collateralAssets[i].CollateralCurrency,
+			Amount:        collateral,
+			ValueCurrency: currency.USD,
+		})
+	}
+	return &result, nil
+}
+
+// GetFuturesPositions returns all futures positions within provided params
+func (f *FTX) GetFuturesPositions(ctx context.Context, a asset.Item, cp currency.Pair, start, end time.Time) ([]order.Detail, error) {
+	if !a.IsFutures() {
+		return nil, fmt.Errorf("%w futures asset type only", common.ErrFunctionNotSupported)
+	}
+	fills, err := f.GetFills(ctx, cp, "200", start, end)
+	if err != nil {
+		return nil, err
+	}
+	sort.Slice(fills, func(i, j int) bool {
+		return fills[i].Time.Before(fills[j].Time)
+	})
+	var resp []order.Detail
+	var side order.Side
+	for i := range fills {
+		price := fills[i].Price
+		side, err = order.StringToOrderSide(fills[i].Side)
+		if err != nil {
+			return nil, err
+		}
+		resp = append(resp, order.Detail{
+			Side:      side,
+			Pair:      cp,
+			ID:        fmt.Sprintf("%v", fills[i].ID),
+			Price:     price,
+			Amount:    fills[i].Size,
+			AssetType: a,
+			Exchange:  f.Name,
+			Fee:       fills[i].Fee,
+			Date:      fills[i].Time,
+		})
+	}
+
+	return resp, nil
 }

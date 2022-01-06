@@ -3,12 +3,15 @@ package ftx
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
+	"math"
 	"os"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -26,7 +29,7 @@ const (
 	apiSecret               = ""
 	subaccount              = ""
 	canManipulateRealOrders = false
-	spotPair                = "FTT/BTC"
+	spotPairStr             = "FTT/BTC"
 	futuresPair             = "DOGE-PERP"
 	testLeverageToken       = "ADAMOON"
 
@@ -38,7 +41,10 @@ const (
 	authEndTime            = validFTTBTCEndTime
 )
 
-var f FTX
+var (
+	f        FTX
+	spotPair = currency.NewPair(currency.FTT, currency.BTC)
+)
 
 func TestMain(m *testing.M) {
 	f.SetDefaults()
@@ -115,7 +121,7 @@ func TestGetHistoricalIndex(t *testing.T) {
 
 func TestGetMarket(t *testing.T) {
 	t.Parallel()
-	_, err := f.GetMarket(context.Background(), spotPair)
+	_, err := f.GetMarket(context.Background(), spotPairStr)
 	if err != nil {
 		t.Error(err)
 	}
@@ -123,7 +129,7 @@ func TestGetMarket(t *testing.T) {
 
 func TestGetOrderbook(t *testing.T) {
 	t.Parallel()
-	_, err := f.GetOrderbook(context.Background(), spotPair, 5)
+	_, err := f.GetOrderbook(context.Background(), spotPairStr, 5)
 	if err != nil {
 		t.Error(err)
 	}
@@ -137,13 +143,13 @@ func TestGetTrades(t *testing.T) {
 		t.Error("empty market should return an error")
 	}
 	_, err = f.GetTrades(context.Background(),
-		spotPair, validFTTBTCEndTime, validFTTBTCStartTime, 5)
+		spotPairStr, validFTTBTCEndTime, validFTTBTCStartTime, 5)
 	if err != errStartTimeCannotBeAfterEndTime {
 		t.Errorf("should have thrown errStartTimeCannotBeAfterEndTime, got %v", err)
 	}
 	// test optional params
 	var trades []TradeData
-	trades, err = f.GetTrades(context.Background(), spotPair, 0, 0, 0)
+	trades, err = f.GetTrades(context.Background(), spotPairStr, 0, 0, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -151,7 +157,7 @@ func TestGetTrades(t *testing.T) {
 		t.Error("default limit should return 20 items")
 	}
 	trades, err = f.GetTrades(context.Background(),
-		spotPair, validFTTBTCStartTime, validFTTBTCEndTime, 5)
+		spotPairStr, validFTTBTCStartTime, validFTTBTCEndTime, 5)
 	if err != nil {
 		t.Error(err)
 	}
@@ -159,7 +165,7 @@ func TestGetTrades(t *testing.T) {
 		t.Error("limit of 5 should return 5 items")
 	}
 	trades, err = f.GetTrades(context.Background(),
-		spotPair, invalidFTTBTCStartTime, invalidFTTBTCEndTime, 5)
+		spotPairStr, invalidFTTBTCStartTime, invalidFTTBTCEndTime, 5)
 	if err != nil {
 		t.Error(err)
 	}
@@ -178,19 +184,19 @@ func TestGetHistoricalData(t *testing.T) {
 	}
 	// test empty resolution
 	_, err = f.GetHistoricalData(context.Background(),
-		spotPair, 0, 5, time.Time{}, time.Time{})
+		spotPairStr, 0, 5, time.Time{}, time.Time{})
 	if err == nil {
 		t.Error("empty resolution should return an error")
 	}
 	_, err = f.GetHistoricalData(context.Background(),
-		spotPair, 86400, 5, time.Unix(validFTTBTCEndTime, 0),
+		spotPairStr, 86400, 5, time.Unix(validFTTBTCEndTime, 0),
 		time.Unix(validFTTBTCStartTime, 0))
 	if err != errStartTimeCannotBeAfterEndTime {
 		t.Errorf("should have thrown errStartTimeCannotBeAfterEndTime, got %v", err)
 	}
 	var o []OHLCVData
 	o, err = f.GetHistoricalData(context.Background(),
-		spotPair, 86400, 5, time.Time{}, time.Time{})
+		spotPairStr, 86400, 5, time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
 	}
@@ -198,7 +204,7 @@ func TestGetHistoricalData(t *testing.T) {
 		t.Error("limit of 5 should return 5 items")
 	}
 	o, err = f.GetHistoricalData(context.Background(),
-		spotPair, 86400, 5, time.Unix(invalidFTTBTCStartTime, 0),
+		spotPairStr, 86400, 5, time.Unix(invalidFTTBTCStartTime, 0),
 		time.Unix(invalidFTTBTCEndTime, 0))
 	if err != nil {
 		t.Error(err)
@@ -229,15 +235,6 @@ func TestGetFutureStats(t *testing.T) {
 	_, err := f.GetFutureStats(context.Background(), "BTC-PERP")
 	if err != nil {
 		t.Error(err)
-	}
-
-	future, err := f.GetFutureStats(context.Background(), "BTC-MOVE-2021Q4")
-	if err != nil {
-		t.Error(err)
-	}
-
-	if future.Greeks == nil {
-		t.Fatal("no greeks returned for futures contract")
 	}
 }
 
@@ -271,6 +268,7 @@ func TestGetPositions(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
+	f.Verbose = true
 	_, err := f.GetPositions(context.Background())
 	if err != nil {
 		t.Error(err)
@@ -520,7 +518,7 @@ func TestGetOpenOrders(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = f.GetOpenOrders(context.Background(), spotPair)
+	_, err = f.GetOpenOrders(context.Background(), spotPairStr)
 	if err != nil {
 		t.Error(err)
 	}
@@ -537,12 +535,12 @@ func TestFetchOrderHistory(t *testing.T) {
 		t.Error(err)
 	}
 	_, err = f.FetchOrderHistory(context.Background(),
-		spotPair, time.Unix(authStartTime, 0), time.Unix(authEndTime, 0), "2")
+		spotPairStr, time.Unix(authStartTime, 0), time.Unix(authEndTime, 0), "2")
 	if err != nil {
 		t.Error(err)
 	}
 	_, err = f.FetchOrderHistory(context.Background(),
-		spotPair, time.Unix(authEndTime, 0), time.Unix(authStartTime, 0), "2")
+		spotPairStr, time.Unix(authEndTime, 0), time.Unix(authStartTime, 0), "2")
 	if err != errStartTimeCannotBeAfterEndTime {
 		t.Errorf("should have thrown errStartTimeCannotBeAfterEndTime, got %v", err)
 	}
@@ -558,7 +556,7 @@ func TestGetOpenTriggerOrders(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = f.GetOpenTriggerOrders(context.Background(), spotPair, "")
+	_, err = f.GetOpenTriggerOrders(context.Background(), spotPairStr, "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -586,12 +584,12 @@ func TestGetTriggerOrderHistory(t *testing.T) {
 		t.Error(err)
 	}
 	_, err = f.GetTriggerOrderHistory(context.Background(),
-		spotPair, time.Time{}, time.Time{}, order.Buy.Lower(), "stop", "1")
+		spotPairStr, time.Time{}, time.Time{}, order.Buy.Lower(), "stop", "1")
 	if err != nil {
 		t.Error(err)
 	}
 	_, err = f.GetTriggerOrderHistory(context.Background(),
-		spotPair,
+		spotPairStr,
 		time.Unix(authStartTime, 0),
 		time.Unix(authEndTime, 0),
 		order.Buy.Lower(),
@@ -601,7 +599,7 @@ func TestGetTriggerOrderHistory(t *testing.T) {
 		t.Error(err)
 	}
 	_, err = f.GetTriggerOrderHistory(context.Background(),
-		spotPair,
+		spotPairStr,
 		time.Unix(authEndTime, 0),
 		time.Unix(authStartTime, 0),
 		order.Buy.Lower(),
@@ -618,7 +616,7 @@ func TestOrder(t *testing.T) {
 		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
 	}
 	_, err := f.Order(context.Background(),
-		spotPair,
+		spotPairStr,
 		order.Buy.Lower(),
 		"limit",
 		false, false, false,
@@ -635,7 +633,7 @@ func TestSubmitOrder(t *testing.T) {
 		t.Skip("skipping test, either api keys or canManipulateRealOrders isn't set correctly")
 	}
 
-	currencyPair, err := currency.NewPairFromString(spotPair)
+	currencyPair, err := currency.NewPairFromString(spotPairStr)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -661,7 +659,7 @@ func TestTriggerOrder(t *testing.T) {
 		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
 	}
 	_, err := f.TriggerOrder(context.Background(),
-		spotPair,
+		spotPairStr,
 		order.Buy.Lower(),
 		order.Stop.Lower(),
 		"", "",
@@ -677,7 +675,7 @@ func TestCancelOrder(t *testing.T) {
 		t.Skip("skipping test, either api keys or canManipulateRealOrders isn't set correctly")
 	}
 
-	currencyPair, err := currency.NewPairFromString(spotPair)
+	currencyPair, err := currency.NewPairFromString(spotPairStr)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -736,7 +734,8 @@ func TestGetFills(t *testing.T) {
 		t.Skip()
 	}
 	// optional params
-	_, err := f.GetFills(context.Background(), "", "", time.Time{}, time.Time{})
+
+	_, err := f.GetFills(context.Background(), spotPair, "", time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
 	}
@@ -1262,7 +1261,7 @@ func TestGetOTCQuoteStatus(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := f.GetOTCQuoteStatus(context.Background(), spotPair, "1")
+	_, err := f.GetOTCQuoteStatus(context.Background(), spotPairStr, "1")
 	if err != nil {
 		t.Error(err)
 	}
@@ -1718,5 +1717,207 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 		t.Fatalf("expected error %v but received %v",
 			nil,
 			err)
+	}
+}
+
+func TestScaleCollateral(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test, api keys not set")
+	}
+	accountInfo, err := f.GetAccountInfo(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+	walletInfo, err := f.GetAllWalletBalances(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+	localScaling := 0.0
+	liquidationScaling := 0.0
+	providedUSDValue := 0.0
+	for _, v := range walletInfo {
+		for v2 := range v {
+			coin := v[v2].Coin
+			if coin == "USD" {
+				localScaling += v[v2].Total
+				providedUSDValue += v[v2].USDValue
+				liquidationScaling += v[v2].Total
+				continue
+			}
+			var tick MarketData
+			tick, err = f.GetMarket(context.Background(), currency.NewPairWithDelimiter(coin, "usd", "/").String())
+			if err != nil {
+				t.Error(err)
+			}
+			var scaled decimal.Decimal
+			scaled, err = f.ScaleCollateral(context.Background(), &order.CollateralCalculator{
+				CollateralCurrency: currency.NewCode(coin),
+				Asset:              asset.Spot,
+				Side:               order.Buy,
+				CollateralAmount:   decimal.NewFromFloat(v[v2].Total),
+				USDPrice:           decimal.NewFromFloat(tick.Price),
+				CalculateOffline:   true,
+			})
+			if err != nil {
+				if errors.Is(err, errCollateralCurrencyNotFound) {
+					continue
+				}
+				t.Error(err)
+			}
+			localScaling += scaled.InexactFloat64()
+			providedUSDValue += v[v2].USDValue
+
+			scaled, err = f.ScaleCollateral(context.Background(), &order.CollateralCalculator{
+				CollateralCurrency: currency.NewCode(coin),
+				Asset:              asset.Spot,
+				Side:               order.Buy,
+				CollateralAmount:   decimal.NewFromFloat(v[v2].Total),
+				USDPrice:           decimal.NewFromFloat(tick.Price),
+				IsLiquidating:      true,
+				CalculateOffline:   true,
+			})
+			if err != nil {
+				t.Error(err)
+			}
+			liquidationScaling += scaled.InexactFloat64()
+
+			_, err = f.ScaleCollateral(context.Background(), &order.CollateralCalculator{
+				CollateralCurrency: currency.NewCode(coin),
+				Asset:              asset.Spot,
+				Side:               order.Buy,
+			})
+			if err != nil {
+				t.Error(err)
+			}
+		}
+	}
+	if (math.Abs((localScaling-accountInfo.Collateral)/accountInfo.Collateral) * 100) > 5 {
+		t.Errorf("collateral scaling less than 95%% accurate, received '%v' expected roughly '%v'", localScaling, accountInfo.Collateral)
+	}
+}
+
+func TestCalculateTotalCollateral(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test, api keys not set")
+	}
+	walletInfo, err := f.GetAllWalletBalances(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+	var scales []order.CollateralCalculator
+	for _, v := range walletInfo {
+		for v2 := range v {
+			coin := v[v2].Coin
+			if coin == "USD" {
+				total := decimal.NewFromFloat(v[v2].Total)
+				scales = append(scales, order.CollateralCalculator{
+					CollateralCurrency: currency.NewCode(coin),
+					Asset:              asset.Spot,
+					Side:               order.Buy,
+					CollateralAmount:   total,
+					USDPrice:           total,
+					CalculateOffline:   true,
+				})
+				continue
+			}
+			var tick MarketData
+			tick, err = f.GetMarket(context.Background(), currency.NewPairWithDelimiter(coin, "usd", "/").String())
+			if err != nil {
+				t.Error(err)
+			}
+			scales = append(scales, order.CollateralCalculator{
+				CollateralCurrency: currency.NewCode(coin),
+				Asset:              asset.Spot,
+				Side:               order.Buy,
+				CollateralAmount:   decimal.NewFromFloat(v[v2].Total),
+				USDPrice:           decimal.NewFromFloat(tick.Price),
+				CalculateOffline:   true,
+			})
+		}
+	}
+	total, err := f.CalculateTotalCollateral(context.Background(), scales)
+	if err != nil {
+		t.Error(err)
+	}
+	localScaling := total.TotalCollateral.InexactFloat64()
+	accountInfo, err := f.GetAccountInfo(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+	if (math.Abs((localScaling-accountInfo.Collateral)/accountInfo.Collateral) * 100) > 5 {
+		t.Errorf("collateral scaling less than 95%% accurate, received '%v' expected roughly '%v'", localScaling, accountInfo.Collateral)
+	}
+
+	for i := range scales {
+		scales[i].CalculateOffline = false
+	}
+	_, err = f.CalculateTotalCollateral(context.Background(), scales)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCalculatePNL(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test, api keys not set")
+	}
+	f.Verbose = true
+	pair := currency.NewPair(currency.BTC, currency.NewCode("1231"))
+	positions, err := f.GetFuturesPositions(context.Background(), asset.Futures, pair, time.Date(2021, 1, 6, 4, 28, 0, 0, time.UTC), time.Date(2021, 12, 31, 4, 32, 0, 0, time.UTC))
+	var orders []order.Detail
+	for i := range positions {
+		orders = append(orders, order.Detail{
+			Side:      positions[i].Side,
+			Pair:      pair,
+			ID:        fmt.Sprintf("%v", positions[i].ID),
+			Price:     positions[i].Price,
+			Amount:    positions[i].Amount,
+			AssetType: asset.Futures,
+			Exchange:  f.Name,
+			Fee:       positions[i].Fee,
+			Date:      positions[i].Date,
+		})
+	}
+
+	exch := f.Name
+	item := asset.Futures
+	setup := &order.MultiPositionTrackerSetup{
+		Exchange:                  exch,
+		Asset:                     item,
+		Pair:                      pair,
+		Underlying:                pair.Base,
+		UseExchangePNLCalculation: true,
+		ExchangePNLCalculation:    &f,
+	}
+	p, err := order.SetupMultiPositionTracker(setup)
+	if err != nil {
+		t.Error(err)
+	}
+	for i := range orders {
+		err = p.TrackNewOrder(&orders[i])
+		if err != nil {
+			t.Error(err)
+		}
+	}
+	results := p.GetPositions()
+	for i := range results {
+		_, err = results[i].GetLatestPNLSnapshot()
+		if err != nil {
+			t.Error(err)
+		}
+	}
+}
+
+func TestGetFuturesPositions(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test, api keys not set")
+	}
+	cp := currency.NewPair(currency.BTC, currency.NewCode("1231"))
+	start := time.Now().Add(-time.Hour * 24 * 365)
+	end := time.Now()
+	a := asset.Futures
+	_, err := f.GetFuturesPositions(context.Background(), a, cp, start, end)
+	if err != nil {
+		t.Error(err)
 	}
 }

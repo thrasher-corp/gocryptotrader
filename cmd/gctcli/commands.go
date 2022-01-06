@@ -17,7 +17,7 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-var startTime, endTime, order string
+var startTime, endTime, o string
 var limit int
 
 var getInfoCommand = &cli.Command{
@@ -3742,7 +3742,7 @@ var getAuditEventCommand = &cli.Command{
 			Aliases:     []string{"o"},
 			Usage:       "order results by ascending/descending",
 			Value:       "asc",
-			Destination: &order,
+			Destination: &o,
 		},
 		&cli.IntFlag{
 			Name:        "limit",
@@ -3769,7 +3769,7 @@ func getAuditEvent(c *cli.Context) error {
 
 	if !c.IsSet("order") {
 		if c.Args().Get(2) != "" {
-			order = c.Args().Get(2)
+			o = c.Args().Get(2)
 		}
 	}
 
@@ -3810,7 +3810,7 @@ func getAuditEvent(c *cli.Context) error {
 			StartDate: negateLocalOffset(s),
 			EndDate:   negateLocalOffset(e),
 			Limit:     int32(limit),
-			OrderBy:   order,
+			OrderBy:   o,
 		})
 
 	if err != nil {
@@ -4723,17 +4723,293 @@ func findMissingSavedCandleIntervals(c *cli.Context) error {
 	return nil
 }
 
-// negateLocalOffset helps negate the offset of time generation
-// when the unix time gets to rpcserver, it no longer is the same time
-// that was sent as it handles it as a UTC value, even though when
-// using starttime it is generated as your local time
-// eg 2020-01-01 12:00:00 +10 will convert into
-// 2020-01-01 12:00:00 +00 when at RPCServer
-// so this function will minus the offset from the local sent time
-// to allow for proper use at RPCServer
-func negateLocalOffset(t time.Time) string {
-	_, offset := time.Now().Zone()
-	loc := time.FixedZone("", -offset)
+var getFuturesPositionsCommand = &cli.Command{
+	Name:      "getfuturesposition",
+	Usage:     "will retrieve all futures positions in a timeframe, then calculate PNL based on that. Note, the dates have an impact on PNL calculations, ensure your start date is not after a new position is opened",
+	ArgsUsage: "<exchange> <pair> <asset> <start> <end> <limit> <status> <verbose>",
+	Action:    getFuturesPositions,
+	Flags: []cli.Flag{
+		&cli.StringFlag{
+			Name:    "exchange",
+			Aliases: []string{"e"},
+			Usage:   "the exchange to retrieve futures positions from",
+		},
+		&cli.StringFlag{
+			Name:    "asset",
+			Aliases: []string{"a"},
+			Usage:   "the asset type of the currency pair, must be a futures type",
+		},
+		&cli.StringFlag{
+			Name:    "pair",
+			Aliases: []string{"p"},
+			Usage:   "the currency pair",
+		},
+		&cli.StringFlag{
+			Name:        "start",
+			Aliases:     []string{"sd"},
+			Usage:       "<start> rounded down to the nearest hour, ensure your starting position is within this window for accurate calculations",
+			Value:       time.Now().AddDate(-1, 0, 0).Truncate(time.Hour).Format(common.SimpleTimeFormat),
+			Destination: &startTime,
+		},
+		&cli.StringFlag{
+			Name:        "end",
+			Aliases:     []string{"ed"},
+			Usage:       "<end> rounded down to the nearest hour, ensure your last position is within this window for accurate calculations",
+			Value:       time.Now().Truncate(time.Hour).Format(common.SimpleTimeFormat),
+			Destination: &endTime,
+		},
+		&cli.IntFlag{
+			Name:        "limit",
+			Aliases:     []string{"l"},
+			Usage:       "the number of positions (not orders) to return",
+			Value:       86400,
+			Destination: &limit,
+		},
+		&cli.StringFlag{
+			Name:    "status",
+			Aliases: []string{"s"},
+			Usage:   "limit return to position statuses - open, closed, any",
+			Value:   "ANY",
+		},
+		&cli.BoolFlag{
+			Name:    "verbose",
+			Aliases: []string{"v"},
+			Usage:   "includes all orders that make up a position in the response",
+		},
+	},
+}
 
-	return t.In(loc).Format(common.SimpleTimeFormat)
+func getFuturesPositions(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		return cli.ShowCommandHelp(c, "getfuturesposition")
+	}
+
+	var exchangeName string
+	if c.IsSet("exchange") {
+		exchangeName = c.String("exchange")
+	} else {
+		exchangeName = c.Args().First()
+	}
+
+	var assetType string
+	if c.IsSet("asset") {
+		assetType = c.String("asset")
+	} else {
+		assetType = c.Args().Get(1)
+	}
+
+	if !validAsset(assetType) {
+		return errInvalidAsset
+	}
+
+	var currencyPair string
+	if c.IsSet("pair") {
+		currencyPair = c.String("pair")
+	} else {
+		currencyPair = c.Args().Get(2)
+	}
+	if !validPair(currencyPair) {
+		return errInvalidPair
+	}
+
+	p, err := currency.NewPairDelimiter(currencyPair, pairDelimiter)
+	if err != nil {
+		return err
+	}
+
+	if !c.IsSet("start") {
+		if c.Args().Get(3) != "" {
+			startTime = c.Args().Get(3)
+		}
+	}
+
+	if !c.IsSet("end") {
+		if c.Args().Get(4) != "" {
+			endTime = c.Args().Get(4)
+		}
+	}
+	if c.IsSet("limit") {
+		limit = c.Int("limit")
+	} else if c.Args().Get(5) != "" {
+		var limit64 int64
+		limit64, err = strconv.ParseInt(c.Args().Get(5), 10, 64)
+		if err != nil {
+			return err
+		}
+		limit = int(limit64)
+	}
+
+	var status string
+	if c.IsSet("status") {
+		status = c.String("status")
+	} else if c.Args().Get(6) != "" {
+		status = c.Args().Get(6)
+	}
+	if !strings.EqualFold(status, "any") &&
+		!strings.EqualFold(status, "open") &&
+		!strings.EqualFold(status, "closed") &&
+		status != "" {
+		return errors.New("unrecognised status")
+	}
+
+	var verbose bool
+	if c.IsSet("verbose") {
+		verbose = c.Bool("verbose")
+	} else if c.Args().Get(6) != "" {
+		verbose, err = strconv.ParseBool(c.Args().Get(7))
+		if err != nil {
+			return err
+		}
+	}
+
+	var s, e time.Time
+	s, err = time.Parse(common.SimpleTimeFormat, startTime)
+	if err != nil {
+		return fmt.Errorf("invalid time format for start: %v", err)
+	}
+	e, err = time.Parse(common.SimpleTimeFormat, endTime)
+	if err != nil {
+		return fmt.Errorf("invalid time format for end: %v", err)
+	}
+
+	if e.Before(s) {
+		return errors.New("start cannot be after end")
+	}
+
+	conn, cancel, err := setupClient(c)
+	if err != nil {
+		return err
+	}
+	defer closeConn(conn, cancel)
+
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+	result, err := client.GetFuturesPositions(c.Context,
+		&gctrpc.GetFuturesPositionsRequest{
+			Exchange: exchangeName,
+			Asset:    assetType,
+			Pair: &gctrpc.CurrencyPair{
+				Delimiter: p.Delimiter,
+				Base:      p.Base.String(),
+				Quote:     p.Quote.String(),
+			},
+			StartDate:     negateLocalOffset(s),
+			EndDate:       negateLocalOffset(e),
+			Status:        status,
+			PositionLimit: int64(limit),
+			Verbose:       verbose,
+		})
+	if err != nil {
+		return err
+	}
+
+	jsonOutput(result)
+	return nil
+}
+
+var getCollateralCommand = &cli.Command{
+	Name:      "getcollateral",
+	Usage:     "returns total collateral for an exchange asset, with optional per currency breakdown",
+	ArgsUsage: "<exchange> <asset>  <calculateoffline> <includebreakdown> <subaccount>",
+	Action:    getCollateral,
+	Flags: []cli.Flag{
+		&cli.StringFlag{
+			Name:    "exchange",
+			Aliases: []string{"e"},
+			Usage:   "the exchange to retrieve futures positions from",
+		},
+		&cli.StringFlag{
+			Name:    "asset",
+			Aliases: []string{"a"},
+			Usage:   "the asset type of the currency pair, must be a futures type",
+		},
+		&cli.BoolFlag{
+			Name:    "calculateoffline",
+			Aliases: []string{"c"},
+			Usage:   "use local scaling methods instead of requesting additional API information, depending on individual exchange support",
+		},
+		&cli.BoolFlag{
+			Name:    "includebreakdown",
+			Aliases: []string{"i"},
+			Usage:   "include a list of each helds currency and its contribution to the overall collateral value",
+		},
+		&cli.StringFlag{
+			Name:    "subaccount",
+			Aliases: []string{"s"},
+			Usage:   "the subaccount to retreieve collateral data from, depending on individual exchange support",
+		},
+	},
+}
+
+func getCollateral(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		return cli.ShowCommandHelp(c, c.Command.Name)
+	}
+
+	var exchangeName string
+	if c.IsSet("exchange") {
+		exchangeName = c.String("exchange")
+	} else {
+		exchangeName = c.Args().First()
+	}
+
+	var assetType string
+	if c.IsSet("asset") {
+		assetType = c.String("asset")
+	} else {
+		assetType = c.Args().Get(1)
+	}
+
+	if !validAsset(assetType) {
+		return errInvalidAsset
+	}
+
+	var err error
+	var calculateOffline bool
+	if c.IsSet("calculateoffline") {
+		calculateOffline = c.Bool("calculateoffline")
+	} else if c.Args().Get(2) != "" {
+		calculateOffline, err = strconv.ParseBool(c.Args().Get(2))
+		if err != nil {
+			return err
+		}
+	}
+
+	var includeBreakdown bool
+	if c.IsSet("includebreakdown") {
+		includeBreakdown = c.Bool("includebreakdown")
+	} else if c.Args().Get(3) != "" {
+		includeBreakdown, err = strconv.ParseBool(c.Args().Get(3))
+		if err != nil {
+			return err
+		}
+	}
+
+	var subAccount string
+	if c.IsSet("subaccount") {
+		subAccount = c.String("subaccount")
+	} else if c.Args().Get(4) != "" {
+		subAccount = c.Args().Get(4)
+	}
+
+	conn, cancel, err := setupClient(c)
+	if err != nil {
+		return err
+	}
+	defer closeConn(conn, cancel)
+
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+	result, err := client.GetCollateral(c.Context,
+		&gctrpc.GetCollateralRequest{
+			Exchange:         exchangeName,
+			Asset:            assetType,
+			SubAccount:       subAccount,
+			IncludeBreakdown: includeBreakdown,
+			CalculateOffline: calculateOffline,
+		})
+	if err != nil {
+		return err
+	}
+
+	jsonOutput(result)
+	return nil
 }

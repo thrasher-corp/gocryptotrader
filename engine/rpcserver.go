@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -18,6 +19,7 @@ import (
 	grpcauth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/pquerna/otp/totp"
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
@@ -4105,4 +4107,183 @@ func (s *RPCServer) CurrencyStateTradingPair(_ context.Context, r *gctrpc.Curren
 	return s.currencyStateManager.CanTradePairRPC(r.Exchange,
 		cp,
 		asset.Item(r.Asset))
+}
+
+// GetFuturesPositions returns pnl positions for an exchange asset pair
+func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuturesPositionsRequest) (*gctrpc.GetFuturesPositionsResponse, error) {
+	exch, err := s.GetExchangeByName(r.Exchange)
+	if err != nil {
+		return nil, err
+	}
+	cp, err := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
+	if err != nil {
+		return nil, err
+	}
+
+	a := asset.Item(r.Asset)
+	err = checkParams(r.Exchange, exch, a, cp)
+	if err != nil {
+		return nil, err
+	}
+	var start, end time.Time
+	if r.StartDate != "" {
+		start, err = time.Parse(common.SimpleTimeFormat, r.StartDate)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if r.EndDate != "" {
+		end, err = time.Parse(common.SimpleTimeFormat, r.EndDate)
+		if err != nil {
+			return nil, err
+		}
+	}
+	err = common.StartEndTimeCheck(start, end)
+	if err != nil && !errors.Is(err, common.ErrDateUnset) {
+		return nil, err
+	}
+
+	orders, err := exch.GetFuturesPositions(ctx, a, cp, start, end)
+	if err != nil {
+		return nil, err
+	}
+	sort.Slice(orders, func(i, j int) bool {
+		return orders[i].Date.Before(orders[j].Date)
+	})
+	for i := range orders {
+		_, err = s.OrderManager.UpsertOrder(&orders[i])
+		if err != nil {
+			if !errors.Is(err, order.ErrPositionClosed) {
+				return nil, err
+			}
+		}
+	}
+	pos, err := s.OrderManager.GetFuturesPositionsForExchange(r.Exchange, a, cp)
+	if err != nil {
+		return nil, err
+	}
+	response := &gctrpc.GetFuturesPositionsResponse{}
+	for i := range pos {
+		if r.PositionLimit > 0 && len(response.Positions) >= int(r.PositionLimit) {
+			break
+		}
+		stats := pos[i].GetStats()
+		response.TotalOrders += int64(len(stats.Orders))
+		details := &gctrpc.FuturePosition{
+			Status:           stats.Status.String(),
+			CurrentDirection: stats.LatestDirection.String(),
+			UnrealisedPNL:    stats.UnrealisedPNL.String(),
+			RealisedPNL:      stats.RealisedPNL.String(),
+		}
+		if len(stats.PNLHistory) > 0 {
+			details.OpeningDate = stats.PNLHistory[0].Time.Format(common.SimpleTimeFormatWithTimezone)
+			if stats.Status == order.Closed {
+				details.ClosingDate = stats.PNLHistory[len(stats.PNLHistory)-1].Time.Format(common.SimpleTimeFormatWithTimezone)
+			}
+		}
+		response.TotalRealisedPNL += stats.RealisedPNL.InexactFloat64()
+		response.TotalUnrealisedPNL += stats.UnrealisedPNL.InexactFloat64()
+		if !r.Verbose {
+			response.Positions = append(response.Positions, details)
+			continue
+		}
+		for j := range stats.Orders {
+			var trades []*gctrpc.TradeHistory
+			for k := range stats.Orders[j].Trades {
+				trades = append(trades, &gctrpc.TradeHistory{
+					CreationTime: stats.Orders[j].Trades[k].Timestamp.Unix(),
+					Id:           stats.Orders[j].Trades[k].TID,
+					Price:        stats.Orders[j].Trades[k].Price,
+					Amount:       stats.Orders[j].Trades[k].Amount,
+					Exchange:     stats.Orders[j].Trades[k].Exchange,
+					AssetType:    stats.Asset.String(),
+					OrderSide:    stats.Orders[j].Trades[k].Side.String(),
+					Fee:          stats.Orders[j].Trades[k].Fee,
+					Total:        stats.Orders[j].Trades[k].Total,
+				})
+			}
+			details.Orders = append(details.Orders, &gctrpc.OrderDetails{
+				Exchange:      stats.Orders[j].Exchange,
+				Id:            stats.Orders[j].ID,
+				ClientOrderId: stats.Orders[j].ClientOrderID,
+				BaseCurrency:  stats.Orders[j].Pair.Base.String(),
+				QuoteCurrency: stats.Orders[j].Pair.Quote.String(),
+				AssetType:     stats.Orders[j].AssetType.String(),
+				OrderSide:     stats.Orders[j].Side.String(),
+				OrderType:     stats.Orders[j].Type.String(),
+				CreationTime:  stats.Orders[j].Date.Unix(),
+				UpdateTime:    stats.Orders[j].LastUpdated.Unix(),
+				Status:        stats.Orders[j].Status.String(),
+				Price:         stats.Orders[j].Price,
+				Amount:        stats.Orders[j].Amount,
+				Fee:           stats.Orders[j].Fee,
+				Cost:          stats.Orders[j].Cost,
+				Trades:        trades,
+			})
+		}
+		response.Positions = append(response.Positions, details)
+	}
+	response.TotalPNL = response.TotalRealisedPNL + response.TotalUnrealisedPNL
+	return response, nil
+}
+
+// GetCollateral returns the total collateral for an exchange's asset
+// as exchanges can scale collateral and represent it in a singular currency,
+// a user can opt to include a breakdown by currency
+func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRequest) (*gctrpc.GetCollateralResponse, error) {
+	exch, err := s.GetExchangeByName(r.Exchange)
+	if err != nil {
+		return nil, err
+	}
+
+	a := asset.Item(r.Asset)
+	err = checkParams(r.Exchange, exch, a, currency.Pair{})
+	if err != nil {
+		return nil, err
+	}
+	ai, err := exch.FetchAccountInfo(ctx, a)
+	if err != nil {
+		return nil, err
+	}
+
+	var calculators []order.CollateralCalculator
+	var acc account.SubAccount
+	if r.SubAccount != "" {
+		for i := range ai.Accounts {
+			if strings.EqualFold(r.SubAccount, ai.Accounts[i].ID) {
+				acc = ai.Accounts[i]
+				break
+
+			}
+		}
+	} else if len(ai.Accounts) > 0 {
+		acc = ai.Accounts[0]
+	}
+	for i := range acc.Currencies {
+		calculators = append(calculators, order.CollateralCalculator{
+			CalculateOffline:   r.CalculateOffline,
+			CollateralCurrency: acc.Currencies[i].CurrencyName,
+			Asset:              a,
+			CollateralAmount:   decimal.NewFromFloat(acc.Currencies[i].TotalValue),
+		})
+	}
+
+	collateral, err := exch.CalculateTotalCollateral(ctx, calculators)
+	if err != nil {
+		return nil, err
+	}
+
+	result := &gctrpc.GetCollateralResponse{
+		TotalCollateral: collateral.TotalCollateral.String(),
+	}
+	if r.IncludeBreakdown {
+		for i := range collateral.BreakdownByCurrency {
+			result.CurrencyBreakdown = append(result.CurrencyBreakdown, &gctrpc.CollateralForCurrency{
+				Currency:         collateral.BreakdownByCurrency[i].Currency.String(),
+				ScaledCollateral: collateral.BreakdownByCurrency[i].Amount.String(),
+				ScaledToCurrency: collateral.BreakdownByCurrency[i].ValueCurrency.String(),
+			})
+		}
+	}
+	return result, nil
 }
