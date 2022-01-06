@@ -40,8 +40,8 @@
   "interval": 3600000000000,
   "data-type": "trade",
   "api-data": {
-   "start-date": "2020-08-01T00:00:00+10:00",
-   "end-date": "2020-08-04T00:00:00+10:00",
+   "start-date": "2021-08-01T00:00:00+10:00",
+   "end-date": "2021-08-04T00:00:00+10:00",
    "inclusive-end-date": false
   }
  },

@@ -254,11 +254,11 @@ func TestUpdate(t *testing.T) {
 	if !errors.Is(err, funding.ErrFundsNotFound) {
 		t.Errorf("received '%v' expected '%v'", err, funding.ErrFundsNotFound)
 	}
-	b, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.NewFromInt(1), decimal.Zero)
+	b, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.NewFromInt(1), decimal.Zero, false)
 	if err != nil {
 		t.Fatal(err)
 	}
-	q, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, decimal.NewFromInt(100), decimal.Zero)
+	q, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, decimal.NewFromInt(100), decimal.Zero, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -406,11 +406,11 @@ func TestOnFill(t *testing.T) {
 		t.Error(err)
 	}
 
-	b, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.NewFromInt(1), decimal.Zero)
+	b, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.NewFromInt(1), decimal.Zero, false)
 	if err != nil {
 		t.Fatal(err)
 	}
-	q, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, decimal.NewFromInt(100), decimal.Zero)
+	q, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, decimal.NewFromInt(100), decimal.Zero, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -456,11 +456,11 @@ func TestOnSignal(t *testing.T) {
 	if !errors.Is(err, funding.ErrFundsNotFound) {
 		t.Errorf("received: %v, expected: %v", err, funding.ErrFundsNotFound)
 	}
-	b, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.NewFromInt(1337), decimal.Zero)
+	b, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.NewFromInt(1337), decimal.Zero, false)
 	if err != nil {
 		t.Fatal(err)
 	}
-	q, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, decimal.NewFromInt(1337), decimal.Zero)
+	q, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, decimal.NewFromInt(1337), decimal.Zero, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -581,16 +581,18 @@ func TestGetSnapshotAtTime(t *testing.T) {
 	if !ok {
 		t.Fatal("couldn't get settings")
 	}
-	err = s.ComplianceManager.AddSnapshot([]compliance.SnapshotOrder{
-		{
-			Order: &gctorder.Detail{
-				Exchange:  "exch",
-				AssetType: asset.Spot,
-				Pair:      cp,
-				Amount:    1337,
+	err = s.ComplianceManager.AddSnapshot(&compliance.Snapshot{
+		Orders: []compliance.SnapshotOrder{
+			{
+				Order: &gctorder.Detail{
+					Exchange:  "exch",
+					AssetType: asset.Spot,
+					Pair:      cp,
+					Amount:    1337,
+				},
 			},
 		},
-	}, tt, 0, false)
+	}, true)
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
@@ -633,16 +635,18 @@ func TestGetLatestSnapshot(t *testing.T) {
 	if !ok {
 		t.Fatal("couldn't get settings")
 	}
-	err = s.ComplianceManager.AddSnapshot([]compliance.SnapshotOrder{
-		{
-			Order: &gctorder.Detail{
-				Exchange:  "exch",
-				AssetType: asset.Spot,
-				Pair:      cp,
-				Amount:    1337,
+	err = s.ComplianceManager.AddSnapshot(&compliance.Snapshot{
+		Orders: []compliance.SnapshotOrder{
+			{
+				Order: &gctorder.Detail{
+					Exchange:  "exch",
+					AssetType: asset.Spot,
+					Pair:      cp,
+					Amount:    1337,
+				},
 			},
 		},
-	}, tt, 0, false)
+	}, true)
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
@@ -651,17 +655,18 @@ func TestGetLatestSnapshot(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
-	err = s.ComplianceManager.AddSnapshot([]compliance.SnapshotOrder{
-		ss[0].Orders[0],
-		{
-			Order: &gctorder.Detail{
-				Exchange:  "exch",
-				AssetType: asset.Spot,
-				Pair:      cp,
-				Amount:    1338,
+	err = s.ComplianceManager.AddSnapshot(&compliance.Snapshot{
+		Orders: []compliance.SnapshotOrder{
+			{
+				Order: &gctorder.Detail{
+					Exchange:  "exch",
+					AssetType: asset.Spot,
+					Pair:      cp,
+					Amount:    1337,
+				},
 			},
 		},
-	}, tt, 1, false)
+	}, true)
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}

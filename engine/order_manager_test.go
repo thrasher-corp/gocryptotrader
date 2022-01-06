@@ -3,6 +3,7 @@ package engine
 import (
 	"context"
 	"errors"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -1150,5 +1151,184 @@ func Test_getActiveOrders(t *testing.T) {
 	res = m.orderStore.getActiveOrders(&order.Filter{Side: order.Buy})
 	if len(res) != 0 {
 		t.Errorf("Test_getActiveOrders - Expected 0 results, got: %d", len(res))
+	}
+}
+
+func TestGetFuturesPositionsForExchange(t *testing.T) {
+	t.Parallel()
+	o := &OrderManager{}
+	cp := currency.NewPair(currency.BTC, currency.USDT)
+	_, err := o.GetFuturesPositionsForExchange("test", asset.Spot, cp)
+	if !errors.Is(err, ErrSubSystemNotStarted) {
+		t.Errorf("received '%v', expected '%v'", err, ErrSubSystemNotStarted)
+	}
+	o.started = 1
+	_, err = o.GetFuturesPositionsForExchange("test", asset.Spot, cp)
+	if !errors.Is(err, errFuturesTrackerNotSetup) {
+		t.Errorf("received '%v', expected '%v'", err, errFuturesTrackerNotSetup)
+	}
+	o.orderStore.futuresPositionController = order.SetupPositionController()
+	_, err = o.GetFuturesPositionsForExchange("test", asset.Spot, cp)
+	if !errors.Is(err, order.ErrNotFutureAsset) {
+		t.Errorf("received '%v', expected '%v'", err, order.ErrNotFutureAsset)
+	}
+
+	_, err = o.GetFuturesPositionsForExchange("test", asset.Futures, cp)
+	if !errors.Is(err, order.ErrPositionsNotLoadedForExchange) {
+		t.Errorf("received '%v', expected '%v'", err, order.ErrPositionsNotLoadedForExchange)
+	}
+	o = nil
+	_, err = o.GetFuturesPositionsForExchange("test", asset.Futures, cp)
+	if !errors.Is(err, ErrNilSubsystem) {
+		t.Errorf("received '%v', expected '%v'", err, ErrNilSubsystem)
+	}
+}
+
+func TestSubmitFakeOrder(t *testing.T) {
+	t.Parallel()
+	o := &OrderManager{}
+	resp := order.SubmitResponse{}
+	_, err := o.SubmitFakeOrder(nil, resp, false)
+	if !errors.Is(err, ErrSubSystemNotStarted) {
+		t.Errorf("received '%v', expected '%v'", err, ErrSubSystemNotStarted)
+	}
+
+	o.started = 1
+	_, err = o.SubmitFakeOrder(nil, resp, false)
+	if !errors.Is(err, errNilOrder) {
+		t.Errorf("received '%v', expected '%v'", err, errNilOrder)
+	}
+	ord := &order.Submit{}
+	_, err = o.SubmitFakeOrder(ord, resp, false)
+	if !errors.Is(err, errExchangeNameIsEmpty) {
+		t.Errorf("received '%v', expected '%v'", err, errExchangeNameIsEmpty)
+	}
+	ord.Exchange = testExchange
+	ord.AssetType = asset.Spot
+	ord.Pair = currency.NewPair(currency.BTC, currency.DOGE)
+	ord.Side = order.Buy
+	ord.Type = order.Market
+	ord.Amount = 1337
+	em := SetupExchangeManager()
+	exch, err := em.NewExchangeByName(testExchange)
+	if err != nil {
+		t.Fatal(err)
+	}
+	exch.SetDefaults()
+	em.Add(exch)
+	o.orderStore.exchangeManager = em
+
+	_, err = o.SubmitFakeOrder(ord, resp, false)
+	if !errors.Is(err, errUnableToPlaceOrder) {
+		t.Errorf("received '%v', expected '%v'", err, errUnableToPlaceOrder)
+	}
+
+	resp.IsOrderPlaced = true
+	resp.FullyMatched = true
+	o.orderStore.commsManager = &CommunicationManager{}
+	o.orderStore.Orders = make(map[string][]*order.Detail)
+	_, err = o.SubmitFakeOrder(ord, resp, false)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected '%v'", err, nil)
+	}
+}
+
+func TestGetOrdersSnapshot(t *testing.T) {
+	t.Parallel()
+	o := &OrderManager{}
+	o.GetOrdersSnapshot(order.AnyStatus)
+	o.started = 1
+	o.orderStore.Orders = make(map[string][]*order.Detail)
+	o.orderStore.Orders[testExchange] = []*order.Detail{
+		{
+			Status: order.Open,
+		},
+	}
+	snap := o.GetOrdersSnapshot(order.Open)
+	if len(snap) != 1 {
+		t.Error("expected 1")
+	}
+	snap = o.GetOrdersSnapshot(order.Closed)
+	if len(snap) != 0 {
+		t.Error("expected 0")
+	}
+}
+
+func TestUpdateExisting(t *testing.T) {
+	t.Parallel()
+	s := &store{}
+	s.Orders = make(map[string][]*order.Detail)
+	err := s.updateExisting(nil)
+	if !errors.Is(err, errNilOrder) {
+		t.Errorf("received '%v', expected '%v'", err, errNilOrder)
+	}
+	od := &order.Detail{Exchange: testExchange}
+	err = s.updateExisting(od)
+	if !errors.Is(err, ErrExchangeNotFound) {
+		t.Errorf("received '%v', expected '%v'", err, ErrExchangeNotFound)
+	}
+	s.Orders[strings.ToLower(testExchange)] = nil
+	err = s.updateExisting(od)
+	if !errors.Is(err, ErrOrderNotFound) {
+		t.Errorf("received '%v', expected '%v'", err, ErrOrderNotFound)
+	}
+	od.AssetType = asset.Futures
+	od.ID = "123"
+	od.Pair = currency.NewPair(currency.BTC, currency.USDT)
+	od.Side = order.Buy
+	od.Type = order.Market
+	od.Date = time.Now()
+	od.Amount = 1337
+	s.Orders[strings.ToLower(testExchange)] = []*order.Detail{
+		od,
+	}
+	s.futuresPositionController = order.SetupPositionController()
+	err = s.updateExisting(od)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected '%v'", err, nil)
+	}
+	pos, err := s.futuresPositionController.GetPositionsForExchange(testExchange, asset.Futures, od.Pair)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected '%v'", err, nil)
+	}
+	if len(pos) != 1 {
+		t.Error("expected 1")
+	}
+}
+
+func TestOrderManagerExists(t *testing.T) {
+	t.Parallel()
+	o := &OrderManager{}
+	if o.Exists(nil) {
+		t.Error("expected false")
+	}
+	o.started = 1
+	if o.Exists(nil) {
+		t.Error("expected false")
+	}
+
+	o = nil
+	if o.Exists(nil) {
+		t.Error("expected false")
+	}
+}
+
+func TestOrderManagerAdd(t *testing.T) {
+	t.Parallel()
+	o := &OrderManager{}
+	err := o.Add(nil)
+	if !errors.Is(err, ErrSubSystemNotStarted) {
+		t.Errorf("received '%v', expected '%v'", err, ErrSubSystemNotStarted)
+	}
+	o.started = 1
+	err = o.Add(nil)
+	if !errors.Is(err, errNilOrder) {
+		t.Errorf("received '%v', expected '%v'", err, errNilOrder)
+	}
+
+	o = nil
+	err = o.Add(nil)
+	if !errors.Is(err, ErrNilSubsystem) {
+		t.Errorf("received '%v', expected '%v'", err, ErrNilSubsystem)
 	}
 }

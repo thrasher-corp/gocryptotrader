@@ -28,7 +28,7 @@ func (c *PositionController) TrackNewOrder(d *Detail) error {
 		return errNilOrder
 	}
 	if !d.AssetType.IsFutures() {
-		return fmt.Errorf("order %v %v %v %v %w", d.Exchange, d.AssetType, d.Pair, d.ID, errNotFutureAsset)
+		return fmt.Errorf("order %v %v %v %v %w", d.Exchange, d.AssetType, d.Pair, d.ID, ErrNotFutureAsset)
 	}
 	if c == nil {
 		return common.ErrNilPointer
@@ -44,7 +44,7 @@ func (c *PositionController) TrackNewOrder(d *Detail) error {
 	var err error
 	mpt, ok := c.positionTrackerControllers[strings.ToLower(d.Exchange)][d.AssetType][d.Pair]
 	if !ok {
-		mpt, err = SetupMultiPositionTracker(&PositionControllerSetup{
+		mpt, err = SetupMultiPositionTracker(&MultiPositionTrackerSetup{
 			Exchange:   strings.ToLower(d.Exchange),
 			Asset:      d.AssetType,
 			Pair:       d.Pair,
@@ -67,9 +67,9 @@ func (c *PositionController) GetPositionsForExchange(exch string, item asset.Ite
 	c.m.Lock()
 	defer c.m.Unlock()
 	if !item.IsFutures() {
-		return nil, fmt.Errorf("%v %v %v %w", exch, item, pair, errNotFutureAsset)
+		return nil, fmt.Errorf("%v %v %v %w", exch, item, pair, ErrNotFutureAsset)
 	}
-	exchM, ok := c.positionTrackerControllers[exch]
+	exchM, ok := c.positionTrackerControllers[strings.ToLower(exch)]
 	if !ok {
 		return nil, fmt.Errorf("%v %v %v %w", exch, item, pair, ErrPositionsNotLoadedForExchange)
 	}
@@ -85,7 +85,7 @@ func (c *PositionController) GetPositionsForExchange(exch string, item asset.Ite
 }
 
 // SetupMultiPositionTracker creates a futures order tracker for a specific exchange
-func SetupMultiPositionTracker(setup *PositionControllerSetup) (*MultiPositionTracker, error) {
+func SetupMultiPositionTracker(setup *MultiPositionTrackerSetup) (*MultiPositionTracker, error) {
 	if setup == nil {
 		return nil, errNilSetup
 	}
@@ -93,7 +93,7 @@ func SetupMultiPositionTracker(setup *PositionControllerSetup) (*MultiPositionTr
 		return nil, errExchangeNameEmpty
 	}
 	if !setup.Asset.IsValid() || !setup.Asset.IsFutures() {
-		return nil, errNotFutureAsset
+		return nil, ErrNotFutureAsset
 	}
 	if setup.Pair.IsEmpty() {
 		return nil, ErrPairIsEmpty
@@ -194,7 +194,7 @@ func (e *MultiPositionTracker) SetupPositionTracker(setup *PositionTrackerSetup)
 		return nil, errNilSetup
 	}
 	if !setup.Asset.IsValid() || !setup.Asset.IsFutures() {
-		return nil, errNotFutureAsset
+		return nil, ErrNotFutureAsset
 	}
 	if setup.Pair.IsEmpty() {
 		return nil, ErrPairIsEmpty

@@ -26,9 +26,10 @@ var (
 	// ErrPositionLiquidated is raised when checking PNL status only for
 	// it to be liquidated
 	ErrPositionLiquidated = errors.New("position liquidated")
+	// ErrNotFutureAsset returned when futures data is requested on a non-futures asset
+	ErrNotFutureAsset = errors.New("asset type is not futures")
 
 	errExchangeNameEmpty              = errors.New("exchange name empty")
-	errNotFutureAsset                 = errors.New("asset type is not futures")
 	errTimeUnset                      = errors.New("time unset")
 	errMissingPNLCalculationFunctions = errors.New("futures tracker requires exchange PNL calculation functions")
 	errOrderNotEqualToTracker         = errors.New("order does not match tracker data")
@@ -101,9 +102,9 @@ type MultiPositionTracker struct {
 	exchangePNLCalculation     PNLCalculation
 }
 
-// PositionControllerSetup holds the parameters
-// required to set up a position controller
-type PositionControllerSetup struct {
+// MultiPositionTrackerSetup holds the parameters
+// required to set up a multi position tracker
+type MultiPositionTrackerSetup struct {
 	Exchange                  string
 	Asset                     asset.Item
 	Pair                      currency.Pair

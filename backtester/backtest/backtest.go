@@ -49,6 +49,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
+var futuresEnabled = false
+
 // New returns a new BackTest instance
 func New() *BackTest {
 	return &BackTest{
@@ -163,8 +165,6 @@ func NewFromConfig(cfg *config.Config, templatePath, output string) (*BackTest, 
 			return nil, err
 		}
 		conf.Enabled = true
-		// because for some reason we're supposed to set this
-		// even if no websocket is enabled
 		err = exch.Setup(conf)
 		if err != nil {
 			return nil, err
@@ -177,6 +177,10 @@ func NewFromConfig(cfg *config.Config, templatePath, output string) (*BackTest, 
 		}
 		assets := exchBase.CurrencyPairs.GetAssetTypes(false)
 		for i := range assets {
+			if assets[i] != asset.Spot {
+				// only spot is supported at this time
+				continue
+			}
 			exchBase.CurrencyPairs.Pairs[assets[i]].AssetEnabled = convert.BoolPtr(true)
 			err = exch.SetPairs(exchBase.CurrencyPairs.Pairs[assets[i]].Available, assets[i], true)
 			if err != nil {
@@ -264,8 +268,8 @@ func NewFromConfig(cfg *config.Config, templatePath, output string) (*BackTest, 
 
 		var baseItem, quoteItem, futureItem *funding.Item
 		if cfg.StrategySettings.UseExchangeLevelFunding {
-			switch a {
-			case asset.Spot:
+			switch {
+			case a == asset.Spot:
 				// add any remaining currency items that have no funding data in the strategy config
 				baseItem, err = funding.CreateItem(cfg.CurrencySettings[i].ExchangeName,
 					a,
@@ -293,7 +297,10 @@ func NewFromConfig(cfg *config.Config, templatePath, output string) (*BackTest, 
 				if err != nil && !errors.Is(err, funding.ErrAlreadyExists) {
 					return nil, err
 				}
-			case asset.Futures, asset.USDTMarginedFutures, asset.CoinMarginedFutures:
+			case a.IsFutures():
+				if !futuresEnabled {
+					return nil, fmt.Errorf("%w: %v unsupported", errInvalidConfigAsset, a)
+				}
 				// setup contract items
 				c := funding.CreateFuturesCurrencyCode(b, q)
 				futureItem, err = funding.CreateItem(cfg.CurrencySettings[i].ExchangeName,
@@ -316,9 +323,8 @@ func NewFromConfig(cfg *config.Config, templatePath, output string) (*BackTest, 
 				if err != nil {
 					return nil, err
 				}
-
 			default:
-				return nil, fmt.Errorf("%w %v unsupported", errInvalidConfigAsset, a)
+				return nil, fmt.Errorf("%w: %v unsupported", errInvalidConfigAsset, a)
 			}
 		} else {
 			var bFunds, qFunds decimal.Decimal

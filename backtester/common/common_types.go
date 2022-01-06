@@ -75,12 +75,6 @@ type DataEventHandler interface {
 	GetHighPrice() decimal.Decimal
 	GetLowPrice() decimal.Decimal
 	GetOpenPrice() decimal.Decimal
-	GetFuturesDataEventHandler() (FuturesDataEventHandler, error)
-}
-
-type FuturesDataEventHandler interface {
-	GetMarkPrice() decimal.Decimal
-	GetPreviousMarkPrice() decimal.Decimal
 }
 
 // Directioner dictates the side of an order

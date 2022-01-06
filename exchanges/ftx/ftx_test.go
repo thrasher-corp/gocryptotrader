@@ -1890,7 +1890,7 @@ func TestCalculatePNL(t *testing.T) {
 
 	exch := f.Name
 	item := asset.Futures
-	setup := &order.PositionControllerSetup{
+	setup := &order.MultiPositionTrackerSetup{
 		Exchange:                  exch,
 		Asset:                     item,
 		Pair:                      pair,
