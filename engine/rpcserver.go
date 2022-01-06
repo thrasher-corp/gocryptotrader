@@ -4139,7 +4139,7 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 		}
 	}
 	err = common.StartEndTimeCheck(start, end)
-	if err != nil {
+	if err != nil && !errors.Is(err, common.ErrDateUnset) {
 		return nil, err
 	}
 
@@ -4227,7 +4227,9 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 	return response, nil
 }
 
-// GetCollateral returns pnl positions for an exchange asset pair
+// GetCollateral returns the total collateral for an exchange's asset
+// as exchanges can scale collateral and represent it in a singular currency,
+// a user can opt to include a breakdown by currency
 func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRequest) (*gctrpc.GetCollateralResponse, error) {
 	exch, err := s.GetExchangeByName(r.Exchange)
 	if err != nil {
@@ -4239,7 +4241,7 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 	if err != nil {
 		return nil, err
 	}
-	ai, err := exch.FetchAccountInfo(ctx.a)
+	ai, err := exch.FetchAccountInfo(ctx, a)
 	if err != nil {
 		return nil, err
 	}
@@ -4257,12 +4259,12 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 	} else if len(ai.Accounts) > 0 {
 		acc = ai.Accounts[0]
 	}
-	for j := range acc.Currencies {
+	for i := range acc.Currencies {
 		calculators = append(calculators, order.CollateralCalculator{
 			CalculateOffline:   r.CalculateOffline,
-			CollateralCurrency: ai.Accounts[i].Currencies[j].CurrencyName,
+			CollateralCurrency: acc.Currencies[i].CurrencyName,
 			Asset:              a,
-			CollateralAmount:   decimal.NewFromFloat(ai.Accounts[i].Currencies[j].TotalValue),
+			CollateralAmount:   decimal.NewFromFloat(acc.Currencies[i].TotalValue),
 		})
 	}
 

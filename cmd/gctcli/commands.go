@@ -4726,7 +4726,7 @@ func findMissingSavedCandleIntervals(c *cli.Context) error {
 var getFuturesPositionsCommand = &cli.Command{
 	Name:      "getfuturesposition",
 	Usage:     "will retrieve all futures positions in a timeframe, then calculate PNL based on that. Note, the dates have an impact on PNL calculations, ensure your start date is not after a new position is opened",
-	ArgsUsage: "<exchange> <pair> <asset> <interval> <start> <end>",
+	ArgsUsage: "<exchange> <pair> <asset> <start> <end> <limit> <status> <verbose>",
 	Action:    getFuturesPositions,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
@@ -4897,6 +4897,114 @@ func getFuturesPositions(c *cli.Context) error {
 			Status:        status,
 			PositionLimit: int64(limit),
 			Verbose:       verbose,
+		})
+	if err != nil {
+		return err
+	}
+
+	jsonOutput(result)
+	return nil
+}
+
+var getCollateralCommand = &cli.Command{
+	Name:      "getcollateral",
+	Usage:     "returns total collateral for an exchange asset, with optional per currency breakdown",
+	ArgsUsage: "<exchange> <asset>  <calculateoffline> <includebreakdown> <subaccount>",
+	Action:    getCollateral,
+	Flags: []cli.Flag{
+		&cli.StringFlag{
+			Name:    "exchange",
+			Aliases: []string{"e"},
+			Usage:   "the exchange to retrieve futures positions from",
+		},
+		&cli.StringFlag{
+			Name:    "asset",
+			Aliases: []string{"a"},
+			Usage:   "the asset type of the currency pair, must be a futures type",
+		},
+		&cli.BoolFlag{
+			Name:    "calculateoffline",
+			Aliases: []string{"c"},
+			Usage:   "use local scaling methods instead of requesting additional API information, depending on individual exchange support",
+		},
+		&cli.BoolFlag{
+			Name:    "includebreakdown",
+			Aliases: []string{"i"},
+			Usage:   "include a list of each helds currency and its contribution to the overall collateral value",
+		},
+		&cli.StringFlag{
+			Name:    "subaccount",
+			Aliases: []string{"s"},
+			Usage:   "the subaccount to retreieve collateral data from, depending on individual exchange support",
+		},
+	},
+}
+
+func getCollateral(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		return cli.ShowCommandHelp(c, c.Command.Name)
+	}
+
+	var exchangeName string
+	if c.IsSet("exchange") {
+		exchangeName = c.String("exchange")
+	} else {
+		exchangeName = c.Args().First()
+	}
+
+	var assetType string
+	if c.IsSet("asset") {
+		assetType = c.String("asset")
+	} else {
+		assetType = c.Args().Get(1)
+	}
+
+	if !validAsset(assetType) {
+		return errInvalidAsset
+	}
+
+	var err error
+	var calculateOffline bool
+	if c.IsSet("calculateoffline") {
+		calculateOffline = c.Bool("calculateoffline")
+	} else if c.Args().Get(2) != "" {
+		calculateOffline, err = strconv.ParseBool(c.Args().Get(2))
+		if err != nil {
+			return err
+		}
+	}
+
+	var includeBreakdown bool
+	if c.IsSet("includebreakdown") {
+		includeBreakdown = c.Bool("includebreakdown")
+	} else if c.Args().Get(3) != "" {
+		includeBreakdown, err = strconv.ParseBool(c.Args().Get(3))
+		if err != nil {
+			return err
+		}
+	}
+
+	var subAccount string
+	if c.IsSet("subaccount") {
+		subAccount = c.String("subaccount")
+	} else if c.Args().Get(4) != "" {
+		subAccount = c.Args().Get(4)
+	}
+
+	conn, cancel, err := setupClient(c)
+	if err != nil {
+		return err
+	}
+	defer closeConn(conn, cancel)
+
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+	result, err := client.GetCollateral(c.Context,
+		&gctrpc.GetCollateralRequest{
+			Exchange:         exchangeName,
+			Asset:            assetType,
+			SubAccount:       subAccount,
+			IncludeBreakdown: includeBreakdown,
+			CalculateOffline: calculateOffline,
 		})
 	if err != nil {
 		return err
