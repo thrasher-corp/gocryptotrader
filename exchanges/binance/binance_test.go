@@ -923,7 +923,7 @@ func TestFuturesNewOrder(t *testing.T) {
 			Symbol:      currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"),
 			Side:        "BUY",
 			OrderType:   "LIMIT",
-			TimeInForce: "GTC",
+			TimeInForce: BinanceRequestParamsTimeGTC,
 			Quantity:    1,
 			Price:       1,
 		},

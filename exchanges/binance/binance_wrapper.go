@@ -956,10 +956,15 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submi
 			return submitOrderResponse, fmt.Errorf("invalid side")
 		}
 
-		var oType string
+		var (
+			oType       string
+			timeInForce RequestParamsTimeForceType
+		)
+
 		switch s.Type {
 		case order.Limit:
 			oType = cfuturesLimit
+			timeInForce = BinanceRequestParamsTimeGTC
 		case order.Market:
 			oType = cfuturesMarket
 		case order.Stop:
@@ -975,13 +980,14 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submi
 		default:
 			return submitOrderResponse, errors.New("invalid type, check api docs for updates")
 		}
+
 		o, err := b.FuturesNewOrder(
 			ctx,
 			&FuturesNewOrderRequest{
 				Symbol:           s.Pair,
 				Side:             reqSide,
 				OrderType:        oType,
-				TimeInForce:      "GTC",
+				TimeInForce:      timeInForce,
 				NewClientOrderID: s.ClientOrderID,
 				Quantity:         s.Amount,
 				Price:            s.Price,
