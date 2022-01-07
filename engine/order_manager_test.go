@@ -1200,8 +1200,8 @@ func TestSubmitFakeOrder(t *testing.T) {
 	}
 	ord := &order.Submit{}
 	_, err = o.SubmitFakeOrder(ord, resp, false)
-	if !errors.Is(err, errExchangeNameIsEmpty) {
-		t.Errorf("received '%v', expected '%v'", err, errExchangeNameIsEmpty)
+	if !errors.Is(err, ErrExchangeNameIsEmpty) {
+		t.Errorf("received '%v', expected '%v'", err, ErrExchangeNameIsEmpty)
 	}
 	ord.Exchange = testExchange
 	ord.AssetType = asset.Spot

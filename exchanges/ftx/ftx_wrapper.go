@@ -186,22 +186,20 @@ func (f *FTX) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	if exch.Websocket != nil && *exch.Websocket {
-		err = f.Websocket.Setup(&stream.WebsocketSetup{
-			ExchangeConfig:        exch,
-			DefaultURL:            ftxWSURL,
-			RunningURL:            wsEndpoint,
-			Connector:             f.WsConnect,
-			Subscriber:            f.Subscribe,
-			Unsubscriber:          f.Unsubscribe,
-			GenerateSubscriptions: f.GenerateDefaultSubscriptions,
-			Features:              &f.Features.Supports.WebsocketCapabilities,
-			TradeFeed:             f.Features.Enabled.TradeFeed,
-			FillsFeed:             f.Features.Enabled.FillsFeed,
-		})
-		if err != nil {
-			return err
-		}
+	err = f.Websocket.Setup(&stream.WebsocketSetup{
+		ExchangeConfig:        exch,
+		DefaultURL:            ftxWSURL,
+		RunningURL:            wsEndpoint,
+		Connector:             f.WsConnect,
+		Subscriber:            f.Subscribe,
+		Unsubscriber:          f.Unsubscribe,
+		GenerateSubscriptions: f.GenerateDefaultSubscriptions,
+		Features:              &f.Features.Supports.WebsocketCapabilities,
+		TradeFeed:             f.Features.Enabled.TradeFeed,
+		FillsFeed:             f.Features.Enabled.FillsFeed,
+	})
+	if err != nil {
+		return err
 	}
 
 	if err = f.CurrencyPairs.IsAssetEnabled(asset.Futures); err == nil {
@@ -213,13 +211,10 @@ func (f *FTX) Setup(exch *config.Exchange) error {
 				err)
 		}
 	}
-	if exch.Websocket != nil && *exch.Websocket {
-		return f.Websocket.SetupNewConnection(stream.ConnectionSetup{
-			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		})
-	}
-	return nil
+	return f.Websocket.SetupNewConnection(stream.ConnectionSetup{
+		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+	})
 }
 
 // Start starts the FTX go routine
@@ -264,7 +259,6 @@ func (f *FTX) Run() {
 			f.Name,
 			err)
 	}
-
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs

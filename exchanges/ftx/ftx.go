@@ -1476,14 +1476,6 @@ func (f *FTX) FetchExchangeLimits(ctx context.Context) ([]order.MinMaxLevel, err
 	return limits, nil
 }
 
-func (f *FTX) CalculateExpectedPosition(code currency.Code, positionSize float64, side order.Side) (float64, error) {
-	collateralWeight, ok := f.collateralWeight[code.Upper().String()]
-	if !ok {
-		return 0, errCoinMustBeSpecified
-	}
-	return collateralWeight.Total * positionSize, nil
-}
-
 // LoadCollateralWeightings sets the collateral weights for
 // currencies supported by FTX
 func (f *FTX) LoadCollateralWeightings() error {

@@ -313,7 +313,7 @@ func (p *PositionTracker) TrackNewOrder(d *Detail) error {
 	if !p.contractPair.Equal(d.Pair) {
 		return fmt.Errorf("%w pair '%v' received: '%v'", errOrderNotEqualToTracker, d.Pair, p.contractPair)
 	}
-	if p.exchange != strings.ToLower(d.Exchange) {
+	if !strings.EqualFold(p.exchange, d.Exchange) {
 		return fmt.Errorf("%w exchange '%v' received: '%v'", errOrderNotEqualToTracker, d.Exchange, p.exchange)
 	}
 	if p.asset != d.AssetType {
@@ -354,18 +354,15 @@ func (p *PositionTracker) TrackNewOrder(d *Detail) error {
 	} else {
 		p.longPositions = append(p.longPositions, d.Copy())
 	}
-	var shortSide, longSide, averageLeverage decimal.Decimal
+	var shortSide, longSide decimal.Decimal
 
 	for i := range p.shortPositions {
 		shortSide = shortSide.Add(decimal.NewFromFloat(p.shortPositions[i].Amount))
-		averageLeverage = decimal.NewFromFloat(p.shortPositions[i].Leverage)
 	}
 	for i := range p.longPositions {
 		longSide = longSide.Add(decimal.NewFromFloat(p.longPositions[i].Amount))
-		averageLeverage = decimal.NewFromFloat(p.longPositions[i].Leverage)
 	}
 
-	averageLeverage.Div(decimal.NewFromInt(int64(len(p.shortPositions))).Add(decimal.NewFromInt(int64(len(p.longPositions)))))
 	if p.currentDirection == "" {
 		p.currentDirection = d.Side
 	}
@@ -428,7 +425,6 @@ func (p *PositionTracker) TrackNewOrder(d *Detail) error {
 		cal.Time = cal.Time.Add(1)
 		cal.PNLHistory = p.pnlHistory
 		result, err = p.PNLCalculation.CalculatePNL(cal)
-
 	} else {
 		result, err = p.PNLCalculation.CalculatePNL(cal)
 	}
@@ -446,18 +442,21 @@ func (p *PositionTracker) TrackNewOrder(d *Detail) error {
 	}
 	p.unrealisedPNL = result.UnrealisedPNL
 
-	if longSide.GreaterThan(shortSide) {
+	switch {
+	case longSide.GreaterThan(shortSide):
 		p.currentDirection = Long
-	} else if shortSide.GreaterThan(longSide) {
+	case shortSide.GreaterThan(longSide):
 		p.currentDirection = Short
-	} else {
+	default:
 		p.currentDirection = UnknownSide
 	}
+
 	if p.currentDirection.IsLong() {
 		p.exposure = longSide.Sub(shortSide)
 	} else {
 		p.exposure = shortSide.Sub(longSide)
 	}
+
 	if p.exposure.Equal(decimal.Zero) {
 		p.status = Closed
 		p.closingPrice = decimal.NewFromFloat(d.Price)

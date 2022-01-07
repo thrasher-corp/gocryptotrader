@@ -113,7 +113,7 @@ func (f fExchange) FetchAccountInfo(_ context.Context, a asset.Item) (account.Ho
 }
 
 // GetFuturesPositions overrides testExchange's GetFuturesPositions function
-func (f fExchange) GetFuturesPositions(_ context.Context, a asset.Item, cp currency.Pair, _ time.Time, _ time.Time) ([]order.Detail, error) {
+func (f fExchange) GetFuturesPositions(_ context.Context, a asset.Item, cp currency.Pair, _, _ time.Time) ([]order.Detail, error) {
 	return []order.Detail{
 		{
 			Price:     1337,
@@ -537,8 +537,8 @@ func TestGetHistoricCandles(t *testing.T) {
 		End:       defaultEnd.Format(common.SimpleTimeFormat),
 		AssetType: asset.Spot.String(),
 	})
-	if !errors.Is(err, errExchangeNameIsEmpty) {
-		t.Errorf("received '%v', expected '%v'", err, errExchangeNameIsEmpty)
+	if !errors.Is(err, ErrExchangeNameIsEmpty) {
+		t.Errorf("received '%v', expected '%v'", err, ErrExchangeNameIsEmpty)
 	}
 
 	_, err = s.GetHistoricCandles(context.Background(), &gctrpc.GetHistoricCandlesRequest{
@@ -1113,8 +1113,8 @@ func TestGetOrders(t *testing.T) {
 		AssetType: asset.Spot.String(),
 		Pair:      p,
 	})
-	if !errors.Is(err, errExchangeNameIsEmpty) {
-		t.Errorf("received '%v', expected '%v'", errExchangeNameIsEmpty, err)
+	if !errors.Is(err, ErrExchangeNameIsEmpty) {
+		t.Errorf("received '%v', expected '%v'", ErrExchangeNameIsEmpty, err)
 	}
 
 	_, err = s.GetOrders(context.Background(), &gctrpc.GetOrdersRequest{
@@ -1750,8 +1750,8 @@ func TestGetManagedOrders(t *testing.T) {
 		AssetType: asset.Spot.String(),
 		Pair:      p,
 	})
-	if !errors.Is(err, errExchangeNameIsEmpty) {
-		t.Errorf("received '%v', expected '%v'", errExchangeNameIsEmpty, err)
+	if !errors.Is(err, ErrExchangeNameIsEmpty) {
+		t.Errorf("received '%v', expected '%v'", ErrExchangeNameIsEmpty, err)
 	}
 
 	_, err = s.GetManagedOrders(context.Background(), &gctrpc.GetOrdersRequest{

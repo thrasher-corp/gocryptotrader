@@ -89,12 +89,12 @@ func BenchmarkInfo(b *testing.B) {
 
 func TestAddWriter(t *testing.T) {
 	t.Parallel()
-	_, err := MultiWriter(ioutil.Discard, ioutil.Discard)
+	_, err := multiWriter(ioutil.Discard, ioutil.Discard)
 	if !errors.Is(err, errWriterAlreadyLoaded) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errWriterAlreadyLoaded)
 	}
 
-	mw, err := MultiWriter()
+	mw, err := multiWriter()
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
@@ -118,7 +118,7 @@ func TestAddWriter(t *testing.T) {
 
 func TestRemoveWriter(t *testing.T) {
 	t.Parallel()
-	mw, err := MultiWriter()
+	mw, err := multiWriter()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -169,7 +169,7 @@ var errWriteError = errors.New("write error")
 
 func TestMultiWriterWrite(t *testing.T) {
 	t.Parallel()
-	mw, err := MultiWriter(ioutil.Discard, &bytes.Buffer{})
+	mw, err := multiWriter(ioutil.Discard, &bytes.Buffer{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -183,7 +183,7 @@ func TestMultiWriterWrite(t *testing.T) {
 		t.Fatal("unexpected return")
 	}
 
-	mw, err = MultiWriter(&WriteShorter{}, ioutil.Discard)
+	mw, err = multiWriter(&WriteShorter{}, ioutil.Discard)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -192,7 +192,7 @@ func TestMultiWriterWrite(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, io.ErrShortWrite)
 	}
 
-	mw, err = MultiWriter(&WriteError{}, ioutil.Discard)
+	mw, err = multiWriter(&WriteError{}, ioutil.Discard)
 	if err != nil {
 		t.Fatal(err)
 	}

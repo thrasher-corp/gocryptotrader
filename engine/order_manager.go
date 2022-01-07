@@ -284,7 +284,7 @@ func (m *OrderManager) validate(newOrder *order.Submit) error {
 	}
 
 	if newOrder.Exchange == "" {
-		return errExchangeNameIsEmpty
+		return ErrExchangeNameIsEmpty
 	}
 
 	if err := newOrder.Validate(); err != nil {

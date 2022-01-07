@@ -11,11 +11,15 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
+const testExchange = "test"
+
+// FakePNL is implements PNL interface
 type FakePNL struct {
 	err    error
 	result *PNLResult
 }
 
+// CalculatePNL overrides default pnl calculations
 func (f *FakePNL) CalculatePNL(*PNLCalculatorRequest) (*PNLResult, error) {
 	if f.err != nil {
 		return nil, f.err
@@ -55,14 +59,14 @@ func TestUpsertPNLEntry(t *testing.T) {
 
 func TestTrackNewOrder(t *testing.T) {
 	t.Parallel()
-	exch := "test"
+	exch := testExchange
 	item := asset.Futures
 	pair, err := currency.NewPairFromStrings("BTC", "1231")
 	if !errors.Is(err, nil) {
 		t.Error(err)
 	}
 	e := MultiPositionTracker{
-		exchange:               "test",
+		exchange:               testExchange,
 		exchangePNLCalculation: &FakePNL{},
 	}
 	setup := &PositionTrackerSetup{
@@ -190,7 +194,7 @@ func TestSetupMultiPositionTracker(t *testing.T) {
 	if !errors.Is(err, errExchangeNameEmpty) {
 		t.Error(err)
 	}
-	setup.Exchange = "test"
+	setup.Exchange = testExchange
 	_, err = SetupMultiPositionTracker(setup)
 	if !errors.Is(err, ErrNotFutureAsset) {
 		t.Error(err)
@@ -224,14 +228,14 @@ func TestSetupMultiPositionTracker(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Error(err)
 	}
-	if resp.exchange != "test" {
+	if resp.exchange != testExchange {
 		t.Errorf("expected 'test' received %v", resp.exchange)
 	}
 }
 
 func TestExchangeTrackNewOrder(t *testing.T) {
 	t.Parallel()
-	exch := "test"
+	exch := testExchange
 	item := asset.Futures
 	pair := currency.NewPair(currency.BTC, currency.USDT)
 	setup := &MultiPositionTrackerSetup{
@@ -309,6 +313,9 @@ func TestExchangeTrackNewOrder(t *testing.T) {
 		ID:        "2",
 		Amount:    2,
 	})
+	if !errors.Is(err, nil) {
+		t.Error(err)
+	}
 	if len(resp.positions) != 2 {
 		t.Errorf("expected '2' received %v", len(resp.positions))
 	}
@@ -411,7 +418,7 @@ func TestGetStats(t *testing.T) {
 		t.Error("expected 0")
 	}
 
-	p.exchange = "test"
+	p.exchange = testExchange
 	stats = p.GetStats()
 	if stats.Exchange != p.exchange {
 		t.Errorf("expected '%v' received '%v'", p.exchange, stats.Exchange)
@@ -433,13 +440,13 @@ func TestGetPositions(t *testing.T) {
 	}
 
 	p.positions = append(p.positions, &PositionTracker{
-		exchange: "test",
+		exchange: testExchange,
 	})
 	positions = p.GetPositions()
 	if len(positions) != 1 {
 		t.Fatal("expected 1")
 	}
-	if positions[0].exchange != "test" {
+	if positions[0].exchange != testExchange {
 		t.Error("expected 'test'")
 	}
 
@@ -448,14 +455,13 @@ func TestGetPositions(t *testing.T) {
 	if len(positions) > 0 {
 		t.Error("expected 0")
 	}
-
 }
 
 func TestGetPositionsForExchange(t *testing.T) {
 	t.Parallel()
 	c := &PositionController{}
 	p := currency.NewPair(currency.BTC, currency.USDT)
-	pos, err := c.GetPositionsForExchange("test", asset.Futures, p)
+	pos, err := c.GetPositionsForExchange(testExchange, asset.Futures, p)
 	if !errors.Is(err, ErrPositionsNotLoadedForExchange) {
 		t.Errorf("received '%v' expected '%v", err, ErrPositionsNotLoadedForExchange)
 	}
@@ -463,54 +469,54 @@ func TestGetPositionsForExchange(t *testing.T) {
 		t.Error("expected zero")
 	}
 	c.positionTrackerControllers = make(map[string]map[asset.Item]map[currency.Pair]*MultiPositionTracker)
-	c.positionTrackerControllers["test"] = nil
-	pos, err = c.GetPositionsForExchange("test", asset.Futures, p)
+	c.positionTrackerControllers[testExchange] = nil
+	_, err = c.GetPositionsForExchange(testExchange, asset.Futures, p)
 	if !errors.Is(err, ErrPositionsNotLoadedForAsset) {
 		t.Errorf("received '%v' expected '%v", err, ErrPositionsNotLoadedForExchange)
 	}
-	c.positionTrackerControllers["test"] = make(map[asset.Item]map[currency.Pair]*MultiPositionTracker)
-	c.positionTrackerControllers["test"][asset.Futures] = nil
-	pos, err = c.GetPositionsForExchange("test", asset.Futures, p)
+	c.positionTrackerControllers[testExchange] = make(map[asset.Item]map[currency.Pair]*MultiPositionTracker)
+	c.positionTrackerControllers[testExchange][asset.Futures] = nil
+	_, err = c.GetPositionsForExchange(testExchange, asset.Futures, p)
 	if !errors.Is(err, ErrPositionsNotLoadedForPair) {
 		t.Errorf("received '%v' expected '%v", err, ErrPositionsNotLoadedForPair)
 	}
-	pos, err = c.GetPositionsForExchange("test", asset.Spot, p)
+	_, err = c.GetPositionsForExchange(testExchange, asset.Spot, p)
 	if !errors.Is(err, ErrNotFutureAsset) {
 		t.Errorf("received '%v' expected '%v", err, ErrNotFutureAsset)
 	}
 
-	c.positionTrackerControllers["test"][asset.Futures] = make(map[currency.Pair]*MultiPositionTracker)
-	c.positionTrackerControllers["test"][asset.Futures][p] = &MultiPositionTracker{
-		exchange: "test",
+	c.positionTrackerControllers[testExchange][asset.Futures] = make(map[currency.Pair]*MultiPositionTracker)
+	c.positionTrackerControllers[testExchange][asset.Futures][p] = &MultiPositionTracker{
+		exchange: testExchange,
 	}
 
-	pos, err = c.GetPositionsForExchange("test", asset.Futures, p)
+	pos, err = c.GetPositionsForExchange(testExchange, asset.Futures, p)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v", err, nil)
 	}
 	if len(pos) != 0 {
 		t.Fatal("expected zero")
 	}
-	c.positionTrackerControllers["test"][asset.Futures][p] = &MultiPositionTracker{
-		exchange: "test",
+	c.positionTrackerControllers[testExchange][asset.Futures][p] = &MultiPositionTracker{
+		exchange: testExchange,
 		positions: []*PositionTracker{
 			{
-				exchange: "test",
+				exchange: testExchange,
 			},
 		},
 	}
-	pos, err = c.GetPositionsForExchange("test", asset.Futures, p)
+	pos, err = c.GetPositionsForExchange(testExchange, asset.Futures, p)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v", err, nil)
 	}
 	if len(pos) != 1 {
 		t.Fatal("expected 1")
 	}
-	if pos[0].exchange != "test" {
+	if pos[0].exchange != testExchange {
 		t.Error("expected test")
 	}
 	c = nil
-	pos, err = c.GetPositionsForExchange("test", asset.Futures, p)
+	_, err = c.GetPositionsForExchange(testExchange, asset.Futures, p)
 	if !errors.Is(err, common.ErrNilPointer) {
 		t.Errorf("received '%v' expected '%v", err, common.ErrNilPointer)
 	}
@@ -556,7 +562,7 @@ func TestSetupPositionTracker(t *testing.T) {
 	if p != nil {
 		t.Error("expected nil")
 	}
-	m.exchange = "test"
+	m.exchange = testExchange
 	p, err = m.SetupPositionTracker(nil)
 	if !errors.Is(err, errNilSetup) {
 		t.Errorf("received '%v' expected '%v", err, errNilSetup)
@@ -594,13 +600,13 @@ func TestSetupPositionTracker(t *testing.T) {
 		t.Errorf("received '%v' expected '%v", err, nil)
 	}
 	if p == nil {
-		t.Error("expected nil")
+		t.Fatal("expected not nil")
 	}
-	if p.exchange != "test" {
+	if p.exchange != testExchange {
 		t.Error("expected test")
 	}
 
-	p, err = m.SetupPositionTracker(&PositionTrackerSetup{
+	_, err = m.SetupPositionTracker(&PositionTrackerSetup{
 		Asset:                     asset.Futures,
 		Pair:                      cp,
 		UseExchangePNLCalculation: true,
@@ -641,7 +647,6 @@ func TestCalculatePNL(t *testing.T) {
 	if !errors.Is(err, errCannotCalculateUnrealisedPNL) {
 		t.Errorf("received '%v' expected '%v", err, errCannotCalculateUnrealisedPNL)
 	}
-
 }
 
 func TestTrackPNLByTime(t *testing.T) {

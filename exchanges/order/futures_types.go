@@ -96,7 +96,6 @@ type MultiPositionTracker struct {
 	// order positions allows for an easier time knowing which order is
 	// part of which position tracker
 	orderPositions             map[string]*PositionTracker
-	pnl                        decimal.Decimal
 	offlinePNLCalculation      bool
 	useExchangePNLCalculations bool
 	exchangePNLCalculation     PNLCalculation
@@ -131,7 +130,6 @@ type PositionTracker struct {
 	currentDirection      Side
 	openingDirection      Side
 	status                Status
-	averageLeverage       decimal.Decimal
 	unrealisedPNL         decimal.Decimal
 	realisedPNL           decimal.Decimal
 	shortPositions        []Detail

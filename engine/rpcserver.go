@@ -4253,7 +4253,6 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 			if strings.EqualFold(r.SubAccount, ai.Accounts[i].ID) {
 				acc = ai.Accounts[i]
 				break
-
 			}
 		}
 	} else if len(ai.Accounts) > 0 {

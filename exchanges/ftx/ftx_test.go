@@ -1864,6 +1864,9 @@ func TestCalculatePNL(t *testing.T) {
 	f.Verbose = true
 	pair := currency.NewPair(currency.BTC, currency.NewCode("1231"))
 	positions, err := f.GetFuturesPositions(context.Background(), asset.Futures, pair, time.Date(2021, 1, 6, 4, 28, 0, 0, time.UTC), time.Date(2021, 12, 31, 4, 32, 0, 0, time.UTC))
+	if err != nil {
+		t.Error(err)
+	}
 	var orders []order.Detail
 	for i := range positions {
 		orders = append(orders, order.Detail{
