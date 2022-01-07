@@ -1799,6 +1799,9 @@ func TestScaleCollateral(t *testing.T) {
 			}
 		}
 	}
+	if accountInfo.Collateral == 0 {
+		return
+	}
 	if (math.Abs((localScaling-accountInfo.Collateral)/accountInfo.Collateral) * 100) > 5 {
 		t.Errorf("collateral scaling less than 95%% accurate, received '%v' expected roughly '%v'", localScaling, accountInfo.Collateral)
 	}
@@ -1853,7 +1856,7 @@ func TestCalculateTotalCollateral(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if (math.Abs((localScaling-accountInfo.Collateral)/accountInfo.Collateral) * 100) > 5 {
+	if accountInfo.Collateral != 0 && (math.Abs((localScaling-accountInfo.Collateral)/accountInfo.Collateral)*100) > 5 {
 		t.Errorf("collateral scaling less than 95%% accurate, received '%v' expected roughly '%v'", localScaling, accountInfo.Collateral)
 	}
 
