@@ -28,10 +28,10 @@ const (
 	btcMarketsAllMarkets         = "/markets/"
 	btcMarketsGetTicker          = "/ticker/"
 	btcMarketsGetTrades          = "/trades?"
-	btcMarketOrderBooks          = "/orderbook?"
+	btcMarketOrderBook           = "/orderbook?"
 	btcMarketsCandles            = "/candles?"
 	btcMarketsTickers            = "tickers?"
-	btcMarketsMultipleOrderbooks = "/orderbooks?"
+	btcMarketsMultipleOrderbooks = "orderbooks?"
 	btcMarketsGetTime            = "/time"
 	btcMarketsWithdrawalFees     = "/withdrawal-fees"
 	btcMarketsUnauthPath         = btcMarketsAPIURL + btcMarketsAPIVersion + btcMarketsAllMarkets
@@ -120,7 +120,7 @@ func (b *BTCMarkets) GetOrderbook(ctx context.Context, marketID string, level in
 	if level != 0 {
 		params.Set("level", strconv.FormatInt(level, 10))
 	}
-	err := b.SendHTTPRequest(ctx, btcMarketsUnauthPath+marketID+btcMarketOrderBooks+params.Encode(),
+	err := b.SendHTTPRequest(ctx, btcMarketsUnauthPath+marketID+btcMarketOrderBook+params.Encode(),
 		&temp)
 	if err != nil {
 		return orderbook, err

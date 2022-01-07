@@ -14,15 +14,19 @@ const OrderManagerName = "orders"
 
 // vars for the fund manager package
 var (
-	orderManagerDelay = time.Second * 10
 	// ErrOrdersAlreadyExists occurs when the order already exists in the manager
 	ErrOrdersAlreadyExists = errors.New("order already exists")
-	// ErrOrderNotFound occurs when an order is not found in the orderstore
-	ErrOrderNotFound            = errors.New("order does not exist")
-	errNilCommunicationsManager = errors.New("cannot start with nil communications manager")
 	// ErrOrderIDCannotBeEmpty occurs when an order does not have an ID
 	ErrOrderIDCannotBeEmpty = errors.New("orderID cannot be empty")
-	errNilOrder             = errors.New("nil order received")
+	// ErrOrderNotFound occurs when an order is not found in the orderstore
+	ErrOrderNotFound = errors.New("order does not exist")
+
+	errNilCommunicationsManager = errors.New("cannot start with nil communications manager")
+	errNilOrder                 = errors.New("nil order received")
+	errFuturesTrackerNotSetup   = errors.New("futures position tracker not setup")
+	errUnableToPlaceOrder       = errors.New("cannot process order, order not placed")
+
+	orderManagerDelay = time.Second * 10
 )
 
 type orderManagerConfig struct {

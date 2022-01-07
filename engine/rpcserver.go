@@ -4150,6 +4150,12 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 	sort.Slice(orders, func(i, j int) bool {
 		return orders[i].Date.Before(orders[j].Date)
 	})
+	if r.Overwrite {
+		err = s.OrderManager.ClearFuturesTracking(r.Exchange, a, cp)
+		if err != nil {
+			return nil, err
+		}
+	}
 	for i := range orders {
 		_, err = s.OrderManager.UpsertOrder(&orders[i])
 		if err != nil {
@@ -4253,7 +4259,6 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 			if strings.EqualFold(r.SubAccount, ai.Accounts[i].ID) {
 				acc = ai.Accounts[i]
 				break
-
 			}
 		}
 	} else if len(ai.Accounts) > 0 {

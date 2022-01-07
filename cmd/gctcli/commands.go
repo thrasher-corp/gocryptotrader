@@ -4776,6 +4776,11 @@ var getFuturesPositionsCommand = &cli.Command{
 			Aliases: []string{"v"},
 			Usage:   "includes all orders that make up a position in the response",
 		},
+		&cli.BoolFlag{
+			Name:    "overwrite",
+			Aliases: []string{"o"},
+			Usage:   "if true, will overwrite futures results for the provided exchange, asset, pair",
+		},
 	},
 }
 
@@ -4862,6 +4867,16 @@ func getFuturesPositions(c *cli.Context) error {
 		}
 	}
 
+	var overwrite bool
+	if c.IsSet("overwrite") {
+		overwrite = c.Bool("overwrite")
+	} else if c.Args().Get(2) != "" {
+		overwrite, err = strconv.ParseBool(c.Args().Get(2))
+		if err != nil {
+			return err
+		}
+	}
+
 	var s, e time.Time
 	s, err = time.Parse(common.SimpleTimeFormat, startTime)
 	if err != nil {
@@ -4897,6 +4912,7 @@ func getFuturesPositions(c *cli.Context) error {
 			Status:        status,
 			PositionLimit: int64(limit),
 			Verbose:       verbose,
+			Overwrite:     overwrite,
 		})
 	if err != nil {
 		return err

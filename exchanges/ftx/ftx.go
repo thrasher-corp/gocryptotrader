@@ -1476,14 +1476,6 @@ func (f *FTX) FetchExchangeLimits(ctx context.Context) ([]order.MinMaxLevel, err
 	return limits, nil
 }
 
-func (f *FTX) CalculateExpectedPosition(code currency.Code, positionSize float64, side order.Side) (float64, error) {
-	collateralWeight, ok := f.collateralWeight[code.Upper().String()]
-	if !ok {
-		return 0, errCoinMustBeSpecified
-	}
-	return collateralWeight.Total * positionSize, nil
-}
-
 // LoadCollateralWeightings sets the collateral weights for
 // currencies supported by FTX
 func (f *FTX) LoadCollateralWeightings() error {
@@ -1649,23 +1641,23 @@ func (c CollateralWeightHolder) isLoaded() bool {
 }
 
 func (c CollateralWeightHolder) loadTotal(code string, weighting float64) {
-	butts, ok := c[code]
+	currencyCollateral, ok := c[code]
 	if !ok {
-		butts = CollateralWeight{Total: weighting}
+		currencyCollateral = CollateralWeight{Total: weighting}
 	} else {
-		butts.Total = weighting
+		currencyCollateral.Total = weighting
 	}
-	c[code] = butts
+	c[code] = currencyCollateral
 }
 
 func (c CollateralWeightHolder) loadIMF(code string, imf float64) {
-	butts, ok := c[code]
+	currencyCollateral, ok := c[code]
 	if !ok {
-		butts = CollateralWeight{IMFFactor: imf}
+		currencyCollateral = CollateralWeight{IMFFactor: imf}
 	} else {
-		butts.IMFFactor = imf
+		currencyCollateral.IMFFactor = imf
 	}
-	c[code] = butts
+	c[code] = currencyCollateral
 }
 
 func (c CollateralWeightHolder) load(code string, initial, total, imfFactor float64) {
