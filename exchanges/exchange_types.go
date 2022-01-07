@@ -248,9 +248,6 @@ const (
 	EdgeCase1
 	EdgeCase2
 	EdgeCase3
-	WebsocketCoinMargined
-	WebsocketUSDTMargined
-	WebsocketFutures
 )
 
 var keyURLs = []URL{RestSpot,
@@ -265,10 +262,7 @@ var keyURLs = []URL{RestSpot,
 	ChainAnalysis,
 	EdgeCase1,
 	EdgeCase2,
-	EdgeCase3,
-	WebsocketCoinMargined,
-	WebsocketUSDTMargined,
-	WebsocketFutures}
+	EdgeCase3}
 
 // URL stores uint conversions
 type URL uint16

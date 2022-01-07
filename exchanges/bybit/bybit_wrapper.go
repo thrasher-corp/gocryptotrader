@@ -122,14 +122,11 @@ func (by *Bybit) SetDefaults() {
 	// NOTE: SET THE URLs HERE
 	by.API.Endpoints = by.NewEndpoints()
 	by.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
-		exchange.RestSpot:              bybitAPIURL,
-		exchange.RestCoinMargined:      bybitAPIURL,
-		exchange.RestUSDTMargined:      bybitAPIURL,
-		exchange.RestFutures:           bybitAPIURL,
-		exchange.WebsocketSpot:         bybitWSBaseURL + wsSpotPublicTopicV2,
-		exchange.WebsocketCoinMargined: bybitWSBaseURL + wsCoinMarginedPath,
-		exchange.WebsocketUSDTMargined: bybitWSBaseURL + wsUSDTMarginedPathPublic,
-		exchange.WebsocketFutures:      bybitWSBaseURL + wsFuturesPath,
+		exchange.RestSpot:         bybitAPIURL,
+		exchange.RestCoinMargined: bybitAPIURL,
+		exchange.RestUSDTMargined: bybitAPIURL,
+		exchange.RestFutures:      bybitAPIURL,
+		exchange.WebsocketSpot:    bybitWSBaseURL + wsSpotPublicTopicV2,
 	})
 	by.Websocket = stream.New()
 	by.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
