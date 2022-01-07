@@ -81,7 +81,47 @@ func (c *PositionController) GetPositionsForExchange(exch string, item asset.Ite
 	if !ok {
 		return nil, fmt.Errorf("%v %v %v %w", exch, item, pair, ErrPositionsNotLoadedForPair)
 	}
+
 	return multiPositionTracker.GetPositions(), nil
+}
+
+// ClearPositionsForExchange resets positions for an
+// exchange, asset, pair that has been stored
+func (c *PositionController) ClearPositionsForExchange(exch string, item asset.Item, pair currency.Pair) error {
+	if c == nil {
+		return common.ErrNilPointer
+	}
+	c.m.Lock()
+	defer c.m.Unlock()
+	if !item.IsFutures() {
+		return fmt.Errorf("%v %v %v %w", exch, item, pair, ErrNotFutureAsset)
+	}
+	exchM, ok := c.positionTrackerControllers[strings.ToLower(exch)]
+	if !ok {
+		return fmt.Errorf("%v %v %v %w", exch, item, pair, ErrPositionsNotLoadedForExchange)
+	}
+	itemM, ok := exchM[item]
+	if !ok {
+		return fmt.Errorf("%v %v %v %w", exch, item, pair, ErrPositionsNotLoadedForAsset)
+	}
+	multiPositionTracker, ok := itemM[pair]
+	if !ok {
+		return fmt.Errorf("%v %v %v %w", exch, item, pair, ErrPositionsNotLoadedForPair)
+	}
+	newMPT, err := SetupMultiPositionTracker(&MultiPositionTrackerSetup{
+		Exchange:                  exch,
+		Asset:                     item,
+		Pair:                      pair,
+		Underlying:                multiPositionTracker.underlying,
+		OfflineCalculation:        multiPositionTracker.offlinePNLCalculation,
+		UseExchangePNLCalculation: multiPositionTracker.useExchangePNLCalculations,
+		ExchangePNLCalculation:    multiPositionTracker.exchangePNLCalculation,
+	})
+	if err != nil {
+		return err
+	}
+	c.positionTrackerControllers[strings.ToLower(exch)][item][pair] = newMPT
+	return nil
 }
 
 // SetupMultiPositionTracker creates a futures order tracker for a specific exchange
@@ -397,9 +437,10 @@ func (p *PositionTracker) TrackNewOrder(d *Detail) error {
 		cal.Exposure.LessThan(amount) {
 		// latest order swaps directions!
 		// split the order to calculate PNL from each direction
-		first := amount.Sub(cal.Exposure)
-		second := cal.Exposure.Sub(amount).Abs()
-		cal.Fee = cal.Fee.Div(decimal.NewFromInt(2))
+		first := cal.Exposure
+		second := amount.Sub(cal.Exposure)
+		baseFee := cal.Fee.Div(amount)
+		cal.Fee = baseFee.Mul(first)
 		cal.Amount = first
 		result, err = p.PNLCalculation.CalculatePNL(cal)
 		if err != nil {
@@ -420,6 +461,7 @@ func (p *PositionTracker) TrackNewOrder(d *Detail) error {
 			p.openingDirection = Long
 		}
 
+		cal.Fee = baseFee.Mul(second)
 		cal.Amount = second
 		cal.EntryPrice = price
 		cal.Time = cal.Time.Add(1)
@@ -475,9 +517,6 @@ func (p *PositionTracker) TrackNewOrder(d *Detail) error {
 
 // CalculatePNL this is a localised generic way of calculating open
 // positions' worth, it is an implementation of the PNLCalculation interface
-//
-// do not use any properties of p, use calc, otherwise there will be
-// sync issues
 func (p *PNLCalculator) CalculatePNL(calc *PNLCalculatorRequest) (*PNLResult, error) {
 	if calc == nil {
 		return nil, ErrNilPNLCalculator
@@ -536,6 +575,8 @@ func (p *PNLCalculator) CalculatePNL(calc *PNLCalculatorRequest) (*PNLResult, er
 	return response, nil
 }
 
+// calculateRealisedPNL calculates the total realised PNL
+// based on PNL history, minus fees
 func calculateRealisedPNL(pnlHistory []PNLResult) decimal.Decimal {
 	var realisedPNL, totalFees decimal.Decimal
 	for i := range pnlHistory {

@@ -1032,6 +1032,7 @@ message GetFuturesPositionsRequest {
     string status = 6;
     int64 positionLimit = 7;
     bool verbose = 8;
+    bool overwrite = 9;
 }
 
 message GetFuturesPositionsResponse {

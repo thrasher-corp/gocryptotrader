@@ -268,7 +268,6 @@ func TestGetPositions(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	f.Verbose = true
 	_, err := f.GetPositions(context.Background())
 	if err != nil {
 		t.Error(err)
@@ -734,7 +733,6 @@ func TestGetFills(t *testing.T) {
 		t.Skip()
 	}
 	// optional params
-
 	_, err := f.GetFills(context.Background(), spotPair, "", time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
@@ -1589,6 +1587,7 @@ func TestSubaccountBalances(t *testing.T) {
 }
 
 func TestSubaccountTransfer(t *testing.T) {
+	t.Parallel()
 	tt := []struct {
 		Coin        currency.Code
 		Source      string
@@ -1618,6 +1617,7 @@ func TestSubaccountTransfer(t *testing.T) {
 }
 
 func TestGetStakes(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test, api keys not set")
 	}
@@ -1628,6 +1628,7 @@ func TestGetStakes(t *testing.T) {
 }
 
 func TestGetUnstakeRequests(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test, api keys not set")
 	}
@@ -1638,6 +1639,7 @@ func TestGetUnstakeRequests(t *testing.T) {
 }
 
 func TestGetStakeBalances(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test, api keys not set")
 	}
@@ -1648,6 +1650,7 @@ func TestGetStakeBalances(t *testing.T) {
 }
 
 func TestUnstakeRequest(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test, either api keys or canManipulateRealOrders isn't set")
 	}
@@ -1663,6 +1666,7 @@ func TestUnstakeRequest(t *testing.T) {
 }
 
 func TestCancelUnstakeRequest(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test, either api keys or canManipulateRealOrders isn't set")
 	}
@@ -1673,6 +1677,7 @@ func TestCancelUnstakeRequest(t *testing.T) {
 }
 
 func TestGetStakingRewards(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test, api keys not set")
 	}
@@ -1683,6 +1688,7 @@ func TestGetStakingRewards(t *testing.T) {
 }
 
 func TestStakeRequest(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test, either api keys or canManipulateRealOrders isn't set")
 	}
@@ -1695,6 +1701,7 @@ func TestStakeRequest(t *testing.T) {
 }
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {
+	t.Parallel()
 	err := f.UpdateOrderExecutionLimits(context.Background(), "")
 	if err != nil {
 		t.Fatal(err)
@@ -1721,6 +1728,7 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 }
 
 func TestScaleCollateral(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test, api keys not set")
 	}
@@ -1797,6 +1805,7 @@ func TestScaleCollateral(t *testing.T) {
 }
 
 func TestCalculateTotalCollateral(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test, api keys not set")
 	}
@@ -1858,10 +1867,10 @@ func TestCalculateTotalCollateral(t *testing.T) {
 }
 
 func TestCalculatePNL(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test, api keys not set")
 	}
-	f.Verbose = true
 	pair := currency.NewPair(currency.BTC, currency.NewCode("1231"))
 	positions, err := f.GetFuturesPositions(context.Background(), asset.Futures, pair, time.Date(2021, 1, 6, 4, 28, 0, 0, time.UTC), time.Date(2021, 12, 31, 4, 32, 0, 0, time.UTC))
 	if err != nil {
@@ -1912,6 +1921,7 @@ func TestCalculatePNL(t *testing.T) {
 }
 
 func TestGetFuturesPositions(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test, api keys not set")
 	}
@@ -1922,5 +1932,30 @@ func TestGetFuturesPositions(t *testing.T) {
 	_, err := f.GetFuturesPositions(context.Background(), a, cp, start, end)
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestLoadCollateralWeightings(t *testing.T) {
+	t.Parallel()
+	ff := FTX{}
+	err := ff.LoadCollateralWeightings()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	if len(ff.collateralWeight) == 0 {
+		t.Fatal("expected some weight")
+	}
+	if !ff.collateralWeight.isLoaded() {
+		t.Error("expected loaded weight")
+	}
+	if !areTestAPIKeysSet() {
+		return
+	}
+	err = f.LoadCollateralWeightings()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	if len(f.collateralWeight) == 0 {
+		t.Fatal("expected some weight")
 	}
 }

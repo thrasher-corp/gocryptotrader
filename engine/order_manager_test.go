@@ -1184,6 +1184,35 @@ func TestGetFuturesPositionsForExchange(t *testing.T) {
 	}
 }
 
+func TestClearFuturesPositionsForExchange(t *testing.T) {
+	t.Parallel()
+	o := &OrderManager{}
+	cp := currency.NewPair(currency.BTC, currency.USDT)
+	err := o.ClearFuturesTracking("test", asset.Spot, cp)
+	if !errors.Is(err, ErrSubSystemNotStarted) {
+		t.Errorf("received '%v', expected '%v'", err, ErrSubSystemNotStarted)
+	}
+	o.started = 1
+	err = o.ClearFuturesTracking("test", asset.Spot, cp)
+	if !errors.Is(err, errFuturesTrackerNotSetup) {
+		t.Errorf("received '%v', expected '%v'", err, errFuturesTrackerNotSetup)
+	}
+	o.orderStore.futuresPositionController = order.SetupPositionController()
+	err = o.ClearFuturesTracking("test", asset.Spot, cp)
+	if !errors.Is(err, order.ErrNotFutureAsset) {
+		t.Errorf("received '%v', expected '%v'", err, order.ErrNotFutureAsset)
+	}
+
+	err = o.ClearFuturesTracking("test", asset.Futures, cp)
+	if !errors.Is(err, order.ErrPositionsNotLoadedForExchange) {
+		t.Errorf("received '%v', expected '%v'", err, order.ErrPositionsNotLoadedForExchange)
+	}
+	o = nil
+	err = o.ClearFuturesTracking("test", asset.Futures, cp)
+	if !errors.Is(err, ErrNilSubsystem) {
+		t.Errorf("received '%v', expected '%v'", err, ErrNilSubsystem)
+	}
+}
 func TestSubmitFakeOrder(t *testing.T) {
 	t.Parallel()
 	o := &OrderManager{}

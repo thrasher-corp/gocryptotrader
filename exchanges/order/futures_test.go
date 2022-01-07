@@ -125,6 +125,7 @@ func TestTrackNewOrder(t *testing.T) {
 		t.Error("expected 1")
 	}
 
+	od.Date = od.Date.Add(1)
 	od.Amount = 0.4
 	od.Side = Short
 	od.ID = "3"
@@ -141,9 +142,12 @@ func TestTrackNewOrder(t *testing.T) {
 	if f.exposure.InexactFloat64() != 0.6 {
 		t.Error("expected 0.6")
 	}
+
+	od.Date = od.Date.Add(1)
 	od.Amount = 0.8
 	od.Side = Short
 	od.ID = "4"
+	od.Fee = 0.1
 	err = f.TrackNewOrder(od)
 	if !errors.Is(err, nil) {
 		t.Error(err)
@@ -155,6 +159,7 @@ func TestTrackNewOrder(t *testing.T) {
 		t.Errorf("expected %v received %v", 0.2, f.exposure)
 	}
 
+	od.Date = od.Date.Add(1)
 	od.ID = "5"
 	od.Side = Long
 	od.Amount = 0.2
@@ -514,6 +519,58 @@ func TestGetPositionsForExchange(t *testing.T) {
 	}
 	if pos[0].exchange != testExchange {
 		t.Error("expected test")
+	}
+	c = nil
+	_, err = c.GetPositionsForExchange(testExchange, asset.Futures, p)
+	if !errors.Is(err, common.ErrNilPointer) {
+		t.Errorf("received '%v' expected '%v", err, common.ErrNilPointer)
+	}
+}
+
+func TestClearPositionsForExchange(t *testing.T) {
+	t.Parallel()
+	c := &PositionController{}
+	p := currency.NewPair(currency.BTC, currency.USDT)
+	err := c.ClearPositionsForExchange(testExchange, asset.Futures, p)
+	if !errors.Is(err, ErrPositionsNotLoadedForExchange) {
+		t.Errorf("received '%v' expected '%v", err, ErrPositionsNotLoadedForExchange)
+	}
+	c.positionTrackerControllers = make(map[string]map[asset.Item]map[currency.Pair]*MultiPositionTracker)
+	c.positionTrackerControllers[testExchange] = nil
+	err = c.ClearPositionsForExchange(testExchange, asset.Futures, p)
+	if !errors.Is(err, ErrPositionsNotLoadedForAsset) {
+		t.Errorf("received '%v' expected '%v", err, ErrPositionsNotLoadedForExchange)
+	}
+	c.positionTrackerControllers[testExchange] = make(map[asset.Item]map[currency.Pair]*MultiPositionTracker)
+	c.positionTrackerControllers[testExchange][asset.Futures] = nil
+	err = c.ClearPositionsForExchange(testExchange, asset.Futures, p)
+	if !errors.Is(err, ErrPositionsNotLoadedForPair) {
+		t.Errorf("received '%v' expected '%v", err, ErrPositionsNotLoadedForPair)
+	}
+	err = c.ClearPositionsForExchange(testExchange, asset.Spot, p)
+	if !errors.Is(err, ErrNotFutureAsset) {
+		t.Errorf("received '%v' expected '%v", err, ErrNotFutureAsset)
+	}
+
+	c.positionTrackerControllers[testExchange][asset.Futures] = make(map[currency.Pair]*MultiPositionTracker)
+	c.positionTrackerControllers[testExchange][asset.Futures][p] = &MultiPositionTracker{
+		exchange: testExchange,
+	}
+	c.positionTrackerControllers[testExchange][asset.Futures][p] = &MultiPositionTracker{
+		exchange:   testExchange,
+		underlying: currency.DOGE,
+		positions: []*PositionTracker{
+			{
+				exchange: testExchange,
+			},
+		},
+	}
+	err = c.ClearPositionsForExchange(testExchange, asset.Futures, p)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v", err, nil)
+	}
+	if len(c.positionTrackerControllers[testExchange][asset.Futures][p].positions) != 0 {
+		t.Fatal("expected 0")
 	}
 	c = nil
 	_, err = c.GetPositionsForExchange(testExchange, asset.Futures, p)

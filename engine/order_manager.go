@@ -225,8 +225,6 @@ func (m *OrderManager) Cancel(ctx context.Context, cancel *order.Cancel) error {
 	return nil
 }
 
-var errFuturesTrackerNotSetup = errors.New("futures position tracker not setup")
-
 // GetFuturesPositionsForExchange returns futures positions stored within
 // the order manager's futures position tracker that match the provided params
 func (m *OrderManager) GetFuturesPositionsForExchange(exch string, item asset.Item, pair currency.Pair) ([]*order.PositionTracker, error) {
@@ -244,6 +242,25 @@ func (m *OrderManager) GetFuturesPositionsForExchange(exch string, item asset.It
 	}
 
 	return m.orderStore.futuresPositionController.GetPositionsForExchange(exch, item, pair)
+}
+
+// ClearFuturesTracking will clear existing futures positions for a given exchange,
+// asset, pair for the event that positions have not been tracked accurately
+func (m *OrderManager) ClearFuturesTracking(exch string, item asset.Item, pair currency.Pair) error {
+	if m == nil {
+		return fmt.Errorf("order manager %w", ErrNilSubsystem)
+	}
+	if atomic.LoadInt32(&m.started) == 0 {
+		return fmt.Errorf("order manager %w", ErrSubSystemNotStarted)
+	}
+	if m.orderStore.futuresPositionController == nil {
+		return errFuturesTrackerNotSetup
+	}
+	if !item.IsFutures() {
+		return fmt.Errorf("%v %w", item, order.ErrNotFutureAsset)
+	}
+
+	return m.orderStore.futuresPositionController.ClearPositionsForExchange(exch, item, pair)
 }
 
 // GetOrderInfo calls the exchange's wrapper GetOrderInfo function
@@ -518,8 +535,6 @@ func (m *OrderManager) GetOrdersActive(f *order.Filter) ([]order.Detail, error) 
 	}
 	return m.orderStore.getActiveOrders(f), nil
 }
-
-var errUnableToPlaceOrder = errors.New("cannot process order, order not placed")
 
 // processSubmittedOrder adds a new order to the manager
 func (m *OrderManager) processSubmittedOrder(newOrder *order.Submit, result order.SubmitResponse) (*OrderSubmitResponse, error) {
