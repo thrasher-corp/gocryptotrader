@@ -1037,9 +1037,9 @@ message GetFuturesPositionsRequest {
 
 message GetFuturesPositionsResponse {
     int64 totalOrders = 1;
-    double totalRealisedPNL = 2;
-    double totalUnrealisedPNL = 3;
-    double totalPNL = 4;
+    string totalRealisedPNL = 2;
+    string totalUnrealisedPNL = 3;
+    string totalPNL = 4;
     repeated FuturePosition positions = 5;
 }
 

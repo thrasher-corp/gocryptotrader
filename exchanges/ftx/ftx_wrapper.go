@@ -1376,11 +1376,15 @@ func (f *FTX) CalculateTotalCollateral(ctx context.Context, collateralAssets []o
 			return nil, err
 		}
 		result.TotalCollateral = result.TotalCollateral.Add(collateral)
-		result.BreakdownByCurrency = append(result.BreakdownByCurrency, order.CollateralByCurrency{
-			Currency:      collateralAssets[i].CollateralCurrency,
-			Amount:        collateral,
-			ValueCurrency: currency.USD,
-		})
+		curr := order.CollateralByCurrency{
+			Currency: collateralAssets[i].CollateralCurrency,
+			Amount:   collateral,
+		}
+		if collateralAssets[i].CollateralCurrency != currency.USD {
+			curr.ValueCurrency = currency.USD
+		}
+
+		result.BreakdownByCurrency = append(result.BreakdownByCurrency, curr)
 	}
 	return &result, nil
 }

@@ -4169,6 +4169,7 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 		return nil, err
 	}
 	response := &gctrpc.GetFuturesPositionsResponse{}
+	var totalRealisedPNL, totalUnrealisedPNL decimal.Decimal
 	for i := range pos {
 		if r.PositionLimit > 0 && len(response.Positions) >= int(r.PositionLimit) {
 			break
@@ -4176,10 +4177,18 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 		stats := pos[i].GetStats()
 		response.TotalOrders += int64(len(stats.Orders))
 		details := &gctrpc.FuturePosition{
-			Status:           stats.Status.String(),
-			CurrentDirection: stats.LatestDirection.String(),
-			UnrealisedPNL:    stats.UnrealisedPNL.String(),
-			RealisedPNL:      stats.RealisedPNL.String(),
+			Status:        stats.Status.String(),
+			UnrealisedPNL: stats.UnrealisedPNL.String(),
+			RealisedPNL:   stats.RealisedPNL.String(),
+		}
+		if !stats.UnrealisedPNL.IsZero() {
+			details.UnrealisedPNL = stats.UnrealisedPNL.String()
+		}
+		if !stats.RealisedPNL.IsZero() {
+			details.RealisedPNL = stats.RealisedPNL.String()
+		}
+		if stats.LatestDirection != order.UnknownSide {
+			details.CurrentDirection = stats.LatestDirection.String()
 		}
 		if len(stats.PNLHistory) > 0 {
 			details.OpeningDate = stats.PNLHistory[0].Time.Format(common.SimpleTimeFormatWithTimezone)
@@ -4187,8 +4196,8 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 				details.ClosingDate = stats.PNLHistory[len(stats.PNLHistory)-1].Time.Format(common.SimpleTimeFormatWithTimezone)
 			}
 		}
-		response.TotalRealisedPNL += stats.RealisedPNL.InexactFloat64()
-		response.TotalUnrealisedPNL += stats.UnrealisedPNL.InexactFloat64()
+		totalRealisedPNL = totalRealisedPNL.Add(stats.RealisedPNL)
+		totalUnrealisedPNL = totalUnrealisedPNL.Add(stats.UnrealisedPNL)
 		if !r.Verbose {
 			response.Positions = append(response.Positions, details)
 			continue
@@ -4229,7 +4238,15 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 		}
 		response.Positions = append(response.Positions, details)
 	}
-	response.TotalPNL = response.TotalRealisedPNL + response.TotalUnrealisedPNL
+	if !totalRealisedPNL.Add(totalUnrealisedPNL).IsZero() {
+		response.TotalPNL = totalRealisedPNL.Add(totalUnrealisedPNL).String()
+	}
+	if !totalUnrealisedPNL.IsZero() {
+		response.TotalUnrealisedPNL = totalUnrealisedPNL.String()
+	}
+	if !totalRealisedPNL.IsZero() {
+		response.TotalRealisedPNL = totalRealisedPNL.String()
+	}
 	return response, nil
 }
 
@@ -4265,6 +4282,9 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 		acc = ai.Accounts[0]
 	}
 	for i := range acc.Currencies {
+		if acc.Currencies[i].TotalValue == 0 {
+			continue
+		}
 		calculators = append(calculators, order.CollateralCalculator{
 			CalculateOffline:   r.CalculateOffline,
 			CollateralCurrency: acc.Currencies[i].CurrencyName,

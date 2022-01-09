@@ -4391,16 +4391,13 @@
           "format": "int64"
         },
         "totalRealisedPNL": {
-          "type": "number",
-          "format": "double"
+          "type": "string"
         },
         "totalUnrealisedPNL": {
-          "type": "number",
-          "format": "double"
+          "type": "string"
         },
         "totalPNL": {
-          "type": "number",
-          "format": "double"
+          "type": "string"
         },
         "positions": {
           "type": "array",
