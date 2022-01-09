@@ -316,6 +316,7 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 			}
 			return nil
 		case wsOrderFilledStr:
+			// already handled in wsOrderStr case
 			return nil
 		}
 	}
@@ -400,6 +401,34 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 			}
 
 		case wsMarkets:
+			var data KlineStream
+			err := json.Unmarshal(respRaw, &data)
+			if err != nil {
+				return err
+			}
+
+			p, err := currency.NewPairFromString(data.Kline.Symbol)
+			if err != nil {
+				return err
+			}
+
+			a, err := by.GetPairAssetType(p)
+			if err != nil {
+				return err
+			}
+			by.Websocket.DataHandler <- stream.KlineData{
+				Pair:       p,
+				AssetType:  a,
+				Exchange:   by.Name,
+				StartTime:  data.Kline.StartTime,
+				Interval:   data.Parameters.KlineType,
+				OpenPrice:  data.Kline.OpenPrice,
+				ClosePrice: data.Kline.ClosePrice,
+				HighPrice:  data.Kline.HighPrice,
+				LowPrice:   data.Kline.LowPrice,
+				Volume:     data.Kline.Volume,
+			}
+
 		default:
 			by.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: by.Name + stream.UnhandledMessage + string(respRaw)}
 		}

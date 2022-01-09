@@ -248,6 +248,7 @@ type WsParams struct {
 	Symbol     string `json:"symbol"`
 	IsBinary   bool   `json:"binary"`
 	SymbolName string `json:"symbolName"`
+	KlineType  string `json:"klineType"` // only present in kline ws stream
 }
 
 // WsSpotTickerData stores ws ticker data
@@ -265,6 +266,23 @@ type WsSpotTicker struct {
 	Topic      string           `json:"topic"`
 	Parameters WsParams         `json:"params"`
 	Ticker     WsSpotTickerData `json:"data"`
+}
+
+type KlineStreamData struct {
+	StartTime  time.Time `json:"t"`
+	Symbol     string    `json:"s"`
+	ClosePrice float64   `json:"c,string"`
+	HighPrice  float64   `json:"h,string"`
+	LowPrice   float64   `json:"l,string"`
+	OpenPrice  float64   `json:"o,string"`
+	Volume     float64   `json:"vs,string"`
+}
+
+// KlineStream holds the kline stream data
+type KlineStream struct {
+	Topic      string          `json:"topic"`
+	Parameters WsParams        `json:"params"`
+	Kline      KlineStreamData `json:"data"`
 }
 
 // WsOrderbookData stores ws orderbook data
