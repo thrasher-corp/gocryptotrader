@@ -4238,14 +4238,15 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 		}
 		response.Positions = append(response.Positions, details)
 	}
-	if !totalRealisedPNL.Add(totalUnrealisedPNL).IsZero() {
-		response.TotalPNL = totalRealisedPNL.Add(totalUnrealisedPNL).String()
-	}
+
 	if !totalUnrealisedPNL.IsZero() {
 		response.TotalUnrealisedPNL = totalUnrealisedPNL.String()
 	}
 	if !totalRealisedPNL.IsZero() {
 		response.TotalRealisedPNL = totalRealisedPNL.String()
+	}
+	if !totalUnrealisedPNL.IsZero() && !totalRealisedPNL.IsZero() {
+		response.TotalPNL = totalRealisedPNL.Add(totalUnrealisedPNL).String()
 	}
 	return response, nil
 }
