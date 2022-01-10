@@ -17,7 +17,7 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-var startTime, endTime, o string
+var startTime, endTime, orderingDirection string
 var limit int
 
 var getInfoCommand = &cli.Command{
@@ -3742,7 +3742,7 @@ var getAuditEventCommand = &cli.Command{
 			Aliases:     []string{"o"},
 			Usage:       "order results by ascending/descending",
 			Value:       "asc",
-			Destination: &o,
+			Destination: &orderingDirection,
 		},
 		&cli.IntFlag{
 			Name:        "limit",
@@ -3769,7 +3769,7 @@ func getAuditEvent(c *cli.Context) error {
 
 	if !c.IsSet("order") {
 		if c.Args().Get(2) != "" {
-			o = c.Args().Get(2)
+			orderingDirection = c.Args().Get(2)
 		}
 	}
 
@@ -3810,7 +3810,7 @@ func getAuditEvent(c *cli.Context) error {
 			StartDate: negateLocalOffset(s),
 			EndDate:   negateLocalOffset(e),
 			Limit:     int32(limit),
-			OrderBy:   o,
+			OrderBy:   orderingDirection,
 		})
 
 	if err != nil {
@@ -4726,7 +4726,7 @@ func findMissingSavedCandleIntervals(c *cli.Context) error {
 var getFuturesPositionsCommand = &cli.Command{
 	Name:      "getfuturesposition",
 	Usage:     "will retrieve all futures positions in a timeframe, then calculate PNL based on that. Note, the dates have an impact on PNL calculations, ensure your start date is not after a new position is opened",
-	ArgsUsage: "<exchange> <pair> <asset> <start> <end> <limit> <status> <verbose>",
+	ArgsUsage: "<exchange> <pair> <asset> <start> <end> <limit> <status> <verbose> <overwrite>",
 	Action:    getFuturesPositions,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
@@ -4925,7 +4925,7 @@ func getFuturesPositions(c *cli.Context) error {
 var getCollateralCommand = &cli.Command{
 	Name:      "getcollateral",
 	Usage:     "returns total collateral for an exchange asset, with optional per currency breakdown",
-	ArgsUsage: "<exchange> <asset>  <calculateoffline> <includebreakdown> <subaccount>",
+	ArgsUsage: "<exchange> <asset> <calculateoffline> <includebreakdown> <subaccount>",
 	Action:    getCollateral,
 	Flags: []cli.Flag{
 		&cli.StringFlag{

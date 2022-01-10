@@ -1,6 +1,7 @@
 package order
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
@@ -20,7 +21,7 @@ type FakePNL struct {
 }
 
 // CalculatePNL overrides default pnl calculations
-func (f *FakePNL) CalculatePNL(*PNLCalculatorRequest) (*PNLResult, error) {
+func (f *FakePNL) CalculatePNL(context.Context, *PNLCalculatorRequest) (*PNLResult, error) {
 	if f.err != nil {
 		return nil, f.err
 	}
@@ -688,19 +689,20 @@ func TestSetupPositionTracker(t *testing.T) {
 func TestCalculatePNL(t *testing.T) {
 	t.Parallel()
 	p := &PNLCalculator{}
-	_, err := p.CalculatePNL(nil)
+	_, err := p.CalculatePNL(context.Background(), nil)
 	if !errors.Is(err, ErrNilPNLCalculator) {
 		t.Errorf("received '%v' expected '%v", err, ErrNilPNLCalculator)
 	}
-	_, err = p.CalculatePNL(&PNLCalculatorRequest{})
+	_, err = p.CalculatePNL(context.Background(), &PNLCalculatorRequest{})
 	if !errors.Is(err, errCannotCalculateUnrealisedPNL) {
 		t.Errorf("received '%v' expected '%v", err, errCannotCalculateUnrealisedPNL)
 	}
 
-	_, err = p.CalculatePNL(&PNLCalculatorRequest{
-		OrderDirection:   Short,
-		CurrentDirection: Long,
-	})
+	_, err = p.CalculatePNL(context.Background(),
+		&PNLCalculatorRequest{
+			OrderDirection:   Short,
+			CurrentDirection: Long,
+		})
 	if !errors.Is(err, errCannotCalculateUnrealisedPNL) {
 		t.Errorf("received '%v' expected '%v", err, errCannotCalculateUnrealisedPNL)
 	}

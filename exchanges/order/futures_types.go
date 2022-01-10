@@ -45,7 +45,7 @@ var (
 // PNLCalculation is an interface to allow multiple
 // ways of calculating PNL to be used for futures positions
 type PNLCalculation interface {
-	CalculatePNL(*PNLCalculatorRequest) (*PNLResult, error)
+	CalculatePNL(context.Context, *PNLCalculatorRequest) (*PNLResult, error)
 }
 
 // CollateralManagement is an interface that allows

@@ -2464,3 +2464,87 @@ func TestGetAvailableTransferChains(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrFunctionNotSupported)
 	}
 }
+
+func TestCalculatePNL(t *testing.T) {
+	t.Parallel()
+	var b Base
+	if _, err := b.CalculatePNL(context.Background(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
+		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
+	}
+}
+
+func TestScaleCollateral(t *testing.T) {
+	t.Parallel()
+	var b Base
+	if _, err := b.ScaleCollateral(context.Background(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
+		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
+	}
+}
+
+func TestCalculateTotalCollateral(t *testing.T) {
+	t.Parallel()
+	var b Base
+	if _, err := b.CalculateTotalCollateral(context.Background(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
+		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
+	}
+}
+
+func TestGetFuturesPositions(t *testing.T) {
+	t.Parallel()
+	var b Base
+	if _, err := b.GetFuturesPositions(context.Background(), asset.Spot, currency.Pair{}, time.Time{}, time.Time{}); !errors.Is(err, common.ErrNotYetImplemented) {
+		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
+	}
+}
+
+func TestUpdateCurrencyStates(t *testing.T) {
+	t.Parallel()
+	var b Base
+	if err := b.UpdateCurrencyStates(context.Background(), asset.Spot); !errors.Is(err, common.ErrNotYetImplemented) {
+		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
+	}
+}
+
+func TestUpdateOrderExecutionLimits(t *testing.T) {
+	t.Parallel()
+	var b Base
+	if err := b.UpdateOrderExecutionLimits(context.Background(), asset.Spot); !errors.Is(err, common.ErrNotYetImplemented) {
+		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
+	}
+}
+
+func TestSetTradeFeedStatus(t *testing.T) {
+	t.Parallel()
+	b := Base{
+		Config: &config.Exchange{
+			Features: &config.FeaturesConfig{},
+		},
+		Verbose: true,
+	}
+	b.SetTradeFeedStatus(true)
+	if !b.IsTradeFeedEnabled() {
+		t.Error("expected true")
+	}
+	b.SetTradeFeedStatus(false)
+	if b.IsTradeFeedEnabled() {
+		t.Error("expected false")
+	}
+}
+
+func TestSetFillsFeedStatus(t *testing.T) {
+	t.Parallel()
+	b := Base{
+		Config: &config.Exchange{
+			Features: &config.FeaturesConfig{},
+		},
+		Verbose: true,
+	}
+	b.SetFillsFeedStatus(true)
+	if !b.IsFillsFeedEnabled() {
+		t.Error("expected true")
+	}
+	b.SetFillsFeedStatus(false)
+	if b.IsFillsFeedEnabled() {
+		t.Error("expected false")
+	}
+}

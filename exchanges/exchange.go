@@ -1463,7 +1463,7 @@ func (b *Base) GetAvailableTransferChains(_ context.Context, _ currency.Code) ([
 // It will also determine whether the position is considered to be liquidated
 // For live trading, an overrided function may wish to confirm the liquidation by
 // requesting the status of the asset
-func (b *Base) CalculatePNL(*order.PNLCalculatorRequest) (*order.PNLResult, error) {
+func (b *Base) CalculatePNL(context.Context, *order.PNLCalculatorRequest) (*order.PNLResult, error) {
 	return nil, common.ErrNotYetImplemented
 }
 

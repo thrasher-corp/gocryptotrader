@@ -810,7 +810,7 @@ func (c *CoinbasePro) calculateTradingFee(trailingVolume []Volume, base, quote c
 func getInternationalBankWithdrawalFee(c currency.Code) float64 {
 	var fee float64
 
-	if c == currency.USD {
+	if c.Match(currency.USD) {
 		fee = 25
 	} else if c == currency.EUR {
 		fee = 0.15
@@ -822,7 +822,7 @@ func getInternationalBankWithdrawalFee(c currency.Code) float64 {
 func getInternationalBankDepositFee(c currency.Code) float64 {
 	var fee float64
 
-	if c == currency.USD {
+	if c.Match(currency.USD) {
 		fee = 10
 	} else if c == currency.EUR {
 		fee = 0.15

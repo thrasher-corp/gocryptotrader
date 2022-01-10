@@ -141,7 +141,7 @@ var (
 	errUnrecognisedOrderStatus                           = errors.New("unrecognised order status received")
 	errInvalidOrderAmounts                               = errors.New("filled amount should not exceed order amount")
 	errCollateralCurrencyNotFound                        = errors.New("no collateral scaling information found")
-	errCollateralIMFMissing                              = errors.New("cannot scale collateral, missing IMF information")
+	errCollateralInitialMarginFractionMissing            = errors.New("cannot scale collateral, missing initial margin fraction information")
 
 	validResolutionData = []int64{15, 60, 300, 900, 3600, 14400, 86400}
 )
@@ -842,13 +842,13 @@ func (f *FTX) DeleteTriggerOrder(ctx context.Context, orderID string) (string, e
 }
 
 // GetFills gets fills' data
-func (f *FTX) GetFills(ctx context.Context, market currency.Pair, limit string, startTime, endTime time.Time) ([]FillsData, error) {
+func (f *FTX) GetFills(ctx context.Context, market currency.Pair, item asset.Item, limit string, startTime, endTime time.Time) ([]FillsData, error) {
 	resp := struct {
 		Data []FillsData `json:"result"`
 	}{}
 	params := url.Values{}
 	if !market.IsEmpty() {
-		fp, err := f.FormatExchangeCurrency(market, asset.Futures)
+		fp, err := f.FormatExchangeCurrency(market, item)
 		if err != nil {
 			return nil, err
 		}
@@ -1478,7 +1478,7 @@ func (f *FTX) FetchExchangeLimits(ctx context.Context) ([]order.MinMaxLevel, err
 
 // LoadCollateralWeightings sets the collateral weights for
 // currencies supported by FTX
-func (f *FTX) LoadCollateralWeightings() error {
+func (f *FTX) LoadCollateralWeightings(ctx context.Context) error {
 	f.collateralWeight = make(map[string]CollateralWeight)
 	// taken from https://help.ftx.com/hc/en-us/articles/360031149632-Non-USD-Collateral
 	// sets default, then uses the latest from FTX
@@ -1613,7 +1613,6 @@ func (f *FTX) LoadCollateralWeightings() error {
 	if !f.GetAuthenticatedAPISupport(exchange.RestAuthentication) {
 		return nil
 	}
-	ctx := context.Background()
 	coins, err := f.GetCoins(ctx)
 	if err != nil {
 		return err
@@ -1630,7 +1629,7 @@ func (f *FTX) LoadCollateralWeightings() error {
 		return err
 	}
 	for i := range futures {
-		f.collateralWeight.loadIMF(futures[i].Underlying, futures[i].IMFFactor)
+		f.collateralWeight.loadInitialMarginFraction(futures[i].Underlying, futures[i].InitialMarginFractionFactor)
 	}
 
 	return nil
@@ -1650,20 +1649,20 @@ func (c CollateralWeightHolder) loadTotal(code string, weighting float64) {
 	c[code] = currencyCollateral
 }
 
-func (c CollateralWeightHolder) loadIMF(code string, imf float64) {
+func (c CollateralWeightHolder) loadInitialMarginFraction(code string, imf float64) {
 	currencyCollateral, ok := c[code]
 	if !ok {
-		currencyCollateral = CollateralWeight{IMFFactor: imf}
+		currencyCollateral = CollateralWeight{InitialMarginFractionFactor: imf}
 	} else {
-		currencyCollateral.IMFFactor = imf
+		currencyCollateral.InitialMarginFractionFactor = imf
 	}
 	c[code] = currencyCollateral
 }
 
 func (c CollateralWeightHolder) load(code string, initial, total, imfFactor float64) {
 	c[code] = CollateralWeight{
-		Initial:   initial,
-		Total:     total,
-		IMFFactor: imfFactor,
+		Initial:                     initial,
+		Total:                       total,
+		InitialMarginFractionFactor: imfFactor,
 	}
 }

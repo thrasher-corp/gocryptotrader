@@ -1,6 +1,7 @@
 package order
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -442,7 +443,7 @@ func (p *PositionTracker) TrackNewOrder(d *Detail) error {
 		baseFee := cal.Fee.Div(amount)
 		cal.Fee = baseFee.Mul(first)
 		cal.Amount = first
-		result, err = p.PNLCalculation.CalculatePNL(cal)
+		result, err = p.PNLCalculation.CalculatePNL(context.TODO(), cal)
 		if err != nil {
 			return err
 		}
@@ -466,9 +467,9 @@ func (p *PositionTracker) TrackNewOrder(d *Detail) error {
 		cal.EntryPrice = price
 		cal.Time = cal.Time.Add(1)
 		cal.PNLHistory = p.pnlHistory
-		result, err = p.PNLCalculation.CalculatePNL(cal)
+		result, err = p.PNLCalculation.CalculatePNL(context.TODO(), cal)
 	} else {
-		result, err = p.PNLCalculation.CalculatePNL(cal)
+		result, err = p.PNLCalculation.CalculatePNL(context.TODO(), cal)
 	}
 	if err != nil {
 		if !errors.Is(err, ErrPositionLiquidated) {
@@ -517,7 +518,7 @@ func (p *PositionTracker) TrackNewOrder(d *Detail) error {
 
 // CalculatePNL this is a localised generic way of calculating open
 // positions' worth, it is an implementation of the PNLCalculation interface
-func (p *PNLCalculator) CalculatePNL(calc *PNLCalculatorRequest) (*PNLResult, error) {
+func (p *PNLCalculator) CalculatePNL(_ context.Context, calc *PNLCalculatorRequest) (*PNLResult, error) {
 	if calc == nil {
 		return nil, ErrNilPNLCalculator
 	}

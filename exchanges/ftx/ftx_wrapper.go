@@ -203,7 +203,7 @@ func (f *FTX) Setup(exch *config.Exchange) error {
 	}
 
 	if err = f.CurrencyPairs.IsAssetEnabled(asset.Futures); err == nil {
-		err = f.LoadCollateralWeightings()
+		err = f.LoadCollateralWeightings(context.TODO())
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
 				"%s failed to store collateral weightings. Err: %s",
@@ -1268,26 +1268,31 @@ func (f *FTX) GetAvailableTransferChains(ctx context.Context, cryptocurrency cur
 }
 
 // CalculatePNL determines the PNL of a given position based on the PNLCalculatorRequest
-func (f *FTX) CalculatePNL(pnl *order.PNLCalculatorRequest) (*order.PNLResult, error) {
+func (f *FTX) CalculatePNL(ctx context.Context, pnl *order.PNLCalculatorRequest) (*order.PNLResult, error) {
 	if pnl == nil {
 		return nil, fmt.Errorf("%v %w", f.Name, order.ErrNilPNLCalculator)
 	}
-	var result order.PNLResult
-	result.Time = pnl.Time
+	result := &order.PNLResult{
+		Time: pnl.Time,
+	}
+	var err error
 	if pnl.CalculateOffline {
 		// PNLCalculator matches FTX's pnl calculation method
 		calc := order.PNLCalculator{}
-		return calc.CalculatePNL(pnl)
+		result, err = calc.CalculatePNL(ctx, pnl)
+		if err != nil {
+			return nil, fmt.Errorf("%s %s %w", f.Name, f.API.Credentials.Subaccount, err)
+		}
 	}
 
 	ep := pnl.EntryPrice.InexactFloat64()
-	info, err := f.GetAccountInfo(context.Background())
+	info, err := f.GetAccountInfo(ctx)
 	if err != nil {
 		return nil, err
 	}
 	if info.Liquidating || info.Collateral == 0 {
 		result.IsLiquidated = true
-		return &result, order.ErrPositionLiquidated
+		return result, fmt.Errorf("%s %s %w", f.Name, f.API.Credentials.Subaccount, order.ErrPositionLiquidated)
 	}
 	for i := range info.Positions {
 		var pair currency.Pair
@@ -1304,18 +1309,22 @@ func (f *FTX) CalculatePNL(pnl *order.PNLCalculatorRequest) (*order.PNLResult, e
 		result.UnrealisedPNL = decimal.NewFromFloat(info.Positions[i].UnrealizedPNL)
 		result.RealisedPNLBeforeFees = decimal.NewFromFloat(info.Positions[i].RealizedPNL)
 		result.Price = decimal.NewFromFloat(info.Positions[i].Cost)
-		return &result, nil
+		return result, nil
 	}
 	// order no longer active, use offline calculation
-	pnl.CalculateOffline = true
-	return f.CalculatePNL(pnl)
+	calc := order.PNLCalculator{}
+	result, err = calc.CalculatePNL(ctx, pnl)
+	if err != nil {
+		return nil, fmt.Errorf("%s %s %w", f.Name, f.API.Credentials.Subaccount, err)
+	}
+	return result, nil
 }
 
 // ScaleCollateral takes your totals and scales them according to FTX's rules
 func (f *FTX) ScaleCollateral(ctx context.Context, calc *order.CollateralCalculator) (decimal.Decimal, error) {
 	var result decimal.Decimal
 	if calc.CalculateOffline {
-		if calc.CollateralCurrency == currency.USD {
+		if calc.CollateralCurrency.Match(currency.USD) {
 			return calc.CollateralAmount, nil
 		}
 		collateralWeight, ok := f.collateralWeight[calc.CollateralCurrency.Upper().String()]
@@ -1323,8 +1332,8 @@ func (f *FTX) ScaleCollateral(ctx context.Context, calc *order.CollateralCalcula
 			return decimal.Zero, fmt.Errorf("%v %w", calc.CollateralCurrency, errCollateralCurrencyNotFound)
 		}
 		if calc.CollateralAmount.IsPositive() {
-			if collateralWeight.IMFFactor == 0 {
-				return decimal.Zero, fmt.Errorf("%v %w", calc.CollateralCurrency, errCollateralIMFMissing)
+			if collateralWeight.InitialMarginFractionFactor == 0 {
+				return decimal.Zero, fmt.Errorf("%v %w", calc.CollateralCurrency, errCollateralInitialMarginFractionMissing)
 			}
 			var scaling decimal.Decimal
 			if calc.IsLiquidating {
@@ -1332,7 +1341,7 @@ func (f *FTX) ScaleCollateral(ctx context.Context, calc *order.CollateralCalcula
 			} else {
 				scaling = decimal.NewFromFloat(collateralWeight.Initial)
 			}
-			weight := decimal.NewFromFloat(1.1 / (1 + collateralWeight.IMFFactor*math.Sqrt(calc.CollateralAmount.InexactFloat64())))
+			weight := decimal.NewFromFloat(1.1 / (1 + collateralWeight.InitialMarginFractionFactor*math.Sqrt(calc.CollateralAmount.InexactFloat64())))
 			result = calc.CollateralAmount.Mul(calc.USDPrice).Mul(decimal.Min(scaling, weight))
 		} else {
 			result = result.Add(calc.CollateralAmount.Mul(calc.USDPrice))
@@ -1348,11 +1357,11 @@ func (f *FTX) ScaleCollateral(ctx context.Context, calc *order.CollateralCalcula
 		return decimal.Zero, err
 	}
 	for i := range wallet {
-		if currency.NewCode(wallet[i].ID) != calc.CollateralCurrency {
+		if !currency.NewCode(wallet[i].ID).Match(calc.CollateralCurrency) {
 			continue
 		}
 		for j := range balances {
-			if currency.NewCode(balances[j].Coin) != calc.CollateralCurrency {
+			if !currency.NewCode(balances[j].Coin).Match(calc.CollateralCurrency) {
 				continue
 			}
 			scaled := wallet[i].CollateralWeight * balances[j].USDValue
@@ -1380,7 +1389,7 @@ func (f *FTX) CalculateTotalCollateral(ctx context.Context, collateralAssets []o
 			Currency: collateralAssets[i].CollateralCurrency,
 			Amount:   collateral,
 		}
-		if collateralAssets[i].CollateralCurrency != currency.USD {
+		if !collateralAssets[i].CollateralCurrency.Match(currency.USD) {
 			curr.ValueCurrency = currency.USD
 		}
 
@@ -1394,7 +1403,7 @@ func (f *FTX) GetFuturesPositions(ctx context.Context, a asset.Item, cp currency
 	if !a.IsFutures() {
 		return nil, fmt.Errorf("%w futures asset type only", common.ErrFunctionNotSupported)
 	}
-	fills, err := f.GetFills(ctx, cp, "200", start, end)
+	fills, err := f.GetFills(ctx, cp, a, "200", start, end)
 	if err != nil {
 		return nil, err
 	}
@@ -1412,7 +1421,7 @@ func (f *FTX) GetFuturesPositions(ctx context.Context, a asset.Item, cp currency
 		resp = append(resp, order.Detail{
 			Side:      side,
 			Pair:      cp,
-			ID:        fmt.Sprintf("%v", fills[i].ID),
+			ID:        strconv.FormatInt(fills[i].ID, 10),
 			Price:     price,
 			Amount:    fills[i].Size,
 			AssetType: a,

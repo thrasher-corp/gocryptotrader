@@ -236,6 +236,13 @@ func TestGetFutureStats(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	future, err := f.GetFutureStats(context.Background(), "BTC-MOVE-2021Q4")
+	if err != nil {
+		t.Error(err)
+	}
+	if future.Greeks == nil {
+		t.Fatal("no greeks returned for futures contract")
+	}
 }
 
 func TestGetFundingRates(t *testing.T) {
@@ -733,21 +740,21 @@ func TestGetFills(t *testing.T) {
 		t.Skip()
 	}
 	// optional params
-	_, err := f.GetFills(context.Background(), spotPair, "", time.Time{}, time.Time{})
+	_, err := f.GetFills(context.Background(), spotPair, asset.Spot, "", time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = f.GetFills(context.Background(), spotPair, "", time.Time{}, time.Time{})
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = f.GetFills(context.Background(),
-		spotPair, "", time.Unix(authStartTime, 0), time.Unix(authEndTime, 0))
+	_, err = f.GetFills(context.Background(), spotPair, asset.Spot, "", time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
 	}
 	_, err = f.GetFills(context.Background(),
-		spotPair, "", time.Unix(authEndTime, 0), time.Unix(authStartTime, 0))
+		spotPair, asset.Spot, "", time.Unix(authStartTime, 0), time.Unix(authEndTime, 0))
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = f.GetFills(context.Background(),
+		spotPair, asset.Spot, "", time.Unix(authEndTime, 0), time.Unix(authStartTime, 0))
 	if err != errStartTimeCannotBeAfterEndTime {
 		t.Errorf("should have thrown errStartTimeCannotBeAfterEndTime, got %v", err)
 	}
@@ -1941,7 +1948,7 @@ func TestGetFuturesPositions(t *testing.T) {
 func TestLoadCollateralWeightings(t *testing.T) {
 	t.Parallel()
 	ff := FTX{}
-	err := ff.LoadCollateralWeightings()
+	err := ff.LoadCollateralWeightings(context.Background())
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -1954,7 +1961,7 @@ func TestLoadCollateralWeightings(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		return
 	}
-	err = f.LoadCollateralWeightings()
+	err = f.LoadCollateralWeightings(context.Background())
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
