@@ -47,6 +47,9 @@ var (
 
 	errEndpointStringNotFound = errors.New("endpoint string not found")
 	errTransportNotSet        = errors.New("transport not set, cannot set timeout")
+
+	// ErrPairNotFound is an error message for when unable to find a currency pair
+	ErrPairNotFound = errors.New("pair not found")
 )
 
 func (b *Base) checkAndInitRequester() {
@@ -458,7 +461,8 @@ func (b *Base) GetRequestFormattedPairAndAssetType(p string) (currency.Pair, ass
 			}
 		}
 	}
-	return response, "", errors.New("pair not found: " + p)
+	return response, "",
+		fmt.Errorf("%s %w", p, ErrPairNotFound)
 }
 
 // GetAvailablePairs is a method that returns the available currency pairs
