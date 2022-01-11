@@ -1325,15 +1325,16 @@ func (f *FTX) ScaleCollateral(ctx context.Context, calc *order.CollateralCalcula
 	var result decimal.Decimal
 	if calc.CalculateOffline {
 		if calc.CollateralCurrency.Match(currency.USD) {
+			// FTX bases scales all collateral into USD amounts
 			return calc.CollateralAmount, nil
 		}
 		collateralWeight, ok := f.collateralWeight[calc.CollateralCurrency.Upper().String()]
 		if !ok {
-			return decimal.Zero, fmt.Errorf("%v %w", calc.CollateralCurrency, errCollateralCurrencyNotFound)
+			return decimal.Zero, fmt.Errorf("%s %s %w", f.Name, calc.CollateralCurrency, errCollateralCurrencyNotFound)
 		}
 		if calc.CollateralAmount.IsPositive() {
 			if collateralWeight.InitialMarginFractionFactor == 0 {
-				return decimal.Zero, fmt.Errorf("%v %w", calc.CollateralCurrency, errCollateralInitialMarginFractionMissing)
+				return decimal.Zero, fmt.Errorf("%s %s %w", f.Name, calc.CollateralCurrency, errCollateralInitialMarginFractionMissing)
 			}
 			var scaling decimal.Decimal
 			if calc.IsLiquidating {
@@ -1350,11 +1351,11 @@ func (f *FTX) ScaleCollateral(ctx context.Context, calc *order.CollateralCalcula
 	}
 	wallet, err := f.GetCoins(ctx)
 	if err != nil {
-		return decimal.Zero, err
+		return decimal.Zero, fmt.Errorf("%s %s %w", f.Name, calc.CollateralCurrency, err)
 	}
 	balances, err := f.GetBalances(ctx)
 	if err != nil {
-		return decimal.Zero, err
+		return decimal.Zero, fmt.Errorf("%s %s %w", f.Name, calc.CollateralCurrency, err)
 	}
 	for i := range wallet {
 		if !currency.NewCode(wallet[i].ID).Match(calc.CollateralCurrency) {
@@ -1369,7 +1370,7 @@ func (f *FTX) ScaleCollateral(ctx context.Context, calc *order.CollateralCalcula
 			return result, nil
 		}
 	}
-	return decimal.Zero, fmt.Errorf("%v %w", calc.CollateralCurrency, errCollateralCurrencyNotFound)
+	return decimal.Zero, fmt.Errorf("%s %s %w", f.Name, calc.CollateralCurrency, errCollateralCurrencyNotFound)
 }
 
 // CalculateTotalCollateral scales collateral and determines how much collateral you can use for positions

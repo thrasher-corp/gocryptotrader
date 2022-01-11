@@ -227,7 +227,7 @@ func (m *OrderManager) Cancel(ctx context.Context, cancel *order.Cancel) error {
 
 // GetFuturesPositionsForExchange returns futures positions stored within
 // the order manager's futures position tracker that match the provided params
-func (m *OrderManager) GetFuturesPositionsForExchange(exch string, item asset.Item, pair currency.Pair) ([]*order.PositionTracker, error) {
+func (m *OrderManager) GetFuturesPositionsForExchange(exch string, item asset.Item, pair currency.Pair) ([]order.PositionStats, error) {
 	if m == nil {
 		return nil, fmt.Errorf("order manager %w", ErrNilSubsystem)
 	}
@@ -238,7 +238,7 @@ func (m *OrderManager) GetFuturesPositionsForExchange(exch string, item asset.It
 		return nil, errFuturesTrackerNotSetup
 	}
 	if !item.IsFutures() {
-		return nil, fmt.Errorf("%v %w", item, order.ErrNotFutureAsset)
+		return nil, fmt.Errorf("%v %w", item, order.ErrNotFuturesAsset)
 	}
 
 	return m.orderStore.futuresPositionController.GetPositionsForExchange(exch, item, pair)
@@ -257,7 +257,7 @@ func (m *OrderManager) ClearFuturesTracking(exch string, item asset.Item, pair c
 		return errFuturesTrackerNotSetup
 	}
 	if !item.IsFutures() {
-		return fmt.Errorf("%v %w", item, order.ErrNotFutureAsset)
+		return fmt.Errorf("%v %w", item, order.ErrNotFuturesAsset)
 	}
 
 	return m.orderStore.futuresPositionController.ClearPositionsForExchange(exch, item, pair)

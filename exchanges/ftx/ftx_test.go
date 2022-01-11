@@ -1922,11 +1922,8 @@ func TestCalculatePNL(t *testing.T) {
 		}
 	}
 	results := p.GetPositions()
-	for i := range results {
-		_, err = results[i].GetLatestPNLSnapshot()
-		if err != nil {
-			t.Error(err)
-		}
+	if len(orders) > 0 && len(results) == 0 {
+		t.Error("expected position(s) to be generated")
 	}
 }
 
@@ -1955,7 +1952,7 @@ func TestLoadCollateralWeightings(t *testing.T) {
 	if len(ff.collateralWeight) == 0 {
 		t.Fatal("expected some weight")
 	}
-	if !ff.collateralWeight.isLoaded() {
+	if !ff.collateralWeight.hasData() {
 		t.Error("expected loaded weight")
 	}
 	if !areTestAPIKeysSet() {
@@ -1967,5 +1964,56 @@ func TestLoadCollateralWeightings(t *testing.T) {
 	}
 	if len(f.collateralWeight) == 0 {
 		t.Fatal("expected some weight")
+	}
+}
+
+func TestLoadTotalIMF(t *testing.T) {
+	t.Parallel()
+	c := CollateralWeightHolder{}
+	c.loadTotal("cw", 1)
+	if _, ok := c["cw"]; !ok {
+		t.Error("expected entry")
+	}
+	c.loadInitialMarginFraction("cw", 1)
+	cw, ok := c["cw"]
+	if !ok {
+		t.Error("expected entry")
+	}
+	if cw.Total != 1 {
+		t.Errorf("expected '1', received '%v'", cw.Total)
+	}
+	if cw.InitialMarginFractionFactor != 1 {
+		t.Errorf("expected '1', received '%v'", cw.InitialMarginFractionFactor)
+	}
+}
+
+func TestLoadCollateralWeight(t *testing.T) {
+	t.Parallel()
+	c := CollateralWeightHolder{}
+	c.load("test", 1, 2, 3)
+	cw, ok := c["test"]
+	if !ok {
+		t.Fatal("expected loaded collateral weight")
+	}
+	if cw.Initial != 1 {
+		t.Errorf("expected '1', received '%v'", cw.Total)
+	}
+	if cw.Total != 2 {
+		t.Errorf("expected '2', received '%v'", cw.InitialMarginFractionFactor)
+	}
+	if cw.InitialMarginFractionFactor != 3 {
+		t.Errorf("expected '3', received '%v'", cw.Total)
+	}
+}
+
+func TestCollateralWeightHasData(t *testing.T) {
+	t.Parallel()
+	c := CollateralWeightHolder{}
+	if c.hasData() {
+		t.Error("expected false")
+	}
+	c.load("test", 1, 2, 3)
+	if !c.hasData() {
+		t.Error("expected true")
 	}
 }

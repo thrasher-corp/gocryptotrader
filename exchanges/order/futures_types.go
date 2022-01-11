@@ -26,8 +26,8 @@ var (
 	// ErrPositionLiquidated is raised when checking PNL status only for
 	// it to be liquidated
 	ErrPositionLiquidated = errors.New("position liquidated")
-	// ErrNotFutureAsset returned when futures data is requested on a non-futures asset
-	ErrNotFutureAsset = errors.New("asset type is not futures")
+	// ErrNotFuturesAsset returned when futures data is requested on a non-futures asset
+	ErrNotFuturesAsset = errors.New("asset type is not futures")
 
 	errExchangeNameEmpty              = errors.New("exchange name empty")
 	errTimeUnset                      = errors.New("time unset")

@@ -1169,14 +1169,35 @@ func TestGetFuturesPositionsForExchange(t *testing.T) {
 	}
 	o.orderStore.futuresPositionController = order.SetupPositionController()
 	_, err = o.GetFuturesPositionsForExchange("test", asset.Spot, cp)
-	if !errors.Is(err, order.ErrNotFutureAsset) {
-		t.Errorf("received '%v', expected '%v'", err, order.ErrNotFutureAsset)
+	if !errors.Is(err, order.ErrNotFuturesAsset) {
+		t.Errorf("received '%v', expected '%v'", err, order.ErrNotFuturesAsset)
 	}
 
 	_, err = o.GetFuturesPositionsForExchange("test", asset.Futures, cp)
 	if !errors.Is(err, order.ErrPositionsNotLoadedForExchange) {
 		t.Errorf("received '%v', expected '%v'", err, order.ErrPositionsNotLoadedForExchange)
 	}
+
+	err = o.orderStore.futuresPositionController.TrackNewOrder(&order.Detail{
+		ID:        "test",
+		Date:      time.Now(),
+		Exchange:  "test",
+		AssetType: asset.Futures,
+		Pair:      cp,
+		Side:      order.Buy,
+		Amount:    1,
+		Price:     1})
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected '%v'", err, nil)
+	}
+	resp, err := o.GetFuturesPositionsForExchange("test", asset.Futures, cp)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected '%v'", err, nil)
+	}
+	if len(resp) != 1 {
+		t.Error("expected 1 position")
+	}
+
 	o = nil
 	_, err = o.GetFuturesPositionsForExchange("test", asset.Futures, cp)
 	if !errors.Is(err, ErrNilSubsystem) {
@@ -1199,14 +1220,39 @@ func TestClearFuturesPositionsForExchange(t *testing.T) {
 	}
 	o.orderStore.futuresPositionController = order.SetupPositionController()
 	err = o.ClearFuturesTracking("test", asset.Spot, cp)
-	if !errors.Is(err, order.ErrNotFutureAsset) {
-		t.Errorf("received '%v', expected '%v'", err, order.ErrNotFutureAsset)
+	if !errors.Is(err, order.ErrNotFuturesAsset) {
+		t.Errorf("received '%v', expected '%v'", err, order.ErrNotFuturesAsset)
 	}
 
 	err = o.ClearFuturesTracking("test", asset.Futures, cp)
 	if !errors.Is(err, order.ErrPositionsNotLoadedForExchange) {
 		t.Errorf("received '%v', expected '%v'", err, order.ErrPositionsNotLoadedForExchange)
 	}
+
+	err = o.orderStore.futuresPositionController.TrackNewOrder(&order.Detail{
+		ID:        "test",
+		Date:      time.Now(),
+		Exchange:  "test",
+		AssetType: asset.Futures,
+		Pair:      cp,
+		Side:      order.Buy,
+		Amount:    1,
+		Price:     1})
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected '%v'", err, nil)
+	}
+	err = o.ClearFuturesTracking("test", asset.Futures, cp)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected '%v'", err, nil)
+	}
+	resp, err := o.GetFuturesPositionsForExchange("test", asset.Futures, cp)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected '%v'", err, nil)
+	}
+	if len(resp) != 0 {
+		t.Errorf("expected no position, received '%v'", len(resp))
+	}
+
 	o = nil
 	err = o.ClearFuturesTracking("test", asset.Futures, cp)
 	if !errors.Is(err, ErrNilSubsystem) {

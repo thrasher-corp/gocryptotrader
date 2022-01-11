@@ -4174,65 +4174,64 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 		if r.PositionLimit > 0 && len(response.Positions) >= int(r.PositionLimit) {
 			break
 		}
-		stats := pos[i].GetStats()
-		response.TotalOrders += int64(len(stats.Orders))
+		response.TotalOrders += int64(len(pos[i].Orders))
 		details := &gctrpc.FuturePosition{
-			Status:        stats.Status.String(),
-			UnrealisedPNL: stats.UnrealisedPNL.String(),
-			RealisedPNL:   stats.RealisedPNL.String(),
+			Status:        pos[i].Status.String(),
+			UnrealisedPNL: pos[i].UnrealisedPNL.String(),
+			RealisedPNL:   pos[i].RealisedPNL.String(),
 		}
-		if !stats.UnrealisedPNL.IsZero() {
-			details.UnrealisedPNL = stats.UnrealisedPNL.String()
+		if !pos[i].UnrealisedPNL.IsZero() {
+			details.UnrealisedPNL = pos[i].UnrealisedPNL.String()
 		}
-		if !stats.RealisedPNL.IsZero() {
-			details.RealisedPNL = stats.RealisedPNL.String()
+		if !pos[i].RealisedPNL.IsZero() {
+			details.RealisedPNL = pos[i].RealisedPNL.String()
 		}
-		if stats.LatestDirection != order.UnknownSide {
-			details.CurrentDirection = stats.LatestDirection.String()
+		if pos[i].LatestDirection != order.UnknownSide {
+			details.CurrentDirection = pos[i].LatestDirection.String()
 		}
-		if len(stats.PNLHistory) > 0 {
-			details.OpeningDate = stats.PNLHistory[0].Time.Format(common.SimpleTimeFormatWithTimezone)
-			if stats.Status == order.Closed {
-				details.ClosingDate = stats.PNLHistory[len(stats.PNLHistory)-1].Time.Format(common.SimpleTimeFormatWithTimezone)
+		if len(pos[i].PNLHistory) > 0 {
+			details.OpeningDate = pos[i].PNLHistory[0].Time.Format(common.SimpleTimeFormatWithTimezone)
+			if pos[i].Status == order.Closed {
+				details.ClosingDate = pos[i].PNLHistory[len(pos[i].PNLHistory)-1].Time.Format(common.SimpleTimeFormatWithTimezone)
 			}
 		}
-		totalRealisedPNL = totalRealisedPNL.Add(stats.RealisedPNL)
-		totalUnrealisedPNL = totalUnrealisedPNL.Add(stats.UnrealisedPNL)
+		totalRealisedPNL = totalRealisedPNL.Add(pos[i].RealisedPNL)
+		totalUnrealisedPNL = totalUnrealisedPNL.Add(pos[i].UnrealisedPNL)
 		if !r.Verbose {
 			response.Positions = append(response.Positions, details)
 			continue
 		}
-		for j := range stats.Orders {
+		for j := range pos[i].Orders {
 			var trades []*gctrpc.TradeHistory
-			for k := range stats.Orders[j].Trades {
+			for k := range pos[i].Orders[j].Trades {
 				trades = append(trades, &gctrpc.TradeHistory{
-					CreationTime: stats.Orders[j].Trades[k].Timestamp.Unix(),
-					Id:           stats.Orders[j].Trades[k].TID,
-					Price:        stats.Orders[j].Trades[k].Price,
-					Amount:       stats.Orders[j].Trades[k].Amount,
-					Exchange:     stats.Orders[j].Trades[k].Exchange,
-					AssetType:    stats.Asset.String(),
-					OrderSide:    stats.Orders[j].Trades[k].Side.String(),
-					Fee:          stats.Orders[j].Trades[k].Fee,
-					Total:        stats.Orders[j].Trades[k].Total,
+					CreationTime: pos[i].Orders[j].Trades[k].Timestamp.Unix(),
+					Id:           pos[i].Orders[j].Trades[k].TID,
+					Price:        pos[i].Orders[j].Trades[k].Price,
+					Amount:       pos[i].Orders[j].Trades[k].Amount,
+					Exchange:     pos[i].Orders[j].Trades[k].Exchange,
+					AssetType:    pos[i].Asset.String(),
+					OrderSide:    pos[i].Orders[j].Trades[k].Side.String(),
+					Fee:          pos[i].Orders[j].Trades[k].Fee,
+					Total:        pos[i].Orders[j].Trades[k].Total,
 				})
 			}
 			details.Orders = append(details.Orders, &gctrpc.OrderDetails{
-				Exchange:      stats.Orders[j].Exchange,
-				Id:            stats.Orders[j].ID,
-				ClientOrderId: stats.Orders[j].ClientOrderID,
-				BaseCurrency:  stats.Orders[j].Pair.Base.String(),
-				QuoteCurrency: stats.Orders[j].Pair.Quote.String(),
-				AssetType:     stats.Orders[j].AssetType.String(),
-				OrderSide:     stats.Orders[j].Side.String(),
-				OrderType:     stats.Orders[j].Type.String(),
-				CreationTime:  stats.Orders[j].Date.Unix(),
-				UpdateTime:    stats.Orders[j].LastUpdated.Unix(),
-				Status:        stats.Orders[j].Status.String(),
-				Price:         stats.Orders[j].Price,
-				Amount:        stats.Orders[j].Amount,
-				Fee:           stats.Orders[j].Fee,
-				Cost:          stats.Orders[j].Cost,
+				Exchange:      pos[i].Orders[j].Exchange,
+				Id:            pos[i].Orders[j].ID,
+				ClientOrderId: pos[i].Orders[j].ClientOrderID,
+				BaseCurrency:  pos[i].Orders[j].Pair.Base.String(),
+				QuoteCurrency: pos[i].Orders[j].Pair.Quote.String(),
+				AssetType:     pos[i].Orders[j].AssetType.String(),
+				OrderSide:     pos[i].Orders[j].Side.String(),
+				OrderType:     pos[i].Orders[j].Type.String(),
+				CreationTime:  pos[i].Orders[j].Date.Unix(),
+				UpdateTime:    pos[i].Orders[j].LastUpdated.Unix(),
+				Status:        pos[i].Orders[j].Status.String(),
+				Price:         pos[i].Orders[j].Price,
+				Amount:        pos[i].Orders[j].Amount,
+				Fee:           pos[i].Orders[j].Fee,
+				Cost:          pos[i].Orders[j].Cost,
 				Trades:        trades,
 			})
 		}

@@ -1635,27 +1635,19 @@ func (f *FTX) LoadCollateralWeightings(ctx context.Context) error {
 	return nil
 }
 
-func (c CollateralWeightHolder) isLoaded() bool {
+func (c CollateralWeightHolder) hasData() bool {
 	return len(c) > 0
 }
 
 func (c CollateralWeightHolder) loadTotal(code string, weighting float64) {
-	currencyCollateral, ok := c[code]
-	if !ok {
-		currencyCollateral = CollateralWeight{Total: weighting}
-	} else {
-		currencyCollateral.Total = weighting
-	}
+	currencyCollateral := c[code]
+	currencyCollateral.Total = weighting
 	c[code] = currencyCollateral
 }
 
 func (c CollateralWeightHolder) loadInitialMarginFraction(code string, imf float64) {
-	currencyCollateral, ok := c[code]
-	if !ok {
-		currencyCollateral = CollateralWeight{InitialMarginFractionFactor: imf}
-	} else {
-		currencyCollateral.InitialMarginFractionFactor = imf
-	}
+	currencyCollateral := c[code]
+	currencyCollateral.InitialMarginFractionFactor = imf
 	c[code] = currencyCollateral
 }
 
