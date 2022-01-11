@@ -3,6 +3,7 @@ package exchange
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/gofrs/uuid"
 	"github.com/shopspring/decimal"
@@ -339,8 +340,8 @@ func applySlippageToPrice(direction gctorder.Side, price, slippageRate decimal.D
 }
 
 // SetExchangeAssetCurrencySettings sets the settings for an exchange, asset, currency
-func (e *Exchange) SetExchangeAssetCurrencySettings(exch string, a asset.Item, cp currency.Pair, c *Settings) {
-	if c.Exchange == "" ||
+func (e *Exchange) SetExchangeAssetCurrencySettings(a asset.Item, cp currency.Pair, c *Settings) {
+	if c.Exchange == nil ||
 		c.Asset == "" ||
 		c.Pair.IsEmpty() {
 		return
@@ -349,7 +350,7 @@ func (e *Exchange) SetExchangeAssetCurrencySettings(exch string, a asset.Item, c
 	for i := range e.CurrencySettings {
 		if e.CurrencySettings[i].Pair == cp &&
 			e.CurrencySettings[i].Asset == a &&
-			exch == e.CurrencySettings[i].Exchange {
+			strings.EqualFold(c.Exchange.GetName(), e.CurrencySettings[i].Exchange.GetName()) {
 			e.CurrencySettings[i] = *c
 			return
 		}
@@ -362,7 +363,7 @@ func (e *Exchange) GetCurrencySettings(exch string, a asset.Item, cp currency.Pa
 	for i := range e.CurrencySettings {
 		if e.CurrencySettings[i].Pair.Equal(cp) {
 			if e.CurrencySettings[i].Asset == a {
-				if exch == e.CurrencySettings[i].Exchange {
+				if strings.EqualFold(exch, e.CurrencySettings[i].Exchange.GetName()) {
 					return e.CurrencySettings[i], nil
 				}
 			}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -18,7 +19,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	gctexchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -49,11 +49,11 @@ func (p *Portfolio) Reset() {
 }
 
 // SetupCurrencySettingsMap ensures a map is created and no panics happen
-func (p *Portfolio) SetupCurrencySettingsMap(settings *exchange.Settings, exch gctexchange.IBotExchange) error {
+func (p *Portfolio) SetupCurrencySettingsMap(settings *exchange.Settings) error {
 	if settings == nil {
 		return errNoPortfolioSettings
 	}
-	if settings.Exchange == "" {
+	if settings.Exchange == nil {
 		return errExchangeUnset
 	}
 	if settings.Asset == "" {
@@ -65,17 +65,33 @@ func (p *Portfolio) SetupCurrencySettingsMap(settings *exchange.Settings, exch g
 	if p.exchangeAssetPairSettings == nil {
 		p.exchangeAssetPairSettings = make(map[string]map[asset.Item]map[currency.Pair]*Settings)
 	}
-	if p.exchangeAssetPairSettings[settings.Exchange] == nil {
-		p.exchangeAssetPairSettings[settings.Exchange] = make(map[asset.Item]map[currency.Pair]*Settings)
+	name := strings.ToLower(settings.Exchange.GetName())
+	if p.exchangeAssetPairSettings[name] == nil {
+		p.exchangeAssetPairSettings[name] = make(map[asset.Item]map[currency.Pair]*Settings)
 	}
-	if p.exchangeAssetPairSettings[settings.Exchange][settings.Asset] == nil {
-		p.exchangeAssetPairSettings[settings.Exchange][settings.Asset] = make(map[currency.Pair]*Settings)
+	if p.exchangeAssetPairSettings[name][settings.Asset] == nil {
+		p.exchangeAssetPairSettings[name][settings.Asset] = make(map[currency.Pair]*Settings)
 	}
-	if _, ok := p.exchangeAssetPairSettings[settings.Exchange][settings.Asset][settings.Pair]; ok {
+	if _, ok := p.exchangeAssetPairSettings[name][settings.Asset][settings.Pair]; ok {
 		return nil
 	}
 
-	p.exchangeAssetPairSettings[settings.Exchange][settings.Asset][settings.Pair] = &Settings{
+	futureTrackerSetup := &gctorder.MultiPositionTrackerSetup{
+		Exchange:                  name,
+		Asset:                     settings.Asset,
+		Pair:                      settings.Pair,
+		Underlying:                settings.Pair.Base,
+		OfflineCalculation:        true,
+		UseExchangePNLCalculation: settings.UseExchangePNLCalculation,
+	}
+	if settings.UseExchangePNLCalculation {
+		futureTrackerSetup.ExchangePNLCalculation = settings.Exchange
+	}
+	tracker, err := gctorder.SetupMultiPositionTracker(futureTrackerSetup)
+	if err != nil {
+		return err
+	}
+	p.exchangeAssetPairSettings[name][settings.Asset][settings.Pair] = &Settings{
 		Fee:            settings.ExchangeFee,
 		BuySideSizing:  settings.BuySide,
 		SellSideSizing: settings.SellSide,
@@ -83,8 +99,8 @@ func (p *Portfolio) SetupCurrencySettingsMap(settings *exchange.Settings, exch g
 		ComplianceManager: compliance.Manager{
 			Snapshots: []compliance.Snapshot{},
 		},
-		Exchange:       exch,
-		FuturesTracker: gctorder.SetupPositionController(),
+		Exchange:       settings.Exchange,
+		FuturesTracker: tracker,
 	}
 	return nil
 }
@@ -575,21 +591,23 @@ func (p *Portfolio) GetLatestPNLForEvent(e common.EventHandler) (*PNLSummary, er
 	if settings.FuturesTracker == nil {
 		return nil, errors.New("no futures tracker")
 	}
-	positions, err := settings.FuturesTracker.GetPositionsForExchange(e.GetExchange(), e.GetAssetType(), e.Pair())
-	if err != nil {
-		return nil, err
+
+	response := &PNLSummary{
+		Exchange: e.GetExchange(),
+		Item:     e.GetAssetType(),
+		Pair:     e.Pair(),
+	}
+	positions := settings.FuturesTracker.GetPositions()
+	if len(positions) == 0 {
+		return response, nil
 	}
 	pnl, err := positions[len(positions)-1].GetLatestPNLSnapshot()
 	if err != nil {
 		return nil, err
 	}
 
-	return &PNLSummary{
-		Exchange: e.GetExchange(),
-		Item:     e.GetAssetType(),
-		Pair:     e.Pair(),
-		PNL:      pnl,
-	}, nil
+	response.PNL = pnl
+	return response, nil
 }
 
 // GetLatestPNLs returns all PNL details in one array
@@ -607,20 +625,21 @@ func (p *Portfolio) GetLatestPNLs() []PNLSummary {
 				if settings.FuturesTracker == nil {
 					continue
 				}
-				positions, err := settings.FuturesTracker.GetPositionsForExchange(exchK, assetK, pairK)
-				if err != nil {
-					return nil
-				}
-				pnl, err := positions[len(positions)-1].GetLatestPNLSnapshot()
-				if err != nil {
-					continue
-				}
-				result = append(result, PNLSummary{
+				summary := PNLSummary{
 					Exchange: exchK,
 					Item:     assetK,
 					Pair:     pairK,
-					PNL:      pnl,
-				})
+				}
+				positions := settings.FuturesTracker.GetPositions()
+				if len(positions) > 0 {
+					pnl, err := positions[len(positions)-1].GetLatestPNLSnapshot()
+					if err != nil {
+						continue
+					}
+					summary.PNL = pnl
+				}
+
+				result = append(result, summary)
 			}
 		}
 	}

@@ -83,7 +83,7 @@ type Settings struct {
 	HoldingsSnapshots []holdings.Holding
 	ComplianceManager compliance.Manager
 	Exchange          gctexchange.IBotExchange
-	FuturesTracker    *gctorder.PositionController
+	FuturesTracker    *gctorder.MultiPositionTracker
 }
 
 // PNLSummary holds a PNL result along with

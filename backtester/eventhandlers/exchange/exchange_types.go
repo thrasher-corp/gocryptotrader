@@ -10,6 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
@@ -36,7 +37,7 @@ type Exchange struct {
 
 // Settings allow the eventhandler to size an order within the limitations set by the config file
 type Settings struct {
-	Exchange      string
+	Exchange      exchange.IBotExchange
 	UseRealOrders bool
 
 	Pair  currency.Pair
@@ -54,9 +55,10 @@ type Settings struct {
 	MinimumSlippageRate decimal.Decimal
 	MaximumSlippageRate decimal.Decimal
 
-	Limits                    *gctorder.Limits
-	CanUseExchangeLimits      bool
-	SkipCandleVolumeFitting   bool
+	Limits                  *gctorder.Limits
+	CanUseExchangeLimits    bool
+	SkipCandleVolumeFitting bool
+
 	UseExchangePNLCalculation bool
 }
 
