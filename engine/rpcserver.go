@@ -69,6 +69,7 @@ var (
 	errCurrencyPairInvalid  = errors.New("currency provided is not found in the available pairs list")
 	errNoTrades             = errors.New("no trades returned from supplied params")
 	errNilRequestData       = errors.New("nil request data received, cannot continue")
+	errNoAccountInformation = errors.New("account information does not exist")
 )
 
 // RPCServer struct
@@ -4278,16 +4279,19 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 		return nil, err
 	}
 	var calculators []order.CollateralCalculator
-	var acc account.SubAccount
+	var acc *account.SubAccount
 	if r.SubAccount != "" {
 		for i := range ai.Accounts {
 			if strings.EqualFold(r.SubAccount, ai.Accounts[i].ID) {
-				acc = ai.Accounts[i]
+				acc = &ai.Accounts[i]
 				break
 			}
 		}
 	} else if len(ai.Accounts) > 0 {
-		acc = ai.Accounts[0]
+		acc = &ai.Accounts[0]
+	}
+	if acc == nil {
+		return nil, fmt.Errorf("%w for %s %s and stored credentials", errNoAccountInformation, exch.GetName(), r.SubAccount)
 	}
 	for i := range acc.Currencies {
 		cal := order.CollateralCalculator{
@@ -4315,9 +4319,14 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 	if err != nil {
 		return nil, err
 	}
+	subAccount := r.SubAccount
+	if subAccount == "" {
+		b := exch.GetBase()
+		subAccount = b.API.Credentials.Subaccount
+	}
 
 	result := &gctrpc.GetCollateralResponse{
-		SubAccount:      r.SubAccount,
+		SubAccount:      subAccount,
 		TotalCollateral: collateral.TotalCollateral.String(),
 	}
 	if r.IncludeBreakdown {
