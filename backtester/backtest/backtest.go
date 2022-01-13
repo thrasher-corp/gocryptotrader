@@ -440,7 +440,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string) (*BackTest, 
 
 	bt.Exchange = &e
 	for i := range e.CurrencySettings {
-		err = p.SetupCurrencySettingsMap(&e.CurrencySettings[i], emm[e.CurrencySettings[i].Exchange])
+		err = p.SetupCurrencySettingsMap(&e.CurrencySettings[i])
 		if err != nil {
 			return nil, err
 		}
@@ -561,7 +561,7 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 				}
 			}
 			resp.CurrencySettings = append(resp.CurrencySettings, exchange.Settings{
-				Exchange:                  cfg.CurrencySettings[i].ExchangeName,
+				Exchange:                  exch,
 				MinimumSlippageRate:       cfg.CurrencySettings[i].MinimumSlippagePercent,
 				MaximumSlippageRate:       cfg.CurrencySettings[i].MaximumSlippagePercent,
 				Pair:                      pair,

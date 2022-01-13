@@ -13,17 +13,34 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
+	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ftx"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-const testExchange = "binance"
+const testExchange = "ftx"
 
 type fakeFund struct{}
+
+func (f *fakeFund) GetPairReader() (funding.IPairReader, error) {
+	return nil, nil
+}
+
+func (f *fakeFund) GetCollateralReader() (funding.ICollateralReader, error) {
+	return nil, nil
+}
+
+func (f *fakeFund) GetPairReleaser() (funding.IPairReleaser, error) {
+	return nil, nil
+}
+func (f *fakeFund) GetCollateralReleaser() (funding.ICollateralReleaser, error) {
+	return nil, nil
+}
 
 func (f *fakeFund) IncreaseAvailable(decimal.Decimal, gctorder.Side) {}
 func (f *fakeFund) Release(decimal.Decimal, decimal.Decimal, gctorder.Side) error {
@@ -44,12 +61,12 @@ func TestReset(t *testing.T) {
 func TestSetCurrency(t *testing.T) {
 	t.Parallel()
 	e := Exchange{}
-	e.SetExchangeAssetCurrencySettings("", "", currency.Pair{}, &Settings{})
+	e.SetExchangeAssetCurrencySettings("", currency.Pair{}, &Settings{})
 	if len(e.CurrencySettings) != 0 {
 		t.Error("expected 0")
 	}
 	cs := &Settings{
-		Exchange:            testExchange,
+		Exchange:            &ftx.FTX{},
 		UseRealOrders:       true,
 		Pair:                currency.NewPair(currency.BTC, currency.USDT),
 		Asset:               asset.Spot,
@@ -62,7 +79,7 @@ func TestSetCurrency(t *testing.T) {
 		MinimumSlippageRate: decimal.Zero,
 		MaximumSlippageRate: decimal.Zero,
 	}
-	e.SetExchangeAssetCurrencySettings(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.USDT), cs)
+	e.SetExchangeAssetCurrencySettings(asset.Spot, currency.NewPair(currency.BTC, currency.USDT), cs)
 	result, err := e.GetCurrencySettings(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
 	if err != nil {
 		t.Error(err)
@@ -70,7 +87,7 @@ func TestSetCurrency(t *testing.T) {
 	if !result.UseRealOrders {
 		t.Error("expected true")
 	}
-	e.SetExchangeAssetCurrencySettings(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.USDT), cs)
+	e.SetExchangeAssetCurrencySettings(asset.Spot, currency.NewPair(currency.BTC, currency.USDT), cs)
 	if len(e.CurrencySettings) != 1 {
 		t.Error("expected 1")
 	}
@@ -231,7 +248,7 @@ func TestExecuteOrder(t *testing.T) {
 	}
 
 	cs := Settings{
-		Exchange:            testExchange,
+		Exchange:            &ftx.FTX{},
 		UseRealOrders:       false,
 		Pair:                p,
 		Asset:               a,
@@ -282,9 +299,8 @@ func TestExecuteOrder(t *testing.T) {
 		t.Error(err)
 	}
 	d.Next()
-
 	_, err = e.ExecuteOrder(o, d, bot.OrderManager, &fakeFund{})
-	if err != nil {
+	if err != errNilCurrencySettings {
 		t.Error(err)
 	}
 
@@ -345,7 +361,7 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 	}
 
 	cs := Settings{
-		Exchange:      testExchange,
+		Exchange:      &ftx.FTX{},
 		UseRealOrders: false,
 		Pair:          p,
 		Asset:         a,

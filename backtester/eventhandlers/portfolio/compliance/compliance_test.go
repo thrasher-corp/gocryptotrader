@@ -6,25 +6,39 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
+	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 func TestAddSnapshot(t *testing.T) {
 	t.Parallel()
 	m := Manager{}
 	tt := time.Now()
-	err := m.AddSnapshot([]SnapshotOrder{}, tt, 1, true)
+	err := m.AddSnapshot(&Snapshot{}, true)
 	if !errors.Is(err, errSnapshotNotFound) {
 		t.Errorf("received: %v, expected: %v", err, errSnapshotNotFound)
 	}
 
-	err = m.AddSnapshot([]SnapshotOrder{}, tt, 1, false)
+	err = m.AddSnapshot(&Snapshot{
+		Offset:    0,
+		Timestamp: tt,
+		Orders:    nil,
+	}, false)
 	if err != nil {
 		t.Error(err)
 	}
-
-	err = m.AddSnapshot([]SnapshotOrder{}, tt, 1, true)
+	if len(m.Snapshots) != 1 {
+		t.Error("expected 1")
+	}
+	err = m.AddSnapshot(&Snapshot{
+		Offset:    0,
+		Timestamp: tt,
+		Orders:    nil,
+	}, true)
 	if err != nil {
 		t.Error(err)
+	}
+	if len(m.Snapshots) != 1 {
+		t.Error("expected 1")
 	}
 }
 
@@ -32,11 +46,17 @@ func TestGetSnapshotAtTime(t *testing.T) {
 	t.Parallel()
 	m := Manager{}
 	tt := time.Now()
-	err := m.AddSnapshot([]SnapshotOrder{
-		{
-			ClosePrice: decimal.NewFromInt(1337),
+	err := m.AddSnapshot(&Snapshot{Offset: 0,
+		Timestamp: tt,
+		Orders: []SnapshotOrder{
+			{
+				Order: &gctorder.Detail{
+					Price: 1337,
+				},
+				ClosePrice: decimal.NewFromInt(1337),
+			},
 		},
-	}, tt, 1, false)
+	}, false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -69,22 +89,19 @@ func TestGetLatestSnapshot(t *testing.T) {
 		t.Error("expected blank snapshot")
 	}
 	tt := time.Now()
-	err := m.AddSnapshot([]SnapshotOrder{
-		{
-			ClosePrice: decimal.NewFromInt(1337),
-		},
-	}, tt, 1, false)
+	err := m.AddSnapshot(&Snapshot{
+		Offset:    0,
+		Timestamp: tt,
+		Orders:    nil,
+	}, false)
 	if err != nil {
 		t.Error(err)
 	}
-	err = m.AddSnapshot([]SnapshotOrder{
-		{
-			ClosePrice: decimal.NewFromInt(1337),
-		},
-	}, tt.Add(time.Hour), 1, false)
-	if err != nil {
-		t.Error(err)
-	}
+	err = m.AddSnapshot(&Snapshot{
+		Offset:    1,
+		Timestamp: tt.Add(time.Hour),
+		Orders:    nil,
+	}, false)
 	snappySnap = m.GetLatestSnapshot()
 	if snappySnap.Timestamp.Equal(tt) {
 		t.Errorf("expected %v", tt.Add(time.Hour))

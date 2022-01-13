@@ -32,6 +32,6 @@ type Risk struct {
 // CurrencySettings contains relevant limits to assess risk
 type CurrencySettings struct {
 	MaximumOrdersWithLeverageRatio decimal.Decimal
-	MaxLeverageRate                float64
+	MaxLeverageRate                decimal.Decimal
 	MaximumHoldingRatio            decimal.Decimal
 }
