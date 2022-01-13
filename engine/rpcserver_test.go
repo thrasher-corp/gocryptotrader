@@ -2049,6 +2049,12 @@ func TestGetFuturesPositions(t *testing.T) {
 		Available:    currency.Pairs{cp},
 		Enabled:      currency.Pairs{cp},
 	}
+	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
+		AssetEnabled: convert.BoolPtr(true),
+		ConfigFormat: &currency.PairFormat{},
+		Available:    currency.Pairs{cp},
+		Enabled:      currency.Pairs{cp},
+	}
 	fakeExchange := fExchange{
 		IBotExchange: exch,
 	}
@@ -2079,8 +2085,8 @@ func TestGetFuturesPositions(t *testing.T) {
 		},
 		Verbose: true,
 	})
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
 	if r == nil {
 		t.Fatal("expected not nil response")
@@ -2090,6 +2096,20 @@ func TestGetFuturesPositions(t *testing.T) {
 	}
 	if r.TotalOrders != 1 {
 		t.Fatal("expected 1 order")
+	}
+
+	_, err = s.GetFuturesPositions(context.Background(), &gctrpc.GetFuturesPositionsRequest{
+		Exchange: fakeExchangeName,
+		Asset:    asset.Spot.String(),
+		Pair: &gctrpc.CurrencyPair{
+			Delimiter: currency.DashDelimiter,
+			Base:      cp.Base.String(),
+			Quote:     cp.Quote.String(),
+		},
+		Verbose: true,
+	})
+	if !errors.Is(err, order.ErrNotFuturesAsset) {
+		t.Errorf("received '%v', expected '%v'", err, order.ErrNotFuturesAsset)
 	}
 }
 
@@ -2111,6 +2131,12 @@ func TestGetCollateral(t *testing.T) {
 
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Futures] = &currency.PairStore{
+		AssetEnabled: convert.BoolPtr(true),
+		ConfigFormat: &currency.PairFormat{},
+		Available:    currency.Pairs{cp},
+		Enabled:      currency.Pairs{cp},
+	}
+	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
 		AssetEnabled: convert.BoolPtr(true),
 		ConfigFormat: &currency.PairFormat{},
 		Available:    currency.Pairs{cp},
@@ -2154,5 +2180,15 @@ func TestGetCollateral(t *testing.T) {
 	}
 	if r.TotalCollateral != "1337" {
 		t.Error("expected 1337")
+	}
+
+	_, err = s.GetCollateral(context.Background(), &gctrpc.GetCollateralRequest{
+		Exchange:         fakeExchangeName,
+		Asset:            asset.Spot.String(),
+		IncludeBreakdown: true,
+		SubAccount:       "1337",
+	})
+	if !errors.Is(err, order.ErrNotFuturesAsset) {
+		t.Errorf("received '%v', expected '%v'", err, order.ErrNotFuturesAsset)
 	}
 }

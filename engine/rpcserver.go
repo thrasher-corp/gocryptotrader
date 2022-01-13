@@ -4125,6 +4125,9 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 	if err != nil {
 		return nil, err
 	}
+	if !a.IsFutures() {
+		return nil, fmt.Errorf("%s %w", a, order.ErrNotFuturesAsset)
+	}
 	var start, end time.Time
 	if r.StartDate != "" {
 		start, err = time.Parse(common.SimpleTimeFormat, r.StartDate)
@@ -4168,7 +4171,10 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 	if err != nil {
 		return nil, err
 	}
-	response := &gctrpc.GetFuturesPositionsResponse{}
+	b := exch.GetBase()
+	response := &gctrpc.GetFuturesPositionsResponse{
+		SubAccount: b.API.Credentials.Subaccount,
+	}
 	var totalRealisedPNL, totalUnrealisedPNL decimal.Decimal
 	for i := range pos {
 		if r.PositionLimit > 0 && len(response.Positions) >= int(r.PositionLimit) {
@@ -4264,11 +4270,13 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 	if err != nil {
 		return nil, err
 	}
+	if !a.IsFutures() {
+		return nil, fmt.Errorf("%s %w", a, order.ErrNotFuturesAsset)
+	}
 	ai, err := exch.FetchAccountInfo(ctx, a)
 	if err != nil {
 		return nil, err
 	}
-
 	var calculators []order.CollateralCalculator
 	var acc account.SubAccount
 	if r.SubAccount != "" {
@@ -4282,15 +4290,25 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 		acc = ai.Accounts[0]
 	}
 	for i := range acc.Currencies {
-		if acc.Currencies[i].TotalValue == 0 {
-			continue
-		}
-		calculators = append(calculators, order.CollateralCalculator{
+		cal := order.CollateralCalculator{
 			CalculateOffline:   r.CalculateOffline,
 			CollateralCurrency: acc.Currencies[i].CurrencyName,
 			Asset:              a,
 			CollateralAmount:   decimal.NewFromFloat(acc.Currencies[i].TotalValue),
-		})
+		}
+		if r.CalculateOffline && !acc.Currencies[i].CurrencyName.Match(currency.USD) {
+			var tick *ticker.Price
+			tick, err = exch.FetchTicker(ctx, currency.NewPair(acc.Currencies[i].CurrencyName, currency.USD), asset.Spot)
+			if err != nil {
+				log.Errorf(log.GRPCSys, fmt.Sprintf("GetCollateral offline calculation via FetchTicker %s %s", exch.GetName(), err))
+				continue
+			}
+			if tick.Last == 0 {
+				continue
+			}
+			cal.USDPrice = decimal.NewFromFloat(tick.Last)
+		}
+		calculators = append(calculators, cal)
 	}
 
 	collateral, err := exch.CalculateTotalCollateral(ctx, calculators)
@@ -4298,16 +4316,22 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 		return nil, err
 	}
 
+	b := exch.GetBase()
 	result := &gctrpc.GetCollateralResponse{
+		SubAccount:      b.API.Credentials.Subaccount,
 		TotalCollateral: collateral.TotalCollateral.String(),
 	}
 	if r.IncludeBreakdown {
 		for i := range collateral.BreakdownByCurrency {
-			result.CurrencyBreakdown = append(result.CurrencyBreakdown, &gctrpc.CollateralForCurrency{
+			cb := &gctrpc.CollateralForCurrency{
 				Currency:         collateral.BreakdownByCurrency[i].Currency.String(),
 				ScaledCollateral: collateral.BreakdownByCurrency[i].Amount.String(),
 				ScaledToCurrency: collateral.BreakdownByCurrency[i].ValueCurrency.String(),
-			})
+			}
+			if collateral.BreakdownByCurrency[i].Error != nil {
+				cb.Error = collateral.BreakdownByCurrency[i].Error.Error()
+			}
+			result.CurrencyBreakdown = append(result.CurrencyBreakdown, cb)
 		}
 	}
 	return result, nil

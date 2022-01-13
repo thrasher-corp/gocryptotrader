@@ -40,6 +40,7 @@ const (
 	getHistoricalData    = "/markets/%s/candles"
 	getFutures           = "/futures"
 	getFuture            = "/futures/"
+	getExpiredFutures    = "/expired_futures"
 	getFutureStats       = "/futures/%s/stats"
 	getFundingRates      = "/funding_rates"
 	getIndexWeights      = "/indexes/%s/weights"
@@ -307,6 +308,36 @@ func (f *FTX) GetFutureStats(ctx context.Context, futureName string) (FutureStat
 		Data FutureStatsData `json:"result"`
 	}{}
 	return resp.Data, f.SendHTTPRequest(ctx, exchange.RestSpot, fmt.Sprintf(getFutureStats, futureName), &resp)
+}
+
+// GetExpiredFuture returns information on an expired futures contract
+func (f *FTX) GetExpiredFuture(ctx context.Context, pair currency.Pair) (FuturesData, error) {
+	resp := struct {
+		Data []FuturesData `json:"result"`
+	}{}
+
+	p, err := f.FormatSymbol(pair, asset.Futures)
+	if err != nil {
+		return FuturesData{}, err
+	}
+	err = f.SendHTTPRequest(ctx, exchange.RestSpot, getExpiredFutures, &resp)
+	if err != nil {
+		return FuturesData{}, err
+	}
+	for i := range resp.Data {
+		if resp.Data[i].Name == p {
+			return resp.Data[i], nil
+		}
+	}
+	return FuturesData{}, fmt.Errorf("%s %s %w", f.Name, p, currency.ErrPairNotFound)
+}
+
+// GetExpiredFutures returns information on expired futures contracts
+func (f *FTX) GetExpiredFutures(ctx context.Context) ([]FuturesData, error) {
+	resp := struct {
+		Data []FuturesData `json:"result"`
+	}{}
+	return resp.Data, f.SendHTTPRequest(ctx, exchange.RestSpot, getExpiredFutures, &resp)
 }
 
 // GetFundingRates gets data on funding rates

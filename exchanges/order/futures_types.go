@@ -28,6 +28,8 @@ var (
 	ErrPositionLiquidated = errors.New("position liquidated")
 	// ErrNotFuturesAsset returned when futures data is requested on a non-futures asset
 	ErrNotFuturesAsset = errors.New("asset type is not futures")
+	// ErrUSDValueRequired returned when usd value unset
+	ErrUSDValueRequired = errors.New("USD value required")
 
 	errExchangeNameEmpty              = errors.New("exchange name empty")
 	errTimeUnset                      = errors.New("time unset")
@@ -70,6 +72,7 @@ type CollateralByCurrency struct {
 	Currency      currency.Code
 	Amount        decimal.Decimal
 	ValueCurrency currency.Code
+	Error         error
 }
 
 // PositionController manages all futures orders

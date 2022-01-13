@@ -1328,6 +1328,9 @@ func (f *FTX) ScaleCollateral(ctx context.Context, calc *order.CollateralCalcula
 			// FTX bases scales all collateral into USD amounts
 			return calc.CollateralAmount, nil
 		}
+		if calc.USDPrice.IsZero() {
+			return decimal.Zero, fmt.Errorf("%s %s %w to scale collateral", f.Name, calc.CollateralCurrency, order.ErrUSDValueRequired)
+		}
 		collateralWeight, ok := f.collateralWeight[calc.CollateralCurrency.Upper().String()]
 		if !ok {
 			return decimal.Zero, fmt.Errorf("%s %s %w", f.Name, calc.CollateralCurrency, errCollateralCurrencyNotFound)
@@ -1377,19 +1380,24 @@ func (f *FTX) ScaleCollateral(ctx context.Context, calc *order.CollateralCalcula
 func (f *FTX) CalculateTotalCollateral(ctx context.Context, collateralAssets []order.CollateralCalculator) (*order.TotalCollateralResponse, error) {
 	var result order.TotalCollateralResponse
 	for i := range collateralAssets {
+		curr := order.CollateralByCurrency{
+			Currency: collateralAssets[i].CollateralCurrency,
+		}
 		collateral, err := f.ScaleCollateral(ctx, &collateralAssets[i])
 		if err != nil {
 			if errors.Is(err, errCollateralCurrencyNotFound) {
 				log.Error(log.ExchangeSys, err)
 				continue
 			}
+			if errors.Is(err, order.ErrUSDValueRequired) {
+				curr.Error = err
+				result.BreakdownByCurrency = append(result.BreakdownByCurrency, curr)
+				continue
+			}
 			return nil, err
 		}
 		result.TotalCollateral = result.TotalCollateral.Add(collateral)
-		curr := order.CollateralByCurrency{
-			Currency: collateralAssets[i].CollateralCurrency,
-			Amount:   collateral,
-		}
+		curr.Amount = collateral
 		if !collateralAssets[i].CollateralCurrency.Match(currency.USD) {
 			curr.ValueCurrency = currency.USD
 		}

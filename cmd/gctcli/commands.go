@@ -4941,7 +4941,7 @@ var getCollateralCommand = &cli.Command{
 		&cli.BoolFlag{
 			Name:    "calculateoffline",
 			Aliases: []string{"c"},
-			Usage:   "use local scaling methods instead of requesting additional API information, depending on individual exchange support",
+			Usage:   "use local scaling calculations instead of requesting the collateral values directly, depending on individual exchange support",
 		},
 		&cli.BoolFlag{
 			Name:    "includebreakdown",

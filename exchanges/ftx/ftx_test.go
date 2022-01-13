@@ -1774,7 +1774,8 @@ func TestScaleCollateral(t *testing.T) {
 				CalculateOffline:   true,
 			})
 			if err != nil {
-				if errors.Is(err, errCollateralCurrencyNotFound) {
+				if errors.Is(err, errCollateralCurrencyNotFound) ||
+					errors.Is(err, order.ErrUSDValueRequired) {
 					continue
 				}
 				t.Error(err)
@@ -1795,6 +1796,19 @@ func TestScaleCollateral(t *testing.T) {
 				t.Error(err)
 			}
 			liquidationScaling += scaled.InexactFloat64()
+
+			_, err = f.ScaleCollateral(context.Background(), &order.CollateralCalculator{
+				CollateralCurrency: currency.NewCode(coin),
+				Asset:              asset.Spot,
+				Side:               order.Buy,
+				CollateralAmount:   decimal.NewFromFloat(v[v2].Total),
+				USDPrice:           decimal.Zero,
+				IsLiquidating:      true,
+				CalculateOffline:   true,
+			})
+			if !errors.Is(err, order.ErrUSDValueRequired) {
+				t.Errorf("received '%v' exepected '%v'", err, order.ErrUSDValueRequired)
+			}
 
 			_, err = f.ScaleCollateral(context.Background(), &order.CollateralCalculator{
 				CollateralCurrency: currency.NewCode(coin),
@@ -2015,5 +2029,21 @@ func TestCollateralWeightHasData(t *testing.T) {
 	c.load("test", 1, 2, 3)
 	if !c.hasData() {
 		t.Error("expected true")
+	}
+}
+
+func TestGetExpiredFutures(t *testing.T) {
+	t.Parallel()
+	_, err := f.GetExpiredFutures(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetExpiredFuture(t *testing.T) {
+	t.Parallel()
+	_, err := f.GetExpiredFuture(context.Background(), currency.NewPairWithDelimiter("BTC", "1231", "-"))
+	if err != nil {
+		t.Error(err)
 	}
 }

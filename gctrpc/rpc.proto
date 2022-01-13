@@ -1037,10 +1037,11 @@ message GetFuturesPositionsRequest {
 
 message GetFuturesPositionsResponse {
     int64 totalOrders = 1;
-    string totalRealisedPNL = 2;
-    string totalUnrealisedPNL = 3;
-    string totalPNL = 4;
-    repeated FuturePosition positions = 5;
+    string subAccount = 2;
+    string totalRealisedPNL = 3;
+    string totalUnrealisedPNL = 4;
+    string totalPNL = 5;
+    repeated FuturePosition positions = 6;
 }
 
 message FuturePosition {
@@ -1062,14 +1063,16 @@ message GetCollateralRequest {
 }
 
 message GetCollateralResponse {
-    string totalCollateral = 1;
-    repeated CollateralForCurrency currencyBreakdown = 2;
+    string subAccount = 1;
+    string totalCollateral = 2;
+    repeated CollateralForCurrency currencyBreakdown = 3;
 }
 
 message CollateralForCurrency {
     string currency = 1;
     string scaledCollateral = 2;
     string scaledToCurrency = 3;
+    string error = 4;
 }
 
 
