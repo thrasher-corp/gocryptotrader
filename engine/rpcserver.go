@@ -4316,9 +4316,8 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 		return nil, err
 	}
 
-	b := exch.GetBase()
 	result := &gctrpc.GetCollateralResponse{
-		SubAccount:      b.API.Credentials.Subaccount,
+		SubAccount:      r.SubAccount,
 		TotalCollateral: collateral.TotalCollateral.String(),
 	}
 	if r.IncludeBreakdown {
