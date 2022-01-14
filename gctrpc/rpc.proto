@@ -1060,6 +1060,7 @@ message GetCollateralRequest {
     string subAccount = 3;
     bool includeBreakdown = 4;
     bool calculateOffline = 5;
+    bool includeZeroValues = 6;
 }
 
 message GetCollateralResponse {

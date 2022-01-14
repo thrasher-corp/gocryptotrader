@@ -450,7 +450,7 @@ func (f *FTX) UpdateAccountInfo(ctx context.Context, a asset.Item) (account.Hold
 
 	var data AllWalletBalances
 	if f.API.Credentials.Subaccount != "" {
-		balances, err := f.GetBalances(ctx)
+		balances, err := f.GetBalances(ctx, "")
 		if err != nil {
 			return resp, err
 		}
@@ -1251,7 +1251,7 @@ func (f *FTX) UpdateOrderExecutionLimits(ctx context.Context, _ asset.Item) erro
 // GetAvailableTransferChains returns the available transfer blockchains for the specific
 // cryptocurrency
 func (f *FTX) GetAvailableTransferChains(ctx context.Context, cryptocurrency currency.Code) ([]string, error) {
-	coins, err := f.GetCoins(ctx)
+	coins, err := f.GetCoins(ctx, "")
 	if err != nil {
 		return nil, err
 	}
@@ -1286,7 +1286,7 @@ func (f *FTX) CalculatePNL(ctx context.Context, pnl *order.PNLCalculatorRequest)
 	}
 
 	ep := pnl.EntryPrice.InexactFloat64()
-	info, err := f.GetAccountInfo(ctx)
+	info, err := f.GetAccountInfo(ctx, "")
 	if err != nil {
 		return nil, err
 	}
@@ -1321,7 +1321,7 @@ func (f *FTX) CalculatePNL(ctx context.Context, pnl *order.PNLCalculatorRequest)
 }
 
 // ScaleCollateral takes your totals and scales them according to FTX's rules
-func (f *FTX) ScaleCollateral(ctx context.Context, calc *order.CollateralCalculator) (decimal.Decimal, error) {
+func (f *FTX) ScaleCollateral(ctx context.Context, subAccount string, calc *order.CollateralCalculator) (decimal.Decimal, error) {
 	var result decimal.Decimal
 	if calc.CalculateOffline {
 		if calc.CollateralCurrency.Match(currency.USD) {
@@ -1352,11 +1352,11 @@ func (f *FTX) ScaleCollateral(ctx context.Context, calc *order.CollateralCalcula
 		}
 		return result, nil
 	}
-	wallet, err := f.GetCoins(ctx)
+	wallet, err := f.GetCoins(ctx, subAccount)
 	if err != nil {
 		return decimal.Zero, fmt.Errorf("%s %s %w", f.Name, calc.CollateralCurrency, err)
 	}
-	balances, err := f.GetBalances(ctx)
+	balances, err := f.GetBalances(ctx, subAccount)
 	if err != nil {
 		return decimal.Zero, fmt.Errorf("%s %s %w", f.Name, calc.CollateralCurrency, err)
 	}
@@ -1377,13 +1377,46 @@ func (f *FTX) ScaleCollateral(ctx context.Context, calc *order.CollateralCalcula
 }
 
 // CalculateTotalCollateral scales collateral and determines how much collateral you can use for positions
-func (f *FTX) CalculateTotalCollateral(ctx context.Context, collateralAssets []order.CollateralCalculator) (*order.TotalCollateralResponse, error) {
+func (f *FTX) CalculateTotalCollateral(ctx context.Context, subAccount string, calculateOffline bool, collateralAssets []order.CollateralCalculator) (*order.TotalCollateralResponse, error) {
 	var result order.TotalCollateralResponse
+	if !calculateOffline {
+		wallet, err := f.GetCoins(ctx, subAccount)
+		if err != nil {
+			return nil, fmt.Errorf("%s %w", f.Name, err)
+		}
+		balances, err := f.GetBalances(ctx, subAccount)
+		if err != nil {
+			return nil, fmt.Errorf("%s %w", f.Name, err)
+		}
+		for x := range collateralAssets {
+		wallets:
+			for y := range wallet {
+				if !currency.NewCode(wallet[y].ID).Match(collateralAssets[x].CollateralCurrency) {
+					continue
+				}
+				for z := range balances {
+					if !currency.NewCode(balances[z].Coin).Match(collateralAssets[x].CollateralCurrency) {
+						continue
+					}
+					scaled := wallet[y].CollateralWeight * balances[z].USDValue
+					dScaled := decimal.NewFromFloat(scaled)
+					result.TotalCollateral = result.TotalCollateral.Add(dScaled)
+					result.BreakdownByCurrency = append(result.BreakdownByCurrency, order.CollateralByCurrency{
+						Currency:      collateralAssets[x].CollateralCurrency,
+						Amount:        dScaled,
+						ValueCurrency: currency.USD,
+					})
+					break wallets
+				}
+			}
+		}
+		return &result, nil
+	}
 	for i := range collateralAssets {
 		curr := order.CollateralByCurrency{
 			Currency: collateralAssets[i].CollateralCurrency,
 		}
-		collateral, err := f.ScaleCollateral(ctx, &collateralAssets[i])
+		collateral, err := f.ScaleCollateral(ctx, subAccount, &collateralAssets[i])
 		if err != nil {
 			if errors.Is(err, errCollateralCurrencyNotFound) {
 				log.Error(log.ExchangeSys, err)

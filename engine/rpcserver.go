@@ -4315,7 +4315,7 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 		calculators = append(calculators, cal)
 	}
 
-	collateral, err := exch.CalculateTotalCollateral(ctx, calculators)
+	collateral, err := exch.CalculateTotalCollateral(ctx, r.SubAccount, r.CalculateOffline, calculators)
 	if err != nil {
 		return nil, err
 	}
@@ -4331,6 +4331,9 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 	}
 	if r.IncludeBreakdown {
 		for i := range collateral.BreakdownByCurrency {
+			if collateral.BreakdownByCurrency[i].Amount.IsZero() && !r.IncludeZeroValues {
+				continue
+			}
 			cb := &gctrpc.CollateralForCurrency{
 				Currency:         collateral.BreakdownByCurrency[i].Currency.String(),
 				ScaledCollateral: collateral.BreakdownByCurrency[i].Amount.String(),

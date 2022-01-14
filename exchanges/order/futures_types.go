@@ -54,8 +54,8 @@ type PNLCalculation interface {
 // multiple ways of calculating the size of collateral
 // on an exchange
 type CollateralManagement interface {
-	ScaleCollateral(context.Context, *CollateralCalculator) (decimal.Decimal, error)
-	CalculateTotalCollateral(context.Context, []CollateralCalculator) (*TotalCollateralResponse, error)
+	ScaleCollateral(context.Context, string, *CollateralCalculator) (decimal.Decimal, error)
+	CalculateTotalCollateral(ctx context.Context, subAccount string, calculateOffline bool, collaterals []CollateralCalculator) (*TotalCollateralResponse, error)
 }
 
 // TotalCollateralResponse holds all collateral

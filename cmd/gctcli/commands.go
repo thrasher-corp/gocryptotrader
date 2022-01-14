@@ -4948,6 +4948,11 @@ var getCollateralCommand = &cli.Command{
 			Aliases: []string{"i"},
 			Usage:   "include a list of each helds currency and its contribution to the overall collateral value",
 		},
+		&cli.BoolFlag{
+			Name:    "includezerovalues",
+			Aliases: []string{"z"},
+			Usage:   "include collateral values that are zero",
+		},
 		&cli.StringFlag{
 			Name:    "subaccount",
 			Aliases: []string{"s"},
@@ -5007,6 +5012,16 @@ func getCollateral(c *cli.Context) error {
 		subAccount = c.Args().Get(4)
 	}
 
+	var includeZeroValues bool
+	if c.IsSet("includezerovalues") {
+		includeZeroValues = c.Bool("includezerovalues")
+	} else if c.Args().Get(5) != "" {
+		includeZeroValues, err = strconv.ParseBool(c.Args().Get(5))
+		if err != nil {
+			return err
+		}
+	}
+
 	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
@@ -5016,11 +5031,12 @@ func getCollateral(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.GetCollateral(c.Context,
 		&gctrpc.GetCollateralRequest{
-			Exchange:         exchangeName,
-			Asset:            assetType,
-			SubAccount:       subAccount,
-			IncludeBreakdown: includeBreakdown,
-			CalculateOffline: calculateOffline,
+			Exchange:          exchangeName,
+			Asset:             assetType,
+			SubAccount:        subAccount,
+			IncludeBreakdown:  includeBreakdown,
+			CalculateOffline:  calculateOffline,
+			IncludeZeroValues: includeZeroValues,
 		})
 	if err != nil {
 		return err

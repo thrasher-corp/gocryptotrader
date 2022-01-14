@@ -1469,13 +1469,13 @@ func (b *Base) CalculatePNL(context.Context, *order.PNLCalculatorRequest) (*orde
 
 // ScaleCollateral is an overridable function to determine how much
 // collateral is usable in futures positions
-func (b *Base) ScaleCollateral(context.Context, *order.CollateralCalculator) (decimal.Decimal, error) {
+func (b *Base) ScaleCollateral(context.Context, string, *order.CollateralCalculator) (decimal.Decimal, error) {
 	return decimal.Zero, common.ErrNotYetImplemented
 }
 
 // CalculateTotalCollateral takes in n collateral calculators to determine an overall
 // standing in a singular currency. See FTX's implementation
-func (b *Base) CalculateTotalCollateral(context.Context, []order.CollateralCalculator) (*order.TotalCollateralResponse, error) {
+func (b *Base) CalculateTotalCollateral(ctx context.Context, subAccount string, calculateOffline bool, calculators []order.CollateralCalculator) (*order.TotalCollateralResponse, error) {
 	return nil, common.ErrNotYetImplemented
 }
 

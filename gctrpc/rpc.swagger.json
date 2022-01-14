@@ -1206,6 +1206,12 @@
             "in": "query",
             "required": false,
             "type": "boolean"
+          },
+          {
+            "name": "includeZeroValues",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
           }
         ],
         "tags": [
