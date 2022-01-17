@@ -4280,18 +4280,25 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 	}
 	var calculators []order.CollateralCalculator
 	var acc *account.SubAccount
-	if r.SubAccount != "" {
-		for i := range ai.Accounts {
-			if strings.EqualFold(r.SubAccount, ai.Accounts[i].ID) {
-				acc = &ai.Accounts[i]
-				break
-			}
+	var subAccounts []string
+	subAccount := r.SubAccount
+	if subAccount == "" {
+		b := exch.GetBase()
+		subAccount = b.API.Credentials.Subaccount
+	}
+	for i := range ai.Accounts {
+		subAccounts = append(subAccounts, ai.Accounts[i].ID)
+		if ai.Accounts[i].ID == "main" && subAccount == "" {
+			acc = &ai.Accounts[i]
+			break
 		}
-	} else if len(ai.Accounts) > 0 {
-		acc = &ai.Accounts[0]
+		if strings.EqualFold(subAccount, ai.Accounts[i].ID) {
+			acc = &ai.Accounts[i]
+			break
+		}
 	}
 	if acc == nil {
-		return nil, fmt.Errorf("%w for %s %s and stored credentials", errNoAccountInformation, exch.GetName(), r.SubAccount)
+		return nil, fmt.Errorf("%w for %s %s and stored credentials - available subaccounts: %s", errNoAccountInformation, exch.GetName(), r.SubAccount, strings.Join(subAccounts, ","))
 	}
 	for i := range acc.Currencies {
 		cal := order.CollateralCalculator{
@@ -4318,11 +4325,6 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 	collateral, err := exch.CalculateTotalCollateral(ctx, r.SubAccount, r.CalculateOffline, calculators)
 	if err != nil {
 		return nil, err
-	}
-	subAccount := r.SubAccount
-	if subAccount == "" {
-		b := exch.GetBase()
-		subAccount = b.API.Credentials.Subaccount
 	}
 
 	result := &gctrpc.GetCollateralResponse{

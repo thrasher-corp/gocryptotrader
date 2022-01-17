@@ -4925,7 +4925,7 @@ func getFuturesPositions(c *cli.Context) error {
 var getCollateralCommand = &cli.Command{
 	Name:      "getcollateral",
 	Usage:     "returns total collateral for an exchange asset, with optional per currency breakdown",
-	ArgsUsage: "<exchange> <asset> <calculateoffline> <includebreakdown> <subaccount>",
+	ArgsUsage: "<exchange> <asset> <calculateoffline> <includebreakdown> <includezerovalues> <subaccount>",
 	Action:    getCollateral,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
@@ -4946,7 +4946,7 @@ var getCollateralCommand = &cli.Command{
 		&cli.BoolFlag{
 			Name:    "includebreakdown",
 			Aliases: []string{"i"},
-			Usage:   "include a list of each helds currency and its contribution to the overall collateral value",
+			Usage:   "include a list of each held currency and its contribution to the overall collateral value",
 		},
 		&cli.BoolFlag{
 			Name:    "includezerovalues",
@@ -4956,7 +4956,7 @@ var getCollateralCommand = &cli.Command{
 		&cli.StringFlag{
 			Name:    "subaccount",
 			Aliases: []string{"s"},
-			Usage:   "the subaccount to retreieve collateral data from, depending on individual exchange support",
+			Usage:   "the subaccount to retrieve collateral data from, depending on individual exchange support",
 		},
 	},
 }
