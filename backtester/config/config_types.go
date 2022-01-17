@@ -97,14 +97,14 @@ type PortfolioSettings struct {
 // Leverage rules are used to allow or limit the use of leverage in orders
 // when supported
 type Leverage struct {
-	CanUseLeverage                 bool    `json:"can-use-leverage"`
-	MaximumOrdersWithLeverageRatio float64 `json:"maximum-orders-with-leverage-ratio"`
+	CanUseLeverage                 bool            `json:"can-use-leverage"`
+	MaximumOrdersWithLeverageRatio decimal.Decimal `json:"maximum-orders-with-leverage-ratio"`
 	// this means you can place an order with higher leverage rate. eg have $100 in collateral,
 	// but place an order for $200 using 2x leverage
-	MaximumOrderLeverageRate float64 `json:"maximum-leverage-rate"`
+	MaximumOrderLeverageRate decimal.Decimal `json:"maximum-leverage-rate"`
 	// this means you can place orders at `1x leverage, but utilise collateral as leverage to place more.
 	// eg if this is 2x, and collateral is $100 I can place two long/shorts of $100
-	MaximumCollateralLeverageRate float64 `json:"maximum-collateral-leverage-rate"`
+	MaximumCollateralLeverageRate decimal.Decimal `json:"maximum-collateral-leverage-rate"`
 }
 
 // MinMax are the rules which limit the placement of orders.

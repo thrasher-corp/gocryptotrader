@@ -738,11 +738,11 @@ func TestCalculateTheResults(t *testing.T) {
 	s.ExchangeAssetPairStatistics[exch][a][p2].Events[1].Holdings.TotalValue = eleeet
 
 	funds := funding.SetupFundingManager(false, false)
-	pBase, err := funding.CreateItem(exch, a, p.Base, eleeet, decimal.Zero)
+	pBase, err := funding.CreateItem(exch, a, p.Base, eleeet, decimal.Zero, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	pQuote, err := funding.CreateItem(exch, a, p.Quote, eleeet, decimal.Zero)
+	pQuote, err := funding.CreateItem(exch, a, p.Quote, eleeet, decimal.Zero, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -755,11 +755,11 @@ func TestCalculateTheResults(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	pBase2, err := funding.CreateItem(exch, a, p2.Base, eleeet, decimal.Zero)
+	pBase2, err := funding.CreateItem(exch, a, p2.Base, eleeet, decimal.Zero, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	pQuote2, err := funding.CreateItem(exch, a, p2.Quote, eleeet, decimal.Zero)
+	pQuote2, err := funding.CreateItem(exch, a, p2.Quote, eleeet, decimal.Zero, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}

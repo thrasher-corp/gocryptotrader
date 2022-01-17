@@ -31,10 +31,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	gctexchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ftx"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
-const testExchange = "Bitstamp"
+const testExchange = "ftx"
 
 var leet *decimal.Decimal
 
@@ -472,16 +473,18 @@ func TestFullCycle(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = port.SetupCurrencySettingsMap(&exchange.Settings{Exchange: ex, Asset: a, Pair: cp})
+	fx := &ftx.FTX{}
+	fx.SetDefaults()
+	err = port.SetupCurrencySettingsMap(&exchange.Settings{Exchange: fx, Asset: a, Pair: cp})
 	if err != nil {
 		t.Error(err)
 	}
 	f := funding.SetupFundingManager(false, true)
-	b, err := funding.CreateItem(ex, a, cp.Base, decimal.Zero, decimal.Zero)
+	b, err := funding.CreateItem(ex, a, cp.Base, decimal.Zero, decimal.Zero, false)
 	if err != nil {
 		t.Error(err)
 	}
-	quote, err := funding.CreateItem(ex, a, cp.Quote, decimal.NewFromInt(1337), decimal.Zero)
+	quote, err := funding.CreateItem(ex, a, cp.Quote, decimal.NewFromInt(1337), decimal.Zero, false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -577,16 +580,16 @@ func TestFullCycleMulti(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = port.SetupCurrencySettingsMap(&exchange.Settings{Exchange: ex, Asset: a, Pair: cp})
+	err = port.SetupCurrencySettingsMap(&exchange.Settings{Exchange: &ftx.FTX{}, Asset: a, Pair: cp})
 	if err != nil {
 		t.Error(err)
 	}
 	f := funding.SetupFundingManager(false, true)
-	b, err := funding.CreateItem(ex, a, cp.Base, decimal.Zero, decimal.Zero)
+	b, err := funding.CreateItem(ex, a, cp.Base, decimal.Zero, decimal.Zero, false)
 	if err != nil {
 		t.Error(err)
 	}
-	quote, err := funding.CreateItem(ex, a, cp.Quote, decimal.NewFromInt(1337), decimal.Zero)
+	quote, err := funding.CreateItem(ex, a, cp.Quote, decimal.NewFromInt(1337), decimal.Zero, false)
 	if err != nil {
 		t.Error(err)
 	}

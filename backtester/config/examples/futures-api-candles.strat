@@ -26,9 +26,9 @@
    "futures-details": {
     "leverage": {
      "can-use-leverage": true,
-     "maximum-orders-with-leverage-ratio": 0,
-     "maximum-leverage-rate": 1,
-     "maximum-collateral-leverage-rate": 0
+     "maximum-orders-with-leverage-ratio": "0",
+     "maximum-leverage-rate": "0.001",
+     "maximum-collateral-leverage-rate": "0"
     },
     "collateral-currency": "USDT"
    },
@@ -64,9 +64,9 @@
  "portfolio-settings": {
   "leverage": {
    "can-use-leverage": true,
-   "maximum-orders-with-leverage-ratio": 0,
-   "maximum-leverage-rate": 0,
-   "maximum-collateral-leverage-rate": 0
+   "maximum-orders-with-leverage-ratio": "0",
+   "maximum-leverage-rate": "0",
+   "maximum-collateral-leverage-rate": "0"
   },
   "buy-side": {
    "minimum-size": "0.005",

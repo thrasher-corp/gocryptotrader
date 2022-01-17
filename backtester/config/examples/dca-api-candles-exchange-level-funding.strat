@@ -7,7 +7,7 @@
   "use-exchange-level-funding": true,
   "exchange-level-funding": [
    {
-    "exchange-name": "binance",
+    "exchange-name": "ftx",
     "asset": "spot",
     "currency": "USDT",
     "initial-funds": "100000",
@@ -19,7 +19,7 @@
  },
  "currency-settings": [
   {
-   "exchange-name": "binance",
+   "exchange-name": "ftx",
    "asset": "spot",
    "base": "BTC",
    "quote": "USDT",
@@ -43,7 +43,7 @@
    "use-exchange-pnl-calculation": false
   },
   {
-   "exchange-name": "binance",
+   "exchange-name": "ftx",
    "asset": "spot",
    "base": "ETH",
    "quote": "USDT",
@@ -79,9 +79,9 @@
  "portfolio-settings": {
   "leverage": {
    "can-use-leverage": false,
-   "maximum-orders-with-leverage-ratio": 0,
-   "maximum-leverage-rate": 0,
-   "maximum-collateral-leverage-rate": 0
+   "maximum-orders-with-leverage-ratio": "0",
+   "maximum-leverage-rate": "0",
+   "maximum-collateral-leverage-rate": "0"
   },
   "buy-side": {
    "minimum-size": "0.005",

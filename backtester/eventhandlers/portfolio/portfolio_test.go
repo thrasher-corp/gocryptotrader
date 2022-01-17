@@ -2,6 +2,7 @@ package portfolio
 
 import (
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -684,24 +685,19 @@ func TestGetLatestSnapshot(t *testing.T) {
 }
 
 func TestCalculatePNL(t *testing.T) {
-	p := &Portfolio{
-		riskFreeRate:              decimal.Decimal{},
-		sizeManager:               nil,
-		riskManager:               nil,
-		exchangeAssetPairSettings: nil,
-	}
-
+	p := &Portfolio{}
 	ev := &kline.Kline{}
 	err := p.CalculatePNL(ev)
-	if !errors.Is(err, errNoPortfolioSettings) {
-		t.Errorf("received: %v, expected: %v", err, errNoPortfolioSettings)
+	if !errors.Is(err, gctorder.ErrNotFutureAsset) {
+		t.Errorf("received: %v, expected: %v", err, gctorder.ErrNotFutureAsset)
 	}
 
-	exch := "binance"
+	exch := &ftx.FTX{}
+	exch.SetDefaults()
 	a := asset.Futures
 	pair, _ := currency.NewPairFromStrings("BTC", "1231")
 	err = p.SetupCurrencySettingsMap(&exchange.Settings{
-		Exchange:      &ftx.FTX{},
+		Exchange:      exch,
 		UseRealOrders: false,
 		Pair:          pair,
 		Asset:         a,
@@ -709,9 +705,9 @@ func TestCalculatePNL(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
-	tt := time.Now()
+	tt := time.Now().Add(time.Hour)
 	tt0 := time.Now().Add(-time.Hour)
-	ev.Exchange = exch
+	ev.Exchange = exch.Name
 	ev.AssetType = a
 	ev.CurrencyPair = pair
 	ev.Time = tt0
@@ -721,64 +717,60 @@ func TestCalculatePNL(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
-	futuresOrder := &gctorder.PositionTracker{
-		CurrentDirection: gctorder.Short,
-		ShortPositions: &gctorder.Detail{
-			Price:     1336,
-			Amount:    20,
-			Exchange:  exch,
-			Side:      gctorder.Short,
-			AssetType: asset.Futures,
-			Date:      tt0,
-			Pair:      pair,
-		},
+	od := &gctorder.Detail{
+		Price:     1336,
+		Amount:    20,
+		Exchange:  exch.Name,
+		Side:      gctorder.Short,
+		AssetType: a,
+		Date:      tt0,
+		Pair:      pair,
+		ID:        "lol",
 	}
-	s, ok := p.exchangeAssetPairSettings["exch"][asset.Spot][pair]
+
+	s, ok := p.exchangeAssetPairSettings[strings.ToLower(exch.Name)][a][pair]
 	if !ok {
 		t.Fatal("couldn't get settings")
 	}
 	ev.Close = decimal.NewFromInt(1337)
 	err = s.ComplianceManager.AddSnapshot(&compliance.Snapshot{
 		Offset:    0,
-		Timestamp: time.Time{},
-		Orders:    nil,
+		Timestamp: tt0,
+		Orders: []compliance.SnapshotOrder{
+			{
+				Order: od,
+			},
+		},
 	}, false)
-	err = p.CalculatePNL(ev, nil)
+	odCp := od.Copy()
+	odCp.Price = od.Price - 1
+	odCp.Side = gctorder.Long
+	err = s.ComplianceManager.AddSnapshot(&compliance.Snapshot{
+		Offset:    1,
+		Timestamp: tt,
+		Orders: []compliance.SnapshotOrder{
+			{
+				Order: od,
+			},
+			{
+				Order: &odCp,
+			},
+		},
+	}, false)
+	err = p.CalculatePNL(ev)
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
-	if len(futuresOrder.PNLHistory) == 0 {
-		t.Error("expected a pnl entry ( ͡° ͜ʖ ͡°)")
+	pos := s.FuturesTracker.GetPositions()
+	if len(pos) != 1 {
+		t.Fatalf("expected one position, received '%v'", len(pos))
 	}
-
-	if !futuresOrder.UnrealisedPNL.Equal(decimal.NewFromInt(20)) {
+	if len(pos[0].GetStats().PNLHistory) == 0 {
+		t.Fatal("expected a pnl entry ( ͡° ͜ʖ ͡°)")
+	}
+	if !pos[0].GetStats().RealisedPNL.Equal(decimal.NewFromInt(20)) {
 		// 20 orders * $1 difference * 1x leverage
-		t.Error("expected 20")
-	}
-
-	err = s.ComplianceManager.AddSnapshot([]compliance.SnapshotOrder{
-		{
-			ClosePrice: decimal.NewFromInt(1336),
-			Order:      futuresOrder.ShortPositions,
-		},
-	}, tt, 1, false)
-	err = p.CalculatePNL(ev, nil)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
-
-	// coverage of logic
-	futuresOrder.LongPositions = futuresOrder.ShortPositions
-
-	err = s.ComplianceManager.AddSnapshot([]compliance.SnapshotOrder{
-		{
-			ClosePrice:   decimal.NewFromInt(1336),
-			FuturesOrder: futuresOrder,
-		},
-	}, tt.Add(time.Hour), 2, false)
-	err = p.CalculatePNL(ev, nil)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
+		t.Errorf("expected 20, received '%v'", pos[0].GetStats().RealisedPNL)
 	}
 }

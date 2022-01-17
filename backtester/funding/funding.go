@@ -62,7 +62,7 @@ func CreateItem(exch string, a asset.Item, ci currency.Code, initialFunds, trans
 	}
 
 	return &Item{
-		exchange:     exch,
+		exchange:     strings.ToLower(exch),
 		asset:        a,
 		currency:     ci,
 		initialFunds: initialFunds,
@@ -361,16 +361,16 @@ func (f *FundManager) GetFundingForEvent(ev common.EventHandler) (IFundingPair, 
 
 // GetFundingForEAP This will construct a funding based on the exchange, asset, currency pair
 func (f *FundManager) GetFundingForEAP(exch string, a asset.Item, p currency.Pair) (IFundingPair, error) {
+	var resp Pair
+	var collat Collateral
 	for i := range f.items {
 		if a.IsFutures() {
-			var resp Collateral
 			if f.items[i].BasicEqual(exch, a, currency.NewCode(p.String()), currency.USDT) {
-				resp.Contract = f.items[i]
-				resp.Collateral = f.items[i].pairedWith
-				return &resp, nil
+				collat.Contract = f.items[i]
+				collat.Collateral = f.items[i].pairedWith
+				return &collat, nil
 			}
 		} else {
-			var resp Pair
 			if f.items[i].BasicEqual(exch, a, p.Base, p.Quote) {
 				resp.Base = f.items[i]
 				continue

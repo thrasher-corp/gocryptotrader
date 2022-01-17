@@ -1,6 +1,7 @@
 package event
 
 import (
+	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -35,7 +36,7 @@ func (b *Base) Pair() currency.Pair {
 
 // GetExchange returns the exchange
 func (b *Base) GetExchange() string {
-	return b.Exchange
+	return strings.ToLower(b.Exchange)
 }
 
 // GetAssetType returns the asset type

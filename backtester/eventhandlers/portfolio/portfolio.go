@@ -76,6 +76,9 @@ func (p *Portfolio) SetupCurrencySettingsMap(settings *exchange.Settings) error 
 		return nil
 	}
 
+	if !settings.Asset.IsFutures() {
+		return nil
+	}
 	futureTrackerSetup := &gctorder.MultiPositionTrackerSetup{
 		Exchange:                  name,
 		Asset:                     settings.Asset,
@@ -551,7 +554,7 @@ func (e *Settings) GetHoldingsForTime(t time.Time) holdings.Holding {
 // that are not closed and calculate their PNL
 func (p *Portfolio) CalculatePNL(e common.DataEventHandler) error {
 	if !e.GetAssetType().IsFutures() {
-		return nil // or err
+		return fmt.Errorf("%s %w", e.GetAssetType(), gctorder.ErrNotFutureAsset)
 	}
 	settings, ok := p.exchangeAssetPairSettings[e.GetExchange()][e.GetAssetType()][e.Pair()]
 	if !ok {
@@ -574,6 +577,7 @@ func (p *Portfolio) CalculatePNL(e common.DataEventHandler) error {
 		return err
 	}
 	log.Infof(log.BackTester, "%+v", pnl)
+
 	return nil
 }
 

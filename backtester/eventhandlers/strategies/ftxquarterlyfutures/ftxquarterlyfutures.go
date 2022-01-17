@@ -15,7 +15,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 const (
@@ -93,51 +92,51 @@ func (s *Strategy) OnSignal(d data.Handler, _ funding.IFundTransferer, p portfol
 		es.AppendReason(fmt.Sprintf("missing data at %v, cannot perform any actions. RSI %v", d.Latest().GetTime(), latestRSIValue))
 		return &es, nil
 	}
+	/*
 
-	currentOrders, err := p.GetLatestOrderSnapshotForEvent(&es)
-	if err != nil {
-		return nil, err
-	}
-
-	var o *order.PositionTracker
-	for i := range currentOrders.Orders {
-		if currentOrders.Orders[i].FuturesOrder != nil {
-			if currentOrders.Orders[i].FuturesOrder.LongPositions == nil {
-				if currentOrders.Orders[i].FuturesOrder.CurrentDirection == order.Short || currentOrders.Orders[i].FuturesOrder.CurrentDirection == order.Long {
-					o = currentOrders.Orders[i].FuturesOrder
+		currentOrders, err := p.GetLatestOrderSnapshotForEvent(&es)
+		if err != nil {
+			return nil, err
+		}
+		var o *order.PositionTracker
+		for i := range currentOrders.Orders {
+			//if currentOrders.Orders[i].FuturesOrder != nil {
+			//	if currentOrders.Orders[i].FuturesOrder.LongPositions == nil {
+			//		if currentOrders.Orders[i].FuturesOrder.CurrentDirection == order.Short || currentOrders.Orders[i].FuturesOrder.CurrentDirection == order.Long {
+			//			o = currentOrders.Orders[i].FuturesOrder
+			//		}
+			//	}
+			//}
+		}
+		if o.ShortPositions == nil {
+			switch {
+			case latestRSIValue.GreaterThanOrEqual(s.rsiHigh):
+				es.SetDirection(order.Short)
+			case latestRSIValue.LessThanOrEqual(s.rsiLow):
+				es.SetDirection(order.Long)
+			default:
+				es.SetDirection(common.DoNothing)
+			}
+			es.AppendReason(fmt.Sprintf("RSI at %v", latestRSIValue))
+		} else {
+			price := decimal.NewFromFloat(o.ShortPositions.Price)
+			if latestRSIValue.LessThanOrEqual(s.rsiLow) ||
+				latestRSIValue.GreaterThanOrEqual(s.rsiHigh) ||
+				(!s.stopLoss.IsZero() && latest.GetClosePrice().LessThanOrEqual(s.stopLoss)) ||
+				(!s.takeProfit.IsZero() && latest.GetClosePrice().GreaterThanOrEqual(s.takeProfit)) ||
+				(!s.trailingStop.IsZero() && latest.GetClosePrice().Sub(price).Div(price).Mul(decimal.NewFromInt(100)).LessThanOrEqual(s.trailingStop)) ||
+				o.ShortPositions.UnrealisedPNL.GreaterThanOrEqual(s.highestUnrealised) ||
+				o.ShortPositions.UnrealisedPNL.LessThanOrEqual(s.lowestUnrealised) {
+				// set up the counter order to close the position
+				es.SetAmount(decimal.NewFromFloat(o.ShortPositions.Amount))
+				if o.ShortPositions.Side == order.Short {
+					es.SetDirection(order.Long)
+				} else if o.ShortPositions.Side == order.Long {
+					es.SetDirection(order.Short)
 				}
 			}
 		}
-	}
-	if o.ShortPositions == nil {
-		switch {
-		case latestRSIValue.GreaterThanOrEqual(s.rsiHigh):
-			es.SetDirection(order.Short)
-		case latestRSIValue.LessThanOrEqual(s.rsiLow):
-			es.SetDirection(order.Long)
-		default:
-			es.SetDirection(common.DoNothing)
-		}
-		es.AppendReason(fmt.Sprintf("RSI at %v", latestRSIValue))
-	} else {
-		price := decimal.NewFromFloat(o.ShortPositions.Price)
-		if latestRSIValue.LessThanOrEqual(s.rsiLow) ||
-			latestRSIValue.GreaterThanOrEqual(s.rsiHigh) ||
-			(!s.stopLoss.IsZero() && latest.GetClosePrice().LessThanOrEqual(s.stopLoss)) ||
-			(!s.takeProfit.IsZero() && latest.GetClosePrice().GreaterThanOrEqual(s.takeProfit)) ||
-			(!s.trailingStop.IsZero() && latest.GetClosePrice().Sub(price).Div(price).Mul(decimal.NewFromInt(100)).LessThanOrEqual(s.trailingStop)) ||
-			o.ShortPositions.UnrealisedPNL.GreaterThanOrEqual(s.highestUnrealised) ||
-			o.ShortPositions.UnrealisedPNL.LessThanOrEqual(s.lowestUnrealised) {
-			// set up the counter order to close the position
-			es.SetAmount(decimal.NewFromFloat(o.ShortPositions.Amount))
-			if o.ShortPositions.Side == order.Short {
-				es.SetDirection(order.Long)
-			} else if o.ShortPositions.Side == order.Long {
-				es.SetDirection(order.Short)
-			}
-		}
-	}
-
+	*/
 	return &es, nil
 }
 

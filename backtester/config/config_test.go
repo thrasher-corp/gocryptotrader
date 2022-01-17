@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	testExchange = "binance"
+	testExchange = "ftx"
 	dca          = "dollarcostaverage"
 	// change this if you modify a config and want it to save to the example folder
 	saveConfig = !false
@@ -1228,7 +1228,7 @@ func TestGenerateConfigForFuturesAPICandles(t *testing.T) {
 					CollateralCurrency: "USDT",
 					Leverage: Leverage{
 						CanUseLeverage:           true,
-						MaximumOrderLeverageRate: 1,
+						MaximumOrderLeverageRate: makerFee,
 					},
 				},
 				BuySide:  minMax,

@@ -21,17 +21,13 @@ const (
 	testExchange = "binance"
 )
 
-var (
-	riskFreeRate = decimal.NewFromFloat(0.03)
-)
-
 func pair(t *testing.T) *funding.Pair {
 	t.Helper()
-	b, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.Zero, decimal.Zero)
+	b, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.Zero, decimal.Zero, false)
 	if err != nil {
 		t.Fatal(err)
 	}
-	q, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, decimal.NewFromInt(1337), decimal.Zero)
+	q, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, decimal.NewFromInt(1337), decimal.Zero, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -48,7 +44,9 @@ func TestCreate(t *testing.T) {
 	if !errors.Is(err, common.ErrNilEvent) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
 	}
-	_, err = Create(&fill.Fill{}, pair(t))
+	_, err = Create(&fill.Fill{
+		Base: event.Base{AssetType: asset.Spot},
+	}, pair(t))
 	if err != nil {
 		t.Error(err)
 	}
@@ -56,7 +54,9 @@ func TestCreate(t *testing.T) {
 
 func TestUpdate(t *testing.T) {
 	t.Parallel()
-	h, err := Create(&fill.Fill{}, pair(t))
+	h, err := Create(&fill.Fill{
+		Base: event.Base{AssetType: asset.Spot},
+	}, pair(t))
 	if err != nil {
 		t.Error(err)
 	}
@@ -74,7 +74,9 @@ func TestUpdate(t *testing.T) {
 
 func TestUpdateValue(t *testing.T) {
 	t.Parallel()
-	h, err := Create(&fill.Fill{}, pair(t))
+	h, err := Create(&fill.Fill{
+		Base: event.Base{AssetType: asset.Spot},
+	}, pair(t))
 	if err != nil {
 		t.Error(err)
 	}
@@ -89,11 +91,11 @@ func TestUpdateValue(t *testing.T) {
 
 func TestUpdateBuyStats(t *testing.T) {
 	t.Parallel()
-	b, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.NewFromInt(1), decimal.Zero)
+	b, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.NewFromInt(1), decimal.Zero, false)
 	if err != nil {
 		t.Fatal(err)
 	}
-	q, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, decimal.NewFromInt(100), decimal.Zero)
+	q, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, decimal.NewFromInt(100), decimal.Zero, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -101,7 +103,9 @@ func TestUpdateBuyStats(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	h, err := Create(&fill.Fill{}, p)
+	h, err := Create(&fill.Fill{
+		Base: event.Base{AssetType: asset.Spot},
+	}, pair(t))
 	if err != nil {
 		t.Error(err)
 	}
@@ -218,11 +222,11 @@ func TestUpdateBuyStats(t *testing.T) {
 
 func TestUpdateSellStats(t *testing.T) {
 	t.Parallel()
-	b, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.NewFromInt(1), decimal.Zero)
+	b, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.NewFromInt(1), decimal.Zero, false)
 	if err != nil {
 		t.Fatal(err)
 	}
-	q, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, decimal.NewFromInt(100), decimal.Zero)
+	q, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, decimal.NewFromInt(100), decimal.Zero, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -230,7 +234,10 @@ func TestUpdateSellStats(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	h, err := Create(&fill.Fill{}, p)
+
+	h, err := Create(&fill.Fill{
+		Base: event.Base{AssetType: asset.Spot},
+	}, p)
 	if err != nil {
 		t.Error(err)
 	}
@@ -247,13 +254,11 @@ func TestUpdateSellStats(t *testing.T) {
 		ClosePrice:          decimal.NewFromInt(500),
 		VolumeAdjustedPrice: decimal.NewFromInt(500),
 		PurchasePrice:       decimal.NewFromInt(500),
-		ExchangeFee:         decimal.Zero,
-		Slippage:            decimal.Zero,
 		Order: &order.Detail{
 			Price:       500,
 			Amount:      1,
 			Exchange:    testExchange,
-			ID:          "decimal.NewFromInt(1337)",
+			ID:          "1337",
 			Type:        order.Limit,
 			Side:        order.Buy,
 			Status:      order.New,
@@ -262,7 +267,6 @@ func TestUpdateSellStats(t *testing.T) {
 			CloseTime:   time.Now(),
 			LastUpdated: time.Now(),
 			Pair:        currency.NewPair(currency.BTC, currency.USDT),
-			Trades:      nil,
 			Fee:         1,
 		},
 	}, p)
