@@ -945,6 +945,11 @@ func (h *HUOBI) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitR
 		}
 		var oType string
 		switch s.Type {
+		case order.Market:
+			oType = "opponent"
+			if s.ImmediateOrCancel {
+				oType = "opponent_ioc"
+			}
 		case order.Limit:
 			oType = "limit"
 		case order.PostOnly:
