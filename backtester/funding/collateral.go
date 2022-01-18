@@ -12,6 +12,7 @@ import (
 var (
 	// ErrNotCollateral is returned when a user requests collateral from a non-collateral pair
 	ErrNotCollateral = errors.New("not a collateral pair")
+	ErrNilPair       = errors.New("nil pair")
 )
 
 func (c *Collateral) CanPlaceOrder(_ order.Side) bool {

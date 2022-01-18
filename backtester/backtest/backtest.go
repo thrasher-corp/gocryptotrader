@@ -165,6 +165,11 @@ func NewFromConfig(cfg *config.Config, templatePath, output string) (*BackTest, 
 			return nil, err
 		}
 		conf.Enabled = true
+		// this is required because fuck you
+		conf.WebsocketTrafficTimeout = time.Second
+		conf.Websocket = convert.BoolPtr(false)
+		conf.WebsocketResponseCheckTimeout = time.Second
+		conf.WebsocketResponseMaxLimit = time.Second
 		err = exch.Setup(conf)
 		if err != nil {
 			return nil, err
@@ -225,6 +230,9 @@ func NewFromConfig(cfg *config.Config, templatePath, output string) (*BackTest, 
 			return nil, err
 		}
 		exchBase := exch.GetBase()
+		exchBase.Config.WebsocketTrafficTimeout = time.Second
+		exchBase.WebsocketResponseCheckTimeout = time.Second
+
 		var requestFormat currency.PairFormat
 		requestFormat, err = exchBase.GetPairFormat(a, true)
 		if err != nil {

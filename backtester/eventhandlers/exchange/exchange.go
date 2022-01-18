@@ -116,7 +116,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 	case asset.Spot:
 		pr, fundErr := funds.GetPairReleaser()
 		if fundErr != nil {
-			return f, err
+			return f, fundErr
 		}
 		if err != nil {
 			fundErr = pr.Release(eventFunds, eventFunds, f.GetDirection())
@@ -134,7 +134,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 		case gctorder.Buy:
 			fundErr = pr.Release(eventFunds, eventFunds.Sub(limitReducedAmount.Mul(adjustedPrice)), f.GetDirection())
 			if fundErr != nil {
-				return f, err
+				return f, fundErr
 			}
 			pr.IncreaseAvailable(limitReducedAmount, f.GetDirection())
 		case gctorder.Sell:
@@ -369,7 +369,7 @@ func (e *Exchange) GetCurrencySettings(exch string, a asset.Item, cp currency.Pa
 			}
 		}
 	}
-	return Settings{}, fmt.Errorf("no currency settings found for %v %v %v", exch, a, cp)
+	return Settings{}, fmt.Errorf("%w for %v %v %v", errNoCurrencySettingsFound, exch, a, cp)
 }
 
 func ensureOrderFitsWithinHLV(slippagePrice, amount, high, low, volume decimal.Decimal) (adjustedPrice, adjustedAmount decimal.Decimal) {

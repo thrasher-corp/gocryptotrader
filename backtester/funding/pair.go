@@ -119,6 +119,9 @@ func (p *Pair) FundReserver() IFundReserver {
 
 // GetPairReleaser
 func (p *Pair) GetPairReleaser() (IPairReleaser, error) {
+	if p == nil {
+		return nil, ErrNilPair
+	}
 	return p, nil
 }
 

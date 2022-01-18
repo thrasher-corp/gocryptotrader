@@ -49,62 +49,62 @@ func (p *Portfolio) Reset() {
 }
 
 // SetupCurrencySettingsMap ensures a map is created and no panics happen
-func (p *Portfolio) SetupCurrencySettingsMap(settings *exchange.Settings) error {
-	if settings == nil {
+func (p *Portfolio) SetupCurrencySettingsMap(setup *exchange.Settings) error {
+	if setup == nil {
 		return errNoPortfolioSettings
 	}
-	if settings.Exchange == nil {
+	if setup.Exchange == nil {
 		return errExchangeUnset
 	}
-	if settings.Asset == "" {
+	if setup.Asset == "" {
 		return errAssetUnset
 	}
-	if settings.Pair.IsEmpty() {
+	if setup.Pair.IsEmpty() {
 		return errCurrencyPairUnset
 	}
 	if p.exchangeAssetPairSettings == nil {
 		p.exchangeAssetPairSettings = make(map[string]map[asset.Item]map[currency.Pair]*Settings)
 	}
-	name := strings.ToLower(settings.Exchange.GetName())
+	name := strings.ToLower(setup.Exchange.GetName())
 	if p.exchangeAssetPairSettings[name] == nil {
 		p.exchangeAssetPairSettings[name] = make(map[asset.Item]map[currency.Pair]*Settings)
 	}
-	if p.exchangeAssetPairSettings[name][settings.Asset] == nil {
-		p.exchangeAssetPairSettings[name][settings.Asset] = make(map[currency.Pair]*Settings)
+	if p.exchangeAssetPairSettings[name][setup.Asset] == nil {
+		p.exchangeAssetPairSettings[name][setup.Asset] = make(map[currency.Pair]*Settings)
 	}
-	if _, ok := p.exchangeAssetPairSettings[name][settings.Asset][settings.Pair]; ok {
+	if _, ok := p.exchangeAssetPairSettings[name][setup.Asset][setup.Pair]; ok {
 		return nil
 	}
 
-	if !settings.Asset.IsFutures() {
-		return nil
-	}
-	futureTrackerSetup := &gctorder.MultiPositionTrackerSetup{
-		Exchange:                  name,
-		Asset:                     settings.Asset,
-		Pair:                      settings.Pair,
-		Underlying:                settings.Pair.Base,
-		OfflineCalculation:        true,
-		UseExchangePNLCalculation: settings.UseExchangePNLCalculation,
-	}
-	if settings.UseExchangePNLCalculation {
-		futureTrackerSetup.ExchangePNLCalculation = settings.Exchange
-	}
-	tracker, err := gctorder.SetupMultiPositionTracker(futureTrackerSetup)
-	if err != nil {
-		return err
-	}
-	p.exchangeAssetPairSettings[name][settings.Asset][settings.Pair] = &Settings{
-		Fee:            settings.ExchangeFee,
-		BuySideSizing:  settings.BuySide,
-		SellSideSizing: settings.SellSide,
-		Leverage:       settings.Leverage,
+	settings := &Settings{
+		Fee:            setup.ExchangeFee,
+		BuySideSizing:  setup.BuySide,
+		SellSideSizing: setup.SellSide,
+		Leverage:       setup.Leverage,
 		ComplianceManager: compliance.Manager{
 			Snapshots: []compliance.Snapshot{},
 		},
-		Exchange:       settings.Exchange,
-		FuturesTracker: tracker,
+		Exchange: setup.Exchange,
 	}
+	if setup.Asset.IsFutures() {
+		futureTrackerSetup := &gctorder.MultiPositionTrackerSetup{
+			Exchange:                  name,
+			Asset:                     setup.Asset,
+			Pair:                      setup.Pair,
+			Underlying:                setup.Pair.Base,
+			OfflineCalculation:        true,
+			UseExchangePNLCalculation: setup.UseExchangePNLCalculation,
+		}
+		if setup.UseExchangePNLCalculation {
+			futureTrackerSetup.ExchangePNLCalculation = setup.Exchange
+		}
+		tracker, err := gctorder.SetupMultiPositionTracker(futureTrackerSetup)
+		if err != nil {
+			return err
+		}
+		settings.FuturesTracker = tracker
+	}
+	p.exchangeAssetPairSettings[name][setup.Asset][setup.Pair] = settings
 	return nil
 }
 
@@ -412,12 +412,6 @@ func (p *Portfolio) GetComplianceManager(exchangeName string, a asset.Item, cp c
 		return nil, fmt.Errorf("%w for %v %v %v could not retrieve compliance manager", errNoPortfolioSettings, exchangeName, a, cp)
 	}
 	return &lookup.ComplianceManager, nil
-}
-
-// SetFee sets the fee rate
-func (p *Portfolio) SetFee(exch string, a asset.Item, cp currency.Pair, fee decimal.Decimal) {
-	lookup := p.exchangeAssetPairSettings[exch][a][cp]
-	lookup.Fee = fee
 }
 
 // GetFee can panic for bad requests, but why are you getting things that don't exist?

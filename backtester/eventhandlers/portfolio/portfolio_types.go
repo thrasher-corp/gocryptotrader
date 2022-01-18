@@ -48,23 +48,16 @@ type Portfolio struct {
 type Handler interface {
 	OnSignal(signal.Event, *exchange.Settings, funding.IFundReserver) (*order.Order, error)
 	OnFill(fill.Event, funding.IFundReleaser) (*fill.Fill, error)
-
 	GetLatestOrderSnapshotForEvent(common.EventHandler) (compliance.Snapshot, error)
 	GetLatestOrderSnapshots() ([]compliance.Snapshot, error)
-
 	ViewHoldingAtTimePeriod(common.EventHandler) (*holdings.Holding, error)
 	setHoldingsForOffset(*holdings.Holding, bool) error
 	UpdateHoldings(common.DataEventHandler, funding.IFundReleaser) error
-
 	GetComplianceManager(string, asset.Item, currency.Pair) (*compliance.Manager, error)
-
-	SetFee(string, asset.Item, currency.Pair, decimal.Decimal)
 	GetFee(string, asset.Item, currency.Pair) decimal.Decimal
-
 	CalculatePNL(common.DataEventHandler) error
 	GetLatestPNLForEvent(handler common.EventHandler) (*PNLSummary, error)
 	GetLatestPNLs() []PNLSummary
-
 	Reset()
 }
 

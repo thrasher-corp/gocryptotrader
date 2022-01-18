@@ -34,7 +34,7 @@ func (i *Item) Release(amount, diff decimal.Decimal) error {
 	if amount.LessThanOrEqual(decimal.Zero) {
 		return errZeroAmountReceived
 	}
-	if diff.IsNegative() && i.asset == asset.Spot {
+	if diff.IsNegative() && !i.asset.IsFutures() {
 		return fmt.Errorf("%w diff", errNegativeAmountReceived)
 	}
 	if amount.GreaterThan(i.reserved) {

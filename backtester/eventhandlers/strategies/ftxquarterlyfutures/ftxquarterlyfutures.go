@@ -14,7 +14,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
 const (
@@ -30,6 +29,8 @@ const (
 	rsiLowestUnrealised  = "rsi-lowest-unrealised"
 	description          = `The relative strength index is a technical indicator used in the analysis of financial markets. It is intended to chart the current and historical strength or weakness of a stock or market based on the closing prices of a recent trading period`
 )
+
+var errFuturesOnly = errors.New("can only work with futures")
 
 // Strategy is an implementation of the Handler interface
 type Strategy struct {
@@ -63,8 +64,8 @@ func (s *Strategy) OnSignal(d data.Handler, _ funding.IFundTransferer, p portfol
 		return nil, common.ErrNilEvent
 	}
 	latest := d.Latest()
-	if latest.GetAssetType() != asset.Futures {
-		return nil, errors.New("can only work with futures")
+	if !latest.GetAssetType().IsFutures() {
+		return nil, errFuturesOnly
 	}
 
 	es, err := s.GetBaseData(d)

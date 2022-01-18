@@ -76,12 +76,6 @@ func TestNewFromConfig(t *testing.T) {
 	}
 	cfg.CurrencySettings[0].Asset = asset.Spot.String()
 	_, err = NewFromConfig(cfg, "", "")
-	if !errors.Is(err, currency.ErrPairNotFound) {
-		t.Errorf("received: %v, expected: %v", err, currency.ErrPairNotFound)
-	}
-
-	cfg.CurrencySettings[0].Base = "btc"
-	cfg.CurrencySettings[0].Quote = "usd"
 	_, err = NewFromConfig(cfg, "", "")
 	if !errors.Is(err, base.ErrStrategyNotFound) {
 		t.Errorf("received: %v, expected: %v", err, base.ErrStrategyNotFound)
@@ -474,7 +468,7 @@ func TestFullCycle(t *testing.T) {
 		t.Error(err)
 	}
 	fx := &ftx.FTX{}
-	fx.SetDefaults()
+	fx.Name = testExchange
 	err = port.SetupCurrencySettingsMap(&exchange.Settings{Exchange: fx, Asset: a, Pair: cp})
 	if err != nil {
 		t.Error(err)

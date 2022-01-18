@@ -36,7 +36,27 @@ func (f *fakeFund) GetCollateralReader() (funding.ICollateralReader, error) {
 }
 
 func (f *fakeFund) GetPairReleaser() (funding.IPairReleaser, error) {
-	return nil, nil
+	btc, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.NewFromInt(9999), decimal.NewFromInt(9999), false)
+	if err != nil {
+		return nil, err
+	}
+	usd, err := funding.CreateItem(testExchange, asset.Spot, currency.USD, decimal.NewFromInt(9999), decimal.NewFromInt(9999), false)
+	if err != nil {
+		return nil, err
+	}
+	p, err := funding.CreatePair(btc, usd)
+	if err != nil {
+		return nil, err
+	}
+	err = p.Reserve(decimal.NewFromInt(1337), gctorder.Buy)
+	if err != nil {
+		return nil, err
+	}
+	err = p.Reserve(decimal.NewFromInt(1337), gctorder.Sell)
+	if err != nil {
+		return nil, err
+	}
+	return p, nil
 }
 func (f *fakeFund) GetCollateralReleaser() (funding.ICollateralReleaser, error) {
 	return nil, nil
@@ -65,8 +85,10 @@ func TestSetCurrency(t *testing.T) {
 	if len(e.CurrencySettings) != 0 {
 		t.Error("expected 0")
 	}
+	f := &ftx.FTX{}
+	f.Name = testExchange
 	cs := &Settings{
-		Exchange:            &ftx.FTX{},
+		Exchange:            f,
 		UseRealOrders:       true,
 		Pair:                currency.NewPair(currency.BTC, currency.USDT),
 		Asset:               asset.Spot,
@@ -188,7 +210,7 @@ func TestPlaceOrder(t *testing.T) {
 	}
 	f := &fill.Fill{}
 	_, err = e.placeOrder(context.Background(), decimal.NewFromInt(1), decimal.NewFromInt(1), false, true, f, bot.OrderManager)
-	if err != nil && err.Error() != "order exchange name must be specified" {
+	if !errors.Is(err, engine.ErrExchangeNameIsEmpty) {
 		t.Error(err)
 	}
 
@@ -246,24 +268,19 @@ func TestExecuteOrder(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
+	f := &ftx.FTX{}
+	f.Name = testExchange
 	cs := Settings{
-		Exchange:            &ftx.FTX{},
+		Exchange:            f,
 		UseRealOrders:       false,
 		Pair:                p,
 		Asset:               a,
 		ExchangeFee:         decimal.NewFromFloat(0.01),
 		MakerFee:            decimal.NewFromFloat(0.01),
 		TakerFee:            decimal.NewFromFloat(0.01),
-		BuySide:             MinMax{},
-		SellSide:            MinMax{},
-		Leverage:            Leverage{},
-		MinimumSlippageRate: decimal.Zero,
 		MaximumSlippageRate: decimal.NewFromInt(1),
 	}
-	e := Exchange{
-		CurrencySettings: []Settings{cs},
-	}
+	e := Exchange{}
 	ev := event.Base{
 		Exchange:     testExchange,
 		Time:         time.Now(),
@@ -280,9 +297,9 @@ func TestExecuteOrder(t *testing.T) {
 
 	d := &kline.DataFromKline{
 		Item: gctkline.Item{
-			Exchange: "",
-			Pair:     currency.Pair{},
-			Asset:    "",
+			Exchange: testExchange,
+			Pair:     p,
+			Asset:    a,
 			Interval: 0,
 			Candles: []gctkline.Candle{
 				{
@@ -300,7 +317,7 @@ func TestExecuteOrder(t *testing.T) {
 	}
 	d.Next()
 	_, err = e.ExecuteOrder(o, d, bot.OrderManager, &fakeFund{})
-	if err != errNilCurrencySettings {
+	if !errors.Is(err, errNoCurrencySettingsFound) {
 		t.Error(err)
 	}
 
@@ -359,9 +376,10 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
+	f := &ftx.FTX{}
+	f.Name = testExchange
 	cs := Settings{
-		Exchange:      &ftx.FTX{},
+		Exchange:      f,
 		UseRealOrders: false,
 		Pair:          p,
 		Asset:         a,

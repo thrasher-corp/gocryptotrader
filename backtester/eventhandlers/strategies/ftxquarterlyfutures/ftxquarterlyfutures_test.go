@@ -83,7 +83,9 @@ func TestSetCustomSettings(t *testing.T) {
 
 func TestOnSignal(t *testing.T) {
 	t.Parallel()
-	s := Strategy{}
+	s := Strategy{
+		rsiPeriod: decimal.NewFromInt(14),
+	}
 	_, err := s.OnSignal(nil, nil, nil)
 	if !errors.Is(err, common.ErrNilEvent) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
@@ -91,8 +93,8 @@ func TestOnSignal(t *testing.T) {
 	dStart := time.Date(2020, 1, 0, 0, 0, 0, 0, time.UTC)
 	dInsert := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	dEnd := time.Date(2020, 1, 2, 0, 0, 0, 0, time.UTC)
-	exch := "binance"
-	a := asset.Spot
+	exch := "ftx"
+	a := asset.Futures
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	d := data.Base{}
 	d.SetStream([]common.DataEventHandler{&eventkline.Kline{
@@ -119,10 +121,9 @@ func TestOnSignal(t *testing.T) {
 	}
 	var resp signal.Event
 	_, err = s.OnSignal(da, nil, nil)
-	if !errors.Is(err, base.ErrTooMuchBadData) {
-		t.Fatalf("expected: %v, received %v", base.ErrTooMuchBadData, err)
+	if !errors.Is(err, nil) {
+		t.Fatalf("expected: %v, received %v", nil, err)
 	}
-
 	s.rsiPeriod = decimal.NewFromInt(1)
 	_, err = s.OnSignal(da, nil, nil)
 	if err != nil {
@@ -158,7 +159,7 @@ func TestOnSignal(t *testing.T) {
 	da.RangeHolder.SetHasDataFromCandles(da.Item.Candles)
 	resp, err = s.OnSignal(da, nil, nil)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	if resp.GetDirection() != common.DoNothing {
 		t.Error("expected do nothing")
@@ -173,7 +174,7 @@ func TestOnSignals(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
 	}
 	dInsert := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
-	exch := "binance"
+	exch := "ftx"
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	d := data.Base{}
@@ -198,9 +199,9 @@ func TestOnSignals(t *testing.T) {
 		RangeHolder: &gctkline.IntervalRangeHolder{},
 	}
 	_, err = s.OnSimultaneousSignals([]data.Handler{da}, nil, nil)
-	if !strings.Contains(err.Error(), base.ErrTooMuchBadData.Error()) {
+	if !strings.Contains(err.Error(), base.ErrSimultaneousProcessingNotSupported.Error()) {
 		// common.Errs type doesn't keep type
-		t.Errorf("received: %v, expected: %v", err, base.ErrTooMuchBadData)
+		t.Errorf("received: %v, expected: %v", err, base.ErrSimultaneousProcessingNotSupported)
 	}
 }
 
