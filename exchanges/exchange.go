@@ -55,10 +55,8 @@ var (
 )
 
 func (b *Base) checkAndInitRequester() {
-	if b.Requester == nil {
-		b.Requester = request.New(b.Name,
-			&http.Client{Transport: new(http.Transport)})
-	}
+	b.Requester = request.New(b.Name,
+		&http.Client{Transport: new(http.Transport)})
 }
 
 // SetHTTPClientTimeout sets the timeout value for the exchanges HTTP Client and
