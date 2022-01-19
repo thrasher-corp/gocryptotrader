@@ -34,7 +34,7 @@ type Holdings struct {
 	Accounts []SubAccount
 }
 
-// SubAccount defines a singular account type with asocciated currency balances
+// SubAccount defines a singular account type with associated currency balances
 type SubAccount struct {
 	ID         string
 	AssetType  asset.Item

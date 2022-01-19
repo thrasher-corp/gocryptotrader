@@ -132,7 +132,7 @@ func (f fExchange) GetFuturesPositions(_ context.Context, a asset.Item, cp curre
 }
 
 // CalculateTotalCollateral overrides testExchange's CalculateTotalCollateral function
-func (f fExchange) CalculateTotalCollateral(context.Context, []order.CollateralCalculator) (*order.TotalCollateralResponse, error) {
+func (f fExchange) CalculateTotalCollateral(context.Context, string, bool, []order.CollateralCalculator) (*order.TotalCollateralResponse, error) {
 	return &order.TotalCollateralResponse{
 		TotalCollateral: decimal.NewFromInt(1337),
 		BreakdownByCurrency: []order.CollateralByCurrency{
@@ -2049,6 +2049,12 @@ func TestGetFuturesPositions(t *testing.T) {
 		Available:    currency.Pairs{cp},
 		Enabled:      currency.Pairs{cp},
 	}
+	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
+		AssetEnabled: convert.BoolPtr(true),
+		ConfigFormat: &currency.PairFormat{},
+		Available:    currency.Pairs{cp},
+		Enabled:      currency.Pairs{cp},
+	}
 	fakeExchange := fExchange{
 		IBotExchange: exch,
 	}
@@ -2079,8 +2085,8 @@ func TestGetFuturesPositions(t *testing.T) {
 		},
 		Verbose: true,
 	})
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
 	if r == nil {
 		t.Fatal("expected not nil response")
@@ -2090,6 +2096,20 @@ func TestGetFuturesPositions(t *testing.T) {
 	}
 	if r.TotalOrders != 1 {
 		t.Fatal("expected 1 order")
+	}
+
+	_, err = s.GetFuturesPositions(context.Background(), &gctrpc.GetFuturesPositionsRequest{
+		Exchange: fakeExchangeName,
+		Asset:    asset.Spot.String(),
+		Pair: &gctrpc.CurrencyPair{
+			Delimiter: currency.DashDelimiter,
+			Base:      cp.Base.String(),
+			Quote:     cp.Quote.String(),
+		},
+		Verbose: true,
+	})
+	if !errors.Is(err, order.ErrNotFuturesAsset) {
+		t.Errorf("received '%v', expected '%v'", err, order.ErrNotFuturesAsset)
 	}
 }
 
@@ -2105,12 +2125,18 @@ func TestGetCollateral(t *testing.T) {
 	b.Enabled = true
 
 	cp, err := currency.NewPairFromString("btc-usd")
-	if err != nil {
-		t.Fatal(err)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received '%v', expected '%v'", err, nil)
 	}
 
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Futures] = &currency.PairStore{
+		AssetEnabled: convert.BoolPtr(true),
+		ConfigFormat: &currency.PairFormat{},
+		Available:    currency.Pairs{cp},
+		Enabled:      currency.Pairs{cp},
+	}
+	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
 		AssetEnabled: convert.BoolPtr(true),
 		ConfigFormat: &currency.PairFormat{},
 		Available:    currency.Pairs{cp},
@@ -2129,30 +2155,37 @@ func TestGetCollateral(t *testing.T) {
 		},
 	}
 
-	r, err := s.GetCollateral(context.Background(), &gctrpc.GetCollateralRequest{
+	_, err = s.GetCollateral(context.Background(), &gctrpc.GetCollateralRequest{
 		Exchange: fakeExchangeName,
 		Asset:    asset.Futures.String(),
 	})
-	if err != nil {
-		t.Error(err)
-	}
-	if len(r.CurrencyBreakdown) > 0 {
-		t.Error("expected no breakdown")
+	if !errors.Is(err, errNoAccountInformation) {
+		t.Fatalf("received '%v', expected '%v'", err, errNoAccountInformation)
 	}
 
-	r, err = s.GetCollateral(context.Background(), &gctrpc.GetCollateralRequest{
+	r, err := s.GetCollateral(context.Background(), &gctrpc.GetCollateralRequest{
 		Exchange:         fakeExchangeName,
 		Asset:            asset.Futures.String(),
 		IncludeBreakdown: true,
 		SubAccount:       "1337",
 	})
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
 	if len(r.CurrencyBreakdown) != 3 {
 		t.Error("expected 3 currencies")
 	}
 	if r.TotalCollateral != "1337" {
 		t.Error("expected 1337")
+	}
+
+	_, err = s.GetCollateral(context.Background(), &gctrpc.GetCollateralRequest{
+		Exchange:         fakeExchangeName,
+		Asset:            asset.Spot.String(),
+		IncludeBreakdown: true,
+		SubAccount:       "1337",
+	})
+	if !errors.Is(err, order.ErrNotFuturesAsset) {
+		t.Errorf("received '%v', expected '%v'", err, order.ErrNotFuturesAsset)
 	}
 }

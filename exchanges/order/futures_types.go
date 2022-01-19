@@ -26,8 +26,10 @@ var (
 	// ErrPositionLiquidated is raised when checking PNL status only for
 	// it to be liquidated
 	ErrPositionLiquidated = errors.New("position liquidated")
-	// ErrNotFutureAsset returned when futures data is requested on a non-futures asset
-	ErrNotFutureAsset = errors.New("asset type is not futures")
+	// ErrNotFuturesAsset returned when futures data is requested on a non-futures asset
+	ErrNotFuturesAsset = errors.New("asset type is not futures")
+	// ErrUSDValueRequired returned when usd value unset
+	ErrUSDValueRequired = errors.New("USD value required")
 
 	errExchangeNameEmpty              = errors.New("exchange name empty")
 	errTimeUnset                      = errors.New("time unset")
@@ -45,15 +47,15 @@ var (
 // PNLCalculation is an interface to allow multiple
 // ways of calculating PNL to be used for futures positions
 type PNLCalculation interface {
-	CalculatePNL(*PNLCalculatorRequest) (*PNLResult, error)
+	CalculatePNL(context.Context, *PNLCalculatorRequest) (*PNLResult, error)
 }
 
 // CollateralManagement is an interface that allows
 // multiple ways of calculating the size of collateral
 // on an exchange
 type CollateralManagement interface {
-	ScaleCollateral(context.Context, *CollateralCalculator) (decimal.Decimal, error)
-	CalculateTotalCollateral(context.Context, []CollateralCalculator) (*TotalCollateralResponse, error)
+	ScaleCollateral(context.Context, string, *CollateralCalculator) (decimal.Decimal, error)
+	CalculateTotalCollateral(ctx context.Context, subAccount string, calculateOffline bool, collaterals []CollateralCalculator) (*TotalCollateralResponse, error)
 }
 
 // TotalCollateralResponse holds all collateral
@@ -70,6 +72,7 @@ type CollateralByCurrency struct {
 	Currency      currency.Code
 	Amount        decimal.Decimal
 	ValueCurrency currency.Code
+	Error         error
 }
 
 // PositionController manages all futures orders

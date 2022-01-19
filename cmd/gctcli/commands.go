@@ -17,7 +17,7 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-var startTime, endTime, o string
+var startTime, endTime, orderingDirection string
 var limit int
 
 var getInfoCommand = &cli.Command{
@@ -3742,7 +3742,7 @@ var getAuditEventCommand = &cli.Command{
 			Aliases:     []string{"o"},
 			Usage:       "order results by ascending/descending",
 			Value:       "asc",
-			Destination: &o,
+			Destination: &orderingDirection,
 		},
 		&cli.IntFlag{
 			Name:        "limit",
@@ -3769,7 +3769,7 @@ func getAuditEvent(c *cli.Context) error {
 
 	if !c.IsSet("order") {
 		if c.Args().Get(2) != "" {
-			o = c.Args().Get(2)
+			orderingDirection = c.Args().Get(2)
 		}
 	}
 
@@ -3810,7 +3810,7 @@ func getAuditEvent(c *cli.Context) error {
 			StartDate: negateLocalOffset(s),
 			EndDate:   negateLocalOffset(e),
 			Limit:     int32(limit),
-			OrderBy:   o,
+			OrderBy:   orderingDirection,
 		})
 
 	if err != nil {
@@ -4726,7 +4726,7 @@ func findMissingSavedCandleIntervals(c *cli.Context) error {
 var getFuturesPositionsCommand = &cli.Command{
 	Name:      "getfuturesposition",
 	Usage:     "will retrieve all futures positions in a timeframe, then calculate PNL based on that. Note, the dates have an impact on PNL calculations, ensure your start date is not after a new position is opened",
-	ArgsUsage: "<exchange> <pair> <asset> <start> <end> <limit> <status> <verbose>",
+	ArgsUsage: "<exchange> <pair> <asset> <start> <end> <limit> <status> <verbose> <overwrite>",
 	Action:    getFuturesPositions,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
@@ -4925,7 +4925,7 @@ func getFuturesPositions(c *cli.Context) error {
 var getCollateralCommand = &cli.Command{
 	Name:      "getcollateral",
 	Usage:     "returns total collateral for an exchange asset, with optional per currency breakdown",
-	ArgsUsage: "<exchange> <asset>  <calculateoffline> <includebreakdown> <subaccount>",
+	ArgsUsage: "<exchange> <asset> <calculateoffline> <includebreakdown> <includezerovalues> <subaccount>",
 	Action:    getCollateral,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
@@ -4941,17 +4941,22 @@ var getCollateralCommand = &cli.Command{
 		&cli.BoolFlag{
 			Name:    "calculateoffline",
 			Aliases: []string{"c"},
-			Usage:   "use local scaling methods instead of requesting additional API information, depending on individual exchange support",
+			Usage:   "use local scaling calculations instead of requesting the collateral values directly, depending on individual exchange support",
 		},
 		&cli.BoolFlag{
 			Name:    "includebreakdown",
 			Aliases: []string{"i"},
-			Usage:   "include a list of each helds currency and its contribution to the overall collateral value",
+			Usage:   "include a list of each held currency and its contribution to the overall collateral value",
+		},
+		&cli.BoolFlag{
+			Name:    "includezerovalues",
+			Aliases: []string{"z"},
+			Usage:   "include collateral values that are zero",
 		},
 		&cli.StringFlag{
 			Name:    "subaccount",
 			Aliases: []string{"s"},
-			Usage:   "the subaccount to retreieve collateral data from, depending on individual exchange support",
+			Usage:   "the subaccount to retrieve collateral data from, depending on individual exchange support",
 		},
 	},
 }
@@ -5007,6 +5012,16 @@ func getCollateral(c *cli.Context) error {
 		subAccount = c.Args().Get(4)
 	}
 
+	var includeZeroValues bool
+	if c.IsSet("includezerovalues") {
+		includeZeroValues = c.Bool("includezerovalues")
+	} else if c.Args().Get(5) != "" {
+		includeZeroValues, err = strconv.ParseBool(c.Args().Get(5))
+		if err != nil {
+			return err
+		}
+	}
+
 	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
@@ -5016,11 +5031,12 @@ func getCollateral(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.GetCollateral(c.Context,
 		&gctrpc.GetCollateralRequest{
-			Exchange:         exchangeName,
-			Asset:            assetType,
-			SubAccount:       subAccount,
-			IncludeBreakdown: includeBreakdown,
-			CalculateOffline: calculateOffline,
+			Exchange:          exchangeName,
+			Asset:             assetType,
+			SubAccount:        subAccount,
+			IncludeBreakdown:  includeBreakdown,
+			CalculateOffline:  calculateOffline,
+			IncludeZeroValues: includeZeroValues,
 		})
 	if err != nil {
 		return err

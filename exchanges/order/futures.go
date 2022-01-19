@@ -1,8 +1,10 @@
 package order
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -28,23 +30,27 @@ func (c *PositionController) TrackNewOrder(d *Detail) error {
 		return errNilOrder
 	}
 	if !d.AssetType.IsFutures() {
-		return fmt.Errorf("order %v %v %v %v %w", d.Exchange, d.AssetType, d.Pair, d.ID, ErrNotFutureAsset)
+		return fmt.Errorf("order %v %v %v %v %w", d.Exchange, d.AssetType, d.Pair, d.ID, ErrNotFuturesAsset)
 	}
 	if c == nil {
 		return common.ErrNilPointer
 	}
 	c.m.Lock()
 	defer c.m.Unlock()
-	if _, ok := c.positionTrackerControllers[strings.ToLower(d.Exchange)]; !ok {
-		c.positionTrackerControllers[strings.ToLower(d.Exchange)] = make(map[asset.Item]map[currency.Pair]*MultiPositionTracker)
+	exchM, ok := c.positionTrackerControllers[strings.ToLower(d.Exchange)]
+	if !ok {
+		exchM = make(map[asset.Item]map[currency.Pair]*MultiPositionTracker)
+		c.positionTrackerControllers[strings.ToLower(d.Exchange)] = exchM
 	}
-	if _, ok := c.positionTrackerControllers[strings.ToLower(d.Exchange)][d.AssetType]; !ok {
-		c.positionTrackerControllers[strings.ToLower(d.Exchange)][d.AssetType] = make(map[currency.Pair]*MultiPositionTracker)
+	itemM, ok := exchM[d.AssetType]
+	if !ok {
+		itemM = make(map[currency.Pair]*MultiPositionTracker)
+		exchM[d.AssetType] = itemM
 	}
 	var err error
-	mpt, ok := c.positionTrackerControllers[strings.ToLower(d.Exchange)][d.AssetType][d.Pair]
+	multiPositionTracker, ok := itemM[d.Pair]
 	if !ok {
-		mpt, err = SetupMultiPositionTracker(&MultiPositionTrackerSetup{
+		multiPositionTracker, err = SetupMultiPositionTracker(&MultiPositionTrackerSetup{
 			Exchange:   strings.ToLower(d.Exchange),
 			Asset:      d.AssetType,
 			Pair:       d.Pair,
@@ -53,21 +59,21 @@ func (c *PositionController) TrackNewOrder(d *Detail) error {
 		if err != nil {
 			return err
 		}
-		c.positionTrackerControllers[strings.ToLower(d.Exchange)][d.AssetType][d.Pair] = mpt
+		itemM[d.Pair] = multiPositionTracker
 	}
-	return mpt.TrackNewOrder(d)
+	return multiPositionTracker.TrackNewOrder(d)
 }
 
 // GetPositionsForExchange returns all positions for an
 // exchange, asset pair that is stored in the position controller
-func (c *PositionController) GetPositionsForExchange(exch string, item asset.Item, pair currency.Pair) ([]*PositionTracker, error) {
+func (c *PositionController) GetPositionsForExchange(exch string, item asset.Item, pair currency.Pair) ([]PositionStats, error) {
 	if c == nil {
 		return nil, common.ErrNilPointer
 	}
 	c.m.Lock()
 	defer c.m.Unlock()
 	if !item.IsFutures() {
-		return nil, fmt.Errorf("%v %v %v %w", exch, item, pair, ErrNotFutureAsset)
+		return nil, fmt.Errorf("%v %v %v %w", exch, item, pair, ErrNotFuturesAsset)
 	}
 	exchM, ok := c.positionTrackerControllers[strings.ToLower(exch)]
 	if !ok {
@@ -94,7 +100,7 @@ func (c *PositionController) ClearPositionsForExchange(exch string, item asset.I
 	c.m.Lock()
 	defer c.m.Unlock()
 	if !item.IsFutures() {
-		return fmt.Errorf("%v %v %v %w", exch, item, pair, ErrNotFutureAsset)
+		return fmt.Errorf("%v %v %v %w", exch, item, pair, ErrNotFuturesAsset)
 	}
 	exchM, ok := c.positionTrackerControllers[strings.ToLower(exch)]
 	if !ok {
@@ -120,7 +126,7 @@ func (c *PositionController) ClearPositionsForExchange(exch string, item asset.I
 	if err != nil {
 		return err
 	}
-	c.positionTrackerControllers[strings.ToLower(exch)][item][pair] = newMPT
+	itemM[pair] = newMPT
 	return nil
 }
 
@@ -133,7 +139,7 @@ func SetupMultiPositionTracker(setup *MultiPositionTrackerSetup) (*MultiPosition
 		return nil, errExchangeNameEmpty
 	}
 	if !setup.Asset.IsValid() || !setup.Asset.IsFutures() {
-		return nil, ErrNotFutureAsset
+		return nil, ErrNotFuturesAsset
 	}
 	if setup.Pair.IsEmpty() {
 		return nil, ErrPairIsEmpty
@@ -157,13 +163,17 @@ func SetupMultiPositionTracker(setup *MultiPositionTrackerSetup) (*MultiPosition
 }
 
 // GetPositions returns all positions
-func (e *MultiPositionTracker) GetPositions() []*PositionTracker {
+func (e *MultiPositionTracker) GetPositions() []PositionStats {
 	if e == nil {
 		return nil
 	}
 	e.m.Lock()
 	defer e.m.Unlock()
-	return e.positions
+	var resp []PositionStats
+	for i := range e.positions {
+		resp = append(resp, e.positions[i].GetStats())
+	}
+	return resp
 }
 
 // TrackNewOrder upserts an order to the tracker and updates position
@@ -234,7 +244,7 @@ func (e *MultiPositionTracker) SetupPositionTracker(setup *PositionTrackerSetup)
 		return nil, errNilSetup
 	}
 	if !setup.Asset.IsValid() || !setup.Asset.IsFutures() {
-		return nil, ErrNotFutureAsset
+		return nil, ErrNotFuturesAsset
 	}
 	if setup.Pair.IsEmpty() {
 		return nil, ErrPairIsEmpty
@@ -442,7 +452,7 @@ func (p *PositionTracker) TrackNewOrder(d *Detail) error {
 		baseFee := cal.Fee.Div(amount)
 		cal.Fee = baseFee.Mul(first)
 		cal.Amount = first
-		result, err = p.PNLCalculation.CalculatePNL(cal)
+		result, err = p.PNLCalculation.CalculatePNL(context.TODO(), cal)
 		if err != nil {
 			return err
 		}
@@ -466,9 +476,9 @@ func (p *PositionTracker) TrackNewOrder(d *Detail) error {
 		cal.EntryPrice = price
 		cal.Time = cal.Time.Add(1)
 		cal.PNLHistory = p.pnlHistory
-		result, err = p.PNLCalculation.CalculatePNL(cal)
+		result, err = p.PNLCalculation.CalculatePNL(context.TODO(), cal)
 	} else {
-		result, err = p.PNLCalculation.CalculatePNL(cal)
+		result, err = p.PNLCalculation.CalculatePNL(context.TODO(), cal)
 	}
 	if err != nil {
 		if !errors.Is(err, ErrPositionLiquidated) {
@@ -517,7 +527,7 @@ func (p *PositionTracker) TrackNewOrder(d *Detail) error {
 
 // CalculatePNL this is a localised generic way of calculating open
 // positions' worth, it is an implementation of the PNLCalculation interface
-func (p *PNLCalculator) CalculatePNL(calc *PNLCalculatorRequest) (*PNLResult, error) {
+func (p *PNLCalculator) CalculatePNL(_ context.Context, calc *PNLCalculatorRequest) (*PNLResult, error) {
 	if calc == nil {
 		return nil, ErrNilPNLCalculator
 	}
@@ -583,9 +593,6 @@ func calculateRealisedPNL(pnlHistory []PNLResult) decimal.Decimal {
 		realisedPNL = realisedPNL.Add(pnlHistory[i].RealisedPNLBeforeFees)
 		totalFees = totalFees.Add(pnlHistory[i].Fee)
 	}
-	if realisedPNL.IsZero() {
-		return decimal.Zero
-	}
 	return realisedPNL.Sub(totalFees)
 }
 
@@ -602,5 +609,8 @@ func upsertPNLEntry(pnlHistory []PNLResult, entry *PNLResult) ([]PNLResult, erro
 		}
 	}
 	pnlHistory = append(pnlHistory, *entry)
+	sort.Slice(pnlHistory, func(i, j int) bool {
+		return pnlHistory[i].Time.Before(pnlHistory[j].Time)
+	})
 	return pnlHistory, nil
 }

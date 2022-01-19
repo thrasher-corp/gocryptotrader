@@ -69,6 +69,7 @@ var (
 	errCurrencyPairInvalid  = errors.New("currency provided is not found in the available pairs list")
 	errNoTrades             = errors.New("no trades returned from supplied params")
 	errNilRequestData       = errors.New("nil request data received, cannot continue")
+	errNoAccountInformation = errors.New("account information does not exist")
 )
 
 // RPCServer struct
@@ -4125,6 +4126,9 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 	if err != nil {
 		return nil, err
 	}
+	if !a.IsFutures() {
+		return nil, fmt.Errorf("%s %w", a, order.ErrNotFuturesAsset)
+	}
 	var start, end time.Time
 	if r.StartDate != "" {
 		start, err = time.Parse(common.SimpleTimeFormat, r.StartDate)
@@ -4168,68 +4172,88 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 	if err != nil {
 		return nil, err
 	}
-	response := &gctrpc.GetFuturesPositionsResponse{}
+	b := exch.GetBase()
+	response := &gctrpc.GetFuturesPositionsResponse{
+		SubAccount: b.API.Credentials.Subaccount,
+	}
+	var totalRealisedPNL, totalUnrealisedPNL decimal.Decimal
 	for i := range pos {
 		if r.PositionLimit > 0 && len(response.Positions) >= int(r.PositionLimit) {
 			break
 		}
-		stats := pos[i].GetStats()
-		response.TotalOrders += int64(len(stats.Orders))
+		response.TotalOrders += int64(len(pos[i].Orders))
 		details := &gctrpc.FuturePosition{
-			Status:           stats.Status.String(),
-			CurrentDirection: stats.LatestDirection.String(),
-			UnrealisedPNL:    stats.UnrealisedPNL.String(),
-			RealisedPNL:      stats.RealisedPNL.String(),
+			Status:        pos[i].Status.String(),
+			UnrealisedPNL: pos[i].UnrealisedPNL.String(),
+			RealisedPNL:   pos[i].RealisedPNL.String(),
 		}
-		if len(stats.PNLHistory) > 0 {
-			details.OpeningDate = stats.PNLHistory[0].Time.Format(common.SimpleTimeFormatWithTimezone)
-			if stats.Status == order.Closed {
-				details.ClosingDate = stats.PNLHistory[len(stats.PNLHistory)-1].Time.Format(common.SimpleTimeFormatWithTimezone)
+		if !pos[i].UnrealisedPNL.IsZero() {
+			details.UnrealisedPNL = pos[i].UnrealisedPNL.String()
+		}
+		if !pos[i].RealisedPNL.IsZero() {
+			details.RealisedPNL = pos[i].RealisedPNL.String()
+		}
+		if pos[i].LatestDirection != order.UnknownSide {
+			details.CurrentDirection = pos[i].LatestDirection.String()
+		}
+		if len(pos[i].PNLHistory) > 0 {
+			details.OpeningDate = pos[i].PNLHistory[0].Time.Format(common.SimpleTimeFormatWithTimezone)
+			if pos[i].Status == order.Closed {
+				details.ClosingDate = pos[i].PNLHistory[len(pos[i].PNLHistory)-1].Time.Format(common.SimpleTimeFormatWithTimezone)
 			}
 		}
-		response.TotalRealisedPNL += stats.RealisedPNL.InexactFloat64()
-		response.TotalUnrealisedPNL += stats.UnrealisedPNL.InexactFloat64()
+		totalRealisedPNL = totalRealisedPNL.Add(pos[i].RealisedPNL)
+		totalUnrealisedPNL = totalUnrealisedPNL.Add(pos[i].UnrealisedPNL)
 		if !r.Verbose {
 			response.Positions = append(response.Positions, details)
 			continue
 		}
-		for j := range stats.Orders {
+		for j := range pos[i].Orders {
 			var trades []*gctrpc.TradeHistory
-			for k := range stats.Orders[j].Trades {
+			for k := range pos[i].Orders[j].Trades {
 				trades = append(trades, &gctrpc.TradeHistory{
-					CreationTime: stats.Orders[j].Trades[k].Timestamp.Unix(),
-					Id:           stats.Orders[j].Trades[k].TID,
-					Price:        stats.Orders[j].Trades[k].Price,
-					Amount:       stats.Orders[j].Trades[k].Amount,
-					Exchange:     stats.Orders[j].Trades[k].Exchange,
-					AssetType:    stats.Asset.String(),
-					OrderSide:    stats.Orders[j].Trades[k].Side.String(),
-					Fee:          stats.Orders[j].Trades[k].Fee,
-					Total:        stats.Orders[j].Trades[k].Total,
+					CreationTime: pos[i].Orders[j].Trades[k].Timestamp.Unix(),
+					Id:           pos[i].Orders[j].Trades[k].TID,
+					Price:        pos[i].Orders[j].Trades[k].Price,
+					Amount:       pos[i].Orders[j].Trades[k].Amount,
+					Exchange:     pos[i].Orders[j].Trades[k].Exchange,
+					AssetType:    pos[i].Asset.String(),
+					OrderSide:    pos[i].Orders[j].Trades[k].Side.String(),
+					Fee:          pos[i].Orders[j].Trades[k].Fee,
+					Total:        pos[i].Orders[j].Trades[k].Total,
 				})
 			}
 			details.Orders = append(details.Orders, &gctrpc.OrderDetails{
-				Exchange:      stats.Orders[j].Exchange,
-				Id:            stats.Orders[j].ID,
-				ClientOrderId: stats.Orders[j].ClientOrderID,
-				BaseCurrency:  stats.Orders[j].Pair.Base.String(),
-				QuoteCurrency: stats.Orders[j].Pair.Quote.String(),
-				AssetType:     stats.Orders[j].AssetType.String(),
-				OrderSide:     stats.Orders[j].Side.String(),
-				OrderType:     stats.Orders[j].Type.String(),
-				CreationTime:  stats.Orders[j].Date.Unix(),
-				UpdateTime:    stats.Orders[j].LastUpdated.Unix(),
-				Status:        stats.Orders[j].Status.String(),
-				Price:         stats.Orders[j].Price,
-				Amount:        stats.Orders[j].Amount,
-				Fee:           stats.Orders[j].Fee,
-				Cost:          stats.Orders[j].Cost,
+				Exchange:      pos[i].Orders[j].Exchange,
+				Id:            pos[i].Orders[j].ID,
+				ClientOrderId: pos[i].Orders[j].ClientOrderID,
+				BaseCurrency:  pos[i].Orders[j].Pair.Base.String(),
+				QuoteCurrency: pos[i].Orders[j].Pair.Quote.String(),
+				AssetType:     pos[i].Orders[j].AssetType.String(),
+				OrderSide:     pos[i].Orders[j].Side.String(),
+				OrderType:     pos[i].Orders[j].Type.String(),
+				CreationTime:  pos[i].Orders[j].Date.Unix(),
+				UpdateTime:    pos[i].Orders[j].LastUpdated.Unix(),
+				Status:        pos[i].Orders[j].Status.String(),
+				Price:         pos[i].Orders[j].Price,
+				Amount:        pos[i].Orders[j].Amount,
+				Fee:           pos[i].Orders[j].Fee,
+				Cost:          pos[i].Orders[j].Cost,
 				Trades:        trades,
 			})
 		}
 		response.Positions = append(response.Positions, details)
 	}
-	response.TotalPNL = response.TotalRealisedPNL + response.TotalUnrealisedPNL
+
+	if !totalUnrealisedPNL.IsZero() {
+		response.TotalUnrealisedPNL = totalUnrealisedPNL.String()
+	}
+	if !totalRealisedPNL.IsZero() {
+		response.TotalRealisedPNL = totalRealisedPNL.String()
+	}
+	if !totalUnrealisedPNL.IsZero() && !totalRealisedPNL.IsZero() {
+		response.TotalPNL = totalRealisedPNL.Add(totalUnrealisedPNL).String()
+	}
 	return response, nil
 }
 
@@ -4247,47 +4271,80 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 	if err != nil {
 		return nil, err
 	}
+	if !a.IsFutures() {
+		return nil, fmt.Errorf("%s %w", a, order.ErrNotFuturesAsset)
+	}
 	ai, err := exch.FetchAccountInfo(ctx, a)
 	if err != nil {
 		return nil, err
 	}
-
 	var calculators []order.CollateralCalculator
-	var acc account.SubAccount
-	if r.SubAccount != "" {
-		for i := range ai.Accounts {
-			if strings.EqualFold(r.SubAccount, ai.Accounts[i].ID) {
-				acc = ai.Accounts[i]
-				break
-			}
+	var acc *account.SubAccount
+	var subAccounts []string
+	subAccount := r.SubAccount
+	if subAccount == "" {
+		b := exch.GetBase()
+		subAccount = b.API.Credentials.Subaccount
+	}
+	for i := range ai.Accounts {
+		subAccounts = append(subAccounts, ai.Accounts[i].ID)
+		if ai.Accounts[i].ID == "main" && subAccount == "" {
+			acc = &ai.Accounts[i]
+			break
 		}
-	} else if len(ai.Accounts) > 0 {
-		acc = ai.Accounts[0]
+		if strings.EqualFold(subAccount, ai.Accounts[i].ID) {
+			acc = &ai.Accounts[i]
+			break
+		}
+	}
+	if acc == nil {
+		return nil, fmt.Errorf("%w for %s %s and stored credentials - available subaccounts: %s", errNoAccountInformation, exch.GetName(), r.SubAccount, strings.Join(subAccounts, ","))
 	}
 	for i := range acc.Currencies {
-		calculators = append(calculators, order.CollateralCalculator{
+		cal := order.CollateralCalculator{
 			CalculateOffline:   r.CalculateOffline,
 			CollateralCurrency: acc.Currencies[i].CurrencyName,
 			Asset:              a,
 			CollateralAmount:   decimal.NewFromFloat(acc.Currencies[i].TotalValue),
-		})
+		}
+		if r.CalculateOffline && !acc.Currencies[i].CurrencyName.Match(currency.USD) {
+			var tick *ticker.Price
+			tick, err = exch.FetchTicker(ctx, currency.NewPair(acc.Currencies[i].CurrencyName, currency.USD), asset.Spot)
+			if err != nil {
+				log.Errorf(log.GRPCSys, fmt.Sprintf("GetCollateral offline calculation via FetchTicker %s %s", exch.GetName(), err))
+				continue
+			}
+			if tick.Last == 0 {
+				continue
+			}
+			cal.USDPrice = decimal.NewFromFloat(tick.Last)
+		}
+		calculators = append(calculators, cal)
 	}
 
-	collateral, err := exch.CalculateTotalCollateral(ctx, calculators)
+	collateral, err := exch.CalculateTotalCollateral(ctx, r.SubAccount, r.CalculateOffline, calculators)
 	if err != nil {
 		return nil, err
 	}
 
 	result := &gctrpc.GetCollateralResponse{
+		SubAccount:      subAccount,
 		TotalCollateral: collateral.TotalCollateral.String(),
 	}
 	if r.IncludeBreakdown {
 		for i := range collateral.BreakdownByCurrency {
-			result.CurrencyBreakdown = append(result.CurrencyBreakdown, &gctrpc.CollateralForCurrency{
+			if collateral.BreakdownByCurrency[i].Amount.IsZero() && !r.IncludeZeroValues {
+				continue
+			}
+			cb := &gctrpc.CollateralForCurrency{
 				Currency:         collateral.BreakdownByCurrency[i].Currency.String(),
 				ScaledCollateral: collateral.BreakdownByCurrency[i].Amount.String(),
 				ScaledToCurrency: collateral.BreakdownByCurrency[i].ValueCurrency.String(),
-			})
+			}
+			if collateral.BreakdownByCurrency[i].Error != nil {
+				cb.Error = collateral.BreakdownByCurrency[i].Error.Error()
+			}
+			result.CurrencyBreakdown = append(result.CurrencyBreakdown, cb)
 		}
 	}
 	return result, nil

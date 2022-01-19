@@ -39,7 +39,7 @@ func getWriters(s *SubLoggerConfig) (io.Writer, error) {
 		}
 		writers = append(writers, writer)
 	}
-	return MultiWriter(writers...)
+	return multiWriter(writers...)
 }
 
 // GenDefaultSettings return struct with known sane/working logger settings

@@ -1465,19 +1465,19 @@ func (b *Base) GetAvailableTransferChains(_ context.Context, _ currency.Code) ([
 // It will also determine whether the position is considered to be liquidated
 // For live trading, an overrided function may wish to confirm the liquidation by
 // requesting the status of the asset
-func (b *Base) CalculatePNL(*order.PNLCalculatorRequest) (*order.PNLResult, error) {
+func (b *Base) CalculatePNL(context.Context, *order.PNLCalculatorRequest) (*order.PNLResult, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
 // ScaleCollateral is an overridable function to determine how much
 // collateral is usable in futures positions
-func (b *Base) ScaleCollateral(context.Context, *order.CollateralCalculator) (decimal.Decimal, error) {
+func (b *Base) ScaleCollateral(context.Context, string, *order.CollateralCalculator) (decimal.Decimal, error) {
 	return decimal.Zero, common.ErrNotYetImplemented
 }
 
 // CalculateTotalCollateral takes in n collateral calculators to determine an overall
 // standing in a singular currency. See FTX's implementation
-func (b *Base) CalculateTotalCollateral(context.Context, []order.CollateralCalculator) (*order.TotalCollateralResponse, error) {
+func (b *Base) CalculateTotalCollateral(ctx context.Context, subAccount string, calculateOffline bool, calculators []order.CollateralCalculator) (*order.TotalCollateralResponse, error) {
 	return nil, common.ErrNotYetImplemented
 }
 

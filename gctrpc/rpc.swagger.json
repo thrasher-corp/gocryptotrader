@@ -1206,6 +1206,12 @@
             "in": "query",
             "required": false,
             "type": "boolean"
+          },
+          {
+            "name": "includeZeroValues",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
           }
         ],
         "tags": [
@@ -3633,6 +3639,9 @@
         },
         "scaledToCurrency": {
           "type": "string"
+        },
+        "error": {
+          "type": "string"
         }
       }
     },
@@ -4161,6 +4170,9 @@
     "gctrpcGetCollateralResponse": {
       "type": "object",
       "properties": {
+        "subAccount": {
+          "type": "string"
+        },
         "totalCollateral": {
           "type": "string"
         },
@@ -4390,17 +4402,17 @@
           "type": "string",
           "format": "int64"
         },
+        "subAccount": {
+          "type": "string"
+        },
         "totalRealisedPNL": {
-          "type": "number",
-          "format": "double"
+          "type": "string"
         },
         "totalUnrealisedPNL": {
-          "type": "number",
-          "format": "double"
+          "type": "string"
         },
         "totalPNL": {
-          "type": "number",
-          "format": "double"
+          "type": "string"
         },
         "positions": {
           "type": "array",

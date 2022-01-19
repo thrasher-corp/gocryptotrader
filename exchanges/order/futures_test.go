@@ -1,6 +1,7 @@
 package order
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
@@ -13,14 +14,14 @@ import (
 
 const testExchange = "test"
 
-// FakePNL is implements PNL interface
+// FakePNL implements PNL interface
 type FakePNL struct {
 	err    error
 	result *PNLResult
 }
 
 // CalculatePNL overrides default pnl calculations
-func (f *FakePNL) CalculatePNL(*PNLCalculatorRequest) (*PNLResult, error) {
+func (f *FakePNL) CalculatePNL(context.Context, *PNLCalculatorRequest) (*PNLResult, error) {
 	if f.err != nil {
 		return nil, f.err
 	}
@@ -201,7 +202,7 @@ func TestSetupMultiPositionTracker(t *testing.T) {
 	}
 	setup.Exchange = testExchange
 	_, err = SetupMultiPositionTracker(setup)
-	if !errors.Is(err, ErrNotFutureAsset) {
+	if !errors.Is(err, ErrNotFuturesAsset) {
 		t.Error(err)
 	}
 	setup.Asset = asset.Futures
@@ -364,7 +365,7 @@ func TestPositionControllerTestTrackNewOrder(t *testing.T) {
 		Side:      Long,
 		ID:        "lol",
 	})
-	if !errors.Is(err, ErrNotFutureAsset) {
+	if !errors.Is(err, ErrNotFuturesAsset) {
 		t.Error(err)
 	}
 
@@ -451,7 +452,7 @@ func TestGetPositions(t *testing.T) {
 	if len(positions) != 1 {
 		t.Fatal("expected 1")
 	}
-	if positions[0].exchange != testExchange {
+	if positions[0].Exchange != testExchange {
 		t.Error("expected 'test'")
 	}
 
@@ -486,8 +487,8 @@ func TestGetPositionsForExchange(t *testing.T) {
 		t.Errorf("received '%v' expected '%v", err, ErrPositionsNotLoadedForPair)
 	}
 	_, err = c.GetPositionsForExchange(testExchange, asset.Spot, p)
-	if !errors.Is(err, ErrNotFutureAsset) {
-		t.Errorf("received '%v' expected '%v", err, ErrNotFutureAsset)
+	if !errors.Is(err, ErrNotFuturesAsset) {
+		t.Errorf("received '%v' expected '%v", err, ErrNotFuturesAsset)
 	}
 
 	c.positionTrackerControllers[testExchange][asset.Futures] = make(map[currency.Pair]*MultiPositionTracker)
@@ -517,7 +518,7 @@ func TestGetPositionsForExchange(t *testing.T) {
 	if len(pos) != 1 {
 		t.Fatal("expected 1")
 	}
-	if pos[0].exchange != testExchange {
+	if pos[0].Exchange != testExchange {
 		t.Error("expected test")
 	}
 	c = nil
@@ -548,8 +549,8 @@ func TestClearPositionsForExchange(t *testing.T) {
 		t.Errorf("received '%v' expected '%v", err, ErrPositionsNotLoadedForPair)
 	}
 	err = c.ClearPositionsForExchange(testExchange, asset.Spot, p)
-	if !errors.Is(err, ErrNotFutureAsset) {
-		t.Errorf("received '%v' expected '%v", err, ErrNotFutureAsset)
+	if !errors.Is(err, ErrNotFuturesAsset) {
+		t.Errorf("received '%v' expected '%v", err, ErrNotFuturesAsset)
 	}
 
 	c.positionTrackerControllers[testExchange][asset.Futures] = make(map[currency.Pair]*MultiPositionTracker)
@@ -631,8 +632,8 @@ func TestSetupPositionTracker(t *testing.T) {
 	p, err = m.SetupPositionTracker(&PositionTrackerSetup{
 		Asset: asset.Spot,
 	})
-	if !errors.Is(err, ErrNotFutureAsset) {
-		t.Errorf("received '%v' expected '%v", err, ErrNotFutureAsset)
+	if !errors.Is(err, ErrNotFuturesAsset) {
+		t.Errorf("received '%v' expected '%v", err, ErrNotFuturesAsset)
 	}
 	if p != nil {
 		t.Error("expected nil")
@@ -688,19 +689,20 @@ func TestSetupPositionTracker(t *testing.T) {
 func TestCalculatePNL(t *testing.T) {
 	t.Parallel()
 	p := &PNLCalculator{}
-	_, err := p.CalculatePNL(nil)
+	_, err := p.CalculatePNL(context.Background(), nil)
 	if !errors.Is(err, ErrNilPNLCalculator) {
 		t.Errorf("received '%v' expected '%v", err, ErrNilPNLCalculator)
 	}
-	_, err = p.CalculatePNL(&PNLCalculatorRequest{})
+	_, err = p.CalculatePNL(context.Background(), &PNLCalculatorRequest{})
 	if !errors.Is(err, errCannotCalculateUnrealisedPNL) {
 		t.Errorf("received '%v' expected '%v", err, errCannotCalculateUnrealisedPNL)
 	}
 
-	_, err = p.CalculatePNL(&PNLCalculatorRequest{
-		OrderDirection:   Short,
-		CurrentDirection: Long,
-	})
+	_, err = p.CalculatePNL(context.Background(),
+		&PNLCalculatorRequest{
+			OrderDirection:   Short,
+			CurrentDirection: Long,
+		})
 	if !errors.Is(err, errCannotCalculateUnrealisedPNL) {
 		t.Errorf("received '%v' expected '%v", err, errCannotCalculateUnrealisedPNL)
 	}

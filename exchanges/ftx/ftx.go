@@ -40,6 +40,7 @@ const (
 	getHistoricalData    = "/markets/%s/candles"
 	getFutures           = "/futures"
 	getFuture            = "/futures/"
+	getExpiredFutures    = "/expired_futures"
 	getFutureStats       = "/futures/%s/stats"
 	getFundingRates      = "/funding_rates"
 	getIndexWeights      = "/indexes/%s/weights"
@@ -141,7 +142,7 @@ var (
 	errUnrecognisedOrderStatus                           = errors.New("unrecognised order status received")
 	errInvalidOrderAmounts                               = errors.New("filled amount should not exceed order amount")
 	errCollateralCurrencyNotFound                        = errors.New("no collateral scaling information found")
-	errCollateralIMFMissing                              = errors.New("cannot scale collateral, missing IMF information")
+	errCollateralInitialMarginFractionMissing            = errors.New("cannot scale collateral, missing initial margin fraction information")
 
 	validResolutionData = []int64{15, 60, 300, 900, 3600, 14400, 86400}
 )
@@ -309,6 +310,32 @@ func (f *FTX) GetFutureStats(ctx context.Context, futureName string) (FutureStat
 	return resp.Data, f.SendHTTPRequest(ctx, exchange.RestSpot, fmt.Sprintf(getFutureStats, futureName), &resp)
 }
 
+// GetExpiredFuture returns information on an expired futures contract
+func (f *FTX) GetExpiredFuture(ctx context.Context, pair currency.Pair) (FuturesData, error) {
+	p, err := f.FormatSymbol(pair, asset.Futures)
+	if err != nil {
+		return FuturesData{}, err
+	}
+	resp, err := f.GetExpiredFutures(ctx)
+	if err != nil {
+		return FuturesData{}, err
+	}
+	for i := range resp {
+		if resp[i].Name == p {
+			return resp[i], nil
+		}
+	}
+	return FuturesData{}, fmt.Errorf("%s %s %w", f.Name, p, currency.ErrPairNotFound)
+}
+
+// GetExpiredFutures returns information on expired futures contracts
+func (f *FTX) GetExpiredFutures(ctx context.Context) ([]FuturesData, error) {
+	resp := struct {
+		Data []FuturesData `json:"result"`
+	}{}
+	return resp.Data, f.SendHTTPRequest(ctx, exchange.RestSpot, getExpiredFutures, &resp)
+}
+
 // GetFundingRates gets data on funding rates
 func (f *FTX) GetFundingRates(ctx context.Context, startTime, endTime time.Time, future string) ([]FundingRatesData, error) {
 	resp := struct {
@@ -359,7 +386,7 @@ func (f *FTX) GetMarginBorrowRates(ctx context.Context) ([]MarginFundingData, er
 	r := struct {
 		Data []MarginFundingData `json:"result"`
 	}{}
-	return r.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, marginBorrowRates, nil, &r)
+	return r.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, marginBorrowRates, "", nil, &r)
 }
 
 // GetMarginLendingRates gets lending rates for margin trading
@@ -367,7 +394,7 @@ func (f *FTX) GetMarginLendingRates(ctx context.Context) ([]MarginFundingData, e
 	r := struct {
 		Data []MarginFundingData `json:"result"`
 	}{}
-	return r.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, marginLendingRates, nil, &r)
+	return r.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, marginLendingRates, "", nil, &r)
 }
 
 // MarginDailyBorrowedAmounts gets daily borrowed amounts for margin
@@ -383,7 +410,7 @@ func (f *FTX) GetMarginMarketInfo(ctx context.Context, market string) ([]MarginM
 	r := struct {
 		Data []MarginMarketInfo `json:"result"`
 	}{}
-	return r.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, fmt.Sprintf(marginMarketInfo, market), nil, &r)
+	return r.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, fmt.Sprintf(marginMarketInfo, market), "", nil, &r)
 }
 
 // GetMarginBorrowHistory gets the margin borrow history data
@@ -401,7 +428,7 @@ func (f *FTX) GetMarginBorrowHistory(ctx context.Context, startTime, endTime tim
 		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
 	}
 	endpoint := common.EncodeURLValues(marginBorrowHistory, params)
-	return r.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, endpoint, nil, &r)
+	return r.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, endpoint, "", nil, &r)
 }
 
 // GetMarginMarketLendingHistory gets the markets margin lending rate history
@@ -421,7 +448,7 @@ func (f *FTX) GetMarginMarketLendingHistory(ctx context.Context, coin currency.C
 		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
 	}
 	endpoint := common.EncodeURLValues(marginLendingHistory, params)
-	return r.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, endpoint, params, &r)
+	return r.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, endpoint, "", params, &r)
 }
 
 // GetMarginLendingHistory gets margin lending history
@@ -441,7 +468,7 @@ func (f *FTX) GetMarginLendingHistory(ctx context.Context, coin currency.Code, s
 		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
 	}
 	endpoint := common.EncodeURLValues(marginLendHistory, params)
-	return r.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, marginLendHistory, endpoint, &r)
+	return r.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, marginLendHistory, "", endpoint, &r)
 }
 
 // GetMarginLendingOffers gets margin lending offers
@@ -449,7 +476,7 @@ func (f *FTX) GetMarginLendingOffers(ctx context.Context) ([]LendingOffersData, 
 	r := struct {
 		Data []LendingOffersData `json:"result"`
 	}{}
-	return r.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, marginLendingOffers, nil, &r)
+	return r.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, marginLendingOffers, "", nil, &r)
 }
 
 // GetLendingInfo gets margin lending info
@@ -457,7 +484,7 @@ func (f *FTX) GetLendingInfo(ctx context.Context) ([]LendingInfoData, error) {
 	r := struct {
 		Data []LendingInfoData `json:"result"`
 	}{}
-	return r.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, marginLendingInfo, nil, &r)
+	return r.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, marginLendingInfo, "", nil, &r)
 }
 
 // SubmitLendingOffer submits an offer for margin lending
@@ -471,7 +498,7 @@ func (f *FTX) SubmitLendingOffer(ctx context.Context, coin currency.Code, size, 
 	req["size"] = size
 	req["rate"] = rate
 
-	if err := f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, marginLendingOffers, req, &resp); err != nil {
+	if err := f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, marginLendingOffers, "", req, &resp); err != nil {
 		return err
 	}
 
@@ -482,11 +509,11 @@ func (f *FTX) SubmitLendingOffer(ctx context.Context, coin currency.Code, size, 
 }
 
 // GetAccountInfo gets account info
-func (f *FTX) GetAccountInfo(ctx context.Context) (AccountInfoData, error) {
+func (f *FTX) GetAccountInfo(ctx context.Context, subAccount string) (AccountInfoData, error) {
 	resp := struct {
 		Data AccountInfoData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, getAccountInfo, nil, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, getAccountInfo, subAccount, nil, &resp)
 }
 
 // GetPositions gets the users positions
@@ -494,30 +521,30 @@ func (f *FTX) GetPositions(ctx context.Context) ([]PositionData, error) {
 	resp := struct {
 		Data []PositionData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, getPositions, nil, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, getPositions, "", nil, &resp)
 }
 
 // ChangeAccountLeverage changes default leverage used by account
 func (f *FTX) ChangeAccountLeverage(ctx context.Context, leverage float64) error {
 	req := make(map[string]interface{})
 	req["leverage"] = leverage
-	return f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, setLeverage, req, nil)
+	return f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, setLeverage, "", req, nil)
 }
 
 // GetCoins gets coins' data in the account wallet
-func (f *FTX) GetCoins(ctx context.Context) ([]WalletCoinsData, error) {
+func (f *FTX) GetCoins(ctx context.Context, subAccount string) ([]WalletCoinsData, error) {
 	resp := struct {
 		Data []WalletCoinsData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, getCoins, nil, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, getCoins, subAccount, nil, &resp)
 }
 
 // GetBalances gets balances of the account
-func (f *FTX) GetBalances(ctx context.Context) ([]WalletBalance, error) {
+func (f *FTX) GetBalances(ctx context.Context, subAccount string) ([]WalletBalance, error) {
 	resp := struct {
 		Data []WalletBalance `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, getBalances, nil, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, getBalances, subAccount, nil, &resp)
 }
 
 // GetAllWalletBalances gets all wallets' balances
@@ -525,7 +552,7 @@ func (f *FTX) GetAllWalletBalances(ctx context.Context) (AllWalletBalances, erro
 	resp := struct {
 		Data AllWalletBalances `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, getAllWalletBalances, nil, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, getAllWalletBalances, "", nil, &resp)
 }
 
 // FetchDepositAddress gets deposit address for a given coin
@@ -538,7 +565,7 @@ func (f *FTX) FetchDepositAddress(ctx context.Context, coin currency.Code, chain
 		vals.Set("method", strings.ToLower(chain))
 	}
 	path := common.EncodeURLValues(getDepositAddress+coin.Upper().String(), vals)
-	return &resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp)
+	return &resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, "", nil, &resp)
 }
 
 // FetchDepositHistory gets deposit history
@@ -546,7 +573,7 @@ func (f *FTX) FetchDepositHistory(ctx context.Context) ([]DepositItem, error) {
 	resp := struct {
 		Data []DepositItem `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, getDepositHistory, nil, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, getDepositHistory, "", nil, &resp)
 }
 
 // FetchWithdrawalHistory gets withdrawal history
@@ -554,7 +581,7 @@ func (f *FTX) FetchWithdrawalHistory(ctx context.Context) ([]WithdrawItem, error
 	resp := struct {
 		Data []WithdrawItem `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, getWithdrawalHistory, nil, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, getWithdrawalHistory, "", nil, &resp)
 }
 
 // Withdraw sends a withdrawal request
@@ -582,7 +609,7 @@ func (f *FTX) Withdraw(ctx context.Context, coin currency.Code, address, tag, pa
 	resp := struct {
 		Data WithdrawItem `json:"result"`
 	}{}
-	return &resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, withdrawRequest, req, &resp)
+	return &resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, withdrawRequest, "", req, &resp)
 }
 
 // GetOpenOrders gets open orders
@@ -595,7 +622,7 @@ func (f *FTX) GetOpenOrders(ctx context.Context, marketName string) ([]OrderData
 		Data []OrderData `json:"result"`
 	}{}
 	endpoint := common.EncodeURLValues(getOpenOrders, params)
-	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, endpoint, nil, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, endpoint, "", nil, &resp)
 }
 
 // FetchOrderHistory gets order history
@@ -618,7 +645,7 @@ func (f *FTX) FetchOrderHistory(ctx context.Context, marketName string, startTim
 		params.Set("limit", limit)
 	}
 	endpoint := common.EncodeURLValues(getOrderHistory, params)
-	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, endpoint, nil, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, endpoint, "", nil, &resp)
 }
 
 // GetOpenTriggerOrders gets trigger orders that are currently open
@@ -634,7 +661,7 @@ func (f *FTX) GetOpenTriggerOrders(ctx context.Context, marketName, orderType st
 		Data []TriggerOrderData `json:"result"`
 	}{}
 	endpoint := common.EncodeURLValues(getOpenTriggerOrders, params)
-	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, endpoint, nil, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, endpoint, "", nil, &resp)
 }
 
 // GetTriggerOrderTriggers gets trigger orders that are currently open
@@ -642,7 +669,7 @@ func (f *FTX) GetTriggerOrderTriggers(ctx context.Context, orderID string) ([]Tr
 	resp := struct {
 		Data []TriggerData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, fmt.Sprintf(getTriggerOrderTriggers, orderID), nil, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, fmt.Sprintf(getTriggerOrderTriggers, orderID), "", nil, &resp)
 }
 
 // GetTriggerOrderHistory gets trigger orders that are currently open
@@ -671,7 +698,7 @@ func (f *FTX) GetTriggerOrderHistory(ctx context.Context, marketName string, sta
 		Data []TriggerOrderData `json:"result"`
 	}{}
 	endpoint := common.EncodeURLValues(getTriggerOrderHistory, params)
-	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, endpoint, nil, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, endpoint, "", nil, &resp)
 }
 
 // Order places an order
@@ -703,7 +730,7 @@ func (f *FTX) Order(
 	resp := struct {
 		Data OrderData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, placeOrder, req, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, placeOrder, "", req, &resp)
 }
 
 // TriggerOrder places an order
@@ -733,7 +760,7 @@ func (f *FTX) TriggerOrder(ctx context.Context, marketName, side, orderType, red
 	resp := struct {
 		Data TriggerOrderData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, placeTriggerOrder, req, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, placeTriggerOrder, "", req, &resp)
 }
 
 // ModifyPlacedOrder modifies a placed order
@@ -747,7 +774,7 @@ func (f *FTX) ModifyPlacedOrder(ctx context.Context, orderID, clientID string, p
 	resp := struct {
 		Data OrderData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, fmt.Sprintf(modifyOrder, orderID), req, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, fmt.Sprintf(modifyOrder, orderID), "", req, &resp)
 }
 
 // ModifyOrderByClientID modifies a placed order via clientOrderID
@@ -761,7 +788,7 @@ func (f *FTX) ModifyOrderByClientID(ctx context.Context, clientOrderID, clientID
 	resp := struct {
 		Data OrderData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, fmt.Sprintf(modifyOrderByClientID, clientOrderID), req, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, fmt.Sprintf(modifyOrderByClientID, clientOrderID), "", req, &resp)
 }
 
 // ModifyTriggerOrder modifies an existing trigger order
@@ -783,7 +810,7 @@ func (f *FTX) ModifyTriggerOrder(ctx context.Context, orderID, orderType string,
 	resp := struct {
 		Data TriggerOrderData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, fmt.Sprintf(modifyTriggerOrder, orderID), req, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, fmt.Sprintf(modifyTriggerOrder, orderID), "", req, &resp)
 }
 
 // GetOrderStatus gets the order status of a given orderID
@@ -791,7 +818,7 @@ func (f *FTX) GetOrderStatus(ctx context.Context, orderID string) (OrderData, er
 	resp := struct {
 		Data OrderData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, getOrderStatus+orderID, nil, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, getOrderStatus+orderID, "", nil, &resp)
 }
 
 // GetOrderStatusByClientID gets the order status of a given clientOrderID
@@ -799,7 +826,7 @@ func (f *FTX) GetOrderStatusByClientID(ctx context.Context, clientOrderID string
 	resp := struct {
 		Data OrderData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, getOrderStatusByClientID+clientOrderID, nil, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, getOrderStatusByClientID+clientOrderID, "", nil, &resp)
 }
 
 func (f *FTX) deleteOrderByPath(ctx context.Context, path string) (string, error) {
@@ -808,7 +835,7 @@ func (f *FTX) deleteOrderByPath(ctx context.Context, path string) (string, error
 		Success bool   `json:"success"`
 		Error   string `json:"error"`
 	}{}
-	err := f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, path, nil, &resp)
+	err := f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, path, "", nil, &resp)
 	// If there is an error reported, but the resp struct reports one of a very few
 	// specific error causes, we still consider this a successful cancellation.
 	if err != nil && !resp.Success && (resp.Error == "Order already closed" || resp.Error == "Order already queued for cancellation") {
@@ -842,13 +869,13 @@ func (f *FTX) DeleteTriggerOrder(ctx context.Context, orderID string) (string, e
 }
 
 // GetFills gets fills' data
-func (f *FTX) GetFills(ctx context.Context, market currency.Pair, limit string, startTime, endTime time.Time) ([]FillsData, error) {
+func (f *FTX) GetFills(ctx context.Context, market currency.Pair, item asset.Item, limit string, startTime, endTime time.Time) ([]FillsData, error) {
 	resp := struct {
 		Data []FillsData `json:"result"`
 	}{}
 	params := url.Values{}
 	if !market.IsEmpty() {
-		fp, err := f.FormatExchangeCurrency(market, asset.Futures)
+		fp, err := f.FormatExchangeCurrency(market, item)
 		if err != nil {
 			return nil, err
 		}
@@ -865,7 +892,7 @@ func (f *FTX) GetFills(ctx context.Context, market currency.Pair, limit string, 
 		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
 	}
 	endpoint := common.EncodeURLValues(getFills, params)
-	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, endpoint, nil, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, endpoint, "", nil, &resp)
 }
 
 // GetFundingPayments gets funding payments
@@ -885,7 +912,7 @@ func (f *FTX) GetFundingPayments(ctx context.Context, startTime, endTime time.Ti
 		params.Set("future", future)
 	}
 	endpoint := common.EncodeURLValues(getFundingPayments, params)
-	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, endpoint, nil, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, endpoint, "", nil, &resp)
 }
 
 // ListLeveragedTokens lists leveraged tokens
@@ -893,7 +920,7 @@ func (f *FTX) ListLeveragedTokens(ctx context.Context) ([]LeveragedTokensData, e
 	resp := struct {
 		Data []LeveragedTokensData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, getLeveragedTokens, nil, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, getLeveragedTokens, "", nil, &resp)
 }
 
 // GetTokenInfo gets token info
@@ -901,7 +928,7 @@ func (f *FTX) GetTokenInfo(ctx context.Context, tokenName string) ([]LeveragedTo
 	resp := struct {
 		Data []LeveragedTokensData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, getTokenInfo+tokenName, nil, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, getTokenInfo+tokenName, "", nil, &resp)
 }
 
 // ListLTBalances gets leveraged tokens' balances
@@ -909,7 +936,7 @@ func (f *FTX) ListLTBalances(ctx context.Context) ([]LTBalanceData, error) {
 	resp := struct {
 		Data []LTBalanceData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, getLTBalances, nil, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, getLTBalances, "", nil, &resp)
 }
 
 // ListLTCreations lists the leveraged tokens' creation requests
@@ -917,7 +944,7 @@ func (f *FTX) ListLTCreations(ctx context.Context) ([]LTCreationData, error) {
 	resp := struct {
 		Data []LTCreationData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, getLTCreations, nil, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, getLTCreations, "", nil, &resp)
 }
 
 // RequestLTCreation sends a request to create a leveraged token
@@ -927,7 +954,7 @@ func (f *FTX) RequestLTCreation(ctx context.Context, tokenName string, size floa
 	resp := struct {
 		Data RequestTokenCreationData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, fmt.Sprintf(requestLTCreation, tokenName), req, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, fmt.Sprintf(requestLTCreation, tokenName), "", req, &resp)
 }
 
 // ListLTRedemptions lists the leveraged tokens' redemption requests
@@ -935,7 +962,7 @@ func (f *FTX) ListLTRedemptions(ctx context.Context) ([]LTRedemptionData, error)
 	resp := struct {
 		Data []LTRedemptionData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, getLTRedemptions, nil, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, getLTRedemptions, "", nil, &resp)
 }
 
 // RequestLTRedemption sends a request to redeem a leveraged token
@@ -945,7 +972,7 @@ func (f *FTX) RequestLTRedemption(ctx context.Context, tokenName string, size fl
 	resp := struct {
 		Data LTRedemptionRequestData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, fmt.Sprintf(requestLTRedemption, tokenName), req, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, fmt.Sprintf(requestLTRedemption, tokenName), "", req, &resp)
 }
 
 // GetQuoteRequests gets a list of quote requests
@@ -953,7 +980,7 @@ func (f *FTX) GetQuoteRequests(ctx context.Context) ([]QuoteRequestData, error) 
 	resp := struct {
 		Data []QuoteRequestData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, getListQuotes, nil, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, getListQuotes, "", nil, &resp)
 }
 
 // GetYourQuoteRequests gets a list of your quote requests
@@ -961,7 +988,7 @@ func (f *FTX) GetYourQuoteRequests(ctx context.Context) ([]PersonalQuotesData, e
 	resp := struct {
 		Data []PersonalQuotesData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, getMyQuotesRequests, nil, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, getMyQuotesRequests, "", nil, &resp)
 }
 
 // CreateQuoteRequest sends a request to create a quote
@@ -986,7 +1013,7 @@ func (f *FTX) CreateQuoteRequest(ctx context.Context, underlying currency.Code, 
 	resp := struct {
 		Data CreateQuoteRequestData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, createQuoteRequest, req, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, createQuoteRequest, "", req, &resp)
 }
 
 // DeleteQuote sends request to cancel a quote
@@ -994,13 +1021,13 @@ func (f *FTX) DeleteQuote(ctx context.Context, requestID string) (CancelQuoteReq
 	resp := struct {
 		Data CancelQuoteRequestData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, deleteQuote+requestID, nil, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, deleteQuote+requestID, "", nil, &resp)
 }
 
 // GetQuotesForYourQuote gets a list of quotes for your quote
 func (f *FTX) GetQuotesForYourQuote(ctx context.Context, requestID string) (QuoteForQuoteData, error) {
 	var resp QuoteForQuoteData
-	return resp, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, fmt.Sprintf(endpointQuote, requestID), nil, &resp)
+	return resp, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, fmt.Sprintf(endpointQuote, requestID), "", nil, &resp)
 }
 
 // MakeQuote makes a quote for a quote
@@ -1010,7 +1037,7 @@ func (f *FTX) MakeQuote(ctx context.Context, requestID, price string) ([]QuoteFo
 	resp := struct {
 		Data []QuoteForQuoteData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, fmt.Sprintf(endpointQuote, requestID), nil, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, fmt.Sprintf(endpointQuote, requestID), "", nil, &resp)
 }
 
 // MyQuotes gets a list of my quotes for quotes
@@ -1018,7 +1045,7 @@ func (f *FTX) MyQuotes(ctx context.Context) ([]QuoteForQuoteData, error) {
 	resp := struct {
 		Data []QuoteForQuoteData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, getMyQuotes, nil, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, getMyQuotes, "", nil, &resp)
 }
 
 // DeleteMyQuote deletes my quote for quotes
@@ -1026,7 +1053,7 @@ func (f *FTX) DeleteMyQuote(ctx context.Context, quoteID string) ([]QuoteForQuot
 	resp := struct {
 		Data []QuoteForQuoteData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, deleteMyQuote+quoteID, nil, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, deleteMyQuote+quoteID, "", nil, &resp)
 }
 
 // AcceptQuote accepts the quote for quote
@@ -1034,7 +1061,7 @@ func (f *FTX) AcceptQuote(ctx context.Context, quoteID string) ([]QuoteForQuoteD
 	resp := struct {
 		Data []QuoteForQuoteData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, fmt.Sprintf(acceptQuote, quoteID), nil, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, fmt.Sprintf(acceptQuote, quoteID), "", nil, &resp)
 }
 
 // GetAccountOptionsInfo gets account's options' info
@@ -1042,7 +1069,7 @@ func (f *FTX) GetAccountOptionsInfo(ctx context.Context) (AccountOptionsInfoData
 	resp := struct {
 		Data AccountOptionsInfoData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, getOptionsInfo, nil, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, getOptionsInfo, "", nil, &resp)
 }
 
 // GetOptionsPositions gets options' positions
@@ -1050,7 +1077,7 @@ func (f *FTX) GetOptionsPositions(ctx context.Context) ([]OptionsPositionsData, 
 	resp := struct {
 		Data []OptionsPositionsData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, getOptionsPositions, nil, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, getOptionsPositions, "", nil, &resp)
 }
 
 // GetPublicOptionsTrades gets options' trades from public
@@ -1089,7 +1116,7 @@ func (f *FTX) GetOptionsFills(ctx context.Context, startTime, endTime time.Time,
 	if limit != "" {
 		req["limit"] = limit
 	}
-	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, getOptionsFills, req, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, getOptionsFills, "", req, &resp)
 }
 
 // GetStakes returns a list of staked assets
@@ -1097,7 +1124,7 @@ func (f *FTX) GetStakes(ctx context.Context) ([]Stake, error) {
 	resp := struct {
 		Data []Stake `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, stakes, nil, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, stakes, "", nil, &resp)
 }
 
 // GetUnstakeRequests returns a collection of unstake requests
@@ -1105,7 +1132,7 @@ func (f *FTX) GetUnstakeRequests(ctx context.Context) ([]UnstakeRequest, error) 
 	resp := struct {
 		Data []UnstakeRequest `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, unstakeRequests, nil, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, unstakeRequests, "", nil, &resp)
 }
 
 // GetStakeBalances returns a collection of staked coin balances
@@ -1113,7 +1140,7 @@ func (f *FTX) GetStakeBalances(ctx context.Context) ([]StakeBalance, error) {
 	resp := struct {
 		Data []StakeBalance `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, stakeBalances, nil, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, stakeBalances, "", nil, &resp)
 }
 
 // UnstakeRequest unstakes an existing staked coin
@@ -1124,7 +1151,7 @@ func (f *FTX) UnstakeRequest(ctx context.Context, coin currency.Code, size float
 	req := make(map[string]interface{})
 	req["coin"] = coin.Upper().String()
 	req["size"] = strconv.FormatFloat(size, 'f', -1, 64)
-	return &resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, unstakeRequests, req, &resp)
+	return &resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, unstakeRequests, "", req, &resp)
 }
 
 // CancelUnstakeRequest cancels a pending unstake request
@@ -1133,7 +1160,7 @@ func (f *FTX) CancelUnstakeRequest(ctx context.Context, requestID int64) (bool, 
 		Result string
 	}{}
 	path := unstakeRequests + "/" + strconv.FormatInt(requestID, 10)
-	if err := f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, path, nil, &resp); err != nil {
+	if err := f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, path, "", nil, &resp); err != nil {
 		return false, err
 	}
 
@@ -1148,7 +1175,7 @@ func (f *FTX) GetStakingRewards(ctx context.Context) ([]StakeReward, error) {
 	resp := struct {
 		Data []StakeReward `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, stakingRewards, nil, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, stakingRewards, "", nil, &resp)
 }
 
 // StakeRequest submits a stake request based on the specified currency and size
@@ -1159,11 +1186,11 @@ func (f *FTX) StakeRequest(ctx context.Context, coin currency.Code, size float64
 	req := make(map[string]interface{})
 	req["coin"] = coin.Upper().String()
 	req["size"] = strconv.FormatFloat(size, 'f', -1, 64)
-	return &resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, serumStakes, req, &resp)
+	return &resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, serumStakes, "", req, &resp)
 }
 
 // SendAuthHTTPRequest sends an authenticated request
-func (f *FTX) SendAuthHTTPRequest(ctx context.Context, ep exchange.URL, method, path string, data, result interface{}) error {
+func (f *FTX) SendAuthHTTPRequest(ctx context.Context, ep exchange.URL, method, path, subAccount string, data, result interface{}) error {
 	if !f.AllowAuthenticatedRequest() {
 		return fmt.Errorf("%s %w", f.Name, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
 	}
@@ -1199,8 +1226,11 @@ func (f *FTX) SendAuthHTTPRequest(ctx context.Context, ep exchange.URL, method, 
 		headers["FTX-KEY"] = f.API.Credentials.Key
 		headers["FTX-SIGN"] = crypto.HexEncodeToString(hmac)
 		headers["FTX-TS"] = ts
-		if f.API.Credentials.Subaccount != "" {
-			headers["FTX-SUBACCOUNT"] = url.QueryEscape(f.API.Credentials.Subaccount)
+		if subAccount == "" && f.API.Credentials.Subaccount != "" {
+			subAccount = f.API.Credentials.Subaccount
+		}
+		if subAccount != "" {
+			headers["FTX-SUBACCOUNT"] = url.QueryEscape(subAccount)
 		}
 		headers["Content-Type"] = "application/json"
 
@@ -1229,7 +1259,7 @@ func (f *FTX) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (floa
 	case exchange.OfflineTradeFee:
 		fee = getOfflineTradeFee(feeBuilder)
 	default:
-		feeData, err := f.GetAccountInfo(ctx)
+		feeData, err := f.GetAccountInfo(ctx, "")
 		if err != nil {
 			return 0, err
 		}
@@ -1314,7 +1344,7 @@ func (f *FTX) RequestForQuotes(ctx context.Context, base, quote currency.Code, a
 	req["fromCoin"] = base.Upper().String()
 	req["toCoin"] = quote.Upper().String()
 	req["size"] = amount
-	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, requestOTCQuote, req, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, requestOTCQuote, "", req, &resp)
 }
 
 // GetOTCQuoteStatus gets quote status of a quote
@@ -1324,12 +1354,12 @@ func (f *FTX) GetOTCQuoteStatus(ctx context.Context, marketName, quoteID string)
 	}{}
 	params := url.Values{}
 	params.Set("market", marketName)
-	return &resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, getOTCQuoteStatus+quoteID, params, &resp)
+	return &resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, getOTCQuoteStatus+quoteID, "", params, &resp)
 }
 
 // AcceptOTCQuote requests for otc quotes
 func (f *FTX) AcceptOTCQuote(ctx context.Context, quoteID string) error {
-	return f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, fmt.Sprintf(acceptOTCQuote, quoteID), nil, nil)
+	return f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, fmt.Sprintf(acceptOTCQuote, quoteID), "", nil, nil)
 }
 
 // GetSubaccounts returns the users subaccounts
@@ -1337,7 +1367,7 @@ func (f *FTX) GetSubaccounts(ctx context.Context) ([]Subaccount, error) {
 	resp := struct {
 		Data []Subaccount `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, subaccounts, nil, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, subaccounts, "", nil, &resp)
 }
 
 // CreateSubaccount creates a new subaccount
@@ -1351,7 +1381,7 @@ func (f *FTX) CreateSubaccount(ctx context.Context, name string) (*Subaccount, e
 	resp := struct {
 		Data Subaccount `json:"result"`
 	}{}
-	if err := f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, subaccounts, d, &resp); err != nil {
+	if err := f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, subaccounts, "", d, &resp); err != nil {
 		return nil, err
 	}
 	return &resp.Data, nil
@@ -1369,7 +1399,7 @@ func (f *FTX) UpdateSubaccountName(ctx context.Context, oldName, newName string)
 	resp := struct {
 		Data Subaccount `json:"result"`
 	}{}
-	if err := f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, subaccountsUpdateName, d, &resp); err != nil {
+	if err := f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, subaccountsUpdateName, "", d, &resp); err != nil {
 		return nil, err
 	}
 	return &resp.Data, nil
@@ -1385,7 +1415,7 @@ func (f *FTX) DeleteSubaccount(ctx context.Context, name string) error {
 	resp := struct {
 		Data Subaccount `json:"result"`
 	}{}
-	return f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, subaccounts, d, &resp)
+	return f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, subaccounts, "", d, &resp)
 }
 
 // SubaccountBalances returns the user's subaccount balances
@@ -1396,7 +1426,7 @@ func (f *FTX) SubaccountBalances(ctx context.Context, name string) ([]Subaccount
 	resp := struct {
 		Data []SubaccountBalance `json:"result"`
 	}{}
-	if err := f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, fmt.Sprintf(subaccountsBalance, name), nil, &resp); err != nil {
+	if err := f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, fmt.Sprintf(subaccountsBalance, name), "", nil, &resp); err != nil {
 		return nil, err
 	}
 	return resp.Data, nil
@@ -1427,7 +1457,7 @@ func (f *FTX) SubaccountTransfer(ctx context.Context, coin currency.Code, source
 	resp := struct {
 		Data SubaccountTransferStatus `json:"result"`
 	}{}
-	if err := f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, subaccountsTransfer, d, &resp); err != nil {
+	if err := f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, subaccountsTransfer, "", d, &resp); err != nil {
 		return nil, err
 	}
 	return &resp.Data, nil
@@ -1478,7 +1508,7 @@ func (f *FTX) FetchExchangeLimits(ctx context.Context) ([]order.MinMaxLevel, err
 
 // LoadCollateralWeightings sets the collateral weights for
 // currencies supported by FTX
-func (f *FTX) LoadCollateralWeightings() error {
+func (f *FTX) LoadCollateralWeightings(ctx context.Context) error {
 	f.collateralWeight = make(map[string]CollateralWeight)
 	// taken from https://help.ftx.com/hc/en-us/articles/360031149632-Non-USD-Collateral
 	// sets default, then uses the latest from FTX
@@ -1613,8 +1643,7 @@ func (f *FTX) LoadCollateralWeightings() error {
 	if !f.GetAuthenticatedAPISupport(exchange.RestAuthentication) {
 		return nil
 	}
-	ctx := context.Background()
-	coins, err := f.GetCoins(ctx)
+	coins, err := f.GetCoins(ctx, "")
 	if err != nil {
 		return err
 	}
@@ -1630,40 +1659,32 @@ func (f *FTX) LoadCollateralWeightings() error {
 		return err
 	}
 	for i := range futures {
-		f.collateralWeight.loadIMF(futures[i].Underlying, futures[i].IMFFactor)
+		f.collateralWeight.loadInitialMarginFraction(futures[i].Underlying, futures[i].InitialMarginFractionFactor)
 	}
 
 	return nil
 }
 
-func (c CollateralWeightHolder) isLoaded() bool {
+func (c CollateralWeightHolder) hasData() bool {
 	return len(c) > 0
 }
 
 func (c CollateralWeightHolder) loadTotal(code string, weighting float64) {
-	currencyCollateral, ok := c[code]
-	if !ok {
-		currencyCollateral = CollateralWeight{Total: weighting}
-	} else {
-		currencyCollateral.Total = weighting
-	}
+	currencyCollateral := c[code]
+	currencyCollateral.Total = weighting
 	c[code] = currencyCollateral
 }
 
-func (c CollateralWeightHolder) loadIMF(code string, imf float64) {
-	currencyCollateral, ok := c[code]
-	if !ok {
-		currencyCollateral = CollateralWeight{IMFFactor: imf}
-	} else {
-		currencyCollateral.IMFFactor = imf
-	}
+func (c CollateralWeightHolder) loadInitialMarginFraction(code string, imf float64) {
+	currencyCollateral := c[code]
+	currencyCollateral.InitialMarginFractionFactor = imf
 	c[code] = currencyCollateral
 }
 
 func (c CollateralWeightHolder) load(code string, initial, total, imfFactor float64) {
 	c[code] = CollateralWeight{
-		Initial:   initial,
-		Total:     total,
-		IMFFactor: imfFactor,
+		Initial:                     initial,
+		Total:                       total,
+		InitialMarginFractionFactor: imfFactor,
 	}
 }
