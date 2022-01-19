@@ -116,7 +116,7 @@ func (k *Kraken) FuturesSendOrder(ctx context.Context, orderType order.Type, sym
 	size, limitPrice, stopPrice float64) (FuturesSendOrderData, error) {
 	var resp FuturesSendOrderData
 
-	if ioc {
+	if ioc && orderType != order.Market {
 		orderType = order.ImmediateOrCancel
 	}
 

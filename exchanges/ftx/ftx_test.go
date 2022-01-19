@@ -984,12 +984,12 @@ func TestGetPublicOptionsTrades(t *testing.T) {
 	}
 	tmNow := time.Now()
 	result, err = f.GetPublicOptionsTrades(context.Background(),
-		tmNow.AddDate(0, 0, -30), tmNow, "5")
+		tmNow.AddDate(0, -1, 0), tmNow, "5")
 	if err != nil {
 		t.Error(err)
 	}
-	if len(result) > 5 {
-		t.Error("limit of 5 should return a max of 5 items")
+	if len(result) != 5 {
+		t.Error("limit of 5 should return 5 items")
 	}
 	_, err = f.GetPublicOptionsTrades(context.Background(),
 		time.Unix(validFTTBTCEndTime, 0), time.Unix(validFTTBTCStartTime, 0), "5")
