@@ -545,6 +545,25 @@ func (e *Settings) GetHoldingsForTime(t time.Time) holdings.Holding {
 	return holdings.Holding{}
 }
 
+// GetPositions returns all futures positions for an event's exchange, asset, pair
+func (p *Portfolio) GetPositions(e common.EventHandler) ([]gctorder.PositionStats, error) {
+	if !e.GetAssetType().IsFutures() {
+		return nil, errors.New("not a future")
+	}
+	settings, ok := p.exchangeAssetPairSettings[e.GetExchange()][e.GetAssetType()][e.Pair()]
+	if !ok {
+		return nil, fmt.Errorf("%v %v %v %w",
+			e.GetExchange(),
+			e.GetAssetType(),
+			e.Pair(),
+			errNoPortfolioSettings)
+	}
+	if settings.FuturesTracker == nil {
+		return nil, errors.New("no futures tracker")
+	}
+	return settings.FuturesTracker.GetPositions(), nil
+}
+
 // CalculatePNL will analyse any futures orders that have been placed over the backtesting run
 // that are not closed and calculate their PNL
 func (p *Portfolio) CalculatePNL(e common.DataEventHandler) error {

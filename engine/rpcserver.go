@@ -4193,8 +4193,8 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 		if !pos[i].RealisedPNL.IsZero() {
 			details.RealisedPNL = pos[i].RealisedPNL.String()
 		}
-		if pos[i].LatestDirection != order.UnknownSide {
-			details.CurrentDirection = pos[i].LatestDirection.String()
+		if pos[i].Direction != order.UnknownSide {
+			details.CurrentDirection = pos[i].Direction.String()
 		}
 		if len(pos[i].PNLHistory) > 0 {
 			details.OpeningDate = pos[i].PNLHistory[0].Time.Format(common.SimpleTimeFormatWithTimezone)

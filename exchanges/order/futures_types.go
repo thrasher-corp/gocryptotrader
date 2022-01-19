@@ -215,17 +215,20 @@ type PNLResult struct {
 // PositionStats is a basic holder
 // for position information
 type PositionStats struct {
-	Exchange         string
-	Asset            asset.Item
-	Pair             currency.Pair
-	Underlying       currency.Code
-	Orders           []Detail
-	RealisedPNL      decimal.Decimal
-	UnrealisedPNL    decimal.Decimal
-	LatestDirection  Side
-	Status           Status
+	Exchange      string
+	Asset         asset.Item
+	Pair          currency.Pair
+	Underlying    currency.Code
+	Orders        []Detail
+	RealisedPNL   decimal.Decimal
+	UnrealisedPNL decimal.Decimal
+	Status        Status
+	Direction     Side
+	Price         decimal.Decimal
+	Exposure      decimal.Decimal
+
 	OpeningDirection Side
 	OpeningPrice     decimal.Decimal
-	LatestPrice      decimal.Decimal
-	PNLHistory       []PNLResult
+
+	PNLHistory []PNLResult
 }

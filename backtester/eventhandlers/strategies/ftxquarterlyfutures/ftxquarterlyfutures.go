@@ -14,20 +14,16 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 const (
 	// Name is the strategy name
-	Name                 = "futures-rsi"
-	rsiPeriodKey         = "rsi-period"
-	rsiLowKey            = "rsi-low"
-	rsiHighKey           = "rsi-high"
-	rsiStopLoss          = "rsi-stop-loss"
-	rsiTakeProfit        = "rsi-take-profit"
-	rsiTrailingStop      = "rsi-trailing-stop"
-	rsiHighestUnrealised = "rsi-highest-unrealised"
-	rsiLowestUnrealised  = "rsi-lowest-unrealised"
-	description          = `The relative strength index is a technical indicator used in the analysis of financial markets. It is intended to chart the current and historical strength or weakness of a stock or market based on the closing prices of a recent trading period`
+	Name         = "futures-rsi"
+	rsiPeriodKey = "rsi-period"
+	rsiLowKey    = "rsi-low"
+	rsiHighKey   = "rsi-high"
+	description  = `The relative strength index is a technical indicator used in the analysis of financial markets. It is intended to chart the current and historical strength or weakness of a stock or market based on the closing prices of a recent trading period`
 )
 
 var errFuturesOnly = errors.New("can only work with futures")
@@ -35,14 +31,9 @@ var errFuturesOnly = errors.New("can only work with futures")
 // Strategy is an implementation of the Handler interface
 type Strategy struct {
 	base.Strategy
-	rsiPeriod         decimal.Decimal
-	rsiLow            decimal.Decimal
-	rsiHigh           decimal.Decimal
-	stopLoss          decimal.Decimal
-	takeProfit        decimal.Decimal
-	trailingStop      decimal.Decimal
-	highestUnrealised decimal.Decimal
-	lowestUnrealised  decimal.Decimal
+	rsiPeriod decimal.Decimal
+	rsiLow    decimal.Decimal
+	rsiHigh   decimal.Decimal
 }
 
 // Name returns the name of the strategy
@@ -93,51 +84,51 @@ func (s *Strategy) OnSignal(d data.Handler, _ funding.IFundTransferer, p portfol
 		es.AppendReason(fmt.Sprintf("missing data at %v, cannot perform any actions. RSI %v", d.Latest().GetTime(), latestRSIValue))
 		return &es, nil
 	}
-	/*
+	es.AppendReason(fmt.Sprintf("RSI at %v", latestRSIValue))
 
-		currentOrders, err := p.GetLatestOrderSnapshotForEvent(&es)
-		if err != nil {
-			return nil, err
-		}
-		var o *order.PositionTracker
-		for i := range currentOrders.Orders {
-			//if currentOrders.Orders[i].FuturesOrder != nil {
-			//	if currentOrders.Orders[i].FuturesOrder.LongPositions == nil {
-			//		if currentOrders.Orders[i].FuturesOrder.CurrentDirection == order.Short || currentOrders.Orders[i].FuturesOrder.CurrentDirection == order.Long {
-			//			o = currentOrders.Orders[i].FuturesOrder
-			//		}
-			//	}
-			//}
-		}
-		if o.ShortPositions == nil {
-			switch {
-			case latestRSIValue.GreaterThanOrEqual(s.rsiHigh):
-				es.SetDirection(order.Short)
-			case latestRSIValue.LessThanOrEqual(s.rsiLow):
-				es.SetDirection(order.Long)
+	positions, err := p.GetPositions(&es)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(positions) > 0 {
+		latestPosition := positions[len(positions)-1]
+		if latestPosition.Status == order.Open && latestPosition.Exposure.GreaterThan(decimal.Zero) {
+			// close out the position
+			switch latestPosition.Direction {
+			case order.Short:
+				if latestRSIValue.LessThanOrEqual(s.rsiLow) {
+					// close out your positions!
+					es.SetDirection(order.Long)
+					es.SetAmount(latestPosition.Exposure)
+				}
+				if latestRSIValue.GreaterThanOrEqual(s.rsiHigh) {
+					// short your shorts?
+				}
+			case order.Long:
+				if latestRSIValue.LessThanOrEqual(s.rsiLow) {
+					// long your longs?
+				}
+				if latestRSIValue.GreaterThanOrEqual(s.rsiHigh) {
+					// close out your positions!
+					es.SetDirection(order.Short)
+					es.SetAmount(latestPosition.Exposure)
+				}
 			default:
 				es.SetDirection(common.DoNothing)
 			}
-			es.AppendReason(fmt.Sprintf("RSI at %v", latestRSIValue))
-		} else {
-			price := decimal.NewFromFloat(o.ShortPositions.Price)
-			if latestRSIValue.LessThanOrEqual(s.rsiLow) ||
-				latestRSIValue.GreaterThanOrEqual(s.rsiHigh) ||
-				(!s.stopLoss.IsZero() && latest.GetClosePrice().LessThanOrEqual(s.stopLoss)) ||
-				(!s.takeProfit.IsZero() && latest.GetClosePrice().GreaterThanOrEqual(s.takeProfit)) ||
-				(!s.trailingStop.IsZero() && latest.GetClosePrice().Sub(price).Div(price).Mul(decimal.NewFromInt(100)).LessThanOrEqual(s.trailingStop)) ||
-				o.ShortPositions.UnrealisedPNL.GreaterThanOrEqual(s.highestUnrealised) ||
-				o.ShortPositions.UnrealisedPNL.LessThanOrEqual(s.lowestUnrealised) {
-				// set up the counter order to close the position
-				es.SetAmount(decimal.NewFromFloat(o.ShortPositions.Amount))
-				if o.ShortPositions.Side == order.Short {
-					es.SetDirection(order.Long)
-				} else if o.ShortPositions.Side == order.Long {
-					es.SetDirection(order.Short)
-				}
-			}
+			return &es, nil
 		}
-	*/
+	}
+	switch {
+	case latestRSIValue.GreaterThanOrEqual(s.rsiHigh):
+		es.SetDirection(order.Short)
+	case latestRSIValue.LessThanOrEqual(s.rsiLow):
+		es.SetDirection(order.Long)
+	default:
+		es.SetDirection(common.DoNothing)
+	}
+
 	return &es, nil
 }
 
@@ -176,36 +167,6 @@ func (s *Strategy) SetCustomSettings(customSettings map[string]interface{}) erro
 				return fmt.Errorf("%w provided rsi-period value could not be parsed: %v", base.ErrInvalidCustomSettings, v)
 			}
 			s.rsiPeriod = decimal.NewFromFloat(rsiPeriod)
-		case rsiStopLoss:
-			sl, ok := v.(float64)
-			if !ok || sl <= 0 {
-				return fmt.Errorf("%w provided rsi-period value could not be parsed: %v", base.ErrInvalidCustomSettings, v)
-			}
-			s.stopLoss = decimal.NewFromFloat(sl)
-		case rsiTakeProfit:
-			tp, ok := v.(float64)
-			if !ok || tp <= 0 {
-				return fmt.Errorf("%w provided rsi-period value could not be parsed: %v", base.ErrInvalidCustomSettings, v)
-			}
-			s.takeProfit = decimal.NewFromFloat(tp)
-		case rsiTrailingStop:
-			ts, ok := v.(float64)
-			if !ok || ts <= 0 {
-				return fmt.Errorf("%w provided rsi-period value could not be parsed: %v", base.ErrInvalidCustomSettings, v)
-			}
-			s.trailingStop = decimal.NewFromFloat(ts)
-		case rsiHighestUnrealised:
-			ts, ok := v.(float64)
-			if !ok || ts <= 0 {
-				return fmt.Errorf("%w provided rsi-period value could not be parsed: %v", base.ErrInvalidCustomSettings, v)
-			}
-			s.highestUnrealised = decimal.NewFromFloat(ts)
-		case rsiLowestUnrealised:
-			ts, ok := v.(float64)
-			if !ok || ts <= 0 {
-				return fmt.Errorf("%w provided rsi-period value could not be parsed: %v", base.ErrInvalidCustomSettings, v)
-			}
-			s.lowestUnrealised = decimal.NewFromFloat(ts)
 		default:
 			return fmt.Errorf("%w unrecognised custom setting key %v with value %v. Cannot apply", base.ErrInvalidCustomSettings, k, v)
 		}

@@ -290,10 +290,11 @@ func (p *PositionTracker) GetStats() PositionStats {
 		Orders:           append(p.longPositions, p.shortPositions...),
 		RealisedPNL:      p.realisedPNL,
 		UnrealisedPNL:    p.unrealisedPNL,
-		LatestDirection:  p.currentDirection,
+		Direction:        p.currentDirection,
 		OpeningDirection: p.openingDirection,
 		OpeningPrice:     p.entryPrice,
-		LatestPrice:      p.latestPrice,
+		Price:            p.latestPrice,
+		Exposure:         p.exposure,
 		PNLHistory:       p.pnlHistory,
 	}
 }

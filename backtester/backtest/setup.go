@@ -41,6 +41,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
+var futuresEnabled = true
+
 // NewFromConfig takes a strategy config and configures a backtester variable to run
 func NewFromConfig(cfg *config.Config, templatePath, output string) (*BackTest, error) {
 	log.Infoln(log.BackTester, "loading config...")

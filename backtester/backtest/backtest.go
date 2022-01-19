@@ -28,8 +28,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-var futuresEnabled = false
-
 // New returns a new BackTest instance
 func New() *BackTest {
 	return &BackTest{
