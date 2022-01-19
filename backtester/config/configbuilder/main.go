@@ -600,7 +600,6 @@ func addCurrencySetting(reader *bufio.Reader, usingExchangeLevelFunding bool) (*
 			}
 		}
 	case asset.Futures.String():
-
 	}
 
 	fmt.Println("Enter the currency quote. eg USDT")
@@ -621,7 +620,6 @@ func addCurrencySetting(reader *bufio.Reader, usingExchangeLevelFunding bool) (*
 			}
 		}
 	case asset.Futures.String():
-
 	}
 
 	fmt.Println("Enter the maker-fee. eg 0.001")

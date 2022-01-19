@@ -30,6 +30,8 @@ var (
 	ErrNotFuturesAsset = errors.New("asset type is not futures")
 	// ErrUSDValueRequired returned when usd value unset
 	ErrUSDValueRequired = errors.New("USD value required")
+	// ErrNotFutureAsset
+	ErrNotFutureAsset = errors.New("not a futures asset")
 
 	errExchangeNameEmpty              = errors.New("exchange name empty")
 	errTimeUnset                      = errors.New("time unset")

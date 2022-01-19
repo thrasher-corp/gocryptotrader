@@ -76,7 +76,6 @@ func TestNewFromConfig(t *testing.T) {
 	}
 	cfg.CurrencySettings[0].Asset = asset.Spot.String()
 	_, err = NewFromConfig(cfg, "", "")
-	_, err = NewFromConfig(cfg, "", "")
 	if !errors.Is(err, base.ErrStrategyNotFound) {
 		t.Errorf("received: %v, expected: %v", err, base.ErrStrategyNotFound)
 	}

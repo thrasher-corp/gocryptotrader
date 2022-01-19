@@ -115,7 +115,6 @@ type Item struct {
 	currency           currency.Code
 	initialFunds       decimal.Decimal
 	available          decimal.Decimal
-	weightedAvailable  decimal.Decimal
 	reserved           decimal.Decimal
 	transferFee        decimal.Decimal
 	pairedWith         *Item

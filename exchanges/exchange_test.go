@@ -202,7 +202,7 @@ func TestHTTPClient(t *testing.T) {
 	}
 
 	if r.GetHTTPClient().Timeout != time.Second*5 {
-		t.Fatalf("TestHTTPClient unexpected value")
+		t.Fatalf("TestHTTPClient unexpected value, received %v", r.GetHTTPClient().Timeout)
 	}
 
 	r.Requester = nil

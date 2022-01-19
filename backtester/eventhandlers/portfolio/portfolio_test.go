@@ -675,7 +675,7 @@ func TestGetLatestSnapshot(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
-	ss, err := p.GetLatestOrderSnapshots()
+	_, err = p.GetLatestOrderSnapshots()
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
@@ -696,7 +696,7 @@ func TestGetLatestSnapshot(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
-	ss, err = p.GetLatestOrderSnapshots()
+	ss, err := p.GetLatestOrderSnapshots()
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
@@ -766,6 +766,9 @@ func TestCalculatePNL(t *testing.T) {
 			},
 		},
 	}, false)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
+	}
 	odCp := od.Copy()
 	odCp.Price = od.Price - 1
 	odCp.Side = gctorder.Long
@@ -790,11 +793,11 @@ func TestCalculatePNL(t *testing.T) {
 	if len(pos) != 1 {
 		t.Fatalf("expected one position, received '%v'", len(pos))
 	}
-	if len(pos[0].GetStats().PNLHistory) == 0 {
+	if len(pos[0].PNLHistory) == 0 {
 		t.Fatal("expected a pnl entry ( ͡° ͜ʖ ͡°)")
 	}
-	if !pos[0].GetStats().RealisedPNL.Equal(decimal.NewFromInt(20)) {
+	if !pos[0].RealisedPNL.Equal(decimal.NewFromInt(20)) {
 		// 20 orders * $1 difference * 1x leverage
-		t.Errorf("expected 20, received '%v'", pos[0].GetStats().RealisedPNL)
+		t.Errorf("expected 20, received '%v'", pos[0].RealisedPNL)
 	}
 }

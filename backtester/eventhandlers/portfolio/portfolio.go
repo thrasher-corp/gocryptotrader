@@ -196,18 +196,19 @@ func (p *Portfolio) OnSignal(ev signal.Event, cs *exchange.Settings, funds fundi
 			return nil, err
 		}
 		sizingFunds = cReader.AvailableFunds()
-		sizingFunds, err = lookup.Exchange.ScaleCollateral(context.TODO(), &gctorder.CollateralCalculator{
-			CollateralCurrency: cReader.CollateralCurrency(),
-			Asset:              ev.GetAssetType(),
-			Side:               ev.GetDirection(),
-			CollateralAmount:   sizingFunds,
-			USDPrice:           ev.GetPrice(),
-			CalculateOffline:   true,
-		})
+		sizingFunds, err = lookup.Exchange.ScaleCollateral(
+			context.TODO(), "",
+			&gctorder.CollateralCalculator{
+				CollateralCurrency: cReader.CollateralCurrency(),
+				Asset:              ev.GetAssetType(),
+				Side:               ev.GetDirection(),
+				CollateralAmount:   sizingFunds,
+				USDPrice:           ev.GetPrice(),
+				CalculateOffline:   true,
+			})
 		if err != nil {
 			return nil, err
 		}
-
 	}
 	sizedOrder := p.sizeOrder(ev, cs, o, sizingFunds, funds)
 
@@ -599,12 +600,11 @@ func (p *Portfolio) GetLatestPNLForEvent(e common.EventHandler) (*PNLSummary, er
 	if len(positions) == 0 {
 		return response, nil
 	}
-	pnl, err := positions[len(positions)-1].GetLatestPNLSnapshot()
-	if err != nil {
-		return nil, err
+	pnlHistory := positions[len(positions)-1].PNLHistory
+	if len(pnlHistory) == 0 {
+		return response, nil
 	}
-
-	response.PNL = pnl
+	response.PNL = pnlHistory[len(pnlHistory)-1]
 	return response, nil
 }
 
@@ -630,11 +630,10 @@ func (p *Portfolio) GetLatestPNLs() []PNLSummary {
 				}
 				positions := settings.FuturesTracker.GetPositions()
 				if len(positions) > 0 {
-					pnl, err := positions[len(positions)-1].GetLatestPNLSnapshot()
-					if err != nil {
-						continue
+					pnlHistory := positions[len(positions)-1].PNLHistory
+					if len(pnlHistory) > 0 {
+						summary.PNL = pnlHistory[len(pnlHistory)-1]
 					}
-					summary.PNL = pnl
 				}
 
 				result = append(result, summary)

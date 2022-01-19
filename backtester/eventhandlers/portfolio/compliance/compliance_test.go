@@ -102,6 +102,9 @@ func TestGetLatestSnapshot(t *testing.T) {
 		Timestamp: tt.Add(time.Hour),
 		Orders:    nil,
 	}, false)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
+	}
 	snappySnap = m.GetLatestSnapshot()
 	if snappySnap.Timestamp.Equal(tt) {
 		t.Errorf("expected %v", tt.Add(time.Hour))

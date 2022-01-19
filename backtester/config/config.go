@@ -96,7 +96,6 @@ func (c *Config) PrintSetting() {
 		log.Infof(log.BackTester, "Sell rules: %+v", c.CurrencySettings[i].SellSide)
 		if c.CurrencySettings[i].FuturesDetails != nil && c.CurrencySettings[i].Asset == asset.Futures.String() {
 			log.Infof(log.BackTester, "Leverage rules: %+v", c.CurrencySettings[i].FuturesDetails.Leverage)
-
 		}
 		log.Infof(log.BackTester, "Can use exchange defined order execution limits: %+v", c.CurrencySettings[i].CanUseExchangeLimits)
 	}
