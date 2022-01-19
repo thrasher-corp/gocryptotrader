@@ -31,7 +31,7 @@ const (
 	btcMarketOrderBooks          = "/orderbook?"
 	btcMarketsCandles            = "/candles?"
 	btcMarketsTickers            = "tickers?"
-	btcMarketsMultipleOrderbooks = "/orderbooks?"
+	btcMarketsMultipleOrderbooks = "orderbooks?"
 	btcMarketsGetTime            = "/time"
 	btcMarketsWithdrawalFees     = "/withdrawal-fees"
 	btcMarketsUnauthPath         = btcMarketsAPIURL + btcMarketsAPIVersion + btcMarketsAllMarkets
