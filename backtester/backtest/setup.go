@@ -106,8 +106,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string) (*BackTest, 
 				a,
 				cq,
 				cfg.StrategySettings.ExchangeLevelFunding[i].InitialFunds,
-				cfg.StrategySettings.ExchangeLevelFunding[i].TransferFee,
-				cfg.StrategySettings.ExchangeLevelFunding[i].Collateral)
+				cfg.StrategySettings.ExchangeLevelFunding[i].TransferFee)
 			if err != nil {
 				return nil, err
 			}
@@ -246,8 +245,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string) (*BackTest, 
 					a,
 					b,
 					decimal.Zero,
-					decimal.Zero,
-					false)
+					decimal.Zero)
 				if err != nil {
 					return nil, err
 				}
@@ -255,8 +253,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string) (*BackTest, 
 					a,
 					q,
 					decimal.Zero,
-					decimal.Zero,
-					false)
+					decimal.Zero)
 				if err != nil {
 					return nil, err
 				}
@@ -278,15 +275,21 @@ func NewFromConfig(cfg *config.Config, templatePath, output string) (*BackTest, 
 					a,
 					c,
 					decimal.Zero,
-					decimal.Zero,
-					false)
+					decimal.Zero)
 				if err != nil {
 					return nil, err
 				}
 				if cfg.CurrencySettings[i].FuturesDetails == nil {
 					return nil, errors.New("what the fuck")
 				}
-				err = funds.LinkCollateralCurrency(futureItem, currency.NewCode(cfg.CurrencySettings[i].FuturesDetails.CollateralCurrency))
+
+				var collateralCurrency currency.Code
+				collateralCurrency, err = exch.GetCollateralCurrencyForContract(a, currency.NewPair(b, q))
+				if err != nil {
+					return nil, err
+				}
+
+				err = funds.LinkCollateralCurrency(futureItem, collateralCurrency)
 				if err != nil {
 					return nil, err
 				}
@@ -312,8 +315,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string) (*BackTest, 
 				a,
 				curr.Base,
 				bFunds,
-				decimal.Zero,
-				false)
+				decimal.Zero)
 			if err != nil {
 				return nil, err
 			}
@@ -322,8 +324,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string) (*BackTest, 
 				a,
 				curr.Quote,
 				qFunds,
-				decimal.Zero,
-				false)
+				decimal.Zero)
 			if err != nil {
 				return nil, err
 			}

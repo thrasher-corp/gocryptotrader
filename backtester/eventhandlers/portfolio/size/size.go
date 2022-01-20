@@ -41,7 +41,6 @@ func (s *Size) SizeOrder(o order.Event, amountAvailable decimal.Decimal, cs *exc
 		if amount.GreaterThan(portfolioSize) {
 			amount = portfolioSize
 		}
-
 	case gctorder.Sell:
 		// check size against currency specific settings
 		amount, err = s.calculateSellSize(retOrder.Price, amountAvailable, cs.ExchangeFee, o.GetSellLimit(), cs.SellSide)

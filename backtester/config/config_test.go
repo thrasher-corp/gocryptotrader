@@ -1214,7 +1214,6 @@ func TestGenerateConfigForFuturesAPICandles(t *testing.T) {
 					Currency:     "usdt",
 					InitialFunds: *initialQuoteFunds2,
 					TransferFee:  decimal.Zero,
-					Collateral:   true,
 				},
 			},
 		},
@@ -1225,7 +1224,6 @@ func TestGenerateConfigForFuturesAPICandles(t *testing.T) {
 				Base:         "BTC",
 				Quote:        "0924",
 				FuturesDetails: &FuturesDetails{
-					CollateralCurrency: "USDT",
 					Leverage: Leverage{
 						CanUseLeverage:           true,
 						MaximumOrderLeverageRate: makerFee,

@@ -53,7 +53,7 @@ func CreateFuturesCurrencyCode(b, q currency.Code) currency.Code {
 }
 
 // CreateItem creates a new funding item
-func CreateItem(exch string, a asset.Item, ci currency.Code, initialFunds, transferFee decimal.Decimal, isCollateral bool) (*Item, error) {
+func CreateItem(exch string, a asset.Item, ci currency.Code, initialFunds, transferFee decimal.Decimal) (*Item, error) {
 	if initialFunds.IsNegative() {
 		return nil, fmt.Errorf("%v %v %v %w initial funds: %v", exch, a, ci, errNegativeAmountReceived, initialFunds)
 	}
@@ -69,7 +69,6 @@ func CreateItem(exch string, a asset.Item, ci currency.Code, initialFunds, trans
 		available:    initialFunds,
 		transferFee:  transferFee,
 		snapshot:     make(map[time.Time]ItemSnapshot),
-		collateral:   isCollateral,
 	}, nil
 }
 
@@ -85,7 +84,19 @@ func (f *FundManager) LinkCollateralCurrency(item *Item, code currency.Code) err
 			return nil
 		}
 	}
-	return ErrFundsNotFound
+	collateral := &Item{
+		exchange:   item.exchange,
+		asset:      item.asset,
+		currency:   code,
+		pairedWith: item,
+		collateral: true,
+	}
+	err := f.AddItem(collateral)
+	if err != nil {
+		return err
+	}
+	item.pairedWith = collateral
+	return nil
 }
 
 // CreateSnapshot creates a Snapshot for an event's point in time
@@ -164,7 +175,7 @@ func (f *FundManager) AddUSDTrackingData(k *kline.DataFromKline) error {
 					for j := range usdCandles.Candles {
 						// usd stablecoins do not always match in value,
 						// this is a simplified implementation that can allow
-						// USD tracking for many different currencies across many exchanges
+						// USD tracking for many currencies across many exchanges
 						// without retrieving n candle history and exchange rates
 						usdCandles.Candles[j].Open = 1
 						usdCandles.Candles[j].High = 1
@@ -365,7 +376,7 @@ func (f *FundManager) GetFundingForEAP(exch string, a asset.Item, p currency.Pai
 	var collat Collateral
 	for i := range f.items {
 		if a.IsFutures() {
-			if f.items[i].BasicEqual(exch, a, currency.NewCode(p.String()), currency.USDT) {
+			if f.items[i].MatchesCurrency(currency.NewCode(p.String())) {
 				collat.Contract = f.items[i]
 				collat.Collateral = f.items[i].pairedWith
 				return &collat, nil

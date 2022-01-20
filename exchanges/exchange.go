@@ -1485,3 +1485,8 @@ func (b *Base) CalculateTotalCollateral(ctx context.Context, subAccount string, 
 func (b *Base) GetFuturesPositions(context.Context, asset.Item, currency.Pair, time.Time, time.Time) ([]order.Detail, error) {
 	return nil, common.ErrNotYetImplemented
 }
+
+// GetCollateralCurrencyForContract returns the collateral currency for an asset and contract pair
+func (b *Base) GetCollateralCurrencyForContract(asset.Item, currency.Pair) (currency.Code, error) {
+	return currency.Code{}, common.ErrNotYetImplemented
+}

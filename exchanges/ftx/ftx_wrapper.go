@@ -1477,3 +1477,11 @@ func (f *FTX) GetFuturesPositions(ctx context.Context, a asset.Item, cp currency
 
 	return resp, nil
 }
+
+// GetCollateralCurrencyForContract returns the collateral currency for an asset and contract pair
+func (f *FTX) GetCollateralCurrencyForContract(a asset.Item, _ currency.Pair) (currency.Code, error) {
+	if a == asset.Futures {
+		return currency.USD, nil
+	}
+	return currency.Code{}, errCollateralCurrencyNotFound
+}

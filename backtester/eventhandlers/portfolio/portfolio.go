@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -12,7 +11,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/risk"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
@@ -23,90 +21,6 @@ import (
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
-
-// Setup creates a portfolio manager instance and sets private fields
-func Setup(sh SizeHandler, r risk.Handler, riskFreeRate decimal.Decimal) (*Portfolio, error) {
-	if sh == nil {
-		return nil, errSizeManagerUnset
-	}
-	if riskFreeRate.IsNegative() {
-		return nil, errNegativeRiskFreeRate
-	}
-	if r == nil {
-		return nil, errRiskManagerUnset
-	}
-	p := &Portfolio{}
-	p.sizeManager = sh
-	p.riskManager = r
-	p.riskFreeRate = riskFreeRate
-
-	return p, nil
-}
-
-// Reset returns the portfolio manager to its default state
-func (p *Portfolio) Reset() {
-	p.exchangeAssetPairSettings = nil
-}
-
-// SetupCurrencySettingsMap ensures a map is created and no panics happen
-func (p *Portfolio) SetupCurrencySettingsMap(setup *exchange.Settings) error {
-	if setup == nil {
-		return errNoPortfolioSettings
-	}
-	if setup.Exchange == nil {
-		return errExchangeUnset
-	}
-	if setup.Asset == "" {
-		return errAssetUnset
-	}
-	if setup.Pair.IsEmpty() {
-		return errCurrencyPairUnset
-	}
-	if p.exchangeAssetPairSettings == nil {
-		p.exchangeAssetPairSettings = make(map[string]map[asset.Item]map[currency.Pair]*Settings)
-	}
-	name := strings.ToLower(setup.Exchange.GetName())
-	if p.exchangeAssetPairSettings[name] == nil {
-		p.exchangeAssetPairSettings[name] = make(map[asset.Item]map[currency.Pair]*Settings)
-	}
-	if p.exchangeAssetPairSettings[name][setup.Asset] == nil {
-		p.exchangeAssetPairSettings[name][setup.Asset] = make(map[currency.Pair]*Settings)
-	}
-	if _, ok := p.exchangeAssetPairSettings[name][setup.Asset][setup.Pair]; ok {
-		return nil
-	}
-
-	settings := &Settings{
-		Fee:            setup.ExchangeFee,
-		BuySideSizing:  setup.BuySide,
-		SellSideSizing: setup.SellSide,
-		Leverage:       setup.Leverage,
-		ComplianceManager: compliance.Manager{
-			Snapshots: []compliance.Snapshot{},
-		},
-		Exchange: setup.Exchange,
-	}
-	if setup.Asset.IsFutures() {
-		futureTrackerSetup := &gctorder.MultiPositionTrackerSetup{
-			Exchange:                  name,
-			Asset:                     setup.Asset,
-			Pair:                      setup.Pair,
-			Underlying:                setup.Pair.Base,
-			OfflineCalculation:        true,
-			UseExchangePNLCalculation: setup.UseExchangePNLCalculation,
-		}
-		if setup.UseExchangePNLCalculation {
-			futureTrackerSetup.ExchangePNLCalculation = setup.Exchange
-		}
-		tracker, err := gctorder.SetupMultiPositionTracker(futureTrackerSetup)
-		if err != nil {
-			return err
-		}
-		settings.FuturesTracker = tracker
-	}
-	p.exchangeAssetPairSettings[name][setup.Asset][setup.Pair] = settings
-	return nil
-}
 
 // OnSignal receives the event from the strategy on whether it has signalled to buy, do nothing or sell
 // on buy/sell, the portfolio manager will size the order and assess the risk of the order
@@ -349,31 +263,6 @@ func (p *Portfolio) OnFill(ev fill.Event, funding funding.IFundReleaser) (*fill.
 	return fe, nil
 }
 
-// GetLatestOrderSnapshotForEvent gets orders related to the event
-func (p *Portfolio) GetLatestOrderSnapshotForEvent(e common.EventHandler) (compliance.Snapshot, error) {
-	eapSettings, ok := p.exchangeAssetPairSettings[e.GetExchange()][e.GetAssetType()][e.Pair()]
-	if !ok {
-		return compliance.Snapshot{}, fmt.Errorf("%w for %v %v %v", errNoPortfolioSettings, e.GetExchange(), e.GetAssetType(), e.Pair())
-	}
-	return eapSettings.ComplianceManager.GetLatestSnapshot(), nil
-}
-
-// GetLatestOrderSnapshots returns the latest snapshots from all stored pair data
-func (p *Portfolio) GetLatestOrderSnapshots() ([]compliance.Snapshot, error) {
-	var resp []compliance.Snapshot
-	for _, exchangeMap := range p.exchangeAssetPairSettings {
-		for _, assetMap := range exchangeMap {
-			for _, pairMap := range assetMap {
-				resp = append(resp, pairMap.ComplianceManager.GetLatestSnapshot())
-			}
-		}
-	}
-	if len(resp) == 0 {
-		return nil, errNoPortfolioSettings
-	}
-	return resp, nil
-}
-
 // addComplianceSnapshot gets the previous snapshot of compliance events, updates with the latest fillevent
 // then saves the snapshot to the c
 func (p *Portfolio) addComplianceSnapshot(fillEvent fill.Event) error {
@@ -404,6 +293,60 @@ func (p *Portfolio) addComplianceSnapshot(fillEvent fill.Event) error {
 		Orders:    prevSnap.Orders,
 	}
 	return complianceManager.AddSnapshot(snap, false)
+}
+
+func (p *Portfolio) setHoldingsForOffset(h *holdings.Holding, overwriteExisting bool) error {
+	if h.Timestamp.IsZero() {
+		return errHoldingsNoTimestamp
+	}
+	lookup, ok := p.exchangeAssetPairSettings[h.Exchange][h.Asset][h.Pair]
+	if !ok {
+		return fmt.Errorf("%w for %v %v %v", errNoPortfolioSettings, h.Exchange, h.Asset, h.Pair)
+	}
+
+	if overwriteExisting && len(lookup.HoldingsSnapshots) == 0 {
+		return errNoHoldings
+	}
+	for i := len(lookup.HoldingsSnapshots) - 1; i >= 0; i-- {
+		if lookup.HoldingsSnapshots[i].Offset == h.Offset {
+			if overwriteExisting {
+				lookup.HoldingsSnapshots[i] = *h
+				return nil
+			}
+			return errHoldingsAlreadySet
+		}
+	}
+	if overwriteExisting {
+		return fmt.Errorf("%w at %v", errNoHoldings, h.Timestamp)
+	}
+
+	lookup.HoldingsSnapshots = append(lookup.HoldingsSnapshots, *h)
+	return nil
+}
+
+// GetLatestOrderSnapshotForEvent gets orders related to the event
+func (p *Portfolio) GetLatestOrderSnapshotForEvent(e common.EventHandler) (compliance.Snapshot, error) {
+	eapSettings, ok := p.exchangeAssetPairSettings[e.GetExchange()][e.GetAssetType()][e.Pair()]
+	if !ok {
+		return compliance.Snapshot{}, fmt.Errorf("%w for %v %v %v", errNoPortfolioSettings, e.GetExchange(), e.GetAssetType(), e.Pair())
+	}
+	return eapSettings.ComplianceManager.GetLatestSnapshot(), nil
+}
+
+// GetLatestOrderSnapshots returns the latest snapshots from all stored pair data
+func (p *Portfolio) GetLatestOrderSnapshots() ([]compliance.Snapshot, error) {
+	var resp []compliance.Snapshot
+	for _, exchangeMap := range p.exchangeAssetPairSettings {
+		for _, assetMap := range exchangeMap {
+			for _, pairMap := range assetMap {
+				resp = append(resp, pairMap.ComplianceManager.GetLatestSnapshot())
+			}
+		}
+	}
+	if len(resp) == 0 {
+		return nil, errNoPortfolioSettings
+	}
+	return resp, nil
 }
 
 // GetComplianceManager returns the order snapshots for a given exchange, asset, pair
@@ -474,35 +417,6 @@ func (p *Portfolio) GetLatestHoldingsForAllCurrencies() []holdings.Holding {
 		}
 	}
 	return resp
-}
-
-func (p *Portfolio) setHoldingsForOffset(h *holdings.Holding, overwriteExisting bool) error {
-	if h.Timestamp.IsZero() {
-		return errHoldingsNoTimestamp
-	}
-	lookup, ok := p.exchangeAssetPairSettings[h.Exchange][h.Asset][h.Pair]
-	if !ok {
-		return fmt.Errorf("%w for %v %v %v", errNoPortfolioSettings, h.Exchange, h.Asset, h.Pair)
-	}
-
-	if overwriteExisting && len(lookup.HoldingsSnapshots) == 0 {
-		return errNoHoldings
-	}
-	for i := len(lookup.HoldingsSnapshots) - 1; i >= 0; i-- {
-		if lookup.HoldingsSnapshots[i].Offset == h.Offset {
-			if overwriteExisting {
-				lookup.HoldingsSnapshots[i] = *h
-				return nil
-			}
-			return errHoldingsAlreadySet
-		}
-	}
-	if overwriteExisting {
-		return fmt.Errorf("%w at %v", errNoHoldings, h.Timestamp)
-	}
-
-	lookup.HoldingsSnapshots = append(lookup.HoldingsSnapshots, *h)
-	return nil
 }
 
 // ViewHoldingAtTimePeriod retrieves a snapshot of holdings at a specific time period,

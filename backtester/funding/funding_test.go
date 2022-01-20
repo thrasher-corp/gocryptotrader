@@ -46,7 +46,7 @@ func TestSetupFundingManager(t *testing.T) {
 func TestReset(t *testing.T) {
 	t.Parallel()
 	f := SetupFundingManager(true, false)
-	baseItem, err := CreateItem(exch, a, base, decimal.Zero, decimal.Zero, false)
+	baseItem, err := CreateItem(exch, a, base, decimal.Zero, decimal.Zero)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -136,7 +136,7 @@ func TestAddItem(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 
-	baseItem, err := CreateItem(exch, a, base, decimal.Zero, decimal.Zero, false)
+	baseItem, err := CreateItem(exch, a, base, decimal.Zero, decimal.Zero)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -158,7 +158,7 @@ func TestExists(t *testing.T) {
 	if exists {
 		t.Errorf("received '%v' expected '%v'", exists, false)
 	}
-	conflictingSingleItem, err := CreateItem(exch, a, base, decimal.Zero, decimal.Zero, false)
+	conflictingSingleItem, err := CreateItem(exch, a, base, decimal.Zero, decimal.Zero)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -170,11 +170,11 @@ func TestExists(t *testing.T) {
 	if !exists {
 		t.Errorf("received '%v' expected '%v'", exists, true)
 	}
-	baseItem, err := CreateItem(exch, a, base, decimal.Zero, decimal.Zero, false)
+	baseItem, err := CreateItem(exch, a, base, decimal.Zero, decimal.Zero)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	quoteItem, err := CreateItem(exch, a, quote, elite, decimal.Zero, false)
+	quoteItem, err := CreateItem(exch, a, quote, elite, decimal.Zero)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -243,11 +243,11 @@ func TestExists(t *testing.T) {
 func TestAddPair(t *testing.T) {
 	t.Parallel()
 	f := FundManager{}
-	baseItem, err := CreateItem(exch, a, pair.Base, decimal.Zero, decimal.Zero, false)
+	baseItem, err := CreateItem(exch, a, pair.Base, decimal.Zero, decimal.Zero)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	quoteItem, err := CreateItem(exch, a, pair.Quote, elite, decimal.Zero, false)
+	quoteItem, err := CreateItem(exch, a, pair.Quote, elite, decimal.Zero)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -297,11 +297,11 @@ func TestGetFundingForEvent(t *testing.T) {
 	if !errors.Is(err, ErrFundsNotFound) {
 		t.Errorf("received '%v' expected '%v'", err, ErrFundsNotFound)
 	}
-	baseItem, err := CreateItem(exch, a, pair.Base, decimal.Zero, decimal.Zero, false)
+	baseItem, err := CreateItem(exch, a, pair.Base, decimal.Zero, decimal.Zero)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	quoteItem, err := CreateItem(exch, a, pair.Quote, elite, decimal.Zero, false)
+	quoteItem, err := CreateItem(exch, a, pair.Quote, elite, decimal.Zero)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -326,7 +326,7 @@ func TestGetFundingForEAC(t *testing.T) {
 	if !errors.Is(err, ErrFundsNotFound) {
 		t.Errorf("received '%v' expected '%v'", err, ErrFundsNotFound)
 	}
-	baseItem, err := CreateItem(exch, a, pair.Base, decimal.Zero, decimal.Zero, false)
+	baseItem, err := CreateItem(exch, a, pair.Base, decimal.Zero, decimal.Zero)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -352,11 +352,11 @@ func TestGetFundingForEAP(t *testing.T) {
 	if !errors.Is(err, ErrFundsNotFound) {
 		t.Errorf("received '%v' expected '%v'", err, ErrFundsNotFound)
 	}
-	baseItem, err := CreateItem(exch, a, pair.Base, decimal.Zero, decimal.Zero, false)
+	baseItem, err := CreateItem(exch, a, pair.Base, decimal.Zero, decimal.Zero)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	quoteItem, err := CreateItem(exch, a, pair.Quote, elite, decimal.Zero, false)
+	quoteItem, err := CreateItem(exch, a, pair.Quote, elite, decimal.Zero)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -393,11 +393,11 @@ func TestGetFundingForEAP(t *testing.T) {
 
 func TestBaseInitialFunds(t *testing.T) {
 	t.Parallel()
-	baseItem, err := CreateItem(exch, a, pair.Base, decimal.Zero, decimal.Zero, false)
+	baseItem, err := CreateItem(exch, a, pair.Base, decimal.Zero, decimal.Zero)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	quoteItem, err := CreateItem(exch, a, pair.Quote, elite, decimal.Zero, false)
+	quoteItem, err := CreateItem(exch, a, pair.Quote, elite, decimal.Zero)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -412,11 +412,11 @@ func TestBaseInitialFunds(t *testing.T) {
 
 func TestQuoteInitialFunds(t *testing.T) {
 	t.Parallel()
-	baseItem, err := CreateItem(exch, a, pair.Base, decimal.Zero, decimal.Zero, false)
+	baseItem, err := CreateItem(exch, a, pair.Base, decimal.Zero, decimal.Zero)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	quoteItem, err := CreateItem(exch, a, pair.Quote, elite, decimal.Zero, false)
+	quoteItem, err := CreateItem(exch, a, pair.Quote, elite, decimal.Zero)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -431,11 +431,11 @@ func TestQuoteInitialFunds(t *testing.T) {
 
 func TestBaseAvailable(t *testing.T) {
 	t.Parallel()
-	baseItem, err := CreateItem(exch, a, pair.Base, decimal.Zero, decimal.Zero, false)
+	baseItem, err := CreateItem(exch, a, pair.Base, decimal.Zero, decimal.Zero)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	quoteItem, err := CreateItem(exch, a, pair.Quote, elite, decimal.Zero, false)
+	quoteItem, err := CreateItem(exch, a, pair.Quote, elite, decimal.Zero)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -450,11 +450,11 @@ func TestBaseAvailable(t *testing.T) {
 
 func TestQuoteAvailable(t *testing.T) {
 	t.Parallel()
-	baseItem, err := CreateItem(exch, a, pair.Base, decimal.Zero, decimal.Zero, false)
+	baseItem, err := CreateItem(exch, a, pair.Base, decimal.Zero, decimal.Zero)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	quoteItem, err := CreateItem(exch, a, pair.Quote, elite, decimal.Zero, false)
+	quoteItem, err := CreateItem(exch, a, pair.Quote, elite, decimal.Zero)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -469,11 +469,11 @@ func TestQuoteAvailable(t *testing.T) {
 
 func TestReservePair(t *testing.T) {
 	t.Parallel()
-	baseItem, err := CreateItem(exch, a, pair.Base, decimal.Zero, decimal.Zero, false)
+	baseItem, err := CreateItem(exch, a, pair.Base, decimal.Zero, decimal.Zero)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	quoteItem, err := CreateItem(exch, a, pair.Quote, elite, decimal.Zero, false)
+	quoteItem, err := CreateItem(exch, a, pair.Quote, elite, decimal.Zero)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -504,11 +504,11 @@ func TestReservePair(t *testing.T) {
 
 func TestReleasePair(t *testing.T) {
 	t.Parallel()
-	baseItem, err := CreateItem(exch, a, pair.Base, decimal.Zero, decimal.Zero, false)
+	baseItem, err := CreateItem(exch, a, pair.Base, decimal.Zero, decimal.Zero)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	quoteItem, err := CreateItem(exch, a, pair.Quote, elite, decimal.Zero, false)
+	quoteItem, err := CreateItem(exch, a, pair.Quote, elite, decimal.Zero)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -562,11 +562,11 @@ func TestReleasePair(t *testing.T) {
 
 func TestIncreaseAvailablePair(t *testing.T) {
 	t.Parallel()
-	baseItem, err := CreateItem(exch, a, pair.Base, decimal.Zero, decimal.Zero, false)
+	baseItem, err := CreateItem(exch, a, pair.Base, decimal.Zero, decimal.Zero)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	quoteItem, err := CreateItem(exch, a, pair.Quote, elite, decimal.Zero, false)
+	quoteItem, err := CreateItem(exch, a, pair.Quote, elite, decimal.Zero)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -711,11 +711,11 @@ func TestMatchesItemCurrency(t *testing.T) {
 	if i.MatchesItemCurrency(nil) {
 		t.Errorf("received '%v' expected '%v'", true, false)
 	}
-	baseItem, err := CreateItem(exch, a, pair.Base, decimal.Zero, decimal.Zero, false)
+	baseItem, err := CreateItem(exch, a, pair.Base, decimal.Zero, decimal.Zero)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	quoteItem, err := CreateItem(exch, a, pair.Quote, elite, decimal.Zero, false)
+	quoteItem, err := CreateItem(exch, a, pair.Quote, elite, decimal.Zero)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -733,11 +733,11 @@ func TestMatchesExchange(t *testing.T) {
 	if i.MatchesExchange(nil) {
 		t.Errorf("received '%v' expected '%v'", true, false)
 	}
-	baseItem, err := CreateItem(exch, a, pair.Base, decimal.Zero, decimal.Zero, false)
+	baseItem, err := CreateItem(exch, a, pair.Base, decimal.Zero, decimal.Zero)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	quoteItem, err := CreateItem(exch, a, pair.Quote, elite, decimal.Zero, false)
+	quoteItem, err := CreateItem(exch, a, pair.Quote, elite, decimal.Zero)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -912,7 +912,7 @@ func TestAddUSDTrackingData(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	quoteItem, err := CreateItem(exch, a, pair.Quote, elite, decimal.Zero, false)
+	quoteItem, err := CreateItem(exch, a, pair.Quote, elite, decimal.Zero)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -955,7 +955,7 @@ func TestAddUSDTrackingData(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 
-	usdtItem, err := CreateItem(exch, a, currency.USDT, elite, decimal.Zero, false)
+	usdtItem, err := CreateItem(exch, a, currency.USDT, elite, decimal.Zero)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}

@@ -76,7 +76,6 @@ type ExchangeLevelFunding struct {
 	Currency     string          `json:"currency"`
 	InitialFunds decimal.Decimal `json:"initial-funds"`
 	TransferFee  decimal.Decimal `json:"transfer-fee"`
-	Collateral   bool            `json:"collateral"`
 }
 
 // StatisticSettings adjusts ratios where
@@ -153,12 +152,6 @@ type SpotDetails struct {
 
 type FuturesDetails struct {
 	Leverage Leverage `json:"leverage"`
-	// CollateralCurrency if the asset is futures, then this field
-	// allows a user to nominate another currency to be used as collateral
-	// while trading futures contracts
-	// This currency is a reference to a funding item setup in
-	// strategy
-	CollateralCurrency string `json:"collateral-currency"`
 }
 
 // APIData defines all fields to configure API based data

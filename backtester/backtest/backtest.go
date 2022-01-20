@@ -101,7 +101,6 @@ func (bt *BackTest) handleEvent(ev common.EventHandler) error {
 	if err != nil {
 		return err
 	}
-
 	switch eType := ev.(type) {
 	case common.DataEventHandler:
 		if bt.Strategy.UsingSimultaneousProcessing() {
@@ -226,6 +225,7 @@ func (bt *BackTest) updateStatsForDataEvent(ev common.DataEventHandler, funds fu
 		if err != nil {
 			return err
 		}
+
 		err = bt.Portfolio.CalculatePNL(ev)
 		if err != nil {
 			if errors.Is(err, gctorder.ErrPositionLiquidated) {

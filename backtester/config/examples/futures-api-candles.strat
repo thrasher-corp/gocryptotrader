@@ -3,16 +3,15 @@
  "goal": "To demonstrate DCA strategy using API candles",
  "strategy-settings": {
   "name": "dollarcostaverage",
-  "use-simultaneous-signal-processing": true,
+  "use-simultaneous-signal-processing": false,
   "use-exchange-level-funding": true,
   "exchange-level-funding": [
    {
     "exchange-name": "ftx",
     "asset": "futures",
-    "currency": "usdt",
+    "currency": "usd",
     "initial-funds": "100000",
-    "transfer-fee": "0",
-    "collateral": true
+    "transfer-fee": "0"
    }
   ],
   "disable-usd-tracking": true
@@ -29,8 +28,7 @@
      "maximum-orders-with-leverage-ratio": "0",
      "maximum-leverage-rate": "0.001",
      "maximum-collateral-leverage-rate": "0"
-    },
-    "collateral-currency": "USDT"
+    }
    },
    "buy-side": {
     "minimum-size": "0.005",

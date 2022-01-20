@@ -1,8 +1,8 @@
 package ftxquarterlyfutures
 
 import (
-	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -16,25 +16,6 @@ import (
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
-
-const (
-	// Name is the strategy name
-	Name         = "futures-rsi"
-	rsiPeriodKey = "rsi-period"
-	rsiLowKey    = "rsi-low"
-	rsiHighKey   = "rsi-high"
-	description  = `The relative strength index is a technical indicator used in the analysis of financial markets. It is intended to chart the current and historical strength or weakness of a stock or market based on the closing prices of a recent trading period`
-)
-
-var errFuturesOnly = errors.New("can only work with futures")
-
-// Strategy is an implementation of the Handler interface
-type Strategy struct {
-	base.Strategy
-	rsiPeriod decimal.Decimal
-	rsiLow    decimal.Decimal
-	rsiHigh   decimal.Decimal
-}
 
 // Name returns the name of the strategy
 func (s *Strategy) Name() string {
@@ -57,6 +38,9 @@ func (s *Strategy) OnSignal(d data.Handler, _ funding.IFundTransferer, p portfol
 	latest := d.Latest()
 	if !latest.GetAssetType().IsFutures() {
 		return nil, errFuturesOnly
+	}
+	if !strings.EqualFold(latest.GetExchange(), exchangeName) {
+		return nil, errOnlyFTXSupported
 	}
 
 	es, err := s.GetBaseData(d)
@@ -101,23 +85,16 @@ func (s *Strategy) OnSignal(d data.Handler, _ funding.IFundTransferer, p portfol
 					// close out your positions!
 					es.SetDirection(order.Long)
 					es.SetAmount(latestPosition.Exposure)
-				}
-				if latestRSIValue.GreaterThanOrEqual(s.rsiHigh) {
-					// short your shorts?
+					return &es, nil
 				}
 			case order.Long:
-				if latestRSIValue.LessThanOrEqual(s.rsiLow) {
-					// long your longs?
-				}
 				if latestRSIValue.GreaterThanOrEqual(s.rsiHigh) {
 					// close out your positions!
 					es.SetDirection(order.Short)
 					es.SetAmount(latestPosition.Exposure)
+					return &es, nil
 				}
-			default:
-				es.SetDirection(common.DoNothing)
 			}
-			return &es, nil
 		}
 	}
 	switch {
