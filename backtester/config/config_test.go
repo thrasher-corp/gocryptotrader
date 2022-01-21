@@ -1198,24 +1198,13 @@ func TestValidate(t *testing.T) {
 	}
 }
 
-func TestGenerateConfigForFuturesAPICandles(t *testing.T) {
+func TestGenerateFTXCashAndCarryStrategy(t *testing.T) {
 	cfg := Config{
-		Nickname: "ExampleStrategyFuturesAPICandles",
-		Goal:     "To demonstrate DCA strategy using API candles",
+		Nickname: "Example Cash and Carry",
+		Goal:     "To demonstrate a cash and carry strategy",
 		StrategySettings: StrategySettings{
-			Name:                         dca,
-			UseExchangeLevelFunding:      true,
+			Name:                         "ftx-cash-carry",
 			SimultaneousSignalProcessing: true,
-			DisableUSDTracking:           true,
-			ExchangeLevelFunding: []ExchangeLevelFunding{
-				{
-					ExchangeName: "ftx",
-					Asset:        asset.Futures.String(),
-					Currency:     "usdt",
-					InitialFunds: *initialQuoteFunds2,
-					TransferFee:  decimal.Zero,
-				},
-			},
 		},
 		CurrencySettings: []CurrencySettings{
 			{
@@ -1228,6 +1217,19 @@ func TestGenerateConfigForFuturesAPICandles(t *testing.T) {
 						CanUseLeverage:           true,
 						MaximumOrderLeverageRate: makerFee,
 					},
+				},
+				BuySide:  minMax,
+				SellSide: minMax,
+				MakerFee: makerFee,
+				TakerFee: takerFee,
+			},
+			{
+				ExchangeName: "ftx",
+				Asset:        asset.Spot.String(),
+				Base:         "BTC",
+				Quote:        "USD",
+				SpotDetails: &SpotDetails{
+					InitialQuoteFunds: initialQuoteFunds2,
 				},
 				BuySide:  minMax,
 				SellSide: minMax,
@@ -1264,7 +1266,7 @@ func TestGenerateConfigForFuturesAPICandles(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		err = ioutil.WriteFile(filepath.Join(p, "examples", "futures-api-candles.strat"), result, 0770)
+		err = ioutil.WriteFile(filepath.Join(p, "examples", "ftx-cash-carry.strat"), result, 0770)
 		if err != nil {
 			t.Error(err)
 		}

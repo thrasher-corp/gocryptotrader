@@ -28,7 +28,7 @@ func main() {
 			wd,
 			"config",
 			"examples",
-			"futures-api-candles.strat"),
+			"ftx-cash-carry.strat"),
 		"the config containing strategy params")
 	flag.StringVar(
 		&templatePath,

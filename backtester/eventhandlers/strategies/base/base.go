@@ -5,6 +5,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 )
 
 // Strategy is base implementation of the Handler interface
@@ -22,15 +23,24 @@ func (s *Strategy) GetBaseData(d data.Handler) (signal.Signal, error) {
 	if latest == nil {
 		return signal.Signal{}, common.ErrNilEvent
 	}
+	var underlying currency.Pair
+	if latest.GetAssetType().IsFutures() {
+		var err error
+		underlying, err = latest.GetUnderlyingPair()
+		if err != nil {
+			return signal.Signal{}, err
+		}
+	}
 	return signal.Signal{
 		Base: event.Base{
-			Offset:       latest.GetOffset(),
-			Exchange:     latest.GetExchange(),
-			Time:         latest.GetTime(),
-			CurrencyPair: latest.Pair(),
-			AssetType:    latest.GetAssetType(),
-			Interval:     latest.GetInterval(),
-			Reason:       latest.GetReason(),
+			Offset:         latest.GetOffset(),
+			Exchange:       latest.GetExchange(),
+			Time:           latest.GetTime(),
+			CurrencyPair:   latest.Pair(),
+			AssetType:      latest.GetAssetType(),
+			Interval:       latest.GetInterval(),
+			Reason:         latest.GetReason(),
+			UnderlyingPair: underlying,
 		},
 		ClosePrice: latest.GetClosePrice(),
 		HighPrice:  latest.GetHighPrice(),

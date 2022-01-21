@@ -41,8 +41,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-var futuresEnabled = true
-
 // NewFromConfig takes a strategy config and configures a backtester variable to run
 func NewFromConfig(cfg *config.Config, templatePath, output string) (*BackTest, error) {
 	log.Infoln(log.BackTester, "loading config...")
@@ -266,9 +264,6 @@ func NewFromConfig(cfg *config.Config, templatePath, output string) (*BackTest, 
 					return nil, err
 				}
 			case a.IsFutures():
-				if !futuresEnabled {
-					return nil, fmt.Errorf("%w: %v unsupported", errInvalidConfigAsset, a)
-				}
 				// setup contract items
 				c := funding.CreateFuturesCurrencyCode(b, q)
 				futureItem, err = funding.CreateItem(cfg.CurrencySettings[i].ExchangeName,

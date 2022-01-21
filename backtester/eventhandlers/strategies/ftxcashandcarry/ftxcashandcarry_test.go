@@ -1,4 +1,4 @@
-package ftxquarterlyfutures
+package ftxcashandcarry
 
 import (
 	"errors"

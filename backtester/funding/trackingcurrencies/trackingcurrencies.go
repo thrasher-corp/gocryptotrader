@@ -75,6 +75,10 @@ func CreateUSDTrackingPairs(tp []TrackingPair, em *engine.ExchangeManager) ([]Tr
 			if err != nil {
 				return nil, err
 			}
+			if a.IsFutures() {
+				// futures matches to spot, not like this
+				continue
+			}
 			pairs := b.CurrencyPairs.Pairs[a]
 			basePair, quotePair, err := findMatchingUSDPairs(pair, pairs)
 			if err != nil {

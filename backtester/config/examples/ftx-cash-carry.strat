@@ -1,20 +1,11 @@
 {
- "nickname": "ExampleStrategyFuturesAPICandles",
- "goal": "To demonstrate DCA strategy using API candles",
+ "nickname": "Example Cash and Carry",
+ "goal": "To demonstrate a cash and carry strategy",
  "strategy-settings": {
-  "name": "dollarcostaverage",
-  "use-simultaneous-signal-processing": false,
-  "use-exchange-level-funding": true,
-  "exchange-level-funding": [
-   {
-    "exchange-name": "ftx",
-    "asset": "futures",
-    "currency": "usd",
-    "initial-funds": "100000",
-    "transfer-fee": "0"
-   }
-  ],
-  "disable-usd-tracking": true
+  "name": "ftx-cash-carry",
+  "use-simultaneous-signal-processing": true,
+  "use-exchange-level-funding": false,
+  "disable-usd-tracking": false
  },
  "currency-settings": [
   {
@@ -29,6 +20,33 @@
      "maximum-leverage-rate": "0.001",
      "maximum-collateral-leverage-rate": "0"
     }
+   },
+   "buy-side": {
+    "minimum-size": "0.005",
+    "maximum-size": "2",
+    "maximum-total": "40000"
+   },
+   "sell-side": {
+    "minimum-size": "0.005",
+    "maximum-size": "2",
+    "maximum-total": "40000"
+   },
+   "min-slippage-percent": "0",
+   "max-slippage-percent": "0",
+   "maker-fee-override": "0.001",
+   "taker-fee-override": "0.002",
+   "maximum-holdings-ratio": "0",
+   "skip-candle-volume-fitting": false,
+   "use-exchange-order-limits": false,
+   "use-exchange-pnl-calculation": false
+  },
+  {
+   "exchange-name": "ftx",
+   "asset": "spot",
+   "base": "BTC",
+   "quote": "USD",
+   "spot-details": {
+    "initial-quote-funds": "100000"
    },
    "buy-side": {
     "minimum-size": "0.005",

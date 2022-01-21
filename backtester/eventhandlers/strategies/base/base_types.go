@@ -8,6 +8,7 @@ var (
 	// ErrSimultaneousProcessingNotSupported used when strategy does not support simultaneous processing
 	// but start config is set to use it
 	ErrSimultaneousProcessingNotSupported = errors.New("does not support simultaneous processing and could not be loaded")
+	ErrSimultaneousProcessingOnly         = errors.New("this strategy only supports simultaneous processing")
 	// ErrStrategyNotFound used when strategy specified in start config does not exist
 	ErrStrategyNotFound = errors.New("not found. Please ensure the strategy-settings field 'name' is spelled properly in your .start config")
 	// ErrInvalidCustomSettings used when bad custom settings are found in the start config

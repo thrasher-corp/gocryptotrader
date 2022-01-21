@@ -1,4 +1,4 @@
-package ftxquarterlyfutures
+package ftxcashandcarry
 
 import (
 	"errors"
@@ -9,10 +9,7 @@ import (
 
 const (
 	// Name is the strategy name
-	Name         = "futures-rsi"
-	rsiPeriodKey = "rsi-period"
-	rsiLowKey    = "rsi-low"
-	rsiHighKey   = "rsi-high"
+	Name         = "ftx-cash-carry"
 	description  = `The relative strength index is a technical indicator used in the analysis of financial markets. It is intended to chart the current and historical strength or weakness of a stock or market based on the closing prices of a recent trading period`
 	exchangeName = "ftx"
 )

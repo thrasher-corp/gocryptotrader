@@ -61,6 +61,7 @@ type EventHandler interface {
 	IsEvent() bool
 	GetTime() time.Time
 	Pair() currency.Pair
+	GetUnderlyingPair() (currency.Pair, error)
 	GetExchange() string
 	GetInterval() kline.Interval
 	GetAssetType() asset.Item
