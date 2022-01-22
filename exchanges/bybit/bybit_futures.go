@@ -11,7 +11,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
-// TODO: handle rate limiting
 const (
 
 	// auth endpoint

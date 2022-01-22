@@ -13,7 +13,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
-// TODO: handle rate limiting
 // TODO: club redundant struct in futures type
 const (
 	bybitFuturesAPIVersion = "/v2"
