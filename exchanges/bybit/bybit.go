@@ -57,7 +57,7 @@ func (by *Bybit) GetAllPairs() ([]PairData, error) {
 	resp := struct {
 		Data []PairData `json:"result"`
 	}{}
-	return resp.Data, by.SendHTTPRequest(exchange.RestSpot, bybitSpotGetSymbols, &resp)
+	return resp.Data, by.SendHTTPRequest(exchange.RestSpot, bybitSpotGetSymbols, publicSpotRate, &resp)
 }
 
 // GetOrderbook gets orderbook for a given market with a given depth (default depth 100)
@@ -79,7 +79,7 @@ func (by *Bybit) GetOrderBook(symbol string, depth int64) (Orderbook, error) {
 	params.Set("symbol", symbol)
 	params.Set("limit", strDepth)
 	path := common.EncodeURLValues(bybitOrderBook, params)
-	err := by.SendHTTPRequest(exchange.RestSpot, path, &resp)
+	err := by.SendHTTPRequest(exchange.RestSpot, path, publicSpotRate, &resp)
 	if err != nil {
 		return Orderbook{}, err
 	}
@@ -140,7 +140,7 @@ func (by *Bybit) GetMergedOrderBook(symbol string, scale, depth int64) (Orderboo
 	params.Set("symbol", symbol)
 	params.Set("limit", strDepth)
 	path := common.EncodeURLValues(bybitMergedOrderBook, params)
-	err := by.SendHTTPRequest(exchange.RestSpot, path, &resp)
+	err := by.SendHTTPRequest(exchange.RestSpot, path, publicSpotRate, &resp)
 	if err != nil {
 		return Orderbook{}, err
 	}
@@ -193,7 +193,7 @@ func (by *Bybit) GetTrades(symbol string, limit int64) ([]TradeItem, error) {
 	params.Set("symbol", symbol)
 	params.Set("limit", strconv.FormatInt(limit, 10))
 	path := common.EncodeURLValues(bybitRecentTrades, params)
-	err := by.SendHTTPRequest(exchange.RestSpot, path, &resp)
+	err := by.SendHTTPRequest(exchange.RestSpot, path, publicSpotRate, &resp)
 	if err != nil {
 		return nil, err
 	}
@@ -239,7 +239,7 @@ func (by *Bybit) GetKlines(symbol, period string, limit int64, start, end time.T
 	v.Add("limit", strconv.FormatInt(limit, 10))
 
 	path := common.EncodeURLValues(bybitCandlestickChart, v)
-	if err := by.SendHTTPRequest(exchange.RestSpot, path, &resp); err != nil {
+	if err := by.SendHTTPRequest(exchange.RestSpot, path, publicSpotRate, &resp); err != nil {
 		return nil, err
 	}
 
@@ -357,7 +357,7 @@ func (by *Bybit) Get24HrsChange(symbol string) ([]PriceChangeStats, error) {
 		params := url.Values{}
 		params.Set("symbol", symbol)
 		path := common.EncodeURLValues(bybit24HrsChange, params)
-		err := by.SendHTTPRequest(exchange.RestSpot, path, &resp)
+		err := by.SendHTTPRequest(exchange.RestSpot, path, publicSpotRate, &resp)
 		if err != nil {
 			return nil, err
 		}
@@ -379,7 +379,7 @@ func (by *Bybit) Get24HrsChange(symbol string) ([]PriceChangeStats, error) {
 			Data []priceChangeStats `json:"result"`
 		}{}
 
-		err := by.SendHTTPRequest(exchange.RestSpot, bybit24HrsChange, &resp)
+		err := by.SendHTTPRequest(exchange.RestSpot, bybit24HrsChange, publicSpotRate, &resp)
 		if err != nil {
 			return nil, err
 		}
@@ -414,7 +414,7 @@ func (by *Bybit) GetLastTradedPrice(symbol string) ([]LastTradePrice, error) {
 		params := url.Values{}
 		params.Set("symbol", symbol)
 		path := common.EncodeURLValues(bybitLastTradedPrice, params)
-		err := by.SendHTTPRequest(exchange.RestSpot, path, &resp)
+		err := by.SendHTTPRequest(exchange.RestSpot, path, publicSpotRate, &resp)
 		if err != nil {
 			return nil, err
 		}
@@ -427,7 +427,7 @@ func (by *Bybit) GetLastTradedPrice(symbol string) ([]LastTradePrice, error) {
 			Data []LastTradePrice `json:"result"`
 		}{}
 
-		err := by.SendHTTPRequest(exchange.RestSpot, bybitLastTradedPrice, &resp)
+		err := by.SendHTTPRequest(exchange.RestSpot, bybitLastTradedPrice, publicSpotRate, &resp)
 		if err != nil {
 			return nil, err
 		}
@@ -462,7 +462,7 @@ func (by *Bybit) GetBestBidAskPrice(symbol string) ([]TickerData, error) {
 		params := url.Values{}
 		params.Set("symbol", symbol)
 		path := common.EncodeURLValues(bybitBestBidAskPrice, params)
-		err := by.SendHTTPRequest(exchange.RestSpot, path, &resp)
+		err := by.SendHTTPRequest(exchange.RestSpot, path, publicSpotRate, &resp)
 		if err != nil {
 			return nil, err
 		}
@@ -479,7 +479,7 @@ func (by *Bybit) GetBestBidAskPrice(symbol string) ([]TickerData, error) {
 			Data []bestTicker `json:"result"`
 		}{}
 
-		err := by.SendHTTPRequest(exchange.RestSpot, bybitBestBidAskPrice, &resp)
+		err := by.SendHTTPRequest(exchange.RestSpot, bybitBestBidAskPrice, publicSpotRate, &resp)
 		if err != nil {
 			return nil, err
 		}
@@ -520,7 +520,7 @@ func (by *Bybit) CreatePostOrder(o *PlaceOrderRequest) (*PlaceOrderResponse, err
 	resp := struct {
 		Data PlaceOrderResponse `json:"result"`
 	}{}
-	err := by.SendAuthHTTPRequest(exchange.RestSpot, http.MethodPost, bybitSpotOrder, params, resp, bybitAuthRate)
+	err := by.SendAuthHTTPRequest(exchange.RestSpot, http.MethodPost, bybitSpotOrder, params, resp, privateSpotRate)
 	if err != nil {
 		return nil, err
 	}
@@ -543,7 +543,7 @@ func (by *Bybit) QueryOrder(orderID, orderLinkID string) (*QueryOrderResponse, e
 	resp := struct {
 		Data QueryOrderResponse `json:"result"`
 	}{}
-	err := by.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, bybitSpotOrder, params, resp, bybitAuthRate)
+	err := by.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, bybitSpotOrder, params, resp, privateSpotRate)
 	if err != nil {
 		return nil, err
 	}
@@ -566,7 +566,7 @@ func (by *Bybit) CancelExistingOrder(orderID, orderLinkID string) (*CancelOrderR
 	resp := struct {
 		Data CancelOrderResponse `json:"result"`
 	}{}
-	err := by.SendAuthHTTPRequest(exchange.RestSpot, http.MethodDelete, bybitSpotOrder, params, resp, bybitAuthRate)
+	err := by.SendAuthHTTPRequest(exchange.RestSpot, http.MethodDelete, bybitSpotOrder, params, resp, privateSpotRate)
 	if err != nil {
 		return nil, err
 	}
@@ -588,7 +588,7 @@ func (by *Bybit) BatchCancelOrder(symbol, side, orderTypes string) (bool, error)
 	resp := struct {
 		Success bool `json:"success"`
 	}{}
-	err := by.SendAuthHTTPRequest(exchange.RestSpot, http.MethodDelete, bybitBatchCancelSpotOrder, params, resp, bybitAuthRate)
+	err := by.SendAuthHTTPRequest(exchange.RestSpot, http.MethodDelete, bybitBatchCancelSpotOrder, params, resp, privateSpotRate)
 	if err != nil {
 		return false, err
 	}
@@ -610,7 +610,7 @@ func (by *Bybit) ListOpenOrders(symbol, orderID string, limit int64) ([]QueryOrd
 	resp := struct {
 		Data []QueryOrderResponse `json:"result"`
 	}{}
-	err := by.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, bybitOpenOrder, params, resp, bybitAuthRate)
+	err := by.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, bybitOpenOrder, params, resp, privateSpotRate)
 	if err != nil {
 		return nil, err
 	}
@@ -631,7 +631,7 @@ func (by *Bybit) ListPastOrders(symbol, orderID string, limit int64) ([]QueryOrd
 	resp := struct {
 		Data []QueryOrderResponse `json:"result"`
 	}{}
-	err := by.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, bybitPastOrder, params, resp, bybitAuthRate)
+	err := by.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, bybitPastOrder, params, resp, privateSpotRate)
 	if err != nil {
 		return nil, err
 	}
@@ -656,7 +656,7 @@ func (by *Bybit) GetTradeHistory(symbol string, limit, formID, told int64) ([]Hi
 	resp := struct {
 		Data []HistoricalTrade `json:"result"`
 	}{}
-	err := by.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, bybitPastOrder, params, resp, bybitAuthRate)
+	err := by.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, bybitPastOrder, params, resp, privateSpotRate)
 	if err != nil {
 		return nil, err
 	}
@@ -669,7 +669,7 @@ func (by *Bybit) GetWalletBalance() ([]Balance, error) {
 			Balances []Balance `json:"balances"`
 		} `json:"result"`
 	}{}
-	err := by.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, bybitWalletBalance, url.Values{}, resp, bybitAuthRate)
+	err := by.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, bybitWalletBalance, url.Values{}, resp, privateSpotRate)
 	if err != nil {
 		return nil, err
 	}
@@ -677,7 +677,7 @@ func (by *Bybit) GetWalletBalance() ([]Balance, error) {
 }
 
 // SendHTTPRequest sends an unauthenticated request
-func (by *Bybit) SendHTTPRequest(ePath exchange.URL, path string, result interface{}) error {
+func (by *Bybit) SendHTTPRequest(ePath exchange.URL, path string, f request.EndpointLimit, result interface{}) error {
 	endpointPath, err := by.API.Endpoints.GetURL(ePath)
 	if err != nil {
 		return err
@@ -689,6 +689,7 @@ func (by *Bybit) SendHTTPRequest(ePath exchange.URL, path string, result interfa
 		Verbose:       by.Verbose,
 		HTTPDebugging: by.HTTPDebugging,
 		HTTPRecording: by.HTTPRecording,
+		Endpoint:      f,
 	})
 }
 

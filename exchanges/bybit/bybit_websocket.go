@@ -23,7 +23,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-// TODO: UPDATE WS STRUCT AND ADD ARRAY FOR DATA
 const (
 	bybitWSBaseURL      = "wss://stream.bybit.com/"
 	wsSpotPublicTopicV2 = "spot/quote/ws/v2"
