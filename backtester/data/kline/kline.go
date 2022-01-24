@@ -31,12 +31,13 @@ func (d *DataFromKline) Load() error {
 	for i := range d.Item.Candles {
 		klinerino := &kline.Kline{
 			Base: event.Base{
-				Offset:       int64(i + 1),
-				Exchange:     d.Item.Exchange,
-				Time:         d.Item.Candles[i].Time,
-				Interval:     d.Item.Interval,
-				CurrencyPair: d.Item.Pair,
-				AssetType:    d.Item.Asset,
+				Offset:         int64(i + 1),
+				Exchange:       d.Item.Exchange,
+				Time:           d.Item.Candles[i].Time,
+				Interval:       d.Item.Interval,
+				CurrencyPair:   d.Item.Pair,
+				AssetType:      d.Item.Asset,
+				UnderlyingPair: d.Item.UnderlyingPair,
 			},
 			Open:             decimal.NewFromFloat(d.Item.Candles[i].Open),
 			High:             decimal.NewFromFloat(d.Item.Candles[i].High),

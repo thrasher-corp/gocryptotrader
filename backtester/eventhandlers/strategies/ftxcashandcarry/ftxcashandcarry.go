@@ -29,7 +29,7 @@ func (s *Strategy) Description() string {
 // OnSignal handles a data event and returns what action the strategy believes should occur
 // For rsi, this means returning a buy signal when rsi is at or below a certain level, and a
 // sell signal when it is at or above a certain level
-func (s *Strategy) OnSignal(d data.Handler, _ funding.IFundTransferer, p portfolio.Handler) (signal.Event, error) {
+func (s *Strategy) OnSignal(data.Handler, funding.IFundTransferer, portfolio.Handler) (signal.Event, error) {
 	return nil, base.ErrSimultaneousProcessingOnly
 }
 
@@ -47,7 +47,7 @@ type cashCarrySignals struct {
 
 var errNotSetup = errors.New("sent incomplete signals")
 
-func sortSignals(d []data.Handler) (map[currency.Pair]cashCarrySignals, error) {
+func sortSignals(d []data.Handler, f funding.IFundTransferer) (map[currency.Pair]cashCarrySignals, error) {
 	var response = make(map[currency.Pair]cashCarrySignals)
 	for i := range d {
 		l := d[i].Latest()
@@ -57,17 +57,18 @@ func sortSignals(d []data.Handler) (map[currency.Pair]cashCarrySignals, error) {
 		a := l.GetAssetType()
 		switch {
 		case a == asset.Spot:
-			entry := response[l.Pair()]
+
+			entry := response[l.Pair().Format("", false)]
 			entry.spotSignal = d[i]
-			response[l.Pair()] = entry
+			response[l.Pair().Format("", false)] = entry
 		case a.IsFutures():
 			u, err := l.GetUnderlyingPair()
 			if err != nil {
 				return nil, err
 			}
-			entry := response[u]
+			entry := response[u.Format("", false)]
 			entry.futureSignal = d[i]
-			response[l.Pair()] = entry
+			response[u.Format("", false)] = entry
 		default:
 			return nil, errFuturesOnly
 		}
@@ -88,31 +89,39 @@ func sortSignals(d []data.Handler) (map[currency.Pair]cashCarrySignals, error) {
 
 // OnSimultaneousSignals analyses multiple data points simultaneously, allowing flexibility
 // in allowing a strategy to only place an order for X currency if Y currency's price is Z
-func (s *Strategy) OnSimultaneousSignals(d []data.Handler, _ funding.IFundTransferer, _ portfolio.Handler) ([]signal.Event, error) {
+func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundTransferer, p portfolio.Handler) ([]signal.Event, error) {
 	var response []signal.Event
-	sortedSignals, err := sortSignals(d)
+	sortedSignals, err := sortSignals(d, f)
 	if err != nil {
 		return nil, err
 	}
+
 	for _, v := range sortedSignals {
-		spotSignal, err := s.GetBaseData(v.spotSignal)
+		pos, err := p.GetPositions(v.futureSignal.Latest())
 		if err != nil {
 			return nil, err
 		}
-		futuresSignal, err := s.GetBaseData(v.futureSignal)
-		if err != nil {
-			return nil, err
+		if len(pos) == 0 {
+			spotSignal, err := s.GetBaseData(v.spotSignal)
+			if err != nil {
+				return nil, err
+			}
+			futuresSignal, err := s.GetBaseData(v.futureSignal)
+			if err != nil {
+				return nil, err
+			}
+			spotSignal.SetPrice(v.spotSignal.Latest().GetClosePrice())
+			spotSignal.AppendReason(fmt.Sprintf("signalling purchase of %v", spotSignal.Pair()))
+			futuresSignal.SetPrice(v.futureSignal.Latest().GetClosePrice())
+			// first the spot purchase
+			spotSignal.SetDirection(order.Buy)
+			// second the futures purchase, using the newly acquired asset
+			// as collateral to short
+			futuresSignal.SetDirection(order.Short)
+			spotSignal.FillDependentEvent = &futuresSignal
+			spotSignal.AppendReason(fmt.Sprintf("signalling shorting %v", futuresSignal.Pair()))
+			response = append(response, &spotSignal)
 		}
-		spotSignal.SetPrice(v.spotSignal.Latest().GetClosePrice())
-		futuresSignal.SetPrice(v.futureSignal.Latest().GetClosePrice())
-		// first the spot purchase
-		spotSignal.SetDirection(order.Buy)
-		// second the futures purchase, using the newly acquired asset
-		// as collateral to short
-		futuresSignal.SetDirection(order.Sell)
-		futuresSignal.RequiresCollateral = true
-		futuresSignal.CollateralCurrency = futuresSignal.UnderlyingPair.Base
-		response = append(response, &spotSignal, &futuresSignal)
 	}
 	return response, nil
 }

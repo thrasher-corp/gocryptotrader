@@ -1205,7 +1205,18 @@ func TestGenerateFTXCashAndCarryStrategy(t *testing.T) {
 		StrategySettings: StrategySettings{
 			Name:                         "ftx-cash-carry",
 			SimultaneousSignalProcessing: true,
+			UseExchangeLevelFunding:      true,
+			ExchangeLevelFunding: []ExchangeLevelFunding{
+				{
+					ExchangeName: "ftx",
+					Asset:        "spot",
+					Currency:     "USD",
+					InitialFunds: *initialQuoteFunds2,
+					TransferFee:  decimal.Decimal{},
+				},
+			},
 		},
+
 		CurrencySettings: []CurrencySettings{
 			{
 				ExchangeName: "ftx",
@@ -1228,13 +1239,11 @@ func TestGenerateFTXCashAndCarryStrategy(t *testing.T) {
 				Asset:        asset.Spot.String(),
 				Base:         "BTC",
 				Quote:        "USD",
-				SpotDetails: &SpotDetails{
-					InitialQuoteFunds: initialQuoteFunds2,
-				},
-				BuySide:  minMax,
-				SellSide: minMax,
-				MakerFee: makerFee,
-				TakerFee: takerFee,
+				SpotDetails:  &SpotDetails{},
+				BuySide:      minMax,
+				SellSide:     minMax,
+				MakerFee:     makerFee,
+				TakerFee:     takerFee,
 			},
 		},
 		DataSettings: DataSettings{

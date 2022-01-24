@@ -4,7 +4,16 @@
  "strategy-settings": {
   "name": "ftx-cash-carry",
   "use-simultaneous-signal-processing": true,
-  "use-exchange-level-funding": false,
+  "use-exchange-level-funding": true,
+  "exchange-level-funding": [
+   {
+    "exchange-name": "ftx",
+    "asset": "spot",
+    "currency": "USD",
+    "initial-funds": "100000",
+    "transfer-fee": "0"
+   }
+  ],
   "disable-usd-tracking": false
  },
  "currency-settings": [
@@ -45,9 +54,7 @@
    "asset": "spot",
    "base": "BTC",
    "quote": "USD",
-   "spot-details": {
-    "initial-quote-funds": "100000"
-   },
+   "spot-details": {},
    "buy-side": {
     "minimum-size": "0.005",
     "maximum-size": "2",

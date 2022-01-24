@@ -61,7 +61,6 @@ type EventHandler interface {
 	IsEvent() bool
 	GetTime() time.Time
 	Pair() currency.Pair
-	GetUnderlyingPair() (currency.Pair, error)
 	GetExchange() string
 	GetInterval() kline.Interval
 	GetAssetType() asset.Item
@@ -72,6 +71,7 @@ type EventHandler interface {
 // DataEventHandler interface used for loading and interacting with Data
 type DataEventHandler interface {
 	EventHandler
+	GetUnderlyingPair() (currency.Pair, error)
 	GetClosePrice() decimal.Decimal
 	GetHighPrice() decimal.Decimal
 	GetLowPrice() decimal.Decimal

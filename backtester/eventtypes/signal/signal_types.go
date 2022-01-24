@@ -4,7 +4,6 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
-	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -43,9 +42,8 @@ type Signal struct {
 	// the order will not be placed
 	Amount    decimal.Decimal
 	Direction order.Side
-	// RequiresCollateral ensures that an order can only be placed
+	// FillDependentEvent ensures that an order can only be placed
 	// if there is corresponding collateral in the selected currency
 	// this enabled cash and carry strategies for example
-	RequiresCollateral bool
-	CollateralCurrency currency.Code
+	FillDependentEvent *Signal
 }

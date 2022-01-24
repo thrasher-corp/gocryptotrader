@@ -34,11 +34,6 @@ func (b *Base) Pair() currency.Pair {
 	return b.CurrencyPair
 }
 
-// Pair returns the currency pair
-func (b *Base) GetUnderlyingPair() (currency.Pair, error) {
-	return b.UnderlyingPair, nil
-}
-
 // GetExchange returns the exchange
 func (b *Base) GetExchange() string {
 	return strings.ToLower(b.Exchange)

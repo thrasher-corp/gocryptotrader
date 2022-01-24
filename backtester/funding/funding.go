@@ -144,6 +144,9 @@ func (f *FundManager) AddUSDTrackingData(k *kline.DataFromKline) error {
 	quoteSet := false
 	var basePairedWith currency.Code
 	for i := range f.items {
+		if f.items[i].asset.IsFutures() {
+			return nil
+		}
 		if baseSet && quoteSet {
 			return nil
 		}
@@ -374,14 +377,16 @@ func (f *FundManager) GetFundingForEvent(ev common.EventHandler) (IFundingPair, 
 func (f *FundManager) GetFundingForEAP(exch string, a asset.Item, p currency.Pair) (IFundingPair, error) {
 	var resp Pair
 	var collat Collateral
-	for i := range f.items {
-		if a.IsFutures() {
+	if a.IsFutures() {
+		for i := range f.items {
 			if f.items[i].MatchesCurrency(currency.NewCode(p.String())) {
 				collat.Contract = f.items[i]
 				collat.Collateral = f.items[i].pairedWith
 				return &collat, nil
 			}
-		} else {
+		}
+	} else {
+		for i := range f.items {
 			if f.items[i].BasicEqual(exch, a, p.Base, p.Quote) {
 				resp.Base = f.items[i]
 				continue
@@ -389,15 +394,17 @@ func (f *FundManager) GetFundingForEAP(exch string, a asset.Item, p currency.Pai
 			if f.items[i].BasicEqual(exch, a, p.Quote, p.Base) {
 				resp.Quote = f.items[i]
 			}
-			if resp.Base == nil {
-				return nil, fmt.Errorf("base %w", ErrFundsNotFound)
-			}
-			if resp.Quote == nil {
-				return nil, fmt.Errorf("quote %w", ErrFundsNotFound)
-			}
-			return &resp, nil
 		}
+		if resp.Base == nil {
+			return nil, fmt.Errorf("base %v %w", p.Base, ErrFundsNotFound)
+		}
+		if resp.Quote == nil {
+			return nil, fmt.Errorf("quote %v %w", p.Quote, ErrFundsNotFound)
+		}
+		return &resp, nil
+
 	}
+
 	return nil, fmt.Errorf("%v %v %v %w", exch, a, p, ErrFundsNotFound)
 }
 

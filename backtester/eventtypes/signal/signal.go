@@ -65,3 +65,11 @@ func (s *Signal) GetAmount() decimal.Decimal {
 func (s *Signal) SetAmount(d decimal.Decimal) {
 	s.Amount = d
 }
+
+// GetUnderlyingPair returns the underlaying currency pair
+func (s *Signal) GetUnderlyingPair() (currency.Pair, error) {
+	if !s.AssetType.IsFutures() {
+		return s.CurrencyPair, order.ErrNotFutureAsset
+	}
+	return s.UnderlyingPair, nil
+}
