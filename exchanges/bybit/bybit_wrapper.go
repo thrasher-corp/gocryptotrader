@@ -72,24 +72,24 @@ func (by *Bybit) SetDefaults() {
 	// contracts require a dash as a delimiter rather than an underscore. You
 	// can use this example below:
 
-	fmt1 := currency.PairStore{
+	fmt := currency.PairStore{
 		RequestFormat: &currency.PairFormat{Uppercase: true},
 		ConfigFormat:  &currency.PairFormat{Uppercase: true},
 	}
 
-	err = by.StoreAssetPairFormat(asset.Spot, fmt1)
+	err = by.StoreAssetPairFormat(asset.Spot, fmt)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	err = by.StoreAssetPairFormat(asset.CoinMarginedFutures, fmt1)
+	err = by.StoreAssetPairFormat(asset.CoinMarginedFutures, fmt)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	err = by.StoreAssetPairFormat(asset.USDTMarginedFutures, fmt1)
+	err = by.StoreAssetPairFormat(asset.USDTMarginedFutures, fmt)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	err = by.StoreAssetPairFormat(asset.Futures, fmt1)
+	err = by.StoreAssetPairFormat(asset.Futures, fmt)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}

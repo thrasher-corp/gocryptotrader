@@ -1043,7 +1043,7 @@ func (by *Bybit) ChangeCoinMode(symbol currency.Pair, takeProfitStopLoss string)
 		return resp.Data.Mode, errors.New("takeProfitStopLoss can't be empty or missing")
 	}
 
-	return resp.Data.Mode, by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesSwitchPosition, params, &resp, cFuturesSwitchPosition)
+	return resp.Data.Mode, by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesSwitchPosition, params, &resp, cFuturesSwitchPositionRate)
 }
 
 // ChangeCoinMargin switches margin between cross or isolated
