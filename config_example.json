@@ -973,6 +973,82 @@
    ]
   },
   {
+    "name": "Bybit",
+    "enabled": true,
+    "verbose": false,
+    "httpTimeout": 15000000000,
+    "websocketResponseCheckTimeout": 30000000,
+    "websocketResponseMaxLimit": 7000000000,
+    "websocketTrafficTimeout": 30000000000,
+    "websocketOrderbookBufferLimit": 5,
+    "baseCurrencies": "USD",
+    "currencyPairs": {
+     "requestFormat": {
+      "uppercase": true
+     },
+     "configFormat": {
+      "uppercase": true
+     },
+     "useGlobalFormat": true,
+     "assetTypes": [
+      "spot"
+     ],
+     "pairs": {
+      "spot": {
+       "enabled": "BTCUSDT,ETHUSDT,XRPUSDT,EOSUSDT,ETHBTC,XRPBTC,DOTUSDT",
+       "available": "XLMUSDT,LTCUSDT,DOGEUSDT,BITUSDT,CHZUSDT,AXSUSDT,MANAUSDT,DYDXUSDT,MKRUSDT,COMPUSDT,AAVEUSDT,YFIUSDT,LINKUSDT,SUSHIUSDT,UNIUSDT,KSMUSDT,ICPUSDT,ADAUSDT,KLAYUSDT,XTZUSDT,BCHUSDT"
+      }
+     }
+    },
+    "api": {
+     "authenticatedSupport": false,
+     "authenticatedWebsocketApiSupport": false,
+     "endpoints": {
+      "url": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
+      "urlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
+      "websocketURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
+     },
+     "credentials": {
+      "key": "Key",
+      "secret": "Secret"
+     },
+     "credentialsValidator": {
+      "requiresKey": true,
+      "requiresSecret": true
+     }
+    },
+    "features": {
+     "supports": {
+      "restAPI": true,
+      "restCapabilities": {
+       "tickerBatching": true,
+       "autoPairUpdates": true
+      },
+      "websocketAPI": true,
+      "websocketCapabilities": {}
+     },
+     "enabled": {
+      "autoPairUpdates": true,
+      "websocketAPI": false
+     }
+    },
+    "bankAccounts": [
+    {
+    "enabled": false,
+    "bankName": "",
+    "bankAddress": "",
+    "bankPostalCode": "",
+    "bankPostalCity": "",
+    "bankCountry": "",
+    "accountName": "",
+    "accountNumber": "",
+    "swiftCode": "",
+    "iban": "",
+    "supportedCurrencies": ""
+    }
+    ]
+   },
+  {
    "name": "COINUT",
    "enabled": true,
    "verbose": false,
