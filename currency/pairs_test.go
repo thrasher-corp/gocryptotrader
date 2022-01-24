@@ -43,6 +43,30 @@ func TestPairsString(t *testing.T) {
 	}
 }
 
+func TestPairsFromString(t *testing.T) {
+	_, err := NewPairsFromString("")
+	if !errors.Is(err, errCannotCreatePair) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errCannotCreatePair)
+	}
+
+	pairs, err := NewPairsFromString("ALGO-AUD,BAT-AUD,BCH-AUD,BSV-AUD,BTC-AUD,COMP-AUD,ENJ-AUD,ETC-AUD,ETH-AUD,ETH-BTC,GNT-AUD,LINK-AUD,LTC-AUD,LTC-BTC,MCAU-AUD,OMG-AUD,POWR-AUD,UNI-AUD,USDT-AUD,XLM-AUD,XRP-AUD,XRP-BTC")
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	expected := []string{"ALGO-AUD", "BAT-AUD", "BCH-AUD", "BSV-AUD", "BTC-AUD",
+		"COMP-AUD", "ENJ-AUD", "ETC-AUD", "ETH-AUD", "ETH-BTC", "GNT-AUD",
+		"LINK-AUD", "LTC-AUD", "LTC-BTC", "MCAU-AUD", "OMG-AUD", "POWR-AUD",
+		"UNI-AUD", "USDT-AUD", "XLM-AUD", "XRP-AUD", "XRP-BTC"}
+
+	returned := pairs.Strings()
+	for x := range returned {
+		if returned[x] != expected[x] {
+			t.Fatalf("received: '%v' but expected: '%v'", returned[x], expected[x])
+		}
+	}
+}
+
 func TestPairsJoin(t *testing.T) {
 	pairs, err := NewPairsFromStrings([]string{"btc_usd", "btc_aud", "btc_ltc"})
 	if err != nil {

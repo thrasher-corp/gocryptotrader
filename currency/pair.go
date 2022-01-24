@@ -1,9 +1,12 @@
 package currency
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 )
+
+var errCannotCreatePair = errors.New("cannot create currency pair")
 
 // NewPairDelimiter splits the desired currency string at delimeter, the returns
 // a Pair struct
@@ -88,7 +91,8 @@ func NewPairFromString(currencyPair string) (Pair, error) {
 	}
 	if len(currencyPair) < 3 {
 		return Pair{},
-			fmt.Errorf("cannot create pair from %s string",
+			fmt.Errorf("%w from %s string",
+				errCannotCreatePair,
 				currencyPair)
 	}
 	return NewPairFromStrings(currencyPair[0:3], currencyPair[3:])
