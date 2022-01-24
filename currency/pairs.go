@@ -34,6 +34,21 @@ func NewPairsFromStrings(pairs []string) (Pairs, error) {
 	return newPairs, nil
 }
 
+// NewPairsFromString takes in a comma delimitered string and returns a Pairs
+// type
+func NewPairsFromString(pairs string) (Pairs, error) {
+	pairsSplit := strings.Split(pairs, ",")
+	allThePairs := make(Pairs, len(pairsSplit))
+	var err error
+	for i := range pairsSplit {
+		allThePairs[i], err = NewPairFromString(pairsSplit[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return allThePairs, nil
+}
+
 // Strings returns a slice of strings referring to each currency pair
 func (p Pairs) Strings() []string {
 	var list []string
@@ -90,18 +105,8 @@ func (p *Pairs) UnmarshalJSON(d []byte) error {
 		return nil
 	}
 
-	var allThePairs Pairs
-	oldPairs := strings.Split(pairs, ",")
-	for i := range oldPairs {
-		pair, err := NewPairFromString(oldPairs[i])
-		if err != nil {
-			return err
-		}
-		allThePairs = append(allThePairs, pair)
-	}
-
-	*p = allThePairs
-	return nil
+	*p, err = NewPairsFromString(pairs)
+	return err
 }
 
 // MarshalJSON conforms type to the marshaler interface
