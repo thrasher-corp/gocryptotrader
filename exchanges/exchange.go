@@ -1045,9 +1045,12 @@ func (b *Base) SetGlobalPairsManager(request, config *currency.PairFormat, asset
 			return fmt.Errorf("%s cannot set pairs manager, asset is empty string",
 				b.Name)
 		}
-		b.CurrencyPairs.Pairs[assets[i]] = new(currency.PairStore)
-		b.CurrencyPairs.Pairs[assets[i]].ConfigFormat = config
-		b.CurrencyPairs.Pairs[assets[i]].RequestFormat = request
+		ps := new(currency.PairStore)
+		ps.ConfigFormat = config
+		ps.RequestFormat = request
+		ps.AssetEnabled = convert.BoolPtr(true)
+
+		b.CurrencyPairs.Pairs[assets[i]] = ps
 	}
 
 	return nil
