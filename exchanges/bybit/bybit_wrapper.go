@@ -58,54 +58,44 @@ func (by *Bybit) SetDefaults() {
 
 	// Request format denotes what the pair as a string will be, when you send
 	// a request to an exchange.
-	requestFmt := &currency.PairFormat{ /*Set pair request formatting details here for e.g.*/ Uppercase: true, Delimiter: ":"}
+	requestFmt := &currency.PairFormat{ /*Set pair request formatting details here for e.g.*/ Uppercase: true}
 	// Config format denotes what the pair as a string will be, when saved to
 	// the config.json file.
-	configFmt := &currency.PairFormat{ /*Set pair request formatting details here*/ }
-	err := by.SetGlobalPairsManager(requestFmt, configFmt /*multiple assets can be set here using the asset package ie asset.Spot*/)
+	configFmt := &currency.PairFormat{Uppercase: true}
+	err := by.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot, asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.Futures)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	// If assets require multiple differences in formating for request and
-	// configuration, another exchange method can be be used e.g. futures
-	// contracts require a dash as a delimiter rather than an underscore. You
-	// can use this example below:
-
-	fmt := currency.PairStore{
-		RequestFormat: &currency.PairFormat{Uppercase: true},
-		ConfigFormat:  &currency.PairFormat{Uppercase: true},
-	}
-
-	err = by.StoreAssetPairFormat(asset.Spot, fmt)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-	err = by.StoreAssetPairFormat(asset.CoinMarginedFutures, fmt)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-	err = by.StoreAssetPairFormat(asset.USDTMarginedFutures, fmt)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-	err = by.StoreAssetPairFormat(asset.Futures, fmt)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-
-	// Fill out the capabilities/features that the exchange supports
 	by.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
 			Websocket: true,
 			RESTCapabilities: protocol.Features{
 				TickerFetching:    true,
+				TradeFetching:     true,
 				OrderbookFetching: true,
+				AutoPairUpdates:   true,
+				GetOrder:          true,
+				GetOrders:         true,
+				CancelOrders:      true,
+				CancelOrder:       true,
+				SubmitOrder:       true,
+				DepositHistory:    true,
+				WithdrawalHistory: true,
+				UserTradeHistory:  true,
+				CryptoDeposit:     true,
+				CryptoWithdrawal:  true,
+				TradeFee:          true,
+				FiatDepositFee:    true,
+				FiatWithdrawalFee: true,
+				CryptoDepositFee:  true,
 			},
 			WebsocketCapabilities: protocol.Features{
 				TickerFetching:    true,
 				OrderbookFetching: true,
+				Subscribe:         true,
+				Unsubscribe:       true,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.AutoWithdrawFiat,
@@ -119,7 +109,6 @@ func (by *Bybit) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
 
-	// NOTE: SET THE URLs HERE
 	by.API.Endpoints = by.NewEndpoints()
 	by.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:         bybitAPIURL,
@@ -171,17 +160,11 @@ func (by *Bybit) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	/*
-		// NOTE: PLEASE ENSURE YOU SET THE ORDERBOOK BUFFER SETTINGS CORRECTLY
-		by.Websocket.Orderbook.Setup(
-			exch.OrderbookConfig.WebsocketBufferLimit,
-			true,
-			true,
-			false,
-			false,
-			exch.Name)
-	*/
-	return nil
+	return by.Websocket.SetupNewConnection(stream.ConnectionSetup{
+		URL:                  by.Websocket.GetWebsocketURL(),
+		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+	})
 }
 
 // Start starts the Bybit go routine
@@ -218,8 +201,16 @@ func (by *Bybit) Run() {
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (by *Bybit) FetchTradablePairs(asset asset.Item) ([]string, error) {
-	// Implement fetching the exchange available pairs if supported
-	return nil, nil
+	pairs, err := by.GetAllPairs()
+	if err != nil {
+		return nil, err
+	}
+
+	var products []string
+	for _, pair := range pairs {
+		products = append(products, pair.Name)
+	}
+	return products, nil
 }
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
