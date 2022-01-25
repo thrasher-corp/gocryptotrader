@@ -1,6 +1,7 @@
 package fee
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -578,7 +579,7 @@ func TestGetAllFees(t *testing.T) {
 		t.Fatal("unexpected value")
 	}
 
-	depositFee, err := chaino.Deposit.GetFee(1)
+	depositFee, err := chaino.Deposit.GetFee(context.Background(), 1, "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -587,7 +588,7 @@ func TestGetAllFees(t *testing.T) {
 		t.Fatal("unexpected value")
 	}
 
-	minDepositFee, err := chaino.MinimumDeposit.GetFee(1)
+	minDepositFee, err := chaino.MinimumDeposit.GetFee(context.Background(), 1, "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -596,7 +597,7 @@ func TestGetAllFees(t *testing.T) {
 		t.Fatal("unexpected value")
 	}
 
-	maxDepositFee, err := chaino.MaximumDeposit.GetFee(1)
+	maxDepositFee, err := chaino.MaximumDeposit.GetFee(context.Background(), 1, "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -605,7 +606,7 @@ func TestGetAllFees(t *testing.T) {
 		t.Fatal("unexpected value")
 	}
 
-	withdrawalFee, err := chaino.Withdrawal.GetFee(1)
+	withdrawalFee, err := chaino.Withdrawal.GetFee(context.Background(), 1, "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -614,7 +615,7 @@ func TestGetAllFees(t *testing.T) {
 		t.Fatal("unexpected value")
 	}
 
-	minWithdrawalFee, err := chaino.MinimumWithdrawal.GetFee(1)
+	minWithdrawalFee, err := chaino.MinimumWithdrawal.GetFee(context.Background(), 1, "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -623,7 +624,7 @@ func TestGetAllFees(t *testing.T) {
 		t.Fatal("unexpected value")
 	}
 
-	maxWithdrawalFee, err := chaino.MaximumWithdrawal.GetFee(1)
+	maxWithdrawalFee, err := chaino.MaximumWithdrawal.GetFee(context.Background(), 1, "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -649,7 +650,7 @@ func TestGetAllFees(t *testing.T) {
 		t.Fatal("unexpected value")
 	}
 
-	depositFee, err = banko.Deposit.GetFee(1)
+	depositFee, err = banko.Deposit.GetFee(context.Background(), 1, "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -658,7 +659,7 @@ func TestGetAllFees(t *testing.T) {
 		t.Fatal("unexpected value")
 	}
 
-	minDepositFee, err = banko.MinimumDeposit.GetFee(1)
+	minDepositFee, err = banko.MinimumDeposit.GetFee(context.Background(), 1, "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -667,7 +668,7 @@ func TestGetAllFees(t *testing.T) {
 		t.Fatal("unexpected value")
 	}
 
-	maxDepositFee, err = banko.MaximumDeposit.GetFee(1)
+	maxDepositFee, err = banko.MaximumDeposit.GetFee(context.Background(), 1, "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -676,7 +677,7 @@ func TestGetAllFees(t *testing.T) {
 		t.Fatal("unexpected value")
 	}
 
-	withdrawalFee, err = banko.Withdrawal.GetFee(1)
+	withdrawalFee, err = banko.Withdrawal.GetFee(context.Background(), 1, "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -685,7 +686,7 @@ func TestGetAllFees(t *testing.T) {
 		t.Fatal("unexpected value")
 	}
 
-	minWithdrawalFee, err = banko.MinimumWithdrawal.GetFee(1)
+	minWithdrawalFee, err = banko.MinimumWithdrawal.GetFee(context.Background(), 1, "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -694,7 +695,7 @@ func TestGetAllFees(t *testing.T) {
 		t.Fatal("unexpected value")
 	}
 
-	maxWithdrawalFee, err = banko.MaximumWithdrawal.GetFee(1)
+	maxWithdrawalFee, err = banko.MaximumWithdrawal.GetFee(context.Background(), 1, "", "")
 	if err != nil {
 		t.Fatal(err)
 	}

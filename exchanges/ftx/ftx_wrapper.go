@@ -192,11 +192,17 @@ func (f *FTX) Setup(exch *config.Exchange) error {
 		return err
 	}
 
+	transfers, err := f.GetLoadableTransferFees()
+	if err != nil {
+		return err
+	}
+
 	err = f.Fees.LoadStaticFees(fee.Options{
 		GlobalCommissions: map[asset.Item]fee.Commission{
 			asset.Spot:    {Maker: 0.0002, Taker: 0.0007},
 			asset.Futures: {Maker: 0.0002, Taker: 0.0007},
 		},
+		ChainTransfer: transfers,
 	})
 	if err != nil {
 		return err
@@ -1255,25 +1261,4 @@ func (f *FTX) GetAvailableTransferChains(ctx context.Context, cryptocurrency cur
 		}
 	}
 	return availableChains, nil
-}
-
-// UpdateCommissionFees updates all the fees associated with the asset type.
-func (f *FTX) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
-	if a != asset.Spot && a != asset.Futures {
-		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
-	}
-	ai, err := f.GetAccountInfo(ctx)
-	if err != nil {
-		return err
-	}
-	return f.Fees.LoadDynamicFeeRate(ai.MakerFee, ai.TakerFee, a, fee.OmitPair)
-}
-
-// UpdateTransferFees updates transfer fees for cryptocurrency withdrawal and
-// deposits for this exchange
-func (f *FTX) UpdateTransferFees(ctx context.Context) error {
-	// NOTE: All transfer fees will need to be done ad-hoc as the API endpoint
-	// will not give you a rate and is required to have an address and amount
-	// to determine correct fee.
-	return common.ErrNotYetImplemented
 }

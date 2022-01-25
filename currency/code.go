@@ -8,6 +8,9 @@ import (
 	"unicode"
 )
 
+// ErrCurrencyCodeEmpty defines an error if the currency code is empty
+var ErrCurrencyCodeEmpty = errors.New("currency code is empty")
+
 func (r Role) String() string {
 	switch r {
 	case Unset:

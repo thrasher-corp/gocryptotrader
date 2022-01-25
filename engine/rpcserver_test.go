@@ -2186,10 +2186,12 @@ type errorMe struct {
 	Error error
 }
 
-func (d *errorMe) GetFee(amount float64) (decimal.Decimal, error) { return decimal.Zero, nil }
-func (d *errorMe) Display() (string, error)                       { return "", d.Error }
-func (d *errorMe) Validate() error                                { return nil }
-func (d *errorMe) LessThan(val fee.Value) (bool, error)           { return false, nil }
+func (d *errorMe) GetFee(ctx context.Context, amount float64, destinationAddress, tag string) (decimal.Decimal, error) {
+	return decimal.Zero, nil
+}
+func (d *errorMe) Display() (string, error)             { return "", d.Error }
+func (d *errorMe) Validate() error                      { return nil }
+func (d *errorMe) LessThan(val fee.Value) (bool, error) { return false, nil }
 
 func TestAddTransferFee(t *testing.T) {
 	_, err := addTransferFee(&fee.Transfer{

@@ -1,6 +1,7 @@
 package btse
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"testing"
@@ -12,12 +13,12 @@ import (
 
 func TestWithdrawGetFees(t *testing.T) {
 	val := getWithdrawal(currency.USD, standardRate, minimumUSDCharge, true)
-	_, err := val.GetFee(99)
+	_, err := val.GetFee(context.Background(), 99, "", "")
 	if !errors.Is(err, errBelowMinimumAmount) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errBelowMinimumAmount)
 	}
 
-	feeOnAmount, err := val.GetFee(102)
+	feeOnAmount, err := val.GetFee(context.Background(), 102, "", "")
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
@@ -26,7 +27,7 @@ func TestWithdrawGetFees(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", feeOnAmount, minimumUSDCharge)
 	}
 
-	feeOnAmount, err = val.GetFee(100000)
+	feeOnAmount, err = val.GetFee(context.Background(), 100000, "", "")
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
@@ -36,19 +37,19 @@ func TestWithdrawGetFees(t *testing.T) {
 	}
 
 	val = getWithdrawal(currency.EUR, standardRate, minimumUSDCharge, true)
-	_, err = val.GetFee(1)
+	_, err = val.GetFee(context.Background(), 1, "", "")
 	if !errors.Is(err, errBelowMinimumAmount) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errBelowMinimumAmount)
 	}
 
 	// Test minimum charge using fx, this resultant will change depending on fx
 	// rate
-	_, err = val.GetFee(100)
+	_, err = val.GetFee(context.Background(), 100, "", "")
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	feeOnAmount, err = val.GetFee(100000)
+	feeOnAmount, err = val.GetFee(context.Background(), 100000, "", "")
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
@@ -59,7 +60,7 @@ func TestWithdrawGetFees(t *testing.T) {
 	}
 
 	val = getWithdrawal(currency.EUR, standardRate, decimal.NewFromInt(3), false)
-	feeOnAmount, err = val.GetFee(100)
+	feeOnAmount, err = val.GetFee(context.Background(), 100, "", "")
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
@@ -120,7 +121,7 @@ func TestWithdrawLessThan(t *testing.T) {
 
 func TestDepositGetFee(t *testing.T) {
 	val := getDeposit(currency.USD)
-	feeOnAmount, err := val.GetFee(100)
+	feeOnAmount, err := val.GetFee(context.Background(), 100, "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -129,7 +130,7 @@ func TestDepositGetFee(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", feeOnAmount, decimal.Zero)
 	}
 
-	feeOnAmount, err = val.GetFee(99)
+	feeOnAmount, err = val.GetFee(context.Background(), 99, "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -139,7 +140,7 @@ func TestDepositGetFee(t *testing.T) {
 	}
 
 	val = getDeposit(currency.EUR)
-	feeOnAmount, err = val.GetFee(1000)
+	feeOnAmount, err = val.GetFee(context.Background(), 1000, "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -149,7 +150,7 @@ func TestDepositGetFee(t *testing.T) {
 	}
 
 	val = getDeposit(currency.EUR)
-	feeOnAmount, err = val.GetFee(1)
+	feeOnAmount, err = val.GetFee(context.Background(), 1, "", "")
 	if err != nil {
 		t.Fatal(err)
 	}

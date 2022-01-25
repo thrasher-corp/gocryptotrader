@@ -1,6 +1,7 @@
 package fee
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -19,9 +20,8 @@ var (
 
 // Value defines custom fee value calculation functionality
 type Value interface {
-	// GetFee returns the fee, either a percentage or fixed amount. The amount
-	// param is only used as a switch for if fees scale with potential amounts.
-	GetFee(amount float64) (decimal.Decimal, error)
+	// GetFee returns the fee, either a percentage or fixed amount.
+	GetFee(ctx context.Context, amount float64, destinationAddress, tag string) (decimal.Decimal, error)
 	// Display displays either the float64 value or the JSON of the struct as a
 	// string to be unmarshalled via GRPC if needed.
 	Display() (string, error)
@@ -45,7 +45,7 @@ type Standard struct {
 
 // GetFee returns the fee, either a percentage or fixed amount. The amount
 // param is only used as a switch for if fees scale with potential amounts.
-func (s Standard) GetFee(amount float64) (decimal.Decimal, error) {
+func (s Standard) GetFee(ctx context.Context, amount float64, destinationAddress, tag string) (decimal.Decimal, error) {
 	return s.Decimal, nil
 }
 
@@ -94,7 +94,7 @@ type Switch struct {
 
 // GetFee returns the fee, either a percentage or fixed amount. The amount
 // param is only used as a switch for if fees scale with potential amounts.
-func (s Switch) GetFee(amount float64) (decimal.Decimal, error) {
+func (s Switch) GetFee(ctx context.Context, amount float64, destinationAddress, tag string) (decimal.Decimal, error) {
 	amt := decimal.NewFromFloat(amount)
 	if amt.GreaterThanOrEqual(s.Amount) {
 		return s.FeeWhenHigherOrEqual, nil
@@ -141,7 +141,7 @@ type Blockchain string
 
 // GetFee returns the fee, either a percentage or fixed amount. The amount
 // param is only used as a switch for if fees scale with potential amounts.
-func (b Blockchain) GetFee(amount float64) (decimal.Decimal, error) {
+func (b Blockchain) GetFee(ctx context.Context, amount float64, destinationAddress, tag string) (decimal.Decimal, error) {
 	return decimal.Zero, nil
 }
 
@@ -183,7 +183,7 @@ type MinMax struct {
 
 // GetFee returns the fee, either a percentage or fixed amount. The amount
 // param is only used as a switch for if fees scale with potential amounts.
-func (m MinMax) GetFee(amount float64) (decimal.Decimal, error) {
+func (m MinMax) GetFee(ctx context.Context, amount float64, destinationAddress, tag string) (decimal.Decimal, error) {
 	amt := decimal.NewFromFloat(amount)
 	potential := amt.Mul(m.Fee)
 	if m.Maximum.GreaterThan(decimal.Zero) && potential.GreaterThan(m.Maximum) {
@@ -239,7 +239,7 @@ type WithMinimumAmount struct {
 
 // GetFee returns the fee, either a percentage or fixed amount. The amount
 // param is only used as a switch for if fees scale with potential amounts.
-func (m WithMinimumAmount) GetFee(amount float64) (decimal.Decimal, error) {
+func (m WithMinimumAmount) GetFee(ctx context.Context, amount float64, destinationAddress, tag string) (decimal.Decimal, error) {
 	amt := decimal.NewFromFloat(amount)
 	if amt.LessThan(m.MinimumAmount) {
 		return decimal.Zero, errAmountIsLessThanMinimumRequired

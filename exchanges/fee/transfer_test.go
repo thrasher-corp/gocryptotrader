@@ -1,6 +1,7 @@
 package fee
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -26,7 +27,7 @@ func TestConvert(t *testing.T) {
 		t.Fatal("should be enabled")
 	}
 
-	fee, err := internal.Deposit.GetFee(1)
+	fee, err := internal.Deposit.GetFee(context.Background(), 1, "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -34,7 +35,7 @@ func TestConvert(t *testing.T) {
 		t.Fatal("unexpected value")
 	}
 
-	fee, err = internal.MinimumDeposit.GetFee(1)
+	fee, err = internal.MinimumDeposit.GetFee(context.Background(), 1, "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -42,7 +43,7 @@ func TestConvert(t *testing.T) {
 		t.Fatal("unexpected value")
 	}
 
-	fee, err = internal.MaximumDeposit.GetFee(1)
+	fee, err = internal.MaximumDeposit.GetFee(context.Background(), 1, "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -54,7 +55,7 @@ func TestConvert(t *testing.T) {
 		t.Fatal("should be enabled")
 	}
 
-	fee, err = internal.Withdrawal.GetFee(1)
+	fee, err = internal.Withdrawal.GetFee(context.Background(), 1, "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -62,7 +63,7 @@ func TestConvert(t *testing.T) {
 		t.Fatal("unexpected value")
 	}
 
-	fee, err = internal.MinimumWithdrawal.GetFee(1)
+	fee, err = internal.MinimumWithdrawal.GetFee(context.Background(), 1, "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -70,7 +71,7 @@ func TestConvert(t *testing.T) {
 		t.Fatal("unexpected value")
 	}
 
-	fee, err = internal.MaximumWithdrawal.GetFee(1)
+	fee, err = internal.MaximumWithdrawal.GetFee(context.Background(), 1, "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -83,18 +84,22 @@ var errTest = errors.New("error test")
 
 type validateError struct{}
 
-func (g *validateError) GetFee(amount float64) (decimal.Decimal, error) { return decimal.Zero, nil }
-func (g *validateError) Display() (string, error)                       { return "", nil }
-func (g *validateError) Validate() error                                { return errTest }
-func (g *validateError) LessThan(val Value) (bool, error)               { return false, nil }
+func (g *validateError) GetFee(ctx context.Context, amount float64, destinationAddress, tag string) (decimal.Decimal, error) {
+	return decimal.Zero, nil
+}
+func (g *validateError) Display() (string, error)         { return "", nil }
+func (g *validateError) Validate() error                  { return errTest }
+func (g *validateError) LessThan(val Value) (bool, error) { return false, nil }
 
 type lessThanError struct {
 	Wow bool
 }
 
-func (g *lessThanError) GetFee(amount float64) (decimal.Decimal, error) { return decimal.Zero, nil }
-func (g *lessThanError) Display() (string, error)                       { return "", nil }
-func (g *lessThanError) Validate() error                                { return nil }
+func (g *lessThanError) GetFee(ctx context.Context, amount float64, destinationAddress, tag string) (decimal.Decimal, error) {
+	return decimal.Zero, nil
+}
+func (g *lessThanError) Display() (string, error) { return "", nil }
+func (g *lessThanError) Validate() error          { return nil }
 func (g *lessThanError) LessThan(val Value) (bool, error) {
 	if !g.Wow {
 		return false, errTest
@@ -211,7 +216,7 @@ func TestUpdate(t *testing.T) {
 		t.Fatal("should be enabled")
 	}
 
-	fee, err := tr.Deposit.GetFee(1)
+	fee, err := tr.Deposit.GetFee(context.Background(), 1, "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -219,7 +224,7 @@ func TestUpdate(t *testing.T) {
 		t.Fatal("unexpected value")
 	}
 
-	fee, err = tr.MinimumDeposit.GetFee(1)
+	fee, err = tr.MinimumDeposit.GetFee(context.Background(), 1, "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -227,7 +232,7 @@ func TestUpdate(t *testing.T) {
 		t.Fatal("unexpected value")
 	}
 
-	fee, err = tr.MaximumDeposit.GetFee(1)
+	fee, err = tr.MaximumDeposit.GetFee(context.Background(), 1, "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -239,7 +244,7 @@ func TestUpdate(t *testing.T) {
 		t.Fatal("should be enabled")
 	}
 
-	fee, err = tr.Withdrawal.GetFee(1)
+	fee, err = tr.Withdrawal.GetFee(context.Background(), 1, "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -247,7 +252,7 @@ func TestUpdate(t *testing.T) {
 		t.Fatal("unexpected value")
 	}
 
-	fee, err = tr.MinimumWithdrawal.GetFee(1)
+	fee, err = tr.MinimumWithdrawal.GetFee(context.Background(), 1, "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -255,7 +260,7 @@ func TestUpdate(t *testing.T) {
 		t.Fatal("unexpected value")
 	}
 
-	fee, err = tr.MaximumWithdrawal.GetFee(1)
+	fee, err = tr.MaximumWithdrawal.GetFee(context.Background(), 1, "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -303,10 +308,12 @@ func TestUpdate(t *testing.T) {
 
 type getFeeError struct{}
 
-func (g *getFeeError) GetFee(amount float64) (decimal.Decimal, error) { return decimal.Zero, errTest }
-func (g *getFeeError) Display() (string, error)                       { return "", nil }
-func (g *getFeeError) Validate() error                                { return nil }
-func (g *getFeeError) LessThan(val Value) (bool, error)               { return false, nil }
+func (g *getFeeError) GetFee(ctx context.Context, amount float64, destinationAddress, tag string) (decimal.Decimal, error) {
+	return decimal.Zero, errTest
+}
+func (g *getFeeError) Display() (string, error)         { return "", nil }
+func (g *getFeeError) Validate() error                  { return nil }
+func (g *getFeeError) LessThan(val Value) (bool, error) { return false, nil }
 
 func TestTransferCalculate(t *testing.T) {
 	t.Parallel()

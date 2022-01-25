@@ -1,6 +1,7 @@
 package btse
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 
@@ -134,7 +135,7 @@ type TransferWithdrawalFee struct {
 }
 
 // GetFee returns the fee based off the amount requested
-func (t TransferWithdrawalFee) GetFee(amount float64) (decimal.Decimal, error) {
+func (t TransferWithdrawalFee) GetFee(ctx context.Context, amount float64, destinationAddress, tag string) (decimal.Decimal, error) {
 	amt := decimal.NewFromFloat(amount)
 	potentialFee := amt.Mul(t.PercentageRate)
 	if t.Code.Item == currency.USD.Item {
@@ -220,7 +221,7 @@ type TransferDepositFee struct {
 }
 
 // GetFee returns the fee based off the amount requested
-func (t TransferDepositFee) GetFee(amount float64) (decimal.Decimal, error) {
+func (t TransferDepositFee) GetFee(ctx context.Context, amount float64, destinationAddress, tag string) (decimal.Decimal, error) {
 	amt := decimal.NewFromFloat(amount)
 	if t.Code.Item == currency.USD.Item {
 		if amt.LessThan(t.MinimumAmountUSD) {

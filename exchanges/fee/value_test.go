@@ -1,6 +1,7 @@
 package fee
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -10,7 +11,7 @@ import (
 func TestValueConvert(t *testing.T) {
 	t.Parallel()
 	val := Convert(-1)
-	fee, err := val.GetFee(1)
+	fee, err := val.GetFee(context.Background(), 1, "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -42,7 +43,7 @@ func TestValueConvert(t *testing.T) {
 func TestValueConvertWithAmount(t *testing.T) {
 	t.Parallel()
 	val := ConvertWithAmount(0.005, 0.002, 1)
-	fee, err := val.GetFee(.9)
+	fee, err := val.GetFee(context.Background(), .9, "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -51,7 +52,7 @@ func TestValueConvertWithAmount(t *testing.T) {
 		t.Fatal("unexpected result:", fee)
 	}
 
-	fee, err = val.GetFee(1.5)
+	fee, err = val.GetFee(context.Background(), 1.5, "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -101,7 +102,7 @@ func TestValueConvertWithAmount(t *testing.T) {
 func TestValueConvertBlockchain(t *testing.T) {
 	t.Parallel()
 	val := ConvertBlockchain("BTC")
-	_, err := val.GetFee(1)
+	_, err := val.GetFee(context.Background(), 1, "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -135,7 +136,7 @@ func TestValueConvertBlockchain(t *testing.T) {
 func TestValueConvertWithMaxAndMin(t *testing.T) {
 	t.Parallel()
 	val := ConvertWithMaxAndMin(1, 100, 20)
-	fee, err := val.GetFee(.5)
+	fee, err := val.GetFee(context.Background(), .5, "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -144,7 +145,7 @@ func TestValueConvertWithMaxAndMin(t *testing.T) {
 		t.Fatal("unexpected result")
 	}
 
-	fee, err = val.GetFee(120)
+	fee, err = val.GetFee(context.Background(), 120, "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -153,7 +154,7 @@ func TestValueConvertWithMaxAndMin(t *testing.T) {
 		t.Fatal("unexpected result")
 	}
 
-	fee, err = val.GetFee(60)
+	fee, err = val.GetFee(context.Background(), 60, "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -203,7 +204,7 @@ func TestValueConvertWithMaxAndMin(t *testing.T) {
 func TestValueConvertConvertWithMinimumAmount(t *testing.T) {
 	t.Parallel()
 	val := ConvertWithMinimumAmount(1, 5)
-	fee, err := val.GetFee(5)
+	fee, err := val.GetFee(context.Background(), 5, "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -212,7 +213,7 @@ func TestValueConvertConvertWithMinimumAmount(t *testing.T) {
 		t.Fatal("unexpected result")
 	}
 
-	_, err = val.GetFee(4.9)
+	_, err = val.GetFee(context.Background(), 4.9, "", "")
 	if !errors.Is(err, errAmountIsLessThanMinimumRequired) {
 		t.Fatalf("received: %v but expected: %v", err, errAmountIsLessThanMinimumRequired)
 	}

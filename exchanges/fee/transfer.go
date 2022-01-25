@@ -1,6 +1,7 @@
 package fee
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -244,7 +245,7 @@ func (t *transfer) calculate(val Value, amount float64) (float64, error) {
 	// see value.go for different amount tier systems definitions.
 	// NOTE: The amount param is used to validate if this potential transaction
 	// can succeed based on value interface requirements.
-	fee, err := val.GetFee(amount)
+	fee, err := val.GetFee(context.TODO(), amount, "", "")
 	if err != nil {
 		return 0, err
 	}

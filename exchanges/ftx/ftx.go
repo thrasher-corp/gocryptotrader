@@ -590,7 +590,7 @@ func (f *FTX) Withdraw(ctx context.Context, coin currency.Code, address, tag, pa
 
 // GetWithdrawalFee gets the potential fee for the withdraw.
 func (f *FTX) GetWithdrawalFee(ctx context.Context, coin currency.Code, size float64, address, tag string) (WithdrawalFee, error) {
-	if coin.IsEmpty() || address == "" || size == 0 {
+	if coin.IsEmpty() || address == "" {
 		return WithdrawalFee{}, fmt.Errorf("%w coin: '%v' address '%v' size '%v'",
 			errCoinAddressSizeNotSet,
 			coin,
