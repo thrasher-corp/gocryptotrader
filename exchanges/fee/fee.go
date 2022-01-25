@@ -363,7 +363,7 @@ func (d *Schedule) GetWithdrawal(c currency.Code, chain string) (fee Value, isPe
 
 // get returns the fee structure by the currency and its chain type.
 func (d *Schedule) get(c currency.Code, chain string) (*transfer, error) {
-	if c.String() == "" {
+	if c.IsEmpty() {
 		return nil, errCurrencyIsEmpty
 	}
 
@@ -429,12 +429,12 @@ func (d *Schedule) GetAllFees() (Options, error) {
 // asset. TODO: Add write control when this gets changed.
 func (d *Schedule) SetCommissionFee(a asset.Item, pair currency.Pair, maker, taker float64, isFixedAmount bool) error {
 	if d == nil {
-		return ErrScheduleIsNil
+		return fmt.Errorf("setting commission fee for %s %s: %w", a, pair, ErrScheduleIsNil)
 	}
 
 	err := checkCommissionRates(maker, taker)
 	if err != nil {
-		return err
+		return fmt.Errorf("setting commission fee for %s %s: %w", a, pair, err)
 	}
 
 	if !a.IsValid() {
@@ -445,7 +445,7 @@ func (d *Schedule) SetCommissionFee(a asset.Item, pair currency.Pair, maker, tak
 	defer d.mtx.Unlock()
 	c, err := d.getCommission(a, pair)
 	if err != nil {
-		return err
+		return fmt.Errorf("setting commission fee for %s %s: %w", a, pair, err)
 	}
 	return c.set(maker, taker, isFixedAmount)
 }
@@ -454,18 +454,18 @@ func (d *Schedule) SetCommissionFee(a asset.Item, pair currency.Pair, maker, tak
 // asset type.
 func (d *Schedule) GetTransferFee(c currency.Code, chain string) (*Transfer, error) {
 	if d == nil {
-		return nil, ErrScheduleIsNil
+		return nil, fmt.Errorf("getting transfer fee for %s %s: %w", c, chain, ErrScheduleIsNil)
 	}
 
-	if c.String() == "" {
-		return nil, errCurrencyIsEmpty
+	if c.IsEmpty() {
+		return nil, fmt.Errorf("getting transfer fee for %s %s: %w", c, chain, errCurrencyIsEmpty)
 	}
 
 	d.mtx.RLock()
 	defer d.mtx.RUnlock()
 	t, ok := d.chainTransfer[c.Item][chain]
 	if !ok {
-		return nil, errRateNotFound
+		return nil, fmt.Errorf("getting transfer fee for %s %s: %w", c, chain, errRateNotFound)
 	}
 	return t.convert(), nil
 }
@@ -479,27 +479,27 @@ func (d *Schedule) SetTransferFee(c currency.Code, chain string, withdraw, depos
 	}
 
 	if withdraw < 0 {
-		return errWithdrawalIsInvalid
+		return fmt.Errorf("setting transfer fee for %s %s: %w", c, chain, errWithdrawalIsInvalid)
 	}
 
 	if deposit < 0 {
-		return errDepositIsInvalid
+		return fmt.Errorf("setting transfer fee for %s %s: %w", c, chain, errDepositIsInvalid)
 	}
 
-	if c.String() == "" {
-		return errCurrencyIsEmpty
+	if c.IsEmpty() {
+		return fmt.Errorf("setting transfer fee for %s %s: %w", c, chain, errCurrencyIsEmpty)
 	}
 
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 	t, ok := d.chainTransfer[c.Item][chain]
 	if !ok {
-		return errTransferFeeNotFound
+		return fmt.Errorf("setting transfer fee for %s %s: %w", c, chain, errTransferFeeNotFound)
 	}
 
 	if t.Percentage != isPercentage {
 		// These should not change, and a package update might need to occur.
-		return errFeeTypeMismatch
+		return fmt.Errorf("setting transfer fee for %s %s: %w", c, chain, errFeeTypeMismatch)
 	}
 
 	t.Withdrawal = Convert(withdraw)
@@ -511,22 +511,22 @@ func (d *Schedule) SetTransferFee(c currency.Code, chain string, withdraw, depos
 // the asset.
 func (d *Schedule) GetBankTransferFee(c currency.Code, transType bank.Transfer) (*Transfer, error) {
 	if d == nil {
-		return nil, ErrScheduleIsNil
+		return nil, fmt.Errorf("getting bank transfer fee for %s %s: %w", c, transType, ErrScheduleIsNil)
 	}
 
-	if c.String() == "" {
-		return nil, errCurrencyIsEmpty
+	if c.IsEmpty() {
+		return nil, fmt.Errorf("getting bank transfer fee for %s %s: %w", c, transType, errCurrencyIsEmpty)
 	}
 
 	if err := transType.Validate(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("getting bank transfer fee for %s %s: %w", c, transType, err)
 	}
 
 	d.mtx.RLock()
 	defer d.mtx.RUnlock()
 	t, ok := d.bankTransfer[transType][c.Item]
 	if !ok {
-		return nil, errRateNotFound
+		return nil, fmt.Errorf("getting bank transfer fee for %s %s: %w", c, transType, errRateNotFound)
 	}
 	return t.convert(), nil
 }
@@ -536,34 +536,34 @@ func (d *Schedule) GetBankTransferFee(c currency.Code, transType bank.Transfer) 
 // types. Or expand out the RPC to set custom values.
 func (d *Schedule) SetBankTransferFee(c currency.Code, transType bank.Transfer, withdraw, deposit float64, isPercentage bool) error {
 	if d == nil {
-		return ErrScheduleIsNil
+		return fmt.Errorf("setting bank transfer fee for %s %s: %w", c, transType, ErrScheduleIsNil)
 	}
 
-	if c.String() == "" {
-		return errCurrencyIsEmpty
+	if c.IsEmpty() {
+		return fmt.Errorf("setting bank transfer fee for %s %s: %w", c, transType, errCurrencyIsEmpty)
 	}
 
 	if err := transType.Validate(); err != nil {
-		return err
+		return fmt.Errorf("setting bank transfer fee for %s %s: %w", c, transType, err)
 	}
 
 	if withdraw < 0 {
-		return errWithdrawalIsInvalid
+		return fmt.Errorf("setting bank transfer fee for %s %s: %w", c, transType, errWithdrawalIsInvalid)
 	}
 
 	if deposit < 0 {
-		return errDepositIsInvalid
+		return fmt.Errorf("setting bank transfer fee for %s %s: %w", c, transType, errDepositIsInvalid)
 	}
 
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 	tFee, ok := d.bankTransfer[transType][c.Item]
 	if !ok {
-		return errBankTransferFeeNotFound
+		return fmt.Errorf("setting bank transfer fee for %s %s: %w", c, transType, errBankTransferFeeNotFound)
 	}
 
 	if tFee.Percentage != isPercentage {
-		return errFeeTypeMismatch
+		return fmt.Errorf("setting bank transfer fee for %s %s: %w", c, transType, errFeeTypeMismatch)
 	}
 
 	tFee.Withdrawal = Convert(withdraw)
@@ -575,11 +575,11 @@ func (d *Schedule) SetBankTransferFee(c currency.Code, transType bank.Transfer, 
 // cryptocurrency deposit and withdrawals.
 func (d *Schedule) LoadChainTransferFees(fees []Transfer) error {
 	if d == nil {
-		return ErrScheduleIsNil
+		return fmt.Errorf("loading chain transfer fees: %w", ErrScheduleIsNil)
 	}
 
 	if len(fees) == 0 {
-		return errNoTransferFees
+		return fmt.Errorf("loading chain transfer fees: %w", errNoTransferFees)
 	}
 
 	d.mtx.Lock()
@@ -611,11 +611,11 @@ func (d *Schedule) LoadChainTransferFees(fees []Transfer) error {
 // fiat deposit and withdrawals.
 func (d *Schedule) LoadBankTransferFees(fees []Transfer) error {
 	if d == nil {
-		return ErrScheduleIsNil
+		return fmt.Errorf("loading bank transfer fees: %w", ErrScheduleIsNil)
 	}
 
 	if len(fees) == 0 {
-		return errNoTransferFees
+		return fmt.Errorf("loading bank transfer fees: %w", errNoTransferFees)
 	}
 
 	d.mtx.Lock()
