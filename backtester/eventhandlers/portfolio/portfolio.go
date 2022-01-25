@@ -101,29 +101,33 @@ func (p *Portfolio) OnSignal(ev signal.Event, cs *exchange.Settings, funds fundi
 		}
 	} else if ev.GetAssetType().IsFutures() {
 		var collatCurr currency.Code
+		allFunds := funds.GetAllFunding()
+		var calcs []gctorder.CollateralCalculator
+		for i := range allFunds {
+			calcs = append(calcs, gctorder.CollateralCalculator{
+				CalculateOffline:   true,
+				CollateralCurrency: allFunds[i].Currency,
+				Asset:              allFunds[i].Asset,
+				Side:               ev.GetDirection(),
+				CollateralAmount:   allFunds[i].Available,
+				USDPrice:           decimal.Decimal{},
+			})
+		}
+
+		// allocate this combined collateral value!
+		// this is preventing orders from being placed
+		collat, err := lookup.Exchange.CalculateTotalCollateral(
+			context.TODO(),
+			"",
+			true,
+			calcs,
+		)
+		if err != nil {
+			return nil, err
+		}
 		if collatCurr = ev.GetCollateralCurrency(); collatCurr.IsEmpty() {
 			// get all collateral somehow?
-			allFunds := funds.GetAllFunding()
-			var calcs []gctorder.CollateralCalculator
-			for i := range allFunds {
-				calcs = append(calcs, gctorder.CollateralCalculator{
-					CalculateOffline:   true,
-					CollateralCurrency: allFunds[i].Currency,
-					Asset:              allFunds[i].Asset,
-					Side:               ev.GetDirection(),
-					CollateralAmount:   allFunds[i].Available,
-					USDPrice:           decimal.Decimal{},
-				})
-			}
-			collat, err := lookup.Exchange.CalculateTotalCollateral(
-				context.TODO(),
-				"",
-				true,
-				calcs,
-			)
-			if err != nil {
-				return nil, err
-			}
+
 			sizingFunds = collat.TotalCollateral
 		} else {
 			allFunds := funds.GetAllFunding()
