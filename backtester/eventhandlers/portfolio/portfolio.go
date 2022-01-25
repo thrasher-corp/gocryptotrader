@@ -80,15 +80,7 @@ func (p *Portfolio) OnSignal(ev signal.Event, cs *exchange.Settings, funds fundi
 	dir := ev.GetDirection()
 	if ev.GetAssetType() == asset.Spot {
 		if !relevantFunding.FundReserver().CanPlaceOrder(dir) {
-			o.AppendReason(notEnoughFundsTo + " " + dir.Lower())
-			switch ev.GetDirection() {
-			case gctorder.Sell:
-				o.SetDirection(common.CouldNotSell)
-			case gctorder.Buy:
-				o.SetDirection(common.CouldNotBuy)
-			}
-			ev.SetDirection(o.Direction)
-			return o, nil
+			return cannotPurchase(ev, o, dir)
 		}
 	}
 
@@ -137,7 +129,7 @@ func (p *Portfolio) OnSignal(ev signal.Event, cs *exchange.Settings, funds fundi
 			allFunds := funds.GetAllFunding()
 			for i := range allFunds {
 				if allFunds[i].Exchange == ev.GetExchange() &&
-					allFunds[i].Asset == ev.GetAssetType() &&
+					allFunds[i].Asset == asset.Spot &&
 					allFunds[i].Currency.Match(collatCurr) {
 					sizingFunds, err = lookup.Exchange.ScaleCollateral(
 						context.TODO(),
@@ -147,19 +139,40 @@ func (p *Portfolio) OnSignal(ev signal.Event, cs *exchange.Settings, funds fundi
 							Asset:              ev.GetAssetType(),
 							Side:               ev.GetDirection(),
 							CollateralAmount:   allFunds[i].Available,
-							USDPrice:           allFunds[i].USDPrice,
-							CalculateOffline:   true,
+							// GET A USD PRICE
+							USDPrice:         allFunds[i].USDPrice,
+							CalculateOffline: true,
 						})
 					if err != nil {
 						return nil, err
 					}
+					break
 				}
 			}
 		}
 	}
+	if sizingFunds.LessThanOrEqual(decimal.Zero) {
+		return cannotPurchase(ev, o, dir)
+	}
 	sizedOrder := p.sizeOrder(ev, cs, o, sizingFunds, relevantFunding.FundReserver())
 
 	return p.evaluateOrder(ev, o, sizedOrder)
+}
+
+func cannotPurchase(ev signal.Event, o *order.Order, dir gctorder.Side) (*order.Order, error) {
+	o.AppendReason(notEnoughFundsTo + " " + dir.Lower())
+	switch ev.GetDirection() {
+	case gctorder.Sell:
+		o.SetDirection(common.CouldNotSell)
+	case gctorder.Buy:
+		o.SetDirection(common.CouldNotBuy)
+	case gctorder.Short:
+		o.SetDirection(common.CouldNotShort)
+	case gctorder.Long:
+		o.SetDirection(common.CouldNotLong)
+	}
+	ev.SetDirection(o.Direction)
+	return o, nil
 }
 
 func (p *Portfolio) evaluateOrder(d common.Directioner, originalOrderSignal, sizedOrder *order.Order) (*order.Order, error) {

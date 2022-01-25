@@ -25,7 +25,7 @@ func (s *Size) SizeOrder(o order.Event, amountAvailable decimal.Decimal, cs *exc
 	var amount decimal.Decimal
 	var err error
 	switch retOrder.GetDirection() {
-	case gctorder.Buy:
+	case gctorder.Buy, gctorder.Long:
 		// check size against currency specific settings
 		amount, err = s.calculateBuySize(retOrder.Price, amountAvailable, cs.ExchangeFee, o.GetBuyLimit(), cs.BuySide)
 		if err != nil {
@@ -41,7 +41,7 @@ func (s *Size) SizeOrder(o order.Event, amountAvailable decimal.Decimal, cs *exc
 		if amount.GreaterThan(portfolioSize) {
 			amount = portfolioSize
 		}
-	case gctorder.Sell:
+	case gctorder.Sell, gctorder.Short:
 		// check size against currency specific settings
 		amount, err = s.calculateSellSize(retOrder.Price, amountAvailable, cs.ExchangeFee, o.GetSellLimit(), cs.SellSide)
 		if err != nil {

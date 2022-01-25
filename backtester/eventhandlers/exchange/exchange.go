@@ -51,9 +51,6 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 	}
 	f.ExchangeFee = cs.ExchangeFee // defaulting to just using taker fee right now without orderbook
 	f.Direction = o.GetDirection()
-	if o.GetDirection() != gctorder.Buy && o.GetDirection() != gctorder.Sell {
-		return f, nil
-	}
 	highStr := data.StreamHigh()
 	high := highStr[len(highStr)-1]
 

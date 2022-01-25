@@ -1212,7 +1212,6 @@ func TestGenerateFTXCashAndCarryStrategy(t *testing.T) {
 					Asset:        "spot",
 					Currency:     "USD",
 					InitialFunds: *initialQuoteFunds2,
-					TransferFee:  decimal.Decimal{},
 				},
 			},
 		},

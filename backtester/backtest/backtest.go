@@ -319,7 +319,7 @@ func (bt *BackTest) processFillEvent(ev fill.Event, funds funding.IFundReleaser)
 	}
 
 	fde := ev.GetFillDependentEvent()
-	if fde.IsNil() {
+	if !fde.IsNil() {
 		// some events can only be triggered on a successful fill event
 		bt.EventQueue.AppendEvent(fde)
 	}

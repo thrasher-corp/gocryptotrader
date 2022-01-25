@@ -140,13 +140,14 @@ func (f *FundManager) AddUSDTrackingData(k *kline.DataFromKline) error {
 	if f.disableUSDTracking {
 		return ErrUSDTrackingDisabled
 	}
+	if k.Item.Asset.IsFutures() {
+		// futures doesn't need usd tracking?
+		return nil
+	}
 	baseSet := false
 	quoteSet := false
 	var basePairedWith currency.Code
 	for i := range f.items {
-		if f.items[i].asset.IsFutures() {
-			return nil
-		}
 		if baseSet && quoteSet {
 			return nil
 		}
