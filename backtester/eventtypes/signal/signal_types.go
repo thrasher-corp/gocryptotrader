@@ -4,6 +4,7 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -18,6 +19,9 @@ type Event interface {
 	GetSellLimit() decimal.Decimal
 	GetBuyLimit() decimal.Decimal
 	GetAmount() decimal.Decimal
+	GetFillDependentEvent() Event
+	GetCollateralCurrency() currency.Code
+	IsNil() bool
 }
 
 // Signal contains everything needed for a strategy to raise a signal event
@@ -46,4 +50,10 @@ type Signal struct {
 	// if there is corresponding collateral in the selected currency
 	// this enabled cash and carry strategies for example
 	FillDependentEvent *Signal
+	// CollateralCurrency is an optional paramater
+	// when using futures to limit the collateral available
+	// to a singular currency
+	// eg with $5000 usd and 1 BTC, specifying BTC ensures
+	// the USD value won't be utilised when sizing an order
+	CollateralCurrency currency.Code
 }

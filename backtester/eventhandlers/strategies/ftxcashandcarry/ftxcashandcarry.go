@@ -101,7 +101,7 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundTransf
 		if err != nil {
 			return nil, err
 		}
-		if len(pos) == 0 {
+		if len(pos) == 0 || pos[len(pos)-1].Status == order.Closed {
 			spotSignal, err := s.GetBaseData(v.spotSignal)
 			if err != nil {
 				return nil, err
@@ -112,15 +112,22 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundTransf
 			}
 			spotSignal.SetPrice(v.spotSignal.Latest().GetClosePrice())
 			spotSignal.AppendReason(fmt.Sprintf("signalling purchase of %v", spotSignal.Pair()))
-			futuresSignal.SetPrice(v.futureSignal.Latest().GetClosePrice())
 			// first the spot purchase
 			spotSignal.SetDirection(order.Buy)
 			// second the futures purchase, using the newly acquired asset
 			// as collateral to short
 			futuresSignal.SetDirection(order.Short)
-			spotSignal.FillDependentEvent = &futuresSignal
+			futuresSignal.SetPrice(v.futureSignal.Latest().GetClosePrice())
+			futuresSignal.CollateralCurrency = spotSignal.CurrencyPair.Base
 			spotSignal.AppendReason(fmt.Sprintf("signalling shorting %v", futuresSignal.Pair()))
+			// set the FillDependentEvent to use the futures signal
+			// as the futures signal relies on a completed spot order purchase
+			// to use as collateral
+			spotSignal.FillDependentEvent = &futuresSignal
 			response = append(response, &spotSignal)
+		} else {
+			// analyse the conditions of the order to monitor whether
+			// its worthwhile to ever close the short
 		}
 	}
 	return response, nil

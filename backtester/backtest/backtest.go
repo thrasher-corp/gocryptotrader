@@ -97,6 +97,9 @@ dataLoadingIssue:
 // handle event will process events and add further events to the queue if they
 // are required
 func (bt *BackTest) handleEvent(ev common.EventHandler) error {
+	if ev == nil {
+		return fmt.Errorf("cannot handle event %w", errNilData)
+	}
 	funds, err := bt.Funding.GetFundingForEvent(ev)
 	if err != nil {
 		return err
@@ -118,13 +121,13 @@ func (bt *BackTest) handleEvent(ev common.EventHandler) error {
 		bt.Funding.CreateSnapshot(ev.GetTime())
 		return nil
 	case signal.Event:
-		bt.processSignalEvent(eType, funds.FundReserver())
+		bt.processSignalEvent(eType)
 	case order.Event:
 		bt.processOrderEvent(eType, funds.FundReleaser())
 	case fill.Event:
 		bt.processFillEvent(eType, funds.FundReleaser())
 	default:
-		return fmt.Errorf("%w %v received, could not process",
+		return fmt.Errorf("%w %T received, could not process",
 			errUnhandledDatatype,
 			ev)
 	}
@@ -240,14 +243,14 @@ func (bt *BackTest) updateStatsForDataEvent(ev common.DataEventHandler, funds fu
 }
 
 // processSignalEvent receives an event from the strategy for processing under the portfolio
-func (bt *BackTest) processSignalEvent(ev signal.Event, funds funding.IFundReserver) {
+func (bt *BackTest) processSignalEvent(ev signal.Event) {
 	cs, err := bt.Exchange.GetCurrencySettings(ev.GetExchange(), ev.GetAssetType(), ev.Pair())
 	if err != nil {
 		log.Errorf(log.BackTester, "GetCurrencySettings %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 		return
 	}
 	var o *order.Order
-	o, err = bt.Portfolio.OnSignal(ev, &cs, funds)
+	o, err = bt.Portfolio.OnSignal(ev, &cs, bt.Funding)
 	if err != nil {
 		log.Errorf(log.BackTester, "OnSignal %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 		return
@@ -283,10 +286,6 @@ func (bt *BackTest) processFillEvent(ev fill.Event, funds funding.IFundReleaser)
 		log.Errorf(log.BackTester, "OnFill %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 		return
 	}
-	if fde := ev.GetFillDependentEvent(); fde != nil {
-		// some events can only be triggered on a successful fill event
-		bt.EventQueue.AppendEvent(fde)
-	}
 
 	err = bt.Statistic.SetEventForOffset(t)
 	if err != nil {
@@ -317,6 +316,12 @@ func (bt *BackTest) processFillEvent(ev fill.Event, funds funding.IFundReleaser)
 	err = bt.Statistic.AddComplianceSnapshotForTime(snap, ev)
 	if err != nil {
 		log.Errorf(log.BackTester, "AddComplianceSnapshotForTime %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
+	}
+
+	fde := ev.GetFillDependentEvent()
+	if fde.IsNil() {
+		// some events can only be triggered on a successful fill event
+		bt.EventQueue.AppendEvent(fde)
 	}
 }
 

@@ -1222,15 +1222,13 @@ func TestGenerateFTXCashAndCarryStrategy(t *testing.T) {
 				ExchangeName: "ftx",
 				Asset:        asset.Futures.String(),
 				Base:         "BTC",
-				Quote:        "0924",
+				Quote:        "20210924",
 				FuturesDetails: &FuturesDetails{
 					Leverage: Leverage{
 						CanUseLeverage:           true,
 						MaximumOrderLeverageRate: makerFee,
 					},
 				},
-				BuySide:  minMax,
-				SellSide: minMax,
 				MakerFee: makerFee,
 				TakerFee: takerFee,
 			},
@@ -1240,8 +1238,6 @@ func TestGenerateFTXCashAndCarryStrategy(t *testing.T) {
 				Base:         "BTC",
 				Quote:        "USD",
 				SpotDetails:  &SpotDetails{},
-				BuySide:      minMax,
-				SellSide:     minMax,
 				MakerFee:     makerFee,
 				TakerFee:     takerFee,
 			},
@@ -1256,8 +1252,6 @@ func TestGenerateFTXCashAndCarryStrategy(t *testing.T) {
 			},
 		},
 		PortfolioSettings: PortfolioSettings{
-			BuySide:  minMax,
-			SellSide: minMax,
 			Leverage: Leverage{
 				CanUseLeverage: true,
 			},

@@ -28,7 +28,7 @@ func (e *Exchange) Reset() {
 
 // ExecuteOrder assesses the portfolio manager's order event and if it passes validation
 // will send an order to the exchange/fake order manager to be stored and raise a fill event
-func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *engine.OrderManager, funds funding.IFundReleaser) (*fill.Fill, error) {
+func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *engine.OrderManager, funds funding.IFundReleaser) (fill.Event, error) {
 	f := &fill.Fill{
 		Base: event.Base{
 			Offset:       o.GetOffset(),
@@ -39,9 +39,10 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 			Interval:     o.GetInterval(),
 			Reason:       o.GetReason(),
 		},
-		Direction:  o.GetDirection(),
-		Amount:     o.GetAmount(),
-		ClosePrice: data.Latest().GetClosePrice(),
+		Direction:          o.GetDirection(),
+		Amount:             o.GetAmount(),
+		ClosePrice:         data.Latest().GetClosePrice(),
+		FillDependentEvent: o.GetFillDependentEvent(),
 	}
 	eventFunds := o.GetAllocatedFunds()
 	cs, err := e.GetCurrencySettings(o.GetExchange(), o.GetAssetType(), o.Pair())

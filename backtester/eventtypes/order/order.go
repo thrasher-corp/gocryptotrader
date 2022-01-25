@@ -2,6 +2,7 @@ package order
 
 import (
 	"github.com/shopspring/decimal"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
@@ -80,4 +81,10 @@ func (o *Order) SetLeverage(l decimal.Decimal) {
 // has allocated to this potential position
 func (o *Order) GetAllocatedFunds() decimal.Decimal {
 	return o.AllocatedFunds
+}
+
+// GetFillDependentEvent returns the fill dependent event
+// so it can be added the event queue
+func (o *Order) GetFillDependentEvent() signal.Event {
+	return o.FillDependentEvent
 }

@@ -26,7 +26,7 @@ import (
 // on buy/sell, the portfolio manager will size the order and assess the risk of the order
 // if successful, it will pass on an order.Order to be used by the exchange event handler to place an order based on
 // the portfolio manager's recommendations
-func (p *Portfolio) OnSignal(ev signal.Event, cs *exchange.Settings, funds funding.IFundReserver) (*order.Order, error) {
+func (p *Portfolio) OnSignal(ev signal.Event, cs *exchange.Settings, funds funding.IFundingReader) (*order.Order, error) {
 	if ev == nil || cs == nil {
 		return nil, common.ErrNilArguments
 	}
@@ -50,7 +50,8 @@ func (p *Portfolio) OnSignal(ev signal.Event, cs *exchange.Settings, funds fundi
 			Interval:     ev.GetInterval(),
 			Reason:       ev.GetReason(),
 		},
-		Direction: ev.GetDirection(),
+		Direction:          ev.GetDirection(),
+		FillDependentEvent: ev.GetFillDependentEvent(),
 	}
 	if ev.GetDirection() == "" {
 		return o, errInvalidDirection
@@ -71,22 +72,24 @@ func (p *Portfolio) OnSignal(ev signal.Event, cs *exchange.Settings, funds fundi
 		ev.GetDirection() == "" {
 		return o, nil
 	}
+	relevantFunding, err := funds.GetFundingForEvent(ev)
+	if err != nil {
+		return nil, err
+	}
 
 	dir := ev.GetDirection()
-	if !funds.CanPlaceOrder(dir) {
-		o.AppendReason(notEnoughFundsTo + " " + dir.Lower())
-		switch ev.GetDirection() {
-		case gctorder.Sell:
-			o.SetDirection(common.CouldNotSell)
-		case gctorder.Buy:
-			o.SetDirection(common.CouldNotBuy)
-		case gctorder.Short:
-			o.SetDirection(common.CouldNotShort)
-		case gctorder.Long:
-			o.SetDirection(common.CouldNotLong)
+	if ev.GetAssetType() == asset.Spot {
+		if !relevantFunding.FundReserver().CanPlaceOrder(dir) {
+			o.AppendReason(notEnoughFundsTo + " " + dir.Lower())
+			switch ev.GetDirection() {
+			case gctorder.Sell:
+				o.SetDirection(common.CouldNotSell)
+			case gctorder.Buy:
+				o.SetDirection(common.CouldNotBuy)
+			}
+			ev.SetDirection(o.Direction)
+			return o, nil
 		}
-		ev.SetDirection(o.Direction)
-		return o, nil
 	}
 
 	o.Price = ev.GetPrice()
@@ -95,7 +98,7 @@ func (p *Portfolio) OnSignal(ev signal.Event, cs *exchange.Settings, funds fundi
 	o.SellLimit = ev.GetSellLimit()
 	var sizingFunds decimal.Decimal
 	if ev.GetAssetType() == asset.Spot {
-		pReader, err := funds.GetPairReader()
+		pReader, err := relevantFunding.FundReader().GetPairReader()
 		if err != nil {
 			return nil, err
 		}
@@ -105,26 +108,56 @@ func (p *Portfolio) OnSignal(ev signal.Event, cs *exchange.Settings, funds fundi
 			sizingFunds = pReader.QuoteAvailable()
 		}
 	} else if ev.GetAssetType().IsFutures() {
-		cReader, err := funds.GetCollateralReader()
-		if err != nil {
-			return nil, err
-		}
-		sizingFunds = cReader.AvailableFunds()
-		sizingFunds, err = lookup.Exchange.ScaleCollateral(
-			context.TODO(), "",
-			&gctorder.CollateralCalculator{
-				CollateralCurrency: cReader.CollateralCurrency(),
-				Asset:              ev.GetAssetType(),
-				Side:               ev.GetDirection(),
-				CollateralAmount:   sizingFunds,
-				USDPrice:           ev.GetPrice(),
-				CalculateOffline:   true,
-			})
-		if err != nil {
-			return nil, err
+		var collatCurr currency.Code
+		if collatCurr = ev.GetCollateralCurrency(); collatCurr.IsEmpty() {
+			// get all collateral somehow?
+			allFunds := funds.GetAllFunding()
+			var calcs []gctorder.CollateralCalculator
+			for i := range allFunds {
+				calcs = append(calcs, gctorder.CollateralCalculator{
+					CalculateOffline:   true,
+					CollateralCurrency: allFunds[i].Currency,
+					Asset:              allFunds[i].Asset,
+					Side:               ev.GetDirection(),
+					CollateralAmount:   allFunds[i].Available,
+					USDPrice:           decimal.Decimal{},
+				})
+			}
+			collat, err := lookup.Exchange.CalculateTotalCollateral(
+				context.TODO(),
+				"",
+				true,
+				calcs,
+			)
+			if err != nil {
+				return nil, err
+			}
+			sizingFunds = collat.TotalCollateral
+		} else {
+			allFunds := funds.GetAllFunding()
+			for i := range allFunds {
+				if allFunds[i].Exchange == ev.GetExchange() &&
+					allFunds[i].Asset == ev.GetAssetType() &&
+					allFunds[i].Currency.Match(collatCurr) {
+					sizingFunds, err = lookup.Exchange.ScaleCollateral(
+						context.TODO(),
+						"",
+						&gctorder.CollateralCalculator{
+							CollateralCurrency: collatCurr,
+							Asset:              ev.GetAssetType(),
+							Side:               ev.GetDirection(),
+							CollateralAmount:   allFunds[i].Available,
+							USDPrice:           allFunds[i].USDPrice,
+							CalculateOffline:   true,
+						})
+					if err != nil {
+						return nil, err
+					}
+				}
+			}
 		}
 	}
-	sizedOrder := p.sizeOrder(ev, cs, o, sizingFunds, funds)
+	sizedOrder := p.sizeOrder(ev, cs, o, sizingFunds, relevantFunding.FundReserver())
 
 	return p.evaluateOrder(ev, o, sizedOrder)
 }
@@ -198,7 +231,7 @@ func (p *Portfolio) sizeOrder(d common.Directioner, cs *exchange.Settings, origi
 }
 
 // OnFill processes the event after an order has been placed by the exchange. Its purpose is to track holdings for future portfolio decisions.
-func (p *Portfolio) OnFill(ev fill.Event, funding funding.IFundReleaser) (*fill.Fill, error) {
+func (p *Portfolio) OnFill(ev fill.Event, funding funding.IFundReleaser) (fill.Event, error) {
 	if ev == nil {
 		return nil, common.ErrNilEvent
 	}
@@ -241,11 +274,7 @@ func (p *Portfolio) OnFill(ev fill.Event, funding funding.IFundReleaser) (*fill.
 	if err != nil {
 		log.Error(log.BackTester, err)
 	}
-	fe, ok := ev.(*fill.Fill)
-	if !ok {
-		return nil, fmt.Errorf("%w expected fill event", common.ErrInvalidDataType)
-	}
-
+	ev.SetExchangeFee(decimal.Zero)
 	direction := ev.GetDirection()
 	if direction == common.DoNothing ||
 		direction == common.CouldNotBuy ||
@@ -256,11 +285,10 @@ func (p *Portfolio) OnFill(ev fill.Event, funding funding.IFundReleaser) (*fill.
 		direction == common.CouldNotLong ||
 		direction == common.CouldNotShort ||
 		direction == "" {
-		fe.ExchangeFee = decimal.Zero
-		return fe, nil
+		return ev, nil
 	}
 
-	return fe, nil
+	return ev, nil
 }
 
 // addComplianceSnapshot gets the previous snapshot of compliance events, updates with the latest fillevent

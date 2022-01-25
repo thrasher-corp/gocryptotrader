@@ -2,6 +2,7 @@ package fill
 
 import (
 	"github.com/shopspring/decimal"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -63,4 +64,10 @@ func (f *Fill) GetOrder() *order.Detail {
 // GetSlippageRate returns the slippage rate
 func (f *Fill) GetSlippageRate() decimal.Decimal {
 	return f.Slippage
+}
+
+// GetFillDependentEvent returns the fill dependent event
+// to raise after a prerequisite event has been completed
+func (f *Fill) GetFillDependentEvent() signal.Event {
+	return f.FillDependentEvent
 }

@@ -442,3 +442,28 @@ func (f *FundManager) LiquidateByCollateral(c currency.Code) error {
 	}
 	return nil
 }
+
+// GetAllFunding returns basic representations of all current
+// holdings from the latest point
+func (f *FundManager) GetAllFunding() []BasicItem {
+	var result []BasicItem
+	for i := range f.items {
+		var usd decimal.Decimal
+		if f.items[i].usdTrackingCandles != nil {
+			latest := f.items[i].usdTrackingCandles.Latest()
+			if latest != nil {
+				usd = latest.GetClosePrice()
+			}
+		}
+		result = append(result, BasicItem{
+			Exchange:     f.items[i].exchange,
+			Asset:        f.items[i].asset,
+			Currency:     f.items[i].currency,
+			InitialFunds: f.items[i].initialFunds,
+			Available:    f.items[i].available,
+			Reserved:     f.items[i].reserved,
+			USDPrice:     usd,
+		})
+	}
+	return result
+}

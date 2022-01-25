@@ -21,7 +21,7 @@
    "exchange-name": "ftx",
    "asset": "futures",
    "base": "BTC",
-   "quote": "0924",
+   "quote": "20210924",
    "futures-details": {
     "leverage": {
      "can-use-leverage": true,
@@ -31,14 +31,14 @@
     }
    },
    "buy-side": {
-    "minimum-size": "0.005",
-    "maximum-size": "2",
-    "maximum-total": "40000"
+    "minimum-size": "0",
+    "maximum-size": "0",
+    "maximum-total": "0"
    },
    "sell-side": {
-    "minimum-size": "0.005",
-    "maximum-size": "2",
-    "maximum-total": "40000"
+    "minimum-size": "0",
+    "maximum-size": "0",
+    "maximum-total": "0"
    },
    "min-slippage-percent": "0",
    "max-slippage-percent": "0",
@@ -56,14 +56,14 @@
    "quote": "USD",
    "spot-details": {},
    "buy-side": {
-    "minimum-size": "0.005",
-    "maximum-size": "2",
-    "maximum-total": "40000"
+    "minimum-size": "0",
+    "maximum-size": "0",
+    "maximum-total": "0"
    },
    "sell-side": {
-    "minimum-size": "0.005",
-    "maximum-size": "2",
-    "maximum-total": "40000"
+    "minimum-size": "0",
+    "maximum-size": "0",
+    "maximum-total": "0"
    },
    "min-slippage-percent": "0",
    "max-slippage-percent": "0",
@@ -92,14 +92,14 @@
    "maximum-collateral-leverage-rate": "0"
   },
   "buy-side": {
-   "minimum-size": "0.005",
-   "maximum-size": "2",
-   "maximum-total": "40000"
+   "minimum-size": "0",
+   "maximum-size": "0",
+   "maximum-total": "0"
   },
   "sell-side": {
-   "minimum-size": "0.005",
-   "maximum-size": "2",
-   "maximum-total": "40000"
+   "minimum-size": "0",
+   "maximum-size": "0",
+   "maximum-total": "0"
   }
  },
  "statistic-settings": {

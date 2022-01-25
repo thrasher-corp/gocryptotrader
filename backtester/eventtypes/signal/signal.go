@@ -73,3 +73,19 @@ func (s *Signal) GetUnderlyingPair() (currency.Pair, error) {
 	}
 	return s.UnderlyingPair, nil
 }
+
+// GetFillDependentEvent returns the fill dependent event
+// so it can be added to the event queue
+func (s *Signal) GetFillDependentEvent() Event {
+	return s.FillDependentEvent
+}
+
+// GetCollateralCurrency returns the collateral currency
+func (s *Signal) GetCollateralCurrency() currency.Code {
+	return s.CollateralCurrency
+}
+
+// IsNil says if the event is nil
+func (s *Signal) IsNil() bool {
+	return s == nil
+}

@@ -32,6 +32,16 @@ type IFundingManager interface {
 	CreateSnapshot(time.Time)
 	USDTrackingDisabled() bool
 	LiquidateByCollateral(currency.Code) error
+	GetAllFunding() []BasicItem
+}
+
+// IFundingReader is a simple interface of
+// IFundingManager for readonly access at portfolio
+// manager
+type IFundingReader interface {
+	GetFundingForEvent(common.EventHandler) (IFundingPair, error)
+	GetFundingForEAP(string, asset.Item, currency.Pair) (IFundingPair, error)
+	GetAllFunding() []BasicItem
 }
 
 // IFundingPair allows conversion into various
@@ -122,6 +132,17 @@ type Item struct {
 	snapshot           map[time.Time]ItemSnapshot
 	collateral         bool
 	collateralCandles  map[currency.Code]kline.DataFromKline
+}
+
+// BasicItem is a representation of Item
+type BasicItem struct {
+	Exchange     string
+	Asset        asset.Item
+	Currency     currency.Code
+	InitialFunds decimal.Decimal
+	Available    decimal.Decimal
+	Reserved     decimal.Decimal
+	USDPrice     decimal.Decimal
 }
 
 // Pair holds two currencies that are associated with each other
