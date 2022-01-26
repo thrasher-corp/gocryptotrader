@@ -283,21 +283,33 @@ func (c Code) Match(check Code) bool {
 // IsDefaultFiatCurrency checks if the currency passed in matches the default
 // fiat currency
 func (c Code) IsDefaultFiatCurrency() bool {
+	if c.Item == nil {
+		return false
+	}
 	return storage.IsDefaultCurrency(c)
 }
 
 // IsDefaultCryptocurrency checks if the currency passed in matches the default
 // cryptocurrency
 func (c Code) IsDefaultCryptocurrency() bool {
+	if c.Item == nil {
+		return false
+	}
 	return storage.IsDefaultCryptocurrency(c)
 }
 
 // IsFiatCurrency checks if the currency passed is an enabled fiat currency
 func (c Code) IsFiatCurrency() bool {
+	if c.Item == nil {
+		return false
+	}
 	return storage.IsFiatCurrency(c)
 }
 
 // IsCryptocurrency checks if the currency passed is an enabled CRYPTO currency.
 func (c Code) IsCryptocurrency() bool {
+	if c.Item == nil {
+		return false
+	}
 	return storage.IsCryptocurrency(c)
 }
