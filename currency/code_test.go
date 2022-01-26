@@ -421,7 +421,11 @@ func TestCodeMarshalJSON(t *testing.T) {
 	}
 }
 
-func TestIsDefaultCurrency(t *testing.T) {
+func TestDefaultFiatCurrency(t *testing.T) {
+	if (Code{}).IsDefaultFiatCurrency() {
+		t.Errorf("TestIsDefaultCurrency Cannot match currency %s.",
+			Code{})
+	}
 	if !USD.IsDefaultFiatCurrency() {
 		t.Errorf("TestIsDefaultCurrency Cannot match currency %s.",
 			USD)
@@ -437,6 +441,10 @@ func TestIsDefaultCurrency(t *testing.T) {
 }
 
 func TestIsDefaultCryptocurrency(t *testing.T) {
+	if (Code{}).IsDefaultCryptocurrency() {
+		t.Errorf("TestIsDefaultCryptocurrency cannot match currency, %s.",
+			Code{})
+	}
 	if !BTC.IsDefaultCryptocurrency() {
 		t.Errorf("TestIsDefaultCryptocurrency cannot match currency, %s.",
 			BTC)
@@ -452,6 +460,10 @@ func TestIsDefaultCryptocurrency(t *testing.T) {
 }
 
 func TestIsFiatCurrency(t *testing.T) {
+	if (Code{}).IsFiatCurrency() {
+		t.Errorf("TestIsFiatCurrency cannot match currency, %s.",
+			Code{})
+	}
 	if !USD.IsFiatCurrency() {
 		t.Errorf(
 			"TestIsFiatCurrency cannot match currency, %s.", USD)
@@ -468,16 +480,20 @@ func TestIsFiatCurrency(t *testing.T) {
 }
 
 func TestIsCryptocurrency(t *testing.T) {
+	if (Code{}).IsCryptocurrency() {
+		t.Errorf("TestIsCryptocurrency cannot match currency, %s.",
+			Code{})
+	}
 	if !BTC.IsCryptocurrency() {
-		t.Errorf("TestIsFiatCurrency cannot match currency, %s.",
+		t.Errorf("TestIsCryptocurrency cannot match currency, %s.",
 			BTC)
 	}
 	if !LTC.IsCryptocurrency() {
-		t.Errorf("TestIsFiatCurrency cannot match currency, %s.",
+		t.Errorf("TestIsCryptocurrency cannot match currency, %s.",
 			LTC)
 	}
 	if AUD.IsCryptocurrency() {
-		t.Errorf("TestIsFiatCurrency cannot match currency, %s.",
+		t.Errorf("TestIsCryptocurrency cannot match currency, %s.",
 			AUD)
 	}
 }
