@@ -196,6 +196,18 @@ func (p Pairs) Add(pair Pair) Pairs {
 	return p
 }
 
+// GetMatch returns either the pair that is equal including the reciprocal for
+// when currencies are constructed from different exchange pairs e.g. Exchange
+// one USDT-DAI to exchange two DAI-USDT enabled/available pairs.
+func (p Pairs) GetMatch(pair Pair) (Pair, error) {
+	for x := range p {
+		if p[x].EqualIncludeReciprocal(pair) {
+			return p[x], nil
+		}
+	}
+	return Pair{}, ErrPairNotFound
+}
+
 // FindDifferences returns pairs which are new or have been removed
 func (p Pairs) FindDifferences(pairs Pairs) (newPairs, removedPairs Pairs) {
 	for x := range pairs {
