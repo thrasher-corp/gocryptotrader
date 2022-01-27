@@ -158,6 +158,10 @@ func (p *Portfolio) sizeOrder(d common.Directioner, cs *exchange.Settings, origi
 			originalOrderSignal.Direction = common.CouldNotBuy
 		case gctorder.Sell:
 			originalOrderSignal.Direction = common.CouldNotSell
+		case gctorder.Long:
+			originalOrderSignal.Direction = common.CouldNotLong
+		case gctorder.Short:
+			originalOrderSignal.Direction = common.CouldNotShort
 		default:
 			originalOrderSignal.Direction = common.DoNothing
 		}
@@ -171,6 +175,10 @@ func (p *Portfolio) sizeOrder(d common.Directioner, cs *exchange.Settings, origi
 			originalOrderSignal.Direction = common.CouldNotBuy
 		case gctorder.Sell:
 			originalOrderSignal.Direction = common.CouldNotSell
+		case gctorder.Long:
+			originalOrderSignal.Direction = common.CouldNotLong
+		case gctorder.Short:
+			originalOrderSignal.Direction = common.CouldNotShort
 		default:
 			originalOrderSignal.Direction = common.DoNothing
 		}
@@ -182,9 +190,8 @@ func (p *Portfolio) sizeOrder(d common.Directioner, cs *exchange.Settings, origi
 		err = funds.Reserve(sizedOrder.Amount, gctorder.Sell)
 		sizedOrder.AllocatedFunds = sizedOrder.Amount
 	case gctorder.Short, gctorder.Long:
-		// should we even reserve?
-		err = funds.Reserve(sizedOrder.Amount, gctorder.Sell)
-		sizedOrder.AllocatedFunds = sizedOrder.Amount
+		err = funds.Reserve(sizedOrder.Amount, d.GetDirection())
+		sizedOrder.AllocatedFunds = sizedOrder.Amount.Div(sizedOrder.Price)
 	default:
 		err = funds.Reserve(sizedOrder.Amount.Mul(sizedOrder.Price), gctorder.Buy)
 		sizedOrder.AllocatedFunds = sizedOrder.Amount.Mul(sizedOrder.Price)
@@ -494,6 +501,8 @@ func (p *Portfolio) CalculatePNL(e common.DataEventHandler) error {
 			return err
 		}
 	}
+	pos := settings.FuturesTracker.GetPositions()
+	log.Debugf(log.BackTester, "%+v", pos)
 	return nil
 }
 

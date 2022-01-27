@@ -44,6 +44,9 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 		ClosePrice:         data.Latest().GetClosePrice(),
 		FillDependentEvent: o.GetFillDependentEvent(),
 	}
+	if o.GetAssetType().IsFutures() {
+		f.Amount = o.GetAllocatedFunds()
+	}
 	eventFunds := o.GetAllocatedFunds()
 	cs, err := e.GetCurrencySettings(o.GetExchange(), o.GetAssetType(), o.Pair())
 	if err != nil {

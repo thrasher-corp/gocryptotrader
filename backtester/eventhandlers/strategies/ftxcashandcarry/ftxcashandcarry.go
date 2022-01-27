@@ -57,7 +57,6 @@ func sortSignals(d []data.Handler, f funding.IFundTransferer) (map[currency.Pair
 		a := l.GetAssetType()
 		switch {
 		case a == asset.Spot:
-
 			entry := response[l.Pair().Format("", false)]
 			entry.spotSignal = d[i]
 			response[l.Pair().Format("", false)] = entry

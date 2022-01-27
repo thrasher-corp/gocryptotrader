@@ -57,7 +57,7 @@
    "spot-details": {},
    "buy-side": {
     "minimum-size": "0",
-    "maximum-size": "1",
+    "maximum-size": "0",
     "maximum-total": "0"
    },
    "sell-side": {
