@@ -372,24 +372,24 @@ func TestGetMatch(t *testing.T) {
 
 	_, err := pairs.GetMatch(NewPair(BTC, WABI))
 	if !errors.Is(err, ErrPairNotFound) {
-		t.Fatalf("recieved: '%v' but expected '%v'", err, ErrPairNotFound)
+		t.Fatalf("received: '%v' but expected '%v'", err, ErrPairNotFound)
 	}
 
 	expected := NewPair(BTC, USD)
 	match, err := pairs.GetMatch(expected)
 	if !errors.Is(err, nil) {
-		t.Fatalf("recieved: '%v' but expected '%v'", err, nil)
+		t.Fatalf("received: '%v' but expected '%v'", err, nil)
 	}
 
 	if !match.Equal(expected) {
-		t.Fatalf("recieved: '%v' but expected '%v'", match, expected)
+		t.Fatalf("received: '%v' but expected '%v'", match, expected)
 	}
 
 	match, err = pairs.GetMatch(NewPair(USD, BTC))
 	if !errors.Is(err, nil) {
-		t.Fatalf("recieved: '%v' but expected '%v'", err, nil)
+		t.Fatalf("received: '%v' but expected '%v'", err, nil)
 	}
 	if !match.Equal(expected) {
-		t.Fatalf("recieved: '%v' but expected '%v'", match, expected)
+		t.Fatalf("received: '%v' but expected '%v'", match, expected)
 	}
 }
