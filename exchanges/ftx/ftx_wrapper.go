@@ -1330,7 +1330,7 @@ func (f *FTX) ScaleCollateral(ctx context.Context, subAccount string, calc *orde
 			// FTX bases scales all collateral into USD amounts
 			return calc.CollateralAmount, nil
 		}
-		if calc.USDPrice.IsZero() {
+		if calc.CollateralPrice.IsZero() {
 			return decimal.Zero, fmt.Errorf("%s %s %w to scale collateral", f.Name, calc.CollateralCurrency, order.ErrUSDValueRequired)
 		}
 		collateralWeight, ok := f.collateralWeight[calc.CollateralCurrency.Upper().String()]
@@ -1348,9 +1348,9 @@ func (f *FTX) ScaleCollateral(ctx context.Context, subAccount string, calc *orde
 				scaling = decimal.NewFromFloat(collateralWeight.Initial)
 			}
 			weight := decimal.NewFromFloat(1.1 / (1 + collateralWeight.InitialMarginFractionFactor*math.Sqrt(calc.CollateralAmount.InexactFloat64())))
-			result = calc.CollateralAmount.Mul(calc.USDPrice).Mul(decimal.Min(scaling, weight))
+			result = calc.CollateralAmount.Mul(calc.CollateralPrice).Mul(decimal.Min(scaling, weight))
 		} else {
-			result = result.Add(calc.CollateralAmount.Mul(calc.USDPrice))
+			result = result.Add(calc.CollateralAmount.Mul(calc.CollateralPrice))
 		}
 		return result, nil
 	}
@@ -1479,9 +1479,6 @@ func (f *FTX) GetFuturesPositions(ctx context.Context, a asset.Item, cp currency
 }
 
 // GetCollateralCurrencyForContract returns the collateral currency for an asset and contract pair
-func (f *FTX) GetCollateralCurrencyForContract(a asset.Item, _ currency.Pair) (currency.Code, error) {
-	if a == asset.Futures {
-		return currency.USD, nil
-	}
-	return currency.Code{}, errCollateralCurrencyNotFound
+func (f *FTX) GetCollateralCurrencyForContract(asset.Item, currency.Pair) (currency.Code, error) {
+	return currency.USD, nil
 }

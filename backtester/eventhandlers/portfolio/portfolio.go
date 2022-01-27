@@ -1,7 +1,6 @@
 package portfolio
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"time"
@@ -26,7 +25,7 @@ import (
 // on buy/sell, the portfolio manager will size the order and assess the risk of the order
 // if successful, it will pass on an order.Order to be used by the exchange event handler to place an order based on
 // the portfolio manager's recommendations
-func (p *Portfolio) OnSignal(ev signal.Event, cs *exchange.Settings, funds funding.IFundingReader) (*order.Order, error) {
+func (p *Portfolio) OnSignal(ev signal.Event, cs *exchange.Settings, funds funding.IFundReserver) (*order.Order, error) {
 	if ev == nil || cs == nil {
 		return nil, common.ErrNilArguments
 	}
@@ -72,16 +71,9 @@ func (p *Portfolio) OnSignal(ev signal.Event, cs *exchange.Settings, funds fundi
 		ev.GetDirection() == "" {
 		return o, nil
 	}
-	relevantFunding, err := funds.GetFundingForEvent(ev)
-	if err != nil {
-		return nil, err
-	}
-
 	dir := ev.GetDirection()
-	if ev.GetAssetType() == asset.Spot {
-		if !relevantFunding.FundReserver().CanPlaceOrder(dir) {
-			return cannotPurchase(ev, o, dir)
-		}
+	if !funds.CanPlaceOrder(dir) {
+		return cannotPurchase(ev, o, dir)
 	}
 
 	o.Price = ev.GetPrice()
@@ -90,7 +82,7 @@ func (p *Portfolio) OnSignal(ev signal.Event, cs *exchange.Settings, funds fundi
 	o.SellLimit = ev.GetSellLimit()
 	var sizingFunds decimal.Decimal
 	if ev.GetAssetType() == asset.Spot {
-		pReader, err := relevantFunding.FundReader().GetPairReader()
+		pReader, err := funds.GetPairReader()
 		if err != nil {
 			return nil, err
 		}
@@ -100,65 +92,17 @@ func (p *Portfolio) OnSignal(ev signal.Event, cs *exchange.Settings, funds fundi
 			sizingFunds = pReader.QuoteAvailable()
 		}
 	} else if ev.GetAssetType().IsFutures() {
-		var collatCurr currency.Code
-		allFunds := funds.GetAllFunding()
-		var calcs []gctorder.CollateralCalculator
-		for i := range allFunds {
-			calcs = append(calcs, gctorder.CollateralCalculator{
-				CalculateOffline:   true,
-				CollateralCurrency: allFunds[i].Currency,
-				Asset:              allFunds[i].Asset,
-				Side:               ev.GetDirection(),
-				CollateralAmount:   allFunds[i].Available,
-				USDPrice:           decimal.Decimal{},
-			})
-		}
-
-		// allocate this combined collateral value!
-		// this is preventing orders from being placed
-		collat, err := lookup.Exchange.CalculateTotalCollateral(
-			context.TODO(),
-			"",
-			true,
-			calcs,
-		)
+		collateralFunds, err := funds.GetCollateralReader()
 		if err != nil {
 			return nil, err
 		}
-		if collatCurr = ev.GetCollateralCurrency(); collatCurr.IsEmpty() {
-			// get all collateral somehow?
 
-			sizingFunds = collat.TotalCollateral
-		} else {
-			allFunds := funds.GetAllFunding()
-			for i := range allFunds {
-				if allFunds[i].Exchange == ev.GetExchange() &&
-					allFunds[i].Asset == asset.Spot &&
-					allFunds[i].Currency.Match(collatCurr) {
-					sizingFunds, err = lookup.Exchange.ScaleCollateral(
-						context.TODO(),
-						"",
-						&gctorder.CollateralCalculator{
-							CollateralCurrency: collatCurr,
-							Asset:              ev.GetAssetType(),
-							Side:               ev.GetDirection(),
-							CollateralAmount:   allFunds[i].Available,
-							// GET A USD PRICE
-							USDPrice:         allFunds[i].USDPrice,
-							CalculateOffline: true,
-						})
-					if err != nil {
-						return nil, err
-					}
-					break
-				}
-			}
-		}
+		sizingFunds = collateralFunds.AvailableFunds()
 	}
 	if sizingFunds.LessThanOrEqual(decimal.Zero) {
 		return cannotPurchase(ev, o, dir)
 	}
-	sizedOrder := p.sizeOrder(ev, cs, o, sizingFunds, relevantFunding.FundReserver())
+	sizedOrder := p.sizeOrder(ev, cs, o, sizingFunds, funds)
 
 	return p.evaluateOrder(ev, o, sizedOrder)
 }
@@ -233,10 +177,15 @@ func (p *Portfolio) sizeOrder(d common.Directioner, cs *exchange.Settings, origi
 		d.SetDirection(originalOrderSignal.Direction)
 		originalOrderSignal.AppendReason("sized order to 0")
 	}
-	if d.GetDirection() == gctorder.Sell {
+	switch d.GetDirection() {
+	case gctorder.Sell:
 		err = funds.Reserve(sizedOrder.Amount, gctorder.Sell)
 		sizedOrder.AllocatedFunds = sizedOrder.Amount
-	} else {
+	case gctorder.Short, gctorder.Long:
+		// should we even reserve?
+		err = funds.Reserve(sizedOrder.Amount, gctorder.Sell)
+		sizedOrder.AllocatedFunds = sizedOrder.Amount
+	default:
 		err = funds.Reserve(sizedOrder.Amount.Mul(sizedOrder.Price), gctorder.Buy)
 		sizedOrder.AllocatedFunds = sizedOrder.Amount.Mul(sizedOrder.Price)
 	}
@@ -545,12 +494,6 @@ func (p *Portfolio) CalculatePNL(e common.DataEventHandler) error {
 			return err
 		}
 	}
-	pnl, err := p.GetLatestPNLForEvent(e)
-	if err != nil {
-		return err
-	}
-	log.Infof(log.BackTester, "%+v", pnl)
-
 	return nil
 }
 

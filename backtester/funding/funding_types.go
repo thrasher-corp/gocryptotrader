@@ -7,6 +7,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
@@ -17,6 +18,7 @@ type FundManager struct {
 	usingExchangeLevelFunding bool
 	disableUSDTracking        bool
 	items                     []*Item
+	exchangeManager           *engine.ExchangeManager
 }
 
 // IFundingManager limits funding usage for portfolio event handling
@@ -33,6 +35,7 @@ type IFundingManager interface {
 	USDTrackingDisabled() bool
 	LiquidateByCollateral(currency.Code) error
 	GetAllFunding() []BasicItem
+	UpdateCollateral(string, asset.Item, currency.Code) error
 }
 
 // IFundingReader is a simple interface of

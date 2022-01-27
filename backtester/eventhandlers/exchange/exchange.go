@@ -202,6 +202,12 @@ func verifyOrderWithinLimits(f *fill.Fill, limitReducedAmount decimal.Decimal, c
 	case gctorder.Sell:
 		minMax = cs.SellSide
 		direction = common.CouldNotSell
+	case gctorder.Long:
+		minMax = cs.BuySide
+		direction = common.CouldNotLong
+	case gctorder.Short:
+		minMax = cs.SellSide
+		direction = common.CouldNotShort
 	default:
 		direction = f.GetDirection()
 		f.SetDirection(common.DoNothing)

@@ -30,7 +30,9 @@ func (s *Submit) Validate(opt ...validate.Checker) error {
 	if s.Side != Buy &&
 		s.Side != Sell &&
 		s.Side != Bid &&
-		s.Side != Ask {
+		s.Side != Ask &&
+		s.Side != Short &&
+		s.Side != Long {
 		return ErrSideIsInvalid
 	}
 

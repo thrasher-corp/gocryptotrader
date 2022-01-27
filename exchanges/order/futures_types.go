@@ -170,7 +170,7 @@ type CollateralCalculator struct {
 	Asset              asset.Item
 	Side               Side
 	CollateralAmount   decimal.Decimal
-	USDPrice           decimal.Decimal
+	CollateralPrice    decimal.Decimal
 	IsLiquidating      bool
 }
 

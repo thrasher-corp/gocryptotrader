@@ -98,6 +98,9 @@ func (b *Base) History() []common.DataEventHandler {
 
 // Latest will return latest data event
 func (b *Base) Latest() common.DataEventHandler {
+	if b.latest == nil && len(b.stream) >= b.offset+1 {
+		b.latest = b.stream[b.offset]
+	}
 	return b.latest
 }
 

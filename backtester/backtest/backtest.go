@@ -121,7 +121,7 @@ func (bt *BackTest) handleEvent(ev common.EventHandler) error {
 		bt.Funding.CreateSnapshot(ev.GetTime())
 		return nil
 	case signal.Event:
-		bt.processSignalEvent(eType)
+		bt.processSignalEvent(eType, funds.FundReserver())
 	case order.Event:
 		bt.processOrderEvent(eType, funds.FundReleaser())
 	case fill.Event:
@@ -243,14 +243,14 @@ func (bt *BackTest) updateStatsForDataEvent(ev common.DataEventHandler, funds fu
 }
 
 // processSignalEvent receives an event from the strategy for processing under the portfolio
-func (bt *BackTest) processSignalEvent(ev signal.Event) {
+func (bt *BackTest) processSignalEvent(ev signal.Event, funds funding.IFundReserver) {
 	cs, err := bt.Exchange.GetCurrencySettings(ev.GetExchange(), ev.GetAssetType(), ev.Pair())
 	if err != nil {
 		log.Errorf(log.BackTester, "GetCurrencySettings %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 		return
 	}
 	var o *order.Order
-	o, err = bt.Portfolio.OnSignal(ev, &cs, bt.Funding)
+	o, err = bt.Portfolio.OnSignal(ev, &cs, funds)
 	if err != nil {
 		log.Errorf(log.BackTester, "OnSignal %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 		return
@@ -322,7 +322,24 @@ func (bt *BackTest) processFillEvent(ev fill.Event, funds funding.IFundReleaser)
 	if !fde.IsNil() {
 		// some events can only be triggered on a successful fill event
 		bt.EventQueue.AppendEvent(fde)
+		// update collateral holdings
+		exch, err := bt.exchangeManager.GetExchangeByName(ev.GetExchange())
+		if err != nil {
+			log.Errorf(log.BackTester, "GetExchangeByName %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
+			return
+		}
+		curr, err := exch.GetCollateralCurrencyForContract(ev.GetAssetType(), ev.Pair())
+		if err != nil {
+			log.Errorf(log.BackTester, "GetCollateralCurrencyForContract %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
+			return
+		}
+
+		err = bt.Funding.UpdateCollateral(ev.GetExchange(), fde.GetAssetType(), curr)
+		if err != nil {
+			log.Errorf(log.BackTester, "UpdateCollateral %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
+		}
 	}
+
 }
 
 // RunLive is a proof of concept function that does not yet support multi currency usage

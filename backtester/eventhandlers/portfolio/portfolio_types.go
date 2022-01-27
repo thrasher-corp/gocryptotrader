@@ -46,7 +46,7 @@ type Portfolio struct {
 
 // Handler contains all functions expected to operate a portfolio manager
 type Handler interface {
-	OnSignal(signal.Event, *exchange.Settings, funding.IFundingReader) (*order.Order, error)
+	OnSignal(signal.Event, *exchange.Settings, funding.IFundReserver) (*order.Order, error)
 	OnFill(fill.Event, funding.IFundReleaser) (fill.Event, error)
 	GetLatestOrderSnapshotForEvent(common.EventHandler) (compliance.Snapshot, error)
 	GetLatestOrderSnapshots() ([]compliance.Snapshot, error)

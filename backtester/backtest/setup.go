@@ -88,6 +88,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string) (*BackTest, 
 	}
 
 	funds := funding.SetupFundingManager(
+		bt.exchangeManager,
 		cfg.StrategySettings.UseExchangeLevelFunding,
 		cfg.StrategySettings.DisableUSDTracking,
 	)

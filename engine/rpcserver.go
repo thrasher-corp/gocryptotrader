@@ -4317,7 +4317,7 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 			if tick.Last == 0 {
 				continue
 			}
-			cal.USDPrice = decimal.NewFromFloat(tick.Last)
+			cal.CollateralPrice = decimal.NewFromFloat(tick.Last)
 		}
 		calculators = append(calculators, cal)
 	}

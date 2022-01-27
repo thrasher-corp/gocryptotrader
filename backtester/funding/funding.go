@@ -1,6 +1,7 @@
 package funding
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"sort"
@@ -12,8 +13,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding/trackingcurrencies"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/engine"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 var (
@@ -36,10 +40,11 @@ var (
 
 // SetupFundingManager creates the funding holder. It carries knowledge about levels of funding
 // across all execution handlers and enables fund transfers
-func SetupFundingManager(usingExchangeLevelFunding, disableUSDTracking bool) *FundManager {
+func SetupFundingManager(exchManager *engine.ExchangeManager, usingExchangeLevelFunding, disableUSDTracking bool) *FundManager {
 	return &FundManager{
 		usingExchangeLevelFunding: usingExchangeLevelFunding,
 		disableUSDTracking:        disableUSDTracking,
+		exchangeManager:           exchManager,
 	}
 }
 
@@ -467,4 +472,56 @@ func (f *FundManager) GetAllFunding() []BasicItem {
 		})
 	}
 	return result
+}
+
+func (f *FundManager) UpdateCollateral(exchName string, item asset.Item, collateralCurrency currency.Code) error {
+	exchMap := make(map[string]exchange.IBotExchange)
+	var collateralAmount decimal.Decimal
+	var err error
+	for i := range f.items {
+		if f.items[i].asset != asset.Spot {
+			continue
+		}
+		exch, ok := exchMap[f.items[i].exchange]
+		if !ok {
+			exch, err = f.exchangeManager.GetExchangeByName(f.items[i].exchange)
+			if err != nil {
+				return err
+			}
+			exchMap[f.items[i].exchange] = exch
+		}
+		var usd decimal.Decimal
+		if f.items[i].usdTrackingCandles != nil {
+			latest := f.items[i].usdTrackingCandles.Latest()
+			if latest != nil {
+				usd = latest.GetClosePrice()
+			}
+		}
+		var side = gctorder.Buy
+		if !f.items[i].available.GreaterThan(decimal.Zero) {
+			side = gctorder.Sell
+		}
+		latest, err := exch.ScaleCollateral(context.TODO(), "", &gctorder.CollateralCalculator{
+			CalculateOffline:   true,
+			CollateralCurrency: f.items[i].currency,
+			Asset:              f.items[i].asset,
+			Side:               side,
+			CollateralAmount:   f.items[i].available,
+			CollateralPrice:    usd,
+		})
+		if err != nil {
+			return err
+		}
+		collateralAmount = collateralAmount.Add(latest)
+	}
+
+	for i := range f.items {
+		if f.items[i].exchange == exchName &&
+			f.items[i].asset == item &&
+			f.items[i].currency.Match(collateralCurrency) {
+			f.items[i].available = collateralAmount
+			return nil
+		}
+	}
+	return fmt.Errorf("%w to allocate %v to %v %v %v", ErrFundsNotFound, collateralAmount, exchName, item, collateralCurrency)
 }

@@ -1773,7 +1773,7 @@ func TestScaleCollateral(t *testing.T) {
 					Asset:              asset.Spot,
 					Side:               order.Buy,
 					CollateralAmount:   decimal.NewFromFloat(v[v2].Total),
-					USDPrice:           decimal.NewFromFloat(tick.Price),
+					CollateralPrice:    decimal.NewFromFloat(tick.Price),
 					CalculateOffline:   true,
 				})
 			if err != nil {
@@ -1793,7 +1793,7 @@ func TestScaleCollateral(t *testing.T) {
 					Asset:              asset.Spot,
 					Side:               order.Buy,
 					CollateralAmount:   decimal.NewFromFloat(v[v2].Total),
-					USDPrice:           decimal.NewFromFloat(tick.Price),
+					CollateralPrice:    decimal.NewFromFloat(tick.Price),
 					IsLiquidating:      true,
 					CalculateOffline:   true,
 				})
@@ -1809,7 +1809,7 @@ func TestScaleCollateral(t *testing.T) {
 					Asset:              asset.Spot,
 					Side:               order.Buy,
 					CollateralAmount:   decimal.NewFromFloat(v[v2].Total),
-					USDPrice:           decimal.Zero,
+					CollateralPrice:    decimal.Zero,
 					IsLiquidating:      true,
 					CalculateOffline:   true,
 				})
@@ -1858,7 +1858,7 @@ func TestCalculateTotalCollateral(t *testing.T) {
 					Asset:              asset.Spot,
 					Side:               order.Buy,
 					CollateralAmount:   total,
-					USDPrice:           total,
+					CollateralPrice:    total,
 					CalculateOffline:   true,
 				})
 				continue
@@ -1873,7 +1873,7 @@ func TestCalculateTotalCollateral(t *testing.T) {
 				Asset:              asset.Spot,
 				Side:               order.Buy,
 				CollateralAmount:   decimal.NewFromFloat(v[v2].Total),
-				USDPrice:           decimal.NewFromFloat(tick.Price),
+				CollateralPrice:    decimal.NewFromFloat(tick.Price),
 				CalculateOffline:   true,
 			})
 		}
