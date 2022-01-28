@@ -3634,6 +3634,9 @@
         "currency": {
           "type": "string"
         },
+        "originalAmount": {
+          "type": "string"
+        },
         "scaledCollateral": {
           "type": "string"
         },

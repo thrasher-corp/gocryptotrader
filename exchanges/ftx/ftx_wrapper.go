@@ -1347,7 +1347,11 @@ func (f *FTX) ScaleCollateral(ctx context.Context, subAccount string, calc *orde
 			} else {
 				scaling = decimal.NewFromFloat(collateralWeight.Initial)
 			}
-			weight := decimal.NewFromFloat(1.1 / (1 + collateralWeight.InitialMarginFractionFactor*math.Sqrt(calc.CollateralAmount.InexactFloat64())))
+			one := decimal.NewFromInt(1)
+			sqrt := decimal.NewFromFloat(math.Sqrt(calc.CollateralAmount.InexactFloat64()))
+			onePointOne := decimal.NewFromFloat(1.1)
+			imf := decimal.NewFromFloat(collateralWeight.InitialMarginFractionFactor)
+			weight := onePointOne.Div(one.Add(imf.Mul(sqrt)))
 			result = calc.CollateralAmount.Mul(calc.USDPrice).Mul(decimal.Min(scaling, weight))
 		} else {
 			result = result.Add(calc.CollateralAmount.Mul(calc.USDPrice))
@@ -1403,11 +1407,16 @@ func (f *FTX) CalculateTotalCollateral(ctx context.Context, subAccount string, c
 					scaled := wallet[y].CollateralWeight * balances[z].USDValue
 					dScaled := decimal.NewFromFloat(scaled)
 					result.TotalCollateral = result.TotalCollateral.Add(dScaled)
-					result.BreakdownByCurrency = append(result.BreakdownByCurrency, order.CollateralByCurrency{
-						Currency:      collateralAssets[x].CollateralCurrency,
-						Amount:        dScaled,
-						ValueCurrency: currency.USD,
-					})
+					breakDown := order.CollateralByCurrency{
+						Currency: collateralAssets[x].CollateralCurrency,
+
+						OriginalValue: collateralAssets[x].CollateralAmount,
+					}
+					if !collateralAssets[x].CollateralCurrency.Match(currency.USD) {
+						breakDown.ScaledValue = dScaled
+						breakDown.ValueCurrency = currency.USD
+					}
+					result.BreakdownByCurrency = append(result.BreakdownByCurrency, breakDown)
 					break wallets
 				}
 			}
@@ -1432,7 +1441,7 @@ func (f *FTX) CalculateTotalCollateral(ctx context.Context, subAccount string, c
 			return nil, err
 		}
 		result.TotalCollateral = result.TotalCollateral.Add(collateral)
-		curr.Amount = collateral
+		curr.ScaledValue = collateral
 		if !collateralAssets[i].CollateralCurrency.Match(currency.USD) {
 			curr.ValueCurrency = currency.USD
 		}

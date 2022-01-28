@@ -1681,10 +1681,10 @@ func (c CollateralWeightHolder) loadInitialMarginFraction(code string, imf float
 	c[code] = currencyCollateral
 }
 
-func (c CollateralWeightHolder) load(code string, initial, total, imfFactor float64) {
+func (c CollateralWeightHolder) load(code string, total, initial, imfFactor float64) {
 	c[code] = CollateralWeight{
-		Initial:                     initial,
 		Total:                       total,
+		Initial:                     initial,
 		InitialMarginFractionFactor: imfFactor,
 	}
 }

@@ -4755,7 +4755,7 @@ var getFuturesPositionsCommand = &cli.Command{
 			Name:        "end",
 			Aliases:     []string{"ed"},
 			Usage:       "<end> rounded down to the nearest hour, ensure your last position is within this window for accurate calculations",
-			Value:       time.Now().Truncate(time.Hour).Format(common.SimpleTimeFormat),
+			Value:       time.Now().Format(common.SimpleTimeFormat),
 			Destination: &endTime,
 		},
 		&cli.IntFlag{

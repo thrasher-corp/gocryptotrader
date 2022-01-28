@@ -137,17 +137,17 @@ func (f fExchange) CalculateTotalCollateral(context.Context, string, bool, []ord
 		TotalCollateral: decimal.NewFromInt(1337),
 		BreakdownByCurrency: []order.CollateralByCurrency{
 			{
-				Currency: currency.USD,
-				Amount:   decimal.NewFromInt(1330),
+				Currency:    currency.USD,
+				ScaledValue: decimal.NewFromInt(1330),
 			},
 			{
 				Currency:      currency.DOGE,
-				Amount:        decimal.NewFromInt(10),
+				ScaledValue:   decimal.NewFromInt(10),
 				ValueCurrency: currency.USD,
 			},
 			{
 				Currency:      currency.XRP,
-				Amount:        decimal.NewFromInt(-3),
+				ScaledValue:   decimal.NewFromInt(-3),
 				ValueCurrency: currency.USD,
 			},
 		},

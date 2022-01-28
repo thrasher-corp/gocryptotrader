@@ -1736,8 +1736,28 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 
 func TestScaleCollateral(t *testing.T) {
 	t.Parallel()
+
+	result, err := f.ScaleCollateral(
+		context.Background(),
+		"",
+		&order.CollateralCalculator{
+			CollateralCurrency: currency.USDT,
+			Asset:              asset.Spot,
+			Side:               order.Buy,
+			CalculateOffline:   true,
+			CollateralAmount:   decimal.NewFromInt(100000),
+			USDPrice:           decimal.NewFromFloat(1.0003),
+		})
+	if err != nil {
+		t.Error(err)
+	}
+	expectedUSDValue := decimal.NewFromFloat(95028.5)
+	if !result.Equal(expectedUSDValue) {
+		t.Errorf("received %v expected %v", result, expectedUSDValue)
+	}
+
 	if !areTestAPIKeysSet() {
-		t.Skip("skipping test, api keys not set")
+		return
 	}
 	accountInfo, err := f.GetAccountInfo(context.Background(), subaccount)
 	if err != nil {
@@ -1836,6 +1856,7 @@ func TestScaleCollateral(t *testing.T) {
 	if (math.Abs((localScaling-accountInfo.Collateral)/accountInfo.Collateral) * 100) > 5 {
 		t.Errorf("collateral scaling less than 95%% accurate, received '%v' expected roughly '%v'", localScaling, accountInfo.Collateral)
 	}
+
 }
 
 func TestCalculateTotalCollateral(t *testing.T) {

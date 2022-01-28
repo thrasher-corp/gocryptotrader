@@ -4181,6 +4181,17 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 		if r.PositionLimit > 0 && len(response.Positions) >= int(r.PositionLimit) {
 			break
 		}
+		if pos[i].Status == order.Open {
+			var tick *ticker.Price
+			tick, err = exch.FetchTicker(ctx, pos[i].Pair, pos[i].Asset)
+			if err != nil {
+				return nil, fmt.Errorf("%w when fetching ticker data for %v %v %v", err, pos[i].Exchange, pos[i].Asset, pos[i].Pair)
+			}
+			pos[i].UnrealisedPNL, err = s.OrderManager.UpdateOpenPositionUnrealisedPNL(pos[i].Exchange, pos[i].Asset, pos[i].Pair, tick.Last, tick.LastUpdated)
+			if err != nil {
+				return nil, fmt.Errorf("%w when updating unrealised PNL for %v %v %v", err, pos[i].Exchange, pos[i].Asset, pos[i].Pair)
+			}
+		}
 		response.TotalOrders += int64(len(pos[i].Orders))
 		details := &gctrpc.FuturePosition{
 			Status:        pos[i].Status.String(),
@@ -4223,7 +4234,7 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 					Total:        pos[i].Orders[j].Trades[k].Total,
 				})
 			}
-			details.Orders = append(details.Orders, &gctrpc.OrderDetails{
+			od := &gctrpc.OrderDetails{
 				Exchange:      pos[i].Orders[j].Exchange,
 				Id:            pos[i].Orders[j].ID,
 				ClientOrderId: pos[i].Orders[j].ClientOrderID,
@@ -4233,14 +4244,17 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 				OrderSide:     pos[i].Orders[j].Side.String(),
 				OrderType:     pos[i].Orders[j].Type.String(),
 				CreationTime:  pos[i].Orders[j].Date.Unix(),
-				UpdateTime:    pos[i].Orders[j].LastUpdated.Unix(),
 				Status:        pos[i].Orders[j].Status.String(),
 				Price:         pos[i].Orders[j].Price,
 				Amount:        pos[i].Orders[j].Amount,
 				Fee:           pos[i].Orders[j].Fee,
 				Cost:          pos[i].Orders[j].Cost,
 				Trades:        trades,
-			})
+			}
+			if pos[i].Orders[j].LastUpdated.After(pos[i].Orders[j].Date) {
+				od.UpdateTime = pos[i].Orders[j].LastUpdated.Unix()
+			}
+			details.Orders = append(details.Orders, od)
 		}
 		response.Positions = append(response.Positions, details)
 	}
@@ -4333,13 +4347,22 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 	}
 	if r.IncludeBreakdown {
 		for i := range collateral.BreakdownByCurrency {
-			if collateral.BreakdownByCurrency[i].Amount.IsZero() && !r.IncludeZeroValues {
+			if collateral.BreakdownByCurrency[i].ScaledValue.IsZero() && !r.IncludeZeroValues {
 				continue
 			}
 			cb := &gctrpc.CollateralForCurrency{
 				Currency:         collateral.BreakdownByCurrency[i].Currency.String(),
-				ScaledCollateral: collateral.BreakdownByCurrency[i].Amount.String(),
 				ScaledToCurrency: collateral.BreakdownByCurrency[i].ValueCurrency.String(),
+			}
+			if collateral.BreakdownByCurrency[i].ScaledValue.GreaterThan(decimal.Zero) {
+				cb.ScaledCollateral = collateral.BreakdownByCurrency[i].ScaledValue.String()
+			}
+			if collateral.BreakdownByCurrency[i].OriginalValue.GreaterThan(decimal.Zero) {
+				cb.OriginalAmount = collateral.BreakdownByCurrency[i].OriginalValue.String()
+			}
+			if collateral.BreakdownByCurrency[i].OriginalValue.IsZero() &&
+				collateral.BreakdownByCurrency[i].ScaledValue.IsZero() {
+				continue
 			}
 			if collateral.BreakdownByCurrency[i].Error != nil {
 				cb.Error = collateral.BreakdownByCurrency[i].Error.Error()

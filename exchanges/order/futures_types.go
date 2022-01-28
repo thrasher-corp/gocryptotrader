@@ -70,7 +70,8 @@ type TotalCollateralResponse struct {
 // eg in FTX ValueCurrency is USD
 type CollateralByCurrency struct {
 	Currency      currency.Code
-	Amount        decimal.Decimal
+	OriginalValue decimal.Decimal
+	ScaledValue   decimal.Decimal
 	ValueCurrency currency.Code
 	Error         error
 }

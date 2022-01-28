@@ -729,3 +729,61 @@ func TestTrackPNLByTime(t *testing.T) {
 		t.Errorf("received '%v' expected '%v", err, common.ErrNilPointer)
 	}
 }
+
+func TestUpdateOpenPositionUnrealisedPNL(t *testing.T) {
+	t.Parallel()
+	pc := SetupPositionController()
+
+	pnl, err := pc.UpdateOpenPositionUnrealisedPNL("hi", asset.Futures, currency.NewPair(currency.BTC, currency.USDT), 2, time.Now())
+	if !errors.Is(err, ErrPositionsNotLoadedForExchange) {
+		t.Errorf("received '%v' expected '%v", err, ErrPositionsNotLoadedForExchange)
+	}
+
+	pnl, err = pc.UpdateOpenPositionUnrealisedPNL("hi", asset.Spot, currency.NewPair(currency.BTC, currency.USDT), 2, time.Now())
+	if !errors.Is(err, ErrNotFuturesAsset) {
+		t.Errorf("received '%v' expected '%v", err, ErrNotFuturesAsset)
+	}
+
+	err = pc.TrackNewOrder(&Detail{
+		Date:      time.Now(),
+		Exchange:  "hi",
+		Pair:      currency.NewPair(currency.BTC, currency.USDT),
+		AssetType: asset.Futures,
+		Side:      Long,
+		ID:        "lol",
+		Price:     1,
+		Amount:    1,
+	})
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v", err, nil)
+	}
+
+	pnl, err = pc.UpdateOpenPositionUnrealisedPNL("hi2", asset.Futures, currency.NewPair(currency.BTC, currency.USDT), 2, time.Now())
+	if !errors.Is(err, ErrPositionsNotLoadedForExchange) {
+		t.Errorf("received '%v' expected '%v", err, ErrPositionsNotLoadedForExchange)
+	}
+
+	pnl, err = pc.UpdateOpenPositionUnrealisedPNL("hi", asset.PerpetualSwap, currency.NewPair(currency.BTC, currency.USDT), 2, time.Now())
+	if !errors.Is(err, ErrPositionsNotLoadedForAsset) {
+		t.Errorf("received '%v' expected '%v", err, ErrPositionsNotLoadedForAsset)
+	}
+
+	pnl, err = pc.UpdateOpenPositionUnrealisedPNL("hi", asset.Futures, currency.NewPair(currency.BTC, currency.DOGE), 2, time.Now())
+	if !errors.Is(err, ErrPositionsNotLoadedForPair) {
+		t.Errorf("received '%v' expected '%v", err, ErrPositionsNotLoadedForPair)
+	}
+
+	pnl, err = pc.UpdateOpenPositionUnrealisedPNL("hi", asset.Futures, currency.NewPair(currency.BTC, currency.USDT), 2, time.Now())
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v", err, nil)
+	}
+	if !pnl.Equal(decimal.NewFromInt(1)) {
+		t.Errorf("received '%v' expected '%v", pnl, 1)
+	}
+
+	pc = nil
+	pnl, err = pc.UpdateOpenPositionUnrealisedPNL("hi", asset.Futures, currency.NewPair(currency.BTC, currency.USDT), 2, time.Now())
+	if !errors.Is(err, common.ErrNilPointer) {
+		t.Errorf("received '%v' expected '%v", err, common.ErrNilPointer)
+	}
+}
