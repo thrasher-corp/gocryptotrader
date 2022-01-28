@@ -220,7 +220,7 @@ type Balance struct {
 	Coin     string  `json:"coin"`
 	CoinID   string  `json:"coinId"`
 	CoinName string  `json:"coinName"`
-	Total    string  `json:"total"`
+	Total    float64 `json:"total,string"`
 	Free     float64 `json:"free,string"`
 	Locked   float64 `json:"locked,string"`
 }

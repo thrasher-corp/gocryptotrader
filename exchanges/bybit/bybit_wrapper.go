@@ -1,6 +1,8 @@
 package bybit
 
 import (
+	"fmt"
+	"strconv"
 	"sync"
 	"time"
 
@@ -52,21 +54,28 @@ func (by *Bybit) SetDefaults() {
 	by.API.CredentialsValidator.RequiresKey = true
 	by.API.CredentialsValidator.RequiresSecret = true
 
-	// If using only one pair format for request and configuration, across all
-	// supported asset types either SPOT and FUTURES etc. You can use the
-	// example below:
+	requestFmt := &currency.PairFormat{Uppercase: true}
 
-	// Request format denotes what the pair as a string will be, when you send
-	// a request to an exchange.
-	requestFmt := &currency.PairFormat{ /*Set pair request formatting details here for e.g.*/ Uppercase: true}
-	// Config format denotes what the pair as a string will be, when saved to
-	// the config.json file.
 	configFmt := &currency.PairFormat{Uppercase: true}
 	err := by.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot, asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.Futures)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
+	err = by.DisableAssetWebsocketSupport(asset.CoinMarginedFutures)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+
+	err = by.DisableAssetWebsocketSupport(asset.USDTMarginedFutures)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+
+	err = by.DisableAssetWebsocketSupport(asset.Futures)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 	by.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
@@ -74,8 +83,10 @@ func (by *Bybit) SetDefaults() {
 			RESTCapabilities: protocol.Features{
 				TickerFetching:    true,
 				TradeFetching:     true,
+				KlineFetching:     true,
 				OrderbookFetching: true,
 				AutoPairUpdates:   true,
+				AccountInfo:       true,
 				GetOrder:          true,
 				GetOrders:         true,
 				CancelOrders:      true,
@@ -92,13 +103,21 @@ func (by *Bybit) SetDefaults() {
 				CryptoDepositFee:  true,
 			},
 			WebsocketCapabilities: protocol.Features{
-				TickerFetching:    true,
-				OrderbookFetching: true,
-				Subscribe:         true,
-				Unsubscribe:       true,
+				TradeFetching:          true,
+				TickerFetching:         true,
+				KlineFetching:          true,
+				OrderbookFetching:      true,
+				AuthenticatedEndpoints: true,
+				AccountInfo:            true,
+				GetOrders:              true,
+				Subscribe:              true,
+				Unsubscribe:            true,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.AutoWithdrawFiat,
+			Kline: kline.ExchangeCapabilitiesSupported{
+				Intervals: true,
+			},
 		},
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
@@ -200,64 +219,130 @@ func (by *Bybit) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (by *Bybit) FetchTradablePairs(asset asset.Item) ([]string, error) {
-	pairs, err := by.GetAllPairs()
-	if err != nil {
-		return nil, err
+func (by *Bybit) FetchTradablePairs(a asset.Item) ([]string, error) {
+	if !by.SupportsAsset(a) {
+		return nil, fmt.Errorf("asset type of %s is not supported by %s", a, by.Name)
 	}
+	var pairs []string
+	switch a {
+	case asset.Spot:
+		allPairs, err := by.GetAllPairs()
+		if err != nil {
+			return nil, err
+		}
+		for x := range allPairs {
+			pairs = append(pairs, allPairs[x].Name)
+		}
+	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.Futures:
+		allPairs, err := by.GetSymbolsInfo()
+		if err != nil {
+			return pairs, nil
+		}
+		for x := range allPairs {
+			if allPairs[x].Status == "Trading" {
+				pairs = append(pairs, allPairs[x].Name)
+			}
+		}
+	}
+	return pairs, nil
 
-	var products []string
-	for _, pair := range pairs {
-		products = append(products, pair.Name)
-	}
-	return products, nil
 }
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
 func (by *Bybit) UpdateTradablePairs(forceUpdate bool) error {
-	pairs, err := by.FetchTradablePairs(asset.Spot)
-	if err != nil {
-		return err
-	}
+	assetTypes := by.GetAssetTypes(false)
+	for i := range assetTypes {
+		pairs, err := by.FetchTradablePairs(assetTypes[i])
+		if err != nil {
+			return err
+		}
 
-	p, err := currency.NewPairsFromStrings(pairs)
-	if err != nil {
-		return err
-	}
+		p, err := currency.NewPairsFromStrings(pairs)
+		if err != nil {
+			return err
+		}
 
-	return by.UpdatePairs(p, asset.Spot, false, forceUpdate)
+		err = by.UpdatePairs(p, assetTypes[i], false, forceUpdate)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (by *Bybit) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	// NOTE: EXAMPLE FOR GETTING TICKER PRICE
-	/*
-		tickerPrice := new(ticker.Price)
-		tick, err := by.GetTicker(p.String())
+	switch assetType {
+	case asset.Spot:
+		tick, err := by.Get24HrsChange("")
 		if err != nil {
-			return tickerPrice, err
+			return nil, err
 		}
-		tickerPrice = &ticker.Price{
-			High:    tick.High,
-			Low:     tick.Low,
-			Bid:     tick.Bid,
-			Ask:     tick.Ask,
-			Open:    tick.Open,
-			Close:   tick.Close,
-			Pair:    p,
+
+		for y := range tick {
+			cp, err := currency.NewPairFromString(tick[y].Symbol)
+			if err != nil {
+				return nil, err
+			}
+			err = ticker.ProcessTicker(&ticker.Price{
+				Last:         tick[y].LastPrice,
+				High:         tick[y].HighPrice,
+				Low:          tick[y].LowPrice,
+				Bid:          tick[y].BestBidPrice,
+				Ask:          tick[y].BestAskPrice,
+				Volume:       tick[y].Volume,
+				QuoteVolume:  tick[y].QuoteVolume,
+				Open:         tick[y].OpenPrice,
+				Pair:         cp,
+				LastUpdated:  tick[y].Time,
+				ExchangeName: by.Name,
+				AssetType:    assetType})
+			if err != nil {
+				return nil, err
+			}
 		}
-		err = ticker.ProcessTicker(by.Name, tickerPrice, assetType)
+	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.Futures:
+		tick, err := by.GetFuturesSymbolPriceTicker(currency.Pair{})
 		if err != nil {
-			return tickerPrice, err
+			return nil, err
 		}
-	*/
+
+		for y := range tick {
+			cp, err := currency.NewPairFromString(tick[y].Symbol)
+			if err != nil {
+				return nil, err
+			}
+			err = ticker.ProcessTicker(&ticker.Price{
+				Last:         tick[y].LastPrice,
+				High:         tick[y].HighPrice24h,
+				Low:          tick[y].LowPrice24h,
+				Bid:          tick[y].BidPrice,
+				Ask:          tick[y].AskPrice,
+				Volume:       float64(tick[y].Volume24h),
+				Open:         tick[y].OpenValue,
+				Pair:         cp,
+				ExchangeName: by.Name,
+				AssetType:    assetType})
+			if err != nil {
+				return nil, err
+			}
+		}
+	default:
+		return nil, fmt.Errorf("assetType not supported: %v", assetType)
+	}
+
 	return ticker.GetTicker(by.Name, p, assetType)
 }
 
 // FetchTicker returns the ticker for a currency pair
 func (by *Bybit) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tickerNew, err := ticker.GetTicker(by.Name, p, assetType)
+	fPair, err := by.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
+
+	tickerNew, err := ticker.GetTicker(by.Name, fPair, assetType)
 	if err != nil {
 		return by.UpdateTicker(p, assetType)
 	}
@@ -282,46 +367,103 @@ func (by *Bybit) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderb
 		VerifyOrderbook: by.CanVerifyOrderbook,
 	}
 
-	// NOTE: UPDATE ORDERBOOK EXAMPLE
-	/*
-		orderbookNew, err := by.GetOrderBook(exchange.FormatExchangeCurrency(by.Name, p).String(), 1000)
-		if err != nil {
-			return book, err
-		}
-
-		for x := range orderbookNew.Bids {
-			book.Bids = append(book.Bids, orderbook.Item{
-				Amount: orderbookNew.Bids[x].Quantity,
-				Price: orderbookNew.Bids[x].Price,
-			})
-		}
-
-		for x := range orderbookNew.Asks {
-			book.Asks = append(book.Asks, orderbook.Item{
-				Amount: orderBookNew.Asks[x].Quantity,
-				Price: orderBookNew.Asks[x].Price,
-			})
-		}
-	*/
-
-	err := book.Process()
+	var orderbookNew Orderbook
+	var err error
+	switch assetType {
+	case asset.Spot:
+		orderbookNew, err = by.GetOrderBook(p.String(), 0)
+	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.Futures:
+		orderbookNew, err = by.GetFuturesOrderbook(p)
+	default:
+		return nil, fmt.Errorf("assetType not supported: %v", assetType)
+	}
 	if err != nil {
 		return book, err
 	}
 
+	for x := range orderbookNew.Bids {
+		book.Bids = append(book.Bids, orderbook.Item{
+			Amount: orderbookNew.Bids[x].Amount,
+			Price:  orderbookNew.Bids[x].Price,
+		})
+	}
+
+	for x := range orderbookNew.Asks {
+		book.Asks = append(book.Asks, orderbook.Item{
+			Amount: orderbookNew.Asks[x].Amount,
+			Price:  orderbookNew.Asks[x].Price,
+		})
+	}
+	err = book.Process()
+	if err != nil {
+		return book, err
+	}
 	return orderbook.Get(by.Name, p, assetType)
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies
 func (by *Bybit) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
-	return account.Holdings{}, common.ErrNotYetImplemented
+	var info account.Holdings
+	var acc account.SubAccount
+	info.Exchange = by.Name
+	switch assetType {
+	case asset.Spot:
+		balances, err := by.GetWalletBalance()
+		if err != nil {
+			return info, err
+		}
+
+		var currencyBalance []account.Balance
+		for i := range balances {
+			currencyBalance = append(currencyBalance, account.Balance{
+				CurrencyName: currency.NewCode(balances[i].CoinName),
+				TotalValue:   balances[i].Total,
+				Hold:         balances[i].Locked,
+			})
+		}
+
+		acc.Currencies = currencyBalance
+
+	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.Futures:
+		balances, err := by.GetFutureWalletBalance("")
+		if err != nil {
+			return info, err
+		}
+
+		var currencyBalance []account.Balance
+		for coinName, data := range balances {
+			currencyBalance = append(currencyBalance, account.Balance{
+				CurrencyName: currency.NewCode(coinName),
+				TotalValue:   data.Equity,
+				Hold:         data.Equity - data.AvailableBalance,
+			})
+		}
+
+		acc.Currencies = currencyBalance
+
+	default:
+		return info, fmt.Errorf("%v assetType not supported", assetType)
+	}
+	acc.AssetType = assetType
+	info.Accounts = append(info.Accounts, acc)
+	err := account.Process(&info)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	return info, nil
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (by *Bybit) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
-	return account.Holdings{}, common.ErrNotYetImplemented
+	acc, err := account.GetHoldings(by.Name, assetType)
+	if err != nil {
+		return by.UpdateAccountInfo(assetType)
+	}
+
+	return acc, nil
 }
 
+// TODO: check again
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
 func (by *Bybit) GetFundingHistory() ([]exchange.FundHistory, error) {
@@ -330,7 +472,24 @@ func (by *Bybit) GetFundingHistory() ([]exchange.FundHistory, error) {
 
 // GetWithdrawalsHistory returns previous withdrawals data
 func (by *Bybit) GetWithdrawalsHistory(c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
-	return nil, common.ErrNotYetImplemented
+	w, err := by.GetWalletWithdrawalRecords("", "", "", "", 0, 0)
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range w {
+		resp = append(resp, exchange.WithdrawalHistory{
+			Status:          w[i].Status,
+			TransferID:      strconv.FormatInt(w[i].ID, 10),
+			Currency:        w[i].Coin,
+			Amount:          w[i].Amount,
+			Fee:             w[i].Fee,
+			CryptoToAddress: w[i].Address,
+			CryptoTxID:      w[i].TxID,
+			Timestamp:       w[i].UpdatedAt,
+		})
+	}
+	return resp, nil
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset

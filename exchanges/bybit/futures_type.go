@@ -51,32 +51,32 @@ type FuturesCandleStickWithStringParam struct {
 
 // SymbolPriceTicker stores ticker price stats
 type SymbolPriceTicker struct {
-	Symbol                 string `json:"symbol"`
-	BidPrice               string `json:"bid_price"`
-	AskPrice               string `json:"ask_price"`
-	LastPrice              string `json:"last_price"`
-	LastTickDirection      string `json:"last_tick_direction"`
-	Price24hAgo            string `json:"prev_price_24h"`
-	PricePcntChange24h     string `json:"price_24h_pcnt"`
-	HighPrice24h           string `json:"high_price_24h"`
-	LowPrice24h            string `json:"low_price_24h"`
-	Price1hAgo             string `json:"prev_price_1h"`
-	PricePcntChange1h      string `json:"price_1h_pcnt"`
-	MarkPrice              string `json:"mark_price"`
-	IndexPrice             string `json:"index_price"`
-	OpenInterest           int64  `json:"open_interest"`
-	OpenValue              string `json:"open_value"`
-	TotalTurnover          string `json:"total_turnover"`
-	Turnover24h            string `json:"turnover_24h"`
-	TotalVolume            int64  `json:"total_volume"`
-	Volume24h              int64  `json:"volume_24h"`
-	FundingRate            string `json:"funding_rate"`
-	PredictedFundingRate   string `json:"predicted_funding_rate"`
-	NextFundingTime        string `json:"next_funding_time"`
-	CountdownHour          int64  `json:"countdown_hour"`
-	DeliveryFeeRate        string `json:"delivery_fee_rate"`
-	PredictedDeliveryPrice string `json:"predicted_delivery_price"`
-	DeliveryTime           string `json:"delivery_time"`
+	Symbol                 string  `json:"symbol"`
+	BidPrice               float64 `json:"bid_price,string"`
+	AskPrice               float64 `json:"ask_price,string"`
+	LastPrice              float64 `json:"last_price,string"`
+	LastTickDirection      string  `json:"last_tick_direction"`
+	Price24hAgo            float64 `json:"prev_price_24h,string"`
+	PricePcntChange24h     float64 `json:"price_24h_pcnt,string"`
+	HighPrice24h           float64 `json:"high_price_24h,string"`
+	LowPrice24h            float64 `json:"low_price_24h,string"`
+	Price1hAgo             float64 `json:"prev_price_1h,string"`
+	PricePcntChange1h      float64 `json:"price_1h_pcnt,string"`
+	MarkPrice              float64 `json:"mark_price,string"`
+	IndexPrice             float64 `json:"index_price,string"`
+	OpenInterest           int64   `json:"open_interest"`
+	OpenValue              float64 `json:"open_value,string"`
+	TotalTurnover          float64 `json:"total_turnover,string"`
+	Turnover24h            float64 `json:"turnover_24h,string"`
+	TotalVolume            int64   `json:"total_volume"`
+	Volume24h              int64   `json:"volume_24h"`
+	FundingRate            float64 `json:"funding_rate,string"`
+	PredictedFundingRate   float64 `json:"predicted_funding_rate,string"`
+	NextFundingTime        string  `json:"next_funding_time"`
+	CountdownHour          int64   `json:"countdown_hour"`
+	DeliveryFeeRate        float64 `json:"delivery_fee_rate,string"`
+	PredictedDeliveryPrice float64 `json:"predicted_delivery_price,string"`
+	DeliveryTime           string  `json:"delivery_time"`
 }
 
 // FuturesPublicTradesData stores recent public trades for futures
@@ -619,16 +619,16 @@ type FundRecord struct {
 }
 
 type FundWithdrawalRecord struct {
-	ID         int64   `json:"id"`
-	UserID     int64   `json:"user_id"`
-	Coin       string  `json:"coin"`
-	Status     string  `json:"status"`
-	Amount     float64 `json:"amount,string"`
-	Fee        float64 `json:"fee"`
-	Address    string  `json:"address"`
-	TxID       string  `json:"tx_id"`
-	SubmitedAt string  `json:"submited_at"`
-	UpdatedAt  string  `json:"updated_at"`
+	ID         int64     `json:"id"`
+	UserID     int64     `json:"user_id"`
+	Coin       string    `json:"coin"`
+	Status     string    `json:"status"`
+	Amount     float64   `json:"amount,string"`
+	Fee        float64   `json:"fee"`
+	Address    string    `json:"address"`
+	TxID       string    `json:"tx_id"`
+	SubmitedAt time.Time `json:"submited_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
 }
 
 type AssetExchangeRecord struct {
