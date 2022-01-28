@@ -436,22 +436,24 @@ func (p *PositionTracker) TrackNewOrder(d *Detail) error {
 
 	var updated bool
 	for i := range p.shortPositions {
-		if p.shortPositions[i].ID == d.ID {
-			ord := p.shortPositions[i].Copy()
-			ord.UpdateOrderFromDetail(d)
-			p.shortPositions[i] = ord
-			updated = true
-			break
+		if p.shortPositions[i].ID != d.ID {
+			continue
 		}
+		ord := p.shortPositions[i].Copy()
+		ord.UpdateOrderFromDetail(d)
+		p.shortPositions[i] = ord
+		updated = true
+		break
 	}
 	for i := range p.longPositions {
-		if p.longPositions[i].ID == d.ID {
-			ord := p.longPositions[i].Copy()
-			ord.UpdateOrderFromDetail(d)
-			p.longPositions[i] = ord
-			updated = true
-			break
+		if p.longPositions[i].ID != d.ID {
+			continue
 		}
+		ord := p.longPositions[i].Copy()
+		ord.UpdateOrderFromDetail(d)
+		p.longPositions[i] = ord
+		updated = true
+		break
 	}
 
 	if !updated {

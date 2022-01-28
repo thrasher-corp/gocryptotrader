@@ -1856,7 +1856,6 @@ func TestScaleCollateral(t *testing.T) {
 	if (math.Abs((localScaling-accountInfo.Collateral)/accountInfo.Collateral) * 100) > 5 {
 		t.Errorf("collateral scaling less than 95%% accurate, received '%v' expected roughly '%v'", localScaling, accountInfo.Collateral)
 	}
-
 }
 
 func TestCalculateTotalCollateral(t *testing.T) {
@@ -2040,11 +2039,11 @@ func TestLoadCollateralWeight(t *testing.T) {
 	if !ok {
 		t.Fatal("expected loaded collateral weight")
 	}
-	if cw.Initial != 1 {
-		t.Errorf("expected '1', received '%v'", cw.Total)
+	if cw.Total != 1 {
+		t.Errorf("expected '1', received '%v'", cw.InitialMarginFractionFactor)
 	}
-	if cw.Total != 2 {
-		t.Errorf("expected '2', received '%v'", cw.InitialMarginFractionFactor)
+	if cw.Initial != 2 {
+		t.Errorf("expected '2', received '%v'", cw.Total)
 	}
 	if cw.InitialMarginFractionFactor != 3 {
 		t.Errorf("expected '3', received '%v'", cw.Total)
@@ -2073,7 +2072,7 @@ func TestGetExpiredFutures(t *testing.T) {
 
 func TestGetExpiredFuture(t *testing.T) {
 	t.Parallel()
-	_, err := f.GetExpiredFuture(context.Background(), currency.NewPairWithDelimiter("BTC", "1231", "-"))
+	_, err := f.GetExpiredFuture(context.Background(), currency.NewPairWithDelimiter("BTC", "20211231", "-"))
 	if err != nil {
 		t.Error(err)
 	}
