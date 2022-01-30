@@ -60,6 +60,7 @@ type File struct {
 	UnsetCurrency  []Item      `json:"unsetCurrencies"`
 	Contracts      []Item      `json:"contracts"`
 	Token          []Item      `json:"tokens"`
+	Stable         []Item      `json:"stableCurrencies"`
 }
 
 // Const here are packaged defined delimiters

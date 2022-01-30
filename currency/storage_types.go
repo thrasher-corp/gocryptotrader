@@ -24,13 +24,15 @@ var storage Storage
 // or fiat marketplaces
 // NOTE: All internal currencies are upper case
 type Storage struct {
-	// FiatCurrencies defines the running fiat currencies in the currency
+	// fiatCurrencies defines the running fiat currencies in the currency
 	// storage
 	fiatCurrencies Currencies
-	// Cryptocurrencies defines the running cryptocurrencies in the currency
+	// cryptocurrencies defines the running cryptocurrencies in the currency
 	// storage
 	cryptocurrencies Currencies
-	// CurrencyCodes is a full basket of currencies either crypto, fiat, ico or
+	// stableCurencies defines the running stable currencies
+	stableCurencies Currencies
+	// currencyCodes is a full basket of currencies either crypto, fiat, ico or
 	// contract being tracked by the currency storage system
 	currencyCodes BaseCodes
 	// Main converting currency

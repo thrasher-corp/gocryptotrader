@@ -121,6 +121,34 @@ func TestIsFiatPair(t *testing.T) {
 	}
 }
 
+func TestIsCryptoStablePair(t *testing.T) {
+	if !NewPair(BTC, USDT).IsCryptoStablePair() {
+		t.Error("TestIsCryptoStablePair. Expected true result")
+	}
+
+	if !NewPair(DAI, USDT).IsCryptoStablePair() {
+		t.Error("TestIsCryptoStablePair. Expected true result")
+	}
+
+	if NewPair(AUD, USDT).IsCryptoStablePair() {
+		t.Error("TestIsCryptoStablePair. Expected false result")
+	}
+}
+
+func TestIsStablePair(t *testing.T) {
+	if !NewPair(USDT, DAI).IsStablePair() {
+		t.Error("TestIsStablePair. Expected true result")
+	}
+
+	if NewPair(USDT, AUD).IsStablePair() {
+		t.Error("TestIsStablePair. Expected false result")
+	}
+
+	if NewPair(USDT, LTC).IsStablePair() {
+		t.Error("TestIsStablePair. Expected false result")
+	}
+}
+
 func TestString(t *testing.T) {
 	t.Parallel()
 	pair := NewPair(BTC, USD)

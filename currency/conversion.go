@@ -281,7 +281,7 @@ func (c Conversion) IsInvalid() bool {
 
 // IsFiat checks to see if the from and to currency is a fiat e.g. EURUSD
 func (c Conversion) IsFiat() bool {
-	return storage.IsFiatCurrency(c.From) && storage.IsFiatCurrency(c.To)
+	return c.From.IsFiatCurrency() && c.To.IsFiatCurrency()
 }
 
 // String returns the stringed fields

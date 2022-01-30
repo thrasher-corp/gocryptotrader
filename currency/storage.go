@@ -19,6 +19,8 @@ func init() {
 	storage.SetDefaults()
 }
 
+var errUnexpectedRole = errors.New("unexpected currency role")
+
 // SetDefaults sets storage defaults for basic package functionality
 func (s *Storage) SetDefaults() {
 	s.defaultBaseCurrency = USD
@@ -31,12 +33,17 @@ func (s *Storage) SetDefaults() {
 		fiatCurrencies = append(fiatCurrencies, Code{Item: item, UpperCase: true})
 	}
 
-	err := s.SetDefaultFiatCurrencies(fiatCurrencies...)
+	err := s.SetDefaultFiatCurrencies(fiatCurrencies)
 	if err != nil {
 		log.Errorf(log.Global, "Currency Storage: Setting default fiat currencies error: %s", err)
 	}
 
-	err = s.SetDefaultCryptocurrencies(BTC, LTC, ETH, DOGE, DASH, XRP, XMR, USDT, UST)
+	err = s.SetStableCoins(stables)
+	if err != nil {
+		log.Errorf(log.Global, "Currency Storage: Setting default stable currencies error: %s", err)
+	}
+
+	err = s.SetDefaultCryptocurrencies(Currencies{BTC, LTC, ETH, DOGE, DASH, XRP, XMR, USDT, UST})
 	if err != nil {
 		log.Errorf(log.Global, "Currency Storage: Setting default cryptocurrencies error: %s", err)
 	}
@@ -196,7 +203,7 @@ func (s *Storage) SetupConversionRates() {
 
 // SetDefaultFiatCurrencies assigns the default fiat currency list and adds it
 // to the running list
-func (s *Storage) SetDefaultFiatCurrencies(c ...Code) error {
+func (s *Storage) SetDefaultFiatCurrencies(c Currencies) error {
 	for i := range c {
 		err := s.currencyCodes.UpdateCurrency("", c[i].String(), "", 0, Fiat)
 		if err != nil {
@@ -208,9 +215,22 @@ func (s *Storage) SetDefaultFiatCurrencies(c ...Code) error {
 	return nil
 }
 
+// SetStableCoins assigns the stable currency list and adds it to the running
+// list
+func (s *Storage) SetStableCoins(c Currencies) error {
+	for i := range c {
+		err := s.currencyCodes.UpdateCurrency("", c[i].String(), "", 0, Stable)
+		if err != nil {
+			return err
+		}
+	}
+	s.stableCurencies = append(s.stableCurencies, c...)
+	return nil
+}
+
 // SetDefaultCryptocurrencies assigns the default cryptocurrency list and adds
 // it to the running list
-func (s *Storage) SetDefaultCryptocurrencies(c ...Code) error {
+func (s *Storage) SetDefaultCryptocurrencies(c Currencies) error {
 	for i := range c {
 		err := s.currencyCodes.UpdateCurrency("",
 			c[i].String(),
@@ -357,45 +377,66 @@ func (s *Storage) WriteCurrencyDataToFile(path string, mainUpdate bool) error {
 // LoadFileCurrencyData loads currencies into the currency codes
 func (s *Storage) LoadFileCurrencyData(f *File) error {
 	for i := range f.Contracts {
-		contract := f.Contracts[i]
-		contract.Role = Contract
-		err := s.currencyCodes.LoadItem(&contract)
+		if f.Contracts[i].Role != Contract {
+			return fmt.Errorf("%w %s expecting: %s",
+				errUnexpectedRole, f.Contracts[i].Role, Contract)
+		}
+		err := s.currencyCodes.LoadItem(&f.Contracts[i])
 		if err != nil {
 			return err
 		}
 	}
 
 	for i := range f.Cryptocurrency {
-		crypto := f.Cryptocurrency[i]
-		crypto.Role = Cryptocurrency
-		err := s.currencyCodes.LoadItem(&crypto)
+		if f.Cryptocurrency[i].Role != Cryptocurrency {
+			return fmt.Errorf("%w %s expecting: %s",
+				errUnexpectedRole, f.Cryptocurrency[i].Role, Cryptocurrency)
+		}
+		err := s.currencyCodes.LoadItem(&f.Contracts[i])
 		if err != nil {
 			return err
 		}
 	}
 
 	for i := range f.Token {
-		token := f.Token[i]
-		token.Role = Token
-		err := s.currencyCodes.LoadItem(&token)
+		if f.Token[i].Role != Token {
+			return fmt.Errorf("%w %s expecting: %s",
+				errUnexpectedRole, f.Token[i].Role, Token)
+		}
+		err := s.currencyCodes.LoadItem(&f.Token[i])
 		if err != nil {
 			return err
 		}
 	}
 
 	for i := range f.FiatCurrency {
-		fiat := f.FiatCurrency[i]
-		fiat.Role = Fiat
-		err := s.currencyCodes.LoadItem(&fiat)
+		if f.FiatCurrency[i].Role != Fiat {
+			return fmt.Errorf("%w %s expecting: %s",
+				errUnexpectedRole, f.FiatCurrency[i].Role, Fiat)
+		}
+		err := s.currencyCodes.LoadItem(&f.FiatCurrency[i])
 		if err != nil {
 			return err
 		}
 	}
 
 	for i := range f.UnsetCurrency {
-		unset := f.UnsetCurrency[i]
-		unset.Role = Unset
-		err := s.currencyCodes.LoadItem(&unset)
+		if f.UnsetCurrency[i].Role != Unset {
+			return fmt.Errorf("%w %s expecting: %s",
+				errUnexpectedRole, f.UnsetCurrency[i].Role, Unset)
+		}
+		err := s.currencyCodes.LoadItem(&f.UnsetCurrency[i])
+		if err != nil {
+			return err
+		}
+	}
+
+	for i := range f.Stable {
+		if f.Stable[i].Role != Stable {
+			return fmt.Errorf("%w %s expecting: %s",
+				errUnexpectedRole, f.Stable[i].Role, Stable)
+		}
+		err := s.currencyCodes.LoadItem(&f.Stable[i])
 		if err != nil {
 			return err
 		}
@@ -573,48 +614,6 @@ func (s *Storage) IsDefaultCryptocurrency(c Code) bool {
 	return false
 }
 
-// IsFiatCurrency returns if a currency is part of the enabled fiat currency
-// list
-func (s *Storage) IsFiatCurrency(c Code) bool {
-	if c.Item.Role != Unset {
-		return c.Item.Role == Fiat
-	}
-
-	if c == USDT {
-		return false
-	}
-
-	for i := range s.fiatCurrencies {
-		if s.fiatCurrencies[i].Match(c) ||
-			s.fiatCurrencies[i].Match(GetTranslation(c)) {
-			return true
-		}
-	}
-
-	return false
-}
-
-// IsCryptocurrency returns if a cryptocurrency is part of the enabled
-// cryptocurrency list
-func (s *Storage) IsCryptocurrency(c Code) bool {
-	if c.Item.Role != Unset {
-		return c.Item.Role == Cryptocurrency
-	}
-
-	if c == USD {
-		return false
-	}
-
-	for i := range s.cryptocurrencies {
-		if s.cryptocurrencies[i].Match(c) ||
-			s.cryptocurrencies[i].Match(GetTranslation(c)) {
-			return true
-		}
-	}
-
-	return false
-}
-
 // ValidateCode validates string against currency list and returns a currency
 // code
 func (s *Storage) ValidateCode(newCode string) Code {
@@ -624,20 +623,9 @@ func (s *Storage) ValidateCode(newCode string) Code {
 // ValidateFiatCode validates a fiat currency string and returns a currency
 // code
 func (s *Storage) ValidateFiatCode(newCode string) Code {
-	c := s.currencyCodes.RegisterFiat(newCode)
+	c := s.currencyCodes.Register(newCode, Fiat)
 	if !s.fiatCurrencies.Contains(c) {
 		s.fiatCurrencies = append(s.fiatCurrencies, c)
-	}
-	return c
-}
-
-// ValidateCryptoCode validates a cryptocurrency string and returns a currency
-// code
-// TODO: Update and add in RegisterCrypto member func
-func (s *Storage) ValidateCryptoCode(newCode string) Code {
-	c := s.currencyCodes.Register(newCode)
-	if !s.cryptocurrencies.Contains(c) {
-		s.cryptocurrencies = append(s.cryptocurrencies, c)
 	}
 	return c
 }

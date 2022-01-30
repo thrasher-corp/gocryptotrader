@@ -12,12 +12,14 @@ const (
 	Cryptocurrency
 	Token
 	Contract
+	Stable
 
 	UnsetRoleString      = "roleUnset"
 	FiatCurrencyString   = "fiatCurrency"
 	CryptocurrencyString = "cryptocurrency"
 	TokenString          = "token"
 	ContractString       = "contract"
+	StableString         = "stablecurrency"
 )
 
 // Role defines a bitmask for the full currency roles either; fiat,
@@ -41,9 +43,13 @@ type Code struct {
 // Item defines a sub type containing the main attributes of a designated
 // currency code pointer
 type Item struct {
-	ID         int    `json:"id,omitempty"`
-	FullName   string `json:"fullName,omitempty"`
-	Symbol     string `json:"symbol"`
+	ID       int    `json:"id,omitempty"`
+	FullName string `json:"fullName,omitempty"`
+	Symbol   string `json:"symbol"`
+	// Lower is the lower case symbol for optimization purposes so no need to
+	// rely on the strings package to upper and lower strings when it is not
+	// needed
+	Lower      string `json:"-"`
 	Role       Role   `json:"-"`
 	AssocChain string `json:"associatedBlockchain,omitempty"`
 }
@@ -2942,4 +2948,123 @@ var (
 	ADXOLD           = NewCode("ADXOLD")
 	IDRT             = NewCode("IDRT")
 	PHBV1            = NewCode("PHBV1")
+	FRAX             = NewCode("FRAX")
+	LUSD             = NewCode("LUSD")
+	OUSD             = NewCode("OUSD")
+	USDX             = NewCode("USDX")
+	EURS             = NewCode("EURS")
+	CUSD             = NewCode("CUSD")
+	MUSD             = NewCode("MUSD")
+	USDK             = NewCode("USDK")
+	EOSDT            = NewCode("EOSDT")
+	DGX              = NewCode("DGX")
+	XCHF             = NewCode("XCHF")
+	XAUR             = NewCode("XAUR")
+	USNBT            = NewCode("USNBT")
+	ITL              = NewCode("ITL")
+	MIM              = NewCode("MIM")
+	ALUSD            = NewCode("ALUSD")
+	BRCP             = NewCode("BRCP")
+	USDs             = NewCode("USDs")
+	MTR              = NewCode("MTR")
+	CEUR             = NewCode("CEUR")
+	ONEGOLD          = NewCode("1GOLD")
+	COFFIN           = NewCode("COFFIN")
+	MDO              = NewCode("MDO")
+	DPT              = NewCode("DPT")
+	XIDR             = NewCode("XIDR")
+	PAR              = NewCode("PAR")
+	XUSD             = NewCode("XUSD")
+	USDB             = NewCode("USDB")
+	USDQ             = NewCode("USDQ")
+	BITUSD           = NewCode("BITUSD")
+	BITGOLD          = NewCode("BITGOLD")
+	BITEUR           = NewCode("BITEUR")
+	HGT              = NewCode("HGT")
+	CONST            = NewCode("CONST")
+	XEUR             = NewCode("XEUR")
+	EBASE            = NewCode("EBASE")
+	USDL             = NewCode("USDL")
+	UETH             = NewCode("UETH")
+	USDEX            = NewCode("USDEX")
+	USDFL            = NewCode("USDFL")
+	FLUSD            = NewCode("FLUSD")
+	DUSD             = NewCode("DUSD")
+
+	stables = Currencies{
+		USDT,
+		USDC,
+		BUSD,
+		UST,
+		DAI,
+		TUSD,
+		USDP,
+		USDN,
+		FEI,
+		TRIBE,
+		RSR,
+		FRAX,
+		LUSD,
+		HUSD,
+		OUSD,
+		XSGD,
+		GUSD,
+		USDX,
+		EURS,
+		CUSD,
+		SUSD,
+		QC,
+		VAI,
+		SBD,
+		DGD,
+		MUSD,
+		RSV,
+		USDK,
+		IDRT,
+		BITCNY,
+		EOSDT,
+		DGX,
+		XCHF,
+		XAUR,
+		USDS,
+		USNBT,
+		ITL,
+		MIM,
+		USDP,
+		EURT,
+		ALUSD,
+		BRCP,
+		TRYB,
+		USDs,
+		MTR,
+		CEUR,
+		ONEGOLD,
+		COFFIN,
+		MDO,
+		DPT,
+		MDS,
+		XIDR,
+		PAR,
+		XUSD,
+		USDB,
+		USDQ,
+		KBC,
+		ZUSD,
+		BITUSD,
+		BITGOLD,
+		BITEUR,
+		HGT,
+		CONST,
+		XEUR,
+		BGBP,
+		EBASE,
+		BKRW,
+		USDL,
+		UETH,
+		BVND,
+		USDEX,
+		USDFL,
+		FLUSD,
+		DUSD,
+	}
 )

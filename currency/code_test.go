@@ -38,7 +38,7 @@ func TestRoleString(t *testing.T) {
 
 	var random Role = 1 << 7
 
-	if random.String() != "UNKNOWN" {
+	if random.String() != UnsetRoleString {
 		t.Errorf("Role String() error expected %s but received %s",
 			"UNKNOWN",
 			random)
@@ -66,6 +66,7 @@ func TestRoleUnmarshalJSON(t *testing.T) {
 		RoleThree   Role `json:"RoleThree"`
 		RoleFour    Role `json:"RoleFour"`
 		RoleFive    Role `json:"RoleFive"`
+		RoleSix     Role `json:"RoleSix"`
 		RoleUnknown Role `json:"RoleUnknown"`
 	}
 
@@ -75,6 +76,7 @@ func TestRoleUnmarshalJSON(t *testing.T) {
 		RoleThree: Fiat,
 		RoleFour:  Token,
 		RoleFive:  Contract,
+		RoleSix:   Stable,
 	}
 
 	e, err := json.Marshal(1337)
@@ -230,17 +232,7 @@ func TestBaseCode(t *testing.T) {
 	}
 
 	if contract.IsCryptocurrency() {
-		t.Errorf("BaseCode IsFiatCurrency() error expected false but received %v",
-			true)
-	}
-
-	if contract.IsDefaultFiatCurrency() {
-		t.Errorf("BaseCode IsDefaultFiatCurrency() error expected false but received %v",
-			true)
-	}
-
-	if contract.IsDefaultFiatCurrency() {
-		t.Errorf("BaseCode IsFiatCurrency() error expected false but received %v",
+		t.Errorf("BaseCode IsCryptocurrency() error expected false but received %v",
 			true)
 	}
 
@@ -421,44 +413,6 @@ func TestCodeMarshalJSON(t *testing.T) {
 	}
 }
 
-func TestDefaultFiatCurrency(t *testing.T) {
-	if (Code{}).IsDefaultFiatCurrency() {
-		t.Errorf("TestIsDefaultCurrency Cannot match currency %s.",
-			Code{})
-	}
-	if !USD.IsDefaultFiatCurrency() {
-		t.Errorf("TestIsDefaultCurrency Cannot match currency %s.",
-			USD)
-	}
-	if !AUD.IsDefaultFiatCurrency() {
-		t.Errorf("TestIsDefaultCurrency Cannot match currency, %s.",
-			AUD)
-	}
-	if LTC.IsDefaultFiatCurrency() {
-		t.Errorf("TestIsDefaultCurrency Function return is incorrect with, %s.",
-			LTC)
-	}
-}
-
-func TestIsDefaultCryptocurrency(t *testing.T) {
-	if (Code{}).IsDefaultCryptocurrency() {
-		t.Errorf("TestIsDefaultCryptocurrency cannot match currency, %s.",
-			Code{})
-	}
-	if !BTC.IsDefaultCryptocurrency() {
-		t.Errorf("TestIsDefaultCryptocurrency cannot match currency, %s.",
-			BTC)
-	}
-	if !LTC.IsDefaultCryptocurrency() {
-		t.Errorf("TestIsDefaultCryptocurrency cannot match currency, %s.",
-			LTC)
-	}
-	if AUD.IsDefaultCryptocurrency() {
-		t.Errorf("TestIsDefaultCryptocurrency function return is incorrect with, %s.",
-			AUD)
-	}
-}
-
 func TestIsFiatCurrency(t *testing.T) {
 	if (Code{}).IsFiatCurrency() {
 		t.Errorf("TestIsFiatCurrency cannot match currency, %s.",
@@ -476,6 +430,14 @@ func TestIsFiatCurrency(t *testing.T) {
 		t.Errorf(
 			"TestIsFiatCurrency cannot match currency, %s.", LINO,
 		)
+	}
+	if USDT.IsFiatCurrency() {
+		t.Errorf(
+			"TestIsFiatCurrency cannot match currency, %s.", USD)
+	}
+	if DAI.IsFiatCurrency() {
+		t.Errorf(
+			"TestIsFiatCurrency cannot match currency, %s.", USD)
 	}
 }
 
@@ -496,16 +458,48 @@ func TestIsCryptocurrency(t *testing.T) {
 		t.Errorf("TestIsCryptocurrency cannot match currency, %s.",
 			AUD)
 	}
+	if !USDT.IsCryptocurrency() {
+		t.Errorf(
+			"TestIsCryptocurrency cannot match currency, %s.", USD)
+	}
+	if !DAI.IsCryptocurrency() {
+		t.Errorf(
+			"TestIsCryptocurrency cannot match currency, %s.", USD)
+	}
+}
+
+func TestIsStableCurrency(t *testing.T) {
+	if (Code{}).IsStableCurrency() {
+		t.Errorf("TestIsStableCurrency cannot match currency, %s.", Code{})
+	}
+	if BTC.IsStableCurrency() {
+		t.Errorf("TestIsStableCurrency cannot match currency, %s.", BTC)
+	}
+	if LTC.IsStableCurrency() {
+		t.Errorf("TestIsStableCurrency cannot match currency, %s.", LTC)
+	}
+	if AUD.IsStableCurrency() {
+		t.Errorf("TestIsStableCurrency cannot match currency, %s.", AUD)
+	}
+	if !USDT.IsStableCurrency() {
+		t.Errorf("TestIsStableCurrency cannot match currency, %s.", USDT)
+	}
+	if !DAI.IsStableCurrency() {
+		t.Errorf("TestIsStableCurrency cannot match currency, %s.", DAI)
+	}
 }
 
 func TestItemString(t *testing.T) {
-	expected := "Hello,World"
 	newItem := Item{
-		FullName: expected,
+		ID:         1337,
+		FullName:   "Hello,World",
+		Symbol:     "HWORLD",
+		AssocChain: "Silly",
 	}
 
+	expected := "ID: 1337 Fullname: Hello,World Symbol: HWORLD Role: roleUnset Chain:Silly"
 	if newItem.String() != expected {
-		t.Errorf("Currency String() error expected %s but received %s",
+		t.Errorf("Currency String() error expected '%s' but received '%s'",
 			expected,
 			&newItem)
 	}
