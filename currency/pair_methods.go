@@ -69,19 +69,30 @@ func (p Pair) EqualIncludeReciprocal(cPair Pair) bool {
 
 // IsCryptoPair checks to see if the pair is a crypto pair e.g. BTCLTC
 func (p Pair) IsCryptoPair() bool {
-	return storage.IsCryptocurrency(p.Base) &&
-		storage.IsCryptocurrency(p.Quote)
+	return p.Base.IsCryptocurrency() && p.Quote.IsCryptocurrency()
 }
 
 // IsCryptoFiatPair checks to see if the pair is a crypto fiat pair e.g. BTCUSD
 func (p Pair) IsCryptoFiatPair() bool {
-	return (storage.IsCryptocurrency(p.Base) && storage.IsFiatCurrency(p.Quote)) ||
-		(storage.IsFiatCurrency(p.Base) && storage.IsCryptocurrency(p.Quote))
+	return (p.Base.IsCryptocurrency() && p.Quote.IsFiatCurrency()) ||
+		(p.Base.IsFiatCurrency() && p.Quote.IsCryptocurrency())
 }
 
 // IsFiatPair checks to see if the pair is a fiat pair e.g. EURUSD
 func (p Pair) IsFiatPair() bool {
-	return storage.IsFiatCurrency(p.Base) && storage.IsFiatCurrency(p.Quote)
+	return p.Base.IsFiatCurrency() && p.Quote.IsFiatCurrency()
+}
+
+// IsCryptoStablePair checks to see if the pair is a crypto stable pair e.g.
+// EUR-USDT
+func (p Pair) IsCryptoStablePair() bool {
+	return (p.Base.IsCryptocurrency() && p.Quote.IsStableCurrency()) ||
+		(p.Base.IsStableCurrency() && p.Quote.IsCryptocurrency())
+}
+
+// IsStablePair checks to see if the pair is a stable pair e.g. USDT-DAI
+func (p Pair) IsStablePair() bool {
+	return p.Base.IsStableCurrency() && p.Quote.IsStableCurrency()
 }
 
 // IsInvalid checks invalid pair if base and quote are the same

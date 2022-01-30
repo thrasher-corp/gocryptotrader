@@ -122,7 +122,7 @@ func main() {
 		pf.Balance = y.Balance
 		pf.Subtotal = 0
 
-		if y.Coin.IsDefaultFiatCurrency() {
+		if y.Coin.IsFiatCurrency() {
 			if y.Coin != currency.USD {
 				conv, err := currency.ConvertCurrency(y.Balance, y.Coin, currency.USD)
 				if err != nil {

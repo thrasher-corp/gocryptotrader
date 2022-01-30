@@ -8,10 +8,15 @@ import (
 	"unicode"
 )
 
+var (
+	// ErrCurrencyCodeEmpty defines an error if the currency code is empty
+	ErrCurrencyCodeEmpty = errors.New("currency code is empty")
+	errItemIsNil         = errors.New("item is nil")
+	errItemIsEmpty       = errors.New("item is empty")
+)
+
 func (r Role) String() string {
 	switch r {
-	case Unset:
-		return UnsetRoleString
 	case Fiat:
 		return FiatCurrencyString
 	case Cryptocurrency:
@@ -20,8 +25,10 @@ func (r Role) String() string {
 		return TokenString
 	case Contract:
 		return ContractString
+	case Stable:
+		return StableString
 	default:
-		return "UNKNOWN"
+		return UnsetRoleString
 	}
 }
 
@@ -49,6 +56,8 @@ func (r *Role) UnmarshalJSON(d []byte) error {
 		*r = Token
 	case ContractString:
 		*r = Contract
+	case StableString:
+		*r = Stable
 	default:
 		return fmt.Errorf("unmarshal error role type %s unsupported for currency",
 			incoming)
@@ -78,11 +87,12 @@ func (b *BaseCodes) GetFullCurrencyData() (File, error) {
 			file.Token = append(file.Token, *b.Items[i])
 		case Contract:
 			file.Contracts = append(file.Contracts, *b.Items[i])
+		case Stable:
+			file.Stable = append(file.Stable, *b.Items[i])
 		default:
 			return file, errors.New("role undefined")
 		}
 	}
-
 	file.LastMainUpdate = b.LastMainUpdate.Unix()
 	return file, nil
 }
@@ -142,75 +152,67 @@ func (b *BaseCodes) UpdateCurrency(fullName, symbol, blockchain string, id int, 
 	return nil
 }
 
-// Register registers a currency from a string and returns a currency code
-func (b *BaseCodes) Register(c string) Code {
+// Register registers a currency from a string and returns a currency code, this
+// can optionally include a role when it is known.
+func (b *BaseCodes) Register(c string, newRole ...Role) Code {
 	var format bool
 	if c != "" {
-		format = unicode.IsUpper(rune(c[0]))
+		// Digits fool upper and lower casing. So find first letter and check
+		// case.
+		for x := 0; x < len(c); x++ {
+			if !unicode.IsDigit(rune(c[x])) {
+				format = unicode.IsUpper(rune(c[x]))
+				break
+			}
+		}
 	}
 	// Force upper string storage and matching
 	c = strings.ToUpper(c)
 
+	var role Role
+	if len(newRole) > 0 {
+		role = newRole[0]
+	}
+
 	b.mtx.Lock()
 	defer b.mtx.Unlock()
 	for i := range b.Items {
-		if b.Items[i].Symbol == c {
-			return Code{
-				Item:      b.Items[i],
-				UpperCase: format,
-			}
+		if b.Items[i].Symbol != c {
+			continue
 		}
+		if b.Items[i].Role == Unset {
+			b.Items[i].Role = role
+		} else if role != Unset && b.Items[i].Role != role {
+			continue
+		}
+		return Code{Item: b.Items[i], UpperCase: format}
 	}
-
-	newItem := &Item{Symbol: c}
+	newItem := &Item{Symbol: c, Lower: strings.ToLower(c), Role: role}
 	b.Items = append(b.Items, newItem)
-
-	return Code{
-		Item:      newItem,
-		UpperCase: format,
-	}
-}
-
-// RegisterFiat registers a fiat currency from a string and returns a currency
-// code
-func (b *BaseCodes) RegisterFiat(c string) Code {
-	c = strings.ToUpper(c)
-
-	b.mtx.Lock()
-	defer b.mtx.Unlock()
-	for i := range b.Items {
-		if b.Items[i].Symbol == c {
-			if b.Items[i].Role == Unset {
-				b.Items[i].Role = Fiat
-			}
-
-			if b.Items[i].Role != Fiat {
-				continue
-			}
-			return Code{Item: b.Items[i], UpperCase: true}
-		}
-	}
-
-	item := &Item{Symbol: c, Role: Fiat}
-	b.Items = append(b.Items, item)
-	return Code{Item: item, UpperCase: true}
+	return Code{Item: newItem, UpperCase: format}
 }
 
 // LoadItem sets item data
 func (b *BaseCodes) LoadItem(item *Item) error {
+	if item == nil {
+		return errItemIsNil
+	}
+
+	if *item == (Item{}) {
+		return errItemIsEmpty
+	}
+
+	item.Symbol = strings.ToUpper(item.Symbol)
+	item.Lower = strings.ToLower(item.Symbol)
+
 	b.mtx.Lock()
 	defer b.mtx.Unlock()
 	for i := range b.Items {
 		if b.Items[i].Symbol != item.Symbol ||
-			(b.Items[i].Role != Unset &&
-				item.Role != Unset &&
-				b.Items[i].Role != item.Role) {
+			(b.Items[i].Role != Unset && item.Role != Unset && b.Items[i].Role != item.Role) {
 			continue
 		}
-		b.Items[i].AssocChain = item.AssocChain
-		b.Items[i].ID = item.ID
-		b.Items[i].Role = item.Role
-		b.Items[i].FullName = item.FullName
+		*b.Items[i] = *item
 		return nil
 	}
 	b.Items = append(b.Items, item)
@@ -224,7 +226,12 @@ func NewCode(c string) Code {
 
 // String conforms to the stringer interface
 func (i *Item) String() string {
-	return i.FullName
+	return fmt.Sprintf("ID: %d Fullname: %s Symbol: %s Role: %s Chain:%s",
+		i.ID,
+		i.FullName,
+		i.Symbol,
+		i.Role,
+		i.AssocChain)
 }
 
 // String converts the code to string
@@ -232,11 +239,10 @@ func (c Code) String() string {
 	if c.Item == nil {
 		return ""
 	}
-
 	if c.UpperCase {
-		return strings.ToUpper(c.Item.Symbol)
+		return c.Item.Symbol
 	}
-	return strings.ToLower(c.Item.Symbol)
+	return c.Item.Lower
 }
 
 // Lower converts the code to lowercase formatting
@@ -280,36 +286,28 @@ func (c Code) Match(check Code) bool {
 	return c.Item == check.Item
 }
 
-// IsDefaultFiatCurrency checks if the currency passed in matches the default
-// fiat currency
-func (c Code) IsDefaultFiatCurrency() bool {
-	if c.Item == nil {
-		return false
-	}
-	return storage.IsDefaultCurrency(c)
-}
-
-// IsDefaultCryptocurrency checks if the currency passed in matches the default
-// cryptocurrency
-func (c Code) IsDefaultCryptocurrency() bool {
-	if c.Item == nil {
-		return false
-	}
-	return storage.IsDefaultCryptocurrency(c)
-}
-
 // IsFiatCurrency checks if the currency passed is an enabled fiat currency
 func (c Code) IsFiatCurrency() bool {
 	if c.Item == nil {
 		return false
 	}
-	return storage.IsFiatCurrency(c)
+	return c.Item.Role == Fiat
 }
 
 // IsCryptocurrency checks if the currency passed is an enabled CRYPTO currency.
+// NOTE: All unset currencies will default to cryptocurrencies and stable coins
+// are cryptocurrencies as well.
 func (c Code) IsCryptocurrency() bool {
 	if c.Item == nil {
 		return false
 	}
-	return storage.IsCryptocurrency(c)
+	return c.Item.Role&(Cryptocurrency|Stable) == c.Item.Role
+}
+
+// IsStableCurrency checks if the currency is a stable coin. A stabl
+func (c Code) IsStableCurrency() bool {
+	if c.Item == nil {
+		return false
+	}
+	return c.Item.Role == Stable
 }
