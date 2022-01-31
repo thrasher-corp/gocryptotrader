@@ -903,13 +903,19 @@ func (c *Config) CheckExchangeConfigValues() error {
 			c.Exchanges[i].EnabledPairs = nil
 		} else {
 			assets := c.Exchanges[i].CurrencyPairs.GetAssetTypes(false)
+			if len(assets) == 0 {
+				c.Exchanges[i].Enabled = false
+				log.Warnf(log.ConfigMgr, "%s no assets found, disabling...", c.Exchanges[i].Name)
+				continue
+			}
+
 			var atLeastOne bool
 			for index := range assets {
 				err := c.Exchanges[i].CurrencyPairs.IsAssetEnabled(assets[index])
 				if err != nil {
-					// Checks if we have an old config without the ability to
-					// enable disable the entire asset
-					if err.Error() == "cannot ascertain if asset is enabled, variable is nil" {
+					if errors.Is(err, currency.ErrAssetIsNil) {
+						// Checks if we have an old config without the ability to
+						// enable disable the entire asset
 						log.Warnf(log.ConfigMgr,
 							"Exchange %s: upgrading config for asset type %s and setting enabled.\n",
 							c.Exchanges[i].Name,
@@ -926,14 +932,6 @@ func (c *Config) CheckExchangeConfigValues() error {
 			}
 
 			if !atLeastOne {
-				if len(assets) == 0 {
-					c.Exchanges[i].Enabled = false
-					log.Warnf(log.ConfigMgr,
-						"%s no assets found, disabling...",
-						c.Exchanges[i].Name)
-					continue
-				}
-
 				// turn on an asset if all disabled
 				log.Warnf(log.ConfigMgr,
 					"%s assets disabled, turning on asset %s",
