@@ -1560,7 +1560,7 @@ func (s *RPCServer) GetCryptocurrencyDepositAddresses(ctx context.Context, r *gc
 				Chain:   v[a].Chain,
 			})
 		}
-		resp.Addresses[k] = &gctrpc.DepositAddresses{Addresses: depositAddrs}
+		resp.Addresses[k.String()] = &gctrpc.DepositAddresses{Addresses: depositAddrs}
 	}
 	return &resp, nil
 }

@@ -90,7 +90,7 @@ func CreateTestBot(t *testing.T) *Engine {
 				},
 			},
 			{
-				Name:                    "notenabled",
+				Name:                    "zb",
 				WebsocketTrafficTimeout: time.Second,
 				API: config.APIConfig{
 					Credentials: config.APICredentialsConfig{},
@@ -1003,7 +1003,7 @@ func TestGetCryptocurrenciesByExchange(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, ErrExchangeNotFound)
 	}
 
-	_, err = e.GetCryptocurrenciesByExchange("notenabled", true, false, asset.Spot)
+	_, err = e.GetCryptocurrenciesByExchange("zb", true, false, asset.Spot)
 	if !errors.Is(err, errExchangeNotEnabled) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errExchangeNotEnabled)
 	}
@@ -1079,6 +1079,16 @@ func (f fakeDepositExchange) GetDepositAddress(_ context.Context, c currency.Cod
 		return nil, errors.New("unable to get deposit address")
 	}
 	return &deposit.Address{Address: "fakeaddr"}, nil
+}
+
+func (f fakeDepositExchange) GetEnabledPairs(a asset.Item) (currency.Pairs, error) {
+	if f.ThrowPairError {
+		return nil, errors.New("unable to get enabled pairs")
+	}
+	return currency.Pairs{
+		currency.NewPair(currency.BTC, currency.USDT),
+		currency.NewPair(currency.XRP, currency.USDT),
+	}, nil
 }
 
 func createDepositEngine(opts *fakeDepositExchangeOpts) *Engine {
@@ -1189,19 +1199,19 @@ func TestGetAllExchangeCryptocurrencyDepositAddresses(t *testing.T) {
 		t.Error("should have returned no deposit addresses for a fake exchange with transfer error")
 	}
 	e = createDepositEngine(&fakeDepositExchangeOpts{SupportsAuth: true, SupportsMultiChain: true, ThrowDepositAddressError: true})
-	if r := e.GetAllExchangeCryptocurrencyDepositAddresses(); len(r["fake"]["btc"]) != 0 {
+	if r := e.GetAllExchangeCryptocurrencyDepositAddresses(); len(r["fake"][currency.BTC]) != 0 {
 		t.Error("should have returned no deposit addresses for fake exchange with deposit error, with multichain support enabled")
 	}
 	e = createDepositEngine(&fakeDepositExchangeOpts{SupportsAuth: true, SupportsMultiChain: true, RequiresChainSet: true})
-	if r := e.GetAllExchangeCryptocurrencyDepositAddresses(); len(r["fake"]["btc"]) == 0 {
+	if r := e.GetAllExchangeCryptocurrencyDepositAddresses(); len(r["fake"][currency.BTC]) == 0 {
 		t.Error("should of returned a BTC address")
 	}
 	e = createDepositEngine(&fakeDepositExchangeOpts{SupportsAuth: true, SupportsMultiChain: true})
-	if r := e.GetAllExchangeCryptocurrencyDepositAddresses(); len(r["fake"]["btc"]) == 0 {
+	if r := e.GetAllExchangeCryptocurrencyDepositAddresses(); len(r["fake"][currency.BTC]) == 0 {
 		t.Error("should of returned a BTC address")
 	}
 	e = createDepositEngine(&fakeDepositExchangeOpts{SupportsAuth: true})
-	if r := e.GetAllExchangeCryptocurrencyDepositAddresses(); len(r["fake"]["xrp"]) == 0 {
+	if r := e.GetAllExchangeCryptocurrencyDepositAddresses(); len(r["fake"][currency.XRP]) == 0 {
 		t.Error("should have returned a XRP address")
 	}
 }
@@ -1225,7 +1235,7 @@ func TestGetExchangeNames(t *testing.T) {
 	for i := range bot.Config.Exchanges {
 		exch, err := bot.ExchangeManager.NewExchangeByName(bot.Config.Exchanges[i].Name)
 		if err != nil && !errors.Is(err, ErrExchangeAlreadyLoaded) {
-			t.Fatal(err)
+			t.Fatalf("%s %v", bot.Config.Exchanges[i].Name, err)
 		}
 		if exch != nil {
 			exch.SetDefaults()
