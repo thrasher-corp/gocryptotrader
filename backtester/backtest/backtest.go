@@ -229,12 +229,12 @@ func (bt *BackTest) updateStatsForDataEvent(ev common.DataEventHandler, funds fu
 			return err
 		}
 
-		err = bt.Portfolio.CalculatePNL(ev)
+		err = bt.Portfolio.UpdateOpenPositionPNL(ev)
 		if err != nil {
 			if errors.Is(err, gctorder.ErrPositionLiquidated) {
 				cr.Liquidate()
 			} else {
-				log.Errorf(log.BackTester, "CalculatePNL %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
+				log.Errorf(log.BackTester, "UpdateOpenPositionPNL %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 			}
 		}
 	}

@@ -116,23 +116,7 @@ func (c *PositionController) UpdateOpenPositionUnrealisedPNL(exch string, item a
 		return decimal.Zero, fmt.Errorf("%v %v %v %w", exch, item, pair, ErrPositionsNotLoadedForPair)
 	}
 
-	multiPositionTracker.m.Lock()
-	defer multiPositionTracker.m.Unlock()
-	pos := multiPositionTracker.positions
-	if len(pos) == 0 {
-		return decimal.Zero, fmt.Errorf("%v %v %v %w", exch, item, pair, ErrPositionsNotLoadedForPair)
-	}
-	latestPos := pos[len(pos)-1]
-	if latestPos.status != Open {
-		return decimal.Zero, fmt.Errorf("%v %v %v %w", exch, item, pair, ErrPositionClosed)
-	}
-	err := latestPos.TrackPNLByTime(updated, last)
-	if err != nil {
-		return decimal.Zero, fmt.Errorf("%w for position %v %v %v", err, exch, item, pair)
-	}
-	latestPos.m.Lock()
-	defer latestPos.m.Unlock()
-	return latestPos.unrealisedPNL, nil
+	return multiPositionTracker.UpdateOpenPositionUnrealisedPNL(last, updated)
 }
 
 // ClearPositionsForExchange resets positions for an
@@ -207,50 +191,50 @@ func SetupMultiPositionTracker(setup *MultiPositionTrackerSetup) (*MultiPosition
 }
 
 // GetPositions returns all positions
-func (e *MultiPositionTracker) GetPositions() []PositionStats {
-	if e == nil {
+func (m *MultiPositionTracker) GetPositions() []PositionStats {
+	if m == nil {
 		return nil
 	}
-	e.m.Lock()
-	defer e.m.Unlock()
+	m.m.Lock()
+	defer m.m.Unlock()
 	var resp []PositionStats
-	for i := range e.positions {
-		resp = append(resp, e.positions[i].GetStats())
+	for i := range m.positions {
+		resp = append(resp, m.positions[i].GetStats())
 	}
 	return resp
 }
 
 // TrackNewOrder upserts an order to the tracker and updates position
 // status and exposure. PNL is calculated separately as it requires mark prices
-func (e *MultiPositionTracker) TrackNewOrder(d *Detail) error {
-	if e == nil {
+func (m *MultiPositionTracker) TrackNewOrder(d *Detail) error {
+	if m == nil {
 		return common.ErrNilPointer
 	}
 	if d == nil {
 		return ErrSubmissionIsNil
 	}
-	e.m.Lock()
-	defer e.m.Unlock()
-	if d.AssetType != e.asset {
+	m.m.Lock()
+	defer m.m.Unlock()
+	if d.AssetType != m.asset {
 		return errAssetMismatch
 	}
-	if tracker, ok := e.orderPositions[d.ID]; ok {
+	if tracker, ok := m.orderPositions[d.ID]; ok {
 		// this has already been associated
 		// update the tracker
 		return tracker.TrackNewOrder(d)
 	}
-	if len(e.positions) > 0 {
-		for i := range e.positions {
-			if e.positions[i].status == Open && i != len(e.positions)-1 {
-				return fmt.Errorf("%w %v at position %v/%v", errPositionDiscrepancy, e.positions[i], i, len(e.positions)-1)
+	if len(m.positions) > 0 {
+		for i := range m.positions {
+			if m.positions[i].status == Open && i != len(m.positions)-1 {
+				return fmt.Errorf("%w %v at position %v/%v", errPositionDiscrepancy, m.positions[i], i, len(m.positions)-1)
 			}
 		}
-		if e.positions[len(e.positions)-1].status == Open {
-			err := e.positions[len(e.positions)-1].TrackNewOrder(d)
+		if m.positions[len(m.positions)-1].status == Open {
+			err := m.positions[len(m.positions)-1].TrackNewOrder(d)
 			if err != nil && !errors.Is(err, ErrPositionClosed) {
 				return err
 			}
-			e.orderPositions[d.ID] = e.positions[len(e.positions)-1]
+			m.orderPositions[d.ID] = m.positions[len(m.positions)-1]
 			return nil
 		}
 	}
@@ -260,28 +244,28 @@ func (e *MultiPositionTracker) TrackNewOrder(d *Detail) error {
 		Underlying:                d.Pair.Base,
 		Asset:                     d.AssetType,
 		Side:                      d.Side,
-		UseExchangePNLCalculation: e.useExchangePNLCalculations,
+		UseExchangePNLCalculation: m.useExchangePNLCalculations,
 	}
-	tracker, err := e.SetupPositionTracker(setup)
+	tracker, err := m.SetupPositionTracker(setup)
 	if err != nil {
 		return err
 	}
-	e.positions = append(e.positions, tracker)
+	m.positions = append(m.positions, tracker)
 	err = tracker.TrackNewOrder(d)
 	if err != nil {
 		return err
 	}
-	e.orderPositions[d.ID] = tracker
+	m.orderPositions[d.ID] = tracker
 	return nil
 }
 
 // SetupPositionTracker creates a new position tracker to track n futures orders
 // until the position(s) are closed
-func (e *MultiPositionTracker) SetupPositionTracker(setup *PositionTrackerSetup) (*PositionTracker, error) {
-	if e == nil {
+func (m *MultiPositionTracker) SetupPositionTracker(setup *PositionTrackerSetup) (*PositionTracker, error) {
+	if m == nil {
 		return nil, common.ErrNilPointer
 	}
-	if e.exchange == "" {
+	if m.exchange == "" {
 		return nil, errExchangeNameEmpty
 	}
 	if setup == nil {
@@ -295,7 +279,7 @@ func (e *MultiPositionTracker) SetupPositionTracker(setup *PositionTrackerSetup)
 	}
 
 	resp := &PositionTracker{
-		exchange:                  strings.ToLower(e.exchange),
+		exchange:                  strings.ToLower(m.exchange),
 		asset:                     setup.Asset,
 		contractPair:              setup.Pair,
 		underlyingAsset:           setup.Underlying,
@@ -304,18 +288,40 @@ func (e *MultiPositionTracker) SetupPositionTracker(setup *PositionTrackerSetup)
 		currentDirection:          setup.Side,
 		openingDirection:          setup.Side,
 		useExchangePNLCalculation: setup.UseExchangePNLCalculation,
-		offlinePNLCalculation:     e.offlinePNLCalculation,
+		offlinePNLCalculation:     m.offlinePNLCalculation,
 	}
 	if !setup.UseExchangePNLCalculation {
 		// use position tracker's pnl calculation by default
 		resp.PNLCalculation = &PNLCalculator{}
 	} else {
-		if e.exchangePNLCalculation == nil {
+		if m.exchangePNLCalculation == nil {
 			return nil, ErrNilPNLCalculator
 		}
-		resp.PNLCalculation = e.exchangePNLCalculation
+		resp.PNLCalculation = m.exchangePNLCalculation
 	}
 	return resp, nil
+}
+
+// UpdateOpenPositionUnrealisedPNL updates the pnl for the latest open position
+// based on the last price and the time
+func (m *MultiPositionTracker) UpdateOpenPositionUnrealisedPNL(last float64, updated time.Time) (decimal.Decimal, error) {
+	m.m.Lock()
+	defer m.m.Unlock()
+	pos := m.positions
+	if len(pos) == 0 {
+		return decimal.Zero, fmt.Errorf("%v %v %v %w", m.exchange, m.asset, m.pair, ErrPositionsNotLoadedForPair)
+	}
+	latestPos := pos[len(pos)-1]
+	if latestPos.status != Open {
+		return decimal.Zero, fmt.Errorf("%v %v %v %w", m.exchange, m.asset, m.pair, ErrPositionClosed)
+	}
+	err := latestPos.TrackPNLByTime(updated, last)
+	if err != nil {
+		return decimal.Zero, fmt.Errorf("%w for position %v %v %v", err, m.exchange, m.asset, m.pair)
+	}
+	latestPos.m.Lock()
+	defer latestPos.m.Unlock()
+	return latestPos.unrealisedPNL, nil
 }
 
 // GetStats returns a summary of a future position

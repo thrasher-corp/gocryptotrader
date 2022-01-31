@@ -711,7 +711,7 @@ func TestGetLatestSnapshot(t *testing.T) {
 func TestCalculatePNL(t *testing.T) {
 	p := &Portfolio{}
 	ev := &kline.Kline{}
-	err := p.CalculatePNL(ev)
+	err := p.UpdateOpenPositionPNL(ev)
 	if !errors.Is(err, gctorder.ErrNotFutureAsset) {
 		t.Errorf("received: %v, expected: %v", err, gctorder.ErrNotFutureAsset)
 	}
@@ -736,7 +736,7 @@ func TestCalculatePNL(t *testing.T) {
 	ev.CurrencyPair = pair
 	ev.Time = tt0
 
-	err = p.CalculatePNL(ev)
+	err = p.UpdateOpenPositionPNL(ev)
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
@@ -784,7 +784,7 @@ func TestCalculatePNL(t *testing.T) {
 			},
 		},
 	}, false)
-	err = p.CalculatePNL(ev)
+	err = p.UpdateOpenPositionPNL(ev)
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}

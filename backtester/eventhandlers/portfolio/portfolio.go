@@ -479,9 +479,9 @@ func (p *Portfolio) GetPositions(e common.EventHandler) ([]gctorder.PositionStat
 	return settings.FuturesTracker.GetPositions(), nil
 }
 
-// CalculatePNL will analyse any futures orders that have been placed over the backtesting run
+// UpdateOpenPositionPNL will analyse any futures orders that have been placed over the backtesting run
 // that are not closed and calculate their PNL
-func (p *Portfolio) CalculatePNL(e common.DataEventHandler) error {
+func (p *Portfolio) UpdateOpenPositionPNL(e common.DataEventHandler) error {
 	if !e.GetAssetType().IsFutures() {
 		return fmt.Errorf("%s %w", e.GetAssetType(), gctorder.ErrNotFutureAsset)
 	}
@@ -490,17 +490,11 @@ func (p *Portfolio) CalculatePNL(e common.DataEventHandler) error {
 		return errNoPortfolioSettings
 	}
 
-	snapshot, err := p.GetLatestOrderSnapshotForEvent(e)
-	if err != nil {
+	_, err := settings.FuturesTracker.UpdateOpenPositionUnrealisedPNL(e.GetClosePrice().InexactFloat64(), e.GetTime())
+	if err != nil && !errors.Is(err, gctorder.ErrPositionClosed) {
 		return err
 	}
 
-	for i := range snapshot.Orders {
-		err = settings.FuturesTracker.TrackNewOrder(snapshot.Orders[i].Order)
-		if err != nil {
-			return err
-		}
-	}
 	return nil
 }
 
