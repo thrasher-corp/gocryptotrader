@@ -172,15 +172,15 @@ type BaseFuturesOrder struct {
 // FuturesOrderData stores futures order data
 type FuturesOrderData struct {
 	BaseFuturesOrder
-	OrderStatus     string  `json:"order_status"`
-	OrderLinkID     string  `json:"order_link_id"`
-	OrderID         string  `json:"order_id"`
-	LeavesQty       float64 `json:"leaves_qty"`
-	CumulativeQty   float64 `json:"cum_exec_qty"`
-	CumulativeValue float64 `json:"cum_exec_value"`
-	CumulativeFee   float64 `json:"cum_exec_fee"`
-	RejectReason    string  `json:"reject_reason"`
-	CreatedAt       string  `json:"create_at"`
+	OrderStatus     string    `json:"order_status"`
+	OrderLinkID     string    `json:"order_link_id"`
+	OrderID         string    `json:"order_id"`
+	LeavesQty       float64   `json:"leaves_qty"`
+	CumulativeQty   float64   `json:"cum_exec_qty"`
+	CumulativeValue float64   `json:"cum_exec_value"`
+	CumulativeFee   float64   `json:"cum_exec_fee"`
+	RejectReason    string    `json:"reject_reason"`
+	CreatedAt       time.Time `json:"create_at"`
 }
 
 type FuturesOrderCancelResp struct {
@@ -239,8 +239,8 @@ type FuturesActiveRealtimeOrder struct {
 	CumulativeFee      float64                `json:"cum_exec_fee,string"`
 	RejectReason       string                 `json:"reject_reason"`
 	CancelType         string                 `json:"cancel_type"`
-	CreatedAt          string                 `json:"create_at"`
-	UpdatedAt          string                 `json:"updated_at"`
+	CreatedAt          time.Time              `json:"create_at"`
+	UpdatedAt          time.Time              `json:"updated_at"`
 	OrderID            string                 `json:"order_id"`
 }
 

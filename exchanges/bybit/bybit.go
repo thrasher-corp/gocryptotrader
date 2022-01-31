@@ -212,7 +212,7 @@ func (by *Bybit) GetTrades(symbol string, limit int64) ([]TradeItem, error) {
 			Price:        resp.Data[x].Price,
 			Side:         tradeSide,
 			Volume:       resp.Data[x].Quantity,
-			TradeTime:    time.Unix(0, resp.Data[x].Time*int64(time.Millisecond)),
+			Time:         time.Unix(0, resp.Data[x].Time*int64(time.Millisecond)),
 		})
 	}
 	return trades, nil

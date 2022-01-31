@@ -46,7 +46,7 @@ type TradeItem struct {
 	Price        float64
 	Side         string
 	Volume       float64
-	TradeTime    time.Time
+	Time         time.Time
 }
 
 // KlineItem stores an individual kline data item
@@ -146,7 +146,7 @@ type PlaceOrderResponse struct {
 	TimeInForce RequestParamsTimeForceType `json:"timeInForce"`
 	AccountID   int64                      `json:"accountId"`
 	SymbolName  string                     `json:"symbolName"`
-	ExecutedQty string                     `json:"executedQty"`
+	ExecutedQty float64                    `json:"executedQty,string"`
 }
 
 // QueryOrderResponse holds query order data
