@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -1259,6 +1260,52 @@ func TestClearFuturesPositionsForExchange(t *testing.T) {
 		t.Errorf("received '%v', expected '%v'", err, ErrNilSubsystem)
 	}
 }
+
+func TestUpdateOpenPositionUnrealisedPNL(t *testing.T) {
+	t.Parallel()
+	o := &OrderManager{}
+	cp := currency.NewPair(currency.BTC, currency.USDT)
+	_, err := o.UpdateOpenPositionUnrealisedPNL("test", asset.Spot, cp, 1, time.Now())
+	if !errors.Is(err, ErrSubSystemNotStarted) {
+		t.Errorf("received '%v', expected '%v'", err, ErrSubSystemNotStarted)
+	}
+	o.started = 1
+	_, err = o.UpdateOpenPositionUnrealisedPNL("test", asset.Spot, cp, 1, time.Now())
+	if !errors.Is(err, errFuturesTrackerNotSetup) {
+		t.Errorf("received '%v', expected '%v'", err, errFuturesTrackerNotSetup)
+	}
+	o.orderStore.futuresPositionController = order.SetupPositionController()
+	_, err = o.UpdateOpenPositionUnrealisedPNL("test", asset.Spot, cp, 1, time.Now())
+	if !errors.Is(err, order.ErrNotFuturesAsset) {
+		t.Errorf("received '%v', expected '%v'", err, order.ErrNotFuturesAsset)
+	}
+
+	_, err = o.UpdateOpenPositionUnrealisedPNL("test", asset.Futures, cp, 1, time.Now())
+	if !errors.Is(err, order.ErrPositionsNotLoadedForExchange) {
+		t.Errorf("received '%v', expected '%v'", err, order.ErrPositionsNotLoadedForExchange)
+	}
+
+	err = o.orderStore.futuresPositionController.TrackNewOrder(&order.Detail{
+		ID:        "test",
+		Date:      time.Now(),
+		Exchange:  "test",
+		AssetType: asset.Futures,
+		Pair:      cp,
+		Side:      order.Buy,
+		Amount:    1,
+		Price:     1})
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected '%v'", err, nil)
+	}
+	unrealised, err := o.UpdateOpenPositionUnrealisedPNL("test", asset.Futures, cp, 2, time.Now())
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected '%v'", err, nil)
+	}
+	if !unrealised.Equal(decimal.NewFromInt(1)) {
+		t.Errorf("received '%v', expected '%v'", unrealised, 1)
+	}
+}
+
 func TestSubmitFakeOrder(t *testing.T) {
 	t.Parallel()
 	o := &OrderManager{}

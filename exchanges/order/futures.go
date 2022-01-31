@@ -91,6 +91,50 @@ func (c *PositionController) GetPositionsForExchange(exch string, item asset.Ite
 	return multiPositionTracker.GetPositions(), nil
 }
 
+// UpdateOpenPositionUnrealisedPNL finds an open position from
+// an exchange asset pair, then calculates the unrealisedPNL
+// using the latest ticker data
+func (c *PositionController) UpdateOpenPositionUnrealisedPNL(exch string, item asset.Item, pair currency.Pair, last float64, updated time.Time) (decimal.Decimal, error) {
+	if c == nil {
+		return decimal.Zero, common.ErrNilPointer
+	}
+	c.m.Lock()
+	defer c.m.Unlock()
+	if !item.IsFutures() {
+		return decimal.Zero, fmt.Errorf("%v %v %v %w", exch, item, pair, ErrNotFuturesAsset)
+	}
+	exchM, ok := c.positionTrackerControllers[strings.ToLower(exch)]
+	if !ok {
+		return decimal.Zero, fmt.Errorf("%v %v %v %w", exch, item, pair, ErrPositionsNotLoadedForExchange)
+	}
+	itemM, ok := exchM[item]
+	if !ok {
+		return decimal.Zero, fmt.Errorf("%v %v %v %w", exch, item, pair, ErrPositionsNotLoadedForAsset)
+	}
+	multiPositionTracker, ok := itemM[pair]
+	if !ok {
+		return decimal.Zero, fmt.Errorf("%v %v %v %w", exch, item, pair, ErrPositionsNotLoadedForPair)
+	}
+
+	multiPositionTracker.m.Lock()
+	defer multiPositionTracker.m.Unlock()
+	pos := multiPositionTracker.positions
+	if len(pos) == 0 {
+		return decimal.Zero, fmt.Errorf("%v %v %v %w", exch, item, pair, ErrPositionsNotLoadedForPair)
+	}
+	latestPos := pos[len(pos)-1]
+	if latestPos.status != Open {
+		return decimal.Zero, fmt.Errorf("%v %v %v %w", exch, item, pair, ErrPositionClosed)
+	}
+	err := latestPos.TrackPNLByTime(updated, last)
+	if err != nil {
+		return decimal.Zero, fmt.Errorf("%w for position %v %v %v", err, exch, item, pair)
+	}
+	latestPos.m.Lock()
+	defer latestPos.m.Unlock()
+	return latestPos.unrealisedPNL, nil
+}
+
 // ClearPositionsForExchange resets positions for an
 // exchange, asset, pair that has been stored
 func (c *PositionController) ClearPositionsForExchange(exch string, item asset.Item, pair currency.Pair) error {
@@ -281,13 +325,16 @@ func (p *PositionTracker) GetStats() PositionStats {
 	}
 	p.m.Lock()
 	defer p.m.Unlock()
+	var orders []Detail
+	orders = append(orders, p.longPositions...)
+	orders = append(orders, p.shortPositions...)
 	return PositionStats{
 		Exchange:         p.exchange,
 		Asset:            p.asset,
 		Pair:             p.contractPair,
 		Underlying:       p.underlyingAsset,
 		Status:           p.status,
-		Orders:           append(p.longPositions, p.shortPositions...),
+		Orders:           orders,
 		RealisedPNL:      p.realisedPNL,
 		UnrealisedPNL:    p.unrealisedPNL,
 		Direction:        p.currentDirection,
@@ -315,15 +362,20 @@ func (p *PositionTracker) TrackPNLByTime(t time.Time, currentPrice float64) erro
 		Time:  t,
 		Price: price,
 	}
-	diff := price.Sub(p.entryPrice)
-	result.UnrealisedPNL = p.exposure.Mul(diff)
-	result.Price = price
+	if p.currentDirection.IsLong() {
+		diff := price.Sub(p.entryPrice)
+		result.UnrealisedPNL = p.exposure.Mul(diff)
+	} else if p.currentDirection.IsShort() {
+		diff := p.entryPrice.Sub(price)
+		result.UnrealisedPNL = p.exposure.Mul(diff)
+	}
 	if len(p.pnlHistory) > 0 {
 		result.RealisedPNLBeforeFees = p.pnlHistory[len(p.pnlHistory)-1].RealisedPNLBeforeFees
 		result.Exposure = p.pnlHistory[len(p.pnlHistory)-1].Exposure
 	}
 	var err error
 	p.pnlHistory, err = upsertPNLEntry(p.pnlHistory, result)
+	p.unrealisedPNL = result.UnrealisedPNL
 	return err
 }
 
@@ -383,27 +435,34 @@ func (p *PositionTracker) TrackNewOrder(d *Detail) error {
 		p.entryPrice = decimal.NewFromFloat(d.Price)
 	}
 
+	var updated bool
 	for i := range p.shortPositions {
-		if p.shortPositions[i].ID == d.ID {
-			ord := p.shortPositions[i].Copy()
-			ord.UpdateOrderFromDetail(d)
-			p.shortPositions[i] = ord
-			break
+		if p.shortPositions[i].ID != d.ID {
+			continue
 		}
+		ord := p.shortPositions[i].Copy()
+		ord.UpdateOrderFromDetail(d)
+		p.shortPositions[i] = ord
+		updated = true
+		break
 	}
 	for i := range p.longPositions {
-		if p.longPositions[i].ID == d.ID {
-			ord := p.longPositions[i].Copy()
-			ord.UpdateOrderFromDetail(d)
-			p.longPositions[i] = ord
-			break
+		if p.longPositions[i].ID != d.ID {
+			continue
 		}
+		ord := p.longPositions[i].Copy()
+		ord.UpdateOrderFromDetail(d)
+		p.longPositions[i] = ord
+		updated = true
+		break
 	}
 
-	if d.Side.IsShort() {
-		p.shortPositions = append(p.shortPositions, d.Copy())
-	} else {
-		p.longPositions = append(p.longPositions, d.Copy())
+	if !updated {
+		if d.Side.IsShort() {
+			p.shortPositions = append(p.shortPositions, d.Copy())
+		} else {
+			p.longPositions = append(p.longPositions, d.Copy())
+		}
 	}
 	var shortSide, longSide decimal.Decimal
 

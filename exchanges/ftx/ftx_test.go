@@ -984,12 +984,12 @@ func TestGetPublicOptionsTrades(t *testing.T) {
 	}
 	tmNow := time.Now()
 	result, err = f.GetPublicOptionsTrades(context.Background(),
-		tmNow.AddDate(0, 0, -30), tmNow, "5")
+		tmNow.AddDate(0, -1, 0), tmNow, "5")
 	if err != nil {
 		t.Error(err)
 	}
-	if len(result) > 5 {
-		t.Error("limit of 5 should return a max of 5 items")
+	if len(result) != 5 {
+		t.Error("limit of 5 should return 5 items")
 	}
 	_, err = f.GetPublicOptionsTrades(context.Background(),
 		time.Unix(validFTTBTCEndTime, 0), time.Unix(validFTTBTCStartTime, 0), "5")
@@ -1736,8 +1736,28 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 
 func TestScaleCollateral(t *testing.T) {
 	t.Parallel()
+
+	result, err := f.ScaleCollateral(
+		context.Background(),
+		"",
+		&order.CollateralCalculator{
+			CollateralCurrency: currency.USDT,
+			Asset:              asset.Spot,
+			Side:               order.Buy,
+			CalculateOffline:   true,
+			CollateralAmount:   decimal.NewFromInt(100000),
+			USDPrice:           decimal.NewFromFloat(1.0003),
+		})
+	if err != nil {
+		t.Error(err)
+	}
+	expectedUSDValue := decimal.NewFromFloat(95028.5)
+	if !result.Equal(expectedUSDValue) {
+		t.Errorf("received %v expected %v", result, expectedUSDValue)
+	}
+
 	if !areTestAPIKeysSet() {
-		t.Skip("skipping test, api keys not set")
+		return
 	}
 	accountInfo, err := f.GetAccountInfo(context.Background(), subaccount)
 	if err != nil {
@@ -2019,11 +2039,11 @@ func TestLoadCollateralWeight(t *testing.T) {
 	if !ok {
 		t.Fatal("expected loaded collateral weight")
 	}
-	if cw.Initial != 1 {
-		t.Errorf("expected '1', received '%v'", cw.Total)
+	if cw.Total != 1 {
+		t.Errorf("expected '1', received '%v'", cw.InitialMarginFractionFactor)
 	}
-	if cw.Total != 2 {
-		t.Errorf("expected '2', received '%v'", cw.InitialMarginFractionFactor)
+	if cw.Initial != 2 {
+		t.Errorf("expected '2', received '%v'", cw.Total)
 	}
 	if cw.InitialMarginFractionFactor != 3 {
 		t.Errorf("expected '3', received '%v'", cw.Total)
@@ -2052,7 +2072,7 @@ func TestGetExpiredFutures(t *testing.T) {
 
 func TestGetExpiredFuture(t *testing.T) {
 	t.Parallel()
-	_, err := f.GetExpiredFuture(context.Background(), currency.NewPairWithDelimiter("BTC", "1231", "-"))
+	_, err := f.GetExpiredFuture(context.Background(), currency.NewPairWithDelimiter("BTC", "20211231", "-"))
 	if err != nil {
 		t.Error(err)
 	}

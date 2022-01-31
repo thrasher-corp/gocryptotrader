@@ -137,17 +137,17 @@ func (f fExchange) CalculateTotalCollateral(context.Context, string, bool, []ord
 		TotalCollateral: decimal.NewFromInt(1337),
 		BreakdownByCurrency: []order.CollateralByCurrency{
 			{
-				Currency: currency.USD,
-				Amount:   decimal.NewFromInt(1330),
+				Currency:    currency.USD,
+				ScaledValue: decimal.NewFromInt(1330),
 			},
 			{
 				Currency:      currency.DOGE,
-				Amount:        decimal.NewFromInt(10),
+				ScaledValue:   decimal.NewFromInt(10),
 				ValueCurrency: currency.USD,
 			},
 			{
 				Currency:      currency.XRP,
-				Amount:        decimal.NewFromInt(-3),
+				ScaledValue:   decimal.NewFromInt(-3),
 				ValueCurrency: currency.USD,
 			},
 		},
@@ -2029,31 +2029,34 @@ func TestCurrencyStateTradingPair(t *testing.T) {
 func TestGetFuturesPositions(t *testing.T) {
 	t.Parallel()
 	em := SetupExchangeManager()
-	exch, err := em.NewExchangeByName(testExchange)
+	exch, err := em.NewExchangeByName("ftx")
 	if err != nil {
 		t.Fatal(err)
 	}
+	exch.SetDefaults()
 	b := exch.GetBase()
 	b.Name = fakeExchangeName
 	b.Enabled = true
 
-	cp, err := currency.NewPairFromString("btc-usd")
+	cp, err := currency.NewPairFromString("btc-perp")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Futures] = &currency.PairStore{
-		AssetEnabled: convert.BoolPtr(true),
-		ConfigFormat: &currency.PairFormat{},
-		Available:    currency.Pairs{cp},
-		Enabled:      currency.Pairs{cp},
+		AssetEnabled:  convert.BoolPtr(true),
+		RequestFormat: &currency.PairFormat{Delimiter: "-"},
+		ConfigFormat:  &currency.PairFormat{Delimiter: "-"},
+		Available:     currency.Pairs{cp},
+		Enabled:       currency.Pairs{cp},
 	}
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
-		AssetEnabled: convert.BoolPtr(true),
-		ConfigFormat: &currency.PairFormat{},
-		Available:    currency.Pairs{cp},
-		Enabled:      currency.Pairs{cp},
+		AssetEnabled:  convert.BoolPtr(true),
+		ConfigFormat:  &currency.PairFormat{Delimiter: "/"},
+		RequestFormat: &currency.PairFormat{Delimiter: "/"},
+		Available:     currency.Pairs{cp},
+		Enabled:       currency.Pairs{cp},
 	}
 	fakeExchange := fExchange{
 		IBotExchange: exch,
@@ -2069,7 +2072,8 @@ func TestGetFuturesPositions(t *testing.T) {
 		Engine: &Engine{
 			ExchangeManager: em,
 			currencyStateManager: &CurrencyStateManager{
-				started: 1, iExchangeManager: em,
+				started:          1,
+				iExchangeManager: em,
 			},
 			OrderManager: om,
 		},

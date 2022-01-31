@@ -1071,9 +1071,10 @@ message GetCollateralResponse {
 
 message CollateralForCurrency {
     string currency = 1;
-    string scaledCollateral = 2;
-    string scaledToCurrency = 3;
-    string error = 4;
+    string originalAmount = 2;
+    string scaledCollateral = 3;
+    string scaledToCurrency = 4;
+    string error = 5;
 }
 
 
