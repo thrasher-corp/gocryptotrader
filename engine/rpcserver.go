@@ -4319,6 +4319,13 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 	if acc == nil {
 		return nil, fmt.Errorf("%w for %s %s and stored credentials - available subaccounts: %s", errNoAccountInformation, exch.GetName(), r.SubAccount, strings.Join(subAccounts, ","))
 	}
+	var spotPairs currency.Pairs
+	if r.CalculateOffline {
+		spotPairs, err = exch.GetAvailablePairs(asset.Spot)
+		if err != nil {
+			return nil, fmt.Errorf("GetCollateral offline calculation error via GetAvailablePairs %s %s", exch.GetName(), err)
+		}
+	}
 	for i := range acc.Currencies {
 		cal := order.CollateralCalculator{
 			CalculateOffline:   r.CalculateOffline,
@@ -4328,9 +4335,14 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 		}
 		if r.CalculateOffline && !acc.Currencies[i].CurrencyName.Match(currency.USD) {
 			var tick *ticker.Price
-			tick, err = exch.FetchTicker(ctx, currency.NewPair(acc.Currencies[i].CurrencyName, currency.USD), asset.Spot)
+			tickerCurr := currency.NewPair(acc.Currencies[i].CurrencyName, currency.USD)
+			if !spotPairs.Contains(tickerCurr, true) {
+				// cannot price currency to calculate collateral
+				continue
+			}
+			tick, err = exch.FetchTicker(ctx, tickerCurr, asset.Spot)
 			if err != nil {
-				log.Errorf(log.GRPCSys, fmt.Sprintf("GetCollateral offline calculation via FetchTicker %s %s", exch.GetName(), err))
+				log.Errorf(log.GRPCSys, fmt.Sprintf("GetCollateral offline calculation error via FetchTicker %s %s", exch.GetName(), err))
 				continue
 			}
 			if tick.Last == 0 {
