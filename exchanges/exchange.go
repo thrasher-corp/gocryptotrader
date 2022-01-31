@@ -43,6 +43,8 @@ const (
 var (
 	// ErrAuthenticatedRequestWithoutCredentialsSet error message for authenticated request without credentials set
 	ErrAuthenticatedRequestWithoutCredentialsSet = errors.New("authenticated HTTP request called but not supported due to unset/default API keys")
+	// ErrPairNotFound is an error message for when unable to find a currency pair
+	ErrPairNotFound = errors.New("pair not found")
 
 	errEndpointStringNotFound = errors.New("endpoint string not found")
 )
@@ -412,7 +414,8 @@ func (b *Base) GetRequestFormattedPairAndAssetType(p string) (currency.Pair, ass
 			}
 		}
 	}
-	return response, "", errors.New("pair not found: " + p)
+	return response, "",
+		fmt.Errorf("%s %w", p, ErrPairNotFound)
 }
 
 // GetAvailablePairs is a method that returns the available currency pairs

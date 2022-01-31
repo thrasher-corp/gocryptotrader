@@ -716,7 +716,14 @@ func (h *HUOBI) FOrder(ctx context.Context, contractCode currency.Pair, symbol, 
 		req["contract_code"] = codeValue
 	}
 	if clientOrderID != "" {
-		req["client_order_id"] = clientOrderID
+		// Client order id is an integer, convert it here
+		// https://huobiapi.github.io/docs/dm/v1/en/#place-an-order
+		id, err := strconv.Atoi(clientOrderID)
+		if err != nil {
+			return resp,
+				fmt.Errorf("unable to convert client order id to integer, %s: %w", clientOrderID, err)
+		}
+		req["client_order_id"] = id
 	}
 	req["direction"] = direction
 	if !common.StringDataCompareInsensitive(validOffsetTypes, offset) {

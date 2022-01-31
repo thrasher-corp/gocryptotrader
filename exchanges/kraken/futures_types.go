@@ -11,6 +11,7 @@ var (
 		order.Stop:              "stp",
 		order.PostOnly:          "post",
 		order.TakeProfit:        "take_profit",
+		order.Market:            "mkt",
 	}
 
 	validSide = []string{"buy", "sell"}
