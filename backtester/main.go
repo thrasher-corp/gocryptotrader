@@ -15,7 +15,7 @@ import (
 
 func main() {
 	var configPath, templatePath, reportOutput string
-	var printLogo, generateReport, darkReport bool
+	var printLogo, generateReport, darkReport, verbose bool
 	wd, err := os.Getwd()
 	if err != nil {
 		fmt.Printf("Could not get working directory. Error: %v.\n", err)
@@ -60,6 +60,11 @@ func main() {
 		"darkreport",
 		false,
 		"sets the output report to use a dark theme by default")
+	flag.BoolVar(
+		&verbose,
+		"verbose",
+		false,
+		"if enabled, will set exchange requests to verbose for debugging purposes")
 	flag.Parse()
 
 	var bt *backtest.BackTest
@@ -85,7 +90,7 @@ func main() {
 		fmt.Printf("Could not read config. Error: %v.\n", err)
 		os.Exit(1)
 	}
-	bt, err = backtest.NewFromConfig(cfg, templatePath, reportOutput)
+	bt, err = backtest.NewFromConfig(cfg, templatePath, reportOutput, verbose)
 	if err != nil {
 		fmt.Printf("Could not setup backtester from config. Error: %v.\n", err)
 		os.Exit(1)

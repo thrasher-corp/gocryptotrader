@@ -501,8 +501,6 @@ func (p *Portfolio) CalculatePNL(e common.DataEventHandler) error {
 			return err
 		}
 	}
-	pos := settings.FuturesTracker.GetPositions()
-	log.Debugf(log.BackTester, "%+v", pos)
 	return nil
 }
 

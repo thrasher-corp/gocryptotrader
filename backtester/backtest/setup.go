@@ -42,7 +42,7 @@ import (
 )
 
 // NewFromConfig takes a strategy config and configures a backtester variable to run
-func NewFromConfig(cfg *config.Config, templatePath, output string) (*BackTest, error) {
+func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool) (*BackTest, error) {
 	log.Infoln(log.BackTester, "loading config...")
 	if cfg == nil {
 		return nil, errNilConfig
@@ -138,6 +138,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string) (*BackTest, 
 		conf.Websocket = convert.BoolPtr(false)
 		conf.WebsocketResponseCheckTimeout = time.Second
 		conf.WebsocketResponseMaxLimit = time.Second
+		conf.Verbose = verbose
 		err = exch.Setup(conf)
 		if err != nil {
 			return nil, err
