@@ -313,12 +313,33 @@ func (p Pairs) GetFiat() Currencies {
 }
 
 // GetCurrencies returns the full currency code list contained derived from the
-// the pairs list.
+// pairs list.
 func (p Pairs) GetCurrencies() Currencies {
 	m := make(map[*Item]bool)
 	for x := range p {
 		m[p[x].Base.Item] = p[x].Base.UpperCase
 		m[p[x].Quote.Item] = p[x].Quote.UpperCase
+	}
+	var currencies = make([]Code, len(m))
+	var target int
+	for code, upper := range m {
+		currencies[target].Item = code
+		currencies[target].UpperCase = upper
+		target++
+	}
+	return currencies
+}
+
+// GetStables returns the stable currency code list derived from the pairs list.
+func (p Pairs) GetStables() Currencies {
+	m := make(map[*Item]bool)
+	for x := range p {
+		if p[x].Base.IsStableCurrency() {
+			m[p[x].Base.Item] = p[x].Base.UpperCase
+		}
+		if p[x].Quote.IsStableCurrency() {
+			m[p[x].Quote.Item] = p[x].Quote.UpperCase
+		}
 	}
 	var currencies = make([]Code, len(m))
 	var target int

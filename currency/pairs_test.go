@@ -333,6 +333,19 @@ func TestGetCurrencies(t *testing.T) {
 	contains(t, []Code{BTC, USD, LTC, NZD, USDT}, pairs.GetCurrencies())
 }
 
+func TestGetStables(t *testing.T) {
+	pairs := Pairs{
+		NewPair(BTC, USD),
+		NewPair(LTC, USD),
+		NewPair(USD, NZD),
+		NewPair(LTC, USDT),
+		NewPair(DAI, USDT),
+		NewPair(LTC, USDC),
+		NewPair(USDP, USDT),
+	}
+	contains(t, []Code{USDT, USDP, USDC, DAI}, pairs.GetStables())
+}
+
 func contains(t *testing.T, c1, c2 []Code) {
 	t.Helper()
 codes:
