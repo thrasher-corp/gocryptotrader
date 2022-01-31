@@ -44,8 +44,7 @@ func TestPairsString(t *testing.T) {
 }
 
 func TestPairsFromString(t *testing.T) {
-	_, err := NewPairsFromString("")
-	if !errors.Is(err, errCannotCreatePair) {
+	if _, err := NewPairsFromString(""); !errors.Is(err, errCannotCreatePair) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errCannotCreatePair)
 	}
 

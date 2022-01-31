@@ -19,6 +19,9 @@ var (
 	// errAssetNotEnabled defines an error for the pairs management system
 	// that declares the asset is not enable.
 	errAssetNotEnabled = errors.New("asset not enabled")
+	// ErrAssetIsNil is an error when the asset has not been populated by the
+	// configuration
+	ErrAssetIsNil = errors.New("asset is nil")
 )
 
 // GetAssetTypes returns a list of stored asset types
@@ -170,7 +173,11 @@ func (p *PairsManager) IsAssetEnabled(a asset.Item) error {
 		return err
 	}
 
-	if c.AssetEnabled == nil || !*c.AssetEnabled {
+	if c.AssetEnabled == nil {
+		return fmt.Errorf("%s %w", a, ErrAssetIsNil)
+	}
+
+	if !*c.AssetEnabled {
 		return fmt.Errorf("%s %w", a, errAssetNotEnabled)
 	}
 	return nil
