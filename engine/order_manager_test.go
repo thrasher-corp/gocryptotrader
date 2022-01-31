@@ -1304,6 +1304,12 @@ func TestUpdateOpenPositionUnrealisedPNL(t *testing.T) {
 	if !unrealised.Equal(decimal.NewFromInt(1)) {
 		t.Errorf("received '%v', expected '%v'", unrealised, 1)
 	}
+
+	o = nil
+	_, err = o.UpdateOpenPositionUnrealisedPNL("test", asset.Spot, cp, 1, time.Now())
+	if !errors.Is(err, ErrNilSubsystem) {
+		t.Errorf("received '%v', expected '%v'", err, ErrNilSubsystem)
+	}
 }
 
 func TestSubmitFakeOrder(t *testing.T) {

@@ -4147,9 +4147,15 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 		return nil, err
 	}
 
+	b := exch.GetBase()
+	subAccount := b.API.Credentials.Subaccount
+	var subErr string
+	if subAccount != "" {
+		subErr = "for subaccount: " + subAccount
+	}
 	orders, err := exch.GetFuturesPositions(ctx, a, cp, start, end)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w %v", err, subErr)
 	}
 	sort.Slice(orders, func(i, j int) bool {
 		return orders[i].Date.Before(orders[j].Date)
@@ -4157,7 +4163,7 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 	if r.Overwrite {
 		err = s.OrderManager.ClearFuturesTracking(r.Exchange, a, cp)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("%w %v", err, subErr)
 		}
 	}
 	for i := range orders {
@@ -4170,11 +4176,10 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 	}
 	pos, err := s.OrderManager.GetFuturesPositionsForExchange(r.Exchange, a, cp)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w %v", err, subErr)
 	}
-	b := exch.GetBase()
 	response := &gctrpc.GetFuturesPositionsResponse{
-		SubAccount: b.API.Credentials.Subaccount,
+		SubAccount: subAccount,
 	}
 	var totalRealisedPNL, totalUnrealisedPNL decimal.Decimal
 	for i := range pos {

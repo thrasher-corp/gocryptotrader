@@ -33,7 +33,7 @@ func (c *PositionController) TrackNewOrder(d *Detail) error {
 		return fmt.Errorf("order %v %v %v %v %w", d.Exchange, d.AssetType, d.Pair, d.ID, ErrNotFuturesAsset)
 	}
 	if c == nil {
-		return common.ErrNilPointer
+		return fmt.Errorf("position controller %w", common.ErrNilPointer)
 	}
 	c.m.Lock()
 	defer c.m.Unlock()
@@ -68,7 +68,7 @@ func (c *PositionController) TrackNewOrder(d *Detail) error {
 // exchange, asset pair that is stored in the position controller
 func (c *PositionController) GetPositionsForExchange(exch string, item asset.Item, pair currency.Pair) ([]PositionStats, error) {
 	if c == nil {
-		return nil, common.ErrNilPointer
+		return nil, fmt.Errorf("position controller %w", common.ErrNilPointer)
 	}
 	c.m.Lock()
 	defer c.m.Unlock()
@@ -96,13 +96,14 @@ func (c *PositionController) GetPositionsForExchange(exch string, item asset.Ite
 // using the latest ticker data
 func (c *PositionController) UpdateOpenPositionUnrealisedPNL(exch string, item asset.Item, pair currency.Pair, last float64, updated time.Time) (decimal.Decimal, error) {
 	if c == nil {
-		return decimal.Zero, common.ErrNilPointer
+		return decimal.Zero, fmt.Errorf("position controller %w", common.ErrNilPointer)
 	}
-	c.m.Lock()
-	defer c.m.Unlock()
 	if !item.IsFutures() {
 		return decimal.Zero, fmt.Errorf("%v %v %v %w", exch, item, pair, ErrNotFuturesAsset)
 	}
+
+	c.m.Lock()
+	defer c.m.Unlock()
 	exchM, ok := c.positionTrackerControllers[strings.ToLower(exch)]
 	if !ok {
 		return decimal.Zero, fmt.Errorf("%v %v %v %w", exch, item, pair, ErrPositionsNotLoadedForExchange)
@@ -139,7 +140,7 @@ func (c *PositionController) UpdateOpenPositionUnrealisedPNL(exch string, item a
 // exchange, asset, pair that has been stored
 func (c *PositionController) ClearPositionsForExchange(exch string, item asset.Item, pair currency.Pair) error {
 	if c == nil {
-		return common.ErrNilPointer
+		return fmt.Errorf("position controller %w", common.ErrNilPointer)
 	}
 	c.m.Lock()
 	defer c.m.Unlock()
@@ -224,7 +225,7 @@ func (e *MultiPositionTracker) GetPositions() []PositionStats {
 // status and exposure. PNL is calculated separately as it requires mark prices
 func (e *MultiPositionTracker) TrackNewOrder(d *Detail) error {
 	if e == nil {
-		return common.ErrNilPointer
+		return fmt.Errorf("multi-position tracker %w", common.ErrNilPointer)
 	}
 	if d == nil {
 		return ErrSubmissionIsNil
@@ -279,7 +280,7 @@ func (e *MultiPositionTracker) TrackNewOrder(d *Detail) error {
 // until the position(s) are closed
 func (e *MultiPositionTracker) SetupPositionTracker(setup *PositionTrackerSetup) (*PositionTracker, error) {
 	if e == nil {
-		return nil, common.ErrNilPointer
+		return nil, fmt.Errorf("multi-position tracker %w", common.ErrNilPointer)
 	}
 	if e.exchange == "" {
 		return nil, errExchangeNameEmpty
@@ -349,7 +350,7 @@ func (p *PositionTracker) GetStats() PositionStats {
 // and current pricing. Adds the entry to PNL history to track over time
 func (p *PositionTracker) TrackPNLByTime(t time.Time, currentPrice float64) error {
 	if p == nil {
-		return common.ErrNilPointer
+		return fmt.Errorf("position tracker %w", common.ErrNilPointer)
 	}
 	p.m.Lock()
 	defer func() {
@@ -402,7 +403,7 @@ func (p *PositionTracker) GetLatestPNLSnapshot() (PNLResult, error) {
 // futures contract
 func (p *PositionTracker) TrackNewOrder(d *Detail) error {
 	if p == nil {
-		return common.ErrNilPointer
+		return fmt.Errorf("position tracker %w", common.ErrNilPointer)
 	}
 	p.m.Lock()
 	defer p.m.Unlock()

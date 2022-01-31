@@ -739,24 +739,28 @@ func TestGetFills(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	// optional params
-	_, err := f.GetFills(context.Background(), spotPair, asset.Spot, "", time.Time{}, time.Time{})
-	if err != nil {
-		t.Error(err)
+	_, err := f.GetFills(context.Background(),
+		currency.Pair{}, asset.Futures, time.Now().Add(time.Hour*24*365), time.Now())
+	if !errors.Is(err, errStartTimeCannotBeAfterEndTime) {
+		t.Errorf("received '%v' expected '%v'", err, errStartTimeCannotBeAfterEndTime)
 	}
-	_, err = f.GetFills(context.Background(), spotPair, asset.Spot, "", time.Time{}, time.Time{})
-	if err != nil {
-		t.Error(err)
-	}
+
 	_, err = f.GetFills(context.Background(),
-		spotPair, asset.Spot, "", time.Unix(authStartTime, 0), time.Unix(authEndTime, 0))
-	if err != nil {
-		t.Error(err)
+		currency.Pair{}, asset.Futures, time.Time{}, time.Time{})
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
+
 	_, err = f.GetFills(context.Background(),
-		spotPair, asset.Spot, "", time.Unix(authEndTime, 0), time.Unix(authStartTime, 0))
-	if err != errStartTimeCannotBeAfterEndTime {
-		t.Errorf("should have thrown errStartTimeCannotBeAfterEndTime, got %v", err)
+		currency.Pair{}, asset.Futures, time.Now().Add(-time.Hour*24*365), time.Now())
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+
+	_, err = f.GetFills(context.Background(),
+		spotPair, asset.Spot, time.Now().Add(-time.Hour*24*365), time.Now())
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 }
 
@@ -2040,13 +2044,13 @@ func TestLoadCollateralWeight(t *testing.T) {
 		t.Fatal("expected loaded collateral weight")
 	}
 	if cw.Total != 1 {
-		t.Errorf("expected '1', received '%v'", cw.InitialMarginFractionFactor)
+		t.Errorf("expected '1', received '%v'", cw.Total)
 	}
 	if cw.Initial != 2 {
-		t.Errorf("expected '2', received '%v'", cw.Total)
+		t.Errorf("expected '2', received '%v'", cw.Initial)
 	}
 	if cw.InitialMarginFractionFactor != 3 {
-		t.Errorf("expected '3', received '%v'", cw.Total)
+		t.Errorf("expected '3', received '%v'", cw.InitialMarginFractionFactor)
 	}
 }
 

@@ -10,6 +10,7 @@ import (
 	"math"
 	"net/http"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -868,31 +869,59 @@ func (f *FTX) DeleteTriggerOrder(ctx context.Context, orderID string) (string, e
 	return f.deleteOrderByPath(ctx, cancelTriggerOrder+orderID)
 }
 
-// GetFills gets fills' data
-func (f *FTX) GetFills(ctx context.Context, market currency.Pair, item asset.Item, limit string, startTime, endTime time.Time) ([]FillsData, error) {
-	resp := struct {
-		Data []FillsData `json:"result"`
-	}{}
-	params := url.Values{}
-	if !market.IsEmpty() {
-		fp, err := f.FormatExchangeCurrency(market, item)
+// GetFills gets order fills data and ensures that all
+// fills are retrieved from the supplied timeframe
+func (f *FTX) GetFills(ctx context.Context, market currency.Pair, item asset.Item, startTime, endTime time.Time) ([]FillsData, error) {
+	var resp []FillsData
+	var nextEnd = endTime
+	limit := 200
+	for {
+		data := struct {
+			Data []FillsData `json:"result"`
+		}{}
+		params := url.Values{}
+		params.Add("limit", strconv.FormatInt(int64(limit), 10))
+		if !market.IsEmpty() {
+			fp, err := f.FormatExchangeCurrency(market, item)
+			if err != nil {
+				return nil, err
+			}
+			params.Set("market", fp.String())
+		}
+		if !startTime.IsZero() && !endTime.IsZero() {
+			if startTime.After(endTime) {
+				return data.Data, errStartTimeCannotBeAfterEndTime
+			}
+			params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
+			params.Set("end_time", strconv.FormatInt(nextEnd.Unix(), 10))
+		}
+		endpoint := common.EncodeURLValues(getFills, params)
+		err := f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, endpoint, "", nil, &data)
 		if err != nil {
 			return nil, err
 		}
-		params.Set("market", fp.String())
-	}
-	if limit != "" {
-		params.Set("limit", limit)
-	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		if startTime.After(endTime) {
-			return resp.Data, errStartTimeCannotBeAfterEndTime
+		if len(data.Data) == 0 ||
+			data.Data[len(data.Data)-1].Time.Equal(nextEnd) {
+			break
 		}
-		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
-		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
+	data:
+		for i := range data.Data {
+			for j := range resp {
+				if resp[j].ID == data.Data[i].ID {
+					continue data
+				}
+			}
+			resp = append(resp, data.Data[i])
+		}
+		if len(data.Data) < limit {
+			break
+		}
+		nextEnd = data.Data[len(data.Data)-1].Time
 	}
-	endpoint := common.EncodeURLValues(getFills, params)
-	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, endpoint, "", nil, &resp)
+	sort.Slice(resp, func(i, j int) bool {
+		return resp[i].Time.Before(resp[j].Time)
+	})
+	return resp, nil
 }
 
 // GetFundingPayments gets funding payments

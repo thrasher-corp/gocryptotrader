@@ -1408,8 +1408,7 @@ func (f *FTX) CalculateTotalCollateral(ctx context.Context, subAccount string, c
 					dScaled := decimal.NewFromFloat(scaled)
 					result.TotalCollateral = result.TotalCollateral.Add(dScaled)
 					breakDown := order.CollateralByCurrency{
-						Currency: collateralAssets[x].CollateralCurrency,
-
+						Currency:      collateralAssets[x].CollateralCurrency,
 						OriginalValue: collateralAssets[x].CollateralAmount,
 					}
 					if !collateralAssets[x].CollateralCurrency.Match(currency.USD) {
@@ -1456,7 +1455,7 @@ func (f *FTX) GetFuturesPositions(ctx context.Context, a asset.Item, cp currency
 	if !a.IsFutures() {
 		return nil, fmt.Errorf("%w futures asset type only", common.ErrFunctionNotSupported)
 	}
-	fills, err := f.GetFills(ctx, cp, a, "200", start, end)
+	fills, err := f.GetFills(ctx, cp, a, start, end)
 	if err != nil {
 		return nil, err
 	}
