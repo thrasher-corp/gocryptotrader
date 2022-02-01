@@ -271,30 +271,29 @@ func (i *ItBit) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 		return info, err
 	}
 
-	type balance struct {
-		TotalValue float64
-		Hold       float64
-	}
-
-	var amounts = make(map[string]*balance)
+	var amounts = make(map[string]*account.Balance)
 
 	for x := range wallets {
 		for _, cb := range wallets[x].Balances {
 			if _, ok := amounts[cb.Currency]; !ok {
-				amounts[cb.Currency] = &balance{}
+				amounts[cb.Currency] = &account.Balance{}
 			}
 
-			amounts[cb.Currency].TotalValue += cb.TotalBalance
+			amounts[cb.Currency].Total += cb.TotalBalance
 			amounts[cb.Currency].Hold += cb.TotalBalance - cb.AvailableBalance
+			amounts[cb.Currency].Free += cb.AvailableBalance
+			amounts[cb.Currency].AvailableWithoutBorrow += cb.AvailableBalance
 		}
 	}
 
 	var fullBalance []account.Balance
 	for key := range amounts {
 		fullBalance = append(fullBalance, account.Balance{
-			CurrencyName: currency.NewCode(key),
-			TotalValue:   amounts[key].TotalValue,
-			Hold:         amounts[key].Hold,
+			CurrencyName:           currency.NewCode(key),
+			Total:                  amounts[key].Total,
+			Hold:                   amounts[key].Hold,
+			Free:                   amounts[key].Free,
+			AvailableWithoutBorrow: amounts[key].AvailableWithoutBorrow,
 		})
 	}
 

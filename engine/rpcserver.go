@@ -607,9 +607,12 @@ func createAccountInfoRequest(h account.Holdings) (*gctrpc.GetAccountInfoRespons
 		a.Id = h.Accounts[x].ID
 		for _, y := range h.Accounts[x].Currencies {
 			a.Currencies = append(a.Currencies, &gctrpc.AccountCurrencyInfo{
-				Currency:   y.CurrencyName.String(),
-				Hold:       y.Hold,
-				TotalValue: y.TotalValue,
+				Currency:          y.CurrencyName.String(),
+				TotalValue:        y.Total,
+				Hold:              y.Hold,
+				Free:              y.Free,
+				FreeWithoutBorrow: y.AvailableWithoutBorrow,
+				Borrowed:          y.Borrowed,
 			})
 		}
 		accounts = append(accounts, &a)
@@ -646,7 +649,7 @@ func (s *RPCServer) GetAccountInfoStream(r *gctrpc.GetAccountInfoRequest, stream
 		for y := range initAcc.Accounts[x].Currencies {
 			subAccounts = append(subAccounts, &gctrpc.AccountCurrencyInfo{
 				Currency:   initAcc.Accounts[x].Currencies[y].CurrencyName.String(),
-				TotalValue: initAcc.Accounts[x].Currencies[y].TotalValue,
+				TotalValue: initAcc.Accounts[x].Currencies[y].Total,
 				Hold:       initAcc.Accounts[x].Currencies[y].Hold,
 			})
 		}
@@ -698,7 +701,7 @@ func (s *RPCServer) GetAccountInfoStream(r *gctrpc.GetAccountInfoRequest, stream
 			for y := range acc.Accounts[x].Currencies {
 				subAccounts = append(subAccounts, &gctrpc.AccountCurrencyInfo{
 					Currency:   acc.Accounts[x].Currencies[y].CurrencyName.String(),
-					TotalValue: acc.Accounts[x].Currencies[y].TotalValue,
+					TotalValue: acc.Accounts[x].Currencies[y].Total,
 					Hold:       acc.Accounts[x].Currencies[y].Hold,
 				})
 			}
@@ -4331,7 +4334,7 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 			CalculateOffline:   r.CalculateOffline,
 			CollateralCurrency: acc.Currencies[i].CurrencyName,
 			Asset:              a,
-			CollateralAmount:   decimal.NewFromFloat(acc.Currencies[i].TotalValue),
+			CollateralAmount:   decimal.NewFromFloat(acc.Currencies[i].AvailableWithoutBorrow),
 		}
 		if r.CalculateOffline && !acc.Currencies[i].CurrencyName.Match(currency.USD) {
 			var tick *ticker.Price

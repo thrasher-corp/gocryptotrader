@@ -475,9 +475,14 @@ func (f *FTX) UpdateAccountInfo(ctx context.Context, a asset.Item) (account.Hold
 			// Using AvailableWithoutBorrow allows for a more accurate picture of balance
 			hold := balances[x].Total - balances[x].AvailableWithoutBorrow
 			acc.Currencies = append(acc.Currencies,
-				account.Balance{CurrencyName: c,
-					TotalValue: balances[x].Total,
-					Hold:       hold})
+				account.Balance{
+					CurrencyName:           c,
+					Total:                  balances[x].Total,
+					Hold:                   hold,
+					AvailableWithoutBorrow: balances[x].AvailableWithoutBorrow,
+					Borrowed:               balances[x].SpotBorrow,
+					Free:                   balances[x].Free,
+				})
 		}
 		resp.Accounts = append(resp.Accounts, acc)
 	}
@@ -1332,6 +1337,9 @@ func (f *FTX) ScaleCollateral(ctx context.Context, subAccount string, calc *orde
 		}
 		if calc.USDPrice.IsZero() {
 			return decimal.Zero, fmt.Errorf("%s %s %w to scale collateral", f.Name, calc.CollateralCurrency, order.ErrUSDValueRequired)
+		}
+		if calc.CollateralAmount.IsZero() {
+			return decimal.Zero, nil
 		}
 		collateralWeight, ok := f.collateralWeight[calc.CollateralCurrency.Upper().String()]
 		if !ok {

@@ -379,9 +379,11 @@ func (z *ZB) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (accou
 		}
 
 		balances = append(balances, account.Balance{
-			CurrencyName: currency.NewCode(coins[i].EnName),
-			TotalValue:   hold + avail,
-			Hold:         hold,
+			CurrencyName:           currency.NewCode(coins[i].EnName),
+			Total:                  hold + avail,
+			Hold:                   hold,
+			Free:                   avail,
+			AvailableWithoutBorrow: avail,
 		})
 	}
 

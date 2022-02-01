@@ -435,8 +435,10 @@ func (b *Bitmex) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 		}
 
 		balances = append(balances, account.Balance{
-			CurrencyName: currency.NewCode(wallet.Currency),
-			TotalValue:   wallet.Amount,
+			CurrencyName:           currency.NewCode(wallet.Currency),
+			Total:                  wallet.Amount,
+			Free:                   wallet.Amount,
+			AvailableWithoutBorrow: wallet.Amount,
 		})
 	}
 

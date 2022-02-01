@@ -373,10 +373,17 @@ func (b *Bithumb) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 				key)
 		}
 
+		avail, ok := bal.Available[key]
+		if !ok {
+			avail = totalAmount - hold
+		}
+
 		exchangeBalances = append(exchangeBalances, account.Balance{
-			CurrencyName: currency.NewCode(key),
-			TotalValue:   totalAmount,
-			Hold:         hold,
+			CurrencyName:           currency.NewCode(key),
+			Total:                  totalAmount,
+			Hold:                   hold,
+			Free:                   avail,
+			AvailableWithoutBorrow: avail,
 		})
 	}
 

@@ -3394,6 +3394,18 @@
         "hold": {
           "type": "number",
           "format": "double"
+        },
+        "free": {
+          "type": "number",
+          "format": "double"
+        },
+        "freeWithoutBorrow": {
+          "type": "number",
+          "format": "double"
+        },
+        "borrowed": {
+          "type": "number",
+          "format": "double"
         }
       }
     },

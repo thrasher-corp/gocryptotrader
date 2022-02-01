@@ -175,6 +175,9 @@ message AccountCurrencyInfo {
     string currency = 1;
     double total_value = 2;
     double hold = 3;
+    double free = 4;
+    double freeWithoutBorrow  = 5;
+    double borrowed = 6;
 }
 
 message GetAccountInfoResponse {
@@ -1030,50 +1033,50 @@ message GetFuturesPositionsRequest {
     string	start_date = 4;
     string	end_date = 5;
     string status = 6;
-    int64 positionLimit = 7;
+    int64 position_limit = 7;
     bool verbose = 8;
     bool overwrite = 9;
 }
 
 message GetFuturesPositionsResponse {
-    int64 totalOrders = 1;
-    string subAccount = 2;
-    string totalRealisedPNL = 3;
-    string totalUnrealisedPNL = 4;
+    int64 total_orders = 1;
+    string sub_account = 2;
+    string total_realisedPNL = 3;
+    string total_unrealisedPNL = 4;
     string totalPNL = 5;
     repeated FuturePosition positions = 6;
 }
 
 message FuturePosition {
     string status = 1;
-    string currentDirection = 2;
+    string current_direction = 2;
     string unrealisedPNL = 3;
     string realisedPNL = 4;
-    string openingDate = 5;
-    string closingDate = 6;
+    string opening_date = 5;
+    string closing_date = 6;
     repeated OrderDetails orders = 7;
 }
 
 message GetCollateralRequest {
     string exchange =1;
     string asset = 2;
-    string subAccount = 3;
-    bool includeBreakdown = 4;
-    bool calculateOffline = 5;
-    bool includeZeroValues = 6;
+    string sub_account = 3;
+    bool include_breakdown = 4;
+    bool calculate_offline = 5;
+    bool include_zero_values = 6;
 }
 
 message GetCollateralResponse {
-    string subAccount = 1;
-    string totalCollateral = 2;
-    repeated CollateralForCurrency currencyBreakdown = 3;
+    string sub_account = 1;
+    string total_collateral = 2;
+    repeated CollateralForCurrency currency_breakdown = 3;
 }
 
 message CollateralForCurrency {
     string currency = 1;
-    string originalAmount = 2;
-    string scaledCollateral = 3;
-    string scaledToCurrency = 4;
+    string original_amount = 2;
+    string scaled_collateral = 3;
+    string scaled_to_currency = 4;
     string error = 5;
 }
 

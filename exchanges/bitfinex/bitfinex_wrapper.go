@@ -499,9 +499,11 @@ func (b *Bitfinex) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 			if Accounts[i].ID == accountBalance[x].Type {
 				Accounts[i].Currencies = append(Accounts[i].Currencies,
 					account.Balance{
-						CurrencyName: currency.NewCode(accountBalance[x].Currency),
-						TotalValue:   accountBalance[x].Amount,
-						Hold:         accountBalance[x].Amount - accountBalance[x].Available,
+						CurrencyName:           currency.NewCode(accountBalance[x].Currency),
+						Total:                  accountBalance[x].Amount,
+						Hold:                   accountBalance[x].Amount - accountBalance[x].Available,
+						Free:                   accountBalance[x].Available,
+						AvailableWithoutBorrow: accountBalance[x].Available,
 					})
 			}
 		}

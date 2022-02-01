@@ -357,8 +357,10 @@ func (e *EXMO) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (acc
 			if z == x {
 				avail, _ := strconv.ParseFloat(y, 64)
 				reserved, _ := strconv.ParseFloat(w, 64)
-				exchangeCurrency.TotalValue = avail + reserved
+				exchangeCurrency.Total = avail + reserved
 				exchangeCurrency.Hold = reserved
+				exchangeCurrency.Free = avail
+				exchangeCurrency.AvailableWithoutBorrow = avail
 			}
 		}
 		currencies = append(currencies, exchangeCurrency)
