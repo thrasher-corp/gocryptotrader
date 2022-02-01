@@ -1101,9 +1101,6 @@ func (by *Bybit) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (by *Bybit) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
-	// if err := getOrdersRequest.Validate(); err != nil {
-	//	return nil, err
-	// }
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -1118,9 +1115,109 @@ func (by *Bybit) ValidateCredentials(assetType asset.Item) error {
 	return by.CheckTransientError(err)
 }
 
+// FormatExchangeKlineInterval returns Interval to exchange formatted string
+func (by *Bybit) FormatExchangeKlineInterval(interval kline.Interval) string {
+	switch interval {
+	case kline.OneMin:
+		return "1m"
+	case kline.ThreeMin:
+		return "3m"
+	case kline.FiveMin:
+		return "5m"
+	case kline.FifteenMin:
+		return "15m"
+	case kline.ThirtyMin:
+		return "30m"
+	case kline.OneHour:
+		return "1h"
+	case kline.TwoHour:
+		return "2h"
+	case kline.FourHour:
+		return "4h"
+	case kline.SixHour:
+		return "4h"
+	case kline.TwelveHour:
+		return "12h"
+	case kline.OneDay:
+		return "1d"
+	case kline.OneWeek:
+		return "1w"
+	case kline.OneMonth:
+		return "1M"
+	default:
+		return interval.Short()
+	}
+}
+
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (by *Bybit) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	return kline.Item{}, common.ErrNotYetImplemented
+	if err := by.ValidateKline(pair, a, interval); err != nil {
+		return kline.Item{}, err
+	}
+
+	klineItem := kline.Item{
+		Exchange: by.Name,
+		Pair:     pair,
+		Asset:    a,
+		Interval: interval,
+	}
+	switch a {
+	case asset.Spot:
+		candles, err := by.GetKlines(pair.String(), by.FormatExchangeKlineInterval(interval), int64(by.Features.Enabled.Kline.ResultLimit), start, end)
+		if err != nil {
+			return klineItem, err
+		}
+
+		for x := range candles {
+			klineItem.Candles = append(klineItem.Candles, kline.Candle{
+				Time:   candles[x].StartTime,
+				Open:   candles[x].Open,
+				High:   candles[x].High,
+				Low:    candles[x].Low,
+				Close:  candles[x].Close,
+				Volume: candles[x].Volume,
+			})
+		}
+	case asset.CoinMarginedFutures, asset.Futures:
+		candles, err := by.GetFuturesKlineData(pair, by.FormatExchangeKlineInterval(interval), int64(by.Features.Enabled.Kline.ResultLimit), start)
+		if err != nil {
+			return klineItem, err
+		}
+
+		for x := range candles {
+			klineItem.Candles = append(klineItem.Candles, kline.Candle{
+				Time:   time.Unix(candles[x].OpenTime, 0),
+				Open:   candles[x].Open,
+				High:   candles[x].High,
+				Low:    candles[x].Low,
+				Close:  candles[x].Close,
+				Volume: candles[x].Volume,
+			})
+		}
+	case asset.USDTMarginedFutures:
+		candles, err := by.GetUSDTFuturesKlineData(pair, by.FormatExchangeKlineInterval(interval), int64(by.Features.Enabled.Kline.ResultLimit), start)
+		if err != nil {
+			return klineItem, err
+		}
+
+		for x := range candles {
+			klineItem.Candles = append(klineItem.Candles, kline.Candle{
+				Time:   time.Unix(candles[x].OpenTime, 0),
+				Open:   candles[x].Open,
+				High:   candles[x].High,
+				Low:    candles[x].Low,
+				Close:  candles[x].Close,
+				Volume: candles[x].Volume,
+			})
+		}
+
+	default:
+		return klineItem, fmt.Errorf("assetType not supported")
+	}
+
+	klineItem.RemoveOutsideRange(start, end)
+	klineItem.SortCandlesByTimestamp(false)
+	return klineItem, nil
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
