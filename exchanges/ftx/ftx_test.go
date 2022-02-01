@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -1188,9 +1189,15 @@ func TestGetDepositAddress(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := f.GetDepositAddress(context.Background(), currency.NewCode("FTT"), "", "")
+	_, err := f.GetDepositAddress(context.Background(), currency.FTT, "", "")
 	if err != nil {
 		t.Error(err)
+	}
+
+	// Below is a tokenised stock which has no deposit address for now.
+	_, err = f.GetDepositAddress(context.Background(), currency.TLRY, "", "")
+	if !errors.Is(err, deposit.ErrUnsupportedOnExchange) {
+		t.Errorf("received: '%v' but expected: '%v'", err, deposit.ErrUnsupportedOnExchange)
 	}
 }
 

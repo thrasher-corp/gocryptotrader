@@ -2990,6 +2990,7 @@ var (
 	USDFL            = NewCode("USDFL")
 	FLUSD            = NewCode("FLUSD")
 	DUSD             = NewCode("DUSD")
+	TLRY             = NewCode("TLRY")
 
 	stables = Currencies{
 		USDT,

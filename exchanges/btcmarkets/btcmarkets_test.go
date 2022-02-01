@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
@@ -351,18 +352,24 @@ func TestGetTransfer(t *testing.T) {
 	}
 }
 
-func TestFetchDepositAddress(t *testing.T) {
+func TestGetDepositAddress(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := b.FetchDepositAddress(context.Background(), currency.XRP, -1, -1, -1)
+	_, err := b.GetDepositAddress(context.Background(), currency.XRP, "", "")
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.FetchDepositAddress(context.Background(), currency.NewCode("MOOCOW"), -1, -1, -1)
-	if err != nil {
+	_, err = b.GetDepositAddress(context.Background(), currency.NewCode("MOOCOW"), "", "")
+	if err == nil {
 		t.Error("expected an error due to invalid assetID")
+	}
+	// fiat currency returns deposit address is being created when there is no
+	// deposit address.
+	_, err = b.GetDepositAddress(context.Background(), currency.USD, "", "")
+	if !errors.Is(err, deposit.ErrAddressBeingCreated) {
+		t.Errorf("received: '%v' bu expected: '%v'", err, deposit.ErrAddressBeingCreated)
 	}
 }
 

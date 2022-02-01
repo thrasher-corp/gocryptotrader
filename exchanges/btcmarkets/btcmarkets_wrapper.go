@@ -668,9 +668,12 @@ func (b *BTCMarkets) GetOrderInfo(ctx context.Context, orderID string, pair curr
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (b *BTCMarkets) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, accountID, _ string) (*deposit.Address, error) {
+func (b *BTCMarkets) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _, _ string) (*deposit.Address, error) {
 	depositAddr, err := b.FetchDepositAddress(ctx, cryptocurrency, -1, -1, -1)
 	if err != nil {
+		if strings.Contains(err.Error(), "DepositAddressBeingCreated") {
+			return nil, deposit.ErrAddressBeingCreated
+		}
 		return nil, err
 	}
 	return &deposit.Address{

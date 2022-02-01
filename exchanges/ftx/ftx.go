@@ -19,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
@@ -537,7 +538,14 @@ func (f *FTX) FetchDepositAddress(ctx context.Context, coin currency.Code, chain
 		vals.Set("method", strings.ToLower(chain))
 	}
 	path := common.EncodeURLValues(getDepositAddress+coin.Upper().String(), vals)
-	return &resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp)
+	err := f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp)
+	if err != nil {
+		if !strings.Contains(err.Error(), "cannot unmarshal bool into Go struct field .result of type") {
+			return nil, err
+		}
+		return nil, fmt.Errorf("%s %s %w", coin, chain, deposit.ErrUnsupportedOnExchange)
+	}
+	return &resp.Data, nil
 }
 
 // FetchDepositHistory gets deposit history

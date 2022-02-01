@@ -1,10 +1,13 @@
 package engine
 
 import (
+	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 )
 
@@ -272,5 +275,65 @@ func TestGetDepositAddressesByExchange(t *testing.T) {
 	_, err = m.GetDepositAddressesByExchange(bitStamp)
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v, expected %v", err, nil)
+	}
+}
+
+type FetchDepositAddressTester struct {
+	exchange.IBotExchange
+	RetryUntilFail bool
+	RandomError    bool
+}
+
+func (f FetchDepositAddressTester) GetDepositAddress(context.Context, currency.Code, string, string) (*deposit.Address, error) {
+	if f.RetryUntilFail {
+		return nil, deposit.ErrAddressBeingCreated
+	}
+	if f.RandomError {
+		return nil, errTestError
+	}
+	return &deposit.Address{Address: "OH WOOOOOOW"}, nil
+}
+
+func (f FetchDepositAddressTester) GetName() string {
+	return "Super duper exchange"
+}
+
+func TestFetchDepositAddressWithRetry(t *testing.T) {
+	t.Parallel()
+	testExchange := &FetchDepositAddressTester{RetryUntilFail: true}
+	_, err := FetchDepositAddressWithRetry(context.Background(),
+		testExchange,
+		currency.BTC,
+		"2CHAINS",
+		0,
+		time.Nanosecond)
+	if !errors.Is(err, errDepositAddressNotGenerated) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errDepositAddressNotGenerated)
+	}
+
+	testExchange = &FetchDepositAddressTester{RandomError: true}
+	_, err = FetchDepositAddressWithRetry(context.Background(),
+		testExchange,
+		currency.BTC,
+		"2CHAINS",
+		1,
+		time.Nanosecond)
+	if !errors.Is(err, errTestError) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errTestError)
+	}
+
+	testExchange = &FetchDepositAddressTester{}
+	dep, err := FetchDepositAddressWithRetry(context.Background(),
+		testExchange,
+		currency.BTC,
+		"2CHAINS",
+		1,
+		time.Nanosecond)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if dep.Address != "OH WOOOOOOW" {
+		t.Fatal("unexpected address")
 	}
 }

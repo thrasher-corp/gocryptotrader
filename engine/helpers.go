@@ -673,7 +673,8 @@ func (bot *Engine) GetExchangeCryptocurrencyDepositAddress(ctx context.Context, 
 	return exch.GetDepositAddress(ctx, item, accountID, chain)
 }
 
-// GetAllExchangeCryptocurrencyDepositAddresses obtains an exchanges deposit cryptocurrency list
+// GetAllExchangeCryptocurrencyDepositAddresses obtains an exchanges deposit
+// cryptocurrency list.
 func (bot *Engine) GetAllExchangeCryptocurrencyDepositAddresses() map[string]map[currency.Code][]deposit.Address {
 	var wg sync.WaitGroup
 	result := make(map[string]map[currency.Code][]deposit.Address)
@@ -714,7 +715,7 @@ func (bot *Engine) GetAllExchangeCryptocurrencyDepositAddresses() map[string]map
 					exch,
 					cryptos[x],
 					requiresChainSet)
-				if err != nil {
+				if err != nil && !errors.Is(err, deposit.ErrUnsupportedOnExchange) {
 					log.Errorf(log.ExchangeSys,
 						"%s failed to get cryptocurrency deposit addresses. Err: %s\n",
 						exch.GetName(), err)
@@ -749,7 +750,12 @@ func (bot *Engine) GetDepositAddresses(ctx context.Context, exch exchange.IBotEx
 			err)
 	}
 	for z := range availChains {
-		depositAddr, err := exch.GetDepositAddress(ctx, crypto, "", availChains[z])
+		depositAddr, err := FetchDepositAddressWithRetry(ctx,
+			exch,
+			crypto,
+			availChains[z],
+			depositAddressDefaultMaxRetries,
+			depositAddressDefaultWait)
 		if err != nil {
 			return nil, fmt.Errorf("%s failed to get cryptocurrency deposit address for %s [chain %s]. Err: %w",
 				exch.GetName(),
@@ -764,7 +770,12 @@ func (bot *Engine) GetDepositAddresses(ctx context.Context, exch exchange.IBotEx
 	// store the default non-chain specified address for a specified crypto
 	chainContainsItself := common.StringDataCompareInsensitive(availChains, crypto.String())
 	if !chainContainsItself && !requiresChainSet {
-		depositAddr, err := exch.GetDepositAddress(ctx, crypto, "", "")
+		depositAddr, err := FetchDepositAddressWithRetry(ctx,
+			exch,
+			crypto,
+			"",
+			depositAddressDefaultMaxRetries,
+			depositAddressDefaultWait)
 		if err != nil {
 			return nil, fmt.Errorf("%s failed to get cryptocurrency deposit address for %s. Err: %w",
 				exch.GetName(),
