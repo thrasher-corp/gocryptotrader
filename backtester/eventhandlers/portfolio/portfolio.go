@@ -3,6 +3,7 @@ package portfolio
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -372,30 +373,25 @@ func (p *Portfolio) GetFee(exchangeName string, a asset.Item, cp currency.Pair) 
 }
 
 // UpdateHoldings updates the portfolio holdings for the data event
-func (p *Portfolio) UpdateHoldings(ev common.DataEventHandler, funds funding.IFundReleaser) error {
-	if ev == nil {
+func (p *Portfolio) UpdateHoldings(e common.DataEventHandler, funds funding.IFundReleaser) error {
+	if e == nil {
 		return common.ErrNilEvent
 	}
 	if funds == nil {
 		return funding.ErrFundsNotFound
 	}
-	lookup, ok := p.exchangeAssetPairSettings[ev.GetExchange()][ev.GetAssetType()][ev.Pair()]
-	if !ok {
-		return fmt.Errorf("%w for %v %v %v",
-			errNoPortfolioSettings,
-			ev.GetExchange(),
-			ev.GetAssetType(),
-			ev.Pair())
+	settings, err := p.getSettings(e.GetExchange(), e.GetAssetType(), e.Pair())
+	if err != nil {
+		return fmt.Errorf("%v %v %v %w", e.GetExchange(), e.GetAssetType(), e.Pair(), err)
 	}
-	h := lookup.GetLatestHoldings()
-	var err error
+	h := settings.GetLatestHoldings()
 	if h.Timestamp.IsZero() {
-		h, err = holdings.Create(ev, funds)
+		h, err = holdings.Create(e, funds)
 		if err != nil {
 			return err
 		}
 	}
-	h.UpdateValue(ev)
+	h.UpdateValue(e)
 	err = p.setHoldingsForOffset(&h, true)
 	if errors.Is(err, errNoHoldings) {
 		err = p.setHoldingsForOffset(&h, false)
@@ -465,13 +461,9 @@ func (p *Portfolio) GetPositions(e common.EventHandler) ([]gctorder.PositionStat
 	if !e.GetAssetType().IsFutures() {
 		return nil, errors.New("not a future")
 	}
-	settings, ok := p.exchangeAssetPairSettings[e.GetExchange()][e.GetAssetType()][e.Pair()]
-	if !ok {
-		return nil, fmt.Errorf("%v %v %v %w",
-			e.GetExchange(),
-			e.GetAssetType(),
-			e.Pair(),
-			errNoPortfolioSettings)
+	settings, err := p.getSettings(e.GetExchange(), e.GetAssetType(), e.Pair())
+	if err != nil {
+		return nil, fmt.Errorf("%v %v %v %w", e.GetExchange(), e.GetAssetType(), e.Pair(), err)
 	}
 	if settings.FuturesTracker == nil {
 		return nil, errors.New("no futures tracker")
@@ -481,21 +473,38 @@ func (p *Portfolio) GetPositions(e common.EventHandler) ([]gctorder.PositionStat
 
 // UpdateOpenPositionPNL will analyse any futures orders that have been placed over the backtesting run
 // that are not closed and calculate their PNL
-func (p *Portfolio) UpdateOpenPositionPNL(e common.DataEventHandler) error {
+func (p *Portfolio) UpdateOpenPositionPNL(e common.EventHandler, closePrice decimal.Decimal) error {
 	if !e.GetAssetType().IsFutures() {
 		return fmt.Errorf("%s %w", e.GetAssetType(), gctorder.ErrNotFutureAsset)
 	}
-	settings, ok := p.exchangeAssetPairSettings[e.GetExchange()][e.GetAssetType()][e.Pair()]
-	if !ok {
-		return errNoPortfolioSettings
+	settings, err := p.getSettings(e.GetExchange(), e.GetAssetType(), e.Pair())
+	if err != nil {
+		return fmt.Errorf("%v %v %v %w", e.GetExchange(), e.GetAssetType(), e.Pair(), err)
 	}
 
-	_, err := settings.FuturesTracker.UpdateOpenPositionUnrealisedPNL(e.GetClosePrice().InexactFloat64(), e.GetTime())
+	_, err = settings.FuturesTracker.UpdateOpenPositionUnrealisedPNL(closePrice.InexactFloat64(), e.GetTime())
 	if err != nil && !errors.Is(err, gctorder.ErrPositionClosed) {
 		return err
 	}
 
 	return nil
+}
+
+// TrackFuturesOrder updates the futures tracker with a new order
+// from a fill event
+func (p *Portfolio) TrackFuturesOrder(detail *gctorder.Detail) error {
+	if detail == nil {
+		return gctorder.ErrSubmissionIsNil
+	}
+	if !detail.AssetType.IsFutures() {
+		return fmt.Errorf("order '%v' %w", detail.ID, gctorder.ErrNotFuturesAsset)
+	}
+	settings, err := p.getSettings(detail.Exchange, detail.AssetType, detail.Pair)
+	if err != nil {
+		return fmt.Errorf("%v %v %v %w", detail.Exchange, detail.AssetType, detail.Pair, err)
+	}
+
+	return settings.FuturesTracker.TrackNewOrder(detail)
 }
 
 // GetLatestPNLForEvent takes in an event and returns the latest PNL data
@@ -504,9 +513,9 @@ func (p *Portfolio) GetLatestPNLForEvent(e common.EventHandler) (*PNLSummary, er
 	if !e.GetAssetType().IsFutures() {
 		return nil, errors.New("not a future")
 	}
-	settings, ok := p.exchangeAssetPairSettings[e.GetExchange()][e.GetAssetType()][e.Pair()]
-	if !ok {
-		return nil, fmt.Errorf("%v %v %v %w", e.GetExchange(), e.GetAssetType(), e.Pair(), errNoPortfolioSettings)
+	settings, err := p.getSettings(e.GetExchange(), e.GetAssetType(), e.Pair())
+	if err != nil {
+		return nil, fmt.Errorf("%v %v %v %w", e.GetExchange(), e.GetAssetType(), e.Pair(), err)
 	}
 
 	if settings.FuturesTracker == nil {
@@ -528,6 +537,23 @@ func (p *Portfolio) GetLatestPNLForEvent(e common.EventHandler) (*PNLSummary, er
 	}
 	response.PNL = pnlHistory[len(pnlHistory)-1]
 	return response, nil
+}
+
+func (p *Portfolio) getSettings(exch string, item asset.Item, pair currency.Pair) (*Settings, error) {
+	exchMap, ok := p.exchangeAssetPairSettings[strings.ToLower(exch)]
+	if !ok {
+		return nil, errExchangeUnset
+	}
+	itemMap, ok := exchMap[item]
+	if !ok {
+		return nil, errAssetUnset
+	}
+	pairMap, ok := itemMap[pair]
+	if !ok {
+		return nil, errCurrencyPairUnset
+	}
+
+	return pairMap, nil
 }
 
 // GetLatestPNLs returns all PNL details in one array

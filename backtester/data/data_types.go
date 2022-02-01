@@ -50,6 +50,7 @@ type Streamer interface {
 	History() []common.DataEventHandler
 	Latest() common.DataEventHandler
 	List() []common.DataEventHandler
+	IsLastEvent() bool
 	Offset() int
 
 	StreamOpen() []decimal.Decimal

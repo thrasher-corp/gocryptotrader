@@ -110,6 +110,10 @@ func (b *Base) List() []common.DataEventHandler {
 	return b.stream[b.offset:]
 }
 
+func (b *Base) IsLastEvent() bool {
+	return b.latest.GetOffset() == int64(len(b.stream))
+}
+
 // SortStream sorts the stream by timestamp
 func (b *Base) SortStream() {
 	sort.Slice(b.stream, func(i, j int) bool {

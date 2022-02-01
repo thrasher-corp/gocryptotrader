@@ -25,6 +25,11 @@ const (
 	CouldNotSell  order.Side = "COULD NOT SELL"
 	CouldNotShort order.Side = "COULD NOT SHORT"
 	CouldNotLong  order.Side = "COULD NOT LONG"
+	// ClosePosition is used to signal a complete closure
+	// of any exposure of a position
+	// This will handle any amount of exposure, no need to calculate how
+	// much to close
+	ClosePosition order.Side = "CLOSE POSITION"
 
 	CouldNotCloseShort order.Side = "COULD NOT CLOSE SHORT"
 	CouldNotCloseLong  order.Side = "COULD NOT CLOSE LONG"

@@ -229,7 +229,7 @@ func (bt *BackTest) updateStatsForDataEvent(ev common.DataEventHandler, funds fu
 			return err
 		}
 
-		err = bt.Portfolio.UpdateOpenPositionPNL(ev)
+		err = bt.Portfolio.UpdateOpenPositionPNL(ev, ev.GetClosePrice())
 		if err != nil {
 			if errors.Is(err, gctorder.ErrPositionLiquidated) {
 				cr.Liquidate()
@@ -322,19 +322,28 @@ func (bt *BackTest) processFillEvent(ev fill.Event, funds funding.IFundReleaser)
 	if !fde.IsNil() {
 		// some events can only be triggered on a successful fill event
 		bt.EventQueue.AppendEvent(fde)
+	}
+	if ev.GetAssetType().IsFutures() {
 		// update collateral holdings
 		exch, err := bt.exchangeManager.GetExchangeByName(ev.GetExchange())
 		if err != nil {
 			log.Errorf(log.BackTester, "GetExchangeByName %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 			return
 		}
+
 		curr, err := exch.GetCollateralCurrencyForContract(ev.GetAssetType(), ev.Pair())
 		if err != nil {
 			log.Errorf(log.BackTester, "GetCollateralCurrencyForContract %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 			return
 		}
+		err = bt.Portfolio.TrackFuturesOrder(ev.GetOrder())
+		if err != nil && !errors.Is(err, gctorder.ErrSubmissionIsNil) {
+			log.Errorf(log.BackTester, "TrackFuturesOrder %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
+			return
+		}
+		err = bt.Portfolio.UpdateOpenPositionPNL(ev, ev.GetClosePrice())
 
-		err = bt.Funding.UpdateCollateral(ev.GetExchange(), fde.GetAssetType(), curr)
+		err = bt.Funding.UpdateCollateral(ev.GetExchange(), ev.GetAssetType(), curr)
 		if err != nil {
 			log.Errorf(log.BackTester, "UpdateCollateral %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 		}

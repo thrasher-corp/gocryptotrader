@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
@@ -100,15 +101,17 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundTransf
 		if err != nil {
 			return nil, err
 		}
+		spotSignal, err := s.GetBaseData(v.spotSignal)
+		if err != nil {
+			return nil, err
+		}
+		futuresSignal, err := s.GetBaseData(v.futureSignal)
+		if err != nil {
+			return nil, err
+		}
 		if len(pos) == 0 || pos[len(pos)-1].Status == order.Closed {
-			spotSignal, err := s.GetBaseData(v.spotSignal)
-			if err != nil {
-				return nil, err
-			}
-			futuresSignal, err := s.GetBaseData(v.futureSignal)
-			if err != nil {
-				return nil, err
-			}
+			// check to see if order is appropriate to action
+
 			spotSignal.SetPrice(v.spotSignal.Latest().GetClosePrice())
 			spotSignal.AppendReason(fmt.Sprintf("signalling purchase of %v", spotSignal.Pair()))
 			// first the spot purchase
@@ -127,6 +130,14 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundTransf
 		} else {
 			// analyse the conditions of the order to monitor whether
 			// its worthwhile to ever close the short
+			if v.futureSignal.IsLastEvent() {
+				futuresSignal.SetDirection(common.ClosePosition)
+				futuresSignal.AppendReason("closing position on last event")
+				futuresSignal.SetDirection(order.Long)
+				response = append(response, &futuresSignal)
+			}
+			// determine how close future price is to spot price
+			// compare it to see if it meets the % value threshold and close position
 		}
 	}
 	return response, nil
