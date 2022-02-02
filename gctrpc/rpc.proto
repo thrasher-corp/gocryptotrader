@@ -1072,9 +1072,10 @@ message GetCollateralResponse {
     string total_collateral = 3;
     string maintenance_collateral = 4;
     string free_collateral = 5;
-    string locked_collateral = 6;
-    CollateralLockedBreakdown locked_breakdown = 7;
-    repeated CollateralForCurrency currency_breakdown = 8;
+    string unrealisedPNL = 6;
+    string locked_collateral = 7;
+    CollateralLockedBreakdown locked_breakdown = 8;
+    repeated CollateralForCurrency currency_breakdown = 9;
 }
 
 message CollateralForCurrency {
@@ -1085,8 +1086,9 @@ message CollateralForCurrency {
     string scaled_maintenance = 5;
     string scaled_free = 6;
     string scaled_locked = 7;
-    CollateralLockedBreakdown locked_breakdown = 8;
-    string error = 9;
+    string unrealisedPNL = 8;
+    CollateralLockedBreakdown locked_breakdown = 9;
+    string error = 10;
 }
 
 message CollateralLockedBreakdown {

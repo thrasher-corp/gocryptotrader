@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
@@ -1473,13 +1472,13 @@ func (b *Base) CalculatePNL(context.Context, *order.PNLCalculatorRequest) (*orde
 
 // ScaleCollateral is an overridable function to determine how much
 // collateral is usable in futures positions
-func (b *Base) ScaleCollateral(context.Context, string, *order.CollateralCalculator) (decimal.Decimal, error) {
-	return decimal.Zero, common.ErrNotYetImplemented
+func (b *Base) ScaleCollateral(context.Context, string, *order.CollateralCalculator) (*order.CollateralByCurrency, error) {
+	return nil, common.ErrNotYetImplemented
 }
 
 // CalculateTotalCollateral takes in n collateral calculators to determine an overall
 // standing in a singular currency. See FTX's implementation
-func (b *Base) CalculateTotalCollateral(ctx context.Context, subAccount string, calculateOffline bool, calculators []order.CollateralCalculator) (*order.TotalCollateralResponse, error) {
+func (b *Base) CalculateTotalCollateral(ctx context.Context, calculator *order.TotalCollateralCalculator) (*order.TotalCollateralResponse, error) {
 	return nil, common.ErrNotYetImplemented
 }
 

@@ -4329,14 +4329,19 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 			return nil, fmt.Errorf("GetCollateral offline calculation error via GetAvailablePairs %s %s", exch.GetName(), err)
 		}
 	}
+
 	for i := range acc.Currencies {
+		total := decimal.NewFromFloat(acc.Currencies[i].Total)
+		free := decimal.NewFromFloat(acc.Currencies[i].AvailableWithoutBorrow)
 		cal := order.CollateralCalculator{
 			CalculateOffline:   r.CalculateOffline,
 			CollateralCurrency: acc.Currencies[i].CurrencyName,
 			Asset:              a,
-			CollateralAmount:   decimal.NewFromFloat(acc.Currencies[i].AvailableWithoutBorrow),
+			FreeCollateral:     free,
+			LockedCollateral:   total.Sub(free),
 		}
-		if r.CalculateOffline && !acc.Currencies[i].CurrencyName.Match(currency.USD) {
+		if r.CalculateOffline &&
+			!acc.Currencies[i].CurrencyName.Match(currency.USD) {
 			var tick *ticker.Price
 			tickerCurr := currency.NewPair(acc.Currencies[i].CurrencyName, currency.USD)
 			if !spotPairs.Contains(tickerCurr, true) {
@@ -4355,8 +4360,14 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 		}
 		calculators = append(calculators, cal)
 	}
+	calc := &order.TotalCollateralCalculator{
+		SubAccount:       r.SubAccount,
+		CollateralAssets: calculators,
+		CalculateOffline: r.CalculateOffline,
+		FetchPositions:   true,
+	}
 
-	collateral, err := exch.CalculateTotalCollateral(ctx, r.SubAccount, r.CalculateOffline, calculators)
+	collateral, err := exch.CalculateTotalCollateral(ctx, calc)
 	if err != nil {
 		return nil, err
 	}
@@ -4368,6 +4379,9 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 		MaintenanceCollateral: collateral.MaintenanceCollateral.String(),
 		FreeCollateral:        collateral.FreeCollateral.String(),
 		LockedCollateral:      collateral.LockedCollateral.String(),
+	}
+	if !collateral.UnrealisedPNL.IsZero() {
+		result.UnrealisedPNL = collateral.UnrealisedPNL.String()
 	}
 	if collateral.LockedBreakdown != nil {
 		result.LockedBreakdown = &gctrpc.CollateralLockedBreakdown{}
@@ -4403,6 +4417,9 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 				ScaledMaintenance: collateral.BreakdownByCurrency[i].ScaledMaintenance.String(),
 				ScaledFree:        collateral.BreakdownByCurrency[i].ScaledFree.String(),
 				ScaledLocked:      collateral.BreakdownByCurrency[i].ScaledTotalLocked.String(),
+			}
+			if !collateral.BreakdownByCurrency[i].UnrealisedPNL.IsZero() {
+				cb.UnrealisedPNL = collateral.BreakdownByCurrency[i].UnrealisedPNL.String()
 			}
 			if collateral.BreakdownByCurrency[i].ScaledLockedBreakdown != nil {
 				cb.LockedBreakdown = &gctrpc.CollateralLockedBreakdown{}

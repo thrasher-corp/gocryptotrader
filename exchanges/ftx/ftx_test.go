@@ -1761,14 +1761,14 @@ func TestScaleCollateral(t *testing.T) {
 			Asset:              asset.Spot,
 			Side:               order.Buy,
 			CalculateOffline:   true,
-			CollateralAmount:   decimal.NewFromInt(100000),
+			FreeCollateral:     decimal.NewFromInt(100000),
 			USDPrice:           decimal.NewFromFloat(1.0003),
 		})
 	if err != nil {
 		t.Error(err)
 	}
 	expectedUSDValue := decimal.NewFromFloat(95028.5)
-	if !result.Equal(expectedUSDValue) {
+	if !result.ScaledTotal.Equal(expectedUSDValue) {
 		t.Errorf("received %v expected %v", result, expectedUSDValue)
 	}
 
@@ -1800,7 +1800,7 @@ func TestScaleCollateral(t *testing.T) {
 			if err != nil {
 				t.Error(err)
 			}
-			var scaled decimal.Decimal
+			var scaled *order.CollateralByCurrency
 			scaled, err = f.ScaleCollateral(
 				context.Background(),
 				"",
@@ -1808,7 +1808,7 @@ func TestScaleCollateral(t *testing.T) {
 					CollateralCurrency: currency.NewCode(coin),
 					Asset:              asset.Spot,
 					Side:               order.Buy,
-					CollateralAmount:   decimal.NewFromFloat(v[v2].Total),
+					FreeCollateral:     decimal.NewFromFloat(v[v2].Total),
 					USDPrice:           decimal.NewFromFloat(tick.Price),
 					CalculateOffline:   true,
 				})
@@ -1819,7 +1819,7 @@ func TestScaleCollateral(t *testing.T) {
 				}
 				t.Error(err)
 			}
-			localScaling += scaled.InexactFloat64()
+			localScaling += scaled.ScaledTotal.InexactFloat64()
 			providedUSDValue += v[v2].USDValue
 
 			scaled, err = f.ScaleCollateral(context.Background(),
@@ -1828,7 +1828,7 @@ func TestScaleCollateral(t *testing.T) {
 					CollateralCurrency: currency.NewCode(coin),
 					Asset:              asset.Spot,
 					Side:               order.Buy,
-					CollateralAmount:   decimal.NewFromFloat(v[v2].Total),
+					FreeCollateral:     decimal.NewFromFloat(v[v2].Total),
 					USDPrice:           decimal.NewFromFloat(tick.Price),
 					IsLiquidating:      true,
 					CalculateOffline:   true,
@@ -1836,7 +1836,7 @@ func TestScaleCollateral(t *testing.T) {
 			if err != nil {
 				t.Error(err)
 			}
-			liquidationScaling += scaled.InexactFloat64()
+			liquidationScaling += scaled.ScaledTotal.InexactFloat64()
 
 			_, err = f.ScaleCollateral(context.Background(),
 				subaccount,
@@ -1844,7 +1844,7 @@ func TestScaleCollateral(t *testing.T) {
 					CollateralCurrency: currency.NewCode(coin),
 					Asset:              asset.Spot,
 					Side:               order.Buy,
-					CollateralAmount:   decimal.NewFromFloat(v[v2].Total),
+					FreeCollateral:     decimal.NewFromFloat(v[v2].Total),
 					USDPrice:           decimal.Zero,
 					IsLiquidating:      true,
 					CalculateOffline:   true,
@@ -1893,7 +1893,7 @@ func TestCalculateTotalCollateral(t *testing.T) {
 					CollateralCurrency: currency.NewCode(coin),
 					Asset:              asset.Spot,
 					Side:               order.Buy,
-					CollateralAmount:   total,
+					FreeCollateral:     total,
 					USDPrice:           total,
 					CalculateOffline:   true,
 				})
@@ -1908,13 +1908,19 @@ func TestCalculateTotalCollateral(t *testing.T) {
 				CollateralCurrency: currency.NewCode(coin),
 				Asset:              asset.Spot,
 				Side:               order.Buy,
-				CollateralAmount:   decimal.NewFromFloat(v[v2].Total),
+				FreeCollateral:     decimal.NewFromFloat(v[v2].Total),
 				USDPrice:           decimal.NewFromFloat(tick.Price),
 				CalculateOffline:   true,
 			})
 		}
 	}
-	total, err := f.CalculateTotalCollateral(context.Background(), subaccount, true, scales)
+	calc := &order.TotalCollateralCalculator{
+		SubAccount:       subaccount,
+		CollateralAssets: scales,
+		FetchPositions:   false,
+		CalculateOffline: true,
+	}
+	total, err := f.CalculateTotalCollateral(context.Background(), calc)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1930,7 +1936,8 @@ func TestCalculateTotalCollateral(t *testing.T) {
 	for i := range scales {
 		scales[i].CalculateOffline = false
 	}
-	_, err = f.CalculateTotalCollateral(context.Background(), subaccount, false, scales)
+	calc.CalculateOffline = false
+	_, err = f.CalculateTotalCollateral(context.Background(), calc)
 	if err != nil {
 		t.Error(err)
 	}

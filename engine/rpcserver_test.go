@@ -155,7 +155,7 @@ func (f fExchange) GetFuturesPositions(_ context.Context, a asset.Item, cp curre
 }
 
 // CalculateTotalCollateral overrides testExchange's CalculateTotalCollateral function
-func (f fExchange) CalculateTotalCollateral(context.Context, string, bool, []order.CollateralCalculator) (*order.TotalCollateralResponse, error) {
+func (f fExchange) CalculateTotalCollateral(context.Context, *order.TotalCollateralCalculator) (*order.TotalCollateralResponse, error) {
 	return &order.TotalCollateralResponse{
 		TotalCollateral: decimal.NewFromInt(1337),
 		LockedBreakdown: &order.CollateralLockedBreakdown{

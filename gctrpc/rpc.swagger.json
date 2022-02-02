@@ -3664,6 +3664,9 @@
         "scaledLocked": {
           "type": "string"
         },
+        "unrealisedPNL": {
+          "type": "string"
+        },
         "lockedBreakdown": {
           "$ref": "#/definitions/gctrpcCollateralLockedBreakdown"
         },
@@ -4233,6 +4236,9 @@
           "type": "string"
         },
         "freeCollateral": {
+          "type": "string"
+        },
+        "unrealisedPNL": {
           "type": "string"
         },
         "lockedCollateral": {

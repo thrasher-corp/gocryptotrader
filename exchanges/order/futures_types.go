@@ -54,8 +54,8 @@ type PNLCalculation interface {
 // multiple ways of calculating the size of collateral
 // on an exchange
 type CollateralManagement interface {
-	ScaleCollateral(context.Context, string, *CollateralCalculator) (decimal.Decimal, error)
-	CalculateTotalCollateral(ctx context.Context, subAccount string, calculateOffline bool, collaterals []CollateralCalculator) (*TotalCollateralResponse, error)
+	ScaleCollateral(ctx context.Context, subAccount string, calculator *CollateralCalculator) (*CollateralByCurrency, error)
+	CalculateTotalCollateral(context.Context, *TotalCollateralCalculator) (*TotalCollateralResponse, error)
 }
 
 // TotalCollateralResponse holds all collateral
@@ -65,6 +65,7 @@ type TotalCollateralResponse struct {
 	MaintenanceCollateral decimal.Decimal
 	FreeCollateral        decimal.Decimal
 	LockedCollateral      decimal.Decimal
+	UnrealisedPNL         decimal.Decimal
 	LockedBreakdown       *CollateralLockedBreakdown
 	BreakdownByCurrency   []CollateralByCurrency
 }
@@ -79,6 +80,7 @@ type CollateralByCurrency struct {
 	ScaledTotal           decimal.Decimal
 	ScaledMaintenance     decimal.Decimal
 	ScaledTotalLocked     decimal.Decimal
+	UnrealisedPNL         decimal.Decimal
 	ScaledLockedBreakdown *CollateralLockedBreakdown
 	ScaledFree            decimal.Decimal
 	ScaledCurrency        currency.Code
@@ -176,6 +178,15 @@ type PositionTrackerSetup struct {
 	UseExchangePNLCalculation bool
 }
 
+// TotalCollateralCalculator holds many collateral calculators
+// to calculate total collateral standing with one struct
+type TotalCollateralCalculator struct {
+	SubAccount       string
+	CollateralAssets []CollateralCalculator
+	CalculateOffline bool
+	FetchPositions   bool
+}
+
 // CollateralCalculator is used to determine
 // the size of collateral holdings for an exchange
 // eg on FTX, the collateral is scaled depending on what
@@ -185,9 +196,11 @@ type CollateralCalculator struct {
 	CollateralCurrency currency.Code
 	Asset              asset.Item
 	Side               Side
-	CollateralAmount   decimal.Decimal
 	USDPrice           decimal.Decimal
 	IsLiquidating      bool
+	FreeCollateral     decimal.Decimal
+	LockedCollateral   decimal.Decimal
+	UnrealisedPNL      decimal.Decimal
 }
 
 // PNLCalculator implements the PNLCalculation interface
