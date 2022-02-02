@@ -286,7 +286,19 @@ func TestGetBalances(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	_, err := f.GetBalances(context.Background(), subaccount)
+	_, err := f.GetBalances(context.Background(), subaccount, false, false)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = f.GetBalances(context.Background(), subaccount, true, false)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = f.GetBalances(context.Background(), subaccount, false, true)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = f.GetBalances(context.Background(), subaccount, true, true)
 	if err != nil {
 		t.Error(err)
 	}

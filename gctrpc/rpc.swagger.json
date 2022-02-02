@@ -3649,13 +3649,48 @@
         "originalAmount": {
           "type": "string"
         },
-        "scaledCollateral": {
-          "type": "string"
-        },
         "scaledToCurrency": {
           "type": "string"
         },
+        "scaledTotal": {
+          "type": "string"
+        },
+        "scaledMaintenance": {
+          "type": "string"
+        },
+        "scaledFree": {
+          "type": "string"
+        },
+        "scaledLocked": {
+          "type": "string"
+        },
+        "lockedBreakdown": {
+          "$ref": "#/definitions/gctrpcCollateralLockedBreakdown"
+        },
         "error": {
+          "type": "string"
+        }
+      }
+    },
+    "gctrpcCollateralLockedBreakdown": {
+      "type": "object",
+      "properties": {
+        "lockedInStakes": {
+          "type": "string"
+        },
+        "lockedInNFTBids": {
+          "type": "string"
+        },
+        "lockedInFeeVoucher": {
+          "type": "string"
+        },
+        "lockedInSpotMarginFundingOffers": {
+          "type": "string"
+        },
+        "lockedInSpotOrders": {
+          "type": "string"
+        },
+        "lockedAsCollateral": {
           "type": "string"
         }
       }
@@ -4188,8 +4223,23 @@
         "subAccount": {
           "type": "string"
         },
+        "collateralCurrency": {
+          "type": "string"
+        },
         "totalCollateral": {
           "type": "string"
+        },
+        "maintenanceCollateral": {
+          "type": "string"
+        },
+        "freeCollateral": {
+          "type": "string"
+        },
+        "lockedCollateral": {
+          "type": "string"
+        },
+        "lockedBreakdown": {
+          "$ref": "#/definitions/gctrpcCollateralLockedBreakdown"
         },
         "currencyBreakdown": {
           "type": "array",

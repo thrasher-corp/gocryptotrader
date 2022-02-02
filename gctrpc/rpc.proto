@@ -1068,16 +1068,34 @@ message GetCollateralRequest {
 
 message GetCollateralResponse {
     string sub_account = 1;
-    string total_collateral = 2;
-    repeated CollateralForCurrency currency_breakdown = 3;
+    string collateral_currency = 2;
+    string total_collateral = 3;
+    string maintenance_collateral = 4;
+    string free_collateral = 5;
+    string locked_collateral = 6;
+    CollateralLockedBreakdown locked_breakdown = 7;
+    repeated CollateralForCurrency currency_breakdown = 8;
 }
 
 message CollateralForCurrency {
     string currency = 1;
     string original_amount = 2;
-    string scaled_collateral = 3;
-    string scaled_to_currency = 4;
-    string error = 5;
+    string scaled_to_currency = 3;
+    string scaled_total = 4;
+    string scaled_maintenance = 5;
+    string scaled_free = 6;
+    string scaled_locked = 7;
+    CollateralLockedBreakdown locked_breakdown = 8;
+    string error = 9;
+}
+
+message CollateralLockedBreakdown {
+   string locked_in_stakes = 1;
+   string lockedInNFTBids = 2;
+   string locked_in_fee_voucher = 3;
+   string locked_in_spot_margin_funding_offers = 4;
+   string locked_in_spot_orders = 5;
+   string locked_as_collateral = 6;
 }
 
 

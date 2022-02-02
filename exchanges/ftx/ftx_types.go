@@ -258,12 +258,25 @@ type WalletCoinsData struct {
 
 // WalletBalance stores balances data
 type WalletBalance struct {
-	Coin                   string  `json:"coin"`
-	Free                   float64 `json:"free"`
-	Total                  float64 `json:"total"`
-	AvailableWithoutBorrow float64 `json:"availableWithoutBorrow"`
-	USDValue               float64 `json:"usdValue"`
-	SpotBorrow             float64 `json:"spotBorrow"`
+	Coin                   string                 `json:"coin"`
+	Free                   float64                `json:"free"`
+	Total                  float64                `json:"total"`
+	AvailableWithoutBorrow float64                `json:"availableWithoutBorrow"`
+	USDValue               float64                `json:"usdValue"`
+	FreeIgnoringCollateral float64                `json:"freeIgnoringCollateral"`
+	SpotBorrow             float64                `json:"spotBorrow"`
+	LockedBreakdown        BalanceLockedBreakdown `json:"lockedBreakdown"`
+}
+
+// BalanceLockedBreakdown provides a breakdown of where funding is
+// locked up in, helpful in tracking how much one bids on NFTs
+type BalanceLockedBreakdown struct {
+	LockedInStakes                  float64 `json:"lockedInStakes"`
+	LockedInNFTBids                 float64 `json:"lockedInNftBids"`
+	LockedInFeeVoucher              float64 `json:"lockedInFeeVoucher"`
+	LockedInSpotMarginFundingOffers float64 `json:"lockedInSpotMarginFundingOffers"`
+	LockedInSpotOrders              float64 `json:"lockedInSpotOrders"`
+	LockedAsCollateral              float64 `json:"lockedAsCollateral"`
 }
 
 // AllWalletBalances stores all the user's account balances

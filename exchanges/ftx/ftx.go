@@ -541,11 +541,19 @@ func (f *FTX) GetCoins(ctx context.Context, subAccount string) ([]WalletCoinsDat
 }
 
 // GetBalances gets balances of the account
-func (f *FTX) GetBalances(ctx context.Context, subAccount string) ([]WalletBalance, error) {
+func (f *FTX) GetBalances(ctx context.Context, subAccount string, includeLockedBreakdown, includeFreeIgnoringCollateral bool) ([]WalletBalance, error) {
 	resp := struct {
 		Data []WalletBalance `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, getBalances, subAccount, nil, &resp)
+	vals := url.Values{}
+	if includeLockedBreakdown {
+		vals.Set("includeLockedBreakdown", strconv.FormatBool(includeLockedBreakdown))
+	}
+	if includeFreeIgnoringCollateral {
+		vals.Set("includeFreeIgnoringCollateral", strconv.FormatBool(includeFreeIgnoringCollateral))
+	}
+	balanceURL := common.EncodeURLValues(getBalances, vals)
+	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, balanceURL, subAccount, nil, &resp)
 }
 
 // GetAllWalletBalances gets all wallets' balances

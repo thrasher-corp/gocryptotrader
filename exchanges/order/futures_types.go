@@ -60,20 +60,38 @@ type CollateralManagement interface {
 
 // TotalCollateralResponse holds all collateral
 type TotalCollateralResponse struct {
-	TotalCollateral     decimal.Decimal
-	BreakdownByCurrency []CollateralByCurrency
+	CollateralCurrency    currency.Code
+	TotalCollateral       decimal.Decimal
+	MaintenanceCollateral decimal.Decimal
+	FreeCollateral        decimal.Decimal
+	LockedCollateral      decimal.Decimal
+	LockedBreakdown       *CollateralLockedBreakdown
+	BreakdownByCurrency   []CollateralByCurrency
 }
 
 // CollateralByCurrency individual collateral contribution
 // along with what the potentially scaled collateral
 // currency it is represented as
-// eg in FTX ValueCurrency is USD
+// eg in FTX ScaledCurrency is USD
 type CollateralByCurrency struct {
-	Currency      currency.Code
-	OriginalValue decimal.Decimal
-	ScaledValue   decimal.Decimal
-	ValueCurrency currency.Code
-	Error         error
+	Currency              currency.Code
+	OriginalTotal         decimal.Decimal
+	ScaledTotal           decimal.Decimal
+	ScaledMaintenance     decimal.Decimal
+	ScaledTotalLocked     decimal.Decimal
+	ScaledLockedBreakdown *CollateralLockedBreakdown
+	ScaledFree            decimal.Decimal
+	ScaledCurrency        currency.Code
+	Error                 error
+}
+
+type CollateralLockedBreakdown struct {
+	LockedInStakes                  decimal.Decimal
+	LockedInNFTBids                 decimal.Decimal
+	LockedInFeeVoucher              decimal.Decimal
+	LockedInSpotMarginFundingOffers decimal.Decimal
+	LockedInSpotOrders              decimal.Decimal
+	LockedAsCollateral              decimal.Decimal
 }
 
 // PositionController manages all futures orders

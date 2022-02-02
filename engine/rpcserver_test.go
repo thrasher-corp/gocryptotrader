@@ -92,6 +92,25 @@ func (f fExchange) GetHistoricCandlesExtended(ctx context.Context, p currency.Pa
 	}, nil
 }
 
+func (f fExchange) FetchTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
+	return &ticker.Price{
+		Last:         1337,
+		High:         1337,
+		Low:          1337,
+		Bid:          1337,
+		Ask:          1337,
+		Volume:       1337,
+		QuoteVolume:  1337,
+		PriceATH:     1337,
+		Open:         1337,
+		Close:        1337,
+		Pair:         p,
+		ExchangeName: f.GetName(),
+		AssetType:    a,
+		LastUpdated:  time.Now(),
+	}, nil
+}
+
 // FetchAccountInfo overrides testExchange's fetch account info function
 // to do the bare minimum required with no API calls or credentials required
 func (f fExchange) FetchAccountInfo(_ context.Context, a asset.Item) (account.Holdings, error) {
@@ -105,6 +124,10 @@ func (f fExchange) FetchAccountInfo(_ context.Context, a asset.Item) (account.Ho
 					{
 						CurrencyName: currency.USD,
 						Total:        1337,
+					},
+					{
+						CurrencyName: currency.BTC,
+						Total:        13337,
 					},
 				},
 			},
@@ -135,20 +158,46 @@ func (f fExchange) GetFuturesPositions(_ context.Context, a asset.Item, cp curre
 func (f fExchange) CalculateTotalCollateral(context.Context, string, bool, []order.CollateralCalculator) (*order.TotalCollateralResponse, error) {
 	return &order.TotalCollateralResponse{
 		TotalCollateral: decimal.NewFromInt(1337),
+		LockedBreakdown: &order.CollateralLockedBreakdown{
+			LockedInStakes:                  decimal.NewFromInt(3),
+			LockedInNFTBids:                 decimal.NewFromInt(3),
+			LockedInFeeVoucher:              decimal.NewFromInt(3),
+			LockedInSpotMarginFundingOffers: decimal.NewFromInt(3),
+			LockedInSpotOrders:              decimal.NewFromInt(3),
+			LockedAsCollateral:              decimal.NewFromInt(3),
+		},
 		BreakdownByCurrency: []order.CollateralByCurrency{
 			{
-				Currency:    currency.USD,
-				ScaledValue: decimal.NewFromInt(1330),
+				Currency:          currency.USD,
+				OriginalTotal:     decimal.NewFromInt(1330),
+				ScaledTotal:       decimal.NewFromInt(1330),
+				ScaledMaintenance: decimal.NewFromInt(1330),
+				ScaledFree:        decimal.NewFromInt(1330),
 			},
 			{
-				Currency:      currency.DOGE,
-				ScaledValue:   decimal.NewFromInt(10),
-				ValueCurrency: currency.USD,
+				Currency:          currency.DOGE,
+				OriginalTotal:     decimal.NewFromInt(1000),
+				ScaledTotal:       decimal.NewFromInt(10),
+				ScaledMaintenance: decimal.NewFromInt(10),
+				ScaledTotalLocked: decimal.NewFromInt(6),
+				ScaledLockedBreakdown: &order.CollateralLockedBreakdown{
+					LockedInStakes:                  decimal.NewFromInt(1),
+					LockedInNFTBids:                 decimal.NewFromInt(1),
+					LockedInFeeVoucher:              decimal.NewFromInt(1),
+					LockedInSpotMarginFundingOffers: decimal.NewFromInt(1),
+					LockedInSpotOrders:              decimal.NewFromInt(1),
+					LockedAsCollateral:              decimal.NewFromInt(1),
+				},
+				ScaledFree:     decimal.NewFromInt(4),
+				ScaledCurrency: currency.USD,
 			},
 			{
-				Currency:      currency.XRP,
-				ScaledValue:   decimal.NewFromInt(-3),
-				ValueCurrency: currency.USD,
+				Currency:          currency.XRP,
+				OriginalTotal:     decimal.NewFromInt(1333333333333337),
+				ScaledTotal:       decimal.NewFromInt(-3),
+				ScaledMaintenance: decimal.NewFromInt(-3),
+				ScaledFree:        decimal.NewFromInt(-3),
+				ScaledCurrency:    currency.USD,
 			},
 		},
 	}, nil
@@ -2177,7 +2226,7 @@ func TestGetCollateral(t *testing.T) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
 	if len(r.CurrencyBreakdown) != 3 {
-		t.Error("expected 3 currencies")
+		t.Errorf("expected 3 currencies, received '%v'", len(r.CurrencyBreakdown))
 	}
 	if r.TotalCollateral != "1337" {
 		t.Error("expected 1337")
@@ -2191,5 +2240,16 @@ func TestGetCollateral(t *testing.T) {
 	})
 	if !errors.Is(err, order.ErrNotFuturesAsset) {
 		t.Errorf("received '%v', expected '%v'", err, order.ErrNotFuturesAsset)
+	}
+
+	_, err = s.GetCollateral(context.Background(), &gctrpc.GetCollateralRequest{
+		Exchange:         fakeExchangeName,
+		Asset:            asset.Futures.String(),
+		IncludeBreakdown: true,
+		SubAccount:       "1337",
+		CalculateOffline: true,
+	})
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
 }
