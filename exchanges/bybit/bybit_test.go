@@ -1231,7 +1231,7 @@ func TestGetLastUSDTFundingFee(t *testing.T) {
 // test cases for Futures
 
 func TestCreateFuturesOrderr(t *testing.T) {
-	pair, err := currency.NewPairFromString("BTCUSDZ21")
+	pair, err := currency.NewPairFromString("BTCUSDH22")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1243,7 +1243,7 @@ func TestCreateFuturesOrderr(t *testing.T) {
 }
 
 func TestGetActiveFuturesOrders(t *testing.T) {
-	pair, err := currency.NewPairFromString("BTCUSDZ21")
+	pair, err := currency.NewPairFromString("BTCUSDH22")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1260,7 +1260,7 @@ func TestGetActiveFuturesOrders(t *testing.T) {
 }
 
 func TestCancelActiveFuturesOrders(t *testing.T) {
-	pair, err := currency.NewPairFromString("BTCUSDZ21")
+	pair, err := currency.NewPairFromString("BTCUSDH22")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1272,7 +1272,7 @@ func TestCancelActiveFuturesOrders(t *testing.T) {
 }
 
 func TestCancelAllActiveFuturesOrders(t *testing.T) {
-	pair, err := currency.NewPairFromString("BTCUSDZ21")
+	pair, err := currency.NewPairFromString("BTCUSDH22")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1284,7 +1284,7 @@ func TestCancelAllActiveFuturesOrders(t *testing.T) {
 }
 
 func TestReplaceActiveFuturesOrders(t *testing.T) {
-	pair, err := currency.NewPairFromString("BTCUSDZ21")
+	pair, err := currency.NewPairFromString("BTCUSDH22")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1296,7 +1296,7 @@ func TestReplaceActiveFuturesOrders(t *testing.T) {
 }
 
 func TestGetActiveRealtimeOrders(t *testing.T) {
-	pair, err := currency.NewPairFromString("BTCUSDZ21")
+	pair, err := currency.NewPairFromString("BTCUSDH22")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1308,7 +1308,7 @@ func TestGetActiveRealtimeOrders(t *testing.T) {
 }
 
 func TestCreateConditionalFuturesOrder(t *testing.T) {
-	pair, err := currency.NewPairFromString("BTCUSDZ21")
+	pair, err := currency.NewPairFromString("BTCUSDH22")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1320,7 +1320,7 @@ func TestCreateConditionalFuturesOrder(t *testing.T) {
 }
 
 func TestGetConditionalFuturesOrders(t *testing.T) {
-	pair, err := currency.NewPairFromString("BTCUSDZ21")
+	pair, err := currency.NewPairFromString("BTCUSDH22")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1332,7 +1332,7 @@ func TestGetConditionalFuturesOrders(t *testing.T) {
 }
 
 func TestCancelConditionalFuturesOrders(t *testing.T) {
-	pair, err := currency.NewPairFromString("BTCUSDZ21")
+	pair, err := currency.NewPairFromString("BTCUSDH22")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1344,7 +1344,7 @@ func TestCancelConditionalFuturesOrders(t *testing.T) {
 }
 
 func TestCancelAllConditionalFuturesOrders(t *testing.T) {
-	pair, err := currency.NewPairFromString("BTCUSDZ21")
+	pair, err := currency.NewPairFromString("BTCUSDH22")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1356,7 +1356,7 @@ func TestCancelAllConditionalFuturesOrders(t *testing.T) {
 }
 
 func TestReplaceConditionalFuturesOrders(t *testing.T) {
-	pair, err := currency.NewPairFromString("BTCUSDZ21")
+	pair, err := currency.NewPairFromString("BTCUSDH22")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1368,7 +1368,7 @@ func TestReplaceConditionalFuturesOrders(t *testing.T) {
 }
 
 func TestGetConditionalRealtimeOrders(t *testing.T) {
-	pair, err := currency.NewPairFromString("BTCUSDZ21")
+	pair, err := currency.NewPairFromString("BTCUSDH22")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1380,7 +1380,7 @@ func TestGetConditionalRealtimeOrders(t *testing.T) {
 }
 
 func TestGetPositions(t *testing.T) {
-	pair, err := currency.NewPairFromString("BTCUSDZ21")
+	pair, err := currency.NewPairFromString("BTCUSDH22")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1392,7 +1392,7 @@ func TestGetPositions(t *testing.T) {
 }
 
 func TestSetMargin(t *testing.T) {
-	pair, err := currency.NewPairFromString("BTCUSDZ21")
+	pair, err := currency.NewPairFromString("BTCUSDH22")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1404,7 +1404,7 @@ func TestSetMargin(t *testing.T) {
 }
 
 func TestSetTradingAndStop(t *testing.T) {
-	pair, err := currency.NewPairFromString("BTCUSDZ21")
+	pair, err := currency.NewPairFromString("BTCUSDH22")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1416,7 +1416,7 @@ func TestSetTradingAndStop(t *testing.T) {
 }
 
 func TestSetLeverage(t *testing.T) {
-	pair, err := currency.NewPairFromString("BTCUSDZ21")
+	pair, err := currency.NewPairFromString("BTCUSDH22")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1428,7 +1428,7 @@ func TestSetLeverage(t *testing.T) {
 }
 
 func TestChangePositionMode(t *testing.T) {
-	pair, err := currency.NewPairFromString("BTCUSDZ21")
+	pair, err := currency.NewPairFromString("BTCUSDH22")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1440,7 +1440,7 @@ func TestChangePositionMode(t *testing.T) {
 }
 
 func TestChangeMode(t *testing.T) {
-	pair, err := currency.NewPairFromString("BTCUSDZ21")
+	pair, err := currency.NewPairFromString("BTCUSDH22")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1452,7 +1452,7 @@ func TestChangeMode(t *testing.T) {
 }
 
 func TestChangeMargin(t *testing.T) {
-	pair, err := currency.NewPairFromString("BTCUSDZ21")
+	pair, err := currency.NewPairFromString("BTCUSDH22")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1464,7 +1464,7 @@ func TestChangeMargin(t *testing.T) {
 }
 
 func TestGetTradeRecords(t *testing.T) {
-	pair, err := currency.NewPairFromString("BTCUSDZ21")
+	pair, err := currency.NewPairFromString("BTCUSDH22")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1476,7 +1476,7 @@ func TestGetTradeRecords(t *testing.T) {
 }
 
 func TestGetClosedTrades(t *testing.T) {
-	pair, err := currency.NewPairFromString("BTCUSDZ21")
+	pair, err := currency.NewPairFromString("BTCUSDH22")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1488,7 +1488,7 @@ func TestGetClosedTrades(t *testing.T) {
 }
 
 func TestSetRiskLimit(t *testing.T) {
-	pair, err := currency.NewPairFromString("BTCUSDZ21")
+	pair, err := currency.NewPairFromString("BTCUSDH22")
 	if err != nil {
 		t.Fatal(err)
 	}
