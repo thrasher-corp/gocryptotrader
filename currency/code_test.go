@@ -146,7 +146,6 @@ func TestRoleUnmarshalJSON(t *testing.T) {
 	if err == nil {
 		t.Error("Expected unmarshall error")
 	}
-
 }
 
 func TestBaseCode(t *testing.T) {
@@ -213,7 +212,7 @@ func TestBaseCode(t *testing.T) {
 	main.Register("BTC")
 	err = main.UpdateCurrency("Bitcoin", "BTC", "", 1337, Unset)
 	if !errors.Is(err, errRoleUnset) {
-		t.Fatalf("recieved: '%v' but expected: '%v'", err, errRoleUnset)
+		t.Fatalf("received: '%v' but expected: '%v'", err, errRoleUnset)
 	}
 
 	err = main.UpdateCurrency("Bitcoin", "BTC", "", 1337, Cryptocurrency)
@@ -265,12 +264,12 @@ func TestBaseCode(t *testing.T) {
 
 	err = main.LoadItem(nil)
 	if !errors.Is(err, errItemIsNil) {
-		t.Fatalf("recieved: '%v' but expected: '%v'", err, errItemIsNil)
+		t.Fatalf("received: '%v' but expected: '%v'", err, errItemIsNil)
 	}
 
 	err = main.LoadItem(&Item{})
 	if !errors.Is(err, errItemIsEmpty) {
-		t.Fatalf("recieved: '%v' but expected: '%v'", err, errItemIsEmpty)
+		t.Fatalf("received: '%v' but expected: '%v'", err, errItemIsEmpty)
 	}
 
 	err = main.LoadItem(&Item{
