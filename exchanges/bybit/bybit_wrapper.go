@@ -151,7 +151,10 @@ func (by *Bybit) Setup(exch *config.ExchangeConfig) error {
 		return nil
 	}
 
-	by.SetupDefaults(exch)
+	err := by.SetupDefaults(exch)
+	if err != nil {
+		return err
+	}
 
 	wsRunningEndpoint, err := by.API.Endpoints.GetURL(exchange.WebsocketSpot)
 	if err != nil {
@@ -186,6 +189,11 @@ func (by *Bybit) Setup(exch *config.ExchangeConfig) error {
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	})
+}
+
+// AuthenticateWebsocket sends an authentication message to the websocket
+func (by *Bybit) AuthenticateWebsocket() error {
+	return by.WsAuth()
 }
 
 // Start starts the Bybit go routine

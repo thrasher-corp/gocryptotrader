@@ -69,7 +69,11 @@ func (by *Bybit) WsConnect() error {
 		}
 	}
 
-	return nil
+	subs, err := by.GenerateDefaultSubscriptions()
+	if err != nil {
+		return err
+	}
+	return by.Websocket.SubscribeToChannels(subs)
 }
 
 // WsAuth sends an authentication message to receive auth data
