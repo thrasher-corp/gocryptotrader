@@ -314,7 +314,6 @@ func (y *Yobit) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 			if z == x {
 				exchangeCurrency.Hold = y - w
 				exchangeCurrency.Free = w
-				exchangeCurrency.AvailableWithoutBorrow = w
 			}
 		}
 

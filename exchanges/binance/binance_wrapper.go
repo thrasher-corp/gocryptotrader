@@ -706,11 +706,10 @@ func (b *Binance) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 			locked := raw.Balances[i].Locked.InexactFloat64()
 
 			currencyBalance = append(currencyBalance, account.Balance{
-				CurrencyName:           currency.NewCode(raw.Balances[i].Asset),
-				Total:                  free + locked,
-				Hold:                   locked,
-				Free:                   free,
-				AvailableWithoutBorrow: free,
+				CurrencyName: currency.NewCode(raw.Balances[i].Asset),
+				Total:        free + locked,
+				Hold:         locked,
+				Free:         free,
 			})
 		}
 
@@ -724,11 +723,10 @@ func (b *Binance) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 		var currencyDetails []account.Balance
 		for i := range accData.Assets {
 			currencyDetails = append(currencyDetails, account.Balance{
-				CurrencyName:           currency.NewCode(accData.Assets[i].Asset),
-				Total:                  accData.Assets[i].WalletBalance,
-				Hold:                   accData.Assets[i].WalletBalance - accData.Assets[i].AvailableBalance,
-				Free:                   accData.Assets[i].AvailableBalance,
-				AvailableWithoutBorrow: accData.Assets[i].AvailableBalance,
+				CurrencyName: currency.NewCode(accData.Assets[i].Asset),
+				Total:        accData.Assets[i].WalletBalance,
+				Hold:         accData.Assets[i].WalletBalance - accData.Assets[i].AvailableBalance,
+				Free:         accData.Assets[i].AvailableBalance,
 			})
 		}
 
@@ -742,11 +740,10 @@ func (b *Binance) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 		var currencyDetails []account.Balance
 		for i := range accData {
 			currencyDetails = append(currencyDetails, account.Balance{
-				CurrencyName:           currency.NewCode(accData[i].Asset),
-				Total:                  accData[i].Balance,
-				Hold:                   accData[i].Balance - accData[i].AvailableBalance,
-				Free:                   accData[i].AvailableBalance,
-				AvailableWithoutBorrow: accData[i].AvailableBalance,
+				CurrencyName: currency.NewCode(accData[i].Asset),
+				Total:        accData[i].Balance,
+				Hold:         accData[i].Balance - accData[i].AvailableBalance,
+				Free:         accData[i].AvailableBalance,
 			})
 		}
 

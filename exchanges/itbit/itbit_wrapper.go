@@ -282,18 +282,16 @@ func (i *ItBit) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 			amounts[cb.Currency].Total += cb.TotalBalance
 			amounts[cb.Currency].Hold += cb.TotalBalance - cb.AvailableBalance
 			amounts[cb.Currency].Free += cb.AvailableBalance
-			amounts[cb.Currency].AvailableWithoutBorrow += cb.AvailableBalance
 		}
 	}
 
 	var fullBalance []account.Balance
 	for key := range amounts {
 		fullBalance = append(fullBalance, account.Balance{
-			CurrencyName:           currency.NewCode(key),
-			Total:                  amounts[key].Total,
-			Hold:                   amounts[key].Hold,
-			Free:                   amounts[key].Free,
-			AvailableWithoutBorrow: amounts[key].AvailableWithoutBorrow,
+			CurrencyName: currency.NewCode(key),
+			Total:        amounts[key].Total,
+			Hold:         amounts[key].Hold,
+			Free:         amounts[key].Free,
 		})
 	}
 

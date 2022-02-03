@@ -436,11 +436,10 @@ func (h *HitBTC) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 	var currencies []account.Balance
 	for i := range accountBalance {
 		currencies = append(currencies, account.Balance{
-			CurrencyName:           currency.NewCode(accountBalance[i].Currency),
-			Total:                  accountBalance[i].Available + accountBalance[i].Reserved,
-			Hold:                   accountBalance[i].Reserved,
-			Free:                   accountBalance[i].Available,
-			AvailableWithoutBorrow: accountBalance[i].Available,
+			CurrencyName: currency.NewCode(accountBalance[i].Currency),
+			Total:        accountBalance[i].Available + accountBalance[i].Reserved,
+			Hold:         accountBalance[i].Reserved,
+			Free:         accountBalance[i].Available,
 		})
 	}
 

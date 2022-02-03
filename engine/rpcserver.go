@@ -606,6 +606,13 @@ func createAccountInfoRequest(h account.Holdings) (*gctrpc.GetAccountInfoRespons
 		var a gctrpc.Account
 		a.Id = h.Accounts[x].ID
 		for _, y := range h.Accounts[x].Currencies {
+			if y.Total == 0 &&
+				y.Hold == 0 &&
+				y.Free == 0 &&
+				y.AvailableWithoutBorrow == 0 &&
+				y.Borrowed == 0 {
+				continue
+			}
 			a.Currencies = append(a.Currencies, &gctrpc.AccountCurrencyInfo{
 				Currency:          y.CurrencyName.String(),
 				TotalValue:        y.Total,

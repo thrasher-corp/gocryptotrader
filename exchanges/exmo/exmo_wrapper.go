@@ -369,7 +369,6 @@ func (e *EXMO) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (acc
 			exchangeCurrency.Total = avail + reserved
 			exchangeCurrency.Hold = reserved
 			exchangeCurrency.Free = avail
-			exchangeCurrency.AvailableWithoutBorrow = avail
 		}
 		currencies = append(currencies, exchangeCurrency)
 	}

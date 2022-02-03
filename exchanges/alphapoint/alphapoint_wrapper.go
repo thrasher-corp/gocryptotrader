@@ -101,11 +101,10 @@ func (a *Alphapoint) UpdateAccountInfo(ctx context.Context, assetType asset.Item
 	var balances []account.Balance
 	for i := range acc.Currencies {
 		balances = append(balances, account.Balance{
-			CurrencyName:           currency.NewCode(acc.Currencies[i].Name),
-			Total:                  float64(acc.Currencies[i].Balance),
-			Hold:                   float64(acc.Currencies[i].Hold),
-			Free:                   float64(acc.Currencies[i].Balance) - float64(acc.Currencies[i].Hold),
-			AvailableWithoutBorrow: float64(acc.Currencies[i].Balance) - float64(acc.Currencies[i].Hold),
+			CurrencyName: currency.NewCode(acc.Currencies[i].Name),
+			Total:        float64(acc.Currencies[i].Balance),
+			Hold:         float64(acc.Currencies[i].Hold),
+			Free:         float64(acc.Currencies[i].Balance) - float64(acc.Currencies[i].Hold),
 		})
 	}
 
