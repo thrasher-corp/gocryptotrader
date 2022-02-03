@@ -369,7 +369,8 @@ func (g *Gateio) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 		switch l := balance.Locked.(type) {
 		case map[string]interface{}:
 			for x := range l {
-				lockedF, err := strconv.ParseFloat(l[x].(string), 64)
+				var lockedF float64
+				lockedF, err = strconv.ParseFloat(l[x].(string), 64)
 				if err != nil {
 					return info, err
 				}
@@ -386,20 +387,22 @@ func (g *Gateio) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 		switch v := balance.Available.(type) {
 		case map[string]interface{}:
 			for x := range v {
-				availAmount, err := strconv.ParseFloat(v[x].(string), 64)
+				var availAmount float64
+				availAmount, err = strconv.ParseFloat(v[x].(string), 64)
 				if err != nil {
 					return info, err
 				}
 
 				var updated bool
 				for i := range balances {
-					if balances[i].CurrencyName == currency.NewCode(x) {
-						balances[i].Total = balances[i].Hold + availAmount
-						balances[i].Free = availAmount
-						balances[i].AvailableWithoutBorrow = availAmount
-						updated = true
-						break
+					if !balances[i].CurrencyName.Match(currency.NewCode(x)) {
+						continue
 					}
+					balances[i].Total = balances[i].Hold + availAmount
+					balances[i].Free = availAmount
+					balances[i].AvailableWithoutBorrow = availAmount
+					updated = true
+					break
 				}
 				if !updated {
 					balances = append(balances, account.Balance{

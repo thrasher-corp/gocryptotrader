@@ -1904,6 +1904,9 @@ func TestCalculateTotalCollateral(t *testing.T) {
 			if err != nil {
 				t.Error(err)
 			}
+			if tick.Price == 0 {
+				continue
+			}
 			scales = append(scales, order.CollateralCalculator{
 				CollateralCurrency: currency.NewCode(coin),
 				Asset:              asset.Spot,
@@ -1922,7 +1925,7 @@ func TestCalculateTotalCollateral(t *testing.T) {
 	}
 	total, err := f.CalculateTotalCollateral(context.Background(), calc)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	localScaling := total.TotalCollateral.InexactFloat64()
 	accountInfo, err := f.GetAccountInfo(context.Background(), subaccount)
@@ -1940,6 +1943,80 @@ func TestCalculateTotalCollateral(t *testing.T) {
 	_, err = f.CalculateTotalCollateral(context.Background(), calc)
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestCalculateTotalCollateralOnline(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test, api keys not set")
+	}
+	// nil data
+	_, err := f.calculateTotalCollateralOnline(context.Background(), nil, nil)
+	if !errors.Is(err, common.ErrNilPointer) {
+		t.Errorf("received '%v' expected '%v'", err, common.ErrNilPointer)
+	}
+	calc := &order.TotalCollateralCalculator{}
+	// no currency data
+	_, err = f.calculateTotalCollateralOnline(context.Background(), calc, nil)
+	if !errors.Is(err, errCollateralCurrencyNotFound) {
+		t.Errorf("received '%v' expected '%v'", err, errCollateralCurrencyNotFound)
+	}
+	calc.CalculateOffline = true
+	calc.CollateralAssets = []order.CollateralCalculator{
+		{
+			CollateralCurrency: currency.BTC,
+		},
+		{
+			CollateralCurrency: currency.USD,
+		},
+	}
+	// offline true
+	_, err = f.calculateTotalCollateralOnline(context.Background(), calc, nil)
+	if !errors.Is(err, order.ErrOfflineCalculationSet) {
+		t.Errorf("received '%v' expected '%v'", err, order.ErrOfflineCalculationSet)
+	}
+
+	calc.CalculateOffline = false
+	calc.CollateralAssets[0].CalculateOffline = true
+	// offline true for individual currency
+	_, err = f.calculateTotalCollateralOnline(context.Background(), calc, nil)
+	if !errors.Is(err, order.ErrOfflineCalculationSet) {
+		t.Errorf("received '%v' expected '%v'", err, order.ErrOfflineCalculationSet)
+	}
+	// successful run
+	calc.CollateralAssets[0].CalculateOffline = false
+	result, err := f.calculateTotalCollateralOnline(context.Background(), calc, nil)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	if !result.CollateralCurrency.Match(currency.USD) {
+		t.Error("expected USD collateral currency")
+	}
+	// with position data
+	pos := []PositionData{
+		{
+			CollateralUsed: 5,
+			Future:         "BTC-PERP",
+			UnrealizedPNL:  10,
+		},
+	}
+	_, err = f.calculateTotalCollateralOnline(context.Background(), calc, pos)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	calc.CollateralAssets = []order.CollateralCalculator{
+		{
+			CollateralCurrency: currency.BURST,
+		},
+	}
+	// irrelevant currency
+	result, err = f.calculateTotalCollateralOnline(context.Background(), calc, pos)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	if !result.UnrealisedPNL.IsZero() {
+		t.Error("expected zero")
 	}
 }
 

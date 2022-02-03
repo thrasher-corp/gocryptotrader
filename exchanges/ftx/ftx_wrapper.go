@@ -1427,7 +1427,8 @@ func (f *FTX) CalculateTotalCollateral(ctx context.Context, calc *order.TotalCol
 			// ensure we use supplied position data
 			calc.CollateralAssets[i].UnrealisedPNL = decimal.Zero
 			for i := range pos {
-				futurePair, err := currency.NewPairFromString(pos[i].Future)
+				var futurePair currency.Pair
+				futurePair, err = currency.NewPairFromString(pos[i].Future)
 				if err != nil {
 					return nil, fmt.Errorf("%v %v %w", f.Name, pos[i].Future, err)
 				}
@@ -1462,7 +1463,7 @@ func (f *FTX) CalculateTotalCollateral(ctx context.Context, calc *order.TotalCol
 		result.BreakdownByCurrency = append(result.BreakdownByCurrency, *collateral)
 	}
 	if !result.UnrealisedPNL.IsZero() && result.LockedBreakdown != nil {
-		result.FreeCollateral = decimal.Min(result.FreeCollateral, result.FreeCollateral.Sub(result.UnrealisedPNL)).Sub(result.LockedBreakdown.LockedAsCollateral)
+		result.FreeCollateral = decimal.Min(result.FreeCollateral, result.FreeCollateral.Add(result.UnrealisedPNL)).Sub(result.LockedBreakdown.LockedAsCollateral)
 	}
 	return &result, nil
 }
@@ -1470,6 +1471,12 @@ func (f *FTX) CalculateTotalCollateral(ctx context.Context, calc *order.TotalCol
 func (f *FTX) calculateTotalCollateralOnline(ctx context.Context, calc *order.TotalCollateralCalculator, pos []PositionData) (*order.TotalCollateralResponse, error) {
 	if calc == nil {
 		return nil, fmt.Errorf("%v CalculateTotalCollateral %w", f.Name, common.ErrNilPointer)
+	}
+	if len(calc.CollateralAssets) == 0 {
+		return nil, fmt.Errorf("%v calculateTotalCollateralOnline %w, no currencies supplied", f.Name, errCollateralCurrencyNotFound)
+	}
+	if calc.CalculateOffline {
+		return nil, fmt.Errorf("%v calculateTotalCollateralOnline %w", f.Name, order.ErrOfflineCalculationSet)
 	}
 	result := order.TotalCollateralResponse{
 		CollateralCurrency: currency.USD,
@@ -1485,6 +1492,9 @@ func (f *FTX) calculateTotalCollateralOnline(ctx context.Context, calc *order.To
 	}
 
 	for x := range calc.CollateralAssets {
+		if calc.CollateralAssets[x].CalculateOffline {
+			return nil, fmt.Errorf("%v %v %v calculateTotalCollateralOnline %w", f.Name, calc.CollateralAssets[x].Asset, calc.CollateralAssets[x].CollateralCurrency, order.ErrOfflineCalculationSet)
+		}
 	wallets:
 		for y := range wallet {
 			if !currency.NewCode(wallet[y].ID).Match(calc.CollateralAssets[x].CollateralCurrency) {
@@ -1495,7 +1505,7 @@ func (f *FTX) calculateTotalCollateralOnline(ctx context.Context, calc *order.To
 					continue
 				}
 				if len(pos) > 0 {
-					// use online unrealisedPNL, not supplied
+					// use pos unrealisedPNL, not calc.collateralAssets'
 					calc.CollateralAssets[x].UnrealisedPNL = decimal.Zero
 					for i := range pos {
 						var futurePair currency.Pair
