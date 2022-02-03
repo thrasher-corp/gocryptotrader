@@ -75,7 +75,7 @@ type SymbolPriceTicker struct {
 	NextFundingTime        string  `json:"next_funding_time"`
 	CountdownHour          int64   `json:"countdown_hour"`
 	DeliveryFeeRate        float64 `json:"delivery_fee_rate,string"`
-	PredictedDeliveryPrice float64 `json:"predicted_delivery_price,string"`
+	PredictedDeliveryPrice string  `json:"predicted_delivery_price"`
 	DeliveryTime           string  `json:"delivery_time"`
 }
 
