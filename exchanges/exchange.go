@@ -422,7 +422,7 @@ func (b *Base) GetPairFormat(assetType asset.Item, requestFormat bool) (currency
 func (b *Base) GetEnabledPairs(a asset.Item) (currency.Pairs, error) {
 	err := b.CurrencyPairs.IsAssetEnabled(a)
 	if err != nil {
-		return nil, err
+		return nil, nil // nolint:nilerr // non-fatal error
 	}
 	format, err := b.GetPairFormat(a, false)
 	if err != nil {
