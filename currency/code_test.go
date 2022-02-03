@@ -3,7 +3,6 @@ package currency
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"testing"
 )
 
@@ -349,7 +348,6 @@ func TestBaseCode(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	fmt.Printf("%+v\n", main.Items)
 	if main.Items[0].FullName != "MEWOW" {
 		t.Error("Fullname not updated")
 	}

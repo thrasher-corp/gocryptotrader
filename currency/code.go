@@ -82,17 +82,17 @@ func (b *BaseCodes) GetFullCurrencyData() (File, error) {
 	for i := range b.Items {
 		switch b.Items[i].Role {
 		case Unset:
-			file.UnsetCurrency = append(file.UnsetCurrency, *b.Items[i])
+			file.UnsetCurrency = append(file.UnsetCurrency, b.Items[i])
 		case Fiat:
-			file.FiatCurrency = append(file.FiatCurrency, *b.Items[i])
+			file.FiatCurrency = append(file.FiatCurrency, b.Items[i])
 		case Cryptocurrency:
-			file.Cryptocurrency = append(file.Cryptocurrency, *b.Items[i])
+			file.Cryptocurrency = append(file.Cryptocurrency, b.Items[i])
 		case Token:
-			file.Token = append(file.Token, *b.Items[i])
+			file.Token = append(file.Token, b.Items[i])
 		case Contract:
-			file.Contracts = append(file.Contracts, *b.Items[i])
+			file.Contracts = append(file.Contracts, b.Items[i])
 		case Stable:
-			file.Stable = append(file.Stable, *b.Items[i])
+			file.Stable = append(file.Stable, b.Items[i])
 		default:
 			return file, errors.New("role undefined")
 		}
@@ -210,7 +210,6 @@ func (b *BaseCodes) LoadItem(item *Item) error {
 			(b.Items[i].Role != Unset && item.Role != Unset && b.Items[i].Role != item.Role) {
 			continue
 		}
-		*b.Items[i] = *item
 		return nil
 	}
 	b.Items = append(b.Items, item)

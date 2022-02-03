@@ -624,8 +624,8 @@ func TestFindPairDifferences(t *testing.T) {
 	}
 
 	emptyPairsList, err := NewPairsFromStrings([]string{""})
-	if err != nil {
-		t.Fatal(err)
+	if !errors.Is(err, errCannotCreatePair) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errCannotCreatePair)
 	}
 
 	// Test that we don't allow empty strings for new pairs

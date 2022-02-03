@@ -381,7 +381,7 @@ func (s *Storage) LoadFileCurrencyData(f *File) error {
 			return fmt.Errorf("%w %s expecting: %s",
 				errUnexpectedRole, f.Contracts[i].Role, Contract)
 		}
-		err := s.currencyCodes.LoadItem(&f.Contracts[i])
+		err := s.currencyCodes.LoadItem(f.Contracts[i])
 		if err != nil {
 			return err
 		}
@@ -392,7 +392,7 @@ func (s *Storage) LoadFileCurrencyData(f *File) error {
 			return fmt.Errorf("%w %s expecting: %s",
 				errUnexpectedRole, f.Cryptocurrency[i].Role, Cryptocurrency)
 		}
-		err := s.currencyCodes.LoadItem(&f.Contracts[i])
+		err := s.currencyCodes.LoadItem(f.Contracts[i])
 		if err != nil {
 			return err
 		}
@@ -403,7 +403,7 @@ func (s *Storage) LoadFileCurrencyData(f *File) error {
 			return fmt.Errorf("%w %s expecting: %s",
 				errUnexpectedRole, f.Token[i].Role, Token)
 		}
-		err := s.currencyCodes.LoadItem(&f.Token[i])
+		err := s.currencyCodes.LoadItem(f.Token[i])
 		if err != nil {
 			return err
 		}
@@ -414,7 +414,7 @@ func (s *Storage) LoadFileCurrencyData(f *File) error {
 			return fmt.Errorf("%w %s expecting: %s",
 				errUnexpectedRole, f.FiatCurrency[i].Role, Fiat)
 		}
-		err := s.currencyCodes.LoadItem(&f.FiatCurrency[i])
+		err := s.currencyCodes.LoadItem(f.FiatCurrency[i])
 		if err != nil {
 			return err
 		}
@@ -425,7 +425,7 @@ func (s *Storage) LoadFileCurrencyData(f *File) error {
 			return fmt.Errorf("%w %s expecting: %s",
 				errUnexpectedRole, f.UnsetCurrency[i].Role, Unset)
 		}
-		err := s.currencyCodes.LoadItem(&f.UnsetCurrency[i])
+		err := s.currencyCodes.LoadItem(f.UnsetCurrency[i])
 		if err != nil {
 			return err
 		}
@@ -436,7 +436,7 @@ func (s *Storage) LoadFileCurrencyData(f *File) error {
 			return fmt.Errorf("%w %s expecting: %s",
 				errUnexpectedRole, f.Stable[i].Role, Stable)
 		}
-		err := s.currencyCodes.LoadItem(&f.Stable[i])
+		err := s.currencyCodes.LoadItem(f.Stable[i])
 		if err != nil {
 			return err
 		}

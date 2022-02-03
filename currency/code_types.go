@@ -55,6 +55,9 @@ type Item struct {
 	AssocChain string `json:"associatedBlockchain,omitempty"`
 }
 
+func (*Item) Lock()   {}
+func (*Item) Unlock() {}
+
 // Const declarations for individual currencies/tokens/fiat
 // An ever growing list. Cares not for equivalence, just is
 var (

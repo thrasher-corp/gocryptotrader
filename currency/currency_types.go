@@ -55,12 +55,12 @@ type FXSettings struct {
 // analysis system
 type File struct {
 	LastMainUpdate interface{} `json:"lastMainUpdate"`
-	Cryptocurrency []Item      `json:"cryptocurrencies"`
-	FiatCurrency   []Item      `json:"fiatCurrencies"`
-	UnsetCurrency  []Item      `json:"unsetCurrencies"`
-	Contracts      []Item      `json:"contracts"`
-	Token          []Item      `json:"tokens"`
-	Stable         []Item      `json:"stableCurrencies"`
+	Cryptocurrency []*Item     `json:"cryptocurrencies"`
+	FiatCurrency   []*Item     `json:"fiatCurrencies"`
+	UnsetCurrency  []*Item     `json:"unsetCurrencies"`
+	Contracts      []*Item     `json:"contracts"`
+	Token          []*Item     `json:"tokens"`
+	Stable         []*Item     `json:"stableCurrencies"`
 }
 
 // Const here are packaged defined delimiters
