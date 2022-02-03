@@ -13,6 +13,10 @@ var (
 	ErrCurrencyCodeEmpty = errors.New("currency code is empty")
 	errItemIsNil         = errors.New("item is nil")
 	errItemIsEmpty       = errors.New("item is empty")
+	errRoleUnset         = errors.New("role unset")
+
+	// EMPTY is an empty currency code
+	EMPTY = Code{}
 )
 
 func (r Role) String() string {
@@ -114,29 +118,17 @@ func (b *BaseCodes) GetCurrencies() Currencies {
 // UpdateCurrency updates or registers a currency/contract
 func (b *BaseCodes) UpdateCurrency(fullName, symbol, blockchain string, id int, r Role) error {
 	if r == Unset {
-		return fmt.Errorf("role cannot be unset in update currency for %s", symbol)
+		return fmt.Errorf("cannot update currency %w for %s", errRoleUnset, symbol)
 	}
 	b.mtx.Lock()
 	defer b.mtx.Unlock()
 	for i := range b.Items {
-		if b.Items[i].Symbol != symbol {
+		if b.Items[i].Symbol != symbol || (b.Items[i].Role != Unset && b.Items[i].Role != r) {
 			continue
 		}
 
-		if b.Items[i].Role == Unset {
-			b.Items[i].FullName = fullName
-			b.Items[i].Role = r
-			b.Items[i].AssocChain = blockchain
-			b.Items[i].ID = id
-			return nil
-		}
-
-		if b.Items[i].Role != r {
-			// Captures same name currencies and duplicates to different roles
-			break
-		}
-
 		b.Items[i].FullName = fullName
+		b.Items[i].Role = r
 		b.Items[i].AssocChain = blockchain
 		b.Items[i].ID = id
 		return nil
@@ -155,17 +147,19 @@ func (b *BaseCodes) UpdateCurrency(fullName, symbol, blockchain string, id int, 
 // Register registers a currency from a string and returns a currency code, this
 // can optionally include a role when it is known.
 func (b *BaseCodes) Register(c string, newRole ...Role) Code {
+	if c == "" {
+		return EMPTY
+	}
+
 	var format bool
-	if c != "" {
-		// Digits fool upper and lower casing. So find first letter and check
-		// case.
-		for x := 0; x < len(c); x++ {
-			if !unicode.IsDigit(rune(c[x])) {
-				format = unicode.IsUpper(rune(c[x]))
-				break
-			}
+	// Digits fool upper and lower casing. So find first letter and check case.
+	for x := range c {
+		if !unicode.IsDigit(rune(c[x])) {
+			format = unicode.IsUpper(rune(c[x]))
+			break
 		}
 	}
+
 	// Force upper string storage and matching
 	c = strings.ToUpper(c)
 
@@ -180,11 +174,15 @@ func (b *BaseCodes) Register(c string, newRole ...Role) Code {
 		if b.Items[i].Symbol != c {
 			continue
 		}
-		if b.Items[i].Role == Unset {
-			b.Items[i].Role = role
-		} else if role != Unset && b.Items[i].Role != role {
-			continue
+
+		if role != Unset {
+			if b.Items[i].Role == Unset {
+				b.Items[i].Role = role
+			} else if b.Items[i].Role != role {
+				continue
+			}
 		}
+
 		return Code{Item: b.Items[i], UpperCase: format}
 	}
 	newItem := &Item{Symbol: c, Lower: strings.ToLower(c), Role: role}
@@ -226,7 +224,7 @@ func NewCode(c string) Code {
 
 // String conforms to the stringer interface
 func (i *Item) String() string {
-	return fmt.Sprintf("ID: %d Fullname: %s Symbol: %s Role: %s Chain:%s",
+	return fmt.Sprintf("ID: %d Fullname: %s Symbol: %s Role: %s Chain: %s",
 		i.ID,
 		i.FullName,
 		i.Symbol,
@@ -288,26 +286,17 @@ func (c Code) Match(check Code) bool {
 
 // IsFiatCurrency checks if the currency passed is an enabled fiat currency
 func (c Code) IsFiatCurrency() bool {
-	if c.Item == nil {
-		return false
-	}
-	return c.Item.Role == Fiat
+	return c.Item != nil && c.Item.Role == Fiat
 }
 
 // IsCryptocurrency checks if the currency passed is an enabled CRYPTO currency.
 // NOTE: All unset currencies will default to cryptocurrencies and stable coins
 // are cryptocurrencies as well.
 func (c Code) IsCryptocurrency() bool {
-	if c.Item == nil {
-		return false
-	}
-	return c.Item.Role&(Cryptocurrency|Stable) == c.Item.Role
+	return c.Item != nil && c.Item.Role&(Cryptocurrency|Stable) == c.Item.Role
 }
 
-// IsStableCurrency checks if the currency is a stable coin. A stabl
+// IsStableCurrency checks if the currency is a stable currency.
 func (c Code) IsStableCurrency() bool {
-	if c.Item == nil {
-		return false
-	}
-	return c.Item.Role == Stable
+	return c.Item != nil && c.Item.Role == Stable
 }

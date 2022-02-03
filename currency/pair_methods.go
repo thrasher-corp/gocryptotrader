@@ -11,15 +11,15 @@ func (p Pair) String() string {
 
 // Lower converts the pair object to lowercase
 func (p Pair) Lower() Pair {
-	p.Base = p.Base.Lower()
-	p.Quote = p.Quote.Lower()
+	p.Base.Lower()
+	p.Quote.Lower()
 	return p
 }
 
 // Upper converts the pair object to uppercase
 func (p Pair) Upper() Pair {
-	p.Base = p.Base.Upper()
-	p.Quote = p.Quote.Upper()
+	p.Base.Upper()
+	p.Quote.Upper()
 	return p
 }
 
@@ -84,7 +84,7 @@ func (p Pair) IsFiatPair() bool {
 }
 
 // IsCryptoStablePair checks to see if the pair is a crypto stable pair e.g.
-// EUR-USDT
+// LTC-USDT
 func (p Pair) IsCryptoStablePair() bool {
 	return (p.Base.IsCryptocurrency() && p.Quote.IsStableCurrency()) ||
 		(p.Base.IsStableCurrency() && p.Quote.IsCryptocurrency())

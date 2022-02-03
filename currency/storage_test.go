@@ -1,8 +1,6 @@
 package currency
 
-import (
-	"testing"
-)
+import "testing"
 
 func TestRunUpdater(t *testing.T) {
 	var newStorage Storage

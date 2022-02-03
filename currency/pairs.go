@@ -18,35 +18,21 @@ var (
 // NewPairsFromStrings takes in currency pair strings and returns a currency
 // pair list
 func NewPairsFromStrings(pairs []string) (Pairs, error) {
-	var newPairs Pairs
-	for i := range pairs {
-		if pairs[i] == "" {
-			continue
-		}
-
-		newPair, err := NewPairFromString(pairs[i])
-		if err != nil {
-			return nil, err
-		}
-
-		newPairs = append(newPairs, newPair)
-	}
-	return newPairs, nil
-}
-
-// NewPairsFromString takes in a comma delimitered string and returns a Pairs
-// type
-func NewPairsFromString(pairs string) (Pairs, error) {
-	pairsSplit := strings.Split(pairs, ",")
-	allThePairs := make(Pairs, len(pairsSplit))
+	allThePairs := make(Pairs, len(pairs))
 	var err error
-	for i := range pairsSplit {
-		allThePairs[i], err = NewPairFromString(pairsSplit[i])
+	for i := range pairs {
+		allThePairs[i], err = NewPairFromString(pairs[i])
 		if err != nil {
 			return nil, err
 		}
 	}
 	return allThePairs, nil
+}
+
+// NewPairsFromString takes in a comma delimitered string and returns a Pairs
+// type
+func NewPairsFromString(pairs string) (Pairs, error) {
+	return NewPairsFromStrings(strings.Split(pairs, ","))
 }
 
 // Strings returns a slice of strings referring to each currency pair
@@ -250,7 +236,7 @@ func (p Pairs) DeriveFrom(symbol string) (Pair, error) {
 pairs:
 	for x := range p {
 		if p[x].Len() != len(symbol) {
-			continue // Optim.
+			continue
 		}
 		base := p[x].Base.Lower().String()
 		baseLength := len(base)
@@ -281,14 +267,7 @@ func (p Pairs) GetCrypto() Currencies {
 			m[p[x].Quote.Item] = p[x].Quote.UpperCase
 		}
 	}
-	var cryptos = make([]Code, len(m))
-	var target int
-	for code, upper := range m {
-		cryptos[target].Item = code
-		cryptos[target].UpperCase = upper
-		target++
-	}
-	return cryptos
+	return currencyConstructor(m)
 }
 
 // GetFiat returns all the cryptos contained in the list.
@@ -302,14 +281,7 @@ func (p Pairs) GetFiat() Currencies {
 			m[p[x].Quote.Item] = p[x].Quote.UpperCase
 		}
 	}
-	var fiat = make([]Code, len(m))
-	var target int
-	for code, upper := range m {
-		fiat[target].Item = code
-		fiat[target].UpperCase = upper
-		target++
-	}
-	return fiat
+	return currencyConstructor(m)
 }
 
 // GetCurrencies returns the full currency code list contained derived from the
@@ -320,14 +292,7 @@ func (p Pairs) GetCurrencies() Currencies {
 		m[p[x].Base.Item] = p[x].Base.UpperCase
 		m[p[x].Quote.Item] = p[x].Quote.UpperCase
 	}
-	var currencies = make([]Code, len(m))
-	var target int
-	for code, upper := range m {
-		currencies[target].Item = code
-		currencies[target].UpperCase = upper
-		target++
-	}
-	return currencies
+	return currencyConstructor(m)
 }
 
 // GetStables returns the stable currency code list derived from the pairs list.
@@ -341,12 +306,18 @@ func (p Pairs) GetStables() Currencies {
 			m[p[x].Quote.Item] = p[x].Quote.UpperCase
 		}
 	}
-	var currencies = make([]Code, len(m))
+	return currencyConstructor(m)
+}
+
+// currencyConstructor takes in an item map and returns the currencies with
+// the same formatting.
+func currencyConstructor(m map[*Item]bool) Currencies {
+	var cryptos = make([]Code, len(m))
 	var target int
 	for code, upper := range m {
-		currencies[target].Item = code
-		currencies[target].UpperCase = upper
+		cryptos[target].Item = code
+		cryptos[target].UpperCase = upper
 		target++
 	}
-	return currencies
+	return cryptos
 }

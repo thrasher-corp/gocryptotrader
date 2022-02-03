@@ -2,6 +2,8 @@ package currency
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"testing"
 )
 
@@ -140,6 +142,12 @@ func TestRoleUnmarshalJSON(t *testing.T) {
 	if err == nil {
 		t.Error("Expected unmarshall error")
 	}
+
+	err = unhandled.UnmarshalJSON([]byte(`1336`))
+	if err == nil {
+		t.Error("Expected unmarshall error")
+	}
+
 }
 
 func TestBaseCode(t *testing.T) {
@@ -149,7 +157,22 @@ func TestBaseCode(t *testing.T) {
 			main.HasData())
 	}
 
-	catsCode := main.Register("CATS")
+	_ = main.Register("CATS")
+	if !main.HasData() {
+		t.Errorf("BaseCode HasData() error expected true but received %v",
+			main.HasData())
+	}
+
+	// Changes unset to fiat
+	catsCode := main.Register("CATS", Fiat)
+	if !main.HasData() {
+		t.Errorf("BaseCode HasData() error expected true but received %v",
+			main.HasData())
+	}
+
+	// Duplicates item with same name but different role. TODO: This will need
+	// a specific update to NewCode function to implement this in system.
+	_ = main.Register("CATS", Stable)
 	if !main.HasData() {
 		t.Errorf("BaseCode HasData() error expected true but received %v",
 			main.HasData())
@@ -189,18 +212,23 @@ func TestBaseCode(t *testing.T) {
 	}
 
 	main.Register("BTC")
+	err = main.UpdateCurrency("Bitcoin", "BTC", "", 1337, Unset)
+	if !errors.Is(err, errRoleUnset) {
+		t.Fatalf("recieved: '%v' but expected: '%v'", err, errRoleUnset)
+	}
+
 	err = main.UpdateCurrency("Bitcoin", "BTC", "", 1337, Cryptocurrency)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	main.Register("AUD")
+	aud := main.Register("AUD")
 	err = main.UpdateCurrency("Unreal Dollar", "AUD", "", 1111, Fiat)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if main.Items[5].FullName != "Unreal Dollar" {
+	if aud.Item.FullName != "Unreal Dollar" {
 		t.Error("Expected fullname to update for AUD")
 	}
 
@@ -209,12 +237,12 @@ func TestBaseCode(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	main.Items[5].Role = Unset
+	aud.Item.Role = Unset
 	err = main.UpdateCurrency("Australian Dollar", "AUD", "", 1336, Fiat)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if main.Items[5].Role != Fiat {
+	if aud.Item.Role != Fiat {
 		t.Error("Expected role to change to Fiat")
 	}
 
@@ -234,6 +262,26 @@ func TestBaseCode(t *testing.T) {
 	if contract.IsCryptocurrency() {
 		t.Errorf("BaseCode IsCryptocurrency() error expected false but received %v",
 			true)
+	}
+
+	err = main.LoadItem(nil)
+	if !errors.Is(err, errItemIsNil) {
+		t.Fatalf("recieved: '%v' but expected: '%v'", err, errItemIsNil)
+	}
+
+	err = main.LoadItem(&Item{})
+	if !errors.Is(err, errItemIsEmpty) {
+		t.Fatalf("recieved: '%v' but expected: '%v'", err, errItemIsEmpty)
+	}
+
+	err = main.LoadItem(&Item{
+		ID:       0,
+		FullName: "Cardano",
+		Role:     Cryptocurrency,
+		Symbol:   "ADA",
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	err = main.LoadItem(&Item{
@@ -261,7 +309,7 @@ func TestBaseCode(t *testing.T) {
 			len(full.Cryptocurrency))
 	}
 
-	if len(full.FiatCurrency) != 1 {
+	if len(full.FiatCurrency) != 2 {
 		t.Errorf("BaseCode GetFullCurrencyData() error expected 1 but received %v",
 			len(full.FiatCurrency))
 	}
@@ -271,7 +319,7 @@ func TestBaseCode(t *testing.T) {
 			len(full.Token))
 	}
 
-	if len(full.UnsetCurrency) != 3 {
+	if len(full.UnsetCurrency) != 2 {
 		t.Errorf("BaseCode GetFullCurrencyData() error expected 3 but received %v",
 			len(full.UnsetCurrency))
 	}
@@ -296,24 +344,26 @@ func TestBaseCode(t *testing.T) {
 	}
 
 	main.Items[0].FullName = "Hello"
-	err = main.UpdateCurrency("MEWOW", "CATS", "", 1338, Cryptocurrency)
+	err = main.UpdateCurrency("MEWOW", "CATS", "", 1338, Fiat)
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	fmt.Printf("%+v\n", main.Items)
 	if main.Items[0].FullName != "MEWOW" {
 		t.Error("Fullname not updated")
 	}
-	err = main.UpdateCurrency("MEWOW", "CATS", "", 1338, Cryptocurrency)
+	err = main.UpdateCurrency("MEWOW", "CATS", "", 1338, Fiat)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = main.UpdateCurrency("WOWCATS", "CATS", "", 3, Token)
+	err = main.UpdateCurrency("WOWCATS", "CATS", "", 3, Fiat)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// Creates a new item under a different currency role
-	if main.Items[9].ID != 3 {
+	if main.Items[0].ID != 3 {
 		t.Error("ID not updated")
 	}
 
@@ -372,6 +422,15 @@ func TestCodeUnmarshalJSON(t *testing.T) {
 		t.Errorf("Currency Code Upper() error expected %s but received %s",
 			expected,
 			unmarshalHere)
+	}
+
+	encoded, err = json.Marshal(1336) // :'(
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = json.Unmarshal(encoded, &unmarshalHere)
+	if err == nil {
+		t.Fatal("expected error")
 	}
 }
 
@@ -497,7 +556,7 @@ func TestItemString(t *testing.T) {
 		AssocChain: "Silly",
 	}
 
-	expected := "ID: 1337 Fullname: Hello,World Symbol: HWORLD Role: roleUnset Chain:Silly"
+	expected := "ID: 1337 Fullname: Hello,World Symbol: HWORLD Role: roleUnset Chain: Silly"
 	if newItem.String() != expected {
 		t.Errorf("Currency String() error expected '%s' but received '%s'",
 			expected,
