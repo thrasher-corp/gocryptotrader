@@ -11,15 +11,15 @@ func (p Pair) String() string {
 
 // Lower converts the pair object to lowercase
 func (p Pair) Lower() Pair {
-	p.Base.Lower()
-	p.Quote.Lower()
+	p.Base = p.Base.Lower()
+	p.Quote = p.Quote.Lower()
 	return p
 }
 
 // Upper converts the pair object to uppercase
 func (p Pair) Upper() Pair {
-	p.Base.Upper()
-	p.Quote.Upper()
+	p.Base = p.Base.Upper()
+	p.Quote = p.Quote.Upper()
 	return p
 }
 
