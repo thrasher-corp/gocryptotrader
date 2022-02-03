@@ -1993,11 +1993,15 @@ func TestCalculateTotalCollateralOnline(t *testing.T) {
 	if !result.CollateralCurrency.Match(currency.USD) {
 		t.Error("expected USD collateral currency")
 	}
+	curr, err := currency.NewPairFromString("BTC-PERP")
+	if !errors.Is(err, nil) {
+		t.Fatalf("received '%v' expected '%v'", err, nil)
+	}
 	// with position data
 	pos := []PositionData{
 		{
 			CollateralUsed: 5,
-			Future:         "BTC-PERP",
+			Future:         curr,
 			UnrealizedPNL:  10,
 		},
 	}

@@ -1083,12 +1083,11 @@ message CollateralForCurrency {
     string original_amount = 2;
     string scaled_to_currency = 3;
     string scaled_total = 4;
-    string scaled_maintenance = 5;
-    string scaled_free = 6;
-    string scaled_locked = 7;
-    string unrealisedPNL = 8;
-    CollateralLockedBreakdown locked_breakdown = 9;
-    string error = 10;
+    string scaled_free = 5;
+    string scaled_locked = 6;
+    string unrealisedPNL = 7;
+    CollateralLockedBreakdown locked_breakdown = 8;
+    string error = 9;
 }
 
 message CollateralLockedBreakdown {

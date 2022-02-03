@@ -62,14 +62,13 @@ type CollateralManagement interface {
 
 // TotalCollateralResponse holds all collateral
 type TotalCollateralResponse struct {
-	CollateralCurrency    currency.Code
-	TotalCollateral       decimal.Decimal
-	MaintenanceCollateral decimal.Decimal
-	FreeCollateral        decimal.Decimal
-	LockedCollateral      decimal.Decimal
-	UnrealisedPNL         decimal.Decimal
-	LockedBreakdown       *CollateralLockedBreakdown
-	BreakdownByCurrency   []CollateralByCurrency
+	CollateralCurrency  currency.Code
+	TotalCollateral     decimal.Decimal
+	FreeCollateral      decimal.Decimal
+	LockedCollateral    decimal.Decimal
+	UnrealisedPNL       decimal.Decimal
+	LockedBreakdown     *CollateralLockedBreakdown
+	BreakdownByCurrency []CollateralByCurrency
 }
 
 // CollateralByCurrency individual collateral contribution
@@ -80,7 +79,6 @@ type CollateralByCurrency struct {
 	Currency              currency.Code
 	OriginalTotal         decimal.Decimal
 	ScaledTotal           decimal.Decimal
-	ScaledMaintenance     decimal.Decimal
 	ScaledTotalLocked     decimal.Decimal
 	UnrealisedPNL         decimal.Decimal
 	ScaledLockedBreakdown *CollateralLockedBreakdown
@@ -89,6 +87,8 @@ type CollateralByCurrency struct {
 	Error                 error
 }
 
+// CollateralLockedBreakdown provides a detailed
+// breakdown of where collateral is currently being allocated
 type CollateralLockedBreakdown struct {
 	LockedInStakes                  decimal.Decimal
 	LockedInNFTBids                 decimal.Decimal

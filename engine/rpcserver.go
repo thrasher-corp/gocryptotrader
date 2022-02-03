@@ -4380,12 +4380,11 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 	}
 
 	result := &gctrpc.GetCollateralResponse{
-		SubAccount:            subAccount,
-		CollateralCurrency:    collateral.CollateralCurrency.String(),
-		TotalCollateral:       collateral.TotalCollateral.String(),
-		MaintenanceCollateral: collateral.MaintenanceCollateral.String(),
-		FreeCollateral:        collateral.FreeCollateral.String(),
-		LockedCollateral:      collateral.LockedCollateral.String(),
+		SubAccount:         subAccount,
+		CollateralCurrency: collateral.CollateralCurrency.String(),
+		TotalCollateral:    collateral.TotalCollateral.String(),
+		FreeCollateral:     collateral.FreeCollateral.String(),
+		LockedCollateral:   collateral.LockedCollateral.String(),
 	}
 	if !collateral.UnrealisedPNL.IsZero() {
 		result.UnrealisedPNL = collateral.UnrealisedPNL.String()
@@ -4417,13 +4416,12 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 				continue
 			}
 			cb := &gctrpc.CollateralForCurrency{
-				Currency:          collateral.BreakdownByCurrency[i].Currency.String(),
-				OriginalAmount:    collateral.BreakdownByCurrency[i].OriginalTotal.String(),
-				ScaledToCurrency:  collateral.BreakdownByCurrency[i].ScaledCurrency.String(),
-				ScaledTotal:       collateral.BreakdownByCurrency[i].ScaledTotal.String(),
-				ScaledMaintenance: collateral.BreakdownByCurrency[i].ScaledMaintenance.String(),
-				ScaledFree:        collateral.BreakdownByCurrency[i].ScaledFree.String(),
-				ScaledLocked:      collateral.BreakdownByCurrency[i].ScaledTotalLocked.String(),
+				Currency:         collateral.BreakdownByCurrency[i].Currency.String(),
+				OriginalAmount:   collateral.BreakdownByCurrency[i].OriginalTotal.String(),
+				ScaledToCurrency: collateral.BreakdownByCurrency[i].ScaledCurrency.String(),
+				ScaledTotal:      collateral.BreakdownByCurrency[i].ScaledTotal.String(),
+				ScaledFree:       collateral.BreakdownByCurrency[i].ScaledFree.String(),
+				ScaledLocked:     collateral.BreakdownByCurrency[i].ScaledTotalLocked.String(),
 			}
 			if !collateral.BreakdownByCurrency[i].UnrealisedPNL.IsZero() {
 				cb.UnrealisedPNL = collateral.BreakdownByCurrency[i].UnrealisedPNL.String()

@@ -168,17 +168,15 @@ func (f fExchange) CalculateTotalCollateral(context.Context, *order.TotalCollate
 		},
 		BreakdownByCurrency: []order.CollateralByCurrency{
 			{
-				Currency:          currency.USD,
-				OriginalTotal:     decimal.NewFromInt(1330),
-				ScaledTotal:       decimal.NewFromInt(1330),
-				ScaledMaintenance: decimal.NewFromInt(1330),
-				ScaledFree:        decimal.NewFromInt(1330),
+				Currency:      currency.USD,
+				OriginalTotal: decimal.NewFromInt(1330),
+				ScaledTotal:   decimal.NewFromInt(1330),
+				ScaledFree:    decimal.NewFromInt(1330),
 			},
 			{
 				Currency:          currency.DOGE,
 				OriginalTotal:     decimal.NewFromInt(1000),
 				ScaledTotal:       decimal.NewFromInt(10),
-				ScaledMaintenance: decimal.NewFromInt(10),
 				ScaledTotalLocked: decimal.NewFromInt(6),
 				ScaledLockedBreakdown: &order.CollateralLockedBreakdown{
 					LockedInStakes:                  decimal.NewFromInt(1),
@@ -192,12 +190,11 @@ func (f fExchange) CalculateTotalCollateral(context.Context, *order.TotalCollate
 				ScaledCurrency: currency.USD,
 			},
 			{
-				Currency:          currency.XRP,
-				OriginalTotal:     decimal.NewFromInt(1333333333333337),
-				ScaledTotal:       decimal.NewFromInt(-3),
-				ScaledMaintenance: decimal.NewFromInt(-3),
-				ScaledFree:        decimal.NewFromInt(-3),
-				ScaledCurrency:    currency.USD,
+				Currency:       currency.XRP,
+				OriginalTotal:  decimal.NewFromInt(1333333333333337),
+				ScaledTotal:    decimal.NewFromInt(-3),
+				ScaledFree:     decimal.NewFromInt(-3),
+				ScaledCurrency: currency.USD,
 			},
 		},
 	}, nil
