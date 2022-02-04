@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
@@ -48,6 +49,73 @@ type cashCarrySignals struct {
 
 var errNotSetup = errors.New("sent incomplete signals")
 
+// OnSimultaneousSignals analyses multiple data points simultaneously, allowing flexibility
+// in allowing a strategy to only place an order for X currency if Y currency's price is Z
+func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundTransferer, p portfolio.Handler) ([]signal.Event, error) {
+	var response []signal.Event
+	sortedSignals, err := sortSignals(d, f)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, v := range sortedSignals {
+		pos, err := p.GetPositions(v.futureSignal.Latest())
+		if err != nil {
+			return nil, err
+		}
+		spotSignal, err := s.GetBaseData(v.spotSignal)
+		if err != nil {
+			return nil, err
+		}
+		futuresSignal, err := s.GetBaseData(v.futureSignal)
+		if err != nil {
+			return nil, err
+		}
+
+		fp := v.futureSignal.Latest().GetClosePrice()
+		sp := v.spotSignal.Latest().GetClosePrice()
+		switch {
+		case len(pos) == 0:
+			// check to see if order is appropriate to action
+			spotSignal.SetPrice(v.spotSignal.Latest().GetClosePrice())
+			spotSignal.AppendReason(fmt.Sprintf("signalling purchase of %v", spotSignal.Pair()))
+			// first the spot purchase
+			spotSignal.SetDirection(order.Buy)
+			// second the futures purchase, using the newly acquired asset
+			// as collateral to short
+			futuresSignal.SetDirection(order.Short)
+			futuresSignal.SetPrice(v.futureSignal.Latest().GetClosePrice())
+			futuresSignal.CollateralCurrency = spotSignal.CurrencyPair.Base
+			spotSignal.AppendReason(fmt.Sprintf("signalling shorting %v", futuresSignal.Pair()))
+			// set the FillDependentEvent to use the futures signal
+			// as the futures signal relies on a completed spot order purchase
+			// to use as collateral
+			spotSignal.FillDependentEvent = &futuresSignal
+			response = append(response, &spotSignal)
+		case len(pos) > 0 && v.futureSignal.IsLastEvent():
+			futuresSignal.SetDirection(common.ClosePosition)
+			futuresSignal.AppendReason("closing position on last event")
+			futuresSignal.SetDirection(order.Long)
+			response = append(response, &futuresSignal)
+		case len(pos) > 0 && pos[len(pos)-1].Status == order.Open:
+			if fp.Sub(sp).Div(sp).GreaterThan(s.closeShortDistancePercentage) {
+				futuresSignal.SetDirection(common.ClosePosition)
+				futuresSignal.AppendReason("closing position after reaching close short distance percentage")
+				futuresSignal.SetDirection(order.Long)
+				response = append(response, &futuresSignal)
+			}
+		case len(pos) > 0 && pos[len(pos)-1].Status == order.Closed:
+			if fp.Sub(sp).Div(sp).GreaterThan(s.openShortDistancePercentage) {
+				futuresSignal.SetDirection(order.Short)
+				futuresSignal.SetPrice(v.futureSignal.Latest().GetClosePrice())
+				futuresSignal.AppendReason("opening position after reaching open short distance percentage")
+				response = append(response, &futuresSignal)
+			}
+		}
+	}
+	return response, nil
+}
+
 func sortSignals(d []data.Handler, f funding.IFundTransferer) (map[currency.Pair]cashCarrySignals, error) {
 	var response = make(map[currency.Pair]cashCarrySignals)
 	for i := range d {
@@ -87,66 +155,32 @@ func sortSignals(d []data.Handler, f funding.IFundTransferer) (map[currency.Pair
 	return response, nil
 }
 
-// OnSimultaneousSignals analyses multiple data points simultaneously, allowing flexibility
-// in allowing a strategy to only place an order for X currency if Y currency's price is Z
-func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundTransferer, p portfolio.Handler) ([]signal.Event, error) {
-	var response []signal.Event
-	sortedSignals, err := sortSignals(d, f)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, v := range sortedSignals {
-		pos, err := p.GetPositions(v.futureSignal.Latest())
-		if err != nil {
-			return nil, err
-		}
-		spotSignal, err := s.GetBaseData(v.spotSignal)
-		if err != nil {
-			return nil, err
-		}
-		futuresSignal, err := s.GetBaseData(v.futureSignal)
-		if err != nil {
-			return nil, err
-		}
-		if len(pos) == 0 || pos[len(pos)-1].Status == order.Closed {
-			// check to see if order is appropriate to action
-
-			spotSignal.SetPrice(v.spotSignal.Latest().GetClosePrice())
-			spotSignal.AppendReason(fmt.Sprintf("signalling purchase of %v", spotSignal.Pair()))
-			// first the spot purchase
-			spotSignal.SetDirection(order.Buy)
-			// second the futures purchase, using the newly acquired asset
-			// as collateral to short
-			futuresSignal.SetDirection(order.Short)
-			futuresSignal.SetPrice(v.futureSignal.Latest().GetClosePrice())
-			futuresSignal.CollateralCurrency = spotSignal.CurrencyPair.Base
-			spotSignal.AppendReason(fmt.Sprintf("signalling shorting %v", futuresSignal.Pair()))
-			// set the FillDependentEvent to use the futures signal
-			// as the futures signal relies on a completed spot order purchase
-			// to use as collateral
-			spotSignal.FillDependentEvent = &futuresSignal
-			response = append(response, &spotSignal)
-		} else {
-			// analyse the conditions of the order to monitor whether
-			// its worthwhile to ever close the short
-			if v.futureSignal.IsLastEvent() {
-				futuresSignal.SetDirection(common.ClosePosition)
-				futuresSignal.AppendReason("closing position on last event")
-				futuresSignal.SetDirection(order.Long)
-				response = append(response, &futuresSignal)
-			}
-			// determine how close future price is to spot price
-			// compare it to see if it meets the % value threshold and close position
-		}
-	}
-	return response, nil
-}
-
 // SetCustomSettings not required for DCA
-func (s *Strategy) SetCustomSettings(_ map[string]interface{}) error {
-	return base.ErrCustomSettingsUnsupported
+func (s *Strategy) SetCustomSettings(customSettings map[string]interface{}) error {
+	for k, v := range customSettings {
+		switch k {
+		case openShortDistancePercentageString:
+			rsiHigh, ok := v.(float64)
+			if !ok || rsiHigh <= 0 {
+				return fmt.Errorf("%w provided rsi-high value could not be parsed: %v", base.ErrInvalidCustomSettings, v)
+			}
+			s.openShortDistancePercentage = decimal.NewFromFloat(rsiHigh)
+		case closeShortDistancePercentageString:
+			rsiLow, ok := v.(float64)
+			if !ok || rsiLow <= 0 {
+				return fmt.Errorf("%w provided rsi-low value could not be parsed: %v", base.ErrInvalidCustomSettings, v)
+			}
+			s.closeShortDistancePercentage = decimal.NewFromFloat(rsiLow)
+		default:
+			return fmt.Errorf("%w unrecognised custom setting key %v with value %v. Cannot apply", base.ErrInvalidCustomSettings, k, v)
+		}
+	}
+
+	return nil
 }
 
 // SetDefaults not required for DCA
-func (s *Strategy) SetDefaults() {}
+func (s *Strategy) SetDefaults() {
+	s.closeShortDistancePercentage = decimal.NewFromInt(5)
+	s.closeShortDistancePercentage = decimal.NewFromInt(5)
+}

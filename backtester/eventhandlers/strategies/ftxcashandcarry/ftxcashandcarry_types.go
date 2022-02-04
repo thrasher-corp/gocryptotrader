@@ -9,11 +9,11 @@ import (
 
 const (
 	// Name is the strategy name
-	Name                = "ftx-cash-carry"
-	description         = `The relative strength index is a technical indicator used in the analysis of financial markets. It is intended to chart the current and historical strength or weakness of a stock or market based on the closing prices of a recent trading period`
-	exchangeName        = "ftx"
-	spotDifferenceEntry = "spot-difference-entry"
-	spotDifferenceExit  = "spot-difference-exit"
+	Name                               = "ftx-cash-carry"
+	description                        = `The relative strength index is a technical indicator used in the analysis of financial markets. It is intended to chart the current and historical strength or weakness of a stock or market based on the closing prices of a recent trading period`
+	exchangeName                       = "ftx"
+	openShortDistancePercentageString  = "openShortDistancePercentage"
+	closeShortDistancePercentageString = "closeShortDistancePercentage"
 )
 
 var (
@@ -24,7 +24,6 @@ var (
 // Strategy is an implementation of the Handler interface
 type Strategy struct {
 	base.Strategy
-	rsiPeriod decimal.Decimal
-	rsiLow    decimal.Decimal
-	rsiHigh   decimal.Decimal
+	openShortDistancePercentage  decimal.Decimal
+	closeShortDistancePercentage decimal.Decimal
 }
