@@ -15,11 +15,30 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
+// storage is an overarching type that keeps track of and updates currency,
+// currency exchange rates and pairs
+var storage Storage
+
 func init() {
 	storage.SetDefaults()
 }
 
-var errUnexpectedRole = errors.New("unexpected currency role")
+// CurrencyFileUpdateDelay defines the rate at which the currency.json file is
+// updated
+const (
+	DefaultCurrencyFileDelay    = 168 * time.Hour
+	DefaultForeignExchangeDelay = 1 * time.Minute
+	DefaultStorageFile          = "currency.json"
+)
+
+var (
+	errUnexpectedRole                       = errors.New("unexpected currency role")
+	errFiatDisplayCurrencyUnset             = errors.New("fiat display currency is unset")
+	errFiatDisplayCurrencyIsNotFiat         = errors.New("fiat display currency is not a fiat currency")
+	errNoFilePathSet                        = errors.New("no file path set")
+	errInvalidCurrencyFileUpdateDuration    = errors.New("invalid currency file update duration")
+	errInvalidForeignExchangeUpdateDuration = errors.New("invalid foreign exchange update duration")
+)
 
 // SetDefaults sets storage defaults for basic package functionality
 func (s *Storage) SetDefaults() {
@@ -35,17 +54,17 @@ func (s *Storage) SetDefaults() {
 
 	err := s.SetDefaultFiatCurrencies(fiatCurrencies)
 	if err != nil {
-		log.Errorf(log.Global, "Currency Storage: Setting default fiat currencies error: %s", err)
+		log.Errorf(log.Currency, "Currency Storage: Setting default fiat currencies error: %s", err)
 	}
 
 	err = s.SetStableCoins(stables)
 	if err != nil {
-		log.Errorf(log.Global, "Currency Storage: Setting default stable currencies error: %s", err)
+		log.Errorf(log.Currency, "Currency Storage: Setting default stable currencies error: %s", err)
 	}
 
 	err = s.SetDefaultCryptocurrencies(Currencies{BTC, LTC, ETH, DOGE, DASH, XRP, XMR, USDT, UST})
 	if err != nil {
-		log.Errorf(log.Global, "Currency Storage: Setting default cryptocurrencies error: %s", err)
+		log.Errorf(log.Currency, "Currency Storage: Setting default cryptocurrencies error: %s", err)
 	}
 	s.SetupConversionRates()
 	s.fiatExchangeMarkets = forexprovider.NewDefaultFXProvider()
@@ -56,141 +75,82 @@ func (s *Storage) SetDefaults() {
 // triggering rate limiters, it will also run a full cryptocurrency check
 // through coin market cap and expose analytics for exchange services
 func (s *Storage) RunUpdater(overrides BotOverrides, settings *MainConfiguration, filePath string) error {
-	s.mtx.Lock()
-	s.shutdown = make(chan struct{})
-
-	if !settings.Cryptocurrencies.HasData() {
-		s.mtx.Unlock()
-		return errors.New("currency storage error, no cryptocurrencies loaded")
-	}
-	s.cryptocurrencies = settings.Cryptocurrencies
-
 	if settings.FiatDisplayCurrency.IsEmpty() {
-		s.mtx.Unlock()
-		return errors.New("currency storage error, no fiat display currency set in config")
+		return errFiatDisplayCurrencyUnset
 	}
-	s.baseCurrency = settings.FiatDisplayCurrency
-	log.Debugf(log.Global,
-		"Fiat display currency: %s.\n",
-		s.baseCurrency)
 
-	if settings.CryptocurrencyProvider.Enabled {
-		log.Debugln(log.Global,
-			"Setting up currency analysis system with Coinmarketcap...")
-		c := &coinmarketcap.Coinmarketcap{}
-		c.SetDefaults()
-		err := c.Setup(coinmarketcap.Settings{
-			Name:        settings.CryptocurrencyProvider.Name,
-			Enabled:     settings.CryptocurrencyProvider.Enabled,
-			AccountPlan: settings.CryptocurrencyProvider.AccountPlan,
-			APIkey:      settings.CryptocurrencyProvider.APIkey,
-			Verbose:     settings.CryptocurrencyProvider.Verbose,
-		})
-		if err != nil {
-			log.Errorf(log.Global,
-				"Unable to setup CoinMarketCap analysis. Error: %s", err)
-			settings.CryptocurrencyProvider.Enabled = false
-		} else {
-			s.currencyAnalysis = c
-		}
+	if !settings.FiatDisplayCurrency.IsFiatCurrency() {
+		return fmt.Errorf("%s: %w", settings.FiatDisplayCurrency, errFiatDisplayCurrencyIsNotFiat)
 	}
 
 	if filePath == "" {
-		s.mtx.Unlock()
-		return errors.New("currency package runUpdater error filepath not set")
+		return errNoFilePathSet
 	}
 
+	if settings.CurrencyDelay <= 0 {
+		return errInvalidCurrencyFileUpdateDuration
+	}
+
+	if settings.FxRateDelay <= 0 {
+		return errInvalidForeignExchangeUpdateDuration
+	}
+
+	s.mtx.Lock()
+
+	s.shutdown = make(chan struct{})
+	s.baseCurrency = settings.FiatDisplayCurrency
 	s.path = filepath.Join(filePath, DefaultStorageFile)
+	s.currencyFileUpdateDelay = settings.CurrencyDelay
+	s.foreignExchangeUpdateDelay = settings.FxRateDelay
 
-	if settings.CurrencyDelay.Nanoseconds() == 0 {
-		s.currencyFileUpdateDelay = DefaultCurrencyFileDelay
-	} else {
-		s.currencyFileUpdateDelay = settings.CurrencyDelay
-	}
+	log.Debugf(log.Currency, "Fiat display currency: %s.\n", s.baseCurrency)
 
-	if settings.FxRateDelay.Nanoseconds() == 0 {
-		s.foreignExchangeUpdateDelay = DefaultForeignExchangeDelay
-	} else {
-		s.foreignExchangeUpdateDelay = settings.FxRateDelay
+	var err error
+	if settings.CryptocurrencyProvider.Enabled {
+		log.Debugln(log.Currency, "Setting up currency analysis system with Coinmarketcap...")
+		s.currencyAnalysis, err = coinmarketcap.NewFromSettings(settings.CryptocurrencyProvider)
+		if err != nil {
+			log.Errorf(log.Currency, "Unable to setup CoinMarketCap analysis. Error: %s", err)
+		}
 	}
 
 	var fxSettings []base.Settings
 	for i := range settings.ForexProviders {
-		switch settings.ForexProviders[i].Name {
-		case "CurrencyConverter":
-			if overrides.FxCurrencyConverter ||
-				settings.ForexProviders[i].Enabled {
-				settings.ForexProviders[i].Enabled = true
-				fxSettings = append(fxSettings,
-					base.Settings(settings.ForexProviders[i]))
-			}
-
-		case "CurrencyLayer":
-			if overrides.FxCurrencyLayer || settings.ForexProviders[i].Enabled {
-				settings.ForexProviders[i].Enabled = true
-				fxSettings = append(fxSettings,
-					base.Settings(settings.ForexProviders[i]))
-			}
-
-		case "Fixer":
-			if overrides.FxFixer || settings.ForexProviders[i].Enabled {
-				settings.ForexProviders[i].Enabled = true
-				fxSettings = append(fxSettings,
-					base.Settings(settings.ForexProviders[i]))
-			}
-
-		case "OpenExchangeRates":
-			if overrides.FxOpenExchangeRates ||
-				settings.ForexProviders[i].Enabled {
-				settings.ForexProviders[i].Enabled = true
-				fxSettings = append(fxSettings,
-					base.Settings(settings.ForexProviders[i]))
-			}
-
-		case "ExchangeRates":
-			// TODO ADD OVERRIDE
-			if settings.ForexProviders[i].Enabled {
-				settings.ForexProviders[i].Enabled = true
-				fxSettings = append(fxSettings,
-					base.Settings(settings.ForexProviders[i]))
-			}
-
-		case "ExchangeRateHost":
-			if overrides.FxExchangeRateHost || settings.ForexProviders[i].Enabled {
-				settings.ForexProviders[i].Enabled = true
-				fxSettings = append(fxSettings,
-					base.Settings(settings.ForexProviders[i]))
-			}
+		switch {
+		case (settings.ForexProviders[i].Name == "CurrencyConverter" && overrides.CurrencyConverter) ||
+			(settings.ForexProviders[i].Name == "CurrencyLayer" && overrides.CurrencyLayer) ||
+			(settings.ForexProviders[i].Name == "Fixer" && overrides.Fixer) ||
+			(settings.ForexProviders[i].Name == "OpenExchangeRates" && overrides.OpenExchangeRates) ||
+			(settings.ForexProviders[i].Name == "ExchangeRates" && overrides.ExchangeRates) ||
+			(settings.ForexProviders[i].Name == "ExchangeRateHost" && overrides.ExchangeRateHost):
+			fxSettings = append(fxSettings, base.Settings(settings.ForexProviders[i]))
 		}
 	}
 
-	if len(fxSettings) != 0 {
-		var err error
-		s.fiatExchangeMarkets, err = forexprovider.StartFXService(fxSettings)
-		if err != nil {
-			s.mtx.Unlock()
-			return err
-		}
-
-		log.Debugf(log.Global,
-			"Primary foreign exchange conversion provider %s enabled\n",
-			s.fiatExchangeMarkets.Primary.Provider.GetName())
-
-		for i := range s.fiatExchangeMarkets.Support {
-			log.Debugf(log.Global,
-				"Support forex conversion provider %s enabled\n",
-				s.fiatExchangeMarkets.Support[i].Provider.GetName())
-		}
-
-		// Mutex present in this go routine to lock down retrieving rate data
-		// until this system initially updates
-		go s.ForeignExchangeUpdater()
-	} else {
-		log.Warnln(log.Global,
-			"No foreign exchange providers enabled in config.json")
+	if len(fxSettings) == 0 {
 		s.mtx.Unlock()
+		log.Warnln(log.Currency, "No foreign exchange providers enabled in config.json")
+		return nil
 	}
 
+	s.fiatExchangeMarkets, err = forexprovider.StartFXService(fxSettings)
+	if err != nil {
+		s.mtx.Unlock()
+		return err
+	}
+
+	log.Debugf(log.Currency, "Primary foreign exchange conversion provider %s enabled\n",
+		s.fiatExchangeMarkets.Primary.Provider.GetName())
+
+	for i := range s.fiatExchangeMarkets.Support {
+		log.Debugf(log.Currency, "Support forex conversion provider %s enabled\n",
+			s.fiatExchangeMarkets.Support[i].Provider.GetName())
+	}
+
+	// Mutex present in this go routine to lock down retrieving rate data
+	// until this system initially updates
+	s.wg.Add(1)
+	go s.ForeignExchangeUpdater()
 	return nil
 }
 
@@ -260,20 +220,17 @@ func (s *Storage) SetupForexProviders(setting ...base.Settings) error {
 // ForeignExchangeUpdater is a routine that seeds foreign exchange rate and keeps
 // updated as fast as possible
 func (s *Storage) ForeignExchangeUpdater() {
-	log.Debugln(log.Global,
-		"Foreign exchange updater started, seeding FX rate list..")
-
-	s.wg.Add(1)
 	defer s.wg.Done()
+	log.Debugln(log.Currency, "Foreign exchange updater started, seeding FX rate list..")
 
 	err := s.SeedCurrencyAnalysisData()
 	if err != nil {
-		log.Errorln(log.Global, err)
+		log.Errorln(log.Currency, err)
 	}
 
 	err = s.SeedForeignExchangeRates()
 	if err != nil {
-		log.Errorln(log.Global, err)
+		log.Errorln(log.Currency, err)
 	}
 
 	// Unlock main rate retrieval mutex so all routines waiting can get access
@@ -290,20 +247,18 @@ func (s *Storage) ForeignExchangeUpdater() {
 		select {
 		case <-s.shutdown:
 			return
-
 		case <-SeedForeignExchangeTick.C:
 			go func() {
 				err := s.SeedForeignExchangeRates()
 				if err != nil {
-					log.Errorln(log.Global, err)
+					log.Errorln(log.Currency, err)
 				}
 			}()
-
 		case <-SeedCurrencyAnalysisTick.C:
 			go func() {
 				err := s.SeedCurrencyAnalysisData()
 				if err != nil {
-					log.Errorln(log.Global, err)
+					log.Errorln(log.Currency, err)
 				}
 			}()
 		}
@@ -344,7 +299,7 @@ func (s *Storage) SeedCurrencyAnalysisData() error {
 // loads it into memory
 func (s *Storage) FetchCurrencyAnalysisData() error {
 	if s.currencyAnalysis == nil {
-		log.Warnln(log.Global,
+		log.Warnln(log.Currency,
 			"Currency analysis system offline, please set api keys for coinmarketcap if you wish to use this feature.")
 		return errors.New("currency analysis system offline")
 	}
@@ -559,6 +514,7 @@ func (s *Storage) SeedForeignExchangeRates() error {
 	if err != nil {
 		return err
 	}
+	fmt.Println("FX RATE:", rates)
 	return s.updateExchangeRates(rates)
 }
 

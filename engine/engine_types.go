@@ -52,6 +52,7 @@ type Settings struct {
 	// Forex settings
 	EnableCurrencyConverter bool
 	EnableCurrencyLayer     bool
+	EnableExchangeRates     bool
 	EnableFixer             bool
 	EnableOpenExchangeRates bool
 	EnableExchangeRateHost  bool

@@ -9,7 +9,6 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bitfinex"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
 )
@@ -90,11 +89,11 @@ func main() {
 		Subtotal float64
 	}
 
-	err = cfg.RetrieveConfigCurrencyPairs(true, asset.Spot)
-	if err != nil {
-		log.Printf("Failed to retrieve config currency pairs %v\n", err)
-		os.Exit(1)
-	}
+	// err = cfg.RetrieveConfigCurrencyPairs(true, asset.Spot)
+	// if err != nil {
+	// 	log.Printf("Failed to retrieve config currency pairs %v\n", err)
+	// 	os.Exit(1)
+	// }
 
 	portfolioMap := make(map[currency.Code]PortfolioTemp)
 	total := float64(0)

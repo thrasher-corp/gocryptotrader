@@ -281,3 +281,35 @@ func TestDryRunParamInteraction(t *testing.T) {
 		t.Error("dryrun should be true and verbose should be true")
 	}
 }
+
+func TestFlagSetWith(t *testing.T) {
+	var isRunning bool
+	flags := make(FlagSet)
+	// Flag not set default to config
+	if flags.WithBool("NOT SET", &isRunning, true); !isRunning {
+		t.Fatalf("received: '%v' but expected: '%v'", isRunning, true)
+	}
+	if flags.WithBool("NOT SET", &isRunning, false); isRunning {
+		t.Fatalf("received: '%v' but expected: '%v'", isRunning, false)
+	}
+
+	flags["IS SET"] = true
+	isRunning = true
+	// Flag set true which will overide config
+	if flags.WithBool("IS SET", &isRunning, true); !isRunning {
+		t.Fatalf("received: '%v' but expected: '%v'", isRunning, true)
+	}
+	if flags.WithBool("IS SET", &isRunning, false); !isRunning {
+		t.Fatalf("received: '%v' but expected: '%v'", isRunning, true)
+	}
+
+	flags["IS SET"] = true
+	isRunning = false
+	// Flag set false which will overide config
+	if flags.WithBool("IS SET", &isRunning, true); isRunning {
+		t.Fatalf("received: '%v' but expected: '%v'", isRunning, false)
+	}
+	if flags.WithBool("IS SET", &isRunning, false); isRunning {
+		t.Fatalf("received: '%v' but expected: '%v'", isRunning, false)
+	}
+}

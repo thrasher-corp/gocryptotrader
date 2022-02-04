@@ -3,6 +3,7 @@ package currency
 import (
 	"errors"
 	"fmt"
+	"strings"
 )
 
 var errEmptyPairString = errors.New("empty pair string")
@@ -79,7 +80,7 @@ func GetTotalMarketCryptocurrencies() ([]Code, error) {
 }
 
 // RunStorageUpdater runs a new foreign exchange updater instance
-func RunStorageUpdater(o BotOverrides, m *MainConfiguration, filepath string) error {
+func RunStorageUpdater(o BotOverrides, m *Config, filepath string) error {
 	return storage.RunUpdater(o, m, filepath)
 }
 
@@ -126,4 +127,16 @@ func FormatPairs(pairs []string, delimiter, index string) (Pairs, error) {
 		}
 	}
 	return result, nil
+}
+
+// IsEnabled returns if the individual foreign exchange config setting is
+// enabled
+func (settings AllFXSetting) IsEnabled(name string) bool {
+	for x := range settings {
+		if !strings.EqualFold(settings[x].Name, name) {
+			continue
+		}
+		return settings[x].Enabled
+	}
+	return false
 }

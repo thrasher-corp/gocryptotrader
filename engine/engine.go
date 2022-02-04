@@ -15,7 +15,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/currency/coinmarketcap"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -146,40 +145,44 @@ func loadConfigWithSettings(settings *Settings, flagSet map[string]bool) (*confi
 	return conf, conf.CheckConfig()
 }
 
+// FlagSet defines set flags from command line args for comparison methods
+type FlagSet map[string]bool
+
+// WithBool checks the supplied flag. If set it will overide the config boolean
+// value as a command line takes precedence. If not set will fall back to config
+// options.
+func (f FlagSet) WithBool(key string, flagValue *bool, configValue bool) {
+	isSet := f[key]
+	*flagValue = !isSet && configValue || isSet && *flagValue
+}
+
 // validateSettings validates and sets all bot settings
-func validateSettings(b *Engine, s *Settings, flagSet map[string]bool) {
+func validateSettings(b *Engine, s *Settings, flagSet FlagSet) {
 	b.Settings = *s
 
-	b.Settings.EnableDataHistoryManager = (flagSet["datahistorymanager"] && b.Settings.EnableDatabaseManager) || b.Config.DataHistoryManager.Enabled
+	flagSet.WithBool("coinmarketcap", &b.Settings.EnableCoinmarketcapAnalysis, b.Config.Currency.CryptocurrencyProvider.Enabled)
 
-	b.Settings.EnableCurrencyStateManager = (flagSet["currencystatemanager"] &&
-		b.Settings.EnableCurrencyStateManager) ||
-		b.Config.CurrencyStateManager.Enabled != nil &&
-			*b.Config.CurrencyStateManager.Enabled
+	flagSet.WithBool("currencyconverter", &b.Settings.EnableCurrencyConverter, b.Config.Currency.ForexProviders.IsEnabled("currencyconverter"))
 
-	b.Settings.EnableGCTScriptManager = b.Settings.EnableGCTScriptManager &&
-		(flagSet["gctscriptmanager"] || b.Config.GCTScript.Enabled)
+	flagSet.WithBool("currencylayer", &b.Settings.EnableCurrencyLayer, b.Config.Currency.ForexProviders.IsEnabled("currencylayer"))
+	flagSet.WithBool("exchangerates", &b.Settings.EnableExchangeRates, b.Config.Currency.ForexProviders.IsEnabled("exchangerates"))
+	flagSet.WithBool("fixer", &b.Settings.EnableFixer, b.Config.Currency.ForexProviders.IsEnabled("fixer"))
+	flagSet.WithBool("openexchangerates", &b.Settings.EnableOpenExchangeRates, b.Config.Currency.ForexProviders.IsEnabled("openexchangerates"))
+	flagSet.WithBool("exchangeratehost", &b.Settings.EnableExchangeRateHost, b.Config.Currency.ForexProviders.IsEnabled("exchangeratehost"))
+
+	flagSet.WithBool("datahistorymanager", &b.Settings.EnableDataHistoryManager, b.Config.DataHistoryManager.Enabled)
+	flagSet.WithBool("currencystatemanager", &b.Settings.EnableCurrencyStateManager, b.Config.CurrencyStateManager.Enabled != nil && *b.Config.CurrencyStateManager.Enabled)
+	flagSet.WithBool("gctscriptmanager", &b.Settings.EnableGCTScriptManager, b.Config.GCTScript.Enabled)
 
 	if b.Settings.EnablePortfolioManager &&
 		b.Settings.PortfolioManagerDelay <= 0 {
 		b.Settings.PortfolioManagerDelay = PortfolioSleepDelay
 	}
 
-	if !flagSet["grpc"] {
-		b.Settings.EnableGRPC = b.Config.RemoteControl.GRPC.Enabled
-	}
-
-	if !flagSet["grpcproxy"] {
-		b.Settings.EnableGRPCProxy = b.Config.RemoteControl.GRPC.GRPCProxyEnabled
-	}
-
-	if !flagSet["websocketrpc"] {
-		b.Settings.EnableWebsocketRPC = b.Config.RemoteControl.WebsocketRPC.Enabled
-	}
-
-	if !flagSet["deprecatedrpc"] {
-		b.Settings.EnableDeprecatedRPC = b.Config.RemoteControl.DeprecatedRPC.Enabled
-	}
+	flagSet.WithBool("grpc", &b.Settings.EnableGRPC, b.Config.RemoteControl.GRPC.Enabled)
+	flagSet.WithBool("grpcproxy", &b.Settings.EnableGRPCProxy, b.Config.RemoteControl.GRPC.GRPCProxyEnabled)
+	flagSet.WithBool("websocketrpc", &b.Settings.EnableWebsocketRPC, b.Config.RemoteControl.WebsocketRPC.Enabled)
+	flagSet.WithBool("deprecatedrpc", &b.Settings.EnableDeprecatedRPC, b.Config.RemoteControl.DeprecatedRPC.Enabled)
 
 	if flagSet["maxvirtualmachines"] {
 		maxMachines := uint8(b.Settings.MaxVirtualMachines)
@@ -250,7 +253,7 @@ func PrintSettings(s *Settings) {
 	gctlog.Debugf(gctlog.Global, "\t Enable dry run mode: %v", s.EnableDryRun)
 	gctlog.Debugf(gctlog.Global, "\t Enable all exchanges: %v", s.EnableAllExchanges)
 	gctlog.Debugf(gctlog.Global, "\t Enable all pairs: %v", s.EnableAllPairs)
-	gctlog.Debugf(gctlog.Global, "\t Enable coinmarketcap analysis: %v", s.EnableCoinmarketcapAnalysis)
+	gctlog.Debugf(gctlog.Global, "\t Enable CoinMarketCap analysis: %v", s.EnableCoinmarketcapAnalysis)
 	gctlog.Debugf(gctlog.Global, "\t Enable portfolio manager: %v", s.EnablePortfolioManager)
 	gctlog.Debugf(gctlog.Global, "\t Enable data history manager: %v", s.EnableDataHistoryManager)
 	gctlog.Debugf(gctlog.Global, "\t Enable currency state manager: %v", s.EnableCurrencyStateManager)
@@ -280,9 +283,10 @@ func PrintSettings(s *Settings) {
 	gctlog.Debugf(gctlog.Global, "\t Exchange REST sync timeout: %v\n", s.SyncTimeoutREST)
 	gctlog.Debugf(gctlog.Global, "\t Exchange Websocket sync timeout: %v\n", s.SyncTimeoutWebsocket)
 	gctlog.Debugf(gctlog.Global, "- FOREX SETTINGS:")
-	gctlog.Debugf(gctlog.Global, "\t Enable currency converter: %v", s.EnableCurrencyConverter)
-	gctlog.Debugf(gctlog.Global, "\t Enable currency layer: %v", s.EnableCurrencyLayer)
-	gctlog.Debugf(gctlog.Global, "\t Enable fixer: %v", s.EnableFixer)
+	gctlog.Debugf(gctlog.Global, "\t Enable Currency Converter: %v", s.EnableCurrencyConverter)
+	gctlog.Debugf(gctlog.Global, "\t Enable Currency Layer: %v", s.EnableCurrencyLayer)
+	gctlog.Debugf(gctlog.Global, "\t Enable ExchangeRatesApi.io: %v", s.EnableCurrencyLayer)
+	gctlog.Debugf(gctlog.Global, "\t Enable Fixer: %v", s.EnableFixer)
 	gctlog.Debugf(gctlog.Global, "\t Enable OpenExchangeRates: %v", s.EnableOpenExchangeRates)
 	gctlog.Debugf(gctlog.Global, "\t Enable ExchangeRateHost: %v", s.EnableExchangeRateHost)
 	gctlog.Debugf(gctlog.Global, "- EXCHANGE SETTINGS:")
@@ -407,32 +411,20 @@ func (bot *Engine) Start() error {
 			}
 		}
 	}
-	if bot.Settings.EnableCoinmarketcapAnalysis ||
-		bot.Settings.EnableCurrencyConverter ||
-		bot.Settings.EnableCurrencyLayer ||
-		bot.Settings.EnableFixer ||
-		bot.Settings.EnableOpenExchangeRates ||
-		bot.Settings.EnableExchangeRateHost {
-		err = currency.RunStorageUpdater(currency.BotOverrides{
-			Coinmarketcap:       bot.Settings.EnableCoinmarketcapAnalysis,
-			FxCurrencyConverter: bot.Settings.EnableCurrencyConverter,
-			FxCurrencyLayer:     bot.Settings.EnableCurrencyLayer,
-			FxFixer:             bot.Settings.EnableFixer,
-			FxOpenExchangeRates: bot.Settings.EnableOpenExchangeRates,
-			FxExchangeRateHost:  bot.Settings.EnableExchangeRateHost,
-		},
-			&currency.MainConfiguration{
-				ForexProviders:         bot.Config.GetForexProviders(),
-				CryptocurrencyProvider: coinmarketcap.Settings(bot.Config.Currency.CryptocurrencyProvider),
-				Cryptocurrencies:       bot.Config.Currency.Cryptocurrencies,
-				FiatDisplayCurrency:    bot.Config.Currency.FiatDisplayCurrency,
-				CurrencyDelay:          bot.Config.Currency.CurrencyFileUpdateDuration,
-				FxRateDelay:            bot.Config.Currency.ForeignExchangeUpdateDuration,
-			},
-			bot.Settings.DataDir)
-		if err != nil {
-			gctlog.Errorf(gctlog.Global, "ExchangeSettings updater system failed to start %s", err)
-		}
+
+	err = currency.RunStorageUpdater(currency.BotOverrides{
+		Coinmarketcap:     bot.Settings.EnableCoinmarketcapAnalysis,
+		CurrencyConverter: bot.Settings.EnableCurrencyConverter,
+		CurrencyLayer:     bot.Settings.EnableCurrencyLayer,
+		ExchangeRates:     bot.Settings.EnableExchangeRates,
+		Fixer:             bot.Settings.EnableFixer,
+		OpenExchangeRates: bot.Settings.EnableOpenExchangeRates,
+		ExchangeRateHost:  bot.Settings.EnableExchangeRateHost,
+	},
+		&bot.Config.Currency,
+		bot.Settings.DataDir)
+	if err != nil {
+		gctlog.Errorf(gctlog.Global, "ExchangeSettings updater system failed to start %s", err)
 	}
 
 	if bot.Settings.EnableGRPC {

@@ -6,26 +6,35 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency/coinmarketcap"
 )
 
-// MainConfiguration is the main configuration from the config.json file
-type MainConfiguration struct {
-	ForexProviders         []FXSettings
-	CryptocurrencyProvider coinmarketcap.Settings
-	Cryptocurrencies       Currencies
-	CurrencyPairFormat     interface{}
-	FiatDisplayCurrency    Code
-	CurrencyDelay          time.Duration
-	FxRateDelay            time.Duration
+// Config holds all the information needed for currency related manipulation
+type Config struct {
+	ForexProviders                AllFXSetting  `json:"forexProviders"`
+	CryptocurrencyProvider        Provider      `json:"cryptocurrencyProvider"`
+	CurrencyPairFormat            *PairFormat   `json:"currencyPairFormat"`
+	FiatDisplayCurrency           Code          `json:"fiatDisplayCurrency"`
+	CurrencyFileUpdateDuration    time.Duration `json:"currencyFileUpdateDuration"`
+	ForeignExchangeUpdateDuration time.Duration `json:"foreignExchangeUpdateDuration"`
+}
+
+// Provider defines coinmarketcap tools
+type Provider struct {
+	Name        string `json:"name"`
+	Enabled     bool   `json:"enabled"`
+	Verbose     bool   `json:"verbose"`
+	APIkey      string `json:"apiKey"`
+	AccountPlan string `json:"accountPlan"`
 }
 
 // BotOverrides defines a bot overriding factor for quick running currency
 // subsystems
 type BotOverrides struct {
-	Coinmarketcap       bool
-	FxCurrencyConverter bool
-	FxCurrencyLayer     bool
-	FxFixer             bool
-	FxOpenExchangeRates bool
-	FxExchangeRateHost  bool
+	Coinmarketcap     bool
+	CurrencyConverter bool
+	CurrencyLayer     bool
+	ExchangeRates     bool
+	Fixer             bool
+	OpenExchangeRates bool
+	ExchangeRateHost  bool
 }
 
 // CoinmarketcapSettings refers to settings
@@ -39,6 +48,9 @@ type SystemsSettings struct {
 	Fixer             FXSettings
 	Openexchangerates FXSettings
 }
+
+// AllFXSetting defines all the foreign exchange settings
+type AllFXSetting []FXSettings
 
 // FXSettings defines foreign exchange requester settings
 type FXSettings struct {

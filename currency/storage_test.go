@@ -5,14 +5,14 @@ import "testing"
 func TestRunUpdater(t *testing.T) {
 	var newStorage Storage
 
-	emptyMainConfig := MainConfiguration{}
+	emptyMainConfig := Config{}
 	err := newStorage.RunUpdater(BotOverrides{}, &emptyMainConfig, "")
 	if err == nil {
 		t.Fatal("storage RunUpdater() error cannot be nil")
 	}
 
-	mainConfig := MainConfiguration{
-		Cryptocurrencies:    NewCurrenciesFromStringArray([]string{"BTC"}),
+	mainConfig := Config{
+		// Cryptocurrencies:    NewCurrenciesFromStringArray([]string{"BTC"}),
 		FiatDisplayCurrency: USD,
 	}
 

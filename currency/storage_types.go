@@ -8,18 +8,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider"
 )
 
-// CurrencyFileUpdateDelay defines the rate at which the currency.json file is
-// updated
-const (
-	DefaultCurrencyFileDelay    = 168 * time.Hour
-	DefaultForeignExchangeDelay = 1 * time.Minute
-	DefaultStorageFile          = "currency.json"
-)
-
-// storage is an overarching type that keeps track of and updates currency,
-// currency exchange rates and pairs
-var storage Storage
-
 // Storage contains the loaded storage currencies supported on available crypto
 // or fiat marketplaces
 // NOTE: All internal currencies are upper case

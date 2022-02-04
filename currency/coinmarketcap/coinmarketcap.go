@@ -19,6 +19,17 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
+// NewFromSettings returns a new coin market cap instance with supplied settings
+func NewFromSettings(cfg Settings) (*Coinmarketcap, error) {
+	c := &Coinmarketcap{}
+	c.SetDefaults()
+	err := c.Setup(cfg)
+	if err != nil {
+		return nil, err
+	}
+	return c, nil
+}
+
 // SetDefaults sets default values for the exchange
 func (c *Coinmarketcap) SetDefaults() {
 	c.Name = "CoinMarketCap"

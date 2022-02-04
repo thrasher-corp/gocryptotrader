@@ -33,7 +33,7 @@ import (
 var errExchangeConfigIsNil = errors.New("exchange config is nil")
 
 // GetCurrencyConfig returns currency configurations
-func (c *Config) GetCurrencyConfig() CurrencyConfig {
+func (c *Config) GetCurrencyConfig() currency.Config {
 	return c.Currency
 }
 
@@ -191,7 +191,7 @@ func (c *Config) UpdateCommunicationsConfig(config *base.CommunicationsConfig) {
 }
 
 // GetCryptocurrencyProviderConfig returns the communications configuration
-func (c *Config) GetCryptocurrencyProviderConfig() CryptocurrencyProvider {
+func (c *Config) GetCryptocurrencyProviderConfig() currency.Provider {
 	m.Lock()
 	provider := c.Currency.CryptocurrencyProvider
 	m.Unlock()
@@ -199,7 +199,7 @@ func (c *Config) GetCryptocurrencyProviderConfig() CryptocurrencyProvider {
 }
 
 // UpdateCryptocurrencyProviderConfig returns the communications configuration
-func (c *Config) UpdateCryptocurrencyProviderConfig(config CryptocurrencyProvider) {
+func (c *Config) UpdateCryptocurrencyProviderConfig(config currency.Provider) {
 	m.Lock()
 	c.Currency.CryptocurrencyProvider = config
 	m.Unlock()
@@ -732,7 +732,7 @@ func (c *Config) CountEnabledExchanges() int {
 }
 
 // GetCurrencyPairDisplayConfig retrieves the currency pair display preference
-func (c *Config) GetCurrencyPairDisplayConfig() *CurrencyPairFormatConfig {
+func (c *Config) GetCurrencyPairDisplayConfig() *currency.PairFormat {
 	return c.Currency.CurrencyPairFormat
 }
 
@@ -1135,7 +1135,7 @@ func (c *Config) CheckCurrencyConfigValues() error {
 		}
 	}
 
-	if c.Currency.CryptocurrencyProvider == (CryptocurrencyProvider{}) {
+	if c.Currency.CryptocurrencyProvider == (currency.Provider{}) {
 		c.Currency.CryptocurrencyProvider.Name = "CoinMarketCap"
 		c.Currency.CryptocurrencyProvider.Enabled = false
 		c.Currency.CryptocurrencyProvider.Verbose = false
@@ -1161,21 +1161,12 @@ func (c *Config) CheckCurrencyConfigValues() error {
 		}
 	}
 
-	if c.Currency.Cryptocurrencies.Join() == "" {
-		if c.Cryptocurrencies != nil {
-			c.Currency.Cryptocurrencies = *c.Cryptocurrencies
-			c.Cryptocurrencies = nil
-		} else {
-			c.Currency.Cryptocurrencies = currency.GetDefaultCryptocurrencies()
-		}
-	}
-
 	if c.Currency.CurrencyPairFormat == nil {
 		if c.CurrencyPairFormat != nil {
 			c.Currency.CurrencyPairFormat = c.CurrencyPairFormat
 			c.CurrencyPairFormat = nil
 		} else {
-			c.Currency.CurrencyPairFormat = &CurrencyPairFormatConfig{
+			c.Currency.CurrencyPairFormat = &currency.PairFormat{
 				Delimiter: "-",
 				Uppercase: true,
 			}
@@ -1196,67 +1187,77 @@ func (c *Config) CheckCurrencyConfigValues() error {
 		c.FiatDisplayCurrency = nil
 	}
 
+	if c.Currency.CurrencyFileUpdateDuration <= 0 {
+		log.Warnln(log.ConfigMgr, "Currency file update duration invalid, defaulting to %s", currency.DefaultCurrencyFileDelay)
+		c.Currency.CurrencyFileUpdateDuration = currency.DefaultCurrencyFileDelay
+	}
+
+	if c.Currency.ForeignExchangeUpdateDuration <= 0 {
+		log.Warnln(log.ConfigMgr, "Currency foreign exchange update duration invalid, defaulting to %s", currency.DefaultForeignExchangeDelay)
+		c.Currency.ForeignExchangeUpdateDuration = currency.DefaultForeignExchangeDelay
+	}
+
 	return nil
 }
 
-// RetrieveConfigCurrencyPairs splits, assigns and verifies enabled currency
-// pairs either cryptoCurrencies or fiatCurrencies
-func (c *Config) RetrieveConfigCurrencyPairs(enabledOnly bool, assetType asset.Item) error {
-	cryptoCurrencies := c.Currency.Cryptocurrencies
-	fiatCurrencies := currency.GetFiatCurrencies()
+// // RetrieveConfigCurrencyPairs splits, assigns and verifies enabled currency
+// // pairs either cryptoCurrencies or fiatCurrencies
+// func (c *Config) RetrieveConfigCurrencyPairs(enabledOnly bool, assetType asset.Item) error {
+// 	cryptoCurrencies := c.Currency.Cryptocurrencies
+// 	fiatCurrencies := currency.GetFiatCurrencies()
 
-	for x := range c.Exchanges {
-		if !c.Exchanges[x].Enabled && enabledOnly {
-			continue
-		}
+// 	for x := range c.Exchanges {
+// 		if !c.Exchanges[x].Enabled && enabledOnly {
+// 			continue
+// 		}
 
-		err := c.SupportsExchangeAssetType(c.Exchanges[x].Name, assetType)
-		if err != nil {
-			continue
-		}
+// 		err := c.SupportsExchangeAssetType(c.Exchanges[x].Name, assetType)
+// 		if err != nil {
+// 			continue
+// 		}
 
-		baseCurrencies := c.Exchanges[x].BaseCurrencies
-		for y := range baseCurrencies {
-			if !fiatCurrencies.Contains(baseCurrencies[y]) {
-				fiatCurrencies = append(fiatCurrencies, baseCurrencies[y])
-			}
-		}
-	}
+// 		baseCurrencies := c.Exchanges[x].BaseCurrencies
+// 		for y := range baseCurrencies {
+// 			if !fiatCurrencies.Contains(baseCurrencies[y]) {
+// 				fiatCurrencies = append(fiatCurrencies, baseCurrencies[y])
+// 			}
+// 		}
+// 	}
 
-	for x := range c.Exchanges {
-		err := c.SupportsExchangeAssetType(c.Exchanges[x].Name, assetType)
-		if err != nil {
-			continue
-		}
+// 	for x := range c.Exchanges {
+// 		err := c.SupportsExchangeAssetType(c.Exchanges[x].Name, assetType)
+// 		if err != nil {
+// 			continue
+// 		}
 
-		var pairs []currency.Pair
-		if !c.Exchanges[x].Enabled && enabledOnly {
-			pairs, err = c.GetEnabledPairs(c.Exchanges[x].Name, assetType)
-		} else {
-			pairs, err = c.GetAvailablePairs(c.Exchanges[x].Name, assetType)
-		}
+// 		var pairs []currency.Pair
+// 		if !c.Exchanges[x].Enabled && enabledOnly {
+// 			pairs, err = c.GetEnabledPairs(c.Exchanges[x].Name, assetType)
+// 		} else {
+// 			pairs, err = c.GetAvailablePairs(c.Exchanges[x].Name, assetType)
+// 		}
 
-		if err != nil {
-			return err
-		}
+// 		if err != nil {
+// 			return err
+// 		}
 
-		for y := range pairs {
-			if !fiatCurrencies.Contains(pairs[y].Base) &&
-				!cryptoCurrencies.Contains(pairs[y].Base) {
-				cryptoCurrencies = append(cryptoCurrencies, pairs[y].Base)
-			}
+// 		for y := range pairs {
+// 			if !fiatCurrencies.Contains(pairs[y].Base) &&
+// 				!cryptoCurrencies.Contains(pairs[y].Base) {
+// 				cryptoCurrencies = append(cryptoCurrencies, pairs[y].Base)
+// 			}
 
-			if !fiatCurrencies.Contains(pairs[y].Quote) &&
-				!cryptoCurrencies.Contains(pairs[y].Quote) {
-				cryptoCurrencies = append(cryptoCurrencies, pairs[y].Quote)
-			}
-		}
-	}
+// 			if !fiatCurrencies.Contains(pairs[y].Quote) &&
+// 				!cryptoCurrencies.Contains(pairs[y].Quote) {
+// 				cryptoCurrencies = append(cryptoCurrencies, pairs[y].Quote)
+// 			}
+// 		}
+// 	}
 
-	currency.UpdateCurrencies(fiatCurrencies, false)
-	currency.UpdateCurrencies(cryptoCurrencies, true)
-	return nil
-}
+// 	currency.UpdateCurrencies(fiatCurrencies, false)
+// 	currency.UpdateCurrencies(cryptoCurrencies, true)
+// 	return nil
+// }
 
 // CheckLoggerConfig checks to see logger values are present and valid in config
 // if not creates a default instance of the logger
