@@ -16,6 +16,21 @@ func init() {
 	service.mux = dispatch.GetNewMux()
 }
 
+// CollectAccountBalances converts a map of sub-account balances into a slice
+func CollectAccountBalances(accountBalances map[string][]Balance, assetType asset.Item) (accounts []SubAccount) {
+	accounts = make([]SubAccount, len(accountBalances))
+	i := 0
+	for accountID, balances := range accountBalances {
+		accounts[i] = SubAccount{
+			ID:         accountID,
+			AssetType:  assetType,
+			Currencies: balances,
+		}
+		i++
+	}
+	return
+}
+
 // SubscribeToExchangeAccount subcribes to your exchange account
 func SubscribeToExchangeAccount(exchange string) (dispatch.Pipe, error) {
 	exchange = strings.ToLower(exchange)

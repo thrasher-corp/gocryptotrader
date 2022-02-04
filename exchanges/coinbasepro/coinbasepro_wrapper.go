@@ -325,19 +325,19 @@ func (c *CoinbasePro) UpdateAccountInfo(ctx context.Context, assetType asset.Ite
 		return response, err
 	}
 
-	var currencies []account.Balance
+	accountCurrencies := make(map[string][]account.Balance)
 	for i := range accountBalance {
 		var exchangeCurrency account.Balance
 		exchangeCurrency.CurrencyName = currency.NewCode(accountBalance[i].Currency)
 		exchangeCurrency.TotalValue = accountBalance[i].Available
 		exchangeCurrency.Hold = accountBalance[i].Hold
 
-		currencies = append(currencies, exchangeCurrency)
+		profileID := accountBalance[i].ProfileID
+		currencies := accountCurrencies[profileID]
+		accountCurrencies[profileID] = append(currencies, exchangeCurrency)
 	}
 
-	response.Accounts = append(response.Accounts, account.SubAccount{
-		Currencies: currencies,
-	})
+	response.Accounts = account.CollectAccountBalances(accountCurrencies, assetType)
 
 	err = account.Process(&response)
 	if err != nil {

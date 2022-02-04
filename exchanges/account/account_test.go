@@ -10,6 +10,38 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
+func TestCollectAccountBalances(t *testing.T) {
+	accounts := CollectAccountBalances(
+		map[string][]Balance{
+			"someAccountID": {
+				{CurrencyName: currency.BTC, TotalValue: 40000, Hold: 1},
+			},
+		},
+		asset.Spot,
+	)
+	subAccount := accounts[0]
+	balance := subAccount.Currencies[0]
+	if subAccount.ID != "someAccountID" {
+		t.Error("subAccount ID not set correctly")
+	}
+	if subAccount.AssetType != asset.Spot {
+		t.Error("subAccount AssetType not set correctly")
+	}
+	if balance.CurrencyName != currency.BTC || balance.TotalValue != 40000 || balance.Hold != 1 {
+		t.Error("subAccount currency balance not set correctly")
+	}
+
+	accounts = CollectAccountBalances(map[string][]Balance{}, asset.Spot)
+	if len(accounts) != 0 {
+		t.Error("accounts should be empty")
+	}
+
+	accounts = CollectAccountBalances(nil, asset.Spot)
+	if len(accounts) != 0 {
+		t.Error("accounts should be empty")
+	}
+}
+
 func TestHoldings(t *testing.T) {
 	err := dispatch.Start(dispatch.DefaultMaxWorkers, dispatch.DefaultJobsLimit)
 	if err != nil {
