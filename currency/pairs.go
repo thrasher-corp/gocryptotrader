@@ -350,3 +350,15 @@ func (p Pairs) GetStables() Currencies {
 	}
 	return currencies
 }
+
+// GetStablesMatch returns all stable pairs matched with code
+func (p Pairs) GetStablesMatch(code Code) Pairs {
+	var stablePairs []Pair
+	for x := range p {
+		if p[x].Base.IsStableCurrency() && p[x].Quote.Match(code) ||
+			p[x].Quote.IsStableCurrency() && p[x].Base.Match(code) {
+			stablePairs = append(stablePairs, p[x])
+		}
+	}
+	return stablePairs
+}

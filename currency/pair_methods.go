@@ -120,3 +120,14 @@ func (p Pair) ContainsCurrency(c Code) bool {
 func (p Pair) Len() int {
 	return len(p.Base.String()) + len(p.Quote.String())
 }
+
+// Other returns the other currency from pair, if not matched returns empty code.
+func (p Pair) Other(c Code) Code {
+	if p.Base.Match(c) {
+		return p.Quote
+	}
+	if p.Quote.Match(c) {
+		return p.Base
+	}
+	return Code{}
+}
