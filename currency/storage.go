@@ -400,35 +400,35 @@ func (s *Storage) LoadFileCurrencyData(f *File) error {
 	}
 
 	for i := range f.Cryptocurrency {
-		err := s.checkFileCurrencyData(f.Contracts[i], Cryptocurrency)
+		err := s.checkFileCurrencyData(f.Cryptocurrency[i], Cryptocurrency)
 		if err != nil {
 			return err
 		}
 	}
 
 	for i := range f.Token {
-		err := s.checkFileCurrencyData(f.Contracts[i], Token)
+		err := s.checkFileCurrencyData(f.Token[i], Token)
 		if err != nil {
 			return err
 		}
 	}
 
 	for i := range f.FiatCurrency {
-		err := s.checkFileCurrencyData(f.Contracts[i], Fiat)
+		err := s.checkFileCurrencyData(f.FiatCurrency[i], Fiat)
 		if err != nil {
 			return err
 		}
 	}
 
 	for i := range f.UnsetCurrency {
-		err := s.checkFileCurrencyData(f.Contracts[i], Unset)
+		err := s.checkFileCurrencyData(f.UnsetCurrency[i], Unset)
 		if err != nil {
 			return err
 		}
 	}
 
 	for i := range f.Stable {
-		err := s.checkFileCurrencyData(f.Contracts[i], Stable)
+		err := s.checkFileCurrencyData(f.Stable[i], Stable)
 		if err != nil {
 			return err
 		}
