@@ -34,7 +34,6 @@ func (f *Fixer) Setup(config base.Settings) error {
 	f.APIKeyLvl = config.APIKeyLvl
 	f.Enabled = config.Enabled
 	f.Name = config.Name
-	f.RESTPollingDelay = config.RESTPollingDelay
 	f.Verbose = config.Verbose
 	f.PrimaryProvider = config.PrimaryProvider
 	f.Requester = request.New(f.Name,

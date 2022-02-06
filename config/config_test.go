@@ -1241,29 +1241,6 @@ func TestGetExchangeConfig(t *testing.T) {
 	}
 }
 
-func TestGetForexProviderConfig(t *testing.T) {
-	t.Parallel()
-	fxr := "Fixer"
-	cfg := &Config{
-		Currency: currency.Config{
-			ForexProviders: []currency.FXSettings{
-				{
-					Name: fxr,
-				},
-			},
-		},
-	}
-	_, err := cfg.GetForexProvider(fxr)
-	if err != nil {
-		t.Error("GetForexProviderConfig error", err)
-	}
-
-	_, err = cfg.GetForexProvider("this is not a forex provider")
-	if err == nil {
-		t.Error("GetForexProviderConfig no error for invalid provider")
-	}
-}
-
 func TestGetForexProviders(t *testing.T) {
 	t.Parallel()
 	fxr := "Fixer"
@@ -2123,7 +2100,7 @@ func TestCheckCurrencyConfigValues(t *testing.T) {
 	if cfg.Currency.ForexProviders == nil {
 		t.Error("Failed to populate c.Currency.ForexProviders")
 	}
-	if cfg.Currency.CryptocurrencyProvider.APIkey != DefaultUnsetAPIKey {
+	if cfg.Currency.CryptocurrencyProvider.APIKey != DefaultUnsetAPIKey {
 		t.Error("Failed to set the api key to the default key")
 	}
 	if cfg.Currency.CryptocurrencyProvider.Name != "CoinMarketCap" {
@@ -2133,7 +2110,6 @@ func TestCheckCurrencyConfigValues(t *testing.T) {
 	cfg.Currency.ForexProviders[0].Enabled = true
 	cfg.Currency.ForexProviders[0].Name = "CurrencyConverter"
 	cfg.Currency.ForexProviders[0].PrimaryProvider = true
-	// cfg.Currency.Cryptocurrencies = nil
 	cfg.Cryptocurrencies = nil
 	cfg.Currency.CurrencyPairFormat = nil
 	cfg.CurrencyPairFormat = &currency.PairFormat{
@@ -2146,15 +2122,12 @@ func TestCheckCurrencyConfigValues(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if cfg.Currency.ForexProviders[0].Enabled {
-		t.Error("Failed to disable invalid forex provider")
-	}
 	if !cfg.Currency.CurrencyPairFormat.Uppercase {
 		t.Error("Failed to apply c.CurrencyPairFormat format to c.Currency.CurrencyPairFormat")
 	}
 
 	cfg.Currency.CryptocurrencyProvider.Enabled = false
-	cfg.Currency.CryptocurrencyProvider.APIkey = ""
+	cfg.Currency.CryptocurrencyProvider.APIKey = ""
 	cfg.Currency.CryptocurrencyProvider.AccountPlan = ""
 	cfg.FiatDisplayCurrency = &currency.BTC
 	cfg.Currency.ForexProviders[0].Enabled = true
@@ -2169,7 +2142,7 @@ func TestCheckCurrencyConfigValues(t *testing.T) {
 	if cfg.FiatDisplayCurrency != nil {
 		t.Error("Failed to clear c.FiatDisplayCurrency")
 	}
-	if cfg.Currency.CryptocurrencyProvider.APIkey != DefaultUnsetAPIKey ||
+	if cfg.Currency.CryptocurrencyProvider.APIKey != DefaultUnsetAPIKey ||
 		cfg.Currency.CryptocurrencyProvider.AccountPlan != DefaultUnsetAccountPlan {
 		t.Error("Failed to set CryptocurrencyProvider.APIkey and AccountPlan")
 	}

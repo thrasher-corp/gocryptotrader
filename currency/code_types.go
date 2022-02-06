@@ -51,7 +51,7 @@ type Item struct {
 	// needed
 	Lower      string `json:"-"`
 	Length     int    `json:"-"`
-	Role       Role   `json:"-"`
+	Role       Role   `json:"role"`
 	AssocChain string `json:"associatedBlockchain,omitempty"`
 }
 

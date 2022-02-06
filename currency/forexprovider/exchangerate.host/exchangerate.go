@@ -31,7 +31,6 @@ var (
 func (e *ExchangeRateHost) Setup(config base.Settings) error {
 	e.Name = config.Name
 	e.Enabled = config.Enabled
-	e.RESTPollingDelay = config.RESTPollingDelay
 	e.Verbose = config.Verbose
 	e.PrimaryProvider = config.PrimaryProvider
 	e.Requester = request.New(e.Name,

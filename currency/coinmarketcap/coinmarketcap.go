@@ -52,7 +52,7 @@ func (c *Coinmarketcap) Setup(conf Settings) error {
 
 	c.Enabled = true
 	c.Verbose = conf.Verbose
-	c.APIkey = conf.APIkey
+	c.APIkey = conf.APIKey
 	return c.SetAccountPlan(conf.AccountPlan)
 }
 
@@ -725,7 +725,7 @@ func (c *Coinmarketcap) SetAccountPlan(s string) error {
 	case "enterprise":
 		c.Plan = Enterprise
 	default:
-		log.Warnf(log.Global, "account plan %s not found, defaulting to basic", s)
+		log.Warnf(log.Currency, "account plan %s not found, defaulting to basic", s)
 		c.Plan = Basic
 	}
 	return nil

@@ -26,9 +26,10 @@ func init() {
 // CurrencyFileUpdateDelay defines the rate at which the currency.json file is
 // updated
 const (
-	DefaultCurrencyFileDelay    = 168 * time.Hour
-	DefaultForeignExchangeDelay = 1 * time.Minute
-	DefaultStorageFile          = "currency.json"
+	DefaultCurrencyFileDelay             = 168 * time.Hour
+	DefaultForeignExchangeDelay          = 1 * time.Minute
+	DefaultStorageFile                   = "currency.json"
+	DefaultForexProviderExchangeRatesAPI = "ExchangeRateHost"
 )
 
 var (
@@ -38,6 +39,7 @@ var (
 	errNoFilePathSet                        = errors.New("no file path set")
 	errInvalidCurrencyFileUpdateDuration    = errors.New("invalid currency file update duration")
 	errInvalidForeignExchangeUpdateDuration = errors.New("invalid foreign exchange update duration")
+	errNoForeignExchangeProvidersEnabled    = errors.New("no foreign exchange providers enabled")
 )
 
 // SetDefaults sets storage defaults for basic package functionality
@@ -74,7 +76,7 @@ func (s *Storage) SetDefaults() {
 // dump file and keep foreign exchange rates updated as fast as possible without
 // triggering rate limiters, it will also run a full cryptocurrency check
 // through coin market cap and expose analytics for exchange services
-func (s *Storage) RunUpdater(overrides BotOverrides, settings *MainConfiguration, filePath string) error {
+func (s *Storage) RunUpdater(overrides BotOverrides, settings *Config, filePath string) error {
 	if settings.FiatDisplayCurrency.IsEmpty() {
 		return errFiatDisplayCurrencyUnset
 	}
@@ -87,50 +89,99 @@ func (s *Storage) RunUpdater(overrides BotOverrides, settings *MainConfiguration
 		return errNoFilePathSet
 	}
 
-	if settings.CurrencyDelay <= 0 {
+	if settings.CurrencyFileUpdateDuration <= 0 {
 		return errInvalidCurrencyFileUpdateDuration
 	}
 
-	if settings.FxRateDelay <= 0 {
+	if settings.ForeignExchangeUpdateDuration <= 0 {
 		return errInvalidForeignExchangeUpdateDuration
 	}
 
 	s.mtx.Lock()
-
 	s.shutdown = make(chan struct{})
 	s.baseCurrency = settings.FiatDisplayCurrency
 	s.path = filepath.Join(filePath, DefaultStorageFile)
-	s.currencyFileUpdateDelay = settings.CurrencyDelay
-	s.foreignExchangeUpdateDelay = settings.FxRateDelay
+	s.currencyFileUpdateDelay = settings.CurrencyFileUpdateDuration
+	s.foreignExchangeUpdateDelay = settings.ForeignExchangeUpdateDuration
 
 	log.Debugf(log.Currency, "Fiat display currency: %s.\n", s.baseCurrency)
-
 	var err error
-	if settings.CryptocurrencyProvider.Enabled {
+	if overrides.CurrencyConverter &&
+		settings.CryptocurrencyProvider.APIKey != "" &&
+		settings.CryptocurrencyProvider.APIKey != "Key" {
 		log.Debugln(log.Currency, "Setting up currency analysis system with Coinmarketcap...")
-		s.currencyAnalysis, err = coinmarketcap.NewFromSettings(settings.CryptocurrencyProvider)
+		s.currencyAnalysis, err = coinmarketcap.NewFromSettings(coinmarketcap.Settings(settings.CryptocurrencyProvider))
 		if err != nil {
 			log.Errorf(log.Currency, "Unable to setup CoinMarketCap analysis. Error: %s", err)
 		}
+	} else {
+		log.Warnf(log.Currency, "%s API key not set, disabling. Please set this in your config.json file\n",
+			settings.CryptocurrencyProvider.Name)
 	}
 
 	var fxSettings []base.Settings
+	var primaryProvider bool
 	for i := range settings.ForexProviders {
-		switch {
-		case (settings.ForexProviders[i].Name == "CurrencyConverter" && overrides.CurrencyConverter) ||
+		enabled := (settings.ForexProviders[i].Name == "CurrencyConverter" && overrides.CurrencyConverter) ||
 			(settings.ForexProviders[i].Name == "CurrencyLayer" && overrides.CurrencyLayer) ||
 			(settings.ForexProviders[i].Name == "Fixer" && overrides.Fixer) ||
 			(settings.ForexProviders[i].Name == "OpenExchangeRates" && overrides.OpenExchangeRates) ||
 			(settings.ForexProviders[i].Name == "ExchangeRates" && overrides.ExchangeRates) ||
-			(settings.ForexProviders[i].Name == "ExchangeRateHost" && overrides.ExchangeRateHost):
-			fxSettings = append(fxSettings, base.Settings(settings.ForexProviders[i]))
+			(settings.ForexProviders[i].Name == "ExchangeRateHost" && overrides.ExchangeRateHost)
+
+		if !enabled {
+			continue
+		}
+
+		if settings.ForexProviders[i].Name != DefaultForexProviderExchangeRatesAPI {
+			if settings.ForexProviders[i].APIKey == "" || settings.ForexProviders[i].APIKey == "Key" {
+				log.Warnf(log.Currency, "%s forex provider API key not set, disabling. Please set this in your config.json file\n",
+					settings.ForexProviders[i].Name)
+				continue
+			}
+
+			if settings.ForexProviders[i].APIKeyLvl == -1 && settings.ForexProviders[i].Name != "ExchangeRates" {
+				log.Warnf(log.Currency, "%s APIKey level not set, functionality is limited. Please review this in your config.json file\n",
+					settings.ForexProviders[i].Name)
+			}
+		}
+
+		if settings.ForexProviders[i].PrimaryProvider {
+			if primaryProvider {
+				log.Warnf(log.Currency, "%s disabling primary provider, multiple primarys found. Please review providers in your config.json file\n",
+					settings.ForexProviders[i].Name)
+				settings.ForexProviders[i].PrimaryProvider = false
+			} else {
+				primaryProvider = true
+			}
+		}
+		fxSettings = append(fxSettings, base.Settings(settings.ForexProviders[i]))
+	}
+
+	if len(fxSettings) == 0 {
+		log.Warnln(log.Currency, "No foreign exchange providers enabled, setting default provider....")
+		for x := range settings.ForexProviders {
+			if settings.ForexProviders[x].Name != DefaultForexProviderExchangeRatesAPI {
+				continue
+			}
+			settings.ForexProviders[x].Enabled = true
+			settings.ForexProviders[x].PrimaryProvider = true
+			primaryProvider = true
+			log.Warnf(log.Currency, "No valid foreign exchange providers configured. Defaulting to %s.", DefaultForexProviderExchangeRatesAPI)
+			fxSettings = append(fxSettings, base.Settings(settings.ForexProviders[x]))
+		}
+	}
+
+	if !primaryProvider {
+		for x := range fxSettings {
+			fxSettings[x].PrimaryProvider = true
+			log.Warnf(log.Currency, "No primary foreign exchange provider set. Defaulting to %s.", settings.ForexProviders[x].Name)
 		}
 	}
 
 	if len(fxSettings) == 0 {
 		s.mtx.Unlock()
-		log.Warnln(log.Currency, "No foreign exchange providers enabled in config.json")
-		return nil
+		return errNoForeignExchangeProvidersEnabled
 	}
 
 	s.fiatExchangeMarkets, err = forexprovider.StartFXService(fxSettings)
@@ -139,11 +190,11 @@ func (s *Storage) RunUpdater(overrides BotOverrides, settings *MainConfiguration
 		return err
 	}
 
-	log.Debugf(log.Currency, "Primary foreign exchange conversion provider %s enabled\n",
+	log.Debugf(log.Currency, "Using primary foreign exchange provider %s\n",
 		s.fiatExchangeMarkets.Primary.Provider.GetName())
 
 	for i := range s.fiatExchangeMarkets.Support {
-		log.Debugf(log.Currency, "Support forex conversion provider %s enabled\n",
+		log.Debugf(log.Currency, "Supporting foreign exchange provider %s\n",
 			s.fiatExchangeMarkets.Support[i].Provider.GetName())
 	}
 
@@ -221,7 +272,7 @@ func (s *Storage) SetupForexProviders(setting ...base.Settings) error {
 // updated as fast as possible
 func (s *Storage) ForeignExchangeUpdater() {
 	defer s.wg.Done()
-	log.Debugln(log.Currency, "Foreign exchange updater started, seeding FX rate list..")
+	log.Debugln(log.Currency, "Foreign exchange updater started, seeding FX rate list...")
 
 	err := s.SeedCurrencyAnalysisData()
 	if err != nil {
@@ -332,6 +383,9 @@ func (s *Storage) WriteCurrencyDataToFile(path string, mainUpdate bool) error {
 // LoadFileCurrencyData loads currencies into the currency codes
 func (s *Storage) LoadFileCurrencyData(f *File) error {
 	for i := range f.Contracts {
+		if f.Contracts[i].Role == Unset {
+			f.Contracts[i].Role = Contract
+		}
 		if f.Contracts[i].Role != Contract {
 			return fmt.Errorf("%w %s expecting: %s",
 				errUnexpectedRole, f.Contracts[i].Role, Contract)
@@ -343,17 +397,23 @@ func (s *Storage) LoadFileCurrencyData(f *File) error {
 	}
 
 	for i := range f.Cryptocurrency {
+		if f.Cryptocurrency[i].Role == Unset {
+			f.Cryptocurrency[i].Role = Cryptocurrency
+		}
 		if f.Cryptocurrency[i].Role != Cryptocurrency {
 			return fmt.Errorf("%w %s expecting: %s",
 				errUnexpectedRole, f.Cryptocurrency[i].Role, Cryptocurrency)
 		}
-		err := s.currencyCodes.LoadItem(f.Contracts[i])
+		err := s.currencyCodes.LoadItem(f.Cryptocurrency[i])
 		if err != nil {
 			return err
 		}
 	}
 
 	for i := range f.Token {
+		if f.Token[i].Role == Unset {
+			f.Token[i].Role = Token
+		}
 		if f.Token[i].Role != Token {
 			return fmt.Errorf("%w %s expecting: %s",
 				errUnexpectedRole, f.Token[i].Role, Token)
@@ -365,6 +425,9 @@ func (s *Storage) LoadFileCurrencyData(f *File) error {
 	}
 
 	for i := range f.FiatCurrency {
+		if f.FiatCurrency[i].Role == Unset {
+			f.FiatCurrency[i].Role = Fiat
+		}
 		if f.FiatCurrency[i].Role != Fiat {
 			return fmt.Errorf("%w %s expecting: %s",
 				errUnexpectedRole, f.FiatCurrency[i].Role, Fiat)
@@ -387,6 +450,9 @@ func (s *Storage) LoadFileCurrencyData(f *File) error {
 	}
 
 	for i := range f.Stable {
+		if f.Stable[i].Role == Unset {
+			f.Stable[i].Role = Stable
+		}
 		if f.Stable[i].Role != Stable {
 			return fmt.Errorf("%w %s expecting: %s",
 				errUnexpectedRole, f.Stable[i].Role, Stable)
@@ -514,28 +580,12 @@ func (s *Storage) SeedForeignExchangeRates() error {
 	if err != nil {
 		return err
 	}
-	fmt.Println("FX RATE:", rates)
 	return s.updateExchangeRates(rates)
 }
 
 // UpdateForeignExchangeRates sets exchange rates on the FX map
 func (s *Storage) updateExchangeRates(m map[string]float64) error {
 	return s.fxRates.Update(m)
-}
-
-// SetupCryptoProvider sets congiguration parameters and starts a new instance
-// of the currency analyser
-func (s *Storage) SetupCryptoProvider(settings coinmarketcap.Settings) error {
-	if settings.APIkey == "" ||
-		settings.APIkey == "key" ||
-		settings.AccountPlan == "" ||
-		settings.AccountPlan == "accountPlan" {
-		return errors.New("currencyprovider error api key or plan not set in config.json")
-	}
-
-	s.currencyAnalysis = new(coinmarketcap.Coinmarketcap)
-	s.currencyAnalysis.SetDefaults()
-	return s.currencyAnalysis.Setup(settings)
 }
 
 // GetTotalMarketCryptocurrencies returns the total seeded market

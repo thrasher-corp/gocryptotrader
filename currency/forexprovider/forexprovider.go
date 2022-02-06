@@ -102,7 +102,7 @@ func StartFXService(fxProviders []base.Settings) (*ForexProviders, error) {
 			provider = new(fixer.Fixer)
 		case "OpenExchangeRates":
 			provider = new(openexchangerates.OXR)
-		case "ExchangeRatesHost":
+		case "ExchangeRateHost":
 			provider = new(exchangeratehost.ExchangeRateHost)
 		default:
 			return nil, fmt.Errorf("%s %w", fxProviders[i].Name,

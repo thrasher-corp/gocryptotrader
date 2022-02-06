@@ -131,7 +131,7 @@ func FormatPairs(pairs []string, delimiter, index string) (Pairs, error) {
 
 // IsEnabled returns if the individual foreign exchange config setting is
 // enabled
-func (settings AllFXSetting) IsEnabled(name string) bool {
+func (settings AllFXSettings) IsEnabled(name string) bool {
 	for x := range settings {
 		if !strings.EqualFold(settings[x].Name, name) {
 			continue

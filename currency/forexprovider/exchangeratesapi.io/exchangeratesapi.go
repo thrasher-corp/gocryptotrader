@@ -25,7 +25,6 @@ func (e *ExchangeRates) Setup(config base.Settings) error {
 	}
 	e.Name = config.Name
 	e.Enabled = config.Enabled
-	e.RESTPollingDelay = config.RESTPollingDelay
 	e.Verbose = config.Verbose
 	e.PrimaryProvider = config.PrimaryProvider
 	e.APIKey = config.APIKey

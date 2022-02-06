@@ -25,6 +25,7 @@ func TestMain(t *testing.M) {
 }
 
 func TestGetLatestRates(t *testing.T) {
+	e.Verbose = true
 	_, err := e.GetLatestRates("USD", testCurrencies, 1200, 2, "")
 	if err != nil {
 		t.Error(err)

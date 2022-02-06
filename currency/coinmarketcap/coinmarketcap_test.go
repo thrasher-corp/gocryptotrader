@@ -36,7 +36,7 @@ func TestSetup(t *testing.T) {
 	c.SetDefaults()
 
 	cfg := Settings{}
-	cfg.APIkey = apikey
+	cfg.APIKey = apikey
 	cfg.AccountPlan = apiAccountPlanLevel
 	cfg.Enabled = true
 	cfg.AccountPlan = "basic"

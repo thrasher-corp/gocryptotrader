@@ -832,7 +832,7 @@ func (s *RPCServer) GetForexProviders(_ context.Context, _ *gctrpc.GetForexProvi
 			Name:             providers[x].Name,
 			Enabled:          providers[x].Enabled,
 			Verbose:          providers[x].Verbose,
-			RestPollingDelay: providers[x].RESTPollingDelay.String(),
+			RestPollingDelay: s.Config.Currency.ForeignExchangeUpdateDuration.String(),
 			ApiKey:           providers[x].APIKey,
 			ApiKeyLevel:      int64(providers[x].APIKeyLvl),
 			PrimaryProvider:  providers[x].PrimaryProvider,
