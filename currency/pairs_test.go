@@ -345,7 +345,7 @@ func contains(t *testing.T, c1, c2 []Code) {
 codes:
 	for x := range c1 {
 		for y := range c2 {
-			if c1[x].Match(c2[y]) {
+			if c1[x].Equal(c2[y]) {
 				continue codes
 			}
 		}

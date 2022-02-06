@@ -176,12 +176,12 @@ func TestBaseCode(t *testing.T) {
 			main.HasData())
 	}
 
-	if !main.Register("CATS").Match(catsCode) {
+	if !main.Register("CATS").Equal(catsCode) {
 		t.Errorf("BaseCode Match() error expected true but received %v",
 			false)
 	}
 
-	if main.Register("DOGS").Match(catsCode) {
+	if main.Register("DOGS").Equal(catsCode) {
 		t.Errorf("BaseCode Match() error expected false but received %v",
 			true)
 	}

@@ -467,7 +467,7 @@ func GetRelatableCryptocurrencies(p currency.Pair) currency.Pairs {
 		if newPair.IsInvalid() {
 			continue
 		}
-		if newPair.Base.Match(p.Base) && newPair.Quote.Match(p.Quote) {
+		if newPair.Equal(p) {
 			continue
 		}
 		if pairs.Contains(newPair, false) {
@@ -486,11 +486,11 @@ func GetRelatableFiatCurrencies(p currency.Pair) currency.Pairs {
 
 	for x := range fiatCurrencies {
 		newPair := currency.NewPair(p.Base, fiatCurrencies[x])
-		if newPair.Base.Match(newPair.Quote) {
+		if newPair.Base.Equal(newPair.Quote) {
 			continue
 		}
 
-		if newPair.Base.Match(p.Base) && newPair.Quote.Match(p.Quote) {
+		if newPair.Base.Equal(p.Base) && newPair.Quote.Equal(p.Quote) {
 			continue
 		}
 

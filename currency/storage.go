@@ -600,8 +600,8 @@ func (s *Storage) GetTotalMarketCryptocurrencies() (Currencies, error) {
 // IsDefaultCurrency returns if a currency is a default currency
 func (s *Storage) IsDefaultCurrency(c Code) bool {
 	for i := range s.defaultFiatCurrencies {
-		if s.defaultFiatCurrencies[i].Match(c) ||
-			s.defaultFiatCurrencies[i].Match(GetTranslation(c)) {
+		if s.defaultFiatCurrencies[i].Equal(c) ||
+			s.defaultFiatCurrencies[i].Equal(GetTranslation(c)) {
 			return true
 		}
 	}
@@ -612,8 +612,8 @@ func (s *Storage) IsDefaultCurrency(c Code) bool {
 // cryptocurrency
 func (s *Storage) IsDefaultCryptocurrency(c Code) bool {
 	for i := range s.defaultCryptoCurrencies {
-		if s.defaultCryptoCurrencies[i].Match(c) ||
-			s.defaultCryptoCurrencies[i].Match(GetTranslation(c)) {
+		if s.defaultCryptoCurrencies[i].Equal(c) ||
+			s.defaultCryptoCurrencies[i].Equal(GetTranslation(c)) {
 			return true
 		}
 	}

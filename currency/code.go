@@ -278,8 +278,8 @@ func (c Code) IsEmpty() bool {
 	return c.Item == nil || c.Item.Symbol == ""
 }
 
-// Match returns if the code supplied is the same as the corresponding code
-func (c Code) Match(check Code) bool {
+// Equal returns if the code supplied is the same as the corresponding code
+func (c Code) Equal(check Code) bool {
 	return c.Item == check.Item
 }
 

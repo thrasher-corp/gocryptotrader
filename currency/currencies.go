@@ -32,7 +32,7 @@ func (c Currencies) Strings() []string {
 // Contains checks to see if a currency code is contained in the currency list
 func (c Currencies) Contains(check Code) bool {
 	for i := range c {
-		if c[i].Match(check) {
+		if c[i].Equal(check) {
 			return true
 		}
 	}
