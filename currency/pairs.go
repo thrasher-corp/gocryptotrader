@@ -32,7 +32,7 @@ func NewPairsFromStrings(pairs []string) (Pairs, error) {
 
 // NewPairsFromString takes in a delimiter string and returns a Pairs
 // type
-func NewPairsFromString(pairs string, delimiter string) (Pairs, error) {
+func NewPairsFromString(pairs, delimiter string) (Pairs, error) {
 	if delimiter == "" {
 		return nil, errNoDelimiter
 	}
