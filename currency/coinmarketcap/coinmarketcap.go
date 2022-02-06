@@ -23,8 +23,7 @@ import (
 func NewFromSettings(cfg Settings) (*Coinmarketcap, error) {
 	c := &Coinmarketcap{}
 	c.SetDefaults()
-	err := c.Setup(cfg)
-	if err != nil {
+	if err := c.Setup(cfg); err != nil {
 		return nil, err
 	}
 	return c, nil
