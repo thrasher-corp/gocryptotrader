@@ -175,7 +175,7 @@ func (s *Storage) RunUpdater(overrides BotOverrides, settings *Config, filePath 
 	if !primaryProvider {
 		for x := range fxSettings {
 			fxSettings[x].PrimaryProvider = true
-			log.Warnf(log.Currency, "No primary foreign exchange provider set. Defaulting to %s.", settings.ForexProviders[x].Name)
+			log.Warnf(log.Currency, "No primary foreign exchange provider set. Defaulting to %s.", fxSettings[x].Name)
 		}
 	}
 
