@@ -95,7 +95,7 @@ func (p *Pairs) UnmarshalJSON(d []byte) error {
 		return nil
 	}
 
-	*p, err = NewPairsFromString(pairs, DashDelimiter)
+	*p, err = NewPairsFromString(pairs, ",")
 	return err
 }
 

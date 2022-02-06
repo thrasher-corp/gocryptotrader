@@ -93,7 +93,7 @@ func TestStartStopDoesNotCausePanic(t *testing.T) {
 		DataDir:      tempDir,
 	}, nil)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	botOne.Settings.EnableGRPCProxy = false
 	for i := range botOne.Config.Exchanges {
