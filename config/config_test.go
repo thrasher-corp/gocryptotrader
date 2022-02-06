@@ -1677,52 +1677,6 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 	}
 }
 
-// func TestRetrieveConfigCurrencyPairs(t *testing.T) {
-// 	t.Parallel()
-// 	cp1 := currency.NewPair(currency.DOGE, currency.XRP)
-// 	cp2 := currency.NewPair(currency.DOGE, currency.USD)
-// 	cfg := &Config{
-// 		Exchanges: []Exchange{
-// 			{
-// 				Enabled: true,
-// 				BaseCurrencies: currency.Currencies{
-// 					currency.USD,
-// 				},
-// 				CurrencyPairs: &currency.PairsManager{
-// 					RequestFormat:   nil,
-// 					ConfigFormat:    nil,
-// 					UseGlobalFormat: false,
-// 					LastUpdated:     0,
-// 					Pairs: map[asset.Item]*currency.PairStore{
-// 						asset.Spot: {
-// 							AssetEnabled:  convert.BoolPtr(true),
-// 							Available:     currency.Pairs{cp1, cp2},
-// 							Enabled:       currency.Pairs{cp1},
-// 							ConfigFormat:  &currency.PairFormat{},
-// 							RequestFormat: &currency.PairFormat{},
-// 						},
-// 					},
-// 				},
-// 			},
-// 		},
-// 	}
-// 	err := cfg.RetrieveConfigCurrencyPairs(true, asset.Spot)
-// 	if err != nil {
-// 		t.Errorf(
-// 			"TestRetrieveConfigCurrencyPairs.RetrieveConfigCurrencyPairs: %s",
-// 			err.Error(),
-// 		)
-// 	}
-
-// 	err = cfg.RetrieveConfigCurrencyPairs(false, asset.Spot)
-// 	if err != nil {
-// 		t.Errorf(
-// 			"TestRetrieveConfigCurrencyPairs.RetrieveConfigCurrencyPairs: %s",
-// 			err.Error(),
-// 		)
-// 	}
-// }
-
 func TestReadConfigFromFile(t *testing.T) {
 	cfg := &Config{}
 	err := cfg.ReadConfigFromFile(TestFile, true)
@@ -1936,14 +1890,10 @@ func TestUpdateConfig(t *testing.T) {
 		t.Fatalf("Error should have been thrown for invalid path")
 	}
 
-	// newCfg.Currency.Cryptocurrencies = currency.NewCurrenciesFromStringArray([]string{""})
 	err = c.UpdateConfig(TestFile, &newCfg, true)
 	if err != nil {
 		t.Errorf("%s", err)
 	}
-	// if c.Currency.Cryptocurrencies.Join() == "" {
-	// 	t.Fatalf("Cryptocurrencies should have been repopulated")
-	// }
 }
 
 func BenchmarkUpdateConfig(b *testing.B) {
@@ -2133,7 +2083,6 @@ func TestCheckCurrencyConfigValues(t *testing.T) {
 	cfg.Currency.ForexProviders[0].Enabled = true
 	cfg.Currency.ForexProviders[0].Name = "Name"
 	cfg.Currency.ForexProviders[0].PrimaryProvider = true
-	// cfg.Currency.Cryptocurrencies = currency.Currencies{}
 	cfg.Cryptocurrencies = &currency.Currencies{}
 	err = cfg.CheckCurrencyConfigValues()
 	if err != nil {

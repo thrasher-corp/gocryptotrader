@@ -89,12 +89,6 @@ func main() {
 		Subtotal float64
 	}
 
-	// err = cfg.RetrieveConfigCurrencyPairs(true, asset.Spot)
-	// if err != nil {
-	// 	log.Printf("Failed to retrieve config currency pairs %v\n", err)
-	// 	os.Exit(1)
-	// }
-
 	portfolioMap := make(map[currency.Code]PortfolioTemp)
 	total := float64(0)
 
