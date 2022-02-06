@@ -14,7 +14,7 @@ import (
 )
 
 var (
-	priceMap        map[currency.Code]float64
+	priceMap        map[*currency.Item]float64
 	displayCurrency currency.Code
 )
 
@@ -22,7 +22,7 @@ func printSummary(msg string, amount float64) {
 	log.Println()
 	log.Println(fmt.Sprintf("%s in USD: $%.2f", msg, amount))
 
-	if displayCurrency != currency.USD {
+	if !displayCurrency.Equal(currency.USD) {
 		conv, err := currency.ConvertCurrency(amount,
 			currency.USD,
 			displayCurrency)
@@ -49,7 +49,7 @@ func printSummary(msg string, amount float64) {
 func getOnlineOfflinePortfolio(coins []portfolio.Coin, online bool) {
 	var totals float64
 	for _, x := range coins {
-		value := priceMap[x.Coin] * x.Balance
+		value := priceMap[x.Coin.Item] * x.Balance
 		totals += value
 		log.Printf("\t%v %v Subtotal: $%.2f Coin percentage: %.2f%%\n", x.Coin,
 			x.Balance, value, x.Percentage)
@@ -89,7 +89,7 @@ func main() {
 		Subtotal float64
 	}
 
-	portfolioMap := make(map[currency.Code]PortfolioTemp)
+	portfolioMap := make(map[*currency.Item]PortfolioTemp)
 	total := float64(0)
 
 	log.Println("Fetching currency data..")
@@ -107,8 +107,8 @@ func main() {
 
 	log.Println("Fetched currency data.")
 	log.Println("Fetching ticker data and calculating totals..")
-	priceMap = make(map[currency.Code]float64)
-	priceMap[currency.USD] = 1
+	priceMap = make(map[*currency.Item]float64)
+	priceMap[currency.USD.Item] = 1
 
 	for _, y := range result.Totals {
 		pf := PortfolioTemp{}
@@ -116,12 +116,12 @@ func main() {
 		pf.Subtotal = 0
 
 		if y.Coin.IsFiatCurrency() {
-			if y.Coin != currency.USD {
+			if !y.Coin.Equal(currency.USD) {
 				conv, err := currency.ConvertCurrency(y.Balance, y.Coin, currency.USD)
 				if err != nil {
 					log.Println(err)
 				} else {
-					priceMap[y.Coin] = conv / y.Balance
+					priceMap[y.Coin.Item] = conv / y.Balance
 					pf.Subtotal = conv
 				}
 			} else {
@@ -136,11 +136,11 @@ func main() {
 			if errf != nil {
 				log.Println(errf)
 			} else {
-				priceMap[y.Coin] = ticker.Last
+				priceMap[y.Coin.Item] = ticker.Last
 				pf.Subtotal = ticker.Last * y.Balance
 			}
 		}
-		portfolioMap[y.Coin] = pf
+		portfolioMap[y.Coin.Item] = pf
 		total += pf.Subtotal
 	}
 	log.Println("Done.")
@@ -163,7 +163,7 @@ func main() {
 		log.Printf("\t%s:", x)
 		totals = 0
 		for z := range y {
-			value := priceMap[x] * y[z].Balance
+			value := priceMap[x.Item] * y[z].Balance
 			totals += value
 			log.Printf("\t %s Amount: %f Subtotal: $%.2f Coin percentage: %.2f%%\n",
 				y[z].Address, y[z].Balance, value, y[z].Percentage)
@@ -176,7 +176,7 @@ func main() {
 		log.Printf("\t%s:", x)
 		totals = 0
 		for z, w := range y {
-			value := priceMap[z] * w.Balance
+			value := priceMap[z.Item] * w.Balance
 			totals += value
 			log.Printf("\t %s Amount: %f Subtotal $%.2f Coin percentage: %.2f%%",
 				z, w.Balance, value, w.Percentage)

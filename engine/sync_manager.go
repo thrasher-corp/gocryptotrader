@@ -745,7 +745,7 @@ func (m *syncManager) PrintTickerSummary(result *ticker.Price, protocol string, 
 	_ = stats.Add(result.ExchangeName, result.Pair, result.AssetType, result.Last, result.Volume)
 
 	if result.Pair.Quote.IsFiatCurrency() &&
-		result.Pair.Quote != m.fiatDisplayCurrency &&
+		!result.Pair.Quote.Equal(m.fiatDisplayCurrency) &&
 		!m.fiatDisplayCurrency.IsEmpty() {
 		origCurrency := result.Pair.Quote.Upper()
 		log.Infof(log.Ticker, "%s %s %s %s: TICKER: Last %s Ask %s Bid %s High %s Low %s Volume %.8f",
@@ -761,7 +761,7 @@ func (m *syncManager) PrintTickerSummary(result *ticker.Price, protocol string, 
 			result.Volume)
 	} else {
 		if result.Pair.Quote.IsFiatCurrency() &&
-			result.Pair.Quote == m.fiatDisplayCurrency &&
+			result.Pair.Quote.Equal(m.fiatDisplayCurrency) &&
 			!m.fiatDisplayCurrency.IsEmpty() {
 			log.Infof(log.Ticker, "%s %s %s %s: TICKER: Last %s Ask %s Bid %s High %s Low %s Volume %.8f",
 				result.ExchangeName,
@@ -838,11 +838,11 @@ func (m *syncManager) PrintOrderbookSummary(result *orderbook.Base, protocol str
 
 	var bidValueResult, askValueResult string
 	switch {
-	case result.Pair.Quote.IsFiatCurrency() && result.Pair.Quote != m.fiatDisplayCurrency && !m.fiatDisplayCurrency.IsEmpty():
+	case result.Pair.Quote.IsFiatCurrency() && !result.Pair.Quote.Equal(m.fiatDisplayCurrency) && !m.fiatDisplayCurrency.IsEmpty():
 		origCurrency := result.Pair.Quote.Upper()
 		bidValueResult = printConvertCurrencyFormat(origCurrency, bidsValue, m.fiatDisplayCurrency)
 		askValueResult = printConvertCurrencyFormat(origCurrency, asksValue, m.fiatDisplayCurrency)
-	case result.Pair.Quote.IsFiatCurrency() && result.Pair.Quote == m.fiatDisplayCurrency && !m.fiatDisplayCurrency.IsEmpty():
+	case result.Pair.Quote.IsFiatCurrency() && result.Pair.Quote.Equal(m.fiatDisplayCurrency) && !m.fiatDisplayCurrency.IsEmpty():
 		bidValueResult = printCurrencyFormat(bidsValue, m.fiatDisplayCurrency)
 		askValueResult = printCurrencyFormat(asksValue, m.fiatDisplayCurrency)
 	default:

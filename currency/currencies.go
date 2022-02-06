@@ -76,7 +76,7 @@ func (c Currencies) Match(other Currencies) bool {
 match:
 	for x := range c {
 		for y := range other {
-			if c[x] == other[y] {
+			if c[x].Equal(other[y]) {
 				continue match
 			}
 		}

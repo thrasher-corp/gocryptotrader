@@ -36,7 +36,10 @@ type BaseCodes struct {
 // Code defines an ISO 4217 fiat currency or unofficial cryptocurrency code
 // string
 type Code struct {
-	Item      *Item
+	Item *Item
+	// TODO: Below will force the use of the Equal method for comparison. Big
+	// job to update all maps and instances through the code base.
+	// _         []struct{}
 	UpperCase bool
 }
 

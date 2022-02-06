@@ -105,7 +105,7 @@ func (c *ConversionRates) Update(m map[string]float64) error {
 		log.Debugln(log.Global, "Conversion rates are being updated.")
 	}
 
-	solidvalues := make(map[Code]map[Code]float64)
+	solidvalues := make(map[*Item]map[*Item]float64)
 
 	var list []Code // Verification list, cross check all currencies coming in
 
@@ -113,26 +113,26 @@ func (c *ConversionRates) Update(m map[string]float64) error {
 	for key, val := range m {
 		code1 := storage.ValidateFiatCode(key[:3])
 
-		if mainBaseCurrency == (Code{}) {
+		if mainBaseCurrency.Equal(EMPTY) {
 			mainBaseCurrency = code1
 		}
 
 		code2 := storage.ValidateFiatCode(key[3:])
-		if code1 == code2 { // Get rid of same conversions
+		if code1.Equal(code2) { // Get rid of same conversions
 			continue
 		}
 
 		var codeOneFound, codeTwoFound bool
 		// Check and add to our funky list
 		for i := range list {
-			if list[i] == code1 {
+			if list[i].Equal(code1) {
 				codeOneFound = true
 				if codeTwoFound {
 					break
 				}
 			}
 
-			if list[i] == code2 {
+			if list[i].Equal(code2) {
 				codeTwoFound = true
 				if codeOneFound {
 					break
@@ -148,39 +148,39 @@ func (c *ConversionRates) Update(m map[string]float64) error {
 			list = append(list, code2)
 		}
 
-		if solidvalues[code1] == nil {
-			solidvalues[code1] = make(map[Code]float64)
+		if solidvalues[code1.Item] == nil {
+			solidvalues[code1.Item] = make(map[*Item]float64)
 		}
 
-		solidvalues[code1][code2] = val
+		solidvalues[code1.Item][code2.Item] = val
 
 		// Input inverse values 1/val to swap from -> to and vice versa
 
-		if solidvalues[code2] == nil {
-			solidvalues[code2] = make(map[Code]float64)
+		if solidvalues[code2.Item] == nil {
+			solidvalues[code2.Item] = make(map[*Item]float64)
 		}
 
-		solidvalues[code2][code1] = 1 / val
+		solidvalues[code2.Item][code1.Item] = 1 / val
 	}
 
 	for _, base := range list {
 		for _, term := range list {
-			if base == term {
+			if base.Equal(term) {
 				continue
 			}
-			_, ok := solidvalues[base][term]
+			_, ok := solidvalues[base.Item][term.Item]
 			if !ok {
 				var crossRate float64
 				// Check inversion to speed things up
-				v, ok := solidvalues[term][base]
+				v, ok := solidvalues[term.Item][base.Item]
 				if !ok {
-					v1, ok := solidvalues[mainBaseCurrency][base]
+					v1, ok := solidvalues[mainBaseCurrency.Item][base.Item]
 					if !ok {
 						return fmt.Errorf("value not found base %s term %s",
 							mainBaseCurrency,
 							base)
 					}
-					v2, ok := solidvalues[mainBaseCurrency][term]
+					v2, ok := solidvalues[mainBaseCurrency.Item][term.Item]
 					if !ok {
 						return fmt.Errorf("value not found base %s term %s",
 							mainBaseCurrency,
@@ -197,7 +197,7 @@ func (c *ConversionRates) Update(m map[string]float64) error {
 						term,
 						crossRate)
 				}
-				solidvalues[base][term] = crossRate
+				solidvalues[base.Item][term.Item] = crossRate
 			}
 		}
 	}
@@ -209,14 +209,14 @@ func (c *ConversionRates) Update(m map[string]float64) error {
 				c.m = make(map[*Item]map[*Item]*float64)
 			}
 
-			if c.m[key.Item] == nil {
-				c.m[key.Item] = make(map[*Item]*float64)
+			if c.m[key] == nil {
+				c.m[key] = make(map[*Item]*float64)
 			}
 
-			p := c.m[key.Item][key2.Item]
+			p := c.m[key][key2]
 			if p == nil {
 				newPalsAndFriends := val2
-				c.m[key.Item][key2.Item] = &newPalsAndFriends
+				c.m[key][key2] = &newPalsAndFriends
 			} else {
 				*p = val2
 			}

@@ -521,17 +521,17 @@ func GetRelatableCurrencies(p currency.Pair, incOrig, incUSDT bool) currency.Pai
 		}
 
 		first := currency.GetTranslation(p.Base)
-		if first != p.Base {
+		if !first.Equal(p.Base) {
 			addPair(currency.NewPair(first, p.Quote))
 
 			second := currency.GetTranslation(p.Quote)
-			if second != p.Quote {
+			if !second.Equal(p.Quote) {
 				addPair(currency.NewPair(first, second))
 			}
 		}
 
 		second := currency.GetTranslation(p.Quote)
-		if second != p.Quote {
+		if !second.Equal(p.Quote) {
 			addPair(currency.NewPair(p.Base, second))
 		}
 	}

@@ -43,14 +43,14 @@ func TestUpdateBaseCurrency(t *testing.T) {
 		t.Error("UpdateBaseCurrency() error cannot be nil")
 	}
 
-	if GetBaseCurrency() != AUD {
+	if !GetBaseCurrency().Equal(AUD) {
 		t.Errorf("GetBaseCurrency() expected %s but received %s",
 			AUD, GetBaseCurrency())
 	}
 }
 
 func TestGetDefaultBaseCurrency(t *testing.T) {
-	if GetDefaultBaseCurrency() != USD {
+	if !GetDefaultBaseCurrency().Equal(USD) {
 		t.Errorf("GetDefaultBaseCurrency() expected %s but received %s",
 			USD, GetDefaultBaseCurrency())
 	}
