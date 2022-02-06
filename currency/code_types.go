@@ -50,7 +50,6 @@ type Item struct {
 	// rely on the strings package to upper and lower strings when it is not
 	// needed
 	Lower      string `json:"-"`
-	Length     int    `json:"-"`
 	Role       Role   `json:"role"`
 	AssocChain string `json:"associatedBlockchain,omitempty"`
 }
