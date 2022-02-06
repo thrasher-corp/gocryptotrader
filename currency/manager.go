@@ -17,7 +17,7 @@ var (
 	// ErrPairNotFound is returned when a currency pair is not found
 	ErrPairNotFound = errors.New("pair not found")
 	// errAssetNotEnabled defines an error for the pairs management system
-	// that declares the asset is not enable.
+	// that declares the asset is not enabled.
 	errAssetNotEnabled = errors.New("asset not enabled")
 	// ErrAssetIsNil is an error when the asset has not been populated by the
 	// configuration
