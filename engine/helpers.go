@@ -490,7 +490,7 @@ func GetRelatableFiatCurrencies(p currency.Pair) currency.Pairs {
 			continue
 		}
 
-		if newPair.Base.Equal(p.Base) && newPair.Quote.Equal(p.Quote) {
+		if newPair.Equal(p) {
 			continue
 		}
 

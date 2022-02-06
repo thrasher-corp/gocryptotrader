@@ -18,8 +18,8 @@ type Storage struct {
 	// cryptocurrencies defines the running cryptocurrencies in the currency
 	// storage
 	cryptocurrencies Currencies
-	// stableCurencies defines the running stable currencies
-	stableCurencies Currencies
+	// stableCurrencies defines the running stable currencies
+	stableCurrencies Currencies
 	// currencyCodes is a full basket of currencies either crypto, fiat, ico or
 	// contract being tracked by the currency storage system
 	currencyCodes BaseCodes

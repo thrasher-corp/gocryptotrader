@@ -13,6 +13,7 @@ import (
 var (
 	errSymbolEmpty = errors.New("symbol is empty")
 	errPairsEmpty  = errors.New("pairs are empty")
+	errNoDelimiter = errors.New("no delimiter was supplied")
 )
 
 // NewPairsFromStrings takes in currency pair strings and returns a currency
@@ -29,10 +30,13 @@ func NewPairsFromStrings(pairs []string) (Pairs, error) {
 	return allThePairs, nil
 }
 
-// NewPairsFromString takes in a comma delimitered string and returns a Pairs
+// NewPairsFromString takes in a delimiter string and returns a Pairs
 // type
-func NewPairsFromString(pairs string) (Pairs, error) {
-	return NewPairsFromStrings(strings.Split(pairs, ","))
+func NewPairsFromString(pairs string, delimiter string) (Pairs, error) {
+	if delimiter == "" {
+		return nil, errNoDelimiter
+	}
+	return NewPairsFromStrings(strings.Split(pairs, delimiter))
 }
 
 // Strings returns a slice of strings referring to each currency pair
@@ -91,7 +95,7 @@ func (p *Pairs) UnmarshalJSON(d []byte) error {
 		return nil
 	}
 
-	*p, err = NewPairsFromString(pairs)
+	*p, err = NewPairsFromString(pairs, DashDelimiter)
 	return err
 }
 

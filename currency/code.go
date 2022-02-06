@@ -146,7 +146,7 @@ func (b *BaseCodes) UpdateCurrency(fullName, symbol, blockchain string, id int, 
 
 // Register registers a currency from a string and returns a currency code, this
 // can optionally include a role when it is known.
-func (b *BaseCodes) Register(c string, newRole ...Role) Code {
+func (b *BaseCodes) Register(c string, newRole Role) Code {
 	if c == "" {
 		return EMPTY
 	}
@@ -163,11 +163,6 @@ func (b *BaseCodes) Register(c string, newRole ...Role) Code {
 	// Force upper string storage and matching
 	c = strings.ToUpper(c)
 
-	var role Role
-	if len(newRole) > 0 {
-		role = newRole[0]
-	}
-
 	b.mtx.Lock()
 	defer b.mtx.Unlock()
 	for i := range b.Items {
@@ -175,17 +170,20 @@ func (b *BaseCodes) Register(c string, newRole ...Role) Code {
 			continue
 		}
 
-		if role != Unset {
+		if newRole != Unset {
 			if b.Items[i].Role == Unset {
-				b.Items[i].Role = role
-			} else if b.Items[i].Role != role {
+				b.Items[i].Role = newRole
+			} else if b.Items[i].Role != newRole {
+				// This will duplicate item with same name but different role.
+				// TODO: This will need a specific update to NewCode to add in
+				// a specific param to find the exact name and role.
 				continue
 			}
 		}
 
 		return Code{Item: b.Items[i], UpperCase: format}
 	}
-	newItem := &Item{Symbol: c, Lower: strings.ToLower(c), Role: role}
+	newItem := &Item{Symbol: c, Lower: strings.ToLower(c), Role: newRole}
 	b.Items = append(b.Items, newItem)
 	return Code{Item: newItem, UpperCase: format}
 }

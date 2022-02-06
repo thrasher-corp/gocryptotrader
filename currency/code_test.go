@@ -52,7 +52,7 @@ func TestRoleMarshalJSON(t *testing.T) {
 		t.Error("Role MarshalJSON() error", err)
 	}
 
-	if expected := `"fiatCurrency"`; string(d) != expected {
+	if expected := `"fiatcurrency"`; string(d) != expected {
 		t.Errorf("Role MarshalJSON() error expected %s but received %s",
 			expected,
 			string(d))
@@ -155,7 +155,7 @@ func TestBaseCode(t *testing.T) {
 			main.HasData())
 	}
 
-	_ = main.Register("CATS")
+	_ = main.Register("CATS", Unset)
 	if !main.HasData() {
 		t.Errorf("BaseCode HasData() error expected true but received %v",
 			main.HasData())
@@ -168,27 +168,25 @@ func TestBaseCode(t *testing.T) {
 			main.HasData())
 	}
 
-	// Duplicates item with same name but different role. TODO: This will need
-	// a specific update to NewCode function to implement this in system.
 	_ = main.Register("CATS", Stable)
 	if !main.HasData() {
 		t.Errorf("BaseCode HasData() error expected true but received %v",
 			main.HasData())
 	}
 
-	if !main.Register("CATS").Equal(catsCode) {
+	if !main.Register("CATS", Unset).Equal(catsCode) {
 		t.Errorf("BaseCode Match() error expected true but received %v",
 			false)
 	}
 
-	if main.Register("DOGS").Equal(catsCode) {
+	if main.Register("DOGS", Unset).Equal(catsCode) {
 		t.Errorf("BaseCode Match() error expected false but received %v",
 			true)
 	}
 
 	loadedCurrencies := main.GetCurrencies()
 
-	if loadedCurrencies.Contains(main.Register("OWLS")) {
+	if loadedCurrencies.Contains(main.Register("OWLS", Unset)) {
 		t.Errorf("BaseCode Contains() error expected false but received %v",
 			true)
 	}
@@ -198,7 +196,7 @@ func TestBaseCode(t *testing.T) {
 			false)
 	}
 
-	main.Register("XBTUSD")
+	main.Register("XBTUSD", Unset)
 
 	err := main.UpdateCurrency("Bitcoin Perpetual",
 		"XBTUSD",
@@ -209,7 +207,7 @@ func TestBaseCode(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	main.Register("BTC")
+	main.Register("BTC", Unset)
 	err = main.UpdateCurrency("Bitcoin", "BTC", "", 1337, Unset)
 	if !errors.Is(err, errRoleUnset) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errRoleUnset)
@@ -220,7 +218,7 @@ func TestBaseCode(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	aud := main.Register("AUD")
+	aud := main.Register("AUD", Unset)
 	err = main.UpdateCurrency("Unreal Dollar", "AUD", "", 1111, Fiat)
 	if err != nil {
 		t.Fatal(err)
@@ -244,13 +242,13 @@ func TestBaseCode(t *testing.T) {
 		t.Error("Expected role to change to Fiat")
 	}
 
-	main.Register("PPT")
+	main.Register("PPT", Unset)
 	err = main.UpdateCurrency("Populous", "PPT", "ETH", 1335, Token)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	contract := main.Register("XBTUSD")
+	contract := main.Register("XBTUSD", Unset)
 
 	if contract.IsFiatCurrency() {
 		t.Errorf("BaseCode IsFiatCurrency() error expected false but received %v",

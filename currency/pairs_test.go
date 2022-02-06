@@ -44,11 +44,15 @@ func TestPairsString(t *testing.T) {
 }
 
 func TestPairsFromString(t *testing.T) {
-	if _, err := NewPairsFromString(""); !errors.Is(err, errCannotCreatePair) {
+	if _, err := NewPairsFromString("", ""); !errors.Is(err, errNoDelimiter) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errNoDelimiter)
+	}
+
+	if _, err := NewPairsFromString("", ","); !errors.Is(err, errCannotCreatePair) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errCannotCreatePair)
 	}
 
-	pairs, err := NewPairsFromString("ALGO-AUD,BAT-AUD,BCH-AUD,BSV-AUD,BTC-AUD,COMP-AUD,ENJ-AUD,ETC-AUD,ETH-AUD,ETH-BTC,GNT-AUD,LINK-AUD,LTC-AUD,LTC-BTC,MCAU-AUD,OMG-AUD,POWR-AUD,UNI-AUD,USDT-AUD,XLM-AUD,XRP-AUD,XRP-BTC")
+	pairs, err := NewPairsFromString("ALGO-AUD,BAT-AUD,BCH-AUD,BSV-AUD,BTC-AUD,COMP-AUD,ENJ-AUD,ETC-AUD,ETH-AUD,ETH-BTC,GNT-AUD,LINK-AUD,LTC-AUD,LTC-BTC,MCAU-AUD,OMG-AUD,POWR-AUD,UNI-AUD,USDT-AUD,XLM-AUD,XRP-AUD,XRP-BTC", ",")
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}

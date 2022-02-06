@@ -15,7 +15,7 @@ const (
 	Stable
 
 	UnsetRoleString      = "roleUnset"
-	FiatCurrencyString   = "fiatCurrency"
+	FiatCurrencyString   = "fiatcurrency"
 	CryptocurrencyString = "cryptocurrency"
 	TokenString          = "token"
 	ContractString       = "contract"
@@ -55,7 +55,10 @@ type Item struct {
 	AssocChain string `json:"associatedBlockchain,omitempty"`
 }
 
-func (*Item) Lock()   {}
+// Lock implements the sync.Locker interface and forces a govet check nocopy
+func (*Item) Lock() {}
+
+// Unlock implements the sync.Locker interface and forces a govet check nocopy
 func (*Item) Unlock() {}
 
 // Const declarations for individual currencies/tokens/fiat

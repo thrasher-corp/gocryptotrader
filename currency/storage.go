@@ -235,7 +235,7 @@ func (s *Storage) SetStableCoins(c Currencies) error {
 			return err
 		}
 	}
-	s.stableCurencies = append(s.stableCurencies, c...)
+	s.stableCurrencies = append(s.stableCurrencies, c...)
 	return nil
 }
 
@@ -380,84 +380,55 @@ func (s *Storage) WriteCurrencyDataToFile(path string, mainUpdate bool) error {
 	return file.Write(path, encoded)
 }
 
+func (s *Storage) checkFileCurrencyData(item *Item, role Role) error {
+	if item.Role == Unset {
+		item.Role = role
+	}
+	if item.Role != role {
+		return fmt.Errorf("%w %s expecting: %s", errUnexpectedRole, item.Role, role)
+	}
+	return s.currencyCodes.LoadItem(item)
+}
+
 // LoadFileCurrencyData loads currencies into the currency codes
 func (s *Storage) LoadFileCurrencyData(f *File) error {
 	for i := range f.Contracts {
-		if f.Contracts[i].Role == Unset {
-			f.Contracts[i].Role = Contract
-		}
-		if f.Contracts[i].Role != Contract {
-			return fmt.Errorf("%w %s expecting: %s",
-				errUnexpectedRole, f.Contracts[i].Role, Contract)
-		}
-		err := s.currencyCodes.LoadItem(f.Contracts[i])
+		err := s.checkFileCurrencyData(f.Contracts[i], Contract)
 		if err != nil {
 			return err
 		}
 	}
 
 	for i := range f.Cryptocurrency {
-		if f.Cryptocurrency[i].Role == Unset {
-			f.Cryptocurrency[i].Role = Cryptocurrency
-		}
-		if f.Cryptocurrency[i].Role != Cryptocurrency {
-			return fmt.Errorf("%w %s expecting: %s",
-				errUnexpectedRole, f.Cryptocurrency[i].Role, Cryptocurrency)
-		}
-		err := s.currencyCodes.LoadItem(f.Cryptocurrency[i])
+		err := s.checkFileCurrencyData(f.Contracts[i], Cryptocurrency)
 		if err != nil {
 			return err
 		}
 	}
 
 	for i := range f.Token {
-		if f.Token[i].Role == Unset {
-			f.Token[i].Role = Token
-		}
-		if f.Token[i].Role != Token {
-			return fmt.Errorf("%w %s expecting: %s",
-				errUnexpectedRole, f.Token[i].Role, Token)
-		}
-		err := s.currencyCodes.LoadItem(f.Token[i])
+		err := s.checkFileCurrencyData(f.Contracts[i], Token)
 		if err != nil {
 			return err
 		}
 	}
 
 	for i := range f.FiatCurrency {
-		if f.FiatCurrency[i].Role == Unset {
-			f.FiatCurrency[i].Role = Fiat
-		}
-		if f.FiatCurrency[i].Role != Fiat {
-			return fmt.Errorf("%w %s expecting: %s",
-				errUnexpectedRole, f.FiatCurrency[i].Role, Fiat)
-		}
-		err := s.currencyCodes.LoadItem(f.FiatCurrency[i])
+		err := s.checkFileCurrencyData(f.Contracts[i], Fiat)
 		if err != nil {
 			return err
 		}
 	}
 
 	for i := range f.UnsetCurrency {
-		if f.UnsetCurrency[i].Role != Unset {
-			return fmt.Errorf("%w %s expecting: %s",
-				errUnexpectedRole, f.UnsetCurrency[i].Role, Unset)
-		}
-		err := s.currencyCodes.LoadItem(f.UnsetCurrency[i])
+		err := s.checkFileCurrencyData(f.Contracts[i], Unset)
 		if err != nil {
 			return err
 		}
 	}
 
 	for i := range f.Stable {
-		if f.Stable[i].Role == Unset {
-			f.Stable[i].Role = Stable
-		}
-		if f.Stable[i].Role != Stable {
-			return fmt.Errorf("%w %s expecting: %s",
-				errUnexpectedRole, f.Stable[i].Role, Stable)
-		}
-		err := s.currencyCodes.LoadItem(f.Stable[i])
+		err := s.checkFileCurrencyData(f.Contracts[i], Stable)
 		if err != nil {
 			return err
 		}
@@ -623,7 +594,7 @@ func (s *Storage) IsDefaultCryptocurrency(c Code) bool {
 // ValidateCode validates string against currency list and returns a currency
 // code
 func (s *Storage) ValidateCode(newCode string) Code {
-	return s.currencyCodes.Register(newCode)
+	return s.currencyCodes.Register(newCode, Unset)
 }
 
 // ValidateFiatCode validates a fiat currency string and returns a currency
