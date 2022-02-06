@@ -325,3 +325,15 @@ func currencyConstructor(m map[*Item]bool) Currencies {
 	}
 	return cryptos
 }
+
+// GetStablesMatch returns all stable pairs matched with code
+func (p Pairs) GetStablesMatch(code Code) Pairs {
+	var stablePairs []Pair
+	for x := range p {
+		if p[x].Base.IsStableCurrency() && p[x].Quote.Equal(code) ||
+			p[x].Quote.IsStableCurrency() && p[x].Base.Equal(code) {
+			stablePairs = append(stablePairs, p[x])
+		}
+	}
+	return stablePairs
+}

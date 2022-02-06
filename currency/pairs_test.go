@@ -403,3 +403,51 @@ func TestGetMatch(t *testing.T) {
 		t.Fatalf("received: '%v' but expected '%v'", match, expected)
 	}
 }
+
+func TestGetStablesMatch(t *testing.T) {
+	pairs := Pairs{
+		NewPair(BTC, USD),
+		NewPair(LTC, USD),
+		NewPair(USD, NZD),
+		NewPair(LTC, USDT),
+		NewPair(LTC, DAI),
+		NewPair(USDT, XRP),
+		NewPair(DAI, XRP),
+	}
+
+	stablePairs := pairs.GetStablesMatch(BTC)
+	if len(stablePairs) != 0 {
+		t.Fatal("unexpected value")
+	}
+
+	stablePairs = pairs.GetStablesMatch(USD)
+	if len(stablePairs) != 0 {
+		t.Fatal("unexpected value")
+	}
+
+	stablePairs = pairs.GetStablesMatch(LTC)
+	if len(stablePairs) != 2 {
+		t.Fatal("unexpected value")
+	}
+
+	if !stablePairs[0].Equal(NewPair(LTC, USDT)) {
+		t.Fatal("unexpected value")
+	}
+
+	if !stablePairs[1].Equal(NewPair(LTC, DAI)) {
+		t.Fatal("unexpected value")
+	}
+
+	stablePairs = pairs.GetStablesMatch(XRP)
+	if len(stablePairs) != 2 {
+		t.Fatal("unexpected value")
+	}
+
+	if !stablePairs[0].Equal(NewPair(USDT, XRP)) {
+		t.Fatal("unexpected value")
+	}
+
+	if !stablePairs[1].Equal(NewPair(DAI, XRP)) {
+		t.Fatal("unexpected value")
+	}
+}

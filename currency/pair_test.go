@@ -845,3 +845,15 @@ func TestPairFormat_Format(t *testing.T) {
 		})
 	}
 }
+
+func TestOther(t *testing.T) {
+	if !NewPair(DAI, XRP).Other(DAI).Equal(XRP) {
+		t.Fatal("unexpected value")
+	}
+	if !NewPair(DAI, XRP).Other(XRP).Equal(DAI) {
+		t.Fatal("unexpected value")
+	}
+	if !NewPair(DAI, XRP).Other(BTC).Equal(EMPTY) {
+		t.Fatal("unexpected value")
+	}
+}
