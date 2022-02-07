@@ -451,3 +451,57 @@ func TestGetStablesMatch(t *testing.T) {
 		t.Fatal("unexpected value")
 	}
 }
+
+// Current: 5594431	       217.4 ns/op	     168 B/op	       8 allocs/op
+// Prev:  3490366	       373.4 ns/op	     296 B/op	      11 allocs/op
+func BenchmarkPairsString(b *testing.B) {
+	pairs := Pairs{
+		NewPair(BTC, USD),
+		NewPair(LTC, USD),
+		NewPair(USD, NZD),
+		NewPair(LTC, USDT),
+		NewPair(LTC, DAI),
+		NewPair(USDT, XRP),
+		NewPair(DAI, XRP),
+	}
+
+	for x := 0; x < b.N; x++ {
+		_ = pairs.Strings()
+	}
+}
+
+// Current:  6691011	       184.6 ns/op	     352 B/op	       1 allocs/op
+// Prev:  3746151	       317.1 ns/op	     720 B/op	       4 allocs/op
+func BenchmarkPairsFormat(b *testing.B) {
+	pairs := Pairs{
+		NewPair(BTC, USD),
+		NewPair(LTC, USD),
+		NewPair(USD, NZD),
+		NewPair(LTC, USDT),
+		NewPair(LTC, DAI),
+		NewPair(USDT, XRP),
+		NewPair(DAI, XRP),
+	}
+
+	for x := 0; x < b.N; x++ {
+		_ = pairs.Format("/", "", false)
+	}
+}
+
+// current: 13075897	       100.4 ns/op	     352 B/op	       1 allocs/o
+// prev: 8188616	       148.0 ns/op	     336 B/op	       3 allocs/op
+func BenchmarkRemovePairsByFilter(b *testing.B) {
+	pairs := Pairs{
+		NewPair(BTC, USD),
+		NewPair(LTC, USD),
+		NewPair(USD, NZD),
+		NewPair(LTC, USDT),
+		NewPair(LTC, DAI),
+		NewPair(USDT, XRP),
+		NewPair(DAI, XRP),
+	}
+
+	for x := 0; x < b.N; x++ {
+		_ = pairs.RemovePairsByFilter(USD)
+	}
+}

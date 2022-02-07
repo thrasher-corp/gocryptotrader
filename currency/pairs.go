@@ -41,9 +41,9 @@ func NewPairsFromString(pairs, delimiter string) (Pairs, error) {
 
 // Strings returns a slice of strings referring to each currency pair
 func (p Pairs) Strings() []string {
-	var list []string
+	list := make([]string, len(p))
 	for i := range p {
-		list = append(list, p[i].String())
+		list[i] = p[i].String()
 	}
 	return list
 }
@@ -55,28 +55,22 @@ func (p Pairs) Join() string {
 
 // Format formats the pair list to the exchange format configuration
 func (p Pairs) Format(delimiter, index string, uppercase bool) Pairs {
-	var pairs Pairs
-	for i := range p {
-		var formattedPair = Pair{
-			Delimiter: delimiter,
-			Base:      p[i].Base,
-			Quote:     p[i].Quote,
-		}
+	pairs := make(Pairs, 0, len(p))
+	var err error
+	for _, format := range p {
 		if index != "" {
-			newP, err := NewPairFromIndex(p[i].String(), index)
+			format, err = NewPairFromIndex(format.String(), index)
 			if err != nil {
 				log.Errorf(log.Global,
 					"failed to create NewPairFromIndex. Err: %s\n", err)
 				continue
 			}
-			formattedPair.Base = newP.Base
-			formattedPair.Quote = newP.Quote
 		}
-
+		format.Delimiter = delimiter
 		if uppercase {
-			pairs = append(pairs, formattedPair.Upper())
+			pairs = append(pairs, format.Upper())
 		} else {
-			pairs = append(pairs, formattedPair.Lower())
+			pairs = append(pairs, format.Lower())
 		}
 	}
 	return pairs
@@ -142,7 +136,7 @@ func (p Pairs) Contains(check Pair, exact bool) bool {
 // RemovePairsByFilter checks to see if a pair contains a specific currency
 // and removes it from the list of pairs
 func (p Pairs) RemovePairsByFilter(filter Code) Pairs {
-	var pairs Pairs
+	pairs := make(Pairs, 0, len(p))
 	for i := range p {
 		if p[i].ContainsCurrency(filter) {
 			continue
@@ -155,7 +149,7 @@ func (p Pairs) RemovePairsByFilter(filter Code) Pairs {
 // GetPairsByFilter returns all pairs that have at least one match base or quote
 // to the filter code.
 func (p Pairs) GetPairsByFilter(filter Code) Pairs {
-	var pairs Pairs
+	pairs := make(Pairs, 0, len(p))
 	for i := range p {
 		if !p[i].ContainsCurrency(filter) {
 			continue
@@ -167,7 +161,7 @@ func (p Pairs) GetPairsByFilter(filter Code) Pairs {
 
 // Remove removes the specified pair from the list of pairs if it exists
 func (p Pairs) Remove(pair Pair) Pairs {
-	var pairs Pairs
+	pairs := make(Pairs, 0, len(p))
 	for x := range p {
 		if p[x].Equal(pair) {
 			continue
@@ -328,7 +322,7 @@ func currencyConstructor(m map[*Item]bool) Currencies {
 
 // GetStablesMatch returns all stable pairs matched with code
 func (p Pairs) GetStablesMatch(code Code) Pairs {
-	var stablePairs []Pair
+	stablePairs := make([]Pair, 0, len(p))
 	for x := range p {
 		if p[x].Base.IsStableCurrency() && p[x].Quote.Equal(code) ||
 			p[x].Quote.IsStableCurrency() && p[x].Base.Equal(code) {

@@ -129,5 +129,5 @@ func (p Pair) Other(c Code) Code {
 	if p.Quote.Equal(c) {
 		return p.Base
 	}
-	return Code{}
+	return EMPTY
 }

@@ -104,12 +104,10 @@ func (b *BaseCodes) GetFullCurrencyData() (File, error) {
 // GetCurrencies gets the full currency list from the base code type available
 // from the currency system
 func (b *BaseCodes) GetCurrencies() Currencies {
-	var currencies Currencies
 	b.mtx.Lock()
+	currencies := make(Currencies, len(b.Items))
 	for i := range b.Items {
-		currencies = append(currencies, Code{
-			Item: b.Items[i],
-		})
+		currencies[i] = Code{Item: b.Items[i]}
 	}
 	b.mtx.Unlock()
 	return currencies

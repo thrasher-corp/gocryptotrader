@@ -19,9 +19,6 @@ type ConversionRates struct {
 func (c *ConversionRates) HasData() bool {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
-	if c.m == nil {
-		return false
-	}
 	return len(c.m) != 0
 }
 
