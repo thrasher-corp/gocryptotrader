@@ -23,9 +23,7 @@ func printSummary(msg string, amount float64) {
 	log.Println(fmt.Sprintf("%s in USD: $%.2f", msg, amount))
 
 	if !displayCurrency.Equal(currency.USD) {
-		conv, err := currency.ConvertCurrency(amount,
-			currency.USD,
-			displayCurrency)
+		conv, err := currency.ConvertFiat(amount, currency.USD, displayCurrency)
 		if err != nil {
 			log.Println(err)
 		} else {
@@ -117,7 +115,7 @@ func main() {
 
 		if y.Coin.IsFiatCurrency() {
 			if !y.Coin.Equal(currency.USD) {
-				conv, err := currency.ConvertCurrency(y.Balance, y.Coin, currency.USD)
+				conv, err := currency.ConvertFiat(y.Balance, y.Coin, currency.USD)
 				if err != nil {
 					log.Println(err)
 				} else {

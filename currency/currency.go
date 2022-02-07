@@ -64,9 +64,14 @@ func UpdateCurrencies(c Currencies, isCryptocurrency bool) {
 	storage.UpdateEnabledFiatCurrencies(c)
 }
 
-// ConvertCurrency converts an amount from one currency to another
-func ConvertCurrency(amount float64, from, to Code) (float64, error) {
+// ConvertFiat converts an fiat amount from one currency to another
+func ConvertFiat(amount float64, from, to Code) (float64, error) {
 	return storage.ConvertCurrency(amount, from, to)
+}
+
+// GetForeignExchangeRate returns the foreign exchange rate for a fiat pair.
+func GetForeignExchangeRate(quotation Pair) (float64, error) {
+	return storage.ConvertCurrency(1, quotation.Base, quotation.Quote)
 }
 
 // SeedForeignExchangeData seeds FX data with the currencies supplied

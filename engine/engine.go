@@ -276,7 +276,7 @@ func PrintSettings(s *Settings) {
 	gctlog.Debugf(gctlog.Global, "\t Dispatch package jobs limit: %d", s.DispatchJobsLimit)
 	gctlog.Debugf(gctlog.Global, "- EXCHANGE SYNCER SETTINGS:\n")
 	gctlog.Debugf(gctlog.Global, "\t Exchange sync continuously: %v\n", s.SyncContinuously)
-	gctlog.Debugf(gctlog.Global, "\t Exchange sync workers: %v\n", s.SyncWorkers)
+	gctlog.Debugf(gctlog.Global, "\t Exchange sync workers count: %v\n", s.SyncWorkersCount)
 	gctlog.Debugf(gctlog.Global, "\t Enable ticker syncing: %v\n", s.EnableTickerSyncing)
 	gctlog.Debugf(gctlog.Global, "\t Enable orderbook syncing: %v\n", s.EnableOrderbookSyncing)
 	gctlog.Debugf(gctlog.Global, "\t Enable trade syncing: %v\n", s.EnableTradeSyncing)
@@ -516,15 +516,17 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnableExchangeSyncManager {
-		exchangeSyncCfg := &Config{
-			SyncTicker:           bot.Settings.EnableTickerSyncing,
-			SyncOrderbook:        bot.Settings.EnableOrderbookSyncing,
-			SyncTrades:           bot.Settings.EnableTradeSyncing,
-			SyncContinuously:     bot.Settings.SyncContinuously,
-			NumWorkers:           bot.Settings.SyncWorkers,
-			Verbose:              bot.Settings.Verbose,
-			SyncTimeoutREST:      bot.Settings.SyncTimeoutREST,
-			SyncTimeoutWebsocket: bot.Settings.SyncTimeoutWebsocket,
+		exchangeSyncCfg := &SyncManagerConfig{
+			Ticker:              bot.Settings.EnableTickerSyncing,
+			Orderbook:           bot.Settings.EnableOrderbookSyncing,
+			Trades:              bot.Settings.EnableTradeSyncing,
+			Continuously:        bot.Settings.SyncContinuously,
+			TimeoutREST:         bot.Settings.SyncTimeoutREST,
+			TimeoutWebsocket:    bot.Settings.SyncTimeoutWebsocket,
+			NumWorkers:          bot.Settings.SyncWorkersCount,
+			Verbose:             bot.Settings.Verbose,
+			FiatDisplayCurrency: bot.Config.Currency.FiatDisplayCurrency,
+			PairFormatDisplay:   bot.Config.Currency.CurrencyPairFormat,
 		}
 
 		bot.currencyPairSyncer, err = setupSyncManager(

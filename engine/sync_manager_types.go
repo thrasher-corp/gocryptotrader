@@ -31,15 +31,17 @@ type currencyPairSyncAgent struct {
 }
 
 // Config stores the currency pair config
-type Config struct {
-	SyncTicker           bool
-	SyncOrderbook        bool
-	SyncTrades           bool
-	SyncContinuously     bool
-	SyncTimeoutREST      time.Duration
-	SyncTimeoutWebsocket time.Duration
-	NumWorkers           int
-	Verbose              bool
+type SyncManagerConfig struct {
+	Ticker              bool
+	Orderbook           bool
+	Trades              bool
+	Continuously        bool
+	TimeoutREST         time.Duration
+	TimeoutWebsocket    time.Duration
+	NumWorkers          int
+	FiatDisplayCurrency currency.Code
+	PairFormatDisplay   *currency.PairFormat
+	Verbose             bool
 }
 
 // syncManager stores the exchange currency pair syncer object
@@ -60,6 +62,6 @@ type syncManager struct {
 	tickerBatchLastRequested map[string]time.Time
 
 	remoteConfig    *config.RemoteControlConfig
-	config          Config
+	config          SyncManagerConfig
 	exchangeManager iExchangeManager
 }

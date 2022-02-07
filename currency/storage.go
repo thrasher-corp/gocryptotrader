@@ -40,6 +40,8 @@ var (
 	errInvalidCurrencyFileUpdateDuration    = errors.New("invalid currency file update duration")
 	errInvalidForeignExchangeUpdateDuration = errors.New("invalid foreign exchange update duration")
 	errNoForeignExchangeProvidersEnabled    = errors.New("no foreign exchange providers enabled")
+	errNotFiatCurrency                      = errors.New("not a fiat currency")
+	errInvalidAmount                        = errors.New("invalid amount")
 )
 
 // SetDefaults sets storage defaults for basic package functionality
@@ -670,9 +672,22 @@ func (s *Storage) UpdateEnabledFiatCurrencies(c Currencies) {
 // ConvertCurrency for example converts $1 USD to the equivalent Japanese Yen
 // or vice versa.
 func (s *Storage) ConvertCurrency(amount float64, from, to Code) (float64, error) {
+	if amount <= 0 {
+		return 0, fmt.Errorf("%f %w", amount, errInvalidAmount)
+	}
+	if !from.IsFiatCurrency() {
+		return 0, fmt.Errorf("%s %w", from, errNotFiatCurrency)
+	}
+	if !to.IsFiatCurrency() {
+		return 0, fmt.Errorf("%s %w", to, errNotFiatCurrency)
+	}
+
+	if from.Equal(to) { // No need to lock down storage for this rate.
+		return 1, nil
+	}
+
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
-
 	if !s.fxRates.HasData() {
 		err := s.SeedDefaultForeignExchangeRates()
 		if err != nil {
