@@ -285,7 +285,7 @@ func PrintSettings(s *Settings) {
 	gctlog.Debugf(gctlog.Global, "- FOREX SETTINGS:")
 	gctlog.Debugf(gctlog.Global, "\t Enable Currency Converter: %v", s.EnableCurrencyConverter)
 	gctlog.Debugf(gctlog.Global, "\t Enable Currency Layer: %v", s.EnableCurrencyLayer)
-	gctlog.Debugf(gctlog.Global, "\t Enable ExchangeRatesApi.io: %v", s.EnableCurrencyLayer)
+	gctlog.Debugf(gctlog.Global, "\t Enable ExchangeRatesApi.io: %v", s.EnableExchangeRates)
 	gctlog.Debugf(gctlog.Global, "\t Enable Fixer: %v", s.EnableFixer)
 	gctlog.Debugf(gctlog.Global, "\t Enable OpenExchangeRates: %v", s.EnableOpenExchangeRates)
 	gctlog.Debugf(gctlog.Global, "\t Enable ExchangeRateHost: %v", s.EnableExchangeRateHost)
@@ -684,15 +684,8 @@ func (bot *Engine) Stop() {
 		}
 	}
 
-	if bot.Settings.EnableCoinmarketcapAnalysis ||
-		bot.Settings.EnableCurrencyConverter ||
-		bot.Settings.EnableCurrencyLayer ||
-		bot.Settings.EnableFixer ||
-		bot.Settings.EnableOpenExchangeRates ||
-		bot.Settings.EnableExchangeRateHost {
-		if err := currency.ShutdownStorageUpdater(); err != nil {
-			gctlog.Errorf(gctlog.Global, "ExchangeSettings storage system. Error: %v", err)
-		}
+	if err := currency.ShutdownStorageUpdater(); err != nil {
+		gctlog.Errorf(gctlog.Global, "ExchangeSettings storage system. Error: %v", err)
 	}
 
 	if !bot.Settings.EnableDryRun {
