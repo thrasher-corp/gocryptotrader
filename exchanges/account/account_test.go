@@ -10,8 +10,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
-func TestCollectAccountBalances(t *testing.T) {
-	accounts := CollectAccountBalances(
+func TestCollectBalances(t *testing.T) {
+	accounts, err := CollectBalances(
 		map[string][]Balance{
 			"someAccountID": {
 				{CurrencyName: currency.BTC, TotalValue: 40000, Hold: 1},
@@ -30,15 +30,24 @@ func TestCollectAccountBalances(t *testing.T) {
 	if balance.CurrencyName != currency.BTC || balance.TotalValue != 40000 || balance.Hold != 1 {
 		t.Error("subAccount currency balance not set correctly")
 	}
+	if err != nil {
+		t.Error("err is not expected")
+	}
 
-	accounts = CollectAccountBalances(map[string][]Balance{}, asset.Spot)
+	accounts, err = CollectBalances(map[string][]Balance{}, asset.Spot)
 	if len(accounts) != 0 {
 		t.Error("accounts should be empty")
 	}
+	if err != nil {
+		t.Error("err is not expected")
+	}
 
-	accounts = CollectAccountBalances(nil, asset.Spot)
+	accounts, err = CollectBalances(nil, asset.Spot)
 	if len(accounts) != 0 {
 		t.Error("accounts should be empty")
+	}
+	if err == nil {
+		t.Errorf("expecting err %s", errAccountBalancesIsNil.Error())
 	}
 }
 

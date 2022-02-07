@@ -754,7 +754,9 @@ func (b *Binance) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 			)
 		}
 
-		info.Accounts = account.CollectAccountBalances(accountCurrencyDetails, assetType)
+		if info.Accounts, err = account.CollectBalances(accountCurrencyDetails, assetType); err != nil {
+			return account.Holdings{}, err
+		}
 	case asset.Margin:
 		accData, err := b.GetMarginAccount(ctx)
 		if err != nil {

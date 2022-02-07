@@ -16,8 +16,16 @@ func init() {
 	service.mux = dispatch.GetNewMux()
 }
 
-// CollectAccountBalances converts a map of sub-account balances into a slice
-func CollectAccountBalances(accountBalances map[string][]Balance, assetType asset.Item) (accounts []SubAccount) {
+// CollectBalances converts a map of sub-account balances into a slice
+func CollectBalances(accountBalances map[string][]Balance, assetType asset.Item) (accounts []SubAccount, err error) {
+	if accountBalances == nil {
+		return nil, errAccountBalancesIsNil
+	}
+
+	if !assetType.IsValid() {
+		return nil, fmt.Errorf("%s, %w", assetType, asset.ErrNotSupported)
+	}
+
 	accounts = make([]SubAccount, len(accountBalances))
 	i := 0
 	for accountID, balances := range accountBalances {

@@ -428,7 +428,8 @@ func (b *Bitmex) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 	for i := range userMargins {
 		accountID := strconv.FormatInt(userMargins[i].Account, 10)
 
-		wallet, err := b.GetWalletInfo(ctx, userMargins[i].Currency)
+		var wallet WalletInfo
+		wallet, err = b.GetWalletInfo(ctx, userMargins[i].Currency)
 		if err != nil {
 			continue
 		}
@@ -441,7 +442,9 @@ func (b *Bitmex) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 		)
 	}
 
-	info.Accounts = account.CollectAccountBalances(accountBalances, assetType)
+	if info.Accounts, err = account.CollectBalances(accountBalances, assetType); err != nil {
+		return account.Holdings{}, err
+	}
 	info.Exchange = b.Name
 
 	if err := account.Process(&info); err != nil {

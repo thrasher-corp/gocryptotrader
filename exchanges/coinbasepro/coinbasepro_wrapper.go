@@ -337,7 +337,9 @@ func (c *CoinbasePro) UpdateAccountInfo(ctx context.Context, assetType asset.Ite
 		accountCurrencies[profileID] = append(currencies, exchangeCurrency)
 	}
 
-	response.Accounts = account.CollectAccountBalances(accountCurrencies, assetType)
+	if response.Accounts, err = account.CollectBalances(accountCurrencies, assetType); err != nil {
+		return account.Holdings{}, err
+	}
 
 	err = account.Process(&response)
 	if err != nil {
