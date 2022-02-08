@@ -683,7 +683,7 @@ func (s *Storage) ConvertCurrency(amount float64, from, to Code) (float64, error
 	}
 
 	if from.Equal(to) { // No need to lock down storage for this rate.
-		return 1, nil
+		return amount, nil
 	}
 
 	s.mtx.Lock()
