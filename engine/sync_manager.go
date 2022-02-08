@@ -44,6 +44,10 @@ var (
 
 // setupSyncManager starts a new CurrencyPairSyncer
 func setupSyncManager(c *SyncManagerConfig, exchangeManager iExchangeManager, remoteConfig *config.RemoteControlConfig, websocketRoutineManagerEnabled bool) (*syncManager, error) {
+	if c == nil {
+		return nil, fmt.Errorf("%T %w", c, common.ErrNilPointer)
+	}
+
 	if !c.Orderbook && !c.Ticker && !c.Trades {
 		return nil, errNoSyncItemsEnabled
 	}
@@ -66,6 +70,10 @@ func setupSyncManager(c *SyncManagerConfig, exchangeManager iExchangeManager, re
 		c.TimeoutWebsocket = DefaultSyncerTimeoutWebsocket
 	}
 
+	if c.FiatDisplayCurrency.IsEmpty() {
+		return nil, fmt.Errorf("FiatDisplayCurrency %w", currency.ErrCurrencyCodeEmpty)
+	}
+
 	if !c.FiatDisplayCurrency.IsFiatCurrency() {
 		return nil, errFiatDisplayCurrencyInvalid
 	}
@@ -82,9 +90,8 @@ func setupSyncManager(c *SyncManagerConfig, exchangeManager iExchangeManager, re
 		fiatDisplayCurrency:            c.FiatDisplayCurrency,
 		delimiter:                      c.PairFormatDisplay.Delimiter,
 		uppercase:                      c.PairFormatDisplay.Uppercase,
+		tickerBatchLastRequested:       make(map[string]time.Time),
 	}
-
-	s.tickerBatchLastRequested = make(map[string]time.Time)
 
 	log.Debugf(log.SyncMgr,
 		"Exchange currency pair syncer config: continuous: %v ticker: %v"+
