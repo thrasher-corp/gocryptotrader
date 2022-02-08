@@ -377,9 +377,9 @@ func (bot *Engine) GetSpecificAvailablePairs(enabledExchangesOnly, fiatPairs, in
 	for x := range supportedPairs {
 		if fiatPairs {
 			if supportedPairs[x].IsCryptoFiatPair() &&
-				!supportedPairs[x].ContainsCurrency(currency.USDT) ||
+				!supportedPairs[x].Contains(currency.USDT) ||
 				(includeUSDT &&
-					supportedPairs[x].ContainsCurrency(currency.USDT) &&
+					supportedPairs[x].Contains(currency.USDT) &&
 					supportedPairs[x].IsCryptoPair()) {
 				if pairList.Contains(supportedPairs[x], false) {
 					continue

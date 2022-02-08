@@ -542,12 +542,12 @@ func TestNewPairFromFormattedPairs(t *testing.T) {
 func TestContainsCurrency(t *testing.T) {
 	p := NewPair(BTC, USD)
 
-	if !p.ContainsCurrency(BTC) {
-		t.Error("TestContainsCurrency: Expected currency was not found")
+	if !p.Contains(BTC) {
+		t.Error("TestContains: Expected currency was not found")
 	}
 
-	if p.ContainsCurrency(ETH) {
-		t.Error("TestContainsCurrency: Non-existent currency was found")
+	if p.Contains(ETH) {
+		t.Error("TestContains: Non-existent currency was found")
 	}
 }
 

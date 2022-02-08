@@ -111,8 +111,8 @@ func (p Pair) IsEmpty() bool {
 	return p.Base.IsEmpty() && p.Quote.IsEmpty()
 }
 
-// ContainsCurrency checks to see if a pair contains a specific currency
-func (p Pair) ContainsCurrency(c Code) bool {
+// Contains checks to see if a pair contains a specific currency
+func (p Pair) Contains(c Code) bool {
 	return p.Base.Equal(c) || p.Quote.Equal(c)
 }
 

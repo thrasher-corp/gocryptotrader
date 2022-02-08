@@ -138,7 +138,7 @@ func (p Pairs) Contains(check Pair, exact bool) bool {
 func (p Pairs) RemovePairsByFilter(filter Code) Pairs {
 	pairs := make(Pairs, 0, len(p))
 	for i := range p {
-		if p[i].ContainsCurrency(filter) {
+		if p[i].Contains(filter) {
 			continue
 		}
 		pairs = append(pairs, p[i])
@@ -151,7 +151,7 @@ func (p Pairs) RemovePairsByFilter(filter Code) Pairs {
 func (p Pairs) GetPairsByFilter(filter Code) Pairs {
 	pairs := make(Pairs, 0, len(p))
 	for i := range p {
-		if !p[i].ContainsCurrency(filter) {
+		if !p[i].Contains(filter) {
 			continue
 		}
 		pairs = append(pairs, p[i])
