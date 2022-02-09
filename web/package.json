@@ -49,7 +49,7 @@
   },
   "dependencies": {
     "@angular-devkit/build-angular": "^0.13.0",
-    "node-sass": "^4.14.1",
+    "node-sass": "^7.0.0",
     "hammerjs": "^2.0.8",
     "rxjs-compat": "^6.3.3",
     "rxjs-tslint": "^0.1.8"
