@@ -9,9 +9,9 @@ import (
 )
 
 var (
-	// trackthis is the global to maintain sanity between clients across all
+	// tracker is the global to maintain sanity between clients across all
 	// services using the request package.
-	trackthis                clientTracker
+	tracker                  clientTracker
 	errNoProxyURLSupplied    = errors.New("no proxy URL supplied")
 	errCannotReuseHTTPClient = errors.New("cannot reuse http client")
 	errHTTPClientIsNil       = errors.New("http client is nil")
@@ -69,7 +69,7 @@ type client struct {
 // return a thread safe holder (*request.Client) with getter and setters for
 // timeouts and transports.
 func newProtectedClient(newClient *http.Client) (*client, error) {
-	if err := trackthis.checkAndRegister(newClient); err != nil {
+	if err := tracker.checkAndRegister(newClient); err != nil {
 		return nil, err
 	}
 	return &client{protected: newClient}, nil

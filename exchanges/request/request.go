@@ -163,7 +163,7 @@ func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRe
 		resp, err := r._HTTPClient.do(req)
 
 		if r.reporter != nil {
-			r.reporter.Latency(r.Name, p.Method, p.Path, time.Since(start))
+			r.reporter.Latency(r.name, p.Method, p.Path, time.Since(start))
 		}
 
 		if retry, checkErr := r.retryPolicy(resp, err); checkErr != nil {
