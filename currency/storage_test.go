@@ -22,8 +22,8 @@ func TestRunUpdater(t *testing.T) {
 
 	mainConfig.FiatDisplayCurrency = BTC
 	err = newStorage.RunUpdater(BotOverrides{}, &mainConfig, "")
-	if !errors.Is(err, errFiatDisplayCurrencyIsNotFiat) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errFiatDisplayCurrencyIsNotFiat)
+	if !errors.Is(err, ErrFiatDisplayCurrencyIsNotFiat) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrFiatDisplayCurrencyIsNotFiat)
 	}
 
 	mainConfig.FiatDisplayCurrency = AUD

@@ -517,16 +517,16 @@ func (bot *Engine) Start() error {
 
 	if bot.Settings.EnableExchangeSyncManager {
 		exchangeSyncCfg := &SyncManagerConfig{
-			Ticker:              bot.Settings.EnableTickerSyncing,
-			Orderbook:           bot.Settings.EnableOrderbookSyncing,
-			Trades:              bot.Settings.EnableTradeSyncing,
-			Continuously:        bot.Settings.SyncContinuously,
-			TimeoutREST:         bot.Settings.SyncTimeoutREST,
-			TimeoutWebsocket:    bot.Settings.SyncTimeoutWebsocket,
-			NumWorkers:          bot.Settings.SyncWorkersCount,
-			Verbose:             bot.Settings.Verbose,
-			FiatDisplayCurrency: bot.Config.Currency.FiatDisplayCurrency,
-			PairFormatDisplay:   bot.Config.Currency.CurrencyPairFormat,
+			SynchronizeTicker:       bot.Settings.EnableTickerSyncing,
+			SynchronizeOrderbook:    bot.Settings.EnableOrderbookSyncing,
+			SynchronizeTrades:       bot.Settings.EnableTradeSyncing,
+			SynchronizeContinuously: bot.Settings.SyncContinuously,
+			TimeoutREST:             bot.Settings.SyncTimeoutREST,
+			TimeoutWebsocket:        bot.Settings.SyncTimeoutWebsocket,
+			NumWorkers:              bot.Settings.SyncWorkersCount,
+			Verbose:                 bot.Settings.Verbose,
+			FiatDisplayCurrency:     bot.Config.Currency.FiatDisplayCurrency,
+			PairFormatDisplay:       bot.Config.Currency.CurrencyPairFormat,
 		}
 
 		bot.currencyPairSyncer, err = setupSyncManager(

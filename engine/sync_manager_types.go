@@ -30,18 +30,18 @@ type currencyPairSyncAgent struct {
 	Trade     syncBase
 }
 
-// Config stores the currency pair config
+// SyncManagerConfig stores the currency pair synchronization manager config
 type SyncManagerConfig struct {
-	Ticker              bool
-	Orderbook           bool
-	Trades              bool
-	Continuously        bool
-	TimeoutREST         time.Duration
-	TimeoutWebsocket    time.Duration
-	NumWorkers          int
-	FiatDisplayCurrency currency.Code
-	PairFormatDisplay   *currency.PairFormat
-	Verbose             bool
+	SynchronizeTicker       bool
+	SynchronizeOrderbook    bool
+	SynchronizeTrades       bool
+	SynchronizeContinuously bool
+	TimeoutREST             time.Duration
+	TimeoutWebsocket        time.Duration
+	NumWorkers              int
+	FiatDisplayCurrency     currency.Code
+	PairFormatDisplay       *currency.PairFormat
+	Verbose                 bool
 }
 
 // syncManager stores the exchange currency pair syncer object

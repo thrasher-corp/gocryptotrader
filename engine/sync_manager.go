@@ -39,7 +39,6 @@ var (
 	errNoSyncItemsEnabled         = errors.New("no sync items enabled")
 	errUnknownSyncItem            = errors.New("unknown sync item")
 	errSyncPairNotFound           = errors.New("exchange currency pair syncer not found")
-	errFiatDisplayCurrencyInvalid = errors.New("fiat display currency is not a fiat currency")
 )
 
 // setupSyncManager starts a new CurrencyPairSyncer
@@ -48,7 +47,7 @@ func setupSyncManager(c *SyncManagerConfig, exchangeManager iExchangeManager, re
 		return nil, fmt.Errorf("%T %w", c, common.ErrNilPointer)
 	}
 
-	if !c.Orderbook && !c.Ticker && !c.Trades {
+	if !c.SynchronizeOrderbook && !c.SynchronizeTicker && !c.SynchronizeTrades {
 		return nil, errNoSyncItemsEnabled
 	}
 	if exchangeManager == nil {
@@ -75,7 +74,7 @@ func setupSyncManager(c *SyncManagerConfig, exchangeManager iExchangeManager, re
 	}
 
 	if !c.FiatDisplayCurrency.IsFiatCurrency() {
-		return nil, errFiatDisplayCurrencyInvalid
+		return nil, fmt.Errorf("%s %w", c.FiatDisplayCurrency, currency.ErrFiatDisplayCurrencyIsNotFiat)
 	}
 
 	if c.PairFormatDisplay == nil {
@@ -97,8 +96,8 @@ func setupSyncManager(c *SyncManagerConfig, exchangeManager iExchangeManager, re
 		"Exchange currency pair syncer config: continuous: %v ticker: %v"+
 			" orderbook: %v trades: %v workers: %v verbose: %v timeout REST: %v"+
 			" timeout Websocket: %v",
-		s.config.Continuously, s.config.Ticker, s.config.Orderbook,
-		s.config.Trades, s.config.NumWorkers, s.config.Verbose, s.config.TimeoutREST,
+		s.config.SynchronizeContinuously, s.config.SynchronizeTicker, s.config.SynchronizeOrderbook,
+		s.config.SynchronizeTrades, s.config.NumWorkers, s.config.Verbose, s.config.TimeoutREST,
 		s.config.TimeoutWebsocket)
 	s.inService.Add(1)
 	return s, nil
@@ -106,10 +105,7 @@ func setupSyncManager(c *SyncManagerConfig, exchangeManager iExchangeManager, re
 
 // IsRunning safely checks whether the subsystem is running
 func (m *syncManager) IsRunning() bool {
-	if m == nil {
-		return false
-	}
-	return atomic.LoadInt32(&m.started) == 1
+	return m != nil && atomic.LoadInt32(&m.started) == 1
 }
 
 // Start runs the subsystem
@@ -188,13 +184,13 @@ func (m *syncManager) Start() error {
 					IsUsingREST:      usingREST || !wsAssetSupported,
 					IsUsingWebsocket: usingWebsocket && wsAssetSupported,
 				}
-				if m.config.Ticker {
+				if m.config.SynchronizeTicker {
 					c.Ticker = sBase
 				}
-				if m.config.Orderbook {
+				if m.config.SynchronizeOrderbook {
 					c.Orderbook = sBase
 				}
-				if m.config.Trades {
+				if m.config.SynchronizeTrades {
 					c.Trade = sBase
 				}
 
@@ -218,7 +214,7 @@ func (m *syncManager) Start() error {
 			log.Debugf(log.SyncMgr, "Exchange CurrencyPairSyncer initial sync took %v [%v sync items].",
 				completedTime.Sub(m.initSyncStartTime), createdCounter)
 
-			if !m.config.Continuously {
+			if !m.config.SynchronizeContinuously {
 				log.Debugln(log.SyncMgr, "Exchange CurrencyPairSyncer stopping.")
 				err := m.Stop()
 				if err != nil {
@@ -229,7 +225,7 @@ func (m *syncManager) Start() error {
 		}
 	}()
 
-	if atomic.LoadInt32(&m.initSyncCompleted) == 1 && !m.config.Continuously {
+	if atomic.LoadInt32(&m.initSyncCompleted) == 1 && !m.config.SynchronizeContinuously {
 		return nil
 	}
 
@@ -286,7 +282,7 @@ func (m *syncManager) add(c *currencyPairSyncAgent) {
 	m.mux.Lock()
 	defer m.mux.Unlock()
 
-	if m.config.Ticker {
+	if m.config.SynchronizeTicker {
 		if m.config.Verbose {
 			log.Debugf(log.SyncMgr,
 				"%s: Added ticker sync item %v: using websocket: %v using REST: %v",
@@ -299,7 +295,7 @@ func (m *syncManager) add(c *currencyPairSyncAgent) {
 		}
 	}
 
-	if m.config.Orderbook {
+	if m.config.SynchronizeOrderbook {
 		if m.config.Verbose {
 			log.Debugf(log.SyncMgr,
 				"%s: Added orderbook sync item %v: using websocket: %v using REST: %v",
@@ -312,7 +308,7 @@ func (m *syncManager) add(c *currencyPairSyncAgent) {
 		}
 	}
 
-	if m.config.Trades {
+	if m.config.SynchronizeTrades {
 		if m.config.Verbose {
 			log.Debugf(log.SyncMgr,
 				"%s: Added trade sync item %v: using websocket: %v using REST: %v",
@@ -386,15 +382,15 @@ func (m *syncManager) Update(exchangeName string, p currency.Pair, a asset.Item,
 
 	switch syncType {
 	case SyncItemOrderbook:
-		if !m.config.Orderbook {
+		if !m.config.SynchronizeOrderbook {
 			return nil
 		}
 	case SyncItemTicker:
-		if !m.config.Ticker {
+		if !m.config.SynchronizeTicker {
 			return nil
 		}
 	case SyncItemTrade:
-		if !m.config.Trades {
+		if !m.config.SynchronizeTrades {
 			return nil
 		}
 	default:
@@ -536,15 +532,15 @@ func (m *syncManager) worker() {
 								IsUsingWebsocket: usingWebsocket && wsAssetSupported,
 							}
 
-							if m.config.Ticker {
+							if m.config.SynchronizeTicker {
 								c.Ticker = sBase
 							}
 
-							if m.config.Orderbook {
+							if m.config.SynchronizeOrderbook {
 								c.Orderbook = sBase
 							}
 
-							if m.config.Trades {
+							if m.config.SynchronizeTrades {
 								c.Trade = sBase
 							}
 
@@ -561,7 +557,7 @@ func (m *syncManager) worker() {
 						switchedToRest = false
 					}
 
-					if m.config.Orderbook {
+					if m.config.SynchronizeOrderbook {
 						if !m.isProcessing(exchangeName, c.Pair, c.AssetType, SyncItemOrderbook) {
 							if c.Orderbook.LastUpdated.IsZero() ||
 								(time.Since(c.Orderbook.LastUpdated) > m.config.TimeoutREST && c.Orderbook.IsUsingREST) ||
@@ -605,7 +601,7 @@ func (m *syncManager) worker() {
 							}
 						}
 
-						if m.config.Ticker {
+						if m.config.SynchronizeTicker {
 							if !m.isProcessing(exchangeName, c.Pair, c.AssetType, SyncItemTicker) {
 								if c.Ticker.LastUpdated.IsZero() ||
 									(time.Since(c.Ticker.LastUpdated) > m.config.TimeoutREST && c.Ticker.IsUsingREST) ||
@@ -685,7 +681,7 @@ func (m *syncManager) worker() {
 							}
 						}
 
-						if m.config.Trades {
+						if m.config.SynchronizeTrades {
 							if !m.isProcessing(exchangeName, c.Pair, c.AssetType, SyncItemTrade) {
 								if c.Trade.LastUpdated.IsZero() || time.Since(c.Trade.LastUpdated) > m.config.TimeoutREST {
 									m.setProcessing(c.Exchange, c.Pair, c.AssetType, SyncItemTrade, true)

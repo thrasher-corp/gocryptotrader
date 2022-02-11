@@ -35,7 +35,7 @@ const (
 var (
 	errUnexpectedRole                       = errors.New("unexpected currency role")
 	errFiatDisplayCurrencyUnset             = errors.New("fiat display currency is unset")
-	errFiatDisplayCurrencyIsNotFiat         = errors.New("fiat display currency is not a fiat currency")
+	ErrFiatDisplayCurrencyIsNotFiat         = errors.New("fiat display currency is not a fiat currency")
 	errNoFilePathSet                        = errors.New("no file path set")
 	errInvalidCurrencyFileUpdateDuration    = errors.New("invalid currency file update duration")
 	errInvalidForeignExchangeUpdateDuration = errors.New("invalid foreign exchange update duration")
@@ -84,7 +84,7 @@ func (s *Storage) RunUpdater(overrides BotOverrides, settings *Config, filePath 
 	}
 
 	if !settings.FiatDisplayCurrency.IsFiatCurrency() {
-		return fmt.Errorf("%s: %w", settings.FiatDisplayCurrency, errFiatDisplayCurrencyIsNotFiat)
+		return fmt.Errorf("%s: %w", settings.FiatDisplayCurrency, ErrFiatDisplayCurrencyIsNotFiat)
 	}
 
 	if filePath == "" {
@@ -742,7 +742,11 @@ func (s *Storage) IsVerbose() bool {
 func (s *Storage) Shutdown() error {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
+	if s.shutdown == nil {
+		return nil
+	}
 	close(s.shutdown)
 	s.wg.Wait()
+	s.shutdown = nil
 	return s.WriteCurrencyDataToFile(s.path, true)
 }

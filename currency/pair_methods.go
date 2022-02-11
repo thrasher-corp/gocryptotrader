@@ -122,12 +122,12 @@ func (p Pair) Len() int {
 }
 
 // Other returns the other currency from pair, if not matched returns empty code.
-func (p Pair) Other(c Code) Code {
+func (p Pair) Other(c Code) (Code, error) {
 	if p.Base.Equal(c) {
-		return p.Quote
+		return p.Quote, nil
 	}
 	if p.Quote.Equal(c) {
-		return p.Base
+		return p.Base, nil
 	}
-	return EMPTY
+	return EMPTYCODE, ErrCurrencyCodeEmpty
 }

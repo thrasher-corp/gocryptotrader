@@ -110,7 +110,7 @@ func (c *ConversionRates) Update(m map[string]float64) error {
 	for key, val := range m {
 		code1 := storage.ValidateFiatCode(key[:3])
 
-		if mainBaseCurrency.Equal(EMPTY) {
+		if mainBaseCurrency.Equal(EMPTYCODE) {
 			mainBaseCurrency = code1
 		}
 

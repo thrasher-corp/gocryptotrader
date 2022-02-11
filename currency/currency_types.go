@@ -49,7 +49,7 @@ type SystemsSettings struct {
 	Openexchangerates FXSettings
 }
 
-// AllFXSetting defines all the foreign exchange settings
+// AllFXSettings defines all the foreign exchange settings
 type AllFXSettings []FXSettings
 
 // FXSettings defines foreign exchange requester settings

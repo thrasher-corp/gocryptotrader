@@ -145,7 +145,14 @@ func main() {
 	log.Println()
 	log.Println("PORTFOLIO TOTALS:")
 	for x, y := range portfolioMap {
-		log.Printf("\t%s Amount: %f Subtotal: $%.2f USD (1 %s = $%.2f USD). Percentage of portfolio %.3f%%", x, y.Balance, y.Subtotal, x, y.Subtotal/y.Balance, y.Subtotal/total*100/1)
+		code := currency.Code{Item: x}
+		log.Printf("\t%s Amount: %f Subtotal: $%.2f USD (1 %s = $%.2f USD). Percentage of portfolio %.3f%%",
+			code,
+			y.Balance,
+			y.Subtotal,
+			code,
+			y.Subtotal/y.Balance,
+			y.Subtotal/total*100/1)
 	}
 	printSummary("\tTotal balance", total)
 

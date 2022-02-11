@@ -15,8 +15,8 @@ var (
 	errItemIsEmpty       = errors.New("item is empty")
 	errRoleUnset         = errors.New("role unset")
 
-	// EMPTY is an empty currency code
-	EMPTY = Code{}
+	// EMPTYCODE is an empty currency code
+	EMPTYCODE = Code{}
 )
 
 func (r Role) String() string {
@@ -146,7 +146,7 @@ func (b *BaseCodes) UpdateCurrency(fullName, symbol, blockchain string, id int, 
 // can optionally include a role when it is known.
 func (b *BaseCodes) Register(c string, newRole Role) Code {
 	if c == "" {
-		return EMPTY
+		return EMPTYCODE
 	}
 
 	var format bool
@@ -219,12 +219,7 @@ func NewCode(c string) Code {
 
 // String conforms to the stringer interface
 func (i *Item) String() string {
-	return fmt.Sprintf("ID: %d Fullname: %s Symbol: %s Role: %s Chain: %s",
-		i.ID,
-		i.FullName,
-		i.Symbol,
-		i.Role,
-		i.AssocChain)
+	return i.Symbol
 }
 
 // String converts the code to string

@@ -551,7 +551,7 @@ func TestItemString(t *testing.T) {
 		AssocChain: "Silly",
 	}
 
-	expected := "ID: 1337 Fullname: Hello,World Symbol: HWORLD Role: roleUnset Chain: Silly"
+	expected := "HWORLD"
 	if newItem.String() != expected {
 		t.Errorf("Currency String() error expected '%s' but received '%s'",
 			expected,

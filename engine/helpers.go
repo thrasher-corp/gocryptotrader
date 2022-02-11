@@ -185,15 +185,15 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 		if enable {
 			if bot.currencyPairSyncer == nil {
 				exchangeSyncCfg := &SyncManagerConfig{
-					Ticker:              bot.Settings.EnableTickerSyncing,
-					Orderbook:           bot.Settings.EnableOrderbookSyncing,
-					Trades:              bot.Settings.EnableTradeSyncing,
-					Continuously:        bot.Settings.SyncContinuously,
-					TimeoutREST:         bot.Settings.SyncTimeoutREST,
-					TimeoutWebsocket:    bot.Settings.SyncTimeoutWebsocket,
-					NumWorkers:          bot.Settings.SyncWorkersCount,
-					FiatDisplayCurrency: bot.Config.Currency.FiatDisplayCurrency,
-					Verbose:             bot.Settings.Verbose,
+					SynchronizeTicker:       bot.Settings.EnableTickerSyncing,
+					SynchronizeOrderbook:    bot.Settings.EnableOrderbookSyncing,
+					SynchronizeTrades:       bot.Settings.EnableTradeSyncing,
+					SynchronizeContinuously: bot.Settings.SyncContinuously,
+					TimeoutREST:             bot.Settings.SyncTimeoutREST,
+					TimeoutWebsocket:        bot.Settings.SyncTimeoutWebsocket,
+					NumWorkers:              bot.Settings.SyncWorkersCount,
+					FiatDisplayCurrency:     bot.Config.Currency.FiatDisplayCurrency,
+					Verbose:                 bot.Settings.Verbose,
 				}
 				bot.currencyPairSyncer, err = setupSyncManager(
 					exchangeSyncCfg,

@@ -132,12 +132,12 @@ func TestConvertFiat(t *testing.T) {
 }
 
 func TestGetForeignExchangeRate(t *testing.T) {
-	_, err := GetForeignExchangeRate(NewPair(EMPTY, EMPTY))
+	_, err := GetForeignExchangeRate(NewPair(EMPTYCODE, EMPTYCODE))
 	if !errors.Is(err, errNotFiatCurrency) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNotFiatCurrency)
 	}
 
-	_, err = GetForeignExchangeRate(NewPair(USD, EMPTY))
+	_, err = GetForeignExchangeRate(NewPair(USD, EMPTYCODE))
 	if !errors.Is(err, errNotFiatCurrency) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNotFiatCurrency)
 	}
@@ -158,5 +158,26 @@ func TestGetForeignExchangeRate(t *testing.T) {
 
 	if rate <= 0 {
 		t.Fatal("unexpected value")
+	}
+}
+
+func TestAllFXSettingsIsEnabled(t *testing.T) {
+	var settings AllFXSettings
+	if received := settings.IsEnabled("wow"); received {
+		t.Fatalf("received: '%v' but expected: '%v'", received, false)
+	}
+
+	settings = []FXSettings{
+		{
+			Name: "wOow",
+		},
+		{
+			Name:    "amICool?",
+			Enabled: true,
+		},
+	}
+
+	if received := settings.IsEnabled("AMICOOL?"); !received {
+		t.Fatalf("received: '%v' but expected: '%v'", received, true)
 	}
 }

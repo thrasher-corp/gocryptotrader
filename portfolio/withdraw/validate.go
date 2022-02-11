@@ -23,18 +23,18 @@ func (r *Request) Validate(opt ...validate.Checker) (err error) {
 		allErrors = append(allErrors, ErrStrAmountMustBeGreaterThanZero)
 	}
 
-	if r.Currency.Equal(currency.EMPTY) {
+	if r.Currency.Equal(currency.EMPTYCODE) {
 		allErrors = append(allErrors, ErrStrNoCurrencySet)
 	}
 
 	switch r.Type {
 	case Fiat:
-		if !r.Currency.Equal(currency.EMPTY) && !r.Currency.IsFiatCurrency() {
+		if !r.Currency.Equal(currency.EMPTYCODE) && !r.Currency.IsFiatCurrency() {
 			allErrors = append(allErrors, ErrStrCurrencyNotFiat)
 		}
 		allErrors = append(allErrors, r.validateFiat()...)
 	case Crypto:
-		if !r.Currency.Equal(currency.EMPTY) && !r.Currency.IsCryptocurrency() {
+		if !r.Currency.Equal(currency.EMPTYCODE) && !r.Currency.IsCryptocurrency() {
 			allErrors = append(allErrors, ErrStrCurrencyNotCrypto)
 		}
 		allErrors = append(allErrors, r.validateCrypto()...)

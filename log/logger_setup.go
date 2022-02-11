@@ -181,6 +181,5 @@ func init() {
 	OrderBook = registerNewSubLogger("ORDERBOOK")
 	Trade = registerNewSubLogger("TRADE")
 	Fill = registerNewSubLogger("FILL")
-
 	Currency = registerNewSubLogger("CURRENCY")
 }
