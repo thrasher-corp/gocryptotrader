@@ -9,6 +9,7 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
@@ -50,7 +51,7 @@ func (s *Statistic) SetupEventForTime(ev common.DataEventHandler) error {
 		}
 	}
 	lookup.Events = append(lookup.Events,
-		EventStore{
+		DataAtOffset{
 			DataEvent: ev,
 		},
 	)
@@ -124,10 +125,27 @@ func (s *Statistic) AddHoldingsForTime(h *holdings.Holding) error {
 	for i := len(lookup.Events) - 1; i >= 0; i-- {
 		if lookup.Events[i].DataEvent.GetOffset() == h.Offset {
 			lookup.Events[i].Holdings = *h
-			break
+			return nil
 		}
 	}
-	return nil
+	return fmt.Errorf("%v %v %v %w %v", h.Exchange, h.Asset, h.Pair, errNoDataAtOffset, h.Offset)
+}
+
+func (s *Statistic) AddPNLForTime(pnl *portfolio.PNLSummary) error {
+	if s.ExchangeAssetPairStatistics == nil {
+		return errExchangeAssetPairStatsUnset
+	}
+	lookup := s.ExchangeAssetPairStatistics[pnl.Exchange][pnl.Item][pnl.Pair]
+	if lookup == nil {
+		return fmt.Errorf("%w for %v %v %v to set pnl", errCurrencyStatisticsUnset, pnl.Exchange, pnl.Item, pnl.Pair)
+	}
+	for i := len(lookup.Events) - 1; i >= 0; i-- {
+		if lookup.Events[i].DataEvent.GetOffset() == pnl.Offset {
+			lookup.Events[i].PNL = pnl
+			return nil
+		}
+	}
+	return fmt.Errorf("%v %v %v %w %v", pnl.Exchange, pnl.Item, pnl.Pair, errNoDataAtOffset, pnl.Offset)
 }
 
 // AddComplianceSnapshotForTime adds the compliance snapshot to the statistics at the time period
@@ -148,11 +166,10 @@ func (s *Statistic) AddComplianceSnapshotForTime(c compliance.Snapshot, e fill.E
 	for i := len(lookup.Events) - 1; i >= 0; i-- {
 		if lookup.Events[i].DataEvent.GetOffset() == e.GetOffset() {
 			lookup.Events[i].Transactions = c
-			break
+			return nil
 		}
 	}
-
-	return nil
+	return fmt.Errorf("%v %v %v %w %v", e.GetExchange(), e.GetAssetType(), e.Pair(), errNoDataAtOffset, e.GetOffset())
 }
 
 // CalculateAllResults calculates the statistics of all exchange asset pair holdings,

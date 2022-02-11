@@ -87,5 +87,6 @@ type PNLSummary struct {
 	Exchange string
 	Item     asset.Item
 	Pair     currency.Pair
+	Offset   int64
 	PNL      gctorder.PNLResult
 }

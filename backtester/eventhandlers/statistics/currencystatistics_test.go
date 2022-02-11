@@ -32,7 +32,7 @@ func TestCalculateResults(t *testing.T) {
 		CurrencyPair: p,
 		AssetType:    a,
 	}
-	ev := EventStore{
+	ev := DataAtOffset{
 		Holdings: holdings.Holding{
 			ChangeInTotalValuePercent: decimal.NewFromFloat(0.1333),
 			Timestamp:                 tt1,
@@ -71,7 +71,7 @@ func TestCalculateResults(t *testing.T) {
 	}
 	even2 := even
 	even2.Time = tt2
-	ev2 := EventStore{
+	ev2 := DataAtOffset{
 		Holdings: holdings.Holding{
 			ChangeInTotalValuePercent: decimal.NewFromFloat(0.1337),
 			Timestamp:                 tt2,
@@ -169,7 +169,7 @@ func TestPrintResults(t *testing.T) {
 		CurrencyPair: p,
 		AssetType:    a,
 	}
-	ev := EventStore{
+	ev := DataAtOffset{
 		Holdings: holdings.Holding{
 			ChangeInTotalValuePercent: decimal.NewFromFloat(0.1333),
 			Timestamp:                 tt1,
@@ -208,7 +208,7 @@ func TestPrintResults(t *testing.T) {
 	}
 	even2 := even
 	even2.Time = tt2
-	ev2 := EventStore{
+	ev2 := DataAtOffset{
 		Holdings: holdings.Holding{
 			ChangeInTotalValuePercent: decimal.NewFromFloat(0.1337),
 			Timestamp:                 tt2,
@@ -261,9 +261,9 @@ func TestCalculateHighestCommittedFunds(t *testing.T) {
 	tt2 := time.Date(2021, 2, 1, 0, 0, 0, 0, time.UTC)
 	tt3 := time.Date(2021, 3, 1, 0, 0, 0, 0, time.UTC)
 	c.Events = append(c.Events,
-		EventStore{DataEvent: &kline.Kline{Close: decimal.NewFromInt(1337)}, Holdings: holdings.Holding{Timestamp: tt1, BaseSize: decimal.NewFromInt(10)}},
-		EventStore{DataEvent: &kline.Kline{Close: decimal.NewFromInt(1338)}, Holdings: holdings.Holding{Timestamp: tt2, BaseSize: decimal.NewFromInt(1337)}},
-		EventStore{DataEvent: &kline.Kline{Close: decimal.NewFromInt(1339)}, Holdings: holdings.Holding{Timestamp: tt3, BaseSize: decimal.NewFromInt(11)}},
+		DataAtOffset{DataEvent: &kline.Kline{Close: decimal.NewFromInt(1337)}, Holdings: holdings.Holding{Timestamp: tt1, BaseSize: decimal.NewFromInt(10)}},
+		DataAtOffset{DataEvent: &kline.Kline{Close: decimal.NewFromInt(1338)}, Holdings: holdings.Holding{Timestamp: tt2, BaseSize: decimal.NewFromInt(1337)}},
+		DataAtOffset{DataEvent: &kline.Kline{Close: decimal.NewFromInt(1339)}, Holdings: holdings.Holding{Timestamp: tt3, BaseSize: decimal.NewFromInt(11)}},
 	)
 	c.calculateHighestCommittedFunds()
 	if c.HighestCommittedFunds.Time != tt2 {

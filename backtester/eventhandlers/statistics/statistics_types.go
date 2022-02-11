@@ -6,6 +6,7 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
@@ -26,6 +27,7 @@ var (
 	errMissingSnapshots            = errors.New("funding report item missing USD snapshots")
 	errNoRelevantStatsFound        = errors.New("no relevant currency pair statistics found")
 	errReceivedNoData              = errors.New("received no data")
+	errNoDataAtOffset              = errors.New("no data found at offset")
 )
 
 // Statistic holds all statistical information for a backtester run, from drawdowns to ratios.
@@ -72,6 +74,7 @@ type Handler interface {
 	CalculateAllResults() error
 	Reset()
 	Serialise() (string, error)
+	AddPNLForTime(*portfolio.PNLSummary) error
 }
 
 // Results holds some statistics on results
@@ -113,15 +116,17 @@ type CurrencyStats interface {
 	SortinoRatio(decimal.Decimal) decimal.Decimal
 }
 
-// EventStore is used to hold all event information
+// DataAtOffset is used to hold all event information
 // at a time interval
-type EventStore struct {
+type DataAtOffset struct {
 	Holdings     holdings.Holding
 	Transactions compliance.Snapshot
 	DataEvent    common.DataEventHandler
 	SignalEvent  signal.Event
 	OrderEvent   order.Event
 	FillEvent    fill.Event
+	// TODO: consider moving this to an interface so we aren't tied to this summary type
+	PNL *portfolio.PNLSummary
 }
 
 // CurrencyPairStatistic Holds all events and statistics relevant to an exchange, asset type and currency pair
@@ -140,6 +145,8 @@ type CurrencyPairStatistic struct {
 	HighestClosePrice            decimal.Decimal `json:"highest-close-price"`
 	MarketMovement               decimal.Decimal `json:"market-movement"`
 	StrategyMovement             decimal.Decimal `json:"strategy-movement"`
+	UnrealisedPNL                decimal.Decimal `json:"unrealised-pnl"`
+	RealisedPNL                  decimal.Decimal `json:"realised-pnl"`
 	CompoundAnnualGrowthRate     decimal.Decimal `json:"compound-annual-growth-rate"`
 	TotalAssetValue              decimal.Decimal
 	TotalFees                    decimal.Decimal
@@ -147,7 +154,7 @@ type CurrencyPairStatistic struct {
 	TotalValueLostToSlippage     decimal.Decimal
 	TotalValueLost               decimal.Decimal
 
-	Events []EventStore `json:"-"`
+	Events []DataAtOffset `json:"-"`
 
 	MaxDrawdown           Swing               `json:"max-drawdown,omitempty"`
 	HighestCommittedFunds ValueAtTime         `json:"highest-committed-funds"`

@@ -526,6 +526,7 @@ func (p *Portfolio) GetLatestPNLForEvent(e common.EventHandler) (*PNLSummary, er
 		Exchange: e.GetExchange(),
 		Item:     e.GetAssetType(),
 		Pair:     e.Pair(),
+		Offset:   e.GetOffset(),
 	}
 	positions := settings.FuturesTracker.GetPositions()
 	if len(positions) == 0 {

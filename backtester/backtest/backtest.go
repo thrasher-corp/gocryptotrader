@@ -342,13 +342,25 @@ func (bt *BackTest) processFillEvent(ev fill.Event, funds funding.IFundReleaser)
 			return
 		}
 		err = bt.Portfolio.UpdateOpenPositionPNL(ev, ev.GetClosePrice())
-
+		if err != nil {
+			log.Errorf(log.BackTester, "UpdateOpenPositionPNL %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
+			return
+		}
 		err = bt.Funding.UpdateCollateral(ev.GetExchange(), ev.GetAssetType(), curr)
 		if err != nil {
 			log.Errorf(log.BackTester, "UpdateCollateral %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
+			return
+		}
+		pnl, err := bt.Portfolio.GetLatestPNLForEvent(ev)
+		if err != nil {
+			log.Errorf(log.BackTester, "GetLatestPNLForEvent %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
+			return
+		}
+		err = bt.Statistic.AddPNLForTime(pnl)
+		if err != nil {
+			log.Errorf(log.BackTester, "AddHoldingsForTime %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 		}
 	}
-
 }
 
 // RunLive is a proof of concept function that does not yet support multi currency usage
