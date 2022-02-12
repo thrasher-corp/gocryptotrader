@@ -68,12 +68,14 @@ func (by *Bybit) WsConnect() error {
 			by.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
 	}
-
-	subs, err := by.GenerateDefaultSubscriptions()
-	if err != nil {
-		return err
-	}
-	return by.Websocket.SubscribeToChannels(subs)
+	/*
+		subs, err := by.GenerateDefaultSubscriptions()
+		if err != nil {
+			return err
+		}
+		return by.Websocket.SubscribeToChannels(subs)
+	*/
+	return nil
 }
 
 // WsAuth sends an authentication message to receive auth data
@@ -112,7 +114,9 @@ func (by *Bybit) Subscribe(channelsToSubscribe []stream.ChannelSubscription) err
 			errs = append(errs, err)
 			continue
 		}
-		subReq.Symbol = formattedPair.String()
+		subReq.Parameters = WsParams{
+			Symbol: formattedPair.String(),
+		}
 		err = by.Websocket.Conn.SendJSONMessage(subReq)
 		if err != nil {
 			errs = append(errs, err)
@@ -146,7 +150,9 @@ func (by *Bybit) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription)
 			errs = append(errs, err)
 			continue
 		}
-		unSub.Symbol = formattedPair.String()
+		unSub.Parameters = WsParams{
+			Symbol: formattedPair.String(),
+		}
 		err = by.Websocket.Conn.SendJSONMessage(unSub)
 		if err != nil {
 			errs = append(errs, err)

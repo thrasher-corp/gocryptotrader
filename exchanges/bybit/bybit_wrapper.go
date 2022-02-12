@@ -174,6 +174,7 @@ func (by *Bybit) Setup(exch *config.ExchangeConfig) error {
 			Connector:                        by.WsConnect,
 			Subscriber:                       by.Subscribe,
 			UnSubscriber:                     by.Unsubscribe,
+			GenerateSubscriptions:            by.GenerateDefaultSubscriptions,
 			Features:                         &by.Features.Supports.WebsocketCapabilities,
 			OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
 			BufferEnabled:                    exch.OrderbookConfig.WebsocketBufferEnabled,

@@ -233,7 +233,6 @@ type Authenticate struct {
 
 // WsReq has the data used for ws request
 type WsReq struct {
-	Symbol     string      `json:"symbol"`
 	Topic      string      `json:"topic"`
 	Event      string      `json:"event"`
 	Parameters interface{} `json:"params"`
@@ -246,9 +245,9 @@ type WsFuturesReq struct {
 
 type WsParams struct {
 	Symbol     string `json:"symbol"`
-	IsBinary   bool   `json:"binary"`
+	IsBinary   string `json:"binary"`
 	SymbolName string `json:"symbolName"`
-	KlineType  string `json:"klineType"` // only present in kline ws stream
+	KlineType  string `json:"klineType,omitempty"` // only present in kline ws stream
 }
 
 // WsSpotTickerData stores ws ticker data
