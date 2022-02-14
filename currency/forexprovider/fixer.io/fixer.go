@@ -219,10 +219,13 @@ func (f *Fixer) GetFluctuationData(startDate, endDate, baseCurrency string, symb
 
 // SendOpenHTTPRequest sends a typical get request
 func (f *Fixer) SendOpenHTTPRequest(endpoint string, v url.Values, result interface{}) error {
-	var path string
+	if v == nil {
+		v = url.Values{}
+	}
 	v.Set("access_key", f.APIKey)
 
 	var auth bool
+	var path string
 	if f.APIKeyLvl == fixerAPIFree {
 		path = fixerAPI + endpoint + "?" + v.Encode()
 	} else {

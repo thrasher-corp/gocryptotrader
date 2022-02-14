@@ -125,10 +125,18 @@ func (b *BaseCodes) UpdateCurrency(fullName, symbol, blockchain string, id int, 
 			continue
 		}
 
-		b.Items[i].FullName = fullName
-		b.Items[i].Role = r
-		b.Items[i].AssocChain = blockchain
-		b.Items[i].ID = id
+		if fullName != "" {
+			b.Items[i].FullName = fullName
+		}
+		if r != Unset {
+			b.Items[i].Role = r
+		}
+		if blockchain != "" {
+			b.Items[i].AssocChain = blockchain
+		}
+		if id != 0 {
+			b.Items[i].ID = id
+		}
 		return nil
 	}
 

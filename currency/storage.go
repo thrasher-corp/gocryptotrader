@@ -108,17 +108,18 @@ func (s *Storage) RunUpdater(overrides BotOverrides, settings *Config, filePath 
 
 	log.Debugf(log.Currency, "Fiat display currency: %s.\n", s.baseCurrency)
 	var err error
-	if overrides.CurrencyConverter &&
-		settings.CryptocurrencyProvider.APIKey != "" &&
-		settings.CryptocurrencyProvider.APIKey != "Key" {
-		log.Debugln(log.Currency, "Setting up currency analysis system with Coinmarketcap...")
-		s.currencyAnalysis, err = coinmarketcap.NewFromSettings(coinmarketcap.Settings(settings.CryptocurrencyProvider))
-		if err != nil {
-			log.Errorf(log.Currency, "Unable to setup CoinMarketCap analysis. Error: %s", err)
+	if overrides.Coinmarketcap {
+		if settings.CryptocurrencyProvider.APIKey != "" &&
+			settings.CryptocurrencyProvider.APIKey != "Key" {
+			log.Debugln(log.Currency, "Setting up currency analysis system with Coinmarketcap...")
+			s.currencyAnalysis, err = coinmarketcap.NewFromSettings(coinmarketcap.Settings(settings.CryptocurrencyProvider))
+			if err != nil {
+				log.Errorf(log.Currency, "Unable to setup CoinMarketCap analysis. Error: %s", err)
+			}
+		} else {
+			log.Warnf(log.Currency, "%s API key not set, disabling. Please set this in your config.json file\n",
+				settings.CryptocurrencyProvider.Name)
 		}
-	} else {
-		log.Warnf(log.Currency, "%s API key not set, disabling. Please set this in your config.json file\n",
-			settings.CryptocurrencyProvider.Name)
 	}
 
 	var fxSettings []base.Settings
@@ -161,7 +162,7 @@ func (s *Storage) RunUpdater(overrides BotOverrides, settings *Config, filePath 
 	}
 
 	if len(fxSettings) == 0 {
-		log.Warnln(log.Currency, "No foreign exchange providers enabled, setting default provider....")
+		log.Warnln(log.Currency, "No foreign exchange providers enabled, setting default provider...")
 		for x := range settings.ForexProviders {
 			if settings.ForexProviders[x].Name != DefaultForexProviderExchangeRatesAPI {
 				continue
@@ -174,16 +175,14 @@ func (s *Storage) RunUpdater(overrides BotOverrides, settings *Config, filePath 
 		}
 	}
 
-	if !primaryProvider {
-		for x := range fxSettings {
-			fxSettings[x].PrimaryProvider = true
-			log.Warnf(log.Currency, "No primary foreign exchange provider set. Defaulting to %s.", fxSettings[x].Name)
-		}
-	}
-
 	if len(fxSettings) == 0 {
 		s.mtx.Unlock()
 		return errNoForeignExchangeProvidersEnabled
+	}
+
+	if !primaryProvider {
+		fxSettings[0].PrimaryProvider = true
+		log.Warnf(log.Currency, "No primary foreign exchange provider set. Defaulting to %s.", fxSettings[0].Name)
 	}
 
 	s.fiatExchangeMarkets, err = forexprovider.StartFXService(fxSettings)

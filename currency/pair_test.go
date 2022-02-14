@@ -847,10 +847,18 @@ func TestPairFormat_Format(t *testing.T) {
 }
 
 func TestOther(t *testing.T) {
-	if received, _ := NewPair(DAI, XRP).Other(DAI); !received.Equal(XRP) {
+	received, err := NewPair(DAI, XRP).Other(DAI)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !received.Equal(XRP) {
 		t.Fatal("unexpected value")
 	}
-	if received, _ := NewPair(DAI, XRP).Other(XRP); !received.Equal(DAI) {
+	received, err = NewPair(DAI, XRP).Other(XRP)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !received.Equal(DAI) {
 		t.Fatal("unexpected value")
 	}
 	if _, err := NewPair(DAI, XRP).Other(BTC); !errors.Is(err, ErrCurrencyCodeEmpty) {

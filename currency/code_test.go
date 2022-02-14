@@ -155,31 +155,41 @@ func TestBaseCode(t *testing.T) {
 			main.HasData())
 	}
 
-	_ = main.Register("CATS", Unset)
+	catsUnset := main.Register("CATS", Unset)
 	if !main.HasData() {
 		t.Errorf("BaseCode HasData() error expected true but received %v",
 			main.HasData())
 	}
 
 	// Changes unset to fiat
-	catsCode := main.Register("CATS", Fiat)
-	if !main.HasData() {
-		t.Errorf("BaseCode HasData() error expected true but received %v",
-			main.HasData())
-	}
+	catsFiat := main.Register("CATS", Fiat)
 
-	_ = main.Register("CATS", Stable)
-	if !main.HasData() {
-		t.Errorf("BaseCode HasData() error expected true but received %v",
-			main.HasData())
-	}
-
-	if !main.Register("CATS", Unset).Equal(catsCode) {
+	// Regiser as unset, will return first match.
+	if !main.Register("CATS", Unset).Equal(catsFiat) {
 		t.Errorf("BaseCode Match() error expected true but received %v",
 			false)
 	}
 
-	if main.Register("DOGS", Unset).Equal(catsCode) {
+	// Regiser as fiat, will return fiat match.
+	if !main.Register("CATS", Fiat).Equal(catsFiat) {
+		t.Errorf("BaseCode Match() error expected true but received %v",
+			false)
+	}
+
+	// Regiser as stable, will return a different currency with the same
+	// currency code.
+	if main.Register("CATS", Stable).Equal(catsFiat) {
+		t.Errorf("BaseCode Match() error expected true but received %v",
+			true)
+	}
+
+	// Due to the role being unset originally, this will be set to Fiat when
+	// explicitly set.
+	if !catsUnset.Equal(catsFiat) {
+		t.Fatal("both should be the same")
+	}
+
+	if main.Register("DOGS", Unset).Equal(catsUnset) {
 		t.Errorf("BaseCode Match() error expected false but received %v",
 			true)
 	}
@@ -191,7 +201,7 @@ func TestBaseCode(t *testing.T) {
 			true)
 	}
 
-	if !loadedCurrencies.Contains(catsCode) {
+	if !loadedCurrencies.Contains(catsFiat) {
 		t.Errorf("BaseCode Contains() error expected true but received %v",
 			false)
 	}

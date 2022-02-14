@@ -48,4 +48,51 @@ func TestRunUpdater(t *testing.T) {
 	if !errors.Is(err, errNoForeignExchangeProvidersEnabled) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoForeignExchangeProvidersEnabled)
 	}
+
+	settings := FXSettings{
+		Name:    "Fixer",
+		Enabled: true,
+		APIKey:  "wo",
+	}
+
+	mainConfig.ForexProviders = AllFXSettings{settings}
+	err = newStorage.RunUpdater(BotOverrides{Fixer: true}, &mainConfig, "/bla")
+	if errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, "an error")
+	}
+
+	settings.Name = "CurrencyConverter"
+	mainConfig.ForexProviders = AllFXSettings{settings}
+	err = newStorage.RunUpdater(BotOverrides{CurrencyConverter: true}, &mainConfig, "/bla")
+	if errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, "an error")
+	}
+
+	settings.Name = "CurrencyLayer"
+	mainConfig.ForexProviders = AllFXSettings{settings}
+	err = newStorage.RunUpdater(BotOverrides{CurrencyLayer: true}, &mainConfig, "/bla")
+	if errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, "an error")
+	}
+
+	settings.Name = "OpenExchangeRates"
+	mainConfig.ForexProviders = AllFXSettings{settings}
+	err = newStorage.RunUpdater(BotOverrides{OpenExchangeRates: true}, &mainConfig, "/bla")
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	settings.Name = "ExchangeRates"
+	mainConfig.ForexProviders = AllFXSettings{settings}
+	err = newStorage.RunUpdater(BotOverrides{ExchangeRates: true}, &mainConfig, "/bla")
+	if errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, "an error")
+	}
+
+	settings.Name = "ExchangeRateHost"
+	mainConfig.ForexProviders = AllFXSettings{settings}
+	err = newStorage.RunUpdater(BotOverrides{ExchangeRateHost: true}, &mainConfig, "/bla")
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 }
