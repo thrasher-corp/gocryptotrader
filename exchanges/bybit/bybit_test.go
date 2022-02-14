@@ -253,7 +253,7 @@ func TestWsTrade(t *testing.T) {
 		"topic": "trade",
 		"params": {
 			"symbol": "BTCUSDT",
-			"binary": false,
+			"binary": "false",
 			"symbolName": "BTCUSDT"
 		},
 		"data": {
@@ -275,7 +275,7 @@ func TestWsOrderbook(t *testing.T) {
 		"topic": "depth",
 		"params": {
 		  "symbol": "BTCUSDT",
-		  "binary": false,
+		  "binary": "false",
 		  "symbolName": "BTCUSDT"
 		},
 		"data": {
@@ -324,7 +324,7 @@ func TestWsTicker(t *testing.T) {
 		"topic": "bookTicker",
 		"params": {
 			"symbol": "BTCUSDT",
-			"binary": false,
+			"binary": "false",
 			"symbolName": "BTCUSDT"
 		},
 		"data": {

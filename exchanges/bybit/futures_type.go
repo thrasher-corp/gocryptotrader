@@ -64,17 +64,17 @@ type SymbolPriceTicker struct {
 	PricePcntChange1h      float64 `json:"price_1h_pcnt,string"`
 	MarkPrice              float64 `json:"mark_price,string"`
 	IndexPrice             float64 `json:"index_price,string"`
-	OpenInterest           int64   `json:"open_interest"`
+	OpenInterest           float64 `json:"open_interest"`
 	OpenValue              float64 `json:"open_value,string"`
 	TotalTurnover          float64 `json:"total_turnover,string"`
 	Turnover24h            float64 `json:"turnover_24h,string"`
-	TotalVolume            int64   `json:"total_volume"`
-	Volume24h              int64   `json:"volume_24h"`
+	TotalVolume            float64 `json:"total_volume"`
+	Volume24h              float64 `json:"volume_24h"`
 	FundingRate            float64 `json:"funding_rate,string"`
 	PredictedFundingRate   float64 `json:"predicted_funding_rate,string"`
 	NextFundingTime        string  `json:"next_funding_time"`
 	CountdownHour          int64   `json:"countdown_hour"`
-	DeliveryFeeRate        float64 `json:"delivery_fee_rate,string"`
+	DeliveryFeeRate        string  `json:"delivery_fee_rate"`
 	PredictedDeliveryPrice string  `json:"predicted_delivery_price"`
 	DeliveryTime           string  `json:"delivery_time"`
 }
