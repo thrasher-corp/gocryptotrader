@@ -559,7 +559,7 @@ func (s *RPCServer) GetAccountInfo(ctx context.Context, r *gctrpc.GetAccountInfo
 		return nil, err
 	}
 
-	err = checkParams(r.Exchange, exch, assetType, currency.Pair{})
+	err = checkParams(r.Exchange, exch, assetType, currency.EMPTYPAIR)
 	if err != nil {
 		return nil, err
 	}
@@ -584,7 +584,7 @@ func (s *RPCServer) UpdateAccountInfo(ctx context.Context, r *gctrpc.GetAccountI
 		return nil, err
 	}
 
-	err = checkParams(r.Exchange, exch, assetType, currency.Pair{})
+	err = checkParams(r.Exchange, exch, assetType, currency.EMPTYPAIR)
 	if err != nil {
 		return nil, err
 	}
@@ -627,7 +627,7 @@ func (s *RPCServer) GetAccountInfoStream(r *gctrpc.GetAccountInfoRequest, stream
 		return err
 	}
 
-	err = checkParams(r.Exchange, exch, assetType, currency.Pair{})
+	err = checkParams(r.Exchange, exch, assetType, currency.EMPTYPAIR)
 	if err != nil {
 		return err
 	}
@@ -1954,7 +1954,7 @@ func (s *RPCServer) SetExchangePair(_ context.Context, r *gctrpc.SetExchangePair
 		return nil, err
 	}
 
-	err = checkParams(r.Exchange, exch, a, currency.Pair{})
+	err = checkParams(r.Exchange, exch, a, currency.EMPTYPAIR)
 	if err != nil {
 		return nil, err
 	}

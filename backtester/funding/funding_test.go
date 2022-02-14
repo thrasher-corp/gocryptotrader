@@ -841,7 +841,7 @@ func TestMatchesCurrency(t *testing.T) {
 	if !i.MatchesCurrency(currency.BTC) {
 		t.Error("expected true")
 	}
-	if i.MatchesCurrency(currency.Code{}) {
+	if i.MatchesCurrency(currency.EMPTYCODE) {
 		t.Error("expected false")
 	}
 	if i.MatchesCurrency(currency.NewCode("")) {
@@ -855,7 +855,7 @@ func TestCreateSnapshot(t *testing.T) {
 	f.items = append(f.items, &Item{
 		exchange:           "",
 		asset:              "",
-		currency:           currency.Code{},
+		currency:           currency.EMPTYCODE,
 		initialFunds:       decimal.Decimal{},
 		available:          decimal.Decimal{},
 		reserved:           decimal.Decimal{},

@@ -486,7 +486,7 @@ func TestCodeMarshalJSON(t *testing.T) {
 	quickstruct = struct {
 		Codey Code `json:"sweetCodes"`
 	}{
-		Codey: Code{}, // nil code
+		Codey: EMPTYCODE, // nil code
 	}
 
 	encoded, err = json.Marshal(quickstruct)
@@ -502,9 +502,9 @@ func TestCodeMarshalJSON(t *testing.T) {
 }
 
 func TestIsFiatCurrency(t *testing.T) {
-	if (Code{}).IsFiatCurrency() {
+	if EMPTYCODE.IsFiatCurrency() {
 		t.Errorf("TestIsFiatCurrency cannot match currency, %s.",
-			Code{})
+			EMPTYCODE)
 	}
 	if !USD.IsFiatCurrency() {
 		t.Errorf(
@@ -530,9 +530,9 @@ func TestIsFiatCurrency(t *testing.T) {
 }
 
 func TestIsCryptocurrency(t *testing.T) {
-	if (Code{}).IsCryptocurrency() {
+	if EMPTYCODE.IsCryptocurrency() {
 		t.Errorf("TestIsCryptocurrency cannot match currency, %s.",
-			Code{})
+			EMPTYCODE)
 	}
 	if !BTC.IsCryptocurrency() {
 		t.Errorf("TestIsCryptocurrency cannot match currency, %s.",
@@ -557,8 +557,8 @@ func TestIsCryptocurrency(t *testing.T) {
 }
 
 func TestIsStableCurrency(t *testing.T) {
-	if (Code{}).IsStableCurrency() {
-		t.Errorf("TestIsStableCurrency cannot match currency, %s.", Code{})
+	if EMPTYCODE.IsStableCurrency() {
+		t.Errorf("TestIsStableCurrency cannot match currency, %s.", EMPTYCODE)
 	}
 	if BTC.IsStableCurrency() {
 		t.Errorf("TestIsStableCurrency cannot match currency, %s.", BTC)

@@ -189,7 +189,7 @@ func (p Pairs) GetMatch(pair Pair) (Pair, error) {
 			return p[x], nil
 		}
 	}
-	return Pair{}, ErrPairNotFound
+	return EMPTYPAIR, ErrPairNotFound
 }
 
 // FindDifferences returns pairs which are new or have been removed
@@ -218,17 +218,17 @@ func (p Pairs) GetRandomPair() Pair {
 	if pairsLen := len(p); pairsLen != 0 {
 		return p[rand.Intn(pairsLen)] // nolint:gosec // basic number generation required, no need for crypo/rand
 	}
-	return Pair{}
+	return EMPTYPAIR
 }
 
 // DeriveFrom matches symbol string to the available pairs list when no
 // delimiter is supplied.
 func (p Pairs) DeriveFrom(symbol string) (Pair, error) {
 	if len(p) == 0 {
-		return Pair{}, errPairsEmpty
+		return EMPTYPAIR, errPairsEmpty
 	}
 	if symbol == "" {
-		return Pair{}, errSymbolEmpty
+		return EMPTYPAIR, errSymbolEmpty
 	}
 	symbol = strings.ToLower(symbol)
 pairs:
@@ -251,7 +251,7 @@ pairs:
 		}
 		return p[x], nil
 	}
-	return Pair{}, fmt.Errorf("%w for symbol string %s", ErrPairNotFound, symbol)
+	return EMPTYPAIR, fmt.Errorf("%w for symbol string %s", ErrPairNotFound, symbol)
 }
 
 // GetCrypto returns all the cryptos contained in the list.

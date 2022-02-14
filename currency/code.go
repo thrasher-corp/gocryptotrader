@@ -17,6 +17,8 @@ var (
 
 	// EMPTYCODE is an empty currency code
 	EMPTYCODE = Code{}
+	// EMPTYPAIR is an empty currency pair
+	EMPTYPAIR = Pair{}
 )
 
 func (r Role) String() string {

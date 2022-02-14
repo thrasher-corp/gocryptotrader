@@ -1609,7 +1609,7 @@ func TestUpdatePairs(t *testing.T) {
 		t.Fatal(err)
 	}
 	pairs := currency.Pairs{
-		currency.Pair{},
+		currency.EMPTYPAIR,
 		p,
 	}
 	err = UAC.UpdatePairs(pairs, asset.Spot, true, true)

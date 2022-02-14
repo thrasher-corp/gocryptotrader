@@ -240,7 +240,7 @@ func TestGetAllRPC(t *testing.T) {
 
 func TestCanWithdrawRPC(t *testing.T) {
 	t.Parallel()
-	_, err := (*CurrencyStateManager)(nil).CanWithdrawRPC("", currency.Code{}, "")
+	_, err := (*CurrencyStateManager)(nil).CanWithdrawRPC("", currency.EMPTYCODE, "")
 	if !errors.Is(err, ErrSubSystemNotStarted) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, ErrSubSystemNotStarted)
 	}
@@ -248,7 +248,7 @@ func TestCanWithdrawRPC(t *testing.T) {
 	_, err = (&CurrencyStateManager{
 		started:          1,
 		iExchangeManager: &fakeExchangeManagerino{ErrorMeOne: true},
-	}).CanWithdrawRPC("", currency.Code{}, "")
+	}).CanWithdrawRPC("", currency.EMPTYCODE, "")
 	if !errors.Is(err, errManager) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errManager)
 	}
@@ -256,7 +256,7 @@ func TestCanWithdrawRPC(t *testing.T) {
 	_, err = (&CurrencyStateManager{
 		started:          1,
 		iExchangeManager: &fakeExchangeManagerino{ErrorMeTwo: true},
-	}).CanWithdrawRPC("", currency.Code{}, "")
+	}).CanWithdrawRPC("", currency.EMPTYCODE, "")
 	if !errors.Is(err, errExchange) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errExchange)
 	}
@@ -264,7 +264,7 @@ func TestCanWithdrawRPC(t *testing.T) {
 	_, err = (&CurrencyStateManager{
 		started:          1,
 		iExchangeManager: &fakeExchangeManagerino{},
-	}).CanWithdrawRPC("", currency.Code{}, "")
+	}).CanWithdrawRPC("", currency.EMPTYCODE, "")
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
@@ -272,7 +272,7 @@ func TestCanWithdrawRPC(t *testing.T) {
 
 func TestCanDepositRPC(t *testing.T) {
 	t.Parallel()
-	_, err := (*CurrencyStateManager)(nil).CanDepositRPC("", currency.Code{}, "")
+	_, err := (*CurrencyStateManager)(nil).CanDepositRPC("", currency.EMPTYCODE, "")
 	if !errors.Is(err, ErrSubSystemNotStarted) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, ErrSubSystemNotStarted)
 	}
@@ -280,7 +280,7 @@ func TestCanDepositRPC(t *testing.T) {
 	_, err = (&CurrencyStateManager{
 		started:          1,
 		iExchangeManager: &fakeExchangeManagerino{ErrorMeOne: true},
-	}).CanDepositRPC("", currency.Code{}, "")
+	}).CanDepositRPC("", currency.EMPTYCODE, "")
 	if !errors.Is(err, errManager) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errManager)
 	}
@@ -288,7 +288,7 @@ func TestCanDepositRPC(t *testing.T) {
 	_, err = (&CurrencyStateManager{
 		started:          1,
 		iExchangeManager: &fakeExchangeManagerino{ErrorMeTwo: true},
-	}).CanDepositRPC("", currency.Code{}, "")
+	}).CanDepositRPC("", currency.EMPTYCODE, "")
 	if !errors.Is(err, errExchange) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errExchange)
 	}
@@ -296,7 +296,7 @@ func TestCanDepositRPC(t *testing.T) {
 	_, err = (&CurrencyStateManager{
 		started:          1,
 		iExchangeManager: &fakeExchangeManagerino{},
-	}).CanDepositRPC("", currency.Code{}, "")
+	}).CanDepositRPC("", currency.EMPTYCODE, "")
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
@@ -304,7 +304,7 @@ func TestCanDepositRPC(t *testing.T) {
 
 func TestCanTradeRPC(t *testing.T) {
 	t.Parallel()
-	_, err := (*CurrencyStateManager)(nil).CanTradeRPC("", currency.Code{}, "")
+	_, err := (*CurrencyStateManager)(nil).CanTradeRPC("", currency.EMPTYCODE, "")
 	if !errors.Is(err, ErrSubSystemNotStarted) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, ErrSubSystemNotStarted)
 	}
@@ -312,7 +312,7 @@ func TestCanTradeRPC(t *testing.T) {
 	_, err = (&CurrencyStateManager{
 		started:          1,
 		iExchangeManager: &fakeExchangeManagerino{ErrorMeOne: true},
-	}).CanTradeRPC("", currency.Code{}, "")
+	}).CanTradeRPC("", currency.EMPTYCODE, "")
 	if !errors.Is(err, errManager) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errManager)
 	}
@@ -320,7 +320,7 @@ func TestCanTradeRPC(t *testing.T) {
 	_, err = (&CurrencyStateManager{
 		started:          1,
 		iExchangeManager: &fakeExchangeManagerino{ErrorMeTwo: true},
-	}).CanTradeRPC("", currency.Code{}, "")
+	}).CanTradeRPC("", currency.EMPTYCODE, "")
 	if !errors.Is(err, errExchange) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errExchange)
 	}
@@ -328,7 +328,7 @@ func TestCanTradeRPC(t *testing.T) {
 	_, err = (&CurrencyStateManager{
 		started:          1,
 		iExchangeManager: &fakeExchangeManagerino{},
-	}).CanTradeRPC("", currency.Code{}, "")
+	}).CanTradeRPC("", currency.EMPTYCODE, "")
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
@@ -336,7 +336,7 @@ func TestCanTradeRPC(t *testing.T) {
 
 func TestCanTradePairRPC(t *testing.T) {
 	t.Parallel()
-	_, err := (*CurrencyStateManager)(nil).CanTradePairRPC("", currency.Pair{}, "")
+	_, err := (*CurrencyStateManager)(nil).CanTradePairRPC("", currency.EMPTYPAIR, "")
 	if !errors.Is(err, ErrSubSystemNotStarted) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, ErrSubSystemNotStarted)
 	}
@@ -344,7 +344,7 @@ func TestCanTradePairRPC(t *testing.T) {
 	_, err = (&CurrencyStateManager{
 		started:          1,
 		iExchangeManager: &fakeExchangeManagerino{ErrorMeOne: true},
-	}).CanTradePairRPC("", currency.Pair{}, "")
+	}).CanTradePairRPC("", currency.EMPTYPAIR, "")
 	if !errors.Is(err, errManager) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errManager)
 	}
@@ -352,7 +352,7 @@ func TestCanTradePairRPC(t *testing.T) {
 	_, err = (&CurrencyStateManager{
 		started:          1,
 		iExchangeManager: &fakeExchangeManagerino{ErrorMeTwo: true},
-	}).CanTradePairRPC("", currency.Pair{}, "")
+	}).CanTradePairRPC("", currency.EMPTYPAIR, "")
 	if !errors.Is(err, errExchange) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errExchange)
 	}
@@ -360,7 +360,7 @@ func TestCanTradePairRPC(t *testing.T) {
 	_, err = (&CurrencyStateManager{
 		started:          1,
 		iExchangeManager: &fakeExchangeManagerino{},
-	}).CanTradePairRPC("", currency.Pair{}, "")
+	}).CanTradePairRPC("", currency.EMPTYPAIR, "")
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}

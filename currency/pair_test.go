@@ -803,7 +803,7 @@ func TestPairFormat_Format(t *testing.T) {
 		{
 			name:   "empty",
 			fields: fields{},
-			arg:    Pair{},
+			arg:    EMPTYPAIR,
 			want:   "",
 		},
 		{

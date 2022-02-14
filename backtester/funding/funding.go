@@ -336,7 +336,7 @@ func (f *FundManager) GetFundingForEvent(ev common.EventHandler) (*Pair, error) 
 // GetFundingForEAC This will construct a funding based on the exchange, asset, currency code
 func (f *FundManager) GetFundingForEAC(exch string, a asset.Item, c currency.Code) (*Item, error) {
 	for i := range f.items {
-		if f.items[i].BasicEqual(exch, a, c, currency.Code{}) {
+		if f.items[i].BasicEqual(exch, a, c, currency.EMPTYCODE) {
 			return f.items[i], nil
 		}
 	}

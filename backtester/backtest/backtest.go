@@ -525,19 +525,19 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 func (bt *BackTest) loadExchangePairAssetBase(exch, base, quote, ass string) (gctexchange.IBotExchange, currency.Pair, asset.Item, error) {
 	e, err := bt.exchangeManager.GetExchangeByName(exch)
 	if err != nil {
-		return nil, currency.Pair{}, "", err
+		return nil, currency.EMPTYPAIR, "", err
 	}
 
 	var cp, fPair currency.Pair
 	cp, err = currency.NewPairFromStrings(base, quote)
 	if err != nil {
-		return nil, currency.Pair{}, "", err
+		return nil, currency.EMPTYPAIR, "", err
 	}
 
 	var a asset.Item
 	a, err = asset.New(ass)
 	if err != nil {
-		return nil, currency.Pair{}, "", err
+		return nil, currency.EMPTYPAIR, "", err
 	}
 
 	exchangeBase := e.GetBase()
@@ -547,7 +547,7 @@ func (bt *BackTest) loadExchangePairAssetBase(exch, base, quote, ass string) (gc
 
 	fPair, err = exchangeBase.FormatExchangeCurrency(cp, a)
 	if err != nil {
-		return nil, currency.Pair{}, "", err
+		return nil, currency.EMPTYPAIR, "", err
 	}
 	return e, fPair, a, nil
 }

@@ -2065,7 +2065,7 @@ func TestCheckCurrencyConfigValues(t *testing.T) {
 	cfg.CurrencyPairFormat = &currency.PairFormat{
 		Uppercase: true,
 	}
-	cfg.Currency.FiatDisplayCurrency = currency.Code{}
+	cfg.Currency.FiatDisplayCurrency = currency.EMPTYCODE
 	cfg.FiatDisplayCurrency = &currency.BTC
 	cfg.Currency.CryptocurrencyProvider.Enabled = true
 	err = cfg.CheckCurrencyConfigValues()

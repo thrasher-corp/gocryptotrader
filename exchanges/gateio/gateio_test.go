@@ -506,7 +506,7 @@ func TestGetOrderInfo(t *testing.T) {
 	}
 
 	_, err := g.GetOrderInfo(context.Background(),
-		"917591554", currency.Pair{}, asset.Spot)
+		"917591554", currency.EMPTYPAIR, asset.Spot)
 	if err != nil {
 		if err.Error() != "no order found with id 917591554" && err.Error() != "failed to get open orders" {
 			t.Fatalf("GetOrderInfo() returned an error skipping test: %v", err)
