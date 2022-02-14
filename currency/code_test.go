@@ -148,6 +148,22 @@ func TestRoleUnmarshalJSON(t *testing.T) {
 	}
 }
 
+func (b *BaseCodes) assertRole(t *testing.T, c Code, r Role) {
+	t.Helper()
+	b.mtx.Lock()
+	defer b.mtx.Unlock()
+	for x := range b.Items {
+		if b.Items[x] != c.Item {
+			continue
+		}
+		if b.Items[x].Role != r {
+			t.Fatal("unexpected role")
+		}
+		return
+	}
+	t.Fatal("code pointer not found")
+}
+
 func TestBaseCode(t *testing.T) {
 	var main BaseCodes
 	if main.HasData() {
@@ -156,6 +172,7 @@ func TestBaseCode(t *testing.T) {
 	}
 
 	catsUnset := main.Register("CATS", Unset)
+	main.assertRole(t, catsUnset, Unset)
 	if !main.HasData() {
 		t.Errorf("BaseCode HasData() error expected true but received %v",
 			main.HasData())
@@ -163,22 +180,29 @@ func TestBaseCode(t *testing.T) {
 
 	// Changes unset to fiat
 	catsFiat := main.Register("CATS", Fiat)
+	main.assertRole(t, catsUnset, Fiat)
 
 	// Regiser as unset, will return first match.
-	if !main.Register("CATS", Unset).Equal(catsFiat) {
+	otherFiatCat := main.Register("CATS", Unset)
+	main.assertRole(t, otherFiatCat, Fiat)
+	if !otherFiatCat.Equal(catsFiat) {
 		t.Errorf("BaseCode Match() error expected true but received %v",
 			false)
 	}
 
 	// Regiser as fiat, will return fiat match.
-	if !main.Register("CATS", Fiat).Equal(catsFiat) {
+	thatOtherFiatCat := main.Register("CATS", Fiat)
+	main.assertRole(t, otherFiatCat, Fiat)
+	if !thatOtherFiatCat.Equal(catsFiat) {
 		t.Errorf("BaseCode Match() error expected true but received %v",
 			false)
 	}
 
 	// Regiser as stable, will return a different currency with the same
 	// currency code.
-	if main.Register("CATS", Stable).Equal(catsFiat) {
+	superStableCatNoShakes := main.Register("CATS", Stable)
+	main.assertRole(t, superStableCatNoShakes, Stable)
+	if superStableCatNoShakes.Equal(catsFiat) {
 		t.Errorf("BaseCode Match() error expected true but received %v",
 			true)
 	}
