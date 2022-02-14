@@ -474,7 +474,7 @@ func (f *FundManager) GetAllFunding() []BasicItem {
 	return result
 }
 
-func (f *FundManager) UpdateCollateral(exchName string, item asset.Item, collateralCurrency currency.Code) error {
+func (f *FundManager) UpdateCollateral(exchName string, item asset.Item, pair currency.Pair) error {
 	exchMap := make(map[string]exchange.IBotExchange)
 	var collateralAmount decimal.Decimal
 	var err error
@@ -515,13 +515,18 @@ func (f *FundManager) UpdateCollateral(exchName string, item asset.Item, collate
 		collateralAmount = collateralAmount.Add(latest)
 	}
 
+	collat, err := exchMap[exchName].GetCollateralCurrencyForContract(item, pair)
+	if err != nil {
+		return err
+	}
+
 	for i := range f.items {
 		if f.items[i].exchange == exchName &&
 			f.items[i].asset == item &&
-			f.items[i].currency.Match(collateralCurrency) {
+			f.items[i].currency.Match(collat) {
 			f.items[i].available = collateralAmount
 			return nil
 		}
 	}
-	return fmt.Errorf("%w to allocate %v to %v %v %v", ErrFundsNotFound, collateralAmount, exchName, item, collateralCurrency)
+	return fmt.Errorf("%w to allocate %v to %v %v %v", ErrFundsNotFound, collateralAmount, exchName, item, collat)
 }

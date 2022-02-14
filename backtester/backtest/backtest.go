@@ -104,6 +104,15 @@ func (bt *BackTest) handleEvent(ev common.EventHandler) error {
 	if err != nil {
 		return err
 	}
+
+	if ev.GetAssetType().IsFutures() {
+		// hardcoded fix
+		err = bt.Funding.UpdateCollateral(ev.GetExchange(), ev.GetAssetType(), ev.Pair())
+		if err != nil {
+			return err
+		}
+	}
+
 	switch eType := ev.(type) {
 	case common.DataEventHandler:
 		if bt.Strategy.UsingSimultaneousProcessing() {
@@ -229,12 +238,12 @@ func (bt *BackTest) updateStatsForDataEvent(ev common.DataEventHandler, funds fu
 			return err
 		}
 
-		err = bt.Portfolio.UpdateOpenPositionPNL(ev, ev.GetClosePrice())
+		err = bt.Portfolio.UpdatePNL(ev, ev.GetClosePrice())
 		if err != nil {
 			if errors.Is(err, gctorder.ErrPositionLiquidated) {
 				cr.Liquidate()
 			} else {
-				log.Errorf(log.BackTester, "UpdateOpenPositionPNL %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
+				log.Errorf(log.BackTester, "UpdatePNL %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 			}
 		}
 	}
@@ -324,29 +333,17 @@ func (bt *BackTest) processFillEvent(ev fill.Event, funds funding.IFundReleaser)
 		bt.EventQueue.AppendEvent(fde)
 	}
 	if ev.GetAssetType().IsFutures() {
-		// update collateral holdings
-		exch, err := bt.exchangeManager.GetExchangeByName(ev.GetExchange())
-		if err != nil {
-			log.Errorf(log.BackTester, "GetExchangeByName %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
-			return
-		}
-
-		curr, err := exch.GetCollateralCurrencyForContract(ev.GetAssetType(), ev.Pair())
-		if err != nil {
-			log.Errorf(log.BackTester, "GetCollateralCurrencyForContract %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
-			return
-		}
 		err = bt.Portfolio.TrackFuturesOrder(ev.GetOrder())
 		if err != nil && !errors.Is(err, gctorder.ErrSubmissionIsNil) {
 			log.Errorf(log.BackTester, "TrackFuturesOrder %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 			return
 		}
-		err = bt.Portfolio.UpdateOpenPositionPNL(ev, ev.GetClosePrice())
+		err = bt.Portfolio.UpdatePNL(ev, ev.GetClosePrice())
 		if err != nil {
-			log.Errorf(log.BackTester, "UpdateOpenPositionPNL %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
+			log.Errorf(log.BackTester, "UpdatePNL %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 			return
 		}
-		err = bt.Funding.UpdateCollateral(ev.GetExchange(), ev.GetAssetType(), curr)
+		err = bt.Funding.UpdateCollateral(ev.GetExchange(), ev.GetAssetType(), ev.Pair())
 		if err != nil {
 			log.Errorf(log.BackTester, "UpdateCollateral %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 			return

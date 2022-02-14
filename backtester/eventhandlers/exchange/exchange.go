@@ -82,6 +82,10 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 				f.SetDirection(common.CouldNotBuy)
 			case gctorder.Sell:
 				f.SetDirection(common.CouldNotSell)
+			case gctorder.Short:
+				f.SetDirection(common.CouldNotShort)
+			case gctorder.Long:
+				f.SetDirection(common.CouldNotLong)
 			default:
 				f.SetDirection(common.DoNothing)
 			}

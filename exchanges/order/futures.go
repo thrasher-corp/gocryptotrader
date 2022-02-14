@@ -334,6 +334,10 @@ func (p *PositionTracker) GetStats() PositionStats {
 	var orders []Detail
 	orders = append(orders, p.longPositions...)
 	orders = append(orders, p.shortPositions...)
+	rPNL := p.realisedPNL
+	if p.status == Closed {
+		rPNL = CalculateRealisedPNL(p.pnlHistory)
+	}
 	return PositionStats{
 		Exchange:         p.exchange,
 		Asset:            p.asset,
@@ -341,7 +345,7 @@ func (p *PositionTracker) GetStats() PositionStats {
 		Underlying:       p.underlyingAsset,
 		Status:           p.status,
 		Orders:           orders,
-		RealisedPNL:      p.realisedPNL,
+		RealisedPNL:      rPNL,
 		UnrealisedPNL:    p.unrealisedPNL,
 		Direction:        p.currentDirection,
 		OpeningDirection: p.openingDirection,
@@ -393,7 +397,7 @@ func (p *PositionTracker) GetRealisedPNL() decimal.Decimal {
 	}
 	p.m.Lock()
 	defer p.m.Unlock()
-	return calculateRealisedPNL(p.pnlHistory)
+	return CalculateRealisedPNL(p.pnlHistory)
 }
 
 // GetLatestPNLSnapshot takes the latest pnl history value
@@ -578,7 +582,7 @@ func (p *PositionTracker) TrackNewOrder(d *Detail) error {
 	if p.exposure.Equal(decimal.Zero) {
 		p.status = Closed
 		p.closingPrice = decimal.NewFromFloat(d.Price)
-		p.realisedPNL = calculateRealisedPNL(p.pnlHistory)
+		p.realisedPNL = CalculateRealisedPNL(p.pnlHistory)
 		p.unrealisedPNL = decimal.Zero
 	} else if p.exposure.IsNegative() {
 		if p.currentDirection.IsLong() {
@@ -651,9 +655,9 @@ func (p *PNLCalculator) CalculatePNL(_ context.Context, calc *PNLCalculatorReque
 	return response, nil
 }
 
-// calculateRealisedPNL calculates the total realised PNL
+// CalculateRealisedPNL calculates the total realised PNL
 // based on PNL history, minus fees
-func calculateRealisedPNL(pnlHistory []PNLResult) decimal.Decimal {
+func CalculateRealisedPNL(pnlHistory []PNLResult) decimal.Decimal {
 	var realisedPNL, totalFees decimal.Decimal
 	for i := range pnlHistory {
 		realisedPNL = realisedPNL.Add(pnlHistory[i].RealisedPNLBeforeFees)

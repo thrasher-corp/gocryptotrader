@@ -35,7 +35,7 @@ type IFundingManager interface {
 	USDTrackingDisabled() bool
 	LiquidateByCollateral(currency.Code) error
 	GetAllFunding() []BasicItem
-	UpdateCollateral(string, asset.Item, currency.Code) error
+	UpdateCollateral(string, asset.Item, currency.Pair) error
 }
 
 // IFundingReader is a simple interface of

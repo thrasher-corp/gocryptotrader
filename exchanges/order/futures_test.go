@@ -597,11 +597,11 @@ func TestClearPositionsForExchange(t *testing.T) {
 
 func TestCalculateRealisedPNL(t *testing.T) {
 	t.Parallel()
-	result := calculateRealisedPNL(nil)
+	result := CalculateRealisedPNL(nil)
 	if !result.IsZero() {
 		t.Error("expected zero")
 	}
-	result = calculateRealisedPNL([]PNLResult{
+	result = CalculateRealisedPNL([]PNLResult{
 		{
 			RealisedPNLBeforeFees: decimal.NewFromInt(1337),
 		},
@@ -610,7 +610,7 @@ func TestCalculateRealisedPNL(t *testing.T) {
 		t.Error("expected 1337")
 	}
 
-	result = calculateRealisedPNL([]PNLResult{
+	result = CalculateRealisedPNL([]PNLResult{
 		{
 			RealisedPNLBeforeFees: decimal.NewFromInt(1339),
 			Fee:                   decimal.NewFromInt(2),

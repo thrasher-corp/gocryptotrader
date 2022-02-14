@@ -140,6 +140,10 @@ func (p *Portfolio) evaluateOrder(d common.Directioner, originalOrderSignal, siz
 		case gctorder.Sell:
 			originalOrderSignal.Direction = common.CouldNotSell
 		case common.CouldNotBuy, common.CouldNotSell:
+		case gctorder.Short:
+			originalOrderSignal.Direction = common.CouldNotShort
+		case gctorder.Long:
+			originalOrderSignal.Direction = common.CouldNotLong
 		default:
 			originalOrderSignal.Direction = common.DoNothing
 		}
@@ -249,18 +253,6 @@ func (p *Portfolio) OnFill(ev fill.Event, funding funding.IFundReleaser) (fill.E
 		log.Error(log.BackTester, err)
 	}
 	ev.SetExchangeFee(decimal.Zero)
-	direction := ev.GetDirection()
-	if direction == common.DoNothing ||
-		direction == common.CouldNotBuy ||
-		direction == common.CouldNotSell ||
-		direction == common.MissingData ||
-		direction == common.CouldNotCloseLong ||
-		direction == common.CouldNotCloseShort ||
-		direction == common.CouldNotLong ||
-		direction == common.CouldNotShort ||
-		direction == "" {
-		return ev, nil
-	}
 
 	return ev, nil
 }
@@ -471,9 +463,9 @@ func (p *Portfolio) GetPositions(e common.EventHandler) ([]gctorder.PositionStat
 	return settings.FuturesTracker.GetPositions(), nil
 }
 
-// UpdateOpenPositionPNL will analyse any futures orders that have been placed over the backtesting run
+// UpdatePNL will analyse any futures orders that have been placed over the backtesting run
 // that are not closed and calculate their PNL
-func (p *Portfolio) UpdateOpenPositionPNL(e common.EventHandler, closePrice decimal.Decimal) error {
+func (p *Portfolio) UpdatePNL(e common.EventHandler, closePrice decimal.Decimal) error {
 	if !e.GetAssetType().IsFutures() {
 		return fmt.Errorf("%s %w", e.GetAssetType(), gctorder.ErrNotFutureAsset)
 	}
@@ -482,9 +474,17 @@ func (p *Portfolio) UpdateOpenPositionPNL(e common.EventHandler, closePrice deci
 		return fmt.Errorf("%v %v %v %w", e.GetExchange(), e.GetAssetType(), e.Pair(), err)
 	}
 
-	_, err = settings.FuturesTracker.UpdateOpenPositionUnrealisedPNL(closePrice.InexactFloat64(), e.GetTime())
-	if err != nil && !errors.Is(err, gctorder.ErrPositionClosed) {
-		return err
+	pos := settings.FuturesTracker.GetPositions()
+	if len(pos) == 0 {
+		// idk
+	}
+	if pos[len(pos)-1].Status == gctorder.Closed {
+		gctorder.CalculateRealisedPNL(pos[len(pos)-1].PNLHistory)
+	} else {
+		_, err = settings.FuturesTracker.UpdateOpenPositionUnrealisedPNL(closePrice.InexactFloat64(), e.GetTime())
+		if err != nil && !errors.Is(err, gctorder.ErrPositionClosed) {
+			return err
+		}
 	}
 
 	return nil

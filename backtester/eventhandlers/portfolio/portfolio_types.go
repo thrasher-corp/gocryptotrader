@@ -57,7 +57,7 @@ type Handler interface {
 	GetFee(string, asset.Item, currency.Pair) decimal.Decimal
 	GetPositions(common.EventHandler) ([]gctorder.PositionStats, error)
 	TrackFuturesOrder(*gctorder.Detail) error
-	UpdateOpenPositionPNL(common.EventHandler, decimal.Decimal) error
+	UpdatePNL(common.EventHandler, decimal.Decimal) error
 	GetLatestPNLForEvent(common.EventHandler) (*PNLSummary, error)
 	GetLatestPNLs() []PNLSummary
 	Reset()
