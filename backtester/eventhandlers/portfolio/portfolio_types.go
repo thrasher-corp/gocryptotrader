@@ -56,7 +56,7 @@ type Handler interface {
 	GetComplianceManager(string, asset.Item, currency.Pair) (*compliance.Manager, error)
 	GetFee(string, asset.Item, currency.Pair) decimal.Decimal
 	GetPositions(common.EventHandler) ([]gctorder.PositionStats, error)
-	TrackFuturesOrder(*gctorder.Detail) error
+	TrackFuturesOrder(*gctorder.Detail, funding.IFundReleaser) error
 	UpdatePNL(common.EventHandler, decimal.Decimal) error
 	GetLatestPNLForEvent(common.EventHandler) (*PNLSummary, error)
 	GetLatestPNLs() []PNLSummary

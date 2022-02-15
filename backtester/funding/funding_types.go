@@ -116,7 +116,7 @@ type IPairReleaser interface {
 
 type ICollateralReleaser interface {
 	ICollateralReader
-	TakeProfit(decimal.Decimal, decimal.Decimal, decimal.Decimal) error
+	TakeProfit(contracts, originalPositionSize, positionReturns decimal.Decimal) error
 	ReleaseContracts(decimal.Decimal) error
 	Liquidate()
 }

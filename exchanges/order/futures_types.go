@@ -136,6 +136,7 @@ type PositionTracker struct {
 	exposure              decimal.Decimal
 	currentDirection      Side
 	openingDirection      Side
+	entryAmount           decimal.Decimal
 	status                Status
 	unrealisedPNL         decimal.Decimal
 	realisedPNL           decimal.Decimal
@@ -155,6 +156,7 @@ type PositionTracker struct {
 type PositionTrackerSetup struct {
 	Pair                      currency.Pair
 	EntryPrice                decimal.Decimal
+	EntryAmount               decimal.Decimal
 	Underlying                currency.Code
 	Asset                     asset.Item
 	Side                      Side
@@ -230,7 +232,8 @@ type PositionStats struct {
 	Exposure      decimal.Decimal
 
 	OpeningDirection Side
-	OpeningPrice     decimal.Decimal
+	EntryAmount      decimal.Decimal
+	EntryPrice       decimal.Decimal
 
 	PNLHistory []PNLResult
 }

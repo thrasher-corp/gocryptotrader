@@ -333,7 +333,7 @@ func (bt *BackTest) processFillEvent(ev fill.Event, funds funding.IFundReleaser)
 		bt.EventQueue.AppendEvent(fde)
 	}
 	if ev.GetAssetType().IsFutures() {
-		err = bt.Portfolio.TrackFuturesOrder(ev.GetOrder())
+		err = bt.Portfolio.TrackFuturesOrder(ev.GetOrder(), funds)
 		if err != nil && !errors.Is(err, gctorder.ErrSubmissionIsNil) {
 			log.Errorf(log.BackTester, "TrackFuturesOrder %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 			return

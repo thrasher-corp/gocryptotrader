@@ -474,17 +474,9 @@ func (p *Portfolio) UpdatePNL(e common.EventHandler, closePrice decimal.Decimal)
 		return fmt.Errorf("%v %v %v %w", e.GetExchange(), e.GetAssetType(), e.Pair(), err)
 	}
 
-	pos := settings.FuturesTracker.GetPositions()
-	if len(pos) == 0 {
-		// idk
-	}
-	if pos[len(pos)-1].Status == gctorder.Closed {
-		gctorder.CalculateRealisedPNL(pos[len(pos)-1].PNLHistory)
-	} else {
-		_, err = settings.FuturesTracker.UpdateOpenPositionUnrealisedPNL(closePrice.InexactFloat64(), e.GetTime())
-		if err != nil && !errors.Is(err, gctorder.ErrPositionClosed) {
-			return err
-		}
+	_, err = settings.FuturesTracker.UpdateOpenPositionUnrealisedPNL(closePrice.InexactFloat64(), e.GetTime())
+	if err != nil && !errors.Is(err, gctorder.ErrPositionClosed) {
+		return err
 	}
 
 	return nil
@@ -492,19 +484,40 @@ func (p *Portfolio) UpdatePNL(e common.EventHandler, closePrice decimal.Decimal)
 
 // TrackFuturesOrder updates the futures tracker with a new order
 // from a fill event
-func (p *Portfolio) TrackFuturesOrder(detail *gctorder.Detail) error {
+func (p *Portfolio) TrackFuturesOrder(detail *gctorder.Detail, fund funding.IFundReleaser) error {
 	if detail == nil {
 		return gctorder.ErrSubmissionIsNil
 	}
 	if !detail.AssetType.IsFutures() {
 		return fmt.Errorf("order '%v' %w", detail.ID, gctorder.ErrNotFuturesAsset)
 	}
+	collateralReleaser, err := fund.GetCollateralReleaser()
+	if err != nil {
+		return fmt.Errorf("%v %v %v %w", detail.Exchange, detail.AssetType, detail.Pair, err)
+	}
 	settings, err := p.getSettings(detail.Exchange, detail.AssetType, detail.Pair)
 	if err != nil {
 		return fmt.Errorf("%v %v %v %w", detail.Exchange, detail.AssetType, detail.Pair, err)
 	}
 
-	return settings.FuturesTracker.TrackNewOrder(detail)
+	err = settings.FuturesTracker.TrackNewOrder(detail)
+	if err != nil {
+		return err
+	}
+
+	pos := settings.FuturesTracker.GetPositions()
+	if len(pos) == 0 {
+		return fmt.Errorf("%w should not happen", errNoHoldings)
+	}
+	if pos[len(pos)-1].Status == gctorder.Closed {
+		amount := decimal.NewFromFloat(detail.Amount)
+		err = collateralReleaser.TakeProfit(amount, pos[len(pos)-1].EntryAmount, pos[len(pos)-1].RealisedPNL)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // GetLatestPNLForEvent takes in an event and returns the latest PNL data

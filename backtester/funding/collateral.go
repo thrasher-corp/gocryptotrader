@@ -62,7 +62,7 @@ func (c *Collateral) Reserve(amount decimal.Decimal, _ order.Side) error {
 
 func (c *Collateral) ReleaseContracts(amount decimal.Decimal) error {
 	// turn this into a protected func
-	c.Contract.available = c.Contract.available.Add(amount)
+	c.Contract.available = c.Contract.available.Sub(amount)
 	return nil
 }
 
