@@ -6,3 +6,10 @@ updates:
     interval: daily
     time: "19:30"
   open-pull-requests-limit: 10
+- package-ecosystem: npm
+  directory: "/web"
+  schedule:
+    interval: "weekly"
+  # deprecated for now as it requires a more in-depth overhaul
+  open-pull-requests-limit: 0
+
