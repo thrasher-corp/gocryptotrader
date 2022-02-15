@@ -33,9 +33,12 @@ const (
 )
 
 var (
+	// ErrFiatDisplayCurrencyIsNotFiat defines an error for when the fiat
+	// display currency is not set as a fiat currency.
+	ErrFiatDisplayCurrencyIsNotFiat = errors.New("fiat display currency is not a fiat currency")
+
 	errUnexpectedRole                       = errors.New("unexpected currency role")
 	errFiatDisplayCurrencyUnset             = errors.New("fiat display currency is unset")
-	ErrFiatDisplayCurrencyIsNotFiat         = errors.New("fiat display currency is not a fiat currency")
 	errNoFilePathSet                        = errors.New("no file path set")
 	errInvalidCurrencyFileUpdateDuration    = errors.New("invalid currency file update duration")
 	errInvalidForeignExchangeUpdateDuration = errors.New("invalid foreign exchange update duration")

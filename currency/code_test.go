@@ -182,7 +182,7 @@ func TestBaseCode(t *testing.T) {
 	catsFiat := main.Register("CATS", Fiat)
 	main.assertRole(t, catsUnset, Fiat)
 
-	// Regiser as unset, will return first match.
+	// Register as unset, will return first match.
 	otherFiatCat := main.Register("CATS", Unset)
 	main.assertRole(t, otherFiatCat, Fiat)
 	if !otherFiatCat.Equal(catsFiat) {
@@ -190,7 +190,7 @@ func TestBaseCode(t *testing.T) {
 			false)
 	}
 
-	// Regiser as fiat, will return fiat match.
+	// Register as fiat, will return fiat match.
 	thatOtherFiatCat := main.Register("CATS", Fiat)
 	main.assertRole(t, otherFiatCat, Fiat)
 	if !thatOtherFiatCat.Equal(catsFiat) {
@@ -198,7 +198,7 @@ func TestBaseCode(t *testing.T) {
 			false)
 	}
 
-	// Regiser as stable, will return a different currency with the same
+	// Register as stable, will return a different currency with the same
 	// currency code.
 	superStableCatNoShakes := main.Register("CATS", Stable)
 	main.assertRole(t, superStableCatNoShakes, Stable)
