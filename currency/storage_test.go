@@ -2,8 +2,31 @@ package currency
 
 import (
 	"errors"
+	"fmt"
+	"io/ioutil"
+	"os"
 	"testing"
+
+	"github.com/thrasher-corp/gocryptotrader/database/testhelpers"
 )
+
+func TestMain(m *testing.M) {
+	var err error
+	testhelpers.TempDir, err = ioutil.TempDir("", "gct-temp")
+	if err != nil {
+		fmt.Printf("failed to create temp file: %v", err)
+		os.Exit(1)
+	}
+
+	t := m.Run()
+
+	err = os.RemoveAll(testhelpers.TempDir)
+	if err != nil {
+		fmt.Printf("Failed to remove temp db file: %v", err)
+	}
+
+	os.Exit(t)
+}
 
 func TestRunUpdater(t *testing.T) {
 	var newStorage Storage
@@ -32,19 +55,21 @@ func TestRunUpdater(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoFilePathSet)
 	}
 
-	err = newStorage.RunUpdater(BotOverrides{}, &mainConfig, "/bla")
+	tempDir := testhelpers.TempDir
+
+	err = newStorage.RunUpdater(BotOverrides{}, &mainConfig, tempDir)
 	if !errors.Is(err, errInvalidCurrencyFileUpdateDuration) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidCurrencyFileUpdateDuration)
 	}
 
 	mainConfig.CurrencyFileUpdateDuration = DefaultCurrencyFileDelay
-	err = newStorage.RunUpdater(BotOverrides{}, &mainConfig, "/bla")
+	err = newStorage.RunUpdater(BotOverrides{}, &mainConfig, tempDir)
 	if !errors.Is(err, errInvalidForeignExchangeUpdateDuration) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidForeignExchangeUpdateDuration)
 	}
 
 	mainConfig.ForeignExchangeUpdateDuration = DefaultForeignExchangeDelay
-	err = newStorage.RunUpdater(BotOverrides{}, &mainConfig, "/bla")
+	err = newStorage.RunUpdater(BotOverrides{}, &mainConfig, tempDir)
 	if !errors.Is(err, errNoForeignExchangeProvidersEnabled) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoForeignExchangeProvidersEnabled)
 	}
@@ -56,7 +81,7 @@ func TestRunUpdater(t *testing.T) {
 	}
 
 	mainConfig.ForexProviders = AllFXSettings{settings}
-	err = newStorage.RunUpdater(BotOverrides{Fixer: true}, &mainConfig, "/bla")
+	err = newStorage.RunUpdater(BotOverrides{Fixer: true}, &mainConfig, tempDir)
 	if errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, "an error")
 	}
@@ -68,7 +93,7 @@ func TestRunUpdater(t *testing.T) {
 
 	settings.Name = "CurrencyConverter"
 	mainConfig.ForexProviders = AllFXSettings{settings}
-	err = newStorage.RunUpdater(BotOverrides{CurrencyConverter: true}, &mainConfig, "/bla")
+	err = newStorage.RunUpdater(BotOverrides{CurrencyConverter: true}, &mainConfig, tempDir)
 	if errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, "an error")
 	}
@@ -80,7 +105,7 @@ func TestRunUpdater(t *testing.T) {
 
 	settings.Name = "CurrencyLayer"
 	mainConfig.ForexProviders = AllFXSettings{settings}
-	err = newStorage.RunUpdater(BotOverrides{CurrencyLayer: true}, &mainConfig, "/bla")
+	err = newStorage.RunUpdater(BotOverrides{CurrencyLayer: true}, &mainConfig, tempDir)
 	if errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, "an error")
 	}
@@ -92,7 +117,7 @@ func TestRunUpdater(t *testing.T) {
 
 	settings.Name = "OpenExchangeRates"
 	mainConfig.ForexProviders = AllFXSettings{settings}
-	err = newStorage.RunUpdater(BotOverrides{OpenExchangeRates: true}, &mainConfig, "/bla")
+	err = newStorage.RunUpdater(BotOverrides{OpenExchangeRates: true}, &mainConfig, tempDir)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
@@ -104,7 +129,7 @@ func TestRunUpdater(t *testing.T) {
 
 	settings.Name = "ExchangeRates"
 	mainConfig.ForexProviders = AllFXSettings{settings}
-	err = newStorage.RunUpdater(BotOverrides{ExchangeRates: true}, &mainConfig, "/bla")
+	err = newStorage.RunUpdater(BotOverrides{ExchangeRates: true}, &mainConfig, tempDir)
 	if errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, "an error")
 	}
@@ -116,7 +141,7 @@ func TestRunUpdater(t *testing.T) {
 
 	settings.Name = "ExchangeRateHost"
 	mainConfig.ForexProviders = AllFXSettings{settings}
-	err = newStorage.RunUpdater(BotOverrides{ExchangeRateHost: true}, &mainConfig, "/bla")
+	err = newStorage.RunUpdater(BotOverrides{ExchangeRateHost: true}, &mainConfig, tempDir)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
