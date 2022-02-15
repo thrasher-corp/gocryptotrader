@@ -60,6 +60,26 @@ func (by *Bybit) GetAllPairs() ([]PairData, error) {
 	return resp.Data, by.SendHTTPRequest(exchange.RestSpot, bybitSpotGetSymbols, publicSpotRate, &resp)
 }
 
+func processOB(ob [][]string) ([]OrderbookItem, error) {
+	var o []OrderbookItem
+	for x := range ob {
+		var price, amount float64
+		amount, err := strconv.ParseFloat(ob[x][1], 64)
+		if err != nil {
+			return nil, err
+		}
+		price, err = strconv.ParseFloat(ob[x][0], 64)
+		if err != nil {
+			return nil, err
+		}
+		o = append(o, OrderbookItem{
+			Price:  price,
+			Amount: amount,
+		})
+	}
+	return o, nil
+}
+
 // GetOrderbook gets orderbook for a given market with a given depth (default depth 100)
 func (by *Bybit) GetOrderBook(symbol string, depth int64) (Orderbook, error) {
 	resp := struct {
@@ -82,26 +102,6 @@ func (by *Bybit) GetOrderBook(symbol string, depth int64) (Orderbook, error) {
 	err := by.SendHTTPRequest(exchange.RestSpot, path, publicSpotRate, &resp)
 	if err != nil {
 		return Orderbook{}, err
-	}
-
-	processOB := func(ob [][]string) ([]OrderbookItem, error) {
-		var o []OrderbookItem
-		for x := range ob {
-			var price, amount float64
-			amount, err = strconv.ParseFloat(ob[x][1], 64)
-			if err != nil {
-				return nil, err
-			}
-			price, err = strconv.ParseFloat(ob[x][0], 64)
-			if err != nil {
-				return nil, err
-			}
-			o = append(o, OrderbookItem{
-				Price:  price,
-				Amount: amount,
-			})
-		}
-		return o, nil
 	}
 
 	var s Orderbook
@@ -143,26 +143,6 @@ func (by *Bybit) GetMergedOrderBook(symbol string, scale, depth int64) (Orderboo
 	err := by.SendHTTPRequest(exchange.RestSpot, path, publicSpotRate, &resp)
 	if err != nil {
 		return Orderbook{}, err
-	}
-
-	processOB := func(ob [][]string) ([]OrderbookItem, error) {
-		var o []OrderbookItem
-		for x := range ob {
-			var price, amount float64
-			amount, err = strconv.ParseFloat(ob[x][1], 64)
-			if err != nil {
-				return nil, err
-			}
-			price, err = strconv.ParseFloat(ob[x][0], 64)
-			if err != nil {
-				return nil, err
-			}
-			o = append(o, OrderbookItem{
-				Price:  price,
-				Amount: amount,
-			})
-		}
-		return o, nil
 	}
 
 	var s Orderbook
