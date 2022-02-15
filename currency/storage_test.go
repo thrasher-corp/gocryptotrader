@@ -61,11 +61,21 @@ func TestRunUpdater(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, "an error")
 	}
 
+	err = newStorage.Shutdown()
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	settings.Name = "CurrencyConverter"
 	mainConfig.ForexProviders = AllFXSettings{settings}
 	err = newStorage.RunUpdater(BotOverrides{CurrencyConverter: true}, &mainConfig, "/bla")
 	if errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, "an error")
+	}
+
+	err = newStorage.Shutdown()
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	settings.Name = "CurrencyLayer"
@@ -75,6 +85,11 @@ func TestRunUpdater(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, "an error")
 	}
 
+	err = newStorage.Shutdown()
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	settings.Name = "OpenExchangeRates"
 	mainConfig.ForexProviders = AllFXSettings{settings}
 	err = newStorage.RunUpdater(BotOverrides{OpenExchangeRates: true}, &mainConfig, "/bla")
@@ -82,11 +97,21 @@ func TestRunUpdater(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
+	err = newStorage.Shutdown()
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	settings.Name = "ExchangeRates"
 	mainConfig.ForexProviders = AllFXSettings{settings}
 	err = newStorage.RunUpdater(BotOverrides{ExchangeRates: true}, &mainConfig, "/bla")
 	if errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, "an error")
+	}
+
+	err = newStorage.Shutdown()
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	settings.Name = "ExchangeRateHost"
