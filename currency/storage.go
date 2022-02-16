@@ -143,6 +143,7 @@ func (s *Storage) RunUpdater(overrides BotOverrides, settings *Config, filePath 
 			if settings.ForexProviders[i].APIKey == "" || settings.ForexProviders[i].APIKey == "Key" {
 				log.Warnf(log.Currency, "%s forex provider API key not set, disabling. Please set this in your config.json file\n",
 					settings.ForexProviders[i].Name)
+				settings.ForexProviders[i].Enabled = false
 				continue
 			}
 
