@@ -82,6 +82,7 @@ func (p *Portfolio) OnSignal(ev signal.Event, cs *exchange.Settings, funds fundi
 	o.BuyLimit = ev.GetBuyLimit()
 	o.SellLimit = ev.GetSellLimit()
 	var sizingFunds decimal.Decimal
+	var side = ev.GetDirection()
 	if ev.GetAssetType() == asset.Spot {
 		pReader, err := funds.GetPairReader()
 		if err != nil {
@@ -93,18 +94,38 @@ func (p *Portfolio) OnSignal(ev signal.Event, cs *exchange.Settings, funds fundi
 			sizingFunds = pReader.QuoteAvailable()
 		}
 	} else if ev.GetAssetType().IsFutures() {
-		collateralFunds, err := funds.GetCollateralReader()
-		if err != nil {
-			return nil, err
-		}
+		if ev.GetDirection() == common.ClosePosition {
+			// lookup position
+			positions := lookup.FuturesTracker.GetPositions()
+			if len(positions) == 0 {
+				// cannot close a non existent position
+				return nil, errNoHoldings
+			}
+			sizingFunds = positions[len(positions)-1].Exposure
+			d := positions[len(positions)-1].OpeningDirection
+			switch d {
+			case gctorder.Short:
+				side = gctorder.Long
+			case gctorder.Long:
+				side = gctorder.Short
+			}
+		} else {
+			collateralFunds, err := funds.GetCollateralReader()
+			if err != nil {
+				return nil, err
+			}
 
-		sizingFunds = collateralFunds.AvailableFunds()
+			sizingFunds = collateralFunds.AvailableFunds()
+		}
 	}
 	if sizingFunds.LessThanOrEqual(decimal.Zero) {
 		return cannotPurchase(ev, o, dir)
 	}
 	sizedOrder := p.sizeOrder(ev, cs, o, sizingFunds, funds)
-
+	sizedOrder.SetDirection(side)
+	if ev.GetDirection() == common.ClosePosition {
+		sizedOrder.ClosingPosition = true
+	}
 	return p.evaluateOrder(ev, o, sizedOrder)
 }
 
@@ -484,40 +505,45 @@ func (p *Portfolio) UpdatePNL(e common.EventHandler, closePrice decimal.Decimal)
 
 // TrackFuturesOrder updates the futures tracker with a new order
 // from a fill event
-func (p *Portfolio) TrackFuturesOrder(detail *gctorder.Detail, fund funding.IFundReleaser) error {
+func (p *Portfolio) TrackFuturesOrder(f fill.Event, fund funding.IFundReleaser) (*PNLSummary, error) {
+	detail := f.GetOrder()
 	if detail == nil {
-		return gctorder.ErrSubmissionIsNil
+		return nil, gctorder.ErrSubmissionIsNil
 	}
 	if !detail.AssetType.IsFutures() {
-		return fmt.Errorf("order '%v' %w", detail.ID, gctorder.ErrNotFuturesAsset)
+		return nil, fmt.Errorf("order '%v' %w", detail.ID, gctorder.ErrNotFuturesAsset)
 	}
+
 	collateralReleaser, err := fund.GetCollateralReleaser()
 	if err != nil {
-		return fmt.Errorf("%v %v %v %w", detail.Exchange, detail.AssetType, detail.Pair, err)
+		return nil, fmt.Errorf("%v %v %v %w", detail.Exchange, detail.AssetType, detail.Pair, err)
 	}
 	settings, err := p.getSettings(detail.Exchange, detail.AssetType, detail.Pair)
 	if err != nil {
-		return fmt.Errorf("%v %v %v %w", detail.Exchange, detail.AssetType, detail.Pair, err)
+		return nil, fmt.Errorf("%v %v %v %w", detail.Exchange, detail.AssetType, detail.Pair, err)
 	}
 
 	err = settings.FuturesTracker.TrackNewOrder(detail)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	pos := settings.FuturesTracker.GetPositions()
 	if len(pos) == 0 {
-		return fmt.Errorf("%w should not happen", errNoHoldings)
+		return nil, fmt.Errorf("%w should not happen", errNoHoldings)
 	}
-	if pos[len(pos)-1].Status == gctorder.Closed {
+	if pos[len(pos)-1].OpeningDirection != detail.Side {
 		amount := decimal.NewFromFloat(detail.Amount)
-		err = collateralReleaser.TakeProfit(amount, pos[len(pos)-1].EntryAmount, pos[len(pos)-1].RealisedPNL)
+		value := decimal.NewFromFloat(detail.Price).Mul(amount)
+		err = collateralReleaser.TakeProfit(amount, value, pos[len(pos)-1].RealisedPNL)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
-	return nil
+	err = p.UpdatePNL(f, f.GetClosePrice())
+
+	return p.GetLatestPNLForEvent(f)
 }
 
 // GetLatestPNLForEvent takes in an event and returns the latest PNL data

@@ -25,6 +25,8 @@ func (s *Size) SizeOrder(o order.Event, amountAvailable decimal.Decimal, cs *exc
 	var amount decimal.Decimal
 	var err error
 	switch retOrder.GetDirection() {
+	case common.ClosePosition:
+		amount = amountAvailable
 	case gctorder.Buy, gctorder.Long:
 		// check size against currency specific settings
 		amount, err = s.calculateBuySize(retOrder.Price, amountAvailable, cs.ExchangeFee, o.GetBuyLimit(), cs.BuySide)

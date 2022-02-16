@@ -88,3 +88,7 @@ func (o *Order) GetAllocatedFunds() decimal.Decimal {
 func (o *Order) GetFillDependentEvent() signal.Event {
 	return o.FillDependentEvent
 }
+
+func (o *Order) IsClosingPosition() bool {
+	return o.ClosingPosition
+}

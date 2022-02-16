@@ -132,6 +132,9 @@ func (s *Statistic) AddHoldingsForTime(h *holdings.Holding) error {
 }
 
 func (s *Statistic) AddPNLForTime(pnl *portfolio.PNLSummary) error {
+	if pnl == nil {
+		return fmt.Errorf("%w requires PNL", common.ErrNilArguments)
+	}
 	if s.ExchangeAssetPairStatistics == nil {
 		return errExchangeAssetPairStatsUnset
 	}

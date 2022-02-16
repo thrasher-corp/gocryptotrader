@@ -22,6 +22,7 @@ type Order struct {
 	BuyLimit           decimal.Decimal
 	SellLimit          decimal.Decimal
 	FillDependentEvent signal.Event
+	ClosingPosition    bool
 }
 
 // Event inherits common event interfaces along with extra functions related to handling orders
@@ -39,4 +40,5 @@ type Event interface {
 	IsLeveraged() bool
 	GetAllocatedFunds() decimal.Decimal
 	GetFillDependentEvent() signal.Event
+	IsClosingPosition() bool
 }

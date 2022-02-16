@@ -95,13 +95,11 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundTransf
 		case len(pos) > 0 && v.futureSignal.IsLastEvent():
 			futuresSignal.SetDirection(common.ClosePosition)
 			futuresSignal.AppendReason("closing position on last event")
-			futuresSignal.SetDirection(order.Long)
 			response = append(response, &futuresSignal)
 		case len(pos) > 0 && pos[len(pos)-1].Status == order.Open:
 			if fp.Sub(sp).Div(sp).GreaterThan(s.closeShortDistancePercentage) {
 				futuresSignal.SetDirection(common.ClosePosition)
 				futuresSignal.AppendReason("closing position after reaching close short distance percentage")
-				futuresSignal.SetDirection(order.Long)
 				response = append(response, &futuresSignal)
 			}
 		case len(pos) > 0 && pos[len(pos)-1].Status == order.Closed:

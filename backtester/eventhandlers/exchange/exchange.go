@@ -44,7 +44,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 		ClosePrice:         data.Latest().GetClosePrice(),
 		FillDependentEvent: o.GetFillDependentEvent(),
 	}
-	if o.GetAssetType().IsFutures() {
+	if o.GetAssetType().IsFutures() && o.GetDirection() != common.ClosePosition {
 		f.Amount = o.GetAllocatedFunds()
 	}
 	eventFunds := o.GetAllocatedFunds()
@@ -75,8 +75,17 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 		adjustedPrice, amount = slippage.CalculateSlippageByOrderbook(ob, o.GetDirection(), eventFunds, f.ExchangeFee)
 		f.Slippage = adjustedPrice.Sub(f.ClosePrice).Div(f.ClosePrice).Mul(decimal.NewFromInt(100))
 	} else {
-		adjustedPrice, amount, err = e.sizeOfflineOrder(high, low, volume, &cs, f)
-		if err != nil {
+		slippageRate := slippage.EstimateSlippagePercentage(cs.MinimumSlippageRate, cs.MaximumSlippageRate)
+		if cs.SkipCandleVolumeFitting || o.IsClosingPosition() {
+			f.VolumeAdjustedPrice = f.ClosePrice
+			amount = f.Amount
+		} else {
+			f.VolumeAdjustedPrice, amount = ensureOrderFitsWithinHLV(f.ClosePrice, f.Amount, high, low, volume)
+			if !amount.Equal(f.GetAmount()) {
+				f.AppendReason(fmt.Sprintf("Order size shrunk from %v to %v to fit candle", f.Amount, amount))
+			}
+		}
+		if amount.LessThanOrEqual(decimal.Zero) && f.GetAmount().GreaterThan(decimal.Zero) {
 			switch f.GetDirection() {
 			case gctorder.Buy:
 				f.SetDirection(common.CouldNotBuy)
@@ -89,9 +98,12 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 			default:
 				f.SetDirection(common.DoNothing)
 			}
-			f.AppendReason(err.Error())
+			f.AppendReason(fmt.Sprintf("amount set to 0, %s", errDataMayBeIncorrect))
 			return f, err
 		}
+		adjustedPrice = applySlippageToPrice(f.GetDirection(), f.GetVolumeAdjustedPrice(), slippageRate)
+		f.Slippage = slippageRate.Mul(decimal.NewFromInt(100)).Sub(decimal.NewFromInt(100))
+		f.ExchangeFee = calculateExchangeFee(adjustedPrice, amount, cs.TakerFee)
 	}
 
 	portfolioLimitedAmount := reduceAmountToFitPortfolioLimit(adjustedPrice, amount, eventFunds, f.GetDirection())
@@ -181,7 +193,11 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 		ords[i].CloseTime = o.GetTime()
 		f.Order = &ords[i]
 		f.PurchasePrice = decimal.NewFromFloat(ords[i].Price)
-		f.Total = f.PurchasePrice.Mul(limitReducedAmount).Add(f.ExchangeFee)
+		if ords[i].AssetType.IsFutures() {
+			f.Total = limitReducedAmount.Add(f.ExchangeFee)
+		} else {
+			f.Total = f.PurchasePrice.Mul(limitReducedAmount).Add(f.ExchangeFee)
+		}
 	}
 
 	if f.Order == nil {
@@ -192,7 +208,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 }
 
 // verifyOrderWithinLimits conforms the amount to fall into the minimum size and maximum size limit after reduced
-func verifyOrderWithinLimits(f *fill.Fill, limitReducedAmount decimal.Decimal, cs *Settings) error {
+func verifyOrderWithinLimits(f fill.Event, limitReducedAmount decimal.Decimal, cs *Settings) error {
 	if f == nil {
 		return common.ErrNilEvent
 	}
@@ -259,7 +275,7 @@ func reduceAmountToFitPortfolioLimit(adjustedPrice, amount, sizedPortfolioTotal 
 	return amount
 }
 
-func (e *Exchange) placeOrder(ctx context.Context, price, amount decimal.Decimal, useRealOrders, useExchangeLimits bool, f *fill.Fill, orderManager *engine.OrderManager) (string, error) {
+func (e *Exchange) placeOrder(ctx context.Context, price, amount decimal.Decimal, useRealOrders, useExchangeLimits bool, f fill.Event, orderManager *engine.OrderManager) (string, error) {
 	if f == nil {
 		return "", common.ErrNilEvent
 	}
@@ -270,15 +286,15 @@ func (e *Exchange) placeOrder(ctx context.Context, price, amount decimal.Decimal
 	var orderID string
 	p, _ := price.Float64()
 	a, _ := amount.Float64()
-	fee, _ := f.ExchangeFee.Float64()
+	fee, _ := f.GetExchangeFee().Float64()
 	o := &gctorder.Submit{
 		Price:       p,
 		Amount:      a,
 		Fee:         fee,
-		Exchange:    f.Exchange,
+		Exchange:    f.GetExchange(),
 		ID:          u.String(),
-		Side:        f.Direction,
-		AssetType:   f.AssetType,
+		Side:        f.GetDirection(),
+		AssetType:   f.GetAssetType(),
 		Date:        f.GetTime(),
 		LastUpdated: f.GetTime(),
 		Pair:        f.Pair(),
@@ -294,7 +310,7 @@ func (e *Exchange) placeOrder(ctx context.Context, price, amount decimal.Decimal
 			return orderID, err
 		}
 	} else {
-		rate, _ := f.Amount.Float64()
+		rate, _ := f.GetAmount().Float64()
 		submitResponse := gctorder.SubmitResponse{
 			IsOrderPlaced: true,
 			OrderID:       u.String(),
@@ -312,32 +328,6 @@ func (e *Exchange) placeOrder(ctx context.Context, price, amount decimal.Decimal
 		}
 	}
 	return orderID, nil
-}
-
-func (e *Exchange) sizeOfflineOrder(high, low, volume decimal.Decimal, cs *Settings, f *fill.Fill) (adjustedPrice, adjustedAmount decimal.Decimal, err error) {
-	if cs == nil || f == nil {
-		return decimal.Zero, decimal.Zero, common.ErrNilArguments
-	}
-	// provide history and estimate volatility
-	slippageRate := slippage.EstimateSlippagePercentage(cs.MinimumSlippageRate, cs.MaximumSlippageRate)
-	if cs.SkipCandleVolumeFitting {
-		f.VolumeAdjustedPrice = f.ClosePrice
-		adjustedAmount = f.Amount
-	} else {
-		f.VolumeAdjustedPrice, adjustedAmount = ensureOrderFitsWithinHLV(f.ClosePrice, f.Amount, high, low, volume)
-		if !adjustedAmount.Equal(f.Amount) {
-			f.AppendReason(fmt.Sprintf("Order size shrunk from %v to %v to fit candle", f.Amount, adjustedAmount))
-		}
-	}
-
-	if adjustedAmount.LessThanOrEqual(decimal.Zero) && f.Amount.GreaterThan(decimal.Zero) {
-		return decimal.Zero, decimal.Zero, fmt.Errorf("amount set to 0, %w", errDataMayBeIncorrect)
-	}
-	adjustedPrice = applySlippageToPrice(f.GetDirection(), f.GetVolumeAdjustedPrice(), slippageRate)
-
-	f.Slippage = slippageRate.Mul(decimal.NewFromInt(100)).Sub(decimal.NewFromInt(100))
-	f.ExchangeFee = calculateExchangeFee(adjustedPrice, adjustedAmount, cs.TakerFee)
-	return adjustedPrice, adjustedAmount, nil
 }
 
 func applySlippageToPrice(direction gctorder.Side, price, slippageRate decimal.Decimal) decimal.Decimal {
