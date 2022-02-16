@@ -285,7 +285,7 @@ func PrintSettings(s *Settings) {
 	gctlog.Debugf(gctlog.Global, "- FOREX SETTINGS:")
 	gctlog.Debugf(gctlog.Global, "\t Enable Currency Converter: %v", s.EnableCurrencyConverter)
 	gctlog.Debugf(gctlog.Global, "\t Enable Currency Layer: %v", s.EnableCurrencyLayer)
-	gctlog.Debugf(gctlog.Global, "\t Enable ExchangeRatesApi.io: %v", s.EnableExchangeRates)
+	gctlog.Debugf(gctlog.Global, "\t Enable ExchangeRatesAPI.io: %v", s.EnableExchangeRates)
 	gctlog.Debugf(gctlog.Global, "\t Enable Fixer: %v", s.EnableFixer)
 	gctlog.Debugf(gctlog.Global, "\t Enable OpenExchangeRates: %v", s.EnableOpenExchangeRates)
 	gctlog.Debugf(gctlog.Global, "\t Enable ExchangeRateHost: %v", s.EnableExchangeRateHost)
