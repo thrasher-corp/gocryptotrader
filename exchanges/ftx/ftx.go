@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -58,6 +59,7 @@ const (
 	getDepositHistory        = "/wallet/deposits"
 	getWithdrawalHistory     = "/wallet/withdrawals"
 	withdrawRequest          = "/wallet/withdrawals"
+	collateral               = "/wallet/collateral"
 	getOpenOrders            = "/orders"
 	getOrderHistory          = "/orders/history"
 	getOpenTriggerOrders     = "/conditional_orders"
@@ -1541,6 +1543,31 @@ func (f *FTX) FetchExchangeLimits(ctx context.Context) ([]order.MinMaxLevel, err
 		})
 	}
 	return limits, nil
+}
+
+type CollateralResponse struct {
+	PositiveBalances                   []struct{}
+	NegativeBalances                   []struct{}
+	Positions                          []struct{}
+	PositiveSpotBalanceTotal           decimal.Decimal
+	CollateralFromPositiveSpotBalances []struct{}
+	UsedBySpotMargin                   []struct{}
+	UsedByFutures                      []struct{}
+	CollateralAvailable                []struct{}
+}
+
+func (f *FTX) GetCollateral(ctx context.Context, maintenance bool) (*CollateralResponse, error) {
+	var resp CollateralResponse
+	d := make(map[string]interface{})
+	if maintenance {
+		d["marginType"] = "maintenance"
+	} else {
+		d["marginType"] = "initial"
+	}
+	if err := f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, collateral, "", d, &resp); err != nil {
+		return nil, err
+	}
+	return &resp, nil
 }
 
 // LoadCollateralWeightings sets the collateral weights for
