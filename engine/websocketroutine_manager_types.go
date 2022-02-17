@@ -4,7 +4,7 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 )
 
 // websocketRoutineManager is used to process websocket updates from a unified location
@@ -14,7 +14,7 @@ type websocketRoutineManager struct {
 	exchangeManager iExchangeManager
 	orderManager    iOrderManager
 	syncer          iCurrencyPairSyncer
-	currencyConfig  *config.CurrencyConfig
+	currencyConfig  *currency.Config
 	shutdown        chan struct{}
 	wg              sync.WaitGroup
 }

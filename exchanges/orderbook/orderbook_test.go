@@ -303,7 +303,7 @@ func TestDeployDepth(t *testing.T) {
 	if !errors.Is(err, errExchangeNameUnset) {
 		t.Fatalf("expecting %s error but received %v", errExchangeNameUnset, err)
 	}
-	_, err = DeployDepth("test", currency.Pair{}, asset.Spot)
+	_, err = DeployDepth("test", currency.EMPTYPAIR, asset.Spot)
 	if !errors.Is(err, errPairNotSet) {
 		t.Fatalf("expecting %s error but received %v", errPairNotSet, err)
 	}
@@ -370,7 +370,7 @@ func TestProcessOrderbook(t *testing.T) {
 	}
 
 	// test for empty pair
-	base.Pair = currency.Pair{}
+	base.Pair = currency.EMPTYPAIR
 	err = base.Process()
 	if err == nil {
 		t.Error("empty pair should throw an err")

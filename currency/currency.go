@@ -1,5 +1,13 @@
 package currency
 
+import (
+	"errors"
+	"fmt"
+	"strings"
+)
+
+var errEmptyPairString = errors.New("empty pair string")
+
 // GetDefaultExchangeRates returns the currency exchange rates based off the
 // default fiat values
 func GetDefaultExchangeRates() (Conversions, error) {
@@ -56,9 +64,14 @@ func UpdateCurrencies(c Currencies, isCryptocurrency bool) {
 	storage.UpdateEnabledFiatCurrencies(c)
 }
 
-// ConvertCurrency converts an amount from one currency to another
-func ConvertCurrency(amount float64, from, to Code) (float64, error) {
+// ConvertFiat converts an fiat amount from one currency to another
+func ConvertFiat(amount float64, from, to Code) (float64, error) {
 	return storage.ConvertCurrency(amount, from, to)
+}
+
+// GetForeignExchangeRate returns the foreign exchange rate for a fiat pair.
+func GetForeignExchangeRate(quotation Pair) (float64, error) {
+	return storage.ConvertCurrency(1, quotation.Base, quotation.Quote)
 }
 
 // SeedForeignExchangeData seeds FX data with the currencies supplied
@@ -72,7 +85,7 @@ func GetTotalMarketCryptocurrencies() ([]Code, error) {
 }
 
 // RunStorageUpdater runs a new foreign exchange updater instance
-func RunStorageUpdater(o BotOverrides, m *MainConfiguration, filepath string) error {
+func RunStorageUpdater(o BotOverrides, m *Config, filepath string) error {
 	return storage.RunUpdater(o, m, filepath)
 }
 
@@ -88,43 +101,47 @@ func CopyPairFormat(p Pair, pairs []Pair, exact bool) Pair {
 			if p.Equal(pairs[x]) {
 				return pairs[x]
 			}
+			continue
 		}
 		if p.EqualIncludeReciprocal(pairs[x]) {
 			return pairs[x]
 		}
 	}
-	return Pair{}
+	return EMPTYPAIR
 }
 
 // FormatPairs formats a string array to a list of currency pairs with the
 // supplied currency pair format
 func FormatPairs(pairs []string, delimiter, index string) (Pairs, error) {
-	var result Pairs
+	var result = make(Pairs, len(pairs))
 	for x := range pairs {
 		if pairs[x] == "" {
-			continue
+			return nil, fmt.Errorf("%w in slice %v", errEmptyPairString, pairs)
 		}
-		var p Pair
 		var err error
-		if delimiter != "" {
-			p, err = NewPairDelimiter(pairs[x], delimiter)
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			if index != "" {
-				p, err = NewPairFromIndex(pairs[x], index)
-				if err != nil {
-					return Pairs{}, err
-				}
-			} else {
-				p, err = NewPairFromStrings(pairs[x][0:3], pairs[x][3:])
-				if err != nil {
-					return Pairs{}, err
-				}
-			}
+		switch {
+		case delimiter != "":
+			result[x], err = NewPairDelimiter(pairs[x], delimiter)
+		case index != "":
+			result[x], err = NewPairFromIndex(pairs[x], index)
+		default:
+			result[x], err = NewPairFromStrings(pairs[x][:3], pairs[x][3:])
 		}
-		result = append(result, p)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return result, nil
+}
+
+// IsEnabled returns if the individual foreign exchange config setting is
+// enabled
+func (settings AllFXSettings) IsEnabled(name string) bool {
+	for x := range settings {
+		if !strings.EqualFold(settings[x].Name, name) {
+			continue
+		}
+		return settings[x].Enabled
+	}
+	return false
 }

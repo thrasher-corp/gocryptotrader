@@ -21,7 +21,6 @@ func (c *CurrencyConverter) Setup(config base.Settings) error {
 	c.APIKey = config.APIKey
 	c.APIKeyLvl = config.APIKeyLvl
 	c.Enabled = config.Enabled
-	c.RESTPollingDelay = config.RESTPollingDelay
 	c.Verbose = config.Verbose
 	c.PrimaryProvider = config.PrimaryProvider
 	c.Requester = request.New(c.Name,

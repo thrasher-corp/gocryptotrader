@@ -559,7 +559,7 @@ func (s *RPCServer) GetAccountInfo(ctx context.Context, r *gctrpc.GetAccountInfo
 		return nil, err
 	}
 
-	err = checkParams(r.Exchange, exch, assetType, currency.Pair{})
+	err = checkParams(r.Exchange, exch, assetType, currency.EMPTYPAIR)
 	if err != nil {
 		return nil, err
 	}
@@ -584,7 +584,7 @@ func (s *RPCServer) UpdateAccountInfo(ctx context.Context, r *gctrpc.GetAccountI
 		return nil, err
 	}
 
-	err = checkParams(r.Exchange, exch, assetType, currency.Pair{})
+	err = checkParams(r.Exchange, exch, assetType, currency.EMPTYPAIR)
 	if err != nil {
 		return nil, err
 	}
@@ -627,7 +627,7 @@ func (s *RPCServer) GetAccountInfoStream(r *gctrpc.GetAccountInfoRequest, stream
 		return err
 	}
 
-	err = checkParams(r.Exchange, exch, assetType, currency.Pair{})
+	err = checkParams(r.Exchange, exch, assetType, currency.EMPTYPAIR)
 	if err != nil {
 		return err
 	}
@@ -832,7 +832,7 @@ func (s *RPCServer) GetForexProviders(_ context.Context, _ *gctrpc.GetForexProvi
 			Name:             providers[x].Name,
 			Enabled:          providers[x].Enabled,
 			Verbose:          providers[x].Verbose,
-			RestPollingDelay: providers[x].RESTPollingDelay.String(),
+			RestPollingDelay: s.Config.Currency.ForeignExchangeUpdateDuration.String(),
 			ApiKey:           providers[x].APIKey,
 			ApiKeyLevel:      int64(providers[x].APIKeyLvl),
 			PrimaryProvider:  providers[x].PrimaryProvider,
@@ -1954,7 +1954,7 @@ func (s *RPCServer) SetExchangePair(_ context.Context, r *gctrpc.SetExchangePair
 		return nil, err
 	}
 
-	err = checkParams(r.Exchange, exch, a, currency.Pair{})
+	err = checkParams(r.Exchange, exch, a, currency.EMPTYPAIR)
 	if err != nil {
 		return nil, err
 	}

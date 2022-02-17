@@ -16,6 +16,12 @@ var (
 	ErrPairAlreadyEnabled = errors.New("pair already enabled")
 	// ErrPairNotFound is returned when a currency pair is not found
 	ErrPairNotFound = errors.New("pair not found")
+	// errAssetNotEnabled defines an error for the pairs management system
+	// that declares the asset is not enabled.
+	errAssetNotEnabled = errors.New("asset not enabled")
+	// ErrAssetIsNil is an error when the asset has not been populated by the
+	// configuration
+	ErrAssetIsNil = errors.New("asset is nil")
 )
 
 // GetAssetTypes returns a list of stored asset types
@@ -168,11 +174,11 @@ func (p *PairsManager) IsAssetEnabled(a asset.Item) error {
 	}
 
 	if c.AssetEnabled == nil {
-		return errors.New("cannot ascertain if asset is enabled, variable is nil")
+		return fmt.Errorf("%s %w", a, ErrAssetIsNil)
 	}
 
 	if !*c.AssetEnabled {
-		return fmt.Errorf("asset %s not enabled", a)
+		return fmt.Errorf("%s %w", a, errAssetNotEnabled)
 	}
 	return nil
 }
