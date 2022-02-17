@@ -3,6 +3,7 @@ package request
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync/atomic"
 	"time"
 
@@ -86,7 +87,7 @@ func (r *Requester) DisableRateLimiter() error {
 		return ErrRequestSystemIsNil
 	}
 	if !atomic.CompareAndSwapInt32(&r.disableRateLimiter, 0, 1) {
-		return ErrRateLimiterAlreadyDisabled
+		return fmt.Errorf("%s %w", r.name, ErrRateLimiterAlreadyDisabled)
 	}
 	return nil
 }
@@ -97,7 +98,7 @@ func (r *Requester) EnableRateLimiter() error {
 		return ErrRequestSystemIsNil
 	}
 	if !atomic.CompareAndSwapInt32(&r.disableRateLimiter, 1, 0) {
-		return ErrRateLimiterAlreadyEnabled
+		return fmt.Errorf("%s %w", r.name, ErrRateLimiterAlreadyEnabled)
 	}
 	return nil
 }

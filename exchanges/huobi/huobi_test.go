@@ -101,7 +101,7 @@ func TestStart(t *testing.T) {
 
 func TestGetCurrenciesIncludingChains(t *testing.T) {
 	t.Parallel()
-	r, err := h.GetCurrenciesIncludingChains(context.Background(), currency.Code{})
+	r, err := h.GetCurrenciesIncludingChains(context.Background(), currency.EMPTYCODE)
 	if err != nil {
 		t.Error(err)
 	}
@@ -119,7 +119,7 @@ func TestGetCurrenciesIncludingChains(t *testing.T) {
 
 func TestFGetContractInfo(t *testing.T) {
 	t.Parallel()
-	_, err := h.FGetContractInfo(context.Background(), "", "", currency.Pair{})
+	_, err := h.FGetContractInfo(context.Background(), "", "", currency.EMPTYPAIR)
 	if err != nil {
 		t.Error(err)
 	}
@@ -136,7 +136,7 @@ func TestFIndexPriceInfo(t *testing.T) {
 func TestFContractPriceLimitations(t *testing.T) {
 	t.Parallel()
 	_, err := h.FContractPriceLimitations(context.Background(),
-		"BTC", "next_quarter", currency.Pair{})
+		"BTC", "next_quarter", currency.EMPTYPAIR)
 	if err != nil {
 		t.Error(err)
 	}
@@ -145,7 +145,7 @@ func TestFContractPriceLimitations(t *testing.T) {
 func TestFContractOpenInterest(t *testing.T) {
 	t.Parallel()
 	_, err := h.FContractOpenInterest(context.Background(),
-		"BTC", "next_quarter", currency.Pair{})
+		"BTC", "next_quarter", currency.EMPTYPAIR)
 	if err != nil {
 		t.Error(err)
 	}
@@ -289,7 +289,7 @@ func TestFGetAccountInfo(t *testing.T) {
 		t.Skip("skipping test: api keys not set")
 	}
 	t.Parallel()
-	_, err := h.FGetAccountInfo(context.Background(), currency.Code{})
+	_, err := h.FGetAccountInfo(context.Background(), currency.EMPTYCODE)
 	if err != nil {
 		t.Error(err)
 	}
@@ -300,7 +300,7 @@ func TestFGetPositionsInfo(t *testing.T) {
 		t.Skip("skipping test: api keys not set")
 	}
 	t.Parallel()
-	_, err := h.FGetPositionsInfo(context.Background(), currency.Code{})
+	_, err := h.FGetPositionsInfo(context.Background(), currency.EMPTYCODE)
 	if err != nil {
 		t.Error(err)
 	}
@@ -311,7 +311,7 @@ func TestFGetAllSubAccountAssets(t *testing.T) {
 		t.Skip("skipping test: api keys not set")
 	}
 	t.Parallel()
-	_, err := h.FGetAllSubAccountAssets(context.Background(), currency.Code{})
+	_, err := h.FGetAllSubAccountAssets(context.Background(), currency.EMPTYCODE)
 	if err != nil {
 		t.Error(err)
 	}
@@ -368,7 +368,7 @@ func TestFContractTradingFee(t *testing.T) {
 		t.Skip("skipping test: api keys not set")
 	}
 	t.Parallel()
-	_, err := h.FContractTradingFee(context.Background(), currency.Code{})
+	_, err := h.FContractTradingFee(context.Background(), currency.EMPTYCODE)
 	if err != nil {
 		t.Error(err)
 	}
@@ -379,7 +379,7 @@ func TestFGetTransferLimits(t *testing.T) {
 		t.Skip("skipping test: api keys not set")
 	}
 	t.Parallel()
-	_, err := h.FGetTransferLimits(context.Background(), currency.Code{})
+	_, err := h.FGetTransferLimits(context.Background(), currency.EMPTYCODE)
 	if err != nil {
 		t.Error(err)
 	}
@@ -390,7 +390,7 @@ func TestFGetPositionLimits(t *testing.T) {
 		t.Skip("skipping test: api keys not set")
 	}
 	t.Parallel()
-	_, err := h.FGetPositionLimits(context.Background(), currency.Code{})
+	_, err := h.FGetPositionLimits(context.Background(), currency.EMPTYCODE)
 	if err != nil {
 		t.Error(err)
 	}
@@ -460,7 +460,7 @@ func TestFOrder(t *testing.T) {
 		t.Error(err)
 	}
 	_, err = h.FOrder(context.Background(),
-		currency.Pair{}, cp.Base.Upper().String(),
+		currency.EMPTYPAIR, cp.Base.Upper().String(),
 		"quarter", "123", "BUY", "open", "limit", 1, 1, 1)
 	if err != nil {
 		t.Error(err)
@@ -542,7 +542,7 @@ func TestFFlashCloseOrder(t *testing.T) {
 	}
 	t.Parallel()
 	_, err := h.FFlashCloseOrder(context.Background(),
-		currency.Pair{}, "BTC", "quarter", "BUY", "lightning", "", 1)
+		currency.EMPTYPAIR, "BTC", "quarter", "BUY", "lightning", "", 1)
 	if err != nil {
 		t.Error(err)
 	}
@@ -600,7 +600,7 @@ func TestFGetOrderHistory(t *testing.T) {
 		t.Error(err)
 	}
 	_, err = h.FGetOrderHistory(context.Background(),
-		currency.Pair{}, cp.Base.Upper().String(),
+		currency.EMPTYPAIR, cp.Base.Upper().String(),
 		"all", "all", "limit",
 		[]order.Status{},
 		5, 0, 0)
@@ -615,7 +615,7 @@ func TestFTradeHistory(t *testing.T) {
 	}
 	t.Parallel()
 	_, err := h.FTradeHistory(context.Background(),
-		currency.Pair{}, "BTC", "all", 10, 0, 0)
+		currency.EMPTYPAIR, "BTC", "all", 10, 0, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -627,7 +627,7 @@ func TestFPlaceTriggerOrder(t *testing.T) {
 	}
 	t.Parallel()
 	_, err := h.FPlaceTriggerOrder(context.Background(),
-		currency.Pair{}, "EOS", "quarter", "greaterOrEqual",
+		currency.EMPTYPAIR, "EOS", "quarter", "greaterOrEqual",
 		"limit", "buy", "close", 1.1, 1.05, 5, 2)
 	if err != nil {
 		t.Error(err)
@@ -651,7 +651,7 @@ func TestFCancelAllTriggerOrders(t *testing.T) {
 	}
 	t.Parallel()
 	_, err := h.FCancelAllTriggerOrders(context.Background(),
-		currency.Pair{}, "BTC", "this_week")
+		currency.EMPTYPAIR, "BTC", "this_week")
 	if err != nil {
 		t.Error(err)
 	}
@@ -663,7 +663,7 @@ func TestFQueryTriggerOpenOrders(t *testing.T) {
 	}
 	t.Parallel()
 	_, err := h.FQueryTriggerOpenOrders(context.Background(),
-		currency.Pair{}, "BTC", 0, 0)
+		currency.EMPTYPAIR, "BTC", 0, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -675,7 +675,7 @@ func TestFQueryTriggerOrderHistory(t *testing.T) {
 	}
 	t.Parallel()
 	_, err := h.FQueryTriggerOrderHistory(context.Background(),
-		currency.Pair{}, "EOS", "all", "all", 10, 0, 0)
+		currency.EMPTYPAIR, "EOS", "all", "all", 10, 0, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1567,7 +1567,7 @@ func TestGetSwapTriggerOrderHistory(t *testing.T) {
 
 func TestGetSwapMarkets(t *testing.T) {
 	t.Parallel()
-	_, err := h.GetSwapMarkets(context.Background(), currency.Pair{})
+	_, err := h.GetSwapMarkets(context.Background(), currency.EMPTYPAIR)
 	if err != nil {
 		t.Error(err)
 	}

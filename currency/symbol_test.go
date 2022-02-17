@@ -12,7 +12,7 @@ func TestGetSymbolByCurrencyName(t *testing.T) {
 		t.Errorf("TestGetSymbolByCurrencyName differing values")
 	}
 
-	_, err = GetSymbolByCurrencyName(Code{})
+	_, err = GetSymbolByCurrencyName(EMPTYCODE)
 	if err == nil {
 		t.Errorf("TestGetSymbolByCurrencyNam returned nil on non-existent currency")
 	}

@@ -81,7 +81,7 @@ func TestWithdrawDisplay(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !newVal.Code.Match(currency.USD) {
+	if !newVal.Code.Equal(currency.USD) {
 		t.Fatal("unexpected currency")
 	}
 }
@@ -172,7 +172,7 @@ func TestDepositDisplay(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !newVal.Code.Match(currency.EUR) {
+	if !newVal.Code.Equal(currency.EUR) {
 		t.Fatal("unexpected currency")
 	}
 }

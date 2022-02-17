@@ -93,7 +93,7 @@ func TestStartStopDoesNotCausePanic(t *testing.T) {
 		DataDir:      tempDir,
 	}, nil)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	botOne.Settings.EnableGRPCProxy = false
 	for i := range botOne.Config.Exchanges {
@@ -285,5 +285,43 @@ func TestDryRunParamInteraction(t *testing.T) {
 	if !bot.Settings.EnableDryRun ||
 		!exchCfg.Verbose {
 		t.Error("dryrun should be true and verbose should be true")
+	}
+}
+
+func TestFlagSetWith(t *testing.T) {
+	var isRunning bool
+	flags := make(FlagSet)
+	// Flag not set default to config
+	flags.WithBool("NOT SET", &isRunning, true)
+	if !isRunning {
+		t.Fatalf("received: '%v' but expected: '%v'", isRunning, true)
+	}
+	flags.WithBool("NOT SET", &isRunning, false)
+	if isRunning {
+		t.Fatalf("received: '%v' but expected: '%v'", isRunning, false)
+	}
+
+	flags["IS SET"] = true
+	isRunning = true
+	// Flag set true which will overide config
+	flags.WithBool("IS SET", &isRunning, true)
+	if !isRunning {
+		t.Fatalf("received: '%v' but expected: '%v'", isRunning, true)
+	}
+	flags.WithBool("IS SET", &isRunning, false)
+	if !isRunning {
+		t.Fatalf("received: '%v' but expected: '%v'", isRunning, true)
+	}
+
+	flags["IS SET"] = true
+	isRunning = false
+	// Flag set false which will overide config
+	flags.WithBool("IS SET", &isRunning, true)
+	if isRunning {
+		t.Fatalf("received: '%v' but expected: '%v'", isRunning, false)
+	}
+	flags.WithBool("IS SET", &isRunning, false)
+	if isRunning {
+		t.Fatalf("received: '%v' but expected: '%v'", isRunning, false)
 	}
 }

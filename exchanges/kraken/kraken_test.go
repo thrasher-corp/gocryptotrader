@@ -163,7 +163,7 @@ func TestWrapperGetOrderInfo(t *testing.T) {
 		t.Skip("skipping test: api keys not set")
 	}
 	_, err := k.GetOrderInfo(context.Background(),
-		"123", currency.Pair{}, asset.Futures)
+		"123", currency.EMPTYPAIR, asset.Futures)
 	if err != nil {
 		t.Error(err)
 	}
@@ -778,7 +778,7 @@ func TestGetOrderInfo(t *testing.T) {
 	}
 
 	_, err := k.GetOrderInfo(context.Background(),
-		"OZPTPJ-HVYHF-EDIGXS", currency.Pair{}, asset.Spot)
+		"OZPTPJ-HVYHF-EDIGXS", currency.EMPTYPAIR, asset.Spot)
 	if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expecting error")
 	}

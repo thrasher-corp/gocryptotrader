@@ -43,12 +43,12 @@ func TestGetSnapshot(t *testing.T) {
 
 func TestCanTradePair(t *testing.T) {
 	t.Parallel()
-	err := (*States)(nil).CanTradePair(currency.Pair{}, "")
+	err := (*States)(nil).CanTradePair(currency.EMPTYPAIR, "")
 	if !errors.Is(err, errNilStates) {
 		t.Fatalf("received: %v, but expected: %v", err, errNilStates)
 	}
 
-	err = (&States{}).CanTradePair(currency.Pair{}, "")
+	err = (&States{}).CanTradePair(currency.EMPTYPAIR, "")
 	if !errors.Is(err, errEmptyCurrency) {
 		t.Fatalf("received: %v, but expected: %v", err, errEmptyCurrency)
 	}
@@ -115,11 +115,11 @@ func TestCanTradePair(t *testing.T) {
 
 func TestStatesCanTrade(t *testing.T) {
 	t.Parallel()
-	err := (*States)(nil).CanTrade(currency.Code{}, "")
+	err := (*States)(nil).CanTrade(currency.EMPTYCODE, "")
 	if !errors.Is(err, errNilStates) {
 		t.Fatalf("received: %v, but expected: %v", err, errNilStates)
 	}
-	err = (&States{}).CanTrade(currency.Code{}, "")
+	err = (&States{}).CanTrade(currency.EMPTYCODE, "")
 	if !errors.Is(err, errEmptyCurrency) {
 		t.Fatalf("received: %v, but expected: %v", err, errEmptyCurrency)
 	}
@@ -127,11 +127,11 @@ func TestStatesCanTrade(t *testing.T) {
 
 func TestStatesCanWithdraw(t *testing.T) {
 	t.Parallel()
-	err := (*States)(nil).CanWithdraw(currency.Code{}, "")
+	err := (*States)(nil).CanWithdraw(currency.EMPTYCODE, "")
 	if !errors.Is(err, errNilStates) {
 		t.Fatalf("received: %v, but expected: %v", err, errNilStates)
 	}
-	err = (&States{}).CanWithdraw(currency.Code{}, "")
+	err = (&States{}).CanWithdraw(currency.EMPTYCODE, "")
 	if !errors.Is(err, errEmptyCurrency) {
 		t.Fatalf("received: %v, but expected: %v", err, errEmptyCurrency)
 	}
@@ -161,11 +161,11 @@ func TestStatesCanWithdraw(t *testing.T) {
 
 func TestStatesCanDeposit(t *testing.T) {
 	t.Parallel()
-	err := (*States)(nil).CanDeposit(currency.Code{}, "")
+	err := (*States)(nil).CanDeposit(currency.EMPTYCODE, "")
 	if !errors.Is(err, errNilStates) {
 		t.Fatalf("received: %v, but expected: %v", err, errNilStates)
 	}
-	err = (&States{}).CanDeposit(currency.Code{}, "")
+	err = (&States{}).CanDeposit(currency.EMPTYCODE, "")
 	if !errors.Is(err, errEmptyCurrency) {
 		t.Fatalf("received: %v, but expected: %v", err, errEmptyCurrency)
 	}
@@ -246,12 +246,12 @@ func TestStatesUpdateAll(t *testing.T) {
 
 func TestStatesUpdate(t *testing.T) {
 	t.Parallel()
-	err := (*States)(nil).Update(currency.Code{}, "", Options{})
+	err := (*States)(nil).Update(currency.EMPTYCODE, "", Options{})
 	if !errors.Is(err, errNilStates) {
 		t.Fatalf("received: %v, but expected: %v", err, errNilStates)
 	}
 
-	err = (&States{}).Update(currency.Code{}, "", Options{})
+	err = (&States{}).Update(currency.EMPTYCODE, "", Options{})
 	if !errors.Is(err, errEmptyCurrency) {
 		t.Fatalf("received: %v, but expected: %v", err, errEmptyCurrency)
 	}
@@ -273,12 +273,12 @@ func TestStatesUpdate(t *testing.T) {
 
 func TestStatesGet(t *testing.T) {
 	t.Parallel()
-	_, err := (*States)(nil).Get(currency.Code{}, "")
+	_, err := (*States)(nil).Get(currency.EMPTYCODE, "")
 	if !errors.Is(err, errNilStates) {
 		t.Fatalf("received: %v, but expected: %v", err, errNilStates)
 	}
 
-	_, err = (&States{}).Get(currency.Code{}, "")
+	_, err = (&States{}).Get(currency.EMPTYCODE, "")
 	if !errors.Is(err, errEmptyCurrency) {
 		t.Fatalf("received: %v, but expected: %v", err, errEmptyCurrency)
 	}

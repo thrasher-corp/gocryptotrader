@@ -57,14 +57,14 @@ func (p Pair) Format(delimiter string, uppercase bool) Pair {
 
 // Equal compares two currency pairs and returns whether or not they are equal
 func (p Pair) Equal(cPair Pair) bool {
-	return p.Base.Match(cPair.Base) && p.Quote.Match(cPair.Quote)
+	return p.Base.Equal(cPair.Base) && p.Quote.Equal(cPair.Quote)
 }
 
 // EqualIncludeReciprocal compares two currency pairs and returns whether or not
 // they are the same including reciprocal currencies.
 func (p Pair) EqualIncludeReciprocal(cPair Pair) bool {
-	return (p.Base.Match(cPair.Base) && p.Quote.Match(cPair.Quote)) ||
-		(p.Base.Match(cPair.Quote) && p.Quote.Match(cPair.Base))
+	return (p.Base.Equal(cPair.Base) && p.Quote.Equal(cPair.Quote)) ||
+		(p.Base.Equal(cPair.Quote) && p.Quote.Equal(cPair.Base))
 }
 
 // IsCryptoPair checks to see if the pair is a crypto pair e.g. BTCLTC
@@ -84,7 +84,7 @@ func (p Pair) IsFiatPair() bool {
 }
 
 // IsCryptoStablePair checks to see if the pair is a crypto stable pair e.g.
-// EUR-USDT
+// LTC-USDT
 func (p Pair) IsCryptoStablePair() bool {
 	return (p.Base.IsCryptocurrency() && p.Quote.IsStableCurrency()) ||
 		(p.Base.IsStableCurrency() && p.Quote.IsCryptocurrency())
@@ -97,7 +97,7 @@ func (p Pair) IsStablePair() bool {
 
 // IsInvalid checks invalid pair if base and quote are the same
 func (p Pair) IsInvalid() bool {
-	return p.Base.Match(p.Quote)
+	return p.Base.Equal(p.Quote)
 }
 
 // Swap turns the currency pair into its reciprocal
@@ -111,9 +111,9 @@ func (p Pair) IsEmpty() bool {
 	return p.Base.IsEmpty() && p.Quote.IsEmpty()
 }
 
-// ContainsCurrency checks to see if a pair contains a specific currency
-func (p Pair) ContainsCurrency(c Code) bool {
-	return p.Base.Match(c) || p.Quote.Match(c)
+// Contains checks to see if a pair contains a specific currency
+func (p Pair) Contains(c Code) bool {
+	return p.Base.Equal(c) || p.Quote.Equal(c)
 }
 
 // Len derives full length for match exclusion.
@@ -122,12 +122,12 @@ func (p Pair) Len() int {
 }
 
 // Other returns the other currency from pair, if not matched returns empty code.
-func (p Pair) Other(c Code) Code {
-	if p.Base.Match(c) {
-		return p.Quote
+func (p Pair) Other(c Code) (Code, error) {
+	if p.Base.Equal(c) {
+		return p.Quote, nil
 	}
-	if p.Quote.Match(c) {
-		return p.Base
+	if p.Quote.Equal(c) {
+		return p.Base, nil
 	}
-	return Code{}
+	return EMPTYCODE, ErrCurrencyCodeEmpty
 }

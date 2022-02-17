@@ -161,7 +161,7 @@ func TestString(t *testing.T) {
 func TestFirstCurrency(t *testing.T) {
 	t.Parallel()
 	pair := NewPair(BTC, USD)
-	if actual, expected := pair.Base, BTC; actual != expected {
+	if actual, expected := pair.Base, BTC; !actual.Equal(expected) {
 		t.Errorf(
 			"GetFirstCurrency(): %s was not equal to expected value: %s",
 			actual, expected,
@@ -172,7 +172,7 @@ func TestFirstCurrency(t *testing.T) {
 func TestSecondCurrency(t *testing.T) {
 	t.Parallel()
 	pair := NewPair(BTC, USD)
-	if actual, expected := pair.Quote, USD; actual != expected {
+	if actual, expected := pair.Quote, USD; !actual.Equal(expected) {
 		t.Errorf(
 			"GetSecondCurrency(): %s was not equal to expected value: %s",
 			actual, expected,
@@ -542,12 +542,12 @@ func TestNewPairFromFormattedPairs(t *testing.T) {
 func TestContainsCurrency(t *testing.T) {
 	p := NewPair(BTC, USD)
 
-	if !p.ContainsCurrency(BTC) {
-		t.Error("TestContainsCurrency: Expected currency was not found")
+	if !p.Contains(BTC) {
+		t.Error("TestContains: Expected currency was not found")
 	}
 
-	if p.ContainsCurrency(ETH) {
-		t.Error("TestContainsCurrency: Non-existent currency was found")
+	if p.Contains(ETH) {
+		t.Error("TestContains: Non-existent currency was found")
 	}
 }
 
@@ -624,8 +624,8 @@ func TestFindPairDifferences(t *testing.T) {
 	}
 
 	emptyPairsList, err := NewPairsFromStrings([]string{""})
-	if err != nil {
-		t.Fatal(err)
+	if !errors.Is(err, errCannotCreatePair) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errCannotCreatePair)
 	}
 
 	// Test that we don't allow empty strings for new pairs
@@ -803,7 +803,7 @@ func TestPairFormat_Format(t *testing.T) {
 		{
 			name:   "empty",
 			fields: fields{},
-			arg:    Pair{},
+			arg:    EMPTYPAIR,
 			want:   "",
 		},
 		{
@@ -843,5 +843,25 @@ func TestPairFormat_Format(t *testing.T) {
 				t.Errorf("PairFormat.Format() = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestOther(t *testing.T) {
+	received, err := NewPair(DAI, XRP).Other(DAI)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !received.Equal(XRP) {
+		t.Fatal("unexpected value")
+	}
+	received, err = NewPair(DAI, XRP).Other(XRP)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !received.Equal(DAI) {
+		t.Fatal("unexpected value")
+	}
+	if _, err := NewPair(DAI, XRP).Other(BTC); !errors.Is(err, ErrCurrencyCodeEmpty) {
+		t.Fatal("unexpected value")
 	}
 }

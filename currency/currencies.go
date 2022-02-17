@@ -7,7 +7,7 @@ import (
 
 // NewCurrenciesFromStringArray returns a Currencies object from strings
 func NewCurrenciesFromStringArray(currencies []string) Currencies {
-	var list Currencies
+	list := make(Currencies, 0, len(currencies))
 	for i := range currencies {
 		if currencies[i] == "" {
 			continue
@@ -32,7 +32,7 @@ func (c Currencies) Strings() []string {
 // Contains checks to see if a currency code is contained in the currency list
 func (c Currencies) Contains(check Code) bool {
 	for i := range c {
-		if c[i].Match(check) {
+		if c[i].Equal(check) {
 			return true
 		}
 	}
@@ -52,10 +52,10 @@ func (c *Currencies) UnmarshalJSON(d []byte) error {
 		return err
 	}
 
-	var allTheCurrencies Currencies
 	curr := strings.Split(configCurrencies, ",")
+	allTheCurrencies := make(Currencies, len(curr))
 	for i := range curr {
-		allTheCurrencies = append(allTheCurrencies, NewCode(curr[i]))
+		allTheCurrencies[i] = NewCode(curr[i])
 	}
 
 	*c = allTheCurrencies
@@ -76,7 +76,7 @@ func (c Currencies) Match(other Currencies) bool {
 match:
 	for x := range c {
 		for y := range other {
-			if c[x] == other[y] {
+			if c[x].Equal(other[y]) {
 				continue match
 			}
 		}

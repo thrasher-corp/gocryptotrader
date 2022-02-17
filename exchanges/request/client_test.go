@@ -11,11 +11,11 @@ import (
 )
 
 // this doesn't need to be included in binary
-func (c *clientTracker) contains(ohhhWOOOOOOOW *http.Client) bool {
+func (c *clientTracker) contains(check *http.Client) bool {
 	c.Lock()
 	defer c.Unlock()
 	for x := range c.clients {
-		if ohhhWOOOOOOOW == c.clients[x] {
+		if check == c.clients[x] {
 			return true
 		}
 	}

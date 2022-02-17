@@ -515,7 +515,7 @@ func (b *Binance) UpdateTickers(ctx context.Context, a asset.Item) error {
 			}
 		}
 	case asset.USDTMarginedFutures:
-		tick, err := b.U24HTickerPriceChangeStats(ctx, currency.Pair{})
+		tick, err := b.U24HTickerPriceChangeStats(ctx, currency.EMPTYPAIR)
 		if err != nil {
 			return err
 		}
@@ -542,7 +542,7 @@ func (b *Binance) UpdateTickers(ctx context.Context, a asset.Item) error {
 			}
 		}
 	case asset.CoinMarginedFutures:
-		tick, err := b.GetFuturesSwapTickerChangeStats(ctx, currency.Pair{}, "")
+		tick, err := b.GetFuturesSwapTickerChangeStats(ctx, currency.EMPTYPAIR, "")
 		if err != nil {
 			return err
 		}
@@ -1330,7 +1330,7 @@ func (b *Binance) GetActiveOrders(ctx context.Context, req *order.GetOrdersReque
 	}
 	if len(req.Pairs) == 0 || len(req.Pairs) >= 40 {
 		// sending an empty currency pair retrieves data for all currencies
-		req.Pairs = append(req.Pairs, currency.Pair{})
+		req.Pairs = append(req.Pairs, currency.EMPTYPAIR)
 	}
 	var orders []order.Detail
 	for i := range req.Pairs {
@@ -1841,7 +1841,7 @@ func (b *Binance) GetAvailableTransferChains(ctx context.Context, cryptocurrency
 func (b *Binance) FormatExchangeCurrency(p currency.Pair, a asset.Item) (currency.Pair, error) {
 	pairFmt, err := b.GetPairFormat(a, true)
 	if err != nil {
-		return currency.Pair{}, err
+		return currency.EMPTYPAIR, err
 	}
 	if a == asset.USDTMarginedFutures {
 		return b.formatUSDTMarginedFuturesPair(p, pairFmt), nil

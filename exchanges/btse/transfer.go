@@ -148,7 +148,7 @@ func (t TransferWithdrawalFee) GetFee(ctx context.Context, amount float64, desti
 		return potentialFee, nil
 	}
 	// attempt to attain correct foreign exchange value compared to USD
-	fxRate, err := currency.ConvertCurrency(1, t.Code, currency.USD)
+	fxRate, err := currency.ConvertFiat(1, t.Code, currency.USD)
 	if err != nil {
 		return decimal.Zero, err
 	}
@@ -230,7 +230,7 @@ func (t TransferDepositFee) GetFee(ctx context.Context, amount float64, destinat
 		return decimal.Zero, nil
 	}
 	// attempt to attain correct foreign exchange value compared to USD
-	fxRate, err := currency.ConvertCurrency(1, t.Code, currency.USD)
+	fxRate, err := currency.ConvertFiat(1, t.Code, currency.USD)
 	if err != nil {
 		return decimal.Zero, err
 	}

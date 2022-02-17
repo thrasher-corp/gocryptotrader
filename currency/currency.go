@@ -3,6 +3,7 @@ package currency
 import (
 	"errors"
 	"fmt"
+	"strings"
 )
 
 var errEmptyPairString = errors.New("empty pair string")
@@ -63,9 +64,14 @@ func UpdateCurrencies(c Currencies, isCryptocurrency bool) {
 	storage.UpdateEnabledFiatCurrencies(c)
 }
 
-// ConvertCurrency converts an amount from one currency to another
-func ConvertCurrency(amount float64, from, to Code) (float64, error) {
+// ConvertFiat converts an fiat amount from one currency to another
+func ConvertFiat(amount float64, from, to Code) (float64, error) {
 	return storage.ConvertCurrency(amount, from, to)
+}
+
+// GetForeignExchangeRate returns the foreign exchange rate for a fiat pair.
+func GetForeignExchangeRate(quotation Pair) (float64, error) {
+	return storage.ConvertCurrency(1, quotation.Base, quotation.Quote)
 }
 
 // SeedForeignExchangeData seeds FX data with the currencies supplied
@@ -79,7 +85,7 @@ func GetTotalMarketCryptocurrencies() ([]Code, error) {
 }
 
 // RunStorageUpdater runs a new foreign exchange updater instance
-func RunStorageUpdater(o BotOverrides, m *MainConfiguration, filepath string) error {
+func RunStorageUpdater(o BotOverrides, m *Config, filepath string) error {
 	return storage.RunUpdater(o, m, filepath)
 }
 
@@ -101,7 +107,7 @@ func CopyPairFormat(p Pair, pairs []Pair, exact bool) Pair {
 			return pairs[x]
 		}
 	}
-	return Pair{}
+	return EMPTYPAIR
 }
 
 // FormatPairs formats a string array to a list of currency pairs with the
@@ -126,4 +132,16 @@ func FormatPairs(pairs []string, delimiter, index string) (Pairs, error) {
 		}
 	}
 	return result, nil
+}
+
+// IsEnabled returns if the individual foreign exchange config setting is
+// enabled
+func (settings AllFXSettings) IsEnabled(name string) bool {
+	for x := range settings {
+		if !strings.EqualFold(settings[x].Name, name) {
+			continue
+		}
+		return settings[x].Enabled
+	}
+	return false
 }

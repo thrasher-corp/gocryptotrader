@@ -99,7 +99,7 @@ func TestWrapper_CancelOrder(t *testing.T) {
 	}
 
 	_, err = testWrapper.CancelOrder(context.Background(),
-		exchName, orderID, currency.Pair{}, assetType)
+		exchName, orderID, currency.EMPTYPAIR, assetType)
 	if err != nil {
 		t.Error(err)
 	}
@@ -163,13 +163,13 @@ func TestWrapper_QueryOrder(t *testing.T) {
 	t.Parallel()
 
 	_, err := testWrapper.QueryOrder(context.Background(),
-		exchName, orderID, currency.Pair{}, assetType)
+		exchName, orderID, currency.EMPTYPAIR, assetType)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	_, err = testWrapper.QueryOrder(context.Background(),
-		exchError.String(), "", currency.Pair{}, assetType)
+		exchError.String(), "", currency.EMPTYPAIR, assetType)
 	if err == nil {
 		t.Fatal("expected QueryOrder to return error on invalid name")
 	}

@@ -1065,10 +1065,10 @@ func (f fakeDepositExchange) GetAvailableTransferChains(_ context.Context, c cur
 	if f.ThrowTransferChainError {
 		return nil, errors.New("unable to get available transfer chains")
 	}
-	if c.Match(currency.XRP) {
+	if c.Equal(currency.XRP) {
 		return nil, nil
 	}
-	if c.Match(currency.USDT) {
+	if c.Equal(currency.USDT) {
 		return []string{"sol", "btc", "usdt"}, nil
 	}
 	return []string{"BITCOIN"}, nil

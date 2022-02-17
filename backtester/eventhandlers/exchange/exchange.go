@@ -318,7 +318,7 @@ func (e *Exchange) SetExchangeAssetCurrencySettings(exch string, a asset.Item, c
 	}
 
 	for i := range e.CurrencySettings {
-		if e.CurrencySettings[i].Pair == cp &&
+		if e.CurrencySettings[i].Pair.Equal(cp) &&
 			e.CurrencySettings[i].Asset == a &&
 			exch == e.CurrencySettings[i].Exchange {
 			e.CurrencySettings[i] = *c

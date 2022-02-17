@@ -374,7 +374,7 @@ func TestFilterOrdersByCurrencies(t *testing.T) {
 	if len(orders) != 1 {
 		t.Errorf("Orders failed to be filtered. Expected %v, received %v", 1, len(orders))
 	}
-	currencies = append(currencies, currency.Pair{})
+	currencies = append(currencies, currency.EMPTYPAIR)
 	FilterOrdersByCurrencies(&orders, currencies)
 	if len(orders) != 1 {
 		t.Errorf("Orders failed to be filtered. Expected %v, received %v", 1, len(orders))
@@ -718,7 +718,7 @@ func TestUpdateOrderFromModify(t *testing.T) {
 		AssetType:         "",
 		Date:              time.Time{},
 		LastUpdated:       time.Time{},
-		Pair:              currency.Pair{},
+		Pair:              currency.EMPTYPAIR,
 		Trades:            nil,
 	}
 	updated := time.Now()
@@ -910,7 +910,7 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 		AssetType:         "",
 		Date:              time.Time{},
 		LastUpdated:       time.Time{},
-		Pair:              currency.Pair{},
+		Pair:              currency.EMPTYPAIR,
 		Trades:            nil,
 	}
 	updated := time.Now()

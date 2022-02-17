@@ -846,7 +846,7 @@ func (o *OKGroup) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 							subscriptions = append(subscriptions,
 								stream.ChannelSubscription{
 									Channel:  channels[y],
-									Currency: currency.NewPair(newP.Base, currency.Code{}),
+									Currency: currency.NewPair(newP.Base, currency.EMPTYCODE),
 									Asset:    asset.Futures,
 								})
 							futuresAccountCodes = append(futuresAccountCodes, newP.Base)

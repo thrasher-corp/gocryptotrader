@@ -185,15 +185,16 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 	case SyncManagerName:
 		if enable {
 			if bot.currencyPairSyncer == nil {
-				exchangeSyncCfg := &Config{
-					SyncTicker:           bot.Settings.EnableTickerSyncing,
-					SyncOrderbook:        bot.Settings.EnableOrderbookSyncing,
-					SyncTrades:           bot.Settings.EnableTradeSyncing,
-					SyncContinuously:     bot.Settings.SyncContinuously,
-					NumWorkers:           bot.Settings.SyncWorkers,
-					Verbose:              bot.Settings.Verbose,
-					SyncTimeoutREST:      bot.Settings.SyncTimeoutREST,
-					SyncTimeoutWebsocket: bot.Settings.SyncTimeoutWebsocket,
+				exchangeSyncCfg := &SyncManagerConfig{
+					SynchronizeTicker:       bot.Settings.EnableTickerSyncing,
+					SynchronizeOrderbook:    bot.Settings.EnableOrderbookSyncing,
+					SynchronizeTrades:       bot.Settings.EnableTradeSyncing,
+					SynchronizeContinuously: bot.Settings.SyncContinuously,
+					TimeoutREST:             bot.Settings.SyncTimeoutREST,
+					TimeoutWebsocket:        bot.Settings.SyncTimeoutWebsocket,
+					NumWorkers:              bot.Settings.SyncWorkersCount,
+					FiatDisplayCurrency:     bot.Config.Currency.FiatDisplayCurrency,
+					Verbose:                 bot.Settings.Verbose,
 				}
 				bot.currencyPairSyncer, err = setupSyncManager(
 					exchangeSyncCfg,
@@ -390,9 +391,9 @@ func (bot *Engine) GetSpecificAvailablePairs(enabledExchangesOnly, fiatPairs, in
 	for x := range supportedPairs {
 		if fiatPairs {
 			if supportedPairs[x].IsCryptoFiatPair() &&
-				!supportedPairs[x].ContainsCurrency(currency.USDT) ||
+				!supportedPairs[x].Contains(currency.USDT) ||
 				(includeUSDT &&
-					supportedPairs[x].ContainsCurrency(currency.USDT) &&
+					supportedPairs[x].Contains(currency.USDT) &&
 					supportedPairs[x].IsCryptoPair()) {
 				if pairList.Contains(supportedPairs[x], false) {
 					continue
@@ -478,9 +479,7 @@ func GetRelatableCryptocurrencies(p currency.Pair) currency.Pairs {
 	cryptocurrencies := currency.GetCryptocurrencies()
 	for x := range cryptocurrencies {
 		newPair := currency.NewPair(p.Base, cryptocurrencies[x])
-		if newPair.IsInvalid() ||
-			newPair.Equal(p) ||
-			pairs.Contains(newPair, false) {
+		if newPair.IsInvalid() || newPair.Equal(p) || pairs.Contains(newPair, false) {
 			continue
 		}
 		pairs = append(pairs, newPair)
@@ -495,7 +494,7 @@ func GetRelatableFiatCurrencies(p currency.Pair) currency.Pairs {
 	fiatCurrencies := currency.GetFiatCurrencies()
 	for x := range fiatCurrencies {
 		newPair := currency.NewPair(p.Base, fiatCurrencies[x])
-		if newPair.Base.Match(newPair.Quote) ||
+		if newPair.Base.Equal(newPair.Quote) ||
 			newPair.Equal(p) ||
 			pairs.Contains(newPair, false) {
 			continue
@@ -524,17 +523,17 @@ func GetRelatableCurrencies(p currency.Pair, incOrig, incUSDT bool) currency.Pai
 		}
 
 		first := currency.GetTranslation(p.Base)
-		if first != p.Base {
+		if !first.Equal(p.Base) {
 			addPair(currency.NewPair(first, p.Quote))
 
 			second := currency.GetTranslation(p.Quote)
-			if second != p.Quote {
+			if !second.Equal(p.Quote) {
 				addPair(currency.NewPair(first, second))
 			}
 		}
 
 		second := currency.GetTranslation(p.Quote)
-		if second != p.Quote {
+		if !second.Equal(p.Quote) {
 			addPair(currency.NewPair(p.Base, second))
 		}
 	}

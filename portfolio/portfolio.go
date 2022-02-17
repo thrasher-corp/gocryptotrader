@@ -113,7 +113,7 @@ func (b *Base) GetAddressBalance(address, description string, coinType currency.
 	for x := range b.Addresses {
 		if b.Addresses[x].Address == address &&
 			b.Addresses[x].Description == description &&
-			b.Addresses[x].CoinType == coinType {
+			b.Addresses[x].CoinType.Equal(coinType) {
 			return b.Addresses[x].Balance, true
 		}
 	}
@@ -145,7 +145,7 @@ func (b *Base) AddressExists(address string) bool {
 // associated with the portfolio base
 func (b *Base) ExchangeAddressExists(exchangeName string, coinType currency.Code) bool {
 	for x := range b.Addresses {
-		if b.Addresses[x].Address == exchangeName && b.Addresses[x].CoinType == coinType {
+		if b.Addresses[x].Address == exchangeName && b.Addresses[x].CoinType.Equal(coinType) {
 			return true
 		}
 	}
@@ -176,7 +176,7 @@ func (b *Base) UpdateAddressBalance(address string, amount float64) {
 // RemoveExchangeAddress removes an exchange address from the portfolio.
 func (b *Base) RemoveExchangeAddress(exchangeName string, coinType currency.Code) {
 	for x := range b.Addresses {
-		if b.Addresses[x].Address == exchangeName && b.Addresses[x].CoinType == coinType {
+		if b.Addresses[x].Address == exchangeName && b.Addresses[x].CoinType.Equal(coinType) {
 			b.Addresses = append(b.Addresses[:x], b.Addresses[x+1:]...)
 			return
 		}
@@ -187,7 +187,7 @@ func (b *Base) RemoveExchangeAddress(exchangeName string, coinType currency.Code
 // against correct exchangeName and coinType.
 func (b *Base) UpdateExchangeAddressBalance(exchangeName string, coinType currency.Code, balance float64) {
 	for x := range b.Addresses {
-		if b.Addresses[x].Address == exchangeName && b.Addresses[x].CoinType == coinType {
+		if b.Addresses[x].Address == exchangeName && b.Addresses[x].CoinType.Equal(coinType) {
 			b.Addresses[x].Balance = balance
 		}
 	}
@@ -237,7 +237,7 @@ func (b *Base) RemoveAddress(address, description string, coinType currency.Code
 
 	for x := range b.Addresses {
 		if b.Addresses[x].Address == address &&
-			b.Addresses[x].CoinType == coinType &&
+			b.Addresses[x].CoinType.Equal(coinType) &&
 			b.Addresses[x].Description == description {
 			b.Addresses = append(b.Addresses[:x], b.Addresses[x+1:]...)
 			return nil

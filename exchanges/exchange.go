@@ -43,8 +43,6 @@ const (
 var (
 	// ErrAuthenticatedRequestWithoutCredentialsSet error message for authenticated request without credentials set
 	ErrAuthenticatedRequestWithoutCredentialsSet = errors.New("authenticated HTTP request called but not supported due to unset/default API keys")
-	// ErrPairNotFound is an error message for when unable to find a currency pair
-	ErrPairNotFound = errors.New("pair not found")
 
 	errEndpointStringNotFound = errors.New("endpoint string not found")
 )
@@ -394,17 +392,16 @@ func (b *Base) GetEnabledPairs(a asset.Item) (currency.Pairs, error) {
 // GetRequestFormattedPairAndAssetType is a method that returns the enabled currency pair of
 // along with its asset type. Only use when there is no chance of the same name crossing over
 func (b *Base) GetRequestFormattedPairAndAssetType(p string) (currency.Pair, asset.Item, error) {
-	assetTypes := b.GetAssetTypes(false)
-	var response currency.Pair
+	assetTypes := b.GetAssetTypes(true)
 	for i := range assetTypes {
 		format, err := b.GetPairFormat(assetTypes[i], true)
 		if err != nil {
-			return response, assetTypes[i], err
+			return currency.EMPTYPAIR, assetTypes[i], err
 		}
 
 		pairs, err := b.CurrencyPairs.GetPairs(assetTypes[i], true)
 		if err != nil {
-			return response, assetTypes[i], err
+			return currency.EMPTYPAIR, assetTypes[i], err
 		}
 
 		for j := range pairs {
@@ -414,8 +411,7 @@ func (b *Base) GetRequestFormattedPairAndAssetType(p string) (currency.Pair, ass
 			}
 		}
 	}
-	return response, "",
-		fmt.Errorf("%s %w", p, ErrPairNotFound)
+	return currency.EMPTYPAIR, "", fmt.Errorf("%s %w", p, currency.ErrPairNotFound)
 }
 
 // GetAvailablePairs is a method that returns the available currency pairs
@@ -488,7 +484,7 @@ func (b *Base) FormatExchangeCurrencies(pairs []currency.Pair, assetType asset.I
 func (b *Base) FormatExchangeCurrency(p currency.Pair, assetType asset.Item) (currency.Pair, error) {
 	pairFmt, err := b.GetPairFormat(assetType, true)
 	if err != nil {
-		return currency.Pair{}, err
+		return currency.EMPTYPAIR, err
 	}
 	return p.Format(pairFmt.Delimiter, pairFmt.Uppercase), nil
 }

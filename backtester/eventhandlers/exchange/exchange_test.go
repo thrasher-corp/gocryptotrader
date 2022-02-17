@@ -44,7 +44,7 @@ func TestReset(t *testing.T) {
 func TestSetCurrency(t *testing.T) {
 	t.Parallel()
 	e := Exchange{}
-	e.SetExchangeAssetCurrencySettings("", "", currency.Pair{}, &Settings{})
+	e.SetExchangeAssetCurrencySettings("", "", currency.EMPTYPAIR, &Settings{})
 	if len(e.CurrencySettings) != 0 {
 		t.Error("expected 0")
 	}
@@ -268,7 +268,7 @@ func TestExecuteOrder(t *testing.T) {
 	d := &kline.DataFromKline{
 		Item: gctkline.Item{
 			Exchange: "",
-			Pair:     currency.Pair{},
+			Pair:     currency.EMPTYPAIR,
 			Asset:    "",
 			Interval: 0,
 			Candles: []gctkline.Candle{
@@ -391,7 +391,7 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 	d := &kline.DataFromKline{
 		Item: gctkline.Item{
 			Exchange: "",
-			Pair:     currency.Pair{},
+			Pair:     currency.EMPTYPAIR,
 			Asset:    "",
 			Interval: 0,
 			Candles: []gctkline.Candle{

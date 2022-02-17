@@ -949,10 +949,10 @@ func outputToConsole(exchangeResponses []ExchangeResponses) {
 // ensure format currency pair is used throughout the code base.
 func disruptFormatting(p currency.Pair) (currency.Pair, error) {
 	if p.Base.IsEmpty() {
-		return currency.Pair{}, errors.New("cannot disrupt formatting as base is not populated")
+		return currency.EMPTYPAIR, errors.New("cannot disrupt formatting as base is not populated")
 	}
 	if p.Quote.IsEmpty() {
-		return currency.Pair{}, errors.New("cannot disrupt formatting as quote is not populated")
+		return currency.EMPTYPAIR, errors.New("cannot disrupt formatting as quote is not populated")
 	}
 
 	return currency.Pair{

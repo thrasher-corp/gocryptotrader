@@ -15,7 +15,7 @@ const (
 	Stable
 
 	UnsetRoleString      = "roleUnset"
-	FiatCurrencyString   = "fiatCurrency"
+	FiatCurrencyString   = "fiatcurrency"
 	CryptocurrencyString = "cryptocurrency"
 	TokenString          = "token"
 	ContractString       = "contract"
@@ -36,7 +36,10 @@ type BaseCodes struct {
 // Code defines an ISO 4217 fiat currency or unofficial cryptocurrency code
 // string
 type Code struct {
-	Item      *Item
+	Item *Item
+	// TODO: Below will force the use of the Equal method for comparison. Big
+	// job to update all maps and instances through the code base.
+	// _         []struct{}
 	UpperCase bool
 }
 
@@ -50,9 +53,15 @@ type Item struct {
 	// rely on the strings package to upper and lower strings when it is not
 	// needed
 	Lower      string `json:"-"`
-	Role       Role   `json:"-"`
+	Role       Role   `json:"role"`
 	AssocChain string `json:"associatedBlockchain,omitempty"`
 }
+
+// Lock implements the sync.Locker interface and forces a govet check nocopy
+func (*Item) Lock() {}
+
+// Unlock implements the sync.Locker interface and forces a govet check nocopy
+func (*Item) Unlock() {}
 
 // Const declarations for individual currencies/tokens/fiat
 // An ever growing list. Cares not for equivalence, just is

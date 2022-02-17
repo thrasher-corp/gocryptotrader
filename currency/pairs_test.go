@@ -44,11 +44,15 @@ func TestPairsString(t *testing.T) {
 }
 
 func TestPairsFromString(t *testing.T) {
-	if _, err := NewPairsFromString(""); !errors.Is(err, errCannotCreatePair) {
+	if _, err := NewPairsFromString("", ""); !errors.Is(err, errNoDelimiter) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errNoDelimiter)
+	}
+
+	if _, err := NewPairsFromString("", ","); !errors.Is(err, errCannotCreatePair) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errCannotCreatePair)
 	}
 
-	pairs, err := NewPairsFromString("ALGO-AUD,BAT-AUD,BCH-AUD,BSV-AUD,BTC-AUD,COMP-AUD,ENJ-AUD,ETC-AUD,ETH-AUD,ETH-BTC,GNT-AUD,LINK-AUD,LTC-AUD,LTC-BTC,MCAU-AUD,OMG-AUD,POWR-AUD,UNI-AUD,USDT-AUD,XLM-AUD,XRP-AUD,XRP-BTC")
+	pairs, err := NewPairsFromString("ALGO-AUD,BAT-AUD,BCH-AUD,BSV-AUD,BTC-AUD,COMP-AUD,ENJ-AUD,ETC-AUD,ETH-AUD,ETH-BTC,GNT-AUD,LINK-AUD,LTC-AUD,LTC-BTC,MCAU-AUD,OMG-AUD,POWR-AUD,UNI-AUD,USDT-AUD,XLM-AUD,XRP-AUD,XRP-BTC", ",")
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
@@ -199,8 +203,7 @@ func TestGetPairsByFilter(t *testing.T) {
 
 	filtered := pairs.GetPairsByFilter(LTC)
 	if !filtered.Contains(NewPair(LTC, USDT), true) &&
-		!filtered.Contains(NewPair(LTC, USD), true) &&
-		filtered.Contains(NewPair(BTC, USD), true) {
+		!filtered.Contains(NewPair(LTC, USD), true) {
 		t.Error("TestRemovePairsByFilter unexpected result")
 	}
 }
@@ -264,9 +267,9 @@ func TestContains(t *testing.T) {
 	}
 }
 
-func TestDerivePairFrom(t *testing.T) {
+func TestDeriveFrom(t *testing.T) {
 	t.Parallel()
-	_, err := Pairs{}.DerivePairFrom("")
+	_, err := Pairs{}.DeriveFrom("")
 	if !errors.Is(err, errPairsEmpty) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errPairsEmpty)
 	}
@@ -276,30 +279,25 @@ func TestDerivePairFrom(t *testing.T) {
 		NewPair(USDC, USD),
 		NewPair(BTC, LTC),
 		NewPair(LTC, SAFEMARS),
-		NewPairWithDelimiter(SAFEMARS.String(), "LTC", "-"),
 	}
 
-	_, err = testCases.DerivePairFrom("")
+	_, err = testCases.DeriveFrom("")
 	if !errors.Is(err, errSymbolEmpty) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errSymbolEmpty)
 	}
 
-	_, err = testCases.DerivePairFrom("btcUSD")
+	_, err = testCases.DeriveFrom("btcUSD")
 	if !errors.Is(err, ErrPairNotFound) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, ErrPairNotFound)
 	}
 
-	got, err := testCases.DerivePairFrom("USDCUSD")
+	got, err := testCases.DeriveFrom("USDCUSD")
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	if got.Upper().Base != USDC {
-		t.Fatalf("received: '%v' but expected: '%v'", got.Upper().Base, USD)
-	}
-
-	if got.Upper().Quote != USD {
-		t.Fatalf("received: '%v' but expected: '%v'", got.Upper().Quote, USDC)
+	if got.Upper().String() != "USDCUSD" {
+		t.Fatalf("received: '%v' but expected: '%v'", got.Upper().String(), "USDCUSD")
 	}
 }
 
@@ -351,7 +349,7 @@ func contains(t *testing.T, c1, c2 []Code) {
 codes:
 	for x := range c1 {
 		for y := range c2 {
-			if c1[x].Match(c2[y]) {
+			if c1[x].Equal(c2[y]) {
 				continue codes
 			}
 		}
@@ -359,8 +357,8 @@ codes:
 	}
 }
 
-// 4526858	       280.2 ns/op	      48 B/op	       1 allocs/op
-// Prior  2575473	       474.2 ns/op	     112 B/op	       3 allocs/op
+// Current: 6176922	       260.0 ns/op	      48 B/op	       1 allocs/op
+// Prior: 2575473	       474.2 ns/op	     112 B/op	       3 allocs/op
 func BenchmarkGetCrypto(b *testing.B) {
 	pairs := Pairs{
 		NewPair(BTC, USD),
@@ -403,5 +401,107 @@ func TestGetMatch(t *testing.T) {
 	}
 	if !match.Equal(expected) {
 		t.Fatalf("received: '%v' but expected '%v'", match, expected)
+	}
+}
+
+func TestGetStablesMatch(t *testing.T) {
+	pairs := Pairs{
+		NewPair(BTC, USD),
+		NewPair(LTC, USD),
+		NewPair(USD, NZD),
+		NewPair(LTC, USDT),
+		NewPair(LTC, DAI),
+		NewPair(USDT, XRP),
+		NewPair(DAI, XRP),
+	}
+
+	stablePairs := pairs.GetStablesMatch(BTC)
+	if len(stablePairs) != 0 {
+		t.Fatal("unexpected value")
+	}
+
+	stablePairs = pairs.GetStablesMatch(USD)
+	if len(stablePairs) != 0 {
+		t.Fatal("unexpected value")
+	}
+
+	stablePairs = pairs.GetStablesMatch(LTC)
+	if len(stablePairs) != 2 {
+		t.Fatal("unexpected value")
+	}
+
+	if !stablePairs[0].Equal(NewPair(LTC, USDT)) {
+		t.Fatal("unexpected value")
+	}
+
+	if !stablePairs[1].Equal(NewPair(LTC, DAI)) {
+		t.Fatal("unexpected value")
+	}
+
+	stablePairs = pairs.GetStablesMatch(XRP)
+	if len(stablePairs) != 2 {
+		t.Fatal("unexpected value")
+	}
+
+	if !stablePairs[0].Equal(NewPair(USDT, XRP)) {
+		t.Fatal("unexpected value")
+	}
+
+	if !stablePairs[1].Equal(NewPair(DAI, XRP)) {
+		t.Fatal("unexpected value")
+	}
+}
+
+// Current: 5594431	       217.4 ns/op	     168 B/op	       8 allocs/op
+// Prev:  3490366	       373.4 ns/op	     296 B/op	      11 allocs/op
+func BenchmarkPairsString(b *testing.B) {
+	pairs := Pairs{
+		NewPair(BTC, USD),
+		NewPair(LTC, USD),
+		NewPair(USD, NZD),
+		NewPair(LTC, USDT),
+		NewPair(LTC, DAI),
+		NewPair(USDT, XRP),
+		NewPair(DAI, XRP),
+	}
+
+	for x := 0; x < b.N; x++ {
+		_ = pairs.Strings()
+	}
+}
+
+// Current:  6691011	       184.6 ns/op	     352 B/op	       1 allocs/op
+// Prev:  3746151	       317.1 ns/op	     720 B/op	       4 allocs/op
+func BenchmarkPairsFormat(b *testing.B) {
+	pairs := Pairs{
+		NewPair(BTC, USD),
+		NewPair(LTC, USD),
+		NewPair(USD, NZD),
+		NewPair(LTC, USDT),
+		NewPair(LTC, DAI),
+		NewPair(USDT, XRP),
+		NewPair(DAI, XRP),
+	}
+
+	for x := 0; x < b.N; x++ {
+		_ = pairs.Format("/", "", false)
+	}
+}
+
+// current: 13075897	       100.4 ns/op	     352 B/op	       1 allocs/o
+// prev: 8188616	       148.0 ns/op	     336 B/op	       3 allocs/op
+func BenchmarkRemovePairsByFilter(b *testing.B) {
+	pairs := Pairs{
+		NewPair(BTC, USD),
+		NewPair(LTC, USD),
+		NewPair(USD, NZD),
+		NewPair(LTC, USDT),
+		NewPair(LTC, DAI),
+		NewPair(USDT, XRP),
+		NewPair(DAI, XRP),
+	}
+
+	for x := 0; x < b.N; x++ {
+		_ = pairs.RemovePairsByFilter(USD)
 	}
 }
