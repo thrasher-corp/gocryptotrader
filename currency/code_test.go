@@ -2,6 +2,7 @@ package currency
 
 import (
 	"encoding/json"
+	"errors"
 	"testing"
 )
 
@@ -38,7 +39,7 @@ func TestRoleString(t *testing.T) {
 
 	var random Role = 1 << 7
 
-	if random.String() != "UNKNOWN" {
+	if random.String() != UnsetRoleString {
 		t.Errorf("Role String() error expected %s but received %s",
 			"UNKNOWN",
 			random)
@@ -51,7 +52,7 @@ func TestRoleMarshalJSON(t *testing.T) {
 		t.Error("Role MarshalJSON() error", err)
 	}
 
-	if expected := `"fiatCurrency"`; string(d) != expected {
+	if expected := `"fiatcurrency"`; string(d) != expected {
 		t.Errorf("Role MarshalJSON() error expected %s but received %s",
 			expected,
 			string(d))
@@ -66,6 +67,7 @@ func TestRoleUnmarshalJSON(t *testing.T) {
 		RoleThree   Role `json:"RoleThree"`
 		RoleFour    Role `json:"RoleFour"`
 		RoleFive    Role `json:"RoleFive"`
+		RoleSix     Role `json:"RoleSix"`
 		RoleUnknown Role `json:"RoleUnknown"`
 	}
 
@@ -75,6 +77,7 @@ func TestRoleUnmarshalJSON(t *testing.T) {
 		RoleThree: Fiat,
 		RoleFour:  Token,
 		RoleFive:  Contract,
+		RoleSix:   Stable,
 	}
 
 	e, err := json.Marshal(1337)
@@ -138,6 +141,27 @@ func TestRoleUnmarshalJSON(t *testing.T) {
 	if err == nil {
 		t.Error("Expected unmarshall error")
 	}
+
+	err = unhandled.UnmarshalJSON([]byte(`1336`))
+	if err == nil {
+		t.Error("Expected unmarshall error")
+	}
+}
+
+func (b *BaseCodes) assertRole(t *testing.T, c Code, r Role) {
+	t.Helper()
+	b.mtx.Lock()
+	defer b.mtx.Unlock()
+	for x := range b.Items {
+		if b.Items[x] != c.Item {
+			continue
+		}
+		if b.Items[x].Role != r {
+			t.Fatal("unexpected role")
+		}
+		return
+	}
+	t.Fatal("code pointer not found")
 }
 
 func TestBaseCode(t *testing.T) {
@@ -147,35 +171,66 @@ func TestBaseCode(t *testing.T) {
 			main.HasData())
 	}
 
-	catsCode := main.Register("CATS")
+	catsUnset := main.Register("CATS", Unset)
+	main.assertRole(t, catsUnset, Unset)
 	if !main.HasData() {
 		t.Errorf("BaseCode HasData() error expected true but received %v",
 			main.HasData())
 	}
 
-	if !main.Register("CATS").Match(catsCode) {
+	// Changes unset to fiat
+	catsFiat := main.Register("CATS", Fiat)
+	main.assertRole(t, catsUnset, Fiat)
+
+	// Register as unset, will return first match.
+	otherFiatCat := main.Register("CATS", Unset)
+	main.assertRole(t, otherFiatCat, Fiat)
+	if !otherFiatCat.Equal(catsFiat) {
 		t.Errorf("BaseCode Match() error expected true but received %v",
 			false)
 	}
 
-	if main.Register("DOGS").Match(catsCode) {
+	// Register as fiat, will return fiat match.
+	thatOtherFiatCat := main.Register("CATS", Fiat)
+	main.assertRole(t, otherFiatCat, Fiat)
+	if !thatOtherFiatCat.Equal(catsFiat) {
+		t.Errorf("BaseCode Match() error expected true but received %v",
+			false)
+	}
+
+	// Register as stable, will return a different currency with the same
+	// currency code.
+	superStableCatNoShakes := main.Register("CATS", Stable)
+	main.assertRole(t, superStableCatNoShakes, Stable)
+	if superStableCatNoShakes.Equal(catsFiat) {
+		t.Errorf("BaseCode Match() error expected true but received %v",
+			true)
+	}
+
+	// Due to the role being unset originally, this will be set to Fiat when
+	// explicitly set.
+	if !catsUnset.Equal(catsFiat) {
+		t.Fatal("both should be the same")
+	}
+
+	if main.Register("DOGS", Unset).Equal(catsUnset) {
 		t.Errorf("BaseCode Match() error expected false but received %v",
 			true)
 	}
 
 	loadedCurrencies := main.GetCurrencies()
 
-	if loadedCurrencies.Contains(main.Register("OWLS")) {
+	if loadedCurrencies.Contains(main.Register("OWLS", Unset)) {
 		t.Errorf("BaseCode Contains() error expected false but received %v",
 			true)
 	}
 
-	if !loadedCurrencies.Contains(catsCode) {
+	if !loadedCurrencies.Contains(catsFiat) {
 		t.Errorf("BaseCode Contains() error expected true but received %v",
 			false)
 	}
 
-	main.Register("XBTUSD")
+	main.Register("XBTUSD", Unset)
 
 	err := main.UpdateCurrency("Bitcoin Perpetual",
 		"XBTUSD",
@@ -186,19 +241,24 @@ func TestBaseCode(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	main.Register("BTC")
+	main.Register("BTC", Unset)
+	err = main.UpdateCurrency("Bitcoin", "BTC", "", 1337, Unset)
+	if !errors.Is(err, errRoleUnset) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errRoleUnset)
+	}
+
 	err = main.UpdateCurrency("Bitcoin", "BTC", "", 1337, Cryptocurrency)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	main.Register("AUD")
+	aud := main.Register("AUD", Unset)
 	err = main.UpdateCurrency("Unreal Dollar", "AUD", "", 1111, Fiat)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if main.Items[5].FullName != "Unreal Dollar" {
+	if aud.Item.FullName != "Unreal Dollar" {
 		t.Error("Expected fullname to update for AUD")
 	}
 
@@ -207,22 +267,22 @@ func TestBaseCode(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	main.Items[5].Role = Unset
+	aud.Item.Role = Unset
 	err = main.UpdateCurrency("Australian Dollar", "AUD", "", 1336, Fiat)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if main.Items[5].Role != Fiat {
+	if aud.Item.Role != Fiat {
 		t.Error("Expected role to change to Fiat")
 	}
 
-	main.Register("PPT")
+	main.Register("PPT", Unset)
 	err = main.UpdateCurrency("Populous", "PPT", "ETH", 1335, Token)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	contract := main.Register("XBTUSD")
+	contract := main.Register("XBTUSD", Unset)
 
 	if contract.IsFiatCurrency() {
 		t.Errorf("BaseCode IsFiatCurrency() error expected false but received %v",
@@ -230,18 +290,28 @@ func TestBaseCode(t *testing.T) {
 	}
 
 	if contract.IsCryptocurrency() {
-		t.Errorf("BaseCode IsFiatCurrency() error expected false but received %v",
+		t.Errorf("BaseCode IsCryptocurrency() error expected false but received %v",
 			true)
 	}
 
-	if contract.IsDefaultFiatCurrency() {
-		t.Errorf("BaseCode IsDefaultFiatCurrency() error expected false but received %v",
-			true)
+	err = main.LoadItem(nil)
+	if !errors.Is(err, errItemIsNil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errItemIsNil)
 	}
 
-	if contract.IsDefaultFiatCurrency() {
-		t.Errorf("BaseCode IsFiatCurrency() error expected false but received %v",
-			true)
+	err = main.LoadItem(&Item{})
+	if !errors.Is(err, errItemIsEmpty) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errItemIsEmpty)
+	}
+
+	err = main.LoadItem(&Item{
+		ID:       0,
+		FullName: "Cardano",
+		Role:     Cryptocurrency,
+		Symbol:   "ADA",
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	err = main.LoadItem(&Item{
@@ -269,7 +339,7 @@ func TestBaseCode(t *testing.T) {
 			len(full.Cryptocurrency))
 	}
 
-	if len(full.FiatCurrency) != 1 {
+	if len(full.FiatCurrency) != 2 {
 		t.Errorf("BaseCode GetFullCurrencyData() error expected 1 but received %v",
 			len(full.FiatCurrency))
 	}
@@ -279,7 +349,7 @@ func TestBaseCode(t *testing.T) {
 			len(full.Token))
 	}
 
-	if len(full.UnsetCurrency) != 3 {
+	if len(full.UnsetCurrency) != 2 {
 		t.Errorf("BaseCode GetFullCurrencyData() error expected 3 but received %v",
 			len(full.UnsetCurrency))
 	}
@@ -304,24 +374,25 @@ func TestBaseCode(t *testing.T) {
 	}
 
 	main.Items[0].FullName = "Hello"
-	err = main.UpdateCurrency("MEWOW", "CATS", "", 1338, Cryptocurrency)
+	err = main.UpdateCurrency("MEWOW", "CATS", "", 1338, Fiat)
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	if main.Items[0].FullName != "MEWOW" {
 		t.Error("Fullname not updated")
 	}
-	err = main.UpdateCurrency("MEWOW", "CATS", "", 1338, Cryptocurrency)
+	err = main.UpdateCurrency("MEWOW", "CATS", "", 1338, Fiat)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = main.UpdateCurrency("WOWCATS", "CATS", "", 3, Token)
+	err = main.UpdateCurrency("WOWCATS", "CATS", "", 3, Fiat)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// Creates a new item under a different currency role
-	if main.Items[9].ID != 3 {
+	if main.Items[0].ID != 3 {
 		t.Error("ID not updated")
 	}
 
@@ -381,6 +452,15 @@ func TestCodeUnmarshalJSON(t *testing.T) {
 			expected,
 			unmarshalHere)
 	}
+
+	encoded, err = json.Marshal(1336) // :'(
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = json.Unmarshal(encoded, &unmarshalHere)
+	if err == nil {
+		t.Fatal("expected error")
+	}
 }
 
 func TestCodeMarshalJSON(t *testing.T) {
@@ -406,7 +486,7 @@ func TestCodeMarshalJSON(t *testing.T) {
 	quickstruct = struct {
 		Codey Code `json:"sweetCodes"`
 	}{
-		Codey: Code{}, // nil code
+		Codey: EMPTYCODE, // nil code
 	}
 
 	encoded, err = json.Marshal(quickstruct)
@@ -421,37 +501,11 @@ func TestCodeMarshalJSON(t *testing.T) {
 	}
 }
 
-func TestIsDefaultCurrency(t *testing.T) {
-	if !USD.IsDefaultFiatCurrency() {
-		t.Errorf("TestIsDefaultCurrency Cannot match currency %s.",
-			USD)
-	}
-	if !AUD.IsDefaultFiatCurrency() {
-		t.Errorf("TestIsDefaultCurrency Cannot match currency, %s.",
-			AUD)
-	}
-	if LTC.IsDefaultFiatCurrency() {
-		t.Errorf("TestIsDefaultCurrency Function return is incorrect with, %s.",
-			LTC)
-	}
-}
-
-func TestIsDefaultCryptocurrency(t *testing.T) {
-	if !BTC.IsDefaultCryptocurrency() {
-		t.Errorf("TestIsDefaultCryptocurrency cannot match currency, %s.",
-			BTC)
-	}
-	if !LTC.IsDefaultCryptocurrency() {
-		t.Errorf("TestIsDefaultCryptocurrency cannot match currency, %s.",
-			LTC)
-	}
-	if AUD.IsDefaultCryptocurrency() {
-		t.Errorf("TestIsDefaultCryptocurrency function return is incorrect with, %s.",
-			AUD)
-	}
-}
-
 func TestIsFiatCurrency(t *testing.T) {
+	if EMPTYCODE.IsFiatCurrency() {
+		t.Errorf("TestIsFiatCurrency cannot match currency, %s.",
+			EMPTYCODE)
+	}
 	if !USD.IsFiatCurrency() {
 		t.Errorf(
 			"TestIsFiatCurrency cannot match currency, %s.", USD)
@@ -465,31 +519,74 @@ func TestIsFiatCurrency(t *testing.T) {
 			"TestIsFiatCurrency cannot match currency, %s.", LINO,
 		)
 	}
+	if USDT.IsFiatCurrency() {
+		t.Errorf(
+			"TestIsFiatCurrency cannot match currency, %s.", USD)
+	}
+	if DAI.IsFiatCurrency() {
+		t.Errorf(
+			"TestIsFiatCurrency cannot match currency, %s.", USD)
+	}
 }
 
 func TestIsCryptocurrency(t *testing.T) {
+	if EMPTYCODE.IsCryptocurrency() {
+		t.Errorf("TestIsCryptocurrency cannot match currency, %s.",
+			EMPTYCODE)
+	}
 	if !BTC.IsCryptocurrency() {
-		t.Errorf("TestIsFiatCurrency cannot match currency, %s.",
+		t.Errorf("TestIsCryptocurrency cannot match currency, %s.",
 			BTC)
 	}
 	if !LTC.IsCryptocurrency() {
-		t.Errorf("TestIsFiatCurrency cannot match currency, %s.",
+		t.Errorf("TestIsCryptocurrency cannot match currency, %s.",
 			LTC)
 	}
 	if AUD.IsCryptocurrency() {
-		t.Errorf("TestIsFiatCurrency cannot match currency, %s.",
+		t.Errorf("TestIsCryptocurrency cannot match currency, %s.",
 			AUD)
+	}
+	if !USDT.IsCryptocurrency() {
+		t.Errorf(
+			"TestIsCryptocurrency cannot match currency, %s.", USD)
+	}
+	if !DAI.IsCryptocurrency() {
+		t.Errorf(
+			"TestIsCryptocurrency cannot match currency, %s.", USD)
+	}
+}
+
+func TestIsStableCurrency(t *testing.T) {
+	if EMPTYCODE.IsStableCurrency() {
+		t.Errorf("TestIsStableCurrency cannot match currency, %s.", EMPTYCODE)
+	}
+	if BTC.IsStableCurrency() {
+		t.Errorf("TestIsStableCurrency cannot match currency, %s.", BTC)
+	}
+	if LTC.IsStableCurrency() {
+		t.Errorf("TestIsStableCurrency cannot match currency, %s.", LTC)
+	}
+	if AUD.IsStableCurrency() {
+		t.Errorf("TestIsStableCurrency cannot match currency, %s.", AUD)
+	}
+	if !USDT.IsStableCurrency() {
+		t.Errorf("TestIsStableCurrency cannot match currency, %s.", USDT)
+	}
+	if !DAI.IsStableCurrency() {
+		t.Errorf("TestIsStableCurrency cannot match currency, %s.", DAI)
 	}
 }
 
 func TestItemString(t *testing.T) {
-	expected := "Hello,World"
 	newItem := Item{
-		FullName: expected,
+		ID:         1337,
+		FullName:   "Hello,World",
+		Symbol:     "HWORLD",
+		AssocChain: "Silly",
 	}
 
-	if newItem.String() != expected {
-		t.Errorf("Currency String() error expected %s but received %s",
+	if expected := "HWORLD"; newItem.String() != expected {
+		t.Errorf("Currency String() error expected '%s' but received '%s'",
 			expected,
 			&newItem)
 	}

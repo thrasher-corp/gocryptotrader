@@ -363,7 +363,7 @@ func (h *HUOBI) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string,
 		}
 
 	case asset.CoinMarginedFutures:
-		symbols, err := h.GetSwapMarkets(ctx, currency.Pair{})
+		symbols, err := h.GetSwapMarkets(ctx, currency.EMPTYPAIR)
 		if err != nil {
 			return nil, err
 		}
@@ -378,7 +378,7 @@ func (h *HUOBI) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string,
 			}
 		}
 	case asset.Futures:
-		symbols, err := h.FGetContractInfo(ctx, "", "", currency.Pair{})
+		symbols, err := h.FGetContractInfo(ctx, "", "", currency.EMPTYPAIR)
 		if err != nil {
 			return nil, err
 		}
@@ -710,7 +710,7 @@ func (h *HUOBI) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 
 	case asset.CoinMarginedFutures:
 		// fetch swap account info
-		acctInfo, err := h.GetSwapAccountInfo(ctx, currency.Pair{})
+		acctInfo, err := h.GetSwapAccountInfo(ctx, currency.EMPTYPAIR)
 		if err != nil {
 			return info, err
 		}
@@ -730,14 +730,14 @@ func (h *HUOBI) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 		})
 
 		// fetch subaccounts data
-		subAccsData, err := h.GetSwapAllSubAccAssets(ctx, currency.Pair{})
+		subAccsData, err := h.GetSwapAllSubAccAssets(ctx, currency.EMPTYPAIR)
 		if err != nil {
 			return info, err
 		}
 		var currencyDetails []account.Balance
 		for x := range subAccsData.Data {
 			a, err := h.SwapSingleSubAccAssets(ctx,
-				currency.Pair{},
+				currency.EMPTYPAIR,
 				subAccsData.Data[x].SubUID)
 			if err != nil {
 				return info, err
@@ -753,7 +753,7 @@ func (h *HUOBI) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 		acc.Currencies = currencyDetails
 	case asset.Futures:
 		// fetch main account data
-		mainAcctData, err := h.FGetAccountInfo(ctx, currency.Code{})
+		mainAcctData, err := h.FGetAccountInfo(ctx, currency.EMPTYCODE)
 		if err != nil {
 			return info, err
 		}
@@ -773,7 +773,7 @@ func (h *HUOBI) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 		})
 
 		// fetch subaccounts data
-		subAccsData, err := h.FGetAllSubAccountAssets(ctx, currency.Code{})
+		subAccsData, err := h.FGetAllSubAccountAssets(ctx, currency.EMPTYCODE)
 		if err != nil {
 			return info, err
 		}

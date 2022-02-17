@@ -92,17 +92,6 @@ var (
 		Type:        Crypto,
 	}
 
-	invalidCryptoNonWhiteListedAddressRequest = &Request{
-		Exchange: "Binance",
-		Crypto: CryptoRequest{
-			Address: testBTCAddress,
-		},
-		Currency:    currency.BTC,
-		Description: "Test Withdrawal",
-		Amount:      0.1,
-		Type:        Crypto,
-	}
-
 	invalidType = &Request{
 		Exchange: "test",
 		Type:     Unknown,

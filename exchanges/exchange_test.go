@@ -630,7 +630,7 @@ func TestLoadConfigPairs(t *testing.T) {
 	}
 	p = pairs[2].Format(pFmt.Delimiter, pFmt.Uppercase).String()
 	if p != "xrp/usd" {
-		t.Error("incorrect value, expected xrp/usd")
+		t.Error("incorrect value, expected xrp/usd", p)
 	}
 
 	avail, err = b.GetAvailablePairs(asset.Spot)
@@ -644,7 +644,7 @@ func TestLoadConfigPairs(t *testing.T) {
 	}
 	p = format.String()
 	if p != "xrp~usd" {
-		t.Error("incorrect value, expected xrp~usd")
+		t.Error("incorrect value, expected xrp~usd", p)
 	}
 	ps, err := b.Config.CurrencyPairs.Get(asset.Spot)
 	if err != nil {
@@ -1554,7 +1554,7 @@ func TestUpdatePairs(t *testing.T) {
 		t.Fatal(err)
 	}
 	pairs := currency.Pairs{
-		currency.Pair{},
+		currency.EMPTYPAIR,
 		p,
 	}
 	err = UAC.UpdatePairs(pairs, asset.Spot, true, true)

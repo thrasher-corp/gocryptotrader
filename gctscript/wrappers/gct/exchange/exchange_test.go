@@ -140,7 +140,7 @@ func TestExchange_QueryOrder(t *testing.T) {
 	}
 	t.Parallel()
 	_, err := exchangeTest.QueryOrder(context.Background(),
-		exchName, orderID, currency.Pair{}, assetType)
+		exchName, orderID, currency.EMPTYPAIR, assetType)
 	if err != nil {
 		t.Fatal(err)
 	}

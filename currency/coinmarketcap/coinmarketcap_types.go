@@ -70,7 +70,7 @@ type Settings struct {
 	Name        string `json:"name"`
 	Enabled     bool   `json:"enabled"`
 	Verbose     bool   `json:"verbose"`
-	APIkey      string `json:"apiKey"`
+	APIKey      string `json:"apiKey"`
 	AccountPlan string `json:"accountPlan"`
 }
 

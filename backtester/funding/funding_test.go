@@ -247,12 +247,12 @@ func TestAddPair(t *testing.T) {
 	}
 	if resp.Base.exchange != exch ||
 		resp.Base.asset != a ||
-		resp.Base.currency != pair.Base {
+		!resp.Base.currency.Equal(pair.Base) {
 		t.Error("woah nelly")
 	}
 	if resp.Quote.exchange != exch ||
 		resp.Quote.asset != a ||
-		resp.Quote.currency != pair.Quote {
+		!resp.Quote.currency.Equal(pair.Quote) {
 		t.Error("woah nelly")
 	}
 	if resp.Quote.pairedWith != resp.Base {
@@ -841,7 +841,7 @@ func TestMatchesCurrency(t *testing.T) {
 	if !i.MatchesCurrency(currency.BTC) {
 		t.Error("expected true")
 	}
-	if i.MatchesCurrency(currency.Code{}) {
+	if i.MatchesCurrency(currency.EMPTYCODE) {
 		t.Error("expected false")
 	}
 	if i.MatchesCurrency(currency.NewCode("")) {
@@ -855,7 +855,7 @@ func TestCreateSnapshot(t *testing.T) {
 	f.items = append(f.items, &Item{
 		exchange:           "",
 		asset:              "",
-		currency:           currency.Code{},
+		currency:           currency.EMPTYCODE,
 		initialFunds:       decimal.Decimal{},
 		available:          decimal.Decimal{},
 		reserved:           decimal.Decimal{},

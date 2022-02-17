@@ -33,7 +33,7 @@ import (
 var errExchangeConfigIsNil = errors.New("exchange config is nil")
 
 // GetCurrencyConfig returns currency configurations
-func (c *Config) GetCurrencyConfig() CurrencyConfig {
+func (c *Config) GetCurrencyConfig() currency.Config {
 	return c.Currency
 }
 
@@ -191,7 +191,7 @@ func (c *Config) UpdateCommunicationsConfig(config *base.CommunicationsConfig) {
 }
 
 // GetCryptocurrencyProviderConfig returns the communications configuration
-func (c *Config) GetCryptocurrencyProviderConfig() CryptocurrencyProvider {
+func (c *Config) GetCryptocurrencyProviderConfig() currency.Provider {
 	m.Lock()
 	provider := c.Currency.CryptocurrencyProvider
 	m.Unlock()
@@ -199,7 +199,7 @@ func (c *Config) GetCryptocurrencyProviderConfig() CryptocurrencyProvider {
 }
 
 // UpdateCryptocurrencyProviderConfig returns the communications configuration
-func (c *Config) UpdateCryptocurrencyProviderConfig(config CryptocurrencyProvider) {
+func (c *Config) UpdateCryptocurrencyProviderConfig(config currency.Provider) {
 	m.Lock()
 	c.Currency.CryptocurrencyProvider = config
 	m.Unlock()
@@ -732,7 +732,7 @@ func (c *Config) CountEnabledExchanges() int {
 }
 
 // GetCurrencyPairDisplayConfig retrieves the currency pair display preference
-func (c *Config) GetCurrencyPairDisplayConfig() *CurrencyPairFormatConfig {
+func (c *Config) GetCurrencyPairDisplayConfig() *currency.PairFormat {
 	return c.Currency.CurrencyPairFormat
 }
 
@@ -754,38 +754,6 @@ func (c *Config) GetExchangeConfig(name string) (*Exchange, error) {
 		}
 	}
 	return nil, fmt.Errorf("%s %w", name, ErrExchangeNotFound)
-}
-
-// GetForexProvider returns a forex provider configuration by its name
-func (c *Config) GetForexProvider(name string) (currency.FXSettings, error) {
-	m.Lock()
-	defer m.Unlock()
-	for i := range c.Currency.ForexProviders {
-		if strings.EqualFold(c.Currency.ForexProviders[i].Name, name) {
-			return c.Currency.ForexProviders[i], nil
-		}
-	}
-	return currency.FXSettings{}, errors.New("provider not found")
-}
-
-// GetForexProviders returns a list of available forex providers
-func (c *Config) GetForexProviders() []currency.FXSettings {
-	m.Lock()
-	fxProviders := c.Currency.ForexProviders
-	m.Unlock()
-	return fxProviders
-}
-
-// GetPrimaryForexProvider returns the primary forex provider
-func (c *Config) GetPrimaryForexProvider() string {
-	m.Lock()
-	defer m.Unlock()
-	for i := range c.Currency.ForexProviders {
-		if c.Currency.ForexProviders[i].PrimaryProvider {
-			return c.Currency.ForexProviders[i].Name
-		}
-	}
-	return ""
 }
 
 // UpdateExchangeConfig updates exchange configurations
@@ -903,13 +871,19 @@ func (c *Config) CheckExchangeConfigValues() error {
 			c.Exchanges[i].EnabledPairs = nil
 		} else {
 			assets := c.Exchanges[i].CurrencyPairs.GetAssetTypes(false)
+			if len(assets) == 0 {
+				c.Exchanges[i].Enabled = false
+				log.Warnf(log.ConfigMgr, "%s no assets found, disabling...", c.Exchanges[i].Name)
+				continue
+			}
+
 			var atLeastOne bool
 			for index := range assets {
 				err := c.Exchanges[i].CurrencyPairs.IsAssetEnabled(assets[index])
 				if err != nil {
-					// Checks if we have an old config without the ability to
-					// enable disable the entire asset
-					if err.Error() == "cannot ascertain if asset is enabled, variable is nil" {
+					if errors.Is(err, currency.ErrAssetIsNil) {
+						// Checks if we have an old config without the ability to
+						// enable disable the entire asset
 						log.Warnf(log.ConfigMgr,
 							"Exchange %s: upgrading config for asset type %s and setting enabled.\n",
 							c.Exchanges[i].Name,
@@ -926,14 +900,6 @@ func (c *Config) CheckExchangeConfigValues() error {
 			}
 
 			if !atLeastOne {
-				if len(assets) == 0 {
-					c.Exchanges[i].Enabled = false
-					log.Warnf(log.ConfigMgr,
-						"%s no assets found, disabling...",
-						c.Exchanges[i].Name)
-					continue
-				}
-
 				// turn on an asset if all disabled
 				log.Warnf(log.ConfigMgr,
 					"%s assets disabled, turning on asset %s",
@@ -1076,100 +1042,74 @@ func (c *Config) CheckBankAccountConfig() {
 	banking.SetAccounts(c.BankAccounts...)
 }
 
-// CheckCurrencyConfigValues checks to see if the currency config values are correct or not
-func (c *Config) CheckCurrencyConfigValues() error {
-	fxProviders := forexprovider.GetSupportedForexProviders()
+// GetForexProviders returns a list of available forex providers
+func (c *Config) GetForexProviders() []currency.FXSettings {
+	m.Lock()
+	fxProviders := c.Currency.ForexProviders
+	m.Unlock()
+	return fxProviders
+}
 
-	if len(fxProviders) != len(c.Currency.ForexProviders) {
-		for x := range fxProviders {
-			_, err := c.GetForexProvider(fxProviders[x])
-			if err != nil {
-				log.Warnf(log.Global, "%s forex provider not found, adding to config..\n", fxProviders[x])
-				c.Currency.ForexProviders = append(c.Currency.ForexProviders, currency.FXSettings{
-					Name:             fxProviders[x],
-					RESTPollingDelay: 600,
-					APIKey:           DefaultUnsetAPIKey,
-					APIKeyLvl:        -1,
-				})
-			}
-		}
-	}
-
-	count := 0
+// GetPrimaryForexProvider returns the primary forex provider
+func (c *Config) GetPrimaryForexProvider() string {
+	m.Lock()
+	defer m.Unlock()
 	for i := range c.Currency.ForexProviders {
-		if c.Currency.ForexProviders[i].Enabled {
-			if (c.Currency.ForexProviders[i].Name == "CurrencyConverter" || c.Currency.ForexProviders[i].Name == "ExchangeRates") &&
-				c.Currency.ForexProviders[i].PrimaryProvider &&
-				(c.Currency.ForexProviders[i].APIKey == "" ||
-					c.Currency.ForexProviders[i].APIKey == DefaultUnsetAPIKey) {
-				log.Warnf(log.Global, "%s forex provider no longer supports unset API key requests. Switching to %s FX provider..",
-					c.Currency.ForexProviders[i].Name, DefaultForexProviderExchangeRatesAPI)
-				c.Currency.ForexProviders[i].Enabled = false
-				c.Currency.ForexProviders[i].PrimaryProvider = false
-				c.Currency.ForexProviders[i].APIKey = DefaultUnsetAPIKey
-				c.Currency.ForexProviders[i].APIKeyLvl = -1
-				continue
-			}
-			if c.Currency.ForexProviders[i].APIKey == DefaultUnsetAPIKey &&
-				c.Currency.ForexProviders[i].Name != DefaultForexProviderExchangeRatesAPI {
-				log.Warnf(log.Global, "%s enabled forex provider API key not set. Please set this in your config.json file\n", c.Currency.ForexProviders[i].Name)
-				c.Currency.ForexProviders[i].Enabled = false
-				c.Currency.ForexProviders[i].PrimaryProvider = false
-				continue
-			}
+		if c.Currency.ForexProviders[i].PrimaryProvider {
+			return c.Currency.ForexProviders[i].Name
+		}
+	}
+	return ""
+}
 
-			if c.Currency.ForexProviders[i].APIKeyLvl == -1 && c.Currency.ForexProviders[i].Name != DefaultForexProviderExchangeRatesAPI {
-				log.Warnf(log.Global, "%s APIKey Level not set, functions limited. Please set this in your config.json file\n",
-					c.Currency.ForexProviders[i].Name)
-			}
-			count++
+// forexProviderExists checks to see if the provider exist.
+func (c *Config) forexProviderExists(name string) bool {
+	for i := range c.Currency.ForexProviders {
+		if strings.EqualFold(c.Currency.ForexProviders[i].Name, name) {
+			return true
+		}
+	}
+	return false
+}
+
+// CheckCurrencyConfigValues checks to see if the currency config values are
+// correct or not
+func (c *Config) CheckCurrencyConfigValues() error {
+	supported := forexprovider.GetSupportedForexProviders()
+	for x := range supported {
+		if !c.forexProviderExists(supported[x]) {
+			log.Warnf(log.ConfigMgr, "%s forex provider not found, adding to config...\n", supported[x])
+			c.Currency.ForexProviders = append(c.Currency.ForexProviders,
+				currency.FXSettings{
+					Name:      supported[x],
+					APIKey:    DefaultUnsetAPIKey,
+					APIKeyLvl: -1,
+				})
 		}
 	}
 
-	if count == 0 {
-		for x := range c.Currency.ForexProviders {
-			if c.Currency.ForexProviders[x].Name == DefaultForexProviderExchangeRatesAPI {
-				c.Currency.ForexProviders[x].Enabled = true
-				c.Currency.ForexProviders[x].PrimaryProvider = true
-				log.Warnf(log.ConfigMgr, "No valid forex providers configured. Defaulting to %s.",
-					DefaultForexProviderExchangeRatesAPI)
-			}
+	for i := range c.Currency.ForexProviders {
+		if !common.StringDataContainsInsensitive(supported, c.Currency.ForexProviders[i].Name) {
+			log.Warnf(log.ConfigMgr,
+				"%s forex provider not supported, please remove from config.\n",
+				c.Currency.ForexProviders[i].Name)
+			c.Currency.ForexProviders[i].Enabled = false
 		}
 	}
 
-	if c.Currency.CryptocurrencyProvider == (CryptocurrencyProvider{}) {
+	if c.Currency.CryptocurrencyProvider == (currency.Provider{}) {
 		c.Currency.CryptocurrencyProvider.Name = "CoinMarketCap"
 		c.Currency.CryptocurrencyProvider.Enabled = false
 		c.Currency.CryptocurrencyProvider.Verbose = false
 		c.Currency.CryptocurrencyProvider.AccountPlan = DefaultUnsetAccountPlan
-		c.Currency.CryptocurrencyProvider.APIkey = DefaultUnsetAPIKey
+		c.Currency.CryptocurrencyProvider.APIKey = DefaultUnsetAPIKey
 	}
 
-	if c.Currency.CryptocurrencyProvider.Enabled {
-		if c.Currency.CryptocurrencyProvider.APIkey == "" ||
-			c.Currency.CryptocurrencyProvider.APIkey == DefaultUnsetAPIKey {
-			log.Warnln(log.ConfigMgr, "CryptocurrencyProvider enabled but api key is unset please set this in your config.json file")
-		}
-		if c.Currency.CryptocurrencyProvider.AccountPlan == "" ||
-			c.Currency.CryptocurrencyProvider.AccountPlan == DefaultUnsetAccountPlan {
-			log.Warnln(log.ConfigMgr, "CryptocurrencyProvider enabled but account plan is unset please set this in your config.json file")
-		}
-	} else {
-		if c.Currency.CryptocurrencyProvider.APIkey == "" {
-			c.Currency.CryptocurrencyProvider.APIkey = DefaultUnsetAPIKey
-		}
-		if c.Currency.CryptocurrencyProvider.AccountPlan == "" {
-			c.Currency.CryptocurrencyProvider.AccountPlan = DefaultUnsetAccountPlan
-		}
+	if c.Currency.CryptocurrencyProvider.APIKey == "" {
+		c.Currency.CryptocurrencyProvider.APIKey = DefaultUnsetAPIKey
 	}
-
-	if c.Currency.Cryptocurrencies.Join() == "" {
-		if c.Cryptocurrencies != nil {
-			c.Currency.Cryptocurrencies = *c.Cryptocurrencies
-			c.Cryptocurrencies = nil
-		} else {
-			c.Currency.Cryptocurrencies = currency.GetDefaultCryptocurrencies()
-		}
+	if c.Currency.CryptocurrencyProvider.AccountPlan == "" {
+		c.Currency.CryptocurrencyProvider.AccountPlan = DefaultUnsetAccountPlan
 	}
 
 	if c.Currency.CurrencyPairFormat == nil {
@@ -1177,7 +1117,7 @@ func (c *Config) CheckCurrencyConfigValues() error {
 			c.Currency.CurrencyPairFormat = c.CurrencyPairFormat
 			c.CurrencyPairFormat = nil
 		} else {
-			c.Currency.CurrencyPairFormat = &CurrencyPairFormatConfig{
+			c.Currency.CurrencyPairFormat = &currency.PairFormat{
 				Delimiter: "-",
 				Uppercase: true,
 			}
@@ -1198,65 +1138,16 @@ func (c *Config) CheckCurrencyConfigValues() error {
 		c.FiatDisplayCurrency = nil
 	}
 
-	return nil
-}
-
-// RetrieveConfigCurrencyPairs splits, assigns and verifies enabled currency
-// pairs either cryptoCurrencies or fiatCurrencies
-func (c *Config) RetrieveConfigCurrencyPairs(enabledOnly bool, assetType asset.Item) error {
-	cryptoCurrencies := c.Currency.Cryptocurrencies
-	fiatCurrencies := currency.GetFiatCurrencies()
-
-	for x := range c.Exchanges {
-		if !c.Exchanges[x].Enabled && enabledOnly {
-			continue
-		}
-
-		err := c.SupportsExchangeAssetType(c.Exchanges[x].Name, assetType)
-		if err != nil {
-			continue
-		}
-
-		baseCurrencies := c.Exchanges[x].BaseCurrencies
-		for y := range baseCurrencies {
-			if !fiatCurrencies.Contains(baseCurrencies[y]) {
-				fiatCurrencies = append(fiatCurrencies, baseCurrencies[y])
-			}
-		}
+	if c.Currency.CurrencyFileUpdateDuration <= 0 {
+		log.Warnf(log.ConfigMgr, "Currency file update duration invalid, defaulting to %s", currency.DefaultCurrencyFileDelay)
+		c.Currency.CurrencyFileUpdateDuration = currency.DefaultCurrencyFileDelay
 	}
 
-	for x := range c.Exchanges {
-		err := c.SupportsExchangeAssetType(c.Exchanges[x].Name, assetType)
-		if err != nil {
-			continue
-		}
-
-		var pairs []currency.Pair
-		if !c.Exchanges[x].Enabled && enabledOnly {
-			pairs, err = c.GetEnabledPairs(c.Exchanges[x].Name, assetType)
-		} else {
-			pairs, err = c.GetAvailablePairs(c.Exchanges[x].Name, assetType)
-		}
-
-		if err != nil {
-			return err
-		}
-
-		for y := range pairs {
-			if !fiatCurrencies.Contains(pairs[y].Base) &&
-				!cryptoCurrencies.Contains(pairs[y].Base) {
-				cryptoCurrencies = append(cryptoCurrencies, pairs[y].Base)
-			}
-
-			if !fiatCurrencies.Contains(pairs[y].Quote) &&
-				!cryptoCurrencies.Contains(pairs[y].Quote) {
-				cryptoCurrencies = append(cryptoCurrencies, pairs[y].Quote)
-			}
-		}
+	if c.Currency.ForeignExchangeUpdateDuration <= 0 {
+		log.Warnf(log.ConfigMgr, "Currency foreign exchange update duration invalid, defaulting to %s", currency.DefaultForeignExchangeDelay)
+		c.Currency.ForeignExchangeUpdateDuration = currency.DefaultForeignExchangeDelay
 	}
 
-	currency.UpdateCurrencies(fiatCurrencies, false)
-	currency.UpdateCurrencies(cryptoCurrencies, true)
 	return nil
 }
 
@@ -1282,7 +1173,7 @@ func (c *Config) CheckLoggerConfig() error {
 			c.Logging.LoggerFileConfig.Rotate = convert.BoolPtr(false)
 		}
 		if c.Logging.LoggerFileConfig.MaxSize <= 0 {
-			log.Warnf(log.Global, "Logger rotation size invalid, defaulting to %v", log.DefaultMaxFileSize)
+			log.Warnf(log.ConfigMgr, "Logger rotation size invalid, defaulting to %v", log.DefaultMaxFileSize)
 			c.Logging.LoggerFileConfig.MaxSize = log.DefaultMaxFileSize
 		}
 		log.FileLoggingConfiguredCorrectly = true
@@ -1676,7 +1567,7 @@ func (c *Config) SaveConfigToFile(configPath string) error {
 		if writer != nil {
 			err = writer.Close()
 			if err != nil {
-				log.Error(log.Global, err)
+				log.Error(log.ConfigMgr, err)
 			}
 		}
 	}()
@@ -1786,7 +1677,7 @@ func (c *Config) CheckConfig() error {
 
 	err = c.checkGCTScriptConfig()
 	if err != nil {
-		log.Errorf(log.Global,
+		log.Errorf(log.ConfigMgr,
 			"Failed to configure gctscript, feature has been disabled: %s\n",
 			err)
 	}

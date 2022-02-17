@@ -483,7 +483,7 @@ func (b *Base) FormatExchangeCurrencies(pairs []currency.Pair, assetType asset.I
 func (b *Base) FormatExchangeCurrency(p currency.Pair, assetType asset.Item) (currency.Pair, error) {
 	pairFmt, err := b.GetPairFormat(assetType, true)
 	if err != nil {
-		return currency.Pair{}, err
+		return currency.EMPTYPAIR, err
 	}
 	return p.Format(pairFmt.Delimiter, pairFmt.Uppercase), nil
 }
