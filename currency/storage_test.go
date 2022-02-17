@@ -180,7 +180,7 @@ func TestRunUpdater(t *testing.T) {
 	}
 
 	if mainConfig.ForexProviders[0].PrimaryProvider {
-		t.Fatal("old default provider should be a primary provider anymore")
+		t.Fatal("old default provider should not be a primary provider anymore")
 	}
 
 	if !mainConfig.ForexProviders[1].Enabled {
@@ -228,7 +228,7 @@ func TestRunUpdater(t *testing.T) {
 	}
 
 	if mainConfig.ForexProviders[0].PrimaryProvider {
-		t.Fatal("old default provider should be a primary provider anymore")
+		t.Fatal("old default provider should not be a primary provider anymore")
 	}
 
 	if mainConfig.ForexProviders[1].Enabled {
