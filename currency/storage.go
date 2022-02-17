@@ -144,6 +144,7 @@ func (s *Storage) RunUpdater(overrides BotOverrides, settings *Config, filePath 
 				log.Warnf(log.Currency, "%s forex provider API key not set, disabling. Please set this in your config.json file\n",
 					settings.ForexProviders[i].Name)
 				settings.ForexProviders[i].Enabled = false
+				settings.ForexProviders[i].PrimaryProvider = false
 				continue
 			}
 
@@ -185,8 +186,14 @@ func (s *Storage) RunUpdater(overrides BotOverrides, settings *Config, filePath 
 	}
 
 	if !primaryProvider {
-		fxSettings[0].PrimaryProvider = true
-		log.Warnf(log.Currency, "No primary foreign exchange provider set. Defaulting to %s.", fxSettings[0].Name)
+		for x := range settings.ForexProviders {
+			if settings.ForexProviders[x].Name == fxSettings[0].Name {
+				settings.ForexProviders[x].PrimaryProvider = true
+				fxSettings[0].PrimaryProvider = true
+				log.Warnf(log.Currency, "No primary foreign exchange provider set. Defaulting to %s.", fxSettings[0].Name)
+				break
+			}
+		}
 	}
 
 	s.fiatExchangeMarkets, err = forexprovider.StartFXService(fxSettings)

@@ -152,26 +152,51 @@ func TestRunUpdater(t *testing.T) {
 	}
 
 	// old config where two providers enabled
-	other := settings
-	settings.Name = "ExchangeRates"
-	settings.Enabled = true
-	settings.APIKey = "" // old default provider which did not need api keys.
-	settings.PrimaryProvider = true
-	other.Name = "OpenExchangeRates" // Has keys enabled and will fall over to primary
-	other.Enabled = true
+	oldDefault := FXSettings{
+		Name:            "ExchangeRates",
+		Enabled:         true,
+		APIKey:          "", // old default provider which did not need api keys.
+		PrimaryProvider: true,
+	}
+	other := FXSettings{
+		Name:    "OpenExchangeRates",
+		Enabled: true,
+		APIKey:  "enabled-keys", // Has keys enabled and will fall over to primary
+	}
+	defaultProvider := FXSettings{
+		// From config this will be included but not necessarily enabled.
+		Name:    "ExchangeRateHost",
+		Enabled: false,
+	}
 
-	mainConfig.ForexProviders = AllFXSettings{settings, other}
+	mainConfig.ForexProviders = AllFXSettings{oldDefault, other, defaultProvider}
 	err = newStorage.RunUpdater(BotOverrides{ExchangeRates: true, OpenExchangeRates: true}, &mainConfig, tempDir)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
 	if mainConfig.ForexProviders[0].Enabled {
-		t.Fatal("should not be enabled")
+		t.Fatal("old default provider should not be enabled due to unset keys")
+	}
+
+	if mainConfig.ForexProviders[0].PrimaryProvider {
+		t.Fatal("old default provider should be a primary provider anymore")
 	}
 
 	if !mainConfig.ForexProviders[1].Enabled {
-		t.Fatal("should not be disabled")
+		t.Fatal("open exchange rates provider with keys set should be enabled")
+	}
+
+	if !mainConfig.ForexProviders[1].PrimaryProvider {
+		t.Fatal("open exchange rates provider with keys set should be set as primary provider")
+	}
+
+	if mainConfig.ForexProviders[2].Enabled {
+		t.Fatal("actual default provider should not be enabled")
+	}
+
+	if mainConfig.ForexProviders[2].PrimaryProvider {
+		t.Fatal("actual default provider should not be designated as primary provider")
 	}
 
 	err = newStorage.Shutdown()
@@ -180,32 +205,45 @@ func TestRunUpdater(t *testing.T) {
 	}
 
 	// old config where two providers enabled
-	settings.Name = "ExchangeRates"
-	settings.Enabled = true
-	settings.APIKey = "" // old default provider which did not need api keys.
-	settings.PrimaryProvider = true
-	other.Name = "OpenExchangeRates"
-	other.APIKey = "" // Has no keys enabled will set default provider to primary
-	other.Enabled = true
-	defaulProvider := settings
-	defaulProvider.Name = "ExchangeRateHost" // This should be included not enabled
-	defaulProvider.Enabled = false
+	oldDefault = FXSettings{
+		Name:            "ExchangeRates",
+		Enabled:         true,
+		APIKey:          "", // old default provider which did not need api keys.
+		PrimaryProvider: true,
+	}
+	other = FXSettings{
+		Name:    "OpenExchangeRates",
+		Enabled: true,
+		APIKey:  "", // Has no keys enabled will fall over to new default provider.
+	}
 
-	mainConfig.ForexProviders = AllFXSettings{settings, other, defaulProvider}
+	mainConfig.ForexProviders = AllFXSettings{oldDefault, other, defaultProvider}
 	err = newStorage.RunUpdater(BotOverrides{ExchangeRates: true, OpenExchangeRates: true}, &mainConfig, tempDir)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
 	if mainConfig.ForexProviders[0].Enabled {
-		t.Fatal("should not be enabled")
+		t.Fatal("old default provider should not be enabled due to unset keys")
+	}
+
+	if mainConfig.ForexProviders[0].PrimaryProvider {
+		t.Fatal("old default provider should be a primary provider anymore")
 	}
 
 	if mainConfig.ForexProviders[1].Enabled {
-		t.Fatal("should not be enabled")
+		t.Fatal("open exchange rates provider with keys unset should not be enabled")
+	}
+
+	if mainConfig.ForexProviders[1].PrimaryProvider {
+		t.Fatal("open exchange rates provider with keys unset should not be set as primary provider")
 	}
 
 	if !mainConfig.ForexProviders[2].Enabled {
-		t.Fatal("should be enabled")
+		t.Fatal("actual default provider should not be disabled")
+	}
+
+	if !mainConfig.ForexProviders[2].PrimaryProvider {
+		t.Fatal("actual default provider should be designated as primary provider")
 	}
 }
