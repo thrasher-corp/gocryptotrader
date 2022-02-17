@@ -11,7 +11,8 @@ import (
 var (
 	// tracker is the global to maintain sanity between clients across all
 	// services using the request package.
-	tracker                  clientTracker
+	tracker clientTracker
+
 	errNoProxyURLSupplied    = errors.New("no proxy URL supplied")
 	errCannotReuseHTTPClient = errors.New("cannot reuse http client")
 	errHTTPClientIsNil       = errors.New("http client is nil")
@@ -41,14 +42,14 @@ func (c *clientTracker) checkAndRegister(newClient *http.Client) error {
 }
 
 // deRegister removes the *http.Client from being tracked
-func (c *clientTracker) deRegister(newClient *http.Client) error {
-	if newClient == nil {
+func (c *clientTracker) deRegister(oldClient *http.Client) error {
+	if oldClient == nil {
 		return errHTTPClientIsNil
 	}
 	c.Lock()
 	defer c.Unlock()
 	for x := range c.clients {
-		if newClient != c.clients[x] {
+		if oldClient != c.clients[x] {
 			continue
 		}
 		c.clients[x] = c.clients[len(c.clients)-1]
@@ -95,7 +96,7 @@ func (c *client) setProxy(p *url.URL) error {
 	return nil
 }
 
-// setClientTimeout sets the timeout value for the exchanges HTTP Client and
+// setHTTPClientTimeout sets the timeout value for the exchanges HTTP Client and
 // also the underlying transports idle connection timeout
 func (c *client) setHTTPClientTimeout(timeout time.Duration) error {
 	c.m.Lock()
