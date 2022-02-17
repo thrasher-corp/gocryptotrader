@@ -395,12 +395,12 @@ func (b *Base) GetRequestFormattedPairAndAssetType(p string) (currency.Pair, ass
 	for i := range assetTypes {
 		format, err := b.GetPairFormat(assetTypes[i], true)
 		if err != nil {
-			return currency.Pair{}, assetTypes[i], err
+			return currency.EMPTYPAIR, assetTypes[i], err
 		}
 
 		pairs, err := b.CurrencyPairs.GetPairs(assetTypes[i], true)
 		if err != nil {
-			return currency.Pair{}, assetTypes[i], err
+			return currency.EMPTYPAIR, assetTypes[i], err
 		}
 
 		for j := range pairs {
@@ -410,7 +410,7 @@ func (b *Base) GetRequestFormattedPairAndAssetType(p string) (currency.Pair, ass
 			}
 		}
 	}
-	return currency.Pair{}, "", fmt.Errorf("%s %w", p, currency.ErrPairNotFound)
+	return currency.EMPTYPAIR, "", fmt.Errorf("%s %w", p, currency.ErrPairNotFound)
 }
 
 // GetAvailablePairs is a method that returns the available currency pairs
