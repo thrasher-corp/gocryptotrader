@@ -158,9 +158,12 @@ func (h *HUOBI) SetDefaults() {
 		},
 	}
 
-	h.Requester = request.New(h.Name,
+	h.Requester, err = request.New(h.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 	h.API.Endpoints = h.NewEndpoints()
 	err = h.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:         huobiAPIURL,

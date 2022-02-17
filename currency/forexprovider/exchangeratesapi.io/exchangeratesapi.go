@@ -29,10 +29,11 @@ func (e *ExchangeRates) Setup(config base.Settings) error {
 	e.PrimaryProvider = config.PrimaryProvider
 	e.APIKey = config.APIKey
 	e.APIKeyLvl = config.APIKeyLvl
-	e.Requester = request.New(e.Name,
+	var err error
+	e.Requester, err = request.New(e.Name,
 		common.NewHTTPClientWithTimeout(base.DefaultTimeOut),
 		request.WithLimiter(request.NewBasicRateLimit(rateLimitInterval, requestRate)))
-	return nil
+	return err
 }
 
 func (e *ExchangeRates) cleanCurrencies(baseCurrency, symbols string) string {

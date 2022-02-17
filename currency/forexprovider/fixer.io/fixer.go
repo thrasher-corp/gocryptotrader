@@ -36,9 +36,10 @@ func (f *Fixer) Setup(config base.Settings) error {
 	f.Name = config.Name
 	f.Verbose = config.Verbose
 	f.PrimaryProvider = config.PrimaryProvider
-	f.Requester = request.New(f.Name,
+	var err error
+	f.Requester, err = request.New(f.Name,
 		common.NewHTTPClientWithTimeout(base.DefaultTimeOut))
-	return nil
+	return err
 }
 
 // GetSupportedCurrencies returns supported currencies

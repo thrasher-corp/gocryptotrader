@@ -45,7 +45,10 @@ func TestMain(m *testing.M) {
 		log.Fatalf("Mock server error %s", err)
 	}
 
-	p.HTTPClient = newClient
+	err = p.SetHTTPClient(newClient)
+	if err != nil {
+		log.Fatalf("Mock server error %s", err)
+	}
 	endpoints := p.API.Endpoints.GetURLMap()
 	for k := range endpoints {
 		err = p.API.Endpoints.SetRunning(k, serverDetails)

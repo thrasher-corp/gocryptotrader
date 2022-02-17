@@ -23,10 +23,11 @@ func (c *CurrencyConverter) Setup(config base.Settings) error {
 	c.Enabled = config.Enabled
 	c.Verbose = config.Verbose
 	c.PrimaryProvider = config.PrimaryProvider
-	c.Requester = request.New(c.Name,
+	var err error
+	c.Requester, err = request.New(c.Name,
 		common.NewHTTPClientWithTimeout(base.DefaultTimeOut),
 		request.WithLimiter(request.NewBasicRateLimit(rateInterval, requestRate)))
-	return nil
+	return err
 }
 
 // GetRates is a wrapper function to return rates

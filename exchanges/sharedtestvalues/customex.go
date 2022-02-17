@@ -198,11 +198,12 @@ func (c *CustomEx) WithdrawFiatFundsToInternationalBank(ctx context.Context, wit
 	return nil, nil
 }
 
-func (c *CustomEx) SetHTTPClientUserAgent(ua string) {
+func (c *CustomEx) SetHTTPClientUserAgent(ua string) error {
+	return nil
 }
 
-func (c *CustomEx) GetHTTPClientUserAgent() string {
-	return ""
+func (c *CustomEx) GetHTTPClientUserAgent() (string, error) {
+	return "", nil
 }
 
 func (c *CustomEx) SetClientProxyAddress(addr string) error {

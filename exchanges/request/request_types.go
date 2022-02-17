@@ -28,11 +28,11 @@ var (
 
 // Requester struct for the request client
 type Requester struct {
-	HTTPClient         *http.Client
+	_HTTPClient        *client
 	limiter            Limiter
 	reporter           Reporter
-	Name               string
-	UserAgent          string
+	name               string
+	userAgent          string
 	maxRetries         int
 	jobs               int32
 	Nonce              nonce.Nonce

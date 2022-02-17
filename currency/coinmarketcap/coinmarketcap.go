@@ -36,10 +36,14 @@ func (c *Coinmarketcap) SetDefaults() {
 	c.Verbose = false
 	c.APIUrl = baseURL
 	c.APIVersion = version
-	c.Requester = request.New(c.Name,
+	var err error
+	c.Requester, err = request.New(c.Name,
 		common.NewHTTPClientWithTimeout(defaultTimeOut),
 		request.WithLimiter(request.NewBasicRateLimit(RateInterval, BasicRequestRate)),
 	)
+	if err != nil {
+		log.Errorln(log.Global, err)
+	}
 }
 
 // Setup sets user configuration
