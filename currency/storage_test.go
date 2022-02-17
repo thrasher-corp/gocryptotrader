@@ -145,4 +145,67 @@ func TestRunUpdater(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
+
+	err = newStorage.Shutdown()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// old config where two providers enabled
+	other := settings
+	settings.Name = "ExchangeRates"
+	settings.Enabled = true
+	settings.APIKey = "" // old default provider which did not need api keys.
+	settings.PrimaryProvider = true
+	other.Name = "OpenExchangeRates" // Has keys enabled and will fall over to primary
+	other.Enabled = true
+
+	mainConfig.ForexProviders = AllFXSettings{settings, other}
+	err = newStorage.RunUpdater(BotOverrides{ExchangeRates: true, OpenExchangeRates: true}, &mainConfig, tempDir)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if mainConfig.ForexProviders[0].Enabled {
+		t.Fatal("should not be enabled")
+	}
+
+	if !mainConfig.ForexProviders[1].Enabled {
+		t.Fatal("should not be disabled")
+	}
+
+	err = newStorage.Shutdown()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// old config where two providers enabled
+	settings.Name = "ExchangeRates"
+	settings.Enabled = true
+	settings.APIKey = "" // old default provider which did not need api keys.
+	settings.PrimaryProvider = true
+	other.Name = "OpenExchangeRates"
+	other.APIKey = "" // Has no keys enabled will set default provider to primary
+	other.Enabled = true
+	defaulProvider := settings
+	defaulProvider.Name = "ExchangeRateHost" // This should be included not enabled
+	defaulProvider.Enabled = false
+
+	mainConfig.ForexProviders = AllFXSettings{settings, other, defaulProvider}
+	err = newStorage.RunUpdater(BotOverrides{ExchangeRates: true, OpenExchangeRates: true}, &mainConfig, tempDir)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if mainConfig.ForexProviders[0].Enabled {
+		t.Fatal("should not be enabled")
+	}
+
+	if mainConfig.ForexProviders[1].Enabled {
+		t.Fatal("should not be enabled")
+	}
+
+	if !mainConfig.ForexProviders[2].Enabled {
+		t.Fatal("should be enabled")
+	}
 }
