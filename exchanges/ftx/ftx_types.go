@@ -3,6 +3,7 @@ package ftx
 import (
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
@@ -259,7 +260,7 @@ type WalletCoinsData struct {
 
 // WalletBalance stores balances data
 type WalletBalance struct {
-	Coin                   string                 `json:"coin"`
+	Coin                   currency.Code          `json:"coin"`
 	Free                   float64                `json:"free"`
 	Total                  float64                `json:"total"`
 	AvailableWithoutBorrow float64                `json:"availableWithoutBorrow"`
@@ -909,4 +910,40 @@ type CollateralWeight struct {
 	Initial                     float64
 	Total                       float64
 	InitialMarginFractionFactor float64
+}
+
+// CollateralResponse returned from the collateral endpoint
+type CollateralResponse struct {
+	PositiveBalances                   []CollateralBalance  `json:"positiveBalances"`
+	NegativeBalances                   []CollateralBalance  `json:"negativeBalances"`
+	Positions                          []CollateralPosition `json:"positions"`
+	PositiveSpotBalanceTotal           decimal.Decimal      `json:"positiveSpotBalanceTotal"`
+	CollateralFromPositiveSpotBalances decimal.Decimal      `json:"collateralFromPositiveSpotBalances"`
+	UsedBySpotMargin                   decimal.Decimal      `json:"usedBySpotMargin"`
+	UsedByFutures                      decimal.Decimal      `json:"usedByFutures"`
+	CollateralAvailable                decimal.Decimal      `json:"collateralAvailable"`
+}
+
+// CollateralBalance holds collateral information for a coin's balance
+type CollateralBalance struct {
+	Coin                        currency.Code   `json:"coin"`
+	PositionSize                decimal.Decimal `json:"positionSize"`
+	OpenOrderSize               decimal.Decimal `json:"openOrderSize"`
+	Total                       decimal.Decimal `json:"total"`
+	AvailableIgnoringCollateral decimal.Decimal `json:"availableIgnoringCollateral"`
+	ApproximateFairMarketValue  decimal.Decimal `json:"approxFair"`
+	CollateralContribution      decimal.Decimal `json:"collateralContribution"`
+	CollateralUsed              decimal.Decimal `json:"collateralUsed"`
+	CollateralWeight            decimal.Decimal `json:"collateralWeight"`
+}
+
+// CollateralPosition holds collateral information for a market position
+type CollateralPosition struct {
+	Future         currency.Pair   `json:"future"`
+	Size           decimal.Decimal `json:"size"`
+	OpenOrderSize  decimal.Decimal `json:"openOrderSize"`
+	PositionSize   decimal.Decimal `json:"positionSize"`
+	MarkPrice      decimal.Decimal `json:"markPrice"`
+	RequiredMargin decimal.Decimal `json:"requiredMargin"`
+	CollateralUsed decimal.Decimal `json:"totalCollateralUsed"`
 }

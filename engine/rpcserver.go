@@ -4367,6 +4367,7 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 		}
 		calculators = append(calculators, cal)
 	}
+
 	calc := &order.TotalCollateralCalculator{
 		SubAccount:       r.SubAccount,
 		CollateralAssets: calculators,
@@ -4380,11 +4381,11 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 	}
 
 	result := &gctrpc.GetCollateralResponse{
-		SubAccount:         subAccount,
-		CollateralCurrency: collateral.CollateralCurrency.String(),
-		TotalCollateral:    collateral.TotalCollateral.String(),
-		FreeCollateral:     collateral.FreeCollateral.String(),
-		LockedCollateral:   collateral.LockedCollateral.String(),
+		SubAccount:            subAccount,
+		CollateralCurrency:    collateral.CollateralCurrency.String(),
+		AvailableCollateral:   collateral.AvailableCollateral.String(),
+		MaintenanceCollateral: collateral.AvailableMaintenanceCollateral.String(),
+		LockedCollateral:      collateral.LockedCollateral.String(),
 	}
 	if !collateral.UnrealisedPNL.IsZero() {
 		result.UnrealisedPNL = collateral.UnrealisedPNL.String()
@@ -4411,17 +4412,30 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 		}
 	}
 	if r.IncludeBreakdown {
+		for i := range collateral.BreakdownOfPositions {
+			result.PositionBreakdown = append(result.PositionBreakdown, &gctrpc.CollateralByPosition{
+				Currency:            collateral.BreakdownOfPositions[i].PositionCurrency.String(),
+				Size:                collateral.BreakdownOfPositions[i].Size.String(),
+				OpenOrderSize:       collateral.BreakdownOfPositions[i].OpenOrderSize.String(),
+				PositionSize:        collateral.BreakdownOfPositions[i].PositionSize.String(),
+				MarkPrice:           collateral.BreakdownOfPositions[i].MarkPrice.String(),
+				RequiredMargin:      collateral.BreakdownOfPositions[i].RequiredMargin.String(),
+				TotalCollateralUsed: collateral.BreakdownOfPositions[i].CollateralUsed.String(),
+			})
+		}
 		for i := range collateral.BreakdownByCurrency {
 			if collateral.BreakdownByCurrency[i].OriginalTotal.IsZero() && !r.IncludeZeroValues {
 				continue
 			}
 			cb := &gctrpc.CollateralForCurrency{
-				Currency:         collateral.BreakdownByCurrency[i].Currency.String(),
-				OriginalAmount:   collateral.BreakdownByCurrency[i].OriginalTotal.String(),
-				ScaledToCurrency: collateral.BreakdownByCurrency[i].ScaledCurrency.String(),
-				ScaledTotal:      collateral.BreakdownByCurrency[i].ScaledTotal.String(),
-				ScaledFree:       collateral.BreakdownByCurrency[i].ScaledFree.String(),
-				ScaledLocked:     collateral.BreakdownByCurrency[i].ScaledTotalLocked.String(),
+				Currency:              collateral.BreakdownByCurrency[i].Currency.String(),
+				OriginalAmount:        collateral.BreakdownByCurrency[i].OriginalTotal.String(),
+				ScaledToCurrency:      collateral.BreakdownByCurrency[i].ScaledCurrency.String(),
+				ScaledTotal:           collateral.BreakdownByCurrency[i].ScaledTotal.String(),
+				ScaledFree:            collateral.BreakdownByCurrency[i].ScaledFree.String(),
+				ScaledLocked:          collateral.BreakdownByCurrency[i].ScaledTotalLocked.String(),
+				Weighting:             collateral.BreakdownByCurrency[i].Weighting.String(),
+				ApproxFairMarketValue: collateral.BreakdownByCurrency[i].FairMarketValue.String(),
 			}
 			if !collateral.BreakdownByCurrency[i].UnrealisedPNL.IsZero() {
 				cb.UnrealisedPNL = collateral.BreakdownByCurrency[i].UnrealisedPNL.String()

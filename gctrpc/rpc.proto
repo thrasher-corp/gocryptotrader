@@ -1069,25 +1069,37 @@ message GetCollateralRequest {
 message GetCollateralResponse {
     string sub_account = 1;
     string collateral_currency = 2;
-    string total_collateral = 3;
-    string maintenance_collateral = 4;
-    string free_collateral = 5;
-    string unrealisedPNL = 6;
-    string locked_collateral = 7;
-    CollateralLockedBreakdown locked_breakdown = 8;
-    repeated CollateralForCurrency currency_breakdown = 9;
+    string maintenance_collateral = 3;
+    string available_collateral = 4;
+    string unrealisedPNL = 5;
+    string locked_collateral = 6;
+    CollateralLockedBreakdown locked_breakdown = 7;
+    repeated CollateralForCurrency currency_breakdown = 8;
+    repeated CollateralByPosition position_breakdown = 9;
 }
 
 message CollateralForCurrency {
     string currency = 1;
     string original_amount = 2;
     string scaled_to_currency = 3;
-    string scaled_total = 4;
-    string scaled_free = 5;
-    string scaled_locked = 6;
-    string unrealisedPNL = 7;
-    CollateralLockedBreakdown locked_breakdown = 8;
-    string error = 9;
+    string approx_fair_market_value = 4;
+    string scaled_total = 5;
+    string scaled_free = 6;
+    string scaled_locked = 7;
+    string weighting = 8;
+    string unrealisedPNL = 9;
+    CollateralLockedBreakdown locked_breakdown = 10;
+    string error = 11;
+}
+
+message CollateralByPosition {
+    string currency = 1;
+    string size = 2;
+    string open_order_size = 3;
+    string position_size = 4;
+    string mark_price = 5;
+    string required_margin = 6;
+    string total_collateral_used = 7;
 }
 
 message CollateralLockedBreakdown {

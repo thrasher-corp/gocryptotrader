@@ -62,13 +62,24 @@ type CollateralManagement interface {
 
 // TotalCollateralResponse holds all collateral
 type TotalCollateralResponse struct {
-	CollateralCurrency  currency.Code
-	TotalCollateral     decimal.Decimal
-	FreeCollateral      decimal.Decimal
-	LockedCollateral    decimal.Decimal
-	UnrealisedPNL       decimal.Decimal
-	LockedBreakdown     *CollateralLockedBreakdown
-	BreakdownByCurrency []CollateralByCurrency
+	CollateralCurrency             currency.Code
+	AvailableMaintenanceCollateral decimal.Decimal
+	AvailableCollateral            decimal.Decimal
+	LockedCollateral               decimal.Decimal
+	UnrealisedPNL                  decimal.Decimal
+	LockedBreakdown                *CollateralLockedBreakdown
+	BreakdownByCurrency            []CollateralByCurrency
+	BreakdownOfPositions           []CollateralByPosition
+}
+
+type CollateralByPosition struct {
+	PositionCurrency currency.Pair
+	Size             decimal.Decimal
+	OpenOrderSize    decimal.Decimal
+	PositionSize     decimal.Decimal
+	MarkPrice        decimal.Decimal
+	RequiredMargin   decimal.Decimal
+	CollateralUsed   decimal.Decimal
 }
 
 // CollateralByCurrency individual collateral contribution
@@ -78,12 +89,14 @@ type TotalCollateralResponse struct {
 type CollateralByCurrency struct {
 	Currency              currency.Code
 	OriginalTotal         decimal.Decimal
+	ScaledCurrency        currency.Code
+	Weighting             decimal.Decimal
 	ScaledTotal           decimal.Decimal
 	ScaledTotalLocked     decimal.Decimal
-	UnrealisedPNL         decimal.Decimal
 	ScaledLockedBreakdown *CollateralLockedBreakdown
 	ScaledFree            decimal.Decimal
-	ScaledCurrency        currency.Code
+	UnrealisedPNL         decimal.Decimal
+	FairMarketValue       decimal.Decimal
 	Error                 error
 }
 
@@ -96,6 +109,7 @@ type CollateralLockedBreakdown struct {
 	LockedInSpotMarginFundingOffers decimal.Decimal
 	LockedInSpotOrders              decimal.Decimal
 	LockedAsCollateral              decimal.Decimal
+	LockedInPositions               decimal.Decimal
 }
 
 // PositionController manages all futures orders

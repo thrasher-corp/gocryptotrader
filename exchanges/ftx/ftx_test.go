@@ -1789,14 +1789,14 @@ func TestScaleCollateral(t *testing.T) {
 	for _, v := range walletInfo {
 		for v2 := range v {
 			coin := v[v2].Coin
-			if coin == "USD" {
+			if coin.Match(currency.USD) {
 				localScaling += v[v2].Total
 				providedUSDValue += v[v2].USDValue
 				liquidationScaling += v[v2].Total
 				continue
 			}
 			var tick MarketData
-			tick, err = f.GetMarket(context.Background(), currency.NewPairWithDelimiter(coin, "usd", "/").String())
+			tick, err = f.GetMarket(context.Background(), currency.NewPairWithDelimiter(coin.String(), "usd", "/").String())
 			if err != nil {
 				t.Error(err)
 			}
@@ -1805,7 +1805,7 @@ func TestScaleCollateral(t *testing.T) {
 				context.Background(),
 				"",
 				&order.CollateralCalculator{
-					CollateralCurrency: currency.NewCode(coin),
+					CollateralCurrency: coin,
 					Asset:              asset.Spot,
 					Side:               order.Buy,
 					FreeCollateral:     decimal.NewFromFloat(v[v2].Total),
@@ -1825,7 +1825,7 @@ func TestScaleCollateral(t *testing.T) {
 			scaled, err = f.ScaleCollateral(context.Background(),
 				subaccount,
 				&order.CollateralCalculator{
-					CollateralCurrency: currency.NewCode(coin),
+					CollateralCurrency: coin,
 					Asset:              asset.Spot,
 					Side:               order.Buy,
 					FreeCollateral:     decimal.NewFromFloat(v[v2].Total),
@@ -1841,7 +1841,7 @@ func TestScaleCollateral(t *testing.T) {
 			_, err = f.ScaleCollateral(context.Background(),
 				subaccount,
 				&order.CollateralCalculator{
-					CollateralCurrency: currency.NewCode(coin),
+					CollateralCurrency: coin,
 					Asset:              asset.Spot,
 					Side:               order.Buy,
 					FreeCollateral:     decimal.NewFromFloat(v[v2].Total),
@@ -1857,7 +1857,7 @@ func TestScaleCollateral(t *testing.T) {
 				context.Background(),
 				"",
 				&order.CollateralCalculator{
-					CollateralCurrency: currency.NewCode(coin),
+					CollateralCurrency: coin,
 					Asset:              asset.Spot,
 					Side:               order.Buy,
 				})
@@ -1873,7 +1873,6 @@ func TestScaleCollateral(t *testing.T) {
 		t.Errorf("collateral scaling less than 95%% accurate, received '%v' expected roughly '%v'", localScaling, accountInfo.Collateral)
 	}
 }
-
 func TestCalculateTotalCollateral(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
@@ -1887,10 +1886,10 @@ func TestCalculateTotalCollateral(t *testing.T) {
 	for _, v := range walletInfo {
 		for v2 := range v {
 			coin := v[v2].Coin
-			if coin == "USD" {
+			if coin.Match(currency.USD) {
 				total := decimal.NewFromFloat(v[v2].Total)
 				scales = append(scales, order.CollateralCalculator{
-					CollateralCurrency: currency.NewCode(coin),
+					CollateralCurrency: coin,
 					Asset:              asset.Spot,
 					Side:               order.Buy,
 					FreeCollateral:     total,
@@ -1900,7 +1899,7 @@ func TestCalculateTotalCollateral(t *testing.T) {
 				continue
 			}
 			var tick MarketData
-			tick, err = f.GetMarket(context.Background(), currency.NewPairWithDelimiter(coin, "usd", "/").String())
+			tick, err = f.GetMarket(context.Background(), currency.NewPairWithDelimiter(coin.String(), "usd", "/").String())
 			if err != nil {
 				t.Error(err)
 			}
@@ -1908,7 +1907,7 @@ func TestCalculateTotalCollateral(t *testing.T) {
 				continue
 			}
 			scales = append(scales, order.CollateralCalculator{
-				CollateralCurrency: currency.NewCode(coin),
+				CollateralCurrency: coin,
 				Asset:              asset.Spot,
 				Side:               order.Buy,
 				FreeCollateral:     decimal.NewFromFloat(v[v2].Total),
@@ -2179,5 +2178,27 @@ func TestGetExpiredFuture(t *testing.T) {
 	_, err := f.GetExpiredFuture(context.Background(), currency.NewPairWithDelimiter("BTC", "20211231", "-"))
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestGetCollateral(t *testing.T) {
+	t.Parallel()
+	//maintenanceJSON := `{"positiveBalances":[{"coin":"USD","positionSize":629.10772288,"openOrdersSize":0.0,"total":629.1077228875733,"availableIgnoringCollateral":629.10772288,"approxFair":1.0,"collateralContribution":629.10772288,"collateralUsed":0.0,"collateralWeight":1.0},{"coin":"ETH","positionSize":0.0009998,"openOrdersSize":0.0,"total":0.0009998,"availableIgnoringCollateral":0.0009998,"approxFair":2885.70833683,"collateralContribution":2.740874635404502,"collateralUsed":0.0,"collateralWeight":0.95},{"coin":"BTC","positionSize":0.0001,"openOrdersSize":0.0,"total":0.0001,"availableIgnoringCollateral":0.0001,"approxFair":40604.69965844,"collateralContribution":3.9589582166979,"collateralUsed":0.0,"collateralWeight":0.975}],"negativeBalances":[],"positions":[{"future":"ETH-PERP","size":0.001,"openOrdersSize":0.0,"positionSize":0.001,"markPrice":2880.7,"requiredMargin":0.03,"totalCollateralUsed":0.086421}],"positiveSpotBalanceTotal":636.0470068222182,"collateralFromPositiveSpotBalances":635.8075557321024,"usedBySpotMargin":0,"usedByFutures":0.086421,"collateralAvailable":635.7211347321024}`
+	//initialJSON := `{"positiveBalances":[{"coin":"USD","positionSize":629.10772288,"openOrdersSize":0.0,"total":629.1077228875733,"availableIgnoringCollateral":629.10772288,"approxFair":1.0,"collateralContribution":629.10772288,"collateralUsed":0.0,"collateralWeight":1.0},{"coin":"ETH","positionSize":0.0009998,"openOrdersSize":0.0,"total":0.0009998,"availableIgnoringCollateral":0.0009998,"approxFair":2885.70833683,"collateralContribution":2.740874635404502,"collateralUsed":0.0,"collateralWeight":0.95},{"coin":"BTC","positionSize":0.0001,"openOrdersSize":0.0,"total":0.0001,"availableIgnoringCollateral":0.0001,"approxFair":40604.69965844,"collateralContribution":3.9589582166979,"collateralUsed":0.0,"collateralWeight":0.975}],"negativeBalances":[],"positions":[{"future":"ETH-PERP","size":0.001,"openOrdersSize":0.0,"positionSize":0.001,"markPrice":2880.7,"requiredMargin":1.0,"totalCollateralUsed":2.8807}],"positiveSpotBalanceTotal":636.0470068222182,"collateralFromPositiveSpotBalances":635.8075557321024,"usedBySpotMargin":0,"usedByFutures":2.8807,"collateralAvailable":632.9268557321024}`
+	if !areTestAPIKeysSet() {
+		return
+	}
+	initial, err := f.GetCollateral(context.Background(), false)
+	if err != nil {
+		t.Error(err)
+	}
+	maintenance, err := f.GetCollateral(context.Background(), true)
+	if err != nil {
+		t.Error(err)
+	}
+	t.Logf("%+v", initial)
+	if initial.CollateralAvailable == maintenance.CollateralAvailable {
+		// not worth erroring over
+		t.Log("expected different values")
 	}
 }

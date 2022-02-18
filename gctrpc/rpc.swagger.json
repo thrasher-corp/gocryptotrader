@@ -3640,6 +3640,32 @@
         }
       }
     },
+    "gctrpcCollateralByPosition": {
+      "type": "object",
+      "properties": {
+        "currency": {
+          "type": "string"
+        },
+        "size": {
+          "type": "string"
+        },
+        "openOrderSize": {
+          "type": "string"
+        },
+        "positionSize": {
+          "type": "string"
+        },
+        "markPrice": {
+          "type": "string"
+        },
+        "requiredMargin": {
+          "type": "string"
+        },
+        "totalCollateralUsed": {
+          "type": "string"
+        }
+      }
+    },
     "gctrpcCollateralForCurrency": {
       "type": "object",
       "properties": {
@@ -3652,6 +3678,9 @@
         "scaledToCurrency": {
           "type": "string"
         },
+        "approxFairMarketValue": {
+          "type": "string"
+        },
         "scaledTotal": {
           "type": "string"
         },
@@ -3659,6 +3688,9 @@
           "type": "string"
         },
         "scaledLocked": {
+          "type": "string"
+        },
+        "weighting": {
           "type": "string"
         },
         "unrealisedPNL": {
@@ -4226,13 +4258,10 @@
         "collateralCurrency": {
           "type": "string"
         },
-        "totalCollateral": {
-          "type": "string"
-        },
         "maintenanceCollateral": {
           "type": "string"
         },
-        "freeCollateral": {
+        "availableCollateral": {
           "type": "string"
         },
         "unrealisedPNL": {
@@ -4248,6 +4277,12 @@
           "type": "array",
           "items": {
             "$ref": "#/definitions/gctrpcCollateralForCurrency"
+          }
+        },
+        "positionBreakdown": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/gctrpcCollateralByPosition"
           }
         }
       }
