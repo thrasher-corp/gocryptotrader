@@ -148,7 +148,7 @@ func (by *Bybit) GetMergedOrderBook(symbol string, scale, depth int64) (Orderboo
 	if err != nil {
 		return s, err
 	}
-	s.Time = time.Unix(0, order.Data.Time*int64(time.Millisecond))
+	s.Time = time.UnixMilli(order.Data.Time)
 	return s, nil
 }
 
@@ -186,7 +186,7 @@ func (by *Bybit) GetTrades(symbol string, limit int64) ([]TradeItem, error) {
 			Price:        resp.Data[x].Price,
 			Side:         tradeSide,
 			Volume:       resp.Data[x].Quantity,
-			Time:         time.Unix(0, resp.Data[x].Time*int64(time.Millisecond)),
+			Time:         time.UnixMilli(resp.Data[x].Time),
 		})
 	}
 	return trades, nil
@@ -226,14 +226,14 @@ func (by *Bybit) GetKlines(symbol, period string, limit int64, start, end time.T
 			kline                                                                               KlineItem
 			ok                                                                                  bool
 			err                                                                                 error
-			startTime, endTime, tradesCount                                                     float64
+			startTime, endTime, tradesCount                                                     int64
 			open, high, low, close, volume, quoteAssetVolume, takerBaseVolume, takerQuoteVolume string
 		)
 
-		if startTime, ok = resp.Data[x][0].(float64); !ok {
+		if startTime, ok = resp.Data[x][0].(int64); !ok {
 			return klines, fmt.Errorf("%v GetKlines: %w for StartTime", by.Name, errTypeAssert)
 		}
-		kline.StartTime = time.Unix(0, int64(startTime)*int64(time.Millisecond))
+		kline.StartTime = time.UnixMilli(startTime)
 
 		if open, ok = resp.Data[x][1].(string); !ok {
 			return klines, fmt.Errorf("%v GetKlines: %w for Open", by.Name, errTypeAssert)
@@ -270,10 +270,10 @@ func (by *Bybit) GetKlines(symbol, period string, limit int64, start, end time.T
 			return klines, fmt.Errorf("%v GetKlines: %w for Volume", by.Name, errStrParsing)
 		}
 
-		if endTime, ok = resp.Data[x][6].(float64); !ok {
+		if endTime, ok = resp.Data[x][6].(int64); !ok {
 			return klines, fmt.Errorf("%v GetKlines: %w for EndTime", by.Name, errTypeAssert)
 		}
-		kline.EndTime = time.Unix(0, int64(endTime)*int64(time.Millisecond))
+		kline.EndTime = time.UnixMilli(endTime)
 
 		if quoteAssetVolume, ok = resp.Data[x][7].(string); !ok {
 			return klines, fmt.Errorf("%v GetKlines: %w for QuoteAssetVolume", by.Name, errTypeAssert)
@@ -282,10 +282,10 @@ func (by *Bybit) GetKlines(symbol, period string, limit int64, start, end time.T
 			return klines, fmt.Errorf("%v GetKlines: %w for QuoteAssetVolume", by.Name, errStrParsing)
 		}
 
-		if tradesCount, ok = resp.Data[x][8].(float64); !ok {
+		if tradesCount, ok = resp.Data[x][8].(int64); !ok {
 			return klines, fmt.Errorf("%v GetKlines: %w for TradesCount", by.Name, errTypeAssert)
 		}
-		kline.TradesCount = int64(tradesCount)
+		kline.TradesCount = tradesCount
 
 		if takerBaseVolume, ok = resp.Data[x][9].(string); !ok {
 			return klines, fmt.Errorf("%v GetKlines: %w for TakerBaseVolume", by.Name, errTypeAssert)
@@ -337,7 +337,7 @@ func (by *Bybit) Get24HrsChange(symbol string) ([]PriceChangeStats, error) {
 		}
 
 		stats = append(stats, PriceChangeStats{
-			time.Unix(0, resp.Data.Time*int64(time.Millisecond)),
+			time.UnixMilli(resp.Data.Time),
 			resp.Data.Symbol,
 			resp.Data.BestAskPrice,
 			resp.Data.BestAskPrice,
@@ -360,7 +360,7 @@ func (by *Bybit) Get24HrsChange(symbol string) ([]PriceChangeStats, error) {
 
 		for x := range resp.Data {
 			stats = append(stats, PriceChangeStats{
-				time.Unix(0, resp.Data[x].Time*int64(time.Millisecond)),
+				time.UnixMilli(resp.Data[x].Time),
 				resp.Data[x].Symbol,
 				resp.Data[x].BestAskPrice,
 				resp.Data[x].BestAskPrice,
@@ -446,7 +446,7 @@ func (by *Bybit) GetBestBidAskPrice(symbol string) ([]TickerData, error) {
 			resp.Data.BidQuantity,
 			resp.Data.AskPrice,
 			resp.Data.AskQuantity,
-			time.Unix(0, resp.Data.Time*int64(time.Millisecond)),
+			time.UnixMilli(resp.Data.Time),
 		})
 	} else {
 		resp := struct {
@@ -464,7 +464,7 @@ func (by *Bybit) GetBestBidAskPrice(symbol string) ([]TickerData, error) {
 				resp.Data[x].BidQuantity,
 				resp.Data[x].AskPrice,
 				resp.Data[x].AskQuantity,
-				time.Unix(0, resp.Data[x].Time*int64(time.Millisecond)),
+				time.UnixMilli(resp.Data[x].Time),
 			})
 		}
 	}
