@@ -60,7 +60,7 @@ func (by *Bybit) GetAllPairs() ([]PairData, error) {
 	return resp.Data, by.SendHTTPRequest(exchange.RestSpot, bybitSpotGetSymbols, publicSpotRate, &resp)
 }
 
-func processOB(ob [][]string) ([]OrderbookItem, error) {
+func processOB(ob [][2]string) ([]OrderbookItem, error) {
 	var o []OrderbookItem
 	for x := range ob {
 		var price, amount float64
@@ -80,16 +80,17 @@ func processOB(ob [][]string) ([]OrderbookItem, error) {
 	return o, nil
 }
 
+type orderResponse struct {
+	Data struct {
+		Asks [][2]string `json:"asks"`
+		Bids [][2]string `json:"bids"`
+		Time int64       `json:"time"`
+	} `json:"result"`
+}
+
 // GetOrderbook gets orderbook for a given market with a given depth (default depth 100)
 func (by *Bybit) GetOrderBook(symbol string, depth int64) (Orderbook, error) {
-	resp := struct {
-		Data struct {
-			Asks [][]string `json:"asks"`
-			Bids [][]string `json:"bids"`
-			Time int64      `json:"time"`
-		} `json:"result"`
-	}{}
-
+	var order orderResponse
 	strDepth := "100" // default depth
 	if depth > 0 && depth < 100 {
 		strDepth = strconv.FormatInt(depth, 10)
@@ -99,34 +100,27 @@ func (by *Bybit) GetOrderBook(symbol string, depth int64) (Orderbook, error) {
 	params.Set("symbol", symbol)
 	params.Set("limit", strDepth)
 	path := common.EncodeURLValues(bybitOrderBook, params)
-	err := by.SendHTTPRequest(exchange.RestSpot, path, publicSpotRate, &resp)
+	err := by.SendHTTPRequest(exchange.RestSpot, path, publicSpotRate, &order)
 	if err != nil {
 		return Orderbook{}, err
 	}
 
 	var s Orderbook
-	s.Bids, err = processOB(resp.Data.Bids)
+	s.Bids, err = processOB(order.Data.Bids)
 	if err != nil {
 		return s, err
 	}
-	s.Asks, err = processOB(resp.Data.Asks)
+	s.Asks, err = processOB(order.Data.Asks)
 	if err != nil {
 		return s, err
 	}
-	s.Time = time.Unix(0, resp.Data.Time*int64(time.Millisecond))
+	s.Time = time.UnixMilli(order.Data.Time)
 	return s, nil
 }
 
 // GetMergedOrderBook gets orderbook for a given market with a given depth (default depth 100)
 func (by *Bybit) GetMergedOrderBook(symbol string, scale, depth int64) (Orderbook, error) {
-	resp := struct {
-		Data struct {
-			Asks [][]string `json:"asks"`
-			Bids [][]string `json:"bids"`
-			Time int64      `json:"time"`
-		} `json:"result"`
-	}{}
-
+	var order orderResponse
 	params := url.Values{}
 	if scale > 0 {
 		params.Set("scale", strconv.FormatInt(scale, 10))
@@ -140,21 +134,21 @@ func (by *Bybit) GetMergedOrderBook(symbol string, scale, depth int64) (Orderboo
 	params.Set("symbol", symbol)
 	params.Set("limit", strDepth)
 	path := common.EncodeURLValues(bybitMergedOrderBook, params)
-	err := by.SendHTTPRequest(exchange.RestSpot, path, publicSpotRate, &resp)
+	err := by.SendHTTPRequest(exchange.RestSpot, path, publicSpotRate, &order)
 	if err != nil {
 		return Orderbook{}, err
 	}
 
 	var s Orderbook
-	s.Bids, err = processOB(resp.Data.Bids)
+	s.Bids, err = processOB(order.Data.Bids)
 	if err != nil {
 		return s, err
 	}
-	s.Asks, err = processOB(resp.Data.Asks)
+	s.Asks, err = processOB(order.Data.Asks)
 	if err != nil {
 		return s, err
 	}
-	s.Time = time.Unix(0, resp.Data.Time*int64(time.Millisecond))
+	s.Time = time.Unix(0, order.Data.Time*int64(time.Millisecond))
 	return s, nil
 }
 
