@@ -14,7 +14,7 @@ func (e *externalBook) Lock()   {}
 func (e *externalBook) Unlock() {}
 
 func TestUnsafe(t *testing.T) {
-	d := newDepth(unsafeID)
+	d := NewDepth(unsafeID)
 	ob := d.GetUnsafe()
 	if ob.AskHead == nil || ob.BidHead == nil || ob.m == nil {
 		t.Fatal("these items should not be nil")

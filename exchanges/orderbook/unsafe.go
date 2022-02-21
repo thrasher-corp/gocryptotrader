@@ -52,8 +52,8 @@ func (src *Unsafe) UnlockWith(dst sync.Locker) {
 }
 
 // GetUnsafe returns an unsafe orderbook with pointers to the linked list heads.
-func (d *Depth) GetUnsafe() Unsafe {
-	return Unsafe{
+func (d *Depth) GetUnsafe() *Unsafe {
+	return &Unsafe{
 		BidHead:        &d.bids.linkedList.head,
 		AskHead:        &d.asks.linkedList.head,
 		m:              &d.m,
