@@ -582,7 +582,7 @@ type APIKeyData struct {
 	ReadOnly   bool     `json:"read_only"`
 }
 
-type LCPData struct {
+type LiquidityContributionPointsData struct {
 	Date          string  `json:"date"`
 	SelfRatio     float64 `json:"self_ratio"`
 	PlatformRatio float64 `json:"platform_ratio"`

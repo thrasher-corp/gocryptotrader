@@ -504,7 +504,7 @@ func TestGetLastFundingRate(t *testing.T) {
 }
 
 func TestGetServerTime(t *testing.T) {
-	_, err := by.GetServerTime()
+	_, err := by.GetFuturesServerTime()
 	if err != nil {
 		t.Error(err)
 	}
@@ -811,7 +811,7 @@ func TestGetLCPInfo(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.GetLCPInfo(pair)
+	_, err = by.GetLiquidityContributionPointsInfo(pair)
 	if err != nil {
 		t.Error(err)
 	}

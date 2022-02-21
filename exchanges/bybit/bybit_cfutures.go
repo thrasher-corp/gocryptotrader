@@ -389,12 +389,13 @@ func (by *Bybit) GetLastFundingRate(symbol currency.Pair) (FundingInfo, error) {
 	return resp.Data, by.SendHTTPRequest(exchange.RestCoinMargined, path, publicFuturesRate, &resp)
 }
 
-// GetServerTime returns Bybit server time in seconds
-func (by *Bybit) GetServerTime() (float64, error) {
+// GetFuturesServerTime returns Bybit server time in seconds
+func (by *Bybit) GetFuturesServerTime() (time.Time, error) {
 	resp := struct {
 		TimeNow float64 `json:"time_now,string"`
 	}{}
-	return resp.TimeNow, by.SendHTTPRequest(exchange.RestCoinMargined, bybitFuturesAPIVersion+cfuturesGetServerTime, publicFuturesRate, &resp)
+
+	return time.Unix(0, int64(resp.TimeNow*1e9)), by.SendHTTPRequest(exchange.RestCoinMargined, bybitFuturesAPIVersion+cfuturesGetServerTime, publicFuturesRate, &resp)
 }
 
 // GetAnnouncement returns announcements in the last 30 days in reverse order
@@ -1154,13 +1155,13 @@ func (by *Bybit) GetAPIKeyInfo() ([]APIKeyData, error) {
 	return resp.Data, nil
 }
 
-// GetLCPInfo returns latest LCP information
-func (by *Bybit) GetLCPInfo(symbol currency.Pair) ([]LCPData, error) {
+// GetLiquidityContributionPointsInfo returns latest LCP information
+func (by *Bybit) GetLiquidityContributionPointsInfo(symbol currency.Pair) ([]LiquidityContributionPointsData, error) {
 	params := url.Values{}
 
 	resp := struct {
 		Data struct {
-			LCPList []LCPData `json:"lcp_list"`
+			LCPList []LiquidityContributionPointsData `json:"lcp_list"`
 		} `json:"result"`
 	}{}
 
