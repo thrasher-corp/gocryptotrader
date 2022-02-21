@@ -18,7 +18,6 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // Bybit is the overarching type across this package
@@ -686,25 +685,21 @@ func (by *Bybit) SendAuthHTTPRequest(ePath exchange.URL, method, path string, pa
 		return err
 	}
 
-	recvWindow := 5 * time.Second
+	recvWindow := int64(5000) // default millisecond
 	if params.Get("recvWindow") != "" {
 		// convert recvWindow value into time.Duration
-		var recvWindowParam int64
-		recvWindowParam, err = convert.Int64FromString(params.Get("recvWindow"))
+		recvWindowParam, err := convert.Int64FromString(params.Get("recvWindow"))
 		if err != nil {
 			return err
 		}
-		recvWindow = time.Duration(recvWindowParam) * time.Millisecond
+		recvWindow = time.Duration(recvWindowParam).Milliseconds()
 	}
-	params.Set("recvWindow", strconv.FormatInt(convert.RecvWindow(recvWindow), 10))
-	params.Set("timestamp", strconv.FormatInt(time.Now().Unix()*1000, 10))
+	params.Set("recvWindow", strconv.FormatInt(recvWindow, 10))
+	params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
 	params.Set("api_key", by.API.Credentials.Key)
 	signature := params.Encode()
 	hmacSigned := crypto.GetHMAC(crypto.HashSHA256, []byte(signature), []byte(by.API.Credentials.Secret))
 	hmacSignedStr := crypto.HexEncodeToString(hmacSigned)
-	if by.Verbose {
-		log.Debugf(log.ExchangeSys, "sent path: %s", path)
-	}
 
 	headers := make(map[string]string)
 	var payload []byte
