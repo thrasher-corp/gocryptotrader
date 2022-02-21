@@ -65,13 +65,15 @@ type TotalCollateralResponse struct {
 	CollateralCurrency             currency.Code
 	AvailableMaintenanceCollateral decimal.Decimal
 	AvailableCollateral            decimal.Decimal
-	LockedCollateral               decimal.Decimal
 	UnrealisedPNL                  decimal.Decimal
-	LockedBreakdown                *CollateralLockedBreakdown
+	UsedCollateral                 decimal.Decimal
+	UsedBreakdown                  *UsedCollateralBreakdown
 	BreakdownByCurrency            []CollateralByCurrency
 	BreakdownOfPositions           []CollateralByPosition
 }
 
+// CollateralByPosition shows how much collateral is used
+// from positions
 type CollateralByPosition struct {
 	PositionCurrency currency.Pair
 	Size             decimal.Decimal
@@ -87,29 +89,29 @@ type CollateralByPosition struct {
 // currency it is represented as
 // eg in FTX ScaledCurrency is USD
 type CollateralByCurrency struct {
-	Currency              currency.Code
-	OriginalTotal         decimal.Decimal
-	ScaledCurrency        currency.Code
-	Weighting             decimal.Decimal
-	ScaledTotal           decimal.Decimal
-	ScaledTotalLocked     decimal.Decimal
-	ScaledLockedBreakdown *CollateralLockedBreakdown
-	ScaledFree            decimal.Decimal
-	UnrealisedPNL         decimal.Decimal
-	FairMarketValue       decimal.Decimal
-	Error                 error
+	Currency            currency.Code
+	OriginalTotal       decimal.Decimal
+	ScaledCurrency      currency.Code
+	Weighting           decimal.Decimal
+	ScaledTotal         decimal.Decimal
+	ScaledUsed          decimal.Decimal
+	ScaledUsedBreakdown *UsedCollateralBreakdown
+	ScaledFree          decimal.Decimal
+	UnrealisedPNL       decimal.Decimal
+	FairMarketValue     decimal.Decimal
+	Error               error
 }
 
-// CollateralLockedBreakdown provides a detailed
+// UsedCollateralBreakdown provides a detailed
 // breakdown of where collateral is currently being allocated
-type CollateralLockedBreakdown struct {
+type UsedCollateralBreakdown struct {
 	LockedInStakes                  decimal.Decimal
 	LockedInNFTBids                 decimal.Decimal
 	LockedInFeeVoucher              decimal.Decimal
 	LockedInSpotMarginFundingOffers decimal.Decimal
 	LockedInSpotOrders              decimal.Decimal
 	LockedAsCollateral              decimal.Decimal
-	LockedInPositions               decimal.Decimal
+	UsedInPositions                 decimal.Decimal
 }
 
 // PositionController manages all futures orders

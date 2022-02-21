@@ -4381,34 +4381,39 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 	}
 
 	result := &gctrpc.GetCollateralResponse{
-		SubAccount:            subAccount,
-		CollateralCurrency:    collateral.CollateralCurrency.String(),
-		AvailableCollateral:   collateral.AvailableCollateral.String(),
-		MaintenanceCollateral: collateral.AvailableMaintenanceCollateral.String(),
-		LockedCollateral:      collateral.LockedCollateral.String(),
+		SubAccount:          subAccount,
+		CollateralCurrency:  collateral.CollateralCurrency.String(),
+		AvailableCollateral: collateral.AvailableCollateral.String(),
+		UsedCollateral:      collateral.UsedCollateral.String(),
+	}
+	if !collateral.AvailableMaintenanceCollateral.IsZero() {
+		result.MaintenanceCollateral = collateral.AvailableMaintenanceCollateral.String()
 	}
 	if !collateral.UnrealisedPNL.IsZero() {
 		result.UnrealisedPNL = collateral.UnrealisedPNL.String()
 	}
-	if collateral.LockedBreakdown != nil {
-		result.LockedBreakdown = &gctrpc.CollateralLockedBreakdown{}
-		if !collateral.LockedBreakdown.LockedInStakes.IsZero() {
-			result.LockedBreakdown.LockedInStakes = collateral.LockedBreakdown.LockedInStakes.String()
+	if collateral.UsedBreakdown != nil {
+		result.UsedBreakdown = &gctrpc.CollateralUsedBreakdown{}
+		if !collateral.UsedBreakdown.LockedInStakes.IsZero() {
+			result.UsedBreakdown.LockedInStakes = collateral.UsedBreakdown.LockedInStakes.String()
 		}
-		if !collateral.LockedBreakdown.LockedInNFTBids.IsZero() {
-			result.LockedBreakdown.LockedInNFTBids = collateral.LockedBreakdown.LockedInNFTBids.String()
+		if !collateral.UsedBreakdown.LockedInNFTBids.IsZero() {
+			result.UsedBreakdown.LockedInNFTBids = collateral.UsedBreakdown.LockedInNFTBids.String()
 		}
-		if !collateral.LockedBreakdown.LockedInFeeVoucher.IsZero() {
-			result.LockedBreakdown.LockedInFeeVoucher = collateral.LockedBreakdown.LockedInFeeVoucher.String()
+		if !collateral.UsedBreakdown.LockedInFeeVoucher.IsZero() {
+			result.UsedBreakdown.LockedInFeeVoucher = collateral.UsedBreakdown.LockedInFeeVoucher.String()
 		}
-		if !collateral.LockedBreakdown.LockedInSpotMarginFundingOffers.IsZero() {
-			result.LockedBreakdown.LockedInSpotMarginFundingOffers = collateral.LockedBreakdown.LockedInSpotMarginFundingOffers.String()
+		if !collateral.UsedBreakdown.LockedInSpotMarginFundingOffers.IsZero() {
+			result.UsedBreakdown.LockedInSpotMarginFundingOffers = collateral.UsedBreakdown.LockedInSpotMarginFundingOffers.String()
 		}
-		if !collateral.LockedBreakdown.LockedInSpotOrders.IsZero() {
-			result.LockedBreakdown.LockedInSpotOrders = collateral.LockedBreakdown.LockedInSpotOrders.String()
+		if !collateral.UsedBreakdown.LockedInSpotOrders.IsZero() {
+			result.UsedBreakdown.LockedInSpotOrders = collateral.UsedBreakdown.LockedInSpotOrders.String()
 		}
-		if !collateral.LockedBreakdown.LockedAsCollateral.IsZero() {
-			result.LockedBreakdown.LockedAsCollateral = collateral.LockedBreakdown.LockedAsCollateral.String()
+		if !collateral.UsedBreakdown.LockedAsCollateral.IsZero() {
+			result.UsedBreakdown.LockedAsCollateral = collateral.UsedBreakdown.LockedAsCollateral.String()
+		}
+		if !collateral.UsedBreakdown.UsedInPositions.IsZero() {
+			result.UsedBreakdown.UsedInFutures = collateral.UsedBreakdown.UsedInPositions.String()
 		}
 	}
 	if r.IncludeBreakdown {
@@ -4433,32 +4438,35 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 				ScaledToCurrency:      collateral.BreakdownByCurrency[i].ScaledCurrency.String(),
 				ScaledTotal:           collateral.BreakdownByCurrency[i].ScaledTotal.String(),
 				ScaledFree:            collateral.BreakdownByCurrency[i].ScaledFree.String(),
-				ScaledLocked:          collateral.BreakdownByCurrency[i].ScaledTotalLocked.String(),
+				ScaledUsed:            collateral.BreakdownByCurrency[i].ScaledUsed.String(),
 				Weighting:             collateral.BreakdownByCurrency[i].Weighting.String(),
 				ApproxFairMarketValue: collateral.BreakdownByCurrency[i].FairMarketValue.String(),
 			}
 			if !collateral.BreakdownByCurrency[i].UnrealisedPNL.IsZero() {
 				cb.UnrealisedPNL = collateral.BreakdownByCurrency[i].UnrealisedPNL.String()
 			}
-			if collateral.BreakdownByCurrency[i].ScaledLockedBreakdown != nil {
-				cb.LockedBreakdown = &gctrpc.CollateralLockedBreakdown{}
-				if !collateral.BreakdownByCurrency[i].ScaledLockedBreakdown.LockedInStakes.IsZero() {
-					cb.LockedBreakdown.LockedInStakes = collateral.BreakdownByCurrency[i].ScaledLockedBreakdown.LockedInStakes.String()
+			if collateral.BreakdownByCurrency[i].ScaledUsedBreakdown != nil {
+				cb.UsedBreakdown = &gctrpc.CollateralUsedBreakdown{}
+				if !collateral.BreakdownByCurrency[i].ScaledUsedBreakdown.LockedInStakes.IsZero() {
+					cb.UsedBreakdown.LockedInStakes = collateral.BreakdownByCurrency[i].ScaledUsedBreakdown.LockedInStakes.String()
 				}
-				if !collateral.BreakdownByCurrency[i].ScaledLockedBreakdown.LockedInNFTBids.IsZero() {
-					cb.LockedBreakdown.LockedInNFTBids = collateral.BreakdownByCurrency[i].ScaledLockedBreakdown.LockedInNFTBids.String()
+				if !collateral.BreakdownByCurrency[i].ScaledUsedBreakdown.LockedInNFTBids.IsZero() {
+					cb.UsedBreakdown.LockedInNFTBids = collateral.BreakdownByCurrency[i].ScaledUsedBreakdown.LockedInNFTBids.String()
 				}
-				if !collateral.BreakdownByCurrency[i].ScaledLockedBreakdown.LockedInFeeVoucher.IsZero() {
-					cb.LockedBreakdown.LockedInFeeVoucher = collateral.BreakdownByCurrency[i].ScaledLockedBreakdown.LockedInFeeVoucher.String()
+				if !collateral.BreakdownByCurrency[i].ScaledUsedBreakdown.LockedInFeeVoucher.IsZero() {
+					cb.UsedBreakdown.LockedInFeeVoucher = collateral.BreakdownByCurrency[i].ScaledUsedBreakdown.LockedInFeeVoucher.String()
 				}
-				if !collateral.BreakdownByCurrency[i].ScaledLockedBreakdown.LockedInSpotMarginFundingOffers.IsZero() {
-					cb.LockedBreakdown.LockedInSpotMarginFundingOffers = collateral.BreakdownByCurrency[i].ScaledLockedBreakdown.LockedInSpotMarginFundingOffers.String()
+				if !collateral.BreakdownByCurrency[i].ScaledUsedBreakdown.LockedInSpotMarginFundingOffers.IsZero() {
+					cb.UsedBreakdown.LockedInSpotMarginFundingOffers = collateral.BreakdownByCurrency[i].ScaledUsedBreakdown.LockedInSpotMarginFundingOffers.String()
 				}
-				if !collateral.BreakdownByCurrency[i].ScaledLockedBreakdown.LockedInSpotOrders.IsZero() {
-					cb.LockedBreakdown.LockedInSpotOrders = collateral.BreakdownByCurrency[i].ScaledLockedBreakdown.LockedInSpotOrders.String()
+				if !collateral.BreakdownByCurrency[i].ScaledUsedBreakdown.LockedInSpotOrders.IsZero() {
+					cb.UsedBreakdown.LockedInSpotOrders = collateral.BreakdownByCurrency[i].ScaledUsedBreakdown.LockedInSpotOrders.String()
 				}
-				if !collateral.BreakdownByCurrency[i].ScaledLockedBreakdown.LockedAsCollateral.IsZero() {
-					cb.LockedBreakdown.LockedAsCollateral = collateral.BreakdownByCurrency[i].ScaledLockedBreakdown.LockedAsCollateral.String()
+				if !collateral.BreakdownByCurrency[i].ScaledUsedBreakdown.LockedAsCollateral.IsZero() {
+					cb.UsedBreakdown.LockedAsCollateral = collateral.BreakdownByCurrency[i].ScaledUsedBreakdown.LockedAsCollateral.String()
+				}
+				if !collateral.BreakdownByCurrency[i].ScaledUsedBreakdown.UsedInPositions.IsZero() {
+					cb.UsedBreakdown.UsedInFutures = collateral.BreakdownByCurrency[i].ScaledUsedBreakdown.UsedInPositions.String()
 				}
 			}
 			if collateral.BreakdownByCurrency[i].Error != nil {

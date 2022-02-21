@@ -1544,6 +1544,8 @@ func (f *FTX) FetchExchangeLimits(ctx context.Context) ([]order.MinMaxLevel, err
 	return limits, nil
 }
 
+// GetCollateral returns total collateral and the breakdown of
+// collateral contributions
 func (f *FTX) GetCollateral(ctx context.Context, maintenance bool) (*CollateralResponse, error) {
 	resp := struct {
 		Data CollateralResponse `json:"result"`
@@ -1564,7 +1566,7 @@ func (f *FTX) GetCollateral(ctx context.Context, maintenance bool) (*CollateralR
 // LoadCollateralWeightings sets the collateral weights for
 // currencies supported by FTX
 func (f *FTX) LoadCollateralWeightings(ctx context.Context) error {
-	f.collateralWeight = make(map[string]CollateralWeight)
+	f.collateralWeight = make(map[*currency.Item]CollateralWeight)
 	// taken from https://help.ftx.com/hc/en-us/articles/360031149632-Non-USD-Collateral
 	// sets default, then uses the latest from FTX
 	f.collateralWeight.load("1INCH", 0.9, 0.85, 0.0005)
@@ -1725,19 +1727,22 @@ func (c CollateralWeightHolder) hasData() bool {
 }
 
 func (c CollateralWeightHolder) loadTotal(code string, weighting float64) {
-	currencyCollateral := c[code]
+	cc := currency.NewCode(code)
+	currencyCollateral := c[cc.Item]
 	currencyCollateral.Total = weighting
-	c[code] = currencyCollateral
+	c[cc.Item] = currencyCollateral
 }
 
 func (c CollateralWeightHolder) loadInitialMarginFraction(code string, imf float64) {
-	currencyCollateral := c[code]
+	cc := currency.NewCode(code)
+	currencyCollateral := c[cc.Item]
 	currencyCollateral.InitialMarginFractionFactor = imf
-	c[code] = currencyCollateral
+	c[cc.Item] = currencyCollateral
 }
 
 func (c CollateralWeightHolder) load(code string, total, initial, imfFactor float64) {
-	c[code] = CollateralWeight{
+	cc := currency.NewCode(code)
+	c[cc.Item] = CollateralWeight{
 		Total:                       total,
 		Initial:                     initial,
 		InitialMarginFractionFactor: imfFactor,

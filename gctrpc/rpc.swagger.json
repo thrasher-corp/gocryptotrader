@@ -3687,8 +3687,11 @@
         "scaledFree": {
           "type": "string"
         },
-        "scaledLocked": {
+        "scaledUsed": {
           "type": "string"
+        },
+        "usedBreakdown": {
+          "$ref": "#/definitions/gctrpcCollateralUsedBreakdown"
         },
         "weighting": {
           "type": "string"
@@ -3696,15 +3699,12 @@
         "unrealisedPNL": {
           "type": "string"
         },
-        "lockedBreakdown": {
-          "$ref": "#/definitions/gctrpcCollateralLockedBreakdown"
-        },
         "error": {
           "type": "string"
         }
       }
     },
-    "gctrpcCollateralLockedBreakdown": {
+    "gctrpcCollateralUsedBreakdown": {
       "type": "object",
       "properties": {
         "lockedInStakes": {
@@ -3723,6 +3723,12 @@
           "type": "string"
         },
         "lockedAsCollateral": {
+          "type": "string"
+        },
+        "usedInFutures": {
+          "type": "string"
+        },
+        "usedInSpotMargin": {
           "type": "string"
         }
       }
@@ -4267,11 +4273,11 @@
         "unrealisedPNL": {
           "type": "string"
         },
-        "lockedCollateral": {
+        "usedCollateral": {
           "type": "string"
         },
-        "lockedBreakdown": {
-          "$ref": "#/definitions/gctrpcCollateralLockedBreakdown"
+        "usedBreakdown": {
+          "$ref": "#/definitions/gctrpcCollateralUsedBreakdown"
         },
         "currencyBreakdown": {
           "type": "array",

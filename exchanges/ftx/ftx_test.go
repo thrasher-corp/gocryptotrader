@@ -1873,6 +1873,7 @@ func TestScaleCollateral(t *testing.T) {
 		t.Errorf("collateral scaling less than 95%% accurate, received '%v' expected roughly '%v'", localScaling, accountInfo.Collateral)
 	}
 }
+
 func TestCalculateTotalCollateral(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
@@ -1901,7 +1902,9 @@ func TestCalculateTotalCollateral(t *testing.T) {
 			var tick MarketData
 			tick, err = f.GetMarket(context.Background(), currency.NewPairWithDelimiter(coin.String(), "usd", "/").String())
 			if err != nil {
-				t.Error(err)
+				// some assumed markets don't exist, just don't process them
+				t.Log(err)
+				continue
 			}
 			if tick.Price == 0 {
 				continue
@@ -1926,7 +1929,7 @@ func TestCalculateTotalCollateral(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	localScaling := total.TotalCollateral.InexactFloat64()
+	localScaling := total.AvailableCollateral.InexactFloat64()
 	accountInfo, err := f.GetAccountInfo(context.Background(), subaccount)
 	if err != nil {
 		t.Error(err)
@@ -2117,12 +2120,12 @@ func TestLoadCollateralWeightings(t *testing.T) {
 func TestLoadTotalIMF(t *testing.T) {
 	t.Parallel()
 	c := CollateralWeightHolder{}
-	c.loadTotal("cw", 1)
-	if _, ok := c["cw"]; !ok {
+	c.loadTotal("BTC", 1)
+	if _, ok := c[currency.BTC.Item]; !ok {
 		t.Error("expected entry")
 	}
-	c.loadInitialMarginFraction("cw", 1)
-	cw, ok := c["cw"]
+	c.loadInitialMarginFraction("btc", 1)
+	cw, ok := c[currency.BTC.Item]
 	if !ok {
 		t.Error("expected entry")
 	}
@@ -2137,8 +2140,8 @@ func TestLoadTotalIMF(t *testing.T) {
 func TestLoadCollateralWeight(t *testing.T) {
 	t.Parallel()
 	c := CollateralWeightHolder{}
-	c.load("test", 1, 2, 3)
-	cw, ok := c["test"]
+	c.load("DOGE", 1, 2, 3)
+	cw, ok := c[currency.DOGE.Item]
 	if !ok {
 		t.Fatal("expected loaded collateral weight")
 	}
@@ -2183,22 +2186,15 @@ func TestGetExpiredFuture(t *testing.T) {
 
 func TestGetCollateral(t *testing.T) {
 	t.Parallel()
-	//maintenanceJSON := `{"positiveBalances":[{"coin":"USD","positionSize":629.10772288,"openOrdersSize":0.0,"total":629.1077228875733,"availableIgnoringCollateral":629.10772288,"approxFair":1.0,"collateralContribution":629.10772288,"collateralUsed":0.0,"collateralWeight":1.0},{"coin":"ETH","positionSize":0.0009998,"openOrdersSize":0.0,"total":0.0009998,"availableIgnoringCollateral":0.0009998,"approxFair":2885.70833683,"collateralContribution":2.740874635404502,"collateralUsed":0.0,"collateralWeight":0.95},{"coin":"BTC","positionSize":0.0001,"openOrdersSize":0.0,"total":0.0001,"availableIgnoringCollateral":0.0001,"approxFair":40604.69965844,"collateralContribution":3.9589582166979,"collateralUsed":0.0,"collateralWeight":0.975}],"negativeBalances":[],"positions":[{"future":"ETH-PERP","size":0.001,"openOrdersSize":0.0,"positionSize":0.001,"markPrice":2880.7,"requiredMargin":0.03,"totalCollateralUsed":0.086421}],"positiveSpotBalanceTotal":636.0470068222182,"collateralFromPositiveSpotBalances":635.8075557321024,"usedBySpotMargin":0,"usedByFutures":0.086421,"collateralAvailable":635.7211347321024}`
-	//initialJSON := `{"positiveBalances":[{"coin":"USD","positionSize":629.10772288,"openOrdersSize":0.0,"total":629.1077228875733,"availableIgnoringCollateral":629.10772288,"approxFair":1.0,"collateralContribution":629.10772288,"collateralUsed":0.0,"collateralWeight":1.0},{"coin":"ETH","positionSize":0.0009998,"openOrdersSize":0.0,"total":0.0009998,"availableIgnoringCollateral":0.0009998,"approxFair":2885.70833683,"collateralContribution":2.740874635404502,"collateralUsed":0.0,"collateralWeight":0.95},{"coin":"BTC","positionSize":0.0001,"openOrdersSize":0.0,"total":0.0001,"availableIgnoringCollateral":0.0001,"approxFair":40604.69965844,"collateralContribution":3.9589582166979,"collateralUsed":0.0,"collateralWeight":0.975}],"negativeBalances":[],"positions":[{"future":"ETH-PERP","size":0.001,"openOrdersSize":0.0,"positionSize":0.001,"markPrice":2880.7,"requiredMargin":1.0,"totalCollateralUsed":2.8807}],"positiveSpotBalanceTotal":636.0470068222182,"collateralFromPositiveSpotBalances":635.8075557321024,"usedBySpotMargin":0,"usedByFutures":2.8807,"collateralAvailable":632.9268557321024}`
 	if !areTestAPIKeysSet() {
-		return
+		t.Skip()
 	}
-	initial, err := f.GetCollateral(context.Background(), false)
+	_, err := f.GetCollateral(context.Background(), false)
 	if err != nil {
 		t.Error(err)
 	}
-	maintenance, err := f.GetCollateral(context.Background(), true)
+	_, err = f.GetCollateral(context.Background(), true)
 	if err != nil {
 		t.Error(err)
-	}
-	t.Logf("%+v", initial)
-	if initial.CollateralAvailable == maintenance.CollateralAvailable {
-		// not worth erroring over
-		t.Log("expected different values")
 	}
 }

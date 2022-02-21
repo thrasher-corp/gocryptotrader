@@ -157,8 +157,9 @@ func (f fExchange) GetFuturesPositions(_ context.Context, a asset.Item, cp curre
 // CalculateTotalCollateral overrides testExchange's CalculateTotalCollateral function
 func (f fExchange) CalculateTotalCollateral(context.Context, *order.TotalCollateralCalculator) (*order.TotalCollateralResponse, error) {
 	return &order.TotalCollateralResponse{
-		TotalCollateral: decimal.NewFromInt(1337),
-		LockedBreakdown: &order.CollateralLockedBreakdown{
+		AvailableMaintenanceCollateral: decimal.NewFromInt(1338),
+		AvailableCollateral:            decimal.NewFromInt(1337),
+		UsedBreakdown: &order.UsedCollateralBreakdown{
 			LockedInStakes:                  decimal.NewFromInt(3),
 			LockedInNFTBids:                 decimal.NewFromInt(3),
 			LockedInFeeVoucher:              decimal.NewFromInt(3),
@@ -174,11 +175,11 @@ func (f fExchange) CalculateTotalCollateral(context.Context, *order.TotalCollate
 				ScaledFree:    decimal.NewFromInt(1330),
 			},
 			{
-				Currency:          currency.DOGE,
-				OriginalTotal:     decimal.NewFromInt(1000),
-				ScaledTotal:       decimal.NewFromInt(10),
-				ScaledTotalLocked: decimal.NewFromInt(6),
-				ScaledLockedBreakdown: &order.CollateralLockedBreakdown{
+				Currency:      currency.DOGE,
+				OriginalTotal: decimal.NewFromInt(1000),
+				ScaledTotal:   decimal.NewFromInt(10),
+				ScaledUsed:    decimal.NewFromInt(6),
+				ScaledUsedBreakdown: &order.UsedCollateralBreakdown{
 					LockedInStakes:                  decimal.NewFromInt(1),
 					LockedInNFTBids:                 decimal.NewFromInt(1),
 					LockedInFeeVoucher:              decimal.NewFromInt(1),
@@ -2225,7 +2226,7 @@ func TestGetCollateral(t *testing.T) {
 	if len(r.CurrencyBreakdown) != 3 {
 		t.Errorf("expected 3 currencies, received '%v'", len(r.CurrencyBreakdown))
 	}
-	if r.TotalCollateral != "1337" {
+	if r.AvailableCollateral != "1337" {
 		t.Error("expected 1337")
 	}
 

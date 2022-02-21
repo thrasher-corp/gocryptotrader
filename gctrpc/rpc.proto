@@ -1072,8 +1072,8 @@ message GetCollateralResponse {
     string maintenance_collateral = 3;
     string available_collateral = 4;
     string unrealisedPNL = 5;
-    string locked_collateral = 6;
-    CollateralLockedBreakdown locked_breakdown = 7;
+    string used_collateral = 6;
+    CollateralUsedBreakdown used_breakdown = 7;
     repeated CollateralForCurrency currency_breakdown = 8;
     repeated CollateralByPosition position_breakdown = 9;
 }
@@ -1085,10 +1085,10 @@ message CollateralForCurrency {
     string approx_fair_market_value = 4;
     string scaled_total = 5;
     string scaled_free = 6;
-    string scaled_locked = 7;
-    string weighting = 8;
-    string unrealisedPNL = 9;
-    CollateralLockedBreakdown locked_breakdown = 10;
+    string scaled_used = 7;
+    CollateralUsedBreakdown used_breakdown = 8;
+    string weighting = 9;
+    string unrealisedPNL = 10;
     string error = 11;
 }
 
@@ -1102,13 +1102,15 @@ message CollateralByPosition {
     string total_collateral_used = 7;
 }
 
-message CollateralLockedBreakdown {
+message CollateralUsedBreakdown {
    string locked_in_stakes = 1;
    string lockedInNFTBids = 2;
    string locked_in_fee_voucher = 3;
    string locked_in_spot_margin_funding_offers = 4;
    string locked_in_spot_orders = 5;
    string locked_as_collateral = 6;
+   string used_in_futures = 7;
+   string used_in_spot_margin = 8;
 }
 
 
