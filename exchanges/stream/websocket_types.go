@@ -96,23 +96,23 @@ type Websocket struct {
 
 // WebsocketSetup defines variables for setting up a websocket connection
 type WebsocketSetup struct {
-	ExchangeConfig        *config.Exchange
-	DefaultURL            string
-	RunningURL            string
-	RunningURLAuth        string
-	Connector             func() error
-	Subscriber            func([]ChannelSubscription) error
-	Unsubscriber          func([]ChannelSubscription) error
-	GenerateSubscriptions func() ([]ChannelSubscription, error)
-	Features              *protocol.Features
+	ExchangeConfig         *config.Exchange
+	DefaultURL             string
+	RunningURL             string
+	RunningURLAuth         string
+	Connector              func() error
+	Subscriber             func([]ChannelSubscription) error
+	Unsubscriber           func([]ChannelSubscription) error
+	GenerateSubscriptions  func() ([]ChannelSubscription, error)
+	Features               *protocol.Features
+	ConnectionMonitorDelay time.Duration
 	// Local orderbook buffer config values
 	SortBuffer            bool
 	SortBufferByUpdateIDs bool
 	UpdateEntriesByID     bool
 	TradeFeed             bool
 	// Fill data config values
-	FillsFeed              bool
-	ConnectionMonitorDelay time.Duration
+	FillsFeed bool
 }
 
 // WebsocketConnection contains all the data needed to send a message to a WS
