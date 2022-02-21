@@ -735,7 +735,7 @@ func (by *Bybit) SetAutoAddMargin(symbol currency.Pair, autoAddMargin bool, side
 	} else {
 		params.Set("take_profit", "false")
 	}
-	return by.SendAuthHTTPRequest(exchange.RestUSDTMargined, http.MethodPost, ufuturesSetAutoAddMargin, params, &struct{}{}, uFuturesSetMarginRate)
+	return by.SendAuthHTTPRequest(exchange.RestUSDTMargined, http.MethodPost, ufuturesSetAutoAddMargin, params, nil, uFuturesSetMarginRate)
 }
 
 // ChangeUSDTMargin switches margin between cross or isolated
@@ -755,7 +755,7 @@ func (by *Bybit) ChangeUSDTMargin(symbol currency.Pair, buyLeverage, sellLeverag
 		params.Set("is_isolated", "false")
 	}
 
-	return by.SendAuthHTTPRequest(exchange.RestUSDTMargined, http.MethodPost, ufuturesSwitchMargin, params, &struct{}{}, uFuturesSwitchMargin)
+	return by.SendAuthHTTPRequest(exchange.RestUSDTMargined, http.MethodPost, ufuturesSwitchMargin, params, nil, uFuturesSwitchMargin)
 }
 
 // ChangeUSDTMode switches mode between full or partial position
@@ -825,7 +825,7 @@ func (by *Bybit) SetUSDTLeverage(symbol currency.Pair, buyLeverage, sellLeverage
 	}
 	params.Set("sell_leverage", strconv.FormatFloat(sellLeverage, 'f', -1, 64))
 
-	return by.SendAuthHTTPRequest(exchange.RestUSDTMargined, http.MethodPost, ufuturesSetLeverage, params, &struct{}{}, uFuturesSetLeverageRate)
+	return by.SendAuthHTTPRequest(exchange.RestUSDTMargined, http.MethodPost, ufuturesSetLeverage, params, nil, uFuturesSetLeverageRate)
 }
 
 // SetUSDTTradingAndStop sets take profit, stop loss, and trailing stop for your open position
@@ -863,7 +863,7 @@ func (by *Bybit) SetUSDTTradingAndStop(symbol currency.Pair, takeProfit, stopLos
 		params.Set("sl_trigger_by", stopLossTriggerBy)
 	}
 
-	return by.SendAuthHTTPRequest(exchange.RestUSDTMargined, http.MethodPost, ufuturesSetTradingStop, params, &struct{}{}, uFuturesSetTradingStopRate)
+	return by.SendAuthHTTPRequest(exchange.RestUSDTMargined, http.MethodPost, ufuturesSetTradingStop, params, nil, uFuturesSetTradingStopRate)
 }
 
 // GetUSDTTradeRecords returns list of user trades
