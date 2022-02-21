@@ -395,8 +395,8 @@ func (by *Bybit) wsUSDTHandleData(respRaw []byte) error {
 					}
 
 					if len(response.Data.Delete) > 0 {
-						for _, t := range response.Data.Delete {
-							p, err := currency.NewPairFromString(t.Symbol)
+						for x := range response.Data.Delete {
+							p, err := currency.NewPairFromString(response.Data.Delete[x].Symbol)
 							if err != nil {
 								return err
 							}
@@ -409,14 +409,14 @@ func (by *Bybit) wsUSDTHandleData(respRaw []byte) error {
 
 							by.Websocket.DataHandler <- &ticker.Price{
 								ExchangeName: by.Name,
-								Last:         t.LastPrice,
-								High:         t.HighPrice24h,
-								Low:          t.LowPrice24h,
-								Bid:          t.BidPrice,
-								Ask:          t.AskPrice,
-								Volume:       float64(t.Volume24h),
-								Close:        t.PrevPrice24h,
-								LastUpdated:  t.UpdateAt,
+								Last:         response.Data.Delete[x].LastPrice,
+								High:         response.Data.Delete[x].HighPrice24h,
+								Low:          response.Data.Delete[x].LowPrice24h,
+								Bid:          response.Data.Delete[x].BidPrice,
+								Ask:          response.Data.Delete[x].AskPrice,
+								Volume:       float64(response.Data.Delete[x].Volume24h),
+								Close:        response.Data.Delete[x].PrevPrice24h,
+								LastUpdated:  response.Data.Delete[x].UpdateAt,
 								AssetType:    a,
 								Pair:         p,
 							}
@@ -424,8 +424,8 @@ func (by *Bybit) wsUSDTHandleData(respRaw []byte) error {
 					}
 
 					if len(response.Data.Update) > 0 {
-						for _, t := range response.Data.Update {
-							p, err := currency.NewPairFromString(t.Symbol)
+						for x := range response.Data.Update {
+							p, err := currency.NewPairFromString(response.Data.Update[x].Symbol)
 							if err != nil {
 								return err
 							}
@@ -438,14 +438,14 @@ func (by *Bybit) wsUSDTHandleData(respRaw []byte) error {
 
 							by.Websocket.DataHandler <- &ticker.Price{
 								ExchangeName: by.Name,
-								Last:         t.LastPrice,
-								High:         t.HighPrice24h,
-								Low:          t.LowPrice24h,
-								Bid:          t.BidPrice,
-								Ask:          t.AskPrice,
-								Volume:       float64(t.Volume24h),
-								Close:        t.PrevPrice24h,
-								LastUpdated:  t.UpdateAt,
+								Last:         response.Data.Update[x].LastPrice,
+								High:         response.Data.Update[x].HighPrice24h,
+								Low:          response.Data.Update[x].LowPrice24h,
+								Bid:          response.Data.Update[x].BidPrice,
+								Ask:          response.Data.Update[x].AskPrice,
+								Volume:       float64(response.Data.Update[x].Volume24h),
+								Close:        response.Data.Update[x].PrevPrice24h,
+								LastUpdated:  response.Data.Update[x].UpdateAt,
 								AssetType:    a,
 								Pair:         p,
 							}
@@ -453,8 +453,8 @@ func (by *Bybit) wsUSDTHandleData(respRaw []byte) error {
 					}
 
 					if len(response.Data.Insert) > 0 {
-						for _, t := range response.Data.Insert {
-							p, err := currency.NewPairFromString(t.Symbol)
+						for x := range response.Data.Insert {
+							p, err := currency.NewPairFromString(response.Data.Insert[x].Symbol)
 							if err != nil {
 								return err
 							}
@@ -467,14 +467,14 @@ func (by *Bybit) wsUSDTHandleData(respRaw []byte) error {
 
 							by.Websocket.DataHandler <- &ticker.Price{
 								ExchangeName: by.Name,
-								Last:         t.LastPrice,
-								High:         t.HighPrice24h,
-								Low:          t.LowPrice24h,
-								Bid:          t.BidPrice,
-								Ask:          t.AskPrice,
-								Volume:       float64(t.Volume24h),
-								Close:        t.PrevPrice24h,
-								LastUpdated:  t.UpdateAt,
+								Last:         response.Data.Insert[x].LastPrice,
+								High:         response.Data.Insert[x].HighPrice24h,
+								Low:          response.Data.Insert[x].LowPrice24h,
+								Bid:          response.Data.Insert[x].BidPrice,
+								Ask:          response.Data.Insert[x].AskPrice,
+								Volume:       float64(response.Data.Insert[x].Volume24h),
+								Close:        response.Data.Insert[x].PrevPrice24h,
+								LastUpdated:  response.Data.Insert[x].UpdateAt,
 								AssetType:    a,
 								Pair:         p,
 							}

@@ -89,15 +89,15 @@ func (by *Bybit) GetFuturesOrderbook(symbol currency.Pair) (Orderbook, error) {
 		return resp, err
 	}
 
-	for _, ob := range data.Result {
+	for x := range data.Result {
 		var price, quantity float64
-		price, err = strconv.ParseFloat(ob.Price, 64)
+		price, err = strconv.ParseFloat(data.Result[x].Price, 64)
 		if err != nil {
 			return resp, err
 		}
 
-		quantity = float64(ob.Size)
-		if ob.Side == sideBuy {
+		quantity = float64(data.Result[x].Size)
+		if data.Result[x].Side == sideBuy {
 			resp.Bids = append(resp.Bids, OrderbookItem{
 				Price:  price,
 				Amount: quantity,
@@ -591,8 +591,8 @@ func (by *Bybit) GetActiveRealtimeCoinOrders(symbol currency.Pair, orderID, orde
 		if err != nil {
 			return data, err
 		}
-		for _, d := range resp.Data {
-			data = append(data, d)
+		for x := range resp.Data {
+			data = append(data, resp.Data[x])
 		}
 	} else {
 		resp := struct {
@@ -809,8 +809,8 @@ func (by *Bybit) GetConditionalRealtimeCoinOrders(symbol currency.Pair, stopOrde
 		if err != nil {
 			return data, err
 		}
-		for _, d := range resp.Data {
-			data = append(data, d)
+		for x := range resp.Data {
+			data = append(data, resp.Data[x])
 		}
 	} else {
 		resp := struct {
@@ -854,8 +854,8 @@ func (by *Bybit) GetCoinPositions(symbol currency.Pair) ([]PositionResp, error) 
 		if err != nil {
 			return data, err
 		}
-		for _, d := range resp.Data {
-			data = append(data, d)
+		for x := range resp.Data {
+			data = append(data, resp.Data[x])
 		}
 	}
 	return data, nil

@@ -434,8 +434,8 @@ func (by *Bybit) GetActiveUSDTRealtimeOrders(symbol currency.Pair, orderID, orde
 		if err != nil {
 			return data, err
 		}
-		for _, d := range resp.Data {
-			data = append(data, d)
+		for x := range resp.Data {
+			data = append(data, resp.Data[x])
 		}
 	} else {
 		resp := struct {
@@ -666,8 +666,8 @@ func (by *Bybit) GetConditionalUSDTRealtimeOrders(symbol currency.Pair, stopOrde
 		if err != nil {
 			return data, err
 		}
-		for _, d := range resp.Result {
-			data = append(data, d)
+		for x := range resp.Result {
+			data = append(data, resp.Result[x])
 		}
 	} else {
 		resp := struct {
@@ -714,8 +714,8 @@ func (by *Bybit) GetUSDTPositions(symbol currency.Pair) ([]USDTPositionResp, err
 		if err != nil {
 			return data, err
 		}
-		for _, d := range resp.Result {
-			data = append(data, d.Data)
+		for x := range resp.Result {
+			data = append(data, resp.Result[x].Data)
 		}
 	}
 	return data, nil

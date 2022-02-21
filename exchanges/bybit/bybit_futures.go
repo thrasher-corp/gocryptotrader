@@ -234,8 +234,8 @@ func (by *Bybit) GetActiveRealtimeOrders(symbol currency.Pair, orderID, orderLin
 		if err != nil {
 			return data, err
 		}
-		for _, d := range resp.Result {
-			data = append(data, d)
+		for x := range resp.Result {
+			data = append(data, resp.Result[x])
 		}
 	} else {
 		resp := struct {
@@ -457,8 +457,8 @@ func (by *Bybit) GetConditionalRealtimeOrders(symbol currency.Pair, stopOrderID,
 		if err != nil {
 			return data, err
 		}
-		for _, d := range resp.Result {
-			data = append(data, d)
+		for x := range resp.Result {
+			data = append(data, resp.Result[x])
 		}
 	} else {
 		resp := struct {
@@ -495,8 +495,8 @@ func (by *Bybit) GetPositions(symbol currency.Pair) ([]PositionResp, error) {
 	if err != nil {
 		return data, err
 	}
-	for _, d := range resp.Result {
-		data = append(data, d.Data)
+	for x := range resp.Result {
+		data = append(data, resp.Result[x].Data)
 	}
 	return data, nil
 }
