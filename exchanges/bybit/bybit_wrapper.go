@@ -594,7 +594,7 @@ func (by *Bybit) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		case order.Sell:
 			sideType = sideSell
 		default:
-			return submitOrderResponse, fmt.Errorf("invalid side")
+			return submitOrderResponse, errInvalidSide
 		}
 
 		timeInForce := BybitRequestParamsTimeGTC
@@ -639,7 +639,7 @@ func (by *Bybit) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		case order.Sell:
 			sideType = sideSell
 		default:
-			return submitOrderResponse, fmt.Errorf("invalid side")
+			return submitOrderResponse, errInvalidSide
 		}
 
 		timeInForce := "GTC"
@@ -671,7 +671,7 @@ func (by *Bybit) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		case order.Sell:
 			sideType = sideSell
 		default:
-			return submitOrderResponse, fmt.Errorf("invalid side")
+			return submitOrderResponse, errInvalidSide
 		}
 
 		timeInForce := "GTC"
@@ -703,7 +703,7 @@ func (by *Bybit) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		case order.Sell:
 			sideType = sideSell
 		default:
-			return submitOrderResponse, fmt.Errorf("invalid side")
+			return submitOrderResponse, errInvalidSide
 		}
 
 		timeInForce := "GTC"
