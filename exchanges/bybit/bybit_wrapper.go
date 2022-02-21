@@ -803,13 +803,13 @@ func (by *Bybit) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelA
 
 		successful, err := by.BatchCancelOrder(orderCancellation.Symbol, string(orderCancellation.Side), string(orderCancellation.Type))
 
-		if successful {
-			for i := range activeOrder {
-				cancelAllOrdersResponse.Status[strconv.FormatInt(activeOrder[i].OrderID, 10)] = err.Error()
-			}
-		} else {
+		if !successful {
 			return cancelAllOrdersResponse, fmt.Errorf("failed to cancelAllOrder")
 		}
+		for i := range activeOrder {
+			cancelAllOrdersResponse.Status[strconv.FormatInt(activeOrder[i].OrderID, 10)] = err.Error()
+		}
+
 	case asset.CoinMarginedFutures:
 		resp, err := by.CancelAllActiveCoinFuturesOrders(orderCancellation.Pair)
 

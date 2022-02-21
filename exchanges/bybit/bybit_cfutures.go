@@ -122,15 +122,14 @@ func (by *Bybit) GetFuturesKlineData(symbol currency.Pair, interval string, limi
 	}{}
 
 	params := url.Values{}
-	if !symbol.IsEmpty() {
-		symbolValue, err := by.FormatSymbol(symbol, asset.CoinMarginedFutures)
-		if err != nil {
-			return resp.Data, err
-		}
-		params.Set("symbol", symbolValue)
-	} else {
+	if symbol.IsEmpty() {
 		return resp.Data, errors.New("symbol missing")
 	}
+	symbolValue, err := by.FormatSymbol(symbol, asset.CoinMarginedFutures)
+	if err != nil {
+		return resp.Data, err
+	}
+	params.Set("symbol", symbolValue)
 
 	if limit > 0 && limit <= 200 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
@@ -142,12 +141,7 @@ func (by *Bybit) GetFuturesKlineData(symbol currency.Pair, interval string, limi
 	params.Set("from", strconv.FormatInt(startTime.Unix(), 10))
 
 	path := common.EncodeURLValues(bybitFuturesAPIVersion+cfuturesKline, params)
-	err := by.SendHTTPRequest(exchange.RestCoinMargined, path, publicFuturesRate, &resp)
-	if err != nil {
-		return resp.Data, err
-	}
-
-	return resp.Data, nil
+	return resp.Data, by.SendHTTPRequest(exchange.RestCoinMargined, path, publicFuturesRate, &resp)
 }
 
 // GetFuturesSymbolPriceTicker gets price ticker for symbol.
@@ -217,11 +211,10 @@ func (by *Bybit) GetMarkPriceKline(symbol currency.Pair, interval string, limit 
 		return resp.Data, errInvalidInterval
 	}
 	params.Set("interval", interval)
-	if !startTime.IsZero() {
-		params.Set("from", strconv.FormatInt(startTime.Unix(), 10))
-	} else {
+	if startTime.IsZero() {
 		return resp.Data, errInvalidStartTime
 	}
+	params.Set("from", strconv.FormatInt(startTime.Unix(), 10))
 
 	path := common.EncodeURLValues(bybitFuturesAPIVersion+cfuturesMarkPriceKline, params)
 	return resp.Data, by.SendHTTPRequest(exchange.RestCoinMargined, path, publicFuturesRate, &resp)
@@ -246,11 +239,10 @@ func (by *Bybit) GetIndexPriceKline(symbol currency.Pair, interval string, limit
 		return resp.Data, errInvalidInterval
 	}
 	params.Set("interval", interval)
-	if !startTime.IsZero() {
-		params.Set("from", strconv.FormatInt(startTime.Unix(), 10))
-	} else {
+	if startTime.IsZero() {
 		return resp.Data, errInvalidStartTime
 	}
+	params.Set("from", strconv.FormatInt(startTime.Unix(), 10))
 
 	path := common.EncodeURLValues(bybitFuturesAPIVersion+cfuturesIndexKline, params)
 	return resp.Data, by.SendHTTPRequest(exchange.RestCoinMargined, path, publicFuturesRate, &resp)
@@ -275,11 +267,10 @@ func (by *Bybit) GetPremiumIndexPriceKline(symbol currency.Pair, interval string
 		return resp.Data, errInvalidInterval
 	}
 	params.Set("interval", interval)
-	if !startTime.IsZero() {
-		params.Set("from", strconv.FormatInt(startTime.Unix(), 10))
-	} else {
+	if startTime.IsZero() {
 		return resp.Data, errInvalidStartTime
 	}
+	params.Set("from", strconv.FormatInt(startTime.Unix(), 10))
 
 	path := common.EncodeURLValues(bybitFuturesAPIVersion+cfuturesIndexPremiumKline, params)
 	return resp.Data, by.SendHTTPRequest(exchange.RestCoinMargined, path, publicFuturesRate, &resp)
@@ -422,19 +413,19 @@ func (by *Bybit) CreateCoinFuturesOrder(symbol currency.Pair, side, orderType, t
 	params.Set("symbol", symbolValue)
 	params.Set("side", side)
 	params.Set("order_type", orderType)
-	if quantity != 0 {
-		params.Set("qty", strconv.FormatFloat(quantity, 'f', -1, 64))
-	} else {
+	if quantity <= 0 {
 		return resp.Data, errors.New("quantity can't be zero or missing")
 	}
+	params.Set("qty", strconv.FormatFloat(quantity, 'f', -1, 64))
+
 	if price != 0 {
 		params.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
 	}
-	if timeInForce != "" {
-		params.Set("time_in_force", timeInForce)
-	} else {
+	if timeInForce == "" {
 		return resp.Data, errors.New("timeInForce can't be empty or missing")
 	}
+	params.Set("time_in_force", timeInForce)
+
 	if closeOnTrigger {
 		params.Set("close_on_trigger", "true")
 	}
@@ -626,29 +617,30 @@ func (by *Bybit) CreateConditionalCoinFuturesOrder(symbol currency.Pair, side, o
 	params.Set("symbol", symbolValue)
 	params.Set("side", side)
 	params.Set("order_type", orderType)
-	if quantity != 0 {
-		params.Set("qty", strconv.FormatFloat(quantity, 'f', -1, 64))
-	} else {
+	if quantity <= 0 {
 		return resp.Data, errors.New("quantity can't be zero or missing")
 	}
+	params.Set("qty", strconv.FormatFloat(quantity, 'f', -1, 64))
+
 	if price != 0 {
 		params.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
 	}
-	if basePrice != 0 {
-		params.Set("base_price", strconv.FormatFloat(basePrice, 'f', -1, 64))
-	} else {
+	if basePrice <= 0 {
 		return resp.Data, errors.New("basePrice can't be empty or missing")
 	}
-	if stopPrice != 0 {
-		params.Set("stop_px", strconv.FormatFloat(stopPrice, 'f', -1, 64))
-	} else {
+	params.Set("base_price", strconv.FormatFloat(basePrice, 'f', -1, 64))
+
+	if stopPrice <= 0 {
 		return resp.Data, errors.New("stopPrice can't be empty or missing")
 	}
-	if timeInForce != "" {
-		params.Set("time_in_force", timeInForce)
-	} else {
+	params.Set("stop_px", strconv.FormatFloat(stopPrice, 'f', -1, 64))
+
+	if timeInForce == "" {
 		return resp.Data, errors.New("timeInForce can't be empty or missing")
+
 	}
+	params.Set("time_in_force", timeInForce)
+
 	if triggerBy != "" {
 		params.Set("trigger_by", triggerBy)
 	}
@@ -876,11 +868,11 @@ func (by *Bybit) SetCoinMargin(symbol currency.Pair, margin string) (float64, er
 		return resp.Data, err
 	}
 	params.Set("symbol", symbolValue)
-	if margin != "" {
-		params.Set("margin", margin)
-	} else {
+	if margin == "" {
 		return resp.Data, errors.New("margin can't be empty")
 	}
+	params.Set("margin", margin)
+
 	return resp.Data, by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesUpdateMargin, params, &resp, cFuturesUpdateMarginRate)
 }
 
@@ -935,11 +927,11 @@ func (by *Bybit) SetCoinLeverage(symbol currency.Pair, leverage float64, leverag
 		return resp.Data, err
 	}
 	params.Set("symbol", symbolValue)
-	if leverage > 0 {
-		params.Set("leverage", strconv.FormatFloat(leverage, 'f', -1, 64))
-	} else {
+	if leverage <= 0 {
 		return resp.Data, errors.New("leverage can't be zero or less then it")
 	}
+	params.Set("leverage", strconv.FormatFloat(leverage, 'f', -1, 64))
+
 	if leverageOnly {
 		params.Set("leverage_only", "true")
 	}
@@ -1040,11 +1032,10 @@ func (by *Bybit) ChangeCoinMode(symbol currency.Pair, takeProfitStopLoss string)
 		return resp.Data.Mode, err
 	}
 	params.Set("symbol", symbolValue)
-	if takeProfitStopLoss != "" {
-		params.Set("tp_sl_mode", takeProfitStopLoss)
-	} else {
+	if takeProfitStopLoss == "" {
 		return resp.Data.Mode, errors.New("takeProfitStopLoss can't be empty or missing")
 	}
+	params.Set("tp_sl_mode", takeProfitStopLoss)
 
 	return resp.Data.Mode, by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesSwitchPosition, params, &resp, cFuturesSwitchPositionRate)
 }
@@ -1086,11 +1077,10 @@ func (by *Bybit) SetCoinRiskLimit(symbol currency.Pair, riskID int64) (int64, er
 	}
 	params.Set("symbol", symbolValue)
 
-	if riskID > 0 {
-		params.Set("risk_id", strconv.FormatInt(riskID, 10))
-	} else {
+	if riskID <= 0 {
 		return resp.Data.RiskID, errors.New("riskID can't be zero or lesser")
 	}
+	params.Set("risk_id", strconv.FormatInt(riskID, 10))
 
 	return resp.Data.RiskID, by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesSetRiskLimit, params, &resp, cFuturesDefaultRate)
 }

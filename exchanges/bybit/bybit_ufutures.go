@@ -61,15 +61,14 @@ func (by *Bybit) GetUSDTFuturesKlineData(symbol currency.Pair, interval string, 
 	}{}
 
 	params := url.Values{}
-	if !symbol.IsEmpty() {
-		symbolValue, err := by.FormatSymbol(symbol, asset.USDTMarginedFutures)
-		if err != nil {
-			return resp.Data, err
-		}
-		params.Set("symbol", symbolValue)
-	} else {
+	if symbol.IsEmpty() {
 		return resp.Data, errors.New("symbol missing")
 	}
+	symbolValue, err := by.FormatSymbol(symbol, asset.USDTMarginedFutures)
+	if err != nil {
+		return resp.Data, err
+	}
+	params.Set("symbol", symbolValue)
 
 	if limit > 0 && limit <= 200 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
@@ -123,11 +122,10 @@ func (by *Bybit) GetUSDTMarkPriceKline(symbol currency.Pair, interval string, li
 		return resp.Data, errInvalidInterval
 	}
 	params.Set("interval", interval)
-	if !startTime.IsZero() {
-		params.Set("from", strconv.FormatInt(startTime.Unix(), 10))
-	} else {
+	if startTime.IsZero() {
 		return resp.Data, errInvalidStartTime
 	}
+	params.Set("from", strconv.FormatInt(startTime.Unix(), 10))
 
 	path := common.EncodeURLValues(ufuturesMarkPriceKline, params)
 	return resp.Data, by.SendHTTPRequest(exchange.RestUSDTMargined, path, publicFuturesRate, &resp)
@@ -152,11 +150,10 @@ func (by *Bybit) GetUSDTIndexPriceKline(symbol currency.Pair, interval string, l
 		return resp.Data, errInvalidInterval
 	}
 	params.Set("interval", interval)
-	if !startTime.IsZero() {
-		params.Set("from", strconv.FormatInt(startTime.Unix(), 10))
-	} else {
+	if startTime.IsZero() {
 		return resp.Data, errInvalidStartTime
 	}
+	params.Set("from", strconv.FormatInt(startTime.Unix(), 10))
 
 	path := common.EncodeURLValues(ufuturesIndexKline, params)
 	return resp.Data, by.SendHTTPRequest(exchange.RestUSDTMargined, path, publicFuturesRate, &resp)
@@ -182,10 +179,9 @@ func (by *Bybit) GetUSDTPremiumIndexPriceKline(symbol currency.Pair, interval st
 	}
 	params.Set("interval", interval)
 	if !startTime.IsZero() {
-		params.Set("from", strconv.FormatInt(startTime.Unix(), 10))
-	} else {
 		return resp.Data, errInvalidStartTime
 	}
+	params.Set("from", strconv.FormatInt(startTime.Unix(), 10))
 
 	path := common.EncodeURLValues(ufuturesIndexPremiumKline, params)
 	return resp.Data, by.SendHTTPRequest(exchange.RestUSDTMargined, path, publicFuturesRate, &resp)
@@ -241,29 +237,29 @@ func (by *Bybit) CreateUSDTFuturesOrder(symbol currency.Pair, side, orderType, t
 		return resp.Data, err
 	}
 	params.Set("symbol", symbolValue)
-	if side != "" {
-		params.Set("side", side)
-	} else {
+	if side == "" {
 		return resp.Data, errors.New("side can't be empty or missing")
 	}
-	if orderType != "" {
-		params.Set("order_type", orderType)
-	} else {
+	params.Set("side", side)
+
+	if orderType == "" {
 		return resp.Data, errors.New("orderType can't be empty or missing")
 	}
-	if quantity != 0 {
-		params.Set("qty", strconv.FormatFloat(quantity, 'f', -1, 64))
-	} else {
+	params.Set("order_type", orderType)
+
+	if quantity <= 0 {
 		return resp.Data, errors.New("quantity can't be zero or missing")
 	}
+	params.Set("qty", strconv.FormatFloat(quantity, 'f', -1, 64))
+
 	if price != 0 {
 		params.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
 	}
-	if timeInForce != "" {
-		params.Set("time_in_force", timeInForce)
-	} else {
+	if timeInForce == "" {
 		return resp.Data, errors.New("timeInForce can't be empty or missing")
 	}
+	params.Set("time_in_force", timeInForce)
+
 	if closeOnTrigger {
 		params.Set("close_on_trigger", "true")
 	}
@@ -465,29 +461,29 @@ func (by *Bybit) CreateConditionalUSDTFuturesOrder(symbol currency.Pair, side, o
 	params.Set("symbol", symbolValue)
 	params.Set("side", side)
 	params.Set("order_type", orderType)
-	if quantity != 0 {
-		params.Set("qty", strconv.FormatFloat(quantity, 'f', -1, 64))
-	} else {
+	if quantity <= 0 {
 		return resp.Data, errors.New("quantity can't be zero or missing")
 	}
+	params.Set("qty", strconv.FormatFloat(quantity, 'f', -1, 64))
+
 	if price != 0 {
 		params.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
 	}
-	if basePrice != 0 {
-		params.Set("base_price", strconv.FormatFloat(basePrice, 'f', -1, 64))
-	} else {
+	if basePrice <= 0 {
 		return resp.Data, errors.New("basePrice can't be empty or missing")
 	}
-	if stopPrice != 0 {
-		params.Set("stop_px", strconv.FormatFloat(stopPrice, 'f', -1, 64))
-	} else {
+	params.Set("base_price", strconv.FormatFloat(basePrice, 'f', -1, 64))
+
+	if stopPrice <= 0 {
 		return resp.Data, errors.New("stopPrice can't be empty or missing")
 	}
-	if timeInForce != "" {
-		params.Set("time_in_force", timeInForce)
-	} else {
+	params.Set("stop_px", strconv.FormatFloat(stopPrice, 'f', -1, 64))
+
+	if timeInForce == "" {
 		return resp.Data, errors.New("timeInForce can't be empty or missing")
 	}
+	params.Set("time_in_force", timeInForce)
+
 	if triggerBy != "" {
 		params.Set("trigger_by", triggerBy)
 	}
@@ -729,11 +725,11 @@ func (by *Bybit) SetAutoAddMargin(symbol currency.Pair, autoAddMargin bool, side
 		return err
 	}
 	params.Set("symbol", symbolValue)
-	if side != "" {
-		params.Set("side", side)
-	} else {
+	if side == "" {
 		return errors.New("side can't be empty or missing")
 	}
+	params.Set("side", side)
+
 	if autoAddMargin {
 		params.Set("take_profit", "true")
 	} else {
@@ -775,11 +771,10 @@ func (by *Bybit) ChangeUSDTMode(symbol currency.Pair, takeProfitStopLoss string)
 		return resp.Result.Mode, err
 	}
 	params.Set("symbol", symbolValue)
-	if takeProfitStopLoss != "" {
-		params.Set("tp_sl_mode", takeProfitStopLoss)
-	} else {
+	if takeProfitStopLoss == "" {
 		return resp.Result.Mode, errors.New("takeProfitStopLoss can't be empty or missing")
 	}
+	params.Set("tp_sl_mode", takeProfitStopLoss)
 
 	return resp.Result.Mode, by.SendAuthHTTPRequest(exchange.RestUSDTMargined, http.MethodPost, ufuturesSwitchPosition, params, &resp, uFuturesSwitchPosition)
 }
@@ -799,16 +794,16 @@ func (by *Bybit) SetUSDTMargin(symbol currency.Pair, side, margin string) (Updat
 		return resp.Result.Data, err
 	}
 	params.Set("symbol", symbolValue)
-	if side != "" {
-		params.Set("side", side)
-	} else {
+	if side == "" {
 		return resp.Result.Data, errors.New("side can't be empty")
 	}
-	if margin != "" {
-		params.Set("margin", margin)
-	} else {
+	params.Set("side", side)
+
+	if margin == "" {
 		return resp.Result.Data, errors.New("margin can't be empty")
 	}
+	params.Set("margin", margin)
+
 	return resp.Result.Data, by.SendAuthHTTPRequest(exchange.RestUSDTMargined, http.MethodPost, ufuturesUpdateMargin, params, &resp, uFuturesUpdateMarginRate)
 }
 
@@ -820,16 +815,15 @@ func (by *Bybit) SetUSDTLeverage(symbol currency.Pair, buyLeverage, sellLeverage
 		return err
 	}
 	params.Set("symbol", symbolValue)
-	if buyLeverage > 0 {
-		params.Set("buy_leverage", strconv.FormatFloat(buyLeverage, 'f', -1, 64))
-	} else {
+	if buyLeverage <= 0 {
 		return errors.New("buyLeverage can't be zero or less then it")
 	}
-	if sellLeverage > 0 {
-		params.Set("sell_leverage", strconv.FormatFloat(sellLeverage, 'f', -1, 64))
-	} else {
+	params.Set("buy_leverage", strconv.FormatFloat(buyLeverage, 'f', -1, 64))
+
+	if sellLeverage <= 0 {
 		return errors.New("sellLeverage can't be zero or less then it")
 	}
+	params.Set("sell_leverage", strconv.FormatFloat(sellLeverage, 'f', -1, 64))
 
 	return by.SendAuthHTTPRequest(exchange.RestUSDTMargined, http.MethodPost, ufuturesSetLeverage, params, &struct{}{}, uFuturesSetLeverageRate)
 }
@@ -842,11 +836,11 @@ func (by *Bybit) SetUSDTTradingAndStop(symbol currency.Pair, takeProfit, stopLos
 		return err
 	}
 	params.Set("symbol", symbolValue)
-	if side != "" {
-		params.Set("side", side)
-	} else {
+	if side == "" {
 		return errors.New("side can't be empty")
 	}
+	params.Set("side", side)
+
 	if takeProfit >= 0 {
 		params.Set("take_profit", strconv.FormatFloat(takeProfit, 'f', -1, 64))
 	}
@@ -953,16 +947,15 @@ func (by *Bybit) SetUSDTRiskLimit(symbol currency.Pair, side string, riskID int6
 		return resp.Result.RiskID, err
 	}
 	params.Set("symbol", symbolValue)
-	if side != "" {
-		params.Set("side", side)
-	} else {
+	if side == "" {
 		return 0, errors.New("side can't be empty")
 	}
-	if riskID > 0 {
-		params.Set("risk_id", strconv.FormatInt(riskID, 10))
-	} else {
+	params.Set("side", side)
+
+	if riskID <= 0 {
 		return resp.Result.RiskID, errors.New("riskID can't be zero or lesser")
 	}
+	params.Set("risk_id", strconv.FormatInt(riskID, 10))
 
 	return resp.Result.RiskID, by.SendAuthHTTPRequest(exchange.RestUSDTMargined, http.MethodPost, ufuturesSetRiskLimit, params, &resp, uFuturesDefaultRate)
 }

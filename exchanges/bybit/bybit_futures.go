@@ -49,11 +49,11 @@ func (by *Bybit) CreateFuturesOrder(positionMode int64, symbol currency.Pair, si
 	}{}
 
 	params := url.Values{}
-	if positionMode >= 0 && positionMode <= 2 {
-		params.Set("position_idx", strconv.FormatInt(positionMode, 10))
-	} else {
+	if positionMode < 0 || positionMode > 2 {
 		return resp.Result, errors.New("position mode is invalid")
 	}
+	params.Set("position_idx", strconv.FormatInt(positionMode, 10))
+
 	symbolValue, err := by.FormatSymbol(symbol, asset.Futures)
 	if err != nil {
 		return resp.Result, err
@@ -61,19 +61,19 @@ func (by *Bybit) CreateFuturesOrder(positionMode int64, symbol currency.Pair, si
 	params.Set("symbol", symbolValue)
 	params.Set("side", side)
 	params.Set("order_type", orderType)
-	if quantity != 0 {
-		params.Set("qty", strconv.FormatFloat(quantity, 'f', -1, 64))
-	} else {
+	if quantity <= 0 {
 		return resp.Result, errors.New("quantity can't be zero or missing")
 	}
+	params.Set("qty", strconv.FormatFloat(quantity, 'f', -1, 64))
+
 	if price != 0 {
 		params.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
 	}
-	if timeInForce != "" {
-		params.Set("time_in_force", timeInForce)
-	} else {
+	if timeInForce == "" {
 		return resp.Result, errors.New("timeInForce can't be empty or missing")
 	}
+	params.Set("time_in_force", timeInForce)
+
 	if closeOnTrigger {
 		params.Set("close_on_trigger", "true")
 	}
@@ -258,11 +258,11 @@ func (by *Bybit) CreateConditionalFuturesOrder(positionMode int64, symbol curren
 		Result FuturesConditionalOrderResp `json:"result"`
 	}{}
 	params := url.Values{}
-	if positionMode >= 0 && positionMode <= 2 {
-		params.Set("position_idx", strconv.FormatInt(positionMode, 10))
-	} else {
+	if positionMode < 0 || positionMode > 2 {
 		return resp.Result, errors.New("position mode is invalid")
 	}
+	params.Set("position_idx", strconv.FormatInt(positionMode, 10))
+
 	symbolValue, err := by.FormatSymbol(symbol, asset.Futures)
 	if err != nil {
 		return resp.Result, err
@@ -270,29 +270,29 @@ func (by *Bybit) CreateConditionalFuturesOrder(positionMode int64, symbol curren
 	params.Set("symbol", symbolValue)
 	params.Set("side", side)
 	params.Set("order_type", orderType)
-	if quantity != 0 {
-		params.Set("qty", strconv.FormatFloat(quantity, 'f', -1, 64))
-	} else {
+	if quantity <= 0 {
 		return resp.Result, errors.New("quantity can't be zero or missing")
 	}
+	params.Set("qty", strconv.FormatFloat(quantity, 'f', -1, 64))
+
 	if price != 0 {
 		params.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
 	}
-	if basePrice != 0 {
-		params.Set("base_price", strconv.FormatFloat(basePrice, 'f', -1, 64))
-	} else {
+	if basePrice <= 0 {
 		return resp.Result, errors.New("basePrice can't be empty or missing")
 	}
-	if stopPrice != 0 {
-		params.Set("stop_px", strconv.FormatFloat(stopPrice, 'f', -1, 64))
-	} else {
+	params.Set("base_price", strconv.FormatFloat(basePrice, 'f', -1, 64))
+
+	if stopPrice <= 0 {
 		return resp.Result, errors.New("stopPrice can't be empty or missing")
 	}
-	if timeInForce != "" {
-		params.Set("time_in_force", timeInForce)
-	} else {
+	params.Set("stop_px", strconv.FormatFloat(stopPrice, 'f', -1, 64))
+
+	if timeInForce == "" {
 		return resp.Result, errors.New("timeInForce can't be empty or missing")
 	}
+	params.Set("time_in_force", timeInForce)
+
 	if triggerBy != "" {
 		params.Set("trigger_by", triggerBy)
 	}
@@ -512,16 +512,16 @@ func (by *Bybit) SetMargin(positionMode int64, symbol currency.Pair, margin stri
 		return resp.Result, err
 	}
 	params.Set("symbol", symbolValue)
-	if positionMode >= 0 && positionMode <= 2 {
-		params.Set("position_idx", strconv.FormatInt(positionMode, 10))
-	} else {
+	if positionMode < 0 || positionMode > 2 {
 		return resp.Result, errors.New("position mode is invalid")
 	}
-	if margin != "" {
-		params.Set("margin", margin)
-	} else {
+	params.Set("position_idx", strconv.FormatInt(positionMode, 10))
+
+	if margin == "" {
 		return resp.Result, errors.New("margin can't be empty")
 	}
+	params.Set("margin", margin)
+
 	return resp.Result, by.SendAuthHTTPRequest(exchange.RestFutures, http.MethodPost, futuresUpdateMargin, params, &resp, FuturesUpdateMarginRate)
 }
 
@@ -536,11 +536,11 @@ func (by *Bybit) SetTradingAndStop(positionMode int64, symbol currency.Pair, tak
 		return resp.Result, err
 	}
 	params.Set("symbol", symbolValue)
-	if positionMode >= 0 && positionMode <= 2 {
-		params.Set("position_idx", strconv.FormatInt(positionMode, 10))
-	} else {
+	if positionMode < 0 || positionMode > 2 {
 		return resp.Result, errors.New("position mode is invalid")
 	}
+	params.Set("position_idx", strconv.FormatInt(positionMode, 10))
+
 	if takeProfit >= 0 {
 		params.Set("take_profit", strconv.FormatFloat(takeProfit, 'f', -1, 64))
 	}
@@ -611,11 +611,10 @@ func (by *Bybit) ChangeMode(symbol currency.Pair, takeProfitStopLoss string) (st
 		return resp.Result.Mode, err
 	}
 	params.Set("symbol", symbolValue)
-	if takeProfitStopLoss != "" {
-		params.Set("tp_sl_mode", takeProfitStopLoss)
-	} else {
+	if takeProfitStopLoss == "" {
 		return resp.Result.Mode, errors.New("takeProfitStopLoss can't be empty or missing")
 	}
+	params.Set("tp_sl_mode", takeProfitStopLoss)
 
 	return resp.Result.Mode, by.SendAuthHTTPRequest(exchange.RestFutures, http.MethodPost, futuresSwitchPosition, params, &resp, FuturesSwitchPositionRate)
 }
@@ -725,16 +724,14 @@ func (by *Bybit) SetRiskLimit(symbol currency.Pair, riskID, positionMode int64) 
 	}
 	params.Set("symbol", symbolValue)
 
-	if riskID > 0 {
-		params.Set("risk_id", strconv.FormatInt(riskID, 10))
-	} else {
+	if riskID <= 0 {
 		return resp.Result.RiskID, errors.New("riskID can't be zero or lesser")
 	}
+	params.Set("risk_id", strconv.FormatInt(riskID, 10))
 
-	if positionMode >= 0 && positionMode <= 2 {
-		params.Set("position_idx", strconv.FormatInt(positionMode, 10))
-	} else {
+	if positionMode < 0 || positionMode > 2 {
 		return resp.Result.RiskID, errors.New("position mode is invalid")
 	}
+	params.Set("position_idx", strconv.FormatInt(positionMode, 10))
 	return resp.Result.RiskID, by.SendAuthHTTPRequest(exchange.RestFutures, http.MethodPost, futuresSetRiskLimit, params, &resp, FuturesDefaultRate)
 }
