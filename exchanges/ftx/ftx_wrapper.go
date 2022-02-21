@@ -1334,7 +1334,7 @@ func (f *FTX) ScaleCollateral(ctx context.Context, subAccount string, calc *orde
 			UnrealisedPNL:   calc.UnrealisedPNL,
 			FairMarketValue: calc.USDPrice,
 		}
-		if calc.CollateralCurrency.Match(currency.USD) {
+		if calc.CollateralCurrency.Equal(currency.USD) {
 			// FTX bases scales all collateral into USD amounts
 			result.ScaledTotal = result.OriginalTotal
 			result.ScaledFree = calc.FreeCollateral
@@ -1424,7 +1424,7 @@ func (f *FTX) CalculateTotalCollateral(ctx context.Context, calc *order.TotalCol
 			// ensure we use supplied position data
 			calc.CollateralAssets[i].UnrealisedPNL = decimal.Zero
 			for i := range pos {
-				if !pos[i].Future.Base.Match(calc.CollateralAssets[i].CollateralCurrency) {
+				if !pos[i].Future.Base.Equal(calc.CollateralAssets[i].CollateralCurrency) {
 					continue
 				}
 				calc.CollateralAssets[i].UnrealisedPNL = calc.CollateralAssets[i].UnrealisedPNL.Add(decimal.NewFromFloat(pos[i].UnrealizedPNL))
@@ -1501,7 +1501,7 @@ func (f *FTX) calculateTotalCollateralOnline(ctx context.Context, calc *order.To
 			// use pos unrealisedPNL, not calc.collateralAssets'
 			calc.CollateralAssets[x].UnrealisedPNL = decimal.Zero
 			for i := range pos {
-				if !pos[i].Future.Base.Match(calc.CollateralAssets[x].CollateralCurrency) {
+				if !pos[i].Future.Base.Equal(calc.CollateralAssets[x].CollateralCurrency) {
 					continue
 				}
 				calc.CollateralAssets[x].UnrealisedPNL = calc.CollateralAssets[x].UnrealisedPNL.Add(decimal.NewFromFloat(pos[i].UnrealizedPNL))
@@ -1510,7 +1510,7 @@ func (f *FTX) calculateTotalCollateralOnline(ctx context.Context, calc *order.To
 		currencyBreakdown.UnrealisedPNL = calc.CollateralAssets[x].UnrealisedPNL
 
 		for y := range c.PositiveBalances {
-			if !c.PositiveBalances[y].Coin.Match(calc.CollateralAssets[x].CollateralCurrency) {
+			if !c.PositiveBalances[y].Coin.Equal(calc.CollateralAssets[x].CollateralCurrency) {
 				continue
 			}
 			currencyBreakdown.Weighting = c.PositiveBalances[y].CollateralWeight
@@ -1520,7 +1520,7 @@ func (f *FTX) calculateTotalCollateralOnline(ctx context.Context, calc *order.To
 			currencyBreakdown.FairMarketValue = c.PositiveBalances[y].ApproximateFairMarketValue
 		}
 		for y := range c.NegativeBalances {
-			if !c.NegativeBalances[y].Coin.Match(calc.CollateralAssets[x].CollateralCurrency) {
+			if !c.NegativeBalances[y].Coin.Equal(calc.CollateralAssets[x].CollateralCurrency) {
 				continue
 			}
 			currencyBreakdown.Weighting = c.NegativeBalances[y].CollateralWeight
@@ -1532,7 +1532,7 @@ func (f *FTX) calculateTotalCollateralOnline(ctx context.Context, calc *order.To
 
 		for y := range balances {
 			// used to determine how collateral is being used
-			if !balances[y].Coin.Match(calc.CollateralAssets[x].CollateralCurrency) {
+			if !balances[y].Coin.Equal(calc.CollateralAssets[x].CollateralCurrency) {
 				continue
 			}
 			// staked values are in their own currency, scale it
@@ -1578,7 +1578,7 @@ func (f *FTX) calculateTotalCollateralOnline(ctx context.Context, calc *order.To
 		}
 		currencyBreakdown.ScaledTotal = currencyBreakdown.ScaledFree.Add(currencyBreakdown.ScaledUsed)
 
-		if calc.CollateralAssets[x].CollateralCurrency.Match(currency.USD) {
+		if calc.CollateralAssets[x].CollateralCurrency.Equal(currency.USD) {
 			for y := range c.Positions {
 				if result.UsedBreakdown == nil {
 					result.UsedBreakdown = &order.UsedCollateralBreakdown{}

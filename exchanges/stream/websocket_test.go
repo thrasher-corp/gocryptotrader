@@ -586,6 +586,7 @@ func TestResubscribe(t *testing.T) {
 func TestConnectionMonitorNoConnection(t *testing.T) {
 	t.Parallel()
 	ws := *New()
+	ws.connectionMonitorDelay = 500
 	ws.DataHandler = make(chan interface{}, 1)
 	ws.ShutdownC = make(chan struct{}, 1)
 	ws.exchangeName = "hello"
@@ -606,7 +607,8 @@ func TestConnectionMonitorNoConnection(t *testing.T) {
 		t.Fatal("Should not have exited")
 	}
 	ws.setEnabled(false)
-	time.Sleep(time.Second * 2)
+	time.Sleep(time.Millisecond)
+
 	if ws.IsConnectionMonitorRunning() {
 		t.Fatal("Should have exited")
 	}

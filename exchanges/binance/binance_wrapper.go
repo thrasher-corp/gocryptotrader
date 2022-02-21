@@ -746,7 +746,7 @@ func (b *Binance) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 			accountCurrencyDetails[accData[i].AccountAlias] = append(
 				currencyDetails, account.Balance{
 					CurrencyName: currency.NewCode(accData[i].Asset),
-					TotalValue:   accData[i].Balance,
+					Total:        accData[i].Balance,
 					Hold:         accData[i].Balance - accData[i].AvailableBalance,
 					Free:         accData[i].AvailableBalance,
 				},

@@ -16,8 +16,8 @@ import (
 const (
 	// WebsocketNotEnabled alerts of a disabled websocket
 	WebsocketNotEnabled = "exchange_websocket_not_enabled"
-	// connection monitor time delays and limits
-	connectionMonitorDelay             = 2 * time.Second
+	// defaultConnectionMonitorDelay connection monitor time delays and limits
+	defaultConnectionMonitorDelay      = 2 * time.Second
 	WebsocketNotAuthenticatedUsingRest = "%v - Websocket not authenticated, using REST\n"
 	Ping                               = "ping"
 	Pong                               = "pong"
@@ -37,6 +37,7 @@ type Websocket struct {
 	trafficMonitorRunning        bool
 	dataMonitorRunning           bool
 	trafficTimeout               time.Duration
+	connectionMonitorDelay       time.Duration
 	proxyAddr                    string
 	defaultURL                   string
 	defaultURLAuth               string
@@ -110,7 +111,8 @@ type WebsocketSetup struct {
 	UpdateEntriesByID     bool
 	TradeFeed             bool
 	// Fill data config values
-	FillsFeed bool
+	FillsFeed              bool
+	ConnectionMonitorDelay time.Duration
 }
 
 // WebsocketConnection contains all the data needed to send a message to a WS

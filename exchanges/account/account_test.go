@@ -14,7 +14,7 @@ func TestCollectBalances(t *testing.T) {
 	accounts, err := CollectBalances(
 		map[string][]Balance{
 			"someAccountID": {
-				{CurrencyName: currency.BTC, TotalValue: 40000, Hold: 1},
+				{CurrencyName: currency.BTC, Total: 40000, Hold: 1},
 			},
 		},
 		asset.Spot,
@@ -27,7 +27,7 @@ func TestCollectBalances(t *testing.T) {
 	if subAccount.AssetType != asset.Spot {
 		t.Error("subAccount AssetType not set correctly")
 	}
-	if balance.CurrencyName != currency.BTC || balance.TotalValue != 40000 || balance.Hold != 1 {
+	if balance.CurrencyName != currency.BTC || balance.Total != 40000 || balance.Hold != 1 {
 		t.Error("subAccount currency balance not set correctly")
 	}
 	if err != nil {

@@ -4348,7 +4348,7 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 			LockedCollateral:   total.Sub(free),
 		}
 		if r.CalculateOffline &&
-			!acc.Currencies[i].CurrencyName.Match(currency.USD) {
+			!acc.Currencies[i].CurrencyName.Equal(currency.USD) {
 			var tick *ticker.Price
 			tickerCurr := currency.NewPair(acc.Currencies[i].CurrencyName, currency.USD)
 			if !spotPairs.Contains(tickerCurr, true) {

@@ -397,7 +397,7 @@ func (g *Gateio) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 
 				var updated bool
 				for i := range balances {
-					if !balances[i].CurrencyName.Match(currency.NewCode(x)) {
+					if !balances[i].CurrencyName.Equal(currency.NewCode(x)) {
 						continue
 					}
 					balances[i].Total = balances[i].Hold + availAmount

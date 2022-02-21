@@ -1789,7 +1789,7 @@ func TestScaleCollateral(t *testing.T) {
 	for _, v := range walletInfo {
 		for v2 := range v {
 			coin := v[v2].Coin
-			if coin.Match(currency.USD) {
+			if coin.Equal(currency.USD) {
 				localScaling += v[v2].Total
 				providedUSDValue += v[v2].USDValue
 				liquidationScaling += v[v2].Total
@@ -1887,7 +1887,7 @@ func TestCalculateTotalCollateral(t *testing.T) {
 	for _, v := range walletInfo {
 		for v2 := range v {
 			coin := v[v2].Coin
-			if coin.Match(currency.USD) {
+			if coin.Equal(currency.USD) {
 				total := decimal.NewFromFloat(v[v2].Total)
 				scales = append(scales, order.CollateralCalculator{
 					CollateralCurrency: coin,
@@ -1992,7 +1992,7 @@ func TestCalculateTotalCollateralOnline(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	if !result.CollateralCurrency.Match(currency.USD) {
+	if !result.CollateralCurrency.Equal(currency.USD) {
 		t.Error("expected USD collateral currency")
 	}
 	curr, err := currency.NewPairFromString("BTC-PERP")
