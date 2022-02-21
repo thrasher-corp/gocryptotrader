@@ -471,7 +471,12 @@ func (by *Bybit) GetBestBidAskPrice(symbol string) ([]TickerData, error) {
 	return tickers, nil
 }
 
+// CreatePostOrder create and post order
 func (by *Bybit) CreatePostOrder(o *PlaceOrderRequest) (*PlaceOrderResponse, error) {
+	if o == nil {
+		return nil, errors.New("orderRequest param can't be nil")
+	}
+
 	params := url.Values{}
 	params.Set("symbol", o.Symbol)
 	params.Set("qty", strconv.FormatFloat(o.Quantity, 'f', -1, 64))
@@ -501,6 +506,7 @@ func (by *Bybit) CreatePostOrder(o *PlaceOrderRequest) (*PlaceOrderResponse, err
 	return &resp.Data, nil
 }
 
+// QueryOrder returns order data based upon orderID or orderLinkID
 func (by *Bybit) QueryOrder(orderID, orderLinkID string) (*QueryOrderResponse, error) {
 	if orderID == "" && orderLinkID == "" {
 		return nil, errors.New("atleast one should be present among orderID and orderLinkID")
@@ -524,6 +530,7 @@ func (by *Bybit) QueryOrder(orderID, orderLinkID string) (*QueryOrderResponse, e
 	return &resp.Data, nil
 }
 
+// CancelExistingOrder cancels existing order based upon orderID or orderLinkID
 func (by *Bybit) CancelExistingOrder(orderID, orderLinkID string) (*CancelOrderResponse, error) {
 	if orderID == "" && orderLinkID == "" {
 		return nil, errors.New("atleast one should be present among orderID and orderLinkID")
@@ -547,6 +554,7 @@ func (by *Bybit) CancelExistingOrder(orderID, orderLinkID string) (*CancelOrderR
 	return &resp.Data, nil
 }
 
+// BatchCancelOrder cancels orders in batch based upon symbol, side or orderType
 func (by *Bybit) BatchCancelOrder(symbol, side, orderTypes string) (bool, error) {
 	params := url.Values{}
 	if symbol != "" {
@@ -569,6 +577,7 @@ func (by *Bybit) BatchCancelOrder(symbol, side, orderTypes string) (bool, error)
 	return resp.Success, nil
 }
 
+// ListOpenOrders returns all open orders
 func (by *Bybit) ListOpenOrders(symbol, orderID string, limit int64) ([]QueryOrderResponse, error) {
 	params := url.Values{}
 	if symbol != "" {
@@ -591,6 +600,7 @@ func (by *Bybit) ListOpenOrders(symbol, orderID string, limit int64) ([]QueryOrd
 	return resp.Data, nil
 }
 
+// ListPastOrders returns all past orders from history
 func (by *Bybit) ListPastOrders(symbol, orderID string, limit int64) ([]QueryOrderResponse, error) {
 	params := url.Values{}
 	if symbol != "" {
@@ -612,6 +622,7 @@ func (by *Bybit) ListPastOrders(symbol, orderID string, limit int64) ([]QueryOrd
 	return resp.Data, nil
 }
 
+// GetTradeHistory returns user trades
 func (by *Bybit) GetTradeHistory(symbol string, limit, formID, told int64) ([]HistoricalTrade, error) {
 	params := url.Values{}
 	if symbol != "" {
@@ -637,6 +648,7 @@ func (by *Bybit) GetTradeHistory(symbol string, limit, formID, told int64) ([]Hi
 	return resp.Data, nil
 }
 
+// GetWalletBalance returns user wallet balance
 func (by *Bybit) GetWalletBalance() ([]Balance, error) {
 	resp := struct {
 		Data struct {
