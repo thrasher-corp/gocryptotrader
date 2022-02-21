@@ -136,7 +136,7 @@ func (by *Bybit) GetFuturesKlineData(symbol currency.Pair, interval string, limi
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !common.StringDataCompare(validFuturesIntervals, interval) {
-		return resp.Data, errors.New("invalid interval parsed")
+		return resp.Data, errInvalidInterval
 	}
 	params.Set("interval", interval)
 	params.Set("from", strconv.FormatInt(startTime.Unix(), 10))
@@ -214,13 +214,13 @@ func (by *Bybit) GetMarkPriceKline(symbol currency.Pair, interval string, limit 
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !common.StringDataCompare(validFuturesIntervals, interval) {
-		return resp.Data, errors.New("invalid interval parsed")
+		return resp.Data, errInvalidInterval
 	}
 	params.Set("interval", interval)
 	if !startTime.IsZero() {
 		params.Set("from", strconv.FormatInt(startTime.Unix(), 10))
 	} else {
-		return resp.Data, errors.New("startTime can't be zero or missing")
+		return resp.Data, errInvalidStartTime
 	}
 
 	path := common.EncodeURLValues(bybitFuturesAPIVersion+cfuturesMarkPriceKline, params)
@@ -243,13 +243,13 @@ func (by *Bybit) GetIndexPriceKline(symbol currency.Pair, interval string, limit
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !common.StringDataCompare(validFuturesIntervals, interval) {
-		return resp.Data, errors.New("invalid interval parsed")
+		return resp.Data, errInvalidInterval
 	}
 	params.Set("interval", interval)
 	if !startTime.IsZero() {
 		params.Set("from", strconv.FormatInt(startTime.Unix(), 10))
 	} else {
-		return resp.Data, errors.New("startTime can't be zero or missing")
+		return resp.Data, errInvalidStartTime
 	}
 
 	path := common.EncodeURLValues(bybitFuturesAPIVersion+cfuturesIndexKline, params)
@@ -272,13 +272,13 @@ func (by *Bybit) GetPremiumIndexPriceKline(symbol currency.Pair, interval string
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !common.StringDataCompare(validFuturesIntervals, interval) {
-		return resp.Data, errors.New("invalid interval parsed")
+		return resp.Data, errInvalidInterval
 	}
 	params.Set("interval", interval)
 	if !startTime.IsZero() {
 		params.Set("from", strconv.FormatInt(startTime.Unix(), 10))
 	} else {
-		return resp.Data, errors.New("startTime can't be zero or missing")
+		return resp.Data, errInvalidStartTime
 	}
 
 	path := common.EncodeURLValues(bybitFuturesAPIVersion+cfuturesIndexPremiumKline, params)

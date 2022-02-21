@@ -6,9 +6,11 @@ import (
 )
 
 var (
-	errTypeAssert  = errors.New("type assertion failed")
-	errStrParsing  = errors.New("parsing string failed")
-	errInvalidSide = errors.New("invalid side")
+	errTypeAssert       = errors.New("type assertion failed")
+	errStrParsing       = errors.New("parsing string failed")
+	errInvalidSide      = errors.New("invalid side")
+	errInvalidInterval  = errors.New("invalid interval")
+	errInvalidStartTime = errors.New("startTime can't be zero or missing")
 )
 
 // PairData stores pair data

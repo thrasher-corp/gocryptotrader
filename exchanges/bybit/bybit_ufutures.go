@@ -75,7 +75,7 @@ func (by *Bybit) GetUSDTFuturesKlineData(symbol currency.Pair, interval string, 
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !common.StringDataCompare(validFuturesIntervals, interval) {
-		return resp.Data, errors.New("invalid interval parsed")
+		return resp.Data, errInvalidInterval
 	}
 	params.Set("interval", interval)
 	params.Set("from", strconv.FormatInt(startTime.Unix(), 10))
@@ -120,13 +120,13 @@ func (by *Bybit) GetUSDTMarkPriceKline(symbol currency.Pair, interval string, li
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !common.StringDataCompare(validFuturesIntervals, interval) {
-		return resp.Data, errors.New("invalid interval parsed")
+		return resp.Data, errInvalidInterval
 	}
 	params.Set("interval", interval)
 	if !startTime.IsZero() {
 		params.Set("from", strconv.FormatInt(startTime.Unix(), 10))
 	} else {
-		return resp.Data, errors.New("startTime can't be zero or missing")
+		return resp.Data, errInvalidStartTime
 	}
 
 	path := common.EncodeURLValues(ufuturesMarkPriceKline, params)
@@ -149,13 +149,13 @@ func (by *Bybit) GetUSDTIndexPriceKline(symbol currency.Pair, interval string, l
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !common.StringDataCompare(validFuturesIntervals, interval) {
-		return resp.Data, errors.New("invalid interval parsed")
+		return resp.Data, errInvalidInterval
 	}
 	params.Set("interval", interval)
 	if !startTime.IsZero() {
 		params.Set("from", strconv.FormatInt(startTime.Unix(), 10))
 	} else {
-		return resp.Data, errors.New("startTime can't be zero or missing")
+		return resp.Data, errInvalidStartTime
 	}
 
 	path := common.EncodeURLValues(ufuturesIndexKline, params)
@@ -178,13 +178,13 @@ func (by *Bybit) GetUSDTPremiumIndexPriceKline(symbol currency.Pair, interval st
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !common.StringDataCompare(validFuturesIntervals, interval) {
-		return resp.Data, errors.New("invalid interval parsed")
+		return resp.Data, errInvalidInterval
 	}
 	params.Set("interval", interval)
 	if !startTime.IsZero() {
 		params.Set("from", strconv.FormatInt(startTime.Unix(), 10))
 	} else {
-		return resp.Data, errors.New("startTime can't be zero or missing")
+		return resp.Data, errInvalidStartTime
 	}
 
 	path := common.EncodeURLValues(ufuturesIndexPremiumKline, params)
