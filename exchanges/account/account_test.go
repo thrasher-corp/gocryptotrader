@@ -10,6 +10,47 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
+func TestCollectBalances(t *testing.T) {
+	accounts, err := CollectBalances(
+		map[string][]Balance{
+			"someAccountID": {
+				{CurrencyName: currency.BTC, TotalValue: 40000, Hold: 1},
+			},
+		},
+		asset.Spot,
+	)
+	subAccount := accounts[0]
+	balance := subAccount.Currencies[0]
+	if subAccount.ID != "someAccountID" {
+		t.Error("subAccount ID not set correctly")
+	}
+	if subAccount.AssetType != asset.Spot {
+		t.Error("subAccount AssetType not set correctly")
+	}
+	if balance.CurrencyName != currency.BTC || balance.TotalValue != 40000 || balance.Hold != 1 {
+		t.Error("subAccount currency balance not set correctly")
+	}
+	if err != nil {
+		t.Error("err is not expected")
+	}
+
+	accounts, err = CollectBalances(map[string][]Balance{}, asset.Spot)
+	if len(accounts) != 0 {
+		t.Error("accounts should be empty")
+	}
+	if err != nil {
+		t.Error("err is not expected")
+	}
+
+	accounts, err = CollectBalances(nil, asset.Spot)
+	if len(accounts) != 0 {
+		t.Error("accounts should be empty")
+	}
+	if err == nil {
+		t.Errorf("expecting err %s", errAccountBalancesIsNil.Error())
+	}
+}
+
 func TestHoldings(t *testing.T) {
 	err := dispatch.Start(dispatch.DefaultMaxWorkers, dispatch.DefaultJobsLimit)
 	if err != nil {

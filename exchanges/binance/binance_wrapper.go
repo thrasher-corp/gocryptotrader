@@ -745,16 +745,21 @@ func (b *Binance) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 		if err != nil {
 			return info, err
 		}
-		var currencyDetails []account.Balance
+		accountCurrencyDetails := make(map[string][]account.Balance)
 		for i := range accData {
-			currencyDetails = append(currencyDetails, account.Balance{
-				CurrencyName: currency.NewCode(accData[i].Asset),
-				TotalValue:   accData[i].Balance,
-				Hold:         accData[i].Balance - accData[i].AvailableBalance,
-			})
+			currencyDetails := accountCurrencyDetails[accData[i].AccountAlias]
+			accountCurrencyDetails[accData[i].AccountAlias] = append(
+				currencyDetails, account.Balance{
+					CurrencyName: currency.NewCode(accData[i].Asset),
+					TotalValue:   accData[i].Balance,
+					Hold:         accData[i].Balance - accData[i].AvailableBalance,
+				},
+			)
 		}
 
-		acc.Currencies = currencyDetails
+		if info.Accounts, err = account.CollectBalances(accountCurrencyDetails, assetType); err != nil {
+			return account.Holdings{}, err
+		}
 	case asset.Margin:
 		accData, err := b.GetMarginAccount(ctx)
 		if err != nil {
