@@ -68,13 +68,7 @@ func (by *Bybit) WsConnect() error {
 			by.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
 	}
-	/*
-		subs, err := by.GenerateDefaultSubscriptions()
-		if err != nil {
-			return err
-		}
-		return by.Websocket.SubscribeToChannels(subs)
-	*/
+
 	return nil
 }
 

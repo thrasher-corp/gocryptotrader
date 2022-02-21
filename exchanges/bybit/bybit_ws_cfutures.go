@@ -24,9 +24,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-// TODO
-// do we need multiple connection? by.Websocket.Conn
-
 const (
 	wsCoinMarginedPath = "realtime"
 	subscribe          = "subscribe"
