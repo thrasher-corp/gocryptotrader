@@ -116,6 +116,7 @@ type SymbolInfo struct {
 	} `json:"lot_size_filter"`
 }
 
+// MarkPriceKlineData stores mark price kline data
 type MarkPriceKlineData struct {
 	ID       int64   `json:"id"`
 	Symbol   string  `json:"symbol"`
@@ -127,6 +128,7 @@ type MarkPriceKlineData struct {
 	Close    float64 `json:"close"`
 }
 
+// IndexPriceKlineData stores index price kline data
 type IndexPriceKlineData struct {
 	Symbol   string  `json:"symbol"`
 	Interval string  `json:"period"`
@@ -144,6 +146,7 @@ type OpenInterestData struct {
 	Time         int64  `json:"time"`
 }
 
+// BigDealData stores big deal data
 type BigDealData struct {
 	Symbol string `json:"symbol"`
 	Side   string `json:"side"`
@@ -159,6 +162,7 @@ type AccountRatioData struct {
 	Time      int64   `json:"timestamp"`
 }
 
+// BaseFuturesOrder is base future order structure
 type BaseFuturesOrder struct {
 	UserID      int64   `json:"user_id"`
 	Symbol      string  `json:"symbol"`
@@ -183,6 +187,7 @@ type FuturesOrderData struct {
 	CreatedAt       time.Time `json:"create_at"`
 }
 
+// FuturesOrderCancelResp stores future order cancel response
 type FuturesOrderCancelResp struct {
 	FuturesOrderData
 	LastExecutionTime  string `json:"last_exec_time"`
@@ -190,6 +195,7 @@ type FuturesOrderCancelResp struct {
 	UpdateAt           string `json:"updated_at"`
 }
 
+// FuturesOrderDataResp stores future order response
 type FuturesOrderDataResp struct {
 	FuturesOrderCancelResp
 	TakeProfit          float64 `json:"take_profit"`
@@ -198,11 +204,13 @@ type FuturesOrderDataResp struct {
 	StopLossTriggerBy   string  `json:"sl_trigger_by"`
 }
 
+// FuturesActiveOrderData stores future active order data
 type FuturesActiveOrderData struct {
 	FuturesOrderData
 	LeaveValue float64 `json:"leaves_value"`
 }
 
+// FuturesActiveOrderResp stores future active order response
 type FuturesActiveOrderResp struct {
 	FuturesActiveOrderData
 	TakeProfit          float64 `json:"take_profit"`
@@ -210,6 +218,8 @@ type FuturesActiveOrderResp struct {
 	TakeProfitTriggerBy string  `json:"tp_trigger_by"`
 	StopLossTriggerBy   string  `json:"sl_trigger_by"`
 }
+
+// FuturesActiveOrder stores future active order
 type FuturesActiveOrder struct {
 	FuturesActiveOrderData
 	PositionID int64  `json:"position_idx"`
@@ -227,6 +237,7 @@ type FuturesRealtimeOrderData struct {
 	StopLossTriggerBy   string  `json:"sl_trigger_by"`
 }
 
+// FuturesActiveRealtimeOrder stores future active realtime order
 type FuturesActiveRealtimeOrder struct {
 	FuturesRealtimeOrderData
 	ExtensionField     map[string]interface{} `json:"ext_fields"`
@@ -244,6 +255,7 @@ type FuturesActiveRealtimeOrder struct {
 	OrderID            string                 `json:"order_id"`
 }
 
+// CoinFuturesConditionalRealtimeOrder stores CMF future coinditional realtime order
 type CoinFuturesConditionalRealtimeOrder struct {
 	FuturesRealtimeOrderData
 	ExtensionField  map[string]interface{} `json:"ext_fields"`
@@ -259,11 +271,13 @@ type CoinFuturesConditionalRealtimeOrder struct {
 	OrderID         string                 `json:"order_id"`
 }
 
+// FuturesConditionalRealtimeOrder stores future conditional realtime order
 type FuturesConditionalRealtimeOrder struct {
 	CoinFuturesConditionalRealtimeOrder
 	PositionID int64 `json:"position_idx"`
 }
 
+// USDTFuturesConditionalRealtimeOrder stores USDT future conditional realtime order
 type USDTFuturesConditionalRealtimeOrder struct {
 	FuturesRealtimeOrderData
 	StopOrderID    string `json:"stop_order_id"`
@@ -311,6 +325,7 @@ type USDTFuturesConditionalOrderResp struct {
 	UpdatedAt      string `json:"updated_time"`
 }
 
+// CoinFuturesConditionalOrders stores CMF future conditional order
 type CoinFuturesConditionalOrders struct {
 	FuturesConditionalOrderData
 	StopOrderStatus string  `json:"stop_order_status"`
@@ -323,11 +338,13 @@ type CoinFuturesConditionalOrders struct {
 	StopLoss        float64 `json:"stop_loss"`
 }
 
+// FuturesConditionalOrders stores future conditional order
 type FuturesConditionalOrders struct {
 	CoinFuturesConditionalOrders
 	PositionID int64 `json:"position_idx"`
 }
 
+// USDTFuturesConditionalOrders stores USDT futures conditional order
 type USDTFuturesConditionalOrders struct {
 	FuturesConditionalOrderData
 	OrderStatus  string  `json:"order_status"`
@@ -338,6 +355,7 @@ type USDTFuturesConditionalOrders struct {
 	StopLoss     float64 `json:"stop_loss"`
 }
 
+// FuturesCancelOrderData stores future cancel order data
 type FuturesCancelOrderData struct {
 	CancelOrderID string `json:"clOrdID"`
 	BaseFuturesOrder
@@ -352,6 +370,7 @@ type FuturesCancelOrderData struct {
 	CrossSeq    int64   `json:"cross_seq"`
 }
 
+// FuturesCancelOrderResp stores future cancel order response
 type FuturesCancelOrderResp struct {
 	FuturesCancelOrderData
 	StopOrderType     string  `json:"stop_order_type"`
@@ -360,6 +379,7 @@ type FuturesCancelOrderResp struct {
 	ExpectedDirection string  `json:"expected_direction"`
 }
 
+// RiskInfo stores risk information
 type RiskInfo struct {
 	ID             int64    `json:"id"`
 	Symbol         string   `json:"symbol"`
@@ -373,6 +393,7 @@ type RiskInfo struct {
 	MaxLeverage    float64  `json:"max_leverage"`
 }
 
+// RiskInfoWithStringParam stores risk information where string params
 type RiskInfoWithStringParam struct {
 	ID             int64    `json:"id"`
 	Symbol         string   `json:"symbol"`
@@ -386,18 +407,21 @@ type RiskInfoWithStringParam struct {
 	MaxLeverage    float64  `json:"max_leverage,string"`
 }
 
+// FundingInfo stores funding information
 type FundingInfo struct {
 	Symbol               string  `json:"symbol"`
 	FundingRate          float64 `json:"funding_rate,string"`
 	FundingRateTimestamp int64   `json:"funding_rate_timestamp"`
 }
 
+// USDTFundingInfo stores USDT funding information
 type USDTFundingInfo struct {
 	Symbol               string  `json:"symbol"`
 	FundingRate          float64 `json:"funding_rate"`
 	FundingRateTimestamp string  `json:"funding_rate_timestamp"`
 }
 
+// AnnouncementInfo stores announcement information
 type AnnouncementInfo struct {
 	ID        int64  `json:"id"`
 	Title     string `json:"title"`
@@ -406,6 +430,7 @@ type AnnouncementInfo struct {
 	CreatedAt string `json:"created_at"`
 }
 
+// Position stores position
 type Position struct {
 	UserID                 int64   `json:"user_id"`
 	Symbol                 string  `json:"symbol"`
@@ -422,6 +447,7 @@ type Position struct {
 	AccumulatedRealisedPNL float64 `json:"cum_realised_pnl"`
 }
 
+// PositionWithStringParam stores position with string params
 type PositionWithStringParam struct {
 	UserID                 int64   `json:"user_id"`
 	Symbol                 string  `json:"symbol"`
@@ -438,6 +464,7 @@ type PositionWithStringParam struct {
 	AccumulatedRealisedPNL float64 `json:"cum_realised_pnl,string"`
 }
 
+// PositionData stores position data
 type PositionData struct {
 	Position
 	IsIsolated          bool    `json:"is_isolated"`
@@ -450,6 +477,7 @@ type PositionData struct {
 	TrailingStop        float64 `json:"trailing_stop"`
 }
 
+// PositionDataWithStringParam stores position data with string params
 type PositionDataWithStringParam struct {
 	PositionWithStringParam
 	IsIsolated          bool    `json:"is_isolated"`
@@ -462,6 +490,7 @@ type PositionDataWithStringParam struct {
 	TrailingStop        float64 `json:"trailing_stop,string"`
 }
 
+// PositionResp stores position response
 type PositionResp struct {
 	PositionDataWithStringParam
 	PositionID             int64   `json:"position_idx"`
@@ -480,6 +509,7 @@ type PositionResp struct {
 	UpdateAt               string  `json:"updated_at"`
 }
 
+// SetTradingAndStopResp stores set trading and stop response
 type SetTradingAndStopResp struct {
 	PositionData
 	ID                  int64                  `json:"id"`
@@ -500,17 +530,20 @@ type SetTradingAndStopResp struct {
 	ExtensionField      map[string]interface{} `json:"ext_fields"`
 }
 
+// USDTPositionResp stores USDT position response
 type USDTPositionResp struct {
 	PositionData
 	FreeQty                int64  `json:"free_qty"`
 	TakeProfitStopLossMode string `json:"tp_sl_mode"`
 }
 
+// UpdateMarginResp stores update margin response
 type UpdateMarginResp struct {
 	Position
 	FreeQty int64 `json:"free_qty"`
 }
 
+// TradeData stores trade data
 type TradeData struct {
 	OrderID        string  `json:"order_id"`
 	OrderLinkedID  string  `json:"order_link_id"`
@@ -532,6 +565,7 @@ type TradeData struct {
 	TradeTimeMs    int64   `json:"trade_time_ms"`
 }
 
+// TradeResp stores trade response
 type TradeResp struct {
 	TradeData
 	CrossSequence int64 `json:"cross_seq"`
@@ -539,6 +573,7 @@ type TradeResp struct {
 	UserID        int64 `json:"user_id"`
 }
 
+// ClosedTrades stores closed trades
 type ClosedTrades struct {
 	ID                   int64   `json:"id"`
 	UserID               int64   `json:"user_id"`
@@ -560,6 +595,7 @@ type ClosedTrades struct {
 	CreatedAt            int64   `json:"created_at"`
 }
 
+// FundingFee stores funding fee
 type FundingFee struct {
 	Symbol        string  `json:"symbol"`
 	Side          string  `json:"side"`
@@ -569,6 +605,7 @@ type FundingFee struct {
 	ExecutionTime int64   `json:"exec_timestamp"`
 }
 
+// APIKeyData stores API key data
 type APIKeyData struct {
 	APIKey     string   `json:"api_key"`
 	Type       string   `json:"type"`
@@ -582,13 +619,15 @@ type APIKeyData struct {
 	ReadOnly   bool     `json:"read_only"`
 }
 
-type LiquidityContributionPointsData struct {
+// LCPData stores LiquidityContributionPointsData data
+type LCPData struct {
 	Date          string  `json:"date"`
 	SelfRatio     float64 `json:"self_ratio"`
 	PlatformRatio float64 `json:"platform_ratio"`
 	Score         float64 `json:"score"`
 }
 
+// WalletData stores wallet data
 type WalletData struct {
 	Equity                float64 `json:"equity"` //equity = wallet_balance + unrealised_pnl
 	AvailableBalance      float64 `json:"available_balance"`
@@ -605,6 +644,7 @@ type WalletData struct {
 	ServiceCash           float64 `json:"service_cash"`
 }
 
+// FundRecord stores funding records
 type FundRecord struct {
 	ID            int64   `json:"id"`
 	UserID        int64   `json:"user_id"`
@@ -618,6 +658,7 @@ type FundRecord struct {
 	CrossSequence int64   `json:"cross_seq"`
 }
 
+// FundWithdrawalRecord stores funding withdrawal records
 type FundWithdrawalRecord struct {
 	ID         int64     `json:"id"`
 	UserID     int64     `json:"user_id"`
@@ -631,6 +672,7 @@ type FundWithdrawalRecord struct {
 	UpdatedAt  time.Time `json:"updated_at"`
 }
 
+// AssetExchangeRecord stores asset exchange records
 type AssetExchangeRecord struct {
 	ID           int64   `json:"id"`
 	FromCoin     string  `json:"from_coin"`

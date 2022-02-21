@@ -125,7 +125,7 @@ var (
 	BybitRequestParamsTimeIOC = RequestParamsTimeForceType("IOC")
 )
 
-// PlaceOrderRequest request type
+// PlaceOrderRequest store new order request type
 type PlaceOrderRequest struct {
 	Symbol      string
 	Quantity    float64
@@ -136,6 +136,7 @@ type PlaceOrderRequest struct {
 	OrderLinkID string
 }
 
+// PlaceOrderResponse store new order response type
 type PlaceOrderResponse struct {
 	OrderID     int64                      `json:"orderId"`
 	OrderLinkID string                     `json:"orderLinkId"`
@@ -212,6 +213,7 @@ type HistoricalTrade struct {
 	MakerRebate     float64 `json:"makerRebate,string"`
 }
 
+// FeeData store fees data
 type FeeData struct {
 	FeeTokenId   int64   `json:"feeTokenId"`
 	FeeTokenName string  `json:"feeTokenName"`
@@ -241,11 +243,13 @@ type WsReq struct {
 	Parameters interface{} `json:"params"`
 }
 
+// WsFuturesReq stores futures ws request
 type WsFuturesReq struct {
 	Topic string   `json:"op"`
 	Args  []string `json:"args"`
 }
 
+// WsParams store ws parameters
 type WsParams struct {
 	Symbol     string `json:"symbol"`
 	IsBinary   string `json:"binary"`
@@ -270,6 +274,7 @@ type WsSpotTicker struct {
 	Ticker     WsSpotTickerData `json:"data"`
 }
 
+// KlineStreamData stores ws kline stream data
 type KlineStreamData struct {
 	StartTime  time.Time `json:"t"`
 	Symbol     string    `json:"s"`
@@ -329,6 +334,7 @@ type wsAccountInfo struct {
 	Balance     []Currencies `json:"B"`
 }
 
+// Currencies stores currencies data
 type Currencies struct {
 	Asset     string  `json:"a"`
 	Available float64 `json:"f,string"`
@@ -364,6 +370,7 @@ type wsOrderUpdate struct {
 	Leverage                          string    `json:"v"`
 }
 
+// WsFuturesOrderbookData stores ws futures orderbook data
 type WsFuturesOrderbookData struct {
 	Price  string `json:"price"`
 	Symbol string `json:"symbol"`
@@ -372,12 +379,14 @@ type WsFuturesOrderbookData struct {
 	Size   int    `json:"size"`
 }
 
+// WsFuturesOrderbook stores ws futures orderbook
 type WsFuturesOrderbook struct {
 	Topic  string                   `json:"topic"`
 	Type   string                   `json:"string"`
 	OBData []WsFuturesOrderbookData `json:"data"`
 }
 
+// WsUSDTOrderbook stores ws usdt orderbook
 type WsUSDTOrderbook struct {
 	Topic string `json:"topic"`
 	Type  string `json:"string"`
@@ -386,6 +395,7 @@ type WsUSDTOrderbook struct {
 	} `json:"data"`
 }
 
+// WsCoinDeltaOrderbook stores ws coinmargined orderbook
 type WsCoinDeltaOrderbook struct {
 	Topic  string `json:"topic"`
 	Type   string `json:"string"`
@@ -396,6 +406,7 @@ type WsCoinDeltaOrderbook struct {
 	} `json:"data"`
 }
 
+// WsFuturesTradeData stores ws future trade data
 type WsFuturesTradeData struct {
 	Time               time.Time `json:"timestamp"`
 	TimeInMilliseconds int64     `json:"trade_time_ms"`
@@ -407,11 +418,13 @@ type WsFuturesTradeData struct {
 	ID                 string    `json:"trade_id"`
 }
 
+// WsFuturesTrade stores ws future trade
 type WsFuturesTrade struct {
 	Topic     string               `json:"topic"`
 	TradeData []WsFuturesTradeData `json:"data"`
 }
 
+// WsFuturesKlineData stores ws future kline data
 type WsFuturesKlineData struct {
 	StartTime int64   `json:"start"`
 	EndTime   int64   `json:"end"`
@@ -425,22 +438,26 @@ type WsFuturesKlineData struct {
 	Timestamp int64   `json:"timestamp"`
 }
 
+// WsFuturesKline stores ws future kline
 type WsFuturesKline struct {
 	Topic     string               `json:"topic"`
 	KlineData []WsFuturesKlineData `json:"data"`
 }
 
+// WsInsuranceData stores ws insurance data
 type WsInsuranceData struct {
 	Currency      string    `json:"currency"`
 	Timestamp     time.Time `json:"timestamp"`
 	WalletBalance float64   `json:"wallet_balance"`
 }
 
+// WsInsurance stores ws insurance
 type WsInsurance struct {
 	Topic string            `json:"topic"`
 	Data  []WsInsuranceData `json:"data"`
 }
 
+// WsTickerData stores ws ticker data
 type WsTickerData struct {
 	ID                    string    `json:"id"`
 	Symbol                string    `json:"symbol"`
@@ -470,11 +487,13 @@ type WsTickerData struct {
 	CountDownHour         int64     `json:"countdown_hour"`
 }
 
+// WsTicker stores ws ticker
 type WsTicker struct {
 	Topic  string       `json:"topic"`
 	Ticker WsTickerData `json:"data"`
 }
 
+// WsDeltaTicker stores ws ticker
 type WsDeltaTicker struct {
 	Topic string `json:"topic"`
 	Type  string `json:"string"`
@@ -485,6 +504,7 @@ type WsDeltaTicker struct {
 	} `json:"data"`
 }
 
+// WsFuturesTickerData stores ws future ticker data
 type WsFuturesTickerData struct {
 	ID                    string    `json:"id"`
 	Symbol                string    `json:"symbol"`
@@ -527,11 +547,13 @@ type WsFuturesTickerData struct {
 	UpdateAt              time.Time `json:"updated_at"`
 }
 
+// WsFuturesTicker stores ws future ticker
 type WsFuturesTicker struct {
 	Topic  string              `json:"topic"`
 	Ticker WsFuturesTickerData `json:"data"`
 }
 
+// WsDeltaFuturesTicker stores ws delta future ticker
 type WsDeltaFuturesTicker struct {
 	Topic string `json:"topic"`
 	Type  string `json:"string"`
@@ -542,6 +564,7 @@ type WsDeltaFuturesTicker struct {
 	} `json:"data"`
 }
 
+// WsLiquidationData stores ws liquidation data
 type WsLiquidationData struct {
 	Symbol    string  `json:"symbol"`
 	Side      string  `json:"side"`
@@ -550,11 +573,13 @@ type WsLiquidationData struct {
 	Timestamp int64   `json:"time"`
 }
 
+// WsFuturesLiquidation stores ws future liquidation
 type WsFuturesLiquidation struct {
 	Topic string            `json:"topic"`
 	Data  WsLiquidationData `json:"data"`
 }
 
+// WsFuturesPositionData stores ws future position data
 type WsFuturesPositionData struct {
 	UserID              int64   `json:"user_id"`
 	Symbol              string  `json:"symbol"`
@@ -588,12 +613,14 @@ type WsFuturesPositionData struct {
 	Version             int64   `json:"position_seq"`
 }
 
+// WsFuturesPosition stores ws future position
 type WsFuturesPosition struct {
 	Topic  string                  `json:"topic"`
 	Action string                  `json:"action"`
 	Data   []WsFuturesPositionData `json:"data"`
 }
 
+// WsFuturesExecutionData stores ws future execution data
 type WsFuturesExecutionData struct {
 	Symbol        string    `json:"symbol"`
 	Side          string    `json:"side"`
@@ -610,11 +637,13 @@ type WsFuturesExecutionData struct {
 	Time          time.Time `json:"trade_time"`
 }
 
+// WsFuturesExecution stores ws future execution
 type WsFuturesExecution struct {
 	Topic string                   `json:"topic"`
 	Data  []WsFuturesExecutionData `json:"data"`
 }
 
+// WsOrderData stores ws order data
 type WsOrderData struct {
 	OrderID              string    `json:"order_id"`
 	OrderLinkID          string    `json:"order_link_id"`
@@ -643,11 +672,13 @@ type WsOrderData struct {
 	UpdateTime           time.Time `json:"update_time"` // present in USDTMarginedFutures only
 }
 
+// WsOrder stores ws order
 type WsOrder struct {
 	Topic string        `json:"topic"`
 	Data  []WsOrderData `json:"data"`
 }
 
+// WsStopOrderData stores ws stop order data
 type WsStopOrderData struct {
 	OrderID        string    `json:"order_id"`
 	OrderLinkID    string    `json:"order_link_id"`
@@ -668,11 +699,13 @@ type WsStopOrderData struct {
 	CloseOnTrigger bool      `json:"close_on_trigger"`
 }
 
+// WsFuturesStopOrder stores ws future stop order
 type WsFuturesStopOrder struct {
 	Topic string            `json:"topic"`
 	Data  []WsStopOrderData `json:"data"`
 }
 
+// WsUSDTStopOrderData stores ws USDT stop order data
 type WsUSDTStopOrderData struct {
 	OrderID        string    `json:"stop_order_id"`
 	OrderLinkID    string    `json:"order_link_id"`
@@ -693,16 +726,19 @@ type WsUSDTStopOrderData struct {
 	UpdateTime     time.Time `json:"update_time"`
 }
 
+// WsUSDTFuturesStopOrder stores ws USDT stop order
 type WsUSDTFuturesStopOrder struct {
 	Topic string                `json:"topic"`
 	Data  []WsUSDTStopOrderData `json:"data"`
 }
 
+// WsFuturesWalletData stores ws future wallet data
 type WsFuturesWalletData struct {
 	WalletBalance    float64 `json:"wallet_balance"`
 	AvailableBalance float64 `json:"available_balance"`
 }
 
+// WsFuturesWallet stores ws future wallet
 type WsFuturesWallet struct {
 	Topic string                `json:"topic"`
 	Data  []WsFuturesWalletData `json:"data"`

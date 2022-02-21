@@ -1146,12 +1146,12 @@ func (by *Bybit) GetAPIKeyInfo() ([]APIKeyData, error) {
 }
 
 // GetLiquidityContributionPointsInfo returns latest LCP information
-func (by *Bybit) GetLiquidityContributionPointsInfo(symbol currency.Pair) ([]LiquidityContributionPointsData, error) {
+func (by *Bybit) GetLiquidityContributionPointsInfo(symbol currency.Pair) ([]LCPData, error) {
 	params := url.Values{}
 
 	resp := struct {
 		Data struct {
-			LCPList []LiquidityContributionPointsData `json:"lcp_list"`
+			LCPList []LCPData `json:"lcp_list"`
 		} `json:"result"`
 	}{}
 
