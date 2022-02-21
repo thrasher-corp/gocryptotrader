@@ -971,15 +971,15 @@ func Test_FormatExchangeKlineInterval(t *testing.T) {
 }
 
 func TestValidateCandlesRequest(t *testing.T) {
-	_, err := z.validateCandlesRequest(currency.Pair{}, "", time.Time{}, time.Time{}, kline.Interval(-1))
+	_, err := z.validateCandlesRequest(currency.EMPTYPAIR, "", time.Time{}, time.Time{}, kline.Interval(-1))
 	if !errors.Is(err, common.ErrDateUnset) {
 		t.Error(err)
 	}
-	_, err = z.validateCandlesRequest(currency.Pair{}, "", time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC), time.Time{}, kline.Interval(-1))
+	_, err = z.validateCandlesRequest(currency.EMPTYPAIR, "", time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC), time.Time{}, kline.Interval(-1))
 	if !errors.Is(err, common.ErrDateUnset) {
 		t.Error(err)
 	}
-	_, err = z.validateCandlesRequest(currency.Pair{}, asset.Spot, time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC), time.Date(2020, 1, 1, 1, 1, 1, 3, time.UTC), kline.OneHour)
+	_, err = z.validateCandlesRequest(currency.EMPTYPAIR, asset.Spot, time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC), time.Date(2020, 1, 1, 1, 1, 1, 3, time.UTC), kline.OneHour)
 	if err != nil && err.Error() != "pair not enabled" {
 		t.Error(err)
 	}

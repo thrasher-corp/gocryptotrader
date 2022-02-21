@@ -44,7 +44,7 @@ type Settings struct {
 	EnableTickerSyncing    bool
 	EnableOrderbookSyncing bool
 	EnableTradeSyncing     bool
-	SyncWorkers            int
+	SyncWorkersCount       int
 	SyncContinuously       bool
 	SyncTimeoutREST        time.Duration
 	SyncTimeoutWebsocket   time.Duration
@@ -52,6 +52,7 @@ type Settings struct {
 	// Forex settings
 	EnableCurrencyConverter bool
 	EnableCurrencyLayer     bool
+	EnableExchangeRates     bool
 	EnableFixer             bool
 	EnableOpenExchangeRates bool
 	EnableExchangeRateHost  bool

@@ -171,9 +171,12 @@ func (k *Kraken) SetDefaults() {
 		},
 	}
 
-	k.Requester = request.New(k.Name,
+	k.Requester, err = request.New(k.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(request.NewBasicRateLimit(krakenRateInterval, krakenRequestRate)))
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 	k.API.Endpoints = k.NewEndpoints()
 	err = k.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:      krakenAPIURL,

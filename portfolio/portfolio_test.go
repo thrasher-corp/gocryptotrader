@@ -174,7 +174,7 @@ func TestUpdateAddressBalance(t *testing.T) {
 	newBase.UpdateAddressBalance("someaddress", 0.03)
 
 	value := newBase.GetPortfolioSummary()
-	if value.Totals[0].Coin != currency.LTC &&
+	if !value.Totals[0].Coin.Equal(currency.LTC) &&
 		value.Totals[0].Balance != 0.03 {
 		t.Error("UpdateUpdateAddressBalance error")
 	}
@@ -245,7 +245,7 @@ func TestUpdateExchangeAddressBalance(t *testing.T) {
 	b.UpdateExchangeAddressBalance("someaddress", currency.LTC, 0.04)
 
 	value := b.GetPortfolioSummary()
-	if value.Totals[0].Coin != currency.LTC && value.Totals[0].Balance != 0.04 {
+	if !value.Totals[0].Coin.Equal(currency.LTC) && value.Totals[0].Balance != 0.04 {
 		t.Error("incorrect portfolio balance")
 	}
 }
@@ -487,18 +487,18 @@ func TestGetPortfolioSummary(t *testing.T) {
 
 	getTotalsVal := func(c currency.Code) Coin {
 		for x := range value.Totals {
-			if value.Totals[x].Coin == c {
+			if value.Totals[x].Coin.Equal(c) {
 				return value.Totals[x]
 			}
 		}
 		return Coin{}
 	}
 
-	if getTotalsVal(currency.LTC).Coin != currency.LTC {
+	if !getTotalsVal(currency.LTC).Coin.Equal(currency.LTC) {
 		t.Error("mismatched currency")
 	}
 
-	if getTotalsVal(currency.ETH).Coin == currency.LTC {
+	if getTotalsVal(currency.ETH).Coin.Equal(currency.LTC) {
 		t.Error("mismatched currency")
 	}
 

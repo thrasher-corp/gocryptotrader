@@ -20,9 +20,6 @@ const (
 	APIEndpointConversion = "convert"
 	APIEndpointTimeframe  = "timeframe"
 	APIEndpointChange     = "change"
-
-	authRate   = 0
-	unAuthRate = 0
 )
 
 // CurrencyLayer is a foreign exchange rate provider at

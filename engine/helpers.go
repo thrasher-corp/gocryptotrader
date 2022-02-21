@@ -184,15 +184,16 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 	case SyncManagerName:
 		if enable {
 			if bot.currencyPairSyncer == nil {
-				exchangeSyncCfg := &Config{
-					SyncTicker:           bot.Settings.EnableTickerSyncing,
-					SyncOrderbook:        bot.Settings.EnableOrderbookSyncing,
-					SyncTrades:           bot.Settings.EnableTradeSyncing,
-					SyncContinuously:     bot.Settings.SyncContinuously,
-					NumWorkers:           bot.Settings.SyncWorkers,
-					Verbose:              bot.Settings.Verbose,
-					SyncTimeoutREST:      bot.Settings.SyncTimeoutREST,
-					SyncTimeoutWebsocket: bot.Settings.SyncTimeoutWebsocket,
+				exchangeSyncCfg := &SyncManagerConfig{
+					SynchronizeTicker:       bot.Settings.EnableTickerSyncing,
+					SynchronizeOrderbook:    bot.Settings.EnableOrderbookSyncing,
+					SynchronizeTrades:       bot.Settings.EnableTradeSyncing,
+					SynchronizeContinuously: bot.Settings.SyncContinuously,
+					TimeoutREST:             bot.Settings.SyncTimeoutREST,
+					TimeoutWebsocket:        bot.Settings.SyncTimeoutWebsocket,
+					NumWorkers:              bot.Settings.SyncWorkersCount,
+					FiatDisplayCurrency:     bot.Config.Currency.FiatDisplayCurrency,
+					Verbose:                 bot.Settings.Verbose,
 				}
 				bot.currencyPairSyncer, err = setupSyncManager(
 					exchangeSyncCfg,
@@ -376,9 +377,9 @@ func (bot *Engine) GetSpecificAvailablePairs(enabledExchangesOnly, fiatPairs, in
 	for x := range supportedPairs {
 		if fiatPairs {
 			if supportedPairs[x].IsCryptoFiatPair() &&
-				!supportedPairs[x].ContainsCurrency(currency.USDT) ||
+				!supportedPairs[x].Contains(currency.USDT) ||
 				(includeUSDT &&
-					supportedPairs[x].ContainsCurrency(currency.USDT) &&
+					supportedPairs[x].Contains(currency.USDT) &&
 					supportedPairs[x].IsCryptoPair()) {
 				if pairList.Contains(supportedPairs[x], false) {
 					continue
@@ -428,18 +429,12 @@ func (bot *Engine) MapCurrenciesByExchange(p currency.Pairs, enabledExchangesOnl
 				continue
 			}
 
-			result, ok := currencyExchange[exchName]
-			if !ok {
-				var pairs []currency.Pair
-				pairs = append(pairs, p[x])
-				currencyExchange[exchName] = pairs
-			} else {
-				if result.Contains(p[x], false) {
-					continue
-				}
-				result = append(result, p[x])
-				currencyExchange[exchName] = result
+			result := currencyExchange[exchName]
+			if result.Contains(p[x], false) {
+				continue
 			}
+			result = append(result, p[x])
+			currencyExchange[exchName] = result
 		}
 	}
 	return currencyExchange
@@ -468,18 +463,14 @@ func (bot *Engine) GetExchangeNamesByCurrency(p currency.Pair, enabled bool, ass
 func GetRelatableCryptocurrencies(p currency.Pair) currency.Pairs {
 	var pairs currency.Pairs
 	cryptocurrencies := currency.GetCryptocurrencies()
-
 	for x := range cryptocurrencies {
 		newPair := currency.NewPair(p.Base, cryptocurrencies[x])
 		if newPair.IsInvalid() {
 			continue
 		}
-
-		if newPair.Base.Upper() == p.Base.Upper() &&
-			newPair.Quote.Upper() == p.Quote.Upper() {
+		if newPair.Equal(p) {
 			continue
 		}
-
 		if pairs.Contains(newPair, false) {
 			continue
 		}
@@ -496,12 +487,11 @@ func GetRelatableFiatCurrencies(p currency.Pair) currency.Pairs {
 
 	for x := range fiatCurrencies {
 		newPair := currency.NewPair(p.Base, fiatCurrencies[x])
-		if newPair.Base.Upper() == newPair.Quote.Upper() {
+		if newPair.Base.Equal(newPair.Quote) {
 			continue
 		}
 
-		if newPair.Base.Upper() == p.Base.Upper() &&
-			newPair.Quote.Upper() == p.Quote.Upper() {
+		if newPair.Equal(p) {
 			continue
 		}
 
@@ -532,17 +522,17 @@ func GetRelatableCurrencies(p currency.Pair, incOrig, incUSDT bool) currency.Pai
 		}
 
 		first := currency.GetTranslation(p.Base)
-		if first != p.Base {
+		if !first.Equal(p.Base) {
 			addPair(currency.NewPair(first, p.Quote))
 
 			second := currency.GetTranslation(p.Quote)
-			if second != p.Quote {
+			if !second.Equal(p.Quote) {
 				addPair(currency.NewPair(first, second))
 			}
 		}
 
 		second := currency.GetTranslation(p.Quote)
-		if second != p.Quote {
+		if !second.Equal(p.Quote) {
 			addPair(currency.NewPair(p.Base, second))
 		}
 	}
@@ -651,30 +641,17 @@ func (bot *Engine) GetCryptocurrenciesByExchange(exchangeName string, enabledExc
 		}
 
 		var err error
-		var pairs []currency.Pair
+		var pairs currency.Pairs
 		if enabledPairs {
 			pairs, err = bot.Config.GetEnabledPairs(exchangeName, assetType)
-			if err != nil {
-				return nil, err
-			}
 		} else {
 			pairs, err = bot.Config.GetAvailablePairs(exchangeName, assetType)
-			if err != nil {
-				return nil, err
-			}
 		}
-
-		for y := range pairs {
-			if pairs[y].Base.IsCryptocurrency() &&
-				!common.StringDataCompareInsensitive(cryptocurrencies, pairs[y].Base.String()) {
-				cryptocurrencies = append(cryptocurrencies, pairs[y].Base.String())
-			}
-
-			if pairs[y].Quote.IsCryptocurrency() &&
-				!common.StringDataCompareInsensitive(cryptocurrencies, pairs[y].Quote.String()) {
-				cryptocurrencies = append(cryptocurrencies, pairs[y].Quote.String())
-			}
+		if err != nil {
+			return nil, err
 		}
+		cryptocurrencies = pairs.GetCrypto().Strings()
+		break
 	}
 	return cryptocurrencies, nil
 }
@@ -691,7 +668,7 @@ func (bot *Engine) GetCryptocurrencyDepositAddressesByExchange(exchName string) 
 	result := bot.GetAllExchangeCryptocurrencyDepositAddresses()
 	r, ok := result[exchName]
 	if !ok {
-		return nil, ErrExchangeNotFound
+		return nil, fmt.Errorf("%s %w", exchName, ErrExchangeNotFound)
 	}
 	return r, nil
 }
@@ -699,7 +676,9 @@ func (bot *Engine) GetCryptocurrencyDepositAddressesByExchange(exchName string) 
 // GetExchangeCryptocurrencyDepositAddress returns the cryptocurrency deposit address for a particular
 // exchange
 func (bot *Engine) GetExchangeCryptocurrencyDepositAddress(ctx context.Context, exchName, accountID, chain string, item currency.Code, bypassCache bool) (*deposit.Address, error) {
-	if bot.DepositAddressManager != nil && bot.DepositAddressManager.IsSynced() && !bypassCache {
+	if bot.DepositAddressManager != nil &&
+		bot.DepositAddressManager.IsSynced() &&
+		!bypassCache {
 		resp, err := bot.DepositAddressManager.GetDepositAddressByExchangeAndCurrency(exchName, chain, item)
 		return &resp, err
 	}

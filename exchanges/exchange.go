@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
@@ -21,7 +20,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -47,55 +45,7 @@ var (
 	ErrAuthenticatedRequestWithoutCredentialsSet = errors.New("authenticated HTTP request called but not supported due to unset/default API keys")
 
 	errEndpointStringNotFound = errors.New("endpoint string not found")
-	errTransportNotSet        = errors.New("transport not set, cannot set timeout")
-
-	// ErrPairNotFound is an error message for when unable to find a currency pair
-	ErrPairNotFound = errors.New("pair not found")
 )
-
-func (b *Base) checkAndInitRequester() {
-	if b.Requester == nil {
-		b.Requester = request.New(b.Name,
-			&http.Client{Transport: new(http.Transport)})
-	}
-}
-
-// SetHTTPClientTimeout sets the timeout value for the exchanges HTTP Client and
-// also the underlying transports idle connection timeout
-func (b *Base) SetHTTPClientTimeout(t time.Duration) error {
-	b.checkAndInitRequester()
-	b.Requester.HTTPClient.Timeout = t
-	tr, ok := b.Requester.HTTPClient.Transport.(*http.Transport)
-	if !ok {
-		return errTransportNotSet
-	}
-	tr.IdleConnTimeout = t
-	return nil
-}
-
-// SetHTTPClient sets exchanges HTTP client
-func (b *Base) SetHTTPClient(h *http.Client) {
-	b.checkAndInitRequester()
-	b.Requester.HTTPClient = h
-}
-
-// GetHTTPClient gets the exchanges HTTP client
-func (b *Base) GetHTTPClient() *http.Client {
-	b.checkAndInitRequester()
-	return b.Requester.HTTPClient
-}
-
-// SetHTTPClientUserAgent sets the exchanges HTTP user agent
-func (b *Base) SetHTTPClientUserAgent(ua string) {
-	b.checkAndInitRequester()
-	b.Requester.UserAgent = ua
-	b.HTTPUserAgent = ua
-}
-
-// GetHTTPClientUserAgent gets the exchanges HTTP user agent
-func (b *Base) GetHTTPClientUserAgent() string {
-	return b.HTTPUserAgent
-}
 
 // SetClientProxyAddress sets a proxy address for REST and websocket requests
 func (b *Base) SetClientProxyAddress(addr string) error {
@@ -442,17 +392,16 @@ func (b *Base) GetEnabledPairs(a asset.Item) (currency.Pairs, error) {
 // GetRequestFormattedPairAndAssetType is a method that returns the enabled currency pair of
 // along with its asset type. Only use when there is no chance of the same name crossing over
 func (b *Base) GetRequestFormattedPairAndAssetType(p string) (currency.Pair, asset.Item, error) {
-	assetTypes := b.GetAssetTypes(false)
-	var response currency.Pair
+	assetTypes := b.GetAssetTypes(true)
 	for i := range assetTypes {
 		format, err := b.GetPairFormat(assetTypes[i], true)
 		if err != nil {
-			return response, assetTypes[i], err
+			return currency.EMPTYPAIR, assetTypes[i], err
 		}
 
 		pairs, err := b.CurrencyPairs.GetPairs(assetTypes[i], true)
 		if err != nil {
-			return response, assetTypes[i], err
+			return currency.EMPTYPAIR, assetTypes[i], err
 		}
 
 		for j := range pairs {
@@ -462,8 +411,7 @@ func (b *Base) GetRequestFormattedPairAndAssetType(p string) (currency.Pair, ass
 			}
 		}
 	}
-	return response, "",
-		fmt.Errorf("%s %w", p, ErrPairNotFound)
+	return currency.EMPTYPAIR, "", fmt.Errorf("%s %w", p, currency.ErrPairNotFound)
 }
 
 // GetAvailablePairs is a method that returns the available currency pairs
@@ -536,7 +484,7 @@ func (b *Base) FormatExchangeCurrencies(pairs []currency.Pair, assetType asset.I
 func (b *Base) FormatExchangeCurrency(p currency.Pair, assetType asset.Item) (currency.Pair, error) {
 	pairFmt, err := b.GetPairFormat(assetType, true)
 	if err != nil {
-		return currency.Pair{}, err
+		return currency.EMPTYPAIR, err
 	}
 	return p.Format(pairFmt.Delimiter, pairFmt.Uppercase), nil
 }
@@ -608,7 +556,10 @@ func (b *Base) SetupDefaults(exch *config.Exchange) error {
 
 	b.HTTPDebugging = exch.HTTPDebugging
 	b.BypassConfigFormatUpgrades = exch.CurrencyPairs.BypassConfigFormatUpgrades
-	b.SetHTTPClientUserAgent(exch.HTTPUserAgent)
+	err = b.SetHTTPClientUserAgent(exch.HTTPUserAgent)
+	if err != nil {
+		return err
+	}
 	b.SetCurrencyPairFormat()
 
 	err = b.SetConfigPairs()

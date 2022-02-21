@@ -713,8 +713,9 @@ func (m *OrderManager) processOrders() {
 				upsertResponse, err := m.UpsertOrder(&result[z])
 				if err != nil {
 					log.Error(log.OrderMgr, err)
+				} else {
+					requiresProcessing[upsertResponse.OrderDetails.InternalOrderID] = false
 				}
-				requiresProcessing[upsertResponse.OrderDetails.InternalOrderID] = false
 			}
 			if !exchanges[i].GetBase().GetSupportedFeatures().RESTCapabilities.GetOrder {
 				continue

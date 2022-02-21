@@ -19,6 +19,16 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
+// NewFromSettings returns a new coin market cap instance with supplied settings
+func NewFromSettings(cfg Settings) (*Coinmarketcap, error) {
+	c := &Coinmarketcap{}
+	c.SetDefaults()
+	if err := c.Setup(cfg); err != nil {
+		return nil, err
+	}
+	return c, nil
+}
+
 // SetDefaults sets default values for the exchange
 func (c *Coinmarketcap) SetDefaults() {
 	c.Name = "CoinMarketCap"
@@ -26,10 +36,14 @@ func (c *Coinmarketcap) SetDefaults() {
 	c.Verbose = false
 	c.APIUrl = baseURL
 	c.APIVersion = version
-	c.Requester = request.New(c.Name,
+	var err error
+	c.Requester, err = request.New(c.Name,
 		common.NewHTTPClientWithTimeout(defaultTimeOut),
 		request.WithLimiter(request.NewBasicRateLimit(RateInterval, BasicRequestRate)),
 	)
+	if err != nil {
+		log.Errorln(log.Global, err)
+	}
 }
 
 // Setup sets user configuration
@@ -41,7 +55,7 @@ func (c *Coinmarketcap) Setup(conf Settings) error {
 
 	c.Enabled = true
 	c.Verbose = conf.Verbose
-	c.APIkey = conf.APIkey
+	c.APIkey = conf.APIKey
 	return c.SetAccountPlan(conf.AccountPlan)
 }
 
@@ -714,7 +728,7 @@ func (c *Coinmarketcap) SetAccountPlan(s string) error {
 	case "enterprise":
 		c.Plan = Enterprise
 	default:
-		log.Warnf(log.Global, "account plan %s not found, defaulting to basic", s)
+		log.Warnf(log.Currency, "account plan %s not found, defaulting to basic", s)
 		c.Plan = Basic
 	}
 	return nil

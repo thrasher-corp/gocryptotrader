@@ -1,6 +1,7 @@
 package account
 
 import (
+	"errors"
 	"sync"
 
 	"github.com/gofrs/uuid"
@@ -11,7 +12,8 @@ import (
 
 // Vars for the ticker package
 var (
-	service *Service
+	service                 *Service
+	errAccountBalancesIsNil = errors.New("account balances is nil")
 )
 
 // Service holds ticker information for each individual exchange

@@ -186,9 +186,12 @@ func (b *Binance) SetDefaults() {
 		},
 	}
 
-	b.Requester = request.New(b.Name,
+	b.Requester, err = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 	b.API.Endpoints = b.NewEndpoints()
 	err = b.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:              spotAPIURL,
@@ -489,7 +492,7 @@ func (b *Binance) UpdateTickers(ctx context.Context, a asset.Item) error {
 			}
 		}
 	case asset.USDTMarginedFutures:
-		tick, err := b.U24HTickerPriceChangeStats(ctx, currency.Pair{})
+		tick, err := b.U24HTickerPriceChangeStats(ctx, currency.EMPTYPAIR)
 		if err != nil {
 			return err
 		}
@@ -516,7 +519,7 @@ func (b *Binance) UpdateTickers(ctx context.Context, a asset.Item) error {
 			}
 		}
 	case asset.CoinMarginedFutures:
-		tick, err := b.GetFuturesSwapTickerChangeStats(ctx, currency.Pair{}, "")
+		tick, err := b.GetFuturesSwapTickerChangeStats(ctx, currency.EMPTYPAIR, "")
 		if err != nil {
 			return err
 		}
@@ -737,17 +740,22 @@ func (b *Binance) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 		if err != nil {
 			return info, err
 		}
-		var currencyDetails []account.Balance
+		accountCurrencyDetails := make(map[string][]account.Balance)
 		for i := range accData {
-			currencyDetails = append(currencyDetails, account.Balance{
-				CurrencyName: currency.NewCode(accData[i].Asset),
-				Total:        accData[i].Balance,
-				Hold:         accData[i].Balance - accData[i].AvailableBalance,
-				Free:         accData[i].AvailableBalance,
-			})
+			currencyDetails := accountCurrencyDetails[accData[i].AccountAlias]
+			accountCurrencyDetails[accData[i].AccountAlias] = append(
+				currencyDetails, account.Balance{
+					CurrencyName: currency.NewCode(accData[i].Asset),
+					TotalValue:   accData[i].Balance,
+					Hold:         accData[i].Balance - accData[i].AvailableBalance,
+					Free:         accData[i].AvailableBalance,
+				},
+			)
 		}
 
-		acc.Currencies = currencyDetails
+		if info.Accounts, err = account.CollectBalances(accountCurrencyDetails, assetType); err != nil {
+			return account.Holdings{}, err
+		}
 	case asset.Margin:
 		accData, err := b.GetMarginAccount(ctx)
 		if err != nil {
@@ -1322,7 +1330,7 @@ func (b *Binance) GetActiveOrders(ctx context.Context, req *order.GetOrdersReque
 	}
 	if len(req.Pairs) == 0 || len(req.Pairs) >= 40 {
 		// sending an empty currency pair retrieves data for all currencies
-		req.Pairs = append(req.Pairs, currency.Pair{})
+		req.Pairs = append(req.Pairs, currency.EMPTYPAIR)
 	}
 	var orders []order.Detail
 	for i := range req.Pairs {
@@ -1831,7 +1839,7 @@ func (b *Binance) GetAvailableTransferChains(ctx context.Context, cryptocurrency
 func (b *Binance) FormatExchangeCurrency(p currency.Pair, a asset.Item) (currency.Pair, error) {
 	pairFmt, err := b.GetPairFormat(a, true)
 	if err != nil {
-		return currency.Pair{}, err
+		return currency.EMPTYPAIR, err
 	}
 	if a == asset.USDTMarginedFutures {
 		return b.formatUSDTMarginedFuturesPair(p, pairFmt), nil

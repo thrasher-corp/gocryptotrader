@@ -97,10 +97,13 @@ func (y *Yobit) SetDefaults() {
 		},
 	}
 
-	y.Requester = request.New(y.Name,
+	y.Requester, err = request.New(y.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		// Server responses are cached every 2 seconds.
 		request.WithLimiter(request.NewBasicRateLimit(time.Second, 1)))
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 	y.API.Endpoints = y.NewEndpoints()
 	err = y.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:              apiPublicURL,

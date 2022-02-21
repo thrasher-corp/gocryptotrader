@@ -1148,7 +1148,8 @@ func TestUpdateTicker(t *testing.T) {
 }
 
 func TestUpdateTickers(t *testing.T) {
-	err := b.UpdateTickers(context.Background(), asset.Spot)
+	t.Parallel()
+	err := b.UpdateTickers(context.Background(), asset.PerpetualContract)
 	if err != nil {
 		t.Fatal(err)
 	}

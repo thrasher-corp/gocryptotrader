@@ -112,7 +112,7 @@ func (f *FundManager) AddUSDTrackingData(k *kline.DataFromKline) error {
 		}
 		if strings.EqualFold(f.items[i].exchange, k.Item.Exchange) &&
 			f.items[i].asset == k.Item.Asset {
-			if f.items[i].currency == k.Item.Pair.Base {
+			if f.items[i].currency.Equal(k.Item.Pair.Base) {
 				if f.items[i].usdTrackingCandles == nil &&
 					trackingcurrencies.CurrencyIsUSDTracked(k.Item.Pair.Quote) {
 					f.items[i].usdTrackingCandles = k
@@ -123,7 +123,7 @@ func (f *FundManager) AddUSDTrackingData(k *kline.DataFromKline) error {
 				baseSet = true
 			}
 			if trackingcurrencies.CurrencyIsUSDTracked(f.items[i].currency) {
-				if f.items[i].pairedWith != nil && f.items[i].currency != basePairedWith {
+				if f.items[i].pairedWith != nil && !f.items[i].currency.Equal(basePairedWith) {
 					continue
 				}
 				if f.items[i].usdTrackingCandles == nil {
@@ -267,10 +267,10 @@ func (f *FundManager) Transfer(amount decimal.Decimal, sender, receiver *Item, i
 		}
 	}
 
-	if sender.currency != receiver.currency {
+	if !sender.currency.Equal(receiver.currency) {
 		return errTransferMustBeSameCurrency
 	}
-	if sender.currency == receiver.currency &&
+	if sender.currency.Equal(receiver.currency) &&
 		sender.exchange == receiver.exchange &&
 		sender.asset == receiver.asset {
 		return fmt.Errorf("%v %v %v %w", sender.exchange, sender.asset, sender.currency, errCannotTransferToSameFunds)
@@ -336,7 +336,7 @@ func (f *FundManager) GetFundingForEvent(ev common.EventHandler) (*Pair, error) 
 // GetFundingForEAC This will construct a funding based on the exchange, asset, currency code
 func (f *FundManager) GetFundingForEAC(exch string, a asset.Item, c currency.Code) (*Item, error) {
 	for i := range f.items {
-		if f.items[i].BasicEqual(exch, a, c, currency.Code{}) {
+		if f.items[i].BasicEqual(exch, a, c, currency.EMPTYCODE) {
 			return f.items[i], nil
 		}
 	}
@@ -514,7 +514,7 @@ func (i *Item) Equal(item *Item) bool {
 	if item == nil || i == nil {
 		return false
 	}
-	if i.currency == item.currency &&
+	if i.currency.Equal(item.currency) &&
 		i.asset == item.asset &&
 		i.exchange == item.exchange {
 		if i.pairedWith == nil && item.pairedWith == nil {
@@ -523,7 +523,7 @@ func (i *Item) Equal(item *Item) bool {
 		if i.pairedWith == nil || item.pairedWith == nil {
 			return false
 		}
-		if i.pairedWith.currency == item.pairedWith.currency &&
+		if i.pairedWith.currency.Equal(item.pairedWith.currency) &&
 			i.pairedWith.asset == item.pairedWith.asset &&
 			i.pairedWith.exchange == item.pairedWith.exchange {
 			return true
@@ -537,19 +537,19 @@ func (i *Item) BasicEqual(exch string, a asset.Item, currency, pairedCurrency cu
 	return i != nil &&
 		i.exchange == exch &&
 		i.asset == a &&
-		i.currency == currency &&
+		i.currency.Equal(currency) &&
 		(i.pairedWith == nil ||
-			(i.pairedWith != nil && i.pairedWith.currency == pairedCurrency))
+			(i.pairedWith != nil && i.pairedWith.currency.Equal(pairedCurrency)))
 }
 
 // MatchesCurrency checks that an item's currency is equal
 func (i *Item) MatchesCurrency(c currency.Code) bool {
-	return i != nil && i.currency == c
+	return i != nil && i.currency.Equal(c)
 }
 
 // MatchesItemCurrency checks that an item's currency is equal
 func (i *Item) MatchesItemCurrency(item *Item) bool {
-	return i != nil && item != nil && i.currency == item.currency
+	return i != nil && item != nil && i.currency.Equal(item.currency)
 }
 
 // MatchesExchange checks that an item's exchange is equal

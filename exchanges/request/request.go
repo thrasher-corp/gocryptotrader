@@ -20,7 +20,9 @@ import (
 )
 
 var (
-	errRequestSystemIsNil     = errors.New("request system is nil")
+	// ErrRequestSystemIsNil defines and error if the request system has not
+	// been set up yet.
+	ErrRequestSystemIsNil     = errors.New("request system is nil")
 	errMaxRequestJobs         = errors.New("max request jobs reached")
 	errRequestFunctionIsNil   = errors.New("request function is nil")
 	errRequestItemNil         = errors.New("request item is nil")
@@ -28,13 +30,18 @@ var (
 	errHeaderResponseMapIsNil = errors.New("header response map is nil")
 	errFailedToRetryRequest   = errors.New("failed to retry request")
 	errContextRequired        = errors.New("context is required")
+	errTransportNotSet        = errors.New("transport not set, cannot set timeout")
 )
 
 // New returns a new Requester
-func New(name string, httpRequester *http.Client, opts ...RequesterOption) *Requester {
+func New(name string, httpRequester *http.Client, opts ...RequesterOption) (*Requester, error) {
+	protectedClient, err := newProtectedClient(httpRequester)
+	if err != nil {
+		return nil, fmt.Errorf("cannot set up a new requester for %s: %w", name, err)
+	}
 	r := &Requester{
-		HTTPClient:  httpRequester,
-		Name:        name,
+		_HTTPClient: protectedClient,
+		name:        name,
 		backoff:     DefaultBackoff(),
 		retryPolicy: DefaultRetryPolicy,
 		maxRetries:  MaxRetryAttempts,
@@ -46,13 +53,13 @@ func New(name string, httpRequester *http.Client, opts ...RequesterOption) *Requ
 		o(r)
 	}
 
-	return r
+	return r, nil
 }
 
 // SendPayload handles sending HTTP/HTTPS requests
 func (r *Requester) SendPayload(ctx context.Context, ep EndpointLimit, newRequest Generate) error {
 	if r == nil {
-		return errRequestSystemIsNil
+		return ErrRequestSystemIsNil
 	}
 
 	if ctx == nil {
@@ -107,8 +114,8 @@ func (i *Item) validateRequest(ctx context.Context, r *Requester) (*http.Request
 		req.Header.Add(k, v)
 	}
 
-	if r.UserAgent != "" && req.Header.Get(userAgent) == "" {
-		req.Header.Add(userAgent, r.UserAgent)
+	if r.userAgent != "" && req.Header.Get(userAgent) == "" {
+		req.Header.Add(userAgent, r.userAgent)
 	}
 
 	return req, nil
@@ -141,22 +148,22 @@ func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRe
 		}
 
 		if p.Verbose {
-			log.Debugf(log.RequestSys, "%s attempt %d request path: %s", r.Name, attempt, p.Path)
+			log.Debugf(log.RequestSys, "%s attempt %d request path: %s", r.name, attempt, p.Path)
 			for k, d := range req.Header {
-				log.Debugf(log.RequestSys, "%s request header [%s]: %s", r.Name, k, d)
+				log.Debugf(log.RequestSys, "%s request header [%s]: %s", r.name, k, d)
 			}
-			log.Debugf(log.RequestSys, "%s request type: %s", r.Name, p.Method)
+			log.Debugf(log.RequestSys, "%s request type: %s", r.name, p.Method)
 			if p.Body != nil {
-				log.Debugf(log.RequestSys, "%s request body: %v", r.Name, p.Body)
+				log.Debugf(log.RequestSys, "%s request body: %v", r.name, p.Body)
 			}
 		}
 
 		start := time.Now()
 
-		resp, err := r.HTTPClient.Do(req)
+		resp, err := r._HTTPClient.do(req)
 
 		if r.reporter != nil {
-			r.reporter.Latency(r.Name, p.Method, p.Path, time.Since(start))
+			r.reporter.Latency(r.name, p.Method, p.Path, time.Since(start))
 		}
 
 		if retry, checkErr := r.retryPolicy(resp, err); checkErr != nil {
@@ -191,7 +198,7 @@ func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRe
 			if p.Verbose {
 				log.Errorf(log.RequestSys,
 					"%s request has failed. Retrying request in %s, attempt %d",
-					r.Name,
+					r.name,
 					delay,
 					attempt)
 			}
@@ -213,7 +220,7 @@ func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRe
 
 		if p.HTTPRecording {
 			// This dumps http responses for future mocking implementations
-			err = mock.HTTPRecord(resp, r.Name, contents)
+			err = mock.HTTPRecord(resp, r.name, contents)
 			if err != nil {
 				return fmt.Errorf("mock recording failure %s", err)
 			}
@@ -228,21 +235,27 @@ func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRe
 		if resp.StatusCode < http.StatusOK ||
 			resp.StatusCode > http.StatusAccepted {
 			return fmt.Errorf("%s unsuccessful HTTP status code: %d raw response: %s",
-				r.Name,
+				r.name,
 				resp.StatusCode,
 				string(contents))
 		}
 
 		if p.HTTPDebugging {
-			dump, err := httputil.DumpResponse(resp, false)
+			dump, dumpErr := httputil.DumpResponse(resp, false)
 			if err != nil {
-				log.Errorf(log.RequestSys, "DumpResponse invalid response: %v:", err)
+				log.Errorf(log.RequestSys, "DumpResponse invalid response: %v:", dumpErr)
 			}
 			log.Debugf(log.RequestSys, "DumpResponse Headers (%v):\n%s", p.Path, dump)
 			log.Debugf(log.RequestSys, "DumpResponse Body (%v):\n %s", p.Path, string(contents))
 		}
 
-		resp.Body.Close()
+		err = resp.Body.Close()
+		if err != nil {
+			log.Errorf(log.RequestSys,
+				"%s failed to close request body %s",
+				r.name,
+				err)
+		}
 		if p.Verbose {
 			log.Debugf(log.RequestSys,
 				"HTTP status: %s, Code: %v",
@@ -251,11 +264,27 @@ func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRe
 			if !p.HTTPDebugging {
 				log.Debugf(log.RequestSys,
 					"%s raw response: %s",
-					r.Name,
+					r.name,
 					string(contents))
 			}
 		}
 		return unmarshallError
+	}
+}
+
+func (r *Requester) drainBody(body io.ReadCloser) {
+	if _, err := io.Copy(ioutil.Discard, io.LimitReader(body, drainBodyLimit)); err != nil {
+		log.Errorf(log.RequestSys,
+			"%s failed to drain request body %s",
+			r.name,
+			err)
+	}
+
+	if err := body.Close(); err != nil {
+		log.Errorf(log.RequestSys,
+			"%s failed to close request body %s",
+			r.name,
+			err)
 	}
 }
 
@@ -285,27 +314,57 @@ func (r *Requester) GetNonceMilli() nonce.Value {
 	return r.Nonce.GetInc()
 }
 
-// SetProxy sets a proxy address to the client transport
+// SetProxy sets a proxy address for the client transport
 func (r *Requester) SetProxy(p *url.URL) error {
-	if p.String() == "" {
-		return errors.New("no proxy URL supplied")
+	if r == nil {
+		return ErrRequestSystemIsNil
 	}
+	return r._HTTPClient.setProxy(p)
+}
 
-	t, ok := r.HTTPClient.Transport.(*http.Transport)
-	if !ok {
-		return errors.New("transport not set, cannot set proxy")
+// SetHTTPClient sets exchanges HTTP client
+func (r *Requester) SetHTTPClient(newClient *http.Client) error {
+	if r == nil {
+		return ErrRequestSystemIsNil
 	}
-	t.Proxy = http.ProxyURL(p)
-	t.TLSHandshakeTimeout = proxyTLSTimeout
+	protectedClient, err := newProtectedClient(newClient)
+	if err != nil {
+		return err
+	}
+	r._HTTPClient = protectedClient
 	return nil
 }
 
-func (r *Requester) drainBody(body io.ReadCloser) {
-	defer body.Close()
-	if _, err := io.Copy(ioutil.Discard, io.LimitReader(body, drainBodyLimit)); err != nil {
-		log.Errorf(log.RequestSys,
-			"%s failed to drain request body %s",
-			r.Name,
-			err)
+// SetClientTimeout sets the timeout value for the exchanges HTTP Client and
+// also the underlying transports idle connection timeout
+func (r *Requester) SetHTTPClientTimeout(timeout time.Duration) error {
+	if r == nil {
+		return ErrRequestSystemIsNil
 	}
+	return r._HTTPClient.setHTTPClientTimeout(timeout)
+}
+
+// SetHTTPClientUserAgent sets the exchanges HTTP user agent
+func (r *Requester) SetHTTPClientUserAgent(userAgent string) error {
+	if r == nil {
+		return ErrRequestSystemIsNil
+	}
+	r.userAgent = userAgent
+	return nil
+}
+
+// GetHTTPClientUserAgent gets the exchanges HTTP user agent
+func (r *Requester) GetHTTPClientUserAgent() (string, error) {
+	if r == nil {
+		return "", ErrRequestSystemIsNil
+	}
+	return r.userAgent, nil
+}
+
+// Shutdown releases persistent memory for garbage collection.
+func (r *Requester) Shutdown() error {
+	if r == nil {
+		return ErrRequestSystemIsNil
+	}
+	return r._HTTPClient.release()
 }

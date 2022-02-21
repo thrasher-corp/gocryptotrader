@@ -121,13 +121,13 @@ func pairContainsUSD(pair currency.Pair) bool {
 // this will allow for data retrieval and total tracking on backtesting runs
 func findMatchingUSDPairs(pair currency.Pair, pairs *currency.PairStore) (basePair, quotePair currency.Pair, err error) {
 	if pairs == nil {
-		return currency.Pair{}, currency.Pair{}, errNilPairs
+		return currency.EMPTYPAIR, currency.EMPTYPAIR, errNilPairs
 	}
 	if pairContainsUSD(pair) {
-		return currency.Pair{}, currency.Pair{}, ErrCurrencyContainsUSD
+		return currency.EMPTYPAIR, currency.EMPTYPAIR, ErrCurrencyContainsUSD
 	}
 	if !pairs.Available.Contains(pair, true) {
-		return currency.Pair{}, currency.Pair{}, fmt.Errorf("%v %w", pair, errCurrencyNotFoundInPairs)
+		return currency.EMPTYPAIR, currency.EMPTYPAIR, fmt.Errorf("%v %w", pair, errCurrencyNotFoundInPairs)
 	}
 	var baseFound, quoteFound bool
 
