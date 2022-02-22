@@ -731,7 +731,8 @@ func (b *Bitmex) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuild
 	if feeBuilder == nil {
 		return 0, fmt.Errorf("%T %w", feeBuilder, common.ErrNilPointer)
 	}
-	if !b.AllowAuthenticatedRequest() && // Todo check connection status
+	_, err := b.GetCredentials(ctx)
+	if err != nil && // Todo check connection status
 		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		feeBuilder.FeeType = exchange.OfflineTradeFee
 	}
@@ -856,8 +857,8 @@ func (b *Bitmex) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket
-func (b *Bitmex) AuthenticateWebsocket(_ context.Context) error {
-	return b.websocketSendAuth()
+func (b *Bitmex) AuthenticateWebsocket(ctx context.Context) error {
+	return b.websocketSendAuth(ctx)
 }
 
 // ValidateCredentials validates current credentials used for wrapper

@@ -1643,8 +1643,9 @@ func (b *Bitfinex) SendHTTPRequest(ctx context.Context, ep exchange.URL, path st
 // SendAuthenticatedHTTPRequest sends an autheticated http request and json
 // unmarshals result to a supplied variable
 func (b *Bitfinex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method, path string, params map[string]interface{}, result interface{}, endpoint request.EndpointLimit) error {
-	if !b.AllowAuthenticatedRequest() {
-		return fmt.Errorf("%s %w", b.Name, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
+	creds, err := b.GetCredentials(ctx)
+	if err != nil {
+		return err
 	}
 
 	ePoint, err := b.API.Endpoints.GetURL(ep)
@@ -1671,12 +1672,12 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		PayloadBase64 := crypto.Base64Encode(PayloadJSON)
 		hmac, err := crypto.GetHMAC(crypto.HashSHA512_384,
 			[]byte(PayloadBase64),
-			[]byte(b.API.Credentials.Secret))
+			[]byte(creds.Secret))
 		if err != nil {
 			return nil, err
 		}
 		headers := make(map[string]string)
-		headers["X-BFX-APIKEY"] = b.API.Credentials.Key
+		headers["X-BFX-APIKEY"] = creds.Key
 		headers["X-BFX-PAYLOAD"] = PayloadBase64
 		headers["X-BFX-SIGNATURE"] = crypto.HexEncodeToString(hmac)
 
@@ -1696,8 +1697,9 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 // SendAuthenticatedHTTPRequestV2 sends an autheticated http request and json
 // unmarshals result to a supplied variable
 func (b *Bitfinex) SendAuthenticatedHTTPRequestV2(ctx context.Context, ep exchange.URL, method, path string, params map[string]interface{}, result interface{}, endpoint request.EndpointLimit) error {
-	if !b.AllowAuthenticatedRequest() {
-		return fmt.Errorf("%s %w", b.Name, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
+	creds, err := b.GetCredentials(ctx)
+	if err != nil {
+		return err
 	}
 	ePoint, err := b.API.Endpoints.GetURL(ep)
 	if err != nil {
@@ -1719,13 +1721,13 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequestV2(ctx context.Context, ep exchan
 		headers := make(map[string]string)
 		headers["Content-Type"] = "application/json"
 		headers["Accept"] = "application/json"
-		headers["bfx-apikey"] = b.API.Credentials.Key
+		headers["bfx-apikey"] = creds.Key
 		headers["bfx-nonce"] = n
 		sig := "/api" + bitfinexAPIVersion2 + path + n + string(payload)
 		hmac, err := crypto.GetHMAC(
 			crypto.HashSHA512_384,
 			[]byte(sig),
-			[]byte(b.API.Credentials.Secret),
+			[]byte(creds.Secret),
 		)
 		if err != nil {
 			return nil, err

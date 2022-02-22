@@ -281,12 +281,6 @@ type wsResponse struct {
 	Reply string `json:"reply"`
 }
 
-type wsHeartbeatResp struct {
-	Nonce  int64         `json:"nonce"`
-	Reply  string        `json:"reply"`
-	Status []interface{} `json:"status"`
-}
-
 // WsTicker defines the resp for ticker updates from the websocket connection
 type WsTicker struct {
 	High24        float64  `json:"high24,string"`

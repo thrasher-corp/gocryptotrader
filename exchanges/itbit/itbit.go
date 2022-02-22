@@ -78,20 +78,28 @@ func (i *ItBit) GetTradeHistory(ctx context.Context, currencyPair, tradeID strin
 // 					page - [optional] page to return example 1. default 1
 //					perPage - [optional] items per page example 50, default 50 max 50
 func (i *ItBit) GetWallets(ctx context.Context, params url.Values) ([]Wallet, error) {
+	creds, err := i.GetCredentials(ctx)
+	if err != nil {
+		return nil, err
+	}
 	var resp []Wallet
-	params.Set("userId", i.API.Credentials.ClientID)
+	params.Set("userId", creds.ClientID)
 	path := fmt.Sprintf("/%s?%s", itbitWallets, params.Encode())
 	return resp, i.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp)
 }
 
 // CreateWallet creates a new wallet with a specified name.
 func (i *ItBit) CreateWallet(ctx context.Context, walletName string) (Wallet, error) {
+	creds, err := i.GetCredentials(ctx)
+	if err != nil {
+		return Wallet{}, err
+	}
 	resp := Wallet{}
 	params := make(map[string]interface{})
-	params["userId"] = i.API.Credentials.ClientID
+	params["userId"] = creds.ClientID
 	params["name"] = walletName
 
-	err := i.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/"+itbitWallets, params, &resp)
+	err = i.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/"+itbitWallets, params, &resp)
 	if err != nil {
 		return resp, err
 	}
@@ -299,8 +307,9 @@ func (i *ItBit) SendHTTPRequest(ctx context.Context, ep exchange.URL, path strin
 
 // SendAuthenticatedHTTPRequest sends an authenticated request to itBit
 func (i *ItBit) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method, path string, params map[string]interface{}, result interface{}) error {
-	if !i.AllowAuthenticatedRequest() {
-		return fmt.Errorf("%s %w", i.Name, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
+	creds, err := i.GetCredentials(ctx)
+	if err != nil {
+		return err
 	}
 	endpoint, err := i.API.Endpoints.GetURL(ep)
 	if err != nil {
@@ -340,14 +349,14 @@ func (i *ItBit) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.UR
 		var hmac []byte
 		hmac, err = crypto.GetHMAC(crypto.HashSHA512,
 			[]byte(urlPath+string(hash)),
-			[]byte(i.API.Credentials.Secret))
+			[]byte(creds.Secret))
 		if err != nil {
 			return nil, err
 		}
 		signature := crypto.Base64Encode(hmac)
 
 		headers := make(map[string]string)
-		headers["Authorization"] = i.API.Credentials.ClientID + ":" + signature
+		headers["Authorization"] = creds.ClientID + ":" + signature
 		headers["X-Auth-Timestamp"] = timestamp
 		headers["X-Auth-Nonce"] = n
 		headers["Content-Type"] = "application/json"

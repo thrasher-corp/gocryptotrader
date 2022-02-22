@@ -437,16 +437,20 @@ func (f *FTX) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType as
 
 // UpdateAccountInfo retrieves balances for all enabled currencies
 func (f *FTX) UpdateAccountInfo(ctx context.Context, a asset.Item) (account.Holdings, error) {
+	creds, err := f.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
 	var resp account.Holdings
 
 	var data AllWalletBalances
-	if f.API.Credentials.Subaccount != "" {
+	if creds.Subaccount != "" {
 		balances, err := f.GetBalances(ctx)
 		if err != nil {
 			return resp, err
 		}
 		data = make(AllWalletBalances)
-		data[f.API.Credentials.Subaccount] = balances
+		data[creds.Subaccount] = balances
 	} else {
 		// Get all wallet balances used so we can transfer between accounts if
 		// needed.
@@ -1121,8 +1125,8 @@ func (f *FTX) UnsubscribeToWebsocketChannels(channels []stream.ChannelSubscripti
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket
-func (f *FTX) AuthenticateWebsocket(_ context.Context) error {
-	return f.WsAuth()
+func (f *FTX) AuthenticateWebsocket(ctx context.Context) error {
+	return f.WsAuth(ctx)
 }
 
 // ValidateCredentials validates current credentials used for wrapper

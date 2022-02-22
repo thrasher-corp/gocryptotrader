@@ -91,6 +91,10 @@ const (
 	UnknownWithdrawalTypeText               string = "UNKNOWN"
 )
 
+// APICredentials is a package defined type for use with a context value
+// designation
+type APICredentials string
+
 // FeeType is the type for holding a custom fee type (International withdrawal fee)
 type FeeType uint8
 
@@ -180,6 +184,15 @@ type Endpoints struct {
 	sync.RWMutex
 }
 
+// Credentials defines parameters that allow for an authenticated request.
+type Credentials struct {
+	Key        string
+	Secret     string
+	ClientID   string
+	PEMKey     string
+	Subaccount string
+}
+
 // API stores the exchange API settings
 type API struct {
 	AuthenticatedSupport          bool
@@ -188,13 +201,7 @@ type API struct {
 
 	Endpoints *Endpoints
 
-	Credentials struct {
-		Key        string
-		Secret     string
-		ClientID   string
-		PEMKey     string
-		Subaccount string
-	}
+	credentials Credentials
 
 	CredentialsValidator struct {
 		// For Huobi (optional)

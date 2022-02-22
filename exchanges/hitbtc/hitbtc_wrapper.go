@@ -699,7 +699,8 @@ func (h *HitBTC) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuild
 	if feeBuilder == nil {
 		return 0, fmt.Errorf("%T %w", feeBuilder, common.ErrNilPointer)
 	}
-	if !h.AllowAuthenticatedRequest() && // Todo check connection status
+	_, err := h.GetCredentials(ctx)
+	if err != nil && // Todo check connection status
 		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		feeBuilder.FeeType = exchange.OfflineTradeFee
 	}
@@ -817,8 +818,8 @@ func (h *HitBTC) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket
-func (h *HitBTC) AuthenticateWebsocket(_ context.Context) error {
-	return h.wsLogin()
+func (h *HitBTC) AuthenticateWebsocket(ctx context.Context) error {
+	return h.wsLogin(ctx)
 }
 
 // ValidateCredentials validates current credentials used for wrapper

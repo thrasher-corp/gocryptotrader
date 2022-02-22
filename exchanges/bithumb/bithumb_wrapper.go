@@ -672,7 +672,8 @@ func (b *Bithumb) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuil
 	if feeBuilder == nil {
 		return 0, fmt.Errorf("%T %w", feeBuilder, common.ErrNilPointer)
 	}
-	if !b.AllowAuthenticatedRequest() && // Todo check connection status
+	_, err := b.GetCredentials(ctx)
+	if err != nil && // Todo check connection status
 		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		feeBuilder.FeeType = exchange.OfflineTradeFee
 	}

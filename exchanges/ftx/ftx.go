@@ -1157,8 +1157,9 @@ func (f *FTX) StakeRequest(ctx context.Context, coin currency.Code, size float64
 
 // SendAuthHTTPRequest sends an authenticated request
 func (f *FTX) SendAuthHTTPRequest(ctx context.Context, ep exchange.URL, method, path string, data, result interface{}) error {
-	if !f.AllowAuthenticatedRequest() {
-		return fmt.Errorf("%s %w", f.Name, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
+	creds, err := f.GetCredentials(ctx)
+	if err != nil {
+		return err
 	}
 
 	endpoint, err := f.API.Endpoints.GetURL(ep)
@@ -1183,17 +1184,17 @@ func (f *FTX) SendAuthHTTPRequest(ctx context.Context, ep exchange.URL, method, 
 
 		hmac, err = crypto.GetHMAC(crypto.HashSHA256,
 			[]byte(sigPayload),
-			[]byte(f.API.Credentials.Secret))
+			[]byte(creds.Secret))
 		if err != nil {
 			return nil, err
 		}
 
 		headers := make(map[string]string)
-		headers["FTX-KEY"] = f.API.Credentials.Key
+		headers["FTX-KEY"] = creds.Key
 		headers["FTX-SIGN"] = crypto.HexEncodeToString(hmac)
 		headers["FTX-TS"] = ts
-		if f.API.Credentials.Subaccount != "" {
-			headers["FTX-SUBACCOUNT"] = url.QueryEscape(f.API.Credentials.Subaccount)
+		if creds.Subaccount != "" {
+			headers["FTX-SUBACCOUNT"] = url.QueryEscape(creds.Subaccount)
 		}
 		headers["Content-Type"] = "application/json"
 

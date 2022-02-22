@@ -118,7 +118,7 @@ func (b *Bittrex) WsConnect() error {
 	}
 
 	if b.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
-		err = b.WsAuth()
+		err = b.WsAuth(context.TODO())
 		if err != nil {
 			b.Websocket.DataHandler <- err
 			b.Websocket.SetCanUseAuthenticatedEndpoints(false)
@@ -149,9 +149,13 @@ func (b *Bittrex) WsSignalRHandshake(ctx context.Context, result interface{}) er
 
 // WsAuth sends an authentication message to receive auth data
 // Authentications expire after 10 minutes
-func (b *Bittrex) WsAuth() error {
+func (b *Bittrex) WsAuth(ctx context.Context) error {
+	creds, err := b.GetCredentials(ctx)
+	if err != nil {
+		return err
+	}
 	// [apiKey, timestamp in ms, random uuid, signed payload]
-	apiKey := b.API.Credentials.Key
+	apiKey := creds.Key
 	randomContent, err := uuid.NewV4()
 	if err != nil {
 		return err
@@ -160,7 +164,7 @@ func (b *Bittrex) WsAuth() error {
 	hmac, err := crypto.GetHMAC(
 		crypto.HashSHA512,
 		[]byte(timestamp+randomContent.String()),
-		[]byte(b.API.Credentials.Secret),
+		[]byte(creds.Secret),
 	)
 	if err != nil {
 		return err
@@ -485,7 +489,7 @@ func (b *Bittrex) wsHandleData(respRaw []byte) error {
 			if b.Verbose {
 				log.Debugf(log.WebsocketMgr, "%s - Re-authenticating.\n", b.Name)
 			}
-			err = b.WsAuth()
+			err = b.WsAuth(context.TODO())
 			if err != nil {
 				b.Websocket.DataHandler <- err
 				b.Websocket.SetCanUseAuthenticatedEndpoints(false)

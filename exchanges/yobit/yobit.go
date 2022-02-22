@@ -289,8 +289,9 @@ func (y *Yobit) SendHTTPRequest(ctx context.Context, ep exchange.URL, path strin
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to Yobit
 func (y *Yobit) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, path string, params url.Values, result interface{}) (err error) {
-	if !y.AllowAuthenticatedRequest() {
-		return fmt.Errorf("%s %w", y.Name, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
+	creds, err := y.GetCredentials(ctx)
+	if err != nil {
+		return err
 	}
 	endpoint, err := y.API.Endpoints.GetURL(ep)
 	if err != nil {
@@ -309,13 +310,13 @@ func (y *Yobit) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.UR
 		encoded := params.Encode()
 		hmac, err := crypto.GetHMAC(crypto.HashSHA512,
 			[]byte(encoded),
-			[]byte(y.API.Credentials.Secret))
+			[]byte(creds.Secret))
 		if err != nil {
 			return nil, err
 		}
 
 		headers := make(map[string]string)
-		headers["Key"] = y.API.Credentials.Key
+		headers["Key"] = creds.Key
 		headers["Sign"] = crypto.HexEncodeToString(hmac)
 		headers["Content-Type"] = "application/x-www-form-urlencoded"
 

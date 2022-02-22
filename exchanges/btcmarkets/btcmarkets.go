@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -711,8 +710,9 @@ func (b *BTCMarkets) SendHTTPRequest(ctx context.Context, path string, result in
 
 // SendAuthenticatedRequest sends an authenticated HTTP request
 func (b *BTCMarkets) SendAuthenticatedRequest(ctx context.Context, method, path string, data, result interface{}, f request.EndpointLimit) (err error) {
-	if !b.AllowAuthenticatedRequest() {
-		return fmt.Errorf("%s %w", b.Name, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
+	creds, err := b.GetCredentials(ctx)
+	if err != nil {
+		return err
 	}
 
 	newRequest := func() (*request.Item, error) {
@@ -729,7 +729,7 @@ func (b *BTCMarkets) SendAuthenticatedRequest(ctx context.Context, method, path 
 			strMsg := method + btcMarketsAPIVersion + path + strTime + string(payload)
 			hmac, err = crypto.GetHMAC(crypto.HashSHA512,
 				[]byte(strMsg),
-				[]byte(b.API.Credentials.Secret))
+				[]byte(creds.Secret))
 			if err != nil {
 				return nil, err
 			}
@@ -737,7 +737,7 @@ func (b *BTCMarkets) SendAuthenticatedRequest(ctx context.Context, method, path 
 			strArray := strings.Split(path, "?")
 			hmac, err = crypto.GetHMAC(crypto.HashSHA512,
 				[]byte(method+btcMarketsAPIVersion+strArray[0]+strTime),
-				[]byte(b.API.Credentials.Secret))
+				[]byte(creds.Secret))
 			if err != nil {
 				return nil, err
 			}
@@ -747,7 +747,7 @@ func (b *BTCMarkets) SendAuthenticatedRequest(ctx context.Context, method, path 
 		headers["Accept"] = "application/json"
 		headers["Accept-Charset"] = "UTF-8"
 		headers["Content-Type"] = "application/json"
-		headers["BM-AUTH-APIKEY"] = b.API.Credentials.Key
+		headers["BM-AUTH-APIKEY"] = creds.Key
 		headers["BM-AUTH-TIMESTAMP"] = strTime
 		headers["BM-AUTH-SIGNATURE"] = crypto.Base64Encode(hmac)
 

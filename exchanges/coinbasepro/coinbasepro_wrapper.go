@@ -734,7 +734,8 @@ func (c *CoinbasePro) GetFeeByType(ctx context.Context, feeBuilder *exchange.Fee
 	if feeBuilder == nil {
 		return 0, fmt.Errorf("%T %w", feeBuilder, common.ErrNilPointer)
 	}
-	if !c.AllowAuthenticatedRequest() && // Todo check connection status
+	_, err := c.GetCredentials(ctx)
+	if err != nil && // Todo check connection status
 		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		feeBuilder.FeeType = exchange.OfflineTradeFee
 	}

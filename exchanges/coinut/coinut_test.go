@@ -79,7 +79,7 @@ func setupWSTestAuth(t *testing.T) {
 		t.Fatal(err)
 	}
 	go c.wsReadData()
-	err = c.wsAuthenticate()
+	err = c.wsAuthenticate(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
@@ -288,7 +288,8 @@ func TestGetOrderHistoryWrapper(t *testing.T) {
 // Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
 // ----------------------------------------------------------------------------------------------------------------------------
 func areTestAPIKeysSet() bool {
-	return c.ValidateAPICredentials()
+	_, err := c.GetCredentials(context.Background())
+	return err == nil
 }
 
 func TestSubmitOrder(t *testing.T) {

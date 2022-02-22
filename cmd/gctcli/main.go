@@ -12,11 +12,13 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/core"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc/auth"
 	"github.com/thrasher-corp/gocryptotrader/signaler"
 	"github.com/urfave/cli/v2"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/metadata"
 )
 
 var (
@@ -26,6 +28,7 @@ var (
 	pairDelimiter string
 	certPath      string
 	timeout       time.Duration
+	exchangeCreds exchange.Credentials
 )
 
 const defaultTimeout = time.Second * 30
@@ -53,6 +56,9 @@ func setupClient(c *cli.Context) (*grpc.ClientConn, context.CancelFunc, error) {
 
 	var cancel context.CancelFunc
 	c.Context, cancel = context.WithTimeout(c.Context, timeout)
+	c.Context = metadata.AppendToOutgoingContext(c.Context,
+		exchange.GRPCCrendentialsFlag,
+		exchangeCreds.Get())
 	conn, err := grpc.DialContext(c.Context, host, opts...)
 	return conn, cancel, err
 }
@@ -99,6 +105,31 @@ func main() {
 			Value:       defaultTimeout,
 			Usage:       "the default context timeout value for requests",
 			Destination: &timeout,
+		},
+		&cli.StringFlag{
+			Name:        "apikey",
+			Usage:       "Authenticated HTTP call APIKey",
+			Destination: &exchangeCreds.Key,
+		},
+		&cli.StringFlag{
+			Name:        "apisecret",
+			Usage:       "Authenticated HTTP call APISecret",
+			Destination: &exchangeCreds.Secret,
+		},
+		&cli.StringFlag{
+			Name:        "apisubaccount",
+			Usage:       "Authenticated HTTP call designated sub account",
+			Destination: &exchangeCreds.Subaccount,
+		},
+		&cli.StringFlag{
+			Name:        "apiclientid",
+			Usage:       "Authenticated HTTP call client ID",
+			Destination: &exchangeCreds.ClientID,
+		},
+		&cli.StringFlag{
+			Name:        "apipemkey",
+			Usage:       "Authenticated HTTP call PEM key",
+			Destination: &exchangeCreds.PEMKey,
 		},
 	}
 	app.Commands = []*cli.Command{

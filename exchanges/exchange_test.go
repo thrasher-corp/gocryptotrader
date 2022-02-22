@@ -1180,7 +1180,9 @@ func TestSetAPIKeys(t *testing.T) {
 	}
 
 	b.SetAPIKeys("RocketMan", "Digereedoo", "007")
-	if b.API.Credentials.Key != "RocketMan" && b.API.Credentials.Secret != "Digereedoo" && b.API.Credentials.ClientID != "007" {
+	if b.API.credentials.Key != "RocketMan" &&
+		b.API.credentials.Secret != "Digereedoo" &&
+		b.API.credentials.ClientID != "007" {
 		t.Error("invalid API credentials")
 	}
 
@@ -1196,7 +1198,7 @@ func TestSetAPIKeys(t *testing.T) {
 	b.API.CredentialsValidator.RequiresBase64DecodeSecret = true
 	b.API.AuthenticatedSupport = true
 	b.SetAPIKeys("RocketMan", "aGVsbG8gd29ybGQ=", "007")
-	if !b.API.AuthenticatedSupport && b.API.Credentials.Secret != "hello world" {
+	if !b.API.AuthenticatedSupport && b.API.credentials.Secret != "hello world" {
 		t.Error("invalid secret should disable authenticated API support")
 	}
 }
@@ -1291,7 +1293,7 @@ func TestSetupDefaults(t *testing.T) {
 	}
 }
 
-func TestAllowAuthenticatedRequest(t *testing.T) {
+func TestCheckCredentials(t *testing.T) {
 	t.Parallel()
 
 	b := Base{
@@ -1299,36 +1301,41 @@ func TestAllowAuthenticatedRequest(t *testing.T) {
 	}
 
 	// Test SkipAuthCheck
-	if r := b.AllowAuthenticatedRequest(); !r {
+	err := b.CheckCredentials(Credentials{})
+	if !errors.Is(err, nil) {
 		t.Error("skip auth check should allow authenticated requests")
 	}
 
 	// Test credentials failure
 	b.SkipAuthCheck = false
 	b.API.CredentialsValidator.RequiresKey = true
-	if r := b.AllowAuthenticatedRequest(); r {
+	err = b.CheckCredentials(b.API.credentials)
+	if !errors.Is(err, errRequiresAPIKey) {
 		t.Error("should fail with an empty key")
 	}
 
 	// Test bot usage with authenticated API support disabled, but with
 	// valid credentials
 	b.LoadedByConfig = true
-	b.API.Credentials.Key = "k3y"
-	if r := b.AllowAuthenticatedRequest(); r {
+	b.API.credentials.Key = "k3y"
+	err = b.CheckCredentials(b.API.credentials)
+	if !errors.Is(err, errAuthenticationSupportNotEnabled) {
 		t.Error("should fail when authenticated support is disabled")
 	}
 
 	// Test enabled authenticated API support and loaded by config
 	// but invalid credentials
 	b.API.AuthenticatedSupport = true
-	b.API.Credentials.Key = ""
-	if r := b.AllowAuthenticatedRequest(); r {
+	b.API.credentials.Key = ""
+	err = b.CheckCredentials(b.API.credentials)
+	if !errors.Is(err, errRequiresAPIKey) {
 		t.Error("should fail with invalid credentials")
 	}
 
 	// Finally a valid one
-	b.API.Credentials.Key = "k3y"
-	if r := b.AllowAuthenticatedRequest(); !r {
+	b.API.credentials.Key = "k3y"
+	err = b.CheckCredentials(b.API.credentials)
+	if !errors.Is(err, nil) {
 		t.Error("show allow an authenticated request")
 	}
 }
@@ -1347,35 +1354,34 @@ func TestValidateAPICredentials(t *testing.T) {
 		RequiresSecret             bool
 		RequiresClientID           bool
 		RequiresBase64DecodeSecret bool
-		Expected                   bool
-		Result                     bool
+		Expected                   error
 	}
 
 	tests := []tester{
 		// test key
-		{RequiresKey: true},
-		{RequiresKey: true, Key: "k3y", Expected: true},
+		{RequiresKey: true, Expected: errRequiresAPIKey},
+		{RequiresKey: true, Key: "k3y"},
 		// test secret
-		{RequiresSecret: true},
-		{RequiresSecret: true, Secret: "s3cr3t", Expected: true},
+		{RequiresSecret: true, Expected: errRequiresAPISecret},
+		{RequiresSecret: true, Secret: "s3cr3t"},
 		// test pem
-		{RequiresPEM: true},
-		{RequiresPEM: true, PEMKey: "p3mK3y", Expected: true},
+		{RequiresPEM: true, Expected: errRequiresAPIPEMKey},
+		{RequiresPEM: true, PEMKey: "p3mK3y"},
 		// test clientID
-		{RequiresClientID: true},
-		{RequiresClientID: true, ClientID: "cli3nt1D", Expected: true},
+		{RequiresClientID: true, Expected: errRequiresAPIClientID},
+		{RequiresClientID: true, ClientID: "cli3nt1D"},
 		// test requires base64 decode secret
-		{RequiresBase64DecodeSecret: true, RequiresSecret: true},
-		{RequiresBase64DecodeSecret: true, Secret: "%%", Expected: false},
-		{RequiresBase64DecodeSecret: true, Secret: "aGVsbG8gd29ybGQ=", Expected: true},
+		{RequiresBase64DecodeSecret: true, RequiresSecret: true, Expected: errRequiresAPISecret},
+		{RequiresBase64DecodeSecret: true, Secret: "%%", Expected: errBase64DecodeFailure},
+		{RequiresBase64DecodeSecret: true, Secret: "aGVsbG8gd29ybGQ="},
 	}
 
 	for x := range tests {
 		setupBase := func(b *Base, tData tester) {
-			b.API.Credentials.Key = tData.Key
-			b.API.Credentials.Secret = tData.Secret
-			b.API.Credentials.ClientID = tData.ClientID
-			b.API.Credentials.PEMKey = tData.PEMKey
+			b.API.credentials.Key = tData.Key
+			b.API.credentials.Secret = tData.Secret
+			b.API.credentials.ClientID = tData.ClientID
+			b.API.credentials.PEMKey = tData.PEMKey
 			b.API.CredentialsValidator.RequiresKey = tData.RequiresKey
 			b.API.CredentialsValidator.RequiresSecret = tData.RequiresSecret
 			b.API.CredentialsValidator.RequiresPEM = tData.RequiresPEM
@@ -1384,8 +1390,8 @@ func TestValidateAPICredentials(t *testing.T) {
 		}
 
 		setupBase(&b, tests[x])
-		if r := b.ValidateAPICredentials(); r != tests[x].Expected {
-			t.Errorf("Test %d: expected: %v: got %v", x, tests[x].Expected, r)
+		if err := b.ValidateAPICredentials(b.API.credentials); !errors.Is(err, tests[x].Expected) {
+			t.Errorf("Test %d: expected: %v: got %v", x+1, tests[x].Expected, err)
 		}
 	}
 }
@@ -2416,5 +2422,65 @@ func TestGetAvailableTransferChains(t *testing.T) {
 	var b Base
 	if _, err := b.GetAvailableTransferChains(context.Background(), currency.BTC); !errors.Is(err, common.ErrFunctionNotSupported) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrFunctionNotSupported)
+	}
+}
+
+func TestGetCredentials(t *testing.T) {
+	t.Parallel()
+	var b Base
+	_, err := b.GetCredentials(context.Background())
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v but expected: %v", err, nil)
+	}
+
+	b.API.CredentialsValidator.RequiresKey = true
+	_, err = b.GetCredentials(context.Background())
+	if !errors.Is(err, errRequiresAPIKey) {
+		t.Fatalf("received: %v but expected: %v", err, errRequiresAPIKey)
+	}
+
+	ctx := context.WithValue(context.Background(), GetGRPCCrendentialsFlag(), Credentials{}.Get())
+	_, err = b.GetCredentials(ctx)
+	if !errors.Is(err, errRequiresAPIKey) {
+		t.Fatalf("received: %v but expected: %v", err, errRequiresAPIKey)
+	}
+
+	ctx = context.WithValue(context.Background(), GetGRPCCrendentialsFlag(), "pewpew")
+	_, err = b.GetCredentials(ctx)
+	if !errors.Is(err, errContextCredentialsFailure) {
+		t.Fatalf("received: %v but expected: %v", err, errContextCredentialsFailure)
+	}
+
+	ctx = context.WithValue(context.Background(),
+		GetGRPCCrendentialsFlag(),
+		Credentials{Key: "superkey",
+			Secret:     "supersecret",
+			Subaccount: "supersub",
+			ClientID:   "superclient",
+			PEMKey:     "superpem",
+		}.Get())
+	creds, err := b.GetCredentials(ctx)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v but expected: %v", err, nil)
+	}
+
+	if creds.Key != "superkey" {
+		t.Fatal("unexpected value")
+	}
+
+	if creds.Secret != "supersecret" {
+		t.Fatal("unexpected value")
+	}
+
+	if creds.Subaccount != "supersub" {
+		t.Fatal("unexpected value")
+	}
+
+	if creds.ClientID != "superclient" {
+		t.Fatal("unexpected value")
+	}
+
+	if creds.PEMKey != "superpem" {
+		t.Fatal("unexpected value")
 	}
 }

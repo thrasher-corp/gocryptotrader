@@ -592,7 +592,8 @@ func (o *OKGroup) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuil
 	if feeBuilder == nil {
 		return 0, fmt.Errorf("%T %w", feeBuilder, common.ErrNilPointer)
 	}
-	if !o.AllowAuthenticatedRequest() && // Todo check connection status
+	_, err := o.GetCredentials(ctx)
+	if err != nil && // Todo check connection status
 		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		feeBuilder.FeeType = exchange.OfflineTradeFee
 	}
@@ -605,8 +606,8 @@ func (o *OKGroup) GetWithdrawCapabilities() uint32 {
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket
-func (o *OKGroup) AuthenticateWebsocket(_ context.Context) error {
-	return o.WsLogin()
+func (o *OKGroup) AuthenticateWebsocket(ctx context.Context) error {
+	return o.WsLogin(ctx)
 }
 
 // ValidateCredentials validates current credentials used for wrapper

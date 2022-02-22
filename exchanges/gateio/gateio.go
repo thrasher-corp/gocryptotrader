@@ -401,16 +401,16 @@ func (g *Gateio) GetTradeHistory(ctx context.Context, symbol string) (TradHistor
 }
 
 // GenerateSignature returns hash for authenticated requests
-func (g *Gateio) GenerateSignature(message string) ([]byte, error) {
-	return crypto.GetHMAC(crypto.HashSHA512, []byte(message),
-		[]byte(g.API.Credentials.Secret))
+func (g *Gateio) GenerateSignature(secret, message string) ([]byte, error) {
+	return crypto.GetHMAC(crypto.HashSHA512, []byte(message), []byte(secret))
 }
 
 // SendAuthenticatedHTTPRequest sends authenticated requests to the Gateio API
 // To use this you must setup an APIKey and APISecret from the exchange
 func (g *Gateio) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method, endpoint, param string, result interface{}) error {
-	if !g.AllowAuthenticatedRequest() {
-		return fmt.Errorf("%s %w", g.Name, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
+	creds, err := g.GetCredentials(ctx)
+	if err != nil {
+		return err
 	}
 	ePoint, err := g.API.Endpoints.GetURL(ep)
 	if err != nil {
@@ -418,9 +418,9 @@ func (g *Gateio) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.U
 	}
 	headers := make(map[string]string)
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
-	headers["key"] = g.API.Credentials.Key
+	headers["key"] = creds.Key
 
-	hmac, err := g.GenerateSignature(param)
+	hmac, err := g.GenerateSignature(creds.Secret, param)
 	if err != nil {
 		return err
 	}

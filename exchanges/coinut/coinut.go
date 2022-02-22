@@ -253,8 +253,9 @@ func (c *COINUT) GetOpenPositions(ctx context.Context, instrumentID int) ([]Open
 
 // SendHTTPRequest sends either an authenticated or unauthenticated HTTP request
 func (c *COINUT) SendHTTPRequest(ctx context.Context, ep exchange.URL, apiRequest string, params map[string]interface{}, authenticated bool, result interface{}) (err error) {
-	if !c.API.AuthenticatedSupport && authenticated {
-		return fmt.Errorf("%s %w", c.Name, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
+	creds, err := c.GetCredentials(ctx)
+	if err != nil {
+		return err
 	}
 
 	endpoint, err := c.API.Endpoints.GetURL(ep)
@@ -279,11 +280,11 @@ func (c *COINUT) SendHTTPRequest(ctx context.Context, ep exchange.URL, apiReques
 
 		headers := make(map[string]string)
 		if authenticated {
-			headers["X-USER"] = c.API.Credentials.ClientID
+			headers["X-USER"] = creds.ClientID
 			var hmac []byte
 			hmac, err = crypto.GetHMAC(crypto.HashSHA256,
 				payload,
-				[]byte(c.API.Credentials.Key))
+				[]byte(creds.Key))
 			if err != nil {
 				return nil, err
 			}

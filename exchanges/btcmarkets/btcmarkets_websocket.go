@@ -1,6 +1,7 @@
 package btcmarkets
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -262,13 +263,22 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 			}
 		}
 
+		creds, err := b.GetCredentials(context.TODO())
+		if err != nil {
+			b.Websocket.DataHandler <- order.ClassificationError{
+				Exchange: b.Name,
+				OrderID:  orderID,
+				Err:      err,
+			}
+		}
+
 		b.Websocket.DataHandler <- &order.Detail{
 			Price:           price,
 			Amount:          originalAmount,
 			RemainingAmount: orderData.OpenVolume,
 			Exchange:        b.Name,
 			ID:              orderID,
-			ClientID:        b.API.Credentials.ClientID,
+			ClientID:        creds.ClientID,
 			Type:            oType,
 			Side:            oSide,
 			Status:          oStatus,
@@ -321,6 +331,10 @@ func (b *BTCMarkets) generateDefaultSubscriptions() ([]stream.ChannelSubscriptio
 
 // Subscribe sends a websocket message to receive data from the channel
 func (b *BTCMarkets) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
+	creds, err := b.GetCredentials(context.TODO())
+	if err != nil {
+		return err
+	}
 	var authChannels = []string{fundChange, heartbeat, orderChange}
 
 	var payload WsSubscribe
@@ -347,18 +361,18 @@ func (b *BTCMarkets) Subscribe(channelsToSubscribe []stream.ChannelSubscription)
 		strToSign := "/users/self/subscribe" + "\n" + signTime
 		tempSign, err := crypto.GetHMAC(crypto.HashSHA512,
 			[]byte(strToSign),
-			[]byte(b.API.Credentials.Secret))
+			[]byte(creds.Secret))
 		if err != nil {
 			return err
 		}
 		sign := crypto.Base64Encode(tempSign)
-		payload.Key = b.API.Credentials.Key
+		payload.Key = creds.Key
 		payload.Signature = sign
 		payload.Timestamp = signTime
 		break
 	}
 
-	err := b.Websocket.Conn.SendJSONMessage(payload)
+	err = b.Websocket.Conn.SendJSONMessage(payload)
 	if err != nil {
 		return err
 	}

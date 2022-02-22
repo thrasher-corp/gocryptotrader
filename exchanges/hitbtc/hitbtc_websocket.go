@@ -1,6 +1,7 @@
 package hitbtc
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,7 +14,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -45,7 +45,7 @@ func (h *HitBTC) WsConnect() error {
 	h.Websocket.Wg.Add(1)
 	go h.wsReadData()
 
-	err = h.wsLogin()
+	err = h.wsLogin(context.TODO())
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%v - authentication failed: %v\n", h.Name, err)
 	}
@@ -560,15 +560,16 @@ func (h *HitBTC) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (h *HitBTC) wsLogin() error {
-	if !h.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
-		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", h.Name)
+func (h *HitBTC) wsLogin(ctx context.Context) error {
+	creds, err := h.GetCredentials(ctx)
+	if err != nil {
+		return err
 	}
 	h.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	n := strconv.FormatInt(time.Now().Unix(), 10)
 	hmac, err := crypto.GetHMAC(crypto.HashSHA256,
 		[]byte(n),
-		[]byte(h.API.Credentials.Secret))
+		[]byte(creds.Secret))
 	if err != nil {
 		return err
 	}
@@ -577,7 +578,7 @@ func (h *HitBTC) wsLogin() error {
 		Method: "login",
 		Params: WsLoginData{
 			Algo:      "HS256",
-			PKey:      h.API.Credentials.Key,
+			PKey:      creds.Key,
 			Nonce:     n,
 			Signature: crypto.HexEncodeToString(hmac),
 		},

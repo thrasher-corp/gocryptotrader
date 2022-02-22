@@ -663,7 +663,8 @@ func (g *Gemini) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuild
 	if feeBuilder == nil {
 		return 0, fmt.Errorf("%T %w", feeBuilder, common.ErrNilPointer)
 	}
-	if (!g.AllowAuthenticatedRequest() || g.SkipAuthCheck) && // Todo check connection status
+	_, err := g.GetCredentials(ctx)
+	if (err != nil || g.SkipAuthCheck) && // Todo check connection status
 		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		feeBuilder.FeeType = exchange.OfflineTradeFee
 	}
