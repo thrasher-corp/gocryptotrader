@@ -330,7 +330,7 @@ func (by *Bybit) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pr
 				Low:          tick[y].LowPrice24h,
 				Bid:          tick[y].BidPrice,
 				Ask:          tick[y].AskPrice,
-				Volume:       float64(tick[y].Volume24h),
+				Volume:       tick[y].Volume24h,
 				Open:         tick[y].OpenValue,
 				Pair:         cp,
 				ExchangeName: by.Name,

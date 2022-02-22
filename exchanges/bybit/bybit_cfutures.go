@@ -96,7 +96,7 @@ func (by *Bybit) GetFuturesOrderbook(symbol currency.Pair) (Orderbook, error) {
 			return resp, err
 		}
 
-		quantity = float64(data.Result[x].Size)
+		quantity = data.Result[x].Size
 		switch data.Result[x].Side {
 		case sideBuy:
 			resp.Bids = append(resp.Bids, OrderbookItem{

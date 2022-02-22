@@ -15,10 +15,10 @@ var (
 
 // OrderbookData stores ob data for cmargined futures
 type OrderbookData struct {
-	Symbol string `json:"symbol"`
-	Price  string `json:"price"`
-	Size   int64  `json:"size"`
-	Side   string `json:"side"`
+	Symbol string  `json:"symbol"`
+	Price  string  `json:"price"`
+	Size   float64 `json:"size"`
+	Side   string  `json:"side"`
 }
 
 // FuturesCandleStick holds kline data
@@ -91,14 +91,14 @@ type FuturesPublicTradesData struct {
 
 // SymbolInfo stores symbol information for futures pair
 type SymbolInfo struct {
-	Name           string `json:"name"`
-	Alias          string `json:"alias"`
-	Status         string `json:"status"`
-	BaseCurrency   string `json:"base_currency"`
-	QuoteCurrency  string `json:"quote_currency"`
-	PriceScale     int64  `json:"price_scale"`
-	TakerFee       string `json:"taker_fee"`
-	MakerFee       string `json:"maker_fee"`
+	Name           string  `json:"name"`
+	Alias          string  `json:"alias"`
+	Status         string  `json:"status"`
+	BaseCurrency   string  `json:"base_currency"`
+	QuoteCurrency  string  `json:"quote_currency"`
+	PriceScale     float64 `json:"price_scale"`
+	TakerFee       string  `json:"taker_fee"`
+	MakerFee       string  `json:"maker_fee"`
 	LeverageFilter struct {
 		MinLeverage  int64   `json:"min_leverage"`
 		MaxLeverage  int64   `json:"max_leverage"`
@@ -141,9 +141,9 @@ type IndexPriceKlineData struct {
 
 // OpenInterestData stores open interest data
 type OpenInterestData struct {
-	OpenInterest int64  `json:"open_interest"`
-	Symbol       string `json:"symbol"`
-	Time         int64  `json:"time"`
+	OpenInterest float64 `json:"open_interest"`
+	Symbol       string  `json:"symbol"`
+	Time         int64   `json:"time"`
 }
 
 // BigDealData stores big deal data
@@ -280,15 +280,15 @@ type FuturesConditionalRealtimeOrder struct {
 // USDTFuturesConditionalRealtimeOrder stores USDT future conditional realtime order
 type USDTFuturesConditionalRealtimeOrder struct {
 	FuturesRealtimeOrderData
-	StopOrderID    string `json:"stop_order_id"`
-	OrderStatus    string `json:"order_status"`
-	TriggerPrice   int64  `json:"trigger_price"`
-	CreatedAt      string `json:"created_time"`
-	UpdatedAt      string `json:"updated_time"`
-	BasePrice      string `json:"base_price"`
-	TriggerBy      string `json:"trigger_by"`
-	ReduceOnly     bool   `json:"reduce_only"`
-	CloseOnTrigger bool   `json:"close_on_trigger"`
+	StopOrderID    string  `json:"stop_order_id"`
+	OrderStatus    string  `json:"order_status"`
+	TriggerPrice   float64 `json:"trigger_price"`
+	CreatedAt      string  `json:"created_time"`
+	UpdatedAt      string  `json:"updated_time"`
+	BasePrice      string  `json:"base_price"`
+	TriggerBy      string  `json:"trigger_by"`
+	ReduceOnly     bool    `json:"reduce_only"`
+	CloseOnTrigger bool    `json:"close_on_trigger"`
 }
 
 // FuturesConditionalOrderData stores futures conditional order data
@@ -317,12 +317,12 @@ type FuturesConditionalOrderResp struct {
 // USDTFuturesConditionalOrderResp stores USDT futures conditional order response
 type USDTFuturesConditionalOrderResp struct {
 	FuturesConditionalOrderData
-	OrderStatus    string `json:"order_status"`
-	TriggerPrice   int64  `json:"trigger_price"`
-	ReduceOnly     bool   `json:"reduce_only"`
-	CloseOnTrigger bool   `json:"close_on_trigger"`
-	CreatedAt      string `json:"created_time"`
-	UpdatedAt      string `json:"updated_time"`
+	OrderStatus    string  `json:"order_status"`
+	TriggerPrice   float64 `json:"trigger_price"`
+	ReduceOnly     bool    `json:"reduce_only"`
+	CloseOnTrigger bool    `json:"close_on_trigger"`
+	CreatedAt      string  `json:"created_time"`
+	UpdatedAt      string  `json:"updated_time"`
 }
 
 // CoinFuturesConditionalOrders stores CMF future conditional order
@@ -348,7 +348,7 @@ type FuturesConditionalOrders struct {
 type USDTFuturesConditionalOrders struct {
 	FuturesConditionalOrderData
 	OrderStatus  string  `json:"order_status"`
-	TriggerPrice int64   `json:"trigger_price"`
+	TriggerPrice float64 `json:"trigger_price"`
 	CreatedAt    string  `json:"created_time"`
 	UpdatedAt    string  `json:"updated_time"`
 	TakeProfit   float64 `json:"take_profit"`
@@ -435,7 +435,7 @@ type Position struct {
 	UserID                 int64   `json:"user_id"`
 	Symbol                 string  `json:"symbol"`
 	Side                   string  `json:"side"`
-	Size                   int64   `json:"size"`
+	Size                   float64 `json:"size"`
 	PositionValue          float64 `json:"position_value"`
 	EntryPrice             float64 `json:"entry_price"`
 	LiquidationPrice       float64 `json:"liq_price"`
@@ -452,7 +452,7 @@ type PositionWithStringParam struct {
 	UserID                 int64   `json:"user_id"`
 	Symbol                 string  `json:"symbol"`
 	Side                   string  `json:"side"`
-	Size                   int64   `json:"size"`
+	Size                   float64 `json:"size"`
 	PositionValue          float64 `json:"position_value,string"`
 	EntryPrice             float64 `json:"entry_price,string"`
 	LiquidationPrice       float64 `json:"liq_price,string"`
@@ -533,14 +533,14 @@ type SetTradingAndStopResp struct {
 // USDTPositionResp stores USDT position response
 type USDTPositionResp struct {
 	PositionData
-	FreeQty                int64  `json:"free_qty"`
-	TakeProfitStopLossMode string `json:"tp_sl_mode"`
+	FreeQty                float64 `json:"free_qty"`
+	TakeProfitStopLossMode string  `json:"tp_sl_mode"`
 }
 
 // UpdateMarginResp stores update margin response
 type UpdateMarginResp struct {
 	Position
-	FreeQty int64 `json:"free_qty"`
+	FreeQty float64 `json:"free_qty"`
 }
 
 // TradeData stores trade data

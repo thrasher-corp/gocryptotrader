@@ -475,10 +475,10 @@ type WsTickerData struct {
 	IndexPrice            float64   `json:"index_price,string"`
 	OpenInterest          float64   `json:"open_interest"`
 	OpenValue             float64   `json:"open_value_e8"`
-	TotalTurnOver         int64     `json:"total_turnover_e8"`
-	TurnOver24h           int64     `json:"turnover_24h_e8"`
-	TotalVolume           int64     `json:"total_volume"`
-	Volume24h             int64     `json:"volume_24h"`
+	TotalTurnOver         float64   `json:"total_turnover_e8"`
+	TurnOver24h           float64   `json:"turnover_24h_e8"`
+	TotalVolume           float64   `json:"total_volume"`
+	Volume24h             float64   `json:"volume_24h"`
 	FundingRate           int64     `json:"funding_rate_e6"`
 	PredictedFundingRate  float64   `json:"predicted_funding_rate_e6"`
 	CreatedAt             time.Time `json:"created_at"`
@@ -535,13 +535,13 @@ type WsFuturesTickerData struct {
 	IndexPrice            float64   `json:"index_price,string"`
 	OpenInterest          float64   `json:"open_interest"`
 	OpenValue             float64   `json:"open_value_e8"`
-	TotalTurnOver         int64     `json:"total_turnover_e8"`
-	TurnOver24h           int64     `json:"turnover_24h_e8"`
-	TotalVolume           int64     `json:"total_volume"`
-	Volume24h             int64     `json:"volume_24h"`
-	FairBasis             int64     `json:"fair_basis_e8"`
-	FairBasisRate         int64     `json:"fair_basis_rate_e8"`
-	BasisInYear           int64     `json:"basis_in_year_e8"`
+	TotalTurnOver         float64   `json:"total_turnover_e8"`
+	TurnOver24h           float64   `json:"turnover_24h_e8"`
+	TotalVolume           float64   `json:"total_volume"`
+	Volume24h             float64   `json:"volume_24h"`
+	FairBasis             float64   `json:"fair_basis_e8"`
+	FairBasisRate         float64   `json:"fair_basis_rate_e8"`
+	BasisInYear           float64   `json:"basis_in_year_e8"`
 	ExpectPrice           float64   `json:"expect_price,string"`
 	CreatedAt             time.Time `json:"created_at"`
 	UpdateAt              time.Time `json:"updated_at"`
@@ -569,7 +569,7 @@ type WsLiquidationData struct {
 	Symbol    string  `json:"symbol"`
 	Side      string  `json:"side"`
 	Price     float64 `json:"price,string"`
-	Qty       int64   `json:"qty"`
+	Qty       float64 `json:"qty"`
 	Timestamp int64   `json:"time"`
 }
 
@@ -584,7 +584,7 @@ type WsFuturesPositionData struct {
 	UserID              int64   `json:"user_id"`
 	Symbol              string  `json:"symbol"`
 	Side                string  `json:"side"`
-	Size                int64   `json:"size"`
+	Size                float64 `json:"size"`
 	PositionID          int64   `json:"position_idx"` // present in Futures position struct only
 	Mode                int64   `json:"mode"`         // present in Futures position struct only
 	Isolated            bool    `json:"isolated"`     // present in Futures position struct only
@@ -628,11 +628,11 @@ type WsFuturesExecutionData struct {
 	ExecutionID   string    `json:"exec_id"`
 	OrderLinkID   string    `json:"order_link_id"`
 	Price         float64   `json:"price,string"`
-	OrderQty      int64     `json:"order_qty"`
+	OrderQty      float64   `json:"order_qty"`
 	ExecutionType string    `json:"exec_type"`
-	ExecutionQty  int64     `json:"exec_qty"`
+	ExecutionQty  float64   `json:"exec_qty"`
 	ExecutionFee  float64   `json:"exec_fee,string"`
-	LeavesQty     int64     `json:"leaves_qty"`
+	LeavesQty     float64   `json:"leaves_qty"`
 	IsMaker       bool      `json:"is_maker"`
 	Time          time.Time `json:"trade_time"`
 }
@@ -651,13 +651,13 @@ type WsOrderData struct {
 	Side                 string    `json:"side"`
 	OrderType            string    `json:"order_type"`
 	Price                float64   `json:"price,string"`
-	OrderQty             int64     `json:"qty"`
+	OrderQty             float64   `json:"qty"`
 	TimeInForce          string    `json:"time_in_force"`
 	CreateType           string    `json:"create_type"`
 	CancelType           string    `json:"cancel_type"`
 	OrderStatus          string    `json:"order_status"`
-	LeavesQty            int64     `json:"leaves_qty"`
-	CummulativeExecQty   int64     `json:"cum_exec_qty"`
+	LeavesQty            float64   `json:"leaves_qty"`
+	CummulativeExecQty   float64   `json:"cum_exec_qty"`
 	CummulativeExecValue float64   `json:"cum_exec_value,string"`
 	CummulativeExecFee   float64   `json:"cum_exec_fee,string"`
 	TakeProfit           float64   `json:"take_profit,string"`
@@ -687,7 +687,7 @@ type WsStopOrderData struct {
 	Side           string    `json:"side"`
 	OrderType      string    `json:"order_type"`
 	Price          float64   `json:"price,string"`
-	OrderQty       int64     `json:"qty"`
+	OrderQty       float64   `json:"qty"`
 	TimeInForce    string    `json:"time_in_force"`
 	CreateType     string    `json:"create_type"`
 	CancelType     string    `json:"cancel_type"`
@@ -714,7 +714,7 @@ type WsUSDTStopOrderData struct {
 	Side           string    `json:"side"`
 	OrderType      string    `json:"order_type"`
 	Price          float64   `json:"price,string"`
-	OrderQty       int64     `json:"qty"`
+	OrderQty       float64   `json:"qty"`
 	TimeInForce    string    `json:"time_in_force"`
 	OrderStatus    string    `json:"order_status"`
 	StopOrderType  string    `json:"stop_order_type"`

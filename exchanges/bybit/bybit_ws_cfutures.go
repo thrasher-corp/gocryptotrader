@@ -423,7 +423,7 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 							Low:          response.Ticker.LowPrice24h,
 							Bid:          response.Ticker.BidPrice,
 							Ask:          response.Ticker.AskPrice,
-							Volume:       float64(response.Ticker.Volume24h),
+							Volume:       response.Ticker.Volume24h,
 							Close:        response.Ticker.PrevPrice24h,
 							LastUpdated:  response.Ticker.UpdateAt,
 							AssetType:    a,
@@ -457,7 +457,7 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 									Low:          response.Data.Delete[x].LowPrice24h,
 									Bid:          response.Data.Delete[x].BidPrice,
 									Ask:          response.Data.Delete[x].AskPrice,
-									Volume:       float64(response.Data.Delete[x].Volume24h),
+									Volume:       response.Data.Delete[x].Volume24h,
 									Close:        response.Data.Delete[x].PrevPrice24h,
 									LastUpdated:  response.Data.Delete[x].UpdateAt,
 									AssetType:    a,
@@ -486,7 +486,7 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 									Low:          response.Data.Update[x].LowPrice24h,
 									Bid:          response.Data.Update[x].BidPrice,
 									Ask:          response.Data.Update[x].AskPrice,
-									Volume:       float64(response.Data.Update[x].Volume24h),
+									Volume:       response.Data.Update[x].Volume24h,
 									Close:        response.Data.Update[x].PrevPrice24h,
 									LastUpdated:  response.Data.Update[x].UpdateAt,
 									AssetType:    a,
@@ -515,7 +515,7 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 									Low:          response.Data.Insert[x].LowPrice24h,
 									Bid:          response.Data.Insert[x].BidPrice,
 									Ask:          response.Data.Insert[x].AskPrice,
-									Volume:       float64(response.Data.Insert[x].Volume24h),
+									Volume:       response.Data.Insert[x].Volume24h,
 									Close:        response.Data.Insert[x].PrevPrice24h,
 									LastUpdated:  response.Data.Insert[x].UpdateAt,
 									AssetType:    a,
@@ -591,7 +591,7 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 						Trades: []order.TradeHistory{
 							{
 								Price:     response.Data[i].Price,
-								Amount:    float64(response.Data[i].OrderQty),
+								Amount:    response.Data[i].OrderQty,
 								Exchange:  by.Name,
 								TID:       response.Data[i].ExecutionID,
 								Side:      oSide,
@@ -644,7 +644,7 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 					}
 					by.Websocket.DataHandler <- &order.Detail{
 						Price:     response.Data[x].Price,
-						Amount:    float64(response.Data[x].OrderQty),
+						Amount:    response.Data[x].OrderQty,
 						Exchange:  by.Name,
 						ID:        response.Data[x].OrderID,
 						Type:      oType,
@@ -698,7 +698,7 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 					}
 					by.Websocket.DataHandler <- &order.Detail{
 						Price:     response.Data[x].Price,
-						Amount:    float64(response.Data[x].OrderQty),
+						Amount:    response.Data[x].OrderQty,
 						Exchange:  by.Name,
 						ID:        response.Data[x].OrderID,
 						AccountID: strconv.FormatInt(response.Data[x].UserID, 10),
