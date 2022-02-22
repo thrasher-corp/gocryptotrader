@@ -316,7 +316,7 @@ func (by *Bybit) wsUSDTHandleData(respRaw []byte) error {
 					AssetType:    a,
 					Side:         oSide,
 					Price:        response.TradeData[i].Price,
-					Amount:       float64(response.TradeData[i].Size),
+					Amount:       response.TradeData[i].Size,
 					Timestamp:    response.TradeData[i].Time,
 				})
 			}

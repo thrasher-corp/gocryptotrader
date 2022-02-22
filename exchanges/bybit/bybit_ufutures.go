@@ -430,9 +430,7 @@ func (by *Bybit) GetActiveUSDTRealtimeOrders(symbol currency.Pair, orderID, orde
 		if err != nil {
 			return data, err
 		}
-		for x := range resp.Data {
-			data = append(data, resp.Data[x])
-		}
+		data = append(data, resp.Data...)
 	} else {
 		resp := struct {
 			Data FuturesActiveRealtimeOrder `json:"result"`
@@ -662,9 +660,7 @@ func (by *Bybit) GetConditionalUSDTRealtimeOrders(symbol currency.Pair, stopOrde
 		if err != nil {
 			return data, err
 		}
-		for x := range resp.Result {
-			data = append(data, resp.Result[x])
-		}
+		data = append(data, resp.Result...)
 	} else {
 		resp := struct {
 			Result USDTFuturesConditionalRealtimeOrder `json:"result"`

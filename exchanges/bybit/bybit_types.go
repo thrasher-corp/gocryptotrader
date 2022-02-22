@@ -163,8 +163,8 @@ type QueryOrderResponse struct {
 	OrderID             int64                      `json:"orderId"`
 	Price               float64                    `json:"price,string"`
 	Quantity            float64                    `json:"origQty,string"`
-	ExecutedQty         string                     `json:"executedQty,string"`
-	CummulativeQuoteQty string                     `json:"cummulativeQuoteQty,string"`
+	ExecutedQty         float64                    `json:"executedQty,string"`
+	CummulativeQuoteQty float64                    `json:"cummulativeQuoteQty,string"`
 	AveragePrice        float64                    `json:"avgPrice,string"`
 	Status              string                     `json:"status"`
 	TimeInForce         RequestParamsTimeForceType `json:"timeInForce"`
@@ -187,7 +187,7 @@ type CancelOrderResponse struct {
 	Time        int64                      `json:"transactTime"`
 	Price       float64                    `json:"price,string"`
 	Quantity    float64                    `json:"origQty,string"`
-	ExecutedQty string                     `json:"executedQty,string"`
+	ExecutedQty float64                    `json:"executedQty,string"`
 	TimeInForce RequestParamsTimeForceType `json:"timeInForce"`
 	TradeType   RequestParamsOrderType     `json:"type"`
 	Side        string                     `json:"side"`
@@ -207,7 +207,7 @@ type HistoricalTrade struct {
 	IsMaker         bool    `json:"isMaker"`
 	SymbolName      string  `json:"symbolName"`
 	MatchOrderId    int64   `json:"matchOrderId"`
-	Fee             FeeData `json:""fee`
+	Fee             FeeData `json:"fee"`
 	FeeTokenId      string  `json:"feeTokenId"`
 	FeeAmount       float64 `json:"feeAmount,string"`
 	MakerRebate     float64 `json:"makerRebate,string"`
@@ -367,16 +367,16 @@ type wsOrderUpdate struct {
 	CumulativeQuoteTransactedQuantity float64   `json:"Z,string"`
 	AccountID                         string    `json:"A"`
 	IsClose                           bool      `json:"C"`
-	Leverage                          string    `json:"v"`
+	Leverage                          float64   `json:"v,string"`
 }
 
 // WsFuturesOrderbookData stores ws futures orderbook data
 type WsFuturesOrderbookData struct {
-	Price  string `json:"price"`
-	Symbol string `json:"symbol"`
-	ID     int64  `json:"id"`
-	Side   string `json:"side"`
-	Size   int    `json:"size"`
+	Price  float64 `json:"price,string"`
+	Symbol string  `json:"symbol"`
+	ID     int64   `json:"id"`
+	Side   string  `json:"side"`
+	Size   float64 `json:"size"`
 }
 
 // WsFuturesOrderbook stores ws futures orderbook
@@ -412,7 +412,7 @@ type WsFuturesTradeData struct {
 	TimeInMilliseconds int64     `json:"trade_time_ms"`
 	Symbol             string    `json:"symbol"`
 	Side               string    `json:"side"`
-	Size               int       `json:"size"`
+	Size               float64   `json:"size"`
 	Price              float64   `json:"price"`
 	Direction          string    `json:"tick_direction"`
 	ID                 string    `json:"trade_id"`
@@ -466,21 +466,21 @@ type WsTickerData struct {
 	AskPrice              float64   `json:"ask1_price"`
 	LastDirection         string    `json:"last_tick_direction"`
 	PrevPrice24h          float64   `json:"prev_price_24h,string"`
-	Price24hPercentChange int64     `json:"price_24h_pcnt_e6"`
-	Price1hPercentChange  int64     `json:"price_1h_pcnt_e6"`
+	Price24hPercentChange float64   `json:"price_24h_pcnt_e6"`
+	Price1hPercentChange  float64   `json:"price_1h_pcnt_e6"`
 	HighPrice24h          float64   `json:"high_price_24h,string"`
 	LowPrice24h           float64   `json:"low_price_24h,string"`
 	PrevPrice1h           float64   `json:"prev_price_1h,string"`
 	MarkPrice             float64   `json:"mark_price,string"`
 	IndexPrice            float64   `json:"index_price,string"`
-	OpenInterest          int64     `json:"open_interest"`
-	OpenValue             int64     `json:"open_value_e8"`
+	OpenInterest          float64   `json:"open_interest"`
+	OpenValue             float64   `json:"open_value_e8"`
 	TotalTurnOver         int64     `json:"total_turnover_e8"`
 	TurnOver24h           int64     `json:"turnover_24h_e8"`
 	TotalVolume           int64     `json:"total_volume"`
 	Volume24h             int64     `json:"volume_24h"`
 	FundingRate           int64     `json:"funding_rate_e6"`
-	PredictedFundingRate  int64     `json:"predicted_funding_rate_e6"`
+	PredictedFundingRate  float64   `json:"predicted_funding_rate_e6"`
 	CreatedAt             time.Time `json:"created_at"`
 	UpdateAt              time.Time `json:"updated_at"`
 	NextFundingAt         time.Time `json:"next_funding_time"`
@@ -526,15 +526,15 @@ type WsFuturesTickerData struct {
 	AskPrice              float64   `json:"ask1_price"`
 	LastDirection         string    `json:"last_tick_direction"`
 	PrevPrice24h          float64   `json:"prev_price_24h,string"`
-	Price24hPercentChange int64     `json:"price_24h_pcnt_e6"`
-	Price1hPercentChange  int64     `json:"price_1h_pcnt_e6"`
+	Price24hPercentChange float64   `json:"price_24h_pcnt_e6"`
+	Price1hPercentChange  float64   `json:"price_1h_pcnt_e6"`
 	HighPrice24h          float64   `json:"high_price_24h,string"`
 	LowPrice24h           float64   `json:"low_price_24h,string"`
 	PrevPrice1h           float64   `json:"prev_price_1h,string"`
 	MarkPrice             float64   `json:"mark_price,string"`
 	IndexPrice            float64   `json:"index_price,string"`
-	OpenInterest          int64     `json:"open_interest"`
-	OpenValue             int64     `json:"open_value_e8"`
+	OpenInterest          float64   `json:"open_interest"`
+	OpenValue             float64   `json:"open_value_e8"`
 	TotalTurnOver         int64     `json:"total_turnover_e8"`
 	TurnOver24h           int64     `json:"turnover_24h_e8"`
 	TotalVolume           int64     `json:"total_volume"`

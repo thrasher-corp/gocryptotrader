@@ -234,9 +234,7 @@ func (by *Bybit) GetActiveRealtimeOrders(symbol currency.Pair, orderID, orderLin
 		if err != nil {
 			return data, err
 		}
-		for x := range resp.Result {
-			data = append(data, resp.Result[x])
-		}
+		data = append(data, resp.Result...)
 	} else {
 		resp := struct {
 			Result FuturesActiveRealtimeOrder `json:"result"`
@@ -457,9 +455,7 @@ func (by *Bybit) GetConditionalRealtimeOrders(symbol currency.Pair, stopOrderID,
 		if err != nil {
 			return data, err
 		}
-		for x := range resp.Result {
-			data = append(data, resp.Result[x])
-		}
+		data = append(data, resp.Result...)
 	} else {
 		resp := struct {
 			Result FuturesConditionalRealtimeOrder `json:"result"`
@@ -595,7 +591,7 @@ func (by *Bybit) ChangePositionMode(symbol currency.Pair, mode int64) error {
 	params.Set("symbol", symbolValue)
 	params.Set("mode", strconv.FormatInt(mode, 10))
 
-	return by.SendAuthHTTPRequest(exchange.RestFutures, http.MethodPost, futuresSwitchPositionMode, params, &struct{}{}, FuturesSwitchPositionModeRate)
+	return by.SendAuthHTTPRequest(exchange.RestFutures, http.MethodPost, futuresSwitchPositionMode, params, nil, FuturesSwitchPositionModeRate)
 }
 
 // ChangeCoinMode switches mode between full or partial position
@@ -636,7 +632,7 @@ func (by *Bybit) ChangeMargin(symbol currency.Pair, buyLeverage, sellLeverage fl
 		params.Set("is_isolated", "false")
 	}
 
-	return by.SendAuthHTTPRequest(exchange.RestFutures, http.MethodPost, futuresSwitchMargin, params, &struct{}{}, FuturesSwitchMarginRate)
+	return by.SendAuthHTTPRequest(exchange.RestFutures, http.MethodPost, futuresSwitchMargin, params, nil, FuturesSwitchMarginRate)
 }
 
 // GetTradeRecords returns list of user trades

@@ -453,7 +453,7 @@ func (by *Bybit) UpdateAccountInfo(assetType asset.Item) (account.Holdings, erro
 		acc.Currencies = currencyBalance
 
 	default:
-		return info, fmt.Errorf("%v assetType not supported", assetType)
+		return info, fmt.Errorf("assetType not supported: %v", assetType)
 	}
 	acc.AssetType = assetType
 	info.Accounts = append(info.Accounts, acc)
@@ -560,7 +560,7 @@ func (by *Bybit) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade
 		}
 
 	default:
-		return nil, fmt.Errorf("%v assetType not supported", assetType)
+		return nil, fmt.Errorf("assetType not supported: %v", assetType)
 	}
 
 	if by.IsSaveTradeDataEnabled() {
@@ -729,7 +729,7 @@ func (by *Bybit) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		submitOrderResponse.OrderID = o.OrderID
 		submitOrderResponse.IsOrderPlaced = true
 	default:
-		return submitOrderResponse, fmt.Errorf("assetType not supported")
+		return submitOrderResponse, fmt.Errorf("assetType not supported: %v", s.AssetType)
 	}
 
 	return submitOrderResponse, nil
@@ -753,7 +753,7 @@ func (by *Bybit) ModifyOrder(action *order.Modify) (string, error) {
 	case asset.Futures:
 		order, err = by.ReplaceActiveFuturesOrders(action.Pair, action.ID, action.ClientOrderID, "", "", action.Amount, action.Price, 0, 0)
 	default:
-		return "", fmt.Errorf("assetType not supported")
+		return "", fmt.Errorf("assetType not supported: %v", action.AssetType)
 	}
 
 	if err != nil {
@@ -779,7 +779,7 @@ func (by *Bybit) CancelOrder(ord *order.Cancel) error {
 	case asset.Futures:
 		_, err = by.CancelActiveFuturesOrders(ord.Pair, ord.ID, ord.ClientOrderID)
 	default:
-		return fmt.Errorf("assetType not supported")
+		return fmt.Errorf("assetType not supported: %v", ord.AssetType)
 	}
 	return err
 }
@@ -829,7 +829,7 @@ func (by *Bybit) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelA
 			cancelAllOrdersResponse.Status[resp[i].CancelOrderID] = err.Error()
 		}
 	default:
-		return cancelAllOrdersResponse, fmt.Errorf("assetType not supported")
+		return cancelAllOrdersResponse, fmt.Errorf("assetType not supported: %v", orderCancellation.AssetType)
 	}
 	return cancelAllOrdersResponse, nil
 }
@@ -843,17 +843,6 @@ func (by *Bybit) GetOrderInfo(orderID string, pair currency.Pair, assetType asse
 			return order.Detail{}, err
 		}
 
-		cummulativeQuoteQty, err := strconv.ParseFloat(resp.CummulativeQuoteQty, 64)
-		if err != nil {
-			return order.Detail{}, err
-		}
-
-		executedQuoteQty, err := strconv.ParseFloat(resp.ExecutedQty, 64)
-		if err != nil {
-			return order.Detail{}, err
-		}
-
-		// TODO: check if auto data type conversion can cause any issue
 		return order.Detail{
 			Amount:         resp.Quantity,
 			Exchange:       by.Name,
@@ -862,11 +851,11 @@ func (by *Bybit) GetOrderInfo(orderID string, pair currency.Pair, assetType asse
 			Side:           order.Side(resp.Side),
 			Type:           order.Type(resp.TradeType),
 			Pair:           pair,
-			Cost:           cummulativeQuoteQty,
+			Cost:           resp.CummulativeQuoteQty,
 			AssetType:      assetType,
 			Status:         order.Status(resp.Status),
 			Price:          resp.Price,
-			ExecutedAmount: executedQuoteQty,
+			ExecutedAmount: resp.ExecutedQty,
 			Date:           time.Unix(resp.Time, 0),
 			LastUpdated:    time.Unix(resp.UpdateTime, 0),
 		}, nil
@@ -952,7 +941,7 @@ func (by *Bybit) GetOrderInfo(orderID string, pair currency.Pair, assetType asse
 		}, nil
 
 	default:
-		return order.Detail{}, fmt.Errorf("assetType not supported")
+		return order.Detail{}, fmt.Errorf("assetType not supported: %v", assetType)
 	}
 }
 
@@ -1097,7 +1086,7 @@ func (by *Bybit) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 				})
 			}
 		default:
-			return orders, fmt.Errorf("assetType not supported")
+			return orders, fmt.Errorf("assetType not supported: %v", req.AssetType)
 		}
 	}
 	order.FilterOrdersByCurrencies(&orders, req.Pairs)
@@ -1221,7 +1210,7 @@ func (by *Bybit) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end
 		}
 
 	default:
-		return klineItem, fmt.Errorf("assetType not supported")
+		return klineItem, fmt.Errorf("assetType not supported: %v", a)
 	}
 
 	klineItem.RemoveOutsideRange(start, end)

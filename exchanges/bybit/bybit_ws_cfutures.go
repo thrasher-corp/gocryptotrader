@@ -351,7 +351,7 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 						AssetType:    a,
 						Side:         oSide,
 						Price:        response.TradeData[i].Price,
-						Amount:       float64(response.TradeData[i].Size),
+						Amount:       response.TradeData[i].Size,
 						Timestamp:    response.TradeData[i].Time,
 					})
 				}
@@ -737,15 +737,9 @@ func (by *Bybit) processOrderbook(data []WsFuturesOrderbookData, action string, 
 	case wsOperationSnapshot:
 		var book orderbook.Base
 		for i := range data {
-			target, err := strconv.ParseFloat(data[i].Price, 64)
-			if err != nil {
-				by.Websocket.DataHandler <- err
-				continue
-			}
-
 			item := orderbook.Item{
-				Price:  target,
-				Amount: float64(data[i].Size),
+				Price:  data[i].Price,
+				Amount: data[i].Size,
 				ID:     data[i].ID,
 			}
 			switch {
@@ -770,15 +764,9 @@ func (by *Bybit) processOrderbook(data []WsFuturesOrderbookData, action string, 
 	default:
 		var asks, bids []orderbook.Item
 		for i := range data {
-			target, err := strconv.ParseFloat(data[i].Price, 64)
-			if err != nil {
-				by.Websocket.DataHandler <- err
-				continue
-			}
-
 			item := orderbook.Item{
-				Price:  target,
-				Amount: float64(data[i].Size),
+				Price:  data[i].Price,
+				Amount: data[i].Size,
 				ID:     data[i].ID,
 			}
 
