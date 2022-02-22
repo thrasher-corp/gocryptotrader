@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // SetupPositionController creates a position controller
@@ -372,15 +373,24 @@ func (p *PositionTracker) TrackPNLByTime(t time.Time, currentPrice float64) erro
 	}()
 	price := decimal.NewFromFloat(currentPrice)
 	result := &PNLResult{
-		Time:  t,
-		Price: price,
+		Time:                  t,
+		Price:                 price,
+		UnrealisedPNL:         p.unrealisedPNL,
+		RealisedPNLBeforeFees: p.realisedPNL,
+		Exposure:              p.exposure,
 	}
+	var diff decimal.Decimal
 	if p.currentDirection.IsLong() {
-		diff := price.Sub(p.entryPrice)
-		result.UnrealisedPNL = p.exposure.Mul(diff)
+		diff = price.Sub(p.entryPrice)
 	} else if p.currentDirection.IsShort() {
-		diff := p.entryPrice.Sub(price)
+		diff = p.entryPrice.Sub(price)
+
+	}
+	var updatedUPNL = false
+	if !diff.IsZero() {
+		// only update if different
 		result.UnrealisedPNL = p.exposure.Mul(diff)
+		updatedUPNL = true
 	}
 	if len(p.pnlHistory) > 0 {
 		result.RealisedPNLBeforeFees = p.pnlHistory[len(p.pnlHistory)-1].RealisedPNLBeforeFees
@@ -388,7 +398,9 @@ func (p *PositionTracker) TrackPNLByTime(t time.Time, currentPrice float64) erro
 	}
 	var err error
 	p.pnlHistory, err = upsertPNLEntry(p.pnlHistory, result)
-	p.unrealisedPNL = result.UnrealisedPNL
+	if updatedUPNL {
+		p.unrealisedPNL = result.UnrealisedPNL
+	}
 	return err
 }
 
@@ -561,6 +573,9 @@ func (p *PositionTracker) TrackNewOrder(d *Detail) error {
 		result.RealisedPNLBeforeFees = decimal.Zero
 		p.status = Closed
 	}
+	if result.RealisedPNLBeforeFees.IsZero() && result.UnrealisedPNL.IsZero() {
+		log.Debug(log.BackTester, "woah nelly")
+	}
 	p.pnlHistory, err = upsertPNLEntry(p.pnlHistory, result)
 	if err != nil {
 		return err
@@ -582,7 +597,7 @@ func (p *PositionTracker) TrackNewOrder(d *Detail) error {
 		p.exposure = shortSide.Sub(longSide)
 	}
 
-	if p.exposure.Equal(decimal.Zero) {
+	if p.exposure.IsZero() {
 		p.status = Closed
 		p.closingPrice = decimal.NewFromFloat(d.Price)
 		p.realisedPNL = CalculateRealisedPNL(p.pnlHistory)

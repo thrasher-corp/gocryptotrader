@@ -88,5 +88,5 @@ type PNLSummary struct {
 	Item     asset.Item
 	Pair     currency.Pair
 	Offset   int64
-	PNL      gctorder.PNLResult
+	Result   gctorder.PNLResult
 }

@@ -163,7 +163,7 @@ func TestUpdateBuyStats(t *testing.T) {
 	if !h.BoughtValue.Equal(decimal.NewFromInt(500)) {
 		t.Errorf("expected '%v' received '%v'", 500, h.BoughtValue)
 	}
-	if !h.SoldAmount.Equal(decimal.Zero) {
+	if !h.SoldAmount.IsZero() {
 		t.Errorf("expected '%v' received '%v'", 0, h.SoldAmount)
 	}
 	if !h.TotalFees.Equal(decimal.NewFromInt(1)) {
@@ -212,7 +212,7 @@ func TestUpdateBuyStats(t *testing.T) {
 	if !h.BoughtValue.Equal(decimal.NewFromInt(750)) {
 		t.Errorf("expected '%v' received '%v'", 750, h.BoughtValue)
 	}
-	if !h.SoldAmount.Equal(decimal.Zero) {
+	if !h.SoldAmount.IsZero() {
 		t.Errorf("expected '%v' received '%v'", 0, h.SoldAmount)
 	}
 	if !h.TotalFees.Equal(decimal.NewFromFloat(1.5)) {
@@ -294,7 +294,7 @@ func TestUpdateSellStats(t *testing.T) {
 	if !h.BoughtValue.Equal(decimal.NewFromInt(500)) {
 		t.Errorf("expected '%v' received '%v'", 500, h.BoughtValue)
 	}
-	if !h.SoldAmount.Equal(decimal.Zero) {
+	if !h.SoldAmount.IsZero() {
 		t.Errorf("expected '%v' received '%v'", 0, h.SoldAmount)
 	}
 	if !h.TotalFees.Equal(decimal.NewFromInt(1)) {

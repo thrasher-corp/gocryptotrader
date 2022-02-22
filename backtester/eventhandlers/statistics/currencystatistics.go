@@ -117,9 +117,9 @@ func (c *CurrencyPairStatistic) CalculateResults(riskFreeRate decimal.Decimal) e
 	c.TotalValueLostToSlippage = last.Holdings.TotalValueLostToSlippage.Round(2)
 	c.TotalAssetValue = last.Holdings.BaseValue.Round(8)
 	if last.PNL != nil {
-		c.UnrealisedPNL = last.PNL.PNL.UnrealisedPNL
+		c.UnrealisedPNL = last.PNL.Result.UnrealisedPNL
 		// ????
-		c.RealisedPNL = last.PNL.PNL.RealisedPNLBeforeFees
+		c.RealisedPNL = last.PNL.Result.RealisedPNLBeforeFees
 	}
 	if len(errs) > 0 {
 		return errs
@@ -209,8 +209,8 @@ func (c *CurrencyPairStatistic) PrintResults(e string, a asset.Item, p currency.
 	}
 
 	if last.PNL != nil {
-		log.Infof(log.BackTester, "%s Final unPNL: %s\n\n", sep, convert.DecimalToHumanFriendlyString(last.PNL.PNL.UnrealisedPNL, 8, ".", ","))
-		log.Infof(log.BackTester, "%s Final PNL: %s\n\n", sep, convert.DecimalToHumanFriendlyString(last.PNL.PNL.RealisedPNLBeforeFees, 8, ".", ","))
+		log.Infof(log.BackTester, "%s Final unPNL: %s\n\n", sep, convert.DecimalToHumanFriendlyString(last.PNL.Result.UnrealisedPNL, 8, ".", ","))
+		log.Infof(log.BackTester, "%s Final PNL: %s\n\n", sep, convert.DecimalToHumanFriendlyString(last.PNL.Result.RealisedPNLBeforeFees, 8, ".", ","))
 	}
 	if len(errs) > 0 {
 		log.Info(log.BackTester, "------------------Errors-------------------------------------")

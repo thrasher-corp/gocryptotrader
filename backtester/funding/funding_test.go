@@ -114,7 +114,7 @@ func TestTransfer(t *testing.T) {
 	if !item2.available.Equal(elite) {
 		t.Errorf("received '%v' expected '%v'", item2.available, elite)
 	}
-	if !item1.available.Equal(decimal.Zero) {
+	if !item1.available.IsZero() {
 		t.Errorf("received '%v' expected '%v'", item1.available, decimal.Zero)
 	}
 
@@ -578,7 +578,7 @@ func TestIncreaseAvailablePair(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", elite, pairItems.Quote.available)
 	}
 	pairItems.IncreaseAvailable(decimal.Zero, gctorder.Sell)
-	if !pairItems.Base.available.Equal(decimal.Zero) {
+	if !pairItems.Base.available.IsZero() {
 		t.Errorf("received '%v' expected '%v'", decimal.Zero, pairItems.Base.available)
 	}
 

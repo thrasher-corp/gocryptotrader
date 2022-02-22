@@ -575,7 +575,7 @@ func (p *Portfolio) GetLatestPNLForEvent(e common.EventHandler) (*PNLSummary, er
 	if len(pnlHistory) == 0 {
 		return response, nil
 	}
-	response.PNL = pnlHistory[len(pnlHistory)-1]
+	response.Result = pnlHistory[len(pnlHistory)-1]
 	return response, nil
 }
 
@@ -620,7 +620,7 @@ func (p *Portfolio) GetLatestPNLs() []PNLSummary {
 				if len(positions) > 0 {
 					pnlHistory := positions[len(positions)-1].PNLHistory
 					if len(pnlHistory) > 0 {
-						summary.PNL = pnlHistory[len(pnlHistory)-1]
+						summary.Result = pnlHistory[len(pnlHistory)-1]
 					}
 				}
 
