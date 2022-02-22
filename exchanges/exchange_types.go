@@ -186,11 +186,12 @@ type Endpoints struct {
 
 // Credentials defines parameters that allow for an authenticated request.
 type Credentials struct {
-	Key        string
-	Secret     string
-	ClientID   string
-	PEMKey     string
-	Subaccount string
+	Key             string
+	Secret          string
+	ClientID        string
+	PEMKey          string
+	Subaccount      string
+	OneTimePassword string
 }
 
 // API stores the exchange API settings

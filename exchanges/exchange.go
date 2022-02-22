@@ -510,9 +510,12 @@ func (b *Base) IsEnabled() bool {
 }
 
 // SetAPIKeys is a method that sets the current API keys for the exchange
-func (b *Base) SetAPIKeys(apiKey, apiSecret, clientID string) {
+func (b *Base) SetCredentials(apiKey, apiSecret, clientID, subaccount, pemKey, oneTimePassword string) {
 	b.API.credentials.Key = apiKey
 	b.API.credentials.ClientID = clientID
+	b.API.credentials.Subaccount = subaccount
+	b.API.credentials.PEMKey = pemKey
+	b.API.credentials.OneTimePassword = oneTimePassword
 
 	if b.API.CredentialsValidator.RequiresBase64DecodeSecret {
 		result, err := crypto.Base64Decode(apiSecret)
@@ -546,9 +549,13 @@ func (b *Base) SetupDefaults(exch *config.Exchange) error {
 	b.API.AuthenticatedWebsocketSupport = exch.API.AuthenticatedWebsocketSupport
 	b.API.credentials.Subaccount = exch.API.Credentials.Subaccount
 	if b.API.AuthenticatedSupport || b.API.AuthenticatedWebsocketSupport {
-		b.SetAPIKeys(exch.API.Credentials.Key,
+		b.SetCredentials(exch.API.Credentials.Key,
 			exch.API.Credentials.Secret,
-			exch.API.Credentials.ClientID)
+			exch.API.Credentials.ClientID,
+			exch.API.Credentials.Subaccount,
+			exch.API.Credentials.PEMKey,
+			exch.API.Credentials.OTPSecret,
+		)
 	}
 
 	if exch.HTTPTimeout <= time.Duration(0) {
@@ -631,6 +638,12 @@ func (b *Base) CheckCredentials(creds Credentials, isContext bool) error {
 }
 
 var errContextCredentialsFailure = errors.New("context credentials are not a map[string]string")
+
+// AreCredentialsValid returns if the supplied credentials are valid.
+func (b *Base) AreCredentialsValid(ctx context.Context) bool {
+	creds, err := b.GetCredentials(ctx)
+	return err == nil && b.ValidateAPICredentials(creds) == nil
+}
 
 // GetCredentials checks and validates current credentials, context credentials
 // overide default credentials, if no credentials found, will return an error.

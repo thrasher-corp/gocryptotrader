@@ -541,7 +541,7 @@ func (bt *BackTest) loadExchangePairAssetBase(exch, base, quote, ass string) (gc
 	}
 
 	exchangeBase := e.GetBase()
-	if !exchangeBase.ValidateAPICredentials() {
+	if !exchangeBase.AreCredentialsValid(context.Background()) {
 		log.Warnf(log.BackTester, "no credentials set for %v, this is theoretical only", exchangeBase.Name)
 	}
 

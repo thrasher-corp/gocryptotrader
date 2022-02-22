@@ -1166,8 +1166,7 @@ func TestIsEnabled(t *testing.T) {
 	}
 }
 
-// TestSetAPIKeys logic test
-func TestSetAPIKeys(t *testing.T) {
+func TestSetCredentials(t *testing.T) {
 	t.Parallel()
 
 	b := Base{
@@ -1179,7 +1178,7 @@ func TestSetAPIKeys(t *testing.T) {
 		},
 	}
 
-	b.SetAPIKeys("RocketMan", "Digereedoo", "007")
+	b.SetCredentials("RocketMan", "Digereedoo", "007", "", "", "")
 	if b.API.credentials.Key != "RocketMan" &&
 		b.API.credentials.Secret != "Digereedoo" &&
 		b.API.credentials.ClientID != "007" {
@@ -1189,7 +1188,7 @@ func TestSetAPIKeys(t *testing.T) {
 	// Invalid secret
 	b.API.CredentialsValidator.RequiresBase64DecodeSecret = true
 	b.API.AuthenticatedSupport = true
-	b.SetAPIKeys("RocketMan", "%%", "007")
+	b.SetCredentials("RocketMan", "%%", "007", "", "", "")
 	if b.API.AuthenticatedSupport || b.API.AuthenticatedWebsocketSupport {
 		t.Error("invalid secret should disable authenticated API support")
 	}
@@ -1197,7 +1196,7 @@ func TestSetAPIKeys(t *testing.T) {
 	// valid secret
 	b.API.CredentialsValidator.RequiresBase64DecodeSecret = true
 	b.API.AuthenticatedSupport = true
-	b.SetAPIKeys("RocketMan", "aGVsbG8gd29ybGQ=", "007")
+	b.SetCredentials("RocketMan", "aGVsbG8gd29ybGQ=", "007", "", "", "")
 	if !b.API.AuthenticatedSupport && b.API.credentials.Secret != "hello world" {
 		t.Error("invalid secret should disable authenticated API support")
 	}
@@ -1301,7 +1300,7 @@ func TestCheckCredentials(t *testing.T) {
 	}
 
 	// Test SkipAuthCheck
-	err := b.CheckCredentials(Credentials{})
+	err := b.CheckCredentials(Credentials{}, false)
 	if !errors.Is(err, nil) {
 		t.Error("skip auth check should allow authenticated requests")
 	}
@@ -1309,7 +1308,7 @@ func TestCheckCredentials(t *testing.T) {
 	// Test credentials failure
 	b.SkipAuthCheck = false
 	b.API.CredentialsValidator.RequiresKey = true
-	err = b.CheckCredentials(b.API.credentials)
+	err = b.CheckCredentials(b.API.credentials, false)
 	if !errors.Is(err, errRequiresAPIKey) {
 		t.Error("should fail with an empty key")
 	}
@@ -1318,7 +1317,7 @@ func TestCheckCredentials(t *testing.T) {
 	// valid credentials
 	b.LoadedByConfig = true
 	b.API.credentials.Key = "k3y"
-	err = b.CheckCredentials(b.API.credentials)
+	err = b.CheckCredentials(b.API.credentials, false)
 	if !errors.Is(err, errAuthenticationSupportNotEnabled) {
 		t.Error("should fail when authenticated support is disabled")
 	}
@@ -1327,14 +1326,14 @@ func TestCheckCredentials(t *testing.T) {
 	// but invalid credentials
 	b.API.AuthenticatedSupport = true
 	b.API.credentials.Key = ""
-	err = b.CheckCredentials(b.API.credentials)
+	err = b.CheckCredentials(b.API.credentials, false)
 	if !errors.Is(err, errRequiresAPIKey) {
 		t.Error("should fail with invalid credentials")
 	}
 
 	// Finally a valid one
 	b.API.credentials.Key = "k3y"
-	err = b.CheckCredentials(b.API.credentials)
+	err = b.CheckCredentials(b.API.credentials, false)
 	if !errors.Is(err, nil) {
 		t.Error("show allow an authenticated request")
 	}
@@ -2439,20 +2438,20 @@ func TestGetCredentials(t *testing.T) {
 		t.Fatalf("received: %v but expected: %v", err, errRequiresAPIKey)
 	}
 
-	ctx := context.WithValue(context.Background(), GetGRPCCrendentialsFlag(), Credentials{}.Get())
+	ctx := context.WithValue(context.Background(), GRPCCrendentialsFlag, Credentials{}.Get())
 	_, err = b.GetCredentials(ctx)
 	if !errors.Is(err, errRequiresAPIKey) {
 		t.Fatalf("received: %v but expected: %v", err, errRequiresAPIKey)
 	}
 
-	ctx = context.WithValue(context.Background(), GetGRPCCrendentialsFlag(), "pewpew")
+	ctx = context.WithValue(context.Background(), GRPCCrendentialsFlag, "pewpew")
 	_, err = b.GetCredentials(ctx)
 	if !errors.Is(err, errContextCredentialsFailure) {
 		t.Fatalf("received: %v but expected: %v", err, errContextCredentialsFailure)
 	}
 
 	ctx = context.WithValue(context.Background(),
-		GetGRPCCrendentialsFlag(),
+		GRPCCrendentialsFlag,
 		Credentials{Key: "superkey",
 			Secret:     "supersecret",
 			Subaccount: "supersub",

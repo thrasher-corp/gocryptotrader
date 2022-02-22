@@ -72,7 +72,7 @@ func TestMain(m *testing.M) {
 }
 
 func areTestAPIKeysSet() bool {
-	return f.ValidateAPICredentials()
+	return f.AreCredentialsValid(context.Background())
 }
 
 // Implement tests for API endpoints below

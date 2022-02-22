@@ -51,7 +51,7 @@ func TestMain(m *testing.M) {
 }
 
 func areTestAPIKeysSet() bool {
-	return l.AllowAuthenticatedRequest()
+	return l.AreCredentialsValid(context.Background())
 }
 
 func TestStart(t *testing.T) {
@@ -305,12 +305,11 @@ func TestLoadPrivKey(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	err := l.loadPrivKey()
+	err := l.loadPrivKey(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
-	l.API.Credentials.Secret = "errortest"
-	err = l.loadPrivKey()
+	err = l.loadPrivKey(exchange.DeployKeysToContext(exchange.Credentials{Secret: "errortest"}))
 	if err == nil {
 		t.Errorf("Expected error due to pemblock nil")
 	}
@@ -321,8 +320,7 @@ func TestSign(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	l.API.Credentials.Secret = testAPISecret
-	err := l.loadPrivKey()
+	err := l.loadPrivKey(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
