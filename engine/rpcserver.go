@@ -1539,7 +1539,7 @@ func (s *RPCServer) GetCryptocurrencyDepositAddresses(ctx context.Context, r *gc
 	}
 
 	if !exch.GetAuthenticatedAPISupport(exchange.RestAuthentication) {
-		return nil, exchange.ErrAuthenticatedRequestWithoutCredentialsSet
+		return nil, fmt.Errorf("%s, %w", r.Exchange, exchange.ErrAuthenticationSupportNotEnabled)
 	}
 
 	result, err := s.GetCryptocurrencyDepositAddressesByExchange(r.Exchange)
@@ -1572,7 +1572,7 @@ func (s *RPCServer) GetCryptocurrencyDepositAddress(ctx context.Context, r *gctr
 	}
 
 	if !exch.GetAuthenticatedAPISupport(exchange.RestAuthentication) {
-		return nil, exchange.ErrAuthenticatedRequestWithoutCredentialsSet
+		return nil, fmt.Errorf("%s, %w", r.Exchange, exchange.ErrAuthenticationSupportNotEnabled)
 	}
 
 	addr, err := s.GetExchangeCryptocurrencyDepositAddress(ctx,

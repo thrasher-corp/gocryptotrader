@@ -1112,8 +1112,8 @@ func TestGetOrders(t *testing.T) {
 		StartDate: time.Now().UTC().Add(-time.Hour).Format(common.SimpleTimeFormat),
 		EndDate:   time.Now().UTC().Add(time.Hour).Format(common.SimpleTimeFormat),
 	})
-	if !errors.Is(err, exchange.ErrAuthenticatedRequestWithoutCredentialsSet) {
-		t.Errorf("received '%v', expected '%v'", err, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
+	if !errors.Is(err, exchange.ErrCredentialsAreEmpty) {
+		t.Errorf("received '%v', expected '%v'", err, exchange.ErrCredentialsAreEmpty)
 	}
 
 	b.SetCredentials("test", "test", "", "", "", "")
@@ -1215,8 +1215,8 @@ func TestGetOrder(t *testing.T) {
 		Pair:     p,
 		Asset:    asset.Spot.String(),
 	})
-	if !errors.Is(err, exchange.ErrAuthenticatedRequestWithoutCredentialsSet) {
-		t.Errorf("expected '%v' received '%v'", err, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
+	if !errors.Is(err, exchange.ErrCredentialsAreEmpty) {
+		t.Errorf("received '%v', expected '%v'", err, exchange.ErrCredentialsAreEmpty)
 	}
 }
 

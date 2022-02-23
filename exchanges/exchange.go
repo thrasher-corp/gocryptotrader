@@ -38,12 +38,7 @@ const (
 	ResetConfigPairsWarningMessage = "%s Enabled and available pairs for %s reset due to config upgrade, please enable the ones you would like to use again. Defaulting to %v"
 )
 
-var (
-	// ErrAuthenticatedRequestWithoutCredentialsSet error message for authenticated request without credentials set
-	ErrAuthenticatedRequestWithoutCredentialsSet = errors.New("authenticated HTTP request called but not supported due to unset/default API keys")
-
-	errEndpointStringNotFound = errors.New("endpoint string not found")
-)
+var errEndpointStringNotFound = errors.New("endpoint string not found")
 
 // SetClientProxyAddress sets a proxy address for REST and websocket requests
 func (b *Base) SetClientProxyAddress(addr string) error {

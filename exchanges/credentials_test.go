@@ -77,8 +77,8 @@ func TestGetCredentials(t *testing.T) {
 	t.Parallel()
 	var b Base
 	_, err := b.GetCredentials(context.Background())
-	if !errors.Is(err, errCredentialsAreEmpty) {
-		t.Fatalf("received: %v but expected: %v", err, errCredentialsAreEmpty)
+	if !errors.Is(err, ErrCredentialsAreEmpty) {
+		t.Fatalf("received: %v but expected: %v", err, ErrCredentialsAreEmpty)
 	}
 
 	b.API.CredentialsValidator.RequiresKey = true
@@ -176,7 +176,7 @@ func TestValidateAPICredentials(t *testing.T) {
 
 	tests := []tester{
 		// Empty credentials
-		{Expected: errCredentialsAreEmpty},
+		{Expected: ErrCredentialsAreEmpty},
 		// test key
 		{RequiresKey: true, Expected: errRequiresAPIKey, Secret: "bruh"},
 		{RequiresKey: true, Key: "k3y"},
@@ -244,7 +244,7 @@ func TestCheckCredentials(t *testing.T) {
 	b.LoadedByConfig = true
 	b.API.credentials.Key = "k3y"
 	err = b.CheckCredentials(b.API.credentials, false)
-	if !errors.Is(err, errAuthenticationSupportNotEnabled) {
+	if !errors.Is(err, ErrAuthenticationSupportNotEnabled) {
 		t.Error("should fail when authenticated support is disabled")
 	}
 
@@ -253,7 +253,7 @@ func TestCheckCredentials(t *testing.T) {
 	b.API.AuthenticatedSupport = true
 	b.API.credentials.Key = ""
 	err = b.CheckCredentials(b.API.credentials, false)
-	if !errors.Is(err, errCredentialsAreEmpty) {
+	if !errors.Is(err, ErrCredentialsAreEmpty) {
 		t.Error("should fail with invalid credentials")
 	}
 

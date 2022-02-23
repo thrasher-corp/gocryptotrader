@@ -29,17 +29,24 @@ const (
 )
 
 var (
-	errRequiresAPIKey                  = errors.New("requires API key but default/empty one set")
-	errRequiresAPISecret               = errors.New("requires API secret but default/empty one set")
-	errRequiresAPIPEMKey               = errors.New("requires API PEM key but default/empty one set")
-	errRequiresAPIClientID             = errors.New("requires API Client ID but default/empty one set")
-	errBase64DecodeFailure             = errors.New("base64 decode has failed")
-	errAuthenticationSupportNotEnabled = errors.New("REST or Websocket authentication support is not enabled")
-	errMissingInfo                     = errors.New("cannot parse meta data missing information in key value pair")
-	errInvalidCredentialMetaData       = errors.New("invalid meta data to process credentials")
-	errContextCredentialsFailure       = errors.New("context credentials type assertion failure")
-	errMetaDataIsNil                   = errors.New("meta data is nil")
-	errCredentialsAreEmpty             = errors.New("credentials are empty")
+	// ErrAuthenticationSupportNotEnabled defines an error when
+	// authenticatedSupport and authenticatedWebsocketApiSupport are set to
+	// false in config.json
+	ErrAuthenticationSupportNotEnabled = errors.New("REST or Websocket authentication support is not enabled")
+	// ErrCredentialsAreEmpty defines an error for when the credentials are
+	// completely empty but an attempt at retrieving credentials was made to
+	// undertake an authenticated HTTP request.
+	ErrCredentialsAreEmpty = errors.New("credentials are empty")
+
+	errRequiresAPIKey            = errors.New("requires API key but default/empty one set")
+	errRequiresAPISecret         = errors.New("requires API secret but default/empty one set")
+	errRequiresAPIPEMKey         = errors.New("requires API PEM key but default/empty one set")
+	errRequiresAPIClientID       = errors.New("requires API Client ID but default/empty one set")
+	errBase64DecodeFailure       = errors.New("base64 decode has failed")
+	errMissingInfo               = errors.New("cannot parse meta data missing information in key value pair")
+	errInvalidCredentialMetaData = errors.New("invalid meta data to process credentials")
+	errContextCredentialsFailure = errors.New("context credentials type assertion failure")
+	errMetaDataIsNil             = errors.New("meta data is nil")
 )
 
 // ParseCredentialsMetadata intercepts and converts credentials metadata to a
@@ -165,7 +172,7 @@ func (b *Base) CheckCredentials(creds *Credentials, isContext bool) error {
 	// don't allow authenticated requests. Context credentials set will override
 	// default credentials and supported checks.
 	if !b.API.AuthenticatedSupport && !b.API.AuthenticatedWebsocketSupport && !isContext {
-		return fmt.Errorf("%s %w", b.Name, errAuthenticationSupportNotEnabled)
+		return fmt.Errorf("%s %w", b.Name, ErrAuthenticationSupportNotEnabled)
 	}
 
 	// Check to see if the user has enabled AuthenticatedSupport, but has
@@ -201,7 +208,7 @@ func (b *Base) GetCredentials(ctx context.Context) (*Credentials, error) {
 // ValidateAPICredentials validates the exchanges API credentials
 func (b *Base) ValidateAPICredentials(creds *Credentials) error {
 	if creds.IsEmpty() {
-		return fmt.Errorf("%s %w", b.Name, errCredentialsAreEmpty)
+		return fmt.Errorf("%s %w", b.Name, ErrCredentialsAreEmpty)
 	}
 	if b.API.CredentialsValidator.RequiresKey &&
 		(creds.Key == "" || creds.Key == config.DefaultAPIKey) {
