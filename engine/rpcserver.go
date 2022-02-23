@@ -104,8 +104,7 @@ func (s *RPCServer) authenticateClient(ctx context.Context) (context.Context, er
 		password != s.Config.RemoteControl.Password {
 		return ctx, fmt.Errorf("username/password mismatch")
 	}
-
-	return ctx, nil
+	return exchange.ParseCredentialsMetadata(ctx, md)
 }
 
 // StartRPCServer starts a gRPC server with TLS auth

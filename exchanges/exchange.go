@@ -23,7 +23,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
-	"google.golang.org/grpc/metadata"
 )
 
 const (
@@ -38,16 +37,6 @@ const (
 	DefaultWebsocketOrderbookBufferLimit = 5
 	// ResetConfigPairsWarningMessage is displayed when a currency pair format in the config needs to be updated
 	ResetConfigPairsWarningMessage = "%s Enabled and available pairs for %s reset due to config upgrade, please enable the ones you would like to use again. Defaulting to %v"
-
-	// GRPCCrendentialsFlag is a key for api credentials for use with context
-	// values when setting credentials via gRPC.
-	GRPCCrendentialsFlag = "apicredentials"
-
-	_Key        = "key"
-	_Secret     = "secret"
-	_Subaccount = "subaccount"
-	_ClientID   = "clientid"
-	_PEMKey     = "pemkey"
 )
 
 var (
@@ -611,131 +600,6 @@ func (b *Base) SetupDefaults(exch *config.Exchange) error {
 	b.CanVerifyOrderbook = !exch.Orderbook.VerificationBypass
 	b.States = currencystate.NewCurrencyStates()
 	return err
-}
-
-// CheckCredentials checks to see if the required fields have been set before
-// sending an authenticated API request
-func (b *Base) CheckCredentials(creds Credentials, isContext bool) error {
-	if b.SkipAuthCheck {
-		return nil
-	}
-
-	// Individual package usage, allow request if API credentials are valid a
-	// and without needing to set AuthenticatedSupport to true
-	if !b.LoadedByConfig {
-		return b.ValidateAPICredentials(creds)
-	}
-
-	// Bot usage, AuthenticatedSupport can be disabled by user if desired, so
-	// don't allow authenticated requests. Context set via RPC will overide.
-	if !b.API.AuthenticatedSupport && !b.API.AuthenticatedWebsocketSupport && !isContext {
-		return fmt.Errorf("%s %w", b.Name, errAuthenticationSupportNotEnabled)
-	}
-
-	// Check to see if the user has enabled AuthenticatedSupport, but has
-	// invalid API credentials set and loaded by config
-	return b.ValidateAPICredentials(creds)
-}
-
-var errContextCredentialsFailure = errors.New("context credentials are not a map[string]string")
-
-// AreCredentialsValid returns if the supplied credentials are valid.
-func (b *Base) AreCredentialsValid(ctx context.Context) bool {
-	creds, err := b.GetCredentials(ctx)
-	return err == nil && b.ValidateAPICredentials(creds) == nil
-}
-
-// GetCredentials checks and validates current credentials, context credentials
-// overide default credentials, if no credentials found, will return an error.
-func (b *Base) GetCredentials(ctx context.Context) (Credentials, error) {
-	if md, ok := metadata.FromIncomingContext(ctx); ok {
-		data, ok := md[GRPCCrendentialsFlag]
-		if ok {
-			splitsVille := strings.Split(data[0], ",")
-			var ctxCreds Credentials
-			for x := range splitsVille {
-				splits := strings.Split(splitsVille[x], ":")
-				switch splits[0] {
-				case _Key:
-					ctxCreds.Key = splits[1]
-				case _Secret:
-					ctxCreds.Secret = splits[1]
-				case _Subaccount:
-					ctxCreds.Subaccount = splits[1]
-				case _ClientID:
-					ctxCreds.ClientID = splits[1]
-				case _PEMKey:
-					ctxCreds.PEMKey = splits[1]
-				}
-			}
-			if err := b.CheckCredentials(ctxCreds, true); err != nil {
-				return Credentials{}, fmt.Errorf("context credentials issue: %w", err)
-			}
-			return ctxCreds, nil
-		}
-	}
-	return b.API.credentials, b.CheckCredentials(b.API.credentials, false)
-}
-
-// Get returns the credentials if supplied
-func (c Credentials) Get() string {
-	m := []string{}
-	if c.Key != "" {
-		m = append(m, _Key+":"+c.Key)
-	}
-	if c.Secret != "" {
-		m = append(m, _Secret+":"+c.Secret)
-	}
-	if c.Subaccount != "" {
-		m = append(m, _Subaccount+":"+c.Subaccount)
-	}
-	if c.ClientID != "" {
-		m = append(m, _ClientID+":"+c.ClientID)
-	}
-	if c.PEMKey != "" {
-		m = append(m, _PEMKey+":"+c.PEMKey)
-	}
-	return strings.Join(m, ",")
-}
-
-var (
-	errRequiresAPIKey                  = errors.New("requires API key but default/empty one set")
-	errRequiresAPISecret               = errors.New("requires API secret but default/empty one set")
-	errRequiresAPIPEMKey               = errors.New("requires API PEM key but default/empty one set")
-	errRequiresAPIClientID             = errors.New("requires API Client ID but default/empty one set")
-	errBase64DecodeFailure             = errors.New("base64 decode has failed")
-	errAuthenticationSupportNotEnabled = errors.New("REST or Websocket authentication support is not enabled")
-)
-
-// ValidateAPICredentials validates the exchanges API credentials
-func (b *Base) ValidateAPICredentials(creds Credentials) error {
-	if b.API.CredentialsValidator.RequiresKey &&
-		(creds.Key == "" || creds.Key == config.DefaultAPIKey) {
-		return fmt.Errorf("%s %w", b.Name, errRequiresAPIKey)
-	}
-
-	if b.API.CredentialsValidator.RequiresSecret &&
-		(creds.Secret == "" || creds.Secret == config.DefaultAPISecret) {
-		return fmt.Errorf("%s %w", b.Name, errRequiresAPISecret)
-	}
-
-	if b.API.CredentialsValidator.RequiresPEM &&
-		(creds.PEMKey == "" || strings.Contains(creds.PEMKey, "JUSTADUMMY")) {
-		return fmt.Errorf("%s %w", b.Name, errRequiresAPIPEMKey)
-	}
-
-	if b.API.CredentialsValidator.RequiresClientID &&
-		(creds.ClientID == "" || creds.ClientID == config.DefaultAPIClientID) {
-		return fmt.Errorf("%s %w", b.Name, errRequiresAPIClientID)
-	}
-
-	if b.API.CredentialsValidator.RequiresBase64DecodeSecret && !b.LoadedByConfig {
-		_, err := crypto.Base64Decode(creds.Secret)
-		if err != nil {
-			return fmt.Errorf("%s API secret %w: %s", b.Name, errBase64DecodeFailure, err)
-		}
-	}
-	return nil
 }
 
 // SetPairs sets the exchange currency pairs for either enabledPairs or
@@ -1474,10 +1338,4 @@ func (b *Base) UpdateCurrencyStates(ctx context.Context, a asset.Item) error {
 // on the supplied cryptocurrency
 func (b *Base) GetAvailableTransferChains(_ context.Context, _ currency.Code) ([]string, error) {
 	return nil, common.ErrFunctionNotSupported
-}
-
-// DeployKeysToContext used in tests easily defines and adds a basic context with
-// credentials
-func DeployKeysToContext(creds Credentials) context.Context {
-	return context.WithValue(context.Background(), GRPCCrendentialsFlag, creds.Get())
 }

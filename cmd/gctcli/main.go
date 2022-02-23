@@ -56,9 +56,8 @@ func setupClient(c *cli.Context) (*grpc.ClientConn, context.CancelFunc, error) {
 
 	var cancel context.CancelFunc
 	c.Context, cancel = context.WithTimeout(c.Context, timeout)
-	c.Context = metadata.AppendToOutgoingContext(c.Context,
-		exchange.GRPCCrendentialsFlag,
-		exchangeCreds.Get())
+	flag, values := exchangeCreds.GetMetaData()
+	c.Context = metadata.AppendToOutgoingContext(c.Context, flag, values)
 	conn, err := grpc.DialContext(c.Context, host, opts...)
 	return conn, cancel, err
 }
@@ -130,6 +129,11 @@ func main() {
 			Name:        "apipemkey",
 			Usage:       "Authenticated HTTP call PEM key",
 			Destination: &exchangeCreds.PEMKey,
+		},
+		&cli.StringFlag{
+			Name:        "apionetimepassword",
+			Usage:       "Authenticated HTTP call One Time Password (OTP)",
+			Destination: &exchangeCreds.OneTimePassword,
 		},
 	}
 	app.Commands = []*cli.Command{
