@@ -190,7 +190,7 @@ func TestPlaceOrder(t *testing.T) {
 
 	_, err = e.placeOrder(context.Background(), decimal.NewFromInt(1), decimal.NewFromInt(1), true, true, f, bot.OrderManager)
 	if !errors.Is(err, exchange.ErrAuthenticationSupportNotEnabled) {
-		t.Errorf("recieved: %v but expected: %v", err, exchange.ErrAuthenticationSupportNotEnabled)
+		t.Errorf("received: %v but expected: %v", err, exchange.ErrAuthenticationSupportNotEnabled)
 	}
 }
 
@@ -294,7 +294,7 @@ func TestExecuteOrder(t *testing.T) {
 	e.CurrencySettings = []Settings{cs}
 	_, err = e.ExecuteOrder(o, d, bot.OrderManager, &fakeFund{})
 	if !errors.Is(err, exchange.ErrAuthenticationSupportNotEnabled) {
-		t.Errorf("recieved: %v but expected: %v", err, exchange.ErrAuthenticationSupportNotEnabled)
+		t.Errorf("received: %v but expected: %v", err, exchange.ErrAuthenticationSupportNotEnabled)
 	}
 }
 
@@ -469,7 +469,7 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 	e.CurrencySettings = []Settings{cs}
 	_, err = e.ExecuteOrder(o, d, bot.OrderManager, &fakeFund{})
 	if !errors.Is(err, exchange.ErrAuthenticationSupportNotEnabled) {
-		t.Errorf("recieved: %v but expected: %v", err, exchange.ErrAuthenticationSupportNotEnabled)
+		t.Errorf("received: %v but expected: %v", err, exchange.ErrAuthenticationSupportNotEnabled)
 	}
 }
 
