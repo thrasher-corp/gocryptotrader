@@ -304,7 +304,6 @@ func (a *API) SetClientID(clientID string) {
 		a.credentials = &Credentials{}
 	}
 	a.credentials.ClientID = clientID
-
 }
 
 // SetPEMKey sets pem key for the default credentials
