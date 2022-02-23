@@ -54,7 +54,7 @@ func TestInterface(t *testing.T) {
 }
 
 func areTestAPIKeysSet() bool {
-	return {{.Variable}}.ValidateAPICredentials()
+	return {{.Variable}}.AreCredentialsValid(context.Background()
 }
 
 // Implement tests for API endpoints below
