@@ -225,14 +225,14 @@ func (by *Bybit) GetKlines(symbol, period string, limit int64, start, end time.T
 			kline                                                                               KlineItem
 			ok                                                                                  bool
 			err                                                                                 error
-			startTime, endTime, tradesCount                                                     int64
+			startTime, endTime, tradesCount                                                     float64
 			open, high, low, close, volume, quoteAssetVolume, takerBaseVolume, takerQuoteVolume string
 		)
 
-		if startTime, ok = resp.Data[x][0].(int64); !ok {
+		if startTime, ok = resp.Data[x][0].(float64); !ok {
 			return klines, fmt.Errorf("%v GetKlines: %w for StartTime", by.Name, errTypeAssert)
 		}
-		kline.StartTime = time.UnixMilli(startTime)
+		kline.StartTime = time.UnixMilli(int64(startTime))
 
 		if open, ok = resp.Data[x][1].(string); !ok {
 			return klines, fmt.Errorf("%v GetKlines: %w for Open", by.Name, errTypeAssert)
@@ -269,10 +269,10 @@ func (by *Bybit) GetKlines(symbol, period string, limit int64, start, end time.T
 			return klines, fmt.Errorf("%v GetKlines: %w for Volume", by.Name, errStrParsing)
 		}
 
-		if endTime, ok = resp.Data[x][6].(int64); !ok {
+		if endTime, ok = resp.Data[x][6].(float64); !ok {
 			return klines, fmt.Errorf("%v GetKlines: %w for EndTime", by.Name, errTypeAssert)
 		}
-		kline.EndTime = time.UnixMilli(endTime)
+		kline.EndTime = time.Unix(0, int64(endTime)*int64(time.Millisecond))
 
 		if quoteAssetVolume, ok = resp.Data[x][7].(string); !ok {
 			return klines, fmt.Errorf("%v GetKlines: %w for QuoteAssetVolume", by.Name, errTypeAssert)
@@ -281,10 +281,10 @@ func (by *Bybit) GetKlines(symbol, period string, limit int64, start, end time.T
 			return klines, fmt.Errorf("%v GetKlines: %w for QuoteAssetVolume", by.Name, errStrParsing)
 		}
 
-		if tradesCount, ok = resp.Data[x][8].(int64); !ok {
+		if tradesCount, ok = resp.Data[x][8].(float64); !ok {
 			return klines, fmt.Errorf("%v GetKlines: %w for TradesCount", by.Name, errTypeAssert)
 		}
-		kline.TradesCount = tradesCount
+		kline.TradesCount = int64(tradesCount)
 
 		if takerBaseVolume, ok = resp.Data[x][9].(string); !ok {
 			return klines, fmt.Errorf("%v GetKlines: %w for TakerBaseVolume", by.Name, errTypeAssert)
@@ -515,7 +515,7 @@ func (by *Bybit) QueryOrder(orderID, orderLinkID string) (*QueryOrderResponse, e
 	if orderID != "" {
 		params.Set("orderId", orderID)
 	}
-	if orderID != "" {
+	if orderLinkID != "" {
 		params.Set("orderLinkId", orderLinkID)
 	}
 
@@ -539,7 +539,7 @@ func (by *Bybit) CancelExistingOrder(orderID, orderLinkID string) (*CancelOrderR
 	if orderID != "" {
 		params.Set("orderId", orderID)
 	}
-	if orderID != "" {
+	if orderLinkID != "" {
 		params.Set("orderLinkId", orderLinkID)
 	}
 

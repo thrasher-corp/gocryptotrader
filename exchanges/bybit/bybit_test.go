@@ -174,7 +174,7 @@ func TestBatchCancelOrder(t *testing.T) {
 
 func TestListOpenOrders(t *testing.T) {
 	t.Parallel()
-	_, err := by.ListOpenOrders("", "BUY", 0)
+	_, err := by.ListOpenOrders("BTCUSDT", "", 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -182,7 +182,7 @@ func TestListOpenOrders(t *testing.T) {
 
 func TestListPastOrders(t *testing.T) {
 	t.Parallel()
-	_, err := by.ListPastOrders("", "BUY", 0)
+	_, err := by.ListPastOrders("BTCUSDT", "", 0)
 	if err != nil {
 		t.Fatal(err)
 	}
