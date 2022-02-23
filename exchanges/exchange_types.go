@@ -91,10 +91,6 @@ const (
 	UnknownWithdrawalTypeText               string = "UNKNOWN"
 )
 
-// APICredentials is a package defined type for use with a context value
-// designation
-type APICredentials string
-
 // FeeType is the type for holding a custom fee type (International withdrawal fee)
 type FeeType uint8
 

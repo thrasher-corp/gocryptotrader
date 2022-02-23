@@ -898,8 +898,7 @@ func (b *Bittrex) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuil
 	if feeBuilder == nil {
 		return 0, fmt.Errorf("%T %w", feeBuilder, common.ErrNilPointer)
 	}
-	_, err := b.GetCredentials(ctx)
-	if err != nil && // Todo check connection status
+	if !b.AreCredentialsValid(ctx) && // Todo check connection status
 		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		feeBuilder.FeeType = exchange.OfflineTradeFee
 	}

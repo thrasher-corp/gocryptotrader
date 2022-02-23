@@ -9,6 +9,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/log"
 	"google.golang.org/grpc/metadata"
 )
 
@@ -224,17 +225,44 @@ func (b *Base) ValidateAPICredentials(creds Credentials) error {
 	return nil
 }
 
+// SetAPIKeys is a method that sets the current API keys for the exchange
+func (b *Base) SetCredentials(apiKey, apiSecret, clientID, subaccount, pemKey, oneTimePassword string) {
+	b.API.credentials.Key = apiKey
+	b.API.credentials.ClientID = clientID
+	b.API.credentials.Subaccount = subaccount
+	b.API.credentials.PEMKey = pemKey
+	b.API.credentials.OneTimePassword = oneTimePassword
+
+	if b.API.CredentialsValidator.RequiresBase64DecodeSecret {
+		result, err := crypto.Base64Decode(apiSecret)
+		if err != nil {
+			b.API.AuthenticatedSupport = false
+			b.API.AuthenticatedWebsocketSupport = false
+			log.Warnf(log.ExchangeSys,
+				warningBase64DecryptSecretKeyFailed,
+				b.Name)
+			return
+		}
+		b.API.credentials.Secret = string(result)
+	} else {
+		b.API.credentials.Secret = apiSecret
+	}
+}
+
+// contextCredentialsStore protects the stored credentials for use in a context
 type contextCredentialsStore struct {
 	creds Credentials
 	mu    sync.RWMutex
 }
 
+// Load loads credentials into the store
 func (c *contextCredentialsStore) Load(creds Credentials) {
 	c.mu.Lock()
 	c.creds = creds
 	c.mu.Unlock()
 }
 
+// Get returns the full credentials from the store
 func (c *contextCredentialsStore) Get() Credentials {
 	c.mu.RLock()
 	creds := c.creds

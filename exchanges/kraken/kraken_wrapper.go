@@ -1081,8 +1081,7 @@ func (k *Kraken) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuild
 	if feeBuilder == nil {
 		return 0, fmt.Errorf("%T %w", feeBuilder, common.ErrNilPointer)
 	}
-	_, err := k.GetCredentials(ctx)
-	if err != nil && // Todo check connection status
+	if !k.AreCredentialsValid(ctx) && // Todo check connection status
 		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		feeBuilder.FeeType = exchange.OfflineTradeFee
 	}

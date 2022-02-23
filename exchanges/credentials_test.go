@@ -309,3 +309,39 @@ func TestAPISetters(t *testing.T) {
 		t.Fatal("unexpected value")
 	}
 }
+
+func TestSetCredentials(t *testing.T) {
+	t.Parallel()
+
+	b := Base{
+		Name:    "TESTNAME",
+		Enabled: false,
+		API: API{
+			AuthenticatedSupport:          false,
+			AuthenticatedWebsocketSupport: false,
+		},
+	}
+
+	b.SetCredentials("RocketMan", "Digereedoo", "007", "", "", "")
+	if b.API.credentials.Key != "RocketMan" &&
+		b.API.credentials.Secret != "Digereedoo" &&
+		b.API.credentials.ClientID != "007" {
+		t.Error("invalid API credentials")
+	}
+
+	// Invalid secret
+	b.API.CredentialsValidator.RequiresBase64DecodeSecret = true
+	b.API.AuthenticatedSupport = true
+	b.SetCredentials("RocketMan", "%%", "007", "", "", "")
+	if b.API.AuthenticatedSupport || b.API.AuthenticatedWebsocketSupport {
+		t.Error("invalid secret should disable authenticated API support")
+	}
+
+	// valid secret
+	b.API.CredentialsValidator.RequiresBase64DecodeSecret = true
+	b.API.AuthenticatedSupport = true
+	b.SetCredentials("RocketMan", "aGVsbG8gd29ybGQ=", "007", "", "", "")
+	if !b.API.AuthenticatedSupport && b.API.credentials.Secret != "hello world" {
+		t.Error("invalid secret should disable authenticated API support")
+	}
+}

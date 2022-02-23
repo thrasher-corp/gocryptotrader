@@ -592,8 +592,7 @@ func (o *OKGroup) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuil
 	if feeBuilder == nil {
 		return 0, fmt.Errorf("%T %w", feeBuilder, common.ErrNilPointer)
 	}
-	_, err := o.GetCredentials(ctx)
-	if err != nil && // Todo check connection status
+	if !o.AreCredentialsValid(ctx) && // Todo check connection status
 		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		feeBuilder.FeeType = exchange.OfflineTradeFee
 	}

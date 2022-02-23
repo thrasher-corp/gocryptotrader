@@ -12,7 +12,6 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
-	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -496,30 +495,6 @@ func (b *Base) SetEnabled(enabled bool) {
 // IsEnabled is a method that returns if the current exchange is enabled
 func (b *Base) IsEnabled() bool {
 	return b.Enabled
-}
-
-// SetAPIKeys is a method that sets the current API keys for the exchange
-func (b *Base) SetCredentials(apiKey, apiSecret, clientID, subaccount, pemKey, oneTimePassword string) {
-	b.API.credentials.Key = apiKey
-	b.API.credentials.ClientID = clientID
-	b.API.credentials.Subaccount = subaccount
-	b.API.credentials.PEMKey = pemKey
-	b.API.credentials.OneTimePassword = oneTimePassword
-
-	if b.API.CredentialsValidator.RequiresBase64DecodeSecret {
-		result, err := crypto.Base64Decode(apiSecret)
-		if err != nil {
-			b.API.AuthenticatedSupport = false
-			b.API.AuthenticatedWebsocketSupport = false
-			log.Warnf(log.ExchangeSys,
-				warningBase64DecryptSecretKeyFailed,
-				b.Name)
-			return
-		}
-		b.API.credentials.Secret = string(result)
-	} else {
-		b.API.credentials.Secret = apiSecret
-	}
 }
 
 // SetupDefaults sets the exchange settings based on the supplied config
