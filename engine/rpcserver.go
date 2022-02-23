@@ -4443,7 +4443,9 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 				Weighting:                   collateral.BreakdownByCurrency[i].Weighting.String(),
 				CollateralContribution:      collateral.BreakdownByCurrency[i].CollateralContribution.String() + collateralDisplayCurrency,
 				ScaledToCurrency:            collateral.BreakdownByCurrency[i].ScaledCurrency.String(),
-				FundsInUse:                  collateral.BreakdownByCurrency[i].ScaledUsed.String() + collateralDisplayCurrency,
+			}
+			if !collateral.BreakdownByCurrency[i].ScaledUsed.IsZero() {
+				cb.FundsInUse = collateral.BreakdownByCurrency[i].ScaledUsed.String() + collateralDisplayCurrency
 			}
 			if !collateral.BreakdownByCurrency[i].UnrealisedPNL.IsZero() {
 				cb.UnrealisedPNL = collateral.BreakdownByCurrency[i].UnrealisedPNL.String() + collateralDisplayCurrency
