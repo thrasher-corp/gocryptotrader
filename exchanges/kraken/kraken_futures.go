@@ -305,8 +305,8 @@ func (k *Kraken) SendFuturesAuthRequest(ctx context.Context, method, path string
 	interim := json.RawMessage{}
 	newRequest := func() (*request.Item, error) {
 		nonce := strconv.FormatInt(time.Now().UnixNano(), 10)
-
-		sig, err := k.signFuturesRequest(creds.Secret, path, nonce, dataToSign)
+		var sig string
+		sig, err = k.signFuturesRequest(creds.Secret, path, nonce, dataToSign)
 		if err != nil {
 			return nil, err
 		}

@@ -595,7 +595,7 @@ func (h *HUOBI) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) 
 	return nil
 }
 
-func (h *HUOBI) wsGenerateSignature(creds exchange.Credentials, timestamp, endpoint string) ([]byte, error) {
+func (h *HUOBI) wsGenerateSignature(creds *exchange.Credentials, timestamp, endpoint string) ([]byte, error) {
 	values := url.Values{}
 	values.Set("AccessKeyId", creds.Key)
 	values.Set("SignatureMethod", signatureMethod)
@@ -640,7 +640,7 @@ func (h *HUOBI) wsLogin(ctx context.Context) error {
 	return nil
 }
 
-func (h *HUOBI) wsAuthenticatedSubscribe(creds exchange.Credentials, operation, endpoint, topic string) error {
+func (h *HUOBI) wsAuthenticatedSubscribe(creds *exchange.Credentials, operation, endpoint, topic string) error {
 	timestamp := time.Now().UTC().Format(wsDateTimeFormatting)
 	request := WsAuthenticatedSubscriptionRequest{
 		Op:               operation,

@@ -82,14 +82,14 @@ func TestGetCredentials(t *testing.T) {
 	}
 
 	b.API.CredentialsValidator.RequiresKey = true
-	ctx := DeployCredentialsToContext(context.Background(), Credentials{Secret: "wow"})
+	ctx := DeployCredentialsToContext(context.Background(), &Credentials{Secret: "wow"})
 	_, err = b.GetCredentials(ctx)
 	if !errors.Is(err, errRequiresAPIKey) {
 		t.Fatalf("received: %v but expected: %v", err, errRequiresAPIKey)
 	}
 
 	b.API.CredentialsValidator.RequiresSecret = true
-	ctx = DeployCredentialsToContext(context.Background(), Credentials{Key: "wow"})
+	ctx = DeployCredentialsToContext(context.Background(), &Credentials{Key: "wow"})
 	_, err = b.GetCredentials(ctx)
 	if !errors.Is(err, errRequiresAPISecret) {
 		t.Fatalf("received: %v but expected: %v", err, errRequiresAPISecret)
@@ -101,14 +101,16 @@ func TestGetCredentials(t *testing.T) {
 		t.Fatalf("received: %v but expected: %v", err, errContextCredentialsFailure)
 	}
 
-	flag, store := Credentials{
+	fullCred := Credentials{
 		Key:             "superkey",
 		Secret:          "supersecret",
 		Subaccount:      "supersub",
 		ClientID:        "superclient",
 		PEMKey:          "superpem",
 		OneTimePassword: "superOneTimePasssssss",
-	}.getInternal()
+	}
+
+	flag, store := fullCred.getInternal()
 
 	ctx = context.WithValue(context.Background(), flag, store)
 	creds, err := b.GetCredentials(ctx)
@@ -125,17 +127,19 @@ func TestGetCredentials(t *testing.T) {
 		t.Fatal("unexpected values")
 	}
 
-	flag, store = Credentials{
+	lonelyCred := Credentials{
 		Key:             "superkey",
 		Secret:          "supersecret",
 		Subaccount:      "supersub",
 		PEMKey:          "superpem",
 		OneTimePassword: "superOneTimePasssssss",
-	}.getInternal()
+	}
+
+	flag, store = lonelyCred.getInternal()
 
 	ctx = context.WithValue(context.Background(), flag, store)
 	b.API.CredentialsValidator.RequiresClientID = true
-	creds, err = b.GetCredentials(ctx)
+	_, err = b.GetCredentials(ctx)
 	if !errors.Is(err, errRequiresAPIClientID) {
 		t.Fatalf("received: %v but expected: %v", err, errRequiresAPIClientID)
 	}
@@ -147,7 +151,7 @@ func TestAreCredentialsValid(t *testing.T) {
 	if b.AreCredentialsValid(context.Background()) {
 		t.Fatal("should not be valid")
 	}
-	ctx := DeployCredentialsToContext(context.Background(), Credentials{Key: "hello"})
+	ctx := DeployCredentialsToContext(context.Background(), &Credentials{Key: "hello"})
 	if !b.AreCredentialsValid(ctx) {
 		t.Fatal("should be valid")
 	}
@@ -193,10 +197,10 @@ func TestValidateAPICredentials(t *testing.T) {
 
 	for x := range tests {
 		setupBase := func(b *Base, tData tester) {
-			b.API.credentials.Key = tData.Key
-			b.API.credentials.Secret = tData.Secret
-			b.API.credentials.ClientID = tData.ClientID
-			b.API.credentials.PEMKey = tData.PEMKey
+			b.API.SetKey(tData.Key)
+			b.API.SetSecret(tData.Secret)
+			b.API.SetClientID(tData.ClientID)
+			b.API.SetPEMKey(tData.PEMKey)
 			b.API.CredentialsValidator.RequiresKey = tData.RequiresKey
 			b.API.CredentialsValidator.RequiresSecret = tData.RequiresSecret
 			b.API.CredentialsValidator.RequiresPEM = tData.RequiresPEM
@@ -216,10 +220,11 @@ func TestCheckCredentials(t *testing.T) {
 
 	b := Base{
 		SkipAuthCheck: true,
+		API:           API{credentials: &Credentials{}},
 	}
 
 	// Test SkipAuthCheck
-	err := b.CheckCredentials(Credentials{}, false)
+	err := b.CheckCredentials(&Credentials{}, false)
 	if !errors.Is(err, nil) {
 		t.Error("skip auth check should allow authenticated requests")
 	}
@@ -262,14 +267,14 @@ func TestCheckCredentials(t *testing.T) {
 
 func TestGetInternal(t *testing.T) {
 	t.Parallel()
-	flag, store := Credentials{}.getInternal()
+	flag, store := (&Credentials{}).getInternal()
 	if flag != "" {
 		t.Fatal("unexpected value")
 	}
 	if store != nil {
 		t.Fatal("unexpected value")
 	}
-	flag, store = Credentials{Key: "wow"}.getInternal()
+	flag, store = (&Credentials{Key: "wow"}).getInternal()
 	if flag != contextCrendentialsFlag {
 		t.Fatal("unexpected value")
 	}
@@ -289,21 +294,25 @@ func TestAPISetters(t *testing.T) {
 		t.Fatal("unexpected value")
 	}
 
+	api = API{}
 	api.SetSecret(_Secret)
 	if api.credentials.Secret != _Secret {
 		t.Fatal("unexpected value")
 	}
 
+	api = API{}
 	api.SetClientID((_ClientID))
 	if api.credentials.ClientID != _ClientID {
 		t.Fatal("unexpected value")
 	}
 
+	api = API{}
 	api.SetPEMKey(_PEMKey)
 	if api.credentials.PEMKey != _PEMKey {
 		t.Fatal("unexpected value")
 	}
 
+	api = API{}
 	api.SetSubaccount(_Subaccount)
 	if api.credentials.Subaccount != _Subaccount {
 		t.Fatal("unexpected value")

@@ -310,7 +310,7 @@ func TestLoadPrivKey(t *testing.T) {
 		t.Error(err)
 	}
 
-	ctx := exchange.DeployCredentialsToContext(context.Background(), exchange.Credentials{Secret: "errortest"})
+	ctx := exchange.DeployCredentialsToContext(context.Background(), &exchange.Credentials{Secret: "errortest"})
 	err = l.loadPrivKey(ctx)
 	if err == nil {
 		t.Errorf("Expected error due to pemblock nil")

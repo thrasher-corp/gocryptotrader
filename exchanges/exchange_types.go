@@ -188,7 +188,7 @@ type API struct {
 
 	Endpoints *Endpoints
 
-	credentials Credentials
+	credentials *Credentials
 
 	CredentialsValidator struct {
 		// For Huobi (optional)

@@ -586,7 +586,7 @@ func (o *OKGroup) SendHTTPRequest(ctx context.Context, ep exchange.URL, httpMeth
 		headers := make(map[string]string)
 		headers["Content-Type"] = "application/json"
 		if authenticated {
-			var creds exchange.Credentials
+			var creds *exchange.Credentials
 			creds, err = o.GetCredentials(ctx)
 			if err != nil {
 				return nil, err

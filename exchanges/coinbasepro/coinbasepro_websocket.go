@@ -427,7 +427,8 @@ subscriptions:
 			channelsToSubscribe[i].Channel == "full" {
 			n := strconv.FormatInt(time.Now().Unix(), 10)
 			message := n + http.MethodGet + "/users/self/verify"
-			hmac, err := crypto.GetHMAC(crypto.HashSHA256,
+			var hmac []byte
+			hmac, err = crypto.GetHMAC(crypto.HashSHA256,
 				[]byte(message),
 				[]byte(creds.Secret))
 			if err != nil {

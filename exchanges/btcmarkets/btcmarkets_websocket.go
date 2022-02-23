@@ -359,7 +359,8 @@ func (b *BTCMarkets) Subscribe(channelsToSubscribe []stream.ChannelSubscription)
 		}
 		signTime := strconv.FormatInt(time.Now().UnixMilli(), 10)
 		strToSign := "/users/self/subscribe" + "\n" + signTime
-		tempSign, err := crypto.GetHMAC(crypto.HashSHA512,
+		var tempSign []byte
+		tempSign, err = crypto.GetHMAC(crypto.HashSHA512,
 			[]byte(strToSign),
 			[]byte(creds.Secret))
 		if err != nil {

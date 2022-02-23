@@ -127,7 +127,7 @@ func (c *COINUT) wsHandleData(respRaw []byte) error {
 	}
 	if strings.HasPrefix(string(respRaw), "[") {
 		var orders []wsOrderContainer
-		err := json.Unmarshal(respRaw, &orders)
+		err = json.Unmarshal(respRaw, &orders)
 		if err != nil {
 			return err
 		}
