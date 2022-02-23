@@ -603,6 +603,7 @@ func TestConnectionMonitorNoConnection(t *testing.T) {
 	if !errors.Is(err, errAlreadyRunning) {
 		t.Fatalf("received: %v, but expected: %v", err, errAlreadyRunning)
 	}
+	ws.setEnabled(false)
 }
 
 // TestSliceCopyDoesntImpactBoth logic test

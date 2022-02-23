@@ -342,9 +342,9 @@ func (w *Websocket) connectionMonitor() error {
 	if w.checkAndSetMonitorRunning() {
 		return errAlreadyRunning
 	}
-	w.m.Lock()
+	w.connectionMutex.RLock()
 	delay := w.connectionMonitorDelay
-	w.m.Unlock()
+	w.connectionMutex.RUnlock()
 
 	go func() {
 		timer := time.NewTimer(delay)
