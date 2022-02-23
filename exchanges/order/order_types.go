@@ -118,37 +118,40 @@ type ModifyResponse struct {
 // Each exchange has their own requirements, so not all fields
 // are required to be populated
 type Detail struct {
-	ImmediateOrCancel bool
-	HiddenOrder       bool
-	FillOrKill        bool
-	PostOnly          bool
-	Leverage          float64
-	Price             float64
-	Amount            float64
-	LimitPriceUpper   float64
-	LimitPriceLower   float64
-	TriggerPrice      float64
-	TargetAmount      float64
-	ExecutedAmount    float64
-	RemainingAmount   float64
-	Cost              float64
-	Fee               float64
-	Exchange          string
-	InternalOrderID   string
-	ID                string
-	ClientOrderID     string
-	AccountID         string
-	ClientID          string
-	WalletAddress     string
-	Type              Type
-	Side              Side
-	Status            Status
-	AssetType         asset.Item
-	Date              time.Time
-	CloseTime         time.Time
-	LastUpdated       time.Time
-	Pair              currency.Pair
-	Trades            []TradeHistory
+	ImmediateOrCancel    bool
+	HiddenOrder          bool
+	FillOrKill           bool
+	PostOnly             bool
+	Leverage             float64
+	Price                float64
+	Amount               float64
+	LimitPriceUpper      float64
+	LimitPriceLower      float64
+	TriggerPrice         float64
+	AverageExecutedPrice float64
+	TargetAmount         float64
+	ExecutedAmount       float64
+	RemainingAmount      float64
+	Cost                 float64
+	CostAsset            currency.Code
+	Fee                  float64
+	FeeAsset             currency.Code
+	Exchange             string
+	InternalOrderID      string
+	ID                   string
+	ClientOrderID        string
+	AccountID            string
+	ClientID             string
+	WalletAddress        string
+	Type                 Type
+	Side                 Side
+	Status               Status
+	AssetType            asset.Item
+	Date                 time.Time
+	CloseTime            time.Time
+	LastUpdated          time.Time
+	Pair                 currency.Pair
+	Trades               []TradeHistory
 }
 
 // Filter contains all properties an order can be filtered for

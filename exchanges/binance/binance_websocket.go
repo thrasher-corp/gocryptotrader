@@ -1,6 +1,7 @@
 package binance
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -51,7 +52,7 @@ func (b *Binance) WsConnect() error {
 	dialer.Proxy = http.ProxyFromEnvironment
 	var err error
 	if b.Websocket.CanUseAuthenticatedEndpoints() {
-		listenKey, err = b.GetWsAuthStreamKey()
+		listenKey, err = b.GetWsAuthStreamKey(context.TODO())
 		if err != nil {
 			b.Websocket.SetCanUseAuthenticatedEndpoints(false)
 			log.Errorf(log.ExchangeSys,
@@ -86,7 +87,9 @@ func (b *Binance) WsConnect() error {
 		Delay:             pingDelay,
 	})
 
+	b.Websocket.Wg.Add(1)
 	go b.wsReadData()
+
 	b.setupOrderbookManager()
 	return nil
 }
@@ -97,11 +100,22 @@ func (b *Binance) setupOrderbookManager() {
 			state: make(map[currency.Code]map[currency.Code]map[asset.Item]*update),
 			jobs:  make(chan job, maxWSOrderbookJobs),
 		}
-
-		for i := 0; i < maxWSOrderbookWorkers; i++ {
-			// 10 workers for synchronising book
-			b.SynchroniseWebsocketOrderbook()
+	} else {
+		// Change state on reconnect for initial sync.
+		for _, m1 := range b.obm.state {
+			for _, m2 := range m1 {
+				for _, update := range m2 {
+					update.initialSync = true
+					update.needsFetchingBook = true
+					update.lastUpdateID = 0
+				}
+			}
 		}
+	}
+
+	for i := 0; i < maxWSOrderbookWorkers; i++ {
+		// 10 workers for synchronising book
+		b.SynchroniseWebsocketOrderbook()
 	}
 }
 
@@ -117,7 +131,7 @@ func (b *Binance) KeepAuthKeyAlive() {
 			ticks.Stop()
 			return
 		case <-ticks.C:
-			err := b.MaintainWsAuthStreamKey()
+			err := b.MaintainWsAuthStreamKey(context.TODO())
 			if err != nil {
 				b.Websocket.DataHandler <- err
 				log.Warnf(log.ExchangeSys,
@@ -129,7 +143,6 @@ func (b *Binance) KeepAuthKeyAlive() {
 
 // wsReadData receives and passes on websocket messages for processing
 func (b *Binance) wsReadData() {
-	b.Websocket.Wg.Add(1)
 	defer b.Websocket.Wg.Done()
 
 	for {
@@ -207,57 +220,68 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 						b.Name,
 						err)
 				}
-				var orderID = strconv.FormatInt(data.Data.OrderID, 10)
-				oType, err := order.StringToOrderType(data.Data.OrderType)
-				if err != nil {
-					b.Websocket.DataHandler <- order.ClassificationError{
-						Exchange: b.Name,
-						OrderID:  orderID,
-						Err:      err,
-					}
+				averagePrice := 0.0
+				if data.Data.CumulativeFilledQuantity != 0 {
+					averagePrice = data.Data.CumulativeQuoteTransactedQuantity / data.Data.CumulativeFilledQuantity
 				}
-				var oSide order.Side
-				oSide, err = order.StringToOrderSide(data.Data.Side)
-				if err != nil {
-					b.Websocket.DataHandler <- order.ClassificationError{
-						Exchange: b.Name,
-						OrderID:  orderID,
-						Err:      err,
-					}
-				}
-				var oStatus order.Status
-				oStatus, err = stringToOrderStatus(data.Data.CurrentExecutionType)
-				if err != nil {
-					b.Websocket.DataHandler <- order.ClassificationError{
-						Exchange: b.Name,
-						OrderID:  orderID,
-						Err:      err,
-					}
-				}
-				var p currency.Pair
-				var a asset.Item
-				p, a, err = b.GetRequestFormattedPairAndAssetType(data.Data.Symbol)
+				remainingAmount := data.Data.Quantity - data.Data.CumulativeFilledQuantity
+				pair, assetType, err := b.GetRequestFormattedPairAndAssetType(data.Data.Symbol)
 				if err != nil {
 					return err
 				}
+				var feeAsset currency.Code
+				if data.Data.CommissionAsset != "" {
+					feeAsset = currency.NewCode(data.Data.CommissionAsset)
+				}
+				orderID := strconv.FormatInt(data.Data.OrderID, 10)
+				orderStatus, err := stringToOrderStatus(data.Data.OrderStatus)
+				if err != nil {
+					b.Websocket.DataHandler <- order.ClassificationError{
+						Exchange: b.Name,
+						OrderID:  orderID,
+						Err:      err,
+					}
+				}
 				clientOrderID := data.Data.ClientOrderID
-				if oStatus == order.Cancelled {
+				if orderStatus == order.Cancelled {
 					clientOrderID = data.Data.CancelledClientOrderID
 				}
+				orderType, err := order.StringToOrderType(data.Data.OrderType)
+				if err != nil {
+					b.Websocket.DataHandler <- order.ClassificationError{
+						Exchange: b.Name,
+						OrderID:  orderID,
+						Err:      err,
+					}
+				}
+				orderSide, err := order.StringToOrderSide(data.Data.Side)
+				if err != nil {
+					b.Websocket.DataHandler <- order.ClassificationError{
+						Exchange: b.Name,
+						OrderID:  orderID,
+						Err:      err,
+					}
+				}
 				b.Websocket.DataHandler <- &order.Detail{
-					Price:           data.Data.Price,
-					Amount:          data.Data.Quantity,
-					ExecutedAmount:  data.Data.CumulativeFilledQuantity,
-					RemainingAmount: data.Data.Quantity - data.Data.CumulativeFilledQuantity,
-					Exchange:        b.Name,
-					ID:              orderID,
-					Type:            oType,
-					Side:            oSide,
-					Status:          oStatus,
-					AssetType:       a,
-					Date:            data.Data.OrderCreationTime,
-					Pair:            p,
-					ClientOrderID:   clientOrderID,
+					Price:                data.Data.Price,
+					Amount:               data.Data.Quantity,
+					AverageExecutedPrice: averagePrice,
+					ExecutedAmount:       data.Data.CumulativeFilledQuantity,
+					RemainingAmount:      remainingAmount,
+					Cost:                 data.Data.CumulativeQuoteTransactedQuantity,
+					CostAsset:            pair.Quote,
+					Fee:                  data.Data.Commission,
+					FeeAsset:             feeAsset,
+					Exchange:             b.Name,
+					ID:                   orderID,
+					ClientOrderID:        clientOrderID,
+					Type:                 orderType,
+					Side:                 orderSide,
+					Status:               orderStatus,
+					AssetType:            assetType,
+					Date:                 data.Data.OrderCreationTime,
+					LastUpdated:          data.Data.TransactionTime,
+					Pair:                 pair,
 				}
 				return nil
 			case "listStatus":
@@ -294,9 +318,13 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 
 				switch streamType[1] {
 				case "trade":
-					if !b.IsSaveTradeDataEnabled() {
+					saveTradeData := b.IsSaveTradeDataEnabled()
+
+					if !saveTradeData &&
+						!b.IsTradeFeedEnabled() {
 						return nil
 					}
+
 					var t TradeStream
 					err := json.Unmarshal(rawData, &t)
 					if err != nil {
@@ -324,15 +352,16 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 						return err
 					}
 
-					return b.AddTradesToBuffer(trade.Data{
-						CurrencyPair: pair,
-						Timestamp:    t.TimeStamp,
-						Price:        price,
-						Amount:       amount,
-						Exchange:     b.Name,
-						AssetType:    asset.Spot,
-						TID:          strconv.FormatInt(t.TradeID, 10),
-					})
+					return b.Websocket.Trade.Update(saveTradeData,
+						trade.Data{
+							CurrencyPair: pair,
+							Timestamp:    t.TimeStamp,
+							Price:        price,
+							Amount:       amount,
+							Exchange:     b.Name,
+							AssetType:    asset.Spot,
+							TID:          strconv.FormatInt(t.TradeID, 10),
+						})
 				case "ticker":
 					var t TickerStream
 					err := json.Unmarshal(rawData, &t)
@@ -426,12 +455,16 @@ func stringToOrderStatus(status string) (order.Status, error) {
 	switch status {
 	case "NEW":
 		return order.New, nil
+	case "PARTIALLY_FILLED":
+		return order.PartiallyFilled, nil
+	case "FILLED":
+		return order.Filled, nil
 	case "CANCELED":
 		return order.Cancelled, nil
+	case "PENDING_CANCEL":
+		return order.PendingCancel, nil
 	case "REJECTED":
 		return order.Rejected, nil
-	case "TRADE":
-		return order.PartiallyFilled, nil
 	case "EXPIRED":
 		return order.Expired, nil
 	default:
@@ -440,11 +473,12 @@ func stringToOrderStatus(status string) (order.Status, error) {
 }
 
 // SeedLocalCache seeds depth data
-func (b *Binance) SeedLocalCache(p currency.Pair) error {
-	ob, err := b.GetOrderBook(OrderBookDataRequestParams{
-		Symbol: p,
-		Limit:  1000,
-	})
+func (b *Binance) SeedLocalCache(ctx context.Context, p currency.Pair) error {
+	ob, err := b.GetOrderBook(ctx,
+		OrderBookDataRequestParams{
+			Symbol: p,
+			Limit:  1000,
+		})
 	if err != nil {
 		return err
 	}
@@ -647,20 +681,59 @@ func (b *Binance) ProcessUpdate(cp currency.Pair, a asset.Item, ws *WebsocketDep
 // applyBufferUpdate applies the buffer to the orderbook or initiates a new
 // orderbook sync by the REST protocol which is off handed to go routine.
 func (b *Binance) applyBufferUpdate(pair currency.Pair) error {
-	fetching, err := b.obm.checkIsFetchingBook(pair)
+	fetching, needsFetching, err := b.obm.handleFetchingBook(pair)
 	if err != nil {
 		return err
 	}
 	if fetching {
 		return nil
 	}
-
-	recent, err := b.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
-	if err != nil || (recent.Asks == nil && recent.Bids == nil) {
+	if needsFetching {
+		if b.Verbose {
+			log.Debugf(log.WebsocketMgr, "%s Orderbook: Fetching via REST\n", b.Name)
+		}
 		return b.obm.fetchBookViaREST(pair)
 	}
 
-	return b.obm.checkAndProcessUpdate(b.ProcessUpdate, pair, recent)
+	recent, err := b.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
+	if err != nil {
+		log.Errorf(
+			log.WebsocketMgr,
+			"%s error fetching recent orderbook when applying updates: %s\n",
+			b.Name,
+			err)
+	}
+
+	if recent != nil {
+		err = b.obm.checkAndProcessUpdate(b.ProcessUpdate, pair, recent)
+		if err != nil {
+			log.Errorf(
+				log.WebsocketMgr,
+				"%s error processing update - initiating new orderbook sync via REST: %s\n",
+				b.Name,
+				err)
+			err = b.obm.setNeedsFetchingBook(pair)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// setNeedsFetchingBook completes the book fetching initiation.
+func (o *orderbookManager) setNeedsFetchingBook(pair currency.Pair) error {
+	o.Lock()
+	defer o.Unlock()
+	state, ok := o.state[pair.Base][pair.Quote][asset.Spot]
+	if !ok {
+		return fmt.Errorf("could not match pair %s and asset type %s in hash table",
+			pair,
+			asset.Spot)
+	}
+	state.needsFetchingBook = true
+	return nil
 }
 
 // SynchroniseWebsocketOrderbook synchronises full orderbook for currency pair
@@ -671,6 +744,14 @@ func (b *Binance) SynchroniseWebsocketOrderbook() {
 		defer b.Websocket.Wg.Done()
 		for {
 			select {
+			case <-b.Websocket.ShutdownC:
+				for {
+					select {
+					case <-b.obm.jobs:
+					default:
+						return
+					}
+				}
 			case j := <-b.obm.jobs:
 				err := b.processJob(j.Pair)
 				if err != nil {
@@ -678,8 +759,6 @@ func (b *Binance) SynchroniseWebsocketOrderbook() {
 						"%s processing websocket orderbook error %v",
 						b.Name, err)
 				}
-			case <-b.Websocket.ShutdownC:
-				return
 			}
 		}
 	}()
@@ -687,7 +766,7 @@ func (b *Binance) SynchroniseWebsocketOrderbook() {
 
 // processJob fetches and processes orderbook updates
 func (b *Binance) processJob(p currency.Pair) error {
-	err := b.SeedLocalCache(p)
+	err := b.SeedLocalCache(context.TODO(), p)
 	if err != nil {
 		return fmt.Errorf("%s %s seeding local cache for orderbook error: %v",
 			p, asset.Spot, err)
@@ -747,9 +826,10 @@ func (o *orderbookManager) stageWsUpdate(u *WebsocketDepthStream, pair currency.
 		state = &update{
 			// 100ms update assuming we might have up to a 10 second delay.
 			// There could be a potential 100 updates for the currency.
-			buffer:       make(chan *WebsocketDepthStream, maxWSUpdateBuffer),
-			fetchingBook: false,
-			initialSync:  true,
+			buffer:            make(chan *WebsocketDepthStream, maxWSUpdateBuffer),
+			fetchingBook:      false,
+			initialSync:       true,
+			needsFetchingBook: true,
 		}
 		m2[a] = state
 	}
@@ -773,19 +853,30 @@ func (o *orderbookManager) stageWsUpdate(u *WebsocketDepthStream, pair currency.
 	}
 }
 
-// checkIsFetchingBook checks status if the book is currently being via the REST
-// protocol.
-func (o *orderbookManager) checkIsFetchingBook(pair currency.Pair) (bool, error) {
+// handleFetchingBook checks if a full book is being fetched or needs to be
+// fetched
+func (o *orderbookManager) handleFetchingBook(pair currency.Pair) (fetching, needsFetching bool, err error) {
 	o.Lock()
 	defer o.Unlock()
 	state, ok := o.state[pair.Base][pair.Quote][asset.Spot]
 	if !ok {
 		return false,
+			false,
 			fmt.Errorf("check is fetching book cannot match currency pair %s asset type %s",
 				pair,
 				asset.Spot)
 	}
-	return state.fetchingBook, nil
+
+	if state.fetchingBook {
+		return true, false, nil
+	}
+
+	if state.needsFetchingBook {
+		state.needsFetchingBook = false
+		state.fetchingBook = true
+		return false, true, nil
+	}
+	return false, false, nil
 }
 
 // stopFetchingBook completes the book fetching.
@@ -945,5 +1036,25 @@ bufferEmpty:
 	// disable rest orderbook synchronisation
 	_ = o.stopFetchingBook(pair)
 	_ = o.completeInitialSync(pair)
+	_ = o.stopNeedsFetchingBook(pair)
+	return nil
+}
+
+// stopNeedsFetchingBook completes the book fetching initiation.
+func (o *orderbookManager) stopNeedsFetchingBook(pair currency.Pair) error {
+	o.Lock()
+	defer o.Unlock()
+	state, ok := o.state[pair.Base][pair.Quote][asset.Spot]
+	if !ok {
+		return fmt.Errorf("could not match pair %s and asset type %s in hash table",
+			pair,
+			asset.Spot)
+	}
+	if !state.needsFetchingBook {
+		return fmt.Errorf("needs fetching book already set to false for %s %s",
+			pair,
+			asset.Spot)
+	}
+	state.needsFetchingBook = false
 	return nil
 }

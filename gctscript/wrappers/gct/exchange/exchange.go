@@ -1,8 +1,8 @@
 package exchange
 
 import (
+	"context"
 	"errors"
-	"fmt"
 	"sort"
 	"strconv"
 	"time"
@@ -12,6 +12,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -30,12 +31,7 @@ func (e Exchange) Exchanges(enabledOnly bool) []string {
 
 // GetExchange returns IBotExchange for exchange or error if exchange is not found
 func (e Exchange) GetExchange(exch string) (exchange.IBotExchange, error) {
-	ex := engine.Bot.GetExchangeByName(exch)
-	if ex == nil {
-		return nil, fmt.Errorf("%v exchange not found", exch)
-	}
-
-	return ex, nil
+	return engine.Bot.GetExchangeByName(exch)
 }
 
 // IsEnabled returns if requested exchange is enabled or disabled
@@ -49,18 +45,18 @@ func (e Exchange) IsEnabled(exch string) bool {
 }
 
 // Orderbook returns current orderbook requested exchange, pair and asset
-func (e Exchange) Orderbook(exch string, pair currency.Pair, item asset.Item) (*orderbook.Base, error) {
-	return engine.Bot.GetSpecificOrderbook(pair, exch, item)
+func (e Exchange) Orderbook(ctx context.Context, exch string, pair currency.Pair, item asset.Item) (*orderbook.Base, error) {
+	return engine.Bot.GetSpecificOrderbook(ctx, pair, exch, item)
 }
 
 // Ticker returns ticker for provided currency pair & asset type
-func (e Exchange) Ticker(exch string, pair currency.Pair, item asset.Item) (*ticker.Price, error) {
+func (e Exchange) Ticker(ctx context.Context, exch string, pair currency.Pair, item asset.Item) (*ticker.Price, error) {
 	ex, err := e.GetExchange(exch)
 	if err != nil {
 		return nil, err
 	}
 
-	return ex.FetchTicker(pair, item)
+	return ex.FetchTicker(ctx, pair, item)
 }
 
 // Pairs returns either all or enabled currency pairs
@@ -82,8 +78,8 @@ func (e Exchange) Pairs(exch string, enabledOnly bool, item asset.Item) (*curren
 }
 
 // QueryOrder returns details of a valid exchange order
-func (e Exchange) QueryOrder(exch, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
-	o, err := engine.Bot.OrderManager.GetOrderInfo(exch, orderID, pair, assetType)
+func (e Exchange) QueryOrder(ctx context.Context, exch, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
+	o, err := engine.Bot.OrderManager.GetOrderInfo(ctx, exch, orderID, pair, assetType)
 	if err != nil {
 		return nil, err
 	}
@@ -92,8 +88,8 @@ func (e Exchange) QueryOrder(exch, orderID string, pair currency.Pair, assetType
 }
 
 // SubmitOrder submit new order on exchange
-func (e Exchange) SubmitOrder(submit *order.Submit) (*order.SubmitResponse, error) {
-	r, err := engine.Bot.OrderManager.Submit(submit)
+func (e Exchange) SubmitOrder(ctx context.Context, submit *order.Submit) (*order.SubmitResponse, error) {
+	r, err := engine.Bot.OrderManager.Submit(ctx, submit)
 	if err != nil {
 		return nil, err
 	}
@@ -102,8 +98,8 @@ func (e Exchange) SubmitOrder(submit *order.Submit) (*order.SubmitResponse, erro
 }
 
 // CancelOrder wrapper to cancel order on exchange
-func (e Exchange) CancelOrder(exch, orderID string, cp currency.Pair, a asset.Item) (bool, error) {
-	orderDetails, err := e.QueryOrder(exch, orderID, cp, a)
+func (e Exchange) CancelOrder(ctx context.Context, exch, orderID string, cp currency.Pair, a asset.Item) (bool, error) {
+	orderDetails, err := e.QueryOrder(ctx, exch, orderID, cp, a)
 	if err != nil {
 		return false, err
 	}
@@ -117,7 +113,7 @@ func (e Exchange) CancelOrder(exch, orderID string, cp currency.Pair, a asset.It
 		Exchange:  exch,
 	}
 
-	err = engine.Bot.OrderManager.Cancel(cancel)
+	err = engine.Bot.OrderManager.Cancel(ctx, cancel)
 	if err != nil {
 		return false, err
 	}
@@ -125,13 +121,13 @@ func (e Exchange) CancelOrder(exch, orderID string, cp currency.Pair, a asset.It
 }
 
 // AccountInformation returns account information (balance etc) for requested exchange
-func (e Exchange) AccountInformation(exch string, assetType asset.Item) (account.Holdings, error) {
+func (e Exchange) AccountInformation(ctx context.Context, exch string, assetType asset.Item) (account.Holdings, error) {
 	ex, err := e.GetExchange(exch)
 	if err != nil {
 		return account.Holdings{}, err
 	}
 
-	accountInfo, err := ex.FetchAccountInfo(assetType)
+	accountInfo, err := ex.FetchAccountInfo(ctx, assetType)
 	if err != nil {
 		return account.Holdings{}, err
 	}
@@ -140,16 +136,16 @@ func (e Exchange) AccountInformation(exch string, assetType asset.Item) (account
 }
 
 // DepositAddress gets the address required to deposit funds for currency type
-func (e Exchange) DepositAddress(exch string, currencyCode currency.Code) (out string, err error) {
+func (e Exchange) DepositAddress(exch, chain string, currencyCode currency.Code) (depositAddr *deposit.Address, err error) {
 	if currencyCode.IsEmpty() {
-		err = errors.New("currency code is empty")
-		return
+		return nil, errors.New("currency code is empty")
 	}
-	return engine.Bot.DepositAddressManager.GetDepositAddressByExchangeAndCurrency(exch, currencyCode)
+	resp, err := engine.Bot.DepositAddressManager.GetDepositAddressByExchangeAndCurrency(exch, chain, currencyCode)
+	return &deposit.Address{Address: resp.Address, Tag: resp.Tag}, err
 }
 
 // WithdrawalFiatFunds withdraw funds from exchange to requested fiat source
-func (e Exchange) WithdrawalFiatFunds(bankAccountID string, request *withdraw.Request) (string, error) {
+func (e Exchange) WithdrawalFiatFunds(ctx context.Context, bankAccountID string, request *withdraw.Request) (string, error) {
 	ex, err := e.GetExchange(request.Exchange)
 	if err != nil {
 		return "", err
@@ -182,7 +178,7 @@ func (e Exchange) WithdrawalFiatFunds(bankAccountID string, request *withdraw.Re
 	request.Fiat.Bank.SWIFTCode = v.SWIFTCode
 	request.Fiat.Bank.IBAN = v.IBAN
 
-	resp, err := engine.Bot.WithdrawManager.SubmitWithdrawal(request)
+	resp, err := engine.Bot.WithdrawManager.SubmitWithdrawal(ctx, request)
 	if err != nil {
 		return "", err
 	}
@@ -190,7 +186,7 @@ func (e Exchange) WithdrawalFiatFunds(bankAccountID string, request *withdraw.Re
 }
 
 // WithdrawalCryptoFunds withdraw funds from exchange to requested Crypto source
-func (e Exchange) WithdrawalCryptoFunds(request *withdraw.Request) (string, error) {
+func (e Exchange) WithdrawalCryptoFunds(ctx context.Context, request *withdraw.Request) (string, error) {
 	// Checks if exchange is enabled or not so we don't call OTP generation
 	_, err := e.GetExchange(request.Exchange)
 	if err != nil {
@@ -205,7 +201,7 @@ func (e Exchange) WithdrawalCryptoFunds(request *withdraw.Request) (string, erro
 		request.OneTimePassword = v
 	}
 
-	resp, err := engine.Bot.WithdrawManager.SubmitWithdrawal(request)
+	resp, err := engine.Bot.WithdrawManager.SubmitWithdrawal(ctx, request)
 	if err != nil {
 		return "", err
 	}
@@ -213,12 +209,12 @@ func (e Exchange) WithdrawalCryptoFunds(request *withdraw.Request) (string, erro
 }
 
 // OHLCV returns open high low close volume candles for requested exchange/pair/asset/start & end time
-func (e Exchange) OHLCV(exch string, pair currency.Pair, item asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+func (e Exchange) OHLCV(ctx context.Context, exch string, pair currency.Pair, item asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	ex, err := e.GetExchange(exch)
 	if err != nil {
 		return kline.Item{}, err
 	}
-	ret, err := ex.GetHistoricCandlesExtended(pair, item, start, end, interval)
+	ret, err := ex.GetHistoricCandlesExtended(ctx, pair, item, start, end, interval)
 	if err != nil {
 		return kline.Item{}, err
 	}

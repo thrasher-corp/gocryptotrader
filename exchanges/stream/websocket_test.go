@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 )
@@ -52,15 +53,21 @@ type testResponse struct {
 }
 
 var defaultSetup = &WebsocketSetup{
-	Enabled:                          true,
-	AuthenticatedWebsocketAPISupport: true,
-	WebsocketTimeout:                 time.Second * 5,
-	DefaultURL:                       "testDefaultURL",
-	ExchangeName:                     "exchangeName",
-	RunningURL:                       "wss://testRunningURL",
-	Connector:                        func() error { return nil },
-	Subscriber:                       func(_ []ChannelSubscription) error { return nil },
-	UnSubscriber:                     func(_ []ChannelSubscription) error { return nil },
+	ExchangeConfig: &config.Exchange{
+		Features: &config.FeaturesConfig{
+			Enabled: config.FeaturesEnabledConfig{Websocket: true},
+		},
+		API: config.APIConfig{
+			AuthenticatedWebsocketSupport: true,
+		},
+		WebsocketTrafficTimeout: time.Second * 5,
+		Name:                    "exchangeName",
+	},
+	DefaultURL:   "testDefaultURL",
+	RunningURL:   "wss://testRunningURL",
+	Connector:    func() error { return nil },
+	Subscriber:   func(_ []ChannelSubscription) error { return nil },
+	Unsubscriber: func(_ []ChannelSubscription) error { return nil },
 	GenerateSubscriptions: func() ([]ChannelSubscription, error) {
 		return []ChannelSubscription{
 			{Channel: "TestSub"},
@@ -90,79 +97,113 @@ func TestSetup(t *testing.T) {
 	t.Parallel()
 	var w *Websocket
 	err := w.Setup(nil)
-	if err == nil {
-		t.Fatal("error cannot be nil")
+	if !errors.Is(err, errWebsocketIsNil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errWebsocketIsNil)
 	}
+
 	w = &Websocket{DataHandler: make(chan interface{})}
 	err = w.Setup(nil)
-	if err == nil {
-		t.Fatal("error cannot be nil")
+	if !errors.Is(err, errWebsocketSetupIsNil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errWebsocketSetupIsNil)
 	}
-	w.Init = true
+
 	websocketSetup := &WebsocketSetup{}
 	err = w.Setup(websocketSetup)
-	if err == nil {
-		t.Fatal("error cannot be nil")
+	if !errors.Is(err, errWebsocketAlreadyInitialised) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errWebsocketAlreadyInitialised)
 	}
+
+	w.Init = true
+	err = w.Setup(websocketSetup)
+	if !errors.Is(err, errExchangeConfigIsNil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errExchangeConfigIsNil)
+	}
+
+	websocketSetup.ExchangeConfig = &config.Exchange{}
+	err = w.Setup(websocketSetup)
+	if !errors.Is(err, errExchangeConfigNameUnset) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errExchangeConfigNameUnset)
+	}
+	websocketSetup.ExchangeConfig.Name = "testname"
+
+	err = w.Setup(websocketSetup)
+	if !errors.Is(err, errWebsocketFeaturesIsUnset) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errWebsocketFeaturesIsUnset)
+	}
+
 	websocketSetup.Features = &protocol.Features{}
 	err = w.Setup(websocketSetup)
-	if err == nil {
-		t.Fatal("error cannot be nil")
+	if !errors.Is(err, errConfigFeaturesIsNil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errConfigFeaturesIsNil)
 	}
-	websocketSetup.Features.Subscribe = true
+
+	websocketSetup.ExchangeConfig.Features = &config.FeaturesConfig{}
 	err = w.Setup(websocketSetup)
-	if err == nil {
-		t.Fatal("error cannot be nil")
+	if !errors.Is(err, errWebsocketConnectorUnset) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errWebsocketConnectorUnset)
 	}
+
+	websocketSetup.Connector = func() error { return nil }
+	err = w.Setup(websocketSetup)
+	if !errors.Is(err, errWebsocketSubscriberUnset) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errWebsocketSubscriberUnset)
+	}
+
 	websocketSetup.Subscriber = func([]ChannelSubscription) error { return nil }
 	websocketSetup.Features.Unsubscribe = true
 	err = w.Setup(websocketSetup)
-	if err == nil {
-		t.Fatal("error cannot be nil")
+	if !errors.Is(err, errWebsocketUnsubscriberUnset) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errWebsocketUnsubscriberUnset)
 	}
-	websocketSetup.UnSubscriber = func([]ChannelSubscription) error { return nil }
+
+	websocketSetup.Unsubscriber = func([]ChannelSubscription) error { return nil }
 	err = w.Setup(websocketSetup)
-	if err == nil {
-		t.Fatal("error cannot be nil")
+	if !errors.Is(err, errWebsocketSubscriptionsGeneratorUnset) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errWebsocketSubscriptionsGeneratorUnset)
 	}
+
+	websocketSetup.GenerateSubscriptions = func() ([]ChannelSubscription, error) { return nil, nil }
+	err = w.Setup(websocketSetup)
+	if !errors.Is(err, errDefaultURLIsEmpty) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errDefaultURLIsEmpty)
+	}
+
 	websocketSetup.DefaultURL = "test"
 	err = w.Setup(websocketSetup)
-	if err == nil {
-		t.Fatal("error cannot be nil")
+	if !errors.Is(err, errRunningURLIsEmpty) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errRunningURLIsEmpty)
 	}
+
 	websocketSetup.RunningURL = "http://www.google.com"
 	err = w.Setup(websocketSetup)
-	if err == nil {
-		t.Fatal("error cannot be nil")
+	if !errors.Is(err, errInvalidWebsocketURL) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidWebsocketURL)
 	}
+
 	websocketSetup.RunningURL = "wss://www.google.com"
 	websocketSetup.RunningURLAuth = "http://www.google.com"
 	err = w.Setup(websocketSetup)
-	if err == nil {
-		t.Fatal("error cannot be nil")
+	if !errors.Is(err, errInvalidWebsocketURL) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidWebsocketURL)
 	}
+
 	websocketSetup.RunningURLAuth = "wss://www.google.com"
 	err = w.Setup(websocketSetup)
-	if err == nil {
-		t.Fatal("error cannot be nil")
+	if !errors.Is(err, errInvalidTrafficTimeout) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidTrafficTimeout)
 	}
-	websocketSetup.ExchangeName = "testname"
+
+	websocketSetup.ExchangeConfig.WebsocketTrafficTimeout = time.Minute
 	err = w.Setup(websocketSetup)
-	if err == nil {
-		t.Fatal("error cannot be nil")
-	}
-	websocketSetup.WebsocketTimeout = time.Minute
-	err = w.Setup(websocketSetup)
-	if err != nil {
-		t.Fatal(err)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v but expected: %v", err, nil)
 	}
 }
 
 func TestTrafficMonitorTimeout(t *testing.T) {
 	t.Parallel()
 	ws := *New()
-	err := ws.Setup(defaultSetup)
-	if err != nil {
+	if err := ws.Setup(defaultSetup); err != nil {
 		t.Fatal(err)
 	}
 	ws.trafficTimeout = time.Second * 2
@@ -289,11 +330,15 @@ func TestWebsocket(t *testing.T) {
 	t.Parallel()
 	wsInit := Websocket{}
 	err := wsInit.Setup(&WebsocketSetup{
-		ExchangeName: "test",
-		Enabled:      true,
+		ExchangeConfig: &config.Exchange{
+			Features: &config.FeaturesConfig{
+				Enabled: config.FeaturesEnabledConfig{Websocket: true},
+			},
+			Name: "test",
+		},
 	})
-	if err != nil && err.Error() != "test Websocket already initialised" {
-		t.Errorf("Expected 'test Websocket already initialised', received %v", err)
+	if !errors.Is(err, errWebsocketAlreadyInitialised) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errWebsocketAlreadyInitialised)
 	}
 
 	ws := *New()
@@ -544,23 +589,33 @@ func TestConnectionMonitorNoConnection(t *testing.T) {
 	ws.DataHandler = make(chan interface{}, 1)
 	ws.ShutdownC = make(chan struct{}, 1)
 	ws.exchangeName = "hello"
-	ws.trafficTimeout = 1
 	ws.Wg = &sync.WaitGroup{}
-	ws.connectionMonitor()
+	ws.enabled = true
+	err := ws.connectionMonitor()
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v, but expected: %v", err, nil)
+	}
 	if !ws.IsConnectionMonitorRunning() {
 		t.Fatal("Should not have exited")
 	}
-	ws.connectionMonitor() // This one should exit
+	err = ws.connectionMonitor()
+	if !errors.Is(err, errAlreadyRunning) {
+		t.Fatalf("received: %v, but expected: %v", err, errAlreadyRunning)
+	}
 	if !ws.IsConnectionMonitorRunning() {
 		t.Fatal("Should not have exited")
 	}
-	time.Sleep(time.Millisecond * 100)
+	ws.setEnabled(false)
+	time.Sleep(time.Second * 2)
 	if ws.IsConnectionMonitorRunning() {
 		t.Fatal("Should have exited")
 	}
 	ws.setConnectedStatus(true)  // attempt shutdown when not enabled
 	ws.setConnectingStatus(true) // throw a spanner in the works
-	ws.connectionMonitor()
+	err = ws.connectionMonitor()
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v, but expected: %v", err, nil)
+	}
 	if !ws.IsConnectionMonitorRunning() {
 		t.Fatal("Should not have exited")
 	}
@@ -634,6 +689,7 @@ func TestDial(t *testing.T) {
 	for i := range testCases {
 		testData := &testCases[i]
 		t.Run(testData.WC.ExchangeName, func(t *testing.T) {
+			t.Parallel()
 			if testData.WC.ProxyURL != "" && !useProxyTests {
 				t.Skip("Proxy testing not enabled, skipping")
 			}
@@ -681,6 +737,7 @@ func TestSendMessage(t *testing.T) {
 	for i := range testCases {
 		testData := &testCases[i]
 		t.Run(testData.WC.ExchangeName, func(t *testing.T) {
+			t.Parallel()
 			if testData.WC.ProxyURL != "" && !useProxyTests {
 				t.Skip("Proxy testing not enabled, skipping")
 			}
@@ -721,7 +778,7 @@ func TestSendMessageWithResponse(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	go readMessages(wc, t)
+	go readMessages(t, wc)
 
 	request := testRequest{
 		Event: "subscribe",
@@ -739,7 +796,8 @@ func TestSendMessageWithResponse(t *testing.T) {
 }
 
 // readMessages helper func
-func readMessages(wc *WebsocketConnection, t *testing.T) {
+func readMessages(t *testing.T, wc *WebsocketConnection) {
+	t.Helper()
 	timer := time.NewTimer(20 * time.Second)
 	for {
 		select {
@@ -1083,6 +1141,9 @@ func TestFlushChannels(t *testing.T) {
 	// Disable pair and flush system
 	newgen.EnabledPairs = []currency.Pair{
 		currency.NewPair(currency.BTC, currency.AUD)}
+	web.GenerateSubs = func() ([]ChannelSubscription, error) {
+		return []ChannelSubscription{{Channel: "test"}}, nil
+	}
 	err = web.FlushChannels()
 	if err != nil {
 		t.Fatal(err)
@@ -1181,7 +1242,12 @@ func TestEnable(t *testing.T) {
 		connector: connect,
 		Wg:        new(sync.WaitGroup),
 		ShutdownC: make(chan struct{}),
+		GenerateSubs: func() ([]ChannelSubscription, error) {
+			return []ChannelSubscription{{Channel: "test"}}, nil
+		},
+		Subscriber: func(cs []ChannelSubscription) error { return nil },
 	}
+
 	err := web.Enable()
 	if err != nil {
 		t.Fatal(err)

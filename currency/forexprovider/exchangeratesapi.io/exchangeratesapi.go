@@ -16,22 +16,24 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
+var errAPIKeyNotSet = errors.New("API key must be set")
+
 // Setup sets appropriate values for CurrencyLayer
 func (e *ExchangeRates) Setup(config base.Settings) error {
 	if config.APIKey == "" {
-		return errors.New("API key must be set")
+		return errAPIKeyNotSet
 	}
 	e.Name = config.Name
 	e.Enabled = config.Enabled
-	e.RESTPollingDelay = config.RESTPollingDelay
 	e.Verbose = config.Verbose
 	e.PrimaryProvider = config.PrimaryProvider
 	e.APIKey = config.APIKey
 	e.APIKeyLvl = config.APIKeyLvl
-	e.Requester = request.New(e.Name,
+	var err error
+	e.Requester, err = request.New(e.Name,
 		common.NewHTTPClientWithTimeout(base.DefaultTimeOut),
 		request.WithLimiter(request.NewBasicRateLimit(rateLimitInterval, requestRate)))
-	return nil
+	return err
 }
 
 func (e *ExchangeRates) cleanCurrencies(baseCurrency, symbols string) string {
@@ -261,11 +263,14 @@ func (e *ExchangeRates) SendHTTPRequest(endPoint string, values url.Values, resu
 		protocolScheme = "http://"
 	}
 	path := common.EncodeURLValues(protocolScheme+exchangeRatesAPI+"/v1/"+endPoint, values)
-	err := e.Requester.SendPayload(context.Background(), &request.Item{
+	item := &request.Item{
 		Method:  http.MethodGet,
 		Path:    path,
 		Result:  result,
 		Verbose: e.Verbose,
+	}
+	err := e.Requester.SendPayload(context.TODO(), request.Unset, func() (*request.Item, error) {
+		return item, nil
 	})
 	if err != nil {
 		return fmt.Errorf("exchangeRatesAPI: SendHTTPRequest error %s with path %s",

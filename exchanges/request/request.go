@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -20,34 +19,89 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
+var (
+	// ErrRequestSystemIsNil defines and error if the request system has not
+	// been set up yet.
+	ErrRequestSystemIsNil     = errors.New("request system is nil")
+	errMaxRequestJobs         = errors.New("max request jobs reached")
+	errRequestFunctionIsNil   = errors.New("request function is nil")
+	errRequestItemNil         = errors.New("request item is nil")
+	errInvalidPath            = errors.New("invalid path")
+	errHeaderResponseMapIsNil = errors.New("header response map is nil")
+	errFailedToRetryRequest   = errors.New("failed to retry request")
+	errContextRequired        = errors.New("context is required")
+	errTransportNotSet        = errors.New("transport not set, cannot set timeout")
+)
+
 // New returns a new Requester
-func New(name string, httpRequester *http.Client, opts ...RequesterOption) *Requester {
+func New(name string, httpRequester *http.Client, opts ...RequesterOption) (*Requester, error) {
+	protectedClient, err := newProtectedClient(httpRequester)
+	if err != nil {
+		return nil, fmt.Errorf("cannot set up a new requester for %s: %w", name, err)
+	}
 	r := &Requester{
-		HTTPClient:  httpRequester,
-		Name:        name,
+		_HTTPClient: protectedClient,
+		name:        name,
 		backoff:     DefaultBackoff(),
 		retryPolicy: DefaultRetryPolicy,
 		maxRetries:  MaxRetryAttempts,
 		timedLock:   timedmutex.NewTimedMutex(DefaultMutexLockTimeout),
+		reporter:    globalReporter,
 	}
 
 	for _, o := range opts {
 		o(r)
 	}
 
-	return r
+	return r, nil
 }
 
 // SendPayload handles sending HTTP/HTTPS requests
-func (r *Requester) SendPayload(ctx context.Context, i *Item) error {
+func (r *Requester) SendPayload(ctx context.Context, ep EndpointLimit, newRequest Generate) error {
+	if r == nil {
+		return ErrRequestSystemIsNil
+	}
+
+	if ctx == nil {
+		return errContextRequired
+	}
+
+	defer r.timedLock.UnlockIfLocked()
+
+	if newRequest == nil {
+		return errRequestFunctionIsNil
+	}
+
+	if atomic.LoadInt32(&r.jobs) >= MaxRequestJobs {
+		return errMaxRequestJobs
+	}
+
+	atomic.AddInt32(&r.jobs, 1)
+	err := r.doRequest(ctx, ep, newRequest)
+	atomic.AddInt32(&r.jobs, -1)
+	return err
+}
+
+// validateRequest validates the requester item fields
+func (i *Item) validateRequest(ctx context.Context, r *Requester) (*http.Request, error) {
+	if i == nil {
+		return nil, errRequestItemNil
+	}
+
+	if i.Path == "" {
+		return nil, errInvalidPath
+	}
+
+	if i.HeaderResponse != nil && *i.HeaderResponse == nil {
+		return nil, errHeaderResponseMapIsNil
+	}
+
 	if !i.NonceEnabled {
 		r.timedLock.LockForDuration()
 	}
-
-	req, err := i.validateRequest(ctx, r)
+	req, err := http.NewRequestWithContext(ctx, i.Method, i.Path, i.Body)
 	if err != nil {
-		r.timedLock.UnlockIfLocked()
-		return err
+		return nil, err
 	}
 
 	if i.HTTPDebugging {
@@ -56,95 +110,62 @@ func (r *Requester) SendPayload(ctx context.Context, i *Item) error {
 		log.Debugf(log.RequestSys, "DumpRequest:\n%s", dump)
 	}
 
-	if atomic.LoadInt32(&r.jobs) >= MaxRequestJobs {
-		r.timedLock.UnlockIfLocked()
-		return errors.New("max request jobs reached")
-	}
-
-	atomic.AddInt32(&r.jobs, 1)
-	err = r.doRequest(req, i)
-	atomic.AddInt32(&r.jobs, -1)
-	r.timedLock.UnlockIfLocked()
-
-	return err
-}
-
-// validateRequest validates the requester item fields
-func (i *Item) validateRequest(ctx context.Context, r *Requester) (*http.Request, error) {
-	if r == nil || r.Name == "" {
-		return nil, errors.New("not initialised, SetDefaults() called before making request?")
-	}
-
-	if i == nil {
-		return nil, errors.New("request item cannot be nil")
-	}
-
-	if i.Path == "" {
-		return nil, errors.New("invalid path")
-	}
-
-	if i.HeaderResponse != nil {
-		if *i.HeaderResponse == nil {
-			return nil, errors.New("header response is nil")
-		}
-	}
-
-	req, err := http.NewRequestWithContext(ctx, i.Method, i.Path, i.Body)
-	if err != nil {
-		return nil, err
-	}
-
 	for k, v := range i.Headers {
 		req.Header.Add(k, v)
 	}
 
-	if r.UserAgent != "" && req.Header.Get(userAgent) == "" {
-		req.Header.Add(userAgent, r.UserAgent)
+	if r.userAgent != "" && req.Header.Get(userAgent) == "" {
+		req.Header.Add(userAgent, r.userAgent)
 	}
 
 	return req, nil
 }
 
 // DoRequest performs a HTTP/HTTPS request with the supplied params
-func (r *Requester) doRequest(req *http.Request, p *Item) error {
-	if p == nil {
-		return errors.New("request item cannot be nil")
-	}
-
-	if p.Verbose {
-		log.Debugf(log.RequestSys,
-			"%s request path: %s",
-			r.Name,
-			p.Path)
-
-		for k, d := range req.Header {
-			log.Debugf(log.RequestSys,
-				"%s request header [%s]: %s",
-				r.Name,
-				k,
-				d)
-		}
-		log.Debugf(log.RequestSys,
-			"%s request type: %s",
-			r.Name,
-			req.Method)
-
-		if p.Body != nil {
-			log.Debugf(log.RequestSys,
-				"%s request body: %v",
-				r.Name,
-				p.Body)
-		}
-	}
-
+func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRequest Generate) error {
 	for attempt := 1; ; attempt++ {
+		// Check if context has finished before executing new attempt.
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
 		// Initiate a rate limit reservation and sleep on requested endpoint
-		err := r.InitiateRateLimit(p.Endpoint)
+		err := r.InitiateRateLimit(ctx, endpoint)
+		if err != nil {
+			return fmt.Errorf("failed to rate limit HTTP request: %w", err)
+		}
+
+		p, err := newRequest()
 		if err != nil {
 			return err
 		}
 
-		resp, err := r.HTTPClient.Do(req)
+		req, err := p.validateRequest(ctx, r)
+		if err != nil {
+			return err
+		}
+
+		if p.Verbose {
+			log.Debugf(log.RequestSys, "%s attempt %d request path: %s", r.name, attempt, p.Path)
+			for k, d := range req.Header {
+				log.Debugf(log.RequestSys, "%s request header [%s]: %s", r.name, k, d)
+			}
+			log.Debugf(log.RequestSys, "%s request type: %s", r.name, p.Method)
+			if p.Body != nil {
+				log.Debugf(log.RequestSys, "%s request body: %v", r.name, p.Body)
+			}
+		}
+
+		start := time.Now()
+
+		resp, err := r._HTTPClient.do(req)
+
+		if r.reporter != nil {
+			r.reporter.Latency(r.name, p.Method, p.Path, time.Since(start))
+		}
+
 		if retry, checkErr := r.retryPolicy(resp, err); checkErr != nil {
 			return checkErr
 		} else if retry {
@@ -153,18 +174,11 @@ func (r *Requester) doRequest(req *http.Request, p *Item) error {
 				r.drainBody(resp.Body)
 			}
 
-			// Can't currently regenerate nonce and signatures with fresh values for retries, so for now, we must not retry
-			if p.NonceEnabled {
-				if timeoutErr, ok := err.(net.Error); !ok || !timeoutErr.Timeout() {
-					return fmt.Errorf("unable to retry request using nonce, err: %v", err)
-				}
-			}
-
 			if attempt > r.maxRetries {
 				if err != nil {
-					return fmt.Errorf("failed to retry request, err: %v", err)
+					return fmt.Errorf("%w, err: %v", errFailedToRetryRequest, err)
 				}
-				return fmt.Errorf("failed to retry request, status: %s", resp.Status)
+				return fmt.Errorf("%w, status: %s", errFailedToRetryRequest, resp.Status)
 			}
 
 			after := RetryAfter(resp, time.Now())
@@ -174,7 +188,7 @@ func (r *Requester) doRequest(req *http.Request, p *Item) error {
 				delay = after
 			}
 
-			if d, ok := req.Context().Deadline(); ok && d.After(time.Now()) && time.Now().Add(delay).After(d) {
+			if dl, ok := req.Context().Deadline(); ok && dl.Before(time.Now().Add(delay)) {
 				if err != nil {
 					return fmt.Errorf("deadline would be exceeded by retry, err: %v", err)
 				}
@@ -184,7 +198,7 @@ func (r *Requester) doRequest(req *http.Request, p *Item) error {
 			if p.Verbose {
 				log.Errorf(log.RequestSys,
 					"%s request has failed. Retrying request in %s, attempt %d",
-					r.Name,
+					r.name,
 					delay,
 					attempt)
 			}
@@ -206,7 +220,7 @@ func (r *Requester) doRequest(req *http.Request, p *Item) error {
 
 		if p.HTTPRecording {
 			// This dumps http responses for future mocking implementations
-			err = mock.HTTPRecord(resp, r.Name, contents)
+			err = mock.HTTPRecord(resp, r.name, contents)
 			if err != nil {
 				return fmt.Errorf("mock recording failure %s", err)
 			}
@@ -221,21 +235,27 @@ func (r *Requester) doRequest(req *http.Request, p *Item) error {
 		if resp.StatusCode < http.StatusOK ||
 			resp.StatusCode > http.StatusAccepted {
 			return fmt.Errorf("%s unsuccessful HTTP status code: %d raw response: %s",
-				r.Name,
+				r.name,
 				resp.StatusCode,
 				string(contents))
 		}
 
 		if p.HTTPDebugging {
-			dump, err := httputil.DumpResponse(resp, false)
+			dump, dumpErr := httputil.DumpResponse(resp, false)
 			if err != nil {
-				log.Errorf(log.RequestSys, "DumpResponse invalid response: %v:", err)
+				log.Errorf(log.RequestSys, "DumpResponse invalid response: %v:", dumpErr)
 			}
 			log.Debugf(log.RequestSys, "DumpResponse Headers (%v):\n%s", p.Path, dump)
 			log.Debugf(log.RequestSys, "DumpResponse Body (%v):\n %s", p.Path, string(contents))
 		}
 
-		resp.Body.Close()
+		err = resp.Body.Close()
+		if err != nil {
+			log.Errorf(log.RequestSys,
+				"%s failed to close request body %s",
+				r.name,
+				err)
+		}
 		if p.Verbose {
 			log.Debugf(log.RequestSys,
 				"HTTP status: %s, Code: %v",
@@ -244,11 +264,27 @@ func (r *Requester) doRequest(req *http.Request, p *Item) error {
 			if !p.HTTPDebugging {
 				log.Debugf(log.RequestSys,
 					"%s raw response: %s",
-					r.Name,
+					r.name,
 					string(contents))
 			}
 		}
 		return unmarshallError
+	}
+}
+
+func (r *Requester) drainBody(body io.ReadCloser) {
+	if _, err := io.Copy(ioutil.Discard, io.LimitReader(body, drainBodyLimit)); err != nil {
+		log.Errorf(log.RequestSys,
+			"%s failed to drain request body %s",
+			r.name,
+			err)
+	}
+
+	if err := body.Close(); err != nil {
+		log.Errorf(log.RequestSys,
+			"%s failed to close request body %s",
+			r.name,
+			err)
 	}
 }
 
@@ -264,8 +300,7 @@ func (r *Requester) GetNonce(isNano bool) nonce.Value {
 		}
 		return r.Nonce.Get()
 	}
-	r.Nonce.Inc()
-	return r.Nonce.Get()
+	return r.Nonce.GetInc()
 }
 
 // GetNonceMilli returns a nonce for requests. This locks and enforces concurrent
@@ -273,34 +308,63 @@ func (r *Requester) GetNonce(isNano bool) nonce.Value {
 func (r *Requester) GetNonceMilli() nonce.Value {
 	r.timedLock.LockForDuration()
 	if r.Nonce.Get() == 0 {
-		r.Nonce.Set(time.Now().UnixNano() / int64(time.Millisecond))
+		r.Nonce.Set(time.Now().UnixMilli())
 		return r.Nonce.Get()
 	}
-	r.Nonce.Inc()
-	return r.Nonce.Get()
+	return r.Nonce.GetInc()
 }
 
-// SetProxy sets a proxy address to the client transport
+// SetProxy sets a proxy address for the client transport
 func (r *Requester) SetProxy(p *url.URL) error {
-	if p.String() == "" {
-		return errors.New("no proxy URL supplied")
+	if r == nil {
+		return ErrRequestSystemIsNil
 	}
+	return r._HTTPClient.setProxy(p)
+}
 
-	t, ok := r.HTTPClient.Transport.(*http.Transport)
-	if !ok {
-		return errors.New("transport not set, cannot set proxy")
+// SetHTTPClient sets exchanges HTTP client
+func (r *Requester) SetHTTPClient(newClient *http.Client) error {
+	if r == nil {
+		return ErrRequestSystemIsNil
 	}
-	t.Proxy = http.ProxyURL(p)
-	t.TLSHandshakeTimeout = proxyTLSTimeout
+	protectedClient, err := newProtectedClient(newClient)
+	if err != nil {
+		return err
+	}
+	r._HTTPClient = protectedClient
 	return nil
 }
 
-func (r *Requester) drainBody(body io.ReadCloser) {
-	defer body.Close()
-	if _, err := io.Copy(ioutil.Discard, io.LimitReader(body, drainBodyLimit)); err != nil {
-		log.Errorf(log.RequestSys,
-			"%s failed to drain request body %s",
-			r.Name,
-			err)
+// SetClientTimeout sets the timeout value for the exchanges HTTP Client and
+// also the underlying transports idle connection timeout
+func (r *Requester) SetHTTPClientTimeout(timeout time.Duration) error {
+	if r == nil {
+		return ErrRequestSystemIsNil
 	}
+	return r._HTTPClient.setHTTPClientTimeout(timeout)
+}
+
+// SetHTTPClientUserAgent sets the exchanges HTTP user agent
+func (r *Requester) SetHTTPClientUserAgent(userAgent string) error {
+	if r == nil {
+		return ErrRequestSystemIsNil
+	}
+	r.userAgent = userAgent
+	return nil
+}
+
+// GetHTTPClientUserAgent gets the exchanges HTTP user agent
+func (r *Requester) GetHTTPClientUserAgent() (string, error) {
+	if r == nil {
+		return "", ErrRequestSystemIsNil
+	}
+	return r.userAgent, nil
+}
+
+// Shutdown releases persistent memory for garbage collection.
+func (r *Requester) Shutdown() error {
+	if r == nil {
+		return ErrRequestSystemIsNil
+	}
+	return r._HTTPClient.release()
 }

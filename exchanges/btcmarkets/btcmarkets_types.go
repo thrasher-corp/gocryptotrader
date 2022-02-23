@@ -1,11 +1,8 @@
 package btcmarkets
 
 import (
-	"errors"
 	"time"
 )
-
-var errInvalidTimeInterval = errors.New("invalid time interval")
 
 // Market holds a tradable market instrument
 type Market struct {
@@ -187,6 +184,7 @@ type TransferData struct {
 type DepositAddress struct {
 	Address   string `json:"address"`
 	AssetName string `json:"assetName"`
+	Tag       string // custom field we populate
 }
 
 // WithdrawalFeeData stores data for fees

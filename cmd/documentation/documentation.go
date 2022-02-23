@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -8,6 +9,7 @@ import (
 	"html/template"
 	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -162,7 +164,7 @@ func main() {
 		if verbose {
 			fmt.Println("Fetching repository contributor list...")
 		}
-		contributors, err = GetContributorList(config.GithubRepo)
+		contributors, err = GetContributorList(config.GithubRepo, verbose)
 		if err != nil {
 			log.Fatalf("Documentation Generation Tool - GetContributorList error %s",
 				err)
@@ -170,6 +172,21 @@ func main() {
 
 		// Github API missing contributors
 		contributors = append(contributors, []Contributor{
+			{
+				Login:         "herenow",
+				URL:           "https://github.com/herenow",
+				Contributions: 2,
+			},
+			{
+				Login:         "mshogin",
+				URL:           "https://github.com/mshogin",
+				Contributions: 2,
+			},
+			{
+				Login:         "soxipy",
+				URL:           "https://github.com/soxipy",
+				Contributions: 2,
+			},
 			{
 				Login:         "tk42",
 				URL:           "https://github.com/tk42",
@@ -260,6 +277,16 @@ func main() {
 				Login:         "blombard",
 				URL:           "https://github.com/blombard",
 				Contributions: 1,
+			},
+			{
+				Login:         "soxipy",
+				URL:           "https://github.com/soxipy",
+				Contributions: 2,
+			},
+			{
+				Login:         "lozdog245",
+				URL:           "https://github.com/lozdog245",
+				Contributions: 2,
 			},
 		}...)
 
@@ -422,9 +449,19 @@ func GetTemplateFiles() (*template.Template, error) {
 
 // GetContributorList fetches a list of contributors from the github api
 // endpoint
-func GetContributorList(repo string) ([]Contributor, error) {
+func GetContributorList(repo string, verbose bool) ([]Contributor, error) {
+	contents, err := common.SendHTTPRequest(context.TODO(),
+		http.MethodGet,
+		repo+GithubAPIEndpoint,
+		nil,
+		nil,
+		verbose)
+	if err != nil {
+		return nil, err
+	}
+
 	var resp []Contributor
-	return resp, common.SendHTTPGetRequest(repo+GithubAPIEndpoint, true, false, &resp)
+	return resp, json.Unmarshal(contents, &resp)
 }
 
 // GetDocumentationAttributes returns specific attributes for a file template

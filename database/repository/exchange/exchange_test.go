@@ -30,7 +30,11 @@ var (
 
 func TestMain(m *testing.M) {
 	if verbose {
-		testhelpers.EnableVerboseTestOutput()
+		err := testhelpers.EnableVerboseTestOutput()
+		if err != nil {
+			fmt.Printf("failed to enable verbose test output: %v", err)
+			os.Exit(1)
+		}
 	}
 
 	var err error
@@ -177,8 +181,7 @@ func seed() error {
 
 func TestLoadCSV(t *testing.T) {
 	testData := filepath.Join("..", "..", "..", "testdata", "exchangelist.csv")
-	_, err := LoadCSV(testData)
-	if err != nil {
+	if _, err := LoadCSV(testData); err != nil {
 		t.Fatal(err)
 	}
 }

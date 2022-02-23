@@ -28,6 +28,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -36,12 +37,14 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 	"github.com/thrasher-corp/goose"
+	"google.golang.org/grpc/metadata"
 )
 
 const (
 	unexpectedLackOfError = "unexpected lack of error"
 	migrationsFolder      = "migrations"
 	databaseFolder        = "database"
+	fakeExchangeName      = "fake"
 )
 
 // fExchange is a fake exchange with function overrides
@@ -50,9 +53,9 @@ type fExchange struct {
 	exchange.IBotExchange
 }
 
-func (f fExchange) GetHistoricCandles(p currency.Pair, a asset.Item, timeStart, _ time.Time, interval kline.Interval) (kline.Item, error) {
+func (f fExchange) GetHistoricCandles(ctx context.Context, p currency.Pair, a asset.Item, timeStart, _ time.Time, interval kline.Interval) (kline.Item, error) {
 	return kline.Item{
-		Exchange: "fake",
+		Exchange: fakeExchangeName,
 		Pair:     p,
 		Asset:    a,
 		Interval: interval,
@@ -69,9 +72,9 @@ func (f fExchange) GetHistoricCandles(p currency.Pair, a asset.Item, timeStart, 
 	}, nil
 }
 
-func (f fExchange) GetHistoricCandlesExtended(p currency.Pair, a asset.Item, timeStart, _ time.Time, interval kline.Interval) (kline.Item, error) {
+func (f fExchange) GetHistoricCandlesExtended(ctx context.Context, p currency.Pair, a asset.Item, timeStart, _ time.Time, interval kline.Interval) (kline.Item, error) {
 	return kline.Item{
-		Exchange: "fake",
+		Exchange: fakeExchangeName,
 		Pair:     p,
 		Asset:    a,
 		Interval: interval,
@@ -90,7 +93,7 @@ func (f fExchange) GetHistoricCandlesExtended(p currency.Pair, a asset.Item, tim
 
 // FetchAccountInfo overrides testExchange's fetch account info function
 // to do the bare minimum required with no API calls or credentials required
-func (f fExchange) FetchAccountInfo(a asset.Item) (account.Holdings, error) {
+func (f fExchange) FetchAccountInfo(ctx context.Context, a asset.Item) (account.Holdings, error) {
 	return account.Holdings{
 		Exchange: f.GetName(),
 		Accounts: []account.SubAccount{
@@ -105,7 +108,7 @@ func (f fExchange) FetchAccountInfo(a asset.Item) (account.Holdings, error) {
 
 // UpdateAccountInfo overrides testExchange's update account info function
 // to do the bare minimum required with no API calls or credentials required
-func (f fExchange) UpdateAccountInfo(a asset.Item) (account.Holdings, error) {
+func (f fExchange) UpdateAccountInfo(ctx context.Context, a asset.Item) (account.Holdings, error) {
 	if a == asset.Futures {
 		return account.Holdings{}, errAssetTypeDisabled
 	}
@@ -119,6 +122,36 @@ func (f fExchange) UpdateAccountInfo(a asset.Item) (account.Holdings, error) {
 			},
 		},
 	}, nil
+}
+
+// GetCurrencyStateSnapshot overrides interface function
+func (f fExchange) GetCurrencyStateSnapshot() ([]currencystate.Snapshot, error) {
+	return []currencystate.Snapshot{
+		{
+			Code:  currency.BTC,
+			Asset: asset.Spot,
+		},
+	}, nil
+}
+
+// CanTradePair overrides interface function
+func (f fExchange) CanTradePair(p currency.Pair, a asset.Item) error {
+	return nil
+}
+
+// CanTrade overrides interface function
+func (f fExchange) CanTrade(c currency.Code, a asset.Item) error {
+	return nil
+}
+
+// CanWithdraw overrides interface function
+func (f fExchange) CanWithdraw(c currency.Code, a asset.Item) error {
+	return nil
+}
+
+// CanDeposit overrides interface function
+func (f fExchange) CanDeposit(c currency.Code, a asset.Item) error {
+	return nil
 }
 
 // Sets up everything required to run any function inside rpcserver
@@ -237,7 +270,7 @@ func TestGetSavedTrades(t *testing.T) {
 		t.Error(err)
 	}
 	_, err = s.GetSavedTrades(context.Background(), &gctrpc.GetSavedTradesRequest{
-		Exchange: "fake",
+		Exchange: fakeExchangeName,
 		Pair: &gctrpc.CurrencyPair{
 			Delimiter: currency.DashDelimiter,
 			Base:      currency.BTC.String(),
@@ -247,7 +280,7 @@ func TestGetSavedTrades(t *testing.T) {
 		Start:     time.Date(2020, 0, 0, 0, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
 		End:       time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC).Format(common.SimpleTimeFormat),
 	})
-	if !errors.Is(err, errExchangeNotLoaded) {
+	if !errors.Is(err, ErrExchangeNotFound) {
 		t.Error(err)
 	}
 	_, err = s.GetSavedTrades(context.Background(), &gctrpc.GetSavedTradesRequest{
@@ -321,7 +354,7 @@ func TestConvertTradesToCandles(t *testing.T) {
 		End:          time.Date(2020, 0, 0, 1, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
 		TimeInterval: int64(kline.OneHour.Duration()),
 	})
-	if !errors.Is(err, errExchangeNotLoaded) {
+	if !errors.Is(err, ErrExchangeNotFound) {
 		t.Error(err)
 	}
 
@@ -456,8 +489,22 @@ func TestGetHistoricCandles(t *testing.T) {
 		End:       defaultEnd.Format(common.SimpleTimeFormat),
 		AssetType: asset.Spot.String(),
 	})
-	if !errors.Is(err, errExchangeNotLoaded) {
-		t.Errorf("received '%v', expected '%v'", err, errExchangeNotLoaded)
+	if !errors.Is(err, errExchangeNameIsEmpty) {
+		t.Errorf("received '%v', expected '%v'", err, errExchangeNameIsEmpty)
+	}
+
+	_, err = s.GetHistoricCandles(context.Background(), &gctrpc.GetHistoricCandlesRequest{
+		Exchange: "bruh",
+		Pair: &gctrpc.CurrencyPair{
+			Base:  cp.Base.String(),
+			Quote: cp.Quote.String(),
+		},
+		Start:     defaultStart.Format(common.SimpleTimeFormat),
+		End:       defaultEnd.Format(common.SimpleTimeFormat),
+		AssetType: asset.Spot.String(),
+	})
+	if !errors.Is(err, ErrExchangeNotFound) {
+		t.Errorf("received '%v', expected '%v'", err, ErrExchangeNotFound)
 	}
 
 	_, err = s.GetHistoricCandles(context.Background(), &gctrpc.GetHistoricCandlesRequest{
@@ -802,7 +849,7 @@ func TestSetExchangeTradeProcessing(t *testing.T) {
 	}
 	exch.SetDefaults()
 	b := exch.GetBase()
-	b.Config = &config.ExchangeConfig{
+	b.Config = &config.Exchange{
 		Features: &config.FeaturesConfig{Enabled: config.FeaturesEnabledConfig{SaveTradeData: false}},
 	}
 	em.Add(exch)
@@ -834,7 +881,7 @@ func TestGetRecentTrades(t *testing.T) {
 		t.Error(err)
 	}
 	_, err = s.GetRecentTrades(context.Background(), &gctrpc.GetSavedTradesRequest{
-		Exchange: "fake",
+		Exchange: fakeExchangeName,
 		Pair: &gctrpc.CurrencyPair{
 			Delimiter: currency.DashDelimiter,
 			Base:      currency.BTC.String(),
@@ -844,7 +891,7 @@ func TestGetRecentTrades(t *testing.T) {
 		Start:     time.Date(2020, 0, 0, 0, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
 		End:       time.Date(2020, 0, 0, 1, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
 	})
-	if !errors.Is(err, errExchangeNotLoaded) {
+	if !errors.Is(err, ErrExchangeNotFound) {
 		t.Error(err)
 	}
 	_, err = s.GetRecentTrades(context.Background(), &gctrpc.GetSavedTradesRequest{
@@ -861,6 +908,18 @@ func TestGetRecentTrades(t *testing.T) {
 	}
 }
 
+// dummyServer implements a basic RPC server interface for deployment in a test
+// when streaming occurs, so we can deliver a context value.
+type dummyServer struct{}
+
+func (d *dummyServer) Send(*gctrpc.SavedTradesResponse) error { return nil }
+func (d *dummyServer) SetHeader(metadata.MD) error            { return nil }
+func (d *dummyServer) SendHeader(metadata.MD) error           { return nil }
+func (d *dummyServer) SetTrailer(metadata.MD)                 {}
+func (d *dummyServer) Context() context.Context               { return context.Background() }
+func (d *dummyServer) SendMsg(m interface{}) error            { return nil }
+func (d *dummyServer) RecvMsg(m interface{}) error            { return nil }
+
 func TestGetHistoricTrades(t *testing.T) {
 	engerino := RPCTestSetup(t)
 	defer CleanRPCTest(t, engerino)
@@ -870,7 +929,7 @@ func TestGetHistoricTrades(t *testing.T) {
 		t.Error(err)
 	}
 	err = s.GetHistoricTrades(&gctrpc.GetSavedTradesRequest{
-		Exchange: "fake",
+		Exchange: fakeExchangeName,
 		Pair: &gctrpc.CurrencyPair{
 			Delimiter: currency.DashDelimiter,
 			Base:      currency.BTC.String(),
@@ -880,7 +939,7 @@ func TestGetHistoricTrades(t *testing.T) {
 		Start:     time.Date(2020, 0, 0, 0, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
 		End:       time.Date(2020, 0, 0, 1, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
 	}, nil)
-	if !errors.Is(err, errExchangeNotLoaded) {
+	if !errors.Is(err, ErrExchangeNotFound) {
 		t.Error(err)
 	}
 	err = s.GetHistoricTrades(&gctrpc.GetSavedTradesRequest{
@@ -893,7 +952,7 @@ func TestGetHistoricTrades(t *testing.T) {
 		AssetType: asset.Spot.String(),
 		Start:     time.Date(2020, 0, 0, 0, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
 		End:       time.Date(2020, 0, 0, 1, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
-	}, nil)
+	}, &dummyServer{})
 	if err != common.ErrFunctionNotSupported {
 		t.Error(err)
 	}
@@ -907,7 +966,7 @@ func TestGetAccountInfo(t *testing.T) {
 		t.Fatal(err)
 	}
 	b := exch.GetBase()
-	b.Name = "fake"
+	b.Name = fakeExchangeName
 	b.Enabled = true
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
@@ -918,7 +977,7 @@ func TestGetAccountInfo(t *testing.T) {
 	}
 	em.Add(fakeExchange)
 	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
-	_, err = s.GetAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: "fake", AssetType: asset.Spot.String()})
+	_, err = s.GetAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: fakeExchangeName, AssetType: asset.Spot.String()})
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
@@ -932,7 +991,7 @@ func TestUpdateAccountInfo(t *testing.T) {
 		t.Fatal(err)
 	}
 	b := exch.GetBase()
-	b.Name = "fake"
+	b.Name = fakeExchangeName
 	b.Enabled = true
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
@@ -944,18 +1003,18 @@ func TestUpdateAccountInfo(t *testing.T) {
 	em.Add(fakeExchange)
 	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
 
-	_, err = s.GetAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: "fake", AssetType: asset.Spot.String()})
+	_, err = s.GetAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: fakeExchangeName, AssetType: asset.Spot.String()})
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
 
-	_, err = s.UpdateAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: "fake", AssetType: asset.Futures.String()})
+	_, err = s.UpdateAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: fakeExchangeName, AssetType: asset.Futures.String()})
 	if !errors.Is(err, errAssetTypeDisabled) {
 		t.Errorf("received '%v', expected '%v'", err, errAssetTypeDisabled)
 	}
 
 	_, err = s.UpdateAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{
-		Exchange:  "fake",
+		Exchange:  fakeExchangeName,
 		AssetType: asset.Spot.String(),
 	})
 	if !errors.Is(err, nil) {
@@ -988,10 +1047,7 @@ func TestGetOrders(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
-	err = om.Start()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
+	om.started = 1
 	s := RPCServer{Engine: &Engine{ExchangeManager: em, OrderManager: om}}
 
 	p := &gctrpc.CurrencyPair{
@@ -1009,8 +1065,17 @@ func TestGetOrders(t *testing.T) {
 		AssetType: asset.Spot.String(),
 		Pair:      p,
 	})
-	if !errors.Is(err, errExchangeNotLoaded) {
-		t.Errorf("received '%v', expected '%v'", errExchangeNotLoaded, err)
+	if !errors.Is(err, errExchangeNameIsEmpty) {
+		t.Errorf("received '%v', expected '%v'", errExchangeNameIsEmpty, err)
+	}
+
+	_, err = s.GetOrders(context.Background(), &gctrpc.GetOrdersRequest{
+		Exchange:  "bruh",
+		AssetType: asset.Spot.String(),
+		Pair:      p,
+	})
+	if !errors.Is(err, ErrExchangeNotFound) {
+		t.Errorf("received '%v', expected '%v'", ErrExchangeNotFound, err)
 	}
 
 	_, err = s.GetOrders(context.Background(), &gctrpc.GetOrdersRequest{
@@ -1090,7 +1155,7 @@ func TestGetOrder(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
-	err = om.Start()
+	om.started = 1
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
@@ -1112,8 +1177,8 @@ func TestGetOrder(t *testing.T) {
 		Pair:     p,
 		Asset:    "spot",
 	})
-	if !errors.Is(err, errExchangeNotLoaded) {
-		t.Errorf("received '%v', expected '%v'", err, errExchangeNotLoaded)
+	if !errors.Is(err, ErrExchangeNotFound) {
+		t.Errorf("received '%v', expected '%v'", err, ErrExchangeNotFound)
 	}
 
 	_, err = s.GetOrder(context.Background(), &gctrpc.GetOrderRequest{
@@ -1165,14 +1230,9 @@ func TestCheckVars(t *testing.T) {
 	}
 
 	e = &binance.Binance{}
-	_, ok := e.(*binance.Binance)
-	if !ok {
-		t.Fatal("invalid ibotexchange interface")
-	}
-
 	err = checkParams("Binance", e, asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
-	if !errors.Is(err, ErrExchangeNotFound) {
-		t.Errorf("expected %v, got %v", ErrExchangeNotFound, err)
+	if !errors.Is(err, errExchangeNotEnabled) {
+		t.Errorf("expected %v, got %v", errExchangeNotEnabled, err)
 	}
 
 	e.SetEnabled(true)
@@ -1318,7 +1378,7 @@ func TestParseEvents(t *testing.T) {
 
 func TestRPCServerUpsertDataHistoryJob(t *testing.T) {
 	t.Parallel()
-	m := createDHM(t)
+	m, _ := createDHM(t)
 	em := SetupExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
 	if err != nil {
@@ -1370,7 +1430,7 @@ func TestRPCServerUpsertDataHistoryJob(t *testing.T) {
 
 func TestGetDataHistoryJobDetails(t *testing.T) {
 	t.Parallel()
-	m := createDHM(t)
+	m, _ := createDHM(t)
 	s := RPCServer{Engine: &Engine{dataHistoryManager: m}}
 
 	dhj := &DataHistoryJob{
@@ -1407,7 +1467,7 @@ func TestGetDataHistoryJobDetails(t *testing.T) {
 		t.Errorf("received %v, expected %v", err, nil)
 	}
 
-	_, err = s.GetDataHistoryJobDetails(context.Background(), &gctrpc.GetDataHistoryJobDetailsRequest{Id: m.jobs[0].ID.String()})
+	_, err = s.GetDataHistoryJobDetails(context.Background(), &gctrpc.GetDataHistoryJobDetailsRequest{Id: dhj.ID.String()})
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v, expected %v", err, nil)
 	}
@@ -1424,9 +1484,9 @@ func TestGetDataHistoryJobDetails(t *testing.T) {
 	}
 }
 
-func TestDeleteDataHistoryJob(t *testing.T) {
+func TestSetDataHistoryJobStatus(t *testing.T) {
 	t.Parallel()
-	m := createDHM(t)
+	m, j := createDHM(t)
 	s := RPCServer{Engine: &Engine{dataHistoryManager: m}}
 
 	dhj := &DataHistoryJob{
@@ -1442,40 +1502,49 @@ func TestDeleteDataHistoryJob(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Fatalf("received %v, expected %v", err, nil)
 	}
-	_, err = s.DeleteDataHistoryJob(context.Background(), nil)
+	_, err = s.SetDataHistoryJobStatus(context.Background(), nil)
 	if !errors.Is(err, errNilRequestData) {
 		t.Errorf("received %v, expected %v", err, errNilRequestData)
 	}
 
-	_, err = s.DeleteDataHistoryJob(context.Background(), &gctrpc.GetDataHistoryJobDetailsRequest{})
+	_, err = s.SetDataHistoryJobStatus(context.Background(), &gctrpc.SetDataHistoryJobStatusRequest{})
 	if !errors.Is(err, errNicknameIDUnset) {
 		t.Errorf("received %v, expected %v", err, errNicknameIDUnset)
 	}
 
-	_, err = s.DeleteDataHistoryJob(context.Background(), &gctrpc.GetDataHistoryJobDetailsRequest{Id: "123", Nickname: "123"})
+	_, err = s.SetDataHistoryJobStatus(context.Background(), &gctrpc.SetDataHistoryJobStatusRequest{Id: "123", Nickname: "123"})
 	if !errors.Is(err, errOnlyNicknameOrID) {
 		t.Errorf("received %v, expected %v", err, errOnlyNicknameOrID)
 	}
 
-	id := m.jobs[0].ID
-	_, err = s.DeleteDataHistoryJob(context.Background(), &gctrpc.GetDataHistoryJobDetailsRequest{Nickname: "TestDeleteDataHistoryJob"})
+	id := dhj.ID
+	_, err = s.SetDataHistoryJobStatus(context.Background(), &gctrpc.SetDataHistoryJobStatusRequest{Nickname: "TestDeleteDataHistoryJob", Status: int64(dataHistoryStatusRemoved)})
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v, expected %v", err, nil)
 	}
 	dhj.ID = id
-	m.jobs = append(m.jobs, dhj)
-	_, err = s.DeleteDataHistoryJob(context.Background(), &gctrpc.GetDataHistoryJobDetailsRequest{Id: id.String()})
+	j.Status = int64(dataHistoryStatusActive)
+	_, err = s.SetDataHistoryJobStatus(context.Background(), &gctrpc.SetDataHistoryJobStatusRequest{Id: id.String(), Status: int64(dataHistoryStatusRemoved)})
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v, expected %v", err, nil)
 	}
-	if len(m.jobs) != 0 {
-		t.Errorf("received %v, expected %v", len(m.jobs), 0)
+	_, err = s.SetDataHistoryJobStatus(context.Background(), &gctrpc.SetDataHistoryJobStatusRequest{Id: id.String(), Status: int64(dataHistoryStatusActive)})
+	if !errors.Is(err, errBadStatus) {
+		t.Errorf("received %v, expected %v", err, errBadStatus)
+	}
+	j.Status = int64(dataHistoryStatusActive)
+	_, err = s.SetDataHistoryJobStatus(context.Background(), &gctrpc.SetDataHistoryJobStatusRequest{Id: id.String(), Status: int64(dataHistoryStatusPaused)})
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v, expected %v", err, nil)
+	}
+	if j.Status != int64(dataHistoryStatusPaused) {
+		t.Errorf("received %v, expected %v", dataHistoryStatus(j.Status), dataHistoryStatusPaused)
 	}
 }
 
 func TestGetActiveDataHistoryJobs(t *testing.T) {
 	t.Parallel()
-	m := createDHM(t)
+	m, _ := createDHM(t)
 	s := RPCServer{Engine: &Engine{dataHistoryManager: m}}
 
 	dhj := &DataHistoryJob{
@@ -1488,8 +1557,7 @@ func TestGetActiveDataHistoryJobs(t *testing.T) {
 		Interval:  kline.OneMin,
 	}
 
-	err := m.UpsertJob(dhj, false)
-	if !errors.Is(err, nil) {
+	if err := m.UpsertJob(dhj, false); !errors.Is(err, nil) {
 		t.Fatalf("received %v, expected %v", err, nil)
 	}
 
@@ -1504,7 +1572,7 @@ func TestGetActiveDataHistoryJobs(t *testing.T) {
 
 func TestGetDataHistoryJobsBetween(t *testing.T) {
 	t.Parallel()
-	m := createDHM(t)
+	m, _ := createDHM(t)
 	s := RPCServer{Engine: &Engine{dataHistoryManager: m}}
 
 	dhj := &DataHistoryJob{
@@ -1549,7 +1617,7 @@ func TestGetDataHistoryJobsBetween(t *testing.T) {
 
 func TestGetDataHistoryJobSummary(t *testing.T) {
 	t.Parallel()
-	m := createDHM(t)
+	m, _ := createDHM(t)
 	s := RPCServer{Engine: &Engine{dataHistoryManager: m}}
 
 	dhj := &DataHistoryJob{
@@ -1616,10 +1684,7 @@ func TestGetManagedOrders(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
-	err = om.Start()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
+	om.started = 1
 	s := RPCServer{Engine: &Engine{ExchangeManager: em, OrderManager: om}}
 
 	p := &gctrpc.CurrencyPair{
@@ -1637,8 +1702,17 @@ func TestGetManagedOrders(t *testing.T) {
 		AssetType: asset.Spot.String(),
 		Pair:      p,
 	})
-	if !errors.Is(err, errExchangeNotLoaded) {
-		t.Errorf("received '%v', expected '%v'", errExchangeNotLoaded, err)
+	if !errors.Is(err, errExchangeNameIsEmpty) {
+		t.Errorf("received '%v', expected '%v'", errExchangeNameIsEmpty, err)
+	}
+
+	_, err = s.GetManagedOrders(context.Background(), &gctrpc.GetOrdersRequest{
+		Exchange:  "bruh",
+		AssetType: asset.Spot.String(),
+		Pair:      p,
+	})
+	if !errors.Is(err, ErrExchangeNotFound) {
+		t.Errorf("received '%v', expected '%v'", ErrExchangeNotFound, err)
 	}
 
 	_, err = s.GetManagedOrders(context.Background(), &gctrpc.GetOrdersRequest{
@@ -1724,10 +1798,14 @@ func TestRPCServer_GetTicker_LastUpdatedNanos(t *testing.T) {
 	// Make a dummy pair we'll be using for this test.
 	pair := currency.NewPairWithDelimiter("XXXXX", "YYYYY", "")
 
-	// Create a mock-up RPCServer and add our newly made pair to its list of available
-	// and enabled pairs.
+	// Create a mock-up RPCServer and add our newly made pair to its list of
+	// available and enabled pairs.
 	server := RPCServer{Engine: RPCTestSetup(t)}
-	b := server.ExchangeManager.GetExchangeByName(testExchange).GetBase()
+	exch, err := server.GetExchangeByName(testExchange)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := exch.GetBase()
 	b.CurrencyPairs.Pairs[asset.Spot].Available = append(
 		b.CurrencyPairs.Pairs[asset.Spot].Available,
 		pair,
@@ -1739,7 +1817,7 @@ func TestRPCServer_GetTicker_LastUpdatedNanos(t *testing.T) {
 
 	// Push a mock-up ticker.
 	now := time.Now()
-	ticker.ProcessTicker(&ticker.Price{
+	err = ticker.ProcessTicker(&ticker.Price{
 		ExchangeName: testExchange,
 		Pair:         pair,
 		AssetType:    asset.Spot,
@@ -1750,6 +1828,9 @@ func TestRPCServer_GetTicker_LastUpdatedNanos(t *testing.T) {
 		Low:   169,
 		Close: 196,
 	})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Prepare a ticker request.
 	request := &gctrpc.GetTickerRequest{
@@ -1780,5 +1861,119 @@ func TestRPCServer_GetTicker_LastUpdatedNanos(t *testing.T) {
 	}
 	if want := now.UnixNano(); two.LastUpdated != want {
 		t.Errorf("have %d, want %d", two.LastUpdated, want)
+	}
+}
+
+func TestUpdateDataHistoryJobPrerequisite(t *testing.T) {
+	t.Parallel()
+	m, _ := createDHM(t)
+	s := RPCServer{Engine: &Engine{dataHistoryManager: m}}
+	_, err := s.UpdateDataHistoryJobPrerequisite(context.Background(), nil)
+	if !errors.Is(err, errNilRequestData) {
+		t.Errorf("received %v, expected %v", err, errNilRequestData)
+	}
+
+	_, err = s.UpdateDataHistoryJobPrerequisite(context.Background(), &gctrpc.UpdateDataHistoryJobPrerequisiteRequest{})
+	if !errors.Is(err, errNicknameUnset) {
+		t.Errorf("received %v, expected %v", err, errNicknameUnset)
+	}
+
+	_, err = s.UpdateDataHistoryJobPrerequisite(context.Background(), &gctrpc.UpdateDataHistoryJobPrerequisiteRequest{
+		Nickname: "test456",
+	})
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v, expected %v", err, nil)
+	}
+
+	_, err = s.UpdateDataHistoryJobPrerequisite(context.Background(), &gctrpc.UpdateDataHistoryJobPrerequisiteRequest{
+		Nickname:                "test456",
+		PrerequisiteJobNickname: "test123",
+	})
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v, expected %v", err, nil)
+	}
+}
+
+func TestCurrencyStateGetAll(t *testing.T) {
+	t.Parallel()
+	_, err := (&RPCServer{Engine: &Engine{}}).CurrencyStateGetAll(context.Background(),
+		&gctrpc.CurrencyStateGetAllRequest{Exchange: fakeExchangeName})
+	if !errors.Is(err, ErrSubSystemNotStarted) {
+		t.Errorf("received %v, expected %v", err, ErrSubSystemNotStarted)
+	}
+}
+
+func TestCurrencyStateWithdraw(t *testing.T) {
+	t.Parallel()
+	_, err := (&RPCServer{
+		Engine: &Engine{},
+	}).CurrencyStateWithdraw(context.Background(),
+		&gctrpc.CurrencyStateWithdrawRequest{
+			Exchange: "wow"})
+	if !errors.Is(err, ErrSubSystemNotStarted) {
+		t.Fatalf("received: %v, but expected: %v", err, ErrSubSystemNotStarted)
+	}
+}
+
+func TestCurrencyStateDeposit(t *testing.T) {
+	t.Parallel()
+	_, err := (&RPCServer{
+		Engine: &Engine{},
+	}).CurrencyStateDeposit(context.Background(),
+		&gctrpc.CurrencyStateDepositRequest{Exchange: "wow"})
+	if !errors.Is(err, ErrSubSystemNotStarted) {
+		t.Fatalf("received: %v, but expected: %v", err, ErrSubSystemNotStarted)
+	}
+}
+
+func TestCurrencyStateTrading(t *testing.T) {
+	t.Parallel()
+	_, err := (&RPCServer{
+		Engine: &Engine{},
+	}).CurrencyStateTrading(context.Background(),
+		&gctrpc.CurrencyStateTradingRequest{Exchange: "wow"})
+	if !errors.Is(err, ErrSubSystemNotStarted) {
+		t.Fatalf("received: %v, but expected: %v", err, ErrSubSystemNotStarted)
+	}
+}
+
+func TestCurrencyStateTradingPair(t *testing.T) {
+	t.Parallel()
+	em := SetupExchangeManager()
+	exch, err := em.NewExchangeByName(testExchange)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := exch.GetBase()
+	b.Name = fakeExchangeName
+	b.Enabled = true
+
+	cp, err := currency.NewPairFromString("btc-usd")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
+	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
+		AssetEnabled: convert.BoolPtr(true),
+		ConfigFormat: &currency.PairFormat{},
+		Available:    currency.Pairs{cp},
+		Enabled:      currency.Pairs{cp},
+	}
+	fakeExchange := fExchange{
+		IBotExchange: exch,
+	}
+	em.Add(fakeExchange)
+	s := RPCServer{Engine: &Engine{ExchangeManager: em,
+		currencyStateManager: &CurrencyStateManager{started: 1, iExchangeManager: em}}}
+
+	_, err = s.CurrencyStateTradingPair(context.Background(),
+		&gctrpc.CurrencyStateTradingPairRequest{
+			Exchange: fakeExchangeName,
+			Pair:     "btc-usd",
+			Asset:    "spot",
+		})
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v, but expected: %v", err, nil)
 	}
 }

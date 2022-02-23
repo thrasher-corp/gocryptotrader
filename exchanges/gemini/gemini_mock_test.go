@@ -1,4 +1,5 @@
-//+build !mock_test_off
+//go:build !mock_test_off
+// +build !mock_test_off
 
 // This will build if build tag mock_test_off is not parsed and will try to mock
 // all tests in _test.go
@@ -44,7 +45,10 @@ func TestMain(m *testing.M) {
 		log.Fatalf("Mock server error %s", err)
 	}
 
-	g.HTTPClient = newClient
+	err = g.SetHTTPClient(newClient)
+	if err != nil {
+		log.Fatalf("Mock server error %s", err)
+	}
 	endpointMap := g.API.Endpoints.GetURLMap()
 	for k := range endpointMap {
 		err = g.API.Endpoints.SetRunning(k, serverDetails)

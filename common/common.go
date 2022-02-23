@@ -1,7 +1,7 @@
 package common
 
 import (
-	"encoding/json"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -27,14 +27,15 @@ const (
 	// SimpleTimeFormatWithTimezone a common, but non-implemented time format in golang
 	SimpleTimeFormatWithTimezone = "2006-01-02 15:04:05 MST"
 	// GctExt is the extension for GCT Tengo script files
-	GctExt = ".gct"
+	GctExt         = ".gct"
+	defaultTimeout = time.Second * 15
 )
 
 // Vars for common.go operations
 var (
-	HTTPClient    *http.Client
-	HTTPUserAgent string
-	m             sync.Mutex
+	_HTTPClient    *http.Client
+	_HTTPUserAgent string
+	m              sync.RWMutex
 	// ErrNotYetImplemented defines a common error across the code base that
 	// alerts of a function that has not been completed or tied into main code
 	ErrNotYetImplemented = errors.New("not yet implemented")
@@ -50,23 +51,46 @@ var (
 	ErrStartEqualsEnd = errors.New("start date equals end date")
 	// ErrStartAfterTimeNow is an error for start end check calculations
 	ErrStartAfterTimeNow = errors.New("start date is after current time")
+	// ErrNilPointer defines an error for a nil pointer
+	ErrNilPointer              = errors.New("nil pointer")
+	errCannotSetInvalidTimeout = errors.New("cannot set new HTTP client with timeout that is equal or less than 0")
+	errUserAgentInvalid        = errors.New("cannot set invalid user agent")
+	errHTTPClientInvalid       = errors.New("custom http client cannot be nil")
 )
 
-func initialiseHTTPClient() {
-	m.Lock()
-	// If the HTTPClient isn't set, start a new client with a default timeout of 15 seconds
-	if HTTPClient == nil {
-		HTTPClient = NewHTTPClientWithTimeout(time.Second * 15)
+// SetHTTPClientWithTimeout sets a new *http.Client with different timeout
+// settings
+func SetHTTPClientWithTimeout(t time.Duration) error {
+	if t <= 0 {
+		return errCannotSetInvalidTimeout
 	}
+	m.Lock()
+	_HTTPClient = NewHTTPClientWithTimeout(t)
 	m.Unlock()
+	return nil
 }
 
-// SetHTTPClientWithTimeout protects the setting of the
-// global HTTPClient
-func SetHTTPClientWithTimeout(t time.Duration) {
+// SetHTTPUserAgent sets the user agent which will be used for all common HTTP
+// requests.
+func SetHTTPUserAgent(agent string) error {
+	if agent == "" {
+		return errUserAgentInvalid
+	}
 	m.Lock()
-	defer m.Unlock()
-	HTTPClient = NewHTTPClientWithTimeout(t)
+	_HTTPUserAgent = agent
+	m.Unlock()
+	return nil
+}
+
+// SetHTTPClient sets a custom HTTP client.
+func SetHTTPClient(client *http.Client) error {
+	if client == nil {
+		return errHTTPClientInvalid
+	}
+	m.Lock()
+	_HTTPClient = client
+	m.Unlock()
+	return nil
 }
 
 // NewHTTPClientWithTimeout initialises a new HTTP client and its underlying
@@ -180,92 +204,69 @@ func YesOrNo(input string) bool {
 	return false
 }
 
-// SendHTTPRequest sends a request using the http package and returns a response
-// as a string and an error
-func SendHTTPRequest(method, urlPath string, headers map[string]string, body io.Reader) (string, error) {
-	result := strings.ToUpper(method)
+// SendHTTPRequest sends a request using the http package and returns the body
+// contents
+func SendHTTPRequest(ctx context.Context, method, urlPath string, headers map[string]string, body io.Reader, verbose bool) ([]byte, error) {
+	method = strings.ToUpper(method)
 
-	if result != http.MethodOptions && result != http.MethodGet &&
-		result != http.MethodHead && result != http.MethodPost &&
-		result != http.MethodPut && result != http.MethodDelete &&
-		result != http.MethodTrace && result != http.MethodConnect {
-		return "", errors.New("invalid HTTP method specified")
+	if method != http.MethodOptions && method != http.MethodGet &&
+		method != http.MethodHead && method != http.MethodPost &&
+		method != http.MethodPut && method != http.MethodDelete &&
+		method != http.MethodTrace && method != http.MethodConnect {
+		return nil, errors.New("invalid HTTP method specified")
 	}
 
-	initialiseHTTPClient()
-
-	req, err := http.NewRequest(method, urlPath, body)
+	req, err := http.NewRequestWithContext(ctx, method, urlPath, body)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	for k, v := range headers {
 		req.Header.Add(k, v)
 	}
 
-	if HTTPUserAgent != "" && req.Header.Get("User-Agent") == "" {
-		req.Header.Add("User-Agent", HTTPUserAgent)
-	}
-
-	m.Lock()
-	resp, err := HTTPClient.Do(req)
-	if err != nil {
-		m.Unlock()
-		return "", err
-	}
-	m.Unlock()
-
-	contents, err := ioutil.ReadAll(resp.Body)
-	defer resp.Body.Close()
-
-	if err != nil {
-		return "", err
-	}
-
-	return string(contents), nil
-}
-
-// SendHTTPGetRequest sends a simple get request using a url string & JSON
-// decodes the response into a struct pointer you have supplied. Returns an error
-// on failure.
-func SendHTTPGetRequest(urlPath string, jsonDecode, isVerbose bool, result interface{}) error {
-	if isVerbose {
-		log.Debugf(log.Global, "Raw URL: %s\n", urlPath)
-	}
-
-	initialiseHTTPClient()
-
-	m.Lock()
-	res, err := HTTPClient.Get(urlPath)
-	if err != nil {
-		m.Unlock()
-		return err
-	}
-	m.Unlock()
-
-	if res.StatusCode != 200 {
-		return fmt.Errorf("common.SendHTTPGetRequest() error: HTTP status code %d", res.StatusCode)
-	}
-
-	contents, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		return err
-	}
-
-	if isVerbose {
-		log.Debugf(log.Global, "Raw Resp: %s\n", string(contents))
-	}
-
-	defer res.Body.Close()
-
-	if jsonDecode {
-		err := json.Unmarshal(contents, result)
-		if err != nil {
-			return err
+	if verbose {
+		log.Debugf(log.Global, "Request path: %s", urlPath)
+		for k, d := range req.Header {
+			log.Debugf(log.Global, "Request header [%s]: %s", k, d)
+		}
+		log.Debugf(log.Global, "Request type: %s", method)
+		if body != nil {
+			log.Debugf(log.Global, "Request body: %v", body)
 		}
 	}
 
-	return nil
+	m.RLock()
+	if _HTTPUserAgent != "" && req.Header.Get("User-Agent") == "" {
+		req.Header.Add("User-Agent", _HTTPUserAgent)
+	}
+
+	if _HTTPClient == nil {
+		m.RUnlock()
+		m.Lock()
+		// Set *http.Client with default timeout if not populated.
+		_HTTPClient = NewHTTPClientWithTimeout(defaultTimeout)
+		m.Unlock()
+		m.RLock()
+	}
+
+	resp, err := _HTTPClient.Do(req)
+	m.RUnlock()
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	contents, err := ioutil.ReadAll(resp.Body)
+
+	if verbose {
+		log.Debugf(log.Global, "HTTP status: %s, Code: %v",
+			resp.Status,
+			resp.StatusCode)
+		log.Debugf(log.Global, "Raw response: %s", string(contents))
+	}
+
+	return contents, err
 }
 
 // EncodeURLValues concatenates url values onto a url string and returns a

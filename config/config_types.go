@@ -37,7 +37,9 @@ const (
 	DefaultAPISecret                     = "Secret"
 	DefaultAPIClientID                   = "ClientID"
 	defaultDataHistoryMonitorCheckTimer  = time.Minute
+	defaultCurrencyStateManagerDelay     = time.Minute
 	defaultMaxJobsPerCycle               = 5
+	DefaultOrderbookPublishPeriod        = time.Second * 10
 )
 
 // Constants here hold some messages
@@ -72,30 +74,31 @@ var (
 // prestart management of Portfolio, Communications, Webserver and Enabled
 // Exchanges
 type Config struct {
-	Name               string                    `json:"name"`
-	DataDirectory      string                    `json:"dataDirectory"`
-	EncryptConfig      int                       `json:"encryptConfig"`
-	GlobalHTTPTimeout  time.Duration             `json:"globalHTTPTimeout"`
-	Database           database.Config           `json:"database"`
-	Logging            log.Config                `json:"logging"`
-	ConnectionMonitor  ConnectionMonitorConfig   `json:"connectionMonitor"`
-	DataHistoryManager DataHistoryManager        `json:"dataHistoryManager"`
-	Profiler           Profiler                  `json:"profiler"`
-	NTPClient          NTPClientConfig           `json:"ntpclient"`
-	GCTScript          gctscript.Config          `json:"gctscript"`
-	Currency           CurrencyConfig            `json:"currencyConfig"`
-	Communications     base.CommunicationsConfig `json:"communications"`
-	RemoteControl      RemoteControlConfig       `json:"remoteControl"`
-	Portfolio          portfolio.Base            `json:"portfolioAddresses"`
-	Exchanges          []ExchangeConfig          `json:"exchanges"`
-	BankAccounts       []banking.Account         `json:"bankAccounts"`
+	Name                 string                    `json:"name"`
+	DataDirectory        string                    `json:"dataDirectory"`
+	EncryptConfig        int                       `json:"encryptConfig"`
+	GlobalHTTPTimeout    time.Duration             `json:"globalHTTPTimeout"`
+	Database             database.Config           `json:"database"`
+	Logging              log.Config                `json:"logging"`
+	ConnectionMonitor    ConnectionMonitorConfig   `json:"connectionMonitor"`
+	DataHistoryManager   DataHistoryManager        `json:"dataHistoryManager"`
+	CurrencyStateManager CurrencyStateManager      `json:"currencyStateManager"`
+	Profiler             Profiler                  `json:"profiler"`
+	NTPClient            NTPClientConfig           `json:"ntpclient"`
+	GCTScript            gctscript.Config          `json:"gctscript"`
+	Currency             currency.Config           `json:"currencyConfig"`
+	Communications       base.CommunicationsConfig `json:"communications"`
+	RemoteControl        RemoteControlConfig       `json:"remoteControl"`
+	Portfolio            portfolio.Base            `json:"portfolioAddresses"`
+	Exchanges            []Exchange                `json:"exchanges"`
+	BankAccounts         []banking.Account         `json:"bankAccounts"`
 
 	// Deprecated config settings, will be removed at a future date
-	Webserver           *WebserverConfig          `json:"webserver,omitempty"`
-	CurrencyPairFormat  *CurrencyPairFormatConfig `json:"currencyPairFormat,omitempty"`
-	FiatDisplayCurrency *currency.Code            `json:"fiatDispayCurrency,omitempty"`
-	Cryptocurrencies    *currency.Currencies      `json:"cryptocurrencies,omitempty"`
-	SMS                 *base.SMSGlobalConfig     `json:"smsGlobal,omitempty"`
+	Webserver           *WebserverConfig      `json:"webserver,omitempty"`
+	CurrencyPairFormat  *currency.PairFormat  `json:"currencyPairFormat,omitempty"`
+	FiatDisplayCurrency *currency.Code        `json:"fiatDispayCurrency,omitempty"`
+	Cryptocurrencies    *currency.Currencies  `json:"cryptocurrencies,omitempty"`
+	SMS                 *base.SMSGlobalConfig `json:"smsGlobal,omitempty"`
 	// encryption session values
 	storedSalt []byte
 	sessionDK  []byte
@@ -103,10 +106,18 @@ type Config struct {
 
 // DataHistoryManager holds all information required for the data history manager
 type DataHistoryManager struct {
-	Enabled         bool          `json:"enabled"`
-	CheckInterval   time.Duration `json:"checkInterval"`
-	MaxJobsPerCycle int64         `json:"maxJobsPerCycle"`
-	Verbose         bool          `json:"verbose"`
+	Enabled             bool          `json:"enabled"`
+	CheckInterval       time.Duration `json:"checkInterval"`
+	MaxJobsPerCycle     int64         `json:"maxJobsPerCycle"`
+	MaxResultInsertions int64         `json:"maxResultInsertions"`
+	Verbose             bool          `json:"verbose"`
+}
+
+// CurrencyStateManager defines a set of configuration options for the currency
+// state manager
+type CurrencyStateManager struct {
+	Enabled *bool         `json:"enabled"`
+	Delay   time.Duration `json:"delay"`
 }
 
 // ConnectionMonitorConfig defines the connection monitor variables to ensure
@@ -117,8 +128,8 @@ type ConnectionMonitorConfig struct {
 	CheckInterval    time.Duration `json:"checkInterval"`
 }
 
-// ExchangeConfig holds all the information needed for each enabled Exchange.
-type ExchangeConfig struct {
+// Exchange holds all the information needed for each enabled Exchange.
+type Exchange struct {
 	Name                          string                 `json:"name"`
 	Enabled                       bool                   `json:"enabled"`
 	Verbose                       bool                   `json:"verbose"`
@@ -135,7 +146,7 @@ type ExchangeConfig struct {
 	API                           APIConfig              `json:"api"`
 	Features                      *FeaturesConfig        `json:"features"`
 	BankAccounts                  []banking.Account      `json:"bankAccounts,omitempty"`
-	OrderbookConfig               `json:"orderbook"`
+	Orderbook                     Orderbook              `json:"orderbook"`
 
 	// Deprecated settings which will be removed in a future update
 	AvailablePairs                   *currency.Pairs      `json:"availablePairs,omitempty"`
@@ -238,26 +249,6 @@ type BankTransaction struct {
 	PaymentInstructions string `json:"paymentInstructions"`
 }
 
-// CurrencyConfig holds all the information needed for currency related manipulation
-type CurrencyConfig struct {
-	ForexProviders                []currency.FXSettings     `json:"forexProviders"`
-	CryptocurrencyProvider        CryptocurrencyProvider    `json:"cryptocurrencyProvider"`
-	Cryptocurrencies              currency.Currencies       `json:"cryptocurrencies"`
-	CurrencyPairFormat            *CurrencyPairFormatConfig `json:"currencyPairFormat"`
-	FiatDisplayCurrency           currency.Code             `json:"fiatDisplayCurrency"`
-	CurrencyFileUpdateDuration    time.Duration             `json:"currencyFileUpdateDuration"`
-	ForeignExchangeUpdateDuration time.Duration             `json:"foreignExchangeUpdateDuration"`
-}
-
-// CryptocurrencyProvider defines coinmarketcap tools
-type CryptocurrencyProvider struct {
-	Name        string `json:"name"`
-	Enabled     bool   `json:"enabled"`
-	Verbose     bool   `json:"verbose"`
-	APIkey      string `json:"apiKey"`
-	AccountPlan string `json:"accountPlan"`
-}
-
 // FeaturesSupportedConfig stores the exchanges supported features
 type FeaturesSupportedConfig struct {
 	REST                  bool              `json:"restAPI"`
@@ -271,6 +262,8 @@ type FeaturesEnabledConfig struct {
 	AutoPairUpdates bool `json:"autoPairUpdates"`
 	Websocket       bool `json:"websocketAPI"`
 	SaveTradeData   bool `json:"saveTradeData"`
+	TradeFeed       bool `json:"tradeFeed"`
+	FillsFeed       bool `json:"fillsFeed"`
 }
 
 // FeaturesConfig stores the exchanges supported and enabled features
@@ -288,12 +281,14 @@ type APIEndpointsConfig struct {
 
 // APICredentialsConfig stores the API credentials
 type APICredentialsConfig struct {
-	Key        string `json:"key,omitempty"`
-	Secret     string `json:"secret,omitempty"`
-	ClientID   string `json:"clientID,omitempty"`
-	Subaccount string `json:"subaccount,omitempty"`
-	PEMKey     string `json:"pemKey,omitempty"`
-	OTPSecret  string `json:"otpSecret,omitempty"`
+	Key           string `json:"key,omitempty"`
+	Secret        string `json:"secret,omitempty"`
+	ClientID      string `json:"clientID,omitempty"`
+	Subaccount    string `json:"subaccount,omitempty"`
+	PEMKey        string `json:"pemKey,omitempty"`
+	OTPSecret     string `json:"otpSecret,omitempty"`
+	TradePassword string `json:"tradePassword,omitempty"`
+	PIN           string `json:"pin,omitempty"`
 }
 
 // APICredentialsValidatorConfig stores the API credentials validator settings
@@ -319,9 +314,12 @@ type APIConfig struct {
 	Endpoints            map[string]string              `json:"urlEndpoints"`
 }
 
-// OrderbookConfig stores the orderbook configuration variables
-type OrderbookConfig struct {
+// Orderbook stores the orderbook configuration variables
+type Orderbook struct {
 	VerificationBypass     bool `json:"verificationBypass"`
 	WebsocketBufferLimit   int  `json:"websocketBufferLimit"`
 	WebsocketBufferEnabled bool `json:"websocketBufferEnabled"`
+	// PublishPeriod here is a pointer because we want to distinguish
+	// between zeroed out and missing.
+	PublishPeriod *time.Duration `json:"publishPeriod"`
 }

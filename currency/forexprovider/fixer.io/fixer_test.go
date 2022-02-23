@@ -9,16 +9,12 @@ import (
 // Please set API key and apikey subscription level for correct due diligence
 // testing - NOTE please be aware tests will diminish your monthly API calls
 
-const (
-	apikey    = ""
-	apiKeyLvl = 3
-)
-
 var f Fixer
 
 var isSetup bool
 
 func setup(t *testing.T) {
+	t.Helper()
 	if !isSetup {
 		err := f.Setup(base.Settings{})
 		if err != nil {

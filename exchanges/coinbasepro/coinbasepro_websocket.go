@@ -38,17 +38,14 @@ func (c *CoinbasePro) WsConnect() error {
 		return err
 	}
 
+	c.Websocket.Wg.Add(1)
 	go c.wsReadData()
 	return nil
 }
 
 // wsReadData receives and passes on websocket messages for processing
 func (c *CoinbasePro) wsReadData() {
-	c.Websocket.Wg.Add(1)
-
-	defer func() {
-		c.Websocket.Wg.Done()
-	}()
+	defer c.Websocket.Wg.Done()
 
 	for {
 		resp := c.Websocket.Conn.ReadMessage()
@@ -416,8 +413,12 @@ subscriptions:
 			channelsToSubscribe[i].Channel == "full" {
 			n := strconv.FormatInt(time.Now().Unix(), 10)
 			message := n + http.MethodGet + "/users/self/verify"
-			hmac := crypto.GetHMAC(crypto.HashSHA256, []byte(message),
+			hmac, err := crypto.GetHMAC(crypto.HashSHA256,
+				[]byte(message),
 				[]byte(c.API.Credentials.Secret))
+			if err != nil {
+				return err
+			}
 			subscribe.Signature = crypto.Base64Encode(hmac)
 			subscribe.Key = c.API.Credentials.Key
 			subscribe.Passphrase = c.API.Credentials.ClientID

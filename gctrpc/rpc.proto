@@ -61,7 +61,7 @@ message GetExchangesResponse {
     string exchanges = 1;
 }
 
-message GetExchangeOTPReponse {
+message GetExchangeOTPResponse {
     string otp_code = 1;
 }
 
@@ -461,17 +461,39 @@ message GetCryptocurrencyDepositAddressesRequest {
     string exchange = 1;
 }
 
+message DepositAddress {
+    string address = 1;
+    string tag = 2;
+    string chain = 3;
+}
+
+message DepositAddresses {
+    repeated DepositAddress addresses = 1; 
+}
+
 message GetCryptocurrencyDepositAddressesResponse {
-    map<string, string> addresses = 1;
+    map<string, DepositAddresses> addresses = 1;
 }
 
 message GetCryptocurrencyDepositAddressRequest {
     string exchange = 1;
     string cryptocurrency = 2;
+    string chain = 3;
+    bool bypass = 4;
 }
 
 message GetCryptocurrencyDepositAddressResponse {
     string address = 1;
+    string tag = 2;
+}
+
+message GetAvailableTransferChainsRequest {
+    string exchange = 1;
+    string cryptocurrency = 2;
+}
+
+message GetAvailableTransferChainsResponse {
+    repeated string chains = 1;
 }
 
 message WithdrawFiatRequest {
@@ -490,6 +512,7 @@ message WithdrawCryptoRequest {
     double amount = 5;
     double fee = 6;
     string description = 7;
+    string chain = 8;
 }
 
 message WithdrawResponse {
@@ -866,11 +889,26 @@ message UpsertDataHistoryJobRequest {
     int64	max_retry_attempts = 10;
     int64	batch_size = 11;
     bool insert_only = 12;
+    int64	conversion_interval = 13;
+    bool overwrite_existing_data = 14;
+    string prerequisite_job_nickname = 15;
+    int64 decimal_place_comparison = 16;
+    string secondary_exchange_name = 17;
+    double issue_tolerance_percentage = 18;
+    bool replace_on_issue = 19;
+}
+
+message InsertSequentialJobsRequest {
+    repeated UpsertDataHistoryJobRequest jobs = 1;
+}
+
+message InsertSequentialJobsResponse {
+    repeated  UpsertDataHistoryJobResponse jobs = 1;
 }
 
 message UpsertDataHistoryJobResponse {
-   string message = 1;
-   string job_id = 2;
+    string message = 1;
+    string job_id = 2;
 }
 
 message GetDataHistoryJobDetailsRequest {
@@ -893,10 +931,16 @@ message DataHistoryJob {
     int64	batch_size = 11;
     string status = 12;
     string data_type = 13;
-    repeated DataHistoryJobResult job_results = 14;
-    repeated string result_summaries = 15;
+    int64	conversion_interval = 14;
+    bool overwrite_existing_data = 15;
+    string prerequisite_job_nickname = 16;
+    int64 decimal_place_comparison = 17;
+    string secondary_exchange_name = 18;
+    double issue_tolerance_percentage = 19;
+    bool replace_on_issue = 20;
+    repeated DataHistoryJobResult job_results = 21;
+    repeated string result_summaries = 22;
 }
-
 
 message DataHistoryJobResult {
     string	start_date = 1;
@@ -913,6 +957,70 @@ message DataHistoryJobs {
 message GetDataHistoryJobsBetweenRequest {
     string start_date = 1;
     string end_date = 2;
+}
+
+message SetDataHistoryJobStatusRequest {
+    string id = 1;
+    string nickname = 2;
+    int64 status = 3;
+}
+
+message UpdateDataHistoryJobPrerequisiteRequest {
+    string nickname = 1;
+    string prerequisite_job_nickname = 2;
+}
+
+message ModifyOrderRequest {
+    string exchange = 1;
+    string order_id = 2;
+    CurrencyPair pair = 3;
+    string asset = 4;
+    double amount = 5;
+    double price = 6;
+}
+
+message ModifyOrderResponse {
+    string modified_order_id = 1;
+}
+
+message CurrencyStateGetAllRequest {
+    string exchange = 1;
+}
+
+message CurrencyStateTradingRequest {
+    string exchange = 1;
+    string code = 2;
+    string asset = 3;
+}
+
+message CurrencyStateTradingPairRequest {
+    string exchange = 1;
+    string pair = 2;
+    string asset = 3;
+}
+
+message CurrencyStateWithdrawRequest {
+    string exchange = 1;
+    string code = 2;
+    string asset = 3;
+}
+
+message CurrencyStateDepositRequest {
+    string exchange = 1;
+    string code = 2;
+    string asset = 3;
+}
+
+message CurrencyStateResponse {
+    repeated CurrencyState currency_states = 1;
+}
+
+message CurrencyState {
+    string currency = 1;
+    string asset = 2;
+    bool withdraw_enabled = 3;
+    bool deposit_enabled = 4;
+    bool trading_enabled = 5;
 }
 
 service GoCryptoTrader {
@@ -971,7 +1079,7 @@ service GoCryptoTrader {
         };
     }
 
-    rpc GetExchangeOTPCode (GenericExchangeNameRequest) returns (GetExchangeOTPReponse) {
+    rpc GetExchangeOTPCode (GenericExchangeNameRequest) returns (GetExchangeOTPResponse) {
         option (google.api.http) = {
             get: "/v1/getexchangeotp"
         };
@@ -1169,6 +1277,12 @@ service GoCryptoTrader {
         };
     }
 
+    rpc GetAvailableTransferChains(GetAvailableTransferChainsRequest) returns (GetAvailableTransferChainsResponse) {
+        option (google.api.http) = {
+            post: "/v1/getavailabletransferchains"
+            body: "*"
+        };
+    }
 
     rpc WithdrawFiatFunds(WithdrawFiatRequest) returns (WithdrawResponse) {
         option (google.api.http) = {
@@ -1424,8 +1538,8 @@ service GoCryptoTrader {
 
     rpc UpsertDataHistoryJob (UpsertDataHistoryJobRequest) returns (UpsertDataHistoryJobResponse) {
         option (google.api.http) = {
-            post: "/v1/upsertdatahistoryjob"
-                 body: "*"
+            post: "/v1/upsertdatahistoryjob",
+            body: "*"
         };
     }
 
@@ -1439,11 +1553,6 @@ service GoCryptoTrader {
             get: "/v1/getactivedatahistoryjobs"
         };
     }
-    rpc DeleteDataHistoryJob (GetDataHistoryJobDetailsRequest) returns (GenericResponse) {
-        option (google.api.http) = {
-            delete: "/v1/deletedatahistoryjob"
-        };
-    }
     rpc GetDataHistoryJobsBetween (GetDataHistoryJobsBetweenRequest) returns (DataHistoryJobs) {
         option (google.api.http) = {
             get: "/v1/getdatahistoryjobsbetween"
@@ -1454,10 +1563,53 @@ service GoCryptoTrader {
             get: "/v1/getdatahistoryjobsummary"
         };
     }
+    rpc SetDataHistoryJobStatus (SetDataHistoryJobStatusRequest) returns (GenericResponse) {
+        option (google.api.http) = {
+            post: "/v1/setdatahistoryjobstatus",
+            body: "*"
+        };
+    }
+    rpc UpdateDataHistoryJobPrerequisite (UpdateDataHistoryJobPrerequisiteRequest) returns (GenericResponse) {
+        option (google.api.http) = {
+            post: "/v1/updatedatahistoryjobprerequisite",
+            body: "*"
+        };
+    }
     rpc GetManagedOrders (GetOrdersRequest) returns (GetOrdersResponse) {
         option (google.api.http) = {
             post: "/v1/getmanagedorders"
             body: "*"
+        };
+    }
+    rpc ModifyOrder (ModifyOrderRequest) returns (ModifyOrderResponse) {
+        option (google.api.http) = {
+            get: "/v1/modifyorder"
+        };
+    }
+
+    rpc CurrencyStateGetAll (CurrencyStateGetAllRequest) returns (CurrencyStateResponse) {
+        option (google.api.http) = {
+            get: "/v1/currencystategetall"
+        };
+    }
+    rpc CurrencyStateTrading (CurrencyStateTradingRequest) returns (GenericResponse) {
+        option (google.api.http) = {
+            get: "/v1/currencystatetrading"
+        };
+    }
+    rpc CurrencyStateDeposit (CurrencyStateDepositRequest) returns (GenericResponse) {
+        option (google.api.http) = {
+            get: "/v1/currencystatedeposit"
+        };
+    }
+    rpc CurrencyStateWithdraw (CurrencyStateWithdrawRequest) returns (GenericResponse) {
+        option (google.api.http) = {
+            get: "/v1/currencystatewithdraw"
+        };
+    }
+    rpc CurrencyStateTradingPair (CurrencyStateTradingPairRequest) returns (GenericResponse) {
+        option (google.api.http) = {
+            get: "/v1/currencystatetradingpair"
         };
     }
 }

@@ -1,21 +1,23 @@
 package kline
 
-// ClosePrice returns the closing price of a kline
-func (k *Kline) ClosePrice() float64 {
+import "github.com/shopspring/decimal"
+
+// GetClosePrice returns the closing price of a kline
+func (k *Kline) GetClosePrice() decimal.Decimal {
 	return k.Close
 }
 
-// HighPrice returns the high price of a kline
-func (k *Kline) HighPrice() float64 {
+// GetHighPrice returns the high price of a kline
+func (k *Kline) GetHighPrice() decimal.Decimal {
 	return k.High
 }
 
-// LowPrice returns the low price of a kline
-func (k *Kline) LowPrice() float64 {
+// GetLowPrice returns the low price of a kline
+func (k *Kline) GetLowPrice() decimal.Decimal {
 	return k.Low
 }
 
-// OpenPrice returns the open price of a kline
-func (k *Kline) OpenPrice() float64 {
+// GetOpenPrice returns the open price of a kline
+func (k *Kline) GetOpenPrice() decimal.Decimal {
 	return k.Open
 }

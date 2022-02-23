@@ -2,6 +2,7 @@ package lbank
 
 import (
 	"encoding/json"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 )
@@ -44,12 +45,12 @@ type TradeResponse struct {
 
 // KlineResponse stores kline info for given currency exchange
 type KlineResponse struct {
-	TimeStamp     int64   `json:"timestamp"`
-	OpenPrice     float64 `json:"openprice"`
-	HigestPrice   float64 `json:"highestprice"`
-	LowestPrice   float64 `json:"lowestprice"`
-	ClosePrice    float64 `json:"closeprice"`
-	TradingVolume float64 `json:"tradingvolume"`
+	TimeStamp     time.Time `json:"timestamp"`
+	OpenPrice     float64   `json:"openprice"`
+	HigestPrice   float64   `json:"highestprice"`
+	LowestPrice   float64   `json:"lowestprice"`
+	ClosePrice    float64   `json:"closeprice"`
+	TradingVolume float64   `json:"tradingvolume"`
 }
 
 // InfoResponse stores info

@@ -30,7 +30,11 @@ var (
 
 func TestMain(m *testing.M) {
 	if verbose {
-		testhelpers.EnableVerboseTestOutput()
+		err := testhelpers.EnableVerboseTestOutput()
+		if err != nil {
+			fmt.Printf("failed to enable verbose test output: %v", err)
+			os.Exit(1)
+		}
 	}
 
 	var err error
@@ -241,25 +245,19 @@ func TestSeries(t *testing.T) {
 				t.Errorf("unexpected number of results received:  %v", len(ret.Candles))
 			}
 
-			ret, err = Series("", "", "", 0, "", start, end)
+			_, err = Series("", "", "", 0, "", start, end)
 			if !errors.Is(err, errInvalidInput) {
 				t.Fatal(err)
 			}
 
-			ret, err = Series(testExchanges[0].Name,
+			_, err = Series(testExchanges[0].Name,
 				"BTC", "MOON",
 				864000, "spot",
 				start, end)
-			if err != nil {
-				if !errors.Is(err, errInvalidInput) {
-					if !errors.Is(err, ErrNoCandleDataFound) {
-						t.Fatal(err)
-					}
-				}
+			if err != nil && !errors.Is(err, errInvalidInput) && !errors.Is(err, ErrNoCandleDataFound) {
+				t.Fatal(err)
 			}
-
-			err = testhelpers.CloseDatabase(dbConn)
-			if err != nil {
+			if err = testhelpers.CloseDatabase(dbConn); err != nil {
 				t.Error(err)
 			}
 		})
@@ -298,12 +296,13 @@ func genOHCLVData() (out Item, err error) {
 	start := time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC)
 	for x := 0; x < 365; x++ {
 		out.Candles = append(out.Candles, Candle{
-			Timestamp: start.Add(time.Hour * 24 * time.Duration(x)),
-			Open:      1000,
-			High:      1000,
-			Low:       1000,
-			Close:     1000,
-			Volume:    1000,
+			Timestamp:        start.Add(time.Hour * 24 * time.Duration(x)),
+			Open:             1000,
+			High:             1000,
+			Low:              1000,
+			Close:            1000,
+			Volume:           1000,
+			ValidationIssues: "hello world!",
 		})
 	}
 

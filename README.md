@@ -22,14 +22,13 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | Binance| Yes  | Yes        | NA  |
 | Bitfinex | Yes  | Yes        | NA  |
 | Bitflyer | Yes  | No      | NA  |
-| Bithumb | Yes  | NA       | NA  |
+| Bithumb | Yes  | Yes       | NA  |
 | BitMEX | Yes | Yes | NA |
 | Bitstamp | Yes  | Yes       | No  |
 | Bittrex | Yes | Yes | NA |
 | BTCMarkets | Yes | Yes       | NA  |
 | BTSE | Yes | Yes | NA |
 | CoinbasePro | Yes | Yes | No|
-| Coinbene | Yes | Yes | No |
 | COINUT | Yes | Yes | NA |
 | Exmo | Yes | NA | NA |
 | FTX | Yes | Yes | No |
@@ -69,7 +68,7 @@ However, we welcome pull requests for any exchange which does not match this cri
 + Connection monitor package.
 + gRPC service and JSON RPC proxy. See [gRPC service](/gctrpc/README.md).
 + gRPC client. See [gctcli](/cmd/gctcli/README.md).
-+ Forex currency converter packages (CurrencyConverterAPI, CurrencyLayer, Fixer.io, OpenExchangeRates).
++ Forex currency converter packages (CurrencyConverterAPI, CurrencyLayer, Exchange Rates, Fixer.io, OpenExchangeRates, Exchange Rate Host).
 + Packages for handling currency pairs, tickers and orderbooks.
 + Portfolio management tool; fetches balances from supported exchanges and allows for custom address tracking.
 + Basic event trigger system.
@@ -78,6 +77,8 @@ However, we welcome pull requests for any exchange which does not match this cri
 + Recent and historic trade processing. See [trades](/exchanges/trade/README.md).
 + Backtesting application. An event-driven backtesting tool to test and iterate trading strategies using historical or custom data. See [backtester](/backtester/README.md).
 + WebGUI (discontinued).
++ Exchange HTTP mock testing. See [mock](/exchanges/mock/README.md).
++ Exchange multichain deposits and withdrawals for specific exchanges. See [multichain transfer support](/docs/MULTICHAIN_TRANSFER_SUPPORT.md).
 
 ## Planned Features
 
@@ -142,11 +143,11 @@ Binaries will be published once the codebase reaches a stable condition.
 
 |User|Contribution Amount|
 |--|--|
-| [thrasher-](https://github.com/thrasher-) | 663 |
+| [thrasher-](https://github.com/thrasher-) | 664 |
 | [shazbert](https://github.com/shazbert) | 232 |
 | [gloriousCode](https://github.com/gloriousCode) | 194 |
 | [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 88 |
-| [dependabot[bot]](https://github.com/apps/dependabot) | 53 |
+| [dependabot[bot]](https://github.com/apps/dependabot) | 57 |
 | [xtda](https://github.com/xtda) | 47 |
 | [lrascao](https://github.com/lrascao) | 27 |
 | [Rots](https://github.com/Rots) | 15 |
@@ -172,6 +173,9 @@ Binaries will be published once the codebase reaches a stable condition.
 | [gam-phon](https://github.com/gam-phon) | 2 |
 | [cornelk](https://github.com/cornelk) | 2 |
 | [if1live](https://github.com/if1live) | 2 |
+| [herenow](https://github.com/herenow) | 2 |
+| [mshogin](https://github.com/mshogin) | 2 |
+| [soxipy](https://github.com/soxipy) | 2 |
 | [tk42](https://github.com/tk42) | 2 |
 | [daniel-cohen](https://github.com/daniel-cohen) | 1 |
 | [DirectX](https://github.com/DirectX) | 1 |
@@ -190,3 +194,5 @@ Binaries will be published once the codebase reaches a stable condition.
 | [Daanikus](https://github.com/Daanikus) | 1 |
 | [CodeLingoBot](https://github.com/CodeLingoBot) | 1 |
 | [blombard](https://github.com/blombard) | 1 |
+| [soxipy](https://github.com/soxipy) | 2 |
+| [lozdog245](https://github.com/lozdog245) | 2 |

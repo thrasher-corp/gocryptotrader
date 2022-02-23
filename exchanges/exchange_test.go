@@ -1,11 +1,11 @@
 package exchange
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"net"
-	"net/http"
 	"os"
-	"strings"
 	"testing"
 	"time"
 
@@ -28,11 +28,13 @@ const (
 )
 
 func TestMain(m *testing.M) {
-	c := log.GenDefaultSettings()
 	log.RWM.Lock()
-	log.GlobalLogConfig = &c
+	log.GlobalLogConfig = log.GenDefaultSettings()
 	log.RWM.Unlock()
-	log.SetupGlobalLogger()
+	if err := log.SetupGlobalLogger(); err != nil {
+		fmt.Println("Cannot setup global logger. Error:", err)
+		os.Exit(1)
+	}
 	os.Exit(m.Run())
 }
 
@@ -111,10 +113,13 @@ func TestGetURL(t *testing.T) {
 		Name: "HELAAAAAOOOOOOOOO",
 	}
 	b.API.Endpoints = b.NewEndpoints()
-	b.API.Endpoints.SetDefaultEndpoints(map[URL]string{
+	err := b.API.Endpoints.SetDefaultEndpoints(map[URL]string{
 		EdgeCase1: "http://test1.com/",
 		EdgeCase2: "http://test2.com/",
 	})
+	if err != nil {
+		t.Fatal(err)
+	}
 	getVal, err := b.API.Endpoints.GetURL(EdgeCase1)
 	if err != nil {
 		t.Error(err)
@@ -186,64 +191,21 @@ func TestSetDefaultEndpoints(t *testing.T) {
 	}
 }
 
-func TestHTTPClient(t *testing.T) {
-	t.Parallel()
-	r := Base{Name: "asdf"}
-	r.SetHTTPClientTimeout(time.Second * 5)
-
-	if r.GetHTTPClient().Timeout != time.Second*5 {
-		t.Fatalf("TestHTTPClient unexpected value")
-	}
-
-	r.Requester = nil
-	newClient := new(http.Client)
-	newClient.Timeout = time.Second * 10
-
-	r.SetHTTPClient(newClient)
-	if r.GetHTTPClient().Timeout != time.Second*10 {
-		t.Fatalf("TestHTTPClient unexpected value")
-	}
-
-	r.Requester = nil
-	if r.GetHTTPClient() == nil {
-		t.Fatalf("TestHTTPClient unexpected value")
-	}
-
-	b := Base{Name: "RAWR"}
-	b.Requester = request.New(b.Name,
-		new(http.Client))
-
-	b.SetHTTPClientTimeout(time.Second * 5)
-	if b.GetHTTPClient().Timeout != time.Second*5 {
-		t.Fatalf("TestHTTPClient unexpected value")
-	}
-
-	newClient = new(http.Client)
-	newClient.Timeout = time.Second * 10
-
-	b.SetHTTPClient(newClient)
-	if b.GetHTTPClient().Timeout != time.Second*10 {
-		t.Fatalf("TestHTTPClient unexpected value")
-	}
-
-	b.SetHTTPClientUserAgent("epicUserAgent")
-	if !strings.Contains(b.GetHTTPClientUserAgent(), "epicUserAgent") {
-		t.Error("user agent not set properly")
-	}
-}
-
 func TestSetClientProxyAddress(t *testing.T) {
 	t.Parallel()
 
-	requester := request.New("rawr",
+	requester, err := request.New("rawr",
 		common.NewHTTPClientWithTimeout(time.Second*15))
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	newBase := Base{
 		Name:      "rawr",
 		Requester: requester}
 
 	newBase.Websocket = stream.New()
-	err := newBase.SetClientProxyAddress("")
+	err = newBase.SetClientProxyAddress("")
 	if err != nil {
 		t.Error(err)
 	}
@@ -270,13 +232,6 @@ func TestSetClientProxyAddress(t *testing.T) {
 	if newBase.Websocket.GetProxyAddress() != "http://www.valid.com" {
 		t.Error("SetClientProxyAddress error", err)
 	}
-
-	// Nil out transport
-	newBase.Requester.HTTPClient.Transport = nil
-	err = newBase.SetClientProxyAddress("http://www.valid.com")
-	if err == nil {
-		t.Error("error cannot be nil")
-	}
 }
 
 func TestSetFeatureDefaults(t *testing.T) {
@@ -284,7 +239,7 @@ func TestSetFeatureDefaults(t *testing.T) {
 
 	// Test nil features with basic support capabilities
 	b := Base{
-		Config: &config.ExchangeConfig{
+		Config: &config.Exchange{
 			CurrencyPairs: &currency.PairsManager{},
 		},
 		Features: Features{
@@ -329,7 +284,7 @@ func TestSetAPICredentialDefaults(t *testing.T) {
 	t.Parallel()
 
 	b := Base{
-		Config: &config.ExchangeConfig{},
+		Config: &config.Exchange{},
 	}
 	b.API.CredentialsValidator.RequiresKey = true
 	b.API.CredentialsValidator.RequiresSecret = true
@@ -350,7 +305,7 @@ func TestSetAPICredentialDefaults(t *testing.T) {
 func TestSetAutoPairDefaults(t *testing.T) {
 	t.Parallel()
 	bs := "Bitstamp"
-	cfg := &config.Config{Exchanges: []config.ExchangeConfig{
+	cfg := &config.Config{Exchanges: []config.Exchange{
 		{
 			Name:          bs,
 			CurrencyPairs: &currency.PairsManager{},
@@ -483,7 +438,7 @@ func TestSetCurrencyPairFormat(t *testing.T) {
 	t.Parallel()
 
 	b := Base{
-		Config: &config.ExchangeConfig{},
+		Config: &config.Exchange{},
 	}
 	b.SetCurrencyPairFormat()
 	if b.Config.CurrencyPairs == nil {
@@ -564,7 +519,7 @@ func TestLoadConfigPairs(t *testing.T) {
 				},
 			},
 		},
-		Config: &config.ExchangeConfig{
+		Config: &config.Exchange{
 			CurrencyPairs: &currency.PairsManager{},
 		},
 	}
@@ -656,7 +611,10 @@ func TestLoadConfigPairs(t *testing.T) {
 	b.Config.CurrencyPairs.UseGlobalFormat = false
 	b.CurrencyPairs.UseGlobalFormat = false
 
-	b.SetConfigPairs()
+	err = b.SetConfigPairs()
+	if err != nil {
+		t.Fatal(err)
+	}
 	// Test four things:
 	// 1) XRP-USD is set
 	// 2) pair format is set for RequestFormat
@@ -672,7 +630,7 @@ func TestLoadConfigPairs(t *testing.T) {
 	}
 	p = pairs[2].Format(pFmt.Delimiter, pFmt.Uppercase).String()
 	if p != "xrp/usd" {
-		t.Error("incorrect value, expected xrp/usd")
+		t.Error("incorrect value, expected xrp/usd", p)
 	}
 
 	avail, err = b.GetAvailablePairs(asset.Spot)
@@ -686,7 +644,7 @@ func TestLoadConfigPairs(t *testing.T) {
 	}
 	p = format.String()
 	if p != "xrp~usd" {
-		t.Error("incorrect value, expected xrp~usd")
+		t.Error("incorrect value, expected xrp~usd", p)
 	}
 	ps, err := b.Config.CurrencyPairs.Get(asset.Spot)
 	if err != nil {
@@ -733,8 +691,7 @@ func TestGetName(t *testing.T) {
 		Name: "TESTNAME",
 	}
 
-	name := b.GetName()
-	if name != "TESTNAME" {
+	if name := b.GetName(); name != "TESTNAME" {
 		t.Error("Exchange GetName() returned incorrect name")
 	}
 }
@@ -1148,8 +1105,7 @@ func TestFormatExchangeCurrencies(t *testing.T) {
 	if err != nil {
 		t.Errorf("Exchange TestFormatExchangeCurrencies error %s", err)
 	}
-	expected := "btc~usd^ltc~btc"
-	if actual != expected {
+	if expected := "btc~usd^ltc~btc"; actual != expected {
 		t.Errorf("Exchange TestFormatExchangeCurrencies %s != %s",
 			actual, expected)
 	}
@@ -1248,15 +1204,24 @@ func TestSetAPIKeys(t *testing.T) {
 func TestSetupDefaults(t *testing.T) {
 	t.Parallel()
 
-	var b Base
-	cfg := config.ExchangeConfig{
+	newRequester, err := request.New("testSetupDefaults",
+		common.NewHTTPClientWithTimeout(0))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var b = Base{
+		Name:      "awesomeTest",
+		Requester: newRequester,
+	}
+	cfg := config.Exchange{
 		HTTPTimeout: time.Duration(-1),
 		API: config.APIConfig{
 			AuthenticatedSupport: true,
 		},
 	}
 
-	err := b.SetupDefaults(&cfg)
+	err = b.SetupDefaults(&cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1286,7 +1251,10 @@ func TestSetupDefaults(t *testing.T) {
 			},
 		},
 	)
-	b.SetupDefaults(&cfg)
+	err = b.SetupDefaults(&cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
 	ps, err := cfg.CurrencyPairs.Get(asset.Spot)
 	if err != nil {
 		t.Fatal(err)
@@ -1298,15 +1266,18 @@ func TestSetupDefaults(t *testing.T) {
 	// Test websocket support
 	b.Websocket = stream.New()
 	b.Features.Supports.Websocket = true
-	b.SetupDefaults(&cfg)
 	err = b.Websocket.Setup(&stream.WebsocketSetup{
-		Enabled:          false,
-		WebsocketTimeout: time.Second * 30,
-		Features:         &protocol.Features{},
-		DefaultURL:       "ws://something.com",
-		RunningURL:       "ws://something.com",
-		ExchangeName:     "test",
-		Connector:        func() error { return nil },
+		ExchangeConfig: &config.Exchange{
+			WebsocketTrafficTimeout: time.Second * 30,
+			Name:                    "test",
+			Features:                &config.FeaturesConfig{},
+		},
+		Features:              &protocol.Features{},
+		DefaultURL:            "ws://something.com",
+		RunningURL:            "ws://something.com",
+		Connector:             func() error { return nil },
+		GenerateSubscriptions: func() ([]stream.ChannelSubscription, error) { return []stream.ChannelSubscription{}, nil },
+		Subscriber:            func(cs []stream.ChannelSubscription) error { return nil },
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -1429,7 +1400,7 @@ func TestSetPairs(t *testing.T) {
 				Uppercase: true,
 			},
 		},
-		Config: &config.ExchangeConfig{
+		Config: &config.Exchange{
 			CurrencyPairs: &currency.PairsManager{
 				UseGlobalFormat: true,
 				ConfigFormat: &currency.PairFormat{
@@ -1479,7 +1450,7 @@ func TestSetPairs(t *testing.T) {
 func TestUpdatePairs(t *testing.T) {
 	t.Parallel()
 	cfg := &config.Config{
-		Exchanges: []config.ExchangeConfig{
+		Exchanges: []config.Exchange{
 			{
 				Name:          defaultTestExchange,
 				CurrencyPairs: &currency.PairsManager{},
@@ -1583,7 +1554,7 @@ func TestUpdatePairs(t *testing.T) {
 		t.Fatal(err)
 	}
 	pairs := currency.Pairs{
-		currency.Pair{},
+		currency.EMPTYPAIR,
 		p,
 	}
 	err = UAC.UpdatePairs(pairs, asset.Spot, true, true)
@@ -1646,13 +1617,22 @@ func TestIsWebsocketEnabled(t *testing.T) {
 
 	b.Websocket = stream.New()
 	err := b.Websocket.Setup(&stream.WebsocketSetup{
-		Enabled:          true,
-		WebsocketTimeout: time.Second * 30,
-		Features:         &protocol.Features{},
-		DefaultURL:       "ws://something.com",
-		RunningURL:       "ws://something.com",
-		ExchangeName:     "test",
-		Connector:        func() error { return nil },
+		ExchangeConfig: &config.Exchange{
+			Enabled:                 true,
+			WebsocketTrafficTimeout: time.Second * 30,
+			Name:                    "test",
+			Features: &config.FeaturesConfig{
+				Enabled: config.FeaturesEnabledConfig{
+					Websocket: true,
+				},
+			},
+		},
+		Features:              &protocol.Features{},
+		DefaultURL:            "ws://something.com",
+		RunningURL:            "ws://something.com",
+		Connector:             func() error { return nil },
+		GenerateSubscriptions: func() ([]stream.ChannelSubscription, error) { return nil, nil },
+		Subscriber:            func(cs []stream.ChannelSubscription) error { return nil },
 	})
 	if err != nil {
 		t.Error(err)
@@ -1776,8 +1756,7 @@ func TestGetBase(t *testing.T) {
 func TestGetAssetType(t *testing.T) {
 	var b Base
 	p := currency.NewPair(currency.BTC, currency.USD)
-	_, err := b.GetPairAssetType(p)
-	if err == nil {
+	if _, err := b.GetPairAssetType(p); err == nil {
 		t.Fatal("error cannot be nil")
 	}
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
@@ -1805,7 +1784,7 @@ func TestGetAssetType(t *testing.T) {
 func TestGetFormattedPairAndAssetType(t *testing.T) {
 	t.Parallel()
 	b := Base{
-		Config: &config.ExchangeConfig{},
+		Config: &config.Exchange{},
 	}
 	b.SetCurrencyPairFormat()
 	b.Config.CurrencyPairs.UseGlobalFormat = true
@@ -1843,7 +1822,7 @@ func TestGetFormattedPairAndAssetType(t *testing.T) {
 
 func TestStoreAssetPairFormat(t *testing.T) {
 	b := Base{
-		Config: &config.ExchangeConfig{Name: "kitties"},
+		Config: &config.Exchange{Name: "kitties"},
 	}
 
 	err := b.StoreAssetPairFormat(asset.Item(""), currency.PairStore{})
@@ -1879,7 +1858,7 @@ func TestStoreAssetPairFormat(t *testing.T) {
 
 func TestSetGlobalPairsManager(t *testing.T) {
 	b := Base{
-		Config: &config.ExchangeConfig{Name: "kitties"},
+		Config: &config.Exchange{Name: "kitties"},
 	}
 
 	err := b.SetGlobalPairsManager(nil, nil, "")
@@ -2021,25 +2000,34 @@ func TestCheckTransientError(t *testing.T) {
 
 func TestDisableEnableRateLimiter(t *testing.T) {
 	b := Base{}
-	b.checkAndInitRequester()
 	err := b.EnableRateLimiter()
-	if err == nil {
-		t.Fatal("error cannot be nil")
+	if !errors.Is(err, request.ErrRequestSystemIsNil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, request.ErrRequestSystemIsNil)
 	}
 
-	err = b.DisableRateLimiter()
+	b.Requester, err = request.New("testingRateLimiter", common.NewHTTPClientWithTimeout(0))
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	err = b.DisableRateLimiter()
-	if err == nil {
-		t.Fatal("error cannot be nil")
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	err = b.DisableRateLimiter()
+	if !errors.Is(err, request.ErrRateLimiterAlreadyDisabled) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, request.ErrRateLimiterAlreadyDisabled)
 	}
 
 	err = b.EnableRateLimiter()
-	if err != nil {
-		t.Fatal(err)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	err = b.EnableRateLimiter()
+	if !errors.Is(err, request.ErrRateLimiterAlreadyEnabled) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, request.ErrRateLimiterAlreadyEnabled)
 	}
 }
 
@@ -2114,7 +2102,7 @@ func TestGetSubscriptions(t *testing.T) {
 
 func TestAuthenticateWebsocket(t *testing.T) {
 	b := Base{}
-	if err := b.AuthenticateWebsocket(); err == nil {
+	if err := b.AuthenticateWebsocket(context.Background()); err == nil {
 		t.Fatal("error cannot be nil")
 	}
 }
@@ -2140,7 +2128,7 @@ func TestSetSaveTradeDataStatus(t *testing.T) {
 				SaveTradeData: false,
 			},
 		},
-		Config: &config.ExchangeConfig{
+		Config: &config.Exchange{
 			Features: &config.FeaturesConfig{
 				Enabled: config.FeaturesEnabledConfig{},
 			},
@@ -2168,7 +2156,7 @@ func TestAddTradesToBuffer(t *testing.T) {
 		Features: Features{
 			Enabled: FeaturesEnabled{},
 		},
-		Config: &config.ExchangeConfig{
+		Config: &config.Exchange{
 			Features: &config.FeaturesConfig{
 				Enabled: config.FeaturesEnabledConfig{},
 			},
@@ -2262,7 +2250,7 @@ func TestSetAPIURL(t *testing.T) {
 	b := Base{
 		Name: "SomeExchange",
 	}
-	b.Config = &config.ExchangeConfig{}
+	b.Config = &config.Exchange{}
 	var mappy struct {
 		Mappymap map[string]string `json:"urlEndpoints"`
 	}
@@ -2381,5 +2369,52 @@ func TestAssetWebsocketFunctionality(t *testing.T) {
 
 	if !b.IsAssetWebsocketSupported(asset.Futures) {
 		t.Fatal("error asset is not turned off, unexpected response")
+	}
+}
+
+func TestGetGetURLTypeFromString(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		Endpoint string
+		Expected URL
+		Error    error
+	}{
+		{Endpoint: "RestSpotURL", Expected: RestSpot},
+		{Endpoint: "RestSpotSupplementaryURL", Expected: RestSpotSupplementary},
+		{Endpoint: "RestUSDTMarginedFuturesURL", Expected: RestUSDTMargined},
+		{Endpoint: "RestCoinMarginedFuturesURL", Expected: RestCoinMargined},
+		{Endpoint: "RestFuturesURL", Expected: RestFutures},
+		{Endpoint: "RestSandboxURL", Expected: RestSandbox},
+		{Endpoint: "RestSwapURL", Expected: RestSwap},
+		{Endpoint: "WebsocketSpotURL", Expected: WebsocketSpot},
+		{Endpoint: "WebsocketSpotSupplementaryURL", Expected: WebsocketSpotSupplementary},
+		{Endpoint: "ChainAnalysisURL", Expected: ChainAnalysis},
+		{Endpoint: "EdgeCase1URL", Expected: EdgeCase1},
+		{Endpoint: "EdgeCase2URL", Expected: EdgeCase2},
+		{Endpoint: "EdgeCase3URL", Expected: EdgeCase3},
+		{Endpoint: "sillyMcSillyBilly", Expected: 0, Error: errEndpointStringNotFound},
+	}
+
+	for _, tt := range testCases {
+		tt := tt
+		t.Run(tt.Endpoint, func(t *testing.T) {
+			t.Parallel()
+			u, err := getURLTypeFromString(tt.Endpoint)
+			if !errors.Is(err, tt.Error) {
+				t.Fatalf("received: %v but expected: %v", err, tt.Error)
+			}
+
+			if u != tt.Expected {
+				t.Fatalf("received: %v but expected: %v", u, tt.Expected)
+			}
+		})
+	}
+}
+
+func TestGetAvailableTransferChains(t *testing.T) {
+	t.Parallel()
+	var b Base
+	if _, err := b.GetAvailableTransferChains(context.Background(), currency.BTC); !errors.Is(err, common.ErrFunctionNotSupported) {
+		t.Errorf("received: %v, expected: %v", err, common.ErrFunctionNotSupported)
 	}
 }

@@ -7,6 +7,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
@@ -125,6 +126,7 @@ type FundHistory struct {
 	CryptoToAddress   string
 	CryptoFromAddress string
 	CryptoTxID        string
+	CryptoChain       string
 	BankTo            string
 	BankFrom          string
 }
@@ -141,6 +143,7 @@ type WithdrawalHistory struct {
 	TransferType    string
 	CryptoToAddress string
 	CryptoTxID      string
+	CryptoChain     string
 	BankTo          string
 }
 
@@ -156,6 +159,8 @@ type FeaturesEnabled struct {
 	AutoPairUpdates bool
 	Kline           kline.ExchangeCapabilitiesEnabled
 	SaveTradeData   bool
+	TradeFeed       bool
+	FillsFeed       bool
 }
 
 // FeaturesSupported stores the exchanges supported features
@@ -214,15 +219,15 @@ type Base struct {
 	CurrencyPairs                 currency.PairsManager
 	Features                      Features
 	HTTPTimeout                   time.Duration
-	HTTPUserAgent                 string
 	HTTPRecording                 bool
 	HTTPDebugging                 bool
+	BypassConfigFormatUpgrades    bool
 	WebsocketResponseCheckTimeout time.Duration
 	WebsocketResponseMaxLimit     time.Duration
 	WebsocketOrderbookBufferLimit int64
 	Websocket                     *stream.Websocket
 	*request.Requester
-	Config        *config.ExchangeConfig
+	Config        *config.Exchange
 	settingsMutex sync.RWMutex
 	// CanVerifyOrderbook determines if the orderbook verification can be bypassed,
 	// increasing potential update speed but decreasing confidence in orderbook
@@ -231,11 +236,13 @@ type Base struct {
 	order.ExecutionLimits
 
 	AssetWebsocketSupport
+	*currencystate.States
 }
 
 // url lookup consts
 const (
-	RestSpot URL = iota
+	Invalid URL = iota
+	RestSpot
 	RestSpotSupplementary
 	RestUSDTMargined
 	RestCoinMargined
@@ -248,6 +255,20 @@ const (
 	EdgeCase1
 	EdgeCase2
 	EdgeCase3
+
+	restSpotURL                   = "RestSpotURL"
+	restSpotSupplementaryURL      = "RestSpotSupplementaryURL"
+	restUSDTMarginedFuturesURL    = "RestUSDTMarginedFuturesURL"
+	restCoinMarginedFuturesURL    = "RestCoinMarginedFuturesURL"
+	restFuturesURL                = "RestFuturesURL"
+	restSandboxURL                = "RestSandboxURL"
+	restSwapURL                   = "RestSwapURL"
+	websocketSpotURL              = "WebsocketSpotURL"
+	websocketSpotSupplementaryURL = "WebsocketSpotSupplementaryURL"
+	chainAnalysisURL              = "ChainAnalysisURL"
+	edgeCase1URL                  = "EdgeCase1URL"
+	edgeCase2URL                  = "EdgeCase2URL"
+	edgeCase3URL                  = "EdgeCase3URL"
 )
 
 var keyURLs = []URL{RestSpot,

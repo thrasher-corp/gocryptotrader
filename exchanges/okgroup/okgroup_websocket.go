@@ -192,7 +192,9 @@ func (o *OKGroup) WsConnect() error {
 			o.Websocket.GetWebsocketURL())
 	}
 
+	o.Websocket.Wg.Add(1)
 	go o.WsReadData()
+
 	if o.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
 		err = o.WsLogin()
 		if err != nil {
@@ -211,10 +213,13 @@ func (o *OKGroup) WsLogin() error {
 	o.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	unixTime := time.Now().UTC().Unix()
 	signPath := "/users/self/verify"
-	hmac := crypto.GetHMAC(crypto.HashSHA256,
+	hmac, err := crypto.GetHMAC(crypto.HashSHA256,
 		[]byte(strconv.FormatInt(unixTime, 10)+http.MethodGet+signPath),
 		[]byte(o.API.Credentials.Secret),
 	)
+	if err != nil {
+		return err
+	}
 	base64 := crypto.Base64Encode(hmac)
 	request := WebsocketEventRequest{
 		Operation: "login",
@@ -225,7 +230,7 @@ func (o *OKGroup) WsLogin() error {
 			base64,
 		},
 	}
-	_, err := o.Websocket.Conn.SendMessageReturnResponse("login", request)
+	_, err = o.Websocket.Conn.SendMessageReturnResponse("login", request)
 	if err != nil {
 		o.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return err
@@ -235,7 +240,6 @@ func (o *OKGroup) WsLogin() error {
 
 // WsReadData receives and passes on websocket messages for processing
 func (o *OKGroup) WsReadData() {
-	o.Websocket.Wg.Add(1)
 	defer o.Websocket.Wg.Done()
 
 	for {
@@ -843,7 +847,7 @@ func (o *OKGroup) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 							subscriptions = append(subscriptions,
 								stream.ChannelSubscription{
 									Channel:  channels[y],
-									Currency: currency.NewPair(newP.Base, currency.Code{}),
+									Currency: currency.NewPair(newP.Base, currency.EMPTYCODE),
 									Asset:    asset.Futures,
 								})
 							futuresAccountCodes = append(futuresAccountCodes, newP.Base)

@@ -3,36 +3,40 @@ package slippage
 import (
 	"math/rand"
 
+	"github.com/shopspring/decimal"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 )
 
 // EstimateSlippagePercentage takes in an int range of numbers
 // turns it into a percentage
-func EstimateSlippagePercentage(maximumSlippageRate, minimumSlippageRate float64) float64 {
-	if minimumSlippageRate < 1 || minimumSlippageRate > 100 {
-		return 1
+func EstimateSlippagePercentage(maximumSlippageRate, minimumSlippageRate decimal.Decimal) decimal.Decimal {
+	if minimumSlippageRate.LessThan(decimal.NewFromInt(1)) || minimumSlippageRate.GreaterThan(decimal.NewFromInt(100)) {
+		return decimal.NewFromInt(1)
 	}
-	if maximumSlippageRate < 1 || maximumSlippageRate > 100 {
-		return 1
+	if maximumSlippageRate.LessThan(decimal.NewFromInt(1)) || maximumSlippageRate.GreaterThan(decimal.NewFromInt(100)) {
+		return decimal.NewFromInt(1)
 	}
 
 	// the language here is confusing. The maximum slippage rate is the lower bounds of the number,
 	// eg 80 means for every dollar, keep 80%
-	randSeed := int(minimumSlippageRate) - int(maximumSlippageRate)
+	randSeed := int(minimumSlippageRate.IntPart()) - int(maximumSlippageRate.IntPart())
 	if randSeed > 0 {
-		result := float64(rand.Intn(randSeed)) // nolint:gosec // basic number generation required, no need for crypto/rand
-		return (result + maximumSlippageRate) / 100
+		result := int64(rand.Intn(randSeed)) // nolint:gosec // basic number generation required, no need for crypto/rand
+
+		return maximumSlippageRate.Add(decimal.NewFromInt(result)).Div(decimal.NewFromInt(100))
 	}
-	return 1
+	return decimal.NewFromInt(1)
 }
 
 // CalculateSlippageByOrderbook will analyse a provided orderbook and return the result of attempting to
 // place the order on there
-func CalculateSlippageByOrderbook(ob *orderbook.Base, side gctorder.Side, amountOfFunds, feeRate float64) (price, amount float64) {
-	result := ob.SimulateOrder(amountOfFunds, side == gctorder.Buy)
+func CalculateSlippageByOrderbook(ob *orderbook.Base, side gctorder.Side, amountOfFunds, feeRate decimal.Decimal) (price, amount decimal.Decimal) {
+	funds, _ := amountOfFunds.Float64()
+	fee, _ := feeRate.Float64()
+	result := ob.SimulateOrder(funds, side == gctorder.Buy)
 	rate := (result.MinimumPrice - result.MaximumPrice) / result.MaximumPrice
-	price = result.MinimumPrice * (rate + 1)
-	amount = result.Amount * (1 - feeRate)
+	price = decimal.NewFromFloat(result.MinimumPrice * (rate + 1))
+	amount = decimal.NewFromFloat(result.Amount * (1 - fee))
 	return
 }

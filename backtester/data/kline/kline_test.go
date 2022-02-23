@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
@@ -15,6 +16,8 @@ import (
 
 const testExchange = "binance"
 
+var elite = decimal.NewFromInt(1337)
+
 func TestLoad(t *testing.T) {
 	t.Parallel()
 	exch := testExchange
@@ -24,7 +27,7 @@ func TestLoad(t *testing.T) {
 	d := DataFromKline{}
 	err := d.Load()
 	if !errors.Is(err, errNoCandleData) {
-		t.Errorf("expected: %v, received %v", errNoCandleData, err)
+		t.Errorf("received: %v, expected: %v", err, errNoCandleData)
 	}
 	d.Item = gctkline.Item{
 		Exchange: exch,
@@ -78,8 +81,7 @@ func TestHasDataAtTime(t *testing.T) {
 			},
 		},
 	}
-	err := d.Load()
-	if err != nil {
+	if err := d.Load(); err != nil {
 		t.Error(err)
 	}
 
@@ -92,8 +94,8 @@ func TestHasDataAtTime(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	d.Range = ranger
-	d.Range.SetHasDataFromCandles(d.Item.Candles)
+	d.RangeHolder = ranger
+	d.RangeHolder.SetHasDataFromCandles(d.Item.Candles)
 	has = d.HasDataAtTime(dInsert)
 	if !has {
 		t.Error("expected true")
@@ -105,7 +107,9 @@ func TestAppend(t *testing.T) {
 	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
-	d := DataFromKline{}
+	d := DataFromKline{
+		RangeHolder: &gctkline.IntervalRangeHolder{},
+	}
 	item := gctkline.Item{
 		Exchange: exch,
 		Pair:     p,
@@ -122,7 +126,7 @@ func TestAppend(t *testing.T) {
 			},
 		},
 	}
-	d.Append(&item)
+	d.AppendResults(&item)
 }
 
 func TestStreamOpen(t *testing.T) {
@@ -144,11 +148,11 @@ func TestStreamOpen(t *testing.T) {
 				CurrencyPair: p,
 				AssetType:    a,
 			},
-			Open:   1337,
-			High:   1337,
-			Low:    1337,
-			Close:  1337,
-			Volume: 1337,
+			Open:   elite,
+			High:   elite,
+			Low:    elite,
+			Close:  elite,
+			Volume: elite,
 		},
 	})
 	d.Next()
@@ -177,11 +181,11 @@ func TestStreamVolume(t *testing.T) {
 				CurrencyPair: p,
 				AssetType:    a,
 			},
-			Open:   1337,
-			High:   1337,
-			Low:    1337,
-			Close:  1337,
-			Volume: 1337,
+			Open:   elite,
+			High:   elite,
+			Low:    elite,
+			Close:  elite,
+			Volume: elite,
 		},
 	})
 	d.Next()
@@ -210,11 +214,11 @@ func TestStreamClose(t *testing.T) {
 				CurrencyPair: p,
 				AssetType:    a,
 			},
-			Open:   1337,
-			High:   1337,
-			Low:    1337,
-			Close:  1337,
-			Volume: 1337,
+			Open:   elite,
+			High:   elite,
+			Low:    elite,
+			Close:  elite,
+			Volume: elite,
 		},
 	})
 	d.Next()
@@ -243,11 +247,11 @@ func TestStreamHigh(t *testing.T) {
 				CurrencyPair: p,
 				AssetType:    a,
 			},
-			Open:   1337,
-			High:   1337,
-			Low:    1337,
-			Close:  1337,
-			Volume: 1337,
+			Open:   elite,
+			High:   elite,
+			Low:    elite,
+			Close:  elite,
+			Volume: elite,
 		},
 	})
 	d.Next()
@@ -262,7 +266,9 @@ func TestStreamLow(t *testing.T) {
 	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
-	d := DataFromKline{}
+	d := DataFromKline{
+		RangeHolder: &gctkline.IntervalRangeHolder{},
+	}
 	bad := d.StreamLow()
 	if len(bad) > 0 {
 		t.Error("expected no stream")
@@ -276,11 +282,11 @@ func TestStreamLow(t *testing.T) {
 				CurrencyPair: p,
 				AssetType:    a,
 			},
-			Open:   1337,
-			High:   1337,
-			Low:    1337,
-			Close:  1337,
-			Volume: 1337,
+			Open:   elite,
+			High:   elite,
+			Low:    elite,
+			Close:  elite,
+			Volume: elite,
 		},
 	})
 	d.Next()

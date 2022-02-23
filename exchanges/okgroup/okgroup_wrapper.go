@@ -1,6 +1,7 @@
 package okgroup
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strconv"
@@ -14,6 +15,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -27,14 +29,19 @@ import (
 // Therefore this OKGroup_Wrapper can be shared between OKEX and OKCoin.
 // When circumstances change, wrapper funcs can be split appropriately
 
+var errNoAccountDepositAddress = errors.New("no account deposit address")
+
 // Setup sets user exchange configuration settings
-func (o *OKGroup) Setup(exch *config.ExchangeConfig) error {
+func (o *OKGroup) Setup(exch *config.Exchange) error {
+	err := exch.Validate()
+	if err != nil {
+		return err
+	}
 	if !exch.Enabled {
 		o.SetEnabled(false)
 		return nil
 	}
-
-	err := o.SetupDefaults(exch)
+	err = o.SetupDefaults(exch)
 	if err != nil {
 		return err
 	}
@@ -44,20 +51,14 @@ func (o *OKGroup) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 	err = o.Websocket.Setup(&stream.WebsocketSetup{
-		Enabled:                          exch.Features.Enabled.Websocket,
-		Verbose:                          exch.Verbose,
-		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-		DefaultURL:                       wsEndpoint,
-		ExchangeName:                     exch.Name,
-		RunningURL:                       wsEndpoint,
-		Connector:                        o.WsConnect,
-		Subscriber:                       o.Subscribe,
-		UnSubscriber:                     o.Unsubscribe,
-		GenerateSubscriptions:            o.GenerateDefaultSubscriptions,
-		Features:                         &o.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
-		BufferEnabled:                    exch.OrderbookConfig.WebsocketBufferEnabled,
+		ExchangeConfig:        exch,
+		DefaultURL:            wsEndpoint,
+		RunningURL:            wsEndpoint,
+		Connector:             o.WsConnect,
+		Subscriber:            o.Subscribe,
+		Unsubscriber:          o.Unsubscribe,
+		GenerateSubscriptions: o.GenerateDefaultSubscriptions,
+		Features:              &o.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err
@@ -71,20 +72,20 @@ func (o *OKGroup) Setup(exch *config.ExchangeConfig) error {
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func (o *OKGroup) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (o *OKGroup) FetchOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	fPair, err := o.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return nil, err
 	}
 	ob, err := orderbook.Get(o.Name, fPair, assetType)
 	if err != nil {
-		return o.UpdateOrderbook(fPair, assetType)
+		return o.UpdateOrderbook(ctx, fPair, assetType)
 	}
 	return ob, nil
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (o *OKGroup) UpdateOrderbook(p currency.Pair, a asset.Item) (*orderbook.Base, error) {
+func (o *OKGroup) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.Item) (*orderbook.Base, error) {
 	book := &orderbook.Base{
 		Exchange:        o.Name,
 		Pair:            p,
@@ -101,10 +102,11 @@ func (o *OKGroup) UpdateOrderbook(p currency.Pair, a asset.Item) (*orderbook.Bas
 		return nil, err
 	}
 
-	orderbookNew, err := o.GetOrderBook(GetOrderBookRequest{
-		InstrumentID: fPair.String(),
-		Size:         200,
-	}, a)
+	orderbookNew, err := o.GetOrderBook(ctx,
+		GetOrderBookRequest{
+			InstrumentID: fPair.String(),
+			Size:         200,
+		}, a)
 	if err != nil {
 		return book, err
 	}
@@ -182,8 +184,8 @@ func (o *OKGroup) UpdateOrderbook(p currency.Pair, a asset.Item) (*orderbook.Bas
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies
-func (o *OKGroup) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
-	currencies, err := o.GetSpotTradingAccounts()
+func (o *OKGroup) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
+	currencies, err := o.GetSpotTradingAccounts(ctx)
 	if err != nil {
 		return account.Holdings{}, err
 	}
@@ -220,10 +222,10 @@ func (o *OKGroup) UpdateAccountInfo(assetType asset.Item) (account.Holdings, err
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (o *OKGroup) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
+func (o *OKGroup) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	acc, err := account.GetHoldings(o.Name, assetType)
 	if err != nil {
-		return o.UpdateAccountInfo(assetType)
+		return o.UpdateAccountInfo(ctx, assetType)
 	}
 
 	return acc, nil
@@ -231,8 +233,8 @@ func (o *OKGroup) FetchAccountInfo(assetType asset.Item) (account.Holdings, erro
 
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
-func (o *OKGroup) GetFundingHistory() (resp []exchange.FundHistory, err error) {
-	accountDepositHistory, err := o.GetAccountDepositHistory("")
+func (o *OKGroup) GetFundingHistory(ctx context.Context) (resp []exchange.FundHistory, err error) {
+	accountDepositHistory, err := o.GetAccountDepositHistory(ctx, "")
 	if err != nil {
 		return
 	}
@@ -257,7 +259,7 @@ func (o *OKGroup) GetFundingHistory() (resp []exchange.FundHistory, err error) {
 			TransferType: "deposit",
 		})
 	}
-	accountWithdrawlHistory, err := o.GetAccountWithdrawalHistory("")
+	accountWithdrawlHistory, err := o.GetAccountWithdrawalHistory(ctx, "")
 	for i := range accountWithdrawlHistory {
 		resp = append(resp, exchange.FundHistory{
 			Amount:       accountWithdrawlHistory[i].Amount,
@@ -273,9 +275,8 @@ func (o *OKGroup) GetFundingHistory() (resp []exchange.FundHistory, err error) {
 }
 
 // SubmitOrder submits a new order
-func (o *OKGroup) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
-	err := s.Validate()
-	if err != nil {
+func (o *OKGroup) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
+	if err := s.Validate(); err != nil {
 		return order.SubmitResponse{}, err
 	}
 
@@ -295,7 +296,7 @@ func (o *OKGroup) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		request.Price = strconv.FormatFloat(s.Price, 'f', -1, 64)
 	}
 
-	orderResponse, err := o.PlaceSpotOrder(&request)
+	orderResponse, err := o.PlaceSpotOrder(ctx, &request)
 	if err != nil {
 		return order.SubmitResponse{}, err
 	}
@@ -312,12 +313,12 @@ func (o *OKGroup) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (o *OKGroup) ModifyOrder(action *order.Modify) (string, error) {
-	return "", common.ErrFunctionNotSupported
+func (o *OKGroup) ModifyOrder(ctx context.Context, action *order.Modify) (order.Modify, error) {
+	return order.Modify{}, common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (o *OKGroup) CancelOrder(cancel *order.Cancel) (err error) {
+func (o *OKGroup) CancelOrder(ctx context.Context, cancel *order.Cancel) (err error) {
 	err = cancel.Validate(cancel.StandardCancel())
 	if err != nil {
 		return
@@ -334,10 +335,11 @@ func (o *OKGroup) CancelOrder(cancel *order.Cancel) (err error) {
 		return
 	}
 
-	orderCancellationResponse, err := o.CancelSpotOrder(CancelSpotOrderRequest{
-		InstrumentID: fpair.String(),
-		OrderID:      orderID,
-	})
+	orderCancellationResponse, err := o.CancelSpotOrder(ctx,
+		CancelSpotOrderRequest{
+			InstrumentID: fpair.String(),
+			OrderID:      orderID,
+		})
 
 	if !orderCancellationResponse.Result {
 		err = fmt.Errorf("order %d failed to be cancelled",
@@ -348,7 +350,7 @@ func (o *OKGroup) CancelOrder(cancel *order.Cancel) (err error) {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (o *OKGroup) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
+func (o *OKGroup) CancelAllOrders(ctx context.Context, orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
 	if err := orderCancellation.Validate(); err != nil {
 		return order.CancelAllResponse{}, err
 	}
@@ -372,10 +374,11 @@ func (o *OKGroup) CancelAllOrders(orderCancellation *order.Cancel) (order.Cancel
 		return resp, err
 	}
 
-	cancelOrdersResponse, err := o.CancelMultipleSpotOrders(CancelMultipleSpotOrdersRequest{
-		InstrumentID: fpair.String(),
-		OrderIDs:     orderIDNumbers,
-	})
+	cancelOrdersResponse, err := o.CancelMultipleSpotOrders(ctx,
+		CancelMultipleSpotOrdersRequest{
+			InstrumentID: fpair.String(),
+			OrderIDs:     orderIDNumbers,
+		})
 	if err != nil {
 		return resp, err
 	}
@@ -390,8 +393,8 @@ func (o *OKGroup) CancelAllOrders(orderCancellation *order.Cancel) (order.Cancel
 }
 
 // GetOrderInfo returns order information based on order ID
-func (o *OKGroup) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (resp order.Detail, err error) {
-	mOrder, err := o.GetSpotOrder(GetSpotOrderRequest{OrderID: orderID})
+func (o *OKGroup) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (resp order.Detail, err error) {
+	mOrder, err := o.GetSpotOrder(ctx, GetSpotOrderRequest{OrderID: orderID})
 	if err != nil {
 		return
 	}
@@ -410,41 +413,54 @@ func (o *OKGroup) GetOrderInfo(orderID string, pair currency.Pair, assetType ass
 		return resp, err
 	}
 
+	status, err := order.StringToOrderStatus(mOrder.Status)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", o.Name, err)
+	}
 	resp = order.Detail{
 		Amount:         mOrder.Size,
 		Pair:           p,
 		Exchange:       o.Name,
 		Date:           mOrder.Timestamp,
 		ExecutedAmount: mOrder.FilledSize,
-		Status:         order.Status(mOrder.Status),
+		Status:         status,
 		Side:           order.Side(mOrder.Side),
 	}
-	return
+	return resp, nil
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (o *OKGroup) GetDepositAddress(p currency.Code, _ string) (string, error) {
-	wallet, err := o.GetAccountDepositAddressForCurrency(p.Lower().String())
-	if err != nil || len(wallet) == 0 {
-		return "", err
+func (o *OKGroup) GetDepositAddress(ctx context.Context, c currency.Code, _, _ string) (*deposit.Address, error) {
+	wallet, err := o.GetAccountDepositAddressForCurrency(ctx, c.Lower().String())
+	if err != nil {
+		return nil, err
 	}
-	return wallet[0].Address, nil
+	if len(wallet) == 0 {
+		return nil, fmt.Errorf("%w for currency %s",
+			errNoAccountDepositAddress,
+			c)
+	}
+	return &deposit.Address{
+		Address: wallet[0].Address,
+		Tag:     wallet[0].Tag,
+	}, nil
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (o *OKGroup) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (o *OKGroup) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
-	withdrawal, err := o.AccountWithdraw(AccountWithdrawRequest{
-		Amount:      withdrawRequest.Amount,
-		Currency:    withdrawRequest.Currency.Lower().String(),
-		Destination: 4, // 1, 2, 3 are all internal
-		Fee:         withdrawRequest.Crypto.FeeAmount,
-		ToAddress:   withdrawRequest.Crypto.Address,
-		TradePwd:    withdrawRequest.TradePassword,
-	})
+	withdrawal, err := o.AccountWithdraw(ctx,
+		AccountWithdrawRequest{
+			Amount:      withdrawRequest.Amount,
+			Currency:    withdrawRequest.Currency.Lower().String(),
+			Destination: 4, // 1, 2, 3 are all internal
+			Fee:         withdrawRequest.Crypto.FeeAmount,
+			ToAddress:   withdrawRequest.Crypto.Address,
+			TradePwd:    withdrawRequest.TradePassword,
+		})
 	if err != nil {
 		return nil, err
 	}
@@ -462,23 +478,23 @@ func (o *OKGroup) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request)
 
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (o *OKGroup) WithdrawFiatFunds(_ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (o *OKGroup) WithdrawFiatFunds(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (o *OKGroup) WithdrawFiatFundsToInternationalBank(_ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (o *OKGroup) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (o *OKGroup) GetWithdrawalsHistory(c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+func (o *OKGroup) GetWithdrawalsHistory(ctx context.Context, c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
 	return nil, common.ErrNotYetImplemented
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (o *OKGroup) GetActiveOrders(req *order.GetOrdersRequest) (resp []order.Detail, err error) {
+func (o *OKGroup) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (resp []order.Detail, err error) {
 	err = req.Validate()
 	if err != nil {
 		return nil, err
@@ -491,13 +507,19 @@ func (o *OKGroup) GetActiveOrders(req *order.GetOrdersRequest) (resp []order.Det
 			return nil, err
 		}
 		var spotOpenOrders []GetSpotOrderResponse
-		spotOpenOrders, err = o.GetSpotOpenOrders(GetSpotOpenOrdersRequest{
-			InstrumentID: fPair.String(),
-		})
+		spotOpenOrders, err = o.GetSpotOpenOrders(ctx,
+			GetSpotOpenOrdersRequest{
+				InstrumentID: fPair.String(),
+			})
 		if err != nil {
 			return resp, err
 		}
 		for i := range spotOpenOrders {
+			var status order.Status
+			status, err = order.StringToOrderStatus(spotOpenOrders[i].Status)
+			if err != nil {
+				log.Errorf(log.ExchangeSys, "%s %v", o.Name, err)
+			}
 			resp = append(resp, order.Detail{
 				ID:             spotOpenOrders[i].OrderID,
 				Price:          spotOpenOrders[i].Price,
@@ -508,7 +530,7 @@ func (o *OKGroup) GetActiveOrders(req *order.GetOrdersRequest) (resp []order.Det
 				Type:           order.Type(spotOpenOrders[i].Type),
 				ExecutedAmount: spotOpenOrders[i].FilledSize,
 				Date:           spotOpenOrders[i].Timestamp,
-				Status:         order.Status(spotOpenOrders[i].Status),
+				Status:         status,
 			})
 		}
 	}
@@ -517,7 +539,7 @@ func (o *OKGroup) GetActiveOrders(req *order.GetOrdersRequest) (resp []order.Det
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (o *OKGroup) GetOrderHistory(req *order.GetOrdersRequest) (resp []order.Detail, err error) {
+func (o *OKGroup) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (resp []order.Detail, err error) {
 	err = req.Validate()
 	if err != nil {
 		return nil, err
@@ -529,39 +551,52 @@ func (o *OKGroup) GetOrderHistory(req *order.GetOrdersRequest) (resp []order.Det
 		if err != nil {
 			return nil, err
 		}
-		var spotOpenOrders []GetSpotOrderResponse
-		spotOpenOrders, err = o.GetSpotOrders(GetSpotOrdersRequest{
-			Status:       strings.Join([]string{"filled", "cancelled", "failure"}, "|"),
-			InstrumentID: fPair.String(),
-		})
+		var spotOrders []GetSpotOrderResponse
+		spotOrders, err = o.GetSpotOrders(ctx,
+			GetSpotOrdersRequest{
+				Status:       strings.Join([]string{"filled", "cancelled", "failure"}, "|"),
+				InstrumentID: fPair.String(),
+			})
 		if err != nil {
 			return resp, err
 		}
-		for i := range spotOpenOrders {
-			resp = append(resp, order.Detail{
-				ID:             spotOpenOrders[i].OrderID,
-				Price:          spotOpenOrders[i].Price,
-				Amount:         spotOpenOrders[i].Size,
-				Pair:           req.Pairs[x],
-				Exchange:       o.Name,
-				Side:           order.Side(spotOpenOrders[i].Side),
-				Type:           order.Type(spotOpenOrders[i].Type),
-				ExecutedAmount: spotOpenOrders[i].FilledSize,
-				Date:           spotOpenOrders[i].Timestamp,
-				Status:         order.Status(spotOpenOrders[i].Status),
-			})
+		for i := range spotOrders {
+			var status order.Status
+			status, err = order.StringToOrderStatus(spotOrders[i].Status)
+			if err != nil {
+				log.Errorf(log.ExchangeSys, "%s %v", o.Name, err)
+			}
+			detail := order.Detail{
+				ID:                   spotOrders[i].OrderID,
+				Price:                spotOrders[i].Price,
+				AverageExecutedPrice: spotOrders[i].PriceAvg,
+				Amount:               spotOrders[i].Size,
+				ExecutedAmount:       spotOrders[i].FilledSize,
+				RemainingAmount:      spotOrders[i].Size - spotOrders[i].FilledSize,
+				Pair:                 req.Pairs[x],
+				Exchange:             o.Name,
+				Side:                 order.Side(spotOrders[i].Side),
+				Type:                 order.Type(spotOrders[i].Type),
+				Date:                 spotOrders[i].Timestamp,
+				Status:               status,
+			}
+			detail.InferCostsAndTimes()
+			resp = append(resp, detail)
 		}
 	}
 	return resp, err
 }
 
 // GetFeeByType returns an estimate of fee based on type of transaction
-func (o *OKGroup) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
+func (o *OKGroup) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
+	if feeBuilder == nil {
+		return 0, fmt.Errorf("%T %w", feeBuilder, common.ErrNilPointer)
+	}
 	if !o.AllowAuthenticatedRequest() && // Todo check connection status
 		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		feeBuilder.FeeType = exchange.OfflineTradeFee
 	}
-	return o.GetFee(feeBuilder)
+	return o.GetFee(ctx, feeBuilder)
 }
 
 // GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
@@ -570,24 +605,24 @@ func (o *OKGroup) GetWithdrawCapabilities() uint32 {
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket
-func (o *OKGroup) AuthenticateWebsocket() error {
+func (o *OKGroup) AuthenticateWebsocket(_ context.Context) error {
 	return o.WsLogin()
 }
 
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
-func (o *OKGroup) ValidateCredentials(assetType asset.Item) error {
-	_, err := o.UpdateAccountInfo(assetType)
+func (o *OKGroup) ValidateCredentials(ctx context.Context, assetType asset.Item) error {
+	_, err := o.UpdateAccountInfo(ctx, assetType)
 	return o.CheckTransientError(err)
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
-func (o *OKGroup) GetHistoricTrades(_ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
+func (o *OKGroup) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (o *OKGroup) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+func (o *OKGroup) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	if err := o.ValidateKline(pair, a, interval); err != nil {
 		return kline.Item{}, err
 	}
@@ -605,7 +640,7 @@ func (o *OKGroup) GetHistoricCandles(pair currency.Pair, a asset.Item, start, en
 		InstrumentID: formattedPair.String(),
 	}
 
-	candles, err := o.GetMarketData(req)
+	candles, err := o.GetMarketData(ctx, req)
 	if err != nil {
 		return kline.Item{}, err
 	}
@@ -618,37 +653,34 @@ func (o *OKGroup) GetHistoricCandles(pair currency.Pair, a asset.Item, start, en
 	}
 
 	for x := range candles {
-		t := candles[x].([]interface{})
-		tempCandle := kline.Candle{}
+		t, ok := candles[x].([]interface{})
+		if !ok {
+			return kline.Item{}, errors.New("unable to type asset candle data")
+		}
+		if len(t) < 6 {
+			return kline.Item{}, errors.New("incorrect candles data length")
+		}
 		v, ok := t[0].(string)
 		if !ok {
-			return kline.Item{}, errors.New("unexpected value received")
+			return kline.Item{}, errors.New("unable to type asset time data")
 		}
-		tempCandle.Time, err = time.Parse(time.RFC3339, v)
-		if err != nil {
+		var tempCandle kline.Candle
+		if tempCandle.Time, err = time.Parse(time.RFC3339, v); err != nil {
 			return kline.Item{}, err
 		}
-		tempCandle.Open, err = convert.FloatFromString(t[1])
-		if err != nil {
+		if tempCandle.Open, err = convert.FloatFromString(t[1]); err != nil {
 			return kline.Item{}, err
 		}
-		tempCandle.High, err = convert.FloatFromString(t[2])
-		if err != nil {
+		if tempCandle.High, err = convert.FloatFromString(t[2]); err != nil {
 			return kline.Item{}, err
 		}
-
-		tempCandle.Low, err = convert.FloatFromString(t[3])
-		if err != nil {
+		if tempCandle.Low, err = convert.FloatFromString(t[3]); err != nil {
 			return kline.Item{}, err
 		}
-
-		tempCandle.Close, err = convert.FloatFromString(t[4])
-		if err != nil {
+		if tempCandle.Close, err = convert.FloatFromString(t[4]); err != nil {
 			return kline.Item{}, err
 		}
-
-		tempCandle.Volume, err = convert.FloatFromString(t[5])
-		if err != nil {
+		if tempCandle.Volume, err = convert.FloatFromString(t[5]); err != nil {
 			return kline.Item{}, err
 		}
 		ret.Candles = append(ret.Candles, tempCandle)
@@ -659,7 +691,7 @@ func (o *OKGroup) GetHistoricCandles(pair currency.Pair, a asset.Item, start, en
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (o *OKGroup) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+func (o *OKGroup) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	if err := o.ValidateKline(pair, a, interval); err != nil {
 		return kline.Item{}, err
 	}
@@ -690,43 +722,43 @@ func (o *OKGroup) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, s
 		}
 
 		var candles GetMarketDataResponse
-		candles, err = o.GetMarketData(req)
+		candles, err = o.GetMarketData(ctx, req)
 		if err != nil {
 			return kline.Item{}, err
 		}
 
 		for i := range candles {
-			t := candles[i].([]interface{})
-			tempCandle := kline.Candle{}
+			t, ok := candles[i].([]interface{})
+			if !ok {
+				return kline.Item{}, errors.New("unable to type assert candles data")
+			}
+			if len(t) < 6 {
+				return kline.Item{}, errors.New("candle data length invalid")
+			}
 			v, ok := t[0].(string)
 			if !ok {
-				return kline.Item{}, errors.New("unexpected value received")
+				return kline.Item{}, errors.New("unable to type assert time value")
 			}
-			tempCandle.Time, err = time.Parse(time.RFC3339, v)
-			if err != nil {
+			var tempCandle kline.Candle
+			if tempCandle.Time, err = time.Parse(time.RFC3339, v); err != nil {
 				return kline.Item{}, err
 			}
-			tempCandle.Open, err = convert.FloatFromString(t[1])
-			if err != nil {
+			if tempCandle.Open, err = convert.FloatFromString(t[1]); err != nil {
 				return kline.Item{}, err
 			}
-			tempCandle.High, err = convert.FloatFromString(t[2])
-			if err != nil {
-				return kline.Item{}, err
-			}
-
-			tempCandle.Low, err = convert.FloatFromString(t[3])
-			if err != nil {
+			if tempCandle.High, err = convert.FloatFromString(t[2]); err != nil {
 				return kline.Item{}, err
 			}
 
-			tempCandle.Close, err = convert.FloatFromString(t[4])
-			if err != nil {
+			if tempCandle.Low, err = convert.FloatFromString(t[3]); err != nil {
 				return kline.Item{}, err
 			}
 
-			tempCandle.Volume, err = convert.FloatFromString(t[5])
-			if err != nil {
+			if tempCandle.Close, err = convert.FloatFromString(t[4]); err != nil {
+				return kline.Item{}, err
+			}
+
+			if tempCandle.Volume, err = convert.FloatFromString(t[5]); err != nil {
 				return kline.Item{}, err
 			}
 			ret.Candles = append(ret.Candles, tempCandle)
@@ -736,7 +768,7 @@ func (o *OKGroup) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, s
 	dates.SetHasDataFromCandles(ret.Candles)
 	summary := dates.DataSummary(false)
 	if len(summary) > 0 {
-		log.Warnf(log.ExchangeSys, "%v - %v", o.ExchangeName, summary)
+		log.Warnf(log.ExchangeSys, "%v - %v", o.Base.Name, summary)
 	}
 	ret.RemoveDuplicates()
 	ret.RemoveOutsideRange(start, end)

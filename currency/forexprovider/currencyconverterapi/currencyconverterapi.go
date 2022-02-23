@@ -21,13 +21,13 @@ func (c *CurrencyConverter) Setup(config base.Settings) error {
 	c.APIKey = config.APIKey
 	c.APIKeyLvl = config.APIKeyLvl
 	c.Enabled = config.Enabled
-	c.RESTPollingDelay = config.RESTPollingDelay
 	c.Verbose = config.Verbose
 	c.PrimaryProvider = config.PrimaryProvider
-	c.Requester = request.New(c.Name,
+	var err error
+	c.Requester, err = request.New(c.Name,
 		common.NewHTTPClientWithTimeout(base.DefaultTimeOut),
 		request.WithLimiter(request.NewBasicRateLimit(rateInterval, requestRate)))
-	return nil
+	return err
 }
 
 // GetRates is a wrapper function to return rates
@@ -63,8 +63,7 @@ func (c *CurrencyConverter) GetRates(baseCurrency, symbols string) (map[string]f
 	}
 
 	currLen := len(completedStrings)
-	mod := currLen % 2
-	if mod == 0 {
+	if mod := currLen % 2; mod == 0 {
 		processBatch(currLen)
 		return rates, nil
 	}
@@ -160,13 +159,16 @@ func (c *CurrencyConverter) SendHTTPRequest(endPoint string, values url.Values, 
 		path = fmt.Sprintf("%s%s%s?", APIEndpointURL, APIEndpointVersion, endPoint)
 		values.Set("apiKey", c.APIKey)
 	}
-	path += values.Encode()
 
-	err := c.Requester.SendPayload(context.Background(), &request.Item{
+	path += values.Encode()
+	item := &request.Item{
 		Method:      path,
 		Result:      result,
 		AuthRequest: auth,
-		Verbose:     c.Verbose})
+		Verbose:     c.Verbose}
+	err := c.Requester.SendPayload(context.TODO(), request.Unset, func() (*request.Item, error) {
+		return item, nil
+	})
 
 	if err != nil {
 		return fmt.Errorf("currency converter API SendHTTPRequest error %s with path %s",

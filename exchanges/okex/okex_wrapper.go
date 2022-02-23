@@ -1,6 +1,7 @@
 package okex
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"sort"
@@ -24,9 +25,9 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (o *OKEX) GetDefaultConfig() (*config.ExchangeConfig, error) {
+func (o *OKEX) GetDefaultConfig() (*config.Exchange, error) {
 	o.SetDefaults()
-	exchCfg := new(config.ExchangeConfig)
+	exchCfg := new(config.Exchange)
 	exchCfg.Name = o.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = o.BaseCurrencies
@@ -37,7 +38,7 @@ func (o *OKEX) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	}
 
 	if o.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = o.UpdateTradablePairs(true)
+		err = o.UpdateTradablePairs(context.TODO(), true)
 		if err != nil {
 			return nil, err
 		}
@@ -190,11 +191,14 @@ func (o *OKEX) SetDefaults() {
 		},
 	}
 
-	o.Requester = request.New(o.Name,
+	o.Requester, err = request.New(o.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		// TODO: Specify each individual endpoint rate limits as per docs
 		request.WithLimiter(request.NewBasicRateLimit(okExRateInterval, okExRequestRate)),
 	)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 	o.API.Endpoints = o.NewEndpoints()
 	err = o.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:      okExAPIURL,
@@ -211,12 +215,16 @@ func (o *OKEX) SetDefaults() {
 }
 
 // Start starts the OKGroup go routine
-func (o *OKEX) Start(wg *sync.WaitGroup) {
+func (o *OKEX) Start(wg *sync.WaitGroup) error {
+	if wg == nil {
+		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
+	}
 	wg.Add(1)
 	go func() {
 		o.Run()
 		wg.Done()
 	}()
+	return nil
 }
 
 // Run implements the OKEX wrapper
@@ -243,46 +251,47 @@ func (o *OKEX) Run() {
 	}
 
 	forceUpdate := false
-	enabled, err := o.GetEnabledPairs(asset.Spot)
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%s failed to update tradable pairs. Err: %s",
-			o.Name,
-			err)
-		return
-	}
-
-	avail, err := o.GetAvailablePairs(asset.Spot)
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%s failed to update tradable pairs. Err: %s",
-			o.Name,
-			err)
-		return
-	}
-
-	if !common.StringDataContains(enabled.Strings(), format.Delimiter) ||
-		!common.StringDataContains(avail.Strings(), format.Delimiter) {
-		forceUpdate = true
-		var p currency.Pairs
-		p, err = currency.NewPairsFromStrings([]string{currency.BTC.String() +
-			format.Delimiter +
-			currency.USDT.String()})
+	if !o.BypassConfigFormatUpgrades {
+		var enabled, avail currency.Pairs
+		enabled, err = o.GetEnabledPairs(asset.Spot)
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
-				"%s failed to update currencies.\n",
-				o.Name)
-		} else {
-			log.Warnf(log.ExchangeSys,
-				"Enabled pairs for %v reset due to config upgrade, please enable the ones you would like again.",
-				o.Name)
+				"%s failed to update tradable pairs. Err: %s",
+				o.Name,
+				err)
+			return
+		}
 
-			err = o.UpdatePairs(p, asset.Spot, true, forceUpdate)
+		avail, err = o.GetAvailablePairs(asset.Spot)
+		if err != nil {
+			log.Errorf(log.ExchangeSys,
+				"%s failed to update tradable pairs. Err: %s",
+				o.Name,
+				err)
+			return
+		}
+
+		if !common.StringDataContains(enabled.Strings(), format.Delimiter) ||
+			!common.StringDataContains(avail.Strings(), format.Delimiter) {
+			forceUpdate = true
+			var p currency.Pairs
+			p, err = currency.NewPairsFromStrings([]string{currency.BTC.String() +
+				format.Delimiter +
+				currency.USDT.String()})
 			if err != nil {
 				log.Errorf(log.ExchangeSys,
 					"%s failed to update currencies.\n",
 					o.Name)
-				return
+			} else {
+				log.Warnf(log.ExchangeSys, exchange.ResetConfigPairsWarningMessage, o.Name, asset.Spot, p)
+
+				err = o.UpdatePairs(p, asset.Spot, true, forceUpdate)
+				if err != nil {
+					log.Errorf(log.ExchangeSys,
+						"%s failed to update currencies.\n",
+						o.Name)
+					return
+				}
 			}
 		}
 	}
@@ -291,7 +300,7 @@ func (o *OKEX) Run() {
 		return
 	}
 
-	err = o.UpdateTradablePairs(forceUpdate)
+	err = o.UpdateTradablePairs(context.TODO(), forceUpdate)
 	if err != nil {
 		log.Errorf(log.ExchangeSys,
 			"%s failed to update tradable pairs. Err: %s",
@@ -301,7 +310,7 @@ func (o *OKEX) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (o *OKEX) FetchTradablePairs(i asset.Item) ([]string, error) {
+func (o *OKEX) FetchTradablePairs(ctx context.Context, i asset.Item) ([]string, error) {
 	var pairs []string
 
 	format, err := o.GetPairFormat(i, false)
@@ -311,7 +320,7 @@ func (o *OKEX) FetchTradablePairs(i asset.Item) ([]string, error) {
 
 	switch i {
 	case asset.Spot:
-		prods, err := o.GetSpotTokenPairDetails()
+		prods, err := o.GetSpotTokenPairDetails(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -324,7 +333,7 @@ func (o *OKEX) FetchTradablePairs(i asset.Item) ([]string, error) {
 		}
 		return pairs, nil
 	case asset.Futures:
-		prods, err := o.GetFuturesContractInformation()
+		prods, err := o.GetFuturesContractInformation(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -336,7 +345,7 @@ func (o *OKEX) FetchTradablePairs(i asset.Item) ([]string, error) {
 		return pairs, nil
 
 	case asset.PerpetualSwap:
-		prods, err := o.GetSwapContractInformation()
+		prods, err := o.GetSwapContractInformation(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -360,7 +369,7 @@ func (o *OKEX) FetchTradablePairs(i asset.Item) ([]string, error) {
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
-func (o *OKEX) UpdateTradablePairs(forceUpdate bool) error {
+func (o *OKEX) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
 	assets := o.CurrencyPairs.GetAssetTypes(false)
 	for x := range assets {
 		if assets[x] == asset.Index {
@@ -368,7 +377,7 @@ func (o *OKEX) UpdateTradablePairs(forceUpdate bool) error {
 			continue
 		}
 
-		pairs, err := o.FetchTradablePairs(assets[x])
+		pairs, err := o.FetchTradablePairs(ctx, assets[x])
 		if err != nil {
 			return err
 		}
@@ -424,19 +433,18 @@ func (o *OKEX) UpdateTradablePairs(forceUpdate bool) error {
 	return nil
 }
 
-// UpdateTicker updates and returns the ticker for a currency pair
-func (o *OKEX) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tickerPrice := new(ticker.Price)
-	switch assetType {
+// UpdateTickers updates the ticker for all currency pairs of a given asset type
+func (o *OKEX) UpdateTickers(ctx context.Context, a asset.Item) error {
+	switch a {
 	case asset.Spot:
-		resp, err := o.GetSpotAllTokenPairsInformation()
+		resp, err := o.GetSpotAllTokenPairsInformation(ctx)
 		if err != nil {
-			return tickerPrice, err
+			return err
 		}
 
 		enabled, err := o.GetEnabledPairs(asset.Spot)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		for j := range resp {
@@ -456,21 +464,21 @@ func (o *OKEX) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pric
 				Pair:         resp[j].InstrumentID,
 				LastUpdated:  resp[j].Timestamp,
 				ExchangeName: o.Name,
-				AssetType:    assetType})
+				AssetType:    a})
 			if err != nil {
-				return nil, err
+				return err
 			}
 		}
 
 	case asset.PerpetualSwap:
-		resp, err := o.GetAllSwapTokensInformation()
+		resp, err := o.GetAllSwapTokensInformation(ctx)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		enabled, err := o.GetEnabledPairs(asset.PerpetualSwap)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		for j := range resp {
@@ -492,21 +500,21 @@ func (o *OKEX) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pric
 				Pair:         nC,
 				LastUpdated:  resp[j].Timestamp,
 				ExchangeName: o.Name,
-				AssetType:    assetType})
+				AssetType:    a})
 			if err != nil {
-				return nil, err
+				return err
 			}
 		}
 
 	case asset.Futures:
-		resp, err := o.GetAllFuturesTokenInfo()
+		resp, err := o.GetAllFuturesTokenInfo(ctx)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		enabled, err := o.GetEnabledPairs(asset.Futures)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		for j := range resp {
@@ -528,18 +536,26 @@ func (o *OKEX) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pric
 				Pair:         nC,
 				LastUpdated:  resp[j].Timestamp,
 				ExchangeName: o.Name,
-				AssetType:    assetType})
+				AssetType:    a})
 			if err != nil {
-				return nil, err
+				return err
 			}
 		}
 	}
 
-	return ticker.GetTicker(o.Name, p, assetType)
+	return nil
+}
+
+// UpdateTicker updates and returns the ticker for a currency pair
+func (o *OKEX) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
+	if err := o.UpdateTickers(ctx, a); err != nil {
+		return nil, err
+	}
+	return ticker.GetTicker(o.Name, p, a)
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (o *OKEX) FetchTicker(p currency.Pair, assetType asset.Item) (tickerData *ticker.Price, err error) {
+func (o *OKEX) FetchTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (tickerData *ticker.Price, err error) {
 	if assetType == asset.Index {
 		return tickerData, errors.New("ticker fetching not supported for index")
 	}
@@ -550,13 +566,13 @@ func (o *OKEX) FetchTicker(p currency.Pair, assetType asset.Item) (tickerData *t
 
 	tickerData, err = ticker.GetTicker(o.Name, fPair, assetType)
 	if err != nil {
-		return o.UpdateTicker(fPair, assetType)
+		return o.UpdateTicker(ctx, fPair, assetType)
 	}
 	return
 }
 
 // GetRecentTrades returns recent trade data
-func (o *OKEX) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+func (o *OKEX) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
 	var err error
 	p, err = o.FormatExchangeCurrency(p, assetType)
 	if err != nil {
@@ -567,9 +583,10 @@ func (o *OKEX) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.D
 	switch assetType {
 	case asset.Spot:
 		var tradeData []okgroup.GetSpotFilledOrdersInformationResponse
-		tradeData, err = o.GetSpotFilledOrdersInformation(okgroup.GetSpotFilledOrdersInformationRequest{
-			InstrumentID: p.String(),
-		})
+		tradeData, err = o.GetSpotFilledOrdersInformation(ctx,
+			okgroup.GetSpotFilledOrdersInformationRequest{
+				InstrumentID: p.String(),
+			})
 		if err != nil {
 			return nil, err
 		}
@@ -591,9 +608,10 @@ func (o *OKEX) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.D
 		}
 	case asset.Futures:
 		var tradeData []okgroup.GetFuturesFilledOrdersResponse
-		tradeData, err = o.GetFuturesFilledOrder(okgroup.GetFuturesFilledOrderRequest{
-			InstrumentID: p.String(),
-		})
+		tradeData, err = o.GetFuturesFilledOrder(ctx,
+			okgroup.GetFuturesFilledOrderRequest{
+				InstrumentID: p.String(),
+			})
 		if err != nil {
 			return nil, err
 		}
@@ -615,9 +633,10 @@ func (o *OKEX) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.D
 		}
 	case asset.PerpetualSwap:
 		var tradeData []okgroup.GetSwapFilledOrdersDataResponse
-		tradeData, err = o.GetSwapFilledOrdersData(&okgroup.GetSwapFilledOrdersDataRequest{
-			InstrumentID: p.String(),
-		})
+		tradeData, err = o.GetSwapFilledOrdersData(ctx,
+			&okgroup.GetSwapFilledOrdersDataRequest{
+				InstrumentID: p.String(),
+			})
 		if err != nil {
 			return nil, err
 		}
@@ -651,6 +670,6 @@ func (o *OKEX) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.D
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (o *OKEX) CancelBatchOrders(_ []order.Cancel) (order.CancelBatchResponse, error) {
+func (o *OKEX) CancelBatchOrders(_ context.Context, _ []order.Cancel) (order.CancelBatchResponse, error) {
 	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
 }

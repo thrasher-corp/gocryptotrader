@@ -47,6 +47,7 @@ func (g *Gemini) WsConnect() error {
 		return err
 	}
 
+	g.Websocket.Wg.Add(2)
 	go g.wsReadData()
 	go g.wsFunnelConnectionData(g.Websocket.Conn)
 
@@ -193,7 +194,13 @@ func (g *Gemini) WsAuth(dialer *websocket.Dialer) error {
 	}
 	endpoint := wsEndpoint + geminiWsOrderEvents
 	PayloadBase64 := crypto.Base64Encode(PayloadJSON)
-	hmac := crypto.GetHMAC(crypto.HashSHA512_384, []byte(PayloadBase64), []byte(g.API.Credentials.Secret))
+	hmac, err := crypto.GetHMAC(crypto.HashSHA512_384,
+		[]byte(PayloadBase64),
+		[]byte(g.API.Credentials.Secret))
+	if err != nil {
+		return err
+	}
+
 	headers := http.Header{}
 	headers.Add("Content-Length", "0")
 	headers.Add("Content-Type", "text/plain")
@@ -212,7 +219,6 @@ func (g *Gemini) WsAuth(dialer *websocket.Dialer) error {
 
 // wsFunnelConnectionData receives data from multiple connections and passes it to wsReadData
 func (g *Gemini) wsFunnelConnectionData(ws stream.Connection) {
-	g.Websocket.Wg.Add(1)
 	defer g.Websocket.Wg.Done()
 	for {
 		resp := ws.ReadMessage()
@@ -225,11 +231,25 @@ func (g *Gemini) wsFunnelConnectionData(ws stream.Connection) {
 
 // wsReadData receives and passes on websocket messages for processing
 func (g *Gemini) wsReadData() {
-	g.Websocket.Wg.Add(1)
 	defer g.Websocket.Wg.Done()
 	for {
 		select {
 		case <-g.Websocket.ShutdownC:
+			select {
+			case resp := <-comms:
+				err := g.wsHandleData(resp.Raw)
+				if err != nil {
+					select {
+					case g.Websocket.DataHandler <- err:
+					default:
+						log.Errorf(log.WebsocketMgr,
+							"%s websocket handle data error: %v",
+							g.Name,
+							err)
+					}
+				}
+			default:
+			}
 			return
 		case resp := <-comms:
 			err := g.wsHandleData(resp.Raw)
@@ -304,7 +324,7 @@ func (g *Gemini) wsHandleData(respRaw []byte) error {
 				Side:            oSide,
 				Status:          oStatus,
 				AssetType:       asset.Spot,
-				Date:            time.Unix(0, result[i].Timestampms*int64(time.Millisecond)),
+				Date:            time.UnixMilli(result[i].Timestampms),
 				Pair:            pair,
 			}
 		}

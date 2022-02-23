@@ -8,6 +8,22 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
+var (
+	// ErrAssetAlreadyEnabled defines an error for the pairs management system
+	// that declares the asset is already enabled.
+	ErrAssetAlreadyEnabled = errors.New("asset already enabled")
+	// ErrPairAlreadyEnabled returns when enabling a pair that is already enabled
+	ErrPairAlreadyEnabled = errors.New("pair already enabled")
+	// ErrPairNotFound is returned when a currency pair is not found
+	ErrPairNotFound = errors.New("pair not found")
+	// errAssetNotEnabled defines an error for the pairs management system
+	// that declares the asset is not enabled.
+	errAssetNotEnabled = errors.New("asset not enabled")
+	// ErrAssetIsNil is an error when the asset has not been populated by the
+	// configuration
+	ErrAssetIsNil = errors.New("asset is nil")
+)
+
 // GetAssetTypes returns a list of stored asset types
 func (p *PairsManager) GetAssetTypes(enabled bool) asset.Items {
 	p.m.RLock()
@@ -135,12 +151,12 @@ func (p *PairsManager) EnablePair(a asset.Item, pair Pair) error {
 	}
 
 	if !c.Available.Contains(pair, true) {
-		return fmt.Errorf("%s pair was not found in the list of available pairs",
-			pair)
+		return fmt.Errorf("%s %w in the list of available pairs",
+			pair, ErrPairNotFound)
 	}
 
 	if c.Enabled.Contains(pair, true) {
-		return fmt.Errorf("%s pair is already enabled", pair)
+		return fmt.Errorf("%s %w", pair, ErrPairAlreadyEnabled)
 	}
 
 	c.Enabled = c.Enabled.Add(pair)
@@ -158,11 +174,11 @@ func (p *PairsManager) IsAssetEnabled(a asset.Item) error {
 	}
 
 	if c.AssetEnabled == nil {
-		return errors.New("cannot ascertain if asset is enabled, variable is nil")
+		return fmt.Errorf("%s %w", a, ErrAssetIsNil)
 	}
 
 	if !*c.AssetEnabled {
-		return fmt.Errorf("asset %s not enabled", a)
+		return fmt.Errorf("%s %w", a, errAssetNotEnabled)
 	}
 	return nil
 }
@@ -185,7 +201,7 @@ func (p *PairsManager) SetAssetEnabled(a asset.Item, enabled bool) error {
 	if !*c.AssetEnabled && !enabled {
 		return errors.New("asset already disabled")
 	} else if *c.AssetEnabled && enabled {
-		return errors.New("asset already enabled")
+		return ErrAssetAlreadyEnabled
 	}
 
 	*c.AssetEnabled = enabled

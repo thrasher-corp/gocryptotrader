@@ -1,8 +1,11 @@
 package portfolio
 
 import (
+	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 	"time"
 
@@ -39,7 +42,17 @@ func (b *Base) GetEthereumBalance(address string) (EthplorerResponse, error) {
 	)
 
 	result := EthplorerResponse{}
-	return result, common.SendHTTPGetRequest(urlPath, true, b.Verbose, &result)
+	contents, err := common.SendHTTPRequest(context.TODO(),
+		http.MethodGet,
+		urlPath,
+		nil,
+		nil,
+		b.Verbose)
+	if err != nil {
+		return result, err
+	}
+
+	return result, json.Unmarshal(contents, &result)
 }
 
 // GetCryptoIDAddress queries CryptoID for an address balance for a
@@ -50,23 +63,39 @@ func (b *Base) GetCryptoIDAddress(address string, coinType currency.Code) (float
 		return 0, errors.New("invalid address")
 	}
 
-	var result interface{}
 	url := fmt.Sprintf("%s/%s/api.dws?q=getbalance&a=%s",
 		cryptoIDAPIURL,
 		coinType.Lower(),
 		address)
 
-	err = common.SendHTTPGetRequest(url, true, b.Verbose, &result)
+	contents, err := common.SendHTTPRequest(context.TODO(),
+		http.MethodGet,
+		url,
+		nil,
+		nil,
+		b.Verbose)
 	if err != nil {
 		return 0, err
 	}
-	return result.(float64), nil
+
+	var result float64
+	return result, json.Unmarshal(contents, &result)
 }
 
 // GetRippleBalance returns the value for a ripple address
 func (b *Base) GetRippleBalance(address string) (float64, error) {
 	var result XRPScanAccount
-	err := common.SendHTTPGetRequest(xrpScanAPIURL+address, true, b.Verbose, &result)
+	contents, err := common.SendHTTPRequest(context.TODO(),
+		http.MethodGet,
+		xrpScanAPIURL+address,
+		nil,
+		nil,
+		b.Verbose)
+	if err != nil {
+		return 0, err
+	}
+
+	err = json.Unmarshal(contents, &result)
 	if err != nil {
 		return 0, err
 	}
@@ -84,7 +113,7 @@ func (b *Base) GetAddressBalance(address, description string, coinType currency.
 	for x := range b.Addresses {
 		if b.Addresses[x].Address == address &&
 			b.Addresses[x].Description == description &&
-			b.Addresses[x].CoinType == coinType {
+			b.Addresses[x].CoinType.Equal(coinType) {
 			return b.Addresses[x].Balance, true
 		}
 	}
@@ -116,7 +145,7 @@ func (b *Base) AddressExists(address string) bool {
 // associated with the portfolio base
 func (b *Base) ExchangeAddressExists(exchangeName string, coinType currency.Code) bool {
 	for x := range b.Addresses {
-		if b.Addresses[x].Address == exchangeName && b.Addresses[x].CoinType == coinType {
+		if b.Addresses[x].Address == exchangeName && b.Addresses[x].CoinType.Equal(coinType) {
 			return true
 		}
 	}
@@ -147,7 +176,7 @@ func (b *Base) UpdateAddressBalance(address string, amount float64) {
 // RemoveExchangeAddress removes an exchange address from the portfolio.
 func (b *Base) RemoveExchangeAddress(exchangeName string, coinType currency.Code) {
 	for x := range b.Addresses {
-		if b.Addresses[x].Address == exchangeName && b.Addresses[x].CoinType == coinType {
+		if b.Addresses[x].Address == exchangeName && b.Addresses[x].CoinType.Equal(coinType) {
 			b.Addresses = append(b.Addresses[:x], b.Addresses[x+1:]...)
 			return
 		}
@@ -158,7 +187,7 @@ func (b *Base) RemoveExchangeAddress(exchangeName string, coinType currency.Code
 // against correct exchangeName and coinType.
 func (b *Base) UpdateExchangeAddressBalance(exchangeName string, coinType currency.Code, balance float64) {
 	for x := range b.Addresses {
-		if b.Addresses[x].Address == exchangeName && b.Addresses[x].CoinType == coinType {
+		if b.Addresses[x].Address == exchangeName && b.Addresses[x].CoinType.Equal(coinType) {
 			b.Addresses[x].Balance = balance
 		}
 	}
@@ -208,7 +237,7 @@ func (b *Base) RemoveAddress(address, description string, coinType currency.Code
 
 	for x := range b.Addresses {
 		if b.Addresses[x].Address == address &&
-			b.Addresses[x].CoinType == coinType &&
+			b.Addresses[x].CoinType.Equal(coinType) &&
 			b.Addresses[x].Description == description {
 			b.Addresses = append(b.Addresses[:x], b.Addresses[x+1:]...)
 			return nil

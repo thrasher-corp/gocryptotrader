@@ -2,6 +2,7 @@ package mock
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
@@ -57,39 +58,45 @@ func TestNewVCRServer(t *testing.T) {
 		t.Error("NewVCRServer error", err)
 	}
 
-	common.HTTPClient = client // Set common package global HTTP Client
+	err = common.SetHTTPClient(client) // Set common package global HTTP Client
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	_, err = common.SendHTTPRequest(http.MethodGet,
+	_, err = common.SendHTTPRequest(context.Background(),
+		http.MethodGet,
 		"http://localhost:300/somethingElse?"+queryString,
 		nil,
-		bytes.NewBufferString(""))
+		bytes.NewBufferString(""), true)
 	if err == nil {
 		t.Error("Sending http request expected an error")
 	}
 
 	// Expected good outcome
-	r, err := common.SendHTTPRequest(http.MethodGet,
+	r, err := common.SendHTTPRequest(context.Background(),
+		http.MethodGet,
 		deets,
 		nil,
-		bytes.NewBufferString(""))
+		bytes.NewBufferString(""), true)
 	if err != nil {
 		t.Error("Sending http request error", err)
 	}
 
-	if !strings.Contains(r, "404 page not found") {
+	if !strings.Contains(string(r), "404 page not found") {
 		t.Error("Was not expecting any value returned:", r)
 	}
 
-	r, err = common.SendHTTPRequest(http.MethodGet,
+	r, err = common.SendHTTPRequest(context.Background(),
+		http.MethodGet,
 		deets+"/test?"+queryString,
 		nil,
-		bytes.NewBufferString(""))
+		bytes.NewBufferString(""), true)
 	if err != nil {
 		t.Error("Sending http request error", err)
 	}
 
 	var res responsePayload
-	err = json.Unmarshal([]byte(r), &res)
+	err = json.Unmarshal(r, &res)
 	if err != nil {
 		t.Error("unmarshal error", err)
 	}

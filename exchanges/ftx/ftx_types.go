@@ -120,35 +120,38 @@ type OHLCVData struct {
 
 // FuturesData stores data for futures
 type FuturesData struct {
-	Ask                 float64     `json:"ask"`
-	Bid                 float64     `json:"bid"`
-	Change1h            float64     `json:"change1h"`
-	Change24h           float64     `json:"change24h"`
-	ChangeBod           float64     `json:"changeBod"`
-	VolumeUSD24h        float64     `json:"volumeUsd24h"`
-	Volume              float64     `json:"volume"`
-	Description         string      `json:"description"`
-	Enabled             bool        `json:"enabled"`
-	Expired             bool        `json:"expired"`
-	Expiry              time.Time   `json:"expiry"`
-	ExpiryDescription   string      `json:"expiryDescription"`
-	Group               string      `json:"group"`
-	Index               float64     `json:"index"`
-	IMFFactor           float64     `json:"imfFactor"`
-	Last                float64     `json:"last"`
-	LowerBound          float64     `json:"lowerBound"`
-	MarginPrice         float64     `json:"marginPrice"`
-	Mark                float64     `json:"mark"`
-	MoveStart           interface{} `json:"moveStart"`
-	Name                string      `json:"name"`
-	Perpetual           bool        `json:"perpetual"`
-	PositionLimitWeight float64     `json:"positionLimitWeight"`
-	PostOnly            bool        `json:"postOnly"`
-	PriceIncrement      float64     `json:"priceIncrement"`
-	SizeIncrement       float64     `json:"sizeIncrement"`
-	Underlying          string      `json:"underlying"`
-	UpperBound          float64     `json:"upperBound"`
-	FutureType          string      `json:"type"`
+	Ask                   float64     `json:"ask"`
+	Bid                   float64     `json:"bid"`
+	Change1h              float64     `json:"change1h"`
+	Change24h             float64     `json:"change24h"`
+	ChangeBod             float64     `json:"changeBod"`
+	VolumeUSD24h          float64     `json:"volumeUsd24h"`
+	Volume                float64     `json:"volume"`
+	Description           string      `json:"description"`
+	Enabled               bool        `json:"enabled"`
+	Expired               bool        `json:"expired"`
+	Expiry                time.Time   `json:"expiry"`
+	ExpiryDescription     string      `json:"expiryDescription"`
+	Group                 string      `json:"group"`
+	Index                 float64     `json:"index"`
+	IMFFactor             float64     `json:"imfFactor"`
+	Last                  float64     `json:"last"`
+	LowerBound            float64     `json:"lowerBound"`
+	MarginPrice           float64     `json:"marginPrice"`
+	Mark                  float64     `json:"mark"`
+	MoveStart             interface{} `json:"moveStart"`
+	Name                  string      `json:"name"`
+	OpenInterest          float64     `json:"openInterest"`
+	OpenInterestUSD       float64     `json:"openInterestUsd"`
+	Perpetual             bool        `json:"perpetual"`
+	PositionLimitWeight   float64     `json:"positionLimitWeight"`
+	PostOnly              bool        `json:"postOnly"`
+	PriceIncrement        float64     `json:"priceIncrement"`
+	SizeIncrement         float64     `json:"sizeIncrement"`
+	Underlying            string      `json:"underlying"`
+	UnderlyingDescription string      `json:"underlyingDescription"`
+	UpperBound            float64     `json:"upperBound"`
+	FutureType            string      `json:"type"`
 }
 
 // FutureStatsData stores data on futures stats
@@ -160,6 +163,11 @@ type FutureStatsData struct {
 	PredictedExpirationPrice float64   `json:"predictedExpirationPrice"`
 	OpenInterest             float64   `json:"openInterest"`
 	StrikePrice              float64   `json:"strikePrice"`
+	Greeks                   *struct {
+		ImpliedVolatility float64 `json:"impliedVolatility"`
+		Delta             float64 `json:"delta"`
+		Gamma             float64 `json:"gamma"`
+	} `json:"greeks"`
 }
 
 // FundingRatesData stores data on funding rates
@@ -220,22 +228,27 @@ type AccountInfoData struct {
 
 // WalletCoinsData stores data about wallet coins
 type WalletCoinsData struct {
-	Bep2Asset        interface{} `json:"bep2Asset"`
-	CanConvert       bool        `json:"canConvert"`
-	CanDeposit       bool        `json:"canDeposit"`
-	CanWithdraw      bool        `json:"canWithdraw"`
-	Collateral       bool        `json:"collateral"`
-	CollateralWeight float64     `json:"collateralWeight"`
-	CreditTo         interface{} `json:"creditTo"`
-	ERC20Contract    interface{} `json:"erc20Contract"`
-	Fiat             bool        `json:"fiat"`
-	HasTag           bool        `json:"hasTag"`
-	Hidden           bool        `json:"hidden"`
-	IsETF            bool        `json:"isEtf"`
-	IsToken          bool        `json:"isToken"`
-	Methods          []interface{}
-	ID               string `json:"id"`
-	Name             string `json:"name"`
+	USDFungible      bool     `json:"usdFungible"`
+	CanDeposit       bool     `json:"canDeposit"`
+	CanWithdraw      bool     `json:"canWithdraw"`
+	CanConvert       bool     `json:"canConvert"`
+	Collateral       bool     `json:"collateral"`
+	CollateralWeight float64  `json:"collateralWeight"`
+	CreditTo         string   `json:"creditTo"`
+	ERC20Contract    string   `json:"erc20Contract"`
+	BEP2Asset        string   `json:"bep2Asset"`
+	TRC20Contract    string   `json:"trc20Contract"`
+	SpotMargin       bool     `json:"spotMargin"`
+	IndexPrice       float64  `json:"indexPrice"`
+	SPLMint          string   `json:"splMint"`
+	Fiat             bool     `json:"fiat"`
+	HasTag           bool     `json:"hasTag"`
+	Hidden           bool     `json:"hidden"`
+	IsETF            bool     `json:"isEtf"`
+	IsToken          bool     `json:"isToken"`
+	Methods          []string `json:"methods"`
+	ID               string   `json:"id"`
+	Name             string   `json:"name"`
 }
 
 // WalletBalance stores balances data
@@ -255,10 +268,12 @@ type AllWalletBalances map[string][]WalletBalance
 type DepositData struct {
 	Address string `json:"address"`
 	Tag     string `json:"tag"`
+	Method  string `json:"method"`
+	Coin    string `json:"coin"`
 }
 
-// TransactionData stores data about deposit history
-type TransactionData struct {
+// DepositItem stores data about deposit history
+type DepositItem struct {
 	Coin          string    `json:"coin"`
 	Confirmations int64     `json:"conformations"`
 	ConfirmedTime time.Time `json:"confirmedTime"`
@@ -269,6 +284,28 @@ type TransactionData struct {
 	Status        string    `json:"status"`
 	Time          time.Time `json:"time"`
 	TxID          string    `json:"txid"`
+	Address       struct {
+		Address string `json:"address"`
+		Tag     string `json:"tag"`
+		Method  string `json:"method"`
+	} `json:"address"`
+}
+
+// WithdrawItem stores data about withdraw history
+type WithdrawItem struct {
+	ID              int64     `json:"id"`
+	Coin            string    `json:"coin"`
+	Address         string    `json:"address"`
+	Tag             string    `json:"tag"`
+	Method          string    `json:"method"`
+	TXID            string    `json:"txid"`
+	Size            float64   `json:"size"`
+	Fee             float64   `json:"fee"`
+	Status          string    `json:"status"`
+	Complete        time.Time `json:"complete"`
+	Time            time.Time `json:"time"`
+	Notes           string    `json:"notes"`
+	DestinationName string    `json:"destinationName"`
 }
 
 // OrderData stores open order data
@@ -327,6 +364,7 @@ type TriggerData struct {
 // FillsData stores fills' data
 type FillsData struct {
 	Fee           float64   `json:"fee"`
+	FeeCurrency   string    `json:"feeCurrency"`
 	FeeRate       float64   `json:"feeRate"`
 	Future        string    `json:"future"`
 	ID            int64     `json:"id"`
@@ -553,9 +591,10 @@ type OptionFillsData struct {
 
 // AuthenticationData stores authentication variables required
 type AuthenticationData struct {
-	Key  string `json:"key"`
-	Sign string `json:"sign"`
-	Time int64  `json:"time"`
+	Key        string `json:"key"`
+	Sign       string `json:"sign"`
+	Time       int64  `json:"time"`
+	SubAccount string `json:"subaccount,omitempty"`
 }
 
 // Authenticate stores authentication variables required
@@ -603,37 +642,42 @@ type WsOrderbookData struct {
 
 // WsOrders stores ws orders' data
 type WsOrders struct {
-	ID            int64   `json:"id"`
-	ClientID      string  `json:"clientId"`
-	Market        string  `json:"market"`
-	OrderType     string  `json:"type"`
-	Side          string  `json:"side"`
-	Size          float64 `json:"size"`
-	Price         float64 `json:"price"`
-	ReduceOnly    bool    `json:"reduceOnly"`
-	IOC           bool    `json:"ioc"`
-	PostOnly      bool    `json:"postOnly"`
-	Status        string  `json:"status"`
-	FilledSize    float64 `json:"filedSize"`
-	RemainingSize float64 `json:"remainingSize"`
-	AvgFillPrice  float64 `json:"avgFillPrice"`
+	ID            int64     `json:"id"`
+	ClientID      string    `json:"clientId"`
+	Market        string    `json:"market"`
+	OrderType     string    `json:"type"`
+	Side          string    `json:"side"`
+	Price         float64   `json:"price"`
+	Size          float64   `json:"size"`
+	Status        string    `json:"status"`
+	FilledSize    float64   `json:"filledSize"`
+	RemainingSize float64   `json:"remainingSize"`
+	ReduceOnly    bool      `json:"reduceOnly"`
+	Liquidation   bool      `json:"liquidation"`
+	AvgFillPrice  float64   `json:"avgFillPrice"`
+	PostOnly      bool      `json:"postOnly"`
+	IOC           bool      `json:"ioc"`
+	CreatedAt     time.Time `json:"createdAt"`
 }
 
 // WsFills stores websocket fills' data
 type WsFills struct {
-	Fee       float64   `json:"fee"`
-	FeeRate   float64   `json:"feeRate"`
-	Future    string    `json:"future"`
-	ID        int64     `json:"id"`
-	Liquidity string    `json:"liquidity"`
-	Market    string    `json:"market"`
-	OrderID   int64     `json:"orderId"`
-	TradeID   int64     `json:"tradeId"`
-	Price     float64   `json:"price"`
-	Side      string    `json:"side"`
-	Size      float64   `json:"size"`
-	Time      time.Time `json:"time"`
-	OrderType string    `json:"orderType"`
+	ID            int64     `json:"id"`
+	Market        string    `json:"market"`
+	Future        string    `json:"future"`
+	BaseCurrency  string    `json:"baseCurrency"`
+	QuoteCurrency string    `json:"quoteCurrency"`
+	Type          string    `json:"type"`
+	Side          string    `json:"side"`
+	Price         float64   `json:"price"`
+	Size          float64   `json:"size"`
+	OrderID       int64     `json:"orderId"`
+	Time          time.Time `json:"time"`
+	TradeID       int64     `json:"tradeId"`
+	FeeRate       float64   `json:"feeRate"`
+	Fee           float64   `json:"fee"`
+	FeeCurrency   string    `json:"feeCurrency"`
+	Liquidity     string    `json:"liquidity"`
 }
 
 // WsSub has the data used to subscribe to a channel
@@ -678,7 +722,7 @@ type WsOrderDataStore struct {
 type WsFillsDataStore struct {
 	Channel     string  `json:"channel"`
 	MessageType string  `json:"type"`
-	FillsData   WsFills `json:"fills"`
+	FillsData   WsFills `json:"data"`
 }
 
 // TimeInterval represents interval enum.

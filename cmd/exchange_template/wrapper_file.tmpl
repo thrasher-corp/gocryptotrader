@@ -2,6 +2,8 @@
 package {{.Name}}
 
 import (
+	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -11,6 +13,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -24,9 +27,9 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func ({{.Variable}} *{{.CapitalName}}) GetDefaultConfig() (*config.ExchangeConfig, error) {
+func ({{.Variable}} *{{.CapitalName}}) GetDefaultConfig() (*config.Exchange, error) {
 	{{.Variable}}.SetDefaults()
-	exchCfg := new(config.ExchangeConfig)
+	exchCfg := new(config.Exchange)
 	exchCfg.Name = {{.Variable}}.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = {{.Variable}}.BaseCurrencies
@@ -34,7 +37,7 @@ func ({{.Variable}} *{{.CapitalName}}) GetDefaultConfig() (*config.ExchangeConfi
 	{{.Variable}}.SetupDefaults(exchCfg)
 
 	if {{.Variable}}.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err := {{.Variable}}.UpdateTradablePairs(true)
+		err := {{.Variable}}.UpdateTradablePairs(context.TODO(), true)
 		if err != nil {
 			return nil, err
 		}
@@ -126,13 +129,19 @@ func ({{.Variable}} *{{.CapitalName}}) SetDefaults() {
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
-func ({{.Variable}} *{{.CapitalName}}) Setup(exch *config.ExchangeConfig) error {
+func ({{.Variable}} *{{.CapitalName}}) Setup(exch *config.Exchange) error {
+	err := exch.Validate()
+	if err != nil {
+		return err
+	}
 	if !exch.Enabled {
 		{{.Variable}}.SetEnabled(false)
 		return nil
 	}
-
-	{{.Variable}}.SetupDefaults(exch)
+	err = {{.Variable}}.SetupDefaults(exch)
+	if err != nil {
+		return err
+	}
 
 	/*
 	wsRunningEndpoint, err := {{.Variable}}.API.Endpoints.GetURL(exchange.WebsocketSpot)
@@ -144,17 +153,13 @@ func ({{.Variable}} *{{.CapitalName}}) Setup(exch *config.ExchangeConfig) error 
 
 	err = {{.Variable}}.Websocket.Setup(
 		&stream.WebsocketSetup{
-			Enabled:                          exch.Features.Enabled.Websocket,
-			Verbose:                          exch.Verbose,
-			AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-			WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-			DefaultURL:                       {{.Name}}WSAPIURL,
-			ExchangeName:                     exch.Name,
-			RunningURL:                       wsRunningEndpoint,
-			Connector:                        {{.Variable}}.WsConnect,
-			Subscriber:                       {{.Variable}}.Subscribe,
-			UnSubscriber:                     {{.Variable}}.Unsubscribe,
-			Features:                         &{{.Variable}}.Features.Supports.WebsocketCapabilities,
+			ExchangeConfig:  exch,
+			DefaultURL:      {{.Name}}WSAPIURL,
+			RunningURL:      wsRunningEndpoint,
+			Connector:       {{.Variable}}.WsConnect,
+			Subscriber:      {{.Variable}}.Subscribe,
+			UnSubscriber:    {{.Variable}}.Unsubscribe,
+			Features:        &{{.Variable}}.Features.Supports.WebsocketCapabilities,
 		})
 	if err != nil {
 		return err
@@ -168,26 +173,21 @@ func ({{.Variable}} *{{.CapitalName}}) Setup(exch *config.ExchangeConfig) error 
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	}
-
-	// NOTE: PLEASE ENSURE YOU SET THE ORDERBOOK BUFFER SETTINGS CORRECTLY
-	{{.Variable}}.Websocket.Orderbook.Setup(
-		exch.OrderbookConfig.WebsocketBufferLimit,
-		true,
-		true,
-		false,
-		false,
-		exch.Name)
 	*/
 	return nil
 }
 
 // Start starts the {{.CapitalName}} go routine
-func ({{.Variable}} *{{.CapitalName}}) Start(wg *sync.WaitGroup) {
+func ({{.Variable}} *{{.CapitalName}}) Start(wg *sync.WaitGroup) error {
+	if wg == nil {
+		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
+	}
 	wg.Add(1)
 	go func() {
 		{{.Variable}}.Run()
 		wg.Done()
 	}()
+	return nil
 }
 
 // Run implements the {{.CapitalName}} wrapper
@@ -204,7 +204,7 @@ func ({{.Variable}} *{{.CapitalName}}) Run() {
 		return
 	}
 
-	err := {{.Variable}}.UpdateTradablePairs(false)
+	err := {{.Variable}}.UpdateTradablePairs(context.TODO(), false)
 	if err != nil {
 		log.Errorf(log.ExchangeSys,
 			"%s failed to update tradable pairs. Err: %s",
@@ -214,15 +214,15 @@ func ({{.Variable}} *{{.CapitalName}}) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func ({{.Variable}} *{{.CapitalName}}) FetchTradablePairs(asset asset.Item) ([]string, error) {
+func ({{.Variable}} *{{.CapitalName}}) FetchTradablePairs(ctx context.Context, asset asset.Item) ([]string, error) {
 	// Implement fetching the exchange available pairs if supported
 	return nil, nil
 }
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
-func ({{.Variable}} *{{.CapitalName}}) UpdateTradablePairs(forceUpdate bool) error {
-	pairs, err := {{.Variable}}.FetchTradablePairs(asset.Spot)
+func ({{.Variable}} *{{.CapitalName}}) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
+	pairs, err := {{.Variable}}.FetchTradablePairs(ctx, asset.Spot)
 	if err != nil {
 		return err
 	}
@@ -237,7 +237,7 @@ func ({{.Variable}} *{{.CapitalName}}) UpdateTradablePairs(forceUpdate bool) err
 
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func ({{.Variable}} *{{.CapitalName}}) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func ({{.Variable}} *{{.CapitalName}}) UpdateTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 		// NOTE: EXAMPLE FOR GETTING TICKER PRICE
 	/*
 	tickerPrice := new(ticker.Price)
@@ -262,29 +262,64 @@ func ({{.Variable}} *{{.CapitalName}}) UpdateTicker(p currency.Pair, assetType a
 	return ticker.GetTicker({{.Variable}}.Name, p, assetType)
 }
 
+// UpdateTickers updates all currency pairs of a given asset type
+func ({{.Variable}} *{{.CapitalName}}) UpdateTickers(ctx context.Context, assetType asset.Item) error {
+		// NOTE: EXAMPLE FOR GETTING TICKER PRICE
+	/*
+	tick, err := {{.Variable}}.GetTickers()
+	if err != nil {
+		return err
+	}
+    for y := range tick {
+        cp, err := currency.NewPairFromString(tick[y].Symbol)
+        if err != nil {
+            return err
+        }
+        err = ticker.ProcessTicker(&ticker.Price{
+            Last:         tick[y].LastPrice,
+            High:         tick[y].HighPrice,
+            Low:          tick[y].LowPrice,
+            Bid:          tick[y].BidPrice,
+            Ask:          tick[y].AskPrice,
+            Volume:       tick[y].Volume,
+            QuoteVolume:  tick[y].QuoteVolume,
+            Open:         tick[y].OpenPrice,
+            Close:        tick[y].PrevClosePrice,
+            Pair:         cp,
+            ExchangeName: b.Name,
+            AssetType:    assetType,
+        })
+        if err != nil {
+            return err
+        }
+    }
+	*/
+    return nil
+}
+
 // FetchTicker returns the ticker for a currency pair
-func ({{.Variable}} *{{.CapitalName}}) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func ({{.Variable}} *{{.CapitalName}}) FetchTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker({{.Variable}}.Name, p, assetType)
 	if err != nil {
-		return {{.Variable}}.UpdateTicker(p, assetType)
+		return {{.Variable}}.UpdateTicker(ctx, p, assetType)
 	}
 	return tickerNew, nil
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func ({{.Variable}} *{{.CapitalName}}) FetchOrderbook(currency currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	ob, err := orderbook.Get({{.Variable}}.Name, currency, assetType)
+func ({{.Variable}} *{{.CapitalName}}) FetchOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	ob, err := orderbook.Get({{.Variable}}.Name, pair, assetType)
 	if err != nil {
-		return {{.Variable}}.UpdateOrderbook(currency, assetType)
+		return {{.Variable}}.UpdateOrderbook(ctx, pair, assetType)
 	}
 	return ob, nil
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func ({{.Variable}} *{{.CapitalName}}) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func ({{.Variable}} *{{.CapitalName}}) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	book := &orderbook.Base{
 		Exchange: {{.Variable}}.Name, 
-		Pair: p, 
+		Pair: pair, 
 		Asset: assetType,
 		VerifyOrderbook: {{.Variable}}.CanVerifyOrderbook,
 	}
@@ -316,42 +351,42 @@ func ({{.Variable}} *{{.CapitalName}}) UpdateOrderbook(p currency.Pair, assetTyp
 		return book, err
 	}
 
-	return orderbook.Get({{.Variable}}.Name, p, assetType)
+	return orderbook.Get({{.Variable}}.Name, pair, assetType)
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies
-func ({{.Variable}} *{{.CapitalName}}) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
+func ({{.Variable}} *{{.CapitalName}}) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	return account.Holdings{}, common.ErrNotYetImplemented
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func ({{.Variable}} *{{.CapitalName}}) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
+func ({{.Variable}} *{{.CapitalName}}) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	return account.Holdings{}, common.ErrNotYetImplemented
 }
 
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
-func ({{.Variable}} *{{.CapitalName}}) GetFundingHistory() ([]exchange.FundHistory, error) {
+func ({{.Variable}} *{{.CapitalName}}) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func ({{.Variable}} *{{.CapitalName}}) GetWithdrawalsHistory(c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+func ({{.Variable}} *{{.CapitalName}}) GetWithdrawalsHistory(ctx context.Context, c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
 	return nil, common.ErrNotYetImplemented
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
-func ({{.Variable}} *{{.CapitalName}}) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+func ({{.Variable}} *{{.CapitalName}}) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
-func ({{.Variable}} *{{.CapitalName}}) GetHistoricTrades (p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
+func ({{.Variable}} *{{.CapitalName}}) GetHistoricTrades (ctx context.Context, p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
 // SubmitOrder submits a new order
-func ({{.Variable}} *{{.CapitalName}}) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
+func ({{.Variable}} *{{.CapitalName}}) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
 	var submitOrderResponse order.SubmitResponse
 	if err := s.Validate(); err != nil {
 		return submitOrderResponse, err
@@ -361,15 +396,15 @@ func ({{.Variable}} *{{.CapitalName}}) SubmitOrder(s *order.Submit) (order.Submi
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func ({{.Variable}} *{{.CapitalName}}) ModifyOrder(action *order.Modify) (string, error) {
+func ({{.Variable}} *{{.CapitalName}}) ModifyOrder(ctx context.Context, action *order.Modify) (order.Modify, error) {
 	// if err := action.Validate(); err != nil {
 	// 	return "", err
 	// }
-	return "", common.ErrNotYetImplemented
+	return order.Modify{}, common.ErrNotYetImplemented
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func ({{.Variable}} *{{.CapitalName}}) CancelOrder(ord *order.Cancel) error {
+func ({{.Variable}} *{{.CapitalName}}) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 	// if err := ord.Validate(ord.StandardCancel()); err != nil {
 	//	 return err
 	// }
@@ -377,12 +412,12 @@ func ({{.Variable}} *{{.CapitalName}}) CancelOrder(ord *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels orders by their corresponding ID numbers
-func ({{.Variable}} *{{.CapitalName}}) CancelBatchOrders(orders []order.Cancel) (order.CancelBatchResponse, error) {
+func ({{.Variable}} *{{.CapitalName}}) CancelBatchOrders(ctx context.Context, orders []order.Cancel) (order.CancelBatchResponse, error) {
     return order.CancelBatchResponse{}, common.ErrNotYetImplemented
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func ({{.Variable}} *{{.CapitalName}}) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
+func ({{.Variable}} *{{.CapitalName}}) CancelAllOrders(ctx context.Context, orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
 	// if err := orderCancellation.Validate(); err != nil {
 	//	 return err
 	// }
@@ -390,18 +425,18 @@ func ({{.Variable}} *{{.CapitalName}}) CancelAllOrders(orderCancellation *order.
 }
 
 // GetOrderInfo returns order information based on order ID
-func ({{.Variable}} *{{.CapitalName}}) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
+func ({{.Variable}} *{{.CapitalName}}) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
 	return order.Detail{}, common.ErrNotYetImplemented
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func ({{.Variable}} *{{.CapitalName}}) GetDepositAddress(cryptocurrency currency.Code, accountID string) (string, error) {
-	return "", common.ErrNotYetImplemented
+func ({{.Variable}} *{{.CapitalName}}) GetDepositAddress(ctx context.Context, c currency.Code, accountID string, chain string) (*deposit.Address, error) {
+	return nil, common.ErrNotYetImplemented
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func ({{.Variable}} *{{.CapitalName}}) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func ({{.Variable}} *{{.CapitalName}}) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	// if err := withdrawRequest.Validate(); err != nil {
 	//	return nil, err
 	// }
@@ -410,7 +445,7 @@ func ({{.Variable}} *{{.CapitalName}}) WithdrawCryptocurrencyFunds(withdrawReque
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func ({{.Variable}} *{{.CapitalName}}) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func ({{.Variable}} *{{.CapitalName}}) WithdrawFiatFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	// if err := withdrawRequest.Validate(); err != nil {
 	//	return nil, err
 	// }
@@ -419,7 +454,7 @@ func ({{.Variable}} *{{.CapitalName}}) WithdrawFiatFunds(withdrawRequest *withdr
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is
 // submitted
-func ({{.Variable}} *{{.CapitalName}}) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func ({{.Variable}} *{{.CapitalName}}) WithdrawFiatFundsToInternationalBank(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	// if err := withdrawRequest.Validate(); err != nil {
 	//	return nil, err
 	// }
@@ -427,7 +462,7 @@ func ({{.Variable}} *{{.CapitalName}}) WithdrawFiatFundsToInternationalBank(with
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func ({{.Variable}} *{{.CapitalName}}) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+func ({{.Variable}} *{{.CapitalName}}) GetActiveOrders(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
 	// if err := getOrdersRequest.Validate(); err != nil {
 	//	return nil, err
 	// }
@@ -436,7 +471,7 @@ func ({{.Variable}} *{{.CapitalName}}) GetActiveOrders(getOrdersRequest *order.G
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func ({{.Variable}} *{{.CapitalName}}) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+func ({{.Variable}} *{{.CapitalName}}) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
 	// if err := getOrdersRequest.Validate(); err != nil {
 	//	return nil, err
 	// }
@@ -444,23 +479,23 @@ func ({{.Variable}} *{{.CapitalName}}) GetOrderHistory(getOrdersRequest *order.G
 }
 
 // GetFeeByType returns an estimate of fee based on the type of transaction
-func ({{.Variable}} *{{.CapitalName}}) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
+func ({{.Variable}} *{{.CapitalName}}) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
 	return 0, common.ErrNotYetImplemented
 }
 
 // ValidateCredentials validates current credentials used for wrapper
-func ({{.Variable}} *{{.CapitalName}}) ValidateCredentials(assetType asset.Item) error {
-	_, err := {{.Variable}}.UpdateAccountInfo(assetType)
+func ({{.Variable}} *{{.CapitalName}}) ValidateCredentials(ctx context.Context, assetType asset.Item) error {
+	_, err := {{.Variable}}.UpdateAccountInfo(ctx, assetType)
 	return {{.Variable}}.CheckTransientError(err)
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func ({{.Variable}} *{{.CapitalName}}) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+func ({{.Variable}} *{{.CapitalName}}) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	return kline.Item{}, common.ErrNotYetImplemented
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func ({{.Variable}} *{{.CapitalName}}) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+func ({{.Variable}} *{{.CapitalName}}) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	return kline.Item{}, common.ErrNotYetImplemented
 }
 

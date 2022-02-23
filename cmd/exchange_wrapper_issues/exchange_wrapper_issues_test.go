@@ -7,7 +7,7 @@ import (
 )
 
 func TestDisruptFormatting(t *testing.T) {
-	_, err := disruptFormatting(currency.Pair{})
+	_, err := disruptFormatting(currency.EMPTYPAIR)
 	if err == nil {
 		t.Fatal("error cannot be nil")
 	}

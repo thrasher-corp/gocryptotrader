@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
@@ -20,8 +21,7 @@ import (
 
 func TestName(t *testing.T) {
 	d := Strategy{}
-	n := d.Name()
-	if n != Name {
+	if n := d.Name(); n != Name {
 		t.Errorf("expected %v", Name)
 	}
 }
@@ -37,15 +37,15 @@ func TestSetCustomSettings(t *testing.T) {
 	s := Strategy{}
 	err := s.SetCustomSettings(nil)
 	if !errors.Is(err, base.ErrCustomSettingsUnsupported) {
-		t.Errorf("expected: %v, received %v", base.ErrCustomSettingsUnsupported, err)
+		t.Errorf("received: %v, expected: %v", err, base.ErrCustomSettingsUnsupported)
 	}
 }
 
 func TestOnSignal(t *testing.T) {
 	s := Strategy{}
-	_, err := s.OnSignal(nil, nil)
+	_, err := s.OnSignal(nil, nil, nil)
 	if !errors.Is(err, common.ErrNilEvent) {
-		t.Errorf("expected: %v, received %v", common.ErrNilEvent, err)
+		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
 	}
 
 	dStart := time.Date(2020, 1, 0, 0, 0, 0, 0, time.UTC)
@@ -63,20 +63,20 @@ func TestOnSignal(t *testing.T) {
 			CurrencyPair: p,
 			AssetType:    a,
 		},
-		Open:   1337,
-		Close:  1337,
-		Low:    1337,
-		High:   1337,
-		Volume: 1337,
+		Open:   decimal.NewFromInt(1337),
+		Close:  decimal.NewFromInt(1337),
+		Low:    decimal.NewFromInt(1337),
+		High:   decimal.NewFromInt(1337),
+		Volume: decimal.NewFromInt(1337),
 	}})
 	d.Next()
 	da := &kline.DataFromKline{
-		Item:  gctkline.Item{},
-		Base:  d,
-		Range: &gctkline.IntervalRangeHolder{},
+		Item:        gctkline.Item{},
+		Base:        d,
+		RangeHolder: &gctkline.IntervalRangeHolder{},
 	}
 	var resp signal.Event
-	resp, err = s.OnSignal(da, nil)
+	resp, err = s.OnSignal(da, nil, nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -109,9 +109,9 @@ func TestOnSignal(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	da.Range = ranger
-	da.Range.SetHasDataFromCandles(da.Item.Candles)
-	resp, err = s.OnSignal(da, nil)
+	da.RangeHolder = ranger
+	da.RangeHolder.SetHasDataFromCandles(da.Item.Candles)
+	resp, err = s.OnSignal(da, nil, nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -122,9 +122,9 @@ func TestOnSignal(t *testing.T) {
 
 func TestOnSignals(t *testing.T) {
 	s := Strategy{}
-	_, err := s.OnSignal(nil, nil)
+	_, err := s.OnSignal(nil, nil, nil)
 	if !errors.Is(err, common.ErrNilEvent) {
-		t.Errorf("expected: %v, received %v", common.ErrNilEvent, err)
+		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
 	}
 	dStart := time.Date(2020, 1, 0, 0, 0, 0, 0, time.UTC)
 	dInsert := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
@@ -142,20 +142,20 @@ func TestOnSignals(t *testing.T) {
 			CurrencyPair: p,
 			AssetType:    a,
 		},
-		Open:   1337,
-		Close:  1337,
-		Low:    1337,
-		High:   1337,
-		Volume: 1337,
+		Open:   decimal.NewFromInt(1337),
+		Close:  decimal.NewFromInt(1337),
+		Low:    decimal.NewFromInt(1337),
+		High:   decimal.NewFromInt(1337),
+		Volume: decimal.NewFromInt(1337),
 	}})
 	d.Next()
 	da := &kline.DataFromKline{
-		Item:  gctkline.Item{},
-		Base:  d,
-		Range: &gctkline.IntervalRangeHolder{},
+		Item:        gctkline.Item{},
+		Base:        d,
+		RangeHolder: &gctkline.IntervalRangeHolder{},
 	}
 	var resp []signal.Event
-	resp, err = s.OnSimultaneousSignals([]data.Handler{da}, nil)
+	resp, err = s.OnSimultaneousSignals([]data.Handler{da}, nil, nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -191,9 +191,9 @@ func TestOnSignals(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	da.Range = ranger
-	da.Range.SetHasDataFromCandles(da.Item.Candles)
-	resp, err = s.OnSimultaneousSignals([]data.Handler{da}, nil)
+	da.RangeHolder = ranger
+	da.RangeHolder.SetHasDataFromCandles(da.Item.Candles)
+	resp, err = s.OnSimultaneousSignals([]data.Handler{da}, nil, nil)
 	if err != nil {
 		t.Error(err)
 	}

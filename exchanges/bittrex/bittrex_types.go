@@ -127,6 +127,13 @@ type AddressData struct {
 	CryptoAddressTag string `json:"cryptoAddressTag"`
 }
 
+// ProvisionNewAddressData holds the provision deposit data
+// Status is REQUESTED
+type ProvisionNewAddressData struct {
+	Status         string `json:"status"`
+	CurrencySymbol string `json:"currencySymbol"`
+}
+
 // CurrencyData holds currency data
 // Status is ONLINE or OFFLINE
 type CurrencyData struct {
@@ -284,9 +291,10 @@ type orderbookManager struct {
 }
 
 type update struct {
-	buffer       chan *OrderbookUpdateMessage
-	fetchingBook bool
-	initialSync  bool
+	buffer            chan *OrderbookUpdateMessage
+	fetchingBook      bool
+	initialSync       bool
+	needsFetchingBook bool
 }
 
 // job defines a synchonisation job that tells a go routine to fetch an

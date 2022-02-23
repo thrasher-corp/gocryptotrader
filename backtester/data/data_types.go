@@ -3,6 +3,7 @@ package data
 import (
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -51,11 +52,11 @@ type Streamer interface {
 	List() []common.DataEventHandler
 	Offset() int
 
-	StreamOpen() []float64
-	StreamHigh() []float64
-	StreamLow() []float64
-	StreamClose() []float64
-	StreamVol() []float64
+	StreamOpen() []decimal.Decimal
+	StreamHigh() []decimal.Decimal
+	StreamLow() []decimal.Decimal
+	StreamClose() []decimal.Decimal
+	StreamVol() []decimal.Decimal
 
 	HasDataAtTime(time.Time) bool
 }

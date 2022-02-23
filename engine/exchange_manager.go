@@ -18,7 +18,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/btse"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bybit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/coinbasepro"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/coinbene"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/coinut"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/exmo"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ftx"
@@ -44,12 +43,20 @@ var (
 	ErrExchangeNotFound      = errors.New("exchange not found")
 	ErrExchangeAlreadyLoaded = errors.New("exchange already loaded")
 	ErrExchangeFailedToLoad  = errors.New("exchange failed to load")
+	errExchangeNameIsEmpty   = errors.New("exchange name is empty")
 )
+
+// CustomExchangeBuilder interface allows external applications to create
+// custom/unsupported exchanges that satisfy the IBotExchange interface.
+type CustomExchangeBuilder interface {
+	NewExchangeByName(name string) (exchange.IBotExchange, error)
+}
 
 // ExchangeManager manages what exchanges are loaded
 type ExchangeManager struct {
 	m         sync.Mutex
 	exchanges map[string]exchange.IBotExchange
+	Builder   CustomExchangeBuilder
 }
 
 // SetupExchangeManager creates a new exchange manager
@@ -70,14 +77,17 @@ func (m *ExchangeManager) Add(exch exchange.IBotExchange) {
 }
 
 // GetExchanges returns all stored exchanges
-func (m *ExchangeManager) GetExchanges() []exchange.IBotExchange {
+func (m *ExchangeManager) GetExchanges() ([]exchange.IBotExchange, error) {
+	if m == nil {
+		return nil, fmt.Errorf("exchange manager: %w", ErrNilSubsystem)
+	}
 	m.m.Lock()
 	defer m.m.Unlock()
 	var exchs []exchange.IBotExchange
 	for _, x := range m.exchanges {
 		exchs = append(exchs, x)
 	}
-	return exchs
+	return exchs, nil
 }
 
 // RemoveExchange removes an exchange from the manager
@@ -85,29 +95,36 @@ func (m *ExchangeManager) RemoveExchange(exchName string) error {
 	if m.Len() == 0 {
 		return ErrNoExchangesLoaded
 	}
-	exch := m.GetExchangeByName(exchName)
-	if exch == nil {
-		return ErrExchangeNotFound
+	exch, err := m.GetExchangeByName(exchName)
+	if err != nil {
+		return err
 	}
 	m.m.Lock()
 	defer m.m.Unlock()
+	err = exch.GetBase().Requester.Shutdown()
+	if err != nil {
+		return err
+	}
 	delete(m.exchanges, strings.ToLower(exchName))
 	log.Infof(log.ExchangeSys, "%s exchange unloaded successfully.\n", exchName)
 	return nil
 }
 
 // GetExchangeByName returns an exchange by its name if it exists
-func (m *ExchangeManager) GetExchangeByName(exchangeName string) exchange.IBotExchange {
+func (m *ExchangeManager) GetExchangeByName(exchangeName string) (exchange.IBotExchange, error) {
 	if m == nil {
-		return nil
+		return nil, fmt.Errorf("exchange manager: %w", ErrNilSubsystem)
+	}
+	if exchangeName == "" {
+		return nil, fmt.Errorf("exchange manager: %w", errExchangeNameIsEmpty)
 	}
 	m.m.Lock()
 	defer m.m.Unlock()
 	exch, ok := m.exchanges[strings.ToLower(exchangeName)]
 	if !ok {
-		return nil
+		return nil, fmt.Errorf("%s %w", exchangeName, ErrExchangeNotFound)
 	}
-	return exch
+	return exch, nil
 }
 
 // Len says how many exchanges are loaded
@@ -123,7 +140,7 @@ func (m *ExchangeManager) NewExchangeByName(name string) (exchange.IBotExchange,
 		return nil, fmt.Errorf("exchange manager %w", ErrNilSubsystem)
 	}
 	nameLower := strings.ToLower(name)
-	if m.GetExchangeByName(nameLower) != nil {
+	if exch, _ := m.GetExchangeByName(nameLower); exch != nil {
 		return nil, fmt.Errorf("%s %w", name, ErrExchangeAlreadyLoaded)
 	}
 	var exch exchange.IBotExchange
@@ -149,8 +166,6 @@ func (m *ExchangeManager) NewExchangeByName(name string) (exchange.IBotExchange,
 		exch = new(btse.BTSE)
 	case "bybit":
 		exch = new(bybit.Bybit)
-	case "coinbene":
-		exch = new(coinbene.Coinbene)
 	case "coinut":
 		exch = new(coinut.COINUT)
 	case "exmo":
@@ -186,6 +201,9 @@ func (m *ExchangeManager) NewExchangeByName(name string) (exchange.IBotExchange,
 	case "zb":
 		exch = new(zb.ZB)
 	default:
+		if m.Builder != nil {
+			return m.Builder.NewExchangeByName(nameLower)
+		}
 		return nil, fmt.Errorf("%s, %w", nameLower, ErrExchangeNotFound)
 	}
 

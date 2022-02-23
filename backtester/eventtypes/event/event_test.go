@@ -11,6 +11,7 @@ import (
 )
 
 func TestEvent_AppendWhy(t *testing.T) {
+	t.Parallel()
 	e := &Base{}
 	e.AppendReason("test")
 	y := e.GetReason()
@@ -20,36 +21,37 @@ func TestEvent_AppendWhy(t *testing.T) {
 }
 
 func TestEvent_GetAssetType(t *testing.T) {
+	t.Parallel()
 	e := &Base{
 		AssetType: asset.Spot,
 	}
-	y := e.GetAssetType()
-	if y != asset.Spot {
+	if y := e.GetAssetType(); y != asset.Spot {
 		t.Error("expected spot")
 	}
 }
 
 func TestEvent_GetExchange(t *testing.T) {
+	t.Parallel()
 	e := &Base{
 		Exchange: "test",
 	}
-	y := e.GetExchange()
-	if y != "test" {
+	if y := e.GetExchange(); y != "test" {
 		t.Error("expected test")
 	}
 }
 
 func TestEvent_GetInterval(t *testing.T) {
+	t.Parallel()
 	e := &Base{
 		Interval: gctkline.OneMin,
 	}
-	y := e.GetInterval()
-	if y != gctkline.OneMin {
+	if y := e.GetInterval(); y != gctkline.OneMin {
 		t.Error("expected one minute")
 	}
 }
 
 func TestEvent_GetTime(t *testing.T) {
+	t.Parallel()
 	tt := time.Now()
 	e := &Base{
 		Time: tt,
@@ -61,6 +63,7 @@ func TestEvent_GetTime(t *testing.T) {
 }
 
 func TestEvent_IsEvent(t *testing.T) {
+	t.Parallel()
 	e := &Base{}
 	y := e.IsEvent()
 	if !y {
@@ -69,6 +72,7 @@ func TestEvent_IsEvent(t *testing.T) {
 }
 
 func TestEvent_Pair(t *testing.T) {
+	t.Parallel()
 	e := &Base{
 		CurrencyPair: currency.NewPair(currency.BTC, currency.USDT),
 	}

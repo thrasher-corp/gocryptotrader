@@ -1,10 +1,13 @@
 package log
 
-import "io"
+import (
+	"io"
+	"sync"
+)
 
 // Global vars related to the logger package
 var (
-	subLoggers = map[string]*SubLogger{}
+	SubLoggers = map[string]*SubLogger{}
 
 	Global           *SubLogger
 	BackTester       *SubLogger
@@ -31,7 +34,18 @@ var (
 	Ticker    *SubLogger
 	OrderBook *SubLogger
 	Trade     *SubLogger
+	Fill      *SubLogger
+	Currency  *SubLogger
 )
+
+// SubLogger defines a sub logger can be used externally for packages wanted to
+// leverage GCT library logger features.
+type SubLogger struct {
+	name   string
+	levels Levels
+	output io.Writer
+	mtx    sync.RWMutex
+}
 
 // logFields is used to store data in a non-global and thread-safe manner
 // so logs cannot be modified mid-log causing a data-race issue

@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -18,18 +19,27 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
+	"github.com/thrasher-corp/gocryptotrader/communications"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/database"
+	"github.com/thrasher-corp/gocryptotrader/dispatch"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/gctscript/vm"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 var testExchange = "Bitstamp"
 
 func CreateTestBot(t *testing.T) *Engine {
+	t.Helper()
 	cFormat := &currency.PairFormat{Uppercase: true}
 	cp1 := currency.NewPair(currency.BTC, currency.USD)
 	cp2 := currency.NewPair(currency.BTC, currency.USDT)
@@ -50,7 +60,7 @@ func CreateTestBot(t *testing.T) *Engine {
 	}
 	bot := &Engine{
 		ExchangeManager: SetupExchangeManager(),
-		Config: &config.Config{Exchanges: []config.ExchangeConfig{
+		Config: &config.Config{Exchanges: []config.Exchange{
 			{
 				Name:                    testExchange,
 				Enabled:                 true,
@@ -80,12 +90,151 @@ func CreateTestBot(t *testing.T) *Engine {
 				},
 			},
 		}}}
-	err := bot.LoadExchange(testExchange, nil)
-	if err != nil {
+	if err := bot.LoadExchange(testExchange, nil); err != nil {
 		t.Fatalf("SetupTest: Failed to load exchange: %s", err)
 	}
-
 	return bot
+}
+
+func TestGetSubsystemsStatus(t *testing.T) {
+	m := (&Engine{}).GetSubsystemsStatus()
+	if len(m) != 15 {
+		t.Fatalf("subsystem count is wrong expecting: %d but received: %d", 15, len(m))
+	}
+}
+
+func TestGetRPCEndpoints(t *testing.T) {
+	_, err := (&Engine{}).GetRPCEndpoints()
+	if !errors.Is(err, errNilConfig) {
+		t.Fatalf("received: %v, but expected: %v", err, errNilConfig)
+	}
+
+	m, err := (&Engine{Config: &config.Config{}}).GetRPCEndpoints()
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v, but expected: %v", err, nil)
+	}
+	if len(m) != 4 {
+		t.Fatalf("expected length: %d but received: %d", 4, len(m))
+	}
+}
+
+func TestSetSubsystem(t *testing.T) { // nolint // TO-DO: Fix race t.Parallel() usage
+	testCases := []struct {
+		Subsystem    string
+		Engine       *Engine
+		EnableError  error
+		DisableError error
+	}{
+		{Subsystem: "sillyBilly", EnableError: errNilBot, DisableError: errNilBot},
+		{Subsystem: "sillyBilly", Engine: &Engine{}, EnableError: errNilConfig, DisableError: errNilConfig},
+		{Subsystem: "sillyBilly", Engine: &Engine{Config: &config.Config{}}, EnableError: errSubsystemNotFound, DisableError: errSubsystemNotFound},
+		{
+			Subsystem:    CommunicationsManagerName,
+			Engine:       &Engine{Config: &config.Config{}},
+			EnableError:  communications.ErrNoRelayersEnabled,
+			DisableError: ErrNilSubsystem,
+		},
+		{
+			Subsystem:    ConnectionManagerName,
+			Engine:       &Engine{Config: &config.Config{}},
+			EnableError:  nil,
+			DisableError: nil,
+		},
+		{
+			Subsystem:    OrderManagerName,
+			Engine:       &Engine{Config: &config.Config{}},
+			EnableError:  nil,
+			DisableError: nil,
+		},
+		{
+			Subsystem:    PortfolioManagerName,
+			Engine:       &Engine{Config: &config.Config{}},
+			EnableError:  errNilExchangeManager,
+			DisableError: ErrNilSubsystem,
+		},
+		{
+			Subsystem:    NTPManagerName,
+			Engine:       &Engine{Config: &config.Config{Logging: log.Config{Enabled: convert.BoolPtr(false)}}},
+			EnableError:  errNilNTPConfigValues,
+			DisableError: ErrNilSubsystem,
+		},
+		{
+			Subsystem:    DatabaseConnectionManagerName,
+			Engine:       &Engine{Config: &config.Config{}},
+			EnableError:  database.ErrDatabaseSupportDisabled,
+			DisableError: ErrSubSystemNotStarted,
+		},
+		{
+			Subsystem:    SyncManagerName,
+			Engine:       &Engine{Config: &config.Config{}},
+			EnableError:  errNoSyncItemsEnabled,
+			DisableError: ErrNilSubsystem,
+		},
+		{
+			Subsystem:    dispatch.Name,
+			Engine:       &Engine{Config: &config.Config{}},
+			EnableError:  nil,
+			DisableError: nil,
+		},
+
+		{
+			Subsystem:    DeprecatedName,
+			Engine:       &Engine{Config: &config.Config{}, Settings: Settings{ConfigFile: config.DefaultFilePath()}},
+			EnableError:  errServerDisabled,
+			DisableError: ErrSubSystemNotStarted,
+		},
+		{
+			Subsystem:    WebsocketName,
+			Engine:       &Engine{Config: &config.Config{}, Settings: Settings{ConfigFile: config.DefaultFilePath()}},
+			EnableError:  errServerDisabled,
+			DisableError: ErrSubSystemNotStarted,
+		},
+		{
+			Subsystem:    grpcName,
+			Engine:       &Engine{Config: &config.Config{}},
+			EnableError:  errGRPCManagementFault,
+			DisableError: errGRPCManagementFault},
+		{
+			Subsystem:    grpcProxyName,
+			Engine:       &Engine{Config: &config.Config{}},
+			EnableError:  errGRPCManagementFault,
+			DisableError: errGRPCManagementFault},
+		{
+			Subsystem:    dataHistoryManagerName,
+			Engine:       &Engine{Config: &config.Config{}},
+			EnableError:  database.ErrNilInstance,
+			DisableError: ErrNilSubsystem,
+		},
+		{
+			Subsystem:    vm.Name,
+			Engine:       &Engine{Config: &config.Config{}},
+			EnableError:  nil,
+			DisableError: nil,
+		},
+	}
+
+	for _, tt := range testCases {
+		tt := tt
+		t.Run(tt.Subsystem, func(t *testing.T) {
+			t.Parallel()
+			err := tt.Engine.SetSubsystem(tt.Subsystem, true)
+			if !errors.Is(err, tt.EnableError) {
+				t.Fatalf(
+					"while enabled %s subsystem received: %#v, but expected: %v",
+					tt.Subsystem,
+					err,
+					tt.EnableError)
+			}
+			err = tt.Engine.SetSubsystem(tt.Subsystem, false)
+			if !errors.Is(err, tt.DisableError) {
+				t.Fatalf(
+					"while disabling %s subsystem received: %#v, but expected: %v",
+					tt.Subsystem,
+					err,
+					tt.DisableError)
+			}
+		})
+	}
 }
 
 func TestGetExchangeOTPs(t *testing.T) {
@@ -162,7 +311,11 @@ func TestGetAuthAPISupportedExchanges(t *testing.T) {
 		t.Fatal("Unexpected result", result)
 	}
 
-	exch := e.ExchangeManager.GetExchangeByName(testExchange)
+	exch, err := e.ExchangeManager.GetExchangeByName(testExchange)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	b := exch.GetBase()
 	b.API.AuthenticatedWebsocketSupport = true
 	b.API.Credentials.Key = "test"
@@ -215,7 +368,7 @@ func TestGetSpecificAvailablePairs(t *testing.T) {
 		},
 	}
 	e.Config = &config.Config{
-		Exchanges: []config.ExchangeConfig{
+		Exchanges: []config.Exchange{
 			{
 				Enabled: true,
 				Name:    testExchange,
@@ -561,7 +714,7 @@ func TestGetExchangeNamesByCurrency(t *testing.T) {
 
 	e := CreateTestBot(t)
 	bf := "Bitflyer"
-	e.Config.Exchanges = append(e.Config.Exchanges, config.ExchangeConfig{
+	e.Config.Exchanges = append(e.Config.Exchanges, config.Exchange{
 		Enabled: true,
 		Name:    bf,
 		CurrencyPairs: &currency.PairsManager{Pairs: map[asset.Item]*currency.PairStore{
@@ -623,7 +776,8 @@ func TestGetSpecificOrderbook(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ob, err := e.GetSpecificOrderbook(btsusd, testExchange, asset.Spot)
+	ob, err := e.GetSpecificOrderbook(context.Background(),
+		btsusd, testExchange, asset.Spot)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -637,7 +791,8 @@ func TestGetSpecificOrderbook(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = e.GetSpecificOrderbook(ethltc, testExchange, asset.Spot)
+	_, err = e.GetSpecificOrderbook(context.Background(),
+		ethltc, testExchange, asset.Spot)
 	if err == nil {
 		t.Fatal("Unexpected result")
 	}
@@ -665,7 +820,8 @@ func TestGetSpecificTicker(t *testing.T) {
 		t.Fatal("ProcessTicker error", err)
 	}
 
-	tick, err := e.GetSpecificTicker(p, testExchange, asset.Spot)
+	tick, err := e.GetSpecificTicker(context.Background(),
+		p, testExchange, asset.Spot)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -679,7 +835,8 @@ func TestGetSpecificTicker(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = e.GetSpecificTicker(ethltc, testExchange, asset.Spot)
+	_, err = e.GetSpecificTicker(context.Background(),
+		ethltc, testExchange, asset.Spot)
 	if err == nil {
 		t.Fatal("Unexpected result")
 	}
@@ -828,10 +985,188 @@ func TestGetExchangeLowestPriceByCurrencyPair(t *testing.T) {
 func TestGetCryptocurrenciesByExchange(t *testing.T) {
 	t.Parallel()
 	e := CreateTestBot(t)
-
 	_, err := e.GetCryptocurrenciesByExchange("Bitfinex", false, false, asset.Spot)
 	if err != nil {
 		t.Fatalf("Err %s", err)
+	}
+}
+
+type fakeDepositExchangeOpts struct {
+	SupportsAuth             bool
+	SupportsMultiChain       bool
+	RequiresChainSet         bool
+	ReturnMultipleChains     bool
+	ThrowPairError           bool
+	ThrowTransferChainError  bool
+	ThrowDepositAddressError bool
+}
+
+type fakeDepositExchange struct {
+	exchange.IBotExchange
+	*fakeDepositExchangeOpts
+}
+
+func (f fakeDepositExchange) GetName() string {
+	return "fake"
+}
+
+func (f fakeDepositExchange) GetAuthenticatedAPISupport(endpoint uint8) bool {
+	return f.SupportsAuth
+}
+
+func (f fakeDepositExchange) GetBase() *exchange.Base {
+	return &exchange.Base{
+		Features: exchange.Features{Supports: exchange.FeaturesSupported{
+			RESTCapabilities: protocol.Features{
+				MultiChainDeposits:                f.SupportsMultiChain,
+				MultiChainDepositRequiresChainSet: f.RequiresChainSet,
+			},
+		}},
+	}
+}
+
+func (f fakeDepositExchange) GetAvailableTransferChains(_ context.Context, c currency.Code) ([]string, error) {
+	if f.ThrowTransferChainError {
+		return nil, errors.New("unable to get available transfer chains")
+	}
+	if c.Equal(currency.XRP) {
+		return nil, nil
+	}
+	if c.Equal(currency.USDT) {
+		return []string{"sol", "btc", "usdt"}, nil
+	}
+	return []string{"BITCOIN"}, nil
+}
+
+func (f fakeDepositExchange) GetDepositAddress(_ context.Context, c currency.Code, chain, accountID string) (*deposit.Address, error) {
+	if f.ThrowDepositAddressError {
+		return nil, errors.New("unable to get deposit address")
+	}
+	return &deposit.Address{Address: "fakeaddr"}, nil
+}
+
+func createDepositEngine(opts *fakeDepositExchangeOpts) *Engine {
+	ps := currency.PairStore{
+		AssetEnabled: convert.BoolPtr(true),
+		Enabled: currency.Pairs{
+			currency.NewPair(currency.BTC, currency.USDT),
+			currency.NewPair(currency.XRP, currency.USDT),
+		},
+		Available: currency.Pairs{
+			currency.NewPair(currency.BTC, currency.USDT),
+			currency.NewPair(currency.XRP, currency.USDT),
+		},
+	}
+	if opts.ThrowPairError {
+		ps.Available = nil
+	}
+	return &Engine{
+		Settings: Settings{Verbose: true},
+		Config: &config.Config{
+			Exchanges: []config.Exchange{
+				{
+					Name:    "fake",
+					Enabled: true,
+					CurrencyPairs: &currency.PairsManager{
+						UseGlobalFormat: true,
+						ConfigFormat:    &currency.PairFormat{},
+						Pairs: map[asset.Item]*currency.PairStore{
+							asset.Spot: &ps,
+						},
+					},
+				},
+			},
+		},
+		ExchangeManager: &ExchangeManager{
+			exchanges: map[string]exchange.IBotExchange{
+				"fake": fakeDepositExchange{
+					fakeDepositExchangeOpts: opts,
+				},
+			},
+		},
+	}
+}
+
+func TestGetCryptocurrencyDepositAddressesByExchange(t *testing.T) {
+	t.Parallel()
+	const exchName = "fake"
+	e := createDepositEngine(&fakeDepositExchangeOpts{SupportsAuth: true, SupportsMultiChain: true})
+	_, err := e.GetCryptocurrencyDepositAddressesByExchange(exchName)
+	if err != nil {
+		t.Error(err)
+	}
+	if _, err = e.GetCryptocurrencyDepositAddressesByExchange("non-existent"); !errors.Is(err, ErrExchangeNotFound) {
+		t.Errorf("received %s, expected: %s", err, ErrExchangeNotFound)
+	}
+	e.DepositAddressManager = SetupDepositAddressManager()
+	_, err = e.GetCryptocurrencyDepositAddressesByExchange(exchName)
+	if err == nil {
+		t.Error("expected error")
+	}
+	if err = e.DepositAddressManager.Sync(e.GetAllExchangeCryptocurrencyDepositAddresses()); err != nil {
+		t.Fatal(err)
+	}
+	_, err = e.GetCryptocurrencyDepositAddressesByExchange(exchName)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetExchangeCryptocurrencyDepositAddress(t *testing.T) {
+	t.Parallel()
+	e := createDepositEngine(&fakeDepositExchangeOpts{SupportsAuth: true, SupportsMultiChain: true})
+	const exchName = "fake"
+	if _, err := e.GetExchangeCryptocurrencyDepositAddress(context.Background(), "non-existent", "", "", currency.BTC, false); !errors.Is(err, ErrExchangeNotFound) {
+		t.Errorf("received %s, expected: %s", err, ErrExchangeNotFound)
+	}
+	r, err := e.GetExchangeCryptocurrencyDepositAddress(context.Background(), exchName, "", "", currency.BTC, false)
+	if err != nil {
+		t.Error(err)
+	}
+	if r.Address != "fakeaddr" {
+		t.Error("unexpected address")
+	}
+	e.DepositAddressManager = SetupDepositAddressManager()
+	if err := e.DepositAddressManager.Sync(e.GetAllExchangeCryptocurrencyDepositAddresses()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.GetExchangeCryptocurrencyDepositAddress(context.Background(), "meow", "", "", currency.BTC, false); !errors.Is(err, ErrExchangeNotFound) {
+		t.Errorf("received %s, expected: %s", err, ErrExchangeNotFound)
+	}
+	if _, err := e.GetExchangeCryptocurrencyDepositAddress(context.Background(), exchName, "", "", currency.BTC, false); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetAllExchangeCryptocurrencyDepositAddresses(t *testing.T) {
+	t.Parallel()
+	e := createDepositEngine(&fakeDepositExchangeOpts{})
+	if r := e.GetAllExchangeCryptocurrencyDepositAddresses(); len(r) > 0 {
+		t.Error("should have no addresses returned for an unauthenticated exchange")
+	}
+	e = createDepositEngine(&fakeDepositExchangeOpts{SupportsAuth: true, ThrowPairError: true})
+	if r := e.GetAllExchangeCryptocurrencyDepositAddresses(); len(r) > 0 {
+		t.Error("should have no cryptos returned for no enabled pairs")
+	}
+	e = createDepositEngine(&fakeDepositExchangeOpts{SupportsAuth: true, SupportsMultiChain: true, ThrowTransferChainError: true})
+	if r := e.GetAllExchangeCryptocurrencyDepositAddresses(); len(r["fake"]) != 0 {
+		t.Error("should have returned no deposit addresses for a fake exchange with transfer error")
+	}
+	e = createDepositEngine(&fakeDepositExchangeOpts{SupportsAuth: true, SupportsMultiChain: true, ThrowDepositAddressError: true})
+	if r := e.GetAllExchangeCryptocurrencyDepositAddresses(); len(r["fake"]["btc"]) != 0 {
+		t.Error("should have returned no deposit addresses for fake exchange with deposit error, with multichain support enabled")
+	}
+	e = createDepositEngine(&fakeDepositExchangeOpts{SupportsAuth: true, SupportsMultiChain: true, RequiresChainSet: true})
+	if r := e.GetAllExchangeCryptocurrencyDepositAddresses(); len(r["fake"]["btc"]) == 0 {
+		t.Error("should of returned a BTC address")
+	}
+	e = createDepositEngine(&fakeDepositExchangeOpts{SupportsAuth: true, SupportsMultiChain: true})
+	if r := e.GetAllExchangeCryptocurrencyDepositAddresses(); len(r["fake"]["btc"]) == 0 {
+		t.Error("should of returned a BTC address")
+	}
+	e = createDepositEngine(&fakeDepositExchangeOpts{SupportsAuth: true})
+	if r := e.GetAllExchangeCryptocurrencyDepositAddresses(); len(r["fake"]["xrp"]) == 0 {
+		t.Error("should have returned a XRP address")
 	}
 }
 

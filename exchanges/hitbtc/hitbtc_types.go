@@ -184,6 +184,7 @@ type OrderHistoryResponse struct {
 	Type          string    `json:"type"`
 	TimeInForce   string    `json:"timeInForce"`
 	Price         float64   `json:"price,string"`
+	AvgPrice      float64   `json:"avgPrice,string"`
 	Quantity      float64   `json:"quantity,string"`
 	PostOnly      bool      `json:"postOnly"`
 	CumQuantity   float64   `json:"cumQuantity,string"`

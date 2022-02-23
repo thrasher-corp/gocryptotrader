@@ -5,8 +5,11 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 )
 
 // Websocket functionality list and state consts
@@ -71,6 +74,12 @@ type Websocket struct {
 	// Orderbook is a local buffer of orderbooks
 	Orderbook buffer.Orderbook
 
+	// Trade is a notifier of occurring trades
+	Trade trade.Trade
+
+	// Fills is a notifier of occurring fills
+	Fills fill.Fills
+
 	// trafficAlert monitors if there is a halt in traffic throughput
 	TrafficAlert chan struct{}
 	// ReadMessageErrors will received all errors from ws.ReadMessage() and
@@ -86,25 +95,22 @@ type Websocket struct {
 
 // WebsocketSetup defines variables for setting up a websocket connection
 type WebsocketSetup struct {
-	Enabled                          bool
-	Verbose                          bool
-	AuthenticatedWebsocketAPISupport bool
-	WebsocketTimeout                 time.Duration
-	DefaultURL                       string
-	ExchangeName                     string
-	RunningURL                       string
-	RunningURLAuth                   string
-	Connector                        func() error
-	Subscriber                       func([]ChannelSubscription) error
-	UnSubscriber                     func([]ChannelSubscription) error
-	GenerateSubscriptions            func() ([]ChannelSubscription, error)
-	Features                         *protocol.Features
+	ExchangeConfig        *config.Exchange
+	DefaultURL            string
+	RunningURL            string
+	RunningURLAuth        string
+	Connector             func() error
+	Subscriber            func([]ChannelSubscription) error
+	Unsubscriber          func([]ChannelSubscription) error
+	GenerateSubscriptions func() ([]ChannelSubscription, error)
+	Features              *protocol.Features
 	// Local orderbook buffer config values
-	OrderbookBufferLimit  int
-	BufferEnabled         bool
 	SortBuffer            bool
 	SortBufferByUpdateIDs bool
 	UpdateEntriesByID     bool
+	TradeFeed             bool
+	// Fill data config values
+	FillsFeed bool
 }
 
 // WebsocketConnection contains all the data needed to send a message to a WS

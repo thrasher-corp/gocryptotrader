@@ -2,40 +2,46 @@ package kline
 
 import (
 	"testing"
+
+	"github.com/shopspring/decimal"
 )
 
 func TestClose(t *testing.T) {
+	t.Parallel()
 	k := Kline{
-		Close: 1337,
+		Close: decimal.NewFromInt(1337),
 	}
-	if k.ClosePrice() != 1337 {
-		t.Error("expected 1337")
+	if !k.GetClosePrice().Equal(decimal.NewFromInt(1337)) {
+		t.Error("expected decimal.NewFromInt(1337)")
 	}
 }
 
 func TestHigh(t *testing.T) {
+	t.Parallel()
 	k := Kline{
-		High: 1337,
+		High: decimal.NewFromInt(1337),
 	}
-	if k.HighPrice() != 1337 {
-		t.Error("expected 1337")
+	if !k.GetHighPrice().Equal(decimal.NewFromInt(1337)) {
+		t.Error("expected decimal.NewFromInt(1337)")
 	}
 }
 
 func TestLow(t *testing.T) {
+	t.Parallel()
 	k := Kline{
-		Low: 1337,
+		Low: decimal.NewFromInt(1337),
 	}
-	if k.LowPrice() != 1337 {
-		t.Error("expected 1337")
+	if !k.GetLowPrice().Equal(decimal.NewFromInt(1337)) {
+		t.Error("expected decimal.NewFromInt(1337)")
 	}
 }
 
 func TestOpen(t *testing.T) {
+	t.Parallel()
 	k := Kline{
-		Open: 1337,
+		Open: decimal.NewFromInt(1337),
 	}
-	if k.OpenPrice() != 1337 {
-		t.Error("expected 1337")
+	if !k.GetOpenPrice().Equal(decimal.NewFromInt(1337)) {
+		t.Error("expected decimal.NewFromInt(1337)")
 	}
 }

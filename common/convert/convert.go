@@ -4,7 +4,10 @@ import (
 	"fmt"
 	"math"
 	"strconv"
+	"strings"
 	"time"
+
+	"github.com/shopspring/decimal"
 )
 
 // FloatFromString format
@@ -52,7 +55,7 @@ func TimeFromUnixTimestampFloat(raw interface{}) (time.Time, error) {
 	if !ok {
 		return time.Time{}, fmt.Errorf("unable to parse, value not float64: %T", raw)
 	}
-	return time.Unix(0, int64(ts)*int64(time.Millisecond)), nil
+	return time.UnixMilli(int64(ts)), nil
 }
 
 // TimeFromUnixTimestampDecimal converts a unix timestamp in decimal form to
@@ -76,23 +79,88 @@ func UnixTimestampStrToTime(timeStr string) (time.Time, error) {
 	return time.Unix(i, 0), nil
 }
 
-// UnixMillis converts a UnixNano timestamp to milliseconds
-func UnixMillis(t time.Time) int64 {
-	return t.UnixNano() / int64(time.Millisecond)
-}
-
-// RecvWindow converts a supplied time.Duration to milliseconds
-func RecvWindow(d time.Duration) int64 {
-	return int64(d) / int64(time.Millisecond)
-}
-
 // BoolPtr takes in boolen condition and returns pointer version of it
 func BoolPtr(condition bool) *bool {
 	b := condition
 	return &b
 }
 
-// UnixMillisToNano converts Unix milli time to UnixNano
-func UnixMillisToNano(milli int64) int64 {
-	return milli * int64(time.Millisecond)
+// IntToHumanFriendlyString converts an int to a comma separated string at the thousand point
+// eg 1000 becomes 1,000
+func IntToHumanFriendlyString(number int64, thousandsSep string) string {
+	neg := false
+	if number < 0 {
+		number = -number
+		neg = true
+	}
+	str := fmt.Sprintf("%v", number)
+	return numberToHumanFriendlyString(str, 0, "", thousandsSep, neg)
+}
+
+// FloatToHumanFriendlyString converts a float to a comma separated string at the thousand point
+// eg 1000 becomes 1,000
+func FloatToHumanFriendlyString(number float64, decimals uint, decPoint, thousandsSep string) string {
+	neg := false
+	if number < 0 {
+		number = -number
+		neg = true
+	}
+	dec := int(decimals)
+	str := fmt.Sprintf("%."+strconv.Itoa(dec)+"F", number)
+	return numberToHumanFriendlyString(str, dec, decPoint, thousandsSep, neg)
+}
+
+// DecimalToHumanFriendlyString converts a decimal number to a comma separated string at the thousand point
+// eg 1000 becomes 1,000
+func DecimalToHumanFriendlyString(number decimal.Decimal, rounding int, decPoint, thousandsSep string) string {
+	neg := false
+	if number.LessThan(decimal.Zero) {
+		number = number.Abs()
+		neg = true
+	}
+	str := number.String()
+	rnd := strings.Split(str, ".")
+	if len(rnd) == 1 {
+		rounding = 0
+	} else if len(rnd[1]) < rounding {
+		rounding = len(rnd[1])
+	}
+	return numberToHumanFriendlyString(number.StringFixed(int32(rounding)), rounding, decPoint, thousandsSep, neg)
+}
+
+func numberToHumanFriendlyString(str string, dec int, decPoint, thousandsSep string, neg bool) string {
+	var prefix, suffix string
+	if len(str)-(dec+1) < 0 {
+		dec = 0
+	}
+	if dec > 0 {
+		prefix = str[:len(str)-(dec+1)]
+		suffix = str[len(str)-dec:]
+	} else {
+		prefix = str
+	}
+	sep := []byte(thousandsSep)
+	n, l1, l2 := 0, len(prefix), len(sep)
+	// thousands sep num
+	c := (l1 - 1) / 3
+	tmp := make([]byte, l2*c+l1)
+	pos := len(tmp) - 1
+	for i := l1 - 1; i >= 0; i, n, pos = i-1, n+1, pos-1 {
+		if l2 > 0 && n > 0 && n%3 == 0 {
+			for j := range sep {
+				tmp[pos] = sep[l2-j-1]
+				pos--
+			}
+		}
+		tmp[pos] = prefix[i]
+	}
+	s := string(tmp)
+	if dec > 0 {
+		s += decPoint + suffix
+	}
+	if neg {
+		s = "-" + s
+	}
+
+	return s
 }

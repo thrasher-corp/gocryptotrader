@@ -71,7 +71,7 @@ func (b *Bittrex) WsConnect() error {
 	}
 
 	var wsHandshakeData WsSignalRHandshakeData
-	err := b.WsSignalRHandshake(&wsHandshakeData)
+	err := b.WsSignalRHandshake(context.TODO(), &wsHandshakeData)
 	if err != nil {
 		return err
 	}
@@ -108,7 +108,9 @@ func (b *Bittrex) WsConnect() error {
 
 	// This reader routine is called prior to initiating a subscription for
 	// efficient processing.
+	b.Websocket.Wg.Add(1)
 	go b.wsReadData()
+
 	b.setupOrderbookManager()
 	b.tickerCache = &TickerCache{
 		MarketSummaries: make(map[string]*MarketSummaryData),
@@ -126,19 +128,22 @@ func (b *Bittrex) WsConnect() error {
 }
 
 // WsSignalRHandshake requests the SignalR connection token over https
-func (b *Bittrex) WsSignalRHandshake(result interface{}) error {
+func (b *Bittrex) WsSignalRHandshake(ctx context.Context, result interface{}) error {
 	endpoint, err := b.API.Endpoints.GetURL(exchange.WebsocketSpotSupplementary)
 	if err != nil {
 		return err
 	}
 	path := "/negotiate?connectionData=[{name:\"c3\"}]&clientProtocol=1.5"
-	return b.SendPayload(context.Background(), &request.Item{
+	item := &request.Item{
 		Method:        http.MethodGet,
 		Path:          endpoint + path,
 		Result:        result,
 		Verbose:       b.Verbose,
 		HTTPDebugging: b.HTTPDebugging,
 		HTTPRecording: b.HTTPRecording,
+	}
+	return b.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
+		return item, nil
 	})
 }
 
@@ -151,12 +156,16 @@ func (b *Bittrex) WsAuth() error {
 	if err != nil {
 		return err
 	}
-	timestamp := strconv.FormatInt(time.Now().UnixNano()/1000000, 10)
-	hmac := crypto.GetHMAC(
+	timestamp := strconv.FormatInt(time.Now().UnixMilli(), 10)
+	hmac, err := crypto.GetHMAC(
 		crypto.HashSHA512,
 		[]byte(timestamp+randomContent.String()),
 		[]byte(b.API.Credentials.Secret),
 	)
+	if err != nil {
+		return err
+	}
+
 	signature := crypto.HexEncodeToString(hmac)
 
 	req := WsEventRequest{
@@ -369,7 +378,6 @@ func (b *Bittrex) unsubscribeSlice(channelsToUnsubscribe []stream.ChannelSubscri
 
 // wsReadData gets and passes on websocket messages for processing
 func (b *Bittrex) wsReadData() {
-	b.Websocket.Wg.Add(1)
 	defer b.Websocket.Wg.Done()
 
 	for {

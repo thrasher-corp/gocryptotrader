@@ -71,9 +71,11 @@ const (
 )
 
 var (
-	verbose, add, create, testMode                                                                                                                                                                                    bool
-	apiKey, apiToken, trelloBoardID, trelloBoardName, trelloListID, trelloChecklistID, trelloCardID, exchangeName, checkType, tokenData, key, val, tokenDataEnd, textTokenData, dateFormat, regExp, checkString, path string
-	configData, testConfigData, usageData                                                                                                                                                                             Config
+	verbose, add, create, testMode bool
+	apiKey, apiToken, trelloBoardID, trelloBoardName, trelloListID,
+	trelloChecklistID, trelloCardID, exchangeName, checkType, tokenData,
+	key, val, tokenDataEnd, textTokenData, dateFormat, regExp, path string
+	configData, testConfigData, usageData Config
 )
 
 func main() {
@@ -99,11 +101,14 @@ func main() {
 	flag.BoolVar(&create, "create", false, "specifies whether to automatically create trello list, card and checklist in a given board")
 	flag.Parse()
 	var err error
-	c := log.GenDefaultSettings()
 	log.RWM.Lock()
-	log.GlobalLogConfig = &c
+	log.GlobalLogConfig = log.GenDefaultSettings()
 	log.RWM.Unlock()
-	log.SetupGlobalLogger()
+	err = log.SetupGlobalLogger()
+	if err != nil {
+		fmt.Printf("Could not setup global logger. Error: %v.\n", err)
+		os.Exit(1)
+	}
 	configData, err = readFileData(jsonFile)
 	if err != nil {
 		log.Error(log.Global, err)
@@ -563,7 +568,10 @@ func addExch(exchName, checkType string, data interface{}, isUpdate bool) error 
 func fillData(exchName, checkType string, data interface{}) (ExchangeInfo, error) {
 	switch checkType {
 	case github:
-		tempData := data.(GithubData)
+		tempData, ok := data.(GithubData)
+		if !ok {
+			return ExchangeInfo{}, errors.New("unable to type assert GithubData")
+		}
 		tempSha, err := getSha(path)
 		if err != nil {
 			return ExchangeInfo{}, err
@@ -577,7 +585,10 @@ func fillData(exchName, checkType string, data interface{}) (ExchangeInfo, error
 			},
 		}, nil
 	case htmlScrape:
-		tempData := data.(HTMLScrapingData)
+		tempData, ok := data.(HTMLScrapingData)
+		if !ok {
+			return ExchangeInfo{}, errors.New("unable to type assert HTMLScrapingData")
+		}
 		checkStr, err := checkChangeLog(&tempData)
 		if err != nil {
 			return ExchangeInfo{}, err
@@ -606,9 +617,9 @@ func fillData(exchName, checkType string, data interface{}) (ExchangeInfo, error
 // htmlScrapeDefault gets check string data for the default cases
 func htmlScrapeDefault(htmlData *HTMLScrapingData) ([]string, error) {
 	var resp []string
-	temp, err := http.Get(htmlData.Path)
+	temp, err := sendHTTPGetRequest(htmlData.Path, nil)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 	defer temp.Body.Close()
 	tokenizer := html.NewTokenizer(temp.Body)
@@ -660,13 +671,14 @@ loop:
 
 // htmlScrapeBTSE gets the check string for BTSE exchange
 func htmlScrapeBTSE(htmlData *HTMLScrapingData) ([]string, error) {
-	var resp []string
-	temp, err := http.Get(htmlData.Path)
+	temp, err := sendHTTPGetRequest(htmlData.Path, nil)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 	defer temp.Body.Close()
 	tokenizer := html.NewTokenizer(temp.Body)
+
+	var resp []string
 loop:
 	for {
 		next := tokenizer.Next()
@@ -693,9 +705,9 @@ loop:
 // htmlScrapeBitmex gets the check string for Bitmex exchange
 func htmlScrapeBitmex(htmlData *HTMLScrapingData) ([]string, error) {
 	var resp []string
-	temp, err := http.Get(htmlData.Path)
+	temp, err := sendHTTPGetRequest(htmlData.Path, nil)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 	defer temp.Body.Close()
 	tokenizer := html.NewTokenizer(temp.Body)
@@ -731,11 +743,12 @@ loop:
 
 // htmlScrapeHitBTC gets the check string for HitBTC Exchange
 func htmlScrapeHitBTC(htmlData *HTMLScrapingData) ([]string, error) {
-	temp, err := http.Get(htmlData.Path)
+	temp, err := sendHTTPGetRequest(htmlData.Path, nil)
 	if err != nil {
 		return nil, err
 	}
 	defer temp.Body.Close()
+
 	a, err := ioutil.ReadAll(temp.Body)
 	if err != nil {
 		return nil, err
@@ -766,9 +779,9 @@ func htmlScrapeHitBTC(htmlData *HTMLScrapingData) ([]string, error) {
 // htmlScrapeBTCMarkets gets the check string for BTCMarkets exchange
 func htmlScrapeBTCMarkets(htmlData *HTMLScrapingData) ([]string, error) {
 	var resp []string
-	temp, err := http.Get(htmlData.Path)
+	temp, err := sendHTTPGetRequest(htmlData.Path, nil)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 	defer temp.Body.Close()
 	tempData, err := ioutil.ReadAll(temp.Body)
@@ -787,9 +800,9 @@ func htmlScrapeBTCMarkets(htmlData *HTMLScrapingData) ([]string, error) {
 // htmlScrapeOk gets the check string for Okex
 func htmlScrapeOk(htmlData *HTMLScrapingData) ([]string, error) {
 	var resp []string
-	temp, err := http.Get(htmlData.Path)
+	temp, err := sendHTTPGetRequest(htmlData.Path, nil)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 	defer temp.Body.Close()
 	tokenizer := html.NewTokenizer(temp.Body)
@@ -841,11 +854,12 @@ loop:
 
 // htmlScrapeANX gets the check string for BTCMarkets exchange
 func htmlScrapeANX(htmlData *HTMLScrapingData) ([]string, error) {
-	temp, err := http.Get(htmlData.Path)
+	temp, err := sendHTTPGetRequest(htmlData.Path, nil)
 	if err != nil {
 		return nil, err
 	}
 	defer temp.Body.Close()
+
 	a, err := ioutil.ReadAll(temp.Body)
 	if err != nil {
 		return nil, err
@@ -875,16 +889,15 @@ func htmlScrapeANX(htmlData *HTMLScrapingData) ([]string, error) {
 
 // htmlScrapeExmo gets the check string for Exmo Exchange
 func htmlScrapeExmo(htmlData *HTMLScrapingData) ([]string, error) {
-	temp, err := http.NewRequest(http.MethodGet, htmlData.Path, nil)
+	header := map[string]string{
+		"User-Agent": "GCT",
+	}
+
+	httpResp, err := sendHTTPGetRequest(htmlData.Path, header)
 	if err != nil {
 		return nil, err
 	}
-	temp.Header.Set("User-Agent", "GCT")
-	httpClient := &http.Client{}
-	httpResp, err := httpClient.Do(temp)
-	if err != nil {
-		return nil, err
-	}
+
 	defer httpResp.Body.Close()
 	a, err := ioutil.ReadAll(httpResp.Body)
 	if err != nil {
@@ -902,9 +915,9 @@ func htmlScrapeExmo(htmlData *HTMLScrapingData) ([]string, error) {
 // htmlScrapePoloniex gets the check string for Poloniex Exchange
 func htmlScrapePoloniex(htmlData *HTMLScrapingData) ([]string, error) {
 	var resp []string
-	temp, err := http.Get(htmlData.Path)
+	temp, err := sendHTTPGetRequest(htmlData.Path, nil)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 	defer temp.Body.Close()
 	tokenizer := html.NewTokenizer(temp.Body)
@@ -955,9 +968,9 @@ loop:
 // htmlScrapeItBit gets the check string for ItBit Exchange
 func htmlScrapeItBit(htmlData *HTMLScrapingData) ([]string, error) {
 	var resp []string
-	temp, err := http.Get(htmlData.Path)
+	temp, err := sendHTTPGetRequest(htmlData.Path, nil)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 	defer temp.Body.Close()
 	tokenizer := html.NewTokenizer(temp.Body)
@@ -989,11 +1002,12 @@ loop:
 
 // htmlScrapeBitstamp gets the check string for Bitstamp Exchange
 func htmlScrapeBitstamp(htmlData *HTMLScrapingData) ([]string, error) {
-	temp, err := http.Get(htmlData.Path)
+	temp, err := sendHTTPGetRequest(htmlData.Path, nil)
 	if err != nil {
 		return nil, err
 	}
 	defer temp.Body.Close()
+
 	a, err := ioutil.ReadAll(temp.Body)
 	if err != nil {
 		return nil, err
@@ -1010,9 +1024,9 @@ func htmlScrapeBitstamp(htmlData *HTMLScrapingData) ([]string, error) {
 // htmlScrapeAlphaPoint gets the check string for Kraken Exchange
 func htmlScrapeAlphaPoint(htmlData *HTMLScrapingData) ([]string, error) {
 	var resp []string
-	temp, err := http.Get(htmlData.Path)
+	temp, err := sendHTTPGetRequest(htmlData.Path, nil)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 	defer temp.Body.Close()
 	tokenizer := html.NewTokenizer(temp.Body)
@@ -1065,9 +1079,9 @@ loop:
 // htmlScrapeYobit gets the check string for Yobit Exchange
 func htmlScrapeYobit(htmlData *HTMLScrapingData) ([]string, error) {
 	var resp []string
-	temp, err := http.Get(htmlData.Path)
+	temp, err := sendHTTPGetRequest(htmlData.Path, nil)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 	defer temp.Body.Close()
 	tokenizer := html.NewTokenizer(temp.Body)
@@ -1123,11 +1137,12 @@ loop:
 
 // htmlScrapeLocalBitcoins gets the check string for Yobit Exchange
 func htmlScrapeLocalBitcoins(htmlData *HTMLScrapingData) ([]string, error) {
-	temp, err := http.Get(htmlData.Path)
+	temp, err := sendHTTPGetRequest(htmlData.Path, nil)
 	if err != nil {
 		return nil, err
 	}
 	defer temp.Body.Close()
+
 	a, err := ioutil.ReadAll(temp.Body)
 	if err != nil {
 		return nil, err
@@ -1137,7 +1152,10 @@ func htmlScrapeLocalBitcoins(htmlData *HTMLScrapingData) ([]string, error) {
 		return nil, err
 	}
 	str := r.FindString(string(a))
-	sha := crypto.GetSHA256([]byte(str))
+	sha, err := crypto.GetSHA256([]byte(str))
+	if err != nil {
+		return nil, err
+	}
 	var resp []string
 	resp = append(resp, crypto.HexEncodeToString(sha))
 	return resp, nil
@@ -1270,32 +1288,45 @@ func updateFile(name string) error {
 // SendGetReq sends get req
 func sendGetReq(path string, result interface{}) error {
 	var requester *request.Requester
+	var err error
 	if strings.Contains(path, "github") {
-		requester = request.New("Apichecker",
+		requester, err = request.New("Apichecker",
 			common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 			request.WithLimiter(request.NewBasicRateLimit(time.Hour, 60)))
 	} else {
-		requester = request.New("Apichecker",
+		requester, err = request.New("Apichecker",
 			common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 			request.WithLimiter(request.NewBasicRateLimit(time.Second, 100)))
 	}
-	return requester.SendPayload(context.Background(), &request.Item{
+	if err != nil {
+		return err
+	}
+	item := &request.Item{
 		Method:  http.MethodGet,
 		Path:    path,
 		Result:  result,
-		Verbose: verbose})
+		Verbose: verbose}
+	return requester.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
+		return item, nil
+	})
 }
 
 // sendAuthReq sends auth req
 func sendAuthReq(method, path string, result interface{}) error {
-	requester := request.New("Apichecker",
+	requester, err := request.New("Apichecker",
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(request.NewBasicRateLimit(time.Second*10, 100)))
-	return requester.SendPayload(context.Background(), &request.Item{
+	if err != nil {
+		return err
+	}
+	item := &request.Item{
 		Method:  method,
 		Path:    path,
 		Result:  result,
-		Verbose: verbose})
+		Verbose: verbose}
+	return requester.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
+		return item, nil
+	})
 }
 
 // trelloGetBoardID gets all board ids on trello for a given user
@@ -1454,9 +1485,9 @@ func trelloCreateNewChecklist() error {
 // htmlScrapeKraken gets the check string for Kraken Exchange
 func htmlScrapeKraken(htmlData *HTMLScrapingData) ([]string, error) {
 	var resp []string
-	temp, err := http.Get(htmlData.Path)
+	temp, err := sendHTTPGetRequest(htmlData.Path, nil)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 	defer temp.Body.Close()
 	tokenizer := html.NewTokenizer(temp.Body)
@@ -1511,9 +1542,9 @@ loop:
 func htmlScrapeBitflyer(htmlData *HTMLScrapingData) ([]string, error) {
 	var resp []string
 	var tempArray []string
-	temp, err := http.Get(htmlData.Path)
+	temp, err := sendHTTPGetRequest(htmlData.Path, nil)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 	defer temp.Body.Close()
 	tokenizer := html.NewTokenizer(temp.Body)
@@ -1562,7 +1593,7 @@ loop:
 
 // htmlScrapeFTX gets the check string for FTX exchange
 func htmlScrapeFTX(htmlData *HTMLScrapingData) ([]string, error) {
-	temp, err := http.Get(htmlData.Path)
+	temp, err := sendHTTPGetRequest(htmlData.Path, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -1651,11 +1682,12 @@ loop:
 
 // htmlScrapeBitfinex gets the check string for Bitfinex exchange
 func htmlScrapeBitfinex(htmlData *HTMLScrapingData) ([]string, error) {
-	temp, err := http.Get(htmlData.Path)
+	temp, err := sendHTTPGetRequest(htmlData.Path, nil)
 	if err != nil {
 		return nil, err
 	}
 	defer temp.Body.Close()
+
 	a, err := ioutil.ReadAll(temp.Body)
 	if err != nil {
 		return nil, err
@@ -1684,11 +1716,12 @@ func htmlScrapeBitfinex(htmlData *HTMLScrapingData) ([]string, error) {
 
 //  htmlScrapeBinance gets checkstring for binance exchange
 func htmlScrapeBinance(htmlData *HTMLScrapingData) ([]string, error) {
-	temp, err := http.Get(htmlData.Path)
+	temp, err := sendHTTPGetRequest(htmlData.Path, nil)
 	if err != nil {
 		return nil, err
 	}
 	defer temp.Body.Close()
+
 	tokenizer := html.NewTokenizer(temp.Body)
 	var resp []string
 loop:
@@ -1734,4 +1767,19 @@ loop:
 		}
 	}
 	return resp, nil
+}
+
+func sendHTTPGetRequest(path string, headers map[string]string) (*http.Response, error) {
+	req, err := http.NewRequestWithContext(context.TODO(),
+		http.MethodGet,
+		path,
+		nil)
+	if err != nil {
+		return nil, err
+	}
+
+	for k, v := range headers {
+		req.Header.Set(k, v)
+	}
+	return http.DefaultClient.Do(req)
 }

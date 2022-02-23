@@ -2,9 +2,7 @@ package orderbook
 
 import (
 	"errors"
-	"log"
 	"reflect"
-	"sync"
 	"testing"
 	"time"
 
@@ -121,7 +119,7 @@ func TestTotalAmounts(t *testing.T) {
 
 func TestLoadSnapshot(t *testing.T) {
 	d := newDepth(id)
-	d.LoadSnapshot(Items{{Price: 1337, Amount: 1}}, Items{{Price: 1337, Amount: 10}})
+	d.LoadSnapshot(Items{{Price: 1337, Amount: 1}}, Items{{Price: 1337, Amount: 10}}, 0, time.Time{}, false)
 	if d.Retrieve().Asks[0].Price != 1337 || d.Retrieve().Bids[0].Price != 1337 {
 		t.Fatal("not set")
 	}
@@ -129,12 +127,12 @@ func TestLoadSnapshot(t *testing.T) {
 
 func TestFlush(t *testing.T) {
 	d := newDepth(id)
-	d.LoadSnapshot(Items{{Price: 1337, Amount: 1}}, Items{{Price: 1337, Amount: 10}})
+	d.LoadSnapshot(Items{{Price: 1337, Amount: 1}}, Items{{Price: 1337, Amount: 10}}, 0, time.Time{}, false)
 	d.Flush()
 	if len(d.Retrieve().Asks) != 0 || len(d.Retrieve().Bids) != 0 {
 		t.Fatal("not flushed")
 	}
-	d.LoadSnapshot(Items{{Price: 1337, Amount: 1}}, Items{{Price: 1337, Amount: 10}})
+	d.LoadSnapshot(Items{{Price: 1337, Amount: 1}}, Items{{Price: 1337, Amount: 10}}, 0, time.Time{}, false)
 	d.Flush()
 	if len(d.Retrieve().Asks) != 0 || len(d.Retrieve().Bids) != 0 {
 		t.Fatal("not flushed")
@@ -143,12 +141,12 @@ func TestFlush(t *testing.T) {
 
 func TestUpdateBidAskByPrice(t *testing.T) {
 	d := newDepth(id)
-	d.LoadSnapshot(Items{{Price: 1337, Amount: 1, ID: 1}}, Items{{Price: 1337, Amount: 10, ID: 2}})
-	d.UpdateBidAskByPrice(Items{{Price: 1337, Amount: 2, ID: 1}}, Items{{Price: 1337, Amount: 2, ID: 2}}, 0)
+	d.LoadSnapshot(Items{{Price: 1337, Amount: 1, ID: 1}}, Items{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Time{}, false)
+	d.UpdateBidAskByPrice(Items{{Price: 1337, Amount: 2, ID: 1}}, Items{{Price: 1337, Amount: 2, ID: 2}}, 0, 0, time.Time{})
 	if d.Retrieve().Asks[0].Amount != 2 || d.Retrieve().Bids[0].Amount != 2 {
 		t.Fatal("orderbook amounts not updated correctly")
 	}
-	d.UpdateBidAskByPrice(Items{{Price: 1337, Amount: 0, ID: 1}}, Items{{Price: 1337, Amount: 0, ID: 2}}, 0)
+	d.UpdateBidAskByPrice(Items{{Price: 1337, Amount: 0, ID: 1}}, Items{{Price: 1337, Amount: 0, ID: 2}}, 0, 0, time.Time{})
 	if d.GetAskLength() != 0 || d.GetBidLength() != 0 {
 		t.Fatal("orderbook amounts not updated correctly")
 	}
@@ -156,8 +154,8 @@ func TestUpdateBidAskByPrice(t *testing.T) {
 
 func TestDeleteBidAskByID(t *testing.T) {
 	d := newDepth(id)
-	d.LoadSnapshot(Items{{Price: 1337, Amount: 1, ID: 1}}, Items{{Price: 1337, Amount: 10, ID: 2}})
-	err := d.DeleteBidAskByID(Items{{Price: 1337, Amount: 2, ID: 1}}, Items{{Price: 1337, Amount: 2, ID: 2}}, false)
+	d.LoadSnapshot(Items{{Price: 1337, Amount: 1, ID: 1}}, Items{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Time{}, false)
+	err := d.DeleteBidAskByID(Items{{Price: 1337, Amount: 2, ID: 1}}, Items{{Price: 1337, Amount: 2, ID: 2}}, false, 0, time.Time{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -165,17 +163,17 @@ func TestDeleteBidAskByID(t *testing.T) {
 		t.Fatal("items not deleted")
 	}
 
-	err = d.DeleteBidAskByID(Items{{Price: 1337, Amount: 2, ID: 1}}, nil, false)
+	err = d.DeleteBidAskByID(Items{{Price: 1337, Amount: 2, ID: 1}}, nil, false, 0, time.Time{})
 	if !errors.Is(err, errIDCannotBeMatched) {
 		t.Fatalf("error expected %v received %v", errIDCannotBeMatched, err)
 	}
 
-	err = d.DeleteBidAskByID(nil, Items{{Price: 1337, Amount: 2, ID: 2}}, false)
+	err = d.DeleteBidAskByID(nil, Items{{Price: 1337, Amount: 2, ID: 2}}, false, 0, time.Time{})
 	if !errors.Is(err, errIDCannotBeMatched) {
 		t.Fatalf("error expected %v received %v", errIDCannotBeMatched, err)
 	}
 
-	err = d.DeleteBidAskByID(nil, Items{{Price: 1337, Amount: 2, ID: 2}}, true)
+	err = d.DeleteBidAskByID(nil, Items{{Price: 1337, Amount: 2, ID: 2}}, true, 0, time.Time{})
 	if !errors.Is(err, nil) {
 		t.Fatalf("error expected %v received %v", nil, err)
 	}
@@ -183,8 +181,8 @@ func TestDeleteBidAskByID(t *testing.T) {
 
 func TestUpdateBidAskByID(t *testing.T) {
 	d := newDepth(id)
-	d.LoadSnapshot(Items{{Price: 1337, Amount: 1, ID: 1}}, Items{{Price: 1337, Amount: 10, ID: 2}})
-	err := d.UpdateBidAskByID(Items{{Price: 1337, Amount: 2, ID: 1}}, Items{{Price: 1337, Amount: 2, ID: 2}})
+	d.LoadSnapshot(Items{{Price: 1337, Amount: 1, ID: 1}}, Items{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Time{}, false)
+	err := d.UpdateBidAskByID(Items{{Price: 1337, Amount: 2, ID: 1}}, Items{{Price: 1337, Amount: 2, ID: 2}}, 0, time.Time{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -193,12 +191,12 @@ func TestUpdateBidAskByID(t *testing.T) {
 	}
 
 	// random unmatching IDs
-	err = d.UpdateBidAskByID(Items{{Price: 1337, Amount: 2, ID: 666}}, nil)
+	err = d.UpdateBidAskByID(Items{{Price: 1337, Amount: 2, ID: 666}}, nil, 0, time.Time{})
 	if !errors.Is(err, errIDCannotBeMatched) {
 		t.Fatalf("error expected %v received %v", errIDCannotBeMatched, err)
 	}
 
-	err = d.UpdateBidAskByID(nil, Items{{Price: 1337, Amount: 2, ID: 69}})
+	err = d.UpdateBidAskByID(nil, Items{{Price: 1337, Amount: 2, ID: 69}}, 0, time.Time{})
 	if !errors.Is(err, errIDCannotBeMatched) {
 		t.Fatalf("error expected %v received %v", errIDCannotBeMatched, err)
 	}
@@ -206,8 +204,8 @@ func TestUpdateBidAskByID(t *testing.T) {
 
 func TestInsertBidAskByID(t *testing.T) {
 	d := newDepth(id)
-	d.LoadSnapshot(Items{{Price: 1337, Amount: 1, ID: 1}}, Items{{Price: 1337, Amount: 10, ID: 2}})
-	err := d.InsertBidAskByID(Items{{Price: 1338, Amount: 2, ID: 3}}, Items{{Price: 1336, Amount: 2, ID: 4}})
+	d.LoadSnapshot(Items{{Price: 1337, Amount: 1, ID: 1}}, Items{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Time{}, false)
+	err := d.InsertBidAskByID(Items{{Price: 1338, Amount: 2, ID: 3}}, Items{{Price: 1336, Amount: 2, ID: 4}}, 0, time.Time{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -218,19 +216,19 @@ func TestInsertBidAskByID(t *testing.T) {
 
 func TestUpdateInsertByID(t *testing.T) {
 	d := newDepth(id)
-	d.LoadSnapshot(Items{{Price: 1337, Amount: 1, ID: 1}}, Items{{Price: 1337, Amount: 10, ID: 2}})
+	d.LoadSnapshot(Items{{Price: 1337, Amount: 1, ID: 1}}, Items{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Time{}, false)
 
-	err := d.UpdateInsertByID(Items{{Price: 1338, Amount: 0, ID: 3}}, Items{{Price: 1336, Amount: 2, ID: 4}})
+	err := d.UpdateInsertByID(Items{{Price: 1338, Amount: 0, ID: 3}}, Items{{Price: 1336, Amount: 2, ID: 4}}, 0, time.Time{})
 	if !errors.Is(err, errAmountCannotBeLessOrEqualToZero) {
 		t.Fatalf("expected: %v but received: %v", errAmountCannotBeLessOrEqualToZero, err)
 	}
 
-	err = d.UpdateInsertByID(Items{{Price: 1338, Amount: 2, ID: 3}}, Items{{Price: 1336, Amount: 0, ID: 4}})
+	err = d.UpdateInsertByID(Items{{Price: 1338, Amount: 2, ID: 3}}, Items{{Price: 1336, Amount: 0, ID: 4}}, 0, time.Time{})
 	if !errors.Is(err, errAmountCannotBeLessOrEqualToZero) {
 		t.Fatalf("expected: %v but received: %v", errAmountCannotBeLessOrEqualToZero, err)
 	}
 
-	err = d.UpdateInsertByID(Items{{Price: 1338, Amount: 2, ID: 3}}, Items{{Price: 1336, Amount: 2, ID: 4}})
+	err = d.UpdateInsertByID(Items{{Price: 1338, Amount: 2, ID: 3}}, Items{{Price: 1336, Amount: 2, ID: 4}}, 0, time.Time{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -271,17 +269,6 @@ func TestAssignOptions(t *testing.T) {
 	}
 }
 
-func TestSetLastUpdate(t *testing.T) {
-	d := Depth{}
-	tn := time.Now()
-	d.SetLastUpdate(tn, 1337, true)
-	if d.lastUpdated != tn ||
-		d.lastUpdateID != 1337 ||
-		!d.restSnapshot {
-		t.Fatal("failed to set correctly")
-	}
-}
-
 func TestGetName(t *testing.T) {
 	d := Depth{}
 	d.exchange = "test"
@@ -317,88 +304,4 @@ func TestIsFundingRate(t *testing.T) {
 func TestPublish(t *testing.T) {
 	d := Depth{}
 	d.Publish()
-}
-
-func TestWait(t *testing.T) {
-	wait := Alert{}
-	var wg sync.WaitGroup
-
-	// standard alert
-	wg.Add(100)
-	for x := 0; x < 100; x++ {
-		go func() {
-			w := wait.Wait(nil)
-			wg.Done()
-			if <-w {
-				log.Fatal("incorrect routine wait response for alert expecting false")
-			}
-			wg.Done()
-		}()
-	}
-
-	wg.Wait()
-	wg.Add(100)
-	isLeaky(&wait, nil, t)
-	wait.alert()
-	wg.Wait()
-	isLeaky(&wait, nil, t)
-
-	// use kick
-	ch := make(chan struct{})
-	wg.Add(100)
-	for x := 0; x < 100; x++ {
-		go func() {
-			w := wait.Wait(ch)
-			wg.Done()
-			if !<-w {
-				log.Fatal("incorrect routine wait response for kick expecting true")
-			}
-			wg.Done()
-		}()
-	}
-	wg.Wait()
-	wg.Add(100)
-	isLeaky(&wait, ch, t)
-	close(ch)
-	wg.Wait()
-	ch = make(chan struct{})
-	isLeaky(&wait, ch, t)
-
-	// late receivers
-	wg.Add(100)
-	for x := 0; x < 100; x++ {
-		go func(x int) {
-			bb := wait.Wait(ch)
-			wg.Done()
-			if x%2 == 0 {
-				time.Sleep(time.Millisecond * 5)
-			}
-			b := <-bb
-			if b {
-				log.Fatal("incorrect routine wait response since we call alert below; expecting false")
-			}
-			wg.Done()
-		}(x)
-	}
-	wg.Wait()
-	wg.Add(100)
-	isLeaky(&wait, ch, t)
-	wait.alert()
-	wg.Wait()
-	isLeaky(&wait, ch, t)
-}
-
-// isLeaky tests to see if the wait functionality is returning an abnormal
-// channel that is operational when it shouldn't be.
-func isLeaky(a *Alert, ch chan struct{}, t *testing.T) {
-	t.Helper()
-	check := a.Wait(ch)
-	time.Sleep(time.Millisecond * 5) // When we call wait a routine for hold is
-	// spawned, so for a test we need to add in a time for goschedular to allow
-	// routine to actually wait on the forAlert and kick channels
-	select {
-	case <-check:
-		t.Fatal("leaky waiter")
-	default:
-	}
 }

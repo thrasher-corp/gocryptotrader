@@ -83,6 +83,7 @@ func (h *HUOBI) WsConnect() error {
 		h.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	}
 
+	h.Websocket.Wg.Add(1)
 	go h.wsReadData()
 	return nil
 }
@@ -92,6 +93,7 @@ func (h *HUOBI) wsDial(dialer *websocket.Dialer) error {
 	if err != nil {
 		return err
 	}
+	h.Websocket.Wg.Add(1)
 	go h.wsFunnelConnectionData(h.Websocket.Conn, wsMarketURL)
 	return nil
 }
@@ -105,6 +107,8 @@ func (h *HUOBI) wsAuthenticatedDial(dialer *websocket.Dialer) error {
 	if err != nil {
 		return err
 	}
+
+	h.Websocket.Wg.Add(1)
 	go h.wsFunnelConnectionData(h.Websocket.AuthConn, wsAccountsOrdersURL)
 	return nil
 }
@@ -112,7 +116,6 @@ func (h *HUOBI) wsAuthenticatedDial(dialer *websocket.Dialer) error {
 // wsFunnelConnectionData manages data from multiple endpoints and passes it to
 // a channel
 func (h *HUOBI) wsFunnelConnectionData(ws stream.Connection, url string) {
-	h.Websocket.Wg.Add(1)
 	defer h.Websocket.Wg.Done()
 	for {
 		resp := ws.ReadMessage()
@@ -125,13 +128,31 @@ func (h *HUOBI) wsFunnelConnectionData(ws stream.Connection, url string) {
 
 // wsReadData receives and passes on websocket messages for processing
 func (h *HUOBI) wsReadData() {
-	h.Websocket.Wg.Add(1)
 	defer h.Websocket.Wg.Done()
 	for {
-		resp := <-comms
-		err := h.wsHandleData(resp.Raw)
-		if err != nil {
-			h.Websocket.DataHandler <- err
+		select {
+		case <-h.Websocket.ShutdownC:
+			select {
+			case resp := <-comms:
+				err := h.wsHandleData(resp.Raw)
+				if err != nil {
+					select {
+					case h.Websocket.DataHandler <- err:
+					default:
+						log.Errorf(log.WebsocketMgr,
+							"%s websocket handle data error: %v",
+							h.Name,
+							err)
+					}
+				}
+			default:
+			}
+			return
+		case resp := <-comms:
+			err := h.wsHandleData(resp.Raw)
+			if err != nil {
+				h.Websocket.DataHandler <- err
+			}
 		}
 	}
 }
@@ -330,7 +351,7 @@ func (h *HUOBI) wsHandleData(respRaw []byte) error {
 			return err
 		}
 		h.Websocket.DataHandler <- stream.KlineData{
-			Timestamp:  time.Unix(0, kline.Timestamp*int64(time.Millisecond)),
+			Timestamp:  time.UnixMilli(kline.Timestamp),
 			Exchange:   h.Name,
 			AssetType:  a,
 			Pair:       p,
@@ -367,12 +388,11 @@ func (h *HUOBI) wsHandleData(respRaw []byte) error {
 				Exchange:     h.Name,
 				AssetType:    a,
 				CurrencyPair: p,
-				Timestamp: time.Unix(0,
-					t.Tick.Data[i].Timestamp*int64(time.Millisecond)),
-				Amount: t.Tick.Data[i].Amount,
-				Price:  t.Tick.Data[i].Price,
-				Side:   side,
-				TID:    strconv.FormatFloat(t.Tick.Data[i].TradeID, 'f', -1, 64),
+				Timestamp:    time.UnixMilli(t.Tick.Data[i].Timestamp),
+				Amount:       t.Tick.Data[i].Amount,
+				Price:        t.Tick.Data[i].Price,
+				Side:         side,
+				TID:          strconv.FormatFloat(t.Tick.Data[i].TradeID, 'f', -1, 64),
 			})
 		}
 		return trade.AddTradesToBuffer(h.Name, trades...)
@@ -406,7 +426,7 @@ func (h *HUOBI) wsHandleData(respRaw []byte) error {
 			QuoteVolume:  wsTicker.Tick.Volume,
 			High:         wsTicker.Tick.High,
 			Low:          wsTicker.Tick.Low,
-			LastUpdated:  time.Unix(0, wsTicker.Timestamp*int64(time.Millisecond)),
+			LastUpdated:  time.UnixMilli(wsTicker.Timestamp),
 			AssetType:    a,
 			Pair:         p,
 		}
@@ -564,7 +584,7 @@ func (h *HUOBI) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) 
 	return nil
 }
 
-func (h *HUOBI) wsGenerateSignature(timestamp, endpoint string) []byte {
+func (h *HUOBI) wsGenerateSignature(timestamp, endpoint string) ([]byte, error) {
 	values := url.Values{}
 	values.Set("AccessKeyId", h.API.Credentials.Key)
 	values.Set("SignatureMethod", signatureMethod)
@@ -589,9 +609,12 @@ func (h *HUOBI) wsLogin() error {
 		SignatureVersion: signatureVersion,
 		Timestamp:        timestamp,
 	}
-	hmac := h.wsGenerateSignature(timestamp, wsAccountsOrdersEndPoint)
+	hmac, err := h.wsGenerateSignature(timestamp, wsAccountsOrdersEndPoint)
+	if err != nil {
+		return err
+	}
 	request.Signature = crypto.Base64Encode(hmac)
-	err := h.Websocket.AuthConn.SendJSONMessage(request)
+	err = h.Websocket.AuthConn.SendJSONMessage(request)
 	if err != nil {
 		h.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return err
@@ -611,7 +634,10 @@ func (h *HUOBI) wsAuthenticatedSubscribe(operation, endpoint, topic string) erro
 		Timestamp:        timestamp,
 		Topic:            topic,
 	}
-	hmac := h.wsGenerateSignature(timestamp, endpoint)
+	hmac, err := h.wsGenerateSignature(timestamp, endpoint)
+	if err != nil {
+		return err
+	}
 	request.Signature = crypto.Base64Encode(hmac)
 	return h.Websocket.AuthConn.SendJSONMessage(request)
 }
@@ -629,7 +655,10 @@ func (h *HUOBI) wsGetAccountsList() (*WsAuthenticatedAccountsListResponse, error
 		Timestamp:        timestamp,
 		Topic:            wsAccountsList,
 	}
-	hmac := h.wsGenerateSignature(timestamp, wsAccountListEndpoint)
+	hmac, err := h.wsGenerateSignature(timestamp, wsAccountListEndpoint)
+	if err != nil {
+		return nil, err
+	}
 	request.Signature = crypto.Base64Encode(hmac)
 	request.ClientID = h.Websocket.AuthConn.GenerateMessageID(true)
 	resp, err := h.Websocket.AuthConn.SendMessageReturnResponse(request.ClientID, request)
@@ -672,7 +701,10 @@ func (h *HUOBI) wsGetOrdersList(accountID int64, pair currency.Pair) (*WsAuthent
 		States:           "submitted,partial-filled",
 	}
 
-	hmac := h.wsGenerateSignature(timestamp, wsOrdersListEndpoint)
+	hmac, err := h.wsGenerateSignature(timestamp, wsOrdersListEndpoint)
+	if err != nil {
+		return nil, err
+	}
 	request.Signature = crypto.Base64Encode(hmac)
 	request.ClientID = h.Websocket.AuthConn.GenerateMessageID(true)
 
@@ -708,7 +740,10 @@ func (h *HUOBI) wsGetOrderDetails(orderID string) (*WsAuthenticatedOrderDetailRe
 		Topic:            wsOrdersDetail,
 		OrderID:          orderID,
 	}
-	hmac := h.wsGenerateSignature(timestamp, wsOrdersDetailEndpoint)
+	hmac, err := h.wsGenerateSignature(timestamp, wsOrdersDetailEndpoint)
+	if err != nil {
+		return nil, err
+	}
 	request.Signature = crypto.Base64Encode(hmac)
 	request.ClientID = h.Websocket.AuthConn.GenerateMessageID(true)
 	resp, err := h.Websocket.AuthConn.SendMessageReturnResponse(request.ClientID, request)

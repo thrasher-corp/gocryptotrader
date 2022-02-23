@@ -15,6 +15,7 @@ type Base struct {
 // Address sub type holding address information for portfolio
 type Address struct {
 	Address            string
+	AddressTag         string
 	CoinType           currency.Code
 	Balance            float64
 	Description        string

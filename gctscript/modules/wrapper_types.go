@@ -1,11 +1,13 @@
 package modules
 
 import (
+	"context"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -32,17 +34,17 @@ type GCT interface {
 type Exchange interface {
 	Exchanges(enabledOnly bool) []string
 	IsEnabled(exch string) bool
-	Orderbook(exch string, pair currency.Pair, item asset.Item) (*orderbook.Base, error)
-	Ticker(exch string, pair currency.Pair, item asset.Item) (*ticker.Price, error)
+	Orderbook(ctx context.Context, exch string, pair currency.Pair, item asset.Item) (*orderbook.Base, error)
+	Ticker(ctx context.Context, exch string, pair currency.Pair, item asset.Item) (*ticker.Price, error)
 	Pairs(exch string, enabledOnly bool, item asset.Item) (*currency.Pairs, error)
-	QueryOrder(exch, orderid string, pair currency.Pair, assetType asset.Item) (*order.Detail, error)
-	SubmitOrder(submit *order.Submit) (*order.SubmitResponse, error)
-	CancelOrder(exch, orderid string, pair currency.Pair, item asset.Item) (bool, error)
-	AccountInformation(exch string, assetType asset.Item) (account.Holdings, error)
-	DepositAddress(exch string, currencyCode currency.Code) (string, error)
-	WithdrawalFiatFunds(bankAccountID string, request *withdraw.Request) (out string, err error)
-	WithdrawalCryptoFunds(request *withdraw.Request) (out string, err error)
-	OHLCV(exch string, pair currency.Pair, item asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error)
+	QueryOrder(ctx context.Context, exch, orderid string, pair currency.Pair, assetType asset.Item) (*order.Detail, error)
+	SubmitOrder(ctx context.Context, submit *order.Submit) (*order.SubmitResponse, error)
+	CancelOrder(ctx context.Context, exch, orderid string, pair currency.Pair, item asset.Item) (bool, error)
+	AccountInformation(ctx context.Context, exch string, assetType asset.Item) (account.Holdings, error)
+	DepositAddress(exch, chain string, currencyCode currency.Code) (*deposit.Address, error)
+	WithdrawalFiatFunds(ctx context.Context, bankAccountID string, request *withdraw.Request) (out string, err error)
+	WithdrawalCryptoFunds(ctx context.Context, request *withdraw.Request) (out string, err error)
+	OHLCV(ctx context.Context, exch string, pair currency.Pair, item asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error)
 }
 
 // SetModuleWrapper link the wrapper and interface to use for modules

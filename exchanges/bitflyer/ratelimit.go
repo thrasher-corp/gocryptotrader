@@ -1,6 +1,7 @@
 package bitflyer
 
 import (
+	"context"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -29,24 +30,29 @@ type RateLimit struct {
 }
 
 // Limit limits outbound requests
-func (r *RateLimit) Limit(f request.EndpointLimit) error {
+func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 	switch f {
 	case request.Auth:
-		time.Sleep(r.Auth.Reserve().Delay())
+		return r.Auth.Wait(ctx)
 	case orders:
-		res := r.Auth.Reserve()
-		time.Sleep(r.Order.Reserve().Delay())
-		time.Sleep(res.Delay())
+		err := r.Auth.Wait(ctx)
+		if err != nil {
+			return err
+		}
+		return r.Order.Wait(ctx)
 	case lowVolume:
-		authShell := r.Auth.Reserve()
-		orderShell := r.Order.Reserve()
-		time.Sleep(r.LowVolume.Reserve().Delay())
-		time.Sleep(orderShell.Delay())
-		time.Sleep(authShell.Delay())
+		err := r.LowVolume.Wait(ctx)
+		if err != nil {
+			return err
+		}
+		err = r.Order.Wait(ctx)
+		if err != nil {
+			return err
+		}
+		return r.Auth.Wait(ctx)
 	default:
-		time.Sleep(r.UnAuth.Reserve().Delay())
+		return r.UnAuth.Wait(ctx)
 	}
-	return nil
 }
 
 // SetRateLimit returns the rate limit for the exchange

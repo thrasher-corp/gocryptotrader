@@ -1,11 +1,14 @@
 package engine
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"time"
 
 	dbwithdraw "github.com/thrasher-corp/gocryptotrader/database/repository/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -24,7 +27,7 @@ func SetupWithdrawManager(em iExchangeManager, pm iPortfolioManager, isDryRun bo
 
 // SubmitWithdrawal performs validation and submits a new withdraw request to
 // exchange
-func (m *WithdrawManager) SubmitWithdrawal(req *withdraw.Request) (*withdraw.Response, error) {
+func (m *WithdrawManager) SubmitWithdrawal(ctx context.Context, req *withdraw.Request) (*withdraw.Response, error) {
 	if m == nil {
 		return nil, ErrNilSubsystem
 	}
@@ -32,9 +35,9 @@ func (m *WithdrawManager) SubmitWithdrawal(req *withdraw.Request) (*withdraw.Res
 		return nil, withdraw.ErrRequestCannotBeNil
 	}
 
-	exch := m.exchangeManager.GetExchangeByName(req.Exchange)
-	if exch == nil {
-		return nil, ErrExchangeNotFound
+	exch, err := m.exchangeManager.GetExchangeByName(req.Exchange)
+	if err != nil {
+		return nil, err
 	}
 
 	resp := &withdraw.Response{
@@ -44,7 +47,12 @@ func (m *WithdrawManager) SubmitWithdrawal(req *withdraw.Request) (*withdraw.Res
 		RequestDetails: *req,
 	}
 
-	var err error
+	// Determines if the currency can be withdrawn from the exchange
+	errF := exch.CanWithdraw(req.Currency, asset.Spot)
+	if errF != nil && !errors.Is(errF, currencystate.ErrCurrencyStateNotFound) { // Suppress not found error
+		return nil, errF
+	}
+
 	if m.isDryRun {
 		log.Warnln(log.Global, "Dry run enabled, no withdrawal request will be submitted or have an event created")
 		resp.ID = withdraw.DryRunID
@@ -61,7 +69,7 @@ func (m *WithdrawManager) SubmitWithdrawal(req *withdraw.Request) (*withdraw.Res
 			}
 		}
 		if req.Type == withdraw.Fiat {
-			ret, err = exch.WithdrawFiatFunds(req)
+			ret, err = exch.WithdrawFiatFunds(ctx, req)
 			if err != nil {
 				resp.Exchange.Status = err.Error()
 			} else {
@@ -69,7 +77,7 @@ func (m *WithdrawManager) SubmitWithdrawal(req *withdraw.Request) (*withdraw.Res
 				resp.Exchange.ID = ret.ID
 			}
 		} else if req.Type == withdraw.Crypto {
-			ret, err = exch.WithdrawCryptocurrencyFunds(req)
+			ret, err = exch.WithdrawCryptocurrencyFunds(ctx, req)
 			if err != nil {
 				resp.Exchange.Status = err.Error()
 			} else {
@@ -78,10 +86,10 @@ func (m *WithdrawManager) SubmitWithdrawal(req *withdraw.Request) (*withdraw.Res
 			}
 		}
 	}
+	dbwithdraw.Event(resp)
 	if err == nil {
 		withdraw.Cache.Add(resp.ID, resp)
 	}
-	dbwithdraw.Event(resp)
 	return resp, err
 }
 
@@ -90,8 +98,7 @@ func (m *WithdrawManager) WithdrawalEventByID(id string) (*withdraw.Response, er
 	if m == nil {
 		return nil, ErrNilSubsystem
 	}
-	v := withdraw.Cache.Get(id)
-	if v != nil {
+	if v := withdraw.Cache.Get(id); v != nil {
 		return v.(*withdraw.Response), nil
 	}
 
@@ -108,9 +115,9 @@ func (m *WithdrawManager) WithdrawalEventByExchange(exchange string, limit int) 
 	if m == nil {
 		return nil, ErrNilSubsystem
 	}
-	exch := m.exchangeManager.GetExchangeByName(exchange)
-	if exch == nil {
-		return nil, ErrExchangeNotFound
+	_, err := m.exchangeManager.GetExchangeByName(exchange)
+	if err != nil {
+		return nil, err
 	}
 
 	return dbwithdraw.GetEventsByExchange(exchange, limit)
@@ -121,9 +128,9 @@ func (m *WithdrawManager) WithdrawEventByDate(exchange string, start, end time.T
 	if m == nil {
 		return nil, ErrNilSubsystem
 	}
-	exch := m.exchangeManager.GetExchangeByName(exchange)
-	if exch == nil {
-		return nil, ErrExchangeNotFound
+	_, err := m.exchangeManager.GetExchangeByName(exchange)
+	if err != nil {
+		return nil, err
 	}
 
 	return dbwithdraw.GetEventsByDate(exchange, start, end, limit)
@@ -134,9 +141,9 @@ func (m *WithdrawManager) WithdrawalEventByExchangeID(exchange, id string) (*wit
 	if m == nil {
 		return nil, ErrNilSubsystem
 	}
-	exch := m.exchangeManager.GetExchangeByName(exchange)
-	if exch == nil {
-		return nil, ErrExchangeNotFound
+	_, err := m.exchangeManager.GetExchangeByName(exchange)
+	if err != nil {
+		return nil, err
 	}
 
 	return dbwithdraw.GetEventByExchangeID(exchange, id)

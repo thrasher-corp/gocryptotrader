@@ -1,6 +1,7 @@
 package kraken
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -96,11 +97,12 @@ func (k *Kraken) WsConnect() error {
 	}
 
 	comms := make(chan stream.Response)
+	k.Websocket.Wg.Add(2)
 	go k.wsReadData(comms)
 	go k.wsFunnelConnectionData(k.Websocket.Conn, comms)
 
 	if k.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
-		authToken, err = k.GetWebsocketToken()
+		authToken, err = k.GetWebsocketToken(context.TODO())
 		if err != nil {
 			k.Websocket.SetCanUseAuthenticatedEndpoints(false)
 			log.Errorf(log.ExchangeSys,
@@ -116,6 +118,7 @@ func (k *Kraken) WsConnect() error {
 					k.Name,
 					err)
 			} else {
+				k.Websocket.Wg.Add(1)
 				go k.wsFunnelConnectionData(k.Websocket.AuthConn, comms)
 				err = k.wsAuthPingHandler()
 				if err != nil {
@@ -140,7 +143,6 @@ func (k *Kraken) WsConnect() error {
 
 // wsFunnelConnectionData funnels both auth and public ws data into one manageable place
 func (k *Kraken) wsFunnelConnectionData(ws stream.Connection, comms chan stream.Response) {
-	k.Websocket.Wg.Add(1)
 	defer k.Websocket.Wg.Done()
 	for {
 		resp := ws.ReadMessage()
@@ -153,12 +155,26 @@ func (k *Kraken) wsFunnelConnectionData(ws stream.Connection, comms chan stream.
 
 // wsReadData receives and passes on websocket messages for processing
 func (k *Kraken) wsReadData(comms chan stream.Response) {
-	k.Websocket.Wg.Add(1)
 	defer k.Websocket.Wg.Done()
 
 	for {
 		select {
 		case <-k.Websocket.ShutdownC:
+			select {
+			case resp := <-comms:
+				err := k.wsHandleData(resp.Raw)
+				if err != nil {
+					select {
+					case k.Websocket.DataHandler <- err:
+					default:
+						log.Errorf(log.WebsocketMgr,
+							"%s websocket handle data error: %v",
+							k.Name,
+							err)
+					}
+				}
+			default:
+			}
 			return
 		case resp := <-comms:
 			err := k.wsHandleData(resp.Raw)
@@ -701,16 +717,38 @@ func (k *Kraken) wsProcessTickers(channelData *WebsocketChannelData, data map[st
 
 // wsProcessSpread converts spread/orderbook data and sends it to the datahandler
 func (k *Kraken) wsProcessSpread(channelData *WebsocketChannelData, data []interface{}) {
-	bestBid := data[0].(string)
-	bestAsk := data[1].(string)
+	if len(data) < 5 {
+		k.Websocket.DataHandler <- fmt.Errorf("%s unexpected wsProcessSpread data length", k.Name)
+		return
+	}
+	bestBid, ok := data[0].(string)
+	if !ok {
+		k.Websocket.DataHandler <- fmt.Errorf("%s wsProcessSpread: unable to type assert bestBid", k.Name)
+		return
+	}
+	bestAsk, ok := data[1].(string)
+	if !ok {
+		k.Websocket.DataHandler <- fmt.Errorf("%s wsProcessSpread: unable to type assert bestAsk", k.Name)
+		return
+	}
 	timeData, err := strconv.ParseFloat(data[2].(string), 64)
 	if err != nil {
-		k.Websocket.DataHandler <- err
+		k.Websocket.DataHandler <- fmt.Errorf("%s wsProcessSpread: unable to parse timeData. Error: %s",
+			k.Name,
+			err)
+		return
+	}
+	bidVolume, ok := data[3].(string)
+	if !ok {
+		k.Websocket.DataHandler <- fmt.Errorf("%s wsProcessSpread: unable to type assert bidVolume", k.Name)
+		return
+	}
+	askVolume, ok := data[4].(string)
+	if !ok {
+		k.Websocket.DataHandler <- fmt.Errorf("%s wsProcessSpread: unable to type assert askVolume", k.Name)
 		return
 	}
 
-	bidVolume := data[3].(string)
-	askVolume := data[4].(string)
 	if k.Verbose {
 		log.Debugf(log.ExchangeSys,
 			"%v Spread data for '%v' received. Best bid: '%v' Best ask: '%v' Time: '%v', Bid volume '%v', Ask volume '%v'",
@@ -823,7 +861,13 @@ func (k *Kraken) wsProcessOrderBookPartial(channelData *WebsocketChannelData, as
 	// to respect both within a reasonable degree
 	var highestLastUpdate time.Time
 	for i := range askData {
-		asks := askData[i].([]interface{})
+		asks, ok := askData[i].([]interface{})
+		if !ok {
+			return errors.New("unable to type assert asks")
+		}
+		if len(asks) < 3 {
+			return errors.New("unexpected asks length")
+		}
 		price, err := strconv.ParseFloat(asks[0].(string), 64)
 		if err != nil {
 			return err
@@ -847,7 +891,13 @@ func (k *Kraken) wsProcessOrderBookPartial(channelData *WebsocketChannelData, as
 	}
 
 	for i := range bidData {
-		bids := bidData[i].([]interface{})
+		bids, ok := bidData[i].([]interface{})
+		if !ok {
+			return errors.New("unable to type assert bids")
+		}
+		if len(bids) < 3 {
+			return errors.New("unexpected bids length")
+		}
 		price, err := strconv.ParseFloat(bids[0].(string), 64)
 		if err != nil {
 			return err
@@ -890,7 +940,10 @@ func (k *Kraken) wsProcessOrderBookUpdate(channelData *WebsocketChannelData, ask
 	var highestLastUpdate time.Time
 	// Ask data is not always sent
 	for i := range askData {
-		asks := askData[i].([]interface{})
+		asks, ok := askData[i].([]interface{})
+		if !ok {
+			return errors.New("asks type assertion failure")
+		}
 
 		priceStr, ok := asks[0].(string)
 		if !ok {
@@ -950,7 +1003,10 @@ func (k *Kraken) wsProcessOrderBookUpdate(channelData *WebsocketChannelData, ask
 
 	// Bid data is not always sent
 	for i := range bidData {
-		bids := bidData[i].([]interface{})
+		bids, ok := bidData[i].([]interface{})
+		if !ok {
+			return errors.New("unable to type assert bids")
+		}
 
 		priceStr, ok := bids[0].(string)
 		if !ok {

@@ -10,6 +10,7 @@ import (
 var p PairsManager
 
 func initTest(t *testing.T) {
+	t.Helper()
 	spotAvailable, err := NewPairsFromStrings([]string{"BTC-USD", "LTC-USD"})
 	if err != nil {
 		t.Fatal(err)
@@ -249,13 +250,13 @@ func TestDisablePair(t *testing.T) {
 
 	// Test asset type which doesn't exist
 	initTest(t)
-	if err := p.DisablePair(asset.Futures, Pair{}); err == nil {
+	if err := p.DisablePair(asset.Futures, EMPTYPAIR); err == nil {
 		t.Error("unexpected result")
 	}
 
 	// Test asset type which has an empty pair store
 	p.Pairs[asset.Spot] = nil
-	if err := p.DisablePair(asset.Spot, Pair{}); err == nil {
+	if err := p.DisablePair(asset.Spot, EMPTYPAIR); err == nil {
 		t.Error("unexpected result")
 	}
 
@@ -280,13 +281,13 @@ func TestEnablePair(t *testing.T) {
 
 	// Test asset type which doesn't exist
 	initTest(t)
-	if err := p.EnablePair(asset.Futures, Pair{}); err == nil {
+	if err := p.EnablePair(asset.Futures, EMPTYPAIR); err == nil {
 		t.Error("unexpected result")
 	}
 
 	// Test asset type which has an empty pair store
 	p.Pairs[asset.Spot] = nil
-	if err := p.EnablePair(asset.Spot, Pair{}); err == nil {
+	if err := p.EnablePair(asset.Spot, EMPTYPAIR); err == nil {
 		t.Error("unexpected result")
 	}
 

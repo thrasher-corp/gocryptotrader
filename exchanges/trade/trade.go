@@ -27,6 +27,35 @@ func (p *Processor) setup(wg *sync.WaitGroup) {
 	go p.Run(wg)
 }
 
+// Setup configures necessary fields to the `Trade` structure that govern trade data
+// processing.
+func (t *Trade) Setup(exchangeName string, tradeFeedEnabled bool, c chan interface{}) {
+	t.exchangeName = exchangeName
+	t.dataHandler = c
+	t.tradeFeedEnabled = tradeFeedEnabled
+}
+
+// Update processes trade data, either by saving it or routing it through
+// the data channel.
+func (t *Trade) Update(save bool, data ...Data) error {
+	if len(data) == 0 {
+		// nothing to do
+		return nil
+	}
+
+	if t.tradeFeedEnabled {
+		t.dataHandler <- data
+	}
+
+	if save {
+		if err := AddTradesToBuffer(t.exchangeName, data...); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // AddTradesToBuffer will push trade data onto the buffer
 func AddTradesToBuffer(exchangeName string, data ...Data) error {
 	cfg := database.DB.GetConfig()
@@ -100,6 +129,7 @@ func (p *Processor) Run(wg *sync.WaitGroup) {
 	for {
 		<-ticker.C
 		p.mutex.Lock()
+		// nolint: gocritic
 		bufferCopy := append(p.buffer[:0:0], p.buffer...)
 		p.buffer = nil
 		p.mutex.Unlock()
@@ -128,6 +158,9 @@ func SaveTradesToDatabase(trades ...Data) error {
 func GetTradesInRange(exchangeName, assetType, base, quote string, startDate, endDate time.Time) ([]Data, error) {
 	if exchangeName == "" || assetType == "" || base == "" || quote == "" || startDate.IsZero() || endDate.IsZero() {
 		return nil, errors.New("invalid arguments received")
+	}
+	if !database.DB.IsConnected() {
+		return nil, fmt.Errorf("cannot process trades in range %s-%s as %w", startDate, endDate, database.ErrDatabaseNotConnected)
 	}
 	results, err := tradesql.GetInRange(exchangeName, assetType, base, quote, startDate, endDate)
 	if err != nil {

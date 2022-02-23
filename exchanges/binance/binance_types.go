@@ -68,6 +68,42 @@ type ExchangeInfo struct {
 	} `json:"symbols"`
 }
 
+// CoinInfo stores information about all supported coins
+type CoinInfo struct {
+	Coin              string  `json:"coin"`
+	DepositAllEnable  bool    `json:"depositAllEnable"`
+	WithdrawAllEnable bool    `json:"withdrawAllEnable"`
+	Free              float64 `json:"free,string"`
+	Freeze            float64 `json:"freeze,string"`
+	IPOAble           float64 `json:"ipoable,string"`
+	IPOing            float64 `json:"ipoing,string"`
+	IsLegalMoney      bool    `json:"isLegalMoney"`
+	Locked            float64 `json:"locked,string"`
+	Name              string  `json:"name"`
+	NetworkList       []struct {
+		AddressRegex        string  `json:"addressRegex"`
+		Coin                string  `json:"coin"`
+		DepositDescription  string  `json:"depositDesc"` // shown only when "depositEnable" is false
+		DepositEnable       bool    `json:"depositEnable"`
+		IsDefault           bool    `json:"isDefault"`
+		MemoRegex           string  `json:"memoRegex"`
+		MinimumConfirmation uint16  `json:"minConfirm"`
+		Name                string  `json:"name"`
+		Network             string  `json:"network"`
+		ResetAddressStatus  bool    `json:"resetAddressStatus"`
+		SpecialTips         string  `json:"specialTips"`
+		UnlockConfirm       uint16  `json:"unLockConfirm"`
+		WithdrawDescription string  `json:"withdrawDesc"` // shown only when "withdrawEnable" is false
+		WithdrawEnable      bool    `json:"withdrawEnable"`
+		WithdrawFee         float64 `json:"withdrawFee,string"`
+		WithdrawMinimum     float64 `json:"withdrawMin,string"`
+		WithdrawMaximum     float64 `json:"withdrawMax,string"`
+	} `json:"networkList"`
+	Storage     float64 `json:"storage,string"`
+	Trading     bool    `json:"trading"`
+	Withdrawing float64 `json:"withdrawing,string"`
+}
+
 // OrderBookDataRequestParams represents Klines request data.
 type OrderBookDataRequestParams struct {
 	Symbol currency.Pair `json:"symbol"` // Required field; example LTCBTC,BTCUSDT
@@ -648,24 +684,47 @@ var WithdrawalFees = map[currency.Code]float64{
 	currency.PIVX:    0.02,
 }
 
+// DepositHistory stores deposit history info
+type DepositHistory struct {
+	Amount        float64 `json:"amount,string"`
+	Coin          string  `json:"coin"`
+	Network       string  `json:"network"`
+	Status        uint8   `json:"status"`
+	Address       string  `json:"address"`
+	AddressTag    string  `json:"adressTag"`
+	TransactionID string  `json:"txId"`
+	InsertTime    float64 `json:"insertTime"`
+	TransferType  uint8   `json:"transferType"`
+	ConfirmTimes  string  `json:"confirmTimes"`
+}
+
 // WithdrawResponse contains status of withdrawal request
 type WithdrawResponse struct {
-	Success bool   `json:"success"`
-	Msg     string `json:"msg"`
-	ID      string `json:"id"`
+	ID string `json:"id"`
 }
 
 // WithdrawStatusResponse defines a withdrawal status response
 type WithdrawStatusResponse struct {
-	Amount         float64 `json:"amount"`
-	TransactionFee float64 `json:"transactionFee"`
-	Address        string  `json:"address"`
-	TxID           string  `json:"txId"`
-	ID             string  `json:"id"`
-	Asset          string  `json:"asset"`
-	ApplyTime      int64   `json:"applyTime"`
-	Status         int64   `json:"status"`
-	Network        string  `json:"network"`
+	Address         string  `json:"address"`
+	Amount          float64 `json:"amount,string"`
+	ApplyTime       string  `json:"applyTime"`
+	Coin            string  `json:"coin"`
+	ID              string  `json:"id"`
+	WithdrawOrderID string  `json:"withdrawOrderId"`
+	Network         string  `json:"network"`
+	TransferType    uint8   `json:"transferType"`
+	Status          int64   `json:"status"`
+	TransactionFee  float64 `json:"transactionFee,string"`
+	TransactionID   string  `json:"txId"`
+	ConfirmNumber   int64   `json:"confirmNo"`
+}
+
+// DepositAddress stores the deposit address info
+type DepositAddress struct {
+	Address string `json:"address"`
+	Coin    string `json:"coin"`
+	Tag     string `json:"tag"`
+	URL     string `json:"url"`
 }
 
 // UserAccountStream contains a key to maintain an authorised
@@ -736,37 +795,38 @@ type wsOrderUpdate struct {
 
 // WsOrderUpdateData defines websocket account order update data
 type WsOrderUpdateData struct {
-	ClientOrderID                     string    `json:"c"`
-	EventTime                         time.Time `json:"E"`
-	IcebergQuantity                   float64   `json:"F,string"`
-	LastExecutedPrice                 float64   `json:"L,string"`
-	CommissionAsset                   string    `json:"N"`
-	OrderCreationTime                 time.Time `json:"O"`
-	StopPrice                         float64   `json:"P,string"`
-	QuoteOrderQuantity                float64   `json:"Q,string"`
-	Side                              string    `json:"S"`
-	TransactionTime                   time.Time `json:"T"`
-	OrderStatus                       string    `json:"X"`
-	LastQuoteAssetTransactedQuantity  float64   `json:"Y,string"`
-	CumulativeQuoteTransactedQuantity float64   `json:"Z,string"`
-	CancelledClientOrderID            string    `json:"C"`
 	EventType                         string    `json:"e"`
+	EventTime                         time.Time `json:"E"`
+	Symbol                            string    `json:"s"`
+	ClientOrderID                     string    `json:"c"`
+	Side                              string    `json:"S"`
+	OrderType                         string    `json:"o"`
 	TimeInForce                       string    `json:"f"`
+	Quantity                          float64   `json:"q,string"`
+	Price                             float64   `json:"p,string"`
+	StopPrice                         float64   `json:"P,string"`
+	IcebergQuantity                   float64   `json:"F,string"`
 	OrderListID                       int64     `json:"g"`
+	CancelledClientOrderID            string    `json:"C"`
+	CurrentExecutionType              string    `json:"x"`
+	OrderStatus                       string    `json:"X"`
+	RejectionReason                   string    `json:"r"`
 	OrderID                           int64     `json:"i"`
 	LastExecutedQuantity              float64   `json:"l,string"`
-	IsMaker                           bool      `json:"m"`
-	Commission                        float64   `json:"n,string"`
-	OrderType                         string    `json:"o"`
-	Price                             float64   `json:"p,string"`
-	Quantity                          float64   `json:"q,string"`
-	RejectionReason                   string    `json:"r"`
-	Symbol                            string    `json:"s"`
-	TradeID                           int64     `json:"t"`
-	Ignored                           int64     `json:"I"` // must be ignored explicitly, otherwise it overwrites 'i'
-	IsOnOrderBook                     bool      `json:"w"`
-	CurrentExecutionType              string    `json:"x"`
 	CumulativeFilledQuantity          float64   `json:"z,string"`
+	LastExecutedPrice                 float64   `json:"L,string"`
+	Commission                        float64   `json:"n,string"`
+	CommissionAsset                   string    `json:"N"`
+	TransactionTime                   time.Time `json:"T"`
+	TradeID                           int64     `json:"t"`
+	Ignored                           int64     `json:"I"` // Must be ignored explicitly, otherwise it overwrites 'i'.
+	IsOnOrderBook                     bool      `json:"w"`
+	IsMaker                           bool      `json:"m"`
+	Ignored2                          bool      `json:"M"` // See the comment for "I".
+	OrderCreationTime                 time.Time `json:"O"`
+	CumulativeQuoteTransactedQuantity float64   `json:"Z,string"`
+	LastQuoteAssetTransactedQuantity  float64   `json:"Y,string"`
+	QuoteOrderQuantity                float64   `json:"Q,string"`
 }
 
 type wsListStatus struct {
@@ -826,10 +886,11 @@ type orderbookManager struct {
 }
 
 type update struct {
-	buffer       chan *WebsocketDepthStream
-	fetchingBook bool
-	initialSync  bool
-	lastUpdateID int64
+	buffer            chan *WebsocketDepthStream
+	fetchingBook      bool
+	initialSync       bool
+	needsFetchingBook bool
+	lastUpdateID      int64
 }
 
 // job defines a synchonisation job that tells a go routine to fetch an

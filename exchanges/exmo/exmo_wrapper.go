@@ -1,6 +1,7 @@
 package exmo
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"sort"
@@ -15,6 +16,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -27,9 +29,9 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (e *EXMO) GetDefaultConfig() (*config.ExchangeConfig, error) {
+func (e *EXMO) GetDefaultConfig() (*config.Exchange, error) {
 	e.SetDefaults()
-	exchCfg := new(config.ExchangeConfig)
+	exchCfg := new(config.Exchange)
 	exchCfg.Name = e.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = e.BaseCurrencies
@@ -40,7 +42,7 @@ func (e *EXMO) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	}
 
 	if e.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = e.UpdateTradablePairs(true)
+		err = e.UpdateTradablePairs(context.TODO(), true)
 		if err != nil {
 			return nil, err
 		}
@@ -76,26 +78,29 @@ func (e *EXMO) SetDefaults() {
 			REST:      true,
 			Websocket: false,
 			RESTCapabilities: protocol.Features{
-				TickerBatching:      true,
-				TickerFetching:      true,
-				TradeFetching:       true,
-				OrderbookFetching:   true,
-				AutoPairUpdates:     true,
-				AccountInfo:         true,
-				GetOrder:            true,
-				GetOrders:           true,
-				CancelOrder:         true,
-				SubmitOrder:         true,
-				DepositHistory:      true,
-				WithdrawalHistory:   true,
-				UserTradeHistory:    true,
-				CryptoDeposit:       true,
-				CryptoWithdrawal:    true,
-				TradeFee:            true,
-				FiatDepositFee:      true,
-				FiatWithdrawalFee:   true,
-				CryptoDepositFee:    true,
-				CryptoWithdrawalFee: true,
+				TickerBatching:                    true,
+				TickerFetching:                    true,
+				TradeFetching:                     true,
+				OrderbookFetching:                 true,
+				AutoPairUpdates:                   true,
+				AccountInfo:                       true,
+				GetOrder:                          true,
+				GetOrders:                         true,
+				CancelOrder:                       true,
+				SubmitOrder:                       true,
+				DepositHistory:                    true,
+				WithdrawalHistory:                 true,
+				UserTradeHistory:                  true,
+				CryptoDeposit:                     true,
+				CryptoWithdrawal:                  true,
+				TradeFee:                          true,
+				FiatDepositFee:                    true,
+				FiatWithdrawalFee:                 true,
+				CryptoDepositFee:                  true,
+				CryptoWithdrawalFee:               true,
+				MultiChainDeposits:                true,
+				MultiChainWithdrawals:             true,
+				MultiChainDepositRequiresChainSet: true,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCryptoWithSetup |
 				exchange.NoFiatWithdrawals,
@@ -105,9 +110,12 @@ func (e *EXMO) SetDefaults() {
 		},
 	}
 
-	e.Requester = request.New(e.Name,
+	e.Requester, err = request.New(e.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(request.NewBasicRateLimit(exmoRateInterval, exmoRequestRate)))
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 	e.API.Endpoints = e.NewEndpoints()
 	err = e.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot: exmoAPIURL,
@@ -118,7 +126,10 @@ func (e *EXMO) SetDefaults() {
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
-func (e *EXMO) Setup(exch *config.ExchangeConfig) error {
+func (e *EXMO) Setup(exch *config.Exchange) error {
+	if err := exch.Validate(); err != nil {
+		return err
+	}
 	if !exch.Enabled {
 		e.SetEnabled(false)
 		return nil
@@ -127,12 +138,16 @@ func (e *EXMO) Setup(exch *config.ExchangeConfig) error {
 }
 
 // Start starts the EXMO go routine
-func (e *EXMO) Start(wg *sync.WaitGroup) {
+func (e *EXMO) Start(wg *sync.WaitGroup) error {
+	if wg == nil {
+		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
+	}
 	wg.Add(1)
 	go func() {
 		e.Run()
 		wg.Done()
 	}()
+	return nil
 }
 
 // Run implements the EXMO wrapper
@@ -145,15 +160,15 @@ func (e *EXMO) Run() {
 		return
 	}
 
-	err := e.UpdateTradablePairs(false)
+	err := e.UpdateTradablePairs(context.TODO(), false)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", e.Name, err)
 	}
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (e *EXMO) FetchTradablePairs(asset asset.Item) ([]string, error) {
-	pairs, err := e.GetPairSettings()
+func (e *EXMO) FetchTradablePairs(ctx context.Context, asset asset.Item) ([]string, error) {
+	pairs, err := e.GetPairSettings(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -168,8 +183,8 @@ func (e *EXMO) FetchTradablePairs(asset asset.Item) ([]string, error) {
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
-func (e *EXMO) UpdateTradablePairs(forceUpdate bool) error {
-	pairs, err := e.FetchTradablePairs(asset.Spot)
+func (e *EXMO) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
+	pairs, err := e.FetchTradablePairs(ctx, asset.Spot)
 	if err != nil {
 		return err
 	}
@@ -182,18 +197,15 @@ func (e *EXMO) UpdateTradablePairs(forceUpdate bool) error {
 	return e.UpdatePairs(p, asset.Spot, false, forceUpdate)
 }
 
-// UpdateTicker updates and returns the ticker for a currency pair
-func (e *EXMO) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	result, err := e.GetTicker()
+// UpdateTickers updates the ticker for all currency pairs of a given asset type
+func (e *EXMO) UpdateTickers(ctx context.Context, a asset.Item) error {
+	result, err := e.GetTicker(ctx)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	if _, ok := result[p.String()]; !ok {
-		return nil, err
-	}
-	pairs, err := e.GetEnabledPairs(assetType)
+	pairs, err := e.GetEnabledPairs(a)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	for i := range pairs {
 		for j := range result {
@@ -210,35 +222,43 @@ func (e *EXMO) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pric
 				Low:          result[j].Low,
 				Volume:       result[j].Volume,
 				ExchangeName: e.Name,
-				AssetType:    assetType})
+				AssetType:    a})
 			if err != nil {
-				return nil, err
+				return err
 			}
 		}
 	}
-	return ticker.GetTicker(e.Name, p, assetType)
+	return nil
+}
+
+// UpdateTicker updates and returns the ticker for a currency pair
+func (e *EXMO) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
+	if err := e.UpdateTickers(ctx, a); err != nil {
+		return nil, err
+	}
+	return ticker.GetTicker(e.Name, p, a)
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (e *EXMO) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (e *EXMO) FetchTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tick, err := ticker.GetTicker(e.Name, p, assetType)
 	if err != nil {
-		return e.UpdateTicker(p, assetType)
+		return e.UpdateTicker(ctx, p, assetType)
 	}
 	return tick, nil
 }
 
 // FetchOrderbook returns the orderbook for a currency pair
-func (e *EXMO) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (e *EXMO) FetchOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	ob, err := orderbook.Get(e.Name, p, assetType)
 	if err != nil {
-		return e.UpdateOrderbook(p, assetType)
+		return e.UpdateOrderbook(ctx, p, assetType)
 	}
 	return ob, nil
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (e *EXMO) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (e *EXMO) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	callingBook := &orderbook.Base{
 		Exchange:        e.Name,
 		Pair:            p,
@@ -255,7 +275,7 @@ func (e *EXMO) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderboo
 		return callingBook, err
 	}
 
-	result, err := e.GetOrderbook(pairsCollated)
+	result, err := e.GetOrderbook(ctx, pairsCollated)
 	if err != nil {
 		return callingBook, err
 	}
@@ -324,10 +344,10 @@ func (e *EXMO) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderboo
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // Exmo exchange
-func (e *EXMO) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
+func (e *EXMO) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	var response account.Holdings
 	response.Exchange = e.Name
-	result, err := e.GetUserInfo()
+	result, err := e.GetUserInfo(ctx)
 	if err != nil {
 		return response, err
 	}
@@ -360,10 +380,10 @@ func (e *EXMO) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error)
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (e *EXMO) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
+func (e *EXMO) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	acc, err := account.GetHoldings(e.Name, assetType)
 	if err != nil {
-		return e.UpdateAccountInfo(assetType)
+		return e.UpdateAccountInfo(ctx, assetType)
 	}
 
 	return acc, nil
@@ -371,24 +391,24 @@ func (e *EXMO) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) 
 
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
-func (e *EXMO) GetFundingHistory() ([]exchange.FundHistory, error) {
+func (e *EXMO) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (e *EXMO) GetWithdrawalsHistory(c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+func (e *EXMO) GetWithdrawalsHistory(ctx context.Context, c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
 	return nil, common.ErrNotYetImplemented
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
-func (e *EXMO) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+func (e *EXMO) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
 	var err error
 	p, err = e.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return nil, err
 	}
 	var tradeData map[string][]Trades
-	tradeData, err = e.GetTrades(p.String())
+	tradeData, err = e.GetTrades(ctx, p.String())
 	if err != nil {
 		return nil, err
 	}
@@ -422,12 +442,12 @@ func (e *EXMO) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.D
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
-func (e *EXMO) GetHistoricTrades(_ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
+func (e *EXMO) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // SubmitOrder submits a new order
-func (e *EXMO) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
+func (e *EXMO) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
 	var submitOrderResponse order.SubmitResponse
 	if err := s.Validate(); err != nil {
 		return submitOrderResponse, err
@@ -450,7 +470,7 @@ func (e *EXMO) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		return submitOrderResponse, err
 	}
 
-	response, err := e.CreateOrder(fPair.String(), oT, s.Price, s.Amount)
+	response, err := e.CreateOrder(ctx, fPair.String(), oT, s.Price, s.Amount)
 	if err != nil {
 		return submitOrderResponse, err
 	}
@@ -467,12 +487,12 @@ func (e *EXMO) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (e *EXMO) ModifyOrder(action *order.Modify) (string, error) {
-	return "", common.ErrFunctionNotSupported
+func (e *EXMO) ModifyOrder(ctx context.Context, action *order.Modify) (order.Modify, error) {
+	return order.Modify{}, common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (e *EXMO) CancelOrder(o *order.Cancel) error {
+func (e *EXMO) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	if err := o.Validate(o.StandardCancel()); err != nil {
 		return err
 	}
@@ -482,27 +502,27 @@ func (e *EXMO) CancelOrder(o *order.Cancel) error {
 		return err
 	}
 
-	return e.CancelExistingOrder(orderIDInt)
+	return e.CancelExistingOrder(ctx, orderIDInt)
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (e *EXMO) CancelBatchOrders(o []order.Cancel) (order.CancelBatchResponse, error) {
+func (e *EXMO) CancelBatchOrders(ctx context.Context, o []order.Cancel) (order.CancelBatchResponse, error) {
 	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (e *EXMO) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, error) {
+func (e *EXMO) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.CancelAllResponse, error) {
 	cancelAllOrdersResponse := order.CancelAllResponse{
 		Status: make(map[string]string),
 	}
 
-	openOrders, err := e.GetOpenOrders()
+	openOrders, err := e.GetOpenOrders(ctx)
 	if err != nil {
 		return cancelAllOrdersResponse, err
 	}
 
 	for i := range openOrders {
-		err = e.CancelExistingOrder(openOrders[i].OrderID)
+		err = e.CancelExistingOrder(ctx, openOrders[i].OrderID)
 		if err != nil {
 			cancelAllOrdersResponse.Status[strconv.FormatInt(openOrders[i].OrderID, 10)] = err.Error()
 		}
@@ -512,35 +532,61 @@ func (e *EXMO) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, error)
 }
 
 // GetOrderInfo returns order information based on order ID
-func (e *EXMO) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
+func (e *EXMO) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
 	var orderDetail order.Detail
 	return orderDetail, common.ErrNotYetImplemented
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (e *EXMO) GetDepositAddress(cryptocurrency currency.Code, _ string) (string, error) {
-	fullAddr, err := e.GetCryptoDepositAddress()
+func (e *EXMO) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _, chain string) (*deposit.Address, error) {
+	fullAddr, err := e.GetCryptoDepositAddress(ctx)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	addr, ok := fullAddr[cryptocurrency.String()]
+	curr := cryptocurrency.Upper().String()
+	if chain != "" && !strings.EqualFold(chain, curr) {
+		curr += strings.ToUpper(chain)
+	}
+
+	addr, ok := fullAddr[curr]
 	if !ok {
-		return "", fmt.Errorf("currency %s could not be found, please generate via the exmo website", cryptocurrency.String())
+		chains, err := e.GetAvailableTransferChains(ctx, cryptocurrency)
+		if err != nil {
+			return nil, err
+		}
+
+		if len(chains) > 1 {
+			// rather than assume, return an error
+			return nil, fmt.Errorf("currency %s has %v chains available, one must be specified", cryptocurrency, chains)
+		}
+		return nil, fmt.Errorf("deposit address for %s could not be found, please generate via the exmo website", cryptocurrency.String())
 	}
 
-	return addr, nil
+	var tag string
+	if strings.Contains(addr, ",") {
+		split := strings.Split(addr, ",")
+		addr, tag = split[0], split[1]
+	}
+
+	return &deposit.Address{
+		Address: addr,
+		Tag:     tag,
+		Chain:   chain,
+	}, nil
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (e *EXMO) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (e *EXMO) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
-	resp, err := e.WithdrawCryptocurrency(withdrawRequest.Currency.String(),
+	resp, err := e.WithdrawCryptocurrency(ctx,
+		withdrawRequest.Currency.String(),
 		withdrawRequest.Crypto.Address,
 		withdrawRequest.Crypto.AddressTag,
+		withdrawRequest.Crypto.Chain,
 		withdrawRequest.Amount)
 
 	return &withdraw.ExchangeResponse{
@@ -550,18 +596,21 @@ func (e *EXMO) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*
 
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (e *EXMO) WithdrawFiatFunds(_ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (e *EXMO) WithdrawFiatFunds(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (e *EXMO) WithdrawFiatFundsToInternationalBank(_ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (e *EXMO) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetFeeByType returns an estimate of fee based on type of transaction
-func (e *EXMO) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
+func (e *EXMO) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
+	if feeBuilder == nil {
+		return 0, fmt.Errorf("%T %w", feeBuilder, common.ErrNilPointer)
+	}
 	if !e.AllowAuthenticatedRequest() && // Todo check connection status
 		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		feeBuilder.FeeType = exchange.OfflineTradeFee
@@ -570,12 +619,12 @@ func (e *EXMO) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (e *EXMO) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
+func (e *EXMO) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
 	if err := req.Validate(); err != nil {
 		return nil, err
 	}
 
-	resp, err := e.GetOpenOrders()
+	resp, err := e.GetOpenOrders(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -607,7 +656,7 @@ func (e *EXMO) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, err
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (e *EXMO) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error) {
+func (e *EXMO) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) ([]order.Detail, error) {
 	if err := req.Validate(); err != nil {
 		return nil, err
 	}
@@ -623,7 +672,7 @@ func (e *EXMO) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, err
 			return nil, err
 		}
 
-		resp, err := e.GetUserTrades(fpair.String(), "", "10000")
+		resp, err := e.GetUserTrades(ctx, fpair.String(), "", "10000")
 		if err != nil {
 			return nil, err
 		}
@@ -634,21 +683,26 @@ func (e *EXMO) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, err
 
 	var orders []order.Detail
 	for i := range allTrades {
-		symbol, err := currency.NewPairDelimiter(allTrades[i].Pair, "_")
+		pair, err := currency.NewPairDelimiter(allTrades[i].Pair, "_")
 		if err != nil {
 			return nil, err
 		}
 		orderDate := time.Unix(allTrades[i].Date, 0)
 		orderSide := order.Side(strings.ToUpper(allTrades[i].Type))
-		orders = append(orders, order.Detail{
-			ID:       strconv.FormatInt(allTrades[i].TradeID, 10),
-			Amount:   allTrades[i].Quantity,
-			Date:     orderDate,
-			Price:    allTrades[i].Price,
-			Side:     orderSide,
-			Exchange: e.Name,
-			Pair:     symbol,
-		})
+		detail := order.Detail{
+			ID:             strconv.FormatInt(allTrades[i].TradeID, 10),
+			Amount:         allTrades[i].Quantity,
+			ExecutedAmount: allTrades[i].Quantity,
+			Cost:           allTrades[i].Amount,
+			CostAsset:      pair.Quote,
+			Date:           orderDate,
+			Price:          allTrades[i].Price,
+			Side:           orderSide,
+			Exchange:       e.Name,
+			Pair:           pair,
+		}
+		detail.InferCostsAndTimes()
+		orders = append(orders, detail)
 	}
 
 	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
@@ -658,17 +712,44 @@ func (e *EXMO) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, err
 
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
-func (e *EXMO) ValidateCredentials(assetType asset.Item) error {
-	_, err := e.UpdateAccountInfo(assetType)
+func (e *EXMO) ValidateCredentials(ctx context.Context, assetType asset.Item) error {
+	_, err := e.UpdateAccountInfo(ctx, assetType)
 	return e.CheckTransientError(err)
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (e *EXMO) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+func (e *EXMO) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	return kline.Item{}, common.ErrFunctionNotSupported
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (e *EXMO) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+func (e *EXMO) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	return kline.Item{}, common.ErrFunctionNotSupported
+}
+
+// GetAvailableTransferChains returns the available transfer blockchains for the specific
+// cryptocurrency
+func (e *EXMO) GetAvailableTransferChains(ctx context.Context, cryptocurrency currency.Code) ([]string, error) {
+	chains, err := e.GetCryptoPaymentProvidersList(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	methods, ok := chains[cryptocurrency.Upper().String()]
+	if !ok {
+		return nil, errors.New("no available chains")
+	}
+
+	var availChains []string
+	for x := range methods {
+		if methods[x].Type == "deposit" && methods[x].Enabled {
+			chain := methods[x].Name
+			if strings.Contains(chain, "(") && strings.Contains(chain, ")") {
+				chain = chain[strings.Index(chain, "(")+1 : strings.Index(chain, ")")]
+			}
+			availChains = append(availChains, chain)
+		}
+	}
+
+	return availChains, nil
 }

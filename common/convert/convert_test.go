@@ -1,8 +1,11 @@
 package convert
 
 import (
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/shopspring/decimal"
 )
 
 func TestFloatFromString(t *testing.T) {
@@ -32,10 +35,8 @@ func TestFloatFromString(t *testing.T) {
 func TestIntFromString(t *testing.T) {
 	t.Parallel()
 	testString := "1337"
-	expectedOutput := 1337
-
 	actualOutput, err := IntFromString(testString)
-	if actualOutput != expectedOutput || err != nil {
+	if expectedOutput := 1337; actualOutput != expectedOutput || err != nil {
 		t.Errorf("Common IntFromString. Expected '%v'. Actual '%v'. Error: %s",
 			expectedOutput, actualOutput, err)
 	}
@@ -136,33 +137,9 @@ func TestUnixTimestampStrToTime(t *testing.T) {
 		t.Errorf(
 			"Expected '%s'. Actual '%s'.", expectedOutput, actualResult)
 	}
-	actualResult, err = UnixTimestampStrToTime(incorrectTime)
+	_, err = UnixTimestampStrToTime(incorrectTime)
 	if err == nil {
-		t.Error("Common UnixTimestampStrToTime error")
-	}
-}
-
-func TestUnixMillis(t *testing.T) {
-	t.Parallel()
-	testTime := time.Date(2014, time.October, 28, 0, 32, 0, 0, time.UTC)
-	expectedOutput := int64(1414456320000)
-
-	actualOutput := UnixMillis(testTime)
-	if actualOutput != expectedOutput {
-		t.Errorf("Common UnixMillis. Expected '%d'. Actual '%d'.",
-			expectedOutput, actualOutput)
-	}
-}
-
-func TestRecvWindow(t *testing.T) {
-	t.Parallel()
-	testTime := time.Duration(24760000)
-	expectedOutput := int64(24)
-
-	actualOutput := RecvWindow(testTime)
-	if actualOutput != expectedOutput {
-		t.Errorf("Common RecvWindow. Expected '%d'. Actual '%d'",
-			expectedOutput, actualOutput)
+		t.Error("should throw an error")
 	}
 }
 
@@ -177,9 +154,131 @@ func TestBoolPtr(t *testing.T) {
 	}
 }
 
-func TestUnixMillisToNano(t *testing.T) {
-	v := UnixMillisToNano(1588653603424)
-	if v != 1588653603424000000 {
-		t.Fatalf("unexpected result received %v", v)
+func TestFloatToHumanFriendlyString(t *testing.T) {
+	t.Parallel()
+	test := FloatToHumanFriendlyString(0, 3, ".", ",")
+	if strings.Contains(test, ",") {
+		t.Error("unexpected ','")
+	}
+	test = FloatToHumanFriendlyString(100, 3, ".", ",")
+	if strings.Contains(test, ",") {
+		t.Error("unexpected ','")
+	}
+	test = FloatToHumanFriendlyString(1000, 3, ".", ",")
+	if !strings.Contains(test, ",") {
+		t.Error("expected ','")
+	}
+
+	test = FloatToHumanFriendlyString(-1000, 3, ".", ",")
+	if !strings.Contains(test, ",") {
+		t.Error("expected ','")
+	}
+
+	test = FloatToHumanFriendlyString(-1000, 10, ".", ",")
+	if !strings.Contains(test, ",") {
+		t.Error("expected ','")
+	}
+
+	test = FloatToHumanFriendlyString(1000.1337, 1, ".", ",")
+	if !strings.Contains(test, ",") {
+		t.Error("expected ','")
+	}
+	dec := strings.Split(test, ".")
+	if len(dec) == 1 {
+		t.Error("expected decimal place")
+	}
+	if dec[1] != "1" {
+		t.Error("expected decimal place")
+	}
+}
+
+func TestDecimalToHumanFriendlyString(t *testing.T) {
+	t.Parallel()
+	test := DecimalToHumanFriendlyString(decimal.Zero, 0, ".", ",")
+	if strings.Contains(test, ",") {
+		t.Log(test)
+		t.Error("unexpected ','")
+	}
+	test = DecimalToHumanFriendlyString(decimal.NewFromInt(100), 0, ".", ",")
+	if strings.Contains(test, ",") {
+		t.Log(test)
+		t.Error("unexpected ','")
+	}
+	test = DecimalToHumanFriendlyString(decimal.NewFromInt(1000), 0, ".", ",")
+	if !strings.Contains(test, ",") {
+		t.Error("expected ','")
+	}
+
+	test = DecimalToHumanFriendlyString(decimal.NewFromFloat(1000.1337), 1, ".", ",")
+	if !strings.Contains(test, ",") {
+		t.Error("expected ','")
+	}
+	dec := strings.Split(test, ".")
+	if len(dec) == 1 {
+		t.Error("expected decimal place")
+	}
+	if dec[1] != "1" {
+		t.Error("expected decimal place")
+	}
+
+	test = DecimalToHumanFriendlyString(decimal.NewFromFloat(-1000.1337), 1, ".", ",")
+	if !strings.Contains(test, ",") {
+		t.Error("expected ','")
+	}
+
+	test = DecimalToHumanFriendlyString(decimal.NewFromFloat(-1000.1337), 100000, ".", ",")
+	if !strings.Contains(test, ",") {
+		t.Error("expected ','")
+	}
+
+	test = DecimalToHumanFriendlyString(decimal.NewFromFloat(1000.1), 10, ".", ",")
+	if !strings.Contains(test, ",") {
+		t.Error("expected ','")
+	}
+	dec = strings.Split(test, ".")
+	if len(dec) == 1 {
+		t.Error("expected decimal place")
+	}
+	if dec[1] != "1" {
+		t.Error("expected decimal place")
+	}
+}
+
+func TestIntToHumanFriendlyString(t *testing.T) {
+	t.Parallel()
+	test := IntToHumanFriendlyString(0, ",")
+	if strings.Contains(test, ",") {
+		t.Log(test)
+		t.Error("unexpected ','")
+	}
+	test = IntToHumanFriendlyString(100, ",")
+	if strings.Contains(test, ",") {
+		t.Log(test)
+		t.Error("unexpected ','")
+	}
+	test = IntToHumanFriendlyString(1000, ",")
+	if !strings.Contains(test, ",") {
+		t.Error("expected ','")
+	}
+
+	test = IntToHumanFriendlyString(-1000, ",")
+	if !strings.Contains(test, ",") {
+		t.Error("expected ','")
+	}
+
+	test = IntToHumanFriendlyString(1000000, ",")
+	if !strings.Contains(test, ",") {
+		t.Error("expected ','")
+	}
+	dec := strings.Split(test, ",")
+	if len(dec) <= 2 {
+		t.Error("expected two commas place")
+	}
+}
+
+func TestNumberToHumanFriendlyString(t *testing.T) {
+	resp := numberToHumanFriendlyString("1", 1337, ".", ",", false)
+	if strings.Contains(resp, ".") {
+		t.Error("expected no comma")
 	}
 }

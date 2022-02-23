@@ -19,8 +19,7 @@ func CreateKline(trades []order.TradeHistory, interval Interval, p currency.Pair
 		return Item{}, fmt.Errorf("invalid time interval: [%s]", interval)
 	}
 
-	err := validateData(trades)
-	if err != nil {
+	if err := validateData(trades); err != nil {
 		return Item{}, err
 	}
 
@@ -328,7 +327,72 @@ func TotalCandlesPerInterval(start, end time.Time, interval Interval) (out float
 // IntervalsPerYear helps determine the number of intervals in a year
 // used in CAGR calculation to know the amount of time of an interval in a year
 func (i *Interval) IntervalsPerYear() float64 {
+	if i.Duration() == 0 {
+		return 0
+	}
 	return float64(OneYear.Duration().Nanoseconds()) / float64(i.Duration().Nanoseconds())
+}
+
+// ConvertToNewInterval allows the scaling of candles to larger candles
+// eg convert OneDay candles to ThreeDay candles, if there are adequate candles
+// incomplete candles are NOT converted
+// eg an 4 OneDay candles will convert to one ThreeDay candle, skipping the fourth
+func ConvertToNewInterval(item *Item, newInterval Interval) (*Item, error) {
+	if item == nil {
+		return nil, errNilKline
+	}
+	if newInterval <= 0 {
+		return nil, ErrUnsetInterval
+	}
+	if newInterval.Duration() <= item.Interval.Duration() {
+		return nil, ErrCanOnlyDownscaleCandles
+	}
+	if newInterval.Duration()%item.Interval.Duration() != 0 {
+		return nil, ErrWholeNumberScaling
+	}
+
+	oldIntervalsPerNewCandle := int64(newInterval / item.Interval)
+	var candleBundles [][]Candle
+	var candles []Candle
+	for i := range item.Candles {
+		candles = append(candles, item.Candles[i])
+		intervalCount := int64(i + 1)
+		if oldIntervalsPerNewCandle == intervalCount {
+			candleBundles = append(candleBundles, candles)
+			candles = []Candle{}
+		}
+	}
+	responseCandle := &Item{
+		Exchange: item.Exchange,
+		Pair:     item.Pair,
+		Asset:    item.Asset,
+		Interval: newInterval,
+	}
+	for i := range candleBundles {
+		var lowest, highest, volume float64
+		lowest = candleBundles[i][0].Low
+		highest = candleBundles[i][0].High
+		for j := range candleBundles[i] {
+			volume += candleBundles[i][j].Volume
+			if candleBundles[i][j].Low < lowest {
+				lowest = candleBundles[i][j].Low
+			}
+			if candleBundles[i][j].High > highest {
+				lowest = candleBundles[i][j].High
+			}
+			volume += candleBundles[i][j].Volume
+		}
+		responseCandle.Candles = append(responseCandle.Candles, Candle{
+			Time:   candleBundles[i][0].Time,
+			Open:   candleBundles[i][0].Open,
+			High:   highest,
+			Low:    lowest,
+			Close:  candleBundles[i][len(candleBundles[i])-1].Close,
+			Volume: volume,
+		})
+	}
+
+	return responseCandle, nil
 }
 
 // CalculateCandleDateRanges will calculate the expected candle data in intervals in a date range
@@ -408,6 +472,17 @@ func (h *IntervalRangeHolder) HasDataAtDate(t time.Time) bool {
 	}
 
 	return false
+}
+
+// GetClosePriceAtTime returns the close price of a candle
+// at a given time
+func (k *Item) GetClosePriceAtTime(t time.Time) (float64, error) {
+	for i := range k.Candles {
+		if k.Candles[i].Time.Equal(t) {
+			return k.Candles[i].Close, nil
+		}
+	}
+	return -1, fmt.Errorf("%w at %v", ErrNotFoundAtTime, t)
 }
 
 // SetHasDataFromCandles will calculate whether there is data in each candle

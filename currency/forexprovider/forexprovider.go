@@ -4,6 +4,7 @@ package forexprovider
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
 	currencyconverter "github.com/thrasher-corp/gocryptotrader/currency/forexprovider/currencyconverterapi"
@@ -13,6 +14,16 @@ import (
 	fixer "github.com/thrasher-corp/gocryptotrader/currency/forexprovider/fixer.io"
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/openexchangerates"
 )
+
+var (
+	errUnhandledForeignExchangeProvider = errors.New("unhandled foreign exchange provider")
+	errNoPrimaryForexProviderEnabled    = errors.New("no primary forex provider enabled")
+)
+
+// ForexProviders is a foreign exchange handler type
+type ForexProviders struct {
+	base.FXHandler
+}
 
 // GetSupportedForexProviders returns a list of supported forex providers
 func GetSupportedForexProviders() []string {
@@ -78,64 +89,38 @@ func (f *ForexProviders) SetProvider(b base.IFXProvider) error {
 // StartFXService starts the forex provider service and returns a pointer to it
 func StartFXService(fxProviders []base.Settings) (*ForexProviders, error) {
 	handler := new(ForexProviders)
-
 	for i := range fxProviders {
-		switch {
-		case fxProviders[i].Name == "CurrencyConverter" && fxProviders[i].Enabled:
-			provider := new(currencyconverter.CurrencyConverter)
-			err := provider.Setup(fxProviders[i])
-			if err != nil {
-				return nil, err
-			}
-
-			handler.SetProvider(provider)
-
-		case fxProviders[i].Name == "CurrencyLayer" && fxProviders[i].Enabled:
-			provider := new(currencylayer.CurrencyLayer)
-			err := provider.Setup(fxProviders[i])
-			if err != nil {
-				return nil, err
-			}
-
-			handler.SetProvider(provider)
-
-		case fxProviders[i].Name == "ExchangeRates" && fxProviders[i].Enabled:
-			provider := new(exchangerates.ExchangeRates)
-			err := provider.Setup(fxProviders[i])
-			if err != nil {
-				return nil, err
-			}
-
-			handler.SetProvider(provider)
-
-		case fxProviders[i].Name == "Fixer" && fxProviders[i].Enabled:
-			provider := new(fixer.Fixer)
-			err := provider.Setup(fxProviders[i])
-			if err != nil {
-				return nil, err
-			}
-
-			handler.SetProvider(provider)
-
-		case fxProviders[i].Name == "OpenExchangeRates" && fxProviders[i].Enabled:
-			provider := new(openexchangerates.OXR)
-			err := provider.Setup(fxProviders[i])
-			if err != nil {
-				return nil, err
-			}
-
-			handler.SetProvider(provider)
+		var provider base.IFXProvider
+		switch fxProviders[i].Name {
+		case "CurrencyConverter":
+			provider = new(currencyconverter.CurrencyConverter)
+		case "CurrencyLayer":
+			provider = new(currencylayer.CurrencyLayer)
+		case "ExchangeRates":
+			provider = new(exchangerates.ExchangeRates)
+		case "Fixer":
+			provider = new(fixer.Fixer)
+		case "OpenExchangeRates":
+			provider = new(openexchangerates.OXR)
+		case "ExchangeRateHost":
+			provider = new(exchangeratehost.ExchangeRateHost)
+		default:
+			return nil, fmt.Errorf("%s %w", fxProviders[i].Name,
+				errUnhandledForeignExchangeProvider)
+		}
+		err := provider.Setup(fxProviders[i])
+		if err != nil {
+			return nil, err
+		}
+		err = handler.SetProvider(provider)
+		if err != nil {
+			return nil, err
 		}
 	}
 
 	if handler.Primary.Provider == nil {
-		return nil, errors.New("no primary forex provider enabled")
+		return nil, errNoPrimaryForexProviderEnabled
 	}
 
 	return handler, nil
-}
-
-// ForexProviders is a foreign exchange handler type
-type ForexProviders struct {
-	base.FXHandler
 }

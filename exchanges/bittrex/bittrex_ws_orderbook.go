@@ -1,6 +1,7 @@
 package bittrex
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -28,11 +29,21 @@ func (b *Bittrex) setupOrderbookManager() {
 			state: make(map[currency.Code]map[currency.Code]map[asset.Item]*update),
 			jobs:  make(chan job, maxWSOrderbookJobs),
 		}
-
-		for i := 0; i < maxWSOrderbookWorkers; i++ {
-			// 10 workers for synchronising book
-			b.SynchroniseWebsocketOrderbook()
+	} else {
+		// Change state on reconnect for initial sync.
+		for _, m1 := range b.obm.state {
+			for _, m2 := range m1 {
+				for _, update := range m2 {
+					update.initialSync = true
+					update.needsFetchingBook = true
+				}
+			}
 		}
+	}
+
+	for i := 0; i < maxWSOrderbookWorkers; i++ {
+		// 10 workers for synchronising book
+		b.SynchroniseWebsocketOrderbook()
 	}
 }
 
@@ -93,15 +104,15 @@ func (b *Bittrex) UpdateLocalOBBuffer(update *OrderbookUpdateMessage) (bool, err
 
 	err = b.applyBufferUpdate(currencyPair)
 	if err != nil {
-		b.flushAndCleanup(currencyPair)
+		log.Errorf(log.WebsocketMgr, "%s websocket UpdateLocalOBBuffer: Could not apply buffer update\n", b.Name)
 	}
 
 	return false, err
 }
 
 // SeedLocalOBCache seeds depth data
-func (b *Bittrex) SeedLocalOBCache(p currency.Pair) error {
-	ob, sequence, err := b.GetOrderbook(p.String(), orderbookDepth)
+func (b *Bittrex) SeedLocalOBCache(ctx context.Context, p currency.Pair) error {
+	ob, sequence, err := b.GetOrderbook(ctx, p.String(), orderbookDepth)
 	if err != nil {
 		return err
 	}
@@ -136,23 +147,43 @@ func (b *Bittrex) SeedLocalCacheWithOrderBook(p currency.Pair, sequence int64, o
 // applyBufferUpdate applies the buffer to the orderbook or initiates a new
 // orderbook sync by the REST protocol which is off handed to go routine.
 func (b *Bittrex) applyBufferUpdate(pair currency.Pair) error {
-	fetching, err := b.obm.checkIsFetchingBook(pair)
+	fetching, needsFetching, err := b.obm.handleFetchingBook(pair)
 	if err != nil {
 		return err
 	}
 	if fetching {
 		return nil
 	}
-
-	recent, err := b.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
-	if err != nil || (recent.Asks == nil && recent.Bids == nil) {
+	if needsFetching {
 		if b.Verbose {
-			log.Debugf(log.WebsocketMgr, "Orderbook: Fetching via REST\n")
+			log.Debugf(log.WebsocketMgr, "%s Orderbook: Fetching via REST\n", b.Name)
 		}
 		return b.obm.fetchBookViaREST(pair)
 	}
+	recent, err := b.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
+	if err != nil {
+		log.Errorf(
+			log.WebsocketMgr,
+			"%s error fetching recent orderbook when applying updates: %s\n",
+			b.Name,
+			err)
+	}
 
-	return b.obm.checkAndProcessUpdate(b.ProcessUpdateOB, pair, recent)
+	if recent != nil {
+		err = b.obm.checkAndProcessUpdate(b.ProcessUpdateOB, pair, recent)
+		if err != nil {
+			log.Errorf(
+				log.WebsocketMgr,
+				"%s error processing update - initiating new orderbook sync via REST: %s\n",
+				b.Name,
+				err)
+			err = b.obm.setNeedsFetchingBook(pair)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 // SynchroniseWebsocketOrderbook synchronises full orderbook for currency pair
@@ -163,6 +194,14 @@ func (b *Bittrex) SynchroniseWebsocketOrderbook() {
 		defer b.Websocket.Wg.Done()
 		for {
 			select {
+			case <-b.Websocket.ShutdownC:
+				for {
+					select {
+					case <-b.obm.jobs:
+					default:
+						return
+					}
+				}
 			case j := <-b.obm.jobs:
 				err := b.processJob(j.Pair)
 				if err != nil {
@@ -170,8 +209,6 @@ func (b *Bittrex) SynchroniseWebsocketOrderbook() {
 						"%s processing websocket orderbook error %v",
 						b.Name, err)
 				}
-			case <-b.Websocket.ShutdownC:
-				return
 			}
 		}
 	}()
@@ -179,7 +216,7 @@ func (b *Bittrex) SynchroniseWebsocketOrderbook() {
 
 // processJob fetches and processes orderbook updates
 func (b *Bittrex) processJob(p currency.Pair) error {
-	err := b.SeedLocalOBCache(p)
+	err := b.SeedLocalOBCache(context.TODO(), p)
 	if err != nil {
 		return fmt.Errorf("%s %s seeding local cache for orderbook error: %v",
 			p, asset.Spot, err)
@@ -192,29 +229,7 @@ func (b *Bittrex) processJob(p currency.Pair) error {
 
 	// Immediately apply the buffer updates so we don't wait for a
 	// new update to initiate this.
-	err = b.applyBufferUpdate(p)
-	if err != nil {
-		b.flushAndCleanup(p)
-		return err
-	}
-	return nil
-}
-
-// flushAndCleanup flushes orderbook and clean local cache
-func (b *Bittrex) flushAndCleanup(p currency.Pair) {
-	errClean := b.Websocket.Orderbook.FlushOrderbook(p, asset.Spot)
-	if errClean != nil {
-		log.Errorf(log.WebsocketMgr,
-			"%s flushing websocket error: %v",
-			b.Name,
-			errClean)
-	}
-	errClean = b.obm.cleanup(p)
-	if errClean != nil {
-		log.Errorf(log.WebsocketMgr, "%s cleanup websocket error: %v",
-			b.Name,
-			errClean)
-	}
+	return b.applyBufferUpdate(p)
 }
 
 // stageWsUpdate stages websocket update to roll through updates that need to
@@ -239,9 +254,10 @@ func (o *orderbookManager) stageWsUpdate(u *OrderbookUpdateMessage, pair currenc
 		state = &update{
 			// 100ms update assuming we might have up to a 10 second delay.
 			// There could be a potential 100 updates for the currency.
-			buffer:       make(chan *OrderbookUpdateMessage, maxWSUpdateBuffer),
-			fetchingBook: false,
-			initialSync:  true,
+			buffer:            make(chan *OrderbookUpdateMessage, maxWSUpdateBuffer),
+			fetchingBook:      false,
+			initialSync:       true,
+			needsFetchingBook: true,
 		}
 		m2[a] = state
 	}
@@ -256,21 +272,6 @@ func (o *orderbookManager) stageWsUpdate(u *OrderbookUpdateMessage, pair currenc
 		return fmt.Errorf("channel blockage for %s, asset %s and connection",
 			pair, a)
 	}
-}
-
-// checkIsFetchingBook checks status if the book is currently being via the REST
-// protocol.
-func (o *orderbookManager) checkIsFetchingBook(pair currency.Pair) (bool, error) {
-	o.Lock()
-	defer o.Unlock()
-	state, ok := o.state[pair.Base][pair.Quote][asset.Spot]
-	if !ok {
-		return false,
-			fmt.Errorf("check is fetching book cannot match currency pair %s asset type %s",
-				pair,
-				asset.Spot)
-	}
-	return state.fetchingBook, nil
 }
 
 // stopFetchingBook completes the book fetching.
@@ -292,23 +293,43 @@ func (o *orderbookManager) stopFetchingBook(pair currency.Pair) error {
 	return nil
 }
 
-// completeInitialSync sets if an asset type has completed its initial sync
-func (o *orderbookManager) completeInitialSync(pair currency.Pair) error {
+// setNeedsFetchingBook completes the book fetching initiation.
+func (o *orderbookManager) setNeedsFetchingBook(pair currency.Pair) error {
 	o.Lock()
 	defer o.Unlock()
 	state, ok := o.state[pair.Base][pair.Quote][asset.Spot]
 	if !ok {
-		return fmt.Errorf("complete initial sync cannot match currency pair %s asset type %s",
+		return fmt.Errorf("could not match pair %s and asset type %s in hash table",
 			pair,
 			asset.Spot)
 	}
-	if !state.initialSync {
-		return fmt.Errorf("initital sync already set to false for %s %s",
-			pair,
-			asset.Spot)
-	}
-	state.initialSync = false
+	state.needsFetchingBook = true
 	return nil
+}
+
+// handleFetchingBook checks if a full book is being fetched or needs to be
+// fetched
+func (o *orderbookManager) handleFetchingBook(pair currency.Pair) (fetching, needsFetching bool, err error) {
+	o.Lock()
+	defer o.Unlock()
+	state, ok := o.state[pair.Base][pair.Quote][asset.Spot]
+	if !ok {
+		return false, false,
+			fmt.Errorf("check is fetching book cannot match currency pair %s asset type %s",
+				pair,
+				asset.Spot)
+	}
+
+	if state.fetchingBook {
+		return true, false, nil
+	}
+
+	if state.needsFetchingBook {
+		state.needsFetchingBook = false
+		state.fetchingBook = true
+		return false, true, nil
+	}
+	return false, false, nil
 }
 
 // checkIsInitialSync checks status if the book is Initial Sync being via the REST
@@ -411,31 +432,4 @@ func (u *update) validate(updt *OrderbookUpdateMessage, recent *orderbook.Base) 
 			asset.Spot)
 	}
 	return true, nil
-}
-
-// cleanup cleans up buffer and reset fetch and init
-func (o *orderbookManager) cleanup(pair currency.Pair) error {
-	o.Lock()
-	state, ok := o.state[pair.Base][pair.Quote][asset.Spot]
-	if !ok {
-		o.Unlock()
-		return fmt.Errorf("cleanup cannot match %s %s to hash table",
-			pair,
-			asset.Spot)
-	}
-
-bufferEmpty:
-	for {
-		select {
-		case <-state.buffer:
-			// bleed and discard buffer
-		default:
-			break bufferEmpty
-		}
-	}
-	o.Unlock()
-	// disable rest orderbook synchronisation
-	_ = o.stopFetchingBook(pair)
-	_ = o.completeInitialSync(pair)
-	return nil
 }

@@ -1,6 +1,7 @@
 package gemini
 
 import (
+	"context"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -21,13 +22,11 @@ type RateLimit struct {
 }
 
 // Limit limits the endpoint functionality
-func (r *RateLimit) Limit(f request.EndpointLimit) error {
+func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 	if f == request.Auth {
-		time.Sleep(r.Auth.Reserve().Delay())
-		return nil
+		return r.Auth.Wait(ctx)
 	}
-	time.Sleep(r.UnAuth.Reserve().Delay())
-	return nil
+	return r.UnAuth.Wait(ctx)
 }
 
 // SetRateLimit returns the rate limit for the exchange

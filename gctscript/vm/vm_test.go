@@ -25,15 +25,15 @@ var (
 	testBrokenScript         = filepath.Join("..", "..", "testdata", "gctscript", "broken.gct")
 	testScriptRunner         = filepath.Join("..", "..", "testdata", "gctscript", "timer.gct")
 	testScriptRunner1s       = filepath.Join("..", "..", "testdata", "gctscript", "1s_timer.gct")
-	testScriptRunnerInvalid  = filepath.Join("..", "..", "testdata", "gctscript", "invalid_timer.gct")
 	testScriptRunnerNegative = filepath.Join("..", "..", "testdata", "gctscript", "negative_timer.gct")
+	testScriptRunnerInvalid  = filepath.Join("..", "..", "testdata", "gctscript", "invalid_timer.gct")
 )
 
 func TestMain(m *testing.M) {
 	c := log.GenDefaultSettings()
 	c.Enabled = convert.BoolPtr(false)
 	log.RWM.Lock()
-	log.GlobalLogConfig = &c
+	log.GlobalLogConfig = c
 	log.RWM.Unlock()
 	os.Exit(m.Run())
 }
@@ -219,7 +219,7 @@ func TestVMRun(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = testVM.Run()
+	err = testVM.RunCtx()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -279,7 +279,7 @@ func TestVMWithRunnerOnce(t *testing.T) {
 		config:  configHelper(true, true, maxTestVirtualMachines),
 		started: 1,
 	}
-	vmCount := VMSCount.Len()
+	vmCount := VMSCount.Len() // nolint:ifshort,nolintlint // false positive and triggers only on Windows
 	VM := manager.New()
 	if VM == nil {
 		t.Fatal("Failed to allocate new VM exiting")
@@ -320,6 +320,34 @@ func TestVMWithRunnerNegativeTimer(t *testing.T) {
 	if err == nil {
 		t.Fatal("VM should not be running with invalid timer")
 	}
+	if VMSCount.Len() == vmCount-1 {
+		t.Fatal("expected VM count to decrease")
+	}
+}
+
+func TestVMWithRunnerInvalidTimer(t *testing.T) {
+	manager := GctScriptManager{
+		config:  configHelper(true, true, maxTestVirtualMachines),
+		started: 1,
+	}
+	vmCount := VMSCount.Len()
+	VM := manager.New()
+	if VM == nil {
+		t.Fatal("Failed to allocate new VM exiting")
+	}
+	err := VM.Load(testScriptRunnerInvalid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if VMSCount.Len() == vmCount {
+		t.Fatal("expected VM count to increase")
+	}
+	VM.CompileAndRun()
+	err = VM.Shutdown()
+	if err == nil {
+		t.Fatal("VM should not be running with invalid timer")
+	}
+
 	if VMSCount.Len() == vmCount-1 {
 		t.Fatal("expected VM count to decrease")
 	}
@@ -416,7 +444,7 @@ func TestVM_CompileInvalid(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = testVM.Run()
+	err = testVM.RunCtx()
 	if err == nil {
 		t.Fatal("unexpected result broken script compiled successfully ")
 	}
@@ -505,8 +533,7 @@ func TestVMLimit(t *testing.T) {
 		config:  configHelper(true, false, 0),
 		started: 1,
 	}
-	testVM := manager.New()
-	if testVM != nil {
+	if testVM := manager.New(); testVM != nil {
 		t.Fatal("expected nil but received pointer to VM")
 	}
 }

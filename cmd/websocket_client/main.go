@@ -97,11 +97,17 @@ func main() {
 	resp.Body.Close()
 	log.Println("Connected to websocket!")
 
+	hash, err := crypto.GetSHA256([]byte(cfg.RemoteControl.Password))
+	if err != nil {
+		log.Println("Unable to generate SHA256 hash from remote control password:", err)
+		return
+	}
+
 	log.Println("Authenticating..")
 	var wsResp WebsocketEventResponse
 	reqData := WebsocketAuth{
 		Username: cfg.RemoteControl.Username,
-		Password: crypto.HexEncodeToString(crypto.GetSHA256([]byte(cfg.RemoteControl.Password))),
+		Password: crypto.HexEncodeToString(hash),
 	}
 	err = SendWebsocketEvent("auth", reqData, &wsResp)
 	if err != nil {

@@ -209,7 +209,6 @@ Yes means supported, No means not yet implemented and NA means protocol unsuppor
 | Exmo | Yes | NA | NA |
 | FTX | Yes | Yes | No | // <-------- new exchange
 | CoinbasePro | Yes | Yes | No|
-| Coinbene | Yes | No | No |
 | GateIO | Yes | Yes | NA |
 | Gemini | Yes | Yes | No |
 | HitBTC | Yes | Yes | No |
@@ -238,7 +237,6 @@ var Exchanges = []string{
 	"btc markets",
 	"btse",
 	"coinbasepro",
-	"coinbene",
 	"coinut",
 	"exmo",
 	"ftx", // <-------- new exchange
@@ -350,15 +348,26 @@ This will generate a readme file for the exchange which can be found in the new 
 
 ```go
 // SendHTTPRequest sends an unauthenticated HTTP request
-func (f *FTX) SendHTTPRequest(path string, result interface{}) error {
-	return f.SendPayload(context.Background(), &request.Item{
+func (f *FTX) SendHTTPRequest(ctx context.Context, path string, result interface{}) error {
+	// This is used to generate the *http.Request, used in conjunction with the
+	// generate functionality below. 
+	item := &request.Item{  
 		Method:        http.MethodGet,
 		Path:          path,
 		Result:        result,
 		Verbose:       f.Verbose,
 		HTTPDebugging: f.HTTPDebugging,
 		HTTPRecording: f.HTTPRecording,
-	})
+	}
+
+	// Request function that closes over the above request.Item values, which
+	// executes on every attempt after rate limiting. 
+	generate := func() (*request.Item, error) { return item, nil }
+
+	endpoint := request.Unset // Used in conjunction with the rate limiting 
+	// system defined in the exchange package to slow down outbound requests
+	// depending on each individual endpoint. 
+	return f.SendPayload(ctx, endpoint, generate)
 }
 ```
 
@@ -411,7 +420,7 @@ Create a get function in ftx.go file and unmarshall the data in the created type
 // GetMarkets gets market data
 func (f *FTX) GetMarkets() (Markets, error) {
 	var resp Markets
-	return resp, f.SendHTTPRequest(ftxAPIURL+getMarkets, &resp)
+	return resp, f.SendHTTPRequest(ctx, ftxAPIURL+getMarkets, &resp)
 }
 ```
 
@@ -444,39 +453,55 @@ Ensure each endpoint is implemented and has an associated test to improve test c
 Authenticated request function is created based on the way the exchange documentation specifies: https://docs.ftx.com/#authentication
 ```go
 // SendAuthHTTPRequest sends an authenticated request
-func (f *FTX) SendAuthHTTPRequest(method, path string, data, result interface{}) error {
-	ts := strconv.FormatInt(time.Now().UnixNano()/1000000, 10)
-	var body io.Reader
-	var hmac, payload []byte
-	var err error
-	if data != nil {
-		payload, err = json.Marshal(data)
-		if err != nil {
-			return err
+func (f *FTX) SendAuthHTTPRequest(ctx context.Context, method, path string, data, result interface{}) error {
+// A potential example below of closing over authenticated variables which may 
+// be required to regenerate on every request between each attempt after rate
+// limiting. This is for when signatures are based on timestamps/nonces that are 
+// within time receive windows. NOTE: This is not always necessary and the above
+// SendHTTPRequest example will suffice. 
+	generate := func() (*request.Item, error) {
+		ts := strconv.FormatInt(time.Now().UnixMilli(), 10)
+		var body io.Reader
+		var hmac, payload []byte
+		var err error
+		if data != nil {
+			payload, err = json.Marshal(data)
+			if err != nil {
+				return err
+			}
+			body = bytes.NewBuffer(payload)
+			sigPayload := ts + method + "/api" + path + string(payload)
+			hmac = crypto.GetHMAC(crypto.HashSHA256, []byte(sigPayload), []byte(f.API.Credentials.Secret))
+		} else {
+			sigPayload := ts + method + "/api" + path
+			hmac = crypto.GetHMAC(crypto.HashSHA256, []byte(sigPayload), []byte(f.API.Credentials.Secret))
 		}
-		body = bytes.NewBuffer(payload)
-		sigPayload := ts + method + "/api" + path + string(payload)
-		hmac = crypto.GetHMAC(crypto.HashSHA256, []byte(sigPayload), []byte(f.API.Credentials.Secret))
-	} else {
-		sigPayload := ts + method + "/api" + path
-		hmac = crypto.GetHMAC(crypto.HashSHA256, []byte(sigPayload), []byte(f.API.Credentials.Secret))
+		headers := make(map[string]string)
+		headers["FTX-KEY"] = f.API.Credentials.Key
+		headers["FTX-SIGN"] = crypto.HexEncodeToString(hmac)
+		headers["FTX-TS"] = ts
+		headers["Content-Type"] = "application/json"
+
+		// This is used to generate the *http.Request.
+		item := &request.Item{
+			Method:        method,
+			Path:          ftxAPIURL + path,
+			Headers:       headers,
+			Body:          body,
+			Result:        result,
+			AuthRequest:   true,
+			Verbose:       f.Verbose,
+			HTTPDebugging: f.HTTPDebugging,
+			HTTPRecording: f.HTTPRecording,
+		}
+		return item, nil
 	}
-	headers := make(map[string]string)
-	headers["FTX-KEY"] = f.API.Credentials.Key
-	headers["FTX-SIGN"] = crypto.HexEncodeToString(hmac)
-	headers["FTX-TS"] = ts
-	headers["Content-Type"] = "application/json"
-	return f.SendPayload(context.Background(), &request.Item{
-		Method:        method,
-		Path:          ftxAPIURL + path,
-		Headers:       headers,
-		Body:          body,
-		Result:        result,
-		AuthRequest:   true,
-		Verbose:       f.Verbose,
-		HTTPDebugging: f.HTTPDebugging,
-		HTTPRecording: f.HTTPRecording,
-	})
+
+	endpoint := request.Unset // Used in conjunction with the rate limiting 
+	// system defined in the exchange package to slow down outbound requests
+	// depending on each individual endpoint. 
+
+	return f.SendPayload(ctx, endpoint, generate)
 }
 ```
 
@@ -492,7 +517,7 @@ https://docs.ftx.com/#get-account-information:
 // GetAccountInfo gets account info
 func (f *FTX) GetAccountInfo() (AccountData, error) {
 	var resp AccountData
-	return resp, f.SendAuthHTTPRequest(http.MethodGet, getAccountInfo, nil, &resp)
+	return resp, f.SendAuthHTTPRequest(ctx, http.MethodGet, getAccountInfo, nil, &resp)
 }
 ```
 
@@ -524,7 +549,7 @@ func (f *FTX) GetTriggerOrderHistory(marketName string, startTime, endTime time.
 	if limit != "" {
 		params.Set("limit", limit)
 	}
-	return resp, f.SendAuthHTTPRequest(http.MethodGet, getTriggerOrderHistory+params.Encode(), nil, &resp)
+	return resp, f.SendAuthHTTPRequest(ctx, http.MethodGet, getTriggerOrderHistory+params.Encode(), nil, &resp)
 }
 ```
 
@@ -584,7 +609,7 @@ func (f *FTX) Order(marketName, side, orderType, reduceOnly, ioc, postOnly, clie
 		req["clientID"] = clientID
 	}
 	var resp PlaceOrder
-	return resp, f.SendAuthHTTPRequest(http.MethodPost, placeOrder, req, &resp)
+	return resp, f.SendAuthHTTPRequest(ctx, http.MethodPost, placeOrder, req, &resp)
 }
 ```
 
@@ -598,7 +623,7 @@ Unsupported Example:
 ```go
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (f *FTX) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (f *FTX) WithdrawFiatFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	var resp *withdraw.ExchangeResponse
 	return resp, common.ErrFunctionNotSupported
 }
@@ -608,7 +633,7 @@ Supported Examples:
 
 ```go
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (f *FTX) FetchTradablePairs(a asset.Item) ([]string, error) {
+func (f *FTX) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string, error) {
 	if !f.SupportsAsset(a) {
 		return nil, fmt.Errorf("asset type of %s is not supported by %s", a, f.Name)
 	}
@@ -838,6 +863,9 @@ Run gocryptotrader with the following settings enabled in config
 
 #### Handle websocket data:
 
+- Trades and order events are handled by populating an order.Detail
+  struct by [the following rules](./WS_ORDER_EVENTS.md).
+
 - Function to read data received from websocket:
 
 ```go
@@ -998,8 +1026,7 @@ https://docs.ftx.com/#private-channels
 ```go
 // WsAuth sends an authentication message to receive auth data
 func (f *FTX) WsAuth() error {
-	intNonce := time.Now().UnixNano() / 1000000
-	strNonce := strconv.FormatInt(intNonce, 10)
+	strNonce := strconv.FormatInt(time.Now().UnixMilli(), 10)
 	hmac := crypto.GetHMAC(
 		crypto.HashSHA256,
 		[]byte(strNonce+"websocket_login"),
@@ -1066,36 +1093,43 @@ Add websocket functionality if supported to Setup:
 
 ```go
 // Setup takes in the supplied exchange configuration details and sets params
-func (f *FTX) Setup(exch *config.ExchangeConfig) error {
+func (f *FTX) Setup(exch *config.Exchange) error {
+	err := exch.Validate()
+	if err != nil {
+		return err
+	}
 	if !exch.Enabled {
 		f.SetEnabled(false)
 		return nil
 	}
-
-	err := f.SetupDefaults(exch)
+	err = f.SetupDefaults(exch)
 	if err != nil {
 		return err
 	}
 
 	// Websocket details setup below
 	err = f.Websocket.Setup(&stream.WebsocketSetup{
-		Enabled:                          exch.Features.Enabled.Websocket,
-		Verbose:                          exch.Verbose,
-		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-		DefaultURL:                       ftxWSURL, // Default ws endpoint so we can roll back via CLI if needed.
-		ExchangeName:                     exch.Name, // Sets websocket name to the exchange name.
-		RunningURL:                       exch.API.Endpoints.WebsocketURL,
-		Connector:                        f.WsConnect, // Connector function outlined above.
-		Subscriber:                       f.Subscribe, // Subscriber function outlined above.
-		UnSubscriber:                     f.Unsubscribe, // Unsubscriber function outlined above.
-		GenerateSubscriptions:            f.GenerateDefaultSubscriptions, // GenerateDefaultSubscriptions function outlined above.
-		Features:                         &f.Features.Supports.WebsocketCapabilities, // Defines the capabilities of the websocket outlined in supported features struct. This allows the websocket connection to be flushed appropriately if we have a pair/asset enable/disable change. This is outlined below.
+		ExchangeConfig:        	exch,
+		// DefaultURL defines the default endpoint in the event a rollback is 
+		// needed via gctcli.
+		DefaultURL:             ftxWSURL, 
+		RunningURL:             exch.API.Endpoints.WebsocketURL,
+		// Connector function outlined above.
+		Connector:              f.WsConnect, 
+		// Subscriber function outlined above.
+		Subscriber:             f.Subscribe, 
+		// Unsubscriber function outlined above.
+		UnSubscriber:           f.Unsubscribe,
+		// GenerateDefaultSubscriptions function outlined above. 
+		GenerateSubscriptions:  f.GenerateDefaultSubscriptions, 
+		// Defines the capabilities of the websocket outlined in supported 
+		// features struct. This allows the websocket connection to be flushed 
+		// appropriately if we have a pair/asset enable/disable change. This is 
+		// outlined below.
+		Features:               &f.Features.Supports.WebsocketCapabilities, 
 
-		// Orderbook buffer specific variables for processing orderbook updates via websocket feed. 
-		OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
-		// Other orderbook buffer vars:
-		// BufferEnabled         bool 
+		// Orderbook buffer specific variables for processing orderbook updates 
+		// via websocket feed: 
 		// SortBuffer            bool 
 		// SortBufferByUpdateIDs bool 
 		// UpdateEntriesByID     bool 

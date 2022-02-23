@@ -2,6 +2,7 @@ package currency
 
 import (
 	"encoding/json"
+	"errors"
 	"testing"
 )
 
@@ -16,13 +17,11 @@ func TestLower(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	actual := pair.Lower()
 	expected, err := NewPairFromString(defaultPair)
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	if actual.String() != expected.Lower().String() {
+	if actual := pair.Lower(); actual.String() != expected.Lower().String() {
 		t.Errorf("Lower(): %s was not equal to expected value: %s",
 			actual,
 			expected.Lower())
@@ -35,12 +34,11 @@ func TestUpper(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	actual := pair.Upper()
 	expected, err := NewPairFromString(defaultPair)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if actual.String() != expected.String() {
+	if actual := pair.Upper(); actual.String() != expected.String() {
 		t.Errorf("Upper(): %s was not equal to expected value: %s",
 			actual, expected)
 	}
@@ -123,12 +121,38 @@ func TestIsFiatPair(t *testing.T) {
 	}
 }
 
+func TestIsCryptoStablePair(t *testing.T) {
+	if !NewPair(BTC, USDT).IsCryptoStablePair() {
+		t.Error("TestIsCryptoStablePair. Expected true result")
+	}
+
+	if !NewPair(DAI, USDT).IsCryptoStablePair() {
+		t.Error("TestIsCryptoStablePair. Expected true result")
+	}
+
+	if NewPair(AUD, USDT).IsCryptoStablePair() {
+		t.Error("TestIsCryptoStablePair. Expected false result")
+	}
+}
+
+func TestIsStablePair(t *testing.T) {
+	if !NewPair(USDT, DAI).IsStablePair() {
+		t.Error("TestIsStablePair. Expected true result")
+	}
+
+	if NewPair(USDT, AUD).IsStablePair() {
+		t.Error("TestIsStablePair. Expected false result")
+	}
+
+	if NewPair(USDT, LTC).IsStablePair() {
+		t.Error("TestIsStablePair. Expected false result")
+	}
+}
+
 func TestString(t *testing.T) {
 	t.Parallel()
 	pair := NewPair(BTC, USD)
-	actual := defaultPair
-	expected := pair.String()
-	if actual != expected {
+	if actual, expected := defaultPair, pair.String(); actual != expected {
 		t.Errorf("String(): %s was not equal to expected value: %s",
 			actual, expected)
 	}
@@ -137,9 +161,7 @@ func TestString(t *testing.T) {
 func TestFirstCurrency(t *testing.T) {
 	t.Parallel()
 	pair := NewPair(BTC, USD)
-	actual := pair.Base
-	expected := BTC
-	if actual != expected {
+	if actual, expected := pair.Base, BTC; !actual.Equal(expected) {
 		t.Errorf(
 			"GetFirstCurrency(): %s was not equal to expected value: %s",
 			actual, expected,
@@ -150,9 +172,7 @@ func TestFirstCurrency(t *testing.T) {
 func TestSecondCurrency(t *testing.T) {
 	t.Parallel()
 	pair := NewPair(BTC, USD)
-	actual := pair.Quote
-	expected := USD
-	if actual != expected {
+	if actual, expected := pair.Quote, USD; !actual.Equal(expected) {
 		t.Errorf(
 			"GetSecondCurrency(): %s was not equal to expected value: %s",
 			actual, expected,
@@ -163,9 +183,7 @@ func TestSecondCurrency(t *testing.T) {
 func TestPair(t *testing.T) {
 	t.Parallel()
 	pair := NewPair(BTC, USD)
-	actual := pair.String()
-	expected := defaultPair
-	if actual != expected {
+	if actual, expected := pair.String(), defaultPair; actual != expected {
 		t.Errorf(
 			"Pair(): %s was not equal to expected value: %s",
 			actual, expected,
@@ -282,9 +300,7 @@ func TestEqualIncludeReciprocal(t *testing.T) {
 func TestSwap(t *testing.T) {
 	t.Parallel()
 	pair := NewPair(BTC, USD)
-	actual := pair.Swap().String()
-	expected := "USDBTC"
-	if actual != expected {
+	if actual, expected := pair.Swap().String(), "USDBTC"; actual != expected {
 		t.Errorf(
 			"TestSwap: %s was not equal to expected value: %s",
 			actual, expected,
@@ -308,9 +324,7 @@ func TestEmpty(t *testing.T) {
 func TestNewPair(t *testing.T) {
 	t.Parallel()
 	pair := NewPair(BTC, USD)
-	actual := pair.String()
-	expected := defaultPair
-	if actual != expected {
+	if expected, actual := defaultPair, pair.String(); actual != expected {
 		t.Errorf(
 			"Pair(): %s was not equal to expected value: %s",
 			actual, expected,
@@ -528,26 +542,22 @@ func TestNewPairFromFormattedPairs(t *testing.T) {
 func TestContainsCurrency(t *testing.T) {
 	p := NewPair(BTC, USD)
 
-	if !p.ContainsCurrency(BTC) {
-		t.Error("TestContainsCurrency: Expected currency was not found")
+	if !p.Contains(BTC) {
+		t.Error("TestContains: Expected currency was not found")
 	}
 
-	if p.ContainsCurrency(ETH) {
-		t.Error("TestContainsCurrency: Non-existent currency was found")
+	if p.Contains(ETH) {
+		t.Error("TestContains: Non-existent currency was found")
 	}
 }
 
 func TestFormatPairs(t *testing.T) {
-	newP, err := FormatPairs([]string{""}, "-", "")
-	if err != nil {
-		t.Error("FormatPairs() error", err)
+	_, err := FormatPairs([]string{""}, "-", "")
+	if !errors.Is(err, errEmptyPairString) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errEmptyPairString)
 	}
 
-	if len(newP) > 0 {
-		t.Error("TestFormatPairs: Empty string returned a valid pair")
-	}
-
-	newP, err = FormatPairs([]string{defaultPairWDelimiter}, "-", "")
+	newP, err := FormatPairs([]string{defaultPairWDelimiter}, "-", "")
 	if err != nil {
 		t.Error("FormatPairs() error", err)
 	}
@@ -614,8 +624,8 @@ func TestFindPairDifferences(t *testing.T) {
 	}
 
 	emptyPairsList, err := NewPairsFromStrings([]string{""})
-	if err != nil {
-		t.Fatal(err)
+	if !errors.Is(err, errCannotCreatePair) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errCannotCreatePair)
 	}
 
 	// Test that we don't allow empty strings for new pairs
@@ -793,7 +803,7 @@ func TestPairFormat_Format(t *testing.T) {
 		{
 			name:   "empty",
 			fields: fields{},
-			arg:    Pair{},
+			arg:    EMPTYPAIR,
 			want:   "",
 		},
 		{
@@ -833,5 +843,25 @@ func TestPairFormat_Format(t *testing.T) {
 				t.Errorf("PairFormat.Format() = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestOther(t *testing.T) {
+	received, err := NewPair(DAI, XRP).Other(DAI)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !received.Equal(XRP) {
+		t.Fatal("unexpected value")
+	}
+	received, err = NewPair(DAI, XRP).Other(XRP)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !received.Equal(DAI) {
+		t.Fatal("unexpected value")
+	}
+	if _, err := NewPair(DAI, XRP).Other(BTC); !errors.Is(err, ErrCurrencyCodeEmpty) {
+		t.Fatal("unexpected value")
 	}
 }

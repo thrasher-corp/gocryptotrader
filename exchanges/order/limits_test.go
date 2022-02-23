@@ -4,6 +4,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
@@ -311,6 +312,52 @@ func TestConforms(t *testing.T) {
 	err = tt.Conforms(200000, 9.1, Market)
 	if !errors.Is(err, nil) {
 		t.Fatalf("expected error %v but received: %v", nil, err)
+	}
+}
+
+func TestConformToDecimalAmount(t *testing.T) {
+	t.Parallel()
+	var tt *Limits
+	if !tt.ConformToDecimalAmount(decimal.NewFromFloat(1.001)).Equal(decimal.NewFromFloat(1.001)) {
+		t.Fatal("value should not be changed")
+	}
+
+	tt = &Limits{}
+	val := tt.ConformToDecimalAmount(decimal.NewFromInt(1))
+	if !val.Equal(decimal.NewFromInt(1)) { // If there is no step amount set this should not change
+		// the inputted amount
+		t.Fatal("unexpected amount")
+	}
+
+	tt.stepIncrementSizeAmount = 0.001
+	val = tt.ConformToDecimalAmount(decimal.NewFromFloat(1.001))
+	if !val.Equal(decimal.NewFromFloat(1.001)) {
+		t.Error("unexpected amount", val)
+	}
+
+	val = tt.ConformToDecimalAmount(decimal.NewFromFloat(0.0001))
+	if !val.IsZero() {
+		t.Error("unexpected amount", val)
+	}
+
+	val = tt.ConformToDecimalAmount(decimal.NewFromFloat(0.7777))
+	if !val.Equal(decimal.NewFromFloat(0.777)) {
+		t.Error("unexpected amount", val)
+	}
+
+	tt.stepIncrementSizeAmount = 100
+	val = tt.ConformToDecimalAmount(decimal.NewFromInt(100))
+	if !val.Equal(decimal.NewFromInt(100)) {
+		t.Fatal("unexpected amount", val)
+	}
+
+	val = tt.ConformToDecimalAmount(decimal.NewFromInt(200))
+	if !val.Equal(decimal.NewFromInt(200)) {
+		t.Fatal("unexpected amount", val)
+	}
+	val = tt.ConformToDecimalAmount(decimal.NewFromInt(150))
+	if !val.Equal(decimal.NewFromInt(100)) {
+		t.Fatal("unexpected amount", val)
 	}
 }
 

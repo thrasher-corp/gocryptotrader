@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/validate"
@@ -111,7 +112,9 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) {
 		d.PostOnly = m.PostOnly
 		updated = true
 	}
-	if !m.Pair.IsEmpty() && m.Pair != d.Pair {
+	if !m.Pair.IsEmpty() && !m.Pair.Equal(d.Pair) {
+		// TODO: Add a check to see if the original pair is empty as well, but
+		// error if it is changing from BTC-USD -> LTC-USD.
 		d.Pair = m.Pair
 		updated = true
 	}
@@ -196,7 +199,7 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) {
 		updated = true
 	}
 	if updated {
-		if d.LastUpdated == m.LastUpdated {
+		if d.LastUpdated.Equal(m.LastUpdated) {
 			d.LastUpdated = time.Now()
 		} else {
 			d.LastUpdated = m.LastUpdated
@@ -208,12 +211,19 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) {
 	if d.ID == "" {
 		d.ID = m.ID
 	}
+	if d.InternalOrderID == "" {
+		d.InternalOrderID = m.InternalOrderID
+	}
 }
 
 // UpdateOrderFromModify Will update an order detail (used in order management)
 // by comparing passed in and existing values
 func (d *Detail) UpdateOrderFromModify(m *Modify) {
 	var updated bool
+	if m.ID != "" && d.ID != m.ID {
+		d.ID = m.ID
+		updated = true
+	}
 	if d.ImmediateOrCancel != m.ImmediateOrCancel {
 		d.ImmediateOrCancel = m.ImmediateOrCancel
 		updated = true
@@ -266,7 +276,9 @@ func (d *Detail) UpdateOrderFromModify(m *Modify) {
 		d.PostOnly = m.PostOnly
 		updated = true
 	}
-	if !m.Pair.IsEmpty() && m.Pair != d.Pair {
+	if !m.Pair.IsEmpty() && !m.Pair.Equal(d.Pair) {
+		// TODO: Add a check to see if the original pair is empty as well, but
+		// error if it is changing from BTC-USD -> LTC-USD.
 		d.Pair = m.Pair
 		updated = true
 	}
@@ -351,7 +363,7 @@ func (d *Detail) UpdateOrderFromModify(m *Modify) {
 		updated = true
 	}
 	if updated {
-		if d.LastUpdated == m.LastUpdated {
+		if d.LastUpdated.Equal(m.LastUpdated) {
 			d.LastUpdated = time.Now()
 		} else {
 			d.LastUpdated = m.LastUpdated
@@ -401,6 +413,40 @@ func (d *Detail) MatchFilter(f *Filter) bool {
 	return true
 }
 
+// IsActive returns true if an order has a status that indicates it is
+// currently available on the exchange
+func (d *Detail) IsActive() bool {
+	if d.Amount <= 0 || d.Amount <= d.ExecutedAmount {
+		return false
+	}
+	return d.Status == Active || d.Status == Open || d.Status == PartiallyFilled || d.Status == New ||
+		d.Status == AnyStatus || d.Status == PendingCancel || d.Status == Hidden || d.Status == UnknownStatus ||
+		d.Status == AutoDeleverage || d.Status == Pending
+}
+
+// IsInactive returns true if an order has a status that indicates it is
+// currently not available on the exchange
+func (d *Detail) IsInactive() bool {
+	if d.Amount <= 0 || d.Amount <= d.ExecutedAmount {
+		return true
+	}
+	return d.Status == Filled || d.Status == Cancelled || d.Status == InsufficientBalance || d.Status == MarketUnavailable ||
+		d.Status == Rejected || d.Status == PartiallyCancelled || d.Status == Expired || d.Status == Closed
+}
+
+// GenerateInternalOrderID sets a new V4 order ID or a V5 order ID if
+// the V4 function returns an error
+func (d *Detail) GenerateInternalOrderID() {
+	if d.InternalOrderID == "" {
+		var id uuid.UUID
+		id, err := uuid.NewV4()
+		if err != nil {
+			id = uuid.NewV5(uuid.UUID{}, d.ID)
+		}
+		d.InternalOrderID = id.String()
+	}
+}
+
 // Copy will return a copy of Detail
 func (d *Detail) Copy() Detail {
 	c := *d
@@ -444,6 +490,36 @@ func (s Side) Title() string {
 // String implements the stringer interface
 func (s Status) String() string {
 	return string(s)
+}
+
+// InferCostsAndTimes infer order costs using execution information and times when available
+func (d *Detail) InferCostsAndTimes() {
+	if d.CostAsset.IsEmpty() {
+		d.CostAsset = d.Pair.Quote
+	}
+
+	if d.LastUpdated.IsZero() {
+		if d.CloseTime.IsZero() {
+			d.LastUpdated = d.Date
+		} else {
+			d.LastUpdated = d.CloseTime
+		}
+	}
+
+	if d.ExecutedAmount <= 0 {
+		return
+	}
+
+	if d.AverageExecutedPrice == 0 {
+		if d.Cost != 0 {
+			d.AverageExecutedPrice = d.Cost / d.ExecutedAmount
+		} else {
+			d.AverageExecutedPrice = d.Price
+		}
+	}
+	if d.Cost == 0 {
+		d.Cost = d.AverageExecutedPrice * d.ExecutedAmount
+	}
 }
 
 // FilterOrdersBySide removes any order details that don't match the
@@ -701,7 +777,8 @@ func StringToOrderStatus(status string) (Status, error) {
 	case strings.EqualFold(status, New.String()),
 		strings.EqualFold(status, "placed"):
 		return New, nil
-	case strings.EqualFold(status, Active.String()):
+	case strings.EqualFold(status, Active.String()),
+		strings.EqualFold(status, "STATUS_ACTIVE"): // BTSE case
 		return Active, nil
 	case strings.EqualFold(status, PartiallyFilled.String()),
 		strings.EqualFold(status, "partially matched"),
@@ -709,18 +786,20 @@ func StringToOrderStatus(status string) (Status, error) {
 		return PartiallyFilled, nil
 	case strings.EqualFold(status, Filled.String()),
 		strings.EqualFold(status, "fully matched"),
-		strings.EqualFold(status, "fully filled"):
+		strings.EqualFold(status, "fully filled"),
+		strings.EqualFold(status, "ORDER_FULLY_TRANSACTED"): // BTSE case
 		return Filled, nil
 	case strings.EqualFold(status, PartiallyCancelled.String()),
-		strings.EqualFold(status, "partially cancelled"):
+		strings.EqualFold(status, "partially cancelled"),
+		strings.EqualFold(status, "ORDER_PARTIALLY_TRANSACTED"): // BTSE case
 		return PartiallyCancelled, nil
 	case strings.EqualFold(status, Open.String()):
 		return Open, nil
 	case strings.EqualFold(status, Closed.String()):
 		return Closed, nil
-	case strings.EqualFold(status, Cancelled.String()):
-		return Cancelled, nil
-	case strings.EqualFold(status, "CANCELED"): // Kraken case
+	case strings.EqualFold(status, Cancelled.String()),
+		strings.EqualFold(status, "CANCELED"),        // Binance and Kraken case
+		strings.EqualFold(status, "ORDER_CANCELLED"): // BTSE case
 		return Cancelled, nil
 	case strings.EqualFold(status, PendingCancel.String()),
 		strings.EqualFold(status, "pending cancel"),

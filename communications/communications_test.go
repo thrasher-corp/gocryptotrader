@@ -8,8 +8,7 @@ import (
 
 func TestNewComm(t *testing.T) {
 	var cfg base.CommunicationsConfig
-	_, err := NewComm(&cfg)
-	if err == nil {
+	if _, err := NewComm(&cfg); err == nil {
 		t.Error("NewComm should have failed on no enabled communication mediums")
 	}
 

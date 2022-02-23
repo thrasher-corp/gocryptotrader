@@ -1,6 +1,7 @@
 package live
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -36,16 +37,17 @@ func TestLoadCandles(t *testing.T) {
 		ConfigFormat:  pFormat,
 	}
 	var data *gctkline.Item
-	data, err = LoadData(exch, common.DataCandle, interval.Duration(), cp1, a)
+	data, err = LoadData(context.Background(),
+		exch, common.DataCandle, interval.Duration(), cp1, a)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(data.Candles) == 0 {
 		t.Error("expected candles")
 	}
-	_, err = LoadData(exch, -1, interval.Duration(), cp1, a)
+	_, err = LoadData(context.Background(), exch, -1, interval.Duration(), cp1, a)
 	if !errors.Is(err, common.ErrInvalidDataType) {
-		t.Errorf("expected '%v' received '%v'", err, common.ErrInvalidDataType)
+		t.Errorf("received: %v, expected: %v", err, common.ErrInvalidDataType)
 	}
 }
 
@@ -71,7 +73,7 @@ func TestLoadTrades(t *testing.T) {
 		ConfigFormat:  pFormat,
 	}
 	var data *gctkline.Item
-	data, err = LoadData(exch, common.DataTrade, interval.Duration(), cp1, a)
+	data, err = LoadData(context.Background(), exch, common.DataTrade, interval.Duration(), cp1, a)
 	if err != nil {
 		t.Fatal(err)
 	}

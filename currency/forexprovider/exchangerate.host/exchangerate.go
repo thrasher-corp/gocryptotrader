@@ -31,12 +31,12 @@ var (
 func (e *ExchangeRateHost) Setup(config base.Settings) error {
 	e.Name = config.Name
 	e.Enabled = config.Enabled
-	e.RESTPollingDelay = config.RESTPollingDelay
 	e.Verbose = config.Verbose
 	e.PrimaryProvider = config.PrimaryProvider
-	e.Requester = request.New(e.Name,
+	var err error
+	e.Requester, err = request.New(e.Name,
 		common.NewHTTPClientWithTimeout(base.DefaultTimeOut))
-	return nil
+	return err
 }
 
 // GetLatestRates returns a list of forex rates based on the supplied params
@@ -253,10 +253,13 @@ func (e *ExchangeRateHost) GetRates(baseCurrency, symbols string) (map[string]fl
 // SendHTTPRequest sends a typical get request
 func (e *ExchangeRateHost) SendHTTPRequest(endpoint string, v url.Values, result interface{}) error {
 	path := common.EncodeURLValues(exchangeRateHostURL+"/"+endpoint, v)
-	return e.Requester.SendPayload(context.Background(), &request.Item{
+	item := &request.Item{
 		Method:  http.MethodGet,
 		Path:    path,
 		Result:  &result,
 		Verbose: e.Verbose,
+	}
+	return e.Requester.SendPayload(context.TODO(), request.Unset, func() (*request.Item, error) {
+		return item, nil
 	})
 }

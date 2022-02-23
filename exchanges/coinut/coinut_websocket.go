@@ -48,6 +48,8 @@ func (c *COINUT) WsConnect() error {
 	if err != nil {
 		return err
 	}
+
+	c.Websocket.Wg.Add(1)
 	go c.wsReadData()
 
 	if !c.instrumentMap.IsLoaded() {
@@ -71,7 +73,6 @@ func (c *COINUT) WsConnect() error {
 
 // wsReadData receives and passes on websocket messages for processing
 func (c *COINUT) wsReadData() {
-	c.Websocket.Wg.Add(1)
 	defer c.Websocket.Wg.Done()
 
 	for {
@@ -690,9 +691,14 @@ func (c *COINUT) wsAuthenticate() error {
 	payload := c.API.Credentials.ClientID + "|" +
 		strconv.FormatInt(timestamp, 10) + "|" +
 		strconv.FormatInt(nonce, 10)
-	hmac := crypto.GetHMAC(crypto.HashSHA256,
+
+	hmac, err := crypto.GetHMAC(crypto.HashSHA256,
 		[]byte(payload),
 		[]byte(c.API.Credentials.Key))
+	if err != nil {
+		return err
+	}
+
 	loginRequest := struct {
 		Request   string `json:"request"`
 		Username  string `json:"username"`

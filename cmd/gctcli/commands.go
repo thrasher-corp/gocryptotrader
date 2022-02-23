@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -16,7 +15,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
 	"github.com/urfave/cli/v2"
-	"google.golang.org/grpc"
 )
 
 var startTime, endTime, order string
@@ -28,15 +26,15 @@ var getInfoCommand = &cli.Command{
 	Action: getInfo,
 }
 
-func getInfo(_ *cli.Context) error {
-	conn, err := setupClient()
+func getInfo(c *cli.Context) error {
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.GetInfo(context.Background(),
+	result, err := client.GetInfo(c.Context,
 		&gctrpc.GetInfoRequest{},
 	)
 
@@ -54,15 +52,15 @@ var getSubsystemsCommand = &cli.Command{
 	Action: getSubsystems,
 }
 
-func getSubsystems(_ *cli.Context) error {
-	conn, err := setupClient()
+func getSubsystems(c *cli.Context) error {
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.GetSubsystems(context.Background(),
+	result, err := client.GetSubsystems(c.Context,
 		&gctrpc.GetSubsystemsRequest{},
 	)
 
@@ -103,14 +101,14 @@ func enableSubsystem(c *cli.Context) error {
 		return errors.New("invalid subsystem supplied")
 	}
 
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.EnableSubsystem(context.Background(),
+	result, err := client.EnableSubsystem(c.Context,
 		&gctrpc.GenericSubsystemRequest{
 			Subsystem: subsystemName,
 		},
@@ -153,14 +151,14 @@ func disableSubsystem(c *cli.Context) error {
 		return errors.New("invalid subsystem supplied")
 	}
 
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.DisableSubsystem(context.Background(),
+	result, err := client.DisableSubsystem(c.Context,
 		&gctrpc.GenericSubsystemRequest{
 			Subsystem: subsystemName,
 		},
@@ -180,15 +178,15 @@ var getRPCEndpointsCommand = &cli.Command{
 	Action: getRPCEndpoints,
 }
 
-func getRPCEndpoints(_ *cli.Context) error {
-	conn, err := setupClient()
+func getRPCEndpoints(c *cli.Context) error {
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.GetRPCEndpoints(context.Background(),
+	result, err := client.GetRPCEndpoints(c.Context,
 		&gctrpc.GetRPCEndpointsRequest{},
 	)
 
@@ -206,15 +204,15 @@ var getCommunicationRelayersCommand = &cli.Command{
 	Action: getCommunicationRelayers,
 }
 
-func getCommunicationRelayers(_ *cli.Context) error {
-	conn, err := setupClient()
+func getCommunicationRelayers(c *cli.Context) error {
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.GetCommunicationRelayers(context.Background(),
+	result, err := client.GetCommunicationRelayers(c.Context,
 		&gctrpc.GetCommunicationRelayersRequest{},
 	)
 
@@ -240,11 +238,11 @@ var getExchangesCommand = &cli.Command{
 }
 
 func getExchanges(c *cli.Context) error {
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 
 	var enabledOnly bool
 	if c.IsSet("enabled") {
@@ -252,7 +250,7 @@ func getExchanges(c *cli.Context) error {
 	}
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.GetExchanges(context.Background(),
+	result, err := client.GetExchanges(c.Context,
 		&gctrpc.GetExchangesRequest{
 			Enabled: enabledOnly,
 		},
@@ -291,18 +289,14 @@ func enableExchange(c *cli.Context) error {
 		exchangeName = c.Args().First()
 	}
 
-	if !validExchange(exchangeName) {
-		return errInvalidExchange
-	}
-
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.EnableExchange(context.Background(),
+	result, err := client.EnableExchange(c.Context,
 		&gctrpc.GenericExchangeNameRequest{
 			Exchange: exchangeName,
 		},
@@ -341,18 +335,14 @@ func disableExchange(c *cli.Context) error {
 		exchangeName = c.Args().First()
 	}
 
-	if !validExchange(exchangeName) {
-		return errInvalidExchange
-	}
-
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.DisableExchange(context.Background(),
+	result, err := client.DisableExchange(c.Context,
 		&gctrpc.GenericExchangeNameRequest{
 			Exchange: exchangeName,
 		},
@@ -391,18 +381,14 @@ func getExchangeOTPCode(c *cli.Context) error {
 		exchangeName = c.Args().First()
 	}
 
-	if !validExchange(exchangeName) {
-		return errInvalidExchange
-	}
-
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.GetExchangeOTPCode(context.Background(),
+	result, err := client.GetExchangeOTPCode(c.Context,
 		&gctrpc.GenericExchangeNameRequest{
 			Exchange: exchangeName,
 		},
@@ -423,14 +409,14 @@ var getExchangeOTPsCommand = &cli.Command{
 }
 
 func getExchangeOTPCodes(c *cli.Context) error {
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.GetExchangeOTPCodes(context.Background(),
+	result, err := client.GetExchangeOTPCodes(c.Context,
 		&gctrpc.GetExchangeOTPsRequest{})
 
 	if err != nil {
@@ -466,18 +452,14 @@ func getExchangeInfo(c *cli.Context) error {
 		exchangeName = c.Args().First()
 	}
 
-	if !validExchange(exchangeName) {
-		return errInvalidExchange
-	}
-
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.GetExchangeInfo(context.Background(),
+	result, err := client.GetExchangeInfo(c.Context,
 		&gctrpc.GenericExchangeNameRequest{
 			Exchange: exchangeName,
 		},
@@ -527,10 +509,6 @@ func getTicker(c *cli.Context) error {
 		exchangeName = c.Args().First()
 	}
 
-	if !validExchange(exchangeName) {
-		return errInvalidExchange
-	}
-
 	if c.IsSet("pair") {
 		currencyPair = c.String("pair")
 	} else {
@@ -557,14 +535,14 @@ func getTicker(c *cli.Context) error {
 		return err
 	}
 
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.GetTicker(context.Background(),
+	result, err := client.GetTicker(c.Context,
 		&gctrpc.GetTickerRequest{
 			Exchange: exchangeName,
 			Pair: &gctrpc.CurrencyPair{
@@ -590,15 +568,15 @@ var getTickersCommand = &cli.Command{
 	Action: getTickers,
 }
 
-func getTickers(_ *cli.Context) error {
-	conn, err := setupClient()
+func getTickers(c *cli.Context) error {
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.GetTickers(context.Background(), &gctrpc.GetTickersRequest{})
+	result, err := client.GetTickers(c.Context, &gctrpc.GetTickersRequest{})
 	if err != nil {
 		return err
 	}
@@ -643,10 +621,6 @@ func getOrderbook(c *cli.Context) error {
 		exchangeName = c.Args().First()
 	}
 
-	if !validExchange(exchangeName) {
-		return errInvalidExchange
-	}
-
 	if c.IsSet("pair") {
 		currencyPair = c.String("pair")
 	} else {
@@ -673,14 +647,14 @@ func getOrderbook(c *cli.Context) error {
 		return err
 	}
 
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.GetOrderbook(context.Background(),
+	result, err := client.GetOrderbook(c.Context,
 		&gctrpc.GetOrderbookRequest{
 			Exchange: exchangeName,
 			Pair: &gctrpc.CurrencyPair{
@@ -706,15 +680,15 @@ var getOrderbooksCommand = &cli.Command{
 	Action: getOrderbooks,
 }
 
-func getOrderbooks(_ *cli.Context) error {
-	conn, err := setupClient()
+func getOrderbooks(c *cli.Context) error {
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.GetOrderbooks(context.Background(), &gctrpc.GetOrderbooksRequest{})
+	result, err := client.GetOrderbooks(c.Context, &gctrpc.GetOrderbooksRequest{})
 	if err != nil {
 		return err
 	}
@@ -758,22 +732,18 @@ func getAccountInfo(c *cli.Context) error {
 		assetType = c.Args().Get(1)
 	}
 
-	if !validExchange(exchange) {
-		return errInvalidExchange
-	}
-
 	if !validAsset(assetType) {
 		return errInvalidAsset
 	}
 
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.GetAccountInfo(context.Background(),
+	result, err := client.GetAccountInfo(c.Context,
 		&gctrpc.GetAccountInfoRequest{
 			Exchange:  exchange,
 			AssetType: assetType,
@@ -824,22 +794,18 @@ func getAccountInfoStream(c *cli.Context) error {
 		assetType = c.Args().Get(1)
 	}
 
-	if !validExchange(exchangeName) {
-		return errInvalidExchange
-	}
-
 	if !validAsset(assetType) {
 		return errInvalidAsset
 	}
 
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.GetAccountInfoStream(context.Background(),
+	result, err := client.GetAccountInfoStream(c.Context,
 		&gctrpc.GetAccountInfoRequest{Exchange: exchangeName, AssetType: assetType})
 	if err != nil {
 		return err
@@ -898,22 +864,18 @@ func updateAccountInfo(c *cli.Context) error {
 		assetType = c.Args().Get(1)
 	}
 
-	if !validExchange(exchange) {
-		return errInvalidExchange
-	}
-
 	if !validAsset(assetType) {
 		return errInvalidAsset
 	}
 
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.UpdateAccountInfo(context.Background(),
+	result, err := client.UpdateAccountInfo(c.Context,
 		&gctrpc.GetAccountInfoRequest{
 			Exchange:  exchange,
 			AssetType: assetType,
@@ -933,15 +895,15 @@ var getConfigCommand = &cli.Command{
 	Action: getConfig,
 }
 
-func getConfig(_ *cli.Context) error {
-	conn, err := setupClient()
+func getConfig(c *cli.Context) error {
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.GetConfig(context.Background(), &gctrpc.GetConfigRequest{})
+	result, err := client.GetConfig(c.Context, &gctrpc.GetConfigRequest{})
 	if err != nil {
 		return err
 	}
@@ -956,15 +918,15 @@ var getPortfolioCommand = &cli.Command{
 	Action: getPortfolio,
 }
 
-func getPortfolio(_ *cli.Context) error {
-	conn, err := setupClient()
+func getPortfolio(c *cli.Context) error {
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.GetPortfolio(context.Background(), &gctrpc.GetPortfolioRequest{})
+	result, err := client.GetPortfolio(c.Context, &gctrpc.GetPortfolioRequest{})
 	if err != nil {
 		return err
 	}
@@ -979,15 +941,15 @@ var getPortfolioSummaryCommand = &cli.Command{
 	Action: getPortfolioSummary,
 }
 
-func getPortfolioSummary(_ *cli.Context) error {
-	conn, err := setupClient()
+func getPortfolioSummary(c *cli.Context) error {
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.GetPortfolioSummary(context.Background(), &gctrpc.GetPortfolioSummaryRequest{})
+	result, err := client.GetPortfolioSummary(c.Context, &gctrpc.GetPortfolioSummaryRequest{})
 	if err != nil {
 		return err
 	}
@@ -1083,14 +1045,14 @@ func addPortfolioAddress(c *cli.Context) error {
 		supportedExchanges = c.Args().Get(5)
 	}
 
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.AddPortfolioAddress(context.Background(),
+	result, err := client.AddPortfolioAddress(c.Context,
 		&gctrpc.AddPortfolioAddressRequest{
 			Address:            address,
 			CoinType:           coinType,
@@ -1157,14 +1119,14 @@ func removePortfolioAddress(c *cli.Context) error {
 		description = c.Args().Get(2)
 	}
 
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.RemovePortfolioAddress(context.Background(),
+	result, err := client.RemovePortfolioAddress(c.Context,
 		&gctrpc.RemovePortfolioAddressRequest{
 			Address:     address,
 			CoinType:    coinType,
@@ -1186,15 +1148,15 @@ var getForexProvidersCommand = &cli.Command{
 	Action: getForexProviders,
 }
 
-func getForexProviders(_ *cli.Context) error {
-	conn, err := setupClient()
+func getForexProviders(c *cli.Context) error {
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.GetForexProviders(context.Background(), &gctrpc.GetForexProvidersRequest{})
+	result, err := client.GetForexProviders(c.Context, &gctrpc.GetForexProvidersRequest{})
 	if err != nil {
 		return err
 	}
@@ -1209,15 +1171,15 @@ var getForexRatesCommand = &cli.Command{
 	Action: getForexRates,
 }
 
-func getForexRates(_ *cli.Context) error {
-	conn, err := setupClient()
+func getForexRates(c *cli.Context) error {
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.GetForexRates(context.Background(), &gctrpc.GetForexRatesRequest{})
+	result, err := client.GetForexRates(c.Context, &gctrpc.GetForexRatesRequest{})
 	if err != nil {
 		return err
 	}
@@ -1274,10 +1236,6 @@ func getOrders(c *cli.Context) error {
 		exchangeName = c.Args().First()
 	}
 
-	if !validExchange(exchangeName) {
-		return errInvalidExchange
-	}
-
 	if c.IsSet("asset") {
 		assetType = c.String("asset")
 	} else {
@@ -1329,15 +1287,14 @@ func getOrders(c *cli.Context) error {
 		return errors.New("start cannot be after end")
 	}
 
-	var conn *grpc.ClientConn
-	conn, err = setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.GetOrders(context.Background(), &gctrpc.GetOrdersRequest{
+	result, err := client.GetOrders(c.Context, &gctrpc.GetOrdersRequest{
 		Exchange:  exchangeName,
 		AssetType: assetType,
 		Pair: &gctrpc.CurrencyPair{
@@ -1392,10 +1349,6 @@ func getManagedOrders(c *cli.Context) error {
 		exchangeName = c.Args().First()
 	}
 
-	if !validExchange(exchangeName) {
-		return errInvalidExchange
-	}
-
 	if c.IsSet("asset") {
 		assetType = c.String("asset")
 	} else {
@@ -1422,15 +1375,14 @@ func getManagedOrders(c *cli.Context) error {
 		return err
 	}
 
-	var conn *grpc.ClientConn
-	conn, err = setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.GetManagedOrders(context.Background(), &gctrpc.GetOrdersRequest{
+	result, err := client.GetManagedOrders(c.Context, &gctrpc.GetOrdersRequest{
 		Exchange:  exchangeName,
 		AssetType: assetType,
 		Pair: &gctrpc.CurrencyPair{
@@ -1450,7 +1402,7 @@ func getManagedOrders(c *cli.Context) error {
 var getOrderCommand = &cli.Command{
 	Name:      "getorder",
 	Usage:     "gets the specified order info",
-	ArgsUsage: "<exchange> <order_id> <pair>",
+	ArgsUsage: "<exchange> <asset> <pair> <order_id>",
 	Action:    getOrder,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
@@ -1487,10 +1439,6 @@ func getOrder(c *cli.Context) error {
 	} else {
 		exchangeName = c.Args().First()
 	}
-	if !validExchange(exchangeName) {
-		return errInvalidExchange
-	}
-
 	if c.IsSet("asset") {
 		assetType = c.String("asset")
 	} else {
@@ -1521,14 +1469,14 @@ func getOrder(c *cli.Context) error {
 		orderID = c.Args().Get(3)
 	}
 
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.GetOrder(context.Background(), &gctrpc.GetOrderRequest{
+	result, err := client.GetOrder(c.Context, &gctrpc.GetOrderRequest{
 		Exchange: exchangeName,
 		OrderId:  orderID,
 		Pair: &gctrpc.CurrencyPair{
@@ -1605,10 +1553,6 @@ func submitOrder(c *cli.Context) error {
 		exchangeName = c.String("exchange")
 	} else {
 		exchangeName = c.Args().First()
-	}
-
-	if !validExchange(exchangeName) {
-		return errInvalidExchange
 	}
 
 	if c.IsSet("pair") {
@@ -1688,14 +1632,14 @@ func submitOrder(c *cli.Context) error {
 		return err
 	}
 
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.SubmitOrder(context.Background(), &gctrpc.SubmitOrderRequest{
+	result, err := client.SubmitOrder(c.Context, &gctrpc.SubmitOrderRequest{
 		Exchange: exchangeName,
 		Pair: &gctrpc.CurrencyPair{
 			Delimiter: p.Delimiter,
@@ -1758,10 +1702,6 @@ func simulateOrder(c *cli.Context) error {
 		exchangeName = c.Args().First()
 	}
 
-	if !validExchange(exchangeName) {
-		return errInvalidExchange
-	}
-
 	if c.IsSet("pair") {
 		currencyPair = c.String("pair")
 	} else {
@@ -1801,14 +1741,14 @@ func simulateOrder(c *cli.Context) error {
 		return err
 	}
 
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.SimulateOrder(context.Background(), &gctrpc.SimulateOrderRequest{
+	result, err := client.SimulateOrder(c.Context, &gctrpc.SimulateOrderRequest{
 		Exchange: exchangeName,
 		Pair: &gctrpc.CurrencyPair{
 			Delimiter: p.Delimiter,
@@ -1867,10 +1807,6 @@ func whaleBomb(c *cli.Context) error {
 		exchangeName = c.Args().First()
 	}
 
-	if !validExchange(exchangeName) {
-		return errInvalidExchange
-	}
-
 	if c.IsSet("pair") {
 		currencyPair = c.String("pair")
 	} else {
@@ -1906,14 +1842,14 @@ func whaleBomb(c *cli.Context) error {
 		return err
 	}
 
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.WhaleBomb(context.Background(), &gctrpc.WhaleBombRequest{
+	result, err := client.WhaleBomb(c.Context, &gctrpc.WhaleBombRequest{
 		Exchange: exchangeName,
 		Pair: &gctrpc.CurrencyPair{
 			Delimiter: p.Delimiter,
@@ -1987,10 +1923,6 @@ func cancelOrder(c *cli.Context) error {
 		exchangeName = c.Args().First()
 	}
 
-	if !validExchange(exchangeName) {
-		return errInvalidExchange
-	}
-
 	if c.IsSet("account_id") {
 		accountID = c.String("account_id")
 	} else {
@@ -2049,14 +1981,14 @@ func cancelOrder(c *cli.Context) error {
 		}
 	}
 
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.CancelOrder(context.Background(), &gctrpc.CancelOrderRequest{
+	result, err := client.CancelOrder(c.Context, &gctrpc.CancelOrderRequest{
 		Exchange:  exchangeName,
 		AccountId: accountID,
 		OrderId:   orderID,
@@ -2133,10 +2065,6 @@ func cancelBatchOrders(c *cli.Context) error {
 		exchangeName = c.Args().First()
 	}
 
-	if !validExchange(exchangeName) {
-		return errInvalidExchange
-	}
-
 	if c.IsSet("account_id") {
 		accountID = c.String("account_id")
 	} else {
@@ -2195,14 +2123,14 @@ func cancelBatchOrders(c *cli.Context) error {
 		}
 	}
 
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.CancelBatchOrders(context.Background(), &gctrpc.CancelBatchOrdersRequest{
+	result, err := client.CancelBatchOrders(c.Context, &gctrpc.CancelBatchOrdersRequest{
 		Exchange:  exchangeName,
 		AccountId: accountID,
 		OrdersId:  orderID,
@@ -2236,6 +2164,39 @@ var cancelAllOrdersCommand = &cli.Command{
 	},
 }
 
+var modifyOrderCommand = &cli.Command{
+	Name:      "modifyorder",
+	Usage:     "modify price and/or amount of a previously submitted order",
+	ArgsUsage: "<exchange> <asset> <pair> <order_id>",
+	Action:    modifyOrder,
+	Flags: []cli.Flag{
+		&cli.StringFlag{
+			Name:  "exchange",
+			Usage: "exchange this order is submitted to",
+		},
+		&cli.StringFlag{
+			Name:  "asset",
+			Usage: "required asset type",
+		},
+		&cli.StringFlag{
+			Name:  "pair",
+			Usage: "required trading pair",
+		},
+		&cli.StringFlag{
+			Name:  "order_id",
+			Usage: "id of the order to be modified",
+		},
+		&cli.Float64Flag{
+			Name:  "price",
+			Usage: "new order price",
+		},
+		&cli.Float64Flag{
+			Name:  "amount",
+			Usage: "new order amount",
+		},
+	},
+}
+
 func cancelAllOrders(c *cli.Context) error {
 	var exchangeName string
 	if c.IsSet("exchange") {
@@ -2244,22 +2205,104 @@ func cancelAllOrders(c *cli.Context) error {
 		exchangeName = c.Args().First()
 	}
 
-	// exchange name is an optional param
-	if exchangeName != "" {
-		if !validExchange(exchangeName) {
-			return errInvalidExchange
-		}
-	}
-
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.CancelAllOrders(context.Background(), &gctrpc.CancelAllOrdersRequest{
+	result, err := client.CancelAllOrders(c.Context, &gctrpc.CancelAllOrdersRequest{
 		Exchange: exchangeName,
+	})
+	if err != nil {
+		return err
+	}
+
+	jsonOutput(result)
+	return nil
+}
+
+func modifyOrder(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		return cli.ShowCommandHelp(c, "modifyorder")
+	}
+
+	// Parse positional arguments.
+	var exchangeName string
+	var orderID string
+	var currencyPair string
+	var assetType string
+
+	if c.IsSet("exchange") {
+		exchangeName = c.String("exchange")
+	} else {
+		exchangeName = c.Args().First()
+	}
+
+	if c.IsSet("asset") {
+		assetType = c.String("asset")
+	} else {
+		assetType = c.Args().Get(1)
+	}
+	assetType = strings.ToLower(assetType)
+	if !validAsset(assetType) {
+		return errInvalidAsset
+	}
+
+	if c.IsSet("pair") {
+		currencyPair = c.String("pair")
+	} else {
+		currencyPair = c.Args().Get(2)
+	}
+	if !validPair(currencyPair) {
+		return errInvalidPair
+	}
+
+	p, err := currency.NewPairDelimiter(currencyPair, pairDelimiter)
+	if err != nil {
+		return err
+	}
+
+	if c.IsSet("order_id") {
+		orderID = c.String("order_id")
+	} else {
+		orderID = c.Args().Get(3)
+	}
+
+	// Parse optional flags.
+	var price float64
+	var amount float64
+
+	if c.IsSet("price") {
+		price = c.Float64("price")
+	}
+	if c.IsSet("amount") {
+		amount = c.Float64("amount")
+	}
+	if price == 0 && amount == 0 {
+		return errors.New("either --price or --amount should be present")
+	}
+
+	// Setup gRPC, make a request and display response.
+	conn, cancel, err := setupClient(c)
+	if err != nil {
+		return err
+	}
+	defer closeConn(conn, cancel)
+
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+	result, err := client.ModifyOrder(c.Context, &gctrpc.ModifyOrderRequest{
+		Exchange: exchangeName,
+		OrderId:  orderID,
+		Pair: &gctrpc.CurrencyPair{
+			Delimiter: p.Delimiter,
+			Base:      p.Base.String(),
+			Quote:     p.Quote.String(),
+		},
+		Asset:  assetType,
+		Price:  price,
+		Amount: amount,
 	})
 	if err != nil {
 		return err
@@ -2275,15 +2318,15 @@ var getEventsCommand = &cli.Command{
 	Action: getEvents,
 }
 
-func getEvents(_ *cli.Context) error {
-	conn, err := setupClient()
+func getEvents(c *cli.Context) error {
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.GetEvents(context.Background(), &gctrpc.GetEventsRequest{})
+	result, err := client.GetEvents(c.Context, &gctrpc.GetEventsRequest{})
 	if err != nil {
 		return err
 	}
@@ -2363,10 +2406,6 @@ func addEvent(c *cli.Context) error {
 		return fmt.Errorf("exchange name is required")
 	}
 
-	if !validExchange(exchangeName) {
-		return errInvalidExchange
-	}
-
 	if c.IsSet("item") {
 		item = c.String("item")
 	} else {
@@ -2425,14 +2464,14 @@ func addEvent(c *cli.Context) error {
 		return err
 	}
 
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.AddEvent(context.Background(), &gctrpc.AddEventRequest{
+	result, err := client.AddEvent(c.Context, &gctrpc.AddEventRequest{
 		Exchange: exchangeName,
 		Item:     item,
 		ConditionParams: &gctrpc.ConditionParams{
@@ -2491,14 +2530,14 @@ func removeEvent(c *cli.Context) error {
 		return errors.New("event id must be specified")
 	}
 
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.RemoveEvent(context.Background(),
+	result, err := client.RemoveEvent(c.Context,
 		&gctrpc.RemoveEventRequest{Id: eventID})
 	if err != nil {
 		return err
@@ -2533,18 +2572,14 @@ func getCryptocurrencyDepositAddresses(c *cli.Context) error {
 		exchangeName = c.Args().First()
 	}
 
-	if !validExchange(exchangeName) {
-		return errInvalidExchange
-	}
-
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.GetCryptocurrencyDepositAddresses(context.Background(),
+	result, err := client.GetCryptocurrencyDepositAddresses(c.Context,
 		&gctrpc.GetCryptocurrencyDepositAddressesRequest{Exchange: exchangeName})
 	if err != nil {
 		return err
@@ -2557,7 +2592,7 @@ func getCryptocurrencyDepositAddresses(c *cli.Context) error {
 var getCryptocurrencyDepositAddressCommand = &cli.Command{
 	Name:      "getcryptocurrencydepositaddress",
 	Usage:     "gets the cryptocurrency deposit address for an exchange and cryptocurrency",
-	ArgsUsage: "<exchange> <cryptocurrency>",
+	ArgsUsage: "<exchange> <cryptocurrency> <chain> <bypass>",
 	Action:    getCryptocurrencyDepositAddress,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
@@ -2568,12 +2603,20 @@ var getCryptocurrencyDepositAddressCommand = &cli.Command{
 			Name:  "cryptocurrency",
 			Usage: "the cryptocurrency to get the deposit address for",
 		},
+		&cli.StringFlag{
+			Name:  "chain",
+			Usage: "the chain to use for the deposit",
+		},
+		&cli.BoolFlag{
+			Name:  "bypass",
+			Usage: "whether to bypass the deposit address manager cache if enabled",
+		},
 	},
 }
 
 func getCryptocurrencyDepositAddress(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "getcryptocurrencydepositaddresses")
+		return cli.ShowCommandHelp(c, "getcryptocurrencydepositaddress")
 	}
 
 	var exchangeName string
@@ -2583,10 +2626,6 @@ func getCryptocurrencyDepositAddress(c *cli.Context) error {
 		exchangeName = c.String("exchange")
 	} else {
 		exchangeName = c.Args().First()
-	}
-
-	if !validExchange(exchangeName) {
-		return errInvalidExchange
 	}
 
 	if c.IsSet("cryptocurrency") {
@@ -2599,15 +2638,97 @@ func getCryptocurrencyDepositAddress(c *cli.Context) error {
 		return errors.New("cryptocurrency must be set")
 	}
 
-	conn, err := setupClient()
+	var chain string
+	if c.IsSet("chain") {
+		chain = c.String("chain")
+	} else if c.Args().Get(2) != "" {
+		chain = c.Args().Get(2)
+	}
+
+	var bypass bool
+	if c.IsSet("bypass") {
+		bypass = c.Bool("bypass")
+	} else if c.Args().Get(3) != "" {
+		b, err := strconv.ParseBool(c.Args().Get(3))
+		if err != nil {
+			return err
+		}
+		bypass = b
+	}
+
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.GetCryptocurrencyDepositAddress(context.Background(),
+	result, err := client.GetCryptocurrencyDepositAddress(c.Context,
 		&gctrpc.GetCryptocurrencyDepositAddressRequest{
+			Exchange:       exchangeName,
+			Cryptocurrency: cryptocurrency,
+			Chain:          chain,
+			Bypass:         bypass,
+		},
+	)
+	if err != nil {
+		return err
+	}
+
+	jsonOutput(result)
+	return nil
+}
+
+var getAvailableTransferChainsCommand = &cli.Command{
+	Name:      "getavailabletransferchains",
+	Usage:     "gets the available transfer chains (deposits and withdrawals) for the desired exchange and cryptocurrency",
+	ArgsUsage: "<exchange> <cryptocurrency>",
+	Action:    getAvailableTransferChains,
+	Flags: []cli.Flag{
+		&cli.StringFlag{
+			Name:  "exchange",
+			Usage: "the exchange to get the available transfer chains",
+		},
+		&cli.StringFlag{
+			Name:  "cryptocurrency",
+			Usage: "the cryptocurrency to get the available transfer chains for",
+		},
+	},
+}
+
+func getAvailableTransferChains(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		return cli.ShowCommandHelp(c, "getavailabletransferchains")
+	}
+
+	var exchangeName string
+	var cryptocurrency string
+
+	if c.IsSet("exchange") {
+		exchangeName = c.String("exchange")
+	} else {
+		exchangeName = c.Args().First()
+	}
+
+	if c.IsSet("cryptocurrency") {
+		cryptocurrency = c.String("cryptocurrency")
+	} else if c.Args().Get(1) != "" {
+		cryptocurrency = c.Args().Get(1)
+	}
+
+	if cryptocurrency == "" {
+		return errors.New("cryptocurrency must be set")
+	}
+
+	conn, cancel, err := setupClient(c)
+	if err != nil {
+		return err
+	}
+	defer closeConn(conn, cancel)
+
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+	result, err := client.GetAvailableTransferChains(c.Context,
+		&gctrpc.GetAvailableTransferChainsRequest{
 			Exchange:       exchangeName,
 			Cryptocurrency: cryptocurrency,
 		},
@@ -2623,7 +2744,7 @@ func getCryptocurrencyDepositAddress(c *cli.Context) error {
 var withdrawCryptocurrencyFundsCommand = &cli.Command{
 	Name:      "withdrawcryptofunds",
 	Usage:     "withdraws cryptocurrency funds from the desired exchange",
-	ArgsUsage: "<exchange> <currency>  <amount> <address> <addresstag> <fee> <description>",
+	ArgsUsage: "<exchange> <currency> <amount> <address> <addresstag> <fee> <description> <chain>",
 	Action:    withdrawCryptocurrencyFunds,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
@@ -2654,6 +2775,10 @@ var withdrawCryptocurrencyFundsCommand = &cli.Command{
 			Name:  "description",
 			Usage: "description to submit with request",
 		},
+		&cli.StringFlag{
+			Name:  "chain",
+			Usage: "chain to use for the withdrawal",
+		},
 	},
 }
 
@@ -2662,17 +2787,13 @@ func withdrawCryptocurrencyFunds(c *cli.Context) error {
 		return cli.ShowCommandHelp(c, "withdrawcryptofunds")
 	}
 
-	var exchange, cur, address, addressTag, description string
+	var exchange, cur, address, addressTag, chain, description string
 	var amount, fee float64
 
 	if c.IsSet("exchange") {
 		exchange = c.String("exchange")
 	} else if c.Args().Get(0) != "" {
 		exchange = c.Args().Get(0)
-	}
-
-	if !validExchange(exchange) {
-		return errInvalidExchange
 	}
 
 	if c.IsSet("currency") {
@@ -2717,15 +2838,21 @@ func withdrawCryptocurrencyFunds(c *cli.Context) error {
 		description = c.Args().Get(6)
 	}
 
-	conn, err := setupClient()
+	if c.IsSet("chain") {
+		chain = c.String("chain")
+	} else if c.Args().Get(7) != "" {
+		chain = c.Args().Get(7)
+	}
+
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 
-	result, err := client.WithdrawCryptocurrencyFunds(context.Background(),
+	result, err := client.WithdrawCryptocurrencyFunds(c.Context,
 		&gctrpc.WithdrawCryptoRequest{
 			Exchange:    exchange,
 			Currency:    cur,
@@ -2734,6 +2861,7 @@ func withdrawCryptocurrencyFunds(c *cli.Context) error {
 			Amount:      amount,
 			Fee:         fee,
 			Description: description,
+			Chain:       chain,
 		},
 	)
 	if err != nil {
@@ -2786,10 +2914,6 @@ func withdrawFiatFunds(c *cli.Context) error {
 		exchange = c.Args().Get(0)
 	}
 
-	if !validExchange(exchange) {
-		return errInvalidExchange
-	}
-
 	if c.IsSet("currency") {
 		cur = c.String("currency")
 	} else if c.Args().Get(1) != "" {
@@ -2817,14 +2941,14 @@ func withdrawFiatFunds(c *cli.Context) error {
 		description = c.Args().Get(4)
 	}
 
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.WithdrawFiatFunds(context.Background(),
+	result, err := client.WithdrawFiatFunds(c.Context,
 		&gctrpc.WithdrawFiatRequest{
 			Exchange:      exchange,
 			Currency:      cur,
@@ -2926,8 +3050,7 @@ var withdrawalRequestCommand = &cli.Command{
 
 func withdrawlRequestByID(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		cli.ShowSubcommandHelp(c)
-		return nil
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var ID string
@@ -2941,15 +3064,15 @@ func withdrawlRequestByID(c *cli.Context) error {
 		return errors.New("an ID must be specified")
 	}
 
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 
-	result, err := client.WithdrawalEventByID(context.Background(),
+	result, err := client.WithdrawalEventByID(c.Context,
 		&gctrpc.WithdrawalEventByIDRequest{
 			Id: ID,
 		},
@@ -2963,8 +3086,7 @@ func withdrawlRequestByID(c *cli.Context) error {
 
 func withdrawlRequestByExchangeID(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		cli.ShowSubcommandHelp(c)
-		return nil
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchange, currency string
@@ -3006,15 +3128,15 @@ func withdrawlRequestByExchangeID(c *cli.Context) error {
 		}
 	}
 
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 
-	result, err := client.WithdrawalEventsByExchange(context.Background(),
+	result, err := client.WithdrawalEventsByExchange(c.Context,
 		&gctrpc.WithdrawalEventsByExchangeRequest{
 			Exchange: exchange,
 			Id:       ID,
@@ -3031,8 +3153,7 @@ func withdrawlRequestByExchangeID(c *cli.Context) error {
 
 func withdrawlRequestByDate(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		cli.ShowSubcommandHelp(c)
-		return nil
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchange string
@@ -3082,14 +3203,14 @@ func withdrawlRequestByDate(c *cli.Context) error {
 		return errors.New("start cannot be after end")
 	}
 
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.WithdrawalEventsByDate(context.Background(),
+	result, err := client.WithdrawalEventsByDate(c.Context,
 		&gctrpc.WithdrawalEventsByDateRequest{
 			Exchange: exchange,
 			Start:    negateLocalOffset(s),
@@ -3133,15 +3254,15 @@ func getLoggerDetails(c *cli.Context) error {
 		return errors.New("a logger must be specified")
 	}
 
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 
-	result, err := client.GetLoggerDetails(context.Background(),
+	result, err := client.GetLoggerDetails(c.Context,
 		&gctrpc.GetLoggerDetailsRequest{
 			Logger: logger,
 		},
@@ -3198,15 +3319,15 @@ func setLoggerDetails(c *cli.Context) error {
 		return errors.New("level must be specified")
 	}
 
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 
-	result, err := client.SetLoggerDetails(context.Background(),
+	result, err := client.SetLoggerDetails(c.Context,
 		&gctrpc.SetLoggerDetailsRequest{
 			Logger: logger,
 			Level:  level,
@@ -3255,10 +3376,6 @@ func getOrderbookStream(c *cli.Context) error {
 		exchangeName = c.Args().First()
 	}
 
-	if !validExchange(exchangeName) {
-		return errInvalidExchange
-	}
-
 	if c.IsSet("pair") {
 		pair = c.String("pair")
 	} else {
@@ -3286,14 +3403,14 @@ func getOrderbookStream(c *cli.Context) error {
 		return err
 	}
 
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.GetOrderbookStream(context.Background(),
+	result, err := client.GetOrderbookStream(c.Context,
 		&gctrpc.GetOrderbookStreamRequest{
 			Exchange: exchangeName,
 			Pair: &gctrpc.CurrencyPair{
@@ -3391,18 +3508,14 @@ func getExchangeOrderbookStream(c *cli.Context) error {
 		exchangeName = c.Args().First()
 	}
 
-	if !validExchange(exchangeName) {
-		return errInvalidExchange
-	}
-
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.GetExchangeOrderbookStream(context.Background(),
+	result, err := client.GetExchangeOrderbookStream(c.Context,
 		&gctrpc.GetExchangeOrderbookStreamRequest{
 			Exchange: exchangeName,
 		})
@@ -3464,10 +3577,6 @@ func getTickerStream(c *cli.Context) error {
 		exchangeName = c.Args().First()
 	}
 
-	if !validExchange(exchangeName) {
-		return errInvalidExchange
-	}
-
 	if c.IsSet("pair") {
 		pair = c.String("pair")
 	} else {
@@ -3495,14 +3604,14 @@ func getTickerStream(c *cli.Context) error {
 		return err
 	}
 
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.GetTickerStream(context.Background(),
+	result, err := client.GetTickerStream(c.Context,
 		&gctrpc.GetTickerStreamRequest{
 			Exchange: exchangeName,
 			Pair: &gctrpc.CurrencyPair{
@@ -3570,18 +3679,14 @@ func getExchangeTickerStream(c *cli.Context) error {
 		exchangeName = c.Args().First()
 	}
 
-	if !validExchange(exchangeName) {
-		return errInvalidExchange
-	}
-
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.GetExchangeTickerStream(context.Background(),
+	result, err := client.GetExchangeTickerStream(c.Context,
 		&gctrpc.GetExchangeTickerStreamRequest{
 			Exchange: exchangeName,
 		})
@@ -3691,16 +3796,16 @@ func getAuditEvent(c *cli.Context) error {
 		return errors.New("start cannot be after end")
 	}
 
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
 
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 
-	result, err := client.GetAuditEvent(context.Background(),
+	result, err := client.GetAuditEvent(c.Context,
 		&gctrpc.GetAuditEventRequest{
 			StartDate: negateLocalOffset(s),
 			EndDate:   negateLocalOffset(e),
@@ -3831,8 +3936,7 @@ var gctScriptCommand = &cli.Command{
 
 func gctScriptAutoload(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		_ = cli.ShowSubcommandHelp(c)
-		return nil
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var command, script string
@@ -3855,18 +3959,17 @@ func gctScriptAutoload(c *cli.Context) error {
 	case "remove":
 		status = true
 	default:
-		_ = cli.ShowSubcommandHelp(c)
-		return nil
+		return cli.ShowSubcommandHelp(c)
 	}
 
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 
-	executeCommand, err := client.GCTScriptAutoLoadToggle(context.Background(),
+	executeCommand, err := client.GCTScriptAutoLoadToggle(c.Context,
 		&gctrpc.GCTScriptAutoLoadRequest{
 			Script: script,
 			Status: status,
@@ -3882,8 +3985,7 @@ func gctScriptAutoload(c *cli.Context) error {
 
 func gctScriptExecute(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		_ = cli.ShowSubcommandHelp(c)
-		return nil
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	if !c.IsSet("filename") {
@@ -3898,14 +4000,14 @@ func gctScriptExecute(c *cli.Context) error {
 		}
 	}
 
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 
-	executeCommand, err := client.GCTScriptExecute(context.Background(),
+	executeCommand, err := client.GCTScriptExecute(c.Context,
 		&gctrpc.GCTScriptExecuteRequest{
 			Script: &gctrpc.GCTScript{
 				Name: filename,
@@ -3923,14 +4025,14 @@ func gctScriptExecute(c *cli.Context) error {
 }
 
 func gctScriptStatus(c *cli.Context) error {
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 
-	executeCommand, err := client.GCTScriptStatus(context.Background(),
+	executeCommand, err := client.GCTScriptStatus(c.Context,
 		&gctrpc.GCTScriptStatusRequest{})
 
 	if err != nil {
@@ -3942,14 +4044,14 @@ func gctScriptStatus(c *cli.Context) error {
 }
 
 func gctScriptList(c *cli.Context) error {
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 
-	executeCommand, err := client.GCTScriptListAll(context.Background(),
+	executeCommand, err := client.GCTScriptListAll(c.Context,
 		&gctrpc.GCTScriptListAllRequest{})
 
 	if err != nil {
@@ -3962,8 +4064,7 @@ func gctScriptList(c *cli.Context) error {
 
 func gctScriptStop(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		_ = cli.ShowSubcommandHelp(c)
-		return nil
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	if !c.IsSet("uuid") {
@@ -3972,14 +4073,14 @@ func gctScriptStop(c *cli.Context) error {
 		}
 	}
 
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 
-	executeCommand, err := client.GCTScriptStop(context.Background(),
+	executeCommand, err := client.GCTScriptStop(c.Context,
 		&gctrpc.GCTScriptStopRequest{
 			Script: &gctrpc.GCTScript{UUID: uuid},
 		})
@@ -3993,14 +4094,14 @@ func gctScriptStop(c *cli.Context) error {
 }
 
 func gctScriptStopAll(c *cli.Context) error {
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 
-	executeCommand, err := client.GCTScriptStopAll(context.Background(),
+	executeCommand, err := client.GCTScriptStopAll(c.Context,
 		&gctrpc.GCTScriptStopAllRequest{})
 
 	if err != nil {
@@ -4013,8 +4114,7 @@ func gctScriptStopAll(c *cli.Context) error {
 
 func gctScriptRead(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		_ = cli.ShowSubcommandHelp(c)
-		return nil
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	if !c.IsSet("name") {
@@ -4023,14 +4123,14 @@ func gctScriptRead(c *cli.Context) error {
 		}
 	}
 
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 
-	executeCommand, err := client.GCTScriptReadScript(context.Background(),
+	executeCommand, err := client.GCTScriptReadScript(c.Context,
 		&gctrpc.GCTScriptReadScriptRequest{
 			Script: &gctrpc.GCTScript{
 				Name: uuid,
@@ -4047,8 +4147,7 @@ func gctScriptRead(c *cli.Context) error {
 
 func gctScriptQuery(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		_ = cli.ShowSubcommandHelp(c)
-		return nil
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	if !c.IsSet("uuid") {
@@ -4057,14 +4156,14 @@ func gctScriptQuery(c *cli.Context) error {
 		}
 	}
 
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 
-	executeCommand, err := client.GCTScriptQuery(context.Background(),
+	executeCommand, err := client.GCTScriptQuery(c.Context,
 		&gctrpc.GCTScriptQueryRequest{
 			Script: &gctrpc.GCTScript{
 				UUID: uuid,
@@ -4082,8 +4181,7 @@ func gctScriptQuery(c *cli.Context) error {
 
 func gctScriptUpload(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		_ = cli.ShowSubcommandHelp(c)
-		return nil
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var overwrite bool
@@ -4121,11 +4219,11 @@ func gctScriptUpload(c *cli.Context) error {
 		return err
 	}
 
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 
 	data, err := ioutil.ReadAll(file)
@@ -4133,7 +4231,7 @@ func gctScriptUpload(c *cli.Context) error {
 		return err
 	}
 
-	uploadCommand, err := client.GCTScriptUpload(context.Background(),
+	uploadCommand, err := client.GCTScriptUpload(c.Context,
 		&gctrpc.GCTScriptUploadRequest{
 			ScriptName: filepath.Base(file.Name()),
 			Data:       data,
@@ -4205,10 +4303,6 @@ func getHistoricCandles(c *cli.Context) error {
 	} else {
 		exchangeName = c.Args().First()
 	}
-	if !validExchange(exchangeName) {
-		return errInvalidExchange
-	}
-
 	var currencyPair string
 	if c.IsSet("pair") {
 		currencyPair = c.String("pair")
@@ -4259,11 +4353,11 @@ func getHistoricCandles(c *cli.Context) error {
 		fillMissingData = c.Bool("fill")
 	}
 
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 
 	candleInterval := time.Duration(candleGranularity) * time.Second
 
@@ -4271,7 +4365,7 @@ func getHistoricCandles(c *cli.Context) error {
 	s := e.Add(-candleInterval * time.Duration(candleRangeSize))
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.GetHistoricCandles(context.Background(),
+	result, err := client.GetHistoricCandles(c.Context,
 		&gctrpc.GetHistoricCandlesRequest{
 			Exchange: exchangeName,
 			Pair: &gctrpc.CurrencyPair{
@@ -4364,10 +4458,6 @@ func getHistoricCandlesExtended(c *cli.Context) error {
 	} else {
 		exchangeName = c.Args().First()
 	}
-	if !validExchange(exchangeName) {
-		return errInvalidExchange
-	}
-
 	var currencyPair string
 	if c.IsSet("pair") {
 		currencyPair = c.String("pair")
@@ -4456,14 +4546,14 @@ func getHistoricCandlesExtended(c *cli.Context) error {
 		return errors.New("start cannot be after end")
 	}
 
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.GetHistoricCandles(context.Background(),
+	result, err := client.GetHistoricCandles(c.Context,
 		&gctrpc.GetHistoricCandlesRequest{
 			Exchange: exchangeName,
 			Pair: &gctrpc.CurrencyPair{
@@ -4543,10 +4633,6 @@ func findMissingSavedCandleIntervals(c *cli.Context) error {
 	} else {
 		exchangeName = c.Args().First()
 	}
-	if !validExchange(exchangeName) {
-		return errInvalidExchange
-	}
-
 	var currencyPair string
 	if c.IsSet("pair") {
 		currencyPair = c.String("pair")
@@ -4609,19 +4695,14 @@ func findMissingSavedCandleIntervals(c *cli.Context) error {
 		return errors.New("start cannot be after end")
 	}
 
-	conn, err := setupClient()
+	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
-	defer func() {
-		err = conn.Close()
-		if err != nil {
-			fmt.Print(err)
-		}
-	}()
+	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.FindMissingSavedCandleIntervals(context.Background(),
+	result, err := client.FindMissingSavedCandleIntervals(c.Context,
 		&gctrpc.FindMissingCandlePeriodsRequest{
 			ExchangeName: exchangeName,
 			Pair: &gctrpc.CurrencyPair{

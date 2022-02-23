@@ -36,6 +36,7 @@ type Settings struct {
 	EnableGCTScriptManager      bool
 	EnableNTPClient             bool
 	EnableWebsocketRoutine      bool
+	EnableCurrencyStateManager  bool
 	EventManagerDelay           time.Duration
 	Verbose                     bool
 
@@ -43,7 +44,7 @@ type Settings struct {
 	EnableTickerSyncing    bool
 	EnableOrderbookSyncing bool
 	EnableTradeSyncing     bool
-	SyncWorkers            int
+	SyncWorkersCount       int
 	SyncContinuously       bool
 	SyncTimeoutREST        time.Duration
 	SyncTimeoutWebsocket   time.Duration
@@ -51,6 +52,7 @@ type Settings struct {
 	// Forex settings
 	EnableCurrencyConverter bool
 	EnableCurrencyLayer     bool
+	EnableExchangeRates     bool
 	EnableFixer             bool
 	EnableOpenExchangeRates bool
 	EnableExchangeRateHost  bool
@@ -103,5 +105,5 @@ const (
 
 // newConfigMutex only locks and unlocks on engine creation functions
 // as engine modifies global files, this protects the main bot creation
-// functions from interfering with eachother
+// functions from interfering with each other
 var newEngineMutex sync.Mutex

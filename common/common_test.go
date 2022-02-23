@@ -1,7 +1,9 @@
 package common
 
 import (
+	"context"
 	"errors"
+	"net/http"
 	"net/url"
 	"os"
 	"os/user"
@@ -13,6 +15,106 @@ import (
 	"testing"
 	"time"
 )
+
+func TestSendHTTPRequest(t *testing.T) {
+	// t.Parallel() not used to maintain code coverage for assigning the default
+	// HTTPClient.
+	methodPost := "pOst"
+	methodGet := "GeT"
+	methodDelete := "dEleTe"
+	methodGarbage := "ding"
+
+	headers := make(map[string]string)
+	headers["Content-Type"] = "application/x-www-form-urlencoded"
+
+	_, err := SendHTTPRequest(context.Background(),
+		methodGarbage, "https://www.google.com", headers,
+		strings.NewReader(""), true,
+	)
+	if err == nil {
+		t.Error("Expected error 'invalid HTTP method specified'")
+	}
+	_, err = SendHTTPRequest(context.Background(),
+		methodPost, "https://www.google.com", headers,
+		strings.NewReader(""), true,
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = SendHTTPRequest(context.Background(),
+		methodGet, "https://www.google.com", headers,
+		strings.NewReader(""), true,
+	)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = SetHTTPUserAgent("GCTbot/1337.69 (+http://www.lol.com/)")
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v but expected: %v", err, nil)
+	}
+
+	_, err = SendHTTPRequest(context.Background(),
+		methodDelete, "https://www.google.com", headers,
+		strings.NewReader(""), true,
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = SendHTTPRequest(context.Background(),
+		methodGet, ":missingprotocolscheme", headers,
+		strings.NewReader(""), true,
+	)
+	if err == nil {
+		t.Error("Common HTTPRequest accepted missing protocol")
+	}
+	_, err = SendHTTPRequest(context.Background(),
+		methodGet, "test://unsupportedprotocolscheme", headers,
+		strings.NewReader(""), true,
+	)
+	if err == nil {
+		t.Error("Common HTTPRequest accepted invalid protocol")
+	}
+}
+
+func TestSetHTTPClientWithTimeout(t *testing.T) {
+	t.Parallel()
+	err := SetHTTPClientWithTimeout(-0)
+	if !errors.Is(err, errCannotSetInvalidTimeout) {
+		t.Fatalf("received: %v but expected: %v", err, errCannotSetInvalidTimeout)
+	}
+
+	err = SetHTTPClientWithTimeout(time.Second * 15)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v but expected: %v", err, nil)
+	}
+}
+
+func TestSetHTTPUserAgent(t *testing.T) {
+	t.Parallel()
+	err := SetHTTPUserAgent("")
+	if !errors.Is(err, errUserAgentInvalid) {
+		t.Fatalf("received: %v but expected: %v", err, errUserAgentInvalid)
+	}
+
+	err = SetHTTPUserAgent("testy test")
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v but expected: %v", err, nil)
+	}
+}
+
+func TestSetHTTPClient(t *testing.T) {
+	t.Parallel()
+	err := SetHTTPClient(nil)
+	if !errors.Is(err, errHTTPClientInvalid) {
+		t.Fatalf("received: %v but expected: %v", err, errHTTPClientInvalid)
+	}
+
+	err = SetHTTPClient(new(http.Client))
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v but expected: %v", err, nil)
+	}
+}
 
 func TestIsEnabled(t *testing.T) {
 	t.Parallel()
@@ -146,15 +248,13 @@ func TestStringDataContains(t *testing.T) {
 	originalHaystack := []string{"hello", "world", "USDT", "Contains", "string"}
 	originalNeedle := "USD"
 	anotherNeedle := "thing"
-	expectedOutput := true
-	expectedOutputTwo := false
 	actualResult := StringDataContains(originalHaystack, originalNeedle)
-	if actualResult != expectedOutput {
+	if expectedOutput := true; actualResult != expectedOutput {
 		t.Errorf("Expected '%v'. Actual '%v'",
 			expectedOutput, actualResult)
 	}
 	actualResult = StringDataContains(originalHaystack, anotherNeedle)
-	if actualResult != expectedOutputTwo {
+	if expectedOutput := false; actualResult != expectedOutput {
 		t.Errorf("Expected '%v'. Actual '%v'",
 			expectedOutput, actualResult)
 	}
@@ -165,15 +265,13 @@ func TestStringDataCompare(t *testing.T) {
 	originalHaystack := []string{"hello", "WoRld", "USDT", "Contains", "string"}
 	originalNeedle := "WoRld"
 	anotherNeedle := "USD"
-	expectedOutput := true
-	expectedOutputTwo := false
 	actualResult := StringDataCompare(originalHaystack, originalNeedle)
-	if actualResult != expectedOutput {
+	if expectedOutput := true; actualResult != expectedOutput {
 		t.Errorf("Expected '%v'. Actual '%v'",
 			expectedOutput, actualResult)
 	}
 	actualResult = StringDataCompare(originalHaystack, anotherNeedle)
-	if actualResult != expectedOutputTwo {
+	if expectedOutput := false; actualResult != expectedOutput {
 		t.Errorf("Expected '%v'. Actual '%v'",
 			expectedOutput, actualResult)
 	}
@@ -184,16 +282,14 @@ func TestStringDataCompareUpper(t *testing.T) {
 	originalHaystack := []string{"hello", "WoRld", "USDT", "Contains", "string"}
 	originalNeedle := "WoRld"
 	anotherNeedle := "WoRldD"
-	expectedOutput := true
-	expectedOutputTwo := false
 	actualResult := StringDataCompareInsensitive(originalHaystack, originalNeedle)
-	if actualResult != expectedOutput {
+	if expectedOutput := true; actualResult != expectedOutput {
 		t.Errorf("Expected '%v'. Actual '%v'",
 			expectedOutput, actualResult)
 	}
 
 	actualResult = StringDataCompareInsensitive(originalHaystack, anotherNeedle)
-	if actualResult != expectedOutputTwo {
+	if expectedOutput := false; actualResult != expectedOutput {
 		t.Errorf("Expected '%v'. Actual '%v'",
 			expectedOutput, actualResult)
 	}
@@ -204,15 +300,13 @@ func TestStringDataContainsUpper(t *testing.T) {
 	originalHaystack := []string{"bLa", "BrO", "sUp"}
 	originalNeedle := "Bla"
 	anotherNeedle := "ning"
-	expectedOutput := true
-	expectedOutputTwo := false
 	actualResult := StringDataContainsInsensitive(originalHaystack, originalNeedle)
-	if actualResult != expectedOutput {
+	if expectedOutput := true; actualResult != expectedOutput {
 		t.Errorf("Expected '%v'. Actual '%v'",
 			expectedOutput, actualResult)
 	}
 	actualResult = StringDataContainsInsensitive(originalHaystack, anotherNeedle)
-	if actualResult != expectedOutputTwo {
+	if expectedOutput := false; actualResult != expectedOutput {
 		t.Errorf("Expected '%v'. Actual '%v'",
 			expectedOutput, actualResult)
 	}
@@ -228,96 +322,6 @@ func TestYesOrNo(t *testing.T) {
 	}
 	if YesOrNo("ding") {
 		t.Error("Common YesOrNo Error.")
-	}
-}
-
-func TestSendHTTPRequest(t *testing.T) {
-	methodPost := "pOst"
-	methodGet := "GeT"
-	methodDelete := "dEleTe"
-	methodGarbage := "ding"
-
-	headers := make(map[string]string)
-	headers["Content-Type"] = "application/x-www-form-urlencoded"
-
-	_, err := SendHTTPRequest(
-		methodGarbage, "https://www.google.com", headers,
-		strings.NewReader(""),
-	)
-	if err == nil {
-		t.Error("Expected error 'invalid HTTP method specified'")
-	}
-	_, err = SendHTTPRequest(
-		methodPost, "https://www.google.com", headers,
-		strings.NewReader(""),
-	)
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = SendHTTPRequest(
-		methodGet, "https://www.google.com", headers,
-		strings.NewReader(""),
-	)
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = SendHTTPRequest(
-		methodDelete, "https://www.google.com", headers,
-		strings.NewReader(""),
-	)
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = SendHTTPRequest(
-		methodGet, ":missingprotocolscheme", headers,
-		strings.NewReader(""),
-	)
-	if err == nil {
-		t.Error("Common HTTPRequest accepted missing protocol")
-	}
-	_, err = SendHTTPRequest(
-		methodGet, "test://unsupportedprotocolscheme", headers,
-		strings.NewReader(""),
-	)
-	if err == nil {
-		t.Error("Common HTTPRequest accepted invalid protocol")
-	}
-}
-
-func TestSendHTTPGetRequest(t *testing.T) {
-	t.Parallel()
-	type test struct {
-		Address string `json:"address"`
-		ETH     struct {
-			Balance  float64 `json:"balance"`
-			TotalIn  float64 `json:"totalIn"`
-			TotalOut float64 `json:"totalOut"`
-		} `json:"ETH"`
-	}
-	ethURL := `https://api.ethplorer.io/getAddressInfo/0xff71cb760666ab06aa73f34995b42dd4b85ea07b?apiKey=freekey`
-	result := test{}
-
-	var badresult int
-
-	err := SendHTTPGetRequest(ethURL, true, true, &result)
-	if err != nil {
-		t.Errorf("common SendHTTPGetRequest error: %s", err)
-	}
-	err = SendHTTPGetRequest("DINGDONG", true, false, &result)
-	if err == nil {
-		t.Error("common SendHTTPGetRequest error")
-	}
-	err = SendHTTPGetRequest(ethURL, false, false, &result)
-	if err != nil {
-		t.Errorf("common SendHTTPGetRequest error: %s", err)
-	}
-	err = SendHTTPGetRequest("https://httpstat.us/202", false, false, &result)
-	if err == nil {
-		t.Error("= common SendHTTPGetRequest error: Ignored unexpected status code")
-	}
-	err = SendHTTPGetRequest(ethURL, true, false, &badresult)
-	if err == nil {
-		t.Error("common SendHTTPGetRequest error: Unmarshalled into bad type")
 	}
 }
 
@@ -398,8 +402,7 @@ func TestGetURIPath(t *testing.T) {
 
 func TestGetExecutablePath(t *testing.T) {
 	t.Parallel()
-	_, err := GetExecutablePath()
-	if err != nil {
+	if _, err := GetExecutablePath(); err != nil {
 		t.Errorf("Common GetExecutablePath. Error: %s", err)
 	}
 }
@@ -498,6 +501,7 @@ func TestCreateDir(t *testing.T) {
 }
 
 func TestChangePermission(t *testing.T) {
+	t.Parallel()
 	testDir := filepath.Join(os.TempDir(), "TestFileASDFGHJ")
 	switch runtime.GOOS {
 	case "windows":
@@ -557,6 +561,7 @@ func initStringSlice(size int) (out []string) {
 }
 
 func TestSplitStringSliceByLimit(t *testing.T) {
+	t.Parallel()
 	slice50 := initStringSlice(50)
 	out := SplitStringSliceByLimit(slice50, 20)
 	if len(out) != 3 {
@@ -576,6 +581,7 @@ func TestSplitStringSliceByLimit(t *testing.T) {
 }
 
 func TestInArray(t *testing.T) {
+	t.Parallel()
 	InArray(nil, nil)
 
 	array := [6]int{2, 3, 5, 7, 11, 13}
@@ -614,6 +620,7 @@ func TestInArray(t *testing.T) {
 }
 
 func TestErrors(t *testing.T) {
+	t.Parallel()
 	var test Errors
 	if test.Error() != "" {
 		t.Fatal("string should be nil")
@@ -629,6 +636,7 @@ func TestErrors(t *testing.T) {
 }
 
 func TestParseStartEndDate(t *testing.T) {
+	t.Parallel()
 	pt := time.Date(1999, 1, 1, 0, 0, 0, 0, time.Local)
 	ft := time.Date(2222, 1, 1, 0, 0, 0, 0, time.Local)
 	et := time.Date(2020, 1, 1, 1, 0, 0, 0, time.Local)

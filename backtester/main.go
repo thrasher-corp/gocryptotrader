@@ -9,15 +9,13 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/backtest"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
-	gctconfig "github.com/thrasher-corp/gocryptotrader/config"
-	"github.com/thrasher-corp/gocryptotrader/engine"
-	gctlog "github.com/thrasher-corp/gocryptotrader/log"
+	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/signaler"
 )
 
 func main() {
 	var configPath, templatePath, reportOutput string
-	var printLogo, generateReport bool
+	var printLogo, generateReport, darkReport bool
 	wd, err := os.Getwd()
 	if err != nil {
 		fmt.Printf("Could not get working directory. Error: %v.\n", err)
@@ -57,12 +55,22 @@ func main() {
 		"printlogo",
 		true,
 		"print out the logo to the command line, projected profits likely won't be affected if disabled")
-
+	flag.BoolVar(
+		&darkReport,
+		"darkreport",
+		false,
+		"sets the output report to use a dark theme by default")
 	flag.Parse()
 
 	var bt *backtest.BackTest
 	var cfg *config.Config
-	fmt.Println("reading config...")
+	log.GlobalLogConfig = log.GenDefaultSettings()
+	err = log.SetupGlobalLogger()
+	if err != nil {
+		fmt.Printf("Could not setup global logger. Error: %v.\n", err)
+		os.Exit(1)
+	}
+
 	cfg, err = config.ReadConfigFromFile(configPath)
 	if err != nil {
 		fmt.Printf("Could not read config. Error: %v.\n", err)
@@ -72,29 +80,12 @@ func main() {
 		fmt.Print(common.ASCIILogo)
 	}
 
-	path := gctconfig.DefaultFilePath()
-	if cfg.GoCryptoTraderConfigPath != "" {
-		path = cfg.GoCryptoTraderConfigPath
-	}
-	var bot *engine.Engine
-	flags := map[string]bool{
-		"tickersync":    false,
-		"orderbooksync": false,
-		"tradesync":     false,
-		"ratelimiter":   true,
-		"ordermanager":  false,
-	}
-	bot, err = engine.NewFromSettings(&engine.Settings{
-		ConfigFile:                    path,
-		EnableDryRun:                  true,
-		EnableAllPairs:                true,
-		EnableExchangeHTTPRateLimiter: true,
-	}, flags)
+	err = cfg.Validate()
 	if err != nil {
-		fmt.Printf("Could not load backtester. Error: %v.\n", err)
-		os.Exit(-1)
+		fmt.Printf("Could not read config. Error: %v.\n", err)
+		os.Exit(1)
 	}
-	bt, err = backtest.NewFromConfig(cfg, templatePath, reportOutput, bot)
+	bt, err = backtest.NewFromConfig(cfg, templatePath, reportOutput)
 	if err != nil {
 		fmt.Printf("Could not setup backtester from config. Error: %v.\n", err)
 		os.Exit(1)
@@ -108,7 +99,7 @@ func main() {
 			}
 		}()
 		interrupt := signaler.WaitForInterrupt()
-		gctlog.Infof(gctlog.Global, "Captured %v, shutdown requested.\n", interrupt)
+		log.Infof(log.Global, "Captured %v, shutdown requested.\n", interrupt)
 		bt.Stop()
 	} else {
 		err = bt.Run()
@@ -120,14 +111,15 @@ func main() {
 
 	err = bt.Statistic.CalculateAllResults()
 	if err != nil {
-		gctlog.Error(gctlog.BackTester, err)
+		log.Error(log.BackTester, err)
 		os.Exit(1)
 	}
 
 	if generateReport {
+		bt.Reports.UseDarkMode(darkReport)
 		err = bt.Reports.GenerateReport()
 		if err != nil {
-			gctlog.Error(gctlog.BackTester, err)
+			log.Error(log.BackTester, err)
 		}
 	}
 }

@@ -30,7 +30,11 @@ const (
 
 func TestMain(m *testing.M) {
 	if verbose {
-		testhelpers.EnableVerboseTestOutput()
+		err := testhelpers.EnableVerboseTestOutput()
+		if err != nil {
+			fmt.Printf("failed to enable verbose test output: %v", err)
+			os.Exit(1)
+		}
 	}
 	var err error
 	testhelpers.PostgresTestDatabase = testhelpers.GetConnectionDetails()
@@ -110,12 +114,13 @@ func TestLoadDataCandles(t *testing.T) {
 		Interval: gctkline.FifteenMin,
 		Candles: []gctkline.Candle{
 			{
-				Time:   dInsert,
-				Open:   1337,
-				High:   1337,
-				Low:    1337,
-				Close:  1337,
-				Volume: 1337,
+				Time:             dInsert,
+				Open:             1337,
+				High:             1337,
+				Low:              1337,
+				Close:            1337,
+				Volume:           1337,
+				ValidationIssues: "hello world",
 			},
 		},
 	}
@@ -124,7 +129,7 @@ func TestLoadDataCandles(t *testing.T) {
 		t.Error(err)
 	}
 
-	_, err = LoadData(dStart, dEnd, gctkline.FifteenMin.Duration(), exch, common.DataCandle, p, a)
+	_, err = LoadData(dStart, dEnd, gctkline.FifteenMin.Duration(), exch, common.DataCandle, p, a, false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -197,7 +202,7 @@ func TestLoadDataTrades(t *testing.T) {
 		t.Error(err)
 	}
 
-	_, err = LoadData(dStart, dEnd, gctkline.FifteenMin.Duration(), exch, common.DataTrade, p, a)
+	_, err = LoadData(dStart, dEnd, gctkline.FifteenMin.Duration(), exch, common.DataTrade, p, a, false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -209,8 +214,13 @@ func TestLoadDataInvalid(t *testing.T) {
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	dStart := time.Date(2020, 1, 0, 0, 0, 0, 0, time.UTC)
 	dEnd := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
-	_, err := LoadData(dStart, dEnd, gctkline.FifteenMin.Duration(), exch, -1, p, a)
+	_, err := LoadData(dStart, dEnd, gctkline.FifteenMin.Duration(), exch, -1, p, a, false)
 	if !errors.Is(err, common.ErrInvalidDataType) {
-		t.Errorf("expected '%v' received '%v'", err, common.ErrInvalidDataType)
+		t.Errorf("received: %v, expected: %v", err, common.ErrInvalidDataType)
+	}
+
+	_, err = LoadData(dStart, dEnd, gctkline.FifteenMin.Duration(), exch, -1, p, a, true)
+	if !errors.Is(err, errNoUSDData) {
+		t.Errorf("received: %v, expected: %v", err, errNoUSDData)
 	}
 }

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -14,12 +15,12 @@ import (
 )
 
 // LoadData retrieves data from a GoCryptoTrader exchange wrapper which calls the exchange's API
-func LoadData(dataType int64, startDate, endDate time.Time, interval time.Duration, exch exchange.IBotExchange, fPair currency.Pair, a asset.Item) (*kline.Item, error) {
+func LoadData(ctx context.Context, dataType int64, startDate, endDate time.Time, interval time.Duration, exch exchange.IBotExchange, fPair currency.Pair, a asset.Item) (*kline.Item, error) {
 	var candles kline.Item
 	var err error
 	switch dataType {
 	case common.DataCandle:
-		candles, err = exch.GetHistoricCandlesExtended(
+		candles, err = exch.GetHistoricCandlesExtended(ctx,
 			fPair,
 			a,
 			startDate,
@@ -30,7 +31,7 @@ func LoadData(dataType int64, startDate, endDate time.Time, interval time.Durati
 		}
 	case common.DataTrade:
 		var trades []trade.Data
-		trades, err = exch.GetHistoricTrades(
+		trades, err = exch.GetHistoricTrades(ctx,
 			fPair,
 			a,
 			startDate,

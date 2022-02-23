@@ -7,6 +7,9 @@ import (
 	"io/ioutil"
 	"strings"
 
+	"github.com/shopspring/decimal"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -49,25 +52,51 @@ func (c *Config) PrintSetting() {
 		log.Info(log.BackTester, "Custom strategy variables: unset")
 	}
 	log.Infof(log.BackTester, "Simultaneous Signal Processing: %v", c.StrategySettings.SimultaneousSignalProcessing)
+	log.Infof(log.BackTester, "Use Exchange Level Funding: %v", c.StrategySettings.UseExchangeLevelFunding)
+	log.Infof(log.BackTester, "USD value tracking: %v", !c.StrategySettings.DisableUSDTracking)
+	if c.StrategySettings.UseExchangeLevelFunding && c.StrategySettings.SimultaneousSignalProcessing {
+		log.Info(log.BackTester, "-------------------------------------------------------------")
+		log.Info(log.BackTester, "------------------Funding Settings---------------------------")
+		for i := range c.StrategySettings.ExchangeLevelFunding {
+			log.Infof(log.BackTester, "Initial funds for %v %v %v: %v",
+				c.StrategySettings.ExchangeLevelFunding[i].ExchangeName,
+				c.StrategySettings.ExchangeLevelFunding[i].Asset,
+				c.StrategySettings.ExchangeLevelFunding[i].Currency,
+				c.StrategySettings.ExchangeLevelFunding[i].InitialFunds.Round(8))
+		}
+	}
+
 	for i := range c.CurrencySettings {
 		log.Info(log.BackTester, "-------------------------------------------------------------")
-		currStr := fmt.Sprintf("------------------%v %v-%v Settings---------------------------------------------------------",
+		currStr := fmt.Sprintf("------------------%v %v-%v Currency Settings---------------------------------------------------------",
 			c.CurrencySettings[i].Asset,
 			c.CurrencySettings[i].Base,
 			c.CurrencySettings[i].Quote)
 		log.Infof(log.BackTester, currStr[:61])
 		log.Info(log.BackTester, "-------------------------------------------------------------")
 		log.Infof(log.BackTester, "Exchange: %v", c.CurrencySettings[i].ExchangeName)
-		log.Infof(log.BackTester, "Initial funds: %.4f", c.CurrencySettings[i].InitialFunds)
-		log.Infof(log.BackTester, "Maker fee: %.2f", c.CurrencySettings[i].TakerFee)
-		log.Infof(log.BackTester, "Taker fee: %.2f", c.CurrencySettings[i].MakerFee)
-		log.Infof(log.BackTester, "Minimum slippage percent %.2f", c.CurrencySettings[i].MinimumSlippagePercent)
-		log.Infof(log.BackTester, "Maximum slippage percent: %.2f", c.CurrencySettings[i].MaximumSlippagePercent)
+		if !c.StrategySettings.UseExchangeLevelFunding {
+			if c.CurrencySettings[i].InitialBaseFunds != nil {
+				log.Infof(log.BackTester, "Initial base funds: %v %v",
+					c.CurrencySettings[i].InitialBaseFunds.Round(8),
+					c.CurrencySettings[i].Base)
+			}
+			if c.CurrencySettings[i].InitialQuoteFunds != nil {
+				log.Infof(log.BackTester, "Initial quote funds: %v %v",
+					c.CurrencySettings[i].InitialQuoteFunds.Round(8),
+					c.CurrencySettings[i].Quote)
+			}
+		}
+		log.Infof(log.BackTester, "Maker fee: %v", c.CurrencySettings[i].TakerFee.Round(8))
+		log.Infof(log.BackTester, "Taker fee: %v", c.CurrencySettings[i].MakerFee.Round(8))
+		log.Infof(log.BackTester, "Minimum slippage percent %v", c.CurrencySettings[i].MinimumSlippagePercent.Round(8))
+		log.Infof(log.BackTester, "Maximum slippage percent: %v", c.CurrencySettings[i].MaximumSlippagePercent.Round(8))
 		log.Infof(log.BackTester, "Buy rules: %+v", c.CurrencySettings[i].BuySide)
 		log.Infof(log.BackTester, "Sell rules: %+v", c.CurrencySettings[i].SellSide)
 		log.Infof(log.BackTester, "Leverage rules: %+v", c.CurrencySettings[i].Leverage)
 		log.Infof(log.BackTester, "Can use exchange defined order execution limits: %+v", c.CurrencySettings[i].CanUseExchangeLimits)
 	}
+
 	log.Info(log.BackTester, "-------------------------------------------------------------")
 	log.Info(log.BackTester, "------------------Portfolio Settings-------------------------")
 	log.Info(log.BackTester, "-------------------------------------------------------------")
@@ -112,73 +141,182 @@ func (c *Config) PrintSetting() {
 	log.Info(log.BackTester, "-------------------------------------------------------------\n\n")
 }
 
-// Validate ensures no one sets bad config values on purpose
-func (m *MinMax) Validate() {
-	if m.MaximumSize < 0 {
-		m.MaximumSize *= -1
-		log.Warnf(log.BackTester, "invalid maximum size set to %f", m.MaximumSize)
+// Validate checks all config settings
+func (c *Config) Validate() error {
+	err := c.validateDate()
+	if err != nil {
+		return err
 	}
-	if m.MinimumSize < 0 {
-		m.MinimumSize *= -1
-		log.Warnf(log.BackTester, "invalid minimum size set to %f", m.MinimumSize)
+	err = c.validateStrategySettings()
+	if err != nil {
+		return err
 	}
-	if m.MaximumSize <= m.MinimumSize && m.MinimumSize != 0 && m.MaximumSize != 0 {
-		m.MaximumSize = m.MinimumSize + 1
-		log.Warnf(log.BackTester, "invalid maximum size set to %f", m.MaximumSize)
+	err = c.validateCurrencySettings()
+	if err != nil {
+		return err
 	}
-	if m.MaximumTotal < 0 {
-		m.MaximumTotal *= -1
-		log.Warnf(log.BackTester, "invalid maximum total set to %f", m.MaximumTotal)
-	}
+	return c.validateMinMaxes()
 }
 
-// ValidateDate checks whether someone has set a date poorly in their config
-func (c *Config) ValidateDate() error {
+// validate ensures no one sets bad config values on purpose
+func (m *MinMax) validate() error {
+	if m.MaximumSize.IsNegative() {
+		return fmt.Errorf("invalid maximum size %w", errSizeLessThanZero)
+	}
+	if m.MinimumSize.IsNegative() {
+		return fmt.Errorf("invalid minimum size %w", errSizeLessThanZero)
+	}
+	if m.MaximumTotal.IsNegative() {
+		return fmt.Errorf("invalid maximum total set to %w", errSizeLessThanZero)
+	}
+	if m.MaximumSize.LessThan(m.MinimumSize) && !m.MinimumSize.IsZero() && !m.MaximumSize.IsZero() {
+		return fmt.Errorf("%w maximum size %v vs minimum size %v",
+			errMaxSizeMinSizeMismatch,
+			m.MaximumSize,
+			m.MinimumSize)
+	}
+	if m.MaximumSize.Equal(m.MinimumSize) && !m.MinimumSize.IsZero() && !m.MaximumSize.IsZero() {
+		return fmt.Errorf("%w %v",
+			errMinMaxEqual,
+			m.MinimumSize)
+	}
+
+	return nil
+}
+
+func (c *Config) validateMinMaxes() (err error) {
+	for i := range c.CurrencySettings {
+		err = c.CurrencySettings[i].BuySide.validate()
+		if err != nil {
+			return err
+		}
+		err = c.CurrencySettings[i].SellSide.validate()
+		if err != nil {
+			return err
+		}
+	}
+	err = c.PortfolioSettings.BuySide.validate()
+	if err != nil {
+		return err
+	}
+	err = c.PortfolioSettings.SellSide.validate()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *Config) validateStrategySettings() error {
+	if c.StrategySettings.UseExchangeLevelFunding && !c.StrategySettings.SimultaneousSignalProcessing {
+		return errSimultaneousProcessingRequired
+	}
+	if len(c.StrategySettings.ExchangeLevelFunding) > 0 && !c.StrategySettings.UseExchangeLevelFunding {
+		return errExchangeLevelFundingRequired
+	}
+	if c.StrategySettings.UseExchangeLevelFunding && len(c.StrategySettings.ExchangeLevelFunding) == 0 {
+		return errExchangeLevelFundingDataRequired
+	}
+	if c.StrategySettings.UseExchangeLevelFunding {
+		for i := range c.StrategySettings.ExchangeLevelFunding {
+			if c.StrategySettings.ExchangeLevelFunding[i].InitialFunds.IsNegative() {
+				return fmt.Errorf("%w for %v %v %v",
+					errBadInitialFunds,
+					c.StrategySettings.ExchangeLevelFunding[i].ExchangeName,
+					c.StrategySettings.ExchangeLevelFunding[i].Asset,
+					c.StrategySettings.ExchangeLevelFunding[i].Currency,
+				)
+			}
+		}
+	}
+	strats := strategies.GetStrategies()
+	for i := range strats {
+		if strings.EqualFold(strats[i].Name(), c.StrategySettings.Name) {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("strategty %v %w", c.StrategySettings.Name, base.ErrStrategyNotFound)
+}
+
+// validateDate checks whether someone has set a date poorly in their config
+func (c *Config) validateDate() error {
 	if c.DataSettings.DatabaseData != nil {
 		if c.DataSettings.DatabaseData.StartDate.IsZero() ||
 			c.DataSettings.DatabaseData.EndDate.IsZero() {
-			return ErrStartEndUnset
+			return errStartEndUnset
 		}
 		if c.DataSettings.DatabaseData.StartDate.After(c.DataSettings.DatabaseData.EndDate) ||
 			c.DataSettings.DatabaseData.StartDate.Equal(c.DataSettings.DatabaseData.EndDate) {
-			return ErrBadDate
+			return errBadDate
 		}
 	}
 	if c.DataSettings.APIData != nil {
 		if c.DataSettings.APIData.StartDate.IsZero() ||
 			c.DataSettings.APIData.EndDate.IsZero() {
-			return ErrStartEndUnset
+			return errStartEndUnset
 		}
 		if c.DataSettings.APIData.StartDate.After(c.DataSettings.APIData.EndDate) ||
 			c.DataSettings.APIData.StartDate.Equal(c.DataSettings.APIData.EndDate) {
-			return ErrBadDate
+			return errBadDate
 		}
 	}
 	return nil
 }
 
-// ValidateCurrencySettings checks whether someone has set invalid currency setting data in their config
-func (c *Config) ValidateCurrencySettings() error {
+// validateCurrencySettings checks whether someone has set invalid currency setting data in their config
+func (c *Config) validateCurrencySettings() error {
 	if len(c.CurrencySettings) == 0 {
-		return ErrNoCurrencySettings
+		return errNoCurrencySettings
 	}
 	for i := range c.CurrencySettings {
-		if c.CurrencySettings[i].InitialFunds <= 0 {
-			return ErrBadInitialFunds
+		if c.CurrencySettings[i].InitialLegacyFunds > 0 {
+			// temporarily migrate legacy start config value
+			log.Warn(log.BackTester, "config field 'initial-funds' no longer supported, please use 'initial-quote-funds'")
+			log.Warnf(log.BackTester, "temporarily setting 'initial-quote-funds' to 'initial-funds' value of %v", c.CurrencySettings[i].InitialLegacyFunds)
+			iqf := decimal.NewFromFloat(c.CurrencySettings[i].InitialLegacyFunds)
+			c.CurrencySettings[i].InitialQuoteFunds = &iqf
 		}
+		if c.StrategySettings.UseExchangeLevelFunding {
+			if c.CurrencySettings[i].InitialQuoteFunds != nil &&
+				c.CurrencySettings[i].InitialQuoteFunds.GreaterThan(decimal.Zero) {
+				return fmt.Errorf("non-nil quote %w", errBadInitialFunds)
+			}
+			if c.CurrencySettings[i].InitialBaseFunds != nil &&
+				c.CurrencySettings[i].InitialBaseFunds.GreaterThan(decimal.Zero) {
+				return fmt.Errorf("non-nil base %w", errBadInitialFunds)
+			}
+		} else {
+			if c.CurrencySettings[i].InitialQuoteFunds == nil &&
+				c.CurrencySettings[i].InitialBaseFunds == nil {
+				return fmt.Errorf("nil base and quote %w", errBadInitialFunds)
+			}
+			if c.CurrencySettings[i].InitialQuoteFunds != nil &&
+				c.CurrencySettings[i].InitialBaseFunds != nil &&
+				c.CurrencySettings[i].InitialBaseFunds.IsZero() &&
+				c.CurrencySettings[i].InitialQuoteFunds.IsZero() {
+				return fmt.Errorf("base or quote funds set to zero %w", errBadInitialFunds)
+			}
+			if c.CurrencySettings[i].InitialQuoteFunds == nil {
+				c.CurrencySettings[i].InitialQuoteFunds = &decimal.Zero
+			}
+			if c.CurrencySettings[i].InitialBaseFunds == nil {
+				c.CurrencySettings[i].InitialBaseFunds = &decimal.Zero
+			}
+		}
+
 		if c.CurrencySettings[i].Base == "" {
-			return ErrUnsetCurrency
+			return errUnsetCurrency
 		}
 		if c.CurrencySettings[i].Asset == "" {
-			return ErrUnsetAsset
+			return errUnsetAsset
 		}
 		if c.CurrencySettings[i].ExchangeName == "" {
-			return ErrUnsetExchange
+			return errUnsetExchange
 		}
-		if c.CurrencySettings[i].MinimumSlippagePercent < 0 ||
-			c.CurrencySettings[i].MaximumSlippagePercent < 0 ||
-			c.CurrencySettings[i].MinimumSlippagePercent > c.CurrencySettings[i].MaximumSlippagePercent {
-			return ErrBadSlippageRates
+		if c.CurrencySettings[i].MinimumSlippagePercent.LessThan(decimal.Zero) ||
+			c.CurrencySettings[i].MaximumSlippagePercent.LessThan(decimal.Zero) ||
+			c.CurrencySettings[i].MinimumSlippagePercent.GreaterThan(c.CurrencySettings[i].MaximumSlippagePercent) {
+			return errBadSlippageRates
 		}
 		c.CurrencySettings[i].ExchangeName = strings.ToLower(c.CurrencySettings[i].ExchangeName)
 	}

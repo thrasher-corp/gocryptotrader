@@ -35,12 +35,12 @@ func (o *OXR) Setup(config base.Settings) error {
 	o.APIKeyLvl = config.APIKeyLvl
 	o.Enabled = config.Enabled
 	o.Name = config.Name
-	o.RESTPollingDelay = config.RESTPollingDelay
 	o.Verbose = config.Verbose
 	o.PrimaryProvider = config.PrimaryProvider
-	o.Requester = request.New(o.Name,
+	var err error
+	o.Requester, err = request.New(o.Name,
 		common.NewHTTPClientWithTimeout(base.DefaultTimeOut))
-	return nil
+	return err
 }
 
 // GetRates is a wrapper function to return rates
@@ -218,9 +218,12 @@ func (o *OXR) SendHTTPRequest(endpoint string, values url.Values, result interfa
 	headers["Authorization"] = "Token " + o.APIKey
 	path := APIURL + endpoint + "?" + values.Encode()
 
-	return o.Requester.SendPayload(context.Background(), &request.Item{
+	item := &request.Item{
 		Method:  http.MethodGet,
 		Path:    path,
 		Result:  result,
-		Verbose: o.Verbose})
+		Verbose: o.Verbose}
+	return o.Requester.SendPayload(context.TODO(), request.Unset, func() (*request.Item, error) {
+		return item, nil
+	})
 }

@@ -319,6 +319,7 @@ type GetSpotOrderResponse struct {
 	Notional       string    `json:"notional"`
 	OrderID        string    `json:"order_id"`
 	Price          float64   `json:"price,string"`
+	PriceAvg       float64   `json:"price_avg,string"`
 	Side           string    `json:"side"`
 	Size           float64   `json:"size,string"`
 	Status         string    `json:"status"`

@@ -11,6 +11,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
+// ErrNotRunning defines an error when the dispatcher is not running
+var ErrNotRunning = errors.New("dispatcher not running")
+
 // Name is an exported subsystem name
 const Name = "dispatch"
 
@@ -117,7 +120,7 @@ func (d *Dispatcher) start(workers, channelCapacity int) error {
 // stop stops the service and shuts down all worker routines
 func (d *Dispatcher) stop() error {
 	if !atomic.CompareAndSwapUint32(&d.running, 1, 0) {
-		return errors.New("dispatcher not running")
+		return ErrNotRunning
 	}
 	close(d.shutdown)
 	ch := make(chan struct{})
@@ -289,7 +292,10 @@ func (d *Dispatcher) subscribe(id uuid.UUID) (chan interface{}, error) {
 	}
 
 	// Get an unused channel from the channel pool
-	unusedChan := d.outbound.Get().(chan interface{})
+	unusedChan, ok := d.outbound.Get().(chan interface{})
+	if !ok {
+		return nil, errors.New("unable to type assert unusedChan")
+	}
 
 	// Lock for writing to the route list
 	d.rMtx.Lock()
@@ -353,11 +359,11 @@ func (d *Dispatcher) getNewID() (uuid.UUID, error) {
 
 	// Check to see if it already exists
 	d.rMtx.RLock()
-	_, ok := d.routes[newID]
-	d.rMtx.RUnlock()
-	if ok {
+	if _, ok := d.routes[newID]; ok {
+		d.rMtx.RUnlock()
 		return newID, errors.New("dispatcher collision detected, uuid already exists")
 	}
+	d.rMtx.RUnlock()
 
 	// Write the key into system
 	d.rMtx.Lock()

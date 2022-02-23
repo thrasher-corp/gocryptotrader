@@ -1,16 +1,19 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 	"runtime"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc/auth"
+	"github.com/thrasher-corp/gocryptotrader/signaler"
 	"github.com/urfave/cli/v2"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -22,7 +25,10 @@ var (
 	password      string
 	pairDelimiter string
 	certPath      string
+	timeout       time.Duration
 )
+
+const defaultTimeout = time.Second * 30
 
 func jsonOutput(in interface{}) {
 	j, err := json.MarshalIndent(in, "", " ")
@@ -32,10 +38,10 @@ func jsonOutput(in interface{}) {
 	fmt.Print(string(j))
 }
 
-func setupClient() (*grpc.ClientConn, error) {
+func setupClient(c *cli.Context) (*grpc.ClientConn, context.CancelFunc, error) {
 	creds, err := credentials.NewClientTLSFromFile(certPath, "")
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	opts := []grpc.DialOption{grpc.WithTransportCredentials(creds),
@@ -44,12 +50,11 @@ func setupClient() (*grpc.ClientConn, error) {
 			Password: password,
 		}),
 	}
-	conn, err := grpc.Dial(host, opts...)
-	if err != nil {
-		return nil, err
-	}
 
-	return conn, err
+	var cancel context.CancelFunc
+	c.Context, cancel = context.WithTimeout(c.Context, timeout)
+	conn, err := grpc.DialContext(c.Context, host, opts...)
+	return conn, cancel, err
 }
 
 func main() {
@@ -89,6 +94,12 @@ func main() {
 			Usage:       "the path to TLS cert of the gRPC server",
 			Destination: &certPath,
 		},
+		&cli.DurationFlag{
+			Name:        "timeout",
+			Value:       defaultTimeout,
+			Usage:       "the default context timeout value for requests",
+			Destination: &timeout,
+		},
 	}
 	app.Commands = []*cli.Command{
 		getInfoCommand,
@@ -126,11 +137,13 @@ func main() {
 		cancelOrderCommand,
 		cancelBatchOrdersCommand,
 		cancelAllOrdersCommand,
+		modifyOrderCommand,
 		getEventsCommand,
 		addEventCommand,
 		removeEventCommand,
 		getCryptocurrencyDepositAddressesCommand,
 		getCryptocurrencyDepositAddressCommand,
+		getAvailableTransferChainsCommand,
 		withdrawCryptocurrencyFundsCommand,
 		withdrawFiatFundsCommand,
 		withdrawalRequestCommand,
@@ -149,9 +162,19 @@ func main() {
 		websocketManagerCommand,
 		tradeCommand,
 		dataHistoryCommands,
+		currencyStateManagementCommand,
 	}
 
-	err := app.Run(os.Args)
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		// Capture cancel for interrupt
+		signaler.WaitForInterrupt()
+		cancel()
+		fmt.Println("rpc process interrupted")
+		os.Exit(1)
+	}()
+
+	err := app.RunContext(ctx, os.Args)
 	if err != nil {
 		log.Fatal(err)
 	}

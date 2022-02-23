@@ -27,7 +27,7 @@ type GoCryptoTraderClient interface {
 	GetExchanges(ctx context.Context, in *GetExchangesRequest, opts ...grpc.CallOption) (*GetExchangesResponse, error)
 	DisableExchange(ctx context.Context, in *GenericExchangeNameRequest, opts ...grpc.CallOption) (*GenericResponse, error)
 	GetExchangeInfo(ctx context.Context, in *GenericExchangeNameRequest, opts ...grpc.CallOption) (*GetExchangeInfoResponse, error)
-	GetExchangeOTPCode(ctx context.Context, in *GenericExchangeNameRequest, opts ...grpc.CallOption) (*GetExchangeOTPReponse, error)
+	GetExchangeOTPCode(ctx context.Context, in *GenericExchangeNameRequest, opts ...grpc.CallOption) (*GetExchangeOTPResponse, error)
 	GetExchangeOTPCodes(ctx context.Context, in *GetExchangeOTPsRequest, opts ...grpc.CallOption) (*GetExchangeOTPsResponse, error)
 	EnableExchange(ctx context.Context, in *GenericExchangeNameRequest, opts ...grpc.CallOption) (*GenericResponse, error)
 	GetTicker(ctx context.Context, in *GetTickerRequest, opts ...grpc.CallOption) (*TickerResponse, error)
@@ -57,6 +57,7 @@ type GoCryptoTraderClient interface {
 	RemoveEvent(ctx context.Context, in *RemoveEventRequest, opts ...grpc.CallOption) (*GenericResponse, error)
 	GetCryptocurrencyDepositAddresses(ctx context.Context, in *GetCryptocurrencyDepositAddressesRequest, opts ...grpc.CallOption) (*GetCryptocurrencyDepositAddressesResponse, error)
 	GetCryptocurrencyDepositAddress(ctx context.Context, in *GetCryptocurrencyDepositAddressRequest, opts ...grpc.CallOption) (*GetCryptocurrencyDepositAddressResponse, error)
+	GetAvailableTransferChains(ctx context.Context, in *GetAvailableTransferChainsRequest, opts ...grpc.CallOption) (*GetAvailableTransferChainsResponse, error)
 	WithdrawFiatFunds(ctx context.Context, in *WithdrawFiatRequest, opts ...grpc.CallOption) (*WithdrawResponse, error)
 	WithdrawCryptocurrencyFunds(ctx context.Context, in *WithdrawCryptoRequest, opts ...grpc.CallOption) (*WithdrawResponse, error)
 	WithdrawalEventByID(ctx context.Context, in *WithdrawalEventByIDRequest, opts ...grpc.CallOption) (*WithdrawalEventByIDResponse, error)
@@ -100,10 +101,17 @@ type GoCryptoTraderClient interface {
 	UpsertDataHistoryJob(ctx context.Context, in *UpsertDataHistoryJobRequest, opts ...grpc.CallOption) (*UpsertDataHistoryJobResponse, error)
 	GetDataHistoryJobDetails(ctx context.Context, in *GetDataHistoryJobDetailsRequest, opts ...grpc.CallOption) (*DataHistoryJob, error)
 	GetActiveDataHistoryJobs(ctx context.Context, in *GetInfoRequest, opts ...grpc.CallOption) (*DataHistoryJobs, error)
-	DeleteDataHistoryJob(ctx context.Context, in *GetDataHistoryJobDetailsRequest, opts ...grpc.CallOption) (*GenericResponse, error)
 	GetDataHistoryJobsBetween(ctx context.Context, in *GetDataHistoryJobsBetweenRequest, opts ...grpc.CallOption) (*DataHistoryJobs, error)
 	GetDataHistoryJobSummary(ctx context.Context, in *GetDataHistoryJobDetailsRequest, opts ...grpc.CallOption) (*DataHistoryJob, error)
+	SetDataHistoryJobStatus(ctx context.Context, in *SetDataHistoryJobStatusRequest, opts ...grpc.CallOption) (*GenericResponse, error)
+	UpdateDataHistoryJobPrerequisite(ctx context.Context, in *UpdateDataHistoryJobPrerequisiteRequest, opts ...grpc.CallOption) (*GenericResponse, error)
 	GetManagedOrders(ctx context.Context, in *GetOrdersRequest, opts ...grpc.CallOption) (*GetOrdersResponse, error)
+	ModifyOrder(ctx context.Context, in *ModifyOrderRequest, opts ...grpc.CallOption) (*ModifyOrderResponse, error)
+	CurrencyStateGetAll(ctx context.Context, in *CurrencyStateGetAllRequest, opts ...grpc.CallOption) (*CurrencyStateResponse, error)
+	CurrencyStateTrading(ctx context.Context, in *CurrencyStateTradingRequest, opts ...grpc.CallOption) (*GenericResponse, error)
+	CurrencyStateDeposit(ctx context.Context, in *CurrencyStateDepositRequest, opts ...grpc.CallOption) (*GenericResponse, error)
+	CurrencyStateWithdraw(ctx context.Context, in *CurrencyStateWithdrawRequest, opts ...grpc.CallOption) (*GenericResponse, error)
+	CurrencyStateTradingPair(ctx context.Context, in *CurrencyStateTradingPairRequest, opts ...grpc.CallOption) (*GenericResponse, error)
 }
 
 type goCryptoTraderClient struct {
@@ -195,8 +203,8 @@ func (c *goCryptoTraderClient) GetExchangeInfo(ctx context.Context, in *GenericE
 	return out, nil
 }
 
-func (c *goCryptoTraderClient) GetExchangeOTPCode(ctx context.Context, in *GenericExchangeNameRequest, opts ...grpc.CallOption) (*GetExchangeOTPReponse, error) {
-	out := new(GetExchangeOTPReponse)
+func (c *goCryptoTraderClient) GetExchangeOTPCode(ctx context.Context, in *GenericExchangeNameRequest, opts ...grpc.CallOption) (*GetExchangeOTPResponse, error) {
+	out := new(GetExchangeOTPResponse)
 	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTrader/GetExchangeOTPCode", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -482,6 +490,15 @@ func (c *goCryptoTraderClient) GetCryptocurrencyDepositAddresses(ctx context.Con
 func (c *goCryptoTraderClient) GetCryptocurrencyDepositAddress(ctx context.Context, in *GetCryptocurrencyDepositAddressRequest, opts ...grpc.CallOption) (*GetCryptocurrencyDepositAddressResponse, error) {
 	out := new(GetCryptocurrencyDepositAddressResponse)
 	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTrader/GetCryptocurrencyDepositAddress", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *goCryptoTraderClient) GetAvailableTransferChains(ctx context.Context, in *GetAvailableTransferChainsRequest, opts ...grpc.CallOption) (*GetAvailableTransferChainsResponse, error) {
+	out := new(GetAvailableTransferChainsResponse)
+	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTrader/GetAvailableTransferChains", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -990,15 +1007,6 @@ func (c *goCryptoTraderClient) GetActiveDataHistoryJobs(ctx context.Context, in 
 	return out, nil
 }
 
-func (c *goCryptoTraderClient) DeleteDataHistoryJob(ctx context.Context, in *GetDataHistoryJobDetailsRequest, opts ...grpc.CallOption) (*GenericResponse, error) {
-	out := new(GenericResponse)
-	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTrader/DeleteDataHistoryJob", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *goCryptoTraderClient) GetDataHistoryJobsBetween(ctx context.Context, in *GetDataHistoryJobsBetweenRequest, opts ...grpc.CallOption) (*DataHistoryJobs, error) {
 	out := new(DataHistoryJobs)
 	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTrader/GetDataHistoryJobsBetween", in, out, opts...)
@@ -1017,9 +1025,81 @@ func (c *goCryptoTraderClient) GetDataHistoryJobSummary(ctx context.Context, in 
 	return out, nil
 }
 
+func (c *goCryptoTraderClient) SetDataHistoryJobStatus(ctx context.Context, in *SetDataHistoryJobStatusRequest, opts ...grpc.CallOption) (*GenericResponse, error) {
+	out := new(GenericResponse)
+	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTrader/SetDataHistoryJobStatus", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *goCryptoTraderClient) UpdateDataHistoryJobPrerequisite(ctx context.Context, in *UpdateDataHistoryJobPrerequisiteRequest, opts ...grpc.CallOption) (*GenericResponse, error) {
+	out := new(GenericResponse)
+	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTrader/UpdateDataHistoryJobPrerequisite", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *goCryptoTraderClient) GetManagedOrders(ctx context.Context, in *GetOrdersRequest, opts ...grpc.CallOption) (*GetOrdersResponse, error) {
 	out := new(GetOrdersResponse)
 	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTrader/GetManagedOrders", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *goCryptoTraderClient) ModifyOrder(ctx context.Context, in *ModifyOrderRequest, opts ...grpc.CallOption) (*ModifyOrderResponse, error) {
+	out := new(ModifyOrderResponse)
+	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTrader/ModifyOrder", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *goCryptoTraderClient) CurrencyStateGetAll(ctx context.Context, in *CurrencyStateGetAllRequest, opts ...grpc.CallOption) (*CurrencyStateResponse, error) {
+	out := new(CurrencyStateResponse)
+	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTrader/CurrencyStateGetAll", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *goCryptoTraderClient) CurrencyStateTrading(ctx context.Context, in *CurrencyStateTradingRequest, opts ...grpc.CallOption) (*GenericResponse, error) {
+	out := new(GenericResponse)
+	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTrader/CurrencyStateTrading", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *goCryptoTraderClient) CurrencyStateDeposit(ctx context.Context, in *CurrencyStateDepositRequest, opts ...grpc.CallOption) (*GenericResponse, error) {
+	out := new(GenericResponse)
+	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTrader/CurrencyStateDeposit", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *goCryptoTraderClient) CurrencyStateWithdraw(ctx context.Context, in *CurrencyStateWithdrawRequest, opts ...grpc.CallOption) (*GenericResponse, error) {
+	out := new(GenericResponse)
+	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTrader/CurrencyStateWithdraw", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *goCryptoTraderClient) CurrencyStateTradingPair(ctx context.Context, in *CurrencyStateTradingPairRequest, opts ...grpc.CallOption) (*GenericResponse, error) {
+	out := new(GenericResponse)
+	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTrader/CurrencyStateTradingPair", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1039,7 +1119,7 @@ type GoCryptoTraderServer interface {
 	GetExchanges(context.Context, *GetExchangesRequest) (*GetExchangesResponse, error)
 	DisableExchange(context.Context, *GenericExchangeNameRequest) (*GenericResponse, error)
 	GetExchangeInfo(context.Context, *GenericExchangeNameRequest) (*GetExchangeInfoResponse, error)
-	GetExchangeOTPCode(context.Context, *GenericExchangeNameRequest) (*GetExchangeOTPReponse, error)
+	GetExchangeOTPCode(context.Context, *GenericExchangeNameRequest) (*GetExchangeOTPResponse, error)
 	GetExchangeOTPCodes(context.Context, *GetExchangeOTPsRequest) (*GetExchangeOTPsResponse, error)
 	EnableExchange(context.Context, *GenericExchangeNameRequest) (*GenericResponse, error)
 	GetTicker(context.Context, *GetTickerRequest) (*TickerResponse, error)
@@ -1069,6 +1149,7 @@ type GoCryptoTraderServer interface {
 	RemoveEvent(context.Context, *RemoveEventRequest) (*GenericResponse, error)
 	GetCryptocurrencyDepositAddresses(context.Context, *GetCryptocurrencyDepositAddressesRequest) (*GetCryptocurrencyDepositAddressesResponse, error)
 	GetCryptocurrencyDepositAddress(context.Context, *GetCryptocurrencyDepositAddressRequest) (*GetCryptocurrencyDepositAddressResponse, error)
+	GetAvailableTransferChains(context.Context, *GetAvailableTransferChainsRequest) (*GetAvailableTransferChainsResponse, error)
 	WithdrawFiatFunds(context.Context, *WithdrawFiatRequest) (*WithdrawResponse, error)
 	WithdrawCryptocurrencyFunds(context.Context, *WithdrawCryptoRequest) (*WithdrawResponse, error)
 	WithdrawalEventByID(context.Context, *WithdrawalEventByIDRequest) (*WithdrawalEventByIDResponse, error)
@@ -1112,10 +1193,17 @@ type GoCryptoTraderServer interface {
 	UpsertDataHistoryJob(context.Context, *UpsertDataHistoryJobRequest) (*UpsertDataHistoryJobResponse, error)
 	GetDataHistoryJobDetails(context.Context, *GetDataHistoryJobDetailsRequest) (*DataHistoryJob, error)
 	GetActiveDataHistoryJobs(context.Context, *GetInfoRequest) (*DataHistoryJobs, error)
-	DeleteDataHistoryJob(context.Context, *GetDataHistoryJobDetailsRequest) (*GenericResponse, error)
 	GetDataHistoryJobsBetween(context.Context, *GetDataHistoryJobsBetweenRequest) (*DataHistoryJobs, error)
 	GetDataHistoryJobSummary(context.Context, *GetDataHistoryJobDetailsRequest) (*DataHistoryJob, error)
+	SetDataHistoryJobStatus(context.Context, *SetDataHistoryJobStatusRequest) (*GenericResponse, error)
+	UpdateDataHistoryJobPrerequisite(context.Context, *UpdateDataHistoryJobPrerequisiteRequest) (*GenericResponse, error)
 	GetManagedOrders(context.Context, *GetOrdersRequest) (*GetOrdersResponse, error)
+	ModifyOrder(context.Context, *ModifyOrderRequest) (*ModifyOrderResponse, error)
+	CurrencyStateGetAll(context.Context, *CurrencyStateGetAllRequest) (*CurrencyStateResponse, error)
+	CurrencyStateTrading(context.Context, *CurrencyStateTradingRequest) (*GenericResponse, error)
+	CurrencyStateDeposit(context.Context, *CurrencyStateDepositRequest) (*GenericResponse, error)
+	CurrencyStateWithdraw(context.Context, *CurrencyStateWithdrawRequest) (*GenericResponse, error)
+	CurrencyStateTradingPair(context.Context, *CurrencyStateTradingPairRequest) (*GenericResponse, error)
 	mustEmbedUnimplementedGoCryptoTraderServer()
 }
 
@@ -1150,7 +1238,7 @@ func (UnimplementedGoCryptoTraderServer) DisableExchange(context.Context, *Gener
 func (UnimplementedGoCryptoTraderServer) GetExchangeInfo(context.Context, *GenericExchangeNameRequest) (*GetExchangeInfoResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetExchangeInfo not implemented")
 }
-func (UnimplementedGoCryptoTraderServer) GetExchangeOTPCode(context.Context, *GenericExchangeNameRequest) (*GetExchangeOTPReponse, error) {
+func (UnimplementedGoCryptoTraderServer) GetExchangeOTPCode(context.Context, *GenericExchangeNameRequest) (*GetExchangeOTPResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetExchangeOTPCode not implemented")
 }
 func (UnimplementedGoCryptoTraderServer) GetExchangeOTPCodes(context.Context, *GetExchangeOTPsRequest) (*GetExchangeOTPsResponse, error) {
@@ -1239,6 +1327,9 @@ func (UnimplementedGoCryptoTraderServer) GetCryptocurrencyDepositAddresses(conte
 }
 func (UnimplementedGoCryptoTraderServer) GetCryptocurrencyDepositAddress(context.Context, *GetCryptocurrencyDepositAddressRequest) (*GetCryptocurrencyDepositAddressResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetCryptocurrencyDepositAddress not implemented")
+}
+func (UnimplementedGoCryptoTraderServer) GetAvailableTransferChains(context.Context, *GetAvailableTransferChainsRequest) (*GetAvailableTransferChainsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetAvailableTransferChains not implemented")
 }
 func (UnimplementedGoCryptoTraderServer) WithdrawFiatFunds(context.Context, *WithdrawFiatRequest) (*WithdrawResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method WithdrawFiatFunds not implemented")
@@ -1369,17 +1460,38 @@ func (UnimplementedGoCryptoTraderServer) GetDataHistoryJobDetails(context.Contex
 func (UnimplementedGoCryptoTraderServer) GetActiveDataHistoryJobs(context.Context, *GetInfoRequest) (*DataHistoryJobs, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetActiveDataHistoryJobs not implemented")
 }
-func (UnimplementedGoCryptoTraderServer) DeleteDataHistoryJob(context.Context, *GetDataHistoryJobDetailsRequest) (*GenericResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method DeleteDataHistoryJob not implemented")
-}
 func (UnimplementedGoCryptoTraderServer) GetDataHistoryJobsBetween(context.Context, *GetDataHistoryJobsBetweenRequest) (*DataHistoryJobs, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetDataHistoryJobsBetween not implemented")
 }
 func (UnimplementedGoCryptoTraderServer) GetDataHistoryJobSummary(context.Context, *GetDataHistoryJobDetailsRequest) (*DataHistoryJob, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetDataHistoryJobSummary not implemented")
 }
+func (UnimplementedGoCryptoTraderServer) SetDataHistoryJobStatus(context.Context, *SetDataHistoryJobStatusRequest) (*GenericResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetDataHistoryJobStatus not implemented")
+}
+func (UnimplementedGoCryptoTraderServer) UpdateDataHistoryJobPrerequisite(context.Context, *UpdateDataHistoryJobPrerequisiteRequest) (*GenericResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateDataHistoryJobPrerequisite not implemented")
+}
 func (UnimplementedGoCryptoTraderServer) GetManagedOrders(context.Context, *GetOrdersRequest) (*GetOrdersResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetManagedOrders not implemented")
+}
+func (UnimplementedGoCryptoTraderServer) ModifyOrder(context.Context, *ModifyOrderRequest) (*ModifyOrderResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ModifyOrder not implemented")
+}
+func (UnimplementedGoCryptoTraderServer) CurrencyStateGetAll(context.Context, *CurrencyStateGetAllRequest) (*CurrencyStateResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CurrencyStateGetAll not implemented")
+}
+func (UnimplementedGoCryptoTraderServer) CurrencyStateTrading(context.Context, *CurrencyStateTradingRequest) (*GenericResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CurrencyStateTrading not implemented")
+}
+func (UnimplementedGoCryptoTraderServer) CurrencyStateDeposit(context.Context, *CurrencyStateDepositRequest) (*GenericResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CurrencyStateDeposit not implemented")
+}
+func (UnimplementedGoCryptoTraderServer) CurrencyStateWithdraw(context.Context, *CurrencyStateWithdrawRequest) (*GenericResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CurrencyStateWithdraw not implemented")
+}
+func (UnimplementedGoCryptoTraderServer) CurrencyStateTradingPair(context.Context, *CurrencyStateTradingPairRequest) (*GenericResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CurrencyStateTradingPair not implemented")
 }
 func (UnimplementedGoCryptoTraderServer) mustEmbedUnimplementedGoCryptoTraderServer() {}
 
@@ -2095,6 +2207,24 @@ func _GoCryptoTrader_GetCryptocurrencyDepositAddress_Handler(srv interface{}, ct
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(GoCryptoTraderServer).GetCryptocurrencyDepositAddress(ctx, req.(*GetCryptocurrencyDepositAddressRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _GoCryptoTrader_GetAvailableTransferChains_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetAvailableTransferChainsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GoCryptoTraderServer).GetAvailableTransferChains(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/gctrpc.GoCryptoTrader/GetAvailableTransferChains",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GoCryptoTraderServer).GetAvailableTransferChains(ctx, req.(*GetAvailableTransferChainsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -2888,24 +3018,6 @@ func _GoCryptoTrader_GetActiveDataHistoryJobs_Handler(srv interface{}, ctx conte
 	return interceptor(ctx, in, info, handler)
 }
 
-func _GoCryptoTrader_DeleteDataHistoryJob_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetDataHistoryJobDetailsRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(GoCryptoTraderServer).DeleteDataHistoryJob(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/gctrpc.GoCryptoTrader/DeleteDataHistoryJob",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(GoCryptoTraderServer).DeleteDataHistoryJob(ctx, req.(*GetDataHistoryJobDetailsRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _GoCryptoTrader_GetDataHistoryJobsBetween_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetDataHistoryJobsBetweenRequest)
 	if err := dec(in); err != nil {
@@ -2942,6 +3054,42 @@ func _GoCryptoTrader_GetDataHistoryJobSummary_Handler(srv interface{}, ctx conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _GoCryptoTrader_SetDataHistoryJobStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetDataHistoryJobStatusRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GoCryptoTraderServer).SetDataHistoryJobStatus(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/gctrpc.GoCryptoTrader/SetDataHistoryJobStatus",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GoCryptoTraderServer).SetDataHistoryJobStatus(ctx, req.(*SetDataHistoryJobStatusRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _GoCryptoTrader_UpdateDataHistoryJobPrerequisite_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateDataHistoryJobPrerequisiteRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GoCryptoTraderServer).UpdateDataHistoryJobPrerequisite(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/gctrpc.GoCryptoTrader/UpdateDataHistoryJobPrerequisite",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GoCryptoTraderServer).UpdateDataHistoryJobPrerequisite(ctx, req.(*UpdateDataHistoryJobPrerequisiteRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _GoCryptoTrader_GetManagedOrders_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetOrdersRequest)
 	if err := dec(in); err != nil {
@@ -2956,6 +3104,114 @@ func _GoCryptoTrader_GetManagedOrders_Handler(srv interface{}, ctx context.Conte
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(GoCryptoTraderServer).GetManagedOrders(ctx, req.(*GetOrdersRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _GoCryptoTrader_ModifyOrder_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ModifyOrderRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GoCryptoTraderServer).ModifyOrder(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/gctrpc.GoCryptoTrader/ModifyOrder",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GoCryptoTraderServer).ModifyOrder(ctx, req.(*ModifyOrderRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _GoCryptoTrader_CurrencyStateGetAll_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CurrencyStateGetAllRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GoCryptoTraderServer).CurrencyStateGetAll(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/gctrpc.GoCryptoTrader/CurrencyStateGetAll",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GoCryptoTraderServer).CurrencyStateGetAll(ctx, req.(*CurrencyStateGetAllRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _GoCryptoTrader_CurrencyStateTrading_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CurrencyStateTradingRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GoCryptoTraderServer).CurrencyStateTrading(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/gctrpc.GoCryptoTrader/CurrencyStateTrading",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GoCryptoTraderServer).CurrencyStateTrading(ctx, req.(*CurrencyStateTradingRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _GoCryptoTrader_CurrencyStateDeposit_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CurrencyStateDepositRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GoCryptoTraderServer).CurrencyStateDeposit(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/gctrpc.GoCryptoTrader/CurrencyStateDeposit",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GoCryptoTraderServer).CurrencyStateDeposit(ctx, req.(*CurrencyStateDepositRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _GoCryptoTrader_CurrencyStateWithdraw_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CurrencyStateWithdrawRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GoCryptoTraderServer).CurrencyStateWithdraw(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/gctrpc.GoCryptoTrader/CurrencyStateWithdraw",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GoCryptoTraderServer).CurrencyStateWithdraw(ctx, req.(*CurrencyStateWithdrawRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _GoCryptoTrader_CurrencyStateTradingPair_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CurrencyStateTradingPairRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GoCryptoTraderServer).CurrencyStateTradingPair(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/gctrpc.GoCryptoTrader/CurrencyStateTradingPair",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GoCryptoTraderServer).CurrencyStateTradingPair(ctx, req.(*CurrencyStateTradingPairRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -3120,6 +3376,10 @@ var GoCryptoTrader_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _GoCryptoTrader_GetCryptocurrencyDepositAddress_Handler,
 		},
 		{
+			MethodName: "GetAvailableTransferChains",
+			Handler:    _GoCryptoTrader_GetAvailableTransferChains_Handler,
+		},
+		{
 			MethodName: "WithdrawFiatFunds",
 			Handler:    _GoCryptoTrader_WithdrawFiatFunds_Handler,
 		},
@@ -3272,10 +3532,6 @@ var GoCryptoTrader_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _GoCryptoTrader_GetActiveDataHistoryJobs_Handler,
 		},
 		{
-			MethodName: "DeleteDataHistoryJob",
-			Handler:    _GoCryptoTrader_DeleteDataHistoryJob_Handler,
-		},
-		{
 			MethodName: "GetDataHistoryJobsBetween",
 			Handler:    _GoCryptoTrader_GetDataHistoryJobsBetween_Handler,
 		},
@@ -3284,8 +3540,40 @@ var GoCryptoTrader_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _GoCryptoTrader_GetDataHistoryJobSummary_Handler,
 		},
 		{
+			MethodName: "SetDataHistoryJobStatus",
+			Handler:    _GoCryptoTrader_SetDataHistoryJobStatus_Handler,
+		},
+		{
+			MethodName: "UpdateDataHistoryJobPrerequisite",
+			Handler:    _GoCryptoTrader_UpdateDataHistoryJobPrerequisite_Handler,
+		},
+		{
 			MethodName: "GetManagedOrders",
 			Handler:    _GoCryptoTrader_GetManagedOrders_Handler,
+		},
+		{
+			MethodName: "ModifyOrder",
+			Handler:    _GoCryptoTrader_ModifyOrder_Handler,
+		},
+		{
+			MethodName: "CurrencyStateGetAll",
+			Handler:    _GoCryptoTrader_CurrencyStateGetAll_Handler,
+		},
+		{
+			MethodName: "CurrencyStateTrading",
+			Handler:    _GoCryptoTrader_CurrencyStateTrading_Handler,
+		},
+		{
+			MethodName: "CurrencyStateDeposit",
+			Handler:    _GoCryptoTrader_CurrencyStateDeposit_Handler,
+		},
+		{
+			MethodName: "CurrencyStateWithdraw",
+			Handler:    _GoCryptoTrader_CurrencyStateWithdraw_Handler,
+		},
+		{
+			MethodName: "CurrencyStateTradingPair",
+			Handler:    _GoCryptoTrader_CurrencyStateTradingPair_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

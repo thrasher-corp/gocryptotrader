@@ -1,17 +1,18 @@
 package zb
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -34,6 +35,7 @@ var z ZB
 var wsSetupRan bool
 
 func setupWsAuth(t *testing.T) {
+	t.Helper()
 	if wsSetupRan {
 		return
 	}
@@ -52,6 +54,20 @@ func setupWsAuth(t *testing.T) {
 	wsSetupRan = true
 }
 
+func TestStart(t *testing.T) {
+	t.Parallel()
+	err := z.Start(nil)
+	if !errors.Is(err, common.ErrNilPointer) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrNilPointer)
+	}
+	var testWg sync.WaitGroup
+	err = z.Start(&testWg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	testWg.Wait()
+}
+
 func TestSpotNewOrder(t *testing.T) {
 	t.Parallel()
 
@@ -65,7 +81,7 @@ func TestSpotNewOrder(t *testing.T) {
 		Amount: 0.01,
 		Price:  10246.1,
 	}
-	_, err := z.SpotNewOrder(arg)
+	_, err := z.SpotNewOrder(context.Background(), arg)
 	if err != nil {
 		t.Errorf("ZB SpotNewOrder: %s", err)
 	}
@@ -78,7 +94,7 @@ func TestCancelExistingOrder(t *testing.T) {
 		t.Skip()
 	}
 
-	err := z.CancelExistingOrder(20180629145864850, testCurrency)
+	err := z.CancelExistingOrder(context.Background(), 20180629145864850, testCurrency)
 	if err != nil {
 		t.Errorf("ZB CancelExistingOrder: %s", err)
 	}
@@ -86,7 +102,7 @@ func TestCancelExistingOrder(t *testing.T) {
 
 func TestGetLatestSpotPrice(t *testing.T) {
 	t.Parallel()
-	_, err := z.GetLatestSpotPrice(testCurrency)
+	_, err := z.GetLatestSpotPrice(context.Background(), testCurrency)
 	if err != nil {
 		t.Errorf("ZB GetLatestSpotPrice: %s", err)
 	}
@@ -94,7 +110,7 @@ func TestGetLatestSpotPrice(t *testing.T) {
 
 func TestGetTicker(t *testing.T) {
 	t.Parallel()
-	_, err := z.GetTicker(testCurrency)
+	_, err := z.GetTicker(context.Background(), testCurrency)
 	if err != nil {
 		t.Errorf("ZB GetTicker: %s", err)
 	}
@@ -102,7 +118,7 @@ func TestGetTicker(t *testing.T) {
 
 func TestGetTickers(t *testing.T) {
 	t.Parallel()
-	_, err := z.GetTickers()
+	_, err := z.GetTickers(context.Background())
 	if err != nil {
 		t.Errorf("ZB GetTicker: %s", err)
 	}
@@ -110,7 +126,7 @@ func TestGetTickers(t *testing.T) {
 
 func TestGetOrderbook(t *testing.T) {
 	t.Parallel()
-	_, err := z.GetOrderbook(testCurrency)
+	_, err := z.GetOrderbook(context.Background(), testCurrency)
 	if err != nil {
 		t.Errorf("ZB GetTicker: %s", err)
 	}
@@ -118,7 +134,7 @@ func TestGetOrderbook(t *testing.T) {
 
 func TestGetMarkets(t *testing.T) {
 	t.Parallel()
-	_, err := z.GetMarkets()
+	_, err := z.GetMarkets(context.Background())
 	if err != nil {
 		t.Errorf("ZB GetMarkets: %s", err)
 	}
@@ -141,7 +157,10 @@ func setFeeBuilder() *exchange.FeeBuilder {
 func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 	t.Parallel()
 	var feeBuilder = setFeeBuilder()
-	z.GetFeeByType(feeBuilder)
+	_, err := z.GetFeeByType(context.Background(), feeBuilder)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if !z.ValidateAPICredentials() {
 		if feeBuilder.FeeType != exchange.OfflineTradeFee {
 			t.Errorf("Expected %v, received %v", exchange.OfflineTradeFee, feeBuilder.FeeType)
@@ -232,7 +251,7 @@ func TestGetActiveOrders(t *testing.T) {
 		AssetType: asset.Spot,
 	}
 
-	_, err := z.GetActiveOrders(&getOrdersRequest)
+	_, err := z.GetActiveOrders(context.Background(), &getOrdersRequest)
 	if z.ValidateAPICredentials() && err != nil {
 		t.Error(err)
 	} else if !z.ValidateAPICredentials() && err == nil {
@@ -252,7 +271,7 @@ func TestGetOrderHistory(t *testing.T) {
 			currency.BTC)},
 	}
 
-	_, err := z.GetOrderHistory(&getOrdersRequest)
+	_, err := z.GetOrderHistory(context.Background(), &getOrdersRequest)
 	if z.ValidateAPICredentials() && err != nil {
 		t.Error(err)
 	} else if !z.ValidateAPICredentials() && err == nil {
@@ -285,7 +304,7 @@ func TestSubmitOrder(t *testing.T) {
 		ClientID:  "meowOrder",
 		AssetType: asset.Spot,
 	}
-	response, err := z.SubmitOrder(orderSubmission)
+	response, err := z.SubmitOrder(context.Background(), orderSubmission)
 	if z.ValidateAPICredentials() && err != nil {
 		t.Error(err)
 	} else if !z.ValidateAPICredentials() && err == nil {
@@ -313,7 +332,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 		AssetType:     asset.Spot,
 	}
 
-	err := z.CancelOrder(orderCancellation)
+	err := z.CancelOrder(context.Background(), orderCancellation)
 	if z.ValidateAPICredentials() && err != nil {
 		t.Error(err)
 	} else if !z.ValidateAPICredentials() && err == nil {
@@ -338,7 +357,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		AssetType:     asset.Spot,
 	}
 
-	resp, err := z.CancelAllOrders(orderCancellation)
+	resp, err := z.CancelAllOrders(context.Background(), orderCancellation)
 
 	if z.ValidateAPICredentials() && err != nil {
 		t.Error(err)
@@ -355,12 +374,12 @@ func TestGetAccountInfo(t *testing.T) {
 		t.Skip("skipping authenticated function for mock testing")
 	}
 	if z.ValidateAPICredentials() {
-		_, err := z.UpdateAccountInfo(asset.Spot)
+		_, err := z.UpdateAccountInfo(context.Background(), asset.Spot)
 		if err != nil {
 			t.Error("GetAccountInfo() error", err)
 		}
 	} else {
-		_, err := z.UpdateAccountInfo(asset.Spot)
+		_, err := z.UpdateAccountInfo(context.Background(), asset.Spot)
 		if err == nil {
 			t.Error("GetAccountInfo() Expected error")
 		}
@@ -374,7 +393,8 @@ func TestModifyOrder(t *testing.T) {
 	if z.ValidateAPICredentials() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
-	_, err := z.ModifyOrder(&order.Modify{AssetType: asset.Spot})
+	_, err := z.ModifyOrder(context.Background(),
+		&order.Modify{AssetType: asset.Spot})
 	if err == nil {
 		t.Error("ModifyOrder() Expected error")
 	}
@@ -389,6 +409,7 @@ func TestWithdraw(t *testing.T) {
 	}
 
 	withdrawCryptoRequest := withdraw.Request{
+		Exchange: z.Name,
 		Crypto: withdraw.CryptoRequest{
 			Address:   core.BitcoinDonationAddress,
 			FeeAmount: 1,
@@ -398,7 +419,8 @@ func TestWithdraw(t *testing.T) {
 		Description: "WITHDRAW IT ALL",
 	}
 
-	_, err := z.WithdrawCryptocurrencyFunds(&withdrawCryptoRequest)
+	_, err := z.WithdrawCryptocurrencyFunds(context.Background(),
+		&withdrawCryptoRequest)
 	if z.ValidateAPICredentials() && err != nil {
 		t.Error(err)
 	} else if !z.ValidateAPICredentials() && err == nil {
@@ -415,7 +437,7 @@ func TestWithdrawFiat(t *testing.T) {
 	}
 
 	var withdrawFiatRequest = withdraw.Request{}
-	_, err := z.WithdrawFiatFunds(&withdrawFiatRequest)
+	_, err := z.WithdrawFiatFunds(context.Background(), &withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected '%v', received: '%v'", common.ErrFunctionNotSupported, err)
 	}
@@ -430,7 +452,8 @@ func TestWithdrawInternationalBank(t *testing.T) {
 	}
 
 	var withdrawFiatRequest = withdraw.Request{}
-	_, err := z.WithdrawFiatFundsToInternationalBank(&withdrawFiatRequest)
+	_, err := z.WithdrawFiatFundsToInternationalBank(context.Background(),
+		&withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected '%v', received: '%v'", common.ErrFunctionNotSupported, err)
 	}
@@ -441,13 +464,31 @@ func TestGetDepositAddress(t *testing.T) {
 		t.Skip("skipping authenticated function for mock testing")
 	}
 	if z.ValidateAPICredentials() {
-		_, err := z.GetDepositAddress(currency.BTC, "")
+		_, err := z.GetDepositAddress(context.Background(), currency.XRP, "", "")
 		if err != nil {
 			t.Error("GetDepositAddress() error PLEASE MAKE SURE YOU CREATE DEPOSIT ADDRESSES VIA ZB.COM",
 				err)
 		}
 	} else {
-		_, err := z.GetDepositAddress(currency.BTC, "")
+		_, err := z.GetDepositAddress(context.Background(), currency.BTC, "", "")
+		if err == nil {
+			t.Error("GetDepositAddress() Expected error")
+		}
+	}
+}
+
+func TestGetMultiChainDepositAddress(t *testing.T) {
+	if mockTests {
+		t.Skip("skipping authenticated function for mock testing")
+	}
+	if z.ValidateAPICredentials() {
+		_, err := z.GetMultiChainDepositAddress(context.Background(), currency.USDT)
+		if err != nil {
+			t.Error("GetDepositAddress() error PLEASE MAKE SURE YOU CREATE DEPOSIT ADDRESSES VIA ZB.COM",
+				err)
+		}
+	} else {
+		_, err := z.GetMultiChainDepositAddress(context.Background(), currency.USDT)
 		if err == nil {
 			t.Error("GetDepositAddress() Expected error")
 		}
@@ -493,8 +534,7 @@ func TestWsTransferFunds(t *testing.T) {
 // TestGetSubUserList ws test
 func TestGetSubUserList(t *testing.T) {
 	setupWsAuth(t)
-	_, err := z.wsGetSubUserList()
-	if err != nil {
+	if _, err := z.wsGetSubUserList(); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -826,11 +866,11 @@ func TestGetSpotKline(t *testing.T) {
 	}
 	if mockTests {
 		startTime := time.Date(2020, 9, 1, 0, 0, 0, 0, time.UTC)
-		arg.Since = convert.UnixMillis(startTime)
+		arg.Since = startTime.UnixMilli()
 		arg.Type = "1day"
 	}
 
-	_, err := z.GetSpotKline(arg)
+	_, err := z.GetSpotKline(context.Background(), arg)
 	if err != nil {
 		t.Errorf("ZB GetSpotKline: %s", err)
 	}
@@ -849,11 +889,13 @@ func TestGetHistoricCandles(t *testing.T) {
 		endTime = time.Date(2020, 9, 2, 0, 0, 0, 0, time.UTC)
 	}
 
-	_, err = z.GetHistoricCandles(currencyPair, asset.Spot, startTime, endTime, kline.OneDay)
+	_, err = z.GetHistoricCandles(context.Background(),
+		currencyPair, asset.Spot, startTime, endTime, kline.OneDay)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = z.GetHistoricCandles(currencyPair, asset.Spot, startTime, endTime, kline.Interval(time.Hour*7))
+	_, err = z.GetHistoricCandles(context.Background(),
+		currencyPair, asset.Spot, startTime, endTime, kline.Interval(time.Hour*7))
 	if err == nil {
 		t.Fatal("unexpected result")
 	}
@@ -870,7 +912,8 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 		startTime = time.Date(2020, 9, 1, 0, 0, 0, 0, time.UTC)
 		endTime = time.Date(2020, 9, 2, 0, 0, 0, 0, time.UTC)
 	}
-	_, err = z.GetHistoricCandlesExtended(currencyPair, asset.Spot, startTime, endTime, kline.OneDay)
+	_, err = z.GetHistoricCandlesExtended(context.Background(),
+		currencyPair, asset.Spot, startTime, endTime, kline.OneDay)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -928,15 +971,15 @@ func Test_FormatExchangeKlineInterval(t *testing.T) {
 }
 
 func TestValidateCandlesRequest(t *testing.T) {
-	_, err := z.validateCandlesRequest(currency.Pair{}, "", time.Time{}, time.Time{}, kline.Interval(-1))
+	_, err := z.validateCandlesRequest(currency.EMPTYPAIR, "", time.Time{}, time.Time{}, kline.Interval(-1))
 	if !errors.Is(err, common.ErrDateUnset) {
 		t.Error(err)
 	}
-	_, err = z.validateCandlesRequest(currency.Pair{}, "", time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC), time.Time{}, kline.Interval(-1))
+	_, err = z.validateCandlesRequest(currency.EMPTYPAIR, "", time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC), time.Time{}, kline.Interval(-1))
 	if !errors.Is(err, common.ErrDateUnset) {
 		t.Error(err)
 	}
-	_, err = z.validateCandlesRequest(currency.Pair{}, asset.Spot, time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC), time.Date(2020, 1, 1, 1, 1, 1, 3, time.UTC), kline.OneHour)
+	_, err = z.validateCandlesRequest(currency.EMPTYPAIR, asset.Spot, time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC), time.Date(2020, 1, 1, 1, 1, 1, 3, time.UTC), kline.OneHour)
 	if err != nil && err.Error() != "pair not enabled" {
 		t.Error(err)
 	}
@@ -967,7 +1010,7 @@ func TestValidateCandlesRequest(t *testing.T) {
 func TestGetTrades(t *testing.T) {
 	t.Parallel()
 
-	trades, err := z.GetTrades("btc_usdt")
+	trades, err := z.GetTrades(context.Background(), "btc_usdt")
 	if err != nil {
 		t.Error(err)
 	}
@@ -983,7 +1026,7 @@ func TestGetRecentTrades(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = z.GetRecentTrades(currencyPair, asset.Spot)
+	_, err = z.GetRecentTrades(context.Background(), currencyPair, asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -995,8 +1038,46 @@ func TestGetHistoricTrades(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = z.GetHistoricTrades(currencyPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
+	_, err = z.GetHistoricTrades(context.Background(),
+		currencyPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
 	if err != nil && err != common.ErrFunctionNotSupported {
 		t.Error(err)
+	}
+}
+
+func TestUpdateTicker(t *testing.T) {
+	t.Parallel()
+	cp, err := currency.NewPairFromString("ETH_USDT")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = z.UpdateTicker(context.Background(), cp, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestUpdateTickers(t *testing.T) {
+	t.Parallel()
+	if err := z.UpdateTickers(context.Background(), asset.Spot); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetAvailableTransferChains(t *testing.T) {
+	t.Parallel()
+	if !z.ValidateAPICredentials() {
+		t.Skip("api keys not set")
+	}
+	_, err := z.GetAvailableTransferChains(context.Background(), currency.BTC)
+	if err != nil {
+		t.Error(err)
+	}
+	r, err := z.GetAvailableTransferChains(context.Background(), currency.USDT)
+	if err != nil {
+		t.Error(err)
+	}
+	if len(r) != 3 {
+		t.Error("expected 3 results")
 	}
 }

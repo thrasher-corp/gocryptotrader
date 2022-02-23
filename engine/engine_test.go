@@ -93,7 +93,7 @@ func TestStartStopDoesNotCausePanic(t *testing.T) {
 		DataDir:      tempDir,
 	}, nil)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	botOne.Settings.EnableGRPCProxy = false
 	for i := range botOne.Config.Exchanges {
@@ -165,27 +165,13 @@ func TestStartStopTwoDoesNotCausePanic(t *testing.T) {
 	botTwo.Stop()
 }
 
-func TestCheckExchangeExists(t *testing.T) {
-	t.Parallel()
-	em := SetupExchangeManager()
-	exch, err := em.NewExchangeByName(testExchange)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received '%v' expected '%v'", err, nil)
-	}
-	exch.SetDefaults()
-	em.Add(exch)
-	e := &Engine{ExchangeManager: em}
-	if e.GetExchangeByName(testExchange) == nil {
-		t.Errorf("TestGetExchangeExists: Unable to find exchange")
-	}
-
-	if e.GetExchangeByName("Asdsad") != nil {
-		t.Errorf("TestGetExchangeExists: Non-existent exchange found")
-	}
-}
-
 func TestGetExchangeByName(t *testing.T) {
 	t.Parallel()
+	_, err := (*ExchangeManager)(nil).GetExchangeByName("tehehe")
+	if !errors.Is(err, ErrNilSubsystem) {
+		t.Errorf("received: %v expected: %v", err, ErrNilSubsystem)
+	}
+
 	em := SetupExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
 	if !errors.Is(err, nil) {
@@ -201,18 +187,20 @@ func TestGetExchangeByName(t *testing.T) {
 	}
 
 	exch.SetEnabled(false)
-	bfx := e.GetExchangeByName(testExchange)
+	bfx, err := e.GetExchangeByName(testExchange)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if bfx.IsEnabled() {
 		t.Errorf("TestGetExchangeByName: Unexpected result")
 	}
-
 	if exch.GetName() != testExchange {
 		t.Errorf("TestGetExchangeByName: Unexpected result")
 	}
 
-	exch = e.GetExchangeByName("Asdasd")
-	if exch != nil {
-		t.Errorf("TestGetExchangeByName: Non-existent exchange found")
+	_, err = e.GetExchangeByName("Asdasd")
+	if !errors.Is(err, ErrExchangeNotFound) {
+		t.Errorf("received: %v expected: %v", err, ErrExchangeNotFound)
 	}
 }
 
@@ -227,7 +215,7 @@ func TestUnloadExchange(t *testing.T) {
 	exch.SetEnabled(true)
 	em.Add(exch)
 	e := &Engine{ExchangeManager: em,
-		Config: &config.Config{Exchanges: []config.ExchangeConfig{{Name: testExchange}}},
+		Config: &config.Config{Exchanges: []config.Exchange{{Name: testExchange}}},
 	}
 	err = e.UnloadExchange("asdf")
 	if !errors.Is(err, config.ErrExchangeNotFound) {
@@ -252,7 +240,7 @@ func TestDryRunParamInteraction(t *testing.T) {
 		ExchangeManager: SetupExchangeManager(),
 		Settings:        Settings{},
 		Config: &config.Config{
-			Exchanges: []config.ExchangeConfig{
+			Exchanges: []config.Exchange{
 				{
 					Name:                    testExchange,
 					WebsocketTrafficTimeout: time.Second,
@@ -291,5 +279,43 @@ func TestDryRunParamInteraction(t *testing.T) {
 	if !bot.Settings.EnableDryRun ||
 		!exchCfg.Verbose {
 		t.Error("dryrun should be true and verbose should be true")
+	}
+}
+
+func TestFlagSetWith(t *testing.T) {
+	var isRunning bool
+	flags := make(FlagSet)
+	// Flag not set default to config
+	flags.WithBool("NOT SET", &isRunning, true)
+	if !isRunning {
+		t.Fatalf("received: '%v' but expected: '%v'", isRunning, true)
+	}
+	flags.WithBool("NOT SET", &isRunning, false)
+	if isRunning {
+		t.Fatalf("received: '%v' but expected: '%v'", isRunning, false)
+	}
+
+	flags["IS SET"] = true
+	isRunning = true
+	// Flag set true which will overide config
+	flags.WithBool("IS SET", &isRunning, true)
+	if !isRunning {
+		t.Fatalf("received: '%v' but expected: '%v'", isRunning, true)
+	}
+	flags.WithBool("IS SET", &isRunning, false)
+	if !isRunning {
+		t.Fatalf("received: '%v' but expected: '%v'", isRunning, true)
+	}
+
+	flags["IS SET"] = true
+	isRunning = false
+	// Flag set false which will overide config
+	flags.WithBool("IS SET", &isRunning, true)
+	if isRunning {
+		t.Fatalf("received: '%v' but expected: '%v'", isRunning, false)
+	}
+	flags.WithBool("IS SET", &isRunning, false)
+	if isRunning {
+		t.Fatalf("received: '%v' but expected: '%v'", isRunning, false)
 	}
 }

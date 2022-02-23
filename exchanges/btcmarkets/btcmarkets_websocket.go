@@ -39,13 +39,14 @@ func (b *BTCMarkets) WsConnect() error {
 	if b.Verbose {
 		log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", b.Name)
 	}
+
+	b.Websocket.Wg.Add(1)
 	go b.wsReadData()
 	return nil
 }
 
 // wsReadData receives and passes on websocket messages for processing
 func (b *BTCMarkets) wsReadData() {
-	b.Websocket.Wg.Add(1)
 	defer b.Websocket.Wg.Done()
 
 	for {
@@ -342,11 +343,14 @@ func (b *BTCMarkets) Subscribe(channelsToSubscribe []stream.ChannelSubscription)
 		if !common.StringDataCompare(payload.Channels, authChannels[i]) {
 			continue
 		}
-		signTime := strconv.FormatInt(time.Now().UTC().UnixNano()/1000000, 10)
+		signTime := strconv.FormatInt(time.Now().UnixMilli(), 10)
 		strToSign := "/users/self/subscribe" + "\n" + signTime
-		tempSign := crypto.GetHMAC(crypto.HashSHA512,
+		tempSign, err := crypto.GetHMAC(crypto.HashSHA512,
 			[]byte(strToSign),
 			[]byte(b.API.Credentials.Secret))
+		if err != nil {
+			return err
+		}
 		sign := crypto.Base64Encode(tempSign)
 		payload.Key = b.API.Credentials.Key
 		payload.Signature = sign

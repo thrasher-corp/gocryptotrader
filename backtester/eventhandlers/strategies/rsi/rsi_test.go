@@ -2,9 +2,11 @@ package rsi
 
 import (
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
@@ -18,21 +20,23 @@ import (
 )
 
 func TestName(t *testing.T) {
+	t.Parallel()
 	d := Strategy{}
-	n := d.Name()
-	if n != Name {
+	if n := d.Name(); n != Name {
 		t.Errorf("expected %v", Name)
 	}
 }
 
 func TestSupportsSimultaneousProcessing(t *testing.T) {
+	t.Parallel()
 	s := Strategy{}
-	if s.SupportsSimultaneousProcessing() {
-		t.Error("expected false")
+	if !s.SupportsSimultaneousProcessing() {
+		t.Error("expected true")
 	}
 }
 
 func TestSetCustomSettings(t *testing.T) {
+	t.Parallel()
 	s := Strategy{}
 	err := s.SetCustomSettings(nil)
 	if err != nil {
@@ -52,36 +56,37 @@ func TestSetCustomSettings(t *testing.T) {
 	mappalopalous[rsiPeriodKey] = "14"
 	err = s.SetCustomSettings(mappalopalous)
 	if !errors.Is(err, base.ErrInvalidCustomSettings) {
-		t.Errorf("expected: %v, received %v", base.ErrInvalidCustomSettings, err)
+		t.Errorf("received: %v, expected: %v", err, base.ErrInvalidCustomSettings)
 	}
 
 	mappalopalous[rsiPeriodKey] = float14
 	mappalopalous[rsiLowKey] = "14"
 	err = s.SetCustomSettings(mappalopalous)
 	if !errors.Is(err, base.ErrInvalidCustomSettings) {
-		t.Errorf("expected: %v, received %v", base.ErrInvalidCustomSettings, err)
+		t.Errorf("received: %v, expected: %v", err, base.ErrInvalidCustomSettings)
 	}
 
 	mappalopalous[rsiLowKey] = float14
 	mappalopalous[rsiHighKey] = "14"
 	err = s.SetCustomSettings(mappalopalous)
 	if !errors.Is(err, base.ErrInvalidCustomSettings) {
-		t.Errorf("expected: %v, received %v", base.ErrInvalidCustomSettings, err)
+		t.Errorf("received: %v, expected: %v", err, base.ErrInvalidCustomSettings)
 	}
 
 	mappalopalous[rsiHighKey] = float14
 	mappalopalous["lol"] = float14
 	err = s.SetCustomSettings(mappalopalous)
 	if !errors.Is(err, base.ErrInvalidCustomSettings) {
-		t.Errorf("expected: %v, received %v", base.ErrInvalidCustomSettings, err)
+		t.Errorf("received: %v, expected: %v", err, base.ErrInvalidCustomSettings)
 	}
 }
 
 func TestOnSignal(t *testing.T) {
+	t.Parallel()
 	s := Strategy{}
-	_, err := s.OnSignal(nil, nil)
+	_, err := s.OnSignal(nil, nil, nil)
 	if !errors.Is(err, common.ErrNilEvent) {
-		t.Errorf("expected: %v, received %v", common.ErrNilEvent, err)
+		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
 	}
 	dStart := time.Date(2020, 1, 0, 0, 0, 0, 0, time.UTC)
 	dInsert := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
@@ -99,27 +104,27 @@ func TestOnSignal(t *testing.T) {
 			CurrencyPair: p,
 			AssetType:    a,
 		},
-		Open:   1337,
-		Close:  1337,
-		Low:    1337,
-		High:   1337,
-		Volume: 1337,
+		Open:   decimal.NewFromInt(1337),
+		Close:  decimal.NewFromInt(1337),
+		Low:    decimal.NewFromInt(1337),
+		High:   decimal.NewFromInt(1337),
+		Volume: decimal.NewFromInt(1337),
 	}},
 	)
 	d.Next()
 	da := &kline.DataFromKline{
-		Item:  gctkline.Item{},
-		Base:  d,
-		Range: &gctkline.IntervalRangeHolder{},
+		Item:        gctkline.Item{},
+		Base:        d,
+		RangeHolder: &gctkline.IntervalRangeHolder{},
 	}
 	var resp signal.Event
-	_, err = s.OnSignal(da, nil)
+	_, err = s.OnSignal(da, nil, nil)
 	if !errors.Is(err, base.ErrTooMuchBadData) {
 		t.Fatalf("expected: %v, received %v", base.ErrTooMuchBadData, err)
 	}
 
-	s.rsiPeriod = 1
-	_, err = s.OnSignal(da, nil)
+	s.rsiPeriod = decimal.NewFromInt(1)
+	_, err = s.OnSignal(da, nil, nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -149,9 +154,9 @@ func TestOnSignal(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	da.Range = ranger
-	da.Range.SetHasDataFromCandles(da.Item.Candles)
-	resp, err = s.OnSignal(da, nil)
+	da.RangeHolder = ranger
+	da.RangeHolder.SetHasDataFromCandles(da.Item.Candles)
+	resp, err = s.OnSignal(da, nil, nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -161,10 +166,11 @@ func TestOnSignal(t *testing.T) {
 }
 
 func TestOnSignals(t *testing.T) {
+	t.Parallel()
 	s := Strategy{}
-	_, err := s.OnSignal(nil, nil)
+	_, err := s.OnSignal(nil, nil, nil)
 	if !errors.Is(err, common.ErrNilEvent) {
-		t.Errorf("expected: %v, received %v", common.ErrNilEvent, err)
+		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
 	}
 	dInsert := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	exch := "binance"
@@ -179,34 +185,36 @@ func TestOnSignals(t *testing.T) {
 			CurrencyPair: p,
 			AssetType:    a,
 		},
-		Open:   1337,
-		Close:  1337,
-		Low:    1337,
-		High:   1337,
-		Volume: 1337,
+		Open:   decimal.NewFromInt(1337),
+		Close:  decimal.NewFromInt(1337),
+		Low:    decimal.NewFromInt(1337),
+		High:   decimal.NewFromInt(1337),
+		Volume: decimal.NewFromInt(1337),
 	}})
 	d.Next()
 	da := &kline.DataFromKline{
-		Item:  gctkline.Item{},
-		Base:  d,
-		Range: &gctkline.IntervalRangeHolder{},
+		Item:        gctkline.Item{},
+		Base:        d,
+		RangeHolder: &gctkline.IntervalRangeHolder{},
 	}
-	_, err = s.OnSimultaneousSignals([]data.Handler{da}, nil)
-	if !errors.Is(err, base.ErrSimultaneousProcessingNotSupported) {
-		t.Errorf("expected: %v, received %v", base.ErrSimultaneousProcessingNotSupported, err)
+	_, err = s.OnSimultaneousSignals([]data.Handler{da}, nil, nil)
+	if !strings.Contains(err.Error(), base.ErrTooMuchBadData.Error()) {
+		// common.Errs type doesn't keep type
+		t.Errorf("received: %v, expected: %v", err, base.ErrTooMuchBadData)
 	}
 }
 
 func TestSetDefaults(t *testing.T) {
+	t.Parallel()
 	s := Strategy{}
 	s.SetDefaults()
-	if s.rsiHigh != 70.0 {
+	if !s.rsiHigh.Equal(decimal.NewFromInt(70)) {
 		t.Error("expected 70")
 	}
-	if s.rsiLow != 30.0 {
+	if !s.rsiLow.Equal(decimal.NewFromInt(30)) {
 		t.Error("expected 30")
 	}
-	if s.rsiPeriod != 14.0 {
+	if !s.rsiPeriod.Equal(decimal.NewFromInt(14)) {
 		t.Error("expected 14")
 	}
 }

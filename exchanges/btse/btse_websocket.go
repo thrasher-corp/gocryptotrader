@@ -41,7 +41,9 @@ func (b *BTSE) WsConnect() error {
 		Delay:       btseWebsocketTimer,
 	})
 
+	b.Websocket.Wg.Add(1)
 	go b.wsReadData()
+
 	if b.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
 		err = b.WsAuthenticate()
 		if err != nil {
@@ -55,12 +57,17 @@ func (b *BTSE) WsConnect() error {
 
 // WsAuthenticate Send an authentication message to receive auth data
 func (b *BTSE) WsAuthenticate() error {
-	nonce := strconv.FormatInt(time.Now().UnixNano()/int64(time.Millisecond), 10)
+	nonce := strconv.FormatInt(time.Now().UnixMilli(), 10)
 	path := "/spotWS" + nonce
-	hmac := crypto.GetHMAC(crypto.HashSHA512_384,
+
+	hmac, err := crypto.GetHMAC(crypto.HashSHA512_384,
 		[]byte((path)),
 		[]byte(b.API.Credentials.Secret),
 	)
+	if err != nil {
+		return err
+	}
+
 	sign := crypto.HexEncodeToString(hmac)
 	req := wsSub{
 		Operation: "authKeyExpires",
@@ -92,7 +99,6 @@ func stringToOrderStatus(status string) (order.Status, error) {
 
 // wsReadData receives and passes on websocket messages for processing
 func (b *BTSE) wsReadData() {
-	b.Websocket.Wg.Add(1)
 	defer b.Websocket.Wg.Done()
 
 	for {
@@ -210,7 +216,7 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 				Side:         oSide,
 				Status:       oStatus,
 				AssetType:    a,
-				Date:         time.Unix(0, notification.Data[i].Timestamp*int64(time.Millisecond)),
+				Date:         time.UnixMilli(notification.Data[i].Timestamp),
 				Pair:         p,
 			}
 		}
@@ -244,7 +250,7 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 				return err
 			}
 			trades = append(trades, trade.Data{
-				Timestamp:    time.Unix(0, tradeHistory.Data[x].TransactionTime*int64(time.Millisecond)),
+				Timestamp:    time.UnixMilli(tradeHistory.Data[x].TransactionTime),
 				CurrencyPair: p,
 				AssetType:    a,
 				Exchange:     b.Name,

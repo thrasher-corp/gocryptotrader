@@ -1,17 +1,22 @@
 package binance
 
 import (
+	"context"
+	"errors"
 	"testing"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
 func TestRateLimit_Limit(t *testing.T) {
+	t.Parallel()
 	symbol := "BTC-USDT"
 
 	testTable := map[string]struct {
 		Expected request.EndpointLimit
 		Limit    request.EndpointLimit
+		Deadline time.Time
 	}{
 		"All Orderbooks Ticker": {Expected: spotOrderbookTickerAllRate, Limit: bestPriceLimit("")},
 		"Orderbook Ticker":      {Expected: spotDefaultRate, Limit: bestPriceLimit(symbol)},
@@ -24,6 +29,7 @@ func TestRateLimit_Limit(t *testing.T) {
 		"Orderbook Depth 500":   {Expected: spotOrderbookDepth500Rate, Limit: orderbookLimit(500)},
 		"Orderbook Depth 1000":  {Expected: spotOrderbookDepth1000Rate, Limit: orderbookLimit(1000)},
 		"Orderbook Depth 5000":  {Expected: spotOrderbookDepth5000Rate, Limit: orderbookLimit(5000)},
+		"Exceeds deadline":      {Expected: spotOrderbookDepth5000Rate, Limit: orderbookLimit(5000), Deadline: time.Now().Add(time.Nanosecond)},
 	}
 	for name, tt := range testTable {
 		tt := tt
@@ -35,8 +41,15 @@ func TestRateLimit_Limit(t *testing.T) {
 				t.Fatalf("incorrect limit applied.\nexp: %v\ngot: %v", exp, got)
 			}
 
+			ctx := context.Background()
+			if !tt.Deadline.IsZero() {
+				var cancel context.CancelFunc
+				ctx, cancel = context.WithDeadline(ctx, tt.Deadline)
+				defer cancel()
+			}
+
 			l := SetRateLimit()
-			if err := l.Limit(tt.Limit); err != nil {
+			if err := l.Limit(ctx, tt.Limit); err != nil && !errors.Is(err, context.DeadlineExceeded) {
 				t.Fatalf("error applying rate limit: %v", err)
 			}
 		})
@@ -44,6 +57,7 @@ func TestRateLimit_Limit(t *testing.T) {
 }
 
 func TestRateLimit_LimitStatic(t *testing.T) {
+	t.Parallel()
 	testTable := map[string]request.EndpointLimit{
 		"Default":           spotDefaultRate,
 		"Historical Trades": spotHistoricalTradesRate,
@@ -56,7 +70,7 @@ func TestRateLimit_LimitStatic(t *testing.T) {
 			t.Parallel()
 
 			l := SetRateLimit()
-			if err := l.Limit(tt); err != nil {
+			if err := l.Limit(context.Background(), tt); err != nil {
 				t.Fatalf("error applying rate limit: %v", err)
 			}
 		})

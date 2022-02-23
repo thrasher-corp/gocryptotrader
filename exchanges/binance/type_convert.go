@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"strconv"
 	"time"
-
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 )
 
 // binanceTime provides an internal conversion helper
@@ -16,7 +14,7 @@ func (t *binanceTime) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &timestamp); err != nil {
 		return err
 	}
-	*t = binanceTime(time.Unix(0, timestamp*int64(time.Millisecond)))
+	*t = binanceTime(time.UnixMilli(timestamp))
 	return nil
 }
 
@@ -27,7 +25,7 @@ func (t binanceTime) Time() time.Time {
 
 // timeString gets the time as Binance timestamp
 func timeString(t time.Time) string {
-	return strconv.FormatInt(convert.UnixMillis(t), 10)
+	return strconv.FormatInt(t.UnixMilli(), 10)
 }
 
 // UnmarshalJSON deserialises the JSON info, including the timestamp
@@ -74,11 +72,8 @@ func (a *NewOrderResponse) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &aux); err != nil {
 		return err
 	}
-	// there can be an empty response, then `a` is set to nil
 	if aux != nil {
 		a.TransactionTime = aux.TransactionTime.Time()
-	} else {
-		a = nil
 	}
 	return nil
 }
@@ -426,5 +421,63 @@ func (a *wsListStatus) UnmarshalJSON(data []byte) error {
 	a.Data = *aux.Data.WsListStatusData
 	a.Data.EventTime = aux.Data.EventTime.Time()
 	a.Data.TransactionTime = aux.Data.TransactionTime.Time()
+	return nil
+}
+
+// UnmarshalJSON deserialises the JSON info, including the timestamp
+func (u *UFuturesSymbolInfo) UnmarshalJSON(data []byte) error {
+	type Alias UFuturesSymbolInfo
+	aux := &struct {
+		DeliveryDate binanceTime `json:"deliveryDate"`
+		OnboardDate  binanceTime `json:"onboardDate"`
+		*Alias
+	}{
+		Alias: (*Alias)(u),
+	}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	u.DeliveryDate = aux.DeliveryDate.Time()
+	u.OnboardDate = aux.OnboardDate.Time()
+	return nil
+}
+
+// UnmarshalJSON deserialises the JSON info, including the timestamp
+func (a *FuturesAccountInformationPositions) UnmarshalJSON(data []byte) error {
+	type Alias FuturesAccountInformationPositions
+
+	aux := &struct {
+		UpdateTime binanceTime `json:"updateTime"`
+		*Alias
+	}{
+		Alias: (*Alias)(a),
+	}
+
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+
+	a.UpdateTime = aux.UpdateTime.Time()
+
+	return nil
+}
+
+// UnmarshalJSON deserialises the JSON info, including the timestamp
+func (a *FuturesAccountInformation) UnmarshalJSON(data []byte) error {
+	type Alias FuturesAccountInformation
+
+	aux := &struct {
+		UpdateTime binanceTime `json:"updateTime"`
+		*Alias
+	}{
+		Alias: (*Alias)(a),
+	}
+
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+
+	a.UpdateTime = aux.UpdateTime.Time()
+
 	return nil
 }

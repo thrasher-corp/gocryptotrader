@@ -29,6 +29,11 @@ implementation
 
 + A guide on implementing API support for a new exchange can be found [here](../docs/ADD_NEW_EXCHANGE.md)
 
+## websocket notes
+
++ If contributing websocket improvements, please make sure order reports 
+follow [these rules](../docs/WS_ORDER_EVENTS.md).
+
 ### Please click GoDocs chevron above to view current GoDoc information for this package
 
 ## Contribution

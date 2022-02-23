@@ -34,12 +34,12 @@ func (f *Fixer) Setup(config base.Settings) error {
 	f.APIKeyLvl = config.APIKeyLvl
 	f.Enabled = config.Enabled
 	f.Name = config.Name
-	f.RESTPollingDelay = config.RESTPollingDelay
 	f.Verbose = config.Verbose
 	f.PrimaryProvider = config.PrimaryProvider
-	f.Requester = request.New(f.Name,
+	var err error
+	f.Requester, err = request.New(f.Name,
 		common.NewHTTPClientWithTimeout(base.DefaultTimeOut))
-	return nil
+	return err
 }
 
 // GetSupportedCurrencies returns supported currencies
@@ -220,21 +220,26 @@ func (f *Fixer) GetFluctuationData(startDate, endDate, baseCurrency string, symb
 
 // SendOpenHTTPRequest sends a typical get request
 func (f *Fixer) SendOpenHTTPRequest(endpoint string, v url.Values, result interface{}) error {
-	var path string
+	if v == nil {
+		v = url.Values{}
+	}
 	v.Set("access_key", f.APIKey)
 
 	var auth bool
+	var path string
 	if f.APIKeyLvl == fixerAPIFree {
 		path = fixerAPI + endpoint + "?" + v.Encode()
 	} else {
 		path = fixerAPISSL + endpoint + "?" + v.Encode()
 		auth = true
 	}
-
-	return f.Requester.SendPayload(context.Background(), &request.Item{
+	item := &request.Item{
 		Method:      http.MethodGet,
 		Path:        path,
 		Result:      &result,
 		AuthRequest: auth,
-		Verbose:     f.Verbose})
+		Verbose:     f.Verbose}
+	return f.Requester.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
+		return item, nil
+	})
 }

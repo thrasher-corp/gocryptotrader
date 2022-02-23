@@ -69,7 +69,7 @@ func (w *CurrencyDetails) loadPairs(data map[string]Ticker) error {
 }
 
 // loadCodes loads currency codes from currency map
-func (w *CurrencyDetails) loadCodes(data map[string]Currencies) error {
+func (w *CurrencyDetails) loadCodes(data map[string]*Currencies) error {
 	if data == nil {
 		return errCannotLoadNoData
 	}
@@ -101,7 +101,7 @@ func (w *CurrencyDetails) GetPair(id float64) (currency.Pair, error) {
 	w.m.RLock()
 	defer w.m.RUnlock()
 	if w.pairs == nil {
-		return currency.Pair{}, errPairMapIsNil
+		return currency.EMPTYPAIR, errPairMapIsNil
 	}
 
 	p, ok := w.pairs[id]
@@ -124,13 +124,13 @@ func (w *CurrencyDetails) GetCode(id float64) (currency.Code, error) {
 	w.m.RLock()
 	defer w.m.RUnlock()
 	if w.codes == nil {
-		return currency.Code{}, errCodeMapIsNil
+		return currency.EMPTYCODE, errCodeMapIsNil
 	}
 	c, ok := w.codes[id]
 	if ok {
 		return c.Currency, nil
 	}
-	return currency.Code{}, errIDNotFoundInCodeMap
+	return currency.EMPTYCODE, errIDNotFoundInCodeMap
 }
 
 // GetWithdrawalTXFee returns withdrawal transaction fee for the currency

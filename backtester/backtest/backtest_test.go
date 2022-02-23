@@ -2,12 +2,12 @@ package backtest
 
 import (
 	"errors"
-	"log"
-	"path/filepath"
+	"os"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
@@ -18,12 +18,13 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/risk"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/size"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics/currencystatistics"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/dollarcostaverage"
+	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	"github.com/thrasher-corp/gocryptotrader/backtester/report"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
-	gctconfig "github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/database/drivers"
@@ -35,57 +36,25 @@ import (
 
 const testExchange = "Bitstamp"
 
-func newBotWithExchange() *engine.Engine {
-	bot := &engine.Engine{
-		Config: &gctconfig.Config{
-			Exchanges: []gctconfig.ExchangeConfig{
-				{
-					Name:                    testExchange,
-					Enabled:                 true,
-					WebsocketTrafficTimeout: time.Second,
-					CurrencyPairs: &currency.PairsManager{
-						Pairs: map[asset.Item]*currency.PairStore{
-							asset.Spot: {
-								AssetEnabled:  convert.BoolPtr(true),
-								Available:     []currency.Pair{currency.NewPair(currency.BTC, currency.USD)},
-								Enabled:       []currency.Pair{currency.NewPair(currency.BTC, currency.USD)},
-								ConfigFormat:  &currency.PairFormat{},
-								RequestFormat: &currency.PairFormat{},
-							},
-						},
-					},
-				},
-			},
-		},
-	}
-	em := engine.SetupExchangeManager()
-	exch, err := em.NewExchangeByName(testExchange)
-	if err != nil {
-		log.Fatal(err)
-	}
-	exch.SetDefaults()
-	em.Add(exch)
-	bot.ExchangeManager = em
-	return bot
+var leet *decimal.Decimal
+
+func TestMain(m *testing.M) {
+	oneThreeThreeSeven := decimal.NewFromInt(1337)
+	leet = &oneThreeThreeSeven
+	os.Exit(m.Run())
 }
 
 func TestNewFromConfig(t *testing.T) {
 	t.Parallel()
-	_, err := NewFromConfig(nil, "", "", nil)
+	_, err := NewFromConfig(nil, "", "")
 	if !errors.Is(err, errNilConfig) {
 		t.Errorf("received %v, expected %v", err, errNilConfig)
 	}
 
 	cfg := &config.Config{}
-	_, err = NewFromConfig(cfg, "", "", nil)
-	if !errors.Is(err, errNilBot) {
-		t.Errorf("expected: %v, received %v", errNilBot, err)
-	}
-
-	bot := newBotWithExchange()
-	_, err = NewFromConfig(cfg, "", "", bot)
-	if !errors.Is(err, config.ErrNoCurrencySettings) {
-		t.Errorf("expected: %v, received %v", config.ErrNoCurrencySettings, err)
+	_, err = NewFromConfig(cfg, "", "")
+	if !errors.Is(err, base.ErrStrategyNotFound) {
+		t.Errorf("received: %v, expected: %v", err, base.ErrStrategyNotFound)
 	}
 
 	cfg.CurrencySettings = []config.CurrencySettings{
@@ -95,21 +64,26 @@ func TestNewFromConfig(t *testing.T) {
 			Quote:        "test",
 		},
 	}
-	_, err = NewFromConfig(cfg, "", "", bot)
-	if !errors.Is(err, config.ErrBadInitialFunds) {
-		t.Errorf("expected: %v, received %v", config.ErrBadInitialFunds, err)
-	}
-
-	cfg.CurrencySettings[0].InitialFunds = 1337
-	_, err = NewFromConfig(cfg, "", "", bot)
-	if !errors.Is(err, config.ErrUnsetAsset) {
-		t.Errorf("expected: %v, received %v", config.ErrUnsetAsset, err)
-	}
-
-	cfg.CurrencySettings[0].Asset = asset.Spot.String()
-	_, err = NewFromConfig(cfg, "", "", bot)
+	_, err = NewFromConfig(cfg, "", "")
 	if !errors.Is(err, engine.ErrExchangeNotFound) {
-		t.Errorf("expected: %v, received %v", engine.ErrExchangeNotFound, err)
+		t.Errorf("received: %v, expected: %v", err, engine.ErrExchangeNotFound)
+	}
+	cfg.CurrencySettings[0].ExchangeName = testExchange
+	_, err = NewFromConfig(cfg, "", "")
+	if !errors.Is(err, errInvalidConfigAsset) {
+		t.Errorf("received: %v, expected: %v", err, errInvalidConfigAsset)
+	}
+	cfg.CurrencySettings[0].Asset = asset.Spot.String()
+	_, err = NewFromConfig(cfg, "", "")
+	if !errors.Is(err, currency.ErrPairNotFound) {
+		t.Errorf("received: %v, expected: %v", err, currency.ErrPairNotFound)
+	}
+
+	cfg.CurrencySettings[0].Base = "btc"
+	cfg.CurrencySettings[0].Quote = "usd"
+	_, err = NewFromConfig(cfg, "", "")
+	if !errors.Is(err, base.ErrStrategyNotFound) {
+		t.Errorf("received: %v, expected: %v", err, base.ErrStrategyNotFound)
 	}
 
 	cfg.StrategySettings = config.StrategySettings{
@@ -118,12 +92,6 @@ func TestNewFromConfig(t *testing.T) {
 			"hello": "moto",
 		},
 	}
-	cfg.CurrencySettings[0].ExchangeName = testExchange
-	_, err = NewFromConfig(cfg, "", "", bot)
-	if !errors.Is(err, errNoDataSource) {
-		t.Errorf("expected: %v, received %v", errNoDataSource, err)
-	}
-
 	cfg.CurrencySettings[0].Base = "BTC"
 	cfg.CurrencySettings[0].Quote = "USD"
 	cfg.DataSettings.APIData = &config.APIData{
@@ -131,30 +99,29 @@ func TestNewFromConfig(t *testing.T) {
 		EndDate:   time.Time{},
 	}
 
-	_, err = NewFromConfig(cfg, "", "", bot)
+	_, err = NewFromConfig(cfg, "", "")
 	if err != nil && !strings.Contains(err.Error(), "unrecognised dataType") {
 		t.Error(err)
 	}
 	cfg.DataSettings.DataType = common.CandleStr
-	_, err = NewFromConfig(cfg, "", "", bot)
-	if !errors.Is(err, config.ErrStartEndUnset) {
-		t.Errorf("expected: %v, received %v", config.ErrStartEndUnset, err)
+	_, err = NewFromConfig(cfg, "", "")
+	if !errors.Is(err, errIntervalUnset) {
+		t.Errorf("received: %v, expected: %v", err, errIntervalUnset)
+	}
+	cfg.DataSettings.Interval = gctkline.OneMin.Duration()
+	cfg.CurrencySettings[0].MakerFee = decimal.Zero
+	cfg.CurrencySettings[0].TakerFee = decimal.Zero
+	_, err = NewFromConfig(cfg, "", "")
+	if !errors.Is(err, gctcommon.ErrDateUnset) {
+		t.Errorf("received: %v, expected: %v", err, gctcommon.ErrDateUnset)
 	}
 
 	cfg.DataSettings.APIData.StartDate = time.Now().Add(-time.Minute)
 	cfg.DataSettings.APIData.EndDate = time.Now()
 	cfg.DataSettings.APIData.InclusiveEndDate = true
-	_, err = NewFromConfig(cfg, "", "", bot)
-	if !errors.Is(err, errIntervalUnset) {
-		t.Errorf("expected: %v, received %v", errIntervalUnset, err)
-	}
-
-	cfg.DataSettings.Interval = gctkline.OneMin.Duration()
-	cfg.CurrencySettings[0].MakerFee = 1337
-	cfg.CurrencySettings[0].TakerFee = 1337
-	_, err = NewFromConfig(cfg, "", "", bot)
-	if err != nil {
-		t.Error(err)
+	_, err = NewFromConfig(cfg, "", "")
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 }
 
@@ -162,22 +129,21 @@ func TestLoadDataAPI(t *testing.T) {
 	t.Parallel()
 	bt := BackTest{
 		Reports: &report.Data{},
-		Bot:     &engine.Engine{},
 	}
 	cp := currency.NewPair(currency.BTC, currency.USDT)
 	cfg := &config.Config{
 		CurrencySettings: []config.CurrencySettings{
 			{
-				ExchangeName: "Binance",
-				Asset:        asset.Spot.String(),
-				Base:         cp.Base.String(),
-				Quote:        cp.Quote.String(),
-				InitialFunds: 1337,
-				Leverage:     config.Leverage{},
-				BuySide:      config.MinMax{},
-				SellSide:     config.MinMax{},
-				MakerFee:     1337,
-				TakerFee:     1337,
+				ExchangeName:      "Binance",
+				Asset:             asset.Spot.String(),
+				Base:              cp.Base.String(),
+				Quote:             cp.Quote.String(),
+				InitialQuoteFunds: leet,
+				Leverage:          config.Leverage{},
+				BuySide:           config.MinMax{},
+				SellSide:          config.MinMax{},
+				MakerFee:          decimal.Zero,
+				TakerFee:          decimal.Zero,
 			},
 		},
 		DataSettings: config.DataSettings{
@@ -209,7 +175,7 @@ func TestLoadDataAPI(t *testing.T) {
 		ConfigFormat:  &currency.PairFormat{Uppercase: true},
 		RequestFormat: &currency.PairFormat{Uppercase: true}}
 
-	_, err = bt.loadData(cfg, exch, cp, asset.Spot)
+	_, err = bt.loadData(cfg, exch, cp, asset.Spot, false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -219,31 +185,28 @@ func TestLoadDataDatabase(t *testing.T) {
 	t.Parallel()
 	bt := BackTest{
 		Reports: &report.Data{},
-		Bot: &engine.Engine{
-			Config: &gctconfig.Config{Database: database.Config{}},
-		},
 	}
 	cp := currency.NewPair(currency.BTC, currency.USDT)
 	cfg := &config.Config{
 		CurrencySettings: []config.CurrencySettings{
 			{
-				ExchangeName: "Binance",
-				Asset:        asset.Spot.String(),
-				Base:         cp.Base.String(),
-				Quote:        cp.Quote.String(),
-				InitialFunds: 1337,
-				Leverage:     config.Leverage{},
-				BuySide:      config.MinMax{},
-				SellSide:     config.MinMax{},
-				MakerFee:     1337,
-				TakerFee:     1337,
+				ExchangeName:      "Binance",
+				Asset:             asset.Spot.String(),
+				Base:              cp.Base.String(),
+				Quote:             cp.Quote.String(),
+				InitialQuoteFunds: leet,
+				Leverage:          config.Leverage{},
+				BuySide:           config.MinMax{},
+				SellSide:          config.MinMax{},
+				MakerFee:          decimal.Zero,
+				TakerFee:          decimal.Zero,
 			},
 		},
 		DataSettings: config.DataSettings{
 			DataType: common.CandleStr,
 			Interval: gctkline.OneMin.Duration(),
 			DatabaseData: &config.DatabaseData{
-				ConfigOverride: &database.Config{
+				Config: database.Config{
 					Enabled: true,
 					Driver:  "sqlite3",
 					ConnectionDetails: drivers.ConnectionDetails{
@@ -275,8 +238,11 @@ func TestLoadDataDatabase(t *testing.T) {
 		AssetEnabled:  convert.BoolPtr(true),
 		ConfigFormat:  &currency.PairFormat{Uppercase: true},
 		RequestFormat: &currency.PairFormat{Uppercase: true}}
-
-	_, err = bt.loadData(cfg, exch, cp, asset.Spot)
+	bt.databaseManager, err = engine.SetupDatabaseConnectionManager(&cfg.DataSettings.DatabaseData.Config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = bt.loadData(cfg, exch, cp, asset.Spot, false)
 	if err != nil && !strings.Contains(err.Error(), "unable to retrieve data from GoCryptoTrader database") {
 		t.Error(err)
 	}
@@ -286,22 +252,21 @@ func TestLoadDataCSV(t *testing.T) {
 	t.Parallel()
 	bt := BackTest{
 		Reports: &report.Data{},
-		Bot:     &engine.Engine{},
 	}
 	cp := currency.NewPair(currency.BTC, currency.USDT)
 	cfg := &config.Config{
 		CurrencySettings: []config.CurrencySettings{
 			{
-				ExchangeName: "Binance",
-				Asset:        asset.Spot.String(),
-				Base:         cp.Base.String(),
-				Quote:        cp.Quote.String(),
-				InitialFunds: 1337,
-				Leverage:     config.Leverage{},
-				BuySide:      config.MinMax{},
-				SellSide:     config.MinMax{},
-				MakerFee:     1337,
-				TakerFee:     1337,
+				ExchangeName:      "Binance",
+				Asset:             asset.Spot.String(),
+				Base:              cp.Base.String(),
+				Quote:             cp.Quote.String(),
+				InitialQuoteFunds: leet,
+				Leverage:          config.Leverage{},
+				BuySide:           config.MinMax{},
+				SellSide:          config.MinMax{},
+				MakerFee:          decimal.Zero,
+				TakerFee:          decimal.Zero,
 			},
 		},
 		DataSettings: config.DataSettings{
@@ -331,7 +296,7 @@ func TestLoadDataCSV(t *testing.T) {
 		AssetEnabled:  convert.BoolPtr(true),
 		ConfigFormat:  &currency.PairFormat{Uppercase: true},
 		RequestFormat: &currency.PairFormat{Uppercase: true}}
-	_, err = bt.loadData(cfg, exch, cp, asset.Spot)
+	_, err = bt.loadData(cfg, exch, cp, asset.Spot, false)
 	if err != nil &&
 		!strings.Contains(err.Error(), "The system cannot find the file specified.") &&
 		!strings.Contains(err.Error(), "no such file or directory") {
@@ -343,23 +308,22 @@ func TestLoadDataLive(t *testing.T) {
 	t.Parallel()
 	bt := BackTest{
 		Reports:  &report.Data{},
-		Bot:      &engine.Engine{},
 		shutdown: make(chan struct{}),
 	}
 	cp := currency.NewPair(currency.BTC, currency.USDT)
 	cfg := &config.Config{
 		CurrencySettings: []config.CurrencySettings{
 			{
-				ExchangeName: "Binance",
-				Asset:        asset.Spot.String(),
-				Base:         cp.Base.String(),
-				Quote:        cp.Quote.String(),
-				InitialFunds: 1337,
-				Leverage:     config.Leverage{},
-				BuySide:      config.MinMax{},
-				SellSide:     config.MinMax{},
-				MakerFee:     1337,
-				TakerFee:     1337,
+				ExchangeName:      "Binance",
+				Asset:             asset.Spot.String(),
+				Base:              cp.Base.String(),
+				Quote:             cp.Quote.String(),
+				InitialQuoteFunds: leet,
+				Leverage:          config.Leverage{},
+				BuySide:           config.MinMax{},
+				SellSide:          config.MinMax{},
+				MakerFee:          decimal.Zero,
+				TakerFee:          decimal.Zero,
 			},
 		},
 		DataSettings: config.DataSettings{
@@ -393,7 +357,7 @@ func TestLoadDataLive(t *testing.T) {
 		AssetEnabled:  convert.BoolPtr(true),
 		ConfigFormat:  &currency.PairFormat{Uppercase: true},
 		RequestFormat: &currency.PairFormat{Uppercase: true}}
-	_, err = bt.loadData(cfg, exch, cp, asset.Spot)
+	_, err = bt.loadData(cfg, exch, cp, asset.Spot, false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -406,9 +370,7 @@ func TestLoadLiveData(t *testing.T) {
 	if !errors.Is(err, common.ErrNilArguments) {
 		t.Error(err)
 	}
-	cfg := &config.Config{
-		GoCryptoTraderConfigPath: filepath.Join("..", "..", "testdata", "configtest.json"),
-	}
+	cfg := &config.Config{}
 	err = loadLiveData(cfg, nil)
 	if !errors.Is(err, common.ErrNilArguments) {
 		t.Error(err)
@@ -460,7 +422,7 @@ func TestLoadLiveData(t *testing.T) {
 	cfg.DataSettings.LiveData.APISecretOverride = "1234"
 	cfg.DataSettings.LiveData.APIClientIDOverride = "1234"
 	cfg.DataSettings.LiveData.API2FAOverride = "1234"
-	cfg.DataSettings.LiveData.APISubaccountOverride = "1234"
+	cfg.DataSettings.LiveData.APISubAccountOverride = "1234"
 	err = loadLiveData(cfg, b)
 	if err != nil {
 		t.Error(err)
@@ -469,8 +431,8 @@ func TestLoadLiveData(t *testing.T) {
 
 func TestReset(t *testing.T) {
 	t.Parallel()
+	f := funding.SetupFundingManager(true, false)
 	bt := BackTest{
-		Bot:        &engine.Engine{},
 		shutdown:   make(chan struct{}),
 		Datas:      &data.HandlerPerCurrency{},
 		Strategy:   &dollarcostaverage.Strategy{},
@@ -479,10 +441,11 @@ func TestReset(t *testing.T) {
 		Statistic:  &statistics.Statistic{},
 		EventQueue: &eventholder.Holder{},
 		Reports:    &report.Data{},
+		Funding:    f,
 	}
 	bt.Reset()
-	if bt.Bot != nil {
-		t.Error("expected nil")
+	if bt.Funding.IsUsingExchangeLevelFunding() {
+		t.Error("expected false")
 	}
 }
 
@@ -494,29 +457,39 @@ func TestFullCycle(t *testing.T) {
 	tt := time.Now()
 
 	stats := &statistics.Statistic{}
-	stats.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*currencystatistics.CurrencyStatistic)
-	stats.ExchangeAssetPairStatistics[ex] = make(map[asset.Item]map[currency.Pair]*currencystatistics.CurrencyStatistic)
-	stats.ExchangeAssetPairStatistics[ex][a] = make(map[currency.Pair]*currencystatistics.CurrencyStatistic)
+	stats.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*statistics.CurrencyPairStatistic)
+	stats.ExchangeAssetPairStatistics[ex] = make(map[asset.Item]map[currency.Pair]*statistics.CurrencyPairStatistic)
+	stats.ExchangeAssetPairStatistics[ex][a] = make(map[currency.Pair]*statistics.CurrencyPairStatistic)
 
 	port, err := portfolio.Setup(&size.Size{
-		BuySide:  config.MinMax{},
-		SellSide: config.MinMax{},
-	}, &risk.Risk{}, 0)
+		BuySide:  exchange.MinMax{},
+		SellSide: exchange.MinMax{},
+	}, &risk.Risk{}, decimal.Zero)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = port.SetupCurrencySettingsMap(ex, a, cp)
+	_, err = port.SetupCurrencySettingsMap(&exchange.Settings{Exchange: ex, Asset: a, Pair: cp})
 	if err != nil {
 		t.Error(err)
 	}
-	err = port.SetInitialFunds(ex, a, cp, 1333337)
+	f := funding.SetupFundingManager(false, true)
+	b, err := funding.CreateItem(ex, a, cp.Base, decimal.Zero, decimal.Zero)
 	if err != nil {
 		t.Error(err)
 	}
-	bot := newBotWithExchange()
-
+	quote, err := funding.CreateItem(ex, a, cp.Quote, decimal.NewFromInt(1337), decimal.Zero)
+	if err != nil {
+		t.Error(err)
+	}
+	pair, err := funding.CreatePair(b, quote)
+	if err != nil {
+		t.Error(err)
+	}
+	err = f.AddPair(pair)
+	if err != nil {
+		t.Error(err)
+	}
 	bt := BackTest{
-		Bot:        bot,
 		shutdown:   nil,
 		Datas:      &data.HandlerPerCurrency{},
 		Strategy:   &dollarcostaverage.Strategy{},
@@ -525,6 +498,7 @@ func TestFullCycle(t *testing.T) {
 		Statistic:  stats,
 		EventQueue: &eventholder.Holder{},
 		Reports:    &report.Data{},
+		Funding:    f,
 	}
 
 	bt.Datas.Setup()
@@ -544,7 +518,7 @@ func TestFullCycle(t *testing.T) {
 			}},
 		},
 		Base: data.Base{},
-		Range: &gctkline.IntervalRangeHolder{
+		RangeHolder: &gctkline.IntervalRangeHolder{
 			Start: gctkline.CreateIntervalTime(tt),
 			End:   gctkline.CreateIntervalTime(tt.Add(gctkline.FifteenMin.Duration())),
 			Ranges: []gctkline.IntervalRange{
@@ -588,29 +562,39 @@ func TestFullCycleMulti(t *testing.T) {
 	tt := time.Now()
 
 	stats := &statistics.Statistic{}
-	stats.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*currencystatistics.CurrencyStatistic)
-	stats.ExchangeAssetPairStatistics[ex] = make(map[asset.Item]map[currency.Pair]*currencystatistics.CurrencyStatistic)
-	stats.ExchangeAssetPairStatistics[ex][a] = make(map[currency.Pair]*currencystatistics.CurrencyStatistic)
+	stats.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*statistics.CurrencyPairStatistic)
+	stats.ExchangeAssetPairStatistics[ex] = make(map[asset.Item]map[currency.Pair]*statistics.CurrencyPairStatistic)
+	stats.ExchangeAssetPairStatistics[ex][a] = make(map[currency.Pair]*statistics.CurrencyPairStatistic)
 
 	port, err := portfolio.Setup(&size.Size{
-		BuySide:  config.MinMax{},
-		SellSide: config.MinMax{},
-	}, &risk.Risk{}, 0)
+		BuySide:  exchange.MinMax{},
+		SellSide: exchange.MinMax{},
+	}, &risk.Risk{}, decimal.Zero)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = port.SetupCurrencySettingsMap(ex, a, cp)
+	_, err = port.SetupCurrencySettingsMap(&exchange.Settings{Exchange: ex, Asset: a, Pair: cp})
 	if err != nil {
 		t.Error(err)
 	}
-	err = port.SetInitialFunds(ex, a, cp, 1333337)
+	f := funding.SetupFundingManager(false, true)
+	b, err := funding.CreateItem(ex, a, cp.Base, decimal.Zero, decimal.Zero)
 	if err != nil {
 		t.Error(err)
 	}
-	bot := newBotWithExchange()
-
+	quote, err := funding.CreateItem(ex, a, cp.Quote, decimal.NewFromInt(1337), decimal.Zero)
+	if err != nil {
+		t.Error(err)
+	}
+	pair, err := funding.CreatePair(b, quote)
+	if err != nil {
+		t.Error(err)
+	}
+	err = f.AddPair(pair)
+	if err != nil {
+		t.Error(err)
+	}
 	bt := BackTest{
-		Bot:        bot,
 		shutdown:   nil,
 		Datas:      &data.HandlerPerCurrency{},
 		Portfolio:  port,
@@ -618,6 +602,7 @@ func TestFullCycleMulti(t *testing.T) {
 		Statistic:  stats,
 		EventQueue: &eventholder.Holder{},
 		Reports:    &report.Data{},
+		Funding:    f,
 	}
 
 	bt.Strategy, err = strategies.LoadStrategyByName(dollarcostaverage.Name, true)
@@ -642,7 +627,7 @@ func TestFullCycleMulti(t *testing.T) {
 			}},
 		},
 		Base: data.Base{},
-		Range: &gctkline.IntervalRangeHolder{
+		RangeHolder: &gctkline.IntervalRangeHolder{
 			Start: gctkline.CreateIntervalTime(tt),
 			End:   gctkline.CreateIntervalTime(tt.Add(gctkline.FifteenMin.Duration())),
 			Ranges: []gctkline.IntervalRange{

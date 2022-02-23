@@ -33,10 +33,10 @@ manager or by downloading one of the releases from the official repository:
 
 [protoc releases](https://github.com/protocolbuffers/protobuf/releases)
 
-Then use `go get` to download the following packages:
+Then use `go install` to download the following packages:
 
 ```bash
-go get \
+go install \
     github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway \
     github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2 \
     google.golang.org/protobuf/cmd/protoc-gen-go \

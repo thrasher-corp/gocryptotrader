@@ -18,7 +18,7 @@ func setupNTPManager(cfg *config.NTPClientConfig, loggingEnabled bool) (*ntpMana
 	}
 	if cfg.AllowedNegativeDifference == nil ||
 		cfg.AllowedDifference == nil {
-		return nil, errNilConfigValues
+		return nil, errNilNTPConfigValues
 	}
 	return &ntpManager{
 		shutdown:                  make(chan struct{}),

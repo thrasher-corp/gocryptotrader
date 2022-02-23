@@ -28,7 +28,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | ------ | ----------- | ------- |
 | enabled | Enabled or disables the database connection subsystem |  `true` |
 | verbose | Displays more information to the logger which can be helpful for debugging | `false` |
-| driver | The SQL driver to use. Can be `postgres` or `sqlite`. | `sqlite` |
+| driver | The SQL driver to use. Can be `postgres` or `sqlite` | `sqlite` |
 | connectionDetails | See below |  |
 
 ### connectionDetails

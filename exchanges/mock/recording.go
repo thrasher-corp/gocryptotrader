@@ -349,7 +349,10 @@ func CheckJSON(data interface{}, excluded *Exclusion) (interface{}, error) {
 				context[key] = 0.0 // Zero val float
 			}
 		case Slice:
-			slice := val.([]interface{})
+			slice, ok := val.([]interface{})
+			if !ok {
+				return nil, errors.New("unable to type assert slice")
+			}
 			if len(slice) < 1 {
 				// Empty slice found
 				context[key] = slice

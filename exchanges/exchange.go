@@ -1,10 +1,10 @@
 package exchange
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
-	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
@@ -16,9 +16,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -35,54 +35,16 @@ const (
 	DefaultWebsocketResponseMaxLimit = time.Second * 7
 	// DefaultWebsocketOrderbookBufferLimit is the maximum number of orderbook updates that get stored before being applied
 	DefaultWebsocketOrderbookBufferLimit = 5
+	// ResetConfigPairsWarningMessage is displayed when a currency pair format in the config needs to be updated
+	ResetConfigPairsWarningMessage = "%s Enabled and available pairs for %s reset due to config upgrade, please enable the ones you would like to use again. Defaulting to %v"
 )
 
-// ErrAuthenticatedRequestWithoutCredentialsSet error message for authenticated request without credentials set
-var ErrAuthenticatedRequestWithoutCredentialsSet = errors.New("authenticated HTTP request called but not supported due to unset/default API keys")
+var (
+	// ErrAuthenticatedRequestWithoutCredentialsSet error message for authenticated request without credentials set
+	ErrAuthenticatedRequestWithoutCredentialsSet = errors.New("authenticated HTTP request called but not supported due to unset/default API keys")
 
-func (b *Base) checkAndInitRequester() {
-	if b.Requester == nil {
-		b.Requester = request.New(b.Name,
-			&http.Client{Transport: new(http.Transport)})
-	}
-}
-
-// SetHTTPClientTimeout sets the timeout value for the exchanges HTTP Client and
-// also the underlying transports idle connection timeout
-func (b *Base) SetHTTPClientTimeout(t time.Duration) error {
-	b.checkAndInitRequester()
-	b.Requester.HTTPClient.Timeout = t
-	tr, ok := b.Requester.HTTPClient.Transport.(*http.Transport)
-	if !ok {
-		return errors.New("transport not set, cannot set timeout")
-	}
-	tr.IdleConnTimeout = t
-	return nil
-}
-
-// SetHTTPClient sets exchanges HTTP client
-func (b *Base) SetHTTPClient(h *http.Client) {
-	b.checkAndInitRequester()
-	b.Requester.HTTPClient = h
-}
-
-// GetHTTPClient gets the exchanges HTTP client
-func (b *Base) GetHTTPClient() *http.Client {
-	b.checkAndInitRequester()
-	return b.Requester.HTTPClient
-}
-
-// SetHTTPClientUserAgent sets the exchanges HTTP user agent
-func (b *Base) SetHTTPClientUserAgent(ua string) {
-	b.checkAndInitRequester()
-	b.Requester.UserAgent = ua
-	b.HTTPUserAgent = ua
-}
-
-// GetHTTPClientUserAgent gets the exchanges HTTP user agent
-func (b *Base) GetHTTPClientUserAgent() string {
-	return b.HTTPUserAgent
-}
+	errEndpointStringNotFound = errors.New("endpoint string not found")
+)
 
 // SetClientProxyAddress sets a proxy address for REST and websocket requests
 func (b *Base) SetClientProxyAddress(addr string) error {
@@ -109,8 +71,7 @@ func (b *Base) SetClientProxyAddress(addr string) error {
 	return nil
 }
 
-// SetFeatureDefaults sets the exchanges default feature
-// support set
+// SetFeatureDefaults sets the exchanges default feature support set
 func (b *Base) SetFeatureDefaults() {
 	if b.Config.Features == nil {
 		s := &config.FeaturesConfig{
@@ -159,6 +120,14 @@ func (b *Base) SetFeatureDefaults() {
 
 		if b.IsSaveTradeDataEnabled() != b.Config.Features.Enabled.SaveTradeData {
 			b.SetSaveTradeDataStatus(b.Config.Features.Enabled.SaveTradeData)
+		}
+
+		if b.IsTradeFeedEnabled() != b.Config.Features.Enabled.TradeFeed {
+			b.SetTradeFeedStatus(b.Config.Features.Enabled.TradeFeed)
+		}
+
+		if b.IsFillsFeedEnabled() != b.Config.Features.Enabled.FillsFeed {
+			b.SetFillsFeedStatus(b.Config.Features.Enabled.FillsFeed)
 		}
 
 		b.Features.Enabled.AutoPairUpdates = b.Config.Features.Enabled.AutoPairUpdates
@@ -294,6 +263,7 @@ func (b *Base) SetConfigPairs() error {
 				"%s exchange asset type %s unsupported, please manually remove from configuration",
 				b.Name,
 				assetTypes[x])
+			continue // If there are unsupported assets contained in config, skip.
 		}
 		cfgPS, err := b.Config.CurrencyPairs.Get(assetTypes[x])
 		if err != nil {
@@ -304,7 +274,14 @@ func (b *Base) SetConfigPairs() error {
 		if b.Config.CurrencyPairs.IsAssetEnabled(assetTypes[x]) == nil {
 			enabledAsset = true
 		}
-		b.CurrencyPairs.SetAssetEnabled(assetTypes[x], enabledAsset)
+
+		err = b.CurrencyPairs.SetAssetEnabled(assetTypes[x], enabledAsset)
+		// Suppress error when assets are enabled by default and they are being
+		// enabled by config. A check for the inverse
+		// e.g. currency.ErrAssetAlreadyDisabled is not needed.
+		if err != nil && err != currency.ErrAssetAlreadyEnabled {
+			return err
+		}
 
 		if b.Config.CurrencyPairs.UseGlobalFormat {
 			b.CurrencyPairs.StorePairs(assetTypes[x], cfgPS.Available, false)
@@ -395,7 +372,7 @@ func (b *Base) GetPairFormat(assetType asset.Item, requestFormat bool) (currency
 func (b *Base) GetEnabledPairs(a asset.Item) (currency.Pairs, error) {
 	err := b.CurrencyPairs.IsAssetEnabled(a)
 	if err != nil {
-		return nil, nil
+		return nil, nil // nolint:nilerr // non-fatal error
 	}
 	format, err := b.GetPairFormat(a, false)
 	if err != nil {
@@ -414,17 +391,16 @@ func (b *Base) GetEnabledPairs(a asset.Item) (currency.Pairs, error) {
 // GetRequestFormattedPairAndAssetType is a method that returns the enabled currency pair of
 // along with its asset type. Only use when there is no chance of the same name crossing over
 func (b *Base) GetRequestFormattedPairAndAssetType(p string) (currency.Pair, asset.Item, error) {
-	assetTypes := b.GetAssetTypes(false)
-	var response currency.Pair
+	assetTypes := b.GetAssetTypes(true)
 	for i := range assetTypes {
 		format, err := b.GetPairFormat(assetTypes[i], true)
 		if err != nil {
-			return response, assetTypes[i], err
+			return currency.EMPTYPAIR, assetTypes[i], err
 		}
 
 		pairs, err := b.CurrencyPairs.GetPairs(assetTypes[i], true)
 		if err != nil {
-			return response, assetTypes[i], err
+			return currency.EMPTYPAIR, assetTypes[i], err
 		}
 
 		for j := range pairs {
@@ -434,7 +410,7 @@ func (b *Base) GetRequestFormattedPairAndAssetType(p string) (currency.Pair, ass
 			}
 		}
 	}
-	return response, "", errors.New("pair not found: " + p)
+	return currency.EMPTYPAIR, "", fmt.Errorf("%s %w", p, currency.ErrPairNotFound)
 }
 
 // GetAvailablePairs is a method that returns the available currency pairs
@@ -507,7 +483,7 @@ func (b *Base) FormatExchangeCurrencies(pairs []currency.Pair, assetType asset.I
 func (b *Base) FormatExchangeCurrency(p currency.Pair, assetType asset.Item) (currency.Pair, error) {
 	pairFmt, err := b.GetPairFormat(assetType, true)
 	if err != nil {
-		return currency.Pair{}, err
+		return currency.EMPTYPAIR, err
 	}
 	return p.Format(pairFmt.Delimiter, pairFmt.Uppercase), nil
 }
@@ -544,7 +520,12 @@ func (b *Base) SetAPIKeys(apiKey, apiSecret, clientID string) {
 }
 
 // SetupDefaults sets the exchange settings based on the supplied config
-func (b *Base) SetupDefaults(exch *config.ExchangeConfig) error {
+func (b *Base) SetupDefaults(exch *config.Exchange) error {
+	err := exch.Validate()
+	if err != nil {
+		return err
+	}
+
 	b.Enabled = true
 	b.LoadedByConfig = true
 	b.Config = exch
@@ -563,7 +544,7 @@ func (b *Base) SetupDefaults(exch *config.ExchangeConfig) error {
 		exch.HTTPTimeout = DefaultHTTPTimeout
 	}
 
-	err := b.SetHTTPClientTimeout(exch.HTTPTimeout)
+	err = b.SetHTTPClientTimeout(exch.HTTPTimeout)
 	if err != nil {
 		return err
 	}
@@ -573,7 +554,11 @@ func (b *Base) SetupDefaults(exch *config.ExchangeConfig) error {
 	}
 
 	b.HTTPDebugging = exch.HTTPDebugging
-	b.SetHTTPClientUserAgent(exch.HTTPUserAgent)
+	b.BypassConfigFormatUpgrades = exch.CurrencyPairs.BypassConfigFormatUpgrades
+	err = b.SetHTTPClientUserAgent(exch.HTTPUserAgent)
+	if err != nil {
+		return err
+	}
 	b.SetCurrencyPairFormat()
 
 	err = b.SetConfigPairs()
@@ -600,13 +585,14 @@ func (b *Base) SetupDefaults(exch *config.ExchangeConfig) error {
 	}
 	b.BaseCurrencies = exch.BaseCurrencies
 
-	if exch.OrderbookConfig.VerificationBypass {
+	if exch.Orderbook.VerificationBypass {
 		log.Warnf(log.ExchangeSys,
 			"%s orderbook verification has been bypassed via config.",
 			b.Name)
 	}
-	b.CanVerifyOrderbook = !exch.OrderbookConfig.VerificationBypass
-	return nil
+	b.CanVerifyOrderbook = !exch.Orderbook.VerificationBypass
+	b.States = currencystate.NewCurrencyStates()
+	return err
 }
 
 // AllowAuthenticatedRequest checks to see if the required fields have been set
@@ -833,7 +819,39 @@ func (b *Base) SetAPIURL() error {
 				val == config.WebsocketURLNonDefaultMessage {
 				continue
 			}
+
+			var u URL
+			u, err = getURLTypeFromString(key)
+			if err != nil {
+				return err
+			}
+
+			var defaultURL string
+			defaultURL, err = b.API.Endpoints.GetURL(u)
+			if err != nil {
+				log.Warnf(
+					log.ExchangeSys,
+					"%s: Config cannot match with default endpoint URL: [%s] with key: [%s], please remove or update core support endpoints.",
+					b.Name,
+					val,
+					u)
+				continue
+			}
+
+			if defaultURL == val {
+				continue
+			}
+
+			log.Warnf(
+				log.ExchangeSys,
+				"%s: Config is overwriting default endpoint URL values from: [%s] to: [%s] for: [%s]",
+				b.Name,
+				defaultURL,
+				val,
+				u)
+
 			checkInsecureEndpoint(val)
+
 			err = b.API.Endpoints.SetRunning(key, val)
 			if err != nil {
 				return err
@@ -1091,7 +1109,7 @@ func (b *Base) GetSubscriptions() ([]stream.ChannelSubscription, error) {
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket
-func (b *Base) AuthenticateWebsocket() error {
+func (b *Base) AuthenticateWebsocket(_ context.Context) error {
 	return common.ErrFunctionNotSupported
 }
 
@@ -1109,7 +1127,7 @@ func (b *Base) FormatExchangeKlineInterval(in kline.Interval) string {
 // ValidateKline confirms that the requested pair, asset & interval are supported and/or enabled by the requested exchange
 func (b *Base) ValidateKline(pair currency.Pair, a asset.Item, interval kline.Interval) error {
 	var errorList []string
-	var err kline.ErrorKline
+	var err kline.Error
 	if b.CurrencyPairs.IsAssetEnabled(a) != nil {
 		err.Asset = a
 		errorList = append(errorList, "asset not enabled")
@@ -1161,6 +1179,48 @@ func (b *Base) SetSaveTradeDataStatus(enabled bool) {
 	}
 }
 
+// IsTradeFeedEnabled checks the state of
+// TradeFeed in a concurrent-friendly manner
+func (b *Base) IsTradeFeedEnabled() bool {
+	b.settingsMutex.RLock()
+	isEnabled := b.Features.Enabled.TradeFeed
+	b.settingsMutex.RUnlock()
+	return isEnabled
+}
+
+// SetTradeFeedStatus locks and sets the status of
+// the config and the exchange's setting for TradeFeed
+func (b *Base) SetTradeFeedStatus(enabled bool) {
+	b.settingsMutex.Lock()
+	defer b.settingsMutex.Unlock()
+	b.Features.Enabled.TradeFeed = enabled
+	b.Config.Features.Enabled.TradeFeed = enabled
+	if b.Verbose {
+		log.Debugf(log.Trade, "Set %v 'TradeFeed' to %v", b.Name, enabled)
+	}
+}
+
+// IsFillsFeedEnabled checks the state of
+// FillsFeed in a concurrent-friendly manner
+func (b *Base) IsFillsFeedEnabled() bool {
+	b.settingsMutex.RLock()
+	isEnabled := b.Features.Enabled.FillsFeed
+	b.settingsMutex.RUnlock()
+	return isEnabled
+}
+
+// SetFillsFeedStatus locks and sets the status of
+// the config and the exchange's setting for FillsFeed
+func (b *Base) SetFillsFeedStatus(enabled bool) {
+	b.settingsMutex.Lock()
+	defer b.settingsMutex.Unlock()
+	b.Features.Enabled.FillsFeed = enabled
+	b.Config.Features.Enabled.FillsFeed = enabled
+	if b.Verbose {
+		log.Debugf(log.Trade, "Set %v 'FillsFeed' to %v", b.Name, enabled)
+	}
+}
+
 // NewEndpoints declares default and running URLs maps
 func (b *Base) NewEndpoints() *Endpoints {
 	return &Endpoints{
@@ -1195,7 +1255,7 @@ func (e *Endpoints) SetRunning(key, val string) error {
 			key,
 			val,
 			e.Exchange)
-		return nil
+		return nil // nolint:nilerr // non-fatal error as we won't update the running URL
 	}
 	e.defaults[key] = val
 	return nil
@@ -1244,38 +1304,72 @@ func (b *Base) FormatSymbol(pair currency.Pair, assetType asset.Item) (string, e
 func (u URL) String() string {
 	switch u {
 	case RestSpot:
-		return "RestSpotURL"
+		return restSpotURL
 	case RestSpotSupplementary:
-		return "RestSpotSupplementaryURL"
+		return restSpotSupplementaryURL
 	case RestUSDTMargined:
-		return "RestUSDTMarginedFuturesURL"
+		return restUSDTMarginedFuturesURL
 	case RestCoinMargined:
-		return "RestCoinMarginedFuturesURL"
+		return restCoinMarginedFuturesURL
 	case RestFutures:
-		return "RestFuturesURL"
+		return restFuturesURL
 	case RestSandbox:
-		return "RestSandboxURL"
+		return restSandboxURL
 	case RestSwap:
-		return "RestSwapURL"
+		return restSwapURL
 	case WebsocketSpot:
-		return "WebsocketSpotURL"
+		return websocketSpotURL
 	case WebsocketSpotSupplementary:
-		return "WebsocketSpotSupplementaryURL"
+		return websocketSpotSupplementaryURL
 	case ChainAnalysis:
-		return "ChainAnalysisURL"
+		return chainAnalysisURL
 	case EdgeCase1:
-		return "EdgeCase1URL"
+		return edgeCase1URL
 	case EdgeCase2:
-		return "EdgeCase2URL"
+		return edgeCase2URL
 	case EdgeCase3:
-		return "EdgeCase3URL"
+		return edgeCase3URL
 	default:
 		return ""
 	}
 }
 
+// getURLTypeFromString returns URL type from the endpoint string association
+func getURLTypeFromString(ep string) (URL, error) {
+	switch ep {
+	case restSpotURL:
+		return RestSpot, nil
+	case restSpotSupplementaryURL:
+		return RestSpotSupplementary, nil
+	case restUSDTMarginedFuturesURL:
+		return RestUSDTMargined, nil
+	case restCoinMarginedFuturesURL:
+		return RestCoinMargined, nil
+	case restFuturesURL:
+		return RestFutures, nil
+	case restSandboxURL:
+		return RestSandbox, nil
+	case restSwapURL:
+		return RestSwap, nil
+	case websocketSpotURL:
+		return WebsocketSpot, nil
+	case websocketSpotSupplementaryURL:
+		return WebsocketSpotSupplementary, nil
+	case chainAnalysisURL:
+		return ChainAnalysis, nil
+	case edgeCase1URL:
+		return EdgeCase1, nil
+	case edgeCase2URL:
+		return EdgeCase2, nil
+	case edgeCase3URL:
+		return EdgeCase3, nil
+	default:
+		return Invalid, fmt.Errorf("%w for %s", errEndpointStringNotFound, ep)
+	}
+}
+
 // UpdateOrderExecutionLimits updates order execution limits this is overridable
-func (b *Base) UpdateOrderExecutionLimits(a asset.Item) error {
+func (b *Base) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
 	return common.ErrNotYetImplemented
 }
 
@@ -1304,4 +1398,15 @@ func (a *AssetWebsocketSupport) IsAssetWebsocketSupported(aType asset.Item) bool
 	a.m.RLock()
 	defer a.m.RUnlock()
 	return a.unsupported == nil || !a.unsupported[aType]
+}
+
+// UpdateCurrencyStates updates currency states
+func (b *Base) UpdateCurrencyStates(ctx context.Context, a asset.Item) error {
+	return common.ErrNotYetImplemented
+}
+
+// GetAvailableTransferChains returns a list of supported transfer chains based
+// on the supplied cryptocurrency
+func (b *Base) GetAvailableTransferChains(_ context.Context, _ currency.Code) ([]string, error) {
+	return nil, common.ErrFunctionNotSupported
 }

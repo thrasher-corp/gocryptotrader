@@ -261,9 +261,9 @@
         ]
       }
     },
-    "/v1/deletedatahistoryjob": {
-      "delete": {
-        "operationId": "GoCryptoTrader_DeleteDataHistoryJob",
+    "/v1/currencystatedeposit": {
+      "get": {
+        "operationId": "GoCryptoTrader_CurrencyStateDeposit",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -280,22 +280,178 @@
         },
         "parameters": [
           {
-            "name": "id",
+            "name": "exchange",
             "in": "query",
             "required": false,
             "type": "string"
           },
           {
-            "name": "nickname",
+            "name": "code",
             "in": "query",
             "required": false,
             "type": "string"
           },
           {
-            "name": "fullDetails",
+            "name": "asset",
             "in": "query",
             "required": false,
-            "type": "boolean"
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/currencystategetall": {
+      "get": {
+        "operationId": "GoCryptoTrader_CurrencyStateGetAll",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcCurrencyStateResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/currencystatetrading": {
+      "get": {
+        "operationId": "GoCryptoTrader_CurrencyStateTrading",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGenericResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "code",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "asset",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/currencystatetradingpair": {
+      "get": {
+        "operationId": "GoCryptoTrader_CurrencyStateTradingPair",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGenericResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "asset",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/currencystatewithdraw": {
+      "get": {
+        "operationId": "GoCryptoTrader_CurrencyStateWithdraw",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGenericResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "code",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "asset",
+            "in": "query",
+            "required": false,
+            "type": "string"
           }
         ],
         "tags": [
@@ -971,6 +1127,38 @@
         ]
       }
     },
+    "/v1/getavailabletransferchains": {
+      "post": {
+        "operationId": "GoCryptoTrader_GetAvailableTransferChains",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetAvailableTransferChainsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetAvailableTransferChainsRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
     "/v1/getcommunicationrelayers": {
       "get": {
         "operationId": "GoCryptoTrader_GetCommunicationRelayers",
@@ -1327,7 +1515,7 @@
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/gctrpcGetExchangeOTPReponse"
+              "$ref": "#/definitions/gctrpcGetExchangeOTPResponse"
             }
           },
           "default": {
@@ -2156,6 +2344,80 @@
         ]
       }
     },
+    "/v1/modifyorder": {
+      "get": {
+        "operationId": "GoCryptoTrader_ModifyOrder",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcModifyOrderResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "orderId",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.delimiter",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.base",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.quote",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "asset",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "amount",
+            "in": "query",
+            "required": false,
+            "type": "number",
+            "format": "double"
+          },
+          {
+            "name": "price",
+            "in": "query",
+            "required": false,
+            "type": "number",
+            "format": "double"
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
     "/v1/removeevent": {
       "post": {
         "operationId": "GoCryptoTrader_RemoveEvent",
@@ -2249,6 +2511,38 @@
             "in": "query",
             "required": false,
             "type": "boolean"
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/setdatahistoryjobstatus": {
+      "post": {
+        "operationId": "GoCryptoTrader_SetDataHistoryJobStatus",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGenericResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/gctrpcSetDataHistoryJobStatusRequest"
+            }
           }
         ],
         "tags": [
@@ -2491,6 +2785,38 @@
             "in": "query",
             "required": false,
             "type": "string"
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/updatedatahistoryjobprerequisite": {
+      "post": {
+        "operationId": "GoCryptoTrader_UpdateDataHistoryJobPrerequisite",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGenericResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/gctrpcUpdateDataHistoryJobPrerequisiteRequest"
+            }
           }
         ],
         "tags": [
@@ -3216,6 +3542,37 @@
         }
       }
     },
+    "gctrpcCurrencyState": {
+      "type": "object",
+      "properties": {
+        "currency": {
+          "type": "string"
+        },
+        "asset": {
+          "type": "string"
+        },
+        "withdrawEnabled": {
+          "type": "boolean"
+        },
+        "depositEnabled": {
+          "type": "boolean"
+        },
+        "tradingEnabled": {
+          "type": "boolean"
+        }
+      }
+    },
+    "gctrpcCurrencyStateResponse": {
+      "type": "object",
+      "properties": {
+        "currencyStates": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/gctrpcCurrencyState"
+          }
+        }
+      }
+    },
     "gctrpcDataHistoryJob": {
       "type": "object",
       "properties": {
@@ -3262,6 +3619,30 @@
         "dataType": {
           "type": "string"
         },
+        "conversionInterval": {
+          "type": "string",
+          "format": "int64"
+        },
+        "overwriteExistingData": {
+          "type": "boolean"
+        },
+        "prerequisiteJobNickname": {
+          "type": "string"
+        },
+        "decimalPlaceComparison": {
+          "type": "string",
+          "format": "int64"
+        },
+        "secondaryExchangeName": {
+          "type": "string"
+        },
+        "issueTolerancePercentage": {
+          "type": "number",
+          "format": "double"
+        },
+        "replaceOnIssue": {
+          "type": "boolean"
+        },
         "jobResults": {
           "type": "array",
           "items": {
@@ -3303,6 +3684,31 @@
           "type": "array",
           "items": {
             "$ref": "#/definitions/gctrpcDataHistoryJob"
+          }
+        }
+      }
+    },
+    "gctrpcDepositAddress": {
+      "type": "object",
+      "properties": {
+        "address": {
+          "type": "string"
+        },
+        "tag": {
+          "type": "string"
+        },
+        "chain": {
+          "type": "string"
+        }
+      }
+    },
+    "gctrpcDepositAddresses": {
+      "type": "object",
+      "properties": {
+        "addresses": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/gctrpcDepositAddress"
           }
         }
       }
@@ -3542,6 +3948,28 @@
         }
       }
     },
+    "gctrpcGetAvailableTransferChainsRequest": {
+      "type": "object",
+      "properties": {
+        "exchange": {
+          "type": "string"
+        },
+        "cryptocurrency": {
+          "type": "string"
+        }
+      }
+    },
+    "gctrpcGetAvailableTransferChainsResponse": {
+      "type": "object",
+      "properties": {
+        "chains": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
     "gctrpcGetCommunicationRelayersResponse": {
       "type": "object",
       "properties": {
@@ -3570,6 +3998,12 @@
         },
         "cryptocurrency": {
           "type": "string"
+        },
+        "chain": {
+          "type": "string"
+        },
+        "bypass": {
+          "type": "boolean"
         }
       }
     },
@@ -3577,6 +4011,9 @@
       "type": "object",
       "properties": {
         "address": {
+          "type": "string"
+        },
+        "tag": {
           "type": "string"
         }
       }
@@ -3595,7 +4032,7 @@
         "addresses": {
           "type": "object",
           "additionalProperties": {
-            "type": "string"
+            "$ref": "#/definitions/gctrpcDepositAddresses"
           }
         }
       }
@@ -3673,7 +4110,7 @@
         }
       }
     },
-    "gctrpcGetExchangeOTPReponse": {
+    "gctrpcGetExchangeOTPResponse": {
       "type": "object",
       "properties": {
         "otpCode": {
@@ -3987,6 +4424,14 @@
         }
       }
     },
+    "gctrpcModifyOrderResponse": {
+      "type": "object",
+      "properties": {
+        "modifiedOrderId": {
+          "type": "string"
+        }
+      }
+    },
     "gctrpcOfflineCoinSummary": {
       "type": "object",
       "properties": {
@@ -4270,6 +4715,21 @@
         }
       }
     },
+    "gctrpcSetDataHistoryJobStatusRequest": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "nickname": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "format": "int64"
+        }
+      }
+    },
     "gctrpcSetExchangePairRequest": {
       "type": "object",
       "properties": {
@@ -4511,6 +4971,17 @@
         }
       }
     },
+    "gctrpcUpdateDataHistoryJobPrerequisiteRequest": {
+      "type": "object",
+      "properties": {
+        "nickname": {
+          "type": "string"
+        },
+        "prerequisiteJobNickname": {
+          "type": "string"
+        }
+      }
+    },
     "gctrpcUpsertDataHistoryJobRequest": {
       "type": "object",
       "properties": {
@@ -4553,6 +5024,30 @@
           "format": "int64"
         },
         "insertOnly": {
+          "type": "boolean"
+        },
+        "conversionInterval": {
+          "type": "string",
+          "format": "int64"
+        },
+        "overwriteExistingData": {
+          "type": "boolean"
+        },
+        "prerequisiteJobNickname": {
+          "type": "string"
+        },
+        "decimalPlaceComparison": {
+          "type": "string",
+          "format": "int64"
+        },
+        "secondaryExchangeName": {
+          "type": "string"
+        },
+        "issueTolerancePercentage": {
+          "type": "number",
+          "format": "double"
+        },
+        "replaceOnIssue": {
           "type": "boolean"
         }
       }
@@ -4667,6 +5162,9 @@
           "format": "double"
         },
         "description": {
+          "type": "string"
+        },
+        "chain": {
           "type": "string"
         }
       }

@@ -15,7 +15,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/nonce"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
@@ -32,8 +31,6 @@ const (
 	errAuthFailed          = 1002
 )
 
-var requestID nonce.Nonce
-
 // WsConnect starts a new connection with the websocket API
 func (h *HitBTC) WsConnect() error {
 	if !h.Websocket.IsEnabled() || !h.IsEnabled() {
@@ -44,7 +41,10 @@ func (h *HitBTC) WsConnect() error {
 	if err != nil {
 		return err
 	}
+
+	h.Websocket.Wg.Add(1)
 	go h.wsReadData()
+
 	err = h.wsLogin()
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%v - authentication failed: %v\n", h.Name, err)
@@ -55,7 +55,6 @@ func (h *HitBTC) WsConnect() error {
 
 // wsReadData receives and passes on websocket messages for processing
 func (h *HitBTC) wsReadData() {
-	h.Websocket.Wg.Add(1)
 	defer h.Websocket.Wg.Done()
 
 	for {
@@ -114,7 +113,10 @@ func (h *HitBTC) wsGetTableName(respRaw []byte) (string, error) {
 			return "", nil
 		}
 
-		data := resultType[0].(map[string]interface{})
+		data, ok := resultType[0].(map[string]interface{})
+		if !ok {
+			return "", errors.New("unable to type assert data")
+		}
 		if _, ok := data["clientOrderId"]; ok {
 			return "order", nil
 		} else if _, ok := data["available"]; ok {
@@ -564,7 +566,13 @@ func (h *HitBTC) wsLogin() error {
 	}
 	h.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	n := strconv.FormatInt(time.Now().Unix(), 10)
-	hmac := crypto.GetHMAC(crypto.HashSHA256, []byte(n), []byte(h.API.Credentials.Secret))
+	hmac, err := crypto.GetHMAC(crypto.HashSHA256,
+		[]byte(n),
+		[]byte(h.API.Credentials.Secret))
+	if err != nil {
+		return err
+	}
+
 	request := WsLoginRequest{
 		Method: "login",
 		Params: WsLoginData{
@@ -576,7 +584,7 @@ func (h *HitBTC) wsLogin() error {
 		ID: h.Websocket.Conn.GenerateMessageID(false),
 	}
 
-	err := h.Websocket.Conn.SendJSONMessage(request)
+	err = h.Websocket.Conn.SendJSONMessage(request)
 	if err != nil {
 		h.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return err

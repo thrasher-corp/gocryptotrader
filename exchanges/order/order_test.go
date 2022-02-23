@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/validate"
@@ -140,6 +141,90 @@ func TestOrderTypes(t *testing.T) {
 
 	if ot.Title() != "Mo'Money" {
 		t.Errorf("unexpected string %s", ot.Title())
+	}
+}
+
+func TestInferCostsAndTimes(t *testing.T) {
+	t.Parallel()
+
+	var detail Detail
+	detail.InferCostsAndTimes()
+	if detail.Amount != detail.ExecutedAmount+detail.RemainingAmount {
+		t.Errorf(
+			"Order detail amounts not equals. Expected 0, received %f",
+			detail.Amount-(detail.ExecutedAmount+detail.RemainingAmount),
+		)
+	}
+
+	detail.CloseTime = time.Now()
+	detail.InferCostsAndTimes()
+	if detail.LastUpdated != detail.CloseTime {
+		t.Errorf(
+			"Order last updated not equals close time. Expected %s, received %s",
+			detail.CloseTime,
+			detail.LastUpdated,
+		)
+	}
+
+	detail.Amount = 1
+	detail.ExecutedAmount = 1
+	detail.InferCostsAndTimes()
+	if detail.AverageExecutedPrice != 0 {
+		t.Errorf(
+			"Unexpected AverageExecutedPrice. Expected 0, received %f",
+			detail.AverageExecutedPrice,
+		)
+	}
+
+	detail.Amount = 1
+	detail.ExecutedAmount = 1
+	detail.InferCostsAndTimes()
+	if detail.Cost != 0 {
+		t.Errorf(
+			"Unexpected Cost. Expected 0, received %f",
+			detail.Cost,
+		)
+	}
+	detail.ExecutedAmount = 0
+
+	detail.Amount = 1
+	detail.RemainingAmount = 1
+	detail.InferCostsAndTimes()
+	if detail.Amount != detail.ExecutedAmount+detail.RemainingAmount {
+		t.Errorf(
+			"Order detail amounts not equals. Expected 0, received %f",
+			detail.Amount-(detail.ExecutedAmount+detail.RemainingAmount),
+		)
+	}
+	detail.RemainingAmount = 0
+
+	detail.Amount = 1
+	detail.ExecutedAmount = 1
+	detail.Price = 2
+	detail.InferCostsAndTimes()
+	if detail.AverageExecutedPrice != 2 {
+		t.Errorf(
+			"Unexpected AverageExecutedPrice. Expected 2, received %f",
+			detail.AverageExecutedPrice,
+		)
+	}
+
+	detail = Detail{Amount: 1, ExecutedAmount: 2, Cost: 3, Price: 0}
+	detail.InferCostsAndTimes()
+	if detail.AverageExecutedPrice != 1.5 {
+		t.Errorf(
+			"Unexpected AverageExecutedPrice. Expected 1.5, received %f",
+			detail.AverageExecutedPrice,
+		)
+	}
+
+	detail = Detail{Amount: 1, ExecutedAmount: 2, AverageExecutedPrice: 3}
+	detail.InferCostsAndTimes()
+	if detail.Cost != 6 {
+		t.Errorf(
+			"Unexpected Cost. Expected 6, received %f",
+			detail.Cost,
+		)
 	}
 }
 
@@ -289,7 +374,7 @@ func TestFilterOrdersByCurrencies(t *testing.T) {
 	if len(orders) != 1 {
 		t.Errorf("Orders failed to be filtered. Expected %v, received %v", 1, len(orders))
 	}
-	currencies = append(currencies, currency.Pair{})
+	currencies = append(currencies, currency.EMPTYPAIR)
 	FilterOrdersByCurrencies(&orders, currencies)
 	if len(orders) != 1 {
 		t.Errorf("Orders failed to be filtered. Expected %v, received %v", 1, len(orders))
@@ -633,7 +718,7 @@ func TestUpdateOrderFromModify(t *testing.T) {
 		AssetType:         "",
 		Date:              time.Time{},
 		LastUpdated:       time.Time{},
-		Pair:              currency.Pair{},
+		Pair:              currency.EMPTYPAIR,
 		Trades:            nil,
 	}
 	updated := time.Now()
@@ -815,7 +900,7 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 		RemainingAmount:   0,
 		Fee:               0,
 		Exchange:          "test",
-		ID:                "1",
+		ID:                "",
 		AccountID:         "",
 		ClientID:          "",
 		WalletAddress:     "",
@@ -825,7 +910,7 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 		AssetType:         "",
 		Date:              time.Time{},
 		LastUpdated:       time.Time{},
-		Pair:              currency.Pair{},
+		Pair:              currency.EMPTYPAIR,
 		Trades:            nil,
 	}
 	updated := time.Now()
@@ -866,8 +951,8 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 	}
 
 	od.UpdateOrderFromDetail(&om)
-	if od.InternalOrderID == "1" {
-		t.Error("Should not be able to update the internal order ID")
+	if od.InternalOrderID != "1" {
+		t.Error("Failed to initialize the internal order ID")
 	}
 	if !od.ImmediateOrCancel {
 		t.Error("Failed to update")
@@ -986,6 +1071,15 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 	}
 	if od.Trades[0].Amount != 1337 {
 		t.Error("Failed to update trades")
+	}
+
+	om = Detail{
+		InternalOrderID: "2",
+	}
+
+	od.UpdateOrderFromDetail(&om)
+	if od.InternalOrderID == "2" {
+		t.Error("Should not be able to update the internal order ID after initialization")
 	}
 }
 
@@ -1206,6 +1300,136 @@ func TestMatchFilter(t *testing.T) {
 		if tt.o.MatchFilter(&tt.f) != tt.expRes {
 			t.Errorf("tests[%v] failed", num)
 		}
+	}
+}
+
+func TestIsActive(t *testing.T) {
+	orders := map[int]Detail{
+		0: {Amount: 0.0, Status: Active},
+		1: {Amount: 1.0, ExecutedAmount: 0.9, Status: Active},
+		2: {Amount: 1.0, ExecutedAmount: 1.0, Status: Active},
+		3: {Amount: 1.0, ExecutedAmount: 1.1, Status: Active},
+	}
+
+	amountTests := map[int]struct {
+		o      Detail
+		expRes bool
+	}{
+		0: {orders[0], false},
+		1: {orders[1], true},
+		2: {orders[2], false},
+		3: {orders[3], false},
+	}
+	// specific tests
+	for num, tt := range amountTests {
+		if tt.o.IsActive() != tt.expRes {
+			t.Errorf("amountTests[%v] failed", num)
+		}
+	}
+
+	statusTests := map[int]struct {
+		o      Detail
+		expRes bool
+	}{
+		0:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: AnyStatus}, true},
+		1:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: New}, true},
+		2:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Active}, true},
+		3:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: PartiallyCancelled}, false},
+		4:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: PartiallyFilled}, true},
+		5:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Filled}, false},
+		6:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Cancelled}, false},
+		7:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: PendingCancel}, true},
+		8:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: InsufficientBalance}, false},
+		9:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: MarketUnavailable}, false},
+		10: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Rejected}, false},
+		11: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Expired}, false},
+		12: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Hidden}, true},
+		13: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: UnknownStatus}, true},
+		14: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Open}, true},
+		15: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: AutoDeleverage}, true},
+		16: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Closed}, false},
+		17: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Pending}, true},
+	}
+	// specific tests
+	for num, tt := range statusTests {
+		if tt.o.IsActive() != tt.expRes {
+			t.Errorf("statusTests[%v] failed", num)
+		}
+	}
+}
+
+func TestIsInctive(t *testing.T) {
+	orders := map[int]Detail{
+		0: {Amount: 0.0, Status: Active},
+		1: {Amount: 1.0, ExecutedAmount: 0.9, Status: Active},
+		2: {Amount: 1.0, ExecutedAmount: 1.0, Status: Active},
+		3: {Amount: 1.0, ExecutedAmount: 1.1, Status: Active},
+	}
+
+	amountTests := map[int]struct {
+		o      Detail
+		expRes bool
+	}{
+		0: {orders[0], true},
+		1: {orders[1], false},
+		2: {orders[2], true},
+		3: {orders[3], true},
+	}
+	// specific tests
+	for num, tt := range amountTests {
+		if tt.o.IsInactive() != tt.expRes {
+			t.Errorf("amountTests[%v] failed", num)
+		}
+	}
+
+	statusTests := map[int]struct {
+		o      Detail
+		expRes bool
+	}{
+		0:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: AnyStatus}, false},
+		1:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: New}, false},
+		2:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Active}, false},
+		3:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: PartiallyCancelled}, true},
+		4:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: PartiallyFilled}, false},
+		5:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Filled}, true},
+		6:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Cancelled}, true},
+		7:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: PendingCancel}, false},
+		8:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: InsufficientBalance}, true},
+		9:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: MarketUnavailable}, true},
+		10: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Rejected}, true},
+		11: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Expired}, true},
+		12: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Hidden}, false},
+		13: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: UnknownStatus}, false},
+		14: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Open}, false},
+		15: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: AutoDeleverage}, false},
+		16: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Closed}, true},
+		17: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Pending}, false},
+	}
+	// specific tests
+	for num, tt := range statusTests {
+		if tt.o.IsInactive() != tt.expRes {
+			t.Errorf("statusTests[%v] failed", num)
+		}
+	}
+}
+
+func TestGenerateInternalOrderID(t *testing.T) {
+	id, err := uuid.NewV4()
+	if err != nil {
+		t.Errorf("unable to create uuid: %s", err)
+	}
+	od := Detail{
+		InternalOrderID: id.String(),
+	}
+	od.GenerateInternalOrderID()
+	if od.InternalOrderID != id.String() {
+		t.Error("Should not be able to generate a new internal order ID")
+	}
+
+	od = Detail{}
+	od.GenerateInternalOrderID()
+	if od.InternalOrderID == "" {
+		t.Error("unable to generate internal order ID")
 	}
 }
 

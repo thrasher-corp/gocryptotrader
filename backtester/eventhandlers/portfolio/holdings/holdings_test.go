@@ -5,10 +5,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
+	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -17,47 +19,54 @@ import (
 
 const (
 	testExchange = "binance"
-	riskFreeRate = 0.03
 )
+
+var (
+	riskFreeRate = decimal.NewFromFloat(0.03)
+)
+
+func pair(t *testing.T) *funding.Pair {
+	t.Helper()
+	b, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.Zero, decimal.Zero)
+	if err != nil {
+		t.Fatal(err)
+	}
+	q, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, decimal.NewFromInt(1337), decimal.Zero)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err := funding.CreatePair(b, q)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return p
+}
 
 func TestCreate(t *testing.T) {
 	t.Parallel()
-	_, err := Create(nil, -1, riskFreeRate)
+	_, err := Create(nil, pair(t))
 	if !errors.Is(err, common.ErrNilEvent) {
-		t.Errorf("expected: %v, received %v", ErrInitialFundsZero, err)
+		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
 	}
-
-	_, err = Create(&fill.Fill{}, -1, riskFreeRate)
-	if !errors.Is(err, ErrInitialFundsZero) {
-		t.Errorf("expected: %v, received %v", ErrInitialFundsZero, err)
-	}
-
-	_, err = Create(nil, 1, riskFreeRate)
-	if !errors.Is(err, common.ErrNilEvent) {
-		t.Errorf("expected: %v, received %v", common.ErrNilEvent, err)
-	}
-
-	h, err := Create(&fill.Fill{}, 1, riskFreeRate)
+	_, err = Create(&fill.Fill{}, pair(t))
 	if err != nil {
 		t.Error(err)
-	}
-	if h.InitialFunds != 1 {
-		t.Errorf("expected 1, received '%v'", h.InitialFunds)
 	}
 }
 
 func TestUpdate(t *testing.T) {
 	t.Parallel()
-	h, err := Create(&fill.Fill{}, 1, riskFreeRate)
+	h, err := Create(&fill.Fill{}, pair(t))
 	if err != nil {
 		t.Error(err)
 	}
-	t1 := h.Timestamp
+	t1 := h.Timestamp // nolint:ifshort,nolintlint // false positive and triggers only on Windows
 	h.Update(&fill.Fill{
 		Base: event.Base{
 			Time: time.Now(),
 		},
-	})
+	}, pair(t))
+
 	if t1.Equal(h.Timestamp) {
 		t.Errorf("expected '%v' received '%v'", h.Timestamp, t1)
 	}
@@ -65,25 +74,38 @@ func TestUpdate(t *testing.T) {
 
 func TestUpdateValue(t *testing.T) {
 	t.Parallel()
-	h, err := Create(&fill.Fill{}, 1, riskFreeRate)
+	h, err := Create(&fill.Fill{}, pair(t))
 	if err != nil {
 		t.Error(err)
 	}
-	h.PositionsSize = 1
+	h.BaseSize = decimal.NewFromInt(1)
 	h.UpdateValue(&kline.Kline{
-		Close: 1337,
+		Close: decimal.NewFromInt(1337),
 	})
-	if h.PositionsValue != 1337 {
-		t.Errorf("expected '%v' received '%v'", h.PositionsValue, 1337)
+	if !h.BaseValue.Equal(decimal.NewFromInt(1337)) {
+		t.Errorf("expected '%v' received '%v'", h.BaseSize, decimal.NewFromInt(1337))
 	}
 }
 
 func TestUpdateBuyStats(t *testing.T) {
 	t.Parallel()
-	h, err := Create(&fill.Fill{}, 1000, riskFreeRate)
+	b, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.NewFromInt(1), decimal.Zero)
+	if err != nil {
+		t.Fatal(err)
+	}
+	q, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, decimal.NewFromInt(100), decimal.Zero)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err := funding.CreatePair(b, q)
+	if err != nil {
+		t.Fatal(err)
+	}
+	h, err := Create(&fill.Fill{}, p)
 	if err != nil {
 		t.Error(err)
 	}
+
 	h.update(&fill.Fill{
 		Base: event.Base{
 			Exchange:     testExchange,
@@ -93,17 +115,17 @@ func TestUpdateBuyStats(t *testing.T) {
 			AssetType:    asset.Spot,
 		},
 		Direction:           order.Buy,
-		Amount:              1,
-		ClosePrice:          500,
-		VolumeAdjustedPrice: 500,
-		PurchasePrice:       500,
-		ExchangeFee:         0,
-		Slippage:            0,
+		Amount:              decimal.NewFromInt(1),
+		ClosePrice:          decimal.NewFromInt(500),
+		VolumeAdjustedPrice: decimal.NewFromInt(500),
+		PurchasePrice:       decimal.NewFromInt(500),
+		ExchangeFee:         decimal.Zero,
+		Slippage:            decimal.Zero,
 		Order: &order.Detail{
 			Price:       500,
 			Amount:      1,
 			Exchange:    testExchange,
-			ID:          "1337",
+			ID:          "decimal.NewFromInt(1337)",
 			Type:        order.Limit,
 			Side:        order.Buy,
 			Status:      order.New,
@@ -115,35 +137,32 @@ func TestUpdateBuyStats(t *testing.T) {
 			Trades:      nil,
 			Fee:         1,
 		},
-	})
+	}, p)
 	if err != nil {
 		t.Error(err)
 	}
-	if h.PositionsSize != 1 {
-		t.Errorf("expected '%v' received '%v'", 1, h.PositionsSize)
+	if !h.BaseSize.Equal(p.BaseAvailable()) {
+		t.Errorf("expected '%v' received '%v'", 1, h.BaseSize)
 	}
-	if h.PositionsValue != 500 {
-		t.Errorf("expected '%v' received '%v'", 500, h.PositionsValue)
+	if !h.BaseValue.Equal(p.BaseAvailable().Mul(decimal.NewFromInt(500))) {
+		t.Errorf("expected '%v' received '%v'", 500, h.BaseValue)
 	}
-	if h.InitialFunds != 1000 {
-		t.Errorf("expected '%v' received '%v'", 1000, h.InitialFunds)
+	if !h.QuoteSize.Equal(decimal.NewFromInt(100)) {
+		t.Errorf("expected '%v' received '%v'", 100, h.QuoteSize)
 	}
-	if h.RemainingFunds != 499 {
-		t.Errorf("expected '%v' received '%v'", 499, h.RemainingFunds)
-	}
-	if h.TotalValue != 999 {
+	if !h.TotalValue.Equal(decimal.NewFromInt(600)) {
 		t.Errorf("expected '%v' received '%v'", 999, h.TotalValue)
 	}
-	if h.BoughtAmount != 1 {
+	if !h.BoughtAmount.Equal(decimal.NewFromInt(1)) {
 		t.Errorf("expected '%v' received '%v'", 1, h.BoughtAmount)
 	}
-	if h.BoughtValue != 500 {
+	if !h.BoughtValue.Equal(decimal.NewFromInt(500)) {
 		t.Errorf("expected '%v' received '%v'", 500, h.BoughtValue)
 	}
-	if h.SoldAmount != 0 {
+	if !h.SoldAmount.Equal(decimal.Zero) {
 		t.Errorf("expected '%v' received '%v'", 0, h.SoldAmount)
 	}
-	if h.TotalFees != 1 {
+	if !h.TotalFees.Equal(decimal.NewFromInt(1)) {
 		t.Errorf("expected '%v' received '%v'", 1, h.TotalFees)
 	}
 
@@ -156,17 +175,17 @@ func TestUpdateBuyStats(t *testing.T) {
 			AssetType:    asset.Spot,
 		},
 		Direction:           order.Buy,
-		Amount:              0.5,
-		ClosePrice:          500,
-		VolumeAdjustedPrice: 500,
-		PurchasePrice:       500,
-		ExchangeFee:         0,
-		Slippage:            0,
+		Amount:              decimal.NewFromFloat(0.5),
+		ClosePrice:          decimal.NewFromInt(500),
+		VolumeAdjustedPrice: decimal.NewFromInt(500),
+		PurchasePrice:       decimal.NewFromInt(500),
+		ExchangeFee:         decimal.Zero,
+		Slippage:            decimal.Zero,
 		Order: &order.Detail{
 			Price:       500,
 			Amount:      0.5,
 			Exchange:    testExchange,
-			ID:          "1337",
+			ID:          "decimal.NewFromInt(1337)",
 			Type:        order.Limit,
 			Side:        order.Buy,
 			Status:      order.New,
@@ -178,42 +197,40 @@ func TestUpdateBuyStats(t *testing.T) {
 			Trades:      nil,
 			Fee:         0.5,
 		},
-	})
+	}, p)
 	if err != nil {
 		t.Error(err)
 	}
-	if h.PositionsSize != 1.5 {
-		t.Errorf("expected '%v' received '%v'", 1, h.PositionsSize)
-	}
-	if h.PositionsValue != 750 {
-		t.Errorf("expected '%v' received '%v'", 750, h.PositionsValue)
-	}
-	if h.InitialFunds != 1000 {
-		t.Errorf("expected '%v' received '%v'", 1000, h.InitialFunds)
-	}
-	if h.RemainingFunds != 248.5 {
-		t.Errorf("expected '%v' received '%v'", 248.5, h.RemainingFunds)
-	}
-	if h.TotalValue != 998.5 {
-		t.Errorf("expected '%v' received '%v'", 998.5, h.TotalValue)
-	}
-	if h.BoughtAmount != 1.5 {
+
+	if !h.BoughtAmount.Equal(decimal.NewFromFloat(1.5)) {
 		t.Errorf("expected '%v' received '%v'", 1, h.BoughtAmount)
 	}
-	if h.BoughtValue != 750 {
+	if !h.BoughtValue.Equal(decimal.NewFromInt(750)) {
 		t.Errorf("expected '%v' received '%v'", 750, h.BoughtValue)
 	}
-	if h.SoldAmount != 0 {
+	if !h.SoldAmount.Equal(decimal.Zero) {
 		t.Errorf("expected '%v' received '%v'", 0, h.SoldAmount)
 	}
-	if h.TotalFees != 1.5 {
+	if !h.TotalFees.Equal(decimal.NewFromFloat(1.5)) {
 		t.Errorf("expected '%v' received '%v'", 1.5, h.TotalFees)
 	}
 }
 
 func TestUpdateSellStats(t *testing.T) {
 	t.Parallel()
-	h, err := Create(&fill.Fill{}, 1000, riskFreeRate)
+	b, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.NewFromInt(1), decimal.Zero)
+	if err != nil {
+		t.Fatal(err)
+	}
+	q, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, decimal.NewFromInt(100), decimal.Zero)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err := funding.CreatePair(b, q)
+	if err != nil {
+		t.Fatal(err)
+	}
+	h, err := Create(&fill.Fill{}, p)
 	if err != nil {
 		t.Error(err)
 	}
@@ -226,17 +243,17 @@ func TestUpdateSellStats(t *testing.T) {
 			AssetType:    asset.Spot,
 		},
 		Direction:           order.Buy,
-		Amount:              1,
-		ClosePrice:          500,
-		VolumeAdjustedPrice: 500,
-		PurchasePrice:       500,
-		ExchangeFee:         0,
-		Slippage:            0,
+		Amount:              decimal.NewFromInt(1),
+		ClosePrice:          decimal.NewFromInt(500),
+		VolumeAdjustedPrice: decimal.NewFromInt(500),
+		PurchasePrice:       decimal.NewFromInt(500),
+		ExchangeFee:         decimal.Zero,
+		Slippage:            decimal.Zero,
 		Order: &order.Detail{
 			Price:       500,
 			Amount:      1,
 			Exchange:    testExchange,
-			ID:          "1337",
+			ID:          "decimal.NewFromInt(1337)",
 			Type:        order.Limit,
 			Side:        order.Buy,
 			Status:      order.New,
@@ -248,35 +265,35 @@ func TestUpdateSellStats(t *testing.T) {
 			Trades:      nil,
 			Fee:         1,
 		},
-	})
+	}, p)
 	if err != nil {
 		t.Error(err)
 	}
-	if h.PositionsSize != 1 {
-		t.Errorf("expected '%v' received '%v'", 1, h.PositionsSize)
+	if !h.BaseSize.Equal(decimal.NewFromInt(1)) {
+		t.Errorf("expected '%v' received '%v'", 1, h.BaseSize)
 	}
-	if h.PositionsValue != 500 {
-		t.Errorf("expected '%v' received '%v'", 500, h.PositionsValue)
+	if !h.BaseValue.Equal(decimal.NewFromInt(500)) {
+		t.Errorf("expected '%v' received '%v'", 500, h.BaseValue)
 	}
-	if h.InitialFunds != 1000 {
-		t.Errorf("expected '%v' received '%v'", 1000, h.InitialFunds)
+	if !h.QuoteInitialFunds.Equal(decimal.NewFromInt(100)) {
+		t.Errorf("expected '%v' received '%v'", 100, h.QuoteInitialFunds)
 	}
-	if h.RemainingFunds != 499 {
-		t.Errorf("expected '%v' received '%v'", 499, h.RemainingFunds)
+	if !h.QuoteSize.Equal(decimal.NewFromInt(100)) {
+		t.Errorf("expected '%v' received '%v'", 100, h.QuoteSize)
 	}
-	if h.TotalValue != 999 {
-		t.Errorf("expected '%v' received '%v'", 999, h.TotalValue)
+	if !h.TotalValue.Equal(decimal.NewFromInt(600)) {
+		t.Errorf("expected '%v' received '%v'", 600, h.TotalValue)
 	}
-	if h.BoughtAmount != 1 {
+	if !h.BoughtAmount.Equal(decimal.NewFromInt(1)) {
 		t.Errorf("expected '%v' received '%v'", 1, h.BoughtAmount)
 	}
-	if h.BoughtValue != 500 {
+	if !h.BoughtValue.Equal(decimal.NewFromInt(500)) {
 		t.Errorf("expected '%v' received '%v'", 500, h.BoughtValue)
 	}
-	if h.SoldAmount != 0 {
+	if !h.SoldAmount.Equal(decimal.Zero) {
 		t.Errorf("expected '%v' received '%v'", 0, h.SoldAmount)
 	}
-	if h.TotalFees != 1 {
+	if !h.TotalFees.Equal(decimal.NewFromInt(1)) {
 		t.Errorf("expected '%v' received '%v'", 1, h.TotalFees)
 	}
 
@@ -289,17 +306,17 @@ func TestUpdateSellStats(t *testing.T) {
 			AssetType:    asset.Spot,
 		},
 		Direction:           order.Sell,
-		Amount:              1,
-		ClosePrice:          500,
-		VolumeAdjustedPrice: 500,
-		PurchasePrice:       500,
-		ExchangeFee:         0,
-		Slippage:            0,
+		Amount:              decimal.NewFromInt(1),
+		ClosePrice:          decimal.NewFromInt(500),
+		VolumeAdjustedPrice: decimal.NewFromInt(500),
+		PurchasePrice:       decimal.NewFromInt(500),
+		ExchangeFee:         decimal.Zero,
+		Slippage:            decimal.Zero,
 		Order: &order.Detail{
 			Price:       500,
 			Amount:      1,
 			Exchange:    testExchange,
-			ID:          "1337",
+			ID:          "decimal.NewFromInt(1337)",
 			Type:        order.Limit,
 			Side:        order.Sell,
 			Status:      order.New,
@@ -311,33 +328,18 @@ func TestUpdateSellStats(t *testing.T) {
 			Trades:      nil,
 			Fee:         1,
 		},
-	})
+	}, p)
 
-	if h.PositionsSize != 0 {
-		t.Errorf("expected '%v' received '%v'", 0, h.PositionsSize)
-	}
-	if h.PositionsValue != 0 {
-		t.Errorf("expected '%v' received '%v'", 0, h.PositionsValue)
-	}
-	if h.InitialFunds != 1000 {
-		t.Errorf("expected '%v' received '%v'", 1000, h.InitialFunds)
-	}
-	if h.RemainingFunds != 998 {
-		t.Errorf("expected '%v' received '%v'", 998, h.RemainingFunds)
-	}
-	if h.TotalValue != 998 {
-		t.Errorf("expected '%v' received '%v'", 998, h.TotalValue)
-	}
-	if h.BoughtAmount != 1 {
+	if !h.BoughtAmount.Equal(decimal.NewFromInt(1)) {
 		t.Errorf("expected '%v' received '%v'", 1, h.BoughtAmount)
 	}
-	if h.BoughtValue != 500 {
+	if !h.BoughtValue.Equal(decimal.NewFromInt(500)) {
 		t.Errorf("expected '%v' received '%v'", 500, h.BoughtValue)
 	}
-	if h.SoldAmount != 1 {
+	if !h.SoldAmount.Equal(decimal.NewFromInt(1)) {
 		t.Errorf("expected '%v' received '%v'", 1, h.SoldAmount)
 	}
-	if h.TotalFees != 2 {
+	if !h.TotalFees.Equal(decimal.NewFromInt(2)) {
 		t.Errorf("expected '%v' received '%v'", 2, h.TotalFees)
 	}
 }

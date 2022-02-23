@@ -1,6 +1,7 @@
 package currency
 
 import (
+	"errors"
 	"testing"
 )
 
@@ -43,21 +44,21 @@ func TestUpdateBaseCurrency(t *testing.T) {
 		t.Error("UpdateBaseCurrency() error cannot be nil")
 	}
 
-	if GetBaseCurrency() != AUD {
+	if !GetBaseCurrency().Equal(AUD) {
 		t.Errorf("GetBaseCurrency() expected %s but received %s",
 			AUD, GetBaseCurrency())
 	}
 }
 
 func TestGetDefaultBaseCurrency(t *testing.T) {
-	if GetDefaultBaseCurrency() != USD {
+	if !GetDefaultBaseCurrency().Equal(USD) {
 		t.Errorf("GetDefaultBaseCurrency() expected %s but received %s",
 			USD, GetDefaultBaseCurrency())
 	}
 }
 
 func TestGetDefaulCryptoCurrencies(t *testing.T) {
-	expected := Currencies{BTC, LTC, ETH, DOGE, DASH, XRP, XMR}
+	expected := Currencies{BTC, LTC, ETH, DOGE, DASH, XRP, XMR, USDT, UST}
 	if !GetDefaultCryptocurrencies().Match(expected) {
 		t.Errorf("GetDefaultCryptocurrencies() expected %s but received %s",
 			expected, GetDefaultCryptocurrencies())
@@ -88,13 +89,28 @@ func TestUpdateCurrencies(t *testing.T) {
 	}
 }
 
-func TestConvertCurrency(t *testing.T) {
-	_, err := ConvertCurrency(100, AUD, USD)
+func TestConvertFiat(t *testing.T) {
+	_, err := ConvertFiat(0, LTC, USD)
+	if !errors.Is(err, errInvalidAmount) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidAmount)
+	}
+
+	_, err = ConvertFiat(100, LTC, USD)
+	if !errors.Is(err, errNotFiatCurrency) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errNotFiatCurrency)
+	}
+
+	_, err = ConvertFiat(100, USD, LTC)
+	if !errors.Is(err, errNotFiatCurrency) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errNotFiatCurrency)
+	}
+
+	_, err = ConvertFiat(100, AUD, USD)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	r, err := ConvertCurrency(100, AUD, AUD)
+	r, err := ConvertFiat(100, AUD, AUD)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -104,23 +120,64 @@ func TestConvertCurrency(t *testing.T) {
 			100.00, r)
 	}
 
-	_, err = ConvertCurrency(100, USD, AUD)
+	_, err = ConvertFiat(100, USD, AUD)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = ConvertCurrency(100, CNY, AUD)
+	_, err = ConvertFiat(100, CNY, AUD)
 	if err != nil {
 		t.Fatal(err)
 	}
+}
 
-	_, err = ConvertCurrency(100, LTC, USD)
-	if err == nil {
-		t.Fatal("Expected err on non-existent currency")
+func TestGetForeignExchangeRate(t *testing.T) {
+	_, err := GetForeignExchangeRate(NewPair(EMPTYCODE, EMPTYCODE))
+	if !errors.Is(err, errNotFiatCurrency) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errNotFiatCurrency)
 	}
 
-	_, err = ConvertCurrency(100, USD, LTC)
-	if err == nil {
-		t.Fatal("Expected err on non-existent currency")
+	_, err = GetForeignExchangeRate(NewPair(USD, EMPTYCODE))
+	if !errors.Is(err, errNotFiatCurrency) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errNotFiatCurrency)
+	}
+
+	one, err := GetForeignExchangeRate(NewPair(USD, USD))
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if one != 1 {
+		t.Fatal("unexpected value")
+	}
+
+	rate, err := GetForeignExchangeRate(NewPair(AUD, USD))
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if rate <= 0 {
+		t.Fatal("unexpected value")
+	}
+}
+
+func TestAllFXSettingsIsEnabled(t *testing.T) {
+	var settings AllFXSettings
+	if received := settings.IsEnabled("wow"); received {
+		t.Fatalf("received: '%v' but expected: '%v'", received, false)
+	}
+
+	settings = []FXSettings{
+		{
+			Name: "wOow",
+		},
+		{
+			Name:    "amICool?",
+			Enabled: true,
+		},
+	}
+
+	if received := settings.IsEnabled("AMICOOL?"); !received {
+		t.Fatalf("received: '%v' but expected: '%v'", received, true)
 	}
 }

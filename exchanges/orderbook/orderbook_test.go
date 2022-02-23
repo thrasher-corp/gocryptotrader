@@ -303,7 +303,7 @@ func TestDeployDepth(t *testing.T) {
 	if !errors.Is(err, errExchangeNameUnset) {
 		t.Fatalf("expecting %s error but received %v", errExchangeNameUnset, err)
 	}
-	_, err = DeployDepth("test", currency.Pair{}, asset.Spot)
+	_, err = DeployDepth("test", currency.EMPTYPAIR, asset.Spot)
 	if !errors.Is(err, errPairNotSet) {
 		t.Fatalf("expecting %s error but received %v", errPairNotSet, err)
 	}
@@ -370,7 +370,7 @@ func TestProcessOrderbook(t *testing.T) {
 	}
 
 	// test for empty pair
-	base.Pair = currency.Pair{}
+	base.Pair = currency.EMPTYPAIR
 	err = base.Process()
 	if err == nil {
 		t.Error("empty pair should throw an err")
@@ -605,9 +605,7 @@ func TestReverse(t *testing.T) {
 	var b Base
 	b.VerifyOrderbook = true
 
-	length := 1000
-	b.Bids = deploySliceOrdered()
-	if len(b.Bids) != length {
+	if b.Bids = deploySliceOrdered(); len(b.Bids) != 1000 {
 		t.Fatal("incorrect length")
 	}
 
@@ -637,9 +635,8 @@ func TestReverse(t *testing.T) {
 
 // 705985	      1856 ns/op	       0 B/op	       0 allocs/op
 func BenchmarkReverse(b *testing.B) {
-	length := 1000
 	s := deploySliceOrdered()
-	if len(s) != length {
+	if len(s) != 1000 {
 		b.Fatal("incorrect length")
 	}
 
@@ -652,6 +649,7 @@ func BenchmarkReverse(b *testing.B) {
 func BenchmarkSortAsksDecending(b *testing.B) {
 	s := deploySliceOrdered()
 	for i := 0; i < b.N; i++ {
+		// nolint: gocritic
 		ts := append(s[:0:0], s...)
 		ts.SortAsks()
 	}
@@ -662,6 +660,7 @@ func BenchmarkSortBidsAscending(b *testing.B) {
 	s := deploySliceOrdered()
 	s.Reverse()
 	for i := 0; i < b.N; i++ {
+		// nolint: gocritic
 		ts := append(s[:0:0], s...)
 		ts.SortBids()
 	}
@@ -671,6 +670,7 @@ func BenchmarkSortBidsAscending(b *testing.B) {
 func BenchmarkSortAsksStandard(b *testing.B) {
 	s := deployUnorderedSlice()
 	for i := 0; i < b.N; i++ {
+		// nolint: gocritic
 		ts := append(s[:0:0], s...)
 		ts.SortAsks()
 	}
@@ -680,6 +680,7 @@ func BenchmarkSortAsksStandard(b *testing.B) {
 func BenchmarkSortBidsStandard(b *testing.B) {
 	s := deployUnorderedSlice()
 	for i := 0; i < b.N; i++ {
+		// nolint: gocritic
 		ts := append(s[:0:0], s...)
 		ts.SortBids()
 	}
@@ -689,6 +690,7 @@ func BenchmarkSortBidsStandard(b *testing.B) {
 func BenchmarkSortAsksAscending(b *testing.B) {
 	s := deploySliceOrdered()
 	for i := 0; i < b.N; i++ {
+		// nolint: gocritic
 		ts := append(s[:0:0], s...)
 		ts.SortAsks()
 	}
@@ -699,6 +701,7 @@ func BenchmarkSortBidsDescending(b *testing.B) {
 	s := deploySliceOrdered()
 	s.Reverse()
 	for i := 0; i < b.N; i++ {
+		// nolint: gocritic
 		ts := append(s[:0:0], s...)
 		ts.SortBids()
 	}

@@ -4,6 +4,7 @@
 package slack
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -66,8 +67,7 @@ func (s *Slack) Setup(cfg *base.CommunicationsConfig) {
 
 // Connect connects to the service
 func (s *Slack) Connect() error {
-	err := s.NewConnection()
-	if err != nil {
+	if err := s.NewConnection(); err != nil {
 		return err
 	}
 
@@ -151,7 +151,17 @@ func (s *Slack) GetUsersInGroup(group string) []string {
 // token and a channel
 func (s *Slack) NewConnection() error {
 	if !s.Connected {
-		err := common.SendHTTPGetRequest(s.BuildURL(s.VerificationToken), true, s.Verbose, &s.Details)
+		contents, err := common.SendHTTPRequest(context.TODO(),
+			http.MethodGet,
+			s.BuildURL(s.VerificationToken),
+			nil,
+			nil,
+			s.Verbose)
+		if err != nil {
+			return err
+		}
+
+		err = json.Unmarshal(contents, &s.Details)
 		if err != nil {
 			return err
 		}

@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"errors"
 
 	"github.com/thrasher-corp/gocryptotrader/communications/base"
@@ -10,7 +11,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
 )
@@ -42,8 +42,8 @@ var (
 // iExchangeManager limits exposure of accessible functions to exchange manager
 // so that subsystems can use some functionality
 type iExchangeManager interface {
-	GetExchanges() []exchange.IBotExchange
-	GetExchangeByName(string) exchange.IBotExchange
+	GetExchanges() ([]exchange.IBotExchange, error)
+	GetExchangeByName(string) (exchange.IBotExchange, error)
 }
 
 // iCommsManager limits exposure of accessible functions to communication manager
@@ -55,7 +55,7 @@ type iCommsManager interface {
 type iOrderManager interface {
 	Exists(*order.Detail) bool
 	Add(*order.Detail) error
-	Cancel(*order.Cancel) error
+	Cancel(context.Context, *order.Cancel) error
 	GetByExchangeAndID(string, string) (*order.Detail, error)
 	UpdateExistingOrder(*order.Detail) error
 }
@@ -70,13 +70,6 @@ type iPortfolioManager interface {
 // iBot limits exposure of accessible functions to engine bot
 type iBot interface {
 	SetupExchanges() error
-}
-
-// iWebsocketDataReceiver limits exposure of accessible functions to websocket data receiver
-type iWebsocketDataReceiver interface {
-	IsRunning() bool
-	WebsocketDataReceiver(ws *stream.Websocket)
-	WebsocketDataHandler(string, interface{}) error
 }
 
 // iCurrencyPairSyncer defines a limited scoped currency pair syncer

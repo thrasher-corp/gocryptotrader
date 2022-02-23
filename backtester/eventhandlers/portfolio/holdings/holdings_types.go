@@ -4,42 +4,51 @@ import (
 	"errors"
 	"time"
 
+	"github.com/shopspring/decimal"
+	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
 // ErrInitialFundsZero is an error when initial funds are zero or less
-var ErrInitialFundsZero = errors.New("initial funds <= 0")
+var ErrInitialFundsZero = errors.New("initial funds < 0")
 
 // Holding contains pricing statistics for a given time
 // for a given exchange asset pair
 type Holding struct {
-	Offset         int64
-	Pair           currency.Pair `json:"pair"`
-	Asset          asset.Item    `json:"asset"`
-	Exchange       string        `json:"exchange"`
-	Timestamp      time.Time     `json:"timestamp"`
-	InitialFunds   float64       `json:"initial-funds"`
-	PositionsSize  float64       `json:"positions-size"`
-	PositionsValue float64       `json:"postions-value"`
-	SoldAmount     float64       `json:"sold-amount"`
-	SoldValue      float64       `json:"sold-value"`
-	BoughtAmount   float64       `json:"bought-amount"`
-	BoughtValue    float64       `json:"bought-value"`
-	RemainingFunds float64       `json:"remaining-funds"`
-	CommittedFunds float64       `json:"committed-funds"`
+	Offset            int64
+	Item              currency.Code
+	Pair              currency.Pair
+	Asset             asset.Item      `json:"asset"`
+	Exchange          string          `json:"exchange"`
+	Timestamp         time.Time       `json:"timestamp"`
+	BaseInitialFunds  decimal.Decimal `json:"base-initial-funds"`
+	BaseSize          decimal.Decimal `json:"base-size"`
+	BaseValue         decimal.Decimal `json:"base-value"`
+	QuoteInitialFunds decimal.Decimal `json:"quote-initial-funds"`
+	TotalInitialValue decimal.Decimal `json:"total-initial-value"`
+	QuoteSize         decimal.Decimal `json:"quote-size"`
+	SoldAmount        decimal.Decimal `json:"sold-amount"`
+	SoldValue         decimal.Decimal `json:"sold-value"`
+	BoughtAmount      decimal.Decimal `json:"bought-amount"`
+	BoughtValue       decimal.Decimal `json:"bought-value"`
 
-	TotalValueDifference      float64
-	ChangeInTotalValuePercent float64
-	BoughtValueDifference     float64
-	SoldValueDifference       float64
-	PositionsValueDifference  float64
+	TotalValueDifference      decimal.Decimal
+	ChangeInTotalValuePercent decimal.Decimal
+	BoughtValueDifference     decimal.Decimal
+	SoldValueDifference       decimal.Decimal
+	PositionsValueDifference  decimal.Decimal
 
-	TotalValue                   float64 `json:"total-value"`
-	TotalFees                    float64 `json:"total-fees"`
-	TotalValueLostToVolumeSizing float64 `json:"total-value-lost-to-volume-sizing"`
-	TotalValueLostToSlippage     float64 `json:"total-value-lost-to-slippage"`
-	TotalValueLost               float64 `json:"total-value-lost"`
+	TotalValue                   decimal.Decimal `json:"total-value"`
+	TotalFees                    decimal.Decimal `json:"total-fees"`
+	TotalValueLostToVolumeSizing decimal.Decimal `json:"total-value-lost-to-volume-sizing"`
+	TotalValueLostToSlippage     decimal.Decimal `json:"total-value-lost-to-slippage"`
+	TotalValueLost               decimal.Decimal `json:"total-value-lost"`
+}
 
-	RiskFreeRate float64 `json:"risk-free-rate"`
+// ClosePriceReader is used for holdings calculations
+// without needing to consider event types
+type ClosePriceReader interface {
+	common.EventHandler
+	GetClosePrice() decimal.Decimal
 }

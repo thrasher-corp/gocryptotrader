@@ -6,6 +6,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -15,7 +16,7 @@ import (
 const packageError = "websocket orderbook buffer error: %w"
 
 var (
-	errUnsetExchangeName            = errors.New("exchange name unset")
+	errExchangeConfigNil            = errors.New("exchange config is nil")
 	errUnsetDataHandler             = errors.New("datahandler unset")
 	errIssueBufferEnabledButNoLimit = errors.New("buffer enabled but no limit set")
 	errUpdateIsNil                  = errors.New("update is nil")
@@ -25,32 +26,35 @@ var (
 )
 
 // Setup sets private variables
-func (w *Orderbook) Setup(obBufferLimit int,
-	bufferEnabled,
-	sortBuffer,
-	sortBufferByUpdateIDs,
-	updateEntriesByID,
-	verbose bool,
-	exchangeName string,
-	dataHandler chan interface{}) error {
-	if exchangeName == "" {
-		return fmt.Errorf(packageError, errUnsetExchangeName)
+func (w *Orderbook) Setup(cfg *config.Exchange, sortBuffer, sortBufferByUpdateIDs, updateEntriesByID bool, dataHandler chan interface{}) error {
+	if cfg == nil { // exchange config fields are checked in stream package
+		// prior to calling this, so further checks are not needed.
+		return fmt.Errorf(packageError, errExchangeConfigNil)
 	}
 	if dataHandler == nil {
 		return fmt.Errorf(packageError, errUnsetDataHandler)
 	}
-	if bufferEnabled && obBufferLimit < 1 {
+	if cfg.Orderbook.WebsocketBufferEnabled &&
+		cfg.Orderbook.WebsocketBufferLimit < 1 {
 		return fmt.Errorf(packageError, errIssueBufferEnabledButNoLimit)
 	}
-	w.obBufferLimit = obBufferLimit
-	w.bufferEnabled = bufferEnabled
+
+	w.bufferEnabled = cfg.Orderbook.WebsocketBufferEnabled
+	w.obBufferLimit = cfg.Orderbook.WebsocketBufferLimit
 	w.sortBuffer = sortBuffer
 	w.sortBufferByUpdateIDs = sortBufferByUpdateIDs
 	w.updateEntriesByID = updateEntriesByID
-	w.exchangeName = exchangeName
+	w.exchangeName = cfg.Name
 	w.dataHandler = dataHandler
 	w.ob = make(map[currency.Code]map[currency.Code]map[asset.Item]*orderbookHolder)
-	w.verbose = verbose
+	w.verbose = cfg.Verbose
+
+	// set default publish period if missing
+	orderbookPublishPeriod := config.DefaultOrderbookPublishPeriod
+	if cfg.Orderbook.PublishPeriod != nil {
+		orderbookPublishPeriod = *cfg.Orderbook.PublishPeriod
+	}
+	w.publishPeriod = orderbookPublishPeriod
 	return nil
 }
 
@@ -102,9 +106,6 @@ func (w *Orderbook) Update(u *Update) error {
 			u.Asset)
 	}
 
-	// Apply new update information
-	book.ob.SetLastUpdate(u.UpdateTime, u.UpdateID, false)
-
 	if w.bufferEnabled {
 		processed, err := w.processBufferUpdate(book, u)
 		if err != nil {
@@ -130,6 +131,17 @@ func (w *Orderbook) Update(u *Update) error {
 		}
 	}
 
+	// a nil ticker means that a zero publish period has been requested,
+	// this means publish now whatever was received with no throttling
+	if book.ticker == nil {
+		go func() {
+			w.dataHandler <- book.ob.Retrieve()
+			book.ob.Publish()
+		}()
+
+		return nil
+	}
+
 	select {
 	case <-book.ticker.C:
 		// Opted to wait for receiver because we are limiting here and the sync
@@ -146,6 +158,7 @@ func (w *Orderbook) Update(u *Update) error {
 			book.ob.Publish()
 		}
 	}
+
 	return nil
 }
 
@@ -193,7 +206,11 @@ func (w *Orderbook) processObUpdate(o *orderbookHolder, u *Update) error {
 // updateByPrice ammends amount if match occurs by price, deletes if amount is
 // zero or less and inserts if not found.
 func (o *orderbookHolder) updateByPrice(updts *Update) {
-	o.ob.UpdateBidAskByPrice(updts.Bids, updts.Asks, updts.MaxDepth)
+	o.ob.UpdateBidAskByPrice(updts.Bids,
+		updts.Asks,
+		updts.MaxDepth,
+		updts.UpdateID,
+		updts.UpdateTime)
 }
 
 // updateByIDAndAction will receive an action to execute against the orderbook
@@ -201,15 +218,28 @@ func (o *orderbookHolder) updateByPrice(updts *Update) {
 func (o *orderbookHolder) updateByIDAndAction(updts *Update) error {
 	switch updts.Action {
 	case Amend:
-		return o.ob.UpdateBidAskByID(updts.Bids, updts.Asks)
+		return o.ob.UpdateBidAskByID(updts.Bids,
+			updts.Asks,
+			updts.UpdateID,
+			updts.UpdateTime)
 	case Delete:
 		// edge case for Bitfinex as their streaming endpoint duplicates deletes
 		bypassErr := o.ob.GetName() == "Bitfinex" && o.ob.IsFundingRate()
-		return o.ob.DeleteBidAskByID(updts.Bids, updts.Asks, bypassErr)
+		return o.ob.DeleteBidAskByID(updts.Bids,
+			updts.Asks,
+			bypassErr,
+			updts.UpdateID,
+			updts.UpdateTime)
 	case Insert:
-		return o.ob.InsertBidAskByID(updts.Bids, updts.Asks)
+		return o.ob.InsertBidAskByID(updts.Bids,
+			updts.Asks,
+			updts.UpdateID,
+			updts.UpdateTime)
 	case UpdateInsert:
-		return o.ob.UpdateInsertByID(updts.Bids, updts.Asks)
+		return o.ob.UpdateInsertByID(updts.Bids,
+			updts.Asks,
+			updts.UpdateID,
+			updts.UpdateTime)
 	default:
 		return fmt.Errorf("invalid action [%s]", updts.Action)
 	}
@@ -238,7 +268,11 @@ func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
 		}
 		depth.AssignOptions(book)
 		buffer := make([]Update, w.obBufferLimit)
-		ticker := time.NewTicker(timerDefault)
+
+		var ticker *time.Ticker
+		if w.publishPeriod != 0 {
+			ticker = time.NewTicker(w.publishPeriod)
+		}
 		holder = &orderbookHolder{
 			ob:     depth,
 			buffer: &buffer,
@@ -253,7 +287,13 @@ func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
 		return err
 	}
 
-	holder.ob.LoadSnapshot(book.Bids, book.Asks)
+	holder.ob.LoadSnapshot(
+		book.Bids,
+		book.Asks,
+		book.LastUpdateID,
+		book.LastUpdated,
+		false,
+	)
 
 	if holder.ob.VerifyOrderbook { // This is used here so as to not retrieve
 		// book if verification is off.

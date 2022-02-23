@@ -1,6 +1,7 @@
 package ftx
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
@@ -60,7 +62,9 @@ func (f *FTX) WsConnect() error {
 		log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", f.Name)
 	}
 
+	f.Websocket.Wg.Add(1)
 	go f.wsReadData()
+
 	if f.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
 		err = f.WsAuth()
 		if err != nil {
@@ -74,21 +78,26 @@ func (f *FTX) WsConnect() error {
 
 // WsAuth sends an authentication message to receive auth data
 func (f *FTX) WsAuth() error {
-	intNonce := time.Now().UnixNano() / 1000000
+	intNonce := time.Now().UnixMilli()
 	strNonce := strconv.FormatInt(intNonce, 10)
-	hmac := crypto.GetHMAC(
+	hmac, err := crypto.GetHMAC(
 		crypto.HashSHA256,
 		[]byte(strNonce+"websocket_login"),
 		[]byte(f.API.Credentials.Secret),
 	)
+	if err != nil {
+		return err
+	}
 	sign := crypto.HexEncodeToString(hmac)
 	req := Authenticate{Operation: "login",
 		Args: AuthenticationData{
-			Key:  f.API.Credentials.Key,
-			Sign: sign,
-			Time: intNonce,
+			Key:        f.API.Credentials.Key,
+			Sign:       sign,
+			Time:       intNonce,
+			SubAccount: f.API.Credentials.Subaccount,
 		},
 	}
+
 	return f.Websocket.Conn.SendJSONMessage(req)
 }
 
@@ -207,7 +216,6 @@ func (f *FTX) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, erro
 
 // wsReadData gets and passes on websocket messages for processing
 func (f *FTX) wsReadData() {
-	f.Websocket.Wg.Add(1)
 	defer f.Websocket.Wg.Done()
 
 	for {
@@ -265,7 +273,9 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 			f.Websocket.DataHandler <- &ticker.Price{
 				ExchangeName: f.Name,
 				Bid:          resultData.Ticker.Bid,
+				BidSize:      resultData.Ticker.BidSize,
 				Ask:          resultData.Ticker.Ask,
+				AskSize:      resultData.Ticker.AskSize,
 				Last:         resultData.Ticker.Last,
 				LastUpdated:  timestampFromFloat64(resultData.Ticker.Time),
 				Pair:         p,
@@ -289,7 +299,10 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 				return err
 			}
 		case wsTrades:
-			if !f.IsSaveTradeDataEnabled() {
+			saveTradeData := f.IsSaveTradeDataEnabled()
+
+			if !saveTradeData &&
+				!f.IsTradeFeedEnabled() {
 				return nil
 			}
 			var resultData WsTradeDataStore
@@ -318,7 +331,7 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 					TID:          strconv.FormatInt(resultData.TradeData[z].ID, 10),
 				})
 			}
-			return trade.AddTradesToBuffer(f.Name, trades...)
+			return f.Websocket.Trade.Update(saveTradeData, trades...)
 		case wsOrders:
 			var resultData WsOrderDataStore
 			err = json.Unmarshal(respRaw, &resultData)
@@ -335,26 +348,8 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 			if err != nil {
 				return err
 			}
-			var oSide order.Side
-			oSide, err = order.StringToOrderSide(resultData.OrderData.Side)
-			if err != nil {
-				f.Websocket.DataHandler <- order.ClassificationError{
-					Exchange: f.Name,
-					Err:      err,
-				}
-			}
-			var resp order.Detail
-			resp.Side = oSide
-			resp.Amount = resultData.OrderData.Size
-			resp.AssetType = assetType
-			resp.ClientOrderID = resultData.OrderData.ClientID
-			resp.Exchange = f.Name
-			resp.ExecutedAmount = resultData.OrderData.FilledSize
-			resp.ID = strconv.FormatInt(resultData.OrderData.ID, 10)
-			resp.Pair = pair
-			resp.RemainingAmount = resultData.OrderData.Size - resultData.OrderData.FilledSize
 			var orderVars OrderVars
-			orderVars, err = f.compatibleOrderVars(
+			orderVars, err = f.compatibleOrderVars(context.TODO(),
 				resultData.OrderData.Side,
 				resultData.OrderData.Status,
 				resultData.OrderData.OrderType,
@@ -364,18 +359,68 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 			if err != nil {
 				return err
 			}
-			resp.Status = orderVars.Status
-			resp.Side = orderVars.Side
+			var resp order.Detail
+			resp.PostOnly = resultData.OrderData.PostOnly
+			resp.Price = resultData.OrderData.Price
+			resp.Amount = resultData.OrderData.Size
+			resp.AverageExecutedPrice = resultData.OrderData.AvgFillPrice
+			resp.ExecutedAmount = resultData.OrderData.FilledSize
+			resp.RemainingAmount = resultData.OrderData.Size - resultData.OrderData.FilledSize
+			resp.Cost = resp.AverageExecutedPrice * resultData.OrderData.FilledSize
+			// Fee: orderVars.Fee is incorrect.
+			resp.Exchange = f.Name
+			resp.ID = strconv.FormatInt(resultData.OrderData.ID, 10)
+			resp.ClientOrderID = resultData.OrderData.ClientID
 			resp.Type = orderVars.OrderType
-			resp.Fee = orderVars.Fee
+			resp.Side = orderVars.Side
+			resp.Status = orderVars.Status
+			resp.AssetType = assetType
+			resp.Date = resultData.OrderData.CreatedAt
+			// There's no current timestamp, so this is the best we can get.
+			resp.LastUpdated = resultData.OrderData.CreatedAt
+			resp.Pair = pair
 			f.Websocket.DataHandler <- &resp
 		case wsFills:
+			if !f.IsFillsFeedEnabled() {
+				return nil
+			}
+
 			var resultData WsFillsDataStore
 			err = json.Unmarshal(respRaw, &resultData)
 			if err != nil {
 				return err
 			}
-			f.Websocket.DataHandler <- resultData.FillsData
+
+			var side order.Side
+			side, err = order.StringToOrderSide(resultData.FillsData.Side)
+			if err != nil {
+				f.Websocket.DataHandler <- order.ClassificationError{
+					Exchange: f.Name,
+					Err:      err,
+				}
+			}
+
+			p, err = currency.NewPairFromString(resultData.FillsData.Market)
+			if err != nil {
+				return err
+			}
+			a, err = f.GetPairAssetType(p)
+			if err != nil {
+				return err
+			}
+
+			return f.Websocket.Fills.Update(fill.Data{
+				ID:           strconv.FormatInt(resultData.FillsData.ID, 10),
+				Timestamp:    resultData.FillsData.Time,
+				Exchange:     f.Name,
+				AssetType:    a,
+				CurrencyPair: p,
+				Side:         side,
+				OrderID:      strconv.FormatInt(resultData.FillsData.OrderID, 10),
+				TradeID:      strconv.FormatInt(resultData.FillsData.TradeID, 10),
+				Price:        resultData.FillsData.Price,
+				Amount:       resultData.FillsData.Size,
+			})
 		default:
 			f.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: f.Name + stream.UnhandledMessage + string(respRaw)}
 		}

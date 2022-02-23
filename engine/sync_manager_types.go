@@ -30,36 +30,38 @@ type currencyPairSyncAgent struct {
 	Trade     syncBase
 }
 
-// Config stores the currency pair config
-type Config struct {
-	SyncTicker           bool
-	SyncOrderbook        bool
-	SyncTrades           bool
-	SyncContinuously     bool
-	SyncTimeoutREST      time.Duration
-	SyncTimeoutWebsocket time.Duration
-	NumWorkers           int
-	Verbose              bool
+// SyncManagerConfig stores the currency pair synchronization manager config
+type SyncManagerConfig struct {
+	SynchronizeTicker       bool
+	SynchronizeOrderbook    bool
+	SynchronizeTrades       bool
+	SynchronizeContinuously bool
+	TimeoutREST             time.Duration
+	TimeoutWebsocket        time.Duration
+	NumWorkers              int
+	FiatDisplayCurrency     currency.Code
+	PairFormatDisplay       *currency.PairFormat
+	Verbose                 bool
 }
 
 // syncManager stores the exchange currency pair syncer object
 type syncManager struct {
-	initSyncCompleted   int32
-	initSyncStarted     int32
-	started             int32
-	delimiter           string
-	uppercase           bool
-	initSyncStartTime   time.Time
-	fiatDisplayCurrency currency.Code
-	mux                 sync.Mutex
-	initSyncWG          sync.WaitGroup
-	inService           sync.WaitGroup
+	initSyncCompleted              int32
+	initSyncStarted                int32
+	started                        int32
+	delimiter                      string
+	uppercase                      bool
+	initSyncStartTime              time.Time
+	fiatDisplayCurrency            currency.Code
+	websocketRoutineManagerEnabled bool
+	mux                            sync.Mutex
+	initSyncWG                     sync.WaitGroup
+	inService                      sync.WaitGroup
 
 	currencyPairs            []currencyPairSyncAgent
 	tickerBatchLastRequested map[string]time.Time
 
-	remoteConfig          *config.RemoteControlConfig
-	config                Config
-	exchangeManager       iExchangeManager
-	websocketDataReceiver iWebsocketDataReceiver
+	remoteConfig    *config.RemoteControlConfig
+	config          SyncManagerConfig
+	exchangeManager iExchangeManager
 }

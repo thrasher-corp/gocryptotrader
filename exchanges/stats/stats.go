@@ -61,7 +61,7 @@ func Add(exchange string, p currency.Pair, a asset.Item, price, volume float64) 
 		return errors.New("cannot add or update, invalid params")
 	}
 
-	if p.Base == currency.XBT {
+	if p.Base.Equal(currency.XBT) {
 		newPair, err := currency.NewPairFromStrings(currency.BTC.String(),
 			p.Quote.String())
 		if err != nil {
@@ -70,7 +70,7 @@ func Add(exchange string, p currency.Pair, a asset.Item, price, volume float64) 
 		Append(exchange, newPair, a, price, volume)
 	}
 
-	if p.Quote == currency.USDT {
+	if p.Quote.Equal(currency.USDT) {
 		newPair, err := currency.NewPairFromStrings(p.Base.String(), currency.USD.String())
 		if err != nil {
 			return err

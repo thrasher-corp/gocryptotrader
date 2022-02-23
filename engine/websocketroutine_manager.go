@@ -5,18 +5,19 @@ import (
 	"sync/atomic"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // setupWebsocketRoutineManager creates a new websocket routine manager
-func setupWebsocketRoutineManager(exchangeManager iExchangeManager, orderManager iOrderManager, syncer iCurrencyPairSyncer, cfg *config.CurrencyConfig, verbose bool) (*websocketRoutineManager, error) {
+func setupWebsocketRoutineManager(exchangeManager iExchangeManager, orderManager iOrderManager, syncer iCurrencyPairSyncer, cfg *currency.Config, verbose bool) (*websocketRoutineManager, error) {
 	if exchangeManager == nil {
 		return nil, errNilExchangeManager
 	}
@@ -51,7 +52,7 @@ func (m *websocketRoutineManager) Start() error {
 		return ErrSubSystemAlreadyStarted
 	}
 	m.shutdown = make(chan struct{})
-	go m.websocketRoutine()
+	m.websocketRoutine()
 	return nil
 }
 
@@ -81,13 +82,16 @@ func (m *websocketRoutineManager) websocketRoutine() {
 	if m.verbose {
 		log.Debugln(log.WebsocketMgr, "Connecting exchange websocket services...")
 	}
-	exchanges := m.exchangeManager.GetExchanges()
+	exchanges, err := m.exchangeManager.GetExchanges()
+	if err != nil {
+		log.Errorf(log.WebsocketMgr, "websocket routine manager cannot get exchanges: %v", err)
+	}
 	for i := range exchanges {
 		go func(i int) {
 			if exchanges[i].SupportsWebsocket() {
 				if m.verbose {
 					log.Debugf(log.WebsocketMgr,
-						"Exchange %s websocket support: Yes Enabled: %v\n",
+						"Exchange %s websocket support: Yes Enabled: %v",
 						exchanges[i].GetName(),
 						common.IsEnabled(exchanges[i].IsWebsocketEnabled()),
 					)
@@ -97,35 +101,27 @@ func (m *websocketRoutineManager) websocketRoutine() {
 				if err != nil {
 					log.Errorf(
 						log.WebsocketMgr,
-						"Exchange %s GetWebsocket error: %s\n",
+						"Exchange %s GetWebsocket error: %s",
 						exchanges[i].GetName(),
 						err,
 					)
 					return
 				}
 
-				// Exchange sync manager might have already started ws
-				// service or is in the process of connecting, so check
-				if ws.IsConnected() || ws.IsConnecting() {
-					return
-				}
-
-				// Data handler routine
-				go m.WebsocketDataReceiver(ws)
-
 				if ws.IsEnabled() {
 					err = ws.Connect()
 					if err != nil {
-						log.Errorf(log.WebsocketMgr, "%v\n", err)
+						log.Errorf(log.WebsocketMgr, "%v", err)
 					}
+					go m.WebsocketDataReceiver(ws)
 					err = ws.FlushChannels()
 					if err != nil {
-						log.Errorf(log.WebsocketMgr, "Failed to subscribe: %v\n", err)
+						log.Errorf(log.WebsocketMgr, "Failed to subscribe: %v", err)
 					}
 				}
 			} else if m.verbose {
 				log.Debugf(log.WebsocketMgr,
-					"Exchange %s websocket support: No\n",
+					"Exchange %s websocket support: No",
 					exchanges[i].GetName(),
 				)
 			}
@@ -249,6 +245,14 @@ func (m *websocketRoutineManager) WebsocketDataHandler(exchName string, data int
 	case account.Change:
 		if m.verbose {
 			m.printAccountHoldingsChangeSummary(d)
+		}
+	case []trade.Data:
+		if m.verbose {
+			log.Infof(log.Trade, "%+v", d)
+		}
+	case []fill.Data:
+		if m.verbose {
+			log.Infof(log.Fill, "%+v", d)
 		}
 	default:
 		if m.verbose {

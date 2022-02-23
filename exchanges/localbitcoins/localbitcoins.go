@@ -14,7 +14,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 const (
@@ -117,20 +116,20 @@ type LocalBitcoins struct {
 // GetAccountInformation lets you retrieve the public user information on a
 // LocalBitcoins user. The response contains the same information that is found
 // on an account's public profile page.
-func (l *LocalBitcoins) GetAccountInformation(username string, self bool) (AccountInfo, error) {
+func (l *LocalBitcoins) GetAccountInformation(ctx context.Context, username string, self bool) (AccountInfo, error) {
 	type response struct {
 		Data AccountInfo `json:"data"`
 	}
 	resp := response{}
 
 	if self {
-		err := l.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodGet, localbitcoinsAPIMyself, nil, &resp)
+		err := l.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, localbitcoinsAPIMyself, nil, &resp)
 		if err != nil {
 			return resp.Data, err
 		}
 	} else {
 		path := fmt.Sprintf("/%s/%s/", localbitcoinsAPIAccountInfo, username)
-		err := l.SendHTTPRequest(exchange.RestSpot, path, &resp, request.Unset)
+		err := l.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp, request.Unset)
 		if err != nil {
 			return resp.Data, err
 		}
@@ -143,7 +142,7 @@ func (l *LocalBitcoins) GetAccountInformation(username string, self bool) (Accou
 // adID omitted.
 //
 // adID - [optional] string if omitted returns all ads
-func (l *LocalBitcoins) Getads(args ...string) (AdData, error) {
+func (l *LocalBitcoins) Getads(ctx context.Context, args ...string) (AdData, error) {
 	var resp struct {
 		Data  AdData `json:"data"`
 		Error struct {
@@ -154,14 +153,13 @@ func (l *LocalBitcoins) Getads(args ...string) (AdData, error) {
 
 	var err error
 	if len(args) == 0 {
-		err = l.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodGet,
+		err = l.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
 			localbitcoinsAPIAds,
 			nil,
 			&resp)
 	} else {
 		params := url.Values{"ads": {strings.Join(args, ",")}}
-
-		err = l.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodGet,
+		err = l.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
 			localbitcoinsAPIAdGet,
 			params,
 			&resp)
@@ -182,7 +180,7 @@ func (l *LocalBitcoins) Getads(args ...string) (AdData, error) {
 // params - see localbitcoins_types.go AdEdit for reference
 // adID - string for the ad you already created
 // TODO
-func (l *LocalBitcoins) EditAd(_ *AdEdit, adID string) error {
+func (l *LocalBitcoins) EditAd(ctx context.Context, _ *AdEdit, adID string) error {
 	resp := struct {
 		Data  AdData `json:"data"`
 		Error struct {
@@ -191,7 +189,9 @@ func (l *LocalBitcoins) EditAd(_ *AdEdit, adID string) error {
 		}
 	}{}
 
-	err := l.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost,
+	err := l.SendAuthenticatedHTTPRequest(ctx,
+		exchange.RestSpot,
+		http.MethodPost,
 		localbitcoinsAPIAdEdit+adID+"/",
 		nil,
 		&resp)
@@ -210,8 +210,8 @@ func (l *LocalBitcoins) EditAd(_ *AdEdit, adID string) error {
 //
 // params - see localbitcoins_types.go AdCreate for reference
 // TODO
-func (l *LocalBitcoins) CreateAd(_ *AdCreate) error {
-	return l.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost, localbitcoinsAPIAdCreate, nil, nil)
+func (l *LocalBitcoins) CreateAd(ctx context.Context, _ *AdCreate) error {
+	return l.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, localbitcoinsAPIAdCreate, nil, nil)
 }
 
 // UpdatePriceEquation updates price equation of an advertisement. If there are
@@ -221,15 +221,15 @@ func (l *LocalBitcoins) CreateAd(_ *AdCreate) error {
 // equation - string of equation
 // adID - string of specific ad identification
 // TODO
-func (l *LocalBitcoins) UpdatePriceEquation(adID string) error {
-	return l.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost, localbitcoinsAPIUpdateEquation+adID, nil, nil)
+func (l *LocalBitcoins) UpdatePriceEquation(ctx context.Context, adID string) error {
+	return l.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, localbitcoinsAPIUpdateEquation+adID, nil, nil)
 }
 
 // DeleteAd deletes the advertisement by adID.
 //
 // adID - string of specific ad identification
 // TODO
-func (l *LocalBitcoins) DeleteAd(adID string) error {
+func (l *LocalBitcoins) DeleteAd(ctx context.Context, adID string) error {
 	resp := struct {
 		Error struct {
 			Message string `json:"message"`
@@ -237,7 +237,9 @@ func (l *LocalBitcoins) DeleteAd(adID string) error {
 		} `json:"error"`
 	}{}
 
-	err := l.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost,
+	err := l.SendAuthenticatedHTTPRequest(ctx,
+		exchange.RestSpot,
+		http.MethodPost,
 		localbitcoinsAPIDeleteAd+adID+"/",
 		nil,
 		&resp)
@@ -254,39 +256,39 @@ func (l *LocalBitcoins) DeleteAd(adID string) error {
 
 // ReleaseFunds releases Bitcoin trades specified by ID {contact_id}. If the
 // release was successful a message is returned on the data key.
-func (l *LocalBitcoins) ReleaseFunds(contactID string) error {
-	return l.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost, localbitcoinsAPIRelease+contactID, nil, nil)
+func (l *LocalBitcoins) ReleaseFunds(ctx context.Context, contactID string) error {
+	return l.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, localbitcoinsAPIRelease+contactID, nil, nil)
 }
 
 // ReleaseFundsByPin releases Bitcoin trades specified by ID {contact_id}. if
 // the current pincode is provided. If the release was successful a message is
 // returned on the data key.
 // TODO
-func (l *LocalBitcoins) ReleaseFundsByPin(contactID string) error {
-	return l.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost, localbitcoinsAPIReleaseByPin+contactID, nil, nil)
+func (l *LocalBitcoins) ReleaseFundsByPin(ctx context.Context, contactID string) error {
+	return l.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, localbitcoinsAPIReleaseByPin+contactID, nil, nil)
 }
 
 // MarkAsPaid marks a trade as paid.
-func (l *LocalBitcoins) MarkAsPaid(contactID string) error {
-	return l.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost, localbitcoinsAPIMarkAsPaid+contactID, nil, nil)
+func (l *LocalBitcoins) MarkAsPaid(ctx context.Context, contactID string) error {
+	return l.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, localbitcoinsAPIMarkAsPaid+contactID, nil, nil)
 }
 
 // GetMessages returns all chat messages from the trade. Messages are on the message_list key.
-func (l *LocalBitcoins) GetMessages(contactID string) (Message, error) {
+func (l *LocalBitcoins) GetMessages(ctx context.Context, contactID string) (Message, error) {
 	type response struct {
 		MessageList Message `json:"message_list"`
 	}
 	resp := response{}
 
 	return resp.MessageList,
-		l.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost, localbitcoinsAPIMessages+contactID, nil, &resp)
+		l.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, localbitcoinsAPIMessages+contactID, nil, &resp)
 }
 
 // SendMessage posts a message and/or uploads an image to the trade. Encode
 // images with multipart/form-data encoding.
 // TODO
-func (l *LocalBitcoins) SendMessage(contactID string) error {
-	return l.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost, localbitcoinsAPISendMessage+contactID, nil, nil)
+func (l *LocalBitcoins) SendMessage(ctx context.Context, contactID string) error {
+	return l.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, localbitcoinsAPISendMessage+contactID, nil, nil)
 }
 
 // Dispute starts a dispute on the specified trade ID if the requirements for
@@ -294,57 +296,57 @@ func (l *LocalBitcoins) SendMessage(contactID string) error {
 //
 // topic - [optional] String	Short description of issue to LocalBitcoins customer support.
 // TODO
-func (l *LocalBitcoins) Dispute(_, contactID string) error {
-	return l.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost, localbitcoinsAPIDispute+contactID, nil, nil)
+func (l *LocalBitcoins) Dispute(ctx context.Context, _, contactID string) error {
+	return l.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, localbitcoinsAPIDispute+contactID, nil, nil)
 }
 
 // CancelTrade cancels the trade if the token owner is the Bitcoin buyer.
 // Bitcoin sellers cannot cancel trades.
-func (l *LocalBitcoins) CancelTrade(contactID string) error {
-	return l.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost, localbitcoinsAPICancelTrade+contactID, nil, nil)
+func (l *LocalBitcoins) CancelTrade(ctx context.Context, contactID string) error {
+	return l.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, localbitcoinsAPICancelTrade+contactID, nil, nil)
 }
 
 // FundTrade attempts to fund an unfunded local trade from the token owners
 // wallet. Works only if the token owner is the Bitcoin seller in the trade.
-func (l *LocalBitcoins) FundTrade(contactID string) error {
-	return l.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost, localbitcoinsAPIFundTrade+contactID, nil, nil)
+func (l *LocalBitcoins) FundTrade(ctx context.Context, contactID string) error {
+	return l.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, localbitcoinsAPIFundTrade+contactID, nil, nil)
 }
 
 // ConfirmRealName creates or updates real name confirmation.
-func (l *LocalBitcoins) ConfirmRealName(contactID string) error {
-	return l.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost, localbitcoinsAPIConfirmRealName+contactID, nil, nil)
+func (l *LocalBitcoins) ConfirmRealName(ctx context.Context, contactID string) error {
+	return l.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, localbitcoinsAPIConfirmRealName+contactID, nil, nil)
 }
 
 // VerifyIdentity marks the identity of trade partner as verified. You must be
 // the advertiser in this trade.
-func (l *LocalBitcoins) VerifyIdentity(contactID string) error {
-	return l.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost, localbitcoinsAPIVerifyIdentity+contactID, nil, nil)
+func (l *LocalBitcoins) VerifyIdentity(ctx context.Context, contactID string) error {
+	return l.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, localbitcoinsAPIVerifyIdentity+contactID, nil, nil)
 }
 
 // InitiateTrade sttempts to start a Bitcoin trade from the specified
 // advertisement ID.
 // TODO
-func (l *LocalBitcoins) InitiateTrade(adID string) error {
-	return l.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost, localbitcoinsAPIInitiateTrade+adID, nil, nil)
+func (l *LocalBitcoins) InitiateTrade(ctx context.Context, adID string) error {
+	return l.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, localbitcoinsAPIInitiateTrade+adID, nil, nil)
 }
 
 // GetTradeInfo returns information about a single trade that the token owner is
 // part in.
-func (l *LocalBitcoins) GetTradeInfo(contactID string) (dbi DashBoardInfo, err error) {
-	err = l.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodGet, localbitcoinsAPITradeInfo+contactID+"/", nil, &dbi)
+func (l *LocalBitcoins) GetTradeInfo(ctx context.Context, contactID string) (dbi DashBoardInfo, err error) {
+	err = l.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, localbitcoinsAPITradeInfo+contactID+"/", nil, &dbi)
 	return
 }
 
 // GetCountryCodes returns a list of valid and recognized countrycodes
-func (l *LocalBitcoins) GetCountryCodes() error {
-	return l.SendHTTPRequest(exchange.RestSpot, localbitcoinsAPICountryCodes, nil, request.Unset)
+func (l *LocalBitcoins) GetCountryCodes(ctx context.Context) error {
+	return l.SendHTTPRequest(ctx, exchange.RestSpot, localbitcoinsAPICountryCodes, nil, request.Unset)
 }
 
 // GetCurrencies returns a list of valid and recognized fiat currencies. Also
 // contains human readable name for every currency and boolean that tells if
 // currency is an altcoin.
-func (l *LocalBitcoins) GetCurrencies() error {
-	return l.SendHTTPRequest(exchange.RestSpot, localbitcoinsAPICurrencies, nil, request.Unset)
+func (l *LocalBitcoins) GetCurrencies(ctx context.Context) error {
+	return l.SendHTTPRequest(ctx, exchange.RestSpot, localbitcoinsAPICurrencies, nil, request.Unset)
 }
 
 // GetDashboardInfo returns a list of trades on the data key contact_list. This
@@ -354,7 +356,7 @@ func (l *LocalBitcoins) GetCurrencies() error {
 // view contacts where the token owner is either buying or selling, respectively.
 // E.g. /api/dashboard/buyer/. All contacts where the token owner is
 // participating are returned.
-func (l *LocalBitcoins) GetDashboardInfo() ([]DashBoardInfo, error) {
+func (l *LocalBitcoins) GetDashboardInfo(ctx context.Context) ([]DashBoardInfo, error) {
 	var resp struct {
 		Data struct {
 			ContactList  []DashBoardInfo `json:"contact_list"`
@@ -363,12 +365,12 @@ func (l *LocalBitcoins) GetDashboardInfo() ([]DashBoardInfo, error) {
 	}
 
 	return resp.Data.ContactList,
-		l.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodGet, localbitcoinsAPIDashboard, nil, &resp)
+		l.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, localbitcoinsAPIDashboard, nil, &resp)
 }
 
 // GetDashboardReleasedTrades returns a list of all released trades where the
 // token owner is either a buyer or seller.
-func (l *LocalBitcoins) GetDashboardReleasedTrades() ([]DashBoardInfo, error) {
+func (l *LocalBitcoins) GetDashboardReleasedTrades(ctx context.Context) ([]DashBoardInfo, error) {
 	var resp struct {
 		Data struct {
 			ContactList  []DashBoardInfo `json:"contact_list"`
@@ -377,12 +379,12 @@ func (l *LocalBitcoins) GetDashboardReleasedTrades() ([]DashBoardInfo, error) {
 	}
 
 	return resp.Data.ContactList,
-		l.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodGet, localbitcoinsAPIDashboardReleased, nil, &resp)
+		l.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, localbitcoinsAPIDashboardReleased, nil, &resp)
 }
 
 // GetDashboardCancelledTrades returns a list of all canceled trades where the
 // token owner is either a buyer or seller.
-func (l *LocalBitcoins) GetDashboardCancelledTrades() ([]DashBoardInfo, error) {
+func (l *LocalBitcoins) GetDashboardCancelledTrades(ctx context.Context) ([]DashBoardInfo, error) {
 	var resp struct {
 		Data struct {
 			ContactList  []DashBoardInfo `json:"contact_list"`
@@ -391,12 +393,12 @@ func (l *LocalBitcoins) GetDashboardCancelledTrades() ([]DashBoardInfo, error) {
 	}
 
 	return resp.Data.ContactList,
-		l.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodGet, localbitcoinsAPIDashboardCancelled, nil, &resp)
+		l.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, localbitcoinsAPIDashboardCancelled, nil, &resp)
 }
 
 // GetDashboardClosedTrades returns a list of all closed trades where the token
 // owner is either a buyer or seller.
-func (l *LocalBitcoins) GetDashboardClosedTrades() ([]DashBoardInfo, error) {
+func (l *LocalBitcoins) GetDashboardClosedTrades(ctx context.Context) ([]DashBoardInfo, error) {
 	var resp struct {
 		Data struct {
 			ContactList  []DashBoardInfo `json:"contact_list"`
@@ -405,7 +407,7 @@ func (l *LocalBitcoins) GetDashboardClosedTrades() ([]DashBoardInfo, error) {
 	}
 
 	return resp.Data.ContactList,
-		l.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodGet, localbitcoinsAPIDashboardClosed, nil, &resp)
+		l.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, localbitcoinsAPIDashboardClosed, nil, &resp)
 }
 
 // SetFeedback gives feedback to user. Possible feedback values are: trust,
@@ -421,29 +423,29 @@ func (l *LocalBitcoins) GetDashboardClosedTrades() ([]DashBoardInfo, error) {
 // profile page.
 // username - username of trade contact
 // TODO
-func (l *LocalBitcoins) SetFeedback() error {
-	return l.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost, localbitcoinsAPIFeedback, nil, nil)
+func (l *LocalBitcoins) SetFeedback(ctx context.Context) error {
+	return l.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, localbitcoinsAPIFeedback, nil, nil)
 }
 
 // Logout expires the current access token immediately. To get a new token
 // afterwards, public apps will need to re-authenticate, confidential apps can
 // turn in a refresh token.
-func (l *LocalBitcoins) Logout() error {
-	return l.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost, localbitcoinsAPILogout, nil, nil)
+func (l *LocalBitcoins) Logout(ctx context.Context) error {
+	return l.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, localbitcoinsAPILogout, nil, nil)
 }
 
 // CreateNewInvoice creates a new invoice.
 // TODO
-func (l *LocalBitcoins) CreateNewInvoice() error {
-	return l.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost, localbitcoinsAPICreateInvoice, nil, nil)
+func (l *LocalBitcoins) CreateNewInvoice(ctx context.Context) error {
+	return l.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, localbitcoinsAPICreateInvoice, nil, nil)
 }
 
 // GetInvoice returns information about a specific invoice created by the token
 // owner.
 // TODO
-func (l *LocalBitcoins) GetInvoice() (Invoice, error) {
+func (l *LocalBitcoins) GetInvoice(ctx context.Context) (Invoice, error) {
 	resp := Invoice{}
-	return resp, l.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost, localbitcoinsAPICreateInvoice, nil, &resp)
+	return resp, l.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, localbitcoinsAPICreateInvoice, nil, &resp)
 }
 
 // DeleteInvoice deletes a specific invoice. Deleting invoices is possible when
@@ -451,34 +453,34 @@ func (l *LocalBitcoins) GetInvoice() (Invoice, error) {
 // as the merchant is deleting it. You can use the API request
 // /api/merchant/invoice/{invoice_id}/ to check if deleting is possible.
 // TODO
-func (l *LocalBitcoins) DeleteInvoice() (Invoice, error) {
+func (l *LocalBitcoins) DeleteInvoice(ctx context.Context) (Invoice, error) {
 	resp := Invoice{}
-	return resp, l.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost, localbitcoinsAPICreateInvoice, nil, &resp)
+	return resp, l.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, localbitcoinsAPICreateInvoice, nil, &resp)
 }
 
 // GetNotifications returns recent notifications.
-func (l *LocalBitcoins) GetNotifications() ([]NotificationInfo, error) {
+func (l *LocalBitcoins) GetNotifications(ctx context.Context) ([]NotificationInfo, error) {
 	var resp []NotificationInfo
-	return resp, l.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost, localbitcoinsAPIGetNotification, nil, &resp)
+	return resp, l.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, localbitcoinsAPIGetNotification, nil, &resp)
 }
 
 // MarkNotifications marks a specific notification as read.
 // TODO
-func (l *LocalBitcoins) MarkNotifications() error {
-	return l.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost, localbitcoinsAPIMarkNotification, nil, nil)
+func (l *LocalBitcoins) MarkNotifications(ctx context.Context) error {
+	return l.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, localbitcoinsAPIMarkNotification, nil, nil)
 }
 
 // GetPaymentMethods returns a list of valid payment methods. Also contains name
 // and code for payment methods, and possible limitations in currencies and bank
 // name choices.
-func (l *LocalBitcoins) GetPaymentMethods() error {
-	return l.SendHTTPRequest(exchange.RestSpot, localbitcoinsAPIPaymentMethods, nil, request.Unset)
+func (l *LocalBitcoins) GetPaymentMethods(ctx context.Context) error {
+	return l.SendHTTPRequest(ctx, exchange.RestSpot, localbitcoinsAPIPaymentMethods, nil, request.Unset)
 }
 
 // GetPaymentMethodsByCountry returns a list of valid payment methods filtered
 // by countrycodes.
-func (l *LocalBitcoins) GetPaymentMethodsByCountry(countryCode string) error {
-	return l.SendHTTPRequest(exchange.RestSpot, localbitcoinsAPIPaymentMethods+countryCode, nil, request.Unset)
+func (l *LocalBitcoins) GetPaymentMethodsByCountry(ctx context.Context, countryCode string) error {
+	return l.SendHTTPRequest(ctx, exchange.RestSpot, localbitcoinsAPIPaymentMethods+countryCode, nil, request.Unset)
 }
 
 // CheckPincode checks the given PIN code against the token owners currently
@@ -487,7 +489,7 @@ func (l *LocalBitcoins) GetPaymentMethodsByCountry(countryCode string) error {
 // Due to only requiring the read scope, the user is not guaranteed to have set
 // a PIN code. If you protect your application using this request, please make
 // the user has set a PIN code for his account.
-func (l *LocalBitcoins) CheckPincode(pin int) (bool, error) {
+func (l *LocalBitcoins) CheckPincode(ctx context.Context, pin int) (bool, error) {
 	type response struct {
 		Data struct {
 			PinOK bool `json:"pincode_ok"`
@@ -496,7 +498,7 @@ func (l *LocalBitcoins) CheckPincode(pin int) (bool, error) {
 	resp := response{}
 	values := url.Values{}
 	values.Set("pincode", strconv.Itoa(pin))
-	err := l.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost, localbitcoinsAPIPinCode, values, &resp)
+	err := l.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, localbitcoinsAPIPinCode, values, &resp)
 
 	if err != nil {
 		return false, err
@@ -512,31 +514,31 @@ func (l *LocalBitcoins) CheckPincode(pin int) (bool, error) {
 // GetPlaces Looks up places near lat, lon and provides full URLs to buy and
 // sell listings for each.
 // TODO
-func (l *LocalBitcoins) GetPlaces() error {
-	return l.SendHTTPRequest(exchange.RestSpot, localbitcoinsAPIPlaces, nil, request.Unset)
+func (l *LocalBitcoins) GetPlaces(ctx context.Context) error {
+	return l.SendHTTPRequest(ctx, exchange.RestSpot, localbitcoinsAPIPlaces, nil, request.Unset)
 }
 
 // VerifyUsername returns list of real name verifiers for the user. Returns a
 // list only when you have a trade with the user where you are the seller.
-func (l *LocalBitcoins) VerifyUsername() error {
-	return l.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost, localbitcoinsAPIVerifyUsername, nil, nil)
+func (l *LocalBitcoins) VerifyUsername(ctx context.Context) error {
+	return l.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, localbitcoinsAPIVerifyUsername, nil, nil)
 }
 
 // GetRecentMessages returns maximum of 25 newest trade messages. Does not
 // return messages older than one month. Messages are ordered by sending time,
 // and the newest one is first.
 // TODO
-func (l *LocalBitcoins) GetRecentMessages() error {
-	return l.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost, localbitcoinsAPIVerifyUsername, nil, nil)
+func (l *LocalBitcoins) GetRecentMessages(ctx context.Context) error {
+	return l.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, localbitcoinsAPIVerifyUsername, nil, nil)
 }
 
 // GetWalletInfo gets information about the token owner's wallet balance.
-func (l *LocalBitcoins) GetWalletInfo() (WalletInfo, error) {
+func (l *LocalBitcoins) GetWalletInfo(ctx context.Context) (WalletInfo, error) {
 	type response struct {
 		Data WalletInfo `json:"data"`
 	}
 	resp := response{}
-	err := l.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodGet, localbitcoinsAPIWallet, nil, &resp)
+	err := l.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, localbitcoinsAPIWallet, nil, &resp)
 
 	if err != nil {
 		return WalletInfo{}, err
@@ -552,12 +554,12 @@ func (l *LocalBitcoins) GetWalletInfo() (WalletInfo, error) {
 // GetWalletBalance Same as GetWalletInfo(), but only returns the message,
 // receiving_address and total fields.
 // Use this instead if you don't care about transactions at the moment.
-func (l *LocalBitcoins) GetWalletBalance() (WalletBalanceInfo, error) {
+func (l *LocalBitcoins) GetWalletBalance(ctx context.Context) (WalletBalanceInfo, error) {
 	type response struct {
 		Data WalletBalanceInfo `json:"data"`
 	}
 	resp := response{}
-	err := l.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodGet, localbitcoinsAPIWalletBalance, nil, &resp)
+	err := l.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, localbitcoinsAPIWalletBalance, nil, &resp)
 
 	if err != nil {
 		return WalletBalanceInfo{}, err
@@ -574,7 +576,7 @@ func (l *LocalBitcoins) GetWalletBalance() (WalletBalanceInfo, error) {
 // On success, the response returns a message indicating success. It is highly
 // recommended to minimize the lifetime of access tokens with the money
 // permission. Use Logout() to make the current token expire instantly.
-func (l *LocalBitcoins) WalletSend(address string, amount float64, pin int64) error {
+func (l *LocalBitcoins) WalletSend(ctx context.Context, address string, amount float64, pin int64) error {
 	values := url.Values{}
 	values.Set("address", address)
 	values.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
@@ -596,7 +598,7 @@ func (l *LocalBitcoins) WalletSend(address string, amount float64, pin int64) er
 		} `json:"data"`
 	}{}
 
-	err := l.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost, path, values, &resp)
+	err := l.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, values, &resp)
 	if err != nil {
 		return err
 	}
@@ -618,7 +620,7 @@ func (l *LocalBitcoins) WalletSend(address string, amount float64, pin int64) er
 // GetWalletAddress returns an unused receiving address from the token owner's
 // wallet. The address is returned in the address key of the response. Note that
 // this API may keep returning the same (unused) address if requested repeatedly.
-func (l *LocalBitcoins) GetWalletAddress() (string, error) {
+func (l *LocalBitcoins) GetWalletAddress(ctx context.Context) (string, error) {
 	type response struct {
 		Data struct {
 			Message string `json:"message"`
@@ -626,7 +628,7 @@ func (l *LocalBitcoins) GetWalletAddress() (string, error) {
 		}
 	}
 	resp := response{}
-	err := l.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost, localbitcoinsAPIWalletAddress, nil, &resp)
+	err := l.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, localbitcoinsAPIWalletAddress, nil, &resp)
 	if err != nil {
 		return "", err
 	}
@@ -640,25 +642,25 @@ func (l *LocalBitcoins) GetWalletAddress() (string, error) {
 
 // GetBitcoinsWithCashAd returns buy or sell as cash local advertisements.
 // TODO
-func (l *LocalBitcoins) GetBitcoinsWithCashAd() error {
-	return l.SendHTTPRequest(exchange.RestSpot, localbitcoinsAPICashBuy, nil, request.Unset)
+func (l *LocalBitcoins) GetBitcoinsWithCashAd(ctx context.Context) error {
+	return l.SendHTTPRequest(ctx, exchange.RestSpot, localbitcoinsAPICashBuy, nil, request.Unset)
 }
 
 // GetBitcoinsOnlineAd this API returns buy or sell Bitcoin online ads.
 // TODO
-func (l *LocalBitcoins) GetBitcoinsOnlineAd() error {
-	return l.SendHTTPRequest(exchange.RestSpot, localbitcoinsAPIOnlineBuy, nil, request.Unset)
+func (l *LocalBitcoins) GetBitcoinsOnlineAd(ctx context.Context) error {
+	return l.SendHTTPRequest(ctx, exchange.RestSpot, localbitcoinsAPIOnlineBuy, nil, request.Unset)
 }
 
 // GetTicker returns list of all completed trades.
-func (l *LocalBitcoins) GetTicker() (map[string]Ticker, error) {
+func (l *LocalBitcoins) GetTicker(ctx context.Context) (map[string]Ticker, error) {
 	result := make(map[string]Ticker)
-	return result, l.SendHTTPRequest(exchange.RestSpot, localbitcoinsAPITicker, &result, tickerLimiter)
+	return result, l.SendHTTPRequest(ctx, exchange.RestSpot, localbitcoinsAPITicker, &result, tickerLimiter)
 }
 
 // GetTradableCurrencies returns a list of tradable fiat currencies
-func (l *LocalBitcoins) GetTradableCurrencies() ([]string, error) {
-	resp, err := l.GetTicker()
+func (l *LocalBitcoins) GetTradableCurrencies(ctx context.Context) ([]string, error) {
+	resp, err := l.GetTicker(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -673,18 +675,18 @@ func (l *LocalBitcoins) GetTradableCurrencies() ([]string, error) {
 
 // GetTrades returns all closed trades in online buy and online sell categories,
 // updated every 15 minutes.
-func (l *LocalBitcoins) GetTrades(currency string, values url.Values) ([]Trade, error) {
+func (l *LocalBitcoins) GetTrades(ctx context.Context, currency string, values url.Values) ([]Trade, error) {
 	endpoint := localbitcoinsAPIBitcoincharts + currency + localbitcoinsAPITrades
 	path := common.EncodeURLValues(endpoint, values)
 	var result []Trade
-	return result, l.SendHTTPRequest(exchange.RestSpot, path, &result, request.Unset)
+	return result, l.SendHTTPRequest(ctx, exchange.RestSpot, path, &result, request.Unset)
 }
 
 // GetOrderbook returns buy and sell bitcoin online advertisements. Amount is
 // the maximum amount available for the trade request. Price is the hourly
 // updated price. The price is based on the price equation and commission %
 // entered by the ad author.
-func (l *LocalBitcoins) GetOrderbook(currency string) (Orderbook, error) {
+func (l *LocalBitcoins) GetOrderbook(ctx context.Context, currency string) (Orderbook, error) {
 	type response struct {
 		Bids [][2]string `json:"bids"`
 		Asks [][2]string `json:"asks"`
@@ -693,7 +695,7 @@ func (l *LocalBitcoins) GetOrderbook(currency string) (Orderbook, error) {
 	path := localbitcoinsAPIBitcoincharts + currency + localbitcoinsAPIOrderbook
 	resp := response{}
 	var ob Orderbook
-	if err := l.SendHTTPRequest(exchange.RestSpot, path, &resp, orderBookLimiter); err != nil {
+	if err := l.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp, orderBookLimiter); err != nil {
 		return ob, err
 	}
 
@@ -725,25 +727,29 @@ func (l *LocalBitcoins) GetOrderbook(currency string) (Orderbook, error) {
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
-func (l *LocalBitcoins) SendHTTPRequest(endpoint exchange.URL, path string, result interface{}, ep request.EndpointLimit) error {
+func (l *LocalBitcoins) SendHTTPRequest(ctx context.Context, endpoint exchange.URL, path string, result interface{}, ep request.EndpointLimit) error {
 	ePoint, err := l.API.Endpoints.GetURL(endpoint)
 	if err != nil {
 		return err
 	}
-	return l.SendPayload(context.Background(), &request.Item{
+
+	item := &request.Item{
 		Method:        http.MethodGet,
 		Path:          ePoint + path,
 		Result:        result,
 		Verbose:       l.Verbose,
 		HTTPDebugging: l.HTTPDebugging,
 		HTTPRecording: l.HTTPRecording,
-		Endpoint:      ep,
+	}
+
+	return l.SendPayload(ctx, ep, func() (*request.Item, error) {
+		return item, nil
 	})
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to
 // localbitcoins
-func (l *LocalBitcoins) SendAuthenticatedHTTPRequest(ep exchange.URL, method, path string, params url.Values, result interface{}) (err error) {
+func (l *LocalBitcoins) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method, path string, params url.Values, result interface{}) (err error) {
 	if !l.AllowAuthenticatedRequest() {
 		return fmt.Errorf("%s %w", l.Name, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
 	}
@@ -751,43 +757,41 @@ func (l *LocalBitcoins) SendAuthenticatedHTTPRequest(ep exchange.URL, method, pa
 	if err != nil {
 		return err
 	}
-	n := l.Requester.GetNonce(true).String()
 
-	path = "/api/" + path
-	encoded := params.Encode()
-	message := n + l.API.Credentials.Key + path + encoded
-	hmac := crypto.GetHMAC(crypto.HashSHA256, []byte(message), []byte(l.API.Credentials.Secret))
-	headers := make(map[string]string)
-	headers["Apiauth-Key"] = l.API.Credentials.Key
-	headers["Apiauth-Nonce"] = n
-	headers["Apiauth-Signature"] = strings.ToUpper(crypto.HexEncodeToString(hmac))
-	headers["Content-Type"] = "application/x-www-form-urlencoded"
+	return l.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
+		n := l.Requester.GetNonce(true).String()
 
-	if l.Verbose {
-		log.Debugf(log.ExchangeSys, "%s Sending `%s` request to `%s`, path: `%s`, params: `%s`.",
-			l.Name,
-			method,
-			endpoint,
-			path,
-			encoded,
-		)
-	}
+		fullPath := "/api/" + path
+		encoded := params.Encode()
+		message := n + l.API.Credentials.Key + fullPath + encoded
+		hmac, err := crypto.GetHMAC(crypto.HashSHA256,
+			[]byte(message),
+			[]byte(l.API.Credentials.Secret))
+		if err != nil {
+			return nil, err
+		}
+		headers := make(map[string]string)
+		headers["Apiauth-Key"] = l.API.Credentials.Key
+		headers["Apiauth-Nonce"] = n
+		headers["Apiauth-Signature"] = strings.ToUpper(crypto.HexEncodeToString(hmac))
+		headers["Content-Type"] = "application/x-www-form-urlencoded"
 
-	if method == http.MethodGet && len(encoded) > 0 {
-		path += "?" + encoded
-	}
+		if method == http.MethodGet && len(encoded) > 0 {
+			fullPath += "?" + encoded
+		}
 
-	return l.SendPayload(context.Background(), &request.Item{
-		Method:        method,
-		Path:          endpoint + path,
-		Headers:       headers,
-		Body:          bytes.NewBufferString(encoded),
-		Result:        result,
-		AuthRequest:   true,
-		NonceEnabled:  true,
-		Verbose:       l.Verbose,
-		HTTPDebugging: l.HTTPDebugging,
-		HTTPRecording: l.HTTPRecording,
+		return &request.Item{
+			Method:        method,
+			Path:          endpoint + fullPath,
+			Headers:       headers,
+			Body:          bytes.NewBufferString(encoded),
+			Result:        result,
+			AuthRequest:   true,
+			NonceEnabled:  true,
+			Verbose:       l.Verbose,
+			HTTPDebugging: l.HTTPDebugging,
+			HTTPRecording: l.HTTPRecording,
+		}, nil
 	})
 }
 

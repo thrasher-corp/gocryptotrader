@@ -3,6 +3,7 @@ package binance
 import (
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -204,13 +205,34 @@ type BatchCancelOrderData struct {
 	Msg           string  `json:"msg"`
 }
 
+// FuturesNewOrderRequest stores all the data needed to submit a
+// delivery/coin-margined-futures order.
+type FuturesNewOrderRequest struct {
+	Symbol           currency.Pair
+	Side             string
+	PositionSide     string
+	OrderType        string
+	TimeInForce      RequestParamsTimeForceType
+	NewClientOrderID string
+	ClosePosition    string
+	WorkingType      string
+	NewOrderRespType string
+	Quantity         float64
+	Price            float64
+	StopPrice        float64
+	ActivationPrice  float64
+	CallbackRate     float64
+	ReduceOnly       bool
+	PriceProtect     bool
+}
+
 // FuturesOrderPlaceData stores futures order data
 type FuturesOrderPlaceData struct {
-	ClientOrderID string  `json:"clientOrderID"`
+	ClientOrderID string  `json:"clientOrderId"`
 	CumQty        float64 `json:"cumQty,string"`
 	CumBase       float64 `json:"cumBase,string"`
-	ExecuteQty    float64 `json:"executeQty,string"`
-	OrderID       int64   `json:"orderID,string"`
+	ExecuteQty    float64 `json:"executedQty,string"`
+	OrderID       int64   `json:"orderId"`
 	AvgPrice      float64 `json:"avgPrice,string"`
 	OrigQty       float64 `json:"origQty,string"`
 	Price         float64 `json:"price,string"`
@@ -218,7 +240,7 @@ type FuturesOrderPlaceData struct {
 	Side          string  `json:"side"`
 	PositionSide  string  `json:"positionSide"`
 	Status        string  `json:"status"`
-	StopPrice     int64   `json:"stopPrice"`
+	StopPrice     float64 `json:"stopPrice,string"`
 	ClosePosition bool    `json:"closePosition"`
 	Symbol        string  `json:"symbol"`
 	Pair          string  `json:"pair"`
@@ -337,6 +359,25 @@ type FuturesAccountBalanceData struct {
 	UpdateTime         int64   `json:"updateTime"`
 }
 
+// FuturesAccountInformationPositions  holds account position data
+type FuturesAccountInformationPositions struct {
+	Symbol                 string    `json:"symbol"`
+	Amount                 float64   `json:"positionAmt,string"`
+	InitialMargin          float64   `json:"initialMargin,string"`
+	MaintMargin            float64   `json:"maintMargin,string"`
+	UnrealizedProfit       float64   `json:"unrealizedProfit,string"`
+	PositionInitialMargin  float64   `json:"positionInitialMargin,string"`
+	OpenOrderInitialMargin float64   `json:"openOrderInitialMargin,string"`
+	Leverage               float64   `json:"leverage,string"`
+	Isolated               bool      `json:"isolated"`
+	PositionSide           string    `json:"positionSide"`
+	EntryPrice             float64   `json:"entryPrice,string"`
+	MaxQty                 float64   `json:"maxQty,string"`
+	UpdateTime             time.Time `json:"updateTime"`
+	NotionalValue          float64   `json:"notionalValue,string"`
+	IsolatedWallet         float64   `json:"isolatedWallet,string"`
+}
+
 // FuturesAccountInformation stores account information for futures account
 type FuturesAccountInformation struct {
 	Assets []struct {
@@ -348,30 +389,17 @@ type FuturesAccountInformation struct {
 		InitialMargin          float64 `json:"initialMargin,string"`
 		PositionInitialMargin  float64 `json:"positionInitialMargin,string"`
 		OpenOrderInitialMargin float64 `json:"openOrderInitialMargin,string"`
-		Leverage               float64 `json:"leverage,string"`
-		Isolated               bool    `json:"isolated"`
-		PositionSide           string  `json:"positionSide"`
-		EntryPrice             float64 `json:"entryPrice,string"`
-		MaxQty                 float64 `json:"maxQty,string"`
+		MaxWithdrawAmount      float64 `json:"maxWithdrawAmount,string"`
+		CrossWalletBalance     float64 `json:"crossWalletBalance,string"`
+		CrossUnPNL             float64 `json:"crossUnPnl,string"`
+		AvailableBalance       float64 `json:"availableBalance,string"`
 	} `json:"assets"`
-	Positions []struct {
-		Symbol                 string  `json:"symbol"`
-		InitialMargin          float64 `json:"initialMargin,string"`
-		MaintMargin            float64 `json:"maintMargin,string"`
-		UnrealizedProfit       float64 `json:"unrealizedProfit,string"`
-		PositionInitialMargin  float64 `json:"positionInitialMargin,string"`
-		OpenOrderInitialMargin float64 `json:"openOrderInitialMargin,string"`
-		Leverage               float64 `json:"leverage,string"`
-		Isolated               bool    `json:"isolated"`
-		PositionSide           string  `json:"positionSide"`
-		EntryPrice             float64 `json:"entryPrice,string"`
-		MaxQty                 float64 `json:"maxQty,string"`
-	} `json:"positions"`
-	CanDeposit  bool  `json:"canDeposit"`
-	CanTrade    bool  `json:"canTrade"`
-	CanWithdraw bool  `json:"canWithdraw"`
-	FeeTier     int64 `json:"feeTier"`
-	UpdateTime  int64 `json:"updateTime"`
+	Positions   []FuturesAccountInformationPositions `json:"positions"`
+	CanDeposit  bool                                 `json:"canDeposit"`
+	CanTrade    bool                                 `json:"canTrade"`
+	CanWithdraw bool                                 `json:"canWithdraw"`
+	FeeTier     int64                                `json:"feeTier"`
+	UpdateTime  time.Time                            `json:"updateTime"`
 }
 
 // GenericAuthResponse is a general data response for a post auth request
@@ -532,36 +560,51 @@ type UFuturesExchangeInfo struct {
 		Limit         int64  `json:"limit"`
 		RateLimitType string `json:"rateLimitType"`
 	} `json:"rateLimits"`
-	ServerTime int64 `json:"serverTime"`
-	Symbols    []struct {
-		Symbol                   string  `json:"symbol"`
-		Status                   string  `json:"status"`
-		MaintenanceMarginPercent float64 `json:"maintMarginPercent,string"`
-		RequiredMarginPercent    float64 `json:"requiredMarginPercent,string"`
-		BaseAsset                string  `json:"baseAsset"`
-		QuoteAsset               string  `json:"quoteAsset"`
-		PricePrecision           int64   `json:"pricePrecision"`
-		QuantityPrecision        int64   `json:"quantityPrecision"`
-		BaseAssetPrecision       int64   `json:"baseAssetPrecision"`
-		QuotePrecision           int64   `json:"quotePrecision"`
-		Filters                  []struct {
-			MinPrice          float64 `json:"minPrice,string"`
-			MaxPrice          float64 `json:"maxPrice,string"`
-			FilterType        string  `json:"filterType"`
-			TickSize          float64 `json:"tickSize,string"`
-			StepSize          float64 `json:"stepSize,string"`
-			MaxQty            float64 `json:"maxQty,string"`
-			MinQty            float64 `json:"minQty,string"`
-			Limit             int64   `json:"limit"`
-			MultiplierDown    float64 `json:"multiplierDown,string"`
-			MultiplierUp      float64 `json:"multiplierUp,string"`
-			MultiplierDecimal float64 `json:"multiplierDecimal,string"`
-			Notional          float64 `json:"notional,string"`
-		} `json:"filters"`
-		OrderTypes  []string `json:"orderTypes"`
-		TimeInForce []string `json:"timeInForce"`
-	} `json:"symbols"`
-	Timezone string `json:"timezone"`
+	ServerTime int64                `json:"serverTime"`
+	Symbols    []UFuturesSymbolInfo `json:"symbols"`
+	Timezone   string               `json:"timezone"`
+}
+
+// UFuturesSymbolInfo contains details of a currency symbol
+// for a usdt margined future contract
+type UFuturesSymbolInfo struct {
+	Symbol                   string    `json:"symbol"`
+	Pair                     string    `json:"pair"`
+	ContractType             string    `json:"contractType"`
+	DeliveryDate             time.Time `json:"deliveryDate"`
+	OnboardDate              time.Time `json:"onboardDate"`
+	Status                   string    `json:"status"`
+	MaintenanceMarginPercent float64   `json:"maintMarginPercent,string"`
+	RequiredMarginPercent    float64   `json:"requiredMarginPercent,string"`
+	BaseAsset                string    `json:"baseAsset"`
+	QuoteAsset               string    `json:"quoteAsset"`
+	MarginAsset              string    `json:"marginAsset"`
+	PricePrecision           int64     `json:"pricePrecision"`
+	QuantityPrecision        int64     `json:"quantityPrecision"`
+	BaseAssetPrecision       int64     `json:"baseAssetPrecision"`
+	QuotePrecision           int64     `json:"quotePrecision"`
+	UnderlyingType           string    `json:"underlyingType"`
+	UnderlyingSubType        []string  `json:"underlyingSubType"`
+	SettlePlan               float64   `json:"settlePlan"`
+	TriggerProtect           float64   `json:"triggerProtect,string"`
+	Filters                  []struct {
+		FilterType        string  `json:"filterType"`
+		MinPrice          float64 `json:"minPrice,string"`
+		MaxPrice          float64 `json:"maxPrice,string"`
+		TickSize          float64 `json:"tickSize,string"`
+		StepSize          float64 `json:"stepSize,string"`
+		MaxQty            float64 `json:"maxQty,string"`
+		MinQty            float64 `json:"minQty,string"`
+		Limit             int64   `json:"limit"`
+		MultiplierDown    float64 `json:"multiplierDown,string"`
+		MultiplierUp      float64 `json:"multiplierUp,string"`
+		MultiplierDecimal float64 `json:"multiplierDecimal,string"`
+		Notional          float64 `json:"notional,string"`
+	} `json:"filters"`
+	OrderTypes      []string `json:"OrderType"`
+	TimeInForce     []string `json:"timeInForce"`
+	LiquidationFee  float64  `json:"liquidationFee,string"`
+	MarketTakeBound float64  `json:"marketTakeBound,string"`
 }
 
 // CExchangeInfo stores exchange info for cfutures
