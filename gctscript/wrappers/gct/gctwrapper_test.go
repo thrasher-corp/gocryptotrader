@@ -6,12 +6,12 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"strings"
 	"testing"
 
 	objects "github.com/d5/tengo/v2"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/engine"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules/gct"
@@ -191,9 +191,8 @@ func TestAccountInfo(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, err = gct.ExchangeAccountInfo(exch, assetType)
-	if err != nil &&
-		!strings.Contains(err.Error(), "unset/default API keys") {
-		t.Error(err)
+	if !errors.Is(err, exchange.ErrAuthenticationSupportNotEnabled) {
+		t.Errorf("received: %v but expected: %v", err, exchange.ErrAuthenticationSupportNotEnabled)
 	}
 }
 
@@ -238,9 +237,8 @@ func TestExchangeOrderSubmit(t *testing.T) {
 
 	_, err = gct.ExchangeOrderSubmit(exch, currencyPair, delimiter,
 		orderType, orderSide, orderPrice, orderAmount, orderID, orderAsset)
-	if err != nil &&
-		!strings.Contains(err.Error(), "unset/default API keys") {
-		t.Error(err)
+	if !errors.Is(err, exchange.ErrAuthenticationSupportNotEnabled) {
+		t.Errorf("received: %v but expected: %v", err, exchange.ErrAuthenticationSupportNotEnabled)
 	}
 }
 
