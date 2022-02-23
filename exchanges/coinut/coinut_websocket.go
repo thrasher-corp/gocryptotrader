@@ -100,7 +100,7 @@ func (c *COINUT) wsReadData() {
 					c.Websocket.DataHandler <- err
 					continue
 				}
-				err = c.wsHandleData(individualJSON)
+				err = c.wsHandleData(context.TODO(), individualJSON)
 				if err != nil {
 					c.Websocket.DataHandler <- err
 				}
@@ -112,7 +112,7 @@ func (c *COINUT) wsReadData() {
 				c.Websocket.DataHandler <- err
 				continue
 			}
-			err = c.wsHandleData(resp.Raw)
+			err = c.wsHandleData(context.TODO(), resp.Raw)
 			if err != nil {
 				c.Websocket.DataHandler <- err
 			}
@@ -120,14 +120,10 @@ func (c *COINUT) wsReadData() {
 	}
 }
 
-func (c *COINUT) wsHandleData(respRaw []byte) error {
-	creds, err := c.GetCredentials(context.TODO())
-	if err != nil {
-		return err
-	}
+func (c *COINUT) wsHandleData(ctx context.Context, respRaw []byte) error {
 	if strings.HasPrefix(string(respRaw), "[") {
 		var orders []wsOrderContainer
-		err = json.Unmarshal(respRaw, &orders)
+		err := json.Unmarshal(respRaw, &orders)
 		if err != nil {
 			return err
 		}
@@ -142,7 +138,7 @@ func (c *COINUT) wsHandleData(respRaw []byte) error {
 	}
 
 	var incoming wsResponse
-	err = json.Unmarshal(respRaw, &incoming)
+	err := json.Unmarshal(respRaw, &incoming)
 	if err != nil {
 		return err
 	}
@@ -163,6 +159,11 @@ func (c *COINUT) wsHandleData(respRaw []byte) error {
 	case "login":
 		var login WsLoginResponse
 		err := json.Unmarshal(respRaw, &login)
+		if err != nil {
+			return err
+		}
+
+		creds, err := c.GetCredentials(ctx)
 		if err != nil {
 			return err
 		}
