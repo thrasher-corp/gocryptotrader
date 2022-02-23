@@ -178,7 +178,7 @@ func (by *Bybit) GetUSDTPremiumIndexPriceKline(symbol currency.Pair, interval st
 		return resp.Data, errInvalidInterval
 	}
 	params.Set("interval", interval)
-	if !startTime.IsZero() {
+	if startTime.IsZero() {
 		return resp.Data, errInvalidStartTime
 	}
 	params.Set("from", strconv.FormatInt(startTime.Unix(), 10))
