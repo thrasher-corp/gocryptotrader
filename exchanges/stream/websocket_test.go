@@ -603,28 +603,6 @@ func TestConnectionMonitorNoConnection(t *testing.T) {
 	if !errors.Is(err, errAlreadyRunning) {
 		t.Fatalf("received: %v, but expected: %v", err, errAlreadyRunning)
 	}
-	if !ws.IsConnectionMonitorRunning() {
-		t.Fatal("Should not have exited")
-	}
-	ws.setEnabled(false)
-	time.Sleep(time.Millisecond)
-
-	if ws.IsConnectionMonitorRunning() {
-		t.Fatal("Should have exited")
-	}
-	ws.setConnectedStatus(true)  // attempt shutdown when not enabled
-	ws.setConnectingStatus(true) // throw a spanner in the works
-	err = ws.connectionMonitor()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v, but expected: %v", err, nil)
-	}
-	if !ws.IsConnectionMonitorRunning() {
-		t.Fatal("Should not have exited")
-	}
-	time.Sleep(time.Millisecond * 100)
-	if ws.IsConnectionMonitorRunning() {
-		t.Fatal("Should have exited")
-	}
 }
 
 // TestSliceCopyDoesntImpactBoth logic test

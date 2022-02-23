@@ -157,6 +157,7 @@ func (f fExchange) GetFuturesPositions(_ context.Context, a asset.Item, cp curre
 // CalculateTotalCollateral overrides testExchange's CalculateTotalCollateral function
 func (f fExchange) CalculateTotalCollateral(context.Context, *order.TotalCollateralCalculator) (*order.TotalCollateralResponse, error) {
 	return &order.TotalCollateralResponse{
+		CollateralCurrency:             currency.USD,
 		AvailableMaintenanceCollateral: decimal.NewFromInt(1338),
 		AvailableCollateral:            decimal.NewFromInt(1337),
 		UsedBreakdown: &order.UsedCollateralBreakdown{
@@ -169,16 +170,15 @@ func (f fExchange) CalculateTotalCollateral(context.Context, *order.TotalCollate
 		},
 		BreakdownByCurrency: []order.CollateralByCurrency{
 			{
-				Currency:      currency.USD,
-				OriginalTotal: decimal.NewFromInt(1330),
-				ScaledTotal:   decimal.NewFromInt(1330),
-				ScaledFree:    decimal.NewFromInt(1330),
+				Currency:               currency.USD,
+				TotalFunds:             decimal.NewFromInt(1330),
+				CollateralContribution: decimal.NewFromInt(1330),
+				ScaledCurrency:         currency.USD,
 			},
 			{
-				Currency:      currency.DOGE,
-				OriginalTotal: decimal.NewFromInt(1000),
-				ScaledTotal:   decimal.NewFromInt(10),
-				ScaledUsed:    decimal.NewFromInt(6),
+				Currency:   currency.DOGE,
+				TotalFunds: decimal.NewFromInt(1000),
+				ScaledUsed: decimal.NewFromInt(6),
 				ScaledUsedBreakdown: &order.UsedCollateralBreakdown{
 					LockedInStakes:                  decimal.NewFromInt(1),
 					LockedInNFTBids:                 decimal.NewFromInt(1),
@@ -187,15 +187,14 @@ func (f fExchange) CalculateTotalCollateral(context.Context, *order.TotalCollate
 					LockedInSpotOrders:              decimal.NewFromInt(1),
 					LockedAsCollateral:              decimal.NewFromInt(1),
 				},
-				ScaledFree:     decimal.NewFromInt(4),
-				ScaledCurrency: currency.USD,
+				CollateralContribution: decimal.NewFromInt(4),
+				ScaledCurrency:         currency.USD,
 			},
 			{
-				Currency:       currency.XRP,
-				OriginalTotal:  decimal.NewFromInt(1333333333333337),
-				ScaledTotal:    decimal.NewFromInt(-3),
-				ScaledFree:     decimal.NewFromInt(-3),
-				ScaledCurrency: currency.USD,
+				Currency:               currency.XRP,
+				TotalFunds:             decimal.NewFromInt(1333333333333337),
+				CollateralContribution: decimal.NewFromInt(-3),
+				ScaledCurrency:         currency.USD,
 			},
 		},
 	}, nil
@@ -2226,8 +2225,8 @@ func TestGetCollateral(t *testing.T) {
 	if len(r.CurrencyBreakdown) != 3 {
 		t.Errorf("expected 3 currencies, received '%v'", len(r.CurrencyBreakdown))
 	}
-	if r.AvailableCollateral != "1337" {
-		t.Error("expected 1337")
+	if r.AvailableCollateral != "1337 USD" {
+		t.Errorf("received '%v' expected '1337 USD'", r.AvailableCollateral)
 	}
 
 	_, err = s.GetCollateral(context.Background(), &gctrpc.GetCollateralRequest{

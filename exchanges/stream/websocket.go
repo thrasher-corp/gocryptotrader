@@ -342,10 +342,12 @@ func (w *Websocket) connectionMonitor() error {
 	if w.checkAndSetMonitorRunning() {
 		return errAlreadyRunning
 	}
+	w.m.Lock()
+	delay := w.connectionMonitorDelay
+	w.m.Unlock()
 
 	go func() {
-		timer := time.NewTimer(w.connectionMonitorDelay)
-
+		timer := time.NewTimer(delay)
 		for {
 			if w.verbose {
 				log.Debugf(log.WebsocketMgr,
@@ -398,7 +400,7 @@ func (w *Websocket) connectionMonitor() error {
 					default:
 					}
 				}
-				timer.Reset(w.connectionMonitorDelay)
+				timer.Reset(delay)
 			}
 		}
 	}()

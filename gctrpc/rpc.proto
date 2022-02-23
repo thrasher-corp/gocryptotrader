@@ -1080,16 +1080,17 @@ message GetCollateralResponse {
 
 message CollateralForCurrency {
     string currency = 1;
-    string original_amount = 2;
-    string scaled_to_currency = 3;
-    string approx_fair_market_value = 4;
-    string scaled_total = 5;
-    string scaled_free = 6;
-    string scaled_used = 7;
-    CollateralUsedBreakdown used_breakdown = 8;
-    string weighting = 9;
-    string unrealisedPNL = 10;
-    string error = 11;
+    bool excluded_from_collateral = 2;
+    string total_funds = 3;
+    string available_for_use_as_collateral = 4;
+    string approx_fair_market_value = 5;
+    string weighting = 6;
+    string collateral_contribution = 7;
+    string scaled_to_currency = 8;
+    string unrealisedPNL = 9;
+    string funds_in_use = 10;
+    CollateralUsedBreakdown used_breakdown = 11;
+    string error = 12;
 }
 
 message CollateralByPosition {

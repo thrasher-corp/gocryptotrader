@@ -3672,32 +3672,35 @@
         "currency": {
           "type": "string"
         },
-        "originalAmount": {
+        "excludedFromCollateral": {
+          "type": "boolean"
+        },
+        "totalFunds": {
           "type": "string"
         },
-        "scaledToCurrency": {
+        "availableForUseAsCollateral": {
           "type": "string"
         },
         "approxFairMarketValue": {
           "type": "string"
         },
-        "scaledTotal": {
-          "type": "string"
-        },
-        "scaledFree": {
-          "type": "string"
-        },
-        "scaledUsed": {
-          "type": "string"
-        },
-        "usedBreakdown": {
-          "$ref": "#/definitions/gctrpcCollateralUsedBreakdown"
-        },
         "weighting": {
+          "type": "string"
+        },
+        "collateralContribution": {
+          "type": "string"
+        },
+        "scaledToCurrency": {
           "type": "string"
         },
         "unrealisedPNL": {
           "type": "string"
+        },
+        "fundsInUse": {
+          "type": "string"
+        },
+        "usedBreakdown": {
+          "$ref": "#/definitions/gctrpcCollateralUsedBreakdown"
         },
         "error": {
           "type": "string"

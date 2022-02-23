@@ -1767,9 +1767,9 @@ func TestScaleCollateral(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	expectedUSDValue := decimal.NewFromFloat(95028.5)
-	if !result.ScaledTotal.Equal(expectedUSDValue) {
-		t.Errorf("received %v expected %v", result, expectedUSDValue)
+	expectedUSDValue := decimal.NewFromFloat(97529.25)
+	if !result.CollateralContribution.Equal(expectedUSDValue) {
+		t.Errorf("received %v expected %v", result.CollateralContribution, expectedUSDValue)
 	}
 
 	if !areTestAPIKeysSet() {
@@ -1784,7 +1784,6 @@ func TestScaleCollateral(t *testing.T) {
 		t.Error(err)
 	}
 	localScaling := 0.0
-	liquidationScaling := 0.0
 	providedUSDValue := 0.0
 	for _, v := range walletInfo {
 		for v2 := range v {
@@ -1792,16 +1791,15 @@ func TestScaleCollateral(t *testing.T) {
 			if coin.Equal(currency.USD) {
 				localScaling += v[v2].Total
 				providedUSDValue += v[v2].USDValue
-				liquidationScaling += v[v2].Total
 				continue
 			}
 			var tick MarketData
 			tick, err = f.GetMarket(context.Background(), currency.NewPairWithDelimiter(coin.String(), "usd", "/").String())
 			if err != nil {
-				t.Error(err)
+				// not all markets exist like this, skip
+				continue
 			}
-			var scaled *order.CollateralByCurrency
-			scaled, err = f.ScaleCollateral(
+			_, err = f.ScaleCollateral(
 				context.Background(),
 				"",
 				&order.CollateralCalculator{
@@ -1819,10 +1817,8 @@ func TestScaleCollateral(t *testing.T) {
 				}
 				t.Error(err)
 			}
-			localScaling += scaled.ScaledTotal.InexactFloat64()
 			providedUSDValue += v[v2].USDValue
-
-			scaled, err = f.ScaleCollateral(context.Background(),
+			_, err = f.ScaleCollateral(context.Background(),
 				subaccount,
 				&order.CollateralCalculator{
 					CollateralCurrency: coin,
@@ -1830,14 +1826,12 @@ func TestScaleCollateral(t *testing.T) {
 					Side:               order.Buy,
 					FreeCollateral:     decimal.NewFromFloat(v[v2].Total),
 					USDPrice:           decimal.NewFromFloat(tick.Price),
-					IsLiquidating:      true,
+					IsForNewPosition:   true,
 					CalculateOffline:   true,
 				})
 			if err != nil {
 				t.Error(err)
 			}
-			liquidationScaling += scaled.ScaledTotal.InexactFloat64()
-
 			_, err = f.ScaleCollateral(context.Background(),
 				subaccount,
 				&order.CollateralCalculator{
@@ -2031,7 +2025,7 @@ func TestCalculatePNL(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test, api keys not set")
 	}
-	pair := currency.NewPair(currency.BTC, currency.NewCode("1231"))
+	pair := currency.NewPair(currency.BTC, currency.NewCode("20211231"))
 	positions, err := f.GetFuturesPositions(context.Background(), asset.Futures, pair, time.Date(2021, 1, 6, 4, 28, 0, 0, time.UTC), time.Date(2021, 12, 31, 4, 32, 0, 0, time.UTC))
 	if err != nil {
 		t.Error(err)
@@ -2082,7 +2076,7 @@ func TestGetFuturesPositions(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test, api keys not set")
 	}
-	cp := currency.NewPair(currency.BTC, currency.NewCode("1231"))
+	cp := currency.NewPair(currency.BTC, currency.NewCode("20211231"))
 	start := time.Now().Add(-time.Hour * 24 * 365)
 	end := time.Now()
 	a := asset.Futures

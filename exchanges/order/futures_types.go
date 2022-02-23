@@ -89,17 +89,18 @@ type CollateralByPosition struct {
 // currency it is represented as
 // eg in FTX ScaledCurrency is USD
 type CollateralByCurrency struct {
-	Currency            currency.Code
-	OriginalTotal       decimal.Decimal
-	ScaledCurrency      currency.Code
-	Weighting           decimal.Decimal
-	ScaledTotal         decimal.Decimal
-	ScaledUsed          decimal.Decimal
-	ScaledUsedBreakdown *UsedCollateralBreakdown
-	ScaledFree          decimal.Decimal
-	UnrealisedPNL       decimal.Decimal
-	FairMarketValue     decimal.Decimal
-	Error               error
+	Currency                    currency.Code
+	SkipContribution            bool
+	TotalFunds                  decimal.Decimal
+	AvailableForUseAsCollateral decimal.Decimal
+	FairMarketValue             decimal.Decimal
+	Weighting                   decimal.Decimal
+	CollateralContribution      decimal.Decimal
+	ScaledCurrency              currency.Code
+	UnrealisedPNL               decimal.Decimal
+	ScaledUsed                  decimal.Decimal
+	ScaledUsedBreakdown         *UsedCollateralBreakdown
+	Error                       error
 }
 
 // UsedCollateralBreakdown provides a detailed
@@ -216,6 +217,7 @@ type CollateralCalculator struct {
 	Side               Side
 	USDPrice           decimal.Decimal
 	IsLiquidating      bool
+	IsForNewPosition   bool
 	FreeCollateral     decimal.Decimal
 	LockedCollateral   decimal.Decimal
 	UnrealisedPNL      decimal.Decimal
