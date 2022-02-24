@@ -178,7 +178,7 @@ func (s *Statistic) AddComplianceSnapshotForTime(c compliance.Snapshot, e fill.E
 // CalculateAllResults calculates the statistics of all exchange asset pair holdings,
 // orders, ratios and drawdowns
 func (s *Statistic) CalculateAllResults() error {
-	log.Info(log.BackTester, "calculating backtesting results")
+	log.Info(common.SubLoggers[common.Statistics], "calculating backtesting results")
 	s.PrintAllEventsChronologically()
 	currCount := 0
 	var finalResults []FinalResultsHolder
@@ -190,7 +190,7 @@ func (s *Statistic) CalculateAllResults() error {
 				last := stats.Events[len(stats.Events)-1]
 				err = stats.CalculateResults(s.RiskFreeRate)
 				if err != nil {
-					log.Error(log.BackTester, err)
+					log.Error(common.SubLoggers[common.Statistics], err)
 				}
 				stats.PrintResults(exchangeName, assetItem, pair, s.FundManager.IsUsingExchangeLevelFunding())
 				stats.FinalHoldings = last.Holdings
@@ -237,32 +237,32 @@ func (s *Statistic) CalculateAllResults() error {
 
 // PrintTotalResults outputs all results to the CMD
 func (s *Statistic) PrintTotalResults() {
-	log.Info(log.BackTester, "------------------Strategy-----------------------------------")
-	log.Infof(log.BackTester, "Strategy Name: %v", s.StrategyName)
-	log.Infof(log.BackTester, "Strategy Nickname: %v", s.StrategyNickname)
-	log.Infof(log.BackTester, "Strategy Goal: %v\n\n", s.StrategyGoal)
+	log.Info(common.SubLoggers[common.Statistics], "------------------Strategy-----------------------------------")
+	log.Infof(common.SubLoggers[common.Statistics], "Strategy Name: %v", s.StrategyName)
+	log.Infof(common.SubLoggers[common.Statistics], "Strategy Nickname: %v", s.StrategyNickname)
+	log.Infof(common.SubLoggers[common.Statistics], "Strategy Goal: %v\n\n", s.StrategyGoal)
 
-	log.Info(log.BackTester, "------------------Total Results------------------------------")
-	log.Info(log.BackTester, "------------------Orders-------------------------------------")
-	log.Infof(log.BackTester, "Total buy orders: %v", convert.IntToHumanFriendlyString(s.TotalBuyOrders, ","))
-	log.Infof(log.BackTester, "Total sell orders: %v", convert.IntToHumanFriendlyString(s.TotalSellOrders, ","))
-	log.Infof(log.BackTester, "Total orders: %v\n\n", convert.IntToHumanFriendlyString(s.TotalOrders, ","))
+	log.Info(common.SubLoggers[common.Statistics], "------------------Total Results------------------------------")
+	log.Info(common.SubLoggers[common.Statistics], "------------------Orders-------------------------------------")
+	log.Infof(common.SubLoggers[common.Statistics], "Total buy orders: %v", convert.IntToHumanFriendlyString(s.TotalBuyOrders, ","))
+	log.Infof(common.SubLoggers[common.Statistics], "Total sell orders: %v", convert.IntToHumanFriendlyString(s.TotalSellOrders, ","))
+	log.Infof(common.SubLoggers[common.Statistics], "Total orders: %v\n\n", convert.IntToHumanFriendlyString(s.TotalOrders, ","))
 
 	if s.BiggestDrawdown != nil {
-		log.Info(log.BackTester, "------------------Biggest Drawdown-----------------------")
-		log.Infof(log.BackTester, "Exchange: %v Asset: %v Currency: %v", s.BiggestDrawdown.Exchange, s.BiggestDrawdown.Asset, s.BiggestDrawdown.Pair)
-		log.Infof(log.BackTester, "Highest Price: %s", convert.DecimalToHumanFriendlyString(s.BiggestDrawdown.MaxDrawdown.Highest.Value, 8, ".", ","))
-		log.Infof(log.BackTester, "Highest Price Time: %v", s.BiggestDrawdown.MaxDrawdown.Highest.Time)
-		log.Infof(log.BackTester, "Lowest Price: %s", convert.DecimalToHumanFriendlyString(s.BiggestDrawdown.MaxDrawdown.Lowest.Value, 8, ".", ","))
-		log.Infof(log.BackTester, "Lowest Price Time: %v", s.BiggestDrawdown.MaxDrawdown.Lowest.Time)
-		log.Infof(log.BackTester, "Calculated Drawdown: %s%%", convert.DecimalToHumanFriendlyString(s.BiggestDrawdown.MaxDrawdown.DrawdownPercent, 2, ".", ","))
-		log.Infof(log.BackTester, "Difference: %s", convert.DecimalToHumanFriendlyString(s.BiggestDrawdown.MaxDrawdown.Highest.Value.Sub(s.BiggestDrawdown.MaxDrawdown.Lowest.Value), 8, ".", ","))
-		log.Infof(log.BackTester, "Drawdown length: %v\n\n", convert.IntToHumanFriendlyString(s.BiggestDrawdown.MaxDrawdown.IntervalDuration, ","))
+		log.Info(common.SubLoggers[common.Statistics], "------------------Biggest Drawdown-----------------------")
+		log.Infof(common.SubLoggers[common.Statistics], "Exchange: %v Asset: %v Currency: %v", s.BiggestDrawdown.Exchange, s.BiggestDrawdown.Asset, s.BiggestDrawdown.Pair)
+		log.Infof(common.SubLoggers[common.Statistics], "Highest Price: %s", convert.DecimalToHumanFriendlyString(s.BiggestDrawdown.MaxDrawdown.Highest.Value, 8, ".", ","))
+		log.Infof(common.SubLoggers[common.Statistics], "Highest Price Time: %v", s.BiggestDrawdown.MaxDrawdown.Highest.Time)
+		log.Infof(common.SubLoggers[common.Statistics], "Lowest Price: %s", convert.DecimalToHumanFriendlyString(s.BiggestDrawdown.MaxDrawdown.Lowest.Value, 8, ".", ","))
+		log.Infof(common.SubLoggers[common.Statistics], "Lowest Price Time: %v", s.BiggestDrawdown.MaxDrawdown.Lowest.Time)
+		log.Infof(common.SubLoggers[common.Statistics], "Calculated Drawdown: %s%%", convert.DecimalToHumanFriendlyString(s.BiggestDrawdown.MaxDrawdown.DrawdownPercent, 2, ".", ","))
+		log.Infof(common.SubLoggers[common.Statistics], "Difference: %s", convert.DecimalToHumanFriendlyString(s.BiggestDrawdown.MaxDrawdown.Highest.Value.Sub(s.BiggestDrawdown.MaxDrawdown.Lowest.Value), 8, ".", ","))
+		log.Infof(common.SubLoggers[common.Statistics], "Drawdown length: %v\n\n", convert.IntToHumanFriendlyString(s.BiggestDrawdown.MaxDrawdown.IntervalDuration, ","))
 	}
 	if s.BestMarketMovement != nil && s.BestStrategyResults != nil {
-		log.Info(log.BackTester, "------------------Orders----------------------------------")
-		log.Infof(log.BackTester, "Best performing market movement: %v %v %v %v%%", s.BestMarketMovement.Exchange, s.BestMarketMovement.Asset, s.BestMarketMovement.Pair, convert.DecimalToHumanFriendlyString(s.BestMarketMovement.MarketMovement, 2, ".", ","))
-		log.Infof(log.BackTester, "Best performing strategy movement: %v %v %v %v%%\n\n", s.BestStrategyResults.Exchange, s.BestStrategyResults.Asset, s.BestStrategyResults.Pair, convert.DecimalToHumanFriendlyString(s.BestStrategyResults.StrategyMovement, 2, ".", ","))
+		log.Info(common.SubLoggers[common.Statistics], "------------------Orders----------------------------------")
+		log.Infof(common.SubLoggers[common.Statistics], "Best performing market movement: %v %v %v %v%%", s.BestMarketMovement.Exchange, s.BestMarketMovement.Asset, s.BestMarketMovement.Pair, convert.DecimalToHumanFriendlyString(s.BestMarketMovement.MarketMovement, 2, ".", ","))
+		log.Infof(common.SubLoggers[common.Statistics], "Best performing strategy movement: %v %v %v %v%%\n\n", s.BestStrategyResults.Exchange, s.BestStrategyResults.Asset, s.BestStrategyResults.Pair, convert.DecimalToHumanFriendlyString(s.BestStrategyResults.StrategyMovement, 2, ".", ","))
 	}
 }
 
@@ -319,7 +319,7 @@ func addEventOutputToTime(events []eventOutputHolder, t time.Time, message strin
 // grouped by time to allow a clearer picture of events
 func (s *Statistic) PrintAllEventsChronologically() {
 	var results []eventOutputHolder
-	log.Info(log.BackTester, "------------------Events-------------------------------------")
+	log.Info(common.SubLoggers[common.Statistics], "------------------Events-------------------------------------")
 	var errs gctcommon.Errors
 	for exch, x := range s.ExchangeAssetPairStatistics {
 		for a, y := range x {
@@ -391,13 +391,13 @@ func (s *Statistic) PrintAllEventsChronologically() {
 	})
 	for i := range results {
 		for j := range results[i].Events {
-			log.Info(log.BackTester, results[i].Events[j])
+			log.Info(common.SubLoggers[common.Statistics], results[i].Events[j])
 		}
 	}
 	if len(errs) > 0 {
-		log.Info(log.BackTester, "------------------Errors-------------------------------------")
+		log.Info(common.SubLoggers[common.Statistics], "------------------Errors-------------------------------------")
 		for i := range errs {
-			log.Error(log.BackTester, errs[i].Error())
+			log.Error(common.SubLoggers[common.Statistics], errs[i].Error())
 		}
 	}
 }
@@ -450,7 +450,7 @@ func CalculateRatios(benchmarkRates, returnsPerCandle []decimal.Decimal, riskFre
 	arithmeticSortino, err = gctmath.DecimalSortinoRatio(returnsPerCandle, riskFreeRatePerCandle, arithmeticReturnsPerCandle)
 	if err != nil && !errors.Is(err, gctmath.ErrNoNegativeResults) {
 		if errors.Is(err, gctmath.ErrInexactConversion) {
-			log.Warnf(log.BackTester, "%s funding arithmetic sortino ratio %v", logMessage, err)
+			log.Warnf(common.SubLoggers[common.Statistics], "%s funding arithmetic sortino ratio %v", logMessage, err)
 		} else {
 			return nil, nil, err
 		}
@@ -485,7 +485,7 @@ func CalculateRatios(benchmarkRates, returnsPerCandle []decimal.Decimal, riskFre
 	geomSortino, err = gctmath.DecimalSortinoRatio(returnsPerCandle, riskFreeRatePerCandle, geometricReturnsPerCandle)
 	if err != nil && !errors.Is(err, gctmath.ErrNoNegativeResults) {
 		if errors.Is(err, gctmath.ErrInexactConversion) {
-			log.Warnf(log.BackTester, "%s geometric sortino ratio %v", logMessage, err)
+			log.Warnf(common.SubLoggers[common.Statistics], "%s geometric sortino ratio %v", logMessage, err)
 		} else {
 			return nil, nil, err
 		}

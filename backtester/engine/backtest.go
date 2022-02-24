@@ -1,17 +1,13 @@
 package backtest
 
 import (
-	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
-	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
-	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
-	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline/live"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/eventholder"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics"
@@ -20,10 +16,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
-	"github.com/thrasher-corp/gocryptotrader/currency"
-	gctexchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -53,7 +45,7 @@ func (bt *BackTest) Reset() {
 // Run will iterate over loaded data events
 // save them and then handle the event based on its type
 func (bt *BackTest) Run() error {
-	log.Info(log.BackTester, "running backtester against pre-defined data")
+	log.Info(common.SubLoggers[common.Backtester], "running backtester against pre-defined data")
 dataLoadingIssue:
 	for ev := bt.EventQueue.NextEvent(); ; ev = bt.EventQueue.NextEvent() {
 		if ev == nil {
@@ -65,7 +57,7 @@ dataLoadingIssue:
 						d := dataHandler.Next()
 						if d == nil {
 							if !bt.hasHandledEvent {
-								log.Errorf(log.BackTester, "Unable to perform `Next` for %v %v %v", exchangeName, assetItem, currencyPair)
+								log.Errorf(common.SubLoggers[common.Backtester], "Unable to perform `Next` for %v %v %v", exchangeName, assetItem, currencyPair)
 							}
 							break dataLoadingIssue
 						}
@@ -156,12 +148,12 @@ func (bt *BackTest) processSingleDataEvent(ev common.DataEventHandler, funds fun
 			// too much bad data is a severe error and backtesting must cease
 			return err
 		}
-		log.Error(log.BackTester, err)
+		log.Error(common.SubLoggers[common.Backtester], err)
 		return nil
 	}
 	err = bt.Statistic.SetEventForOffset(s)
 	if err != nil {
-		log.Error(log.BackTester, err)
+		log.Error(common.SubLoggers[common.Backtester], err)
 	}
 	bt.EventQueue.AppendEvent(s)
 
@@ -201,13 +193,13 @@ func (bt *BackTest) processSimultaneousDataEvents() error {
 			// too much bad data is a severe error and backtesting must cease
 			return err
 		}
-		log.Errorf(log.BackTester, "OnSimultaneousSignals %v", err)
+		log.Errorf(common.SubLoggers[common.Backtester], "OnSimultaneousSignals %v", err)
 		return nil
 	}
 	for i := range signals {
 		err = bt.Statistic.SetEventForOffset(signals[i])
 		if err != nil {
-			log.Errorf(log.BackTester, "SetEventForOffset %v %v %v %v", signals[i].GetExchange(), signals[i].GetAssetType(), signals[i].Pair(), err)
+			log.Errorf(common.SubLoggers[common.Backtester], "SetEventForOffset %v %v %v %v", signals[i].GetExchange(), signals[i].GetAssetType(), signals[i].Pair(), err)
 		}
 		bt.EventQueue.AppendEvent(signals[i])
 	}
@@ -223,12 +215,12 @@ func (bt *BackTest) updateStatsForDataEvent(ev common.DataEventHandler, funds fu
 		if err == statistics.ErrAlreadyProcessed {
 			return err
 		}
-		log.Errorf(log.BackTester, "SetupEventForTime %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
+		log.Errorf(common.SubLoggers[common.Backtester], "SetupEventForTime %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 	}
 	// update portfolio manager with the latest price
 	err = bt.Portfolio.UpdateHoldings(ev, funds)
 	if err != nil {
-		log.Errorf(log.BackTester, "UpdateHoldings %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
+		log.Errorf(common.SubLoggers[common.Backtester], "UpdateHoldings %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 	}
 
 	if ev.GetAssetType().IsFutures() {
@@ -243,9 +235,16 @@ func (bt *BackTest) updateStatsForDataEvent(ev common.DataEventHandler, funds fu
 			if errors.Is(err, gctorder.ErrPositionLiquidated) {
 				cr.Liquidate()
 			} else {
-				log.Errorf(log.BackTester, "UpdatePNL %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
+				log.Errorf(common.SubLoggers[common.Backtester], "UpdatePNL %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
+				return nil
 			}
 		}
+		var pnl *portfolio.PNLSummary
+		pnl, err = bt.Portfolio.GetLatestPNLForEvent(ev)
+		if err != nil {
+			return err
+		}
+		return bt.Statistic.AddPNLForTime(pnl)
 	}
 
 	return nil
@@ -255,18 +254,18 @@ func (bt *BackTest) updateStatsForDataEvent(ev common.DataEventHandler, funds fu
 func (bt *BackTest) processSignalEvent(ev signal.Event, funds funding.IFundReserver) {
 	cs, err := bt.Exchange.GetCurrencySettings(ev.GetExchange(), ev.GetAssetType(), ev.Pair())
 	if err != nil {
-		log.Errorf(log.BackTester, "GetCurrencySettings %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
+		log.Errorf(common.SubLoggers[common.Backtester], "GetCurrencySettings %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 		return
 	}
 	var o *order.Order
 	o, err = bt.Portfolio.OnSignal(ev, &cs, funds)
 	if err != nil {
-		log.Errorf(log.BackTester, "OnSignal %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
+		log.Errorf(common.SubLoggers[common.Backtester], "OnSignal %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 		return
 	}
 	err = bt.Statistic.SetEventForOffset(o)
 	if err != nil {
-		log.Errorf(log.BackTester, "SetEventForOffset %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
+		log.Errorf(common.SubLoggers[common.Backtester], "SetEventForOffset %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 	}
 
 	bt.EventQueue.AppendEvent(o)
@@ -277,14 +276,14 @@ func (bt *BackTest) processOrderEvent(ev order.Event, funds funding.IFundRelease
 	f, err := bt.Exchange.ExecuteOrder(ev, d, bt.orderManager, funds)
 	if err != nil {
 		if f == nil {
-			log.Errorf(log.BackTester, "fill event should always be returned, please fix, %v", err)
+			log.Errorf(common.SubLoggers[common.Backtester], "fill event should always be returned, please fix, %v", err)
 			return
 		}
-		log.Errorf(log.BackTester, "%v %v %v %v", f.GetExchange(), f.GetAssetType(), f.Pair(), err)
+		log.Errorf(common.SubLoggers[common.Backtester], "%v %v %v %v", f.GetExchange(), f.GetAssetType(), f.Pair(), err)
 	}
 	err = bt.Statistic.SetEventForOffset(f)
 	if err != nil {
-		log.Errorf(log.BackTester, "SetEventForOffset %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
+		log.Errorf(common.SubLoggers[common.Backtester], "SetEventForOffset %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 	}
 	bt.EventQueue.AppendEvent(f)
 }
@@ -292,39 +291,39 @@ func (bt *BackTest) processOrderEvent(ev order.Event, funds funding.IFundRelease
 func (bt *BackTest) processFillEvent(ev fill.Event, funds funding.IFundReleaser) {
 	t, err := bt.Portfolio.OnFill(ev, funds)
 	if err != nil {
-		log.Errorf(log.BackTester, "OnFill %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
+		log.Errorf(common.SubLoggers[common.Backtester], "OnFill %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 		return
 	}
 
 	err = bt.Statistic.SetEventForOffset(t)
 	if err != nil {
-		log.Errorf(log.BackTester, "SetEventForOffset %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
+		log.Errorf(common.SubLoggers[common.Backtester], "SetEventForOffset %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 	}
 
 	var holding *holdings.Holding
 	holding, err = bt.Portfolio.ViewHoldingAtTimePeriod(ev)
 	if err != nil {
-		log.Error(log.BackTester, err)
+		log.Error(common.SubLoggers[common.Backtester], err)
 	}
 	if holding == nil {
-		log.Error(log.BackTester, "why is holdings nill?")
+		log.Error(common.SubLoggers[common.Backtester], "why is holdings nill?")
 	} else {
 		err = bt.Statistic.AddHoldingsForTime(holding)
 		if err != nil {
-			log.Errorf(log.BackTester, "AddHoldingsForTime %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
+			log.Errorf(common.SubLoggers[common.Backtester], "AddHoldingsForTime %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 		}
 	}
 
 	var cp *compliance.Manager
 	cp, err = bt.Portfolio.GetComplianceManager(ev.GetExchange(), ev.GetAssetType(), ev.Pair())
 	if err != nil {
-		log.Errorf(log.BackTester, "GetComplianceManager %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
+		log.Errorf(common.SubLoggers[common.Backtester], "GetComplianceManager %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 	}
 
 	snap := cp.GetLatestSnapshot()
 	err = bt.Statistic.AddComplianceSnapshotForTime(snap, ev)
 	if err != nil {
-		log.Errorf(log.BackTester, "AddComplianceSnapshotForTime %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
+		log.Errorf(common.SubLoggers[common.Backtester], "AddComplianceSnapshotForTime %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 	}
 
 	fde := ev.GetFillDependentEvent()
@@ -336,142 +335,20 @@ func (bt *BackTest) processFillEvent(ev fill.Event, funds funding.IFundReleaser)
 		if ev.GetOrder() != nil {
 			pnl, err := bt.Portfolio.TrackFuturesOrder(ev, funds)
 			if err != nil && !errors.Is(err, gctorder.ErrSubmissionIsNil) {
-				log.Errorf(log.BackTester, "TrackFuturesOrder %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
+				log.Errorf(common.SubLoggers[common.Backtester], "TrackFuturesOrder %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 				return
 			}
 			err = bt.Statistic.AddPNLForTime(pnl)
 			if err != nil {
-				log.Errorf(log.BackTester, "AddHoldingsForTime %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
+				log.Errorf(common.SubLoggers[common.Backtester], "AddHoldingsForTime %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 			}
 		}
 		err = bt.Funding.UpdateCollateral(ev.GetExchange(), ev.GetAssetType(), ev.Pair())
 		if err != nil {
-			log.Errorf(log.BackTester, "UpdateCollateral %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
+			log.Errorf(common.SubLoggers[common.Backtester], "UpdateCollateral %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 			return
 		}
 	}
-}
-
-// RunLive is a proof of concept function that does not yet support multi currency usage
-// It runs by constantly checking for new live datas and running through the list of events
-// once new data is processed. It will run until application close event has been received
-func (bt *BackTest) RunLive() error {
-	log.Info(log.BackTester, "running backtester against live data")
-	timeoutTimer := time.NewTimer(time.Minute * 5)
-	// a frequent timer so that when a new candle is released by an exchange
-	// that it can be processed quickly
-	processEventTicker := time.NewTicker(time.Second)
-	doneARun := false
-	for {
-		select {
-		case <-bt.shutdown:
-			return nil
-		case <-timeoutTimer.C:
-			return errLiveDataTimeout
-		case <-processEventTicker.C:
-			for e := bt.EventQueue.NextEvent(); ; e = bt.EventQueue.NextEvent() {
-				if e == nil {
-					// as live only supports singular currency, just get the proper reference manually
-					var d data.Handler
-					dd := bt.Datas.GetAllData()
-					for k1, v1 := range dd {
-						for k2, v2 := range v1 {
-							for k3 := range v2 {
-								d = dd[k1][k2][k3]
-							}
-						}
-					}
-					de := d.Next()
-					if de == nil {
-						break
-					}
-
-					bt.EventQueue.AppendEvent(de)
-					doneARun = true
-					continue
-				}
-				err := bt.handleEvent(e)
-				if err != nil {
-					return err
-				}
-			}
-			if doneARun {
-				timeoutTimer = time.NewTimer(time.Minute * 5)
-			}
-		}
-	}
-}
-
-// loadLiveDataLoop is an incomplete function to continuously retrieve exchange data on a loop
-// from live. Its purpose is to be able to perform strategy analysis against current data
-func (bt *BackTest) loadLiveDataLoop(resp *kline.DataFromKline, cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item, dataType int64) {
-	startDate := time.Now().Add(-cfg.DataSettings.Interval * 2)
-	dates, err := gctkline.CalculateCandleDateRanges(
-		startDate,
-		startDate.AddDate(1, 0, 0),
-		gctkline.Interval(cfg.DataSettings.Interval),
-		0)
-	if err != nil {
-		log.Errorf(log.BackTester, "%v. Please check your GoCryptoTrader configuration", err)
-		return
-	}
-	candles, err := live.LoadData(context.TODO(),
-		exch,
-		dataType,
-		cfg.DataSettings.Interval,
-		fPair,
-		a)
-	if err != nil {
-		log.Errorf(log.BackTester, "%v. Please check your GoCryptoTrader configuration", err)
-		return
-	}
-	dates.SetHasDataFromCandles(candles.Candles)
-	resp.RangeHolder = dates
-	resp.Item = *candles
-
-	loadNewDataTimer := time.NewTimer(time.Second * 5)
-	for {
-		select {
-		case <-bt.shutdown:
-			return
-		case <-loadNewDataTimer.C:
-			log.Infof(log.BackTester, "fetching data for %v %v %v %v", exch.GetName(), a, fPair, cfg.DataSettings.Interval)
-			loadNewDataTimer.Reset(time.Second * 15)
-			err = bt.loadLiveData(resp, cfg, exch, fPair, a, dataType)
-			if err != nil {
-				log.Error(log.BackTester, err)
-				return
-			}
-		}
-	}
-}
-
-func (bt *BackTest) loadLiveData(resp *kline.DataFromKline, cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item, dataType int64) error {
-	if resp == nil {
-		return errNilData
-	}
-	if cfg == nil {
-		return errNilConfig
-	}
-	if exch == nil {
-		return errNilExchange
-	}
-	candles, err := live.LoadData(context.TODO(),
-		exch,
-		dataType,
-		cfg.DataSettings.Interval,
-		fPair,
-		a)
-	if err != nil {
-		return err
-	}
-	if len(candles.Candles) == 0 {
-		return nil
-	}
-	resp.AppendResults(candles)
-	bt.Reports.UpdateItem(&resp.Item)
-	log.Info(log.BackTester, "sleeping for 30 seconds before checking for new candle data")
-	return nil
 }
 
 // Stop shuts down the live data loop

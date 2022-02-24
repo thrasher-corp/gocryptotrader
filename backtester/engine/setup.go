@@ -43,7 +43,7 @@ import (
 
 // NewFromConfig takes a strategy config and configures a backtester variable to run
 func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool) (*BackTest, error) {
-	log.Infoln(log.BackTester, "loading config...")
+	log.Infoln(common.SubLoggers[common.Setup], "loading config...")
 	if cfg == nil {
 		return nil, errNilConfig
 	}
@@ -231,7 +231,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 		}
 		portfolioRisk.CurrencySettings[cfg.CurrencySettings[i].ExchangeName][a][curr] = portSet
 		if cfg.CurrencySettings[i].MakerFee.GreaterThan(cfg.CurrencySettings[i].TakerFee) {
-			log.Warnf(log.BackTester, "maker fee '%v' should not exceed taker fee '%v'. Please review config",
+			log.Warnf(common.SubLoggers[common.Setup], "maker fee '%v' should not exceed taker fee '%v'. Please review config",
 				cfg.CurrencySettings[i].MakerFee,
 				cfg.CurrencySettings[i].TakerFee)
 		}
@@ -422,7 +422,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 }
 
 func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange, error) {
-	log.Infoln(log.BackTester, "setting exchange settings...")
+	log.Infoln(common.SubLoggers[common.Setup], "setting exchange settings...")
 	resp := exchange.Exchange{}
 
 	for i := range cfg.CurrencySettings {
@@ -474,7 +474,7 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 		}
 
 		if cfg.CurrencySettings[i].MaximumSlippagePercent.LessThan(decimal.Zero) {
-			log.Warnf(log.BackTester, "invalid maximum slippage percent '%v'. Slippage percent is defined as a number, eg '100.00', defaulting to '%v'",
+			log.Warnf(common.SubLoggers[common.Setup], "invalid maximum slippage percent '%v'. Slippage percent is defined as a number, eg '100.00', defaulting to '%v'",
 				cfg.CurrencySettings[i].MaximumSlippagePercent,
 				slippage.DefaultMaximumSlippagePercent)
 			cfg.CurrencySettings[i].MaximumSlippagePercent = slippage.DefaultMaximumSlippagePercent
@@ -483,7 +483,7 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 			cfg.CurrencySettings[i].MaximumSlippagePercent = slippage.DefaultMaximumSlippagePercent
 		}
 		if cfg.CurrencySettings[i].MinimumSlippagePercent.LessThan(decimal.Zero) {
-			log.Warnf(log.BackTester, "invalid minimum slippage percent '%v'. Slippage percent is defined as a number, eg '80.00', defaulting to '%v'",
+			log.Warnf(common.SubLoggers[common.Setup], "invalid minimum slippage percent '%v'. Slippage percent is defined as a number, eg '80.00', defaulting to '%v'",
 				cfg.CurrencySettings[i].MinimumSlippagePercent,
 				slippage.DefaultMinimumSlippagePercent)
 			cfg.CurrencySettings[i].MinimumSlippagePercent = slippage.DefaultMinimumSlippagePercent
@@ -518,7 +518,7 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 
 		if limits != nil {
 			if !cfg.CurrencySettings[i].CanUseExchangeLimits {
-				log.Warnf(log.BackTester, "exchange %s order execution limits supported but disabled for %s %s, live results may differ",
+				log.Warnf(common.SubLoggers[common.Setup], "exchange %s order execution limits supported but disabled for %s %s, live results may differ",
 					cfg.CurrencySettings[i].ExchangeName,
 					pair,
 					a)
@@ -576,7 +576,7 @@ func (bt *BackTest) loadExchangePairAssetBase(exch, base, quote, ass string) (gc
 
 	exchangeBase := e.GetBase()
 	if !exchangeBase.ValidateAPICredentials() {
-		log.Warnf(log.BackTester, "no credentials set for %v, this is theoretical only", exchangeBase.Name)
+		log.Warnf(common.SubLoggers[common.Setup], "no credentials set for %v, this is theoretical only", exchangeBase.Name)
 	}
 
 	fPair, err = exchangeBase.FormatExchangeCurrency(cp, a)
@@ -596,7 +596,7 @@ func getFees(ctx context.Context, exch gctexchange.IBotExchange, fPair currency.
 			Amount:        1,
 		})
 	if err != nil {
-		log.Errorf(log.BackTester, "Could not retrieve taker fee for %v. %v", exch.GetName(), err)
+		log.Errorf(common.SubLoggers[common.Setup], "Could not retrieve taker fee for %v. %v", exch.GetName(), err)
 	}
 
 	fMakerFee, err := exch.GetFeeByType(ctx,
@@ -608,7 +608,7 @@ func getFees(ctx context.Context, exch gctexchange.IBotExchange, fPair currency.
 			Amount:        1,
 		})
 	if err != nil {
-		log.Errorf(log.BackTester, "Could not retrieve maker fee for %v. %v", exch.GetName(), err)
+		log.Errorf(common.SubLoggers[common.Setup], "Could not retrieve maker fee for %v. %v", exch.GetName(), err)
 	}
 
 	return decimal.NewFromFloat(fMakerFee), decimal.NewFromFloat(fTakerFee)
@@ -641,7 +641,7 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		return nil, err
 	}
 
-	log.Infof(log.BackTester, "loading data for %v %v %v...\n", exch.GetName(), a, fPair)
+	log.Infof(common.SubLoggers[common.Setup], "loading data for %v %v %v...\n", exch.GetName(), a, fPair)
 	resp := &kline.DataFromKline{}
 	switch {
 	case cfg.DataSettings.CSVData != nil:
@@ -673,7 +673,7 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		resp.RangeHolder.SetHasDataFromCandles(resp.Item.Candles)
 		summary := resp.RangeHolder.DataSummary(false)
 		if len(summary) > 0 {
-			log.Warnf(log.BackTester, "%v", summary)
+			log.Warnf(common.SubLoggers[common.Setup], "%v", summary)
 		}
 	case cfg.DataSettings.DatabaseData != nil:
 		if cfg.DataSettings.DatabaseData.InclusiveEndDate {
@@ -694,7 +694,7 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		defer func() {
 			stopErr := bt.databaseManager.Stop()
 			if stopErr != nil {
-				log.Error(log.BackTester, stopErr)
+				log.Error(common.SubLoggers[common.Setup], stopErr)
 			}
 		}()
 		resp, err = loadDatabaseData(cfg, exch.GetName(), fPair, a, dataType, isUSDTrackingPair)
@@ -716,7 +716,7 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		resp.RangeHolder.SetHasDataFromCandles(resp.Item.Candles)
 		summary := resp.RangeHolder.DataSummary(false)
 		if len(summary) > 0 {
-			log.Warnf(log.BackTester, "%v", summary)
+			log.Warnf(common.SubLoggers[common.Setup], "%v", summary)
 		}
 	case cfg.DataSettings.APIData != nil:
 		if cfg.DataSettings.APIData.InclusiveEndDate {
@@ -830,7 +830,7 @@ func loadAPIData(cfg *config.Config, exch gctexchange.IBotExchange, fPair curren
 	dates.SetHasDataFromCandles(candles.Candles)
 	summary := dates.DataSummary(false)
 	if len(summary) > 0 {
-		log.Warnf(log.BackTester, "%v", summary)
+		log.Warnf(common.SubLoggers[common.Setup], "%v", summary)
 	}
 	candles.FillMissingDataWithEmptyEntries(dates)
 	candles.RemoveOutsideRange(cfg.DataSettings.APIData.StartDate, cfg.DataSettings.APIData.EndDate)
@@ -866,7 +866,7 @@ func loadLiveData(cfg *config.Config, base *gctexchange.Base) error {
 	validated := base.ValidateAPICredentials()
 	base.API.AuthenticatedSupport = validated
 	if !validated && cfg.DataSettings.LiveData.RealOrders {
-		log.Warn(log.BackTester, "invalid API credentials set, real orders set to false")
+		log.Warn(common.SubLoggers[common.Setup], "invalid API credentials set, real orders set to false")
 		cfg.DataSettings.LiveData.RealOrders = false
 	}
 	return nil

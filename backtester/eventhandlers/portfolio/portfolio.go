@@ -265,13 +265,13 @@ func (p *Portfolio) OnFill(ev fill.Event, funding funding.IFundReleaser) (fill.E
 			err = p.setHoldingsForOffset(&h, false)
 		}
 		if err != nil {
-			log.Error(log.BackTester, err)
+			log.Error(common.SubLoggers[common.Portfolio], err)
 		}
 	}
 
 	err = p.addComplianceSnapshot(ev)
 	if err != nil {
-		log.Error(log.BackTester, err)
+		log.Error(common.SubLoggers[common.Portfolio], err)
 	}
 	ev.SetExchangeFee(decimal.Zero)
 

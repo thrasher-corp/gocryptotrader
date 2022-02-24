@@ -12,7 +12,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // SetupPositionController creates a position controller
@@ -572,9 +571,6 @@ func (p *PositionTracker) TrackNewOrder(d *Detail) error {
 		result.UnrealisedPNL = decimal.Zero
 		result.RealisedPNLBeforeFees = decimal.Zero
 		p.status = Closed
-	}
-	if result.RealisedPNLBeforeFees.IsZero() && result.UnrealisedPNL.IsZero() {
-		log.Debug(log.BackTester, "woah nelly")
 	}
 	p.pnlHistory, err = upsertPNLEntry(p.pnlHistory, result)
 	if err != nil {

@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 const (
@@ -72,6 +73,52 @@ type EventHandler interface {
 	GetReason() string
 	AppendReason(string)
 }
+
+// List of all the custom sublogger names
+const (
+	Backtester         = "Backtester"
+	Setup              = "Setup"
+	Strategy           = "Strategy"
+	Config             = "Config"
+	Portfolio          = "Portfolio"
+	Exchange           = "Exchange"
+	Fill               = "Fill"
+	Funding            = "Funding"
+	Report             = "Report"
+	Statistics         = "Statistics"
+	CurrencyStatistics = "CurrencyStatistics"
+	FundingStatistics  = "FundingStatistics"
+	Compliance         = "Compliance"
+	Sizing             = "Sizing"
+	Risk               = "Risk"
+	Holdings           = "Holdings"
+	Slippage           = "Slippage"
+	Data               = "Data"
+)
+
+var (
+	// SubLoggers is a map of loggers to use across the backtester
+	SubLoggers = map[string]*log.SubLogger{
+		Backtester:         nil,
+		Setup:              nil,
+		Strategy:           nil,
+		Config:             nil,
+		Portfolio:          nil,
+		Exchange:           nil,
+		Fill:               nil,
+		Funding:            nil,
+		Report:             nil,
+		Statistics:         nil,
+		CurrencyStatistics: nil,
+		FundingStatistics:  nil,
+		Compliance:         nil,
+		Sizing:             nil,
+		Risk:               nil,
+		Holdings:           nil,
+		Slippage:           nil,
+		Data:               nil,
+	}
+)
 
 // DataEventHandler interface used for loading and interacting with Data
 type DataEventHandler interface {

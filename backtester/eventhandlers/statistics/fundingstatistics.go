@@ -233,73 +233,73 @@ func (f *FundingStatistics) PrintResults(wasAnyDataMissing bool) error {
 	if f.Report == nil {
 		return fmt.Errorf("%w requires report to be generated", common.ErrNilArguments)
 	}
-	log.Info(log.BackTester, "------------------Funding------------------------------------")
-	log.Info(log.BackTester, "------------------Funding Item Results-----------------------")
+	log.Info(common.SubLoggers[common.FundingStatistics], "------------------Funding------------------------------------")
+	log.Info(common.SubLoggers[common.FundingStatistics], "------------------Funding Item Results-----------------------")
 	for i := range f.Report.Items {
 		sep := fmt.Sprintf("%v %v %v |\t", f.Report.Items[i].Exchange, f.Report.Items[i].Asset, f.Report.Items[i].Currency)
 		if !f.Report.Items[i].PairedWith.IsEmpty() {
-			log.Infof(log.BackTester, "%s Paired with: %v", sep, f.Report.Items[i].PairedWith)
+			log.Infof(common.SubLoggers[common.FundingStatistics], "%s Paired with: %v", sep, f.Report.Items[i].PairedWith)
 		}
-		log.Infof(log.BackTester, "%s Initial funds: %s", sep, convert.DecimalToHumanFriendlyString(f.Report.Items[i].InitialFunds, 8, ".", ","))
-		log.Infof(log.BackTester, "%s Final funds: %s", sep, convert.DecimalToHumanFriendlyString(f.Report.Items[i].FinalFunds, 8, ".", ","))
+		log.Infof(common.SubLoggers[common.FundingStatistics], "%s Initial funds: %s", sep, convert.DecimalToHumanFriendlyString(f.Report.Items[i].InitialFunds, 8, ".", ","))
+		log.Infof(common.SubLoggers[common.FundingStatistics], "%s Final funds: %s", sep, convert.DecimalToHumanFriendlyString(f.Report.Items[i].FinalFunds, 8, ".", ","))
 		if !f.Report.DisableUSDTracking && f.Report.UsingExchangeLevelFunding {
-			log.Infof(log.BackTester, "%s Initial funds in USD: $%s", sep, convert.DecimalToHumanFriendlyString(f.Report.Items[i].USDInitialFunds, 2, ".", ","))
-			log.Infof(log.BackTester, "%s Final funds in USD: $%s", sep, convert.DecimalToHumanFriendlyString(f.Report.Items[i].USDFinalFunds, 2, ".", ","))
+			log.Infof(common.SubLoggers[common.FundingStatistics], "%s Initial funds in USD: $%s", sep, convert.DecimalToHumanFriendlyString(f.Report.Items[i].USDInitialFunds, 2, ".", ","))
+			log.Infof(common.SubLoggers[common.FundingStatistics], "%s Final funds in USD: $%s", sep, convert.DecimalToHumanFriendlyString(f.Report.Items[i].USDFinalFunds, 2, ".", ","))
 		}
 		if f.Report.Items[i].ShowInfinite {
-			log.Infof(log.BackTester, "%s Difference: ∞%%", sep)
+			log.Infof(common.SubLoggers[common.FundingStatistics], "%s Difference: ∞%%", sep)
 		} else {
-			log.Infof(log.BackTester, "%s Difference: %s%%", sep, convert.DecimalToHumanFriendlyString(f.Report.Items[i].Difference, 8, ".", ","))
+			log.Infof(common.SubLoggers[common.FundingStatistics], "%s Difference: %s%%", sep, convert.DecimalToHumanFriendlyString(f.Report.Items[i].Difference, 8, ".", ","))
 		}
 		if f.Report.Items[i].TransferFee.GreaterThan(decimal.Zero) {
-			log.Infof(log.BackTester, "%s Transfer fee: %s", sep, convert.DecimalToHumanFriendlyString(f.Report.Items[i].TransferFee, 8, ".", ","))
+			log.Infof(common.SubLoggers[common.FundingStatistics], "%s Transfer fee: %s", sep, convert.DecimalToHumanFriendlyString(f.Report.Items[i].TransferFee, 8, ".", ","))
 		}
-		log.Info(log.BackTester, "")
+		log.Info(common.SubLoggers[common.FundingStatistics], "")
 	}
 	if f.Report.DisableUSDTracking {
 		return nil
 	}
-	log.Info(log.BackTester, "------------------USD Tracking Totals------------------------")
+	log.Info(common.SubLoggers[common.FundingStatistics], "------------------USD Tracking Totals------------------------")
 	sep := "USD Tracking Total |\t"
 
-	log.Infof(log.BackTester, "%s Initial value: $%s at %v", sep, convert.DecimalToHumanFriendlyString(f.TotalUSDStatistics.InitialHoldingValue.Value, 8, ".", ","), f.TotalUSDStatistics.InitialHoldingValue.Time)
-	log.Infof(log.BackTester, "%s Final value: $%s at %v", sep, convert.DecimalToHumanFriendlyString(f.TotalUSDStatistics.FinalHoldingValue.Value, 8, ".", ","), f.TotalUSDStatistics.FinalHoldingValue.Time)
-	log.Infof(log.BackTester, "%s Benchmark Market Movement: %s%%", sep, convert.DecimalToHumanFriendlyString(f.TotalUSDStatistics.BenchmarkMarketMovement, 8, ".", ","))
-	log.Infof(log.BackTester, "%s Strategy Movement: %s%%", sep, convert.DecimalToHumanFriendlyString(f.TotalUSDStatistics.StrategyMovement, 8, ".", ","))
-	log.Infof(log.BackTester, "%s Did strategy make a profit: %v", sep, f.TotalUSDStatistics.DidStrategyMakeProfit)
-	log.Infof(log.BackTester, "%s Did strategy beat the benchmark: %v", sep, f.TotalUSDStatistics.DidStrategyBeatTheMarket)
-	log.Infof(log.BackTester, "%s Buy Orders: %s", sep, convert.IntToHumanFriendlyString(f.TotalUSDStatistics.BuyOrders, ","))
-	log.Infof(log.BackTester, "%s Sell Orders: %s", sep, convert.IntToHumanFriendlyString(f.TotalUSDStatistics.SellOrders, ","))
-	log.Infof(log.BackTester, "%s Total Orders: %s", sep, convert.IntToHumanFriendlyString(f.TotalUSDStatistics.TotalOrders, ","))
-	log.Infof(log.BackTester, "%s Highest funds: $%s at %v", sep, convert.DecimalToHumanFriendlyString(f.TotalUSDStatistics.HighestHoldingValue.Value, 8, ".", ","), f.TotalUSDStatistics.HighestHoldingValue.Time)
-	log.Infof(log.BackTester, "%s Lowest funds: $%s at %v", sep, convert.DecimalToHumanFriendlyString(f.TotalUSDStatistics.LowestHoldingValue.Value, 8, ".", ","), f.TotalUSDStatistics.LowestHoldingValue.Time)
+	log.Infof(common.SubLoggers[common.FundingStatistics], "%s Initial value: $%s at %v", sep, convert.DecimalToHumanFriendlyString(f.TotalUSDStatistics.InitialHoldingValue.Value, 8, ".", ","), f.TotalUSDStatistics.InitialHoldingValue.Time)
+	log.Infof(common.SubLoggers[common.FundingStatistics], "%s Final value: $%s at %v", sep, convert.DecimalToHumanFriendlyString(f.TotalUSDStatistics.FinalHoldingValue.Value, 8, ".", ","), f.TotalUSDStatistics.FinalHoldingValue.Time)
+	log.Infof(common.SubLoggers[common.FundingStatistics], "%s Benchmark Market Movement: %s%%", sep, convert.DecimalToHumanFriendlyString(f.TotalUSDStatistics.BenchmarkMarketMovement, 8, ".", ","))
+	log.Infof(common.SubLoggers[common.FundingStatistics], "%s Strategy Movement: %s%%", sep, convert.DecimalToHumanFriendlyString(f.TotalUSDStatistics.StrategyMovement, 8, ".", ","))
+	log.Infof(common.SubLoggers[common.FundingStatistics], "%s Did strategy make a profit: %v", sep, f.TotalUSDStatistics.DidStrategyMakeProfit)
+	log.Infof(common.SubLoggers[common.FundingStatistics], "%s Did strategy beat the benchmark: %v", sep, f.TotalUSDStatistics.DidStrategyBeatTheMarket)
+	log.Infof(common.SubLoggers[common.FundingStatistics], "%s Buy Orders: %s", sep, convert.IntToHumanFriendlyString(f.TotalUSDStatistics.BuyOrders, ","))
+	log.Infof(common.SubLoggers[common.FundingStatistics], "%s Sell Orders: %s", sep, convert.IntToHumanFriendlyString(f.TotalUSDStatistics.SellOrders, ","))
+	log.Infof(common.SubLoggers[common.FundingStatistics], "%s Total Orders: %s", sep, convert.IntToHumanFriendlyString(f.TotalUSDStatistics.TotalOrders, ","))
+	log.Infof(common.SubLoggers[common.FundingStatistics], "%s Highest funds: $%s at %v", sep, convert.DecimalToHumanFriendlyString(f.TotalUSDStatistics.HighestHoldingValue.Value, 8, ".", ","), f.TotalUSDStatistics.HighestHoldingValue.Time)
+	log.Infof(common.SubLoggers[common.FundingStatistics], "%s Lowest funds: $%s at %v", sep, convert.DecimalToHumanFriendlyString(f.TotalUSDStatistics.LowestHoldingValue.Value, 8, ".", ","), f.TotalUSDStatistics.LowestHoldingValue.Time)
 
-	log.Info(log.BackTester, "------------------Ratios------------------------------------------------")
-	log.Info(log.BackTester, "------------------Rates-------------------------------------------------")
-	log.Infof(log.BackTester, "%s Risk free rate: %s%%", sep, convert.DecimalToHumanFriendlyString(f.TotalUSDStatistics.RiskFreeRate.Mul(decimal.NewFromInt(100)), 2, ".", ","))
-	log.Infof(log.BackTester, "%s Compound Annual Growth Rate: %v%%", sep, convert.DecimalToHumanFriendlyString(f.TotalUSDStatistics.CompoundAnnualGrowthRate, 8, ".", ","))
+	log.Info(common.SubLoggers[common.FundingStatistics], "------------------Ratios------------------------------------------------")
+	log.Info(common.SubLoggers[common.FundingStatistics], "------------------Rates-------------------------------------------------")
+	log.Infof(common.SubLoggers[common.FundingStatistics], "%s Risk free rate: %s%%", sep, convert.DecimalToHumanFriendlyString(f.TotalUSDStatistics.RiskFreeRate.Mul(decimal.NewFromInt(100)), 2, ".", ","))
+	log.Infof(common.SubLoggers[common.FundingStatistics], "%s Compound Annual Growth Rate: %v%%", sep, convert.DecimalToHumanFriendlyString(f.TotalUSDStatistics.CompoundAnnualGrowthRate, 8, ".", ","))
 	if f.TotalUSDStatistics.ArithmeticRatios == nil || f.TotalUSDStatistics.GeometricRatios == nil {
 		return fmt.Errorf("%w missing ratio calculations", common.ErrNilArguments)
 	}
-	log.Info(log.BackTester, "------------------Arithmetic--------------------------------------------")
+	log.Info(common.SubLoggers[common.FundingStatistics], "------------------Arithmetic--------------------------------------------")
 	if wasAnyDataMissing {
-		log.Infoln(log.BackTester, "Missing data was detected during this backtesting run")
-		log.Infoln(log.BackTester, "Ratio calculations will be skewed")
+		log.Infoln(common.SubLoggers[common.FundingStatistics], "Missing data was detected during this backtesting run")
+		log.Infoln(common.SubLoggers[common.FundingStatistics], "Ratio calculations will be skewed")
 	}
-	log.Infof(log.BackTester, "%s Sharpe ratio: %v", sep, f.TotalUSDStatistics.ArithmeticRatios.SharpeRatio.Round(4))
-	log.Infof(log.BackTester, "%s Sortino ratio: %v", sep, f.TotalUSDStatistics.ArithmeticRatios.SortinoRatio.Round(4))
-	log.Infof(log.BackTester, "%s Information ratio: %v", sep, f.TotalUSDStatistics.ArithmeticRatios.InformationRatio.Round(4))
-	log.Infof(log.BackTester, "%s Calmar ratio: %v", sep, f.TotalUSDStatistics.ArithmeticRatios.CalmarRatio.Round(4))
+	log.Infof(common.SubLoggers[common.FundingStatistics], "%s Sharpe ratio: %v", sep, f.TotalUSDStatistics.ArithmeticRatios.SharpeRatio.Round(4))
+	log.Infof(common.SubLoggers[common.FundingStatistics], "%s Sortino ratio: %v", sep, f.TotalUSDStatistics.ArithmeticRatios.SortinoRatio.Round(4))
+	log.Infof(common.SubLoggers[common.FundingStatistics], "%s Information ratio: %v", sep, f.TotalUSDStatistics.ArithmeticRatios.InformationRatio.Round(4))
+	log.Infof(common.SubLoggers[common.FundingStatistics], "%s Calmar ratio: %v", sep, f.TotalUSDStatistics.ArithmeticRatios.CalmarRatio.Round(4))
 
-	log.Info(log.BackTester, "------------------Geometric--------------------------------------------")
+	log.Info(common.SubLoggers[common.FundingStatistics], "------------------Geometric--------------------------------------------")
 	if wasAnyDataMissing {
-		log.Infoln(log.BackTester, "Missing data was detected during this backtesting run")
-		log.Infoln(log.BackTester, "Ratio calculations will be skewed")
+		log.Infoln(common.SubLoggers[common.FundingStatistics], "Missing data was detected during this backtesting run")
+		log.Infoln(common.SubLoggers[common.FundingStatistics], "Ratio calculations will be skewed")
 	}
-	log.Infof(log.BackTester, "%s Sharpe ratio: %v", sep, f.TotalUSDStatistics.GeometricRatios.SharpeRatio.Round(4))
-	log.Infof(log.BackTester, "%s Sortino ratio: %v", sep, f.TotalUSDStatistics.GeometricRatios.SortinoRatio.Round(4))
-	log.Infof(log.BackTester, "%s Information ratio: %v", sep, f.TotalUSDStatistics.GeometricRatios.InformationRatio.Round(4))
-	log.Infof(log.BackTester, "%s Calmar ratio: %v\n\n", sep, f.TotalUSDStatistics.GeometricRatios.CalmarRatio.Round(4))
+	log.Infof(common.SubLoggers[common.FundingStatistics], "%s Sharpe ratio: %v", sep, f.TotalUSDStatistics.GeometricRatios.SharpeRatio.Round(4))
+	log.Infof(common.SubLoggers[common.FundingStatistics], "%s Sortino ratio: %v", sep, f.TotalUSDStatistics.GeometricRatios.SortinoRatio.Round(4))
+	log.Infof(common.SubLoggers[common.FundingStatistics], "%s Information ratio: %v", sep, f.TotalUSDStatistics.GeometricRatios.InformationRatio.Round(4))
+	log.Infof(common.SubLoggers[common.FundingStatistics], "%s Calmar ratio: %v\n\n", sep, f.TotalUSDStatistics.GeometricRatios.CalmarRatio.Round(4))
 
 	return nil
 }

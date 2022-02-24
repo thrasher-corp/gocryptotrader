@@ -14,7 +14,7 @@ func NewSubLogger(name string) (*SubLogger, error) {
 	RWM.RLock()
 	if _, ok := SubLoggers[name]; ok {
 		RWM.RUnlock()
-		return nil, errSubLoggerAlreadyregistered
+		return nil, ErrSubLoggerAlreadyRegistered
 	}
 	RWM.RUnlock()
 	return registerNewSubLogger(name), nil

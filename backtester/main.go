@@ -1,14 +1,17 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
-	"github.com/thrasher-corp/gocryptotrader/backtester/backtest"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
+	backtest "github.com/thrasher-corp/gocryptotrader/backtester/engine"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/signaler"
 )
@@ -70,10 +73,23 @@ func main() {
 	var bt *backtest.BackTest
 	var cfg *config.Config
 	log.GlobalLogConfig = log.GenDefaultSettings()
+	log.GlobalLogConfig.AdvancedSettings.ShowLogSystemName = convert.BoolPtr(true)
 	err = log.SetupGlobalLogger()
 	if err != nil {
 		fmt.Printf("Could not setup global logger. Error: %v.\n", err)
 		os.Exit(1)
+	}
+
+	for k := range common.SubLoggers {
+		common.SubLoggers[k], err = log.NewSubLogger(k)
+		if err != nil {
+			if errors.Is(err, log.ErrSubLoggerAlreadyRegistered) {
+				common.SubLoggers[k] = log.SubLoggers[strings.ToUpper(k)]
+				continue
+			}
+			fmt.Printf("Could not setup global logger. Error: %v.\n", err)
+			os.Exit(1)
+		}
 	}
 
 	cfg, err = config.ReadConfigFromFile(configPath)
@@ -116,7 +132,7 @@ func main() {
 
 	err = bt.Statistic.CalculateAllResults()
 	if err != nil {
-		log.Error(log.BackTester, err)
+		log.Error(log.Global, err)
 		os.Exit(1)
 	}
 
@@ -124,7 +140,7 @@ func main() {
 		bt.Reports.UseDarkMode(darkReport)
 		err = bt.Reports.GenerateReport()
 		if err != nil {
-			log.Error(log.BackTester, err)
+			log.Error(log.Global, err)
 		}
 	}
 }
