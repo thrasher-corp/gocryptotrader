@@ -1,4 +1,4 @@
-package backtest
+package engine
 
 import (
 	"errors"
@@ -43,3 +43,6 @@ type BackTest struct {
 	orderManager    *engine.OrderManager
 	databaseManager *engine.DatabaseConnectionManager
 }
+
+// TODO make this a config var
+const defaultRounding = 8

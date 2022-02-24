@@ -215,7 +215,8 @@ func (p *Portfolio) sizeOrder(d common.Directioner, cs *exchange.Settings, origi
 	case gctorder.Sell:
 		err = funds.Reserve(sizedOrder.Amount, gctorder.Sell)
 		sizedOrder.AllocatedFunds = sizedOrder.Amount
-	case gctorder.Short, gctorder.Long:
+	case gctorder.Short, gctorder.Long, common.ClosePosition:
+
 		err = funds.Reserve(sizedOrder.Amount, d.GetDirection())
 		sizedOrder.AllocatedFunds = sizedOrder.Amount.Div(sizedOrder.Price)
 	default:

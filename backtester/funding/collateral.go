@@ -15,6 +15,9 @@ var (
 	ErrNilPair       = errors.New("nil pair")
 )
 
+// TODO consider moving futures tracking to funding
+// we're already passing around funding items, it can then also have all the lovely tracking attached?
+
 func (c *Collateral) CanPlaceOrder(_ order.Side) bool {
 	return c.Collateral.CanPlaceOrder()
 }
@@ -56,8 +59,32 @@ func (c *Collateral) GetCollateralReader() (ICollateralReader, error) {
 	return c, nil
 }
 
-func (c *Collateral) Reserve(amount decimal.Decimal, _ order.Side) error {
-	return c.Collateral.Reserve(amount)
+func (c *Collateral) UpdateCollateral(s order.Side, amount, diff decimal.Decimal) error {
+	switch {
+	case c.currentDirection == nil:
+		c.currentDirection = &s
+		return c.Collateral.Reserve(amount)
+	case *c.currentDirection == s:
+		return c.Collateral.Reserve(amount)
+	case *c.currentDirection != s:
+		return c.Collateral.Release(amount, diff)
+	default:
+		return errors.New("woah nelly")
+	}
+}
+
+func (c *Collateral) UpdateContracts(s order.Side, amount, diff decimal.Decimal) error {
+	switch {
+	case c.currentDirection == nil:
+		c.currentDirection = &s
+		return c.Contract.Reserve(amount)
+	case *c.currentDirection == s:
+		return c.Contract.Reserve(amount)
+	case *c.currentDirection != s:
+		return c.Contract.Release(amount, diff)
+	default:
+		return errors.New("woah nelly")
+	}
 }
 
 func (c *Collateral) ReleaseContracts(amount decimal.Decimal) error {

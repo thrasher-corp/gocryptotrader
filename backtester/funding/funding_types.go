@@ -116,6 +116,8 @@ type IPairReleaser interface {
 
 type ICollateralReleaser interface {
 	ICollateralReader
+	UpdateCollateral(s order.Side, amount, diff decimal.Decimal) error
+	UpdateContracts(s order.Side, amount, diff decimal.Decimal) error
 	TakeProfit(contracts, originalPositionSize, positionReturns decimal.Decimal) error
 	ReleaseContracts(decimal.Decimal) error
 	Liquidate()
@@ -157,8 +159,9 @@ type Pair struct {
 // Collateral consists of a currency pair for a futures contract
 // and associates it with an addition collateral pair to take funding from
 type Collateral struct {
-	Contract   *Item
-	Collateral *Item
+	currentDirection *order.Side
+	Contract         *Item
+	Collateral       *Item
 }
 
 // Report holds all funding data for result reporting

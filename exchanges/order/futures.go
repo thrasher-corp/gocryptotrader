@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // SetupPositionController creates a position controller
@@ -592,7 +593,7 @@ func (p *PositionTracker) TrackNewOrder(d *Detail) error {
 	} else {
 		p.exposure = shortSide.Sub(longSide)
 	}
-
+	log.Debugf(log.ExchangeSys, "order amount %v position exposure %v current direction %v order direction %v", d.Amount, p.exposure, p.currentDirection, d.Side)
 	if p.exposure.IsZero() {
 		p.status = Closed
 		p.closingPrice = decimal.NewFromFloat(d.Price)

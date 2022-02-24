@@ -44,7 +44,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 		ClosePrice:         data.Latest().GetClosePrice(),
 		FillDependentEvent: o.GetFillDependentEvent(),
 	}
-	if o.GetAssetType().IsFutures() && o.GetDirection() != common.ClosePosition {
+	if o.GetAssetType().IsFutures() && !o.IsClosingPosition() {
 		f.Amount = o.GetAllocatedFunds()
 	}
 	eventFunds := o.GetAllocatedFunds()
@@ -52,7 +52,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 	if err != nil {
 		return f, err
 	}
-	f.ExchangeFee = cs.ExchangeFee // defaulting to just using taker fee right now without orderbook
+	f.ExchangeFee = cs.ExchangeFee
 	f.Direction = o.GetDirection()
 	highStr := data.StreamHigh()
 	high := highStr[len(highStr)-1]
@@ -231,6 +231,8 @@ func verifyOrderWithinLimits(f fill.Event, limitReducedAmount decimal.Decimal, c
 	case gctorder.Short:
 		minMax = cs.SellSide
 		direction = common.CouldNotShort
+	case common.ClosePosition:
+		return nil
 	default:
 		direction = f.GetDirection()
 		f.SetDirection(common.DoNothing)
