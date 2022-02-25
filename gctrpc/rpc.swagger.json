@@ -3699,6 +3699,9 @@
         "fundsInUse": {
           "type": "string"
         },
+        "additionalCollateralUsed": {
+          "type": "string"
+        },
         "usedBreakdown": {
           "$ref": "#/definitions/gctrpcCollateralUsedBreakdown"
         },

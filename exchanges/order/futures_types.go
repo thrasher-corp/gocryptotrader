@@ -93,9 +93,10 @@ type CollateralByCurrency struct {
 	SkipContribution            bool
 	TotalFunds                  decimal.Decimal
 	AvailableForUseAsCollateral decimal.Decimal
+	CollateralContribution      decimal.Decimal
+	AdditionalCollateralUsed    decimal.Decimal
 	FairMarketValue             decimal.Decimal
 	Weighting                   decimal.Decimal
-	CollateralContribution      decimal.Decimal
 	ScaledCurrency              currency.Code
 	UnrealisedPNL               decimal.Decimal
 	ScaledUsed                  decimal.Decimal
@@ -113,6 +114,7 @@ type UsedCollateralBreakdown struct {
 	LockedInSpotOrders              decimal.Decimal
 	LockedAsCollateral              decimal.Decimal
 	UsedInPositions                 decimal.Decimal
+	UsedInSpotMarginBorrows         decimal.Decimal
 }
 
 // PositionController manages all futures orders

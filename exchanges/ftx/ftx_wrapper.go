@@ -1524,6 +1524,7 @@ func (f *FTX) calculateTotalCollateralOnline(ctx context.Context, calc *order.To
 			currencyBreakdown.Weighting = c.PositiveBalances[y].CollateralWeight
 			currencyBreakdown.FairMarketValue = c.PositiveBalances[y].ApproximateFairMarketValue
 			currencyBreakdown.CollateralContribution = c.PositiveBalances[y].AvailableIgnoringCollateral.Mul(c.PositiveBalances[y].ApproximateFairMarketValue).Mul(currencyBreakdown.Weighting)
+			currencyBreakdown.AdditionalCollateralUsed = c.PositiveBalances[y].CollateralUsed
 			currencyBreakdown.FairMarketValue = c.PositiveBalances[y].ApproximateFairMarketValue
 			currencyBreakdown.AvailableForUseAsCollateral = c.PositiveBalances[y].AvailableIgnoringCollateral
 		}
@@ -1534,6 +1535,7 @@ func (f *FTX) calculateTotalCollateralOnline(ctx context.Context, calc *order.To
 			currencyBreakdown.Weighting = c.NegativeBalances[y].CollateralWeight
 			currencyBreakdown.FairMarketValue = c.NegativeBalances[y].ApproximateFairMarketValue
 			currencyBreakdown.CollateralContribution = c.NegativeBalances[y].AvailableIgnoringCollateral.Mul(c.NegativeBalances[y].ApproximateFairMarketValue).Mul(currencyBreakdown.Weighting)
+			currencyBreakdown.AdditionalCollateralUsed = c.NegativeBalances[y].CollateralUsed
 			currencyBreakdown.FairMarketValue = c.NegativeBalances[y].ApproximateFairMarketValue
 			currencyBreakdown.AvailableForUseAsCollateral = c.NegativeBalances[y].AvailableIgnoringCollateral
 		}
@@ -1553,7 +1555,8 @@ func (f *FTX) calculateTotalCollateralOnline(ctx context.Context, calc *order.To
 			lockedN := decimal.NewFromFloat(balances[y].LockedBreakdown.LockedInNFTBids)
 			lockedO := decimal.NewFromFloat(balances[y].LockedBreakdown.LockedInSpotOrders)
 			lockedFO := decimal.NewFromFloat(balances[y].LockedBreakdown.LockedInSpotMarginFundingOffers)
-			locked := decimal.Sum(lockedS, lockedC, lockedF, lockedN, lockedO, lockedFO)
+			lockedSMB := decimal.NewFromFloat(balances[y].SpotBorrow)
+			locked := decimal.Sum(lockedS, lockedC, lockedF, lockedN, lockedO, lockedFO, lockedSMB)
 			if !locked.IsZero() {
 				if result.UsedBreakdown == nil {
 					result.UsedBreakdown = &order.UsedCollateralBreakdown{}
@@ -1579,6 +1582,7 @@ func (f *FTX) calculateTotalCollateralOnline(ctx context.Context, calc *order.To
 					LockedInSpotMarginFundingOffers: lockedFO.Mul(currencyBreakdown.FairMarketValue).Mul(currencyBreakdown.Weighting),
 					LockedInSpotOrders:              lockedO.Mul(currencyBreakdown.FairMarketValue).Mul(currencyBreakdown.Weighting),
 					LockedAsCollateral:              lockedC.Mul(currencyBreakdown.FairMarketValue).Mul(currencyBreakdown.Weighting),
+					UsedInSpotMarginBorrows:         lockedSMB.Mul(currencyBreakdown.FairMarketValue).Mul(currencyBreakdown.Weighting),
 				}
 				if resetWeightingToZero {
 					currencyBreakdown.Weighting = decimal.Zero
@@ -1596,6 +1600,7 @@ func (f *FTX) calculateTotalCollateralOnline(ctx context.Context, calc *order.To
 					result.UsedBreakdown.LockedInNFTBids = result.UsedBreakdown.LockedInNFTBids.Add(currencyBreakdown.ScaledUsedBreakdown.LockedInNFTBids)
 					result.UsedBreakdown.LockedInSpotOrders = result.UsedBreakdown.LockedInSpotOrders.Add(currencyBreakdown.ScaledUsedBreakdown.LockedInSpotOrders)
 					result.UsedBreakdown.LockedInSpotMarginFundingOffers = result.UsedBreakdown.LockedInSpotMarginFundingOffers.Add(currencyBreakdown.ScaledUsedBreakdown.LockedInSpotMarginFundingOffers)
+					result.UsedBreakdown.UsedInSpotMarginBorrows = result.UsedBreakdown.UsedInSpotMarginBorrows.Add(currencyBreakdown.ScaledUsedBreakdown.UsedInSpotMarginBorrows)
 				}
 			}
 		}

@@ -1089,8 +1089,9 @@ message CollateralForCurrency {
     string scaled_to_currency = 8;
     string unrealisedPNL = 9;
     string funds_in_use = 10;
-    CollateralUsedBreakdown used_breakdown = 11;
-    string error = 12;
+    string additional_collateral_used = 11;
+    CollateralUsedBreakdown used_breakdown = 12;
+    string error = 13;
 }
 
 message CollateralByPosition {
