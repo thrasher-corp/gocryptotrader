@@ -239,7 +239,7 @@ func (b *Base) ValidateAPICredentials(creds *Credentials) error {
 	return nil
 }
 
-// SetAPIKeys is a method that sets the current API keys for the exchange
+// SetCredentials is a method that sets the current API keys for the exchange
 func (b *Base) SetCredentials(apiKey, apiSecret, clientID, subaccount, pemKey, oneTimePassword string) {
 	if b.API.credentials == nil {
 		b.API.credentials = &Credentials{}
