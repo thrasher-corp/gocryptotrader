@@ -132,7 +132,7 @@ func (c *Credentials) GetMetaData() (flag, values string) {
 }
 
 // IsEmpty return true if the underlying credentials type has not been filled
-// with atleast one item.
+// with at least one item.
 func (c *Credentials) IsEmpty() bool {
 	if c == nil {
 		return true
