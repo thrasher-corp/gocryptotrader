@@ -56,8 +56,10 @@ func setupClient(c *cli.Context) (*grpc.ClientConn, context.CancelFunc, error) {
 
 	var cancel context.CancelFunc
 	c.Context, cancel = context.WithTimeout(c.Context, timeout)
-	flag, values := exchangeCreds.GetMetaData()
-	c.Context = metadata.AppendToOutgoingContext(c.Context, flag, values)
+	if !exchangeCreds.IsEmpty() {
+		flag, values := exchangeCreds.GetMetaData()
+		c.Context = metadata.AppendToOutgoingContext(c.Context, flag, values)
+	}
 	conn, err := grpc.DialContext(c.Context, host, opts...)
 	return conn, cancel, err
 }

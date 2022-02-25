@@ -57,7 +57,7 @@ func ParseCredentialsMetadata(ctx context.Context, md metadata.MD) (context.Cont
 	}
 
 	credMD, ok := md[string(contextCrendentialsFlag)]
-	if !ok {
+	if !ok || len(credMD) == 0 {
 		return ctx, nil
 	}
 
