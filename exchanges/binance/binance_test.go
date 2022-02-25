@@ -2797,3 +2797,14 @@ func TestFormatUSDTMarginedFuturesPair(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", resp.String(), "DOGE_1234567890")
 	}
 }
+
+func TestFetchSpotExchangeLimits(t *testing.T) {
+	t.Parallel()
+	limits, err := b.FetchSpotExchangeLimits(context.Background())
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', epected '%v'", err, nil)
+	}
+	if len(limits) == 0 {
+		t.Error("expected a response")
+	}
+}
