@@ -358,3 +358,14 @@ func TestSetCredentials(t *testing.T) {
 		t.Error("invalid secret should disable authenticated API support")
 	}
 }
+
+func TestGetDefaultCredentials(t *testing.T) {
+	var b Base
+	if b.GetDefaultCredentials() != nil {
+		t.Fatal("unexpected return")
+	}
+	b.SetCredentials("test", "", "", "", "", "")
+	if b.GetDefaultCredentials() == nil {
+		t.Fatal("unexpected return")
+	}
+}
