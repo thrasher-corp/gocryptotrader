@@ -187,7 +187,7 @@ func (b *Base) AreCredentialsValid(ctx context.Context) bool {
 }
 
 // GetCredentials checks and validates current credentials, context credentials
-// overide default credentials, if no credentials found, will return an error.
+// override default credentials, if no credentials found, will return an error.
 func (b *Base) GetCredentials(ctx context.Context) (*Credentials, error) {
 	value := ctx.Value(contextCrendentialsFlag)
 	if value != nil {
