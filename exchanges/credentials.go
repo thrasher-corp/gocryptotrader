@@ -90,13 +90,6 @@ func ParseCredentialsMetadata(ctx context.Context, md metadata.MD) (context.Cont
 	return DeployCredentialsToContext(ctx, &ctxCreds), nil
 }
 
-// DeployCredentialsToContext sets credentials for internal use to context which
-// can override default credential values.
-func DeployCredentialsToContext(ctx context.Context, creds *Credentials) context.Context {
-	flag, store := creds.getInternal()
-	return context.WithValue(ctx, flag, store)
-}
-
 // Credentials define parameters that allow for an authenticated request.
 type Credentials struct {
 	Key             string
@@ -105,6 +98,13 @@ type Credentials struct {
 	PEMKey          string
 	Subaccount      string
 	OneTimePassword string
+}
+
+// DeployCredentialsToContext sets credentials for internal use to context which
+// can override default credential values.
+func DeployCredentialsToContext(ctx context.Context, creds *Credentials) context.Context {
+	flag, store := creds.getInternal()
+	return context.WithValue(ctx, flag, store)
 }
 
 // GetMetaData returns the credentials for metadata context deployment
