@@ -272,7 +272,7 @@ type contextCredentialsStore struct {
 	mu    sync.RWMutex
 }
 
-// Load loads credentials into the store
+// Load stores provided credentials
 func (c *contextCredentialsStore) Load(creds *Credentials) {
 	// Segregate from external call
 	cpy := *creds
