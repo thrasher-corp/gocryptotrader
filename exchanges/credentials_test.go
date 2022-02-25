@@ -267,7 +267,6 @@ func TestCheckCredentials(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-
 }
 
 func TestGetInternal(t *testing.T) {
