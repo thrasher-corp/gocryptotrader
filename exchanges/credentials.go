@@ -20,12 +20,12 @@ type contextCredential string
 const (
 	contextCrendentialsFlag contextCredential = "apicredentials"
 
-	_Key             = "key"
-	_Secret          = "secret"
-	_Subaccount      = "subaccount"
-	_ClientID        = "clientid"
-	_PEMKey          = "pemkey"
-	_OneTimePassword = "otp"
+	key             = "key"
+	secret          = "secret"
+	subAccount      = "subaccount"
+	clientID        = "clientid"
+	oneTimePassword = "otp"
+	_PEMKey         = "pemkey"
 )
 
 var (
@@ -38,15 +38,15 @@ var (
 	// undertake an authenticated HTTP request.
 	ErrCredentialsAreEmpty = errors.New("credentials are empty")
 
-	errRequiresAPIKey            = errors.New("requires API key but default/empty one set")
-	errRequiresAPISecret         = errors.New("requires API secret but default/empty one set")
-	errRequiresAPIPEMKey         = errors.New("requires API PEM key but default/empty one set")
-	errRequiresAPIClientID       = errors.New("requires API Client ID but default/empty one set")
-	errBase64DecodeFailure       = errors.New("base64 decode has failed")
-	errMissingInfo               = errors.New("cannot parse meta data missing information in key value pair")
-	errInvalidCredentialMetaData = errors.New("invalid meta data to process credentials")
-	errContextCredentialsFailure = errors.New("context credentials type assertion failure")
-	errMetaDataIsNil             = errors.New("meta data is nil")
+	errRequiresAPIKey                  = errors.New("requires API key but default/empty one set")
+	errRequiresAPISecret               = errors.New("requires API secret but default/empty one set")
+	errRequiresAPIPEMKey               = errors.New("requires API PEM key but default/empty one set")
+	errRequiresAPIClientID             = errors.New("requires API Client ID but default/empty one set")
+	errBase64DecodeFailure             = errors.New("base64 decode has failed")
+	errMissingInfo                     = errors.New("cannot parse meta data missing information in key value pair")
+	errInvalidCredentialMetaDataLength = errors.New("invalid meta data to process credentials")
+	errContextCredentialsFailure       = errors.New("context credentials type assertion failure")
+	errMetaDataIsNil                   = errors.New("meta data is nil")
 )
 
 // ParseCredentialsMetadata intercepts and converts credentials metadata to a
@@ -62,29 +62,32 @@ func ParseCredentialsMetadata(ctx context.Context, md metadata.MD) (context.Cont
 	}
 
 	if len(credMD) != 1 {
-		return ctx, errInvalidCredentialMetaData
+		return ctx, errInvalidCredentialMetaDataLength
 	}
 
 	segregatedCreds := strings.Split(credMD[0], ",")
 	var ctxCreds Credentials
 	for x := range segregatedCreds {
-		keyvals := strings.Split(segregatedCreds[x], ":")
-		if len(keyvals) != 2 {
-			return ctx, errMissingInfo
+		keyVals := strings.Split(segregatedCreds[x], ":")
+		if len(keyVals) != 2 {
+			return ctx, fmt.Errorf("%w received %v fields, expected 2 contains: %s",
+				errMissingInfo,
+				len(keyVals),
+				keyVals)
 		}
-		switch keyvals[0] {
-		case _Key:
-			ctxCreds.Key = keyvals[1]
-		case _Secret:
-			ctxCreds.Secret = keyvals[1]
-		case _Subaccount:
-			ctxCreds.Subaccount = keyvals[1]
-		case _ClientID:
-			ctxCreds.ClientID = keyvals[1]
+		switch keyVals[0] {
+		case key:
+			ctxCreds.Key = keyVals[1]
+		case secret:
+			ctxCreds.Secret = keyVals[1]
+		case subAccount:
+			ctxCreds.SubAccount = keyVals[1]
+		case clientID:
+			ctxCreds.ClientID = keyVals[1]
 		case _PEMKey:
-			ctxCreds.PEMKey = keyvals[1]
-		case _OneTimePassword:
-			ctxCreds.OneTimePassword = keyvals[1]
+			ctxCreds.PEMKey = keyVals[1]
+		case oneTimePassword:
+			ctxCreds.OneTimePassword = keyVals[1]
 		}
 	}
 	return DeployCredentialsToContext(ctx, &ctxCreds), nil
@@ -96,7 +99,7 @@ type Credentials struct {
 	Secret          string
 	ClientID        string
 	PEMKey          string
-	Subaccount      string
+	SubAccount      string
 	OneTimePassword string
 }
 
@@ -111,22 +114,22 @@ func DeployCredentialsToContext(ctx context.Context, creds *Credentials) context
 func (c *Credentials) GetMetaData() (flag, values string) {
 	vals := make([]string, 0, 6)
 	if c.Key != "" {
-		vals = append(vals, _Key+":"+c.Key)
+		vals = append(vals, key+":"+c.Key)
 	}
 	if c.Secret != "" {
-		vals = append(vals, _Secret+":"+c.Secret)
+		vals = append(vals, secret+":"+c.Secret)
 	}
-	if c.Subaccount != "" {
-		vals = append(vals, _Subaccount+":"+c.Subaccount)
+	if c.SubAccount != "" {
+		vals = append(vals, subAccount+":"+c.SubAccount)
 	}
 	if c.ClientID != "" {
-		vals = append(vals, _ClientID+":"+c.ClientID)
+		vals = append(vals, clientID+":"+c.ClientID)
 	}
 	if c.PEMKey != "" {
 		vals = append(vals, _PEMKey+":"+c.PEMKey)
 	}
 	if c.OneTimePassword != "" {
-		vals = append(vals, _OneTimePassword+":"+c.OneTimePassword)
+		vals = append(vals, oneTimePassword+":"+c.OneTimePassword)
 	}
 	return string(contextCrendentialsFlag), strings.Join(vals, ",")
 }
@@ -142,7 +145,7 @@ func (c *Credentials) IsEmpty() bool {
 		c.OneTimePassword == "" &&
 		c.PEMKey == "" &&
 		c.Secret == "" &&
-		c.Subaccount == ""
+		c.SubAccount == ""
 }
 
 // getInternal returns the values for assignment to an internal context
@@ -153,6 +156,69 @@ func (c *Credentials) getInternal() (contextCredential, *contextCredentialsStore
 	store := &contextCredentialsStore{}
 	store.Load(c)
 	return contextCrendentialsFlag, store
+}
+
+// contextCredentialsStore protects the stored credentials for use in a context
+type contextCredentialsStore struct {
+	creds *Credentials
+	mu    sync.RWMutex
+}
+
+// Load stores provided credentials
+func (c *contextCredentialsStore) Load(creds *Credentials) {
+	// Segregate from external call
+	cpy := *creds
+	c.mu.Lock()
+	c.creds = &cpy
+	c.mu.Unlock()
+}
+
+// Get returns the full credentials from the store
+func (c *contextCredentialsStore) Get() *Credentials {
+	c.mu.RLock()
+	creds := c.creds
+	c.mu.RUnlock()
+	return creds
+}
+
+// SetKey sets new key for the default credentials
+func (a *API) SetKey(key string) {
+	if a.credentials == nil {
+		a.credentials = &Credentials{}
+	}
+	a.credentials.Key = key
+}
+
+// SetSecret sets new secret for the default credentials
+func (a *API) SetSecret(secret string) {
+	if a.credentials == nil {
+		a.credentials = &Credentials{}
+	}
+	a.credentials.Secret = secret
+}
+
+// SetClientID sets new clientID for the default credentials
+func (a *API) SetClientID(clientID string) {
+	if a.credentials == nil {
+		a.credentials = &Credentials{}
+	}
+	a.credentials.ClientID = clientID
+}
+
+// SetPEMKey sets pem key for the default credentials
+func (a *API) SetPEMKey(pem string) {
+	if a.credentials == nil {
+		a.credentials = &Credentials{}
+	}
+	a.credentials.PEMKey = pem
+}
+
+// SetSubaccount sets sub account for the default credentials
+func (a *API) SetSubAccount(sub string) {
+	if a.credentials == nil {
+		a.credentials = &Credentials{}
+	}
+	a.credentials.SubAccount = sub
 }
 
 // CheckCredentials checks to see if the required fields have been set before
@@ -184,6 +250,12 @@ func (b *Base) CheckCredentials(creds *Credentials, isContext bool) error {
 func (b *Base) AreCredentialsValid(ctx context.Context) bool {
 	creds, err := b.GetCredentials(ctx)
 	return err == nil && b.ValidateAPICredentials(creds) == nil
+}
+
+// GetDefaultCredentials returns the exchange.Base api credentials loaded by
+// config.json
+func (b *Base) GetDefaultCredentials() *Credentials {
+	return b.API.credentials
 }
 
 // GetCredentials checks and validates current credentials, context credentials
@@ -246,7 +318,7 @@ func (b *Base) SetCredentials(apiKey, apiSecret, clientID, subaccount, pemKey, o
 	}
 	b.API.credentials.Key = apiKey
 	b.API.credentials.ClientID = clientID
-	b.API.credentials.Subaccount = subaccount
+	b.API.credentials.SubAccount = subaccount
 	b.API.credentials.PEMKey = pemKey
 	b.API.credentials.OneTimePassword = oneTimePassword
 
@@ -266,65 +338,41 @@ func (b *Base) SetCredentials(apiKey, apiSecret, clientID, subaccount, pemKey, o
 	}
 }
 
-// contextCredentialsStore protects the stored credentials for use in a context
-type contextCredentialsStore struct {
-	creds *Credentials
-	mu    sync.RWMutex
-}
-
-// Load stores provided credentials
-func (c *contextCredentialsStore) Load(creds *Credentials) {
-	// Segregate from external call
-	cpy := *creds
-	c.mu.Lock()
-	c.creds = &cpy
-	c.mu.Unlock()
-}
-
-// Get returns the full credentials from the store
-func (c *contextCredentialsStore) Get() *Credentials {
-	c.mu.RLock()
-	creds := c.creds
-	c.mu.RUnlock()
-	return creds
-}
-
-// SetKey sets new key for the default credentials
-func (a *API) SetKey(key string) {
-	if a.credentials == nil {
-		a.credentials = &Credentials{}
+// SetAPICredentialDefaults sets the API Credential validator defaults
+func (b *Base) SetAPICredentialDefaults() {
+	// Exchange hardcoded settings take precedence and overwrite the config settings
+	if b.Config.API.CredentialsValidator == nil {
+		b.Config.API.CredentialsValidator = new(config.APICredentialsValidatorConfig)
 	}
-	a.credentials.Key = key
+	if b.Config.API.CredentialsValidator.RequiresKey != b.API.CredentialsValidator.RequiresKey {
+		b.Config.API.CredentialsValidator.RequiresKey = b.API.CredentialsValidator.RequiresKey
+	}
+
+	if b.Config.API.CredentialsValidator.RequiresSecret != b.API.CredentialsValidator.RequiresSecret {
+		b.Config.API.CredentialsValidator.RequiresSecret = b.API.CredentialsValidator.RequiresSecret
+	}
+
+	if b.Config.API.CredentialsValidator.RequiresBase64DecodeSecret != b.API.CredentialsValidator.RequiresBase64DecodeSecret {
+		b.Config.API.CredentialsValidator.RequiresBase64DecodeSecret = b.API.CredentialsValidator.RequiresBase64DecodeSecret
+	}
+
+	if b.Config.API.CredentialsValidator.RequiresClientID != b.API.CredentialsValidator.RequiresClientID {
+		b.Config.API.CredentialsValidator.RequiresClientID = b.API.CredentialsValidator.RequiresClientID
+	}
+
+	if b.Config.API.CredentialsValidator.RequiresPEM != b.API.CredentialsValidator.RequiresPEM {
+		b.Config.API.CredentialsValidator.RequiresPEM = b.API.CredentialsValidator.RequiresPEM
+	}
 }
 
-// SetSecret sets new secret for the default credentials
-func (a *API) SetSecret(secret string) {
-	if a.credentials == nil {
-		a.credentials = &Credentials{}
+// GetAuthenticatedAPISupport returns whether the exchange supports
+// authenticated API requests
+func (b *Base) GetAuthenticatedAPISupport(endpoint uint8) bool {
+	switch endpoint {
+	case RestAuthentication:
+		return b.API.AuthenticatedSupport
+	case WebsocketAuthentication:
+		return b.API.AuthenticatedWebsocketSupport
 	}
-	a.credentials.Secret = secret
-}
-
-// SetClientID sets new clientID for the default credentials
-func (a *API) SetClientID(clientID string) {
-	if a.credentials == nil {
-		a.credentials = &Credentials{}
-	}
-	a.credentials.ClientID = clientID
-}
-
-// SetPEMKey sets pem key for the default credentials
-func (a *API) SetPEMKey(pem string) {
-	if a.credentials == nil {
-		a.credentials = &Credentials{}
-	}
-	a.credentials.PEMKey = pem
-}
-
-// SetSubaccount sets sub account for the default credentials
-func (a *API) SetSubaccount(sub string) {
-	if a.credentials == nil {
-		a.credentials = &Credentials{}
-	}
-	a.credentials.Subaccount = sub
+	return false
 }

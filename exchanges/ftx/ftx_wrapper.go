@@ -444,13 +444,13 @@ func (f *FTX) UpdateAccountInfo(ctx context.Context, a asset.Item) (account.Hold
 	var resp account.Holdings
 
 	var data AllWalletBalances
-	if creds.Subaccount != "" {
+	if creds.SubAccount != "" {
 		balances, err := f.GetBalances(ctx)
 		if err != nil {
 			return resp, err
 		}
 		data = make(AllWalletBalances)
-		data[creds.Subaccount] = balances
+		data[creds.SubAccount] = balances
 	} else {
 		// Get all wallet balances used so we can transfer between accounts if
 		// needed.

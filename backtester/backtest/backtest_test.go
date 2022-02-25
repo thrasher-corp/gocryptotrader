@@ -1,6 +1,7 @@
 package backtest
 
 import (
+	"context"
 	"errors"
 	"os"
 	"strings"
@@ -651,3 +652,19 @@ func TestFullCycleMulti(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func BenchmarkAreCredentialsValid(b *testing.B) {
+	ctx := context.Background()
+	var base gctexchange.Base
+	for x := 0; x < b.N; x++ {
+		if base.AreCredentialsValid(ctx) {
+		}
+	}
+}
+
+// func BenchmarkAreCredentialsValid2(b *testing.B) {
+// 	var base exchange.Base
+// 	for x := 0; x < b.N; x++ {
+// 		_ = base.CheckCredentials(base.API.credentials, false)
+// 	}
+// }

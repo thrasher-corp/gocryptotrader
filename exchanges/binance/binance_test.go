@@ -36,7 +36,7 @@ var (
 )
 
 func areTestAPIKeysSet() bool {
-	return b.AreCredentialsValid(context.Background())
+	return b.ValidateAPICredentials(b.GetDefaultCredentials()) == nil
 }
 
 func setFeeBuilder() *exchange.FeeBuilder {

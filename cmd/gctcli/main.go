@@ -107,32 +107,32 @@ func main() {
 		},
 		&cli.StringFlag{
 			Name:        "apikey",
-			Usage:       "Authenticated HTTP call APIKey",
+			Usage:       "override config API key for request",
 			Destination: &exchangeCreds.Key,
 		},
 		&cli.StringFlag{
 			Name:        "apisecret",
-			Usage:       "Authenticated HTTP call APISecret",
+			Usage:       "override config API Secret for request",
 			Destination: &exchangeCreds.Secret,
 		},
 		&cli.StringFlag{
 			Name:        "apisubaccount",
-			Usage:       "Authenticated HTTP call designated sub account",
-			Destination: &exchangeCreds.Subaccount,
+			Usage:       "override config API sub account for request",
+			Destination: &exchangeCreds.SubAccount,
 		},
 		&cli.StringFlag{
 			Name:        "apiclientid",
-			Usage:       "Authenticated HTTP call client ID",
+			Usage:       "override config API client ID for request",
 			Destination: &exchangeCreds.ClientID,
 		},
 		&cli.StringFlag{
 			Name:        "apipemkey",
-			Usage:       "Authenticated HTTP call PEM key",
+			Usage:       "override config API PEM key for request",
 			Destination: &exchangeCreds.PEMKey,
 		},
 		&cli.StringFlag{
 			Name:        "apionetimepassword",
-			Usage:       "Authenticated HTTP call One Time Password (OTP)",
+			Usage:       "override config API One Time Password (OTP) for request",
 			Destination: &exchangeCreds.OneTimePassword,
 		},
 	}

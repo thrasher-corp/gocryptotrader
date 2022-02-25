@@ -98,7 +98,7 @@ func (f *FTX) WsAuth(ctx context.Context) error {
 			Key:        creds.Key,
 			Sign:       sign,
 			Time:       intNonce,
-			SubAccount: creds.Subaccount,
+			SubAccount: creds.SubAccount,
 		},
 	}
 

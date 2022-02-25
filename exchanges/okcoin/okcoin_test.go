@@ -80,7 +80,7 @@ func TestMain(m *testing.M) {
 }
 
 func areTestAPIKeysSet() bool {
-	return o.AreCredentialsValid(context.Background())
+	return o.ValidateAPICredentials(o.GetDefaultCredentials()) == nil
 }
 
 func TestStart(t *testing.T) {

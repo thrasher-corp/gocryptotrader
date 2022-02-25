@@ -202,7 +202,11 @@ func shouldLoadExchange(name string) bool {
 func setExchangeAPIKeys(name string, keys map[string]*config.APICredentialsConfig, base *exchange.Base) bool {
 	lowerExchangeName := strings.ToLower(name)
 
-	creds := keys[lowerExchangeName]
+	creds, ok := keys[lowerExchangeName]
+	if !ok {
+		log.Printf("%s credentials not found in keys map\n", name)
+		return false
+	}
 
 	if base.API.CredentialsValidator.RequiresKey && creds.Key == "" {
 		creds.Key = config.DefaultAPIKey
@@ -234,7 +238,7 @@ func setExchangeAPIKeys(name string, keys map[string]*config.APICredentialsConfi
 	base.Config.API.AuthenticatedSupport = true
 	base.Config.API.AuthenticatedWebsocketSupport = true
 
-	return base.AreCredentialsValid(context.Background())
+	return base.ValidateAPICredentials(base.GetDefaultCredentials()) == nil
 }
 
 func parseOrderSide(orderSide string) order.Side {

@@ -25,8 +25,8 @@ func TestParseCredentialsMetadata(t *testing.T) {
 	nortyMD, _ := metadata.FromOutgoingContext(ctx)
 
 	_, err = ParseCredentialsMetadata(context.Background(), nortyMD)
-	if !errors.Is(err, errInvalidCredentialMetaData) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidCredentialMetaData)
+	if !errors.Is(err, errInvalidCredentialMetaDataLength) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidCredentialMetaDataLength)
 	}
 
 	ctx = metadata.AppendToOutgoingContext(context.Background(),
@@ -41,14 +41,14 @@ func TestParseCredentialsMetadata(t *testing.T) {
 	beforeCreds := Credentials{
 		Key:             "superkey",
 		Secret:          "supersecret",
-		Subaccount:      "supersub",
+		SubAccount:      "supersub",
 		ClientID:        "superclient",
 		PEMKey:          "superpem",
 		OneTimePassword: "superOneTimePasssssss",
 	}
 
-	flag, outgoingbruh := beforeCreds.GetMetaData()
-	ctx = metadata.AppendToOutgoingContext(context.Background(), flag, outgoingbruh)
+	flag, outGoing := beforeCreds.GetMetaData()
+	ctx = metadata.AppendToOutgoingContext(context.Background(), flag, outGoing)
 	lovelyMD, _ := metadata.FromOutgoingContext(ctx)
 
 	ctx, err = ParseCredentialsMetadata(context.Background(), lovelyMD)
@@ -65,7 +65,7 @@ func TestParseCredentialsMetadata(t *testing.T) {
 
 	if afterCreds.Key != "superkey" &&
 		afterCreds.Secret != "supersecret" &&
-		afterCreds.Subaccount != "supersub" &&
+		afterCreds.SubAccount != "supersub" &&
 		afterCreds.ClientID != "superclient" &&
 		afterCreds.PEMKey != "superpem" &&
 		afterCreds.OneTimePassword != "superOneTimePasssssss" {
@@ -104,7 +104,7 @@ func TestGetCredentials(t *testing.T) {
 	fullCred := Credentials{
 		Key:             "superkey",
 		Secret:          "supersecret",
-		Subaccount:      "supersub",
+		SubAccount:      "supersub",
 		ClientID:        "superclient",
 		PEMKey:          "superpem",
 		OneTimePassword: "superOneTimePasssssss",
@@ -120,7 +120,7 @@ func TestGetCredentials(t *testing.T) {
 
 	if creds.Key != "superkey" &&
 		creds.Secret != "supersecret" &&
-		creds.Subaccount != "supersub" &&
+		creds.SubAccount != "supersub" &&
 		creds.ClientID != "superclient" &&
 		creds.PEMKey != "superpem" &&
 		creds.OneTimePassword != "superOneTimePasssssss" {
@@ -130,7 +130,7 @@ func TestGetCredentials(t *testing.T) {
 	lonelyCred := Credentials{
 		Key:             "superkey",
 		Secret:          "supersecret",
-		Subaccount:      "supersub",
+		SubAccount:      "supersub",
 		PEMKey:          "superpem",
 		OneTimePassword: "superOneTimePasssssss",
 	}
@@ -174,7 +174,7 @@ func TestValidateAPICredentials(t *testing.T) {
 		Expected                   error
 	}
 
-	tests := []tester{
+	testCases := []tester{
 		// Empty credentials
 		{Expected: ErrCredentialsAreEmpty},
 		// test key
@@ -195,23 +195,27 @@ func TestValidateAPICredentials(t *testing.T) {
 		{RequiresBase64DecodeSecret: true, Secret: "aGVsbG8gd29ybGQ="},
 	}
 
-	for x := range tests {
-		setupBase := func(b *Base, tData tester) {
-			b.API.SetKey(tData.Key)
-			b.API.SetSecret(tData.Secret)
-			b.API.SetClientID(tData.ClientID)
-			b.API.SetPEMKey(tData.PEMKey)
-			b.API.CredentialsValidator.RequiresKey = tData.RequiresKey
-			b.API.CredentialsValidator.RequiresSecret = tData.RequiresSecret
-			b.API.CredentialsValidator.RequiresPEM = tData.RequiresPEM
-			b.API.CredentialsValidator.RequiresClientID = tData.RequiresClientID
-			b.API.CredentialsValidator.RequiresBase64DecodeSecret = tData.RequiresBase64DecodeSecret
-		}
+	setupBase := func(b *Base, tData *tester) {
+		b.API.SetKey(tData.Key)
+		b.API.SetSecret(tData.Secret)
+		b.API.SetClientID(tData.ClientID)
+		b.API.SetPEMKey(tData.PEMKey)
+		b.API.CredentialsValidator.RequiresKey = tData.RequiresKey
+		b.API.CredentialsValidator.RequiresSecret = tData.RequiresSecret
+		b.API.CredentialsValidator.RequiresPEM = tData.RequiresPEM
+		b.API.CredentialsValidator.RequiresClientID = tData.RequiresClientID
+		b.API.CredentialsValidator.RequiresBase64DecodeSecret = tData.RequiresBase64DecodeSecret
+	}
 
-		setupBase(&b, tests[x])
-		if err := b.ValidateAPICredentials(b.API.credentials); !errors.Is(err, tests[x].Expected) {
-			t.Errorf("Test %d: expected: %v: got %v", x+1, tests[x].Expected, err)
-		}
+	for x := range testCases {
+		testData := &testCases[x]
+		t.Run("", func(t *testing.T) {
+			t.Parallel()
+			setupBase(&b, testData)
+			if err := b.ValidateAPICredentials(b.API.credentials); !errors.Is(err, testData.Expected) {
+				t.Errorf("Test %d: expected: %v: got %v", x+1, testData.Expected, err)
+			}
+		})
 	}
 }
 
@@ -226,7 +230,7 @@ func TestCheckCredentials(t *testing.T) {
 	// Test SkipAuthCheck
 	err := b.CheckCredentials(&Credentials{}, false)
 	if !errors.Is(err, nil) {
-		t.Error("skip auth check should allow authenticated requests")
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 
 	// Test credentials failure
@@ -235,7 +239,7 @@ func TestCheckCredentials(t *testing.T) {
 	b.API.credentials.OneTimePassword = "wow"
 	err = b.CheckCredentials(b.API.credentials, false)
 	if !errors.Is(err, errRequiresAPIKey) {
-		t.Error("should fail with an empty key")
+		t.Errorf("received '%v' expected '%v'", err, errRequiresAPIKey)
 	}
 	b.API.credentials.OneTimePassword = ""
 
@@ -245,7 +249,7 @@ func TestCheckCredentials(t *testing.T) {
 	b.API.credentials.Key = "k3y"
 	err = b.CheckCredentials(b.API.credentials, false)
 	if !errors.Is(err, ErrAuthenticationSupportNotEnabled) {
-		t.Error("should fail when authenticated support is disabled")
+		t.Errorf("received '%v' expected '%v'", err, ErrAuthenticationSupportNotEnabled)
 	}
 
 	// Test enabled authenticated API support and loaded by config
@@ -254,15 +258,16 @@ func TestCheckCredentials(t *testing.T) {
 	b.API.credentials.Key = ""
 	err = b.CheckCredentials(b.API.credentials, false)
 	if !errors.Is(err, ErrCredentialsAreEmpty) {
-		t.Error("should fail with invalid credentials")
+		t.Errorf("received '%v' expected '%v'", err, ErrCredentialsAreEmpty)
 	}
 
 	// Finally a valid one
 	b.API.credentials.Key = "k3y"
 	err = b.CheckCredentials(b.API.credentials, false)
 	if !errors.Is(err, nil) {
-		t.Error("show allow an authenticated request")
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
+
 }
 
 func TestGetInternal(t *testing.T) {
@@ -289,20 +294,20 @@ func TestGetInternal(t *testing.T) {
 func TestAPISetters(t *testing.T) {
 	t.Parallel()
 	api := API{}
-	api.SetKey(_Key)
-	if api.credentials.Key != _Key {
+	api.SetKey(key)
+	if api.credentials.Key != key {
 		t.Fatal("unexpected value")
 	}
 
 	api = API{}
-	api.SetSecret(_Secret)
-	if api.credentials.Secret != _Secret {
+	api.SetSecret(secret)
+	if api.credentials.Secret != secret {
 		t.Fatal("unexpected value")
 	}
 
 	api = API{}
-	api.SetClientID((_ClientID))
-	if api.credentials.ClientID != _ClientID {
+	api.SetClientID((clientID))
+	if api.credentials.ClientID != clientID {
 		t.Fatal("unexpected value")
 	}
 
@@ -313,8 +318,8 @@ func TestAPISetters(t *testing.T) {
 	}
 
 	api = API{}
-	api.SetSubaccount(_Subaccount)
-	if api.credentials.Subaccount != _Subaccount {
+	api.SetSubAccount(subAccount)
+	if api.credentials.SubAccount != subAccount {
 		t.Fatal("unexpected value")
 	}
 }

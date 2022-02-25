@@ -62,7 +62,7 @@ func TestMain(m *testing.M) {
 }
 
 func areTestAPIKeysSet() bool {
-	return b.AreCredentialsValid(context.Background())
+	return b.ValidateAPICredentials(b.GetDefaultCredentials()) == nil
 }
 
 func TestStart(t *testing.T) {

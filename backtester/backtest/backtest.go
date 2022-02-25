@@ -541,7 +541,7 @@ func (bt *BackTest) loadExchangePairAssetBase(exch, base, quote, ass string) (gc
 	}
 
 	exchangeBase := e.GetBase()
-	if !exchangeBase.AreCredentialsValid(context.Background()) {
+	if exchangeBase.ValidateAPICredentials(exchangeBase.GetDefaultCredentials()) != nil {
 		log.Warnf(log.BackTester, "no credentials set for %v, this is theoretical only", exchangeBase.Name)
 	}
 
@@ -813,7 +813,7 @@ func loadLiveData(cfg *config.Config, base *gctexchange.Base) error {
 		base.API.SetPEMKey(cfg.DataSettings.LiveData.API2FAOverride)
 	}
 	if cfg.DataSettings.LiveData.APISubAccountOverride != "" {
-		base.API.SetSubaccount(cfg.DataSettings.LiveData.APISubAccountOverride)
+		base.API.SetSubAccount(cfg.DataSettings.LiveData.APISubAccountOverride)
 	}
 
 	validated := base.AreCredentialsValid(context.TODO())

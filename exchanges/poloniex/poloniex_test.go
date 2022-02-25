@@ -32,7 +32,7 @@ const (
 var p Poloniex
 
 func areTestAPIKeysSet() bool {
-	return p.AreCredentialsValid(context.Background())
+	return p.ValidateAPICredentials(p.GetDefaultCredentials()) == nil
 }
 
 func TestStart(t *testing.T) {

@@ -1193,8 +1193,8 @@ func (f *FTX) SendAuthHTTPRequest(ctx context.Context, ep exchange.URL, method, 
 		headers["FTX-KEY"] = creds.Key
 		headers["FTX-SIGN"] = crypto.HexEncodeToString(hmac)
 		headers["FTX-TS"] = ts
-		if creds.Subaccount != "" {
-			headers["FTX-SUBACCOUNT"] = url.QueryEscape(creds.Subaccount)
+		if creds.SubAccount != "" {
+			headers["FTX-SUBACCOUNT"] = url.QueryEscape(creds.SubAccount)
 		}
 		headers["Content-Type"] = "application/json"
 

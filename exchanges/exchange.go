@@ -128,33 +128,6 @@ func (b *Base) SetFeatureDefaults() {
 	}
 }
 
-// SetAPICredentialDefaults sets the API Credential validator defaults
-func (b *Base) SetAPICredentialDefaults() {
-	// Exchange hardcoded settings take precedence and overwrite the config settings
-	if b.Config.API.CredentialsValidator == nil {
-		b.Config.API.CredentialsValidator = new(config.APICredentialsValidatorConfig)
-	}
-	if b.Config.API.CredentialsValidator.RequiresKey != b.API.CredentialsValidator.RequiresKey {
-		b.Config.API.CredentialsValidator.RequiresKey = b.API.CredentialsValidator.RequiresKey
-	}
-
-	if b.Config.API.CredentialsValidator.RequiresSecret != b.API.CredentialsValidator.RequiresSecret {
-		b.Config.API.CredentialsValidator.RequiresSecret = b.API.CredentialsValidator.RequiresSecret
-	}
-
-	if b.Config.API.CredentialsValidator.RequiresBase64DecodeSecret != b.API.CredentialsValidator.RequiresBase64DecodeSecret {
-		b.Config.API.CredentialsValidator.RequiresBase64DecodeSecret = b.API.CredentialsValidator.RequiresBase64DecodeSecret
-	}
-
-	if b.Config.API.CredentialsValidator.RequiresClientID != b.API.CredentialsValidator.RequiresClientID {
-		b.Config.API.CredentialsValidator.RequiresClientID = b.API.CredentialsValidator.RequiresClientID
-	}
-
-	if b.Config.API.CredentialsValidator.RequiresPEM != b.API.CredentialsValidator.RequiresPEM {
-		b.Config.API.CredentialsValidator.RequiresPEM = b.API.CredentialsValidator.RequiresPEM
-	}
-}
-
 // SupportsRESTTickerBatchUpdates returns whether or not the
 // exhange supports REST batch ticker fetching
 func (b *Base) SupportsRESTTickerBatchUpdates() bool {
@@ -292,18 +265,6 @@ func (b *Base) SetConfigPairs() error {
 		b.CurrencyPairs.StorePairs(assetTypes[x], cfgPS.Enabled, true)
 	}
 	return nil
-}
-
-// GetAuthenticatedAPISupport returns whether the exchange supports
-// authenticated API requests
-func (b *Base) GetAuthenticatedAPISupport(endpoint uint8) bool {
-	switch endpoint {
-	case RestAuthentication:
-		return b.API.AuthenticatedSupport
-	case WebsocketAuthentication:
-		return b.API.AuthenticatedWebsocketSupport
-	}
-	return false
 }
 
 // GetName is a method that returns the name of the exchange base
@@ -509,7 +470,7 @@ func (b *Base) SetupDefaults(exch *config.Exchange) error {
 	if b.API.credentials == nil {
 		b.API.credentials = &Credentials{}
 	}
-	b.API.credentials.Subaccount = exch.API.Credentials.Subaccount
+	b.API.credentials.SubAccount = exch.API.Credentials.Subaccount
 	if b.API.AuthenticatedSupport || b.API.AuthenticatedWebsocketSupport {
 		b.SetCredentials(exch.API.Credentials.Key,
 			exch.API.Credentials.Secret,
