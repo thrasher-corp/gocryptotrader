@@ -1568,12 +1568,12 @@ func TestGetDataHistoryJobDetails(t *testing.T) {
 
 	resp, err := s.GetDataHistoryJobDetails(context.Background(), &gctrpc.GetDataHistoryJobDetailsRequest{Nickname: "TestGetDataHistoryJobDetails", FullDetails: true})
 	if !errors.Is(err, nil) {
-		t.Errorf("received %v, expected %v", err, nil)
+		t.Fatalf("received %v, expected %v", err, nil)
 	}
-	if resp == nil {
+	if resp == nil { //nolint:staticcheck // SA5011 Ignore the nil warnings
 		t.Fatal("expected job")
 	}
-	if !strings.EqualFold(resp.Nickname, "TestGetDataHistoryJobDetails") {
+	if !strings.EqualFold(resp.Nickname, "TestGetDataHistoryJobDetails") { //nolint:staticcheck // SA5011 Ignore the nil warnings
 		t.Errorf("received %v, expected %v", resp.Nickname, "TestGetDataHistoryJobDetails")
 	}
 }
@@ -1743,14 +1743,14 @@ func TestGetDataHistoryJobSummary(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v, expected %v", err, nil)
 	}
-	if resp == nil {
+	if resp == nil { //nolint:staticcheck // SA5011 Ignore the nil warnings
 		t.Fatal("expected job")
 	}
-	if !strings.EqualFold(resp.Nickname, "TestGetDataHistoryJobSummary") {
-		t.Errorf("received %v, expected %v", "TestGetDataHistoryJobSummary", resp.Nickname)
+	if !strings.EqualFold(resp.Nickname, "TestGetDataHistoryJobSummary") { //nolint:staticcheck // SA5011 Ignore the nil warnings
+		t.Fatalf("received %v, expected %v", "TestGetDataHistoryJobSummary", resp.Nickname)
 	}
-	if resp.ResultSummaries == nil {
-		t.Errorf("received %v, expected %v", nil, "result summaries slice")
+	if resp.ResultSummaries == nil { //nolint:staticcheck // SA5011 Ignore the nil warnings
+		t.Fatalf("received %v, expected %v", nil, "result summaries slice")
 	}
 }
 
@@ -2136,15 +2136,15 @@ func TestGetFuturesPositions(t *testing.T) {
 		Verbose: true,
 	})
 	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
+		t.Fatalf("received '%v', expected '%v'", err, nil)
 	}
-	if r == nil {
+	if r == nil { //nolint:staticcheck // SA5011 Ignore the nil warnings
 		t.Fatal("expected not nil response")
 	}
-	if len(r.Positions) != 1 {
+	if len(r.Positions) != 1 { //nolint:staticcheck // SA5011 Ignore the nil warnings
 		t.Fatal("expected 1 position")
 	}
-	if r.TotalOrders != 1 {
+	if r.TotalOrders != 1 { //nolint:staticcheck // SA5011 Ignore the nil warnings
 		t.Fatal("expected 1 order")
 	}
 

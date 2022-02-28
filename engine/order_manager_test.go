@@ -266,7 +266,7 @@ func TestGetByInternalOrderID(t *testing.T) {
 
 	o, err := m.orderStore.getByInternalOrderID("internalTest")
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	if o == nil { //nolint:staticcheck // SA5011 Ignore the nil warnings
 		t.Fatal("Expected a matching order")
@@ -422,7 +422,7 @@ func TestStore_modifyOrder(t *testing.T) {
 	_, err = m.orderStore.getByExchangeAndID(testExchange, "fake_order_id")
 	if err == nil {
 		// Expected error, such an order should not exist anymore in the store.
-		t.Error("Expected error")
+		t.Fatal("Expected error")
 	}
 
 	det, err := m.orderStore.getByExchangeAndID(testExchange, "another_fake_order_id")
