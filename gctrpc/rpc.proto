@@ -1069,8 +1069,8 @@ message GetCollateralRequest {
 message GetCollateralResponse {
     string sub_account = 1;
     string collateral_currency = 2;
-    string totalValueOfPositiveSpotBalances = 3;
-    string collateralContributedByPositiveSpotBalances = 4;
+    string total_value_of_positive_spot_balances = 3;
+    string collateral_contributed_by_positive_spot_balances = 4;
     string used_collateral = 5;
     CollateralUsedBreakdown used_breakdown = 6;
     string available_collateral = 7;
@@ -1089,7 +1089,7 @@ message CollateralForCurrency {
     string weighting = 6;
     string collateral_contribution = 7;
     string scaled_to_currency = 8;
-    string unrealisedPNL = 9;
+    string unrealised_PNL = 9;
     string funds_in_use = 10;
     string additional_collateral_used = 11;
     CollateralUsedBreakdown used_breakdown = 12;
@@ -1108,7 +1108,7 @@ message CollateralByPosition {
 
 message CollateralUsedBreakdown {
    string locked_in_stakes = 1;
-   string lockedInNFTBids = 2;
+   string locked_in_NFT_bids = 2;
    string locked_in_fee_voucher = 3;
    string locked_in_spot_margin_funding_offers = 4;
    string locked_in_spot_orders = 5;
