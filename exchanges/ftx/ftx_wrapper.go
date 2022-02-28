@@ -1339,6 +1339,7 @@ func (f *FTX) ScaleCollateral(ctx context.Context, subAccount string, calc *orde
 			// FTX bases scales all collateral into USD amounts
 			result.CollateralContribution = calc.FreeCollateral
 			result.Weighting = decimal.NewFromInt(1)
+			result.FairMarketValue = decimal.NewFromInt(1)
 			return result, nil
 		}
 		result.ScaledCurrency = currency.USD
