@@ -670,12 +670,12 @@ func TestSetupPositionTracker(t *testing.T) {
 		Pair:  cp,
 	})
 	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v", err, nil)
+		t.Fatalf("received '%v' expected '%v", err, nil)
 	}
-	if p == nil {
+	if p == nil { //nolint:staticcheck,nolintlint // SA5011 Ignore the nil warnings
 		t.Fatal("expected not nil")
 	}
-	if p.exchange != testExchange {
+	if p.exchange != testExchange { //nolint:staticcheck,nolintlint // SA5011 Ignore the nil warnings
 		t.Error("expected test")
 	}
 
