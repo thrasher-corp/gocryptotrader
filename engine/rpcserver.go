@@ -4158,6 +4158,9 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 
 	b := exch.GetBase()
 	creds, err := b.GetCredentials(ctx)
+	if err != nil {
+		return nil, err
+	}
 	var subErr string
 	if creds.SubAccount != "" {
 		subErr = "for subaccount: " + creds.SubAccount
