@@ -2124,7 +2124,26 @@ func TestGetFuturesPositions(t *testing.T) {
 		},
 	}
 
-	r, err := s.GetFuturesPositions(context.Background(), &gctrpc.GetFuturesPositionsRequest{
+	_, err = s.GetFuturesPositions(context.Background(), &gctrpc.GetFuturesPositionsRequest{
+		Exchange: fakeExchangeName,
+		Asset:    asset.Futures.String(),
+		Pair: &gctrpc.CurrencyPair{
+			Delimiter: currency.DashDelimiter,
+			Base:      cp.Base.String(),
+			Quote:     cp.Quote.String(),
+		},
+		Verbose: true,
+	})
+	if !errors.Is(err, exchange.ErrCredentialsAreEmpty) {
+		t.Fatalf("received '%v', expected '%v'", err, exchange.ErrCredentialsAreEmpty)
+	}
+
+	ctx := exchange.DeployCredentialsToContext(context.Background(), &exchange.Credentials{
+		Key:    "wow",
+		Secret: "super wow",
+	})
+
+	r, err := s.GetFuturesPositions(ctx, &gctrpc.GetFuturesPositionsRequest{
 		Exchange: fakeExchangeName,
 		Asset:    asset.Futures.String(),
 		Pair: &gctrpc.CurrencyPair{
@@ -2147,7 +2166,7 @@ func TestGetFuturesPositions(t *testing.T) {
 		t.Fatal("expected 1 order")
 	}
 
-	_, err = s.GetFuturesPositions(context.Background(), &gctrpc.GetFuturesPositionsRequest{
+	_, err = s.GetFuturesPositions(ctx, &gctrpc.GetFuturesPositionsRequest{
 		Exchange: fakeExchangeName,
 		Asset:    asset.Spot.String(),
 		Pair: &gctrpc.CurrencyPair{
@@ -2208,17 +2227,29 @@ func TestGetCollateral(t *testing.T) {
 		Exchange: fakeExchangeName,
 		Asset:    asset.Futures.String(),
 	})
+	if !errors.Is(err, exchange.ErrCredentialsAreEmpty) {
+		t.Fatalf("received '%v', expected '%v'", err, exchange.ErrCredentialsAreEmpty)
+	}
+
+	ctx := exchange.DeployCredentialsToContext(context.Background(), &exchange.Credentials{Key: "fakerino", Secret: "supafake"})
+
+	_, err = s.GetCollateral(ctx, &gctrpc.GetCollateralRequest{
+		Exchange: fakeExchangeName,
+		Asset:    asset.Futures.String(),
+	})
 	if !errors.Is(err, errNoAccountInformation) {
 		t.Fatalf("received '%v', expected '%v'", err, errNoAccountInformation)
 	}
 
-	r, err := s.GetCollateral(context.Background(), &gctrpc.GetCollateralRequest{
+	ctx = exchange.DeployCredentialsToContext(context.Background(), &exchange.Credentials{Key: "fakerino", Secret: "supafake", SubAccount: "1337"})
+
+	r, err := s.GetCollateral(ctx, &gctrpc.GetCollateralRequest{
 		Exchange:         fakeExchangeName,
 		Asset:            asset.Futures.String(),
 		IncludeBreakdown: true,
 	})
 	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
+		t.Fatalf("received '%v', expected '%v'", err, nil)
 	}
 	if len(r.CurrencyBreakdown) != 3 {
 		t.Errorf("expected 3 currencies, received '%v'", len(r.CurrencyBreakdown))
@@ -2227,7 +2258,7 @@ func TestGetCollateral(t *testing.T) {
 		t.Errorf("received '%v' expected '1337 USD'", r.AvailableCollateral)
 	}
 
-	_, err = s.GetCollateral(context.Background(), &gctrpc.GetCollateralRequest{
+	_, err = s.GetCollateral(ctx, &gctrpc.GetCollateralRequest{
 		Exchange:         fakeExchangeName,
 		Asset:            asset.Spot.String(),
 		IncludeBreakdown: true,
@@ -2236,7 +2267,7 @@ func TestGetCollateral(t *testing.T) {
 		t.Errorf("received '%v', expected '%v'", err, order.ErrNotFuturesAsset)
 	}
 
-	_, err = s.GetCollateral(context.Background(), &gctrpc.GetCollateralRequest{
+	_, err = s.GetCollateral(ctx, &gctrpc.GetCollateralRequest{
 		Exchange:         fakeExchangeName,
 		Asset:            asset.Futures.String(),
 		IncludeBreakdown: true,
