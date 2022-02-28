@@ -16,6 +16,7 @@ const (
 	Name = "gctscript"
 )
 
+// ErrNilSubsystem returned when script manager has not been set up
 var ErrNilSubsystem = errors.New("gct script has not been set up")
 
 // GctScriptManager loads and runs GCT Tengo scripts

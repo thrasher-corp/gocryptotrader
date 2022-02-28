@@ -27,10 +27,10 @@ func TestSetupEventManager(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Fatalf("error '%v', expected '%v'", err, nil)
 	}
-	if m == nil {
+	if m == nil { //nolint:staticcheck,nolintlint // SA5011 Ignore the nil warnings
 		t.Fatal("expected manager")
 	}
-	if m.sleepDelay == 0 {
+	if m.sleepDelay == 0 { //nolint:staticcheck,nolintlint // SA5011 Ignore the nil warnings
 		t.Error("expected default set")
 	}
 }

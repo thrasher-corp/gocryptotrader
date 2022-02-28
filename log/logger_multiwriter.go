@@ -12,7 +12,7 @@ var (
 )
 
 // Add appends a new writer to the multiwriter slice
-func (mw *multiWriter) Add(writer io.Writer) error {
+func (mw *multiWriterHolder) Add(writer io.Writer) error {
 	mw.mu.Lock()
 	defer mw.mu.Unlock()
 	for i := range mw.writers {
@@ -25,7 +25,7 @@ func (mw *multiWriter) Add(writer io.Writer) error {
 }
 
 // Remove removes existing writer from multiwriter slice
-func (mw *multiWriter) Remove(writer io.Writer) error {
+func (mw *multiWriterHolder) Remove(writer io.Writer) error {
 	mw.mu.Lock()
 	defer mw.mu.Unlock()
 	for i := range mw.writers {
@@ -41,7 +41,7 @@ func (mw *multiWriter) Remove(writer io.Writer) error {
 }
 
 // Write concurrent safe Write for each writer
-func (mw *multiWriter) Write(p []byte) (int, error) {
+func (mw *multiWriterHolder) Write(p []byte) (int, error) {
 	type data struct {
 		n   int
 		err error
@@ -78,9 +78,9 @@ func (mw *multiWriter) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-// MultiWriter make and return a new copy of multiWriter
-func MultiWriter(writers ...io.Writer) (*multiWriter, error) {
-	mw := &multiWriter{}
+// multiWriter make and return a new copy of multiWriterHolder
+func multiWriter(writers ...io.Writer) (*multiWriterHolder, error) {
+	mw := &multiWriterHolder{}
 	for x := range writers {
 		err := mw.Add(writers[x])
 		if err != nil {

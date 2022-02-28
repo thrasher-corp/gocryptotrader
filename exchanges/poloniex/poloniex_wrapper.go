@@ -411,10 +411,10 @@ func (p *Poloniex) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 
 	var currencies []account.Balance
 	for x, y := range accountBalance.Currency {
-		var exchangeCurrency account.Balance
-		exchangeCurrency.CurrencyName = currency.NewCode(x)
-		exchangeCurrency.TotalValue = y
-		currencies = append(currencies, exchangeCurrency)
+		currencies = append(currencies, account.Balance{
+			CurrencyName: currency.NewCode(x),
+			Total:        y,
+		})
 	}
 
 	response.Accounts = append(response.Accounts, account.SubAccount{

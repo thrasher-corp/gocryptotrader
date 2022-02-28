@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
@@ -1272,4 +1273,30 @@ func (b *Base) UpdateCurrencyStates(ctx context.Context, a asset.Item) error {
 // on the supplied cryptocurrency
 func (b *Base) GetAvailableTransferChains(_ context.Context, _ currency.Code) ([]string, error) {
 	return nil, common.ErrFunctionNotSupported
+}
+
+// CalculatePNL is an overridable function to allow PNL to be calculated on an
+// open position
+// It will also determine whether the position is considered to be liquidated
+// For live trading, an overrided function may wish to confirm the liquidation by
+// requesting the status of the asset
+func (b *Base) CalculatePNL(context.Context, *order.PNLCalculatorRequest) (*order.PNLResult, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
+// ScaleCollateral is an overridable function to determine how much
+// collateral is usable in futures positions
+func (b *Base) ScaleCollateral(context.Context, *order.CollateralCalculator) (*order.CollateralByCurrency, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
+// CalculateTotalCollateral takes in n collateral calculators to determine an overall
+// standing in a singular currency. See FTX's implementation
+func (b *Base) CalculateTotalCollateral(ctx context.Context, calculator *order.TotalCollateralCalculator) (*order.TotalCollateralResponse, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
+// GetFuturesPositions returns futures positions according to the provided parameters
+func (b *Base) GetFuturesPositions(context.Context, asset.Item, currency.Pair, time.Time, time.Time) ([]order.Detail, error) {
+	return nil, common.ErrNotYetImplemented
 }

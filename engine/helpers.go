@@ -576,19 +576,29 @@ func GetCollatedExchangeAccountInfoByCoin(accounts []account.Holdings) map[curre
 		for y := range accounts[x].Accounts {
 			for z := range accounts[x].Accounts[y].Currencies {
 				currencyName := accounts[x].Accounts[y].Currencies[z].CurrencyName
-				avail := accounts[x].Accounts[y].Currencies[z].TotalValue
+				total := accounts[x].Accounts[y].Currencies[z].Total
 				onHold := accounts[x].Accounts[y].Currencies[z].Hold
+				avail := accounts[x].Accounts[y].Currencies[z].AvailableWithoutBorrow
+				free := accounts[x].Accounts[y].Currencies[z].Free
+				borrowed := accounts[x].Accounts[y].Currencies[z].Borrowed
+
 				info, ok := result[currencyName]
 				if !ok {
 					accountInfo := account.Balance{
-						CurrencyName: currencyName,
-						Hold:         onHold,
-						TotalValue:   avail,
+						CurrencyName:           currencyName,
+						Total:                  total,
+						Hold:                   onHold,
+						Free:                   free,
+						AvailableWithoutBorrow: avail,
+						Borrowed:               borrowed,
 					}
 					result[currencyName] = accountInfo
 				} else {
 					info.Hold += onHold
-					info.TotalValue += avail
+					info.Total += total
+					info.Free += free
+					info.AvailableWithoutBorrow += avail
+					info.Borrowed += borrowed
 					result[currencyName] = info
 				}
 			}

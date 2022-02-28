@@ -16,8 +16,8 @@ import (
 const (
 	// WebsocketNotEnabled alerts of a disabled websocket
 	WebsocketNotEnabled = "exchange_websocket_not_enabled"
-	// connection monitor time delays and limits
-	connectionMonitorDelay             = 2 * time.Second
+	// defaultConnectionMonitorDelay connection monitor time delays and limits
+	defaultConnectionMonitorDelay      = 2 * time.Second
 	WebsocketNotAuthenticatedUsingRest = "%v - Websocket not authenticated, using REST\n"
 	Ping                               = "ping"
 	Pong                               = "pong"
@@ -37,6 +37,7 @@ type Websocket struct {
 	trafficMonitorRunning        bool
 	dataMonitorRunning           bool
 	trafficTimeout               time.Duration
+	connectionMonitorDelay       time.Duration
 	proxyAddr                    string
 	defaultURL                   string
 	defaultURLAuth               string
@@ -95,15 +96,16 @@ type Websocket struct {
 
 // WebsocketSetup defines variables for setting up a websocket connection
 type WebsocketSetup struct {
-	ExchangeConfig        *config.Exchange
-	DefaultURL            string
-	RunningURL            string
-	RunningURLAuth        string
-	Connector             func() error
-	Subscriber            func([]ChannelSubscription) error
-	Unsubscriber          func([]ChannelSubscription) error
-	GenerateSubscriptions func() ([]ChannelSubscription, error)
-	Features              *protocol.Features
+	ExchangeConfig         *config.Exchange
+	DefaultURL             string
+	RunningURL             string
+	RunningURLAuth         string
+	Connector              func() error
+	Subscriber             func([]ChannelSubscription) error
+	Unsubscriber           func([]ChannelSubscription) error
+	GenerateSubscriptions  func() ([]ChannelSubscription, error)
+	Features               *protocol.Features
+	ConnectionMonitorDelay time.Duration
 	// Local orderbook buffer config values
 	SortBuffer            bool
 	SortBufferByUpdateIDs bool

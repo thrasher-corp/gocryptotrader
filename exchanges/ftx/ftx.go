@@ -10,6 +10,7 @@ import (
 	"math"
 	"net/http"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -26,6 +27,7 @@ import (
 // FTX is the overarching type across this package
 type FTX struct {
 	exchange.Base
+	collateralWeight CollateralWeightHolder
 }
 
 const (
@@ -39,6 +41,7 @@ const (
 	getHistoricalData    = "/markets/%s/candles"
 	getFutures           = "/futures"
 	getFuture            = "/futures/"
+	getExpiredFutures    = "/expired_futures"
 	getFutureStats       = "/futures/%s/stats"
 	getFundingRates      = "/funding_rates"
 	getIndexWeights      = "/indexes/%s/weights"
@@ -55,6 +58,7 @@ const (
 	getDepositHistory        = "/wallet/deposits"
 	getWithdrawalHistory     = "/wallet/withdrawals"
 	withdrawRequest          = "/wallet/withdrawals"
+	collateral               = "/wallet/collateral"
 	getOpenOrders            = "/orders"
 	getOrderHistory          = "/orders/history"
 	getOpenTriggerOrders     = "/conditional_orders"
@@ -139,6 +143,8 @@ var (
 	errSubaccountTransferSourceDestinationMustNotBeEqual = errors.New("subaccount transfer source and destination must not be the same value")
 	errUnrecognisedOrderStatus                           = errors.New("unrecognised order status received")
 	errInvalidOrderAmounts                               = errors.New("filled amount should not exceed order amount")
+	errCollateralCurrencyNotFound                        = errors.New("no collateral scaling information found")
+	errCollateralInitialMarginFractionMissing            = errors.New("cannot scale collateral, missing initial margin fraction information")
 
 	validResolutionData = []int64{15, 60, 300, 900, 3600, 14400, 86400}
 )
@@ -304,6 +310,32 @@ func (f *FTX) GetFutureStats(ctx context.Context, futureName string) (FutureStat
 		Data FutureStatsData `json:"result"`
 	}{}
 	return resp.Data, f.SendHTTPRequest(ctx, exchange.RestSpot, fmt.Sprintf(getFutureStats, futureName), &resp)
+}
+
+// GetExpiredFuture returns information on an expired futures contract
+func (f *FTX) GetExpiredFuture(ctx context.Context, pair currency.Pair) (FuturesData, error) {
+	p, err := f.FormatSymbol(pair, asset.Futures)
+	if err != nil {
+		return FuturesData{}, err
+	}
+	resp, err := f.GetExpiredFutures(ctx)
+	if err != nil {
+		return FuturesData{}, err
+	}
+	for i := range resp {
+		if resp[i].Name == p {
+			return resp[i], nil
+		}
+	}
+	return FuturesData{}, fmt.Errorf("%s %s %w", f.Name, p, currency.ErrPairNotFound)
+}
+
+// GetExpiredFutures returns information on expired futures contracts
+func (f *FTX) GetExpiredFutures(ctx context.Context) ([]FuturesData, error) {
+	resp := struct {
+		Data []FuturesData `json:"result"`
+	}{}
+	return resp.Data, f.SendHTTPRequest(ctx, exchange.RestSpot, getExpiredFutures, &resp)
 }
 
 // GetFundingRates gets data on funding rates
@@ -510,11 +542,19 @@ func (f *FTX) GetCoins(ctx context.Context) ([]WalletCoinsData, error) {
 }
 
 // GetBalances gets balances of the account
-func (f *FTX) GetBalances(ctx context.Context) ([]WalletBalance, error) {
+func (f *FTX) GetBalances(ctx context.Context, includeLockedBreakdown, includeFreeIgnoringCollateral bool) ([]WalletBalance, error) {
 	resp := struct {
 		Data []WalletBalance `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, getBalances, nil, &resp)
+	vals := url.Values{}
+	if includeLockedBreakdown {
+		vals.Set("includeLockedBreakdown", strconv.FormatBool(includeLockedBreakdown))
+	}
+	if includeFreeIgnoringCollateral {
+		vals.Set("includeFreeIgnoringCollateral", strconv.FormatBool(includeFreeIgnoringCollateral))
+	}
+	balanceURL := common.EncodeURLValues(getBalances, vals)
+	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, balanceURL, nil, &resp)
 }
 
 // GetAllWalletBalances gets all wallets' balances
@@ -838,27 +878,59 @@ func (f *FTX) DeleteTriggerOrder(ctx context.Context, orderID string) (string, e
 	return f.deleteOrderByPath(ctx, cancelTriggerOrder+orderID)
 }
 
-// GetFills gets fills' data
-func (f *FTX) GetFills(ctx context.Context, market, limit string, startTime, endTime time.Time) ([]FillsData, error) {
-	resp := struct {
-		Data []FillsData `json:"result"`
-	}{}
-	params := url.Values{}
-	if market != "" {
-		params.Set("market", market)
-	}
-	if limit != "" {
-		params.Set("limit", limit)
-	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		if startTime.After(endTime) {
-			return resp.Data, errStartTimeCannotBeAfterEndTime
+// GetFills gets order fills data and ensures that all
+// fills are retrieved from the supplied timeframe
+func (f *FTX) GetFills(ctx context.Context, market currency.Pair, item asset.Item, startTime, endTime time.Time) ([]FillsData, error) {
+	var resp []FillsData
+	var nextEnd = endTime
+	limit := 200
+	for {
+		data := struct {
+			Data []FillsData `json:"result"`
+		}{}
+		params := url.Values{}
+		params.Add("limit", strconv.FormatInt(int64(limit), 10))
+		if !market.IsEmpty() {
+			fp, err := f.FormatExchangeCurrency(market, item)
+			if err != nil {
+				return nil, err
+			}
+			params.Set("market", fp.String())
 		}
-		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
-		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
+		if !startTime.IsZero() && !endTime.IsZero() {
+			if startTime.After(endTime) {
+				return data.Data, errStartTimeCannotBeAfterEndTime
+			}
+			params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
+			params.Set("end_time", strconv.FormatInt(nextEnd.Unix(), 10))
+		}
+		endpoint := common.EncodeURLValues(getFills, params)
+		err := f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, endpoint, nil, &data)
+		if err != nil {
+			return nil, err
+		}
+		if len(data.Data) == 0 ||
+			data.Data[len(data.Data)-1].Time.Equal(nextEnd) {
+			break
+		}
+	data:
+		for i := range data.Data {
+			for j := range resp {
+				if resp[j].ID == data.Data[i].ID {
+					continue data
+				}
+			}
+			resp = append(resp, data.Data[i])
+		}
+		if len(data.Data) < limit {
+			break
+		}
+		nextEnd = data.Data[len(data.Data)-1].Time
 	}
-	endpoint := common.EncodeURLValues(getFills, params)
-	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, endpoint, nil, &resp)
+	sort.Slice(resp, func(i, j int) bool {
+		return resp[i].Time.Before(resp[j].Time)
+	})
+	return resp, nil
 }
 
 // GetFundingPayments gets funding payments
@@ -1468,4 +1540,209 @@ func (f *FTX) FetchExchangeLimits(ctx context.Context) ([]order.MinMaxLevel, err
 		})
 	}
 	return limits, nil
+}
+
+// GetCollateral returns total collateral and the breakdown of
+// collateral contributions
+func (f *FTX) GetCollateral(ctx context.Context, maintenance bool) (*CollateralResponse, error) {
+	resp := struct {
+		Data CollateralResponse `json:"result"`
+	}{}
+	u := url.Values{}
+	if maintenance {
+		u.Add("marginType", "maintenance")
+	} else {
+		u.Add("marginType", "initial")
+	}
+	url := common.EncodeURLValues(collateral, u)
+	if err := f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, url, nil, &resp); err != nil {
+		return nil, err
+	}
+	return &resp.Data, nil
+}
+
+// LoadCollateralWeightings sets the collateral weights for
+// currencies supported by FTX
+func (f *FTX) LoadCollateralWeightings(ctx context.Context) error {
+	f.collateralWeight = make(map[*currency.Item]CollateralWeight)
+	// taken from https://help.ftx.com/hc/en-us/articles/360031149632-Non-USD-Collateral
+	// sets default, then uses the latest from FTX
+	f.collateralWeight.load("1INCH", 0.9, 0.85, 0.0005)
+	f.collateralWeight.load("AAPL", 0.9, 0.85, 0.005)
+	f.collateralWeight.load("AAVE", 0.9, 0.85, 0.0025)
+	f.collateralWeight.load("ABNB", 0.9, 0.85, 0.005)
+	f.collateralWeight.load("ACB", 0.9, 0.85, 0.0025)
+	f.collateralWeight.load("ALPHA", 0.9, 0.85, 0.00025)
+	f.collateralWeight.load("AMC", 0.9, 0.85, 0.0025)
+	f.collateralWeight.load("AMD", 0.9, 0.85, 0.005)
+	f.collateralWeight.load("AMZN", 0.9, 0.85, 0.03)
+	f.collateralWeight.load("APHA", 0.9, 0.85, 0.001)
+	f.collateralWeight.load("ARKK", 0.9, 0.85, 0.005)
+	f.collateralWeight.load("AUD", 0.99, 0.98, 0.00001)
+	f.collateralWeight.load("BABA", 0.9, 0.85, 0.01)
+	f.collateralWeight.load("BADGER", 0.85, 0.8, 0.0025)
+	f.collateralWeight.load("BAND", 0.85, 0.8, 0.001)
+	f.collateralWeight.load("BAO", 0.85, 0.8, 0.000025)
+	f.collateralWeight.load("BB", 0.9, 0.85, 0.0025)
+	f.collateralWeight.load("BCH", 0.95, 0.9, 0.0008)
+	f.collateralWeight.load("BILI", 0.9, 0.85, 0.005)
+	f.collateralWeight.load("BITW", 0.9, 0.85, 0.005)
+	f.collateralWeight.load("BNB", 0.95, 0.9, 0.0005)
+	f.collateralWeight.load("BNT", 0.9, 0.85, 0.0025)
+	f.collateralWeight.load("BNTX", 0.9, 0.85, 0.005)
+	f.collateralWeight.load("BRL", 0.99, 0.98, 0.00001)
+	f.collateralWeight.load("BRZ", 0.99, 0.98, 0.00001)
+	f.collateralWeight.load("BTC", 0.975, 0.95, 0.002)
+	f.collateralWeight.load("BTMX", 0.7, 0.65, 0.0008)
+	f.collateralWeight.load("BUSD", 1, 1, 0)
+	f.collateralWeight.load("BVOL", 0.85, 0.8, 0.005)
+	f.collateralWeight.load("BYND", 0.9, 0.85, 0.0075)
+	f.collateralWeight.load("CAD", 0.99, 0.98, 0.00001)
+	f.collateralWeight.load("CEL", 0.85, 0.8, 0.001)
+	f.collateralWeight.load("CGC", 0.9, 0.85, 0.0025)
+	f.collateralWeight.load("CHF", 0.99, 0.98, 0.00001)
+	f.collateralWeight.load("COIN", 0.85, 0.8, 0.01)
+	f.collateralWeight.load("COMP", 0.9, 0.85, 0.002)
+	f.collateralWeight.load("COPE", 0.6, 0.55, 0.02)
+	f.collateralWeight.load("CRON", 0.9, 0.85, 0.001)
+	f.collateralWeight.load("CUSDT", 0.9, 0.85, 0.00001)
+	f.collateralWeight.load("DAI", 0.9, 0.85, 0.00005)
+	f.collateralWeight.load("DOGE", 0.95, 0.9, 0.00002)
+	f.collateralWeight.load("ETH", 0.95, 0.9, 0.0004)
+	f.collateralWeight.load("STETH", 0.9, 0.85, 0.0012)
+	f.collateralWeight.load("ETHE", 0.9, 0.85, 0.0025)
+	f.collateralWeight.load("EUR", 0.99, 0.98, 0.00001)
+	f.collateralWeight.load("FB", 0.9, 0.85, 0.01)
+	f.collateralWeight.load("FIDA", 0.85, 0.8, 0.001)
+	f.collateralWeight.load("FTM", 0.85, 0.8, 0.0005)
+	f.collateralWeight.load("FTT", 0.95, 0.95, 0.0005)
+	f.collateralWeight.load("GBP", 0.99, 0.98, 0.00001)
+	f.collateralWeight.load("GBTC", 0.9, 0.85, 0.0025)
+	f.collateralWeight.load("GDX", 0.9, 0.85, 0.0025)
+	f.collateralWeight.load("GDXJ", 0.9, 0.85, 0.005)
+	f.collateralWeight.load("GLD", 0.9, 0.85, 0.005)
+	f.collateralWeight.load("GLXY", 0.9, 0.85, 0.005)
+	f.collateralWeight.load("GME", 0.9, 0.85, 0.005)
+	f.collateralWeight.load("GOOGL", 0.9, 0.85, 0.025)
+	f.collateralWeight.load("GRT", 0.9, 0.85, 0.00025)
+	f.collateralWeight.load("HKD", 0.99, 0.98, 0.00001)
+	f.collateralWeight.load("HOLY", 0.9, 0.85, 0.0005)
+	f.collateralWeight.load("HOOD", 0.85, 0.8, 0.005)
+	f.collateralWeight.load("HT", 0.9, 0.85, 0.0003)
+	f.collateralWeight.load("HUSD", 1, 1, 0)
+	f.collateralWeight.load("HXRO", 0.85, 0.8, 0.001)
+	f.collateralWeight.load("IBVOL", 0.85, 0.8, 0.015)
+	f.collateralWeight.load("KIN", 0.85, 0.8, 0.000008)
+	f.collateralWeight.load("KNC", 0.95, 0.9, 0.001)
+	f.collateralWeight.load("LEO", 0.85, 0.8, 0.001)
+	f.collateralWeight.load("LINK", 0.95, 0.9, 0.0004)
+	f.collateralWeight.load("LRC", 0.85, 0.8, 0.0005)
+	f.collateralWeight.load("LTC", 0.95, 0.9, 0.0004)
+	f.collateralWeight.load("MATIC", 0.85, 0.8, 0.00004)
+	f.collateralWeight.load("MKR", 0.9, 0.85, 0.007)
+	f.collateralWeight.load("MOB", 0.6, 0.55, 0.005)
+	f.collateralWeight.load("MRNA", 0.9, 0.85, 0.005)
+	f.collateralWeight.load("MSTR", 0.9, 0.85, 0.008)
+	f.collateralWeight.load("NFLX", 0.9, 0.85, 0.01)
+	f.collateralWeight.load("NIO", 0.9, 0.85, 0.004)
+	f.collateralWeight.load("NOK", 0.9, 0.85, 0.001)
+	f.collateralWeight.load("NVDA", 0.9, 0.85, 0.01)
+	f.collateralWeight.load("OKB", 0.9, 0.85, 0.0003)
+	f.collateralWeight.load("OMG", 0.85, 0.8, 0.001)
+	f.collateralWeight.load("USDP", 1, 1, 0)
+	f.collateralWeight.load("PAXG", 0.95, 0.9, 0.002)
+	f.collateralWeight.load("PENN", 0.9, 0.85, 0.005)
+	f.collateralWeight.load("PFE", 0.9, 0.85, 0.004)
+	f.collateralWeight.load("PYPL", 0.9, 0.85, 0.008)
+	f.collateralWeight.load("RAY", 0.85, 0.8, 0.0005)
+	f.collateralWeight.load("REN", 0.9, 0.85, 0.00025)
+	f.collateralWeight.load("RSR", 0.85, 0.8, 0.0001)
+	f.collateralWeight.load("RUNE", 0.85, 0.8, 0.001)
+	f.collateralWeight.load("SECO", 0.9, 0.85, 0.0005)
+	f.collateralWeight.load("SGD", 0.99, 0.98, 0.00001)
+	f.collateralWeight.load("SLV", 0.9, 0.85, 0.0025)
+	f.collateralWeight.load("SNX", 0.85, 0.8, 0.001)
+	f.collateralWeight.load("SOL", 0.9, 0.85, 0.0004)
+	f.collateralWeight.load("STSOL", 0.9, 0.85, 0.0004)
+	f.collateralWeight.load("MSOL", 0.9, 0.85, 0.0004)
+	f.collateralWeight.load("SPY", 0.9, 0.85, 0.01)
+	f.collateralWeight.load("SQ", 0.9, 0.85, 0.008)
+	f.collateralWeight.load("SRM", 0.9, 0.85, 0.0005)
+	f.collateralWeight.load("SUSHI", 0.95, 0.9, 0.001)
+	f.collateralWeight.load("SXP", 0.9, 0.85, 0.0005)
+	f.collateralWeight.load("TLRY", 0.9, 0.85, 0.001)
+	f.collateralWeight.load("TOMO", 0.85, 0.8, 0.0005)
+	f.collateralWeight.load("TRX", 0.9, 0.85, 0.00001)
+	f.collateralWeight.load("TRY", 0.99, 0.98, 0.00001)
+	f.collateralWeight.load("TRYB", 0.9, 0.85, 0.00001)
+	f.collateralWeight.load("TSLA", 0.9, 0.85, 0.01)
+	f.collateralWeight.load("TSM", 0.9, 0.85, 0.015)
+	f.collateralWeight.load("TUSD", 1, 1, 0)
+	f.collateralWeight.load("TWTR", 0.9, 0.85, 0.004)
+	f.collateralWeight.load("UBER", 0.9, 0.85, 0.004)
+	f.collateralWeight.load("UNI", 0.95, 0.9, 0.001)
+	f.collateralWeight.load("USD", 1, 1, 0)
+	f.collateralWeight.load("USDC", 1, 1, 0)
+	f.collateralWeight.load("USDT", 0.975, 0.95, 0.00001)
+	f.collateralWeight.load("USO", 0.9, 0.85, 0.0025)
+	f.collateralWeight.load("WBTC", 0.975, 0.95, 0.005)
+	f.collateralWeight.load("WUSDC", 1, 1, 0)
+	f.collateralWeight.load("WUSDT", 0.975, 0.95, 0.00001)
+	f.collateralWeight.load("XAUT", 0.95, 0.9, 0.002)
+	f.collateralWeight.load("XRP", 0.95, 0.9, 0.00002)
+	f.collateralWeight.load("YFI", 0.9, 0.85, 0.015)
+	f.collateralWeight.load("ZAR", 0.99, 0.98, 0.00001)
+	f.collateralWeight.load("ZM", 0.9, 0.85, 0.01)
+	f.collateralWeight.load("ZRX", 0.85, 0.8, 0.001)
+
+	if !f.GetAuthenticatedAPISupport(exchange.RestAuthentication) {
+		return nil
+	}
+	coins, err := f.GetCoins(ctx)
+	if err != nil {
+		return err
+	}
+	for i := range coins {
+		if !coins[i].Collateral {
+			continue
+		}
+		f.collateralWeight.loadTotal(coins[i].ID, coins[i].CollateralWeight)
+	}
+
+	futures, err := f.GetFutures(ctx)
+	if err != nil {
+		return err
+	}
+	for i := range futures {
+		f.collateralWeight.loadInitialMarginFraction(futures[i].Underlying, futures[i].InitialMarginFractionFactor)
+	}
+
+	return nil
+}
+
+func (c CollateralWeightHolder) hasData() bool {
+	return len(c) > 0
+}
+
+func (c CollateralWeightHolder) loadTotal(code string, weighting float64) {
+	cc := currency.NewCode(code)
+	currencyCollateral := c[cc.Item]
+	currencyCollateral.Total = weighting
+	c[cc.Item] = currencyCollateral
+}
+
+func (c CollateralWeightHolder) loadInitialMarginFraction(code string, imf float64) {
+	cc := currency.NewCode(code)
+	currencyCollateral := c[cc.Item]
+	currencyCollateral.InitialMarginFractionFactor = imf
+	c[cc.Item] = currencyCollateral
+}
+
+func (c CollateralWeightHolder) load(code string, total, initial, imfFactor float64) {
+	cc := currency.NewCode(code)
+	c[cc.Item] = CollateralWeight{
+		Total:                       total,
+		Initial:                     initial,
+		InitialMarginFractionFactor: imfFactor,
+	}
 }
