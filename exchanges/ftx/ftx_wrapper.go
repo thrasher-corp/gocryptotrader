@@ -1485,10 +1485,11 @@ func (f *FTX) calculateTotalCollateralOnline(ctx context.Context, calc *order.To
 		return nil, fmt.Errorf("%s %w", f.Name, err)
 	}
 	result := order.TotalCollateralResponse{
-		CollateralCurrency:             currency.USD,
-		UsedCollateral:                 c.UsedByFutures.Add(c.UsedBySpotMargin),
-		AvailableCollateral:            c.CollateralAvailable,
-		AvailableMaintenanceCollateral: mc.CollateralAvailable,
+		CollateralCurrency:                          currency.USD,
+		AvailableCollateral:                         c.CollateralAvailable,
+		AvailableMaintenanceCollateral:              mc.CollateralAvailable,
+		TotalValueOfPositiveSpotBalances:            c.PositiveSpotBalanceTotal,
+		CollateralContributedByPositiveSpotBalances: c.CollateralFromPositiveSpotBalances,
 	}
 	balances, err := f.GetBalances(ctx, calc.SubAccount, true, true)
 	if err != nil {

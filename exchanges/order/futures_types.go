@@ -62,14 +62,16 @@ type CollateralManagement interface {
 
 // TotalCollateralResponse holds all collateral
 type TotalCollateralResponse struct {
-	CollateralCurrency             currency.Code
-	AvailableMaintenanceCollateral decimal.Decimal
-	AvailableCollateral            decimal.Decimal
-	UnrealisedPNL                  decimal.Decimal
-	UsedCollateral                 decimal.Decimal
-	UsedBreakdown                  *UsedCollateralBreakdown
-	BreakdownByCurrency            []CollateralByCurrency
-	BreakdownOfPositions           []CollateralByPosition
+	CollateralCurrency                          currency.Code
+	TotalValueOfPositiveSpotBalances            decimal.Decimal
+	CollateralContributedByPositiveSpotBalances decimal.Decimal
+	UsedCollateral                              decimal.Decimal
+	UsedBreakdown                               *UsedCollateralBreakdown
+	AvailableCollateral                         decimal.Decimal
+	AvailableMaintenanceCollateral              decimal.Decimal
+	UnrealisedPNL                               decimal.Decimal
+	BreakdownByCurrency                         []CollateralByCurrency
+	BreakdownOfPositions                        []CollateralByPosition
 }
 
 // CollateralByPosition shows how much collateral is used

@@ -4387,6 +4387,12 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 		AvailableCollateral: collateral.AvailableCollateral.String() + collateralDisplayCurrency,
 		UsedCollateral:      collateral.UsedCollateral.String() + collateralDisplayCurrency,
 	}
+	if !collateral.CollateralContributedByPositiveSpotBalances.IsZero() {
+		result.CollateralContributedByPositiveSpotBalances = collateral.CollateralContributedByPositiveSpotBalances.String() + collateralDisplayCurrency
+	}
+	if !collateral.TotalValueOfPositiveSpotBalances.IsZero() {
+		result.TotalValueOfPositiveSpotBalances = collateral.TotalValueOfPositiveSpotBalances.String() + collateralDisplayCurrency
+	}
 	if !collateral.AvailableMaintenanceCollateral.IsZero() {
 		result.MaintenanceCollateral = collateral.AvailableMaintenanceCollateral.String() + collateralDisplayCurrency
 	}

@@ -4270,13 +4270,10 @@
         "collateralCurrency": {
           "type": "string"
         },
-        "maintenanceCollateral": {
+        "totalValueOfPositiveSpotBalances": {
           "type": "string"
         },
-        "availableCollateral": {
-          "type": "string"
-        },
-        "unrealisedPNL": {
+        "collateralContributedByPositiveSpotBalances": {
           "type": "string"
         },
         "usedCollateral": {
@@ -4284,6 +4281,15 @@
         },
         "usedBreakdown": {
           "$ref": "#/definitions/gctrpcCollateralUsedBreakdown"
+        },
+        "availableCollateral": {
+          "type": "string"
+        },
+        "maintenanceCollateral": {
+          "type": "string"
+        },
+        "unrealisedPNL": {
+          "type": "string"
         },
         "currencyBreakdown": {
           "type": "array",

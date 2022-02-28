@@ -1069,13 +1069,15 @@ message GetCollateralRequest {
 message GetCollateralResponse {
     string sub_account = 1;
     string collateral_currency = 2;
-    string maintenance_collateral = 3;
-    string available_collateral = 4;
-    string unrealisedPNL = 5;
-    string used_collateral = 6;
-    CollateralUsedBreakdown used_breakdown = 7;
-    repeated CollateralForCurrency currency_breakdown = 8;
-    repeated CollateralByPosition position_breakdown = 9;
+    string totalValueOfPositiveSpotBalances = 3;
+    string collateralContributedByPositiveSpotBalances = 4;
+    string used_collateral = 5;
+    CollateralUsedBreakdown used_breakdown = 6;
+    string available_collateral = 7;
+    string maintenance_collateral = 8;
+    string unrealisedPNL = 9;
+    repeated CollateralForCurrency currency_breakdown = 10;
+    repeated CollateralByPosition position_breakdown = 11;
 }
 
 message CollateralForCurrency {
