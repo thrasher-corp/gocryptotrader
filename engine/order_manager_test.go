@@ -268,10 +268,10 @@ func TestGetByInternalOrderID(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if o == nil { //nolint:staticcheck // SA5011 Ignore the nil warnings
+	if o == nil { //nolint:staticcheck,nolintlint // SA5011 Ignore the nil warnings
 		t.Fatal("Expected a matching order")
 	}
-	if o.ID != "TestGetByInternalOrderID" { //nolint:staticcheck // SA5011 Ignore the nil warnings
+	if o.ID != "TestGetByInternalOrderID" { //nolint:staticcheck,nolintlint // SA5011 Ignore the nil warnings
 		t.Error("Expected to retrieve order")
 	}
 
@@ -426,10 +426,10 @@ func TestStore_modifyOrder(t *testing.T) {
 	}
 
 	det, err := m.orderStore.getByExchangeAndID(testExchange, "another_fake_order_id")
-	if det == nil || err != nil { //nolint:staticcheck // SA5011 Ignore the nil warnings
+	if det == nil || err != nil { //nolint:staticcheck,nolintlint // SA5011 Ignore the nil warnings
 		t.Fatal("Failed to fetch order details")
 	}
-	if det.ID != "another_fake_order_id" || det.Price != 16 || det.Amount != 256 { //nolint:staticcheck // SA5011 Ignore the nil warnings
+	if det.ID != "another_fake_order_id" || det.Price != 16 || det.Amount != 256 { //nolint:staticcheck,nolintlint // SA5011 Ignore the nil warnings
 		t.Errorf(
 			"have (%s,%f,%f), want (%s,%f,%f)",
 			det.ID, det.Price, det.Amount,
