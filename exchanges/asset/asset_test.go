@@ -87,3 +87,70 @@ func TestSupported(t *testing.T) {
 		}
 	}
 }
+
+func TestIsFutures(t *testing.T) {
+	t.Parallel()
+	type scenario struct {
+		item      Item
+		isFutures bool
+	}
+	scenarios := []scenario{
+		{
+			item:      Spot,
+			isFutures: false,
+		},
+		{
+			item:      Margin,
+			isFutures: false,
+		},
+		{
+			item:      MarginFunding,
+			isFutures: false,
+		},
+		{
+			item:      Index,
+			isFutures: false,
+		},
+		{
+			item:      Binary,
+			isFutures: false,
+		},
+		{
+			item:      PerpetualContract,
+			isFutures: true,
+		},
+		{
+			item:      PerpetualSwap,
+			isFutures: true,
+		},
+		{
+			item:      Futures,
+			isFutures: true,
+		},
+		{
+			item:      UpsideProfitContract,
+			isFutures: true,
+		},
+		{
+			item:      DownsideProfitContract,
+			isFutures: true,
+		},
+		{
+			item:      CoinMarginedFutures,
+			isFutures: true,
+		},
+		{
+			item:      USDTMarginedFutures,
+			isFutures: true,
+		},
+	}
+	for _, s := range scenarios {
+		testScenario := s
+		t.Run(testScenario.item.String(), func(t *testing.T) {
+			t.Parallel()
+			if testScenario.item.IsFutures() != testScenario.isFutures {
+				t.Errorf("expected %v isFutures to be %v", testScenario.item, testScenario.isFutures)
+			}
+		})
+	}
+}

@@ -116,9 +116,3 @@ func (s *Service) Update(a *Holdings) error {
 
 	return s.mux.Publish([]uuid.UUID{acc.ID}, acc.h)
 }
-
-// Available returns the amount you can use immediately.  E.g. if you have $100, but $20
-// are held (locked) because of a limit buy order, your available balance is $80.
-func (b Balance) Available() float64 {
-	return b.TotalValue - b.Hold
-}

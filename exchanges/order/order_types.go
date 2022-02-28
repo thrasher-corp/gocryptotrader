@@ -295,6 +295,8 @@ const (
 	Bid         Side = "BID"
 	Ask         Side = "ASK"
 	UnknownSide Side = "UNKNOWN"
+	Long        Side = "LONG"
+	Short       Side = "SHORT"
 )
 
 // ByPrice used for sorting orders by price

@@ -403,7 +403,7 @@ func getInternationalBankWithdrawalFee(c currency.Code, amount float64) float64 
 func getInternationalBankDepositFee(c currency.Code, amount float64) float64 {
 	var fee float64
 
-	if c == currency.USD {
+	if c.Equal(currency.USD) {
 		if amount*0.001 < 10 {
 			fee = 10
 		} else {

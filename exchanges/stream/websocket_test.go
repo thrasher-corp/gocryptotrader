@@ -586,6 +586,7 @@ func TestResubscribe(t *testing.T) {
 func TestConnectionMonitorNoConnection(t *testing.T) {
 	t.Parallel()
 	ws := *New()
+	ws.connectionMonitorDelay = 500
 	ws.DataHandler = make(chan interface{}, 1)
 	ws.ShutdownC = make(chan struct{}, 1)
 	ws.exchangeName = "hello"
@@ -601,27 +602,6 @@ func TestConnectionMonitorNoConnection(t *testing.T) {
 	err = ws.connectionMonitor()
 	if !errors.Is(err, errAlreadyRunning) {
 		t.Fatalf("received: %v, but expected: %v", err, errAlreadyRunning)
-	}
-	if !ws.IsConnectionMonitorRunning() {
-		t.Fatal("Should not have exited")
-	}
-	ws.setEnabled(false)
-	time.Sleep(time.Second * 2)
-	if ws.IsConnectionMonitorRunning() {
-		t.Fatal("Should have exited")
-	}
-	ws.setConnectedStatus(true)  // attempt shutdown when not enabled
-	ws.setConnectingStatus(true) // throw a spanner in the works
-	err = ws.connectionMonitor()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v, but expected: %v", err, nil)
-	}
-	if !ws.IsConnectionMonitorRunning() {
-		t.Fatal("Should not have exited")
-	}
-	time.Sleep(time.Millisecond * 100)
-	if ws.IsConnectionMonitorRunning() {
-		t.Fatal("Should have exited")
 	}
 }
 

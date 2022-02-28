@@ -848,7 +848,9 @@ loop:
 			}
 		}
 	}
-	resp = resp[:1]
+	if len(resp) > 1 {
+		resp = resp[:1]
+	}
 	return resp, nil
 }
 

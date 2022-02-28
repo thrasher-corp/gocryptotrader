@@ -86,7 +86,7 @@ type Levels struct {
 	Info, Debug, Warn, Error bool
 }
 
-type multiWriter struct {
+type multiWriterHolder struct {
 	writers []io.Writer
 	mu      sync.RWMutex
 }

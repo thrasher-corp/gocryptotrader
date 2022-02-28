@@ -243,7 +243,7 @@ func ExchangeAccountInfo(args ...objects.Object) (objects.Object, error) {
 		for y := range rtnValue.Accounts[x].Currencies {
 			temp := make(map[string]objects.Object, 3)
 			temp["name"] = &objects.String{Value: rtnValue.Accounts[x].Currencies[y].CurrencyName.String()}
-			temp["total"] = &objects.Float{Value: rtnValue.Accounts[x].Currencies[y].TotalValue}
+			temp["total"] = &objects.Float{Value: rtnValue.Accounts[x].Currencies[y].Total}
 			temp["hold"] = &objects.Float{Value: rtnValue.Accounts[x].Currencies[y].Hold}
 			funds.Value = append(funds.Value, &objects.Map{Value: temp})
 		}

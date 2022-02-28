@@ -598,7 +598,7 @@ func (k *Kraken) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 			}
 			balances = append(balances, account.Balance{
 				CurrencyName: currency.NewCode(translatedCurrency),
-				TotalValue:   bal[key],
+				Total:        bal[key],
 			})
 		}
 		info.Accounts = append(info.Accounts, account.SubAccount{
@@ -613,7 +613,7 @@ func (k *Kraken) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 			for code := range bal.Accounts[name].Balances {
 				balances = append(balances, account.Balance{
 					CurrencyName: currency.NewCode(code).Upper(),
-					TotalValue:   bal.Accounts[name].Balances[code],
+					Total:        bal.Accounts[name].Balances[code],
 				})
 			}
 			info.Accounts = append(info.Accounts, account.SubAccount{
