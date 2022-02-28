@@ -14,10 +14,10 @@ import (
 func TestSetupExchangeManager(t *testing.T) {
 	t.Parallel()
 	m := SetupExchangeManager()
-	if m == nil {
+	if m == nil { //lint:ignore SA5011 Ignore the nil warnings
 		t.Fatalf("unexpected response")
 	}
-	if m.exchanges == nil {
+	if m.exchanges == nil { //lint:ignore SA5011 Ignore the nil warnings
 		t.Error("unexpected response")
 	}
 }

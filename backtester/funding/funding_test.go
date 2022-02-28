@@ -757,10 +757,10 @@ func TestGenerateReport(t *testing.T) {
 	t.Parallel()
 	f := FundManager{}
 	report := f.GenerateReport()
-	if report == nil {
+	if report == nil { //lint:ignore SA5011 Ignore the nil warnings
 		t.Fatal("shouldn't be nil")
 	}
-	if len(report.Items) > 0 {
+	if len(report.Items) > 0 { //lint:ignore SA5011 Ignore the nil warnings
 		t.Error("expected 0")
 	}
 	item := &Item{
