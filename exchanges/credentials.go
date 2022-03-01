@@ -213,7 +213,7 @@ func (a *API) SetPEMKey(pem string) {
 	a.credentials.PEMKey = pem
 }
 
-// SetSubaccount sets sub account for the default credentials
+// SetSubAccount sets sub account for the default credentials
 func (a *API) SetSubAccount(sub string) {
 	if a.credentials == nil {
 		a.credentials = &Credentials{}
