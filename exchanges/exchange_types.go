@@ -189,6 +189,7 @@ type API struct {
 	Endpoints *Endpoints
 
 	credentials *Credentials
+	credMu      sync.RWMutex
 
 	CredentialsValidator struct {
 		// For Huobi (optional)

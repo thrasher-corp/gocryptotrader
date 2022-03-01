@@ -176,13 +176,15 @@ func (c *contextCredentialsStore) Load(creds *Credentials) {
 // Get returns the full credentials from the store
 func (c *contextCredentialsStore) Get() *Credentials {
 	c.mu.RLock()
-	creds := c.creds
+	creds := *c.creds
 	c.mu.RUnlock()
-	return creds
+	return &creds
 }
 
 // SetKey sets new key for the default credentials
 func (a *API) SetKey(key string) {
+	a.credMu.Lock()
+	defer a.credMu.Unlock()
 	if a.credentials == nil {
 		a.credentials = &Credentials{}
 	}
@@ -191,6 +193,8 @@ func (a *API) SetKey(key string) {
 
 // SetSecret sets new secret for the default credentials
 func (a *API) SetSecret(secret string) {
+	a.credMu.Lock()
+	defer a.credMu.Unlock()
 	if a.credentials == nil {
 		a.credentials = &Credentials{}
 	}
@@ -199,6 +203,8 @@ func (a *API) SetSecret(secret string) {
 
 // SetClientID sets new clientID for the default credentials
 func (a *API) SetClientID(clientID string) {
+	a.credMu.Lock()
+	defer a.credMu.Unlock()
 	if a.credentials == nil {
 		a.credentials = &Credentials{}
 	}
@@ -207,6 +213,8 @@ func (a *API) SetClientID(clientID string) {
 
 // SetPEMKey sets pem key for the default credentials
 func (a *API) SetPEMKey(pem string) {
+	a.credMu.Lock()
+	defer a.credMu.Unlock()
 	if a.credentials == nil {
 		a.credentials = &Credentials{}
 	}
@@ -215,6 +223,8 @@ func (a *API) SetPEMKey(pem string) {
 
 // SetSubaccount sets sub account for the default credentials
 func (a *API) SetSubAccount(sub string) {
+	a.credMu.Lock()
+	defer a.credMu.Unlock()
 	if a.credentials == nil {
 		a.credentials = &Credentials{}
 	}
@@ -255,7 +265,13 @@ func (b *Base) AreCredentialsValid(ctx context.Context) bool {
 // GetDefaultCredentials returns the exchange.Base api credentials loaded by
 // config.json
 func (b *Base) GetDefaultCredentials() *Credentials {
-	return b.API.credentials
+	b.API.credMu.RLock()
+	defer b.API.credMu.RUnlock()
+	if b.API.credentials == nil {
+		return nil
+	}
+	creds := *b.API.credentials
+	return &creds
 }
 
 // GetCredentials checks and validates current credentials, context credentials
@@ -274,11 +290,21 @@ func (b *Base) GetCredentials(ctx context.Context) (*Credentials, error) {
 		}
 		return creds, nil
 	}
-	return b.API.credentials, b.CheckCredentials(b.API.credentials, false)
+
+	err := b.CheckCredentials(b.API.credentials, false)
+	if err != nil {
+		return nil, err
+	}
+	b.API.credMu.RLock()
+	defer b.API.credMu.RUnlock()
+	creds := *b.API.credentials
+	return &creds, nil
 }
 
 // ValidateAPICredentials validates the exchanges API credentials
 func (b *Base) ValidateAPICredentials(creds *Credentials) error {
+	b.API.credMu.RLock()
+	defer b.API.credMu.RUnlock()
 	if creds.IsEmpty() {
 		return fmt.Errorf("%s %w", b.Name, ErrCredentialsAreEmpty)
 	}
@@ -313,6 +339,8 @@ func (b *Base) ValidateAPICredentials(creds *Credentials) error {
 
 // SetCredentials is a method that sets the current API keys for the exchange
 func (b *Base) SetCredentials(apiKey, apiSecret, clientID, subaccount, pemKey, oneTimePassword string) {
+	b.API.credMu.Lock()
+	defer b.API.credMu.Unlock()
 	if b.API.credentials == nil {
 		b.API.credentials = &Credentials{}
 	}
@@ -340,6 +368,8 @@ func (b *Base) SetCredentials(apiKey, apiSecret, clientID, subaccount, pemKey, o
 
 // SetAPICredentialDefaults sets the API Credential validator defaults
 func (b *Base) SetAPICredentialDefaults() {
+	b.API.credMu.Lock()
+	defer b.API.credMu.Unlock()
 	// Exchange hardcoded settings take precedence and overwrite the config settings
 	if b.Config.API.CredentialsValidator == nil {
 		b.Config.API.CredentialsValidator = new(config.APICredentialsValidatorConfig)

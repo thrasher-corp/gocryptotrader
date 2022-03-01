@@ -280,28 +280,6 @@ func TestSetFeatureDefaults(t *testing.T) {
 	}
 }
 
-func TestSetAPICredentialDefaults(t *testing.T) {
-	t.Parallel()
-
-	b := Base{
-		Config: &config.Exchange{},
-	}
-	b.API.CredentialsValidator.RequiresKey = true
-	b.API.CredentialsValidator.RequiresSecret = true
-	b.API.CredentialsValidator.RequiresBase64DecodeSecret = true
-	b.API.CredentialsValidator.RequiresClientID = true
-	b.API.CredentialsValidator.RequiresPEM = true
-	b.SetAPICredentialDefaults()
-
-	if !b.Config.API.CredentialsValidator.RequiresKey ||
-		!b.Config.API.CredentialsValidator.RequiresSecret ||
-		!b.Config.API.CredentialsValidator.RequiresBase64DecodeSecret ||
-		!b.Config.API.CredentialsValidator.RequiresClientID ||
-		!b.Config.API.CredentialsValidator.RequiresPEM {
-		t.Error("incorrect values")
-	}
-}
-
 func TestSetAutoPairDefaults(t *testing.T) {
 	t.Parallel()
 	bs := "Bitstamp"
@@ -655,32 +633,6 @@ func TestLoadConfigPairs(t *testing.T) {
 		ps.ConfigFormat.Delimiter != "/" ||
 		ps.ConfigFormat.Uppercase {
 		t.Error("incorrect delimiter values")
-	}
-}
-
-// TestGetAuthenticatedAPISupport logic test
-func TestGetAuthenticatedAPISupport(t *testing.T) {
-	t.Parallel()
-
-	base := Base{
-		API: API{
-			AuthenticatedSupport:          true,
-			AuthenticatedWebsocketSupport: false,
-		},
-	}
-
-	if !base.GetAuthenticatedAPISupport(RestAuthentication) {
-		t.Fatal("Expected RestAuthentication to return true")
-	}
-	if base.GetAuthenticatedAPISupport(WebsocketAuthentication) {
-		t.Fatal("Expected WebsocketAuthentication to return false")
-	}
-	base.API.AuthenticatedWebsocketSupport = true
-	if !base.GetAuthenticatedAPISupport(WebsocketAuthentication) {
-		t.Fatal("Expected WebsocketAuthentication to return true")
-	}
-	if base.GetAuthenticatedAPISupport(2) {
-		t.Fatal("Expected default case of 'false' to be returned")
 	}
 }
 
