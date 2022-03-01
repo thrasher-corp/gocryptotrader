@@ -175,6 +175,9 @@ message AccountCurrencyInfo {
     string currency = 1;
     double total_value = 2;
     double hold = 3;
+    double free = 4;
+    double freeWithoutBorrow  = 5;
+    double borrowed = 6;
 }
 
 message GetAccountInfoResponse {
@@ -1030,51 +1033,88 @@ message GetFuturesPositionsRequest {
     string	start_date = 4;
     string	end_date = 5;
     string status = 6;
-    int64 positionLimit = 7;
+    int64 position_limit = 7;
     bool verbose = 8;
     bool overwrite = 9;
 }
 
 message GetFuturesPositionsResponse {
-    int64 totalOrders = 1;
-    string subAccount = 2;
-    string totalRealisedPNL = 3;
-    string totalUnrealisedPNL = 4;
+    int64 total_orders = 1;
+    string sub_account = 2;
+    string total_realisedPNL = 3;
+    string total_unrealisedPNL = 4;
     string totalPNL = 5;
     repeated FuturePosition positions = 6;
 }
 
 message FuturePosition {
     string status = 1;
-    string currentDirection = 2;
+    string current_direction = 2;
     string unrealisedPNL = 3;
     string realisedPNL = 4;
-    string openingDate = 5;
-    string closingDate = 6;
+    string opening_date = 5;
+    string closing_date = 6;
     repeated OrderDetails orders = 7;
 }
 
 message GetCollateralRequest {
     string exchange =1;
     string asset = 2;
-    string subAccount = 3;
-    bool includeBreakdown = 4;
-    bool calculateOffline = 5;
-    bool includeZeroValues = 6;
+    string sub_account = 3;
+    bool include_breakdown = 4;
+    bool calculate_offline = 5;
+    bool include_zero_values = 6;
 }
 
 message GetCollateralResponse {
-    string subAccount = 1;
-    string totalCollateral = 2;
-    repeated CollateralForCurrency currencyBreakdown = 3;
+    string sub_account = 1;
+    string collateral_currency = 2;
+    string total_value_of_positive_spot_balances = 3;
+    string collateral_contributed_by_positive_spot_balances = 4;
+    string used_collateral = 5;
+    CollateralUsedBreakdown used_breakdown = 6;
+    string available_collateral = 7;
+    string maintenance_collateral = 8;
+    string unrealisedPNL = 9;
+    repeated CollateralForCurrency currency_breakdown = 10;
+    repeated CollateralByPosition position_breakdown = 11;
 }
 
 message CollateralForCurrency {
     string currency = 1;
-    string originalAmount = 2;
-    string scaledCollateral = 3;
-    string scaledToCurrency = 4;
-    string error = 5;
+    bool excluded_from_collateral = 2;
+    string total_funds = 3;
+    string available_for_use_as_collateral = 4;
+    string approx_fair_market_value = 5;
+    string weighting = 6;
+    string collateral_contribution = 7;
+    string scaled_to_currency = 8;
+    string unrealised_PNL = 9;
+    string funds_in_use = 10;
+    string additional_collateral_used = 11;
+    CollateralUsedBreakdown used_breakdown = 12;
+    string error = 13;
+}
+
+message CollateralByPosition {
+    string currency = 1;
+    string size = 2;
+    string open_order_size = 3;
+    string position_size = 4;
+    string mark_price = 5;
+    string required_margin = 6;
+    string total_collateral_used = 7;
+}
+
+message CollateralUsedBreakdown {
+   string locked_in_stakes = 1;
+   string locked_in_NFT_bids = 2;
+   string locked_in_fee_voucher = 3;
+   string locked_in_spot_margin_funding_offers = 4;
+   string locked_in_spot_orders = 5;
+   string locked_as_collateral = 6;
+   string used_in_futures = 7;
+   string used_in_spot_margin = 8;
 }
 
 

@@ -10,6 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
@@ -20,8 +21,11 @@ func TestCalculateFundingStatistics(t *testing.T) {
 	if !errors.Is(err, common.ErrNilArguments) {
 		t.Errorf("received %v expected %v", err, common.ErrNilArguments)
 	}
-	f := funding.SetupFundingManager(true, true)
-	item, err := funding.CreateItem("binance", asset.Spot, currency.BTC, decimal.NewFromInt(1337), decimal.Zero, false)
+	f, err := funding.SetupFundingManager(&engine.ExchangeManager{}, true, true)
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v expected %v", err, nil)
+	}
+	item, err := funding.CreateItem("binance", asset.Spot, currency.BTC, decimal.NewFromInt(1337), decimal.Zero)
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v expected %v", err, nil)
 	}
@@ -30,7 +34,7 @@ func TestCalculateFundingStatistics(t *testing.T) {
 		t.Errorf("received %v expected %v", err, nil)
 	}
 
-	item2, err := funding.CreateItem("binance", asset.Spot, currency.USD, decimal.NewFromInt(1337), decimal.Zero, false)
+	item2, err := funding.CreateItem("binance", asset.Spot, currency.USD, decimal.NewFromInt(1337), decimal.Zero)
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v expected %v", err, nil)
 	}
@@ -76,7 +80,10 @@ func TestCalculateFundingStatistics(t *testing.T) {
 		t.Errorf("received %v expected %v", err, errNoRelevantStatsFound)
 	}
 
-	f = funding.SetupFundingManager(true, false)
+	f, err = funding.SetupFundingManager(&engine.ExchangeManager{}, true, false)
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v expected %v", err, nil)
+	}
 	err = f.AddItem(item)
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v expected %v", err, nil)
@@ -183,12 +190,15 @@ func TestFundingStatisticsPrintResults(t *testing.T) {
 		t.Errorf("received %v expected %v", err, common.ErrNilArguments)
 	}
 
-	funds := funding.SetupFundingManager(true, true)
-	item1, err := funding.CreateItem("test", asset.Spot, currency.BTC, decimal.NewFromInt(1337), decimal.NewFromFloat(0.04), false)
+	funds, err := funding.SetupFundingManager(&engine.ExchangeManager{}, true, true)
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v expected %v", err, nil)
 	}
-	item2, err := funding.CreateItem("test", asset.Spot, currency.LTC, decimal.NewFromInt(1337), decimal.NewFromFloat(0.04), false)
+	item1, err := funding.CreateItem("test", asset.Spot, currency.BTC, decimal.NewFromInt(1337), decimal.NewFromFloat(0.04))
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v expected %v", err, nil)
+	}
+	item2, err := funding.CreateItem("test", asset.Spot, currency.LTC, decimal.NewFromInt(1337), decimal.NewFromFloat(0.04))
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v expected %v", err, nil)
 	}

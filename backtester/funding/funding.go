@@ -36,16 +36,20 @@ var (
 	errTransferMustBeSameCurrency = errors.New("cannot transfer to different currency")
 	errCannotMatchTrackingToItem  = errors.New("cannot match tracking data to funding items")
 	errNotFutures                 = errors.New("item linking collateral currencies must be a futures asset")
+	errExchangeManagerRequired    = errors.New("exchange manager required")
 )
 
 // SetupFundingManager creates the funding holder. It carries knowledge about levels of funding
 // across all execution handlers and enables fund transfers
-func SetupFundingManager(exchManager *engine.ExchangeManager, usingExchangeLevelFunding, disableUSDTracking bool) *FundManager {
+func SetupFundingManager(exchManager *engine.ExchangeManager, usingExchangeLevelFunding, disableUSDTracking bool) (*FundManager, error) {
+	if exchManager == nil {
+		return nil, errExchangeManagerRequired
+	}
 	return &FundManager{
 		usingExchangeLevelFunding: usingExchangeLevelFunding,
 		disableUSDTracking:        disableUSDTracking,
 		exchangeManager:           exchManager,
-	}
+	}, nil
 }
 
 // CreateFuturesCurrencyCode converts a currency pair into a code
@@ -84,7 +88,7 @@ func (f *FundManager) LinkCollateralCurrency(item *Item, code currency.Code) err
 		return errNotFutures
 	}
 	for i := range f.items {
-		if f.items[i].currency.Match(code) && f.items[i].asset == item.asset {
+		if f.items[i].currency.Equal(code) && f.items[i].asset == item.asset {
 			item.pairedWith = f.items[i]
 			return nil
 		}
@@ -158,7 +162,7 @@ func (f *FundManager) AddUSDTrackingData(k *kline.DataFromKline) error {
 		}
 		if strings.EqualFold(f.items[i].exchange, k.Item.Exchange) &&
 			f.items[i].asset == k.Item.Asset {
-			if f.items[i].currency == k.Item.Pair.Base {
+			if f.items[i].currency.Equal(k.Item.Pair.Base) {
 				if f.items[i].usdTrackingCandles == nil &&
 					trackingcurrencies.CurrencyIsUSDTracked(k.Item.Pair.Quote) {
 					f.items[i].usdTrackingCandles = k
@@ -169,7 +173,7 @@ func (f *FundManager) AddUSDTrackingData(k *kline.DataFromKline) error {
 				baseSet = true
 			}
 			if trackingcurrencies.CurrencyIsUSDTracked(f.items[i].currency) {
-				if f.items[i].pairedWith != nil && f.items[i].currency != basePairedWith {
+				if f.items[i].pairedWith != nil && !f.items[i].currency.Equal(basePairedWith) {
 					continue
 				}
 				if f.items[i].usdTrackingCandles == nil {
@@ -313,10 +317,10 @@ func (f *FundManager) Transfer(amount decimal.Decimal, sender, receiver *Item, i
 		}
 	}
 
-	if sender.currency != receiver.currency {
+	if !sender.currency.Equal(receiver.currency) {
 		return errTransferMustBeSameCurrency
 	}
-	if sender.currency == receiver.currency &&
+	if sender.currency.Equal(receiver.currency) &&
 		sender.exchange == receiver.exchange &&
 		sender.asset == receiver.asset {
 		return fmt.Errorf("%v %v %v %w", sender.exchange, sender.asset, sender.currency, errCannotTransferToSameFunds)
@@ -417,7 +421,7 @@ func (f *FundManager) GetFundingForEAP(exch string, a asset.Item, p currency.Pai
 // GetFundingForEAC This will construct a funding based on the exchange, asset, currency code
 func (f *FundManager) GetFundingForEAC(exch string, a asset.Item, c currency.Code) (*Item, error) {
 	for i := range f.items {
-		if f.items[i].BasicEqual(exch, a, c, currency.Code{}) {
+		if f.items[i].BasicEqual(exch, a, c, currency.EMPTYCODE) {
 			return f.items[i], nil
 		}
 	}
@@ -506,13 +510,13 @@ func (f *FundManager) UpdateCollateral(exchName string, item asset.Item, pair cu
 			CollateralCurrency: f.items[i].currency,
 			Asset:              f.items[i].asset,
 			Side:               side,
-			CollateralAmount:   f.items[i].available,
-			CollateralPrice:    usd,
+			FreeCollateral:     f.items[i].available,
+			USDPrice:           usd,
 		})
 		if err != nil {
 			return err
 		}
-		collateralAmount = collateralAmount.Add(latest)
+		collateralAmount = latest.AvailableForUseAsCollateral
 	}
 
 	collat, err := exchMap[exchName].GetCollateralCurrencyForContract(item, pair)
@@ -523,7 +527,7 @@ func (f *FundManager) UpdateCollateral(exchName string, item asset.Item, pair cu
 	for i := range f.items {
 		if f.items[i].exchange == exchName &&
 			f.items[i].asset == item &&
-			f.items[i].currency.Match(collat) {
+			f.items[i].currency.Equal(collat) {
 			f.items[i].available = collateralAmount
 			return nil
 		}

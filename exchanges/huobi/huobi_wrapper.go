@@ -158,9 +158,12 @@ func (h *HUOBI) SetDefaults() {
 		},
 	}
 
-	h.Requester = request.New(h.Name,
+	h.Requester, err = request.New(h.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 	h.API.Endpoints = h.NewEndpoints()
 	err = h.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:         huobiAPIURL,
@@ -360,7 +363,7 @@ func (h *HUOBI) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string,
 		}
 
 	case asset.CoinMarginedFutures:
-		symbols, err := h.GetSwapMarkets(ctx, currency.Pair{})
+		symbols, err := h.GetSwapMarkets(ctx, currency.EMPTYPAIR)
 		if err != nil {
 			return nil, err
 		}
@@ -375,7 +378,7 @@ func (h *HUOBI) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string,
 			}
 		}
 	case asset.Futures:
-		symbols, err := h.FGetContractInfo(ctx, "", "", currency.Pair{})
+		symbols, err := h.FGetContractInfo(ctx, "", "", currency.EMPTYPAIR)
 		if err != nil {
 			return nil, err
 		}
@@ -649,7 +652,7 @@ func (h *HUOBI) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 				}
 				currData := account.Balance{
 					CurrencyName: currency.NewCode(resp.Data[i].List[0].Currency),
-					TotalValue:   resp.Data[i].List[0].Balance,
+					Total:        resp.Data[i].List[0].Balance,
 				}
 				if len(resp.Data[i].List) > 1 && resp.Data[i].List[1].Type == "frozen" {
 					currData.Hold = resp.Data[i].List[1].Balance
@@ -681,7 +684,7 @@ func (h *HUOBI) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 							if frozen {
 								currencyDetails[i].Hold = balances[j].Balance
 							} else {
-								currencyDetails[i].TotalValue = balances[j].Balance
+								currencyDetails[i].Total = balances[j].Balance
 							}
 							continue balance
 						}
@@ -697,7 +700,7 @@ func (h *HUOBI) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 						currencyDetails = append(currencyDetails,
 							account.Balance{
 								CurrencyName: currency.NewCode(balances[j].Currency),
-								TotalValue:   balances[j].Balance,
+								Total:        balances[j].Balance,
 							})
 					}
 				}
@@ -707,7 +710,7 @@ func (h *HUOBI) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 
 	case asset.CoinMarginedFutures:
 		// fetch swap account info
-		acctInfo, err := h.GetSwapAccountInfo(ctx, currency.Pair{})
+		acctInfo, err := h.GetSwapAccountInfo(ctx, currency.EMPTYPAIR)
 		if err != nil {
 			return info, err
 		}
@@ -716,8 +719,9 @@ func (h *HUOBI) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 		for x := range acctInfo.Data {
 			mainAcctBalances = append(mainAcctBalances, account.Balance{
 				CurrencyName: currency.NewCode(acctInfo.Data[x].Symbol),
-				TotalValue:   acctInfo.Data[x].MarginBalance,
+				Total:        acctInfo.Data[x].MarginBalance,
 				Hold:         acctInfo.Data[x].MarginFrozen,
+				Free:         acctInfo.Data[x].MarginAvailable,
 			})
 		}
 
@@ -727,14 +731,14 @@ func (h *HUOBI) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 		})
 
 		// fetch subaccounts data
-		subAccsData, err := h.GetSwapAllSubAccAssets(ctx, currency.Pair{})
+		subAccsData, err := h.GetSwapAllSubAccAssets(ctx, currency.EMPTYPAIR)
 		if err != nil {
 			return info, err
 		}
 		var currencyDetails []account.Balance
 		for x := range subAccsData.Data {
 			a, err := h.SwapSingleSubAccAssets(ctx,
-				currency.Pair{},
+				currency.EMPTYPAIR,
 				subAccsData.Data[x].SubUID)
 			if err != nil {
 				return info, err
@@ -742,15 +746,16 @@ func (h *HUOBI) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 			for y := range a.Data {
 				currencyDetails = append(currencyDetails, account.Balance{
 					CurrencyName: currency.NewCode(a.Data[y].Symbol),
-					TotalValue:   a.Data[y].MarginBalance,
+					Total:        a.Data[y].MarginBalance,
 					Hold:         a.Data[y].MarginFrozen,
+					Free:         a.Data[y].MarginAvailable,
 				})
 			}
 		}
 		acc.Currencies = currencyDetails
 	case asset.Futures:
 		// fetch main account data
-		mainAcctData, err := h.FGetAccountInfo(ctx, currency.Code{})
+		mainAcctData, err := h.FGetAccountInfo(ctx, currency.EMPTYCODE)
 		if err != nil {
 			return info, err
 		}
@@ -759,8 +764,9 @@ func (h *HUOBI) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 		for x := range mainAcctData.AccData {
 			mainAcctBalances = append(mainAcctBalances, account.Balance{
 				CurrencyName: currency.NewCode(mainAcctData.AccData[x].Symbol),
-				TotalValue:   mainAcctData.AccData[x].MarginBalance,
+				Total:        mainAcctData.AccData[x].MarginBalance,
 				Hold:         mainAcctData.AccData[x].MarginFrozen,
+				Free:         mainAcctData.AccData[x].MarginAvailable,
 			})
 		}
 
@@ -770,7 +776,7 @@ func (h *HUOBI) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 		})
 
 		// fetch subaccounts data
-		subAccsData, err := h.FGetAllSubAccountAssets(ctx, currency.Code{})
+		subAccsData, err := h.FGetAllSubAccountAssets(ctx, currency.EMPTYCODE)
 		if err != nil {
 			return info, err
 		}
@@ -785,8 +791,9 @@ func (h *HUOBI) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 			for y := range a.AssetsData {
 				currencyDetails = append(currencyDetails, account.Balance{
 					CurrencyName: currency.NewCode(a.AssetsData[y].Symbol),
-					TotalValue:   a.AssetsData[y].MarginBalance,
+					Total:        a.AssetsData[y].MarginBalance,
 					Hold:         a.AssetsData[y].MarginFrozen,
+					Free:         a.AssetsData[y].MarginAvailable,
 				})
 			}
 		}
@@ -946,9 +953,17 @@ func (h *HUOBI) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitR
 		var oType string
 		switch s.Type {
 		case order.Market:
-			oType = "opponent"
+			// https://huobiapi.github.io/docs/dm/v1/en/#order-and-trade
+			// At present, Huobi Futures does not support market price when placing an order.
+			// To increase the probability of a transaction, users can choose to place an order based on BBO price (opponent),
+			// optimal 5 (optimal_5), optimal 10 (optimal_10), optimal 20 (optimal_20), among which the success probability of
+			// optimal 20 is the largest, while the slippage always is the largest as well.
+			//
+			// It is important to note that the above methods will not guarantee the order to be filled in 100%.
+			// The system will obtain the optimal N price at that moment and place the order.
+			oType = "optimal_20"
 			if s.ImmediateOrCancel {
-				oType = "opponent_ioc"
+				oType = "optimal_20_ioc"
 			}
 		case order.Limit:
 			oType = "limit"

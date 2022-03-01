@@ -14,22 +14,42 @@ import (
 
 func TestSetupSyncManager(t *testing.T) {
 	t.Parallel()
-	_, err := setupSyncManager(&Config{}, nil, nil, false)
+	_, err := setupSyncManager(nil, nil, nil, false)
+	if !errors.Is(err, common.ErrNilPointer) {
+		t.Errorf("error '%v', expected '%v'", err, common.ErrNilPointer)
+	}
+
+	_, err = setupSyncManager(&SyncManagerConfig{}, nil, nil, false)
 	if !errors.Is(err, errNoSyncItemsEnabled) {
 		t.Errorf("error '%v', expected '%v'", err, errNoSyncItemsEnabled)
 	}
 
-	_, err = setupSyncManager(&Config{SyncTrades: true}, nil, nil, false)
+	_, err = setupSyncManager(&SyncManagerConfig{SynchronizeTrades: true}, nil, nil, false)
 	if !errors.Is(err, errNilExchangeManager) {
 		t.Errorf("error '%v', expected '%v'", err, errNilExchangeManager)
 	}
 
-	_, err = setupSyncManager(&Config{SyncTrades: true}, &ExchangeManager{}, nil, false)
+	_, err = setupSyncManager(&SyncManagerConfig{SynchronizeTrades: true}, &ExchangeManager{}, nil, false)
 	if !errors.Is(err, errNilConfig) {
 		t.Errorf("error '%v', expected '%v'", err, errNilConfig)
 	}
 
-	m, err := setupSyncManager(&Config{SyncTrades: true}, &ExchangeManager{}, &config.RemoteControlConfig{}, true)
+	_, err = setupSyncManager(&SyncManagerConfig{SynchronizeTrades: true}, &ExchangeManager{}, &config.RemoteControlConfig{}, true)
+	if !errors.Is(err, currency.ErrCurrencyCodeEmpty) {
+		t.Errorf("error '%v', expected '%v'", err, currency.ErrCurrencyCodeEmpty)
+	}
+
+	_, err = setupSyncManager(&SyncManagerConfig{SynchronizeTrades: true, FiatDisplayCurrency: currency.BTC}, &ExchangeManager{}, &config.RemoteControlConfig{}, true)
+	if !errors.Is(err, currency.ErrFiatDisplayCurrencyIsNotFiat) {
+		t.Errorf("error '%v', expected '%v'", err, currency.ErrFiatDisplayCurrencyIsNotFiat)
+	}
+
+	_, err = setupSyncManager(&SyncManagerConfig{SynchronizeTrades: true, FiatDisplayCurrency: currency.USD}, &ExchangeManager{}, &config.RemoteControlConfig{}, true)
+	if !errors.Is(err, common.ErrNilPointer) {
+		t.Errorf("error '%v', expected '%v'", err, common.ErrNilPointer)
+	}
+
+	m, err := setupSyncManager(&SyncManagerConfig{SynchronizeTrades: true, FiatDisplayCurrency: currency.USD, PairFormatDisplay: &currency.PairFormat{}}, &ExchangeManager{}, &config.RemoteControlConfig{}, true)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -40,7 +60,7 @@ func TestSetupSyncManager(t *testing.T) {
 
 func TestSyncManagerStart(t *testing.T) {
 	t.Parallel()
-	m, err := setupSyncManager(&Config{SyncTrades: true}, &ExchangeManager{}, &config.RemoteControlConfig{}, true)
+	m, err := setupSyncManager(&SyncManagerConfig{SynchronizeTrades: true, FiatDisplayCurrency: currency.USD, PairFormatDisplay: &currency.PairFormat{}}, &ExchangeManager{}, &config.RemoteControlConfig{}, true)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -52,7 +72,7 @@ func TestSyncManagerStart(t *testing.T) {
 	exch.SetDefaults()
 	em.Add(exch)
 	m.exchangeManager = em
-	m.config.SyncContinuously = true
+	m.config.SynchronizeContinuously = true
 	err = m.Start()
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
@@ -85,7 +105,7 @@ func TestSyncManagerStop(t *testing.T) {
 	}
 	exch.SetDefaults()
 	em.Add(exch)
-	m, err = setupSyncManager(&Config{SyncTrades: true, SyncContinuously: true}, em, &config.RemoteControlConfig{}, false)
+	m, err = setupSyncManager(&SyncManagerConfig{SynchronizeTrades: true, SynchronizeContinuously: true, FiatDisplayCurrency: currency.USD, PairFormatDisplay: &currency.PairFormat{}}, em, &config.RemoteControlConfig{}, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -115,7 +135,7 @@ func TestPrintCurrencyFormat(t *testing.T) {
 
 func TestPrintConvertCurrencyFormat(t *testing.T) {
 	t.Parallel()
-	c := printConvertCurrencyFormat(currency.BTC, 1337, currency.USD)
+	c := printConvertCurrencyFormat(1337, currency.BTC, currency.USD)
 	if c == "" {
 		t.Error("expected formatted currency")
 	}
@@ -133,7 +153,7 @@ func TestPrintTickerSummary(t *testing.T) {
 	}
 	exch.SetDefaults()
 	em.Add(exch)
-	m, err = setupSyncManager(&Config{SyncTrades: true, SyncContinuously: true}, em, &config.RemoteControlConfig{}, false)
+	m, err = setupSyncManager(&SyncManagerConfig{SynchronizeTrades: true, SynchronizeContinuously: true, FiatDisplayCurrency: currency.USD, PairFormatDisplay: &currency.PairFormat{}}, em, &config.RemoteControlConfig{}, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -172,7 +192,7 @@ func TestPrintOrderbookSummary(t *testing.T) {
 	}
 	exch.SetDefaults()
 	em.Add(exch)
-	m, err = setupSyncManager(&Config{SyncTrades: true, SyncContinuously: true}, em, &config.RemoteControlConfig{}, false)
+	m, err = setupSyncManager(&SyncManagerConfig{SynchronizeTrades: true, SynchronizeContinuously: true, FiatDisplayCurrency: currency.USD, PairFormatDisplay: &currency.PairFormat{}}, em, &config.RemoteControlConfig{}, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}

@@ -108,8 +108,11 @@ func (l *Lbank) SetDefaults() {
 			},
 		},
 	}
-	l.Requester = request.New(l.Name,
+	l.Requester, err = request.New(l.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 	l.API.Endpoints = l.NewEndpoints()
 	err = l.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot: lbankAPIURL,
@@ -336,8 +339,10 @@ func (l *Lbank) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 		}
 		acc.Currencies = append(acc.Currencies, account.Balance{
 			CurrencyName: c,
-			TotalValue:   totalVal,
-			Hold:         totalHold})
+			Total:        totalVal,
+			Hold:         totalHold,
+			Free:         totalVal - totalHold,
+		})
 	}
 
 	info.Accounts = append(info.Accounts, acc)

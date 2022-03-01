@@ -23,11 +23,11 @@ const (
 
 func pair(t *testing.T) *funding.Pair {
 	t.Helper()
-	b, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.Zero, decimal.Zero, false)
+	b, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.Zero, decimal.Zero)
 	if err != nil {
 		t.Fatal(err)
 	}
-	q, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, decimal.NewFromInt(1337), decimal.Zero, false)
+	q, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, decimal.NewFromInt(1337), decimal.Zero)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -91,11 +91,11 @@ func TestUpdateValue(t *testing.T) {
 
 func TestUpdateBuyStats(t *testing.T) {
 	t.Parallel()
-	b, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.NewFromInt(1), decimal.Zero, false)
+	b, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.NewFromInt(1), decimal.Zero)
 	if err != nil {
 		t.Fatal(err)
 	}
-	q, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, decimal.NewFromInt(100), decimal.Zero, false)
+	q, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, decimal.NewFromInt(100), decimal.Zero)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -222,11 +222,11 @@ func TestUpdateBuyStats(t *testing.T) {
 
 func TestUpdateSellStats(t *testing.T) {
 	t.Parallel()
-	b, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.NewFromInt(1), decimal.Zero, false)
+	b, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.NewFromInt(1), decimal.Zero)
 	if err != nil {
 		t.Fatal(err)
 	}
-	q, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, decimal.NewFromInt(100), decimal.Zero, false)
+	q, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, decimal.NewFromInt(100), decimal.Zero)
 	if err != nil {
 		t.Fatal(err)
 	}

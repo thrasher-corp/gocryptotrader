@@ -230,7 +230,7 @@ func TestUGetMarkPrice(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.UGetMarkPrice(context.Background(), currency.Pair{})
+	_, err = b.UGetMarkPrice(context.Background(), currency.EMPTYPAIR)
 	if err != nil {
 		t.Error(err)
 	}
@@ -254,7 +254,7 @@ func TestU24HTickerPriceChangeStats(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.U24HTickerPriceChangeStats(context.Background(), currency.Pair{})
+	_, err = b.U24HTickerPriceChangeStats(context.Background(), currency.EMPTYPAIR)
 	if err != nil {
 		t.Error(err)
 	}
@@ -266,7 +266,7 @@ func TestUSymbolPriceTicker(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.USymbolPriceTicker(context.Background(), currency.Pair{})
+	_, err = b.USymbolPriceTicker(context.Background(), currency.EMPTYPAIR)
 	if err != nil {
 		t.Error(err)
 	}
@@ -278,7 +278,7 @@ func TestUSymbolOrderbookTicker(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.USymbolOrderbookTicker(context.Background(), currency.Pair{})
+	_, err = b.USymbolOrderbookTicker(context.Background(), currency.EMPTYPAIR)
 	if err != nil {
 		t.Error(err)
 	}
@@ -370,7 +370,7 @@ func TestUCompositeIndexInfo(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.UCompositeIndexInfo(context.Background(), currency.Pair{})
+	_, err = b.UCompositeIndexInfo(context.Background(), currency.EMPTYPAIR)
 	if err != nil {
 		t.Error(err)
 	}
@@ -489,7 +489,7 @@ func TestUAllAccountOrders(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
-	_, err := b.UAllAccountOrders(context.Background(), currency.Pair{}, 0, 0, time.Time{}, time.Time{})
+	_, err := b.UAllAccountOrders(context.Background(), currency.EMPTYPAIR, 0, 0, time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
 	}
@@ -592,7 +592,7 @@ func TestUAccountIncomeHistory(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
-	_, err := b.UAccountIncomeHistory(context.Background(), currency.Pair{}, "", 5, time.Now().Add(-time.Hour*48), time.Now())
+	_, err := b.UAccountIncomeHistory(context.Background(), currency.EMPTYPAIR, "", 5, time.Now().Add(-time.Hour*48), time.Now())
 	if err != nil {
 		t.Error(err)
 	}
@@ -764,7 +764,7 @@ func TestGetFuturesSwapTickerChangeStats(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.GetFuturesSwapTickerChangeStats(context.Background(), currency.Pair{}, "")
+	_, err = b.GetFuturesSwapTickerChangeStats(context.Background(), currency.EMPTYPAIR, "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -810,7 +810,7 @@ func TestGetFuturesSymbolPriceTicker(t *testing.T) {
 
 func TestGetFuturesOrderbookTicker(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetFuturesOrderbookTicker(context.Background(), currency.Pair{}, "")
+	_, err := b.GetFuturesOrderbookTicker(context.Background(), currency.EMPTYPAIR, "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -822,7 +822,7 @@ func TestGetFuturesOrderbookTicker(t *testing.T) {
 
 func TestGetFuturesLiquidationOrders(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetFuturesLiquidationOrders(context.Background(), currency.Pair{}, "", 0, time.Time{}, time.Time{})
+	_, err := b.GetFuturesLiquidationOrders(context.Background(), currency.EMPTYPAIR, "", 0, time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
 	}
@@ -1124,7 +1124,7 @@ func TestFuturesIncomeHistory(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
-	_, err := b.FuturesIncomeHistory(context.Background(), currency.Pair{}, "TRANSFER", time.Time{}, time.Time{}, 5)
+	_, err := b.FuturesIncomeHistory(context.Background(), currency.EMPTYPAIR, "TRANSFER", time.Time{}, time.Time{}, 5)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1135,7 +1135,7 @@ func TestFuturesForceOrders(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
-	_, err := b.FuturesForceOrders(context.Background(), currency.Pair{}, "ADL", time.Time{}, time.Time{})
+	_, err := b.FuturesForceOrders(context.Background(), currency.EMPTYPAIR, "ADL", time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
 	}
@@ -1161,7 +1161,7 @@ func TestFuturesPositionsADLEstimate(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
-	_, err := b.FuturesPositionsADLEstimate(context.Background(), currency.Pair{})
+	_, err := b.FuturesPositionsADLEstimate(context.Background(), currency.EMPTYPAIR)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1190,7 +1190,7 @@ func TestGetExchangeInfo(t *testing.T) {
 		t.Error(err)
 	}
 	if mockTests {
-		serverTime := time.Date(2021, 1, 27, 2, 43, 18, int(593*time.Millisecond), time.UTC)
+		serverTime := time.Date(2022, 2, 25, 3, 50, 40, int(601*time.Millisecond), time.UTC)
 		if !info.Servertime.Equal(serverTime) {
 			t.Errorf("Expected %v, got %v", serverTime, info.Servertime)
 		}
@@ -1341,7 +1341,7 @@ func TestOpenOrders(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	_, err := b.OpenOrders(context.Background(), currency.Pair{})
+	_, err := b.OpenOrders(context.Background(), currency.EMPTYPAIR)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2795,5 +2795,16 @@ func TestFormatUSDTMarginedFuturesPair(t *testing.T) {
 	resp = b.formatUSDTMarginedFuturesPair(currency.NewPair(currency.DOGE, currency.NewCode("1234567890")), pairFormat)
 	if resp.String() != "DOGE_1234567890" {
 		t.Errorf("received '%v' expected '%v'", resp.String(), "DOGE_1234567890")
+	}
+}
+
+func TestFetchSpotExchangeLimits(t *testing.T) {
+	t.Parallel()
+	limits, err := b.FetchSpotExchangeLimits(context.Background())
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', epected '%v'", err, nil)
+	}
+	if len(limits) == 0 {
+		t.Error("expected a response")
 	}
 }

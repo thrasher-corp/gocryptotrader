@@ -130,8 +130,11 @@ func (g *Gateio) SetDefaults() {
 			},
 		},
 	}
-	g.Requester = request.New(g.Name,
+	g.Requester, err = request.New(g.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 	g.API.Endpoints = g.NewEndpoints()
 	err = g.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:              gateioTradeURL,
@@ -351,8 +354,9 @@ func (g *Gateio) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 		for k := range resp.Result {
 			currData = append(currData, account.Balance{
 				CurrencyName: currency.NewCode(k),
-				TotalValue:   resp.Result[k].Available + resp.Result[k].Freeze,
+				Total:        resp.Result[k].Available + resp.Result[k].Freeze,
 				Hold:         resp.Result[k].Freeze,
+				Free:         resp.Result[k].Available,
 			})
 		}
 		info.Accounts = append(info.Accounts, account.SubAccount{
@@ -367,7 +371,8 @@ func (g *Gateio) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 		switch l := balance.Locked.(type) {
 		case map[string]interface{}:
 			for x := range l {
-				lockedF, err := strconv.ParseFloat(l[x].(string), 64)
+				var lockedF float64
+				lockedF, err = strconv.ParseFloat(l[x].(string), 64)
 				if err != nil {
 					return info, err
 				}
@@ -384,23 +389,27 @@ func (g *Gateio) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 		switch v := balance.Available.(type) {
 		case map[string]interface{}:
 			for x := range v {
-				availAmount, err := strconv.ParseFloat(v[x].(string), 64)
+				var availAmount float64
+				availAmount, err = strconv.ParseFloat(v[x].(string), 64)
 				if err != nil {
 					return info, err
 				}
 
 				var updated bool
 				for i := range balances {
-					if balances[i].CurrencyName == currency.NewCode(x) {
-						balances[i].TotalValue = balances[i].Hold + availAmount
-						updated = true
-						break
+					if !balances[i].CurrencyName.Equal(currency.NewCode(x)) {
+						continue
 					}
+					balances[i].Total = balances[i].Hold + availAmount
+					balances[i].Free = availAmount
+					balances[i].AvailableWithoutBorrow = availAmount
+					updated = true
+					break
 				}
 				if !updated {
 					balances = append(balances, account.Balance{
 						CurrencyName: currency.NewCode(x),
-						TotalValue:   availAmount,
+						Total:        availAmount,
 					})
 				}
 			}

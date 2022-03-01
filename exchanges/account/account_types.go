@@ -1,6 +1,7 @@
 package account
 
 import (
+	"errors"
 	"sync"
 
 	"github.com/gofrs/uuid"
@@ -11,7 +12,8 @@ import (
 
 // Vars for the ticker package
 var (
-	service *Service
+	service                 *Service
+	errAccountBalancesIsNil = errors.New("account balances is nil")
 )
 
 // Service holds ticker information for each individual exchange
@@ -43,9 +45,12 @@ type SubAccount struct {
 
 // Balance is a sub type to store currency name and individual totals
 type Balance struct {
-	CurrencyName currency.Code
-	TotalValue   float64
-	Hold         float64
+	CurrencyName           currency.Code
+	Total                  float64
+	Hold                   float64
+	Free                   float64
+	AvailableWithoutBorrow float64
+	Borrowed               float64
 }
 
 // Change defines incoming balance change on currency holdings

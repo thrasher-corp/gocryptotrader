@@ -86,7 +86,7 @@ type Config struct {
 	Profiler             Profiler                  `json:"profiler"`
 	NTPClient            NTPClientConfig           `json:"ntpclient"`
 	GCTScript            gctscript.Config          `json:"gctscript"`
-	Currency             CurrencyConfig            `json:"currencyConfig"`
+	Currency             currency.Config           `json:"currencyConfig"`
 	Communications       base.CommunicationsConfig `json:"communications"`
 	RemoteControl        RemoteControlConfig       `json:"remoteControl"`
 	Portfolio            portfolio.Base            `json:"portfolioAddresses"`
@@ -94,11 +94,11 @@ type Config struct {
 	BankAccounts         []banking.Account         `json:"bankAccounts"`
 
 	// Deprecated config settings, will be removed at a future date
-	Webserver           *WebserverConfig          `json:"webserver,omitempty"`
-	CurrencyPairFormat  *CurrencyPairFormatConfig `json:"currencyPairFormat,omitempty"`
-	FiatDisplayCurrency *currency.Code            `json:"fiatDispayCurrency,omitempty"`
-	Cryptocurrencies    *currency.Currencies      `json:"cryptocurrencies,omitempty"`
-	SMS                 *base.SMSGlobalConfig     `json:"smsGlobal,omitempty"`
+	Webserver           *WebserverConfig      `json:"webserver,omitempty"`
+	CurrencyPairFormat  *currency.PairFormat  `json:"currencyPairFormat,omitempty"`
+	FiatDisplayCurrency *currency.Code        `json:"fiatDispayCurrency,omitempty"`
+	Cryptocurrencies    *currency.Currencies  `json:"cryptocurrencies,omitempty"`
+	SMS                 *base.SMSGlobalConfig `json:"smsGlobal,omitempty"`
 	// encryption session values
 	storedSalt []byte
 	sessionDK  []byte
@@ -247,26 +247,6 @@ type BankTransaction struct {
 	ReferenceNumber     string `json:"referenceNumber"`
 	TransactionNumber   string `json:"transactionNumber"`
 	PaymentInstructions string `json:"paymentInstructions"`
-}
-
-// CurrencyConfig holds all the information needed for currency related manipulation
-type CurrencyConfig struct {
-	ForexProviders                []currency.FXSettings     `json:"forexProviders"`
-	CryptocurrencyProvider        CryptocurrencyProvider    `json:"cryptocurrencyProvider"`
-	Cryptocurrencies              currency.Currencies       `json:"cryptocurrencies"`
-	CurrencyPairFormat            *CurrencyPairFormatConfig `json:"currencyPairFormat"`
-	FiatDisplayCurrency           currency.Code             `json:"fiatDisplayCurrency"`
-	CurrencyFileUpdateDuration    time.Duration             `json:"currencyFileUpdateDuration"`
-	ForeignExchangeUpdateDuration time.Duration             `json:"foreignExchangeUpdateDuration"`
-}
-
-// CryptocurrencyProvider defines coinmarketcap tools
-type CryptocurrencyProvider struct {
-	Name        string `json:"name"`
-	Enabled     bool   `json:"enabled"`
-	Verbose     bool   `json:"verbose"`
-	APIkey      string `json:"apiKey"`
-	AccountPlan string `json:"accountPlan"`
 }
 
 // FeaturesSupportedConfig stores the exchanges supported features

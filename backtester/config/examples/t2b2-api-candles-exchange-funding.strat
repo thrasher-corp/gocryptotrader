@@ -11,16 +11,14 @@
     "asset": "spot",
     "currency": "BTC",
     "initial-funds": "3",
-    "transfer-fee": "0",
-    "collateral": false
+    "transfer-fee": "0"
    },
    {
     "exchange-name": "ftx",
     "asset": "spot",
     "currency": "USDT",
     "initial-funds": "10000",
-    "transfer-fee": "0",
-    "collateral": false
+    "transfer-fee": "0"
    }
   ],
   "disable-usd-tracking": false,

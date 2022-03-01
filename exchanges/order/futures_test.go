@@ -597,11 +597,11 @@ func TestClearPositionsForExchange(t *testing.T) {
 
 func TestCalculateRealisedPNL(t *testing.T) {
 	t.Parallel()
-	result := CalculateRealisedPNL(nil)
+	result := calculateRealisedPNL(nil)
 	if !result.IsZero() {
 		t.Error("expected zero")
 	}
-	result = CalculateRealisedPNL([]PNLResult{
+	result = calculateRealisedPNL([]PNLResult{
 		{
 			RealisedPNLBeforeFees: decimal.NewFromInt(1337),
 		},
@@ -610,7 +610,7 @@ func TestCalculateRealisedPNL(t *testing.T) {
 		t.Error("expected 1337")
 	}
 
-	result = CalculateRealisedPNL([]PNLResult{
+	result = calculateRealisedPNL([]PNLResult{
 		{
 			RealisedPNLBeforeFees: decimal.NewFromInt(1339),
 			Fee:                   decimal.NewFromInt(2),
@@ -670,12 +670,12 @@ func TestSetupPositionTracker(t *testing.T) {
 		Pair:  cp,
 	})
 	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v", err, nil)
+		t.Fatalf("received '%v' expected '%v", err, nil)
 	}
-	if p == nil {
+	if p == nil { //nolint:staticcheck,nolintlint // SA5011 Ignore the nil warnings
 		t.Fatal("expected not nil")
 	}
-	if p.exchange != testExchange {
+	if p.exchange != testExchange { //nolint:staticcheck,nolintlint // SA5011 Ignore the nil warnings
 		t.Error("expected test")
 	}
 

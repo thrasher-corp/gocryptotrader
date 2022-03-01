@@ -30,6 +30,8 @@ var (
 	ErrNotFuturesAsset = errors.New("asset type is not futures")
 	// ErrUSDValueRequired returned when usd value unset
 	ErrUSDValueRequired = errors.New("USD value required")
+	// ErrOfflineCalculationSet is raised when collateral calculation is set to be offline, yet is attempted online
+	ErrOfflineCalculationSet = errors.New("offline calculation set")
 	// ErrNotFutureAsset
 	ErrNotFutureAsset = errors.New("not a futures asset")
 
@@ -57,26 +59,67 @@ type PNLCalculation interface {
 // on an exchange
 type CollateralManagement interface {
 	GetCollateralCurrencyForContract(asset.Item, currency.Pair) (currency.Code, error)
-	ScaleCollateral(context.Context, string, *CollateralCalculator) (decimal.Decimal, error)
-	CalculateTotalCollateral(ctx context.Context, subAccount string, calculateOffline bool, collaterals []CollateralCalculator) (*TotalCollateralResponse, error)
+	ScaleCollateral(ctx context.Context, subAccount string, calculator *CollateralCalculator) (*CollateralByCurrency, error)
+	CalculateTotalCollateral(context.Context, *TotalCollateralCalculator) (*TotalCollateralResponse, error)
 }
 
 // TotalCollateralResponse holds all collateral
 type TotalCollateralResponse struct {
-	TotalCollateral     decimal.Decimal
-	BreakdownByCurrency []CollateralByCurrency
+	CollateralCurrency                          currency.Code
+	TotalValueOfPositiveSpotBalances            decimal.Decimal
+	CollateralContributedByPositiveSpotBalances decimal.Decimal
+	UsedCollateral                              decimal.Decimal
+	UsedBreakdown                               *UsedCollateralBreakdown
+	AvailableCollateral                         decimal.Decimal
+	AvailableMaintenanceCollateral              decimal.Decimal
+	UnrealisedPNL                               decimal.Decimal
+	BreakdownByCurrency                         []CollateralByCurrency
+	BreakdownOfPositions                        []CollateralByPosition
+}
+
+// CollateralByPosition shows how much collateral is used
+// from positions
+type CollateralByPosition struct {
+	PositionCurrency currency.Pair
+	Size             decimal.Decimal
+	OpenOrderSize    decimal.Decimal
+	PositionSize     decimal.Decimal
+	MarkPrice        decimal.Decimal
+	RequiredMargin   decimal.Decimal
+	CollateralUsed   decimal.Decimal
 }
 
 // CollateralByCurrency individual collateral contribution
 // along with what the potentially scaled collateral
 // currency it is represented as
-// eg in FTX ValueCurrency is USD
+// eg in FTX ScaledCurrency is USD
 type CollateralByCurrency struct {
-	Currency      currency.Code
-	OriginalValue decimal.Decimal
-	ScaledValue   decimal.Decimal
-	ValueCurrency currency.Code
-	Error         error
+	Currency                    currency.Code
+	SkipContribution            bool
+	TotalFunds                  decimal.Decimal
+	AvailableForUseAsCollateral decimal.Decimal
+	CollateralContribution      decimal.Decimal
+	AdditionalCollateralUsed    decimal.Decimal
+	FairMarketValue             decimal.Decimal
+	Weighting                   decimal.Decimal
+	ScaledCurrency              currency.Code
+	UnrealisedPNL               decimal.Decimal
+	ScaledUsed                  decimal.Decimal
+	ScaledUsedBreakdown         *UsedCollateralBreakdown
+	Error                       error
+}
+
+// UsedCollateralBreakdown provides a detailed
+// breakdown of where collateral is currently being allocated
+type UsedCollateralBreakdown struct {
+	LockedInStakes                  decimal.Decimal
+	LockedInNFTBids                 decimal.Decimal
+	LockedInFeeVoucher              decimal.Decimal
+	LockedInSpotMarginFundingOffers decimal.Decimal
+	LockedInSpotOrders              decimal.Decimal
+	LockedAsCollateral              decimal.Decimal
+	UsedInPositions                 decimal.Decimal
+	UsedInSpotMarginBorrows         decimal.Decimal
 }
 
 // PositionController manages all futures orders
@@ -136,7 +179,6 @@ type PositionTracker struct {
 	exposure              decimal.Decimal
 	currentDirection      Side
 	openingDirection      Side
-	entryAmount           decimal.Decimal
 	status                Status
 	unrealisedPNL         decimal.Decimal
 	realisedPNL           decimal.Decimal
@@ -156,11 +198,19 @@ type PositionTracker struct {
 type PositionTrackerSetup struct {
 	Pair                      currency.Pair
 	EntryPrice                decimal.Decimal
-	EntryAmount               decimal.Decimal
 	Underlying                currency.Code
 	Asset                     asset.Item
 	Side                      Side
 	UseExchangePNLCalculation bool
+}
+
+// TotalCollateralCalculator holds many collateral calculators
+// to calculate total collateral standing with one struct
+type TotalCollateralCalculator struct {
+	SubAccount       string
+	CollateralAssets []CollateralCalculator
+	CalculateOffline bool
+	FetchPositions   bool
 }
 
 // CollateralCalculator is used to determine
@@ -172,9 +222,12 @@ type CollateralCalculator struct {
 	CollateralCurrency currency.Code
 	Asset              asset.Item
 	Side               Side
-	CollateralAmount   decimal.Decimal
-	CollateralPrice    decimal.Decimal
+	USDPrice           decimal.Decimal
 	IsLiquidating      bool
+	IsForNewPosition   bool
+	FreeCollateral     decimal.Decimal
+	LockedCollateral   decimal.Decimal
+	UnrealisedPNL      decimal.Decimal
 }
 
 // PNLCalculator implements the PNLCalculation interface
@@ -219,21 +272,18 @@ type PNLResult struct {
 // PositionStats is a basic holder
 // for position information
 type PositionStats struct {
-	Exchange      string
-	Asset         asset.Item
-	Pair          currency.Pair
-	Underlying    currency.Code
-	Orders        []Detail
-	RealisedPNL   decimal.Decimal
-	UnrealisedPNL decimal.Decimal
-	Status        Status
-	Direction     Side
-	Price         decimal.Decimal
-	Exposure      decimal.Decimal
-
+	Exchange         string
+	Asset            asset.Item
+	Pair             currency.Pair
+	Underlying       currency.Code
+	Orders           []Detail
+	RealisedPNL      decimal.Decimal
+	UnrealisedPNL    decimal.Decimal
+	Exposure         decimal.Decimal
+	LatestDirection  Side
+	Status           Status
 	OpeningDirection Side
-	EntryAmount      decimal.Decimal
-	EntryPrice       decimal.Decimal
-
-	PNLHistory []PNLResult
+	OpeningPrice     decimal.Decimal
+	LatestPrice      decimal.Decimal
+	PNLHistory       []PNLResult
 }

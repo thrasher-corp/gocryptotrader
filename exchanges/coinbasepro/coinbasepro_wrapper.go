@@ -130,9 +130,12 @@ func (c *CoinbasePro) SetDefaults() {
 		},
 	}
 
-	c.Requester = request.New(c.Name,
+	c.Requester, err = request.New(c.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 	c.API.Endpoints = c.NewEndpoints()
 	err = c.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:      coinbaseproAPIURL,
@@ -325,19 +328,23 @@ func (c *CoinbasePro) UpdateAccountInfo(ctx context.Context, assetType asset.Ite
 		return response, err
 	}
 
-	var currencies []account.Balance
+	accountCurrencies := make(map[string][]account.Balance)
 	for i := range accountBalance {
-		var exchangeCurrency account.Balance
-		exchangeCurrency.CurrencyName = currency.NewCode(accountBalance[i].Currency)
-		exchangeCurrency.TotalValue = accountBalance[i].Available
-		exchangeCurrency.Hold = accountBalance[i].Hold
-
-		currencies = append(currencies, exchangeCurrency)
+		profileID := accountBalance[i].ProfileID
+		currencies := accountCurrencies[profileID]
+		accountCurrencies[profileID] = append(currencies, account.Balance{
+			CurrencyName:           currency.NewCode(accountBalance[i].Currency),
+			Total:                  accountBalance[i].Balance,
+			Hold:                   accountBalance[i].Hold,
+			Free:                   accountBalance[i].Available,
+			AvailableWithoutBorrow: accountBalance[i].Available - accountBalance[i].FundedAmount,
+			Borrowed:               accountBalance[i].FundedAmount,
+		})
 	}
 
-	response.Accounts = append(response.Accounts, account.SubAccount{
-		Currencies: currencies,
-	})
+	if response.Accounts, err = account.CollectBalances(accountCurrencies, assetType); err != nil {
+		return account.Holdings{}, err
+	}
 
 	err = account.Process(&response)
 	if err != nil {

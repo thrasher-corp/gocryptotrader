@@ -133,9 +133,12 @@ func (p *Poloniex) SetDefaults() {
 		},
 	}
 
-	p.Requester = request.New(p.Name,
+	p.Requester, err = request.New(p.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 	p.API.Endpoints = p.NewEndpoints()
 	err = p.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:      poloniexAPIURL,
@@ -408,10 +411,10 @@ func (p *Poloniex) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 
 	var currencies []account.Balance
 	for x, y := range accountBalance.Currency {
-		var exchangeCurrency account.Balance
-		exchangeCurrency.CurrencyName = currency.NewCode(x)
-		exchangeCurrency.TotalValue = y
-		currencies = append(currencies, exchangeCurrency)
+		currencies = append(currencies, account.Balance{
+			CurrencyName: currency.NewCode(x),
+			Total:        y,
+		})
 	}
 
 	response.Accounts = append(response.Accounts, account.SubAccount{

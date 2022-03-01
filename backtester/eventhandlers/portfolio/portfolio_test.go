@@ -264,11 +264,11 @@ func TestUpdate(t *testing.T) {
 	if !errors.Is(err, funding.ErrFundsNotFound) {
 		t.Errorf("received '%v' expected '%v'", err, funding.ErrFundsNotFound)
 	}
-	b, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.NewFromInt(1), decimal.Zero, false)
+	b, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.NewFromInt(1), decimal.Zero)
 	if err != nil {
 		t.Fatal(err)
 	}
-	q, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, decimal.NewFromInt(100), decimal.Zero, false)
+	q, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, decimal.NewFromInt(100), decimal.Zero)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -315,7 +315,7 @@ func TestUpdate(t *testing.T) {
 func TestGetFee(t *testing.T) {
 	t.Parallel()
 	p := Portfolio{}
-	f := p.GetFee("", "", currency.Pair{})
+	f := p.GetFee("", "", currency.EMPTYPAIR)
 	if !f.IsZero() {
 		t.Error("expected 0")
 	}
@@ -337,7 +337,7 @@ func TestGetFee(t *testing.T) {
 func TestGetComplianceManager(t *testing.T) {
 	t.Parallel()
 	p := Portfolio{}
-	_, err := p.GetComplianceManager("", "", currency.Pair{})
+	_, err := p.GetComplianceManager("", "", currency.EMPTYPAIR)
 	if !errors.Is(err, errNoPortfolioSettings) {
 		t.Errorf("received: %v, expected: %v", err, errNoPortfolioSettings)
 	}
@@ -426,11 +426,11 @@ func TestOnFill(t *testing.T) {
 		t.Error(err)
 	}
 
-	b, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.NewFromInt(1), decimal.Zero, false)
+	b, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.NewFromInt(1), decimal.Zero)
 	if err != nil {
 		t.Fatal(err)
 	}
-	q, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, decimal.NewFromInt(100), decimal.Zero, false)
+	q, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, decimal.NewFromInt(100), decimal.Zero)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -476,11 +476,11 @@ func TestOnSignal(t *testing.T) {
 	if !errors.Is(err, funding.ErrFundsNotFound) {
 		t.Errorf("received: %v, expected: %v", err, funding.ErrFundsNotFound)
 	}
-	b, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.NewFromInt(1337), decimal.Zero, false)
+	b, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.NewFromInt(1337), decimal.Zero)
 	if err != nil {
 		t.Fatal(err)
 	}
-	q, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, decimal.NewFromInt(1337), decimal.Zero, false)
+	q, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, decimal.NewFromInt(1337), decimal.Zero)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -711,7 +711,7 @@ func TestGetLatestSnapshot(t *testing.T) {
 func TestCalculatePNL(t *testing.T) {
 	p := &Portfolio{}
 	ev := &kline.Kline{}
-	err := p.UpdatePNL(ev)
+	err := p.UpdatePNL(ev, decimal.Zero)
 	if !errors.Is(err, gctorder.ErrNotFutureAsset) {
 		t.Errorf("received: %v, expected: %v", err, gctorder.ErrNotFutureAsset)
 	}
@@ -736,7 +736,7 @@ func TestCalculatePNL(t *testing.T) {
 	ev.CurrencyPair = pair
 	ev.Time = tt0
 
-	err = p.UpdatePNL(ev)
+	err = p.UpdatePNL(ev, decimal.Zero)
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
@@ -784,7 +784,7 @@ func TestCalculatePNL(t *testing.T) {
 			},
 		},
 	}, false)
-	err = p.UpdatePNL(ev)
+	err = p.UpdatePNL(ev, decimal.Zero)
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}

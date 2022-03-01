@@ -35,11 +35,11 @@ func CalculateFundingStatistics(funds funding.IFundingManager, currStats map[str
 		}
 		var relevantStats []relatedCurrencyPairStatistics
 		for k, v := range exchangeAssetStats {
-			if k.Base == report.Items[i].Currency {
+			if k.Base.Equal(report.Items[i].Currency) {
 				relevantStats = append(relevantStats, relatedCurrencyPairStatistics{isBaseCurrency: true, stat: v})
 				continue
 			}
-			if k.Quote == report.Items[i].Currency {
+			if k.Quote.Equal(report.Items[i].Currency) {
 				relevantStats = append(relevantStats, relatedCurrencyPairStatistics{stat: v})
 			}
 		}

@@ -68,7 +68,7 @@ However, we welcome pull requests for any exchange which does not match this cri
 + Connection monitor package.
 + gRPC service and JSON RPC proxy. See [gRPC service](/gctrpc/README.md).
 + gRPC client. See [gctcli](/cmd/gctcli/README.md).
-+ Forex currency converter packages (CurrencyConverterAPI, CurrencyLayer, Fixer.io, OpenExchangeRates).
++ Forex currency converter packages (CurrencyConverterAPI, CurrencyLayer, Exchange Rates, Fixer.io, OpenExchangeRates, Exchange Rate Host).
 + Packages for handling currency pairs, tickers and orderbooks.
 + Portfolio management tool; fetches balances from supported exchanges and allows for custom address tracking.
 + Basic event trigger system.
@@ -144,7 +144,7 @@ Binaries will be published once the codebase reaches a stable condition.
 |User|Contribution Amount|
 |--|--|
 | [thrasher-](https://github.com/thrasher-) | 664 |
-| [shazbert](https://github.com/shazbert) | 234 |
+| [shazbert](https://github.com/shazbert) | 232 |
 | [gloriousCode](https://github.com/gloriousCode) | 194 |
 | [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 88 |
 | [dependabot[bot]](https://github.com/apps/dependabot) | 57 |
@@ -160,7 +160,7 @@ Binaries will be published once the codebase reaches a stable condition.
 | [marcofranssen](https://github.com/marcofranssen) | 8 |
 | [dackroyd](https://github.com/dackroyd) | 5 |
 | [cranktakular](https://github.com/cranktakular) | 5 |
-| [khcchiu](https://github.com/khcchiu) | 5 |
+| [khcchiu](https://github.com/khcchiu) | 4 |
 | [woshidama323](https://github.com/woshidama323) | 3 |
 | [yangrq1018](https://github.com/yangrq1018) | 3 |
 | [TaltaM](https://github.com/TaltaM) | 3 |

@@ -158,17 +158,17 @@ func (s *Strategy) SetCustomSettings(customSettings map[string]interface{}) erro
 	for k, v := range customSettings {
 		switch k {
 		case openShortDistancePercentageString:
-			rsiHigh, ok := v.(float64)
-			if !ok || rsiHigh <= 0 {
+			osdp, ok := v.(float64)
+			if !ok || osdp <= 0 {
 				return fmt.Errorf("%w provided rsi-high value could not be parsed: %v", base.ErrInvalidCustomSettings, v)
 			}
-			s.openShortDistancePercentage = decimal.NewFromFloat(rsiHigh)
+			s.openShortDistancePercentage = decimal.NewFromFloat(osdp)
 		case closeShortDistancePercentageString:
-			rsiLow, ok := v.(float64)
-			if !ok || rsiLow <= 0 {
+			csdp, ok := v.(float64)
+			if !ok || csdp <= 0 {
 				return fmt.Errorf("%w provided rsi-low value could not be parsed: %v", base.ErrInvalidCustomSettings, v)
 			}
-			s.closeShortDistancePercentage = decimal.NewFromFloat(rsiLow)
+			s.closeShortDistancePercentage = decimal.NewFromFloat(csdp)
 		default:
 			return fmt.Errorf("%w unrecognised custom setting key %v with value %v. Cannot apply", base.ErrInvalidCustomSettings, k, v)
 		}
@@ -179,6 +179,6 @@ func (s *Strategy) SetCustomSettings(customSettings map[string]interface{}) erro
 
 // SetDefaults not required for DCA
 func (s *Strategy) SetDefaults() {
-	s.closeShortDistancePercentage = decimal.NewFromInt(5)
+	s.openShortDistancePercentage = decimal.NewFromInt(5)
 	s.closeShortDistancePercentage = decimal.NewFromInt(5)
 }

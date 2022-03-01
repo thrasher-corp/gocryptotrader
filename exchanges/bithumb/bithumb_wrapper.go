@@ -129,9 +129,12 @@ func (b *Bithumb) SetDefaults() {
 			},
 		},
 	}
-	b.Requester = request.New(b.Name,
+	b.Requester, err = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 	b.API.Endpoints = b.NewEndpoints()
 	err = b.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:      apiURL,
@@ -373,10 +376,16 @@ func (b *Bithumb) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 				key)
 		}
 
+		avail, ok := bal.Available[key]
+		if !ok {
+			avail = totalAmount - hold
+		}
+
 		exchangeBalances = append(exchangeBalances, account.Balance{
 			CurrencyName: currency.NewCode(key),
-			TotalValue:   totalAmount,
+			Total:        totalAmount,
 			Hold:         hold,
+			Free:         avail,
 		})
 	}
 

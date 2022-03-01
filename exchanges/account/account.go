@@ -16,6 +16,29 @@ func init() {
 	service.mux = dispatch.GetNewMux()
 }
 
+// CollectBalances converts a map of sub-account balances into a slice
+func CollectBalances(accountBalances map[string][]Balance, assetType asset.Item) (accounts []SubAccount, err error) {
+	if accountBalances == nil {
+		return nil, errAccountBalancesIsNil
+	}
+
+	if !assetType.IsValid() {
+		return nil, fmt.Errorf("%s, %w", assetType, asset.ErrNotSupported)
+	}
+
+	accounts = make([]SubAccount, len(accountBalances))
+	i := 0
+	for accountID, balances := range accountBalances {
+		accounts[i] = SubAccount{
+			ID:         accountID,
+			AssetType:  assetType,
+			Currencies: balances,
+		}
+		i++
+	}
+	return
+}
+
 // SubscribeToExchangeAccount subcribes to your exchange account
 func SubscribeToExchangeAccount(exchange string) (dispatch.Pipe, error) {
 	exchange = strings.ToLower(exchange)
@@ -92,10 +115,4 @@ func (s *Service) Update(a *Holdings) error {
 	defer s.Unlock()
 
 	return s.mux.Publish([]uuid.UUID{acc.ID}, acc.h)
-}
-
-// Available returns the amount you can use immediately.  E.g. if you have $100, but $20
-// are held (locked) because of a limit buy order, your available balance is $80.
-func (b Balance) Available() float64 {
-	return b.TotalValue - b.Hold
 }

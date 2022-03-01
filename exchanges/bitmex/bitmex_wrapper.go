@@ -124,9 +124,12 @@ func (b *Bitmex) SetDefaults() {
 		},
 	}
 
-	b.Requester = request.New(b.Name,
+	b.Requester, err = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 	b.API.Endpoints = b.NewEndpoints()
 	err = b.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:      bitmexAPIURL,
@@ -423,28 +426,28 @@ func (b *Bitmex) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 		return info, err
 	}
 
-	var accountID string
-	var balances []account.Balance
+	accountBalances := make(map[string][]account.Balance)
 	// Need to update to add Margin/Liquidity availability
 	for i := range userMargins {
-		accountID = strconv.FormatInt(userMargins[i].Account, 10)
+		accountID := strconv.FormatInt(userMargins[i].Account, 10)
 
-		wallet, err := b.GetWalletInfo(ctx, userMargins[i].Currency)
+		var wallet WalletInfo
+		wallet, err = b.GetWalletInfo(ctx, userMargins[i].Currency)
 		if err != nil {
 			continue
 		}
 
-		balances = append(balances, account.Balance{
-			CurrencyName: currency.NewCode(wallet.Currency),
-			TotalValue:   wallet.Amount,
-		})
+		accountBalances[accountID] = append(
+			accountBalances[accountID], account.Balance{
+				CurrencyName: currency.NewCode(wallet.Currency),
+				Total:        wallet.Amount,
+			},
+		)
 	}
 
-	info.Accounts = append(info.Accounts,
-		account.SubAccount{
-			ID:         accountID,
-			Currencies: balances,
-		})
+	if info.Accounts, err = account.CollectBalances(accountBalances, assetType); err != nil {
+		return account.Holdings{}, err
+	}
 	info.Exchange = b.Name
 
 	if err := account.Process(&info); err != nil {

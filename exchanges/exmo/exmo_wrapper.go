@@ -110,9 +110,12 @@ func (e *EXMO) SetDefaults() {
 		},
 	}
 
-	e.Requester = request.New(e.Name,
+	e.Requester, err = request.New(e.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(request.NewBasicRateLimit(exmoRateInterval, exmoRequestRate)))
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 	e.API.Endpoints = e.NewEndpoints()
 	err = e.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot: exmoAPIURL,
@@ -354,12 +357,21 @@ func (e *EXMO) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (acc
 		var exchangeCurrency account.Balance
 		exchangeCurrency.CurrencyName = currency.NewCode(x)
 		for z, w := range result.Reserved {
-			if z == x {
-				avail, _ := strconv.ParseFloat(y, 64)
-				reserved, _ := strconv.ParseFloat(w, 64)
-				exchangeCurrency.TotalValue = avail + reserved
-				exchangeCurrency.Hold = reserved
+			if z != x {
+				continue
 			}
+			var avail, reserved float64
+			avail, err = strconv.ParseFloat(y, 64)
+			if err != nil {
+				return response, err
+			}
+			reserved, err = strconv.ParseFloat(w, 64)
+			if err != nil {
+				return response, err
+			}
+			exchangeCurrency.Total = avail + reserved
+			exchangeCurrency.Hold = reserved
+			exchangeCurrency.Free = avail
 		}
 		currencies = append(currencies, exchangeCurrency)
 	}

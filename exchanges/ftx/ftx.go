@@ -10,6 +10,7 @@ import (
 	"math"
 	"net/http"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -57,6 +58,7 @@ const (
 	getDepositHistory        = "/wallet/deposits"
 	getWithdrawalHistory     = "/wallet/withdrawals"
 	withdrawRequest          = "/wallet/withdrawals"
+	collateral               = "/wallet/collateral"
 	getOpenOrders            = "/orders"
 	getOrderHistory          = "/orders/history"
 	getOpenTriggerOrders     = "/conditional_orders"
@@ -540,11 +542,19 @@ func (f *FTX) GetCoins(ctx context.Context, subAccount string) ([]WalletCoinsDat
 }
 
 // GetBalances gets balances of the account
-func (f *FTX) GetBalances(ctx context.Context, subAccount string) ([]WalletBalance, error) {
+func (f *FTX) GetBalances(ctx context.Context, subAccount string, includeLockedBreakdown, includeFreeIgnoringCollateral bool) ([]WalletBalance, error) {
 	resp := struct {
 		Data []WalletBalance `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, getBalances, subAccount, nil, &resp)
+	vals := url.Values{}
+	if includeLockedBreakdown {
+		vals.Set("includeLockedBreakdown", strconv.FormatBool(includeLockedBreakdown))
+	}
+	if includeFreeIgnoringCollateral {
+		vals.Set("includeFreeIgnoringCollateral", strconv.FormatBool(includeFreeIgnoringCollateral))
+	}
+	balanceURL := common.EncodeURLValues(getBalances, vals)
+	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, balanceURL, subAccount, nil, &resp)
 }
 
 // GetAllWalletBalances gets all wallets' balances
@@ -868,31 +878,59 @@ func (f *FTX) DeleteTriggerOrder(ctx context.Context, orderID string) (string, e
 	return f.deleteOrderByPath(ctx, cancelTriggerOrder+orderID)
 }
 
-// GetFills gets fills' data
-func (f *FTX) GetFills(ctx context.Context, market currency.Pair, item asset.Item, limit string, startTime, endTime time.Time) ([]FillsData, error) {
-	resp := struct {
-		Data []FillsData `json:"result"`
-	}{}
-	params := url.Values{}
-	if !market.IsEmpty() {
-		fp, err := f.FormatExchangeCurrency(market, item)
+// GetFills gets order fills data and ensures that all
+// fills are retrieved from the supplied timeframe
+func (f *FTX) GetFills(ctx context.Context, market currency.Pair, item asset.Item, startTime, endTime time.Time) ([]FillsData, error) {
+	var resp []FillsData
+	var nextEnd = endTime
+	limit := 200
+	for {
+		data := struct {
+			Data []FillsData `json:"result"`
+		}{}
+		params := url.Values{}
+		params.Add("limit", strconv.FormatInt(int64(limit), 10))
+		if !market.IsEmpty() {
+			fp, err := f.FormatExchangeCurrency(market, item)
+			if err != nil {
+				return nil, err
+			}
+			params.Set("market", fp.String())
+		}
+		if !startTime.IsZero() && !endTime.IsZero() {
+			if startTime.After(endTime) {
+				return data.Data, errStartTimeCannotBeAfterEndTime
+			}
+			params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
+			params.Set("end_time", strconv.FormatInt(nextEnd.Unix(), 10))
+		}
+		endpoint := common.EncodeURLValues(getFills, params)
+		err := f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, endpoint, "", nil, &data)
 		if err != nil {
 			return nil, err
 		}
-		params.Set("market", fp.String())
-	}
-	if limit != "" {
-		params.Set("limit", limit)
-	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		if startTime.After(endTime) {
-			return resp.Data, errStartTimeCannotBeAfterEndTime
+		if len(data.Data) == 0 ||
+			data.Data[len(data.Data)-1].Time.Equal(nextEnd) {
+			break
 		}
-		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
-		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
+	data:
+		for i := range data.Data {
+			for j := range resp {
+				if resp[j].ID == data.Data[i].ID {
+					continue data
+				}
+			}
+			resp = append(resp, data.Data[i])
+		}
+		if len(data.Data) < limit {
+			break
+		}
+		nextEnd = data.Data[len(data.Data)-1].Time
 	}
-	endpoint := common.EncodeURLValues(getFills, params)
-	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, endpoint, "", nil, &resp)
+	sort.Slice(resp, func(i, j int) bool {
+		return resp[i].Time.Before(resp[j].Time)
+	})
+	return resp, nil
 }
 
 // GetFundingPayments gets funding payments
@@ -1506,10 +1544,29 @@ func (f *FTX) FetchExchangeLimits(ctx context.Context) ([]order.MinMaxLevel, err
 	return limits, nil
 }
 
+// GetCollateral returns total collateral and the breakdown of
+// collateral contributions
+func (f *FTX) GetCollateral(ctx context.Context, maintenance bool) (*CollateralResponse, error) {
+	resp := struct {
+		Data CollateralResponse `json:"result"`
+	}{}
+	u := url.Values{}
+	if maintenance {
+		u.Add("marginType", "maintenance")
+	} else {
+		u.Add("marginType", "initial")
+	}
+	url := common.EncodeURLValues(collateral, u)
+	if err := f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, url, "", nil, &resp); err != nil {
+		return nil, err
+	}
+	return &resp.Data, nil
+}
+
 // LoadCollateralWeightings sets the collateral weights for
 // currencies supported by FTX
 func (f *FTX) LoadCollateralWeightings(ctx context.Context) error {
-	f.collateralWeight = make(map[string]CollateralWeight)
+	f.collateralWeight = make(map[*currency.Item]CollateralWeight)
 	// taken from https://help.ftx.com/hc/en-us/articles/360031149632-Non-USD-Collateral
 	// sets default, then uses the latest from FTX
 	f.collateralWeight.load("1INCH", 0.9, 0.85, 0.0005)
@@ -1670,19 +1727,22 @@ func (c CollateralWeightHolder) hasData() bool {
 }
 
 func (c CollateralWeightHolder) loadTotal(code string, weighting float64) {
-	currencyCollateral := c[code]
+	cc := currency.NewCode(code)
+	currencyCollateral := c[cc.Item]
 	currencyCollateral.Total = weighting
-	c[code] = currencyCollateral
+	c[cc.Item] = currencyCollateral
 }
 
 func (c CollateralWeightHolder) loadInitialMarginFraction(code string, imf float64) {
-	currencyCollateral := c[code]
+	cc := currency.NewCode(code)
+	currencyCollateral := c[cc.Item]
 	currencyCollateral.InitialMarginFractionFactor = imf
-	c[code] = currencyCollateral
+	c[cc.Item] = currencyCollateral
 }
 
 func (c CollateralWeightHolder) load(code string, total, initial, imfFactor float64) {
-	c[code] = CollateralWeight{
+	cc := currency.NewCode(code)
+	c[cc.Item] = CollateralWeight{
 		Total:                       total,
 		Initial:                     initial,
 		InitialMarginFractionFactor: imfFactor,

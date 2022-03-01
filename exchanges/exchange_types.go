@@ -219,7 +219,6 @@ type Base struct {
 	CurrencyPairs                 currency.PairsManager
 	Features                      Features
 	HTTPTimeout                   time.Duration
-	HTTPUserAgent                 string
 	HTTPRecording                 bool
 	HTTPDebugging                 bool
 	BypassConfigFormatUpgrades    bool

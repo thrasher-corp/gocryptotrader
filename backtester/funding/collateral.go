@@ -108,6 +108,20 @@ func (c *Collateral) GetPairReleaser() (IPairReleaser, error) {
 	return nil, fmt.Errorf("could not get pair releaser for %v %v %v %v %w", c.Contract.exchange, c.Collateral.asset, c.ContractCurrency(), c.CollateralCurrency(), ErrNotPair)
 }
 
+func (c *Collateral) Reserve(amount decimal.Decimal, side order.Side) error {
+	switch side {
+	case order.Long, order.Short:
+		return c.Collateral.Reserve(amount)
+	default:
+		return fmt.Errorf("%w for %v %v %v. Unknown side %v",
+			errCannotAllocate,
+			c.Collateral.exchange,
+			c.Collateral.asset,
+			c.Collateral.currency,
+			side)
+	}
+}
+
 // GetCollateralReleaser
 func (c *Collateral) GetCollateralReleaser() (ICollateralReleaser, error) {
 	return c, nil

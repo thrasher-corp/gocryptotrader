@@ -286,7 +286,19 @@ func TestGetBalances(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	_, err := f.GetBalances(context.Background(), subaccount)
+	_, err := f.GetBalances(context.Background(), subaccount, false, false)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = f.GetBalances(context.Background(), subaccount, true, false)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = f.GetBalances(context.Background(), subaccount, false, true)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = f.GetBalances(context.Background(), subaccount, true, true)
 	if err != nil {
 		t.Error(err)
 	}
@@ -739,24 +751,28 @@ func TestGetFills(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	// optional params
-	_, err := f.GetFills(context.Background(), spotPair, asset.Spot, "", time.Time{}, time.Time{})
-	if err != nil {
-		t.Error(err)
+	_, err := f.GetFills(context.Background(),
+		currency.Pair{}, asset.Futures, time.Now().Add(time.Hour*24*365), time.Now())
+	if !errors.Is(err, errStartTimeCannotBeAfterEndTime) {
+		t.Errorf("received '%v' expected '%v'", err, errStartTimeCannotBeAfterEndTime)
 	}
-	_, err = f.GetFills(context.Background(), spotPair, asset.Spot, "", time.Time{}, time.Time{})
-	if err != nil {
-		t.Error(err)
-	}
+
 	_, err = f.GetFills(context.Background(),
-		spotPair, asset.Spot, "", time.Unix(authStartTime, 0), time.Unix(authEndTime, 0))
-	if err != nil {
-		t.Error(err)
+		currency.Pair{}, asset.Futures, time.Time{}, time.Time{})
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
+
 	_, err = f.GetFills(context.Background(),
-		spotPair, asset.Spot, "", time.Unix(authEndTime, 0), time.Unix(authStartTime, 0))
-	if err != errStartTimeCannotBeAfterEndTime {
-		t.Errorf("should have thrown errStartTimeCannotBeAfterEndTime, got %v", err)
+		currency.Pair{}, asset.Futures, time.Now().Add(-time.Hour*24*365), time.Now())
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+
+	_, err = f.GetFills(context.Background(),
+		spotPair, asset.Spot, time.Now().Add(-time.Hour*24*365), time.Now())
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 }
 
@@ -1745,15 +1761,15 @@ func TestScaleCollateral(t *testing.T) {
 			Asset:              asset.Spot,
 			Side:               order.Buy,
 			CalculateOffline:   true,
-			CollateralAmount:   decimal.NewFromInt(100000),
+			FreeCollateral:     decimal.NewFromInt(100000),
 			USDPrice:           decimal.NewFromFloat(1.0003),
 		})
 	if err != nil {
 		t.Error(err)
 	}
-	expectedUSDValue := decimal.NewFromFloat(95028.5)
-	if !result.Equal(expectedUSDValue) {
-		t.Errorf("received %v expected %v", result, expectedUSDValue)
+	expectedUSDValue := decimal.NewFromFloat(97529.25)
+	if !result.CollateralContribution.Equal(expectedUSDValue) {
+		t.Errorf("received %v expected %v", result.CollateralContribution, expectedUSDValue)
 	}
 
 	if !areTestAPIKeysSet() {
@@ -1768,32 +1784,30 @@ func TestScaleCollateral(t *testing.T) {
 		t.Error(err)
 	}
 	localScaling := 0.0
-	liquidationScaling := 0.0
 	providedUSDValue := 0.0
 	for _, v := range walletInfo {
 		for v2 := range v {
 			coin := v[v2].Coin
-			if coin == "USD" {
+			if coin.Equal(currency.USD) {
 				localScaling += v[v2].Total
 				providedUSDValue += v[v2].USDValue
-				liquidationScaling += v[v2].Total
 				continue
 			}
 			var tick MarketData
-			tick, err = f.GetMarket(context.Background(), currency.NewPairWithDelimiter(coin, "usd", "/").String())
+			tick, err = f.GetMarket(context.Background(), currency.NewPairWithDelimiter(coin.String(), "usd", "/").String())
 			if err != nil {
-				t.Error(err)
+				// not all markets exist like this, skip
+				continue
 			}
-			var scaled decimal.Decimal
-			scaled, err = f.ScaleCollateral(
+			_, err = f.ScaleCollateral(
 				context.Background(),
 				"",
 				&order.CollateralCalculator{
-					CollateralCurrency: currency.NewCode(coin),
+					CollateralCurrency: coin,
 					Asset:              asset.Spot,
 					Side:               order.Buy,
-					CollateralAmount:   decimal.NewFromFloat(v[v2].Total),
-					CollateralPrice:    decimal.NewFromFloat(tick.Price),
+					FreeCollateral:     decimal.NewFromFloat(v[v2].Total),
+					USDPrice:           decimal.NewFromFloat(tick.Price),
 					CalculateOffline:   true,
 				})
 			if err != nil {
@@ -1803,33 +1817,29 @@ func TestScaleCollateral(t *testing.T) {
 				}
 				t.Error(err)
 			}
-			localScaling += scaled.InexactFloat64()
 			providedUSDValue += v[v2].USDValue
-
-			scaled, err = f.ScaleCollateral(context.Background(),
+			_, err = f.ScaleCollateral(context.Background(),
 				subaccount,
 				&order.CollateralCalculator{
-					CollateralCurrency: currency.NewCode(coin),
+					CollateralCurrency: coin,
 					Asset:              asset.Spot,
 					Side:               order.Buy,
-					CollateralAmount:   decimal.NewFromFloat(v[v2].Total),
-					CollateralPrice:    decimal.NewFromFloat(tick.Price),
-					IsLiquidating:      true,
+					FreeCollateral:     decimal.NewFromFloat(v[v2].Total),
+					USDPrice:           decimal.NewFromFloat(tick.Price),
+					IsForNewPosition:   true,
 					CalculateOffline:   true,
 				})
 			if err != nil {
 				t.Error(err)
 			}
-			liquidationScaling += scaled.InexactFloat64()
-
 			_, err = f.ScaleCollateral(context.Background(),
 				subaccount,
 				&order.CollateralCalculator{
-					CollateralCurrency: currency.NewCode(coin),
+					CollateralCurrency: coin,
 					Asset:              asset.Spot,
 					Side:               order.Buy,
-					CollateralAmount:   decimal.NewFromFloat(v[v2].Total),
-					CollateralPrice:    decimal.Zero,
+					FreeCollateral:     decimal.NewFromFloat(v[v2].Total),
+					USDPrice:           decimal.Zero,
 					IsLiquidating:      true,
 					CalculateOffline:   true,
 				})
@@ -1841,7 +1851,7 @@ func TestScaleCollateral(t *testing.T) {
 				context.Background(),
 				"",
 				&order.CollateralCalculator{
-					CollateralCurrency: currency.NewCode(coin),
+					CollateralCurrency: coin,
 					Asset:              asset.Spot,
 					Side:               order.Buy,
 				})
@@ -1871,38 +1881,49 @@ func TestCalculateTotalCollateral(t *testing.T) {
 	for _, v := range walletInfo {
 		for v2 := range v {
 			coin := v[v2].Coin
-			if coin == "USD" {
+			if coin.Equal(currency.USD) {
 				total := decimal.NewFromFloat(v[v2].Total)
 				scales = append(scales, order.CollateralCalculator{
-					CollateralCurrency: currency.NewCode(coin),
+					CollateralCurrency: coin,
 					Asset:              asset.Spot,
 					Side:               order.Buy,
-					CollateralAmount:   total,
-					CollateralPrice:    total,
+					FreeCollateral:     total,
+					USDPrice:           total,
 					CalculateOffline:   true,
 				})
 				continue
 			}
 			var tick MarketData
-			tick, err = f.GetMarket(context.Background(), currency.NewPairWithDelimiter(coin, "usd", "/").String())
+			tick, err = f.GetMarket(context.Background(), currency.NewPairWithDelimiter(coin.String(), "usd", "/").String())
 			if err != nil {
-				t.Error(err)
+				// some assumed markets don't exist, just don't process them
+				t.Log(err)
+				continue
+			}
+			if tick.Price == 0 {
+				continue
 			}
 			scales = append(scales, order.CollateralCalculator{
-				CollateralCurrency: currency.NewCode(coin),
+				CollateralCurrency: coin,
 				Asset:              asset.Spot,
 				Side:               order.Buy,
-				CollateralAmount:   decimal.NewFromFloat(v[v2].Total),
-				CollateralPrice:    decimal.NewFromFloat(tick.Price),
+				FreeCollateral:     decimal.NewFromFloat(v[v2].Total),
+				USDPrice:           decimal.NewFromFloat(tick.Price),
 				CalculateOffline:   true,
 			})
 		}
 	}
-	total, err := f.CalculateTotalCollateral(context.Background(), subaccount, true, scales)
-	if err != nil {
-		t.Error(err)
+	calc := &order.TotalCollateralCalculator{
+		SubAccount:       subaccount,
+		CollateralAssets: scales,
+		FetchPositions:   false,
+		CalculateOffline: true,
 	}
-	localScaling := total.TotalCollateral.InexactFloat64()
+	total, err := f.CalculateTotalCollateral(context.Background(), calc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	localScaling := total.AvailableCollateral.InexactFloat64()
 	accountInfo, err := f.GetAccountInfo(context.Background(), subaccount)
 	if err != nil {
 		t.Error(err)
@@ -1914,9 +1935,88 @@ func TestCalculateTotalCollateral(t *testing.T) {
 	for i := range scales {
 		scales[i].CalculateOffline = false
 	}
-	_, err = f.CalculateTotalCollateral(context.Background(), subaccount, false, scales)
+	calc.CalculateOffline = false
+	_, err = f.CalculateTotalCollateral(context.Background(), calc)
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestCalculateTotalCollateralOnline(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test, api keys not set")
+	}
+	// nil data
+	_, err := f.calculateTotalCollateralOnline(context.Background(), nil, nil)
+	if !errors.Is(err, common.ErrNilPointer) {
+		t.Errorf("received '%v' expected '%v'", err, common.ErrNilPointer)
+	}
+	calc := &order.TotalCollateralCalculator{}
+	// no currency data
+	_, err = f.calculateTotalCollateralOnline(context.Background(), calc, nil)
+	if !errors.Is(err, errCollateralCurrencyNotFound) {
+		t.Errorf("received '%v' expected '%v'", err, errCollateralCurrencyNotFound)
+	}
+	calc.CalculateOffline = true
+	calc.CollateralAssets = []order.CollateralCalculator{
+		{
+			CollateralCurrency: currency.BTC,
+		},
+		{
+			CollateralCurrency: currency.USD,
+		},
+	}
+	// offline true
+	_, err = f.calculateTotalCollateralOnline(context.Background(), calc, nil)
+	if !errors.Is(err, order.ErrOfflineCalculationSet) {
+		t.Errorf("received '%v' expected '%v'", err, order.ErrOfflineCalculationSet)
+	}
+
+	calc.CalculateOffline = false
+	calc.CollateralAssets[0].CalculateOffline = true
+	// offline true for individual currency
+	_, err = f.calculateTotalCollateralOnline(context.Background(), calc, nil)
+	if !errors.Is(err, order.ErrOfflineCalculationSet) {
+		t.Errorf("received '%v' expected '%v'", err, order.ErrOfflineCalculationSet)
+	}
+	// successful run
+	calc.CollateralAssets[0].CalculateOffline = false
+	result, err := f.calculateTotalCollateralOnline(context.Background(), calc, nil)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	if !result.CollateralCurrency.Equal(currency.USD) {
+		t.Error("expected USD collateral currency")
+	}
+	curr, err := currency.NewPairFromString("BTC-PERP")
+	if !errors.Is(err, nil) {
+		t.Fatalf("received '%v' expected '%v'", err, nil)
+	}
+	// with position data
+	pos := []PositionData{
+		{
+			CollateralUsed: 5,
+			Future:         curr,
+			UnrealizedPNL:  10,
+		},
+	}
+	_, err = f.calculateTotalCollateralOnline(context.Background(), calc, pos)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	calc.CollateralAssets = []order.CollateralCalculator{
+		{
+			CollateralCurrency: currency.BURST,
+		},
+	}
+	// irrelevant currency
+	result, err = f.calculateTotalCollateralOnline(context.Background(), calc, pos)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	if !result.UnrealisedPNL.IsZero() {
+		t.Error("expected zero")
 	}
 }
 
@@ -1925,7 +2025,7 @@ func TestCalculatePNL(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test, api keys not set")
 	}
-	pair := currency.NewPair(currency.BTC, currency.NewCode("1231"))
+	pair := currency.NewPair(currency.BTC, currency.NewCode("20211231"))
 	positions, err := f.GetFuturesPositions(context.Background(), asset.Futures, pair, time.Date(2021, 1, 6, 4, 28, 0, 0, time.UTC), time.Date(2021, 12, 31, 4, 32, 0, 0, time.UTC))
 	if err != nil {
 		t.Error(err)
@@ -1976,7 +2076,7 @@ func TestGetFuturesPositions(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test, api keys not set")
 	}
-	cp := currency.NewPair(currency.BTC, currency.NewCode("1231"))
+	cp := currency.NewPair(currency.BTC, currency.NewCode("20211231"))
 	start := time.Now().Add(-time.Hour * 24 * 365)
 	end := time.Now()
 	a := asset.Futures
@@ -2014,12 +2114,12 @@ func TestLoadCollateralWeightings(t *testing.T) {
 func TestLoadTotalIMF(t *testing.T) {
 	t.Parallel()
 	c := CollateralWeightHolder{}
-	c.loadTotal("cw", 1)
-	if _, ok := c["cw"]; !ok {
+	c.loadTotal("BTC", 1)
+	if _, ok := c[currency.BTC.Item]; !ok {
 		t.Error("expected entry")
 	}
-	c.loadInitialMarginFraction("cw", 1)
-	cw, ok := c["cw"]
+	c.loadInitialMarginFraction("btc", 1)
+	cw, ok := c[currency.BTC.Item]
 	if !ok {
 		t.Error("expected entry")
 	}
@@ -2034,19 +2134,19 @@ func TestLoadTotalIMF(t *testing.T) {
 func TestLoadCollateralWeight(t *testing.T) {
 	t.Parallel()
 	c := CollateralWeightHolder{}
-	c.load("test", 1, 2, 3)
-	cw, ok := c["test"]
+	c.load("DOGE", 1, 2, 3)
+	cw, ok := c[currency.DOGE.Item]
 	if !ok {
 		t.Fatal("expected loaded collateral weight")
 	}
 	if cw.Total != 1 {
-		t.Errorf("expected '1', received '%v'", cw.InitialMarginFractionFactor)
+		t.Errorf("expected '1', received '%v'", cw.Total)
 	}
 	if cw.Initial != 2 {
-		t.Errorf("expected '2', received '%v'", cw.Total)
+		t.Errorf("expected '2', received '%v'", cw.Initial)
 	}
 	if cw.InitialMarginFractionFactor != 3 {
-		t.Errorf("expected '3', received '%v'", cw.Total)
+		t.Errorf("expected '3', received '%v'", cw.InitialMarginFractionFactor)
 	}
 }
 
@@ -2073,6 +2173,21 @@ func TestGetExpiredFutures(t *testing.T) {
 func TestGetExpiredFuture(t *testing.T) {
 	t.Parallel()
 	_, err := f.GetExpiredFuture(context.Background(), currency.NewPairWithDelimiter("BTC", "20211231", "-"))
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetCollateral(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := f.GetCollateral(context.Background(), false)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = f.GetCollateral(context.Background(), true)
 	if err != nil {
 		t.Error(err)
 	}

@@ -3394,6 +3394,18 @@
         "hold": {
           "type": "number",
           "format": "double"
+        },
+        "free": {
+          "type": "number",
+          "format": "double"
+        },
+        "freeWithoutBorrow": {
+          "type": "number",
+          "format": "double"
+        },
+        "borrowed": {
+          "type": "number",
+          "format": "double"
         }
       }
     },
@@ -3628,22 +3640,101 @@
         }
       }
     },
+    "gctrpcCollateralByPosition": {
+      "type": "object",
+      "properties": {
+        "currency": {
+          "type": "string"
+        },
+        "size": {
+          "type": "string"
+        },
+        "openOrderSize": {
+          "type": "string"
+        },
+        "positionSize": {
+          "type": "string"
+        },
+        "markPrice": {
+          "type": "string"
+        },
+        "requiredMargin": {
+          "type": "string"
+        },
+        "totalCollateralUsed": {
+          "type": "string"
+        }
+      }
+    },
     "gctrpcCollateralForCurrency": {
       "type": "object",
       "properties": {
         "currency": {
           "type": "string"
         },
-        "originalAmount": {
+        "excludedFromCollateral": {
+          "type": "boolean"
+        },
+        "totalFunds": {
           "type": "string"
         },
-        "scaledCollateral": {
+        "availableForUseAsCollateral": {
+          "type": "string"
+        },
+        "approxFairMarketValue": {
+          "type": "string"
+        },
+        "weighting": {
+          "type": "string"
+        },
+        "collateralContribution": {
           "type": "string"
         },
         "scaledToCurrency": {
           "type": "string"
         },
+        "unrealisedPNL": {
+          "type": "string"
+        },
+        "fundsInUse": {
+          "type": "string"
+        },
+        "additionalCollateralUsed": {
+          "type": "string"
+        },
+        "usedBreakdown": {
+          "$ref": "#/definitions/gctrpcCollateralUsedBreakdown"
+        },
         "error": {
+          "type": "string"
+        }
+      }
+    },
+    "gctrpcCollateralUsedBreakdown": {
+      "type": "object",
+      "properties": {
+        "lockedInStakes": {
+          "type": "string"
+        },
+        "lockedInNFTBids": {
+          "type": "string"
+        },
+        "lockedInFeeVoucher": {
+          "type": "string"
+        },
+        "lockedInSpotMarginFundingOffers": {
+          "type": "string"
+        },
+        "lockedInSpotOrders": {
+          "type": "string"
+        },
+        "lockedAsCollateral": {
+          "type": "string"
+        },
+        "usedInFutures": {
+          "type": "string"
+        },
+        "usedInSpotMargin": {
           "type": "string"
         }
       }
@@ -4176,13 +4267,40 @@
         "subAccount": {
           "type": "string"
         },
-        "totalCollateral": {
+        "collateralCurrency": {
+          "type": "string"
+        },
+        "totalValueOfPositiveSpotBalances": {
+          "type": "string"
+        },
+        "collateralContributedByPositiveSpotBalances": {
+          "type": "string"
+        },
+        "usedCollateral": {
+          "type": "string"
+        },
+        "usedBreakdown": {
+          "$ref": "#/definitions/gctrpcCollateralUsedBreakdown"
+        },
+        "availableCollateral": {
+          "type": "string"
+        },
+        "maintenanceCollateral": {
+          "type": "string"
+        },
+        "unrealisedPNL": {
           "type": "string"
         },
         "currencyBreakdown": {
           "type": "array",
           "items": {
             "$ref": "#/definitions/gctrpcCollateralForCurrency"
+          }
+        },
+        "positionBreakdown": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/gctrpcCollateralByPosition"
           }
         }
       }

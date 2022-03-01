@@ -13,7 +13,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	eventkline "github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -30,8 +29,8 @@ func TestName(t *testing.T) {
 func TestSupportsSimultaneousProcessing(t *testing.T) {
 	t.Parallel()
 	s := Strategy{}
-	if s.SupportsSimultaneousProcessing() {
-		t.Error("expected false")
+	if !s.SupportsSimultaneousProcessing() {
+		t.Error("expected true")
 	}
 }
 
@@ -44,36 +43,28 @@ func TestSetCustomSettings(t *testing.T) {
 	}
 	float14 := float64(14)
 	mappalopalous := make(map[string]interface{})
-	mappalopalous[rsiPeriodKey] = float14
-	mappalopalous[rsiLowKey] = float14
-	mappalopalous[rsiHighKey] = float14
+	mappalopalous[openShortDistancePercentageString] = float14
+	mappalopalous[closeShortDistancePercentageString] = float14
 
 	err = s.SetCustomSettings(mappalopalous)
 	if err != nil {
 		t.Error(err)
 	}
 
-	mappalopalous[rsiPeriodKey] = "14"
+	mappalopalous[openShortDistancePercentageString] = "14"
 	err = s.SetCustomSettings(mappalopalous)
 	if !errors.Is(err, base.ErrInvalidCustomSettings) {
 		t.Errorf("received: %v, expected: %v", err, base.ErrInvalidCustomSettings)
 	}
 
-	mappalopalous[rsiPeriodKey] = float14
-	mappalopalous[rsiLowKey] = "14"
+	mappalopalous[closeShortDistancePercentageString] = float14
+	mappalopalous[openShortDistancePercentageString] = "14"
 	err = s.SetCustomSettings(mappalopalous)
 	if !errors.Is(err, base.ErrInvalidCustomSettings) {
 		t.Errorf("received: %v, expected: %v", err, base.ErrInvalidCustomSettings)
 	}
 
-	mappalopalous[rsiLowKey] = float14
-	mappalopalous[rsiHighKey] = "14"
-	err = s.SetCustomSettings(mappalopalous)
-	if !errors.Is(err, base.ErrInvalidCustomSettings) {
-		t.Errorf("received: %v, expected: %v", err, base.ErrInvalidCustomSettings)
-	}
-
-	mappalopalous[rsiHighKey] = float14
+	mappalopalous[closeShortDistancePercentageString] = float14
 	mappalopalous["lol"] = float14
 	err = s.SetCustomSettings(mappalopalous)
 	if !errors.Is(err, base.ErrInvalidCustomSettings) {
@@ -84,11 +75,11 @@ func TestSetCustomSettings(t *testing.T) {
 func TestOnSignal(t *testing.T) {
 	t.Parallel()
 	s := Strategy{
-		rsiPeriod: decimal.NewFromInt(14),
+		openShortDistancePercentage: decimal.NewFromInt(14),
 	}
 	_, err := s.OnSignal(nil, nil, nil)
-	if !errors.Is(err, common.ErrNilEvent) {
-		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
+	if !errors.Is(err, base.ErrSimultaneousProcessingOnly) {
+		t.Errorf("received: %v, expected: %v", err, base.ErrSimultaneousProcessingOnly)
 	}
 	dStart := time.Date(2020, 1, 0, 0, 0, 0, 0, time.UTC)
 	dInsert := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
@@ -119,15 +110,14 @@ func TestOnSignal(t *testing.T) {
 		Base:        d,
 		RangeHolder: &gctkline.IntervalRangeHolder{},
 	}
-	var resp signal.Event
 	_, err = s.OnSignal(da, nil, nil)
-	if !errors.Is(err, nil) {
-		t.Fatalf("expected: %v, received %v", nil, err)
+	if !errors.Is(err, base.ErrSimultaneousProcessingOnly) {
+		t.Fatalf("expected: %v, received %v", nil, base.ErrSimultaneousProcessingOnly)
 	}
-	s.rsiPeriod = decimal.NewFromInt(1)
-	_, err = s.OnSignal(da, nil, nil)
-	if err != nil {
-		t.Error(err)
+	s.openShortDistancePercentage = decimal.NewFromInt(1)
+	_, err = s.OnSimultaneousSignals([]data.Handler{da}, nil, nil)
+	if !errors.Is(err, errNotSetup) {
+		t.Fatalf("expected: %v, received %v", nil, errNotSetup)
 	}
 
 	da.Item = gctkline.Item{
@@ -157,12 +147,9 @@ func TestOnSignal(t *testing.T) {
 	}
 	da.RangeHolder = ranger
 	da.RangeHolder.SetHasDataFromCandles(da.Item.Candles)
-	resp, err = s.OnSignal(da, nil, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if resp.GetDirection() != common.DoNothing {
-		t.Error("expected do nothing")
+	_, err = s.OnSimultaneousSignals([]data.Handler{da}, nil, nil)
+	if !errors.Is(err, errNotSetup) {
+		t.Fatalf("expected: %v, received %v", nil, errNotSetup)
 	}
 }
 
@@ -170,8 +157,8 @@ func TestOnSignals(t *testing.T) {
 	t.Parallel()
 	s := Strategy{}
 	_, err := s.OnSignal(nil, nil, nil)
-	if !errors.Is(err, common.ErrNilEvent) {
-		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
+	if !errors.Is(err, base.ErrSimultaneousProcessingOnly) {
+		t.Errorf("received: %v, expected: %v", err, base.ErrSimultaneousProcessingOnly)
 	}
 	dInsert := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	exch := "ftx"
@@ -199,9 +186,9 @@ func TestOnSignals(t *testing.T) {
 		RangeHolder: &gctkline.IntervalRangeHolder{},
 	}
 	_, err = s.OnSimultaneousSignals([]data.Handler{da}, nil, nil)
-	if !strings.Contains(err.Error(), base.ErrSimultaneousProcessingNotSupported.Error()) {
+	if !strings.Contains(err.Error(), errNotSetup.Error()) {
 		// common.Errs type doesn't keep type
-		t.Errorf("received: %v, expected: %v", err, base.ErrSimultaneousProcessingNotSupported)
+		t.Errorf("received: %v, expected: %v", err, errNotSetup)
 	}
 }
 
@@ -209,13 +196,10 @@ func TestSetDefaults(t *testing.T) {
 	t.Parallel()
 	s := Strategy{}
 	s.SetDefaults()
-	if !s.rsiHigh.Equal(decimal.NewFromInt(70)) {
-		t.Error("expected 70")
+	if !s.openShortDistancePercentage.Equal(decimal.NewFromInt(5)) {
+		t.Errorf("expected 5, received %v", s.openShortDistancePercentage)
 	}
-	if !s.rsiLow.Equal(decimal.NewFromInt(30)) {
-		t.Error("expected 30")
-	}
-	if !s.rsiPeriod.Equal(decimal.NewFromInt(14)) {
-		t.Error("expected 14")
+	if !s.closeShortDistancePercentage.Equal(decimal.NewFromInt(5)) {
+		t.Errorf("expected 5, received %v", s.closeShortDistancePercentage)
 	}
 }

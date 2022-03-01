@@ -171,9 +171,12 @@ func (k *Kraken) SetDefaults() {
 		},
 	}
 
-	k.Requester = request.New(k.Name,
+	k.Requester, err = request.New(k.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(request.NewBasicRateLimit(krakenRateInterval, krakenRequestRate)))
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 	k.API.Endpoints = k.NewEndpoints()
 	err = k.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:      krakenAPIURL,
@@ -595,7 +598,7 @@ func (k *Kraken) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 			}
 			balances = append(balances, account.Balance{
 				CurrencyName: currency.NewCode(translatedCurrency),
-				TotalValue:   bal[key],
+				Total:        bal[key],
 			})
 		}
 		info.Accounts = append(info.Accounts, account.SubAccount{
@@ -610,7 +613,7 @@ func (k *Kraken) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 			for code := range bal.Accounts[name].Balances {
 				balances = append(balances, account.Balance{
 					CurrencyName: currency.NewCode(code).Upper(),
-					TotalValue:   bal.Accounts[name].Balances[code],
+					Total:        bal.Accounts[name].Balances[code],
 				})
 			}
 			info.Accounts = append(info.Accounts, account.SubAccount{

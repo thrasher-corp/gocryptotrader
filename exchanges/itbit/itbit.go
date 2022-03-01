@@ -423,7 +423,7 @@ func getInternationalBankWithdrawalFee(c currency.Code, bankTransactionType exch
 	var fee float64
 	if (bankTransactionType == exchange.Swift ||
 		bankTransactionType == exchange.WireTransfer) &&
-		c.Match(currency.USD) {
+		c.Equal(currency.USD) {
 		fee = 40
 	} else if (bankTransactionType == exchange.SEPA ||
 		bankTransactionType == exchange.WireTransfer) &&

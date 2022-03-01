@@ -149,9 +149,12 @@ func (f *FTX) SetDefaults() {
 		},
 	}
 
-	f.Requester = request.New(f.Name,
+	f.Requester, err = request.New(f.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(request.NewBasicRateLimit(ratePeriod, rateLimit)))
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 	f.API.Endpoints = f.NewEndpoints()
 	err = f.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:      ftxAPIURL,
@@ -450,7 +453,7 @@ func (f *FTX) UpdateAccountInfo(ctx context.Context, a asset.Item) (account.Hold
 
 	var data AllWalletBalances
 	if f.API.Credentials.Subaccount != "" {
-		balances, err := f.GetBalances(ctx, "")
+		balances, err := f.GetBalances(ctx, "", false, false)
 		if err != nil {
 			return resp, err
 		}
@@ -465,19 +468,22 @@ func (f *FTX) UpdateAccountInfo(ctx context.Context, a asset.Item) (account.Hold
 			return resp, err
 		}
 	}
-
 	for subName, balances := range data {
 		// "main" defines the main account in the sub account list
 		var acc = account.SubAccount{ID: subName, AssetType: a}
 		for x := range balances {
-			c := currency.NewCode(balances[x].Coin)
 			// the Free field includes borrow amount with available holdings
 			// Using AvailableWithoutBorrow allows for a more accurate picture of balance
 			hold := balances[x].Total - balances[x].AvailableWithoutBorrow
 			acc.Currencies = append(acc.Currencies,
-				account.Balance{CurrencyName: c,
-					TotalValue: balances[x].Total,
-					Hold:       hold})
+				account.Balance{
+					CurrencyName:           balances[x].Coin,
+					Total:                  balances[x].Total,
+					Hold:                   hold,
+					AvailableWithoutBorrow: balances[x].AvailableWithoutBorrow,
+					Borrowed:               balances[x].SpotBorrow,
+					Free:                   balances[x].Free,
+				})
 		}
 		resp.Accounts = append(resp.Accounts, acc)
 	}
@@ -1297,12 +1303,7 @@ func (f *FTX) CalculatePNL(ctx context.Context, pnl *order.PNLCalculatorRequest)
 		return result, fmt.Errorf("%s %s %w", f.Name, f.API.Credentials.Subaccount, order.ErrPositionLiquidated)
 	}
 	for i := range info.Positions {
-		var pair currency.Pair
-		pair, err = currency.NewPairFromString(info.Positions[i].Future)
-		if err != nil {
-			return nil, err
-		}
-		if !pnl.Pair.Equal(pair) {
+		if !pnl.Pair.Equal(info.Positions[i].Future) {
 			continue
 		}
 		if info.Positions[i].EntryPrice != ep {
@@ -1323,131 +1324,314 @@ func (f *FTX) CalculatePNL(ctx context.Context, pnl *order.PNLCalculatorRequest)
 }
 
 // ScaleCollateral takes your totals and scales them according to FTX's rules
-func (f *FTX) ScaleCollateral(ctx context.Context, subAccount string, calc *order.CollateralCalculator) (decimal.Decimal, error) {
-	var result decimal.Decimal
+func (f *FTX) ScaleCollateral(ctx context.Context, subAccount string, calc *order.CollateralCalculator) (*order.CollateralByCurrency, error) {
 	if calc.CalculateOffline {
-		if calc.CollateralCurrency.Match(currency.USD) {
+		result := &order.CollateralByCurrency{
+			Currency:                    calc.CollateralCurrency,
+			TotalFunds:                  calc.FreeCollateral.Add(calc.LockedCollateral),
+			AvailableForUseAsCollateral: calc.FreeCollateral,
+			FairMarketValue:             calc.USDPrice,
+			ScaledCurrency:              currency.USD,
+			UnrealisedPNL:               calc.UnrealisedPNL,
+			ScaledUsed:                  calc.LockedCollateral,
+		}
+		if calc.CollateralCurrency.Equal(currency.USD) {
 			// FTX bases scales all collateral into USD amounts
-			return calc.CollateralAmount, nil
-		}
-		if calc.CollateralPrice.IsZero() {
-			return decimal.Zero, fmt.Errorf("%s %s %w to scale collateral", f.Name, calc.CollateralCurrency, order.ErrUSDValueRequired)
-		}
-		collateralWeight, ok := f.collateralWeight[calc.CollateralCurrency.Upper().String()]
-		if !ok {
-			return decimal.Zero, fmt.Errorf("%s %s %w", f.Name, calc.CollateralCurrency, errCollateralCurrencyNotFound)
-		}
-		if calc.CollateralAmount.IsPositive() {
-			if collateralWeight.InitialMarginFractionFactor == 0 {
-				return decimal.Zero, fmt.Errorf("%s %s %w", f.Name, calc.CollateralCurrency, errCollateralInitialMarginFractionMissing)
-			}
-			var scaling decimal.Decimal
-			if calc.IsLiquidating {
-				scaling = decimal.NewFromFloat(collateralWeight.Total)
-			} else {
-				scaling = decimal.NewFromFloat(collateralWeight.Initial)
-			}
-			one := decimal.NewFromInt(1)
-			sqrt := decimal.NewFromFloat(math.Sqrt(calc.CollateralAmount.InexactFloat64()))
-			onePointOne := decimal.NewFromFloat(1.1)
-			imf := decimal.NewFromFloat(collateralWeight.InitialMarginFractionFactor)
-			weight := onePointOne.Div(one.Add(imf.Mul(sqrt)))
-			result = calc.CollateralAmount.Mul(calc.CollateralPrice).Mul(decimal.Min(scaling, weight))
-		} else {
-			result = result.Add(calc.CollateralAmount.Mul(calc.CollateralPrice))
-		}
-		return result, nil
-	}
-	wallet, err := f.GetCoins(ctx, subAccount)
-	if err != nil {
-		return decimal.Zero, fmt.Errorf("%s %s %w", f.Name, calc.CollateralCurrency, err)
-	}
-	balances, err := f.GetBalances(ctx, subAccount)
-	if err != nil {
-		return decimal.Zero, fmt.Errorf("%s %s %w", f.Name, calc.CollateralCurrency, err)
-	}
-	for i := range wallet {
-		if !currency.NewCode(wallet[i].ID).Match(calc.CollateralCurrency) {
-			continue
-		}
-		for j := range balances {
-			if !currency.NewCode(balances[j].Coin).Match(calc.CollateralCurrency) {
-				continue
-			}
-			scaled := wallet[i].CollateralWeight * balances[j].USDValue
-			result = decimal.NewFromFloat(scaled)
+			result.CollateralContribution = calc.FreeCollateral
+			result.Weighting = decimal.NewFromInt(1)
+			result.FairMarketValue = decimal.NewFromInt(1)
 			return result, nil
 		}
+		result.ScaledCurrency = currency.USD
+		if calc.USDPrice.IsZero() {
+			return nil, fmt.Errorf("%s %s %w to scale collateral", f.Name, calc.CollateralCurrency, order.ErrUSDValueRequired)
+		}
+		if calc.FreeCollateral.IsZero() && calc.LockedCollateral.IsZero() {
+			return result, nil
+		}
+		collateralWeight, ok := f.collateralWeight[calc.CollateralCurrency.Item]
+		if !ok {
+			return nil, fmt.Errorf("%s %s %w", f.Name, calc.CollateralCurrency, errCollateralCurrencyNotFound)
+		}
+		if calc.FreeCollateral.IsPositive() {
+			if collateralWeight.InitialMarginFractionFactor == 0 {
+				return nil, fmt.Errorf("%s %s %w", f.Name, calc.CollateralCurrency, errCollateralInitialMarginFractionMissing)
+			}
+			var scaling decimal.Decimal
+			if calc.IsForNewPosition {
+				scaling = decimal.NewFromFloat(collateralWeight.Initial)
+			} else {
+				scaling = decimal.NewFromFloat(collateralWeight.Total)
+			}
+			if scaling.IsZero() {
+				result.SkipContribution = true
+			}
+			result.Weighting = scaling
+			one := decimal.NewFromInt(1)
+			freeSqrt := decimal.NewFromFloat(math.Sqrt(calc.FreeCollateral.InexactFloat64()))
+			lockedSqrt := decimal.NewFromFloat(math.Sqrt(calc.LockedCollateral.InexactFloat64()))
+			onePointOne := decimal.NewFromFloat(1.1)
+			imf := decimal.NewFromFloat(collateralWeight.InitialMarginFractionFactor)
+			freeWeight := onePointOne.Div(one.Add(imf.Mul(freeSqrt)))
+			lockedWeight := onePointOne.Div(one.Add(imf.Mul(lockedSqrt)))
+			result.CollateralContribution = calc.FreeCollateral.Mul(calc.USDPrice).Mul(decimal.Min(scaling, freeWeight))
+			result.ScaledUsed = calc.LockedCollateral.Mul(calc.USDPrice).Mul(decimal.Min(scaling, lockedWeight))
+		} else {
+			result.CollateralContribution = calc.FreeCollateral.Mul(calc.USDPrice)
+			result.ScaledUsed = calc.LockedCollateral.Mul(calc.USDPrice)
+		}
+
+		if !result.UnrealisedPNL.IsZero() && result.ScaledUsedBreakdown != nil {
+			result.CollateralContribution = decimal.Min(result.CollateralContribution, result.CollateralContribution.Sub(result.UnrealisedPNL)).Sub(result.ScaledUsedBreakdown.LockedAsCollateral)
+		}
+
+		return result, nil
 	}
-	return decimal.Zero, fmt.Errorf("%s %s %w", f.Name, calc.CollateralCurrency, errCollateralCurrencyNotFound)
+	resp, err := f.calculateTotalCollateralOnline(ctx,
+		&order.TotalCollateralCalculator{
+			SubAccount:       subAccount,
+			CollateralAssets: []order.CollateralCalculator{*calc},
+		},
+		nil,
+	)
+	if err != nil {
+		return nil, err
+	}
+	if len(resp.BreakdownByCurrency) == 0 {
+		return nil, fmt.Errorf("%v %v %w", f.Name, calc.CollateralCurrency, errCollateralCurrencyNotFound)
+	}
+	return &resp.BreakdownByCurrency[0], nil
 }
 
 // CalculateTotalCollateral scales collateral and determines how much collateral you can use for positions
-func (f *FTX) CalculateTotalCollateral(ctx context.Context, subAccount string, calculateOffline bool, collateralAssets []order.CollateralCalculator) (*order.TotalCollateralResponse, error) {
-	var result order.TotalCollateralResponse
-	if !calculateOffline {
-		wallet, err := f.GetCoins(ctx, subAccount)
+func (f *FTX) CalculateTotalCollateral(ctx context.Context, calc *order.TotalCollateralCalculator) (*order.TotalCollateralResponse, error) {
+	if calc == nil {
+		return nil, fmt.Errorf("%v CalculateTotalCollateral %w", f.Name, common.ErrNilPointer)
+	}
+	var pos []PositionData
+	var err error
+	if calc.FetchPositions {
+		pos, err = f.GetPositions(ctx)
 		if err != nil {
-			return nil, fmt.Errorf("%s %w", f.Name, err)
+			return nil, fmt.Errorf("%v CalculateTotalCollateral GetPositions %w", f.Name, err)
 		}
-		balances, err := f.GetBalances(ctx, subAccount)
-		if err != nil {
-			return nil, fmt.Errorf("%s %w", f.Name, err)
-		}
-		for x := range collateralAssets {
-		wallets:
-			for y := range wallet {
-				if !currency.NewCode(wallet[y].ID).Match(collateralAssets[x].CollateralCurrency) {
+	}
+	if !calc.CalculateOffline {
+		return f.calculateTotalCollateralOnline(ctx, calc, pos)
+	}
+
+	result := order.TotalCollateralResponse{
+		CollateralCurrency: currency.USD,
+	}
+	for i := range calc.CollateralAssets {
+		if len(pos) > 0 {
+			// ensure we use supplied position data
+			calc.CollateralAssets[i].UnrealisedPNL = decimal.Zero
+			for j := range pos {
+				if !pos[j].Future.Base.Equal(calc.CollateralAssets[i].CollateralCurrency) {
 					continue
 				}
-				for z := range balances {
-					if !currency.NewCode(balances[z].Coin).Match(collateralAssets[x].CollateralCurrency) {
-						continue
-					}
-					scaled := wallet[y].CollateralWeight * balances[z].USDValue
-					dScaled := decimal.NewFromFloat(scaled)
-					result.TotalCollateral = result.TotalCollateral.Add(dScaled)
-					breakDown := order.CollateralByCurrency{
-						Currency: collateralAssets[x].CollateralCurrency,
-
-						OriginalValue: collateralAssets[x].CollateralAmount,
-					}
-					if !collateralAssets[x].CollateralCurrency.Match(currency.USD) {
-						breakDown.ScaledValue = dScaled
-						breakDown.ValueCurrency = currency.USD
-					}
-					result.BreakdownByCurrency = append(result.BreakdownByCurrency, breakDown)
-					break wallets
-				}
+				calc.CollateralAssets[i].UnrealisedPNL = calc.CollateralAssets[i].UnrealisedPNL.Add(decimal.NewFromFloat(pos[j].UnrealizedPNL))
 			}
 		}
-		return &result, nil
-	}
-	for i := range collateralAssets {
-		curr := order.CollateralByCurrency{
-			Currency: collateralAssets[i].CollateralCurrency,
-		}
-		collateral, err := f.ScaleCollateral(ctx, subAccount, &collateralAssets[i])
+		var collateralByCurrency *order.CollateralByCurrency
+		collateralByCurrency, err = f.ScaleCollateral(ctx, calc.SubAccount, &calc.CollateralAssets[i])
 		if err != nil {
 			if errors.Is(err, errCollateralCurrencyNotFound) {
 				log.Error(log.ExchangeSys, err)
 				continue
 			}
 			if errors.Is(err, order.ErrUSDValueRequired) {
-				curr.Error = err
-				result.BreakdownByCurrency = append(result.BreakdownByCurrency, curr)
+				if collateralByCurrency == nil {
+					return nil, err
+				}
+				collateralByCurrency.Error = err
+				result.BreakdownByCurrency = append(result.BreakdownByCurrency, *collateralByCurrency)
 				continue
 			}
 			return nil, err
 		}
-		result.TotalCollateral = result.TotalCollateral.Add(collateral)
-		curr.ScaledValue = collateral
-		if !collateralAssets[i].CollateralCurrency.Match(currency.USD) {
-			curr.ValueCurrency = currency.USD
+
+		result.AvailableCollateral = result.AvailableCollateral.Add(collateralByCurrency.CollateralContribution)
+		result.UnrealisedPNL = result.UnrealisedPNL.Add(collateralByCurrency.UnrealisedPNL)
+		if collateralByCurrency.SkipContribution {
+			continue
+		}
+		result.UsedCollateral = result.UsedCollateral.Add(collateralByCurrency.ScaledUsed)
+		result.BreakdownByCurrency = append(result.BreakdownByCurrency, *collateralByCurrency)
+	}
+	if !result.UnrealisedPNL.IsZero() && result.UsedBreakdown != nil {
+		result.AvailableCollateral = decimal.Min(result.AvailableCollateral, result.AvailableCollateral.Add(result.UnrealisedPNL)).Sub(result.UsedBreakdown.LockedAsCollateral)
+	}
+	return &result, nil
+}
+
+func (f *FTX) calculateTotalCollateralOnline(ctx context.Context, calc *order.TotalCollateralCalculator, pos []PositionData) (*order.TotalCollateralResponse, error) {
+	if calc == nil {
+		return nil, fmt.Errorf("%v CalculateTotalCollateral %w", f.Name, common.ErrNilPointer)
+	}
+	if len(calc.CollateralAssets) == 0 {
+		return nil, fmt.Errorf("%v calculateTotalCollateralOnline %w, no currencies supplied", f.Name, errCollateralCurrencyNotFound)
+	}
+	if calc.CalculateOffline {
+		return nil, fmt.Errorf("%v calculateTotalCollateralOnline %w", f.Name, order.ErrOfflineCalculationSet)
+	}
+
+	c, err := f.GetCollateral(ctx, false)
+	if err != nil {
+		return nil, fmt.Errorf("%s %w", f.Name, err)
+	}
+	mc, err := f.GetCollateral(ctx, true)
+	if err != nil {
+		return nil, fmt.Errorf("%s %w", f.Name, err)
+	}
+	result := order.TotalCollateralResponse{
+		CollateralCurrency:                          currency.USD,
+		AvailableCollateral:                         c.CollateralAvailable,
+		AvailableMaintenanceCollateral:              mc.CollateralAvailable,
+		TotalValueOfPositiveSpotBalances:            c.PositiveSpotBalanceTotal,
+		CollateralContributedByPositiveSpotBalances: c.CollateralFromPositiveSpotBalances,
+	}
+	balances, err := f.GetBalances(ctx, calc.SubAccount, true, true)
+	if err != nil {
+		return nil, fmt.Errorf("%s %w", f.Name, err)
+	}
+
+	for x := range calc.CollateralAssets {
+		if calc.CollateralAssets[x].CalculateOffline {
+			return nil, fmt.Errorf("%v %v %v calculateTotalCollateralOnline %w", f.Name, calc.CollateralAssets[x].Asset, calc.CollateralAssets[x].CollateralCurrency, order.ErrOfflineCalculationSet)
+		}
+		currencyBreakdown := order.CollateralByCurrency{
+			Currency:                    calc.CollateralAssets[x].CollateralCurrency,
+			TotalFunds:                  calc.CollateralAssets[x].FreeCollateral.Add(calc.CollateralAssets[x].LockedCollateral),
+			AvailableForUseAsCollateral: calc.CollateralAssets[x].FreeCollateral,
+			ScaledCurrency:              currency.USD,
+		}
+		if len(pos) > 0 {
+			// use pos unrealisedPNL, not calc.collateralAssets'
+			calc.CollateralAssets[x].UnrealisedPNL = decimal.Zero
+			for i := range pos {
+				if !pos[i].Future.Base.Equal(calc.CollateralAssets[x].CollateralCurrency) {
+					continue
+				}
+				calc.CollateralAssets[x].UnrealisedPNL = calc.CollateralAssets[x].UnrealisedPNL.Add(decimal.NewFromFloat(pos[i].UnrealizedPNL))
+			}
+		}
+		currencyBreakdown.UnrealisedPNL = calc.CollateralAssets[x].UnrealisedPNL
+
+		for y := range c.PositiveBalances {
+			if !c.PositiveBalances[y].Coin.Equal(calc.CollateralAssets[x].CollateralCurrency) {
+				continue
+			}
+			currencyBreakdown.Weighting = c.PositiveBalances[y].CollateralWeight
+			currencyBreakdown.FairMarketValue = c.PositiveBalances[y].ApproximateFairMarketValue
+			currencyBreakdown.CollateralContribution = c.PositiveBalances[y].AvailableIgnoringCollateral.Mul(c.PositiveBalances[y].ApproximateFairMarketValue).Mul(currencyBreakdown.Weighting)
+			currencyBreakdown.AdditionalCollateralUsed = c.PositiveBalances[y].CollateralUsed
+			currencyBreakdown.FairMarketValue = c.PositiveBalances[y].ApproximateFairMarketValue
+			currencyBreakdown.AvailableForUseAsCollateral = c.PositiveBalances[y].AvailableIgnoringCollateral
+		}
+		for y := range c.NegativeBalances {
+			if !c.NegativeBalances[y].Coin.Equal(calc.CollateralAssets[x].CollateralCurrency) {
+				continue
+			}
+			currencyBreakdown.Weighting = c.NegativeBalances[y].CollateralWeight
+			currencyBreakdown.FairMarketValue = c.NegativeBalances[y].ApproximateFairMarketValue
+			currencyBreakdown.CollateralContribution = c.NegativeBalances[y].AvailableIgnoringCollateral.Mul(c.NegativeBalances[y].ApproximateFairMarketValue).Mul(currencyBreakdown.Weighting)
+			currencyBreakdown.AdditionalCollateralUsed = c.NegativeBalances[y].CollateralUsed
+			currencyBreakdown.FairMarketValue = c.NegativeBalances[y].ApproximateFairMarketValue
+			currencyBreakdown.AvailableForUseAsCollateral = c.NegativeBalances[y].AvailableIgnoringCollateral
+		}
+		if currencyBreakdown.Weighting.IsZero() {
+			currencyBreakdown.SkipContribution = true
 		}
 
-		result.BreakdownByCurrency = append(result.BreakdownByCurrency, curr)
+		for y := range balances {
+			// used to determine how collateral is being used
+			if !balances[y].Coin.Equal(calc.CollateralAssets[x].CollateralCurrency) {
+				continue
+			}
+			// staked values are in their own currency, scale it
+			lockedS := decimal.NewFromFloat(balances[y].LockedBreakdown.LockedInStakes)
+			lockedC := decimal.NewFromFloat(balances[y].LockedBreakdown.LockedAsCollateral)
+			lockedF := decimal.NewFromFloat(balances[y].LockedBreakdown.LockedInFeeVoucher)
+			lockedN := decimal.NewFromFloat(balances[y].LockedBreakdown.LockedInNFTBids)
+			lockedO := decimal.NewFromFloat(balances[y].LockedBreakdown.LockedInSpotOrders)
+			lockedFO := decimal.NewFromFloat(balances[y].LockedBreakdown.LockedInSpotMarginFundingOffers)
+			locked := decimal.Sum(lockedS, lockedC, lockedF, lockedN, lockedO, lockedFO)
+			if !locked.IsZero() || balances[y].SpotBorrow > 0 {
+				if result.UsedBreakdown == nil {
+					result.UsedBreakdown = &order.UsedCollateralBreakdown{}
+				}
+				var resetWeightingToZero bool
+				if currencyBreakdown.Weighting.IsZero() {
+					// this is to ensure we're not hiding any locked values
+					// when collateral contribution is zero (eg FTT with collateral disabled)
+					resetWeightingToZero = true
+					currencyBreakdown.Weighting = decimal.NewFromInt(1)
+				}
+				var resetFairMarketToZero bool
+				if currencyBreakdown.FairMarketValue.IsZero() {
+					// this is another edge case for SRM_LOCKED rendering locked data
+					currencyBreakdown.SkipContribution = true
+					resetFairMarketToZero = true
+					currencyBreakdown.FairMarketValue = decimal.NewFromInt(1)
+				}
+				currencyBreakdown.ScaledUsedBreakdown = &order.UsedCollateralBreakdown{
+					LockedInStakes:                  lockedS.Mul(currencyBreakdown.FairMarketValue).Mul(currencyBreakdown.Weighting),
+					LockedInNFTBids:                 lockedN.Mul(currencyBreakdown.FairMarketValue).Mul(currencyBreakdown.Weighting),
+					LockedInFeeVoucher:              lockedF.Mul(currencyBreakdown.FairMarketValue).Mul(currencyBreakdown.Weighting),
+					LockedInSpotMarginFundingOffers: lockedFO.Mul(currencyBreakdown.FairMarketValue).Mul(currencyBreakdown.Weighting),
+					LockedInSpotOrders:              lockedO.Mul(currencyBreakdown.FairMarketValue).Mul(currencyBreakdown.Weighting),
+					LockedAsCollateral:              lockedC.Mul(currencyBreakdown.FairMarketValue).Mul(currencyBreakdown.Weighting),
+				}
+
+				if resetWeightingToZero {
+					currencyBreakdown.Weighting = decimal.Zero
+				}
+				if resetFairMarketToZero {
+					currencyBreakdown.FairMarketValue = decimal.Zero
+				}
+
+				currencyBreakdown.ScaledUsed = locked.Mul(currencyBreakdown.FairMarketValue).Mul(currencyBreakdown.Weighting)
+				if balances[y].SpotBorrow > 0 {
+					currencyBreakdown.ScaledUsedBreakdown.UsedInSpotMarginBorrows = currencyBreakdown.CollateralContribution.Abs().Add(currencyBreakdown.AdditionalCollateralUsed)
+					currencyBreakdown.ScaledUsed = currencyBreakdown.ScaledUsed.Add(currencyBreakdown.ScaledUsedBreakdown.UsedInSpotMarginBorrows)
+				}
+				if !currencyBreakdown.SkipContribution {
+					result.UsedCollateral = result.UsedCollateral.Add(currencyBreakdown.ScaledUsed)
+					result.UsedBreakdown.LockedInStakes = result.UsedBreakdown.LockedInStakes.Add(currencyBreakdown.ScaledUsedBreakdown.LockedInStakes)
+					result.UsedBreakdown.LockedAsCollateral = result.UsedBreakdown.LockedAsCollateral.Add(currencyBreakdown.ScaledUsedBreakdown.LockedAsCollateral)
+					result.UsedBreakdown.LockedInFeeVoucher = result.UsedBreakdown.LockedInFeeVoucher.Add(currencyBreakdown.ScaledUsedBreakdown.LockedInFeeVoucher)
+					result.UsedBreakdown.LockedInNFTBids = result.UsedBreakdown.LockedInNFTBids.Add(currencyBreakdown.ScaledUsedBreakdown.LockedInNFTBids)
+					result.UsedBreakdown.LockedInSpotOrders = result.UsedBreakdown.LockedInSpotOrders.Add(currencyBreakdown.ScaledUsedBreakdown.LockedInSpotOrders)
+					result.UsedBreakdown.LockedInSpotMarginFundingOffers = result.UsedBreakdown.LockedInSpotMarginFundingOffers.Add(currencyBreakdown.ScaledUsedBreakdown.LockedInSpotMarginFundingOffers)
+					result.UsedBreakdown.UsedInSpotMarginBorrows = result.UsedBreakdown.UsedInSpotMarginBorrows.Add(currencyBreakdown.ScaledUsedBreakdown.UsedInSpotMarginBorrows)
+				}
+			}
+		}
+		if calc.CollateralAssets[x].CollateralCurrency.Equal(currency.USD) {
+			for y := range c.Positions {
+				if result.UsedBreakdown == nil {
+					result.UsedBreakdown = &order.UsedCollateralBreakdown{}
+				}
+				result.UsedBreakdown.UsedInPositions = result.UsedBreakdown.UsedInPositions.Add(c.Positions[y].CollateralUsed)
+			}
+		}
+		result.BreakdownByCurrency = append(result.BreakdownByCurrency, currencyBreakdown)
 	}
+
+	for y := range c.Positions {
+		result.BreakdownOfPositions = append(result.BreakdownOfPositions, order.CollateralByPosition{
+			PositionCurrency: c.Positions[y].Future,
+			Size:             c.Positions[y].Size,
+			OpenOrderSize:    c.Positions[y].OpenOrderSize,
+			PositionSize:     c.Positions[y].PositionSize,
+			MarkPrice:        c.Positions[y].MarkPrice,
+			RequiredMargin:   c.Positions[y].RequiredMargin,
+			CollateralUsed:   c.Positions[y].CollateralUsed,
+		})
+	}
+
 	return &result, nil
 }
 
@@ -1456,7 +1640,7 @@ func (f *FTX) GetFuturesPositions(ctx context.Context, a asset.Item, cp currency
 	if !a.IsFutures() {
 		return nil, fmt.Errorf("%w futures asset type only", common.ErrFunctionNotSupported)
 	}
-	fills, err := f.GetFills(ctx, cp, a, "200", start, end)
+	fills, err := f.GetFills(ctx, cp, a, start, end)
 	if err != nil {
 		return nil, err
 	}

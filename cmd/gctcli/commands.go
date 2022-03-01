@@ -4860,7 +4860,7 @@ func getFuturesPositions(c *cli.Context) error {
 	var verbose bool
 	if c.IsSet("verbose") {
 		verbose = c.Bool("verbose")
-	} else if c.Args().Get(6) != "" {
+	} else if c.Args().Get(7) != "" {
 		verbose, err = strconv.ParseBool(c.Args().Get(7))
 		if err != nil {
 			return err
@@ -4870,8 +4870,8 @@ func getFuturesPositions(c *cli.Context) error {
 	var overwrite bool
 	if c.IsSet("overwrite") {
 		overwrite = c.Bool("overwrite")
-	} else if c.Args().Get(2) != "" {
-		overwrite, err = strconv.ParseBool(c.Args().Get(2))
+	} else if c.Args().Get(8) != "" {
+		overwrite, err = strconv.ParseBool(c.Args().Get(8))
 		if err != nil {
 			return err
 		}
@@ -5005,21 +5005,21 @@ func getCollateral(c *cli.Context) error {
 		}
 	}
 
-	var subAccount string
-	if c.IsSet("subaccount") {
-		subAccount = c.String("subaccount")
-	} else if c.Args().Get(4) != "" {
-		subAccount = c.Args().Get(4)
-	}
-
 	var includeZeroValues bool
 	if c.IsSet("includezerovalues") {
 		includeZeroValues = c.Bool("includezerovalues")
-	} else if c.Args().Get(5) != "" {
-		includeZeroValues, err = strconv.ParseBool(c.Args().Get(5))
+	} else if c.Args().Get(4) != "" {
+		includeZeroValues, err = strconv.ParseBool(c.Args().Get(4))
 		if err != nil {
 			return err
 		}
+	}
+
+	var subAccount string
+	if c.IsSet("subaccount") {
+		subAccount = c.String("subaccount")
+	} else if c.Args().Get(5) != "" {
+		subAccount = c.Args().Get(5)
 	}
 
 	conn, cancel, err := setupClient(c)

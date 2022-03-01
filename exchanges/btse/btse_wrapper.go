@@ -149,9 +149,12 @@ func (b *BTSE) SetDefaults() {
 		},
 	}
 
-	b.Requester = request.New(b.Name,
+	b.Requester, err = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 	b.API.Endpoints = b.NewEndpoints()
 	err = b.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:      btseAPIURL,
@@ -397,8 +400,9 @@ func (b *BTSE) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (acc
 		currencies = append(currencies,
 			account.Balance{
 				CurrencyName: currency.NewCode(balance[b].Currency),
-				TotalValue:   balance[b].Total,
+				Total:        balance[b].Total,
 				Hold:         balance[b].Total - balance[b].Available,
+				Free:         balance[b].Available,
 			},
 		)
 	}

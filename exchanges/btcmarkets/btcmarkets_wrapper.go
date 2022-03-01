@@ -119,9 +119,12 @@ func (b *BTCMarkets) SetDefaults() {
 		},
 	}
 
-	b.Requester = request.New(b.Name,
+	b.Requester, err = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 	b.API.Endpoints = b.NewEndpoints()
 	err = b.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:      btcMarketsAPIURL,
@@ -419,8 +422,10 @@ func (b *BTCMarkets) UpdateAccountInfo(ctx context.Context, assetType asset.Item
 		total := data[key].Balance
 		acc.Currencies = append(acc.Currencies,
 			account.Balance{CurrencyName: c,
-				TotalValue: total,
-				Hold:       hold})
+				Total: total,
+				Hold:  hold,
+				Free:  total - hold,
+			})
 	}
 	resp.Accounts = append(resp.Accounts, acc)
 	resp.Exchange = b.Name

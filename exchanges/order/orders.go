@@ -114,7 +114,9 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) {
 		d.PostOnly = m.PostOnly
 		updated = true
 	}
-	if !m.Pair.IsEmpty() && m.Pair != d.Pair {
+	if !m.Pair.IsEmpty() && !m.Pair.Equal(d.Pair) {
+		// TODO: Add a check to see if the original pair is empty as well, but
+		// error if it is changing from BTC-USD -> LTC-USD.
 		d.Pair = m.Pair
 		updated = true
 	}
@@ -276,7 +278,9 @@ func (d *Detail) UpdateOrderFromModify(m *Modify) {
 		d.PostOnly = m.PostOnly
 		updated = true
 	}
-	if !m.Pair.IsEmpty() && m.Pair != d.Pair {
+	if !m.Pair.IsEmpty() && !m.Pair.Equal(d.Pair) {
+		// TODO: Add a check to see if the original pair is empty as well, but
+		// error if it is changing from BTC-USD -> LTC-USD.
 		d.Pair = m.Pair
 		updated = true
 	}

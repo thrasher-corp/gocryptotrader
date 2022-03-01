@@ -113,8 +113,11 @@ func (c *COINUT) SetDefaults() {
 		},
 	}
 
-	c.Requester = request.New(c.Name,
+	c.Requester, err = request.New(c.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 	c.API.Endpoints = c.NewEndpoints()
 	err = c.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:      coinutAPIURL,
@@ -328,59 +331,59 @@ func (c *COINUT) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 	var balances = []account.Balance{
 		{
 			CurrencyName: currency.BCH,
-			TotalValue:   bal.BCH,
+			Total:        bal.BCH,
 		},
 		{
 			CurrencyName: currency.BTC,
-			TotalValue:   bal.BTC,
+			Total:        bal.BTC,
 		},
 		{
 			CurrencyName: currency.BTG,
-			TotalValue:   bal.BTG,
+			Total:        bal.BTG,
 		},
 		{
 			CurrencyName: currency.CAD,
-			TotalValue:   bal.CAD,
+			Total:        bal.CAD,
 		},
 		{
 			CurrencyName: currency.ETC,
-			TotalValue:   bal.ETC,
+			Total:        bal.ETC,
 		},
 		{
 			CurrencyName: currency.ETH,
-			TotalValue:   bal.ETH,
+			Total:        bal.ETH,
 		},
 		{
 			CurrencyName: currency.LCH,
-			TotalValue:   bal.LCH,
+			Total:        bal.LCH,
 		},
 		{
 			CurrencyName: currency.LTC,
-			TotalValue:   bal.LTC,
+			Total:        bal.LTC,
 		},
 		{
 			CurrencyName: currency.MYR,
-			TotalValue:   bal.MYR,
+			Total:        bal.MYR,
 		},
 		{
 			CurrencyName: currency.SGD,
-			TotalValue:   bal.SGD,
+			Total:        bal.SGD,
 		},
 		{
 			CurrencyName: currency.USD,
-			TotalValue:   bal.USD,
+			Total:        bal.USD,
 		},
 		{
 			CurrencyName: currency.USDT,
-			TotalValue:   bal.USDT,
+			Total:        bal.USDT,
 		},
 		{
 			CurrencyName: currency.XMR,
-			TotalValue:   bal.XMR,
+			Total:        bal.XMR,
 		},
 		{
 			CurrencyName: currency.ZEC,
-			TotalValue:   bal.ZEC,
+			Total:        bal.ZEC,
 		},
 	}
 	info.Exchange = c.Name

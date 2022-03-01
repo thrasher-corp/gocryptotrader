@@ -120,9 +120,12 @@ func (b *Bittrex) SetDefaults() {
 		},
 	}
 
-	b.Requester = request.New(b.Name,
+	b.Requester, err = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(request.NewBasicRateLimit(ratePeriod, rateLimit)))
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 
 	b.API.Endpoints = b.NewEndpoints()
 
@@ -413,8 +416,9 @@ func (b *Bittrex) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 	for i := range balanceData {
 		currencies = append(currencies, account.Balance{
 			CurrencyName: currency.NewCode(balanceData[i].CurrencySymbol),
-			TotalValue:   balanceData[i].Total,
+			Total:        balanceData[i].Total,
 			Hold:         balanceData[i].Total - balanceData[i].Available,
+			Free:         balanceData[i].Available,
 		})
 	}
 

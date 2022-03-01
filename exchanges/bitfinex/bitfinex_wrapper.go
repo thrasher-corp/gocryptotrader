@@ -165,9 +165,12 @@ func (b *Bitfinex) SetDefaults() {
 		},
 	}
 
-	b.Requester = request.New(b.Name,
+	b.Requester, err = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 	b.API.Endpoints = b.NewEndpoints()
 	err = b.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:      bitfinexAPIURLBase,
@@ -500,8 +503,9 @@ func (b *Bitfinex) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 				Accounts[i].Currencies = append(Accounts[i].Currencies,
 					account.Balance{
 						CurrencyName: currency.NewCode(accountBalance[x].Currency),
-						TotalValue:   accountBalance[x].Amount,
+						Total:        accountBalance[x].Amount,
 						Hold:         accountBalance[x].Amount - accountBalance[x].Available,
+						Free:         accountBalance[x].Available,
 					})
 			}
 		}

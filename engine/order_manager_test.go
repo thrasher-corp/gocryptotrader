@@ -266,12 +266,12 @@ func TestGetByInternalOrderID(t *testing.T) {
 
 	o, err := m.orderStore.getByInternalOrderID("internalTest")
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
-	if o == nil {
+	if o == nil { //nolint:staticcheck,nolintlint // SA5011 Ignore the nil warnings
 		t.Fatal("Expected a matching order")
 	}
-	if o.ID != "TestGetByInternalOrderID" {
+	if o.ID != "TestGetByInternalOrderID" { //nolint:staticcheck,nolintlint // SA5011 Ignore the nil warnings
 		t.Error("Expected to retrieve order")
 	}
 
@@ -422,14 +422,14 @@ func TestStore_modifyOrder(t *testing.T) {
 	_, err = m.orderStore.getByExchangeAndID(testExchange, "fake_order_id")
 	if err == nil {
 		// Expected error, such an order should not exist anymore in the store.
-		t.Error("Expected error")
+		t.Fatal("Expected error")
 	}
 
 	det, err := m.orderStore.getByExchangeAndID(testExchange, "another_fake_order_id")
-	if det == nil || err != nil {
+	if det == nil || err != nil { //nolint:staticcheck,nolintlint // SA5011 Ignore the nil warnings
 		t.Fatal("Failed to fetch order details")
 	}
-	if det.ID != "another_fake_order_id" || det.Price != 16 || det.Amount != 256 {
+	if det.ID != "another_fake_order_id" || det.Price != 16 || det.Amount != 256 { //nolint:staticcheck,nolintlint // SA5011 Ignore the nil warnings
 		t.Errorf(
 			"have (%s,%f,%f), want (%s,%f,%f)",
 			det.ID, det.Price, det.Amount,
@@ -521,14 +521,14 @@ func TestCancelOrder(t *testing.T) {
 
 func TestGetOrderInfo(t *testing.T) {
 	m := OrdersSetup(t)
-	_, err := m.GetOrderInfo(context.Background(), "", "", currency.Pair{}, "")
+	_, err := m.GetOrderInfo(context.Background(), "", "", currency.EMPTYPAIR, "")
 	if err == nil {
 		t.Error("Expected error due to empty order")
 	}
 
 	var result order.Detail
 	result, err = m.GetOrderInfo(context.Background(),
-		testExchange, "1337", currency.Pair{}, "")
+		testExchange, "1337", currency.EMPTYPAIR, "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -537,7 +537,7 @@ func TestGetOrderInfo(t *testing.T) {
 	}
 
 	result, err = m.GetOrderInfo(context.Background(),
-		testExchange, "1337", currency.Pair{}, "")
+		testExchange, "1337", currency.EMPTYPAIR, "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -1303,6 +1303,12 @@ func TestUpdateOpenPositionUnrealisedPNL(t *testing.T) {
 	}
 	if !unrealised.Equal(decimal.NewFromInt(1)) {
 		t.Errorf("received '%v', expected '%v'", unrealised, 1)
+	}
+
+	o = nil
+	_, err = o.UpdateOpenPositionUnrealisedPNL("test", asset.Spot, cp, 1, time.Now())
+	if !errors.Is(err, ErrNilSubsystem) {
+		t.Errorf("received '%v', expected '%v'", err, ErrNilSubsystem)
 	}
 }
 

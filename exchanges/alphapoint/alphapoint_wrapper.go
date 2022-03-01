@@ -73,8 +73,11 @@ func (a *Alphapoint) SetDefaults() {
 		},
 	}
 
-	a.Requester = request.New(a.Name,
+	a.Requester, err = request.New(a.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
@@ -100,12 +103,12 @@ func (a *Alphapoint) UpdateAccountInfo(ctx context.Context, assetType asset.Item
 
 	var balances []account.Balance
 	for i := range acc.Currencies {
-		var balance account.Balance
-		balance.CurrencyName = currency.NewCode(acc.Currencies[i].Name)
-		balance.TotalValue = float64(acc.Currencies[i].Balance)
-		balance.Hold = float64(acc.Currencies[i].Hold)
-
-		balances = append(balances, balance)
+		balances = append(balances, account.Balance{
+			CurrencyName: currency.NewCode(acc.Currencies[i].Name),
+			Total:        float64(acc.Currencies[i].Balance),
+			Hold:         float64(acc.Currencies[i].Hold),
+			Free:         float64(acc.Currencies[i].Balance) - float64(acc.Currencies[i].Hold),
+		})
 	}
 
 	response.Accounts = append(response.Accounts, account.SubAccount{

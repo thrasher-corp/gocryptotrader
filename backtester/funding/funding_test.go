@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -27,14 +28,20 @@ var (
 
 func TestSetupFundingManager(t *testing.T) {
 	t.Parallel()
-	f := SetupFundingManager(true, false)
+	f, err := SetupFundingManager(&engine.ExchangeManager{}, true, false)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
 	if !f.usingExchangeLevelFunding {
 		t.Errorf("expected '%v received '%v'", true, false)
 	}
 	if f.disableUSDTracking {
 		t.Errorf("expected '%v received '%v'", false, true)
 	}
-	f = SetupFundingManager(false, true)
+	f, err = SetupFundingManager(&engine.ExchangeManager{}, false, true)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
 	if f.usingExchangeLevelFunding {
 		t.Errorf("expected '%v received '%v'", false, true)
 	}
@@ -45,7 +52,10 @@ func TestSetupFundingManager(t *testing.T) {
 
 func TestReset(t *testing.T) {
 	t.Parallel()
-	f := SetupFundingManager(true, false)
+	f, err := SetupFundingManager(&engine.ExchangeManager{}, true, false)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
 	baseItem, err := CreateItem(exch, a, base, decimal.Zero, decimal.Zero)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
@@ -65,7 +75,10 @@ func TestReset(t *testing.T) {
 
 func TestIsUsingExchangeLevelFunding(t *testing.T) {
 	t.Parallel()
-	f := SetupFundingManager(true, false)
+	f, err := SetupFundingManager(&engine.ExchangeManager{}, true, false)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
 	if !f.IsUsingExchangeLevelFunding() {
 		t.Errorf("expected '%v received '%v'", true, false)
 	}
@@ -263,7 +276,6 @@ func TestAddPair(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-
 	p, err = CreatePair(baseItem, quoteItem)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
@@ -753,10 +765,10 @@ func TestGenerateReport(t *testing.T) {
 	t.Parallel()
 	f := FundManager{}
 	report := f.GenerateReport()
-	if report == nil {
+	if report == nil { //nolint:staticcheck,nolintlint // SA5011 Ignore the nil warnings
 		t.Fatal("shouldn't be nil")
 	}
-	if len(report.Items) > 0 {
+	if len(report.Items) > 0 { //nolint:staticcheck,nolintlint // SA5011 Ignore the nil warnings
 		t.Error("expected 0")
 	}
 	item := &Item{
@@ -837,7 +849,7 @@ func TestMatchesCurrency(t *testing.T) {
 	if !i.MatchesCurrency(currency.BTC) {
 		t.Error("expected true")
 	}
-	if i.MatchesCurrency(currency.Code{}) {
+	if i.MatchesCurrency(currency.EMPTYCODE) {
 		t.Error("expected false")
 	}
 	if i.MatchesCurrency(currency.NewCode("")) {
@@ -851,7 +863,7 @@ func TestCreateSnapshot(t *testing.T) {
 	f.items = append(f.items, &Item{
 		exchange:           "",
 		asset:              "",
-		currency:           currency.Code{},
+		currency:           currency.EMPTYCODE,
 		initialFunds:       decimal.Decimal{},
 		available:          decimal.Decimal{},
 		reserved:           decimal.Decimal{},

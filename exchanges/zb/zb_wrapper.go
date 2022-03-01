@@ -130,9 +130,12 @@ func (z *ZB) SetDefaults() {
 		},
 	}
 
-	z.Requester = request.New(z.Name,
+	z.Requester, err = request.New(z.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 	z.API.Endpoints = z.NewEndpoints()
 	err = z.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:              zbTradeURL,
@@ -380,8 +383,9 @@ func (z *ZB) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (accou
 
 		balances = append(balances, account.Balance{
 			CurrencyName: currency.NewCode(coins[i].EnName),
-			TotalValue:   hold + avail,
+			Total:        hold + avail,
 			Hold:         hold,
+			Free:         avail,
 		})
 	}
 

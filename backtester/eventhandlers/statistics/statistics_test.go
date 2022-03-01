@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -737,12 +738,15 @@ func TestCalculateTheResults(t *testing.T) {
 	s.ExchangeAssetPairStatistics[exch][a][p2].Events[1].Holdings.QuoteInitialFunds = eleet
 	s.ExchangeAssetPairStatistics[exch][a][p2].Events[1].Holdings.TotalValue = eleeet
 
-	funds := funding.SetupFundingManager(false, false)
-	pBase, err := funding.CreateItem(exch, a, p.Base, eleeet, decimal.Zero, false)
+	funds, err := funding.SetupFundingManager(&engine.ExchangeManager{}, false, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	pQuote, err := funding.CreateItem(exch, a, p.Quote, eleeet, decimal.Zero, false)
+	pBase, err := funding.CreateItem(exch, a, p.Base, eleeet, decimal.Zero)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	pQuote, err := funding.CreateItem(exch, a, p.Quote, eleeet, decimal.Zero)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -755,11 +759,11 @@ func TestCalculateTheResults(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	pBase2, err := funding.CreateItem(exch, a, p2.Base, eleeet, decimal.Zero, false)
+	pBase2, err := funding.CreateItem(exch, a, p2.Base, eleeet, decimal.Zero)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	pQuote2, err := funding.CreateItem(exch, a, p2.Quote, eleeet, decimal.Zero, false)
+	pQuote2, err := funding.CreateItem(exch, a, p2.Quote, eleeet, decimal.Zero)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -781,7 +785,10 @@ func TestCalculateTheResults(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, errMissingSnapshots)
 	}
 
-	funds = funding.SetupFundingManager(false, true)
+	funds, err = funding.SetupFundingManager(&engine.ExchangeManager{}, false, true)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
 	err = funds.AddPair(pair)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)

@@ -35,32 +35,32 @@ func TestWsCurrencyMap(t *testing.T) {
 		t.Fatalf("expected: %v but received: %v", errCodeMapIsNil, err)
 	}
 
-	_, err = m.GetWithdrawalTXFee(currency.Code{})
+	_, err = m.GetWithdrawalTXFee(currency.EMPTYCODE)
 	if !errors.Is(err, errCodeMapIsNil) {
 		t.Fatalf("expected: %v but received: %v", errCodeMapIsNil, err)
 	}
 
-	_, err = m.GetDepositAddress(currency.Code{})
+	_, err = m.GetDepositAddress(currency.EMPTYCODE)
 	if !errors.Is(err, errCodeMapIsNil) {
 		t.Fatalf("expected: %v but received: %v", errCodeMapIsNil, err)
 	}
 
-	_, err = m.IsWithdrawAndDepositsEnabled(currency.Code{})
+	_, err = m.IsWithdrawAndDepositsEnabled(currency.EMPTYCODE)
 	if !errors.Is(err, errCodeMapIsNil) {
 		t.Fatalf("expected: %v but received: %v", errCodeMapIsNil, err)
 	}
 
-	_, err = m.IsTradingEnabledForCurrency(currency.Code{})
+	_, err = m.IsTradingEnabledForCurrency(currency.EMPTYCODE)
 	if !errors.Is(err, errCodeMapIsNil) {
 		t.Fatalf("expected: %v but received: %v", errCodeMapIsNil, err)
 	}
 
-	_, err = m.IsTradingEnabledForPair(currency.Pair{})
+	_, err = m.IsTradingEnabledForPair(currency.EMPTYPAIR)
 	if !errors.Is(err, errCodeMapIsNil) {
 		t.Fatalf("expected: %v but received: %v", errCodeMapIsNil, err)
 	}
 
-	_, err = m.IsPostOnlyForPair(currency.Pair{})
+	_, err = m.IsPostOnlyForPair(currency.EMPTYPAIR)
 	if !errors.Is(err, errCodeMapIsNil) {
 		t.Fatalf("expected: %v but received: %v", errCodeMapIsNil, err)
 	}
@@ -178,32 +178,32 @@ func TestWsCurrencyMap(t *testing.T) {
 		t.Fatal("unexpected results")
 	}
 
-	_, err = m.GetWithdrawalTXFee(currency.Code{})
+	_, err = m.GetWithdrawalTXFee(currency.EMPTYCODE)
 	if !errors.Is(err, errCurrencyNotFoundInMap) {
 		t.Fatalf("expected: %v but received: %v", errCurrencyNotFoundInMap, err)
 	}
 
-	_, err = m.GetDepositAddress(currency.Code{})
+	_, err = m.GetDepositAddress(currency.EMPTYCODE)
 	if !errors.Is(err, errCurrencyNotFoundInMap) {
 		t.Fatalf("expected: %v but received: %v", errCurrencyNotFoundInMap, err)
 	}
 
-	_, err = m.IsWithdrawAndDepositsEnabled(currency.Code{})
+	_, err = m.IsWithdrawAndDepositsEnabled(currency.EMPTYCODE)
 	if !errors.Is(err, errCurrencyNotFoundInMap) {
 		t.Fatalf("expected: %v but received: %v", errCurrencyNotFoundInMap, err)
 	}
 
-	_, err = m.IsTradingEnabledForCurrency(currency.Code{})
+	_, err = m.IsTradingEnabledForCurrency(currency.EMPTYCODE)
 	if !errors.Is(err, errCurrencyNotFoundInMap) {
 		t.Fatalf("expected: %v but received: %v", errCurrencyNotFoundInMap, err)
 	}
 
-	_, err = m.IsTradingEnabledForPair(currency.Pair{})
+	_, err = m.IsTradingEnabledForPair(currency.EMPTYPAIR)
 	if !errors.Is(err, errCurrencyNotFoundInMap) {
 		t.Fatalf("expected: %v but received: %v", errCurrencyNotFoundInMap, err)
 	}
 
-	_, err = m.IsPostOnlyForPair(currency.Pair{})
+	_, err = m.IsPostOnlyForPair(currency.EMPTYPAIR)
 	if !errors.Is(err, errCurrencyNotFoundInMap) {
 		t.Fatalf("expected: %v but received: %v", errCurrencyNotFoundInMap, err)
 	}

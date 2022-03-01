@@ -113,9 +113,12 @@ func (g *Gemini) SetDefaults() {
 		},
 	}
 
-	g.Requester = request.New(g.Name,
+	g.Requester, err = request.New(g.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 	g.API.Endpoints = g.NewEndpoints()
 	err = g.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:      geminiAPIURL,
@@ -318,11 +321,12 @@ func (g *Gemini) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 
 	var currencies []account.Balance
 	for i := range accountBalance {
-		var exchangeCurrency account.Balance
-		exchangeCurrency.CurrencyName = currency.NewCode(accountBalance[i].Currency)
-		exchangeCurrency.TotalValue = accountBalance[i].Amount
-		exchangeCurrency.Hold = accountBalance[i].Amount - accountBalance[i].Available
-		currencies = append(currencies, exchangeCurrency)
+		currencies = append(currencies, account.Balance{
+			CurrencyName: currency.NewCode(accountBalance[i].Currency),
+			Total:        accountBalance[i].Amount,
+			Hold:         accountBalance[i].Amount - accountBalance[i].Available,
+			Free:         accountBalance[i].Available,
+		})
 	}
 
 	response.Accounts = append(response.Accounts, account.SubAccount{

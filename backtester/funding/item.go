@@ -97,7 +97,7 @@ func (i *Item) BasicEqual(exch string, a asset.Item, currency, pairedCurrency cu
 		i.asset == a &&
 		i.currency == currency &&
 		(i.pairedWith == nil ||
-			(i.pairedWith != nil && i.pairedWith.currency.Match(pairedCurrency)))
+			(i.pairedWith != nil && i.pairedWith.currency.Equal(pairedCurrency)))
 }
 
 // MatchesCurrency checks that an item's currency is equal

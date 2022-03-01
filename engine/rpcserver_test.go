@@ -92,6 +92,25 @@ func (f fExchange) GetHistoricCandlesExtended(ctx context.Context, p currency.Pa
 	}, nil
 }
 
+func (f fExchange) FetchTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
+	return &ticker.Price{
+		Last:         1337,
+		High:         1337,
+		Low:          1337,
+		Bid:          1337,
+		Ask:          1337,
+		Volume:       1337,
+		QuoteVolume:  1337,
+		PriceATH:     1337,
+		Open:         1337,
+		Close:        1337,
+		Pair:         p,
+		ExchangeName: f.GetName(),
+		AssetType:    a,
+		LastUpdated:  time.Now(),
+	}, nil
+}
+
 // FetchAccountInfo overrides testExchange's fetch account info function
 // to do the bare minimum required with no API calls or credentials required
 func (f fExchange) FetchAccountInfo(_ context.Context, a asset.Item) (account.Holdings, error) {
@@ -104,7 +123,11 @@ func (f fExchange) FetchAccountInfo(_ context.Context, a asset.Item) (account.Ho
 				Currencies: []account.Balance{
 					{
 						CurrencyName: currency.USD,
-						TotalValue:   1337,
+						Total:        1337,
+					},
+					{
+						CurrencyName: currency.BTC,
+						Total:        13337,
 					},
 				},
 			},
@@ -132,23 +155,46 @@ func (f fExchange) GetFuturesPositions(_ context.Context, a asset.Item, cp curre
 }
 
 // CalculateTotalCollateral overrides testExchange's CalculateTotalCollateral function
-func (f fExchange) CalculateTotalCollateral(context.Context, string, bool, []order.CollateralCalculator) (*order.TotalCollateralResponse, error) {
+func (f fExchange) CalculateTotalCollateral(context.Context, *order.TotalCollateralCalculator) (*order.TotalCollateralResponse, error) {
 	return &order.TotalCollateralResponse{
-		TotalCollateral: decimal.NewFromInt(1337),
+		CollateralCurrency:             currency.USD,
+		AvailableMaintenanceCollateral: decimal.NewFromInt(1338),
+		AvailableCollateral:            decimal.NewFromInt(1337),
+		UsedBreakdown: &order.UsedCollateralBreakdown{
+			LockedInStakes:                  decimal.NewFromInt(3),
+			LockedInNFTBids:                 decimal.NewFromInt(3),
+			LockedInFeeVoucher:              decimal.NewFromInt(3),
+			LockedInSpotMarginFundingOffers: decimal.NewFromInt(3),
+			LockedInSpotOrders:              decimal.NewFromInt(3),
+			LockedAsCollateral:              decimal.NewFromInt(3),
+		},
 		BreakdownByCurrency: []order.CollateralByCurrency{
 			{
-				Currency:    currency.USD,
-				ScaledValue: decimal.NewFromInt(1330),
+				Currency:               currency.USD,
+				TotalFunds:             decimal.NewFromInt(1330),
+				CollateralContribution: decimal.NewFromInt(1330),
+				ScaledCurrency:         currency.USD,
 			},
 			{
-				Currency:      currency.DOGE,
-				ScaledValue:   decimal.NewFromInt(10),
-				ValueCurrency: currency.USD,
+				Currency:   currency.DOGE,
+				TotalFunds: decimal.NewFromInt(1000),
+				ScaledUsed: decimal.NewFromInt(6),
+				ScaledUsedBreakdown: &order.UsedCollateralBreakdown{
+					LockedInStakes:                  decimal.NewFromInt(1),
+					LockedInNFTBids:                 decimal.NewFromInt(1),
+					LockedInFeeVoucher:              decimal.NewFromInt(1),
+					LockedInSpotMarginFundingOffers: decimal.NewFromInt(1),
+					LockedInSpotOrders:              decimal.NewFromInt(1),
+					LockedAsCollateral:              decimal.NewFromInt(1),
+				},
+				CollateralContribution: decimal.NewFromInt(4),
+				ScaledCurrency:         currency.USD,
 			},
 			{
-				Currency:      currency.XRP,
-				ScaledValue:   decimal.NewFromInt(-3),
-				ValueCurrency: currency.USD,
+				Currency:               currency.XRP,
+				TotalFunds:             decimal.NewFromInt(1333333333333337),
+				CollateralContribution: decimal.NewFromInt(-3),
+				ScaledCurrency:         currency.USD,
 			},
 		},
 	}, nil
@@ -1522,12 +1568,12 @@ func TestGetDataHistoryJobDetails(t *testing.T) {
 
 	resp, err := s.GetDataHistoryJobDetails(context.Background(), &gctrpc.GetDataHistoryJobDetailsRequest{Nickname: "TestGetDataHistoryJobDetails", FullDetails: true})
 	if !errors.Is(err, nil) {
-		t.Errorf("received %v, expected %v", err, nil)
+		t.Fatalf("received %v, expected %v", err, nil)
 	}
-	if resp == nil {
+	if resp == nil { //nolint:staticcheck,nolintlint // SA5011 Ignore the nil warnings
 		t.Fatal("expected job")
 	}
-	if !strings.EqualFold(resp.Nickname, "TestGetDataHistoryJobDetails") {
+	if !strings.EqualFold(resp.Nickname, "TestGetDataHistoryJobDetails") { //nolint:nolintlint,staticcheck // SA5011 Ignore the nil warnings
 		t.Errorf("received %v, expected %v", resp.Nickname, "TestGetDataHistoryJobDetails")
 	}
 }
@@ -1697,14 +1743,14 @@ func TestGetDataHistoryJobSummary(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v, expected %v", err, nil)
 	}
-	if resp == nil {
+	if resp == nil { //nolint:staticcheck,nolintlint // SA5011 Ignore the nil warnings
 		t.Fatal("expected job")
 	}
-	if !strings.EqualFold(resp.Nickname, "TestGetDataHistoryJobSummary") {
-		t.Errorf("received %v, expected %v", "TestGetDataHistoryJobSummary", resp.Nickname)
+	if !strings.EqualFold(resp.Nickname, "TestGetDataHistoryJobSummary") { //nolint:staticcheck,nolintlint // SA5011 Ignore the nil warnings
+		t.Fatalf("received %v, expected %v", "TestGetDataHistoryJobSummary", resp.Nickname)
 	}
-	if resp.ResultSummaries == nil {
-		t.Errorf("received %v, expected %v", nil, "result summaries slice")
+	if resp.ResultSummaries == nil { //nolint:staticcheck,nolintlint // SA5011 Ignore the nil warnings
+		t.Fatalf("received %v, expected %v", nil, "result summaries slice")
 	}
 }
 
@@ -2090,15 +2136,15 @@ func TestGetFuturesPositions(t *testing.T) {
 		Verbose: true,
 	})
 	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
+		t.Fatalf("received '%v', expected '%v'", err, nil)
 	}
-	if r == nil {
+	if r == nil { //nolint:staticcheck,nolintlint // SA5011 Ignore the nil warnings
 		t.Fatal("expected not nil response")
 	}
-	if len(r.Positions) != 1 {
+	if len(r.Positions) != 1 { //nolint:staticcheck,nolintlint // SA5011 Ignore the nil warnings
 		t.Fatal("expected 1 position")
 	}
-	if r.TotalOrders != 1 {
+	if r.TotalOrders != 1 { //nolint:staticcheck,nolintlint // SA5011 Ignore the nil warnings
 		t.Fatal("expected 1 order")
 	}
 
@@ -2177,10 +2223,10 @@ func TestGetCollateral(t *testing.T) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
 	if len(r.CurrencyBreakdown) != 3 {
-		t.Error("expected 3 currencies")
+		t.Errorf("expected 3 currencies, received '%v'", len(r.CurrencyBreakdown))
 	}
-	if r.TotalCollateral != "1337" {
-		t.Error("expected 1337")
+	if r.AvailableCollateral != "1337 USD" {
+		t.Errorf("received '%v' expected '1337 USD'", r.AvailableCollateral)
 	}
 
 	_, err = s.GetCollateral(context.Background(), &gctrpc.GetCollateralRequest{
@@ -2191,5 +2237,16 @@ func TestGetCollateral(t *testing.T) {
 	})
 	if !errors.Is(err, order.ErrNotFuturesAsset) {
 		t.Errorf("received '%v', expected '%v'", err, order.ErrNotFuturesAsset)
+	}
+
+	_, err = s.GetCollateral(context.Background(), &gctrpc.GetCollateralRequest{
+		Exchange:         fakeExchangeName,
+		Asset:            asset.Futures.String(),
+		IncludeBreakdown: true,
+		SubAccount:       "1337",
+		CalculateOffline: true,
+	})
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
 }

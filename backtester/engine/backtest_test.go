@@ -47,13 +47,13 @@ func TestMain(m *testing.M) {
 
 func TestNewFromConfig(t *testing.T) {
 	t.Parallel()
-	_, err := NewFromConfig(nil, "", "")
+	_, err := NewFromConfig(nil, "", "", false)
 	if !errors.Is(err, errNilConfig) {
 		t.Errorf("received %v, expected %v", err, errNilConfig)
 	}
 
 	cfg := &config.Config{}
-	_, err = NewFromConfig(cfg, "", "")
+	_, err = NewFromConfig(cfg, "", "", false)
 	if !errors.Is(err, base.ErrStrategyNotFound) {
 		t.Errorf("received: %v, expected: %v", err, base.ErrStrategyNotFound)
 	}
@@ -65,17 +65,17 @@ func TestNewFromConfig(t *testing.T) {
 			Quote:        "test",
 		},
 	}
-	_, err = NewFromConfig(cfg, "", "")
+	_, err = NewFromConfig(cfg, "", "", false)
 	if !errors.Is(err, engine.ErrExchangeNotFound) {
 		t.Errorf("received: %v, expected: %v", err, engine.ErrExchangeNotFound)
 	}
 	cfg.CurrencySettings[0].ExchangeName = testExchange
-	_, err = NewFromConfig(cfg, "", "")
+	_, err = NewFromConfig(cfg, "", "", false)
 	if !errors.Is(err, errInvalidConfigAsset) {
 		t.Errorf("received: %v, expected: %v", err, errInvalidConfigAsset)
 	}
 	cfg.CurrencySettings[0].Asset = asset.Spot.String()
-	_, err = NewFromConfig(cfg, "", "")
+	_, err = NewFromConfig(cfg, "", "", false)
 	if !errors.Is(err, base.ErrStrategyNotFound) {
 		t.Errorf("received: %v, expected: %v", err, base.ErrStrategyNotFound)
 	}
@@ -93,19 +93,19 @@ func TestNewFromConfig(t *testing.T) {
 		EndDate:   time.Time{},
 	}
 
-	_, err = NewFromConfig(cfg, "", "")
+	_, err = NewFromConfig(cfg, "", "", false)
 	if err != nil && !strings.Contains(err.Error(), "unrecognised dataType") {
 		t.Error(err)
 	}
 	cfg.DataSettings.DataType = common.CandleStr
-	_, err = NewFromConfig(cfg, "", "")
+	_, err = NewFromConfig(cfg, "", "", false)
 	if !errors.Is(err, errIntervalUnset) {
 		t.Errorf("received: %v, expected: %v", err, errIntervalUnset)
 	}
 	cfg.DataSettings.Interval = gctkline.OneMin.Duration()
 	cfg.CurrencySettings[0].MakerFee = decimal.Zero
 	cfg.CurrencySettings[0].TakerFee = decimal.Zero
-	_, err = NewFromConfig(cfg, "", "")
+	_, err = NewFromConfig(cfg, "", "", false)
 	if !errors.Is(err, gctcommon.ErrDateUnset) {
 		t.Errorf("received: %v, expected: %v", err, gctcommon.ErrDateUnset)
 	}
@@ -113,7 +113,7 @@ func TestNewFromConfig(t *testing.T) {
 	cfg.DataSettings.APIData.StartDate = time.Now().Add(-time.Minute)
 	cfg.DataSettings.APIData.EndDate = time.Now()
 	cfg.DataSettings.APIData.InclusiveEndDate = true
-	_, err = NewFromConfig(cfg, "", "")
+	_, err = NewFromConfig(cfg, "", "", false)
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
@@ -429,7 +429,10 @@ func TestLoadLiveData(t *testing.T) {
 
 func TestReset(t *testing.T) {
 	t.Parallel()
-	f := funding.SetupFundingManager(true, false)
+	f, err := funding.SetupFundingManager(&engine.ExchangeManager{}, true, false)
+	if err != nil {
+		t.Error(err)
+	}
 	bt := BackTest{
 		shutdown:   make(chan struct{}),
 		Datas:      &data.HandlerPerCurrency{},
@@ -472,12 +475,15 @@ func TestFullCycle(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	f := funding.SetupFundingManager(false, true)
-	b, err := funding.CreateItem(ex, a, cp.Base, decimal.Zero, decimal.Zero, false)
+	f, err := funding.SetupFundingManager(&engine.ExchangeManager{}, false, true)
 	if err != nil {
 		t.Error(err)
 	}
-	quote, err := funding.CreateItem(ex, a, cp.Quote, decimal.NewFromInt(1337), decimal.Zero, false)
+	b, err := funding.CreateItem(ex, a, cp.Base, decimal.Zero, decimal.Zero)
+	if err != nil {
+		t.Error(err)
+	}
+	quote, err := funding.CreateItem(ex, a, cp.Quote, decimal.NewFromInt(1337), decimal.Zero)
 	if err != nil {
 		t.Error(err)
 	}
@@ -577,12 +583,15 @@ func TestFullCycleMulti(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	f := funding.SetupFundingManager(false, true)
-	b, err := funding.CreateItem(ex, a, cp.Base, decimal.Zero, decimal.Zero, false)
+	f, err := funding.SetupFundingManager(&engine.ExchangeManager{}, false, true)
 	if err != nil {
 		t.Error(err)
 	}
-	quote, err := funding.CreateItem(ex, a, cp.Quote, decimal.NewFromInt(1337), decimal.Zero, false)
+	b, err := funding.CreateItem(ex, a, cp.Base, decimal.Zero, decimal.Zero)
+	if err != nil {
+		t.Error(err)
+	}
+	quote, err := funding.CreateItem(ex, a, cp.Quote, decimal.NewFromInt(1337), decimal.Zero)
 	if err != nil {
 		t.Error(err)
 	}

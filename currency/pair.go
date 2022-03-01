@@ -1,20 +1,23 @@
 package currency
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 )
+
+var errCannotCreatePair = errors.New("cannot create currency pair")
 
 // NewPairDelimiter splits the desired currency string at delimeter, the returns
 // a Pair struct
 func NewPairDelimiter(currencyPair, delimiter string) (Pair, error) {
 	if !strings.Contains(currencyPair, delimiter) {
-		return Pair{},
+		return EMPTYPAIR,
 			fmt.Errorf("delimiter: [%s] not found in currencypair string", delimiter)
 	}
 	result := strings.Split(currencyPair, delimiter)
 	if len(result) < 2 {
-		return Pair{},
+		return EMPTYPAIR,
 			fmt.Errorf("supplied pair: [%s] cannot be split with %s",
 				currencyPair,
 				delimiter)
@@ -32,13 +35,13 @@ func NewPairDelimiter(currencyPair, delimiter string) (Pair, error) {
 // NewPairFromStrings returns a CurrencyPair without a delimiter
 func NewPairFromStrings(base, quote string) (Pair, error) {
 	if strings.Contains(base, " ") {
-		return Pair{},
+		return EMPTYPAIR,
 			fmt.Errorf("cannot create pair, invalid base currency string [%s]",
 				base)
 	}
 
 	if strings.Contains(quote, " ") {
-		return Pair{},
+		return EMPTYPAIR,
 			fmt.Errorf("cannot create pair, invalid quote currency string [%s]",
 				quote)
 	}
@@ -68,7 +71,7 @@ func NewPairWithDelimiter(base, quote, delimiter string) Pair {
 func NewPairFromIndex(currencyPair, index string) (Pair, error) {
 	i := strings.Index(currencyPair, index)
 	if i == -1 {
-		return Pair{},
+		return EMPTYPAIR,
 			fmt.Errorf("index %s not found in currency pair string", index)
 	}
 	if i == 0 {
@@ -87,8 +90,9 @@ func NewPairFromString(currencyPair string) (Pair, error) {
 		}
 	}
 	if len(currencyPair) < 3 {
-		return Pair{},
-			fmt.Errorf("cannot create pair from %s string",
+		return EMPTYPAIR,
+			fmt.Errorf("%w from %s string too short to be a current pair",
+				errCannotCreatePair,
 				currencyPair)
 	}
 	return NewPairFromStrings(currencyPair[0:3], currencyPair[3:])
@@ -100,8 +104,7 @@ func NewPairFromString(currencyPair string) (Pair, error) {
 // apply the same format
 func NewPairFromFormattedPairs(currencyPair string, pairs Pairs, pairFmt PairFormat) (Pair, error) {
 	for x := range pairs {
-		fPair := pairFmt.Format(pairs[x])
-		if strings.EqualFold(fPair, currencyPair) {
+		if strings.EqualFold(pairFmt.Format(pairs[x]), currencyPair) {
 			return pairs[x], nil
 		}
 	}
@@ -132,5 +135,5 @@ func MatchPairsWithNoDelimiter(currencyPair string, pairs Pairs, pairFmt PairFor
 			}
 		}
 	}
-	return Pair{}, fmt.Errorf("currency %v not found in supplied pairs", currencyPair)
+	return EMPTYPAIR, fmt.Errorf("currency %v not found in supplied pairs", currencyPair)
 }

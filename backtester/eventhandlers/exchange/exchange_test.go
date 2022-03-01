@@ -36,11 +36,11 @@ func (f *fakeFund) GetCollateralReader() (funding.ICollateralReader, error) {
 }
 
 func (f *fakeFund) GetPairReleaser() (funding.IPairReleaser, error) {
-	btc, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.NewFromInt(9999), decimal.NewFromInt(9999), false)
+	btc, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.NewFromInt(9999), decimal.NewFromInt(9999))
 	if err != nil {
 		return nil, err
 	}
-	usd, err := funding.CreateItem(testExchange, asset.Spot, currency.USD, decimal.NewFromInt(9999), decimal.NewFromInt(9999), false)
+	usd, err := funding.CreateItem(testExchange, asset.Spot, currency.USD, decimal.NewFromInt(9999), decimal.NewFromInt(9999))
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +81,7 @@ func TestReset(t *testing.T) {
 func TestSetCurrency(t *testing.T) {
 	t.Parallel()
 	e := Exchange{}
-	e.SetExchangeAssetCurrencySettings("", currency.Pair{}, &Settings{})
+	e.SetExchangeAssetCurrencySettings("", currency.EMPTYPAIR, &Settings{})
 	if len(e.CurrencySettings) != 0 {
 		t.Error("expected 0")
 	}
@@ -143,35 +143,6 @@ func TestCalculateExchangeFee(t *testing.T) {
 	fee = calculateExchangeFee(decimal.NewFromInt(2), decimal.NewFromFloat(1), decimal.NewFromFloat(0.005))
 	if !fee.Equal(decimal.NewFromFloat(0.01)) {
 		t.Error("expected 0.01")
-	}
-}
-
-func TestSizeOrder(t *testing.T) {
-	t.Parallel()
-	e := Exchange{}
-	_, _, err := e.sizeOfflineOrder(decimal.Zero, decimal.Zero, decimal.Zero, nil, nil)
-	if !errors.Is(err, common.ErrNilArguments) {
-		t.Error(err)
-	}
-	cs := &Settings{}
-	f := &fill.Fill{
-		ClosePrice: decimal.NewFromInt(1337),
-		Amount:     decimal.NewFromInt(1),
-	}
-	_, _, err = e.sizeOfflineOrder(decimal.Zero, decimal.Zero, decimal.Zero, cs, f)
-	if !errors.Is(err, errDataMayBeIncorrect) {
-		t.Errorf("received: %v, expected: %v", err, errDataMayBeIncorrect)
-	}
-	var p, a decimal.Decimal
-	p, a, err = e.sizeOfflineOrder(decimal.NewFromInt(10), decimal.NewFromInt(2), decimal.NewFromInt(10), cs, f)
-	if err != nil {
-		t.Error(err)
-	}
-	if !p.Equal(decimal.NewFromInt(10)) {
-		t.Error("expected 10")
-	}
-	if !a.Equal(decimal.NewFromInt(1)) {
-		t.Error("expected 1")
 	}
 }
 
@@ -419,7 +390,7 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 	d := &kline.DataFromKline{
 		Item: gctkline.Item{
 			Exchange: "",
-			Pair:     currency.Pair{},
+			Pair:     currency.EMPTYPAIR,
 			Asset:    "",
 			Interval: 0,
 			Candles: []gctkline.Candle{

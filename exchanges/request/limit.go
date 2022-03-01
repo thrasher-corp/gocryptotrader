@@ -3,10 +3,17 @@ package request
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync/atomic"
 	"time"
 
 	"golang.org/x/time/rate"
+)
+
+// Defines rate limiting errors
+var (
+	ErrRateLimiterAlreadyDisabled = errors.New("rate limiter already disabled")
+	ErrRateLimiterAlreadyEnabled  = errors.New("rate limiter already enabled")
 )
 
 // Const here define individual functionality sub types for rate limiting
@@ -60,6 +67,9 @@ func NewBasicRateLimit(interval time.Duration, actions int) Limiter {
 
 // InitiateRateLimit sleeps for designated end point rate limits
 func (r *Requester) InitiateRateLimit(ctx context.Context, e EndpointLimit) error {
+	if r == nil {
+		return ErrRequestSystemIsNil
+	}
 	if atomic.LoadInt32(&r.disableRateLimiter) == 1 {
 		return nil
 	}
@@ -73,16 +83,22 @@ func (r *Requester) InitiateRateLimit(ctx context.Context, e EndpointLimit) erro
 
 // DisableRateLimiter disables the rate limiting system for the exchange
 func (r *Requester) DisableRateLimiter() error {
+	if r == nil {
+		return ErrRequestSystemIsNil
+	}
 	if !atomic.CompareAndSwapInt32(&r.disableRateLimiter, 0, 1) {
-		return errors.New("rate limiter already disabled")
+		return fmt.Errorf("%s %w", r.name, ErrRateLimiterAlreadyDisabled)
 	}
 	return nil
 }
 
 // EnableRateLimiter enables the rate limiting system for the exchange
 func (r *Requester) EnableRateLimiter() error {
+	if r == nil {
+		return ErrRequestSystemIsNil
+	}
 	if !atomic.CompareAndSwapInt32(&r.disableRateLimiter, 1, 0) {
-		return errors.New("rate limiter already enabled")
+		return fmt.Errorf("%s %w", r.name, ErrRateLimiterAlreadyEnabled)
 	}
 	return nil
 }
