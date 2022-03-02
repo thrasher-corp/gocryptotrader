@@ -297,19 +297,19 @@ func (b *Base) GetCredentials(ctx context.Context) (*Credentials, error) {
 	if value != nil {
 		ctxCredStore, ok := value.(*contextCredentialsStore)
 		if !ok {
-			return nil, errContextCredentialsFailure
+			return &Credentials{}, errContextCredentialsFailure
 		}
 
 		creds := ctxCredStore.Get()
 		if err := b.CheckCredentials(creds, true); err != nil {
-			return nil, fmt.Errorf("context credentials issue: %w", err)
+			return creds, fmt.Errorf("context credentials issue: %w", err)
 		}
 		return creds, nil
 	}
 
 	err := b.CheckCredentials(b.API.credentials, false)
 	if err != nil {
-		return nil, err
+		return &Credentials{}, err
 	}
 	subAccountOverride, ok := ctx.Value(contextSubAccountFlag).(string)
 	b.API.credMu.RLock()
