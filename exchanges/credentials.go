@@ -19,6 +19,7 @@ type contextCredential string
 
 const (
 	contextCrendentialsFlag contextCredential = "apicredentials"
+	contextSubAccountFlag   contextCredential = "subaccountoverride"
 
 	key             = "key"
 	secret          = "secret"
@@ -67,6 +68,7 @@ func ParseCredentialsMetadata(ctx context.Context, md metadata.MD) (context.Cont
 
 	segregatedCreds := strings.Split(credMD[0], ",")
 	var ctxCreds Credentials
+	var subAccountHere string
 	for x := range segregatedCreds {
 		keyVals := strings.Split(segregatedCreds[x], ":")
 		if len(keyVals) != 2 {
@@ -81,7 +83,9 @@ func ParseCredentialsMetadata(ctx context.Context, md metadata.MD) (context.Cont
 		case secret:
 			ctxCreds.Secret = keyVals[1]
 		case subAccount:
-			ctxCreds.SubAccount = keyVals[1]
+			// Capture sub account as this can override if other values are
+			// not included in metadata.
+			subAccountHere = keyVals[1]
 		case clientID:
 			ctxCreds.ClientID = keyVals[1]
 		case _PEMKey:
@@ -90,6 +94,12 @@ func ParseCredentialsMetadata(ctx context.Context, md metadata.MD) (context.Cont
 			ctxCreds.OneTimePassword = keyVals[1]
 		}
 	}
+	if ctxCreds.IsEmpty() && subAccountHere != "" {
+		// This will override default sub account details if needed.
+		return deploySubAccountOverideToContext(ctx, subAccountHere), nil
+	}
+	// merge sub account to main context credentials
+	ctxCreds.SubAccount = subAccount
 	return DeployCredentialsToContext(ctx, &ctxCreds), nil
 }
 
@@ -108,6 +118,12 @@ type Credentials struct {
 func DeployCredentialsToContext(ctx context.Context, creds *Credentials) context.Context {
 	flag, store := creds.getInternal()
 	return context.WithValue(ctx, flag, store)
+}
+
+// deploySubAccountOverrideToContext sets subaccount as override to credentials
+// as a separate flag.
+func deploySubAccountOverideToContext(ctx context.Context, subAccount string) context.Context {
+	return context.WithValue(ctx, contextSubAccountFlag, subAccount)
 }
 
 // GetMetaData returns the credentials for metadata context deployment
@@ -295,9 +311,13 @@ func (b *Base) GetCredentials(ctx context.Context) (*Credentials, error) {
 	if err != nil {
 		return nil, err
 	}
+	subAccountOverride, ok := ctx.Value(contextSubAccountFlag).(string)
 	b.API.credMu.RLock()
 	defer b.API.credMu.RUnlock()
 	creds := *b.API.credentials
+	if ok {
+		creds.SubAccount = subAccountOverride
+	}
 	return &creds, nil
 }
 

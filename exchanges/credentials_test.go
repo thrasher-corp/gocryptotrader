@@ -72,6 +72,29 @@ func TestParseCredentialsMetadata(t *testing.T) {
 		afterCreds.OneTimePassword != "superOneTimePasssssss" {
 		t.Fatal("unexpected values")
 	}
+
+	// subaccount override
+	subaccount := Credentials{
+		SubAccount: "supersub",
+	}
+
+	flag, outGoing = subaccount.GetMetaData()
+	ctx = metadata.AppendToOutgoingContext(context.Background(), flag, outGoing)
+	lovelyMD, _ = metadata.FromOutgoingContext(ctx)
+
+	ctx, err = ParseCredentialsMetadata(context.Background(), lovelyMD)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	sa, ok := ctx.Value(contextSubAccountFlag).(string)
+	if !ok {
+		t.Fatal("should have processed")
+	}
+
+	if sa != "supersub" {
+		t.Fatal("unexpected value")
+	}
 }
 
 func TestGetCredentials(t *testing.T) {
@@ -143,6 +166,34 @@ func TestGetCredentials(t *testing.T) {
 	_, err = b.GetCredentials(ctx)
 	if !errors.Is(err, errRequiresAPIClientID) {
 		t.Fatalf("received: %v but expected: %v", err, errRequiresAPIClientID)
+	}
+
+	b.API.SetKey("hello")
+	b.API.SetSecret("sir")
+	b.API.SetClientID("1337")
+	ctx = deploySubAccountOverideToContext(context.Background(), "superaccount")
+	overridedSA, err := b.GetCredentials(ctx)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v but expected: %v", err, nil)
+	}
+
+	if overridedSA.Key != "hello" &&
+		overridedSA.Secret != "sir" &&
+		overridedSA.ClientID != "1337" &&
+		overridedSA.SubAccount != "superaccount" {
+		t.Fatal("unexpected values")
+	}
+
+	notOverrided, err := b.GetCredentials(context.Background())
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v but expected: %v", err, nil)
+	}
+
+	if notOverrided.Key != "hello" &&
+		notOverrided.Secret != "sir" &&
+		notOverrided.ClientID != "1337" &&
+		notOverrided.SubAccount != "" {
+		t.Fatal("unexpected values")
 	}
 }
 
