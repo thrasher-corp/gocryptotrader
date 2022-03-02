@@ -1,14 +1,17 @@
 package bybit
 
 import (
+	"context"
+	"errors"
 	"log"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 )
 
@@ -47,23 +50,29 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-// Ensures that this exchange package is compatible with IBotExchange
-func TestInterface(t *testing.T) {
-	var e exchange.IBotExchange
-	if e = new(Bybit); e == nil {
-		t.Fatal("unable to allocate exchange")
-	}
-}
-
 func areTestAPIKeysSet() bool {
 	return by.ValidateAPICredentials()
+}
+
+func TestStart(t *testing.T) {
+	t.Parallel()
+	err := by.Start(nil)
+	if !errors.Is(err, common.ErrNilPointer) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrNilPointer)
+	}
+	var testWg sync.WaitGroup
+	err = by.Start(&testWg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	testWg.Wait()
 }
 
 // test cases for SPOT
 
 func TestGetAllPairs(t *testing.T) {
 	t.Parallel()
-	_, err := by.GetAllPairs()
+	_, err := by.GetAllPairs(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,7 +80,7 @@ func TestGetAllPairs(t *testing.T) {
 
 func TestGetOrderBook(t *testing.T) {
 	t.Parallel()
-	_, err := by.GetOrderBook("BTCUSDT", 100)
+	_, err := by.GetOrderBook(context.Background(), "BTCUSDT", 100)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -79,7 +88,7 @@ func TestGetOrderBook(t *testing.T) {
 
 func TestGetTrades(t *testing.T) {
 	t.Parallel()
-	_, err := by.GetTrades("BTCUSDT", 100)
+	_, err := by.GetTrades(context.Background(), "BTCUSDT", 100)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -87,7 +96,7 @@ func TestGetTrades(t *testing.T) {
 
 func TestGetKlines(t *testing.T) {
 	t.Parallel()
-	_, err := by.GetKlines("BTCUSDT", "5m", 2000, time.Now().Add(-time.Hour*1), time.Now())
+	_, err := by.GetKlines(context.Background(), "BTCUSDT", "5m", 2000, time.Now().Add(-time.Hour*1), time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -95,12 +104,12 @@ func TestGetKlines(t *testing.T) {
 
 func TestGet24HrsChange(t *testing.T) {
 	t.Parallel()
-	_, err := by.Get24HrsChange("BTCUSDT")
+	_, err := by.Get24HrsChange(context.Background(), "BTCUSDT")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = by.Get24HrsChange("")
+	_, err = by.Get24HrsChange(context.Background(), "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -108,12 +117,12 @@ func TestGet24HrsChange(t *testing.T) {
 
 func TestGetLastTradedPrice(t *testing.T) {
 	t.Parallel()
-	_, err := by.GetLastTradedPrice("BTCUSDT")
+	_, err := by.GetLastTradedPrice(context.Background(), "BTCUSDT")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = by.GetLastTradedPrice("")
+	_, err = by.GetLastTradedPrice(context.Background(), "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -121,12 +130,12 @@ func TestGetLastTradedPrice(t *testing.T) {
 
 func TestGetBestBidAskPrice(t *testing.T) {
 	t.Parallel()
-	_, err := by.GetBestBidAskPrice("BTCUSDT")
+	_, err := by.GetBestBidAskPrice(context.Background(), "BTCUSDT")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = by.GetBestBidAskPrice("")
+	_, err = by.GetBestBidAskPrice(context.Background(), "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -134,7 +143,7 @@ func TestGetBestBidAskPrice(t *testing.T) {
 
 func TestCreatePostOrder(t *testing.T) {
 	t.Parallel()
-	_, err := by.CreatePostOrder(&PlaceOrderRequest{
+	_, err := by.CreatePostOrder(context.Background(), &PlaceOrderRequest{
 		Symbol:      "BTCUSDT",
 		Quantity:    1,
 		Side:        "BUY",
@@ -150,7 +159,7 @@ func TestCreatePostOrder(t *testing.T) {
 
 func TestQueryOrder(t *testing.T) {
 	t.Parallel()
-	_, err := by.QueryOrder("0", "")
+	_, err := by.QueryOrder(context.Background(), "0", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -158,7 +167,7 @@ func TestQueryOrder(t *testing.T) {
 
 func TestCancelExistingOrder(t *testing.T) {
 	t.Parallel()
-	_, err := by.CancelExistingOrder("", "linkID")
+	_, err := by.CancelExistingOrder(context.Background(), "", "linkID")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -166,7 +175,7 @@ func TestCancelExistingOrder(t *testing.T) {
 
 func TestBatchCancelOrder(t *testing.T) {
 	t.Parallel()
-	_, err := by.BatchCancelOrder("", "BUY", "")
+	_, err := by.BatchCancelOrder(context.Background(), "", "BUY", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -174,7 +183,7 @@ func TestBatchCancelOrder(t *testing.T) {
 
 func TestListOpenOrders(t *testing.T) {
 	t.Parallel()
-	_, err := by.ListOpenOrders("BTCUSDT", "", 0)
+	_, err := by.ListOpenOrders(context.Background(), "BTCUSDT", "", 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -182,7 +191,7 @@ func TestListOpenOrders(t *testing.T) {
 
 func TestListPastOrders(t *testing.T) {
 	t.Parallel()
-	_, err := by.ListPastOrders("BTCUSDT", "", 0)
+	_, err := by.ListPastOrders(context.Background(), "BTCUSDT", "", 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -190,7 +199,7 @@ func TestListPastOrders(t *testing.T) {
 
 func TestGetTradeHistory(t *testing.T) {
 	t.Parallel()
-	_, err := by.GetTradeHistory("", 0, 0, 0)
+	_, err := by.GetTradeHistory(context.Background(), "", 0, 0, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -198,7 +207,7 @@ func TestGetTradeHistory(t *testing.T) {
 
 func TestGetWalletBalance(t *testing.T) {
 	t.Parallel()
-	_, err := by.GetWalletBalance()
+	_, err := by.GetWalletBalance(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -344,7 +353,7 @@ func TestGetFuturesOrderbook(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = by.GetFuturesOrderbook(pair)
+	_, err = by.GetFuturesOrderbook(context.Background(), pair)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -356,12 +365,12 @@ func TestGetFuturesKlineData(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = by.GetFuturesKlineData(pair, "M", 5, time.Time{})
+	_, err = by.GetFuturesKlineData(context.Background(), pair, "M", 5, time.Time{})
 	if err != nil {
 		t.Error(err)
 	}
 
-	_, err = by.GetFuturesKlineData(pair, "60", 5, time.Unix(1577836800, 0))
+	_, err = by.GetFuturesKlineData(context.Background(), pair, "60", 5, time.Unix(1577836800, 0))
 	if err != nil {
 		t.Error(err)
 	}
@@ -374,7 +383,7 @@ func TestGetFuturesSymbolPriceTicker(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.GetFuturesSymbolPriceTicker(pair)
+	_, err = by.GetFuturesSymbolPriceTicker(context.Background(), pair)
 	if err != nil {
 		t.Error(err)
 	}
@@ -387,12 +396,12 @@ func TestGetPublicTrades(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.GetPublicTrades(pair, 0, 0)
+	_, err = by.GetPublicTrades(context.Background(), pair, 0, 0)
 	if err != nil {
 		t.Error(err)
 	}
 
-	_, err = by.GetPublicTrades(pair, 0, 10)
+	_, err = by.GetPublicTrades(context.Background(), pair, 0, 10)
 	if err != nil {
 		t.Error(err)
 	}
@@ -400,7 +409,7 @@ func TestGetPublicTrades(t *testing.T) {
 
 func TestGetSymbolsInfo(t *testing.T) {
 	t.Parallel()
-	_, err := by.GetSymbolsInfo()
+	_, err := by.GetSymbolsInfo(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
@@ -413,7 +422,7 @@ func TestGetMarkPriceKline(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.GetMarkPriceKline(pair, "D", 0, time.Unix(1577836800, 0))
+	_, err = by.GetMarkPriceKline(context.Background(), pair, "D", 0, time.Unix(1577836800, 0))
 	if err != nil {
 		t.Error(err)
 	}
@@ -426,7 +435,7 @@ func TestGetIndexPriceKline(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.GetIndexPriceKline(pair, "D", 0, time.Unix(1577836800, 0))
+	_, err = by.GetIndexPriceKline(context.Background(), pair, "D", 0, time.Unix(1577836800, 0))
 	if err != nil {
 		t.Error(err)
 	}
@@ -439,7 +448,7 @@ func TestGetPremiumIndexPriceKline(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.GetPremiumIndexPriceKline(pair, "D", 0, time.Unix(1577836800, 0))
+	_, err = by.GetPremiumIndexPriceKline(context.Background(), pair, "D", 0, time.Unix(1577836800, 0))
 	if err != nil {
 		t.Error(err)
 	}
@@ -452,7 +461,7 @@ func TestGetOpenInterest(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.GetOpenInterest(pair, "5min", 0)
+	_, err = by.GetOpenInterest(context.Background(), pair, "5min", 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -465,7 +474,7 @@ func TestGetLatestBigDeal(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.GetLatestBigDeal(pair, 0)
+	_, err = by.GetLatestBigDeal(context.Background(), pair, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -478,7 +487,7 @@ func TestGetAccountRatio(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.GetAccountRatio(pair, "1d", 0)
+	_, err = by.GetAccountRatio(context.Background(), pair, "1d", 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -491,7 +500,7 @@ func TestGetRiskLimit(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.GetRiskLimit(pair)
+	_, err = by.GetRiskLimit(context.Background(), pair)
 	if err != nil {
 		t.Error(err)
 	}
@@ -504,7 +513,7 @@ func TestGetLastFundingRate(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.GetLastFundingRate(pair)
+	_, err = by.GetLastFundingRate(context.Background(), pair)
 	if err != nil {
 		t.Error(err)
 	}
@@ -512,7 +521,7 @@ func TestGetLastFundingRate(t *testing.T) {
 
 func TestGetServerTime(t *testing.T) {
 	t.Parallel()
-	_, err := by.GetFuturesServerTime()
+	_, err := by.GetFuturesServerTime(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
@@ -520,7 +529,7 @@ func TestGetServerTime(t *testing.T) {
 
 func TestGetAnnouncement(t *testing.T) {
 	t.Parallel()
-	_, err := by.GetAnnouncement()
+	_, err := by.GetAnnouncement(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
@@ -533,7 +542,7 @@ func TestCreateCoinFuturesOrder(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.CreateCoinFuturesOrder(pair, "Buy", "Limit", "GTC", "", "", "", 1, 1, 0, 0, false, false)
+	_, err = by.CreateCoinFuturesOrder(context.Background(), pair, "Buy", "Limit", "GTC", "", "", "", 1, 1, 0, 0, false, false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -546,12 +555,12 @@ func TestGetActiveCoinFuturesOrders(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.GetActiveCoinFuturesOrders(pair, "", "", "", 0)
+	_, err = by.GetActiveCoinFuturesOrders(context.Background(), pair, "", "", "", 0)
 	if err != nil {
 		t.Error(err)
 	}
 
-	_, err = by.GetActiveCoinFuturesOrders(pair, "Filled", "", "", 0)
+	_, err = by.GetActiveCoinFuturesOrders(context.Background(), pair, "Filled", "", "", 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -564,7 +573,7 @@ func TestCancelActiveCoinFuturesOrders(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.CancelActiveCoinFuturesOrders(pair, "3bd1844f-f3c0-4e10-8c25-10fea03763f6", "")
+	_, err = by.CancelActiveCoinFuturesOrders(context.Background(), pair, "3bd1844f-f3c0-4e10-8c25-10fea03763f6", "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -577,7 +586,7 @@ func TestCancelAllActiveCoinFuturesOrders(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.CancelAllActiveCoinFuturesOrders(pair)
+	_, err = by.CancelAllActiveCoinFuturesOrders(context.Background(), pair)
 	if err != nil {
 		t.Error(err)
 	}
@@ -590,7 +599,7 @@ func TestReplaceActiveCoinFuturesOrders(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.ReplaceActiveCoinFuturesOrders(pair, "3bd1844f-f3c0-4e10-8c25-10fea03763f6", "", "", "", 1, 2, 0, 0)
+	_, err = by.ReplaceActiveCoinFuturesOrders(context.Background(), pair, "3bd1844f-f3c0-4e10-8c25-10fea03763f6", "", "", "", 1, 2, 0, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -603,7 +612,7 @@ func TestGetActiveRealtimeCoinOrders(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.GetActiveRealtimeCoinOrders(pair, "", "")
+	_, err = by.GetActiveRealtimeCoinOrders(context.Background(), pair, "", "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -616,7 +625,7 @@ func TestCreateConditionalCoinFuturesOrder(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.CreateConditionalCoinFuturesOrder(pair, "Buy", "Limit", "GTC", "", "", "", "", 1, 0.5, 0, 0, 1, 1, false)
+	_, err = by.CreateConditionalCoinFuturesOrder(context.Background(), pair, "Buy", "Limit", "GTC", "", "", "", "", 1, 0.5, 0, 0, 1, 1, false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -629,7 +638,7 @@ func TestGetConditionalCoinFuturesOrders(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.GetConditionalCoinFuturesOrders(pair, "", "", "", 0)
+	_, err = by.GetConditionalCoinFuturesOrders(context.Background(), pair, "", "", "", 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -642,7 +651,7 @@ func TestCancelConditionalCoinFuturesOrders(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.CancelConditionalCoinFuturesOrders(pair, "c1025629-e85b-4c26-b4f3-76e86ad9f8c", "")
+	_, err = by.CancelConditionalCoinFuturesOrders(context.Background(), pair, "c1025629-e85b-4c26-b4f3-76e86ad9f8c", "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -655,7 +664,7 @@ func TestCancelAllConditionalCoinFuturesOrders(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.CancelAllConditionalCoinFuturesOrders(pair)
+	_, err = by.CancelAllConditionalCoinFuturesOrders(context.Background(), pair)
 	if err != nil {
 		t.Error(err)
 	}
@@ -668,7 +677,7 @@ func TestReplaceConditionalCoinFuturesOrders(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.ReplaceConditionalCoinFuturesOrders(pair, "c1025629-e85b-4c26-b4f3-76e86ad9f8c", "", "", "", 0, 0, 0, 0, 0)
+	_, err = by.ReplaceConditionalCoinFuturesOrders(context.Background(), pair, "c1025629-e85b-4c26-b4f3-76e86ad9f8c", "", "", "", 0, 0, 0, 0, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -681,7 +690,7 @@ func TestGetConditionalRealtimeCoinOrders(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.GetConditionalRealtimeCoinOrders(pair, "", "")
+	_, err = by.GetConditionalRealtimeCoinOrders(context.Background(), pair, "", "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -694,7 +703,7 @@ func TestGetCoinPositions(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.GetCoinPositions(pair)
+	_, err = by.GetCoinPositions(context.Background(), pair)
 	if err != nil {
 		t.Error(err)
 	}
@@ -707,7 +716,7 @@ func TestSetCoinMargin(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.SetCoinMargin(pair, "10")
+	_, err = by.SetCoinMargin(context.Background(), pair, "10")
 	if err != nil {
 		t.Error(err)
 	}
@@ -720,7 +729,7 @@ func TestSetCoinTradingAndStop(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.SetCoinTradingAndStop(pair, 0, 0, 0, 0, 0, 0, "", "")
+	_, err = by.SetCoinTradingAndStop(context.Background(), pair, 0, 0, 0, 0, 0, 0, "", "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -733,7 +742,7 @@ func TestSetCoinLeverage(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.SetCoinLeverage(pair, 10, false)
+	_, err = by.SetCoinLeverage(context.Background(), pair, 10, false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -746,7 +755,7 @@ func TestGetCoinTradeRecords(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.GetCoinTradeRecords(pair, "", "", 0, 0, 0)
+	_, err = by.GetCoinTradeRecords(context.Background(), pair, "", "", 0, 0, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -759,7 +768,7 @@ func TestGetClosedCoinTrades(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.GetClosedCoinTrades(pair, "", 0, 0, 0, 0)
+	_, err = by.GetClosedCoinTrades(context.Background(), pair, "", 0, 0, 0, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -772,7 +781,7 @@ func TestChangeCoinMode(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.ChangeCoinMode(pair, "Partial")
+	_, err = by.ChangeCoinMode(context.Background(), pair, "Partial")
 	if err != nil {
 		t.Error(err)
 	}
@@ -785,7 +794,7 @@ func TestChangeCoinMargin(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = by.ChangeCoinMargin(pair, 1, 1, false)
+	err = by.ChangeCoinMargin(context.Background(), pair, 1, 1, false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -798,7 +807,7 @@ func TestSetCoinRiskLimit(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.SetCoinRiskLimit(pair, 2)
+	_, err = by.SetCoinRiskLimit(context.Background(), pair, 2)
 	if err != nil {
 		t.Error(err)
 	}
@@ -811,7 +820,7 @@ func TestGetCoinLastFundingFee(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.GetCoinLastFundingFee(pair)
+	_, err = by.GetCoinLastFundingFee(context.Background(), pair)
 	if err != nil {
 		t.Error(err)
 	}
@@ -824,7 +833,7 @@ func TestGetCoinPredictedFundingRate(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, _, err = by.GetCoinPredictedFundingRate(pair)
+	_, _, err = by.GetCoinPredictedFundingRate(context.Background(), pair)
 	if err != nil {
 		t.Error(err)
 	}
@@ -832,7 +841,7 @@ func TestGetCoinPredictedFundingRate(t *testing.T) {
 
 func TestGetAPIKeyInfo(t *testing.T) {
 	t.Parallel()
-	_, err := by.GetAPIKeyInfo()
+	_, err := by.GetAPIKeyInfo(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
@@ -845,7 +854,7 @@ func TestGetLCPInfo(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.GetLiquidityContributionPointsInfo(pair)
+	_, err = by.GetLiquidityContributionPointsInfo(context.Background(), pair)
 	if err != nil {
 		t.Error(err)
 	}
@@ -853,7 +862,7 @@ func TestGetLCPInfo(t *testing.T) {
 
 func TestGetFutureWalletBalance(t *testing.T) {
 	t.Parallel()
-	_, err := by.GetFutureWalletBalance("BTC")
+	_, err := by.GetFutureWalletBalance(context.Background(), "BTC")
 	if err != nil {
 		t.Error(err)
 	}
@@ -861,7 +870,7 @@ func TestGetFutureWalletBalance(t *testing.T) {
 
 func TestGetWalletFundRecords(t *testing.T) {
 	t.Parallel()
-	_, err := by.GetWalletFundRecords("2021-09-11", "2021-10-09", "ETH", "", "", 0, 0)
+	_, err := by.GetWalletFundRecords(context.Background(), "2021-09-11", "2021-10-09", "ETH", "", "", 0, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -869,7 +878,7 @@ func TestGetWalletFundRecords(t *testing.T) {
 
 func TestGetWalletWithdrawalRecords(t *testing.T) {
 	t.Parallel()
-	_, err := by.GetWalletWithdrawalRecords("2021-09-11", "2021-10-09", "ETH", "", 0, 0)
+	_, err := by.GetWalletWithdrawalRecords(context.Background(), "2021-09-11", "2021-10-09", "ETH", "", 0, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -877,7 +886,7 @@ func TestGetWalletWithdrawalRecords(t *testing.T) {
 
 func TestGetAssetExchangeRecords(t *testing.T) {
 	t.Parallel()
-	_, err := by.GetAssetExchangeRecords("", 0, 0)
+	_, err := by.GetAssetExchangeRecords(context.Background(), "", 0, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -891,12 +900,12 @@ func TestGetUSDTFuturesKlineData(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = by.GetUSDTFuturesKlineData(pair, "M", 5, time.Time{})
+	_, err = by.GetUSDTFuturesKlineData(context.Background(), pair, "M", 5, time.Time{})
 	if err != nil {
 		t.Error(err)
 	}
 
-	_, err = by.GetUSDTFuturesKlineData(pair, "60", 5, time.Unix(1577836800, 0))
+	_, err = by.GetUSDTFuturesKlineData(context.Background(), pair, "60", 5, time.Unix(1577836800, 0))
 	if err != nil {
 		t.Error(err)
 	}
@@ -909,7 +918,7 @@ func TestGetUSDTPublicTrades(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.GetUSDTPublicTrades(pair, 1000)
+	_, err = by.GetUSDTPublicTrades(context.Background(), pair, 1000)
 	if err != nil {
 		t.Error(err)
 	}
@@ -922,7 +931,7 @@ func TestGetUSDTMarkPriceKline(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.GetUSDTMarkPriceKline(pair, "D", 0, time.Unix(1577836800, 0))
+	_, err = by.GetUSDTMarkPriceKline(context.Background(), pair, "D", 0, time.Unix(1577836800, 0))
 	if err != nil {
 		t.Error(err)
 	}
@@ -935,7 +944,7 @@ func TestGetUSDTIndexPriceKline(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.GetUSDTIndexPriceKline(pair, "D", 0, time.Unix(1577836800, 0))
+	_, err = by.GetUSDTIndexPriceKline(context.Background(), pair, "D", 0, time.Unix(1577836800, 0))
 	if err != nil {
 		t.Error(err)
 	}
@@ -948,7 +957,7 @@ func TestGetUSDTPremiumIndexPriceKline(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.GetUSDTPremiumIndexPriceKline(pair, "D", 0, time.Unix(1577836800, 0))
+	_, err = by.GetUSDTPremiumIndexPriceKline(context.Background(), pair, "D", 0, time.Unix(1577836800, 0))
 	if err != nil {
 		t.Error(err)
 	}
@@ -961,7 +970,7 @@ func TestGetUSDTLastFundingRate(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.GetUSDTLastFundingRate(pair)
+	_, err = by.GetUSDTLastFundingRate(context.Background(), pair)
 	if err != nil {
 		t.Error(err)
 	}
@@ -974,7 +983,7 @@ func TestGetUSDTRiskLimit(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.GetUSDTRiskLimit(pair)
+	_, err = by.GetUSDTRiskLimit(context.Background(), pair)
 	if err != nil {
 		t.Error(err)
 	}
@@ -987,7 +996,7 @@ func TestCreateUSDTFuturesOrder(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.CreateUSDTFuturesOrder(pair, "Buy", "Limit", "GoodTillCancel", "", "", "", 1, 1, 0, 0, false, false)
+	_, err = by.CreateUSDTFuturesOrder(context.Background(), pair, "Buy", "Limit", "GoodTillCancel", "", "", "", 1, 1, 0, 0, false, false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1000,12 +1009,12 @@ func TestGetActiveUSDTFuturesOrders(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.GetActiveUSDTFuturesOrders(pair, "", "", "", "", 0, 0)
+	_, err = by.GetActiveUSDTFuturesOrders(context.Background(), pair, "", "", "", "", 0, 0)
 	if err != nil {
 		t.Error(err)
 	}
 
-	_, err = by.GetActiveUSDTFuturesOrders(pair, "Filled", "", "", "", 0, 50)
+	_, err = by.GetActiveUSDTFuturesOrders(context.Background(), pair, "Filled", "", "", "", 0, 50)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1018,7 +1027,7 @@ func TestCancelActiveUSDTFuturesOrders(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.CancelActiveUSDTFuturesOrders(pair, "3bd1844f-f3c0-4e10-8c25-10fea03763f6", "")
+	_, err = by.CancelActiveUSDTFuturesOrders(context.Background(), pair, "3bd1844f-f3c0-4e10-8c25-10fea03763f6", "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -1031,7 +1040,7 @@ func TestCancelAllActiveUSDTFuturesOrders(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.CancelAllActiveUSDTFuturesOrders(pair)
+	_, err = by.CancelAllActiveUSDTFuturesOrders(context.Background(), pair)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1044,7 +1053,7 @@ func TestReplaceActiveUSDTFuturesOrders(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.ReplaceActiveUSDTFuturesOrders(pair, "3bd1844f-f3c0-4e10-8c25-10fea03763f6", "", "", "", 1, 2, 0, 0)
+	_, err = by.ReplaceActiveUSDTFuturesOrders(context.Background(), pair, "3bd1844f-f3c0-4e10-8c25-10fea03763f6", "", "", "", 1, 2, 0, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1057,7 +1066,7 @@ func TestGetActiveUSDTRealtimeOrders(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.GetActiveUSDTRealtimeOrders(pair, "", "")
+	_, err = by.GetActiveUSDTRealtimeOrders(context.Background(), pair, "", "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -1070,7 +1079,7 @@ func TestCreateConditionalUSDTFuturesOrder(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.CreateConditionalUSDTFuturesOrder(pair, "Buy", "Limit", "GoodTillCancel", "", "", "", "", 1, 0.5, 0, 0, 1, 1, false, false)
+	_, err = by.CreateConditionalUSDTFuturesOrder(context.Background(), pair, "Buy", "Limit", "GoodTillCancel", "", "", "", "", 1, 0.5, 0, 0, 1, 1, false, false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1083,7 +1092,7 @@ func TestGetConditionalUSDTFuturesOrders(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.GetConditionalUSDTFuturesOrders(pair, "", "", "", "", 0, 0)
+	_, err = by.GetConditionalUSDTFuturesOrders(context.Background(), pair, "", "", "", "", 0, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1096,7 +1105,7 @@ func TestCancelConditionalUSDTFuturesOrders(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.CancelConditionalUSDTFuturesOrders(pair, "c1025629-e85b-4c26-b4f3-76e86ad9f8c", "")
+	_, err = by.CancelConditionalUSDTFuturesOrders(context.Background(), pair, "c1025629-e85b-4c26-b4f3-76e86ad9f8c", "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -1109,7 +1118,7 @@ func TestCancelAllConditionalUSDTFuturesOrders(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.CancelAllConditionalUSDTFuturesOrders(pair)
+	_, err = by.CancelAllConditionalUSDTFuturesOrders(context.Background(), pair)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1122,7 +1131,7 @@ func TestReplaceConditionalUSDTFuturesOrders(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.ReplaceConditionalUSDTFuturesOrders(pair, "c1025629-e85b-4c26-b4f3-76e86ad9f8c", "", "", "", 0, 0, 0, 0, 0)
+	_, err = by.ReplaceConditionalUSDTFuturesOrders(context.Background(), pair, "c1025629-e85b-4c26-b4f3-76e86ad9f8c", "", "", "", 0, 0, 0, 0, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1135,7 +1144,7 @@ func TestGetConditionalUSDTRealtimeOrders(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.GetConditionalUSDTRealtimeOrders(pair, "", "")
+	_, err = by.GetConditionalUSDTRealtimeOrders(context.Background(), pair, "", "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -1148,7 +1157,7 @@ func TestGetUSDTPositions(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.GetUSDTPositions(pair)
+	_, err = by.GetUSDTPositions(context.Background(), pair)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1161,7 +1170,7 @@ func TestSetAutoAddMargin(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = by.SetAutoAddMargin(pair, true, "Sell")
+	err = by.SetAutoAddMargin(context.Background(), pair, true, "Sell")
 	if err != nil {
 		t.Error(err)
 	}
@@ -1174,7 +1183,7 @@ func TestChangeUSDTMarginn(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = by.ChangeUSDTMargin(pair, 1, 1, true)
+	err = by.ChangeUSDTMargin(context.Background(), pair, 1, 1, true)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1187,7 +1196,7 @@ func TestChangeUSDTMode(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.ChangeUSDTMode(pair, "Partial")
+	_, err = by.ChangeUSDTMode(context.Background(), pair, "Partial")
 	if err != nil {
 		t.Error(err)
 	}
@@ -1200,7 +1209,7 @@ func TestSetUSDTMargin(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.SetUSDTMargin(pair, "Buy", "10")
+	_, err = by.SetUSDTMargin(context.Background(), pair, "Buy", "10")
 	if err != nil {
 		t.Error(err)
 	}
@@ -1213,7 +1222,7 @@ func TestSetUSDTLeverage(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = by.SetUSDTLeverage(pair, 10, 10)
+	err = by.SetUSDTLeverage(context.Background(), pair, 10, 10)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1226,7 +1235,7 @@ func TestSetUSDTTradingAndStop(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = by.SetUSDTTradingAndStop(pair, 0, 0, 0, 0, 0, "Buy", "", "")
+	err = by.SetUSDTTradingAndStop(context.Background(), pair, 0, 0, 0, 0, 0, "Buy", "", "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -1239,7 +1248,7 @@ func TestGetUSDTTradeRecords(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.GetUSDTTradeRecords(pair, "", 0, 0, 0, 0)
+	_, err = by.GetUSDTTradeRecords(context.Background(), pair, "", 0, 0, 0, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1252,7 +1261,7 @@ func TestGetClosedUSDTTrades(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.GetClosedUSDTTrades(pair, "", 0, 0, 0, 0)
+	_, err = by.GetClosedUSDTTrades(context.Background(), pair, "", 0, 0, 0, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1265,7 +1274,7 @@ func TestSetUSDTRiskLimit(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.SetUSDTRiskLimit(pair, "Buy", 2)
+	_, err = by.SetUSDTRiskLimit(context.Background(), pair, "Buy", 2)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1278,7 +1287,7 @@ func TestGetPredictedUSDTFundingRate(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, _, err = by.GetPredictedUSDTFundingRate(pair)
+	_, _, err = by.GetPredictedUSDTFundingRate(context.Background(), pair)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1291,7 +1300,7 @@ func TestGetLastUSDTFundingFee(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.GetLastUSDTFundingFee(pair)
+	_, err = by.GetLastUSDTFundingFee(context.Background(), pair)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1306,7 +1315,7 @@ func TestCreateFuturesOrderr(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.CreateFuturesOrder(1, pair, "Buy", "Market", "GoodTillCancel", "", "", "", 10, 1, 0, 0, false, false)
+	_, err = by.CreateFuturesOrder(context.Background(), 1, pair, "Buy", "Market", "GoodTillCancel", "", "", "", 10, 1, 0, 0, false, false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1319,12 +1328,12 @@ func TestGetActiveFuturesOrders(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.GetActiveFuturesOrders(pair, "", "", "", 0)
+	_, err = by.GetActiveFuturesOrders(context.Background(), pair, "", "", "", 0)
 	if err != nil {
 		t.Error(err)
 	}
 
-	_, err = by.GetActiveFuturesOrders(pair, "Filled", "", "", 0)
+	_, err = by.GetActiveFuturesOrders(context.Background(), pair, "Filled", "", "", 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1337,7 +1346,7 @@ func TestCancelActiveFuturesOrders(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.CancelActiveFuturesOrders(pair, "3bd1844f-f3c0-4e10-8c25-10fea03763f6", "")
+	_, err = by.CancelActiveFuturesOrders(context.Background(), pair, "3bd1844f-f3c0-4e10-8c25-10fea03763f6", "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -1350,7 +1359,7 @@ func TestCancelAllActiveFuturesOrders(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.CancelAllActiveFuturesOrders(pair)
+	_, err = by.CancelAllActiveFuturesOrders(context.Background(), pair)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1363,7 +1372,7 @@ func TestReplaceActiveFuturesOrders(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.ReplaceActiveFuturesOrders(pair, "3bd1844f-f3c0-4e10-8c25-10fea03763f6", "", "", "", 1, 2, 0, 0)
+	_, err = by.ReplaceActiveFuturesOrders(context.Background(), pair, "3bd1844f-f3c0-4e10-8c25-10fea03763f6", "", "", "", 1, 2, 0, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1376,7 +1385,7 @@ func TestGetActiveRealtimeOrders(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.GetActiveRealtimeOrders(pair, "", "")
+	_, err = by.GetActiveRealtimeOrders(context.Background(), pair, "", "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -1389,7 +1398,7 @@ func TestCreateConditionalFuturesOrder(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.CreateConditionalFuturesOrder(0, pair, "Buy", "Limit", "GTC", "", "", "", "", 1, 0.5, 0, 0, 1, 1, false)
+	_, err = by.CreateConditionalFuturesOrder(context.Background(), 0, pair, "Buy", "Limit", "GTC", "", "", "", "", 1, 0.5, 0, 0, 1, 1, false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1402,7 +1411,7 @@ func TestGetConditionalFuturesOrders(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.GetConditionalFuturesOrders(pair, "", "", "", 0)
+	_, err = by.GetConditionalFuturesOrders(context.Background(), pair, "", "", "", 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1415,7 +1424,7 @@ func TestCancelConditionalFuturesOrders(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.CancelConditionalFuturesOrders(pair, "c1025629-e85b-4c26-b4f3-76e86ad9f8c", "")
+	_, err = by.CancelConditionalFuturesOrders(context.Background(), pair, "c1025629-e85b-4c26-b4f3-76e86ad9f8c", "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -1428,7 +1437,7 @@ func TestCancelAllConditionalFuturesOrders(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.CancelAllConditionalFuturesOrders(pair)
+	_, err = by.CancelAllConditionalFuturesOrders(context.Background(), pair)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1441,7 +1450,7 @@ func TestReplaceConditionalFuturesOrders(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.ReplaceConditionalFuturesOrders(pair, "c1025629-e85b-4c26-b4f3-76e86ad9f8c", "", "", "", 0, 0, 0, 0, 0)
+	_, err = by.ReplaceConditionalFuturesOrders(context.Background(), pair, "c1025629-e85b-4c26-b4f3-76e86ad9f8c", "", "", "", 0, 0, 0, 0, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1454,7 +1463,7 @@ func TestGetConditionalRealtimeOrders(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.GetConditionalRealtimeOrders(pair, "", "")
+	_, err = by.GetConditionalRealtimeOrders(context.Background(), pair, "", "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -1467,7 +1476,7 @@ func TestGetPositions(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.GetPositions(pair)
+	_, err = by.GetPositions(context.Background(), pair)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1480,7 +1489,7 @@ func TestSetMargin(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.SetMargin(0, pair, "10")
+	_, err = by.SetMargin(context.Background(), 0, pair, "10")
 	if err != nil {
 		t.Error(err)
 	}
@@ -1493,7 +1502,7 @@ func TestSetTradingAndStop(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.SetTradingAndStop(0, pair, 0, 0, 0, 0, 0, 0, "", "")
+	_, err = by.SetTradingAndStop(context.Background(), 0, pair, 0, 0, 0, 0, 0, 0, "", "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -1506,7 +1515,7 @@ func TestSetLeverage(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.SetLeverage(pair, 10, 10)
+	_, err = by.SetLeverage(context.Background(), pair, 10, 10)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1519,7 +1528,7 @@ func TestChangePositionMode(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = by.ChangePositionMode(pair, 3)
+	err = by.ChangePositionMode(context.Background(), pair, 3)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1532,7 +1541,7 @@ func TestChangeMode(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.ChangeMode(pair, "Partial")
+	_, err = by.ChangeMode(context.Background(), pair, "Partial")
 	if err != nil {
 		t.Error(err)
 	}
@@ -1545,7 +1554,7 @@ func TestChangeMargin(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = by.ChangeMargin(pair, 1, 1, false)
+	err = by.ChangeMargin(context.Background(), pair, 1, 1, false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1558,7 +1567,7 @@ func TestGetTradeRecords(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.GetTradeRecords(pair, "", "", 0, 0, 0)
+	_, err = by.GetTradeRecords(context.Background(), pair, "", "", 0, 0, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1571,7 +1580,7 @@ func TestGetClosedTrades(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.GetClosedTrades(pair, "", 0, 0, 0, 0)
+	_, err = by.GetClosedTrades(context.Background(), pair, "", 0, 0, 0, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1584,7 +1593,7 @@ func TestSetRiskLimit(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.SetRiskLimit(pair, 2, 0)
+	_, err = by.SetRiskLimit(context.Background(), pair, 2, 0)
 	if err != nil {
 		t.Error(err)
 	}
