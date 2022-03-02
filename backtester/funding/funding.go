@@ -478,14 +478,11 @@ func (f *FundManager) GetAllFunding() []BasicItem {
 	return result
 }
 
-func (f *FundManager) UpdateCollateral(exchName string, item asset.Item, pair currency.Pair) error {
+func (f *FundManager) UpdateCollateral(ev common.EventHandler) error {
 	exchMap := make(map[string]exchange.IBotExchange)
 	var collateralAmount decimal.Decimal
 	var err error
 	for i := range f.items {
-		if f.items[i].asset != asset.Spot {
-			continue
-		}
 		exch, ok := exchMap[f.items[i].exchange]
 		if !ok {
 			exch, err = f.exchangeManager.GetExchangeByName(f.items[i].exchange)
@@ -501,6 +498,7 @@ func (f *FundManager) UpdateCollateral(exchName string, item asset.Item, pair cu
 				usd = latest.GetClosePrice()
 			}
 		}
+		// ?????
 		var side = gctorder.Buy
 		if !f.items[i].available.GreaterThan(decimal.Zero) {
 			side = gctorder.Sell
@@ -514,23 +512,26 @@ func (f *FundManager) UpdateCollateral(exchName string, item asset.Item, pair cu
 			USDPrice:           usd,
 		})
 		if err != nil {
+			if errors.Is(err, gctorder.ErrUSDValueRequired) {
+				continue
+			}
 			return err
 		}
 		collateralAmount = latest.AvailableForUseAsCollateral
 	}
 
-	collat, err := exchMap[exchName].GetCollateralCurrencyForContract(item, pair)
+	collat, err := exchMap[ev.GetExchange()].GetCollateralCurrencyForContract(ev.GetAssetType(), ev.Pair())
 	if err != nil {
 		return err
 	}
 
 	for i := range f.items {
-		if f.items[i].exchange == exchName &&
-			f.items[i].asset == item &&
+		if f.items[i].exchange == ev.GetExchange() &&
+			f.items[i].asset == ev.GetAssetType() &&
 			f.items[i].currency.Equal(collat) {
 			f.items[i].available = collateralAmount
 			return nil
 		}
 	}
-	return fmt.Errorf("%w to allocate %v to %v %v %v", ErrFundsNotFound, collateralAmount, exchName, item, collat)
+	return fmt.Errorf("%w to allocate %v to %v %v %v", ErrFundsNotFound, collateralAmount, ev.GetExchange(), ev.GetAssetType(), collat)
 }

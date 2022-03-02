@@ -99,7 +99,7 @@ func (bt *BackTest) handleEvent(ev common.EventHandler) error {
 
 	if ev.GetAssetType().IsFutures() {
 		// hardcoded fix
-		err = bt.Funding.UpdateCollateral(ev.GetExchange(), ev.GetAssetType(), ev.Pair())
+		err = bt.Funding.UpdateCollateral(ev)
 		if err != nil {
 			return err
 		}
@@ -343,7 +343,7 @@ func (bt *BackTest) processFillEvent(ev fill.Event, funds funding.IFundReleaser)
 				log.Errorf(common.SubLoggers[common.Backtester], "AddHoldingsForTime %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 			}
 		}
-		err = bt.Funding.UpdateCollateral(ev.GetExchange(), ev.GetAssetType(), ev.Pair())
+		err = bt.Funding.UpdateCollateral(ev)
 		if err != nil {
 			log.Errorf(common.SubLoggers[common.Backtester], "UpdateCollateral %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 			return

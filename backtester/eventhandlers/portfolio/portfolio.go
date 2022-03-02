@@ -39,7 +39,9 @@ func (p *Portfolio) OnSignal(ev signal.Event, cs *exchange.Settings, funds fundi
 	if funds == nil {
 		return nil, funding.ErrFundsNotFound
 	}
-
+	if ev.GetDirection() == common.ClosePosition {
+		log.Debugln(log.Currency, "")
+	}
 	o := &order.Order{
 		Base: event.Base{
 			Offset:       ev.GetOffset(),
@@ -215,10 +217,12 @@ func (p *Portfolio) sizeOrder(d common.Directioner, cs *exchange.Settings, origi
 	case gctorder.Sell:
 		err = funds.Reserve(sizedOrder.Amount, gctorder.Sell)
 		sizedOrder.AllocatedFunds = sizedOrder.Amount
-	case gctorder.Short, gctorder.Long, common.ClosePosition:
-
-		err = funds.Reserve(sizedOrder.Amount, d.GetDirection())
-		sizedOrder.AllocatedFunds = sizedOrder.Amount.Div(sizedOrder.Price)
+	case gctorder.Short, gctorder.Long:
+		err = funds.Reserve(sizedOrder.Amount.Mul(originalOrderSignal.Price), d.GetDirection())
+		sizedOrder.AllocatedFunds = sizedOrder.Amount.Mul(sizedOrder.Price)
+	case common.ClosePosition:
+		err = funds.Reserve(sizedOrder.Amount.Mul(originalOrderSignal.Price), d.GetDirection())
+		sizedOrder.AllocatedFunds = sizedOrder.Amount.Mul(sizedOrder.Price)
 	default:
 		err = funds.Reserve(sizedOrder.Amount.Mul(sizedOrder.Price), gctorder.Buy)
 		sizedOrder.AllocatedFunds = sizedOrder.Amount.Mul(sizedOrder.Price)
@@ -231,7 +235,7 @@ func (p *Portfolio) sizeOrder(d common.Directioner, cs *exchange.Settings, origi
 }
 
 // OnFill processes the event after an order has been placed by the exchange. Its purpose is to track holdings for future portfolio decisions.
-func (p *Portfolio) OnFill(ev fill.Event, funding funding.IFundReleaser) (fill.Event, error) {
+func (p *Portfolio) OnFill(ev fill.Event, funds funding.IFundReleaser) (fill.Event, error) {
 	if ev == nil {
 		return nil, common.ErrNilEvent
 	}
@@ -242,7 +246,7 @@ func (p *Portfolio) OnFill(ev fill.Event, funding funding.IFundReleaser) (fill.E
 	var err error
 
 	if ev.GetAssetType() == asset.Spot {
-		fp, err := funding.GetPairReleaser()
+		fp, err := funds.GetPairReleaser()
 		if err != nil {
 			return nil, err
 		}
@@ -253,7 +257,7 @@ func (p *Portfolio) OnFill(ev fill.Event, funding funding.IFundReleaser) (fill.E
 		} else {
 			h = lookup.GetLatestHoldings()
 			if h.Timestamp.IsZero() {
-				h, err = holdings.Create(ev, funding)
+				h, err = holdings.Create(ev, funds)
 				if err != nil {
 					return nil, err
 				}

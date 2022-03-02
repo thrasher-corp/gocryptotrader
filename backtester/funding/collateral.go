@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/shopspring/decimal"
+	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
@@ -112,6 +113,8 @@ func (c *Collateral) Reserve(amount decimal.Decimal, side order.Side) error {
 	switch side {
 	case order.Long, order.Short:
 		return c.Collateral.Reserve(amount)
+	case common.ClosePosition:
+		return c.Collateral.Release(amount, amount)
 	default:
 		return fmt.Errorf("%w for %v %v %v. Unknown side %v",
 			errCannotAllocate,
