@@ -68,11 +68,14 @@ func (by *Bybit) WsUSDTConnect() error {
 func (by *Bybit) WsUSDTAuth() error {
 	intNonce := (time.Now().Unix() + 1) * 1000
 	strNonce := strconv.FormatInt(intNonce, 10)
-	hmac := crypto.GetHMAC(
+	hmac, err := crypto.GetHMAC(
 		crypto.HashSHA256,
 		[]byte("GET/realtime"+strNonce),
 		[]byte(by.API.Credentials.Secret),
 	)
+	if err != nil {
+		return err
+	}
 	sign := crypto.HexEncodeToString(hmac)
 	req := Authenticate{
 		Operation: "auth",

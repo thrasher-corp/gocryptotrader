@@ -27,9 +27,9 @@ import (
 )
 
 // GetDefaultConfig returns a default exchange config
-func (by *Bybit) GetDefaultConfig() (*config.ExchangeConfig, error) {
+func (by *Bybit) GetDefaultConfig() (*config.Exchange, error) {
 	by.SetDefaults()
-	exchCfg := new(config.ExchangeConfig)
+	exchCfg := new(config.Exchange)
 	exchCfg.Name = by.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = by.BaseCurrencies
@@ -198,12 +198,16 @@ func (by *Bybit) AuthenticateWebsocket() error {
 }
 
 // Start starts the Bybit go routine
-func (by *Bybit) Start(wg *sync.WaitGroup) {
+func (by *Bybit) Start(wg *sync.WaitGroup) error {
+	if wg == nil {
+		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
+	}
 	wg.Add(1)
 	go func() {
 		by.Run()
 		wg.Done()
 	}()
+	return nil
 }
 
 // Run implements the Bybit wrapper

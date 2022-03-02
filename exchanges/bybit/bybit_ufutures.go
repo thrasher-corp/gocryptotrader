@@ -1,6 +1,7 @@
 package bybit
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/url"
@@ -55,7 +56,7 @@ const (
 )
 
 // GetUSDTFuturesKlineData gets futures kline data for USDTMarginedFutures.
-func (by *Bybit) GetUSDTFuturesKlineData(symbol currency.Pair, interval string, limit int64, startTime time.Time) ([]FuturesCandleStick, error) {
+func (by *Bybit) GetUSDTFuturesKlineData(ctx context.Context, symbol currency.Pair, interval string, limit int64, startTime time.Time) ([]FuturesCandleStick, error) {
 	resp := struct {
 		Data []FuturesCandleStick `json:"result"`
 	}{}
@@ -80,11 +81,11 @@ func (by *Bybit) GetUSDTFuturesKlineData(symbol currency.Pair, interval string, 
 	params.Set("from", strconv.FormatInt(startTime.Unix(), 10))
 
 	path := common.EncodeURLValues(ufuturesKline, params)
-	return resp.Data, by.SendHTTPRequest(exchange.RestUSDTMargined, path, publicFuturesRate, &resp)
+	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestUSDTMargined, path, publicFuturesRate, &resp)
 }
 
 // GetUSDTPublicTrades gets past public trades for USDTMarginedFutures.
-func (by *Bybit) GetUSDTPublicTrades(symbol currency.Pair, limit int64) ([]FuturesPublicTradesData, error) {
+func (by *Bybit) GetUSDTPublicTrades(ctx context.Context, symbol currency.Pair, limit int64) ([]FuturesPublicTradesData, error) {
 	resp := struct {
 		Data []FuturesPublicTradesData `json:"result"`
 	}{}
@@ -100,11 +101,11 @@ func (by *Bybit) GetUSDTPublicTrades(symbol currency.Pair, limit int64) ([]Futur
 	}
 
 	path := common.EncodeURLValues(ufuturesRecentTrades, params)
-	return resp.Data, by.SendHTTPRequest(exchange.RestUSDTMargined, path, publicFuturesRate, &resp)
+	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestUSDTMargined, path, publicFuturesRate, &resp)
 }
 
 // GetMarkPriceKline gets mark price kline data for USDTMarginedFutures.
-func (by *Bybit) GetUSDTMarkPriceKline(symbol currency.Pair, interval string, limit int64, startTime time.Time) ([]MarkPriceKlineData, error) {
+func (by *Bybit) GetUSDTMarkPriceKline(ctx context.Context, symbol currency.Pair, interval string, limit int64, startTime time.Time) ([]MarkPriceKlineData, error) {
 	resp := struct {
 		Data []MarkPriceKlineData `json:"result"`
 	}{}
@@ -128,11 +129,11 @@ func (by *Bybit) GetUSDTMarkPriceKline(symbol currency.Pair, interval string, li
 	params.Set("from", strconv.FormatInt(startTime.Unix(), 10))
 
 	path := common.EncodeURLValues(ufuturesMarkPriceKline, params)
-	return resp.Data, by.SendHTTPRequest(exchange.RestUSDTMargined, path, publicFuturesRate, &resp)
+	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestUSDTMargined, path, publicFuturesRate, &resp)
 }
 
 // GetUSDTIndexPriceKline gets index price kline data for USDTMarginedFutures.
-func (by *Bybit) GetUSDTIndexPriceKline(symbol currency.Pair, interval string, limit int64, startTime time.Time) ([]IndexPriceKlineData, error) {
+func (by *Bybit) GetUSDTIndexPriceKline(ctx context.Context, symbol currency.Pair, interval string, limit int64, startTime time.Time) ([]IndexPriceKlineData, error) {
 	resp := struct {
 		Data []IndexPriceKlineData `json:"result"`
 	}{}
@@ -156,11 +157,11 @@ func (by *Bybit) GetUSDTIndexPriceKline(symbol currency.Pair, interval string, l
 	params.Set("from", strconv.FormatInt(startTime.Unix(), 10))
 
 	path := common.EncodeURLValues(ufuturesIndexKline, params)
-	return resp.Data, by.SendHTTPRequest(exchange.RestUSDTMargined, path, publicFuturesRate, &resp)
+	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestUSDTMargined, path, publicFuturesRate, &resp)
 }
 
 // GetUSDTPremiumIndexPriceKline gets premium index price kline data for USDTMarginedFutures.
-func (by *Bybit) GetUSDTPremiumIndexPriceKline(symbol currency.Pair, interval string, limit int64, startTime time.Time) ([]IndexPriceKlineData, error) {
+func (by *Bybit) GetUSDTPremiumIndexPriceKline(ctx context.Context, symbol currency.Pair, interval string, limit int64, startTime time.Time) ([]IndexPriceKlineData, error) {
 	resp := struct {
 		Data []IndexPriceKlineData `json:"result"`
 	}{}
@@ -184,11 +185,11 @@ func (by *Bybit) GetUSDTPremiumIndexPriceKline(symbol currency.Pair, interval st
 	params.Set("from", strconv.FormatInt(startTime.Unix(), 10))
 
 	path := common.EncodeURLValues(ufuturesIndexPremiumKline, params)
-	return resp.Data, by.SendHTTPRequest(exchange.RestUSDTMargined, path, publicFuturesRate, &resp)
+	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestUSDTMargined, path, publicFuturesRate, &resp)
 }
 
 // GetUSDTLastFundingRate returns latest generated funding fee
-func (by *Bybit) GetUSDTLastFundingRate(symbol currency.Pair) (USDTFundingInfo, error) {
+func (by *Bybit) GetUSDTLastFundingRate(ctx context.Context, symbol currency.Pair) (USDTFundingInfo, error) {
 	resp := struct {
 		Data USDTFundingInfo `json:"result"`
 	}{}
@@ -201,11 +202,11 @@ func (by *Bybit) GetUSDTLastFundingRate(symbol currency.Pair) (USDTFundingInfo, 
 	params.Set("symbol", symbolValue)
 
 	path := common.EncodeURLValues(ufuturesGetLastFundingRate, params)
-	return resp.Data, by.SendHTTPRequest(exchange.RestUSDTMargined, path, publicFuturesRate, &resp)
+	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestUSDTMargined, path, publicFuturesRate, &resp)
 }
 
 // GetUSDTRiskLimit returns risk limit
-func (by *Bybit) GetUSDTRiskLimit(symbol currency.Pair) ([]RiskInfo, error) {
+func (by *Bybit) GetUSDTRiskLimit(ctx context.Context, symbol currency.Pair) ([]RiskInfo, error) {
 	resp := struct {
 		Data []RiskInfo `json:"result"`
 	}{}
@@ -220,11 +221,11 @@ func (by *Bybit) GetUSDTRiskLimit(symbol currency.Pair) ([]RiskInfo, error) {
 	}
 
 	path := common.EncodeURLValues(ufuturesGetRiskLimit, params)
-	return resp.Data, by.SendHTTPRequest(exchange.RestUSDTMargined, path, publicFuturesRate, &resp)
+	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestUSDTMargined, path, publicFuturesRate, &resp)
 }
 
 // CreateUSDTFuturesOrder sends a new USDT futures order to the exchange
-func (by *Bybit) CreateUSDTFuturesOrder(symbol currency.Pair, side, orderType, timeInForce,
+func (by *Bybit) CreateUSDTFuturesOrder(ctx context.Context, symbol currency.Pair, side, orderType, timeInForce,
 	orderLinkID, takeProfitTriggerBy, stopLossTriggerBy string,
 	quantity, price, takeProfit, stopLoss float64, closeOnTrigger, reduceOnly bool) (FuturesOrderDataResp, error) {
 	resp := struct {
@@ -281,11 +282,11 @@ func (by *Bybit) CreateUSDTFuturesOrder(symbol currency.Pair, side, orderType, t
 	if reduceOnly {
 		params.Set("reduce_only", "true")
 	}
-	return resp.Data, by.SendAuthHTTPRequest(exchange.RestUSDTMargined, http.MethodPost, ufuturesCreateOrder, params, &resp, uFuturesCreateOrderRate)
+	return resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, ufuturesCreateOrder, params, &resp, uFuturesCreateOrderRate)
 }
 
 // GetActiveUSDTFuturesOrders gets list of USDT futures active orders
-func (by *Bybit) GetActiveUSDTFuturesOrders(symbol currency.Pair, orderStatus, direction, orderID, orderLinkID string, page, limit int64) ([]FuturesActiveOrderResp, error) {
+func (by *Bybit) GetActiveUSDTFuturesOrders(ctx context.Context, symbol currency.Pair, orderStatus, direction, orderID, orderLinkID string, page, limit int64) ([]FuturesActiveOrderResp, error) {
 	resp := struct {
 		Result struct {
 			Data        []FuturesActiveOrderResp `json:"data"`
@@ -319,11 +320,11 @@ func (by *Bybit) GetActiveUSDTFuturesOrders(symbol currency.Pair, orderStatus, d
 		params.Set("order_link_id", orderLinkID)
 	}
 
-	return resp.Result.Data, by.SendAuthHTTPRequest(exchange.RestUSDTMargined, http.MethodGet, ufuturesGetActiveOrders, params, &resp, uFuturesGetActiveOrderRate)
+	return resp.Result.Data, by.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, ufuturesGetActiveOrders, params, &resp, uFuturesGetActiveOrderRate)
 }
 
 // CancelActiveUSDTFuturesOrders cancels USDT futures unfilled or partially filled orders
-func (by *Bybit) CancelActiveUSDTFuturesOrders(symbol currency.Pair, orderID, orderLinkID string) (string, error) {
+func (by *Bybit) CancelActiveUSDTFuturesOrders(ctx context.Context, symbol currency.Pair, orderID, orderLinkID string) (string, error) {
 	resp := struct {
 		Data struct {
 			OrderID string `json:"order_id"`
@@ -344,11 +345,11 @@ func (by *Bybit) CancelActiveUSDTFuturesOrders(symbol currency.Pair, orderID, or
 	if orderLinkID != "" {
 		params.Set("order_link_id", orderLinkID)
 	}
-	return resp.Data.OrderID, by.SendAuthHTTPRequest(exchange.RestUSDTMargined, http.MethodPost, ufuturesCancelActiveOrder, params, &resp, uFuturesCancelOrderRate)
+	return resp.Data.OrderID, by.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, ufuturesCancelActiveOrder, params, &resp, uFuturesCancelOrderRate)
 }
 
 // CancelAllActiveUSDTFuturesOrders cancels all USDT futures unfilled or partially filled orders
-func (by *Bybit) CancelAllActiveUSDTFuturesOrders(symbol currency.Pair) ([]string, error) {
+func (by *Bybit) CancelAllActiveUSDTFuturesOrders(ctx context.Context, symbol currency.Pair) ([]string, error) {
 	resp := struct {
 		Data []string `json:"result"`
 	}{}
@@ -358,11 +359,11 @@ func (by *Bybit) CancelAllActiveUSDTFuturesOrders(symbol currency.Pair) ([]strin
 		return resp.Data, err
 	}
 	params.Set("symbol", symbolValue)
-	return resp.Data, by.SendAuthHTTPRequest(exchange.RestUSDTMargined, http.MethodPost, ufuturesCancelAllActiveOrders, params, &resp, uFuturesCancelAllOrderRate)
+	return resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, ufuturesCancelAllActiveOrders, params, &resp, uFuturesCancelAllOrderRate)
 }
 
 // ReplaceActiveUSDTFuturesOrders modify unfilled or partially filled orders
-func (by *Bybit) ReplaceActiveUSDTFuturesOrders(symbol currency.Pair, orderID, orderLinkID, takeProfitTriggerBy, stopLossTriggerBy string,
+func (by *Bybit) ReplaceActiveUSDTFuturesOrders(ctx context.Context, symbol currency.Pair, orderID, orderLinkID, takeProfitTriggerBy, stopLossTriggerBy string,
 	updatedQty int64, updatedPrice, takeProfitPrice, stopLossPrice float64) (string, error) {
 	resp := struct {
 		Data struct {
@@ -403,11 +404,11 @@ func (by *Bybit) ReplaceActiveUSDTFuturesOrders(symbol currency.Pair, orderID, o
 	if stopLossTriggerBy != "" {
 		params.Set("sl_trigger_by", stopLossTriggerBy)
 	}
-	return resp.Data.OrderID, by.SendAuthHTTPRequest(exchange.RestUSDTMargined, http.MethodPost, ufuturesReplaceActiveOrder, params, &resp, uFuturesDefaultRate)
+	return resp.Data.OrderID, by.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, ufuturesReplaceActiveOrder, params, &resp, uFuturesDefaultRate)
 }
 
 // GetActiveUSDTRealtimeOrders query real time order data
-func (by *Bybit) GetActiveUSDTRealtimeOrders(symbol currency.Pair, orderID, orderLinkID string) ([]FuturesActiveRealtimeOrder, error) {
+func (by *Bybit) GetActiveUSDTRealtimeOrders(ctx context.Context, symbol currency.Pair, orderID, orderLinkID string) ([]FuturesActiveRealtimeOrder, error) {
 	var data []FuturesActiveRealtimeOrder
 	params := url.Values{}
 	symbolValue, err := by.FormatSymbol(symbol, asset.USDTMarginedFutures)
@@ -426,7 +427,7 @@ func (by *Bybit) GetActiveUSDTRealtimeOrders(symbol currency.Pair, orderID, orde
 		resp := struct {
 			Data []FuturesActiveRealtimeOrder `json:"result"`
 		}{}
-		err = by.SendAuthHTTPRequest(exchange.RestUSDTMargined, http.MethodGet, ufuturesGetActiveRealtimeOrders, params, &resp, uFuturesGetActiveRealtimeOrderRate)
+		err = by.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, ufuturesGetActiveRealtimeOrders, params, &resp, uFuturesGetActiveRealtimeOrderRate)
 		if err != nil {
 			return data, err
 		}
@@ -435,7 +436,7 @@ func (by *Bybit) GetActiveUSDTRealtimeOrders(symbol currency.Pair, orderID, orde
 		resp := struct {
 			Data FuturesActiveRealtimeOrder `json:"result"`
 		}{}
-		err = by.SendAuthHTTPRequest(exchange.RestUSDTMargined, http.MethodGet, ufuturesGetActiveRealtimeOrders, params, &resp, uFuturesGetActiveRealtimeOrderRate)
+		err = by.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, ufuturesGetActiveRealtimeOrders, params, &resp, uFuturesGetActiveRealtimeOrderRate)
 		if err != nil {
 			return data, err
 		}
@@ -445,7 +446,7 @@ func (by *Bybit) GetActiveUSDTRealtimeOrders(symbol currency.Pair, orderID, orde
 }
 
 // CreateConditionalUSDTFuturesOrder sends a new conditional USDT futures order to the exchange
-func (by *Bybit) CreateConditionalUSDTFuturesOrder(symbol currency.Pair, side, orderType, timeInForce,
+func (by *Bybit) CreateConditionalUSDTFuturesOrder(ctx context.Context, symbol currency.Pair, side, orderType, timeInForce,
 	orderLinkID, takeProfitTriggerBy, stopLossTriggerBy, triggerBy string,
 	quantity, price, takeProfit, stopLoss, basePrice, stopPrice float64, closeOnTrigger, reduceOnly bool) (USDTFuturesConditionalOrderResp, error) {
 	resp := struct {
@@ -510,11 +511,11 @@ func (by *Bybit) CreateConditionalUSDTFuturesOrder(symbol currency.Pair, side, o
 	if stopLossTriggerBy != "" {
 		params.Set("sl_trigger_by", stopLossTriggerBy)
 	}
-	return resp.Data, by.SendAuthHTTPRequest(exchange.RestUSDTMargined, http.MethodPost, ufuturesCreateConditionalOrder, params, &resp, uFuturesCreateConditionalOrderRate)
+	return resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, ufuturesCreateConditionalOrder, params, &resp, uFuturesCreateConditionalOrderRate)
 }
 
 // GetConditionalUSDTFuturesOrders gets list of USDT futures conditional orders
-func (by *Bybit) GetConditionalUSDTFuturesOrders(symbol currency.Pair, stopOrderStatus, direction, stopOrderID, orderLinkID string, limit, page int64) ([]USDTFuturesConditionalOrders, error) {
+func (by *Bybit) GetConditionalUSDTFuturesOrders(ctx context.Context, symbol currency.Pair, stopOrderStatus, direction, stopOrderID, orderLinkID string, limit, page int64) ([]USDTFuturesConditionalOrders, error) {
 	resp := struct {
 		Result struct {
 			Data        []USDTFuturesConditionalOrders `json:"data"`
@@ -546,11 +547,11 @@ func (by *Bybit) GetConditionalUSDTFuturesOrders(symbol currency.Pair, stopOrder
 	if orderLinkID != "" {
 		params.Set("order_link_id", orderLinkID)
 	}
-	return resp.Result.Data, by.SendAuthHTTPRequest(exchange.RestUSDTMargined, http.MethodGet, ufuturesGetConditionalOrders, params, &resp, uFuturesGetCondtionalOrderRate)
+	return resp.Result.Data, by.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, ufuturesGetConditionalOrders, params, &resp, uFuturesGetCondtionalOrderRate)
 }
 
 // CancelConditionalUSDTFuturesOrders cancels untriggered conditional orders
-func (by *Bybit) CancelConditionalUSDTFuturesOrders(symbol currency.Pair, stopOrderID, orderLinkID string) (string, error) {
+func (by *Bybit) CancelConditionalUSDTFuturesOrders(ctx context.Context, symbol currency.Pair, stopOrderID, orderLinkID string) (string, error) {
 	resp := struct {
 		Result struct {
 			StopOrderID string `json:"stop_order_id"`
@@ -571,11 +572,11 @@ func (by *Bybit) CancelConditionalUSDTFuturesOrders(symbol currency.Pair, stopOr
 	if orderLinkID != "" {
 		params.Set("order_link_id", orderLinkID)
 	}
-	return resp.Result.StopOrderID, by.SendAuthHTTPRequest(exchange.RestUSDTMargined, http.MethodPost, ufuturesCancelConditionalOrder, params, &resp, uFuturesCancelConditionalOrderRate)
+	return resp.Result.StopOrderID, by.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, ufuturesCancelConditionalOrder, params, &resp, uFuturesCancelConditionalOrderRate)
 }
 
 // CancelAllConditionalUSDTFuturesOrders cancels all untriggered conditional orders
-func (by *Bybit) CancelAllConditionalUSDTFuturesOrders(symbol currency.Pair) ([]string, error) {
+func (by *Bybit) CancelAllConditionalUSDTFuturesOrders(ctx context.Context, symbol currency.Pair) ([]string, error) {
 	resp := struct {
 		Data []string `json:"result"`
 	}{}
@@ -585,11 +586,11 @@ func (by *Bybit) CancelAllConditionalUSDTFuturesOrders(symbol currency.Pair) ([]
 		return resp.Data, err
 	}
 	params.Set("symbol", symbolValue)
-	return resp.Data, by.SendAuthHTTPRequest(exchange.RestUSDTMargined, http.MethodPost, ufuturesCancelAllConditionalOrders, params, &resp, uFuturesCancelAllConditionalOrderRate)
+	return resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, ufuturesCancelAllConditionalOrders, params, &resp, uFuturesCancelAllConditionalOrderRate)
 }
 
 // ReplaceConditionalUSDTFuturesOrders modify unfilled or partially filled conditional orders
-func (by *Bybit) ReplaceConditionalUSDTFuturesOrders(symbol currency.Pair, stopOrderID, orderLinkID, takeProfitTriggerBy, stopLossTriggerBy string,
+func (by *Bybit) ReplaceConditionalUSDTFuturesOrders(ctx context.Context, symbol currency.Pair, stopOrderID, orderLinkID, takeProfitTriggerBy, stopLossTriggerBy string,
 	updatedQty, updatedPrice, takeProfitPrice, stopLossPrice, orderTriggerPrice float64) (string, error) {
 	resp := struct {
 		Data struct {
@@ -633,11 +634,11 @@ func (by *Bybit) ReplaceConditionalUSDTFuturesOrders(symbol currency.Pair, stopO
 	if stopLossTriggerBy != "" {
 		params.Set("sl_trigger_by", stopLossTriggerBy)
 	}
-	return resp.Data.OrderID, by.SendAuthHTTPRequest(exchange.RestUSDTMargined, http.MethodPost, ufuturesReplaceConditionalOrder, params, &resp, uFuturesDefaultRate)
+	return resp.Data.OrderID, by.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, ufuturesReplaceConditionalOrder, params, &resp, uFuturesDefaultRate)
 }
 
 // GetConditionalUSDTRealtimeOrders query real time conditional order data
-func (by *Bybit) GetConditionalUSDTRealtimeOrders(symbol currency.Pair, stopOrderID, orderLinkID string) ([]USDTFuturesConditionalRealtimeOrder, error) {
+func (by *Bybit) GetConditionalUSDTRealtimeOrders(ctx context.Context, symbol currency.Pair, stopOrderID, orderLinkID string) ([]USDTFuturesConditionalRealtimeOrder, error) {
 	var data []USDTFuturesConditionalRealtimeOrder
 	params := url.Values{}
 	symbolValue, err := by.FormatSymbol(symbol, asset.USDTMarginedFutures)
@@ -656,7 +657,7 @@ func (by *Bybit) GetConditionalUSDTRealtimeOrders(symbol currency.Pair, stopOrde
 		resp := struct {
 			Result []USDTFuturesConditionalRealtimeOrder `json:"result"`
 		}{}
-		err = by.SendAuthHTTPRequest(exchange.RestUSDTMargined, http.MethodGet, ufuturesGetConditionalRealtimeOrders, params, &resp, uFuturesGetCondtionalRealtimeOrderRate)
+		err = by.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, ufuturesGetConditionalRealtimeOrders, params, &resp, uFuturesGetCondtionalRealtimeOrderRate)
 		if err != nil {
 			return data, err
 		}
@@ -665,7 +666,7 @@ func (by *Bybit) GetConditionalUSDTRealtimeOrders(symbol currency.Pair, stopOrde
 		resp := struct {
 			Result USDTFuturesConditionalRealtimeOrder `json:"result"`
 		}{}
-		err = by.SendAuthHTTPRequest(exchange.RestUSDTMargined, http.MethodGet, ufuturesGetConditionalRealtimeOrders, params, &resp, uFuturesGetCondtionalRealtimeOrderRate)
+		err = by.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, ufuturesGetConditionalRealtimeOrders, params, &resp, uFuturesGetCondtionalRealtimeOrderRate)
 		if err != nil {
 			return data, err
 		}
@@ -675,7 +676,7 @@ func (by *Bybit) GetConditionalUSDTRealtimeOrders(symbol currency.Pair, stopOrde
 }
 
 // GetUSDTPositions returns list of user positions
-func (by *Bybit) GetUSDTPositions(symbol currency.Pair) ([]USDTPositionResp, error) {
+func (by *Bybit) GetUSDTPositions(ctx context.Context, symbol currency.Pair) ([]USDTPositionResp, error) {
 	var data []USDTPositionResp
 	params := url.Values{}
 
@@ -690,7 +691,7 @@ func (by *Bybit) GetUSDTPositions(symbol currency.Pair) ([]USDTPositionResp, err
 		}
 		params.Set("symbol", symbolValue)
 
-		err = by.SendAuthHTTPRequest(exchange.RestUSDTMargined, http.MethodGet, ufuturesPosition, params, &resp, uFuturesPositionRate)
+		err = by.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, ufuturesPosition, params, &resp, uFuturesPositionRate)
 		if err != nil {
 			return data, err
 		}
@@ -702,7 +703,7 @@ func (by *Bybit) GetUSDTPositions(symbol currency.Pair) ([]USDTPositionResp, err
 				Data    USDTPositionResp `json:"data"`
 			} `json:"result"`
 		}{}
-		err := by.SendAuthHTTPRequest(exchange.RestUSDTMargined, http.MethodGet, ufuturesPosition, params, &resp, uFuturesPositionRate)
+		err := by.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, ufuturesPosition, params, &resp, uFuturesPositionRate)
 		if err != nil {
 			return data, err
 		}
@@ -714,7 +715,7 @@ func (by *Bybit) GetUSDTPositions(symbol currency.Pair) ([]USDTPositionResp, err
 }
 
 // SetAutoAddMargin sets auto add margin
-func (by *Bybit) SetAutoAddMargin(symbol currency.Pair, autoAddMargin bool, side string) error {
+func (by *Bybit) SetAutoAddMargin(ctx context.Context, symbol currency.Pair, autoAddMargin bool, side string) error {
 	params := url.Values{}
 	symbolValue, err := by.FormatSymbol(symbol, asset.USDTMarginedFutures)
 	if err != nil {
@@ -731,11 +732,11 @@ func (by *Bybit) SetAutoAddMargin(symbol currency.Pair, autoAddMargin bool, side
 	} else {
 		params.Set("take_profit", "false")
 	}
-	return by.SendAuthHTTPRequest(exchange.RestUSDTMargined, http.MethodPost, ufuturesSetAutoAddMargin, params, nil, uFuturesSetMarginRate)
+	return by.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, ufuturesSetAutoAddMargin, params, nil, uFuturesSetMarginRate)
 }
 
 // ChangeUSDTMargin switches margin between cross or isolated
-func (by *Bybit) ChangeUSDTMargin(symbol currency.Pair, buyLeverage, sellLeverage float64, isIsolated bool) error {
+func (by *Bybit) ChangeUSDTMargin(ctx context.Context, symbol currency.Pair, buyLeverage, sellLeverage float64, isIsolated bool) error {
 	params := url.Values{}
 	symbolValue, err := by.FormatSymbol(symbol, asset.USDTMarginedFutures)
 	if err != nil {
@@ -751,11 +752,11 @@ func (by *Bybit) ChangeUSDTMargin(symbol currency.Pair, buyLeverage, sellLeverag
 		params.Set("is_isolated", "false")
 	}
 
-	return by.SendAuthHTTPRequest(exchange.RestUSDTMargined, http.MethodPost, ufuturesSwitchMargin, params, nil, uFuturesSwitchMargin)
+	return by.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, ufuturesSwitchMargin, params, nil, uFuturesSwitchMargin)
 }
 
 // ChangeUSDTMode switches mode between full or partial position
-func (by *Bybit) ChangeUSDTMode(symbol currency.Pair, takeProfitStopLoss string) (string, error) {
+func (by *Bybit) ChangeUSDTMode(ctx context.Context, symbol currency.Pair, takeProfitStopLoss string) (string, error) {
 	resp := struct {
 		Result struct {
 			Mode string `json:"tp_sl_mode"`
@@ -772,11 +773,11 @@ func (by *Bybit) ChangeUSDTMode(symbol currency.Pair, takeProfitStopLoss string)
 	}
 	params.Set("tp_sl_mode", takeProfitStopLoss)
 
-	return resp.Result.Mode, by.SendAuthHTTPRequest(exchange.RestUSDTMargined, http.MethodPost, ufuturesSwitchPosition, params, &resp, uFuturesSwitchPosition)
+	return resp.Result.Mode, by.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, ufuturesSwitchPosition, params, &resp, uFuturesSwitchPosition)
 }
 
 // SetUSDTMargin updates margin
-func (by *Bybit) SetUSDTMargin(symbol currency.Pair, side, margin string) (UpdateMarginResp, error) {
+func (by *Bybit) SetUSDTMargin(ctx context.Context, symbol currency.Pair, side, margin string) (UpdateMarginResp, error) {
 	resp := struct {
 		Result struct {
 			Data             UpdateMarginResp
@@ -800,11 +801,11 @@ func (by *Bybit) SetUSDTMargin(symbol currency.Pair, side, margin string) (Updat
 	}
 	params.Set("margin", margin)
 
-	return resp.Result.Data, by.SendAuthHTTPRequest(exchange.RestUSDTMargined, http.MethodPost, ufuturesUpdateMargin, params, &resp, uFuturesUpdateMarginRate)
+	return resp.Result.Data, by.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, ufuturesUpdateMargin, params, &resp, uFuturesUpdateMarginRate)
 }
 
 // SetUSDTLeverage sets leverage
-func (by *Bybit) SetUSDTLeverage(symbol currency.Pair, buyLeverage, sellLeverage float64) error {
+func (by *Bybit) SetUSDTLeverage(ctx context.Context, symbol currency.Pair, buyLeverage, sellLeverage float64) error {
 	params := url.Values{}
 	symbolValue, err := by.FormatSymbol(symbol, asset.USDTMarginedFutures)
 	if err != nil {
@@ -821,11 +822,11 @@ func (by *Bybit) SetUSDTLeverage(symbol currency.Pair, buyLeverage, sellLeverage
 	}
 	params.Set("sell_leverage", strconv.FormatFloat(sellLeverage, 'f', -1, 64))
 
-	return by.SendAuthHTTPRequest(exchange.RestUSDTMargined, http.MethodPost, ufuturesSetLeverage, params, nil, uFuturesSetLeverageRate)
+	return by.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, ufuturesSetLeverage, params, nil, uFuturesSetLeverageRate)
 }
 
 // SetUSDTTradingAndStop sets take profit, stop loss, and trailing stop for your open position
-func (by *Bybit) SetUSDTTradingAndStop(symbol currency.Pair, takeProfit, stopLoss, trailingStop, stopLossQty, takeProfitQty float64, side, takeProfitTriggerBy, stopLossTriggerBy string) error {
+func (by *Bybit) SetUSDTTradingAndStop(ctx context.Context, symbol currency.Pair, takeProfit, stopLoss, trailingStop, stopLossQty, takeProfitQty float64, side, takeProfitTriggerBy, stopLossTriggerBy string) error {
 	params := url.Values{}
 	symbolValue, err := by.FormatSymbol(symbol, asset.USDTMarginedFutures)
 	if err != nil {
@@ -859,11 +860,11 @@ func (by *Bybit) SetUSDTTradingAndStop(symbol currency.Pair, takeProfit, stopLos
 		params.Set("sl_trigger_by", stopLossTriggerBy)
 	}
 
-	return by.SendAuthHTTPRequest(exchange.RestUSDTMargined, http.MethodPost, ufuturesSetTradingStop, params, nil, uFuturesSetTradingStopRate)
+	return by.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, ufuturesSetTradingStop, params, nil, uFuturesSetTradingStopRate)
 }
 
 // GetUSDTTradeRecords returns list of user trades
-func (by *Bybit) GetUSDTTradeRecords(symbol currency.Pair, executionType string, startTime, endTime, page, limit int64) ([]TradeData, error) {
+func (by *Bybit) GetUSDTTradeRecords(ctx context.Context, symbol currency.Pair, executionType string, startTime, endTime, page, limit int64) ([]TradeData, error) {
 	params := url.Values{}
 	resp := struct {
 		Data struct {
@@ -892,11 +893,11 @@ func (by *Bybit) GetUSDTTradeRecords(symbol currency.Pair, executionType string,
 	if limit > 0 && limit <= 200 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	return resp.Data.Trades, by.SendAuthHTTPRequest(exchange.RestUSDTMargined, http.MethodGet, ufuturesGetTrades, params, &resp, uFuturesGetTradesRate)
+	return resp.Data.Trades, by.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, ufuturesGetTrades, params, &resp, uFuturesGetTradesRate)
 }
 
 // GetClosedUSDTTrades returns closed profit and loss records
-func (by *Bybit) GetClosedUSDTTrades(symbol currency.Pair, executionType string, startTime, endTime, page, limit int64) ([]ClosedTrades, error) {
+func (by *Bybit) GetClosedUSDTTrades(ctx context.Context, symbol currency.Pair, executionType string, startTime, endTime, page, limit int64) ([]ClosedTrades, error) {
 	params := url.Values{}
 
 	resp := struct {
@@ -926,11 +927,11 @@ func (by *Bybit) GetClosedUSDTTrades(symbol currency.Pair, executionType string,
 	if limit > 0 && limit <= 50 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	return resp.Data.Trades, by.SendAuthHTTPRequest(exchange.RestUSDTMargined, http.MethodGet, ufuturesGetClosedTrades, params, &resp, uFuturesGetClosedTradesRate)
+	return resp.Data.Trades, by.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, ufuturesGetClosedTrades, params, &resp, uFuturesGetClosedTradesRate)
 }
 
 // SetUSDTRiskLimit sets risk limit
-func (by *Bybit) SetUSDTRiskLimit(symbol currency.Pair, side string, riskID int64) (int64, error) {
+func (by *Bybit) SetUSDTRiskLimit(ctx context.Context, symbol currency.Pair, side string, riskID int64) (int64, error) {
 	resp := struct {
 		Result struct {
 			RiskID int64 `json:"risk_id"`
@@ -953,11 +954,11 @@ func (by *Bybit) SetUSDTRiskLimit(symbol currency.Pair, side string, riskID int6
 	}
 	params.Set("risk_id", strconv.FormatInt(riskID, 10))
 
-	return resp.Result.RiskID, by.SendAuthHTTPRequest(exchange.RestUSDTMargined, http.MethodPost, ufuturesSetRiskLimit, params, &resp, uFuturesDefaultRate)
+	return resp.Result.RiskID, by.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, ufuturesSetRiskLimit, params, &resp, uFuturesDefaultRate)
 }
 
 // GetPredictedUSDTFundingRate returns predicted funding rates and fees
-func (by *Bybit) GetPredictedUSDTFundingRate(symbol currency.Pair) (float64, float64, error) {
+func (by *Bybit) GetPredictedUSDTFundingRate(ctx context.Context, symbol currency.Pair) (float64, float64, error) {
 	params := url.Values{}
 	resp := struct {
 		Result struct {
@@ -972,11 +973,11 @@ func (by *Bybit) GetPredictedUSDTFundingRate(symbol currency.Pair) (float64, flo
 	}
 	params.Set("symbol", symbolValue)
 
-	return resp.Result.PredictedFundingRate, resp.Result.PredictedFundingFee, by.SendAuthHTTPRequest(exchange.RestUSDTMargined, http.MethodGet, ufuturesPredictFundingRate, params, &resp, uFuturesPredictFundingRate)
+	return resp.Result.PredictedFundingRate, resp.Result.PredictedFundingFee, by.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, ufuturesPredictFundingRate, params, &resp, uFuturesPredictFundingRate)
 }
 
 // GetLastUSDTFundingFee returns last funding fees
-func (by *Bybit) GetLastUSDTFundingFee(symbol currency.Pair) (FundingFee, error) {
+func (by *Bybit) GetLastUSDTFundingFee(ctx context.Context, symbol currency.Pair) (FundingFee, error) {
 	params := url.Values{}
 	resp := struct {
 		Result FundingFee `json:"result"`
@@ -988,5 +989,5 @@ func (by *Bybit) GetLastUSDTFundingFee(symbol currency.Pair) (FundingFee, error)
 	}
 	params.Set("symbol", symbolValue)
 
-	return resp.Result, by.SendAuthHTTPRequest(exchange.RestUSDTMargined, http.MethodGet, ufuturesGetMyLastFundingFee, params, &resp, uFuturesGetMyLastFundingFeeRate)
+	return resp.Result, by.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, ufuturesGetMyLastFundingFee, params, &resp, uFuturesGetMyLastFundingFeeRate)
 }

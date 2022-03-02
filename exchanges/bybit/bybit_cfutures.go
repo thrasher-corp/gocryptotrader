@@ -1,6 +1,7 @@
 package bybit
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/url"
@@ -70,7 +71,7 @@ const (
 )
 
 // GetFuturesOrderbook gets orderbook data for CoinMarginedFutures.
-func (by *Bybit) GetFuturesOrderbook(symbol currency.Pair) (Orderbook, error) {
+func (by *Bybit) GetFuturesOrderbook(ctx context.Context, symbol currency.Pair) (Orderbook, error) {
 	var resp Orderbook
 	data := struct {
 		Result []OrderbookData `json:"result"`
@@ -84,7 +85,7 @@ func (by *Bybit) GetFuturesOrderbook(symbol currency.Pair) (Orderbook, error) {
 	params.Set("symbol", symbolValue)
 
 	path := common.EncodeURLValues(bybitFuturesAPIVersion+cfuturesOrderbook, params)
-	err = by.SendHTTPRequest(exchange.RestCoinMargined, path, publicFuturesRate, &data)
+	err = by.SendHTTPRequest(ctx, exchange.RestCoinMargined, path, publicFuturesRate, &data)
 	if err != nil {
 		return resp, err
 	}
@@ -116,7 +117,7 @@ func (by *Bybit) GetFuturesOrderbook(symbol currency.Pair) (Orderbook, error) {
 }
 
 // GetFuturesKlineData gets futures kline data for CoinMarginedFutures.
-func (by *Bybit) GetFuturesKlineData(symbol currency.Pair, interval string, limit int64, startTime time.Time) ([]FuturesCandleStickWithStringParam, error) {
+func (by *Bybit) GetFuturesKlineData(ctx context.Context, symbol currency.Pair, interval string, limit int64, startTime time.Time) ([]FuturesCandleStickWithStringParam, error) {
 	resp := struct {
 		Data []FuturesCandleStickWithStringParam `json:"result"`
 	}{}
@@ -141,11 +142,11 @@ func (by *Bybit) GetFuturesKlineData(symbol currency.Pair, interval string, limi
 	params.Set("from", strconv.FormatInt(startTime.Unix(), 10))
 
 	path := common.EncodeURLValues(bybitFuturesAPIVersion+cfuturesKline, params)
-	return resp.Data, by.SendHTTPRequest(exchange.RestCoinMargined, path, publicFuturesRate, &resp)
+	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestCoinMargined, path, publicFuturesRate, &resp)
 }
 
 // GetFuturesSymbolPriceTicker gets price ticker for symbol.
-func (by *Bybit) GetFuturesSymbolPriceTicker(symbol currency.Pair) ([]SymbolPriceTicker, error) {
+func (by *Bybit) GetFuturesSymbolPriceTicker(ctx context.Context, symbol currency.Pair) ([]SymbolPriceTicker, error) {
 	resp := struct {
 		Data []SymbolPriceTicker `json:"result"`
 	}{}
@@ -158,11 +159,11 @@ func (by *Bybit) GetFuturesSymbolPriceTicker(symbol currency.Pair) ([]SymbolPric
 	params.Set("symbol", symbolValue)
 
 	path := common.EncodeURLValues(bybitFuturesAPIVersion+cfuturesSymbolPriceTicker, params)
-	return resp.Data, by.SendHTTPRequest(exchange.RestCoinMargined, path, publicFuturesRate, &resp)
+	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestCoinMargined, path, publicFuturesRate, &resp)
 }
 
 // GetPublicTrades gets past public trades for CoinMarginedFutures.
-func (by *Bybit) GetPublicTrades(symbol currency.Pair, limit, fromID int64) ([]FuturesPublicTradesData, error) {
+func (by *Bybit) GetPublicTrades(ctx context.Context, symbol currency.Pair, limit, fromID int64) ([]FuturesPublicTradesData, error) {
 	resp := struct {
 		Data []FuturesPublicTradesData `json:"result"`
 	}{}
@@ -181,19 +182,19 @@ func (by *Bybit) GetPublicTrades(symbol currency.Pair, limit, fromID int64) ([]F
 	}
 
 	path := common.EncodeURLValues(bybitFuturesAPIVersion+cfuturesRecentTrades, params)
-	return resp.Data, by.SendHTTPRequest(exchange.RestCoinMargined, path, publicFuturesRate, &resp)
+	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestCoinMargined, path, publicFuturesRate, &resp)
 }
 
 // GetSymbolsInfo gets all symbol pair information for CoinMarginedFutures.
-func (by *Bybit) GetSymbolsInfo() ([]SymbolInfo, error) {
+func (by *Bybit) GetSymbolsInfo(ctx context.Context) ([]SymbolInfo, error) {
 	resp := struct {
 		Data []SymbolInfo `json:"result"`
 	}{}
-	return resp.Data, by.SendHTTPRequest(exchange.RestCoinMargined, bybitFuturesAPIVersion+cfuturesSymbolInfo, publicFuturesRate, &resp)
+	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestCoinMargined, bybitFuturesAPIVersion+cfuturesSymbolInfo, publicFuturesRate, &resp)
 }
 
 // GetMarkPriceKline gets mark price kline data
-func (by *Bybit) GetMarkPriceKline(symbol currency.Pair, interval string, limit int64, startTime time.Time) ([]MarkPriceKlineData, error) {
+func (by *Bybit) GetMarkPriceKline(ctx context.Context, symbol currency.Pair, interval string, limit int64, startTime time.Time) ([]MarkPriceKlineData, error) {
 	resp := struct {
 		Data []MarkPriceKlineData `json:"result"`
 	}{}
@@ -217,11 +218,11 @@ func (by *Bybit) GetMarkPriceKline(symbol currency.Pair, interval string, limit 
 	params.Set("from", strconv.FormatInt(startTime.Unix(), 10))
 
 	path := common.EncodeURLValues(bybitFuturesAPIVersion+cfuturesMarkPriceKline, params)
-	return resp.Data, by.SendHTTPRequest(exchange.RestCoinMargined, path, publicFuturesRate, &resp)
+	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestCoinMargined, path, publicFuturesRate, &resp)
 }
 
 // GetIndexPriceKline gets index price kline data
-func (by *Bybit) GetIndexPriceKline(symbol currency.Pair, interval string, limit int64, startTime time.Time) ([]IndexPriceKlineData, error) {
+func (by *Bybit) GetIndexPriceKline(ctx context.Context, symbol currency.Pair, interval string, limit int64, startTime time.Time) ([]IndexPriceKlineData, error) {
 	resp := struct {
 		Data []IndexPriceKlineData `json:"result"`
 	}{}
@@ -245,11 +246,11 @@ func (by *Bybit) GetIndexPriceKline(symbol currency.Pair, interval string, limit
 	params.Set("from", strconv.FormatInt(startTime.Unix(), 10))
 
 	path := common.EncodeURLValues(bybitFuturesAPIVersion+cfuturesIndexKline, params)
-	return resp.Data, by.SendHTTPRequest(exchange.RestCoinMargined, path, publicFuturesRate, &resp)
+	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestCoinMargined, path, publicFuturesRate, &resp)
 }
 
 // GetPremiumIndexPriceKline gets premium index price kline data
-func (by *Bybit) GetPremiumIndexPriceKline(symbol currency.Pair, interval string, limit int64, startTime time.Time) ([]IndexPriceKlineData, error) {
+func (by *Bybit) GetPremiumIndexPriceKline(ctx context.Context, symbol currency.Pair, interval string, limit int64, startTime time.Time) ([]IndexPriceKlineData, error) {
 	resp := struct {
 		Data []IndexPriceKlineData `json:"result"`
 	}{}
@@ -273,11 +274,11 @@ func (by *Bybit) GetPremiumIndexPriceKline(symbol currency.Pair, interval string
 	params.Set("from", strconv.FormatInt(startTime.Unix(), 10))
 
 	path := common.EncodeURLValues(bybitFuturesAPIVersion+cfuturesIndexPremiumKline, params)
-	return resp.Data, by.SendHTTPRequest(exchange.RestCoinMargined, path, publicFuturesRate, &resp)
+	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestCoinMargined, path, publicFuturesRate, &resp)
 }
 
 // GetOpenInterest gets open interest data for a symbol.
-func (by *Bybit) GetOpenInterest(symbol currency.Pair, period string, limit int64) ([]OpenInterestData, error) {
+func (by *Bybit) GetOpenInterest(ctx context.Context, symbol currency.Pair, period string, limit int64) ([]OpenInterestData, error) {
 	resp := struct {
 		Data []OpenInterestData `json:"result"`
 	}{}
@@ -297,11 +298,11 @@ func (by *Bybit) GetOpenInterest(symbol currency.Pair, period string, limit int6
 	params.Set("period", period)
 
 	path := common.EncodeURLValues(bybitFuturesAPIVersion+cfuturesOpenInterest, params)
-	return resp.Data, by.SendHTTPRequest(exchange.RestCoinMargined, path, publicFuturesRate, &resp)
+	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestCoinMargined, path, publicFuturesRate, &resp)
 }
 
 // GetLatestBigDeal gets filled orders worth more than 500,000 USD within the last 24h for symbol.
-func (by *Bybit) GetLatestBigDeal(symbol currency.Pair, limit int64) ([]BigDealData, error) {
+func (by *Bybit) GetLatestBigDeal(ctx context.Context, symbol currency.Pair, limit int64) ([]BigDealData, error) {
 	resp := struct {
 		Data []BigDealData `json:"result"`
 	}{}
@@ -317,11 +318,11 @@ func (by *Bybit) GetLatestBigDeal(symbol currency.Pair, limit int64) ([]BigDealD
 	}
 
 	path := common.EncodeURLValues(bybitFuturesAPIVersion+cfuturesBigDeal, params)
-	return resp.Data, by.SendHTTPRequest(exchange.RestCoinMargined, path, publicFuturesRate, &resp)
+	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestCoinMargined, path, publicFuturesRate, &resp)
 }
 
 // GetAccountRatio gets user accounts long-short ratio.
-func (by *Bybit) GetAccountRatio(symbol currency.Pair, period string, limit int64) ([]AccountRatioData, error) {
+func (by *Bybit) GetAccountRatio(ctx context.Context, symbol currency.Pair, period string, limit int64) ([]AccountRatioData, error) {
 	resp := struct {
 		Data []AccountRatioData `json:"result"`
 	}{}
@@ -341,11 +342,11 @@ func (by *Bybit) GetAccountRatio(symbol currency.Pair, period string, limit int6
 	params.Set("period", period)
 
 	path := common.EncodeURLValues(bybitFuturesAPIVersion+cfuturesAccountRatio, params)
-	return resp.Data, by.SendHTTPRequest(exchange.RestCoinMargined, path, publicFuturesRate, &resp)
+	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestCoinMargined, path, publicFuturesRate, &resp)
 }
 
 // GetRiskLimit returns risk limit
-func (by *Bybit) GetRiskLimit(symbol currency.Pair) ([]RiskInfoWithStringParam, error) {
+func (by *Bybit) GetRiskLimit(ctx context.Context, symbol currency.Pair) ([]RiskInfoWithStringParam, error) {
 	resp := struct {
 		Data []RiskInfoWithStringParam `json:"result"`
 	}{}
@@ -360,11 +361,11 @@ func (by *Bybit) GetRiskLimit(symbol currency.Pair) ([]RiskInfoWithStringParam, 
 	}
 
 	path := common.EncodeURLValues(bybitFuturesAPIVersion+cfuturesGetRiskLimit, params)
-	return resp.Data, by.SendHTTPRequest(exchange.RestCoinMargined, path, publicFuturesRate, &resp)
+	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestCoinMargined, path, publicFuturesRate, &resp)
 }
 
 // GetLastFundingRate returns latest generated funding fee
-func (by *Bybit) GetLastFundingRate(symbol currency.Pair) (FundingInfo, error) {
+func (by *Bybit) GetLastFundingRate(ctx context.Context, symbol currency.Pair) (FundingInfo, error) {
 	resp := struct {
 		Data FundingInfo `json:"result"`
 	}{}
@@ -377,28 +378,28 @@ func (by *Bybit) GetLastFundingRate(symbol currency.Pair) (FundingInfo, error) {
 	params.Set("symbol", symbolValue)
 
 	path := common.EncodeURLValues(bybitFuturesAPIVersion+cfuturesGetLastFundingRate, params)
-	return resp.Data, by.SendHTTPRequest(exchange.RestCoinMargined, path, publicFuturesRate, &resp)
+	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestCoinMargined, path, publicFuturesRate, &resp)
 }
 
 // GetFuturesServerTime returns Bybit server time in seconds
-func (by *Bybit) GetFuturesServerTime() (time.Time, error) {
+func (by *Bybit) GetFuturesServerTime(ctx context.Context) (time.Time, error) {
 	resp := struct {
 		TimeNow float64 `json:"time_now,string"`
 	}{}
 
-	return time.Unix(0, int64(resp.TimeNow*1e9)), by.SendHTTPRequest(exchange.RestCoinMargined, bybitFuturesAPIVersion+cfuturesGetServerTime, publicFuturesRate, &resp)
+	return time.Unix(0, int64(resp.TimeNow*1e9)), by.SendHTTPRequest(ctx, exchange.RestCoinMargined, bybitFuturesAPIVersion+cfuturesGetServerTime, publicFuturesRate, &resp)
 }
 
 // GetAnnouncement returns announcements in the last 30 days in reverse order
-func (by *Bybit) GetAnnouncement() ([]AnnouncementInfo, error) {
+func (by *Bybit) GetAnnouncement(ctx context.Context) ([]AnnouncementInfo, error) {
 	resp := struct {
 		Data []AnnouncementInfo `json:"result"`
 	}{}
-	return resp.Data, by.SendHTTPRequest(exchange.RestCoinMargined, bybitFuturesAPIVersion+cfuturesGetAnnouncement, publicFuturesRate, &resp)
+	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestCoinMargined, bybitFuturesAPIVersion+cfuturesGetAnnouncement, publicFuturesRate, &resp)
 }
 
 // CreateCoinFuturesOrder sends a new futures order to the exchange
-func (by *Bybit) CreateCoinFuturesOrder(symbol currency.Pair, side, orderType, timeInForce,
+func (by *Bybit) CreateCoinFuturesOrder(ctx context.Context, symbol currency.Pair, side, orderType, timeInForce,
 	orderLinkID, takeProfitTriggerBy, stopLossTriggerBy string,
 	quantity, price, takeProfit, stopLoss float64, closeOnTrigger, reduceOnly bool) (FuturesOrderDataResp, error) {
 	resp := struct {
@@ -447,11 +448,11 @@ func (by *Bybit) CreateCoinFuturesOrder(symbol currency.Pair, side, orderType, t
 	if reduceOnly {
 		params.Set("reduce_only", "true")
 	}
-	return resp.Data, by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesCreateOrder, params, &resp, cFuturesCreateOrderRate)
+	return resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesCreateOrder, params, &resp, cFuturesCreateOrderRate)
 }
 
 // GetActiveCoinFuturesOrders gets list of futures active orders
-func (by *Bybit) GetActiveCoinFuturesOrders(symbol currency.Pair, orderStatus, direction, cursor string, limit int64) ([]FuturesActiveOrderResp, error) {
+func (by *Bybit) GetActiveCoinFuturesOrders(ctx context.Context, symbol currency.Pair, orderStatus, direction, cursor string, limit int64) ([]FuturesActiveOrderResp, error) {
 	resp := struct {
 		Result struct {
 			Data   []FuturesActiveOrderResp `json:"data"`
@@ -477,11 +478,11 @@ func (by *Bybit) GetActiveCoinFuturesOrders(symbol currency.Pair, orderStatus, d
 	if cursor != "" {
 		params.Set("cursor", cursor)
 	}
-	return resp.Result.Data, by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetActiveOrders, params, &resp, cFuturesGetActiveOrderRate)
+	return resp.Result.Data, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetActiveOrders, params, &resp, cFuturesGetActiveOrderRate)
 }
 
 // CancelActiveCoinFuturesOrders cancels futures unfilled or partially filled orders
-func (by *Bybit) CancelActiveCoinFuturesOrders(symbol currency.Pair, orderID, orderLinkID string) (FuturesOrderDataResp, error) {
+func (by *Bybit) CancelActiveCoinFuturesOrders(ctx context.Context, symbol currency.Pair, orderID, orderLinkID string) (FuturesOrderDataResp, error) {
 	resp := struct {
 		Data FuturesOrderDataResp `json:"result"`
 	}{}
@@ -500,11 +501,11 @@ func (by *Bybit) CancelActiveCoinFuturesOrders(symbol currency.Pair, orderID, or
 	if orderLinkID != "" {
 		params.Set("order_link_id", orderLinkID)
 	}
-	return resp.Data, by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesCancelActiveOrder, params, &resp, cFuturesCancelActiveOrderRate)
+	return resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesCancelActiveOrder, params, &resp, cFuturesCancelActiveOrderRate)
 }
 
 // CancelAllActiveCoinFuturesOrders cancels all futures unfilled or partially filled orders
-func (by *Bybit) CancelAllActiveCoinFuturesOrders(symbol currency.Pair) ([]FuturesOrderDataResp, error) {
+func (by *Bybit) CancelAllActiveCoinFuturesOrders(ctx context.Context, symbol currency.Pair) ([]FuturesOrderDataResp, error) {
 	resp := struct {
 		Data []FuturesOrderDataResp `json:"result"`
 	}{}
@@ -514,11 +515,11 @@ func (by *Bybit) CancelAllActiveCoinFuturesOrders(symbol currency.Pair) ([]Futur
 		return resp.Data, err
 	}
 	params.Set("symbol", symbolValue)
-	return resp.Data, by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesCancelAllActiveOrders, params, &resp, cFuturesCancelAllActiveOrderRate)
+	return resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesCancelAllActiveOrders, params, &resp, cFuturesCancelAllActiveOrderRate)
 }
 
 // ReplaceActiveCoinFuturesOrders modify unfilled or partially filled orders
-func (by *Bybit) ReplaceActiveCoinFuturesOrders(symbol currency.Pair, orderID, orderLinkID, takeProfitTriggerBy, stopLossTriggerBy string,
+func (by *Bybit) ReplaceActiveCoinFuturesOrders(ctx context.Context, symbol currency.Pair, orderID, orderLinkID, takeProfitTriggerBy, stopLossTriggerBy string,
 	updatedQty int64, updatedPrice, takeProfitPrice, stopLossPrice float64) (string, error) {
 	resp := struct {
 		Data struct {
@@ -559,11 +560,11 @@ func (by *Bybit) ReplaceActiveCoinFuturesOrders(symbol currency.Pair, orderID, o
 	if stopLossTriggerBy != "" {
 		params.Set("sl_trigger_by", stopLossTriggerBy)
 	}
-	return resp.Data.OrderID, by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesReplaceActiveOrder, params, &resp, cFuturesReplaceActiveOrderRate)
+	return resp.Data.OrderID, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesReplaceActiveOrder, params, &resp, cFuturesReplaceActiveOrderRate)
 }
 
 // GetActiveRealtimeCoinOrders query real time order data
-func (by *Bybit) GetActiveRealtimeCoinOrders(symbol currency.Pair, orderID, orderLinkID string) ([]FuturesActiveRealtimeOrder, error) {
+func (by *Bybit) GetActiveRealtimeCoinOrders(ctx context.Context, symbol currency.Pair, orderID, orderLinkID string) ([]FuturesActiveRealtimeOrder, error) {
 	var data []FuturesActiveRealtimeOrder
 	params := url.Values{}
 	symbolValue, err := by.FormatSymbol(symbol, asset.CoinMarginedFutures)
@@ -582,7 +583,7 @@ func (by *Bybit) GetActiveRealtimeCoinOrders(symbol currency.Pair, orderID, orde
 		resp := struct {
 			Data []FuturesActiveRealtimeOrder `json:"result"`
 		}{}
-		err = by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetActiveRealtimeOrders, params, &resp, cFuturesGetRealtimeOrderRate)
+		err = by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetActiveRealtimeOrders, params, &resp, cFuturesGetRealtimeOrderRate)
 		if err != nil {
 			return data, err
 		}
@@ -591,7 +592,7 @@ func (by *Bybit) GetActiveRealtimeCoinOrders(symbol currency.Pair, orderID, orde
 		resp := struct {
 			Data FuturesActiveRealtimeOrder `json:"result"`
 		}{}
-		err = by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetActiveRealtimeOrders, params, &resp, cFuturesGetRealtimeOrderRate)
+		err = by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetActiveRealtimeOrders, params, &resp, cFuturesGetRealtimeOrderRate)
 		if err != nil {
 			return data, err
 		}
@@ -601,7 +602,7 @@ func (by *Bybit) GetActiveRealtimeCoinOrders(symbol currency.Pair, orderID, orde
 }
 
 // CreateConditionalCoinFuturesOrder sends a new conditional futures order to the exchange
-func (by *Bybit) CreateConditionalCoinFuturesOrder(symbol currency.Pair, side, orderType, timeInForce,
+func (by *Bybit) CreateConditionalCoinFuturesOrder(ctx context.Context, symbol currency.Pair, side, orderType, timeInForce,
 	orderLinkID, takeProfitTriggerBy, stopLossTriggerBy, triggerBy string,
 	quantity, price, takeProfit, stopLoss, basePrice, stopPrice float64, closeOnTrigger bool) (FuturesConditionalOrderResp, error) {
 	resp := struct {
@@ -660,11 +661,11 @@ func (by *Bybit) CreateConditionalCoinFuturesOrder(symbol currency.Pair, side, o
 	if stopLossTriggerBy != "" {
 		params.Set("sl_trigger_by", stopLossTriggerBy)
 	}
-	return resp.Data, by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesCreateConditionalOrder, params, &resp, cFuturesCreateConditionalOrderRate)
+	return resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesCreateConditionalOrder, params, &resp, cFuturesCreateConditionalOrderRate)
 }
 
 // GetConditionalCoinFuturesOrders gets list of futures conditional orders
-func (by *Bybit) GetConditionalCoinFuturesOrders(symbol currency.Pair, stopOrderStatus, direction, cursor string, limit int64) ([]CoinFuturesConditionalOrders, error) {
+func (by *Bybit) GetConditionalCoinFuturesOrders(ctx context.Context, symbol currency.Pair, stopOrderStatus, direction, cursor string, limit int64) ([]CoinFuturesConditionalOrders, error) {
 	resp := struct {
 		Result struct {
 			Data   []CoinFuturesConditionalOrders `json:"data"`
@@ -689,11 +690,11 @@ func (by *Bybit) GetConditionalCoinFuturesOrders(symbol currency.Pair, stopOrder
 	if cursor != "" {
 		params.Set("cursor", cursor)
 	}
-	return resp.Result.Data, by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetConditionalOrders, params, &resp, cFuturesGetConditionalOrderRate)
+	return resp.Result.Data, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetConditionalOrders, params, &resp, cFuturesGetConditionalOrderRate)
 }
 
 // CancelConditionalCoinFuturesOrders cancels untriggered conditional orders
-func (by *Bybit) CancelConditionalCoinFuturesOrders(symbol currency.Pair, stopOrderID, orderLinkID string) (string, error) {
+func (by *Bybit) CancelConditionalCoinFuturesOrders(ctx context.Context, symbol currency.Pair, stopOrderID, orderLinkID string) (string, error) {
 	resp := struct {
 		Data struct {
 			StopOrderID string `json:"stop_order_id"`
@@ -714,11 +715,11 @@ func (by *Bybit) CancelConditionalCoinFuturesOrders(symbol currency.Pair, stopOr
 	if orderLinkID != "" {
 		params.Set("order_link_id", orderLinkID)
 	}
-	return resp.Data.StopOrderID, by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesCancelConditionalOrder, params, &resp, cFuturesCancelConditionalOrderRate)
+	return resp.Data.StopOrderID, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesCancelConditionalOrder, params, &resp, cFuturesCancelConditionalOrderRate)
 }
 
 // CancelAllConditionalCoinFuturesOrders cancels all untriggered conditional orders
-func (by *Bybit) CancelAllConditionalCoinFuturesOrders(symbol currency.Pair) ([]FuturesCancelOrderResp, error) {
+func (by *Bybit) CancelAllConditionalCoinFuturesOrders(ctx context.Context, symbol currency.Pair) ([]FuturesCancelOrderResp, error) {
 	resp := struct {
 		Data []FuturesCancelOrderResp `json:"result"`
 	}{}
@@ -728,11 +729,11 @@ func (by *Bybit) CancelAllConditionalCoinFuturesOrders(symbol currency.Pair) ([]
 		return resp.Data, err
 	}
 	params.Set("symbol", symbolValue)
-	return resp.Data, by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesCancelAllConditionalOrders, params, &resp, cFuturesCancelAllConditionalOrderRate)
+	return resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesCancelAllConditionalOrders, params, &resp, cFuturesCancelAllConditionalOrderRate)
 }
 
 // ReplaceConditionalCoinFuturesOrders modify unfilled or partially filled conditional orders
-func (by *Bybit) ReplaceConditionalCoinFuturesOrders(symbol currency.Pair, stopOrderID, orderLinkID, takeProfitTriggerBy, stopLossTriggerBy string,
+func (by *Bybit) ReplaceConditionalCoinFuturesOrders(ctx context.Context, symbol currency.Pair, stopOrderID, orderLinkID, takeProfitTriggerBy, stopLossTriggerBy string,
 	updatedQty, updatedPrice, takeProfitPrice, stopLossPrice, orderTriggerPrice float64) (string, error) {
 	resp := struct {
 		Data struct {
@@ -776,11 +777,11 @@ func (by *Bybit) ReplaceConditionalCoinFuturesOrders(symbol currency.Pair, stopO
 	if stopLossTriggerBy != "" {
 		params.Set("sl_trigger_by", stopLossTriggerBy)
 	}
-	return resp.Data.OrderID, by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesReplaceConditionalOrder, params, &resp, cFuturesReplaceConditionalOrderRate)
+	return resp.Data.OrderID, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesReplaceConditionalOrder, params, &resp, cFuturesReplaceConditionalOrderRate)
 }
 
 // GetConditionalRealtimeCoinOrders query real time conditional order data
-func (by *Bybit) GetConditionalRealtimeCoinOrders(symbol currency.Pair, stopOrderID, orderLinkID string) ([]CoinFuturesConditionalRealtimeOrder, error) {
+func (by *Bybit) GetConditionalRealtimeCoinOrders(ctx context.Context, symbol currency.Pair, stopOrderID, orderLinkID string) ([]CoinFuturesConditionalRealtimeOrder, error) {
 	var data []CoinFuturesConditionalRealtimeOrder
 	params := url.Values{}
 	symbolValue, err := by.FormatSymbol(symbol, asset.CoinMarginedFutures)
@@ -799,7 +800,7 @@ func (by *Bybit) GetConditionalRealtimeCoinOrders(symbol currency.Pair, stopOrde
 		resp := struct {
 			Data []CoinFuturesConditionalRealtimeOrder `json:"result"`
 		}{}
-		err = by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetConditionalRealtimeOrders, params, &resp, cFuturesDefaultRate)
+		err = by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetConditionalRealtimeOrders, params, &resp, cFuturesDefaultRate)
 		if err != nil {
 			return data, err
 		}
@@ -808,7 +809,7 @@ func (by *Bybit) GetConditionalRealtimeCoinOrders(symbol currency.Pair, stopOrde
 		resp := struct {
 			Data CoinFuturesConditionalRealtimeOrder `json:"result"`
 		}{}
-		err = by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetConditionalRealtimeOrders, params, &resp, cFuturesDefaultRate)
+		err = by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetConditionalRealtimeOrders, params, &resp, cFuturesDefaultRate)
 		if err != nil {
 			return data, err
 		}
@@ -818,7 +819,7 @@ func (by *Bybit) GetConditionalRealtimeCoinOrders(symbol currency.Pair, stopOrde
 }
 
 // GetCoinPositions returns list of user positions
-func (by *Bybit) GetCoinPositions(symbol currency.Pair) ([]PositionResp, error) {
+func (by *Bybit) GetCoinPositions(ctx context.Context, symbol currency.Pair) ([]PositionResp, error) {
 	var data []PositionResp
 	params := url.Values{}
 
@@ -833,7 +834,7 @@ func (by *Bybit) GetCoinPositions(symbol currency.Pair) ([]PositionResp, error) 
 		}
 		params.Set("symbol", symbolValue)
 
-		err = by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesPosition, params, &resp, cFuturesPositionRate)
+		err = by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesPosition, params, &resp, cFuturesPositionRate)
 		if err != nil {
 			return data, err
 		}
@@ -842,7 +843,7 @@ func (by *Bybit) GetCoinPositions(symbol currency.Pair) ([]PositionResp, error) 
 		resp := struct {
 			Data []PositionResp `json:"result"`
 		}{}
-		err := by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesPosition, params, &resp, cFuturesPositionRate)
+		err := by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesPosition, params, &resp, cFuturesPositionRate)
 		if err != nil {
 			return data, err
 		}
@@ -852,7 +853,7 @@ func (by *Bybit) GetCoinPositions(symbol currency.Pair) ([]PositionResp, error) 
 }
 
 // SetCoinMargin updates margin
-func (by *Bybit) SetCoinMargin(symbol currency.Pair, margin string) (float64, error) {
+func (by *Bybit) SetCoinMargin(ctx context.Context, symbol currency.Pair, margin string) (float64, error) {
 	resp := struct {
 		Data float64 `json:"result"`
 	}{}
@@ -867,11 +868,11 @@ func (by *Bybit) SetCoinMargin(symbol currency.Pair, margin string) (float64, er
 	}
 	params.Set("margin", margin)
 
-	return resp.Data, by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesUpdateMargin, params, &resp, cFuturesUpdateMarginRate)
+	return resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesUpdateMargin, params, &resp, cFuturesUpdateMarginRate)
 }
 
 // SetCoinTradingAndStop sets take profit, stop loss, and trailing stop for your open position
-func (by *Bybit) SetCoinTradingAndStop(symbol currency.Pair, takeProfit, stopLoss, trailingStop, newTrailingActive, stopLossQty, takeProfitQty float64, takeProfitTriggerBy, stopLossTriggerBy string) (SetTradingAndStopResp, error) {
+func (by *Bybit) SetCoinTradingAndStop(ctx context.Context, symbol currency.Pair, takeProfit, stopLoss, trailingStop, newTrailingActive, stopLossQty, takeProfitQty float64, takeProfitTriggerBy, stopLossTriggerBy string) (SetTradingAndStopResp, error) {
 	resp := struct {
 		Data SetTradingAndStopResp `json:"result"`
 	}{}
@@ -907,11 +908,11 @@ func (by *Bybit) SetCoinTradingAndStop(symbol currency.Pair, takeProfit, stopLos
 		params.Set("sl_trigger_by", stopLossTriggerBy)
 	}
 
-	return resp.Data, by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesSetTrading, params, &resp, cFuturesDefaultRate)
+	return resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesSetTrading, params, &resp, cFuturesDefaultRate)
 }
 
 // SetCoinLeverage sets leverage
-func (by *Bybit) SetCoinLeverage(symbol currency.Pair, leverage float64, leverageOnly bool) (float64, error) {
+func (by *Bybit) SetCoinLeverage(ctx context.Context, symbol currency.Pair, leverage float64, leverageOnly bool) (float64, error) {
 	resp := struct {
 		Data float64 `json:"result"`
 	}{}
@@ -930,11 +931,11 @@ func (by *Bybit) SetCoinLeverage(symbol currency.Pair, leverage float64, leverag
 		params.Set("leverage_only", "true")
 	}
 
-	return resp.Data, by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesSetLeverage, params, &resp, cFuturesSetLeverageRate)
+	return resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesSetLeverage, params, &resp, cFuturesSetLeverageRate)
 }
 
 // GetCoinTradeRecords returns list of user trades
-func (by *Bybit) GetCoinTradeRecords(symbol currency.Pair, orderID, order string, startTime, page, limit int64) ([]TradeResp, error) {
+func (by *Bybit) GetCoinTradeRecords(ctx context.Context, symbol currency.Pair, orderID, order string, startTime, page, limit int64) ([]TradeResp, error) {
 	params := url.Values{}
 
 	resp := struct {
@@ -966,7 +967,7 @@ func (by *Bybit) GetCoinTradeRecords(symbol currency.Pair, orderID, order string
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 
-	err = by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetTrades, params, &resp, cFuturesTradeRate)
+	err = by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetTrades, params, &resp, cFuturesTradeRate)
 	if err != nil {
 		return resp.Data.Trades, err
 	}
@@ -974,7 +975,7 @@ func (by *Bybit) GetCoinTradeRecords(symbol currency.Pair, orderID, order string
 }
 
 // GetClosedCoinTrades returns closed profit and loss records
-func (by *Bybit) GetClosedCoinTrades(symbol currency.Pair, executionType string, startTime, endTime, page, limit int64) ([]ClosedTrades, error) {
+func (by *Bybit) GetClosedCoinTrades(ctx context.Context, symbol currency.Pair, executionType string, startTime, endTime, page, limit int64) ([]ClosedTrades, error) {
 	params := url.Values{}
 
 	resp := struct {
@@ -1006,7 +1007,7 @@ func (by *Bybit) GetClosedCoinTrades(symbol currency.Pair, executionType string,
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 
-	err = by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetClosedTrades, params, &resp, cFuturesDefaultRate)
+	err = by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetClosedTrades, params, &resp, cFuturesDefaultRate)
 	if err != nil {
 		return resp.Data.Trades, err
 	}
@@ -1014,7 +1015,7 @@ func (by *Bybit) GetClosedCoinTrades(symbol currency.Pair, executionType string,
 }
 
 // ChangeCoinMode switches mode between full or partial position
-func (by *Bybit) ChangeCoinMode(symbol currency.Pair, takeProfitStopLoss string) (string, error) {
+func (by *Bybit) ChangeCoinMode(ctx context.Context, symbol currency.Pair, takeProfitStopLoss string) (string, error) {
 	resp := struct {
 		Data struct {
 			Mode string `json:"tp_sl_mode"`
@@ -1031,11 +1032,11 @@ func (by *Bybit) ChangeCoinMode(symbol currency.Pair, takeProfitStopLoss string)
 	}
 	params.Set("tp_sl_mode", takeProfitStopLoss)
 
-	return resp.Data.Mode, by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesSwitchPosition, params, &resp, cFuturesSwitchPositionRate)
+	return resp.Data.Mode, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesSwitchPosition, params, &resp, cFuturesSwitchPositionRate)
 }
 
 // ChangeCoinMargin switches margin between cross or isolated
-func (by *Bybit) ChangeCoinMargin(symbol currency.Pair, buyLeverage, sellLeverage float64, isIsolated bool) error {
+func (by *Bybit) ChangeCoinMargin(ctx context.Context, symbol currency.Pair, buyLeverage, sellLeverage float64, isIsolated bool) error {
 	var resp interface{}
 
 	params := url.Values{}
@@ -1053,11 +1054,11 @@ func (by *Bybit) ChangeCoinMargin(symbol currency.Pair, buyLeverage, sellLeverag
 		params.Set("is_isolated", "false")
 	}
 
-	return by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesSwitchMargin, params, &resp, cFuturesDefaultRate)
+	return by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesSwitchMargin, params, &resp, cFuturesDefaultRate)
 }
 
 // SetCoinRiskLimit sets risk limit
-func (by *Bybit) SetCoinRiskLimit(symbol currency.Pair, riskID int64) (int64, error) {
+func (by *Bybit) SetCoinRiskLimit(ctx context.Context, symbol currency.Pair, riskID int64) (int64, error) {
 	resp := struct {
 		Data struct {
 			RiskID int64 `json:"risk_id"`
@@ -1076,11 +1077,11 @@ func (by *Bybit) SetCoinRiskLimit(symbol currency.Pair, riskID int64) (int64, er
 	}
 	params.Set("risk_id", strconv.FormatInt(riskID, 10))
 
-	return resp.Data.RiskID, by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesSetRiskLimit, params, &resp, cFuturesDefaultRate)
+	return resp.Data.RiskID, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesSetRiskLimit, params, &resp, cFuturesDefaultRate)
 }
 
 // GetCoinLastFundingFee returns last funding fees
-func (by *Bybit) GetCoinLastFundingFee(symbol currency.Pair) (FundingFee, error) {
+func (by *Bybit) GetCoinLastFundingFee(ctx context.Context, symbol currency.Pair) (FundingFee, error) {
 	params := url.Values{}
 
 	resp := struct {
@@ -1093,7 +1094,7 @@ func (by *Bybit) GetCoinLastFundingFee(symbol currency.Pair) (FundingFee, error)
 	}
 	params.Set("symbol", symbolValue)
 
-	err = by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetMyLastFundingFee, params, &resp, cFuturesLastFundingFeeRate)
+	err = by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetMyLastFundingFee, params, &resp, cFuturesLastFundingFeeRate)
 	if err != nil {
 		return resp.Data, err
 	}
@@ -1101,7 +1102,7 @@ func (by *Bybit) GetCoinLastFundingFee(symbol currency.Pair) (FundingFee, error)
 }
 
 // GetCoinPredictedFundingRate returns predicted funding rates and fees
-func (by *Bybit) GetCoinPredictedFundingRate(symbol currency.Pair) (float64, float64, error) {
+func (by *Bybit) GetCoinPredictedFundingRate(ctx context.Context, symbol currency.Pair) (float64, float64, error) {
 	params := url.Values{}
 
 	resp := struct {
@@ -1117,7 +1118,7 @@ func (by *Bybit) GetCoinPredictedFundingRate(symbol currency.Pair) (float64, flo
 	}
 	params.Set("symbol", symbolValue)
 
-	err = by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesPredictFundingRate, params, &resp, cFuturesPredictFundingRate)
+	err = by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesPredictFundingRate, params, &resp, cFuturesPredictFundingRate)
 	if err != nil {
 		return resp.Data.PredictedFundingRate, resp.Data.PredictedFundingFee, err
 	}
@@ -1125,14 +1126,14 @@ func (by *Bybit) GetCoinPredictedFundingRate(symbol currency.Pair) (float64, flo
 }
 
 // GetAPIKeyInfo returns user API Key information
-func (by *Bybit) GetAPIKeyInfo() ([]APIKeyData, error) {
+func (by *Bybit) GetAPIKeyInfo(ctx context.Context) ([]APIKeyData, error) {
 	params := url.Values{}
 
 	resp := struct {
 		Data []APIKeyData `json:"result"`
 	}{}
 
-	err := by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetAPIKeyInfo, params, &resp, cFuturesAPIKeyInfoRate)
+	err := by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetAPIKeyInfo, params, &resp, cFuturesAPIKeyInfoRate)
 	if err != nil {
 		return resp.Data, err
 	}
@@ -1140,7 +1141,7 @@ func (by *Bybit) GetAPIKeyInfo() ([]APIKeyData, error) {
 }
 
 // GetLiquidityContributionPointsInfo returns latest LCP information
-func (by *Bybit) GetLiquidityContributionPointsInfo(symbol currency.Pair) ([]LCPData, error) {
+func (by *Bybit) GetLiquidityContributionPointsInfo(ctx context.Context, symbol currency.Pair) ([]LCPData, error) {
 	params := url.Values{}
 
 	resp := struct {
@@ -1155,7 +1156,7 @@ func (by *Bybit) GetLiquidityContributionPointsInfo(symbol currency.Pair) ([]LCP
 	}
 	params.Set("symbol", symbolValue)
 
-	err = by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetLiquidityContributionPoints, params, &resp, cFuturesDefaultRate)
+	err = by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetLiquidityContributionPoints, params, &resp, cFuturesDefaultRate)
 	if err != nil {
 		return resp.Data.LCPList, err
 	}
@@ -1163,7 +1164,7 @@ func (by *Bybit) GetLiquidityContributionPointsInfo(symbol currency.Pair) ([]LCP
 }
 
 // GetFutureWalletBalance returns wallet balance
-func (by *Bybit) GetFutureWalletBalance(coin string) (map[string]WalletData, error) {
+func (by *Bybit) GetFutureWalletBalance(ctx context.Context, coin string) (map[string]WalletData, error) {
 	params := url.Values{}
 
 	resp := struct {
@@ -1174,7 +1175,7 @@ func (by *Bybit) GetFutureWalletBalance(coin string) (map[string]WalletData, err
 		params.Set("coin", coin)
 	}
 
-	err := by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetWalletBalance, params, &resp, cFuturesWalletBalanceRate)
+	err := by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetWalletBalance, params, &resp, cFuturesWalletBalanceRate)
 	if err != nil {
 		return resp.Wallets, err
 	}
@@ -1182,7 +1183,7 @@ func (by *Bybit) GetFutureWalletBalance(coin string) (map[string]WalletData, err
 }
 
 // GetWalletFundRecords returns wallet fund records
-func (by *Bybit) GetWalletFundRecords(startDate, endDate, currency, coin, walletFundType string, page, limit int64) ([]FundRecord, error) {
+func (by *Bybit) GetWalletFundRecords(ctx context.Context, startDate, endDate, currency, coin, walletFundType string, page, limit int64) ([]FundRecord, error) {
 	params := url.Values{}
 
 	resp := struct {
@@ -1213,7 +1214,7 @@ func (by *Bybit) GetWalletFundRecords(startDate, endDate, currency, coin, wallet
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 
-	err := by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetWalletFundRecords, params, &resp, cFuturesWalletFundRecordRate)
+	err := by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetWalletFundRecords, params, &resp, cFuturesWalletFundRecordRate)
 	if err != nil {
 		return resp.Data.Records, err
 	}
@@ -1221,7 +1222,7 @@ func (by *Bybit) GetWalletFundRecords(startDate, endDate, currency, coin, wallet
 }
 
 // GetWalletWithdrawalRecords returns wallet withdrawal records
-func (by *Bybit) GetWalletWithdrawalRecords(startDate, endDate, coin, status string, page, limit int64) ([]FundWithdrawalRecord, error) {
+func (by *Bybit) GetWalletWithdrawalRecords(ctx context.Context, startDate, endDate, coin, status string, page, limit int64) ([]FundWithdrawalRecord, error) {
 	params := url.Values{}
 
 	resp := struct {
@@ -1249,7 +1250,7 @@ func (by *Bybit) GetWalletWithdrawalRecords(startDate, endDate, coin, status str
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 
-	err := by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetWalletWithdrawalRecords, params, &resp, cFuturesWalletWithdrawalRate)
+	err := by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetWalletWithdrawalRecords, params, &resp, cFuturesWalletWithdrawalRate)
 	if err != nil {
 		return resp.Data.Records, err
 	}
@@ -1257,7 +1258,7 @@ func (by *Bybit) GetWalletWithdrawalRecords(startDate, endDate, coin, status str
 }
 
 // GetAssetExchangeRecords returns wallet asset exchange records
-func (by *Bybit) GetAssetExchangeRecords(direction string, from, limit int64) ([]AssetExchangeRecord, error) {
+func (by *Bybit) GetAssetExchangeRecords(ctx context.Context, direction string, from, limit int64) ([]AssetExchangeRecord, error) {
 	params := url.Values{}
 
 	resp := struct {
@@ -1275,7 +1276,7 @@ func (by *Bybit) GetAssetExchangeRecords(direction string, from, limit int64) ([
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 
-	err := by.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetAssetExchangeRecords, params, &resp, cFuturesDefaultRate)
+	err := by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetAssetExchangeRecords, params, &resp, cFuturesDefaultRate)
 	if err != nil {
 		return resp.Data, err
 	}

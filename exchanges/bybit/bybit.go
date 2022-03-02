@@ -52,11 +52,11 @@ const (
 )
 
 // GetAllPairs gets all pairs on the exchange
-func (by *Bybit) GetAllPairs() ([]PairData, error) {
+func (by *Bybit) GetAllPairs(ctx context.Context) ([]PairData, error) {
 	resp := struct {
 		Data []PairData `json:"result"`
 	}{}
-	return resp.Data, by.SendHTTPRequest(exchange.RestSpot, bybitSpotGetSymbols, publicSpotRate, &resp)
+	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestSpot, bybitSpotGetSymbols, publicSpotRate, &resp)
 }
 
 func processOB(ob [][2]string) ([]OrderbookItem, error) {
@@ -88,7 +88,7 @@ type orderResponse struct {
 }
 
 // GetOrderbook gets orderbook for a given market with a given depth (default depth 100)
-func (by *Bybit) GetOrderBook(symbol string, depth int64) (Orderbook, error) {
+func (by *Bybit) GetOrderBook(ctx context.Context, symbol string, depth int64) (Orderbook, error) {
 	var order orderResponse
 	strDepth := "100" // default depth
 	if depth > 0 && depth < 100 {
@@ -99,7 +99,7 @@ func (by *Bybit) GetOrderBook(symbol string, depth int64) (Orderbook, error) {
 	params.Set("symbol", symbol)
 	params.Set("limit", strDepth)
 	path := common.EncodeURLValues(bybitOrderBook, params)
-	err := by.SendHTTPRequest(exchange.RestSpot, path, publicSpotRate, &order)
+	err := by.SendHTTPRequest(ctx, exchange.RestSpot, path, publicSpotRate, &order)
 	if err != nil {
 		return Orderbook{}, err
 	}
@@ -118,7 +118,7 @@ func (by *Bybit) GetOrderBook(symbol string, depth int64) (Orderbook, error) {
 }
 
 // GetMergedOrderBook gets orderbook for a given market with a given depth (default depth 100)
-func (by *Bybit) GetMergedOrderBook(symbol string, scale, depth int64) (Orderbook, error) {
+func (by *Bybit) GetMergedOrderBook(ctx context.Context, symbol string, scale, depth int64) (Orderbook, error) {
 	var order orderResponse
 	params := url.Values{}
 	if scale > 0 {
@@ -133,7 +133,7 @@ func (by *Bybit) GetMergedOrderBook(symbol string, scale, depth int64) (Orderboo
 	params.Set("symbol", symbol)
 	params.Set("limit", strDepth)
 	path := common.EncodeURLValues(bybitMergedOrderBook, params)
-	err := by.SendHTTPRequest(exchange.RestSpot, path, publicSpotRate, &order)
+	err := by.SendHTTPRequest(ctx, exchange.RestSpot, path, publicSpotRate, &order)
 	if err != nil {
 		return Orderbook{}, err
 	}
@@ -152,7 +152,7 @@ func (by *Bybit) GetMergedOrderBook(symbol string, scale, depth int64) (Orderboo
 }
 
 // GetTrades gets recent trades from the exchange
-func (by *Bybit) GetTrades(symbol string, limit int64) ([]TradeItem, error) {
+func (by *Bybit) GetTrades(ctx context.Context, symbol string, limit int64) ([]TradeItem, error) {
 	resp := struct {
 		Data []struct {
 			Price        float64 `json:"price,string"`
@@ -166,7 +166,7 @@ func (by *Bybit) GetTrades(symbol string, limit int64) ([]TradeItem, error) {
 	params.Set("symbol", symbol)
 	params.Set("limit", strconv.FormatInt(limit, 10))
 	path := common.EncodeURLValues(bybitRecentTrades, params)
-	err := by.SendHTTPRequest(exchange.RestSpot, path, publicSpotRate, &resp)
+	err := by.SendHTTPRequest(ctx, exchange.RestSpot, path, publicSpotRate, &resp)
 	if err != nil {
 		return nil, err
 	}
@@ -192,7 +192,7 @@ func (by *Bybit) GetTrades(symbol string, limit int64) ([]TradeItem, error) {
 }
 
 // GetKlines data returns the kline data for a specific symbol
-func (by *Bybit) GetKlines(symbol, period string, limit int64, start, end time.Time) ([]KlineItem, error) {
+func (by *Bybit) GetKlines(ctx context.Context, symbol, period string, limit int64, start, end time.Time) ([]KlineItem, error) {
 	resp := struct {
 		Data [][]interface{} `json:"result"`
 	}{}
@@ -212,7 +212,7 @@ func (by *Bybit) GetKlines(symbol, period string, limit int64, start, end time.T
 	v.Add("limit", strconv.FormatInt(limit, 10))
 
 	path := common.EncodeURLValues(bybitCandlestickChart, v)
-	if err := by.SendHTTPRequest(exchange.RestSpot, path, publicSpotRate, &resp); err != nil {
+	if err := by.SendHTTPRequest(ctx, exchange.RestSpot, path, publicSpotRate, &resp); err != nil {
 		return nil, err
 	}
 
@@ -307,7 +307,7 @@ func (by *Bybit) GetKlines(symbol, period string, limit int64, start, end time.T
 
 // Get24HrsChange returns price change statistics for the last 24 hours
 // If symbol not passed then it will return price change statistics for all pairs
-func (by *Bybit) Get24HrsChange(symbol string) ([]PriceChangeStats, error) {
+func (by *Bybit) Get24HrsChange(ctx context.Context, symbol string) ([]PriceChangeStats, error) {
 	type priceChangeStats struct {
 		Time         int64   `json:"time"`
 		Symbol       string  `json:"symbol"`
@@ -330,7 +330,7 @@ func (by *Bybit) Get24HrsChange(symbol string) ([]PriceChangeStats, error) {
 		params := url.Values{}
 		params.Set("symbol", symbol)
 		path := common.EncodeURLValues(bybit24HrsChange, params)
-		err := by.SendHTTPRequest(exchange.RestSpot, path, publicSpotRate, &resp)
+		err := by.SendHTTPRequest(ctx, exchange.RestSpot, path, publicSpotRate, &resp)
 		if err != nil {
 			return nil, err
 		}
@@ -352,7 +352,7 @@ func (by *Bybit) Get24HrsChange(symbol string) ([]PriceChangeStats, error) {
 			Data []priceChangeStats `json:"result"`
 		}{}
 
-		err := by.SendHTTPRequest(exchange.RestSpot, bybit24HrsChange, publicSpotRate, &resp)
+		err := by.SendHTTPRequest(ctx, exchange.RestSpot, bybit24HrsChange, publicSpotRate, &resp)
 		if err != nil {
 			return nil, err
 		}
@@ -377,7 +377,7 @@ func (by *Bybit) Get24HrsChange(symbol string) ([]PriceChangeStats, error) {
 
 // GetLastTradedPrice returns last trading price
 // If symbol not passed then it will return last trading price for all pairs
-func (by *Bybit) GetLastTradedPrice(symbol string) ([]LastTradePrice, error) {
+func (by *Bybit) GetLastTradedPrice(ctx context.Context, symbol string) ([]LastTradePrice, error) {
 	var lastTradePrices []LastTradePrice
 	if symbol != "" {
 		resp := struct {
@@ -387,7 +387,7 @@ func (by *Bybit) GetLastTradedPrice(symbol string) ([]LastTradePrice, error) {
 		params := url.Values{}
 		params.Set("symbol", symbol)
 		path := common.EncodeURLValues(bybitLastTradedPrice, params)
-		err := by.SendHTTPRequest(exchange.RestSpot, path, publicSpotRate, &resp)
+		err := by.SendHTTPRequest(ctx, exchange.RestSpot, path, publicSpotRate, &resp)
 		if err != nil {
 			return nil, err
 		}
@@ -400,7 +400,7 @@ func (by *Bybit) GetLastTradedPrice(symbol string) ([]LastTradePrice, error) {
 			Data []LastTradePrice `json:"result"`
 		}{}
 
-		err := by.SendHTTPRequest(exchange.RestSpot, bybitLastTradedPrice, publicSpotRate, &resp)
+		err := by.SendHTTPRequest(ctx, exchange.RestSpot, bybitLastTradedPrice, publicSpotRate, &resp)
 		if err != nil {
 			return nil, err
 		}
@@ -416,7 +416,7 @@ func (by *Bybit) GetLastTradedPrice(symbol string) ([]LastTradePrice, error) {
 
 // GetBestBidAskPrice returns best BID and ASK price
 // If symbol not passed then it will return best BID and ASK price for all pairs
-func (by *Bybit) GetBestBidAskPrice(symbol string) ([]TickerData, error) {
+func (by *Bybit) GetBestBidAskPrice(ctx context.Context, symbol string) ([]TickerData, error) {
 	type bestTicker struct {
 		Symbol      string  `json:"symbol"`
 		BidPrice    float64 `json:"bidPrice,string"`
@@ -435,7 +435,7 @@ func (by *Bybit) GetBestBidAskPrice(symbol string) ([]TickerData, error) {
 		params := url.Values{}
 		params.Set("symbol", symbol)
 		path := common.EncodeURLValues(bybitBestBidAskPrice, params)
-		err := by.SendHTTPRequest(exchange.RestSpot, path, publicSpotRate, &resp)
+		err := by.SendHTTPRequest(ctx, exchange.RestSpot, path, publicSpotRate, &resp)
 		if err != nil {
 			return nil, err
 		}
@@ -452,7 +452,7 @@ func (by *Bybit) GetBestBidAskPrice(symbol string) ([]TickerData, error) {
 			Data []bestTicker `json:"result"`
 		}{}
 
-		err := by.SendHTTPRequest(exchange.RestSpot, bybitBestBidAskPrice, publicSpotRate, &resp)
+		err := by.SendHTTPRequest(ctx, exchange.RestSpot, bybitBestBidAskPrice, publicSpotRate, &resp)
 		if err != nil {
 			return nil, err
 		}
@@ -471,7 +471,7 @@ func (by *Bybit) GetBestBidAskPrice(symbol string) ([]TickerData, error) {
 }
 
 // CreatePostOrder create and post order
-func (by *Bybit) CreatePostOrder(o *PlaceOrderRequest) (*PlaceOrderResponse, error) {
+func (by *Bybit) CreatePostOrder(ctx context.Context, o *PlaceOrderRequest) (*PlaceOrderResponse, error) {
 	if o == nil {
 		return nil, errors.New("orderRequest param can't be nil")
 	}
@@ -498,7 +498,7 @@ func (by *Bybit) CreatePostOrder(o *PlaceOrderRequest) (*PlaceOrderResponse, err
 	resp := struct {
 		Data PlaceOrderResponse `json:"result"`
 	}{}
-	err := by.SendAuthHTTPRequest(exchange.RestSpot, http.MethodPost, bybitSpotOrder, params, resp, privateSpotRate)
+	err := by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, bybitSpotOrder, params, &resp, privateSpotRate)
 	if err != nil {
 		return nil, err
 	}
@@ -506,7 +506,7 @@ func (by *Bybit) CreatePostOrder(o *PlaceOrderRequest) (*PlaceOrderResponse, err
 }
 
 // QueryOrder returns order data based upon orderID or orderLinkID
-func (by *Bybit) QueryOrder(orderID, orderLinkID string) (*QueryOrderResponse, error) {
+func (by *Bybit) QueryOrder(ctx context.Context, orderID, orderLinkID string) (*QueryOrderResponse, error) {
 	if orderID == "" && orderLinkID == "" {
 		return nil, errors.New("atleast one should be present among orderID and orderLinkID")
 	}
@@ -522,7 +522,7 @@ func (by *Bybit) QueryOrder(orderID, orderLinkID string) (*QueryOrderResponse, e
 	resp := struct {
 		Data QueryOrderResponse `json:"result"`
 	}{}
-	err := by.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, bybitSpotOrder, params, resp, privateSpotRate)
+	err := by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, bybitSpotOrder, params, &resp, privateSpotRate)
 	if err != nil {
 		return nil, err
 	}
@@ -530,7 +530,7 @@ func (by *Bybit) QueryOrder(orderID, orderLinkID string) (*QueryOrderResponse, e
 }
 
 // CancelExistingOrder cancels existing order based upon orderID or orderLinkID
-func (by *Bybit) CancelExistingOrder(orderID, orderLinkID string) (*CancelOrderResponse, error) {
+func (by *Bybit) CancelExistingOrder(ctx context.Context, orderID, orderLinkID string) (*CancelOrderResponse, error) {
 	if orderID == "" && orderLinkID == "" {
 		return nil, errors.New("atleast one should be present among orderID and orderLinkID")
 	}
@@ -546,15 +546,11 @@ func (by *Bybit) CancelExistingOrder(orderID, orderLinkID string) (*CancelOrderR
 	resp := struct {
 		Data CancelOrderResponse `json:"result"`
 	}{}
-	err := by.SendAuthHTTPRequest(exchange.RestSpot, http.MethodDelete, bybitSpotOrder, params, resp, privateSpotRate)
-	if err != nil {
-		return nil, err
-	}
-	return &resp.Data, nil
+	return &resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, bybitSpotOrder, params, &resp, privateSpotRate)
 }
 
 // BatchCancelOrder cancels orders in batch based upon symbol, side or orderType
-func (by *Bybit) BatchCancelOrder(symbol, side, orderTypes string) (bool, error) {
+func (by *Bybit) BatchCancelOrder(ctx context.Context, symbol, side, orderTypes string) (bool, error) {
 	params := url.Values{}
 	if symbol != "" {
 		params.Set("symbol", symbol)
@@ -569,15 +565,11 @@ func (by *Bybit) BatchCancelOrder(symbol, side, orderTypes string) (bool, error)
 	resp := struct {
 		Success bool `json:"success"`
 	}{}
-	err := by.SendAuthHTTPRequest(exchange.RestSpot, http.MethodDelete, bybitBatchCancelSpotOrder, params, resp, privateSpotRate)
-	if err != nil {
-		return false, err
-	}
-	return resp.Success, nil
+	return resp.Success, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, bybitBatchCancelSpotOrder, params, &resp, privateSpotRate)
 }
 
 // ListOpenOrders returns all open orders
-func (by *Bybit) ListOpenOrders(symbol, orderID string, limit int64) ([]QueryOrderResponse, error) {
+func (by *Bybit) ListOpenOrders(ctx context.Context, symbol, orderID string, limit int64) ([]QueryOrderResponse, error) {
 	params := url.Values{}
 	if symbol != "" {
 		params.Set("symbol", symbol)
@@ -592,15 +584,11 @@ func (by *Bybit) ListOpenOrders(symbol, orderID string, limit int64) ([]QueryOrd
 	resp := struct {
 		Data []QueryOrderResponse `json:"result"`
 	}{}
-	err := by.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, bybitOpenOrder, params, resp, privateSpotRate)
-	if err != nil {
-		return nil, err
-	}
-	return resp.Data, nil
+	return resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, bybitOpenOrder, params, &resp, privateSpotRate)
 }
 
 // ListPastOrders returns all past orders from history
-func (by *Bybit) ListPastOrders(symbol, orderID string, limit int64) ([]QueryOrderResponse, error) {
+func (by *Bybit) ListPastOrders(ctx context.Context, symbol, orderID string, limit int64) ([]QueryOrderResponse, error) {
 	params := url.Values{}
 	if symbol != "" {
 		params.Set("symbol", symbol)
@@ -614,7 +602,7 @@ func (by *Bybit) ListPastOrders(symbol, orderID string, limit int64) ([]QueryOrd
 	resp := struct {
 		Data []QueryOrderResponse `json:"result"`
 	}{}
-	err := by.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, bybitPastOrder, params, resp, privateSpotRate)
+	err := by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, bybitPastOrder, params, &resp, privateSpotRate)
 	if err != nil {
 		return nil, err
 	}
@@ -622,7 +610,7 @@ func (by *Bybit) ListPastOrders(symbol, orderID string, limit int64) ([]QueryOrd
 }
 
 // GetTradeHistory returns user trades
-func (by *Bybit) GetTradeHistory(symbol string, limit, formID, told int64) ([]HistoricalTrade, error) {
+func (by *Bybit) GetTradeHistory(ctx context.Context, symbol string, limit, formID, told int64) ([]HistoricalTrade, error) {
 	params := url.Values{}
 	if symbol != "" {
 		params.Set("symbol", symbol)
@@ -640,7 +628,7 @@ func (by *Bybit) GetTradeHistory(symbol string, limit, formID, told int64) ([]Hi
 	resp := struct {
 		Data []HistoricalTrade `json:"result"`
 	}{}
-	err := by.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, bybitPastOrder, params, resp, privateSpotRate)
+	err := by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, bybitPastOrder, params, &resp, privateSpotRate)
 	if err != nil {
 		return nil, err
 	}
@@ -648,13 +636,13 @@ func (by *Bybit) GetTradeHistory(symbol string, limit, formID, told int64) ([]Hi
 }
 
 // GetWalletBalance returns user wallet balance
-func (by *Bybit) GetWalletBalance() ([]Balance, error) {
+func (by *Bybit) GetWalletBalance(ctx context.Context) ([]Balance, error) {
 	resp := struct {
 		Data struct {
 			Balances []Balance `json:"balances"`
 		} `json:"result"`
 	}{}
-	err := by.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, bybitWalletBalance, url.Values{}, resp, privateSpotRate)
+	err := by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, bybitWalletBalance, url.Values{}, &resp, privateSpotRate)
 	if err != nil {
 		return nil, err
 	}
@@ -662,24 +650,26 @@ func (by *Bybit) GetWalletBalance() ([]Balance, error) {
 }
 
 // SendHTTPRequest sends an unauthenticated request
-func (by *Bybit) SendHTTPRequest(ePath exchange.URL, path string, f request.EndpointLimit, result interface{}) error {
+func (by *Bybit) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path string, f request.EndpointLimit, result interface{}) error {
 	endpointPath, err := by.API.Endpoints.GetURL(ePath)
 	if err != nil {
 		return err
 	}
-	return by.SendPayload(context.Background(), &request.Item{
+	item := &request.Item{
 		Method:        http.MethodGet,
 		Path:          endpointPath + path,
 		Result:        result,
 		Verbose:       by.Verbose,
 		HTTPDebugging: by.HTTPDebugging,
-		HTTPRecording: by.HTTPRecording,
-		Endpoint:      f,
+		HTTPRecording: by.HTTPRecording}
+
+	return by.SendPayload(ctx, f, func() (*request.Item, error) {
+		return item, nil
 	})
 }
 
 // SendAuthHTTPRequest sends an authenticated HTTP request
-func (by *Bybit) SendAuthHTTPRequest(ePath exchange.URL, method, path string, params url.Values, result interface{}, f request.EndpointLimit) error {
+func (by *Bybit) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, method, path string, params url.Values, result interface{}, f request.EndpointLimit) error {
 	endpointPath, err := by.API.Endpoints.GetURL(ePath)
 	if err != nil {
 		return err
@@ -698,7 +688,10 @@ func (by *Bybit) SendAuthHTTPRequest(ePath exchange.URL, method, path string, pa
 	params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
 	params.Set("api_key", by.API.Credentials.Key)
 	signature := params.Encode()
-	hmacSigned := crypto.GetHMAC(crypto.HashSHA256, []byte(signature), []byte(by.API.Credentials.Secret))
+	hmacSigned, err := crypto.GetHMAC(crypto.HashSHA256, []byte(signature), []byte(by.API.Credentials.Secret))
+	if err != nil {
+		return err
+	}
 	hmacSignedStr := crypto.HexEncodeToString(hmacSigned)
 
 	headers := make(map[string]string)
@@ -724,16 +717,16 @@ func (by *Bybit) SendAuthHTTPRequest(ePath exchange.URL, method, path string, pa
 		endpointPath += path
 	}
 
-	return by.SendPayload(context.Background(), &request.Item{
-		Method:        method,
-		Path:          endpointPath,
-		Headers:       headers,
-		Body:          bytes.NewBuffer(payload),
-		Result:        &result,
-		AuthRequest:   true,
-		Verbose:       by.Verbose,
-		HTTPDebugging: by.HTTPDebugging,
-		HTTPRecording: by.HTTPRecording,
-		Endpoint:      f,
+	return by.SendPayload(ctx, f, func() (*request.Item, error) {
+		return &request.Item{
+			Method:        method,
+			Path:          endpointPath,
+			Headers:       headers,
+			Body:          bytes.NewBuffer(payload),
+			Result:        &result,
+			AuthRequest:   true,
+			Verbose:       by.Verbose,
+			HTTPDebugging: by.HTTPDebugging,
+			HTTPRecording: by.HTTPRecording}, nil
 	})
 }
