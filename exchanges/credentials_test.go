@@ -171,7 +171,7 @@ func TestGetCredentials(t *testing.T) {
 	b.API.SetKey("hello")
 	b.API.SetSecret("sir")
 	b.API.SetClientID("1337")
-	ctx = deploySubAccountOverideToContext(context.Background(), "superaccount")
+	ctx = deploySubAccountOverrideToContext(context.Background(), "superaccount")
 	overridedSA, err := b.GetCredentials(ctx)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: %v but expected: %v", err, nil)
