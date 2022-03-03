@@ -15,6 +15,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -191,7 +192,7 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket
-func (by *Bybit) AuthenticateWebsocket() error {
+func (by *Bybit) AuthenticateWebsocket(_ context.Context) error {
 	return by.WsAuth()
 }
 
@@ -284,11 +285,105 @@ func (by *Bybit) UpdateTradablePairs(ctx context.Context, forceUpdate bool) erro
 	return nil
 }
 
-// UpdateTicker updates and returns the ticker for a currency pair
-func (by *Bybit) UpdateTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+// UpdateTickers updates the ticker for all currency pairs of a given asset type
+func (by *Bybit) UpdateTickers(ctx context.Context, assetType asset.Item) error {
+	allPairs, err := by.GetEnabledPairs(assetType)
+	if err != nil {
+		return err
+	}
 	switch assetType {
 	case asset.Spot:
 		tick, err := by.Get24HrsChange(ctx, "")
+		if err != nil {
+			return err
+		}
+		for p := range allPairs {
+			formattedPair, err := by.FormatExchangeCurrency(allPairs[p], assetType)
+			if err != nil {
+				return err
+			}
+
+			for y := range tick {
+				if tick[y].Symbol != formattedPair.String() {
+					continue
+				}
+				cp, err := currency.NewPairFromString(tick[y].Symbol)
+				if err != nil {
+					return err
+				}
+				err = ticker.ProcessTicker(&ticker.Price{
+					Last:         tick[y].LastPrice,
+					High:         tick[y].HighPrice,
+					Low:          tick[y].LowPrice,
+					Bid:          tick[y].BestBidPrice,
+					Ask:          tick[y].BestAskPrice,
+					Volume:       tick[y].Volume,
+					QuoteVolume:  tick[y].QuoteVolume,
+					Open:         tick[y].OpenPrice,
+					Pair:         cp,
+					LastUpdated:  tick[y].Time,
+					ExchangeName: by.Name,
+					AssetType:    assetType})
+				if err != nil {
+					return err
+				}
+			}
+		}
+
+	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.Futures:
+		tick, err := by.GetFuturesSymbolPriceTicker(ctx, currency.Pair{})
+		if err != nil {
+			return err
+		}
+
+		for p := range allPairs {
+			formattedPair, err := by.FormatExchangeCurrency(allPairs[p], assetType)
+			if err != nil {
+				return err
+			}
+
+			for y := range tick {
+				if tick[y].Symbol != formattedPair.String() {
+					continue
+				}
+				cp, err := currency.NewPairFromString(tick[y].Symbol)
+				if err != nil {
+					return err
+				}
+				err = ticker.ProcessTicker(&ticker.Price{
+					Last:         tick[y].LastPrice,
+					High:         tick[y].HighPrice24h,
+					Low:          tick[y].LowPrice24h,
+					Bid:          tick[y].BidPrice,
+					Ask:          tick[y].AskPrice,
+					Volume:       tick[y].Volume24h,
+					Open:         tick[y].OpenValue,
+					Pair:         cp,
+					ExchangeName: by.Name,
+					AssetType:    assetType})
+				if err != nil {
+					return err
+				}
+			}
+		}
+
+	default:
+		return fmt.Errorf("assetType not supported: %v", assetType)
+	}
+
+	return nil
+}
+
+// UpdateTicker updates and returns the ticker for a currency pair
+func (by *Bybit) UpdateTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+	formattedPair, err := by.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
+
+	switch assetType {
+	case asset.Spot:
+		tick, err := by.Get24HrsChange(ctx, formattedPair.String())
 		if err != nil {
 			return nil, err
 		}
@@ -315,8 +410,9 @@ func (by *Bybit) UpdateTicker(ctx context.Context, p currency.Pair, assetType as
 				return nil, err
 			}
 		}
+
 	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.Futures:
-		tick, err := by.GetFuturesSymbolPriceTicker(ctx, currency.Pair{})
+		tick, err := by.GetFuturesSymbolPriceTicker(ctx, formattedPair)
 		if err != nil {
 			return nil, err
 		}
@@ -341,6 +437,7 @@ func (by *Bybit) UpdateTicker(ctx context.Context, p currency.Pair, assetType as
 				return nil, err
 			}
 		}
+
 	default:
 		return nil, fmt.Errorf("assetType not supported: %v", assetType)
 	}
@@ -738,29 +835,36 @@ func (by *Bybit) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submit
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (by *Bybit) ModifyOrder(ctx context.Context, action *order.Modify) (string, error) {
+func (by *Bybit) ModifyOrder(ctx context.Context, action *order.Modify) (order.Modify, error) {
 	if err := action.Validate(); err != nil {
-		return "", err
+		return order.Modify{}, err
 	}
 
-	var order string
+	var orderID string
 	var err error
 	switch action.AssetType {
 	case asset.CoinMarginedFutures:
-		order, err = by.ReplaceActiveCoinFuturesOrders(ctx, action.Pair, action.ID, action.ClientOrderID, "", "", int64(action.Amount), action.Price, 0, 0)
+		orderID, err = by.ReplaceActiveCoinFuturesOrders(ctx, action.Pair, action.ID, action.ClientOrderID, "", "", int64(action.Amount), action.Price, 0, 0)
 	case asset.USDTMarginedFutures:
-		order, err = by.ReplaceActiveUSDTFuturesOrders(ctx, action.Pair, action.ID, action.ClientOrderID, "", "", int64(action.Amount), action.Price, 0, 0)
+		orderID, err = by.ReplaceActiveUSDTFuturesOrders(ctx, action.Pair, action.ID, action.ClientOrderID, "", "", int64(action.Amount), action.Price, 0, 0)
 
 	case asset.Futures:
-		order, err = by.ReplaceActiveFuturesOrders(ctx, action.Pair, action.ID, action.ClientOrderID, "", "", action.Amount, action.Price, 0, 0)
+		orderID, err = by.ReplaceActiveFuturesOrders(ctx, action.Pair, action.ID, action.ClientOrderID, "", "", action.Amount, action.Price, 0, 0)
 	default:
-		return "", fmt.Errorf("assetType not supported: %v", action.AssetType)
+		err = fmt.Errorf("assetType not supported: %v", action.AssetType)
 	}
 
 	if err != nil {
-		return "", err
+		return order.Modify{}, err
 	}
-	return order, nil
+	return order.Modify{
+		Exchange:  action.Exchange,
+		AssetType: action.AssetType,
+		Pair:      action.Pair,
+		ID:        orderID,
+		Price:     action.Price,
+		Amount:    action.Amount,
+	}, err
 }
 
 // CancelOrder cancels an order by its corresponding ID number
@@ -947,8 +1051,8 @@ func (by *Bybit) GetOrderInfo(ctx context.Context, orderID string, pair currency
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (by *Bybit) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, accountID string) (string, error) {
-	return "", common.ErrNotYetImplemented
+func (by *Bybit) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _, chain string) (*deposit.Address, error) {
+	return nil, common.ErrNotYetImplemented
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
