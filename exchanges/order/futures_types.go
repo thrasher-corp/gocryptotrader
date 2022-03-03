@@ -58,7 +58,7 @@ type PNLCalculation interface {
 // multiple ways of calculating the size of collateral
 // on an exchange
 type CollateralManagement interface {
-	GetCollateralCurrencyForContract(asset.Item, currency.Pair) (currency.Code, error)
+	GetCollateralCurrencyForContract(asset.Item, currency.Pair) (currency.Code, asset.Item, error)
 	ScaleCollateral(ctx context.Context, subAccount string, calculator *CollateralCalculator) (*CollateralByCurrency, error)
 	CalculateTotalCollateral(context.Context, *TotalCollateralCalculator) (*TotalCollateralResponse, error)
 }

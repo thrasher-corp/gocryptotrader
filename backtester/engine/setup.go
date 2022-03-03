@@ -285,7 +285,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 				}
 
 				var collateralCurrency currency.Code
-				collateralCurrency, err = exch.GetCollateralCurrencyForContract(a, currency.NewPair(b, q))
+				collateralCurrency, _, err = exch.GetCollateralCurrencyForContract(a, currency.NewPair(b, q))
 				if err != nil {
 					return nil, err
 				}
@@ -767,7 +767,8 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		// eg BTC-PERP on FTX has a collateral currency of USD
 		// taking the BTC base and USD as quote, allows linking
 		// BTC-USD and BTC-PERP
-		curr, err := exch.GetCollateralCurrencyForContract(a, fPair)
+		var curr currency.Code
+		curr, _, err = exch.GetCollateralCurrencyForContract(a, fPair)
 		if err != nil {
 			return resp, err
 		}

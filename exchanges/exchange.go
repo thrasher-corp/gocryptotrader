@@ -1439,6 +1439,6 @@ func (b *Base) GetFuturesPositions(context.Context, asset.Item, currency.Pair, t
 }
 
 // GetCollateralCurrencyForContract returns the collateral currency for an asset and contract pair
-func (b *Base) GetCollateralCurrencyForContract(asset.Item, currency.Pair) (currency.Code, error) {
-	return currency.Code{}, common.ErrNotYetImplemented
+func (b *Base) GetCollateralCurrencyForContract(asset.Item, currency.Pair) (currency.Code, asset.Item, error) {
+	return currency.Code{}, "", common.ErrNotYetImplemented
 }

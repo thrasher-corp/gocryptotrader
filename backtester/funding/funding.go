@@ -482,6 +482,10 @@ func (f *FundManager) UpdateCollateral(ev common.EventHandler) error {
 	exchMap := make(map[string]exchange.IBotExchange)
 	var collateralAmount decimal.Decimal
 	var err error
+	butts := gctorder.TotalCollateralCalculator{
+		CalculateOffline: true,
+	}
+
 	for i := range f.items {
 		exch, ok := exchMap[f.items[i].exchange]
 		if !ok {
@@ -498,40 +502,42 @@ func (f *FundManager) UpdateCollateral(ev common.EventHandler) error {
 				usd = latest.GetClosePrice()
 			}
 		}
-		// ?????
 		var side = gctorder.Buy
 		if !f.items[i].available.GreaterThan(decimal.Zero) {
 			side = gctorder.Sell
 		}
-		latest, err := exch.ScaleCollateral(context.TODO(), "", &gctorder.CollateralCalculator{
+		if usd.IsZero() {
+			continue
+		}
+		butts.CollateralAssets = append(butts.CollateralAssets, gctorder.CollateralCalculator{
 			CalculateOffline:   true,
 			CollateralCurrency: f.items[i].currency,
 			Asset:              f.items[i].asset,
 			Side:               side,
 			FreeCollateral:     f.items[i].available,
+			LockedCollateral:   f.items[i].reserved,
 			USDPrice:           usd,
 		})
-		if err != nil {
-			if errors.Is(err, gctorder.ErrUSDValueRequired) {
-				continue
-			}
-			return err
-		}
-		collateralAmount = latest.AvailableForUseAsCollateral
 	}
 
-	collat, err := exchMap[ev.GetExchange()].GetCollateralCurrencyForContract(ev.GetAssetType(), ev.Pair())
+	futureCurrency, futureAsset, err := exchMap[ev.GetExchange()].GetCollateralCurrencyForContract(ev.GetAssetType(), ev.Pair())
+	if err != nil {
+		return err
+	}
+
+	collat, err := exchMap[ev.GetExchange()].CalculateTotalCollateral(context.TODO(), &butts)
 	if err != nil {
 		return err
 	}
 
 	for i := range f.items {
 		if f.items[i].exchange == ev.GetExchange() &&
-			f.items[i].asset == ev.GetAssetType() &&
-			f.items[i].currency.Equal(collat) {
-			f.items[i].available = collateralAmount
+			f.items[i].asset == futureAsset &&
+			f.items[i].currency.Equal(futureCurrency) {
+			f.items[i].available = collat.AvailableCollateral
+			f.items[i].reserved = collat.UsedCollateral
 			return nil
 		}
 	}
-	return fmt.Errorf("%w to allocate %v to %v %v %v", ErrFundsNotFound, collateralAmount, ev.GetExchange(), ev.GetAssetType(), collat)
+	return fmt.Errorf("%w to allocate %v to %v %v %v", ErrFundsNotFound, collateralAmount, ev.GetExchange(), ev.GetAssetType(), futureCurrency)
 }
