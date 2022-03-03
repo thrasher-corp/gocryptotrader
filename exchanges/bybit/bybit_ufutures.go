@@ -958,7 +958,7 @@ func (by *Bybit) SetUSDTRiskLimit(ctx context.Context, symbol currency.Pair, sid
 }
 
 // GetPredictedUSDTFundingRate returns predicted funding rates and fees
-func (by *Bybit) GetPredictedUSDTFundingRate(ctx context.Context, symbol currency.Pair) (float64, float64, error) {
+func (by *Bybit) GetPredictedUSDTFundingRate(ctx context.Context, symbol currency.Pair) (fundingRate, fundingFee float64, err error) {
 	params := url.Values{}
 	resp := struct {
 		Result struct {
@@ -967,13 +967,17 @@ func (by *Bybit) GetPredictedUSDTFundingRate(ctx context.Context, symbol currenc
 		} `json:"result"`
 	}{}
 
-	symbolValue, err := by.FormatSymbol(symbol, asset.USDTMarginedFutures)
+	var symbolValue string
+	symbolValue, err = by.FormatSymbol(symbol, asset.USDTMarginedFutures)
 	if err != nil {
 		return resp.Result.PredictedFundingRate, resp.Result.PredictedFundingFee, err
 	}
 	params.Set("symbol", symbolValue)
 
-	return resp.Result.PredictedFundingRate, resp.Result.PredictedFundingFee, by.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, ufuturesPredictFundingRate, params, &resp, uFuturesPredictFundingRate)
+	err = by.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, ufuturesPredictFundingRate, params, &resp, uFuturesPredictFundingRate)
+	fundingRate = resp.Result.PredictedFundingRate
+	fundingFee = resp.Result.PredictedFundingFee
+	return
 }
 
 // GetLastUSDTFundingFee returns last funding fees

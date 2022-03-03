@@ -629,7 +629,7 @@ type LCPData struct {
 
 // WalletData stores wallet data
 type WalletData struct {
-	Equity                float64 `json:"equity"` //equity = wallet_balance + unrealised_pnl
+	Equity                float64 `json:"equity"` // equity = wallet_balance + unrealised_pnl
 	AvailableBalance      float64 `json:"available_balance"`
 	UserMargin            float64 `json:"used_margin"`
 	OrderMargin           float64 `json:"order_margin"`

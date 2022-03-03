@@ -119,19 +119,8 @@ func (by *Bybit) SubscribeCoin(channelsToSubscribe []stream.ChannelSubscription)
 		var sub WsFuturesReq
 		sub.Topic = subscribe
 
-		a, err := by.GetPairAssetType(channelsToSubscribe[i].Currency)
-		if err != nil {
-			errs = append(errs, err)
-			continue
-		}
-
-		formattedPair, err := by.FormatExchangeCurrency(channelsToSubscribe[i].Currency, a)
-		if err != nil {
-			errs = append(errs, err)
-			continue
-		}
-		sub.Args = append(sub.Args, formatArgs(channelsToSubscribe[i].Channel, formattedPair.String(), channelsToSubscribe[i].Params))
-		err = by.Websocket.Conn.SendJSONMessage(sub)
+		sub.Args = append(sub.Args, formatArgs(channelsToSubscribe[i].Channel, channelsToSubscribe[i].Params))
+		err := by.Websocket.Conn.SendJSONMessage(sub)
 		if err != nil {
 			errs = append(errs, err)
 			continue
@@ -144,7 +133,7 @@ func (by *Bybit) SubscribeCoin(channelsToSubscribe []stream.ChannelSubscription)
 	return nil
 }
 
-func formatArgs(channel, pair string, params map[string]interface{}) string {
+func formatArgs(channel string, params map[string]interface{}) string {
 	argStr := channel
 	for x := range params {
 		argStr += dot + fmt.Sprintf("%v", params[x])
@@ -227,17 +216,19 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 				switch wsType {
 				case wsOperationSnapshot:
 					var response WsFuturesOrderbook
-					err := json.Unmarshal(respRaw, &response)
+					err = json.Unmarshal(respRaw, &response)
 					if err != nil {
 						return err
 					}
 
-					p, err := currency.NewPairFromString(response.OBData[0].Symbol)
+					var p currency.Pair
+					p, err = currency.NewPairFromString(response.OBData[0].Symbol)
 					if err != nil {
 						return err
 					}
 
-					a, err := by.GetPairAssetType(p)
+					var a asset.Item
+					a, err = by.GetPairAssetType(p)
 					if err != nil {
 						return err
 					}
@@ -251,18 +242,20 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 
 				case wsOperationDelta:
 					var response WsCoinDeltaOrderbook
-					err := json.Unmarshal(respRaw, &response)
+					err = json.Unmarshal(respRaw, &response)
 					if err != nil {
 						return err
 					}
 
 					if len(response.OBData.Delete) > 0 {
-						p, err := currency.NewPairFromString(response.OBData.Delete[0].Symbol)
+						var p currency.Pair
+						p, err = currency.NewPairFromString(response.OBData.Delete[0].Symbol)
 						if err != nil {
 							return err
 						}
 
-						a, err := by.GetPairAssetType(p)
+						var a asset.Item
+						a, err = by.GetPairAssetType(p)
 						if err != nil {
 							return err
 						}
@@ -276,12 +269,14 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 					}
 
 					if len(response.OBData.Update) > 0 {
-						p, err := currency.NewPairFromString(response.OBData.Update[0].Symbol)
+						var p currency.Pair
+						p, err = currency.NewPairFromString(response.OBData.Update[0].Symbol)
 						if err != nil {
 							return err
 						}
 
-						a, err := by.GetPairAssetType(p)
+						var a asset.Item
+						a, err = by.GetPairAssetType(p)
 						if err != nil {
 							return err
 						}
@@ -295,12 +290,14 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 					}
 
 					if len(response.OBData.Insert) > 0 {
-						p, err := currency.NewPairFromString(response.OBData.Insert[0].Symbol)
+						var p currency.Pair
+						p, err = currency.NewPairFromString(response.OBData.Insert[0].Symbol)
 						if err != nil {
 							return err
 						}
 
-						a, err := by.GetPairAssetType(p)
+						var a asset.Item
+						a, err = by.GetPairAssetType(p)
 						if err != nil {
 							return err
 						}
@@ -321,13 +318,14 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 					return nil
 				}
 				var response WsFuturesTrade
-				err := json.Unmarshal(respRaw, &response)
+				err = json.Unmarshal(respRaw, &response)
 				if err != nil {
 					return err
 				}
 				var trades []trade.Data
 				for i := range response.TradeData {
-					p, err := currency.NewPairFromString(response.TradeData[0].Symbol)
+					var p currency.Pair
+					p, err = currency.NewPairFromString(response.TradeData[0].Symbol)
 					if err != nil {
 						return err
 					}
@@ -367,7 +365,8 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 					return err
 				}
 
-				p, err := currency.NewPairFromString(topics[len(topics)-1])
+				var p currency.Pair
+				p, err = currency.NewPairFromString(topics[len(topics)-1])
 				if err != nil {
 					return err
 				}
@@ -404,12 +403,13 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 					switch wsType {
 					case wsOperationSnapshot:
 						var response WsTicker
-						err := json.Unmarshal(respRaw, &response)
+						err = json.Unmarshal(respRaw, &response)
 						if err != nil {
 							return err
 						}
 
-						p, err := currency.NewPairFromString(response.Ticker.Symbol)
+						var p currency.Pair
+						p, err = currency.NewPairFromString(response.Ticker.Symbol)
 						if err != nil {
 							return err
 						}
@@ -435,14 +435,15 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 
 					case wsOperationDelta:
 						var response WsDeltaTicker
-						err := json.Unmarshal(respRaw, &response)
+						err = json.Unmarshal(respRaw, &response)
 						if err != nil {
 							return err
 						}
 
 						if len(response.Data.Delete) > 0 {
 							for x := range response.Data.Delete {
-								p, err := currency.NewPairFromString(response.Data.Delete[x].Symbol)
+								var p currency.Pair
+								p, err = currency.NewPairFromString(response.Data.Delete[x].Symbol)
 								if err != nil {
 									return err
 								}
@@ -471,7 +472,8 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 
 						if len(response.Data.Update) > 0 {
 							for x := range response.Data.Update {
-								p, err := currency.NewPairFromString(response.Data.Update[x].Symbol)
+								var p currency.Pair
+								p, err = currency.NewPairFromString(response.Data.Update[x].Symbol)
 								if err != nil {
 									return err
 								}
@@ -500,7 +502,8 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 
 						if len(response.Data.Insert) > 0 {
 							for x := range response.Data.Insert {
-								p, err := currency.NewPairFromString(response.Data.Insert[x].Symbol)
+								var p currency.Pair
+								p, err = currency.NewPairFromString(response.Data.Insert[x].Symbol)
 								if err != nil {
 									return err
 								}

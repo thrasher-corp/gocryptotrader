@@ -135,13 +135,17 @@ func (by *Bybit) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 	by.API.Endpoints = by.NewEndpoints()
-	by.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
+	err = by.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:         bybitAPIURL,
 		exchange.RestCoinMargined: bybitAPIURL,
 		exchange.RestUSDTMargined: bybitAPIURL,
 		exchange.RestFutures:      bybitAPIURL,
 		exchange.WebsocketSpot:    bybitWSBaseURL + wsSpotPublicTopicV2,
 	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+
 	by.Websocket = stream.New()
 	by.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	by.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
@@ -250,7 +254,7 @@ func (by *Bybit) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string
 	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.Futures:
 		allPairs, err := by.GetSymbolsInfo(ctx)
 		if err != nil {
-			return pairs, nil
+			return pairs, err
 		}
 		for x := range allPairs {
 			if allPairs[x].Status == "Trading" {
@@ -259,7 +263,6 @@ func (by *Bybit) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string
 		}
 	}
 	return pairs, nil
-
 }
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
@@ -556,8 +559,8 @@ func (by *Bybit) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 	}
 	acc.AssetType = assetType
 	info.Accounts = append(info.Accounts, acc)
-	err := account.Process(&info)
-	if err != nil {
+
+	if err := account.Process(&info); err != nil {
 		return account.Holdings{}, err
 	}
 	return info, nil
@@ -905,6 +908,9 @@ func (by *Bybit) CancelAllOrders(ctx context.Context, orderCancellation *order.C
 	switch orderCancellation.AssetType {
 	case asset.Spot:
 		activeOrder, err := by.ListOpenOrders(ctx, orderCancellation.Symbol, "", 0)
+		if err != nil {
+			return cancelAllOrdersResponse, err
+		}
 
 		successful, err := by.BatchCancelOrder(ctx, orderCancellation.Symbol, string(orderCancellation.Side), string(orderCancellation.Type))
 
@@ -971,7 +977,7 @@ func (by *Bybit) GetOrderInfo(ctx context.Context, orderID string, pair currency
 		}
 
 		if len(resp) != 1 {
-			fmt.Errorf("invalid order's count found")
+			return order.Detail{}, fmt.Errorf("invalid order's count found")
 		}
 
 		return order.Detail{
@@ -998,7 +1004,7 @@ func (by *Bybit) GetOrderInfo(ctx context.Context, orderID string, pair currency
 		}
 
 		if len(resp) != 1 {
-			fmt.Errorf("invalid order's count found")
+			return order.Detail{}, fmt.Errorf("invalid order's count found")
 		}
 
 		return order.Detail{
@@ -1025,7 +1031,7 @@ func (by *Bybit) GetOrderInfo(ctx context.Context, orderID string, pair currency
 		}
 
 		if len(resp) != 1 {
-			fmt.Errorf("invalid order's count found")
+			return order.Detail{}, fmt.Errorf("invalid order's count found")
 		}
 
 		return order.Detail{
@@ -1058,27 +1064,18 @@ func (by *Bybit) GetDepositAddress(ctx context.Context, cryptocurrency currency.
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (by *Bybit) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
-	// if err := withdrawRequest.Validate(); err != nil {
-	//	return nil, err
-	// }
 	return nil, common.ErrNotYetImplemented
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (by *Bybit) WithdrawFiatFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
-	// if err := withdrawRequest.Validate(); err != nil {
-	//	return nil, err
-	// }
 	return nil, common.ErrNotYetImplemented
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is
 // submitted
 func (by *Bybit) WithdrawFiatFundsToInternationalBank(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
-	// if err := withdrawRequest.Validate(); err != nil {
-	//	return nil, err
-	// }
 	return nil, common.ErrNotYetImplemented
 }
 

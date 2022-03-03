@@ -206,16 +206,16 @@ type HistoricalTrade struct {
 	IsBuyer         bool    `json:"isBuyer"`
 	IsMaker         bool    `json:"isMaker"`
 	SymbolName      string  `json:"symbolName"`
-	MatchOrderId    int64   `json:"matchOrderId"`
+	MatchOrderID    int64   `json:"matchOrderId"`
 	Fee             FeeData `json:"fee"`
-	FeeTokenId      string  `json:"feeTokenId"`
+	FeeTokenID      string  `json:"feeTokenId"`
 	FeeAmount       float64 `json:"feeAmount,string"`
 	MakerRebate     float64 `json:"makerRebate,string"`
 }
 
 // FeeData store fees data
 type FeeData struct {
-	FeeTokenId   int64   `json:"feeTokenId"`
+	FeeTokenID   int64   `json:"feeTokenId"`
 	FeeTokenName string  `json:"feeTokenName"`
 	Fee          float64 `json:"fee,string"`
 }

@@ -345,7 +345,7 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 				return err
 			}
 
-			err = by.wsUpdateOrderbook(data.OBData, p, a)
+			err = by.wsUpdateOrderbook(&data.OBData, p, a)
 			if err != nil {
 				return err
 			}
@@ -443,8 +443,8 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 	return nil
 }
 
-func (by *Bybit) wsUpdateOrderbook(update WsOrderbookData, p currency.Pair, assetType asset.Item) error {
-	if len(update.Asks) == 0 && len(update.Bids) == 0 {
+func (by *Bybit) wsUpdateOrderbook(update *WsOrderbookData, p currency.Pair, assetType asset.Item) error {
+	if update == nil || (len(update.Asks) == 0 && len(update.Bids) == 0) {
 		return errors.New("no orderbook data")
 	}
 	var asks, bids []orderbook.Item

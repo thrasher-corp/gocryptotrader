@@ -636,7 +636,6 @@ func (by *Bybit) CreateConditionalCoinFuturesOrder(ctx context.Context, symbol c
 
 	if timeInForce == "" {
 		return resp.Data, errors.New("timeInForce can't be empty or missing")
-
 	}
 	params.Set("time_in_force", timeInForce)
 
@@ -1094,15 +1093,11 @@ func (by *Bybit) GetCoinLastFundingFee(ctx context.Context, symbol currency.Pair
 	}
 	params.Set("symbol", symbolValue)
 
-	err = by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetMyLastFundingFee, params, &resp, cFuturesLastFundingFeeRate)
-	if err != nil {
-		return resp.Data, err
-	}
-	return resp.Data, nil
+	return resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetMyLastFundingFee, params, &resp, cFuturesLastFundingFeeRate)
 }
 
 // GetCoinPredictedFundingRate returns predicted funding rates and fees
-func (by *Bybit) GetCoinPredictedFundingRate(ctx context.Context, symbol currency.Pair) (float64, float64, error) {
+func (by *Bybit) GetCoinPredictedFundingRate(ctx context.Context, symbol currency.Pair) (fundingRate, fundingFee float64, err error) {
 	params := url.Values{}
 
 	resp := struct {
@@ -1112,17 +1107,17 @@ func (by *Bybit) GetCoinPredictedFundingRate(ctx context.Context, symbol currenc
 		} `json:"result"`
 	}{}
 
-	symbolValue, err := by.FormatSymbol(symbol, asset.CoinMarginedFutures)
+	var symbolValue string
+	symbolValue, err = by.FormatSymbol(symbol, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp.Data.PredictedFundingRate, resp.Data.PredictedFundingFee, err
 	}
 	params.Set("symbol", symbolValue)
 
 	err = by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesPredictFundingRate, params, &resp, cFuturesPredictFundingRate)
-	if err != nil {
-		return resp.Data.PredictedFundingRate, resp.Data.PredictedFundingFee, err
-	}
-	return resp.Data.PredictedFundingRate, resp.Data.PredictedFundingFee, nil
+	fundingRate = resp.Data.PredictedFundingRate
+	fundingFee = resp.Data.PredictedFundingFee
+	return
 }
 
 // GetAPIKeyInfo returns user API Key information
@@ -1133,11 +1128,7 @@ func (by *Bybit) GetAPIKeyInfo(ctx context.Context) ([]APIKeyData, error) {
 		Data []APIKeyData `json:"result"`
 	}{}
 
-	err := by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetAPIKeyInfo, params, &resp, cFuturesAPIKeyInfoRate)
-	if err != nil {
-		return resp.Data, err
-	}
-	return resp.Data, nil
+	return resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetAPIKeyInfo, params, &resp, cFuturesAPIKeyInfoRate)
 }
 
 // GetLiquidityContributionPointsInfo returns latest LCP information
@@ -1156,11 +1147,7 @@ func (by *Bybit) GetLiquidityContributionPointsInfo(ctx context.Context, symbol 
 	}
 	params.Set("symbol", symbolValue)
 
-	err = by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetLiquidityContributionPoints, params, &resp, cFuturesDefaultRate)
-	if err != nil {
-		return resp.Data.LCPList, err
-	}
-	return resp.Data.LCPList, nil
+	return resp.Data.LCPList, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetLiquidityContributionPoints, params, &resp, cFuturesDefaultRate)
 }
 
 // GetFutureWalletBalance returns wallet balance
@@ -1175,11 +1162,7 @@ func (by *Bybit) GetFutureWalletBalance(ctx context.Context, coin string) (map[s
 		params.Set("coin", coin)
 	}
 
-	err := by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetWalletBalance, params, &resp, cFuturesWalletBalanceRate)
-	if err != nil {
-		return resp.Wallets, err
-	}
-	return resp.Wallets, nil
+	return resp.Wallets, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetWalletBalance, params, &resp, cFuturesWalletBalanceRate)
 }
 
 // GetWalletFundRecords returns wallet fund records
@@ -1214,11 +1197,7 @@ func (by *Bybit) GetWalletFundRecords(ctx context.Context, startDate, endDate, c
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 
-	err := by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetWalletFundRecords, params, &resp, cFuturesWalletFundRecordRate)
-	if err != nil {
-		return resp.Data.Records, err
-	}
-	return resp.Data.Records, nil
+	return resp.Data.Records, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetWalletFundRecords, params, &resp, cFuturesWalletFundRecordRate)
 }
 
 // GetWalletWithdrawalRecords returns wallet withdrawal records
@@ -1250,11 +1229,7 @@ func (by *Bybit) GetWalletWithdrawalRecords(ctx context.Context, startDate, endD
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 
-	err := by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetWalletWithdrawalRecords, params, &resp, cFuturesWalletWithdrawalRate)
-	if err != nil {
-		return resp.Data.Records, err
-	}
-	return resp.Data.Records, nil
+	return resp.Data.Records, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetWalletWithdrawalRecords, params, &resp, cFuturesWalletWithdrawalRate)
 }
 
 // GetAssetExchangeRecords returns wallet asset exchange records
@@ -1276,9 +1251,5 @@ func (by *Bybit) GetAssetExchangeRecords(ctx context.Context, direction string, 
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 
-	err := by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetAssetExchangeRecords, params, &resp, cFuturesDefaultRate)
-	if err != nil {
-		return resp.Data, err
-	}
-	return resp.Data, nil
+	return resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetAssetExchangeRecords, params, &resp, cFuturesDefaultRate)
 }
