@@ -18,8 +18,8 @@ import (
 type contextCredential string
 
 const (
-	contextCrendentialsFlag contextCredential = "apicredentials"
-	contextSubAccountFlag   contextCredential = "subaccountoverride"
+	contextCredentialsFlag contextCredential = "apicredentials"
+	contextSubAccountFlag  contextCredential = "subaccountoverride"
 
 	key             = "key"
 	secret          = "secret"
@@ -57,7 +57,7 @@ func ParseCredentialsMetadata(ctx context.Context, md metadata.MD) (context.Cont
 		return ctx, errMetaDataIsNil
 	}
 
-	credMD, ok := md[string(contextCrendentialsFlag)]
+	credMD, ok := md[string(contextCredentialsFlag)]
 	if !ok || len(credMD) == 0 {
 		return ctx, nil
 	}
@@ -99,7 +99,7 @@ func ParseCredentialsMetadata(ctx context.Context, md metadata.MD) (context.Cont
 		return deploySubAccountOverrideToContext(ctx, subAccountHere), nil
 	}
 	// merge sub account to main context credentials
-	ctxCreds.SubAccount = subAccount
+	ctxCreds.SubAccount = subAccountHere
 	return DeployCredentialsToContext(ctx, &ctxCreds), nil
 }
 
@@ -147,7 +147,7 @@ func (c *Credentials) GetMetaData() (flag, values string) {
 	if c.OneTimePassword != "" {
 		vals = append(vals, oneTimePassword+":"+c.OneTimePassword)
 	}
-	return string(contextCrendentialsFlag), strings.Join(vals, ",")
+	return string(contextCredentialsFlag), strings.Join(vals, ",")
 }
 
 // IsEmpty return true if the underlying credentials type has not been filled
@@ -171,7 +171,7 @@ func (c *Credentials) getInternal() (contextCredential, *contextCredentialsStore
 	}
 	store := &contextCredentialsStore{}
 	store.Load(c)
-	return contextCrendentialsFlag, store
+	return contextCredentialsFlag, store
 }
 
 // contextCredentialsStore protects the stored credentials for use in a context
@@ -293,7 +293,7 @@ func (b *Base) GetDefaultCredentials() *Credentials {
 // GetCredentials checks and validates current credentials, context credentials
 // override default credentials, if no credentials found, will return an error.
 func (b *Base) GetCredentials(ctx context.Context) (*Credentials, error) {
-	value := ctx.Value(contextCrendentialsFlag)
+	value := ctx.Value(contextCredentialsFlag)
 	if value != nil {
 		ctxCredStore, ok := value.(*contextCredentialsStore)
 		if !ok {

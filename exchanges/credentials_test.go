@@ -22,7 +22,7 @@ func TestParseCredentialsMetadata(t *testing.T) {
 	}
 
 	ctx := metadata.AppendToOutgoingContext(context.Background(),
-		string(contextCrendentialsFlag), "wow", string(contextCrendentialsFlag), "wow2")
+		string(contextCredentialsFlag), "wow", string(contextCredentialsFlag), "wow2")
 	nortyMD, _ := metadata.FromOutgoingContext(ctx)
 
 	_, err = ParseCredentialsMetadata(context.Background(), nortyMD)
@@ -31,7 +31,7 @@ func TestParseCredentialsMetadata(t *testing.T) {
 	}
 
 	ctx = metadata.AppendToOutgoingContext(context.Background(),
-		string(contextCrendentialsFlag), "poopy")
+		string(contextCredentialsFlag), "poopy")
 	nortyMD, _ = metadata.FromOutgoingContext(ctx)
 
 	_, err = ParseCredentialsMetadata(context.Background(), nortyMD)
@@ -57,7 +57,7 @@ func TestParseCredentialsMetadata(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	store, ok := ctx.Value(contextCrendentialsFlag).(*contextCredentialsStore)
+	store, ok := ctx.Value(contextCredentialsFlag).(*contextCredentialsStore)
 	if !ok {
 		t.Fatal("should have processed")
 	}
@@ -119,7 +119,7 @@ func TestGetCredentials(t *testing.T) {
 		t.Fatalf("received: %v but expected: %v", err, errRequiresAPISecret)
 	}
 
-	ctx = context.WithValue(context.Background(), contextCrendentialsFlag, "pewpew")
+	ctx = context.WithValue(context.Background(), contextCredentialsFlag, "pewpew")
 	_, err = b.GetCredentials(ctx)
 	if !errors.Is(err, errContextCredentialsFailure) {
 		t.Fatalf("received: %v but expected: %v", err, errContextCredentialsFailure)
@@ -331,7 +331,7 @@ func TestGetInternal(t *testing.T) {
 		t.Fatal("unexpected value")
 	}
 	flag, store = (&Credentials{Key: "wow"}).getInternal()
-	if flag != contextCrendentialsFlag {
+	if flag != contextCredentialsFlag {
 		t.Fatal("unexpected value")
 	}
 	if store == nil {

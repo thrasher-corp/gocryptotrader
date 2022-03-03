@@ -34,6 +34,10 @@ const (
 var z ZB
 var wsSetupRan bool
 
+func areTestAPIKeysSet() bool {
+	return z.ValidateAPICredentials(z.GetDefaultCredentials()) == nil
+}
+
 func setupWsAuth(t *testing.T) {
 	t.Helper()
 	if wsSetupRan {
@@ -41,7 +45,7 @@ func setupWsAuth(t *testing.T) {
 	}
 	if !z.Websocket.IsEnabled() &&
 		!z.API.AuthenticatedWebsocketSupport ||
-		!z.AreCredentialsValid(context.Background()) ||
+		!areTestAPIKeysSet() ||
 		!canManipulateRealOrders {
 		t.Skip(stream.WebsocketNotEnabled)
 	}
@@ -71,7 +75,7 @@ func TestStart(t *testing.T) {
 func TestSpotNewOrder(t *testing.T) {
 	t.Parallel()
 
-	if !z.AreCredentialsValid(context.Background()) || !canManipulateRealOrders {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip()
 	}
 
@@ -90,7 +94,7 @@ func TestSpotNewOrder(t *testing.T) {
 func TestCancelExistingOrder(t *testing.T) {
 	t.Parallel()
 
-	if !z.AreCredentialsValid(context.Background()) || !canManipulateRealOrders {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip()
 	}
 
@@ -161,7 +165,7 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !z.AreCredentialsValid(context.Background()) {
+	if !areTestAPIKeysSet() {
 		if feeBuilder.FeeType != exchange.OfflineTradeFee {
 			t.Errorf("Expected %v, received %v", exchange.OfflineTradeFee, feeBuilder.FeeType)
 		}
@@ -252,9 +256,9 @@ func TestGetActiveOrders(t *testing.T) {
 	}
 
 	_, err := z.GetActiveOrders(context.Background(), &getOrdersRequest)
-	if z.AreCredentialsValid(context.Background()) && err != nil {
+	if areTestAPIKeysSet() && err != nil {
 		t.Error(err)
-	} else if !z.AreCredentialsValid(context.Background()) && err == nil {
+	} else if !areTestAPIKeysSet() && err == nil {
 		t.Error("expecting an error when no keys are set")
 	}
 }
@@ -272,9 +276,9 @@ func TestGetOrderHistory(t *testing.T) {
 	}
 
 	_, err := z.GetOrderHistory(context.Background(), &getOrdersRequest)
-	if z.AreCredentialsValid(context.Background()) && err != nil {
+	if areTestAPIKeysSet() && err != nil {
 		t.Error(err)
-	} else if !z.AreCredentialsValid(context.Background()) && err == nil {
+	} else if !areTestAPIKeysSet() && err == nil {
 		t.Error("expecting an error when no keys are set")
 	}
 }
@@ -283,7 +287,7 @@ func TestGetOrderHistory(t *testing.T) {
 // ----------------------------------------------------------------------------------------------------------------------------
 
 func TestSubmitOrder(t *testing.T) {
-	if z.AreCredentialsValid(context.Background()) && !canManipulateRealOrders {
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip(fmt.Sprintf("Can place orders: %v",
 			canManipulateRealOrders))
 	}
@@ -305,18 +309,18 @@ func TestSubmitOrder(t *testing.T) {
 		AssetType: asset.Spot,
 	}
 	response, err := z.SubmitOrder(context.Background(), orderSubmission)
-	if z.AreCredentialsValid(context.Background()) && err != nil {
+	if areTestAPIKeysSet() && err != nil {
 		t.Error(err)
-	} else if !z.AreCredentialsValid(context.Background()) && err == nil {
+	} else if !areTestAPIKeysSet() && err == nil {
 		t.Error("expecting an error when no keys are set")
 	}
-	if z.AreCredentialsValid(context.Background()) && response.OrderID == "" {
+	if areTestAPIKeysSet() && response.OrderID == "" {
 		t.Error("expected order id")
 	}
 }
 
 func TestCancelExchangeOrder(t *testing.T) {
-	if z.AreCredentialsValid(context.Background()) && !canManipulateRealOrders {
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 	if mockTests {
@@ -333,15 +337,15 @@ func TestCancelExchangeOrder(t *testing.T) {
 	}
 
 	err := z.CancelOrder(context.Background(), orderCancellation)
-	if z.AreCredentialsValid(context.Background()) && err != nil {
+	if areTestAPIKeysSet() && err != nil {
 		t.Error(err)
-	} else if !z.AreCredentialsValid(context.Background()) && err == nil {
+	} else if !areTestAPIKeysSet() && err == nil {
 		t.Error("expecting an error when no keys are set")
 	}
 }
 
 func TestCancelAllExchangeOrders(t *testing.T) {
-	if z.AreCredentialsValid(context.Background()) && !canManipulateRealOrders {
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 	if mockTests {
@@ -359,9 +363,9 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 
 	resp, err := z.CancelAllOrders(context.Background(), orderCancellation)
 
-	if z.AreCredentialsValid(context.Background()) && err != nil {
+	if areTestAPIKeysSet() && err != nil {
 		t.Error(err)
-	} else if !z.AreCredentialsValid(context.Background()) && err == nil {
+	} else if !areTestAPIKeysSet() && err == nil {
 		t.Error("expecting an error when no keys are set")
 	}
 	if len(resp.Status) > 0 {
@@ -373,7 +377,7 @@ func TestGetAccountInfo(t *testing.T) {
 	if mockTests {
 		t.Skip("skipping authenticated function for mock testing")
 	}
-	if z.AreCredentialsValid(context.Background()) {
+	if areTestAPIKeysSet() {
 		_, err := z.UpdateAccountInfo(context.Background(), asset.Spot)
 		if err != nil {
 			t.Error("GetAccountInfo() error", err)
@@ -390,7 +394,7 @@ func TestModifyOrder(t *testing.T) {
 	if mockTests {
 		t.Skip("skipping authenticated function for mock testing")
 	}
-	if z.AreCredentialsValid(context.Background()) && !canManipulateRealOrders {
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 	_, err := z.ModifyOrder(context.Background(),
@@ -404,7 +408,7 @@ func TestWithdraw(t *testing.T) {
 	if mockTests {
 		t.Skip("skipping authenticated function for mock testing")
 	}
-	if z.AreCredentialsValid(context.Background()) && !canManipulateRealOrders {
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
@@ -421,9 +425,9 @@ func TestWithdraw(t *testing.T) {
 
 	_, err := z.WithdrawCryptocurrencyFunds(context.Background(),
 		&withdrawCryptoRequest)
-	if z.AreCredentialsValid(context.Background()) && err != nil {
+	if areTestAPIKeysSet() && err != nil {
 		t.Error(err)
-	} else if !z.AreCredentialsValid(context.Background()) && err == nil {
+	} else if !areTestAPIKeysSet() && err == nil {
 		t.Error("expecting an error when no keys are set")
 	}
 }
@@ -432,7 +436,7 @@ func TestWithdrawFiat(t *testing.T) {
 	if mockTests {
 		t.Skip("skipping authenticated function for mock testing")
 	}
-	if z.AreCredentialsValid(context.Background()) && !canManipulateRealOrders {
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
@@ -447,7 +451,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 	if mockTests {
 		t.Skip("skipping authenticated function for mock testing")
 	}
-	if z.AreCredentialsValid(context.Background()) && !canManipulateRealOrders {
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
@@ -463,7 +467,7 @@ func TestGetDepositAddress(t *testing.T) {
 	if mockTests {
 		t.Skip("skipping authenticated function for mock testing")
 	}
-	if z.AreCredentialsValid(context.Background()) {
+	if areTestAPIKeysSet() {
 		_, err := z.GetDepositAddress(context.Background(), currency.XRP, "", "")
 		if err != nil {
 			t.Error("GetDepositAddress() error PLEASE MAKE SURE YOU CREATE DEPOSIT ADDRESSES VIA ZB.COM",
@@ -481,7 +485,7 @@ func TestGetMultiChainDepositAddress(t *testing.T) {
 	if mockTests {
 		t.Skip("skipping authenticated function for mock testing")
 	}
-	if z.AreCredentialsValid(context.Background()) {
+	if areTestAPIKeysSet() {
 		_, err := z.GetMultiChainDepositAddress(context.Background(), currency.USDT)
 		if err != nil {
 			t.Error("GetDepositAddress() error PLEASE MAKE SURE YOU CREATE DEPOSIT ADDRESSES VIA ZB.COM",
@@ -1072,7 +1076,7 @@ func TestUpdateTickers(t *testing.T) {
 
 func TestGetAvailableTransferChains(t *testing.T) {
 	t.Parallel()
-	if !z.AreCredentialsValid(context.Background()) {
+	if !areTestAPIKeysSet() {
 		t.Skip("api keys not set")
 	}
 	_, err := z.GetAvailableTransferChains(context.Background(), currency.BTC)
