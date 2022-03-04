@@ -705,20 +705,14 @@ func (b *Binance) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 
 		var currencyBalance []account.Balance
 		for i := range raw.Balances {
-			freeCurrency, parseErr := strconv.ParseFloat(raw.Balances[i].Free, 64)
-			if parseErr != nil {
-				return info, parseErr
-			}
-
-			lockedCurrency, parseErr := strconv.ParseFloat(raw.Balances[i].Locked, 64)
-			if parseErr != nil {
-				return info, parseErr
-			}
+			free := raw.Balances[i].Free.InexactFloat64()
+			locked := raw.Balances[i].Locked.InexactFloat64()
 
 			currencyBalance = append(currencyBalance, account.Balance{
 				CurrencyName: currency.NewCode(raw.Balances[i].Asset),
-				TotalValue:   freeCurrency + lockedCurrency,
-				Hold:         lockedCurrency,
+				Total:        free + locked,
+				Hold:         locked,
+				Free:         free,
 			})
 		}
 
@@ -733,8 +727,9 @@ func (b *Binance) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 		for i := range accData.Assets {
 			currencyDetails = append(currencyDetails, account.Balance{
 				CurrencyName: currency.NewCode(accData.Assets[i].Asset),
-				TotalValue:   accData.Assets[i].WalletBalance,
-				Hold:         accData.Assets[i].WalletBalance - accData.Assets[i].MarginBalance,
+				Total:        accData.Assets[i].WalletBalance,
+				Hold:         accData.Assets[i].WalletBalance - accData.Assets[i].AvailableBalance,
+				Free:         accData.Assets[i].AvailableBalance,
 			})
 		}
 
@@ -751,8 +746,9 @@ func (b *Binance) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 			accountCurrencyDetails[accData[i].AccountAlias] = append(
 				currencyDetails, account.Balance{
 					CurrencyName: currency.NewCode(accData[i].Asset),
-					TotalValue:   accData[i].Balance,
+					Total:        accData[i].Balance,
 					Hold:         accData[i].Balance - accData[i].AvailableBalance,
+					Free:         accData[i].AvailableBalance,
 				},
 			)
 		}
@@ -768,9 +764,12 @@ func (b *Binance) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 		var currencyDetails []account.Balance
 		for i := range accData.UserAssets {
 			currencyDetails = append(currencyDetails, account.Balance{
-				CurrencyName: currency.NewCode(accData.UserAssets[i].Asset),
-				TotalValue:   accData.UserAssets[i].Free + accData.UserAssets[i].Locked,
-				Hold:         accData.UserAssets[i].Locked,
+				CurrencyName:           currency.NewCode(accData.UserAssets[i].Asset),
+				Total:                  accData.UserAssets[i].Free + accData.UserAssets[i].Locked,
+				Hold:                   accData.UserAssets[i].Locked,
+				Free:                   accData.UserAssets[i].Free,
+				AvailableWithoutBorrow: accData.UserAssets[i].Free - accData.UserAssets[i].Borrowed,
+				Borrowed:               accData.UserAssets[i].Borrowed,
 			})
 		}
 

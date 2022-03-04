@@ -273,19 +273,22 @@ func (l *LocalBitcoins) UpdateOrderbook(ctx context.Context, p currency.Pair, as
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // LocalBitcoins exchange
-func (l *LocalBitcoins) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
+func (l *LocalBitcoins) UpdateAccountInfo(ctx context.Context, _ asset.Item) (account.Holdings, error) {
 	var response account.Holdings
 	response.Exchange = l.Name
 	accountBalance, err := l.GetWalletBalance(ctx)
 	if err != nil {
 		return response, err
 	}
-	var exchangeCurrency account.Balance
-	exchangeCurrency.CurrencyName = currency.BTC
-	exchangeCurrency.TotalValue = accountBalance.Total.Balance
 
 	response.Accounts = append(response.Accounts, account.SubAccount{
-		Currencies: []account.Balance{exchangeCurrency},
+		Currencies: []account.Balance{
+			{
+				CurrencyName: currency.BTC,
+				Total:        accountBalance.Total.Balance,
+				Hold:         accountBalance.Total.Balance - accountBalance.Total.Sendable,
+				Free:         accountBalance.Total.Sendable,
+			}},
 	})
 
 	err = account.Process(&response)

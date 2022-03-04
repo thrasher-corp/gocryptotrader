@@ -14,7 +14,7 @@ func TestCollectBalances(t *testing.T) {
 	accounts, err := CollectBalances(
 		map[string][]Balance{
 			"someAccountID": {
-				{CurrencyName: currency.BTC, TotalValue: 40000, Hold: 1},
+				{CurrencyName: currency.BTC, Total: 40000, Hold: 1},
 			},
 		},
 		asset.Spot,
@@ -27,7 +27,7 @@ func TestCollectBalances(t *testing.T) {
 	if subAccount.AssetType != asset.Spot {
 		t.Error("subAccount AssetType not set correctly")
 	}
-	if balance.CurrencyName != currency.BTC || balance.TotalValue != 40000 || balance.Hold != 1 {
+	if balance.CurrencyName != currency.BTC || balance.Total != 40000 || balance.Hold != 1 {
 		t.Error("subAccount currency balance not set correctly")
 	}
 	if err != nil {
@@ -83,7 +83,7 @@ func TestHoldings(t *testing.T) {
 			Currencies: []Balance{
 				{
 					CurrencyName: currency.BTC,
-					TotalValue:   100,
+					Total:        100,
 					Hold:         20,
 				},
 			},
@@ -122,9 +122,9 @@ func TestHoldings(t *testing.T) {
 			u.Accounts[0].Currencies[0].CurrencyName)
 	}
 
-	if u.Accounts[0].Currencies[0].TotalValue != 100 {
+	if u.Accounts[0].Currencies[0].Total != 100 {
 		t.Errorf("expecting 100 but received %f",
-			u.Accounts[0].Currencies[0].TotalValue)
+			u.Accounts[0].Currencies[0].Total)
 	}
 
 	if u.Accounts[0].Currencies[0].Hold != 20 {
@@ -163,7 +163,7 @@ func TestHoldings(t *testing.T) {
 			Currencies: []Balance{
 				{
 					CurrencyName: currency.BTC,
-					TotalValue:   100000,
+					Total:        100000,
 					Hold:         20,
 				},
 			},
@@ -174,30 +174,4 @@ func TestHoldings(t *testing.T) {
 	}
 
 	wg.Wait()
-}
-
-func TestBalance_Available(t *testing.T) {
-	t.Parallel()
-
-	b := Balance{
-		CurrencyName: currency.BTC,
-		TotalValue:   16,
-		Hold:         0,
-	}
-
-	if have := b.Available(); have != 16 {
-		t.Errorf("have %f, want 16", have)
-	}
-
-	b.Hold = 8
-
-	if have := b.Available(); have != 8 {
-		t.Errorf("have %f, want 8", have)
-	}
-
-	b.Hold = 16
-
-	if have := b.Available(); have != 0 {
-		t.Errorf("have %f, want 0", have)
-	}
 }

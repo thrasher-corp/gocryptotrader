@@ -400,8 +400,9 @@ func (b *BTSE) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (acc
 		currencies = append(currencies,
 			account.Balance{
 				CurrencyName: currency.NewCode(balance[b].Currency),
-				TotalValue:   balance[b].Total,
+				Total:        balance[b].Total,
 				Hold:         balance[b].Total - balance[b].Available,
+				Free:         balance[b].Available,
 			},
 		)
 	}
