@@ -256,11 +256,11 @@ func (by *Bybit) GetKlines(ctx context.Context, symbol, period string, limit int
 			return klines, fmt.Errorf("%v GetKlines: %w for Low", by.Name, errStrParsing)
 		}
 
-		close, ok := resp.Data[x][4].(string)
+		c, ok := resp.Data[x][4].(string)
 		if !ok {
 			return klines, fmt.Errorf("%v GetKlines: %w for Close", by.Name, errTypeAssert)
 		}
-		kline.Close, err = strconv.ParseFloat(close, 64)
+		kline.Close, err = strconv.ParseFloat(c, 64)
 		if err != nil {
 			return klines, fmt.Errorf("%v GetKlines: %w for Close", by.Name, errStrParsing)
 		}
