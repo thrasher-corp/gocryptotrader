@@ -260,10 +260,10 @@ func TestExecuteOrder(t *testing.T) {
 		AssetType:    a,
 	}
 	o := &order.Order{
-		Base:           ev,
-		Direction:      gctorder.Buy,
-		Amount:         decimal.NewFromInt(10),
-		AllocatedFunds: decimal.NewFromInt(1337),
+		Base:          ev,
+		Direction:     gctorder.Buy,
+		Amount:        decimal.NewFromInt(10),
+		AllocatedSize: decimal.NewFromInt(1337),
 	}
 
 	d := &kline.DataFromKline{
@@ -381,10 +381,10 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 		AssetType:    a,
 	}
 	o := &order.Order{
-		Base:           ev,
-		Direction:      gctorder.Buy,
-		Amount:         decimal.NewFromInt(10),
-		AllocatedFunds: decimal.NewFromInt(1337),
+		Base:          ev,
+		Direction:     gctorder.Buy,
+		Amount:        decimal.NewFromInt(10),
+		AllocatedSize: decimal.NewFromInt(1337),
 	}
 
 	d := &kline.DataFromKline{
@@ -413,10 +413,10 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 		t.Errorf("received %v expected %v", err, errExceededPortfolioLimit)
 	}
 	o = &order.Order{
-		Base:           ev,
-		Direction:      gctorder.Buy,
-		Amount:         decimal.NewFromInt(10),
-		AllocatedFunds: decimal.NewFromInt(1337),
+		Base:          ev,
+		Direction:     gctorder.Buy,
+		Amount:        decimal.NewFromInt(10),
+		AllocatedSize: decimal.NewFromInt(1337),
 	}
 	cs.BuySide.MaximumSize = decimal.Zero
 	cs.BuySide.MinimumSize = decimal.NewFromFloat(0.01)
@@ -429,10 +429,10 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 		t.Error("limitReducedAmount adjusted to 0.99999999, direction BUY, should fall in  buyside {MinimumSize:0.01 MaximumSize:0 MaximumTotal:0}")
 	}
 	o = &order.Order{
-		Base:           ev,
-		Direction:      gctorder.Sell,
-		Amount:         decimal.NewFromInt(10),
-		AllocatedFunds: decimal.NewFromInt(1337),
+		Base:          ev,
+		Direction:     gctorder.Sell,
+		Amount:        decimal.NewFromInt(10),
+		AllocatedSize: decimal.NewFromInt(1337),
 	}
 	cs.SellSide.MaximumSize = decimal.Zero
 	cs.SellSide.MinimumSize = decimal.NewFromFloat(0.01)
@@ -446,10 +446,10 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 	}
 
 	o = &order.Order{
-		Base:           ev,
-		Direction:      gctorder.Sell,
-		Amount:         decimal.NewFromFloat(0.5),
-		AllocatedFunds: decimal.NewFromInt(1337),
+		Base:          ev,
+		Direction:     gctorder.Sell,
+		Amount:        decimal.NewFromFloat(0.5),
+		AllocatedSize: decimal.NewFromInt(1337),
 	}
 	cs.SellSide.MaximumSize = decimal.Zero
 	cs.SellSide.MinimumSize = decimal.NewFromInt(1)
@@ -460,10 +460,10 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 	}
 
 	o = &order.Order{
-		Base:           ev,
-		Direction:      gctorder.Sell,
-		Amount:         decimal.NewFromFloat(0.02),
-		AllocatedFunds: decimal.NewFromFloat(0.01337),
+		Base:          ev,
+		Direction:     gctorder.Sell,
+		Amount:        decimal.NewFromFloat(0.02),
+		AllocatedSize: decimal.NewFromFloat(0.01337),
 	}
 	cs.SellSide.MaximumSize = decimal.Zero
 	cs.SellSide.MinimumSize = decimal.NewFromFloat(0.01)

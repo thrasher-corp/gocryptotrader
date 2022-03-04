@@ -59,7 +59,7 @@ func (s *Size) SizeOrder(o order.Event, amountAvailable decimal.Decimal, cs *exc
 			amount = portfolioSize
 		}
 	}
-	amount = amount.Round(8)
+	//	amount = amount.Round(8)
 	if amount.LessThanOrEqual(decimal.Zero) {
 		return retOrder, fmt.Errorf("%w at %v for %v %v %v", errCannotAllocate, o.GetTime(), o.GetExchange(), o.GetAssetType(), o.Pair())
 	}

@@ -502,13 +502,14 @@ func (f *FundManager) UpdateCollateral(ev common.EventHandler) error {
 				usd = latest.GetClosePrice()
 			}
 		}
+		if usd.IsZero() {
+			continue
+		}
 		var side = gctorder.Buy
 		if !f.items[i].available.GreaterThan(decimal.Zero) {
 			side = gctorder.Sell
 		}
-		if usd.IsZero() {
-			continue
-		}
+
 		butts.CollateralAssets = append(butts.CollateralAssets, gctorder.CollateralCalculator{
 			CalculateOffline:   true,
 			CollateralCurrency: f.items[i].currency,
@@ -535,7 +536,6 @@ func (f *FundManager) UpdateCollateral(ev common.EventHandler) error {
 			f.items[i].asset == futureAsset &&
 			f.items[i].currency.Equal(futureCurrency) {
 			f.items[i].available = collat.AvailableCollateral
-			f.items[i].reserved = collat.UsedCollateral
 			return nil
 		}
 	}

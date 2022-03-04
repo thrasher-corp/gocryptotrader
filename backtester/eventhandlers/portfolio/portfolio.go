@@ -216,16 +216,16 @@ func (p *Portfolio) sizeOrder(d common.Directioner, cs *exchange.Settings, origi
 	switch d.GetDirection() {
 	case gctorder.Sell:
 		err = funds.Reserve(sizedOrder.Amount, gctorder.Sell)
-		sizedOrder.AllocatedFunds = sizedOrder.Amount
+		sizedOrder.AllocatedSize = sizedOrder.Amount
 	case gctorder.Short, gctorder.Long:
-		err = funds.Reserve(sizedOrder.Amount.Mul(originalOrderSignal.Price), d.GetDirection())
-		sizedOrder.AllocatedFunds = sizedOrder.Amount.Mul(sizedOrder.Price)
+		err = funds.Reserve(sizedOrder.Amount, d.GetDirection())
+		sizedOrder.AllocatedSize = sizedOrder.Amount.Div(sizedOrder.Price)
 	case common.ClosePosition:
-		err = funds.Reserve(sizedOrder.Amount.Mul(originalOrderSignal.Price), d.GetDirection())
-		sizedOrder.AllocatedFunds = sizedOrder.Amount.Mul(sizedOrder.Price)
+		err = funds.Reserve(sizedOrder.Amount, d.GetDirection())
+		sizedOrder.AllocatedSize = sizedOrder.Amount.Div(sizedOrder.Price)
 	default:
 		err = funds.Reserve(sizedOrder.Amount.Mul(sizedOrder.Price), gctorder.Buy)
-		sizedOrder.AllocatedFunds = sizedOrder.Amount.Mul(sizedOrder.Price)
+		sizedOrder.AllocatedSize = sizedOrder.Amount.Mul(sizedOrder.Price)
 	}
 	if err != nil {
 		sizedOrder.Direction = common.DoNothing
@@ -537,10 +537,15 @@ func (p *Portfolio) TrackFuturesOrder(f fill.Event, fund funding.IFundReleaser) 
 	if len(pos) == 0 {
 		return nil, fmt.Errorf("%w should not happen", errNoHoldings)
 	}
+	amount := decimal.NewFromFloat(detail.Amount)
 	if pos[len(pos)-1].OpeningDirection != detail.Side {
-		amount := decimal.NewFromFloat(detail.Amount)
 		value := decimal.NewFromFloat(detail.Price).Mul(amount)
 		err = collateralReleaser.TakeProfit(amount, value, pos[len(pos)-1].RealisedPNL)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		err = collateralReleaser.UpdateContracts(detail.Side, amount, decimal.Zero)
 		if err != nil {
 			return nil, err
 		}

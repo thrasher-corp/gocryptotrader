@@ -76,7 +76,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 		f.Slippage = adjustedPrice.Sub(f.ClosePrice).Div(f.ClosePrice).Mul(decimal.NewFromInt(100))
 	} else {
 		slippageRate := slippage.EstimateSlippagePercentage(cs.MinimumSlippageRate, cs.MaximumSlippageRate)
-		if cs.SkipCandleVolumeFitting || o.IsClosingPosition() {
+		if cs.SkipCandleVolumeFitting || o.GetAssetType().IsFutures() {
 			f.VolumeAdjustedPrice = f.ClosePrice
 			amount = f.Amount
 		} else {
@@ -193,7 +193,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 		ords[i].CloseTime = o.GetTime()
 		f.Order = &ords[i]
 		f.PurchasePrice = decimal.NewFromFloat(ords[i].Price)
-		if ords[i].AssetType.IsFutures() {
+		if ords[i].AssetType.IsFutures() || f.GetDirection() == common.ClosePosition {
 			f.Total = limitReducedAmount.Add(f.ExchangeFee)
 		} else {
 			f.Total = f.PurchasePrice.Mul(limitReducedAmount).Add(f.ExchangeFee)
