@@ -94,11 +94,11 @@ func (f *FundManager) LinkCollateralCurrency(item *Item, code currency.Code) err
 		}
 	}
 	collateral := &Item{
-		exchange:   item.exchange,
-		asset:      item.asset,
-		currency:   code,
-		pairedWith: item,
-		collateral: true,
+		exchange:     item.exchange,
+		asset:        item.asset,
+		currency:     code,
+		pairedWith:   item,
+		isCollateral: true,
 	}
 	err := f.AddItem(collateral)
 	if err != nil {
@@ -156,48 +156,8 @@ func (f *FundManager) AddUSDTrackingData(k *kline.DataFromKline) error {
 		if baseSet && quoteSet {
 			return nil
 		}
-		if f.items[i].asset.IsFutures() && f.items[i].collateral && f.items[i].trackingCandles == nil {
-			usdCandles := gctkline.Item{
-				Exchange: k.Item.Exchange,
-				Pair:     currency.Pair{Delimiter: k.Item.Pair.Delimiter, Base: f.items[i].currency, Quote: currency.USD},
-				Asset:    k.Item.Asset,
-				Interval: k.Item.Interval,
-				Candles:  make([]gctkline.Candle, len(k.Item.Candles)),
-			}
-			copy(usdCandles.Candles, k.Item.Candles)
-			for j := range usdCandles.Candles {
-				// usd stablecoins do not always match in value,
-				// this is a simplified implementation that can allow
-				// USD tracking for many currencies across many exchanges
-				// without retrieving n candle history and exchange rates
-				usdCandles.Candles[j].Open = 1
-				usdCandles.Candles[j].High = 1
-				usdCandles.Candles[j].Low = 1
-				usdCandles.Candles[j].Close = 1
-			}
-			cpy := *k
-			cpy.Item = usdCandles
-			if err := cpy.Load(); err != nil {
-				return err
-			}
-			f.items[i].trackingCandles = &cpy
-			quoteSet = true
-			continue
-		}
-
-		if strings.EqualFold(f.items[i].exchange, k.Item.Exchange) &&
-			f.items[i].asset == k.Item.Asset {
-			if f.items[i].currency.Equal(k.Item.Pair.Base) {
-				if f.items[i].trackingCandles == nil &&
-					trackingcurrencies.CurrencyIsUSDTracked(k.Item.Pair.Quote) {
-					f.items[i].trackingCandles = k
-					if f.items[i].pairedWith != nil {
-						basePairedWith = f.items[i].pairedWith.currency
-					}
-				}
-				baseSet = true
-			}
-			if f.items[i].asset.IsFutures() {
+		if f.items[i].asset.IsFutures() {
+			if f.items[i].isCollateral {
 				usdCandles := gctkline.Item{
 					Exchange: k.Item.Exchange,
 					Pair:     currency.Pair{Delimiter: k.Item.Pair.Delimiter, Base: f.items[i].currency, Quote: currency.USD},
@@ -222,6 +182,25 @@ func (f *FundManager) AddUSDTrackingData(k *kline.DataFromKline) error {
 					return err
 				}
 				f.items[i].trackingCandles = &cpy
+				quoteSet = true
+			} else {
+				f.items[i].trackingCandles = k
+				baseSet = true
+			}
+			continue
+		}
+
+		if strings.EqualFold(f.items[i].exchange, k.Item.Exchange) &&
+			f.items[i].asset == k.Item.Asset {
+			if f.items[i].currency.Equal(k.Item.Pair.Base) {
+				if f.items[i].trackingCandles == nil &&
+					trackingcurrencies.CurrencyIsUSDTracked(k.Item.Pair.Quote) {
+					f.items[i].trackingCandles = k
+					if f.items[i].pairedWith != nil {
+						basePairedWith = f.items[i].pairedWith.currency
+					}
+				}
+				baseSet = true
 			}
 			if trackingcurrencies.CurrencyIsUSDTracked(f.items[i].currency) {
 				if f.items[i].pairedWith != nil && !f.items[i].currency.Equal(basePairedWith) {
@@ -484,7 +463,7 @@ func (f *FundManager) GetFundingForEAC(exch string, a asset.Item, c currency.Cod
 func (f *FundManager) LiquidateByCollateral(c currency.Code) error {
 	found := false
 	for i := range f.items {
-		if f.items[i].currency == c && !f.items[i].collateral && f.items[i].asset.IsFutures() {
+		if f.items[i].currency == c && !f.items[i].isCollateral && f.items[i].asset.IsFutures() {
 			f.items[i].available = decimal.Zero
 			f.items[i].reserved = decimal.Zero
 			found = true

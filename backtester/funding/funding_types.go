@@ -135,7 +135,7 @@ type Item struct {
 	pairedWith        *Item
 	trackingCandles   *kline.DataFromKline
 	snapshot          map[time.Time]ItemSnapshot
-	collateral        bool
+	isCollateral      bool
 	collateralCandles map[currency.Code]kline.DataFromKline
 }
 

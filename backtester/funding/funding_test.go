@@ -221,7 +221,7 @@ func TestExists(t *testing.T) {
 		pairedWith:        baseItem.pairedWith,
 		trackingCandles:   baseItem.trackingCandles,
 		snapshot:          baseItem.snapshot,
-		collateral:        baseItem.collateral,
+		isCollateral:      baseItem.isCollateral,
 		collateralCandles: baseItem.collateralCandles,
 	}
 	quoteCopy := Item{
@@ -235,7 +235,7 @@ func TestExists(t *testing.T) {
 		pairedWith:        quoteItem.pairedWith,
 		trackingCandles:   quoteItem.trackingCandles,
 		snapshot:          quoteItem.snapshot,
-		collateral:        quoteItem.collateral,
+		isCollateral:      quoteItem.isCollateral,
 		collateralCandles: quoteItem.collateralCandles,
 	}
 	quoteCopy.pairedWith = &baseCopy
