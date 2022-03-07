@@ -263,6 +263,7 @@ type PNLResult struct {
 	Time                  time.Time
 	UnrealisedPNL         decimal.Decimal
 	RealisedPNLBeforeFees decimal.Decimal
+	RealisedPNL           decimal.Decimal
 	Price                 decimal.Decimal
 	Exposure              decimal.Decimal
 	Fee                   decimal.Decimal

@@ -116,27 +116,27 @@ type IPairReleaser interface {
 
 type ICollateralReleaser interface {
 	ICollateralReader
-	UpdateCollateral(s order.Side, amount, diff decimal.Decimal) error
-	UpdateContracts(s order.Side, amount, diff decimal.Decimal) error
-	TakeProfit(contracts, originalPositionSize, positionReturns decimal.Decimal) error
+	UpdateCollateral(decimal.Decimal) error
+	UpdateContracts(order.Side, decimal.Decimal) error
+	TakeProfit(contracts, positionReturns decimal.Decimal) error
 	ReleaseContracts(decimal.Decimal) error
 	Liquidate()
 }
 
 // Item holds funding data per currency item
 type Item struct {
-	exchange           string
-	asset              asset.Item
-	currency           currency.Code
-	initialFunds       decimal.Decimal
-	available          decimal.Decimal
-	reserved           decimal.Decimal
-	transferFee        decimal.Decimal
-	pairedWith         *Item
-	usdTrackingCandles *kline.DataFromKline
-	snapshot           map[time.Time]ItemSnapshot
-	collateral         bool
-	collateralCandles  map[currency.Code]kline.DataFromKline
+	exchange          string
+	asset             asset.Item
+	currency          currency.Code
+	initialFunds      decimal.Decimal
+	available         decimal.Decimal
+	reserved          decimal.Decimal
+	transferFee       decimal.Decimal
+	pairedWith        *Item
+	trackingCandles   *kline.DataFromKline
+	snapshot          map[time.Time]ItemSnapshot
+	collateral        bool
+	collateralCandles map[currency.Code]kline.DataFromKline
 }
 
 // BasicItem is a representation of Item

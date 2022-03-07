@@ -210,7 +210,7 @@ func (c *CurrencyPairStatistic) PrintResults(e string, a asset.Item, p currency.
 
 	if last.PNL != nil {
 		log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Final unPNL: %s\n\n", sep, convert.DecimalToHumanFriendlyString(last.PNL.Result.UnrealisedPNL, 8, ".", ","))
-		log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Final PNL: %s\n\n", sep, convert.DecimalToHumanFriendlyString(last.PNL.Result.RealisedPNLBeforeFees, 8, ".", ","))
+		log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Final PNL: %s\n\n", sep, convert.DecimalToHumanFriendlyString(last.PNL.Result.RealisedPNL, 8, ".", ","))
 	}
 	if len(errs) > 0 {
 		log.Info(common.SubLoggers[common.CurrencyStatistics], "------------------Errors-------------------------------------")

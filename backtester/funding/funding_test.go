@@ -211,32 +211,32 @@ func TestExists(t *testing.T) {
 	// demonstration that you don't need the original *Items
 	// to check for existence, just matching fields
 	baseCopy := Item{
-		exchange:           baseItem.exchange,
-		asset:              baseItem.asset,
-		currency:           baseItem.currency,
-		initialFunds:       baseItem.initialFunds,
-		available:          baseItem.available,
-		reserved:           baseItem.reserved,
-		transferFee:        baseItem.transferFee,
-		pairedWith:         baseItem.pairedWith,
-		usdTrackingCandles: baseItem.usdTrackingCandles,
-		snapshot:           baseItem.snapshot,
-		collateral:         baseItem.collateral,
-		collateralCandles:  baseItem.collateralCandles,
+		exchange:          baseItem.exchange,
+		asset:             baseItem.asset,
+		currency:          baseItem.currency,
+		initialFunds:      baseItem.initialFunds,
+		available:         baseItem.available,
+		reserved:          baseItem.reserved,
+		transferFee:       baseItem.transferFee,
+		pairedWith:        baseItem.pairedWith,
+		trackingCandles:   baseItem.trackingCandles,
+		snapshot:          baseItem.snapshot,
+		collateral:        baseItem.collateral,
+		collateralCandles: baseItem.collateralCandles,
 	}
 	quoteCopy := Item{
-		exchange:           quoteItem.exchange,
-		asset:              quoteItem.asset,
-		currency:           quoteItem.currency,
-		initialFunds:       quoteItem.initialFunds,
-		available:          quoteItem.available,
-		reserved:           quoteItem.reserved,
-		transferFee:        quoteItem.transferFee,
-		pairedWith:         quoteItem.pairedWith,
-		usdTrackingCandles: quoteItem.usdTrackingCandles,
-		snapshot:           quoteItem.snapshot,
-		collateral:         quoteItem.collateral,
-		collateralCandles:  quoteItem.collateralCandles,
+		exchange:          quoteItem.exchange,
+		asset:             quoteItem.asset,
+		currency:          quoteItem.currency,
+		initialFunds:      quoteItem.initialFunds,
+		available:         quoteItem.available,
+		reserved:          quoteItem.reserved,
+		transferFee:       quoteItem.transferFee,
+		pairedWith:        quoteItem.pairedWith,
+		trackingCandles:   quoteItem.trackingCandles,
+		snapshot:          quoteItem.snapshot,
+		collateral:        quoteItem.collateral,
+		collateralCandles: quoteItem.collateralCandles,
 	}
 	quoteCopy.pairedWith = &baseCopy
 	exists = f.Exists(&baseCopy)
@@ -823,7 +823,7 @@ func TestGenerateReport(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	f.items[0].usdTrackingCandles = dfk
+	f.items[0].trackingCandles = dfk
 	f.CreateSnapshot(dfk.Item.Candles[0].Time)
 
 	report = f.GenerateReport()
@@ -861,16 +861,16 @@ func TestCreateSnapshot(t *testing.T) {
 	f := FundManager{}
 	f.CreateSnapshot(time.Time{})
 	f.items = append(f.items, &Item{
-		exchange:           "",
-		asset:              "",
-		currency:           currency.EMPTYCODE,
-		initialFunds:       decimal.Decimal{},
-		available:          decimal.Decimal{},
-		reserved:           decimal.Decimal{},
-		transferFee:        decimal.Decimal{},
-		pairedWith:         nil,
-		usdTrackingCandles: nil,
-		snapshot:           nil,
+		exchange:        "",
+		asset:           "",
+		currency:        currency.EMPTYCODE,
+		initialFunds:    decimal.Decimal{},
+		available:       decimal.Decimal{},
+		reserved:        decimal.Decimal{},
+		transferFee:     decimal.Decimal{},
+		pairedWith:      nil,
+		trackingCandles: nil,
+		snapshot:        nil,
 	})
 	f.CreateSnapshot(time.Time{})
 
@@ -887,14 +887,14 @@ func TestCreateSnapshot(t *testing.T) {
 		t.Error(err)
 	}
 	f.items = append(f.items, &Item{
-		exchange:           "test",
-		asset:              asset.Spot,
-		currency:           currency.BTC,
-		initialFunds:       decimal.NewFromInt(1337),
-		available:          decimal.NewFromInt(1337),
-		reserved:           decimal.NewFromInt(1337),
-		transferFee:        decimal.NewFromInt(1337),
-		usdTrackingCandles: dfk,
+		exchange:        "test",
+		asset:           asset.Spot,
+		currency:        currency.BTC,
+		initialFunds:    decimal.NewFromInt(1337),
+		available:       decimal.NewFromInt(1337),
+		reserved:        decimal.NewFromInt(1337),
+		transferFee:     decimal.NewFromInt(1337),
+		trackingCandles: dfk,
 	})
 	f.CreateSnapshot(dfk.Item.Candles[0].Time)
 }

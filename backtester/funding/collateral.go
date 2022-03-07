@@ -23,12 +23,12 @@ func (c *Collateral) CanPlaceOrder(_ order.Side) bool {
 	return c.Collateral.CanPlaceOrder()
 }
 
-func (c *Collateral) TakeProfit(contracts, originalPositionSize, positionReturns decimal.Decimal) error {
-	err := c.Contract.Release(contracts, decimal.Zero)
+func (c *Collateral) TakeProfit(contracts, positionReturns decimal.Decimal) error {
+	err := c.Contract.ReduceContracts(contracts)
 	if err != nil {
 		return err
 	}
-	return c.Collateral.Release(originalPositionSize, positionReturns)
+	return c.Collateral.TakeProfit(positionReturns)
 }
 
 func (c *Collateral) ContractCurrency() currency.Code {
@@ -60,32 +60,65 @@ func (c *Collateral) GetCollateralReader() (ICollateralReader, error) {
 	return c, nil
 }
 
-func (c *Collateral) UpdateCollateral(s order.Side, amount, diff decimal.Decimal) error {
+func (c *Collateral) UpdateCollateral(amount decimal.Decimal) error {
+	return c.Collateral.TakeProfit(amount)
+}
+
+func (c *Collateral) UpdateContracts(s order.Side, amount decimal.Decimal) error {
 	switch {
 	case c.currentDirection == nil:
 		c.currentDirection = &s
-		return c.Collateral.Reserve(amount)
+		return c.Contract.AddContracts(amount)
 	case *c.currentDirection == s:
-		return c.Collateral.Reserve(amount)
+		return c.Contract.AddContracts(amount)
 	case *c.currentDirection != s:
-		return c.Collateral.Release(amount, diff)
+		return c.Contract.ReduceContracts(amount)
 	default:
 		return errors.New("woah nelly")
 	}
 }
 
-func (c *Collateral) UpdateContracts(s order.Side, amount, diff decimal.Decimal) error {
-	switch {
-	case c.currentDirection == nil:
-		c.currentDirection = &s
-		return c.Contract.Reserve(amount)
-	case *c.currentDirection == s:
-		return c.Contract.Reserve(amount)
-	case *c.currentDirection != s:
-		return c.Contract.Release(amount, diff)
-	default:
-		return errors.New("woah nelly")
+func (i *Item) TakeProfit(amount decimal.Decimal) error {
+	if !i.asset.IsFutures() {
+		return fmt.Errorf("%v %v %v %w", i.exchange, i.asset, i.currency, errNotFutures)
 	}
+	i.available = i.available.Add(amount)
+	return nil
+}
+
+// AddContracts allocates an amount of funds to be used at a later time
+// it prevents multiple events from claiming the same resource
+func (i *Item) AddContracts(amount decimal.Decimal) error {
+	if !i.asset.IsFutures() {
+		return fmt.Errorf("%v %v %v %w", i.exchange, i.asset, i.currency, errNotFutures)
+	}
+	if amount.LessThanOrEqual(decimal.Zero) {
+		return errZeroAmountReceived
+	}
+	i.available = i.available.Add(amount)
+	return nil
+}
+
+// ReduceContracts allocates an amount of funds to be used at a later time
+// it prevents multiple events from claiming the same resource
+func (i *Item) ReduceContracts(amount decimal.Decimal) error {
+	if !i.asset.IsFutures() {
+		return fmt.Errorf("%v %v %v %w", i.exchange, i.asset, i.currency, errNotFutures)
+	}
+	if amount.LessThanOrEqual(decimal.Zero) {
+		return errZeroAmountReceived
+	}
+	if amount.GreaterThan(i.available) {
+		return fmt.Errorf("%w for %v %v %v. Requested %v Reserved: %v",
+			errCannotAllocate,
+			i.exchange,
+			i.asset,
+			i.currency,
+			amount,
+			i.reserved)
+	}
+	i.available = i.available.Sub(amount)
+	return nil
 }
 
 func (c *Collateral) ReleaseContracts(amount decimal.Decimal) error {

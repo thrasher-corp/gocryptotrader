@@ -539,13 +539,12 @@ func (p *Portfolio) TrackFuturesOrder(f fill.Event, fund funding.IFundReleaser) 
 	}
 	amount := decimal.NewFromFloat(detail.Amount)
 	if pos[len(pos)-1].OpeningDirection != detail.Side {
-		value := decimal.NewFromFloat(detail.Price).Mul(amount)
-		err = collateralReleaser.TakeProfit(amount, value, pos[len(pos)-1].RealisedPNL)
+		err = collateralReleaser.TakeProfit(amount, pos[len(pos)-1].RealisedPNL)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		err = collateralReleaser.UpdateContracts(detail.Side, amount, decimal.Zero)
+		err = collateralReleaser.UpdateContracts(detail.Side, amount)
 		if err != nil {
 			return nil, err
 		}

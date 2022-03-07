@@ -122,10 +122,10 @@ func (f *FundManager) CreateSnapshot(t time.Time) {
 		}
 		if !f.disableUSDTracking {
 			var usdClosePrice decimal.Decimal
-			if f.items[i].usdTrackingCandles == nil {
+			if f.items[i].trackingCandles == nil {
 				continue
 			}
-			usdCandles := f.items[i].usdTrackingCandles.GetStream()
+			usdCandles := f.items[i].trackingCandles.GetStream()
 			for j := range usdCandles {
 				if usdCandles[j].GetTime().Equal(t) {
 					usdClosePrice = usdCandles[j].GetClosePrice()
@@ -149,10 +149,6 @@ func (f *FundManager) AddUSDTrackingData(k *kline.DataFromKline) error {
 	if f.disableUSDTracking {
 		return ErrUSDTrackingDisabled
 	}
-	if k.Item.Asset.IsFutures() {
-		// futures doesn't need usd tracking?
-		return nil
-	}
 	baseSet := false
 	quoteSet := false
 	var basePairedWith currency.Code
@@ -160,23 +156,78 @@ func (f *FundManager) AddUSDTrackingData(k *kline.DataFromKline) error {
 		if baseSet && quoteSet {
 			return nil
 		}
+		if f.items[i].asset.IsFutures() && f.items[i].collateral && f.items[i].trackingCandles == nil {
+			usdCandles := gctkline.Item{
+				Exchange: k.Item.Exchange,
+				Pair:     currency.Pair{Delimiter: k.Item.Pair.Delimiter, Base: f.items[i].currency, Quote: currency.USD},
+				Asset:    k.Item.Asset,
+				Interval: k.Item.Interval,
+				Candles:  make([]gctkline.Candle, len(k.Item.Candles)),
+			}
+			copy(usdCandles.Candles, k.Item.Candles)
+			for j := range usdCandles.Candles {
+				// usd stablecoins do not always match in value,
+				// this is a simplified implementation that can allow
+				// USD tracking for many currencies across many exchanges
+				// without retrieving n candle history and exchange rates
+				usdCandles.Candles[j].Open = 1
+				usdCandles.Candles[j].High = 1
+				usdCandles.Candles[j].Low = 1
+				usdCandles.Candles[j].Close = 1
+			}
+			cpy := *k
+			cpy.Item = usdCandles
+			if err := cpy.Load(); err != nil {
+				return err
+			}
+			f.items[i].trackingCandles = &cpy
+			quoteSet = true
+			continue
+		}
+
 		if strings.EqualFold(f.items[i].exchange, k.Item.Exchange) &&
 			f.items[i].asset == k.Item.Asset {
 			if f.items[i].currency.Equal(k.Item.Pair.Base) {
-				if f.items[i].usdTrackingCandles == nil &&
+				if f.items[i].trackingCandles == nil &&
 					trackingcurrencies.CurrencyIsUSDTracked(k.Item.Pair.Quote) {
-					f.items[i].usdTrackingCandles = k
+					f.items[i].trackingCandles = k
 					if f.items[i].pairedWith != nil {
 						basePairedWith = f.items[i].pairedWith.currency
 					}
 				}
 				baseSet = true
 			}
+			if f.items[i].asset.IsFutures() {
+				usdCandles := gctkline.Item{
+					Exchange: k.Item.Exchange,
+					Pair:     currency.Pair{Delimiter: k.Item.Pair.Delimiter, Base: f.items[i].currency, Quote: currency.USD},
+					Asset:    k.Item.Asset,
+					Interval: k.Item.Interval,
+					Candles:  make([]gctkline.Candle, len(k.Item.Candles)),
+				}
+				copy(usdCandles.Candles, k.Item.Candles)
+				for j := range usdCandles.Candles {
+					// usd stablecoins do not always match in value,
+					// this is a simplified implementation that can allow
+					// USD tracking for many currencies across many exchanges
+					// without retrieving n candle history and exchange rates
+					usdCandles.Candles[j].Open = 1
+					usdCandles.Candles[j].High = 1
+					usdCandles.Candles[j].Low = 1
+					usdCandles.Candles[j].Close = 1
+				}
+				cpy := *k
+				cpy.Item = usdCandles
+				if err := cpy.Load(); err != nil {
+					return err
+				}
+				f.items[i].trackingCandles = &cpy
+			}
 			if trackingcurrencies.CurrencyIsUSDTracked(f.items[i].currency) {
 				if f.items[i].pairedWith != nil && !f.items[i].currency.Equal(basePairedWith) {
 					continue
 				}
-				if f.items[i].usdTrackingCandles == nil {
+				if f.items[i].trackingCandles == nil {
 					usdCandles := gctkline.Item{
 						Exchange: k.Item.Exchange,
 						Pair:     currency.Pair{Delimiter: k.Item.Pair.Delimiter, Base: f.items[i].currency, Quote: currency.USD},
@@ -200,7 +251,7 @@ func (f *FundManager) AddUSDTrackingData(k *kline.DataFromKline) error {
 					if err := cpy.Load(); err != nil {
 						return err
 					}
-					f.items[i].usdTrackingCandles = &cpy
+					f.items[i].trackingCandles = &cpy
 				}
 				quoteSet = true
 			}
@@ -260,13 +311,13 @@ func (f *FundManager) GenerateReport() *Report {
 			FinalFunds:   f.items[i].available,
 		}
 		if !f.disableUSDTracking &&
-			f.items[i].usdTrackingCandles != nil {
-			usdStream := f.items[i].usdTrackingCandles.GetStream()
+			f.items[i].trackingCandles != nil {
+			usdStream := f.items[i].trackingCandles.GetStream()
 			item.USDInitialFunds = f.items[i].initialFunds.Mul(usdStream[0].GetClosePrice())
 			item.USDFinalFunds = f.items[i].available.Mul(usdStream[len(usdStream)-1].GetClosePrice())
 			item.USDInitialCostForOne = usdStream[0].GetClosePrice()
 			item.USDFinalCostForOne = usdStream[len(usdStream)-1].GetClosePrice()
-			item.USDPairCandle = f.items[i].usdTrackingCandles
+			item.USDPairCandle = f.items[i].trackingCandles
 		}
 
 		var pricingOverTime []ItemSnapshot
@@ -433,7 +484,7 @@ func (f *FundManager) GetFundingForEAC(exch string, a asset.Item, c currency.Cod
 func (f *FundManager) LiquidateByCollateral(c currency.Code) error {
 	found := false
 	for i := range f.items {
-		if f.items[i].currency == c && f.items[i].collateral && f.items[i].asset == asset.Futures {
+		if f.items[i].currency == c && !f.items[i].collateral && f.items[i].asset.IsFutures() {
 			f.items[i].available = decimal.Zero
 			f.items[i].reserved = decimal.Zero
 			found = true
@@ -459,8 +510,8 @@ func (f *FundManager) GetAllFunding() []BasicItem {
 	var result []BasicItem
 	for i := range f.items {
 		var usd decimal.Decimal
-		if f.items[i].usdTrackingCandles != nil {
-			latest := f.items[i].usdTrackingCandles.Latest()
+		if f.items[i].trackingCandles != nil {
+			latest := f.items[i].trackingCandles.Latest()
 			if latest != nil {
 				usd = latest.GetClosePrice()
 			}
@@ -496,8 +547,8 @@ func (f *FundManager) UpdateCollateral(ev common.EventHandler) error {
 			exchMap[f.items[i].exchange] = exch
 		}
 		var usd decimal.Decimal
-		if f.items[i].usdTrackingCandles != nil {
-			latest := f.items[i].usdTrackingCandles.Latest()
+		if f.items[i].trackingCandles != nil {
+			latest := f.items[i].trackingCandles.Latest()
 			if latest != nil {
 				usd = latest.GetClosePrice()
 			}

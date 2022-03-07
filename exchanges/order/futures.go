@@ -351,6 +351,7 @@ func (p *PositionTracker) GetStats() PositionStats {
 	var orders []Detail
 	orders = append(orders, p.longPositions...)
 	orders = append(orders, p.shortPositions...)
+
 	return PositionStats{
 		Exchange:         p.exchange,
 		Asset:            p.asset,
@@ -597,6 +598,8 @@ func (p *PositionTracker) TrackNewOrder(d *Detail) error {
 		p.closingPrice = decimal.NewFromFloat(d.Price)
 		p.realisedPNL = calculateRealisedPNL(p.pnlHistory)
 		p.unrealisedPNL = decimal.Zero
+		p.pnlHistory[len(p.pnlHistory)-1].RealisedPNL = p.realisedPNL
+		p.pnlHistory[len(p.pnlHistory)-1].UnrealisedPNL = p.unrealisedPNL
 	} else if p.exposure.IsNegative() {
 		if p.currentDirection.IsLong() {
 			p.currentDirection = Short
