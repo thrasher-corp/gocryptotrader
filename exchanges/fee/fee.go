@@ -15,6 +15,9 @@ var (
 	// ErrScheduleIsNil defines if the exchange specific fee schedule has bot
 	// been loaded or set up.
 	ErrScheduleIsNil = errors.New("fee Schedule is nil")
+	// ErrRateNotFound defines if an asset is not supported or has not been
+	// loaded
+	ErrRateNotFound = errors.New("rate not found")
 
 	errCurrencyIsEmpty         = errors.New("currency is empty")
 	errTransferFeeNotFound     = errors.New("transfer fee not found")
@@ -22,7 +25,6 @@ var (
 	errPriceIsZero             = errors.New("price is zero")
 	errAmountIsZero            = errors.New("amount is zero")
 	errFeeTypeMismatch         = errors.New("fee type mismatch")
-	errRateNotFound            = errors.New("rate not found")
 	errCommissionRateNotFound  = errors.New("commission rate not found")
 	errTakerInvalid            = errors.New("taker is invalid")
 	errMakerInvalid            = errors.New("maker is invalid")
@@ -461,11 +463,22 @@ func (d *Schedule) GetTransferFee(c currency.Code, chain string) (*Transfer, err
 		return nil, fmt.Errorf("getting transfer fee for %s %s: %w", c, chain, errCurrencyIsEmpty)
 	}
 
+	// NOTE: Rethink this
+	check := currency.NewCode(chain)
+	if c.Equal(check) {
+		chain = ""
+	}
+
 	d.mtx.RLock()
 	defer d.mtx.RUnlock()
-	t, ok := d.chainTransfer[c.Item][chain]
+	chainOptions, ok := d.chainTransfer[c.Item]
 	if !ok {
-		return nil, fmt.Errorf("getting transfer fee for %s %s: %w", c, chain, errRateNotFound)
+		return nil, fmt.Errorf("getting transfer fee for %s %s: individual currency missing, %w", c, chain, ErrRateNotFound)
+	}
+	t, ok := chainOptions[chain]
+	if !ok {
+		fmt.Printf("%+v\n", chainOptions)
+		return nil, fmt.Errorf("getting transfer fee for %s %s: chain not supported, %w", c, chain, ErrRateNotFound)
 	}
 	return t.convert(), nil
 }
@@ -526,7 +539,7 @@ func (d *Schedule) GetBankTransferFee(c currency.Code, transType bank.Transfer) 
 	defer d.mtx.RUnlock()
 	t, ok := d.bankTransfer[transType][c.Item]
 	if !ok {
-		return nil, fmt.Errorf("getting bank transfer fee for %s %s: %w", c, transType, errRateNotFound)
+		return nil, fmt.Errorf("getting bank transfer fee for %s %s: %w", c, transType, ErrRateNotFound)
 	}
 	return t.convert(), nil
 }

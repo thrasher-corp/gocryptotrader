@@ -798,8 +798,8 @@ func TestGetTransferFee(t *testing.T) {
 	}
 
 	_, err = (&Schedule{}).GetTransferFee(currency.BTC, "")
-	if !errors.Is(err, errRateNotFound) {
-		t.Fatalf("received: %v but expected: %v", err, errRateNotFound)
+	if !errors.Is(err, ErrRateNotFound) {
+		t.Fatalf("received: %v but expected: %v", err, ErrRateNotFound)
 	}
 
 	fees, err := (&Schedule{
@@ -880,8 +880,8 @@ func TestGetBankTransferFee(t *testing.T) {
 	}
 
 	_, err = (&Schedule{}).GetBankTransferFee(currency.USD, bank.WireTransfer)
-	if !errors.Is(err, errRateNotFound) {
-		t.Fatalf("received: %v but expected: %v", err, errRateNotFound)
+	if !errors.Is(err, ErrRateNotFound) {
+		t.Fatalf("received: %v but expected: %v", err, ErrRateNotFound)
 	}
 
 	fees, err := (&Schedule{
