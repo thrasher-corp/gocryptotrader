@@ -430,12 +430,21 @@ func (f *FTX) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType as
 	if err != nil {
 		return book, err
 	}
+
+	// Bear tokens have illiquid books and contain negative place holders.
+	bearToken := strings.Contains(p.String(), "BEAR")
 	for x := range tempResp.Bids {
+		if bearToken && tempResp.Bids[x].Size < 0 {
+			continue
+		}
 		book.Bids = append(book.Bids, orderbook.Item{
 			Amount: tempResp.Bids[x].Size,
 			Price:  tempResp.Bids[x].Price})
 	}
 	for y := range tempResp.Asks {
+		if bearToken && tempResp.Asks[y].Size < 0 {
+			continue
+		}
 		book.Asks = append(book.Asks, orderbook.Item{
 			Amount: tempResp.Asks[y].Size,
 			Price:  tempResp.Asks[y].Price})
