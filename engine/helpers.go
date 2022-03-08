@@ -194,6 +194,7 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 					TimeoutWebsocket:        bot.Settings.SyncTimeoutWebsocket,
 					NumWorkers:              bot.Settings.SyncWorkersCount,
 					FiatDisplayCurrency:     bot.Config.Currency.FiatDisplayCurrency,
+					PairFormatDisplay:       bot.Config.Currency.CurrencyPairFormat,
 					Verbose:                 bot.Settings.Verbose,
 				}
 				bot.currencyPairSyncer, err = setupSyncManager(

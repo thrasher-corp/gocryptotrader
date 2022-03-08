@@ -42,7 +42,7 @@ type DepositAddressManager struct {
 
 // IsSynced returns whether or not the deposit address store has synced its data
 func (m *DepositAddressManager) IsSynced() bool {
-	if m.store == nil {
+	if m == nil || m.store == nil {
 		return false
 	}
 	m.m.RLock()
@@ -60,6 +60,9 @@ func SetupDepositAddressManager() *DepositAddressManager {
 // GetDepositAddressByExchangeAndCurrency returns a deposit address for the specified exchange and cryptocurrency
 // if it exists
 func (m *DepositAddressManager) GetDepositAddressByExchangeAndCurrency(exchName, chain string, cc currency.Code) (deposit.Address, error) {
+	if m == nil {
+		return deposit.Address{}, fmt.Errorf("deposit address manager %w", ErrNilSubsystem)
+	}
 	if exchName == "" {
 		return deposit.Address{}, errExchangeNameIsEmpty
 	}
@@ -112,6 +115,9 @@ func (m *DepositAddressManager) GetDepositAddressByExchangeAndCurrency(exchName,
 // GetDepositAddressByExchangeAndCurrency returns all deposit addresses and
 // chains for a specific cryptocurrency.
 func (m *DepositAddressManager) GetDepositAddressesByExchangeAndCurrency(exchName string, cc currency.Code) ([]deposit.Address, error) {
+	if m == nil {
+		return nil, fmt.Errorf("deposit address manager %w", ErrNilSubsystem)
+	}
 	if exchName == "" {
 		return nil, errExchangeNameIsEmpty
 	}
@@ -148,6 +154,10 @@ func (m *DepositAddressManager) GetDepositAddressesByExchangeAndCurrency(exchNam
 // GetDepositAddressesByExchange returns a list of cryptocurrency addresses for the specified
 // exchange if they exist
 func (m *DepositAddressManager) GetDepositAddressesByExchange(exchName string) (map[currency.Code][]deposit.Address, error) {
+	if m == nil {
+		return nil, fmt.Errorf("deposit address manager %w", ErrNilSubsystem)
+	}
+
 	m.m.RLock()
 	defer m.m.RUnlock()
 
