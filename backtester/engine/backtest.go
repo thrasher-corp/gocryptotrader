@@ -7,6 +7,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/eventholder"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
@@ -128,7 +129,7 @@ func (bt *BackTest) handleEvent(ev common.EventHandler) error {
 	case fill.Event:
 		bt.processFillEvent(eType, funds.FundReleaser())
 	default:
-		return fmt.Errorf("%w %T received, could not process",
+		return fmt.Errorf("handleEvent %w %T received, could not process",
 			errUnhandledDatatype,
 			ev)
 	}
@@ -148,12 +149,12 @@ func (bt *BackTest) processSingleDataEvent(ev common.DataEventHandler, funds fun
 			// too much bad data is a severe error and backtesting must cease
 			return err
 		}
-		log.Error(common.SubLoggers[common.Backtester], err)
+		log.Errorf(common.SubLoggers[common.Backtester], "OnSignal %v", err)
 		return nil
 	}
 	err = bt.Statistic.SetEventForOffset(s)
 	if err != nil {
-		log.Error(common.SubLoggers[common.Backtester], err)
+		log.Errorf(common.SubLoggers[common.Backtester], "SetEventForOffset %v", err)
 	}
 	bt.EventQueue.AppendEvent(s)
 
@@ -276,10 +277,12 @@ func (bt *BackTest) processOrderEvent(ev order.Event, funds funding.IFundRelease
 	f, err := bt.Exchange.ExecuteOrder(ev, d, bt.orderManager, funds)
 	if err != nil {
 		if f == nil {
-			log.Errorf(common.SubLoggers[common.Backtester], "fill event should always be returned, please fix, %v", err)
+			log.Errorf(common.SubLoggers[common.Backtester], "ExecuteOrder fill event should always be returned, please fix, %v", err)
 			return
 		}
-		log.Errorf(common.SubLoggers[common.Backtester], "%v %v %v %v", f.GetExchange(), f.GetAssetType(), f.Pair(), err)
+		if !errors.Is(err, exchange.ErrDoNothing) {
+			log.Errorf(common.SubLoggers[common.Backtester], "ExecuteOrder %v %v %v %v", f.GetExchange(), f.GetAssetType(), f.Pair(), err)
+		}
 	}
 	err = bt.Statistic.SetEventForOffset(f)
 	if err != nil {
@@ -306,7 +309,7 @@ func (bt *BackTest) processFillEvent(ev fill.Event, funds funding.IFundReleaser)
 		log.Error(common.SubLoggers[common.Backtester], err)
 	}
 	if holding == nil {
-		log.Error(common.SubLoggers[common.Backtester], "why is holdings nill?")
+		log.Error(common.SubLoggers[common.Backtester], "ViewHoldingAtTimePeriod why is holdings nill?")
 	} else {
 		err = bt.Statistic.AddHoldingsForTime(holding)
 		if err != nil {

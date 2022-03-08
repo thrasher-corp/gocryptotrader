@@ -2,6 +2,7 @@ package exchange
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -26,6 +27,8 @@ func (e *Exchange) Reset() {
 	*e = Exchange{}
 }
 
+var ErrDoNothing = errors.New("received Do Nothing direction")
+
 // ExecuteOrder assesses the portfolio manager's order event and if it passes validation
 // will send an order to the exchange/fake order manager to be stored and raise a fill event
 func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *engine.OrderManager, funds funding.IFundReleaser) (fill.Event, error) {
@@ -43,6 +46,9 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 		Amount:             o.GetAmount(),
 		ClosePrice:         data.Latest().GetClosePrice(),
 		FillDependentEvent: o.GetFillDependentEvent(),
+	}
+	if o.GetDirection() == common.DoNothing {
+		return f, ErrDoNothing
 	}
 	if o.GetAssetType().IsFutures() && !o.IsClosingPosition() {
 		f.Amount = o.GetAllocatedFunds()

@@ -185,11 +185,11 @@ type ReportItem struct {
 	USDFinalFunds        decimal.Decimal
 	USDFinalCostForOne   decimal.Decimal
 	Snapshots            []ItemSnapshot
-
-	USDPairCandle *kline.DataFromKline
-	Difference    decimal.Decimal
-	ShowInfinite  bool
-	PairedWith    currency.Code
+	USDPairCandle        *kline.DataFromKline
+	Difference           decimal.Decimal
+	ShowInfinite         bool
+	PairedWith           currency.Code
+	IsCollateral         bool
 }
 
 // ItemSnapshot holds USD values to allow for tracking

@@ -156,7 +156,7 @@ func (f *FundManager) AddUSDTrackingData(k *kline.DataFromKline) error {
 		if baseSet && quoteSet {
 			return nil
 		}
-		if f.items[i].asset.IsFutures() {
+		if f.items[i].asset.IsFutures() && k.Item.Asset.IsFutures() {
 			if f.items[i].isCollateral {
 				usdCandles := gctkline.Item{
 					Exchange: k.Item.Exchange,
@@ -288,6 +288,7 @@ func (f *FundManager) GenerateReport() *Report {
 			InitialFunds: f.items[i].initialFunds,
 			TransferFee:  f.items[i].transferFee,
 			FinalFunds:   f.items[i].available,
+			IsCollateral: f.items[i].isCollateral,
 		}
 		if !f.disableUSDTracking &&
 			f.items[i].trackingCandles != nil {
@@ -517,6 +518,10 @@ func (f *FundManager) UpdateCollateral(ev common.EventHandler) error {
 	}
 
 	for i := range f.items {
+		if !f.items[i].isCollateral && f.items[i].asset.IsFutures() {
+			// contracts don't contribute to collateral
+			continue
+		}
 		exch, ok := exchMap[f.items[i].exchange]
 		if !ok {
 			exch, err = f.exchangeManager.GetExchangeByName(f.items[i].exchange)

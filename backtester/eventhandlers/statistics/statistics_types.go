@@ -217,6 +217,19 @@ type FundingItemStatistics struct {
 	TotalOrders              int64
 	MaxDrawdown              Swing
 	HighestCommittedFunds    ValueAtTime
+	// Collateral stats
+	IsCollateral      bool
+	InitialCollateral ValueAtTime
+	EndingCollateral  ValueAtTime
+	HighestCollateral ValueAtTime
+	LowestCollateral  ValueAtTime
+	// PNL
+	LowestUPNL  ValueAtTime
+	HighestUPNL ValueAtTime
+	LowestRPNL  ValueAtTime
+	HighestRPNL ValueAtTime
+	FinalUPNL   ValueAtTime
+	FinalRPNL   ValueAtTime
 }
 
 // TotalFundingStatistics holds values for overal statistics for funding items
