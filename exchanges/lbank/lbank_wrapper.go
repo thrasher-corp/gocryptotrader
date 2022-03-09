@@ -352,8 +352,10 @@ func (l *Lbank) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 		}
 		acc.Currencies = append(acc.Currencies, account.Balance{
 			CurrencyName: c,
-			TotalValue:   totalVal,
-			Hold:         totalHold})
+			Total:        totalVal,
+			Hold:         totalHold,
+			Free:         totalVal - totalHold,
+		})
 	}
 
 	info.Accounts = append(info.Accounts, acc)

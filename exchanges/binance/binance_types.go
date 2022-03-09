@@ -4,6 +4,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bank"
@@ -428,9 +429,9 @@ type QueryOrderData struct {
 
 // Balance holds query order data
 type Balance struct {
-	Asset  string `json:"asset"`
-	Free   string `json:"free"`
-	Locked string `json:"locked"`
+	Asset  string          `json:"asset"`
+	Free   decimal.Decimal `json:"free"`
+	Locked decimal.Decimal `json:"locked"`
 }
 
 // Account holds the account data

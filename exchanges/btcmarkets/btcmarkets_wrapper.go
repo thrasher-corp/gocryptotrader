@@ -437,8 +437,10 @@ func (b *BTCMarkets) UpdateAccountInfo(ctx context.Context, assetType asset.Item
 		total := data[key].Balance
 		acc.Currencies = append(acc.Currencies,
 			account.Balance{CurrencyName: c,
-				TotalValue: total,
-				Hold:       hold})
+				Total: total,
+				Hold:  hold,
+				Free:  total - hold,
+			})
 	}
 	resp.Accounts = append(resp.Accounts, acc)
 	resp.Exchange = b.Name

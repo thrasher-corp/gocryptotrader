@@ -64,7 +64,7 @@ func (m *DepositAddressManager) GetDepositAddressByExchangeAndCurrency(exchName,
 		return deposit.Address{}, fmt.Errorf("deposit address manager %w", ErrNilSubsystem)
 	}
 	if exchName == "" {
-		return deposit.Address{}, errExchangeNameIsEmpty
+		return deposit.Address{}, ErrExchangeNameIsEmpty
 	}
 
 	if cc.IsEmpty() {
@@ -119,7 +119,7 @@ func (m *DepositAddressManager) GetDepositAddressesByExchangeAndCurrency(exchNam
 		return nil, fmt.Errorf("deposit address manager %w", ErrNilSubsystem)
 	}
 	if exchName == "" {
-		return nil, errExchangeNameIsEmpty
+		return nil, ErrExchangeNameIsEmpty
 	}
 
 	if cc.IsEmpty() {

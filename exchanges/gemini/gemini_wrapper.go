@@ -336,11 +336,12 @@ func (g *Gemini) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 
 	var currencies []account.Balance
 	for i := range accountBalance {
-		var exchangeCurrency account.Balance
-		exchangeCurrency.CurrencyName = currency.NewCode(accountBalance[i].Currency)
-		exchangeCurrency.TotalValue = accountBalance[i].Amount
-		exchangeCurrency.Hold = accountBalance[i].Amount - accountBalance[i].Available
-		currencies = append(currencies, exchangeCurrency)
+		currencies = append(currencies, account.Balance{
+			CurrencyName: currency.NewCode(accountBalance[i].Currency),
+			Total:        accountBalance[i].Amount,
+			Hold:         accountBalance[i].Amount - accountBalance[i].Available,
+			Free:         accountBalance[i].Available,
+		})
 	}
 
 	response.Accounts = append(response.Accounts, account.SubAccount{

@@ -164,6 +164,8 @@ func main() {
 		dataHistoryCommands,
 		exchangeFeeManagementCommand,
 		currencyStateManagementCommand,
+		getFuturesPositionsCommand,
+		getCollateralCommand,
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())

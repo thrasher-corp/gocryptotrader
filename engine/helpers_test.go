@@ -873,7 +873,7 @@ func TestGetCollatedExchangeAccountInfoByCoin(t *testing.T) {
 			Currencies: []account.Balance{
 				{
 					CurrencyName: currency.BTC,
-					TotalValue:   100,
+					Total:        100,
 					Hold:         0,
 				},
 			},
@@ -888,12 +888,12 @@ func TestGetCollatedExchangeAccountInfoByCoin(t *testing.T) {
 			Currencies: []account.Balance{
 				{
 					CurrencyName: currency.LTC,
-					TotalValue:   100,
+					Total:        100,
 					Hold:         0,
 				},
 				{
 					CurrencyName: currency.BTC,
-					TotalValue:   100,
+					Total:        100,
 					Hold:         0,
 				},
 			},
@@ -911,7 +911,7 @@ func TestGetCollatedExchangeAccountInfoByCoin(t *testing.T) {
 		t.Fatal("Expected currency was not found in result map")
 	}
 
-	if amount.TotalValue != 200 {
+	if amount.Total != 200 {
 		t.Fatal("Unexpected result")
 	}
 

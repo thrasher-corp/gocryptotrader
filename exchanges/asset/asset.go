@@ -118,3 +118,13 @@ func New(input string) (Item, error) {
 func UseDefault() Item {
 	return Spot
 }
+
+// IsFutures checks if the asset type is a futures contract based asset
+func (a Item) IsFutures() bool {
+	switch a {
+	case PerpetualContract, PerpetualSwap, Futures, UpsideProfitContract,
+		DownsideProfitContract, CoinMarginedFutures, USDTMarginedFutures:
+		return true
+	}
+	return false
+}

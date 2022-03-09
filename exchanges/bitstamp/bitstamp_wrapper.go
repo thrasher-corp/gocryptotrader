@@ -449,8 +449,9 @@ func (b *Bitstamp) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 	for k, v := range accountBalance {
 		currencies = append(currencies, account.Balance{
 			CurrencyName: k,
-			TotalValue:   v.Available,
+			Total:        v.Balance,
 			Hold:         v.Reserved,
+			Free:         v.Available,
 		})
 	}
 	response.Accounts = append(response.Accounts, account.SubAccount{

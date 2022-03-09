@@ -82,6 +82,11 @@ type IBotExchange interface {
 	GetHistoricCandlesExtended(ctx context.Context, p currency.Pair, a asset.Item, timeStart, timeEnd time.Time, interval kline.Interval) (kline.Item, error)
 	DisableRateLimiter() error
 	EnableRateLimiter() error
+	CurrencyStateManagement
+
+	order.PNLCalculation
+	order.CollateralManagement
+	GetFuturesPositions(context.Context, asset.Item, currency.Pair, time.Time, time.Time) ([]order.Detail, error)
 
 	GetWebsocket() (*stream.Websocket, error)
 	IsWebsocketEnabled() bool

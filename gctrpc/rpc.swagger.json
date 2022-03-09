@@ -1191,6 +1191,66 @@
         ]
       }
     },
+    "/v1/getcollateral": {
+      "get": {
+        "operationId": "GoCryptoTrader_GetCollateral",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetCollateralResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "asset",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "subAccount",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "includeBreakdown",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "calculateOffline",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "includeZeroValues",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
     "/v1/getcommunicationrelayers": {
       "get": {
         "operationId": "GoCryptoTrader_GetCommunicationRelayers",
@@ -1732,6 +1792,97 @@
             }
           }
         },
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/getfuturespositions": {
+      "get": {
+        "operationId": "GoCryptoTrader_GetFuturesPositions",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetFuturesPositionsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "asset",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.delimiter",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.base",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.quote",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "startDate",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "endDate",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "positionLimit",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "verbose",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "overwrite",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          }
+        ],
         "tags": [
           "GoCryptoTrader"
         ]
@@ -3462,6 +3613,18 @@
         "hold": {
           "type": "number",
           "format": "double"
+        },
+        "free": {
+          "type": "number",
+          "format": "double"
+        },
+        "freeWithoutBorrow": {
+          "type": "number",
+          "format": "double"
+        },
+        "borrowed": {
+          "type": "number",
+          "format": "double"
         }
       }
     },
@@ -3693,6 +3856,105 @@
         "percentage": {
           "type": "number",
           "format": "double"
+        }
+      }
+    },
+    "gctrpcCollateralByPosition": {
+      "type": "object",
+      "properties": {
+        "currency": {
+          "type": "string"
+        },
+        "size": {
+          "type": "string"
+        },
+        "openOrderSize": {
+          "type": "string"
+        },
+        "positionSize": {
+          "type": "string"
+        },
+        "markPrice": {
+          "type": "string"
+        },
+        "requiredMargin": {
+          "type": "string"
+        },
+        "totalCollateralUsed": {
+          "type": "string"
+        }
+      }
+    },
+    "gctrpcCollateralForCurrency": {
+      "type": "object",
+      "properties": {
+        "currency": {
+          "type": "string"
+        },
+        "excludedFromCollateral": {
+          "type": "boolean"
+        },
+        "totalFunds": {
+          "type": "string"
+        },
+        "availableForUseAsCollateral": {
+          "type": "string"
+        },
+        "approxFairMarketValue": {
+          "type": "string"
+        },
+        "weighting": {
+          "type": "string"
+        },
+        "collateralContribution": {
+          "type": "string"
+        },
+        "scaledToCurrency": {
+          "type": "string"
+        },
+        "unrealisedPNL": {
+          "type": "string"
+        },
+        "fundsInUse": {
+          "type": "string"
+        },
+        "additionalCollateralUsed": {
+          "type": "string"
+        },
+        "usedBreakdown": {
+          "$ref": "#/definitions/gctrpcCollateralUsedBreakdown"
+        },
+        "error": {
+          "type": "string"
+        }
+      }
+    },
+    "gctrpcCollateralUsedBreakdown": {
+      "type": "object",
+      "properties": {
+        "lockedInStakes": {
+          "type": "string"
+        },
+        "lockedInNFTBids": {
+          "type": "string"
+        },
+        "lockedInFeeVoucher": {
+          "type": "string"
+        },
+        "lockedInSpotMarginFundingOffers": {
+          "type": "string"
+        },
+        "lockedInSpotOrders": {
+          "type": "string"
+        },
+        "lockedAsCollateral": {
+          "type": "string"
+        },
+        "usedInFutures": {
+          "type": "string"
+        },
+        "usedInSpotMargin": {
+          "type": "string"
         }
       }
     },
@@ -4054,6 +4316,35 @@
         }
       }
     },
+    "gctrpcFuturePosition": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string"
+        },
+        "currentDirection": {
+          "type": "string"
+        },
+        "unrealisedPNL": {
+          "type": "string"
+        },
+        "realisedPNL": {
+          "type": "string"
+        },
+        "openingDate": {
+          "type": "string"
+        },
+        "closingDate": {
+          "type": "string"
+        },
+        "orders": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/gctrpcOrderDetails"
+          }
+        }
+      }
+    },
     "gctrpcGCTScript": {
       "type": "object",
       "properties": {
@@ -4238,6 +4529,50 @@
           "type": "array",
           "items": {
             "type": "string"
+          }
+        }
+      }
+    },
+    "gctrpcGetCollateralResponse": {
+      "type": "object",
+      "properties": {
+        "subAccount": {
+          "type": "string"
+        },
+        "collateralCurrency": {
+          "type": "string"
+        },
+        "totalValueOfPositiveSpotBalances": {
+          "type": "string"
+        },
+        "collateralContributedByPositiveSpotBalances": {
+          "type": "string"
+        },
+        "usedCollateral": {
+          "type": "string"
+        },
+        "usedBreakdown": {
+          "$ref": "#/definitions/gctrpcCollateralUsedBreakdown"
+        },
+        "availableCollateral": {
+          "type": "string"
+        },
+        "maintenanceCollateral": {
+          "type": "string"
+        },
+        "unrealisedPNL": {
+          "type": "string"
+        },
+        "currencyBreakdown": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/gctrpcCollateralForCurrency"
+          }
+        },
+        "positionBreakdown": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/gctrpcCollateralByPosition"
           }
         }
       }
@@ -4449,6 +4784,33 @@
           "type": "array",
           "items": {
             "$ref": "#/definitions/gctrpcForexRatesConversion"
+          }
+        }
+      }
+    },
+    "gctrpcGetFuturesPositionsResponse": {
+      "type": "object",
+      "properties": {
+        "totalOrders": {
+          "type": "string",
+          "format": "int64"
+        },
+        "subAccount": {
+          "type": "string"
+        },
+        "totalRealisedPNL": {
+          "type": "string"
+        },
+        "totalUnrealisedPNL": {
+          "type": "string"
+        },
+        "totalPNL": {
+          "type": "string"
+        },
+        "positions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/gctrpcFuturePosition"
           }
         }
       }

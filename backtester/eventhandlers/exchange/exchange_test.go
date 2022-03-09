@@ -173,8 +173,8 @@ func TestPlaceOrder(t *testing.T) {
 	}
 	f := &fill.Fill{}
 	_, err = e.placeOrder(context.Background(), decimal.NewFromInt(1), decimal.NewFromInt(1), false, true, f, bot.OrderManager)
-	if err != nil && err.Error() != "order exchange name must be specified" {
-		t.Error(err)
+	if !errors.Is(err, engine.ErrExchangeNameIsEmpty) {
+		t.Errorf("received: %v, expected: %v", err, engine.ErrExchangeNameIsEmpty)
 	}
 
 	f.Exchange = testExchange

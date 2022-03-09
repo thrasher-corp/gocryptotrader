@@ -54,6 +54,7 @@ func parseRaw(t *testing.T, input string) interface{} {
 			},
 			Fees: f.Fees,
 		},
+		CollateralWeightHolder{},
 	}
 
 	if err := x.wsHandleData([]byte(input)); err != nil {

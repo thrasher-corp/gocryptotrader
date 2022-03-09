@@ -104,8 +104,8 @@ func TestGetDepositAddressByExchangeAndCurrency(t *testing.T) {
 	t.Parallel()
 	m := SetupDepositAddressManager()
 	_, err := m.GetDepositAddressByExchangeAndCurrency("", "", currency.BTC)
-	if !errors.Is(err, errExchangeNameIsEmpty) {
-		t.Errorf("received %v, expected %v", err, errExchangeNameIsEmpty)
+	if !errors.Is(err, ErrExchangeNameIsEmpty) {
+		t.Errorf("received %v, expected %v", err, ErrExchangeNameIsEmpty)
 	}
 
 	_, err = m.GetDepositAddressByExchangeAndCurrency("asdf", "", currency.Code{})
@@ -184,8 +184,8 @@ func TestGetDepositAddressesByExchangeAndCurrency(t *testing.T) {
 	t.Parallel()
 	m := SetupDepositAddressManager()
 	_, err := m.GetDepositAddressesByExchangeAndCurrency("", currency.BTC)
-	if !errors.Is(err, errExchangeNameIsEmpty) {
-		t.Errorf("received %v, expected %v", err, errExchangeNameIsEmpty)
+	if !errors.Is(err, ErrExchangeNameIsEmpty) {
+		t.Errorf("received %v, expected %v", err, ErrExchangeNameIsEmpty)
 	}
 
 	_, err = m.GetDepositAddressesByExchangeAndCurrency("asdf", currency.Code{})

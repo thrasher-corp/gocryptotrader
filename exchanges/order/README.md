@@ -1,16 +1,16 @@
-# GoCryptoTrader package Orders
+# GoCryptoTrader package Order
 
-<img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/page-logo.png?raw=true" width="350px" height="350px" hspace="70">
+<img src="/common/gctlogo.png?raw=true" width="350px" height="350px" hspace="70">
 
 
 [![Build Status](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
-[![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader/exchanges/orders)
+[![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader/exchanges/order)
 [![Coverage Status](http://codecov.io/github/thrasher-corp/gocryptotrader/coverage.svg?branch=master)](http://codecov.io/github/thrasher-corp/gocryptotrader?branch=master)
 [![Go Report Card](https://goreportcard.com/badge/github.com/thrasher-corp/gocryptotrader)](https://goreportcard.com/report/github.com/thrasher-corp/gocryptotrader)
 
 
-This orders package is part of the GoCryptoTrader codebase.
+This order package is part of the GoCryptoTrader codebase.
 
 ## This is still in active development
 
@@ -18,12 +18,14 @@ You can track ideas, planned features and what's in progress on this Trello boar
 
 Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://join.slack.com/t/gocryptotrader/shared_invite/enQtNTQ5NDAxMjA2Mjc5LTc5ZDE1ZTNiOGM3ZGMyMmY1NTAxYWZhODE0MWM5N2JlZDk1NDU0YTViYzk4NTk3OTRiMDQzNGQ1YTc4YmRlMTk)
 
-## Current Features for orders
+## Current Features for order
 
 + This package services the exchanges package with order handling.
-  - Creation of order
-  - Deletion of order
-  - Order tracking
+	- Creation of order
+	- Deletion of order
+	- Order tracking
+
++ For futures orders, this package also contains a futures position controller. It is responsible for tracking all futures orders that GoCryptoTrader processes. It keeps a running history of realised and unreaslied PNL to allow a trader to track their profits. Positions are closed once the exposure reaches zero, then upon a new futures order being processed, a new position is created. To view futures positions, see the GRPC command `getfuturesposition`
 
 ### Please click GoDocs chevron above to view current GoDoc information for this package
 
@@ -45,4 +47,3 @@ When submitting a PR, please abide by our coding guidelines:
 If this framework helped you in any way, or you would like to support the developers working on it, please donate Bitcoin to:
 
 ***bc1qk0jareu4jytc0cfrhr5wgshsq8282awpavfahc***
-

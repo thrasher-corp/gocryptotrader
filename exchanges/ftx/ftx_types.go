@@ -3,6 +3,8 @@ package ftx
 import (
 	"time"
 
+	"github.com/shopspring/decimal"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -120,38 +122,38 @@ type OHLCVData struct {
 
 // FuturesData stores data for futures
 type FuturesData struct {
-	Ask                   float64     `json:"ask"`
-	Bid                   float64     `json:"bid"`
-	Change1h              float64     `json:"change1h"`
-	Change24h             float64     `json:"change24h"`
-	ChangeBod             float64     `json:"changeBod"`
-	VolumeUSD24h          float64     `json:"volumeUsd24h"`
-	Volume                float64     `json:"volume"`
-	Description           string      `json:"description"`
-	Enabled               bool        `json:"enabled"`
-	Expired               bool        `json:"expired"`
-	Expiry                time.Time   `json:"expiry"`
-	ExpiryDescription     string      `json:"expiryDescription"`
-	Group                 string      `json:"group"`
-	Index                 float64     `json:"index"`
-	IMFFactor             float64     `json:"imfFactor"`
-	Last                  float64     `json:"last"`
-	LowerBound            float64     `json:"lowerBound"`
-	MarginPrice           float64     `json:"marginPrice"`
-	Mark                  float64     `json:"mark"`
-	MoveStart             interface{} `json:"moveStart"`
-	Name                  string      `json:"name"`
-	OpenInterest          float64     `json:"openInterest"`
-	OpenInterestUSD       float64     `json:"openInterestUsd"`
-	Perpetual             bool        `json:"perpetual"`
-	PositionLimitWeight   float64     `json:"positionLimitWeight"`
-	PostOnly              bool        `json:"postOnly"`
-	PriceIncrement        float64     `json:"priceIncrement"`
-	SizeIncrement         float64     `json:"sizeIncrement"`
-	Underlying            string      `json:"underlying"`
-	UnderlyingDescription string      `json:"underlyingDescription"`
-	UpperBound            float64     `json:"upperBound"`
-	FutureType            string      `json:"type"`
+	Ask                         float64   `json:"ask"`
+	Bid                         float64   `json:"bid"`
+	Change1h                    float64   `json:"change1h"`
+	Change24h                   float64   `json:"change24h"`
+	ChangeBod                   float64   `json:"changeBod"`
+	VolumeUSD24h                float64   `json:"volumeUsd24h"`
+	Volume                      float64   `json:"volume"`
+	Description                 string    `json:"description"`
+	Enabled                     bool      `json:"enabled"`
+	Expired                     bool      `json:"expired"`
+	Expiry                      time.Time `json:"expiry"`
+	ExpiryDescription           string    `json:"expiryDescription"`
+	Group                       string    `json:"group"`
+	Index                       float64   `json:"index"`
+	InitialMarginFractionFactor float64   `json:"imfFactor"`
+	Last                        float64   `json:"last"`
+	LowerBound                  float64   `json:"lowerBound"`
+	MarginPrice                 float64   `json:"marginPrice"`
+	Mark                        float64   `json:"mark"`
+	MoveStart                   time.Time `json:"moveStart"`
+	Name                        string    `json:"name"`
+	OpenInterest                float64   `json:"openInterest"`
+	OpenInterestUSD             float64   `json:"openInterestUsd"`
+	Perpetual                   bool      `json:"perpetual"`
+	PositionLimitWeight         float64   `json:"positionLimitWeight"`
+	PostOnly                    bool      `json:"postOnly"`
+	PriceIncrement              float64   `json:"priceIncrement"`
+	SizeIncrement               float64   `json:"sizeIncrement"`
+	Underlying                  string    `json:"underlying"`
+	UnderlyingDescription       string    `json:"underlyingDescription"`
+	UpperBound                  float64   `json:"upperBound"`
+	FutureType                  string    `json:"type"`
 }
 
 // FutureStatsData stores data on futures stats
@@ -184,21 +186,26 @@ type IndexWeights struct {
 
 // PositionData stores data of an open position
 type PositionData struct {
-	Cost                         float64 `json:"cost"`
-	EntryPrice                   float64 `json:"entryPrice"`
-	Future                       string  `json:"future"`
-	InitialMarginRequirement     float64 `json:"initialMarginRequirement"`
-	LongOrderSize                float64 `json:"longOrderSize"`
-	MaintenanceMarginRequirement float64 `json:"maintenanceMarginRequirement"`
-	NetSize                      float64 `json:"netSize"`
-	OpenSize                     float64 `json:"openSize"`
-	RealizedPnL                  float64 `json:"realizedPnL"`
-	ShortOrderSize               float64 `json:"shortOrderSize"`
-	Side                         string  `json:"side"`
-	Size                         float64 `json:"size"`
-	UnrealizedPnL                float64 `json:"unrealizedPnL"`
-	CollateralUsed               float64 `json:"collateralUsed"`
-	EstimatedLiquidationPrice    float64 `json:"estimatedLiquidationPrice"`
+	CollateralUsed               float64       `json:"collateralUsed"`
+	Cost                         float64       `json:"cost"`
+	CumulativeBuySize            float64       `json:"cumulativeBuySize"`
+	CumulativeSellSize           float64       `json:"cumulativeSellSize"`
+	EntryPrice                   float64       `json:"entryPrice"`
+	EstimatedLiquidationPrice    float64       `json:"estimatedLiquidationPrice"`
+	Future                       currency.Pair `json:"future"`
+	InitialMarginRequirement     float64       `json:"initialMarginRequirement"`
+	LongOrderSize                float64       `json:"longOrderSize"`
+	MaintenanceMarginRequirement float64       `json:"maintenanceMarginRequirement"`
+	NetSize                      float64       `json:"netSize"`
+	OpenSize                     float64       `json:"openSize"`
+	RealizedPNL                  float64       `json:"realizedPnl"`
+	RecentAverageOpenPrice       float64       `json:"recentAverageOpenPrice"`
+	RecentBreakEvenPrice         float64       `json:"recentBreakEvenPrice"`
+	RecentPnl                    float64       `json:"recentPnl"`
+	ShortOrderSize               float64       `json:"shortOrderSize"`
+	Side                         string        `json:"side"`
+	Size                         float64       `json:"size"`
+	UnrealizedPNL                float64       `json:"unrealizedPnl"`
 }
 
 // AccountInfoData stores account data
@@ -253,12 +260,25 @@ type WalletCoinsData struct {
 
 // WalletBalance stores balances data
 type WalletBalance struct {
-	Coin                   string  `json:"coin"`
-	Free                   float64 `json:"free"`
-	Total                  float64 `json:"total"`
-	AvailableWithoutBorrow float64 `json:"availableWithoutBorrow"`
-	USDValue               float64 `json:"usdValue"`
-	SpotBorrow             float64 `json:"spotBorrow"`
+	Coin                   currency.Code          `json:"coin"`
+	Free                   float64                `json:"free"`
+	Total                  float64                `json:"total"`
+	AvailableWithoutBorrow float64                `json:"availableWithoutBorrow"`
+	USDValue               float64                `json:"usdValue"`
+	FreeIgnoringCollateral float64                `json:"freeIgnoringCollateral"`
+	SpotBorrow             float64                `json:"spotBorrow"`
+	LockedBreakdown        BalanceLockedBreakdown `json:"lockedBreakdown"`
+}
+
+// BalanceLockedBreakdown provides a breakdown of where funding is
+// locked up in, helpful in tracking how much one bids on NFTs
+type BalanceLockedBreakdown struct {
+	LockedInStakes                  float64 `json:"lockedInStakes"`
+	LockedInNFTBids                 float64 `json:"lockedInNftBids"`
+	LockedInFeeVoucher              float64 `json:"lockedInFeeVoucher"`
+	LockedInSpotMarginFundingOffers float64 `json:"lockedInSpotMarginFundingOffers"`
+	LockedInSpotOrders              float64 `json:"lockedInSpotOrders"`
+	LockedAsCollateral              float64 `json:"lockedAsCollateral"`
 }
 
 // AllWalletBalances stores all the user's account balances
@@ -762,35 +782,35 @@ type WsMarketsData struct {
 
 // WsMarketsDataStorage stores websocket markets data
 type WsMarketsDataStorage struct {
-	Name           string              `json:"name,omitempty"`
-	Enabled        bool                `json:"enabled,omitempty"`
-	PriceIncrement float64             `json:"priceIncrement,omitempty"`
-	SizeIncrement  float64             `json:"sizeIncrement,omitempty"`
-	MarketType     string              `json:"marketType,omitempty"`
-	BaseCurrency   string              `json:"baseCurrency,omitempty"`
-	QuoteCurrency  string              `json:"quoteCurrency,omitempty"`
-	Underlying     string              `json:"underlying,omitempty"`
-	Restricted     bool                `json:"restricted,omitempty"`
-	Future         WsMarketsFutureData `json:"future,omitempty"`
+	Name           string              `json:"name"`
+	Enabled        bool                `json:"enabled"`
+	PriceIncrement float64             `json:"priceIncrement"`
+	SizeIncrement  float64             `json:"sizeIncrement"`
+	MarketType     string              `json:"marketType"`
+	BaseCurrency   string              `json:"baseCurrency"`
+	QuoteCurrency  string              `json:"quoteCurrency"`
+	Underlying     string              `json:"underlying"`
+	Restricted     bool                `json:"restricted"`
+	Future         WsMarketsFutureData `json:"future"`
 }
 
 // WsMarketsFutureData stores websocket markets' future data
 type WsMarketsFutureData struct {
-	Name                  string    `json:"name,omitempty"`
-	Underlying            string    `json:"underlying,omitempty"`
-	Description           string    `json:"description,omitempty"`
-	MarketType            string    `json:"type,omitempty"`
-	Expiry                time.Time `json:"expiry,omitempty"`
-	Perpetual             bool      `json:"perpetual,omitempty"`
-	Expired               bool      `json:"expired,omitempty"`
-	Enabled               bool      `json:"enabled,omitempty"`
-	PostOnly              bool      `json:"postOnly,omitempty"`
-	IMFFactor             float64   `json:"imfFactor,omitempty"`
-	UnderlyingDescription string    `json:"underlyingDescription,omitempty"`
-	ExpiryDescription     string    `json:"expiryDescription,omitempty"`
-	MoveStart             string    `json:"moveStart,omitempty"`
-	PositionLimitWeight   float64   `json:"positionLimitWeight,omitempty"`
-	Group                 string    `json:"group,omitempty"`
+	Name                        string    `json:"name"`
+	Underlying                  string    `json:"underlying"`
+	Description                 string    `json:"description"`
+	MarketType                  string    `json:"type"`
+	Expiry                      time.Time `json:"expiry"`
+	Perpetual                   bool      `json:"perpetual"`
+	Expired                     bool      `json:"expired"`
+	Enabled                     bool      `json:"enabled"`
+	PostOnly                    bool      `json:"postOnly"`
+	InitialMarginFractionFactor float64   `json:"imfFactor"`
+	UnderlyingDescription       string    `json:"underlyingDescription"`
+	ExpiryDescription           string    `json:"expiryDescription"`
+	MoveStart                   string    `json:"moveStart"`
+	PositionLimitWeight         float64   `json:"positionLimitWeight"`
+	Group                       string    `json:"group"`
 }
 
 // WSMarkets stores websocket markets data
@@ -887,4 +907,51 @@ type StakeReward struct {
 	Notes  string    `json:"notes"`
 	Status string    `json:"status"`
 	Time   time.Time `json:"time"`
+}
+
+// CollateralWeightHolder stores collateral weights over the lifecycle of the application
+type CollateralWeightHolder map[*currency.Item]CollateralWeight
+
+// CollateralWeight holds collateral information provided by FTX
+// it is used to scale collateral when the currency is not in USD
+type CollateralWeight struct {
+	Initial                     float64
+	Total                       float64
+	InitialMarginFractionFactor float64
+}
+
+// CollateralResponse returned from the collateral endpoint
+type CollateralResponse struct {
+	PositiveBalances                   []CollateralBalance  `json:"positiveBalances"`
+	NegativeBalances                   []CollateralBalance  `json:"negativeBalances"`
+	Positions                          []CollateralPosition `json:"positions"`
+	PositiveSpotBalanceTotal           decimal.Decimal      `json:"positiveSpotBalanceTotal"`
+	CollateralFromPositiveSpotBalances decimal.Decimal      `json:"collateralFromPositiveSpotBalances"`
+	UsedBySpotMargin                   decimal.Decimal      `json:"usedBySpotMargin"`
+	UsedByFutures                      decimal.Decimal      `json:"usedByFutures"`
+	CollateralAvailable                decimal.Decimal      `json:"collateralAvailable"`
+}
+
+// CollateralBalance holds collateral information for a coin's balance
+type CollateralBalance struct {
+	Coin                        currency.Code   `json:"coin"`
+	PositionSize                decimal.Decimal `json:"positionSize"`
+	OpenOrderSize               decimal.Decimal `json:"openOrderSize"`
+	Total                       decimal.Decimal `json:"total"`
+	AvailableIgnoringCollateral decimal.Decimal `json:"availableIgnoringCollateral"`
+	ApproximateFairMarketValue  decimal.Decimal `json:"approxFair"`
+	CollateralContribution      decimal.Decimal `json:"collateralContribution"`
+	CollateralUsed              decimal.Decimal `json:"collateralUsed"`
+	CollateralWeight            decimal.Decimal `json:"collateralWeight"`
+}
+
+// CollateralPosition holds collateral information for a market position
+type CollateralPosition struct {
+	Future         currency.Pair   `json:"future"`
+	Size           decimal.Decimal `json:"size"`
+	OpenOrderSize  decimal.Decimal `json:"openOrderSize"`
+	PositionSize   decimal.Decimal `json:"positionSize"`
+	MarkPrice      decimal.Decimal `json:"markPrice"`
+	RequiredMargin decimal.Decimal `json:"requiredMargin"`
+	CollateralUsed decimal.Decimal `json:"totalCollateralUsed"`
 }

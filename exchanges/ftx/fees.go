@@ -39,7 +39,7 @@ func (f *FTX) UpdateCommissionFees(ctx context.Context, a asset.Item) error {
 	if a != asset.Spot && a != asset.Futures {
 		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
 	}
-	ai, err := f.GetAccountInfo(ctx)
+	ai, err := f.GetAccountInfo(ctx, "")
 	if err != nil {
 		return err
 	}

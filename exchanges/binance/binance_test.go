@@ -1181,7 +1181,7 @@ func TestGetExchangeInfo(t *testing.T) {
 		t.Error(err)
 	}
 	if mockTests {
-		serverTime := time.Date(2021, 1, 27, 2, 43, 18, int(593*time.Millisecond), time.UTC)
+		serverTime := time.Date(2022, 2, 25, 3, 50, 40, int(601*time.Millisecond), time.UTC)
 		if !info.Servertime.Equal(serverTime) {
 			t.Errorf("Expected %v, got %v", serverTime, info.Servertime)
 		}
@@ -2758,5 +2758,16 @@ func TestUpdateTransferFees(t *testing.T) {
 	_, err = b.Fees.GetTransferFee(currency.BTC, "")
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestFetchSpotExchangeLimits(t *testing.T) {
+	t.Parallel()
+	limits, err := b.FetchSpotExchangeLimits(context.Background())
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', epected '%v'", err, nil)
+	}
+	if len(limits) == 0 {
+		t.Error("expected a response")
 	}
 }
