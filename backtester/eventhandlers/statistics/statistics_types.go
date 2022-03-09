@@ -136,6 +136,8 @@ type CurrencyPairStatistic struct {
 	DoesPerformanceBeatTheMarket bool `json:"does-performance-beat-the-market"`
 
 	BuyOrders   int64 `json:"buy-orders"`
+	LongOrders  int64 `json:"long-orders"`
+	ShortOrders int64 `json:"short-orders"`
 	SellOrders  int64 `json:"sell-orders"`
 	TotalOrders int64 `json:"total-orders"`
 
@@ -185,6 +187,7 @@ type Swing struct {
 type ValueAtTime struct {
 	Time  time.Time       `json:"time"`
 	Value decimal.Decimal `json:"value"`
+	Set   bool            `json:"-"`
 }
 
 type relatedCurrencyPairStatistics struct {
@@ -220,19 +223,17 @@ type FundingItemStatistics struct {
 	// Collateral stats
 	IsCollateral      bool
 	InitialCollateral ValueAtTime
-	EndingCollateral  ValueAtTime
+	FinalCollateral   ValueAtTime
 	HighestCollateral ValueAtTime
 	LowestCollateral  ValueAtTime
-	// PNL
-	LowestUPNL  ValueAtTime
-	HighestUPNL ValueAtTime
-	LowestRPNL  ValueAtTime
-	HighestRPNL ValueAtTime
-	FinalUPNL   ValueAtTime
-	FinalRPNL   ValueAtTime
+	// Contracts
+	LowestHoldings  ValueAtTime
+	HighestHoldings ValueAtTime
+	InitialHoldings ValueAtTime
+	FinalHoldings   ValueAtTime
 }
 
-// TotalFundingStatistics holds values for overal statistics for funding items
+// TotalFundingStatistics holds values for overall statistics for funding items
 type TotalFundingStatistics struct {
 	HoldingValues            []ValueAtTime
 	InitialHoldingValue      ValueAtTime
@@ -245,6 +246,8 @@ type TotalFundingStatistics struct {
 	CompoundAnnualGrowthRate decimal.Decimal
 	BuyOrders                int64
 	SellOrders               int64
+	LongOrders               int64
+	ShortOrders              int64
 	TotalOrders              int64
 	MaxDrawdown              Swing
 	GeometricRatios          *Ratios

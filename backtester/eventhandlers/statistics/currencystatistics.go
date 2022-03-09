@@ -2,19 +2,12 @@ package statistics
 
 import (
 	"fmt"
-	"sort"
-	"time"
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	gctmath "github.com/thrasher-corp/gocryptotrader/common/math"
-	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // CalculateResults calculates all statistics for the exchange, asset, currency pair
@@ -28,10 +21,15 @@ func (c *CurrencyPairStatistic) CalculateResults(riskFreeRate decimal.Decimal) e
 	last := c.Events[len(c.Events)-1]
 	lastPrice := last.DataEvent.GetClosePrice()
 	for i := range last.Transactions.Orders {
-		if last.Transactions.Orders[i].Order.Side == gctorder.Buy {
+		switch last.Transactions.Orders[i].Order.Side {
+		case gctorder.Buy:
 			c.BuyOrders++
-		} else if last.Transactions.Orders[i].Order.Side == gctorder.Sell {
+		case gctorder.Sell:
 			c.SellOrders++
+		case gctorder.Long:
+			c.LongOrders++
+		case gctorder.Short:
+			c.ShortOrders++
 		}
 	}
 	for i := range c.Events {
@@ -118,202 +116,12 @@ func (c *CurrencyPairStatistic) CalculateResults(riskFreeRate decimal.Decimal) e
 	c.TotalAssetValue = last.Holdings.BaseValue.Round(8)
 	if last.PNL != nil {
 		c.UnrealisedPNL = last.PNL.Result.UnrealisedPNL
-		// ????
-		c.RealisedPNL = last.PNL.Result.RealisedPNLBeforeFees
+		c.RealisedPNL = last.PNL.Result.RealisedPNL
 	}
 	if len(errs) > 0 {
 		return errs
 	}
 	return nil
-}
-
-// PrintResults outputs all calculated statistics to the command line
-func (c *CurrencyPairStatistic) PrintResults(e string, a asset.Item, p currency.Pair, usingExchangeLevelFunding bool) {
-	var errs gctcommon.Errors
-	sort.Slice(c.Events, func(i, j int) bool {
-		return c.Events[i].DataEvent.GetTime().Before(c.Events[j].DataEvent.GetTime())
-	})
-	last := c.Events[len(c.Events)-1]
-	first := c.Events[0]
-	c.StartingClosePrice = first.DataEvent.GetClosePrice()
-	c.EndingClosePrice = last.DataEvent.GetClosePrice()
-	c.TotalOrders = c.BuyOrders + c.SellOrders
-	last.Holdings.TotalValueLost = last.Holdings.TotalValueLostToSlippage.Add(last.Holdings.TotalValueLostToVolumeSizing)
-	sep := fmt.Sprintf("%v %v %v |\t", e, a, p)
-	currStr := fmt.Sprintf("------------------Stats for %v %v %v------------------------------------------", e, a, p)
-	log.Infof(common.SubLoggers[common.CurrencyStatistics], currStr[:61])
-	log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Highest committed funds: %s at %v", sep, convert.DecimalToHumanFriendlyString(c.HighestCommittedFunds.Value, 8, ".", ","), c.HighestCommittedFunds.Time)
-	log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Buy orders: %s", sep, convert.IntToHumanFriendlyString(c.BuyOrders, ","))
-	log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Buy value: %s", sep, convert.DecimalToHumanFriendlyString(last.Holdings.BoughtValue, 8, ".", ","))
-	log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Buy amount: %s %s", sep, convert.DecimalToHumanFriendlyString(last.Holdings.BoughtAmount, 8, ".", ","), last.Holdings.Pair.Base)
-	log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Sell orders: %s", sep, convert.IntToHumanFriendlyString(c.SellOrders, ","))
-	log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Sell value: %s", sep, convert.DecimalToHumanFriendlyString(last.Holdings.SoldValue, 8, ".", ","))
-	log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Sell amount: %s", sep, convert.DecimalToHumanFriendlyString(last.Holdings.SoldAmount, 8, ".", ","))
-	log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Total orders: %s\n\n", sep, convert.IntToHumanFriendlyString(c.TotalOrders, ","))
-
-	log.Info(common.SubLoggers[common.CurrencyStatistics], "------------------Max Drawdown-------------------------------")
-	log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Highest Price of drawdown: %s at %v", sep, convert.DecimalToHumanFriendlyString(c.MaxDrawdown.Highest.Value, 8, ".", ","), c.MaxDrawdown.Highest.Time)
-	log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Lowest Price of drawdown: %s at %v", sep, convert.DecimalToHumanFriendlyString(c.MaxDrawdown.Lowest.Value, 8, ".", ","), c.MaxDrawdown.Lowest.Time)
-	log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Calculated Drawdown: %s%%", sep, convert.DecimalToHumanFriendlyString(c.MaxDrawdown.DrawdownPercent, 8, ".", ","))
-	log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Difference: %s", sep, convert.DecimalToHumanFriendlyString(c.MaxDrawdown.Highest.Value.Sub(c.MaxDrawdown.Lowest.Value), 2, ".", ","))
-	log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Drawdown length: %s\n\n", sep, convert.IntToHumanFriendlyString(c.MaxDrawdown.IntervalDuration, ","))
-	if !usingExchangeLevelFunding {
-		log.Info(common.SubLoggers[common.CurrencyStatistics], "------------------Ratios------------------------------------------------")
-		log.Info(common.SubLoggers[common.CurrencyStatistics], "------------------Rates-------------------------------------------------")
-		log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Compound Annual Growth Rate: %s", sep, convert.DecimalToHumanFriendlyString(c.CompoundAnnualGrowthRate, 2, ".", ","))
-		log.Info(common.SubLoggers[common.CurrencyStatistics], "------------------Arithmetic--------------------------------------------")
-		if c.ShowMissingDataWarning {
-			log.Infoln(common.SubLoggers[common.CurrencyStatistics], "Missing data was detected during this backtesting run")
-			log.Infoln(common.SubLoggers[common.CurrencyStatistics], "Ratio calculations will be skewed")
-		}
-		log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Sharpe ratio: %v", sep, c.ArithmeticRatios.SharpeRatio.Round(4))
-		log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Sortino ratio: %v", sep, c.ArithmeticRatios.SortinoRatio.Round(4))
-		log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Information ratio: %v", sep, c.ArithmeticRatios.InformationRatio.Round(4))
-		log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Calmar ratio: %v", sep, c.ArithmeticRatios.CalmarRatio.Round(4))
-
-		log.Info(common.SubLoggers[common.CurrencyStatistics], "------------------Geometric--------------------------------------------")
-		if c.ShowMissingDataWarning {
-			log.Infoln(common.SubLoggers[common.CurrencyStatistics], "Missing data was detected during this backtesting run")
-			log.Infoln(common.SubLoggers[common.CurrencyStatistics], "Ratio calculations will be skewed")
-		}
-		log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Sharpe ratio: %v", sep, c.GeometricRatios.SharpeRatio.Round(4))
-		log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Sortino ratio: %v", sep, c.GeometricRatios.SortinoRatio.Round(4))
-		log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Information ratio: %v", sep, c.GeometricRatios.InformationRatio.Round(4))
-		log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Calmar ratio: %v\n\n", sep, c.GeometricRatios.CalmarRatio.Round(4))
-	}
-
-	log.Info(common.SubLoggers[common.CurrencyStatistics], "------------------Results------------------------------------")
-	log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Starting Close Price: %s", sep, convert.DecimalToHumanFriendlyString(c.StartingClosePrice, 8, ".", ","))
-	log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Finishing Close Price: %s", sep, convert.DecimalToHumanFriendlyString(c.EndingClosePrice, 8, ".", ","))
-	log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Lowest Close Price: %s", sep, convert.DecimalToHumanFriendlyString(c.LowestClosePrice, 8, ".", ","))
-	log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Highest Close Price: %s", sep, convert.DecimalToHumanFriendlyString(c.HighestClosePrice, 8, ".", ","))
-
-	log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Market movement: %s%%", sep, convert.DecimalToHumanFriendlyString(c.MarketMovement, 2, ".", ","))
-	if !usingExchangeLevelFunding {
-		log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Strategy movement: %s%%", sep, convert.DecimalToHumanFriendlyString(c.StrategyMovement, 2, ".", ","))
-		log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Did it beat the market: %v", sep, c.StrategyMovement.GreaterThan(c.MarketMovement))
-	}
-
-	log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Value lost to volume sizing: %s", sep, convert.DecimalToHumanFriendlyString(c.TotalValueLostToVolumeSizing, 2, ".", ","))
-	log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Value lost to slippage: %s", sep, convert.DecimalToHumanFriendlyString(c.TotalValueLostToSlippage, 2, ".", ","))
-	log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Total Value lost: %s", sep, convert.DecimalToHumanFriendlyString(c.TotalValueLost, 2, ".", ","))
-	log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Total Fees: %s\n\n", sep, convert.DecimalToHumanFriendlyString(c.TotalFees, 8, ".", ","))
-
-	log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Final holdings value: %s", sep, convert.DecimalToHumanFriendlyString(c.TotalAssetValue, 8, ".", ","))
-	if !usingExchangeLevelFunding {
-		// the following have no direct translation to individual exchange level funds as they
-		// combine base and quote values
-		log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Final funds: %s", sep, convert.DecimalToHumanFriendlyString(last.Holdings.QuoteSize, 8, ".", ","))
-		log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Final holdings: %s", sep, convert.DecimalToHumanFriendlyString(last.Holdings.BaseSize, 8, ".", ","))
-		log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Final total value: %s\n\n", sep, convert.DecimalToHumanFriendlyString(last.Holdings.TotalValue, 8, ".", ","))
-	}
-
-	if last.PNL != nil {
-		log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Final unPNL: %s\n\n", sep, convert.DecimalToHumanFriendlyString(last.PNL.Result.UnrealisedPNL, 8, ".", ","))
-		log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Final PNL: %s\n\n", sep, convert.DecimalToHumanFriendlyString(last.PNL.Result.RealisedPNL, 8, ".", ","))
-	}
-	if len(errs) > 0 {
-		log.Info(common.SubLoggers[common.CurrencyStatistics], "------------------Errors-------------------------------------")
-		for i := range errs {
-			log.Error(common.SubLoggers[common.CurrencyStatistics], errs[i].Error())
-		}
-	}
-}
-
-// CalculateBiggestEventDrawdown calculates the biggest drawdown using a slice of DataEvents
-func CalculateBiggestEventDrawdown(closePrices []common.DataEventHandler) (Swing, error) {
-	if len(closePrices) == 0 {
-		return Swing{}, fmt.Errorf("%w to calculate drawdowns", errReceivedNoData)
-	}
-	var swings []Swing
-	lowestPrice := closePrices[0].GetLowPrice()
-	highestPrice := closePrices[0].GetHighPrice()
-	lowestTime := closePrices[0].GetTime()
-	highestTime := closePrices[0].GetTime()
-	interval := closePrices[0].GetInterval()
-
-	for i := range closePrices {
-		currHigh := closePrices[i].GetHighPrice()
-		currLow := closePrices[i].GetLowPrice()
-		currTime := closePrices[i].GetTime()
-		if lowestPrice.GreaterThan(currLow) && !currLow.IsZero() {
-			lowestPrice = currLow
-			lowestTime = currTime
-		}
-		if highestPrice.LessThan(currHigh) {
-			if lowestTime.Equal(highestTime) {
-				// create distinction if the greatest drawdown occurs within the same candle
-				lowestTime = lowestTime.Add(interval.Duration() - time.Nanosecond)
-			}
-			intervals, err := gctkline.CalculateCandleDateRanges(highestTime, lowestTime, closePrices[i].GetInterval(), 0)
-			if err != nil {
-				log.Error(common.SubLoggers[common.CurrencyStatistics], err)
-				continue
-			}
-			if highestPrice.IsPositive() && lowestPrice.IsPositive() {
-				swings = append(swings, Swing{
-					Highest: ValueAtTime{
-						Time:  highestTime,
-						Value: highestPrice,
-					},
-					Lowest: ValueAtTime{
-						Time:  lowestTime,
-						Value: lowestPrice,
-					},
-					DrawdownPercent:  lowestPrice.Sub(highestPrice).Div(highestPrice).Mul(decimal.NewFromInt(100)),
-					IntervalDuration: int64(len(intervals.Ranges[0].Intervals)),
-				})
-			}
-			// reset the drawdown
-			highestPrice = currHigh
-			highestTime = currTime
-			lowestPrice = currLow
-			lowestTime = currTime
-		}
-	}
-	if (len(swings) > 0 && swings[len(swings)-1].Lowest.Value != closePrices[len(closePrices)-1].GetLowPrice()) || swings == nil {
-		// need to close out the final drawdown
-		if lowestTime.Equal(highestTime) {
-			// create distinction if the greatest drawdown occurs within the same candle
-			lowestTime = lowestTime.Add(interval.Duration() - time.Nanosecond)
-		}
-		intervals, err := gctkline.CalculateCandleDateRanges(highestTime, lowestTime, closePrices[0].GetInterval(), 0)
-		if err != nil {
-			return Swing{}, err
-		}
-		drawdownPercent := decimal.Zero
-		if highestPrice.GreaterThan(decimal.Zero) {
-			drawdownPercent = lowestPrice.Sub(highestPrice).Div(highestPrice).Mul(decimal.NewFromInt(100))
-		}
-		if lowestTime.Equal(highestTime) {
-			// create distinction if the greatest drawdown occurs within the same candle
-			lowestTime = lowestTime.Add(interval.Duration() - time.Nanosecond)
-		}
-		swings = append(swings, Swing{
-			Highest: ValueAtTime{
-				Time:  highestTime,
-				Value: highestPrice,
-			},
-			Lowest: ValueAtTime{
-				Time:  lowestTime,
-				Value: lowestPrice,
-			},
-			DrawdownPercent:  drawdownPercent,
-			IntervalDuration: int64(len(intervals.Ranges[0].Intervals)),
-		})
-	}
-
-	var maxDrawdown Swing
-	if len(swings) > 0 {
-		maxDrawdown = swings[0]
-	}
-	for i := range swings {
-		if swings[i].DrawdownPercent.LessThan(maxDrawdown.DrawdownPercent) {
-			maxDrawdown = swings[i]
-		}
-	}
-
-	return maxDrawdown, nil
 }
 
 func (c *CurrencyPairStatistic) calculateHighestCommittedFunds() {
@@ -323,96 +131,4 @@ func (c *CurrencyPairStatistic) calculateHighestCommittedFunds() {
 			c.HighestCommittedFunds.Time = c.Events[i].Holdings.Timestamp
 		}
 	}
-}
-
-// CalculateBiggestValueAtTimeDrawdown calculates the biggest drawdown using a slice of ValueAtTimes
-func CalculateBiggestValueAtTimeDrawdown(closePrices []ValueAtTime, interval gctkline.Interval) (Swing, error) {
-	if len(closePrices) == 0 {
-		return Swing{}, fmt.Errorf("%w to calculate drawdowns", errReceivedNoData)
-	}
-	var swings []Swing
-	lowestPrice := closePrices[0].Value
-	highestPrice := closePrices[0].Value
-	lowestTime := closePrices[0].Time
-	highestTime := closePrices[0].Time
-
-	for i := range closePrices {
-		currHigh := closePrices[i].Value
-		currLow := closePrices[i].Value
-		currTime := closePrices[i].Time
-		if lowestPrice.GreaterThan(currLow) && !currLow.IsZero() {
-			lowestPrice = currLow
-			lowestTime = currTime
-		}
-		if highestPrice.LessThan(currHigh) && highestPrice.IsPositive() {
-			if lowestTime.Equal(highestTime) {
-				// create distinction if the greatest drawdown occurs within the same candle
-				lowestTime = lowestTime.Add(interval.Duration() - time.Nanosecond)
-			}
-			intervals, err := gctkline.CalculateCandleDateRanges(highestTime, lowestTime, interval, 0)
-			if err != nil {
-				return Swing{}, err
-			}
-			swings = append(swings, Swing{
-				Highest: ValueAtTime{
-					Time:  highestTime,
-					Value: highestPrice,
-				},
-				Lowest: ValueAtTime{
-					Time:  lowestTime,
-					Value: lowestPrice,
-				},
-				DrawdownPercent:  lowestPrice.Sub(highestPrice).Div(highestPrice).Mul(decimal.NewFromInt(100)),
-				IntervalDuration: int64(len(intervals.Ranges[0].Intervals)),
-			})
-			// reset the drawdown
-			highestPrice = currHigh
-			highestTime = currTime
-			lowestPrice = currLow
-			lowestTime = currTime
-		}
-	}
-	if (len(swings) > 0 && !swings[len(swings)-1].Lowest.Value.Equal(closePrices[len(closePrices)-1].Value)) || swings == nil {
-		// need to close out the final drawdown
-		if lowestTime.Equal(highestTime) {
-			// create distinction if the greatest drawdown occurs within the same candle
-			lowestTime = lowestTime.Add(interval.Duration() - time.Nanosecond)
-		}
-		intervals, err := gctkline.CalculateCandleDateRanges(highestTime, lowestTime, interval, 0)
-		if err != nil {
-			log.Error(common.SubLoggers[common.CurrencyStatistics], err)
-		}
-		drawdownPercent := decimal.Zero
-		if highestPrice.GreaterThan(decimal.Zero) {
-			drawdownPercent = lowestPrice.Sub(highestPrice).Div(highestPrice).Mul(decimal.NewFromInt(100))
-		}
-		if lowestTime.Equal(highestTime) {
-			// create distinction if the greatest drawdown occurs within the same candle
-			lowestTime = lowestTime.Add(interval.Duration() - time.Nanosecond)
-		}
-		swings = append(swings, Swing{
-			Highest: ValueAtTime{
-				Time:  highestTime,
-				Value: highestPrice,
-			},
-			Lowest: ValueAtTime{
-				Time:  lowestTime,
-				Value: lowestPrice,
-			},
-			DrawdownPercent:  drawdownPercent,
-			IntervalDuration: int64(len(intervals.Ranges[0].Intervals)),
-		})
-	}
-
-	var maxDrawdown Swing
-	if len(swings) > 0 {
-		maxDrawdown = swings[0]
-	}
-	for i := range swings {
-		if swings[i].DrawdownPercent.LessThan(maxDrawdown.DrawdownPercent) {
-			maxDrawdown = swings[i]
-		}
-	}
-
-	return maxDrawdown, nil
 }

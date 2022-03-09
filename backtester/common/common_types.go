@@ -13,6 +13,13 @@ import (
 )
 
 const (
+	// CandleStr is a config readable data type to tell the backtester to retrieve candle data
+	CandleStr = "candle"
+	// TradeStr is a config readable data type to tell the backtester to retrieve trade data
+	TradeStr = "trade"
+)
+
+const (
 	// DoNothing is an explicit signal for the backtester to not perform an action
 	// based upon indicator results
 	DoNothing order.Side = "DO NOTHING"
@@ -30,18 +37,13 @@ const (
 	// of any exposure of a position
 	// This will handle any amount of exposure, no need to calculate how
 	// much to close
-	ClosePosition order.Side = "CLOSE POSITION"
-
+	ClosePosition      order.Side = "CLOSE POSITION"
 	CouldNotCloseShort order.Side = "COULD NOT CLOSE SHORT"
 	CouldNotCloseLong  order.Side = "COULD NOT CLOSE LONG"
 	Liquidated         order.Side = "LIQUIDATED"
 	// MissingData is signalled during the strategy/signal phase when data has been identified as missing
 	// No buy or sell events can occur
 	MissingData order.Side = "MISSING DATA"
-	// CandleStr is a config readable data type to tell the backtester to retrieve candle data
-	CandleStr = "candle"
-	// TradeStr is a config readable data type to tell the backtester to retrieve trade data
-	TradeStr = "trade"
 )
 
 // DataCandle is an int64 representation of a candle data type
@@ -136,27 +138,70 @@ type Directioner interface {
 	GetDirection() order.Side
 }
 
+// colours to display for the terminal output
+// colours to display for the terminal output
+var (
+	ColourDefault  = "\u001b[0m"
+	ColourGreen    = "\033[38;5;157m"
+	ColourWhite    = "\033[38;5;255m"
+	ColourGrey     = "\033[38;5;240m"
+	ColourDarkGrey = "\033[38;5;243m"
+	ColourH1       = "\033[38;5;33m"
+	ColourH2       = "\033[38;5;39m"
+	ColourH3       = "\033[38;5;45m"
+	ColourH4       = "\033[38;5;51m"
+	ColourSuccess  = "\033[38;5;40m"
+	ColourInfo     = "\u001B[32m"
+	ColourDebug    = "\u001B[34m"
+	ColourWarn     = "\u001B[33m"
+	ColourProblem  = "\033[38;5;251m"
+	ColourError    = "\033[38;5;196m"
+)
+
+var (
+	logo01 = "                                                                                "
+	logo02 = "                               " + ColourWhite + "@@@@@@@@@@@@@@@@@                                "
+	logo03 = "                            " + ColourWhite + "@@@@@@@@@@@@@@@@@@@@@@@    " + ColourGrey + ",,,,,," + ColourWhite + "                   "
+	logo04 = "                           " + ColourWhite + "@@@@@@@@" + ColourGrey + ",,,,,    " + ColourWhite + "@@@@@@@@@" + ColourGrey + ",,,,,,,," + ColourWhite + "                   "
+	logo05 = "                         " + ColourWhite + "@@@@@@@@" + ColourGrey + ",,,,,,,       " + ColourWhite + "@@@@@@@" + ColourGrey + ",,,,,,," + ColourWhite + "                   "
+	logo06 = "                         " + ColourWhite + "@@@@@@" + ColourGrey + "(,,,,,,,,      " + ColourGrey + ",," + ColourWhite + "@@@@@@@" + ColourGrey + ",,,,,," + ColourWhite + "                   "
+	logo07 = "                      " + ColourGrey + ",," + ColourWhite + "@@@@@@" + ColourGrey + ",,,,,,,,,   #,,,,,,,,,,,,,,,,,," + ColourWhite + "                   "
+	logo08 = "                   " + ColourGrey + ",,,,*" + ColourWhite + "@@@@@@" + ColourGrey + ",,,,,,,,,,,,,,,,,,,,,,,,,," + ColourGreen + "%%%%%%%" + ColourWhite + "                "
+	logo09 = "                " + ColourGrey + ",,,,,,,*" + ColourWhite + "@@@@@@" + ColourGrey + ",,,,,,,,,,,,,," + ColourGreen + "%%%%%" + ColourGrey + " ,,,,,," + ColourGrey + "%" + ColourGreen + "%%%%%%" + ColourWhite + "                 "
+	logo10 = "               " + ColourGrey + ",,,,,,,,*" + ColourWhite + "@@@@@@" + ColourGrey + ",,,,,,,,,,," + ColourGreen + "%%%%%%%%%%%%%%%%%%" + ColourGrey + "#" + ColourGreen + "%%" + ColourGrey + "                  "
+	logo11 = "                 " + ColourGrey + ",,,,,,*" + ColourWhite + "@@@@@@" + ColourGrey + ",,,,,,,,," + ColourGreen + "%%%" + ColourGrey + " ,,,,," + ColourGreen + "%%%%%%%%" + ColourGrey + ",,,,,                   "
+	logo12 = "                    " + ColourGrey + ",,,*" + ColourWhite + "@@@@@@" + ColourGrey + ",,,,,," + ColourGreen + "%%" + ColourGrey + ",,  ,,,,,,," + ColourWhite + "@" + ColourGreen + "*%%," + ColourWhite + "@" + ColourGrey + ",,,,,,                   "
+	logo13 = "                       " + ColourGrey + "*" + ColourWhite + "@@@@@@" + ColourGrey + ",,,,,,,,,     " + ColourGrey + ",,,,," + ColourWhite + "@@@@@@" + ColourGrey + ",,,,,," + ColourWhite + "                   "
+	logo14 = "                         " + ColourWhite + "@@@@@@" + ColourGrey + ",,,,,,,,,        " + ColourWhite + "@@@@@@@" + ColourGrey + ",,,,,," + ColourWhite + "                   "
+	logo15 = "                         " + ColourWhite + "@@@@@@@@" + ColourGrey + ",,,,,,,       " + ColourWhite + "@@@@@@@" + ColourGrey + ",,,,,,," + ColourWhite + "                   "
+	logo16 = "                           " + ColourWhite + "@@@@@@@@@" + ColourGrey + ",,,,    " + ColourWhite + "@@@@@@@@@" + ColourGrey + "#,,,,,,," + ColourWhite + "                   "
+	logo17 = "                            " + ColourWhite + "@@@@@@@@@@@@@@@@@@@@@@@     " + ColourGrey + "*,,,," + ColourWhite + "                   "
+	logo18 = "                                " + ColourWhite + "@@@@@@@@@@@@@@@@" + ColourDefault + "                                "
+
+	LogoLines = []string{
+		logo01,
+		logo02,
+		logo03,
+		logo04,
+		logo05,
+		logo06,
+		logo07,
+		logo08,
+		logo09,
+		logo10,
+		logo11,
+		logo12,
+		logo13,
+		logo14,
+		logo15,
+		logo16,
+		logo17,
+		logo18,
+	}
+)
+
 // ASCIILogo is a sweet logo that is optionally printed to the command line window
 const ASCIILogo = `
-                                                                                
-                               @@@@@@@@@@@@@@@@@                                
-                            @@@@@@@@@@@@@@@@@@@@@@@    ,,,,,,                   
-                           @@@@@@@@,,,,,    @@@@@@@@@,,,,,,,,                   
-                         @@@@@@@@,,,,,,,       @@@@@@@,,,,,,,                   
-                         @@@@@@(,,,,,,,,      ,,@@@@@@@,,,,,,                   
-                       ,,@@@@@@,,,,,,,,,   #,,,,,,,,,,,,,,,,,                   
-                    ,,,,*@@@@@@,,,,,,,,,,,,,,,,,,,,,,,,,,%%%%%%%                
-                 ,,,,,,,*@@@@@@,,,,,,,,,,,,,,%%%%%,,,,,,%%%%%%%%                
-                ,,,,,,,,*@@@@@@,,,,,,,,,,,%%%%%%%%%%%%%%%%%%#%%                 
-                  ,,,,,,*@@@@@@,,,,,,,,,%%%,,,,,%%%%%%%%,,,,,                   
-                     ,,,*@@@@@@,,,,,,%%,  ,,,,,,,@*%%,@,,,,,,                   
-                        *@@@@@@,,,,,,,,,     ,,,,@@@@@@,,,,,,                   
-                         @@@@@@,,,,,,,,,        @@@@@@@,,,,,,                   
-                         @@@@@@@@,,,,,,,       @@@@@@@,,,,,,,                   
-                           @@@@@@@@@,,,,    @@@@@@@@@#,,,,,,,                   
-                            @@@@@@@@@@@@@@@@@@@@@@@     *,,,,                   
-                                @@@@@@@@@@@@@@@@                                
-                                                                               
    ______      ______                 __      ______               __         
   / ____/___  / ____/______  ______  / /_____/_  __/________ _____/ /__  _____
  / / __/ __ \/ /   / ___/ / / / __ \/ __/ __ \/ / / ___/ __  / __  / _ \/ ___/

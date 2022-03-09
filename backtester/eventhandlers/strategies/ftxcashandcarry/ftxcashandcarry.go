@@ -95,22 +95,16 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundTransf
 		case len(pos) > 0 && v.futureSignal.IsLastEvent():
 			futuresSignal.SetDirection(common.ClosePosition)
 			futuresSignal.AppendReason("closing position on last event")
-			spotSignal.AppendReason("no action required")
 		case len(pos) > 0 && pos[len(pos)-1].Status == order.Open &&
 			fp.Sub(sp).Div(sp).GreaterThan(s.closeShortDistancePercentage):
 			futuresSignal.SetDirection(common.ClosePosition)
 			futuresSignal.AppendReason("closing position after reaching close short distance percentage")
-			spotSignal.AppendReason("no action required")
 		case len(pos) > 0 &&
 			pos[len(pos)-1].Status == order.Closed &&
 			fp.Sub(sp).Div(sp).GreaterThan(s.openShortDistancePercentage):
 			futuresSignal.SetDirection(order.Short)
 			futuresSignal.SetPrice(v.futureSignal.Latest().GetClosePrice())
 			futuresSignal.AppendReason("opening position after reaching open short distance percentage")
-			spotSignal.AppendReason("no action required")
-		default:
-			futuresSignal.AppendReason("no action required")
-			spotSignal.AppendReason("no action required")
 		}
 		response = append(response, &spotSignal, &futuresSignal)
 	}

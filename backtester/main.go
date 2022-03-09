@@ -18,7 +18,7 @@ import (
 
 func main() {
 	var configPath, templatePath, reportOutput string
-	var printLogo, generateReport, darkReport, verbose bool
+	var printLogo, generateReport, darkReport, verbose, colourOutput, logSubHeader bool
 	wd, err := os.Getwd()
 	if err != nil {
 		fmt.Printf("Could not get working directory. Error: %v.\n", err)
@@ -68,12 +68,43 @@ func main() {
 		"verbose",
 		false,
 		"if enabled, will set exchange requests to verbose for debugging purposes")
+	flag.BoolVar(
+		&colourOutput,
+		"colouroutput",
+		false,
+		"if enabled, will print in colours, if your terminal supports \033[38;5;99m[colours like this]\u001b[0m")
+	flag.BoolVar(
+		&logSubHeader,
+		"logsubheader",
+		true,
+		"displays logging subheader to track where activity originates")
 	flag.Parse()
 
+	if !colourOutput {
+		common.ColourGreen = ""
+		common.ColourWhite = ""
+		common.ColourGrey = ""
+		common.ColourDefault = ""
+		common.ColourH1 = ""
+		common.ColourH2 = ""
+		common.ColourH3 = ""
+		common.ColourH4 = ""
+		common.ColourSuccess = ""
+		common.ColourInfo = ""
+		common.ColourDebug = ""
+		common.ColourWarn = ""
+		common.ColourProblem = ""
+		common.ColourDarkGrey = ""
+		common.ColourError = ""
+	}
 	var bt *backtest.BackTest
 	var cfg *config.Config
 	log.GlobalLogConfig = log.GenDefaultSettings()
-	log.GlobalLogConfig.AdvancedSettings.ShowLogSystemName = convert.BoolPtr(true)
+	log.GlobalLogConfig.AdvancedSettings.ShowLogSystemName = convert.BoolPtr(logSubHeader)
+	log.GlobalLogConfig.AdvancedSettings.Headers.Info = common.ColourInfo + "[INFO]" + common.ColourDefault
+	log.GlobalLogConfig.AdvancedSettings.Headers.Warn = common.ColourWarn + "[WARN]" + common.ColourDefault
+	log.GlobalLogConfig.AdvancedSettings.Headers.Debug = common.ColourDebug + "[DEBUG]" + common.ColourDefault
+	log.GlobalLogConfig.AdvancedSettings.Headers.Error = common.ColourError + "[ERROR]" + common.ColourDefault
 	err = log.SetupGlobalLogger()
 	if err != nil {
 		fmt.Printf("Could not setup global logger. Error: %v.\n", err)
@@ -98,6 +129,9 @@ func main() {
 		os.Exit(1)
 	}
 	if printLogo {
+		for i := range common.LogoLines {
+			fmt.Println(common.LogoLines[i])
+		}
 		fmt.Print(common.ASCIILogo)
 	}
 

@@ -7,12 +7,10 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	gctmath "github.com/thrasher-corp/gocryptotrader/common/math"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // CalculateFundingStatistics calculates funding statistics for total USD strategy results
@@ -169,28 +167,47 @@ func CalculateIndividualFundingStatistics(disableUSDTracking bool, reportItem *f
 		Value: closePrices[len(closePrices)-1].USDClosePrice,
 	}
 	for i := range closePrices {
-		if closePrices[i].USDClosePrice.LessThan(item.LowestClosePrice.Value) || item.LowestClosePrice.Value.IsZero() {
+		if closePrices[i].USDClosePrice.LessThan(item.LowestClosePrice.Value) || !item.LowestClosePrice.Set {
 			item.LowestClosePrice.Value = closePrices[i].USDClosePrice
 			item.LowestClosePrice.Time = closePrices[i].Time
+			item.LowestClosePrice.Set = true
 		}
-		if closePrices[i].USDClosePrice.GreaterThan(item.HighestClosePrice.Value) || item.HighestClosePrice.Value.IsZero() {
+		if closePrices[i].USDClosePrice.GreaterThan(item.HighestClosePrice.Value) || !item.HighestClosePrice.Set {
 			item.HighestClosePrice.Value = closePrices[i].USDClosePrice
 			item.HighestClosePrice.Time = closePrices[i].Time
+			item.HighestClosePrice.Set = true
 		}
 	}
 	item.IsCollateral = reportItem.IsCollateral
-	if item.IsCollateral {
-		//item.LowestCollateral = something()
-		//item.HighestCollateral = something()
-		//item.EndingCollateral = something()
-		//item.InitialCollateral = something()
-	} else if reportItem.Asset.IsFutures() {
-		// item.HighestRPNL = somethingElse()
-		// item.LowestRPNL = somethingElse()
-		// item.FinalUPNL = somethingElse()
-		// item.FinalRPNL = somethingElse()
-		// item.HighestUPNL = somethingElse()
-		// item.LowestUPNL = somethingElse()
+	if reportItem.Asset.IsFutures() {
+		var lowest, highest, initial, final ValueAtTime
+		initial.Value = reportItem.Snapshots[0].Available
+		initial.Time = reportItem.Snapshots[0].Time
+		final.Value = reportItem.Snapshots[len(reportItem.Snapshots)-1].Available
+		final.Time = reportItem.Snapshots[len(reportItem.Snapshots)-1].Time
+		for i := range reportItem.Snapshots {
+			if reportItem.Snapshots[i].Available.LessThan(lowest.Value) || !lowest.Set {
+				lowest.Value = reportItem.Snapshots[i].Available
+				lowest.Time = reportItem.Snapshots[i].Time
+				lowest.Set = true
+			}
+			if reportItem.Snapshots[i].Available.GreaterThan(highest.Value) || !lowest.Set {
+				highest.Value = reportItem.Snapshots[i].Available
+				highest.Time = reportItem.Snapshots[i].Time
+				highest.Set = true
+			}
+		}
+		if reportItem.IsCollateral {
+			item.LowestCollateral = lowest
+			item.HighestCollateral = highest
+			item.InitialCollateral = initial
+			item.FinalCollateral = final
+		} else {
+			item.LowestHoldings = lowest
+			item.HighestHoldings = highest
+			item.InitialHoldings = initial
+			item.FinalHoldings = final
+		}
 	}
 	if !reportItem.IsCollateral {
 		for i := range relatedStats {
@@ -246,117 +263,4 @@ func CalculateIndividualFundingStatistics(disableUSDTracking bool, reportItem *f
 	var err error
 	item.MaxDrawdown, err = CalculateBiggestEventDrawdown(s)
 	return item, err
-}
-
-// PrintResults outputs all calculated funding statistics to the command line
-func (f *FundingStatistics) PrintResults(wasAnyDataMissing bool) error {
-	if f.Report == nil {
-		return fmt.Errorf("%w requires report to be generated", common.ErrNilArguments)
-	}
-	var spotResults, futuresResults []FundingItemStatistics
-	for i := range f.Items {
-		if f.Items[i].ReportItem.Asset.IsFutures() {
-			futuresResults = append(futuresResults, f.Items[i])
-		} else {
-			spotResults = append(spotResults, f.Items[i])
-		}
-	}
-	if len(spotResults) > 0 || len(futuresResults) > 0 {
-		log.Info(common.SubLoggers[common.FundingStatistics], "------------------Funding------------------------------------")
-	}
-	if len(spotResults) > 0 {
-		log.Info(common.SubLoggers[common.FundingStatistics], "------------------Funding Spot Item Results------------------")
-		for i := range spotResults {
-			sep := fmt.Sprintf("%v %v %v |\t", spotResults[i].ReportItem.Exchange, spotResults[i].ReportItem.Asset, spotResults[i].ReportItem.Currency)
-			if !spotResults[i].ReportItem.PairedWith.IsEmpty() {
-				log.Infof(common.SubLoggers[common.FundingStatistics], "%s Paired with: %v", sep, spotResults[i].ReportItem.PairedWith)
-			}
-			log.Infof(common.SubLoggers[common.FundingStatistics], "%s Initial funds: %s", sep, convert.DecimalToHumanFriendlyString(spotResults[i].ReportItem.InitialFunds, 8, ".", ","))
-			log.Infof(common.SubLoggers[common.FundingStatistics], "%s Final funds: %s", sep, convert.DecimalToHumanFriendlyString(spotResults[i].ReportItem.FinalFunds, 8, ".", ","))
-
-			if !f.Report.DisableUSDTracking && f.Report.UsingExchangeLevelFunding {
-				log.Infof(common.SubLoggers[common.FundingStatistics], "%s Initial funds in USD: $%s", sep, convert.DecimalToHumanFriendlyString(spotResults[i].ReportItem.USDInitialFunds, 2, ".", ","))
-				log.Infof(common.SubLoggers[common.FundingStatistics], "%s Final funds in USD: $%s", sep, convert.DecimalToHumanFriendlyString(spotResults[i].ReportItem.USDFinalFunds, 2, ".", ","))
-			}
-			if spotResults[i].ReportItem.ShowInfinite {
-				log.Infof(common.SubLoggers[common.FundingStatistics], "%s Difference: ∞%%", sep)
-			} else {
-				log.Infof(common.SubLoggers[common.FundingStatistics], "%s Difference: %s%%", sep, convert.DecimalToHumanFriendlyString(spotResults[i].ReportItem.Difference, 8, ".", ","))
-			}
-			if spotResults[i].ReportItem.TransferFee.GreaterThan(decimal.Zero) {
-				log.Infof(common.SubLoggers[common.FundingStatistics], "%s Transfer fee: %s", sep, convert.DecimalToHumanFriendlyString(spotResults[i].ReportItem.TransferFee, 8, ".", ","))
-			}
-			log.Info(common.SubLoggers[common.FundingStatistics], "")
-		}
-	}
-	if len(futuresResults) > 0 {
-		log.Info(common.SubLoggers[common.FundingStatistics], "------------------Funding Futures Item Results---------------")
-		for i := range futuresResults {
-			sep := fmt.Sprintf("%v %v %v |\t", futuresResults[i].ReportItem.Exchange, futuresResults[i].ReportItem.Asset, futuresResults[i].ReportItem.Currency)
-			log.Infof(common.SubLoggers[common.FundingStatistics], "%s Is Collateral: %v", sep, futuresResults[i].IsCollateral)
-			if futuresResults[i].IsCollateral {
-				log.Infof(common.SubLoggers[common.FundingStatistics], "%s Initial Collateral: %v %v at %v", sep, futuresResults[i].InitialCollateral.Value, futuresResults[i].ReportItem.Currency, futuresResults[i].InitialCollateral.Time)
-				log.Infof(common.SubLoggers[common.FundingStatistics], "%s Final Collateral: %v %v at %v", sep, futuresResults[i].EndingCollateral.Value, futuresResults[i].ReportItem.Currency, futuresResults[i].EndingCollateral.Time)
-				log.Infof(common.SubLoggers[common.FundingStatistics], "%s Lowest Collateral: %v %v at %v", sep, futuresResults[i].LowestCollateral.Value, futuresResults[i].ReportItem.Currency, futuresResults[i].LowestCollateral.Time)
-				log.Infof(common.SubLoggers[common.FundingStatistics], "%s Lowest Collateral: %v %v at %v", sep, futuresResults[i].HighestCollateral.Value, futuresResults[i].ReportItem.Currency, futuresResults[i].HighestCollateral.Time)
-			} else {
-				if !futuresResults[i].ReportItem.PairedWith.IsEmpty() {
-					log.Infof(common.SubLoggers[common.FundingStatistics], "%s Collateral currency: %v", sep, futuresResults[i].ReportItem.PairedWith)
-				}
-				log.Infof(common.SubLoggers[common.FundingStatistics], "%s Lowest Unrealised PNL: %v %v at %v", sep, futuresResults[i].LowestUPNL.Value, futuresResults[i].ReportItem.PairedWith, futuresResults[i].LowestUPNL.Time)
-				log.Infof(common.SubLoggers[common.FundingStatistics], "%s Highest Unrealised PNL: %v %v at %v", sep, futuresResults[i].HighestUPNL.Value, futuresResults[i].ReportItem.PairedWith, futuresResults[i].HighestUPNL.Time)
-				log.Infof(common.SubLoggers[common.FundingStatistics], "%s Lowest Realised PNL: %v %v at %v", sep, futuresResults[i].LowestRPNL.Value, futuresResults[i].ReportItem.PairedWith, futuresResults[i].LowestRPNL.Time)
-				log.Infof(common.SubLoggers[common.FundingStatistics], "%s Highest Realised PNL: %v %v at %v", sep, futuresResults[i].HighestRPNL.Value, futuresResults[i].ReportItem.PairedWith, futuresResults[i].HighestRPNL.Time)
-				log.Infof(common.SubLoggers[common.FundingStatistics], "%s Final Unrealised PNL: %v %v at %v", sep, futuresResults[i].FinalUPNL.Value, futuresResults[i].ReportItem.PairedWith, futuresResults[i].FinalUPNL.Time)
-				log.Infof(common.SubLoggers[common.FundingStatistics], "%s Final Realised PNL: %v %v at %v", sep, futuresResults[i].FinalRPNL.Value, futuresResults[i].ReportItem.PairedWith, futuresResults[i].FinalRPNL.Time)
-			}
-			log.Info(common.SubLoggers[common.FundingStatistics], "")
-		}
-	}
-	if f.Report.DisableUSDTracking {
-		return nil
-	}
-	log.Info(common.SubLoggers[common.FundingStatistics], "------------------USD Tracking Totals------------------------")
-	sep := "USD Tracking Total |\t"
-
-	log.Infof(common.SubLoggers[common.FundingStatistics], "%s Initial value: $%s at %v", sep, convert.DecimalToHumanFriendlyString(f.TotalUSDStatistics.InitialHoldingValue.Value, 8, ".", ","), f.TotalUSDStatistics.InitialHoldingValue.Time)
-	log.Infof(common.SubLoggers[common.FundingStatistics], "%s Final value: $%s at %v", sep, convert.DecimalToHumanFriendlyString(f.TotalUSDStatistics.FinalHoldingValue.Value, 8, ".", ","), f.TotalUSDStatistics.FinalHoldingValue.Time)
-	log.Infof(common.SubLoggers[common.FundingStatistics], "%s Benchmark Market Movement: %s%%", sep, convert.DecimalToHumanFriendlyString(f.TotalUSDStatistics.BenchmarkMarketMovement, 8, ".", ","))
-	log.Infof(common.SubLoggers[common.FundingStatistics], "%s Strategy Movement: %s%%", sep, convert.DecimalToHumanFriendlyString(f.TotalUSDStatistics.StrategyMovement, 8, ".", ","))
-	log.Infof(common.SubLoggers[common.FundingStatistics], "%s Did strategy make a profit: %v", sep, f.TotalUSDStatistics.DidStrategyMakeProfit)
-	log.Infof(common.SubLoggers[common.FundingStatistics], "%s Did strategy beat the benchmark: %v", sep, f.TotalUSDStatistics.DidStrategyBeatTheMarket)
-	log.Infof(common.SubLoggers[common.FundingStatistics], "%s Buy Orders: %s", sep, convert.IntToHumanFriendlyString(f.TotalUSDStatistics.BuyOrders, ","))
-	log.Infof(common.SubLoggers[common.FundingStatistics], "%s Sell Orders: %s", sep, convert.IntToHumanFriendlyString(f.TotalUSDStatistics.SellOrders, ","))
-	log.Infof(common.SubLoggers[common.FundingStatistics], "%s Total Orders: %s", sep, convert.IntToHumanFriendlyString(f.TotalUSDStatistics.TotalOrders, ","))
-	log.Infof(common.SubLoggers[common.FundingStatistics], "%s Highest funds: $%s at %v", sep, convert.DecimalToHumanFriendlyString(f.TotalUSDStatistics.HighestHoldingValue.Value, 8, ".", ","), f.TotalUSDStatistics.HighestHoldingValue.Time)
-	log.Infof(common.SubLoggers[common.FundingStatistics], "%s Lowest funds: $%s at %v", sep, convert.DecimalToHumanFriendlyString(f.TotalUSDStatistics.LowestHoldingValue.Value, 8, ".", ","), f.TotalUSDStatistics.LowestHoldingValue.Time)
-
-	log.Info(common.SubLoggers[common.FundingStatistics], "------------------Ratios------------------------------------------------")
-	log.Info(common.SubLoggers[common.FundingStatistics], "------------------Rates-------------------------------------------------")
-	log.Infof(common.SubLoggers[common.FundingStatistics], "%s Risk free rate: %s%%", sep, convert.DecimalToHumanFriendlyString(f.TotalUSDStatistics.RiskFreeRate.Mul(decimal.NewFromInt(100)), 2, ".", ","))
-	log.Infof(common.SubLoggers[common.FundingStatistics], "%s Compound Annual Growth Rate: %v%%", sep, convert.DecimalToHumanFriendlyString(f.TotalUSDStatistics.CompoundAnnualGrowthRate, 8, ".", ","))
-	if f.TotalUSDStatistics.ArithmeticRatios == nil || f.TotalUSDStatistics.GeometricRatios == nil {
-		return fmt.Errorf("%w missing ratio calculations", common.ErrNilArguments)
-	}
-	log.Info(common.SubLoggers[common.FundingStatistics], "------------------Arithmetic--------------------------------------------")
-	if wasAnyDataMissing {
-		log.Infoln(common.SubLoggers[common.FundingStatistics], "Missing data was detected during this backtesting run")
-		log.Infoln(common.SubLoggers[common.FundingStatistics], "Ratio calculations will be skewed")
-	}
-	log.Infof(common.SubLoggers[common.FundingStatistics], "%s Sharpe ratio: %v", sep, f.TotalUSDStatistics.ArithmeticRatios.SharpeRatio.Round(4))
-	log.Infof(common.SubLoggers[common.FundingStatistics], "%s Sortino ratio: %v", sep, f.TotalUSDStatistics.ArithmeticRatios.SortinoRatio.Round(4))
-	log.Infof(common.SubLoggers[common.FundingStatistics], "%s Information ratio: %v", sep, f.TotalUSDStatistics.ArithmeticRatios.InformationRatio.Round(4))
-	log.Infof(common.SubLoggers[common.FundingStatistics], "%s Calmar ratio: %v", sep, f.TotalUSDStatistics.ArithmeticRatios.CalmarRatio.Round(4))
-
-	log.Info(common.SubLoggers[common.FundingStatistics], "------------------Geometric--------------------------------------------")
-	if wasAnyDataMissing {
-		log.Infoln(common.SubLoggers[common.FundingStatistics], "Missing data was detected during this backtesting run")
-		log.Infoln(common.SubLoggers[common.FundingStatistics], "Ratio calculations will be skewed")
-	}
-	log.Infof(common.SubLoggers[common.FundingStatistics], "%s Sharpe ratio: %v", sep, f.TotalUSDStatistics.GeometricRatios.SharpeRatio.Round(4))
-	log.Infof(common.SubLoggers[common.FundingStatistics], "%s Sortino ratio: %v", sep, f.TotalUSDStatistics.GeometricRatios.SortinoRatio.Round(4))
-	log.Infof(common.SubLoggers[common.FundingStatistics], "%s Information ratio: %v", sep, f.TotalUSDStatistics.GeometricRatios.InformationRatio.Round(4))
-	log.Infof(common.SubLoggers[common.FundingStatistics], "%s Calmar ratio: %v\n\n", sep, f.TotalUSDStatistics.GeometricRatios.CalmarRatio.Round(4))
-
-	return nil
 }

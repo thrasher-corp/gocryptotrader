@@ -309,7 +309,7 @@ func (bt *BackTest) processFillEvent(ev fill.Event, funds funding.IFundReleaser)
 		log.Error(common.SubLoggers[common.Backtester], err)
 	}
 	if holding == nil {
-		log.Error(common.SubLoggers[common.Backtester], "ViewHoldingAtTimePeriod why is holdings nill?")
+		log.Error(common.SubLoggers[common.Backtester], "ViewHoldingAtTimePeriod why is holdings nil?")
 	} else {
 		err = bt.Statistic.AddHoldingsForTime(holding)
 		if err != nil {
