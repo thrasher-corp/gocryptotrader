@@ -284,8 +284,30 @@ func TestAnalysePNLGrowth(t *testing.T) {
 	}
 
 	e := testExchange
-	a := asset.Spot
+	a := asset.Futures
 	p := currency.NewPair(currency.BTC, currency.USDT)
+	c.Asset = asset.Futures
+	c.Events = append(c.Events,
+		DataAtOffset{PNL: &portfolio.PNLSummary{
+			Exchange: e,
+			Item:     a,
+			Pair:     p,
+			Offset:   0,
+			Result: order.PNLResult{
+				Time:          time.Now(),
+				UnrealisedPNL: decimal.NewFromInt(1),
+				RealisedPNL:   decimal.NewFromInt(2),
+			},
+		}},
+	)
+
+	c.analysePNLGrowth()
+	if c.HighestRealisedPNL.Value.Equal(decimal.NewFromInt(2)) {
+		t.Errorf("received %v expected 2", c.HighestRealisedPNL.Value)
+	}
+	if c.LowestUnrealisedPNL.Value.Equal(decimal.NewFromInt(1)) {
+		t.Errorf("received %v expected 1", c.LowestUnrealisedPNL.Value)
+	}
 
 	c.Events = append(c.Events,
 		DataAtOffset{PNL: &portfolio.PNLSummary{
@@ -293,7 +315,19 @@ func TestAnalysePNLGrowth(t *testing.T) {
 			Item:     a,
 			Pair:     p,
 			Offset:   0,
-			Result:   order.PNLResult{},
+			Result: order.PNLResult{
+				Time:          time.Now(),
+				UnrealisedPNL: decimal.NewFromFloat(0.5),
+				RealisedPNL:   decimal.NewFromInt(1),
+			},
 		}},
 	)
+
+	c.analysePNLGrowth()
+	if c.HighestRealisedPNL.Value.Equal(decimal.NewFromInt(2)) {
+		t.Errorf("received %v expected 2", c.HighestRealisedPNL.Value)
+	}
+	if c.LowestUnrealisedPNL.Value.Equal(decimal.NewFromFloat(0.5)) {
+		t.Errorf("received %v expected 0.5", c.LowestUnrealisedPNL.Value)
+	}
 }
