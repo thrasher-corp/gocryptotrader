@@ -1,6 +1,7 @@
 package account
 
 import (
+	"errors"
 	"sync"
 	"testing"
 	"time"
@@ -11,6 +12,7 @@ import (
 )
 
 func TestCollectBalances(t *testing.T) {
+	t.Parallel()
 	accounts, err := CollectBalances(
 		map[string][]Balance{
 			"someAccountID": {
@@ -49,6 +51,11 @@ func TestCollectBalances(t *testing.T) {
 	if err == nil {
 		t.Errorf("expecting err %s", errAccountBalancesIsNil.Error())
 	}
+
+	_, err = CollectBalances(map[string][]Balance{}, "nonsense")
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
+	}
 }
 
 func TestHoldings(t *testing.T) {
@@ -57,13 +64,13 @@ func TestHoldings(t *testing.T) {
 		t.Fatal(err)
 	}
 	err = Process(nil)
-	if err == nil {
-		t.Error("error cannot be nil")
+	if !errors.Is(err, errHoldingsIsNil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errHoldingsIsNil)
 	}
 
 	err = Process(&Holdings{})
-	if err == nil {
-		t.Error("error cannot be nil")
+	if !errors.Is(err, errExchangeNameUnset) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errExchangeNameUnset)
 	}
 
 	holdings := Holdings{
@@ -77,35 +84,76 @@ func TestHoldings(t *testing.T) {
 
 	err = Process(&Holdings{
 		Exchange: "Test",
-		Accounts: []SubAccount{{
-			AssetType: asset.Spot,
-			ID:        "1337",
-			Currencies: []Balance{
-				{
-					CurrencyName: currency.BTC,
-					Total:        100,
-					Hold:         20,
-				},
+		Accounts: []SubAccount{
+			{
+				ID: "1337",
+			}},
+	})
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
+	}
+
+	err = Process(&Holdings{
+		Exchange: "Test",
+		Accounts: []SubAccount{
+			{
+				AssetType: asset.UpsideProfitContract,
+				ID:        "1337",
 			},
-		}},
+			{
+				AssetType: asset.Spot,
+				ID:        "1337",
+				Currencies: []Balance{
+					{
+						CurrencyName: currency.BTC,
+						Total:        100,
+						Hold:         20,
+					},
+				},
+			}},
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	// process again with no changes
+	err = Process(&Holdings{
+		Exchange: "Test",
+		Accounts: []SubAccount{
+			{
+				AssetType: asset.Spot,
+				ID:        "1337",
+				Currencies: []Balance{
+					{
+						CurrencyName: currency.BTC,
+						Total:        100,
+						Hold:         20,
+					},
+				},
+			}},
 	})
 	if err != nil {
 		t.Error(err)
 	}
 
 	_, err = GetHoldings("", asset.Spot)
-	if err == nil {
-		t.Error("error cannot be nil")
+	if !errors.Is(err, errExchangeNameUnset) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errExchangeNameUnset)
 	}
 
 	_, err = GetHoldings("bla", asset.Spot)
-	if err == nil {
-		t.Error("error cannot be nil")
+	if !errors.Is(err, errExchangeHoldingsNotFound) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errExchangeHoldingsNotFound)
 	}
 
 	_, err = GetHoldings("bla", asset.Item("hi"))
-	if err == nil {
-		t.Error("error cannot be nil since an invalid asset type is provided")
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
+	}
+
+	_, err = GetHoldings("Test", asset.UpsideProfitContract)
+	if !errors.Is(err, errAssetHoldingsNotFound) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errAssetHoldingsNotFound)
 	}
 
 	u, err := GetHoldings("Test", asset.Spot)
@@ -117,7 +165,7 @@ func TestHoldings(t *testing.T) {
 		t.Errorf("expecting 1337 but received %s", u.Accounts[0].ID)
 	}
 
-	if u.Accounts[0].Currencies[0].CurrencyName != currency.BTC {
+	if !u.Accounts[0].Currencies[0].CurrencyName.Equal(currency.BTC) {
 		t.Errorf("expecting BTC but received %s",
 			u.Accounts[0].Currencies[0].CurrencyName)
 	}
@@ -133,8 +181,8 @@ func TestHoldings(t *testing.T) {
 	}
 
 	_, err = SubscribeToExchangeAccount("nonsense")
-	if err == nil {
-		t.Fatal("error cannot be nil")
+	if !errors.Is(err, errExchangeAccountsNotFound) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errExchangeAccountsNotFound)
 	}
 
 	p, err := SubscribeToExchangeAccount("Test")
@@ -159,7 +207,8 @@ func TestHoldings(t *testing.T) {
 	err = Process(&Holdings{
 		Exchange: "Test",
 		Accounts: []SubAccount{{
-			ID: "1337",
+			ID:        "1337",
+			AssetType: asset.MarginFunding,
 			Currencies: []Balance{
 				{
 					CurrencyName: currency.BTC,
@@ -174,4 +223,141 @@ func TestHoldings(t *testing.T) {
 	}
 
 	wg.Wait()
+}
+
+func TestGetBalance(t *testing.T) {
+	_, err := GetBalance("", "", "", currency.Code{})
+	if !errors.Is(err, errExchangeNameUnset) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errExchangeNameUnset)
+	}
+
+	_, err = GetBalance("bruh", "", "", currency.Code{})
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
+	}
+
+	_, err = GetBalance("bruh", "", asset.Spot, currency.Code{})
+	if !errors.Is(err, currency.ErrCurrencyCodeEmpty) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, currency.ErrCurrencyCodeEmpty)
+	}
+
+	_, err = GetBalance("bruh", "", asset.Spot, currency.BTC)
+	if !errors.Is(err, errExchangeHoldingsNotFound) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errExchangeHoldingsNotFound)
+	}
+
+	err = Process(&Holdings{
+		Exchange: "bruh",
+		Accounts: []SubAccount{
+			{
+				AssetType: asset.Spot,
+				ID:        "1337",
+			},
+		},
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = GetBalance("bruh", "1336", asset.Spot, currency.BTC)
+	if !errors.Is(err, errNoExchangeSubAccountBalances) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errNoExchangeSubAccountBalances)
+	}
+
+	_, err = GetBalance("bruh", "1337", asset.Futures, currency.BTC)
+	if !errors.Is(err, errAssetHoldingsNotFound) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errAssetHoldingsNotFound)
+	}
+
+	_, err = GetBalance("bruh", "1337", asset.Spot, currency.BTC)
+	if !errors.Is(err, errNoBalanceFound) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errNoBalanceFound)
+	}
+
+	err = Process(&Holdings{
+		Exchange: "bruh",
+		Accounts: []SubAccount{
+			{
+				AssetType: asset.Spot,
+				ID:        "1337",
+				Currencies: []Balance{
+					{
+						CurrencyName: currency.BTC,
+						Total:        2,
+						Hold:         1,
+					},
+				},
+			},
+		},
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	bal, err := GetBalance("bruh", "1337", asset.Spot, currency.BTC)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	bal.m.Lock()
+	if bal.total != 2 {
+		t.Fatal("unexpected value")
+	}
+	if bal.hold != 1 {
+		t.Fatal("unexpected value")
+	}
+}
+
+func TestBalanceInternalWait(t *testing.T) {
+	var bi *BalanceInternal
+	_, err := bi.Wait(0)
+	if !errors.Is(err, errBalanceIsNil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errBalanceIsNil)
+	}
+
+	bi = &BalanceInternal{}
+	waiter, err := bi.Wait(time.Nanosecond)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+	<-waiter
+
+	waiter, err = bi.Wait(time.Minute)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	bi.notice.Alert()
+	<-waiter
+}
+
+func TestBalanceInternalLoad(t *testing.T) {
+	var bi *BalanceInternal
+	if bi.GetFree() != 0 {
+		t.Fatal("unexpected value")
+	}
+
+	bi = &BalanceInternal{}
+	bi.load(Balance{Total: 1, Hold: 2, Free: 3, AvailableWithoutBorrow: 4, Borrowed: 5})
+	bi.m.Lock()
+	if bi.total != 1 {
+		t.Fatal("unexpected value")
+	}
+	if bi.hold != 2 {
+		t.Fatal("unexpected value")
+	}
+	if bi.free != 3 {
+		t.Fatal("unexpected value")
+	}
+	if bi.availableWithoutBorrow != 4 {
+		t.Fatal("unexpected value")
+	}
+	if bi.borrowed != 5 {
+		t.Fatal("unexpected value")
+	}
+	bi.m.Unlock()
+
+	if bi.GetFree() != 3 {
+		t.Fatal("unexpected value")
+	}
 }

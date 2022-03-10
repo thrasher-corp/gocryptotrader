@@ -7,27 +7,33 @@ import (
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/alert"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
 // Vars for the ticker package
 var (
-	service                 *Service
+	service                 Service
 	errAccountBalancesIsNil = errors.New("account balances is nil")
 )
 
 // Service holds ticker information for each individual exchange
 type Service struct {
-	accounts map[string]*Account
-	mux      *dispatch.Mux
+	exchangeAccounts map[string]*Accounts
+	mux              *dispatch.Mux
 	sync.Mutex
 }
 
-// Account holds a stream ID and a pointer to the exchange holdings
-type Account struct {
-	h  *Holdings
-	ID uuid.UUID
+// Accounts holds a stream ID and a map to the exchange holdings
+type Accounts struct {
+	ID          uuid.UUID
+	SubAccounts map[string]map[asset.Item]map[*currency.Item]*BalanceInternal
 }
+
+// type Account struct {
+// 	h  *Holdings
+// 	ID uuid.UUID
+// }
 
 // Holdings is a generic type to hold each exchange's holdings for all enabled
 // currencies
@@ -60,4 +66,18 @@ type Change struct {
 	Asset    asset.Item
 	Amount   float64
 	Account  string
+}
+
+// BalanceInternal stores the full balance information for that specific asset
+type BalanceInternal struct {
+	total                  float64
+	hold                   float64
+	free                   float64
+	availableWithoutBorrow float64
+	borrowed               float64
+	m                      sync.Mutex
+
+	// notice alerts for when the balance changes for strategy inspection and
+	// usage.
+	notice alert.Notice
 }
