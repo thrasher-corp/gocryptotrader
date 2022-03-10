@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 )
 
 const (
@@ -100,12 +101,12 @@ func (by *Bybit) GetFuturesOrderbook(ctx context.Context, symbol currency.Pair) 
 		quantity = data.Result[x].Size
 		switch data.Result[x].Side {
 		case sideBuy:
-			resp.Bids = append(resp.Bids, OrderbookItem{
+			resp.Bids = append(resp.Bids, orderbook.Item{
 				Price:  price,
 				Amount: quantity,
 			})
 		case sideSell:
-			resp.Asks = append(resp.Asks, OrderbookItem{
+			resp.Asks = append(resp.Asks, orderbook.Item{
 				Price:  price,
 				Amount: quantity,
 			})

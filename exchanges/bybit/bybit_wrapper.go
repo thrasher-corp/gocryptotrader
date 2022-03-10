@@ -526,13 +526,13 @@ func (by *Bybit) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 			return info, err
 		}
 
-		var currencyBalance []account.Balance
+		currencyBalance := make([]account.Balance, len(balances))
 		for i := range balances {
-			currencyBalance = append(currencyBalance, account.Balance{
+			currencyBalance[i] = account.Balance{
 				CurrencyName: currency.NewCode(balances[i].CoinName),
 				Total:        balances[i].Total,
 				Hold:         balances[i].Locked,
-			})
+			}
 		}
 
 		acc.Currencies = currencyBalance
@@ -543,13 +543,15 @@ func (by *Bybit) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 			return info, err
 		}
 
-		var currencyBalance []account.Balance
+		var i int
+		currencyBalance := make([]account.Balance, len(balances))
 		for coinName, data := range balances {
-			currencyBalance = append(currencyBalance, account.Balance{
+			currencyBalance[i] = account.Balance{
 				CurrencyName: currency.NewCode(coinName),
 				Total:        data.Equity,
 				Hold:         data.Equity - data.AvailableBalance,
-			})
+			}
+			i++
 		}
 
 		acc.Currencies = currencyBalance

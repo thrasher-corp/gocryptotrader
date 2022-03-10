@@ -322,7 +322,7 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 				if err != nil {
 					return err
 				}
-				var trades []trade.Data
+				trades := make([]trade.Data, len(response.TradeData))
 				for i := range response.TradeData {
 					var p currency.Pair
 					p, err = currency.NewPairFromString(response.TradeData[0].Symbol)

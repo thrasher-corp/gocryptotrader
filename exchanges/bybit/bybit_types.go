@@ -3,6 +3,8 @@ package bybit
 import (
 	"errors"
 	"time"
+
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 )
 
 var (
@@ -29,16 +31,10 @@ type PairData struct {
 	Category          int64   `json:"category"`
 }
 
-// OrderbookItem stores an individual orderbook item
-type OrderbookItem struct {
-	Price  float64
-	Amount float64
-}
-
 // Orderbook stores the orderbook data
 type Orderbook struct {
-	Bids   []OrderbookItem
-	Asks   []OrderbookItem
+	Bids   []orderbook.Item
+	Asks   []orderbook.Item
 	Symbol string
 	Time   time.Time
 }
@@ -228,6 +224,14 @@ type Balance struct {
 	Total    float64 `json:"total,string"`
 	Free     float64 `json:"free,string"`
 	Locked   float64 `json:"locked,string"`
+}
+
+type orderbookResponse struct {
+	Data struct {
+		Asks [][2]string `json:"asks"`
+		Bids [][2]string `json:"bids"`
+		Time int64       `json:"time"`
+	} `json:"result"`
 }
 
 // Authenticate stores authentication variables required

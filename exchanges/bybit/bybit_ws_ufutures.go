@@ -287,7 +287,7 @@ func (by *Bybit) wsUSDTHandleData(respRaw []byte) error {
 			if err != nil {
 				return err
 			}
-			var trades []trade.Data
+			trades := make([]trade.Data, len(response.TradeData))
 			for i := range response.TradeData {
 				var p currency.Pair
 				p, err = currency.NewPairFromString(response.TradeData[0].Symbol)
@@ -310,7 +310,7 @@ func (by *Bybit) wsUSDTHandleData(respRaw []byte) error {
 					}
 				}
 
-				trades = append(trades, trade.Data{
+				trades[i] = trade.Data{
 					TID:          response.TradeData[i].ID,
 					Exchange:     by.Name,
 					CurrencyPair: p,
@@ -319,7 +319,7 @@ func (by *Bybit) wsUSDTHandleData(respRaw []byte) error {
 					Price:        response.TradeData[i].Price,
 					Amount:       response.TradeData[i].Size,
 					Timestamp:    response.TradeData[i].Time,
-				})
+				}
 			}
 			return by.AddTradesToBuffer(trades...)
 
