@@ -416,6 +416,7 @@ func (b *BTCMarkets) UpdateAccountInfo(ctx context.Context, assetType asset.Item
 		return resp, err
 	}
 	var acc account.SubAccount
+	acc.AssetType = assetType
 	for key := range data {
 		c := currency.NewCode(data[key].AssetName)
 		hold := data[key].Locked
