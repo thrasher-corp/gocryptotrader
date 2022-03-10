@@ -33,13 +33,14 @@ func (s *Statistic) SetupEventForTime(ev common.DataEventHandler) error {
 	s.setupMap(ex, a)
 	lookup := s.ExchangeAssetPairStatistics[ex][a][p]
 	if lookup == nil {
-		lookup = &CurrencyPairStatistic{}
+		lookup = &CurrencyPairStatistic{
+			Exchange: ev.GetExchange(),
+			Asset:    ev.GetAssetType(),
+			Currency: ev.Pair(),
+		}
 	}
 	for i := range lookup.Events {
 		if lookup.Events[i].DataEvent.GetTime().Equal(ev.GetTime()) &&
-			lookup.Events[i].DataEvent.GetExchange() == ev.GetExchange() &&
-			lookup.Events[i].DataEvent.GetAssetType() == ev.GetAssetType() &&
-			lookup.Events[i].DataEvent.Pair().Equal(ev.Pair()) &&
 			lookup.Events[i].DataEvent.GetOffset() == ev.GetOffset() {
 			return ErrAlreadyProcessed
 		}

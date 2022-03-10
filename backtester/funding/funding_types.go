@@ -134,7 +134,7 @@ type Item struct {
 	transferFee       decimal.Decimal
 	pairedWith        *Item
 	trackingCandles   *kline.DataFromKline
-	snapshot          map[time.Time]ItemSnapshot
+	snapshot          map[int64]ItemSnapshot
 	isCollateral      bool
 	collateralCandles map[currency.Code]kline.DataFromKline
 }

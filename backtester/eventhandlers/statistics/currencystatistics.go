@@ -34,11 +34,15 @@ func (c *CurrencyPairStatistic) CalculateResults(riskFreeRate decimal.Decimal) e
 	}
 	for i := range c.Events {
 		price := c.Events[i].DataEvent.GetClosePrice()
-		if c.LowestClosePrice.IsZero() || price.LessThan(c.LowestClosePrice) {
-			c.LowestClosePrice = price
+		if price.LessThan(c.LowestClosePrice.Value) || !c.LowestClosePrice.Set {
+			c.LowestClosePrice.Value = price
+			c.LowestClosePrice.Time = c.Events[i].DataEvent.GetTime()
+			c.LowestClosePrice.Set = true
 		}
-		if price.GreaterThan(c.HighestClosePrice) {
-			c.HighestClosePrice = price
+		if price.GreaterThan(c.HighestClosePrice.Value) {
+			c.HighestClosePrice.Value = price
+			c.HighestClosePrice.Time = c.Events[i].DataEvent.GetTime()
+			c.HighestClosePrice.Set = true
 		}
 	}
 
@@ -49,6 +53,7 @@ func (c *CurrencyPairStatistic) CalculateResults(riskFreeRate decimal.Decimal) e
 	if first.Holdings.TotalValue.GreaterThan(decimal.Zero) {
 		c.StrategyMovement = last.Holdings.TotalValue.Sub(first.Holdings.TotalValue).Div(first.Holdings.TotalValue).Mul(oneHundred)
 	}
+	c.analysePNLGrowth()
 	c.calculateHighestCommittedFunds()
 	returnsPerCandle := make([]decimal.Decimal, len(c.Events))
 	benchmarkRates := make([]decimal.Decimal, len(c.Events))
@@ -131,4 +136,41 @@ func (c *CurrencyPairStatistic) calculateHighestCommittedFunds() {
 			c.HighestCommittedFunds.Time = c.Events[i].Holdings.Timestamp
 		}
 	}
+}
+
+func (c *CurrencyPairStatistic) analysePNLGrowth() {
+	if !c.Asset.IsFutures() {
+		return
+	}
+	var lowestUnrealised, highestUnrealised, lowestRealised, highestRealised ValueAtTime
+	for i := range c.Events {
+		if c.Events[i].PNL == nil {
+			continue
+		}
+		if c.Events[i].PNL.Result.UnrealisedPNL.LessThan(lowestUnrealised.Value) || (!c.Events[i].PNL.Result.UnrealisedPNL.IsZero() && !lowestUnrealised.Set) {
+			lowestUnrealised.Value = c.Events[i].PNL.Result.UnrealisedPNL
+			lowestUnrealised.Time = c.Events[i].PNL.Result.Time
+			lowestUnrealised.Set = true
+		}
+		if c.Events[i].PNL.Result.UnrealisedPNL.GreaterThan(highestUnrealised.Value) || (!c.Events[i].PNL.Result.UnrealisedPNL.IsZero() && !highestUnrealised.Set) {
+			highestUnrealised.Value = c.Events[i].PNL.Result.UnrealisedPNL
+			highestUnrealised.Time = c.Events[i].PNL.Result.Time
+			highestUnrealised.Set = true
+		}
+
+		if c.Events[i].PNL.Result.RealisedPNL.LessThan(lowestRealised.Value) || (!c.Events[i].PNL.Result.RealisedPNL.IsZero() && !lowestRealised.Set) {
+			lowestRealised.Value = c.Events[i].PNL.Result.RealisedPNL
+			lowestRealised.Time = c.Events[i].PNL.Result.Time
+			lowestRealised.Set = true
+		}
+		if c.Events[i].PNL.Result.RealisedPNL.GreaterThan(highestRealised.Value) || (!c.Events[i].PNL.Result.RealisedPNL.IsZero() && !highestRealised.Set) {
+			highestRealised.Value = c.Events[i].PNL.Result.RealisedPNL
+			highestRealised.Time = c.Events[i].PNL.Result.Time
+			highestRealised.Set = true
+		}
+	}
+	c.LowestRealisedPNL = lowestRealised
+	c.LowestUnrealisedPNL = lowestUnrealised
+	c.HighestUnrealisedPNL = highestUnrealised
+	c.HighestRealisedPNL = highestRealised
 }

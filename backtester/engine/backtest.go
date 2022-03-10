@@ -176,7 +176,7 @@ func (bt *BackTest) processSimultaneousDataEvents() error {
 		for _, assetMap := range exchangeMap {
 			for _, dataHandler := range assetMap {
 				latestData := dataHandler.Latest()
-				funds, err := bt.Funding.GetFundingForEAP(latestData.GetExchange(), latestData.GetAssetType(), latestData.Pair())
+				funds, err := bt.Funding.GetFundingForEvent(latestData)
 				if err != nil {
 					return err
 				}

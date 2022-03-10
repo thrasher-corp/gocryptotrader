@@ -77,7 +77,7 @@ func CreateItem(exch string, a asset.Item, ci currency.Code, initialFunds, trans
 		initialFunds: initialFunds,
 		available:    initialFunds,
 		transferFee:  transferFee,
-		snapshot:     make(map[time.Time]ItemSnapshot),
+		snapshot:     make(map[int64]ItemSnapshot),
 	}, nil
 }
 
@@ -114,7 +114,7 @@ func (f *FundManager) LinkCollateralCurrency(item *Item, code currency.Code) err
 func (f *FundManager) CreateSnapshot(t time.Time) {
 	for i := range f.items {
 		if f.items[i].snapshot == nil {
-			f.items[i].snapshot = make(map[time.Time]ItemSnapshot)
+			f.items[i].snapshot = make(map[int64]ItemSnapshot)
 		}
 		iss := ItemSnapshot{
 			Available: f.items[i].available,
@@ -136,7 +136,7 @@ func (f *FundManager) CreateSnapshot(t time.Time) {
 			iss.USDValue = usdClosePrice.Mul(f.items[i].available)
 		}
 
-		f.items[i].snapshot[t] = iss
+		f.items[i].snapshot[t.Unix()] = iss
 	}
 }
 
@@ -518,8 +518,8 @@ func (f *FundManager) UpdateCollateral(ev common.EventHandler) error {
 	}
 
 	for i := range f.items {
-		if !f.items[i].isCollateral && f.items[i].asset.IsFutures() {
-			// contracts don't contribute to collateral
+		if f.items[i].asset.IsFutures() {
+			// futures positions aren't collateral, they use it
 			continue
 		}
 		exch, ok := exchMap[f.items[i].exchange]

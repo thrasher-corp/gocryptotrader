@@ -163,9 +163,11 @@ func (c *CurrencyPairStatistic) PrintResults(e string, a asset.Item, p currency.
 	})
 	last := c.Events[len(c.Events)-1]
 	first := c.Events[0]
-	c.StartingClosePrice = first.DataEvent.GetClosePrice()
-	c.EndingClosePrice = last.DataEvent.GetClosePrice()
-	c.TotalOrders = c.BuyOrders + c.SellOrders
+	c.StartingClosePrice.Value = first.DataEvent.GetClosePrice()
+	c.StartingClosePrice.Time = first.DataEvent.GetTime()
+	c.EndingClosePrice.Value = last.DataEvent.GetClosePrice()
+	c.EndingClosePrice.Time = last.DataEvent.GetTime()
+	c.TotalOrders = c.BuyOrders + c.SellOrders + c.ShortOrders + c.LongOrders
 	last.Holdings.TotalValueLost = last.Holdings.TotalValueLostToSlippage.Add(last.Holdings.TotalValueLostToVolumeSizing)
 	sep := fmt.Sprintf("%v %v %v |\t", fSIL(e, limit12), fSIL(a.String(), limit10), fSIL(p.String(), limit14))
 	currStr := fmt.Sprintf(common.ColourH1+"------------------Stats for %v %v %v------------------------------------------------------"+common.ColourDefault, e, a, p)
@@ -173,11 +175,10 @@ func (c *CurrencyPairStatistic) PrintResults(e string, a asset.Item, p currency.
 	if a.IsFutures() {
 		log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Long orders: %s", sep, convert.IntToHumanFriendlyString(c.LongOrders, ","))
 		log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Short orders: %s", sep, convert.IntToHumanFriendlyString(c.ShortOrders, ","))
-		log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Highest Unrealised PNL: %s", sep, convert.IntToHumanFriendlyString(c.ShortOrders, ","))
-		log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Lowest Unrealised PNL: %s", sep, convert.IntToHumanFriendlyString(c.ShortOrders, ","))
-		log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Highest Realised PNL: %s", sep, convert.IntToHumanFriendlyString(c.ShortOrders, ","))
-		log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Lowest Realised PNL: %s", sep, convert.IntToHumanFriendlyString(c.ShortOrders, ","))
-
+		log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Highest Unrealised PNL: %s at %v", sep, convert.DecimalToHumanFriendlyString(c.HighestUnrealisedPNL.Value, 8, ".", ","), c.HighestUnrealisedPNL.Time)
+		log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Lowest Unrealised PNL: %s at %v", sep, convert.DecimalToHumanFriendlyString(c.LowestUnrealisedPNL.Value, 8, ".", ","), c.LowestUnrealisedPNL.Time)
+		log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Highest Realised PNL: %s at %v", sep, convert.DecimalToHumanFriendlyString(c.HighestRealisedPNL.Value, 8, ".", ","), c.HighestRealisedPNL.Time)
+		log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Lowest Realised PNL: %s at %v", sep, convert.DecimalToHumanFriendlyString(c.LowestRealisedPNL.Value, 8, ".", ","), c.LowestRealisedPNL.Time)
 	} else {
 		log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Highest committed funds: %s at %v", sep, convert.DecimalToHumanFriendlyString(c.HighestCommittedFunds.Value, 8, ".", ","), c.HighestCommittedFunds.Time)
 		log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Buy orders: %s", sep, convert.IntToHumanFriendlyString(c.BuyOrders, ","))
@@ -221,10 +222,10 @@ func (c *CurrencyPairStatistic) PrintResults(e string, a asset.Item, p currency.
 	}
 
 	log.Info(common.SubLoggers[common.CurrencyStatistics], common.ColourH2+"------------------Results------------------------------------"+common.ColourDefault)
-	log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Starting Close Price: %s", sep, convert.DecimalToHumanFriendlyString(c.StartingClosePrice, 8, ".", ","))
-	log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Finishing Close Price: %s", sep, convert.DecimalToHumanFriendlyString(c.EndingClosePrice, 8, ".", ","))
-	log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Lowest Close Price: %s", sep, convert.DecimalToHumanFriendlyString(c.LowestClosePrice, 8, ".", ","))
-	log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Highest Close Price: %s", sep, convert.DecimalToHumanFriendlyString(c.HighestClosePrice, 8, ".", ","))
+	log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Starting Close Price: %s at %v", sep, convert.DecimalToHumanFriendlyString(c.StartingClosePrice.Value, 8, ".", ","), c.StartingClosePrice.Time)
+	log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Finishing Close Price: %s at %v", sep, convert.DecimalToHumanFriendlyString(c.EndingClosePrice.Value, 8, ".", ","), c.EndingClosePrice.Time)
+	log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Lowest Close Price: %s at %v", sep, convert.DecimalToHumanFriendlyString(c.LowestClosePrice.Value, 8, ".", ","), c.LowestClosePrice.Time)
+	log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Highest Close Price: %s at %v", sep, convert.DecimalToHumanFriendlyString(c.HighestClosePrice.Value, 8, ".", ","), c.HighestClosePrice.Time)
 
 	log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Market movement: %s%%", sep, convert.DecimalToHumanFriendlyString(c.MarketMovement, 2, ".", ","))
 	if !usingExchangeLevelFunding {

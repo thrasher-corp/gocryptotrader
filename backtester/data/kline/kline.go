@@ -33,7 +33,7 @@ func (d *DataFromKline) Load() error {
 			Base: event.Base{
 				Offset:         int64(i + 1),
 				Exchange:       d.Item.Exchange,
-				Time:           d.Item.Candles[i].Time,
+				Time:           d.Item.Candles[i].Time.UTC(),
 				Interval:       d.Item.Interval,
 				CurrencyPair:   d.Item.Pair,
 				AssetType:      d.Item.Asset,
@@ -47,7 +47,7 @@ func (d *DataFromKline) Load() error {
 			ValidationIssues: d.Item.Candles[i].ValidationIssues,
 		}
 		klineData[i] = klinerino
-		d.addedTimes[d.Item.Candles[i].Time] = true
+		d.addedTimes[d.Item.Candles[i].Time.UTC()] = true
 	}
 
 	d.SetStream(klineData)

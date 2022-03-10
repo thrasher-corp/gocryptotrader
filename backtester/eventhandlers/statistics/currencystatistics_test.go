@@ -6,6 +6,7 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
@@ -269,4 +270,30 @@ func TestCalculateHighestCommittedFunds(t *testing.T) {
 	if c.HighestCommittedFunds.Time != tt2 {
 		t.Errorf("expected %v, received %v", tt2, c.HighestCommittedFunds.Time)
 	}
+}
+
+func TestAnalysePNLGrowth(t *testing.T) {
+	t.Parallel()
+	c := CurrencyPairStatistic{}
+	c.analysePNLGrowth()
+	if !c.HighestUnrealisedPNL.Value.IsZero() ||
+		!c.LowestUnrealisedPNL.Value.IsZero() ||
+		!c.LowestRealisedPNL.Value.IsZero() ||
+		!c.HighestRealisedPNL.Value.IsZero() {
+		t.Error("expected unset")
+	}
+
+	e := testExchange
+	a := asset.Spot
+	p := currency.NewPair(currency.BTC, currency.USDT)
+
+	c.Events = append(c.Events,
+		DataAtOffset{PNL: &portfolio.PNLSummary{
+			Exchange: e,
+			Item:     a,
+			Pair:     p,
+			Offset:   0,
+			Result:   order.PNLResult{},
+		}},
+	)
 }

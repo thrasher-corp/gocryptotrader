@@ -131,6 +131,10 @@ type DataAtOffset struct {
 
 // CurrencyPairStatistic Holds all events and statistics relevant to an exchange, asset type and currency pair
 type CurrencyPairStatistic struct {
+	Exchange string
+	Asset    asset.Item
+	Currency currency.Pair
+
 	ShowMissingDataWarning       bool `json:"-"`
 	IsStrategyProfitable         bool `json:"is-strategy-profitable"`
 	DoesPerformanceBeatTheMarket bool `json:"does-performance-beat-the-market"`
@@ -141,10 +145,15 @@ type CurrencyPairStatistic struct {
 	SellOrders  int64 `json:"sell-orders"`
 	TotalOrders int64 `json:"total-orders"`
 
-	StartingClosePrice           decimal.Decimal `json:"starting-close-price"`
-	EndingClosePrice             decimal.Decimal `json:"ending-close-price"`
-	LowestClosePrice             decimal.Decimal `json:"lowest-close-price"`
-	HighestClosePrice            decimal.Decimal `json:"highest-close-price"`
+	StartingClosePrice   ValueAtTime `json:"starting-close-price"`
+	EndingClosePrice     ValueAtTime `json:"ending-close-price"`
+	LowestClosePrice     ValueAtTime `json:"lowest-close-price"`
+	HighestClosePrice    ValueAtTime `json:"highest-close-price"`
+	HighestUnrealisedPNL ValueAtTime `json:"highest-unrealised-pnl"`
+	LowestUnrealisedPNL  ValueAtTime `json:"lowest-unrealised-pnl"`
+	HighestRealisedPNL   ValueAtTime `json:"highest-realised-pnl"`
+	LowestRealisedPNL    ValueAtTime `json:"lowest-realised-pnl"`
+
 	MarketMovement               decimal.Decimal `json:"market-movement"`
 	StrategyMovement             decimal.Decimal `json:"strategy-movement"`
 	UnrealisedPNL                decimal.Decimal `json:"unrealised-pnl"`
