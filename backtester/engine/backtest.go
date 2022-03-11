@@ -51,9 +51,9 @@ dataLoadingIssue:
 	for ev := bt.EventQueue.NextEvent(); ; ev = bt.EventQueue.NextEvent() {
 		if ev == nil {
 			dataHandlerMap := bt.Datas.GetAllData()
+			var hasProcessedData bool
 			for exchangeName, exchangeMap := range dataHandlerMap {
 				for assetItem, assetMap := range exchangeMap {
-					var hasProcessedData bool
 					for currencyPair, dataHandler := range assetMap {
 						d := dataHandler.Next()
 						if d == nil {
@@ -63,6 +63,9 @@ dataLoadingIssue:
 							break dataLoadingIssue
 						}
 						if bt.Strategy.UsingSimultaneousProcessing() && hasProcessedData {
+							// only append one event, as simultaneous processing
+							// will retrieve all relevant events to process under
+							// processSimultaneousDataEvents()
 							continue
 						}
 						bt.EventQueue.AppendEvent(d)
@@ -70,8 +73,7 @@ dataLoadingIssue:
 					}
 				}
 			}
-		}
-		if ev != nil {
+		} else {
 			err := bt.handleEvent(ev)
 			if err != nil {
 				return err

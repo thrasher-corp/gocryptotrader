@@ -20,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // Reset returns the exchange to initial settings
@@ -185,8 +186,6 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 			}
 			return f, err
 		}
-		// realising pnl for a closed futures order occurs in the
-		// portfolio OnFill function
 	}
 
 	ords := orderManager.GetOrdersSnapshot("")
@@ -199,11 +198,11 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 		ords[i].CloseTime = o.GetTime()
 		f.Order = &ords[i]
 		f.PurchasePrice = decimal.NewFromFloat(ords[i].Price)
-		if ords[i].AssetType.IsFutures() || f.GetDirection() == common.ClosePosition {
-			f.Total = limitReducedAmount.Add(f.ExchangeFee)
-		} else {
-			f.Total = f.PurchasePrice.Mul(limitReducedAmount).Add(f.ExchangeFee)
+		f.Amount = decimal.NewFromFloat(ords[i].Amount)
+		if ords[i].Fee > 0 {
+			f.ExchangeFee = decimal.NewFromFloat(ords[i].Fee)
 		}
+		f.Total = f.PurchasePrice.Mul(f.Amount).Add(f.ExchangeFee)
 	}
 
 	if f.Order == nil {
@@ -327,6 +326,7 @@ func (e *Exchange) placeOrder(ctx context.Context, price, amount decimal.Decimal
 			Cost:          p,
 			FullyMatched:  true,
 		}
+		log.Infof(log.Global, "%v %v %v %v %v - %v %v", f.GetOffset(), f.GetExchange(), f.GetAssetType(), f.Pair(), f.GetTime(), price, amount)
 		resp, err := orderManager.SubmitFakeOrder(o, submitResponse, useExchangeLimits)
 		if resp != nil {
 			orderID = resp.OrderID

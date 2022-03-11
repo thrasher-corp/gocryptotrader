@@ -92,21 +92,24 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundTransf
 			// as the futures signal relies on a completed spot order purchase
 			// to use as collateral
 			spotSignal.FillDependentEvent = &futuresSignal
+			response = append(response, &spotSignal, &futuresSignal)
 		case len(pos) > 0 && v.futureSignal.IsLastEvent():
 			futuresSignal.SetDirection(common.ClosePosition)
 			futuresSignal.AppendReason("closing position on last event")
+			response = append(response, &futuresSignal)
 		case len(pos) > 0 && pos[len(pos)-1].Status == order.Open &&
 			fp.Sub(sp).Div(sp).GreaterThan(s.closeShortDistancePercentage):
 			futuresSignal.SetDirection(common.ClosePosition)
 			futuresSignal.AppendReason("closing position after reaching close short distance percentage")
+			response = append(response, &futuresSignal)
 		case len(pos) > 0 &&
 			pos[len(pos)-1].Status == order.Closed &&
 			fp.Sub(sp).Div(sp).GreaterThan(s.openShortDistancePercentage):
 			futuresSignal.SetDirection(order.Short)
 			futuresSignal.SetPrice(v.futureSignal.Latest().GetClosePrice())
 			futuresSignal.AppendReason("opening position after reaching open short distance percentage")
+			response = append(response, &futuresSignal)
 		}
-		response = append(response, &spotSignal, &futuresSignal)
 	}
 	return response, nil
 }
