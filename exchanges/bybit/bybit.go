@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -27,7 +26,8 @@ type Bybit struct {
 }
 
 const (
-	bybitAPIURL = "https://api.bybit.com"
+	bybitAPIURL       = "https://api.bybit.com"
+	defaultRecvWindow = 5 * time.Second
 
 	sideBuy  = "Buy"
 	sideSell = "Sell"
@@ -264,8 +264,7 @@ func (by *Bybit) GetKlines(ctx context.Context, symbol, period string, limit int
 		if !ok {
 			return klines, fmt.Errorf("%v GetKlines: %w for EndTime", by.Name, errTypeAssert)
 		}
-		kline.EndTime = time.Unix(0, int64(endTime)*int64(time.Millisecond))
-
+		kline.EndTime = time.UnixMilli(int64(endTime))
 		quoteAssetVolume, ok := resp.Data[x][7].(string)
 		if !ok {
 			return klines, fmt.Errorf("%v GetKlines: %w for QuoteAssetVolume", by.Name, errTypeAssert)
@@ -669,58 +668,56 @@ func (by *Bybit) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path s
 
 // SendAuthHTTPRequest sends an authenticated HTTP request
 func (by *Bybit) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, method, path string, params url.Values, result interface{}, f request.EndpointLimit) error {
+	if !by.AllowAuthenticatedRequest() {
+		return fmt.Errorf("%s %w", by.Name, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
+	}
 	endpointPath, err := by.API.Endpoints.GetURL(ePath)
 	if err != nil {
 		return err
 	}
 
-	recvWindow := int64(5000) // default millisecond
-	if params.Get("recvWindow") != "" {
-		var recvWindowParam int64
-		// convert recvWindow value into time.Duration
-		recvWindowParam, err = convert.Int64FromString(params.Get("recvWindow"))
-		if err != nil {
-			return err
-		}
-		recvWindow = time.Duration(recvWindowParam).Milliseconds()
+	if params == nil {
+		params = url.Values{}
 	}
-	params.Set("recvWindow", strconv.FormatInt(recvWindow, 10))
-	params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
-	params.Set("api_key", by.API.Credentials.Key)
-	signature := params.Encode()
-	hmacSigned, err := crypto.GetHMAC(crypto.HashSHA256, []byte(signature), []byte(by.API.Credentials.Secret))
-	if err != nil {
-		return err
-	}
-	hmacSignedStr := crypto.HexEncodeToString(hmacSigned)
 
-	headers := make(map[string]string)
-	var payload []byte
-	switch method {
-	case http.MethodPost:
-		headers["Content-Type"] = "application/json"
-		m := make(map[string]string)
-		m["api_key"] = by.API.Credentials.Key
-
-		for k, v := range params {
-			m[k] = strings.Join(v, "")
-		}
-		m["sign"] = hmacSignedStr
-		payload, err = json.Marshal(m)
-		if err != nil {
-			return err
-		}
-	default:
-		headers["Content-Type"] = "application/x-www-form-urlencoded"
-		path = common.EncodeURLValues(path, params)
-		path += "&sign=" + hmacSignedStr
-		endpointPath += path
+	if params.Get("recvWindow") == "" {
+		params.Set("recvWindow", strconv.FormatInt(defaultRecvWindow.Milliseconds(), 10))
 	}
 
 	return by.SendPayload(ctx, f, func() (*request.Item, error) {
+		params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
+		params.Set("api_key", by.API.Credentials.Key)
+		signature := params.Encode()
+		hmacSigned, err := crypto.GetHMAC(crypto.HashSHA256, []byte(signature), []byte(by.API.Credentials.Secret))
+		if err != nil {
+			return nil, err
+		}
+		hmacSignedStr := crypto.HexEncodeToString(hmacSigned)
+
+		headers := make(map[string]string)
+		var payload []byte
+		switch method {
+		case http.MethodPost:
+			headers["Content-Type"] = "application/json"
+			m := make(map[string]string)
+			m["api_key"] = by.API.Credentials.Key
+
+			for k, v := range params {
+				m[k] = strings.Join(v, "")
+			}
+			m["sign"] = hmacSignedStr
+			payload, err = json.Marshal(m)
+			if err != nil {
+				return nil, err
+			}
+		default:
+			headers["Content-Type"] = "application/x-www-form-urlencoded"
+			path = common.EncodeURLValues(path, params)
+			path += "&sign=" + hmacSignedStr
+		}
 		return &request.Item{
 			Method:        method,
-			Path:          endpointPath,
+			Path:          endpointPath + path,
 			Headers:       headers,
 			Body:          bytes.NewBuffer(payload),
 			Result:        &result,

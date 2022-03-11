@@ -169,7 +169,6 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	// If websocket is supported, please fill out the following
 	err = by.Websocket.Setup(
 		&stream.WebsocketSetup{
 			ExchangeConfig:        exch,
