@@ -60,7 +60,7 @@ func (by *Bybit) SetDefaults() {
 
 	requestFmt := &currency.PairFormat{Uppercase: true}
 
-	configFmt := &currency.PairFormat{Uppercase: true}
+	configFmt := &currency.PairFormat{Delimiter: currency.DashDelimiter, Uppercase: true}
 	err := by.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot, asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.Futures)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
@@ -248,7 +248,7 @@ func (by *Bybit) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string
 			return nil, err
 		}
 		for x := range allPairs {
-			pairs = append(pairs, allPairs[x].Name)
+			pairs = append(pairs, allPairs[x].BaseCurrency+currency.DashDelimiter+allPairs[x].QuoteCurrency)
 		}
 	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.Futures:
 		allPairs, err := by.GetSymbolsInfo(ctx)
@@ -257,7 +257,7 @@ func (by *Bybit) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string
 		}
 		for x := range allPairs {
 			if allPairs[x].Status == "Trading" {
-				pairs = append(pairs, allPairs[x].Name)
+				pairs = append(pairs, allPairs[x].BaseCurrency+currency.DashDelimiter+allPairs[x].QuoteCurrency)
 			}
 		}
 	}
