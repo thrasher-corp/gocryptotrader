@@ -40,8 +40,12 @@ func setupPortfolioManager(e *ExchangeManager, portfolioManagerDelay time.Durati
 		return nil, errNilExchangeManager
 	}
 	if portfolioManagerDelay <= 0 {
+		log.Warnln(log.PortfolioMgr, "Portfolio manager default update delay set to:", PortfolioSleepDelay)
 		portfolioManagerDelay = PortfolioSleepDelay
+	} else {
+		log.Debugln(log.PortfolioMgr, "Portfolio manager update delay set to:", portfolioManagerDelay)
 	}
+
 	if cfg == nil {
 		cfg = &portfolio.Base{Addresses: []portfolio.Address{}}
 	}
@@ -101,20 +105,17 @@ func (m *portfolioManager) Stop() error {
 func (m *portfolioManager) run(wg *sync.WaitGroup) {
 	log.Debugln(log.PortfolioMgr, "Portfolio manager started.")
 	wg.Add(1)
-	tick := time.NewTicker(m.portfolioManagerDelay)
-	defer func() {
-		tick.Stop()
-		wg.Done()
-		log.Debugf(log.PortfolioMgr, "Portfolio manager shutdown.")
-	}()
-
-	go m.processPortfolio()
+	timer := time.NewTimer(0)
 	for {
 		select {
 		case <-m.shutdown:
+			timer.Stop()
+			wg.Done()
+			log.Debugf(log.PortfolioMgr, "Portfolio manager shutdown.")
 			return
-		case <-tick.C:
-			go m.processPortfolio()
+		case <-timer.C:
+			m.processPortfolio()
+			timer.Reset(m.portfolioManagerDelay)
 		}
 	}
 }
@@ -126,6 +127,15 @@ func (m *portfolioManager) processPortfolio() {
 	}
 	m.m.Lock()
 	defer m.m.Unlock()
+	fmt.Println("fetching account details")
+
+	exchanges, err := m.exchangeManager.GetExchanges()
+	if err != nil {
+		log.Errorf(log.PortfolioMgr, "Portfolio manager cannot get exchanges: %v", err)
+	}
+	d := m.getExchangeAccountInfo(exchanges)
+	m.seedExchangeAccountInfo(d)
+
 	data := m.base.GetPortfolioGroupedCoin()
 	for key, value := range data {
 		err := m.base.UpdatePortfolio(value, key)
@@ -143,12 +153,6 @@ func (m *portfolioManager) processPortfolio() {
 			value)
 	}
 
-	exchanges, err := m.exchangeManager.GetExchanges()
-	if err != nil {
-		log.Errorf(log.PortfolioMgr, "Portfolio manager cannot get exchanges: %v", err)
-	}
-	d := m.getExchangeAccountInfo(exchanges)
-	m.seedExchangeAccountInfo(d)
 	atomic.CompareAndSwapInt32(&m.processing, 1, 0)
 }
 
@@ -256,7 +260,7 @@ func (m *portfolioManager) getExchangeAccountInfo(exchanges []exchange.IBotExcha
 		assetTypes := exchanges[x].GetAssetTypes(false) // left as available for now, to sync the full spectrum
 		var exchangeHoldings account.Holdings
 		for y := range assetTypes {
-			accountHoldings, err := exchanges[x].FetchAccountInfo(context.TODO(), assetTypes[y])
+			accountHoldings, err := exchanges[x].UpdateAccountInfo(context.TODO(), assetTypes[y])
 			if err != nil {
 				log.Errorf(log.PortfolioMgr,
 					"Error encountered retrieving exchange account info for %s. Error %s\n",

@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
@@ -58,7 +59,9 @@ const (
 	orderPlaced             = "Placed"
 	orderAccepted           = "Accepted"
 
-	ask        = "ask"
+	ask = "ask"
+
+	// order types
 	limit      = "Limit"
 	market     = "Market"
 	stopLimit  = "Stop Limit"
@@ -311,8 +314,27 @@ func (b *BTCMarkets) GetTradeByID(ctx context.Context, id string) (TradeHistoryD
 		request.Auth)
 }
 
+// formatOrderType conforms order type to the exchange acceptable order type
+// strings
+func (b *BTCMarkets) formatOrderType(o order.Type) (string, error) {
+	switch o {
+	case order.Limit:
+		return limit, nil
+	case order.Market:
+		return market, nil
+	case order.StopLimit:
+		return stopLimit, nil
+	case order.Stop:
+		return stop, nil
+	case order.TakeProfit:
+		return takeProfit, nil
+	default:
+		return "", fmt.Errorf("%s %s %w", b.Name, o, order.ErrTypeIsInvalid)
+	}
+}
+
 // NewOrder requests a new order and returns an ID
-func (b *BTCMarkets) NewOrder(ctx context.Context, marketID string, price, amount float64, orderType, side string, triggerPrice,
+func (b *BTCMarkets) NewOrder(ctx context.Context, marketID string, price, amount float64, orderType string, side string, triggerPrice,
 	targetAmount float64, timeInForce string, postOnly bool, selfTrade, clientOrderID string) (OrderData, error) {
 	var resp OrderData
 	req := make(map[string]interface{})

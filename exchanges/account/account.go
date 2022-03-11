@@ -163,22 +163,34 @@ func GetBalance(exch, subAccount string, ai asset.Item, c currency.Code) (*Balan
 
 	accounts, ok := service.exchangeAccounts[exch]
 	if !ok {
-		return nil, errExchangeHoldingsNotFound
+		id, err := service.mux.GetID()
+		if err != nil {
+			return nil, err
+		}
+		accounts = &Accounts{
+			ID:          id,
+			SubAccounts: make(map[string]map[asset.Item]map[*currency.Item]*BalanceInternal),
+		}
+		service.exchangeAccounts[exch] = accounts
+
 	}
 
 	assetBalances, ok := accounts.SubAccounts[subAccount]
 	if !ok {
-		return nil, errNoExchangeSubAccountBalances
+		assetBalances = make(map[asset.Item]map[*currency.Item]*BalanceInternal)
+		accounts.SubAccounts[subAccount] = assetBalances
 	}
 
 	currencyBalances, ok := assetBalances[ai]
 	if !ok {
-		return nil, errAssetHoldingsNotFound
+		currencyBalances = make(map[*currency.Item]*BalanceInternal)
+		assetBalances[ai] = currencyBalances
 	}
 
 	bal, ok := currencyBalances[c.Item]
 	if !ok {
-		return nil, errNoBalanceFound
+		bal = &BalanceInternal{}
+		currencyBalances[c.Item] = bal
 	}
 	return bal, nil
 }
@@ -257,8 +269,8 @@ func (b *BalanceInternal) load(change Balance) {
 }
 
 // Wait waits for a change in amounts for an asset type. This will pause
-// indefinately if no change ever occurs. Kick is a param that allows for the
-// diconnection of the wait.
+// indefinately if no change ever occurs. Max wait will return true if it failed
+// to achieve a state change in the time specified.
 func (b *BalanceInternal) Wait(maxWait time.Duration) (<-chan bool, error) {
 	if b == nil {
 		return nil, errBalanceIsNil
