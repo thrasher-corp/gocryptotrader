@@ -12,10 +12,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-// fSIL shorthand wrapper for FitStringInLimit
+// fSIL shorthand wrapper for FitStringToLimit
 func fSIL(str string, limit int) string {
 	spacer := " "
-	return common.FitStringInLimit(str, spacer, limit, true)
+	return common.FitStringToLimit(str, spacer, limit, true)
 }
 
 // CalculateBiggestEventDrawdown calculates the biggest drawdown using a slice of DataEvents

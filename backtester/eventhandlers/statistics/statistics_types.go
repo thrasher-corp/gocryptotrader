@@ -54,6 +54,7 @@ type Statistic struct {
 	WasAnyDataMissing           bool                                                               `json:"was-any-data-missing"`
 	FundingStatistics           *FundingStatistics                                                 `json:"funding-statistics"`
 	FundManager                 funding.IFundingManager                                            `json:"-"`
+	HasCollateral               bool                                                               `json:"has-collateral"`
 }
 
 // FinalResultsHolder holds important stats about a currency's performance

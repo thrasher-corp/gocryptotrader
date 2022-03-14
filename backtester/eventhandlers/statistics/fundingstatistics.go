@@ -156,6 +156,10 @@ func CalculateIndividualFundingStatistics(disableUSDTracking bool, reportItem *f
 		return item, nil
 	}
 	closePrices := reportItem.Snapshots
+	item.IsCollateral = reportItem.IsCollateral
+	if item.IsCollateral {
+		return item, nil
+	}
 	if len(closePrices) == 0 {
 		return nil, errMissingSnapshots
 	}
@@ -182,19 +186,19 @@ func CalculateIndividualFundingStatistics(disableUSDTracking bool, reportItem *f
 	item.IsCollateral = reportItem.IsCollateral
 	if reportItem.Asset.IsFutures() {
 		var lowest, highest, initial, final ValueAtTime
-		initial.Value = reportItem.Snapshots[0].Available
-		initial.Time = reportItem.Snapshots[0].Time
-		final.Value = reportItem.Snapshots[len(reportItem.Snapshots)-1].Available
-		final.Time = reportItem.Snapshots[len(reportItem.Snapshots)-1].Time
-		for i := range reportItem.Snapshots {
-			if reportItem.Snapshots[i].Available.LessThan(lowest.Value) || !lowest.Set {
-				lowest.Value = reportItem.Snapshots[i].Available
-				lowest.Time = reportItem.Snapshots[i].Time
+		initial.Value = closePrices[0].Available
+		initial.Time = closePrices[0].Time
+		final.Value = closePrices[len(closePrices)-1].Available
+		final.Time = closePrices[len(closePrices)-1].Time
+		for i := range closePrices {
+			if closePrices[i].Available.LessThan(lowest.Value) || !lowest.Set {
+				lowest.Value = closePrices[i].Available
+				lowest.Time = closePrices[i].Time
 				lowest.Set = true
 			}
-			if reportItem.Snapshots[i].Available.GreaterThan(highest.Value) || !lowest.Set {
-				highest.Value = reportItem.Snapshots[i].Available
-				highest.Time = reportItem.Snapshots[i].Time
+			if closePrices[i].Available.GreaterThan(highest.Value) || !lowest.Set {
+				highest.Value = closePrices[i].Available
+				highest.Time = closePrices[i].Time
 				highest.Set = true
 			}
 		}

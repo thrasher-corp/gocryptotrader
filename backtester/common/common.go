@@ -17,9 +17,9 @@ func DataTypeToInt(dataType string) (int64, error) {
 	}
 }
 
-// FitStringInLimit ensures a string is within the limit
-// it also helps elongate a string to fit the limit
-func FitStringInLimit(str, spacer string, limit int, upper bool) string {
+// FitStringToLimit ensures a string is of the length of the limit
+// either by truncating the string with ellipses or padding with the spacer
+func FitStringToLimit(str, spacer string, limit int, upper bool) string {
 	limResp := limit - len(str)
 	if upper {
 		str = strings.ToUpper(str)
@@ -39,5 +39,5 @@ func FitStringInLimit(str, spacer string, limit int, upper bool) string {
 		}
 	}
 
-	return str
+	return str[0:limit]
 }

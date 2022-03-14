@@ -334,6 +334,11 @@ func (bt *BackTest) processFillEvent(ev fill.Event, funds funding.IFundReleaser)
 	fde := ev.GetFillDependentEvent()
 	if !fde.IsNil() {
 		// some events can only be triggered on a successful fill event
+		fde.SetOffset(ev.GetOffset())
+		err = bt.Statistic.SetEventForOffset(fde)
+		if err != nil {
+			log.Errorf(common.SubLoggers[common.Backtester], "SetEventForOffset %v %v %v %v", fde.GetExchange(), fde.GetAssetType(), fde.Pair(), err)
+		}
 		bt.EventQueue.AppendEvent(fde)
 	}
 	if ev.GetAssetType().IsFutures() {

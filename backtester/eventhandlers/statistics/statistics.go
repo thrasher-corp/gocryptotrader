@@ -183,6 +183,9 @@ func (s *Statistic) CalculateAllResults() error {
 			for pair, stats := range assetMap {
 				currCount++
 				last := stats.Events[len(stats.Events)-1]
+				if last.PNL != nil {
+					s.HasCollateral = true
+				}
 				err = stats.CalculateResults(s.RiskFreeRate)
 				if err != nil {
 					log.Error(common.SubLoggers[common.Statistics], err)
