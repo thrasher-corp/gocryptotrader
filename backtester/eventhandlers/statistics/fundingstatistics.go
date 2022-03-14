@@ -56,11 +56,12 @@ func CalculateFundingStatistics(funds funding.IFundingManager, currStats map[str
 		RiskFreeRate:        riskFreeRate,
 	}
 	for i := range response.Items {
-		if !response.Items[i].IsCollateral {
-			usdStats.TotalOrders += response.Items[i].TotalOrders
-			usdStats.BuyOrders += response.Items[i].BuyOrders
-			usdStats.SellOrders += response.Items[i].SellOrders
+		if response.Items[i].IsCollateral {
+			continue
 		}
+		usdStats.TotalOrders += response.Items[i].TotalOrders
+		usdStats.BuyOrders += response.Items[i].BuyOrders
+		usdStats.SellOrders += response.Items[i].SellOrders
 	}
 	for k, v := range report.USDTotalsOverTime {
 		if usdStats.HighestHoldingValue.Value.LessThan(v.USDValue) {

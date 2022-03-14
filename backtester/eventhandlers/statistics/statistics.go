@@ -202,8 +202,11 @@ func (s *Statistic) CalculateAllResults() error {
 					MarketMovement:   stats.MarketMovement,
 					StrategyMovement: stats.StrategyMovement,
 				})
+				s.TotalLongOrders += stats.LongOrders
+				s.TotalShortOrders += stats.ShortOrders
 				s.TotalBuyOrders += stats.BuyOrders
 				s.TotalSellOrders += stats.SellOrders
+				s.TotalOrders += stats.TotalOrders
 				if stats.ShowMissingDataWarning {
 					s.WasAnyDataMissing = true
 				}
@@ -218,8 +221,6 @@ func (s *Statistic) CalculateAllResults() error {
 	if err != nil {
 		return err
 	}
-
-	s.TotalOrders = s.TotalBuyOrders + s.TotalSellOrders
 	if currCount > 1 {
 		s.BiggestDrawdown = s.GetTheBiggestDrawdownAcrossCurrencies(finalResults)
 		s.BestMarketMovement = s.GetBestMarketPerformer(finalResults)

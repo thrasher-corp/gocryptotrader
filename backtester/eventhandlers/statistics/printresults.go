@@ -6,6 +6,7 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -38,6 +39,8 @@ func (s *Statistic) PrintTotalResults() {
 	log.Info(common.SubLoggers[common.Statistics], common.ColourH3+"------------------Orders-------------------------------------"+common.ColourDefault)
 	log.Infof(common.SubLoggers[common.Statistics], "Total buy orders: %v", convert.IntToHumanFriendlyString(s.TotalBuyOrders, ","))
 	log.Infof(common.SubLoggers[common.Statistics], "Total sell orders: %v", convert.IntToHumanFriendlyString(s.TotalSellOrders, ","))
+	log.Infof(common.SubLoggers[common.Statistics], "Total long orders: %v", convert.IntToHumanFriendlyString(s.TotalLongOrders, ","))
+	log.Infof(common.SubLoggers[common.Statistics], "Total short orders: %v", convert.IntToHumanFriendlyString(s.TotalShortOrders, ","))
 	log.Infof(common.SubLoggers[common.Statistics], "Total orders: %v\n\n", convert.IntToHumanFriendlyString(s.TotalOrders, ","))
 
 	if s.BiggestDrawdown != nil {
@@ -182,10 +185,10 @@ func (c *CurrencyPairStatistic) PrintResults(e string, a asset.Item, p currency.
 	} else {
 		log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Highest committed funds: %s at %v", sep, convert.DecimalToHumanFriendlyString(c.HighestCommittedFunds.Value, 8, ".", ","), c.HighestCommittedFunds.Time)
 		log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Buy orders: %s", sep, convert.IntToHumanFriendlyString(c.BuyOrders, ","))
-		log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Buy value: %s", sep, convert.DecimalToHumanFriendlyString(last.Holdings.BoughtValue, 8, ".", ","))
+		log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Buy value: %s at %v", sep, convert.DecimalToHumanFriendlyString(last.Holdings.BoughtValue, 8, ".", ","), last.Holdings.Timestamp)
 		log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Buy amount: %s %s", sep, convert.DecimalToHumanFriendlyString(last.Holdings.BoughtAmount, 8, ".", ","), last.Holdings.Pair.Base)
 		log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Sell orders: %s", sep, convert.IntToHumanFriendlyString(c.SellOrders, ","))
-		log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Sell value: %s", sep, convert.DecimalToHumanFriendlyString(last.Holdings.SoldValue, 8, ".", ","))
+		log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Sell value: %s at %v", sep, convert.DecimalToHumanFriendlyString(last.Holdings.SoldValue, 8, ".", ","), last.Holdings.Timestamp)
 		log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Sell amount: %s", sep, convert.DecimalToHumanFriendlyString(last.Holdings.SoldAmount, 8, ".", ","))
 	}
 	log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Total orders: %s", sep, convert.IntToHumanFriendlyString(c.TotalOrders, ","))
@@ -247,8 +250,11 @@ func (c *CurrencyPairStatistic) PrintResults(e string, a asset.Item, p currency.
 	}
 
 	if last.PNL != nil {
-		log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Final Unrealised PNL: %s", sep, convert.DecimalToHumanFriendlyString(last.PNL.Result.UnrealisedPNL, 8, ".", ","))
-		log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Final Realised PNL: %s", sep, convert.DecimalToHumanFriendlyString(last.PNL.Result.RealisedPNL, 8, ".", ","))
+		var unrealised, realised portfolio.BasicPNLResult
+		unrealised = last.PNL.GetUnrealisedPNL()
+		realised = last.PNL.GetRealisedPNL()
+		log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Final Unrealised PNL: %s", sep, convert.DecimalToHumanFriendlyString(unrealised.PNL, 8, ".", ","))
+		log.Infof(common.SubLoggers[common.CurrencyStatistics], "%s Final Realised PNL: %s", sep, convert.DecimalToHumanFriendlyString(realised.PNL, 8, ".", ","))
 	}
 	if len(errs) > 0 {
 		log.Info(common.SubLoggers[common.CurrencyStatistics], common.ColourError+"------------------Errors-------------------------------------"+common.ColourDefault)

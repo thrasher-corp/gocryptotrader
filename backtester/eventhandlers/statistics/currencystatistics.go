@@ -5,6 +5,7 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	gctmath "github.com/thrasher-corp/gocryptotrader/common/math"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -120,8 +121,8 @@ func (c *CurrencyPairStatistic) CalculateResults(riskFreeRate decimal.Decimal) e
 	c.TotalValueLostToSlippage = last.Holdings.TotalValueLostToSlippage.Round(2)
 	c.TotalAssetValue = last.Holdings.BaseValue.Round(8)
 	if last.PNL != nil {
-		c.UnrealisedPNL = last.PNL.Result.UnrealisedPNL
-		c.RealisedPNL = last.PNL.Result.RealisedPNL
+		c.UnrealisedPNL = last.PNL.GetUnrealisedPNL().PNL
+		c.RealisedPNL = last.PNL.GetRealisedPNL().PNL
 	}
 	if len(errs) > 0 {
 		return errs
@@ -147,25 +148,28 @@ func (c *CurrencyPairStatistic) analysePNLGrowth() {
 		if c.Events[i].PNL == nil {
 			continue
 		}
-		if c.Events[i].PNL.Result.UnrealisedPNL.LessThan(lowestUnrealised.Value) || (!c.Events[i].PNL.Result.UnrealisedPNL.IsZero() && !lowestUnrealised.Set) {
-			lowestUnrealised.Value = c.Events[i].PNL.Result.UnrealisedPNL
-			lowestUnrealised.Time = c.Events[i].PNL.Result.Time
+		var unrealised, realised portfolio.BasicPNLResult
+		unrealised = c.Events[i].PNL.GetUnrealisedPNL()
+		realised = c.Events[i].PNL.GetRealisedPNL()
+		if unrealised.PNL.LessThan(lowestUnrealised.Value) || (!unrealised.PNL.IsZero() && !lowestUnrealised.Set) {
+			lowestUnrealised.Value = unrealised.PNL
+			lowestUnrealised.Time = unrealised.Time
 			lowestUnrealised.Set = true
 		}
-		if c.Events[i].PNL.Result.UnrealisedPNL.GreaterThan(highestUnrealised.Value) || (!c.Events[i].PNL.Result.UnrealisedPNL.IsZero() && !highestUnrealised.Set) {
-			highestUnrealised.Value = c.Events[i].PNL.Result.UnrealisedPNL
-			highestUnrealised.Time = c.Events[i].PNL.Result.Time
+		if unrealised.PNL.GreaterThan(highestUnrealised.Value) || (!unrealised.PNL.IsZero() && !highestUnrealised.Set) {
+			highestUnrealised.Value = unrealised.PNL
+			highestUnrealised.Time = unrealised.Time
 			highestUnrealised.Set = true
 		}
 
-		if c.Events[i].PNL.Result.RealisedPNL.LessThan(lowestRealised.Value) || (!c.Events[i].PNL.Result.RealisedPNL.IsZero() && !lowestRealised.Set) {
-			lowestRealised.Value = c.Events[i].PNL.Result.RealisedPNL
-			lowestRealised.Time = c.Events[i].PNL.Result.Time
+		if realised.PNL.LessThan(lowestRealised.Value) || (!realised.PNL.IsZero() && !lowestRealised.Set) {
+			lowestRealised.Value = realised.PNL
+			lowestRealised.Time = realised.Time
 			lowestRealised.Set = true
 		}
-		if c.Events[i].PNL.Result.RealisedPNL.GreaterThan(highestRealised.Value) || (!c.Events[i].PNL.Result.RealisedPNL.IsZero() && !highestRealised.Set) {
-			highestRealised.Value = c.Events[i].PNL.Result.RealisedPNL
-			highestRealised.Time = c.Events[i].PNL.Result.Time
+		if realised.PNL.GreaterThan(highestRealised.Value) || (!realised.PNL.IsZero() && !highestRealised.Set) {
+			lowestRealised.Value = realised.PNL
+			lowestRealised.Time = realised.Time
 			highestRealised.Set = true
 		}
 	}

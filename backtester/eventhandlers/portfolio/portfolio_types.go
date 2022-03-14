@@ -2,6 +2,7 @@ package portfolio
 
 import (
 	"errors"
+	"time"
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
@@ -89,4 +90,15 @@ type PNLSummary struct {
 	Pair     currency.Pair
 	Offset   int64
 	Result   gctorder.PNLResult
+}
+
+// IPNL
+type IPNL interface {
+	GetUnrealisedPNL() BasicPNLResult
+	GetRealisedPNL() BasicPNLResult
+}
+
+type BasicPNLResult struct {
+	Time time.Time
+	PNL  decimal.Decimal
 }

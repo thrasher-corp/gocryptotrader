@@ -639,3 +639,19 @@ func (p *Portfolio) GetLatestPNLs() []PNLSummary {
 	}
 	return result
 }
+
+// GetUnrealisedPNL returns a basic struct containing unrealised PNL
+func (p PNLSummary) GetUnrealisedPNL() BasicPNLResult {
+	return BasicPNLResult{
+		Time: p.Result.Time,
+		PNL:  p.Result.UnrealisedPNL,
+	}
+}
+
+// GetRealisedPNL returns a basic struct containing realised PNL
+func (p PNLSummary) GetRealisedPNL() BasicPNLResult {
+	return BasicPNLResult{
+		Time: p.Result.Time,
+		PNL:  p.Result.RealisedPNL,
+	}
+}

@@ -43,6 +43,8 @@ type Statistic struct {
 	RiskFreeRate                decimal.Decimal                                                    `json:"risk-free-rate"`
 	ExchangeAssetPairStatistics map[string]map[asset.Item]map[currency.Pair]*CurrencyPairStatistic `json:"exchange-asset-pair-statistics"`
 	TotalBuyOrders              int64                                                              `json:"total-buy-orders"`
+	TotalLongOrders             int64                                                              `json:"total-long-orders"`
+	TotalShortOrders            int64                                                              `json:"total-short-orders"`
 	TotalSellOrders             int64                                                              `json:"total-sell-orders"`
 	TotalOrders                 int64                                                              `json:"total-orders"`
 	BiggestDrawdown             *FinalResultsHolder                                                `json:"biggest-drawdown,omitempty"`
@@ -125,8 +127,7 @@ type DataAtOffset struct {
 	SignalEvent  signal.Event
 	OrderEvent   order.Event
 	FillEvent    fill.Event
-	// TODO: consider moving this to an interface so we aren't tied to this summary type
-	PNL *portfolio.PNLSummary
+	PNL          portfolio.IPNL
 }
 
 // CurrencyPairStatistic Holds all events and statistics relevant to an exchange, asset type and currency pair

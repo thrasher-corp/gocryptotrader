@@ -303,7 +303,7 @@ func (f *FundManager) GenerateReport() *Report {
 		var pricingOverTime []ItemSnapshot
 		for _, v := range f.items[i].snapshot {
 			pricingOverTime = append(pricingOverTime, v)
-			if !f.disableUSDTracking {
+			if !f.disableUSDTracking && !f.items[i].isCollateral {
 				usdTotalForPeriod := report.USDTotalsOverTime[v.Time]
 				usdTotalForPeriod.Time = v.Time
 				usdTotalForPeriod.USDValue = usdTotalForPeriod.USDValue.Add(v.USDValue)
