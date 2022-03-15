@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 )
 
@@ -932,5 +933,53 @@ func TestFormatOrderType(t *testing.T) {
 
 	if r != takeProfit {
 		t.Fatal("unexpected value")
+	}
+}
+
+func TestChecksum(t *testing.T) {
+	b := &orderbook.Base{
+		Asks: []orderbook.Item{
+			{Price: 0.3965, Amount: 44149.815},
+			{Price: 0.3967, Amount: 16000.0},
+		},
+		Bids: []orderbook.Item{
+			{Price: 0.396, Amount: 51.0},
+			{Price: 0.396, Amount: 25.0},
+			{Price: 0.3958, Amount: 18570.0},
+		},
+	}
+
+	expecting := 2254383345
+	err := checksum(b, uint32(expecting))
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestTrim(t *testing.T) {
+	testCases := []struct {
+		Value    float64
+		Expected string
+	}{
+		{Value: 0.1234, Expected: "1234"},
+		{Value: 0.00001234, Expected: "1234"},
+		{Value: 32.00001234, Expected: "3200001234"},
+		{Value: 0, Expected: ""},
+		{Value: 0.0, Expected: ""},
+		{Value: 1.0, Expected: "10"},
+		{Value: 0.3965, Expected: "3965"},
+		{Value: 16000.0, Expected: "160000"},
+		{Value: 0.0019, Expected: "19"},
+		{Value: 1.01, Expected: "101"},
+	}
+
+	for x := range testCases {
+		tt := testCases[x]
+		t.Run("", func(t *testing.T) {
+			received := trim(tt.Value)
+			if received != tt.Expected {
+				t.Fatalf("received: %v but expected: %v", received, tt.Expected)
+			}
+		})
 	}
 }

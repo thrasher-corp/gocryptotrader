@@ -142,11 +142,21 @@ func TestFlush(t *testing.T) {
 func TestUpdateBidAskByPrice(t *testing.T) {
 	d := NewDepth(id)
 	d.LoadSnapshot(Items{{Price: 1337, Amount: 1, ID: 1}}, Items{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Time{}, false)
-	d.UpdateBidAskByPrice(Items{{Price: 1337, Amount: 2, ID: 1}}, Items{{Price: 1337, Amount: 2, ID: 2}}, 0, 0, time.Time{})
+
+	// empty
+	d.UpdateBidAskByPrice(nil, nil, 0, 1, true, time.Time{})
+
+	d.UpdateBidAskByPrice(Items{{Price: 1337, Amount: 2, ID: 1}}, Items{{Price: 1337, Amount: 2, ID: 2}}, 0, 1, true, time.Time{})
 	if d.Retrieve().Asks[0].Amount != 2 || d.Retrieve().Bids[0].Amount != 2 {
 		t.Fatal("orderbook amounts not updated correctly")
 	}
-	d.UpdateBidAskByPrice(Items{{Price: 1337, Amount: 0, ID: 1}}, Items{{Price: 1337, Amount: 0, ID: 2}}, 0, 0, time.Time{})
+	// This should not do anything, as it simulates a websocket update
+	// duplication.
+	d.UpdateBidAskByPrice(Items{{Price: 1337, Amount: 2, ID: 1}}, Items{{Price: 1337, Amount: 2, ID: 2}}, 0, 1, true, time.Time{})
+	if d.Retrieve().Asks[0].Amount != 2 || d.Retrieve().Bids[0].Amount != 2 {
+		t.Fatal("orderbook amounts not updated correctly")
+	}
+	d.UpdateBidAskByPrice(Items{{Price: 1337, Amount: 0, ID: 1}}, Items{{Price: 1337, Amount: 0, ID: 2}}, 0, 2, false, time.Time{})
 	if d.GetAskLength() != 0 || d.GetBidLength() != 0 {
 		t.Fatal("orderbook amounts not updated correctly")
 	}

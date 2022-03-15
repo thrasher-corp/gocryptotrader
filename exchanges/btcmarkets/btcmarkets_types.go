@@ -6,6 +6,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bank"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 )
 
 // Market holds a tradable market instrument
@@ -381,12 +382,14 @@ type WsTrade struct {
 
 // WsOrderbook message received for orderbook data
 type WsOrderbook struct {
-	Currency    string          `json:"marketId"`
-	Timestamp   time.Time       `json:"timestamp"`
-	Bids        [][]interface{} `json:"bids"`
-	Asks        [][]interface{} `json:"asks"`
-	MessageType string          `json:"messageType"`
-	Snapshot    bool            `json:"snapshot"`
+	Currency    currency.Pair      `json:"marketId"`
+	Snapshot    bool               `json:"snapshot"`
+	Timestamp   time.Time          `json:"timestamp"`
+	SnapshotID  int64              `json:"snapshotId"`
+	Bids        WebsocketOrderbook `json:"bids"`
+	Asks        WebsocketOrderbook `json:"asks"`
+	Checksum    int64              `json:"checksum,string"`
+	MessageType string             `json:"messageType"`
 }
 
 // WsFundTransfer stores fund transfer data for websocket
@@ -458,3 +461,7 @@ var defaultTransferFees = []fee.Transfer{
 var bankTransferFees = []fee.Transfer{
 	{Currency: currency.AUD, BankTransfer: bank.WireTransfer, Deposit: fee.Convert(0), Withdrawal: fee.Convert(0)},
 }
+
+// WebsocketOrderbook defines a specific websocket orderbook type to directly
+// unmarshal json.
+type WebsocketOrderbook orderbook.Items

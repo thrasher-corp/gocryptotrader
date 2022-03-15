@@ -115,7 +115,11 @@ func (b *BTCMarkets) GetTrades(ctx context.Context, marketID string, before, aft
 		&trades)
 }
 
-// GetOrderbook returns current orderbook
+// GetOrderbook returns current orderbook.
+// levels are:
+// 0 - Returns the top bids and ask orders only.
+// 1 - Returns top 50 bids and asks.
+// 2 - Returns full orderbook. WARNING: This is cached every 10 seconds.
 func (b *BTCMarkets) GetOrderbook(ctx context.Context, marketID string, level int64) (Orderbook, error) {
 	var orderbook Orderbook
 	var temp tempOrderbook

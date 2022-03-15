@@ -47,6 +47,15 @@ type Update struct {
 	Asks []orderbook.Item
 	Pair currency.Pair
 
+	// ChecksumFn is a package defined checksum calculation for updated books
+	ChecksumFn func(state *orderbook.Base, checksum uint32) error
+	// Checksum defines the expected value when the books have been verified
+	Checksum uint32
+
+	// UpdateIDProgression defines if the ID is used as counter and needs to be
+	// greater than last ID.
+	UpdateIDProgression bool
+
 	// Determines if there is a max depth of orderbooks and after an append we
 	// should remove any items that are outside of this scope. Kraken is the
 	// only exchange utilising this field.

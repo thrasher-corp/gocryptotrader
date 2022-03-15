@@ -392,6 +392,8 @@ func TestOutOfOrderIDs(t *testing.T) {
 	}
 }
 
+var errTest = errors.New("test error")
+
 func TestOrderbookLastUpdateID(t *testing.T) {
 	holder, _, _, err := createSnapshot()
 	if err != nil {
@@ -402,13 +404,25 @@ func TestOrderbookLastUpdateID(t *testing.T) {
 			exp, itemArray[1][0].Price)
 	}
 
+	err = holder.Update(&Update{
+		Asks:       []orderbook.Item{{Price: 999999}},
+		Pair:       cp,
+		UpdateID:   -1,
+		Asset:      asset.Spot,
+		ChecksumFn: func(state *orderbook.Base, checksum uint32) error { return errTest },
+	})
+	if !errors.Is(err, errTest) {
+		t.Fatalf("received: %v but expected: %v", err, errTest)
+	}
+
 	for i := range itemArray {
 		asks := itemArray[i]
 		err = holder.Update(&Update{
-			Asks:     asks,
-			Pair:     cp,
-			UpdateID: int64(i) + 1,
-			Asset:    asset.Spot,
+			Asks:       asks,
+			Pair:       cp,
+			UpdateID:   int64(i) + 1,
+			Asset:      asset.Spot,
+			ChecksumFn: func(state *orderbook.Base, checksum uint32) error { return nil },
 		})
 		if err != nil {
 			t.Fatal(err)
