@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 )
 
@@ -610,7 +611,8 @@ func TestWsOrderbookUpdate(t *testing.T) {
     "snapshotId": 1578512844045000,
     "bids":  [ ["99.81", "1.2", 1 ], ["95.8", "0", 0 ]],
     "asks": [ ["100", "3.2", 2 ] ],
-    "messageType": "orderbookUpdate"
+    "messageType": "orderbookUpdate",
+	"checksum": "2513007604"
   }`)
 	err = b.wsHandleData(pressXToJSON)
 	if err != nil {
@@ -843,5 +845,57 @@ func TestGetHistoricTrades(t *testing.T) {
 		currencyPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
 	if err != nil && err != common.ErrFunctionNotSupported {
 		t.Error(err)
+	}
+}
+
+func TestChecksum(t *testing.T) {
+	b := &orderbook.Base{
+		Asks: []orderbook.Item{
+			{Price: 0.3965, Amount: 44149.815},
+			{Price: 0.3967, Amount: 16000.0},
+		},
+		Bids: []orderbook.Item{
+			{Price: 0.396, Amount: 51.0},
+			{Price: 0.396, Amount: 25.0},
+			{Price: 0.3958, Amount: 18570.0},
+		},
+	}
+
+	expecting := 3802968298
+	err := checksum(b, uint32(expecting))
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = checksum(b, uint32(1223123))
+	if err == nil {
+		t.Fatal("expected checksum failure")
+	}
+}
+
+func TestTrim(t *testing.T) {
+	testCases := []struct {
+		Value    float64
+		Expected string
+	}{
+		{Value: 0.1234, Expected: "1234"},
+		{Value: 0.00001234, Expected: "1234"},
+		{Value: 32.00001234, Expected: "3200001234"},
+		{Value: 0, Expected: ""},
+		{Value: 0.0, Expected: ""},
+		{Value: 1.0, Expected: "1"},
+		{Value: 0.3965, Expected: "3965"},
+		{Value: 16000.0, Expected: "16000"},
+		{Value: 0.0019, Expected: "19"},
+		{Value: 1.01, Expected: "101"},
+	}
+
+	for x := range testCases {
+		tt := testCases[x]
+		t.Run("", func(t *testing.T) {
+			received := trim(tt.Value)
+			if received != tt.Expected {
+				t.Fatalf("received: %v but expected: %v", received, tt.Expected)
+			}
+		})
 	}
 }

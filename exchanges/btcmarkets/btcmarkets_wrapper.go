@@ -386,7 +386,9 @@ func (b *BTCMarkets) UpdateOrderbook(ctx context.Context, p currency.Pair, asset
 		return book, err
 	}
 
-	tempResp, err := b.GetOrderbook(ctx, fpair.String(), 2)
+	// Retrieve level one book which is the top 50 ask and bids, this is not
+	// cached.
+	tempResp, err := b.GetOrderbook(ctx, fpair.String(), 1)
 	if err != nil {
 		return book, err
 	}

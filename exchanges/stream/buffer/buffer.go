@@ -200,6 +200,12 @@ func (w *Orderbook) processObUpdate(o *orderbookHolder, u *Update) error {
 		return o.updateByIDAndAction(u)
 	}
 	o.updateByPrice(u)
+	if u.ChecksumFn != nil {
+		err := u.ChecksumFn(o.ob.Retrieve(), u.Checksum)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -210,6 +216,7 @@ func (o *orderbookHolder) updateByPrice(updts *Update) {
 		updts.Asks,
 		updts.MaxDepth,
 		updts.UpdateID,
+		updts.UpdateIDProgression,
 		updts.UpdateTime)
 }
 

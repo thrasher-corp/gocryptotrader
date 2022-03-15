@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"hash/crc32"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -24,6 +26,11 @@ import (
 
 const (
 	btcMarketsWSURL = "wss://socket.btcmarkets.net/v2"
+)
+
+var (
+	errTypeAssertionFailure = errors.New("type assertion failure")
+	errChecksumFailure      = errors.New("crc32 checksum failure")
 )
 
 // WsConnect connects to a websocket feed
@@ -61,6 +68,51 @@ func (b *BTCMarkets) wsReadData() {
 	}
 }
 
+// UnmarshalJSON implements the unmarshaler interface.
+func (w *WebsocketOrderbook) UnmarshalJSON(data []byte) error {
+	resp := make([][3]interface{}, len(data))
+	err := json.Unmarshal(data, &resp)
+	if err != nil {
+		return err
+	}
+
+	*w = WebsocketOrderbook(make(orderbook.Items, len(resp)))
+	for x := range resp {
+		sPrice, ok := resp[x][0].(string)
+		if !ok {
+			return fmt.Errorf("price string %w", errTypeAssertionFailure)
+		}
+		var price float64
+		price, err = strconv.ParseFloat(sPrice, 64)
+		if err != nil {
+			return err
+		}
+
+		sAmount, ok := resp[x][1].(string)
+		if !ok {
+			return fmt.Errorf("amount string %w", errTypeAssertionFailure)
+		}
+
+		var amount float64
+		amount, err = strconv.ParseFloat(sAmount, 64)
+		if err != nil {
+			return err
+		}
+
+		count, ok := resp[x][2].(float64)
+		if !ok {
+			return fmt.Errorf("count float64 %w", errTypeAssertionFailure)
+		}
+
+		(*w)[x] = orderbook.Item{
+			Amount:     amount,
+			Price:      price,
+			OrderCount: int64(count),
+		}
+	}
+	return nil
+}
+
 func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 	var wsResponse WsMessageType
 	err := json.Unmarshal(respRaw, &wsResponse)
@@ -79,65 +131,30 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 			return err
 		}
 
-		p, err := currency.NewPairFromString(ob.Currency)
-		if err != nil {
-			return err
-		}
-
-		var bids, asks orderbook.Items
-		for x := range ob.Bids {
-			var price, amount float64
-			price, err = strconv.ParseFloat(ob.Bids[x][0].(string), 64)
-			if err != nil {
-				return err
-			}
-			amount, err = strconv.ParseFloat(ob.Bids[x][1].(string), 64)
-			if err != nil {
-				return err
-			}
-			bids = append(bids, orderbook.Item{
-				Amount:     amount,
-				Price:      price,
-				OrderCount: int64(ob.Bids[x][2].(float64)),
-			})
-		}
-		for x := range ob.Asks {
-			var price, amount float64
-			price, err = strconv.ParseFloat(ob.Asks[x][0].(string), 64)
-			if err != nil {
-				return err
-			}
-			amount, err = strconv.ParseFloat(ob.Asks[x][1].(string), 64)
-			if err != nil {
-				return err
-			}
-			asks = append(asks, orderbook.Item{
-				Amount:     amount,
-				Price:      price,
-				OrderCount: int64(ob.Asks[x][2].(float64)),
-			})
-		}
 		if ob.Snapshot {
-			bids.SortBids() // Alignment completely out, sort is needed.
 			err = b.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
-				Pair:            p,
-				Bids:            bids,
-				Asks:            asks,
+				Pair:            ob.Currency,
+				Bids:            orderbook.Items(ob.Bids),
+				Asks:            orderbook.Items(ob.Asks),
 				LastUpdated:     ob.Timestamp,
+				LastUpdateID:    ob.SnapshotID,
 				Asset:           asset.Spot,
 				Exchange:        b.Name,
 				VerifyOrderbook: b.CanVerifyOrderbook,
 			})
 		} else {
 			err = b.Websocket.Orderbook.Update(&buffer.Update{
-				UpdateTime: ob.Timestamp,
-				Asset:      asset.Spot,
-				Bids:       bids,
-				Asks:       asks,
-				Pair:       p,
+				UpdateTime:          ob.Timestamp,
+				UpdateID:            ob.SnapshotID,
+				Asset:               asset.Spot,
+				Bids:                orderbook.Items(ob.Bids),
+				Asks:                orderbook.Items(ob.Asks),
+				Pair:                ob.Currency,
+				ChecksumFn:          checksum,
+				Checksum:            ob.Checksum,
+				UpdateIDProgression: true,
 			})
 		}
-
 		if err != nil {
 			return err
 		}
@@ -364,4 +381,42 @@ func (b *BTCMarkets) Subscribe(channelsToSubscribe []stream.ChannelSubscription)
 	}
 	b.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe...)
 	return nil
+}
+
+// checksum provides assurance on current in memory liquidity
+func checksum(ob *orderbook.Base, checksum uint32) error {
+	check := crc32.ChecksumIEEE([]byte(concat(ob.Bids) + concat(ob.Asks)))
+	if check != checksum {
+		return fmt.Errorf("%s %s %s ID: %v expected: %v but received: %v %w",
+			ob.Exchange,
+			ob.Pair,
+			ob.Asset,
+			ob.LastUpdateID,
+			checksum,
+			check,
+			errChecksumFailure)
+	}
+	return nil
+}
+
+// concat concatenates price and amounts together for checksum processing
+func concat(liquidity orderbook.Items) string {
+	length := 10
+	if len(liquidity) < 10 {
+		length = len(liquidity)
+	}
+	var concat string
+	for x := 0; x < length; x++ {
+		concat += trim(liquidity[x].Price) + trim(liquidity[x].Amount)
+	}
+	return concat
+}
+
+// trim turns value into string, removes the decimal point and all the leading
+// zeros.
+func trim(value float64) string {
+	valstr := strconv.FormatFloat(value, 'f', -1, 64)
+	valstr = strings.ReplaceAll(valstr, ".", "")
+	valstr = strings.TrimLeft(valstr, "0")
+	return valstr
 }
