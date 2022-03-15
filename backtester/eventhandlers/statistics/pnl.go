@@ -1,0 +1,5 @@
+package statistics
+
+func CalculatePNLStatistics() {
+
+}

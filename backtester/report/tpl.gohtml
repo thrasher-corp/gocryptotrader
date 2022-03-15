@@ -258,12 +258,8 @@
 							<th>Exchange</th>
 							<th>Asset</th>
 							<th>Currency</th>
-							<th>Initial Funds</th>
-							<th>Final Funds</th>
-							{{ if eq .Config.StrategySettings.DisableUSDTracking false }}
-								<th>Initial Fund in USD</th>
-								<th>Final Funds in USD</th>
-							{{end}}
+							<th>Initial Collateral</th>
+							<th>Final Collateral</th>
 							<th>Difference</th>
 						</tr>
 						</thead>
@@ -274,12 +270,8 @@
 									<td>{{.Exchange}}</td>
 									<td>{{.Asset}}</td>
 									<td>{{.Currency}}</td>
-									<td>{{ $.Prettify.Decimal8 .InitialFunds}} {{.Currency}}</td>
+									<td>{{ $.Prettify.Decimal8 .InitialFunds }} {{.Currency}}</td>
 									<td>{{  $.Prettify.Decimal8 .FinalFunds }} {{.Currency}}</td>
-									{{ if eq $.Config.StrategySettings.DisableUSDTracking false }}
-										<td>${{ $.Prettify.Decimal2 .USDInitialFunds}}</td>
-										<td>${{ $.Prettify.Decimal2 .USDFinalFunds}}</td>
-									{{ end }}
 									{{if .ShowInfinite}}
 										<td>Infinity%</td>
 									{{ else }}

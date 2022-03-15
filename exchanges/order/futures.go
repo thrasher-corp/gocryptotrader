@@ -611,6 +611,12 @@ func (p *PositionTracker) TrackNewOrder(d *Detail) error {
 	return nil
 }
 
+// GetCurrencyForRealisedPNL is a generic handling of determining the asset
+// to assign realised PNL into, which is just itself
+func (p *PNLCalculator) GetCurrencyForRealisedPNL(realisedAsset asset.Item, realisedPair currency.Pair) (currency.Code, asset.Item, error) {
+	return realisedPair.Base, realisedAsset, nil
+}
+
 // CalculatePNL this is a localised generic way of calculating open
 // positions' worth, it is an implementation of the PNLCalculation interface
 func (p *PNLCalculator) CalculatePNL(_ context.Context, calc *PNLCalculatorRequest) (*PNLResult, error) {

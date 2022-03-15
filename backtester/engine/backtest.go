@@ -17,6 +17,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	gctexchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -100,8 +103,7 @@ func (bt *BackTest) handleEvent(ev common.EventHandler) error {
 		return err
 	}
 
-	if ev.GetAssetType().IsFutures() {
-		// hardcoded fix
+	if bt.Funding.HasFutures() {
 		err = bt.Funding.UpdateCollateral(ev)
 		if err != nil {
 			return err
@@ -112,18 +114,12 @@ func (bt *BackTest) handleEvent(ev common.EventHandler) error {
 	case common.DataEventHandler:
 		if bt.Strategy.UsingSimultaneousProcessing() {
 			err = bt.processSimultaneousDataEvents()
-			if err != nil {
-				return err
-			}
-			bt.Funding.CreateSnapshot(ev.GetTime())
-			return nil
+		} else {
+			err = bt.processSingleDataEvent(eType, funds.FundReleaser())
 		}
-		err = bt.processSingleDataEvent(eType, funds.FundReleaser())
 		if err != nil {
 			return err
 		}
-		bt.Funding.CreateSnapshot(ev.GetTime())
-		return nil
 	case signal.Event:
 		bt.processSignalEvent(eType, funds.FundReserver())
 	case order.Event:
@@ -135,6 +131,7 @@ func (bt *BackTest) handleEvent(ev common.EventHandler) error {
 			errUnhandledDatatype,
 			ev)
 	}
+	bt.Funding.CreateSnapshot(ev.GetTime())
 
 	return nil
 }
@@ -247,6 +244,7 @@ func (bt *BackTest) updateStatsForDataEvent(ev common.DataEventHandler, funds fu
 		if err != nil {
 			return err
 		}
+
 		return bt.Statistic.AddPNLForTime(pnl)
 	}
 
@@ -299,7 +297,6 @@ func (bt *BackTest) processFillEvent(ev fill.Event, funds funding.IFundReleaser)
 		log.Errorf(common.SubLoggers[common.Backtester], "OnFill %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 		return
 	}
-
 	err = bt.Statistic.SetEventForOffset(t)
 	if err != nil {
 		log.Errorf(common.SubLoggers[common.Backtester], "SetEventForOffset %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
@@ -348,6 +345,30 @@ func (bt *BackTest) processFillEvent(ev fill.Event, funds funding.IFundReleaser)
 				log.Errorf(common.SubLoggers[common.Backtester], "TrackFuturesOrder %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 				return
 			}
+
+			var exch gctexchange.IBotExchange
+			exch, err = bt.exchangeManager.GetExchangeByName(ev.GetExchange())
+			if err != nil {
+				log.Errorf(common.SubLoggers[common.Backtester], "GetExchangeByName %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
+				return
+			}
+
+			var receivingCurrency currency.Code
+			var receivingAsset asset.Item
+			receivingCurrency, receivingAsset, err = exch.GetCurrencyForRealisedPNL(ev.GetAssetType(), ev.Pair())
+			if err != nil {
+				log.Errorf(common.SubLoggers[common.Backtester], "GetCurrencyForRealisedPNL %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
+				return
+			}
+			rPNL := pnl.GetRealisedPNL()
+			if !rPNL.PNL.IsZero() {
+				err = bt.Funding.RealisePNL(ev.GetExchange(), receivingAsset, receivingCurrency, rPNL.PNL)
+				if err != nil {
+					log.Errorf(common.SubLoggers[common.Backtester], "RealisePNL %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
+					return
+				}
+			}
+
 			err = bt.Statistic.AddPNLForTime(pnl)
 			if err != nil {
 				log.Errorf(common.SubLoggers[common.Backtester], "AddHoldingsForTime %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
@@ -358,6 +379,7 @@ func (bt *BackTest) processFillEvent(ev fill.Event, funds funding.IFundReleaser)
 			log.Errorf(common.SubLoggers[common.Backtester], "UpdateCollateral %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 			return
 		}
+
 	}
 }
 

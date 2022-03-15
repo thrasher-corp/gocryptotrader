@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 var (
@@ -115,11 +116,18 @@ func (f *FundManager) CreateSnapshot(t time.Time) {
 	for i := range f.items {
 		if f.items[i].snapshot == nil {
 			f.items[i].snapshot = make(map[int64]ItemSnapshot)
+			if f.items[i].isCollateral {
+				f.items[i].initialFunds = f.items[i].available
+			}
+		} else if _, ok := f.items[i].snapshot[t.Unix()]; ok {
+			f.items[i].snapshot[t.Unix()] = ItemSnapshot{}
 		}
+
 		iss := ItemSnapshot{
 			Available: f.items[i].available,
 			Time:      t,
 		}
+
 		if !f.disableUSDTracking {
 			var usdClosePrice decimal.Decimal
 			if f.items[i].trackingCandles == nil {
@@ -275,7 +283,6 @@ func (f *FundManager) USDTrackingDisabled() bool {
 // GenerateReport builds report data for result HTML report
 func (f *FundManager) GenerateReport() *Report {
 	report := Report{
-		USDTotalsOverTime:         make(map[time.Time]ItemSnapshot),
 		UsingExchangeLevelFunding: f.usingExchangeLevelFunding,
 		DisableUSDTracking:        f.disableUSDTracking,
 	}
@@ -290,6 +297,7 @@ func (f *FundManager) GenerateReport() *Report {
 			FinalFunds:   f.items[i].available,
 			IsCollateral: f.items[i].isCollateral,
 		}
+
 		if !f.disableUSDTracking &&
 			f.items[i].trackingCandles != nil {
 			usdStream := f.items[i].trackingCandles.GetStream()
@@ -301,17 +309,35 @@ func (f *FundManager) GenerateReport() *Report {
 		}
 
 		var pricingOverTime []ItemSnapshot
+	snaps:
 		for _, v := range f.items[i].snapshot {
-			if !f.items[i].isCollateral {
-				pricingOverTime = append(pricingOverTime, v)
-				if !f.disableUSDTracking {
-					usdTotalForPeriod := report.USDTotalsOverTime[v.Time]
-					usdTotalForPeriod.Time = v.Time
-					usdTotalForPeriod.USDValue = usdTotalForPeriod.USDValue.Add(v.USDValue)
-					report.USDTotalsOverTime[v.Time] = usdTotalForPeriod
+			pricingOverTime = append(pricingOverTime, v)
+			if !f.items[i].asset.IsFutures() && !f.disableUSDTracking {
+				for j := range report.USDTotalsOverTime {
+					if report.USDTotalsOverTime[j].Time.Equal(v.Time) {
+						report.USDTotalsOverTime[j].USDValue = report.USDTotalsOverTime[j].USDValue.Add(v.USDValue)
+						report.USDTotalsOverTime[j].Breakdown = append(report.USDTotalsOverTime[j].Breakdown, Thing{
+							Currency: f.items[i].currency,
+							USD:      v.USDValue,
+						})
+						continue snaps
+					} else {
+						continue
+					}
 				}
+				report.USDTotalsOverTime = append(report.USDTotalsOverTime, ItemSnapshot{
+					Time:     v.Time,
+					USDValue: v.USDValue,
+					Breakdown: []Thing{
+						{
+							Currency: f.items[i].currency,
+							USD:      v.USDValue,
+						},
+					},
+				})
 			}
 		}
+
 		sort.Slice(pricingOverTime, func(i, j int) bool {
 			return pricingOverTime[i].Time.Before(pricingOverTime[j].Time)
 		})
@@ -328,6 +354,11 @@ func (f *FundManager) GenerateReport() *Report {
 
 		items = append(items, item)
 	}
+
+	sort.Slice(report.USDTotalsOverTime, func(i, j int) bool {
+		return report.USDTotalsOverTime[i].Time.Before(report.USDTotalsOverTime[j].Time)
+	})
+
 	report.Items = items
 	return &report
 }
@@ -413,11 +444,11 @@ func (f *FundManager) IsUsingExchangeLevelFunding() bool {
 
 // GetFundingForEvent This will construct a funding based on a backtesting event
 func (f *FundManager) GetFundingForEvent(ev common.EventHandler) (IFundingPair, error) {
-	return f.GetFundingForEAP(ev.GetExchange(), ev.GetAssetType(), ev.Pair())
+	return f.getFundingForEAP(ev.GetExchange(), ev.GetAssetType(), ev.Pair())
 }
 
 // GetFundingForEAP This will construct a funding based on the exchange, asset, currency pair
-func (f *FundManager) GetFundingForEAP(exch string, a asset.Item, p currency.Pair) (IFundingPair, error) {
+func (f *FundManager) getFundingForEAP(exch string, a asset.Item, p currency.Pair) (IFundingPair, error) {
 	var resp Pair
 	var collat Collateral
 	if a.IsFutures() {
@@ -452,7 +483,7 @@ func (f *FundManager) GetFundingForEAP(exch string, a asset.Item, p currency.Pai
 }
 
 // GetFundingForEAC This will construct a funding based on the exchange, asset, currency code
-func (f *FundManager) GetFundingForEAC(exch string, a asset.Item, c currency.Code) (*Item, error) {
+func (f *FundManager) getFundingForEAC(exch string, a asset.Item, c currency.Code) (*Item, error) {
 	for i := range f.items {
 		if f.items[i].BasicEqual(exch, a, c, currency.EMPTYCODE) {
 			return f.items[i], nil
@@ -515,7 +546,7 @@ func (f *FundManager) UpdateCollateral(ev common.EventHandler) error {
 	exchMap := make(map[string]exchange.IBotExchange)
 	var collateralAmount decimal.Decimal
 	var err error
-	butts := gctorder.TotalCollateralCalculator{
+	calculator := gctorder.TotalCollateralCalculator{
 		CalculateOffline: true,
 	}
 
@@ -547,7 +578,7 @@ func (f *FundManager) UpdateCollateral(ev common.EventHandler) error {
 			side = gctorder.Sell
 		}
 
-		butts.CollateralAssets = append(butts.CollateralAssets, gctorder.CollateralCalculator{
+		calculator.CollateralAssets = append(calculator.CollateralAssets, gctorder.CollateralCalculator{
 			CalculateOffline:   true,
 			CollateralCurrency: f.items[i].currency,
 			Asset:              f.items[i].asset,
@@ -557,13 +588,12 @@ func (f *FundManager) UpdateCollateral(ev common.EventHandler) error {
 			USDPrice:           usd,
 		})
 	}
-
 	futureCurrency, futureAsset, err := exchMap[ev.GetExchange()].GetCollateralCurrencyForContract(ev.GetAssetType(), ev.Pair())
 	if err != nil {
 		return err
 	}
 
-	collat, err := exchMap[ev.GetExchange()].CalculateTotalCollateral(context.TODO(), &butts)
+	collat, err := exchMap[ev.GetExchange()].CalculateTotalCollateral(context.TODO(), &calculator)
 	if err != nil {
 		return err
 	}
@@ -577,4 +607,28 @@ func (f *FundManager) UpdateCollateral(ev common.EventHandler) error {
 		}
 	}
 	return fmt.Errorf("%w to allocate %v to %v %v %v", ErrFundsNotFound, collateralAmount, ev.GetExchange(), ev.GetAssetType(), futureCurrency)
+}
+
+func (f *FundManager) HasFutures() bool {
+	for i := range f.items {
+		if f.items[i].isCollateral || f.items[i].asset.IsFutures() {
+			return true
+		}
+	}
+	return false
+}
+
+// RealisePNL adds the realised PNL to a receiving exchange asset pair
+func (f *FundManager) RealisePNL(receivingExchange string, receivingAsset asset.Item, receivingCurrency currency.Code, realisedPNL decimal.Decimal) error {
+	log.Debugf(log.Global, "\n%v %v %v %v WOW\n", receivingExchange, receivingAsset, receivingCurrency, realisedPNL)
+	for i := range f.items {
+		if f.items[i].exchange == receivingExchange &&
+			f.items[i].asset == receivingAsset &&
+			f.items[i].currency.Equal(receivingCurrency) {
+			f.items[i].available = f.items[i].available.Add(realisedPNL)
+			return nil
+
+		}
+	}
+	return fmt.Errorf("%w to allocate %v to %v %v %v", ErrFundsNotFound, realisedPNL, receivingExchange, receivingAsset, receivingCurrency)
 }

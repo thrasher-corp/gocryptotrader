@@ -25,9 +25,7 @@ type FundManager struct {
 type IFundingManager interface {
 	Reset()
 	IsUsingExchangeLevelFunding() bool
-	GetFundingForEAC(string, asset.Item, currency.Code) (*Item, error)
 	GetFundingForEvent(common.EventHandler) (IFundingPair, error)
-	GetFundingForEAP(string, asset.Item, currency.Pair) (IFundingPair, error)
 	Transfer(decimal.Decimal, *Item, *Item, bool) error
 	GenerateReport() *Report
 	AddUSDTrackingData(*kline.DataFromKline) error
@@ -36,6 +34,8 @@ type IFundingManager interface {
 	LiquidateByCollateral(currency.Code) error
 	GetAllFunding() []BasicItem
 	UpdateCollateral(common.EventHandler) error
+	HasFutures() bool
+	RealisePNL(receivingExchange string, receivingAsset asset.Item, receivingCurrency currency.Code, realisedPNL decimal.Decimal) error
 }
 
 // IFundingReader is a simple interface of
@@ -43,7 +43,6 @@ type IFundingManager interface {
 // manager
 type IFundingReader interface {
 	GetFundingForEvent(common.EventHandler) (IFundingPair, error)
-	GetFundingForEAP(string, asset.Item, currency.Pair) (IFundingPair, error)
 	GetAllFunding() []BasicItem
 }
 
@@ -67,9 +66,7 @@ type IFundReader interface {
 type IFundTransferer interface {
 	IsUsingExchangeLevelFunding() bool
 	Transfer(decimal.Decimal, *Item, *Item, bool) error
-	GetFundingForEAC(string, asset.Item, currency.Code) (*Item, error)
 	GetFundingForEvent(common.EventHandler) (IFundingPair, error)
-	GetFundingForEAP(string, asset.Item, currency.Pair) (IFundingPair, error)
 }
 
 // IFundReserver limits funding usage for portfolio event handling
@@ -169,7 +166,7 @@ type Report struct {
 	DisableUSDTracking        bool
 	UsingExchangeLevelFunding bool
 	Items                     []ReportItem
-	USDTotalsOverTime         map[time.Time]ItemSnapshot
+	USDTotalsOverTime         []ItemSnapshot
 }
 
 // ReportItem holds reporting fields
@@ -199,4 +196,10 @@ type ItemSnapshot struct {
 	Available     decimal.Decimal
 	USDClosePrice decimal.Decimal
 	USDValue      decimal.Decimal
+	Breakdown     []Thing
+}
+
+type Thing struct {
+	Currency currency.Code
+	USD      decimal.Decimal
 }

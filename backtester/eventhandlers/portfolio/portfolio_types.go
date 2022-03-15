@@ -92,12 +92,15 @@ type PNLSummary struct {
 	Result   gctorder.PNLResult
 }
 
-// IPNL
+// IPNL defines an interface for an implementation
+// to retrieve PNL from a position
 type IPNL interface {
 	GetUnrealisedPNL() BasicPNLResult
 	GetRealisedPNL() BasicPNLResult
 }
 
+// BasicPNLResult holds the time and the pnl
+// of a position
 type BasicPNLResult struct {
 	Time time.Time
 	PNL  decimal.Decimal

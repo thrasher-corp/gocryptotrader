@@ -712,8 +712,8 @@ func TestCalculatePNL(t *testing.T) {
 	p := &Portfolio{}
 	ev := &kline.Kline{}
 	err := p.UpdatePNL(ev, decimal.Zero)
-	if !errors.Is(err, gctorder.ErrNotFutureAsset) {
-		t.Errorf("received: %v, expected: %v", err, gctorder.ErrNotFutureAsset)
+	if !errors.Is(err, gctorder.ErrNotFuturesAsset) {
+		t.Errorf("received: %v, expected: %v", err, gctorder.ErrNotFuturesAsset)
 	}
 
 	exch := &ftx.FTX{}

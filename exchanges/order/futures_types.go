@@ -32,8 +32,6 @@ var (
 	ErrUSDValueRequired = errors.New("USD value required")
 	// ErrOfflineCalculationSet is raised when collateral calculation is set to be offline, yet is attempted online
 	ErrOfflineCalculationSet = errors.New("offline calculation set")
-	// ErrNotFutureAsset
-	ErrNotFutureAsset = errors.New("not a futures asset")
 
 	errExchangeNameEmpty              = errors.New("exchange name empty")
 	errTimeUnset                      = errors.New("time unset")
@@ -52,6 +50,7 @@ var (
 // ways of calculating PNL to be used for futures positions
 type PNLCalculation interface {
 	CalculatePNL(context.Context, *PNLCalculatorRequest) (*PNLResult, error)
+	GetCurrencyForRealisedPNL(realisedAsset asset.Item, realisedPair currency.Pair) (currency.Code, asset.Item, error)
 }
 
 // CollateralManagement is an interface that allows

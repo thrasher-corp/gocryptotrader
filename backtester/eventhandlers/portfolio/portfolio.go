@@ -493,7 +493,7 @@ func (p *Portfolio) GetPositions(e common.EventHandler) ([]gctorder.PositionStat
 // that are not closed and calculate their PNL
 func (p *Portfolio) UpdatePNL(e common.EventHandler, closePrice decimal.Decimal) error {
 	if !e.GetAssetType().IsFutures() {
-		return fmt.Errorf("%s %w", e.GetAssetType(), gctorder.ErrNotFutureAsset)
+		return fmt.Errorf("%s %w", e.GetAssetType(), gctorder.ErrNotFuturesAsset)
 	}
 	settings, err := p.getSettings(e.GetExchange(), e.GetAssetType(), e.Pair())
 	if err != nil {

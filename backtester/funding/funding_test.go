@@ -199,12 +199,12 @@ func TestExists(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	_, err = f.GetFundingForEAP(exch, a, pair)
+	_, err = f.getFundingForEAP(exch, a, pair)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 
-	_, err = f.GetFundingForEAP(exch, a, pair)
+	_, err = f.getFundingForEAP(exch, a, pair)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -244,7 +244,7 @@ func TestExists(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", exists, true)
 	}
 
-	currFunds, err := f.GetFundingForEAC(exch, a, base)
+	currFunds, err := f.getFundingForEAC(exch, a, base)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -272,7 +272,7 @@ func TestAddPair(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	_, err = f.GetFundingForEAP(exch, a, pair)
+	_, err = f.getFundingForEAP(exch, a, pair)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -334,7 +334,7 @@ func TestGetFundingForEvent(t *testing.T) {
 func TestGetFundingForEAC(t *testing.T) {
 	t.Parallel()
 	f := FundManager{}
-	_, err := f.GetFundingForEAC(exch, a, base)
+	_, err := f.getFundingForEAC(exch, a, base)
 	if !errors.Is(err, ErrFundsNotFound) {
 		t.Errorf("received '%v' expected '%v'", err, ErrFundsNotFound)
 	}
@@ -347,7 +347,7 @@ func TestGetFundingForEAC(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 
-	fundo, err := f.GetFundingForEAC(exch, a, base)
+	fundo, err := f.getFundingForEAC(exch, a, base)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -360,7 +360,7 @@ func TestGetFundingForEAC(t *testing.T) {
 func TestGetFundingForEAP(t *testing.T) {
 	t.Parallel()
 	f := FundManager{}
-	_, err := f.GetFundingForEAP(exch, a, pair)
+	_, err := f.getFundingForEAP(exch, a, pair)
 	if !errors.Is(err, ErrFundsNotFound) {
 		t.Errorf("received '%v' expected '%v'", err, ErrFundsNotFound)
 	}
@@ -380,7 +380,7 @@ func TestGetFundingForEAP(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	_, err = f.GetFundingForEAP(exch, a, pair)
+	_, err = f.getFundingForEAP(exch, a, pair)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}

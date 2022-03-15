@@ -63,20 +63,20 @@ func CalculateFundingStatistics(funds funding.IFundingManager, currStats map[str
 		usdStats.BuyOrders += response.Items[i].BuyOrders
 		usdStats.SellOrders += response.Items[i].SellOrders
 	}
-	for k, v := range report.USDTotalsOverTime {
-		if usdStats.HighestHoldingValue.Value.LessThan(v.USDValue) {
-			usdStats.HighestHoldingValue.Time = k
-			usdStats.HighestHoldingValue.Value = v.USDValue
+	for i := range report.USDTotalsOverTime {
+		if usdStats.HighestHoldingValue.Value.LessThan(report.USDTotalsOverTime[i].USDValue) {
+			usdStats.HighestHoldingValue.Time = report.USDTotalsOverTime[i].Time
+			usdStats.HighestHoldingValue.Value = report.USDTotalsOverTime[i].USDValue
 		}
 		if usdStats.LowestHoldingValue.Value.IsZero() {
-			usdStats.LowestHoldingValue.Time = k
-			usdStats.LowestHoldingValue.Value = v.USDValue
+			usdStats.LowestHoldingValue.Time = report.USDTotalsOverTime[i].Time
+			usdStats.LowestHoldingValue.Value = report.USDTotalsOverTime[i].USDValue
 		}
-		if usdStats.LowestHoldingValue.Value.GreaterThan(v.USDValue) && !usdStats.LowestHoldingValue.Value.IsZero() {
-			usdStats.LowestHoldingValue.Time = k
-			usdStats.LowestHoldingValue.Value = v.USDValue
+		if usdStats.LowestHoldingValue.Value.GreaterThan(report.USDTotalsOverTime[i].USDValue) && !usdStats.LowestHoldingValue.Value.IsZero() {
+			usdStats.LowestHoldingValue.Time = report.USDTotalsOverTime[i].Time
+			usdStats.LowestHoldingValue.Value = report.USDTotalsOverTime[i].USDValue
 		}
-		usdStats.HoldingValues = append(usdStats.HoldingValues, ValueAtTime{Time: k, Value: v.USDValue})
+		usdStats.HoldingValues = append(usdStats.HoldingValues, ValueAtTime{Time: report.USDTotalsOverTime[i].Time, Value: report.USDTotalsOverTime[i].USDValue})
 	}
 	sort.Slice(usdStats.HoldingValues, func(i, j int) bool {
 		return usdStats.HoldingValues[i].Time.Before(usdStats.HoldingValues[j].Time)
@@ -155,11 +155,8 @@ func CalculateIndividualFundingStatistics(disableUSDTracking bool, reportItem *f
 	if disableUSDTracking {
 		return item, nil
 	}
+
 	closePrices := reportItem.Snapshots
-	item.IsCollateral = reportItem.IsCollateral
-	if item.IsCollateral {
-		return item, nil
-	}
 	if len(closePrices) == 0 {
 		return nil, errMissingSnapshots
 	}
@@ -225,6 +222,7 @@ func CalculateIndividualFundingStatistics(disableUSDTracking bool, reportItem *f
 			}
 		}
 	}
+
 	item.TotalOrders = item.BuyOrders + item.SellOrders
 	if !item.ReportItem.ShowInfinite && !reportItem.IsCollateral {
 		if item.ReportItem.Snapshots[0].USDValue.IsZero() {
@@ -255,7 +253,7 @@ func CalculateIndividualFundingStatistics(disableUSDTracking bool, reportItem *f
 			}
 		}
 	}
-	if item.ReportItem.USDPairCandle == nil {
+	if item.ReportItem.USDPairCandle == nil && !reportItem.IsCollateral {
 		return nil, fmt.Errorf("%w usd candles missing", errMissingSnapshots)
 	}
 	s := item.ReportItem.USDPairCandle.GetStream()

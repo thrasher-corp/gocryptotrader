@@ -22,7 +22,7 @@ func (d *DataFromKline) HasDataAtTime(t time.Time) bool {
 
 // Load sets the candle data to the stream for processing
 func (d *DataFromKline) Load() error {
-	d.addedTimes = make(map[time.Time]bool)
+	d.addedTimes = make(map[int64]bool)
 	if len(d.Item.Candles) == 0 {
 		return errNoCandleData
 	}
@@ -47,7 +47,7 @@ func (d *DataFromKline) Load() error {
 			ValidationIssues: d.Item.Candles[i].ValidationIssues,
 		}
 		klineData[i] = klinerino
-		d.addedTimes[d.Item.Candles[i].Time.UTC()] = true
+		d.addedTimes[d.Item.Candles[i].Time.UTC().Unix()] = true
 	}
 
 	d.SetStream(klineData)
@@ -58,14 +58,14 @@ func (d *DataFromKline) Load() error {
 // AppendResults adds a candle item to the data stream and sorts it to ensure it is all in order
 func (d *DataFromKline) AppendResults(ki *gctkline.Item) {
 	if d.addedTimes == nil {
-		d.addedTimes = make(map[time.Time]bool)
+		d.addedTimes = make(map[int64]bool)
 	}
 	var klineData []common.DataEventHandler
 	var gctCandles []gctkline.Candle
 	for i := range ki.Candles {
-		if _, ok := d.addedTimes[ki.Candles[i].Time]; !ok {
+		if _, ok := d.addedTimes[ki.Candles[i].Time.Unix()]; !ok {
 			gctCandles = append(gctCandles, ki.Candles[i])
-			d.addedTimes[ki.Candles[i].Time] = true
+			d.addedTimes[ki.Candles[i].Time.Unix()] = true
 		}
 	}
 	var candleTimes []time.Time
