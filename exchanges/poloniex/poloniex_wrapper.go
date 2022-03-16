@@ -23,6 +23,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -182,8 +183,10 @@ func (p *Poloniex) Setup(exch *config.Exchange) error {
 		Unsubscriber:          p.Unsubscribe,
 		GenerateSubscriptions: p.GenerateDefaultSubscriptions,
 		Features:              &p.Features.Supports.WebsocketCapabilities,
-		SortBuffer:            true,
-		SortBufferByUpdateIDs: true,
+		BufferConfig: buffer.Config{
+			SortBuffer:            true,
+			SortBufferByUpdateIDs: true,
+		},
 	})
 	if err != nil {
 		return err

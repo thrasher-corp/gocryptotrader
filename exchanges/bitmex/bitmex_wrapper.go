@@ -24,6 +24,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -173,7 +174,9 @@ func (b *Bitmex) Setup(exch *config.Exchange) error {
 		Unsubscriber:          b.Unsubscribe,
 		GenerateSubscriptions: b.GenerateDefaultSubscriptions,
 		Features:              &b.Features.Supports.WebsocketCapabilities,
-		UpdateEntriesByID:     true,
+		BufferConfig: buffer.Config{
+			UpdateEntriesByID: true,
+		},
 	})
 	if err != nil {
 		return err

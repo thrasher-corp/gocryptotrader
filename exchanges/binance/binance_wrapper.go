@@ -23,6 +23,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -237,9 +238,11 @@ func (b *Binance) Setup(exch *config.Exchange) error {
 		Unsubscriber:          b.Unsubscribe,
 		GenerateSubscriptions: b.GenerateSubscriptions,
 		Features:              &b.Features.Supports.WebsocketCapabilities,
-		SortBuffer:            true,
-		SortBufferByUpdateIDs: true,
-		TradeFeed:             b.Features.Enabled.TradeFeed,
+		BufferConfig: buffer.Config{
+			SortBuffer:            true,
+			SortBufferByUpdateIDs: true,
+		},
+		TradeFeed: b.Features.Enabled.TradeFeed,
 	})
 	if err != nil {
 		return err

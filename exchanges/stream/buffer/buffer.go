@@ -26,35 +26,37 @@ var (
 )
 
 // Setup sets private variables
-func (w *Orderbook) Setup(cfg *config.Exchange, sortBuffer, sortBufferByUpdateIDs, updateEntriesByID bool, dataHandler chan interface{}) error {
-	if cfg == nil { // exchange config fields are checked in stream package
+func (w *Orderbook) Setup(exchangeConfig *config.Exchange, c *Config, dataHandler chan<- interface{}) error {
+	if exchangeConfig == nil { // exchange config fields are checked in stream package
 		// prior to calling this, so further checks are not needed.
 		return fmt.Errorf(packageError, errExchangeConfigNil)
 	}
-	if dataHandler == nil {
+	if exchangeConfig == nil {
 		return fmt.Errorf(packageError, errUnsetDataHandler)
 	}
-	if cfg.Orderbook.WebsocketBufferEnabled &&
-		cfg.Orderbook.WebsocketBufferLimit < 1 {
+	if exchangeConfig.Orderbook.WebsocketBufferEnabled &&
+		exchangeConfig.Orderbook.WebsocketBufferLimit < 1 {
 		return fmt.Errorf(packageError, errIssueBufferEnabledButNoLimit)
 	}
 
-	w.bufferEnabled = cfg.Orderbook.WebsocketBufferEnabled
-	w.obBufferLimit = cfg.Orderbook.WebsocketBufferLimit
-	w.sortBuffer = sortBuffer
-	w.sortBufferByUpdateIDs = sortBufferByUpdateIDs
-	w.updateEntriesByID = updateEntriesByID
-	w.exchangeName = cfg.Name
+	w.bufferEnabled = exchangeConfig.Orderbook.WebsocketBufferEnabled
+	w.obBufferLimit = exchangeConfig.Orderbook.WebsocketBufferLimit
+	w.sortBuffer = c.SortBuffer
+	w.sortBufferByUpdateIDs = c.SortBufferByUpdateIDs
+	w.updateEntriesByID = c.UpdateEntriesByID
+	w.exchangeName = exchangeConfig.Name
 	w.dataHandler = dataHandler
 	w.ob = make(map[currency.Code]map[currency.Code]map[asset.Item]*orderbookHolder)
-	w.verbose = cfg.Verbose
+	w.verbose = exchangeConfig.Verbose
 
 	// set default publish period if missing
 	orderbookPublishPeriod := config.DefaultOrderbookPublishPeriod
-	if cfg.Orderbook.PublishPeriod != nil {
-		orderbookPublishPeriod = *cfg.Orderbook.PublishPeriod
+	if exchangeConfig.Orderbook.PublishPeriod != nil {
+		orderbookPublishPeriod = *exchangeConfig.Orderbook.PublishPeriod
 	}
 	w.publishPeriod = orderbookPublishPeriod
+	w.updateIDProgression = c.UpdateIDProgression
+	w.checksum = c.Checksum
 	return nil
 }
 
@@ -84,6 +86,11 @@ func (w *Orderbook) Update(u *Update) error {
 			w.exchangeName,
 			u.Pair,
 			u.Asset)
+	}
+
+	// out of order update ID can be skipped
+	if w.updateIDProgression && u.UpdateID <= book.updateID {
+		return nil
 	}
 
 	// Checks for when the rest protocol overwrites a streaming dominated book
@@ -200,11 +207,12 @@ func (w *Orderbook) processObUpdate(o *orderbookHolder, u *Update) error {
 		return o.updateByIDAndAction(u)
 	}
 	o.updateByPrice(u)
-	if u.ChecksumFn != nil {
-		err := u.ChecksumFn(o.ob.Retrieve(), u.Checksum)
+	if w.checksum != nil {
+		err := w.checksum(o.ob.Retrieve(), u.Checksum)
 		if err != nil {
 			return err
 		}
+		o.updateID = u.UpdateID
 	}
 	return nil
 }
@@ -216,7 +224,6 @@ func (o *orderbookHolder) updateByPrice(updts *Update) {
 		updts.Asks,
 		updts.MaxDepth,
 		updts.UpdateID,
-		updts.UpdateIDProgression,
 		updts.UpdateTime)
 }
 
@@ -288,14 +295,15 @@ func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
 		m2[book.Asset] = holder
 	}
 
+	holder.updateID = book.LastUpdateID
+
 	// Checks if book can deploy to linked list
 	err := book.Verify()
 	if err != nil {
 		return err
 	}
 
-	holder.ob.LoadSnapshot(
-		book.Bids,
+	holder.ob.LoadSnapshot(book.Bids,
 		book.Asks,
 		book.LastUpdateID,
 		book.LastUpdated,

@@ -150,7 +150,6 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 				Bids:                orderbook.Items(ob.Bids),
 				Asks:                orderbook.Items(ob.Asks),
 				Pair:                ob.Currency,
-				ChecksumFn:          checksum,
 				Checksum:            ob.Checksum,
 				UpdateIDProgression: true,
 			})
