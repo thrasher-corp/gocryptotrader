@@ -161,6 +161,12 @@ func (c *Credentials) IsEmpty() bool {
 		c.SubAccount == ""
 }
 
+// contextCredentialsStore protects the stored credentials for use in a context
+type contextCredentialsStore struct {
+	creds *Credentials
+	mu    sync.RWMutex
+}
+
 // getInternal returns the values for assignment to an internal context
 func (c *Credentials) getInternal() (contextCredential, *contextCredentialsStore) {
 	if c.IsEmpty() {
@@ -169,12 +175,6 @@ func (c *Credentials) getInternal() (contextCredential, *contextCredentialsStore
 	store := &contextCredentialsStore{}
 	store.Load(c)
 	return contextCredentialsFlag, store
-}
-
-// contextCredentialsStore protects the stored credentials for use in a context
-type contextCredentialsStore struct {
-	creds *Credentials
-	mu    sync.RWMutex
 }
 
 // Load stores provided credentials
