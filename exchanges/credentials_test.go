@@ -31,7 +31,7 @@ func TestParseCredentialsMetadata(t *testing.T) {
 	}
 
 	ctx = metadata.AppendToOutgoingContext(context.Background(),
-		string(contextCredentialsFlag), "poopy")
+		string(contextCredentialsFlag), "brokenstring")
 	nortyMD, _ = metadata.FromOutgoingContext(ctx)
 
 	_, err = ParseCredentialsMetadata(context.Background(), nortyMD)
@@ -467,5 +467,21 @@ func TestGetAuthenticatedAPISupport(t *testing.T) {
 	}
 	if base.GetAuthenticatedAPISupport(2) {
 		t.Fatal("Expected default case of 'false' to be returned")
+	}
+}
+
+func TestIsEmpty(t *testing.T) {
+	var c *Credentials
+	if !c.IsEmpty() {
+		t.Fatalf("expected: %v but received: %v", true, c.IsEmpty())
+	}
+	c = new(Credentials)
+	if !c.IsEmpty() {
+		t.Fatalf("expected: %v but received: %v", true, c.IsEmpty())
+	}
+
+	c.SubAccount = "woow"
+	if c.IsEmpty() {
+		t.Fatalf("expected: %v but received: %v", false, c.IsEmpty())
 	}
 }
