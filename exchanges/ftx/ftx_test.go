@@ -1042,6 +1042,18 @@ func TestUpdateOrderbook(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+
+	cp = currency.NewPairWithDelimiter("ALGOBEAR", currency.USD.String(), "/")
+	_, err = f.UpdateOrderbook(context.Background(), cp, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+
+	cp = currency.NewPairWithDelimiter("ASDBEAR", currency.USD.String(), "/")
+	_, err = f.UpdateOrderbook(context.Background(), cp, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
 }
 
 func TestUpdateTicker(t *testing.T) {
