@@ -505,3 +505,34 @@ func BenchmarkRemovePairsByFilter(b *testing.B) {
 		_ = pairs.RemovePairsByFilter(USD)
 	}
 }
+
+func TestHas(t *testing.T) {
+	pairs := Pairs{
+		NewPair(BTC, USD),
+		NewPair(LTC, USD),
+		NewPair(USD, NZD),
+		NewPair(LTC, USDT),
+		NewPair(LTC, DAI),
+		NewPair(USDT, XRP),
+		NewPair(DAI, XRP),
+	}
+
+	if !pairs.Has(BTC) {
+		t.Fatalf("expected %s to be %v", BTC, true)
+	}
+	if !pairs.Has(USD) {
+		t.Fatalf("expected %s to be %v", USD, true)
+	}
+	if !pairs.Has(LTC) {
+		t.Fatalf("expected %s to be %v", LTC, true)
+	}
+	if !pairs.Has(DAI) {
+		t.Fatalf("expected %s to be %v", DAI, true)
+	}
+	if !pairs.Has(XRP) {
+		t.Fatalf("expected %s to be %v", XRP, true)
+	}
+	if pairs.Has(ATOM3L) {
+		t.Fatalf("expected %s to be %v", ATOM3L, false)
+	}
+}
