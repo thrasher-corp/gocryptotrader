@@ -17,6 +17,7 @@ const packageError = "websocket orderbook buffer error: %w"
 
 var (
 	errExchangeConfigNil            = errors.New("exchange config is nil")
+	errBufferConfigNil              = errors.New("buffer config is nil")
 	errUnsetDataHandler             = errors.New("datahandler unset")
 	errIssueBufferEnabledButNoLimit = errors.New("buffer enabled but no limit set")
 	errUpdateIsNil                  = errors.New("update is nil")
@@ -31,7 +32,10 @@ func (w *Orderbook) Setup(exchangeConfig *config.Exchange, c *Config, dataHandle
 		// prior to calling this, so further checks are not needed.
 		return fmt.Errorf(packageError, errExchangeConfigNil)
 	}
-	if exchangeConfig == nil {
+	if c == nil {
+		return fmt.Errorf(packageError, errBufferConfigNil)
+	}
+	if dataHandler == nil {
 		return fmt.Errorf(packageError, errUnsetDataHandler)
 	}
 	if exchangeConfig.Orderbook.WebsocketBufferEnabled &&

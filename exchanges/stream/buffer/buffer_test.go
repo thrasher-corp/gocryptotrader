@@ -404,25 +404,28 @@ func TestOrderbookLastUpdateID(t *testing.T) {
 			exp, itemArray[1][0].Price)
 	}
 
+	holder.checksum = func(state *orderbook.Base, checksum uint32) error { return errTest }
+
 	err = holder.Update(&Update{
-		Asks:       []orderbook.Item{{Price: 999999}},
-		Pair:       cp,
-		UpdateID:   -1,
-		Asset:      asset.Spot,
-		ChecksumFn: func(state *orderbook.Base, checksum uint32) error { return errTest },
+		Asks:     []orderbook.Item{{Price: 999999}},
+		Pair:     cp,
+		UpdateID: -1,
+		Asset:    asset.Spot,
 	})
 	if !errors.Is(err, errTest) {
 		t.Fatalf("received: %v but expected: %v", err, errTest)
 	}
 
+	holder.checksum = nil
+
 	for i := range itemArray {
 		asks := itemArray[i]
 		err = holder.Update(&Update{
-			Asks:       asks,
-			Pair:       cp,
-			UpdateID:   int64(i) + 1,
-			Asset:      asset.Spot,
-			ChecksumFn: func(state *orderbook.Base, checksum uint32) error { return nil },
+			Asks:     asks,
+			Pair:     cp,
+			UpdateID: int64(i) + 1,
+			Asset:    asset.Spot,
+			// ChecksumFn: func(state *orderbook.Base, checksum uint32) error { return nil },
 		})
 		if err != nil {
 			t.Fatal(err)
@@ -729,19 +732,25 @@ func TestGetOrderbook(t *testing.T) {
 func TestSetup(t *testing.T) {
 	t.Parallel()
 	w := Orderbook{}
-	err := w.Setup(nil, false, false, false, nil)
+	err := w.Setup(nil, nil, nil)
 	if !errors.Is(err, errExchangeConfigNil) {
 		t.Fatalf("expected error %v but received %v", errExchangeConfigNil, err)
 	}
 
 	exchangeConfig := &config.Exchange{}
-	err = w.Setup(exchangeConfig, false, false, false, nil)
+	err = w.Setup(exchangeConfig, nil, nil)
+	if !errors.Is(err, errBufferConfigNil) {
+		t.Fatalf("expected error %v but received %v", errBufferConfigNil, err)
+	}
+
+	bufferConf := &Config{}
+	err = w.Setup(exchangeConfig, bufferConf, nil)
 	if !errors.Is(err, errUnsetDataHandler) {
 		t.Fatalf("expected error %v but received %v", errUnsetDataHandler, err)
 	}
 
 	exchangeConfig.Orderbook.WebsocketBufferEnabled = true
-	err = w.Setup(exchangeConfig, false, false, false, make(chan interface{}))
+	err = w.Setup(exchangeConfig, bufferConf, make(chan interface{}))
 	if !errors.Is(err, errIssueBufferEnabledButNoLimit) {
 		t.Fatalf("expected error %v but received %v", errIssueBufferEnabledButNoLimit, err)
 	}
@@ -749,7 +758,10 @@ func TestSetup(t *testing.T) {
 	exchangeConfig.Orderbook.WebsocketBufferLimit = 1337
 	exchangeConfig.Orderbook.WebsocketBufferEnabled = true
 	exchangeConfig.Name = "test"
-	err = w.Setup(exchangeConfig, true, true, true, make(chan interface{}))
+	bufferConf.SortBuffer = true
+	bufferConf.SortBufferByUpdateIDs = true
+	bufferConf.UpdateEntriesByID = true
+	err = w.Setup(exchangeConfig, bufferConf, make(chan interface{}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1024,7 +1036,7 @@ func TestUpdateByIDAndAction(t *testing.T) {
 func TestFlushOrderbook(t *testing.T) {
 	t.Parallel()
 	w := &Orderbook{}
-	err := w.Setup(&config.Exchange{Name: "test"}, false, false, false, make(chan interface{}, 2))
+	err := w.Setup(&config.Exchange{Name: "test"}, &Config{}, make(chan interface{}, 2))
 	if err != nil {
 		t.Fatal(err)
 	}
