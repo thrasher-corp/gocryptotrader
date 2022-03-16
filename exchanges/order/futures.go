@@ -673,6 +673,7 @@ func (p *PNLCalculator) CalculatePNL(_ context.Context, calc *PNLCalculatorReque
 		Price:                 calc.CurrentPrice,
 		Exposure:              currentExposure,
 		Fee:                   calc.Fee,
+		Direction:             calc.CurrentDirection,
 	}
 	return response, nil
 }

@@ -85,11 +85,12 @@ type Settings struct {
 // PNLSummary holds a PNL result along with
 // exchange details
 type PNLSummary struct {
-	Exchange string
-	Item     asset.Item
-	Pair     currency.Pair
-	Offset   int64
-	Result   gctorder.PNLResult
+	Exchange           string
+	Item               asset.Item
+	Pair               currency.Pair
+	CollateralCurrency currency.Code
+	Offset             int64
+	Result             gctorder.PNLResult
 }
 
 // IPNL defines an interface for an implementation
@@ -97,6 +98,8 @@ type PNLSummary struct {
 type IPNL interface {
 	GetUnrealisedPNL() BasicPNLResult
 	GetRealisedPNL() BasicPNLResult
+	GetCollateralCurrency() currency.Code
+	GetDirection() gctorder.Side
 }
 
 // BasicPNLResult holds the time and the pnl

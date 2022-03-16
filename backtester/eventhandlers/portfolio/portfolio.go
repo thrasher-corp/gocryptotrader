@@ -585,6 +585,7 @@ func (p *Portfolio) GetLatestPNLForEvent(e common.EventHandler) (*PNLSummary, er
 		return response, nil
 	}
 	response.Result = pnlHistory[len(pnlHistory)-1]
+	response.CollateralCurrency = positions[0].Underlying
 	return response, nil
 }
 
@@ -654,4 +655,19 @@ func (p PNLSummary) GetRealisedPNL() BasicPNLResult {
 		Time: p.Result.Time,
 		PNL:  p.Result.RealisedPNL,
 	}
+}
+
+// GetExposure returns the position exposure
+func (p PNLSummary) GetExposure() decimal.Decimal {
+	return p.Result.Exposure
+}
+
+// GetCollateralCurrency returns the collateral currency
+func (p PNLSummary) GetCollateralCurrency() currency.Code {
+	return p.CollateralCurrency
+}
+
+// GetDirection returns the direction
+func (p PNLSummary) GetDirection() gctorder.Side {
+	return p.Result.Direction
 }

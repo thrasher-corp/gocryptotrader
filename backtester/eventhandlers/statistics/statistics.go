@@ -140,6 +140,7 @@ func (s *Statistic) AddPNLForTime(pnl *portfolio.PNLSummary) error {
 	for i := len(lookup.Events) - 1; i >= 0; i-- {
 		if lookup.Events[i].DataEvent.GetOffset() == pnl.Offset {
 			lookup.Events[i].PNL = pnl
+			lookup.Events[i].Holdings.BaseSize = pnl.Result.Exposure
 			return nil
 		}
 	}

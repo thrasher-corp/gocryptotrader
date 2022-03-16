@@ -265,6 +265,7 @@ type PNLResult struct {
 	RealisedPNL           decimal.Decimal
 	Price                 decimal.Decimal
 	Exposure              decimal.Decimal
+	Direction             Side
 	Fee                   decimal.Decimal
 	IsLiquidated          bool
 }
