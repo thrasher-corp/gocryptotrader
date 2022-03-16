@@ -731,7 +731,9 @@ func (bot *Engine) GetAllExchangeCryptocurrencyDepositAddresses() map[string]map
 						exch.GetName(), err)
 					return
 				}
-				cryptoAddresses[cryptos[x]] = addresses
+				if len(addresses) > 0 {
+					cryptoAddresses[cryptos[x]] = addresses
+				}
 			}
 			mtx.Lock()
 			result[exch.GetName()] = cryptoAddresses

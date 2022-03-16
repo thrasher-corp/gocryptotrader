@@ -197,6 +197,9 @@ func (m *DepositAddressManager) Sync(addresses map[string]map[currency.Code][]de
 	for exchName, m1 := range addresses {
 		r := make(map[*currency.Item][]deposit.Address)
 		for code, addresses := range m1 {
+			if len(addresses) == 0 {
+				return fmt.Errorf("%s %s empty address list found", exchName, code)
+			}
 			r[code.Item] = addresses
 		}
 		m.store[strings.ToUpper(exchName)] = r
