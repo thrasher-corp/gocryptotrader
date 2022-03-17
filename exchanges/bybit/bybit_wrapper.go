@@ -472,20 +472,26 @@ func (by *Bybit) FetchOrderbook(ctx context.Context, currency currency.Pair, ass
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (by *Bybit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	var orderbookNew Orderbook
+	var err error
+
+	formattedPair, err := by.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
+
 	book := &orderbook.Base{
 		Exchange:        by.Name,
-		Pair:            p,
+		Pair:            formattedPair,
 		Asset:           assetType,
 		VerifyOrderbook: by.CanVerifyOrderbook,
 	}
 
-	var orderbookNew Orderbook
-	var err error
 	switch assetType {
 	case asset.Spot:
-		orderbookNew, err = by.GetOrderBook(ctx, p.String(), 0)
+		orderbookNew, err = by.GetOrderBook(ctx, formattedPair.String(), 0)
 	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.Futures:
-		orderbookNew, err = by.GetFuturesOrderbook(ctx, p)
+		orderbookNew, err = by.GetFuturesOrderbook(ctx, formattedPair)
 	default:
 		return nil, fmt.Errorf("assetType not supported: %v", assetType)
 	}
@@ -510,7 +516,7 @@ func (by *Bybit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 	if err != nil {
 		return book, err
 	}
-	return orderbook.Get(by.Name, p, assetType)
+	return orderbook.Get(by.Name, formattedPair, assetType)
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies

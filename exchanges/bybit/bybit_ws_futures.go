@@ -167,7 +167,8 @@ func (by *Bybit) wsFuturesHandleData(respRaw []byte) error {
 
 	t, ok := multiStreamData["topic"].(string)
 	if !ok {
-		return errors.New("no topics found")
+		log.Errorf(log.ExchangeSys, "%s Received unhandle message on websocket: %s\n", by.Name, multiStreamData)
+		return nil
 	}
 
 	topics := strings.Split(t, dot)
