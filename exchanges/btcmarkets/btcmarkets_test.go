@@ -867,8 +867,8 @@ func TestChecksum(t *testing.T) {
 		t.Fatal(err)
 	}
 	err = checksum(b, uint32(1223123))
-	if err == nil {
-		t.Fatal("expected checksum failure")
+	if !errors.Is(err, errChecksumFailure) {
+		t.Errorf("received '%v', expected '%v'", err, errChecksumFailure)
 	}
 }
 
