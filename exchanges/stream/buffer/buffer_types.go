@@ -19,13 +19,13 @@ type Config struct {
 	// SortBufferByUpdateIDs allows the sorting of the buffered updates by their
 	// corresponding update IDs. This is package defined.
 	SortBufferByUpdateIDs bool
-	// UpdateEntriesByID will match by IDs instead of price to perform the a set
-	// of actions. e.g. update, delete, insert
+	// UpdateEntriesByID will match by IDs instead of price to perform the an
+	// action. e.g. update, delete, insert.
 	UpdateEntriesByID bool
-	// updateIDProgression requires that the new update ID be greater than the
+	// UpdateIDProgression requires that the new update ID be greater than the
 	// prior ID. This will skip processing and not error.
 	UpdateIDProgression bool
-	// checksum is a package defined checksum calculation for updated books.
+	// Checksum is a package defined checksum calculation for updated books.
 	Checksum func(state *orderbook.Base, checksum uint32) error
 }
 
@@ -74,14 +74,8 @@ type Update struct {
 	Bids []orderbook.Item
 	Asks []orderbook.Item
 	Pair currency.Pair
-
 	// Checksum defines the expected value when the books have been verified
 	Checksum uint32
-
-	// UpdateIDProgression defines if the ID is used as counter and needs to be
-	// greater than last ID.
-	UpdateIDProgression bool
-
 	// Determines if there is a max depth of orderbooks and after an append we
 	// should remove any items that are outside of this scope. Kraken is the
 	// only exchange utilising this field.
