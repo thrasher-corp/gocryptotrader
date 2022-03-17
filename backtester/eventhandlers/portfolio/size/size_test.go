@@ -190,6 +190,11 @@ func TestSizeOrder(t *testing.T) {
 	}
 
 	_, err = s.SizeOrder(o, decimal.NewFromInt(1337), cs)
+	if !errors.Is(err, errNoFunds) {
+		t.Errorf("received: %v, expected: %v", err, errNoFunds)
+	}
+	o.Amount = decimal.NewFromInt(1)
+	_, err = s.SizeOrder(o, decimal.NewFromInt(1337), cs)
 	if !errors.Is(err, errCannotAllocate) {
 		t.Errorf("received: %v, expected: %v", err, errCannotAllocate)
 	}

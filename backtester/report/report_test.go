@@ -238,8 +238,8 @@ func TestGenerateReport(t *testing.T) {
 					a: {
 						p: &statistics.CurrencyPairStatistic{
 							MaxDrawdown:              statistics.Swing{},
-							LowestClosePrice:         decimal.NewFromInt(100),
-							HighestClosePrice:        decimal.NewFromInt(200),
+							LowestClosePrice:         statistics.ValueAtTime{Value: decimal.NewFromInt(100)},
+							HighestClosePrice:        statistics.ValueAtTime{Value: decimal.NewFromInt(200)},
 							MarketMovement:           decimal.NewFromInt(100),
 							StrategyMovement:         decimal.NewFromInt(100),
 							CompoundAnnualGrowthRate: decimal.NewFromInt(1),

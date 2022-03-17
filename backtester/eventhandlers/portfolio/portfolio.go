@@ -54,6 +54,7 @@ func (p *Portfolio) OnSignal(ev signal.Event, cs *exchange.Settings, funds fundi
 		},
 		Direction:          ev.GetDirection(),
 		FillDependentEvent: ev.GetFillDependentEvent(),
+		Amount:             ev.GetAmount(),
 	}
 	if ev.GetDirection() == "" {
 		return o, errInvalidDirection
@@ -158,11 +159,10 @@ func (p *Portfolio) evaluateOrder(d common.Directioner, originalOrderSignal, siz
 	if err != nil {
 		originalOrderSignal.AppendReason(err.Error())
 		switch d.GetDirection() {
-		case gctorder.Buy:
+		case gctorder.Buy, common.CouldNotBuy:
 			originalOrderSignal.Direction = common.CouldNotBuy
-		case gctorder.Sell:
+		case gctorder.Sell, common.CouldNotSell:
 			originalOrderSignal.Direction = common.CouldNotSell
-		case common.CouldNotBuy, common.CouldNotSell:
 		case gctorder.Short:
 			originalOrderSignal.Direction = common.CouldNotShort
 		case gctorder.Long:

@@ -273,12 +273,13 @@ func TestUpdate(t *testing.T) {
 		t.Fatal(err)
 	}
 	pair, err := funding.CreatePair(b, q)
-	if err != nil {
-		t.Fatal(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
+
 	err = p.UpdateHoldings(&kline.Kline{}, pair)
-	if !errors.Is(err, errNoPortfolioSettings) {
-		t.Errorf("received '%v' expected '%v'", err, errNoPortfolioSettings)
+	if !errors.Is(err, errExchangeUnset) {
+		t.Errorf("received '%v' expected '%v'", err, errExchangeUnset)
 	}
 
 	tt := time.Now()
@@ -561,6 +562,7 @@ func TestOnSignal(t *testing.T) {
 
 	s.ClosePrice = decimal.NewFromInt(10)
 	s.Direction = gctorder.Buy
+	s.Amount = decimal.NewFromInt(1)
 	resp, err = p.OnSignal(s, &exchange.Settings{}, pair)
 	if err != nil {
 		t.Error(err)
@@ -737,8 +739,8 @@ func TestCalculatePNL(t *testing.T) {
 	ev.Time = tt0
 
 	err = p.UpdatePNL(ev, decimal.Zero)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
+	if !errors.Is(err, gctorder.ErrPositionsNotLoadedForPair) {
+		t.Errorf("received: %v, expected: %v", err, gctorder.ErrPositionsNotLoadedForPair)
 	}
 
 	od := &gctorder.Detail{
@@ -784,7 +786,11 @@ func TestCalculatePNL(t *testing.T) {
 			},
 		},
 	}, false)
-	err = p.UpdatePNL(ev, decimal.Zero)
+	err = s.FuturesTracker.TrackNewOrder(od)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
+	}
+	err = p.UpdatePNL(ev, decimal.NewFromInt(1))
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
@@ -796,8 +802,8 @@ func TestCalculatePNL(t *testing.T) {
 	if len(pos[0].PNLHistory) == 0 {
 		t.Fatal("expected a pnl entry ( ͡° ͜ʖ ͡°)")
 	}
-	if !pos[0].RealisedPNL.Equal(decimal.NewFromInt(20)) {
+	if !pos[0].UnrealisedPNL.Equal(decimal.NewFromInt(26700)) {
 		// 20 orders * $1 difference * 1x leverage
-		t.Errorf("expected 20, received '%v'", pos[0].RealisedPNL)
+		t.Errorf("expected 26700, received '%v'", pos[0].UnrealisedPNL)
 	}
 }

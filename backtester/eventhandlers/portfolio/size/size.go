@@ -22,6 +22,9 @@ func (s *Size) SizeOrder(o order.Event, amountAvailable decimal.Decimal, cs *exc
 	if !ok {
 		return nil, fmt.Errorf("%w expected order event", common.ErrInvalidDataType)
 	}
+	if o.GetAmount().IsZero() || o.GetAmount().IsNegative() {
+		return nil, fmt.Errorf("%v %v %v %w invalid order amount %v", o.GetExchange(), o.GetAssetType(), o.Pair(), errNoFunds, o.GetAmount())
+	}
 	var amount decimal.Decimal
 	var err error
 	switch retOrder.GetDirection() {

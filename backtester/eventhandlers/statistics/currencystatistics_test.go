@@ -302,10 +302,10 @@ func TestAnalysePNLGrowth(t *testing.T) {
 	)
 
 	c.analysePNLGrowth()
-	if c.HighestRealisedPNL.Value.Equal(decimal.NewFromInt(2)) {
+	if !c.HighestRealisedPNL.Value.Equal(decimal.NewFromInt(2)) {
 		t.Errorf("received %v expected 2", c.HighestRealisedPNL.Value)
 	}
-	if c.LowestUnrealisedPNL.Value.Equal(decimal.NewFromInt(1)) {
+	if !c.LowestUnrealisedPNL.Value.Equal(decimal.NewFromInt(1)) {
 		t.Errorf("received %v expected 1", c.LowestUnrealisedPNL.Value)
 	}
 
@@ -324,10 +324,10 @@ func TestAnalysePNLGrowth(t *testing.T) {
 	)
 
 	c.analysePNLGrowth()
-	if c.HighestRealisedPNL.Value.Equal(decimal.NewFromInt(2)) {
+	if !c.HighestRealisedPNL.Value.Equal(decimal.NewFromInt(2)) {
 		t.Errorf("received %v expected 2", c.HighestRealisedPNL.Value)
 	}
-	if c.LowestUnrealisedPNL.Value.Equal(decimal.NewFromFloat(0.5)) {
+	if !c.LowestUnrealisedPNL.Value.Equal(decimal.NewFromFloat(0.5)) {
 		t.Errorf("received %v expected 0.5", c.LowestUnrealisedPNL.Value)
 	}
 }
