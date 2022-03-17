@@ -791,7 +791,7 @@ func (bot *Engine) GetDepositAddresses(ctx context.Context, exch exchange.IBotEx
 				availChains[z],
 				err)
 		}
-		depositAddr.Chain = availChains[z]
+		depositAddr.Chain = strings.ToUpper(availChains[z])
 		addresses = append(addresses, *depositAddr)
 	}
 
