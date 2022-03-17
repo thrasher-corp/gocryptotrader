@@ -169,6 +169,19 @@ func (p Pairs) GetPairsByFilter(filter Code) Pairs {
 	return pairs
 }
 
+// GetPairsByCurrencies returns all pairs that have both matches to the
+// currencies passed in. This allows for the construction of enabled pairs by
+// required currency codes.
+func (p Pairs) GetPairsByCurrencies(enabled Currencies) Pairs {
+	pairs := make(Pairs, 0, len(p))
+	for i := range p {
+		if enabled.Contains(p[i].Base) && enabled.Contains(p[i].Quote) {
+			pairs = append(pairs, p[i])
+		}
+	}
+	return pairs
+}
+
 // Remove removes the specified pair from the list of pairs if it exists
 func (p Pairs) Remove(pair Pair) Pairs {
 	pairs := make(Pairs, 0, len(p))
