@@ -64,6 +64,44 @@ func (c *PositionController) TrackNewOrder(d *Detail) error {
 	return multiPositionTracker.TrackNewOrder(d)
 }
 
+// SetCollateralCurrency allows the setting of a collateral currency to all child trackers
+// when using position controller for futures orders tracking
+func (c *PositionController) SetCollateralCurrency(exch string, item asset.Item, pair currency.Pair, collateralCurrency currency.Code) error {
+	if c == nil {
+		return fmt.Errorf("position controller %w", common.ErrNilPointer)
+	}
+	c.m.Lock()
+	defer c.m.Unlock()
+	if !item.IsFutures() {
+		return fmt.Errorf("%v %v %v %w", exch, item, pair, ErrNotFuturesAsset)
+	}
+
+	exchM, ok := c.positionTrackerControllers[strings.ToLower(exch)]
+	if !ok {
+		return fmt.Errorf("cannot set collateral %v for %v %v %v %w", collateralCurrency, exch, item, pair, ErrPositionsNotLoadedForExchange)
+	}
+	itemM, ok := exchM[item]
+	if !ok {
+		return fmt.Errorf("cannot set collateral %v for %v %v %v %w", collateralCurrency, exch, item, pair, ErrPositionsNotLoadedForAsset)
+	}
+	multiPositionTracker, ok := itemM[pair]
+	if !ok {
+		return fmt.Errorf("cannot set collateral %v for %v %v %v %w", collateralCurrency, exch, item, pair, ErrPositionsNotLoadedForPair)
+	}
+	if multiPositionTracker == nil {
+		return fmt.Errorf("cannot set collateral %v for %v %v %v %w", collateralCurrency, exch, item, pair, common.ErrNilPointer)
+	}
+	multiPositionTracker.m.Lock()
+	multiPositionTracker.collateralCurrency = collateralCurrency
+	for i := range multiPositionTracker.positions {
+		multiPositionTracker.positions[i].m.Lock()
+		multiPositionTracker.positions[i].collateralCurrency = collateralCurrency
+		multiPositionTracker.positions[i].m.Unlock()
+	}
+	multiPositionTracker.m.Unlock()
+	return nil
+}
+
 // GetPositionsForExchange returns all positions for an
 // exchange, asset pair that is stored in the position controller
 func (c *PositionController) GetPositionsForExchange(exch string, item asset.Item, pair currency.Pair) ([]PositionStats, error) {
@@ -189,6 +227,7 @@ func (c *PositionController) ClearPositionsForExchange(exch string, item asset.I
 		OfflineCalculation:        multiPositionTracker.offlinePNLCalculation,
 		UseExchangePNLCalculation: multiPositionTracker.useExchangePNLCalculations,
 		ExchangePNLCalculation:    multiPositionTracker.exchangePNLCalculation,
+		CollateralCurrency:        multiPositionTracker.collateralCurrency,
 	})
 	if err != nil {
 		return err
@@ -226,6 +265,7 @@ func SetupMultiPositionTracker(setup *MultiPositionTrackerSetup) (*MultiPosition
 		orderPositions:             make(map[string]*PositionTracker),
 		useExchangePNLCalculations: setup.UseExchangePNLCalculation,
 		exchangePNLCalculation:     setup.ExchangePNLCalculation,
+		collateralCurrency:         setup.CollateralCurrency,
 	}, nil
 }
 
@@ -284,6 +324,7 @@ func (e *MultiPositionTracker) TrackNewOrder(d *Detail) error {
 		Asset:                     d.AssetType,
 		Side:                      d.Side,
 		UseExchangePNLCalculation: e.useExchangePNLCalculations,
+		CollateralCurrency:        e.collateralCurrency,
 	}
 	tracker, err := e.SetupPositionTracker(setup)
 	if err != nil {
@@ -327,6 +368,7 @@ func (e *MultiPositionTracker) SetupPositionTracker(setup *PositionTrackerSetup)
 		currentDirection:          setup.Side,
 		openingDirection:          setup.Side,
 		useExchangePNLCalculation: setup.UseExchangePNLCalculation,
+		collateralCurrency:        setup.CollateralCurrency,
 		offlinePNLCalculation:     e.offlinePNLCalculation,
 	}
 	if !setup.UseExchangePNLCalculation {
@@ -353,20 +395,21 @@ func (p *PositionTracker) GetStats() PositionStats {
 	orders = append(orders, p.shortPositions...)
 
 	return PositionStats{
-		Exchange:         p.exchange,
-		Asset:            p.asset,
-		Pair:             p.contractPair,
-		Underlying:       p.underlyingAsset,
-		Status:           p.status,
-		Orders:           orders,
-		RealisedPNL:      p.realisedPNL,
-		UnrealisedPNL:    p.unrealisedPNL,
-		LatestDirection:  p.currentDirection,
-		OpeningDirection: p.openingDirection,
-		OpeningPrice:     p.entryPrice,
-		LatestPrice:      p.latestPrice,
-		PNLHistory:       p.pnlHistory,
-		Exposure:         p.exposure,
+		Exchange:           p.exchange,
+		Asset:              p.asset,
+		Pair:               p.contractPair,
+		Underlying:         p.underlyingAsset,
+		CollateralCurrency: p.collateralCurrency,
+		Status:             p.status,
+		Orders:             orders,
+		RealisedPNL:        p.realisedPNL,
+		UnrealisedPNL:      p.unrealisedPNL,
+		LatestDirection:    p.currentDirection,
+		OpeningDirection:   p.openingDirection,
+		OpeningPrice:       p.entryPrice,
+		LatestPrice:        p.latestPrice,
+		PNLHistory:         p.pnlHistory,
+		Exposure:           p.exposure,
 	}
 }
 
@@ -394,8 +437,12 @@ func (p *PositionTracker) TrackPNLByTime(t time.Time, currentPrice float64) erro
 		result.UnrealisedPNL = p.exposure.Mul(diff)
 	}
 	if len(p.pnlHistory) > 0 {
-		result.RealisedPNLBeforeFees = p.pnlHistory[len(p.pnlHistory)-1].RealisedPNLBeforeFees
-		result.Exposure = p.pnlHistory[len(p.pnlHistory)-1].Exposure
+		latest := p.pnlHistory[len(p.pnlHistory)-1]
+		result.RealisedPNLBeforeFees = latest.RealisedPNLBeforeFees
+		result.Exposure = latest.Exposure
+		result.Direction = latest.Direction
+		result.RealisedPNL = latest.RealisedPNL
+		result.IsLiquidated = latest.IsLiquidated
 	}
 	var err error
 	p.pnlHistory, err = upsertPNLEntry(p.pnlHistory, result)
@@ -600,6 +647,7 @@ func (p *PositionTracker) TrackNewOrder(d *Detail) error {
 		p.unrealisedPNL = decimal.Zero
 		p.pnlHistory[len(p.pnlHistory)-1].RealisedPNL = p.realisedPNL
 		p.pnlHistory[len(p.pnlHistory)-1].UnrealisedPNL = p.unrealisedPNL
+		p.pnlHistory[len(p.pnlHistory)-1].Direction = p.currentDirection
 	} else if p.exposure.IsNegative() {
 		if p.currentDirection.IsLong() {
 			p.currentDirection = Short

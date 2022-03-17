@@ -151,25 +151,25 @@ func (c *CurrencyPairStatistic) analysePNLGrowth() {
 		var unrealised, realised portfolio.BasicPNLResult
 		unrealised = c.Events[i].PNL.GetUnrealisedPNL()
 		realised = c.Events[i].PNL.GetRealisedPNL()
-		if unrealised.PNL.LessThan(lowestUnrealised.Value) || (!unrealised.PNL.IsZero() && !lowestUnrealised.Set) {
+		if unrealised.PNL.LessThan(lowestUnrealised.Value) || !lowestUnrealised.Set {
 			lowestUnrealised.Value = unrealised.PNL
 			lowestUnrealised.Time = unrealised.Time
 			lowestUnrealised.Set = true
 		}
-		if unrealised.PNL.GreaterThan(highestUnrealised.Value) || (!unrealised.PNL.IsZero() && !highestUnrealised.Set) {
+		if unrealised.PNL.GreaterThan(highestUnrealised.Value) || !highestUnrealised.Set {
 			highestUnrealised.Value = unrealised.PNL
 			highestUnrealised.Time = unrealised.Time
 			highestUnrealised.Set = true
 		}
 
-		if realised.PNL.LessThan(lowestRealised.Value) || (!realised.PNL.IsZero() && !lowestRealised.Set) {
+		if realised.PNL.LessThan(lowestRealised.Value) || !lowestRealised.Set {
 			lowestRealised.Value = realised.PNL
 			lowestRealised.Time = realised.Time
 			lowestRealised.Set = true
 		}
-		if realised.PNL.GreaterThan(highestRealised.Value) || (!realised.PNL.IsZero() && !highestRealised.Set) {
-			lowestRealised.Value = realised.PNL
-			lowestRealised.Time = realised.Time
+		if realised.PNL.GreaterThan(highestRealised.Value) || !highestRealised.Set {
+			highestRealised.Value = realised.PNL
+			highestRealised.Time = realised.Time
 			highestRealised.Set = true
 		}
 	}

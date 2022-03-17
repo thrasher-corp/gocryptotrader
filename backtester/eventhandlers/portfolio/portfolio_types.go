@@ -105,6 +105,7 @@ type IPNL interface {
 // BasicPNLResult holds the time and the pnl
 // of a position
 type BasicPNLResult struct {
-	Time time.Time
-	PNL  decimal.Decimal
+	Currency currency.Code
+	Time     time.Time
+	PNL      decimal.Decimal
 }

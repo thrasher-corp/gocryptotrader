@@ -1106,6 +1106,22 @@
 										<td><b>Short Orders</b></td>
 										<td>{{ $.Prettify.Int $val.ShortOrders}}</td>
 									</tr>
+									<tr>
+										<td><b>Lowest Unrealised PNL</b></td>
+										<td>{{ $.Prettify.Decimal8 $val.LowestUnrealisedPNL.Value}} at {{ $val.LowestUnrealisedPNL.Time}}</td>
+									</tr>
+									<tr>
+										<td><b>Highest Unrealised PNL</b></td>
+										<td>{{ $.Prettify.Decimal8 $val.HighestUnrealisedPNL.Value}} at {{ $val.HighestUnrealisedPNL.Time}}</td>
+									</tr>
+									<tr>
+										<td><b>Lowest Realised PNL</b></td>
+										<td>{{ $.Prettify.Decimal8 $val.LowestRealisedPNL.Value}} at {{ $val.LowestRealisedPNL.Time}}</td>
+									</tr>
+									<tr>
+										<td><b>Highest Realised PNL</b></td>
+										<td>{{ $.Prettify.Decimal8 $val.HighestRealisedPNL.Value}} at {{ $val.HighestRealisedPNL.Time}}</td>
+									</tr>
 								{{ else }}
 									<tr>
 										<td><b>Base Initial Funds</b></td>
@@ -1607,7 +1623,7 @@
 										<th>Why</th>
 										{{if $asset.IsFutures}}
 											<th>Holdings</th>
-											<th>Direction</th>
+											<th>Position Direction</th>
 											<th>Unrealised PNL</th>
 											<th>Realised PNL</th>
 										{{ else }}
@@ -1627,22 +1643,22 @@
 												<td>{{$ev.FillEvent.GetReason}}</td>
 											{{ else if ne $ev.SignalEvent nil}}
 												<td>{{$ev.SignalEvent.GetTime}}</td>
-													<td>{{ $.Prettify.Decimal8 $ev.SignalEvent.GetPrice}} {{if $asset.IsFutures}}{{$ev.PNL.GetCollateralCurrency}}{{else}}{{$pair.Quote}}{{end}}</td>
+												<td>{{ $.Prettify.Decimal8 $ev.SignalEvent.GetPrice}} {{if $asset.IsFutures}}{{$ev.PNL.GetCollateralCurrency}}{{else}}{{$pair.Quote}}{{end}}</td>
 												<td>{{$ev.SignalEvent.GetDirection}}</td>
 												<td>{{$ev.SignalEvent.GetReason}}</td>
 											{{ end }}
 											{{if $asset.IsFutures}}
 												{{if ne $ev.PNL nil }}
-												<td>{{ $.Prettify.Decimal8 $ev.PNL.GetExposure}} {{$pair.Base}}-{{$pair.Quote}}</td>
-												<td>{{$ev.PNL.GetDirection}}</td>
-												<td>{{$ev.PNL.GetUnrealisedPNL.PNL}}</td>
-												<td>{{$ev.PNL.GetRealisedPNL.PNL}}</td>
-													{{else}}
+													<td>{{ $.Prettify.Decimal8 $ev.PNL.GetExposure}} {{$pair.Base}}-{{$pair.Quote}}</td>
+													<td>{{$ev.PNL.GetDirection}}</td>
+													<td>{{$ev.PNL.GetUnrealisedPNL.PNL}} {{$ev.PNL.GetCollateralCurrency}}</td>
+													<td>{{$ev.PNL.GetRealisedPNL.PNL}} {{$ev.PNL.GetCollateralCurrency}}</td>
+												{{else}}
 													<td>0 {{$pair.Base}}-{{$pair.Quote}}</td>
 													<td>N/A</td>
 													<td>0</td>
 													<td>0</td>
-													{{end}}
+												{{end}}
 											{{else }}
 												<td>{{ $.Prettify.Decimal8 $ev.Holdings.BaseSize}} {{$pair.Base}}</td>
 												<td>{{ $.Prettify.Decimal8 $ev.Holdings.QuoteSize}} {{$pair.Quote}}</td>

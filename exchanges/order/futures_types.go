@@ -136,12 +136,13 @@ type PositionController struct {
 // is closed, then the position controller will create a new one
 // to track the current positions
 type MultiPositionTracker struct {
-	m          sync.Mutex
-	exchange   string
-	asset      asset.Item
-	pair       currency.Pair
-	underlying currency.Code
-	positions  []*PositionTracker
+	m                  sync.Mutex
+	exchange           string
+	asset              asset.Item
+	pair               currency.Pair
+	underlying         currency.Code
+	collateralCurrency currency.Code
+	positions          []*PositionTracker
 	// order positions allows for an easier time knowing which order is
 	// part of which position tracker
 	orderPositions             map[string]*PositionTracker
@@ -157,6 +158,7 @@ type MultiPositionTrackerSetup struct {
 	Asset                     asset.Item
 	Pair                      currency.Pair
 	Underlying                currency.Code
+	CollateralCurrency        currency.Code
 	OfflineCalculation        bool
 	UseExchangePNLCalculation bool
 	ExchangePNLCalculation    PNLCalculation
@@ -175,6 +177,7 @@ type PositionTracker struct {
 	asset                 asset.Item
 	contractPair          currency.Pair
 	underlyingAsset       currency.Code
+	collateralCurrency    currency.Code
 	exposure              decimal.Decimal
 	currentDirection      Side
 	openingDirection      Side
@@ -198,6 +201,7 @@ type PositionTrackerSetup struct {
 	Pair                      currency.Pair
 	EntryPrice                decimal.Decimal
 	Underlying                currency.Code
+	CollateralCurrency        currency.Code
 	Asset                     asset.Item
 	Side                      Side
 	UseExchangePNLCalculation bool
@@ -273,18 +277,19 @@ type PNLResult struct {
 // PositionStats is a basic holder
 // for position information
 type PositionStats struct {
-	Exchange         string
-	Asset            asset.Item
-	Pair             currency.Pair
-	Underlying       currency.Code
-	Orders           []Detail
-	RealisedPNL      decimal.Decimal
-	UnrealisedPNL    decimal.Decimal
-	Exposure         decimal.Decimal
-	LatestDirection  Side
-	Status           Status
-	OpeningDirection Side
-	OpeningPrice     decimal.Decimal
-	LatestPrice      decimal.Decimal
-	PNLHistory       []PNLResult
+	Exchange           string
+	Asset              asset.Item
+	Pair               currency.Pair
+	Underlying         currency.Code
+	CollateralCurrency currency.Code
+	Orders             []Detail
+	RealisedPNL        decimal.Decimal
+	UnrealisedPNL      decimal.Decimal
+	Exposure           decimal.Decimal
+	LatestDirection    Side
+	Status             Status
+	OpeningDirection   Side
+	OpeningPrice       decimal.Decimal
+	LatestPrice        decimal.Decimal
+	PNLHistory         []PNLResult
 }

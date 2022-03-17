@@ -63,7 +63,10 @@ func (p *Portfolio) SetupCurrencySettingsMap(setup *exchange.Settings) error {
 	if _, ok := p.exchangeAssetPairSettings[name][setup.Asset][setup.Pair]; ok {
 		return nil
 	}
-
+	collateralCurrency, _, err := setup.Exchange.GetCollateralCurrencyForContract(setup.Asset, setup.Pair)
+	if err != nil {
+		return err
+	}
 	settings := &Settings{
 		Fee:            setup.ExchangeFee,
 		BuySideSizing:  setup.BuySide,
@@ -82,11 +85,13 @@ func (p *Portfolio) SetupCurrencySettingsMap(setup *exchange.Settings) error {
 			Underlying:                setup.Pair.Base,
 			OfflineCalculation:        true,
 			UseExchangePNLCalculation: setup.UseExchangePNLCalculation,
+			CollateralCurrency:        collateralCurrency,
 		}
 		if setup.UseExchangePNLCalculation {
 			futureTrackerSetup.ExchangePNLCalculation = setup.Exchange
 		}
-		tracker, err := gctorder.SetupMultiPositionTracker(futureTrackerSetup)
+		var tracker *gctorder.MultiPositionTracker
+		tracker, err = gctorder.SetupMultiPositionTracker(futureTrackerSetup)
 		if err != nil {
 			return err
 		}

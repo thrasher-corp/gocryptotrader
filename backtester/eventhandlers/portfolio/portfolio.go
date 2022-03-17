@@ -585,7 +585,7 @@ func (p *Portfolio) GetLatestPNLForEvent(e common.EventHandler) (*PNLSummary, er
 		return response, nil
 	}
 	response.Result = pnlHistory[len(pnlHistory)-1]
-	response.CollateralCurrency = positions[0].Underlying
+	response.CollateralCurrency = positions[0].CollateralCurrency
 	return response, nil
 }
 
@@ -631,6 +631,7 @@ func (p *Portfolio) GetLatestPNLs() []PNLSummary {
 					pnlHistory := positions[len(positions)-1].PNLHistory
 					if len(pnlHistory) > 0 {
 						summary.Result = pnlHistory[len(pnlHistory)-1]
+						summary.CollateralCurrency = positions[0].CollateralCurrency
 					}
 				}
 
@@ -644,16 +645,18 @@ func (p *Portfolio) GetLatestPNLs() []PNLSummary {
 // GetUnrealisedPNL returns a basic struct containing unrealised PNL
 func (p PNLSummary) GetUnrealisedPNL() BasicPNLResult {
 	return BasicPNLResult{
-		Time: p.Result.Time,
-		PNL:  p.Result.UnrealisedPNL,
+		Time:     p.Result.Time,
+		PNL:      p.Result.UnrealisedPNL,
+		Currency: p.CollateralCurrency,
 	}
 }
 
 // GetRealisedPNL returns a basic struct containing realised PNL
 func (p PNLSummary) GetRealisedPNL() BasicPNLResult {
 	return BasicPNLResult{
-		Time: p.Result.Time,
-		PNL:  p.Result.RealisedPNL,
+		Time:     p.Result.Time,
+		PNL:      p.Result.RealisedPNL,
+		Currency: p.CollateralCurrency,
 	}
 }
 

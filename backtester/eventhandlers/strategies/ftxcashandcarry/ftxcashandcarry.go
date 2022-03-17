@@ -79,15 +79,16 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundTransf
 		case len(pos) == 0:
 			// check to see if order is appropriate to action
 			spotSignal.SetPrice(v.spotSignal.Latest().GetClosePrice())
-			spotSignal.AppendReason(fmt.Sprintf("signalling purchase of %v", spotSignal.Pair()))
+			spotSignal.AppendReason(fmt.Sprintf("Signalling purchase of %v", spotSignal.Pair()))
 			// first the spot purchase
 			spotSignal.SetDirection(order.Buy)
 			// second the futures purchase, using the newly acquired asset
 			// as collateral to short
 			futuresSignal.SetDirection(order.Short)
 			futuresSignal.SetPrice(v.futureSignal.Latest().GetClosePrice())
+			futuresSignal.AppendReason("Shorting to perform cash and carry")
 			futuresSignal.CollateralCurrency = spotSignal.CurrencyPair.Base
-			spotSignal.AppendReason(fmt.Sprintf("signalling shorting %v", futuresSignal.Pair()))
+			spotSignal.AppendReason(fmt.Sprintf("Signalling shorting of %v", futuresSignal.Pair()))
 			// set the FillDependentEvent to use the futures signal
 			// as the futures signal relies on a completed spot order purchase
 			// to use as collateral
@@ -96,12 +97,12 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundTransf
 			response = append(response, &spotSignal)
 		case len(pos) > 0 && v.futureSignal.IsLastEvent():
 			futuresSignal.SetDirection(common.ClosePosition)
-			futuresSignal.AppendReason("closing position on last event")
+			futuresSignal.AppendReason("Closing position on last event")
 			response = append(response, &spotSignal, &futuresSignal)
 		case len(pos) > 0 && pos[len(pos)-1].Status == order.Open &&
 			fp.Sub(sp).Div(sp).GreaterThan(s.closeShortDistancePercentage):
 			futuresSignal.SetDirection(common.ClosePosition)
-			futuresSignal.AppendReason("closing position after reaching close short distance percentage")
+			futuresSignal.AppendReason("Closing position after reaching close short distance percentage")
 			response = append(response, &spotSignal, &futuresSignal)
 		case len(pos) > 0 &&
 			pos[len(pos)-1].Status == order.Closed &&
