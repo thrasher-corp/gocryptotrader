@@ -296,6 +296,22 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 			return bot.currencyStateManager.Start()
 		}
 		return bot.currencyStateManager.Stop()
+	case strings.ToLower(WebsocketRoutineManagerName):
+		if !enable {
+			return bot.websocketRoutineManager.Stop()
+		}
+
+		if bot.currencyStateManager == nil {
+			bot.websocketRoutineManager, err = setupWebsocketRoutineManager(bot.ExchangeManager,
+				bot.OrderManager,
+				bot.currencyPairSyncer,
+				&bot.Config.Currency,
+				bot.Settings.Verbose)
+			if err != nil {
+				return err
+			}
+		}
+		return bot.websocketRoutineManager.Start()
 	}
 	return fmt.Errorf("%s: %w", subSystemName, errSubsystemNotFound)
 }
