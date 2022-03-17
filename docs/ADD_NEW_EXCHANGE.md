@@ -460,8 +460,8 @@ func (f *FTX) SendAuthHTTPRequest(ctx context.Context, method, path string, data
 // within time receive windows. NOTE: This is not always necessary and the above
 // SendHTTPRequest example will suffice. 
 
-	// Fetches credentials this can either use a context set credential or if
-	// not found will default to the config.json exchange specific credentials.
+	// Fetches credentials, this can either use a context set credential or if
+	// not found, will default to the config.json exchange specific credentials.
 	creds, err := f.GetCredentials(ctx)
 	if err != nil {
 		return err
@@ -1036,7 +1036,7 @@ https://docs.ftx.com/#private-channels
 func (f *FTX) WsAuth(ctx context.Context) error {
 	// Fetches credentials, this can either use a context set credential or if
 	// not found, will default to the config.json exchange specific credentials.
-	// NOTE: Websocket context values are not sufficiently propagated yes, so in 
+	// NOTE: Websocket context values are not sufficiently propagated yet, so in 
 	// most circumstances the calling function can call context.TODO() and will
 	// use default credentials.
 	creds, err := f.GetCredentials(ctx)
