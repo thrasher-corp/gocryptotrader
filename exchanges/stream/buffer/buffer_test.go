@@ -416,7 +416,8 @@ func TestOrderbookLastUpdateID(t *testing.T) {
 		t.Fatalf("received: %v but expected: %v", err, errTest)
 	}
 
-	holder.checksum = nil
+	holder.checksum = func(state *orderbook.Base, checksum uint32) error { return nil }
+	holder.updateIDProgression = true
 
 	for i := range itemArray {
 		asks := itemArray[i]
@@ -425,7 +426,6 @@ func TestOrderbookLastUpdateID(t *testing.T) {
 			Pair:     cp,
 			UpdateID: int64(i) + 1,
 			Asset:    asset.Spot,
-			// ChecksumFn: func(state *orderbook.Base, checksum uint32) error { return nil },
 		})
 		if err != nil {
 			t.Fatal(err)
