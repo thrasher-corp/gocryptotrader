@@ -174,7 +174,7 @@ func (b *Bittrex) Setup(exch *config.Exchange) error {
 		Unsubscriber:          b.Unsubscribe,                              // Unsubscriber function outlined above.
 		GenerateSubscriptions: b.GenerateDefaultSubscriptions,             // GenerateDefaultSubscriptions function outlined above.
 		Features:              &b.Features.Supports.WebsocketCapabilities, // Defines the capabilities of the websocket outlined in supported features struct. This allows the websocket connection to be flushed appropriately if we have a pair/asset enable/disable change. This is outlined below.
-		BufferConfig: buffer.Config{
+		OrderbookBufferConfig: buffer.Config{
 			SortBuffer:            true,
 			SortBufferByUpdateIDs: true,
 		},

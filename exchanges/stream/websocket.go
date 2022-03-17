@@ -148,7 +148,7 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 	w.Wg = new(sync.WaitGroup)
 	w.SetCanUseAuthenticatedEndpoints(s.ExchangeConfig.API.AuthenticatedWebsocketSupport)
 
-	if err := w.Orderbook.Setup(s.ExchangeConfig, &s.BufferConfig, w.DataHandler); err != nil {
+	if err := w.Orderbook.Setup(s.ExchangeConfig, &s.OrderbookBufferConfig, w.DataHandler); err != nil {
 		return err
 	}
 

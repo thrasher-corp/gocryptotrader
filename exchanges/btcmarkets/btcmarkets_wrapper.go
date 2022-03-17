@@ -168,7 +168,7 @@ func (b *BTCMarkets) Setup(exch *config.Exchange) error {
 		Subscriber:            b.Subscribe,
 		GenerateSubscriptions: b.generateDefaultSubscriptions,
 		Features:              &b.Features.Supports.WebsocketCapabilities,
-		BufferConfig: buffer.Config{
+		OrderbookBufferConfig: buffer.Config{
 			SortBuffer:          true,
 			UpdateIDProgression: true,
 			Checksum:            checksum,

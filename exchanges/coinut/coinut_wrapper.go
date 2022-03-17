@@ -163,7 +163,7 @@ func (c *COINUT) Setup(exch *config.Exchange) error {
 		Unsubscriber:          c.Unsubscribe,
 		GenerateSubscriptions: c.GenerateDefaultSubscriptions,
 		Features:              &c.Features.Supports.WebsocketCapabilities,
-		BufferConfig: buffer.Config{
+		OrderbookBufferConfig: buffer.Config{
 			SortBuffer:            true,
 			SortBufferByUpdateIDs: true,
 		},

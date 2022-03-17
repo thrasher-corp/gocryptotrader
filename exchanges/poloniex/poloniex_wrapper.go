@@ -183,7 +183,7 @@ func (p *Poloniex) Setup(exch *config.Exchange) error {
 		Unsubscriber:          p.Unsubscribe,
 		GenerateSubscriptions: p.GenerateDefaultSubscriptions,
 		Features:              &p.Features.Supports.WebsocketCapabilities,
-		BufferConfig: buffer.Config{
+		OrderbookBufferConfig: buffer.Config{
 			SortBuffer:            true,
 			SortBufferByUpdateIDs: true,
 		},

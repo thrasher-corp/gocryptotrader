@@ -238,7 +238,7 @@ func (b *Binance) Setup(exch *config.Exchange) error {
 		Unsubscriber:          b.Unsubscribe,
 		GenerateSubscriptions: b.GenerateSubscriptions,
 		Features:              &b.Features.Supports.WebsocketCapabilities,
-		BufferConfig: buffer.Config{
+		OrderbookBufferConfig: buffer.Config{
 			SortBuffer:            true,
 			SortBufferByUpdateIDs: true,
 		},

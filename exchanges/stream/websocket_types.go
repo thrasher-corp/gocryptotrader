@@ -108,7 +108,7 @@ type WebsocketSetup struct {
 	ConnectionMonitorDelay time.Duration
 
 	// Local orderbook buffer config values
-	BufferConfig buffer.Config
+	OrderbookBufferConfig buffer.Config
 
 	TradeFeed bool
 
