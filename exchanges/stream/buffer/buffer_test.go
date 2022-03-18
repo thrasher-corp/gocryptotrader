@@ -432,6 +432,18 @@ func TestOrderbookLastUpdateID(t *testing.T) {
 		}
 	}
 
+	// out of order
+	holder.verbose = true
+	err = holder.Update(&Update{
+		Asks:     []orderbook.Item{{Price: 999999}},
+		Pair:     cp,
+		UpdateID: 1,
+		Asset:    asset.Spot,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	ob, err := holder.GetOrderbook(cp, asset.Spot)
 	if err != nil {
 		t.Fatal(err)

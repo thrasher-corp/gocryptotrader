@@ -403,11 +403,11 @@ func concat(liquidity orderbook.Items) string {
 	if len(liquidity) < 10 {
 		length = len(liquidity)
 	}
-	var concat string
+	var c string
 	for x := 0; x < length; x++ {
-		concat += trim(liquidity[x].Price) + trim(liquidity[x].Amount)
+		c += trim(liquidity[x].Price) + trim(liquidity[x].Amount)
 	}
-	return concat
+	return c
 }
 
 // trim turns value into string, removes the decimal point and all the leading

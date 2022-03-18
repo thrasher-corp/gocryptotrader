@@ -94,6 +94,13 @@ func (w *Orderbook) Update(u *Update) error {
 
 	// out of order update ID can be skipped
 	if w.updateIDProgression && u.UpdateID <= book.updateID {
+		if w.verbose {
+			log.Warnf(log.WebsocketMgr,
+				"Exchange %s CurrencyPair: %s AssetType: %s out of order websocket update received",
+				w.exchangeName,
+				u.Pair,
+				u.Asset)
+		}
 		return nil
 	}
 
