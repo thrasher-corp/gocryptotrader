@@ -72,9 +72,11 @@ type Adhoc struct {
 // GetFee returns the fee, either a percentage or fixed amount. The amount
 // param is only used as a switch for if fees scale with potential amounts.
 func (a Adhoc) GetFee(ctx context.Context, amount float64, destinationAddress, tag string) (decimal.Decimal, error) {
+	fmt.Println("wow dude")
 	if a.Exch == nil {
 		return decimal.Zero, errExchangeNotSet
 	}
+	fmt.Println("wow dude")
 	withdrawalFee, err := a.Exch.GetWithdrawalFee(ctx, a.Currency, amount, destinationAddress, tag)
 	if err != nil {
 		return decimal.Zero, err
