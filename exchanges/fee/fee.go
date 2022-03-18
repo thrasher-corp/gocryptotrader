@@ -164,6 +164,9 @@ func (d *Schedule) LoadStaticFees(o Options) error {
 			chainTransfer = make(map[string]*transfer)
 			d.chainTransfer[o.ChainTransfer[x].Currency.Item] = chainTransfer
 		}
+		if o.ChainTransfer[x].Chain == "" {
+			o.ChainTransfer[x].Chain = o.ChainTransfer[x].Currency.String()
+		}
 		chainTransfer[o.ChainTransfer[x].Chain] = o.ChainTransfer[x].convert()
 	}
 
@@ -463,12 +466,6 @@ func (d *Schedule) GetTransferFee(c currency.Code, chain string) (*Transfer, err
 		return nil, fmt.Errorf("getting transfer fee for %s %s: %w", c, chain, errCurrencyIsEmpty)
 	}
 
-	// NOTE: Rethink this
-	check := currency.NewCode(chain)
-	if c.Equal(check) {
-		chain = ""
-	}
-
 	d.mtx.RLock()
 	defer d.mtx.RUnlock()
 	chainOptions, ok := d.chainTransfer[c.Item]
@@ -477,7 +474,6 @@ func (d *Schedule) GetTransferFee(c currency.Code, chain string) (*Transfer, err
 	}
 	t, ok := chainOptions[chain]
 	if !ok {
-		fmt.Printf("%+v\n", chainOptions)
 		return nil, fmt.Errorf("getting transfer fee for %s %s: chain not supported, %w", c, chain, ErrRateNotFound)
 	}
 	return t.convert(), nil
@@ -607,6 +603,11 @@ func (d *Schedule) LoadChainTransferFees(fees []Transfer) error {
 			m1 = make(map[string]*transfer)
 			d.chainTransfer[fees[x].Currency.Item] = m1
 		}
+
+		if fees[x].Chain == "" {
+			fees[x].Chain = fees[x].Currency.String()
+		}
+
 		val, ok := m1[fees[x].Chain]
 		if !ok {
 			m1[fees[x].Chain] = fees[x].convert()
