@@ -19,6 +19,8 @@ const (
 	TradeStr = "trade"
 )
 
+// custom order side declarations for backtesting processing and
+// decision-making
 const (
 	// DoNothing is an explicit signal for the backtester to not perform an action
 	// based upon indicator results
@@ -139,7 +141,6 @@ type Directioner interface {
 }
 
 // colours to display for the terminal output
-// colours to display for the terminal output
 var (
 	ColourDefault  = "\u001b[0m"
 	ColourGreen    = "\033[38;5;157m"
@@ -158,6 +159,7 @@ var (
 	ColourError    = "\033[38;5;196m"
 )
 
+// logo and colour storage
 var (
 	logo01 = "                                                                                "
 	logo02 = "                               " + ColourWhite + "@@@@@@@@@@@@@@@@@                                "

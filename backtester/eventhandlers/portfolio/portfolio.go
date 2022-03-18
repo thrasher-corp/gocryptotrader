@@ -477,7 +477,7 @@ func (e *Settings) GetHoldingsForTime(t time.Time) holdings.Holding {
 // GetPositions returns all futures positions for an event's exchange, asset, pair
 func (p *Portfolio) GetPositions(e common.EventHandler) ([]gctorder.PositionStats, error) {
 	if !e.GetAssetType().IsFutures() {
-		return nil, errors.New("not a future")
+		return nil, gctorder.ErrNotFuturesAsset
 	}
 	settings, err := p.getSettings(e.GetExchange(), e.GetAssetType(), e.Pair())
 	if err != nil {
@@ -511,6 +511,12 @@ func (p *Portfolio) UpdatePNL(e common.EventHandler, closePrice decimal.Decimal)
 // TrackFuturesOrder updates the futures tracker with a new order
 // from a fill event
 func (p *Portfolio) TrackFuturesOrder(f fill.Event, fund funding.IFundReleaser) (*PNLSummary, error) {
+	if f == nil {
+		return nil, common.ErrNilEvent
+	}
+	if fund == nil {
+		return nil, fmt.Errorf("%w missing funding", common.ErrNilArguments)
+	}
 	detail := f.GetOrder()
 	if detail == nil {
 		return nil, gctorder.ErrSubmissionIsNil
@@ -559,7 +565,7 @@ func (p *Portfolio) TrackFuturesOrder(f fill.Event, fund funding.IFundReleaser) 
 // if it exists
 func (p *Portfolio) GetLatestPNLForEvent(e common.EventHandler) (*PNLSummary, error) {
 	if !e.GetAssetType().IsFutures() {
-		return nil, errors.New("not a future")
+		return nil, gctorder.ErrNotFuturesAsset
 	}
 	settings, err := p.getSettings(e.GetExchange(), e.GetAssetType(), e.Pair())
 	if err != nil {

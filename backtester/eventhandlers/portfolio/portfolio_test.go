@@ -807,3 +807,130 @@ func TestCalculatePNL(t *testing.T) {
 		t.Errorf("expected 26700, received '%v'", pos[0].UnrealisedPNL)
 	}
 }
+
+func TestTrackFuturesOrder(t *testing.T) {
+	t.Parallel()
+	p := &Portfolio{}
+	var expectedError = common.ErrNilEvent
+	_, err := p.TrackFuturesOrder(nil, nil)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v", err, expectedError)
+	}
+	expectedError = common.ErrNilArguments
+	_, err = p.TrackFuturesOrder(&fill.Fill{}, nil)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v", err, expectedError)
+	}
+	fundPair := &funding.Pair{}
+	expectedError = gctorder.ErrSubmissionIsNil
+	_, err = p.TrackFuturesOrder(&fill.Fill{}, fundPair)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v", err, expectedError)
+	}
+
+	expectedError = gctorder.ErrNotFuturesAsset
+	od := &gctorder.Detail{}
+	_, err = p.TrackFuturesOrder(&fill.Fill{
+		Order: od,
+	}, fundPair)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v", err, expectedError)
+	}
+
+	od.AssetType = asset.Futures
+	expectedError = funding.ErrNotCollateral
+	_, err = p.TrackFuturesOrder(&fill.Fill{
+		Order: od,
+	}, fundPair)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v", err, expectedError)
+	}
+
+	fundCollateral := &funding.Collateral{}
+	expectedError = errExchangeUnset
+	_, err = p.TrackFuturesOrder(&fill.Fill{
+		Order: od,
+	}, fundCollateral)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v", err, expectedError)
+	}
+
+	cp := currency.NewPair(currency.XRP, currency.DOGE)
+	ff := &ftx.FTX{}
+	ff.Name = testExchange
+	err = p.SetupCurrencySettingsMap(&exchange.Settings{Exchange: ff, Asset: asset.Futures, Pair: cp})
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
+	}
+	od.Pair = cp
+	od.Exchange = testExchange
+	od.Side = gctorder.Short
+	od.AssetType = asset.Futures
+	od.Amount = 1337
+	od.Price = 1337
+	od.ID = testExchange
+	od.Date = time.Now()
+	expectedError = nil
+	fundCollateral.Collateral, err = funding.CreateItem(od.Exchange, od.AssetType, od.Pair.Base, decimal.NewFromInt(100), decimal.Zero)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v", err, expectedError)
+	}
+	fundCollateral.Contract, err = funding.CreateItem(od.Exchange, od.AssetType, od.Pair.Quote, decimal.NewFromInt(100), decimal.Zero)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v", err, expectedError)
+	}
+	_, err = p.TrackFuturesOrder(&fill.Fill{
+		Order: od,
+		Base: event.Base{
+			Exchange:     testExchange,
+			AssetType:    asset.Futures,
+			CurrencyPair: cp,
+		},
+	}, fundCollateral)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v", err, expectedError)
+	}
+
+}
+
+func TestGetHoldingsForTime(t *testing.T) {
+	t.Parallel()
+
+}
+
+func TestGetPositions(t *testing.T) {
+	t.Parallel()
+}
+
+func TestGetLatestPNLForEvent(t *testing.T) {
+	t.Parallel()
+}
+
+func TestGetLatestPNLs(t *testing.T) {
+	t.Parallel()
+}
+
+func TestGetUnrealisedPNL(t *testing.T) {
+	t.Parallel()
+}
+
+func TestGetRealisedPNL(t *testing.T) {
+	t.Parallel()
+}
+
+func TestGetExposure(t *testing.T) {
+	t.Parallel()
+}
+
+func TestGetCollateralCurrency(t *testing.T) {
+	t.Parallel()
+}
+
+func TestGetDirection(t *testing.T) {
+	t.Parallel()
+}
+
+func TestCannotPurchase(t *testing.T) {
+	t.Parallel()
+
+}

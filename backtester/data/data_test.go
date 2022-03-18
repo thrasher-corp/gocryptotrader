@@ -22,25 +22,43 @@ func TestBaseDataFunctions(t *testing.T) {
 	if latest := d.Latest(); latest != nil {
 		t.Error("expected nil")
 	}
+
 	d.Next()
 	o := d.Offset()
 	if o != 0 {
 		t.Error("expected 0")
 	}
 	d.AppendStream(nil)
+	if d.IsLastEvent() {
+		t.Error("no")
+	}
 	d.AppendStream(nil)
-	d.AppendStream(nil)
-
-	d.Next()
-	o = d.Offset()
-	if o != 0 {
+	if len(d.stream) != 0 {
 		t.Error("expected 0")
 	}
-	if list := d.List(); list != nil {
-		t.Error("expected nil")
+	d.AppendStream(&fakeDataHandler{time: 1})
+	d.AppendStream(&fakeDataHandler{time: 2})
+	d.AppendStream(&fakeDataHandler{time: 3})
+	d.AppendStream(&fakeDataHandler{time: 4})
+	d.Next()
+	d.Next()
+	if list := d.List(); len(list) != 2 {
+		t.Errorf("expected 2 received %v", len(list))
 	}
-	if history := d.History(); history != nil {
-		t.Error("expected nil")
+	d.Next()
+	d.Next()
+	if !d.IsLastEvent() {
+		t.Error("expected last event")
+	}
+	o = d.Offset()
+	if o != 4 {
+		t.Error("expected 4")
+	}
+	if list := d.List(); len(list) != 0 {
+		t.Error("expected 0")
+	}
+	if history := d.History(); len(history) != 4 {
+		t.Errorf("expected 4 received %v", len(history))
 	}
 	d.SetStream(nil)
 	if st := d.GetStream(); st != nil {
@@ -49,6 +67,7 @@ func TestBaseDataFunctions(t *testing.T) {
 	d.Reset()
 	d.GetStream()
 	d.SortStream()
+
 }
 
 func TestSetup(t *testing.T) {
@@ -172,7 +191,7 @@ func TestReset(t *testing.T) {
 
 // methods that satisfy the common.DataEventHandler interface
 func (t fakeDataHandler) GetOffset() int64 {
-	return 0
+	return 4
 }
 
 func (t fakeDataHandler) SetOffset(int64) {
@@ -223,4 +242,8 @@ func (t fakeDataHandler) GetLowPrice() decimal.Decimal {
 
 func (t fakeDataHandler) GetOpenPrice() decimal.Decimal {
 	return decimal.Zero
+}
+
+func (t fakeDataHandler) GetUnderlyingPair() (currency.Pair, error) {
+	return t.Pair(), nil
 }

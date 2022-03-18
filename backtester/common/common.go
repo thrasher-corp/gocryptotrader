@@ -20,12 +20,22 @@ func DataTypeToInt(dataType string) (int64, error) {
 // FitStringToLimit ensures a string is of the length of the limit
 // either by truncating the string with ellipses or padding with the spacer
 func FitStringToLimit(str, spacer string, limit int, upper bool) string {
+	if limit < 0 {
+		return str
+	}
+	if limit == 0 {
+		return ""
+	}
 	limResp := limit - len(str)
 	if upper {
 		str = strings.ToUpper(str)
 	}
 	if limResp < 0 {
-		return str[0:limit-3] + "..."
+		if limit-3 > 0 {
+			return str[0:limit-3] + "..."
+		} else {
+			return str[0:limit]
+		}
 	}
 	spacerLen := len(spacer)
 	for i := 0; i < limResp; i++ {
