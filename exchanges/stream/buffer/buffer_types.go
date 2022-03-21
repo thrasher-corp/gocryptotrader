@@ -12,12 +12,10 @@ import (
 // Config defines the configuration variables for the websocket buffer; snapshot
 // and incremental update orderbook processing.
 type Config struct {
-	// SortBuffer enables a websocket to buffer incoming updates before
-	// processing. NOTE: This is set by config.json under
-	// "websocketBufferEnabled" for each individual exchange.
+	// SortBuffer enables a websocket to sort incoming updates before processing.
 	SortBuffer bool
 	// SortBufferByUpdateIDs allows the sorting of the buffered updates by their
-	// corresponding update IDs. This is package defined.
+	// corresponding update IDs.
 	SortBufferByUpdateIDs bool
 	// UpdateEntriesByID will match by IDs instead of price to perform the an
 	// action. e.g. update, delete, insert.

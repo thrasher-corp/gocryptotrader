@@ -43,8 +43,11 @@ func (w *Orderbook) Setup(exchangeConfig *config.Exchange, c *Config, dataHandle
 		return fmt.Errorf(packageError, errIssueBufferEnabledButNoLimit)
 	}
 
+	// NOTE: These variables are set by config.json under "orderbook" for each
+	// individual exchange.
 	w.bufferEnabled = exchangeConfig.Orderbook.WebsocketBufferEnabled
 	w.obBufferLimit = exchangeConfig.Orderbook.WebsocketBufferLimit
+
 	w.sortBuffer = c.SortBuffer
 	w.sortBufferByUpdateIDs = c.SortBufferByUpdateIDs
 	w.updateEntriesByID = c.UpdateEntriesByID
