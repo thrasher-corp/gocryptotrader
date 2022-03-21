@@ -75,9 +75,8 @@ func (p *Portfolio) OnSignal(ev signal.Event, cs *exchange.Settings, funds fundi
 		ev.GetDirection() == "" {
 		return o, nil
 	}
-	dir := ev.GetDirection()
-	if !funds.CanPlaceOrder(dir) {
-		return cannotPurchase(ev, o, dir)
+	if !funds.CanPlaceOrder(ev.GetDirection()) {
+		return cannotPurchase(ev, o)
 	}
 
 	o.Price = ev.GetPrice()
@@ -122,7 +121,7 @@ func (p *Portfolio) OnSignal(ev signal.Event, cs *exchange.Settings, funds fundi
 		}
 	}
 	if sizingFunds.LessThanOrEqual(decimal.Zero) {
-		return cannotPurchase(ev, o, dir)
+		return cannotPurchase(ev, o)
 	}
 	sizedOrder := p.sizeOrder(ev, cs, o, sizingFunds, funds)
 	sizedOrder.SetDirection(side)
@@ -132,8 +131,14 @@ func (p *Portfolio) OnSignal(ev signal.Event, cs *exchange.Settings, funds fundi
 	return p.evaluateOrder(ev, o, sizedOrder)
 }
 
-func cannotPurchase(ev signal.Event, o *order.Order, dir gctorder.Side) (*order.Order, error) {
-	o.AppendReason(notEnoughFundsTo + " " + dir.Lower())
+func cannotPurchase(ev signal.Event, o *order.Order) (*order.Order, error) {
+	if ev == nil {
+		return nil, common.ErrNilEvent
+	}
+	if o == nil {
+		return nil, fmt.Errorf("%w recieved nil order for %v %v %v", common.ErrNilArguments, ev.GetExchange(), ev.GetAssetType(), ev.Pair())
+	}
+	o.AppendReason(notEnoughFundsTo + " " + ev.GetDirection().Lower())
 	switch ev.GetDirection() {
 	case gctorder.Sell:
 		o.SetDirection(common.CouldNotSell)
@@ -143,6 +148,9 @@ func cannotPurchase(ev signal.Event, o *order.Order, dir gctorder.Side) (*order.
 		o.SetDirection(common.CouldNotShort)
 	case gctorder.Long:
 		o.SetDirection(common.CouldNotLong)
+	default:
+		// ensure that unknown scenarios don't affect anything
+		o.SetDirection(common.DoNothing)
 	}
 	ev.SetDirection(o.Direction)
 	return o, nil
@@ -452,39 +460,35 @@ func (p *Portfolio) ViewHoldingAtTimePeriod(ev common.EventHandler) (*holdings.H
 }
 
 // GetLatestHoldings returns the latest holdings after being sorted by time
-func (e *Settings) GetLatestHoldings() holdings.Holding {
-	if len(e.HoldingsSnapshots) == 0 {
+func (s *Settings) GetLatestHoldings() holdings.Holding {
+	if len(s.HoldingsSnapshots) == 0 {
 		return holdings.Holding{}
 	}
 
-	return e.HoldingsSnapshots[len(e.HoldingsSnapshots)-1]
+	return s.HoldingsSnapshots[len(s.HoldingsSnapshots)-1]
 }
 
 // GetHoldingsForTime returns the holdings for a time period, or an empty holding if not found
-func (e *Settings) GetHoldingsForTime(t time.Time) holdings.Holding {
-	if e.HoldingsSnapshots == nil {
+func (s *Settings) GetHoldingsForTime(t time.Time) holdings.Holding {
+	if s.HoldingsSnapshots == nil {
 		// no holdings yet
 		return holdings.Holding{}
 	}
-	for i := len(e.HoldingsSnapshots) - 1; i >= 0; i-- {
-		if e.HoldingsSnapshots[i].Timestamp.Equal(t) {
-			return e.HoldingsSnapshots[i]
+	for i := len(s.HoldingsSnapshots) - 1; i >= 0; i-- {
+		if s.HoldingsSnapshots[i].Timestamp.Equal(t) {
+			return s.HoldingsSnapshots[i]
 		}
 	}
 	return holdings.Holding{}
 }
 
+var errUnsetFuturesTracker = errors.New("portfolio settings futures tracker unset")
+
 // GetPositions returns all futures positions for an event's exchange, asset, pair
 func (p *Portfolio) GetPositions(e common.EventHandler) ([]gctorder.PositionStats, error) {
-	if !e.GetAssetType().IsFutures() {
-		return nil, gctorder.ErrNotFuturesAsset
-	}
-	settings, err := p.getSettings(e.GetExchange(), e.GetAssetType(), e.Pair())
+	settings, err := p.getFuturesSettingsFromEvent(e)
 	if err != nil {
-		return nil, fmt.Errorf("%v %v %v %w", e.GetExchange(), e.GetAssetType(), e.Pair(), err)
-	}
-	if settings.FuturesTracker == nil {
-		return nil, errors.New("no futures tracker")
+		return nil, err
 	}
 	return settings.FuturesTracker.GetPositions(), nil
 }
@@ -492,14 +496,10 @@ func (p *Portfolio) GetPositions(e common.EventHandler) ([]gctorder.PositionStat
 // UpdatePNL will analyse any futures orders that have been placed over the backtesting run
 // that are not closed and calculate their PNL
 func (p *Portfolio) UpdatePNL(e common.EventHandler, closePrice decimal.Decimal) error {
-	if !e.GetAssetType().IsFutures() {
-		return fmt.Errorf("%s %w", e.GetAssetType(), gctorder.ErrNotFuturesAsset)
-	}
-	settings, err := p.getSettings(e.GetExchange(), e.GetAssetType(), e.Pair())
+	settings, err := p.getFuturesSettingsFromEvent(e)
 	if err != nil {
-		return fmt.Errorf("%v %v %v %w", e.GetExchange(), e.GetAssetType(), e.Pair(), err)
+		return err
 	}
-
 	_, err = settings.FuturesTracker.UpdateOpenPositionUnrealisedPNL(closePrice.InexactFloat64(), e.GetTime())
 	if err != nil && !errors.Is(err, gctorder.ErrPositionClosed) {
 		return err
@@ -564,24 +564,17 @@ func (p *Portfolio) TrackFuturesOrder(f fill.Event, fund funding.IFundReleaser) 
 // GetLatestPNLForEvent takes in an event and returns the latest PNL data
 // if it exists
 func (p *Portfolio) GetLatestPNLForEvent(e common.EventHandler) (*PNLSummary, error) {
-	if !e.GetAssetType().IsFutures() {
-		return nil, gctorder.ErrNotFuturesAsset
-	}
-	settings, err := p.getSettings(e.GetExchange(), e.GetAssetType(), e.Pair())
+	settings, err := p.getFuturesSettingsFromEvent(e)
 	if err != nil {
-		return nil, fmt.Errorf("%v %v %v %w", e.GetExchange(), e.GetAssetType(), e.Pair(), err)
+		return nil, err
 	}
-
-	if settings.FuturesTracker == nil {
-		return nil, errors.New("no futures tracker")
-	}
-
 	response := &PNLSummary{
 		Exchange: e.GetExchange(),
 		Item:     e.GetAssetType(),
 		Pair:     e.Pair(),
 		Offset:   e.GetOffset(),
 	}
+
 	positions := settings.FuturesTracker.GetPositions()
 	if len(positions) == 0 {
 		return response, nil
@@ -593,6 +586,25 @@ func (p *Portfolio) GetLatestPNLForEvent(e common.EventHandler) (*PNLSummary, er
 	response.Result = pnlHistory[len(pnlHistory)-1]
 	response.CollateralCurrency = positions[0].CollateralCurrency
 	return response, nil
+}
+
+func (p *Portfolio) getFuturesSettingsFromEvent(e common.EventHandler) (*Settings, error) {
+	if e == nil {
+		return nil, common.ErrNilEvent
+	}
+	if !e.GetAssetType().IsFutures() {
+		return nil, gctorder.ErrNotFuturesAsset
+	}
+	settings, err := p.getSettings(e.GetExchange(), e.GetAssetType(), e.Pair())
+	if err != nil {
+		return nil, fmt.Errorf("%v %v %v %w", e.GetExchange(), e.GetAssetType(), e.Pair(), err)
+	}
+
+	if settings.FuturesTracker == nil {
+		return nil, fmt.Errorf("%w for %v %v %v", errUnsetFuturesTracker, e.GetExchange(), e.GetAssetType(), e.Pair())
+	}
+
+	return settings, nil
 }
 
 func (p *Portfolio) getSettings(exch string, item asset.Item, pair currency.Pair) (*Settings, error) {

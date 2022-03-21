@@ -895,42 +895,402 @@ func TestTrackFuturesOrder(t *testing.T) {
 
 func TestGetHoldingsForTime(t *testing.T) {
 	t.Parallel()
+	s := &Settings{}
+	h := s.GetHoldingsForTime(time.Now())
+	if !h.Timestamp.IsZero() {
+		t.Error("expected unset holdings")
+	}
+	tt := time.Now()
+	s.HoldingsSnapshots = append(s.HoldingsSnapshots, holdings.Holding{
+		Timestamp: tt,
+		Offset:    1337,
+	})
+	h = s.GetHoldingsForTime(time.Unix(1337, 0))
+	if !h.Timestamp.IsZero() {
+		t.Error("expected unset holdings")
+	}
 
+	h = s.GetHoldingsForTime(tt)
+	if h.Timestamp.IsZero() && h.Offset != 1337 {
+		t.Error("expected set holdings")
+	}
 }
 
 func TestGetPositions(t *testing.T) {
 	t.Parallel()
+	p := &Portfolio{}
+	var expectedError = common.ErrNilEvent
+	_, err := p.GetPositions(nil)
+	if !errors.Is(err, expectedError) {
+		t.Fatalf("received '%v' expected '%v'", err, expectedError)
+	}
+	ev := &fill.Fill{
+		Base: event.Base{
+			Exchange:     testExchange,
+			CurrencyPair: currency.NewPair(currency.BTC, currency.USDT),
+			AssetType:    asset.Futures,
+		},
+	}
+	ff := &ftx.FTX{}
+	ff.Name = testExchange
+	err = p.SetupCurrencySettingsMap(&exchange.Settings{Exchange: ff, Asset: ev.AssetType, Pair: ev.Pair()})
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
+	}
+	expectedError = nil
+	_, err = p.GetPositions(ev)
+	if !errors.Is(err, expectedError) {
+		t.Fatalf("received '%v' expected '%v'", err, expectedError)
+	}
 }
 
 func TestGetLatestPNLForEvent(t *testing.T) {
 	t.Parallel()
+	p := &Portfolio{}
+	var expectedError = common.ErrNilEvent
+	_, err := p.GetLatestPNLForEvent(nil)
+	if !errors.Is(err, expectedError) {
+		t.Fatalf("received '%v' expected '%v'", err, expectedError)
+	}
+	ev := &fill.Fill{
+		Base: event.Base{
+			Exchange:     testExchange,
+			CurrencyPair: currency.NewPair(currency.BTC, currency.USDT),
+			AssetType:    asset.Futures,
+		},
+	}
+	ff := &ftx.FTX{}
+	ff.Name = testExchange
+	err = p.SetupCurrencySettingsMap(&exchange.Settings{Exchange: ff, Asset: ev.AssetType, Pair: ev.Pair()})
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
+	}
+	expectedError = nil
+	_, err = p.GetLatestPNLForEvent(ev)
+	if !errors.Is(err, expectedError) {
+		t.Fatalf("received '%v' expected '%v'", err, expectedError)
+	}
+
+	settings, ok := p.exchangeAssetPairSettings[ev.GetExchange()][ev.GetAssetType()][ev.Pair()]
+	if !ok {
+		t.Fatalf("where did settings go?")
+	}
+	err = settings.FuturesTracker.TrackNewOrder(&gctorder.Detail{
+		Exchange:  ev.GetExchange(),
+		AssetType: ev.AssetType,
+		Pair:      ev.Pair(),
+		Amount:    1,
+		Price:     1,
+		ID:        "one",
+		Date:      time.Now(),
+		Side:      gctorder.Buy,
+	})
+	if !errors.Is(err, expectedError) {
+		t.Fatalf("received '%v' expected '%v'", err, expectedError)
+	}
+	latest, err := p.GetLatestPNLForEvent(ev)
+	if !errors.Is(err, expectedError) {
+		t.Fatalf("received '%v' expected '%v'", err, expectedError)
+	}
+	if latest == nil {
+		t.Error("unexpected")
+	}
+}
+
+func TestGetFuturesSettingsFromEvent(t *testing.T) {
+	t.Parallel()
+	p := &Portfolio{}
+	var expectedError = common.ErrNilEvent
+	_, err := p.getFuturesSettingsFromEvent(nil)
+	if !errors.Is(err, expectedError) {
+		t.Fatalf("received '%v' expected '%v'", err, expectedError)
+	}
+	expectedError = gctorder.ErrNotFuturesAsset
+	_, err = p.getFuturesSettingsFromEvent(&fill.Fill{})
+	if !errors.Is(err, expectedError) {
+		t.Fatalf("received '%v' expected '%v'", err, expectedError)
+	}
+	ev := &fill.Fill{
+		Base: event.Base{
+			Exchange:     testExchange,
+			CurrencyPair: currency.NewPair(currency.BTC, currency.USDT),
+			AssetType:    asset.Futures,
+		},
+	}
+	expectedError = errExchangeUnset
+	_, err = p.getFuturesSettingsFromEvent(ev)
+	if !errors.Is(err, expectedError) {
+		t.Fatalf("received '%v' expected '%v'", err, expectedError)
+	}
+
+	ff := &ftx.FTX{}
+	ff.Name = testExchange
+	err = p.SetupCurrencySettingsMap(&exchange.Settings{Exchange: ff, Asset: ev.AssetType, Pair: ev.Pair()})
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
+	}
+	expectedError = nil
+	settings, err := p.getFuturesSettingsFromEvent(ev)
+	if !errors.Is(err, expectedError) {
+		t.Fatalf("received '%v' expected '%v'", err, expectedError)
+	}
+
+	expectedError = errUnsetFuturesTracker
+	settings.FuturesTracker = nil
+	_, err = p.getFuturesSettingsFromEvent(ev)
+	if !errors.Is(err, expectedError) {
+		t.Fatalf("received '%v' expected '%v'", err, expectedError)
+	}
 }
 
 func TestGetLatestPNLs(t *testing.T) {
 	t.Parallel()
+	p := &Portfolio{}
+	latest := p.GetLatestPNLs()
+	if len(latest) != 0 {
+		t.Error("expected empty")
+	}
+	ev := &fill.Fill{
+		Base: event.Base{
+			Exchange:     testExchange,
+			CurrencyPair: currency.NewPair(currency.BTC, currency.USDT),
+			AssetType:    asset.Futures,
+		},
+	}
+	ff := &ftx.FTX{}
+	ff.Name = testExchange
+	err := p.SetupCurrencySettingsMap(&exchange.Settings{Exchange: ff, Asset: ev.AssetType, Pair: ev.Pair()})
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
+	}
+	settings, ok := p.exchangeAssetPairSettings[ev.GetExchange()][ev.GetAssetType()][ev.Pair()]
+	if !ok {
+		t.Fatalf("where did settings go?")
+	}
+	err = settings.FuturesTracker.TrackNewOrder(&gctorder.Detail{
+		Exchange:  ev.GetExchange(),
+		AssetType: ev.AssetType,
+		Pair:      ev.Pair(),
+		Amount:    1,
+		Price:     1,
+		ID:        "one",
+		Date:      time.Now(),
+		Side:      gctorder.Buy,
+	})
+	if !errors.Is(err, nil) {
+		t.Fatalf("received '%v' expected '%v'", err, nil)
+	}
+	latest = p.GetLatestPNLs()
+	if len(latest) != 1 {
+		t.Error("expected 1")
+	}
 }
 
 func TestGetUnrealisedPNL(t *testing.T) {
 	t.Parallel()
+	p := PNLSummary{
+		Exchange:           testExchange,
+		Item:               asset.Futures,
+		Pair:               currency.NewPair(currency.BTC, currency.USDT),
+		CollateralCurrency: currency.USD,
+		Offset:             1,
+		Result: gctorder.PNLResult{
+			Time:                  time.Now(),
+			UnrealisedPNL:         decimal.NewFromInt(1337),
+			RealisedPNLBeforeFees: decimal.NewFromInt(1338),
+			RealisedPNL:           decimal.NewFromInt(1339),
+			Price:                 decimal.NewFromInt(1331),
+			Exposure:              decimal.NewFromInt(1332),
+			Direction:             gctorder.Short,
+			Fee:                   decimal.NewFromInt(1333),
+			IsLiquidated:          true,
+		},
+	}
+	result := p.GetUnrealisedPNL()
+	if !result.PNL.Equal(p.Result.UnrealisedPNL) {
+		t.Errorf("received '%v' expected '%v'", result.PNL, p.Result.UnrealisedPNL)
+	}
+	if !result.Time.Equal(p.Result.Time) {
+		t.Errorf("received '%v' expected '%v'", result.Time, p.Result.Time)
+	}
+	if !result.Currency.Equal(p.CollateralCurrency) {
+		t.Errorf("received '%v' expected '%v'", result.Currency, p.CollateralCurrency)
+	}
 }
 
 func TestGetRealisedPNL(t *testing.T) {
 	t.Parallel()
+	p := PNLSummary{
+		Exchange:           testExchange,
+		Item:               asset.Futures,
+		Pair:               currency.NewPair(currency.BTC, currency.USDT),
+		CollateralCurrency: currency.USD,
+		Offset:             1,
+		Result: gctorder.PNLResult{
+			Time:                  time.Now(),
+			UnrealisedPNL:         decimal.NewFromInt(1337),
+			RealisedPNLBeforeFees: decimal.NewFromInt(1338),
+			RealisedPNL:           decimal.NewFromInt(1339),
+			Price:                 decimal.NewFromInt(1331),
+			Exposure:              decimal.NewFromInt(1332),
+			Direction:             gctorder.Short,
+			Fee:                   decimal.NewFromInt(1333),
+			IsLiquidated:          true,
+		},
+	}
+	result := p.GetRealisedPNL()
+	if !result.PNL.Equal(p.Result.RealisedPNL) {
+		t.Errorf("received '%v' expected '%v'", result.PNL, p.Result.RealisedPNL)
+	}
+	if !result.Time.Equal(p.Result.Time) {
+		t.Errorf("received '%v' expected '%v'", result.Time, p.Result.Time)
+	}
+	if !result.Currency.Equal(p.CollateralCurrency) {
+		t.Errorf("received '%v' expected '%v'", result.Currency, p.CollateralCurrency)
+	}
 }
 
 func TestGetExposure(t *testing.T) {
 	t.Parallel()
+	p := PNLSummary{
+		Exchange:           testExchange,
+		Item:               asset.Futures,
+		Pair:               currency.NewPair(currency.BTC, currency.USDT),
+		CollateralCurrency: currency.USD,
+		Offset:             1,
+		Result: gctorder.PNLResult{
+			Time:                  time.Now(),
+			UnrealisedPNL:         decimal.NewFromInt(1337),
+			RealisedPNLBeforeFees: decimal.NewFromInt(1338),
+			RealisedPNL:           decimal.NewFromInt(1339),
+			Price:                 decimal.NewFromInt(1331),
+			Exposure:              decimal.NewFromInt(1332),
+			Direction:             gctorder.Short,
+			Fee:                   decimal.NewFromInt(1333),
+			IsLiquidated:          true,
+		},
+	}
+	result := p.GetExposure()
+	if !result.Equal(p.Result.Exposure) {
+		t.Errorf("received '%v' expected '%v'", result, p.Result.Exposure)
+	}
 }
 
 func TestGetCollateralCurrency(t *testing.T) {
 	t.Parallel()
+	p := PNLSummary{
+		Exchange:           testExchange,
+		Item:               asset.Futures,
+		Pair:               currency.NewPair(currency.BTC, currency.USDT),
+		CollateralCurrency: currency.USD,
+		Offset:             1,
+		Result: gctorder.PNLResult{
+			Time:                  time.Now(),
+			UnrealisedPNL:         decimal.NewFromInt(1337),
+			RealisedPNLBeforeFees: decimal.NewFromInt(1338),
+			RealisedPNL:           decimal.NewFromInt(1339),
+			Price:                 decimal.NewFromInt(1331),
+			Exposure:              decimal.NewFromInt(1332),
+			Direction:             gctorder.Short,
+			Fee:                   decimal.NewFromInt(1333),
+			IsLiquidated:          true,
+		},
+	}
+	result := p.GetCollateralCurrency()
+	if !result.Equal(p.CollateralCurrency) {
+		t.Errorf("received '%v' expected '%v'", result, p.CollateralCurrency)
+	}
 }
 
 func TestGetDirection(t *testing.T) {
 	t.Parallel()
+	p := PNLSummary{
+		Exchange:           testExchange,
+		Item:               asset.Futures,
+		Pair:               currency.NewPair(currency.BTC, currency.USDT),
+		CollateralCurrency: currency.USD,
+		Offset:             1,
+		Result: gctorder.PNLResult{
+			Time:                  time.Now(),
+			UnrealisedPNL:         decimal.NewFromInt(1337),
+			RealisedPNLBeforeFees: decimal.NewFromInt(1338),
+			RealisedPNL:           decimal.NewFromInt(1339),
+			Price:                 decimal.NewFromInt(1331),
+			Exposure:              decimal.NewFromInt(1332),
+			Direction:             gctorder.Short,
+			Fee:                   decimal.NewFromInt(1333),
+			IsLiquidated:          true,
+		},
+	}
+	result := p.GetDirection()
+	if result != (p.Result.Direction) {
+		t.Errorf("received '%v' expected '%v'", result, p.Result.Direction)
+	}
 }
 
 func TestCannotPurchase(t *testing.T) {
 	t.Parallel()
+	var expectedError = common.ErrNilEvent
+	_, err := cannotPurchase(nil, nil)
+	if !errors.Is(err, expectedError) {
+		t.Fatalf("received '%v' expected '%v'", err, expectedError)
+	}
 
+	s := &signal.Signal{}
+	expectedError = common.ErrNilArguments
+	_, err = cannotPurchase(s, nil)
+	if !errors.Is(err, expectedError) {
+		t.Fatalf("received '%v' expected '%v'", err, expectedError)
+	}
+
+	o := &order.Order{}
+	s.Direction = gctorder.Buy
+	expectedError = nil
+	result, err := cannotPurchase(s, o)
+	if !errors.Is(err, expectedError) {
+		t.Fatalf("received '%v' expected '%v'", err, expectedError)
+	}
+	if result.Direction != common.CouldNotBuy {
+		t.Errorf("received '%v' expected '%v'", result.Direction, common.CouldNotBuy)
+	}
+
+	s.Direction = gctorder.Sell
+	expectedError = nil
+	result, err = cannotPurchase(s, o)
+	if !errors.Is(err, expectedError) {
+		t.Fatalf("received '%v' expected '%v'", err, expectedError)
+	}
+	if result.Direction != common.CouldNotSell {
+		t.Errorf("received '%v' expected '%v'", result.Direction, common.CouldNotSell)
+	}
+
+	s.Direction = gctorder.Short
+	expectedError = nil
+	result, err = cannotPurchase(s, o)
+	if !errors.Is(err, expectedError) {
+		t.Fatalf("received '%v' expected '%v'", err, expectedError)
+	}
+	if result.Direction != common.CouldNotShort {
+		t.Errorf("received '%v' expected '%v'", result.Direction, common.CouldNotShort)
+	}
+
+	s.Direction = gctorder.Long
+	expectedError = nil
+	result, err = cannotPurchase(s, o)
+	if !errors.Is(err, expectedError) {
+		t.Fatalf("received '%v' expected '%v'", err, expectedError)
+	}
+	if result.Direction != common.CouldNotLong {
+		t.Errorf("received '%v' expected '%v'", result.Direction, common.CouldNotLong)
+	}
+
+	s.Direction = gctorder.UnknownSide
+	expectedError = nil
+	result, err = cannotPurchase(s, o)
+	if !errors.Is(err, expectedError) {
+		t.Fatalf("received '%v' expected '%v'", err, expectedError)
+	}
+	if result.Direction != common.DoNothing {
+		t.Errorf("received '%v' expected '%v'", result.Direction, common.DoNothing)
+	}
 }
