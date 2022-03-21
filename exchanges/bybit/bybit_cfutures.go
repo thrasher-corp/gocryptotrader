@@ -967,11 +967,7 @@ func (by *Bybit) GetCoinTradeRecords(ctx context.Context, symbol currency.Pair, 
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 
-	err = by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetTrades, params, &resp, cFuturesTradeRate)
-	if err != nil {
-		return resp.Data.Trades, err
-	}
-	return resp.Data.Trades, nil
+	return resp.Data.Trades, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetTrades, params, &resp, cFuturesTradeRate)
 }
 
 // GetClosedCoinTrades returns closed profit and loss records
@@ -1007,11 +1003,7 @@ func (by *Bybit) GetClosedCoinTrades(ctx context.Context, symbol currency.Pair, 
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 
-	err = by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetClosedTrades, params, &resp, cFuturesDefaultRate)
-	if err != nil {
-		return resp.Data.Trades, err
-	}
-	return resp.Data.Trades, nil
+	return resp.Data.Trades, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetClosedTrades, params, &resp, cFuturesDefaultRate)
 }
 
 // ChangeCoinMode switches mode between full or partial position

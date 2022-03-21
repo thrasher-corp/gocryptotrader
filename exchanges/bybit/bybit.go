@@ -80,22 +80,22 @@ func processOB(ob [][2]string) ([]orderbook.Item, error) {
 	return o, nil
 }
 
-func constructOrderbook(order orderbookResponse) (s Orderbook, err error) {
-	s.Bids, err = processOB(order.Data.Bids)
+func constructOrderbook(o orderbookResponse) (s Orderbook, err error) {
+	s.Bids, err = processOB(o.Data.Bids)
 	if err != nil {
 		return s, err
 	}
-	s.Asks, err = processOB(order.Data.Asks)
+	s.Asks, err = processOB(o.Data.Asks)
 	if err != nil {
 		return s, err
 	}
-	s.Time = time.UnixMilli(order.Data.Time)
+	s.Time = time.UnixMilli(o.Data.Time)
 	return
 }
 
-// GetOrderbook gets orderbook for a given market with a given depth (default depth 100)
+// GetOrderBook gets orderbook for a given market with a given depth (default depth 100)
 func (by *Bybit) GetOrderBook(ctx context.Context, symbol string, depth int64) (Orderbook, error) {
-	var order orderbookResponse
+	var o orderbookResponse
 	strDepth := "100" // default depth
 	if depth > 0 && depth < 100 {
 		strDepth = strconv.FormatInt(depth, 10)
@@ -105,36 +105,36 @@ func (by *Bybit) GetOrderBook(ctx context.Context, symbol string, depth int64) (
 	params.Set("symbol", symbol)
 	params.Set("limit", strDepth)
 	path := common.EncodeURLValues(bybitOrderBook, params)
-	err := by.SendHTTPRequest(ctx, exchange.RestSpot, path, publicSpotRate, &order)
+	err := by.SendHTTPRequest(ctx, exchange.RestSpot, path, publicSpotRate, &o)
 	if err != nil {
 		return Orderbook{}, err
 	}
 
-	return constructOrderbook(order)
+	return constructOrderbook(o)
 }
 
 // GetMergedOrderBook gets orderbook for a given market with a given depth (default depth 100)
 func (by *Bybit) GetMergedOrderBook(ctx context.Context, symbol string, scale, depth int64) (Orderbook, error) {
-	var order orderbookResponse
+	var o orderbookResponse
 	params := url.Values{}
 	if scale > 0 {
 		params.Set("scale", strconv.FormatInt(scale, 10))
 	}
 
 	strDepth := "100" // default depth
-	if depth > 0 && depth < 100 {
+	if depth > 0 && depth <= 200 {
 		strDepth = strconv.FormatInt(depth, 10)
 	}
 
 	params.Set("symbol", symbol)
 	params.Set("limit", strDepth)
 	path := common.EncodeURLValues(bybitMergedOrderBook, params)
-	err := by.SendHTTPRequest(ctx, exchange.RestSpot, path, publicSpotRate, &order)
+	err := by.SendHTTPRequest(ctx, exchange.RestSpot, path, publicSpotRate, &o)
 	if err != nil {
 		return Orderbook{}, err
 	}
 
-	return constructOrderbook(order)
+	return constructOrderbook(o)
 }
 
 // GetTrades gets recent trades from the exchange
@@ -150,7 +150,12 @@ func (by *Bybit) GetTrades(ctx context.Context, symbol string, limit int64) ([]T
 
 	params := url.Values{}
 	params.Set("symbol", symbol)
-	params.Set("limit", strconv.FormatInt(limit, 10))
+
+	strLimit := "60" // default limit
+	if limit > 0 && limit < 60 {
+		strLimit = strconv.FormatInt(limit, 10)
+	}
+	params.Set("limit", strLimit)
 	path := common.EncodeURLValues(bybitRecentTrades, params)
 	err := by.SendHTTPRequest(ctx, exchange.RestSpot, path, publicSpotRate, &resp)
 	if err != nil {
@@ -483,10 +488,10 @@ func (by *Bybit) CreatePostOrder(ctx context.Context, o *PlaceOrderRequest) (*Pl
 	if o.TimeInForce != "" {
 		params.Set("timeInForce", string(o.TimeInForce))
 	}
-	if o.TradeType == BybitRequestParamsOrderLimit || o.TradeType == BybitRequestParamsOrderLimitMaker {
-		if o.Price == 0 {
-			return nil, errors.New("price should be present for Limit and LimitMaker orders")
-		}
+	if (o.TradeType == BybitRequestParamsOrderLimit || o.TradeType == BybitRequestParamsOrderLimitMaker) && o.Price == 0 {
+		return nil, errors.New("price should be present for Limit and LimitMaker orders")
+	}
+	if o.Price != 0 {
 		params.Set("price", strconv.FormatFloat(o.Price, 'f', -1, 64))
 	}
 	if o.OrderLinkID != "" {
@@ -496,11 +501,7 @@ func (by *Bybit) CreatePostOrder(ctx context.Context, o *PlaceOrderRequest) (*Pl
 	resp := struct {
 		Data PlaceOrderResponse `json:"result"`
 	}{}
-	err := by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, bybitSpotOrder, params, &resp, privateSpotRate)
-	if err != nil {
-		return nil, err
-	}
-	return &resp.Data, nil
+	return &resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, bybitSpotOrder, params, &resp, privateSpotRate)
 }
 
 // QueryOrder returns order data based upon orderID or orderLinkID
@@ -520,11 +521,7 @@ func (by *Bybit) QueryOrder(ctx context.Context, orderID, orderLinkID string) (*
 	resp := struct {
 		Data QueryOrderResponse `json:"result"`
 	}{}
-	err := by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, bybitSpotOrder, params, &resp, privateSpotRate)
-	if err != nil {
-		return nil, err
-	}
-	return &resp.Data, nil
+	return &resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, bybitSpotOrder, params, &resp, privateSpotRate)
 }
 
 // CancelExistingOrder cancels existing order based upon orderID or orderLinkID
@@ -600,11 +597,7 @@ func (by *Bybit) ListPastOrders(ctx context.Context, symbol, orderID string, lim
 	resp := struct {
 		Data []QueryOrderResponse `json:"result"`
 	}{}
-	err := by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, bybitPastOrder, params, &resp, privateSpotRate)
-	if err != nil {
-		return nil, err
-	}
-	return resp.Data, nil
+	return resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, bybitPastOrder, params, &resp, privateSpotRate)
 }
 
 // GetTradeHistory returns user trades
@@ -626,11 +619,7 @@ func (by *Bybit) GetTradeHistory(ctx context.Context, symbol string, limit, form
 	resp := struct {
 		Data []HistoricalTrade `json:"result"`
 	}{}
-	err := by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, bybitPastOrder, params, &resp, privateSpotRate)
-	if err != nil {
-		return nil, err
-	}
-	return resp.Data, nil
+	return resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, bybitPastOrder, params, &resp, privateSpotRate)
 }
 
 // GetWalletBalance returns user wallet balance
@@ -640,11 +629,7 @@ func (by *Bybit) GetWalletBalance(ctx context.Context) ([]Balance, error) {
 			Balances []Balance `json:"balances"`
 		} `json:"result"`
 	}{}
-	err := by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, bybitWalletBalance, url.Values{}, &resp, privateSpotRate)
-	if err != nil {
-		return nil, err
-	}
-	return resp.Data.Balances, nil
+	return resp.Data.Balances, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, bybitWalletBalance, url.Values{}, &resp, privateSpotRate)
 }
 
 // SendHTTPRequest sends an unauthenticated request
