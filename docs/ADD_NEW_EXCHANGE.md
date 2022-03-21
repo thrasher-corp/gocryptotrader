@@ -260,23 +260,21 @@ var Exchanges = []string{
 func TestGetEnabledExchanges(t *testing.T) {
 	cfg := GetConfig()
 	err := cfg.LoadConfig(TestFile, true)
-	if err != nil {
-		t.Errorf(
-			"TestGetEnabledExchanges. LoadConfig Error: %s", err.Error(),
-		)
+	if !errors.Is(err, errConfigDefineErrorExample) {
+		t.Errorf("received: '%v' but expected '%v'", err, errConfigDefineErrorExample)
 	}
 
 	exchanges := cfg.GetEnabledExchanges()
-	if len(exchanges) != defaultEnabledExchanges { // modify the value of defaultEnabledExchanges at the top of the config_test.go file to match the total count of exchanges
-		t.Error(
-			"TestGetEnabledExchanges. Enabled exchanges value mismatch",
-		)
+	// modify the value of defaultEnabledExchanges at the top of the 
+	// config_test.go file to match the total count of exchanges
+	if len(exchanges) != defaultEnabledExchanges { 
+		t.Errorf("received: '%v' but expected '%v'", len(exchanges), defaultEnabledExchanges)
 	}
 
 	if !common.StringDataCompare(exchanges, "Bitfinex") {
-		t.Error(
-			"TestGetEnabledExchanges. Expected exchange Bitfinex not found",
-		)
+		t.Errorf("received: '%v' but expected '%v'", 
+			common.StringDataCompare(exchanges, "Bitfinex"), 
+			true)
 	}
 }
 ```
@@ -321,14 +319,16 @@ for i := range bot.Exchanges {
 
 // Public calls - wrapper functions
 
+pair := currency.NewPair(currency.BTC, currency.USD)
+
 // Fetches current ticker information
-tick, err := e.FetchTicker() // e -> f 
+tick, err := e.FetchTicker(context.Background(), pair, asset.Spot) // e -> f 
 if err != nil {
   // Handle error
 }
 
 // Fetches current orderbook information
-ob, err := e.FetchOrderbook() // e -> f (do so for the rest of the functions too)
+ob, err := e.FetchOrderbook(context.Background(), pair, asset.Spot) // e -> f (do so for the rest of the functions too)
 if err != nil {
   // Handle error
 }
@@ -418,7 +418,7 @@ const (
 Create a get function in ftx.go file and unmarshall the data in the created type:
 ```go
 // GetMarkets gets market data
-func (f *FTX) GetMarkets() (Markets, error) {
+func (f *FTX) GetMarkets(ctx context.Context) (Markets, error) {
 	var resp Markets
 	return resp, f.SendHTTPRequest(ctx, ftxAPIURL+getMarkets, &resp)
 }
@@ -433,7 +433,7 @@ const(
 func TestGetMarket(t *testing.T) {
 	t.Parallel() // adding t.Parralel() is preferred as it allows tests to run simultaneously, speeding up package test time
 	f.Verbose = true // used for more detailed output
-	a, err := f.GetMarket(spotPair) // spotPair is just a const so it can be reused in other tests too
+	a, err := f.GetMarket(context.Background(), spotPair) // spotPair is just a const so it can be reused in other tests too
 	t.Log(a)
 	if err != nil {
 		t.Error(err)
@@ -443,7 +443,7 @@ func TestGetMarket(t *testing.T) {
 Verbose can be set to true to see the data received if there are errors unmarshalling
 Once testing is done remove verbose, variable a and t.Log(a) since they produce unnecessary output when GCT is run
 ```go
-_, err := f.GetMarket(spotPair)
+_, err := f.GetMarket(context.Background(), spotPair)
 ```
 
 Ensure each endpoint is implemented and has an associated test to improve test coverage and increase confidence
@@ -459,6 +459,14 @@ func (f *FTX) SendAuthHTTPRequest(ctx context.Context, method, path string, data
 // limiting. This is for when signatures are based on timestamps/nonces that are 
 // within time receive windows. NOTE: This is not always necessary and the above
 // SendHTTPRequest example will suffice. 
+
+	// Fetches credentials, this can either use a context set credential or if
+	// not found, will default to the config.json exchange specific credentials.
+	creds, err := f.GetCredentials(ctx)
+	if err != nil {
+		return err
+	}
+
 	generate := func() (*request.Item, error) {
 		ts := strconv.FormatInt(time.Now().UnixMilli(), 10)
 		var body io.Reader
@@ -471,13 +479,13 @@ func (f *FTX) SendAuthHTTPRequest(ctx context.Context, method, path string, data
 			}
 			body = bytes.NewBuffer(payload)
 			sigPayload := ts + method + "/api" + path + string(payload)
-			hmac = crypto.GetHMAC(crypto.HashSHA256, []byte(sigPayload), []byte(f.API.Credentials.Secret))
+			hmac = crypto.GetHMAC(crypto.HashSHA256, []byte(sigPayload), []byte(creds.Secret))
 		} else {
 			sigPayload := ts + method + "/api" + path
-			hmac = crypto.GetHMAC(crypto.HashSHA256, []byte(sigPayload), []byte(f.API.Credentials.Secret))
+			hmac = crypto.GetHMAC(crypto.HashSHA256, []byte(sigPayload), []byte(creds.Secret))
 		}
 		headers := make(map[string]string)
-		headers["FTX-KEY"] = f.API.Credentials.Key
+		headers["FTX-KEY"] = creds.Key
 		headers["FTX-SIGN"] = crypto.HexEncodeToString(hmac)
 		headers["FTX-TS"] = ts
 		headers["Content-Type"] = "application/json"
@@ -515,7 +523,7 @@ https://docs.ftx.com/#get-account-information:
 
 ```go
 // GetAccountInfo gets account info
-func (f *FTX) GetAccountInfo() (AccountData, error) {
+func (f *FTX) GetAccountInfo(ctx context.Context) (AccountData, error) {
 	var resp AccountData
 	return resp, f.SendAuthHTTPRequest(ctx, http.MethodGet, getAccountInfo, nil, &resp)
 }
@@ -527,7 +535,7 @@ https://docs.ftx.com/#get-withdrawal-history:
 
 ```go
 // GetTriggerOrderHistory gets trigger orders that are currently open
-func (f *FTX) GetTriggerOrderHistory(marketName string, startTime, endTime time.Time, side, orderType, limit string) (TriggerOrderHistory, error) {
+func (f *FTX) GetTriggerOrderHistory(ctx context.Context, marketName string, startTime, endTime time.Time, side, orderType, limit string) (TriggerOrderHistory, error) {
 	var resp TriggerOrderHistory
 	params := url.Values{}
 	if marketName != "" {
@@ -589,7 +597,7 @@ For `POST` or `DELETE` requests, params are sent through a map[string]interface{
 
 ```go
 // Order places an order
-func (f *FTX) Order(marketName, side, orderType, reduceOnly, ioc, postOnly, clientID string, price, size float64) (PlaceOrder, error) {
+func (f *FTX) Order(ctx context.Context, marketName, side, orderType, reduceOnly, ioc, postOnly, clientID string, price, size float64) (PlaceOrder, error) {
 	req := make(map[string]interface{})
 	req["market"] = marketName
 	req["side"] = side
@@ -637,7 +645,7 @@ func (f *FTX) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string, e
 	if !f.SupportsAsset(a) {
 		return nil, fmt.Errorf("asset type of %s is not supported by %s", a, f.Name)
 	}
-	markets, err := f.GetMarkets()
+	markets, err := f.GetMarkets(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -709,7 +717,7 @@ func (f *FTX) WsConnect() error {
 	// efficient processing.
 	go f.wsReadData()
 	if f.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
-		err = f.WsAuth()
+		err = f.WsAuth(context.TODO())
 		if err != nil {
 			f.Websocket.DataHandler <- err
 			f.Websocket.SetCanUseAuthenticatedEndpoints(false)
@@ -1025,17 +1033,27 @@ https://docs.ftx.com/#private-channels
 
 ```go
 // WsAuth sends an authentication message to receive auth data
-func (f *FTX) WsAuth() error {
+func (f *FTX) WsAuth(ctx context.Context) error {
+	// Fetches credentials, this can either use a context set credential or if
+	// not found, will default to the config.json exchange specific credentials.
+	// NOTE: Websocket context values are not sufficiently propagated yet, so in 
+	// most circumstances the calling function can call context.TODO() and will
+	// use default credentials.
+	creds, err := f.GetCredentials(ctx)
+	if err != nil {
+		return err
+	}
+
 	strNonce := strconv.FormatInt(time.Now().UnixMilli(), 10)
 	hmac := crypto.GetHMAC(
 		crypto.HashSHA256,
 		[]byte(strNonce+"websocket_login"),
-		[]byte(f.API.Credentials.Secret),
+		[]byte(creds.Secret),
 	)
 	sign := crypto.HexEncodeToString(hmac)
 	req := Authenticate{Operation: "login",
 		Args: AuthenticationData{
-			Key:  f.API.Credentials.Key,
+			Key:  creds.Key,
 			Sign: sign,
 			Time: intNonce,
 		},
@@ -1193,8 +1211,8 @@ Initially the functions return nil or common.ErrNotYetImplemented
 
 ```go
 // AuthenticateWebsocket sends an authentication message to the websocket
-func (f *FTX) AuthenticateWebsocket() error {
-	return f.WsAuth()
+func (f *FTX) AuthenticateWebsocket(ctx context.Context) error {
+	return f.WsAuth(ctx)
 }
 ```
 

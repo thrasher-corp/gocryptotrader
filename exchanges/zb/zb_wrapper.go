@@ -357,7 +357,7 @@ func (z *ZB) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (accou
 	var balances []account.Balance
 	var coins []AccountsResponseCoin
 	if z.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		resp, err := z.wsGetAccountInfoRequest()
+		resp, err := z.wsGetAccountInfoRequest(ctx)
 		if err != nil {
 			return info, err
 		}
@@ -483,7 +483,7 @@ func (z *ZB) SubmitOrder(ctx context.Context, o *order.Submit) (order.SubmitResp
 			isBuyOrder = 0
 		}
 		var response *WsSubmitOrderResponse
-		response, err = z.wsSubmitOrder(o.Pair, o.Amount, o.Price, isBuyOrder)
+		response, err = z.wsSubmitOrder(ctx, o.Pair, o.Amount, o.Price, isBuyOrder)
 		if err != nil {
 			return submitOrderResponse, err
 		}
@@ -542,7 +542,7 @@ func (z *ZB) CancelOrder(ctx context.Context, o *order.Cancel) error {
 
 	if z.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		var response *WsCancelOrderResponse
-		response, err = z.wsCancelOrder(o.Pair, orderIDInt)
+		response, err = z.wsCancelOrder(ctx, o.Pair, orderIDInt)
 		if err != nil {
 			return err
 		}
@@ -694,7 +694,7 @@ func (z *ZB) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder) 
 	if feeBuilder == nil {
 		return 0, fmt.Errorf("%T %w", feeBuilder, common.ErrNilPointer)
 	}
-	if (!z.AllowAuthenticatedRequest() || z.SkipAuthCheck) && // Todo check connection status
+	if (!z.AreCredentialsValid(ctx) || z.SkipAuthCheck) && // Todo check connection status
 		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		feeBuilder.FeeType = exchange.OfflineTradeFee
 	}
@@ -785,7 +785,7 @@ func (z *ZB) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (
 	if z.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		for x := range req.Pairs {
 			for y := int64(1); ; y++ {
-				resp, err := z.wsGetOrdersIgnoreTradeType(req.Pairs[x], y, 10)
+				resp, err := z.wsGetOrdersIgnoreTradeType(ctx, req.Pairs[x], y, 10)
 				if err != nil {
 					return nil, err
 				}

@@ -202,45 +202,43 @@ func shouldLoadExchange(name string) bool {
 func setExchangeAPIKeys(name string, keys map[string]*config.APICredentialsConfig, base *exchange.Base) bool {
 	lowerExchangeName := strings.ToLower(name)
 
-	if base.API.CredentialsValidator.RequiresKey && keys[lowerExchangeName].Key == "" {
-		keys[lowerExchangeName].Key = config.DefaultAPIKey
-	}
-	if base.API.CredentialsValidator.RequiresSecret && keys[lowerExchangeName].Secret == "" {
-		keys[lowerExchangeName].Secret = config.DefaultAPISecret
-	}
-	if base.API.CredentialsValidator.RequiresPEM && keys[lowerExchangeName].PEMKey == "" {
-		keys[lowerExchangeName].PEMKey = "PEM"
-	}
-	if base.API.CredentialsValidator.RequiresClientID && keys[lowerExchangeName].ClientID == "" {
-		keys[lowerExchangeName].ClientID = config.DefaultAPIClientID
-	}
-	if keys[lowerExchangeName].OTPSecret == "" {
-		keys[lowerExchangeName].OTPSecret = "-" // Ensure OTP is available for use
+	creds, ok := keys[lowerExchangeName]
+	if !ok {
+		log.Printf("%s credentials not found in keys map\n", name)
+		return false
 	}
 
-	base.API.Credentials.Key = keys[lowerExchangeName].Key
-	base.Config.API.Credentials.Key = keys[lowerExchangeName].Key
-
-	base.API.Credentials.Secret = keys[lowerExchangeName].Secret
-	base.Config.API.Credentials.Secret = keys[lowerExchangeName].Secret
-
-	base.API.Credentials.ClientID = keys[lowerExchangeName].ClientID
-	base.Config.API.Credentials.ClientID = keys[lowerExchangeName].ClientID
-
-	if keys[lowerExchangeName].OTPSecret != "-" {
-		base.Config.API.Credentials.OTPSecret = keys[lowerExchangeName].OTPSecret
+	if base.API.CredentialsValidator.RequiresKey && creds.Key == "" {
+		creds.Key = config.DefaultAPIKey
 	}
-	if keys[lowerExchangeName].Subaccount != "" {
-		base.API.Credentials.Subaccount = keys[lowerExchangeName].Subaccount
-		base.Config.API.Credentials.Subaccount = keys[lowerExchangeName].Subaccount
+	if base.API.CredentialsValidator.RequiresSecret && creds.Secret == "" {
+		creds.Secret = config.DefaultAPISecret
 	}
+	if base.API.CredentialsValidator.RequiresPEM && creds.PEMKey == "" {
+		creds.PEMKey = "PEM"
+	}
+	if base.API.CredentialsValidator.RequiresClientID && creds.ClientID == "" {
+		creds.ClientID = config.DefaultAPIClientID
+	}
+	if creds.OTPSecret == "" {
+		creds.OTPSecret = "-" // Ensure OTP is available for use
+	}
+
+	base.SetCredentials(creds.Key, creds.Secret, creds.ClientID, creds.Subaccount, creds.PEMKey, creds.OTPSecret)
+
+	base.Config.API.Credentials.Key = creds.Key
+	base.Config.API.Credentials.Secret = creds.Secret
+	base.Config.API.Credentials.ClientID = creds.ClientID
+	base.Config.API.Credentials.Subaccount = creds.Subaccount
+	base.Config.API.Credentials.PEMKey = creds.PEMKey
+	base.Config.API.Credentials.OTPSecret = creds.OTPSecret
 
 	base.API.AuthenticatedSupport = true
 	base.API.AuthenticatedWebsocketSupport = true
 	base.Config.API.AuthenticatedSupport = true
 	base.Config.API.AuthenticatedWebsocketSupport = true
 
-	return base.ValidateAPICredentials()
+	return base.ValidateAPICredentials(base.GetDefaultCredentials()) == nil
 }
 
 func parseOrderSide(orderSide string) order.Side {

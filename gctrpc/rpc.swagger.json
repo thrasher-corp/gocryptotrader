@@ -1190,12 +1190,6 @@
             "type": "string"
           },
           {
-            "name": "subAccount",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          },
-          {
             "name": "includeBreakdown",
             "in": "query",
             "required": false,

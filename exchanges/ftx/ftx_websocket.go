@@ -66,7 +66,7 @@ func (f *FTX) WsConnect() error {
 	go f.wsReadData()
 
 	if f.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
-		err = f.WsAuth()
+		err = f.WsAuth(context.TODO())
 		if err != nil {
 			f.Websocket.DataHandler <- err
 			f.Websocket.SetCanUseAuthenticatedEndpoints(false)
@@ -77,13 +77,17 @@ func (f *FTX) WsConnect() error {
 }
 
 // WsAuth sends an authentication message to receive auth data
-func (f *FTX) WsAuth() error {
+func (f *FTX) WsAuth(ctx context.Context) error {
+	creds, err := f.GetCredentials(ctx)
+	if err != nil {
+		return err
+	}
 	intNonce := time.Now().UnixMilli()
 	strNonce := strconv.FormatInt(intNonce, 10)
 	hmac, err := crypto.GetHMAC(
 		crypto.HashSHA256,
 		[]byte(strNonce+"websocket_login"),
-		[]byte(f.API.Credentials.Secret),
+		[]byte(creds.Secret),
 	)
 	if err != nil {
 		return err
@@ -91,10 +95,10 @@ func (f *FTX) WsAuth() error {
 	sign := crypto.HexEncodeToString(hmac)
 	req := Authenticate{Operation: "login",
 		Args: AuthenticationData{
-			Key:        f.API.Credentials.Key,
+			Key:        creds.Key,
 			Sign:       sign,
 			Time:       intNonce,
-			SubAccount: f.API.Credentials.Subaccount,
+			SubAccount: creds.SubAccount,
 		},
 	}
 

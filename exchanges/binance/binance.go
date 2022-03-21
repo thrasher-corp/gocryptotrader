@@ -765,8 +765,14 @@ func (b *Binance) SendAPIKeyHTTPRequest(ctx context.Context, ePath exchange.URL,
 	if err != nil {
 		return err
 	}
+
+	creds, err := b.GetCredentials(ctx)
+	if err != nil {
+		return err
+	}
+
 	headers := make(map[string]string)
-	headers["X-MBX-APIKEY"] = b.API.Credentials.Key
+	headers["X-MBX-APIKEY"] = creds.Key
 	item := &request.Item{
 		Method:        http.MethodGet,
 		Path:          endpointPath + path,
@@ -783,9 +789,11 @@ func (b *Binance) SendAPIKeyHTTPRequest(ctx context.Context, ePath exchange.URL,
 
 // SendAuthHTTPRequest sends an authenticated HTTP request
 func (b *Binance) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, method, path string, params url.Values, f request.EndpointLimit, result interface{}) error {
-	if !b.AllowAuthenticatedRequest() {
-		return fmt.Errorf("%s %w", b.Name, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
+	creds, err := b.GetCredentials(ctx)
+	if err != nil {
+		return err
 	}
+
 	endpointPath, err := b.API.Endpoints.GetURL(ePath)
 	if err != nil {
 		return err
@@ -807,13 +815,13 @@ func (b *Binance) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, m
 		var hmacSigned []byte
 		hmacSigned, err = crypto.GetHMAC(crypto.HashSHA256,
 			[]byte(signature),
-			[]byte(b.API.Credentials.Secret))
+			[]byte(creds.Secret))
 		if err != nil {
 			return nil, err
 		}
 		hmacSignedStr := crypto.HexEncodeToString(hmacSigned)
 		headers := make(map[string]string)
-		headers["X-MBX-APIKEY"] = b.API.Credentials.Key
+		headers["X-MBX-APIKEY"] = creds.Key
 		fullPath = common.EncodeURLValues(fullPath, params)
 		fullPath += "&signature=" + hmacSignedStr
 		return &request.Item{
@@ -1098,9 +1106,14 @@ func (b *Binance) GetWsAuthStreamKey(ctx context.Context) (string, error) {
 		return "", err
 	}
 
+	creds, err := b.GetCredentials(ctx)
+	if err != nil {
+		return "", err
+	}
+
 	var resp UserAccountStream
 	headers := make(map[string]string)
-	headers["X-MBX-APIKEY"] = b.API.Credentials.Key
+	headers["X-MBX-APIKEY"] = creds.Key
 	item := &request.Item{
 		Method:        http.MethodPost,
 		Path:          endpointPath + userAccountStream,
@@ -1131,12 +1144,18 @@ func (b *Binance) MaintainWsAuthStreamKey(ctx context.Context) error {
 		listenKey, err = b.GetWsAuthStreamKey(ctx)
 		return err
 	}
+
+	creds, err := b.GetCredentials(ctx)
+	if err != nil {
+		return err
+	}
+
 	path := endpointPath + userAccountStream
 	params := url.Values{}
 	params.Set("listenKey", listenKey)
 	path = common.EncodeURLValues(path, params)
 	headers := make(map[string]string)
-	headers["X-MBX-APIKEY"] = b.API.Credentials.Key
+	headers["X-MBX-APIKEY"] = creds.Key
 	item := &request.Item{
 		Method:        http.MethodPut,
 		Path:          path,

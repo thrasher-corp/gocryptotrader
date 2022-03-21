@@ -403,7 +403,7 @@ func TestGetOrderHistory(t *testing.T) {
 // Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
 // ----------------------------------------------------------------------------------------------------------------------------
 func areTestAPIKeysSet() bool {
-	return g.ValidateAPICredentials()
+	return g.ValidateAPICredentials(g.GetDefaultCredentials()) == nil
 }
 
 func TestSubmitOrder(t *testing.T) {
@@ -580,7 +580,7 @@ func TestWsAuth(t *testing.T) {
 	}
 	var dialer websocket.Dialer
 	go g.wsReadData()
-	err = g.WsAuth(&dialer)
+	err = g.WsAuth(context.Background(), &dialer)
 	if err != nil {
 		t.Error(err)
 	}

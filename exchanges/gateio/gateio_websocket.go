@@ -1,6 +1,7 @@
 package gateio
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -44,7 +45,7 @@ func (g *Gateio) WsConnect() error {
 	go g.wsReadData()
 
 	if g.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
-		err = g.wsServerSignIn()
+		err = g.wsServerSignIn(context.TODO())
 		if err != nil {
 			g.Websocket.DataHandler <- err
 			g.Websocket.SetCanUseAuthenticatedEndpoints(false)
@@ -67,9 +68,13 @@ func (g *Gateio) WsConnect() error {
 	return nil
 }
 
-func (g *Gateio) wsServerSignIn() error {
+func (g *Gateio) wsServerSignIn(ctx context.Context) error {
+	creds, err := g.GetCredentials(ctx)
+	if err != nil {
+		return err
+	}
 	nonce := int(time.Now().Unix() * 1000)
-	sigTemp, err := g.GenerateSignature(strconv.Itoa(nonce))
+	sigTemp, err := g.GenerateSignature(creds.Secret, strconv.Itoa(nonce))
 	if err != nil {
 		return err
 	}
@@ -77,7 +82,7 @@ func (g *Gateio) wsServerSignIn() error {
 	signinWsRequest := WebsocketRequest{
 		ID:     g.Websocket.Conn.GenerateMessageID(false),
 		Method: "server.sign",
-		Params: []interface{}{g.API.Credentials.Key, signature, nonce},
+		Params: []interface{}{creds.Key, signature, nonce},
 	}
 	resp, err := g.Websocket.Conn.SendMessageReturnResponse(signinWsRequest.ID,
 		signinWsRequest)

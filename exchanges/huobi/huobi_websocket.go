@@ -1,6 +1,7 @@
 package huobi
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -74,7 +75,7 @@ func (h *HUOBI) WsConnect() error {
 			h.Name,
 			err)
 	}
-	err = h.wsLogin()
+	err = h.wsLogin(context.TODO())
 	if err != nil {
 		log.Errorf(log.ExchangeSys,
 			"%v - authentication failed: %v\n",
@@ -524,11 +525,16 @@ func (h *HUOBI) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, er
 
 // Subscribe sends a websocket message to receive data from the channel
 func (h *HUOBI) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
+	creds, err := h.GetCredentials(context.TODO())
+	if err != nil {
+		return err
+	}
 	var errs common.Errors
 	for i := range channelsToSubscribe {
 		if strings.Contains(channelsToSubscribe[i].Channel, "orders.") ||
 			strings.Contains(channelsToSubscribe[i].Channel, "accounts") {
-			err := h.wsAuthenticatedSubscribe("sub",
+			err := h.wsAuthenticatedSubscribe(creds,
+				"sub",
 				wsAccountsOrdersEndPoint+channelsToSubscribe[i].Channel,
 				channelsToSubscribe[i].Channel)
 			if err != nil {
@@ -555,11 +561,16 @@ func (h *HUOBI) Subscribe(channelsToSubscribe []stream.ChannelSubscription) erro
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (h *HUOBI) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+	creds, err := h.GetCredentials(context.TODO())
+	if err != nil {
+		return err
+	}
 	var errs common.Errors
 	for i := range channelsToUnsubscribe {
 		if strings.Contains(channelsToUnsubscribe[i].Channel, "orders.") ||
 			strings.Contains(channelsToUnsubscribe[i].Channel, "accounts") {
-			err := h.wsAuthenticatedSubscribe("unsub",
+			err := h.wsAuthenticatedSubscribe(creds,
+				"unsub",
 				wsAccountsOrdersEndPoint+channelsToUnsubscribe[i].Channel,
 				channelsToUnsubscribe[i].Channel)
 			if err != nil {
@@ -584,32 +595,37 @@ func (h *HUOBI) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) 
 	return nil
 }
 
-func (h *HUOBI) wsGenerateSignature(timestamp, endpoint string) ([]byte, error) {
+func (h *HUOBI) wsGenerateSignature(creds *exchange.Credentials, timestamp, endpoint string) ([]byte, error) {
 	values := url.Values{}
-	values.Set("AccessKeyId", h.API.Credentials.Key)
+	values.Set("AccessKeyId", creds.Key)
 	values.Set("SignatureMethod", signatureMethod)
 	values.Set("SignatureVersion", signatureVersion)
 	values.Set("Timestamp", timestamp)
 	host := "api.huobi.pro"
 	payload := fmt.Sprintf("%s\n%s\n%s\n%s",
 		http.MethodGet, host, endpoint, values.Encode())
-	return crypto.GetHMAC(crypto.HashSHA256, []byte(payload), []byte(h.API.Credentials.Secret))
+	return crypto.GetHMAC(crypto.HashSHA256, []byte(payload), []byte(creds.Secret))
 }
 
-func (h *HUOBI) wsLogin() error {
+func (h *HUOBI) wsLogin(ctx context.Context) error {
 	if !h.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
 		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", h.Name)
 	}
+	creds, err := h.GetCredentials(ctx)
+	if err != nil {
+		return err
+	}
+
 	h.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	timestamp := time.Now().UTC().Format(wsDateTimeFormatting)
 	request := WsAuthenticationRequest{
 		Op:               authOp,
-		AccessKeyID:      h.API.Credentials.Key,
+		AccessKeyID:      creds.Key,
 		SignatureMethod:  signatureMethod,
 		SignatureVersion: signatureVersion,
 		Timestamp:        timestamp,
 	}
-	hmac, err := h.wsGenerateSignature(timestamp, wsAccountsOrdersEndPoint)
+	hmac, err := h.wsGenerateSignature(creds, timestamp, wsAccountsOrdersEndPoint)
 	if err != nil {
 		return err
 	}
@@ -624,17 +640,17 @@ func (h *HUOBI) wsLogin() error {
 	return nil
 }
 
-func (h *HUOBI) wsAuthenticatedSubscribe(operation, endpoint, topic string) error {
+func (h *HUOBI) wsAuthenticatedSubscribe(creds *exchange.Credentials, operation, endpoint, topic string) error {
 	timestamp := time.Now().UTC().Format(wsDateTimeFormatting)
 	request := WsAuthenticatedSubscriptionRequest{
 		Op:               operation,
-		AccessKeyID:      h.API.Credentials.Key,
+		AccessKeyID:      creds.Key,
 		SignatureMethod:  signatureMethod,
 		SignatureVersion: signatureVersion,
 		Timestamp:        timestamp,
 		Topic:            topic,
 	}
-	hmac, err := h.wsGenerateSignature(timestamp, endpoint)
+	hmac, err := h.wsGenerateSignature(creds, timestamp, endpoint)
 	if err != nil {
 		return err
 	}
@@ -642,20 +658,25 @@ func (h *HUOBI) wsAuthenticatedSubscribe(operation, endpoint, topic string) erro
 	return h.Websocket.AuthConn.SendJSONMessage(request)
 }
 
-func (h *HUOBI) wsGetAccountsList() (*WsAuthenticatedAccountsListResponse, error) {
+func (h *HUOBI) wsGetAccountsList(ctx context.Context) (*WsAuthenticatedAccountsListResponse, error) {
 	if !h.Websocket.CanUseAuthenticatedEndpoints() {
 		return nil, fmt.Errorf("%v not authenticated cannot get accounts list", h.Name)
 	}
+	creds, err := h.GetCredentials(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	timestamp := time.Now().UTC().Format(wsDateTimeFormatting)
 	request := WsAuthenticatedAccountsListRequest{
 		Op:               requestOp,
-		AccessKeyID:      h.API.Credentials.Key,
+		AccessKeyID:      creds.Key,
 		SignatureMethod:  signatureMethod,
 		SignatureVersion: signatureVersion,
 		Timestamp:        timestamp,
 		Topic:            wsAccountsList,
 	}
-	hmac, err := h.wsGenerateSignature(timestamp, wsAccountListEndpoint)
+	hmac, err := h.wsGenerateSignature(creds, timestamp, wsAccountListEndpoint)
 	if err != nil {
 		return nil, err
 	}
@@ -678,9 +699,14 @@ func (h *HUOBI) wsGetAccountsList() (*WsAuthenticatedAccountsListResponse, error
 	return &response, nil
 }
 
-func (h *HUOBI) wsGetOrdersList(accountID int64, pair currency.Pair) (*WsAuthenticatedOrdersResponse, error) {
+func (h *HUOBI) wsGetOrdersList(ctx context.Context, accountID int64, pair currency.Pair) (*WsAuthenticatedOrdersResponse, error) {
 	if !h.Websocket.CanUseAuthenticatedEndpoints() {
 		return nil, fmt.Errorf("%v not authenticated cannot get orders list", h.Name)
+	}
+
+	creds, err := h.GetCredentials(ctx)
+	if err != nil {
+		return nil, err
 	}
 
 	fpair, err := h.FormatExchangeCurrency(pair, asset.Spot)
@@ -691,7 +717,7 @@ func (h *HUOBI) wsGetOrdersList(accountID int64, pair currency.Pair) (*WsAuthent
 	timestamp := time.Now().UTC().Format(wsDateTimeFormatting)
 	request := WsAuthenticatedOrdersListRequest{
 		Op:               requestOp,
-		AccessKeyID:      h.API.Credentials.Key,
+		AccessKeyID:      creds.Key,
 		SignatureMethod:  signatureMethod,
 		SignatureVersion: signatureVersion,
 		Timestamp:        timestamp,
@@ -701,7 +727,7 @@ func (h *HUOBI) wsGetOrdersList(accountID int64, pair currency.Pair) (*WsAuthent
 		States:           "submitted,partial-filled",
 	}
 
-	hmac, err := h.wsGenerateSignature(timestamp, wsOrdersListEndpoint)
+	hmac, err := h.wsGenerateSignature(creds, timestamp, wsOrdersListEndpoint)
 	if err != nil {
 		return nil, err
 	}
@@ -726,21 +752,25 @@ func (h *HUOBI) wsGetOrdersList(accountID int64, pair currency.Pair) (*WsAuthent
 	return &response, nil
 }
 
-func (h *HUOBI) wsGetOrderDetails(orderID string) (*WsAuthenticatedOrderDetailResponse, error) {
+func (h *HUOBI) wsGetOrderDetails(ctx context.Context, orderID string) (*WsAuthenticatedOrderDetailResponse, error) {
 	if !h.Websocket.CanUseAuthenticatedEndpoints() {
 		return nil, fmt.Errorf("%v not authenticated cannot get order details", h.Name)
+	}
+	creds, err := h.GetCredentials(ctx)
+	if err != nil {
+		return nil, err
 	}
 	timestamp := time.Now().UTC().Format(wsDateTimeFormatting)
 	request := WsAuthenticatedOrderDetailsRequest{
 		Op:               requestOp,
-		AccessKeyID:      h.API.Credentials.Key,
+		AccessKeyID:      creds.Key,
 		SignatureMethod:  signatureMethod,
 		SignatureVersion: signatureVersion,
 		Timestamp:        timestamp,
 		Topic:            wsOrdersDetail,
 		OrderID:          orderID,
 	}
-	hmac, err := h.wsGenerateSignature(timestamp, wsOrdersDetailEndpoint)
+	hmac, err := h.wsGenerateSignature(creds, timestamp, wsOrdersDetailEndpoint)
 	if err != nil {
 		return nil, err
 	}

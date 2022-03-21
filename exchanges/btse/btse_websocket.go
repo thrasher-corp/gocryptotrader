@@ -1,6 +1,7 @@
 package btse
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -45,7 +46,7 @@ func (b *BTSE) WsConnect() error {
 	go b.wsReadData()
 
 	if b.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
-		err = b.WsAuthenticate()
+		err = b.WsAuthenticate(context.TODO())
 		if err != nil {
 			b.Websocket.DataHandler <- err
 			b.Websocket.SetCanUseAuthenticatedEndpoints(false)
@@ -56,13 +57,17 @@ func (b *BTSE) WsConnect() error {
 }
 
 // WsAuthenticate Send an authentication message to receive auth data
-func (b *BTSE) WsAuthenticate() error {
+func (b *BTSE) WsAuthenticate(ctx context.Context) error {
+	creds, err := b.GetCredentials(ctx)
+	if err != nil {
+		return err
+	}
 	nonce := strconv.FormatInt(time.Now().UnixMilli(), 10)
 	path := "/spotWS" + nonce
 
 	hmac, err := crypto.GetHMAC(crypto.HashSHA512_384,
 		[]byte((path)),
-		[]byte(b.API.Credentials.Secret),
+		[]byte(creds.Secret),
 	)
 	if err != nil {
 		return err
@@ -71,7 +76,7 @@ func (b *BTSE) WsAuthenticate() error {
 	sign := crypto.HexEncodeToString(hmac)
 	req := wsSub{
 		Operation: "authKeyExpires",
-		Arguments: []string{b.API.Credentials.Key, nonce, sign},
+		Arguments: []string{creds.Key, nonce, sign},
 	}
 	return b.Websocket.Conn.SendJSONMessage(req)
 }

@@ -541,7 +541,7 @@ func (bt *BackTest) loadExchangePairAssetBase(exch, base, quote, ass string) (gc
 	}
 
 	exchangeBase := e.GetBase()
-	if !exchangeBase.ValidateAPICredentials() {
+	if exchangeBase.ValidateAPICredentials(exchangeBase.GetDefaultCredentials()) != nil {
 		log.Warnf(log.BackTester, "no credentials set for %v, this is theoretical only", exchangeBase.Name)
 	}
 
@@ -801,21 +801,22 @@ func loadLiveData(cfg *config.Config, base *gctexchange.Base) error {
 	}
 
 	if cfg.DataSettings.LiveData.APIKeyOverride != "" {
-		base.API.Credentials.Key = cfg.DataSettings.LiveData.APIKeyOverride
+		base.API.SetKey(cfg.DataSettings.LiveData.APIKeyOverride)
 	}
 	if cfg.DataSettings.LiveData.APISecretOverride != "" {
-		base.API.Credentials.Secret = cfg.DataSettings.LiveData.APISecretOverride
+		base.API.SetSecret(cfg.DataSettings.LiveData.APISecretOverride)
 	}
 	if cfg.DataSettings.LiveData.APIClientIDOverride != "" {
-		base.API.Credentials.ClientID = cfg.DataSettings.LiveData.APIClientIDOverride
+		base.API.SetClientID(cfg.DataSettings.LiveData.APIClientIDOverride)
 	}
 	if cfg.DataSettings.LiveData.API2FAOverride != "" {
-		base.API.Credentials.PEMKey = cfg.DataSettings.LiveData.API2FAOverride
+		base.API.SetPEMKey(cfg.DataSettings.LiveData.API2FAOverride)
 	}
 	if cfg.DataSettings.LiveData.APISubAccountOverride != "" {
-		base.API.Credentials.Subaccount = cfg.DataSettings.LiveData.APISubAccountOverride
+		base.API.SetSubAccount(cfg.DataSettings.LiveData.APISubAccountOverride)
 	}
-	validated := base.ValidateAPICredentials()
+
+	validated := base.AreCredentialsValid(context.TODO())
 	base.API.AuthenticatedSupport = validated
 	if !validated && cfg.DataSettings.LiveData.RealOrders {
 		log.Warn(log.BackTester, "invalid API credentials set, real orders set to false")

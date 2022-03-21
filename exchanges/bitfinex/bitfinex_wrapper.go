@@ -869,7 +869,7 @@ func (b *Bitfinex) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBui
 	if feeBuilder == nil {
 		return 0, fmt.Errorf("%T %w", feeBuilder, common.ErrNilPointer)
 	}
-	if !b.AllowAuthenticatedRequest() && // Todo check connection status
+	if !b.AreCredentialsValid(ctx) && // Todo check connection status
 		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		feeBuilder.FeeType = exchange.OfflineTradeFee
 	}
@@ -1018,8 +1018,8 @@ func (b *Bitfinex) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequ
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket
-func (b *Bitfinex) AuthenticateWebsocket(_ context.Context) error {
-	return b.WsSendAuth()
+func (b *Bitfinex) AuthenticateWebsocket(ctx context.Context) error {
+	return b.WsSendAuth(ctx)
 }
 
 // appendOptionalDelimiter ensures that a delimiter is present for long character currencies

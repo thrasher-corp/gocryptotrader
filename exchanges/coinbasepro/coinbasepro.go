@@ -702,8 +702,9 @@ func (c *CoinbasePro) SendHTTPRequest(ctx context.Context, ep exchange.URL, path
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
 func (c *CoinbasePro) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method, path string, params map[string]interface{}, result interface{}) (err error) {
-	if !c.AllowAuthenticatedRequest() {
-		return fmt.Errorf("%s %w", c.Name, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
+	creds, err := c.GetCredentials(ctx)
+	if err != nil {
+		return err
 	}
 	endpoint, err := c.API.Endpoints.GetURL(ep)
 	if err != nil {
@@ -724,7 +725,7 @@ func (c *CoinbasePro) SendAuthenticatedHTTPRequest(ctx context.Context, ep excha
 
 		hmac, err := crypto.GetHMAC(crypto.HashSHA256,
 			[]byte(message),
-			[]byte(c.API.Credentials.Secret))
+			[]byte(creds.Secret))
 		if err != nil {
 			return nil, err
 		}
@@ -732,8 +733,8 @@ func (c *CoinbasePro) SendAuthenticatedHTTPRequest(ctx context.Context, ep excha
 		headers := make(map[string]string)
 		headers["CB-ACCESS-SIGN"] = crypto.Base64Encode(hmac)
 		headers["CB-ACCESS-TIMESTAMP"] = n
-		headers["CB-ACCESS-KEY"] = c.API.Credentials.Key
-		headers["CB-ACCESS-PASSPHRASE"] = c.API.Credentials.ClientID
+		headers["CB-ACCESS-KEY"] = creds.Key
+		headers["CB-ACCESS-PASSPHRASE"] = creds.ClientID
 		headers["Content-Type"] = "application/json"
 
 		return &request.Item{

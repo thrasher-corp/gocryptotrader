@@ -50,8 +50,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("Bitfinex setup error", err)
 	}
-	b.API.Credentials.Key = apiKey
-	b.API.Credentials.Secret = apiSecret
+	b.SetCredentials(apiKey, apiSecret, "", "", "", "")
 	if !b.Enabled || b.API.AuthenticatedSupport ||
 		b.Verbose || b.Websocket.IsEnabled() || len(b.BaseCurrencies) < 1 {
 		log.Fatal("Bitfinex Setup values not set correctly")
@@ -341,7 +340,7 @@ func TestGetWithdrawalFee(t *testing.T) {
 }
 
 func TestGetAccountSummary(t *testing.T) {
-	if !b.ValidateAPICredentials() {
+	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
 	t.Parallel()
@@ -353,7 +352,7 @@ func TestGetAccountSummary(t *testing.T) {
 }
 
 func TestNewDeposit(t *testing.T) {
-	if !b.ValidateAPICredentials() {
+	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
 	t.Parallel()
@@ -374,7 +373,7 @@ func TestNewDeposit(t *testing.T) {
 }
 
 func TestGetKeyPermissions(t *testing.T) {
-	if !b.ValidateAPICredentials() {
+	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
 	t.Parallel()
@@ -386,7 +385,7 @@ func TestGetKeyPermissions(t *testing.T) {
 }
 
 func TestGetMarginInfo(t *testing.T) {
-	if !b.ValidateAPICredentials() {
+	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
 	t.Parallel()
@@ -398,7 +397,7 @@ func TestGetMarginInfo(t *testing.T) {
 }
 
 func TestGetAccountBalance(t *testing.T) {
-	if !b.ValidateAPICredentials() {
+	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
 	t.Parallel()
@@ -410,7 +409,7 @@ func TestGetAccountBalance(t *testing.T) {
 }
 
 func TestGetAccountInfo(t *testing.T) {
-	if !b.ValidateAPICredentials() {
+	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
 	t.Parallel()
@@ -422,7 +421,7 @@ func TestGetAccountInfo(t *testing.T) {
 }
 
 func TestWalletTransfer(t *testing.T) {
-	if !b.ValidateAPICredentials() {
+	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
 	t.Parallel()
@@ -434,7 +433,7 @@ func TestWalletTransfer(t *testing.T) {
 }
 
 func TestNewOrder(t *testing.T) {
-	if !b.ValidateAPICredentials() {
+	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
 	t.Parallel()
@@ -471,7 +470,7 @@ func TestUpdateTickers(t *testing.T) {
 }
 
 func TestNewOrderMulti(t *testing.T) {
-	if !b.ValidateAPICredentials() {
+	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
 	t.Parallel()
@@ -494,7 +493,7 @@ func TestNewOrderMulti(t *testing.T) {
 }
 
 func TestCancelOrder(t *testing.T) {
-	if !b.ValidateAPICredentials() {
+	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
 	t.Parallel()
@@ -506,7 +505,7 @@ func TestCancelOrder(t *testing.T) {
 }
 
 func TestCancelMultipleOrders(t *testing.T) {
-	if !b.ValidateAPICredentials() {
+	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
 	t.Parallel()
@@ -518,7 +517,7 @@ func TestCancelMultipleOrders(t *testing.T) {
 }
 
 func TestCancelAllOrders(t *testing.T) {
-	if !b.ValidateAPICredentials() {
+	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
 	t.Parallel()
@@ -530,7 +529,7 @@ func TestCancelAllOrders(t *testing.T) {
 }
 
 func TestReplaceOrder(t *testing.T) {
-	if !b.ValidateAPICredentials() {
+	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
 	t.Parallel()
@@ -543,7 +542,7 @@ func TestReplaceOrder(t *testing.T) {
 }
 
 func TestGetOrderStatus(t *testing.T) {
-	if !b.ValidateAPICredentials() {
+	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
 	t.Parallel()
@@ -555,7 +554,7 @@ func TestGetOrderStatus(t *testing.T) {
 }
 
 func TestGetOpenOrders(t *testing.T) {
-	if !b.ValidateAPICredentials() {
+	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
 	t.Parallel()
@@ -567,7 +566,7 @@ func TestGetOpenOrders(t *testing.T) {
 }
 
 func TestGetActivePositions(t *testing.T) {
-	if !b.ValidateAPICredentials() {
+	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
 	t.Parallel()
@@ -579,7 +578,7 @@ func TestGetActivePositions(t *testing.T) {
 }
 
 func TestClaimPosition(t *testing.T) {
-	if !b.ValidateAPICredentials() {
+	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
 	t.Parallel()
@@ -591,7 +590,7 @@ func TestClaimPosition(t *testing.T) {
 }
 
 func TestGetBalanceHistory(t *testing.T) {
-	if !b.ValidateAPICredentials() {
+	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
 	t.Parallel()
@@ -603,7 +602,7 @@ func TestGetBalanceHistory(t *testing.T) {
 }
 
 func TestGetMovementHistory(t *testing.T) {
-	if !b.ValidateAPICredentials() {
+	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
 	t.Parallel()
@@ -615,7 +614,7 @@ func TestGetMovementHistory(t *testing.T) {
 }
 
 func TestGetTradeHistory(t *testing.T) {
-	if !b.ValidateAPICredentials() {
+	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
 	t.Parallel()
@@ -627,7 +626,7 @@ func TestGetTradeHistory(t *testing.T) {
 }
 
 func TestNewOffer(t *testing.T) {
-	if !b.ValidateAPICredentials() {
+	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
 	t.Parallel()
@@ -639,7 +638,7 @@ func TestNewOffer(t *testing.T) {
 }
 
 func TestCancelOffer(t *testing.T) {
-	if !b.ValidateAPICredentials() {
+	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
 	t.Parallel()
@@ -651,7 +650,7 @@ func TestCancelOffer(t *testing.T) {
 }
 
 func TestGetOfferStatus(t *testing.T) {
-	if !b.ValidateAPICredentials() {
+	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
 	t.Parallel()
@@ -663,7 +662,7 @@ func TestGetOfferStatus(t *testing.T) {
 }
 
 func TestGetActiveCredits(t *testing.T) {
-	if !b.ValidateAPICredentials() {
+	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
 	t.Parallel()
@@ -675,7 +674,7 @@ func TestGetActiveCredits(t *testing.T) {
 }
 
 func TestGetActiveOffers(t *testing.T) {
-	if !b.ValidateAPICredentials() {
+	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
 	t.Parallel()
@@ -687,7 +686,7 @@ func TestGetActiveOffers(t *testing.T) {
 }
 
 func TestGetActiveMarginFunding(t *testing.T) {
-	if !b.ValidateAPICredentials() {
+	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
 	t.Parallel()
@@ -699,7 +698,7 @@ func TestGetActiveMarginFunding(t *testing.T) {
 }
 
 func TestGetUnusedMarginFunds(t *testing.T) {
-	if !b.ValidateAPICredentials() {
+	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
 	t.Parallel()
@@ -711,7 +710,7 @@ func TestGetUnusedMarginFunds(t *testing.T) {
 }
 
 func TestGetMarginTotalTakenFunds(t *testing.T) {
-	if !b.ValidateAPICredentials() {
+	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
 	t.Parallel()
@@ -723,7 +722,7 @@ func TestGetMarginTotalTakenFunds(t *testing.T) {
 }
 
 func TestCloseMarginFunding(t *testing.T) {
-	if !b.ValidateAPICredentials() {
+	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
 	t.Parallel()
@@ -867,7 +866,7 @@ func TestGetOrderHistory(t *testing.T) {
 // Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
 // ----------------------------------------------------------------------------------------------------------------------------
 func areTestAPIKeysSet() bool {
-	return b.ValidateAPICredentials()
+	return b.ValidateAPICredentials(b.GetDefaultCredentials()) == nil
 }
 
 func TestSubmitOrder(t *testing.T) {
@@ -1086,7 +1085,7 @@ func TestWsAuth(t *testing.T) {
 func runAuth(t *testing.T) {
 	t.Helper()
 	setupWs()
-	if err := b.WsSendAuth(); err != nil {
+	if err := b.WsSendAuth(context.Background()); err != nil {
 		t.Error(err)
 	}
 	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)

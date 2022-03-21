@@ -865,8 +865,9 @@ func (p *Poloniex) SendHTTPRequest(ctx context.Context, ep exchange.URL, path st
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
 func (p *Poloniex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method, endpoint string, values url.Values, result interface{}) error {
-	if !p.AllowAuthenticatedRequest() {
-		return fmt.Errorf("%s %w", p.Name, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
+	creds, err := p.GetCredentials(ctx)
+	if err != nil {
+		return err
 	}
 	ePoint, err := p.API.Endpoints.GetURL(ep)
 	if err != nil {
@@ -876,13 +877,13 @@ func (p *Poloniex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 	return p.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		headers := make(map[string]string)
 		headers["Content-Type"] = "application/x-www-form-urlencoded"
-		headers["Key"] = p.API.Credentials.Key
+		headers["Key"] = creds.Key
 		values.Set("nonce", p.Requester.GetNonce(true).String())
 		values.Set("command", endpoint)
 
 		hmac, err := crypto.GetHMAC(crypto.HashSHA512,
 			[]byte(values.Encode()),
-			[]byte(p.API.Credentials.Secret))
+			[]byte(creds.Secret))
 		if err != nil {
 			return nil, err
 		}

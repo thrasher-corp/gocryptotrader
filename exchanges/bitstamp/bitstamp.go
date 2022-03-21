@@ -565,8 +565,9 @@ func (b *Bitstamp) SendHTTPRequest(ctx context.Context, ep exchange.URL, path st
 
 // SendAuthenticatedHTTPRequest sends an authenticated request
 func (b *Bitstamp) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, path string, v2 bool, values url.Values, result interface{}) error {
-	if !b.AllowAuthenticatedRequest() {
-		return fmt.Errorf("%s %w", b.Name, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
+	creds, err := b.GetCredentials(ctx)
+	if err != nil {
+		return err
 	}
 	endpoint, err := b.API.Endpoints.GetURL(ep)
 	if err != nil {
@@ -581,13 +582,13 @@ func (b *Bitstamp) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 	err = b.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		n := b.Requester.GetNonce(true).String()
 
-		values.Set("key", b.API.Credentials.Key)
+		values.Set("key", creds.Key)
 		values.Set("nonce", n)
 
 		var hmac []byte
 		hmac, err = crypto.GetHMAC(crypto.HashSHA256,
-			[]byte(n+b.API.Credentials.ClientID+b.API.Credentials.Key),
-			[]byte(b.API.Credentials.Secret))
+			[]byte(n+creds.ClientID+creds.Key),
+			[]byte(creds.Secret))
 		if err != nil {
 			return nil, err
 		}

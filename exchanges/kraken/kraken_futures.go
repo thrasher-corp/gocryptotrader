@@ -271,7 +271,7 @@ func (k *Kraken) GetFuturesAccountData(ctx context.Context) (FuturesAccountsData
 	return resp, k.SendFuturesAuthRequest(ctx, http.MethodGet, futuresAccountData, nil, &resp)
 }
 
-func (k *Kraken) signFuturesRequest(endpoint, nonce, data string) (string, error) {
+func (k *Kraken) signFuturesRequest(secret, endpoint, nonce, data string) (string, error) {
 	message := data + nonce + endpoint
 	hash, err := crypto.GetSHA256([]byte(message))
 	if err != nil {
@@ -279,7 +279,7 @@ func (k *Kraken) signFuturesRequest(endpoint, nonce, data string) (string, error
 	}
 	hc, err := crypto.GetHMAC(crypto.HashSHA512,
 		hash,
-		[]byte(k.API.Credentials.Secret))
+		[]byte(secret))
 	if err != nil {
 		return "", err
 	}
@@ -288,8 +288,9 @@ func (k *Kraken) signFuturesRequest(endpoint, nonce, data string) (string, error
 
 // SendFuturesAuthRequest will send an auth req
 func (k *Kraken) SendFuturesAuthRequest(ctx context.Context, method, path string, data url.Values, result interface{}) error {
-	if !k.AllowAuthenticatedRequest() {
-		return fmt.Errorf("%s %w", k.Name, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
+	creds, err := k.GetCredentials(ctx)
+	if err != nil {
+		return err
 	}
 	if data == nil {
 		data = url.Values{}
@@ -304,13 +305,13 @@ func (k *Kraken) SendFuturesAuthRequest(ctx context.Context, method, path string
 	interim := json.RawMessage{}
 	newRequest := func() (*request.Item, error) {
 		nonce := strconv.FormatInt(time.Now().UnixNano(), 10)
-
-		sig, err := k.signFuturesRequest(path, nonce, dataToSign)
+		var sig string
+		sig, err = k.signFuturesRequest(creds.Secret, path, nonce, dataToSign)
 		if err != nil {
 			return nil, err
 		}
 		headers := map[string]string{
-			"APIKey":  k.API.Credentials.Key,
+			"APIKey":  creds.Key,
 			"Authent": sig,
 			"Nonce":   nonce,
 		}
@@ -327,7 +328,7 @@ func (k *Kraken) SendFuturesAuthRequest(ctx context.Context, method, path string
 		}, nil
 	}
 
-	err := k.SendPayload(ctx, request.Unset, newRequest)
+	err = k.SendPayload(ctx, request.Unset, newRequest)
 	if err != nil {
 		return err
 	}

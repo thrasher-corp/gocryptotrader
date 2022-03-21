@@ -272,7 +272,7 @@ func TestGetOrderHistory(t *testing.T) {
 // Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
 // ----------------------------------------------------------------------------------------------------------------------------
 func areTestAPIKeysSet() bool {
-	return l.ValidateAPICredentials()
+	return l.ValidateAPICredentials(l.GetDefaultCredentials()) == nil
 }
 
 func TestSubmitOrder(t *testing.T) {

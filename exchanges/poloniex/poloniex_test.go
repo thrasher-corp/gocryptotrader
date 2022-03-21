@@ -32,7 +32,7 @@ const (
 var p Poloniex
 
 func areTestAPIKeysSet() bool {
-	return p.ValidateAPICredentials()
+	return p.ValidateAPICredentials(p.GetDefaultCredentials()) == nil
 }
 
 func TestStart(t *testing.T) {
@@ -563,7 +563,11 @@ func TestWsAuth(t *testing.T) {
 		t.Fatal(err)
 	}
 	go p.wsReadData()
-	err = p.wsSendAuthorisedCommand("subscribe")
+	creds, err := p.GetCredentials(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = p.wsSendAuthorisedCommand(creds.Secret, creds.Key, "subscribe")
 	if err != nil {
 		t.Fatal(err)
 	}
