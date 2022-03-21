@@ -64,14 +64,14 @@ supplied meet the requirements to make an authenticated request.
     // default credentials.
     // Make a standard context and add credentials to it by using exchange 
     // package helper function DeployCredentialsToContext
-	ctx := context.Background() 
-	ctx = exchange.DeployCredentialsToContext(ctx, &exchange.Credentials{
-		Key:        "your_key",
-		Secret:     "your_secret",
-		ClientID:   "your_clientid",
-		PEMKey:     "your_PEM_key",
-		SubAccount: "your_specific_subaccount",
-	})
+    ctx := context.Background() 
+    ctx = exchange.DeployCredentialsToContext(ctx, &exchange.Credentials{
+        Key:        "your_key",
+        Secret:     "your_secret",
+        ClientID:   "your_clientid",
+        PEMKey:     "your_PEM_key",
+        SubAccount: "your_specific_subaccount",
+    })
 
 
     o := &order.Submit{
