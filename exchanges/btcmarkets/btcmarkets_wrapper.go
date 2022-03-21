@@ -23,6 +23,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -167,7 +168,11 @@ func (b *BTCMarkets) Setup(exch *config.Exchange) error {
 		Subscriber:            b.Subscribe,
 		GenerateSubscriptions: b.generateDefaultSubscriptions,
 		Features:              &b.Features.Supports.WebsocketCapabilities,
-		SortBuffer:            true,
+		OrderbookBufferConfig: buffer.Config{
+			SortBuffer:          true,
+			UpdateIDProgression: true,
+			Checksum:            checksum,
+		},
 	})
 	if err != nil {
 		return err
@@ -386,7 +391,9 @@ func (b *BTCMarkets) UpdateOrderbook(ctx context.Context, p currency.Pair, asset
 		return book, err
 	}
 
-	tempResp, err := b.GetOrderbook(ctx, fpair.String(), 2)
+	// Retrieve level one book which is the top 50 ask and bids, this is not
+	// cached.
+	tempResp, err := b.GetOrderbook(ctx, fpair.String(), 1)
 	if err != nil {
 		return book, err
 	}
