@@ -113,13 +113,7 @@ func (by *Bybit) UnsubscribeUSDT(channelsToUnsubscribe []stream.ChannelSubscript
 		var unSub WsFuturesReq
 		unSub.Topic = unsubscribe
 
-		a, err := by.GetPairAssetType(channelsToUnsubscribe[i].Currency)
-		if err != nil {
-			errs = append(errs, err)
-			continue
-		}
-
-		formattedPair, err := by.FormatExchangeCurrency(channelsToUnsubscribe[i].Currency, a)
+		formattedPair, err := by.FormatExchangeCurrency(channelsToUnsubscribe[i].Currency, asset.USDTMarginedFutures)
 		if err != nil {
 			errs = append(errs, err)
 			continue
@@ -196,15 +190,10 @@ func (by *Bybit) wsUSDTHandleData(respRaw []byte) error {
 					return err
 				}
 
-				var a asset.Item
-				a, err = by.GetPairAssetType(p)
-				if err != nil {
-					return err
-				}
 				err = by.processOrderbook(response.Data.OBData,
 					response.Type,
 					p,
-					a)
+					asset.USDTMarginedFutures)
 				if err != nil {
 					return err
 				}
@@ -223,15 +212,10 @@ func (by *Bybit) wsUSDTHandleData(respRaw []byte) error {
 						return err
 					}
 
-					var a asset.Item
-					a, err = by.GetPairAssetType(p)
-					if err != nil {
-						return err
-					}
 					err = by.processOrderbook(response.OBData.Delete,
 						wsOrderbookActionDelete,
 						p,
-						a)
+						asset.USDTMarginedFutures)
 					if err != nil {
 						return err
 					}
@@ -244,15 +228,10 @@ func (by *Bybit) wsUSDTHandleData(respRaw []byte) error {
 						return err
 					}
 
-					var a asset.Item
-					a, err = by.GetPairAssetType(p)
-					if err != nil {
-						return err
-					}
 					err = by.processOrderbook(response.OBData.Update,
 						wsOrderbookActionUpdate,
 						p,
-						a)
+						asset.USDTMarginedFutures)
 					if err != nil {
 						return err
 					}
@@ -265,15 +244,10 @@ func (by *Bybit) wsUSDTHandleData(respRaw []byte) error {
 						return err
 					}
 
-					var a asset.Item
-					a, err = by.GetPairAssetType(p)
-					if err != nil {
-						return err
-					}
 					err = by.processOrderbook(response.OBData.Insert,
 						wsOrderbookActionInsert,
 						p,
-						a)
+						asset.USDTMarginedFutures)
 					if err != nil {
 						return err
 					}
@@ -300,12 +274,6 @@ func (by *Bybit) wsUSDTHandleData(respRaw []byte) error {
 				return err
 			}
 
-			var a asset.Item
-			a, err = by.GetPairAssetType(p)
-			if err != nil {
-				return err
-			}
-
 			var oSide order.Side
 			oSide, err = order.StringToOrderSide(response.TradeData[i].Side)
 			if err != nil {
@@ -319,7 +287,7 @@ func (by *Bybit) wsUSDTHandleData(respRaw []byte) error {
 				TID:          response.TradeData[i].ID,
 				Exchange:     by.Name,
 				CurrencyPair: p,
-				AssetType:    a,
+				AssetType:    asset.USDTMarginedFutures,
 				Side:         oSide,
 				Price:        response.TradeData[i].Price,
 				Amount:       response.TradeData[i].Size,
@@ -341,15 +309,10 @@ func (by *Bybit) wsUSDTHandleData(respRaw []byte) error {
 			return err
 		}
 
-		var a asset.Item
-		a, err = by.GetPairAssetType(p)
-		if err != nil {
-			return err
-		}
 		for i := range response.KlineData {
 			by.Websocket.DataHandler <- stream.KlineData{
 				Pair:       p,
-				AssetType:  a,
+				AssetType:  asset.USDTMarginedFutures,
 				Exchange:   by.Name,
 				OpenPrice:  response.KlineData[i].Open,
 				HighPrice:  response.KlineData[i].High,
@@ -376,11 +339,6 @@ func (by *Bybit) wsUSDTHandleData(respRaw []byte) error {
 					return err
 				}
 
-				var a asset.Item
-				a, err = by.GetPairAssetType(p)
-				if err != nil {
-					return err
-				}
 				by.Websocket.DataHandler <- &ticker.Price{
 					ExchangeName: by.Name,
 					Last:         response.Ticker.LastPrice,
@@ -391,7 +349,7 @@ func (by *Bybit) wsUSDTHandleData(respRaw []byte) error {
 					Volume:       response.Ticker.Volume24h,
 					Close:        response.Ticker.PrevPrice24h,
 					LastUpdated:  response.Ticker.UpdateAt,
-					AssetType:    a,
+					AssetType:    asset.USDTMarginedFutures,
 					Pair:         p,
 				}
 
@@ -410,12 +368,6 @@ func (by *Bybit) wsUSDTHandleData(respRaw []byte) error {
 							return err
 						}
 
-						var a asset.Item
-						a, err = by.GetPairAssetType(p)
-						if err != nil {
-							return err
-						}
-
 						by.Websocket.DataHandler <- &ticker.Price{
 							ExchangeName: by.Name,
 							Last:         response.Data.Delete[x].LastPrice,
@@ -426,7 +378,7 @@ func (by *Bybit) wsUSDTHandleData(respRaw []byte) error {
 							Volume:       response.Data.Delete[x].Volume24h,
 							Close:        response.Data.Delete[x].PrevPrice24h,
 							LastUpdated:  response.Data.Delete[x].UpdateAt,
-							AssetType:    a,
+							AssetType:    asset.USDTMarginedFutures,
 							Pair:         p,
 						}
 					}
@@ -436,12 +388,6 @@ func (by *Bybit) wsUSDTHandleData(respRaw []byte) error {
 					for x := range response.Data.Update {
 						var p currency.Pair
 						p, err = currency.NewPairFromString(response.Data.Update[x].Symbol)
-						if err != nil {
-							return err
-						}
-
-						var a asset.Item
-						a, err = by.GetPairAssetType(p)
 						if err != nil {
 							return err
 						}
@@ -456,7 +402,7 @@ func (by *Bybit) wsUSDTHandleData(respRaw []byte) error {
 							Volume:       response.Data.Update[x].Volume24h,
 							Close:        response.Data.Update[x].PrevPrice24h,
 							LastUpdated:  response.Data.Update[x].UpdateAt,
-							AssetType:    a,
+							AssetType:    asset.USDTMarginedFutures,
 							Pair:         p,
 						}
 					}
@@ -466,12 +412,6 @@ func (by *Bybit) wsUSDTHandleData(respRaw []byte) error {
 					for x := range response.Data.Insert {
 						var p currency.Pair
 						p, err = currency.NewPairFromString(response.Data.Insert[x].Symbol)
-						if err != nil {
-							return err
-						}
-
-						var a asset.Item
-						a, err = by.GetPairAssetType(p)
 						if err != nil {
 							return err
 						}
@@ -486,7 +426,7 @@ func (by *Bybit) wsUSDTHandleData(respRaw []byte) error {
 							Volume:       response.Data.Insert[x].Volume24h,
 							Close:        response.Data.Insert[x].PrevPrice24h,
 							LastUpdated:  response.Data.Insert[x].UpdateAt,
-							AssetType:    a,
+							AssetType:    asset.USDTMarginedFutures,
 							Pair:         p,
 						}
 					}
@@ -527,11 +467,6 @@ func (by *Bybit) wsUSDTHandleData(respRaw []byte) error {
 				return err
 			}
 
-			var a asset.Item
-			a, err = by.GetPairAssetType(p)
-			if err != nil {
-				return err
-			}
 			var oStatus order.Status
 			oStatus, err = order.StringToOrderStatus(response.Data[i].ExecutionType)
 			if err != nil {
@@ -553,7 +488,7 @@ func (by *Bybit) wsUSDTHandleData(respRaw []byte) error {
 			by.Websocket.DataHandler <- &order.Modify{
 				Exchange:  by.Name,
 				ID:        response.Data[i].OrderID,
-				AssetType: a,
+				AssetType: asset.USDTMarginedFutures,
 				Pair:      p,
 				Status:    oStatus,
 				Trades: []order.TradeHistory{

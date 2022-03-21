@@ -100,13 +100,7 @@ func (by *Bybit) Subscribe(channelsToSubscribe []stream.ChannelSubscription) err
 		subReq.Topic = channelsToSubscribe[i].Channel
 		subReq.Event = sub
 
-		a, err := by.GetPairAssetType(channelsToSubscribe[i].Currency)
-		if err != nil {
-			errs = append(errs, err)
-			continue
-		}
-
-		formattedPair, err := by.FormatExchangeCurrency(channelsToSubscribe[i].Currency, a)
+		formattedPair, err := by.FormatExchangeCurrency(channelsToSubscribe[i].Currency, asset.Spot)
 		if err != nil {
 			errs = append(errs, err)
 			continue
@@ -136,13 +130,7 @@ func (by *Bybit) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription)
 		unSub.Event = cancel
 		unSub.Topic = channelsToUnsubscribe[i].Channel
 
-		a, err := by.GetPairAssetType(channelsToUnsubscribe[i].Currency)
-		if err != nil {
-			errs = append(errs, err)
-			continue
-		}
-
-		formattedPair, err := by.FormatExchangeCurrency(channelsToUnsubscribe[i].Currency, a)
+		formattedPair, err := by.FormatExchangeCurrency(channelsToUnsubscribe[i].Currency, asset.Spot)
 		if err != nil {
 			errs = append(errs, err)
 			continue
@@ -345,12 +333,7 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 			return err
 		}
 
-		a, err := by.GetPairAssetType(p)
-		if err != nil {
-			return err
-		}
-
-		err = by.wsUpdateOrderbook(&data.OBData, p, a)
+		err = by.wsUpdateOrderbook(&data.OBData, p, asset.Spot)
 		if err != nil {
 			return err
 		}
@@ -374,15 +357,11 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 		if data.TradeData.Side {
 			side = order.Buy
 		}
-		var a asset.Item
-		a, err = by.GetPairAssetType(p)
-		if err != nil {
-			return err
-		}
+
 		return trade.AddTradesToBuffer(by.Name, trade.Data{
 			Timestamp:    time.Unix(data.TradeData.Time, 0),
 			CurrencyPair: p,
-			AssetType:    a,
+			AssetType:    asset.Spot,
 			Exchange:     by.Name,
 			Price:        data.TradeData.Price,
 			Amount:       data.TradeData.Size,
@@ -423,13 +402,9 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 			return err
 		}
 
-		a, err := by.GetPairAssetType(p)
-		if err != nil {
-			return err
-		}
 		by.Websocket.DataHandler <- stream.KlineData{
 			Pair:       p,
-			AssetType:  a,
+			AssetType:  asset.Spot,
 			Exchange:   by.Name,
 			StartTime:  data.Kline.StartTime,
 			Interval:   data.Parameters.KlineType,
