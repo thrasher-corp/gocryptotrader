@@ -37,7 +37,7 @@ func TestMain(m *testing.M) {
 	}
 
 	exchCfg.API.AuthenticatedSupport = true
-	exchCfg.API.AuthenticatedWebsocketSupport = true
+	exchCfg.API.AuthenticatedWebsocketSupport = false
 	exchCfg.API.Credentials.Key = apiKey
 	exchCfg.API.Credentials.Secret = apiSecret
 	by.Websocket = sharedtestvalues.NewTestWebsocket()
