@@ -178,29 +178,18 @@ func (by *Bybit) wsReadData() {
 func (by *Bybit) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
 	var subscriptions []stream.ChannelSubscription
 	var channels = []string{wsTicker, wsTrades, wsOrderbook}
-	assets := by.GetAssetTypes(true)
-	for a := range assets {
-		pairs, err := by.GetEnabledPairs(assets[a])
-		if err != nil {
-			return nil, err
-		}
-		for z := range pairs {
-			for x := range channels {
-				subscriptions = append(subscriptions,
-					stream.ChannelSubscription{
-						Channel:  channels[x],
-						Currency: pairs[z],
-						Asset:    assets[a],
-					})
-			}
-		}
+	pairs, err := by.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		return nil, err
 	}
-	if by.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
-		var authchan = []string{wsAccountInfoStr, wsOrderStr, wsOrderFilledStr}
-		for x := range authchan {
-			subscriptions = append(subscriptions, stream.ChannelSubscription{
-				Channel: authchan[x],
-			})
+	for z := range pairs {
+		for x := range channels {
+			subscriptions = append(subscriptions,
+				stream.ChannelSubscription{
+					Channel:  channels[x],
+					Currency: pairs[z],
+					Asset:    asset.Spot,
+				})
 		}
 	}
 	return subscriptions, nil
