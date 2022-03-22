@@ -9,7 +9,7 @@ require (
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/websocket v1.5.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
-	github.com/grpc-ecosystem/grpc-gateway/v2 v2.9.0
+	github.com/grpc-ecosystem/grpc-gateway/v2 v2.10.0
 	github.com/kat-co/vala v0.0.0-20170210184112-42e1d8b61f12
 	github.com/lib/pq v1.10.4
 	github.com/mattn/go-sqlite3 v1.14.10
@@ -25,7 +25,7 @@ require (
 	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5
 	golang.org/x/net v0.0.0-20220127200216-cd36cc0744dd
 	golang.org/x/time v0.0.0-20191024005414-555d28b269f0
-	google.golang.org/genproto v0.0.0-20220314164441-57ef72a4c106
+	google.golang.org/genproto v0.0.0-20220317150908-0efb43f6373e
 	google.golang.org/grpc v1.45.0
 	google.golang.org/protobuf v1.27.1
 )
