@@ -1281,7 +1281,8 @@ func (f *FTX) CalculatePNL(ctx context.Context, pnl *order.PNLCalculatorRequest)
 		return nil, fmt.Errorf("%v %w", f.Name, order.ErrNilPNLCalculator)
 	}
 	result := &order.PNLResult{
-		Time: pnl.Time,
+		Time:    pnl.Time,
+		IsEvent: true,
 	}
 	var err error
 	if pnl.CalculateOffline {

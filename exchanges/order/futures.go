@@ -428,6 +428,7 @@ func (p *PositionTracker) TrackPNLByTime(t time.Time, currentPrice float64) erro
 	result := &PNLResult{
 		Time:  t,
 		Price: price,
+		Fee:   decimal.Zero,
 	}
 	if p.currentDirection.IsLong() {
 		diff := price.Sub(p.entryPrice)
@@ -715,6 +716,7 @@ func (p *PNLCalculator) CalculatePNL(_ context.Context, calc *PNLCalculatorReque
 	}
 
 	response := &PNLResult{
+		IsEvent:               true,
 		Time:                  calc.Time,
 		UnrealisedPNL:         unrealisedPNL,
 		RealisedPNLBeforeFees: realisedPNL,
@@ -731,6 +733,9 @@ func (p *PNLCalculator) CalculatePNL(_ context.Context, calc *PNLCalculatorReque
 func calculateRealisedPNL(pnlHistory []PNLResult) decimal.Decimal {
 	var realisedPNL, totalFees decimal.Decimal
 	for i := range pnlHistory {
+		if !pnlHistory[i].IsEvent {
+			continue
+		}
 		realisedPNL = realisedPNL.Add(pnlHistory[i].RealisedPNLBeforeFees)
 		totalFees = totalFees.Add(pnlHistory[i].Fee)
 	}

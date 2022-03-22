@@ -17,7 +17,7 @@
     "exchange-name": "ftx",
     "asset": "spot",
     "currency": "USDT",
-    "initial-funds": "10000",
+    "initial-funds": "10",
     "transfer-fee": "0"
    }
   ],

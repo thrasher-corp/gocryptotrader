@@ -75,6 +75,12 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundTransf
 		futuresSignal.SetDirection(common.DoNothing)
 		fp := v.futureSignal.Latest().GetClosePrice()
 		sp := v.spotSignal.Latest().GetClosePrice()
+		hundred := decimal.NewFromInt(100)
+		diffBetweenFuturesSpot := fp.Sub(sp).Div(sp).Mul(hundred)
+		futuresSignal.AppendReason(fmt.Sprintf("Difference %v", diffBetweenFuturesSpot))
+		if pos != nil && pos[len(pos)-1].Status == order.Open {
+			futuresSignal.AppendReason(fmt.Sprintf("Unrealised PNL %v", pos[len(pos)-1].UnrealisedPNL))
+		}
 		switch {
 		case len(pos) == 0:
 			// check to see if order is appropriate to action
@@ -95,21 +101,30 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundTransf
 			spotSignal.FillDependentEvent = &futuresSignal
 			// only appending spotSignal as futuresSignal will be raised later
 			response = append(response, &spotSignal)
-		case len(pos) > 0 && v.futureSignal.IsLastEvent():
+		case len(pos) > 0 &&
+			pos[len(pos)-1].Status == order.Open &&
+			v.futureSignal.IsLastEvent():
 			futuresSignal.SetDirection(common.ClosePosition)
 			futuresSignal.AppendReason("Closing position on last event")
 			response = append(response, &spotSignal, &futuresSignal)
-		case len(pos) > 0 && pos[len(pos)-1].Status == order.Open &&
-			fp.Sub(sp).Div(sp).GreaterThan(s.closeShortDistancePercentage):
+		case len(pos) > 0 &&
+			pos[len(pos)-1].Status == order.Open &&
+			pos[len(pos)-1].OpeningPrice.GreaterThan(futuresSignal.ClosePrice) &&
+			s.alwaysCloseOnProfit:
 			futuresSignal.SetDirection(common.ClosePosition)
-			futuresSignal.AppendReason("Closing position after reaching close short distance percentage")
+			futuresSignal.AppendReason(fmt.Sprintf("Closing position. Always close on profit. UPNL %v", pos[len(pos)-1].UnrealisedPNL))
+			response = append(response, &spotSignal, &futuresSignal)
+		case len(pos) > 0 && pos[len(pos)-1].Status == order.Open &&
+			diffBetweenFuturesSpot.LessThanOrEqual(s.closeShortDistancePercentage):
+			futuresSignal.SetDirection(common.ClosePosition)
+			futuresSignal.AppendReason(fmt.Sprintf("Closing position. Threshold %v", s.closeShortDistancePercentage))
 			response = append(response, &spotSignal, &futuresSignal)
 		case len(pos) > 0 &&
 			pos[len(pos)-1].Status == order.Closed &&
-			fp.Sub(sp).Div(sp).GreaterThan(s.openShortDistancePercentage):
+			diffBetweenFuturesSpot.GreaterThan(s.openShortDistancePercentage):
 			futuresSignal.SetDirection(order.Short)
 			futuresSignal.SetPrice(v.futureSignal.Latest().GetClosePrice())
-			futuresSignal.AppendReason("opening position after reaching open short distance percentage")
+			futuresSignal.AppendReason(fmt.Sprintf("Opening position. Threshold %v", s.openShortDistancePercentage))
 			response = append(response, &spotSignal, &futuresSignal)
 		default:
 			response = append(response, &spotSignal, &futuresSignal)
@@ -184,5 +199,8 @@ func (s *Strategy) SetCustomSettings(customSettings map[string]interface{}) erro
 // SetDefaults not required for DCA
 func (s *Strategy) SetDefaults() {
 	s.openShortDistancePercentage = decimal.NewFromInt(5)
-	s.closeShortDistancePercentage = decimal.NewFromInt(5)
+	s.closeShortDistancePercentage = decimal.Zero
+	// TODO set false
+	s.onlyCloseOnProfit = false
+	s.alwaysCloseOnProfit = false
 }

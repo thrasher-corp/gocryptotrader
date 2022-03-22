@@ -14,6 +14,7 @@ const (
 	exchangeName                       = "ftx"
 	openShortDistancePercentageString  = "openShortDistancePercentage"
 	closeShortDistancePercentageString = "closeShortDistancePercentage"
+	onlyCloseOnProfitString            = "onlyCloseOnProfit"
 )
 
 var (
@@ -26,4 +27,6 @@ type Strategy struct {
 	base.Strategy
 	openShortDistancePercentage  decimal.Decimal
 	closeShortDistancePercentage decimal.Decimal
+	onlyCloseOnProfit            bool
+	alwaysCloseOnProfit          bool
 }
