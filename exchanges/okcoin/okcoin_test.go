@@ -80,7 +80,7 @@ func TestMain(m *testing.M) {
 }
 
 func areTestAPIKeysSet() bool {
-	return o.ValidateAPICredentials()
+	return o.ValidateAPICredentials(o.GetDefaultCredentials()) == nil
 }
 
 func TestStart(t *testing.T) {
@@ -792,7 +792,7 @@ func TestSendWsMessages(t *testing.T) {
 			t.Error("Expecting OKEX error - 30040 message: Channel badChannel doesn't exist")
 		}
 	}
-	err = o.WsLogin()
+	err = o.WsLogin(context.Background())
 	if err != nil {
 		t.Error(err)
 	}

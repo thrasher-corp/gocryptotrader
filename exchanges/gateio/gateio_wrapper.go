@@ -862,8 +862,8 @@ func (g *Gateio) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket
-func (g *Gateio) AuthenticateWebsocket(_ context.Context) error {
-	return g.wsServerSignIn()
+func (g *Gateio) AuthenticateWebsocket(ctx context.Context) error {
+	return g.wsServerSignIn(ctx)
 }
 
 // ValidateCredentials validates current credentials used for wrapper

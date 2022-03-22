@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -50,7 +51,7 @@ func TestMain(m *testing.M) {
 }
 
 func areTestAPIKeysSet() bool {
-	return l.AllowAuthenticatedRequest()
+	return l.ValidateAPICredentials(l.GetDefaultCredentials()) == nil
 }
 
 func TestStart(t *testing.T) {
@@ -305,12 +306,13 @@ func TestLoadPrivKey(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	err := l.loadPrivKey()
+	err := l.loadPrivKey(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
-	l.API.Credentials.Secret = "errortest"
-	err = l.loadPrivKey()
+
+	ctx := exchange.DeployCredentialsToContext(context.Background(), &exchange.Credentials{Secret: "errortest"})
+	err = l.loadPrivKey(ctx)
 	if err == nil {
 		t.Errorf("Expected error due to pemblock nil")
 	}
@@ -321,8 +323,7 @@ func TestSign(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	l.API.Credentials.Secret = testAPISecret
-	err := l.loadPrivKey()
+	err := l.loadPrivKey(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}

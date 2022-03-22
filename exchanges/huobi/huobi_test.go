@@ -77,7 +77,7 @@ func setupWsTests(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = h.wsLogin()
+	err = h.wsLogin(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1756,7 +1756,7 @@ func TestGetTimestamp(t *testing.T) {
 
 func TestGetAccounts(t *testing.T) {
 	t.Parallel()
-	if !h.ValidateAPICredentials() || !canManipulateRealOrders {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip()
 	}
 	_, err := h.GetAccounts(context.Background())
@@ -1767,7 +1767,7 @@ func TestGetAccounts(t *testing.T) {
 
 func TestGetAccountBalance(t *testing.T) {
 	t.Parallel()
-	if !h.ValidateAPICredentials() {
+	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
 	result, err := h.GetAccounts(context.Background())
@@ -1784,7 +1784,7 @@ func TestGetAccountBalance(t *testing.T) {
 
 func TestGetAggregatedBalance(t *testing.T) {
 	t.Parallel()
-	if !h.ValidateAPICredentials() {
+	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
 
@@ -1796,7 +1796,7 @@ func TestGetAggregatedBalance(t *testing.T) {
 
 func TestSpotNewOrder(t *testing.T) {
 	t.Parallel()
-	if !h.ValidateAPICredentials() || !canManipulateRealOrders {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip()
 	}
 	cp, err := currency.NewPairFromString(testSymbol)
@@ -1819,7 +1819,7 @@ func TestSpotNewOrder(t *testing.T) {
 
 func TestCancelExistingOrder(t *testing.T) {
 	t.Parallel()
-	if !h.ValidateAPICredentials() || !canManipulateRealOrders {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip()
 	}
 	_, err := h.CancelExistingOrder(context.Background(), 1337)
@@ -1830,7 +1830,7 @@ func TestCancelExistingOrder(t *testing.T) {
 
 func TestGetOrder(t *testing.T) {
 	t.Parallel()
-	if !h.ValidateAPICredentials() || !canManipulateRealOrders {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip()
 	}
 	_, err := h.GetOrder(context.Background(), 1337)
@@ -1841,7 +1841,7 @@ func TestGetOrder(t *testing.T) {
 
 func TestGetMarginLoanOrders(t *testing.T) {
 	t.Parallel()
-	if !h.ValidateAPICredentials() {
+	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
 	cp, err := currency.NewPairFromString(testSymbol)
@@ -1857,7 +1857,7 @@ func TestGetMarginLoanOrders(t *testing.T) {
 
 func TestGetMarginAccountBalance(t *testing.T) {
 	t.Parallel()
-	if !h.ValidateAPICredentials() {
+	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
 	cp, err := currency.NewPairFromString(testSymbol)
@@ -1872,7 +1872,7 @@ func TestGetMarginAccountBalance(t *testing.T) {
 
 func TestCancelWithdraw(t *testing.T) {
 	t.Parallel()
-	if !h.ValidateAPICredentials() || !canManipulateRealOrders {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip()
 	}
 	_, err := h.CancelWithdraw(context.Background(), 1337)
@@ -1907,11 +1907,11 @@ func TestGetActiveOrders(t *testing.T) {
 // Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
 // ----------------------------------------------------------------------------------------------------------------------------
 func areTestAPIKeysSet() bool {
-	return h.ValidateAPICredentials()
+	return h.ValidateAPICredentials(h.GetDefaultCredentials()) == nil
 }
 
 func TestSubmitOrder(t *testing.T) {
-	if !h.ValidateAPICredentials() {
+	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
 
@@ -2119,7 +2119,7 @@ func TestQueryWithdrawQuota(t *testing.T) {
 // TestWsGetAccountsList connects to WS, logs in, gets account list
 func TestWsGetAccountsList(t *testing.T) {
 	setupWsTests(t)
-	if _, err := h.wsGetAccountsList(); err != nil {
+	if _, err := h.wsGetAccountsList(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -2131,7 +2131,7 @@ func TestWsGetOrderList(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = h.wsGetOrdersList(1, p)
+	_, err = h.wsGetOrdersList(context.Background(), 1, p)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2141,7 +2141,7 @@ func TestWsGetOrderList(t *testing.T) {
 func TestWsGetOrderDetails(t *testing.T) {
 	setupWsTests(t)
 	orderID := "123"
-	_, err := h.wsGetOrderDetails(orderID)
+	_, err := h.wsGetOrderDetails(context.Background(), orderID)
 	if err != nil {
 		t.Fatal(err)
 	}

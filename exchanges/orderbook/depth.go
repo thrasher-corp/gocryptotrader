@@ -118,15 +118,11 @@ func (d *Depth) Flush() {
 
 // UpdateBidAskByPrice updates the bid and ask spread by supplied updates, this
 // will trim total length of depth level to a specified supplied number
-func (d *Depth) UpdateBidAskByPrice(bidUpdts, askUpdts Items, maxDepth int, lastUpdateID int64, updateIDOrdered bool, lastUpdated time.Time) {
+func (d *Depth) UpdateBidAskByPrice(bidUpdts, askUpdts Items, maxDepth int, lastUpdateID int64, lastUpdated time.Time) {
 	if len(bidUpdts) == 0 && len(askUpdts) == 0 {
 		return
 	}
 	d.m.Lock()
-	if updateIDOrdered && lastUpdateID <= d.lastUpdateID {
-		d.m.Unlock()
-		return
-	}
 	d.lastUpdateID = lastUpdateID
 	d.lastUpdated = lastUpdated
 	tn := getNow()

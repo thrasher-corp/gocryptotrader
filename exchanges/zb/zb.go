@@ -52,17 +52,22 @@ type ZB struct {
 
 // SpotNewOrder submits an order to ZB
 func (z *ZB) SpotNewOrder(ctx context.Context, arg SpotNewOrderRequestParams) (int64, error) {
+	creds, err := z.GetCredentials(ctx)
+	if err != nil {
+		return 0, err
+	}
+
 	var result SpotNewOrderResponse
 
 	vals := url.Values{}
-	vals.Set("accesskey", z.API.Credentials.Key)
+	vals.Set("accesskey", creds.Key)
 	vals.Set("method", zbOrder)
 	vals.Set("amount", strconv.FormatFloat(arg.Amount, 'f', -1, 64))
 	vals.Set("currency", arg.Symbol)
 	vals.Set("price", strconv.FormatFloat(arg.Price, 'f', -1, 64))
 	vals.Set("tradeType", string(arg.Type))
 
-	err := z.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, vals, &result, request.Auth)
+	err = z.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, vals, &result, request.Auth)
 	if err != nil {
 		return 0, err
 	}
@@ -78,19 +83,24 @@ func (z *ZB) SpotNewOrder(ctx context.Context, arg SpotNewOrderRequestParams) (i
 
 // CancelExistingOrder cancels an order
 func (z *ZB) CancelExistingOrder(ctx context.Context, orderID int64, symbol string) error {
+	creds, err := z.GetCredentials(ctx)
+	if err != nil {
+		return err
+	}
+
 	type response struct {
 		Code    int    `json:"code"`    // Result code
 		Message string `json:"message"` // Result Message
 	}
 
 	vals := url.Values{}
-	vals.Set("accesskey", z.API.Credentials.Key)
+	vals.Set("accesskey", creds.Key)
 	vals.Set("method", zbCancelOrder)
 	vals.Set("id", strconv.FormatInt(orderID, 10))
 	vals.Set("currency", symbol)
 
 	var result response
-	err := z.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, vals, &result, request.Auth)
+	err = z.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, vals, &result, request.Auth)
 	if err != nil {
 		return err
 	}
@@ -104,10 +114,14 @@ func (z *ZB) CancelExistingOrder(ctx context.Context, orderID int64, symbol stri
 // GetAccountInformation returns account information including coin information
 // and pricing
 func (z *ZB) GetAccountInformation(ctx context.Context) (AccountsResponse, error) {
-	var result AccountsResponse
+	creds, err := z.GetCredentials(ctx)
+	if err != nil {
+		return AccountsResponse{}, err
+	}
 
+	var result AccountsResponse
 	vals := url.Values{}
-	vals.Set("accesskey", z.API.Credentials.Key)
+	vals.Set("accesskey", creds.Key)
 	vals.Set("method", zbAccountInfo)
 
 	return result, z.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, vals, &result, request.Auth)
@@ -115,23 +129,31 @@ func (z *ZB) GetAccountInformation(ctx context.Context) (AccountsResponse, error
 
 // GetUnfinishedOrdersIgnoreTradeType returns unfinished orders
 func (z *ZB) GetUnfinishedOrdersIgnoreTradeType(ctx context.Context, currency string, pageindex, pagesize int64) ([]Order, error) {
+	creds, err := z.GetCredentials(ctx)
+	if err != nil {
+		return nil, err
+	}
 	var result []Order
 	vals := url.Values{}
-	vals.Set("accesskey", z.API.Credentials.Key)
+	vals.Set("accesskey", creds.Key)
 	vals.Set("method", zbUnfinishedOrdersIgnoreTradeType)
 	vals.Set("currency", currency)
 	vals.Set("pageIndex", strconv.FormatInt(pageindex, 10))
 	vals.Set("pageSize", strconv.FormatInt(pagesize, 10))
 
-	err := z.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, vals, &result, request.Auth)
+	err = z.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, vals, &result, request.Auth)
 	return result, err
 }
 
 // GetOrders returns finished orders
 func (z *ZB) GetOrders(ctx context.Context, currency string, pageindex, side int64) ([]Order, error) {
+	creds, err := z.GetCredentials(ctx)
+	if err != nil {
+		return nil, err
+	}
 	var response []Order
 	vals := url.Values{}
-	vals.Set("accesskey", z.API.Credentials.Key)
+	vals.Set("accesskey", creds.Key)
 	vals.Set("method", zbGetOrdersGet)
 	vals.Set("currency", currency)
 	vals.Set("pageIndex", strconv.FormatInt(pageindex, 10))
@@ -347,16 +369,17 @@ func (z *ZB) SendHTTPRequest(ctx context.Context, ep exchange.URL, path string, 
 
 // SendAuthenticatedHTTPRequest sends authenticated requests to the zb API
 func (z *ZB) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, httpMethod string, params url.Values, result interface{}, f request.EndpointLimit) error {
-	if !z.AllowAuthenticatedRequest() {
-		return fmt.Errorf("%s %w", z.Name, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
+	creds, err := z.GetCredentials(ctx)
+	if err != nil {
+		return err
 	}
 	endpoint, err := z.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
 	}
-	params.Set("accesskey", z.API.Credentials.Key)
+	params.Set("accesskey", creds.Key)
 
-	hex, err := crypto.Sha1ToHex(z.API.Credentials.Secret)
+	hex, err := crypto.Sha1ToHex(creds.Secret)
 	if err != nil {
 		return err
 	}
@@ -445,6 +468,11 @@ var errorCode = map[int64]string{
 
 // Withdraw transfers funds
 func (z *ZB) Withdraw(ctx context.Context, currency, address, safepassword string, amount, fees float64, itransfer bool) (string, error) {
+	creds, err := z.GetCredentials(ctx)
+	if err != nil {
+		return "", err
+	}
+
 	type response struct {
 		Code    int    `json:"code"`    // Result code
 		Message string `json:"message"` // Result Message
@@ -452,7 +480,7 @@ func (z *ZB) Withdraw(ctx context.Context, currency, address, safepassword strin
 	}
 
 	vals := url.Values{}
-	vals.Set("accesskey", z.API.Credentials.Key)
+	vals.Set("accesskey", creds.Key)
 	vals.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	vals.Set("currency", currency)
 	vals.Set("fees", strconv.FormatFloat(fees, 'f', -1, 64))
@@ -462,7 +490,7 @@ func (z *ZB) Withdraw(ctx context.Context, currency, address, safepassword strin
 	vals.Set("safePwd", safepassword)
 
 	var resp response
-	err := z.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, vals, &resp, request.Auth)
+	err = z.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, vals, &resp, request.Auth)
 	if err != nil {
 		return "", err
 	}

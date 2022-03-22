@@ -656,7 +656,7 @@ func (h *HUOBI) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 	switch assetType {
 	case asset.Spot:
 		if h.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			resp, err := h.wsGetAccountsList()
+			resp, err := h.wsGetAccountsList(ctx)
 			if err != nil {
 				return info, err
 			}
@@ -1144,7 +1144,7 @@ func (h *HUOBI) GetOrderInfo(ctx context.Context, orderID string, pair currency.
 	case asset.Spot:
 		var respData *OrderInfo
 		if h.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			resp, err := h.wsGetOrderDetails(orderID)
+			resp, err := h.wsGetOrderDetails(ctx, orderID)
 			if err != nil {
 				return orderDetail, err
 			}
@@ -1354,7 +1354,7 @@ func (h *HUOBI) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 		}
 		if h.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 			for i := range req.Pairs {
-				resp, err := h.wsGetOrdersList(-1, req.Pairs[i])
+				resp, err := h.wsGetOrdersList(ctx, -1, req.Pairs[i])
 				if err != nil {
 					return orders, err
 				}
@@ -1404,10 +1404,14 @@ func (h *HUOBI) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 				}
 			}
 		} else {
+			creds, err := h.GetCredentials(ctx)
+			if err != nil {
+				return nil, err
+			}
 			for i := range req.Pairs {
 				resp, err := h.GetOpenOrders(ctx,
 					req.Pairs[i],
-					h.API.Credentials.ClientID,
+					creds.ClientID,
 					side,
 					500)
 				if err != nil {
@@ -1706,8 +1710,8 @@ func setOrderSideStatusAndType(orderState, requestType string, orderDetail *orde
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket
-func (h *HUOBI) AuthenticateWebsocket(_ context.Context) error {
-	return h.wsLogin()
+func (h *HUOBI) AuthenticateWebsocket(ctx context.Context) error {
+	return h.wsLogin(ctx)
 }
 
 // ValidateCredentials validates current credentials used for wrapper

@@ -1,6 +1,7 @@
 package bitfinex
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -66,7 +67,7 @@ func (b *Bitfinex) WsConnect() error {
 		}
 		b.Websocket.Wg.Add(1)
 		go b.wsReadData(b.Websocket.AuthConn)
-		err = b.WsSendAuth()
+		err = b.WsSendAuth(context.TODO())
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
 				"%v - authentication failed: %v\n",
@@ -1316,10 +1317,14 @@ func (b *Bitfinex) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscriptio
 }
 
 // WsSendAuth sends a authenticated event payload
-func (b *Bitfinex) WsSendAuth() error {
+func (b *Bitfinex) WsSendAuth(ctx context.Context) error {
 	if !b.IsAuthenticatedWebsocketSupported() {
 		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled",
 			b.Name)
+	}
+	creds, err := b.GetCredentials(ctx)
+	if err != nil {
+		return err
 	}
 
 	nonce := strconv.FormatInt(time.Now().Unix(), 10)
@@ -1327,13 +1332,13 @@ func (b *Bitfinex) WsSendAuth() error {
 
 	hmac, err := crypto.GetHMAC(crypto.HashSHA512_384,
 		[]byte(payload),
-		[]byte(b.API.Credentials.Secret))
+		[]byte(creds.Secret))
 	if err != nil {
 		return err
 	}
 	request := WsAuthRequest{
 		Event:         "auth",
-		APIKey:        b.API.Credentials.Key,
+		APIKey:        creds.Key,
 		AuthPayload:   payload,
 		AuthSig:       crypto.HexEncodeToString(hmac),
 		AuthNonce:     nonce,

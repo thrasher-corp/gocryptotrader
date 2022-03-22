@@ -79,7 +79,7 @@ func setupWSTestAuth(t *testing.T) {
 		t.Fatal(err)
 	}
 	go c.wsReadData()
-	err = c.wsAuthenticate()
+	err = c.wsAuthenticate(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
@@ -160,7 +160,8 @@ func TestGetOrderHistoryWrapper(t *testing.T) {
 // Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
 // ----------------------------------------------------------------------------------------------------------------------------
 func areTestAPIKeysSet() bool {
-	return c.ValidateAPICredentials()
+	_, err := c.GetCredentials(context.Background())
+	return err == nil
 }
 
 func TestSubmitOrder(t *testing.T) {
@@ -548,7 +549,7 @@ func TestWsOrderbook(t *testing.T) {
   "reply": "inst_order_book",
   "status": [ "OK" ]
 }`)
-	err := c.wsHandleData(pressXToJSON)
+	err := c.wsHandleData(context.Background(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -562,7 +563,7 @@ func TestWsOrderbook(t *testing.T) {
   "side": "BUY",
   "trans_id": 169384
 }`)
-	err = c.wsHandleData(pressXToJSON)
+	err = c.wsHandleData(context.Background(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -580,7 +581,7 @@ func TestWsTicker(t *testing.T) {
   "volume": "0.07650000",
   "volume24": "56.07650000"
 }`)
-	err := c.wsHandleData(pressXToJSON)
+	err := c.wsHandleData(context.Background(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -612,7 +613,7 @@ func TestWsGetInstruments(t *testing.T) {
       "OK"
    ]
 }`)
-	err := c.wsHandleData(pressXToJSON)
+	err := c.wsHandleData(context.Background(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -659,7 +660,7 @@ func TestWsTrades(t *testing.T) {
       "trans_id": 169502
     }]
 }`)
-	err := c.wsHandleData(pressXToJSON)
+	err := c.wsHandleData(context.Background(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -672,7 +673,7 @@ func TestWsTrades(t *testing.T) {
   "timestamp": 0,
   "trans_id": 169478
 }`)
-	err = c.wsHandleData(pressXToJSON)
+	err = c.wsHandleData(context.Background(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -702,7 +703,8 @@ func TestWsLogin(t *testing.T) {
    "unverified_email":"",
    "username":"test"
 }`)
-	err := c.wsHandleData(pressXToJSON)
+	ctx := exchange.DeployCredentialsToContext(context.Background(), &exchange.Credentials{Key: "b46e658f-d4c4-433c-b032-093423b1aaa4", ClientID: "dummy"})
+	err := c.wsHandleData(ctx, pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -726,7 +728,7 @@ func TestWsAccountBalance(t *testing.T) {
   "reply": "user_balance",
   "trans_id": 15159032
 }`)
-	err := c.wsHandleData(pressXToJSON)
+	err := c.wsHandleData(context.Background(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -748,7 +750,7 @@ func TestWsOrder(t *testing.T) {
       "side":"SELL",
       "trans_id":127303
    }`)
-	err := c.wsHandleData(pressXToJSON)
+	err := c.wsHandleData(context.Background(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -778,7 +780,7 @@ func TestWsOrder(t *testing.T) {
     "timestamp": 1482903034617491,
     "trans_id": 20859252
   }`)
-	err = c.wsHandleData(pressXToJSON)
+	err = c.wsHandleData(context.Background(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -802,7 +804,7 @@ func TestWsOrder(t *testing.T) {
     "side": "BUY",
     "trans_id": 3282993
 }`)
-	err = c.wsHandleData(pressXToJSON)
+	err = c.wsHandleData(context.Background(), pressXToJSON)
 	if err == nil {
 		t.Error("Expected not enough balance error")
 	}
@@ -843,7 +845,7 @@ func TestWsOrders(t *testing.T) {
     "trans_id": 15155497
   }
 ]`)
-	err := c.wsHandleData(pressXToJSON)
+	err := c.wsHandleData(context.Background(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -879,7 +881,7 @@ func TestWsOpenOrders(t *testing.T) {
         }
     ]
 }`)
-	err := c.wsHandleData(pressXToJSON)
+	err := c.wsHandleData(context.Background(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -895,7 +897,7 @@ func TestWsCancelOrder(t *testing.T) {
       "OK"
     ]
   }`)
-	err := c.wsHandleData(pressXToJSON)
+	err := c.wsHandleData(context.Background(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -924,7 +926,7 @@ func TestWsCancelOrders(t *testing.T) {
   ],
   "trans_id": 15166063
 }`)
-	err := c.wsHandleData(pressXToJSON)
+	err := c.wsHandleData(context.Background(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -981,7 +983,7 @@ func TestWsOrderHistory(t *testing.T) {
     }
   ]
 }`)
-	err := c.wsHandleData(pressXToJSON)
+	err := c.wsHandleData(context.Background(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}

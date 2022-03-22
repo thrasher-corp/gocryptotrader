@@ -622,8 +622,8 @@ func (o *OKGroup) GetWithdrawCapabilities() uint32 {
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket
-func (o *OKGroup) AuthenticateWebsocket(_ context.Context) error {
-	return o.WsLogin()
+func (o *OKGroup) AuthenticateWebsocket(ctx context.Context) error {
+	return o.WsLogin(ctx)
 }
 
 // ValidateCredentials validates current credentials used for wrapper

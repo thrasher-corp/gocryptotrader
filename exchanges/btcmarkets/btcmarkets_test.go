@@ -64,7 +64,7 @@ func TestMain(m *testing.M) {
 }
 
 func areTestAPIKeysSet() bool {
-	return b.AllowAuthenticatedRequest()
+	return b.ValidateAPICredentials(b.GetDefaultCredentials()) == nil
 }
 
 func TestStart(t *testing.T) {
@@ -618,7 +618,8 @@ func TestWsOrderbookUpdate(t *testing.T) {
     "snapshotId": 1578512844045000,
     "bids":  [ ["99.81", "1.2", 1 ], ["95.8", "0", 0 ]],
     "asks": [ ["100", "3.2", 2 ] ],
-    "messageType": "orderbookUpdate"
+    "messageType": "orderbookUpdate",
+	"checksum": "2513007604"
   }`)
 	err = b.wsHandleData(pressXToJSON)
 	if err != nil {
@@ -949,10 +950,14 @@ func TestChecksum(t *testing.T) {
 		},
 	}
 
-	expecting := 2254383345
+	expecting := 3802968298
 	err := checksum(b, uint32(expecting))
 	if err != nil {
 		t.Fatal(err)
+	}
+	err = checksum(b, uint32(1223123))
+	if !errors.Is(err, errChecksumFailure) {
+		t.Errorf("received '%v', expected '%v'", err, errChecksumFailure)
 	}
 }
 
@@ -966,9 +971,9 @@ func TestTrim(t *testing.T) {
 		{Value: 32.00001234, Expected: "3200001234"},
 		{Value: 0, Expected: ""},
 		{Value: 0.0, Expected: ""},
-		{Value: 1.0, Expected: "10"},
+		{Value: 1.0, Expected: "1"},
 		{Value: 0.3965, Expected: "3965"},
-		{Value: 16000.0, Expected: "160000"},
+		{Value: 16000.0, Expected: "16000"},
 		{Value: 0.0019, Expected: "19"},
 		{Value: 1.01, Expected: "101"},
 	}

@@ -388,7 +388,7 @@ type WsOrderbook struct {
 	SnapshotID  int64              `json:"snapshotId"`
 	Bids        WebsocketOrderbook `json:"bids"`
 	Asks        WebsocketOrderbook `json:"asks"`
-	Checksum    int64              `json:"checksum,string"`
+	Checksum    uint32             `json:"checksum,string"`
 	MessageType string             `json:"messageType"`
 }
 

@@ -25,6 +25,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -229,7 +230,9 @@ func (b *Bitfinex) Setup(exch *config.Exchange) error {
 		Unsubscriber:          b.Unsubscribe,
 		GenerateSubscriptions: b.GenerateDefaultSubscriptions,
 		Features:              &b.Features.Supports.WebsocketCapabilities,
-		UpdateEntriesByID:     true,
+		OrderbookBufferConfig: buffer.Config{
+			UpdateEntriesByID: true,
+		},
 	})
 	if err != nil {
 		return err
@@ -1021,8 +1024,8 @@ func (b *Bitfinex) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequ
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket
-func (b *Bitfinex) AuthenticateWebsocket(_ context.Context) error {
-	return b.WsSendAuth()
+func (b *Bitfinex) AuthenticateWebsocket(ctx context.Context) error {
+	return b.WsSendAuth(ctx)
 }
 
 // appendOptionalDelimiter ensures that a delimiter is present for long character currencies

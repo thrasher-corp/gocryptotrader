@@ -417,13 +417,12 @@ func (g *Gateio) GetTradeHistory(ctx context.Context, symbol string) (TradHistor
 }
 
 // GenerateSignature returns hash for authenticated requests
-func (g *Gateio) GenerateSignature(message string) ([]byte, error) {
-	return crypto.GetHMAC(crypto.HashSHA512, []byte(message),
-		[]byte(g.API.Credentials.Secret))
+func (g *Gateio) GenerateSignature(secret, message string) ([]byte, error) {
+	return crypto.GetHMAC(crypto.HashSHA512, []byte(message), []byte(secret))
 }
 
 // GenerateV4Signature returns a hash for version 4 authenticated requests
-func (g *Gateio) GenerateV4Signature(tn int64, method, url, payload string) ([]byte, error) {
+func (g *Gateio) GenerateV4Signature(tn int64, method, url, payload, secret string) ([]byte, error) {
 	payloadHash, err := crypto.GetSHA512([]byte(payload))
 	if err != nil {
 		return nil, err
@@ -437,14 +436,15 @@ func (g *Gateio) GenerateV4Signature(tn int64, method, url, payload string) ([]b
 		strconv.FormatInt(tn, 10))
 
 	fmt.Println("V4 payload:", message)
-	return crypto.GetHMAC(crypto.HashSHA512, []byte(message), []byte(g.API.Credentials.Secret))
+	return crypto.GetHMAC(crypto.HashSHA512, []byte(message), []byte(secret))
 }
 
 // SendAuthenticatedHTTPRequest sends authenticated requests to the Gateio API
 // To use this you must setup an APIKey and APISecret from the exchange
 func (g *Gateio) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method, endpoint, param, version string, result interface{}) error {
-	if !g.AllowAuthenticatedRequest() {
-		return fmt.Errorf("%s %w", g.Name, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
+	creds, err := g.GetCredentials(ctx)
+	if err != nil {
+		return err
 	}
 	ePoint, err := g.API.Endpoints.GetURL(ep)
 	if err != nil {
@@ -452,20 +452,20 @@ func (g *Gateio) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.U
 	}
 	headers := make(map[string]string)
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
-	headers["key"] = g.API.Credentials.Key
+	headers["key"] = creds.Key
 
 	urlPath := fmt.Sprintf("%s/%s/%s", ePoint, version, endpoint)
 
 	var hmac []byte
 	if version == gateioAPIVersion {
-		hmac, err = g.GenerateSignature(param)
+		hmac, err = g.GenerateSignature(creds.Secret, param)
 		if err != nil {
 			return err
 		}
 	} else {
 		tn := time.Now().Unix()
 		headers["Timestamp"] = strconv.FormatInt(tn, 10)
-		hmac, err = g.GenerateV4Signature(tn, method, "/"+version+"/"+endpoint, param)
+		hmac, err = g.GenerateV4Signature(tn, method, "/"+version+"/"+endpoint, param, creds.Secret)
 		if err != nil {
 			return err
 		}

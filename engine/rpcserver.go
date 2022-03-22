@@ -108,8 +108,7 @@ func (s *RPCServer) authenticateClient(ctx context.Context) (context.Context, er
 		password != s.Config.RemoteControl.Password {
 		return ctx, fmt.Errorf("username/password mismatch")
 	}
-
-	return ctx, nil
+	return exchange.ParseCredentialsMetadata(ctx, md)
 }
 
 // StartRPCServer starts a gRPC server with TLS auth
@@ -1554,7 +1553,7 @@ func (s *RPCServer) GetCryptocurrencyDepositAddresses(ctx context.Context, r *gc
 	}
 
 	if !exch.IsAuthenticatedRESTSupported() {
-		return nil, exchange.ErrAuthenticatedRequestWithoutCredentialsSet
+		return nil, fmt.Errorf("%s, %w", r.Exchange, exchange.ErrAuthenticationSupportNotEnabled)
 	}
 
 	result, err := s.GetCryptocurrencyDepositAddressesByExchange(r.Exchange)
@@ -1587,7 +1586,7 @@ func (s *RPCServer) GetCryptocurrencyDepositAddress(ctx context.Context, r *gctr
 	}
 
 	if !exch.IsAuthenticatedRESTSupported() {
-		return nil, exchange.ErrAuthenticatedRequestWithoutCredentialsSet
+		return nil, fmt.Errorf("%s, %w", r.Exchange, exchange.ErrAuthenticationSupportNotEnabled)
 	}
 
 	addr, err := s.GetExchangeCryptocurrencyDepositAddress(ctx,
@@ -4342,10 +4341,13 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 	}
 
 	b := exch.GetBase()
-	subAccount := b.API.Credentials.Subaccount
+	creds, err := b.GetCredentials(ctx)
+	if err != nil {
+		return nil, err
+	}
 	var subErr string
-	if subAccount != "" {
-		subErr = "for subaccount: " + subAccount
+	if creds.SubAccount != "" {
+		subErr = "for subaccount: " + creds.SubAccount
 	}
 	orders, err := exch.GetFuturesPositions(ctx, a, cp, start, end)
 	if err != nil {
@@ -4373,7 +4375,7 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 		return nil, fmt.Errorf("%w %v", err, subErr)
 	}
 	response := &gctrpc.GetFuturesPositionsResponse{
-		SubAccount: subAccount,
+		SubAccount: creds.SubAccount,
 	}
 	var totalRealisedPNL, totalUnrealisedPNL decimal.Decimal
 	for i := range pos {
@@ -4494,24 +4496,29 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 	var calculators []order.CollateralCalculator
 	var acc *account.SubAccount
 	var subAccounts []string
-	subAccount := r.SubAccount
-	if subAccount == "" {
-		b := exch.GetBase()
-		subAccount = b.API.Credentials.Subaccount
+
+	creds, err := exch.GetBase().GetCredentials(ctx)
+	if err != nil {
+		return nil, err
 	}
+
 	for i := range ai.Accounts {
 		subAccounts = append(subAccounts, ai.Accounts[i].ID)
-		if ai.Accounts[i].ID == "main" && subAccount == "" {
+		if ai.Accounts[i].ID == "main" && creds.SubAccount == "" {
 			acc = &ai.Accounts[i]
 			break
 		}
-		if strings.EqualFold(subAccount, ai.Accounts[i].ID) {
+		if strings.EqualFold(creds.SubAccount, ai.Accounts[i].ID) {
 			acc = &ai.Accounts[i]
 			break
 		}
 	}
 	if acc == nil {
-		return nil, fmt.Errorf("%w for %s %s and stored credentials - available subaccounts: %s", errNoAccountInformation, exch.GetName(), r.SubAccount, strings.Join(subAccounts, ","))
+		return nil, fmt.Errorf("%w for %s %s and stored credentials - available subaccounts: %s",
+			errNoAccountInformation,
+			exch.GetName(),
+			creds.SubAccount,
+			strings.Join(subAccounts, ","))
 	}
 	var spotPairs currency.Pairs
 	if r.CalculateOffline {
@@ -4553,7 +4560,6 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 	}
 
 	calc := &order.TotalCollateralCalculator{
-		SubAccount:       r.SubAccount,
 		CollateralAssets: calculators,
 		CalculateOffline: r.CalculateOffline,
 		FetchPositions:   true,
@@ -4566,7 +4572,7 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 
 	var collateralDisplayCurrency = " " + collateral.CollateralCurrency.String()
 	result := &gctrpc.GetCollateralResponse{
-		SubAccount:          subAccount,
+		SubAccount:          creds.SubAccount,
 		CollateralCurrency:  collateral.CollateralCurrency.String(),
 		AvailableCollateral: collateral.AvailableCollateral.String() + collateralDisplayCurrency,
 		UsedCollateral:      collateral.UsedCollateral.String() + collateralDisplayCurrency,

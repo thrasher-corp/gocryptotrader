@@ -1,6 +1,7 @@
 package btcmarkets
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -144,15 +145,13 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 			})
 		} else {
 			err = b.Websocket.Orderbook.Update(&buffer.Update{
-				UpdateTime:          ob.Timestamp,
-				UpdateID:            ob.SnapshotID,
-				Asset:               asset.Spot,
-				Bids:                orderbook.Items(ob.Bids),
-				Asks:                orderbook.Items(ob.Asks),
-				Pair:                ob.Currency,
-				ChecksumFn:          checksum,
-				Checksum:            uint32(ob.Checksum),
-				UpdateIDProgression: true,
+				UpdateTime: ob.Timestamp,
+				UpdateID:   ob.SnapshotID,
+				Asset:      asset.Spot,
+				Bids:       orderbook.Items(ob.Bids),
+				Asks:       orderbook.Items(ob.Asks),
+				Pair:       ob.Currency,
+				Checksum:   ob.Checksum,
 			})
 		}
 		if err != nil {
@@ -279,13 +278,22 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 			}
 		}
 
+		creds, err := b.GetCredentials(context.TODO())
+		if err != nil {
+			b.Websocket.DataHandler <- order.ClassificationError{
+				Exchange: b.Name,
+				OrderID:  orderID,
+				Err:      err,
+			}
+		}
+
 		b.Websocket.DataHandler <- &order.Detail{
 			Price:           price,
 			Amount:          originalAmount,
 			RemainingAmount: orderData.OpenVolume,
 			Exchange:        b.Name,
 			ID:              orderID,
-			ClientID:        b.API.Credentials.ClientID,
+			ClientID:        creds.ClientID,
 			Type:            oType,
 			Side:            oSide,
 			Status:          oStatus,
@@ -338,6 +346,10 @@ func (b *BTCMarkets) generateDefaultSubscriptions() ([]stream.ChannelSubscriptio
 
 // Subscribe sends a websocket message to receive data from the channel
 func (b *BTCMarkets) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
+	creds, err := b.GetCredentials(context.TODO())
+	if err != nil {
+		return err
+	}
 	var authChannels = []string{fundChange, heartbeat, orderChange}
 
 	var payload WsSubscribe
@@ -362,20 +374,21 @@ func (b *BTCMarkets) Subscribe(channelsToSubscribe []stream.ChannelSubscription)
 		}
 		signTime := strconv.FormatInt(time.Now().UnixMilli(), 10)
 		strToSign := "/users/self/subscribe" + "\n" + signTime
-		tempSign, err := crypto.GetHMAC(crypto.HashSHA512,
+		var tempSign []byte
+		tempSign, err = crypto.GetHMAC(crypto.HashSHA512,
 			[]byte(strToSign),
-			[]byte(b.API.Credentials.Secret))
+			[]byte(creds.Secret))
 		if err != nil {
 			return err
 		}
 		sign := crypto.Base64Encode(tempSign)
-		payload.Key = b.API.Credentials.Key
+		payload.Key = creds.Key
 		payload.Signature = sign
 		payload.Timestamp = signTime
 		break
 	}
 
-	err := b.Websocket.Conn.SendJSONMessage(payload)
+	err = b.Websocket.Conn.SendJSONMessage(payload)
 	if err != nil {
 		return err
 	}
@@ -405,11 +418,11 @@ func concat(liquidity orderbook.Items) string {
 	if len(liquidity) < 10 {
 		length = len(liquidity)
 	}
-	var concat string
+	var c string
 	for x := 0; x < length; x++ {
-		concat += trim(liquidity[x].Price) + trim(liquidity[x].Amount)
+		c += trim(liquidity[x].Price) + trim(liquidity[x].Amount)
 	}
-	return concat
+	return c
 }
 
 // trim turns value into string, removes the decimal point and all the leading

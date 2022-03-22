@@ -27,14 +27,13 @@ var a Alphapoint
 
 func TestMain(m *testing.M) {
 	a.SetDefaults()
-	a.API.Credentials.Key = apiKey
-	a.API.Credentials.Secret = apiSecret
+	a.SetCredentials(apiKey, apiSecret, "", "", "", "")
 	a.API.AuthenticatedSupport = true
 	os.Exit(m.Run())
 }
 
 func areTestAPIKeysSet() bool {
-	return a.ValidateAPICredentials()
+	return a.ValidateAPICredentials(a.GetDefaultCredentials()) == nil
 }
 
 func TestGetTicker(t *testing.T) {

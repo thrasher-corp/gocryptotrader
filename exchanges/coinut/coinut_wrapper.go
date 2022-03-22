@@ -25,6 +25,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -178,8 +179,10 @@ func (c *COINUT) Setup(exch *config.Exchange) error {
 		Unsubscriber:          c.Unsubscribe,
 		GenerateSubscriptions: c.GenerateDefaultSubscriptions,
 		Features:              &c.Features.Supports.WebsocketCapabilities,
-		SortBuffer:            true,
-		SortBufferByUpdateIDs: true,
+		OrderbookBufferConfig: buffer.Config{
+			SortBuffer:            true,
+			SortBufferByUpdateIDs: true,
+		},
 	})
 	if err != nil {
 		return err
@@ -1078,8 +1081,8 @@ func (c *COINUT) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket
-func (c *COINUT) AuthenticateWebsocket(_ context.Context) error {
-	return c.wsAuthenticate()
+func (c *COINUT) AuthenticateWebsocket(ctx context.Context) error {
+	return c.wsAuthenticate(ctx)
 }
 
 func (c *COINUT) loadInstrumentsIfNotLoaded() error {

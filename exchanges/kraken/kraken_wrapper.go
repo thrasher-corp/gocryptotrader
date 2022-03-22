@@ -25,6 +25,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -238,7 +239,7 @@ func (k *Kraken) Setup(exch *config.Exchange) error {
 		Unsubscriber:          k.Unsubscribe,
 		GenerateSubscriptions: k.GenerateDefaultSubscriptions,
 		Features:              &k.Features.Supports.WebsocketCapabilities,
-		SortBuffer:            true,
+		OrderbookBufferConfig: buffer.Config{SortBuffer: true},
 	})
 	if err != nil {
 		return err

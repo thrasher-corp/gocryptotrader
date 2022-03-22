@@ -4925,7 +4925,7 @@ func getFuturesPositions(c *cli.Context) error {
 var getCollateralCommand = &cli.Command{
 	Name:      "getcollateral",
 	Usage:     "returns total collateral for an exchange asset, with optional per currency breakdown",
-	ArgsUsage: "<exchange> <asset> <calculateoffline> <includebreakdown> <includezerovalues> <subaccount>",
+	ArgsUsage: "<exchange> <asset> <calculateoffline> <includebreakdown> <includezerovalues>",
 	Action:    getCollateral,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
@@ -4952,11 +4952,6 @@ var getCollateralCommand = &cli.Command{
 			Name:    "includezerovalues",
 			Aliases: []string{"z"},
 			Usage:   "include collateral values that are zero",
-		},
-		&cli.StringFlag{
-			Name:    "subaccount",
-			Aliases: []string{"s"},
-			Usage:   "the subaccount to retrieve collateral data from, depending on individual exchange support",
 		},
 	},
 }
@@ -5015,13 +5010,6 @@ func getCollateral(c *cli.Context) error {
 		}
 	}
 
-	var subAccount string
-	if c.IsSet("subaccount") {
-		subAccount = c.String("subaccount")
-	} else if c.Args().Get(5) != "" {
-		subAccount = c.Args().Get(5)
-	}
-
 	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
@@ -5033,7 +5021,6 @@ func getCollateral(c *cli.Context) error {
 		&gctrpc.GetCollateralRequest{
 			Exchange:          exchangeName,
 			Asset:             assetType,
-			SubAccount:        subAccount,
 			IncludeBreakdown:  includeBreakdown,
 			CalculateOffline:  calculateOffline,
 			IncludeZeroValues: includeZeroValues,

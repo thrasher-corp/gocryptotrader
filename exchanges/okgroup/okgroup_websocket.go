@@ -1,6 +1,7 @@
 package okgroup
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -195,7 +196,7 @@ func (o *OKGroup) WsConnect() error {
 	go o.WsReadData()
 
 	if o.IsAuthenticatedWebsocketSupported() {
-		err = o.WsLogin()
+		err = o.WsLogin(context.TODO())
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
 				"%v - authentication failed: %v\n",
@@ -208,13 +209,17 @@ func (o *OKGroup) WsConnect() error {
 }
 
 // WsLogin sends a login request to websocket to enable access to authenticated endpoints
-func (o *OKGroup) WsLogin() error {
+func (o *OKGroup) WsLogin(ctx context.Context) error {
+	creds, err := o.GetCredentials(ctx)
+	if err != nil {
+		return err
+	}
 	o.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	unixTime := time.Now().UTC().Unix()
 	signPath := "/users/self/verify"
 	hmac, err := crypto.GetHMAC(crypto.HashSHA256,
 		[]byte(strconv.FormatInt(unixTime, 10)+http.MethodGet+signPath),
-		[]byte(o.API.Credentials.Secret),
+		[]byte(creds.Secret),
 	)
 	if err != nil {
 		return err
@@ -223,8 +228,8 @@ func (o *OKGroup) WsLogin() error {
 	request := WebsocketEventRequest{
 		Operation: "login",
 		Arguments: []string{
-			o.API.Credentials.Key,
-			o.API.Credentials.ClientID,
+			creds.Key,
+			creds.ClientID,
 			strconv.FormatInt(unixTime, 10),
 			base64,
 		},

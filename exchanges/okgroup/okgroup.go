@@ -573,10 +573,7 @@ func (o *OKGroup) GetErrorCode(code interface{}) error {
 // SendHTTPRequest sends an authenticated http request to a desired
 // path with a JSON payload (of present)
 // URL arguments must be in the request path and not as url.URL values
-func (o *OKGroup) SendHTTPRequest(ctx context.Context, ep exchange.URL, httpMethod, apiVersion, requestType, requestPath string, data, result interface{}, authenticated bool) (err error) {
-	if authenticated && !o.AllowAuthenticatedRequest() {
-		return fmt.Errorf("%s %w", o.Name, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
-	}
+func (o *OKGroup) SendHTTPRequest(ctx context.Context, ep exchange.URL, httpMethod, requestType, apiVersion, requestPath string, data, result interface{}, authenticated bool) (err error) {
 	endpoint, err := o.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
@@ -603,6 +600,10 @@ func (o *OKGroup) SendHTTPRequest(ctx context.Context, ep exchange.URL, httpMeth
 		headers := make(map[string]string)
 		headers["Content-Type"] = "application/json"
 		if authenticated {
+			creds, err := o.GetCredentials(ctx)
+			if err != nil {
+				return nil, err
+			}
 			var input string
 			if apiVersion == Version5 {
 				input = utcTime + httpMethod + "/api/v5/" + requestPath
@@ -618,15 +619,15 @@ func (o *OKGroup) SendHTTPRequest(ctx context.Context, ep exchange.URL, httpMeth
 			var hmac []byte
 			hmac, err = crypto.GetHMAC(crypto.HashSHA256,
 				[]byte(input),
-				[]byte(o.API.Credentials.Secret))
+				[]byte(creds.Secret))
 			if err != nil {
 				return nil, err
 			}
 
-			headers["OK-ACCESS-KEY"] = o.API.Credentials.Key
+			headers["OK-ACCESS-KEY"] = creds.Key
 			headers["OK-ACCESS-SIGN"] = crypto.Base64Encode(hmac)
 			headers["OK-ACCESS-TIMESTAMP"] = utcTime
-			headers["OK-ACCESS-PASSPHRASE"] = o.API.Credentials.ClientID
+			headers["OK-ACCESS-PASSPHRASE"] = creds.ClientID
 		}
 
 		return &request.Item{
