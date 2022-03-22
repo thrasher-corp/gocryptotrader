@@ -107,30 +107,30 @@ func (p *Pair) CanPlaceOrder(side order.Side) bool {
 	return false
 }
 
-// FundReader
+// FundReader returns a fund reader interface of the pair
 func (p *Pair) FundReader() IFundReader {
 	return p
 }
 
-// FundReserver
+// FundReserver returns a fund reserver interface of the pair
 func (p *Pair) FundReserver() IFundReserver {
 	return p
 }
 
-// GetPairReleaser
-func (p *Pair) GetPairReleaser() (IPairReleaser, error) {
+// PairReleaser returns a pair releaser interface of the pair
+func (p *Pair) PairReleaser() (IPairReleaser, error) {
 	if p == nil {
 		return nil, ErrNilPair
 	}
 	return p, nil
 }
 
-// GetCollateralReleaser
-func (p *Pair) GetCollateralReleaser() (ICollateralReleaser, error) {
+// CollateralReleaser returns an error because a pair is not collateral
+func (p *Pair) CollateralReleaser() (ICollateralReleaser, error) {
 	return nil, ErrNotCollateral
 }
 
-// FundReleaser
+// FundReleaser returns a pair releaser interface of the pair
 func (p *Pair) FundReleaser() IFundReleaser {
 	return p
 }

@@ -50,7 +50,6 @@ type Statistic struct {
 	BiggestDrawdown             *FinalResultsHolder                                                `json:"biggest-drawdown,omitempty"`
 	BestStrategyResults         *FinalResultsHolder                                                `json:"best-start-results,omitempty"`
 	BestMarketMovement          *FinalResultsHolder                                                `json:"best-market-movement,omitempty"`
-	CurrencyPairStatistics      []CurrencyPairStatistic                                            `json:"currency-pair-statistics"` // as ExchangeAssetPairStatistics cannot be rendered via json.Marshall, we append all result to this slice instead
 	WasAnyDataMissing           bool                                                               `json:"was-any-data-missing"`
 	FundingStatistics           *FundingStatistics                                                 `json:"funding-statistics"`
 	FundManager                 funding.IFundingManager                                            `json:"-"`

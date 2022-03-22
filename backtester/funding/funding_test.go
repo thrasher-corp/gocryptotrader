@@ -26,6 +26,21 @@ var (
 	pair  = currency.NewPair(base, quote)
 )
 
+// fakeEvent implements common.EventHandler without
+// caring about the response, or dealing with import cycles
+type fakeEvent struct{}
+
+func (f *fakeEvent) GetOffset() int64               { return 0 }
+func (f *fakeEvent) SetOffset(int64)                {}
+func (f *fakeEvent) IsEvent() bool                  { return true }
+func (f *fakeEvent) GetTime() time.Time             { return time.Now() }
+func (f *fakeEvent) Pair() currency.Pair            { return pair }
+func (f *fakeEvent) GetExchange() string            { return exch }
+func (f *fakeEvent) GetInterval() gctkline.Interval { return gctkline.OneMin }
+func (f *fakeEvent) GetAssetType() asset.Item       { return asset.Spot }
+func (f *fakeEvent) GetReason() string              { return "" }
+func (f *fakeEvent) AppendReason(string)            {}
+
 func TestSetupFundingManager(t *testing.T) {
 	t.Parallel()
 	f, err := SetupFundingManager(&engine.ExchangeManager{}, true, false)
@@ -285,21 +300,6 @@ func TestAddPair(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, ErrAlreadyExists)
 	}
 }
-
-// fakeEvent implements common.EventHandler without
-// caring about the response, or dealing with import cycles
-type fakeEvent struct{}
-
-func (f *fakeEvent) GetOffset() int64               { return 0 }
-func (f *fakeEvent) SetOffset(int64)                {}
-func (f *fakeEvent) IsEvent() bool                  { return true }
-func (f *fakeEvent) GetTime() time.Time             { return time.Now() }
-func (f *fakeEvent) Pair() currency.Pair            { return pair }
-func (f *fakeEvent) GetExchange() string            { return exch }
-func (f *fakeEvent) GetInterval() gctkline.Interval { return gctkline.OneMin }
-func (f *fakeEvent) GetAssetType() asset.Item       { return asset.Spot }
-func (f *fakeEvent) GetReason() string              { return "" }
-func (f *fakeEvent) AppendReason(string)            {}
 
 func TestGetFundingForEvent(t *testing.T) {
 	t.Parallel()
@@ -858,6 +858,7 @@ func TestMatchesCurrency(t *testing.T) {
 }
 
 func TestCreateSnapshot(t *testing.T) {
+	t.Parallel()
 	f := FundManager{}
 	f.CreateSnapshot(time.Time{})
 	f.items = append(f.items, &Item{
@@ -900,6 +901,7 @@ func TestCreateSnapshot(t *testing.T) {
 }
 
 func TestAddUSDTrackingData(t *testing.T) {
+	t.Parallel()
 	f := FundManager{}
 	err := f.AddUSDTrackingData(nil)
 	if !errors.Is(err, common.ErrNilArguments) {
@@ -982,6 +984,7 @@ func TestAddUSDTrackingData(t *testing.T) {
 }
 
 func TestUSDTrackingDisabled(t *testing.T) {
+	t.Parallel()
 	f := FundManager{}
 	if f.USDTrackingDisabled() {
 		t.Error("received true, expected false")
@@ -989,5 +992,21 @@ func TestUSDTrackingDisabled(t *testing.T) {
 	f.disableUSDTracking = true
 	if !f.USDTrackingDisabled() {
 		t.Error("received false, expected true")
+	}
+}
+
+func TestCanPlaceOrder(t *testing.T) {
+	t.Parallel()
+	item := &Item{}
+	c := &Collateral{
+		Contract:   item,
+		Collateral: item,
+	}
+	if c.CanPlaceOrder(gctorder.Buy) {
+		t.Error("expected false")
+	}
+	c.Collateral.available = decimal.NewFromInt(1337)
+	if !c.CanPlaceOrder(gctorder.Buy) {
+		t.Error("expected true")
 	}
 }

@@ -114,3 +114,60 @@ func (i *Item) MatchesItemCurrency(item *Item) bool {
 func (i *Item) MatchesExchange(item *Item) bool {
 	return i != nil && item != nil && i.exchange == item.exchange
 }
+
+// TakeProfit increases available funds for a futures asset
+func (i *Item) TakeProfit(amount decimal.Decimal) error {
+	if !i.asset.IsFutures() {
+		return fmt.Errorf("%v %v %v %w", i.exchange, i.asset, i.currency, errNotFutures)
+	}
+	if !i.isCollateral {
+		return fmt.Errorf("%v %v %v %w cannot add profit to contracts", i.exchange, i.asset, i.currency, ErrNotCollateral)
+	}
+	summed := i.available.Add(amount)
+	if summed.LessThan(decimal.Zero) {
+		return fmt.Errorf("%w amount '%v' would take available funds '%v' to '%v'", errNotEnoughFunds, amount, i.available, summed)
+	}
+	i.available = summed
+	return nil
+}
+
+// AddContracts allocates an amount of funds to be used at a later time
+// it prevents multiple events from claiming the same resource
+func (i *Item) AddContracts(amount decimal.Decimal) error {
+	if !i.asset.IsFutures() {
+		return fmt.Errorf("%v %v %v %w", i.exchange, i.asset, i.currency, errNotFutures)
+	}
+	if i.isCollateral {
+		return fmt.Errorf("%v %v %v %w cannot add contracts to collateral", i.exchange, i.asset, i.currency, ErrIsCollateral)
+	}
+	if amount.LessThanOrEqual(decimal.Zero) {
+		return errZeroAmountReceived
+	}
+	i.available = i.available.Add(amount)
+	return nil
+}
+
+// ReduceContracts allocates an amount of funds to be used at a later time
+// it prevents multiple events from claiming the same resource
+func (i *Item) ReduceContracts(amount decimal.Decimal) error {
+	if !i.asset.IsFutures() {
+		return fmt.Errorf("%v %v %v %w", i.exchange, i.asset, i.currency, errNotFutures)
+	}
+	if i.isCollateral {
+		return fmt.Errorf("%v %v %v %w cannot add contracts to collateral", i.exchange, i.asset, i.currency, ErrIsCollateral)
+	}
+	if amount.LessThanOrEqual(decimal.Zero) {
+		return errZeroAmountReceived
+	}
+	if amount.GreaterThan(i.available) {
+		return fmt.Errorf("%w for %v %v %v. Requested %v Reserved: %v",
+			errCannotAllocate,
+			i.exchange,
+			i.asset,
+			i.currency,
+			amount,
+			i.reserved)
+	}
+	i.available = i.available.Sub(amount)
+	return nil
+}

@@ -80,8 +80,8 @@ type IFundReserver interface {
 // or release pair or collateral funds
 type IFundReleaser interface {
 	IFundReader
-	GetPairReleaser() (IPairReleaser, error)
-	GetCollateralReleaser() (ICollateralReleaser, error)
+	PairReleaser() (IPairReleaser, error)
+	CollateralReleaser() (ICollateralReleaser, error)
 }
 
 // IPairReader is used to limit pair funding functions
@@ -96,7 +96,6 @@ type IPairReader interface {
 // ICollateralReader is used to read data from
 // collateral pairs
 type ICollateralReader interface {
-	UnderlyingAsset() currency.Code
 	ContractCurrency() currency.Code
 	CollateralCurrency() currency.Code
 	InitialFunds() decimal.Decimal
@@ -113,7 +112,6 @@ type IPairReleaser interface {
 
 type ICollateralReleaser interface {
 	ICollateralReader
-	UpdateCollateral(decimal.Decimal) error
 	UpdateContracts(order.Side, decimal.Decimal) error
 	TakeProfit(contracts, positionReturns decimal.Decimal) error
 	ReleaseContracts(decimal.Decimal) error

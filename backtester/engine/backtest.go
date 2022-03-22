@@ -225,7 +225,7 @@ func (bt *BackTest) updateStatsForDataEvent(ev common.DataEventHandler, funds fu
 
 	if ev.GetAssetType().IsFutures() {
 		var cr funding.ICollateralReleaser
-		cr, err = funds.GetCollateralReleaser()
+		cr, err = funds.CollateralReleaser()
 		if err != nil {
 			return err
 		}

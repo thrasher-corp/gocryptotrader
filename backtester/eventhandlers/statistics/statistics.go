@@ -237,15 +237,14 @@ func (s *Statistic) CalculateAllResults() error {
 
 // GetBestMarketPerformer returns the best final market movement
 func (s *Statistic) GetBestMarketPerformer(results []FinalResultsHolder) *FinalResultsHolder {
-	result := &FinalResultsHolder{}
+	var result FinalResultsHolder
 	for i := range results {
 		if results[i].MarketMovement.GreaterThan(result.MarketMovement) || result.MarketMovement.IsZero() {
-			result = &results[i]
-			break
+			result = results[i]
 		}
 	}
 
-	return result
+	return &result
 }
 
 // GetBestStrategyPerformer returns the best performing strategy result

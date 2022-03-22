@@ -44,6 +44,7 @@ func (d *Data) GenerateReport() error {
 	}
 	d.USDTotalsChart = d.CreateUSDTotalsChart()
 	d.HoldingsOverTimeChart = d.CreateHoldingsOverTimeChart()
+	d.PNLOverTimeChart = d.createPNLCharts()
 
 	tmpl := template.Must(
 		template.ParseFiles(
@@ -157,6 +158,43 @@ func (d *Data) UpdateItem(k *kline.Item) {
 		d.OriginalCandles[0].Candles = append(d.OriginalCandles[0].Candles, k.Candles...)
 		d.OriginalCandles[0].RemoveDuplicates()
 	}
+}
+
+func (d *Data) createPNLCharts() []TotalsChart {
+	var resp []TotalsChart
+	for exch, assetMap := range d.Statistics.ExchangeAssetPairStatistics {
+		for item, pairMap := range assetMap {
+			for pair, result := range pairMap {
+				id := fmt.Sprintf("%v %v %v",
+					exch,
+					item,
+					pair)
+				uPNLName := fmt.Sprintf("%v Unrealised PNL", id)
+				rPNLName := fmt.Sprintf("%v Realised PNL", id)
+
+				unrealisedPNL := TotalsChart{Name: uPNLName}
+				realisedPNL := TotalsChart{Name: rPNLName}
+				for i := range result.Events {
+					if result.Events[i].PNL != nil {
+						realisedPNL.DataPoints = append(realisedPNL.DataPoints, ChartPlot{
+							Value:     result.Events[i].PNL.GetRealisedPNL().PNL.InexactFloat64(),
+							UnixMilli: result.Events[i].PNL.GetRealisedPNL().Time.UnixMilli(),
+						})
+						unrealisedPNL.DataPoints = append(unrealisedPNL.DataPoints, ChartPlot{
+							Value:     result.Events[i].PNL.GetUnrealisedPNL().PNL.InexactFloat64(),
+							UnixMilli: result.Events[i].PNL.GetUnrealisedPNL().Time.UnixMilli(),
+						})
+					}
+				}
+				if len(unrealisedPNL.DataPoints) == 0 || len(realisedPNL.DataPoints) == 0 {
+					continue
+				}
+				resp = append(resp, unrealisedPNL, realisedPNL)
+			}
+		}
+
+	}
+	return resp
 }
 
 // enhanceCandles will enhance candle data with order information allowing

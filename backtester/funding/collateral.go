@@ -10,19 +10,20 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
+// collateral related errors
 var (
-	// ErrNotCollateral is returned when a user requests collateral from a non-collateral pair
 	ErrNotCollateral = errors.New("not a collateral pair")
+	ErrIsCollateral  = errors.New("is collateral pair")
 	ErrNilPair       = errors.New("nil pair")
+	errPositiveOnly  = errors.New("reduces the amount by subtraction, positive numbers only")
 )
 
-// TODO consider moving futures tracking to funding
-// we're already passing around funding items, it can then also have all the lovely tracking attached?
-
+// CanPlaceOrder checks if there is any collateral to spare
 func (c *Collateral) CanPlaceOrder(_ order.Side) bool {
 	return c.Collateral.CanPlaceOrder()
 }
 
+// TakeProfit handles both the reduction of contracts and the change in collateral
 func (c *Collateral) TakeProfit(contracts, positionReturns decimal.Decimal) error {
 	err := c.Contract.ReduceContracts(contracts)
 	if err != nil {
@@ -31,39 +32,37 @@ func (c *Collateral) TakeProfit(contracts, positionReturns decimal.Decimal) erro
 	return c.Collateral.TakeProfit(positionReturns)
 }
 
+// ContractCurrency returns the contract currency
 func (c *Collateral) ContractCurrency() currency.Code {
 	return c.Contract.currency
 }
 
-func (c *Collateral) UnderlyingAsset() currency.Code {
-	// somehow get the underlying
-	return c.Contract.currency
-}
-
+// CollateralCurrency returns collateral currency
 func (c *Collateral) CollateralCurrency() currency.Code {
 	return c.Collateral.currency
 }
 
+// InitialFunds returns initial funds of collateral
 func (c *Collateral) InitialFunds() decimal.Decimal {
 	return c.Collateral.initialFunds
 }
 
+// AvailableFunds returns available funds of collateral
 func (c *Collateral) AvailableFunds() decimal.Decimal {
 	return c.Collateral.available
 }
 
+// GetPairReader returns an error because collateral isn't a pair
 func (c *Collateral) GetPairReader() (IPairReader, error) {
 	return nil, fmt.Errorf("could not return pair reader for %v %v %v %v %w", c.Contract.exchange, c.Collateral.asset, c.ContractCurrency(), c.CollateralCurrency(), ErrNotPair)
 }
 
+// GetCollateralReader returns a collateral reader interface of Collateral
 func (c *Collateral) GetCollateralReader() (ICollateralReader, error) {
 	return c, nil
 }
 
-func (c *Collateral) UpdateCollateral(amount decimal.Decimal) error {
-	return c.Collateral.TakeProfit(amount)
-}
-
+// UpdateContracts adds or subtracts contracts based on order direction
 func (c *Collateral) UpdateContracts(s order.Side, amount decimal.Decimal) error {
 	switch {
 	case c.currentDirection == nil:
@@ -78,70 +77,34 @@ func (c *Collateral) UpdateContracts(s order.Side, amount decimal.Decimal) error
 	}
 }
 
-func (i *Item) TakeProfit(amount decimal.Decimal) error {
-	if !i.asset.IsFutures() {
-		return fmt.Errorf("%v %v %v %w", i.exchange, i.asset, i.currency, errNotFutures)
-	}
-	i.available = i.available.Add(amount)
-	return nil
-}
-
-// AddContracts allocates an amount of funds to be used at a later time
-// it prevents multiple events from claiming the same resource
-func (i *Item) AddContracts(amount decimal.Decimal) error {
-	if !i.asset.IsFutures() {
-		return fmt.Errorf("%v %v %v %w", i.exchange, i.asset, i.currency, errNotFutures)
-	}
-	if amount.LessThanOrEqual(decimal.Zero) {
-		return errZeroAmountReceived
-	}
-	i.available = i.available.Add(amount)
-	return nil
-}
-
-// ReduceContracts allocates an amount of funds to be used at a later time
-// it prevents multiple events from claiming the same resource
-func (i *Item) ReduceContracts(amount decimal.Decimal) error {
-	if !i.asset.IsFutures() {
-		return fmt.Errorf("%v %v %v %w", i.exchange, i.asset, i.currency, errNotFutures)
-	}
-	if amount.LessThanOrEqual(decimal.Zero) {
-		return errZeroAmountReceived
-	}
-	if amount.GreaterThan(i.available) {
-		return fmt.Errorf("%w for %v %v %v. Requested %v Reserved: %v",
-			errCannotAllocate,
-			i.exchange,
-			i.asset,
-			i.currency,
-			amount,
-			i.reserved)
-	}
-	i.available = i.available.Sub(amount)
-	return nil
-}
-
+// ReleaseContracts lowers the amount of available contracts
 func (c *Collateral) ReleaseContracts(amount decimal.Decimal) error {
-	// turn this into a protected func
+	if amount.LessThan(decimal.Zero) {
+		return fmt.Errorf("release %w", errPositiveOnly)
+	}
+	if c.Contract.available.LessThan(amount) {
+		return fmt.Errorf("%w amount '%v' larger than available '%v'", errCannotAllocate, amount, c.Contract.available)
+	}
 	c.Contract.available = c.Contract.available.Sub(amount)
 	return nil
 }
 
-// FundReader
+// FundReader returns a fund reader interface of collateral
 func (c *Collateral) FundReader() IFundReader {
 	return c
 }
 
-// FundReserver
+// FundReserver returns a fund reserver interface of Collateral
 func (c *Collateral) FundReserver() IFundReserver {
 	return c
 }
 
-// GetPairReleaser
-func (c *Collateral) GetPairReleaser() (IPairReleaser, error) {
+// PairReleaser returns an error as there is no such thing for collateral
+func (c *Collateral) PairReleaser() (IPairReleaser, error) {
 	return nil, fmt.Errorf("could not get pair releaser for %v %v %v %v %w", c.Contract.exchange, c.Collateral.asset, c.ContractCurrency(), c.CollateralCurrency(), ErrNotPair)
 }
 
+// Reserve reserves or releases collateral based on order side
 func (c *Collateral) Reserve(amount decimal.Decimal, side order.Side) error {
 	switch side {
 	case order.Long, order.Short:
@@ -158,21 +121,25 @@ func (c *Collateral) Reserve(amount decimal.Decimal, side order.Side) error {
 	}
 }
 
-// GetCollateralReleaser
-func (c *Collateral) GetCollateralReleaser() (ICollateralReleaser, error) {
+// CollateralReleaser returns an ICollateralReleaser to interact with
+// collateral
+func (c *Collateral) CollateralReleaser() (ICollateralReleaser, error) {
 	return c, nil
 }
 
-// FundReleaser
+// FundReleaser returns an IFundReleaser to interact with
+// collateral
 func (c *Collateral) FundReleaser() IFundReleaser {
 	return c
 }
 
+// Liquidate kills your funds and future
 func (c *Collateral) Liquidate() {
 	c.Collateral.available = decimal.Zero
 	c.Contract.available = decimal.Zero
 }
 
+// CurrentHoldings returns available contract holdings
 func (c *Collateral) CurrentHoldings() decimal.Decimal {
 	return c.Contract.available
 }

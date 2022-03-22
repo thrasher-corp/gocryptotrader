@@ -136,56 +136,9 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 	f.ExchangeFee = calculateExchangeFee(adjustedPrice, limitReducedAmount, cs.ExchangeFee)
 
 	orderID, err := e.placeOrder(context.TODO(), adjustedPrice, limitReducedAmount, cs.UseRealOrders, cs.CanUseExchangeLimits, f, orderManager)
-	switch cs.Asset {
-	case asset.Spot:
-		pr, fundErr := funds.GetPairReleaser()
-		if fundErr != nil {
-			return f, fundErr
-		}
-		if err != nil {
-			fundErr = pr.Release(eventFunds, eventFunds, f.GetDirection())
-			if fundErr != nil {
-				f.AppendReason(fundErr.Error())
-			}
-			if f.GetDirection() == gctorder.Buy {
-				f.SetDirection(common.CouldNotBuy)
-			} else if f.GetDirection() == gctorder.Sell {
-				f.SetDirection(common.CouldNotSell)
-			}
-			return f, err
-		}
-		switch f.GetDirection() {
-		case gctorder.Buy:
-			fundErr = pr.Release(eventFunds, eventFunds.Sub(limitReducedAmount.Mul(adjustedPrice)), f.GetDirection())
-			if fundErr != nil {
-				return f, fundErr
-			}
-			pr.IncreaseAvailable(limitReducedAmount, f.GetDirection())
-		case gctorder.Sell:
-			fundErr = pr.Release(eventFunds, eventFunds.Sub(limitReducedAmount), f.GetDirection())
-			if fundErr != nil {
-				return f, fundErr
-			}
-			pr.IncreaseAvailable(limitReducedAmount.Mul(adjustedPrice), f.GetDirection())
-		}
-	case asset.Futures:
-		cr, fundErr := funds.GetCollateralReleaser()
-		if fundErr != nil {
-			return f, fundErr
-		}
-		if err != nil {
-			fundErr = cr.ReleaseContracts(o.GetAmount())
-			if fundErr != nil {
-				return f, fundErr
-			}
-			switch f.GetDirection() {
-			case gctorder.Short:
-				f.SetDirection(common.CouldNotShort)
-			case gctorder.Long:
-				f.SetDirection(common.CouldNotLong)
-			}
-			return f, err
-		}
+	err = allocateFundsPostOrder(f, funds, err, o.GetAmount(), eventFunds, limitReducedAmount, adjustedPrice)
+	if err != nil {
+		return f, err
 	}
 
 	ords := orderManager.GetOrdersSnapshot("")
@@ -210,6 +163,74 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 	}
 
 	return f, nil
+}
+
+func allocateFundsPostOrder(f *fill.Fill, funds funding.IFundReleaser, orderError error, orderAmount, eventFunds, limitReducedAmount, adjustedPrice decimal.Decimal) error {
+	if f == nil {
+		return fmt.Errorf("%w: fill event", common.ErrNilEvent)
+	}
+	if funds == nil {
+		return fmt.Errorf("%w: funding", common.ErrNilArguments)
+	}
+
+	switch f.AssetType {
+	case asset.Spot:
+		pr, fundErr := funds.PairReleaser()
+		if fundErr != nil {
+			return fundErr
+		}
+		if orderError != nil {
+			fundErr = pr.Release(eventFunds, eventFunds, f.GetDirection())
+			if fundErr != nil {
+				f.AppendReason(fundErr.Error())
+			}
+			if f.GetDirection() == gctorder.Buy {
+				f.SetDirection(common.CouldNotBuy)
+			} else if f.GetDirection() == gctorder.Sell {
+				f.SetDirection(common.CouldNotSell)
+			}
+			return orderError
+		}
+		switch f.GetDirection() {
+		case gctorder.Buy:
+			fundErr = pr.Release(eventFunds, eventFunds.Sub(limitReducedAmount.Mul(adjustedPrice)), f.GetDirection())
+			if fundErr != nil {
+				return fundErr
+			}
+			pr.IncreaseAvailable(limitReducedAmount, f.GetDirection())
+		case gctorder.Sell:
+			fundErr = pr.Release(eventFunds, eventFunds.Sub(limitReducedAmount), f.GetDirection())
+			if fundErr != nil {
+				return fundErr
+			}
+			pr.IncreaseAvailable(limitReducedAmount.Mul(adjustedPrice), f.GetDirection())
+		default:
+			return fmt.Errorf("%w asset type %v", common.ErrInvalidDataType, f.GetDirection())
+		}
+	case asset.Futures:
+		cr, fundErr := funds.CollateralReleaser()
+		if fundErr != nil {
+			return fundErr
+		}
+		if orderError != nil {
+			fundErr = cr.ReleaseContracts(orderAmount)
+			if fundErr != nil {
+				return fundErr
+			}
+			switch f.GetDirection() {
+			case gctorder.Short:
+				f.SetDirection(common.CouldNotShort)
+			case gctorder.Long:
+				f.SetDirection(common.CouldNotLong)
+			default:
+				return fmt.Errorf("%w asset type %v", common.ErrInvalidDataType, f.GetDirection())
+			}
+			return orderError
+		}
+	default:
+		return fmt.Errorf("%w asset type %v", common.ErrInvalidDataType, f.AssetType)
+	}
+	return nil
 }
 
 // verifyOrderWithinLimits conforms the amount to fall into the minimum size and maximum size limit after reduced

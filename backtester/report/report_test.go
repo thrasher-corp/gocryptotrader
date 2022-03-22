@@ -310,9 +310,8 @@ func TestGenerateReport(t *testing.T) {
 				MarketMovement:   decimal.NewFromInt(1337),
 				StrategyMovement: decimal.NewFromInt(1337),
 			},
-			CurrencyPairStatistics: nil,
-			WasAnyDataMissing:      false,
-			FundingStatistics:      nil,
+			WasAnyDataMissing: false,
+			FundingStatistics: nil,
 		},
 	}
 	d.OutputPath = tempDir

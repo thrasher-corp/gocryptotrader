@@ -41,6 +41,7 @@ type Data struct {
 	UseDarkTheme          bool
 	USDTotalsChart        []TotalsChart
 	HoldingsOverTimeChart []TotalsChart
+	PNLOverTimeChart      []TotalsChart
 	Prettify              PrettyNumbers
 }
 

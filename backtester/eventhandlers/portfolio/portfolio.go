@@ -254,7 +254,7 @@ func (p *Portfolio) OnFill(ev fill.Event, funds funding.IFundReleaser) (fill.Eve
 	var err error
 
 	if ev.GetAssetType() == asset.Spot {
-		fp, err := funds.GetPairReleaser()
+		fp, err := funds.PairReleaser()
 		if err != nil {
 			return nil, err
 		}
@@ -525,7 +525,7 @@ func (p *Portfolio) TrackFuturesOrder(f fill.Event, fund funding.IFundReleaser) 
 		return nil, fmt.Errorf("order '%v' %w", detail.ID, gctorder.ErrNotFuturesAsset)
 	}
 
-	collateralReleaser, err := fund.GetCollateralReleaser()
+	collateralReleaser, err := fund.CollateralReleaser()
 	if err != nil {
 		return nil, fmt.Errorf("%v %v %v %w", detail.Exchange, detail.AssetType, detail.Pair, err)
 	}

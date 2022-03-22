@@ -779,6 +779,72 @@
 				// Apply the theme
 				Highcharts.setOptions(Highcharts.theme);
 			</script>
+				<h3>PNL Over Time</h3>
+				<div id="pnlovertime" style="max-height: 800px;min-height: 75vh;" >
+					<script>
+						Highcharts.chart('pnlovertime', {
+							stockTools: {
+								gui: {
+									buttons:[ 'simpleShapes', 'lines', 'crookedLines', 'measure', 'advanced', 'toggleAnnotations', 'verticalLabels', 'flags', 'zoomChange', 'currentPriceIndicator' ]
+								}
+							},
+							title: {
+								text: 'PNL values over strategy duration'
+							},
+							yAxis: {
+								title: {
+									text: 'USD'
+								}
+							},
+							xAxis: {
+								type: 'datetime'
+							},
+							legend: {
+								layout: 'vertical',
+								align: 'right',
+								verticalAlign: 'middle'
+							},
+							plotOptions: {
+								series: {
+									label: {
+										connectorAllowed: false
+									},
+								}
+							},
+							series: [
+								{{ range .PNLOverTimeChart }}
+								{
+									name: {{.Name}},
+									pointStart: {{ $.Statistics.StartDate.UnixMilli }},
+									pointInterval: {{$.Statistics.CandleInterval.Duration.Milliseconds}},
+									data: [
+										{{ range .DataPoints }}
+										[{{.UnixMilli}}, {{.Value}}],
+										{{end}}
+									]
+								},
+								{{end}}
+							],
+							responsive: {
+								rules: [{
+									condition: {
+										maxWidth: 500
+									},
+									chartOptions: {
+										legend: {
+											layout: 'horizontal',
+											align: 'center',
+											verticalAlign: 'bottom'
+										}
+									}
+								}]
+							}
+
+						});
+					</script>
+				</div>
+
+
 			{{ if eq $.Config.StrategySettings.DisableUSDTracking false }}
 			<div class="card-body card-body-cascade ">
 				<h3>USD Totals</h3>
@@ -1638,12 +1704,12 @@
 										<tr>
 											{{ if ne $ev.FillEvent nil }}
 												<td><b>{{$ev.FillEvent.GetTime}}</b></td>
-												<td>{{ $.Prettify.Decimal8 $ev.FillEvent.GetClosePrice}} {{if $asset.IsFutures}}{{$ev.PNL.GetCollateralCurrency}}{{else}}{{$pair.Quote}}{{end}}</td>
+												<td>{{ $.Prettify.Decimal8 $ev.FillEvent.GetClosePrice}} {{if $asset.IsFutures}}{{if ne $ev.PNL nil }}{{$ev.PNL.GetCollateralCurrency}}{{end}}{{else}}{{$pair.Quote}}{{end}}</td>
 												<td>{{$ev.FillEvent.GetDirection}}</td>
 												<td>{{$ev.FillEvent.GetReason}}</td>
 											{{ else if ne $ev.SignalEvent nil}}
 												<td>{{$ev.SignalEvent.GetTime}}</td>
-												<td>{{ $.Prettify.Decimal8 $ev.SignalEvent.GetPrice}} {{if $asset.IsFutures}}{{$ev.PNL.GetCollateralCurrency}}{{else}}{{$pair.Quote}}{{end}}</td>
+												<td>{{ $.Prettify.Decimal8 $ev.SignalEvent.GetPrice}} {{if $asset.IsFutures}}{{if ne $ev.PNL nil }}{{$ev.PNL.GetCollateralCurrency}}{{end}}{{else}}{{$pair.Quote}}{{end}}</td>
 												<td>{{$ev.SignalEvent.GetDirection}}</td>
 												<td>{{$ev.SignalEvent.GetReason}}</td>
 											{{ end }}
@@ -1651,8 +1717,8 @@
 												{{if ne $ev.PNL nil }}
 													<td>{{ $.Prettify.Decimal8 $ev.PNL.GetExposure}} {{$pair.Base}}-{{$pair.Quote}}</td>
 													<td>{{$ev.PNL.GetDirection}}</td>
-													<td>{{$ev.PNL.GetUnrealisedPNL.PNL}} {{$ev.PNL.GetCollateralCurrency}}</td>
-													<td>{{$ev.PNL.GetRealisedPNL.PNL}} {{$ev.PNL.GetCollateralCurrency}}</td>
+													<td>{{$ev.PNL.GetUnrealisedPNL.PNL}} {{if ne $ev.PNL nil }}{{$ev.PNL.GetCollateralCurrency}}{{end}}</td>
+													<td>{{$ev.PNL.GetRealisedPNL.PNL}}{{if ne $ev.PNL nil }}{{$ev.PNL.GetCollateralCurrency}}{{end}}</td>
 												{{else}}
 													<td>0 {{$pair.Base}}-{{$pair.Quote}}</td>
 													<td>N/A</td>

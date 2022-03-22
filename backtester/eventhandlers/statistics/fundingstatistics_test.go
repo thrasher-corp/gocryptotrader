@@ -181,6 +181,19 @@ func TestCalculateIndividualFundingStatistics(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v expected %v", err, nil)
 	}
+
+	ri.Asset = asset.Futures
+	_, err = CalculateIndividualFundingStatistics(false, ri, rs)
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v expected %v", err, nil)
+	}
+
+	ri.IsCollateral = true
+	_, err = CalculateIndividualFundingStatistics(false, ri, rs)
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v expected %v", err, nil)
+	}
+
 }
 
 func TestFundingStatisticsPrintResults(t *testing.T) {

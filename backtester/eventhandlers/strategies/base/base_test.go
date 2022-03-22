@@ -17,6 +17,7 @@ import (
 )
 
 func TestGetBase(t *testing.T) {
+	t.Parallel()
 	s := Strategy{}
 	_, err := s.GetBaseData(nil)
 	if !errors.Is(err, common.ErrNilArguments) {
@@ -59,6 +60,7 @@ func TestGetBase(t *testing.T) {
 }
 
 func TestSetSimultaneousProcessing(t *testing.T) {
+	t.Parallel()
 	s := Strategy{}
 	is := s.UsingSimultaneousProcessing()
 	if is {
@@ -67,6 +69,30 @@ func TestSetSimultaneousProcessing(t *testing.T) {
 	s.SetSimultaneousProcessing(true)
 	is = s.UsingSimultaneousProcessing()
 	if !is {
+		t.Error("expected true")
+	}
+}
+
+func TestUsingExchangeLevelFunding(t *testing.T) {
+	t.Parallel()
+	s := &Strategy{}
+	if s.UsingExchangeLevelFunding() {
+		t.Error("expected false")
+	}
+	s.usingExchangeLevelFunding = true
+	if !s.UsingExchangeLevelFunding() {
+		t.Error("expected true")
+	}
+}
+
+func TestSetExchangeLevelFunding(t *testing.T) {
+	t.Parallel()
+	s := &Strategy{}
+	s.SetExchangeLevelFunding(true)
+	if !s.UsingExchangeLevelFunding() {
+		t.Error("expected true")
+	}
+	if !s.UsingExchangeLevelFunding() {
 		t.Error("expected true")
 	}
 }
