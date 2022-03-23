@@ -310,19 +310,19 @@ func TestGetBalance(t *testing.T) {
 
 func TestBalanceInternalWait(t *testing.T) {
 	var bi *BalanceInternal
-	_, err := bi.Wait(0)
+	_, _, err := bi.Wait(0)
 	if !errors.Is(err, errBalanceIsNil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errBalanceIsNil)
 	}
 
 	bi = &BalanceInternal{}
-	waiter, err := bi.Wait(time.Nanosecond)
+	waiter, _, err := bi.Wait(time.Nanosecond)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 	<-waiter
 
-	waiter, err = bi.Wait(time.Minute)
+	waiter, _, err = bi.Wait(time.Minute)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}

@@ -271,22 +271,24 @@ func (b *BalanceInternal) load(change Balance) {
 // Wait waits for a change in amounts for an asset type. This will pause
 // indefinately if no change ever occurs. Max wait will return true if it failed
 // to achieve a state change in the time specified.
-func (b *BalanceInternal) Wait(maxWait time.Duration) (<-chan bool, error) {
+func (b *BalanceInternal) Wait(maxWait time.Duration) (wait <-chan bool, cancel chan<- struct{}, err error) {
 	if b == nil {
-		return nil, errBalanceIsNil
+		return nil, nil, errBalanceIsNil
 	}
 
-	var kick <-chan struct{}
+	ch := make(chan struct{})
+
 	if maxWait > 0 {
-		ch := make(chan struct{})
-		kick = ch
 		go func(ch chan<- struct{}, until time.Duration) {
 			time.Sleep(until)
-			ch <- struct{}{}
+			select {
+			case ch <- struct{}{}:
+			default:
+			}
 		}(ch, maxWait)
 	}
 
-	return b.notice.Wait(kick), nil
+	return b.notice.Wait(ch), ch, nil
 }
 
 // GetFree returns the current free balance for the exchange
