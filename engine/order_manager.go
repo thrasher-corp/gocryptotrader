@@ -21,7 +21,7 @@ import (
 )
 
 // SetupOrderManager will boot up the OrderManager
-func SetupOrderManager(exchangeManager iExchangeManager, communicationsManager iCommsManager, wg *sync.WaitGroup, verbose bool) (*OrderManager, error) {
+func SetupOrderManager(exchangeManager iExchangeManager, communicationsManager iCommsManager, wg *sync.WaitGroup, enabledFuturesTracking, verbose bool) (*OrderManager, error) {
 	if exchangeManager == nil {
 		return nil, errNilExchangeManager
 	}
@@ -40,6 +40,7 @@ func SetupOrderManager(exchangeManager iExchangeManager, communicationsManager i
 			commsManager:              communicationsManager,
 			wg:                        wg,
 			futuresPositionController: order.SetupPositionController(),
+			trackFuturesPositions:     enabledFuturesTracking,
 		},
 		verbose: verbose,
 	}, nil
@@ -899,7 +900,7 @@ func (s *store) updateExisting(od *order.Detail) error {
 	for x := range r {
 		if r[x].ID == od.ID {
 			r[x].UpdateOrderFromDetail(od)
-			if r[x].AssetType.IsFutures() {
+			if s.trackFuturesPositions && r[x].AssetType.IsFutures() {
 				err := s.futuresPositionController.TrackNewOrder(r[x])
 				if err != nil {
 					if !errors.Is(err, order.ErrPositionClosed) {
@@ -926,7 +927,7 @@ func (s *store) modifyExisting(id string, mod *order.Modify) error {
 	for x := range r {
 		if r[x].ID == id {
 			r[x].UpdateOrderFromModify(mod)
-			if r[x].AssetType.IsFutures() {
+			if s.trackFuturesPositions && r[x].AssetType.IsFutures() {
 				err := s.futuresPositionController.TrackNewOrder(r[x])
 				if err != nil {
 					if !errors.Is(err, order.ErrPositionClosed) {
@@ -953,7 +954,7 @@ func (s *store) upsert(od *order.Detail) (resp *OrderUpsertResponse, err error) 
 	}
 	s.m.Lock()
 	defer s.m.Unlock()
-	if od.AssetType.IsFutures() {
+	if s.trackFuturesPositions && od.AssetType.IsFutures() {
 		err = s.futuresPositionController.TrackNewOrder(od)
 		if err != nil {
 			if !errors.Is(err, order.ErrPositionClosed) {
@@ -1057,7 +1058,7 @@ func (s *store) add(det *order.Detail) error {
 	orders = append(orders, det)
 	s.Orders[strings.ToLower(det.Exchange)] = orders
 
-	if det.AssetType.IsFutures() {
+	if s.trackFuturesPositions && det.AssetType.IsFutures() {
 		err = s.futuresPositionController.TrackNewOrder(det)
 		if err != nil {
 			return err

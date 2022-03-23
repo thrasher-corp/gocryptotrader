@@ -273,7 +273,7 @@ type PNLResult struct {
 	Fee                   decimal.Decimal
 	IsLiquidated          bool
 	// Is event is supposed to show that something has happend and it isnt just tracking in time
-	IsEvent bool
+	IsOrder bool
 }
 
 // PositionStats is a basic holder

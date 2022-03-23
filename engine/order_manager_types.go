@@ -47,6 +47,7 @@ type store struct {
 	exchangeManager           iExchangeManager
 	wg                        *sync.WaitGroup
 	futuresPositionController *order.PositionController
+	trackFuturesPositions     bool
 }
 
 // OrderManager processes and stores orders across enabled exchanges

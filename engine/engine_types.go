@@ -38,6 +38,7 @@ type Settings struct {
 	EnableWebsocketRoutine      bool
 	EnableCurrencyStateManager  bool
 	EventManagerDelay           time.Duration
+	EnableFuturesTracking       bool
 	Verbose                     bool
 
 	// Exchange syncer settings

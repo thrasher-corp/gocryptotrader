@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // SetupPositionController creates a position controller
@@ -674,7 +675,16 @@ func (p *PNLCalculator) CalculatePNL(_ context.Context, calc *PNLCalculatorReque
 	}
 	var previousPNL *PNLResult
 	if len(calc.PNLHistory) > 0 {
-		previousPNL = &calc.PNLHistory[len(calc.PNLHistory)-1]
+		for i := len(calc.PNLHistory) - 1; i >= 0; i-- {
+			if calc.PNLHistory[i].Time.Equal(calc.Time) {
+				continue
+			}
+			if !calc.PNLHistory[i].IsOrder {
+				continue
+			}
+			previousPNL = &calc.PNLHistory[i]
+			break
+		}
 	}
 	var prevExposure decimal.Decimal
 	if previousPNL != nil {
@@ -716,7 +726,7 @@ func (p *PNLCalculator) CalculatePNL(_ context.Context, calc *PNLCalculatorReque
 	}
 
 	response := &PNLResult{
-		IsEvent:               true,
+		IsOrder:               true,
 		Time:                  calc.Time,
 		UnrealisedPNL:         unrealisedPNL,
 		RealisedPNLBeforeFees: realisedPNL,
@@ -733,7 +743,7 @@ func (p *PNLCalculator) CalculatePNL(_ context.Context, calc *PNLCalculatorReque
 func calculateRealisedPNL(pnlHistory []PNLResult) decimal.Decimal {
 	var realisedPNL, totalFees decimal.Decimal
 	for i := range pnlHistory {
-		if !pnlHistory[i].IsEvent {
+		if !pnlHistory[i].IsOrder {
 			continue
 		}
 		realisedPNL = realisedPNL.Add(pnlHistory[i].RealisedPNLBeforeFees)
@@ -750,7 +760,16 @@ func upsertPNLEntry(pnlHistory []PNLResult, entry *PNLResult) ([]PNLResult, erro
 	}
 	for i := range pnlHistory {
 		if entry.Time.Equal(pnlHistory[i].Time) {
-			pnlHistory[i] = *entry
+			pnlHistory[i].UnrealisedPNL = entry.UnrealisedPNL
+			pnlHistory[i].RealisedPNL = entry.RealisedPNL
+			pnlHistory[i].RealisedPNLBeforeFees = entry.RealisedPNLBeforeFees
+			pnlHistory[i].Exposure = entry.Exposure
+			pnlHistory[i].Direction = entry.Direction
+			pnlHistory[i].IsLiquidated = entry.IsLiquidated
+			pnlHistory[i].Price = entry.Price
+			if entry.IsOrder {
+				pnlHistory[i].IsOrder = true
+			}
 			return pnlHistory, nil
 		}
 	}

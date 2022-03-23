@@ -87,7 +87,7 @@ func TestStream(t *testing.T) {
 	// shut up coverage report
 	f.GetOffset()
 	f.SetOffset(1)
-	f.IsEvent()
+	f.IsOrder()
 	f.Pair()
 	f.GetExchange()
 	f.GetInterval()
