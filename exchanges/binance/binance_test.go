@@ -2516,7 +2516,7 @@ func TestWsOrderExecutionReport(t *testing.T) {
 		Price:                52789.1,
 		Amount:               0.00028400,
 		AverageExecutedPrice: 0,
-		TargetAmount:         0,
+		QuoteAmount:          0,
 		ExecutedAmount:       0,
 		RemainingAmount:      0.00028400,
 		Cost:                 0,

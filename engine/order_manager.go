@@ -572,13 +572,14 @@ func (m *OrderManager) processSubmittedOrder(newOrder *order.Submit, result orde
 	if newOrder.Date.IsZero() {
 		newOrder.Date = time.Now()
 	}
-	msg := fmt.Sprintf("Order manager: Exchange %s submitted order ID=%v [Ours: %v] pair=%v price=%v amount=%v side=%v type=%v for time %v.",
+	msg := fmt.Sprintf("Order manager: Exchange %s submitted order ID=%v [Ours: %v] pair=%v price=%v amount=%v quoteAmount=%v side=%v type=%v for time %v.",
 		newOrder.Exchange,
 		result.OrderID,
 		id.String(),
 		newOrder.Pair,
 		newOrder.Price,
 		newOrder.Amount,
+		newOrder.QuoteAmount,
 		newOrder.Side,
 		newOrder.Type,
 		newOrder.Date)
@@ -602,7 +603,7 @@ func (m *OrderManager) processSubmittedOrder(newOrder *order.Submit, result orde
 		LimitPriceUpper:   newOrder.LimitPriceUpper,
 		LimitPriceLower:   newOrder.LimitPriceLower,
 		TriggerPrice:      newOrder.TriggerPrice,
-		TargetAmount:      newOrder.TargetAmount,
+		QuoteAmount:       newOrder.QuoteAmount,
 		ExecutedAmount:    newOrder.ExecutedAmount,
 		RemainingAmount:   newOrder.RemainingAmount,
 		Fee:               newOrder.Fee,

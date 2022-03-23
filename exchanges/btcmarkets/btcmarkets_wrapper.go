@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/math"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -551,17 +550,20 @@ func (b *BTCMarkets) SubmitOrder(ctx context.Context, s *order.Submit) (order.Su
 		return resp, err
 	}
 
-	wow := math.RoundFloat(s.Amount, 8)
+	fOrderSide, err := b.formatOrderSide(s.Side)
+	if err != nil {
+		return resp, err
+	}
 
 	tempResp, err := b.NewOrder(ctx,
 		fpair.String(),
 		s.Price,
-		wow,
+		s.Amount,
 		fOrderType,
-		s.Side.String(),
+		fOrderSide,
 		s.TriggerPrice,
-		s.TargetAmount,
-		"",
+		s.QuoteAmount,
+		b.getTimeInForce(s),
 		false,
 		"",
 		s.ClientID)

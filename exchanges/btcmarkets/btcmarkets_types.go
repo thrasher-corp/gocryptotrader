@@ -158,6 +158,8 @@ type OrderData struct {
 	Amount       float64   `json:"amount,string"`
 	OpenAmount   float64   `json:"openAmount,string"`
 	Status       string    `json:"status"`
+	TargetAmount float64   `json:"targetAmount,string"`
+	TimeInForce  string    `json:"timeInForce"`
 }
 
 // CancelOrderResp stores data for cancelled orders
