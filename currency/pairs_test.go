@@ -505,3 +505,61 @@ func BenchmarkRemovePairsByFilter(b *testing.B) {
 		_ = pairs.RemovePairsByFilter(USD)
 	}
 }
+
+func TestHas(t *testing.T) {
+	pairs := Pairs{
+		NewPair(BTC, USD),
+		NewPair(LTC, USD),
+		NewPair(USD, NZD),
+		NewPair(LTC, USDT),
+		NewPair(LTC, DAI),
+		NewPair(USDT, XRP),
+		NewPair(DAI, XRP),
+	}
+
+	if !pairs.Has(BTC) {
+		t.Fatalf("expected %s to be %v", BTC, true)
+	}
+	if !pairs.Has(USD) {
+		t.Fatalf("expected %s to be %v", USD, true)
+	}
+	if !pairs.Has(LTC) {
+		t.Fatalf("expected %s to be %v", LTC, true)
+	}
+	if !pairs.Has(DAI) {
+		t.Fatalf("expected %s to be %v", DAI, true)
+	}
+	if !pairs.Has(XRP) {
+		t.Fatalf("expected %s to be %v", XRP, true)
+	}
+	if pairs.Has(ATOM3L) {
+		t.Fatalf("expected %s to be %v", ATOM3L, false)
+	}
+}
+
+func TestGetPairsByCurrencies(t *testing.T) {
+	available := Pairs{
+		NewPair(BTC, USD),
+		NewPair(LTC, USD),
+		NewPair(USD, NZD),
+		NewPair(LTC, USDT),
+		NewPair(LTC, DAI),
+		NewPair(USDT, XRP),
+		NewPair(DAI, XRP),
+	}
+
+	enabled := available.GetPairsByCurrencies(Currencies{USD})
+	if len(enabled) != 0 {
+		t.Fatalf("received %v but expected %v", enabled, "no pairs")
+	}
+
+	enabled = available.GetPairsByCurrencies(Currencies{USD, BTC})
+	if !enabled.Contains(NewPair(USD, BTC), false) {
+		t.Fatalf("received %v but expected to contain %v", enabled, NewPair(USD, BTC))
+	}
+
+	enabled = available.GetPairsByCurrencies(Currencies{USD, BTC, LTC, NZD, USDT, DAI})
+	if len(enabled) != 5 {
+		t.Fatalf("received %v but expected  %v", enabled, 5)
+	}
+}
