@@ -423,16 +423,14 @@ func (b *BTCMarkets) UpdateAccountInfo(ctx context.Context, assetType asset.Item
 		return resp, err
 	}
 	var acc account.SubAccount
-	for key := range data {
-		c := currency.NewCode(data[key].AssetName)
-		hold := data[key].Locked
-		total := data[key].Balance
-		acc.Currencies = append(acc.Currencies,
-			account.Balance{CurrencyName: c,
-				Total: total,
-				Hold:  hold,
-				Free:  total - hold,
-			})
+	acc.AssetType = assetType
+	for x := range data {
+		acc.Currencies = append(acc.Currencies, account.Balance{
+			CurrencyName: currency.NewCode(data[x].AssetName),
+			Total:        data[x].Balance,
+			Hold:         data[x].Locked,
+			Free:         data[x].Available,
+		})
 	}
 	resp.Accounts = append(resp.Accounts, acc)
 	resp.Exchange = b.Name
@@ -532,15 +530,25 @@ func (b *BTCMarkets) SubmitOrder(ctx context.Context, s *order.Submit) (order.Su
 		return resp, err
 	}
 
+	fOrderType, err := b.formatOrderType(s.Type)
+	if err != nil {
+		return resp, err
+	}
+
+	fOrderSide, err := b.formatOrderSide(s.Side)
+	if err != nil {
+		return resp, err
+	}
+
 	tempResp, err := b.NewOrder(ctx,
 		fpair.String(),
 		s.Price,
 		s.Amount,
-		s.Type.String(),
-		s.Side.String(),
+		fOrderType,
+		fOrderSide,
 		s.TriggerPrice,
-		s.TargetAmount,
-		"",
+		s.QuoteAmount,
+		b.getTimeInForce(s),
 		false,
 		"",
 		s.ClientID)

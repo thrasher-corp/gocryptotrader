@@ -899,3 +899,55 @@ func TestTrim(t *testing.T) {
 		})
 	}
 }
+
+func TestFormatOrderType(t *testing.T) {
+	_, err := b.formatOrderType(order.Type("SWOOON"))
+	if !errors.Is(err, order.ErrTypeIsInvalid) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, order.ErrTypeIsInvalid)
+	}
+
+	r, err := b.formatOrderType(order.Limit)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if r != limit {
+		t.Fatal("unexpected value")
+	}
+
+	r, err = b.formatOrderType(order.Market)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if r != market {
+		t.Fatal("unexpected value")
+	}
+
+	r, err = b.formatOrderType(order.StopLimit)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if r != stopLimit {
+		t.Fatal("unexpected value")
+	}
+
+	r, err = b.formatOrderType(order.Stop)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if r != stop {
+		t.Fatal("unexpected value")
+	}
+
+	r, err = b.formatOrderType(order.TakeProfit)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if r != takeProfit {
+		t.Fatal("unexpected value")
+	}
+}

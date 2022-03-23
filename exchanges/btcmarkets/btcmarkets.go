@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -16,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
@@ -57,7 +59,9 @@ const (
 	orderPlaced             = "Placed"
 	orderAccepted           = "Accepted"
 
-	ask        = "ask"
+	ask = "ask"
+
+	// order types
 	limit      = "Limit"
 	market     = "Market"
 	stopLimit  = "Stop Limit"
@@ -314,13 +318,57 @@ func (b *BTCMarkets) GetTradeByID(ctx context.Context, id string) (TradeHistoryD
 		request.Auth)
 }
 
+// formatOrderType conforms order type to the exchange acceptable order type
+// strings
+func (b *BTCMarkets) formatOrderType(o order.Type) (string, error) {
+	switch o {
+	case order.Limit:
+		return limit, nil
+	case order.Market:
+		return market, nil
+	case order.StopLimit:
+		return stopLimit, nil
+	case order.Stop:
+		return stop, nil
+	case order.TakeProfit:
+		return takeProfit, nil
+	default:
+		return "", fmt.Errorf("%s %s %w", b.Name, o, order.ErrTypeIsInvalid)
+	}
+}
+
+// formatOrderSide conforms order side to the exchange acceptable order side
+// strings
+func (b *BTCMarkets) formatOrderSide(o order.Side) (string, error) {
+	switch o {
+	case order.Ask:
+		return "Ask", nil
+	case order.Bid:
+		return "Bid", nil
+	default:
+		return "", fmt.Errorf("%s %s %w", b.Name, o, order.ErrSideIsInvalid)
+	}
+}
+
+// getTimeInForce returns a string depending on the options in order.Submit
+func (b *BTCMarkets) getTimeInForce(s *order.Submit) string {
+	if s.ImmediateOrCancel {
+		return "IOC"
+	}
+	if s.FillOrKill {
+		return "FOK"
+	}
+	return "" // GTC (good till cancelled, default value
+}
+
 // NewOrder requests a new order and returns an ID
-func (b *BTCMarkets) NewOrder(ctx context.Context, marketID string, price, amount float64, orderType, side string, triggerPrice,
+func (b *BTCMarkets) NewOrder(ctx context.Context, marketID string, price, amount float64, orderType string, side string, triggerPrice,
 	targetAmount float64, timeInForce string, postOnly bool, selfTrade, clientOrderID string) (OrderData, error) {
-	var resp OrderData
 	req := make(map[string]interface{})
 	req["marketId"] = marketID
-	req["price"] = strconv.FormatFloat(price, 'f', -1, 64)
+	if price != 0 {
+		req["price"] = strconv.FormatFloat(price, 'f', -1, 64)
+	}
 	req["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)
 	req["type"] = orderType
 	req["side"] = side
@@ -333,13 +381,16 @@ func (b *BTCMarkets) NewOrder(ctx context.Context, marketID string, price, amoun
 	if timeInForce != "" {
 		req["timeInForce"] = timeInForce
 	}
-	req["postOnly"] = postOnly
+	if postOnly {
+		req["postOnly"] = postOnly
+	}
 	if selfTrade != "" {
 		req["selfTrade"] = selfTrade
 	}
 	if clientOrderID != "" {
 		req["clientOrderID"] = clientOrderID
 	}
+	var resp OrderData
 	return resp, b.SendAuthenticatedRequest(ctx, http.MethodPost,
 		btcMarketsOrders,
 		req,
