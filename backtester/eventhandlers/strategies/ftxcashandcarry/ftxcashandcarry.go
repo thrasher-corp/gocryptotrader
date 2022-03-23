@@ -198,7 +198,7 @@ func (s *Strategy) SetCustomSettings(customSettings map[string]interface{}) erro
 
 // SetDefaults not required for DCA
 func (s *Strategy) SetDefaults() {
-	s.openShortDistancePercentage = decimal.NewFromInt(5)
+	s.openShortDistancePercentage = decimal.Zero
 	s.closeShortDistancePercentage = decimal.Zero
 	// TODO set false
 	s.onlyCloseOnProfit = false

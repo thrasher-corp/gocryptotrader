@@ -1299,7 +1299,7 @@ func (f *FTX) CalculatePNL(ctx context.Context, pnl *order.PNLCalculatorRequest)
 	if err != nil {
 		return nil, err
 	}
-	if info.Liquidating || info.Collateral == 0 {
+	if info.Liquidating || info.Collateral <= 0 {
 		result.IsLiquidated = true
 		return result, fmt.Errorf("%s %s %w", f.Name, f.API.Credentials.Subaccount, order.ErrPositionLiquidated)
 	}
