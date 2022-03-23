@@ -541,17 +541,17 @@ func (b *BTCMarkets) SubmitOrder(ctx context.Context, s *order.Submit) (order.Su
 	}
 
 	tempResp, err := b.NewOrder(ctx,
-		fpair.String(),
 		s.Price,
 		s.Amount,
-		fOrderType,
-		fOrderSide,
 		s.TriggerPrice,
 		s.QuoteAmount,
+		fpair.String(),
+		fOrderType,
+		fOrderSide,
 		b.getTimeInForce(s),
-		false,
 		"",
-		s.ClientID)
+		s.ClientID,
+		s.PostOnly)
 	if err != nil {
 		return resp, err
 	}

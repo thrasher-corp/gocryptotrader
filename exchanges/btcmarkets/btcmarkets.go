@@ -68,6 +68,14 @@ const (
 	stop       = "Stop"
 	takeProfit = "Take Profit"
 
+	// order sides
+	askSide = "Ask"
+	bidSide = "Bid"
+
+	// time in force
+	immediateOrCancel = "IOC"
+	fillOrKill        = "FOK"
+
 	subscribe     = "subscribe"
 	fundChange    = "fundChange"
 	orderChange   = "orderChange"
@@ -342,9 +350,9 @@ func (b *BTCMarkets) formatOrderType(o order.Type) (string, error) {
 func (b *BTCMarkets) formatOrderSide(o order.Side) (string, error) {
 	switch o {
 	case order.Ask:
-		return "Ask", nil
+		return askSide, nil
 	case order.Bid:
-		return "Bid", nil
+		return bidSide, nil
 	default:
 		return "", fmt.Errorf("%s %s %w", b.Name, o, order.ErrSideIsInvalid)
 	}
@@ -353,17 +361,16 @@ func (b *BTCMarkets) formatOrderSide(o order.Side) (string, error) {
 // getTimeInForce returns a string depending on the options in order.Submit
 func (b *BTCMarkets) getTimeInForce(s *order.Submit) string {
 	if s.ImmediateOrCancel {
-		return "IOC"
+		return immediateOrCancel
 	}
 	if s.FillOrKill {
-		return "FOK"
+		return fillOrKill
 	}
-	return "" // GTC (good till cancelled, default value
+	return "" // GTC (good till cancelled, default value)
 }
 
 // NewOrder requests a new order and returns an ID
-func (b *BTCMarkets) NewOrder(ctx context.Context, marketID string, price, amount float64, orderType string, side string, triggerPrice,
-	targetAmount float64, timeInForce string, postOnly bool, selfTrade, clientOrderID string) (OrderData, error) {
+func (b *BTCMarkets) NewOrder(ctx context.Context, price, amount, triggerPrice, targetAmount float64, marketID, orderType, side, timeInForce, selfTrade, clientOrderID string, postOnly bool) (OrderData, error) {
 	req := make(map[string]interface{})
 	req["marketId"] = marketID
 	if price != 0 {
