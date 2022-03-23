@@ -244,39 +244,6 @@ func (p Pairs) GetRandomPair() Pair {
 	return EMPTYPAIR
 }
 
-// DeriveFrom matches symbol string to the available pairs list when no
-// delimiter is supplied.
-func (p Pairs) DeriveFrom(symbol string) (Pair, error) {
-	if len(p) == 0 {
-		return EMPTYPAIR, errPairsEmpty
-	}
-	if symbol == "" {
-		return EMPTYPAIR, errSymbolEmpty
-	}
-	symbol = strings.ToLower(symbol)
-pairs:
-	for x := range p {
-		if p[x].Len() != len(symbol) {
-			continue
-		}
-		base := p[x].Base.Lower().String()
-		baseLength := len(base)
-		for y := 0; y < baseLength; y++ {
-			if base[y] != symbol[y] {
-				continue pairs
-			}
-		}
-		quote := p[x].Quote.Lower().String()
-		for y := 0; y < len(quote); y++ {
-			if quote[y] != symbol[baseLength+y] {
-				continue pairs
-			}
-		}
-		return p[x], nil
-	}
-	return EMPTYPAIR, fmt.Errorf("%w for symbol string %s", ErrPairNotFound, symbol)
-}
-
 // GetCrypto returns all the cryptos contained in the list.
 func (p Pairs) GetCrypto() Currencies {
 	m := make(map[*Item]bool)

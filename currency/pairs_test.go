@@ -267,40 +267,6 @@ func TestContains(t *testing.T) {
 	}
 }
 
-func TestDeriveFrom(t *testing.T) {
-	t.Parallel()
-	_, err := Pairs{}.DeriveFrom("")
-	if !errors.Is(err, errPairsEmpty) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errPairsEmpty)
-	}
-	var testCases = Pairs{
-		NewPair(BTC, USDT),
-		NewPair(USDC, USDT),
-		NewPair(USDC, USD),
-		NewPair(BTC, LTC),
-		NewPair(LTC, SAFEMARS),
-	}
-
-	_, err = testCases.DeriveFrom("")
-	if !errors.Is(err, errSymbolEmpty) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errSymbolEmpty)
-	}
-
-	_, err = testCases.DeriveFrom("btcUSD")
-	if !errors.Is(err, ErrPairNotFound) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrPairNotFound)
-	}
-
-	got, err := testCases.DeriveFrom("USDCUSD")
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if got.Upper().String() != "USDCUSD" {
-		t.Fatalf("received: '%v' but expected: '%v'", got.Upper().String(), "USDCUSD")
-	}
-}
-
 func TestGetCrypto(t *testing.T) {
 	pairs := Pairs{
 		NewPair(BTC, USD),
