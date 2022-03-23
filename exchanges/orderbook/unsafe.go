@@ -1,11 +1,15 @@
 package orderbook
 
 import (
+	"errors"
+	"fmt"
 	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/alert"
 )
+
+var errNoLiquidity = errors.New("no liquidity")
 
 // Unsafe is an exported linked list reference to the current bid/ask heads and
 // a reference to the underlying depth mutex. This allows for the exposure of
@@ -61,4 +65,101 @@ func (d *Depth) GetUnsafe() *Unsafe {
 		UpdatedViaREST: &d.options.restSnapshot,
 		LastUpdated:    &d.options.lastUpdated,
 	}
+}
+
+// CheckBidLiquidity determines if the liquidity is sufficient for usage
+func (src *Unsafe) CheckBidLiquidity() error {
+	_, err := src.getBidLiquidity()
+	return err
+}
+
+// CheckAskLiquidity determines if the liquidity is sufficient for usage
+func (src *Unsafe) CheckAskLiquidity() error {
+	_, err := src.getAskLiquidity()
+	return err
+}
+
+// GetBestBid returns the top bid price
+func (src *Unsafe) GetBestBid() (float64, error) {
+	bid, err := src.getBidLiquidity()
+	if err != nil {
+		return 0, fmt.Errorf("get orderbook best bid price %w", err)
+	}
+	return bid.Value.Price, nil
+}
+
+// GetBestBid returns the top bid price
+func (src *Unsafe) GetBestAsk() (float64, error) {
+	ask, err := src.getAskLiquidity()
+	if err != nil {
+		return 0, fmt.Errorf("get orderbook best bid price %w", err)
+	}
+	return ask.Value.Price, nil
+}
+
+func (src *Unsafe) getBidLiquidity() (*Node, error) {
+	if *src.BidHead == nil {
+		return nil, fmt.Errorf("bid %w", errNoLiquidity)
+	}
+	return *src.BidHead, nil
+}
+
+func (src *Unsafe) getAskLiquidity() (*Node, error) {
+	if *src.AskHead == nil {
+		return nil, fmt.Errorf("bid %w", errNoLiquidity)
+	}
+	return *src.AskHead, nil
+}
+
+// getLiquidity checks and returns nodes to the top bids and asks
+func (src *Unsafe) getLiquidity() (ask, bid *Node, err error) {
+	bid, err = src.getBidLiquidity()
+	if err != nil {
+		return nil, nil, err
+	}
+	ask, err = src.getAskLiquidity()
+	if err != nil {
+		return nil, nil, err
+	}
+	return ask, bid, nil
+}
+
+// GetBestBid returns the average between the top bid and top ask.
+func (src *Unsafe) GetMidPrice() (float64, error) {
+	ask, bid, err := src.getLiquidity()
+	if err != nil {
+		return 0, fmt.Errorf("get orderbook mid price %w", err)
+	}
+	return (bid.Value.Price + ask.Value.Price) / 2, nil
+}
+
+// GetSpread returns the spread between the top bid and top asks.
+func (src *Unsafe) GetSpread() (float64, error) {
+	ask, bid, err := src.getLiquidity()
+	if err != nil {
+		return 0, fmt.Errorf("get orderbook price spread %w", err)
+	}
+	return ask.Value.Price - bid.Value.Price, nil
+}
+
+// GetImbalance returns difference between the top bid and top ask amounts
+// divided by its sum.
+func (src *Unsafe) GetImbalance() (float64, error) {
+	ask, bid, err := src.getLiquidity()
+	if err != nil {
+		return 0, fmt.Errorf("get orderbook imbalance %w", err)
+	}
+	top := bid.Value.Amount - ask.Value.Amount
+	bottom := bid.Value.Amount + ask.Value.Amount
+	return top / bottom, nil
+}
+
+// IsStreaming returns if the orderbook is updated by a streaming protocol and
+// is most likely more up to date than that of a REST protocol update.
+// NOTE: This locks down the book for inspection.
+func (src *Unsafe) IsStreaming() bool {
+	src.Lock()
+	stream := src.UpdatedViaREST != nil && !*src.UpdatedViaREST
+	src.Unlock()
+	return stream
 }
