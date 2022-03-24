@@ -88,7 +88,7 @@ func (src *Unsafe) GetBestBid() (float64, error) {
 	return bid.Value.Price, nil
 }
 
-// GetBestBid returns the top bid price
+// GetBestAsk returns the top ask price
 func (src *Unsafe) GetBestAsk() (float64, error) {
 	ask, err := src.GetAskLiquidity()
 	if err != nil {
