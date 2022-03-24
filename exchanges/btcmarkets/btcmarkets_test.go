@@ -246,6 +246,16 @@ func TestSubmitOrder(t *testing.T) {
 	}
 }
 
+func TestNewOrder(t *testing.T) {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
+	}
+	_, err := b.NewOrder(context.Background(), 100, 1, 0, 0, BTCAUD, limit, bidSide, "", "", "", true)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestGetOrders(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
