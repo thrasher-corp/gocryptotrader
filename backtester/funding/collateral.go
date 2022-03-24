@@ -7,7 +7,7 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 // collateral related errors
@@ -19,7 +19,7 @@ var (
 )
 
 // CanPlaceOrder checks if there is any collateral to spare
-func (c *Collateral) CanPlaceOrder(_ order.Side) bool {
+func (c *Collateral) CanPlaceOrder(_ gctorder.Side) bool {
 	return c.Collateral.CanPlaceOrder()
 }
 
@@ -63,7 +63,7 @@ func (c *Collateral) GetCollateralReader() (ICollateralReader, error) {
 }
 
 // UpdateContracts adds or subtracts contracts based on order direction
-func (c *Collateral) UpdateContracts(s order.Side, amount decimal.Decimal) error {
+func (c *Collateral) UpdateContracts(s gctorder.Side, amount decimal.Decimal) error {
 	switch {
 	case c.currentDirection == nil:
 		c.currentDirection = &s
@@ -105,9 +105,9 @@ func (c *Collateral) PairReleaser() (IPairReleaser, error) {
 }
 
 // Reserve reserves or releases collateral based on order side
-func (c *Collateral) Reserve(amount decimal.Decimal, side order.Side) error {
+func (c *Collateral) Reserve(amount decimal.Decimal, side gctorder.Side) error {
 	switch side {
-	case order.Long, order.Short:
+	case gctorder.Long, gctorder.Short:
 		return c.Collateral.Reserve(amount)
 	case common.ClosePosition:
 		return c.Collateral.Release(amount, amount)
@@ -137,6 +137,7 @@ func (c *Collateral) FundReleaser() IFundReleaser {
 func (c *Collateral) Liquidate() {
 	c.Collateral.available = decimal.Zero
 	c.Contract.available = decimal.Zero
+	c.currentDirection = nil
 }
 
 // CurrentHoldings returns available contract holdings

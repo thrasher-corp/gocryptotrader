@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/eventholder"
@@ -245,6 +246,13 @@ func (bt *BackTest) updateStatsForDataEvent(ev common.DataEventHandler, funds fu
 			return err
 		}
 
+		pnl.Result.UnrealisedPNL = decimal.NewFromInt(-444 - ev.GetOffset())
+
+		pnl, err = bt.Portfolio.CheckLiquidationStatus(ev, cr, pnl)
+		if err != nil {
+			return err
+		}
+
 		return bt.Statistic.AddPNLForTime(pnl)
 	}
 
@@ -353,15 +361,15 @@ func (bt *BackTest) processFillEvent(ev fill.Event, funds funding.IFundReleaser)
 				return
 			}
 
-			var receivingCurrency currency.Code
-			var receivingAsset asset.Item
-			receivingCurrency, receivingAsset, err = exch.GetCurrencyForRealisedPNL(ev.GetAssetType(), ev.Pair())
-			if err != nil {
-				log.Errorf(common.SubLoggers[common.Backtester], "GetCurrencyForRealisedPNL %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
-				return
-			}
 			rPNL := pnl.GetRealisedPNL()
 			if !rPNL.PNL.IsZero() {
+				var receivingCurrency currency.Code
+				var receivingAsset asset.Item
+				receivingCurrency, receivingAsset, err = exch.GetCurrencyForRealisedPNL(ev.GetAssetType(), ev.Pair())
+				if err != nil {
+					log.Errorf(common.SubLoggers[common.Backtester], "GetCurrencyForRealisedPNL %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
+					return
+				}
 				err = bt.Funding.RealisePNL(ev.GetExchange(), receivingAsset, receivingCurrency, rPNL.PNL)
 				if err != nil {
 					log.Errorf(common.SubLoggers[common.Backtester], "RealisePNL %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)

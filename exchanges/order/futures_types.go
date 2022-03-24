@@ -263,6 +263,7 @@ type PNLCalculatorRequest struct {
 
 // PNLResult stores a PNL result from a point in time
 type PNLResult struct {
+	Status                Status
 	Time                  time.Time
 	UnrealisedPNL         decimal.Decimal
 	RealisedPNLBeforeFees decimal.Decimal

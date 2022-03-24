@@ -259,6 +259,7 @@ const (
 	AutoDeleverage      Status = "ADL"
 	Closed              Status = "CLOSED"
 	Pending             Status = "PENDING"
+	Liquidated          Status = "LIQUIDATED"
 )
 
 // Type enforces a standard for order types across the code base
@@ -297,6 +298,7 @@ const (
 	UnknownSide Side = "UNKNOWN"
 	Long        Side = "LONG"
 	Short       Side = "SHORT"
+	SideNA      Side = "N/A"
 )
 
 // ByPrice used for sorting orders by price

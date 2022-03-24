@@ -432,8 +432,7 @@ func (d *Detail) IsInactive() bool {
 	if d.Amount <= 0 || d.Amount <= d.ExecutedAmount {
 		return true
 	}
-	return d.Status == Filled || d.Status == Cancelled || d.Status == InsufficientBalance || d.Status == MarketUnavailable ||
-		d.Status == Rejected || d.Status == PartiallyCancelled || d.Status == Expired || d.Status == Closed
+	return d.Status.IsInactive()
 }
 
 // GenerateInternalOrderID sets a new V4 order ID or a V5 order ID if
@@ -945,4 +944,11 @@ func (m *Modify) Validate(opt ...validate.Checker) error {
 		return ErrOrderIDNotSet
 	}
 	return nil
+}
+
+// IsInactive returns true if order is closed. Only for explicit closed status
+// eg insufficient_balance is likely closed, but not concrete enough to include
+func (s Status) IsInactive() bool {
+	return s == Filled || s == Cancelled || s == InsufficientBalance || s == MarketUnavailable ||
+		s == Rejected || s == PartiallyCancelled || s == Expired || s == Closed || s == Liquidated
 }

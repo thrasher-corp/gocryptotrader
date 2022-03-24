@@ -493,6 +493,19 @@ func (p *Portfolio) GetPositions(e common.EventHandler) ([]gctorder.PositionStat
 	return settings.FuturesTracker.GetPositions(), nil
 }
 
+// GetLatestPosition returns all futures positions for an event's exchange, asset, pair
+func (p *Portfolio) GetLatestPosition(e common.EventHandler) (*gctorder.PositionStats, error) {
+	settings, err := p.getFuturesSettingsFromEvent(e)
+	if err != nil {
+		return nil, err
+	}
+	positions := settings.FuturesTracker.GetPositions()
+	if len(positions) == 0 {
+		return nil, fmt.Errorf("%w %v %v %v", gctorder.ErrPositionsNotLoadedForPair, e.GetExchange(), e.GetAssetType(), e.Pair())
+	}
+	return &positions[len(positions)-1], nil
+}
+
 // UpdatePNL will analyse any futures orders that have been placed over the backtesting run
 // that are not closed and calculate their PNL
 func (p *Portfolio) UpdatePNL(e common.EventHandler, closePrice decimal.Decimal) error {
@@ -555,37 +568,66 @@ func (p *Portfolio) TrackFuturesOrder(f fill.Event, fund funding.IFundReleaser) 
 			return nil, err
 		}
 	}
-
 	err = p.UpdatePNL(f, f.GetClosePrice())
+	if err != nil {
+		return nil, fmt.Errorf("%v %v %v %w", f.GetExchange(), f.GetAssetType(), f.Pair(), err)
+	}
 
-	return p.GetLatestPNLForEvent(f)
+	pnl, err := p.GetLatestPNLForEvent(f)
+	if err != nil {
+		return nil, err
+	}
+	return pnl, nil
 }
 
 // GetLatestPNLForEvent takes in an event and returns the latest PNL data
 // if it exists
 func (p *Portfolio) GetLatestPNLForEvent(e common.EventHandler) (*PNLSummary, error) {
-	settings, err := p.getFuturesSettingsFromEvent(e)
-	if err != nil {
-		return nil, err
-	}
 	response := &PNLSummary{
 		Exchange: e.GetExchange(),
 		Item:     e.GetAssetType(),
 		Pair:     e.Pair(),
 		Offset:   e.GetOffset(),
 	}
-
-	positions := settings.FuturesTracker.GetPositions()
-	if len(positions) == 0 {
-		return response, nil
+	position, err := p.GetLatestPosition(e)
+	if err != nil {
+		return nil, err
 	}
-	pnlHistory := positions[len(positions)-1].PNLHistory
+	pnlHistory := position.PNLHistory
 	if len(pnlHistory) == 0 {
 		return response, nil
 	}
 	response.Result = pnlHistory[len(pnlHistory)-1]
-	response.CollateralCurrency = positions[0].CollateralCurrency
+	response.CollateralCurrency = position.CollateralCurrency
 	return response, nil
+}
+
+// CheckLiquidationStatus checks funding against position
+// and liquidates and removes funding if position unable to continue
+func (p *Portfolio) CheckLiquidationStatus(e common.DataEventHandler, collateralReleaser funding.ICollateralReleaser, pnl *PNLSummary) (*PNLSummary, error) {
+	settings, err := p.getFuturesSettingsFromEvent(e)
+	if err != nil {
+		return nil, err
+	}
+
+	availableFunds := collateralReleaser.AvailableFunds()
+	position, err := p.GetLatestPosition(e)
+	if err != nil {
+		return nil, err
+	}
+	if !position.Status.IsInactive() &&
+		pnl.Result.UnrealisedPNL.IsNegative() &&
+		pnl.Result.UnrealisedPNL.Abs().GreaterThan(availableFunds) {
+		// rudimentary liquidation processing until wrapper level implementation
+		err = settings.FuturesTracker.Liquidate(e.GetClosePrice(), e.GetTime())
+		if err != nil {
+			return nil, fmt.Errorf("%v %v %v %w", e.GetExchange(), e.GetAssetType(), e.Pair(), err)
+		}
+		collateralReleaser.Liquidate()
+		e.AppendReason(fmt.Sprintf("Liquidated, funds '%v', collateral '%v'", pnl.Result.UnrealisedPNL, availableFunds))
+	}
+
+	return p.GetLatestPNLForEvent(e)
 }
 
 func (p *Portfolio) getFuturesSettingsFromEvent(e common.EventHandler) (*Settings, error) {
@@ -691,4 +733,9 @@ func (p PNLSummary) GetCollateralCurrency() currency.Code {
 // GetDirection returns the direction
 func (p PNLSummary) GetDirection() gctorder.Side {
 	return p.Result.Direction
+}
+
+// GetPositionStatus returns the position status
+func (p PNLSummary) GetPositionStatus() gctorder.Status {
+	return p.Result.Status
 }

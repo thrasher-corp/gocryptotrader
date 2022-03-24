@@ -61,6 +61,7 @@ type Handler interface {
 	UpdatePNL(common.EventHandler, decimal.Decimal) error
 	GetLatestPNLForEvent(common.EventHandler) (*PNLSummary, error)
 	GetLatestPNLs() []PNLSummary
+	CheckLiquidationStatus(common.DataEventHandler, funding.ICollateralReleaser, *PNLSummary) (*PNLSummary, error)
 	Reset()
 }
 
@@ -100,6 +101,7 @@ type IPNL interface {
 	GetRealisedPNL() BasicPNLResult
 	GetCollateralCurrency() currency.Code
 	GetDirection() gctorder.Side
+	GetPositionStatus() gctorder.Status
 }
 
 // BasicPNLResult holds the time and the pnl

@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -84,6 +85,10 @@ func (s *Statistic) PrintAllEventsChronologically() {
 							colour := common.ColourProblem
 							if direction == common.DoNothing {
 								colour = common.ColourDarkGrey
+							}
+							if currencyStatistic.Events[i].PNL != nil &&
+								currencyStatistic.Events[i].PNL.GetPositionStatus() == gctorder.Liquidated {
+								colour = common.ColourError
 							}
 							msg := fmt.Sprintf(colour+
 								"%v %v%v%v| Price: $%v\tDirection: %v",

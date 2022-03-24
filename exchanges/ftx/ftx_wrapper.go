@@ -1288,10 +1288,7 @@ func (f *FTX) CalculatePNL(ctx context.Context, pnl *order.PNLCalculatorRequest)
 	if pnl.CalculateOffline {
 		// PNLCalculator matches FTX's pnl calculation method
 		calc := order.PNLCalculator{}
-		result, err = calc.CalculatePNL(ctx, pnl)
-		if err != nil {
-			return nil, fmt.Errorf("%s %s %w", f.Name, f.API.Credentials.Subaccount, err)
-		}
+		return calc.CalculatePNL(ctx, pnl)
 	}
 
 	ep := pnl.EntryPrice.InexactFloat64()
@@ -1317,11 +1314,7 @@ func (f *FTX) CalculatePNL(ctx context.Context, pnl *order.PNLCalculatorRequest)
 	}
 	// order no longer active, use offline calculation
 	calc := order.PNLCalculator{}
-	result, err = calc.CalculatePNL(ctx, pnl)
-	if err != nil {
-		return nil, fmt.Errorf("%s %s %w", f.Name, f.API.Credentials.Subaccount, err)
-	}
-	return result, nil
+	return calc.CalculatePNL(ctx, pnl)
 }
 
 // ScaleCollateral takes your totals and scales them according to FTX's rules

@@ -18,7 +18,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 var (
@@ -497,7 +496,7 @@ func (f *FundManager) getFundingForEAC(exch string, a asset.Item, c currency.Cod
 func (f *FundManager) LiquidateByCollateral(c currency.Code) error {
 	found := false
 	for i := range f.items {
-		if f.items[i].currency == c && !f.items[i].isCollateral && f.items[i].asset.IsFutures() {
+		if f.items[i].currency == c && f.items[i].isCollateral && f.items[i].asset.IsFutures() {
 			f.items[i].available = decimal.Zero
 			f.items[i].reserved = decimal.Zero
 			found = true
@@ -509,7 +508,7 @@ func (f *FundManager) LiquidateByCollateral(c currency.Code) error {
 	for i := range f.items {
 		if f.items[i].pairedWith != nil &&
 			f.items[i].pairedWith.currency == c &&
-			f.items[i].asset == asset.Futures {
+			f.items[i].asset.IsFutures() {
 			f.items[i].available = decimal.Zero
 			f.items[i].reserved = decimal.Zero
 		}
@@ -620,7 +619,6 @@ func (f *FundManager) HasFutures() bool {
 
 // RealisePNL adds the realised PNL to a receiving exchange asset pair
 func (f *FundManager) RealisePNL(receivingExchange string, receivingAsset asset.Item, receivingCurrency currency.Code, realisedPNL decimal.Decimal) error {
-	log.Debugf(log.Global, "\n%v %v %v %v WOW\n", receivingExchange, receivingAsset, receivingCurrency, realisedPNL)
 	for i := range f.items {
 		if f.items[i].exchange == receivingExchange &&
 			f.items[i].asset == receivingAsset &&
