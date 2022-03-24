@@ -3,7 +3,6 @@ package bybit
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -43,13 +42,15 @@ const (
 	bybitBestBidAskPrice  = "/spot/quote/v1/ticker/book_ticker"
 
 	// Authenticated endpoints
-	bybitSpotOrder            = "/spot/v1/order" // create, query, cancel
-	bybitBatchCancelSpotOrder = "/spot/order/batch-cancel"
-	bybitOpenOrder            = "/spot/v1/open-orders"
-	bybitPastOrder            = "/spot/v1/history-orders"
-	bybitTradeHistory         = "/spot/v1/myTrades"
-	bybitWalletBalance        = "/spot/v1/account"
-	bybitServerTime           = "/spot/v1/time"
+	bybitSpotOrder                = "/spot/v1/order" // create, query, cancel
+	bybitFastCancelSpotOrder      = "/spot/v1/order/fast"
+	bybitBatchCancelSpotOrder     = "/spot/order/batch-cancel"
+	bybitFastBatchCancelSpotOrder = "/spot/order/batch-fast-cancel"
+	bybitOpenOrder                = "/spot/v1/open-orders"
+	bybitPastOrder                = "/spot/v1/history-orders"
+	bybitTradeHistory             = "/spot/v1/myTrades"
+	bybitWalletBalance            = "/spot/v1/account"
+	bybitServerTime               = "/spot/v1/time"
 )
 
 // GetAllPairs gets all pairs on the exchange
@@ -544,6 +545,32 @@ func (by *Bybit) CancelExistingOrder(ctx context.Context, orderID, orderLinkID s
 	return &resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, bybitSpotOrder, params, &resp, privateSpotRate)
 }
 
+// FastCancelExistingOrder cancels existing order based upon orderID or orderLinkID
+func (by *Bybit) FastCancelExistingOrder(ctx context.Context, symbol, orderID, orderLinkID string) (*CancelOrderResponse, error) {
+	if orderID == "" && orderLinkID == "" {
+		return nil, errors.New("atleast one should be present among orderID and orderLinkID")
+	}
+
+	params := url.Values{}
+
+	if symbol == "" {
+		return nil, errors.New("symbol missing")
+	}
+	params.Set("symbolId", symbol)
+
+	if orderID != "" {
+		params.Set("orderId", orderID)
+	}
+	if orderLinkID != "" {
+		params.Set("orderLinkId", orderLinkID)
+	}
+
+	resp := struct {
+		Data CancelOrderResponse `json:"result"`
+	}{}
+	return &resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, bybitFastCancelSpotOrder, params, &resp, privateSpotRate)
+}
+
 // BatchCancelOrder cancels orders in batch based upon symbol, side or orderType
 func (by *Bybit) BatchCancelOrder(ctx context.Context, symbol, side, orderTypes string) (bool, error) {
 	params := url.Values{}
@@ -558,9 +585,48 @@ func (by *Bybit) BatchCancelOrder(ctx context.Context, symbol, side, orderTypes 
 	}
 
 	resp := struct {
-		Success bool `json:"success"`
+		Result struct {
+			Success bool `json:"success"`
+		} `json:"result"`
 	}{}
-	return resp.Success, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, bybitBatchCancelSpotOrder, params, &resp, privateSpotRate)
+	return resp.Result.Success, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, bybitBatchCancelSpotOrder, params, &resp, privateSpotRate)
+}
+
+// BatchFastCancelOrder cancels orders in batch based upon symbol, side or orderType
+func (by *Bybit) BatchFastCancelOrder(ctx context.Context, symbol, side, orderTypes string) (bool, error) {
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if side != "" {
+		params.Set("side", side)
+	}
+	if orderTypes != "" {
+		params.Set("orderTypes", orderTypes)
+	}
+
+	resp := struct {
+		Result struct {
+			Success bool `json:"success"`
+		} `json:"result"`
+	}{}
+	return resp.Result.Success, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, bybitFastBatchCancelSpotOrder, params, &resp, privateSpotRate)
+}
+
+// BatchCancelOrderByIDs cancels orders in batch based on comma separated order id's
+func (by *Bybit) BatchCancelOrderByIDs(ctx context.Context, orderIDs []string) (bool, error) {
+	params := url.Values{}
+	if len(orderIDs) == 0 {
+		return false, errors.New("orderIDs can't be empty")
+	}
+	params.Set("orderIds", strings.Join(orderIDs, ","))
+
+	resp := struct {
+		Result struct {
+			Success bool `json:"success"`
+		} `json:"result"`
+	}{}
+	return resp.Result.Success, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, bybitFastBatchCancelSpotOrder, params, &resp, privateSpotRate)
 }
 
 // ListOpenOrders returns all open orders
@@ -681,22 +747,12 @@ func (by *Bybit) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, me
 
 		headers := make(map[string]string)
 		var payload []byte
+		headers["Content-Type"] = "application/x-www-form-urlencoded"
 		switch method {
 		case http.MethodPost:
-			headers["Content-Type"] = "application/json"
-			m := make(map[string]string)
-			m["api_key"] = by.API.Credentials.Key
-
-			for k, v := range params {
-				m[k] = strings.Join(v, "")
-			}
-			m["sign"] = hmacSignedStr
-			payload, err = json.Marshal(m)
-			if err != nil {
-				return nil, err
-			}
+			params.Set("sign", hmacSignedStr)
+			payload = []byte(params.Encode())
 		default:
-			headers["Content-Type"] = "application/x-www-form-urlencoded"
 			path = common.EncodeURLValues(path, params)
 			path += "&sign=" + hmacSignedStr
 		}

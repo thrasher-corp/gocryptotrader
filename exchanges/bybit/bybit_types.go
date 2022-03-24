@@ -234,6 +234,13 @@ type orderbookResponse struct {
 	} `json:"result"`
 }
 
+type batchCancelOrderByIDSResponse struct {
+	OrderID string `json:"orderId"`
+	Code    int64  `json:"code,string"`
+}
+
+// Websocket Structures
+
 // Authenticate stores authentication variables required
 type Authenticate struct {
 	Args      []string `json:"args"`
