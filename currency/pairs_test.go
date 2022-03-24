@@ -7,6 +7,7 @@ import (
 )
 
 func TestPairsUpper(t *testing.T) {
+	t.Parallel()
 	pairs, err := NewPairsFromStrings([]string{"btc_usd", "btc_aud", "btc_ltc"})
 	if err != nil {
 		t.Fatal(err)
@@ -18,6 +19,7 @@ func TestPairsUpper(t *testing.T) {
 }
 
 func TestPairsLower(t *testing.T) {
+	t.Parallel()
 	pairs, err := NewPairsFromStrings([]string{"BTC_USD", "BTC_AUD", "BTC_LTC"})
 	if err != nil {
 		t.Fatal(err)
@@ -29,6 +31,7 @@ func TestPairsLower(t *testing.T) {
 }
 
 func TestPairsString(t *testing.T) {
+	t.Parallel()
 	pairs, err := NewPairsFromStrings([]string{"btc_usd", "btc_aud", "btc_ltc"})
 	if err != nil {
 		t.Fatal(err)
@@ -44,6 +47,7 @@ func TestPairsString(t *testing.T) {
 }
 
 func TestPairsFromString(t *testing.T) {
+	t.Parallel()
 	if _, err := NewPairsFromString("", ""); !errors.Is(err, errNoDelimiter) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoDelimiter)
 	}
@@ -71,6 +75,7 @@ func TestPairsFromString(t *testing.T) {
 }
 
 func TestPairsJoin(t *testing.T) {
+	t.Parallel()
 	pairs, err := NewPairsFromStrings([]string{"btc_usd", "btc_aud", "btc_ltc"})
 	if err != nil {
 		t.Fatal(err)
@@ -84,6 +89,7 @@ func TestPairsJoin(t *testing.T) {
 }
 
 func TestPairsFormat(t *testing.T) {
+	t.Parallel()
 	pairs, err := NewPairsFromStrings([]string{"btc_usd", "btc_aud", "btc_ltc"})
 	if err != nil {
 		t.Fatal(err)
@@ -118,6 +124,7 @@ func TestPairsFormat(t *testing.T) {
 }
 
 func TestPairsUnmarshalJSON(t *testing.T) {
+	t.Parallel()
 	var unmarshalHere Pairs
 	configPairs := ""
 	encoded, err := json.Marshal(configPairs)
@@ -158,6 +165,7 @@ func TestPairsUnmarshalJSON(t *testing.T) {
 }
 
 func TestPairsMarshalJSON(t *testing.T) {
+	t.Parallel()
 	pairs, err := NewPairsFromStrings([]string{"btc_usd", "btc_aud", "btc_ltc"})
 	if err != nil {
 		t.Fatal(err)
@@ -182,6 +190,7 @@ func TestPairsMarshalJSON(t *testing.T) {
 }
 
 func TestRemovePairsByFilter(t *testing.T) {
+	t.Parallel()
 	var pairs = Pairs{
 		NewPair(BTC, USD),
 		NewPair(LTC, USD),
@@ -195,6 +204,7 @@ func TestRemovePairsByFilter(t *testing.T) {
 }
 
 func TestGetPairsByFilter(t *testing.T) {
+	t.Parallel()
 	var pairs = Pairs{
 		NewPair(BTC, USD),
 		NewPair(LTC, USD),
@@ -209,6 +219,7 @@ func TestGetPairsByFilter(t *testing.T) {
 }
 
 func TestRemove(t *testing.T) {
+	t.Parallel()
 	var pairs = Pairs{
 		NewPair(BTC, USD),
 		NewPair(LTC, USD),
@@ -223,6 +234,7 @@ func TestRemove(t *testing.T) {
 }
 
 func TestAdd(t *testing.T) {
+	t.Parallel()
 	var pairs = Pairs{
 		NewPair(BTC, USD),
 		NewPair(LTC, USD),
@@ -244,6 +256,7 @@ func TestAdd(t *testing.T) {
 }
 
 func TestContains(t *testing.T) {
+	t.Parallel()
 	var pairs = Pairs{
 		NewPair(BTC, USD),
 		NewPair(LTC, USD),
@@ -302,6 +315,7 @@ func TestDeriveFrom(t *testing.T) {
 }
 
 func TestGetCrypto(t *testing.T) {
+	t.Parallel()
 	pairs := Pairs{
 		NewPair(BTC, USD),
 		NewPair(LTC, USD),
@@ -312,6 +326,7 @@ func TestGetCrypto(t *testing.T) {
 }
 
 func TestGetFiat(t *testing.T) {
+	t.Parallel()
 	pairs := Pairs{
 		NewPair(BTC, USD),
 		NewPair(LTC, USD),
@@ -322,6 +337,7 @@ func TestGetFiat(t *testing.T) {
 }
 
 func TestGetCurrencies(t *testing.T) {
+	t.Parallel()
 	pairs := Pairs{
 		NewPair(BTC, USD),
 		NewPair(LTC, USD),
@@ -332,6 +348,7 @@ func TestGetCurrencies(t *testing.T) {
 }
 
 func TestGetStables(t *testing.T) {
+	t.Parallel()
 	pairs := Pairs{
 		NewPair(BTC, USD),
 		NewPair(LTC, USD),
@@ -373,6 +390,7 @@ func BenchmarkGetCrypto(b *testing.B) {
 }
 
 func TestGetMatch(t *testing.T) {
+	t.Parallel()
 	pairs := Pairs{
 		NewPair(BTC, USD),
 		NewPair(LTC, USD),
@@ -405,6 +423,7 @@ func TestGetMatch(t *testing.T) {
 }
 
 func TestGetStablesMatch(t *testing.T) {
+	t.Parallel()
 	pairs := Pairs{
 		NewPair(BTC, USD),
 		NewPair(LTC, USD),
@@ -503,5 +522,65 @@ func BenchmarkRemovePairsByFilter(b *testing.B) {
 
 	for x := 0; x < b.N; x++ {
 		_ = pairs.RemovePairsByFilter(USD)
+	}
+}
+
+func TestPairsContainsCurrency(t *testing.T) {
+	t.Parallel()
+	pairs := Pairs{
+		NewPair(BTC, USD),
+		NewPair(LTC, USD),
+		NewPair(USD, NZD),
+		NewPair(LTC, USDT),
+		NewPair(LTC, DAI),
+		NewPair(USDT, XRP),
+		NewPair(DAI, XRP),
+	}
+
+	if !pairs.ContainsCurrency(BTC) {
+		t.Fatalf("expected %s to be %v", BTC, true)
+	}
+	if !pairs.ContainsCurrency(USD) {
+		t.Fatalf("expected %s to be %v", USD, true)
+	}
+	if !pairs.ContainsCurrency(LTC) {
+		t.Fatalf("expected %s to be %v", LTC, true)
+	}
+	if !pairs.ContainsCurrency(DAI) {
+		t.Fatalf("expected %s to be %v", DAI, true)
+	}
+	if !pairs.ContainsCurrency(XRP) {
+		t.Fatalf("expected %s to be %v", XRP, true)
+	}
+	if pairs.ContainsCurrency(ATOM3L) {
+		t.Fatalf("expected %s to be %v", ATOM3L, false)
+	}
+}
+
+func TestGetPairsByCurrencies(t *testing.T) {
+	t.Parallel()
+	available := Pairs{
+		NewPair(BTC, USD),
+		NewPair(LTC, USD),
+		NewPair(USD, NZD),
+		NewPair(LTC, USDT),
+		NewPair(LTC, DAI),
+		NewPair(USDT, XRP),
+		NewPair(DAI, XRP),
+	}
+
+	enabled := available.GetPairsByCurrencies(Currencies{USD})
+	if len(enabled) != 0 {
+		t.Fatalf("received %v but expected %v", enabled, "no pairs")
+	}
+
+	enabled = available.GetPairsByCurrencies(Currencies{USD, BTC})
+	if !enabled.Contains(NewPair(BTC, USD), true) {
+		t.Fatalf("received %v but expected to contain %v", enabled, NewPair(BTC, USD))
+	}
+
+	enabled = available.GetPairsByCurrencies(Currencies{USD, BTC, LTC, NZD, USDT, DAI})
+	if len(enabled) != 5 {
+		t.Fatalf("received %v but expected  %v", enabled, 5)
 	}
 }
