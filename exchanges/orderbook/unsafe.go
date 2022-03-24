@@ -97,6 +97,7 @@ func (src *Unsafe) GetBestAsk() (float64, error) {
 	return ask.Value.Price, nil
 }
 
+// GetBidLiquidity gets the head node for the bid liquidity
 func (src *Unsafe) GetBidLiquidity() (*Node, error) {
 	n := *src.BidHead
 	if n == nil {
@@ -105,6 +106,7 @@ func (src *Unsafe) GetBidLiquidity() (*Node, error) {
 	return n, nil
 }
 
+// GetAskLiquidity gets the head node for the ask liquidity
 func (src *Unsafe) GetAskLiquidity() (*Node, error) {
 	n := *src.AskHead
 	if n == nil {
@@ -113,7 +115,7 @@ func (src *Unsafe) GetAskLiquidity() (*Node, error) {
 	return n, nil
 }
 
-// getLiquidity checks and returns nodes to the top bids and asks
+// GetLiquidity checks and returns nodes to the top bids and asks
 func (src *Unsafe) GetLiquidity() (ask, bid *Node, err error) {
 	bid, err = src.GetBidLiquidity()
 	if err != nil {
