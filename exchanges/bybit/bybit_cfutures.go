@@ -50,14 +50,15 @@ const (
 	cfuturesReplaceConditionalOrder      = "/private/stop-order/replace"
 	cfuturesGetConditionalRealtimeOrders = "/private/stop-order"
 
-	cfuturesPosition        = "/private/position/list"
-	cfuturesUpdateMargin    = "/private/position/change-position-margin"
-	cfuturesSetTrading      = "/private/position/trading-stop"
-	cfuturesSetLeverage     = "/private/position/leverage/save"
-	cfuturesGetTrades       = "/private/execution/list"
-	cfuturesGetClosedTrades = "/private/trade/closed-pnl/list"
-	cfuturesSwitchPosition  = "/private/tpsl/switch-mode"
-	cfuturesSwitchMargin    = "/private/position/switch-isolated"
+	cfuturesPosition          = "/private/position/list"
+	cfuturesUpdateMargin      = "/private/position/change-position-margin"
+	cfuturesSetTrading        = "/private/position/trading-stop"
+	cfuturesSetLeverage       = "/private/position/leverage/save"
+	cfuturesGetTrades         = "/private/execution/list"
+	cfuturesGetClosedTrades   = "/private/trade/closed-pnl/list"
+	cfuturesSwitchPosition    = "/private/tpsl/switch-mode"
+	cfuturesSwitchMargin      = "/private/position/switch-isolated"
+	cfuturesGetTradingFeeRate = "/private/position/fee-rate"
 
 	cfuturesSetRiskLimit                   = "/private/position/risk-limit"
 	cfuturesGetMyLastFundingFee            = "/private/funding/prev-funding"
@@ -1047,6 +1048,25 @@ func (by *Bybit) ChangeCoinMargin(ctx context.Context, symbol currency.Pair, buy
 	}
 
 	return by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesSwitchMargin, params, &resp, cFuturesDefaultRate)
+}
+
+// GetTradingFeeRate returns trading taker and maker fee rate
+func (by *Bybit) GetTradingFeeRate(ctx context.Context, symbol currency.Pair) (float64, float64, error) {
+	params := url.Values{}
+	resp := struct {
+		Result struct {
+			TakerFeeRate float64 `json:"taker_fee_rate"`
+			MakerFeeRate float64 `json:"maker_fee_rate"`
+		} `json:"result"`
+	}{}
+
+	symbolValue, err := by.FormatSymbol(symbol, asset.CoinMarginedFutures)
+	if err != nil {
+		return resp.Result.TakerFeeRate, resp.Result.MakerFeeRate, err
+	}
+	params.Set("symbol", symbolValue)
+
+	return resp.Result.TakerFeeRate, resp.Result.MakerFeeRate, by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, bybitFuturesAPIVersion+cfuturesGetTradingFeeRate, params, &resp, cFuturesSwitchPositionRate)
 }
 
 // SetCoinRiskLimit sets risk limit

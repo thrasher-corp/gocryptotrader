@@ -40,15 +40,16 @@ const (
 	ufuturesReplaceConditionalOrder      = "/private/linear/stop-order/replace"
 	ufuturesGetConditionalRealtimeOrders = "/private/linear/stop-order/search"
 
-	ufuturesPosition         = "/private/linear/position/list"
-	ufuturesSetAutoAddMargin = "/private/linear/position/set-auto-add-margin"
-	ufuturesSwitchMargin     = "/private/linear/position/switch-isolated"
-	ufuturesSwitchPosition   = "/private/linear/tpsl/switch-mode"
-	ufuturesUpdateMargin     = "/private/linear/position/add-margin"
-	ufuturesSetLeverage      = "/private/linear/position/set-leverage"
-	ufuturesSetTradingStop   = "/private/linear/position/trading-stop"
-	ufuturesGetTrades        = "/private/linear/trade/execution/list"
-	ufuturesGetClosedTrades  = "/private/linear/trade/closed-pnl/list"
+	ufuturesPosition           = "/private/linear/position/list"
+	ufuturesSetAutoAddMargin   = "/private/linear/position/set-auto-add-margin"
+	ufuturesSwitchMargin       = "/private/linear/position/switch-isolated"
+	ufuturesSwitchPositionMode = "/private/linear/position/switch-mode"
+	ufuturesSwitchPosition     = "/private/linear/tpsl/switch-mode"
+	ufuturesUpdateMargin       = "/private/linear/position/add-margin"
+	ufuturesSetLeverage        = "/private/linear/position/set-leverage"
+	ufuturesSetTradingStop     = "/private/linear/position/trading-stop"
+	ufuturesGetTrades          = "/private/linear/trade/execution/list"
+	ufuturesGetClosedTrades    = "/private/linear/trade/closed-pnl/list"
 
 	ufuturesSetRiskLimit        = "/private/linear/position/set-risk"
 	ufuturesPredictFundingRate  = "/private/linear/funding/predicted-funding"
@@ -753,6 +754,22 @@ func (by *Bybit) ChangeUSDTMargin(ctx context.Context, symbol currency.Pair, buy
 	}
 
 	return by.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, ufuturesSwitchMargin, params, nil, uFuturesSwitchMargin)
+}
+
+// SwitchPositionMode switches mode between full or partial position
+func (by *Bybit) SwitchPositionMode(ctx context.Context, symbol currency.Pair, mode string) error {
+	params := url.Values{}
+	symbolValue, err := by.FormatSymbol(symbol, asset.USDTMarginedFutures)
+	if err != nil {
+		return err
+	}
+	params.Set("symbol", symbolValue)
+	if mode == "" {
+		return errors.New("mode can't be empty or missing")
+	}
+	params.Set("mode", mode)
+
+	return by.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, ufuturesSwitchPositionMode, params, nil, uFuturesSwitchPosition)
 }
 
 // ChangeUSDTMode switches mode between full or partial position

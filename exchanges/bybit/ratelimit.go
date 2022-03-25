@@ -54,6 +54,7 @@ const (
 	cFuturesUpdateMarginRate
 	cFuturesSetTradingRate
 	cFuturesSwitchPositionRate
+	cFuturesGetTradingFeeRate
 
 	cFuturesPositionRate
 	cFuturesWalletBalanceRate
@@ -175,7 +176,7 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 	case cFuturesTradeRate:
 		limiter, tokens = r.CMFuturesExecutionRate, 1
 
-	case cFuturesSetLeverageRate, cFuturesUpdateMarginRate, cFuturesSetTradingRate, cFuturesSwitchPositionRate:
+	case cFuturesSetLeverageRate, cFuturesUpdateMarginRate, cFuturesSetTradingRate, cFuturesSwitchPositionRate, cFuturesGetTradingFeeRate:
 		limiter, tokens = r.CMFuturesPositionRate, 1
 
 	case cFuturesPositionRate, cFuturesWalletBalanceRate:

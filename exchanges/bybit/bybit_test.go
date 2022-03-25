@@ -928,6 +928,22 @@ func TestChangeCoinMargin(t *testing.T) {
 	}
 }
 
+func TestGetTradingFeeRate(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+	pair, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, _, err = by.GetTradingFeeRate(context.Background(), pair)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestSetCoinRiskLimit(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
@@ -1373,7 +1389,7 @@ func TestSetAutoAddMargin(t *testing.T) {
 	}
 }
 
-func TestChangeUSDTMarginn(t *testing.T) {
+func TestChangeUSDTMargin(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
@@ -1384,6 +1400,22 @@ func TestChangeUSDTMarginn(t *testing.T) {
 	}
 
 	err = by.ChangeUSDTMargin(context.Background(), pair, 1, 1, true)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestSwitchPositionMode(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+	pair, err := currency.NewPairFromString("BTCUSDT")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = by.SwitchPositionMode(context.Background(), pair, "BothSide")
 	if err != nil {
 		t.Error(err)
 	}
