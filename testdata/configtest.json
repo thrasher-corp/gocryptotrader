@@ -703,13 +703,13 @@
     "supports": {
      "restAPI": true,
      "restCapabilities": {
-      "autoPairUpdates": true
+      "autoPairUpdates": false
      },
      "websocketAPI": true,
      "websocketCapabilities": {}
     },
     "enabled": {
-     "autoPairUpdates": true,
+     "autoPairUpdates": false,
      "websocketAPI": true,
      "saveTradeData": false,
      "tradeFeed": false,

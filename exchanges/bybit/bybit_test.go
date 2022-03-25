@@ -613,7 +613,7 @@ func TestCreateCoinFuturesOrder(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.CreateCoinFuturesOrder(context.Background(), pair, "Buy", "Limit", "GTC", "", "", "", 1, 1, 0, 0, false, false)
+	_, err = by.CreateCoinFuturesOrder(context.Background(), pair, "Buy", "Limit", "GTC", "", "", "", 1, 20000, 0, 0, false, false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -714,7 +714,7 @@ func TestCreateConditionalCoinFuturesOrder(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.CreateConditionalCoinFuturesOrder(context.Background(), pair, "Buy", "Limit", "GTC", "", "", "", "", 1, 0.5, 0, 0, 1, 1, false)
+	_, err = by.CreateConditionalCoinFuturesOrder(context.Background(), pair, "Buy", "Limit", "GTC", "", "", "", "", 1, 20000, 0, 0, 1, 1, false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1154,7 +1154,7 @@ func TestCreateUSDTFuturesOrder(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = by.CreateUSDTFuturesOrder(context.Background(), pair, "Buy", "Limit", "GoodTillCancel", "", "", "", 1, 1, 0, 0, false, false)
+	_, err = by.CreateUSDTFuturesOrder(context.Background(), pair, "Buy", "Limit", "GoodTillCancel", "", "", "", 1, 1, 0, 0, false, true)
 	if err != nil {
 		t.Error(err)
 	}
