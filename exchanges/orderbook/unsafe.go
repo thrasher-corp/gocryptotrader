@@ -110,7 +110,7 @@ func (src *Unsafe) GetBidLiquidity() (*Node, error) {
 func (src *Unsafe) GetAskLiquidity() (*Node, error) {
 	n := *src.AskHead
 	if n == nil {
-		return nil, fmt.Errorf("bid %w", errNoLiquidity)
+		return nil, fmt.Errorf("ask %w", errNoLiquidity)
 	}
 	return n, nil
 }
