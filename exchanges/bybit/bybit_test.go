@@ -188,7 +188,50 @@ func TestBatchCancelOrder(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
-	_, err := by.BatchCancelOrder(context.Background(), "", "BUY", "")
+	_, err := by.BatchCancelOrder(context.Background(), "", "Buy", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestFastCancelExistingOrder(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+	_, err := by.FastCancelExistingOrder(context.Background(), "BTCUSDT", "889208273689997824", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = by.FastCancelExistingOrder(context.Background(), "BTCUSDT", "", "162081160171552")
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestBatchFastCancelOrder(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+	_, err := by.BatchFastCancelOrder(context.Background(), "BTCUSDT", "Buy", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = by.BatchFastCancelOrder(context.Background(), "BTCUSDT", "", "Limit")
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestBatchCancelOrderByIDs(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+	_, err := by.BatchCancelOrderByIDs(context.Background(), []string{"889208273689997824", "889208273689997825"})
 	if err != nil {
 		t.Fatal(err)
 	}
