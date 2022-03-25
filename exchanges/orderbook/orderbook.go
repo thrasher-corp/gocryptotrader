@@ -75,7 +75,7 @@ func (s *Service) Update(b *Base) error {
 
 	book, ok := m3[b.Pair.Quote.Item]
 	if !ok {
-		book = newDepth(m1.ID)
+		book = NewDepth(m1.ID)
 		book.AssignOptions(b)
 		m3[b.Pair.Quote.Item] = book
 	}
@@ -122,7 +122,7 @@ func (s *Service) DeployDepth(exchange string, p currency.Pair, a asset.Item) (*
 	}
 	book, ok := m3[p.Quote.Item]
 	if !ok {
-		book = newDepth(m1.ID)
+		book = NewDepth(m1.ID)
 		book.exchange = exchange
 		book.pair = p
 		book.asset = a
