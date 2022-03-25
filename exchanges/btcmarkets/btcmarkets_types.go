@@ -346,6 +346,7 @@ type WsSubscribe struct {
 	Signature   string   `json:"signature,omitempty"`
 	Timestamp   string   `json:"timestamp,omitempty"`
 	MessageType string   `json:"messageType,omitempty"`
+	ClientType  string   `json:"clientType,omitempty"`
 }
 
 // WsMessageType message sent via ws to determine type

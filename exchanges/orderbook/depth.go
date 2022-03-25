@@ -1,6 +1,7 @@
 package orderbook
 
 import (
+	"errors"
 	"sync"
 	"time"
 
@@ -9,6 +10,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/alert"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
+
+// ErrOrderbookInvalid defines an error for when the orderbook is invalid and
+// should not be trusted
+var ErrOrderbookInvalid = errors.New("orderbook data integrity compromised")
 
 // Depth defines a linked list of orderbook items
 type Depth struct {
@@ -38,31 +43,44 @@ func NewDepth(id uuid.UUID) *Depth {
 
 // Publish alerts any subscribed routines using a dispatch mux
 func (d *Depth) Publish() {
-	err := d.mux.Publish([]uuid.UUID{d.id}, d.Retrieve())
+	ob, err := d.Retrieve()
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "Cannot publish orderbook update to mux %v", err)
+	}
+	err = d.mux.Publish([]uuid.UUID{d.id}, ob)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "Cannot publish orderbook update to mux %v", err)
 	}
 }
 
 // GetAskLength returns length of asks
-func (d *Depth) GetAskLength() int {
+func (d *Depth) GetAskLength() (int, error) {
 	d.m.Lock()
 	defer d.m.Unlock()
-	return d.asks.length
+	if !d.isValid {
+		return 0, ErrOrderbookInvalid
+	}
+	return d.asks.length, nil
 }
 
 // GetBidLength returns length of bids
-func (d *Depth) GetBidLength() int {
+func (d *Depth) GetBidLength() (int, error) {
 	d.m.Lock()
 	defer d.m.Unlock()
-	return d.bids.length
+	if !d.isValid {
+		return 0, ErrOrderbookInvalid
+	}
+	return d.bids.length, nil
 }
 
 // Retrieve returns the orderbook base a copy of the underlying linked list
 // spread
-func (d *Depth) Retrieve() *Base {
+func (d *Depth) Retrieve() (*Base, error) {
 	d.m.Lock()
 	defer d.m.Unlock()
+	if !d.isValid {
+		return nil, ErrOrderbookInvalid
+	}
 	return &Base{
 		Bids:             d.bids.retrieve(),
 		Asks:             d.asks.retrieve(),
@@ -74,23 +92,31 @@ func (d *Depth) Retrieve() *Base {
 		PriceDuplication: d.priceDuplication,
 		IsFundingRate:    d.isFundingRate,
 		VerifyOrderbook:  d.VerifyOrderbook,
-	}
+	}, nil
 }
 
 // TotalBidAmounts returns the total amount of bids and the total orderbook
 // bids value
-func (d *Depth) TotalBidAmounts() (liquidity, value float64) {
+func (d *Depth) TotalBidAmounts() (liquidity, value float64, err error) {
 	d.m.Lock()
 	defer d.m.Unlock()
-	return d.bids.amount()
+	if !d.isValid {
+		return 0, 0, ErrOrderbookInvalid
+	}
+	liquidity, value = d.bids.amount()
+	return liquidity, value, nil
 }
 
 // TotalAskAmounts returns the total amount of asks and the total orderbook
 // asks value
-func (d *Depth) TotalAskAmounts() (liquidity, value float64) {
+func (d *Depth) TotalAskAmounts() (liquidity, value float64, err error) {
 	d.m.Lock()
 	defer d.m.Unlock()
-	return d.asks.amount()
+	if !d.isValid {
+		return 0, 0, ErrOrderbookInvalid
+	}
+	liquidity, value = d.asks.amount()
+	return liquidity, value, nil
 }
 
 // LoadSnapshot flushes the bids and asks with a snapshot
@@ -101,19 +127,36 @@ func (d *Depth) LoadSnapshot(bids, asks []Item, lastUpdateID int64, lastUpdated 
 	d.restSnapshot = updateByREST
 	d.bids.load(bids, d.stack)
 	d.asks.load(asks, d.stack)
+	d.isValid = true
 	d.Alert()
 	d.m.Unlock()
 }
 
-// Flush flushes the bid and ask depths
-func (d *Depth) Flush() {
-	d.m.Lock()
+// invalidate flushes all values back to zero so as to not allow strategy
+// traversal on compromised data.
+func (d *Depth) invalidate() {
 	d.lastUpdateID = 0
 	d.lastUpdated = time.Time{}
 	d.bids.load(nil, d.stack)
 	d.asks.load(nil, d.stack)
+	d.isValid = false
 	d.Alert()
+}
+
+// Invalidate flushes all values back to zero so as to not allow strategy
+// traversal on compromised data.
+func (d *Depth) Invalidate() {
+	d.m.Lock()
+	d.invalidate()
 	d.m.Unlock()
+}
+
+// IsValid returns if the underlying book is valid.
+func (d *Depth) IsValid() bool {
+	d.m.Lock()
+	valid := d.isValid
+	d.m.Unlock()
+	return valid
 }
 
 // UpdateBidAskByPrice updates the bid and ask spread by supplied updates, this
@@ -146,12 +189,14 @@ func (d *Depth) UpdateBidAskByID(bidUpdts, askUpdts Items, lastUpdateID int64, l
 	if len(bidUpdts) != 0 {
 		err := d.bids.updateByID(bidUpdts)
 		if err != nil {
+			d.invalidate()
 			return err
 		}
 	}
 	if len(askUpdts) != 0 {
 		err := d.asks.updateByID(askUpdts)
 		if err != nil {
+			d.invalidate()
 			return err
 		}
 	}
@@ -171,12 +216,14 @@ func (d *Depth) DeleteBidAskByID(bidUpdts, askUpdts Items, bypassErr bool, lastU
 	if len(bidUpdts) != 0 {
 		err := d.bids.deleteByID(bidUpdts, d.stack, bypassErr)
 		if err != nil {
+			d.invalidate()
 			return err
 		}
 	}
 	if len(askUpdts) != 0 {
 		err := d.asks.deleteByID(askUpdts, d.stack, bypassErr)
 		if err != nil {
+			d.invalidate()
 			return err
 		}
 	}
@@ -196,12 +243,14 @@ func (d *Depth) InsertBidAskByID(bidUpdts, askUpdts Items, lastUpdateID int64, l
 	if len(bidUpdts) != 0 {
 		err := d.bids.insertUpdates(bidUpdts, d.stack)
 		if err != nil {
+			d.invalidate()
 			return err
 		}
 	}
 	if len(askUpdts) != 0 {
 		err := d.asks.insertUpdates(askUpdts, d.stack)
 		if err != nil {
+			d.invalidate()
 			return err
 		}
 	}
@@ -221,12 +270,14 @@ func (d *Depth) UpdateInsertByID(bidUpdts, askUpdts Items, lastUpdateID int64, l
 	if len(bidUpdts) != 0 {
 		err := d.bids.updateInsertByID(bidUpdts, d.stack)
 		if err != nil {
+			d.invalidate()
 			return err
 		}
 	}
 	if len(askUpdts) != 0 {
 		err := d.asks.updateInsertByID(askUpdts, d.stack)
 		if err != nil {
+			d.invalidate()
 			return err
 		}
 	}
@@ -262,17 +313,23 @@ func (d *Depth) GetName() string {
 }
 
 // IsRestSnapshot returns if the depth item was updated via REST
-func (d *Depth) IsRestSnapshot() bool {
+func (d *Depth) IsRestSnapshot() (bool, error) {
 	d.m.Lock()
 	defer d.m.Unlock()
-	return d.restSnapshot
+	if !d.isValid {
+		return false, ErrOrderbookInvalid
+	}
+	return d.restSnapshot, nil
 }
 
 // LastUpdateID returns the last Update ID
-func (d *Depth) LastUpdateID() int64 {
+func (d *Depth) LastUpdateID() (int64, error) {
 	d.m.Lock()
 	defer d.m.Unlock()
-	return d.lastUpdateID
+	if !d.isValid {
+		return 0, ErrOrderbookInvalid
+	}
+	return d.lastUpdateID, nil
 }
 
 // IsFundingRate returns if the depth is a funding rate
