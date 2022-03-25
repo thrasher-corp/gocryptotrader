@@ -181,8 +181,15 @@ func (bt *BackTest) processSimultaneousDataEvents() error {
 					return err
 				}
 				err = bt.updateStatsForDataEvent(latestData, funds.FundReleaser())
-				if err != nil && err == statistics.ErrAlreadyProcessed {
-					continue
+				if err != nil {
+					switch {
+					case errors.Is(err, statistics.ErrAlreadyProcessed):
+						continue
+					case errors.Is(err, gctorder.ErrPositionLiquidated):
+						return nil
+					default:
+						log.Error(common.SubLoggers[common.Backtester], err)
+					}
 				}
 				dataEvents = append(dataEvents, dataHandler)
 			}
@@ -248,8 +255,24 @@ func (bt *BackTest) updateStatsForDataEvent(ev common.DataEventHandler, funds fu
 
 		pnl.Result.UnrealisedPNL = decimal.NewFromInt(-444 - ev.GetOffset())
 
-		pnl, err = bt.Portfolio.CheckLiquidationStatus(ev, cr, pnl)
+		err = bt.Portfolio.CheckLiquidationStatus(ev, cr, pnl)
 		if err != nil {
+			if errors.Is(err, gctorder.ErrPositionLiquidated) {
+				// trigger closure of everything
+				orders, err := bt.Portfolio.CreateLiquidationOrders(ev)
+				if err != nil {
+					return err
+				}
+				for i := range orders {
+					bt.EventQueue.AppendEvent(orders[i])
+				}
+
+				pnl.Result.IsLiquidated = true
+				pnlErr := bt.Statistic.AddPNLForTime(pnl)
+				if pnlErr != nil {
+					return pnlErr
+				}
+			}
 			return err
 		}
 
@@ -337,7 +360,7 @@ func (bt *BackTest) processFillEvent(ev fill.Event, funds funding.IFundReleaser)
 	}
 
 	fde := ev.GetFillDependentEvent()
-	if !fde.IsNil() {
+	if fde != nil && !fde.IsNil() {
 		// some events can only be triggered on a successful fill event
 		fde.SetOffset(ev.GetOffset())
 		err = bt.Statistic.SetEventForOffset(fde)

@@ -136,9 +136,11 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 	f.ExchangeFee = calculateExchangeFee(adjustedPrice, limitReducedAmount, cs.ExchangeFee)
 
 	orderID, err := e.placeOrder(context.TODO(), adjustedPrice, limitReducedAmount, cs.UseRealOrders, cs.CanUseExchangeLimits, f, orderManager)
-	err = allocateFundsPostOrder(f, funds, err, o.GetAmount(), eventFunds, limitReducedAmount, adjustedPrice)
-	if err != nil {
-		return f, err
+	if !o.IsClosingPosition() {
+		err = allocateFundsPostOrder(f, funds, err, o.GetAmount(), eventFunds, limitReducedAmount, adjustedPrice)
+		if err != nil {
+			return f, err
+		}
 	}
 
 	ords := orderManager.GetOrdersSnapshot("")

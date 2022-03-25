@@ -816,10 +816,13 @@ func upsertPNLEntry(pnlHistory []PNLResult, entry *PNLResult) ([]PNLResult, erro
 			pnlHistory[i].RealisedPNLBeforeFees = entry.RealisedPNLBeforeFees
 			pnlHistory[i].Exposure = entry.Exposure
 			pnlHistory[i].Direction = entry.Direction
-			pnlHistory[i].IsLiquidated = entry.IsLiquidated
 			pnlHistory[i].Price = entry.Price
+			pnlHistory[i].Status = entry.Status
 			if entry.IsOrder {
 				pnlHistory[i].IsOrder = true
+			}
+			if entry.IsLiquidated {
+				pnlHistory[i].IsLiquidated = true
 			}
 			return pnlHistory, nil
 		}

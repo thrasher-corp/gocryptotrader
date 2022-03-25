@@ -134,3 +134,12 @@ func (p *Pair) CollateralReleaser() (ICollateralReleaser, error) {
 func (p *Pair) FundReleaser() IFundReleaser {
 	return p
 }
+
+// Liquidate basic liquidation response to remove
+// all asset value
+func (p *Pair) Liquidate() {
+	p.Base.available = decimal.Zero
+	p.Base.reserved = decimal.Zero
+	p.Quote.available = decimal.Zero
+	p.Quote.reserved = decimal.Zero
+}

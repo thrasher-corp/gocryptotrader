@@ -61,7 +61,8 @@ type Handler interface {
 	UpdatePNL(common.EventHandler, decimal.Decimal) error
 	GetLatestPNLForEvent(common.EventHandler) (*PNLSummary, error)
 	GetLatestPNLs() []PNLSummary
-	CheckLiquidationStatus(common.DataEventHandler, funding.ICollateralReleaser, *PNLSummary) (*PNLSummary, error)
+	CheckLiquidationStatus(common.DataEventHandler, funding.ICollateralReader, *PNLSummary) error
+	CreateLiquidationOrders(common.DataEventHandler) ([]*order.Order, error)
 	Reset()
 }
 

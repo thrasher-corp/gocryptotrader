@@ -69,6 +69,7 @@ func (s *Statistic) PrintAllEventsChronologically() {
 	var results []eventOutputHolder
 	log.Info(common.SubLoggers[common.Statistics], common.ColourH1+"------------------Events-------------------------------------"+common.ColourDefault)
 	var errs gctcommon.Errors
+	colour := common.ColourDefault
 	for exch, x := range s.ExchangeAssetPairStatistics {
 		for a, y := range x {
 			for pair, currencyStatistic := range y {
@@ -82,13 +83,8 @@ func (s *Statistic) PrintAllEventsChronologically() {
 							direction == common.DoNothing ||
 							direction == common.TransferredFunds ||
 							direction == "" {
-							colour := common.ColourProblem
 							if direction == common.DoNothing {
 								colour = common.ColourDarkGrey
-							}
-							if currencyStatistic.Events[i].PNL != nil &&
-								currencyStatistic.Events[i].PNL.GetPositionStatus() == gctorder.Liquidated {
-								colour = common.ColourError
 							}
 							msg := fmt.Sprintf(colour+
 								"%v %v%v%v| Price: $%v\tDirection: %v",
@@ -102,7 +98,12 @@ func (s *Statistic) PrintAllEventsChronologically() {
 							msg = msg + common.ColourDefault
 							results = addEventOutputToTime(results, currencyStatistic.Events[i].FillEvent.GetTime(), msg)
 						} else {
-							msg := fmt.Sprintf(common.ColourSuccess+
+							// successful order!
+							colour = common.ColourSuccess
+							if currencyStatistic.Events[i].PNL != nil && currencyStatistic.Events[i].PNL.GetPositionStatus() == gctorder.Liquidated {
+								colour = common.ColourError
+							}
+							msg := fmt.Sprintf(colour+
 								"%v %v%v%v| Price: $%v\tAmount: %v\tFee: $%v\tTotal: $%v\tDirection %v",
 								currencyStatistic.Events[i].FillEvent.GetTime().Format(gctcommon.SimpleTimeFormat),
 								fSIL(exch, limit12),

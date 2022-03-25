@@ -108,6 +108,7 @@ type IPairReleaser interface {
 	IPairReader
 	IncreaseAvailable(decimal.Decimal, order.Side)
 	Release(decimal.Decimal, decimal.Decimal, order.Side) error
+	Liquidate()
 }
 
 type ICollateralReleaser interface {

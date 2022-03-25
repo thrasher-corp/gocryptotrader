@@ -71,7 +71,7 @@ func main() {
 	flag.BoolVar(
 		&colourOutput,
 		"colouroutput",
-		false,
+		true,
 		"if enabled, will print in colours, if your terminal supports \033[38;5;99m[colours like this]\u001b[0m")
 	flag.BoolVar(
 		&logSubHeader,

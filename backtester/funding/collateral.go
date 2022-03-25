@@ -136,7 +136,9 @@ func (c *Collateral) FundReleaser() IFundReleaser {
 // Liquidate kills your funds and future
 func (c *Collateral) Liquidate() {
 	c.Collateral.available = decimal.Zero
+	c.Collateral.reserved = decimal.Zero
 	c.Contract.available = decimal.Zero
+	c.Contract.reserved = decimal.Zero
 	c.currentDirection = nil
 }
 

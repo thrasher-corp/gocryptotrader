@@ -604,30 +604,89 @@ func (p *Portfolio) GetLatestPNLForEvent(e common.EventHandler) (*PNLSummary, er
 
 // CheckLiquidationStatus checks funding against position
 // and liquidates and removes funding if position unable to continue
-func (p *Portfolio) CheckLiquidationStatus(e common.DataEventHandler, collateralReleaser funding.ICollateralReleaser, pnl *PNLSummary) (*PNLSummary, error) {
-	settings, err := p.getFuturesSettingsFromEvent(e)
-	if err != nil {
-		return nil, err
-	}
-
-	availableFunds := collateralReleaser.AvailableFunds()
+func (p *Portfolio) CheckLiquidationStatus(e common.DataEventHandler, collateralReader funding.ICollateralReader, pnl *PNLSummary) error {
+	availableFunds := collateralReader.AvailableFunds()
 	position, err := p.GetLatestPosition(e)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	if !position.Status.IsInactive() &&
 		pnl.Result.UnrealisedPNL.IsNegative() &&
 		pnl.Result.UnrealisedPNL.Abs().GreaterThan(availableFunds) {
-		// rudimentary liquidation processing until wrapper level implementation
-		err = settings.FuturesTracker.Liquidate(e.GetClosePrice(), e.GetTime())
-		if err != nil {
-			return nil, fmt.Errorf("%v %v %v %w", e.GetExchange(), e.GetAssetType(), e.Pair(), err)
-		}
-		collateralReleaser.Liquidate()
-		e.AppendReason(fmt.Sprintf("Liquidated, funds '%v', collateral '%v'", pnl.Result.UnrealisedPNL, availableFunds))
+		return gctorder.ErrPositionLiquidated
 	}
 
-	return p.GetLatestPNLForEvent(e)
+	return nil
+}
+
+func (p *Portfolio) CreateLiquidationOrders(ev common.DataEventHandler) ([]*order.Order, error) {
+	var closingOrders []*order.Order
+	for exch, assetMap := range p.exchangeAssetPairSettings {
+		for item, pairMap := range assetMap {
+			for pair, settings := range pairMap {
+				switch {
+				case item.IsFutures():
+					positions := settings.FuturesTracker.GetPositions()
+					if len(positions) == 0 {
+						continue
+					}
+					pos := positions[len(positions)-1]
+					if !pos.Exposure.IsPositive() {
+						continue
+					}
+					direction := gctorder.Short
+					if pos.LatestDirection == gctorder.Short {
+						direction = gctorder.Long
+					}
+					closingOrders = append(closingOrders, &order.Order{
+						Base: event.Base{
+							Offset:         ev.GetOffset(),
+							Exchange:       pos.Exchange,
+							Time:           ev.GetTime(),
+							Interval:       ev.GetInterval(),
+							CurrencyPair:   pos.Pair,
+							UnderlyingPair: pos.Pair,
+							AssetType:      pos.Asset,
+							Reason:         "LIQUIDATED",
+						},
+						ID:              "",
+						Direction:       direction,
+						Status:          gctorder.Liquidated,
+						Price:           ev.GetClosePrice(),
+						Amount:          pos.Exposure,
+						OrderType:       gctorder.Market,
+						ClosingPosition: true,
+					})
+
+				case item == asset.Spot:
+					snappy := settings.ComplianceManager.GetLatestSnapshot()
+					if len(snappy.Orders) == 0 {
+						continue
+					}
+					what := snappy.Orders[len(snappy.Orders)-1]
+					closingOrders = append(closingOrders, &order.Order{
+						Base: event.Base{
+							Offset:       ev.GetOffset(),
+							Exchange:     exch,
+							Time:         ev.GetTime(),
+							Interval:     ev.GetInterval(),
+							CurrencyPair: pair,
+							AssetType:    item,
+							Reason:       "LIQUIDATED",
+						},
+						Direction:       gctorder.Sell,
+						Status:          gctorder.Liquidated,
+						Price:           what.ClosePrice,
+						Amount:          decimal.NewFromFloat(what.Order.Amount),
+						OrderType:       gctorder.Market,
+						AllocatedSize:   decimal.NewFromFloat(what.Order.Amount),
+						ClosingPosition: true,
+					})
+				}
+			}
+		}
+	}
+	return closingOrders, nil
 }
 
 func (p *Portfolio) getFuturesSettingsFromEvent(e common.EventHandler) (*Settings, error) {
