@@ -451,7 +451,6 @@ func (b *BTCMarkets) ReSubscribeSpecificOrderbook(pair currency.Pair) error {
 	payload.ClientType = "api"
 	err := b.Websocket.Conn.SendJSONMessage(payload)
 	if err != nil {
-
 		return err
 	}
 
