@@ -86,7 +86,7 @@ updates:
 			tip.Value.Amount = updts[x].Amount
 			continue updates
 		}
-		return fmt.Errorf("update error: %w %d not found",
+		return fmt.Errorf("update error: %w ID: %d not found",
 			errIDCannotBeMatched,
 			updts[x].ID)
 	}

@@ -114,4 +114,5 @@ type options struct {
 	VerifyOrderbook  bool
 	restSnapshot     bool
 	idAligned        bool
+	isValid          bool
 }

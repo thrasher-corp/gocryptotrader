@@ -2063,7 +2063,10 @@ func (s *RPCServer) GetOrderbookStream(r *gctrpc.GetOrderbookStreamRequest, stre
 	}
 
 	for {
-		base := depth.Retrieve()
+		base, err := depth.Retrieve()
+		if err != nil {
+			return err
+		}
 		bids := make([]*gctrpc.OrderbookItem, len(base.Bids))
 		for i := range base.Bids {
 			bids[i] = &gctrpc.OrderbookItem{
@@ -2078,7 +2081,7 @@ func (s *RPCServer) GetOrderbookStream(r *gctrpc.GetOrderbookStreamRequest, stre
 				Price:  base.Asks[i].Price,
 				Id:     base.Asks[i].ID}
 		}
-		err := stream.Send(&gctrpc.OrderbookResponse{
+		err = stream.Send(&gctrpc.OrderbookResponse{
 			Pair:      &gctrpc.CurrencyPair{Base: r.Pair.Base, Quote: r.Pair.Quote},
 			Bids:      bids,
 			Asks:      asks,

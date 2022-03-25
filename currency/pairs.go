@@ -133,9 +133,9 @@ func (p Pairs) Contains(check Pair, exact bool) bool {
 	return false
 }
 
-// Has checks to see if a specified currency code exists inside a currency pair
-// array
-func (p Pairs) Has(check Code) bool {
+// ContainsCurrency checks to see if a specified currency code exists inside a
+// currency pair array
+func (p Pairs) ContainsCurrency(check Code) bool {
 	for i := range p {
 		if p[i].Contains(check) {
 			return true
@@ -170,12 +170,12 @@ func (p Pairs) GetPairsByFilter(filter Code) Pairs {
 }
 
 // GetPairsByCurrencies returns all pairs that have both matches to the
-// currencies passed in. This allows for the construction of enabled pairs by
-// required currency codes.
-func (p Pairs) GetPairsByCurrencies(enabled Currencies) Pairs {
+// currencies passed in. This allows for the construction of pairs by required
+// currency codes.
+func (p Pairs) GetPairsByCurrencies(currencies Currencies) Pairs {
 	pairs := make(Pairs, 0, len(p))
 	for i := range p {
-		if enabled.Contains(p[i].Base) && enabled.Contains(p[i].Quote) {
+		if currencies.Contains(p[i].Base) && currencies.Contains(p[i].Quote) {
 			pairs = append(pairs, p[i])
 		}
 	}

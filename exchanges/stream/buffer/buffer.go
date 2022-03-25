@@ -24,6 +24,11 @@ var (
 	errUpdateNoTargets              = errors.New("update bid/ask targets cannot be nil")
 	errDepthNotFound                = errors.New("orderbook depth not found")
 	errRESTOverwrite                = errors.New("orderbook has been overwritten by REST protocol")
+	errInvalidAction                = errors.New("invalid action")
+	errAmendFailure                 = errors.New("orderbook amend update failure")
+	errDeleteFailure                = errors.New("orderbook delete update failure")
+	errInsertFailure                = errors.New("orderbook insert update failure")
+	errUpdateInsertFailure          = errors.New("orderbook update/insert update failure")
 )
 
 // Setup sets private variables
@@ -111,7 +116,25 @@ func (w *Orderbook) Update(u *Update) error {
 	// will stop updating book via incremental updates. This occurs because our
 	// sync manager (engine/sync.go) timer has elapsed for streaming. Usually
 	// because the book is highly illiquid. TODO: Book resubscribe on websocket.
-	if book.ob.IsRestSnapshot() {
+	isREST, err := book.ob.IsRestSnapshot()
+	if err != nil {
+		if !errors.Is(err, orderbook.ErrOrderbookInvalid) {
+			return err
+		}
+		// In the event a checksum or processing error invalidates the book, all
+		// updates that could be stored in the websocket buffer, skip applying
+		// until a new snapshot comes through.
+		if w.verbose {
+			log.Warnf(log.WebsocketMgr,
+				"Exchange %s CurrencyPair: %s AssetType: %s underlying book is invalid, cannot apply update.",
+				w.exchangeName,
+				u.Pair,
+				u.Asset)
+		}
+		return nil
+	}
+
+	if isREST {
 		if w.verbose {
 			log.Warnf(log.WebsocketMgr,
 				"%s for Exchange %s CurrencyPair: %s AssetType: %s consider extending synctimeoutwebsocket",
@@ -120,8 +143,13 @@ func (w *Orderbook) Update(u *Update) error {
 				u.Pair,
 				u.Asset)
 		}
+		// Instance of illiquidity, this signal notifies that there is websocket
+		// activity. We can invalidate the book and request a new snapshot. All
+		// further updates through the websocket should be caught above in the
+		// IsRestSnapshot() call.
+		book.ob.Invalidate()
 		return fmt.Errorf("%w for Exchange %s CurrencyPair: %s AssetType: %s",
-			errRESTOverwrite,
+			orderbook.ErrOrderbookInvalid,
 			w.exchangeName,
 			u.Pair,
 			u.Asset)
@@ -146,7 +174,11 @@ func (w *Orderbook) Update(u *Update) error {
 	if book.ob.VerifyOrderbook { // This is used here so as to not retrieve
 		// book if verification is off.
 		// On every update, this will retrieve and verify orderbook depths
-		err := book.ob.Retrieve().Verify()
+		ret, err := book.ob.Retrieve()
+		if err != nil {
+			return err
+		}
+		err = ret.Verify()
 		if err != nil {
 			return err
 		}
@@ -155,11 +187,13 @@ func (w *Orderbook) Update(u *Update) error {
 	// a nil ticker means that a zero publish period has been requested,
 	// this means publish now whatever was received with no throttling
 	if book.ticker == nil {
-		go func() {
-			w.dataHandler <- book.ob.Retrieve()
-			book.ob.Publish()
-		}()
-
+		ret, err := book.ob.Retrieve()
+		if err != nil {
+			return err
+		}
+		go func(ret *orderbook.Base) {
+			w.dataHandler <- ret
+		}(ret)
 		return nil
 	}
 
@@ -167,16 +201,22 @@ func (w *Orderbook) Update(u *Update) error {
 	case <-book.ticker.C:
 		// Opted to wait for receiver because we are limiting here and the sync
 		// manager requires update
-		go func() {
-			w.dataHandler <- book.ob.Retrieve()
-			book.ob.Publish()
-		}()
+		ret, err := book.ob.Retrieve()
+		if err != nil {
+			return err
+		}
+		go func(ret *orderbook.Base) {
+			w.dataHandler <- ret
+		}(ret)
 	default:
 		// We do not need to send an update to the sync manager within this time
 		// window unless verbose is turned on
 		if w.verbose {
-			w.dataHandler <- book.ob.Retrieve()
-			book.ob.Publish()
+			ret, err := book.ob.Retrieve()
+			if err != nil {
+				return err
+			}
+			w.dataHandler <- ret
 		}
 	}
 
@@ -222,9 +262,14 @@ func (w *Orderbook) processObUpdate(o *orderbookHolder, u *Update) error {
 	}
 	o.updateByPrice(u)
 	if w.checksum != nil {
-		err := w.checksum(o.ob.Retrieve(), u.Checksum)
+		compare, err := o.ob.Retrieve()
 		if err != nil {
 			return err
+		}
+		err = w.checksum(compare, u.Checksum)
+		if err != nil {
+			o.ob.Invalidate()
+			return fmt.Errorf("%v %w", err, orderbook.ErrOrderbookInvalid)
 		}
 		o.updateID = u.UpdateID
 	}
@@ -246,31 +291,44 @@ func (o *orderbookHolder) updateByPrice(updts *Update) {
 func (o *orderbookHolder) updateByIDAndAction(updts *Update) error {
 	switch updts.Action {
 	case Amend:
-		return o.ob.UpdateBidAskByID(updts.Bids,
+		err := o.ob.UpdateBidAskByID(updts.Bids,
 			updts.Asks,
 			updts.UpdateID,
 			updts.UpdateTime)
+		if err != nil {
+			return fmt.Errorf("%w %v", errAmendFailure, err)
+		}
 	case Delete:
 		// edge case for Bitfinex as their streaming endpoint duplicates deletes
 		bypassErr := o.ob.GetName() == "Bitfinex" && o.ob.IsFundingRate()
-		return o.ob.DeleteBidAskByID(updts.Bids,
+		err := o.ob.DeleteBidAskByID(updts.Bids,
 			updts.Asks,
 			bypassErr,
 			updts.UpdateID,
 			updts.UpdateTime)
+		if err != nil {
+			return fmt.Errorf("%w %v", errDeleteFailure, err)
+		}
 	case Insert:
-		return o.ob.InsertBidAskByID(updts.Bids,
+		err := o.ob.InsertBidAskByID(updts.Bids,
 			updts.Asks,
 			updts.UpdateID,
 			updts.UpdateTime)
+		if err != nil {
+			return fmt.Errorf("%w %v", errInsertFailure, err)
+		}
 	case UpdateInsert:
-		return o.ob.UpdateInsertByID(updts.Bids,
+		err := o.ob.UpdateInsertByID(updts.Bids,
 			updts.Asks,
 			updts.UpdateID,
 			updts.UpdateTime)
+		if err != nil {
+			return fmt.Errorf("%w %v", errUpdateInsertFailure, err)
+		}
 	default:
-		return fmt.Errorf("invalid action [%s]", updts.Action)
+		return fmt.Errorf("%w [%s]", errInvalidAction, updts.Action)
 	}
+	return nil
 }
 
 // LoadSnapshot loads initial snapshot of orderbook data from websocket
@@ -314,6 +372,7 @@ func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
 	// Checks if book can deploy to linked list
 	err := book.Verify()
 	if err != nil {
+		holder.ob.Invalidate()
 		return err
 	}
 
@@ -324,18 +383,23 @@ func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
 		false,
 	)
 
+	after, err := holder.ob.Retrieve()
+	if err != nil {
+		return err
+	}
+
 	if holder.ob.VerifyOrderbook { // This is used here so as to not retrieve
 		// book if verification is off.
 		// Checks to see if orderbook snapshot that was deployed has not been
 		// altered in any way
-		err = holder.ob.Retrieve().Verify()
+		err = after.Verify()
 		if err != nil {
+			holder.ob.Invalidate()
 			return err
 		}
 	}
 
-	w.dataHandler <- holder.ob.Retrieve()
-	holder.ob.Publish()
+	w.dataHandler <- after
 	return nil
 }
 
@@ -351,7 +415,7 @@ func (w *Orderbook) GetOrderbook(p currency.Pair, a asset.Item) (*orderbook.Base
 			a,
 			errDepthNotFound)
 	}
-	return book.ob.Retrieve(), nil
+	return book.ob.Retrieve()
 }
 
 // FlushBuffer flushes w.ob data to be garbage collected and refreshed when a
@@ -374,6 +438,6 @@ func (w *Orderbook) FlushOrderbook(p currency.Pair, a asset.Item) error {
 			a,
 			errDepthNotFound)
 	}
-	book.ob.Flush()
+	book.ob.Invalidate()
 	return nil
 }

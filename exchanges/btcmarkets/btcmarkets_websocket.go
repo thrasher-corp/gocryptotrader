@@ -155,8 +155,15 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 			})
 		}
 		if err != nil {
+			if errors.Is(err, orderbook.ErrOrderbookInvalid) {
+				err2 := b.ReSubscribeSpecificOrderbook(ob.Currency)
+				if err2 != nil {
+					return err2
+				}
+			}
 			return err
 		}
+		return nil
 	case tradeEndPoint:
 		if !b.IsSaveTradeDataEnabled() {
 			return nil
@@ -432,4 +439,26 @@ func trim(value float64) string {
 	valstr = strings.ReplaceAll(valstr, ".", "")
 	valstr = strings.TrimLeft(valstr, "0")
 	return valstr
+}
+
+// ReSubscribeSpecificOrderbook removes the subscription and the subscribes
+// again to fetch a new snaphot in the event of a de-sync event.
+func (b *BTCMarkets) ReSubscribeSpecificOrderbook(pair currency.Pair) error {
+	var payload WsSubscribe
+	payload.MessageType = "removeSubscription"
+	payload.Channels = []string{wsOB}
+	payload.MarketIDs = []string{pair.String()}
+	payload.ClientType = "api"
+	err := b.Websocket.Conn.SendJSONMessage(payload)
+	if err != nil {
+		return err
+	}
+
+	payload.MessageType = "addSubscription"
+	err = b.Websocket.Conn.SendJSONMessage(payload)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
