@@ -92,7 +92,7 @@ func (src *Unsafe) GetBestBid() (float64, error) {
 func (src *Unsafe) GetBestAsk() (float64, error) {
 	ask, err := src.GetAskLiquidity()
 	if err != nil {
-		return 0, fmt.Errorf("get orderbook best bid price %w", err)
+		return 0, fmt.Errorf("get orderbook best ask price %w", err)
 	}
 	return ask.Value.Price, nil
 }
