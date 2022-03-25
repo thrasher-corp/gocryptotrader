@@ -688,7 +688,7 @@ func (p *Poloniex) GetOrderInfo(ctx context.Context, orderID string, pair curren
 	orderInfo.Amount = resp.Amount
 	orderInfo.Cost = resp.Total
 	orderInfo.Fee = resp.Fee
-	orderInfo.TargetAmount = resp.StartingAmount
+	orderInfo.QuoteAmount = resp.StartingAmount
 
 	orderInfo.Side, err = order.StringToOrderSide(resp.Type)
 	if err != nil {
