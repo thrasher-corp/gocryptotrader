@@ -756,7 +756,7 @@ func (by *Bybit) ChangeUSDTMargin(ctx context.Context, symbol currency.Pair, buy
 	return by.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, ufuturesSwitchMargin, params, nil, uFuturesSwitchMargin)
 }
 
-// SwitchPositionMode switches mode between full or partial position
+// SwitchPositionMode switches mode between MergedSingle: One-Way Mode or BothSide: Hedge Mode
 func (by *Bybit) SwitchPositionMode(ctx context.Context, symbol currency.Pair, mode string) error {
 	params := url.Values{}
 	symbolValue, err := by.FormatSymbol(symbol, asset.USDTMarginedFutures)
