@@ -1,6 +1,7 @@
 package bybit
 
 import (
+	"encoding/json"
 	"errors"
 	"time"
 
@@ -14,6 +15,21 @@ var (
 	errInvalidInterval  = errors.New("invalid interval")
 	errInvalidStartTime = errors.New("startTime can't be zero or missing")
 )
+
+// bybitTime provides an internal conversion helper
+type bybitTime struct {
+	time.Time
+}
+
+func (by *bybitTime) UnmarshalJSON(b []byte) error {
+	var timestamp int64
+	err := json.Unmarshal(b, &timestamp)
+	if err != nil {
+		return err
+	}
+	by.Time = time.Unix(timestamp, 0)
+	return nil
+}
 
 // PairData stores pair data
 type PairData struct {
@@ -137,7 +153,7 @@ type PlaceOrderResponse struct {
 	OrderID     int64                      `json:"orderId"`
 	OrderLinkID string                     `json:"orderLinkId"`
 	Symbol      string                     `json:"symbol"`
-	Time        int64                      `json:"transactTime"`
+	Time        bybitTime                  `json:"transactTime"`
 	Price       float64                    `json:"price,string"`
 	Quantity    float64                    `json:"origQty,string"`
 	TradeType   RequestParamsOrderType     `json:"type"`
@@ -168,8 +184,8 @@ type QueryOrderResponse struct {
 	Side                string                     `json:"side"`
 	StopPrice           float64                    `json:"stopPrice,string"`
 	IcebergQty          float64                    `json:"icebergQty,string"`
-	Time                int64                      `json:"time"`
-	UpdateTime          int64                      `json:"updateTime"`
+	Time                bybitTime                  `json:"time"`
+	UpdateTime          bybitTime                  `json:"updateTime"`
 	IsWorking           bool                       `json:"isWorking"`
 }
 
@@ -180,7 +196,7 @@ type CancelOrderResponse struct {
 	Symbol      string                     `json:"symbol"`
 	Status      string                     `json:"status"`
 	AccountID   int64                      `json:"accountId"`
-	Time        int64                      `json:"transactTime"`
+	Time        bybitTime                  `json:"transactTime"`
 	Price       float64                    `json:"price,string"`
 	Quantity    float64                    `json:"origQty,string"`
 	ExecutedQty float64                    `json:"executedQty,string"`
@@ -191,22 +207,22 @@ type CancelOrderResponse struct {
 
 // HistoricalTrade holds recent trade data
 type HistoricalTrade struct {
-	Symbol          string  `json:"symbol"`
-	ID              int64   `json:"id"`
-	OrderID         int64   `json:"orderId"`
-	Price           float64 `json:"price,string"`
-	Quantity        float64 `json:"qty,string"`
-	Commission      float64 `json:"commission,string"`
-	CommissionAsset float64 `json:"commissionAsset,string"`
-	Time            int64   `json:"time"`
-	IsBuyer         bool    `json:"isBuyer"`
-	IsMaker         bool    `json:"isMaker"`
-	SymbolName      string  `json:"symbolName"`
-	MatchOrderID    int64   `json:"matchOrderId"`
-	Fee             FeeData `json:"fee"`
-	FeeTokenID      string  `json:"feeTokenId"`
-	FeeAmount       float64 `json:"feeAmount,string"`
-	MakerRebate     float64 `json:"makerRebate,string"`
+	Symbol          string    `json:"symbol"`
+	ID              int64     `json:"id"`
+	OrderID         int64     `json:"orderId"`
+	Price           float64   `json:"price,string"`
+	Quantity        float64   `json:"qty,string"`
+	Commission      float64   `json:"commission,string"`
+	CommissionAsset float64   `json:"commissionAsset,string"`
+	Time            bybitTime `json:"time"`
+	IsBuyer         bool      `json:"isBuyer"`
+	IsMaker         bool      `json:"isMaker"`
+	SymbolName      string    `json:"symbolName"`
+	MatchOrderID    int64     `json:"matchOrderId"`
+	Fee             FeeData   `json:"fee"`
+	FeeTokenID      string    `json:"feeTokenId"`
+	FeeAmount       float64   `json:"feeAmount,string"`
+	MakerRebate     float64   `json:"makerRebate,string"`
 }
 
 // FeeData store fees data
