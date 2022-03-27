@@ -674,7 +674,7 @@ func (by *Bybit) GetPastOrders(ctx context.Context, symbol, orderID string, limi
 }
 
 // GetTradeHistory returns user trades
-func (by *Bybit) GetTradeHistory(ctx context.Context, symbol string, limit, formID, told int64) ([]HistoricalTrade, error) {
+func (by *Bybit) GetTradeHistory(ctx context.Context, limit int64, symbol, fromID, toID, orderID string, startTime, endTime time.Time) ([]HistoricalTrade, error) {
 	params := url.Values{}
 	if symbol != "" {
 		params.Set("symbol", symbol)
@@ -682,17 +682,25 @@ func (by *Bybit) GetTradeHistory(ctx context.Context, symbol string, limit, form
 	if limit != 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	if formID != 0 {
-		params.Set("formId", strconv.FormatInt(formID, 10))
+	if fromID != "" {
+		params.Set("fromTicketId", fromID)
 	}
-	if told != 0 {
-		params.Set("told", strconv.FormatInt(told, 10))
+	if toID != "" {
+		params.Set("toTicketId", toID)
 	}
-
+	if orderID != "" {
+		params.Set("orderId", orderID)
+	}
+	if !startTime.IsZero() {
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
 	resp := struct {
 		Data []HistoricalTrade `json:"result"`
 	}{}
-	return resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, bybitPastOrder, params, &resp, privateSpotRate)
+	return resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, bybitTradeHistory, params, &resp, privateSpotRate)
 }
 
 // GetWalletBalance returns user wallet balance
