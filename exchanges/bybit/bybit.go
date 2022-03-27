@@ -3,6 +3,7 @@ package bybit
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -750,7 +751,8 @@ func (by *Bybit) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, me
 		params.Set("recvWindow", strconv.FormatInt(defaultRecvWindow.Milliseconds(), 10))
 	}
 
-	return by.SendPayload(ctx, f, func() (*request.Item, error) {
+	interim := json.RawMessage{}
+	err = by.SendPayload(ctx, f, func() (*request.Item, error) {
 		params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
 		params.Set("api_key", by.API.Credentials.Key)
 		signature := params.Encode()
@@ -776,10 +778,29 @@ func (by *Bybit) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, me
 			Path:          endpointPath + path,
 			Headers:       headers,
 			Body:          bytes.NewBuffer(payload),
-			Result:        &result,
+			Result:        &interim,
 			AuthRequest:   true,
 			Verbose:       by.Verbose,
 			HTTPDebugging: by.HTTPDebugging,
 			HTTPRecording: by.HTTPRecording}, nil
 	})
+	if err != nil {
+		return err
+	}
+	errCap := struct {
+		ReturnCode int64  `json:"ret_code"`
+		ReturnMsg  string `json:"ret_msg"`
+		ExtCode    int64  `json:"ext_code"`
+		ExtMsg     string `json:"ext_info"`
+	}{}
+
+	if err := json.Unmarshal(interim, &errCap); err == nil {
+		if errCap.ReturnCode != 0 && errCap.ReturnMsg != "" {
+			return errors.New(errCap.ReturnMsg)
+		}
+		if errCap.ExtCode != 0 && errCap.ExtMsg != "" {
+			return errors.New(errCap.ExtMsg)
+		}
+	}
+	return json.Unmarshal(interim, result)
 }

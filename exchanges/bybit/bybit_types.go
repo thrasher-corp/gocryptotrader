@@ -247,8 +247,9 @@ type CancelOrderResponse struct {
 // HistoricalTrade holds recent trade data
 type HistoricalTrade struct {
 	Symbol          string            `json:"symbol"`
-	ID              int64             `json:"id"`
+	ID              string            `json:"id"`
 	OrderID         int64             `json:"orderId"`
+	TicketID        string            `json:"ticketId"`
 	Price           float64           `json:"price,string"`
 	Quantity        float64           `json:"qty,string"`
 	Commission      float64           `json:"commission,string"`
