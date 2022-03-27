@@ -24,6 +24,7 @@ type Bybit struct {
 	exchange.Base
 }
 
+// TODO: Visit change logs for all asset which were made after development started
 const (
 	bybitAPIURL       = "https://api.bybit.com"
 	defaultRecvWindow = 5 * time.Second
@@ -90,7 +91,7 @@ func constructOrderbook(o orderbookResponse) (s Orderbook, err error) {
 	if err != nil {
 		return s, err
 	}
-	s.Time = time.UnixMilli(o.Data.Time)
+	s.Time = o.Data.Time.Time()
 	return
 }
 
@@ -142,10 +143,10 @@ func (by *Bybit) GetMergedOrderBook(ctx context.Context, symbol string, scale, d
 func (by *Bybit) GetTrades(ctx context.Context, symbol string, limit int64) ([]TradeItem, error) {
 	resp := struct {
 		Data []struct {
-			Price        float64 `json:"price,string"`
-			Time         int64   `json:"time"`
-			Quantity     float64 `json:"qty,string"`
-			IsBuyerMaker bool    `json:"isBuyerMaker"`
+			Price        float64           `json:"price,string"`
+			Time         bybitTimeMilliSec `json:"time"`
+			Quantity     float64           `json:"qty,string"`
+			IsBuyerMaker bool              `json:"isBuyerMaker"`
 		} `json:"result"`
 	}{}
 
@@ -177,7 +178,7 @@ func (by *Bybit) GetTrades(ctx context.Context, symbol string, limit int64) ([]T
 			Price:        resp.Data[x].Price,
 			Side:         tradeSide,
 			Volume:       resp.Data[x].Quantity,
-			Time:         time.UnixMilli(resp.Data[x].Time),
+			Time:         resp.Data[x].Time.Time(),
 		}
 	}
 	return trades, nil
@@ -313,16 +314,16 @@ func (by *Bybit) GetKlines(ctx context.Context, symbol, period string, limit int
 // If symbol not passed then it will return price change statistics for all pairs
 func (by *Bybit) Get24HrsChange(ctx context.Context, symbol string) ([]PriceChangeStats, error) {
 	type priceChangeStats struct {
-		Time         int64   `json:"time"`
-		Symbol       string  `json:"symbol"`
-		BestBidPrice float64 `json:"bestBidPrice,string"`
-		BestAskPrice float64 `json:"bestAskPrice,string"`
-		LastPrice    float64 `json:"lastPrice,string"`
-		OpenPrice    float64 `json:"openPrice,string"`
-		HighPrice    float64 `json:"highPrice,string"`
-		LowPrice     float64 `json:"lowPrice,string"`
-		Volume       float64 `json:"volume,string"`
-		QuoteVolume  float64 `json:"quoteVolume,string"`
+		Time         bybitTimeMilliSec `json:"time"`
+		Symbol       string            `json:"symbol"`
+		BestBidPrice float64           `json:"bestBidPrice,string"`
+		BestAskPrice float64           `json:"bestAskPrice,string"`
+		LastPrice    float64           `json:"lastPrice,string"`
+		OpenPrice    float64           `json:"openPrice,string"`
+		HighPrice    float64           `json:"highPrice,string"`
+		LowPrice     float64           `json:"lowPrice,string"`
+		Volume       float64           `json:"volume,string"`
+		QuoteVolume  float64           `json:"quoteVolume,string"`
 	}
 
 	var stats []PriceChangeStats
@@ -340,7 +341,7 @@ func (by *Bybit) Get24HrsChange(ctx context.Context, symbol string) ([]PriceChan
 		}
 
 		stats = append(stats, PriceChangeStats{
-			time.UnixMilli(resp.Data.Time),
+			resp.Data.Time.Time(),
 			resp.Data.Symbol,
 			resp.Data.BestAskPrice,
 			resp.Data.BestAskPrice,
@@ -363,7 +364,7 @@ func (by *Bybit) Get24HrsChange(ctx context.Context, symbol string) ([]PriceChan
 
 		for x := range resp.Data {
 			stats = append(stats, PriceChangeStats{
-				time.UnixMilli(resp.Data[x].Time),
+				resp.Data[x].Time.Time(),
 				resp.Data[x].Symbol,
 				resp.Data[x].BestAskPrice,
 				resp.Data[x].BestAskPrice,
@@ -422,12 +423,12 @@ func (by *Bybit) GetLastTradedPrice(ctx context.Context, symbol string) ([]LastT
 // If symbol not passed then it will return best BID and ASK price for all pairs
 func (by *Bybit) GetBestBidAskPrice(ctx context.Context, symbol string) ([]TickerData, error) {
 	type bestTicker struct {
-		Symbol      string  `json:"symbol"`
-		BidPrice    float64 `json:"bidPrice,string"`
-		BidQuantity float64 `json:"bidQty,string"`
-		AskPrice    float64 `json:"askPrice,string"`
-		AskQuantity float64 `json:"askQty,string"`
-		Time        int64   `json:"time"`
+		Symbol      string            `json:"symbol"`
+		BidPrice    float64           `json:"bidPrice,string"`
+		BidQuantity float64           `json:"bidQty,string"`
+		AskPrice    float64           `json:"askPrice,string"`
+		AskQuantity float64           `json:"askQty,string"`
+		Time        bybitTimeMilliSec `json:"time"`
 	}
 
 	var tickers []TickerData
@@ -449,7 +450,7 @@ func (by *Bybit) GetBestBidAskPrice(ctx context.Context, symbol string) ([]Ticke
 			resp.Data.BidQuantity,
 			resp.Data.AskPrice,
 			resp.Data.AskQuantity,
-			time.UnixMilli(resp.Data.Time),
+			resp.Data.Time.Time(),
 		})
 	} else {
 		resp := struct {
@@ -467,7 +468,7 @@ func (by *Bybit) GetBestBidAskPrice(ctx context.Context, symbol string) ([]Ticke
 				resp.Data[x].BidQuantity,
 				resp.Data[x].AskPrice,
 				resp.Data[x].AskQuantity,
-				time.UnixMilli(resp.Data[x].Time),
+				resp.Data[x].Time.Time(),
 			})
 		}
 	}
@@ -648,8 +649,8 @@ func (by *Bybit) ListOpenOrders(ctx context.Context, symbol, orderID string, lim
 	return resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, bybitOpenOrder, params, &resp, privateSpotRate)
 }
 
-// ListPastOrders returns all past orders from history
-func (by *Bybit) ListPastOrders(ctx context.Context, symbol, orderID string, limit int64) ([]QueryOrderResponse, error) {
+// GetPastOrders returns all past orders from history
+func (by *Bybit) GetPastOrders(ctx context.Context, symbol, orderID string, limit int64, startTime, endTime time.Time) ([]QueryOrderResponse, error) {
 	params := url.Values{}
 	if symbol != "" {
 		params.Set("symbol", symbol)
@@ -659,6 +660,12 @@ func (by *Bybit) ListPastOrders(ctx context.Context, symbol, orderID string, lim
 	}
 	if limit != 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if !startTime.IsZero() {
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	resp := struct {
 		Data []QueryOrderResponse `json:"result"`

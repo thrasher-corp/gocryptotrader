@@ -317,7 +317,7 @@ func (by *Bybit) wsFuturesHandleData(respRaw []byte) error {
 				LowPrice:   response.KlineData[i].Low,
 				ClosePrice: response.KlineData[i].Close,
 				Volume:     response.KlineData[i].Volume,
-				Timestamp:  time.Unix(response.KlineData[i].Timestamp, 0),
+				Timestamp:  response.KlineData[i].Timestamp.Time(),
 			}
 		}
 

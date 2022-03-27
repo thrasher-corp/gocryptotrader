@@ -293,7 +293,7 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 				Side:            oSide,
 				Status:          oStatus,
 				AssetType:       a,
-				Date:            data.OrderCreationTime,
+				Date:            data.OrderCreationTime.Time(),
 				Pair:            p,
 				ClientOrderID:   data.ClientOrderID,
 			}
@@ -348,7 +348,7 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 		}
 
 		return trade.AddTradesToBuffer(by.Name, trade.Data{
-			Timestamp:    time.Unix(data.TradeData.Time, 0),
+			Timestamp:    data.TradeData.Time.Time(),
 			CurrencyPair: p,
 			AssetType:    asset.Spot,
 			Exchange:     by.Name,
@@ -374,7 +374,7 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 			ExchangeName: by.Name,
 			Bid:          data.Ticker.Bid,
 			Ask:          data.Ticker.Ask,
-			LastUpdated:  time.Unix(data.Ticker.Time, 0),
+			LastUpdated:  data.Ticker.Time.Time(),
 			AssetType:    asset.Spot,
 			Pair:         p,
 		}
@@ -395,7 +395,7 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 			Pair:       p,
 			AssetType:  asset.Spot,
 			Exchange:   by.Name,
-			StartTime:  data.Kline.StartTime,
+			StartTime:  data.Kline.StartTime.Time(),
 			Interval:   data.Parameters.KlineType,
 			OpenPrice:  data.Kline.OpenPrice,
 			ClosePrice: data.Kline.ClosePrice,
@@ -447,7 +447,7 @@ func (by *Bybit) wsUpdateOrderbook(update *WsOrderbookData, p currency.Pair, ass
 		Bids:            bids,
 		Asks:            asks,
 		Pair:            p,
-		LastUpdated:     time.Unix(update.Time, 0),
+		LastUpdated:     update.Time.Time(),
 		Asset:           assetType,
 		Exchange:        by.Name,
 		VerifyOrderbook: by.CanVerifyOrderbook,

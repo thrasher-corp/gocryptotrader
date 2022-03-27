@@ -248,12 +248,12 @@ func TestListOpenOrders(t *testing.T) {
 	}
 }
 
-func TestListPastOrders(t *testing.T) {
+func TestGetPastOrders(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
-	_, err := by.ListPastOrders(context.Background(), "BTCUSDT", "", 0)
+	_, err := by.GetPastOrders(context.Background(), "BTCUSDT", "", 0, time.Now().Add(-time.Hour), time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}

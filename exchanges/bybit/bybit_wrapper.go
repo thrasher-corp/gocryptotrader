@@ -974,8 +974,8 @@ func (by *Bybit) GetOrderInfo(ctx context.Context, orderID string, pair currency
 			Status:         order.Status(resp.Status),
 			Price:          resp.Price,
 			ExecutedAmount: resp.ExecutedQty,
-			Date:           time.Unix(resp.Time, 0),
-			LastUpdated:    time.Unix(resp.UpdateTime, 0),
+			Date:           resp.Time.Time(),
+			LastUpdated:    resp.UpdateTime.Time(),
 		}, nil
 	case asset.CoinMarginedFutures:
 		resp, err := by.GetActiveRealtimeCoinOrders(ctx, pair, orderID, "")
@@ -1108,7 +1108,7 @@ func (by *Bybit) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 			for x := range openOrders {
 				orders = append(orders, order.Detail{
 					Amount:        openOrders[x].Quantity,
-					Date:          time.Unix(openOrders[x].Time, 0),
+					Date:          openOrders[x].Time.Time(),
 					Exchange:      by.Name,
 					ID:            strconv.FormatInt(openOrders[x].OrderID, 10),
 					ClientOrderID: openOrders[x].OrderLinkID,
@@ -1118,7 +1118,7 @@ func (by *Bybit) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 					Status:        order.Status(openOrders[x].Status),
 					Pair:          req.Pairs[i],
 					AssetType:     req.AssetType,
-					LastUpdated:   time.Unix(openOrders[x].UpdateTime, 0),
+					LastUpdated:   openOrders[x].UpdateTime.Time(),
 				})
 			}
 		case asset.CoinMarginedFutures:
