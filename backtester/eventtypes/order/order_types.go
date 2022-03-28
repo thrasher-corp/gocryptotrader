@@ -11,18 +11,19 @@ import (
 // Order contains all details for an order event
 type Order struct {
 	event.Base
-	ID                 string
-	Direction          order.Side
-	Status             order.Status
-	Price              decimal.Decimal
-	Amount             decimal.Decimal
-	OrderType          order.Type
-	Leverage           decimal.Decimal
-	AllocatedSize      decimal.Decimal
-	BuyLimit           decimal.Decimal
-	SellLimit          decimal.Decimal
-	FillDependentEvent signal.Event
-	ClosingPosition    bool
+	ID                  string
+	Direction           order.Side
+	Status              order.Status
+	Price               decimal.Decimal
+	Amount              decimal.Decimal
+	OrderType           order.Type
+	Leverage            decimal.Decimal
+	AllocatedSize       decimal.Decimal
+	BuyLimit            decimal.Decimal
+	SellLimit           decimal.Decimal
+	FillDependentEvent  signal.Event
+	ClosingPosition     bool
+	LiquidatingPosition bool
 }
 
 // Event inherits common event interfaces along with extra functions related to handling orders
@@ -41,4 +42,5 @@ type Event interface {
 	GetAllocatedFunds() decimal.Decimal
 	GetFillDependentEvent() signal.Event
 	IsClosingPosition() bool
+	IsLiquidating() bool
 }

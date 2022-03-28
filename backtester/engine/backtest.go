@@ -259,14 +259,13 @@ func (bt *BackTest) updateStatsForDataEvent(ev common.DataEventHandler, funds fu
 		if err != nil {
 			if errors.Is(err, gctorder.ErrPositionLiquidated) {
 				// trigger closure of everything
-				orders, err := bt.Portfolio.CreateLiquidationOrders(ev)
+				orders, err := bt.Portfolio.CreateLiquidationOrders(ev, bt.Funding)
 				if err != nil {
 					return err
 				}
 				for i := range orders {
 					bt.EventQueue.AppendEvent(orders[i])
 				}
-
 				pnl.Result.IsLiquidated = true
 				pnlErr := bt.Statistic.AddPNLForTime(pnl)
 				if pnlErr != nil {

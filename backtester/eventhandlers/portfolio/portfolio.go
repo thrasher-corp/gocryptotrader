@@ -619,7 +619,7 @@ func (p *Portfolio) CheckLiquidationStatus(e common.DataEventHandler, collateral
 	return nil
 }
 
-func (p *Portfolio) CreateLiquidationOrders(ev common.DataEventHandler) ([]*order.Order, error) {
+func (p *Portfolio) CreateLiquidationOrders(ev common.DataEventHandler, funds funding.IFundingManager) ([]*order.Order, error) {
 	var closingOrders []*order.Order
 	for exch, assetMap := range p.exchangeAssetPairSettings {
 		for item, pairMap := range assetMap {
@@ -649,43 +649,50 @@ func (p *Portfolio) CreateLiquidationOrders(ev common.DataEventHandler) ([]*orde
 							AssetType:      pos.Asset,
 							Reason:         "LIQUIDATED",
 						},
-						ID:              "",
-						Direction:       direction,
-						Status:          gctorder.Liquidated,
-						Price:           ev.GetClosePrice(),
-						Amount:          pos.Exposure,
-						OrderType:       gctorder.Market,
-						ClosingPosition: true,
+						ID:                  "",
+						Direction:           direction,
+						Status:              gctorder.Liquidated,
+						Price:               ev.GetClosePrice(),
+						Amount:              pos.Exposure,
+						AllocatedSize:       pos.Exposure,
+						OrderType:           gctorder.Market,
+						LiquidatingPosition: true,
 					})
 
 				case item == asset.Spot:
-					snappy := settings.ComplianceManager.GetLatestSnapshot()
-					if len(snappy.Orders) == 0 {
-						continue
+					allFunds := funds.GetAllFunding()
+					for i := range allFunds {
+						if allFunds[i].Asset.IsFutures() {
+							continue
+						}
+						if allFunds[i].Currency.IsFiatCurrency() || allFunds[i].Currency.IsStableCurrency() {
+							// close orders for assets, zeroing for fiat/stable
+							continue
+						}
+						closingOrders = append(closingOrders, &order.Order{
+							Base: event.Base{
+								Offset:       ev.GetOffset(),
+								Exchange:     exch,
+								Time:         ev.GetTime(),
+								Interval:     ev.GetInterval(),
+								CurrencyPair: pair,
+								AssetType:    item,
+								Reason:       "LIQUIDATED",
+							},
+							Direction:           gctorder.Sell,
+							Status:              gctorder.Liquidated,
+							Amount:              allFunds[i].Available,
+							OrderType:           gctorder.Market,
+							AllocatedSize:       allFunds[i].Available,
+							LiquidatingPosition: true,
+						})
 					}
-					what := snappy.Orders[len(snappy.Orders)-1]
-					closingOrders = append(closingOrders, &order.Order{
-						Base: event.Base{
-							Offset:       ev.GetOffset(),
-							Exchange:     exch,
-							Time:         ev.GetTime(),
-							Interval:     ev.GetInterval(),
-							CurrencyPair: pair,
-							AssetType:    item,
-							Reason:       "LIQUIDATED",
-						},
-						Direction:       gctorder.Sell,
-						Status:          gctorder.Liquidated,
-						Price:           what.ClosePrice,
-						Amount:          decimal.NewFromFloat(what.Order.Amount),
-						OrderType:       gctorder.Market,
-						AllocatedSize:   decimal.NewFromFloat(what.Order.Amount),
-						ClosingPosition: true,
-					})
 				}
 			}
 		}
 	}
+	funds.Liquidate()
+
 	return closingOrders, nil
 }
 

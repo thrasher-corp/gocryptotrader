@@ -31,10 +31,11 @@ type IFundingManager interface {
 	AddUSDTrackingData(*kline.DataFromKline) error
 	CreateSnapshot(time.Time)
 	USDTrackingDisabled() bool
-	LiquidateByCollateral(currency.Code) error
+	Liquidate()
 	GetAllFunding() []BasicItem
 	UpdateCollateral(common.EventHandler) error
 	HasFutures() bool
+	HasBeenLiquidated(ev common.EventHandler) bool
 	RealisePNL(receivingExchange string, receivingAsset asset.Item, receivingCurrency currency.Code, realisedPNL decimal.Decimal) error
 }
 
@@ -67,6 +68,7 @@ type IFundTransferer interface {
 	IsUsingExchangeLevelFunding() bool
 	Transfer(decimal.Decimal, *Item, *Item, bool) error
 	GetFundingForEvent(common.EventHandler) (IFundingPair, error)
+	HasBeenLiquidated(ev common.EventHandler) bool
 }
 
 // IFundReserver limits funding usage for portfolio event handling
@@ -132,6 +134,7 @@ type Item struct {
 	trackingCandles   *kline.DataFromKline
 	snapshot          map[int64]ItemSnapshot
 	isCollateral      bool
+	isLiquidated      bool
 	collateralCandles map[currency.Code]kline.DataFromKline
 }
 

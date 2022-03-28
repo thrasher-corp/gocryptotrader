@@ -491,29 +491,13 @@ func (f *FundManager) getFundingForEAC(exch string, a asset.Item, c currency.Cod
 	return nil, ErrFundsNotFound
 }
 
-// LiquidateByCollateral will remove all collateral value
-// and all contracts
-func (f *FundManager) LiquidateByCollateral(c currency.Code) error {
-	found := false
+// Liquidate will remove all funding
+func (f *FundManager) Liquidate() {
 	for i := range f.items {
-		if f.items[i].currency == c && f.items[i].isCollateral && f.items[i].asset.IsFutures() {
-			f.items[i].available = decimal.Zero
-			f.items[i].reserved = decimal.Zero
-			found = true
-		}
+		f.items[i].reserved = decimal.Zero
+		f.items[i].available = decimal.Zero
+		f.items[i].isLiquidated = true
 	}
-	if !found {
-		return ErrNotCollateral
-	}
-	for i := range f.items {
-		if f.items[i].pairedWith != nil &&
-			f.items[i].pairedWith.currency == c &&
-			f.items[i].asset.IsFutures() {
-			f.items[i].available = decimal.Zero
-			f.items[i].reserved = decimal.Zero
-		}
-	}
-	return nil
 }
 
 // GetAllFunding returns basic representations of all current
@@ -629,4 +613,20 @@ func (f *FundManager) RealisePNL(receivingExchange string, receivingAsset asset.
 		}
 	}
 	return fmt.Errorf("%w to allocate %v to %v %v %v", ErrFundsNotFound, realisedPNL, receivingExchange, receivingAsset, receivingCurrency)
+}
+
+// HasBeenLiquidated checks
+func (f *FundManager) HasBeenLiquidated(ev common.EventHandler) bool {
+	for i := range f.items {
+		if ev.GetExchange() == f.items[i].exchange &&
+			ev.GetAssetType() == f.items[i].asset &&
+			(f.items[i].currency.Equal(ev.Pair().Base) ||
+				f.items[i].currency.Equal(ev.Pair().Quote)) &&
+			f.items[i].isLiquidated {
+			return true
+		} else {
+			continue
+		}
+	}
+	return false
 }

@@ -51,7 +51,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 	if o.GetDirection() == common.DoNothing {
 		return f, ErrDoNothing
 	}
-	if o.GetAssetType().IsFutures() && !o.IsClosingPosition() {
+	if (o.GetAssetType().IsFutures() && !o.IsClosingPosition()) || o.IsLiquidating() {
 		f.Amount = o.GetAllocatedFunds()
 	}
 	eventFunds := o.GetAllocatedFunds()
@@ -72,6 +72,26 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 	var adjustedPrice, amount decimal.Decimal
 
 	if cs.UseRealOrders {
+		if o.IsLiquidating() {
+			// Liquidation occurs serverside
+			if o.GetAssetType().IsFutures() {
+				cr, err := funds.CollateralReleaser()
+				if err != nil {
+					return f, err
+				}
+				// update local records
+				cr.Liquidate()
+
+			} else {
+				pr, err := funds.PairReleaser()
+				if err != nil {
+					return f, err
+				}
+				// update local records
+				pr.Liquidate()
+			}
+			return f, nil
+		}
 		// get current orderbook
 		var ob *orderbook.Base
 		ob, err = orderbook.Get(f.Exchange, f.CurrencyPair, f.AssetType)
@@ -136,7 +156,10 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 	f.ExchangeFee = calculateExchangeFee(adjustedPrice, limitReducedAmount, cs.ExchangeFee)
 
 	orderID, err := e.placeOrder(context.TODO(), adjustedPrice, limitReducedAmount, cs.UseRealOrders, cs.CanUseExchangeLimits, f, orderManager)
-	if !o.IsClosingPosition() {
+	if err != nil {
+		return f, err
+	}
+	if !o.IsClosingPosition() && !o.IsLiquidating() {
 		err = allocateFundsPostOrder(f, funds, err, o.GetAmount(), eventFunds, limitReducedAmount, adjustedPrice)
 		if err != nil {
 			return f, err

@@ -62,7 +62,7 @@ type Handler interface {
 	GetLatestPNLForEvent(common.EventHandler) (*PNLSummary, error)
 	GetLatestPNLs() []PNLSummary
 	CheckLiquidationStatus(common.DataEventHandler, funding.ICollateralReader, *PNLSummary) error
-	CreateLiquidationOrders(common.DataEventHandler) ([]*order.Order, error)
+	CreateLiquidationOrders(common.DataEventHandler, funding.IFundingManager) ([]*order.Order, error)
 	Reset()
 }
 

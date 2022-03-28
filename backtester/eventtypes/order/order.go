@@ -89,6 +89,12 @@ func (o *Order) GetFillDependentEvent() signal.Event {
 	return o.FillDependentEvent
 }
 
+// IsClosingPosition returns whether position is being closed
 func (o *Order) IsClosingPosition() bool {
 	return o.ClosingPosition
+}
+
+// IsLiquidating returns whether position is being liquidated
+func (o *Order) IsLiquidating() bool {
+	return o.LiquidatingPosition
 }

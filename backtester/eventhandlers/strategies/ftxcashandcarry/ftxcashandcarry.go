@@ -57,6 +57,7 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundTransf
 	if err != nil {
 		return nil, err
 	}
+
 	for _, v := range sortedSignals {
 		pos, err := p.GetPositions(v.futureSignal.Latest())
 		if err != nil {
@@ -81,6 +82,13 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundTransf
 		if pos != nil && pos[len(pos)-1].Status == order.Open {
 			futuresSignal.AppendReason(fmt.Sprintf("Unrealised PNL %v", pos[len(pos)-1].UnrealisedPNL))
 		}
+		if f.HasBeenLiquidated(&spotSignal) || f.HasBeenLiquidated(&futuresSignal) {
+			spotSignal.AppendReason("cannot transact, has been liquidated")
+			futuresSignal.AppendReason("cannot transact, has been liquidated")
+			response = append(response, &spotSignal, &futuresSignal)
+			continue
+		}
+
 		switch {
 		case len(pos) == 0:
 			// check to see if order is appropriate to action
