@@ -314,7 +314,7 @@ type WsFuturesReq struct {
 // WsParams store ws parameters
 type WsParams struct {
 	Symbol     string `json:"symbol"`
-	IsBinary   string `json:"binary"`
+	IsBinary   bool   `json:"binary,string"`
 	SymbolName string `json:"symbolName"`
 	KlineType  string `json:"klineType,omitempty"` // only present in kline ws stream
 }

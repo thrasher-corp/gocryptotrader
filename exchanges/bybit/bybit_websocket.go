@@ -36,10 +36,8 @@ const (
 	wsOrderStr       = "executionReport"
 	wsOrderFilledStr = "ticketInfo"
 
-	wsUpdate  = "update"
-	wsPartial = "partial"
-	sub       = "sub"    // event for subscribe
-	cancel    = "cancel" // event for unsubscribe
+	sub    = "sub"    // event for subscribe
+	cancel = "cancel" // event for unsubscribe
 )
 
 // WsConnect connects to a websocket feed

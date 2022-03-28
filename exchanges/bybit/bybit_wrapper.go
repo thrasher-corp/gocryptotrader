@@ -537,6 +537,7 @@ func (by *Bybit) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 				CurrencyName: currency.NewCode(balances[i].CoinName),
 				Total:        balances[i].Total,
 				Hold:         balances[i].Locked,
+				Free:         balances[i].Total - balances[i].Locked,
 			}
 		}
 
@@ -553,8 +554,9 @@ func (by *Bybit) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 		for coinName, data := range balances {
 			currencyBalance[i] = account.Balance{
 				CurrencyName: currency.NewCode(coinName),
-				Total:        data.Equity,
-				Hold:         data.Equity - data.AvailableBalance,
+				Total:        data.WalletBalance,
+				Hold:         data.WalletBalance - data.AvailableBalance,
+				Free:         data.AvailableBalance,
 			}
 			i++
 		}
@@ -1329,5 +1331,97 @@ func (by *Bybit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (by *Bybit) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	return kline.Item{}, common.ErrNotYetImplemented
+	if err := by.ValidateKline(pair, a, interval); err != nil {
+		return kline.Item{}, err
+	}
+
+	ret := kline.Item{
+		Exchange: by.Name,
+		Pair:     pair,
+		Asset:    a,
+		Interval: interval,
+	}
+	dates, err := kline.CalculateCandleDateRanges(start, end, interval, by.Features.Enabled.Kline.ResultLimit)
+	if err != nil {
+		return kline.Item{}, err
+	}
+
+	switch a {
+	case asset.Spot:
+		candles, err := by.GetKlines(ctx, pair.String(), by.FormatExchangeKlineInterval(ctx, interval), int64(by.Features.Enabled.Kline.ResultLimit), start, end)
+		if err != nil {
+			return kline.Item{}, err
+		}
+
+		for i := range candles {
+			for j := range ret.Candles {
+				if ret.Candles[j].Time.Equal(time.Unix(int64(candles[i].Open), 0)) {
+					continue
+				}
+			}
+			ret.Candles = append(ret.Candles, kline.Candle{
+				Time:   time.Unix(int64(candles[i].Open), 0),
+				Open:   candles[i].Open,
+				High:   candles[i].High,
+				Low:    candles[i].Low,
+				Close:  candles[i].Close,
+				Volume: candles[i].Volume,
+			})
+		}
+	case asset.CoinMarginedFutures, asset.Futures:
+		candles, err := by.GetFuturesKlineData(ctx, pair, by.FormatExchangeKlineInterval(ctx, interval), int64(by.Features.Enabled.Kline.ResultLimit), start)
+		if err != nil {
+			return kline.Item{}, err
+		}
+
+		for i := range candles {
+			for j := range ret.Candles {
+				if ret.Candles[j].Time.Equal(time.Unix(candles[i].OpenTime, 0)) {
+					continue
+				}
+			}
+			ret.Candles = append(ret.Candles, kline.Candle{
+				Time:   time.Unix(candles[i].OpenTime, 0),
+				Open:   candles[i].Open,
+				High:   candles[i].High,
+				Low:    candles[i].Low,
+				Close:  candles[i].Close,
+				Volume: candles[i].Volume,
+			})
+		}
+	case asset.USDTMarginedFutures:
+		candles, err := by.GetUSDTFuturesKlineData(ctx, pair, by.FormatExchangeKlineInterval(ctx, interval), int64(by.Features.Enabled.Kline.ResultLimit), start)
+		if err != nil {
+			return kline.Item{}, err
+		}
+
+		for i := range candles {
+			for j := range ret.Candles {
+				if ret.Candles[j].Time.Equal(time.Unix(candles[i].OpenTime, 0)) {
+					continue
+				}
+			}
+			ret.Candles = append(ret.Candles, kline.Candle{
+				Time:   time.Unix(candles[i].OpenTime, 0),
+				Open:   candles[i].Open,
+				High:   candles[i].High,
+				Low:    candles[i].Low,
+				Close:  candles[i].Close,
+				Volume: candles[i].Volume,
+			})
+		}
+
+	default:
+		return kline.Item{}, fmt.Errorf("assetType not supported: %v", a)
+	}
+
+	dates.SetHasDataFromCandles(ret.Candles)
+	summary := dates.DataSummary(false)
+	if len(summary) > 0 {
+		log.Warnf(log.ExchangeSys, "%v - %v", by.Name, summary)
+	}
+	ret.RemoveDuplicates()
+	ret.RemoveOutsideRange(start, end)
+	ret.SortCandlesByTimestamp(false)
+	return ret, nil
 }
