@@ -171,54 +171,52 @@ func (w *Orderbook) Update(u *Update) error {
 		}
 	}
 
-	if book.ob.VerifyOrderbook { // This is used here so as to not retrieve
-		// book if verification is off.
-		// On every update, this will retrieve and verify orderbook depths
-		ret, err := book.ob.Retrieve()
+	var ret *orderbook.Base
+	if book.ob.VerifyOrderbook {
+		// This is used here so as to not retrieve book if verification is off.
+		// On every update, this will retrieve and verify orderbook depth.
+		ret, err = book.ob.Retrieve()
 		if err != nil {
 			return err
 		}
 		err = ret.Verify()
 		if err != nil {
+			book.ob.Invalidate()
 			return err
 		}
 	}
 
-	// a nil ticker means that a zero publish period has been requested,
-	// this means publish now whatever was received with no throttling
-	if book.ticker == nil {
-		ret, err := book.ob.Retrieve()
-		if err != nil {
-			return err
-		}
-		go func(ret *orderbook.Base) {
-			w.dataHandler <- ret
-		}(ret)
-		return nil
-	}
-
-	select {
-	case <-book.ticker.C:
-		// Opted to wait for receiver because we are limiting here and the sync
-		// manager requires update
-		ret, err := book.ob.Retrieve()
-		if err != nil {
-			return err
-		}
-		go func(ret *orderbook.Base) {
-			w.dataHandler <- ret
-		}(ret)
-	default:
-		// We do not need to send an update to the sync manager within this time
-		// window unless verbose is turned on
-		if w.verbose {
-			ret, err := book.ob.Retrieve()
-			if err != nil {
-				return err
+	if book.ticker != nil {
+		select {
+		case <-book.ticker.C:
+			// Send update to engine websocket manager to update engine
+			// sync manager to reset websocket orderbook sync timeout. This will
+			// stop the fall over to REST protocol fetching of orderbook data.
+		default:
+			if !w.verbose {
+				// We do not need to send an update to the sync manager within
+				// this time window unless verbose is turned on.
+				return nil
 			}
-			w.dataHandler <- ret
 		}
 	}
+
+	// A nil ticker means that a zero publish period has been set and the entire
+	// websocket updates will be sent to the engine websocket manager for
+	// display purposes. Same as being verbose.
+
+	if ret == nil {
+		ret, err = book.ob.Retrieve()
+		if err != nil {
+			return err
+		}
+	}
+
+	// Go routine to not impede reader from websocket connection.
+	go func(ret *orderbook.Base, depth *orderbook.Depth) {
+		w.dataHandler <- ret
+		depth.Publish()
+	}(ret, book.ob)
 
 	return nil
 }
@@ -333,6 +331,12 @@ func (o *orderbookHolder) updateByIDAndAction(updts *Update) error {
 
 // LoadSnapshot loads initial snapshot of orderbook data from websocket
 func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
+	// Checks if book can deploy to linked list
+	err := book.Verify()
+	if err != nil {
+		return err
+	}
+
 	w.m.Lock()
 	defer w.m.Unlock()
 	m1, ok := w.ob[book.Pair.Base]
@@ -369,13 +373,6 @@ func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
 
 	holder.updateID = book.LastUpdateID
 
-	// Checks if book can deploy to linked list
-	err := book.Verify()
-	if err != nil {
-		holder.ob.Invalidate()
-		return err
-	}
-
 	holder.ob.LoadSnapshot(book.Bids,
 		book.Asks,
 		book.LastUpdateID,
@@ -383,23 +380,27 @@ func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
 		false,
 	)
 
-	after, err := holder.ob.Retrieve()
-	if err != nil {
-		return err
-	}
-
-	if holder.ob.VerifyOrderbook { // This is used here so as to not retrieve
-		// book if verification is off.
+	if holder.ob.VerifyOrderbook {
+		// This is used here so as to not retrieve book if verification is off.
 		// Checks to see if orderbook snapshot that was deployed has not been
 		// altered in any way
-		err = after.Verify()
+		book, err = holder.ob.Retrieve()
+		if err != nil {
+			return err
+		}
+		err = book.Verify()
 		if err != nil {
 			holder.ob.Invalidate()
 			return err
 		}
 	}
 
-	w.dataHandler <- after
+	// Go routine to not impede reader from websocket connection.
+	go func(ret *orderbook.Base, depth *orderbook.Depth) {
+		w.dataHandler <- ret
+		depth.Publish()
+	}(book, holder.ob)
+
 	return nil
 }
 
