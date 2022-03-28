@@ -164,8 +164,8 @@ func TestCreatePostOrder(t *testing.T) {
 
 func TestQueryOrder(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+	if !areTestAPIKeysSet() || !canManipulateRealOrders { // Note: here !canManipulateRealOrders added as we don't have orderID
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
 	}
 	_, err := b.QueryOrder(context.Background(), "0", "")
 	if err != nil {
@@ -1778,7 +1778,7 @@ func TestGetPositions(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
-	pair, err := currency.NewPairFromString("BTCUSDH22")
+	pair, err := currency.NewPairFromString("BTCUSDT")
 	if err != nil {
 		t.Fatal(err)
 	}
