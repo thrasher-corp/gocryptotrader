@@ -140,6 +140,15 @@ func TestTotalAmounts(t *testing.T) {
 			value)
 	}
 
+	d.isValid = false
+
+	_, _, err = d.TotalAskAmounts()
+	if !errors.Is(err, ErrOrderbookInvalid) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
+	}
+
+	d.isValid = true
+
 	liquidity, value, err = d.TotalAskAmounts()
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
@@ -237,9 +246,14 @@ func TestUpdateBidAskByPrice(t *testing.T) {
 	d.LoadSnapshot(Items{{Price: 1337, Amount: 1, ID: 1}}, Items{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Time{}, false)
 
 	// empty
-	d.UpdateBidAskByPrice(nil, nil, 0, 1, time.Time{})
+	d.UpdateBidAskByPrice(&Update{})
 
-	d.UpdateBidAskByPrice(Items{{Price: 1337, Amount: 2, ID: 1}}, Items{{Price: 1337, Amount: 2, ID: 2}}, 0, 1, time.Time{})
+	updates := &Update{
+		Bids:     Items{{Price: 1337, Amount: 2, ID: 1}},
+		Asks:     Items{{Price: 1337, Amount: 2, ID: 2}},
+		UpdateID: 1,
+	}
+	d.UpdateBidAskByPrice(updates)
 
 	ob, err := d.Retrieve()
 	if !errors.Is(err, nil) {
@@ -250,7 +264,12 @@ func TestUpdateBidAskByPrice(t *testing.T) {
 		t.Fatalf("orderbook amounts not updated correctly")
 	}
 
-	d.UpdateBidAskByPrice(Items{{Price: 1337, Amount: 0, ID: 1}}, Items{{Price: 1337, Amount: 0, ID: 2}}, 0, 2, time.Time{})
+	updates = &Update{
+		Bids:     Items{{Price: 1337, Amount: 0, ID: 1}},
+		Asks:     Items{{Price: 1337, Amount: 0, ID: 2}},
+		UpdateID: 2,
+	}
+	d.UpdateBidAskByPrice(updates)
 
 	askLen, err := d.GetAskLength()
 	if !errors.Is(err, nil) {
@@ -271,7 +290,12 @@ func TestDeleteBidAskByID(t *testing.T) {
 	t.Parallel()
 	d := NewDepth(id)
 	d.LoadSnapshot(Items{{Price: 1337, Amount: 1, ID: 1}}, Items{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Time{}, false)
-	err := d.DeleteBidAskByID(Items{{Price: 1337, Amount: 2, ID: 1}}, Items{{Price: 1337, Amount: 2, ID: 2}}, false, 0, time.Time{})
+
+	updates := &Update{
+		Bids: Items{{Price: 1337, Amount: 2, ID: 1}},
+		Asks: Items{{Price: 1337, Amount: 2, ID: 2}},
+	}
+	err := d.DeleteBidAskByID(updates, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -285,17 +309,26 @@ func TestDeleteBidAskByID(t *testing.T) {
 		t.Fatalf("items not deleted")
 	}
 
-	err = d.DeleteBidAskByID(Items{{Price: 1337, Amount: 2, ID: 1}}, nil, false, 0, time.Time{})
+	updates = &Update{
+		Bids: Items{{Price: 1337, Amount: 2, ID: 1}},
+	}
+	err = d.DeleteBidAskByID(updates, false)
 	if !errors.Is(err, errIDCannotBeMatched) {
 		t.Fatalf("error expected %v received %v", errIDCannotBeMatched, err)
 	}
 
-	err = d.DeleteBidAskByID(nil, Items{{Price: 1337, Amount: 2, ID: 2}}, false, 0, time.Time{})
+	updates = &Update{
+		Asks: Items{{Price: 1337, Amount: 2, ID: 2}},
+	}
+	err = d.DeleteBidAskByID(updates, false)
 	if !errors.Is(err, errIDCannotBeMatched) {
 		t.Fatalf("error expected %v received %v", errIDCannotBeMatched, err)
 	}
 
-	err = d.DeleteBidAskByID(nil, Items{{Price: 1337, Amount: 2, ID: 2}}, true, 0, time.Time{})
+	updates = &Update{
+		Asks: Items{{Price: 1337, Amount: 2, ID: 2}},
+	}
+	err = d.DeleteBidAskByID(updates, true)
 	if !errors.Is(err, nil) {
 		t.Fatalf("error expected %v received %v", nil, err)
 	}
@@ -305,7 +338,12 @@ func TestUpdateBidAskByID(t *testing.T) {
 	t.Parallel()
 	d := NewDepth(id)
 	d.LoadSnapshot(Items{{Price: 1337, Amount: 1, ID: 1}}, Items{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Time{}, false)
-	err := d.UpdateBidAskByID(Items{{Price: 1337, Amount: 2, ID: 1}}, Items{{Price: 1337, Amount: 2, ID: 2}}, 0, time.Time{})
+
+	updates := &Update{
+		Bids: Items{{Price: 1337, Amount: 2, ID: 1}},
+		Asks: Items{{Price: 1337, Amount: 2, ID: 2}},
+	}
+	err := d.UpdateBidAskByID(updates)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -319,13 +357,19 @@ func TestUpdateBidAskByID(t *testing.T) {
 		t.Fatalf("orderbook amounts not updated correctly")
 	}
 
+	updates = &Update{
+		Bids: Items{{Price: 1337, Amount: 2, ID: 666}},
+	}
 	// random unmatching IDs
-	err = d.UpdateBidAskByID(Items{{Price: 1337, Amount: 2, ID: 666}}, nil, 0, time.Time{})
+	err = d.UpdateBidAskByID(updates)
 	if !errors.Is(err, errIDCannotBeMatched) {
 		t.Fatalf("error expected %v received %v", errIDCannotBeMatched, err)
 	}
 
-	err = d.UpdateBidAskByID(nil, Items{{Price: 1337, Amount: 2, ID: 69}}, 0, time.Time{})
+	updates = &Update{
+		Asks: Items{{Price: 1337, Amount: 2, ID: 69}},
+	}
+	err = d.UpdateBidAskByID(updates)
 	if !errors.Is(err, errIDCannotBeMatched) {
 		t.Fatalf("error expected %v received %v", errIDCannotBeMatched, err)
 	}
@@ -335,7 +379,33 @@ func TestInsertBidAskByID(t *testing.T) {
 	t.Parallel()
 	d := NewDepth(id)
 	d.LoadSnapshot(Items{{Price: 1337, Amount: 1, ID: 1}}, Items{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Time{}, false)
-	err := d.InsertBidAskByID(Items{{Price: 1338, Amount: 2, ID: 3}}, Items{{Price: 1336, Amount: 2, ID: 4}}, 0, time.Time{})
+
+	updates := &Update{
+		Asks: Items{{Price: 1337, Amount: 2, ID: 3}},
+	}
+
+	err := d.InsertBidAskByID(updates)
+	if !errors.Is(err, errCollisionDetected) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errCollisionDetected)
+	}
+
+	d.LoadSnapshot(Items{{Price: 1337, Amount: 1, ID: 1}}, Items{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Time{}, false)
+
+	updates = &Update{
+		Bids: Items{{Price: 1337, Amount: 2, ID: 3}},
+	}
+
+	err = d.InsertBidAskByID(updates)
+	if !errors.Is(err, errCollisionDetected) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errCollisionDetected)
+	}
+
+	d.LoadSnapshot(Items{{Price: 1337, Amount: 1, ID: 1}}, Items{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Time{}, false)
+	updates = &Update{
+		Bids: Items{{Price: 1338, Amount: 2, ID: 3}},
+		Asks: Items{{Price: 1336, Amount: 2, ID: 4}},
+	}
+	err = d.InsertBidAskByID(updates)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -354,7 +424,12 @@ func TestUpdateInsertByID(t *testing.T) {
 	t.Parallel()
 	d := NewDepth(id)
 	d.LoadSnapshot(Items{{Price: 1337, Amount: 1, ID: 1}}, Items{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Time{}, false)
-	err := d.UpdateInsertByID(Items{{Price: 1338, Amount: 0, ID: 3}}, Items{{Price: 1336, Amount: 2, ID: 4}}, 0, time.Time{})
+
+	updates := &Update{
+		Bids: Items{{Price: 1338, Amount: 0, ID: 3}},
+		Asks: Items{{Price: 1336, Amount: 2, ID: 4}},
+	}
+	err := d.UpdateInsertByID(updates)
 	if !errors.Is(err, errAmountCannotBeLessOrEqualToZero) {
 		t.Fatalf("expected: %v but received: %v", errAmountCannotBeLessOrEqualToZero, err)
 	}
@@ -366,7 +441,12 @@ func TestUpdateInsertByID(t *testing.T) {
 	}
 
 	d.LoadSnapshot(Items{{Price: 1337, Amount: 1, ID: 1}}, Items{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Time{}, false)
-	err = d.UpdateInsertByID(Items{{Price: 1338, Amount: 2, ID: 3}}, Items{{Price: 1336, Amount: 0, ID: 4}}, 0, time.Time{})
+
+	updates = &Update{
+		Bids: Items{{Price: 1338, Amount: 2, ID: 3}},
+		Asks: Items{{Price: 1336, Amount: 0, ID: 4}},
+	}
+	err = d.UpdateInsertByID(updates)
 	if !errors.Is(err, errAmountCannotBeLessOrEqualToZero) {
 		t.Fatalf("expected: %v but received: %v", errAmountCannotBeLessOrEqualToZero, err)
 	}
@@ -378,7 +458,12 @@ func TestUpdateInsertByID(t *testing.T) {
 	}
 
 	d.LoadSnapshot(Items{{Price: 1337, Amount: 1, ID: 1}}, Items{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Time{}, false)
-	err = d.UpdateInsertByID(Items{{Price: 1338, Amount: 2, ID: 3}}, Items{{Price: 1336, Amount: 2, ID: 4}}, 0, time.Time{})
+
+	updates = &Update{
+		Bids: Items{{Price: 1338, Amount: 2, ID: 3}},
+		Asks: Items{{Price: 1336, Amount: 2, ID: 4}},
+	}
+	err = d.UpdateInsertByID(updates)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -487,4 +572,58 @@ func TestPublish(t *testing.T) {
 	d.Publish()
 	d.isValid = true
 	d.Publish()
+}
+
+func TestIsValid(t *testing.T) {
+	t.Parallel()
+	d := Depth{}
+	if d.IsValid() {
+		t.Fatalf("received: '%v' but expected: '%v'", d.IsValid(), false)
+	}
+	d.isValid = true
+	if !d.IsValid() {
+		t.Fatalf("received: '%v' but expected: '%v'", d.IsValid(), true)
+	}
+}
+
+func TestGetActionFromString(t *testing.T) {
+	if _, err := GetActionFromString("meow"); !errors.Is(err, errInvalidAction) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidAction)
+	}
+
+	action, err := GetActionFromString("update")
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if action != Amend {
+		t.Fatalf("received: '%v' but expected: '%v'", action, Amend)
+	}
+
+	action, err = GetActionFromString("delete")
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if action != Delete {
+		t.Fatalf("received: '%v' but expected: '%v'", action, Delete)
+	}
+
+	action, err = GetActionFromString("insert")
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if action != Insert {
+		t.Fatalf("received: '%v' but expected: '%v'", action, Insert)
+	}
+
+	action, err = GetActionFromString("update/insert")
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if action != UpdateInsert {
+		t.Fatalf("received: '%v' but expected: '%v'", action, UpdateInsert)
+	}
 }

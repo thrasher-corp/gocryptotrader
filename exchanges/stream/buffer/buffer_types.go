@@ -54,7 +54,7 @@ type Orderbook struct {
 // orderbook depth
 type orderbookHolder struct {
 	ob     *orderbook.Depth
-	buffer *[]Update
+	buffer *[]orderbook.Update
 	// Reduces the amount of outbound alerts to the data handler for example
 	// coinbasepro can have up too 100 updates per second introducing overhead.
 	// The sync agent only requires an alert every 15 seconds for a specific

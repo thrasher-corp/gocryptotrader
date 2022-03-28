@@ -116,3 +116,36 @@ type options struct {
 	idAligned        bool
 	isValid          bool
 }
+
+// Action defines a set of differing states required to implement an incoming
+// orderbook update used in conjunction with UpdateEntriesByID
+type Action uint8
+
+const (
+	// Amend applies amount adjustment by ID
+	Amend Action = iota + 1
+	// Delete removes price level from book by ID
+	Delete
+	// Insert adds price level to book
+	Insert
+	// UpdateInsert on conflict applies amount adjustment or appends new amount
+	// to book
+	UpdateInsert
+)
+
+// Update and things and stuff
+type Update struct {
+	UpdateID   int64 // Used when no time is provided
+	UpdateTime time.Time
+	Asset      asset.Item
+	Action
+	Bids []Item
+	Asks []Item
+	Pair currency.Pair
+	// Checksum defines the expected value when the books have been verified
+	Checksum uint32
+	// Determines if there is a max depth of orderbooks and after an append we
+	// should remove any items that are outside of this scope. Kraken is the
+	// only exchange utilising this field.
+	MaxDepth int
+}

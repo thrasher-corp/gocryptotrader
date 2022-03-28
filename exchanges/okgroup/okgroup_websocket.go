@@ -20,7 +20,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -644,7 +643,7 @@ func (o *OKGroup) wsResubscribeToOrderbook(response *WebsocketOrderBooksData) er
 // AppendWsOrderbookItems adds websocket orderbook data bid/asks into an
 // orderbook item array
 func (o *OKGroup) AppendWsOrderbookItems(entries [][]interface{}) ([]orderbook.Item, error) {
-	var items []orderbook.Item
+	var items = make([]orderbook.Item, 0, len(entries))
 	for j := range entries {
 		amount, err := strconv.ParseFloat(entries[j][1].(string), 64)
 		if err != nil {
@@ -702,7 +701,7 @@ func (o *OKGroup) WsProcessPartialOrderBook(wsEventData *WebsocketOrderBook, ins
 // After merging WS data, it will sort, validate and finally update the existing
 // orderbook
 func (o *OKGroup) WsProcessUpdateOrderbook(wsEventData *WebsocketOrderBook, instrument currency.Pair, a asset.Item) error {
-	update := buffer.Update{
+	update := orderbook.Update{
 		Asset:      a,
 		Pair:       instrument,
 		UpdateTime: wsEventData.Timestamp,

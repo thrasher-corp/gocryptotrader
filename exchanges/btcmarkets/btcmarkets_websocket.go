@@ -19,7 +19,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -144,7 +143,7 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 				VerifyOrderbook: b.CanVerifyOrderbook,
 			})
 		} else {
-			err = b.Websocket.Orderbook.Update(&buffer.Update{
+			err = b.Websocket.Orderbook.Update(&orderbook.Update{
 				UpdateTime: ob.Timestamp,
 				UpdateID:   ob.SnapshotID,
 				Asset:      asset.Spot,

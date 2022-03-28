@@ -73,7 +73,7 @@ func (w *Orderbook) Setup(exchangeConfig *config.Exchange, c *Config, dataHandle
 }
 
 // validate validates update against setup values
-func (w *Orderbook) validate(u *Update) error {
+func (w *Orderbook) validate(u *orderbook.Update) error {
 	if u == nil {
 		return fmt.Errorf(packageError, errUpdateIsNil)
 	}
@@ -85,7 +85,7 @@ func (w *Orderbook) validate(u *Update) error {
 
 // Update updates a stored pointer to an orderbook.Depth struct containing a
 // linked list, this switches between the usage of a buffered update
-func (w *Orderbook) Update(u *Update) error {
+func (w *Orderbook) Update(u *orderbook.Update) error {
 	if err := w.validate(u); err != nil {
 		return err
 	}
@@ -186,6 +186,9 @@ func (w *Orderbook) Update(u *Update) error {
 		}
 	}
 
+	// Publish all state changes, disregarding verbosity or sync requirements.
+	book.ob.Publish()
+
 	if book.ticker != nil {
 		select {
 		case <-book.ticker.C:
@@ -204,26 +207,13 @@ func (w *Orderbook) Update(u *Update) error {
 	// A nil ticker means that a zero publish period has been set and the entire
 	// websocket updates will be sent to the engine websocket manager for
 	// display purposes. Same as being verbose.
-
-	if ret == nil {
-		ret, err = book.ob.Retrieve()
-		if err != nil {
-			return err
-		}
-	}
-
-	// Go routine to not impede reader from websocket connection.
-	go func(ret *orderbook.Base, depth *orderbook.Depth) {
-		w.dataHandler <- ret
-		depth.Publish()
-	}(ret, book.ob)
-
+	w.dataHandler <- book.ob
 	return nil
 }
 
 // processBufferUpdate stores update into buffer, when buffer at capacity as
 // defined by w.obBufferLimit it well then sort and apply updates.
-func (w *Orderbook) processBufferUpdate(o *orderbookHolder, u *Update) (bool, error) {
+func (w *Orderbook) processBufferUpdate(o *orderbookHolder, u *orderbook.Update) (bool, error) {
 	*o.buffer = append(*o.buffer, *u)
 	if len(*o.buffer) < w.obBufferLimit {
 		return false, nil
@@ -254,7 +244,7 @@ func (w *Orderbook) processBufferUpdate(o *orderbookHolder, u *Update) (bool, er
 
 // processObUpdate processes updates either by its corresponding id or by
 // price level
-func (w *Orderbook) processObUpdate(o *orderbookHolder, u *Update) error {
+func (w *Orderbook) processObUpdate(o *orderbookHolder, u *orderbook.Update) error {
 	if w.updateEntriesByID {
 		return o.updateByIDAndAction(u)
 	}
@@ -276,55 +266,38 @@ func (w *Orderbook) processObUpdate(o *orderbookHolder, u *Update) error {
 
 // updateByPrice ammends amount if match occurs by price, deletes if amount is
 // zero or less and inserts if not found.
-func (o *orderbookHolder) updateByPrice(updts *Update) {
-	o.ob.UpdateBidAskByPrice(updts.Bids,
-		updts.Asks,
-		updts.MaxDepth,
-		updts.UpdateID,
-		updts.UpdateTime)
+func (o *orderbookHolder) updateByPrice(updts *orderbook.Update) {
+	o.ob.UpdateBidAskByPrice(updts)
 }
 
 // updateByIDAndAction will receive an action to execute against the orderbook
 // it will then match by IDs instead of price to perform the action
-func (o *orderbookHolder) updateByIDAndAction(updts *Update) error {
+func (o *orderbookHolder) updateByIDAndAction(updts *orderbook.Update) error {
 	switch updts.Action {
-	case Amend:
-		err := o.ob.UpdateBidAskByID(updts.Bids,
-			updts.Asks,
-			updts.UpdateID,
-			updts.UpdateTime)
+	case orderbook.Amend:
+		err := o.ob.UpdateBidAskByID(updts)
 		if err != nil {
 			return fmt.Errorf("%w %v", errAmendFailure, err)
 		}
-	case Delete:
+	case orderbook.Delete:
 		// edge case for Bitfinex as their streaming endpoint duplicates deletes
 		bypassErr := o.ob.GetName() == "Bitfinex" && o.ob.IsFundingRate()
-		err := o.ob.DeleteBidAskByID(updts.Bids,
-			updts.Asks,
-			bypassErr,
-			updts.UpdateID,
-			updts.UpdateTime)
+		err := o.ob.DeleteBidAskByID(updts, bypassErr)
 		if err != nil {
 			return fmt.Errorf("%w %v", errDeleteFailure, err)
 		}
-	case Insert:
-		err := o.ob.InsertBidAskByID(updts.Bids,
-			updts.Asks,
-			updts.UpdateID,
-			updts.UpdateTime)
+	case orderbook.Insert:
+		err := o.ob.InsertBidAskByID(updts)
 		if err != nil {
 			return fmt.Errorf("%w %v", errInsertFailure, err)
 		}
-	case UpdateInsert:
-		err := o.ob.UpdateInsertByID(updts.Bids,
-			updts.Asks,
-			updts.UpdateID,
-			updts.UpdateTime)
+	case orderbook.UpdateInsert:
+		err := o.ob.UpdateInsertByID(updts)
 		if err != nil {
 			return fmt.Errorf("%w %v", errUpdateInsertFailure, err)
 		}
 	default:
-		return fmt.Errorf("%w [%s]", errInvalidAction, updts.Action)
+		return fmt.Errorf("%w [%d]", errInvalidAction, updts.Action)
 	}
 	return nil
 }
@@ -357,7 +330,7 @@ func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
 			return err
 		}
 		depth.AssignOptions(book)
-		buffer := make([]Update, w.obBufferLimit)
+		buffer := make([]orderbook.Update, w.obBufferLimit)
 
 		var ticker *time.Ticker
 		if w.publishPeriod != 0 {
@@ -377,8 +350,7 @@ func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
 		book.Asks,
 		book.LastUpdateID,
 		book.LastUpdated,
-		false,
-	)
+		false)
 
 	if holder.ob.VerifyOrderbook {
 		// This is used here so as to not retrieve book if verification is off.
@@ -395,12 +367,8 @@ func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
 		}
 	}
 
-	// Go routine to not impede reader from websocket connection.
-	go func(ret *orderbook.Base, depth *orderbook.Depth) {
-		w.dataHandler <- ret
-		depth.Publish()
-	}(book, holder.ob)
-
+	holder.ob.Publish()
+	w.dataHandler <- holder.ob
 	return nil
 }
 

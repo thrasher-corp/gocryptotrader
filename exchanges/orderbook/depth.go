@@ -2,6 +2,7 @@ package orderbook
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -14,6 +15,8 @@ import (
 // ErrOrderbookInvalid defines an error for when the orderbook is invalid and
 // should not be trusted
 var ErrOrderbookInvalid = errors.New("orderbook data integrity compromised")
+
+var errInvalidAction = errors.New("invalid action")
 
 // Depth defines a linked list of orderbook items
 type Depth struct {
@@ -43,11 +46,7 @@ func NewDepth(id uuid.UUID) *Depth {
 
 // Publish alerts any subscribed routines using a dispatch mux
 func (d *Depth) Publish() {
-	ob, err := d.Retrieve()
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "Cannot publish orderbook update to mux %v", err)
-	}
-	err = d.mux.Publish([]uuid.UUID{d.id}, ob)
+	err := d.mux.Publish([]uuid.UUID{d.id}, d)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "Cannot publish orderbook update to mux %v", err)
 	}
@@ -161,129 +160,104 @@ func (d *Depth) IsValid() bool {
 
 // UpdateBidAskByPrice updates the bid and ask spread by supplied updates, this
 // will trim total length of depth level to a specified supplied number
-func (d *Depth) UpdateBidAskByPrice(bidUpdts, askUpdts Items, maxDepth int, lastUpdateID int64, lastUpdated time.Time) {
-	if len(bidUpdts) == 0 && len(askUpdts) == 0 {
-		return
-	}
-	d.m.Lock()
-	d.lastUpdateID = lastUpdateID
-	d.lastUpdated = lastUpdated
+func (d *Depth) UpdateBidAskByPrice(update *Update) {
 	tn := getNow()
-	if len(bidUpdts) != 0 {
-		d.bids.updateInsertByPrice(bidUpdts, d.stack, maxDepth, tn)
+	d.m.Lock()
+	if len(update.Bids) != 0 {
+		d.bids.updateInsertByPrice(update.Bids, d.stack, update.MaxDepth, tn)
 	}
-	if len(askUpdts) != 0 {
-		d.asks.updateInsertByPrice(askUpdts, d.stack, maxDepth, tn)
+	if len(update.Asks) != 0 {
+		d.asks.updateInsertByPrice(update.Asks, d.stack, update.MaxDepth, tn)
 	}
-	d.Alert()
+	d.updateAndAlert(update)
 	d.m.Unlock()
 }
 
 // UpdateBidAskByID amends details by ID
-func (d *Depth) UpdateBidAskByID(bidUpdts, askUpdts Items, lastUpdateID int64, lastUpdated time.Time) error {
-	if len(bidUpdts) == 0 && len(askUpdts) == 0 {
-		return nil
-	}
+func (d *Depth) UpdateBidAskByID(update *Update) error {
 	d.m.Lock()
 	defer d.m.Unlock()
-	if len(bidUpdts) != 0 {
-		err := d.bids.updateByID(bidUpdts)
+	if len(update.Bids) != 0 {
+		err := d.bids.updateByID(update.Bids)
 		if err != nil {
 			d.invalidate()
 			return err
 		}
 	}
-	if len(askUpdts) != 0 {
-		err := d.asks.updateByID(askUpdts)
+	if len(update.Asks) != 0 {
+		err := d.asks.updateByID(update.Asks)
 		if err != nil {
 			d.invalidate()
 			return err
 		}
 	}
-	d.lastUpdateID = lastUpdateID
-	d.lastUpdated = lastUpdated
-	d.Alert()
+	d.updateAndAlert(update)
 	return nil
 }
 
 // DeleteBidAskByID deletes a price level by ID
-func (d *Depth) DeleteBidAskByID(bidUpdts, askUpdts Items, bypassErr bool, lastUpdateID int64, lastUpdated time.Time) error {
-	if len(bidUpdts) == 0 && len(askUpdts) == 0 {
-		return nil
-	}
+func (d *Depth) DeleteBidAskByID(update *Update, bypassErr bool) error {
 	d.m.Lock()
 	defer d.m.Unlock()
-	if len(bidUpdts) != 0 {
-		err := d.bids.deleteByID(bidUpdts, d.stack, bypassErr)
+	if len(update.Bids) != 0 {
+		err := d.bids.deleteByID(update.Bids, d.stack, bypassErr)
 		if err != nil {
 			d.invalidate()
 			return err
 		}
 	}
-	if len(askUpdts) != 0 {
-		err := d.asks.deleteByID(askUpdts, d.stack, bypassErr)
+	if len(update.Asks) != 0 {
+		err := d.asks.deleteByID(update.Asks, d.stack, bypassErr)
 		if err != nil {
 			d.invalidate()
 			return err
 		}
 	}
-	d.lastUpdateID = lastUpdateID
-	d.lastUpdated = lastUpdated
-	d.Alert()
+	d.updateAndAlert(update)
 	return nil
 }
 
 // InsertBidAskByID inserts new updates
-func (d *Depth) InsertBidAskByID(bidUpdts, askUpdts Items, lastUpdateID int64, lastUpdated time.Time) error {
-	if len(bidUpdts) == 0 && len(askUpdts) == 0 {
-		return nil
-	}
+func (d *Depth) InsertBidAskByID(update *Update) error {
 	d.m.Lock()
 	defer d.m.Unlock()
-	if len(bidUpdts) != 0 {
-		err := d.bids.insertUpdates(bidUpdts, d.stack)
+	if len(update.Bids) != 0 {
+		err := d.bids.insertUpdates(update.Bids, d.stack)
 		if err != nil {
 			d.invalidate()
 			return err
 		}
 	}
-	if len(askUpdts) != 0 {
-		err := d.asks.insertUpdates(askUpdts, d.stack)
+	if len(update.Asks) != 0 {
+		err := d.asks.insertUpdates(update.Asks, d.stack)
 		if err != nil {
 			d.invalidate()
 			return err
 		}
 	}
-	d.lastUpdateID = lastUpdateID
-	d.lastUpdated = lastUpdated
-	d.Alert()
+	d.updateAndAlert(update)
 	return nil
 }
 
 // UpdateInsertByID updates or inserts by ID at current price level.
-func (d *Depth) UpdateInsertByID(bidUpdts, askUpdts Items, lastUpdateID int64, lastUpdated time.Time) error {
-	if len(bidUpdts) == 0 && len(askUpdts) == 0 {
-		return nil
-	}
+func (d *Depth) UpdateInsertByID(update *Update) error {
 	d.m.Lock()
 	defer d.m.Unlock()
-	if len(bidUpdts) != 0 {
-		err := d.bids.updateInsertByID(bidUpdts, d.stack)
+	if len(update.Bids) != 0 {
+		err := d.bids.updateInsertByID(update.Bids, d.stack)
 		if err != nil {
 			d.invalidate()
 			return err
 		}
 	}
-	if len(askUpdts) != 0 {
-		err := d.asks.updateInsertByID(askUpdts, d.stack)
+	if len(update.Asks) != 0 {
+		err := d.asks.updateInsertByID(update.Asks, d.stack)
 		if err != nil {
 			d.invalidate()
 			return err
 		}
 	}
-	d.Alert()
-	d.lastUpdateID = lastUpdateID
-	d.lastUpdated = lastUpdated
+	d.updateAndAlert(update)
 	return nil
 }
 
@@ -337,4 +311,27 @@ func (d *Depth) IsFundingRate() bool {
 	d.m.Lock()
 	defer d.m.Unlock()
 	return d.isFundingRate
+}
+
+// updateAndAlert updates the last updated ID and when it was updated to the
+// recent update. Then alerts all pending routines.
+func (d *Depth) updateAndAlert(update *Update) {
+	d.lastUpdateID = update.UpdateID
+	d.lastUpdated = update.UpdateTime
+	d.Alert()
+}
+
+// GetActionFromString matches a string action to an internal action.
+func GetActionFromString(s string) (Action, error) {
+	switch s {
+	case "update":
+		return Amend, nil
+	case "delete":
+		return Delete, nil
+	case "insert":
+		return Insert, nil
+	case "update/insert":
+		return UpdateInsert, nil
+	}
+	return 0, fmt.Errorf("%s %w", s, errInvalidAction)
 }

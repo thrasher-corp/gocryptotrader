@@ -21,7 +21,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -477,24 +476,26 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 
 // WsProcessUpdateOB processes an update on the orderbook
 func (f *FTX) WsProcessUpdateOB(data *WsOrderbookData, p currency.Pair, a asset.Item) error {
-	update := buffer.Update{
+	update := orderbook.Update{
 		Asset:      a,
 		Pair:       p,
 		UpdateTime: timestampFromFloat64(data.Time),
+		Bids:       make([]orderbook.Item, len(data.Bids)),
+		Asks:       make([]orderbook.Item, len(data.Asks)),
 	}
 
 	var err error
 	for x := range data.Bids {
-		update.Bids = append(update.Bids, orderbook.Item{
+		update.Bids[x] = orderbook.Item{
 			Price:  data.Bids[x][0],
 			Amount: data.Bids[x][1],
-		})
+		}
 	}
 	for x := range data.Asks {
-		update.Asks = append(update.Asks, orderbook.Item{
+		update.Asks[x] = orderbook.Item{
 			Price:  data.Asks[x][0],
 			Amount: data.Asks[x][1],
-		})
+		}
 	}
 
 	err = f.Websocket.Orderbook.Update(&update)

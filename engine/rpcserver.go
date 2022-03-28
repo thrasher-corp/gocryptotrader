@@ -2121,14 +2121,14 @@ func (s *RPCServer) GetExchangeOrderbookStream(r *gctrpc.GetExchangeOrderbookStr
 			return errDispatchSystem
 		}
 
-		d := *data.(*interface{})
+		d := data.(*orderbook.Depth)
 		if d == nil {
 			return errors.New("unable to type assert data")
 		}
 
-		ob, ok := d.(orderbook.Base)
-		if !ok {
-			return errors.New("unable to type assert orderbook data")
+		ob, err := d.Retrieve()
+		if err != nil {
+			return err
 		}
 
 		bids := make([]*gctrpc.OrderbookItem, len(ob.Bids))
@@ -2145,7 +2145,7 @@ func (s *RPCServer) GetExchangeOrderbookStream(r *gctrpc.GetExchangeOrderbookStr
 				Price:  ob.Asks[i].Price,
 				Id:     ob.Asks[i].ID}
 		}
-		err := stream.Send(&gctrpc.OrderbookResponse{
+		err = stream.Send(&gctrpc.OrderbookResponse{
 			Pair: &gctrpc.CurrencyPair{Base: ob.Pair.Base.String(),
 				Quote: ob.Pair.Quote.String()},
 			Bids:      bids,
