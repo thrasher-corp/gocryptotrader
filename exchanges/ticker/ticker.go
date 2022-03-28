@@ -183,7 +183,7 @@ func (s *Service) update(p *Price) error {
 	// nolint: gocritic
 	ids := append(t.Assoc, t.Main)
 	s.Unlock()
-	return s.mux.Publish(ids, p)
+	return s.mux.Publish(p, ids...)
 }
 
 // setItemID retrieves and sets dispatch mux publish IDs

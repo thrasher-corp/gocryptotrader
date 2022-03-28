@@ -41,13 +41,17 @@ func (m *Mux) Unsubscribe(id uuid.UUID, ch chan interface{}) error {
 
 // Publish takes in a persistent memory address and dispatches changes to
 // required pipes. Data should be of *type.
-func (m *Mux) Publish(ids []uuid.UUID, data interface{}) error {
+func (m *Mux) Publish(data interface{}, ids ...uuid.UUID) error {
 	if m == nil {
 		return errors.New("mux is nil")
 	}
 
 	if data == nil {
 		return errors.New("data payload is nil")
+	}
+
+	if len(ids) == 0 {
+		return errors.New("no IDs to publish data to")
 	}
 
 	cpy := reflect.ValueOf(data).Elem().Interface()

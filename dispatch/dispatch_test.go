@@ -189,7 +189,7 @@ func TestMux(t *testing.T) {
 		t.Error("error cannot be nil")
 	}
 
-	err = mux.Publish(nil, nil)
+	err = mux.Publish(nil)
 	if err == nil {
 		t.Error("error cannot be nil")
 	}
@@ -200,7 +200,7 @@ func TestMux(t *testing.T) {
 	}
 	mux = cpyMux
 
-	err = mux.Publish(nil, nil)
+	err = mux.Publish(nil)
 	if err == nil {
 		t.Error("error cannot be nil")
 	}
@@ -211,7 +211,7 @@ func TestMux(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = mux.Publish([]uuid.UUID{id}, &payload)
+	err = mux.Publish(&payload, id)
 	if err != nil {
 		t.Error(err)
 	}
@@ -281,7 +281,7 @@ func TestPublish(t *testing.T) {
 	wg.Add(1)
 	mainPayload := "PAYLOAD"
 	for i := 0; i < 100; i++ {
-		errMux := mux.Publish([]uuid.UUID{itemID}, &mainPayload)
+		errMux := mux.Publish(&mainPayload, itemID)
 		if errMux != nil {
 			t.Error(errMux)
 		}

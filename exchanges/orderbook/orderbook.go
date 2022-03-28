@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -81,7 +80,7 @@ func (s *Service) Update(b *Base) error {
 	}
 	book.LoadSnapshot(b.Bids, b.Asks, b.LastUpdateID, b.LastUpdated, true)
 	s.Unlock()
-	return s.Mux.Publish([]uuid.UUID{m1.ID}, b)
+	return s.Mux.Publish(book, m1.ID)
 }
 
 // DeployDepth used for subsystem deployment creates a depth item in the struct

@@ -29,7 +29,7 @@ type Depth struct {
 	alert.Notice
 
 	mux *dispatch.Mux
-	id  uuid.UUID
+	_ID uuid.UUID
 
 	options
 	m sync.Mutex
@@ -39,14 +39,14 @@ type Depth struct {
 func NewDepth(id uuid.UUID) *Depth {
 	return &Depth{
 		stack: newStack(),
-		id:    id,
+		_ID:   id,
 		mux:   service.Mux,
 	}
 }
 
 // Publish alerts any subscribed routines using a dispatch mux
 func (d *Depth) Publish() {
-	err := d.mux.Publish([]uuid.UUID{d.id}, d)
+	err := d.mux.Publish(d, d._ID)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "Cannot publish orderbook update to mux %v", err)
 	}

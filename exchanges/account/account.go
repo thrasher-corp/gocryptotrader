@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
@@ -114,5 +113,5 @@ func (s *Service) Update(a *Holdings) error {
 	acc.h.Accounts = a.Accounts
 	defer s.Unlock()
 
-	return s.mux.Publish([]uuid.UUID{acc.ID}, acc.h)
+	return s.mux.Publish(acc.h, acc.ID)
 }
