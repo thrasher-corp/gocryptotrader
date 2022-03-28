@@ -714,6 +714,16 @@ func (by *Bybit) GetWalletBalance(ctx context.Context) ([]Balance, error) {
 	return resp.Data.Balances, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, bybitWalletBalance, url.Values{}, &resp, privateSpotRate)
 }
 
+// GetServerTime returns server time
+func (by *Bybit) GetServerTime(ctx context.Context) (time.Time, error) {
+	resp := struct {
+		Result struct {
+			ServerTime int64 `json:"balances"`
+		} `json:"result"`
+	}{}
+	return time.UnixMilli(resp.Result.ServerTime), by.SendHTTPRequest(ctx, exchange.RestSpot, bybitServerTime, publicSpotRate, &resp)
+}
+
 // SendHTTPRequest sends an unauthenticated request
 func (by *Bybit) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path string, f request.EndpointLimit, result interface{}) error {
 	endpointPath, err := by.API.Endpoints.GetURL(ePath)

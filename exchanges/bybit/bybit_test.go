@@ -282,6 +282,14 @@ func TestGetWalletBalance(t *testing.T) {
 	}
 }
 
+func TestGetServerTime(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetServerTime(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 // test cases for WS SPOT
 
 func TestWsSubscription(t *testing.T) {
@@ -588,7 +596,7 @@ func TestGetLastFundingRate(t *testing.T) {
 	}
 }
 
-func TestGetServerTime(t *testing.T) {
+func TestGetFutureServerTime(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetFuturesServerTime(context.Background())
 	if err != nil {
