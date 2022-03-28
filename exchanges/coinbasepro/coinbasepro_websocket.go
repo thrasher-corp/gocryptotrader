@@ -1,6 +1,7 @@
 package coinbasepro
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -165,6 +166,15 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
 			ts = convert.TimeFromUnixTimestampDecimal(wsOrder.Timestamp)
 		}
 
+		creds, err := c.GetCredentials(context.TODO())
+		if err != nil {
+			c.Websocket.DataHandler <- order.ClassificationError{
+				Exchange: c.Name,
+				OrderID:  wsOrder.OrderID,
+				Err:      err,
+			}
+		}
+
 		if wsOrder.UserID != "" {
 			var p currency.Pair
 			var a asset.Item
@@ -183,7 +193,7 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
 				Exchange:        c.Name,
 				ID:              wsOrder.OrderID,
 				AccountID:       wsOrder.ProfileID,
-				ClientID:        c.API.Credentials.ClientID,
+				ClientID:        creds.ClientID,
 				Type:            oType,
 				Side:            oSide,
 				Status:          oStatus,
@@ -388,6 +398,10 @@ func (c *CoinbasePro) GenerateDefaultSubscriptions() ([]stream.ChannelSubscripti
 
 // Subscribe sends a websocket message to receive data from the channel
 func (c *CoinbasePro) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
+	creds, err := c.GetCredentials(context.TODO())
+	if err != nil {
+		return err
+	}
 	subscribe := WebsocketSubscribe{
 		Type: "subscribe",
 	}
@@ -413,19 +427,20 @@ subscriptions:
 			channelsToSubscribe[i].Channel == "full" {
 			n := strconv.FormatInt(time.Now().Unix(), 10)
 			message := n + http.MethodGet + "/users/self/verify"
-			hmac, err := crypto.GetHMAC(crypto.HashSHA256,
+			var hmac []byte
+			hmac, err = crypto.GetHMAC(crypto.HashSHA256,
 				[]byte(message),
-				[]byte(c.API.Credentials.Secret))
+				[]byte(creds.Secret))
 			if err != nil {
 				return err
 			}
 			subscribe.Signature = crypto.Base64Encode(hmac)
-			subscribe.Key = c.API.Credentials.Key
-			subscribe.Passphrase = c.API.Credentials.ClientID
+			subscribe.Key = creds.Key
+			subscribe.Passphrase = creds.ClientID
 			subscribe.Timestamp = n
 		}
 	}
-	err := c.Websocket.Conn.SendJSONMessage(subscribe)
+	err = c.Websocket.Conn.SendJSONMessage(subscribe)
 	if err != nil {
 		return err
 	}

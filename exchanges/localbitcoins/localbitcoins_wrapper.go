@@ -528,7 +528,7 @@ func (l *LocalBitcoins) GetFeeByType(ctx context.Context, feeBuilder *exchange.F
 	if feeBuilder == nil {
 		return 0, fmt.Errorf("%T %w", feeBuilder, common.ErrNilPointer)
 	}
-	if (!l.AllowAuthenticatedRequest() || l.SkipAuthCheck) && // Todo check connection status
+	if (!l.AreCredentialsValid(ctx) || l.SkipAuthCheck) && // Todo check connection status
 		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		feeBuilder.FeeType = exchange.OfflineTradeFee
 	}

@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 )
 
@@ -62,7 +63,7 @@ func TestMain(m *testing.M) {
 }
 
 func areTestAPIKeysSet() bool {
-	return b.AllowAuthenticatedRequest()
+	return b.ValidateAPICredentials(b.GetDefaultCredentials()) == nil
 }
 
 func TestStart(t *testing.T) {
@@ -201,25 +202,57 @@ func TestGetTradeByID(t *testing.T) {
 	}
 }
 
-func TestNewOrder(t *testing.T) {
+func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
+	_, err := b.SubmitOrder(context.Background(), &order.Submit{
+		Price:     100,
+		Amount:    1,
+		Type:      order.TrailingStop,
+		AssetType: asset.Spot,
+		Side:      order.Bid,
+		Pair:      currency.NewPair(currency.BTC, currency.AUD),
+		PostOnly:  true,
+	})
+	if !errors.Is(err, order.ErrTypeIsInvalid) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, order.ErrTypeIsInvalid)
+	}
+	_, err = b.SubmitOrder(context.Background(), &order.Submit{
+		Price:     100,
+		Amount:    1,
+		Type:      order.Limit,
+		AssetType: asset.Spot,
+		Side:      order.AnySide,
+		Pair:      currency.NewPair(currency.BTC, currency.AUD),
+		PostOnly:  true,
+	})
+	if !errors.Is(err, order.ErrSideIsInvalid) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, order.ErrSideIsInvalid)
+	}
+
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
 	}
-	_, err := b.NewOrder(context.Background(),
-		BTCAUD, 100, 1, limit, bid, 0, 0, "", true, "", "")
+	_, err = b.SubmitOrder(context.Background(), &order.Submit{
+		Price:     100,
+		Amount:    1,
+		Type:      order.Limit,
+		AssetType: asset.Spot,
+		Side:      order.Bid,
+		Pair:      currency.NewPair(currency.BTC, currency.AUD),
+		PostOnly:  true,
+	})
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.NewOrder(context.Background(),
-		BTCAUD, 100, 1, "invalid", bid, 0, 0, "", true, "", "")
-	if err == nil {
-		t.Error("expected an error due to invalid ordertype")
+}
+
+func TestNewOrder(t *testing.T) {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
 	}
-	_, err = b.NewOrder(context.Background(),
-		BTCAUD, 100, 1, limit, "invalid", 0, 0, "", true, "", "")
-	if err == nil {
-		t.Error("expected an error due to invalid orderside")
+	_, err := b.NewOrder(context.Background(), 100, 1, 0, 0, BTCAUD, limit, bidSide, "", "", "", true)
+	if err != nil {
+		t.Error(err)
 	}
 }
 
@@ -610,7 +643,8 @@ func TestWsOrderbookUpdate(t *testing.T) {
     "snapshotId": 1578512844045000,
     "bids":  [ ["99.81", "1.2", 1 ], ["95.8", "0", 0 ]],
     "asks": [ ["100", "3.2", 2 ] ],
-    "messageType": "orderbookUpdate"
+    "messageType": "orderbookUpdate",
+	"checksum": "2513007604"
   }`)
 	err = b.wsHandleData(pressXToJSON)
 	if err != nil {
@@ -843,5 +877,154 @@ func TestGetHistoricTrades(t *testing.T) {
 		currencyPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
 	if err != nil && err != common.ErrFunctionNotSupported {
 		t.Error(err)
+	}
+}
+
+func TestChecksum(t *testing.T) {
+	b := &orderbook.Base{
+		Asks: []orderbook.Item{
+			{Price: 0.3965, Amount: 44149.815},
+			{Price: 0.3967, Amount: 16000.0},
+		},
+		Bids: []orderbook.Item{
+			{Price: 0.396, Amount: 51.0},
+			{Price: 0.396, Amount: 25.0},
+			{Price: 0.3958, Amount: 18570.0},
+		},
+	}
+
+	expecting := 3802968298
+	err := checksum(b, uint32(expecting))
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = checksum(b, uint32(1223123))
+	if !errors.Is(err, errChecksumFailure) {
+		t.Errorf("received '%v', expected '%v'", err, errChecksumFailure)
+	}
+}
+
+func TestTrim(t *testing.T) {
+	testCases := []struct {
+		Value    float64
+		Expected string
+	}{
+		{Value: 0.1234, Expected: "1234"},
+		{Value: 0.00001234, Expected: "1234"},
+		{Value: 32.00001234, Expected: "3200001234"},
+		{Value: 0, Expected: ""},
+		{Value: 0.0, Expected: ""},
+		{Value: 1.0, Expected: "1"},
+		{Value: 0.3965, Expected: "3965"},
+		{Value: 16000.0, Expected: "16000"},
+		{Value: 0.0019, Expected: "19"},
+		{Value: 1.01, Expected: "101"},
+	}
+
+	for x := range testCases {
+		tt := testCases[x]
+		t.Run("", func(t *testing.T) {
+			received := trim(tt.Value)
+			if received != tt.Expected {
+				t.Fatalf("received: %v but expected: %v", received, tt.Expected)
+			}
+		})
+	}
+}
+
+func TestFormatOrderType(t *testing.T) {
+	t.Parallel()
+	_, err := b.formatOrderType(order.Type("SWOOON"))
+	if !errors.Is(err, order.ErrTypeIsInvalid) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, order.ErrTypeIsInvalid)
+	}
+
+	r, err := b.formatOrderType(order.Limit)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if r != limit {
+		t.Fatal("unexpected value")
+	}
+
+	r, err = b.formatOrderType(order.Market)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if r != market {
+		t.Fatal("unexpected value")
+	}
+
+	r, err = b.formatOrderType(order.StopLimit)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if r != stopLimit {
+		t.Fatal("unexpected value")
+	}
+
+	r, err = b.formatOrderType(order.Stop)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if r != stop {
+		t.Fatal("unexpected value")
+	}
+
+	r, err = b.formatOrderType(order.TakeProfit)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if r != takeProfit {
+		t.Fatal("unexpected value")
+	}
+}
+
+func TestFormatOrderSide(t *testing.T) {
+	t.Parallel()
+	_, err := b.formatOrderSide("invalid")
+	if !errors.Is(err, order.ErrSideIsInvalid) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, order.ErrSideIsInvalid)
+	}
+
+	f, err := b.formatOrderSide(order.Bid)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if f != bidSide {
+		t.Fatal("unexpected value")
+	}
+
+	f, err = b.formatOrderSide(order.Ask)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if f != askSide {
+		t.Fatal("unexpected value")
+	}
+}
+
+func TestGetTimeInForce(t *testing.T) {
+	t.Parallel()
+	f := b.getTimeInForce(&order.Submit{})
+	if f != "" {
+		t.Fatal("unexpected value")
+	}
+
+	f = b.getTimeInForce(&order.Submit{ImmediateOrCancel: true})
+	if f != immediateOrCancel {
+		t.Fatalf("received: '%v' but expected: '%v'", f, immediateOrCancel)
+	}
+
+	f = b.getTimeInForce(&order.Submit{FillOrKill: true})
+	if f != fillOrKill {
+		t.Fatalf("received: '%v' but expected: '%v'", f, fillOrKill)
 	}
 }

@@ -24,6 +24,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -173,7 +174,9 @@ func (b *Bitmex) Setup(exch *config.Exchange) error {
 		Unsubscriber:          b.Unsubscribe,
 		GenerateSubscriptions: b.GenerateDefaultSubscriptions,
 		Features:              &b.Features.Supports.WebsocketCapabilities,
-		UpdateEntriesByID:     true,
+		OrderbookBufferConfig: buffer.Config{
+			UpdateEntriesByID: true,
+		},
 	})
 	if err != nil {
 		return err
@@ -731,7 +734,7 @@ func (b *Bitmex) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuild
 	if feeBuilder == nil {
 		return 0, fmt.Errorf("%T %w", feeBuilder, common.ErrNilPointer)
 	}
-	if !b.AllowAuthenticatedRequest() && // Todo check connection status
+	if !b.AreCredentialsValid(ctx) && // Todo check connection status
 		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		feeBuilder.FeeType = exchange.OfflineTradeFee
 	}
@@ -856,8 +859,8 @@ func (b *Bitmex) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket
-func (b *Bitmex) AuthenticateWebsocket(_ context.Context) error {
-	return b.websocketSendAuth()
+func (b *Bitmex) AuthenticateWebsocket(ctx context.Context) error {
+	return b.websocketSendAuth(ctx)
 }
 
 // ValidateCredentials validates current credentials used for wrapper

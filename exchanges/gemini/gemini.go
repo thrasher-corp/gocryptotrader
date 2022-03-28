@@ -361,8 +361,9 @@ func (g *Gemini) SendHTTPRequest(ctx context.Context, ep exchange.URL, path stri
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to the
 // exchange and returns an error
 func (g *Gemini) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method, path string, params map[string]interface{}, result interface{}) (err error) {
-	if !g.AllowAuthenticatedRequest() {
-		return fmt.Errorf("%s %w", g.Name, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
+	creds, err := g.GetCredentials(ctx)
+	if err != nil {
+		return err
 	}
 
 	endpoint, err := g.API.Endpoints.GetURL(ep)
@@ -387,7 +388,7 @@ func (g *Gemini) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.U
 		PayloadBase64 := crypto.Base64Encode(PayloadJSON)
 		hmac, err := crypto.GetHMAC(crypto.HashSHA512_384,
 			[]byte(PayloadBase64),
-			[]byte(g.API.Credentials.Secret))
+			[]byte(creds.Secret))
 		if err != nil {
 			return nil, err
 		}
@@ -395,7 +396,7 @@ func (g *Gemini) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.U
 		headers := make(map[string]string)
 		headers["Content-Length"] = "0"
 		headers["Content-Type"] = "text/plain"
-		headers["X-GEMINI-APIKEY"] = g.API.Credentials.Key
+		headers["X-GEMINI-APIKEY"] = creds.Key
 		headers["X-GEMINI-PAYLOAD"] = PayloadBase64
 		headers["X-GEMINI-SIGNATURE"] = crypto.HexEncodeToString(hmac)
 		headers["Cache-Control"] = "no-cache"

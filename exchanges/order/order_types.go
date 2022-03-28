@@ -35,31 +35,36 @@ type Submit struct {
 	ReduceOnly        bool
 	Leverage          float64
 	Price             float64
-	Amount            float64
-	StopPrice         float64
-	LimitPriceUpper   float64
-	LimitPriceLower   float64
-	TriggerPrice      float64
-	TargetAmount      float64
-	ExecutedAmount    float64
-	RemainingAmount   float64
-	Fee               float64
-	Exchange          string
-	InternalOrderID   string
-	ID                string
-	AccountID         string
-	ClientID          string
-	ClientOrderID     string
-	WalletAddress     string
-	Offset            string
-	Type              Type
-	Side              Side
-	Status            Status
-	AssetType         asset.Item
-	Date              time.Time
-	LastUpdated       time.Time
-	Pair              currency.Pair
-	Trades            []TradeHistory
+
+	// Amount in base terms
+	Amount float64
+	// QuoteAmount is the max amount in quote currency when purchasing base.
+	// This is only used in Market orders.
+	QuoteAmount float64
+
+	StopPrice       float64
+	LimitPriceUpper float64
+	LimitPriceLower float64
+	TriggerPrice    float64
+	ExecutedAmount  float64
+	RemainingAmount float64
+	Fee             float64
+	Exchange        string
+	InternalOrderID string
+	ID              string
+	AccountID       string
+	ClientID        string
+	ClientOrderID   string
+	WalletAddress   string
+	Offset          string
+	Type            Type
+	Side            Side
+	Status          Status
+	AssetType       asset.Item
+	Date            time.Time
+	LastUpdated     time.Time
+	Pair            currency.Pair
+	Trades          []TradeHistory
 }
 
 // SubmitResponse is what is returned after submitting an order to an exchange
@@ -88,7 +93,7 @@ type Modify struct {
 	LimitPriceUpper   float64
 	LimitPriceLower   float64
 	TriggerPrice      float64
-	TargetAmount      float64
+	QuoteAmount       float64
 	ExecutedAmount    float64
 	RemainingAmount   float64
 	Fee               float64
@@ -129,7 +134,7 @@ type Detail struct {
 	LimitPriceLower      float64
 	TriggerPrice         float64
 	AverageExecutedPrice float64
-	TargetAmount         float64
+	QuoteAmount          float64
 	ExecutedAmount       float64
 	RemainingAmount      float64
 	Cost                 float64

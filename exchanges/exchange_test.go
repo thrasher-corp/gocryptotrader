@@ -280,28 +280,6 @@ func TestSetFeatureDefaults(t *testing.T) {
 	}
 }
 
-func TestSetAPICredentialDefaults(t *testing.T) {
-	t.Parallel()
-
-	b := Base{
-		Config: &config.Exchange{},
-	}
-	b.API.CredentialsValidator.RequiresKey = true
-	b.API.CredentialsValidator.RequiresSecret = true
-	b.API.CredentialsValidator.RequiresBase64DecodeSecret = true
-	b.API.CredentialsValidator.RequiresClientID = true
-	b.API.CredentialsValidator.RequiresPEM = true
-	b.SetAPICredentialDefaults()
-
-	if !b.Config.API.CredentialsValidator.RequiresKey ||
-		!b.Config.API.CredentialsValidator.RequiresSecret ||
-		!b.Config.API.CredentialsValidator.RequiresBase64DecodeSecret ||
-		!b.Config.API.CredentialsValidator.RequiresClientID ||
-		!b.Config.API.CredentialsValidator.RequiresPEM {
-		t.Error("incorrect values")
-	}
-}
-
 func TestSetAutoPairDefaults(t *testing.T) {
 	t.Parallel()
 	bs := "Bitstamp"
@@ -655,32 +633,6 @@ func TestLoadConfigPairs(t *testing.T) {
 		ps.ConfigFormat.Delimiter != "/" ||
 		ps.ConfigFormat.Uppercase {
 		t.Error("incorrect delimiter values")
-	}
-}
-
-// TestGetAuthenticatedAPISupport logic test
-func TestGetAuthenticatedAPISupport(t *testing.T) {
-	t.Parallel()
-
-	base := Base{
-		API: API{
-			AuthenticatedSupport:          true,
-			AuthenticatedWebsocketSupport: false,
-		},
-	}
-
-	if !base.GetAuthenticatedAPISupport(RestAuthentication) {
-		t.Fatal("Expected RestAuthentication to return true")
-	}
-	if base.GetAuthenticatedAPISupport(WebsocketAuthentication) {
-		t.Fatal("Expected WebsocketAuthentication to return false")
-	}
-	base.API.AuthenticatedWebsocketSupport = true
-	if !base.GetAuthenticatedAPISupport(WebsocketAuthentication) {
-		t.Fatal("Expected WebsocketAuthentication to return true")
-	}
-	if base.GetAuthenticatedAPISupport(2) {
-		t.Fatal("Expected default case of 'false' to be returned")
 	}
 }
 
@@ -1166,41 +1118,6 @@ func TestIsEnabled(t *testing.T) {
 	}
 }
 
-// TestSetAPIKeys logic test
-func TestSetAPIKeys(t *testing.T) {
-	t.Parallel()
-
-	b := Base{
-		Name:    "TESTNAME",
-		Enabled: false,
-		API: API{
-			AuthenticatedSupport:          false,
-			AuthenticatedWebsocketSupport: false,
-		},
-	}
-
-	b.SetAPIKeys("RocketMan", "Digereedoo", "007")
-	if b.API.Credentials.Key != "RocketMan" && b.API.Credentials.Secret != "Digereedoo" && b.API.Credentials.ClientID != "007" {
-		t.Error("invalid API credentials")
-	}
-
-	// Invalid secret
-	b.API.CredentialsValidator.RequiresBase64DecodeSecret = true
-	b.API.AuthenticatedSupport = true
-	b.SetAPIKeys("RocketMan", "%%", "007")
-	if b.API.AuthenticatedSupport || b.API.AuthenticatedWebsocketSupport {
-		t.Error("invalid secret should disable authenticated API support")
-	}
-
-	// valid secret
-	b.API.CredentialsValidator.RequiresBase64DecodeSecret = true
-	b.API.AuthenticatedSupport = true
-	b.SetAPIKeys("RocketMan", "aGVsbG8gd29ybGQ=", "007")
-	if !b.API.AuthenticatedSupport && b.API.Credentials.Secret != "hello world" {
-		t.Error("invalid secret should disable authenticated API support")
-	}
-}
-
 func TestSetupDefaults(t *testing.T) {
 	t.Parallel()
 
@@ -1288,105 +1205,6 @@ func TestSetupDefaults(t *testing.T) {
 	}
 	if !b.IsWebsocketEnabled() {
 		t.Error("websocket should be enabled")
-	}
-}
-
-func TestAllowAuthenticatedRequest(t *testing.T) {
-	t.Parallel()
-
-	b := Base{
-		SkipAuthCheck: true,
-	}
-
-	// Test SkipAuthCheck
-	if r := b.AllowAuthenticatedRequest(); !r {
-		t.Error("skip auth check should allow authenticated requests")
-	}
-
-	// Test credentials failure
-	b.SkipAuthCheck = false
-	b.API.CredentialsValidator.RequiresKey = true
-	if r := b.AllowAuthenticatedRequest(); r {
-		t.Error("should fail with an empty key")
-	}
-
-	// Test bot usage with authenticated API support disabled, but with
-	// valid credentials
-	b.LoadedByConfig = true
-	b.API.Credentials.Key = "k3y"
-	if r := b.AllowAuthenticatedRequest(); r {
-		t.Error("should fail when authenticated support is disabled")
-	}
-
-	// Test enabled authenticated API support and loaded by config
-	// but invalid credentials
-	b.API.AuthenticatedSupport = true
-	b.API.Credentials.Key = ""
-	if r := b.AllowAuthenticatedRequest(); r {
-		t.Error("should fail with invalid credentials")
-	}
-
-	// Finally a valid one
-	b.API.Credentials.Key = "k3y"
-	if r := b.AllowAuthenticatedRequest(); !r {
-		t.Error("show allow an authenticated request")
-	}
-}
-
-func TestValidateAPICredentials(t *testing.T) {
-	t.Parallel()
-
-	var b Base
-	type tester struct {
-		Key                        string
-		Secret                     string
-		ClientID                   string
-		PEMKey                     string
-		RequiresPEM                bool
-		RequiresKey                bool
-		RequiresSecret             bool
-		RequiresClientID           bool
-		RequiresBase64DecodeSecret bool
-		Expected                   bool
-		Result                     bool
-	}
-
-	tests := []tester{
-		// test key
-		{RequiresKey: true},
-		{RequiresKey: true, Key: "k3y", Expected: true},
-		// test secret
-		{RequiresSecret: true},
-		{RequiresSecret: true, Secret: "s3cr3t", Expected: true},
-		// test pem
-		{RequiresPEM: true},
-		{RequiresPEM: true, PEMKey: "p3mK3y", Expected: true},
-		// test clientID
-		{RequiresClientID: true},
-		{RequiresClientID: true, ClientID: "cli3nt1D", Expected: true},
-		// test requires base64 decode secret
-		{RequiresBase64DecodeSecret: true, RequiresSecret: true},
-		{RequiresBase64DecodeSecret: true, Secret: "%%", Expected: false},
-		{RequiresBase64DecodeSecret: true, Secret: "aGVsbG8gd29ybGQ=", Expected: true},
-	}
-
-	for x := range tests {
-		setupBase := func(b *Base, tData tester) {
-			b.API.Credentials.Key = tData.Key
-			b.API.Credentials.Secret = tData.Secret
-			b.API.Credentials.ClientID = tData.ClientID
-			b.API.Credentials.PEMKey = tData.PEMKey
-			b.API.CredentialsValidator.RequiresKey = tData.RequiresKey
-			b.API.CredentialsValidator.RequiresSecret = tData.RequiresSecret
-			b.API.CredentialsValidator.RequiresPEM = tData.RequiresPEM
-			b.API.CredentialsValidator.RequiresClientID = tData.RequiresClientID
-			b.API.CredentialsValidator.RequiresBase64DecodeSecret = tData.RequiresBase64DecodeSecret
-		}
-
-		setupBase(&b, tests[x])
-		if r := b.ValidateAPICredentials(); r != tests[x].Expected {
-			t.Errorf("Test %d: expected: %v: got %v", x, tests[x].Expected, r)
-		}
 	}
 }
 
@@ -2430,7 +2248,7 @@ func TestCalculatePNL(t *testing.T) {
 func TestScaleCollateral(t *testing.T) {
 	t.Parallel()
 	var b Base
-	if _, err := b.ScaleCollateral(context.Background(), "", nil); !errors.Is(err, common.ErrNotYetImplemented) {
+	if _, err := b.ScaleCollateral(context.Background(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
 	}
 }

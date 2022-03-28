@@ -1,6 +1,7 @@
 package bitmex
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,7 +13,6 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -97,7 +97,7 @@ func (b *Bitmex) WsConnect() error {
 	b.Websocket.Wg.Add(1)
 	go b.wsReadData()
 
-	err = b.websocketSendAuth()
+	err = b.websocketSendAuth(context.TODO())
 	if err != nil {
 		log.Errorf(log.ExchangeSys,
 			"%v - authentication failed: %v\n",
@@ -659,16 +659,17 @@ func (b *Bitmex) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription)
 }
 
 // WebsocketSendAuth sends an authenticated subscription
-func (b *Bitmex) websocketSendAuth() error {
-	if !b.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
-		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", b.Name)
+func (b *Bitmex) websocketSendAuth(ctx context.Context) error {
+	creds, err := b.GetCredentials(ctx)
+	if err != nil {
+		return err
 	}
 	b.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	timestamp := time.Now().Add(time.Hour * 1).Unix()
 	newTimestamp := strconv.FormatInt(timestamp, 10)
 	hmac, err := crypto.GetHMAC(crypto.HashSHA256,
 		[]byte("GET/realtime"+newTimestamp),
-		[]byte(b.API.Credentials.Secret))
+		[]byte(creds.Secret))
 	if err != nil {
 		return err
 	}
@@ -676,7 +677,7 @@ func (b *Bitmex) websocketSendAuth() error {
 
 	var sendAuth WebsocketRequest
 	sendAuth.Command = "authKeyExpires"
-	sendAuth.Arguments = append(sendAuth.Arguments, b.API.Credentials.Key, timestamp,
+	sendAuth.Arguments = append(sendAuth.Arguments, creds.Key, timestamp,
 		signature)
 	err = b.Websocket.Conn.SendJSONMessage(sendAuth)
 	if err != nil {

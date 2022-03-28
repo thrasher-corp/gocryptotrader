@@ -58,7 +58,7 @@ type PNLCalculation interface {
 // on an exchange
 type CollateralManagement interface {
 	GetCollateralCurrencyForContract(asset.Item, currency.Pair) (currency.Code, asset.Item, error)
-	ScaleCollateral(ctx context.Context, subAccount string, calculator *CollateralCalculator) (*CollateralByCurrency, error)
+	ScaleCollateral(ctx context.Context, calculator *CollateralCalculator) (*CollateralByCurrency, error)
 	CalculateTotalCollateral(context.Context, *TotalCollateralCalculator) (*TotalCollateralResponse, error)
 }
 
@@ -210,7 +210,6 @@ type PositionTrackerSetup struct {
 // TotalCollateralCalculator holds many collateral calculators
 // to calculate total collateral standing with one struct
 type TotalCollateralCalculator struct {
-	SubAccount       string
 	CollateralAssets []CollateralCalculator
 	CalculateOffline bool
 	FetchPositions   bool

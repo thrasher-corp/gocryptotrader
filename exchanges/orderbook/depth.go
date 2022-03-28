@@ -28,7 +28,7 @@ type Depth struct {
 }
 
 // NewDepth returns a new depth item
-func newDepth(id uuid.UUID) *Depth {
+func NewDepth(id uuid.UUID) *Depth {
 	return &Depth{
 		stack: newStack(),
 		id:    id,

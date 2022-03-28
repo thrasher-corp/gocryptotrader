@@ -379,13 +379,6 @@ func TestLoadLiveData(t *testing.T) {
 			AuthenticatedSupport:          false,
 			AuthenticatedWebsocketSupport: false,
 			PEMKeySupport:                 false,
-			Credentials: struct {
-				Key        string
-				Secret     string
-				ClientID   string
-				PEMKey     string
-				Subaccount string
-			}{},
 			CredentialsValidator: struct {
 				RequiresPEM                bool
 				RequiresKey                bool
@@ -401,6 +394,7 @@ func TestLoadLiveData(t *testing.T) {
 			},
 		},
 	}
+
 	err = loadLiveData(cfg, b)
 	if !errors.Is(err, common.ErrNilArguments) {
 		t.Error(err)

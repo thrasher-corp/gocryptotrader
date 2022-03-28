@@ -3107,7 +3107,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetInfo", runtime.WithHTTPPathPattern("/v1/getinfo"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetInfo")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -3130,7 +3130,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetSubsystems", runtime.WithHTTPPathPattern("/v1/getsubsystems"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetSubsystems")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -3153,7 +3153,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/EnableSubsystem", runtime.WithHTTPPathPattern("/v1/enablesubsystem"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/EnableSubsystem")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -3176,7 +3176,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/DisableSubsystem", runtime.WithHTTPPathPattern("/v1/disablesubsystem"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/DisableSubsystem")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -3199,7 +3199,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetRPCEndpoints", runtime.WithHTTPPathPattern("/v1/getrpcendpoints"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetRPCEndpoints")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -3222,7 +3222,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetCommunicationRelayers", runtime.WithHTTPPathPattern("/v1/getcommunicationrelayers"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetCommunicationRelayers")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -3245,7 +3245,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetExchanges", runtime.WithHTTPPathPattern("/v1/getexchanges"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetExchanges")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -3268,7 +3268,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/DisableExchange", runtime.WithHTTPPathPattern("/v1/disableexchange"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/DisableExchange")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -3291,7 +3291,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetExchangeInfo", runtime.WithHTTPPathPattern("/v1/getexchangeinfo"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetExchangeInfo")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -3314,7 +3314,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetExchangeOTPCode", runtime.WithHTTPPathPattern("/v1/getexchangeotp"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetExchangeOTPCode")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -3337,7 +3337,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetExchangeOTPCodes", runtime.WithHTTPPathPattern("/v1/getexchangeotps"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetExchangeOTPCodes")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -3360,7 +3360,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/EnableExchange", runtime.WithHTTPPathPattern("/v1/enableexchange"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/EnableExchange")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -3383,7 +3383,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetTicker", runtime.WithHTTPPathPattern("/v1/getticker"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetTicker")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -3406,7 +3406,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetTickers", runtime.WithHTTPPathPattern("/v1/gettickers"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetTickers")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -3429,7 +3429,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetOrderbook", runtime.WithHTTPPathPattern("/v1/getorderbook"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetOrderbook")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -3452,7 +3452,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetOrderbooks", runtime.WithHTTPPathPattern("/v1/getorderbooks"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetOrderbooks")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -3475,7 +3475,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetAccountInfo", runtime.WithHTTPPathPattern("/v1/getaccountinfo"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetAccountInfo")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -3498,7 +3498,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/UpdateAccountInfo", runtime.WithHTTPPathPattern("/v1/updateaccountinfo"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/UpdateAccountInfo")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -3528,7 +3528,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetConfig", runtime.WithHTTPPathPattern("/v1/getconfig"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetConfig")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -3551,7 +3551,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetPortfolio", runtime.WithHTTPPathPattern("/v1/getportfolio"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetPortfolio")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -3574,7 +3574,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetPortfolioSummary", runtime.WithHTTPPathPattern("/v1/getportfoliosummary"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetPortfolioSummary")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -3597,7 +3597,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/AddPortfolioAddress", runtime.WithHTTPPathPattern("/v1/addportfolioaddress"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/AddPortfolioAddress")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -3620,7 +3620,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/RemovePortfolioAddress", runtime.WithHTTPPathPattern("/v1/removeportfolioaddress"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/RemovePortfolioAddress")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -3643,7 +3643,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetForexProviders", runtime.WithHTTPPathPattern("/v1/getforexproviders"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetForexProviders")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -3666,7 +3666,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetForexRates", runtime.WithHTTPPathPattern("/v1/getforexrates"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetForexRates")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -3689,7 +3689,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetOrders", runtime.WithHTTPPathPattern("/v1/getorders"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetOrders")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -3712,7 +3712,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetOrder", runtime.WithHTTPPathPattern("/v1/getorder"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetOrder")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -3735,7 +3735,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/SubmitOrder", runtime.WithHTTPPathPattern("/v1/submitorder"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/SubmitOrder")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -3758,7 +3758,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/SimulateOrder", runtime.WithHTTPPathPattern("/v1/simulateorder"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/SimulateOrder")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -3781,7 +3781,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/WhaleBomb", runtime.WithHTTPPathPattern("/v1/whalebomb"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/WhaleBomb")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -3804,7 +3804,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/CancelOrder", runtime.WithHTTPPathPattern("/v1/cancelorder"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/CancelOrder")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -3827,7 +3827,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/CancelBatchOrders", runtime.WithHTTPPathPattern("/v1/cancelbatchorders"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/CancelBatchOrders")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -3850,7 +3850,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/CancelAllOrders", runtime.WithHTTPPathPattern("/v1/cancelallorders"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/CancelAllOrders")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -3873,7 +3873,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetEvents", runtime.WithHTTPPathPattern("/v1/getevents"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetEvents")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -3896,7 +3896,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/AddEvent", runtime.WithHTTPPathPattern("/v1/addevent"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/AddEvent")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -3919,7 +3919,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/RemoveEvent", runtime.WithHTTPPathPattern("/v1/removeevent"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/RemoveEvent")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -3942,7 +3942,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetCryptocurrencyDepositAddresses", runtime.WithHTTPPathPattern("/v1/getcryptodepositaddresses"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetCryptocurrencyDepositAddresses")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -3965,7 +3965,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetCryptocurrencyDepositAddress", runtime.WithHTTPPathPattern("/v1/getcryptodepositaddress"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetCryptocurrencyDepositAddress")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -3988,7 +3988,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetAvailableTransferChains", runtime.WithHTTPPathPattern("/v1/getavailabletransferchains"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetAvailableTransferChains")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -4011,7 +4011,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/WithdrawFiatFunds", runtime.WithHTTPPathPattern("/v1/withdrawfiatfunds"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/WithdrawFiatFunds")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -4034,7 +4034,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/WithdrawCryptocurrencyFunds", runtime.WithHTTPPathPattern("/v1/withdrawithdrawcryptofundswfiatfunds"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/WithdrawCryptocurrencyFunds")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -4057,7 +4057,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/WithdrawalEventByID", runtime.WithHTTPPathPattern("/v1/withdrawaleventbyid"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/WithdrawalEventByID")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -4080,7 +4080,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/WithdrawalEventsByExchange", runtime.WithHTTPPathPattern("/v1/withdrawaleventbyid"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/WithdrawalEventsByExchange")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -4103,7 +4103,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/WithdrawalEventsByDate", runtime.WithHTTPPathPattern("/v1/withdrawaleventbydate"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/WithdrawalEventsByDate")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -4126,7 +4126,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetLoggerDetails", runtime.WithHTTPPathPattern("/v1/getloggerdetails"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetLoggerDetails")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -4149,7 +4149,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/SetLoggerDetails", runtime.WithHTTPPathPattern("/v1/setloggerdetails"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/SetLoggerDetails")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -4172,7 +4172,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetExchangePairs", runtime.WithHTTPPathPattern("/v1/getexchangepairs"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetExchangePairs")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -4195,7 +4195,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/SetExchangePair", runtime.WithHTTPPathPattern("/v1/setexchangepair"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/SetExchangePair")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -4246,7 +4246,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetAuditEvent", runtime.WithHTTPPathPattern("/v1/getauditevent"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetAuditEvent")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -4269,7 +4269,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GCTScriptExecute", runtime.WithHTTPPathPattern("/v1/gctscript/execute"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GCTScriptExecute")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -4292,7 +4292,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GCTScriptUpload", runtime.WithHTTPPathPattern("/v1/gctscript/upload"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GCTScriptUpload")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -4315,7 +4315,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GCTScriptReadScript", runtime.WithHTTPPathPattern("/v1/gctscript/read"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GCTScriptReadScript")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -4338,7 +4338,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GCTScriptStatus", runtime.WithHTTPPathPattern("/v1/gctscript/status"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GCTScriptStatus")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -4361,7 +4361,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GCTScriptQuery", runtime.WithHTTPPathPattern("/v1/gctscript/query"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GCTScriptQuery")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -4384,7 +4384,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GCTScriptStop", runtime.WithHTTPPathPattern("/v1/gctscript/stop"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GCTScriptStop")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -4407,7 +4407,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GCTScriptStopAll", runtime.WithHTTPPathPattern("/v1/gctscript/stop"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GCTScriptStopAll")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -4430,7 +4430,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GCTScriptListAll", runtime.WithHTTPPathPattern("/v1/gctscript/stop"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GCTScriptListAll")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -4453,7 +4453,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GCTScriptAutoLoadToggle", runtime.WithHTTPPathPattern("/v1/gctscript/autoload"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GCTScriptAutoLoadToggle")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -4476,7 +4476,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetHistoricCandles", runtime.WithHTTPPathPattern("/v1/gethistoriccandles"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetHistoricCandles")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -4499,7 +4499,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/SetExchangeAsset", runtime.WithHTTPPathPattern("/v1/setexchangeasset"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/SetExchangeAsset")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -4522,7 +4522,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/SetAllExchangePairs", runtime.WithHTTPPathPattern("/v1/setallexchangepairs"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/SetAllExchangePairs")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -4545,7 +4545,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/UpdateExchangeSupportedPairs", runtime.WithHTTPPathPattern("/v1/updateexchangesupportedpairs"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/UpdateExchangeSupportedPairs")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -4568,7 +4568,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetExchangeAssets", runtime.WithHTTPPathPattern("/v1/getexchangeassets"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetExchangeAssets")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -4591,7 +4591,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/WebsocketGetInfo", runtime.WithHTTPPathPattern("/v1/websocketgetinfo"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/WebsocketGetInfo")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -4614,7 +4614,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/WebsocketSetEnabled", runtime.WithHTTPPathPattern("/v1/websocketsetenabled"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/WebsocketSetEnabled")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -4637,7 +4637,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/WebsocketGetSubscriptions", runtime.WithHTTPPathPattern("/v1/websocketgetsubscriptions"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/WebsocketGetSubscriptions")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -4660,7 +4660,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/WebsocketSetProxy", runtime.WithHTTPPathPattern("/v1/websocketsetproxy"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/WebsocketSetProxy")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -4683,7 +4683,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/WebsocketSetURL", runtime.WithHTTPPathPattern("/v1/websocketseturl"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/WebsocketSetURL")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -4706,7 +4706,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetRecentTrades", runtime.WithHTTPPathPattern("/v1/getsavedtrades"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetRecentTrades")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -4736,7 +4736,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetSavedTrades", runtime.WithHTTPPathPattern("/v1/getsavedtrades"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetSavedTrades")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -4759,7 +4759,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/ConvertTradesToCandles", runtime.WithHTTPPathPattern("/v1/converttradestocandles"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/ConvertTradesToCandles")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -4782,7 +4782,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/FindMissingSavedCandleIntervals", runtime.WithHTTPPathPattern("/v1/findmissingsavedcandleintervals"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/FindMissingSavedCandleIntervals")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -4805,7 +4805,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/FindMissingSavedTradeIntervals", runtime.WithHTTPPathPattern("/v1/findmissingsavedtradeintervals"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/FindMissingSavedTradeIntervals")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -4828,7 +4828,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/SetExchangeTradeProcessing", runtime.WithHTTPPathPattern("/v1/setexchangetradeprocessing"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/SetExchangeTradeProcessing")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -4851,7 +4851,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/UpsertDataHistoryJob", runtime.WithHTTPPathPattern("/v1/upsertdatahistoryjob"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/UpsertDataHistoryJob")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -4874,7 +4874,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetDataHistoryJobDetails", runtime.WithHTTPPathPattern("/v1/getdatahistoryjobdetails"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetDataHistoryJobDetails")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -4897,7 +4897,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetActiveDataHistoryJobs", runtime.WithHTTPPathPattern("/v1/getactivedatahistoryjobs"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetActiveDataHistoryJobs")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -4920,7 +4920,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetDataHistoryJobsBetween", runtime.WithHTTPPathPattern("/v1/getdatahistoryjobsbetween"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetDataHistoryJobsBetween")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -4943,7 +4943,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetDataHistoryJobSummary", runtime.WithHTTPPathPattern("/v1/getdatahistoryjobsummary"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetDataHistoryJobSummary")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -4966,7 +4966,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/SetDataHistoryJobStatus", runtime.WithHTTPPathPattern("/v1/setdatahistoryjobstatus"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/SetDataHistoryJobStatus")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -4989,7 +4989,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/UpdateDataHistoryJobPrerequisite", runtime.WithHTTPPathPattern("/v1/updatedatahistoryjobprerequisite"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/UpdateDataHistoryJobPrerequisite")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -5012,7 +5012,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetManagedOrders", runtime.WithHTTPPathPattern("/v1/getmanagedorders"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetManagedOrders")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -5035,7 +5035,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/ModifyOrder", runtime.WithHTTPPathPattern("/v1/modifyorder"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/ModifyOrder")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -5058,7 +5058,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/CurrencyStateGetAll", runtime.WithHTTPPathPattern("/v1/currencystategetall"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/CurrencyStateGetAll")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -5081,7 +5081,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/CurrencyStateTrading", runtime.WithHTTPPathPattern("/v1/currencystatetrading"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/CurrencyStateTrading")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -5104,7 +5104,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/CurrencyStateDeposit", runtime.WithHTTPPathPattern("/v1/currencystatedeposit"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/CurrencyStateDeposit")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -5127,7 +5127,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/CurrencyStateWithdraw", runtime.WithHTTPPathPattern("/v1/currencystatewithdraw"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/CurrencyStateWithdraw")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -5150,7 +5150,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/CurrencyStateTradingPair", runtime.WithHTTPPathPattern("/v1/currencystatetradingpair"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/CurrencyStateTradingPair")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -5173,7 +5173,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetFuturesPositions", runtime.WithHTTPPathPattern("/v1/getfuturespositions"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetFuturesPositions")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -5196,7 +5196,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetCollateral", runtime.WithHTTPPathPattern("/v1/getcollateral"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetCollateral")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -5258,7 +5258,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetInfo", runtime.WithHTTPPathPattern("/v1/getinfo"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetInfo")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -5278,7 +5278,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetSubsystems", runtime.WithHTTPPathPattern("/v1/getsubsystems"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetSubsystems")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -5298,7 +5298,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/EnableSubsystem", runtime.WithHTTPPathPattern("/v1/enablesubsystem"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/EnableSubsystem")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -5318,7 +5318,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/DisableSubsystem", runtime.WithHTTPPathPattern("/v1/disablesubsystem"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/DisableSubsystem")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -5338,7 +5338,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetRPCEndpoints", runtime.WithHTTPPathPattern("/v1/getrpcendpoints"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetRPCEndpoints")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -5358,7 +5358,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetCommunicationRelayers", runtime.WithHTTPPathPattern("/v1/getcommunicationrelayers"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetCommunicationRelayers")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -5378,7 +5378,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetExchanges", runtime.WithHTTPPathPattern("/v1/getexchanges"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetExchanges")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -5398,7 +5398,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/DisableExchange", runtime.WithHTTPPathPattern("/v1/disableexchange"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/DisableExchange")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -5418,7 +5418,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetExchangeInfo", runtime.WithHTTPPathPattern("/v1/getexchangeinfo"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetExchangeInfo")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -5438,7 +5438,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetExchangeOTPCode", runtime.WithHTTPPathPattern("/v1/getexchangeotp"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetExchangeOTPCode")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -5458,7 +5458,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetExchangeOTPCodes", runtime.WithHTTPPathPattern("/v1/getexchangeotps"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetExchangeOTPCodes")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -5478,7 +5478,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/EnableExchange", runtime.WithHTTPPathPattern("/v1/enableexchange"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/EnableExchange")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -5498,7 +5498,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetTicker", runtime.WithHTTPPathPattern("/v1/getticker"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetTicker")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -5518,7 +5518,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetTickers", runtime.WithHTTPPathPattern("/v1/gettickers"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetTickers")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -5538,7 +5538,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetOrderbook", runtime.WithHTTPPathPattern("/v1/getorderbook"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetOrderbook")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -5558,7 +5558,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetOrderbooks", runtime.WithHTTPPathPattern("/v1/getorderbooks"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetOrderbooks")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -5578,7 +5578,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetAccountInfo", runtime.WithHTTPPathPattern("/v1/getaccountinfo"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetAccountInfo")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -5598,7 +5598,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/UpdateAccountInfo", runtime.WithHTTPPathPattern("/v1/updateaccountinfo"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/UpdateAccountInfo")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -5618,7 +5618,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetAccountInfoStream", runtime.WithHTTPPathPattern("/v1/getaccountinfostream"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetAccountInfoStream")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -5638,7 +5638,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetConfig", runtime.WithHTTPPathPattern("/v1/getconfig"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetConfig")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -5658,7 +5658,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetPortfolio", runtime.WithHTTPPathPattern("/v1/getportfolio"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetPortfolio")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -5678,7 +5678,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetPortfolioSummary", runtime.WithHTTPPathPattern("/v1/getportfoliosummary"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetPortfolioSummary")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -5698,7 +5698,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/AddPortfolioAddress", runtime.WithHTTPPathPattern("/v1/addportfolioaddress"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/AddPortfolioAddress")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -5718,7 +5718,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/RemovePortfolioAddress", runtime.WithHTTPPathPattern("/v1/removeportfolioaddress"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/RemovePortfolioAddress")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -5738,7 +5738,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetForexProviders", runtime.WithHTTPPathPattern("/v1/getforexproviders"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetForexProviders")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -5758,7 +5758,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetForexRates", runtime.WithHTTPPathPattern("/v1/getforexrates"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetForexRates")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -5778,7 +5778,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetOrders", runtime.WithHTTPPathPattern("/v1/getorders"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetOrders")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -5798,7 +5798,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetOrder", runtime.WithHTTPPathPattern("/v1/getorder"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetOrder")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -5818,7 +5818,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/SubmitOrder", runtime.WithHTTPPathPattern("/v1/submitorder"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/SubmitOrder")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -5838,7 +5838,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/SimulateOrder", runtime.WithHTTPPathPattern("/v1/simulateorder"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/SimulateOrder")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -5858,7 +5858,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/WhaleBomb", runtime.WithHTTPPathPattern("/v1/whalebomb"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/WhaleBomb")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -5878,7 +5878,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/CancelOrder", runtime.WithHTTPPathPattern("/v1/cancelorder"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/CancelOrder")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -5898,7 +5898,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/CancelBatchOrders", runtime.WithHTTPPathPattern("/v1/cancelbatchorders"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/CancelBatchOrders")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -5918,7 +5918,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/CancelAllOrders", runtime.WithHTTPPathPattern("/v1/cancelallorders"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/CancelAllOrders")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -5938,7 +5938,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetEvents", runtime.WithHTTPPathPattern("/v1/getevents"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetEvents")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -5958,7 +5958,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/AddEvent", runtime.WithHTTPPathPattern("/v1/addevent"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/AddEvent")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -5978,7 +5978,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/RemoveEvent", runtime.WithHTTPPathPattern("/v1/removeevent"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/RemoveEvent")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -5998,7 +5998,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetCryptocurrencyDepositAddresses", runtime.WithHTTPPathPattern("/v1/getcryptodepositaddresses"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetCryptocurrencyDepositAddresses")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -6018,7 +6018,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetCryptocurrencyDepositAddress", runtime.WithHTTPPathPattern("/v1/getcryptodepositaddress"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetCryptocurrencyDepositAddress")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -6038,7 +6038,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetAvailableTransferChains", runtime.WithHTTPPathPattern("/v1/getavailabletransferchains"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetAvailableTransferChains")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -6058,7 +6058,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/WithdrawFiatFunds", runtime.WithHTTPPathPattern("/v1/withdrawfiatfunds"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/WithdrawFiatFunds")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -6078,7 +6078,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/WithdrawCryptocurrencyFunds", runtime.WithHTTPPathPattern("/v1/withdrawithdrawcryptofundswfiatfunds"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/WithdrawCryptocurrencyFunds")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -6098,7 +6098,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/WithdrawalEventByID", runtime.WithHTTPPathPattern("/v1/withdrawaleventbyid"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/WithdrawalEventByID")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -6118,7 +6118,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/WithdrawalEventsByExchange", runtime.WithHTTPPathPattern("/v1/withdrawaleventbyid"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/WithdrawalEventsByExchange")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -6138,7 +6138,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/WithdrawalEventsByDate", runtime.WithHTTPPathPattern("/v1/withdrawaleventbydate"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/WithdrawalEventsByDate")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -6158,7 +6158,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetLoggerDetails", runtime.WithHTTPPathPattern("/v1/getloggerdetails"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetLoggerDetails")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -6178,7 +6178,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/SetLoggerDetails", runtime.WithHTTPPathPattern("/v1/setloggerdetails"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/SetLoggerDetails")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -6198,7 +6198,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetExchangePairs", runtime.WithHTTPPathPattern("/v1/getexchangepairs"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetExchangePairs")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -6218,7 +6218,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/SetExchangePair", runtime.WithHTTPPathPattern("/v1/setexchangepair"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/SetExchangePair")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -6238,7 +6238,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetOrderbookStream", runtime.WithHTTPPathPattern("/v1/getorderbookstream"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetOrderbookStream")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -6258,7 +6258,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetExchangeOrderbookStream", runtime.WithHTTPPathPattern("/v1/getexchangeorderbookstream"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetExchangeOrderbookStream")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -6278,7 +6278,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetTickerStream", runtime.WithHTTPPathPattern("/v1/gettickerstream"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetTickerStream")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -6298,7 +6298,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetExchangeTickerStream", runtime.WithHTTPPathPattern("/v1/getexchangetickerstream"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetExchangeTickerStream")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -6318,7 +6318,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetAuditEvent", runtime.WithHTTPPathPattern("/v1/getauditevent"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetAuditEvent")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -6338,7 +6338,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GCTScriptExecute", runtime.WithHTTPPathPattern("/v1/gctscript/execute"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GCTScriptExecute")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -6358,7 +6358,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GCTScriptUpload", runtime.WithHTTPPathPattern("/v1/gctscript/upload"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GCTScriptUpload")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -6378,7 +6378,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GCTScriptReadScript", runtime.WithHTTPPathPattern("/v1/gctscript/read"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GCTScriptReadScript")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -6398,7 +6398,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GCTScriptStatus", runtime.WithHTTPPathPattern("/v1/gctscript/status"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GCTScriptStatus")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -6418,7 +6418,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GCTScriptQuery", runtime.WithHTTPPathPattern("/v1/gctscript/query"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GCTScriptQuery")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -6438,7 +6438,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GCTScriptStop", runtime.WithHTTPPathPattern("/v1/gctscript/stop"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GCTScriptStop")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -6458,7 +6458,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GCTScriptStopAll", runtime.WithHTTPPathPattern("/v1/gctscript/stop"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GCTScriptStopAll")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -6478,7 +6478,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GCTScriptListAll", runtime.WithHTTPPathPattern("/v1/gctscript/stop"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GCTScriptListAll")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -6498,7 +6498,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GCTScriptAutoLoadToggle", runtime.WithHTTPPathPattern("/v1/gctscript/autoload"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GCTScriptAutoLoadToggle")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -6518,7 +6518,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetHistoricCandles", runtime.WithHTTPPathPattern("/v1/gethistoriccandles"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetHistoricCandles")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -6538,7 +6538,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/SetExchangeAsset", runtime.WithHTTPPathPattern("/v1/setexchangeasset"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/SetExchangeAsset")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -6558,7 +6558,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/SetAllExchangePairs", runtime.WithHTTPPathPattern("/v1/setallexchangepairs"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/SetAllExchangePairs")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -6578,7 +6578,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/UpdateExchangeSupportedPairs", runtime.WithHTTPPathPattern("/v1/updateexchangesupportedpairs"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/UpdateExchangeSupportedPairs")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -6598,7 +6598,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetExchangeAssets", runtime.WithHTTPPathPattern("/v1/getexchangeassets"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetExchangeAssets")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -6618,7 +6618,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/WebsocketGetInfo", runtime.WithHTTPPathPattern("/v1/websocketgetinfo"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/WebsocketGetInfo")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -6638,7 +6638,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/WebsocketSetEnabled", runtime.WithHTTPPathPattern("/v1/websocketsetenabled"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/WebsocketSetEnabled")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -6658,7 +6658,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/WebsocketGetSubscriptions", runtime.WithHTTPPathPattern("/v1/websocketgetsubscriptions"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/WebsocketGetSubscriptions")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -6678,7 +6678,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/WebsocketSetProxy", runtime.WithHTTPPathPattern("/v1/websocketsetproxy"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/WebsocketSetProxy")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -6698,7 +6698,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/WebsocketSetURL", runtime.WithHTTPPathPattern("/v1/websocketseturl"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/WebsocketSetURL")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -6718,7 +6718,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetRecentTrades", runtime.WithHTTPPathPattern("/v1/getsavedtrades"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetRecentTrades")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -6738,7 +6738,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetHistoricTrades", runtime.WithHTTPPathPattern("/v1/getsavedtrades"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetHistoricTrades")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -6758,7 +6758,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetSavedTrades", runtime.WithHTTPPathPattern("/v1/getsavedtrades"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetSavedTrades")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -6778,7 +6778,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/ConvertTradesToCandles", runtime.WithHTTPPathPattern("/v1/converttradestocandles"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/ConvertTradesToCandles")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -6798,7 +6798,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/FindMissingSavedCandleIntervals", runtime.WithHTTPPathPattern("/v1/findmissingsavedcandleintervals"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/FindMissingSavedCandleIntervals")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -6818,7 +6818,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/FindMissingSavedTradeIntervals", runtime.WithHTTPPathPattern("/v1/findmissingsavedtradeintervals"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/FindMissingSavedTradeIntervals")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -6838,7 +6838,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/SetExchangeTradeProcessing", runtime.WithHTTPPathPattern("/v1/setexchangetradeprocessing"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/SetExchangeTradeProcessing")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -6858,7 +6858,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/UpsertDataHistoryJob", runtime.WithHTTPPathPattern("/v1/upsertdatahistoryjob"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/UpsertDataHistoryJob")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -6878,7 +6878,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetDataHistoryJobDetails", runtime.WithHTTPPathPattern("/v1/getdatahistoryjobdetails"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetDataHistoryJobDetails")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -6898,7 +6898,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetActiveDataHistoryJobs", runtime.WithHTTPPathPattern("/v1/getactivedatahistoryjobs"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetActiveDataHistoryJobs")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -6918,7 +6918,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetDataHistoryJobsBetween", runtime.WithHTTPPathPattern("/v1/getdatahistoryjobsbetween"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetDataHistoryJobsBetween")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -6938,7 +6938,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetDataHistoryJobSummary", runtime.WithHTTPPathPattern("/v1/getdatahistoryjobsummary"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetDataHistoryJobSummary")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -6958,7 +6958,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/SetDataHistoryJobStatus", runtime.WithHTTPPathPattern("/v1/setdatahistoryjobstatus"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/SetDataHistoryJobStatus")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -6978,7 +6978,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/UpdateDataHistoryJobPrerequisite", runtime.WithHTTPPathPattern("/v1/updatedatahistoryjobprerequisite"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/UpdateDataHistoryJobPrerequisite")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -6998,7 +6998,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetManagedOrders", runtime.WithHTTPPathPattern("/v1/getmanagedorders"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetManagedOrders")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -7018,7 +7018,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/ModifyOrder", runtime.WithHTTPPathPattern("/v1/modifyorder"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/ModifyOrder")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -7038,7 +7038,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/CurrencyStateGetAll", runtime.WithHTTPPathPattern("/v1/currencystategetall"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/CurrencyStateGetAll")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -7058,7 +7058,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/CurrencyStateTrading", runtime.WithHTTPPathPattern("/v1/currencystatetrading"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/CurrencyStateTrading")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -7078,7 +7078,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/CurrencyStateDeposit", runtime.WithHTTPPathPattern("/v1/currencystatedeposit"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/CurrencyStateDeposit")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -7098,7 +7098,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/CurrencyStateWithdraw", runtime.WithHTTPPathPattern("/v1/currencystatewithdraw"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/CurrencyStateWithdraw")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -7118,7 +7118,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/CurrencyStateTradingPair", runtime.WithHTTPPathPattern("/v1/currencystatetradingpair"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/CurrencyStateTradingPair")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -7138,7 +7138,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetFuturesPositions", runtime.WithHTTPPathPattern("/v1/getfuturespositions"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetFuturesPositions")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -7158,7 +7158,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetCollateral", runtime.WithHTTPPathPattern("/v1/getcollateral"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTrader/GetCollateral")
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return

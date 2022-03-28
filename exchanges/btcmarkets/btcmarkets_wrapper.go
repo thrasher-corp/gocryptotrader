@@ -23,6 +23,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -167,7 +168,11 @@ func (b *BTCMarkets) Setup(exch *config.Exchange) error {
 		Subscriber:            b.Subscribe,
 		GenerateSubscriptions: b.generateDefaultSubscriptions,
 		Features:              &b.Features.Supports.WebsocketCapabilities,
-		SortBuffer:            true,
+		OrderbookBufferConfig: buffer.Config{
+			SortBuffer:          true,
+			UpdateIDProgression: true,
+			Checksum:            checksum,
+		},
 	})
 	if err != nil {
 		return err
@@ -386,7 +391,9 @@ func (b *BTCMarkets) UpdateOrderbook(ctx context.Context, p currency.Pair, asset
 		return book, err
 	}
 
-	tempResp, err := b.GetOrderbook(ctx, fpair.String(), 2)
+	// Retrieve level one book which is the top 50 ask and bids, this is not
+	// cached.
+	tempResp, err := b.GetOrderbook(ctx, fpair.String(), 1)
 	if err != nil {
 		return book, err
 	}
@@ -416,16 +423,14 @@ func (b *BTCMarkets) UpdateAccountInfo(ctx context.Context, assetType asset.Item
 		return resp, err
 	}
 	var acc account.SubAccount
-	for key := range data {
-		c := currency.NewCode(data[key].AssetName)
-		hold := data[key].Locked
-		total := data[key].Balance
-		acc.Currencies = append(acc.Currencies,
-			account.Balance{CurrencyName: c,
-				Total: total,
-				Hold:  hold,
-				Free:  total - hold,
-			})
+	acc.AssetType = assetType
+	for x := range data {
+		acc.Currencies = append(acc.Currencies, account.Balance{
+			CurrencyName: currency.NewCode(data[x].AssetName),
+			Total:        data[x].Balance,
+			Hold:         data[x].Locked,
+			Free:         data[x].Available,
+		})
 	}
 	resp.Accounts = append(resp.Accounts, acc)
 	resp.Exchange = b.Name
@@ -525,18 +530,28 @@ func (b *BTCMarkets) SubmitOrder(ctx context.Context, s *order.Submit) (order.Su
 		return resp, err
 	}
 
+	fOrderType, err := b.formatOrderType(s.Type)
+	if err != nil {
+		return resp, err
+	}
+
+	fOrderSide, err := b.formatOrderSide(s.Side)
+	if err != nil {
+		return resp, err
+	}
+
 	tempResp, err := b.NewOrder(ctx,
-		fpair.String(),
 		s.Price,
 		s.Amount,
-		s.Type.String(),
-		s.Side.String(),
 		s.TriggerPrice,
-		s.TargetAmount,
+		s.QuoteAmount,
+		fpair.String(),
+		fOrderType,
+		fOrderSide,
+		b.getTimeInForce(s),
 		"",
-		false,
-		"",
-		s.ClientID)
+		s.ClientID,
+		s.PostOnly)
 	if err != nil {
 		return resp, err
 	}
@@ -725,7 +740,7 @@ func (b *BTCMarkets) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeB
 	if feeBuilder == nil {
 		return 0, fmt.Errorf("%T %w", feeBuilder, common.ErrNilPointer)
 	}
-	if !b.AllowAuthenticatedRequest() && // Todo check connection status
+	if !b.AreCredentialsValid(ctx) && // Todo check connection status
 		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		feeBuilder.FeeType = exchange.OfflineTradeFee
 	}

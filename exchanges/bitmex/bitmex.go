@@ -847,8 +847,9 @@ func (b *Bitmex) SendHTTPRequest(ctx context.Context, ep exchange.URL, path stri
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to bitmex
 func (b *Bitmex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, verb, path string, params Parameter, result interface{}) error {
-	if !b.AllowAuthenticatedRequest() {
-		return fmt.Errorf("%s %w", b.Name, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
+	creds, err := b.GetCredentials(ctx)
+	if err != nil {
+		return err
 	}
 	endpoint, err := b.API.Endpoints.GetURL(ep)
 	if err != nil {
@@ -865,7 +866,7 @@ func (b *Bitmex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.U
 		headers := make(map[string]string)
 		headers["Content-Type"] = "application/json"
 		headers["api-expires"] = timestampNew
-		headers["api-key"] = b.API.Credentials.Key
+		headers["api-key"] = creds.Key
 
 		var payload string
 		if params != nil {
@@ -884,7 +885,7 @@ func (b *Bitmex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.U
 		var hmac []byte
 		hmac, err = crypto.GetHMAC(crypto.HashSHA256,
 			[]byte(verb+"/api/v1"+path+timestampNew+payload),
-			[]byte(b.API.Credentials.Secret))
+			[]byte(creds.Secret))
 		if err != nil {
 			return nil, err
 		}

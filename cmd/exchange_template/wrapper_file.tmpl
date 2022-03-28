@@ -113,8 +113,11 @@ func ({{.Variable}} *{{.CapitalName}}) SetDefaults() {
 		},
 	}
 	// NOTE: SET THE EXCHANGES RATE LIMIT HERE
-	{{.Variable}}.Requester = request.New({{.Variable}}.Name,
+	{{.Variable}}.Requester, err = request.New({{.Variable}}.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+		if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 
 	// NOTE: SET THE URLs HERE
 	{{.Variable}}.API.Endpoints = {{.Variable}}.NewEndpoints()

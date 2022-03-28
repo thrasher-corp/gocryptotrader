@@ -1058,12 +1058,11 @@ message FuturePosition {
 }
 
 message GetCollateralRequest {
-    string exchange =1;
+    string exchange = 1;
     string asset = 2;
-    string sub_account = 3;
-    bool include_breakdown = 4;
-    bool calculate_offline = 5;
-    bool include_zero_values = 6;
+    bool include_breakdown = 3;
+    bool calculate_offline = 4;
+    bool include_zero_values = 5;
 }
 
 message GetCollateralResponse {

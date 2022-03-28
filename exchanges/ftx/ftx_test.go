@@ -78,7 +78,7 @@ func TestMain(m *testing.M) {
 }
 
 func areTestAPIKeysSet() bool {
-	return f.ValidateAPICredentials()
+	return f.ValidateAPICredentials(f.GetDefaultCredentials()) == nil
 }
 
 // Implement tests for API endpoints below
@@ -264,7 +264,7 @@ func TestGetAccountInfo(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	_, err := f.GetAccountInfo(context.Background(), subaccount)
+	_, err := f.GetAccountInfo(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
@@ -286,19 +286,19 @@ func TestGetBalances(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	_, err := f.GetBalances(context.Background(), subaccount, false, false)
+	_, err := f.GetBalances(context.Background(), false, false)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = f.GetBalances(context.Background(), subaccount, true, false)
+	_, err = f.GetBalances(context.Background(), true, false)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = f.GetBalances(context.Background(), subaccount, false, true)
+	_, err = f.GetBalances(context.Background(), false, true)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = f.GetBalances(context.Background(), subaccount, true, true)
+	_, err = f.GetBalances(context.Background(), true, true)
 	if err != nil {
 		t.Error(err)
 	}
@@ -331,7 +331,7 @@ func TestGetCoins(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	_, err := f.GetCoins(context.Background(), subaccount)
+	_, err := f.GetCoins(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
@@ -1039,6 +1039,18 @@ func TestUpdateOrderbook(t *testing.T) {
 	t.Parallel()
 	cp := currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "/")
 	_, err := f.UpdateOrderbook(context.Background(), cp, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+
+	cp = currency.NewPairWithDelimiter("ALGOBEAR", currency.USD.String(), "/")
+	_, err = f.UpdateOrderbook(context.Background(), cp, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+
+	cp = currency.NewPairWithDelimiter("ASDBEAR", currency.USD.String(), "/")
+	_, err = f.UpdateOrderbook(context.Background(), cp, asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1755,7 +1767,6 @@ func TestScaleCollateral(t *testing.T) {
 
 	result, err := f.ScaleCollateral(
 		context.Background(),
-		"",
 		&order.CollateralCalculator{
 			CollateralCurrency: currency.USDT,
 			Asset:              asset.Spot,
@@ -1775,7 +1786,7 @@ func TestScaleCollateral(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		return
 	}
-	accountInfo, err := f.GetAccountInfo(context.Background(), subaccount)
+	accountInfo, err := f.GetAccountInfo(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
@@ -1801,7 +1812,6 @@ func TestScaleCollateral(t *testing.T) {
 			}
 			_, err = f.ScaleCollateral(
 				context.Background(),
-				"",
 				&order.CollateralCalculator{
 					CollateralCurrency: coin,
 					Asset:              asset.Spot,
@@ -1819,7 +1829,6 @@ func TestScaleCollateral(t *testing.T) {
 			}
 			providedUSDValue += v[v2].USDValue
 			_, err = f.ScaleCollateral(context.Background(),
-				subaccount,
 				&order.CollateralCalculator{
 					CollateralCurrency: coin,
 					Asset:              asset.Spot,
@@ -1833,7 +1842,6 @@ func TestScaleCollateral(t *testing.T) {
 				t.Error(err)
 			}
 			_, err = f.ScaleCollateral(context.Background(),
-				subaccount,
 				&order.CollateralCalculator{
 					CollateralCurrency: coin,
 					Asset:              asset.Spot,
@@ -1849,7 +1857,6 @@ func TestScaleCollateral(t *testing.T) {
 
 			_, err = f.ScaleCollateral(
 				context.Background(),
-				"",
 				&order.CollateralCalculator{
 					CollateralCurrency: coin,
 					Asset:              asset.Spot,
@@ -1914,7 +1921,6 @@ func TestCalculateTotalCollateral(t *testing.T) {
 		}
 	}
 	calc := &order.TotalCollateralCalculator{
-		SubAccount:       subaccount,
 		CollateralAssets: scales,
 		FetchPositions:   false,
 		CalculateOffline: true,
@@ -1924,7 +1930,7 @@ func TestCalculateTotalCollateral(t *testing.T) {
 		t.Fatal(err)
 	}
 	localScaling := total.AvailableCollateral.InexactFloat64()
-	accountInfo, err := f.GetAccountInfo(context.Background(), subaccount)
+	accountInfo, err := f.GetAccountInfo(context.Background())
 	if err != nil {
 		t.Error(err)
 	}

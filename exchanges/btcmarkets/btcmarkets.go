@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
@@ -58,12 +59,22 @@ const (
 	orderPlaced             = "Placed"
 	orderAccepted           = "Accepted"
 
-	ask        = "ask"
+	ask = "ask"
+
+	// order types
 	limit      = "Limit"
 	market     = "Market"
 	stopLimit  = "Stop Limit"
 	stop       = "Stop"
 	takeProfit = "Take Profit"
+
+	// order sides
+	askSide = "Ask"
+	bidSide = "Bid"
+
+	// time in force
+	immediateOrCancel = "IOC"
+	fillOrKill        = "FOK"
 
 	subscribe     = "subscribe"
 	fundChange    = "fundChange"
@@ -112,7 +123,11 @@ func (b *BTCMarkets) GetTrades(ctx context.Context, marketID string, before, aft
 		&trades)
 }
 
-// GetOrderbook returns current orderbook
+// GetOrderbook returns current orderbook.
+// levels are:
+// 0 - Returns the top bids and ask orders only.
+// 1 - Returns top 50 bids and asks.
+// 2 - Returns full orderbook. WARNING: This is cached every 10 seconds.
 func (b *BTCMarkets) GetOrderbook(ctx context.Context, marketID string, level int64) (Orderbook, error) {
 	var orderbook Orderbook
 	var temp tempOrderbook
@@ -311,13 +326,56 @@ func (b *BTCMarkets) GetTradeByID(ctx context.Context, id string) (TradeHistoryD
 		request.Auth)
 }
 
+// formatOrderType conforms order type to the exchange acceptable order type
+// strings
+func (b *BTCMarkets) formatOrderType(o order.Type) (string, error) {
+	switch o {
+	case order.Limit:
+		return limit, nil
+	case order.Market:
+		return market, nil
+	case order.StopLimit:
+		return stopLimit, nil
+	case order.Stop:
+		return stop, nil
+	case order.TakeProfit:
+		return takeProfit, nil
+	default:
+		return "", fmt.Errorf("%s %s %w", b.Name, o, order.ErrTypeIsInvalid)
+	}
+}
+
+// formatOrderSide conforms order side to the exchange acceptable order side
+// strings
+func (b *BTCMarkets) formatOrderSide(o order.Side) (string, error) {
+	switch o {
+	case order.Ask:
+		return askSide, nil
+	case order.Bid:
+		return bidSide, nil
+	default:
+		return "", fmt.Errorf("%s %s %w", b.Name, o, order.ErrSideIsInvalid)
+	}
+}
+
+// getTimeInForce returns a string depending on the options in order.Submit
+func (b *BTCMarkets) getTimeInForce(s *order.Submit) string {
+	if s.ImmediateOrCancel {
+		return immediateOrCancel
+	}
+	if s.FillOrKill {
+		return fillOrKill
+	}
+	return "" // GTC (good till cancelled, default value)
+}
+
 // NewOrder requests a new order and returns an ID
-func (b *BTCMarkets) NewOrder(ctx context.Context, marketID string, price, amount float64, orderType, side string, triggerPrice,
-	targetAmount float64, timeInForce string, postOnly bool, selfTrade, clientOrderID string) (OrderData, error) {
-	var resp OrderData
+func (b *BTCMarkets) NewOrder(ctx context.Context, price, amount, triggerPrice, targetAmount float64, marketID, orderType, side, timeInForce, selfTrade, clientOrderID string, postOnly bool) (OrderData, error) {
 	req := make(map[string]interface{})
 	req["marketId"] = marketID
-	req["price"] = strconv.FormatFloat(price, 'f', -1, 64)
+	if price != 0 {
+		req["price"] = strconv.FormatFloat(price, 'f', -1, 64)
+	}
 	req["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)
 	req["type"] = orderType
 	req["side"] = side
@@ -330,13 +388,16 @@ func (b *BTCMarkets) NewOrder(ctx context.Context, marketID string, price, amoun
 	if timeInForce != "" {
 		req["timeInForce"] = timeInForce
 	}
-	req["postOnly"] = postOnly
+	if postOnly {
+		req["postOnly"] = postOnly
+	}
 	if selfTrade != "" {
 		req["selfTrade"] = selfTrade
 	}
 	if clientOrderID != "" {
 		req["clientOrderID"] = clientOrderID
 	}
+	var resp OrderData
 	return resp, b.SendAuthenticatedRequest(ctx, http.MethodPost,
 		btcMarketsOrders,
 		req,
@@ -711,8 +772,9 @@ func (b *BTCMarkets) SendHTTPRequest(ctx context.Context, path string, result in
 
 // SendAuthenticatedRequest sends an authenticated HTTP request
 func (b *BTCMarkets) SendAuthenticatedRequest(ctx context.Context, method, path string, data, result interface{}, f request.EndpointLimit) (err error) {
-	if !b.AllowAuthenticatedRequest() {
-		return fmt.Errorf("%s %w", b.Name, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
+	creds, err := b.GetCredentials(ctx)
+	if err != nil {
+		return err
 	}
 
 	newRequest := func() (*request.Item, error) {
@@ -729,7 +791,7 @@ func (b *BTCMarkets) SendAuthenticatedRequest(ctx context.Context, method, path 
 			strMsg := method + btcMarketsAPIVersion + path + strTime + string(payload)
 			hmac, err = crypto.GetHMAC(crypto.HashSHA512,
 				[]byte(strMsg),
-				[]byte(b.API.Credentials.Secret))
+				[]byte(creds.Secret))
 			if err != nil {
 				return nil, err
 			}
@@ -737,7 +799,7 @@ func (b *BTCMarkets) SendAuthenticatedRequest(ctx context.Context, method, path 
 			strArray := strings.Split(path, "?")
 			hmac, err = crypto.GetHMAC(crypto.HashSHA512,
 				[]byte(method+btcMarketsAPIVersion+strArray[0]+strTime),
-				[]byte(b.API.Credentials.Secret))
+				[]byte(creds.Secret))
 			if err != nil {
 				return nil, err
 			}
@@ -747,7 +809,7 @@ func (b *BTCMarkets) SendAuthenticatedRequest(ctx context.Context, method, path 
 		headers["Accept"] = "application/json"
 		headers["Accept-Charset"] = "UTF-8"
 		headers["Content-Type"] = "application/json"
-		headers["BM-AUTH-APIKEY"] = b.API.Credentials.Key
+		headers["BM-AUTH-APIKEY"] = creds.Key
 		headers["BM-AUTH-TIMESTAMP"] = strTime
 		headers["BM-AUTH-SIGNATURE"] = crypto.Base64Encode(hmac)
 

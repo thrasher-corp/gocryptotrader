@@ -106,11 +106,12 @@ type WebsocketSetup struct {
 	GenerateSubscriptions  func() ([]ChannelSubscription, error)
 	Features               *protocol.Features
 	ConnectionMonitorDelay time.Duration
+
 	// Local orderbook buffer config values
-	SortBuffer            bool
-	SortBufferByUpdateIDs bool
-	UpdateEntriesByID     bool
-	TradeFeed             bool
+	OrderbookBufferConfig buffer.Config
+
+	TradeFeed bool
+
 	// Fill data config values
 	FillsFeed bool
 }

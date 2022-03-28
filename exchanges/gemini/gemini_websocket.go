@@ -3,6 +3,7 @@
 package gemini
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -52,7 +53,7 @@ func (g *Gemini) WsConnect() error {
 	go g.wsFunnelConnectionData(g.Websocket.Conn)
 
 	if g.Websocket.CanUseAuthenticatedEndpoints() {
-		err := g.WsAuth(&dialer)
+		err := g.WsAuth(context.TODO(), &dialer)
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "%v - websocket authentication failed: %v\n", g.Name, err)
 			g.Websocket.SetCanUseAuthenticatedEndpoints(false)
@@ -176,9 +177,13 @@ func (g *Gemini) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription)
 }
 
 // WsAuth will connect to Gemini's secure endpoint
-func (g *Gemini) WsAuth(dialer *websocket.Dialer) error {
+func (g *Gemini) WsAuth(ctx context.Context, dialer *websocket.Dialer) error {
 	if !g.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
 		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", g.Name)
+	}
+	creds, err := g.GetCredentials(ctx)
+	if err != nil {
+		return err
 	}
 	payload := WsRequestPayload{
 		Request: "/v1/" + geminiWsOrderEvents,
@@ -196,7 +201,7 @@ func (g *Gemini) WsAuth(dialer *websocket.Dialer) error {
 	PayloadBase64 := crypto.Base64Encode(PayloadJSON)
 	hmac, err := crypto.GetHMAC(crypto.HashSHA512_384,
 		[]byte(PayloadBase64),
-		[]byte(g.API.Credentials.Secret))
+		[]byte(creds.Secret))
 	if err != nil {
 		return err
 	}
@@ -205,7 +210,7 @@ func (g *Gemini) WsAuth(dialer *websocket.Dialer) error {
 	headers.Add("Content-Length", "0")
 	headers.Add("Content-Type", "text/plain")
 	headers.Add("X-GEMINI-PAYLOAD", PayloadBase64)
-	headers.Add("X-GEMINI-APIKEY", g.API.Credentials.Key)
+	headers.Add("X-GEMINI-APIKEY", creds.Key)
 	headers.Add("X-GEMINI-SIGNATURE", crypto.HexEncodeToString(hmac))
 	headers.Add("Cache-Control", "no-cache")
 

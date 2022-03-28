@@ -133,6 +133,17 @@ func (p Pairs) Contains(check Pair, exact bool) bool {
 	return false
 }
 
+// ContainsCurrency checks to see if a specified currency code exists inside a
+// currency pair array
+func (p Pairs) ContainsCurrency(check Code) bool {
+	for i := range p {
+		if p[i].Contains(check) {
+			return true
+		}
+	}
+	return false
+}
+
 // RemovePairsByFilter checks to see if a pair contains a specific currency
 // and removes it from the list of pairs
 func (p Pairs) RemovePairsByFilter(filter Code) Pairs {
@@ -155,6 +166,19 @@ func (p Pairs) GetPairsByFilter(filter Code) Pairs {
 			continue
 		}
 		pairs = append(pairs, p[i])
+	}
+	return pairs
+}
+
+// GetPairsByCurrencies returns all pairs that have both matches to the
+// currencies passed in. This allows for the construction of pairs by required
+// currency codes.
+func (p Pairs) GetPairsByCurrencies(currencies Currencies) Pairs {
+	pairs := make(Pairs, 0, len(p))
+	for i := range p {
+		if currencies.Contains(p[i].Base) && currencies.Contains(p[i].Quote) {
+			pairs = append(pairs, p[i])
+		}
 	}
 	return pairs
 }

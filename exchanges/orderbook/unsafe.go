@@ -1,11 +1,15 @@
 package orderbook
 
 import (
+	"errors"
+	"fmt"
 	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/alert"
 )
+
+var errNoLiquidity = errors.New("no liquidity")
 
 // Unsafe is an exported linked list reference to the current bid/ask heads and
 // a reference to the underlying depth mutex. This allows for the exposure of
@@ -52,8 +56,8 @@ func (src *Unsafe) UnlockWith(dst sync.Locker) {
 }
 
 // GetUnsafe returns an unsafe orderbook with pointers to the linked list heads.
-func (d *Depth) GetUnsafe() Unsafe {
-	return Unsafe{
+func (d *Depth) GetUnsafe() *Unsafe {
+	return &Unsafe{
 		BidHead:        &d.bids.linkedList.head,
 		AskHead:        &d.asks.linkedList.head,
 		m:              &d.m,
@@ -61,4 +65,104 @@ func (d *Depth) GetUnsafe() Unsafe {
 		UpdatedViaREST: &d.options.restSnapshot,
 		LastUpdated:    &d.options.lastUpdated,
 	}
+}
+
+// CheckBidLiquidity determines if the liquidity is sufficient for usage
+func (src *Unsafe) CheckBidLiquidity() error {
+	_, err := src.GetBidLiquidity()
+	return err
+}
+
+// CheckAskLiquidity determines if the liquidity is sufficient for usage
+func (src *Unsafe) CheckAskLiquidity() error {
+	_, err := src.GetAskLiquidity()
+	return err
+}
+
+// GetBestBid returns the top bid price
+func (src *Unsafe) GetBestBid() (float64, error) {
+	bid, err := src.GetBidLiquidity()
+	if err != nil {
+		return 0, fmt.Errorf("get orderbook best bid price %w", err)
+	}
+	return bid.Value.Price, nil
+}
+
+// GetBestAsk returns the top ask price
+func (src *Unsafe) GetBestAsk() (float64, error) {
+	ask, err := src.GetAskLiquidity()
+	if err != nil {
+		return 0, fmt.Errorf("get orderbook best ask price %w", err)
+	}
+	return ask.Value.Price, nil
+}
+
+// GetBidLiquidity gets the head node for the bid liquidity
+func (src *Unsafe) GetBidLiquidity() (*Node, error) {
+	n := *src.BidHead
+	if n == nil {
+		return nil, fmt.Errorf("bid %w", errNoLiquidity)
+	}
+	return n, nil
+}
+
+// GetAskLiquidity gets the head node for the ask liquidity
+func (src *Unsafe) GetAskLiquidity() (*Node, error) {
+	n := *src.AskHead
+	if n == nil {
+		return nil, fmt.Errorf("ask %w", errNoLiquidity)
+	}
+	return n, nil
+}
+
+// GetLiquidity checks and returns nodes to the top bids and asks
+func (src *Unsafe) GetLiquidity() (ask, bid *Node, err error) {
+	bid, err = src.GetBidLiquidity()
+	if err != nil {
+		return nil, nil, err
+	}
+	ask, err = src.GetAskLiquidity()
+	if err != nil {
+		return nil, nil, err
+	}
+	return ask, bid, nil
+}
+
+// GetMidPrice returns the average between the top bid and top ask.
+func (src *Unsafe) GetMidPrice() (float64, error) {
+	ask, bid, err := src.GetLiquidity()
+	if err != nil {
+		return 0, fmt.Errorf("get orderbook mid price %w", err)
+	}
+	return (bid.Value.Price + ask.Value.Price) / 2, nil
+}
+
+// GetSpread returns the spread between the top bid and top asks.
+func (src *Unsafe) GetSpread() (float64, error) {
+	ask, bid, err := src.GetLiquidity()
+	if err != nil {
+		return 0, fmt.Errorf("get orderbook price spread %w", err)
+	}
+	return ask.Value.Price - bid.Value.Price, nil
+}
+
+// GetImbalance returns difference between the top bid and top ask amounts
+// divided by its sum.
+func (src *Unsafe) GetImbalance() (float64, error) {
+	ask, bid, err := src.GetLiquidity()
+	if err != nil {
+		return 0, fmt.Errorf("get orderbook imbalance %w", err)
+	}
+	top := bid.Value.Amount - ask.Value.Amount
+	bottom := bid.Value.Amount + ask.Value.Amount
+	if bottom == 0 {
+		return 0, errNoLiquidity
+	}
+	return top / bottom, nil
+}
+
+// IsStreaming returns if the orderbook is updated by a streaming protocol and
+// is most likely more up to date than that of a REST protocol update.
+func (src *Unsafe) IsStreaming() bool {
+	return !*src.UpdatedViaREST
 }

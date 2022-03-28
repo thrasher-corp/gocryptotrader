@@ -1,6 +1,7 @@
 package coinut
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,7 +14,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -58,7 +58,7 @@ func (c *COINUT) WsConnect() error {
 			return err
 		}
 	}
-	err = c.wsAuthenticate()
+	err = c.wsAuthenticate(context.TODO())
 	if err != nil {
 		c.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		log.Error(log.WebsocketMgr, err)
@@ -100,7 +100,7 @@ func (c *COINUT) wsReadData() {
 					c.Websocket.DataHandler <- err
 					continue
 				}
-				err = c.wsHandleData(individualJSON)
+				err = c.wsHandleData(context.TODO(), individualJSON)
 				if err != nil {
 					c.Websocket.DataHandler <- err
 				}
@@ -112,7 +112,7 @@ func (c *COINUT) wsReadData() {
 				c.Websocket.DataHandler <- err
 				continue
 			}
-			err = c.wsHandleData(resp.Raw)
+			err = c.wsHandleData(context.TODO(), resp.Raw)
 			if err != nil {
 				c.Websocket.DataHandler <- err
 			}
@@ -120,7 +120,7 @@ func (c *COINUT) wsReadData() {
 	}
 }
 
-func (c *COINUT) wsHandleData(respRaw []byte) error {
+func (c *COINUT) wsHandleData(ctx context.Context, respRaw []byte) error {
 	if strings.HasPrefix(string(respRaw), "[") {
 		var orders []wsOrderContainer
 		err := json.Unmarshal(respRaw, &orders)
@@ -163,8 +163,13 @@ func (c *COINUT) wsHandleData(respRaw []byte) error {
 			return err
 		}
 
+		creds, err := c.GetCredentials(ctx)
+		if err != nil {
+			return err
+		}
+
 		var endpointFailure []byte
-		if login.APIKey != c.API.Credentials.Key {
+		if login.APIKey != creds.Key {
 			endpointFailure = []byte("failed to authenticate")
 		}
 
@@ -681,20 +686,20 @@ func (c *COINUT) Unsubscribe(channelToUnsubscribe []stream.ChannelSubscription) 
 	return nil
 }
 
-func (c *COINUT) wsAuthenticate() error {
-	if !c.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
-		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled",
-			c.Name)
+func (c *COINUT) wsAuthenticate(ctx context.Context) error {
+	creds, err := c.GetCredentials(ctx)
+	if err != nil {
+		return err
 	}
 	timestamp := time.Now().Unix()
 	nonce := getNonce()
-	payload := c.API.Credentials.ClientID + "|" +
+	payload := creds.ClientID + "|" +
 		strconv.FormatInt(timestamp, 10) + "|" +
 		strconv.FormatInt(nonce, 10)
 
 	hmac, err := crypto.GetHMAC(crypto.HashSHA256,
 		[]byte(payload),
-		[]byte(c.API.Credentials.Key))
+		[]byte(creds.Key))
 	if err != nil {
 		return err
 	}
@@ -707,7 +712,7 @@ func (c *COINUT) wsAuthenticate() error {
 		Timestamp int64  `json:"timestamp"`
 	}{
 		Request:   "login",
-		Username:  c.API.Credentials.ClientID,
+		Username:  creds.ClientID,
 		Nonce:     nonce,
 		Hmac:      crypto.HexEncodeToString(hmac),
 		Timestamp: timestamp,

@@ -376,8 +376,9 @@ func (b *Bittrex) SendHTTPRequest(ctx context.Context, ep exchange.URL, path str
 
 // SendAuthHTTPRequest sends an authenticated request
 func (b *Bittrex) SendAuthHTTPRequest(ctx context.Context, ep exchange.URL, method, action string, params url.Values, data, result interface{}, resultHeader *http.Header) error {
-	if !b.AllowAuthenticatedRequest() {
-		return fmt.Errorf("%s %w", b.Name, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
+	creds, err := b.GetCredentials(ctx)
+	if err != nil {
+		return err
 	}
 	endpoint, err := b.API.Endpoints.GetURL(ep)
 	if err != nil {
@@ -409,13 +410,13 @@ func (b *Bittrex) SendAuthHTTPRequest(ctx context.Context, ep exchange.URL, meth
 		sigPayload := ts + endpoint + path + method + contentHash
 		hmac, err = crypto.GetHMAC(crypto.HashSHA512,
 			[]byte(sigPayload),
-			[]byte(b.API.Credentials.Secret))
+			[]byte(creds.Secret))
 		if err != nil {
 			return nil, err
 		}
 
 		headers := make(map[string]string)
-		headers["Api-Key"] = b.API.Credentials.Key
+		headers["Api-Key"] = creds.Key
 		headers["Api-Timestamp"] = ts
 		headers["Api-Content-Hash"] = contentHash
 		headers["Api-Signature"] = crypto.HexEncodeToString(hmac)
