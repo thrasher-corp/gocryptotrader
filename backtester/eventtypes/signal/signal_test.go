@@ -30,7 +30,7 @@ func TestSetPrice(t *testing.T) {
 		ClosePrice: decimal.NewFromInt(1),
 	}
 	s.SetPrice(decimal.NewFromInt(1337))
-	if !s.GetPrice().Equal(decimal.NewFromInt(1337)) {
+	if !s.GetClosePrice().Equal(decimal.NewFromInt(1337)) {
 		t.Error("expected decimal.NewFromInt(1337)")
 	}
 }

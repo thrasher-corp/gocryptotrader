@@ -14,7 +14,7 @@ type Event interface {
 	common.EventHandler
 	common.Directioner
 
-	GetPrice() decimal.Decimal
+	GetClosePrice() decimal.Decimal
 	IsSignal() bool
 	GetSellLimit() decimal.Decimal
 	GetBuyLimit() decimal.Decimal

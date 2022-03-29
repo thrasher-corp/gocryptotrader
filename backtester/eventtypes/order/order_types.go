@@ -14,7 +14,7 @@ type Order struct {
 	ID                  string
 	Direction           order.Side
 	Status              order.Status
-	Price               decimal.Decimal
+	ClosePrice          decimal.Decimal
 	Amount              decimal.Decimal
 	OrderType           order.Type
 	Leverage            decimal.Decimal
@@ -30,6 +30,7 @@ type Order struct {
 type Event interface {
 	common.EventHandler
 	common.Directioner
+	GetClosePrice() decimal.Decimal
 	GetBuyLimit() decimal.Decimal
 	GetSellLimit() decimal.Decimal
 	SetAmount(decimal.Decimal)

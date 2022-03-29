@@ -491,12 +491,14 @@ func (f *FundManager) getFundingForEAC(exch string, a asset.Item, c currency.Cod
 	return nil, ErrFundsNotFound
 }
 
-// Liquidate will remove all funding
-func (f *FundManager) Liquidate() {
+// Liquidate will remove all funding for all items belonging to an exchange
+func (f *FundManager) Liquidate(ev common.EventHandler) {
 	for i := range f.items {
-		f.items[i].reserved = decimal.Zero
-		f.items[i].available = decimal.Zero
-		f.items[i].isLiquidated = true
+		if f.items[i].exchange == ev.GetExchange() {
+			f.items[i].reserved = decimal.Zero
+			f.items[i].available = decimal.Zero
+			f.items[i].isLiquidated = true
+		}
 	}
 }
 
@@ -615,15 +617,12 @@ func (f *FundManager) RealisePNL(receivingExchange string, receivingAsset asset.
 	return fmt.Errorf("%w to allocate %v to %v %v %v", ErrFundsNotFound, realisedPNL, receivingExchange, receivingAsset, receivingCurrency)
 }
 
-// HasBeenLiquidated checks
-func (f *FundManager) HasBeenLiquidated(ev common.EventHandler) bool {
+// HasBeenLiquidated checks for any items with a matching exchange
+// and returns whether it has been liquidated
+func (f *FundManager) HasExchangeBeenLiquidated(ev common.EventHandler) bool {
 	for i := range f.items {
-		if ev.GetExchange() == f.items[i].exchange &&
-			ev.GetAssetType() == f.items[i].asset &&
-			(f.items[i].currency.Equal(ev.Pair().Base) ||
-				f.items[i].currency.Equal(ev.Pair().Quote)) &&
-			f.items[i].isLiquidated {
-			return true
+		if ev.GetExchange() == f.items[i].exchange {
+			return f.items[i].isLiquidated
 		} else {
 			continue
 		}

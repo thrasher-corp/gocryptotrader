@@ -23,7 +23,7 @@ func (s *Statistic) Reset() {
 }
 
 // SetupEventForTime sets up the big map for to store important data at each time interval
-func (s *Statistic) SetupEventForTime(ev common.DataEventHandler) error {
+func (s *Statistic) SetupEventForTime(ev common.EventHandler) error {
 	if ev == nil {
 		return common.ErrNilEvent
 	}
@@ -40,16 +40,41 @@ func (s *Statistic) SetupEventForTime(ev common.DataEventHandler) error {
 		}
 	}
 	for i := range lookup.Events {
-		if lookup.Events[i].DataEvent.GetTime().Equal(ev.GetTime()) &&
-			lookup.Events[i].DataEvent.GetOffset() == ev.GetOffset() {
-			return ErrAlreadyProcessed
+		if lookup.Events[i].Offset != ev.GetOffset() {
+			continue
+		}
+		switch ev.(type) {
+		case common.DataEventHandler:
+			if lookup.Events[i].DataEvent != nil {
+				return ErrAlreadyProcessed
+			}
+		case order.Event:
+			if lookup.Events[i].OrderEvent != nil {
+				return ErrAlreadyProcessed
+			}
+		default:
+			return fmt.Errorf("%w %v %v %v %v", errNoRelevantStatsFound, ev.GetOffset(), ev.GetExchange(), ev.GetAssetType(), ev.Pair())
 		}
 	}
-	lookup.Events = append(lookup.Events,
-		DataAtOffset{
-			DataEvent: ev,
-		},
-	)
+	switch t := ev.(type) {
+	case common.DataEventHandler:
+		lookup.Events = append(lookup.Events,
+			DataAtOffset{
+				DataEvent: t,
+				Offset:    t.GetOffset(),
+				Time:      t.GetTime(),
+			},
+		)
+	case order.Event:
+		lookup.Events = append(lookup.Events,
+			DataAtOffset{
+				OrderEvent: t,
+				Offset:     t.GetOffset(),
+				Time:       t.GetTime(),
+			},
+		)
+	}
+
 	s.ExchangeAssetPairStatistics[ex][a][p] = lookup
 
 	return nil
@@ -84,7 +109,7 @@ func (s *Statistic) SetEventForOffset(ev common.EventHandler) error {
 		return fmt.Errorf("%w for %v %v %v to set signal event", errCurrencyStatisticsUnset, exch, a, p)
 	}
 	for i := len(lookup.Events) - 1; i >= 0; i-- {
-		if lookup.Events[i].DataEvent.GetOffset() == offset {
+		if lookup.Events[i].Offset == offset {
 			return applyEventAtOffset(ev, lookup, i)
 		}
 	}
@@ -105,6 +130,10 @@ func applyEventAtOffset(ev common.EventHandler, lookup *CurrencyPairStatistic, i
 	default:
 		return fmt.Errorf("unknown event type received: %v", ev)
 	}
+	lookup.Events[i].Time = ev.GetTime()
+	lookup.Events[i].ClosePrice = ev.GetClosePrice()
+	lookup.Events[i].Offset = ev.GetOffset()
+
 	return nil
 }
 
@@ -118,7 +147,7 @@ func (s *Statistic) AddHoldingsForTime(h *holdings.Holding) error {
 		return fmt.Errorf("%w for %v %v %v to set holding event", errCurrencyStatisticsUnset, h.Exchange, h.Asset, h.Pair)
 	}
 	for i := len(lookup.Events) - 1; i >= 0; i-- {
-		if lookup.Events[i].DataEvent.GetOffset() == h.Offset {
+		if lookup.Events[i].Offset == h.Offset {
 			lookup.Events[i].Holdings = *h
 			return nil
 		}
@@ -138,7 +167,7 @@ func (s *Statistic) AddPNLForTime(pnl *portfolio.PNLSummary) error {
 		return fmt.Errorf("%w for %v %v %v to set pnl", errCurrencyStatisticsUnset, pnl.Exchange, pnl.Item, pnl.Pair)
 	}
 	for i := len(lookup.Events) - 1; i >= 0; i-- {
-		if lookup.Events[i].DataEvent.GetOffset() == pnl.Offset {
+		if lookup.Events[i].Offset == pnl.Offset {
 			lookup.Events[i].PNL = pnl
 			lookup.Events[i].Holdings.BaseSize = pnl.Result.Exposure
 			return nil
@@ -163,7 +192,7 @@ func (s *Statistic) AddComplianceSnapshotForTime(c compliance.Snapshot, e fill.E
 		return fmt.Errorf("%w for %v %v %v to set compliance snapshot", errCurrencyStatisticsUnset, exch, a, p)
 	}
 	for i := len(lookup.Events) - 1; i >= 0; i-- {
-		if lookup.Events[i].DataEvent.GetOffset() == e.GetOffset() {
+		if lookup.Events[i].Offset == e.GetOffset() {
 			lookup.Events[i].Transactions = c
 			return nil
 		}
@@ -195,8 +224,8 @@ func (s *Statistic) CalculateAllResults() error {
 				stats.FinalHoldings = last.Holdings
 				stats.InitialHoldings = stats.Events[0].Holdings
 				stats.FinalOrders = last.Transactions
-				s.StartDate = stats.Events[0].DataEvent.GetTime()
-				s.EndDate = last.DataEvent.GetTime()
+				s.StartDate = stats.Events[0].Time
+				s.EndDate = last.Time
 
 				finalResults = append(finalResults, FinalResultsHolder{
 					Exchange:         exchangeName,

@@ -75,6 +75,7 @@ type EventHandler interface {
 	GetInterval() kline.Interval
 	GetAssetType() asset.Item
 	GetReason() string
+	GetClosePrice() decimal.Decimal
 	AppendReason(string)
 }
 

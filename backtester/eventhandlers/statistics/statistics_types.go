@@ -69,7 +69,7 @@ type FinalResultsHolder struct {
 // Handler interface details what a statistic is expected to do
 type Handler interface {
 	SetStrategyName(string)
-	SetupEventForTime(common.DataEventHandler) error
+	SetupEventForTime(handler common.EventHandler) error
 	SetEventForOffset(common.EventHandler) error
 	AddHoldingsForTime(*holdings.Holding) error
 	AddComplianceSnapshotForTime(compliance.Snapshot, fill.Event) error
@@ -121,6 +121,9 @@ type CurrencyStats interface {
 // DataAtOffset is used to hold all event information
 // at a time interval
 type DataAtOffset struct {
+	Offset       int64
+	ClosePrice   decimal.Decimal
+	Time         time.Time
 	Holdings     holdings.Holding
 	Transactions compliance.Snapshot
 	DataEvent    common.DataEventHandler

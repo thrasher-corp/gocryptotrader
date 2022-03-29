@@ -86,11 +86,11 @@ func (d *Data) GenerateReport() error {
 
 // CreateUSDTotalsChart used for creating a chart in the HTML report
 // to show how much the overall assets are worth over time
-func (d *Data) CreateUSDTotalsChart() []TotalsChart {
+func (d *Data) CreateUSDTotalsChart() *Chart {
 	if d.Statistics.FundingStatistics == nil || d.Statistics.FundingStatistics.Report.DisableUSDTracking {
 		return nil
 	}
-	var response []TotalsChart
+	response := &Chart{}
 	var usdTotalChartPlot []ChartPlot
 	for i := range d.Statistics.FundingStatistics.TotalUSDStatistics.HoldingValues {
 		usdTotalChartPlot = append(usdTotalChartPlot, ChartPlot{
@@ -98,7 +98,7 @@ func (d *Data) CreateUSDTotalsChart() []TotalsChart {
 			UnixMilli: d.Statistics.FundingStatistics.TotalUSDStatistics.HoldingValues[i].Time.UTC().UnixMilli(),
 		})
 	}
-	response = append(response, TotalsChart{
+	response.Data = append(response.Data, TotalsChart{
 		Name:       "Total USD value",
 		DataPoints: usdTotalChartPlot,
 	})
@@ -111,7 +111,7 @@ func (d *Data) CreateUSDTotalsChart() []TotalsChart {
 				UnixMilli: d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots[j].Time.UTC().UnixMilli(),
 			})
 		}
-		response = append(response, TotalsChart{
+		response.Data = append(response.Data, TotalsChart{
 			Name:       fmt.Sprintf("%v %v %v USD value", d.Statistics.FundingStatistics.Items[i].ReportItem.Exchange, d.Statistics.FundingStatistics.Items[i].ReportItem.Asset, d.Statistics.FundingStatistics.Items[i].ReportItem.Currency),
 			DataPoints: plots,
 		})
@@ -120,22 +120,64 @@ func (d *Data) CreateUSDTotalsChart() []TotalsChart {
 	return response
 }
 
+func (d *Data) createPNLCharts() *Chart {
+	response := &Chart{}
+	for exch, assetMap := range d.Statistics.ExchangeAssetPairStatistics {
+		for item, pairMap := range assetMap {
+			for pair, result := range pairMap {
+				id := fmt.Sprintf("%v %v %v",
+					exch,
+					item,
+					pair)
+				uPNLName := fmt.Sprintf("%v Unrealised PNL", id)
+				rPNLName := fmt.Sprintf("%v Realised PNL", id)
+
+				unrealisedPNL := TotalsChart{Name: uPNLName}
+				realisedPNL := TotalsChart{Name: rPNLName}
+				for i := range result.Events {
+					if result.Events[i].PNL != nil {
+						realisedPNL.DataPoints = append(realisedPNL.DataPoints, ChartPlot{
+							Value:     result.Events[i].PNL.GetRealisedPNL().PNL.InexactFloat64(),
+							UnixMilli: result.Events[i].Time.UnixMilli(),
+						})
+						unrealisedPNL.DataPoints = append(unrealisedPNL.DataPoints, ChartPlot{
+							Value:     result.Events[i].PNL.GetUnrealisedPNL().PNL.InexactFloat64(),
+							UnixMilli: result.Events[i].Time.UnixMilli(),
+						})
+					}
+				}
+				if len(unrealisedPNL.DataPoints) == 0 || len(realisedPNL.DataPoints) == 0 {
+					continue
+				}
+				response.Data = append(response.Data, unrealisedPNL, realisedPNL)
+			}
+		}
+
+	}
+	return response
+}
+
 // CreateHoldingsOverTimeChart used for creating a chart in the HTML report
 // to show how many holdings of each type was held over the time of backtesting
-func (d *Data) CreateHoldingsOverTimeChart() []TotalsChart {
+func (d *Data) CreateHoldingsOverTimeChart() *Chart {
 	if d.Statistics.FundingStatistics == nil {
 		return nil
 	}
-	var response []TotalsChart
+	response := &Chart{}
+	response.AxisType = "logarithmic"
 	for i := range d.Statistics.FundingStatistics.Items {
 		var plots []ChartPlot
 		for j := range d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots {
+			if d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots[j].Available.IsZero() {
+				// highcharts can't render zeroes in logarithmic mode
+				response.AxisType = "linear"
+			}
 			plots = append(plots, ChartPlot{
 				Value:     d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots[j].Available.InexactFloat64(),
 				UnixMilli: d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots[j].Time.UTC().UnixMilli(),
 			})
 		}
-		response = append(response, TotalsChart{
+		response.Data = append(response.Data, TotalsChart{
 			Name:       fmt.Sprintf("%v %v %v holdings", d.Statistics.FundingStatistics.Items[i].ReportItem.Exchange, d.Statistics.FundingStatistics.Items[i].ReportItem.Asset, d.Statistics.FundingStatistics.Items[i].ReportItem.Currency),
 			DataPoints: plots,
 		})
@@ -158,43 +200,6 @@ func (d *Data) UpdateItem(k *kline.Item) {
 		d.OriginalCandles[0].Candles = append(d.OriginalCandles[0].Candles, k.Candles...)
 		d.OriginalCandles[0].RemoveDuplicates()
 	}
-}
-
-func (d *Data) createPNLCharts() []TotalsChart {
-	var resp []TotalsChart
-	for exch, assetMap := range d.Statistics.ExchangeAssetPairStatistics {
-		for item, pairMap := range assetMap {
-			for pair, result := range pairMap {
-				id := fmt.Sprintf("%v %v %v",
-					exch,
-					item,
-					pair)
-				uPNLName := fmt.Sprintf("%v Unrealised PNL", id)
-				rPNLName := fmt.Sprintf("%v Realised PNL", id)
-
-				unrealisedPNL := TotalsChart{Name: uPNLName}
-				realisedPNL := TotalsChart{Name: rPNLName}
-				for i := range result.Events {
-					if result.Events[i].PNL != nil {
-						realisedPNL.DataPoints = append(realisedPNL.DataPoints, ChartPlot{
-							Value:     result.Events[i].PNL.GetRealisedPNL().PNL.InexactFloat64(),
-							UnixMilli: result.Events[i].PNL.GetRealisedPNL().Time.UnixMilli(),
-						})
-						unrealisedPNL.DataPoints = append(unrealisedPNL.DataPoints, ChartPlot{
-							Value:     result.Events[i].PNL.GetUnrealisedPNL().PNL.InexactFloat64(),
-							UnixMilli: result.Events[i].PNL.GetUnrealisedPNL().Time.UnixMilli(),
-						})
-					}
-				}
-				if len(unrealisedPNL.DataPoints) == 0 || len(realisedPNL.DataPoints) == 0 {
-					continue
-				}
-				resp = append(resp, unrealisedPNL, realisedPNL)
-			}
-		}
-
-	}
-	return resp
 }
 
 // enhanceCandles will enhance candle data with order information allowing
@@ -246,8 +251,8 @@ func (d *Data) enhanceCandles() error {
 				}
 			}
 			if !requiresIteration {
-				if statsForCandles.Events[intVal].SignalEvent.GetTime().Equal(d.OriginalCandles[intVal].Candles[j].Time) &&
-					statsForCandles.Events[intVal].SignalEvent.GetDirection() == common.MissingData &&
+				if statsForCandles.Events[intVal].Time.Equal(d.OriginalCandles[intVal].Candles[j].Time) &&
+					(statsForCandles.Events[intVal].SignalEvent == nil || statsForCandles.Events[intVal].SignalEvent.GetDirection() == common.MissingData) &&
 					len(enhancedKline.Candles) > 0 {
 					enhancedCandle.copyCloseFromPreviousEvent(&enhancedKline)
 				}

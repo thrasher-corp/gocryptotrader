@@ -32,6 +32,7 @@ type Holding struct {
 	SoldValue         decimal.Decimal `json:"sold-value"`
 	BoughtAmount      decimal.Decimal `json:"bought-amount"`
 	BoughtValue       decimal.Decimal `json:"bought-value"`
+	IsLiquidated      bool
 
 	TotalValueDifference      decimal.Decimal
 	ChangeInTotalValuePercent decimal.Decimal

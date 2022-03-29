@@ -46,8 +46,8 @@ func (s *Signal) Pair() currency.Pair {
 	return s.CurrencyPair
 }
 
-// GetPrice returns the price
-func (s *Signal) GetPrice() decimal.Decimal {
+// GetClosePrice returns the price
+func (s *Signal) GetClosePrice() decimal.Decimal {
 	return s.ClosePrice
 }
 

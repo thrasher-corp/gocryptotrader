@@ -53,7 +53,7 @@ func (s *Strategy) Description() string {
 
 // OnSignal handles a data event and returns what action the strategy believes should occur
 // however,this complex strategy cannot function on an individual basis
-func (s *Strategy) OnSignal(_ data.Handler, _ funding.IFundTransferer, _ portfolio.Handler) (signal.Event, error) {
+func (s *Strategy) OnSignal(_ data.Handler, _ funding.IFundingTransferer, _ portfolio.Handler) (signal.Event, error) {
 	return nil, errStrategyOnlySupportsSimultaneousProcessing
 }
 
@@ -88,7 +88,7 @@ func sortByMFI(o *[]mfiFundEvent, reverse bool) {
 
 // OnSimultaneousSignals analyses multiple data points simultaneously, allowing flexibility
 // in allowing a strategy to only place an order for X currency if Y currency's price is Z
-func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundTransferer, _ portfolio.Handler) ([]signal.Event, error) {
+func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundingTransferer, _ portfolio.Handler) ([]signal.Event, error) {
 	if len(d) < 4 {
 		return nil, errStrategyCurrencyRequirements
 	}

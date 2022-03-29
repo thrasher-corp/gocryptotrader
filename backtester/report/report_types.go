@@ -39,10 +39,15 @@ type Data struct {
 	OutputPath            string
 	Warnings              []Warning
 	UseDarkTheme          bool
-	USDTotalsChart        []TotalsChart
-	HoldingsOverTimeChart []TotalsChart
-	PNLOverTimeChart      []TotalsChart
+	USDTotalsChart        *Chart
+	HoldingsOverTimeChart *Chart
+	PNLOverTimeChart      *Chart
 	Prettify              PrettyNumbers
+}
+
+type Chart struct {
+	AxisType string
+	Data     []TotalsChart
 }
 
 // TotalsChart holds chart plot data

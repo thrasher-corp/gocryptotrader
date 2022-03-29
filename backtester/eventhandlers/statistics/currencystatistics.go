@@ -18,9 +18,9 @@ func (c *CurrencyPairStatistic) CalculateResults(riskFreeRate decimal.Decimal) e
 	first := c.Events[0]
 	sep := fmt.Sprintf("%v %v %v |\t", first.DataEvent.GetExchange(), first.DataEvent.GetAssetType(), first.DataEvent.Pair())
 
-	firstPrice := first.DataEvent.GetClosePrice()
+	firstPrice := first.ClosePrice
 	last := c.Events[len(c.Events)-1]
-	lastPrice := last.DataEvent.GetClosePrice()
+	lastPrice := last.ClosePrice
 	for i := range last.Transactions.Orders {
 		switch last.Transactions.Orders[i].Order.Side {
 		case gctorder.Buy:
@@ -34,15 +34,15 @@ func (c *CurrencyPairStatistic) CalculateResults(riskFreeRate decimal.Decimal) e
 		}
 	}
 	for i := range c.Events {
-		price := c.Events[i].DataEvent.GetClosePrice()
+		price := c.Events[i].ClosePrice
 		if price.LessThan(c.LowestClosePrice.Value) || !c.LowestClosePrice.Set {
 			c.LowestClosePrice.Value = price
-			c.LowestClosePrice.Time = c.Events[i].DataEvent.GetTime()
+			c.LowestClosePrice.Time = c.Events[i].Time
 			c.LowestClosePrice.Set = true
 		}
 		if price.GreaterThan(c.HighestClosePrice.Value) {
 			c.HighestClosePrice.Value = price
-			c.HighestClosePrice.Time = c.Events[i].DataEvent.GetTime()
+			c.HighestClosePrice.Time = c.Events[i].Time
 			c.HighestClosePrice.Set = true
 		}
 	}
@@ -69,16 +69,16 @@ func (c *CurrencyPairStatistic) CalculateResults(riskFreeRate decimal.Decimal) e
 		if c.Events[i].SignalEvent != nil && c.Events[i].SignalEvent.GetDirection() == common.MissingData {
 			c.ShowMissingDataWarning = true
 		}
-		if c.Events[i].DataEvent.GetClosePrice().IsZero() || c.Events[i-1].DataEvent.GetClosePrice().IsZero() {
+		if c.Events[i].ClosePrice.IsZero() || c.Events[i-1].ClosePrice.IsZero() {
 			// closing price for the current candle or previous candle is zero, use the previous
 			// benchmark rate to allow some consistency
 			c.ShowMissingDataWarning = true
 			benchmarkRates[i] = benchmarkRates[i-1]
 			continue
 		}
-		benchmarkRates[i] = c.Events[i].DataEvent.GetClosePrice().Sub(
-			c.Events[i-1].DataEvent.GetClosePrice()).Div(
-			c.Events[i-1].DataEvent.GetClosePrice())
+		benchmarkRates[i] = c.Events[i].ClosePrice.Sub(
+			c.Events[i-1].ClosePrice).Div(
+			c.Events[i-1].ClosePrice)
 	}
 
 	// remove the first entry as its zero and impacts
@@ -132,8 +132,8 @@ func (c *CurrencyPairStatistic) CalculateResults(riskFreeRate decimal.Decimal) e
 
 func (c *CurrencyPairStatistic) calculateHighestCommittedFunds() {
 	for i := range c.Events {
-		if c.Events[i].Holdings.BaseSize.Mul(c.Events[i].DataEvent.GetClosePrice()).GreaterThan(c.HighestCommittedFunds.Value) {
-			c.HighestCommittedFunds.Value = c.Events[i].Holdings.BaseSize.Mul(c.Events[i].DataEvent.GetClosePrice())
+		if c.Events[i].Holdings.BaseSize.Mul(c.Events[i].ClosePrice).GreaterThan(c.HighestCommittedFunds.Value) {
+			c.HighestCommittedFunds.Value = c.Events[i].Holdings.BaseSize.Mul(c.Events[i].ClosePrice)
 			c.HighestCommittedFunds.Time = c.Events[i].Holdings.Timestamp
 		}
 	}

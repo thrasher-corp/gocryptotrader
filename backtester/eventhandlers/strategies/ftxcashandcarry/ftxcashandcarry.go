@@ -31,7 +31,7 @@ func (s *Strategy) Description() string {
 // OnSignal handles a data event and returns what action the strategy believes should occur
 // For rsi, this means returning a buy signal when rsi is at or below a certain level, and a
 // sell signal when it is at or above a certain level
-func (s *Strategy) OnSignal(data.Handler, funding.IFundTransferer, portfolio.Handler) (signal.Event, error) {
+func (s *Strategy) OnSignal(data.Handler, funding.IFundingTransferer, portfolio.Handler) (signal.Event, error) {
 	return nil, base.ErrSimultaneousProcessingOnly
 }
 
@@ -51,7 +51,7 @@ var errNotSetup = errors.New("sent incomplete signals")
 
 // OnSimultaneousSignals analyses multiple data points simultaneously, allowing flexibility
 // in allowing a strategy to only place an order for X currency if Y currency's price is Z
-func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundTransferer, p portfolio.Handler) ([]signal.Event, error) {
+func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundingTransferer, p portfolio.Handler) ([]signal.Event, error) {
 	var response []signal.Event
 	sortedSignals, err := sortSignals(d, f)
 	if err != nil {
@@ -82,7 +82,7 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundTransf
 		if pos != nil && pos[len(pos)-1].Status == order.Open {
 			futuresSignal.AppendReason(fmt.Sprintf("Unrealised PNL %v", pos[len(pos)-1].UnrealisedPNL))
 		}
-		if f.HasBeenLiquidated(&spotSignal) || f.HasBeenLiquidated(&futuresSignal) {
+		if f.HasExchangeBeenLiquidated(&spotSignal) || f.HasExchangeBeenLiquidated(&futuresSignal) {
 			spotSignal.AppendReason("cannot transact, has been liquidated")
 			futuresSignal.AppendReason("cannot transact, has been liquidated")
 			response = append(response, &spotSignal, &futuresSignal)
@@ -141,7 +141,7 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundTransf
 	return response, nil
 }
 
-func sortSignals(d []data.Handler, f funding.IFundTransferer) (map[currency.Pair]cashCarrySignals, error) {
+func sortSignals(d []data.Handler, f funding.IFundingTransferer) (map[currency.Pair]cashCarrySignals, error) {
 	var response = make(map[currency.Pair]cashCarrySignals)
 	for i := range d {
 		l := d[i].Latest()

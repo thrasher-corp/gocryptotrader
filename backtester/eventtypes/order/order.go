@@ -98,3 +98,8 @@ func (o *Order) IsClosingPosition() bool {
 func (o *Order) IsLiquidating() bool {
 	return o.LiquidatingPosition
 }
+
+// GetClosePrice returns the close price
+func (o *Order) GetClosePrice() decimal.Decimal {
+	return o.ClosePrice
+}

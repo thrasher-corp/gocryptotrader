@@ -118,22 +118,22 @@ func (bt *BackTest) handleEvent(ev common.EventHandler) error {
 		} else {
 			err = bt.processSingleDataEvent(eType, funds.FundReleaser())
 		}
-		if err != nil {
-			return err
-		}
 	case signal.Event:
-		bt.processSignalEvent(eType, funds.FundReserver())
+		err = bt.processSignalEvent(eType, funds.FundReserver())
 	case order.Event:
-		bt.processOrderEvent(eType, funds.FundReleaser())
+		err = bt.processOrderEvent(eType, funds.FundReleaser())
 	case fill.Event:
-		bt.processFillEvent(eType, funds.FundReleaser())
+		err = bt.processFillEvent(eType, funds.FundReleaser())
 	default:
 		return fmt.Errorf("handleEvent %w %T received, could not process",
 			errUnhandledDatatype,
 			ev)
 	}
-	bt.Funding.CreateSnapshot(ev.GetTime())
+	if err != nil {
+		return err
+	}
 
+	bt.Funding.CreateSnapshot(ev.GetTime())
 	return nil
 }
 
@@ -220,7 +220,7 @@ func (bt *BackTest) updateStatsForDataEvent(ev common.DataEventHandler, funds fu
 	// update statistics with the latest price
 	err := bt.Statistic.SetupEventForTime(ev)
 	if err != nil {
-		if err == statistics.ErrAlreadyProcessed {
+		if errors.Is(err, statistics.ErrAlreadyProcessed) {
 			return err
 		}
 		log.Errorf(common.SubLoggers[common.Backtester], "SetupEventForTime %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
@@ -239,34 +239,40 @@ func (bt *BackTest) updateStatsForDataEvent(ev common.DataEventHandler, funds fu
 		}
 
 		err = bt.Portfolio.UpdatePNL(ev, ev.GetClosePrice())
-		if err != nil {
-			if errors.Is(err, gctorder.ErrPositionLiquidated) {
-				cr.Liquidate()
-			} else {
-				log.Errorf(common.SubLoggers[common.Backtester], "UpdatePNL %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
-				return nil
-			}
+		if err != nil && !errors.Is(err, gctorder.ErrPositionLiquidated) {
+			return fmt.Errorf("UpdatePNL %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 		}
 		var pnl *portfolio.PNLSummary
 		pnl, err = bt.Portfolio.GetLatestPNLForEvent(ev)
 		if err != nil {
 			return err
 		}
-
-		pnl.Result.UnrealisedPNL = decimal.NewFromInt(-444 - ev.GetOffset())
-
+		if !pnl.Result.IsLiquidated {
+			pnl.Result.UnrealisedPNL = decimal.NewFromInt(-600 - ev.GetOffset())
+		}
+		if pnl.Result.IsLiquidated {
+			return nil
+		}
 		err = bt.Portfolio.CheckLiquidationStatus(ev, cr, pnl)
 		if err != nil {
 			if errors.Is(err, gctorder.ErrPositionLiquidated) {
 				// trigger closure of everything
-				orders, err := bt.Portfolio.CreateLiquidationOrders(ev, bt.Funding)
+				orders, err := bt.Portfolio.CreateLiquidationOrdersForExchange(ev, bt.Funding)
 				if err != nil {
 					return err
 				}
 				for i := range orders {
 					bt.EventQueue.AppendEvent(orders[i])
+					//err := bt.Statistic.SetupEventForTime(orders[i])
+					//if err != nil {
+					//	if errors.Is(err, statistics.ErrAlreadyProcessed) {
+					//		continue
+					//	}
+					//	log.Errorf(common.SubLoggers[common.Backtester], "SetupEventForTime %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
+					//}
 				}
 				pnl.Result.IsLiquidated = true
+				pnl.Result.Status = gctorder.Liquidated
 				pnlErr := bt.Statistic.AddPNLForTime(pnl)
 				if pnlErr != nil {
 					return pnlErr
@@ -282,33 +288,34 @@ func (bt *BackTest) updateStatsForDataEvent(ev common.DataEventHandler, funds fu
 }
 
 // processSignalEvent receives an event from the strategy for processing under the portfolio
-func (bt *BackTest) processSignalEvent(ev signal.Event, funds funding.IFundReserver) {
+func (bt *BackTest) processSignalEvent(ev signal.Event, funds funding.IFundReserver) error {
 	cs, err := bt.Exchange.GetCurrencySettings(ev.GetExchange(), ev.GetAssetType(), ev.Pair())
 	if err != nil {
 		log.Errorf(common.SubLoggers[common.Backtester], "GetCurrencySettings %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
-		return
+		return fmt.Errorf("GetCurrencySettings %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 	}
 	var o *order.Order
 	o, err = bt.Portfolio.OnSignal(ev, &cs, funds)
 	if err != nil {
 		log.Errorf(common.SubLoggers[common.Backtester], "OnSignal %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
-		return
+		return fmt.Errorf("OnSignal %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 	}
 	err = bt.Statistic.SetEventForOffset(o)
 	if err != nil {
-		log.Errorf(common.SubLoggers[common.Backtester], "SetEventForOffset %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
+		return fmt.Errorf("SetEventForOffset %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 	}
 
 	bt.EventQueue.AppendEvent(o)
+	return nil
 }
 
-func (bt *BackTest) processOrderEvent(ev order.Event, funds funding.IFundReleaser) {
+func (bt *BackTest) processOrderEvent(ev order.Event, funds funding.IFundReleaser) error {
 	d := bt.Datas.GetDataForCurrency(ev.GetExchange(), ev.GetAssetType(), ev.Pair())
 	f, err := bt.Exchange.ExecuteOrder(ev, d, bt.orderManager, funds)
 	if err != nil {
 		if f == nil {
 			log.Errorf(common.SubLoggers[common.Backtester], "ExecuteOrder fill event should always be returned, please fix, %v", err)
-			return
+			return fmt.Errorf("ExecuteOrder fill event should always be returned, please fix, %v", err)
 		}
 		if !errors.Is(err, exchange.ErrDoNothing) {
 			log.Errorf(common.SubLoggers[common.Backtester], "ExecuteOrder %v %v %v %v", f.GetExchange(), f.GetAssetType(), f.Pair(), err)
@@ -319,13 +326,13 @@ func (bt *BackTest) processOrderEvent(ev order.Event, funds funding.IFundRelease
 		log.Errorf(common.SubLoggers[common.Backtester], "SetEventForOffset %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 	}
 	bt.EventQueue.AppendEvent(f)
+	return nil
 }
 
-func (bt *BackTest) processFillEvent(ev fill.Event, funds funding.IFundReleaser) {
+func (bt *BackTest) processFillEvent(ev fill.Event, funds funding.IFundReleaser) error {
 	t, err := bt.Portfolio.OnFill(ev, funds)
 	if err != nil {
-		log.Errorf(common.SubLoggers[common.Backtester], "OnFill %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
-		return
+		return fmt.Errorf("OnFill %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 	}
 	err = bt.Statistic.SetEventForOffset(t)
 	if err != nil {
@@ -372,15 +379,13 @@ func (bt *BackTest) processFillEvent(ev fill.Event, funds funding.IFundReleaser)
 		if ev.GetOrder() != nil {
 			pnl, err := bt.Portfolio.TrackFuturesOrder(ev, funds)
 			if err != nil && !errors.Is(err, gctorder.ErrSubmissionIsNil) {
-				log.Errorf(common.SubLoggers[common.Backtester], "TrackFuturesOrder %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
-				return
+				return fmt.Errorf("TrackFuturesOrder %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 			}
 
 			var exch gctexchange.IBotExchange
 			exch, err = bt.exchangeManager.GetExchangeByName(ev.GetExchange())
 			if err != nil {
-				log.Errorf(common.SubLoggers[common.Backtester], "GetExchangeByName %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
-				return
+				return fmt.Errorf("GetExchangeByName %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 			}
 
 			rPNL := pnl.GetRealisedPNL()
@@ -389,13 +394,11 @@ func (bt *BackTest) processFillEvent(ev fill.Event, funds funding.IFundReleaser)
 				var receivingAsset asset.Item
 				receivingCurrency, receivingAsset, err = exch.GetCurrencyForRealisedPNL(ev.GetAssetType(), ev.Pair())
 				if err != nil {
-					log.Errorf(common.SubLoggers[common.Backtester], "GetCurrencyForRealisedPNL %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
-					return
+					return fmt.Errorf("GetCurrencyForRealisedPNL %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 				}
 				err = bt.Funding.RealisePNL(ev.GetExchange(), receivingAsset, receivingCurrency, rPNL.PNL)
 				if err != nil {
-					log.Errorf(common.SubLoggers[common.Backtester], "RealisePNL %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
-					return
+					return fmt.Errorf("RealisePNL %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 				}
 			}
 
@@ -406,11 +409,10 @@ func (bt *BackTest) processFillEvent(ev fill.Event, funds funding.IFundReleaser)
 		}
 		err = bt.Funding.UpdateCollateral(ev)
 		if err != nil {
-			log.Errorf(common.SubLoggers[common.Backtester], "UpdateCollateral %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
-			return
+			return fmt.Errorf("UpdateCollateral %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 		}
-
 	}
+	return nil
 }
 
 // Stop shuts down the live data loop

@@ -31,12 +31,21 @@ type IFundingManager interface {
 	AddUSDTrackingData(*kline.DataFromKline) error
 	CreateSnapshot(time.Time)
 	USDTrackingDisabled() bool
-	Liquidate()
+	Liquidate(common.EventHandler)
 	GetAllFunding() []BasicItem
 	UpdateCollateral(common.EventHandler) error
 	HasFutures() bool
-	HasBeenLiquidated(ev common.EventHandler) bool
+	HasExchangeBeenLiquidated(handler common.EventHandler) bool
 	RealisePNL(receivingExchange string, receivingAsset asset.Item, receivingCurrency currency.Code, realisedPNL decimal.Decimal) error
+}
+
+// IFundingTransferer allows for funding amounts to be transferred
+// implementation can be swapped for live transferring
+type IFundingTransferer interface {
+	IsUsingExchangeLevelFunding() bool
+	Transfer(decimal.Decimal, *Item, *Item, bool) error
+	GetFundingForEvent(common.EventHandler) (IFundingPair, error)
+	HasExchangeBeenLiquidated(handler common.EventHandler) bool
 }
 
 // IFundingReader is a simple interface of
@@ -60,15 +69,6 @@ type IFundingPair interface {
 type IFundReader interface {
 	GetPairReader() (IPairReader, error)
 	GetCollateralReader() (ICollateralReader, error)
-}
-
-// IFundTransferer allows for funding amounts to be transferred
-// implementation can be swapped for live transferring
-type IFundTransferer interface {
-	IsUsingExchangeLevelFunding() bool
-	Transfer(decimal.Decimal, *Item, *Item, bool) error
-	GetFundingForEvent(common.EventHandler) (IFundingPair, error)
-	HasBeenLiquidated(ev common.EventHandler) bool
 }
 
 // IFundReserver limits funding usage for portfolio event handling

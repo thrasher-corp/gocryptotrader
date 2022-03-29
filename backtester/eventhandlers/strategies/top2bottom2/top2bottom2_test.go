@@ -214,15 +214,15 @@ func TestSelectTopAndBottomPerformers(t *testing.T) {
 	for i := range resp {
 		switch resp[i].GetDirection() {
 		case order.Buy:
-			if !resp[i].GetPrice().Equal(decimal.NewFromInt(1)) && !resp[i].GetPrice().Equal(decimal.NewFromInt(2)) {
+			if !resp[i].GetClosePrice().Equal(decimal.NewFromInt(1)) && !resp[i].GetClosePrice().Equal(decimal.NewFromInt(2)) {
 				t.Error("expected 1 or 2")
 			}
 		case order.Sell:
-			if !resp[i].GetPrice().Equal(decimal.NewFromInt(99)) && !resp[i].GetPrice().Equal(decimal.NewFromInt(98)) {
+			if !resp[i].GetClosePrice().Equal(decimal.NewFromInt(99)) && !resp[i].GetClosePrice().Equal(decimal.NewFromInt(98)) {
 				t.Error("expected 99 or 98")
 			}
 		case common.DoNothing:
-			if !resp[i].GetPrice().Equal(decimal.NewFromInt(50)) {
+			if !resp[i].GetClosePrice().Equal(decimal.NewFromInt(50)) {
 				t.Error("expected 50")
 			}
 		}

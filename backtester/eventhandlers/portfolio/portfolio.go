@@ -55,6 +55,7 @@ func (p *Portfolio) OnSignal(ev signal.Event, cs *exchange.Settings, funds fundi
 		Direction:          ev.GetDirection(),
 		FillDependentEvent: ev.GetFillDependentEvent(),
 		Amount:             ev.GetAmount(),
+		ClosePrice:         ev.GetClosePrice(),
 	}
 	if ev.GetDirection() == "" {
 		return o, errInvalidDirection
@@ -79,7 +80,6 @@ func (p *Portfolio) OnSignal(ev signal.Event, cs *exchange.Settings, funds fundi
 		return cannotPurchase(ev, o)
 	}
 
-	o.Price = ev.GetPrice()
 	o.OrderType = gctorder.Market
 	o.BuyLimit = ev.GetBuyLimit()
 	o.SellLimit = ev.GetSellLimit()
@@ -227,13 +227,13 @@ func (p *Portfolio) sizeOrder(d common.Directioner, cs *exchange.Settings, origi
 		sizedOrder.AllocatedSize = sizedOrder.Amount
 	case gctorder.Short, gctorder.Long:
 		err = funds.Reserve(sizedOrder.Amount, d.GetDirection())
-		sizedOrder.AllocatedSize = sizedOrder.Amount.Div(sizedOrder.Price)
+		sizedOrder.AllocatedSize = sizedOrder.Amount.Div(sizedOrder.ClosePrice)
 	case common.ClosePosition:
 		err = funds.Reserve(sizedOrder.Amount, d.GetDirection())
-		sizedOrder.AllocatedSize = sizedOrder.Amount.Div(sizedOrder.Price)
+		sizedOrder.AllocatedSize = sizedOrder.Amount.Div(sizedOrder.ClosePrice)
 	default:
-		err = funds.Reserve(sizedOrder.Amount.Mul(sizedOrder.Price), gctorder.Buy)
-		sizedOrder.AllocatedSize = sizedOrder.Amount.Mul(sizedOrder.Price)
+		err = funds.Reserve(sizedOrder.Amount.Mul(sizedOrder.ClosePrice), gctorder.Buy)
+		sizedOrder.AllocatedSize = sizedOrder.Amount.Mul(sizedOrder.ClosePrice)
 	}
 	if err != nil {
 		sizedOrder.Direction = common.DoNothing
@@ -612,16 +612,21 @@ func (p *Portfolio) CheckLiquidationStatus(e common.DataEventHandler, collateral
 	}
 	if !position.Status.IsInactive() &&
 		pnl.Result.UnrealisedPNL.IsNegative() &&
-		pnl.Result.UnrealisedPNL.Abs().GreaterThan(availableFunds) {
+		pnl.Result.UnrealisedPNL.Abs().GreaterThan(availableFunds) &&
+		availableFunds.GreaterThan(decimal.Zero) {
 		return gctorder.ErrPositionLiquidated
 	}
 
 	return nil
 }
 
-func (p *Portfolio) CreateLiquidationOrders(ev common.DataEventHandler, funds funding.IFundingManager) ([]*order.Order, error) {
-	var closingOrders []*order.Order
+func (p *Portfolio) CreateLiquidationOrdersForExchange(ev common.DataEventHandler, funds funding.IFundingManager) ([]order.Event, error) {
+	var closingOrders []order.Event
 	for exch, assetMap := range p.exchangeAssetPairSettings {
+		if exch != ev.GetExchange() {
+			// only liquidate the same exchange
+			continue
+		}
 		for item, pairMap := range assetMap {
 			for pair, settings := range pairMap {
 				switch {
@@ -649,16 +654,18 @@ func (p *Portfolio) CreateLiquidationOrders(ev common.DataEventHandler, funds fu
 							AssetType:      pos.Asset,
 							Reason:         "LIQUIDATED",
 						},
-						ID:                  "",
 						Direction:           direction,
 						Status:              gctorder.Liquidated,
-						Price:               ev.GetClosePrice(),
+						ClosePrice:          ev.GetClosePrice(),
 						Amount:              pos.Exposure,
 						AllocatedSize:       pos.Exposure,
 						OrderType:           gctorder.Market,
 						LiquidatingPosition: true,
 					})
-
+					err := settings.FuturesTracker.Liquidate(ev.GetClosePrice(), ev.GetTime())
+					if err != nil {
+						return nil, err
+					}
 				case item == asset.Spot:
 					allFunds := funds.GetAllFunding()
 					for i := range allFunds {
@@ -666,7 +673,8 @@ func (p *Portfolio) CreateLiquidationOrders(ev common.DataEventHandler, funds fu
 							continue
 						}
 						if allFunds[i].Currency.IsFiatCurrency() || allFunds[i].Currency.IsStableCurrency() {
-							// close orders for assets, zeroing for fiat/stable
+							// close orders for assets
+							// funding manager will zero for fiat/stable
 							continue
 						}
 						closingOrders = append(closingOrders, &order.Order{
@@ -691,7 +699,7 @@ func (p *Portfolio) CreateLiquidationOrders(ev common.DataEventHandler, funds fu
 			}
 		}
 	}
-	funds.Liquidate()
+	funds.Liquidate(ev)
 
 	return closingOrders, nil
 }

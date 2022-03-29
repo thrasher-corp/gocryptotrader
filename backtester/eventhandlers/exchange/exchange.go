@@ -51,7 +51,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 	if o.GetDirection() == common.DoNothing {
 		return f, ErrDoNothing
 	}
-	if (o.GetAssetType().IsFutures() && !o.IsClosingPosition()) || o.IsLiquidating() {
+	if o.GetAssetType().IsFutures() && !o.IsClosingPosition() {
 		f.Amount = o.GetAllocatedFunds()
 	}
 	eventFunds := o.GetAllocatedFunds()

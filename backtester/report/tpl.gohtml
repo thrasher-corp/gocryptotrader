@@ -780,7 +780,7 @@
 				Highcharts.setOptions(Highcharts.theme);
 			</script>
 				<h3>PNL Over Time</h3>
-				<div id="pnlovertime" style="max-height: 800px;min-height: 75vh;" >
+			<div id="pnlovertime" style="max-height: 800px;min-height: 75vh;" >
 					<script>
 						Highcharts.chart('pnlovertime', {
 							stockTools: {
@@ -794,7 +794,8 @@
 							yAxis: {
 								title: {
 									text: 'USD'
-								}
+								},
+								type: {{.PNLOverTimeChart.AxisType}}
 							},
 							xAxis: {
 								type: 'datetime'
@@ -809,17 +810,17 @@
 									label: {
 										connectorAllowed: false
 									},
-								}
+								},
 							},
 							series: [
-								{{ range .PNLOverTimeChart }}
+								{{ range .PNLOverTimeChart.Data }}
 								{
 									name: {{.Name}},
 									pointStart: {{ $.Statistics.StartDate.UnixMilli }},
 									pointInterval: {{$.Statistics.CandleInterval.Duration.Milliseconds}},
 									data: [
 										{{ range .DataPoints }}
-										[{{.UnixMilli}}, {{.Value}}],
+										[ {{ .UnixMilli}}, {{ .Value}} ],
 										{{end}}
 									]
 								},
@@ -860,10 +861,10 @@
 								text: 'Holding value over strategy duration'
 							},
 							yAxis: {
-								type: 'logarithmic',
 								title: {
 									text: 'USD'
-								}
+								},
+								type: {{.USDTotalsChart.AxisType}}
 							},
 							xAxis: {
 								type: 'datetime'
@@ -881,7 +882,7 @@
 								}
 							},
 							series: [
-								{{ range .USDTotalsChart }}
+								{{ range .USDTotalsChart.Data }}
 								{
 									name: {{.Name}},
 									pointStart: {{ $.Statistics.StartDate.UnixMilli }},
@@ -927,7 +928,7 @@
 								text: 'Holdings over strategy duration'
 							},
 							yAxis: {
-								type: 'logarithmic',
+								type: {{.HoldingsOverTimeChart.AxisType}},
 								title: {
 									text: 'Quantity'
 								}
@@ -948,7 +949,7 @@
 								}
 							},
 							series: [
-								{{ range .HoldingsOverTimeChart }}
+								{{ range .HoldingsOverTimeChart.Data }}
 								{
 									pointStart: {{ $.Statistics.StartDate.UnixMilli }},
 									pointInterval: {{$.Statistics.CandleInterval.Duration.Milliseconds}},

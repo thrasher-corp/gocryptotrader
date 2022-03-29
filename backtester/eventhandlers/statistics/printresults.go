@@ -124,7 +124,7 @@ func (s *Statistic) PrintAllEventsChronologically() {
 							fSIL(exch, limit12),
 							fSIL(a.String(), limit10),
 							fSIL(currencyStatistic.Events[i].SignalEvent.Pair().String(), limit14),
-							currencyStatistic.Events[i].SignalEvent.GetPrice().Round(8))
+							currencyStatistic.Events[i].SignalEvent.GetClosePrice().Round(8))
 						msg = addReason(currencyStatistic.Events[i].SignalEvent.GetReason(), msg)
 						msg = msg + common.ColourDefault
 						results = addEventOutputToTime(results, currencyStatistic.Events[i].SignalEvent.GetTime(), msg)
@@ -168,14 +168,14 @@ func (s *Statistic) PrintAllEventsChronologically() {
 func (c *CurrencyPairStatistic) PrintResults(e string, a asset.Item, p currency.Pair, usingExchangeLevelFunding bool) {
 	var errs gctcommon.Errors
 	sort.Slice(c.Events, func(i, j int) bool {
-		return c.Events[i].DataEvent.GetTime().Before(c.Events[j].DataEvent.GetTime())
+		return c.Events[i].Time.Before(c.Events[j].Time)
 	})
 	last := c.Events[len(c.Events)-1]
 	first := c.Events[0]
 	c.StartingClosePrice.Value = first.DataEvent.GetClosePrice()
-	c.StartingClosePrice.Time = first.DataEvent.GetTime()
+	c.StartingClosePrice.Time = first.Time
 	c.EndingClosePrice.Value = last.DataEvent.GetClosePrice()
-	c.EndingClosePrice.Time = last.DataEvent.GetTime()
+	c.EndingClosePrice.Time = last.Time
 	c.TotalOrders = c.BuyOrders + c.SellOrders + c.ShortOrders + c.LongOrders
 	last.Holdings.TotalValueLost = last.Holdings.TotalValueLostToSlippage.Add(last.Holdings.TotalValueLostToVolumeSizing)
 	sep := fmt.Sprintf("%v %v %v |\t", fSIL(e, limit12), fSIL(a.String(), limit10), fSIL(p.String(), limit14))
