@@ -46,8 +46,7 @@ func NewDepth(id uuid.UUID) *Depth {
 
 // Publish alerts any subscribed routines using a dispatch mux
 func (d *Depth) Publish() {
-	err := d.mux.Publish(d, d._ID)
-	if err != nil {
+	if err := d.mux.Publish(d, d._ID); err != nil {
 		log.Errorf(log.ExchangeSys, "Cannot publish orderbook update to mux %v", err)
 	}
 }

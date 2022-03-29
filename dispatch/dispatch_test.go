@@ -264,9 +264,17 @@ func TestDispatcher(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	go d.publish(id, "lol")
+	go func() {
+		err = d.publish(id, "lol")
+		if err != nil {
+			fmt.Println(err)
+		}
+	}()
 
-	response := (<-ch).(string)
+	response, ok := (<-ch).(string)
+	if !ok {
+		t.Fatal("type assertion failure")
+	}
 
 	if response != "lol" {
 		t.Fatal("unexpected return")
@@ -312,7 +320,6 @@ func TestDispatcher(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
-
 }
 
 func TestMux(t *testing.T) {
@@ -372,9 +379,18 @@ func TestMux(t *testing.T) {
 	}
 
 	payload := "string"
-	go mux.Publish(payload, id)
+	go func() {
+		err = mux.Publish(payload, id)
+		if err != nil {
+			fmt.Println(err)
+		}
+	}()
 
-	response := (<-pipe.C).(string)
+	response, ok := (<-pipe.C).(string)
+	if !ok {
+		t.Fatal("type assertion failure")
+	}
+
 	if response != payload {
 		t.Fatalf("received: '%v' but expected: '%v'", response, payload)
 	}

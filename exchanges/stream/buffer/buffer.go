@@ -156,7 +156,8 @@ func (w *Orderbook) Update(u *orderbook.Update) error {
 	}
 
 	if w.bufferEnabled {
-		processed, err := w.processBufferUpdate(book, u)
+		var processed bool
+		processed, err = w.processBufferUpdate(book, u)
 		if err != nil {
 			return err
 		}
@@ -165,7 +166,7 @@ func (w *Orderbook) Update(u *orderbook.Update) error {
 			return nil
 		}
 	} else {
-		err := w.processObUpdate(book, u)
+		err = w.processObUpdate(book, u)
 		if err != nil {
 			return err
 		}
@@ -325,7 +326,8 @@ func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
 	holder, ok := m2[book.Asset]
 	if !ok {
 		// Associate orderbook pointer with local exchange depth map
-		depth, err := orderbook.DeployDepth(book.Exchange, book.Pair, book.Asset)
+		var depth *orderbook.Depth
+		depth, err = orderbook.DeployDepth(book.Exchange, book.Pair, book.Asset)
 		if err != nil {
 			return err
 		}
