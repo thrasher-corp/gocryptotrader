@@ -36,7 +36,7 @@ var (
 
 var service = Service{
 	books: make(map[string]Exchange),
-	Mux:   dispatch.GetNewMux(),
+	Mux:   dispatch.GetNewMux(nil),
 }
 
 // Service provides a store for difference exchange orderbooks

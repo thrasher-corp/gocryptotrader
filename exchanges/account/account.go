@@ -12,7 +12,7 @@ import (
 func init() {
 	service = new(Service)
 	service.accounts = make(map[string]*Account)
-	service.mux = dispatch.GetNewMux()
+	service.mux = dispatch.GetNewMux(nil)
 }
 
 // CollectBalances converts a map of sub-account balances into a slice

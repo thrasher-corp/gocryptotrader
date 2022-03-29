@@ -22,7 +22,7 @@ func init() {
 	service = new(Service)
 	service.Tickers = make(map[string]map[*currency.Item]map[*currency.Item]map[asset.Item]*Ticker)
 	service.Exchange = make(map[string]uuid.UUID)
-	service.mux = dispatch.GetNewMux()
+	service.mux = dispatch.GetNewMux(nil)
 }
 
 // SubscribeTicker subcribes to a ticker and returns a communication channel to

@@ -17,14 +17,12 @@ const (
 	// DefaultHandshakeTimeout defines a workers max length of time to wait on a
 	// an unbuffered channel for a receiver before moving on to next route
 	DefaultHandshakeTimeout = 200 * time.Nanosecond
-
-	errNotInitialised   = "dispatcher not initialised"
-	errShutdownRoutines = "dispatcher did not shutdown properly, routines failed to close"
 )
 
 // dispatcher is our main in memory instance with a stop/start mtx below
 var dispatcher *Dispatcher
-var mtx sync.Mutex
+
+// var mtx sync.Mutex
 
 // Dispatcher defines an internal subsystem communication/change state publisher
 type Dispatcher struct {
@@ -77,7 +75,7 @@ type Mux struct {
 // Pipe defines an outbound object to the desired routine
 type Pipe struct {
 	// Channel to get all our lovely informations
-	C chan interface{}
+	C <-chan interface{}
 	// ID to tracked system
 	id uuid.UUID
 	// Reference to multiplexer
