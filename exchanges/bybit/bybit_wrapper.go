@@ -636,7 +636,7 @@ func (by *Bybit) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 		}
 
 	case asset.CoinMarginedFutures, asset.Futures:
-		tradeData, err := by.GetPublicTrades(ctx, currency.Pair{}, 0, 0)
+		tradeData, err := by.GetPublicTrades(ctx, currency.Pair{}, 0)
 		if err != nil {
 			return nil, err
 		}

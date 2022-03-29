@@ -91,15 +91,16 @@ type FuturesPublicTradesData struct {
 
 // SymbolInfo stores symbol information for futures pair
 type SymbolInfo struct {
-	Name           string  `json:"name"`
-	Alias          string  `json:"alias"`
-	Status         string  `json:"status"`
-	BaseCurrency   string  `json:"base_currency"`
-	QuoteCurrency  string  `json:"quote_currency"`
-	PriceScale     float64 `json:"price_scale"`
-	TakerFee       string  `json:"taker_fee"`
-	MakerFee       string  `json:"maker_fee"`
-	LeverageFilter struct {
+	Name               string  `json:"name"`
+	Alias              string  `json:"alias"`
+	Status             string  `json:"status"`
+	BaseCurrency       string  `json:"base_currency"`
+	QuoteCurrency      string  `json:"quote_currency"`
+	PriceScale         float64 `json:"price_scale"`
+	TakerFee           string  `json:"taker_fee"`
+	MakerFee           string  `json:"maker_fee"`
+	FundingFeeInterval int64   `json:"funding_interval"`
+	LeverageFilter     struct {
 		MinLeverage  int64   `json:"min_leverage"`
 		MaxLeverage  int64   `json:"max_leverage"`
 		LeverageStep float64 `json:"leverage_step,string"`
@@ -607,16 +608,18 @@ type FundingFee struct {
 
 // APIKeyData stores API key data
 type APIKeyData struct {
-	APIKey     string   `json:"api_key"`
-	Type       string   `json:"type"`
-	UserID     int64    `json:"user_id"`
-	InviterID  int64    `json:"inviter_id"`
-	IPs        []string `json:"ips"`
-	Note       string   `json:"note"`
-	Permission []string `json:"permissions"`
-	CreatedAt  string   `json:"created_at"`
-	ExpiredAt  string   `json:"expired_at"`
-	ReadOnly   bool     `json:"read_only"`
+	APIKey           string   `json:"api_key"`
+	Type             string   `json:"type"`
+	UserID           int64    `json:"user_id"`
+	InviterID        int64    `json:"inviter_id"`
+	IPs              []string `json:"ips"`
+	Note             string   `json:"note"`
+	Permission       []string `json:"permissions"`
+	CreatedAt        string   `json:"created_at"`
+	ExpiredAt        string   `json:"expired_at"`
+	ReadOnly         bool     `json:"read_only"`
+	VIPLevel         string   `json:"vip_level"`
+	MarketMakerLevel string   `json:"mkt_maker_level"`
 }
 
 // LCPData stores LiquidityContributionPointsData data

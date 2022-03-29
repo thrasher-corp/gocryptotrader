@@ -473,12 +473,12 @@ func TestGetPublicTrades(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = b.GetPublicTrades(context.Background(), pair, 0, 0)
+	_, err = b.GetPublicTrades(context.Background(), pair, 0)
 	if err != nil {
 		t.Error(err)
 	}
 
-	_, err = b.GetPublicTrades(context.Background(), pair, 0, 10)
+	_, err = b.GetPublicTrades(context.Background(), pair, 10000)
 	if err != nil {
 		t.Error(err)
 	}

@@ -165,7 +165,7 @@ func (by *Bybit) GetFuturesSymbolPriceTicker(ctx context.Context, symbol currenc
 }
 
 // GetPublicTrades gets past public trades for CoinMarginedFutures.
-func (by *Bybit) GetPublicTrades(ctx context.Context, symbol currency.Pair, limit, fromID int64) ([]FuturesPublicTradesData, error) {
+func (by *Bybit) GetPublicTrades(ctx context.Context, symbol currency.Pair, limit int64) ([]FuturesPublicTradesData, error) {
 	resp := struct {
 		Data []FuturesPublicTradesData `json:"result"`
 	}{}
@@ -178,9 +178,6 @@ func (by *Bybit) GetPublicTrades(ctx context.Context, symbol currency.Pair, limi
 	params.Set("symbol", symbolValue)
 	if limit > 0 && limit <= 1000 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
-	}
-	if fromID != 0 {
-		params.Set("fromID", strconv.FormatInt(fromID, 10))
 	}
 
 	path := common.EncodeURLValues(bybitFuturesAPIVersion+cfuturesRecentTrades, params)
