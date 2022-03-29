@@ -691,34 +691,29 @@ func (s *RPCServer) GetAccountInfoStream(r *gctrpc.GetAccountInfoRequest, stream
 			return errDispatchSystem
 		}
 
-		d := *data.(*interface{})
-		if d == nil {
+		holdings, ok := data.(*account.Holdings)
+		if !ok {
 			return errors.New("unable to type assert data")
 		}
 
-		acc, ok := d.(account.Holdings)
-		if !ok {
-			return errors.New("unable to type assert account holdings data")
-		}
-
 		var accounts []*gctrpc.Account
-		for x := range acc.Accounts {
+		for x := range holdings.Accounts {
 			var subAccounts []*gctrpc.AccountCurrencyInfo
-			for y := range acc.Accounts[x].Currencies {
+			for y := range holdings.Accounts[x].Currencies {
 				subAccounts = append(subAccounts, &gctrpc.AccountCurrencyInfo{
-					Currency:   acc.Accounts[x].Currencies[y].CurrencyName.String(),
-					TotalValue: acc.Accounts[x].Currencies[y].Total,
-					Hold:       acc.Accounts[x].Currencies[y].Hold,
+					Currency:   holdings.Accounts[x].Currencies[y].CurrencyName.String(),
+					TotalValue: holdings.Accounts[x].Currencies[y].Total,
+					Hold:       holdings.Accounts[x].Currencies[y].Hold,
 				})
 			}
 			accounts = append(accounts, &gctrpc.Account{
-				Id:         acc.Accounts[x].ID,
+				Id:         holdings.Accounts[x].ID,
 				Currencies: subAccounts,
 			})
 		}
 
 		err := stream.Send(&gctrpc.GetAccountInfoResponse{
-			Exchange: acc.Exchange,
+			Exchange: holdings.Exchange,
 			Accounts: accounts,
 		})
 		if err != nil {
@@ -2103,6 +2098,8 @@ func (s *RPCServer) GetExchangeOrderbookStream(r *gctrpc.GetExchangeOrderbookStr
 		return err
 	}
 
+	fmt.Println(stream.Context())
+
 	pipe, err := orderbook.SubscribeToExchangeOrderbooks(r.Exchange)
 	if err != nil {
 		return err
@@ -2204,14 +2201,9 @@ func (s *RPCServer) GetTickerStream(r *gctrpc.GetTickerStreamRequest, stream gct
 			return errDispatchSystem
 		}
 
-		d := *data.(*interface{})
-		if d == nil {
-			return errors.New("unable to type assert data")
-		}
-
-		t, ok := d.(ticker.Price)
+		t, ok := data.(*ticker.Price)
 		if !ok {
-			return errors.New("unable to type assert ticker data")
+			return errors.New("unable to type assert data")
 		}
 
 		err := stream.Send(&gctrpc.TickerResponse{
@@ -2262,14 +2254,9 @@ func (s *RPCServer) GetExchangeTickerStream(r *gctrpc.GetExchangeTickerStreamReq
 			return errDispatchSystem
 		}
 
-		d := *data.(*interface{})
-		if d == nil {
-			return errors.New("unable to type assert data")
-		}
-
-		t, ok := d.(ticker.Price)
+		t, ok := data.(*ticker.Price)
 		if !ok {
-			return errors.New("unable to type assert ticker data")
+			return errors.New("unable to type assert data")
 		}
 
 		err := stream.Send(&gctrpc.TickerResponse{
