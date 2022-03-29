@@ -36,7 +36,7 @@ type Dispatcher struct {
 	rMtx sync.RWMutex
 
 	// Persistent buffered job queue for relayers
-	jobs chan *job
+	jobs chan job
 
 	// Dynamic channel pool; returns an unbuffered channel for routes map
 	outbound sync.Pool

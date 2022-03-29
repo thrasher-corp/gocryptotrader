@@ -102,7 +102,7 @@ func (d *Dispatcher) start(workers, channelCapacity int) error {
 			DefaultJobsLimit)
 		channelCapacity = DefaultJobsLimit
 	}
-	d.jobs = make(chan *job, channelCapacity) // TODO: pass by value
+	d.jobs = make(chan job, channelCapacity)
 	d.maxWorkers = int32(workers)
 	d.shutdown = make(chan *sync.WaitGroup)
 
@@ -249,7 +249,7 @@ func (d *Dispatcher) publish(id uuid.UUID, data interface{}) error {
 	}
 
 	select {
-	case d.jobs <- &job{Data: data, ID: id}: // Push job into job channel.
+	case d.jobs <- job{data, id}: // Push job into job channel.
 		return nil
 	default:
 		return fmt.Errorf(limitMessage,
