@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"sync"
 	"testing"
 
 	"github.com/gofrs/uuid"
@@ -192,7 +193,7 @@ func TestDispatcher(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	err = d.start(1, 1)
+	err = d.start(2, 1)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
@@ -212,6 +213,11 @@ func TestDispatcher(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
+	err = d.dropWorker()
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
 	err = d.publish([uuid.Size]byte{255}, "lol")
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
@@ -220,6 +226,11 @@ func TestDispatcher(t *testing.T) {
 	err = d.publish([uuid.Size]byte{255}, "lol")
 	if !errors.Is(err, errDispatcherJobsAtLimit) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errDispatcherJobsAtLimit)
+	}
+
+	err = d.spawnWorker()
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
 	err = d.spawnWorker()
@@ -264,20 +275,37 @@ func TestDispatcher(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	go func() {
-		err = d.publish(id, "lol")
-		if err != nil {
-			fmt.Println(err)
+	var errChan = make(chan error)
+	// Makes sure receiver is waiting for update
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func(ch <-chan interface{}, errChan chan error, wg *sync.WaitGroup) {
+		wg.Done()
+		response, ok := (<-ch).(string)
+		if !ok {
+			errChan <- errors.New("type assertion failure")
+			return
 		}
-	}()
 
-	response, ok := (<-ch).(string)
-	if !ok {
-		t.Fatal("type assertion failure")
-	}
+		if response != "lol" {
+			errChan <- errors.New("unexpected return")
+			return
+		}
+		errChan <- nil
+	}(ch, errChan, &wg)
 
-	if response != "lol" {
-		t.Fatal("unexpected return")
+	wg.Wait()
+
+	go func(id uuid.UUID) {
+		err2 := d.publish(id, "lol")
+		if err2 != nil {
+			fmt.Println(err2)
+		}
+	}(id)
+
+	err = <-errChan
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	// publish no receiver
@@ -378,21 +406,38 @@ func TestMux(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
+	var errChan = make(chan error)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	// Makes sure receiver is waiting for update
+	go func(ch <-chan interface{}, errChan chan error, wg *sync.WaitGroup) {
+		wg.Done()
+		response, ok := (<-ch).(string)
+		if !ok {
+			errChan <- errors.New("type assertion failure")
+			return
+		}
+
+		if response != "string" {
+			errChan <- errors.New("unexpected return")
+			return
+		}
+		errChan <- nil
+	}(pipe.C, errChan, &wg)
+
+	wg.Wait()
+
 	payload := "string"
 	go func(payload string) {
-		err = mux.Publish(payload, id)
-		if err != nil {
-			fmt.Println(err)
+		err2 := mux.Publish(payload, id)
+		if err2 != nil {
+			fmt.Println(err2)
 		}
 	}(payload)
 
-	response, ok := (<-pipe.C).(string)
-	if !ok {
-		t.Fatal("type assertion failure")
-	}
-
-	if response != payload {
-		t.Fatalf("received: '%v' but expected: '%v'", response, payload)
+	err = <-errChan
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	err = pipe.Release()
