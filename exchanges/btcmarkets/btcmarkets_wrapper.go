@@ -96,6 +96,7 @@ func (b *BTCMarkets) SetDefaults() {
 				OrderbookFetching:      true,
 				AccountInfo:            true,
 				Subscribe:              true,
+				Unsubscribe:            true,
 				AuthenticatedEndpoints: true,
 				GetOrders:              true,
 				GetOrder:               true,

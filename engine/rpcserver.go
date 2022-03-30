@@ -2057,30 +2057,32 @@ func (s *RPCServer) GetOrderbookStream(r *gctrpc.GetOrderbookStreamRequest, stre
 	}
 
 	for {
+		resp := &gctrpc.OrderbookResponse{
+			Pair:      &gctrpc.CurrencyPair{Base: r.Pair.Base, Quote: r.Pair.Quote},
+			AssetType: r.AssetType,
+		}
 		base, err := depth.Retrieve()
 		if err != nil {
-			return err
+			resp.Error = err.Error()
+			resp.LastUpdated = time.Now().Unix()
+		} else {
+			resp.Bids = make([]*gctrpc.OrderbookItem, len(base.Bids))
+			for i := range base.Bids {
+				resp.Bids[i] = &gctrpc.OrderbookItem{
+					Amount: base.Bids[i].Amount,
+					Price:  base.Bids[i].Price,
+					Id:     base.Bids[i].ID}
+			}
+			resp.Asks = make([]*gctrpc.OrderbookItem, len(base.Asks))
+			for i := range base.Asks {
+				resp.Asks[i] = &gctrpc.OrderbookItem{
+					Amount: base.Asks[i].Amount,
+					Price:  base.Asks[i].Price,
+					Id:     base.Asks[i].ID}
+			}
 		}
-		bids := make([]*gctrpc.OrderbookItem, len(base.Bids))
-		for i := range base.Bids {
-			bids[i] = &gctrpc.OrderbookItem{
-				Amount: base.Bids[i].Amount,
-				Price:  base.Bids[i].Price,
-				Id:     base.Bids[i].ID}
-		}
-		asks := make([]*gctrpc.OrderbookItem, len(base.Asks))
-		for i := range base.Asks {
-			asks[i] = &gctrpc.OrderbookItem{
-				Amount: base.Asks[i].Amount,
-				Price:  base.Asks[i].Price,
-				Id:     base.Asks[i].ID}
-		}
-		err = stream.Send(&gctrpc.OrderbookResponse{
-			Pair:      &gctrpc.CurrencyPair{Base: r.Pair.Base, Quote: r.Pair.Quote},
-			Bids:      bids,
-			Asks:      asks,
-			AssetType: r.AssetType,
-		})
+
+		err = stream.Send(resp)
 		if err != nil {
 			return err
 		}
@@ -2097,8 +2099,6 @@ func (s *RPCServer) GetExchangeOrderbookStream(r *gctrpc.GetExchangeOrderbookStr
 	if _, err := s.GetExchangeByName(r.Exchange); err != nil {
 		return err
 	}
-
-	fmt.Println(stream.Context())
 
 	pipe, err := orderbook.SubscribeToExchangeOrderbooks(r.Exchange)
 	if err != nil {
@@ -2123,32 +2123,34 @@ func (s *RPCServer) GetExchangeOrderbookStream(r *gctrpc.GetExchangeOrderbookStr
 			return errors.New("unable to type assert data")
 		}
 
+		resp := &gctrpc.OrderbookResponse{}
 		ob, err := d.Retrieve()
 		if err != nil {
-			return err
+			resp.Error = err.Error()
+			resp.LastUpdated = time.Now().Unix()
+		} else {
+			resp.Pair = &gctrpc.CurrencyPair{
+				Base:  ob.Pair.Base.String(),
+				Quote: ob.Pair.Quote.String(),
+			}
+			resp.AssetType = ob.Asset.String()
+			resp.Bids = make([]*gctrpc.OrderbookItem, len(ob.Bids))
+			for i := range ob.Bids {
+				resp.Bids[i] = &gctrpc.OrderbookItem{
+					Amount: ob.Bids[i].Amount,
+					Price:  ob.Bids[i].Price,
+					Id:     ob.Bids[i].ID}
+			}
+			resp.Asks = make([]*gctrpc.OrderbookItem, len(ob.Asks))
+			for i := range ob.Asks {
+				resp.Asks[i] = &gctrpc.OrderbookItem{
+					Amount: ob.Asks[i].Amount,
+					Price:  ob.Asks[i].Price,
+					Id:     ob.Asks[i].ID}
+			}
 		}
 
-		bids := make([]*gctrpc.OrderbookItem, len(ob.Bids))
-		for i := range ob.Bids {
-			bids[i] = &gctrpc.OrderbookItem{
-				Amount: ob.Bids[i].Amount,
-				Price:  ob.Bids[i].Price,
-				Id:     ob.Bids[i].ID}
-		}
-		asks := make([]*gctrpc.OrderbookItem, len(ob.Asks))
-		for i := range ob.Asks {
-			asks[i] = &gctrpc.OrderbookItem{
-				Amount: ob.Asks[i].Amount,
-				Price:  ob.Asks[i].Price,
-				Id:     ob.Asks[i].ID}
-		}
-		err = stream.Send(&gctrpc.OrderbookResponse{
-			Pair: &gctrpc.CurrencyPair{Base: ob.Pair.Base.String(),
-				Quote: ob.Pair.Quote.String()},
-			Bids:      bids,
-			Asks:      asks,
-			AssetType: ob.Asset.String(),
-		})
+		err = stream.Send(resp)
 		if err != nil {
 			return err
 		}

@@ -765,7 +765,7 @@ func (m *syncManager) PrintTickerSummary(result *ticker.Price, protocol string, 
 		!result.Pair.Quote.Equal(m.fiatDisplayCurrency) &&
 		!m.fiatDisplayCurrency.IsEmpty() {
 		origCurrency := result.Pair.Quote.Upper()
-		log.Infof(log.Ticker, "%s %s %s %s: TICKER: Last %s Ask %s Bid %s High %s Low %s Volume %.8f",
+		log.Infof(log.Ticker, "%s %s %s %s: Last %s Ask %s Bid %s High %s Low %s Volume %.8f",
 			result.ExchangeName,
 			protocol,
 			m.FormatCurrency(result.Pair),
@@ -780,7 +780,7 @@ func (m *syncManager) PrintTickerSummary(result *ticker.Price, protocol string, 
 		if result.Pair.Quote.IsFiatCurrency() &&
 			result.Pair.Quote.Equal(m.fiatDisplayCurrency) &&
 			!m.fiatDisplayCurrency.IsEmpty() {
-			log.Infof(log.Ticker, "%s %s %s %s: TICKER: Last %s Ask %s Bid %s High %s Low %s Volume %.8f",
+			log.Infof(log.Ticker, "%s %s %s %s: Last %s Ask %s Bid %s High %s Low %s Volume %.8f",
 				result.ExchangeName,
 				protocol,
 				m.FormatCurrency(result.Pair),
@@ -792,7 +792,7 @@ func (m *syncManager) PrintTickerSummary(result *ticker.Price, protocol string, 
 				printCurrencyFormat(result.Low, m.fiatDisplayCurrency),
 				result.Volume)
 		} else {
-			log.Infof(log.Ticker, "%s %s %s %s: TICKER: Last %.8f Ask %.8f Bid %.8f High %.8f Low %.8f Volume %.8f",
+			log.Infof(log.Ticker, "%s %s %s %s: Last %.8f Ask %.8f Bid %.8f High %.8f Low %.8f Volume %.8f",
 				result.ExchangeName,
 				protocol,
 				m.FormatCurrency(result.Pair),
@@ -817,7 +817,7 @@ func (m *syncManager) FormatCurrency(p currency.Pair) currency.Pair {
 }
 
 const (
-	book = "%s %s %s %s: ORDERBOOK: Bids len: %d Amount: %f %s. Total value: %s Asks len: %d Amount: %f %s. Total value: %s"
+	book = "%s %s %s %s: Bids len: %d Amount: %f %s. Total value: %s Asks len: %d Amount: %f %s. Total value: %s"
 )
 
 // PrintOrderbookSummary outputs orderbook results

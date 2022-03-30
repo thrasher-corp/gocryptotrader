@@ -285,8 +285,8 @@ func (d *Depth) GetName() string {
 	return d.exchange
 }
 
-// IsRestSnapshot returns if the depth item was updated via REST
-func (d *Depth) IsRestSnapshot() (bool, error) {
+// IsRESTSnapshot returns if the depth item was updated via REST
+func (d *Depth) IsRESTSnapshot() (bool, error) {
 	d.m.Lock()
 	defer d.m.Unlock()
 	if !d.isValid {

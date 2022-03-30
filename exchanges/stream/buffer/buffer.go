@@ -115,8 +115,8 @@ func (w *Orderbook) Update(u *orderbook.Update) error {
 	// Checks for when the rest protocol overwrites a streaming dominated book
 	// will stop updating book via incremental updates. This occurs because our
 	// sync manager (engine/sync.go) timer has elapsed for streaming. Usually
-	// because the book is highly illiquid. TODO: Book resubscribe on websocket.
-	isREST, err := book.ob.IsRestSnapshot()
+	// because the book is highly illiquid.
+	isREST, err := book.ob.IsRESTSnapshot()
 	if err != nil {
 		if !errors.Is(err, orderbook.ErrOrderbookInvalid) {
 			return err

@@ -11,7 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
-var id, _ = uuid.NewV4()
+var id = uuid.Must(uuid.NewV4())
 
 func TestGetLength(t *testing.T) {
 	t.Parallel()
@@ -88,7 +88,7 @@ func TestRetrieve(t *testing.T) {
 		VerifyOrderbook:  true,
 		restSnapshot:     true,
 		idAligned:        true,
-		isValid:          true, // not needed but here to pass test
+		isValid:          true,
 	}
 
 	// If we add anymore options to the options struct later this will complain
@@ -523,12 +523,12 @@ func TestIsRestSnapshot(t *testing.T) {
 	t.Parallel()
 	d := Depth{}
 	d.restSnapshot = true
-	if _, err := d.IsRestSnapshot(); !errors.Is(err, ErrOrderbookInvalid) {
+	if _, err := d.IsRESTSnapshot(); !errors.Is(err, ErrOrderbookInvalid) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
 	}
 
 	d.isValid = true
-	b, err := d.IsRestSnapshot()
+	b, err := d.IsRESTSnapshot()
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
