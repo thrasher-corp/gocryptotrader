@@ -29,6 +29,8 @@ var (
 	errDeleteFailure                = errors.New("orderbook delete update failure")
 	errInsertFailure                = errors.New("orderbook insert update failure")
 	errUpdateInsertFailure          = errors.New("orderbook update/insert update failure")
+	errRESTTimerLapse               = errors.New("rest sync timer lapse with active websocket connection")
+	errOrderbookFlushed             = errors.New("orderbook flushed")
 )
 
 // Setup sets private variables
@@ -147,7 +149,7 @@ func (w *Orderbook) Update(u *orderbook.Update) error {
 		// activity. We can invalidate the book and request a new snapshot. All
 		// further updates through the websocket should be caught above in the
 		// IsRestSnapshot() call.
-		book.ob.Invalidate()
+		book.ob.Invalidate(errRESTTimerLapse)
 		return fmt.Errorf("%w for Exchange %s CurrencyPair: %s AssetType: %s",
 			orderbook.ErrOrderbookInvalid,
 			w.exchangeName,
@@ -182,7 +184,7 @@ func (w *Orderbook) Update(u *orderbook.Update) error {
 		}
 		err = ret.Verify()
 		if err != nil {
-			book.ob.Invalidate()
+			book.ob.Invalidate(err)
 			return err
 		}
 	}
@@ -257,7 +259,7 @@ func (w *Orderbook) processObUpdate(o *orderbookHolder, u *orderbook.Update) err
 		}
 		err = w.checksum(compare, u.Checksum)
 		if err != nil {
-			o.ob.Invalidate()
+			o.ob.Invalidate(err)
 			return fmt.Errorf("%v %w", err, orderbook.ErrOrderbookInvalid)
 		}
 		o.updateID = u.UpdateID
@@ -364,7 +366,7 @@ func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
 		}
 		err = book.Verify()
 		if err != nil {
-			holder.ob.Invalidate()
+			holder.ob.Invalidate(err)
 			return err
 		}
 	}
@@ -409,6 +411,6 @@ func (w *Orderbook) FlushOrderbook(p currency.Pair, a asset.Item) error {
 			a,
 			errDepthNotFound)
 	}
-	book.ob.Invalidate()
+	book.ob.Invalidate(errOrderbookFlushed)
 	return nil
 }

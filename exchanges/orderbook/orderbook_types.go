@@ -114,7 +114,6 @@ type options struct {
 	VerifyOrderbook  bool
 	restSnapshot     bool
 	idAligned        bool
-	isValid          bool
 }
 
 // Action defines a set of differing states required to implement an incoming

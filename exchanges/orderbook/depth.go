@@ -32,6 +32,10 @@ type Depth struct {
 	_ID uuid.UUID
 
 	options
+
+	// validationError defines current book state and why it was invalidated.
+	validationError error
+
 	m sync.Mutex
 }
 
@@ -55,8 +59,8 @@ func (d *Depth) Publish() {
 func (d *Depth) GetAskLength() (int, error) {
 	d.m.Lock()
 	defer d.m.Unlock()
-	if !d.isValid {
-		return 0, ErrOrderbookInvalid
+	if d.validationError != nil {
+		return 0, d.validationError
 	}
 	return d.asks.length, nil
 }
@@ -65,8 +69,8 @@ func (d *Depth) GetAskLength() (int, error) {
 func (d *Depth) GetBidLength() (int, error) {
 	d.m.Lock()
 	defer d.m.Unlock()
-	if !d.isValid {
-		return 0, ErrOrderbookInvalid
+	if d.validationError != nil {
+		return 0, d.validationError
 	}
 	return d.bids.length, nil
 }
@@ -76,8 +80,8 @@ func (d *Depth) GetBidLength() (int, error) {
 func (d *Depth) Retrieve() (*Base, error) {
 	d.m.Lock()
 	defer d.m.Unlock()
-	if !d.isValid {
-		return nil, ErrOrderbookInvalid
+	if d.validationError != nil {
+		return nil, d.validationError
 	}
 	return &Base{
 		Bids:             d.bids.retrieve(),
@@ -98,8 +102,8 @@ func (d *Depth) Retrieve() (*Base, error) {
 func (d *Depth) TotalBidAmounts() (liquidity, value float64, err error) {
 	d.m.Lock()
 	defer d.m.Unlock()
-	if !d.isValid {
-		return 0, 0, ErrOrderbookInvalid
+	if d.validationError != nil {
+		return 0, 0, d.validationError
 	}
 	liquidity, value = d.bids.amount()
 	return liquidity, value, nil
@@ -110,8 +114,8 @@ func (d *Depth) TotalBidAmounts() (liquidity, value float64, err error) {
 func (d *Depth) TotalAskAmounts() (liquidity, value float64, err error) {
 	d.m.Lock()
 	defer d.m.Unlock()
-	if !d.isValid {
-		return 0, 0, ErrOrderbookInvalid
+	if d.validationError != nil {
+		return 0, 0, d.validationError
 	}
 	liquidity, value = d.asks.amount()
 	return liquidity, value, nil
@@ -125,34 +129,39 @@ func (d *Depth) LoadSnapshot(bids, asks []Item, lastUpdateID int64, lastUpdated 
 	d.restSnapshot = updateByREST
 	d.bids.load(bids, d.stack)
 	d.asks.load(asks, d.stack)
-	d.isValid = true
+	d.validationError = nil
 	d.Alert()
 	d.m.Unlock()
 }
 
 // invalidate flushes all values back to zero so as to not allow strategy
 // traversal on compromised data.
-func (d *Depth) invalidate() {
+func (d *Depth) invalidate(withReason error) {
 	d.lastUpdateID = 0
 	d.lastUpdated = time.Time{}
 	d.bids.load(nil, d.stack)
 	d.asks.load(nil, d.stack)
-	d.isValid = false
+	d.validationError = fmt.Errorf("%s %s %s %w Reason: [%v]",
+		d.exchange,
+		d.pair,
+		d.asset,
+		ErrOrderbookInvalid,
+		withReason)
 	d.Alert()
 }
 
 // Invalidate flushes all values back to zero so as to not allow strategy
 // traversal on compromised data.
-func (d *Depth) Invalidate() {
+func (d *Depth) Invalidate(withReason error) {
 	d.m.Lock()
-	d.invalidate()
+	d.invalidate(withReason)
 	d.m.Unlock()
 }
 
 // IsValid returns if the underlying book is valid.
 func (d *Depth) IsValid() bool {
 	d.m.Lock()
-	valid := d.isValid
+	valid := d.validationError == nil
 	d.m.Unlock()
 	return valid
 }
@@ -179,14 +188,14 @@ func (d *Depth) UpdateBidAskByID(update *Update) error {
 	if len(update.Bids) != 0 {
 		err := d.bids.updateByID(update.Bids)
 		if err != nil {
-			d.invalidate()
+			d.invalidate(err)
 			return err
 		}
 	}
 	if len(update.Asks) != 0 {
 		err := d.asks.updateByID(update.Asks)
 		if err != nil {
-			d.invalidate()
+			d.invalidate(err)
 			return err
 		}
 	}
@@ -201,14 +210,14 @@ func (d *Depth) DeleteBidAskByID(update *Update, bypassErr bool) error {
 	if len(update.Bids) != 0 {
 		err := d.bids.deleteByID(update.Bids, d.stack, bypassErr)
 		if err != nil {
-			d.invalidate()
+			d.invalidate(err)
 			return err
 		}
 	}
 	if len(update.Asks) != 0 {
 		err := d.asks.deleteByID(update.Asks, d.stack, bypassErr)
 		if err != nil {
-			d.invalidate()
+			d.invalidate(err)
 			return err
 		}
 	}
@@ -223,14 +232,14 @@ func (d *Depth) InsertBidAskByID(update *Update) error {
 	if len(update.Bids) != 0 {
 		err := d.bids.insertUpdates(update.Bids, d.stack)
 		if err != nil {
-			d.invalidate()
+			d.invalidate(err)
 			return err
 		}
 	}
 	if len(update.Asks) != 0 {
 		err := d.asks.insertUpdates(update.Asks, d.stack)
 		if err != nil {
-			d.invalidate()
+			d.invalidate(err)
 			return err
 		}
 	}
@@ -245,14 +254,14 @@ func (d *Depth) UpdateInsertByID(update *Update) error {
 	if len(update.Bids) != 0 {
 		err := d.bids.updateInsertByID(update.Bids, d.stack)
 		if err != nil {
-			d.invalidate()
+			d.invalidate(err)
 			return err
 		}
 	}
 	if len(update.Asks) != 0 {
 		err := d.asks.updateInsertByID(update.Asks, d.stack)
 		if err != nil {
-			d.invalidate()
+			d.invalidate(err)
 			return err
 		}
 	}
@@ -289,8 +298,8 @@ func (d *Depth) GetName() string {
 func (d *Depth) IsRESTSnapshot() (bool, error) {
 	d.m.Lock()
 	defer d.m.Unlock()
-	if !d.isValid {
-		return false, ErrOrderbookInvalid
+	if d.validationError != nil {
+		return false, d.validationError
 	}
 	return d.restSnapshot, nil
 }
@@ -299,8 +308,8 @@ func (d *Depth) IsRESTSnapshot() (bool, error) {
 func (d *Depth) LastUpdateID() (int64, error) {
 	d.m.Lock()
 	defer d.m.Unlock()
-	if !d.isValid {
-		return 0, ErrOrderbookInvalid
+	if d.validationError != nil {
+		return 0, d.validationError
 	}
 	return d.lastUpdateID, nil
 }

@@ -16,6 +16,7 @@ var id = uuid.Must(uuid.NewV4())
 func TestGetLength(t *testing.T) {
 	t.Parallel()
 	d := NewDepth(id)
+	d.invalidate(nil)
 	_, err := d.GetAskLength()
 	if !errors.Is(err, ErrOrderbookInvalid) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
@@ -44,6 +45,7 @@ func TestGetLength(t *testing.T) {
 	}
 
 	d = NewDepth(id)
+	d.Invalidate(nil)
 	_, err = d.GetBidLength()
 	if !errors.Is(err, ErrOrderbookInvalid) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
@@ -88,7 +90,6 @@ func TestRetrieve(t *testing.T) {
 		VerifyOrderbook:  true,
 		restSnapshot:     true,
 		idAligned:        true,
-		isValid:          true,
 	}
 
 	// If we add anymore options to the options struct later this will complain
@@ -120,13 +121,13 @@ func TestTotalAmounts(t *testing.T) {
 	t.Parallel()
 	d := NewDepth(id)
 
+	d.Invalidate(nil)
 	_, _, err := d.TotalBidAmounts()
 	if !errors.Is(err, ErrOrderbookInvalid) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
 	}
 
-	d.isValid = true
-
+	d.validationError = nil
 	liquidity, value, err := d.TotalBidAmounts()
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
@@ -140,14 +141,14 @@ func TestTotalAmounts(t *testing.T) {
 			value)
 	}
 
-	d.isValid = false
+	d.Invalidate(nil)
 
 	_, _, err = d.TotalAskAmounts()
 	if !errors.Is(err, ErrOrderbookInvalid) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
 	}
 
-	d.isValid = true
+	d.validationError = nil
 
 	liquidity, value, err = d.TotalAskAmounts()
 	if !errors.Is(err, nil) {
@@ -210,6 +211,9 @@ func TestLoadSnapshot(t *testing.T) {
 func TestInvalidate(t *testing.T) {
 	t.Parallel()
 	d := NewDepth(id)
+	d.exchange = "testexchange"
+	d.pair = currency.NewPair(currency.BTC, currency.WABI)
+	d.asset = asset.Spot
 	d.LoadSnapshot(Items{{Price: 1337, Amount: 1}}, Items{{Price: 1337, Amount: 10}}, 0, time.Time{}, false)
 
 	ob, err := d.Retrieve()
@@ -221,14 +225,18 @@ func TestInvalidate(t *testing.T) {
 		t.Fatalf("unexpected value")
 	}
 
-	d.Invalidate()
+	d.Invalidate(errors.New("random reason"))
 
 	_, err = d.Retrieve()
 	if !errors.Is(err, ErrOrderbookInvalid) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
 	}
 
-	d.isValid = true
+	if err.Error() != "testexchange BTCWABI spot orderbook data integrity compromised Reason: [random reason]" {
+		t.Fatal("unexpected string return")
+	}
+
+	d.validationError = nil
 
 	ob, err = d.Retrieve()
 	if !errors.Is(err, nil) {
@@ -523,11 +531,12 @@ func TestIsRestSnapshot(t *testing.T) {
 	t.Parallel()
 	d := Depth{}
 	d.restSnapshot = true
+	d.Invalidate(nil)
 	if _, err := d.IsRESTSnapshot(); !errors.Is(err, ErrOrderbookInvalid) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
 	}
 
-	d.isValid = true
+	d.validationError = nil
 	b, err := d.IsRESTSnapshot()
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
@@ -541,12 +550,13 @@ func TestIsRestSnapshot(t *testing.T) {
 func TestLastUpdateID(t *testing.T) {
 	t.Parallel()
 	d := Depth{}
-	d.lastUpdateID = 1337
+	d.Invalidate(nil)
 	if _, err := d.LastUpdateID(); !errors.Is(err, ErrOrderbookInvalid) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
 	}
 
-	d.isValid = true
+	d.validationError = nil
+	d.lastUpdateID = 1337
 	id, err := d.LastUpdateID()
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
@@ -569,20 +579,21 @@ func TestIsFundingRate(t *testing.T) {
 func TestPublish(t *testing.T) {
 	t.Parallel()
 	d := Depth{}
+	d.Invalidate(nil)
 	d.Publish()
-	d.isValid = true
+	d.validationError = nil
 	d.Publish()
 }
 
 func TestIsValid(t *testing.T) {
 	t.Parallel()
 	d := Depth{}
-	if d.IsValid() {
-		t.Fatalf("received: '%v' but expected: '%v'", d.IsValid(), false)
-	}
-	d.isValid = true
 	if !d.IsValid() {
 		t.Fatalf("received: '%v' but expected: '%v'", d.IsValid(), true)
+	}
+	d.Invalidate(nil)
+	if d.IsValid() {
+		t.Fatalf("received: '%v' but expected: '%v'", d.IsValid(), false)
 	}
 }
 
