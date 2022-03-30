@@ -4,17 +4,19 @@
  "strategy-settings": {
   "name": "ftx-cash-carry",
   "use-simultaneous-signal-processing": true,
+  "disable-usd-tracking": false
+ },
+ "funding-settings": {
   "use-exchange-level-funding": true,
   "exchange-level-funding": [
    {
     "exchange-name": "ftx",
     "asset": "spot",
     "currency": "USD",
-    "initial-funds": "500",
+    "initial-funds": "100000",
     "transfer-fee": "0"
    }
-  ],
-  "disable-usd-tracking": false
+  ]
  },
  "currency-settings": [
   {

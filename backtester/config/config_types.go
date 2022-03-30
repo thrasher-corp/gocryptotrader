@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
 )
 
@@ -32,6 +33,7 @@ type Config struct {
 	Nickname          string             `json:"nickname"`
 	Goal              string             `json:"goal"`
 	StrategySettings  StrategySettings   `json:"strategy-settings"`
+	FundingSettings   FundingSettings    `json:"funding-settings"`
 	CurrencySettings  []CurrencySettings `json:"currency-settings"`
 	DataSettings      DataSettings       `json:"data-settings"`
 	PortfolioSettings PortfolioSettings  `json:"portfolio-settings"`
@@ -49,14 +51,18 @@ type DataSettings struct {
 	CSVData      *CSVData      `json:"csv-data,omitempty"`
 }
 
+type FundingSettings struct {
+	UseExchangeLevelFunding bool                   `json:"use-exchange-level-funding"`
+	ExchangeLevelFunding    []ExchangeLevelFunding `json:"exchange-level-funding,omitempty"`
+}
+
 // StrategySettings contains what strategy to load, along with custom settings map
 // (variables defined per strategy)
 // along with defining whether the strategy will assess all currencies at once, or individually
 type StrategySettings struct {
-	Name                         string                 `json:"name"`
-	SimultaneousSignalProcessing bool                   `json:"use-simultaneous-signal-processing"`
-	UseExchangeLevelFunding      bool                   `json:"use-exchange-level-funding"`
-	ExchangeLevelFunding         []ExchangeLevelFunding `json:"exchange-level-funding,omitempty"`
+	Name                         string `json:"name"`
+	SimultaneousSignalProcessing bool   `json:"use-simultaneous-signal-processing"`
+
 	// If true, won't track USD values against currency pair
 	// bool language is opposite to encourage use by default
 	DisableUSDTracking bool                   `json:"disable-usd-tracking"`
@@ -145,13 +151,17 @@ type CurrencySettings struct {
 	UseExchangePNLCalculation     bool `json:"use-exchange-pnl-calculation"`
 }
 
+// SpotDetails contains funding information that cannot be shared with another
+// pair during the backtesting run. Use exchange level funding to shared funds
 type SpotDetails struct {
 	InitialBaseFunds  *decimal.Decimal `json:"initial-base-funds,omitempty"`
 	InitialQuoteFunds *decimal.Decimal `json:"initial-quote-funds,omitempty"`
 }
 
+// FuturesDetails contains data relevant to futures currency pairs
 type FuturesDetails struct {
-	Leverage Leverage `json:"leverage"`
+	Leverage         Leverage      `json:"leverage"`
+	LinkedToSpotPair currency.Pair `json:"linked-to-spot-pair"`
 }
 
 // APIData defines all fields to configure API based data

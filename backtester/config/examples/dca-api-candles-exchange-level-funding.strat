@@ -4,6 +4,9 @@
  "strategy-settings": {
   "name": "dollarcostaverage",
   "use-simultaneous-signal-processing": true,
+  "disable-usd-tracking": true
+ },
+ "funding-settings": {
   "use-exchange-level-funding": true,
   "exchange-level-funding": [
    {
@@ -13,8 +16,7 @@
     "initial-funds": "100000",
     "transfer-fee": "0"
    }
-  ],
-  "disable-usd-tracking": true
+  ]
  },
  "currency-settings": [
   {

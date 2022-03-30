@@ -37,97 +37,6 @@ func LoadConfig(data []byte) (resp *Config, err error) {
 	return resp, err
 }
 
-// PrintSetting prints relevant settings to the console for easy reading
-func (c *Config) PrintSetting() {
-	log.Info(common.SubLoggers[common.Config], common.ColourH1+"------------------Backtester Settings------------------------"+common.ColourDefault)
-	log.Info(common.SubLoggers[common.Config], common.ColourH2+"------------------Strategy Settings--------------------------"+common.ColourDefault)
-	log.Infof(common.SubLoggers[common.Config], "Strategy: %s", c.StrategySettings.Name)
-	if len(c.StrategySettings.CustomSettings) > 0 {
-		log.Info(common.SubLoggers[common.Config], "Custom strategy variables:")
-		for k, v := range c.StrategySettings.CustomSettings {
-			log.Infof(common.SubLoggers[common.Config], "%s: %v", k, v)
-		}
-	} else {
-		log.Info(common.SubLoggers[common.Config], "Custom strategy variables: unset")
-	}
-	log.Infof(common.SubLoggers[common.Config], "Simultaneous Signal Processing: %v", c.StrategySettings.SimultaneousSignalProcessing)
-	log.Infof(common.SubLoggers[common.Config], "Use Exchange Level Funding: %v", c.StrategySettings.UseExchangeLevelFunding)
-	log.Infof(common.SubLoggers[common.Config], "USD value tracking: %v", !c.StrategySettings.DisableUSDTracking)
-	if c.StrategySettings.UseExchangeLevelFunding && c.StrategySettings.SimultaneousSignalProcessing {
-		log.Info(common.SubLoggers[common.Config], common.ColourH2+"------------------Funding Settings---------------------------"+common.ColourDefault)
-		for i := range c.StrategySettings.ExchangeLevelFunding {
-			log.Infof(common.SubLoggers[common.Config], "Initial funds for %v %v %v: %v",
-				c.StrategySettings.ExchangeLevelFunding[i].ExchangeName,
-				c.StrategySettings.ExchangeLevelFunding[i].Asset,
-				c.StrategySettings.ExchangeLevelFunding[i].Currency,
-				c.StrategySettings.ExchangeLevelFunding[i].InitialFunds.Round(8))
-		}
-	}
-
-	for i := range c.CurrencySettings {
-		currStr := fmt.Sprintf(common.ColourH2+"------------------%v %v-%v Currency Settings---------------------------------------------------------"+common.ColourDefault,
-			c.CurrencySettings[i].Asset,
-			c.CurrencySettings[i].Base,
-			c.CurrencySettings[i].Quote)
-		log.Infof(common.SubLoggers[common.Config], currStr[:61])
-		log.Infof(common.SubLoggers[common.Config], "Exchange: %v", c.CurrencySettings[i].ExchangeName)
-		if !c.StrategySettings.UseExchangeLevelFunding && c.CurrencySettings[i].SpotDetails != nil {
-			if c.CurrencySettings[i].SpotDetails.InitialBaseFunds != nil {
-				log.Infof(common.SubLoggers[common.Config], "Initial base funds: %v %v",
-					c.CurrencySettings[i].SpotDetails.InitialBaseFunds.Round(8),
-					c.CurrencySettings[i].Base)
-			}
-			if c.CurrencySettings[i].SpotDetails.InitialQuoteFunds != nil {
-				log.Infof(common.SubLoggers[common.Config], "Initial quote funds: %v %v",
-					c.CurrencySettings[i].SpotDetails.InitialQuoteFunds.Round(8),
-					c.CurrencySettings[i].Quote)
-			}
-		}
-		log.Infof(common.SubLoggers[common.Config], "Maker fee: %v", c.CurrencySettings[i].TakerFee.Round(8))
-		log.Infof(common.SubLoggers[common.Config], "Taker fee: %v", c.CurrencySettings[i].MakerFee.Round(8))
-		log.Infof(common.SubLoggers[common.Config], "Minimum slippage percent %v", c.CurrencySettings[i].MinimumSlippagePercent.Round(8))
-		log.Infof(common.SubLoggers[common.Config], "Maximum slippage percent: %v", c.CurrencySettings[i].MaximumSlippagePercent.Round(8))
-		log.Infof(common.SubLoggers[common.Config], "Buy rules: %+v", c.CurrencySettings[i].BuySide)
-		log.Infof(common.SubLoggers[common.Config], "Sell rules: %+v", c.CurrencySettings[i].SellSide)
-		if c.CurrencySettings[i].FuturesDetails != nil && c.CurrencySettings[i].Asset == asset.Futures.String() {
-			log.Infof(common.SubLoggers[common.Config], "Leverage rules: %+v", c.CurrencySettings[i].FuturesDetails.Leverage)
-		}
-		log.Infof(common.SubLoggers[common.Config], "Can use exchange defined order execution limits: %+v", c.CurrencySettings[i].CanUseExchangeLimits)
-	}
-
-	log.Info(common.SubLoggers[common.Config], common.ColourH2+"------------------Portfolio Settings-------------------------"+common.ColourDefault)
-	log.Infof(common.SubLoggers[common.Config], "Buy rules: %+v", c.PortfolioSettings.BuySide)
-	log.Infof(common.SubLoggers[common.Config], "Sell rules: %+v", c.PortfolioSettings.SellSide)
-	log.Infof(common.SubLoggers[common.Config], "Leverage rules: %+v", c.PortfolioSettings.Leverage)
-	if c.DataSettings.LiveData != nil {
-		log.Info(common.SubLoggers[common.Config], common.ColourH2+"------------------Live Settings------------------------------"+common.ColourDefault)
-		log.Infof(common.SubLoggers[common.Config], "Data type: %v", c.DataSettings.DataType)
-		log.Infof(common.SubLoggers[common.Config], "Interval: %v", c.DataSettings.Interval)
-		log.Infof(common.SubLoggers[common.Config], "REAL ORDERS: %v", c.DataSettings.LiveData.RealOrders)
-		log.Infof(common.SubLoggers[common.Config], "Overriding GCT API settings: %v", c.DataSettings.LiveData.APIClientIDOverride != "")
-	}
-	if c.DataSettings.APIData != nil {
-		log.Info(common.SubLoggers[common.Config], common.ColourH2+"------------------API Settings-------------------------------"+common.ColourDefault)
-		log.Infof(common.SubLoggers[common.Config], "Data type: %v", c.DataSettings.DataType)
-		log.Infof(common.SubLoggers[common.Config], "Interval: %v", c.DataSettings.Interval)
-		log.Infof(common.SubLoggers[common.Config], "Start date: %v", c.DataSettings.APIData.StartDate.Format(gctcommon.SimpleTimeFormat))
-		log.Infof(common.SubLoggers[common.Config], "End date: %v", c.DataSettings.APIData.EndDate.Format(gctcommon.SimpleTimeFormat))
-	}
-	if c.DataSettings.CSVData != nil {
-		log.Info(common.SubLoggers[common.Config], common.ColourH2+"------------------CSV Settings-------------------------------"+common.ColourDefault)
-		log.Infof(common.SubLoggers[common.Config], "Data type: %v", c.DataSettings.DataType)
-		log.Infof(common.SubLoggers[common.Config], "Interval: %v", c.DataSettings.Interval)
-		log.Infof(common.SubLoggers[common.Config], "CSV file: %v", c.DataSettings.CSVData.FullPath)
-	}
-	if c.DataSettings.DatabaseData != nil {
-		log.Info(common.SubLoggers[common.Config], common.ColourH2+"------------------Database Settings--------------------------"+common.ColourDefault)
-		log.Infof(common.SubLoggers[common.Config], "Data type: %v", c.DataSettings.DataType)
-		log.Infof(common.SubLoggers[common.Config], "Interval: %v", c.DataSettings.Interval)
-		log.Infof(common.SubLoggers[common.Config], "Start date: %v", c.DataSettings.DatabaseData.StartDate.Format(gctcommon.SimpleTimeFormat))
-		log.Infof(common.SubLoggers[common.Config], "End date: %v", c.DataSettings.DatabaseData.EndDate.Format(gctcommon.SimpleTimeFormat))
-	}
-}
-
 // Validate checks all config settings
 func (c *Config) Validate() error {
 	err := c.validateDate()
@@ -194,23 +103,23 @@ func (c *Config) validateMinMaxes() (err error) {
 }
 
 func (c *Config) validateStrategySettings() error {
-	if c.StrategySettings.UseExchangeLevelFunding && !c.StrategySettings.SimultaneousSignalProcessing {
+	if c.FundingSettings.UseExchangeLevelFunding && !c.StrategySettings.SimultaneousSignalProcessing {
 		return errSimultaneousProcessingRequired
 	}
-	if len(c.StrategySettings.ExchangeLevelFunding) > 0 && !c.StrategySettings.UseExchangeLevelFunding {
+	if len(c.FundingSettings.ExchangeLevelFunding) > 0 && !c.FundingSettings.UseExchangeLevelFunding {
 		return errExchangeLevelFundingRequired
 	}
-	if c.StrategySettings.UseExchangeLevelFunding && len(c.StrategySettings.ExchangeLevelFunding) == 0 {
+	if c.FundingSettings.UseExchangeLevelFunding && len(c.FundingSettings.ExchangeLevelFunding) == 0 {
 		return errExchangeLevelFundingDataRequired
 	}
-	if c.StrategySettings.UseExchangeLevelFunding {
-		for i := range c.StrategySettings.ExchangeLevelFunding {
-			if c.StrategySettings.ExchangeLevelFunding[i].InitialFunds.IsNegative() {
+	if c.FundingSettings.UseExchangeLevelFunding {
+		for i := range c.FundingSettings.ExchangeLevelFunding {
+			if c.FundingSettings.ExchangeLevelFunding[i].InitialFunds.IsNegative() {
 				return fmt.Errorf("%w for %v %v %v",
 					errBadInitialFunds,
-					c.StrategySettings.ExchangeLevelFunding[i].ExchangeName,
-					c.StrategySettings.ExchangeLevelFunding[i].Asset,
-					c.StrategySettings.ExchangeLevelFunding[i].Currency,
+					c.FundingSettings.ExchangeLevelFunding[i].ExchangeName,
+					c.FundingSettings.ExchangeLevelFunding[i].Asset,
+					c.FundingSettings.ExchangeLevelFunding[i].Currency,
 				)
 			}
 		}
@@ -269,14 +178,7 @@ func (c *Config) validateCurrencySettings() error {
 			}
 		}
 		if c.CurrencySettings[i].SpotDetails != nil {
-			// if c.CurrencySettings[i].SpotDetails.InitialLegacyFunds > 0 {
-			// 	// temporarily migrate legacy start config value
-			// 	log.Warn(common.SubLoggers[common.Config], "config field 'initial-funds' no longer supported, please use 'initial-quote-funds'")
-			// 	log.Warnf(common.SubLoggers[common.Config], "temporarily setting 'initial-quote-funds' to 'initial-funds' value of %v", c.CurrencySettings[i].InitialLegacyFunds)
-			// 	iqf := decimal.NewFromFloat(c.CurrencySettings[i].SpotDetails.InitialLegacyFunds)
-			// 	c.CurrencySettings[i].SpotDetails.InitialQuoteFunds = &iqf
-			// }
-			if c.StrategySettings.UseExchangeLevelFunding {
+			if c.FundingSettings.UseExchangeLevelFunding {
 				if c.CurrencySettings[i].SpotDetails.InitialQuoteFunds != nil &&
 					c.CurrencySettings[i].SpotDetails.InitialQuoteFunds.GreaterThan(decimal.Zero) {
 					return fmt.Errorf("non-nil quote %w", errBadInitialFunds)
@@ -321,4 +223,96 @@ func (c *Config) validateCurrencySettings() error {
 		c.CurrencySettings[i].ExchangeName = strings.ToLower(c.CurrencySettings[i].ExchangeName)
 	}
 	return nil
+}
+
+// PrintSetting prints relevant settings to the console for easy reading
+func (c *Config) PrintSetting() {
+	log.Info(common.SubLoggers[common.Config], common.ColourH1+"------------------Backtester Settings------------------------"+common.ColourDefault)
+	log.Info(common.SubLoggers[common.Config], common.ColourH2+"------------------Strategy Settings--------------------------"+common.ColourDefault)
+	log.Infof(common.SubLoggers[common.Config], "Strategy: %s", c.StrategySettings.Name)
+	if len(c.StrategySettings.CustomSettings) > 0 {
+		log.Info(common.SubLoggers[common.Config], "Custom strategy variables:")
+		for k, v := range c.StrategySettings.CustomSettings {
+			log.Infof(common.SubLoggers[common.Config], "%s: %v", k, v)
+		}
+	} else {
+		log.Info(common.SubLoggers[common.Config], "Custom strategy variables: unset")
+	}
+	log.Infof(common.SubLoggers[common.Config], "Simultaneous Signal Processing: %v", c.StrategySettings.SimultaneousSignalProcessing)
+	log.Infof(common.SubLoggers[common.Config], "USD value tracking: %v", !c.StrategySettings.DisableUSDTracking)
+
+	if c.FundingSettings.UseExchangeLevelFunding && c.StrategySettings.SimultaneousSignalProcessing {
+		log.Info(common.SubLoggers[common.Config], common.ColourH2+"------------------Funding Settings---------------------------"+common.ColourDefault)
+		log.Infof(common.SubLoggers[common.Config], "Use Exchange Level Funding: %v", c.FundingSettings.UseExchangeLevelFunding)
+		for i := range c.FundingSettings.ExchangeLevelFunding {
+			log.Infof(common.SubLoggers[common.Config], "Initial funds for %v %v %v: %v",
+				c.FundingSettings.ExchangeLevelFunding[i].ExchangeName,
+				c.FundingSettings.ExchangeLevelFunding[i].Asset,
+				c.FundingSettings.ExchangeLevelFunding[i].Currency,
+				c.FundingSettings.ExchangeLevelFunding[i].InitialFunds.Round(8))
+		}
+	}
+
+	for i := range c.CurrencySettings {
+		currStr := fmt.Sprintf(common.ColourH2+"------------------%v %v-%v Currency Settings---------------------------------------------------------"+common.ColourDefault,
+			c.CurrencySettings[i].Asset,
+			c.CurrencySettings[i].Base,
+			c.CurrencySettings[i].Quote)
+		log.Infof(common.SubLoggers[common.Config], currStr[:61])
+		log.Infof(common.SubLoggers[common.Config], "Exchange: %v", c.CurrencySettings[i].ExchangeName)
+		if !c.FundingSettings.UseExchangeLevelFunding && c.CurrencySettings[i].SpotDetails != nil {
+			if c.CurrencySettings[i].SpotDetails.InitialBaseFunds != nil {
+				log.Infof(common.SubLoggers[common.Config], "Initial base funds: %v %v",
+					c.CurrencySettings[i].SpotDetails.InitialBaseFunds.Round(8),
+					c.CurrencySettings[i].Base)
+			}
+			if c.CurrencySettings[i].SpotDetails.InitialQuoteFunds != nil {
+				log.Infof(common.SubLoggers[common.Config], "Initial quote funds: %v %v",
+					c.CurrencySettings[i].SpotDetails.InitialQuoteFunds.Round(8),
+					c.CurrencySettings[i].Quote)
+			}
+		}
+		log.Infof(common.SubLoggers[common.Config], "Maker fee: %v", c.CurrencySettings[i].TakerFee.Round(8))
+		log.Infof(common.SubLoggers[common.Config], "Taker fee: %v", c.CurrencySettings[i].MakerFee.Round(8))
+		log.Infof(common.SubLoggers[common.Config], "Minimum slippage percent %v", c.CurrencySettings[i].MinimumSlippagePercent.Round(8))
+		log.Infof(common.SubLoggers[common.Config], "Maximum slippage percent: %v", c.CurrencySettings[i].MaximumSlippagePercent.Round(8))
+		log.Infof(common.SubLoggers[common.Config], "Buy rules: %+v", c.CurrencySettings[i].BuySide)
+		log.Infof(common.SubLoggers[common.Config], "Sell rules: %+v", c.CurrencySettings[i].SellSide)
+		if c.CurrencySettings[i].FuturesDetails != nil && c.CurrencySettings[i].Asset == asset.Futures.String() {
+			log.Infof(common.SubLoggers[common.Config], "Leverage rules: %+v", c.CurrencySettings[i].FuturesDetails.Leverage)
+		}
+		log.Infof(common.SubLoggers[common.Config], "Can use exchange defined order execution limits: %+v", c.CurrencySettings[i].CanUseExchangeLimits)
+	}
+
+	log.Info(common.SubLoggers[common.Config], common.ColourH2+"------------------Portfolio Settings-------------------------"+common.ColourDefault)
+	log.Infof(common.SubLoggers[common.Config], "Buy rules: %+v", c.PortfolioSettings.BuySide)
+	log.Infof(common.SubLoggers[common.Config], "Sell rules: %+v", c.PortfolioSettings.SellSide)
+	log.Infof(common.SubLoggers[common.Config], "Leverage rules: %+v", c.PortfolioSettings.Leverage)
+	if c.DataSettings.LiveData != nil {
+		log.Info(common.SubLoggers[common.Config], common.ColourH2+"------------------Live Settings------------------------------"+common.ColourDefault)
+		log.Infof(common.SubLoggers[common.Config], "Data type: %v", c.DataSettings.DataType)
+		log.Infof(common.SubLoggers[common.Config], "Interval: %v", c.DataSettings.Interval)
+		log.Infof(common.SubLoggers[common.Config], "REAL ORDERS: %v", c.DataSettings.LiveData.RealOrders)
+		log.Infof(common.SubLoggers[common.Config], "Overriding GCT API settings: %v", c.DataSettings.LiveData.APIClientIDOverride != "")
+	}
+	if c.DataSettings.APIData != nil {
+		log.Info(common.SubLoggers[common.Config], common.ColourH2+"------------------API Settings-------------------------------"+common.ColourDefault)
+		log.Infof(common.SubLoggers[common.Config], "Data type: %v", c.DataSettings.DataType)
+		log.Infof(common.SubLoggers[common.Config], "Interval: %v", c.DataSettings.Interval)
+		log.Infof(common.SubLoggers[common.Config], "Start date: %v", c.DataSettings.APIData.StartDate.Format(gctcommon.SimpleTimeFormat))
+		log.Infof(common.SubLoggers[common.Config], "End date: %v", c.DataSettings.APIData.EndDate.Format(gctcommon.SimpleTimeFormat))
+	}
+	if c.DataSettings.CSVData != nil {
+		log.Info(common.SubLoggers[common.Config], common.ColourH2+"------------------CSV Settings-------------------------------"+common.ColourDefault)
+		log.Infof(common.SubLoggers[common.Config], "Data type: %v", c.DataSettings.DataType)
+		log.Infof(common.SubLoggers[common.Config], "Interval: %v", c.DataSettings.Interval)
+		log.Infof(common.SubLoggers[common.Config], "CSV file: %v", c.DataSettings.CSVData.FullPath)
+	}
+	if c.DataSettings.DatabaseData != nil {
+		log.Info(common.SubLoggers[common.Config], common.ColourH2+"------------------Database Settings--------------------------"+common.ColourDefault)
+		log.Infof(common.SubLoggers[common.Config], "Data type: %v", c.DataSettings.DataType)
+		log.Infof(common.SubLoggers[common.Config], "Interval: %v", c.DataSettings.Interval)
+		log.Infof(common.SubLoggers[common.Config], "Start date: %v", c.DataSettings.DatabaseData.StartDate.Format(gctcommon.SimpleTimeFormat))
+		log.Infof(common.SubLoggers[common.Config], "End date: %v", c.DataSettings.DatabaseData.EndDate.Format(gctcommon.SimpleTimeFormat))
+	}
 }

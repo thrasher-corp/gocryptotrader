@@ -42,17 +42,19 @@ type Data struct {
 	USDTotalsChart        *Chart
 	HoldingsOverTimeChart *Chart
 	PNLOverTimeChart      *Chart
+	SpotFuturesDiffChart  *Chart
 	Prettify              PrettyNumbers
 }
 
+// Chart holds chart data along with an axis
 type Chart struct {
 	AxisType string
-	Data     []TotalsChart
+	Data     []ChartLine
 }
 
-// TotalsChart holds chart plot data
+// ChartLine holds chart plot data
 // to render charts in the report
-type TotalsChart struct {
+type ChartLine struct {
 	Name       string
 	DataPoints []ChartPlot
 }

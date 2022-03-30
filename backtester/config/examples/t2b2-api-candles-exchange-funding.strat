@@ -4,6 +4,14 @@
  "strategy-settings": {
   "name": "top2bottom2",
   "use-simultaneous-signal-processing": true,
+  "disable-usd-tracking": false,
+  "custom-settings": {
+   "mfi-high": 68,
+   "mfi-low": 32,
+   "mfi-period": 14
+  }
+ },
+ "funding-settings": {
   "use-exchange-level-funding": true,
   "exchange-level-funding": [
    {
@@ -17,16 +25,10 @@
     "exchange-name": "ftx",
     "asset": "spot",
     "currency": "USDT",
-    "initial-funds": "10",
+    "initial-funds": "10000",
     "transfer-fee": "0"
    }
-  ],
-  "disable-usd-tracking": false,
-  "custom-settings": {
-   "mfi-high": 68,
-   "mfi-low": 32,
-   "mfi-period": 14
-  }
+  ]
  },
  "currency-settings": [
   {

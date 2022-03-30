@@ -1456,6 +1456,8 @@
 						{{ if eq $.Config.StrategySettings.DisableUSDTracking false }}
 							{{ if .ReportItem.IsCollateral}}
 							{{ else }}
+								{{ if .ReportItem.Currency.IsFiatCurrency}}
+									{{else}}
 								<tr>
 									<td><b>Starting Close Price</b></td>
 									<td>{{$.Prettify.Decimal8 .StartingClosePrice.Value}} at {{.StartingClosePrice.Time}}</td>
@@ -1476,6 +1478,7 @@
 									<td><b>Market Movement</b></td>
 									<td>{{$.Prettify.Decimal8 .MarketMovement}}</td>
 								</tr>
+									{{end }}
 								<tr>
 									<td><b>Strategy Movement</b></td>
 									{{ if .ReportItem.ShowInfinite}}
@@ -1493,7 +1496,6 @@
 									<td>{{$.Prettify.Decimal8 .CompoundAnnualGrowthRate}}%</td>
 								</tr>
 							{{end }}
-
 						{{end}}
 						</tbody>
 					</table>
@@ -1719,7 +1721,7 @@
 													<td>{{ $.Prettify.Decimal8 $ev.PNL.GetExposure}} {{$pair.Base}}-{{$pair.Quote}}</td>
 													<td>{{$ev.PNL.GetDirection}}</td>
 													<td>{{$ev.PNL.GetUnrealisedPNL.PNL}} {{if ne $ev.PNL nil }}{{$ev.PNL.GetCollateralCurrency}}{{end}}</td>
-													<td>{{$ev.PNL.GetRealisedPNL.PNL}}{{if ne $ev.PNL nil }}{{$ev.PNL.GetCollateralCurrency}}{{end}}</td>
+													<td>{{$ev.PNL.GetRealisedPNL.PNL}} {{if ne $ev.PNL nil }}{{$ev.PNL.GetCollateralCurrency}}{{end}}</td>
 												{{else}}
 													<td>0 {{$pair.Base}}-{{$pair.Quote}}</td>
 													<td>N/A</td>

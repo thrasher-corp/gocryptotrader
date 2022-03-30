@@ -222,8 +222,10 @@ func TestGenerateConfigForDCAAPICandlesExchangeLevelFunding(t *testing.T) {
 		StrategySettings: StrategySettings{
 			Name:                         dca,
 			SimultaneousSignalProcessing: true,
-			UseExchangeLevelFunding:      true,
 			DisableUSDTracking:           true,
+		},
+		FundingSettings: FundingSettings{
+			UseExchangeLevelFunding: true,
 			ExchangeLevelFunding: []ExchangeLevelFunding{
 				{
 					ExchangeName: testExchange,
@@ -825,8 +827,16 @@ func TestGenerateConfigForTop2Bottom2(t *testing.T) {
 		Goal:     "To demonstrate a complex strategy using exchange level funding and simultaneous processing of data signals",
 		StrategySettings: StrategySettings{
 			Name:                         top2bottom2.Name,
-			UseExchangeLevelFunding:      true,
 			SimultaneousSignalProcessing: true,
+
+			CustomSettings: map[string]interface{}{
+				"mfi-low":    32,
+				"mfi-high":   68,
+				"mfi-period": 14,
+			},
+		},
+		FundingSettings: FundingSettings{
+			UseExchangeLevelFunding: true,
 			ExchangeLevelFunding: []ExchangeLevelFunding{
 				{
 					ExchangeName: testExchange,
@@ -840,11 +850,6 @@ func TestGenerateConfigForTop2Bottom2(t *testing.T) {
 					Currency:     currency.USDT.String(),
 					InitialFunds: decimal.NewFromInt(10000),
 				},
-			},
-			CustomSettings: map[string]interface{}{
-				"mfi-low":    32,
-				"mfi-high":   68,
-				"mfi-period": 14,
 			},
 		},
 		CurrencySettings: []CurrencySettings{
@@ -1145,17 +1150,19 @@ func TestValidateStrategySettings(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v expected %v", err, nil)
 	}
-	c.StrategySettings.UseExchangeLevelFunding = true
-	err = c.validateStrategySettings()
-	if !errors.Is(err, errSimultaneousProcessingRequired) {
-		t.Errorf("received %v expected %v", err, errSimultaneousProcessingRequired)
-	}
+
 	c.StrategySettings.SimultaneousSignalProcessing = true
 	err = c.validateStrategySettings()
 	if !errors.Is(err, errExchangeLevelFundingDataRequired) {
 		t.Errorf("received %v expected %v", err, errExchangeLevelFundingDataRequired)
 	}
-	c.StrategySettings.ExchangeLevelFunding = []ExchangeLevelFunding{
+	c.FundingSettings = FundingSettings{}
+	c.FundingSettings.UseExchangeLevelFunding = true
+	err = c.validateStrategySettings()
+	if !errors.Is(err, errSimultaneousProcessingRequired) {
+		t.Errorf("received %v expected %v", err, errSimultaneousProcessingRequired)
+	}
+	c.FundingSettings.ExchangeLevelFunding = []ExchangeLevelFunding{
 		{
 			InitialFunds: decimal.NewFromInt(-1),
 		},
@@ -1164,7 +1171,7 @@ func TestValidateStrategySettings(t *testing.T) {
 	if !errors.Is(err, errBadInitialFunds) {
 		t.Errorf("received %v expected %v", err, errBadInitialFunds)
 	}
-	c.StrategySettings.UseExchangeLevelFunding = false
+	c.FundingSettings.UseExchangeLevelFunding = false
 	err = c.validateStrategySettings()
 	if !errors.Is(err, errExchangeLevelFundingRequired) {
 		t.Errorf("received %v expected %v", err, errExchangeLevelFundingRequired)
@@ -1205,7 +1212,9 @@ func TestGenerateFTXCashAndCarryStrategy(t *testing.T) {
 		StrategySettings: StrategySettings{
 			Name:                         "ftx-cash-carry",
 			SimultaneousSignalProcessing: true,
-			UseExchangeLevelFunding:      true,
+		},
+		FundingSettings: FundingSettings{
+			UseExchangeLevelFunding: true,
 			ExchangeLevelFunding: []ExchangeLevelFunding{
 				{
 					ExchangeName: "ftx",
@@ -1215,7 +1224,6 @@ func TestGenerateFTXCashAndCarryStrategy(t *testing.T) {
 				},
 			},
 		},
-
 		CurrencySettings: []CurrencySettings{
 			{
 				ExchangeName: "ftx",
