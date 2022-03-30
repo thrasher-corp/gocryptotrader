@@ -523,14 +523,14 @@ func (p *Portfolio) UpdatePNL(e common.EventHandler, closePrice decimal.Decimal)
 
 // TrackFuturesOrder updates the futures tracker with a new order
 // from a fill event
-func (p *Portfolio) TrackFuturesOrder(f fill.Event, fund funding.IFundReleaser) (*PNLSummary, error) {
-	if f == nil {
+func (p *Portfolio) TrackFuturesOrder(ev fill.Event, fund funding.IFundReleaser) (*PNLSummary, error) {
+	if ev == nil {
 		return nil, common.ErrNilEvent
 	}
 	if fund == nil {
 		return nil, fmt.Errorf("%w missing funding", common.ErrNilArguments)
 	}
-	detail := f.GetOrder()
+	detail := ev.GetOrder()
 	if detail == nil {
 		return nil, gctorder.ErrSubmissionIsNil
 	}
@@ -557,23 +557,33 @@ func (p *Portfolio) TrackFuturesOrder(f fill.Event, fund funding.IFundReleaser) 
 		return nil, fmt.Errorf("%w should not happen", errNoHoldings)
 	}
 	amount := decimal.NewFromFloat(detail.Amount)
-	if pos[len(pos)-1].OpeningDirection != detail.Side {
+	if ev.IsLiquidated() {
+		collateralReleaser.Liquidate()
+		err = settings.FuturesTracker.Liquidate(ev.GetClosePrice(), ev.GetTime())
+		if err != nil {
+			return nil, err
+		}
+	} else if pos[len(pos)-1].OpeningDirection != detail.Side {
 		err = collateralReleaser.TakeProfit(amount, pos[len(pos)-1].RealisedPNL)
 		if err != nil {
 			return nil, err
+		}
+		err = p.UpdatePNL(ev, ev.GetClosePrice())
+		if err != nil {
+			return nil, fmt.Errorf("%v %v %v %w", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 		}
 	} else {
 		err = collateralReleaser.UpdateContracts(detail.Side, amount)
 		if err != nil {
 			return nil, err
 		}
-	}
-	err = p.UpdatePNL(f, f.GetClosePrice())
-	if err != nil {
-		return nil, fmt.Errorf("%v %v %v %w", f.GetExchange(), f.GetAssetType(), f.Pair(), err)
+		err = p.UpdatePNL(ev, ev.GetClosePrice())
+		if err != nil {
+			return nil, fmt.Errorf("%v %v %v %w", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
+		}
 	}
 
-	pnl, err := p.GetLatestPNLForEvent(f)
+	pnl, err := p.GetLatestPNLForEvent(ev)
 	if err != nil {
 		return nil, err
 	}
@@ -604,9 +614,9 @@ func (p *Portfolio) GetLatestPNLForEvent(e common.EventHandler) (*PNLSummary, er
 
 // CheckLiquidationStatus checks funding against position
 // and liquidates and removes funding if position unable to continue
-func (p *Portfolio) CheckLiquidationStatus(e common.DataEventHandler, collateralReader funding.ICollateralReader, pnl *PNLSummary) error {
+func (p *Portfolio) CheckLiquidationStatus(ev common.DataEventHandler, collateralReader funding.ICollateralReader, pnl *PNLSummary) error {
 	availableFunds := collateralReader.AvailableFunds()
-	position, err := p.GetLatestPosition(e)
+	position, err := p.GetLatestPosition(ev)
 	if err != nil {
 		return err
 	}
@@ -662,10 +672,6 @@ func (p *Portfolio) CreateLiquidationOrdersForExchange(ev common.DataEventHandle
 						OrderType:           gctorder.Market,
 						LiquidatingPosition: true,
 					})
-					err := settings.FuturesTracker.Liquidate(ev.GetClosePrice(), ev.GetTime())
-					if err != nil {
-						return nil, err
-					}
 				case item == asset.Spot:
 					allFunds := funds.GetAllFunding()
 					for i := range allFunds {
@@ -699,7 +705,6 @@ func (p *Portfolio) CreateLiquidationOrdersForExchange(ev common.DataEventHandle
 			}
 		}
 	}
-	funds.Liquidate(ev)
 
 	return closingOrders, nil
 }

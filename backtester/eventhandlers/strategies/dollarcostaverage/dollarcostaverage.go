@@ -1,8 +1,6 @@
 package dollarcostaverage
 
 import (
-	"fmt"
-
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
@@ -48,7 +46,7 @@ func (s *Strategy) OnSignal(d data.Handler, _ funding.IFundingTransferer, _ port
 
 	if !d.HasDataAtTime(d.Latest().GetTime()) {
 		es.SetDirection(common.MissingData)
-		es.AppendReason(fmt.Sprintf("missing data at %v, cannot perform any actions", d.Latest().GetTime()))
+		es.AppendReasonf("missing data at %v, cannot perform any actions", d.Latest().GetTime())
 		return &es, nil
 	}
 

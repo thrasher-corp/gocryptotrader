@@ -1,6 +1,7 @@
 package event
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
@@ -51,6 +52,17 @@ func (b *Base) GetInterval() kline.Interval {
 
 // AppendReason adds reasoning for a decision being made
 func (b *Base) AppendReason(y string) {
+	if b.Reason == "" {
+		b.Reason = y
+	} else {
+		b.Reason = y + ". " + b.Reason
+	}
+}
+
+// AppendReasonf adds reasoning for a decision being made
+// but with formatting
+func (b *Base) AppendReasonf(y string, addons ...interface{}) {
+	y = fmt.Sprintf(y, addons...)
 	if b.Reason == "" {
 		b.Reason = y
 	} else {

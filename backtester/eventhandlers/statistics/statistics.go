@@ -23,7 +23,7 @@ func (s *Statistic) Reset() {
 }
 
 // SetupEventForTime sets up the big map for to store important data at each time interval
-func (s *Statistic) SetupEventForTime(ev common.EventHandler) error {
+func (s *Statistic) SetupEventForTime(ev common.DataEventHandler) error {
 	if ev == nil {
 		return common.ErrNilEvent
 	}
@@ -40,40 +40,17 @@ func (s *Statistic) SetupEventForTime(ev common.EventHandler) error {
 		}
 	}
 	for i := range lookup.Events {
-		if lookup.Events[i].Offset != ev.GetOffset() {
-			continue
-		}
-		switch ev.(type) {
-		case common.DataEventHandler:
-			if lookup.Events[i].DataEvent != nil {
-				return ErrAlreadyProcessed
-			}
-		case order.Event:
-			if lookup.Events[i].OrderEvent != nil {
-				return ErrAlreadyProcessed
-			}
-		default:
-			return fmt.Errorf("%w %v %v %v %v", errNoRelevantStatsFound, ev.GetOffset(), ev.GetExchange(), ev.GetAssetType(), ev.Pair())
+		if lookup.Events[i].Offset == ev.GetOffset() {
+			return ErrAlreadyProcessed
 		}
 	}
-	switch t := ev.(type) {
-	case common.DataEventHandler:
-		lookup.Events = append(lookup.Events,
-			DataAtOffset{
-				DataEvent: t,
-				Offset:    t.GetOffset(),
-				Time:      t.GetTime(),
-			},
-		)
-	case order.Event:
-		lookup.Events = append(lookup.Events,
-			DataAtOffset{
-				OrderEvent: t,
-				Offset:     t.GetOffset(),
-				Time:       t.GetTime(),
-			},
-		)
-	}
+	lookup.Events = append(lookup.Events,
+		DataAtOffset{
+			DataEvent: ev,
+			Offset:    ev.GetOffset(),
+			Time:      ev.GetTime(),
+		},
+	)
 
 	s.ExchangeAssetPairStatistics[ex][a][p] = lookup
 
@@ -114,7 +91,7 @@ func (s *Statistic) SetEventForOffset(ev common.EventHandler) error {
 		}
 	}
 
-	return nil
+	return fmt.Errorf("%w for event %v %v %v at offset %v", errNoRelevantStatsFound, exch, a, p, ev.GetOffset())
 }
 
 func applyEventAtOffset(ev common.EventHandler, lookup *CurrencyPairStatistic, i int) error {

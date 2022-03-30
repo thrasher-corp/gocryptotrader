@@ -73,7 +73,7 @@ func (s *Strategy) OnSignal(d data.Handler, _ funding.IFundingTransferer, _ port
 	latestRSIValue := decimal.NewFromFloat(rsi[len(rsi)-1])
 	if !d.HasDataAtTime(d.Latest().GetTime()) {
 		es.SetDirection(common.MissingData)
-		es.AppendReason(fmt.Sprintf("missing data at %v, cannot perform any actions. RSI %v", d.Latest().GetTime(), latestRSIValue))
+		es.AppendReasonf("missing data at %v, cannot perform any actions. RSI %v", d.Latest().GetTime(), latestRSIValue)
 		return &es, nil
 	}
 
@@ -85,7 +85,7 @@ func (s *Strategy) OnSignal(d data.Handler, _ funding.IFundingTransferer, _ port
 	default:
 		es.SetDirection(common.DoNothing)
 	}
-	es.AppendReason(fmt.Sprintf("RSI at %v", latestRSIValue))
+	es.AppendReasonf("RSI at %v", latestRSIValue)
 
 	return &es, nil
 }

@@ -137,13 +137,13 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundingTra
 		latestMFI := decimal.NewFromFloat(mfi[len(mfi)-1])
 		if !d[i].HasDataAtTime(d[i].Latest().GetTime()) {
 			es.SetDirection(common.MissingData)
-			es.AppendReason(fmt.Sprintf("missing data at %v, cannot perform any actions. MFI %v", d[i].Latest().GetTime(), latestMFI))
+			es.AppendReasonf("missing data at %v, cannot perform any actions. MFI %v", d[i].Latest().GetTime(), latestMFI)
 			resp = append(resp, &es)
 			continue
 		}
 
 		es.SetDirection(common.DoNothing)
-		es.AppendReason(fmt.Sprintf("MFI at %v", latestMFI))
+		es.AppendReasonf("MFI at %v", latestMFI)
 
 		funds, err := f.GetFundingForEvent(&es)
 		if err != nil {

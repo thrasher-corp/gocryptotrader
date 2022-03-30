@@ -37,8 +37,8 @@ func (h *HandlerPerCurrency) GetAllData() map[string]map[asset.Item]map[currency
 }
 
 // GetDataForCurrency returns the Handler for a specific exchange, asset, currency
-func (h *HandlerPerCurrency) GetDataForCurrency(e string, a asset.Item, p currency.Pair) Handler {
-	return h.data[e][a][p]
+func (h *HandlerPerCurrency) GetDataForCurrency(ev common.EventHandler) Handler {
+	return h.data[ev.GetExchange()][ev.GetAssetType()][ev.Pair()]
 }
 
 // Reset returns the struct to defaults

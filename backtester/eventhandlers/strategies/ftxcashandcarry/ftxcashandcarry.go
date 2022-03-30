@@ -78,9 +78,9 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundingTra
 		sp := v.spotSignal.Latest().GetClosePrice()
 		hundred := decimal.NewFromInt(100)
 		diffBetweenFuturesSpot := fp.Sub(sp).Div(sp).Mul(hundred)
-		futuresSignal.AppendReason(fmt.Sprintf("Difference %v", diffBetweenFuturesSpot))
+		futuresSignal.AppendReasonf("Difference %v", diffBetweenFuturesSpot)
 		if pos != nil && pos[len(pos)-1].Status == order.Open {
-			futuresSignal.AppendReason(fmt.Sprintf("Unrealised PNL %v", pos[len(pos)-1].UnrealisedPNL))
+			futuresSignal.AppendReasonf("Unrealised PNL %v", pos[len(pos)-1].UnrealisedPNL)
 		}
 		if f.HasExchangeBeenLiquidated(&spotSignal) || f.HasExchangeBeenLiquidated(&futuresSignal) {
 			spotSignal.AppendReason("cannot transact, has been liquidated")
@@ -93,7 +93,7 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundingTra
 		case len(pos) == 0:
 			// check to see if order is appropriate to action
 			spotSignal.SetPrice(v.spotSignal.Latest().GetClosePrice())
-			spotSignal.AppendReason(fmt.Sprintf("Signalling purchase of %v", spotSignal.Pair()))
+			spotSignal.AppendReasonf("Signalling purchase of %v", spotSignal.Pair())
 			// first the spot purchase
 			spotSignal.SetDirection(order.Buy)
 			// second the futures purchase, using the newly acquired asset
@@ -102,7 +102,7 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundingTra
 			futuresSignal.SetPrice(v.futureSignal.Latest().GetClosePrice())
 			futuresSignal.AppendReason("Shorting to perform cash and carry")
 			futuresSignal.CollateralCurrency = spotSignal.CurrencyPair.Base
-			spotSignal.AppendReason(fmt.Sprintf("Signalling shorting of %v", futuresSignal.Pair()))
+			spotSignal.AppendReasonf("Signalling shorting of %v", futuresSignal.Pair())
 			// set the FillDependentEvent to use the futures signal
 			// as the futures signal relies on a completed spot order purchase
 			// to use as collateral
@@ -120,19 +120,19 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundingTra
 			pos[len(pos)-1].OpeningPrice.GreaterThan(futuresSignal.ClosePrice) &&
 			s.alwaysCloseOnProfit:
 			futuresSignal.SetDirection(common.ClosePosition)
-			futuresSignal.AppendReason(fmt.Sprintf("Closing position. Always close on profit. UPNL %v", pos[len(pos)-1].UnrealisedPNL))
+			futuresSignal.AppendReasonf("Closing position. Always close on profit. UPNL %v", pos[len(pos)-1].UnrealisedPNL)
 			response = append(response, &spotSignal, &futuresSignal)
 		case len(pos) > 0 && pos[len(pos)-1].Status == order.Open &&
 			diffBetweenFuturesSpot.LessThanOrEqual(s.closeShortDistancePercentage):
 			futuresSignal.SetDirection(common.ClosePosition)
-			futuresSignal.AppendReason(fmt.Sprintf("Closing position. Threshold %v", s.closeShortDistancePercentage))
+			futuresSignal.AppendReasonf("Closing position. Threshold %v", s.closeShortDistancePercentage)
 			response = append(response, &spotSignal, &futuresSignal)
 		case len(pos) > 0 &&
 			pos[len(pos)-1].Status == order.Closed &&
 			diffBetweenFuturesSpot.GreaterThan(s.openShortDistancePercentage):
 			futuresSignal.SetDirection(order.Short)
 			futuresSignal.SetPrice(v.futureSignal.Latest().GetClosePrice())
-			futuresSignal.AppendReason(fmt.Sprintf("Opening position. Threshold %v", s.openShortDistancePercentage))
+			futuresSignal.AppendReasonf("Opening position. Threshold %v", s.openShortDistancePercentage)
 			response = append(response, &spotSignal, &futuresSignal)
 		default:
 			response = append(response, &spotSignal, &futuresSignal)

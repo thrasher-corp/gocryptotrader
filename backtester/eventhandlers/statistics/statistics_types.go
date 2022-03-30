@@ -69,7 +69,7 @@ type FinalResultsHolder struct {
 // Handler interface details what a statistic is expected to do
 type Handler interface {
 	SetStrategyName(string)
-	SetupEventForTime(handler common.EventHandler) error
+	SetupEventForTime(common.DataEventHandler) error
 	SetEventForOffset(common.EventHandler) error
 	AddHoldingsForTime(*holdings.Holding) error
 	AddComplianceSnapshotForTime(compliance.Snapshot, fill.Event) error

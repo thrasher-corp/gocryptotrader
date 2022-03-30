@@ -617,7 +617,7 @@ func (f *FundManager) RealisePNL(receivingExchange string, receivingAsset asset.
 	return fmt.Errorf("%w to allocate %v to %v %v %v", ErrFundsNotFound, realisedPNL, receivingExchange, receivingAsset, receivingCurrency)
 }
 
-// HasBeenLiquidated checks for any items with a matching exchange
+// HasExchangeBeenLiquidated checks for any items with a matching exchange
 // and returns whether it has been liquidated
 func (f *FundManager) HasExchangeBeenLiquidated(ev common.EventHandler) bool {
 	for i := range f.items {

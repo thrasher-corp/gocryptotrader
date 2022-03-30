@@ -80,7 +80,7 @@ dataLoadingIssue:
 		} else {
 			err := bt.handleEvent(ev)
 			if err != nil {
-				return err
+				log.Error(common.SubLoggers[common.Backtester], err)
 			}
 		}
 		if !bt.hasHandledEvent {
@@ -142,7 +142,7 @@ func (bt *BackTest) processSingleDataEvent(ev common.DataEventHandler, funds fun
 	if err != nil {
 		return err
 	}
-	d := bt.Datas.GetDataForCurrency(ev.GetExchange(), ev.GetAssetType(), ev.Pair())
+	d := bt.Datas.GetDataForCurrency(ev)
 	s, err := bt.Strategy.OnSignal(d, bt.Funding, bt.Portfolio)
 	if err != nil {
 		if errors.Is(err, base.ErrTooMuchBadData) {
@@ -256,26 +256,9 @@ func (bt *BackTest) updateStatsForDataEvent(ev common.DataEventHandler, funds fu
 		err = bt.Portfolio.CheckLiquidationStatus(ev, cr, pnl)
 		if err != nil {
 			if errors.Is(err, gctorder.ErrPositionLiquidated) {
-				// trigger closure of everything
-				orders, err := bt.Portfolio.CreateLiquidationOrdersForExchange(ev, bt.Funding)
-				if err != nil {
-					return err
-				}
-				for i := range orders {
-					bt.EventQueue.AppendEvent(orders[i])
-					//err := bt.Statistic.SetupEventForTime(orders[i])
-					//if err != nil {
-					//	if errors.Is(err, statistics.ErrAlreadyProcessed) {
-					//		continue
-					//	}
-					//	log.Errorf(common.SubLoggers[common.Backtester], "SetupEventForTime %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
-					//}
-				}
-				pnl.Result.IsLiquidated = true
-				pnl.Result.Status = gctorder.Liquidated
-				pnlErr := bt.Statistic.AddPNLForTime(pnl)
-				if pnlErr != nil {
-					return pnlErr
+				liquidErr := bt.triggerLiquidationsForExchange(ev, pnl)
+				if liquidErr != nil {
+					return liquidErr
 				}
 			}
 			return err
@@ -284,6 +267,38 @@ func (bt *BackTest) updateStatsForDataEvent(ev common.DataEventHandler, funds fu
 		return bt.Statistic.AddPNLForTime(pnl)
 	}
 
+	return nil
+}
+
+func (bt *BackTest) triggerLiquidationsForExchange(ev common.DataEventHandler, pnl *portfolio.PNLSummary) error {
+	orders, err := bt.Portfolio.CreateLiquidationOrdersForExchange(ev, bt.Funding)
+	if err != nil {
+		return err
+	}
+	for i := range orders {
+		// these orders are raising events for event offsets
+		// which may not have been processed yet
+		// this will create and store stats for each order
+		// then liquidate it at the funding level
+		datas := bt.Datas.GetDataForCurrency(orders[i])
+		latest := datas.Latest()
+		err = bt.Statistic.SetupEventForTime(latest)
+		if err != nil && !errors.Is(err, statistics.ErrAlreadyProcessed) {
+			return err
+		}
+		bt.EventQueue.AppendEvent(orders[i])
+		err = bt.Statistic.SetEventForOffset(orders[i])
+		if err != nil {
+			log.Errorf(common.SubLoggers[common.Backtester], "SetupEventForTime %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
+		}
+		bt.Funding.Liquidate(orders[i])
+	}
+	pnl.Result.IsLiquidated = true
+	pnl.Result.Status = gctorder.Liquidated
+	pnlErr := bt.Statistic.AddPNLForTime(pnl)
+	if pnlErr != nil {
+		return pnlErr
+	}
 	return nil
 }
 
@@ -310,7 +325,7 @@ func (bt *BackTest) processSignalEvent(ev signal.Event, funds funding.IFundReser
 }
 
 func (bt *BackTest) processOrderEvent(ev order.Event, funds funding.IFundReleaser) error {
-	d := bt.Datas.GetDataForCurrency(ev.GetExchange(), ev.GetAssetType(), ev.Pair())
+	d := bt.Datas.GetDataForCurrency(ev)
 	f, err := bt.Exchange.ExecuteOrder(ev, d, bt.orderManager, funds)
 	if err != nil {
 		if f == nil {
@@ -373,6 +388,7 @@ func (bt *BackTest) processFillEvent(ev fill.Event, funds funding.IFundReleaser)
 		if err != nil {
 			log.Errorf(common.SubLoggers[common.Backtester], "SetEventForOffset %v %v %v %v", fde.GetExchange(), fde.GetAssetType(), fde.Pair(), err)
 		}
+		fde.AppendReasonf("raising event after %v %v %v fill", ev.GetExchange(), ev.GetAssetType(), ev.Pair())
 		bt.EventQueue.AppendEvent(fde)
 	}
 	if ev.GetAssetType().IsFutures() {

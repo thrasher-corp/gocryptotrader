@@ -77,6 +77,7 @@ type EventHandler interface {
 	GetReason() string
 	GetClosePrice() decimal.Decimal
 	AppendReason(string)
+	AppendReasonf(string, ...interface{})
 }
 
 // List of all the custom sublogger names

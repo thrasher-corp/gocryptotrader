@@ -71,3 +71,9 @@ func (f *Fill) GetSlippageRate() decimal.Decimal {
 func (f *Fill) GetFillDependentEvent() signal.Event {
 	return f.FillDependentEvent
 }
+
+// IsLiquidated highlights if the fill event
+// was a result of liquidation
+func (f *Fill) IsLiquidated() bool {
+	return f.Liquidated
+}

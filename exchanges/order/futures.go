@@ -484,15 +484,19 @@ func (p *PositionTracker) Liquidate(price decimal.Decimal, t time.Time) error {
 	}
 	p.m.Lock()
 	defer p.m.Unlock()
-	if p.status.IsInactive() {
-		return fmt.Errorf("%w. Status: %v", ErrPositionClosed, p.status)
+	latest, err := p.GetLatestPNLSnapshot()
+	if err != nil {
+		return err
+	}
+	if !latest.Time.Equal(t) {
+		return fmt.Errorf("%w. Cannot liquidate from different time. Order closed on %v. Liquidation request on %v Status: %v", ErrPositionClosed, latest.Time, t, p.status)
 	}
 	p.status = Liquidated
 	p.currentDirection = SideNA
 	p.exposure = decimal.Zero
 	p.realisedPNL = decimal.Zero
 	p.unrealisedPNL = decimal.Zero
-	_, err := upsertPNLEntry(p.pnlHistory, &PNLResult{
+	_, err = upsertPNLEntry(p.pnlHistory, &PNLResult{
 		Time:                  t,
 		UnrealisedPNL:         decimal.Zero,
 		RealisedPNLBeforeFees: decimal.Zero,

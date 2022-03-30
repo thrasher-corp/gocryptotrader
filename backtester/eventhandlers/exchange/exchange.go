@@ -47,6 +47,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 		Amount:             o.GetAmount(),
 		ClosePrice:         data.Latest().GetClosePrice(),
 		FillDependentEvent: o.GetFillDependentEvent(),
+		Liquidated:         o.IsLiquidating(),
 	}
 	if o.GetDirection() == common.DoNothing {
 		return f, ErrDoNothing
@@ -109,7 +110,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 		} else {
 			f.VolumeAdjustedPrice, amount = ensureOrderFitsWithinHLV(f.ClosePrice, f.Amount, high, low, volume)
 			if !amount.Equal(f.GetAmount()) {
-				f.AppendReason(fmt.Sprintf("Order size shrunk from %v to %v to fit candle", f.Amount, amount))
+				f.AppendReasonf("Order size shrunk from %v to %v to fit candle", f.Amount, amount)
 			}
 		}
 		if amount.LessThanOrEqual(decimal.Zero) && f.GetAmount().GreaterThan(decimal.Zero) {
@@ -125,7 +126,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 			default:
 				f.SetDirection(common.DoNothing)
 			}
-			f.AppendReason(fmt.Sprintf("amount set to 0, %s", errDataMayBeIncorrect))
+			f.AppendReasonf("amount set to 0, %s", errDataMayBeIncorrect)
 			return f, err
 		}
 		adjustedPrice = applySlippageToPrice(f.GetDirection(), f.GetVolumeAdjustedPrice(), slippageRate)
@@ -135,7 +136,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 
 	portfolioLimitedAmount := reduceAmountToFitPortfolioLimit(adjustedPrice, amount, eventFunds, f.GetDirection())
 	if !portfolioLimitedAmount.Equal(amount) {
-		f.AppendReason(fmt.Sprintf("Order size shrunk from %v to %v to remain within portfolio limits", amount, portfolioLimitedAmount))
+		f.AppendReasonf("Order size shrunk from %v to %v to remain within portfolio limits", amount, portfolioLimitedAmount)
 	}
 
 	limitReducedAmount := portfolioLimitedAmount
@@ -144,9 +145,9 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 		// reducing it when needed
 		limitReducedAmount = cs.Limits.ConformToDecimalAmount(portfolioLimitedAmount)
 		if !limitReducedAmount.Equal(portfolioLimitedAmount) {
-			f.AppendReason(fmt.Sprintf("Order size shrunk from %v to %v to remain within exchange step amount limits",
+			f.AppendReasonf("Order size shrunk from %v to %v to remain within exchange step amount limits",
 				portfolioLimitedAmount,
-				limitReducedAmount))
+				limitReducedAmount)
 		}
 	}
 	err = verifyOrderWithinLimits(f, limitReducedAmount, &cs)

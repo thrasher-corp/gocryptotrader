@@ -21,6 +21,7 @@ type Fill struct {
 	Slippage            decimal.Decimal `json:"slippage"`
 	Order               *order.Detail   `json:"-"`
 	FillDependentEvent  signal.Event
+	Liquidated          bool
 }
 
 // Event holds all functions required to handle a fill event
@@ -39,4 +40,5 @@ type Event interface {
 	SetExchangeFee(decimal.Decimal)
 	GetOrder() *order.Detail
 	GetFillDependentEvent() signal.Event
+	IsLiquidated() bool
 }

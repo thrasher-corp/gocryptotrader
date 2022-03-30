@@ -19,7 +19,7 @@ type Holder interface {
 	Setup()
 	SetDataForCurrency(string, asset.Item, currency.Pair, Handler)
 	GetAllData() map[string]map[asset.Item]map[currency.Pair]Handler
-	GetDataForCurrency(string, asset.Item, currency.Pair) Handler
+	GetDataForCurrency(ev common.EventHandler) Handler
 	Reset()
 }
 
