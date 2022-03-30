@@ -379,12 +379,12 @@ func TestMux(t *testing.T) {
 	}
 
 	payload := "string"
-	go func() {
+	go func(payload string) {
 		err = mux.Publish(payload, id)
 		if err != nil {
 			fmt.Println(err)
 		}
-	}()
+	}(payload)
 
 	response, ok := (<-pipe.C).(string)
 	if !ok {
@@ -467,23 +467,23 @@ func TestPublish(t *testing.T) {
 	}
 }
 
-// //  8587209	       142.7 ns/op	     145 B/op	       1 allocs/op
-// func BenchmarkSubscribe(b *testing.B) {
-// 	d := newDispatcher()
-// 	err := d.start(0, 0)
-// 	if !errors.Is(err, nil) {
-// 		b.Fatalf("received: '%v' but expected: '%v'", err, nil)
-// 	}
-// 	mux := GetNewMux(d)
-// 	newID, err := mux.GetID()
-// 	if err != nil {
-// 		b.Error(err)
-// 	}
+//  8587209	       142.7 ns/op	     145 B/op	       1 allocs/op
+func BenchmarkSubscribe(b *testing.B) {
+	d := newDispatcher()
+	err := d.start(0, 0)
+	if !errors.Is(err, nil) {
+		b.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+	mux := GetNewMux(d)
+	newID, err := mux.GetID()
+	if err != nil {
+		b.Error(err)
+	}
 
-// 	for n := 0; n < b.N; n++ {
-// 		_, err := mux.Subscribe(newID)
-// 		if err != nil {
-// 			b.Error(err)
-// 		}
-// 	}
-// }
+	for n := 0; n < b.N; n++ {
+		_, err := mux.Subscribe(newID)
+		if err != nil {
+			b.Error(err)
+		}
+	}
+}

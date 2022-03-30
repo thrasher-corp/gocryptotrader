@@ -341,7 +341,6 @@ func (b *BTCMarkets) generateDefaultSubscriptions() ([]stream.ChannelSubscriptio
 		}
 	}
 
-	var authChannels = []string{fundChange, heartbeat, orderChange}
 	if b.Websocket.CanUseAuthenticatedEndpoints() {
 		for i := range authChannels {
 			subscriptions = append(subscriptions, stream.ChannelSubscription{
@@ -443,8 +442,7 @@ func (b *BTCMarkets) ReSubscribeSpecificOrderbook(pair currency.Pair) error {
 		Currency: pair,
 		Asset:    asset.Spot,
 	}}
-	err := b.Unsubscribe(sub)
-	if err != nil {
+	if err := b.Unsubscribe(sub); err != nil {
 		return err
 	}
 	return b.Subscribe(sub)

@@ -22,8 +22,6 @@ const (
 // dispatcher is our main in memory instance with a stop/start mtx below
 var dispatcher *Dispatcher
 
-// var mtx sync.Mutex
-
 // Dispatcher defines an internal subsystem communication/change state publisher
 type Dispatcher struct {
 	// routes refers to a subystem uuid ticket map with associated publish
