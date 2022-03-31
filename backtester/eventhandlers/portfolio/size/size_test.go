@@ -200,7 +200,7 @@ func TestSizeOrder(t *testing.T) {
 	}
 
 	o.Direction = gctorder.Buy
-	o.Price = decimal.NewFromInt(1)
+	o.ClosePrice = decimal.NewFromInt(1)
 	s.BuySide.MaximumSize = decimal.NewFromInt(1)
 	s.BuySide.MinimumSize = decimal.NewFromInt(1)
 	_, err = s.SizeOrder(o, decimal.NewFromInt(1337), cs)

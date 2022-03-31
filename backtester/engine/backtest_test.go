@@ -103,8 +103,8 @@ func TestNewFromConfig(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, errIntervalUnset)
 	}
 	cfg.DataSettings.Interval = gctkline.OneMin.Duration()
-	cfg.CurrencySettings[0].MakerFee = decimal.Zero
-	cfg.CurrencySettings[0].TakerFee = decimal.Zero
+	cfg.CurrencySettings[0].MakerFee = &decimal.Zero
+	cfg.CurrencySettings[0].TakerFee = &decimal.Zero
 	_, err = NewFromConfig(cfg, "", "", false)
 	if !errors.Is(err, gctcommon.ErrDateUnset) {
 		t.Errorf("received: %v, expected: %v", err, gctcommon.ErrDateUnset)
@@ -137,8 +137,8 @@ func TestLoadDataAPI(t *testing.T) {
 				},
 				BuySide:  config.MinMax{},
 				SellSide: config.MinMax{},
-				MakerFee: decimal.Zero,
-				TakerFee: decimal.Zero,
+				MakerFee: &decimal.Zero,
+				TakerFee: &decimal.Zero,
 			},
 		},
 		DataSettings: config.DataSettings{
@@ -194,8 +194,8 @@ func TestLoadDataDatabase(t *testing.T) {
 				},
 				BuySide:  config.MinMax{},
 				SellSide: config.MinMax{},
-				MakerFee: decimal.Zero,
-				TakerFee: decimal.Zero,
+				MakerFee: &decimal.Zero,
+				TakerFee: &decimal.Zero,
 			},
 		},
 		DataSettings: config.DataSettings{
@@ -262,8 +262,8 @@ func TestLoadDataCSV(t *testing.T) {
 				},
 				BuySide:  config.MinMax{},
 				SellSide: config.MinMax{},
-				MakerFee: decimal.Zero,
-				TakerFee: decimal.Zero,
+				MakerFee: &decimal.Zero,
+				TakerFee: &decimal.Zero,
 			},
 		},
 		DataSettings: config.DataSettings{
@@ -320,8 +320,8 @@ func TestLoadDataLive(t *testing.T) {
 				},
 				BuySide:  config.MinMax{},
 				SellSide: config.MinMax{},
-				MakerFee: decimal.Zero,
-				TakerFee: decimal.Zero,
+				MakerFee: &decimal.Zero,
+				TakerFee: &decimal.Zero,
 			},
 		},
 		DataSettings: config.DataSettings{

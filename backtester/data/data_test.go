@@ -5,6 +5,8 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -169,7 +171,12 @@ func TestGetDataForCurrency(t *testing.T) {
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	d.SetDataForCurrency(exch, a, p, nil)
 	d.SetDataForCurrency(exch, a, currency.NewPair(currency.BTC, currency.DOGE), nil)
-	result := d.GetDataForCurrency(exch, a, p)
+	ev := &order.Order{Base: event.Base{
+		Exchange:     exch,
+		AssetType:    a,
+		CurrencyPair: p,
+	}}
+	result := d.GetDataForCurrency(ev)
 	if result != nil {
 		t.Error("expected nil")
 	}

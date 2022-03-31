@@ -117,7 +117,7 @@ func TestCalculateResults(t *testing.T) {
 		t.Error(err)
 	}
 	if !cs.MarketMovement.Equal(decimal.NewFromFloat(-33.15)) {
-		t.Error("expected -33.15")
+		t.Errorf("expected -33.15 received '%v'", cs.MarketMovement)
 	}
 	ev3 := ev2
 	ev3.DataEvent = &kline.Kline{

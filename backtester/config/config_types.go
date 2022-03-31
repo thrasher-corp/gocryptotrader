@@ -139,8 +139,8 @@ type CurrencySettings struct {
 	MinimumSlippagePercent decimal.Decimal `json:"min-slippage-percent"`
 	MaximumSlippagePercent decimal.Decimal `json:"max-slippage-percent"`
 
-	MakerFee decimal.Decimal `json:"maker-fee-override"`
-	TakerFee decimal.Decimal `json:"taker-fee-override"`
+	MakerFee *decimal.Decimal `json:"maker-fee-override,omitempty"`
+	TakerFee *decimal.Decimal `json:"taker-fee-override,omitempty"`
 
 	MaximumHoldingsRatio    decimal.Decimal `json:"maximum-holdings-ratio"`
 	SkipCandleVolumeFitting bool            `json:"skip-candle-volume-fitting"`

@@ -113,8 +113,8 @@ func TestPrintSettings(t *testing.T) {
 				},
 				BuySide:  minMax,
 				SellSide: minMax,
-				MakerFee: makerFee,
-				TakerFee: takerFee,
+				MakerFee: &makerFee,
+				TakerFee: &takerFee,
 			},
 		},
 		DataSettings: DataSettings{
@@ -175,8 +175,8 @@ func TestGenerateConfigForDCAAPICandles(t *testing.T) {
 				},
 				BuySide:  minMax,
 				SellSide: minMax,
-				MakerFee: makerFee,
-				TakerFee: takerFee,
+				MakerFee: &makerFee,
+				TakerFee: &takerFee,
 			},
 		},
 		DataSettings: DataSettings{
@@ -243,8 +243,8 @@ func TestGenerateConfigForDCAAPICandlesExchangeLevelFunding(t *testing.T) {
 				Quote:        currency.USDT.String(),
 				BuySide:      minMax,
 				SellSide:     minMax,
-				MakerFee:     makerFee,
-				TakerFee:     takerFee,
+				MakerFee:     &makerFee,
+				TakerFee:     &takerFee,
 			},
 			{
 				ExchangeName: testExchange,
@@ -253,8 +253,8 @@ func TestGenerateConfigForDCAAPICandlesExchangeLevelFunding(t *testing.T) {
 				Quote:        currency.USDT.String(),
 				BuySide:      minMax,
 				SellSide:     minMax,
-				MakerFee:     makerFee,
-				TakerFee:     takerFee,
+				MakerFee:     &makerFee,
+				TakerFee:     &takerFee,
 			},
 		},
 		DataSettings: DataSettings{
@@ -311,8 +311,8 @@ func TestGenerateConfigForDCAAPITrades(t *testing.T) {
 				},
 				BuySide:                 minMax,
 				SellSide:                minMax,
-				MakerFee:                makerFee,
-				TakerFee:                takerFee,
+				MakerFee:                &makerFee,
+				TakerFee:                &takerFee,
 				SkipCandleVolumeFitting: true,
 			},
 		},
@@ -378,8 +378,8 @@ func TestGenerateConfigForDCAAPICandlesMultipleCurrencies(t *testing.T) {
 				},
 				BuySide:  minMax,
 				SellSide: minMax,
-				MakerFee: makerFee,
-				TakerFee: takerFee,
+				MakerFee: &makerFee,
+				TakerFee: &takerFee,
 			},
 			{
 				ExchangeName: testExchange,
@@ -391,8 +391,8 @@ func TestGenerateConfigForDCAAPICandlesMultipleCurrencies(t *testing.T) {
 				},
 				BuySide:  minMax,
 				SellSide: minMax,
-				MakerFee: makerFee,
-				TakerFee: takerFee,
+				MakerFee: &makerFee,
+				TakerFee: &takerFee,
 			},
 		},
 		DataSettings: DataSettings{
@@ -450,8 +450,8 @@ func TestGenerateConfigForDCAAPICandlesSimultaneousProcessing(t *testing.T) {
 				},
 				BuySide:  minMax,
 				SellSide: minMax,
-				MakerFee: makerFee,
-				TakerFee: takerFee,
+				MakerFee: &makerFee,
+				TakerFee: &takerFee,
 			},
 			{
 				ExchangeName: testExchange,
@@ -463,8 +463,8 @@ func TestGenerateConfigForDCAAPICandlesSimultaneousProcessing(t *testing.T) {
 				},
 				BuySide:  minMax,
 				SellSide: minMax,
-				MakerFee: makerFee,
-				TakerFee: takerFee,
+				MakerFee: &makerFee,
+				TakerFee: &takerFee,
 			},
 		},
 		DataSettings: DataSettings{
@@ -522,8 +522,8 @@ func TestGenerateConfigForDCALiveCandles(t *testing.T) {
 				},
 				BuySide:  minMax,
 				SellSide: minMax,
-				MakerFee: makerFee,
-				TakerFee: takerFee,
+				MakerFee: &makerFee,
+				TakerFee: &takerFee,
 			},
 		},
 		DataSettings: DataSettings{
@@ -588,8 +588,8 @@ func TestGenerateConfigForRSIAPICustomSettings(t *testing.T) {
 				},
 				BuySide:  minMax,
 				SellSide: minMax,
-				MakerFee: makerFee,
-				TakerFee: takerFee,
+				MakerFee: &makerFee,
+				TakerFee: &takerFee,
 			},
 			{
 				ExchangeName: testExchange,
@@ -602,8 +602,8 @@ func TestGenerateConfigForRSIAPICustomSettings(t *testing.T) {
 				},
 				BuySide:  minMax,
 				SellSide: minMax,
-				MakerFee: makerFee,
-				TakerFee: takerFee,
+				MakerFee: &makerFee,
+				TakerFee: &takerFee,
 			},
 		},
 		DataSettings: DataSettings{
@@ -662,8 +662,8 @@ func TestGenerateConfigForDCACSVCandles(t *testing.T) {
 				},
 				BuySide:  minMax,
 				SellSide: minMax,
-				MakerFee: makerFee,
-				TakerFee: takerFee,
+				MakerFee: &makerFee,
+				TakerFee: &takerFee,
 			},
 		},
 		DataSettings: DataSettings{
@@ -718,8 +718,8 @@ func TestGenerateConfigForDCACSVTrades(t *testing.T) {
 				SpotDetails: &SpotDetails{
 					InitialQuoteFunds: initialQuoteFunds2,
 				},
-				MakerFee: makerFee,
-				TakerFee: takerFee,
+				MakerFee: &makerFee,
+				TakerFee: &takerFee,
 			},
 		},
 		DataSettings: DataSettings{
@@ -772,8 +772,8 @@ func TestGenerateConfigForDCADatabaseCandles(t *testing.T) {
 				},
 				BuySide:  minMax,
 				SellSide: minMax,
-				MakerFee: makerFee,
-				TakerFee: takerFee,
+				MakerFee: &makerFee,
+				TakerFee: &takerFee,
 			},
 		},
 		DataSettings: DataSettings{
@@ -860,8 +860,8 @@ func TestGenerateConfigForTop2Bottom2(t *testing.T) {
 				Quote:        currency.USDT.String(),
 				BuySide:      minMax,
 				SellSide:     minMax,
-				MakerFee:     makerFee,
-				TakerFee:     takerFee,
+				MakerFee:     &makerFee,
+				TakerFee:     &takerFee,
 			},
 			{
 				ExchangeName: testExchange,
@@ -870,8 +870,8 @@ func TestGenerateConfigForTop2Bottom2(t *testing.T) {
 				Quote:        currency.USDT.String(),
 				BuySide:      minMax,
 				SellSide:     minMax,
-				MakerFee:     makerFee,
-				TakerFee:     takerFee,
+				MakerFee:     &makerFee,
+				TakerFee:     &takerFee,
 			},
 			{
 				ExchangeName: testExchange,
@@ -880,8 +880,8 @@ func TestGenerateConfigForTop2Bottom2(t *testing.T) {
 				Quote:        currency.BTC.String(),
 				BuySide:      minMax,
 				SellSide:     minMax,
-				MakerFee:     makerFee,
-				TakerFee:     takerFee,
+				MakerFee:     &makerFee,
+				TakerFee:     &takerFee,
 			},
 			{
 				ExchangeName: testExchange,
@@ -890,8 +890,8 @@ func TestGenerateConfigForTop2Bottom2(t *testing.T) {
 				Quote:        currency.BTC.String(),
 				BuySide:      minMax,
 				SellSide:     minMax,
-				MakerFee:     makerFee,
-				TakerFee:     takerFee,
+				MakerFee:     &makerFee,
+				TakerFee:     &takerFee,
 			},
 			{
 				ExchangeName: testExchange,
@@ -900,8 +900,8 @@ func TestGenerateConfigForTop2Bottom2(t *testing.T) {
 				Quote:        currency.USDT.String(),
 				BuySide:      minMax,
 				SellSide:     minMax,
-				MakerFee:     makerFee,
-				TakerFee:     takerFee,
+				MakerFee:     &makerFee,
+				TakerFee:     &takerFee,
 			},
 			{
 				ExchangeName: testExchange,
@@ -910,8 +910,8 @@ func TestGenerateConfigForTop2Bottom2(t *testing.T) {
 				Quote:        currency.BTC.String(),
 				BuySide:      minMax,
 				SellSide:     minMax,
-				MakerFee:     makerFee,
-				TakerFee:     takerFee,
+				MakerFee:     &makerFee,
+				TakerFee:     &takerFee,
 			},
 		},
 		DataSettings: DataSettings{
@@ -997,8 +997,8 @@ func TestValidateCurrencySettings(t *testing.T) {
 	}
 	c.CurrencySettings = append(c.CurrencySettings, CurrencySettings{})
 	err = c.validateCurrencySettings()
-	if !errors.Is(err, errNoCurrencySettings) {
-		t.Errorf("received: %v, expected: %v", err, errNoCurrencySettings)
+	if !errors.Is(err, errUnsetCurrency) {
+		t.Errorf("received: %v, expected: %v", err, errUnsetCurrency)
 	}
 	leet := decimal.NewFromInt(1337)
 	c.CurrencySettings[0].SpotDetails = &SpotDetails{InitialQuoteFunds: &leet}
@@ -1153,14 +1153,14 @@ func TestValidateStrategySettings(t *testing.T) {
 
 	c.StrategySettings.SimultaneousSignalProcessing = true
 	err = c.validateStrategySettings()
-	if !errors.Is(err, errExchangeLevelFundingDataRequired) {
-		t.Errorf("received %v expected %v", err, errExchangeLevelFundingDataRequired)
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v expected %v", err, nil)
 	}
 	c.FundingSettings = FundingSettings{}
 	c.FundingSettings.UseExchangeLevelFunding = true
 	err = c.validateStrategySettings()
-	if !errors.Is(err, errSimultaneousProcessingRequired) {
-		t.Errorf("received %v expected %v", err, errSimultaneousProcessingRequired)
+	if !errors.Is(err, errExchangeLevelFundingDataRequired) {
+		t.Errorf("received %v expected %v", err, errExchangeLevelFundingDataRequired)
 	}
 	c.FundingSettings.ExchangeLevelFunding = []ExchangeLevelFunding{
 		{
@@ -1230,16 +1230,16 @@ func TestGenerateFTXCashAndCarryStrategy(t *testing.T) {
 				Asset:        asset.Futures.String(),
 				Base:         "BTC",
 				Quote:        "20210924",
-				MakerFee:     makerFee,
-				TakerFee:     takerFee,
+				MakerFee:     &makerFee,
+				TakerFee:     &takerFee,
 			},
 			{
 				ExchangeName: "ftx",
 				Asset:        asset.Spot.String(),
 				Base:         "BTC",
 				Quote:        "USD",
-				MakerFee:     makerFee,
-				TakerFee:     takerFee,
+				MakerFee:     &makerFee,
+				TakerFee:     &takerFee,
 			},
 		},
 		DataSettings: DataSettings{

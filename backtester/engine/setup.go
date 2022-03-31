@@ -234,7 +234,9 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 
 		}
 		portfolioRisk.CurrencySettings[cfg.CurrencySettings[i].ExchangeName][a][curr] = portSet
-		if cfg.CurrencySettings[i].MakerFee.GreaterThan(cfg.CurrencySettings[i].TakerFee) {
+		if cfg.CurrencySettings[i].MakerFee != nil &&
+			cfg.CurrencySettings[i].TakerFee != nil &&
+			cfg.CurrencySettings[i].MakerFee.GreaterThan(*cfg.CurrencySettings[i].TakerFee) {
 			log.Warnf(common.SubLoggers[common.Setup], "maker fee '%v' should not exceed taker fee '%v'. Please review config",
 				cfg.CurrencySettings[i].MakerFee,
 				cfg.CurrencySettings[i].TakerFee)
@@ -457,19 +459,19 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 		bt.Datas.SetDataForCurrency(exchangeName, a, pair, klineData)
 
 		var makerFee, takerFee decimal.Decimal
-		if cfg.CurrencySettings[i].MakerFee.GreaterThan(decimal.Zero) {
-			makerFee = cfg.CurrencySettings[i].MakerFee
+		if cfg.CurrencySettings[i].MakerFee != nil && cfg.CurrencySettings[i].MakerFee.GreaterThan(decimal.Zero) {
+			makerFee = *cfg.CurrencySettings[i].MakerFee
 		}
-		if cfg.CurrencySettings[i].TakerFee.GreaterThan(decimal.Zero) {
-			takerFee = cfg.CurrencySettings[i].TakerFee
+		if cfg.CurrencySettings[i].TakerFee != nil && cfg.CurrencySettings[i].TakerFee.GreaterThan(decimal.Zero) {
+			takerFee = *cfg.CurrencySettings[i].TakerFee
 		}
-		if makerFee.IsZero() || takerFee.IsZero() {
+		if cfg.CurrencySettings[i].TakerFee == nil || cfg.CurrencySettings[i].MakerFee == nil {
 			var apiMakerFee, apiTakerFee decimal.Decimal
 			apiMakerFee, apiTakerFee = getFees(context.TODO(), exch, pair)
-			if makerFee.IsZero() {
+			if cfg.CurrencySettings[i].MakerFee == nil {
 				makerFee = apiMakerFee
 			}
-			if takerFee.IsZero() {
+			if cfg.CurrencySettings[i].TakerFee == nil {
 				takerFee = apiTakerFee
 			}
 		}
