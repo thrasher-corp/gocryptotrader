@@ -407,7 +407,7 @@ func (b *BTCMarkets) Subscribe(subs []stream.ChannelSubscription) error {
 	return nil
 }
 
-// Subscribe sends a websocket message to receive data from the channel
+// Unsubscribe sends a websocket message to manage and remove a subscription.
 func (b *BTCMarkets) Unsubscribe(subs []stream.ChannelSubscription) error {
 	payload := WsSubscribe{
 		MessageType: removeSubscription,
