@@ -136,7 +136,7 @@ func (d *Depth) LoadSnapshot(bids, asks []Item, lastUpdateID int64, lastUpdated 
 
 // invalidate flushes all values back to zero so as to not allow strategy
 // traversal on compromised data.
-func (d *Depth) invalidate(withReason error) {
+func (d *Depth) invalidate(withReason error) error {
 	d.lastUpdateID = 0
 	d.lastUpdated = time.Time{}
 	d.bids.load(nil, d.stack)
@@ -148,14 +148,15 @@ func (d *Depth) invalidate(withReason error) {
 		ErrOrderbookInvalid,
 		withReason)
 	d.Alert()
+	return d.validationError
 }
 
 // Invalidate flushes all values back to zero so as to not allow strategy
 // traversal on compromised data.
-func (d *Depth) Invalidate(withReason error) {
+func (d *Depth) Invalidate(withReason error) error {
 	d.m.Lock()
-	d.invalidate(withReason)
-	d.m.Unlock()
+	defer d.m.Unlock()
+	return d.invalidate(withReason)
 }
 
 // IsValid returns if the underlying book is valid.
@@ -188,15 +189,13 @@ func (d *Depth) UpdateBidAskByID(update *Update) error {
 	if len(update.Bids) != 0 {
 		err := d.bids.updateByID(update.Bids)
 		if err != nil {
-			d.invalidate(err)
-			return err
+			return d.invalidate(err)
 		}
 	}
 	if len(update.Asks) != 0 {
 		err := d.asks.updateByID(update.Asks)
 		if err != nil {
-			d.invalidate(err)
-			return err
+			return d.invalidate(err)
 		}
 	}
 	d.updateAndAlert(update)
@@ -210,15 +209,13 @@ func (d *Depth) DeleteBidAskByID(update *Update, bypassErr bool) error {
 	if len(update.Bids) != 0 {
 		err := d.bids.deleteByID(update.Bids, d.stack, bypassErr)
 		if err != nil {
-			d.invalidate(err)
-			return err
+			return d.invalidate(err)
 		}
 	}
 	if len(update.Asks) != 0 {
 		err := d.asks.deleteByID(update.Asks, d.stack, bypassErr)
 		if err != nil {
-			d.invalidate(err)
-			return err
+			return d.invalidate(err)
 		}
 	}
 	d.updateAndAlert(update)
@@ -232,15 +229,13 @@ func (d *Depth) InsertBidAskByID(update *Update) error {
 	if len(update.Bids) != 0 {
 		err := d.bids.insertUpdates(update.Bids, d.stack)
 		if err != nil {
-			d.invalidate(err)
-			return err
+			return d.invalidate(err)
 		}
 	}
 	if len(update.Asks) != 0 {
 		err := d.asks.insertUpdates(update.Asks, d.stack)
 		if err != nil {
-			d.invalidate(err)
-			return err
+			return d.invalidate(err)
 		}
 	}
 	d.updateAndAlert(update)
@@ -254,15 +249,13 @@ func (d *Depth) UpdateInsertByID(update *Update) error {
 	if len(update.Bids) != 0 {
 		err := d.bids.updateInsertByID(update.Bids, d.stack)
 		if err != nil {
-			d.invalidate(err)
-			return err
+			return d.invalidate(err)
 		}
 	}
 	if len(update.Asks) != 0 {
 		err := d.asks.updateInsertByID(update.Asks, d.stack)
 		if err != nil {
-			d.invalidate(err)
-			return err
+			return d.invalidate(err)
 		}
 	}
 	d.updateAndAlert(update)

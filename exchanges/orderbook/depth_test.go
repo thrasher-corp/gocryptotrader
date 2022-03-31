@@ -3,6 +3,7 @@ package orderbook
 import (
 	"errors"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -321,7 +322,7 @@ func TestDeleteBidAskByID(t *testing.T) {
 		Bids: Items{{Price: 1337, Amount: 2, ID: 1}},
 	}
 	err = d.DeleteBidAskByID(updates, false)
-	if !errors.Is(err, errIDCannotBeMatched) {
+	if !strings.Contains(err.Error(), errIDCannotBeMatched.Error()) {
 		t.Fatalf("error expected %v received %v", errIDCannotBeMatched, err)
 	}
 
@@ -329,7 +330,7 @@ func TestDeleteBidAskByID(t *testing.T) {
 		Asks: Items{{Price: 1337, Amount: 2, ID: 2}},
 	}
 	err = d.DeleteBidAskByID(updates, false)
-	if !errors.Is(err, errIDCannotBeMatched) {
+	if !strings.Contains(err.Error(), errIDCannotBeMatched.Error()) {
 		t.Fatalf("error expected %v received %v", errIDCannotBeMatched, err)
 	}
 
@@ -370,7 +371,7 @@ func TestUpdateBidAskByID(t *testing.T) {
 	}
 	// random unmatching IDs
 	err = d.UpdateBidAskByID(updates)
-	if !errors.Is(err, errIDCannotBeMatched) {
+	if !strings.Contains(err.Error(), errIDCannotBeMatched.Error()) {
 		t.Fatalf("error expected %v received %v", errIDCannotBeMatched, err)
 	}
 
@@ -378,7 +379,7 @@ func TestUpdateBidAskByID(t *testing.T) {
 		Asks: Items{{Price: 1337, Amount: 2, ID: 69}},
 	}
 	err = d.UpdateBidAskByID(updates)
-	if !errors.Is(err, errIDCannotBeMatched) {
+	if !strings.Contains(err.Error(), errIDCannotBeMatched.Error()) {
 		t.Fatalf("error expected %v received %v", errIDCannotBeMatched, err)
 	}
 }
@@ -393,7 +394,7 @@ func TestInsertBidAskByID(t *testing.T) {
 	}
 
 	err := d.InsertBidAskByID(updates)
-	if !errors.Is(err, errCollisionDetected) {
+	if !strings.Contains(err.Error(), errCollisionDetected.Error()) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errCollisionDetected)
 	}
 
@@ -404,7 +405,7 @@ func TestInsertBidAskByID(t *testing.T) {
 	}
 
 	err = d.InsertBidAskByID(updates)
-	if !errors.Is(err, errCollisionDetected) {
+	if !strings.Contains(err.Error(), errCollisionDetected.Error()) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errCollisionDetected)
 	}
 
@@ -438,7 +439,7 @@ func TestUpdateInsertByID(t *testing.T) {
 		Asks: Items{{Price: 1336, Amount: 2, ID: 4}},
 	}
 	err := d.UpdateInsertByID(updates)
-	if !errors.Is(err, errAmountCannotBeLessOrEqualToZero) {
+	if !strings.Contains(err.Error(), errAmountCannotBeLessOrEqualToZero.Error()) {
 		t.Fatalf("expected: %v but received: %v", errAmountCannotBeLessOrEqualToZero, err)
 	}
 
@@ -455,7 +456,7 @@ func TestUpdateInsertByID(t *testing.T) {
 		Asks: Items{{Price: 1336, Amount: 0, ID: 4}},
 	}
 	err = d.UpdateInsertByID(updates)
-	if !errors.Is(err, errAmountCannotBeLessOrEqualToZero) {
+	if !strings.Contains(err.Error(), errAmountCannotBeLessOrEqualToZero.Error()) {
 		t.Fatalf("expected: %v but received: %v", errAmountCannotBeLessOrEqualToZero, err)
 	}
 

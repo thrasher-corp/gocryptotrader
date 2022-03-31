@@ -3,6 +3,7 @@ package buffer
 import (
 	"errors"
 	"math/rand"
+	"strings"
 	"testing"
 	"time"
 
@@ -943,7 +944,7 @@ func TestUpdateByIDAndAction(t *testing.T) {
 			},
 		},
 	})
-	if !errors.Is(err, errAmendFailure) {
+	if !strings.Contains(err.Error(), errAmendFailure.Error()) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errAmendFailure)
 	}
 
@@ -1064,7 +1065,7 @@ func TestUpdateByIDAndAction(t *testing.T) {
 			},
 		},
 	})
-	if !errors.Is(err, errDeleteFailure) {
+	if !strings.Contains(err.Error(), errDeleteFailure.Error()) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errDeleteFailure)
 	}
 
@@ -1096,7 +1097,7 @@ func TestUpdateByIDAndAction(t *testing.T) {
 			{ID: 123456},
 		},
 	})
-	if !errors.Is(err, errAmendFailure) {
+	if !strings.Contains(err.Error(), errAmendFailure.Error()) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errAmendFailure)
 	}
 
