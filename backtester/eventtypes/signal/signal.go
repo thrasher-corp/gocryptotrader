@@ -66,12 +66,9 @@ func (s *Signal) SetAmount(d decimal.Decimal) {
 	s.Amount = d
 }
 
-// GetUnderlyingPair returns the underlaying currency pair
-func (s *Signal) GetUnderlyingPair() (currency.Pair, error) {
-	if !s.AssetType.IsFutures() {
-		return s.CurrencyPair, order.ErrNotFuturesAsset
-	}
-	return s.UnderlyingPair, nil
+// GetUnderlyingPair returns the underlying currency pair
+func (s *Signal) GetUnderlyingPair() currency.Pair {
+	return s.UnderlyingPair
 }
 
 // GetFillDependentEvent returns the fill dependent event

@@ -1230,21 +1230,14 @@ func TestGenerateFTXCashAndCarryStrategy(t *testing.T) {
 				Asset:        asset.Futures.String(),
 				Base:         "BTC",
 				Quote:        "20210924",
-				FuturesDetails: &FuturesDetails{
-					Leverage: Leverage{
-						CanUseLeverage:           true,
-						MaximumOrderLeverageRate: makerFee,
-					},
-				},
-				MakerFee: makerFee,
-				TakerFee: takerFee,
+				MakerFee:     makerFee,
+				TakerFee:     takerFee,
 			},
 			{
 				ExchangeName: "ftx",
 				Asset:        asset.Spot.String(),
 				Base:         "BTC",
 				Quote:        "USD",
-				SpotDetails:  &SpotDetails{},
 				MakerFee:     makerFee,
 				TakerFee:     takerFee,
 			},

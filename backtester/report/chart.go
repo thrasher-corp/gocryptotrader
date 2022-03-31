@@ -1,6 +1,12 @@
 package report
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/shopspring/decimal"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+)
 
 // createUSDTotalsChart used for creating a chart in the HTML report
 // to show how much the overall assets are worth over time
@@ -9,29 +15,29 @@ func (d *Data) createUSDTotalsChart() *Chart {
 		return nil
 	}
 	response := &Chart{}
-	var usdTotalChartPlot []ChartPlot
+	var usdTotalChartPlot []LinePlot
 	for i := range d.Statistics.FundingStatistics.TotalUSDStatistics.HoldingValues {
-		usdTotalChartPlot = append(usdTotalChartPlot, ChartPlot{
+		usdTotalChartPlot = append(usdTotalChartPlot, LinePlot{
 			Value:     d.Statistics.FundingStatistics.TotalUSDStatistics.HoldingValues[i].Value.InexactFloat64(),
 			UnixMilli: d.Statistics.FundingStatistics.TotalUSDStatistics.HoldingValues[i].Time.UTC().UnixMilli(),
 		})
 	}
 	response.Data = append(response.Data, ChartLine{
-		Name:       "Total USD value",
-		DataPoints: usdTotalChartPlot,
+		Name:      "Total USD value",
+		LinePlots: usdTotalChartPlot,
 	})
 
 	for i := range d.Statistics.FundingStatistics.Items {
-		var plots []ChartPlot
+		var plots []LinePlot
 		for j := range d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots {
-			plots = append(plots, ChartPlot{
+			plots = append(plots, LinePlot{
 				Value:     d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots[j].USDValue.InexactFloat64(),
 				UnixMilli: d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots[j].Time.UTC().UnixMilli(),
 			})
 		}
 		response.Data = append(response.Data, ChartLine{
-			Name:       fmt.Sprintf("%v %v %v USD value", d.Statistics.FundingStatistics.Items[i].ReportItem.Exchange, d.Statistics.FundingStatistics.Items[i].ReportItem.Asset, d.Statistics.FundingStatistics.Items[i].ReportItem.Currency),
-			DataPoints: plots,
+			Name:      fmt.Sprintf("%v %v %v USD value", d.Statistics.FundingStatistics.Items[i].ReportItem.Exchange, d.Statistics.FundingStatistics.Items[i].ReportItem.Asset, d.Statistics.FundingStatistics.Items[i].ReportItem.Currency),
+			LinePlots: plots,
 		})
 	}
 
@@ -54,17 +60,17 @@ func (d *Data) createPNLCharts() *Chart {
 				realisedPNL := ChartLine{Name: rPNLName}
 				for i := range result.Events {
 					if result.Events[i].PNL != nil {
-						realisedPNL.DataPoints = append(realisedPNL.DataPoints, ChartPlot{
+						realisedPNL.LinePlots = append(realisedPNL.LinePlots, LinePlot{
 							Value:     result.Events[i].PNL.GetRealisedPNL().PNL.InexactFloat64(),
 							UnixMilli: result.Events[i].Time.UnixMilli(),
 						})
-						unrealisedPNL.DataPoints = append(unrealisedPNL.DataPoints, ChartPlot{
+						unrealisedPNL.LinePlots = append(unrealisedPNL.LinePlots, LinePlot{
 							Value:     result.Events[i].PNL.GetUnrealisedPNL().PNL.InexactFloat64(),
 							UnixMilli: result.Events[i].Time.UnixMilli(),
 						})
 					}
 				}
-				if len(unrealisedPNL.DataPoints) == 0 || len(realisedPNL.DataPoints) == 0 {
+				if len(unrealisedPNL.LinePlots) == 0 || len(realisedPNL.LinePlots) == 0 {
 					continue
 				}
 				response.Data = append(response.Data, unrealisedPNL, realisedPNL)
@@ -84,33 +90,85 @@ func (d *Data) createHoldingsOverTimeChart() *Chart {
 	response := &Chart{}
 	response.AxisType = "logarithmic"
 	for i := range d.Statistics.FundingStatistics.Items {
-		var plots []ChartPlot
+		var plots []LinePlot
 		for j := range d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots {
 			if d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots[j].Available.IsZero() {
 				// highcharts can't render zeroes in logarithmic mode
 				response.AxisType = "linear"
 			}
-			plots = append(plots, ChartPlot{
+			plots = append(plots, LinePlot{
 				Value:     d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots[j].Available.InexactFloat64(),
 				UnixMilli: d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots[j].Time.UTC().UnixMilli(),
 			})
 		}
 		response.Data = append(response.Data, ChartLine{
-			Name:       fmt.Sprintf("%v %v %v holdings", d.Statistics.FundingStatistics.Items[i].ReportItem.Exchange, d.Statistics.FundingStatistics.Items[i].ReportItem.Asset, d.Statistics.FundingStatistics.Items[i].ReportItem.Currency),
-			DataPoints: plots,
+			Name:      fmt.Sprintf("%v %v %v holdings", d.Statistics.FundingStatistics.Items[i].ReportItem.Exchange, d.Statistics.FundingStatistics.Items[i].ReportItem.Asset, d.Statistics.FundingStatistics.Items[i].ReportItem.Currency),
+			LinePlots: plots,
 		})
 	}
 
 	return response
 }
 
-func (d *Data) createSpotFuturesDiffChart() *Chart {
+type linkCurrencyDiff struct {
+	FuturesPair   currency.Pair
+	SpotPair      currency.Pair
+	FuturesEvents []statistics.DataAtOffset
+	SpotEvents    []statistics.DataAtOffset
+	DiffPercent   []decimal.Decimal
+}
+
+func (d *Data) createFuturesSpotDiffChart() *Chart {
+	var currs []linkCurrencyDiff
 	response := &Chart{}
-	for exch, assetMap := range d.Statistics.ExchangeAssetPairStatistics {
+	for _, assetMap := range d.Statistics.ExchangeAssetPairStatistics {
 		for item, pairMap := range assetMap {
+			if !item.IsFutures() {
+				continue
+			}
 			for pair, result := range pairMap {
-				result.
+				currs = append(currs, linkCurrencyDiff{
+					FuturesPair:   pair,
+					SpotPair:      result.UnderlyingPair,
+					FuturesEvents: result.Events,
+				})
 			}
 		}
 	}
+	for _, assetMap := range d.Statistics.ExchangeAssetPairStatistics {
+		for item, pairMap := range assetMap {
+			if item.IsFutures() {
+				continue
+			}
+			for pair, result := range pairMap {
+				for i := range currs {
+					if pair.Equal(currs[i].SpotPair) {
+						currs[i].SpotEvents = result.Events
+					}
+				}
+			}
+		}
+	}
+	for i := range currs {
+		if currs[i].FuturesEvents == nil || currs[i].SpotEvents == nil {
+			continue
+		}
+		if len(currs[i].SpotEvents) != len(currs[i].FuturesEvents) {
+			continue
+		}
+		line := ChartLine{
+			Name: fmt.Sprintf("%v %v diff %%", currs[i].FuturesPair, currs[i].SpotPair),
+		}
+		for j := range currs[i].SpotEvents {
+			spotPrice := currs[i].SpotEvents[j].DataEvent.GetClosePrice()
+			futuresPrice := currs[i].FuturesEvents[j].DataEvent.GetClosePrice()
+			diff := futuresPrice.Sub(spotPrice).Div(spotPrice).Mul(decimal.NewFromInt(100))
+			line.LinePlots = append(line.LinePlots, LinePlot{
+				Value:     diff.InexactFloat64(),
+				UnixMilli: currs[i].SpotEvents[j].Time.UnixMilli(),
+			})
+		}
+		response.Data = append(response.Data, line)
+	}
+	return response
 }

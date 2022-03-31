@@ -244,6 +244,8 @@ func (t fakeDataHandler) GetOpenPrice() decimal.Decimal {
 	return decimal.Zero
 }
 
-func (t fakeDataHandler) GetUnderlyingPair() (currency.Pair, error) {
-	return t.Pair(), nil
+func (t fakeDataHandler) GetUnderlyingPair() currency.Pair {
+	return t.Pair()
 }
+
+func (t fakeDataHandler) AppendReasonf(s string, i ...interface{}) {}

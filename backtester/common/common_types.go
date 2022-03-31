@@ -129,7 +129,7 @@ var (
 // DataEventHandler interface used for loading and interacting with Data
 type DataEventHandler interface {
 	EventHandler
-	GetUnderlyingPair() (currency.Pair, error)
+	GetUnderlyingPair() currency.Pair
 	GetClosePrice() decimal.Decimal
 	GetHighPrice() decimal.Decimal
 	GetLowPrice() decimal.Decimal

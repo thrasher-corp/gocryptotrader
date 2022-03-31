@@ -45,7 +45,7 @@ func (d *Data) GenerateReport() error {
 	d.USDTotalsChart = d.createUSDTotalsChart()
 	d.HoldingsOverTimeChart = d.createHoldingsOverTimeChart()
 	d.PNLOverTimeChart = d.createPNLCharts()
-	d.SpotFuturesDiffChart
+	d.FuturesSpotDiffChart = d.createFuturesSpotDiffChart()
 
 	tmpl := template.Must(
 		template.ParseFiles(

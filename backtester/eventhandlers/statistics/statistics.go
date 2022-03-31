@@ -34,9 +34,10 @@ func (s *Statistic) SetupEventForTime(ev common.DataEventHandler) error {
 	lookup := s.ExchangeAssetPairStatistics[ex][a][p]
 	if lookup == nil {
 		lookup = &CurrencyPairStatistic{
-			Exchange: ev.GetExchange(),
-			Asset:    ev.GetAssetType(),
-			Currency: ev.Pair(),
+			Exchange:       ev.GetExchange(),
+			Asset:          ev.GetAssetType(),
+			Currency:       ev.Pair(),
+			UnderlyingPair: ev.GetUnderlyingPair(),
 		}
 	}
 	for i := range lookup.Events {

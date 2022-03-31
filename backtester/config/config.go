@@ -169,9 +169,6 @@ func (c *Config) validateCurrencySettings() error {
 			c.CurrencySettings[i].Asset == asset.PerpetualContract.String() {
 			return errPerpetualsUnsupported
 		}
-		if c.CurrencySettings[i].SpotDetails == nil && c.CurrencySettings[i].FuturesDetails == nil {
-			return fmt.Errorf("%w please add spot or future currency details or create a new config via the config builder", errNoCurrencySettings)
-		}
 		if c.CurrencySettings[i].FuturesDetails != nil {
 			if c.CurrencySettings[i].Quote == "PERP" || c.CurrencySettings[i].Base == "PI" {
 				return errPerpetualsUnsupported

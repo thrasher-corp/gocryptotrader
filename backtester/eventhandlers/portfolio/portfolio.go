@@ -577,10 +577,6 @@ func (p *Portfolio) TrackFuturesOrder(ev fill.Event, fund funding.IFundReleaser)
 		if err != nil {
 			return nil, err
 		}
-		err = p.UpdatePNL(ev, ev.GetClosePrice())
-		if err != nil {
-			return nil, fmt.Errorf("%v %v %v %w", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
-		}
 	}
 
 	pnl, err := p.GetLatestPNLForEvent(ev)
@@ -593,6 +589,9 @@ func (p *Portfolio) TrackFuturesOrder(ev fill.Event, fund funding.IFundReleaser)
 // GetLatestPNLForEvent takes in an event and returns the latest PNL data
 // if it exists
 func (p *Portfolio) GetLatestPNLForEvent(e common.EventHandler) (*PNLSummary, error) {
+	if e == nil {
+		return nil, common.ErrNilEvent
+	}
 	response := &PNLSummary{
 		Exchange: e.GetExchange(),
 		Item:     e.GetAssetType(),

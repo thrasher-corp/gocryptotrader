@@ -180,13 +180,13 @@ func TestAddExchangeEventForTime(t *testing.T) {
 			CurrencyPair: p,
 			AssetType:    a,
 		},
-		ID:        "elite",
-		Direction: gctorder.Buy,
-		Status:    gctorder.New,
-		Price:     eleet,
-		Amount:    eleet,
-		OrderType: gctorder.Stop,
-		Leverage:  eleet,
+		ID:         "elite",
+		Direction:  gctorder.Buy,
+		Status:     gctorder.New,
+		ClosePrice: eleet,
+		Amount:     eleet,
+		OrderType:  gctorder.Stop,
+		Leverage:   eleet,
 	})
 	if err != nil {
 		t.Error(err)

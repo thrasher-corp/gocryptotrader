@@ -42,7 +42,7 @@ type Data struct {
 	USDTotalsChart        *Chart
 	HoldingsOverTimeChart *Chart
 	PNLOverTimeChart      *Chart
-	SpotFuturesDiffChart  *Chart
+	FuturesSpotDiffChart  *Chart
 	Prettify              PrettyNumbers
 }
 
@@ -55,13 +55,13 @@ type Chart struct {
 // ChartLine holds chart plot data
 // to render charts in the report
 type ChartLine struct {
-	Name       string
-	DataPoints []ChartPlot
+	Name      string
+	LinePlots []LinePlot
 }
 
-// ChartPlot holds value data
+// LinePlot holds value data
 // for a chart
-type ChartPlot struct {
+type LinePlot struct {
 	Value     float64
 	UnixMilli int64
 	Flag      string

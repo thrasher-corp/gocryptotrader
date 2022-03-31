@@ -155,10 +155,7 @@ func sortSignals(d []data.Handler, f funding.IFundingTransferer) (map[currency.P
 			entry.spotSignal = d[i]
 			response[l.Pair().Format("", false)] = entry
 		case a.IsFutures():
-			u, err := l.GetUnderlyingPair()
-			if err != nil {
-				return nil, err
-			}
+			u := l.GetUnderlyingPair()
 			entry := response[u.Format("", false)]
 			entry.futureSignal = d[i]
 			response[u.Format("", false)] = entry

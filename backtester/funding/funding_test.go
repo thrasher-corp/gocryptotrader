@@ -30,16 +30,18 @@ var (
 // caring about the response, or dealing with import cycles
 type fakeEvent struct{}
 
-func (f *fakeEvent) GetOffset() int64               { return 0 }
-func (f *fakeEvent) SetOffset(int64)                {}
-func (f *fakeEvent) IsEvent() bool                  { return true }
-func (f *fakeEvent) GetTime() time.Time             { return time.Now() }
-func (f *fakeEvent) Pair() currency.Pair            { return pair }
-func (f *fakeEvent) GetExchange() string            { return exch }
-func (f *fakeEvent) GetInterval() gctkline.Interval { return gctkline.OneMin }
-func (f *fakeEvent) GetAssetType() asset.Item       { return asset.Spot }
-func (f *fakeEvent) GetReason() string              { return "" }
-func (f *fakeEvent) AppendReason(string)            {}
+func (f *fakeEvent) GetOffset() int64                         { return 0 }
+func (f *fakeEvent) SetOffset(int64)                          {}
+func (f *fakeEvent) IsEvent() bool                            { return true }
+func (f *fakeEvent) GetTime() time.Time                       { return time.Now() }
+func (f *fakeEvent) Pair() currency.Pair                      { return pair }
+func (f *fakeEvent) GetExchange() string                      { return exch }
+func (f *fakeEvent) GetInterval() gctkline.Interval           { return gctkline.OneMin }
+func (f *fakeEvent) GetAssetType() asset.Item                 { return asset.Spot }
+func (f *fakeEvent) GetReason() string                        { return "" }
+func (f *fakeEvent) AppendReason(string)                      {}
+func (f *fakeEvent) GetClosePrice() decimal.Decimal           { return elite }
+func (f *fakeEvent) AppendReasonf(s string, i ...interface{}) {}
 
 func TestSetupFundingManager(t *testing.T) {
 	t.Parallel()

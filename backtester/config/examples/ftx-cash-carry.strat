@@ -24,14 +24,6 @@
    "asset": "futures",
    "base": "BTC",
    "quote": "20210924",
-   "futures-details": {
-    "leverage": {
-     "can-use-leverage": true,
-     "maximum-orders-with-leverage-ratio": "0",
-     "maximum-leverage-rate": "0.001",
-     "maximum-collateral-leverage-rate": "0"
-    }
-   },
    "buy-side": {
     "minimum-size": "0",
     "maximum-size": "0",
@@ -56,7 +48,6 @@
    "asset": "spot",
    "base": "BTC",
    "quote": "USD",
-   "spot-details": {},
    "buy-side": {
     "minimum-size": "0",
     "maximum-size": "0",

@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/eventholder"
@@ -247,9 +246,7 @@ func (bt *BackTest) updateStatsForDataEvent(ev common.DataEventHandler, funds fu
 		if err != nil {
 			return err
 		}
-		if !pnl.Result.IsLiquidated {
-			pnl.Result.UnrealisedPNL = decimal.NewFromInt(-600 - ev.GetOffset())
-		}
+
 		if pnl.Result.IsLiquidated {
 			return nil
 		}

@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
-	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
 )
 
@@ -160,8 +159,7 @@ type SpotDetails struct {
 
 // FuturesDetails contains data relevant to futures currency pairs
 type FuturesDetails struct {
-	Leverage         Leverage      `json:"leverage"`
-	LinkedToSpotPair currency.Pair `json:"linked-to-spot-pair"`
+	Leverage Leverage `json:"leverage"`
 }
 
 // APIData defines all fields to configure API based data

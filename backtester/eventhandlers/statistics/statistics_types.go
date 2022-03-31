@@ -135,9 +135,10 @@ type DataAtOffset struct {
 
 // CurrencyPairStatistic Holds all events and statistics relevant to an exchange, asset type and currency pair
 type CurrencyPairStatistic struct {
-	Exchange string
-	Asset    asset.Item
-	Currency currency.Pair
+	Exchange       string
+	Asset          asset.Item
+	Currency       currency.Pair
+	UnderlyingPair currency.Pair `json:"linked-spot-currency"`
 
 	ShowMissingDataWarning       bool `json:"-"`
 	IsStrategyProfitable         bool `json:"is-strategy-profitable"`

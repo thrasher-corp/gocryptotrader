@@ -209,7 +209,7 @@
 					</tbody>
 				</table>
 			{{ end }}
-			{{if .Config.StrategySettings.UseExchangeLevelFunding}}
+			{{if .Config.FundingSettings.UseExchangeLevelFunding}}
 				<h5>Funding results</h5>
 				<table class="table table-hover table-bordered table-striped">
 					<thead>
@@ -819,7 +819,7 @@
 									pointStart: {{ $.Statistics.StartDate.UnixMilli }},
 									pointInterval: {{$.Statistics.CandleInterval.Duration.Milliseconds}},
 									data: [
-										{{ range .DataPoints }}
+										{{ range .LinePlots }}
 										[ {{ .UnixMilli}}, {{ .Value}} ],
 										{{end}}
 									]
@@ -845,6 +845,71 @@
 					</script>
 				</div>
 
+			<h3>Futures Spot Diff %</h3>
+			<div id="futurespotdiff" style="max-height: 800px;min-height: 75vh;" >
+				<script>
+					Highcharts.chart('futurespotdiff', {
+						stockTools: {
+							gui: {
+								buttons:[ 'simpleShapes', 'lines', 'crookedLines', 'measure', 'advanced', 'toggleAnnotations', 'verticalLabels', 'flags', 'zoomChange', 'currentPriceIndicator' ]
+							}
+						},
+						title: {
+							text: 'Futures spot diff %'
+						},
+						yAxis: {
+							title: {
+								text: 'percent difference'
+							},
+							type: {{.PNLOverTimeChart.AxisType}}
+						},
+						xAxis: {
+							type: 'datetime'
+						},
+						legend: {
+							layout: 'vertical',
+							align: 'right',
+							verticalAlign: 'middle'
+						},
+						plotOptions: {
+							series: {
+								label: {
+									connectorAllowed: false
+								},
+							},
+						},
+						series: [
+							{{ range .FuturesSpotDiffChart.Data }}
+							{
+								name: {{.Name}},
+								pointStart: {{ $.Statistics.StartDate.UnixMilli }},
+								pointInterval: {{$.Statistics.CandleInterval.Duration.Milliseconds}},
+								data: [
+									{{ range .LinePlots }}
+									[ {{ .UnixMilli}}, {{ .Value}} ],
+									{{end}}
+								]
+							},
+							{{end}}
+						],
+						responsive: {
+							rules: [{
+								condition: {
+									maxWidth: 500
+								},
+								chartOptions: {
+									legend: {
+										layout: 'horizontal',
+										align: 'center',
+										verticalAlign: 'bottom'
+									}
+								}
+							}]
+						}
+
+					});
+				</script>
+			</div>
 
 			{{ if eq $.Config.StrategySettings.DisableUSDTracking false }}
 			<div class="card-body card-body-cascade ">
@@ -888,7 +953,7 @@
 									pointStart: {{ $.Statistics.StartDate.UnixMilli }},
 									pointInterval: {{$.Statistics.CandleInterval.Duration.Milliseconds}},
 									data: [
-										{{ range .DataPoints }}
+										{{ range .LinePlots }}
 										[{{.UnixMilli}}, {{.Value}}],
 										{{end}}
 									]
@@ -955,7 +1020,7 @@
 									pointInterval: {{$.Statistics.CandleInterval.Duration.Milliseconds}},
 									name: {{.Name}},
 									data: [
-										{{ range .DataPoints }}
+										{{ range .LinePlots }}
 										[{{.UnixMilli}},{{.Value}}],
 										{{end}}
 									]

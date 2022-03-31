@@ -787,9 +787,7 @@ func (p *PNLCalculator) CalculatePNL(_ context.Context, calc *PNLCalculatorReque
 		Fee:                   calc.Fee,
 		Direction:             calc.CurrentDirection,
 	}
-	if len(calc.PNLHistory) > 3 {
-		response.UnrealisedPNL = decimal.NewFromInt(-9999999)
-	}
+
 	return response, nil
 }
 

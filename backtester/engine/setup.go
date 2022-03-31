@@ -89,27 +89,27 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 
 	funds, err := funding.SetupFundingManager(
 		bt.exchangeManager,
-		cfg.StrategySettings.UseExchangeLevelFunding,
+		cfg.FundingSettings.UseExchangeLevelFunding,
 		cfg.StrategySettings.DisableUSDTracking,
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	if cfg.StrategySettings.UseExchangeLevelFunding {
-		for i := range cfg.StrategySettings.ExchangeLevelFunding {
+	if cfg.FundingSettings.UseExchangeLevelFunding {
+		for i := range cfg.FundingSettings.ExchangeLevelFunding {
 			var a asset.Item
-			a, err = asset.New(cfg.StrategySettings.ExchangeLevelFunding[i].Asset)
+			a, err = asset.New(cfg.FundingSettings.ExchangeLevelFunding[i].Asset)
 			if err != nil {
 				return nil, err
 			}
-			cq := currency.NewCode(cfg.StrategySettings.ExchangeLevelFunding[i].Currency)
+			cq := currency.NewCode(cfg.FundingSettings.ExchangeLevelFunding[i].Currency)
 			var item *funding.Item
-			item, err = funding.CreateItem(cfg.StrategySettings.ExchangeLevelFunding[i].ExchangeName,
+			item, err = funding.CreateItem(cfg.FundingSettings.ExchangeLevelFunding[i].ExchangeName,
 				a,
 				cq,
-				cfg.StrategySettings.ExchangeLevelFunding[i].InitialFunds,
-				cfg.StrategySettings.ExchangeLevelFunding[i].TransferFee)
+				cfg.FundingSettings.ExchangeLevelFunding[i].InitialFunds,
+				cfg.FundingSettings.ExchangeLevelFunding[i].TransferFee)
 			if err != nil {
 				return nil, err
 			}
@@ -137,7 +137,6 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 			return nil, err
 		}
 		conf.Enabled = true
-		// this is required because fuck you
 		conf.WebsocketTrafficTimeout = time.Second
 		conf.Websocket = convert.BoolPtr(false)
 		conf.WebsocketResponseCheckTimeout = time.Second
@@ -232,6 +231,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 		if cfg.CurrencySettings[i].FuturesDetails != nil {
 			portSet.MaximumOrdersWithLeverageRatio = cfg.CurrencySettings[i].FuturesDetails.Leverage.MaximumOrdersWithLeverageRatio
 			portSet.MaxLeverageRate = cfg.CurrencySettings[i].FuturesDetails.Leverage.MaximumOrderLeverageRate
+
 		}
 		portfolioRisk.CurrencySettings[cfg.CurrencySettings[i].ExchangeName][a][curr] = portSet
 		if cfg.CurrencySettings[i].MakerFee.GreaterThan(cfg.CurrencySettings[i].TakerFee) {
@@ -241,7 +241,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 		}
 
 		var baseItem, quoteItem, futureItem *funding.Item
-		if cfg.StrategySettings.UseExchangeLevelFunding {
+		if cfg.FundingSettings.UseExchangeLevelFunding {
 			switch {
 			case a == asset.Spot:
 				// add any remaining currency items that have no funding data in the strategy config
@@ -279,9 +279,6 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 					decimal.Zero)
 				if err != nil {
 					return nil, err
-				}
-				if cfg.CurrencySettings[i].FuturesDetails == nil {
-					return nil, errors.New("what the fuck")
 				}
 
 				var collateralCurrency currency.Code

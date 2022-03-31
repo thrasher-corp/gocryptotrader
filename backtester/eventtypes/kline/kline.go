@@ -26,6 +26,6 @@ func (k *Kline) GetOpenPrice() decimal.Decimal {
 }
 
 // GetUnderlyingPair returns the open price of a kline
-func (k *Kline) GetUnderlyingPair() (currency.Pair, error) {
-	return k.UnderlyingPair, nil
+func (k *Kline) GetUnderlyingPair() currency.Pair {
+	return k.UnderlyingPair
 }
