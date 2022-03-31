@@ -98,6 +98,7 @@ jobs:
         restore-keys: ${{ runner.os }}-go-386-
 
     - name: Install gcc-multilib
+      run: sudo apt-get update
       run: sudo apt-get install gcc-multilib
 
     - name: Test
