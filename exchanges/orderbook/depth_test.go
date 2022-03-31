@@ -17,10 +17,11 @@ var id = uuid.Must(uuid.NewV4())
 func TestGetLength(t *testing.T) {
 	t.Parallel()
 	d := NewDepth(id)
-	if err := d.Invalidate(nil); !errors.Is(err, ErrOrderbookInvalid) {
+	err := d.Invalidate(nil)
+	if !errors.Is(err, ErrOrderbookInvalid) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
 	}
-	_, err := d.GetAskLength()
+	_, err = d.GetAskLength()
 	if !errors.Is(err, ErrOrderbookInvalid) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
 	}
@@ -48,7 +49,8 @@ func TestGetLength(t *testing.T) {
 	}
 
 	d = NewDepth(id)
-	if err := d.Invalidate(nil); !errors.Is(err, ErrOrderbookInvalid) {
+	err = d.Invalidate(nil)
+	if !errors.Is(err, ErrOrderbookInvalid) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
 	}
 	_, err = d.GetBidLength()
@@ -126,10 +128,11 @@ func TestTotalAmounts(t *testing.T) {
 	t.Parallel()
 	d := NewDepth(id)
 
-	if err := d.Invalidate(nil); !errors.Is(err, ErrOrderbookInvalid) {
+	err := d.Invalidate(nil)
+	if !errors.Is(err, ErrOrderbookInvalid) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
 	}
-	_, _, err := d.TotalBidAmounts()
+	_, _, err = d.TotalBidAmounts()
 	if !errors.Is(err, ErrOrderbookInvalid) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
 	}
@@ -148,7 +151,8 @@ func TestTotalAmounts(t *testing.T) {
 			value)
 	}
 
-	if err := d.Invalidate(nil); !errors.Is(err, ErrOrderbookInvalid) {
+	err = d.Invalidate(nil)
+	if !errors.Is(err, ErrOrderbookInvalid) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
 	}
 
@@ -547,7 +551,8 @@ func TestIsRestSnapshot(t *testing.T) {
 	if !errors.Is(err, ErrOrderbookInvalid) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
 	}
-	if _, err := d.IsRESTSnapshot(); !errors.Is(err, ErrOrderbookInvalid) {
+	_, err = d.IsRESTSnapshot()
+	if !errors.Is(err, ErrOrderbookInvalid) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
 	}
 
@@ -569,7 +574,8 @@ func TestLastUpdateID(t *testing.T) {
 	if !errors.Is(err, ErrOrderbookInvalid) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
 	}
-	if _, err := d.LastUpdateID(); !errors.Is(err, ErrOrderbookInvalid) {
+	_, err = d.LastUpdateID()
+	if !errors.Is(err, ErrOrderbookInvalid) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
 	}
 
@@ -620,7 +626,8 @@ func TestIsValid(t *testing.T) {
 }
 
 func TestGetActionFromString(t *testing.T) {
-	if _, err := GetActionFromString("meow"); !errors.Is(err, errInvalidAction) {
+	_, err := GetActionFromString("meow")
+	if !errors.Is(err, errInvalidAction) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidAction)
 	}
 
