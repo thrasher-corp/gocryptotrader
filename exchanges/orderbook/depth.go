@@ -137,7 +137,7 @@ func (d *Depth) LoadSnapshot(bids, asks []Item, lastUpdateID int64, lastUpdated 
 }
 
 // invalidate flushes all values back to zero so as to not allow strategy
-// traversal on compromised data.
+// traversal on compromised data. NOTE: This requires locking.
 func (d *Depth) invalidate(withReason error) error {
 	d.lastUpdateID = 0
 	d.lastUpdated = time.Time{}
@@ -317,7 +317,7 @@ func (d *Depth) IsFundingRate() bool {
 }
 
 // updateAndAlert updates the last updated ID and when it was updated to the
-// recent update. Then alerts all pending routines.
+// recent update. Then alerts all pending routines. NOTE: This requires locking.
 func (d *Depth) updateAndAlert(update *Update) {
 	d.lastUpdateID = update.UpdateID
 	d.lastUpdated = update.UpdateTime
