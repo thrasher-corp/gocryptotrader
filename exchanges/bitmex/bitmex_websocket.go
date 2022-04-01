@@ -519,7 +519,7 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, p currency.
 				err)
 		}
 	default:
-		action, err := orderbook.GetActionFromString(action)
+		action, err := b.GetActionFromString(action)
 		if err != nil {
 			return err
 		}
@@ -690,4 +690,19 @@ func (b *Bitmex) websocketSendAuth(ctx context.Context) error {
 		return err
 	}
 	return nil
+}
+
+// GetActionFromString matches a string action to an internal action.
+func (b *Bitmex) GetActionFromString(s string) (orderbook.Action, error) {
+	switch s {
+	case "update":
+		return orderbook.Amend, nil
+	case "delete":
+		return orderbook.Delete, nil
+	case "insert":
+		return orderbook.Insert, nil
+	case "update/insert":
+		return orderbook.UpdateInsert, nil
+	}
+	return 0, fmt.Errorf("%s %w", s, orderbook.ErrInvalidAction)
 }

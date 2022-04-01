@@ -12,11 +12,13 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-// ErrOrderbookInvalid defines an error for when the orderbook is invalid and
-// should not be trusted
-var ErrOrderbookInvalid = errors.New("orderbook data integrity compromised")
-
-var errInvalidAction = errors.New("invalid action")
+var (
+	// ErrOrderbookInvalid defines an error for when the orderbook is invalid and
+	// should not be trusted
+	ErrOrderbookInvalid = errors.New("orderbook data integrity compromised")
+	// ErrInvalidAction defines and error when an action is invalid
+	ErrInvalidAction = errors.New("invalid action")
+)
 
 // Depth defines a linked list of orderbook items
 type Depth struct {
@@ -320,19 +322,4 @@ func (d *Depth) updateAndAlert(update *Update) {
 	d.lastUpdateID = update.UpdateID
 	d.lastUpdated = update.UpdateTime
 	d.Alert()
-}
-
-// GetActionFromString matches a string action to an internal action.
-func GetActionFromString(s string) (Action, error) {
-	switch s {
-	case "update":
-		return Amend, nil
-	case "delete":
-		return Delete, nil
-	case "insert":
-		return Insert, nil
-	case "update/insert":
-		return UpdateInsert, nil
-	}
-	return 0, fmt.Errorf("%s %w", s, errInvalidAction)
 }

@@ -1169,3 +1169,46 @@ func TestCurrencyNormalization(t *testing.T) {
 		t.Errorf("amount mismatch, expected 1.0, got %f", w.Amount)
 	}
 }
+
+func TestGetActionFromString(t *testing.T) {
+	_, err := b.GetActionFromString("meow")
+	if !errors.Is(err, orderbook.ErrInvalidAction) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, orderbook.ErrInvalidAction)
+	}
+
+	action, err := b.GetActionFromString("update")
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if action != orderbook.Amend {
+		t.Fatalf("received: '%v' but expected: '%v'", action, orderbook.Amend)
+	}
+
+	action, err = b.GetActionFromString("delete")
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if action != orderbook.Delete {
+		t.Fatalf("received: '%v' but expected: '%v'", action, orderbook.Delete)
+	}
+
+	action, err = b.GetActionFromString("insert")
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if action != orderbook.Insert {
+		t.Fatalf("received: '%v' but expected: '%v'", action, orderbook.Insert)
+	}
+
+	action, err = b.GetActionFromString("update/insert")
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if action != orderbook.UpdateInsert {
+		t.Fatalf("received: '%v' but expected: '%v'", action, orderbook.UpdateInsert)
+	}
+}
