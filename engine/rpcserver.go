@@ -2118,7 +2118,7 @@ func (s *RPCServer) GetExchangeOrderbookStream(r *gctrpc.GetExchangeOrderbookStr
 			return errDispatchSystem
 		}
 
-		d, ok := data.(*orderbook.Depth)
+		d, ok := data.(orderbook.Outbound)
 		if !ok {
 			return errors.New("unable to type assert data")
 		}

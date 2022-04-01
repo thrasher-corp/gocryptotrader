@@ -20,6 +20,13 @@ var (
 	ErrInvalidAction = errors.New("invalid action")
 )
 
+// Outbound restricts outbound usage of depth. NOTE: Type assert to
+// *orderbook.Depth or alternatively retrieve orderbook.Unsafe type to access
+// underlying linked list.
+type Outbound interface {
+	Retrieve() (*Base, error)
+}
+
 // Depth defines a linked list of orderbook items
 type Depth struct {
 	asks
@@ -52,7 +59,7 @@ func NewDepth(id uuid.UUID) *Depth {
 
 // Publish alerts any subscribed routines using a dispatch mux
 func (d *Depth) Publish() {
-	if err := d.mux.Publish(d, d._ID); err != nil {
+	if err := d.mux.Publish(Outbound(d), d._ID); err != nil {
 		log.Errorf(log.ExchangeSys, "Cannot publish orderbook update to mux %v", err)
 	}
 }
