@@ -672,3 +672,15 @@ func TestParseStartEndDate(t *testing.T) {
 		t.Errorf("received %v, expected %v", err, nil)
 	}
 }
+
+func TestGetAssertError(t *testing.T) {
+	err := GetAssertError("*[]string", float64(0))
+	if err.Error() != "type assert failure from float64 to *[]string" {
+		t.Fatal(err)
+	}
+
+	err = GetAssertError("<nil>", nil)
+	if err.Error() != "type assert failure from <nil> to <nil>" {
+		t.Fatal(err)
+	}
+}

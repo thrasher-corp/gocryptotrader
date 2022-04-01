@@ -693,7 +693,7 @@ func (s *RPCServer) GetAccountInfoStream(r *gctrpc.GetAccountInfoRequest, stream
 
 		holdings, ok := data.(*account.Holdings)
 		if !ok {
-			return errors.New("unable to type assert data")
+			return common.GetAssertError("*account.Holdings", data)
 		}
 
 		var accounts []*gctrpc.Account
@@ -2120,7 +2120,7 @@ func (s *RPCServer) GetExchangeOrderbookStream(r *gctrpc.GetExchangeOrderbookStr
 
 		d, ok := data.(orderbook.Outbound)
 		if !ok {
-			return errors.New("unable to type assert data")
+			return common.GetAssertError("orderbook.Outbound", data)
 		}
 
 		resp := &gctrpc.OrderbookResponse{}
@@ -2205,7 +2205,7 @@ func (s *RPCServer) GetTickerStream(r *gctrpc.GetTickerStreamRequest, stream gct
 
 		t, ok := data.(*ticker.Price)
 		if !ok {
-			return errors.New("unable to type assert data")
+			return common.GetAssertError("*ticker.Price", data)
 		}
 
 		err := stream.Send(&gctrpc.TickerResponse{
@@ -2258,7 +2258,7 @@ func (s *RPCServer) GetExchangeTickerStream(r *gctrpc.GetExchangeTickerStreamReq
 
 		t, ok := data.(*ticker.Price)
 		if !ok {
-			return errors.New("unable to type assert data")
+			return common.GetAssertError("*ticker.Price", data)
 		}
 
 		err := stream.Send(&gctrpc.TickerResponse{
@@ -2517,7 +2517,7 @@ func (s *RPCServer) GCTScriptStatus(_ context.Context, _ *gctrpc.GCTScriptStatus
 	gctscript.AllVMSync.Range(func(k, v interface{}) bool {
 		vm, ok := v.(*gctscript.VM)
 		if !ok {
-			log.Errorf(log.GRPCSys, "Unable to type assert gctscript.VM")
+			log.Errorf(log.GRPCSys, "%v", common.GetAssertError("*gctscript.VM", v))
 			return false
 		}
 		resp.Scripts = append(resp.Scripts, &gctrpc.GCTScript{

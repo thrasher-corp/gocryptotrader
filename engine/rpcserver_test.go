@@ -2277,3 +2277,10 @@ func TestGetCollateral(t *testing.T) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
 }
+
+func TestWOW(t *testing.T) {
+	// var pew orderbook.Outbound
+	// wow := reflect.
+	// fmt.Println(wow)
+	// fmt.Println(common.GetAssertError(pew, "lol"))
+}
