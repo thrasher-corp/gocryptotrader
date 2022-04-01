@@ -221,7 +221,7 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 				}
 
 				var p currency.Pair
-				p, err = currency.NewPairFromString(response.OBData[0].Symbol)
+				p, err = by.extractCurrencyPair(response.OBData[0].Symbol, asset.CoinMarginedFutures)
 				if err != nil {
 					return err
 				}
@@ -243,7 +243,7 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 
 				if len(response.OBData.Delete) > 0 {
 					var p currency.Pair
-					p, err = currency.NewPairFromString(response.OBData.Delete[0].Symbol)
+					p, err = by.extractCurrencyPair(response.OBData.Delete[0].Symbol, asset.CoinMarginedFutures)
 					if err != nil {
 						return err
 					}
@@ -259,7 +259,7 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 
 				if len(response.OBData.Update) > 0 {
 					var p currency.Pair
-					p, err = currency.NewPairFromString(response.OBData.Update[0].Symbol)
+					p, err = by.extractCurrencyPair(response.OBData.Update[0].Symbol, asset.CoinMarginedFutures)
 					if err != nil {
 						return err
 					}
@@ -275,7 +275,7 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 
 				if len(response.OBData.Insert) > 0 {
 					var p currency.Pair
-					p, err = currency.NewPairFromString(response.OBData.Insert[0].Symbol)
+					p, err = by.extractCurrencyPair(response.OBData.Insert[0].Symbol, asset.CoinMarginedFutures)
 					if err != nil {
 						return err
 					}
@@ -304,7 +304,7 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 			trades := make([]trade.Data, len(response.TradeData))
 			for i := range response.TradeData {
 				var p currency.Pair
-				p, err = currency.NewPairFromString(response.TradeData[0].Symbol)
+				p, err = by.extractCurrencyPair(response.TradeData[0].Symbol, asset.CoinMarginedFutures)
 				if err != nil {
 					return err
 				}
@@ -339,7 +339,7 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 			}
 
 			var p currency.Pair
-			p, err = currency.NewPairFromString(topics[len(topics)-1])
+			p, err = by.extractCurrencyPair(topics[len(topics)-1], asset.CoinMarginedFutures)
 			if err != nil {
 				return err
 			}
@@ -377,7 +377,7 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 					}
 
 					var p currency.Pair
-					p, err = currency.NewPairFromString(response.Ticker.Symbol)
+					p, err = by.extractCurrencyPair(response.Ticker.Symbol, asset.CoinMarginedFutures)
 					if err != nil {
 						return err
 					}
@@ -406,7 +406,7 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 					if len(response.Data.Delete) > 0 {
 						for x := range response.Data.Delete {
 							var p currency.Pair
-							p, err = currency.NewPairFromString(response.Data.Delete[x].Symbol)
+							p, err = by.extractCurrencyPair(response.Data.Delete[x].Symbol, asset.CoinMarginedFutures)
 							if err != nil {
 								return err
 							}
@@ -430,7 +430,7 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 					if len(response.Data.Update) > 0 {
 						for x := range response.Data.Update {
 							var p currency.Pair
-							p, err = currency.NewPairFromString(response.Data.Update[x].Symbol)
+							p, err = by.extractCurrencyPair(response.Data.Update[x].Symbol, asset.CoinMarginedFutures)
 							if err != nil {
 								return err
 							}
@@ -454,7 +454,7 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 					if len(response.Data.Insert) > 0 {
 						for x := range response.Data.Insert {
 							var p currency.Pair
-							p, err = currency.NewPairFromString(response.Data.Insert[x].Symbol)
+							p, err = by.extractCurrencyPair(response.Data.Insert[x].Symbol, asset.CoinMarginedFutures)
 							if err != nil {
 								return err
 							}
@@ -505,7 +505,7 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 
 			for i := range response.Data {
 				var p currency.Pair
-				p, err = currency.NewPairFromString(response.Data[i].Symbol)
+				p, err = by.extractCurrencyPair(response.Data[i].Symbol, asset.CoinMarginedFutures)
 				if err != nil {
 					return err
 				}

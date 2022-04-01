@@ -315,7 +315,7 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		p, err := currency.NewPairFromString(data.OBData.Symbol)
+		p, err := by.extractCurrencyPair(data.OBData.Symbol, asset.Spot)
 		if err != nil {
 			return err
 		}
@@ -335,7 +335,7 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 			return err
 		}
 
-		p, err := currency.NewPairFromString(data.Parameters.Symbol)
+		p, err := by.extractCurrencyPair(data.Parameters.Symbol, asset.Spot)
 		if err != nil {
 			return err
 		}
@@ -363,7 +363,7 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 			return err
 		}
 
-		p, err := currency.NewPairFromString(data.Ticker.Symbol)
+		p, err := by.extractCurrencyPair(data.Ticker.Symbol, asset.Spot)
 		if err != nil {
 			return err
 		}
@@ -384,7 +384,7 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 			return err
 		}
 
-		p, err := currency.NewPairFromString(data.Kline.Symbol)
+		p, err := by.extractCurrencyPair(data.Kline.Symbol, asset.Spot)
 		if err != nil {
 			return err
 		}

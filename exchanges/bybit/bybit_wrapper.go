@@ -309,7 +309,8 @@ func (by *Bybit) UpdateTickers(ctx context.Context, assetType asset.Item) error 
 				if tick[y].Symbol != formattedPair.String() {
 					continue
 				}
-				cp, err := currency.NewPairFromString(tick[y].Symbol)
+
+				cp, err := by.extractCurrencyPair(tick[y].Symbol, assetType)
 				if err != nil {
 					return err
 				}
@@ -348,7 +349,7 @@ func (by *Bybit) UpdateTickers(ctx context.Context, assetType asset.Item) error 
 				if tick[y].Symbol != formattedPair.String() {
 					continue
 				}
-				cp, err := currency.NewPairFromString(tick[y].Symbol)
+				cp, err := by.extractCurrencyPair(tick[y].Symbol, assetType)
 				if err != nil {
 					return err
 				}
@@ -391,7 +392,7 @@ func (by *Bybit) UpdateTicker(ctx context.Context, p currency.Pair, assetType as
 		}
 
 		for y := range tick {
-			cp, err := currency.NewPairFromString(tick[y].Symbol)
+			cp, err := by.extractCurrencyPair(tick[y].Symbol, assetType)
 			if err != nil {
 				return nil, err
 			}
@@ -420,7 +421,7 @@ func (by *Bybit) UpdateTicker(ctx context.Context, p currency.Pair, assetType as
 		}
 
 		for y := range tick {
-			cp, err := currency.NewPairFromString(tick[y].Symbol)
+			cp, err := by.extractCurrencyPair(tick[y].Symbol, assetType)
 			if err != nil {
 				return nil, err
 			}
@@ -1424,4 +1425,19 @@ func (by *Bybit) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 	ret.RemoveOutsideRange(start, end)
 	ret.SortCandlesByTimestamp(false)
 	return ret, nil
+}
+
+func (b *Bybit) extractCurrencyPair(symbol string, item asset.Item) (currency.Pair, error) {
+	if len(symbol) == 6 {
+		return currency.NewPairFromString(symbol)
+	}
+	pairs, err := b.CurrencyPairs.GetPairs(item, true)
+	if err != nil {
+		return currency.Pair{}, err
+	}
+	pFmt, err := b.GetPairFormat(item, false)
+	if err != nil {
+		return currency.Pair{}, err
+	}
+	return currency.MatchPairsWithNoDelimiter(symbol, pairs, pFmt)
 }
