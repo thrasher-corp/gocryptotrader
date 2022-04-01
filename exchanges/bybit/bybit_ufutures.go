@@ -548,7 +548,7 @@ func (by *Bybit) GetConditionalUSDTFuturesOrders(ctx context.Context, symbol cur
 	if orderLinkID != "" {
 		params.Set("order_link_id", orderLinkID)
 	}
-	return resp.Result.Data, by.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, ufuturesGetConditionalOrders, params, &resp, uFuturesGetCondtionalOrderRate)
+	return resp.Result.Data, by.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, ufuturesGetConditionalOrders, params, &resp, uFuturesGetConditionalOrderRate)
 }
 
 // CancelConditionalUSDTFuturesOrders cancels untriggered conditional orders
@@ -658,7 +658,7 @@ func (by *Bybit) GetConditionalUSDTRealtimeOrders(ctx context.Context, symbol cu
 		resp := struct {
 			Result []USDTFuturesConditionalRealtimeOrder `json:"result"`
 		}{}
-		err = by.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, ufuturesGetConditionalRealtimeOrders, params, &resp, uFuturesGetCondtionalRealtimeOrderRate)
+		err = by.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, ufuturesGetConditionalRealtimeOrders, params, &resp, uFuturesGetConditionalRealtimeOrderRate)
 		if err != nil {
 			return data, err
 		}
@@ -667,7 +667,7 @@ func (by *Bybit) GetConditionalUSDTRealtimeOrders(ctx context.Context, symbol cu
 		resp := struct {
 			Result USDTFuturesConditionalRealtimeOrder `json:"result"`
 		}{}
-		err = by.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, ufuturesGetConditionalRealtimeOrders, params, &resp, uFuturesGetCondtionalRealtimeOrderRate)
+		err = by.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, ufuturesGetConditionalRealtimeOrders, params, &resp, uFuturesGetConditionalRealtimeOrderRate)
 		if err != nil {
 			return data, err
 		}

@@ -367,7 +367,7 @@ func (by *Bybit) CancelConditionalFuturesOrders(ctx context.Context, symbol curr
 	if orderLinkID != "" {
 		params.Set("order_link_id", orderLinkID)
 	}
-	return resp.Result.StopOrderID, by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, futuresCancelConditionalOrder, params, &resp, FuturesCancelCondtionalOrderRate)
+	return resp.Result.StopOrderID, by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, futuresCancelConditionalOrder, params, &resp, FuturesCancelConditionalOrderRate)
 }
 
 // CancelAllConditionalFuturesOrders cancels all untriggered conditional orders
@@ -595,7 +595,7 @@ func (by *Bybit) ChangePositionMode(ctx context.Context, symbol currency.Pair, m
 	return by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, futuresSwitchPositionMode, params, nil, FuturesSwitchPositionModeRate)
 }
 
-// ChangeCoinMode switches mode between full or partial position
+// ChangeMode switches mode between full or partial position
 func (by *Bybit) ChangeMode(ctx context.Context, symbol currency.Pair, takeProfitStopLoss string) (string, error) {
 	resp := struct {
 		Result struct {

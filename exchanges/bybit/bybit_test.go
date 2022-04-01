@@ -87,6 +87,14 @@ func TestGetOrderBook(t *testing.T) {
 	}
 }
 
+func TestGetMergedOrderBook(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetMergedOrderBook(context.Background(), "BTCUSDT", 2, 100)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestGetTrades(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetTrades(context.Background(), "BTCUSDT", 100)

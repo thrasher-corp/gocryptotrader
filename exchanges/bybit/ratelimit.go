@@ -89,8 +89,8 @@ const (
 
 	uFuturesGetActiveOrderRate
 	uFuturesGetActiveRealtimeOrderRate
-	uFuturesGetCondtionalOrderRate
-	uFuturesGetCondtionalRealtimeOrderRate
+	uFuturesGetConditionalOrderRate
+	uFuturesGetConditionalRealtimeOrderRate
 
 	uFuturesGetMyLastFundingFeeRate
 	uFuturesPredictFundingRate
@@ -101,9 +101,9 @@ const (
 	FuturesCreateOrderRate
 	FuturesReplaceOrderRate
 	FuturesCancelAllOrderRate
-	FuturesCancelAllCondtionalOrderRate
+	FuturesCancelAllConditionalOrderRate
 	FuturesReplaceConditionalOrderRate
-	FuturesCancelCondtionalOrderRate
+	FuturesCancelConditionalOrderRate
 	FuturesCreateConditionalOrderRate
 
 	FuturesGetActiveOrderRate
@@ -206,7 +206,7 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 	case uFuturesPositionRate, uFuturesGetClosedTradesRate, uFuturesGetTradesRate:
 		limiter, tokens = r.UFuturesPositionListRate, 1
 
-	case uFuturesGetActiveOrderRate, uFuturesGetActiveRealtimeOrderRate, uFuturesGetCondtionalOrderRate, uFuturesGetCondtionalRealtimeOrderRate:
+	case uFuturesGetActiveOrderRate, uFuturesGetActiveRealtimeOrderRate, uFuturesGetConditionalOrderRate, uFuturesGetConditionalRealtimeOrderRate:
 		limiter, tokens = r.UFuturesOrderListRate, 1
 
 	case uFuturesGetMyLastFundingFeeRate, uFuturesPredictFundingRate:
@@ -215,11 +215,11 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 	case FuturesDefaultRate:
 		limiter, tokens = r.FuturesDefaultRate, 1
 
-	case FuturesCancelOrderRate, FuturesCreateOrderRate, FuturesReplaceOrderRate, FuturesReplaceConditionalOrderRate, FuturesCancelCondtionalOrderRate,
+	case FuturesCancelOrderRate, FuturesCreateOrderRate, FuturesReplaceOrderRate, FuturesReplaceConditionalOrderRate, FuturesCancelConditionalOrderRate,
 		FuturesCreateConditionalOrderRate:
 		limiter, tokens = r.FuturesOrderRate, 1
 
-	case FuturesCancelAllOrderRate, FuturesCancelAllCondtionalOrderRate:
+	case FuturesCancelAllOrderRate, FuturesCancelAllConditionalOrderRate:
 		limiter, tokens = r.FuturesOrderRate, 10
 
 	case FuturesGetActiveOrderRate, FuturesGetConditionalOrderRate, FuturesGetActiveRealtimeOrderRate, FuturesGetConditionalRealtimeOrderRate:
