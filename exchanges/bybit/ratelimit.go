@@ -113,7 +113,7 @@ const (
 
 	FuturesGetTradeRate
 
-	FuturesSetLeverateRate
+	FuturesLeverateRate
 	FuturesUpdateMarginRate
 	FuturesSetTradingStopRate
 	FuturesSwitchPositionModeRate
@@ -228,7 +228,7 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 	case FuturesGetTradeRate:
 		limiter, tokens = r.FuturesExecutionRate, 1
 
-	case FuturesSetLeverateRate, FuturesUpdateMarginRate, FuturesSetTradingStopRate, FuturesSwitchPositionModeRate, FuturesSwitchMarginRate, FuturesSwitchPositionRate:
+	case FuturesLeverateRate, FuturesUpdateMarginRate, FuturesSetTradingStopRate, FuturesSwitchPositionModeRate, FuturesSwitchMarginRate, FuturesSwitchPositionRate:
 		limiter, tokens = r.FuturesPositionRate, 1
 
 	case FuturesPositionRate:

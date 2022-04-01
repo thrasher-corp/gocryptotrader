@@ -381,7 +381,7 @@ func (by *Bybit) CancelAllConditionalFuturesOrders(ctx context.Context, symbol c
 		return resp.Result, err
 	}
 	params.Set("symbol", symbolValue)
-	return resp.Result, by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, futuresCancelAllConditionalOrders, params, &resp, FuturesCancelAllCondtionalOrderRate)
+	return resp.Result, by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, futuresCancelAllConditionalOrders, params, &resp, FuturesCancelAllConditionalOrderRate)
 }
 
 // ReplaceConditionalFuturesOrders modify unfilled or partially filled conditional orders
@@ -579,7 +579,7 @@ func (by *Bybit) SetLeverage(ctx context.Context, symbol currency.Pair, buyLever
 	params.Set("buy_leverage", strconv.FormatFloat(buyLeverage, 'f', -1, 64))
 	params.Set("sell_leverage", strconv.FormatFloat(sellLeverage, 'f', -1, 64))
 
-	return resp.Result, by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, futuresSetLeverage, params, &resp, FuturesSetLeverateRate)
+	return resp.Result, by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, futuresSetLeverage, params, &resp, FuturesLeverateRate)
 }
 
 // ChangeMode switches mode between One-Way or Hedge Mode
