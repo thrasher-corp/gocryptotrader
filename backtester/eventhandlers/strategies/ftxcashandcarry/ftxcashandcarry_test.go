@@ -196,10 +196,10 @@ func TestSetDefaults(t *testing.T) {
 	t.Parallel()
 	s := Strategy{}
 	s.SetDefaults()
-	if !s.openShortDistancePercentage.Equal(decimal.NewFromInt(5)) {
+	if !s.openShortDistancePercentage.Equal(decimal.NewFromInt(0)) {
 		t.Errorf("expected 5, received %v", s.openShortDistancePercentage)
 	}
-	if !s.closeShortDistancePercentage.Equal(decimal.NewFromInt(5)) {
+	if !s.closeShortDistancePercentage.Equal(decimal.NewFromInt(0)) {
 		t.Errorf("expected 5, received %v", s.closeShortDistancePercentage)
 	}
 }

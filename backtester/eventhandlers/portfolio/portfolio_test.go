@@ -965,7 +965,7 @@ func TestGetLatestPNLForEvent(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
-	expectedError = nil
+	expectedError = gctorder.ErrPositionsNotLoadedForPair
 	_, err = p.GetLatestPNLForEvent(ev)
 	if !errors.Is(err, expectedError) {
 		t.Fatalf("received '%v' expected '%v'", err, expectedError)
@@ -975,6 +975,7 @@ func TestGetLatestPNLForEvent(t *testing.T) {
 	if !ok {
 		t.Fatalf("where did settings go?")
 	}
+	expectedError = nil
 	err = settings.FuturesTracker.TrackNewOrder(&gctorder.Detail{
 		Exchange:  ev.GetExchange(),
 		AssetType: ev.AssetType,

@@ -32,8 +32,12 @@ func TestCalculateResults(t *testing.T) {
 		Interval:     gctkline.OneDay,
 		CurrencyPair: p,
 		AssetType:    a,
+		Offset:       1,
 	}
 	ev := DataAtOffset{
+		Offset:     1,
+		Time:       tt1,
+		ClosePrice: decimal.NewFromInt(2000),
 		Holdings: holdings.Holding{
 			ChangeInTotalValuePercent: decimal.NewFromFloat(0.1333),
 			Timestamp:                 tt1,
@@ -72,7 +76,11 @@ func TestCalculateResults(t *testing.T) {
 	}
 	even2 := even
 	even2.Time = tt2
+	even2.Offset = 2
 	ev2 := DataAtOffset{
+		Offset:     2,
+		Time:       tt2,
+		ClosePrice: decimal.NewFromInt(1337),
 		Holdings: holdings.Holding{
 			ChangeInTotalValuePercent: decimal.NewFromFloat(0.1337),
 			Timestamp:                 tt2,
@@ -267,7 +275,7 @@ func TestCalculateHighestCommittedFunds(t *testing.T) {
 		DataAtOffset{DataEvent: &kline.Kline{Close: decimal.NewFromInt(1339)}, Holdings: holdings.Holding{Timestamp: tt3, BaseSize: decimal.NewFromInt(11)}},
 	)
 	c.calculateHighestCommittedFunds()
-	if c.HighestCommittedFunds.Time != tt2 {
+	if c.HighestCommittedFunds.Time != tt1 {
 		t.Errorf("expected %v, received %v", tt2, c.HighestCommittedFunds.Time)
 	}
 }

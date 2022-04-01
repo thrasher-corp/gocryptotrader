@@ -46,9 +46,11 @@ func main() {
 		StrategySettings: config.StrategySettings{
 			Name:                         "",
 			SimultaneousSignalProcessing: false,
-			UseExchangeLevelFunding:      false,
-			ExchangeLevelFunding:         nil,
 			CustomSettings:               nil,
+		},
+		FundingSettings: config.FundingSettings{
+			UseExchangeLevelFunding: false,
+			ExchangeLevelFunding:    nil,
 		},
 		CurrencySettings: []config.CurrencySettings{},
 		DataSettings: config.DataSettings{
@@ -219,7 +221,7 @@ func parseExchangeSettings(reader *bufio.Reader, cfg *config.Config) error {
 	addCurrency := y
 	for strings.Contains(addCurrency, y) {
 		var currencySetting *config.CurrencySettings
-		currencySetting, err = addCurrencySetting(reader, cfg.StrategySettings.UseExchangeLevelFunding)
+		currencySetting, err = addCurrencySetting(reader, cfg.FundingSettings.UseExchangeLevelFunding)
 		if err != nil {
 			return err
 		}
@@ -266,8 +268,8 @@ func parseStrategySettings(cfg *config.Config, reader *bufio.Reader) error {
 	}
 	fmt.Println("Will this strategy be able to share funds at an exchange level? y/n")
 	yn = quickParse(reader)
-	cfg.StrategySettings.UseExchangeLevelFunding = strings.Contains(yn, y)
-	if !cfg.StrategySettings.UseExchangeLevelFunding {
+	cfg.FundingSettings.UseExchangeLevelFunding = strings.Contains(yn, y)
+	if !cfg.FundingSettings.UseExchangeLevelFunding {
 		return nil
 	}
 
@@ -317,7 +319,7 @@ func parseStrategySettings(cfg *config.Config, reader *bufio.Reader) error {
 				return err
 			}
 		}
-		cfg.StrategySettings.ExchangeLevelFunding = append(cfg.StrategySettings.ExchangeLevelFunding, fund)
+		cfg.FundingSettings.ExchangeLevelFunding = append(cfg.FundingSettings.ExchangeLevelFunding, fund)
 		fmt.Println("Add another source of funds? y/n")
 		addFunding = quickParse(reader)
 	}
@@ -622,27 +624,33 @@ func addCurrencySetting(reader *bufio.Reader, usingExchangeLevelFunding bool) (*
 	case asset.Futures.String():
 	}
 
-	fmt.Println("Enter the maker-fee. eg 0.001")
-	parseNum := quickParse(reader)
-	if parseNum != "" {
-		f, err = strconv.ParseFloat(parseNum, 64)
-		if err != nil {
-			return nil, err
+	fmt.Println("Do you want to set custom fees? If no, Backtester will use default fees for exchange y/n")
+	yn := quickParse(reader)
+	if yn == y || yn == yes {
+		fmt.Println("Enter the maker-fee. eg 0.001")
+		parseNum := quickParse(reader)
+		if parseNum != "" {
+			f, err = strconv.ParseFloat(parseNum, 64)
+			if err != nil {
+				return nil, err
+			}
+			d := decimal.NewFromFloat(f)
+			setting.MakerFee = &d
 		}
-		setting.MakerFee = decimal.NewFromFloat(f)
-	}
-	fmt.Println("Enter the taker-fee. eg 0.01")
-	parseNum = quickParse(reader)
-	if parseNum != "" {
-		f, err = strconv.ParseFloat(parseNum, 64)
-		if err != nil {
-			return nil, err
+		fmt.Println("Enter the taker-fee. eg 0.01")
+		parseNum = quickParse(reader)
+		if parseNum != "" {
+			f, err = strconv.ParseFloat(parseNum, 64)
+			if err != nil {
+				return nil, err
+			}
+			d := decimal.NewFromFloat(f)
+			setting.TakerFee = &d
 		}
-		setting.TakerFee = decimal.NewFromFloat(f)
 	}
 
 	fmt.Println("Will there be buy-side limits? y/n")
-	yn := quickParse(reader)
+	yn = quickParse(reader)
 	if yn == y || yn == yes {
 		setting.BuySide, err = minMaxParse("buy", reader)
 		if err != nil {

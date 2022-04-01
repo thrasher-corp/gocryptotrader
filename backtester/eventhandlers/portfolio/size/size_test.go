@@ -190,16 +190,15 @@ func TestSizeOrder(t *testing.T) {
 	}
 
 	_, err = s.SizeOrder(o, decimal.NewFromInt(1337), cs)
-	if !errors.Is(err, errNoFunds) {
-		t.Errorf("received: %v, expected: %v", err, errNoFunds)
+	if !errors.Is(err, errCannotAllocate) {
+		t.Errorf("received: %v, expected: %v", err, errCannotAllocate)
 	}
-	o.Amount = decimal.NewFromInt(1)
+	o.Direction = gctorder.Buy
 	_, err = s.SizeOrder(o, decimal.NewFromInt(1337), cs)
 	if !errors.Is(err, errCannotAllocate) {
 		t.Errorf("received: %v, expected: %v", err, errCannotAllocate)
 	}
 
-	o.Direction = gctorder.Buy
 	o.ClosePrice = decimal.NewFromInt(1)
 	s.BuySide.MaximumSize = decimal.NewFromInt(1)
 	s.BuySide.MinimumSize = decimal.NewFromInt(1)
@@ -208,6 +207,7 @@ func TestSizeOrder(t *testing.T) {
 		t.Error(err)
 	}
 
+	o.Amount = decimal.NewFromInt(1)
 	o.Direction = gctorder.Sell
 	_, err = s.SizeOrder(o, decimal.NewFromInt(1337), cs)
 	if err != nil {
@@ -216,6 +216,12 @@ func TestSizeOrder(t *testing.T) {
 
 	s.SellSide.MaximumSize = decimal.NewFromInt(1)
 	s.SellSide.MinimumSize = decimal.NewFromInt(1)
+	_, err = s.SizeOrder(o, decimal.NewFromInt(1337), cs)
+	if err != nil {
+		t.Error(err)
+	}
+
+	o.Direction = common.ClosePosition
 	_, err = s.SizeOrder(o, decimal.NewFromInt(1337), cs)
 	if err != nil {
 		t.Error(err)

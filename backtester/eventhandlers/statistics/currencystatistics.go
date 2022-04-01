@@ -132,9 +132,10 @@ func (c *CurrencyPairStatistic) CalculateResults(riskFreeRate decimal.Decimal) e
 
 func (c *CurrencyPairStatistic) calculateHighestCommittedFunds() {
 	for i := range c.Events {
-		if c.Events[i].Holdings.BaseSize.Mul(c.Events[i].ClosePrice).GreaterThan(c.HighestCommittedFunds.Value) {
+		if c.Events[i].Holdings.BaseSize.Mul(c.Events[i].ClosePrice).GreaterThan(c.HighestCommittedFunds.Value) || !c.HighestCommittedFunds.Set {
 			c.HighestCommittedFunds.Value = c.Events[i].Holdings.BaseSize.Mul(c.Events[i].ClosePrice)
 			c.HighestCommittedFunds.Time = c.Events[i].Holdings.Timestamp
+			c.HighestCommittedFunds.Set = true
 		}
 	}
 }
