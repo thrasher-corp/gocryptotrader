@@ -614,6 +614,44 @@ func TestCalculateTheResults(t *testing.T) {
 			Interval:     gctkline.OneDay,
 			CurrencyPair: p,
 			AssetType:    a,
+			Offset:       1,
+		},
+		OpenPrice:  eleet,
+		HighPrice:  eleet,
+		LowPrice:   eleet,
+		ClosePrice: eleet,
+		Volume:     eleet,
+		Direction:  gctorder.Buy,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+	err = s.SetupEventForTime(&kline.Kline{
+		Base: event.Base{
+			Exchange:     exch,
+			Time:         tt,
+			Interval:     gctkline.OneDay,
+			CurrencyPair: p2,
+			AssetType:    a,
+			Offset:       2,
+		},
+		Open:   eleeb,
+		Close:  eleeb,
+		Low:    eleeb,
+		High:   eleeb,
+		Volume: eleeb,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = s.SetEventForOffset(&signal.Signal{
+		Base: event.Base{
+			Exchange:     exch,
+			Time:         tt,
+			Interval:     gctkline.OneDay,
+			CurrencyPair: p2,
+			AssetType:    a,
 			Offset:       2,
 		},
 		OpenPrice:  eleet,
@@ -626,12 +664,13 @@ func TestCalculateTheResults(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+
 	err = s.SetupEventForTime(&kline.Kline{
 		Base: event.Base{
 			Exchange:     exch,
-			Time:         tt,
+			Time:         tt2,
 			Interval:     gctkline.OneDay,
-			CurrencyPair: p2,
+			CurrencyPair: p,
 			AssetType:    a,
 			Offset:       3,
 		},
@@ -644,45 +683,6 @@ func TestCalculateTheResults(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-
-	err = s.SetEventForOffset(&signal.Signal{
-		Base: event.Base{
-			Exchange:     exch,
-			Time:         tt,
-			Interval:     gctkline.OneDay,
-			CurrencyPair: p2,
-			AssetType:    a,
-			Offset:       4,
-		},
-		OpenPrice:  eleet,
-		HighPrice:  eleet,
-		LowPrice:   eleet,
-		ClosePrice: eleet,
-		Volume:     eleet,
-		Direction:  gctorder.Buy,
-	})
-	if err != nil {
-		t.Error(err)
-	}
-
-	err = s.SetupEventForTime(&kline.Kline{
-		Base: event.Base{
-			Exchange:     exch,
-			Time:         tt2,
-			Interval:     gctkline.OneDay,
-			CurrencyPair: p,
-			AssetType:    a,
-			Offset:       5,
-		},
-		Open:   eleeb,
-		Close:  eleeb,
-		Low:    eleeb,
-		High:   eleeb,
-		Volume: eleeb,
-	})
-	if err != nil {
-		t.Error(err)
-	}
 	err = s.SetEventForOffset(&signal.Signal{
 		Base: event.Base{
 			Exchange:     exch,
@@ -690,7 +690,7 @@ func TestCalculateTheResults(t *testing.T) {
 			Interval:     gctkline.OneDay,
 			CurrencyPair: p,
 			AssetType:    a,
-			Offset:       6,
+			Offset:       3,
 		},
 		OpenPrice:  eleeb,
 		HighPrice:  eleeb,
@@ -710,7 +710,7 @@ func TestCalculateTheResults(t *testing.T) {
 			Interval:     gctkline.OneDay,
 			CurrencyPair: p2,
 			AssetType:    a,
-			Offset:       7,
+			Offset:       4,
 		},
 		Open:   eleeb,
 		Close:  eleeb,
@@ -728,7 +728,7 @@ func TestCalculateTheResults(t *testing.T) {
 			Interval:     gctkline.OneDay,
 			CurrencyPair: p2,
 			AssetType:    a,
-			Offset:       8,
+			Offset:       4,
 		},
 		OpenPrice:  eleeb,
 		HighPrice:  eleeb,

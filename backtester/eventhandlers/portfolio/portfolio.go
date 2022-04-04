@@ -630,9 +630,15 @@ func (p *Portfolio) CheckLiquidationStatus(ev common.DataEventHandler, collatera
 }
 
 func (p *Portfolio) CreateLiquidationOrdersForExchange(ev common.DataEventHandler, funds funding.IFundingManager) ([]order.Event, error) {
+	if ev == nil {
+		return nil, common.ErrNilEvent
+	}
+	if funds == nil {
+		return nil, fmt.Errorf("%w, requires funding manager", common.ErrNilArguments)
+	}
 	var closingOrders []order.Event
 	for exch, assetMap := range p.exchangeAssetPairSettings {
-		if exch != ev.GetExchange() {
+		if !strings.EqualFold(ev.GetExchange(), exch) {
 			// only liquidate the same exchange
 			continue
 		}

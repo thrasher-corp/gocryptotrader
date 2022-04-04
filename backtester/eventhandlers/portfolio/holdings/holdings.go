@@ -74,16 +74,6 @@ func (h *Holding) UpdateValue(d common.DataEventHandler) {
 	h.updateValue(latest)
 }
 
-// HasInvestments determines whether there are any holdings in the base funds
-func (h *Holding) HasInvestments() bool {
-	return h.BaseSize.GreaterThan(decimal.Zero)
-}
-
-// HasFunds determines whether there are any holdings in the quote funds
-func (h *Holding) HasFunds() bool {
-	return h.QuoteSize.GreaterThan(decimal.Zero)
-}
-
 func (h *Holding) update(e fill.Event, f funding.IPairReader) {
 	direction := e.GetDirection()
 	if o := e.GetOrder(); o != nil {

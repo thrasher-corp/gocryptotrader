@@ -1295,3 +1295,101 @@ func TestCannotPurchase(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", result.Direction, common.DoNothing)
 	}
 }
+
+func TestCreateLiquidationOrdersForExchange(t *testing.T) {
+	t.Parallel()
+
+	p := &Portfolio{}
+	var expectedError = common.ErrNilEvent
+	_, err := p.CreateLiquidationOrdersForExchange(nil, nil)
+	if !errors.Is(err, expectedError) {
+		t.Fatalf("received '%v' expected '%v'", err, expectedError)
+	}
+
+	ev := &kline.Kline{}
+	expectedError = common.ErrNilArguments
+	_, err = p.CreateLiquidationOrdersForExchange(ev, nil)
+	if !errors.Is(err, expectedError) {
+		t.Fatalf("received '%v' expected '%v'", err, expectedError)
+	}
+
+	funds := &funding.FundManager{}
+	expectedError = nil
+	_, err = p.CreateLiquidationOrdersForExchange(ev, funds)
+	if !errors.Is(err, expectedError) {
+		t.Fatalf("received '%v' expected '%v'", err, expectedError)
+	}
+
+	ff := &ftx.FTX{}
+	ff.Name = testExchange
+	cp := currency.NewPair(currency.BTC, currency.USD)
+	err = p.SetupCurrencySettingsMap(&exchange.Settings{Exchange: ff, Asset: asset.Futures, Pair: cp})
+	if err != nil {
+		t.Error(err)
+	}
+	err = p.SetupCurrencySettingsMap(&exchange.Settings{Exchange: ff, Asset: asset.Spot, Pair: cp})
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = p.CreateLiquidationOrdersForExchange(ev, funds)
+	if !errors.Is(err, expectedError) {
+		t.Fatalf("received '%v' expected '%v'", err, expectedError)
+	}
+
+	settings, err := p.getSettings(ff.Name, asset.Futures, cp)
+	if !errors.Is(err, expectedError) {
+		t.Fatalf("received '%v' expected '%v'", err, expectedError)
+	}
+
+	err = settings.FuturesTracker.TrackNewOrder(&gctorder.Detail{
+		Exchange:  ff.Name,
+		AssetType: asset.Futures,
+		Pair:      cp,
+		Side:      gctorder.Long,
+		ID:        "lol",
+		Date:      time.Now(),
+		Amount:    1337,
+		Price:     1337,
+	})
+	if !errors.Is(err, expectedError) {
+		t.Fatalf("received '%v' expected '%v'", err, expectedError)
+	}
+	ev.Exchange = ff.Name
+	ev.AssetType = asset.Futures
+	ev.CurrencyPair = cp
+	_, err = p.CreateLiquidationOrdersForExchange(ev, funds)
+	if !errors.Is(err, expectedError) {
+		t.Fatalf("received '%v' expected '%v'", err, expectedError)
+	}
+
+	// spot order
+	item, err := funding.CreateItem(ff.Name, asset.Spot, currency.BTC, decimal.Zero, decimal.Zero)
+	if !errors.Is(err, expectedError) {
+		t.Fatalf("received '%v' expected '%v'", err, expectedError)
+	}
+	err = funds.AddItem(item)
+	if !errors.Is(err, expectedError) {
+		t.Fatalf("received '%v' expected '%v'", err, expectedError)
+	}
+	item.IncreaseAvailable(decimal.NewFromInt(1337))
+	orders, err := p.CreateLiquidationOrdersForExchange(ev, funds)
+	if !errors.Is(err, expectedError) {
+		t.Fatalf("received '%v' expected '%v'", err, expectedError)
+	}
+	if len(orders) != 2 {
+		t.Errorf("expected two orders generated, received '%v'", len(orders))
+	}
+}
+
+func TestGetPositionStatus(t *testing.T) {
+	t.Parallel()
+	p := PNLSummary{
+		Result: gctorder.PNLResult{
+			Status: gctorder.Rejected,
+		},
+	}
+	status := p.GetPositionStatus()
+	if gctorder.Rejected != status {
+		t.Errorf("expected '%v' received '%v'", gctorder.Rejected, status)
+	}
+}
