@@ -105,6 +105,7 @@ func (by *Bybit) SetDefaults() {
 				FiatDepositFee:    true,
 				FiatWithdrawalFee: true,
 				CryptoDepositFee:  true,
+				ModifyOrder:       true,
 			},
 			WebsocketCapabilities: protocol.Features{
 				TradeFetching:          true,
@@ -243,7 +244,7 @@ func (by *Bybit) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string
 	var pairs []string
 	switch a {
 	case asset.Spot:
-		allPairs, err := by.GetAllPairs(ctx)
+		allPairs, err := by.GetAllSpotPairs(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -594,7 +595,7 @@ func (by *Bybit) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory,
 
 // GetWithdrawalsHistory returns previous withdrawals data
 func (by *Bybit) GetWithdrawalsHistory(ctx context.Context, c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
-	w, err := by.GetWalletWithdrawalRecords(ctx, "", "", "", "", 0, 0)
+	w, err := by.GetWalletWithdrawalRecords(ctx, "", "", "", c, 0, 0)
 	if err != nil {
 		return nil, err
 	}

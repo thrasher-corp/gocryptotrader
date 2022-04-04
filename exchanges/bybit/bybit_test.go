@@ -46,7 +46,6 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	b.Verbose = true
 
 	os.Exit(m.Run())
 }
@@ -71,9 +70,9 @@ func TestStart(t *testing.T) {
 
 // test cases for SPOT
 
-func TestGetAllPairs(t *testing.T) {
+func TestGetAllSpotPairs(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetAllPairs(context.Background())
+	_, err := b.GetAllSpotPairs(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1063,7 +1062,7 @@ func TestGetWalletWithdrawalRecords(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
-	_, err := b.GetWalletWithdrawalRecords(context.Background(), "2021-09-11", "2021-10-09", "ETH", "", 0, 0)
+	_, err := b.GetWalletWithdrawalRecords(context.Background(), "2021-09-11", "2021-10-09", "", currency.ETH, 0, 0)
 	if err != nil {
 		t.Error(err)
 	}

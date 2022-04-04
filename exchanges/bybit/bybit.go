@@ -55,8 +55,8 @@ const (
 	bybitServerTime               = "/spot/v1/time"
 )
 
-// GetAllPairs gets all pairs on the exchange
-func (by *Bybit) GetAllPairs(ctx context.Context) ([]PairData, error) {
+// GetAllSpotPairs gets all pairs on the exchange
+func (by *Bybit) GetAllSpotPairs(ctx context.Context) ([]PairData, error) {
 	resp := struct {
 		Data []PairData `json:"result"`
 	}{}

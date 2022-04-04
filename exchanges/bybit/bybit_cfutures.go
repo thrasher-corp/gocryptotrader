@@ -1212,7 +1212,7 @@ func (by *Bybit) GetWalletFundRecords(ctx context.Context, startDate, endDate, c
 }
 
 // GetWalletWithdrawalRecords returns wallet withdrawal records
-func (by *Bybit) GetWalletWithdrawalRecords(ctx context.Context, startDate, endDate, coin, status string, page, limit int64) ([]FundWithdrawalRecord, error) {
+func (by *Bybit) GetWalletWithdrawalRecords(ctx context.Context, startDate, endDate, status string, coin currency.Code, page, limit int64) ([]FundWithdrawalRecord, error) {
 	params := url.Values{}
 
 	resp := struct {
@@ -1227,8 +1227,8 @@ func (by *Bybit) GetWalletWithdrawalRecords(ctx context.Context, startDate, endD
 	if endDate != "" {
 		params.Set("end_date", endDate)
 	}
-	if coin != "" {
-		params.Set("coin", coin)
+	if !coin.IsEmpty() {
+		params.Set("coin", coin.String())
 	}
 	if status != "" {
 		params.Set("status", status)

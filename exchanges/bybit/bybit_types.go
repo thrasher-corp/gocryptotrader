@@ -84,6 +84,7 @@ type PairData struct {
 	MaxTradeQuantity  float64 `json:"maxTradeQuantity,string"`
 	MaxTradeAmount    float64 `json:"maxTradeAmount,string"`
 	Category          int64   `json:"category"`
+	ShowStatus        bool    `json:"showStatus"`
 }
 
 // Orderbook stores the orderbook data
