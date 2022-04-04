@@ -16,25 +16,25 @@ var (
 // BaseInitialFunds returns the initial funds
 // from the base in a currency pair
 func (p *Pair) BaseInitialFunds() decimal.Decimal {
-	return p.Base.initialFunds
+	return p.base.initialFunds
 }
 
 // QuoteInitialFunds returns the initial funds
 // from the quote in a currency pair
 func (p *Pair) QuoteInitialFunds() decimal.Decimal {
-	return p.Quote.initialFunds
+	return p.quote.initialFunds
 }
 
 // BaseAvailable returns the available funds
 // from the base in a currency pair
 func (p *Pair) BaseAvailable() decimal.Decimal {
-	return p.Base.available
+	return p.base.available
 }
 
 // QuoteAvailable returns the available funds
 // from the quote in a currency pair
 func (p *Pair) QuoteAvailable() decimal.Decimal {
-	return p.Quote.available
+	return p.quote.available
 }
 
 func (p *Pair) GetPairReader() (IPairReader, error) {
@@ -51,15 +51,15 @@ func (p *Pair) GetCollateralReader() (ICollateralReader, error) {
 func (p *Pair) Reserve(amount decimal.Decimal, side order.Side) error {
 	switch side {
 	case order.Buy:
-		return p.Quote.Reserve(amount)
+		return p.quote.Reserve(amount)
 	case order.Sell:
-		return p.Base.Reserve(amount)
+		return p.base.Reserve(amount)
 	default:
 		return fmt.Errorf("%w for %v %v %v. Unknown side %v",
 			errCannotAllocate,
-			p.Base.exchange,
-			p.Base.asset,
-			p.Base.currency,
+			p.base.exchange,
+			p.base.asset,
+			p.base.currency,
 			side)
 	}
 }
@@ -70,15 +70,15 @@ func (p *Pair) Reserve(amount decimal.Decimal, side order.Side) error {
 func (p *Pair) Release(amount, diff decimal.Decimal, side order.Side) error {
 	switch side {
 	case order.Buy:
-		return p.Quote.Release(amount, diff)
+		return p.quote.Release(amount, diff)
 	case order.Sell:
-		return p.Base.Release(amount, diff)
+		return p.base.Release(amount, diff)
 	default:
 		return fmt.Errorf("%w for %v %v %v. Unknown side %v",
 			errCannotAllocate,
-			p.Base.exchange,
-			p.Base.asset,
-			p.Base.currency,
+			p.base.exchange,
+			p.base.asset,
+			p.base.currency,
 			side)
 	}
 }
@@ -88,9 +88,9 @@ func (p *Pair) Release(amount, diff decimal.Decimal, side order.Side) error {
 func (p *Pair) IncreaseAvailable(amount decimal.Decimal, side order.Side) {
 	switch side {
 	case order.Buy:
-		p.Base.IncreaseAvailable(amount)
+		p.base.IncreaseAvailable(amount)
 	case order.Sell:
-		p.Quote.IncreaseAvailable(amount)
+		p.quote.IncreaseAvailable(amount)
 	}
 }
 
@@ -100,9 +100,9 @@ func (p *Pair) IncreaseAvailable(amount decimal.Decimal, side order.Side) {
 func (p *Pair) CanPlaceOrder(side order.Side) bool {
 	switch side {
 	case order.Buy:
-		return p.Quote.CanPlaceOrder()
+		return p.quote.CanPlaceOrder()
 	case order.Sell:
-		return p.Base.CanPlaceOrder()
+		return p.base.CanPlaceOrder()
 	}
 	return false
 }
@@ -138,8 +138,8 @@ func (p *Pair) FundReleaser() IFundReleaser {
 // Liquidate basic liquidation response to remove
 // all asset value
 func (p *Pair) Liquidate() {
-	p.Base.available = decimal.Zero
-	p.Base.reserved = decimal.Zero
-	p.Quote.available = decimal.Zero
-	p.Quote.reserved = decimal.Zero
+	p.base.available = decimal.Zero
+	p.base.reserved = decimal.Zero
+	p.quote.available = decimal.Zero
+	p.quote.reserved = decimal.Zero
 }

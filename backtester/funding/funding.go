@@ -266,7 +266,27 @@ func CreatePair(base, quote *Item) (*Pair, error) {
 	qCopy := *quote
 	bCopy.pairedWith = &qCopy
 	qCopy.pairedWith = &bCopy
-	return &Pair{Base: &bCopy, Quote: &qCopy}, nil
+	return &Pair{base: &bCopy, quote: &qCopy}, nil
+}
+
+// CreateCollateral adds two funding items and associates them with one another
+// the association allows for the same currency to be used multiple times when
+// usingExchangeLevelFunding is false. eg BTC-USDT and LTC-USDT do not share the same
+// USDT level funding
+func CreateCollateral(contract, collateral *Item) (*Collateral, error) {
+	if contract == nil {
+		return nil, fmt.Errorf("base %w", common.ErrNilArguments)
+	}
+	if collateral == nil {
+		return nil, fmt.Errorf("quote %w", common.ErrNilArguments)
+	}
+	// copy to prevent the off chance of sending in the same base OR quote
+	// to create a new pair with a new base OR quote
+	bCopy := *contract
+	qCopy := *collateral
+	bCopy.pairedWith = &qCopy
+	qCopy.pairedWith = &bCopy
+	return &Collateral{contract: &bCopy, collateral: &qCopy}, nil
 }
 
 // Reset clears all settings
@@ -315,7 +335,7 @@ func (f *FundManager) GenerateReport() *Report {
 				for j := range report.USDTotalsOverTime {
 					if report.USDTotalsOverTime[j].Time.Equal(v.Time) {
 						report.USDTotalsOverTime[j].USDValue = report.USDTotalsOverTime[j].USDValue.Add(v.USDValue)
-						report.USDTotalsOverTime[j].Breakdown = append(report.USDTotalsOverTime[j].Breakdown, Thing{
+						report.USDTotalsOverTime[j].Breakdown = append(report.USDTotalsOverTime[j].Breakdown, CurrencyContribution{
 							Currency: f.items[i].currency,
 							USD:      v.USDValue,
 						})
@@ -327,7 +347,7 @@ func (f *FundManager) GenerateReport() *Report {
 				report.USDTotalsOverTime = append(report.USDTotalsOverTime, ItemSnapshot{
 					Time:     v.Time,
 					USDValue: v.USDValue,
-					Breakdown: []Thing{
+					Breakdown: []CurrencyContribution{
 						{
 							Currency: f.items[i].currency,
 							USD:      v.USDValue,
@@ -426,13 +446,13 @@ func (f *FundManager) Exists(item *Item) bool {
 
 // AddPair adds a pair to the fund manager if it does not exist
 func (f *FundManager) AddPair(p *Pair) error {
-	if f.Exists(p.Base) {
-		return fmt.Errorf("%w %v", ErrAlreadyExists, p.Base)
+	if f.Exists(p.base) {
+		return fmt.Errorf("%w %v", ErrAlreadyExists, p.base)
 	}
-	if f.Exists(p.Quote) {
-		return fmt.Errorf("%w %v", ErrAlreadyExists, p.Quote)
+	if f.Exists(p.quote) {
+		return fmt.Errorf("%w %v", ErrAlreadyExists, p.quote)
 	}
-	f.items = append(f.items, p.Base, p.Quote)
+	f.items = append(f.items, p.base, p.quote)
 	return nil
 }
 
@@ -448,30 +468,30 @@ func (f *FundManager) GetFundingForEvent(ev common.EventHandler) (IFundingPair, 
 
 // GetFundingForEAP This will construct a funding based on the exchange, asset, currency pair
 func (f *FundManager) getFundingForEAP(exch string, a asset.Item, p currency.Pair) (IFundingPair, error) {
-	var resp Pair
-	var collat Collateral
 	if a.IsFutures() {
+		var collat Collateral
 		for i := range f.items {
 			if f.items[i].MatchesCurrency(currency.NewCode(p.String())) {
-				collat.Contract = f.items[i]
-				collat.Collateral = f.items[i].pairedWith
+				collat.contract = f.items[i]
+				collat.collateral = f.items[i].pairedWith
 				return &collat, nil
 			}
 		}
 	} else {
+		var resp Pair
 		for i := range f.items {
 			if f.items[i].BasicEqual(exch, a, p.Base, p.Quote) {
-				resp.Base = f.items[i]
+				resp.base = f.items[i]
 				continue
 			}
 			if f.items[i].BasicEqual(exch, a, p.Quote, p.Base) {
-				resp.Quote = f.items[i]
+				resp.quote = f.items[i]
 			}
 		}
-		if resp.Base == nil {
+		if resp.base == nil {
 			return nil, fmt.Errorf("base %v %w", p.Base, ErrFundsNotFound)
 		}
-		if resp.Quote == nil {
+		if resp.quote == nil {
 			return nil, fmt.Errorf("quote %v %w", p.Quote, ErrFundsNotFound)
 		}
 		return &resp, nil

@@ -78,9 +78,9 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundingTra
 		sp := v.spotSignal.Latest().GetClosePrice()
 		hundred := decimal.NewFromInt(100)
 		diffBetweenFuturesSpot := fp.Sub(sp).Div(sp).Mul(hundred)
-		futuresSignal.AppendReasonf("Difference %v", diffBetweenFuturesSpot)
+		futuresSignal.AppendReasonf("Futures Spot Difference: %v%%", diffBetweenFuturesSpot)
 		if pos != nil && pos[len(pos)-1].Status == order.Open {
-			futuresSignal.AppendReasonf("Unrealised PNL %v", pos[len(pos)-1].UnrealisedPNL)
+			futuresSignal.AppendReasonf("Unrealised PNL: %v %v", pos[len(pos)-1].UnrealisedPNL, pos[len(pos)-1].Underlying)
 		}
 		if f.HasExchangeBeenLiquidated(&spotSignal) || f.HasExchangeBeenLiquidated(&futuresSignal) {
 			spotSignal.AppendReason("cannot transact, has been liquidated")

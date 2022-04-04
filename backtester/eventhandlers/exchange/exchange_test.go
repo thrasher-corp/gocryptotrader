@@ -605,11 +605,10 @@ func TestAllocateFundsPostOrder(t *testing.T) {
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
-	fundPair := &funding.Pair{
-		Base:  item,
-		Quote: item2,
+	fundPair, err := funding.CreatePair(item, item2)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
-	expectedError = nil
 	err = allocateFundsPostOrder(f, fundPair, nil, one, one, one, one)
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
@@ -646,10 +645,11 @@ func TestAllocateFundsPostOrder(t *testing.T) {
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
-	collateralPair := &funding.Collateral{
-		Contract:   item3,
-		Collateral: item4,
+	collateralPair, err := funding.CreateCollateral(item, item2)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
+
 	expectedError = gctorder.ErrSubmissionIsNil
 	err = allocateFundsPostOrder(f, collateralPair, orderError, one, one, one, one)
 	if !errors.Is(err, expectedError) {

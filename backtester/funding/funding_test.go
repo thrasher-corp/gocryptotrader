@@ -417,7 +417,7 @@ func TestBaseInitialFunds(t *testing.T) {
 	}
 	baseItem.pairedWith = quoteItem
 	quoteItem.pairedWith = baseItem
-	pairItems := Pair{Base: baseItem, Quote: quoteItem}
+	pairItems := Pair{base: baseItem, quote: quoteItem}
 	funds := pairItems.BaseInitialFunds()
 	if !funds.IsZero() {
 		t.Errorf("received '%v' expected '%v'", funds, baseItem.available)
@@ -436,7 +436,7 @@ func TestQuoteInitialFunds(t *testing.T) {
 	}
 	baseItem.pairedWith = quoteItem
 	quoteItem.pairedWith = baseItem
-	pairItems := Pair{Base: baseItem, Quote: quoteItem}
+	pairItems := Pair{base: baseItem, quote: quoteItem}
 	funds := pairItems.QuoteInitialFunds()
 	if !funds.Equal(elite) {
 		t.Errorf("received '%v' expected '%v'", funds, elite)
@@ -455,7 +455,7 @@ func TestBaseAvailable(t *testing.T) {
 	}
 	baseItem.pairedWith = quoteItem
 	quoteItem.pairedWith = baseItem
-	pairItems := Pair{Base: baseItem, Quote: quoteItem}
+	pairItems := Pair{base: baseItem, quote: quoteItem}
 	funds := pairItems.BaseAvailable()
 	if !funds.IsZero() {
 		t.Errorf("received '%v' expected '%v'", funds, baseItem.available)
@@ -474,7 +474,7 @@ func TestQuoteAvailable(t *testing.T) {
 	}
 	baseItem.pairedWith = quoteItem
 	quoteItem.pairedWith = baseItem
-	pairItems := Pair{Base: baseItem, Quote: quoteItem}
+	pairItems := Pair{base: baseItem, quote: quoteItem}
 	funds := pairItems.QuoteAvailable()
 	if !funds.Equal(elite) {
 		t.Errorf("received '%v' expected '%v'", funds, elite)
@@ -493,7 +493,7 @@ func TestReservePair(t *testing.T) {
 	}
 	baseItem.pairedWith = quoteItem
 	quoteItem.pairedWith = baseItem
-	pairItems := Pair{Base: baseItem, Quote: quoteItem}
+	pairItems := Pair{base: baseItem, quote: quoteItem}
 	err = pairItems.Reserve(decimal.Zero, gctorder.Buy)
 	if !errors.Is(err, errZeroAmountReceived) {
 		t.Errorf("received '%v' expected '%v'", err, errZeroAmountReceived)
@@ -528,7 +528,7 @@ func TestReleasePair(t *testing.T) {
 	}
 	baseItem.pairedWith = quoteItem
 	quoteItem.pairedWith = baseItem
-	pairItems := Pair{Base: baseItem, Quote: quoteItem}
+	pairItems := Pair{base: baseItem, quote: quoteItem}
 	err = pairItems.Reserve(decimal.Zero, gctorder.Buy)
 	if !errors.Is(err, errZeroAmountReceived) {
 		t.Errorf("received '%v' expected '%v'", err, errZeroAmountReceived)
@@ -586,36 +586,36 @@ func TestIncreaseAvailablePair(t *testing.T) {
 	}
 	baseItem.pairedWith = quoteItem
 	quoteItem.pairedWith = baseItem
-	pairItems := Pair{Base: baseItem, Quote: quoteItem}
+	pairItems := Pair{base: baseItem, quote: quoteItem}
 	pairItems.IncreaseAvailable(decimal.Zero, gctorder.Buy)
-	if !pairItems.Quote.available.Equal(elite) {
-		t.Errorf("received '%v' expected '%v'", elite, pairItems.Quote.available)
+	if !pairItems.quote.available.Equal(elite) {
+		t.Errorf("received '%v' expected '%v'", elite, pairItems.quote.available)
 	}
 	pairItems.IncreaseAvailable(decimal.Zero, gctorder.Sell)
-	if !pairItems.Base.available.IsZero() {
-		t.Errorf("received '%v' expected '%v'", decimal.Zero, pairItems.Base.available)
+	if !pairItems.base.available.IsZero() {
+		t.Errorf("received '%v' expected '%v'", decimal.Zero, pairItems.base.available)
 	}
 
 	pairItems.IncreaseAvailable(elite.Neg(), gctorder.Sell)
-	if !pairItems.Quote.available.Equal(elite) {
-		t.Errorf("received '%v' expected '%v'", elite, pairItems.Quote.available)
+	if !pairItems.quote.available.Equal(elite) {
+		t.Errorf("received '%v' expected '%v'", elite, pairItems.quote.available)
 	}
 	pairItems.IncreaseAvailable(elite, gctorder.Buy)
-	if !pairItems.Base.available.Equal(elite) {
-		t.Errorf("received '%v' expected '%v'", elite, pairItems.Base.available)
+	if !pairItems.base.available.Equal(elite) {
+		t.Errorf("received '%v' expected '%v'", elite, pairItems.base.available)
 	}
 
 	pairItems.IncreaseAvailable(elite, common.DoNothing)
-	if !pairItems.Base.available.Equal(elite) {
-		t.Errorf("received '%v' expected '%v'", elite, pairItems.Base.available)
+	if !pairItems.base.available.Equal(elite) {
+		t.Errorf("received '%v' expected '%v'", elite, pairItems.base.available)
 	}
 }
 
 func TestCanPlaceOrderPair(t *testing.T) {
 	t.Parallel()
 	p := Pair{
-		Base:  &Item{},
-		Quote: &Item{},
+		base:  &Item{},
+		quote: &Item{},
 	}
 	if p.CanPlaceOrder(common.DoNothing) {
 		t.Error("expected false")
@@ -627,11 +627,11 @@ func TestCanPlaceOrderPair(t *testing.T) {
 		t.Error("expected false")
 	}
 
-	p.Quote.available = decimal.NewFromInt(32)
+	p.quote.available = decimal.NewFromInt(32)
 	if !p.CanPlaceOrder(gctorder.Buy) {
 		t.Error("expected true")
 	}
-	p.Base.available = decimal.NewFromInt(32)
+	p.base.available = decimal.NewFromInt(32)
 	if !p.CanPlaceOrder(gctorder.Sell) {
 		t.Error("expected true")
 	}
@@ -1001,13 +1001,13 @@ func TestCanPlaceOrder(t *testing.T) {
 	t.Parallel()
 	item := &Item{}
 	c := &Collateral{
-		Contract:   item,
-		Collateral: item,
+		contract:   item,
+		collateral: item,
 	}
 	if c.CanPlaceOrder(gctorder.Buy) {
 		t.Error("expected false")
 	}
-	c.Collateral.available = decimal.NewFromInt(1337)
+	c.collateral.available = decimal.NewFromInt(1337)
 	if !c.CanPlaceOrder(gctorder.Buy) {
 		t.Error("expected true")
 	}

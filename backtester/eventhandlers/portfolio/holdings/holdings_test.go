@@ -38,6 +38,23 @@ func pair(t *testing.T) *funding.Pair {
 	return p
 }
 
+func collateral(t *testing.T) *funding.Collateral {
+	t.Helper()
+	b, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.Zero, decimal.Zero)
+	if err != nil {
+		t.Fatal(err)
+	}
+	q, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, decimal.NewFromInt(1337), decimal.Zero)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err := funding.CreateCollateral(b, q)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return p
+}
+
 func TestCreate(t *testing.T) {
 	t.Parallel()
 	_, err := Create(nil, pair(t))
@@ -47,6 +64,13 @@ func TestCreate(t *testing.T) {
 	_, err = Create(&fill.Fill{
 		Base: event.Base{AssetType: asset.Spot},
 	}, pair(t))
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = Create(&fill.Fill{
+		Base: event.Base{AssetType: asset.Futures},
+	}, collateral(t))
 	if err != nil {
 		t.Error(err)
 	}

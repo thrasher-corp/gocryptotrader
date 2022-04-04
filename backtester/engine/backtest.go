@@ -268,6 +268,12 @@ func (bt *BackTest) updateStatsForDataEvent(ev common.DataEventHandler, funds fu
 }
 
 func (bt *BackTest) triggerLiquidationsForExchange(ev common.DataEventHandler, pnl *portfolio.PNLSummary) error {
+	if ev == nil {
+		return common.ErrNilEvent
+	}
+	if pnl == nil {
+		return fmt.Errorf("%w pnl summary", common.ErrNilArguments)
+	}
 	orders, err := bt.Portfolio.CreateLiquidationOrdersForExchange(ev, bt.Funding)
 	if err != nil {
 		return err

@@ -12,15 +12,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-// FundManager is the benevolent holder of all funding levels across all
-// currencies used in the backtester
-type FundManager struct {
-	usingExchangeLevelFunding bool
-	disableUSDTracking        bool
-	items                     []*Item
-	exchangeManager           *engine.ExchangeManager
-}
-
 // IFundingManager limits funding usage for portfolio event handling
 type IFundingManager interface {
 	Reset()
@@ -121,6 +112,15 @@ type ICollateralReleaser interface {
 	Liquidate()
 }
 
+// FundManager is the benevolent holder of all funding levels across all
+// currencies used in the backtester
+type FundManager struct {
+	usingExchangeLevelFunding bool
+	disableUSDTracking        bool
+	items                     []*Item
+	exchangeManager           *engine.ExchangeManager
+}
+
 // Item holds funding data per currency item
 type Item struct {
 	exchange          string
@@ -138,6 +138,20 @@ type Item struct {
 	collateralCandles map[currency.Code]kline.DataFromKline
 }
 
+// Pair holds two currencies that are associated with each other
+type Pair struct {
+	base  *Item
+	quote *Item
+}
+
+// Collateral consists of a currency pair for a futures contract
+// and associates it with an addition collateral pair to take funding from
+type Collateral struct {
+	currentDirection *order.Side
+	contract         *Item
+	collateral       *Item
+}
+
 // BasicItem is a representation of Item
 type BasicItem struct {
 	Exchange     string
@@ -147,20 +161,6 @@ type BasicItem struct {
 	Available    decimal.Decimal
 	Reserved     decimal.Decimal
 	USDPrice     decimal.Decimal
-}
-
-// Pair holds two currencies that are associated with each other
-type Pair struct {
-	Base  *Item
-	Quote *Item
-}
-
-// Collateral consists of a currency pair for a futures contract
-// and associates it with an addition collateral pair to take funding from
-type Collateral struct {
-	currentDirection *order.Side
-	Contract         *Item
-	Collateral       *Item
 }
 
 // Report holds all funding data for result reporting
@@ -198,10 +198,11 @@ type ItemSnapshot struct {
 	Available     decimal.Decimal
 	USDClosePrice decimal.Decimal
 	USDValue      decimal.Decimal
-	Breakdown     []Thing
+	Breakdown     []CurrencyContribution
 }
 
-type Thing struct {
+// TODO look into this
+type CurrencyContribution struct {
 	Currency currency.Code
 	USD      decimal.Decimal
 }

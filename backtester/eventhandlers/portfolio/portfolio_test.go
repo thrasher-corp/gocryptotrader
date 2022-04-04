@@ -846,11 +846,23 @@ func TestTrackFuturesOrder(t *testing.T) {
 		t.Errorf("received '%v' expected '%v", err, expectedError)
 	}
 
-	fundCollateral := &funding.Collateral{}
+	expectedError = nil
+	contract, err := funding.CreateItem(od.Exchange, od.AssetType, od.Pair.Base, decimal.NewFromInt(100), decimal.Zero)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v", err, expectedError)
+	}
+	collateral, err := funding.CreateItem(od.Exchange, od.AssetType, od.Pair.Quote, decimal.NewFromInt(100), decimal.Zero)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v", err, expectedError)
+	}
+	collat, err := funding.CreateCollateral(contract, collateral)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v", err, expectedError)
+	}
 	expectedError = errExchangeUnset
 	_, err = p.TrackFuturesOrder(&fill.Fill{
 		Order: od,
-	}, fundCollateral)
+	}, collat)
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v", err, expectedError)
 	}
@@ -871,14 +883,7 @@ func TestTrackFuturesOrder(t *testing.T) {
 	od.ID = testExchange
 	od.Date = time.Now()
 	expectedError = nil
-	fundCollateral.Collateral, err = funding.CreateItem(od.Exchange, od.AssetType, od.Pair.Base, decimal.NewFromInt(100), decimal.Zero)
-	if !errors.Is(err, expectedError) {
-		t.Errorf("received '%v' expected '%v", err, expectedError)
-	}
-	fundCollateral.Contract, err = funding.CreateItem(od.Exchange, od.AssetType, od.Pair.Quote, decimal.NewFromInt(100), decimal.Zero)
-	if !errors.Is(err, expectedError) {
-		t.Errorf("received '%v' expected '%v", err, expectedError)
-	}
+
 	_, err = p.TrackFuturesOrder(&fill.Fill{
 		Order: od,
 		Base: event.Base{
@@ -886,7 +891,7 @@ func TestTrackFuturesOrder(t *testing.T) {
 			AssetType:    asset.Futures,
 			CurrencyPair: cp,
 		},
-	}, fundCollateral)
+	}, collat)
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v", err, expectedError)
 	}

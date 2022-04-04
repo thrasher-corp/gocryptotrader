@@ -21,6 +21,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/dollarcostaverage"
+	evkline "github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	"github.com/thrasher-corp/gocryptotrader/backtester/report"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
@@ -658,5 +660,43 @@ func TestFullCycleMulti(t *testing.T) {
 	err = bt.Run()
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+type portfolioOverride struct {
+	Err error
+	portfolio.Portfolio
+}
+
+func (p portfolioOverride) CreateLiquidationOrdersForExchange(common.DataEventHandler, funding.IFundingManager) ([]order.Event, error) {
+	if p.Err != nil {
+		return nil, p.Err
+	}
+	return []order.Event{
+		&order.Order{},
+	}, nil
+}
+
+func TestTriggerLiquidationsForExchange(t *testing.T) {
+	t.Parallel()
+	bt := BackTest{}
+	expectedError := common.ErrNilEvent
+	err := bt.triggerLiquidationsForExchange(nil, nil)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v'", err, expectedError)
+	}
+
+	expectedError = common.ErrNilArguments
+	ev := &evkline.Kline{}
+	err = bt.triggerLiquidationsForExchange(ev, nil)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v'", err, expectedError)
+	}
+
+	bt.Portfolio = &portfolioOverride{}
+	pnl := &portfolio.PNLSummary{}
+	err = bt.triggerLiquidationsForExchange(ev, pnl)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
 }
