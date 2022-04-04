@@ -2,7 +2,6 @@ package bybit
 
 import (
 	"context"
-	"errors"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -51,7 +50,7 @@ func (by *Bybit) CreateFuturesOrder(ctx context.Context, positionMode int64, sym
 
 	params := url.Values{}
 	if positionMode < 0 || positionMode > 2 {
-		return resp.Result, errors.New("position mode is invalid")
+		return resp.Result, errInvalidPositionMode
 	}
 	params.Set("position_idx", strconv.FormatInt(positionMode, 10))
 
@@ -63,7 +62,7 @@ func (by *Bybit) CreateFuturesOrder(ctx context.Context, positionMode int64, sym
 	params.Set("side", side)
 	params.Set("order_type", orderType)
 	if quantity <= 0 {
-		return resp.Result, errors.New("quantity can't be zero or missing")
+		return resp.Result, errInvalidQuantity
 	}
 	params.Set("qty", strconv.FormatFloat(quantity, 'f', -1, 64))
 
@@ -71,7 +70,7 @@ func (by *Bybit) CreateFuturesOrder(ctx context.Context, positionMode int64, sym
 		params.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
 	}
 	if timeInForce == "" {
-		return resp.Result, errors.New("timeInForce can't be empty or missing")
+		return resp.Result, errInvalidTimeInForce
 	}
 	params.Set("time_in_force", timeInForce)
 
@@ -141,7 +140,7 @@ func (by *Bybit) CancelActiveFuturesOrders(ctx context.Context, symbol currency.
 	}
 	params.Set("symbol", symbolValue)
 	if orderID == "" && orderLinkID == "" {
-		return resp.Result, errors.New("one among orderID or orderLinkID should be present")
+		return resp.Result, errOrderOrOrderLinkIDMissing
 	}
 	if orderID != "" {
 		params.Set("order_id", orderID)
@@ -182,7 +181,7 @@ func (by *Bybit) ReplaceActiveFuturesOrders(ctx context.Context, symbol currency
 	}
 	params.Set("symbol", symbolValue)
 	if orderID == "" && orderLinkID == "" {
-		return "", errors.New("one among orderID or orderLinkID should be present")
+		return "", errOrderOrOrderLinkIDMissing
 	}
 	if orderID != "" {
 		params.Set("order_id", orderID)
@@ -258,7 +257,7 @@ func (by *Bybit) CreateConditionalFuturesOrder(ctx context.Context, positionMode
 	}{}
 	params := url.Values{}
 	if positionMode < 0 || positionMode > 2 {
-		return resp.Result, errors.New("position mode is invalid")
+		return resp.Result, errInvalidPositionMode
 	}
 	params.Set("position_idx", strconv.FormatInt(positionMode, 10))
 
@@ -270,7 +269,7 @@ func (by *Bybit) CreateConditionalFuturesOrder(ctx context.Context, positionMode
 	params.Set("side", side)
 	params.Set("order_type", orderType)
 	if quantity <= 0 {
-		return resp.Result, errors.New("quantity can't be zero or missing")
+		return resp.Result, errInvalidQuantity
 	}
 	params.Set("qty", strconv.FormatFloat(quantity, 'f', -1, 64))
 
@@ -278,17 +277,17 @@ func (by *Bybit) CreateConditionalFuturesOrder(ctx context.Context, positionMode
 		params.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
 	}
 	if basePrice <= 0 {
-		return resp.Result, errors.New("basePrice can't be empty or missing")
+		return resp.Result, errInvalidBasePrice
 	}
 	params.Set("base_price", strconv.FormatFloat(basePrice, 'f', -1, 64))
 
 	if stopPrice <= 0 {
-		return resp.Result, errors.New("stopPrice can't be empty or missing")
+		return resp.Result, errInvalidStopPrice
 	}
 	params.Set("stop_px", strconv.FormatFloat(stopPrice, 'f', -1, 64))
 
 	if timeInForce == "" {
-		return resp.Result, errors.New("timeInForce can't be empty or missing")
+		return resp.Result, errInvalidTimeInForce
 	}
 	params.Set("time_in_force", timeInForce)
 
@@ -359,7 +358,7 @@ func (by *Bybit) CancelConditionalFuturesOrders(ctx context.Context, symbol curr
 	}
 	params.Set("symbol", symbolValue)
 	if stopOrderID == "" && orderLinkID == "" {
-		return "", errors.New("one among stopOrderID or orderLinkID should be present")
+		return "", errStopOrderOrOrderLinkIDMissing
 	}
 	if stopOrderID != "" {
 		params.Set("stop_order_id", stopOrderID)
@@ -400,7 +399,7 @@ func (by *Bybit) ReplaceConditionalFuturesOrders(ctx context.Context, symbol cur
 	}
 	params.Set("symbol", symbolValue)
 	if stopOrderID == "" && orderLinkID == "" {
-		return "", errors.New("one among stopOrderID or orderLinkID should be present")
+		return "", errStopOrderOrOrderLinkIDMissing
 	}
 	if stopOrderID != "" {
 		params.Set("stop_order_id", stopOrderID)
@@ -510,12 +509,12 @@ func (by *Bybit) SetMargin(ctx context.Context, positionMode int64, symbol curre
 	}
 	params.Set("symbol", symbolValue)
 	if positionMode < 0 || positionMode > 2 {
-		return resp.Result, errors.New("position mode is invalid")
+		return resp.Result, errInvalidPositionMode
 	}
 	params.Set("position_idx", strconv.FormatInt(positionMode, 10))
 
 	if margin == "" {
-		return resp.Result, errors.New("margin can't be empty")
+		return resp.Result, errInvalidMargin
 	}
 	params.Set("margin", margin)
 
@@ -534,7 +533,7 @@ func (by *Bybit) SetTradingAndStop(ctx context.Context, positionMode int64, symb
 	}
 	params.Set("symbol", symbolValue)
 	if positionMode < 0 || positionMode > 2 {
-		return resp.Result, errors.New("position mode is invalid")
+		return resp.Result, errInvalidPositionMode
 	}
 	params.Set("position_idx", strconv.FormatInt(positionMode, 10))
 
@@ -579,7 +578,7 @@ func (by *Bybit) SetLeverage(ctx context.Context, symbol currency.Pair, buyLever
 	params.Set("buy_leverage", strconv.FormatFloat(buyLeverage, 'f', -1, 64))
 	params.Set("sell_leverage", strconv.FormatFloat(sellLeverage, 'f', -1, 64))
 
-	return resp.Result, by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, futuresSetLeverage, params, &resp, FuturesLeverateRate)
+	return resp.Result, by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, futuresSetLeverage, params, &resp, FuturesSetLeverageRate)
 }
 
 // ChangeMode switches mode between One-Way or Hedge Mode
@@ -609,7 +608,7 @@ func (by *Bybit) ChangeMode(ctx context.Context, symbol currency.Pair, takeProfi
 	}
 	params.Set("symbol", symbolValue)
 	if takeProfitStopLoss == "" {
-		return resp.Result.Mode, errors.New("takeProfitStopLoss can't be empty or missing")
+		return resp.Result.Mode, errInvalidTakeProfitStopLoss
 	}
 	params.Set("tp_sl_mode", takeProfitStopLoss)
 
@@ -722,12 +721,12 @@ func (by *Bybit) SetRiskLimit(ctx context.Context, symbol currency.Pair, riskID,
 	params.Set("symbol", symbolValue)
 
 	if riskID <= 0 {
-		return resp.Result.RiskID, errors.New("riskID can't be zero or lesser")
+		return resp.Result.RiskID, errInvalidRiskID
 	}
 	params.Set("risk_id", strconv.FormatInt(riskID, 10))
 
 	if positionMode < 0 || positionMode > 2 {
-		return resp.Result.RiskID, errors.New("position mode is invalid")
+		return resp.Result.RiskID, errInvalidPositionMode
 	}
 	params.Set("position_idx", strconv.FormatInt(positionMode, 10))
 	return resp.Result.RiskID, by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, futuresSetRiskLimit, params, &resp, FuturesDefaultRate)

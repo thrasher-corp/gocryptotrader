@@ -479,7 +479,7 @@ func (by *Bybit) GetBestBidAskPrice(ctx context.Context, symbol string) ([]Ticke
 // CreatePostOrder create and post order
 func (by *Bybit) CreatePostOrder(ctx context.Context, o *PlaceOrderRequest) (*PlaceOrderResponse, error) {
 	if o == nil {
-		return nil, errors.New("orderRequest param can't be nil")
+		return nil, errInvalidOrderRequest
 	}
 
 	params := url.Values{}
@@ -492,7 +492,7 @@ func (by *Bybit) CreatePostOrder(ctx context.Context, o *PlaceOrderRequest) (*Pl
 		params.Set("timeInForce", string(o.TimeInForce))
 	}
 	if (o.TradeType == BybitRequestParamsOrderLimit || o.TradeType == BybitRequestParamsOrderLimitMaker) && o.Price == 0 {
-		return nil, errors.New("price should be present for Limit and LimitMaker orders")
+		return nil, errMissingPrice
 	}
 	if o.Price != 0 {
 		params.Set("price", strconv.FormatFloat(o.Price, 'f', -1, 64))
@@ -510,7 +510,7 @@ func (by *Bybit) CreatePostOrder(ctx context.Context, o *PlaceOrderRequest) (*Pl
 // QueryOrder returns order data based upon orderID or orderLinkID
 func (by *Bybit) QueryOrder(ctx context.Context, orderID, orderLinkID string) (*QueryOrderResponse, error) {
 	if orderID == "" && orderLinkID == "" {
-		return nil, errors.New("atleast one should be present among orderID and orderLinkID")
+		return nil, errOrderOrOrderLinkIDMissing
 	}
 
 	params := url.Values{}
@@ -530,7 +530,7 @@ func (by *Bybit) QueryOrder(ctx context.Context, orderID, orderLinkID string) (*
 // CancelExistingOrder cancels existing order based upon orderID or orderLinkID
 func (by *Bybit) CancelExistingOrder(ctx context.Context, orderID, orderLinkID string) (*CancelOrderResponse, error) {
 	if orderID == "" && orderLinkID == "" {
-		return nil, errors.New("atleast one should be present among orderID and orderLinkID")
+		return nil, errOrderOrOrderLinkIDMissing
 	}
 
 	params := url.Values{}
@@ -550,13 +550,13 @@ func (by *Bybit) CancelExistingOrder(ctx context.Context, orderID, orderLinkID s
 // FastCancelExistingOrder cancels existing order based upon orderID or orderLinkID
 func (by *Bybit) FastCancelExistingOrder(ctx context.Context, symbol, orderID, orderLinkID string) (*CancelOrderResponse, error) {
 	if orderID == "" && orderLinkID == "" {
-		return nil, errors.New("atleast one should be present among orderID and orderLinkID")
+		return nil, errOrderOrOrderLinkIDMissing
 	}
 
 	params := url.Values{}
 
 	if symbol == "" {
-		return nil, errors.New("symbol missing")
+		return nil, errSymbolMissing
 	}
 	params.Set("symbolId", symbol)
 
@@ -619,7 +619,7 @@ func (by *Bybit) BatchFastCancelOrder(ctx context.Context, symbol, side, orderTy
 func (by *Bybit) BatchCancelOrderByIDs(ctx context.Context, orderIDs []string) (bool, error) {
 	params := url.Values{}
 	if len(orderIDs) == 0 {
-		return false, errors.New("orderIDs can't be empty")
+		return false, errEmptyOrderIDs
 	}
 	params.Set("orderIds", strings.Join(orderIDs, ","))
 

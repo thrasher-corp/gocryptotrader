@@ -2,7 +2,6 @@ package bybit
 
 import (
 	"context"
-	"errors"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -64,7 +63,7 @@ func (by *Bybit) GetUSDTFuturesKlineData(ctx context.Context, symbol currency.Pa
 
 	params := url.Values{}
 	if symbol.IsEmpty() {
-		return resp.Data, errors.New("symbol missing")
+		return resp.Data, errSymbolMissing
 	}
 	symbolValue, err := by.FormatSymbol(symbol, asset.USDTMarginedFutures)
 	if err != nil {
@@ -240,17 +239,17 @@ func (by *Bybit) CreateUSDTFuturesOrder(ctx context.Context, symbol currency.Pai
 	}
 	params.Set("symbol", symbolValue)
 	if side == "" {
-		return resp.Data, errors.New("side can't be empty or missing")
+		return resp.Data, errInvalidSide
 	}
 	params.Set("side", side)
 
 	if orderType == "" {
-		return resp.Data, errors.New("orderType can't be empty or missing")
+		return resp.Data, errInvalidOrderType
 	}
 	params.Set("order_type", orderType)
 
 	if quantity <= 0 {
-		return resp.Data, errors.New("quantity can't be zero or missing")
+		return resp.Data, errInvalidQuantity
 	}
 	params.Set("qty", strconv.FormatFloat(quantity, 'f', -1, 64))
 
@@ -258,7 +257,7 @@ func (by *Bybit) CreateUSDTFuturesOrder(ctx context.Context, symbol currency.Pai
 		params.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
 	}
 	if timeInForce == "" {
-		return resp.Data, errors.New("timeInForce can't be empty or missing")
+		return resp.Data, errInvalidTimeInForce
 	}
 	params.Set("time_in_force", timeInForce)
 
@@ -338,7 +337,7 @@ func (by *Bybit) CancelActiveUSDTFuturesOrders(ctx context.Context, symbol curre
 	}
 	params.Set("symbol", symbolValue)
 	if orderID == "" && orderLinkID == "" {
-		return resp.Data.OrderID, errors.New("one among orderID or orderLinkID should be present")
+		return resp.Data.OrderID, errOrderOrOrderLinkIDMissing
 	}
 	if orderID != "" {
 		params.Set("order_id", orderID)
@@ -379,7 +378,7 @@ func (by *Bybit) ReplaceActiveUSDTFuturesOrders(ctx context.Context, symbol curr
 	}
 	params.Set("symbol", symbolValue)
 	if orderID == "" && orderLinkID == "" {
-		return "", errors.New("one among orderID or orderLinkID should be present")
+		return "", errOrderOrOrderLinkIDMissing
 	}
 	if orderID != "" {
 		params.Set("order_id", orderID)
@@ -462,7 +461,7 @@ func (by *Bybit) CreateConditionalUSDTFuturesOrder(ctx context.Context, symbol c
 	params.Set("side", side)
 	params.Set("order_type", orderType)
 	if quantity <= 0 {
-		return resp.Data, errors.New("quantity can't be zero or missing")
+		return resp.Data, errInvalidQuantity
 	}
 	params.Set("qty", strconv.FormatFloat(quantity, 'f', -1, 64))
 
@@ -470,17 +469,17 @@ func (by *Bybit) CreateConditionalUSDTFuturesOrder(ctx context.Context, symbol c
 		params.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
 	}
 	if basePrice <= 0 {
-		return resp.Data, errors.New("basePrice can't be empty or missing")
+		return resp.Data, errInvalidBasePrice
 	}
 	params.Set("base_price", strconv.FormatFloat(basePrice, 'f', -1, 64))
 
 	if stopPrice <= 0 {
-		return resp.Data, errors.New("stopPrice can't be empty or missing")
+		return resp.Data, errInvalidStopPrice
 	}
 	params.Set("stop_px", strconv.FormatFloat(stopPrice, 'f', -1, 64))
 
 	if timeInForce == "" {
-		return resp.Data, errors.New("timeInForce can't be empty or missing")
+		return resp.Data, errInvalidTimeInForce
 	}
 	params.Set("time_in_force", timeInForce)
 
@@ -565,7 +564,7 @@ func (by *Bybit) CancelConditionalUSDTFuturesOrders(ctx context.Context, symbol 
 	}
 	params.Set("symbol", symbolValue)
 	if stopOrderID == "" && orderLinkID == "" {
-		return "", errors.New("one among stopOrderID or orderLinkID should be present")
+		return "", errStopOrderOrOrderLinkIDMissing
 	}
 	if stopOrderID != "" {
 		params.Set("stop_order_id", stopOrderID)
@@ -606,7 +605,7 @@ func (by *Bybit) ReplaceConditionalUSDTFuturesOrders(ctx context.Context, symbol
 	}
 	params.Set("symbol", symbolValue)
 	if stopOrderID == "" && orderLinkID == "" {
-		return "", errors.New("one among stopOrderID or orderLinkID should be present")
+		return "", errStopOrderOrOrderLinkIDMissing
 	}
 	if stopOrderID != "" {
 		params.Set("stop_order_id", stopOrderID)
@@ -724,7 +723,7 @@ func (by *Bybit) SetAutoAddMargin(ctx context.Context, symbol currency.Pair, aut
 	}
 	params.Set("symbol", symbolValue)
 	if side == "" {
-		return errors.New("side can't be empty or missing")
+		return errInvalidSide
 	}
 	params.Set("side", side)
 
@@ -765,7 +764,7 @@ func (by *Bybit) SwitchPositionMode(ctx context.Context, symbol currency.Pair, m
 	}
 	params.Set("symbol", symbolValue)
 	if mode == "" {
-		return errors.New("mode can't be empty or missing")
+		return errInvalidMode
 	}
 	params.Set("mode", mode)
 
@@ -786,7 +785,7 @@ func (by *Bybit) ChangeUSDTMode(ctx context.Context, symbol currency.Pair, takeP
 	}
 	params.Set("symbol", symbolValue)
 	if takeProfitStopLoss == "" {
-		return resp.Result.Mode, errors.New("takeProfitStopLoss can't be empty or missing")
+		return resp.Result.Mode, errInvalidTakeProfitStopLoss
 	}
 	params.Set("tp_sl_mode", takeProfitStopLoss)
 
@@ -809,12 +808,12 @@ func (by *Bybit) SetUSDTMargin(ctx context.Context, symbol currency.Pair, side, 
 	}
 	params.Set("symbol", symbolValue)
 	if side == "" {
-		return resp.Result.Data, errors.New("side can't be empty")
+		return resp.Result.Data, errInvalidSide
 	}
 	params.Set("side", side)
 
 	if margin == "" {
-		return resp.Result.Data, errors.New("margin can't be empty")
+		return resp.Result.Data, errInvalidMargin
 	}
 	params.Set("margin", margin)
 
@@ -830,12 +829,12 @@ func (by *Bybit) SetUSDTLeverage(ctx context.Context, symbol currency.Pair, buyL
 	}
 	params.Set("symbol", symbolValue)
 	if buyLeverage <= 0 {
-		return errors.New("buyLeverage can't be zero or less then it")
+		return errInvalidBuyLeverage
 	}
 	params.Set("buy_leverage", strconv.FormatFloat(buyLeverage, 'f', -1, 64))
 
 	if sellLeverage <= 0 {
-		return errors.New("sellLeverage can't be zero or less then it")
+		return errInvalidSellLeverage
 	}
 	params.Set("sell_leverage", strconv.FormatFloat(sellLeverage, 'f', -1, 64))
 
@@ -851,7 +850,7 @@ func (by *Bybit) SetUSDTTradingAndStop(ctx context.Context, symbol currency.Pair
 	}
 	params.Set("symbol", symbolValue)
 	if side == "" {
-		return errors.New("side can't be empty")
+		return errInvalidSide
 	}
 	params.Set("side", side)
 
@@ -962,12 +961,12 @@ func (by *Bybit) SetUSDTRiskLimit(ctx context.Context, symbol currency.Pair, sid
 	}
 	params.Set("symbol", symbolValue)
 	if side == "" {
-		return 0, errors.New("side can't be empty")
+		return 0, errInvalidSide
 	}
 	params.Set("side", side)
 
 	if riskID <= 0 {
-		return resp.Result.RiskID, errors.New("riskID can't be zero or lesser")
+		return resp.Result.RiskID, errInvalidRiskID
 	}
 	params.Set("risk_id", strconv.FormatInt(riskID, 10))
 

@@ -2,7 +2,6 @@ package bybit
 
 import (
 	"context"
-	"errors"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -126,7 +125,7 @@ func (by *Bybit) GetFuturesKlineData(ctx context.Context, symbol currency.Pair, 
 
 	params := url.Values{}
 	if symbol.IsEmpty() {
-		return resp.Data, errors.New("symbol missing")
+		return resp.Data, errSymbolMissing
 	}
 	symbolValue, err := by.FormatSymbol(symbol, asset.CoinMarginedFutures)
 	if err != nil {
@@ -292,7 +291,7 @@ func (by *Bybit) GetOpenInterest(ctx context.Context, symbol currency.Pair, peri
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !common.StringDataCompare(validFuturesPeriods, period) {
-		return resp.Data, errors.New("invalid period parsed")
+		return resp.Data, errInvalidPeriod
 	}
 	params.Set("period", period)
 
@@ -336,7 +335,7 @@ func (by *Bybit) GetAccountRatio(ctx context.Context, symbol currency.Pair, peri
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !common.StringDataCompare(validFuturesPeriods, period) {
-		return resp.Data, errors.New("invalid period parsed")
+		return resp.Data, errInvalidPeriod
 	}
 	params.Set("period", period)
 
@@ -414,7 +413,7 @@ func (by *Bybit) CreateCoinFuturesOrder(ctx context.Context, symbol currency.Pai
 	params.Set("side", side)
 	params.Set("order_type", orderType)
 	if quantity <= 0 {
-		return resp.Data, errors.New("quantity can't be zero or missing")
+		return resp.Data, errInvalidQuantity
 	}
 	params.Set("qty", strconv.FormatFloat(quantity, 'f', -1, 64))
 
@@ -422,7 +421,7 @@ func (by *Bybit) CreateCoinFuturesOrder(ctx context.Context, symbol currency.Pai
 		params.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
 	}
 	if timeInForce == "" {
-		return resp.Data, errors.New("timeInForce can't be empty or missing")
+		return resp.Data, errInvalidTimeInForce
 	}
 	params.Set("time_in_force", timeInForce)
 
@@ -492,7 +491,7 @@ func (by *Bybit) CancelActiveCoinFuturesOrders(ctx context.Context, symbol curre
 	}
 	params.Set("symbol", symbolValue)
 	if orderID == "" && orderLinkID == "" {
-		return resp.Data, errors.New("one among orderID or orderLinkID should be present")
+		return resp.Data, errOrderOrOrderLinkIDMissing
 	}
 	if orderID != "" {
 		params.Set("order_id", orderID)
@@ -533,7 +532,7 @@ func (by *Bybit) ReplaceActiveCoinFuturesOrders(ctx context.Context, symbol curr
 	}
 	params.Set("symbol", symbolValue)
 	if orderID == "" && orderLinkID == "" {
-		return "", errors.New("one among orderID or orderLinkID should be present")
+		return "", errOrderOrOrderLinkIDMissing
 	}
 	if orderID != "" {
 		params.Set("order_id", orderID)
@@ -616,7 +615,7 @@ func (by *Bybit) CreateConditionalCoinFuturesOrder(ctx context.Context, symbol c
 	params.Set("side", side)
 	params.Set("order_type", orderType)
 	if quantity <= 0 {
-		return resp.Data, errors.New("quantity can't be zero or missing")
+		return resp.Data, errInvalidQuantity
 	}
 	params.Set("qty", strconv.FormatFloat(quantity, 'f', -1, 64))
 
@@ -624,17 +623,17 @@ func (by *Bybit) CreateConditionalCoinFuturesOrder(ctx context.Context, symbol c
 		params.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
 	}
 	if basePrice <= 0 {
-		return resp.Data, errors.New("basePrice can't be empty or missing")
+		return resp.Data, errInvalidBasePrice
 	}
 	params.Set("base_price", strconv.FormatFloat(basePrice, 'f', -1, 64))
 
 	if stopPrice <= 0 {
-		return resp.Data, errors.New("stopPrice can't be empty or missing")
+		return resp.Data, errInvalidStopPrice
 	}
 	params.Set("stop_px", strconv.FormatFloat(stopPrice, 'f', -1, 64))
 
 	if timeInForce == "" {
-		return resp.Data, errors.New("timeInForce can't be empty or missing")
+		return resp.Data, errInvalidTimeInForce
 	}
 	params.Set("time_in_force", timeInForce)
 
@@ -705,7 +704,7 @@ func (by *Bybit) CancelConditionalCoinFuturesOrders(ctx context.Context, symbol 
 	}
 	params.Set("symbol", symbolValue)
 	if stopOrderID == "" && orderLinkID == "" {
-		return "", errors.New("one among stopOrderID or orderLinkID should be present")
+		return "", errStopOrderOrOrderLinkIDMissing
 	}
 	if stopOrderID != "" {
 		params.Set("stop_order_id", stopOrderID)
@@ -746,7 +745,7 @@ func (by *Bybit) ReplaceConditionalCoinFuturesOrders(ctx context.Context, symbol
 	}
 	params.Set("symbol", symbolValue)
 	if stopOrderID == "" && orderLinkID == "" {
-		return "", errors.New("one among stopOrderID or orderLinkID should be present")
+		return "", errStopOrderOrOrderLinkIDMissing
 	}
 	if stopOrderID != "" {
 		params.Set("stop_order_id", stopOrderID)
@@ -862,7 +861,7 @@ func (by *Bybit) SetCoinMargin(ctx context.Context, symbol currency.Pair, margin
 	}
 	params.Set("symbol", symbolValue)
 	if margin == "" {
-		return resp.Data, errors.New("margin can't be empty")
+		return resp.Data, errInvalidMargin
 	}
 	params.Set("margin", margin)
 
@@ -921,7 +920,7 @@ func (by *Bybit) SetCoinLeverage(ctx context.Context, symbol currency.Pair, leve
 	}
 	params.Set("symbol", symbolValue)
 	if leverage <= 0 {
-		return resp.Data, errors.New("leverage can't be zero or less then it")
+		return resp.Data, errInvalidLeverage
 	}
 	params.Set("leverage", strconv.FormatFloat(leverage, 'f', -1, 64))
 
@@ -1018,7 +1017,7 @@ func (by *Bybit) ChangeCoinMode(ctx context.Context, symbol currency.Pair, takeP
 	}
 	params.Set("symbol", symbolValue)
 	if takeProfitStopLoss == "" {
-		return resp.Data.Mode, errors.New("takeProfitStopLoss can't be empty or missing")
+		return resp.Data.Mode, errInvalidTakeProfitStopLoss
 	}
 	params.Set("tp_sl_mode", takeProfitStopLoss)
 
@@ -1083,7 +1082,7 @@ func (by *Bybit) SetCoinRiskLimit(ctx context.Context, symbol currency.Pair, ris
 	params.Set("symbol", symbolValue)
 
 	if riskID <= 0 {
-		return resp.Data.RiskID, errors.New("riskID can't be zero or lesser")
+		return resp.Data.RiskID, errInvalidRiskID
 	}
 	params.Set("risk_id", strconv.FormatInt(riskID, 10))
 

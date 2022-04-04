@@ -2,7 +2,6 @@ package bybit
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sort"
 	"strconv"
@@ -719,7 +718,7 @@ func (by *Bybit) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submit
 			requestParamsOrderType = BybitRequestParamsOrderLimit
 		default:
 			submitOrderResponse.IsOrderPlaced = false
-			return submitOrderResponse, errors.New("unsupported order type")
+			return submitOrderResponse, errUnsupportedOrderType
 		}
 
 		var orderRequest = PlaceOrderRequest{
@@ -764,7 +763,7 @@ func (by *Bybit) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submit
 			oType = "LIMIT"
 		default:
 			submitOrderResponse.IsOrderPlaced = false
-			return submitOrderResponse, errors.New("unsupported order type")
+			return submitOrderResponse, errUnsupportedOrderType
 		}
 
 		o, err := by.CreateCoinFuturesOrder(ctx, s.Pair, sideType, oType, timeInForce,
@@ -796,7 +795,7 @@ func (by *Bybit) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submit
 			oType = "LIMIT"
 		default:
 			submitOrderResponse.IsOrderPlaced = false
-			return submitOrderResponse, errors.New("unsupported order type")
+			return submitOrderResponse, errUnsupportedOrderType
 		}
 
 		o, err := by.CreateUSDTFuturesOrder(ctx, s.Pair, sideType, oType, timeInForce,
@@ -828,7 +827,7 @@ func (by *Bybit) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submit
 			oType = "LIMIT"
 		default:
 			submitOrderResponse.IsOrderPlaced = false
-			return submitOrderResponse, errors.New("unsupported order type")
+			return submitOrderResponse, errUnsupportedOrderType
 		}
 
 		// TODO: check position mode
