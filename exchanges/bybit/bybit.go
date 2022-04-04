@@ -3,7 +3,6 @@ package bybit
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -761,7 +760,6 @@ func (by *Bybit) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, me
 		params.Set("recvWindow", strconv.FormatInt(defaultRecvWindow.Milliseconds(), 10))
 	}
 
-	interim := json.RawMessage{}
 	err = by.SendPayload(ctx, f, func() (*request.Item, error) {
 		params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
 		params.Set("api_key", by.API.Credentials.Key)
@@ -788,7 +786,7 @@ func (by *Bybit) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, me
 			Path:          endpointPath + path,
 			Headers:       headers,
 			Body:          bytes.NewBuffer(payload),
-			Result:        &interim,
+			Result:        &result,
 			AuthRequest:   true,
 			Verbose:       by.Verbose,
 			HTTPDebugging: by.HTTPDebugging,
@@ -797,20 +795,28 @@ func (by *Bybit) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, me
 	if err != nil {
 		return err
 	}
-	errCap := struct {
-		ReturnCode int64  `json:"ret_code"`
-		ReturnMsg  string `json:"ret_msg"`
-		ExtCode    int64  `json:"ext_code"`
-		ExtMsg     string `json:"ext_info"`
-	}{}
+	return result.GetError()
+}
 
-	if err := json.Unmarshal(interim, &errCap); err == nil {
-		if errCap.ReturnCode != 0 && errCap.ReturnMsg != "" {
-			return errors.New(errCap.ReturnMsg)
-		}
-		if errCap.ExtCode != 0 && errCap.ExtMsg != "" {
-			return errors.New(errCap.ExtMsg)
-		}
+type UnmarshalTo interface {
+	GetError() error
+}
+
+// Error defines all error information for each request
+type Error struct {
+	ReturnCode int64  `json:"ret_code"`
+	ReturnMsg  string `json:"ret_msg"`
+	ExtCode    int64  `json:"ext_code"`
+	ExtMsg     string `json:"ext_info"`
+}
+
+// GetError checks and returns an error if it is supplied.
+func (e Error) GetError() error {
+	if e.ReturnCode != 0 && e.ReturnMsg != "" {
+		return errors.New(e.ReturnMsg)
 	}
-	return json.Unmarshal(interim, result)
+	if e.ExtCode != 0 && e.ExtMsg != "" {
+		return errors.New(e.ExtMsg)
+	}
+	return nil
 }
