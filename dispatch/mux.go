@@ -50,7 +50,7 @@ func (m *Mux) Unsubscribe(id uuid.UUID, ch <-chan interface{}) error {
 }
 
 // Publish takes in a persistent memory address and dispatches changes to
-// required pipes. Data should be of *type.
+// required pipes.
 func (m *Mux) Publish(data interface{}, ids ...uuid.UUID) error {
 	if m == nil {
 		return errMuxIsNil

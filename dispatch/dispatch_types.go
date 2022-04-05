@@ -29,7 +29,6 @@ type Dispatcher struct {
 	// then publish the data across the full registered channels for that uuid.
 	// See relayer() method below.
 	routes map[uuid.UUID][]chan interface{}
-
 	// rMtx protects the routes variable ensuring acceptable read/write access
 	rMtx sync.RWMutex
 
@@ -40,19 +39,20 @@ type Dispatcher struct {
 	outbound sync.Pool
 
 	// MaxWorkers defines max worker ceiling
-	maxWorkers int32
-	// Atomic values -----------------------
-	// Worker counter
-	count int32
+	maxWorkers int
+
 	// Dispatch status
-	running uint32
+	running bool
 
 	// Unbufferd shutdown chan, sync wg for ensuring concurrency when only
 	// dropping a single relayer routine
-	shutdown chan *sync.WaitGroup
+	shutdown chan struct{}
 
 	// Relayer shutdown tracking
 	wg sync.WaitGroup
+
+	// dispatcher write protection
+	m sync.RWMutex
 }
 
 // job defines a relaying job associated with a ticket which allows routing to
