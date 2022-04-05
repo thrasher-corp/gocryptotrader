@@ -32,10 +32,11 @@ var (
 const Name = "dispatch"
 
 func init() {
-	dispatcher = newDispatcher()
+	dispatcher = NewDispatcher()
 }
 
-func newDispatcher() *Dispatcher {
+// NewDispatcher creates a new Dispatcher for relaying data.
+func NewDispatcher() *Dispatcher {
 	return &Dispatcher{
 		routes: make(map[uuid.UUID][]chan interface{}),
 		outbound: sync.Pool{

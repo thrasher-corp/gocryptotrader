@@ -51,7 +51,7 @@ func TestStartStop(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errDispatcherNotInitialized)
 	}
 
-	d = newDispatcher()
+	d = NewDispatcher()
 
 	err = d.stop()
 	if !errors.Is(err, ErrNotRunning) {
@@ -114,7 +114,7 @@ func TestSubscribe(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errDispatcherNotInitialized)
 	}
 
-	d = newDispatcher()
+	d = NewDispatcher()
 
 	_, err = d.subscribe(uuid.Nil)
 	if !errors.Is(err, errIDNotSet) {
@@ -167,7 +167,7 @@ func TestUnsubscribe(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errDispatcherNotInitialized)
 	}
 
-	d = newDispatcher()
+	d = NewDispatcher()
 
 	err = d.unsubscribe(uuid.Nil, nil)
 	if !errors.Is(err, errIDNotSet) {
@@ -231,7 +231,7 @@ func TestPublish(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errDispatcherNotInitialized)
 	}
 
-	d = newDispatcher()
+	d = NewDispatcher()
 
 	err = d.publish([uuid.Size]byte{255}, "lol")
 	if !errors.Is(err, nil) { // If not running, don't send back an error.
@@ -269,7 +269,7 @@ func TestPublish(t *testing.T) {
 
 func TestPublishReceive(t *testing.T) {
 	t.Parallel()
-	d := newDispatcher()
+	d := NewDispatcher()
 	err := d.start(0, 0)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
@@ -313,7 +313,7 @@ func TestGetNewID(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errDispatcherNotInitialized)
 	}
 
-	d = newDispatcher()
+	d = NewDispatcher()
 
 	_, err = d.getNewID(nil)
 	if !errors.Is(err, ErrNotRunning) {
@@ -369,7 +369,7 @@ func TestMux(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errMuxIsNil)
 	}
 
-	d := newDispatcher()
+	d := NewDispatcher()
 	err = d.start(0, 0)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
@@ -444,7 +444,7 @@ func TestMux(t *testing.T) {
 
 func TestMuxSubscribe(t *testing.T) {
 	t.Parallel()
-	d := newDispatcher()
+	d := NewDispatcher()
 	err := d.start(0, 0)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
@@ -474,7 +474,7 @@ func TestMuxSubscribe(t *testing.T) {
 
 func TestMuxPublish(t *testing.T) {
 	t.Parallel()
-	d := newDispatcher()
+	d := NewDispatcher()
 	err := d.start(0, 0)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
@@ -510,7 +510,7 @@ func TestMuxPublish(t *testing.T) {
 
 // 2363419	       468.7 ns/op	     142 B/op	       1 allocs/op
 func BenchmarkSubscribe(b *testing.B) {
-	d := newDispatcher()
+	d := NewDispatcher()
 	err := d.start(0, 0)
 	if !errors.Is(err, nil) {
 		b.Fatalf("received: '%v' but expected: '%v'", err, nil)
