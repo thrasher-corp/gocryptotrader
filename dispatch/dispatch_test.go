@@ -9,7 +9,10 @@ import (
 	"github.com/gofrs/uuid"
 )
 
-var errTest = errors.New("test error")
+var (
+	errTest      = errors.New("test error")
+	nonEmptyUUID = [uuid.Size]byte{108, 105, 99, 107, 77, 121, 72, 97, 105, 114, 121, 66, 97, 108, 108, 115}
+)
 
 func TestGlobalDispatcher(t *testing.T) {
 	err := Start(0, 0)
@@ -121,7 +124,7 @@ func TestSubscribe(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errIDNotSet)
 	}
 
-	_, err = d.subscribe([uuid.Size]byte{255})
+	_, err = d.subscribe(nonEmptyUUID)
 	if !errors.Is(err, ErrNotRunning) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, ErrNotRunning)
 	}
@@ -136,7 +139,7 @@ func TestSubscribe(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	_, err = d.subscribe([uuid.Size]byte{255})
+	_, err = d.subscribe(nonEmptyUUID)
 	if !errors.Is(err, errDispatcherUUIDNotFoundInRouteList) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errDispatcherUUIDNotFoundInRouteList)
 	}
@@ -174,13 +177,13 @@ func TestUnsubscribe(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errIDNotSet)
 	}
 
-	err = d.unsubscribe([uuid.Size]byte{255}, nil)
+	err = d.unsubscribe(nonEmptyUUID, nil)
 	if !errors.Is(err, errChannelIsNil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errChannelIsNil)
 	}
 
 	// will return nil if not running
-	err = d.unsubscribe([uuid.Size]byte{255}, make(<-chan interface{}))
+	err = d.unsubscribe(nonEmptyUUID, make(<-chan interface{}))
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
@@ -190,7 +193,7 @@ func TestUnsubscribe(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	err = d.unsubscribe([uuid.Size]byte{255}, make(<-chan interface{}))
+	err = d.unsubscribe(nonEmptyUUID, make(<-chan interface{}))
 	if !errors.Is(err, errDispatcherUUIDNotFoundInRouteList) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errDispatcherUUIDNotFoundInRouteList)
 	}
@@ -233,7 +236,7 @@ func TestPublish(t *testing.T) {
 
 	d = NewDispatcher()
 
-	err = d.publish([uuid.Size]byte{255}, "lol")
+	err = d.publish(nonEmptyUUID, "lol")
 	if !errors.Is(err, nil) { // If not running, don't send back an error.
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
@@ -248,14 +251,14 @@ func TestPublish(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errIDNotSet)
 	}
 
-	err = d.publish([uuid.Size]byte{255}, nil)
+	err = d.publish(nonEmptyUUID, nil)
 	if !errors.Is(err, errNoData) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoData)
 	}
 
 	// max out worker processing
 	for x := 0; x < 100; x++ {
-		err2 := d.publish([uuid.Size]byte{255}, "lol")
+		err2 := d.publish(nonEmptyUUID, "lol")
 		if !errors.Is(err2, nil) {
 			err = err2
 			break
