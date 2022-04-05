@@ -312,6 +312,7 @@ type orderbookResponse struct {
 		Bids [][2]string       `json:"bids"`
 		Time bybitTimeMilliSec `json:"time"`
 	} `json:"result"`
+	Error
 }
 
 // Websocket Structures

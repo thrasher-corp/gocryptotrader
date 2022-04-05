@@ -46,6 +46,7 @@ func (by *Bybit) CreateFuturesOrder(ctx context.Context, positionMode int64, sym
 	quantity, price, takeProfit, stopLoss float64, closeOnTrigger, reduceOnly bool) (FuturesOrderDataResp, error) {
 	resp := struct {
 		Result FuturesOrderDataResp `json:"result"`
+		Error
 	}{}
 
 	params := url.Values{}
@@ -105,6 +106,7 @@ func (by *Bybit) GetActiveFuturesOrders(ctx context.Context, symbol currency.Pai
 			Data   []FuturesActiveOrder `json:"data"`
 			Cursor string               `json:"cursor"`
 		} `json:"result"`
+		Error
 	}{}
 
 	params := url.Values{}
@@ -132,6 +134,7 @@ func (by *Bybit) GetActiveFuturesOrders(ctx context.Context, symbol currency.Pai
 func (by *Bybit) CancelActiveFuturesOrders(ctx context.Context, symbol currency.Pair, orderID, orderLinkID string) (FuturesOrderCancelResp, error) {
 	resp := struct {
 		Result FuturesOrderCancelResp `json:"result"`
+		Error
 	}{}
 	params := url.Values{}
 	symbolValue, err := by.FormatSymbol(symbol, asset.Futures)
@@ -155,6 +158,7 @@ func (by *Bybit) CancelActiveFuturesOrders(ctx context.Context, symbol currency.
 func (by *Bybit) CancelAllActiveFuturesOrders(ctx context.Context, symbol currency.Pair) ([]FuturesCancelOrderData, error) {
 	resp := struct {
 		Result []FuturesCancelOrderData `json:"result"`
+		Error
 	}{}
 	params := url.Values{}
 	symbolValue, err := by.FormatSymbol(symbol, asset.Futures)
@@ -172,6 +176,7 @@ func (by *Bybit) ReplaceActiveFuturesOrders(ctx context.Context, symbol currency
 		Result struct {
 			OrderID string `json:"order_id"`
 		} `json:"result"`
+		Error
 	}{}
 
 	params := url.Values{}
@@ -229,6 +234,7 @@ func (by *Bybit) GetActiveRealtimeOrders(ctx context.Context, symbol currency.Pa
 	if orderID == "" && orderLinkID == "" {
 		resp := struct {
 			Result []FuturesActiveRealtimeOrder `json:"result"`
+			Error
 		}{}
 		err = by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, futuresGetActiveRealtimeOrders, params, &resp, FuturesGetActiveRealtimeOrderRate)
 		if err != nil {
@@ -238,6 +244,7 @@ func (by *Bybit) GetActiveRealtimeOrders(ctx context.Context, symbol currency.Pa
 	} else {
 		resp := struct {
 			Result FuturesActiveRealtimeOrder `json:"result"`
+			Error
 		}{}
 		err = by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, futuresGetActiveRealtimeOrders, params, &resp, FuturesGetActiveRealtimeOrderRate)
 		if err != nil {
@@ -254,6 +261,7 @@ func (by *Bybit) CreateConditionalFuturesOrder(ctx context.Context, positionMode
 	quantity, price, takeProfit, stopLoss, basePrice, stopPrice float64, closeOnTrigger bool) (FuturesConditionalOrderResp, error) {
 	resp := struct {
 		Result FuturesConditionalOrderResp `json:"result"`
+		Error
 	}{}
 	params := url.Values{}
 	if positionMode < 0 || positionMode > 2 {
@@ -322,6 +330,7 @@ func (by *Bybit) GetConditionalFuturesOrders(ctx context.Context, symbol currenc
 			Result []FuturesConditionalOrders `json:"data"`
 			Cursor string                     `json:"cursor"`
 		} `json:"result"`
+		Error
 	}{}
 	params := url.Values{}
 	symbolValue, err := by.FormatSymbol(symbol, asset.Futures)
@@ -350,6 +359,7 @@ func (by *Bybit) CancelConditionalFuturesOrders(ctx context.Context, symbol curr
 		Result struct {
 			StopOrderID string `json:"stop_order_id"`
 		} `json:"result"`
+		Error
 	}{}
 	params := url.Values{}
 	symbolValue, err := by.FormatSymbol(symbol, asset.Futures)
@@ -373,6 +383,7 @@ func (by *Bybit) CancelConditionalFuturesOrders(ctx context.Context, symbol curr
 func (by *Bybit) CancelAllConditionalFuturesOrders(ctx context.Context, symbol currency.Pair) ([]FuturesCancelOrderResp, error) {
 	resp := struct {
 		Result []FuturesCancelOrderResp `json:"result"`
+		Error
 	}{}
 	params := url.Values{}
 	symbolValue, err := by.FormatSymbol(symbol, asset.Futures)
@@ -390,6 +401,7 @@ func (by *Bybit) ReplaceConditionalFuturesOrders(ctx context.Context, symbol cur
 		Result struct {
 			OrderID string `json:"stop_order_id"`
 		} `json:"result"`
+		Error
 	}{}
 
 	params := url.Values{}
@@ -450,6 +462,7 @@ func (by *Bybit) GetConditionalRealtimeOrders(ctx context.Context, symbol curren
 	if stopOrderID == "" && orderLinkID == "" {
 		resp := struct {
 			Result []FuturesConditionalRealtimeOrder `json:"result"`
+			Error
 		}{}
 		err = by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, futuresGetConditionalRealtimeOrders, params, &resp, FuturesGetConditionalRealtimeOrderRate)
 		if err != nil {
@@ -459,6 +472,7 @@ func (by *Bybit) GetConditionalRealtimeOrders(ctx context.Context, symbol curren
 	} else {
 		resp := struct {
 			Result FuturesConditionalRealtimeOrder `json:"result"`
+			Error
 		}{}
 		err = by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, futuresGetConditionalRealtimeOrders, params, &resp, FuturesGetConditionalRealtimeOrderRate)
 		if err != nil {
@@ -478,6 +492,7 @@ func (by *Bybit) GetPositions(ctx context.Context, symbol currency.Pair) ([]Posi
 			Data    PositionResp `json:"data"`
 			IsValid bool         `json:"is_valid"`
 		} `json:"result"`
+		Error
 	}{}
 
 	if !symbol.IsEmpty() {
@@ -501,6 +516,7 @@ func (by *Bybit) GetPositions(ctx context.Context, symbol currency.Pair) ([]Posi
 func (by *Bybit) SetMargin(ctx context.Context, positionMode int64, symbol currency.Pair, margin string) (float64, error) {
 	resp := struct {
 		Result float64 `json:"result"`
+		Error
 	}{}
 	params := url.Values{}
 	symbolValue, err := by.FormatSymbol(symbol, asset.Futures)
@@ -525,6 +541,7 @@ func (by *Bybit) SetMargin(ctx context.Context, positionMode int64, symbol curre
 func (by *Bybit) SetTradingAndStop(ctx context.Context, positionMode int64, symbol currency.Pair, takeProfit, stopLoss, trailingStop, newTrailingActive, stopLossQty, takeProfitQty float64, takeProfitTriggerBy, stopLossTriggerBy string) (SetTradingAndStopResp, error) {
 	resp := struct {
 		Result SetTradingAndStopResp `json:"result"`
+		Error
 	}{}
 	params := url.Values{}
 	symbolValue, err := by.FormatSymbol(symbol, asset.Futures)
@@ -568,6 +585,7 @@ func (by *Bybit) SetTradingAndStop(ctx context.Context, positionMode int64, symb
 func (by *Bybit) SetLeverage(ctx context.Context, symbol currency.Pair, buyLeverage, sellLeverage float64) (float64, error) {
 	resp := struct {
 		Result float64 `json:"result"`
+		Error
 	}{}
 	params := url.Values{}
 	symbolValue, err := by.FormatSymbol(symbol, asset.Futures)
@@ -583,6 +601,7 @@ func (by *Bybit) SetLeverage(ctx context.Context, symbol currency.Pair, buyLever
 
 // ChangeMode switches mode between One-Way or Hedge Mode
 func (by *Bybit) ChangePositionMode(ctx context.Context, symbol currency.Pair, mode int64) error {
+	var resp Error
 	params := url.Values{}
 	symbolValue, err := by.FormatSymbol(symbol, asset.Futures)
 	if err != nil {
@@ -591,7 +610,7 @@ func (by *Bybit) ChangePositionMode(ctx context.Context, symbol currency.Pair, m
 	params.Set("symbol", symbolValue)
 	params.Set("mode", strconv.FormatInt(mode, 10))
 
-	return by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, futuresSwitchPositionMode, params, nil, FuturesSwitchPositionModeRate)
+	return by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, futuresSwitchPositionMode, params, &resp, FuturesSwitchPositionModeRate)
 }
 
 // ChangeMode switches mode between full or partial position
@@ -600,6 +619,7 @@ func (by *Bybit) ChangeMode(ctx context.Context, symbol currency.Pair, takeProfi
 		Result struct {
 			Mode string `json:"tp_sl_mode"`
 		} `json:"result"`
+		Error
 	}{}
 	params := url.Values{}
 	symbolValue, err := by.FormatSymbol(symbol, asset.Futures)
@@ -617,6 +637,7 @@ func (by *Bybit) ChangeMode(ctx context.Context, symbol currency.Pair, takeProfi
 
 // ChangeMargin switches margin between cross or isolated
 func (by *Bybit) ChangeMargin(ctx context.Context, symbol currency.Pair, buyLeverage, sellLeverage float64, isIsolated bool) error {
+	var resp Error
 	params := url.Values{}
 	symbolValue, err := by.FormatSymbol(symbol, asset.Futures)
 	if err != nil {
@@ -632,7 +653,7 @@ func (by *Bybit) ChangeMargin(ctx context.Context, symbol currency.Pair, buyLeve
 		params.Set("is_isolated", "false")
 	}
 
-	return by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, futuresSwitchMargin, params, nil, FuturesSwitchMarginRate)
+	return by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, futuresSwitchMargin, params, &resp, FuturesSwitchMarginRate)
 }
 
 // GetTradeRecords returns list of user trades
@@ -643,6 +664,7 @@ func (by *Bybit) GetTradeRecords(ctx context.Context, symbol currency.Pair, orde
 			OrderID string      `json:"order_id"`
 			Trades  []TradeResp `json:"trade_list"`
 		} `json:"result"`
+		Error
 	}{}
 
 	symbolValue, err := by.FormatSymbol(symbol, asset.Futures)
@@ -678,6 +700,7 @@ func (by *Bybit) GetClosedTrades(ctx context.Context, symbol currency.Pair, exec
 			CurrentPage int64          `json:"current_page"`
 			Trades      []ClosedTrades `json:"data"`
 		} `json:"result"`
+		Error
 	}{}
 
 	symbolValue, err := by.FormatSymbol(symbol, asset.Futures)
@@ -711,6 +734,7 @@ func (by *Bybit) SetRiskLimit(ctx context.Context, symbol currency.Pair, riskID,
 		Result struct {
 			RiskID int64 `json:"risk_id"`
 		} `json:"result"`
+		Error
 	}{}
 
 	params := url.Values{}

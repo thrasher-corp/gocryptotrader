@@ -58,6 +58,7 @@ const (
 func (by *Bybit) GetAllSpotPairs(ctx context.Context) ([]PairData, error) {
 	resp := struct {
 		Data []PairData `json:"result"`
+		Error
 	}{}
 	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestSpot, bybitSpotGetSymbols, publicSpotRate, &resp)
 }
@@ -148,6 +149,7 @@ func (by *Bybit) GetTrades(ctx context.Context, symbol string, limit int64) ([]T
 			Quantity     float64           `json:"qty,string"`
 			IsBuyerMaker bool              `json:"isBuyerMaker"`
 		} `json:"result"`
+		Error
 	}{}
 
 	params := url.Values{}
@@ -188,6 +190,7 @@ func (by *Bybit) GetTrades(ctx context.Context, symbol string, limit int64) ([]T
 func (by *Bybit) GetKlines(ctx context.Context, symbol, period string, limit int64, start, end time.Time) ([]KlineItem, error) {
 	resp := struct {
 		Data [][]interface{} `json:"result"`
+		Error
 	}{}
 
 	v := url.Values{}
@@ -330,6 +333,7 @@ func (by *Bybit) Get24HrsChange(ctx context.Context, symbol string) ([]PriceChan
 	if symbol != "" {
 		resp := struct {
 			Data priceChangeStats `json:"result"`
+			Error
 		}{}
 
 		params := url.Values{}
@@ -355,6 +359,7 @@ func (by *Bybit) Get24HrsChange(ctx context.Context, symbol string) ([]PriceChan
 	} else {
 		resp := struct {
 			Data []priceChangeStats `json:"result"`
+			Error
 		}{}
 
 		err := by.SendHTTPRequest(ctx, exchange.RestSpot, bybit24HrsChange, publicSpotRate, &resp)
@@ -387,6 +392,7 @@ func (by *Bybit) GetLastTradedPrice(ctx context.Context, symbol string) ([]LastT
 	if symbol != "" {
 		resp := struct {
 			Data LastTradePrice `json:"result"`
+			Error
 		}{}
 
 		params := url.Values{}
@@ -403,6 +409,7 @@ func (by *Bybit) GetLastTradedPrice(ctx context.Context, symbol string) ([]LastT
 	} else {
 		resp := struct {
 			Data []LastTradePrice `json:"result"`
+			Error
 		}{}
 
 		err := by.SendHTTPRequest(ctx, exchange.RestSpot, bybitLastTradedPrice, publicSpotRate, &resp)
@@ -435,6 +442,7 @@ func (by *Bybit) GetBestBidAskPrice(ctx context.Context, symbol string) ([]Ticke
 	if symbol != "" {
 		resp := struct {
 			Data bestTicker `json:"result"`
+			Error
 		}{}
 
 		params := url.Values{}
@@ -455,6 +463,7 @@ func (by *Bybit) GetBestBidAskPrice(ctx context.Context, symbol string) ([]Ticke
 	} else {
 		resp := struct {
 			Data []bestTicker `json:"result"`
+			Error
 		}{}
 
 		err := by.SendHTTPRequest(ctx, exchange.RestSpot, bybitBestBidAskPrice, publicSpotRate, &resp)
@@ -502,6 +511,7 @@ func (by *Bybit) CreatePostOrder(ctx context.Context, o *PlaceOrderRequest) (*Pl
 
 	resp := struct {
 		Data PlaceOrderResponse `json:"result"`
+		Error
 	}{}
 	return &resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, bybitSpotOrder, params, &resp, privateSpotRate)
 }
@@ -522,6 +532,7 @@ func (by *Bybit) QueryOrder(ctx context.Context, orderID, orderLinkID string) (*
 
 	resp := struct {
 		Data QueryOrderResponse `json:"result"`
+		Error
 	}{}
 	return &resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, bybitSpotOrder, params, &resp, privateSpotRate)
 }
@@ -542,6 +553,7 @@ func (by *Bybit) CancelExistingOrder(ctx context.Context, orderID, orderLinkID s
 
 	resp := struct {
 		Data CancelOrderResponse `json:"result"`
+		Error
 	}{}
 	return &resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, bybitSpotOrder, params, &resp, privateSpotRate)
 }
@@ -553,7 +565,6 @@ func (by *Bybit) FastCancelExistingOrder(ctx context.Context, symbol, orderID, o
 	}
 
 	params := url.Values{}
-
 	if symbol == "" {
 		return nil, errSymbolMissing
 	}
@@ -568,6 +579,7 @@ func (by *Bybit) FastCancelExistingOrder(ctx context.Context, symbol, orderID, o
 
 	resp := struct {
 		Data CancelOrderResponse `json:"result"`
+		Error
 	}{}
 	return &resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, bybitFastCancelSpotOrder, params, &resp, privateSpotRate)
 }
@@ -589,6 +601,7 @@ func (by *Bybit) BatchCancelOrder(ctx context.Context, symbol, side, orderTypes 
 		Result struct {
 			Success bool `json:"success"`
 		} `json:"result"`
+		Error
 	}{}
 	return resp.Result.Success, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, bybitBatchCancelSpotOrder, params, &resp, privateSpotRate)
 }
@@ -610,6 +623,7 @@ func (by *Bybit) BatchFastCancelOrder(ctx context.Context, symbol, side, orderTy
 		Result struct {
 			Success bool `json:"success"`
 		} `json:"result"`
+		Error
 	}{}
 	return resp.Result.Success, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, bybitFastBatchCancelSpotOrder, params, &resp, privateSpotRate)
 }
@@ -626,6 +640,7 @@ func (by *Bybit) BatchCancelOrderByIDs(ctx context.Context, orderIDs []string) (
 		Result struct {
 			Success bool `json:"success"`
 		} `json:"result"`
+		Error
 	}{}
 	return resp.Result.Success, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, bybitFastBatchCancelSpotOrder, params, &resp, privateSpotRate)
 }
@@ -645,6 +660,7 @@ func (by *Bybit) ListOpenOrders(ctx context.Context, symbol, orderID string, lim
 
 	resp := struct {
 		Data []QueryOrderResponse `json:"result"`
+		Error
 	}{}
 	return resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, bybitOpenOrder, params, &resp, privateSpotRate)
 }
@@ -669,6 +685,7 @@ func (by *Bybit) GetPastOrders(ctx context.Context, symbol, orderID string, limi
 	}
 	resp := struct {
 		Data []QueryOrderResponse `json:"result"`
+		Error
 	}{}
 	return resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, bybitPastOrder, params, &resp, privateSpotRate)
 }
@@ -699,6 +716,7 @@ func (by *Bybit) GetTradeHistory(ctx context.Context, limit int64, symbol, fromI
 	}
 	resp := struct {
 		Data []HistoricalTrade `json:"result"`
+		Error
 	}{}
 	return resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, bybitTradeHistory, params, &resp, privateSpotRate)
 }
@@ -709,6 +727,7 @@ func (by *Bybit) GetWalletBalance(ctx context.Context) ([]Balance, error) {
 		Data struct {
 			Balances []Balance `json:"balances"`
 		} `json:"result"`
+		Error
 	}{}
 	return resp.Data.Balances, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, bybitWalletBalance, url.Values{}, &resp, privateSpotRate)
 }
@@ -719,31 +738,35 @@ func (by *Bybit) GetServerTime(ctx context.Context) (time.Time, error) {
 		Result struct {
 			ServerTime int64 `json:"balances"`
 		} `json:"result"`
+		Error
 	}{}
 	return time.UnixMilli(resp.Result.ServerTime), by.SendHTTPRequest(ctx, exchange.RestSpot, bybitServerTime, publicSpotRate, &resp)
 }
 
 // SendHTTPRequest sends an unauthenticated request
-func (by *Bybit) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path string, f request.EndpointLimit, result interface{}) error {
+func (by *Bybit) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path string, f request.EndpointLimit, result UnmarshalTo) error {
 	endpointPath, err := by.API.Endpoints.GetURL(ePath)
 	if err != nil {
 		return err
 	}
-	item := &request.Item{
-		Method:        http.MethodGet,
-		Path:          endpointPath + path,
-		Result:        result,
-		Verbose:       by.Verbose,
-		HTTPDebugging: by.HTTPDebugging,
-		HTTPRecording: by.HTTPRecording}
 
-	return by.SendPayload(ctx, f, func() (*request.Item, error) {
-		return item, nil
+	err = by.SendPayload(ctx, f, func() (*request.Item, error) {
+		return &request.Item{
+			Method:        http.MethodGet,
+			Path:          endpointPath + path,
+			Result:        result,
+			Verbose:       by.Verbose,
+			HTTPDebugging: by.HTTPDebugging,
+			HTTPRecording: by.HTTPRecording}, nil
 	})
+	if err != nil {
+		return err
+	}
+	return result.GetError()
 }
 
 // SendAuthHTTPRequest sends an authenticated HTTP request
-func (by *Bybit) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, method, path string, params url.Values, result interface{}, f request.EndpointLimit) error {
+func (by *Bybit) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, method, path string, params url.Values, result UnmarshalTo, f request.EndpointLimit) error {
 	if !by.AllowAuthenticatedRequest() {
 		return fmt.Errorf("%s %w", by.Name, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
 	}
