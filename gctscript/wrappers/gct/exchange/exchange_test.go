@@ -157,16 +157,14 @@ func TestExchange_SubmitOrder(t *testing.T) {
 		t.Fatal(err)
 	}
 	tempOrder := &order.Submit{
-		Pair:         c,
-		Type:         orderType,
-		Side:         orderSide,
-		TriggerPrice: 0,
-		TargetAmount: 0,
-		Price:        orderPrice,
-		Amount:       orderAmount,
-		ClientID:     orderClientID,
-		Exchange:     exchName,
-		AssetType:    asset.Spot,
+		Pair:      c,
+		Type:      orderType,
+		Side:      orderSide,
+		Price:     orderPrice,
+		Amount:    orderAmount,
+		ClientID:  orderClientID,
+		Exchange:  exchName,
+		AssetType: asset.Spot,
 	}
 	_, err = exchangeTest.SubmitOrder(context.Background(), tempOrder)
 	if err != nil {
