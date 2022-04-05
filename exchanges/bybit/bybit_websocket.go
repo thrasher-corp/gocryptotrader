@@ -26,6 +26,7 @@ import (
 const (
 	bybitWSBaseURL      = "wss://stream.bybit.com/"
 	wsSpotPublicTopicV2 = "spot/quote/ws/v2"
+	wsSpotPrivate       = "spot/ws"
 	bybitWebsocketTimer = 30 * time.Second
 	wsOrderbook         = "depth"
 	wsTicker            = "bookTicker"
@@ -70,8 +71,22 @@ func (by *Bybit) WsConnect() error {
 	return nil
 }
 
+func readAuthThings(wow stream.Connection) {
+	for {
+		resp := wow.ReadMessage()
+		fmt.Println("ZOOM: ", string(resp.Raw))
+	}
+}
+
 // WsAuth sends an authentication message to receive auth data
 func (by *Bybit) WsAuth() error {
+	var dialer websocket.Dialer
+	err := by.Websocket.AuthConn.Dial(&dialer, http.Header{})
+	if err != nil {
+		return err
+	}
+	go readAuthThings(by.Websocket.AuthConn)
+
 	intNonce := (time.Now().Unix() + 1) * 1000
 	strNonce := strconv.FormatInt(intNonce, 10)
 	hmac, err := crypto.GetHMAC(
@@ -85,9 +100,9 @@ func (by *Bybit) WsAuth() error {
 	sign := crypto.HexEncodeToString(hmac)
 	req := Authenticate{
 		Operation: "auth",
-		Args:      []string{by.API.Credentials.Key, strNonce, sign},
+		Args:      []interface{}{by.API.Credentials.Key, intNonce, sign},
 	}
-	return by.Websocket.Conn.SendJSONMessage(req)
+	return by.Websocket.AuthConn.SendJSONMessage(req)
 }
 
 // Subscribe sends a websocket message to receive data from the channel
@@ -104,7 +119,8 @@ func (by *Bybit) Subscribe(channelsToSubscribe []stream.ChannelSubscription) err
 			continue
 		}
 		subReq.Parameters = WsParams{
-			Symbol: formattedPair.String(),
+			Symbol:   formattedPair.String(),
+			IsBinary: true,
 		}
 		err = by.Websocket.Conn.SendJSONMessage(subReq)
 		if err != nil {

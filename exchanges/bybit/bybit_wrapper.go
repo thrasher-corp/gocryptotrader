@@ -174,6 +174,7 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 			ExchangeConfig:        exch,
 			DefaultURL:            bybitWSBaseURL + wsSpotPublicTopicV2,
 			RunningURL:            wsRunningEndpoint,
+			RunningURLAuth:        bybitWSBaseURL + wsSpotPrivate,
 			Connector:             by.WsConnect,
 			Subscriber:            by.Subscribe,
 			Unsubscriber:          by.Unsubscribe,
@@ -187,10 +188,20 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	return by.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	err = by.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		URL:                  by.Websocket.GetWebsocketURL(),
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+	})
+	if err != nil {
+		return err
+	}
+
+	return by.Websocket.SetupNewConnection(stream.ConnectionSetup{
+		URL:                  bybitWSBaseURL + wsSpotPrivate,
+		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		Authenticated:        true,
 	})
 }
 

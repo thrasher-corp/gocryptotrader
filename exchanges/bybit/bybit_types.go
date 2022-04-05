@@ -319,8 +319,8 @@ type orderbookResponse struct {
 
 // Authenticate stores authentication variables required
 type Authenticate struct {
-	Args      []string `json:"args"`
-	Operation string   `json:"op"`
+	Args      []interface{} `json:"args"`
+	Operation string        `json:"op"`
 }
 
 // WsReq has the data used for ws request
