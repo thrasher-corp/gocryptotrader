@@ -829,7 +829,7 @@ type UnmarshalTo interface {
 type Error struct {
 	ReturnCode int64  `json:"ret_code"`
 	ReturnMsg  string `json:"ret_msg"`
-	ExtCode    int64  `json:"ext_code"`
+	ExtCode    string `json:"ext_code"`
 	ExtMsg     string `json:"ext_info"`
 }
 
@@ -838,7 +838,7 @@ func (e Error) GetError() error {
 	if e.ReturnCode != 0 && e.ReturnMsg != "" {
 		return errors.New(e.ReturnMsg)
 	}
-	if e.ExtCode != 0 && e.ExtMsg != "" {
+	if e.ExtCode != "" && e.ExtMsg != "" {
 		return errors.New(e.ExtMsg)
 	}
 	return nil

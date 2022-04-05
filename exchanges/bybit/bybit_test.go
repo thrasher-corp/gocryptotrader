@@ -1785,7 +1785,7 @@ func TestGetPositions(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
-	pair, err := currency.NewPairFromString("BTCUSDT")
+	pair, err := currency.NewPairFromString("BTCUSDM22")
 	if err != nil {
 		t.Fatal(err)
 	}
