@@ -13,6 +13,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/validate"
 )
 
+var errTimeInForceConflict = errors.New("multiple time in force options applied")
+
 // Validate checks the supplied data and returns whether or not it's valid
 func (s *Submit) Validate(opt ...validate.Checker) error {
 	if s == nil {
@@ -38,8 +40,20 @@ func (s *Submit) Validate(opt ...validate.Checker) error {
 		return ErrTypeIsInvalid
 	}
 
-	if s.Amount <= 0 {
-		return fmt.Errorf("submit validation error %w, suppled: %.8f", ErrAmountIsInvalid, s.Amount)
+	if s.ImmediateOrCancel && s.FillOrKill {
+		return errTimeInForceConflict
+	}
+
+	if s.Amount == 0 && s.QuoteAmount == 0 {
+		return fmt.Errorf("submit validation error %w, amount and quote amount cannot be zero", ErrAmountIsInvalid)
+	}
+
+	if s.Amount < 0 {
+		return fmt.Errorf("submit validation error base %w, suppled: %v", ErrAmountIsInvalid, s.Amount)
+	}
+
+	if s.QuoteAmount < 0 {
+		return fmt.Errorf("submit validation error quote %w, suppled: %v", ErrAmountIsInvalid, s.QuoteAmount)
 	}
 
 	if s.Type == Limit && s.Price <= 0 {
@@ -92,8 +106,8 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) {
 		d.TriggerPrice = m.TriggerPrice
 		updated = true
 	}
-	if m.TargetAmount > 0 && m.TargetAmount != d.TargetAmount {
-		d.TargetAmount = m.TargetAmount
+	if m.QuoteAmount > 0 && m.QuoteAmount != d.QuoteAmount {
+		d.QuoteAmount = m.QuoteAmount
 		updated = true
 	}
 	if m.ExecutedAmount > 0 && m.ExecutedAmount != d.ExecutedAmount {
@@ -256,8 +270,8 @@ func (d *Detail) UpdateOrderFromModify(m *Modify) {
 		d.TriggerPrice = m.TriggerPrice
 		updated = true
 	}
-	if m.TargetAmount > 0 && m.TargetAmount != d.TargetAmount {
-		d.TargetAmount = m.TargetAmount
+	if m.QuoteAmount > 0 && m.QuoteAmount != d.QuoteAmount {
+		d.QuoteAmount = m.QuoteAmount
 		updated = true
 	}
 	if m.ExecutedAmount > 0 && m.ExecutedAmount != d.ExecutedAmount {

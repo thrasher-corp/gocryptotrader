@@ -23,6 +23,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -180,7 +181,9 @@ func (c *CoinbasePro) Setup(exch *config.Exchange) error {
 		Unsubscriber:          c.Unsubscribe,
 		GenerateSubscriptions: c.GenerateDefaultSubscriptions,
 		Features:              &c.Features.Supports.WebsocketCapabilities,
-		SortBuffer:            true,
+		OrderbookBufferConfig: buffer.Config{
+			SortBuffer: true,
+		},
 	})
 	if err != nil {
 		return err
@@ -736,7 +739,7 @@ func (c *CoinbasePro) GetFeeByType(ctx context.Context, feeBuilder *exchange.Fee
 	if feeBuilder == nil {
 		return 0, fmt.Errorf("%T %w", feeBuilder, common.ErrNilPointer)
 	}
-	if !c.AllowAuthenticatedRequest() && // Todo check connection status
+	if !c.AreCredentialsValid(ctx) && // Todo check connection status
 		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		feeBuilder.FeeType = exchange.OfflineTradeFee
 	}

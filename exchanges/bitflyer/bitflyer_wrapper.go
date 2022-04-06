@@ -457,7 +457,7 @@ func (b *Bitflyer) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBui
 	if feeBuilder == nil {
 		return 0, fmt.Errorf("%T %w", feeBuilder, common.ErrNilPointer)
 	}
-	if !b.AllowAuthenticatedRequest() && // Todo check connection status
+	if !b.AreCredentialsValid(ctx) && // Todo check connection status
 		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		feeBuilder.FeeType = exchange.OfflineTradeFee
 	}

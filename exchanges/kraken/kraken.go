@@ -1019,8 +1019,9 @@ func (k *Kraken) SendHTTPRequest(ctx context.Context, ep exchange.URL, path stri
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
 func (k *Kraken) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method string, params url.Values, result interface{}) error {
-	if !k.AllowAuthenticatedRequest() {
-		return fmt.Errorf("%s %w", k.Name, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
+	creds, err := k.GetCredentials(ctx)
+	if err != nil {
+		return err
 	}
 	endpoint, err := k.API.Endpoints.GetURL(ep)
 	if err != nil {
@@ -1042,7 +1043,7 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.U
 		var hmac []byte
 		hmac, err = crypto.GetHMAC(crypto.HashSHA512,
 			append([]byte(path), shasum...),
-			[]byte(k.API.Credentials.Secret))
+			[]byte(creds.Secret))
 		if err != nil {
 			return nil, err
 		}
@@ -1050,7 +1051,7 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.U
 		signature := crypto.Base64Encode(hmac)
 
 		headers := make(map[string]string)
-		headers["API-Key"] = k.API.Credentials.Key
+		headers["API-Key"] = creds.Key
 		headers["API-Sign"] = signature
 
 		return &request.Item{

@@ -47,9 +47,7 @@ func TestMain(m *testing.M) {
 	}
 
 	e.API.AuthenticatedSupport = true
-	e.API.Credentials.Key = APIKey
-	e.API.Credentials.Secret = APISecret
-
+	e.SetCredentials(APIKey, APISecret, "", "", "", "")
 	os.Exit(m.Run())
 }
 
@@ -303,7 +301,7 @@ func TestGetOrderHistory(t *testing.T) {
 // Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
 // ----------------------------------------------------------------------------------------------------------------------------
 func areTestAPIKeysSet() bool {
-	return e.ValidateAPICredentials()
+	return e.ValidateAPICredentials(e.GetDefaultCredentials()) == nil
 }
 
 func TestSubmitOrder(t *testing.T) {

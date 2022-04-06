@@ -647,8 +647,8 @@ func TestSubmit(t *testing.T) {
 
 	m.cfg.AllowedPairs = nil
 	_, err = m.Submit(context.Background(), o)
-	if !errors.Is(err, exchange.ErrAuthenticatedRequestWithoutCredentialsSet) {
-		t.Errorf("error '%v', expected '%v'", err, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
+	if !errors.Is(err, exchange.ErrAuthenticationSupportNotEnabled) {
+		t.Errorf("received: %v but expected: %v", err, exchange.ErrAuthenticationSupportNotEnabled)
 	}
 
 	err = m.orderStore.add(&order.Detail{

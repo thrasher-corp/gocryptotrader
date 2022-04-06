@@ -859,8 +859,9 @@ func (h *HUOBI) SendHTTPRequest(ctx context.Context, ep exchange.URL, path strin
 
 // SendAuthenticatedHTTPRequest sends authenticated requests to the HUOBI API
 func (h *HUOBI) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method, endpoint string, values url.Values, data, result interface{}, isVersion2API bool) error {
-	if !h.AllowAuthenticatedRequest() {
-		return fmt.Errorf("%s %w", h.Name, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
+	creds, err := h.GetCredentials(ctx)
+	if err != nil {
+		return err
 	}
 	ePoint, err := h.API.Endpoints.GetURL(ep)
 	if err != nil {
@@ -872,7 +873,7 @@ func (h *HUOBI) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.UR
 
 	interim := json.RawMessage{}
 	newRequest := func() (*request.Item, error) {
-		values.Set("AccessKeyId", h.API.Credentials.Key)
+		values.Set("AccessKeyId", creds.Key)
 		values.Set("SignatureMethod", "HmacSHA256")
 		values.Set("SignatureVersion", "2")
 		values.Set("Timestamp", time.Now().UTC().Format("2006-01-02T15:04:05"))
@@ -897,7 +898,7 @@ func (h *HUOBI) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.UR
 		var hmac []byte
 		hmac, err = crypto.GetHMAC(crypto.HashSHA256,
 			[]byte(payload),
-			[]byte(h.API.Credentials.Secret))
+			[]byte(creds.Secret))
 		if err != nil {
 			return nil, err
 		}

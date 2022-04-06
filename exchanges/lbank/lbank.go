@@ -482,10 +482,14 @@ func (l *Lbank) SendHTTPRequest(ctx context.Context, ep exchange.URL, path strin
 	})
 }
 
-func (l *Lbank) loadPrivKey() error {
+func (l *Lbank) loadPrivKey(ctx context.Context) error {
+	creds, err := l.GetCredentials(ctx)
+	if err != nil {
+		return err
+	}
 	key := strings.Join([]string{
 		"-----BEGIN RSA PRIVATE KEY-----",
-		l.API.Credentials.Secret,
+		creds.Secret,
 		"-----END RSA PRIVATE KEY-----",
 	}, "\n")
 
@@ -529,15 +533,16 @@ func (l *Lbank) sign(data string) (string, error) {
 
 // SendAuthHTTPRequest sends an authenticated request
 func (l *Lbank) SendAuthHTTPRequest(ctx context.Context, method, endpoint string, vals url.Values, result interface{}) error {
-	if !l.AllowAuthenticatedRequest() {
-		return fmt.Errorf("%s %w", l.Name, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
+	creds, err := l.GetCredentials(ctx)
+	if err != nil {
+		return err
 	}
 
 	if vals == nil {
 		vals = url.Values{}
 	}
 
-	vals.Set("api_key", l.API.Credentials.Key)
+	vals.Set("api_key", creds.Key)
 	sig, err := l.sign(vals.Encode())
 	if err != nil {
 		return err

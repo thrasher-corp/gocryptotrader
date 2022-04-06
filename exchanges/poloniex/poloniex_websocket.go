@@ -540,6 +540,10 @@ func (p *Poloniex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription,
 
 // Subscribe sends a websocket message to receive data from the channel
 func (p *Poloniex) Subscribe(sub []stream.ChannelSubscription) error {
+	creds, err := p.GetCredentials(context.TODO())
+	if err != nil {
+		return err
+	}
 	var errs common.Errors
 channels:
 	for i := range sub {
@@ -549,7 +553,7 @@ channels:
 		switch {
 		case strings.EqualFold(strconv.FormatInt(wsAccountNotificationID, 10),
 			sub[i].Channel):
-			err := p.wsSendAuthorisedCommand("subscribe")
+			err := p.wsSendAuthorisedCommand(creds.Secret, creds.Key, "subscribe")
 			if err != nil {
 				errs = append(errs, err)
 				continue channels
@@ -579,6 +583,10 @@ channels:
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (p *Poloniex) Unsubscribe(unsub []stream.ChannelSubscription) error {
+	creds, err := p.GetCredentials(context.TODO())
+	if err != nil {
+		return err
+	}
 	var errs common.Errors
 channels:
 	for i := range unsub {
@@ -588,7 +596,7 @@ channels:
 		switch {
 		case strings.EqualFold(strconv.FormatInt(wsAccountNotificationID, 10),
 			unsub[i].Channel):
-			err := p.wsSendAuthorisedCommand("unsubscribe")
+			err := p.wsSendAuthorisedCommand(creds.Secret, creds.Key, "unsubscribe")
 			if err != nil {
 				errs = append(errs, err)
 				continue channels
@@ -614,11 +622,11 @@ channels:
 	return nil
 }
 
-func (p *Poloniex) wsSendAuthorisedCommand(command string) error {
+func (p *Poloniex) wsSendAuthorisedCommand(secret, key, command string) error {
 	nonce := fmt.Sprintf("nonce=%v", time.Now().UnixNano())
 	hmac, err := crypto.GetHMAC(crypto.HashSHA512,
 		[]byte(nonce),
-		[]byte(p.API.Credentials.Secret))
+		[]byte(secret))
 	if err != nil {
 		return err
 	}
@@ -626,7 +634,7 @@ func (p *Poloniex) wsSendAuthorisedCommand(command string) error {
 		Command: command,
 		Channel: 1000,
 		Sign:    crypto.HexEncodeToString(hmac),
-		Key:     p.API.Credentials.Key,
+		Key:     key,
 		Payload: nonce,
 	}
 	return p.Websocket.Conn.SendJSONMessage(request)

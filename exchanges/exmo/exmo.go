@@ -329,8 +329,9 @@ func (e *EXMO) SendHTTPRequest(ctx context.Context, endpoint exchange.URL, path 
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
 func (e *EXMO) SendAuthenticatedHTTPRequest(ctx context.Context, epath exchange.URL, method, endpoint string, vals url.Values, result interface{}) error {
-	if !e.AllowAuthenticatedRequest() {
-		return fmt.Errorf("%s %w", e.Name, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
+	creds, err := e.GetCredentials(ctx)
+	if err != nil {
+		return err
 	}
 
 	urlPath, err := e.API.Endpoints.GetURL(epath)
@@ -347,13 +348,13 @@ func (e *EXMO) SendAuthenticatedHTTPRequest(ctx context.Context, epath exchange.
 		payload := vals.Encode()
 		hash, err := crypto.GetHMAC(crypto.HashSHA512,
 			[]byte(payload),
-			[]byte(e.API.Credentials.Secret))
+			[]byte(creds.Secret))
 		if err != nil {
 			return nil, err
 		}
 
 		headers := make(map[string]string)
-		headers["Key"] = e.API.Credentials.Key
+		headers["Key"] = creds.Key
 		headers["Sign"] = crypto.HexEncodeToString(hash)
 		headers["Content-Type"] = "application/x-www-form-urlencoded"
 

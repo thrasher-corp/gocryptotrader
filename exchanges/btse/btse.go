@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -452,8 +451,9 @@ func (b *BTSE) SendHTTPRequest(ctx context.Context, ep exchange.URL, method, end
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to the desired endpoint
 func (b *BTSE) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method, endpoint string, isSpot bool, values url.Values, req map[string]interface{}, result interface{}, f request.EndpointLimit) error {
-	if !b.AllowAuthenticatedRequest() {
-		return fmt.Errorf("%s %w", b.Name, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
+	creds, err := b.GetCredentials(ctx)
+	if err != nil {
+		return err
 	}
 
 	ePoint, err := b.API.Endpoints.GetURL(ep)
@@ -479,7 +479,7 @@ func (b *BTSE) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL
 		var body io.Reader
 		nonce := strconv.FormatInt(time.Now().UnixMilli(), 10)
 		headers := map[string]string{
-			"btse-api":   b.API.Credentials.Key,
+			"btse-api":   creds.Key,
 			"btse-nonce": nonce,
 		}
 		if req != nil {
@@ -492,7 +492,7 @@ func (b *BTSE) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL
 			hmac, err = crypto.GetHMAC(
 				crypto.HashSHA512_384,
 				[]byte((expandedEndpoint + nonce + string(reqPayload))),
-				[]byte(b.API.Credentials.Secret),
+				[]byte(creds.Secret),
 			)
 			if err != nil {
 				return nil, err
@@ -502,7 +502,7 @@ func (b *BTSE) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL
 			hmac, err = crypto.GetHMAC(
 				crypto.HashSHA512_384,
 				[]byte((expandedEndpoint + nonce)),
-				[]byte(b.API.Credentials.Secret),
+				[]byte(creds.Secret),
 			)
 			if err != nil {
 				return nil, err

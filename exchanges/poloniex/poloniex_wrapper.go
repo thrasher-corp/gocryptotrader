@@ -23,6 +23,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -182,8 +183,10 @@ func (p *Poloniex) Setup(exch *config.Exchange) error {
 		Unsubscriber:          p.Unsubscribe,
 		GenerateSubscriptions: p.GenerateDefaultSubscriptions,
 		Features:              &p.Features.Supports.WebsocketCapabilities,
-		SortBuffer:            true,
-		SortBufferByUpdateIDs: true,
+		OrderbookBufferConfig: buffer.Config{
+			SortBuffer:            true,
+			SortBufferByUpdateIDs: true,
+		},
 	})
 	if err != nil {
 		return err
@@ -685,7 +688,7 @@ func (p *Poloniex) GetOrderInfo(ctx context.Context, orderID string, pair curren
 	orderInfo.Amount = resp.Amount
 	orderInfo.Cost = resp.Total
 	orderInfo.Fee = resp.Fee
-	orderInfo.TargetAmount = resp.StartingAmount
+	orderInfo.QuoteAmount = resp.StartingAmount
 
 	orderInfo.Side, err = order.StringToOrderSide(resp.Type)
 	if err != nil {
@@ -806,7 +809,7 @@ func (p *Poloniex) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBui
 	if feeBuilder == nil {
 		return 0, fmt.Errorf("%T %w", feeBuilder, common.ErrNilPointer)
 	}
-	if (!p.AllowAuthenticatedRequest() || p.SkipAuthCheck) && // Todo check connection status
+	if (!p.AreCredentialsValid(ctx) || p.SkipAuthCheck) && // Todo check connection status
 		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		feeBuilder.FeeType = exchange.OfflineTradeFee
 	}

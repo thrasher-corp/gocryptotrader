@@ -12,11 +12,13 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/core"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc/auth"
 	"github.com/thrasher-corp/gocryptotrader/signaler"
 	"github.com/urfave/cli/v2"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/metadata"
 )
 
 var (
@@ -26,6 +28,7 @@ var (
 	pairDelimiter string
 	certPath      string
 	timeout       time.Duration
+	exchangeCreds exchange.Credentials
 )
 
 const defaultTimeout = time.Second * 30
@@ -53,6 +56,10 @@ func setupClient(c *cli.Context) (*grpc.ClientConn, context.CancelFunc, error) {
 
 	var cancel context.CancelFunc
 	c.Context, cancel = context.WithTimeout(c.Context, timeout)
+	if !exchangeCreds.IsEmpty() {
+		flag, values := exchangeCreds.GetMetaData()
+		c.Context = metadata.AppendToOutgoingContext(c.Context, flag, values)
+	}
 	conn, err := grpc.DialContext(c.Context, host, opts...)
 	return conn, cancel, err
 }
@@ -99,6 +106,36 @@ func main() {
 			Value:       defaultTimeout,
 			Usage:       "the default context timeout value for requests",
 			Destination: &timeout,
+		},
+		&cli.StringFlag{
+			Name:        "apikey",
+			Usage:       "override config API key for request",
+			Destination: &exchangeCreds.Key,
+		},
+		&cli.StringFlag{
+			Name:        "apisecret",
+			Usage:       "override config API Secret for request",
+			Destination: &exchangeCreds.Secret,
+		},
+		&cli.StringFlag{
+			Name:        "apisubaccount",
+			Usage:       "override config API sub account for request",
+			Destination: &exchangeCreds.SubAccount,
+		},
+		&cli.StringFlag{
+			Name:        "apiclientid",
+			Usage:       "override config API client ID for request",
+			Destination: &exchangeCreds.ClientID,
+		},
+		&cli.StringFlag{
+			Name:        "apipemkey",
+			Usage:       "override config API PEM key for request",
+			Destination: &exchangeCreds.PEMKey,
+		},
+		&cli.StringFlag{
+			Name:        "apionetimepassword",
+			Usage:       "override config API One Time Password (OTP) for request",
+			Destination: &exchangeCreds.OneTimePassword,
 		},
 	}
 	app.Commands = []*cli.Command{
