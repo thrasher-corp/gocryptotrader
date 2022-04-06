@@ -1438,17 +1438,10 @@ func (by *Bybit) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 	return ret, nil
 }
 
-func (b *Bybit) extractCurrencyPair(symbol string, item asset.Item) (currency.Pair, error) {
-	if len(symbol) == 6 {
-		return currency.NewPairFromString(symbol)
-	}
-	pairs, err := b.CurrencyPairs.GetPairs(item, true)
+func (by *Bybit) extractCurrencyPair(symbol string, item asset.Item) (currency.Pair, error) {
+	pairs, err := by.CurrencyPairs.GetPairs(item, true)
 	if err != nil {
 		return currency.Pair{}, err
 	}
-	pFmt, err := b.GetPairFormat(item, false)
-	if err != nil {
-		return currency.Pair{}, err
-	}
-	return currency.MatchPairsWithNoDelimiter(symbol, pairs, pFmt)
+	return pairs.DeriveFrom(symbol)
 }

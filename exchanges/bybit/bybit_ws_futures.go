@@ -509,9 +509,7 @@ func (by *Bybit) wsFuturesHandleData(respRaw []byte) error {
 			return err
 		}
 		for x := range response.Data {
-			var p currency.Pair
-			var a asset.Item
-			p, a, err = by.GetRequestFormattedPairAndAssetType(response.Data[x].Symbol)
+			p, err := by.extractCurrencyPair(response.Data[x].Symbol, asset.Futures)
 			if err != nil {
 				return err
 			}
@@ -550,7 +548,7 @@ func (by *Bybit) wsFuturesHandleData(respRaw []byte) error {
 				Type:      oType,
 				Side:      oSide,
 				Status:    oStatus,
-				AssetType: a,
+				AssetType: asset.Futures,
 				Date:      response.Data[x].Time,
 				Pair:      p,
 			}
@@ -563,9 +561,7 @@ func (by *Bybit) wsFuturesHandleData(respRaw []byte) error {
 			return err
 		}
 		for x := range response.Data {
-			var p currency.Pair
-			var a asset.Item
-			p, a, err = by.GetRequestFormattedPairAndAssetType(response.Data[x].Symbol)
+			p, err := by.extractCurrencyPair(response.Data[x].Symbol, asset.Futures)
 			if err != nil {
 				return err
 			}
@@ -605,7 +601,7 @@ func (by *Bybit) wsFuturesHandleData(respRaw []byte) error {
 				Type:      oType,
 				Side:      oSide,
 				Status:    oStatus,
-				AssetType: a,
+				AssetType: asset.Futures,
 				Date:      response.Data[x].Time,
 				Pair:      p,
 			}

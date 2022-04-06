@@ -118,9 +118,17 @@ func (by *Bybit) Subscribe(channelsToSubscribe []stream.ChannelSubscription) err
 			errs = append(errs, err)
 			continue
 		}
-		subReq.Parameters = WsParams{
-			Symbol:   formattedPair.String(),
-			IsBinary: true,
+		if channelsToSubscribe[i].Channel == wsMarkets {
+			subReq.Parameters = WsParams{
+				Symbol:    formattedPair.String(),
+				IsBinary:  true,
+				KlineType: "1m",
+			}
+		} else {
+			subReq.Parameters = WsParams{
+				Symbol:   formattedPair.String(),
+				IsBinary: true,
+			}
 		}
 		err = by.Websocket.Conn.SendJSONMessage(subReq)
 		if err != nil {
@@ -289,9 +297,8 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 					Err:      err,
 				}
 			}
-			var p currency.Pair
-			var a asset.Item
-			p, a, err = by.GetRequestFormattedPairAndAssetType(data.Symbol)
+
+			p, err := by.extractCurrencyPair(data.Symbol, asset.Spot)
 			if err != nil {
 				return err
 			}
@@ -306,7 +313,7 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 				Type:            oType,
 				Side:            oSide,
 				Status:          oStatus,
-				AssetType:       a,
+				AssetType:       asset.Spot,
 				Date:            data.OrderCreationTime.Time(),
 				Pair:            p,
 				ClientOrderID:   data.ClientOrderID,
@@ -433,13 +440,11 @@ func (by *Bybit) wsUpdateOrderbook(update *WsOrderbookData, p currency.Pair, ass
 	for i := range update.Asks {
 		target, err := strconv.ParseFloat(update.Asks[i][0], 64)
 		if err != nil {
-			by.Websocket.DataHandler <- err
-			continue
+			return err
 		}
 		amount, err := strconv.ParseFloat(update.Asks[i][1], 64)
 		if err != nil {
-			by.Websocket.DataHandler <- err
-			continue
+			return err
 		}
 		asks[i] = orderbook.Item{Price: target, Amount: amount}
 	}
@@ -447,13 +452,11 @@ func (by *Bybit) wsUpdateOrderbook(update *WsOrderbookData, p currency.Pair, ass
 	for i := range update.Bids {
 		target, err := strconv.ParseFloat(update.Bids[i][0], 64)
 		if err != nil {
-			by.Websocket.DataHandler <- err
-			continue
+			return err
 		}
 		amount, err := strconv.ParseFloat(update.Bids[i][1], 64)
 		if err != nil {
-			by.Websocket.DataHandler <- err
-			continue
+			return err
 		}
 		bids[i] = orderbook.Item{Price: target, Amount: amount}
 	}
