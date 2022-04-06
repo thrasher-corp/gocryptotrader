@@ -21,6 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -180,9 +181,11 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 			Unsubscriber:          by.Unsubscribe,
 			GenerateSubscriptions: by.GenerateDefaultSubscriptions,
 			Features:              &by.Features.Supports.WebsocketCapabilities,
-			SortBuffer:            true,
-			SortBufferByUpdateIDs: true,
-			TradeFeed:             by.Features.Enabled.TradeFeed,
+			OrderbookBufferConfig: buffer.Config{
+				SortBuffer:            true,
+				SortBufferByUpdateIDs: true,
+			},
+			TradeFeed: by.Features.Enabled.TradeFeed,
 		})
 	if err != nil {
 		return err
@@ -206,8 +209,8 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket
-func (by *Bybit) AuthenticateWebsocket(_ context.Context) error {
-	return by.WsAuth()
+func (by *Bybit) AuthenticateWebsocket(ctx context.Context) error {
+	return by.WsAuth(ctx)
 }
 
 // Start starts the Bybit go routine

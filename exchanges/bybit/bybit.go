@@ -767,9 +767,11 @@ func (by *Bybit) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path s
 
 // SendAuthHTTPRequest sends an authenticated HTTP request
 func (by *Bybit) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, method, path string, params url.Values, result UnmarshalTo, f request.EndpointLimit) error {
-	if !by.AllowAuthenticatedRequest() {
-		return fmt.Errorf("%s %w", by.Name, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
+	creds, err := by.GetCredentials(ctx)
+	if err != nil {
+		return err
 	}
+
 	endpointPath, err := by.API.Endpoints.GetURL(ePath)
 	if err != nil {
 		return err
@@ -785,9 +787,9 @@ func (by *Bybit) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, me
 
 	err = by.SendPayload(ctx, f, func() (*request.Item, error) {
 		params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
-		params.Set("api_key", by.API.Credentials.Key)
+		params.Set("api_key", creds.Key)
 		signature := params.Encode()
-		hmacSigned, err := crypto.GetHMAC(crypto.HashSHA256, []byte(signature), []byte(by.API.Credentials.Secret))
+		hmacSigned, err := crypto.GetHMAC(crypto.HashSHA256, []byte(signature), []byte(creds.Secret))
 		if err != nil {
 			return nil, err
 		}

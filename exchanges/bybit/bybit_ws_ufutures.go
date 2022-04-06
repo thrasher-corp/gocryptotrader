@@ -1,6 +1,7 @@
 package bybit
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -54,7 +55,7 @@ func (by *Bybit) WsUSDTConnect() error {
 
 	go by.wsUSDTReadData()
 	if by.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
-		err = by.WsUSDTAuth()
+		err = by.WsUSDTAuth(context.TODO())
 		if err != nil {
 			by.Websocket.DataHandler <- err
 			by.Websocket.SetCanUseAuthenticatedEndpoints(false)
@@ -65,13 +66,18 @@ func (by *Bybit) WsUSDTConnect() error {
 }
 
 // WsUSDTAuth sends an authentication message to receive auth data
-func (by *Bybit) WsUSDTAuth() error {
+func (by *Bybit) WsUSDTAuth(ctx context.Context) error {
+	creds, err := by.GetCredentials(ctx)
+	if err != nil {
+		return err
+	}
+
 	intNonce := (time.Now().Unix() + 1) * 1000
 	strNonce := strconv.FormatInt(intNonce, 10)
 	hmac, err := crypto.GetHMAC(
 		crypto.HashSHA256,
 		[]byte("GET/realtime"+strNonce),
-		[]byte(by.API.Credentials.Secret),
+		[]byte(creds.Secret),
 	)
 	if err != nil {
 		return err
@@ -79,7 +85,7 @@ func (by *Bybit) WsUSDTAuth() error {
 	sign := crypto.HexEncodeToString(hmac)
 	req := Authenticate{
 		Operation: "auth",
-		Args:      []interface{}{by.API.Credentials.Key, strNonce, sign},
+		Args:      []interface{}{creds.Key, strNonce, sign},
 	}
 	return by.Websocket.Conn.SendJSONMessage(req)
 }
