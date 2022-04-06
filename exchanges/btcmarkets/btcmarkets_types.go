@@ -2,6 +2,9 @@ package btcmarkets
 
 import (
 	"time"
+
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 )
 
 // Market holds a tradable market instrument
@@ -153,6 +156,8 @@ type OrderData struct {
 	Amount       float64   `json:"amount,string"`
 	OpenAmount   float64   `json:"openAmount,string"`
 	Status       string    `json:"status"`
+	TargetAmount float64   `json:"targetAmount,string"`
+	TimeInForce  string    `json:"timeInForce"`
 }
 
 // CancelOrderResp stores data for cancelled orders
@@ -377,12 +382,14 @@ type WsTrade struct {
 
 // WsOrderbook message received for orderbook data
 type WsOrderbook struct {
-	Currency    string          `json:"marketId"`
-	Timestamp   time.Time       `json:"timestamp"`
-	Bids        [][]interface{} `json:"bids"`
-	Asks        [][]interface{} `json:"asks"`
-	MessageType string          `json:"messageType"`
-	Snapshot    bool            `json:"snapshot"`
+	Currency    currency.Pair      `json:"marketId"`
+	Snapshot    bool               `json:"snapshot"`
+	Timestamp   time.Time          `json:"timestamp"`
+	SnapshotID  int64              `json:"snapshotId"`
+	Bids        WebsocketOrderbook `json:"bids"`
+	Asks        WebsocketOrderbook `json:"asks"`
+	Checksum    uint32             `json:"checksum,string"`
+	MessageType string             `json:"messageType"`
 }
 
 // WsFundTransfer stores fund transfer data for websocket
@@ -429,3 +436,7 @@ type WsError struct {
 
 // CandleResponse holds OHLCV data for exchange
 type CandleResponse [][6]string
+
+// WebsocketOrderbook defines a specific websocket orderbook type to directly
+// unmarshal json.
+type WebsocketOrderbook orderbook.Items

@@ -22,6 +22,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -173,12 +174,10 @@ func (b *Bittrex) Setup(exch *config.Exchange) error {
 		Unsubscriber:          b.Unsubscribe,                              // Unsubscriber function outlined above.
 		GenerateSubscriptions: b.GenerateDefaultSubscriptions,             // GenerateDefaultSubscriptions function outlined above.
 		Features:              &b.Features.Supports.WebsocketCapabilities, // Defines the capabilities of the websocket outlined in supported features struct. This allows the websocket connection to be flushed appropriately if we have a pair/asset enable/disable change. This is outlined below.
-
-		// Orderbook buffer specific variables for processing orderbook updates via websocket feed.
-		// Other orderbook buffer vars:
-		// UpdateEntriesByID     bool
-		SortBuffer:            true,
-		SortBufferByUpdateIDs: true,
+		OrderbookBufferConfig: buffer.Config{
+			SortBuffer:            true,
+			SortBufferByUpdateIDs: true,
+		},
 	})
 	if err != nil {
 		return err
@@ -899,7 +898,7 @@ func (b *Bittrex) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuil
 	if feeBuilder == nil {
 		return 0, fmt.Errorf("%T %w", feeBuilder, common.ErrNilPointer)
 	}
-	if !b.AllowAuthenticatedRequest() && // Todo check connection status
+	if !b.AreCredentialsValid(ctx) && // Todo check connection status
 		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		feeBuilder.FeeType = exchange.OfflineTradeFee
 	}

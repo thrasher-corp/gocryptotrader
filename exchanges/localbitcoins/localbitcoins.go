@@ -750,8 +750,9 @@ func (l *LocalBitcoins) SendHTTPRequest(ctx context.Context, endpoint exchange.U
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to
 // localbitcoins
 func (l *LocalBitcoins) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method, path string, params url.Values, result interface{}) (err error) {
-	if !l.AllowAuthenticatedRequest() {
-		return fmt.Errorf("%s %w", l.Name, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
+	creds, err := l.GetCredentials(ctx)
+	if err != nil {
+		return err
 	}
 	endpoint, err := l.API.Endpoints.GetURL(ep)
 	if err != nil {
@@ -763,15 +764,15 @@ func (l *LocalBitcoins) SendAuthenticatedHTTPRequest(ctx context.Context, ep exc
 
 		fullPath := "/api/" + path
 		encoded := params.Encode()
-		message := n + l.API.Credentials.Key + fullPath + encoded
+		message := n + creds.Key + fullPath + encoded
 		hmac, err := crypto.GetHMAC(crypto.HashSHA256,
 			[]byte(message),
-			[]byte(l.API.Credentials.Secret))
+			[]byte(creds.Secret))
 		if err != nil {
 			return nil, err
 		}
 		headers := make(map[string]string)
-		headers["Apiauth-Key"] = l.API.Credentials.Key
+		headers["Apiauth-Key"] = creds.Key
 		headers["Apiauth-Nonce"] = n
 		headers["Apiauth-Signature"] = strings.ToUpper(crypto.HexEncodeToString(hmac))
 		headers["Content-Type"] = "application/x-www-form-urlencoded"

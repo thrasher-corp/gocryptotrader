@@ -111,8 +111,8 @@ func TestSubmitWithdrawal(t *testing.T) {
 
 	adds[0].SupportedExchanges = exchangeName
 	_, err = m.SubmitWithdrawal(context.Background(), req)
-	if !errors.Is(err, exchange.ErrAuthenticatedRequestWithoutCredentialsSet) {
-		t.Errorf("received %v, expected %v", err, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
+	if !errors.Is(err, exchange.ErrAuthenticationSupportNotEnabled) {
+		t.Errorf("received '%v', expected '%v'", err, exchange.ErrAuthenticationSupportNotEnabled)
 	}
 
 	_, err = m.SubmitWithdrawal(context.Background(), nil)

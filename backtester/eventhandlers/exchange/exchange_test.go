@@ -189,8 +189,8 @@ func TestPlaceOrder(t *testing.T) {
 	}
 
 	_, err = e.placeOrder(context.Background(), decimal.NewFromInt(1), decimal.NewFromInt(1), true, true, f, bot.OrderManager)
-	if err != nil && !strings.Contains(err.Error(), "unset/default API keys") {
-		t.Error(err)
+	if !errors.Is(err, exchange.ErrAuthenticationSupportNotEnabled) {
+		t.Errorf("received: %v but expected: %v", err, exchange.ErrAuthenticationSupportNotEnabled)
 	}
 }
 
@@ -293,8 +293,8 @@ func TestExecuteOrder(t *testing.T) {
 	o.Direction = gctorder.Sell
 	e.CurrencySettings = []Settings{cs}
 	_, err = e.ExecuteOrder(o, d, bot.OrderManager, &fakeFund{})
-	if err != nil && !strings.Contains(err.Error(), "unset/default API keys") {
-		t.Error(err)
+	if !errors.Is(err, exchange.ErrAuthenticationSupportNotEnabled) {
+		t.Errorf("received: %v but expected: %v", err, exchange.ErrAuthenticationSupportNotEnabled)
 	}
 }
 
@@ -468,8 +468,8 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 	o.Direction = gctorder.Sell
 	e.CurrencySettings = []Settings{cs}
 	_, err = e.ExecuteOrder(o, d, bot.OrderManager, &fakeFund{})
-	if !errors.Is(err, exchange.ErrAuthenticatedRequestWithoutCredentialsSet) {
-		t.Errorf("received %v expected %v", err, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
+	if !errors.Is(err, exchange.ErrAuthenticationSupportNotEnabled) {
+		t.Errorf("received: %v but expected: %v", err, exchange.ErrAuthenticationSupportNotEnabled)
 	}
 }
 

@@ -458,16 +458,20 @@ func (f *FTX) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType as
 
 // UpdateAccountInfo retrieves balances for all enabled currencies
 func (f *FTX) UpdateAccountInfo(ctx context.Context, a asset.Item) (account.Holdings, error) {
+	creds, err := f.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
 	var resp account.Holdings
 
 	var data AllWalletBalances
-	if f.API.Credentials.Subaccount != "" {
-		balances, err := f.GetBalances(ctx, "", false, false)
+	if creds.SubAccount != "" {
+		balances, err := f.GetBalances(ctx, false, false)
 		if err != nil {
 			return resp, err
 		}
 		data = make(AllWalletBalances)
-		data[f.API.Credentials.Subaccount] = balances
+		data[creds.SubAccount] = balances
 	} else {
 		// Get all wallet balances used so we can transfer between accounts if
 		// needed.
@@ -1147,8 +1151,8 @@ func (f *FTX) UnsubscribeToWebsocketChannels(channels []stream.ChannelSubscripti
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket
-func (f *FTX) AuthenticateWebsocket(_ context.Context) error {
-	return f.WsAuth()
+func (f *FTX) AuthenticateWebsocket(ctx context.Context) error {
+	return f.WsAuth(ctx)
 }
 
 // ValidateCredentials validates current credentials used for wrapper
@@ -1268,7 +1272,7 @@ func (f *FTX) UpdateOrderExecutionLimits(ctx context.Context, _ asset.Item) erro
 // GetAvailableTransferChains returns the available transfer blockchains for the specific
 // cryptocurrency
 func (f *FTX) GetAvailableTransferChains(ctx context.Context, cryptocurrency currency.Code) ([]string, error) {
-	coins, err := f.GetCoins(ctx, "")
+	coins, err := f.GetCoins(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -1292,24 +1296,27 @@ func (f *FTX) CalculatePNL(ctx context.Context, pnl *order.PNLCalculatorRequest)
 	result := &order.PNLResult{
 		Time: pnl.Time,
 	}
-	var err error
+	creds, err := f.GetCredentials(ctx)
+	if err != nil {
+		return nil, err
+	}
 	if pnl.CalculateOffline {
 		// PNLCalculator matches FTX's pnl calculation method
 		calc := order.PNLCalculator{}
 		result, err = calc.CalculatePNL(ctx, pnl)
 		if err != nil {
-			return nil, fmt.Errorf("%s %s %w", f.Name, f.API.Credentials.Subaccount, err)
+			return nil, fmt.Errorf("%s %s %w", f.Name, creds.SubAccount, err)
 		}
 	}
 
 	ep := pnl.EntryPrice.InexactFloat64()
-	info, err := f.GetAccountInfo(ctx, "")
+	info, err := f.GetAccountInfo(ctx)
 	if err != nil {
 		return nil, err
 	}
 	if info.Liquidating || info.Collateral == 0 {
 		result.IsLiquidated = true
-		return result, fmt.Errorf("%s %s %w", f.Name, f.API.Credentials.Subaccount, order.ErrPositionLiquidated)
+		return result, fmt.Errorf("%s %s %w", f.Name, creds.SubAccount, order.ErrPositionLiquidated)
 	}
 	for i := range info.Positions {
 		if !pnl.Pair.Equal(info.Positions[i].Future) {
@@ -1327,13 +1334,13 @@ func (f *FTX) CalculatePNL(ctx context.Context, pnl *order.PNLCalculatorRequest)
 	calc := order.PNLCalculator{}
 	result, err = calc.CalculatePNL(ctx, pnl)
 	if err != nil {
-		return nil, fmt.Errorf("%s %s %w", f.Name, f.API.Credentials.Subaccount, err)
+		return nil, fmt.Errorf("%s %s %w", f.Name, creds.SubAccount, err)
 	}
 	return result, nil
 }
 
 // ScaleCollateral takes your totals and scales them according to FTX's rules
-func (f *FTX) ScaleCollateral(ctx context.Context, subAccount string, calc *order.CollateralCalculator) (*order.CollateralByCurrency, error) {
+func (f *FTX) ScaleCollateral(ctx context.Context, calc *order.CollateralCalculator) (*order.CollateralByCurrency, error) {
 	if calc.CalculateOffline {
 		result := &order.CollateralByCurrency{
 			Currency:                    calc.CollateralCurrency,
@@ -1398,7 +1405,6 @@ func (f *FTX) ScaleCollateral(ctx context.Context, subAccount string, calc *orde
 	}
 	resp, err := f.calculateTotalCollateralOnline(ctx,
 		&order.TotalCollateralCalculator{
-			SubAccount:       subAccount,
 			CollateralAssets: []order.CollateralCalculator{*calc},
 		},
 		nil,
@@ -1444,7 +1450,7 @@ func (f *FTX) CalculateTotalCollateral(ctx context.Context, calc *order.TotalCol
 			}
 		}
 		var collateralByCurrency *order.CollateralByCurrency
-		collateralByCurrency, err = f.ScaleCollateral(ctx, calc.SubAccount, &calc.CollateralAssets[i])
+		collateralByCurrency, err = f.ScaleCollateral(ctx, &calc.CollateralAssets[i])
 		if err != nil {
 			if errors.Is(err, errCollateralCurrencyNotFound) {
 				log.Error(log.ExchangeSys, err)
@@ -1501,7 +1507,7 @@ func (f *FTX) calculateTotalCollateralOnline(ctx context.Context, calc *order.To
 		TotalValueOfPositiveSpotBalances:            c.PositiveSpotBalanceTotal,
 		CollateralContributedByPositiveSpotBalances: c.CollateralFromPositiveSpotBalances,
 	}
-	balances, err := f.GetBalances(ctx, calc.SubAccount, true, true)
+	balances, err := f.GetBalances(ctx, true, true)
 	if err != nil {
 		return nil, fmt.Errorf("%s %w", f.Name, err)
 	}

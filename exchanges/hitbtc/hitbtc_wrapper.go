@@ -23,6 +23,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -178,8 +179,10 @@ func (h *HitBTC) Setup(exch *config.Exchange) error {
 		Unsubscriber:          h.Unsubscribe,
 		GenerateSubscriptions: h.GenerateDefaultSubscriptions,
 		Features:              &h.Features.Supports.WebsocketCapabilities,
-		SortBuffer:            true,
-		SortBufferByUpdateIDs: true,
+		OrderbookBufferConfig: buffer.Config{
+			SortBuffer:            true,
+			SortBufferByUpdateIDs: true,
+		},
 	})
 	if err != nil {
 		return err
@@ -700,7 +703,7 @@ func (h *HitBTC) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuild
 	if feeBuilder == nil {
 		return 0, fmt.Errorf("%T %w", feeBuilder, common.ErrNilPointer)
 	}
-	if !h.AllowAuthenticatedRequest() && // Todo check connection status
+	if !h.AreCredentialsValid(ctx) && // Todo check connection status
 		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		feeBuilder.FeeType = exchange.OfflineTradeFee
 	}
@@ -818,8 +821,8 @@ func (h *HitBTC) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket
-func (h *HitBTC) AuthenticateWebsocket(_ context.Context) error {
-	return h.wsLogin()
+func (h *HitBTC) AuthenticateWebsocket(ctx context.Context) error {
+	return h.wsLogin(ctx)
 }
 
 // ValidateCredentials validates current credentials used for wrapper

@@ -1115,8 +1115,9 @@ func (h *HUOBI) FQueryTriggerOrderHistory(ctx context.Context, contractCode curr
 
 // FuturesAuthenticatedHTTPRequest sends authenticated requests to the HUOBI API
 func (h *HUOBI) FuturesAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method, endpoint string, values url.Values, data, result interface{}) error {
-	if !h.AllowAuthenticatedRequest() {
-		return fmt.Errorf("%s %w", h.Name, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
+	creds, err := h.GetCredentials(ctx)
+	if err != nil {
+		return err
 	}
 	ePoint, err := h.API.Endpoints.GetURL(ep)
 	if err != nil {
@@ -1133,7 +1134,7 @@ func (h *HUOBI) FuturesAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 
 	var tempResp json.RawMessage
 	newRequest := func() (*request.Item, error) {
-		values.Set("AccessKeyId", h.API.Credentials.Key)
+		values.Set("AccessKeyId", creds.Key)
 		values.Set("SignatureMethod", "HmacSHA256")
 		values.Set("SignatureVersion", "2")
 		values.Set("Timestamp", time.Now().UTC().Format("2006-01-02T15:04:05"))
@@ -1149,7 +1150,7 @@ func (h *HUOBI) FuturesAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		var hmac []byte
 		hmac, err = crypto.GetHMAC(crypto.HashSHA256,
 			[]byte(sigPath),
-			[]byte(h.API.Credentials.Secret))
+			[]byte(creds.Secret))
 		if err != nil {
 			return nil, err
 		}

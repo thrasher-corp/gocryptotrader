@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
@@ -39,10 +38,6 @@ const (
 	alphapointCancelAllOrders  = "CancelAllOrders"
 	alphapointOpenOrders       = "GetAccountOpenOrders"
 	alphapointOrderFee         = "GetOrderFee"
-
-	// alphapoint rate limit
-	alphapointRateInterval = time.Minute * 10
-	alphapointRequestRate  = 500
 )
 
 // Alphapoint is the overarching type across the alphapoint package
@@ -576,8 +571,9 @@ func (a *Alphapoint) SendHTTPRequest(ctx context.Context, ep exchange.URL, metho
 
 // SendAuthenticatedHTTPRequest sends an authenticated request
 func (a *Alphapoint) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method, path string, data map[string]interface{}, result interface{}) error {
-	if !a.AllowAuthenticatedRequest() {
-		return fmt.Errorf("%s %w", a.Name, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
+	creds, err := a.GetCredentials(ctx)
+	if err != nil {
+		return err
 	}
 
 	endpoint, err := a.API.Endpoints.GetURL(ep)
@@ -589,12 +585,12 @@ func (a *Alphapoint) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchan
 
 	headers := make(map[string]string)
 	headers["Content-Type"] = "application/json"
-	data["apiKey"] = a.API.Credentials.Key
+	data["apiKey"] = creds.Key
 	data["apiNonce"] = n
 
 	hmac, err := crypto.GetHMAC(crypto.HashSHA256,
-		[]byte(n.String()+a.API.Credentials.ClientID+a.API.Credentials.Key),
-		[]byte(a.API.Credentials.Secret))
+		[]byte(n.String()+creds.ClientID+creds.Key),
+		[]byte(creds.Secret))
 	if err != nil {
 		return err
 	}

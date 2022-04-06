@@ -1,6 +1,7 @@
 package bitfinex
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -17,7 +18,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -67,7 +67,7 @@ func (b *Bitfinex) WsConnect() error {
 		}
 		b.Websocket.Wg.Add(1)
 		go b.wsReadData(b.Websocket.AuthConn)
-		err = b.WsSendAuth()
+		err = b.WsSendAuth(context.TODO())
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
 				"%v - authentication failed: %v\n",
@@ -1317,10 +1317,10 @@ func (b *Bitfinex) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscriptio
 }
 
 // WsSendAuth sends a autheticated event payload
-func (b *Bitfinex) WsSendAuth() error {
-	if !b.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
-		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled",
-			b.Name)
+func (b *Bitfinex) WsSendAuth(ctx context.Context) error {
+	creds, err := b.GetCredentials(ctx)
+	if err != nil {
+		return err
 	}
 
 	nonce := strconv.FormatInt(time.Now().Unix(), 10)
@@ -1328,13 +1328,13 @@ func (b *Bitfinex) WsSendAuth() error {
 
 	hmac, err := crypto.GetHMAC(crypto.HashSHA512_384,
 		[]byte(payload),
-		[]byte(b.API.Credentials.Secret))
+		[]byte(creds.Secret))
 	if err != nil {
 		return err
 	}
 	request := WsAuthRequest{
 		Event:         "auth",
-		APIKey:        b.API.Credentials.Key,
+		APIKey:        creds.Key,
 		AuthPayload:   payload,
 		AuthSig:       crypto.HexEncodeToString(hmac),
 		AuthNonce:     nonce,

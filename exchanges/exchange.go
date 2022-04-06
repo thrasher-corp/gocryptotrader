@@ -12,7 +12,6 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
-	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -40,12 +39,7 @@ const (
 	ResetConfigPairsWarningMessage = "%s Enabled and available pairs for %s reset due to config upgrade, please enable the ones you would like to use again. Defaulting to %v"
 )
 
-var (
-	// ErrAuthenticatedRequestWithoutCredentialsSet error message for authenticated request without credentials set
-	ErrAuthenticatedRequestWithoutCredentialsSet = errors.New("authenticated HTTP request called but not supported due to unset/default API keys")
-
-	errEndpointStringNotFound = errors.New("endpoint string not found")
-)
+var errEndpointStringNotFound = errors.New("endpoint string not found")
 
 // SetClientProxyAddress sets a proxy address for REST and websocket requests
 func (b *Base) SetClientProxyAddress(addr string) error {
@@ -132,33 +126,6 @@ func (b *Base) SetFeatureDefaults() {
 		}
 
 		b.Features.Enabled.AutoPairUpdates = b.Config.Features.Enabled.AutoPairUpdates
-	}
-}
-
-// SetAPICredentialDefaults sets the API Credential validator defaults
-func (b *Base) SetAPICredentialDefaults() {
-	// Exchange hardcoded settings take precedence and overwrite the config settings
-	if b.Config.API.CredentialsValidator == nil {
-		b.Config.API.CredentialsValidator = new(config.APICredentialsValidatorConfig)
-	}
-	if b.Config.API.CredentialsValidator.RequiresKey != b.API.CredentialsValidator.RequiresKey {
-		b.Config.API.CredentialsValidator.RequiresKey = b.API.CredentialsValidator.RequiresKey
-	}
-
-	if b.Config.API.CredentialsValidator.RequiresSecret != b.API.CredentialsValidator.RequiresSecret {
-		b.Config.API.CredentialsValidator.RequiresSecret = b.API.CredentialsValidator.RequiresSecret
-	}
-
-	if b.Config.API.CredentialsValidator.RequiresBase64DecodeSecret != b.API.CredentialsValidator.RequiresBase64DecodeSecret {
-		b.Config.API.CredentialsValidator.RequiresBase64DecodeSecret = b.API.CredentialsValidator.RequiresBase64DecodeSecret
-	}
-
-	if b.Config.API.CredentialsValidator.RequiresClientID != b.API.CredentialsValidator.RequiresClientID {
-		b.Config.API.CredentialsValidator.RequiresClientID = b.API.CredentialsValidator.RequiresClientID
-	}
-
-	if b.Config.API.CredentialsValidator.RequiresPEM != b.API.CredentialsValidator.RequiresPEM {
-		b.Config.API.CredentialsValidator.RequiresPEM = b.API.CredentialsValidator.RequiresPEM
 	}
 }
 
@@ -299,18 +266,6 @@ func (b *Base) SetConfigPairs() error {
 		b.CurrencyPairs.StorePairs(assetTypes[x], cfgPS.Enabled, true)
 	}
 	return nil
-}
-
-// GetAuthenticatedAPISupport returns whether the exchange supports
-// authenticated API requests
-func (b *Base) GetAuthenticatedAPISupport(endpoint uint8) bool {
-	switch endpoint {
-	case RestAuthentication:
-		return b.API.AuthenticatedSupport
-	case WebsocketAuthentication:
-		return b.API.AuthenticatedWebsocketSupport
-	}
-	return false
 }
 
 // GetName is a method that returns the name of the exchange base
@@ -499,27 +454,6 @@ func (b *Base) IsEnabled() bool {
 	return b.Enabled
 }
 
-// SetAPIKeys is a method that sets the current API keys for the exchange
-func (b *Base) SetAPIKeys(apiKey, apiSecret, clientID string) {
-	b.API.Credentials.Key = apiKey
-	b.API.Credentials.ClientID = clientID
-
-	if b.API.CredentialsValidator.RequiresBase64DecodeSecret {
-		result, err := crypto.Base64Decode(apiSecret)
-		if err != nil {
-			b.API.AuthenticatedSupport = false
-			b.API.AuthenticatedWebsocketSupport = false
-			log.Warnf(log.ExchangeSys,
-				warningBase64DecryptSecretKeyFailed,
-				b.Name)
-			return
-		}
-		b.API.Credentials.Secret = string(result)
-	} else {
-		b.API.Credentials.Secret = apiSecret
-	}
-}
-
 // SetupDefaults sets the exchange settings based on the supplied config
 func (b *Base) SetupDefaults(exch *config.Exchange) error {
 	err := exch.Validate()
@@ -534,11 +468,18 @@ func (b *Base) SetupDefaults(exch *config.Exchange) error {
 
 	b.API.AuthenticatedSupport = exch.API.AuthenticatedSupport
 	b.API.AuthenticatedWebsocketSupport = exch.API.AuthenticatedWebsocketSupport
-	b.API.Credentials.Subaccount = exch.API.Credentials.Subaccount
+	if b.API.credentials == nil {
+		b.API.credentials = &Credentials{}
+	}
+	b.API.credentials.SubAccount = exch.API.Credentials.Subaccount
 	if b.API.AuthenticatedSupport || b.API.AuthenticatedWebsocketSupport {
-		b.SetAPIKeys(exch.API.Credentials.Key,
+		b.SetCredentials(exch.API.Credentials.Key,
 			exch.API.Credentials.Secret,
-			exch.API.Credentials.ClientID)
+			exch.API.Credentials.ClientID,
+			exch.API.Credentials.Subaccount,
+			exch.API.Credentials.PEMKey,
+			exch.API.Credentials.OTPSecret,
+		)
 	}
 
 	if exch.HTTPTimeout <= time.Duration(0) {
@@ -594,84 +535,6 @@ func (b *Base) SetupDefaults(exch *config.Exchange) error {
 	b.CanVerifyOrderbook = !exch.Orderbook.VerificationBypass
 	b.States = currencystate.NewCurrencyStates()
 	return err
-}
-
-// AllowAuthenticatedRequest checks to see if the required fields have been set
-// before sending an authenticated API request
-func (b *Base) AllowAuthenticatedRequest() bool {
-	if b.SkipAuthCheck {
-		return true
-	}
-
-	// Individual package usage, allow request if API credentials are valid a
-	// and without needing to set AuthenticatedSupport to true
-	if !b.LoadedByConfig {
-		return b.ValidateAPICredentials()
-	}
-
-	// Bot usage, AuthenticatedSupport can be disabled by user if desired, so
-	// don't allow authenticated requests.
-	if !b.API.AuthenticatedSupport && !b.API.AuthenticatedWebsocketSupport {
-		return false
-	}
-
-	// Check to see if the user has enabled AuthenticatedSupport, but has
-	// invalid API credentials set and loaded by config
-	return b.ValidateAPICredentials()
-}
-
-// ValidateAPICredentials validates the exchanges API credentials
-func (b *Base) ValidateAPICredentials() bool {
-	if b.API.CredentialsValidator.RequiresKey {
-		if b.API.Credentials.Key == "" ||
-			b.API.Credentials.Key == config.DefaultAPIKey {
-			log.Warnf(log.ExchangeSys,
-				"exchange %s requires API key but default/empty one set",
-				b.Name)
-			return false
-		}
-	}
-
-	if b.API.CredentialsValidator.RequiresSecret {
-		if b.API.Credentials.Secret == "" ||
-			b.API.Credentials.Secret == config.DefaultAPISecret {
-			log.Warnf(log.ExchangeSys,
-				"exchange %s requires API secret but default/empty one set",
-				b.Name)
-			return false
-		}
-	}
-
-	if b.API.CredentialsValidator.RequiresPEM {
-		if b.API.Credentials.PEMKey == "" ||
-			strings.Contains(b.API.Credentials.PEMKey, "JUSTADUMMY") {
-			log.Warnf(log.ExchangeSys,
-				"exchange %s requires API PEM key but default/empty one set",
-				b.Name)
-			return false
-		}
-	}
-
-	if b.API.CredentialsValidator.RequiresClientID {
-		if b.API.Credentials.ClientID == "" ||
-			b.API.Credentials.ClientID == config.DefaultAPIClientID {
-			log.Warnf(log.ExchangeSys,
-				"exchange %s requires API ClientID but default/empty one set",
-				b.Name)
-			return false
-		}
-	}
-
-	if b.API.CredentialsValidator.RequiresBase64DecodeSecret && !b.LoadedByConfig {
-		_, err := crypto.Base64Decode(b.API.Credentials.Secret)
-		if err != nil {
-			log.Warnf(log.ExchangeSys,
-				"exchange %s API secret base64 decode failed: %s",
-				b.Name, err)
-			return false
-		}
-	}
-	return true
 }
 
 // SetPairs sets the exchange currency pairs for either enabledPairs or
@@ -1423,7 +1286,7 @@ func (b *Base) CalculatePNL(context.Context, *order.PNLCalculatorRequest) (*orde
 
 // ScaleCollateral is an overridable function to determine how much
 // collateral is usable in futures positions
-func (b *Base) ScaleCollateral(context.Context, string, *order.CollateralCalculator) (*order.CollateralByCurrency, error) {
+func (b *Base) ScaleCollateral(context.Context, *order.CollateralCalculator) (*order.CollateralByCurrency, error) {
 	return nil, common.ErrNotYetImplemented
 }
 

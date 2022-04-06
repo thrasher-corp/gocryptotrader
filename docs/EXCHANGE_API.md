@@ -40,7 +40,7 @@ supplied meet the requirements to make an authenticated request.
 ```go
     var b bitstamp.Bitstamp
     b.SetDefaults()
-    ticker, err := b.FetchTicker(currency.NewPair(currency.BTC, currency.USD), asset.Spot)
+    ticker, err := b.FetchTicker(context.Background(), currency.NewPair(currency.BTC, currency.USD), asset.Spot)
     if err != nil {
         // Handle error
     }
@@ -53,9 +53,26 @@ supplied meet the requirements to make an authenticated request.
     var b bitstamp.Bitstamp
     b.SetDefaults()
 
-    b.API.Credentials.Key = "your_key"
-    b.API.Credentials.Secret = "your_secret"
-    b.API.Credentials.ClientID = "your_clientid"
+    // Set default keys 
+    b.API.SetKey("your_key") 
+    b.API.SetSecret("your_secret") 
+    b.API.SetClientID("your_clientid")
+    b.API.SetPEMKey("your_PEM_key")
+    b.API.SetSubAccount("your_specific_subaccount")
+
+    // Set client/strategy/subsystem specific credentials that will override
+    // default credentials.
+    // Make a standard context and add credentials to it by using exchange 
+    // package helper function DeployCredentialsToContext
+    ctx := context.Background() 
+    ctx = exchange.DeployCredentialsToContext(ctx, &exchange.Credentials{
+        Key:        "your_key",
+        Secret:     "your_secret",
+        ClientID:   "your_clientid",
+        PEMKey:     "your_PEM_key",
+        SubAccount: "your_specific_subaccount",
+    })
+
 
     o := &order.Submit{
         Pair:      currency.NewPair(currency.BTC, currency.USD),
@@ -65,7 +82,9 @@ supplied meet the requirements to make an authenticated request.
         Amount:    0.1,
         AssetType: asset.Spot,
     }
-    resp, err := b.SubmitOrder(o)
+
+    // Context will be intercepted when sending an authenticated HTTP request. 
+    resp, err := b.SubmitOrder(ctx, o)
     if err != nil {
         // Handle error
     }

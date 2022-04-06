@@ -41,6 +41,17 @@ func TestValidate(t *testing.T) {
 			Submit:      &Submit{Pair: testPair, AssetType: asset.Spot},
 		}, // valid pair but invalid order side
 		{
+			ExpectedErr: errTimeInForceConflict,
+			Submit: &Submit{
+				Pair:              testPair,
+				AssetType:         asset.Spot,
+				Side:              Ask,
+				Type:              Market,
+				ImmediateOrCancel: true,
+				FillOrKill:        true,
+			},
+		},
+		{
 			ExpectedErr: ErrTypeIsInvalid,
 			Submit: &Submit{Pair: testPair,
 				Side:      Buy,
@@ -703,7 +714,7 @@ func TestUpdateOrderFromModify(t *testing.T) {
 		LimitPriceUpper:   0,
 		LimitPriceLower:   0,
 		TriggerPrice:      0,
-		TargetAmount:      0,
+		QuoteAmount:       0,
 		ExecutedAmount:    0,
 		RemainingAmount:   0,
 		Fee:               0,
@@ -739,7 +750,7 @@ func TestUpdateOrderFromModify(t *testing.T) {
 		LimitPriceUpper:   1,
 		LimitPriceLower:   1,
 		TriggerPrice:      1,
-		TargetAmount:      1,
+		QuoteAmount:       1,
 		ExecutedAmount:    1,
 		RemainingAmount:   1,
 		Fee:               1,
@@ -792,7 +803,7 @@ func TestUpdateOrderFromModify(t *testing.T) {
 	if od.TriggerPrice != 1 {
 		t.Error("Failed to update")
 	}
-	if od.TargetAmount != 1 {
+	if od.QuoteAmount != 1 {
 		t.Error("Failed to update")
 	}
 	if od.ExecutedAmount != 1 {
@@ -895,7 +906,7 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 		LimitPriceUpper:   0,
 		LimitPriceLower:   0,
 		TriggerPrice:      0,
-		TargetAmount:      0,
+		QuoteAmount:       0,
 		ExecutedAmount:    0,
 		RemainingAmount:   0,
 		Fee:               0,
@@ -931,7 +942,7 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 		LimitPriceUpper:   1,
 		LimitPriceLower:   1,
 		TriggerPrice:      1,
-		TargetAmount:      1,
+		QuoteAmount:       1,
 		ExecutedAmount:    1,
 		RemainingAmount:   1,
 		Fee:               1,
@@ -984,7 +995,7 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 	if od.TriggerPrice != 1 {
 		t.Error("Failed to update")
 	}
-	if od.TargetAmount != 1 {
+	if od.QuoteAmount != 1 {
 		t.Error("Failed to update")
 	}
 	if od.ExecutedAmount != 1 {
