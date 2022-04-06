@@ -607,25 +607,30 @@ func (by *Bybit) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory,
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (by *Bybit) GetWithdrawalsHistory(ctx context.Context, c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
-	w, err := by.GetWalletWithdrawalRecords(ctx, "", "", "", c, 0, 0)
-	if err != nil {
-		return nil, err
-	}
+func (by *Bybit) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) (withdrawHistory []exchange.WithdrawalHistory, err error) {
+	switch a {
+	case asset.CoinMarginedFutures:
+		w, err := by.GetWalletWithdrawalRecords(ctx, "", "", "", c, 0, 0)
+		if err != nil {
+			return nil, err
+		}
 
-	for i := range w {
-		resp = append(resp, exchange.WithdrawalHistory{
-			Status:          w[i].Status,
-			TransferID:      strconv.FormatInt(w[i].ID, 10),
-			Currency:        w[i].Coin,
-			Amount:          w[i].Amount,
-			Fee:             w[i].Fee,
-			CryptoToAddress: w[i].Address,
-			CryptoTxID:      w[i].TxID,
-			Timestamp:       w[i].UpdatedAt,
-		})
+		for i := range w {
+			withdrawHistory = append(withdrawHistory, exchange.WithdrawalHistory{
+				Status:          w[i].Status,
+				TransferID:      strconv.FormatInt(w[i].ID, 10),
+				Currency:        w[i].Coin,
+				Amount:          w[i].Amount,
+				Fee:             w[i].Fee,
+				CryptoToAddress: w[i].Address,
+				CryptoTxID:      w[i].TxID,
+				Timestamp:       w[i].UpdatedAt,
+			})
+		}
+	default:
+		withdrawHistory, err = nil, fmt.Errorf("assetType not supported: %v", a)
 	}
-	return resp, nil
+	return
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset

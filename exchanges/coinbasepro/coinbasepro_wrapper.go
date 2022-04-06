@@ -474,7 +474,7 @@ func (c *CoinbasePro) GetFundingHistory(_ context.Context) ([]exchange.FundHisto
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (c *CoinbasePro) GetWithdrawalsHistory(_ context.Context, _ currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+func (c *CoinbasePro) GetWithdrawalsHistory(_ context.Context, _ currency.Code, _ asset.Item) (resp []exchange.WithdrawalHistory, err error) {
 	return nil, common.ErrNotYetImplemented
 }
 

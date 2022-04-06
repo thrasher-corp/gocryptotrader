@@ -805,7 +805,7 @@ func (b *Binance) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (b *Binance) GetWithdrawalsHistory(ctx context.Context, c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+func (b *Binance) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) (resp []exchange.WithdrawalHistory, err error) {
 	w, err := b.WithdrawHistory(ctx, c, "", time.Time{}, time.Time{}, 0, 10000)
 	if err != nil {
 		return nil, err

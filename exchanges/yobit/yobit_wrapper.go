@@ -352,7 +352,7 @@ func (y *Yobit) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, 
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (y *Yobit) GetWithdrawalsHistory(ctx context.Context, c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+func (y *Yobit) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) (resp []exchange.WithdrawalHistory, err error) {
 	return nil, common.ErrNotYetImplemented
 }
 

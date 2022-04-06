@@ -418,7 +418,7 @@ func (z *ZB) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, err
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (z *ZB) GetWithdrawalsHistory(ctx context.Context, c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+func (z *ZB) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) (resp []exchange.WithdrawalHistory, err error) {
 	return nil, common.ErrNotYetImplemented
 }
 

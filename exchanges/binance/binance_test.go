@@ -2037,7 +2037,7 @@ func TestWithdrawHistory(t *testing.T) {
 	if areTestAPIKeysSet() && !canManipulateRealOrders && !mockTests {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
-	_, err := b.GetWithdrawalsHistory(context.Background(), currency.ETH)
+	_, err := b.GetWithdrawalsHistory(context.Background(), currency.ETH, asset.Spot)
 	switch {
 	case areTestAPIKeysSet() && err != nil:
 		t.Error("GetWithdrawalsHistory() error", err)

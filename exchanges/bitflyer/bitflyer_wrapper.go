@@ -331,7 +331,7 @@ func (b *Bitflyer) GetFundingHistory(_ context.Context) ([]exchange.FundHistory,
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (b *Bitflyer) GetWithdrawalsHistory(_ context.Context, _ currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+func (b *Bitflyer) GetWithdrawalsHistory(_ context.Context, _ currency.Code, _ asset.Item) (resp []exchange.WithdrawalHistory, err error) {
 	return nil, common.ErrNotYetImplemented
 }
 

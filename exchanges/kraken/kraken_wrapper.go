@@ -646,7 +646,7 @@ func (k *Kraken) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory,
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (k *Kraken) GetWithdrawalsHistory(ctx context.Context, c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+func (k *Kraken) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) (resp []exchange.WithdrawalHistory, err error) {
 	withdrawals, err := k.WithdrawStatus(ctx, c, "")
 	for i := range withdrawals {
 		resp = append(resp, exchange.WithdrawalHistory{

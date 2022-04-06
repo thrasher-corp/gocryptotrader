@@ -563,7 +563,7 @@ func (f *FTX) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, er
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (f *FTX) GetWithdrawalsHistory(ctx context.Context, c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+func (f *FTX) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ asset.Item) (resp []exchange.WithdrawalHistory, err error) {
 	return nil, common.ErrNotYetImplemented
 }
 

@@ -178,7 +178,7 @@ func (c *CustomEx) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 	return nil, nil
 }
 
-func (c *CustomEx) GetWithdrawalsHistory(ctx context.Context, code currency.Code) ([]exchange.WithdrawalHistory, error) {
+func (c *CustomEx) GetWithdrawalsHistory(ctx context.Context, code currency.Code, a asset.Item) ([]exchange.WithdrawalHistory, error) {
 	return []exchange.WithdrawalHistory{}, nil
 }
 

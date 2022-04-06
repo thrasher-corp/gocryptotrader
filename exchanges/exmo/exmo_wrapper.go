@@ -405,7 +405,7 @@ func (e *EXMO) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, e
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (e *EXMO) GetWithdrawalsHistory(ctx context.Context, c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+func (e *EXMO) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ asset.Item) (resp []exchange.WithdrawalHistory, err error) {
 	return nil, common.ErrNotYetImplemented
 }
 

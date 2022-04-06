@@ -490,7 +490,7 @@ func (o *OKGroup) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *wit
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (o *OKGroup) GetWithdrawalsHistory(ctx context.Context, c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+func (o *OKGroup) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) (resp []exchange.WithdrawalHistory, err error) {
 	return nil, common.ErrNotYetImplemented
 }
 

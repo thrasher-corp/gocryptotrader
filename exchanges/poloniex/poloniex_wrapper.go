@@ -448,7 +448,7 @@ func (p *Poloniex) GetFundingHistory(ctx context.Context) ([]exchange.FundHistor
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (p *Poloniex) GetWithdrawalsHistory(ctx context.Context, c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+func (p *Poloniex) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) (resp []exchange.WithdrawalHistory, err error) {
 	return nil, common.ErrNotYetImplemented
 }
 
