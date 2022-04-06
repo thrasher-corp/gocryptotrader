@@ -128,7 +128,7 @@ func main() {
 		} else {
 			bf := bitfinex.Bitfinex{}
 			bf.SetDefaults()
-			bf.Verbose = true
+			bf.Verbose = false
 			pair := "t" + y.Coin.String() + currency.USD.String()
 			ticker, errf := bf.GetTicker(context.TODO(), pair)
 			if errf != nil {

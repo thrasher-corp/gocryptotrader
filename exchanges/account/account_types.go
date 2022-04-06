@@ -21,7 +21,7 @@ var (
 type Service struct {
 	exchangeAccounts map[string]*Accounts
 	mux              *dispatch.Mux
-	sync.Mutex
+	m                sync.Mutex
 }
 
 // Accounts holds a stream ID and a map to the exchange holdings
