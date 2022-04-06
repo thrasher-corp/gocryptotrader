@@ -30,11 +30,6 @@ type Accounts struct {
 	SubAccounts map[string]map[asset.Item]map[*currency.Item]*BalanceInternal
 }
 
-// type Account struct {
-// 	h  *Holdings
-// 	ID uuid.UUID
-// }
-
 // Holdings is a generic type to hold each exchange's holdings for all enabled
 // currencies
 type Holdings struct {
