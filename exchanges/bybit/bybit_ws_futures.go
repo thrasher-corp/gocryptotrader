@@ -76,7 +76,7 @@ func (by *Bybit) WsFuturesAuth() error {
 	sign := crypto.HexEncodeToString(hmac)
 	req := Authenticate{
 		Operation: "auth",
-		Args:      []string{by.API.Credentials.Key, strNonce, sign},
+		Args:      []interface{}{by.API.Credentials.Key, strNonce, sign},
 	}
 	return by.Websocket.Conn.SendJSONMessage(req)
 }
