@@ -24,14 +24,19 @@ linters:
 
 # disabled by default linters
     - asciicheck
+#    - bidichk
     - bodyclose
+#   - containedctx
+#   - contextcheck
 #   - cyclop
+    - decorder
     - depguard
     - dogsled
 #   - dupl
     - durationcheck
+#    - errchkjson
     - errname
-#   - errorlint
+    - errorlint
 #   - exhaustive
 #   - exhaustivestruct
     - exportloopref
@@ -58,16 +63,20 @@ linters:
     - gomodguard
     - goprintffuncname
     - gosec
+#   - grouper
     - ifshort
 #   - importas
 #   - interfacer // deprecated by its owner
+#   - ireturn
 #   - lll 
+#   - maintidx
     - makezero
-#   - maligned
+#   - maligned // [deprecated]
     - misspell
     - nakedret
 #   - nestif
     - nilerr
+#   - nilnil
 #   - nlreturn
     - noctx
     - nolintlint
@@ -81,11 +90,13 @@ linters:
 #   - sqlclosecheck
     - stylecheck
 #   - tagliatelle
+#   - tenv
 #   - testpackage
     - thelper
     - tparallel
     - unconvert
     - unparam
+#   - varnamelen
     - wastedassign
     - whitespace
 #   - wrapcheck
