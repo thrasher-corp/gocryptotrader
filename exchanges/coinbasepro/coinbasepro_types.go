@@ -331,9 +331,9 @@ type OrderbookL3 struct {
 
 // OrderbookResponse is a generalized response for order books
 type OrderbookResponse struct {
-	Sequence int64           `json:"sequence"`
-	Bids     [][]interface{} `json:"bids"`
-	Asks     [][]interface{} `json:"asks"`
+	Sequence int64            `json:"sequence"`
+	Bids     [][3]interface{} `json:"bids"`
+	Asks     [][3]interface{} `json:"asks"`
 }
 
 // FillResponse contains fill information from the exchange

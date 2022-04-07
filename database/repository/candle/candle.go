@@ -126,7 +126,7 @@ func DeleteCandles(in *Item) (int64, error) {
 }
 
 func deleteSQLite(ctx context.Context, queries []qm.QueryMod) (int64, error) {
-	retCandle, err := modelSQLite.Candles(queries...).All(context.Background(), database.DB.SQL)
+	retCandle, err := modelSQLite.Candles(queries...).All(ctx, database.DB.SQL)
 	if err != nil {
 		return 0, err
 	}
@@ -153,7 +153,7 @@ func deleteSQLite(ctx context.Context, queries []qm.QueryMod) (int64, error) {
 }
 
 func deletePostgres(ctx context.Context, queries []qm.QueryMod) (int64, error) {
-	retCandle, err := modelPSQL.Candles(queries...).All(context.Background(), database.DB.SQL)
+	retCandle, err := modelPSQL.Candles(queries...).All(ctx, database.DB.SQL)
 	if err != nil {
 		return 0, err
 	}

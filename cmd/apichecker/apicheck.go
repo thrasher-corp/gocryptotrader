@@ -6,7 +6,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -304,9 +304,9 @@ func checkExistingExchanges(exchName string) bool {
 
 // checkMissingExchanges checks if any supported exchanges are missing api checker functionality
 func checkMissingExchanges() []string {
-	var tempArray []string
+	tempArray := make([]string, len(usageData.Exchanges))
 	for x := range usageData.Exchanges {
-		tempArray = append(tempArray, usageData.Exchanges[x].Name)
+		tempArray[x] = usageData.Exchanges[x].Name
 	}
 	supportedExchs := exchange.Exchanges
 	for z := 0; z < len(supportedExchs); {
@@ -322,7 +322,7 @@ func checkMissingExchanges() []string {
 // readFileData reads the file data from the given json file
 func readFileData(fileName string) (Config, error) {
 	var c Config
-	data, err := ioutil.ReadFile(fileName)
+	data, err := os.ReadFile(fileName)
 	if err != nil {
 		return c, err
 	}
@@ -448,7 +448,7 @@ func checkUpdates(fileName string) error {
 	unsup := checkMissingExchanges()
 	log.Warnf(log.Global, "The following exchanges are not supported by apichecker: %v\n", unsup)
 	log.Debugf(log.Global, "Saving the updates to the following file: %s\n", fileName)
-	return ioutil.WriteFile(fileName, file, 0770)
+	return os.WriteFile(fileName, file, 0o770)
 }
 
 // checkChangeLog checks the exchanges which support changelog updates.json
@@ -559,9 +559,9 @@ func addExch(exchName, checkType string, data interface{}, isUpdate bool) error 
 				return err
 			}
 		}
-		return ioutil.WriteFile(jsonFile, file, 0770)
+		return os.WriteFile(jsonFile, file, 0o770)
 	}
-	return ioutil.WriteFile(testJSONFile, file, 0770)
+	return os.WriteFile(testJSONFile, file, 0o770)
 }
 
 // fillData fills exchange data based on the given checkType
@@ -749,7 +749,7 @@ func htmlScrapeHitBTC(htmlData *HTMLScrapingData) ([]string, error) {
 	}
 	defer temp.Body.Close()
 
-	a, err := ioutil.ReadAll(temp.Body)
+	a, err := io.ReadAll(temp.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -784,7 +784,7 @@ func htmlScrapeBTCMarkets(htmlData *HTMLScrapingData) ([]string, error) {
 		return nil, err
 	}
 	defer temp.Body.Close()
-	tempData, err := ioutil.ReadAll(temp.Body)
+	tempData, err := io.ReadAll(temp.Body)
 	if err != nil {
 		return resp, err
 	}
@@ -862,7 +862,7 @@ func htmlScrapeANX(htmlData *HTMLScrapingData) ([]string, error) {
 	}
 	defer temp.Body.Close()
 
-	a, err := ioutil.ReadAll(temp.Body)
+	a, err := io.ReadAll(temp.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -901,7 +901,7 @@ func htmlScrapeExmo(htmlData *HTMLScrapingData) ([]string, error) {
 	}
 
 	defer httpResp.Body.Close()
-	a, err := ioutil.ReadAll(httpResp.Body)
+	a, err := io.ReadAll(httpResp.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -1010,7 +1010,7 @@ func htmlScrapeBitstamp(htmlData *HTMLScrapingData) ([]string, error) {
 	}
 	defer temp.Body.Close()
 
-	a, err := ioutil.ReadAll(temp.Body)
+	a, err := io.ReadAll(temp.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -1145,7 +1145,7 @@ func htmlScrapeLocalBitcoins(htmlData *HTMLScrapingData) ([]string, error) {
 	}
 	defer temp.Body.Close()
 
-	a, err := ioutil.ReadAll(temp.Body)
+	a, err := io.ReadAll(temp.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -1284,7 +1284,7 @@ func updateFile(name string) error {
 	if err != nil {
 		return err
 	}
-	return ioutil.WriteFile(name, file, 0770)
+	return os.WriteFile(name, file, 0o770)
 }
 
 // SendGetReq sends get req
@@ -1690,7 +1690,7 @@ func htmlScrapeBitfinex(htmlData *HTMLScrapingData) ([]string, error) {
 	}
 	defer temp.Body.Close()
 
-	a, err := ioutil.ReadAll(temp.Body)
+	a, err := io.ReadAll(temp.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -1775,7 +1775,7 @@ func sendHTTPGetRequest(path string, headers map[string]string) (*http.Response,
 	req, err := http.NewRequestWithContext(context.TODO(),
 		http.MethodGet,
 		path,
-		nil)
+		http.NoBody)
 	if err != nil {
 		return nil, err
 	}

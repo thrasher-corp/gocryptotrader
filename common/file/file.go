@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 )
@@ -17,11 +16,11 @@ import (
 func Write(file string, data []byte) error {
 	basePath := filepath.Dir(file)
 	if !Exists(basePath) {
-		if err := os.MkdirAll(basePath, 0770); err != nil {
+		if err := os.MkdirAll(basePath, 0o770); err != nil {
 			return err
 		}
 	}
-	return ioutil.WriteFile(file, data, 0770)
+	return os.WriteFile(file, data, 0o770)
 }
 
 // Writer creates a writer to a file or returns an error if it fails. This
@@ -30,11 +29,11 @@ func Write(file string, data []byte) error {
 func Writer(file string) (*os.File, error) {
 	basePath := filepath.Dir(file)
 	if !Exists(basePath) {
-		if err := os.MkdirAll(basePath, 0770); err != nil {
+		if err := os.MkdirAll(basePath, 0o770); err != nil {
 			return nil, err
 		}
 	}
-	return os.OpenFile(file, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0770)
+	return os.OpenFile(file, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o770)
 }
 
 // Move moves a file from a source path to a destination path
@@ -59,7 +58,7 @@ func Move(sourcePath, destPath string) error {
 
 	destDir := filepath.Dir(destPath)
 	if !Exists(destDir) {
-		err = os.MkdirAll(destDir, 0770)
+		err = os.MkdirAll(destDir, 0o770)
 		if err != nil {
 			return err
 		}

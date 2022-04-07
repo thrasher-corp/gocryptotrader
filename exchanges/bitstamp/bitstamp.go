@@ -305,7 +305,7 @@ func (b *Bitstamp) GetUserTransactions(ctx context.Context, currencyPair string)
 		}
 	}
 
-	var transactions []UserTransactions
+	transactions := make([]UserTransactions, len(response))
 	for x := range response {
 		tx := UserTransactions{}
 		tx.Date = response[x].Date
@@ -318,7 +318,7 @@ func (b *Bitstamp) GetUserTransactions(ctx context.Context, currencyPair string)
 		tx.BTCUSD = processNumber(response[x].BTCUSD)
 		tx.Fee = response[x].Fee
 		tx.OrderID = response[x].OrderID
-		transactions = append(transactions, tx)
+		transactions[x] = tx
 	}
 
 	return transactions, nil

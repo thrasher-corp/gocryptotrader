@@ -199,7 +199,7 @@ func (f *FundManager) GenerateReport() *Report {
 		UsingExchangeLevelFunding: f.usingExchangeLevelFunding,
 		DisableUSDTracking:        f.disableUSDTracking,
 	}
-	var items []ReportItem
+	items := make([]ReportItem, len(f.items))
 	for i := range f.items {
 		item := ReportItem{
 			Exchange:     f.items[i].exchange,
@@ -243,7 +243,7 @@ func (f *FundManager) GenerateReport() *Report {
 			item.PairedWith = f.items[i].pairedWith.currency
 		}
 
-		items = append(items, item)
+		items[i] = item
 	}
 	report.Items = items
 	return &report

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/csv"
+	"errors"
 	"io"
 	"os"
 	"strings"
@@ -178,7 +179,11 @@ func UUIDByName(exchange string) (uuid.UUID, error) {
 	exchange = strings.ToLower(exchange)
 	v := exchangeCache.Get(exchange)
 	if v != nil {
-		return v.(uuid.UUID), nil
+		u, ok := v.(uuid.UUID)
+		if !ok {
+			return uuid.UUID{}, errors.New("unable to type assert uuid")
+		}
+		return u, nil
 	}
 	ret, err := One(exchange)
 	if err != nil {

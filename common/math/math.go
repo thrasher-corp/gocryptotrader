@@ -89,9 +89,9 @@ func InformationRatio(returnsRates, benchmarkRates []float64, averageValues, ave
 	if len(benchmarkRates) != len(returnsRates) {
 		return 0, errInformationBadLength
 	}
-	var diffs []float64
+	diffs := make([]float64, len(returnsRates))
 	for i := range returnsRates {
-		diffs = append(diffs, returnsRates[i]-benchmarkRates[i])
+		diffs[i] = returnsRates[i] - benchmarkRates[i]
 	}
 	stdDev, err := PopulationStandardDeviation(diffs)
 	if err != nil {
@@ -135,11 +135,11 @@ func SampleStandardDeviation(values []float64) (float64, error) {
 	if err != nil {
 		return 0, err
 	}
-	var superMean []float64
+	superMean := make([]float64, len(values))
 	var combined float64
 	for i := range values {
 		result := math.Pow(values[i]-mean, 2)
-		superMean = append(superMean, result)
+		superMean[i] = result
 		combined += result
 	}
 	avg := combined / (float64(len(superMean)) - 1)
@@ -232,9 +232,9 @@ func SharpeRatio(movementPerCandle []float64, riskFreeRatePerInterval, average f
 	if totalIntervals == 0 {
 		return 0, errZeroValue
 	}
-	var excessReturns []float64
+	excessReturns := make([]float64, len(movementPerCandle))
 	for i := range movementPerCandle {
-		excessReturns = append(excessReturns, movementPerCandle[i]-riskFreeRatePerInterval)
+		excessReturns[i] = movementPerCandle[i] - riskFreeRatePerInterval
 	}
 	standardDeviation, err := PopulationStandardDeviation(excessReturns)
 	if err != nil {
@@ -284,9 +284,9 @@ func DecimalInformationRatio(returnsRates, benchmarkRates []decimal.Decimal, ave
 	if len(benchmarkRates) != len(returnsRates) {
 		return decimal.Zero, errInformationBadLength
 	}
-	var diffs []decimal.Decimal
+	diffs := make([]decimal.Decimal, len(returnsRates))
 	for i := range returnsRates {
-		diffs = append(diffs, returnsRates[i].Sub(benchmarkRates[i]))
+		diffs[i] = returnsRates[i].Sub(benchmarkRates[i])
 	}
 	stdDev, err := DecimalPopulationStandardDeviation(diffs)
 	if err != nil && !errors.Is(err, ErrInexactConversion) {
@@ -339,11 +339,11 @@ func DecimalSampleStandardDeviation(values []decimal.Decimal) (decimal.Decimal, 
 	if err != nil {
 		return decimal.Zero, err
 	}
-	var superMean []decimal.Decimal
+	superMean := make([]decimal.Decimal, len(values))
 	var combined decimal.Decimal
 	for i := range values {
 		pow := values[i].Sub(mean).Pow(decimal.NewFromInt(2))
-		superMean = append(superMean, pow)
+		superMean[i] = pow
 		combined.Add(pow)
 	}
 	avg := combined.Div(decimal.NewFromInt(int64(len(superMean))).Sub(decimal.NewFromInt(1)))
@@ -461,9 +461,9 @@ func DecimalSharpeRatio(movementPerCandle []decimal.Decimal, riskFreeRatePerInte
 	if totalIntervals.IsZero() {
 		return decimal.Zero, errZeroValue
 	}
-	var excessReturns []decimal.Decimal
+	excessReturns := make([]decimal.Decimal, len(movementPerCandle))
 	for i := range movementPerCandle {
-		excessReturns = append(excessReturns, movementPerCandle[i].Sub(riskFreeRatePerInterval))
+		excessReturns[i] = movementPerCandle[i].Sub(riskFreeRatePerInterval)
 	}
 	standardDeviation, err := DecimalPopulationStandardDeviation(excessReturns)
 	if err != nil && !errors.Is(err, ErrInexactConversion) {

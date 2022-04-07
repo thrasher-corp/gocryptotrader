@@ -509,7 +509,7 @@ func TestChangePermission(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected an error on non-existent path")
 		}
-		err = os.Mkdir(testDir, 0777)
+		err = os.Mkdir(testDir, 0o777)
 		if err != nil {
 			t.Fatalf("Mkdir failed. Err: %v", err)
 		}
@@ -530,7 +530,7 @@ func TestChangePermission(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected an error on non-existent path")
 		}
-		err = os.Mkdir(testDir, 0777)
+		err = os.Mkdir(testDir, 0o777)
 		if err != nil {
 			t.Fatalf("Mkdir failed. Err: %v", err)
 		}
@@ -543,8 +543,8 @@ func TestChangePermission(t *testing.T) {
 		if err != nil {
 			t.Fatalf("os.Stat failed. Err: %v", err)
 		}
-		if a.Mode().Perm() != 0770 {
-			t.Fatalf("expected file permissions differ. expecting 0770 got %#o", a.Mode().Perm())
+		if a.Mode().Perm() != 0o770 {
+			t.Fatalf("expected file permissions differ. expecting 0o770 got %#o", a.Mode().Perm())
 		}
 		err = os.Remove(testDir)
 		if err != nil {

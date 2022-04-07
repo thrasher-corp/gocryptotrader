@@ -522,11 +522,11 @@ func (f *FTX) FetchAccountInfo(ctx context.Context, assetType asset.Item) (accou
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
 func (f *FTX) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
-	var resp []exchange.FundHistory
 	depositData, err := f.FetchDepositHistory(ctx)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
+	dData := make([]exchange.FundHistory, len(depositData))
 	for x := range depositData {
 		var tempData exchange.FundHistory
 		tempData.Fee = depositData[x].Fee
@@ -539,12 +539,14 @@ func (f *FTX) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, er
 		tempData.Amount = depositData[x].Size
 		tempData.Currency = depositData[x].Coin
 		tempData.TransferID = strconv.FormatInt(depositData[x].ID, 10)
-		resp = append(resp, tempData)
+		dData[x] = tempData
 	}
 	withdrawalData, err := f.FetchWithdrawalHistory(ctx)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
+
+	wdData := make([]exchange.FundHistory, len(withdrawalData))
 	for y := range withdrawalData {
 		var tempData exchange.FundHistory
 		tempData.Fee = withdrawalData[y].Fee
@@ -557,9 +559,13 @@ func (f *FTX) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, er
 		tempData.Amount = withdrawalData[y].Size
 		tempData.Currency = withdrawalData[y].Coin
 		tempData.TransferID = strconv.FormatInt(withdrawalData[y].ID, 10)
-		resp = append(resp, tempData)
+		wdData[y] = tempData
 	}
-	return resp, nil
+
+	fundingData := make([]exchange.FundHistory, len(dData)+len(wdData))
+	copy(fundingData, dData)
+	copy(fundingData, wdData)
+	return fundingData, nil
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
@@ -1662,15 +1668,14 @@ func (f *FTX) GetFuturesPositions(ctx context.Context, a asset.Item, cp currency
 	sort.Slice(fills, func(i, j int) bool {
 		return fills[i].Time.Before(fills[j].Time)
 	})
-	var resp []order.Detail
-	var side order.Side
+	resp := make([]order.Detail, len(fills))
 	for i := range fills {
 		price := fills[i].Price
-		side, err = order.StringToOrderSide(fills[i].Side)
+		side, err := order.StringToOrderSide(fills[i].Side)
 		if err != nil {
 			return nil, err
 		}
-		resp = append(resp, order.Detail{
+		resp[i] = order.Detail{
 			Side:      side,
 			Pair:      cp,
 			ID:        strconv.FormatInt(fills[i].ID, 10),
@@ -1680,7 +1685,7 @@ func (f *FTX) GetFuturesPositions(ctx context.Context, a asset.Item, cp currency
 			Exchange:  f.Name,
 			Fee:       fills[i].Fee,
 			Date:      fills[i].Time,
-		})
+		}
 	}
 
 	return resp, nil

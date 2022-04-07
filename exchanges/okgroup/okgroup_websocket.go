@@ -662,7 +662,13 @@ func (o *OKGroup) AppendWsOrderbookItems(entries [][]interface{}) ([]orderbook.I
 // WsProcessPartialOrderBook takes websocket orderbook data and creates an
 // orderbook Calculates checksum to ensure it is valid
 func (o *OKGroup) WsProcessPartialOrderBook(wsEventData *WebsocketOrderBook, instrument currency.Pair, a asset.Item) error {
-	signedChecksum := o.CalculatePartialOrderbookChecksum(wsEventData)
+	signedChecksum, err := o.CalculatePartialOrderbookChecksum(wsEventData)
+	if err != nil {
+		return fmt.Errorf("%s channel: %s. Orderbook unable to calculate partial orderbook checksum: %s",
+			o.Name,
+			a,
+			err)
+	}
 	if signedChecksum != wsEventData.Checksum {
 		return fmt.Errorf("%s channel: %s. Orderbook partial for %v checksum invalid",
 			o.Name,
@@ -744,24 +750,40 @@ func (o *OKGroup) WsProcessUpdateOrderbook(wsEventData *WebsocketOrderBook, inst
 // quantity with a semicolon (:) deliminating them. This will also work when
 // there are less than 25 entries (for whatever reason)
 // eg Bid:Ask:Bid:Ask:Ask:Ask
-func (o *OKGroup) CalculatePartialOrderbookChecksum(orderbookData *WebsocketOrderBook) int32 {
+func (o *OKGroup) CalculatePartialOrderbookChecksum(orderbookData *WebsocketOrderBook) (int32, error) {
 	var checksum strings.Builder
 	for i := 0; i < allowableIterations; i++ {
 		if len(orderbookData.Bids)-1 >= i {
-			checksum.WriteString(orderbookData.Bids[i][0].(string) +
+			bidPrice, ok := orderbookData.Bids[i][0].(string)
+			if !ok {
+				return 0, fmt.Errorf("unable to type assert bidPrice")
+			}
+			bidAmount, ok := orderbookData.Bids[i][1].(string)
+			if !ok {
+				return 0, fmt.Errorf("unable to type assert bidAmount")
+			}
+			checksum.WriteString(bidPrice +
 				delimiterColon +
-				orderbookData.Bids[i][1].(string) +
+				bidAmount +
 				delimiterColon)
 		}
 		if len(orderbookData.Asks)-1 >= i {
-			checksum.WriteString(orderbookData.Asks[i][0].(string) +
+			askPrice, ok := orderbookData.Asks[i][0].(string)
+			if !ok {
+				return 0, fmt.Errorf("unable to type assert askPrice")
+			}
+			askAmount, ok := orderbookData.Asks[i][1].(string)
+			if !ok {
+				return 0, fmt.Errorf("unable to type assert askAmount")
+			}
+			checksum.WriteString(askPrice +
 				delimiterColon +
-				orderbookData.Asks[i][1].(string) +
+				askAmount +
 				delimiterColon)
 		}
 	}
 	checksumStr := strings.TrimSuffix(checksum.String(), delimiterColon)
-	return int32(crc32.ChecksumIEEE([]byte(checksumStr)))
+	return int32(crc32.ChecksumIEEE([]byte(checksumStr))), nil
 }
 
 // CalculateUpdateOrderbookChecksum alternates over the first 25 bid and ask

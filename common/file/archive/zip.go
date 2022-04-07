@@ -52,7 +52,7 @@ func UnZip(src, dest string) (fileList []string, err error) {
 			continue
 		}
 
-		err = os.MkdirAll(filepath.Dir(fPath), 0770)
+		err = os.MkdirAll(filepath.Dir(fPath), 0o770)
 		if err != nil {
 			return
 		}

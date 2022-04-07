@@ -368,7 +368,7 @@ func (b *Bithumb) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 		return info, err
 	}
 
-	var exchangeBalances []account.Balance
+	exchangeBalances := make([]account.Balance, 0, len(bal.Total))
 	for key, totalAmount := range bal.Total {
 		hold, ok := bal.InUse[key]
 		if !ok {
@@ -435,7 +435,7 @@ func (b *Bithumb) GetRecentTrades(ctx context.Context, p currency.Pair, assetTyp
 	if err != nil {
 		return nil, err
 	}
-	var resp []trade.Data
+	resp := make([]trade.Data, len(tradeData.Data))
 	for i := range tradeData.Data {
 		var side order.Side
 		side, err = order.StringToOrderSide(tradeData.Data[i].Type)
@@ -447,7 +447,7 @@ func (b *Bithumb) GetRecentTrades(ctx context.Context, p currency.Pair, assetTyp
 		if err != nil {
 			return nil, err
 		}
-		resp = append(resp, trade.Data{
+		resp[i] = trade.Data{
 			Exchange:     b.Name,
 			CurrencyPair: p,
 			AssetType:    assetType,
@@ -455,7 +455,7 @@ func (b *Bithumb) GetRecentTrades(ctx context.Context, p currency.Pair, assetTyp
 			Price:        tradeData.Data[i].Price,
 			Amount:       tradeData.Data[i].UnitsTraded,
 			Timestamp:    t,
-		})
+		}
 	}
 
 	err = b.AddTradesToBuffer(resp...)

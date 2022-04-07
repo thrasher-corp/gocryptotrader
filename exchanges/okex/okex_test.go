@@ -1657,7 +1657,7 @@ func TestSendWsMessages(t *testing.T) {
 	}
 	response := <-o.Websocket.DataHandler
 	if err, ok = response.(error); ok && err != nil {
-		if !strings.Contains(response.(error).Error(), subscriptions[0].Channel) {
+		if !strings.Contains(err.Error(), subscriptions[0].Channel) {
 			t.Error("Expecting OKEX error - 30040 message: Channel badChannel doesn't exist")
 		}
 	}
@@ -1739,7 +1739,10 @@ func TestOrderBookPartialChecksumCalculator(t *testing.T) {
 		t.Error(err)
 	}
 
-	calculatedChecksum := o.CalculatePartialOrderbookChecksum(&dataResponse)
+	calculatedChecksum, err := o.CalculatePartialOrderbookChecksum(&dataResponse)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if calculatedChecksum != dataResponse.Checksum {
 		t.Errorf("Expected %v, received %v", dataResponse.Checksum, calculatedChecksum)
 	}

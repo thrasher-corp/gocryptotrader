@@ -19,8 +19,9 @@ func getWriters(s *SubLoggerConfig) (io.Writer, error) {
 	if s == nil {
 		return nil, errSubloggerConfigIsNil
 	}
-	var writers []io.Writer
+
 	outputWriters := strings.Split(s.Output, "|")
+	writers := make([]io.Writer, 0, len(outputWriters))
 	for x := range outputWriters {
 		var writer io.Writer
 		switch strings.ToLower(outputWriters[x]) {
@@ -33,7 +34,7 @@ func getWriters(s *SubLoggerConfig) (io.Writer, error) {
 				writer = GlobalLogFile
 			}
 		default:
-			// Note: Do not want to add a ioutil.discard here as this adds
+			// Note: Do not want to add a io.Discard here as this adds
 			// additional routines for every write for no reason.
 			return nil, fmt.Errorf("%w: %s", errUnhandledOutputWriter, outputWriters[x])
 		}

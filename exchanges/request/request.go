@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -207,7 +206,7 @@ func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRe
 			continue
 		}
 
-		contents, err := ioutil.ReadAll(resp.Body)
+		contents, err := io.ReadAll(resp.Body)
 		if err != nil {
 			return err
 		}
@@ -273,7 +272,7 @@ func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRe
 }
 
 func (r *Requester) drainBody(body io.ReadCloser) {
-	if _, err := io.Copy(ioutil.Discard, io.LimitReader(body, drainBodyLimit)); err != nil {
+	if _, err := io.Copy(io.Discard, io.LimitReader(body, drainBodyLimit)); err != nil {
 		log.Errorf(log.RequestSys,
 			"%s failed to drain request body %s",
 			r.name,

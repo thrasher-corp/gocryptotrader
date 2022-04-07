@@ -489,7 +489,7 @@ func (k *Kraken) GetSpread(ctx context.Context, symbol currency.Pair) ([]Spread,
 		return nil, errors.New("unable to type assert spreadData")
 	}
 
-	var peanutButter []Spread
+	peanutButter := make([]Spread, len(spreadData))
 	for x := range spreadData {
 		subData, ok := spreadData[x].([]interface{})
 		if !ok {
@@ -513,7 +513,7 @@ func (k *Kraken) GetSpread(ctx context.Context, symbol currency.Pair) ([]Spread,
 		if s.Ask, err = convert.FloatFromString(subData[2]); err != nil {
 			return nil, err
 		}
-		peanutButter = append(peanutButter, s)
+		peanutButter[x] = s
 	}
 	return peanutButter, nil
 }
@@ -866,19 +866,19 @@ func (k *Kraken) QueryLedgers(ctx context.Context, id string, ids ...string) (ma
 }
 
 // GetTradeVolume returns your trade volume by currency
-func (k *Kraken) GetTradeVolume(ctx context.Context, feeinfo bool, symbol ...currency.Pair) (TradeVolumeResponse, error) {
+func (k *Kraken) GetTradeVolume(ctx context.Context, feeinfo bool, symbol ...currency.Pair) (*TradeVolumeResponse, error) {
 	var response struct {
-		Error  []string            `json:"error"`
-		Result TradeVolumeResponse `json:"result"`
+		Error  []string             `json:"error"`
+		Result *TradeVolumeResponse `json:"result"`
 	}
 	params := url.Values{}
-	var formattedPairs []string
+	formattedPairs := make([]string, len(symbol))
 	for x := range symbol {
 		symbolValue, err := k.FormatSymbol(symbol[x], asset.Spot)
 		if err != nil {
-			return response.Result, err
+			return nil, err
 		}
-		formattedPairs = append(formattedPairs, symbolValue)
+		formattedPairs[x] = symbolValue
 	}
 	if symbol != nil {
 		params.Set("pair", strings.Join(formattedPairs, ","))
@@ -889,7 +889,7 @@ func (k *Kraken) GetTradeVolume(ctx context.Context, feeinfo bool, symbol ...cur
 	}
 
 	if err := k.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, krakenTradeVolume, params, &response); err != nil {
-		return response.Result, err
+		return nil, err
 	}
 
 	return response.Result, GetError(response.Error)

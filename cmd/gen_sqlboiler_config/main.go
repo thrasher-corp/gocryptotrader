@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -57,7 +56,7 @@ func main() {
 	}
 
 	path := filepath.Join(outputFolder, "sqlboiler.json")
-	err = ioutil.WriteFile(path, jsonOutput, 0770)
+	err = os.WriteFile(path, jsonOutput, 0o770)
 	if err != nil {
 		fmt.Printf("Write failed: %v", err)
 		os.Exit(1)

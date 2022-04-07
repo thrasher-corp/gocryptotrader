@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -277,9 +277,9 @@ func (b *Bittrex) subscribeSlice(channelsToSubscribe []stream.ChannelSubscriptio
 		InvocationID: b.Websocket.Conn.GenerateMessageID(false),
 	}
 
-	var channels []string
+	channels := make([]string, len(channelsToSubscribe))
 	for i := range channelsToSubscribe {
-		channels = append(channels, channelsToSubscribe[i].Channel)
+		channels[i] = channelsToSubscribe[i].Channel
 	}
 	arguments := make([][]string, 0)
 	arguments = append(arguments, channels)
@@ -342,9 +342,9 @@ func (b *Bittrex) unsubscribeSlice(channelsToUnsubscribe []stream.ChannelSubscri
 		InvocationID: b.Websocket.Conn.GenerateMessageID(false),
 	}
 
-	var channels []string
+	channels := make([]string, len(channelsToUnsubscribe))
 	for i := range channelsToUnsubscribe {
-		channels = append(channels, channelsToUnsubscribe[i].Channel)
+		channels[i] = channelsToUnsubscribe[i].Channel
 	}
 	arguments := make([][]string, 0)
 	arguments = append(arguments, channels)
@@ -409,7 +409,7 @@ func (b *Bittrex) wsDecodeMessage(encodedMessage string, v interface{}) error {
 		return err
 	}
 	reader := flate.NewReader(bytes.NewBuffer(raw))
-	message, err := ioutil.ReadAll(reader)
+	message, err := io.ReadAll(reader)
 	if err != nil {
 		return err
 	}

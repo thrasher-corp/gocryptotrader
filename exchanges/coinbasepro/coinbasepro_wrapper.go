@@ -295,11 +295,9 @@ func (c *CoinbasePro) FetchTradablePairs(ctx context.Context, asset asset.Item) 
 		return nil, err
 	}
 
-	var products []string
+	products := make([]string, len(pairs))
 	for x := range pairs {
-		products = append(products, pairs[x].BaseCurrency+
-			format.Delimiter+
-			pairs[x].QuoteCurrency)
+		products[x] = pairs[x].BaseCurrency + format.Delimiter + pairs[x].QuoteCurrency
 	}
 
 	return products, nil
@@ -490,14 +488,14 @@ func (c *CoinbasePro) GetRecentTrades(ctx context.Context, p currency.Pair, asse
 	if err != nil {
 		return nil, err
 	}
-	var resp []trade.Data
+	resp := make([]trade.Data, len(tradeData))
 	for i := range tradeData {
 		var side order.Side
 		side, err = order.StringToOrderSide(tradeData[i].Side)
 		if err != nil {
 			return nil, err
 		}
-		resp = append(resp, trade.Data{
+		resp[i] = trade.Data{
 			Exchange:     c.Name,
 			TID:          strconv.FormatInt(tradeData[i].TradeID, 10),
 			CurrencyPair: p,
@@ -506,7 +504,7 @@ func (c *CoinbasePro) GetRecentTrades(ctx context.Context, p currency.Pair, asse
 			Price:        tradeData[i].Price,
 			Amount:       tradeData[i].Size,
 			Timestamp:    tradeData[i].Time,
-		})
+		}
 	}
 
 	err = c.AddTradesToBuffer(resp...)
@@ -772,7 +770,7 @@ func (c *CoinbasePro) GetActiveOrders(ctx context.Context, req *order.GetOrdersR
 		return nil, err
 	}
 
-	var orders []order.Detail
+	orders := make([]order.Detail, len(respOrders))
 	for i := range respOrders {
 		var curr currency.Pair
 		curr, err = currency.NewPairDelimiter(respOrders[i].ProductID,
@@ -782,7 +780,7 @@ func (c *CoinbasePro) GetActiveOrders(ctx context.Context, req *order.GetOrdersR
 		}
 		orderSide := order.Side(strings.ToUpper(respOrders[i].Side))
 		orderType := order.Type(strings.ToUpper(respOrders[i].Type))
-		orders = append(orders, order.Detail{
+		orders[i] = order.Detail{
 			ID:             respOrders[i].ID,
 			Amount:         respOrders[i].Size,
 			ExecutedAmount: respOrders[i].FilledSize,
@@ -791,7 +789,7 @@ func (c *CoinbasePro) GetActiveOrders(ctx context.Context, req *order.GetOrdersR
 			Side:           orderSide,
 			Pair:           curr,
 			Exchange:       c.Name,
-		})
+		}
 	}
 
 	order.FilterOrdersByType(&orders, req.Type)
@@ -836,7 +834,7 @@ func (c *CoinbasePro) GetOrderHistory(ctx context.Context, req *order.GetOrdersR
 		return nil, err
 	}
 
-	var orders []order.Detail
+	orders := make([]order.Detail, len(respOrders))
 	for i := range respOrders {
 		var curr currency.Pair
 		curr, err = currency.NewPairDelimiter(respOrders[i].ProductID,
@@ -869,7 +867,7 @@ func (c *CoinbasePro) GetOrderHistory(ctx context.Context, req *order.GetOrdersR
 			Exchange:        c.Name,
 		}
 		detail.InferCostsAndTimes()
-		orders = append(orders, detail)
+		orders[i] = detail
 	}
 
 	order.FilterOrdersByType(&orders, req.Type)

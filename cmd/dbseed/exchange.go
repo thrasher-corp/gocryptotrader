@@ -51,11 +51,11 @@ func seedExchangeFromDefaultList(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	var allExchanges []exchangeDB.Details
+	allExchanges := make([]exchangeDB.Details, len(exchange.Exchanges))
 	for x := range exchange.Exchanges {
-		allExchanges = append(allExchanges, exchangeDB.Details{
+		allExchanges[x] = exchangeDB.Details{
 			Name: exchange.Exchanges[x],
-		})
+		}
 	}
 	err = exchangeDB.InsertMany(allExchanges)
 	if err != nil {

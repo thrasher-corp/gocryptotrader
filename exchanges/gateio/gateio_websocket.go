@@ -616,7 +616,7 @@ func (g *Gateio) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription)
 	// & LTC_USDT this function will unsubscribe both. This function will be
 	// kept unlinked to the websocket subsystem and a full connection flush will
 	// occur when currency items are disabled.
-	var channelsThusFar []string
+	channelsThusFar := make([]string, 0, len(channelsToUnsubscribe))
 	for i := range channelsToUnsubscribe {
 		if common.StringDataCompare(channelsThusFar,
 			channelsToUnsubscribe[i].Channel) {

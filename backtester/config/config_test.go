@@ -210,7 +210,7 @@ func TestGenerateConfigForDCAAPICandles(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		err = ioutil.WriteFile(filepath.Join(p, "examples", "dca-api-candles.strat"), result, 0770)
+		err = os.WriteFile(filepath.Join(p, "examples", "dca-api-candles.strat"), result, 0o770)
 		if err != nil {
 			t.Error(err)
 		}
@@ -288,7 +288,7 @@ func TestGenerateConfigForDCAAPICandlesExchangeLevelFunding(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		err = ioutil.WriteFile(filepath.Join(p, "examples", "dca-api-candles-exchange-level-funding.strat"), result, 0770)
+		err = os.WriteFile(filepath.Join(p, "examples", "dca-api-candles-exchange-level-funding.strat"), result, 0o770)
 		if err != nil {
 			t.Error(err)
 		}
@@ -356,7 +356,7 @@ func TestGenerateConfigForDCAAPITrades(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		err = ioutil.WriteFile(filepath.Join(p, "examples", "dca-api-trades.strat"), result, 0770)
+		err = os.WriteFile(filepath.Join(p, "examples", "dca-api-trades.strat"), result, 0o770)
 		if err != nil {
 			t.Error(err)
 		}
@@ -429,7 +429,7 @@ func TestGenerateConfigForDCAAPICandlesMultipleCurrencies(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		err = ioutil.WriteFile(filepath.Join(p, "examples", "dca-api-candles-multiple-currencies.strat"), result, 0770)
+		err = os.WriteFile(filepath.Join(p, "examples", "dca-api-candles-multiple-currencies.strat"), result, 0o770)
 		if err != nil {
 			t.Error(err)
 		}
@@ -503,7 +503,7 @@ func TestGenerateConfigForDCAAPICandlesSimultaneousProcessing(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		err = ioutil.WriteFile(filepath.Join(p, "examples", "dca-api-candles-simultaneous-processing.strat"), result, 0770)
+		err = os.WriteFile(filepath.Join(p, "examples", "dca-api-candles-simultaneous-processing.strat"), result, 0o770)
 		if err != nil {
 			t.Error(err)
 		}
@@ -566,7 +566,7 @@ func TestGenerateConfigForDCALiveCandles(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		err = ioutil.WriteFile(filepath.Join(p, "examples", "dca-candles-live.strat"), result, 0770)
+		err = os.WriteFile(filepath.Join(p, "examples", "dca-candles-live.strat"), result, 0o770)
 		if err != nil {
 			t.Error(err)
 		}
@@ -645,7 +645,7 @@ func TestGenerateConfigForRSIAPICustomSettings(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		err = ioutil.WriteFile(filepath.Join(p, "examples", "rsi-api-candles.strat"), result, 0770)
+		err = os.WriteFile(filepath.Join(p, "examples", "rsi-api-candles.strat"), result, 0o770)
 		if err != nil {
 			t.Error(err)
 		}
@@ -704,7 +704,7 @@ func TestGenerateConfigForDCACSVCandles(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		err = ioutil.WriteFile(filepath.Join(p, "examples", "dca-csv-candles.strat"), result, 0770)
+		err = os.WriteFile(filepath.Join(p, "examples", "dca-csv-candles.strat"), result, 0o770)
 		if err != nil {
 			t.Error(err)
 		}
@@ -759,7 +759,7 @@ func TestGenerateConfigForDCACSVTrades(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		err = ioutil.WriteFile(filepath.Join(p, "examples", "dca-csv-trades.strat"), result, 0770)
+		err = os.WriteFile(filepath.Join(p, "examples", "dca-csv-trades.strat"), result, 0o770)
 		if err != nil {
 			t.Error(err)
 		}
@@ -827,7 +827,7 @@ func TestGenerateConfigForDCADatabaseCandles(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		err = ioutil.WriteFile(filepath.Join(p, "examples", "dca-database-candles.strat"), result, 0770)
+		err = os.WriteFile(filepath.Join(p, "examples", "dca-database-candles.strat"), result, 0o770)
 		if err != nil {
 			t.Error(err)
 		}
@@ -956,7 +956,7 @@ func TestGenerateConfigForTop2Bottom2(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		err = ioutil.WriteFile(filepath.Join(p, "examples", "t2b2-api-candles-exchange-funding.strat"), result, 0770)
+		err = os.WriteFile(filepath.Join(p, "examples", "t2b2-api-candles-exchange-funding.strat"), result, 0o770)
 		if err != nil {
 			t.Error(err)
 		}

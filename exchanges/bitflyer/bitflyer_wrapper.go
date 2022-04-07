@@ -346,7 +346,7 @@ func (b *Bitflyer) GetRecentTrades(ctx context.Context, p currency.Pair, assetTy
 	if err != nil {
 		return nil, err
 	}
-	var resp []trade.Data
+	resp := make([]trade.Data, len(tradeData))
 	for i := range tradeData {
 		var timestamp time.Time
 		timestamp, err = time.Parse("2006-01-02T15:04:05.999999999", tradeData[i].ExecDate)
@@ -358,7 +358,7 @@ func (b *Bitflyer) GetRecentTrades(ctx context.Context, p currency.Pair, assetTy
 		if err != nil {
 			return nil, err
 		}
-		resp = append(resp, trade.Data{
+		resp[i] = trade.Data{
 			TID:          strconv.FormatInt(tradeData[i].ID, 10),
 			Exchange:     b.Name,
 			CurrencyPair: p,
@@ -367,7 +367,7 @@ func (b *Bitflyer) GetRecentTrades(ctx context.Context, p currency.Pair, assetTy
 			Price:        tradeData[i].Price,
 			Amount:       tradeData[i].Size,
 			Timestamp:    timestamp,
-		})
+		}
 	}
 
 	err = b.AddTradesToBuffer(resp...)

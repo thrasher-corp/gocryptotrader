@@ -173,7 +173,7 @@ func (e *EXMO) FetchTradablePairs(ctx context.Context, asset asset.Item) ([]stri
 		return nil, err
 	}
 
-	var currencies []string
+	currencies := make([]string, 0, len(pairs))
 	for x := range pairs {
 		currencies = append(currencies, x)
 	}
@@ -352,7 +352,7 @@ func (e *EXMO) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (acc
 		return response, err
 	}
 
-	var currencies []account.Balance
+	currencies := make([]account.Balance, 0, len(result.Balances))
 	for x, y := range result.Balances {
 		var exchangeCurrency account.Balance
 		exchangeCurrency.CurrencyName = currency.NewCode(x)
@@ -421,15 +421,16 @@ func (e *EXMO) GetRecentTrades(ctx context.Context, p currency.Pair, assetType a
 	if err != nil {
 		return nil, err
 	}
-	var resp []trade.Data
+
 	mapData := tradeData[p.String()]
+	resp := make([]trade.Data, len(mapData))
 	for i := range mapData {
 		var side order.Side
 		side, err = order.StringToOrderSide(mapData[i].Type)
 		if err != nil {
 			return nil, err
 		}
-		resp = append(resp, trade.Data{
+		resp[i] = trade.Data{
 			Exchange:     e.Name,
 			TID:          strconv.FormatInt(mapData[i].TradeID, 10),
 			CurrencyPair: p,
@@ -438,7 +439,7 @@ func (e *EXMO) GetRecentTrades(ctx context.Context, p currency.Pair, assetType a
 			Price:        mapData[i].Price,
 			Amount:       mapData[i].Quantity,
 			Timestamp:    time.Unix(mapData[i].Date, 0),
-		})
+		}
 	}
 
 	err = e.AddTradesToBuffer(resp...)
@@ -638,7 +639,7 @@ func (e *EXMO) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest)
 		return nil, err
 	}
 
-	var orders []order.Detail
+	orders := make([]order.Detail, 0, len(resp))
 	for i := range resp {
 		var symbol currency.Pair
 		symbol, err = currency.NewPairDelimiter(resp[i].Pair, "_")
@@ -690,7 +691,7 @@ func (e *EXMO) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest)
 		}
 	}
 
-	var orders []order.Detail
+	orders := make([]order.Detail, len(allTrades))
 	for i := range allTrades {
 		pair, err := currency.NewPairDelimiter(allTrades[i].Pair, "_")
 		if err != nil {
@@ -711,7 +712,7 @@ func (e *EXMO) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest)
 			Pair:           pair,
 		}
 		detail.InferCostsAndTimes()
-		orders = append(orders, detail)
+		orders[i] = detail
 	}
 
 	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)

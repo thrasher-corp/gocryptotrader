@@ -5,7 +5,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
-	"io/ioutil"
+	"errors"
+	"os"
 	"path/filepath"
 	"sync/atomic"
 	"time"
@@ -22,7 +23,7 @@ import (
 )
 
 // NewVM attempts to create a new Virtual Machine firstly from pool
-func (g *GctScriptManager) NewVM() (vm *VM) {
+func (g *GctScriptManager) NewVM() *VM {
 	if !g.IsRunning() {
 		log.Error(log.GCTScriptMgr, Error{
 			Action: "NewVM",
@@ -43,13 +44,21 @@ func (g *GctScriptManager) NewVM() (vm *VM) {
 		log.Debugln(log.GCTScriptMgr, "New GCTScript VM created")
 	}
 
-	vm = &VM{
+	s, ok := pool.Get().(*tengo.Script)
+	if !ok {
+		log.Error(log.GCTScriptMgr, Error{
+			Action: "NewVM",
+			Cause:  errors.New("unable to type assert tengo script"),
+		})
+		return nil
+	}
+
+	return &VM{
 		ID:         newUUID,
-		Script:     pool.Get().(*tengo.Script),
+		Script:     s,
 		config:     g.config,
 		unregister: func() error { return g.RemoveVM(newUUID) },
 	}
-	return
 }
 
 // SetDefaultScriptOutput sets default output file for scripts
@@ -71,7 +80,7 @@ func (vm *VM) Load(file string) error {
 		log.Debugf(log.GCTScriptMgr, "Loading script: %s ID: %v", vm.ShortName(), vm.ID)
 	}
 
-	code, err := ioutil.ReadFile(file)
+	code, err := os.ReadFile(file)
 	if err != nil {
 		return &Error{
 			Action: "Load: ReadFile",
@@ -213,7 +222,7 @@ func (vm *VM) read() ([]byte, error) {
 	if vm.config.Verbose {
 		log.Debugf(log.GCTScriptMgr, "Read script: %s ID: %v", vm.ShortName(), vm.ID)
 	}
-	return ioutil.ReadFile(vm.File)
+	return os.ReadFile(vm.File)
 }
 
 // ShortName returns short (just filename.extension) of running script

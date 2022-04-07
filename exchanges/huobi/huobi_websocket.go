@@ -466,19 +466,36 @@ func (h *HUOBI) WsProcessOrderbook(update *WsDepth, symbol string) error {
 		return err
 	}
 
-	var bids, asks []orderbook.Item
+	bids := make(orderbook.Items, len(update.Tick.Bids))
 	for i := range update.Tick.Bids {
-		bids = append(bids, orderbook.Item{
-			Price:  update.Tick.Bids[i][0].(float64),
-			Amount: update.Tick.Bids[i][1].(float64),
-		})
+		price, ok := update.Tick.Bids[i][0].(float64)
+		if !ok {
+			return errors.New("unable to type assert bid price")
+		}
+		amount, ok := update.Tick.Bids[i][1].(float64)
+		if !ok {
+			return errors.New("unable to type assert bid amount")
+		}
+		bids[i] = orderbook.Item{
+			Price:  price,
+			Amount: amount,
+		}
 	}
 
+	asks := make(orderbook.Items, len(update.Tick.Asks))
 	for i := range update.Tick.Asks {
-		asks = append(asks, orderbook.Item{
-			Price:  update.Tick.Asks[i][0].(float64),
-			Amount: update.Tick.Asks[i][1].(float64),
-		})
+		price, ok := update.Tick.Asks[i][0].(float64)
+		if !ok {
+			return errors.New("unable to type assert ask price")
+		}
+		amount, ok := update.Tick.Asks[i][1].(float64)
+		if !ok {
+			return errors.New("unable to type assert ask amount")
+		}
+		asks[i] = orderbook.Item{
+			Price:  price,
+			Amount: amount,
+		}
 	}
 
 	var newOrderBook orderbook.Base

@@ -257,7 +257,7 @@ func (b *Bittrex) FetchTradablePairs(ctx context.Context, asset asset.Item) ([]s
 		return nil, err
 	}
 
-	var resp []string
+	resp := make([]string, 0, len(markets))
 	for x := range markets {
 		if markets[x].Status != "ONLINE" {
 			continue
@@ -411,14 +411,14 @@ func (b *Bittrex) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 		return resp, err
 	}
 
-	var currencies []account.Balance
+	currencies := make([]account.Balance, len(balanceData))
 	for i := range balanceData {
-		currencies = append(currencies, account.Balance{
+		currencies[i] = account.Balance{
 			CurrencyName: currency.NewCode(balanceData[i].CurrencySymbol),
 			Total:        balanceData[i].Total,
 			Hold:         balanceData[i].Total - balanceData[i].Available,
 			Free:         balanceData[i].Available,
-		})
+		}
 	}
 
 	resp.Accounts = append(resp.Accounts, account.SubAccount{
@@ -441,20 +441,29 @@ func (b *Bittrex) FetchAccountInfo(ctx context.Context, assetType asset.Item) (a
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
 func (b *Bittrex) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
-	var resp []exchange.FundHistory
 	closedDepositData, err := b.GetClosedDeposits(ctx)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 	openDepositData, err := b.GetOpenDeposits(ctx)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
-	// nolint: gocritic
 	depositData := append(closedDepositData, openDepositData...)
 
+	closedWithdrawalData, err := b.GetClosedWithdrawals(ctx)
+	if err != nil {
+		return nil, err
+	}
+	openWithdrawalData, err := b.GetOpenWithdrawals(ctx)
+	if err != nil {
+		return nil, err
+	}
+	withdrawalData := append(closedWithdrawalData, openWithdrawalData...)
+
+	resp := make([]exchange.FundHistory, 0, len(depositData)+len(withdrawalData))
 	for x := range depositData {
-		resp = append(resp, exchange.FundHistory{
+		resp[x] = exchange.FundHistory{
 			ExchangeName:    b.Name,
 			Status:          depositData[x].Status,
 			Description:     depositData[x].CryptoAddressTag,
@@ -464,21 +473,12 @@ func (b *Bittrex) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory
 			TransferType:    "deposit",
 			CryptoToAddress: depositData[x].CryptoAddress,
 			CryptoTxID:      depositData[x].TxID,
-		})
+		}
 	}
-	closedWithdrawalData, err := b.GetClosedWithdrawals(ctx)
-	if err != nil {
-		return resp, err
-	}
-	openWithdrawalData, err := b.GetOpenWithdrawals(ctx)
-	if err != nil {
-		return resp, err
-	}
-	// nolint: gocritic
-	withdrawalData := append(closedWithdrawalData, openWithdrawalData...)
 
+	depositDataLen := len(depositData)
 	for x := range withdrawalData {
-		resp = append(resp, exchange.FundHistory{
+		resp[x+depositDataLen] = exchange.FundHistory{
 			ExchangeName:    b.Name,
 			Status:          withdrawalData[x].Status,
 			Description:     withdrawalData[x].CryptoAddressTag,
@@ -490,7 +490,7 @@ func (b *Bittrex) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory
 			CryptoToAddress: withdrawalData[x].CryptoAddress,
 			CryptoTxID:      withdrawalData[x].TxID,
 			TransferID:      withdrawalData[x].ID,
-		})
+		}
 	}
 	return resp, nil
 }

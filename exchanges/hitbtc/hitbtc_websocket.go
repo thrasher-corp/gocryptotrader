@@ -417,19 +417,20 @@ func (h *HitBTC) WsProcessOrderbookUpdate(update WsOrderbook) error {
 		return nil
 	}
 
-	var bids, asks []orderbook.Item
+	bids := make(orderbook.Items, len(update.Params.Bid))
 	for i := range update.Params.Bid {
-		bids = append(bids, orderbook.Item{
+		bids[i] = orderbook.Item{
 			Price:  update.Params.Bid[i].Price,
 			Amount: update.Params.Bid[i].Size,
-		})
+		}
 	}
 
+	asks := make(orderbook.Items, len(update.Params.Ask))
 	for i := range update.Params.Ask {
-		asks = append(asks, orderbook.Item{
+		asks[i] = orderbook.Item{
 			Price:  update.Params.Ask[i].Price,
 			Amount: update.Params.Ask[i].Size,
-		})
+		}
 	}
 
 	pairs, err := h.GetEnabledPairs(asset.Spot)

@@ -414,9 +414,9 @@ func DeleteTrades(trades ...Data) error {
 }
 
 func deleteTradesSQLite(ctx context.Context, tx *sql.Tx, trades ...Data) error {
-	var tradeIDs []interface{}
+	tradeIDs := make([]interface{}, len(trades))
 	for i := range trades {
-		tradeIDs = append(tradeIDs, trades[i].ID)
+		tradeIDs[i] = trades[i].ID
 	}
 	query := sqlite3.Trades(qm.WhereIn(`id in ?`, tradeIDs...))
 	_, err := query.DeleteAll(ctx, tx)
@@ -424,9 +424,9 @@ func deleteTradesSQLite(ctx context.Context, tx *sql.Tx, trades ...Data) error {
 }
 
 func deleteTradesPostgres(ctx context.Context, tx *sql.Tx, trades ...Data) error {
-	var tradeIDs []interface{}
+	tradeIDs := make([]interface{}, len(trades))
 	for i := range trades {
-		tradeIDs = append(tradeIDs, trades[i].ID)
+		tradeIDs[i] = trades[i].ID
 	}
 	query := postgres.Trades(qm.WhereIn(`id in ?`, tradeIDs...))
 	_, err := query.DeleteAll(ctx, tx)

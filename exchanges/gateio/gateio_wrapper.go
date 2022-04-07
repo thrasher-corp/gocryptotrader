@@ -463,14 +463,14 @@ func (g *Gateio) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 	if err != nil {
 		return nil, err
 	}
-	var resp []trade.Data
+	resp := make([]trade.Data, len(tradeData.Data))
 	for i := range tradeData.Data {
 		var side order.Side
 		side, err = order.StringToOrderSide(tradeData.Data[i].Type)
 		if err != nil {
 			return nil, err
 		}
-		resp = append(resp, trade.Data{
+		resp[i] = trade.Data{
 			Exchange:     g.Name,
 			TID:          tradeData.Data[i].TradeID,
 			CurrencyPair: p,
@@ -479,7 +479,7 @@ func (g *Gateio) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 			Price:        tradeData.Data[i].Rate,
 			Amount:       tradeData.Data[i].Amount,
 			Timestamp:    time.Unix(tradeData.Data[i].Timestamp, 0),
-		})
+		}
 	}
 
 	err = g.AddTradesToBuffer(resp...)
@@ -829,7 +829,7 @@ func (g *Gateio) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 		return nil, err
 	}
 
-	var orders []order.Detail
+	orders := make([]order.Detail, len(trades))
 	for i := range trades {
 		var pair currency.Pair
 		pair, err = currency.NewPairDelimiter(trades[i].Pair, format.Delimiter)
@@ -850,7 +850,7 @@ func (g *Gateio) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 			Pair:                 pair,
 		}
 		detail.InferCostsAndTimes()
-		orders = append(orders, detail)
+		orders[i] = detail
 	}
 
 	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
@@ -919,9 +919,9 @@ func (g *Gateio) GetAvailableTransferChains(ctx context.Context, cryptocurrency 
 		return nil, err
 	}
 
-	var availableChains []string
+	availableChains := make([]string, len(chains.MultichainAddresses))
 	for x := range chains.MultichainAddresses {
-		availableChains = append(availableChains, chains.MultichainAddresses[x].Chain)
+		availableChains[x] = chains.MultichainAddresses[x].Chain
 	}
 	return availableChains, nil
 }

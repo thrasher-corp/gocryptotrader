@@ -148,7 +148,7 @@ func baseMarginInfo(data []interface{}) (MarginInfoV2, error) {
 }
 
 func symbolMarginInfo(data []interface{}) ([]MarginInfoV2, error) {
-	var resp []MarginInfoV2
+	resp := make([]MarginInfoV2, len(data))
 	for x := range data {
 		var tempResp MarginInfoV2
 		tempData, ok := data[x].([]interface{})
@@ -183,7 +183,7 @@ func symbolMarginInfo(data []interface{}) ([]MarginInfoV2, error) {
 		if !ok {
 			return nil, fmt.Errorf("%w for BestBidAmount", errTypeAssert)
 		}
-		resp = append(resp, tempResp)
+		resp[x] = tempResp
 	}
 	return resp, nil
 }
@@ -381,7 +381,6 @@ func (b *Bitfinex) GetAccountInfoV2(ctx context.Context) (AccountV2Data, error) 
 
 // GetV2Balances gets v2 balances
 func (b *Bitfinex) GetV2Balances(ctx context.Context) ([]WalletDataV2, error) {
-	var resp []WalletDataV2
 	var data [][4]interface{}
 	err := b.SendAuthenticatedHTTPRequestV2(ctx,
 		exchange.RestSpot, http.MethodPost,
@@ -390,8 +389,9 @@ func (b *Bitfinex) GetV2Balances(ctx context.Context) ([]WalletDataV2, error) {
 		&data,
 		getAccountFees)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
+	resp := make([]WalletDataV2, len(data))
 	for x := range data {
 		wType, ok := data[x][0].(string)
 		if !ok {
@@ -409,12 +409,12 @@ func (b *Bitfinex) GetV2Balances(ctx context.Context) ([]WalletDataV2, error) {
 		if !ok {
 			return resp, fmt.Errorf("%v GetV2Balances: %w for unsettledInterest", b.Name, errTypeAssert)
 		}
-		resp = append(resp, WalletDataV2{
+		resp[x] = WalletDataV2{
 			WalletType:        wType,
 			Currency:          curr,
 			Balance:           bal,
 			UnsettledInterest: unsettledInterest,
-		})
+		}
 	}
 	return resp, nil
 }
@@ -435,9 +435,6 @@ func (b *Bitfinex) GetMarginPairs(ctx context.Context) ([]string, error) {
 
 // GetDerivativeStatusInfo gets status data for the queried derivative
 func (b *Bitfinex) GetDerivativeStatusInfo(ctx context.Context, keys, startTime, endTime string, sort, limit int64) ([]DerivativeDataResponse, error) {
-	var result [][]interface{}
-	var finalResp []DerivativeDataResponse
-
 	params := url.Values{}
 	params.Set("keys", keys)
 	if startTime != "" {
@@ -452,12 +449,15 @@ func (b *Bitfinex) GetDerivativeStatusInfo(ctx context.Context, keys, startTime,
 	if limit != 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
+
+	var result [][]interface{}
 	path := bitfinexAPIVersion2 + bitfinexDerivativeData +
 		params.Encode()
 	err := b.SendHTTPRequest(ctx, exchange.RestSpot, path, &result, status)
 	if err != nil {
-		return finalResp, err
+		return nil, err
 	}
+	finalResp := make([]DerivativeDataResponse, len(result))
 	for z := range result {
 		if len(result[z]) < 19 {
 			return finalResp, fmt.Errorf("%v GetDerivativeStatusInfo: invalid response, array length too small, check api docs for updates", b.Name)
@@ -507,7 +507,7 @@ func (b *Bitfinex) GetDerivativeStatusInfo(ctx context.Context, keys, startTime,
 				t,
 			)
 		}
-		finalResp = append(finalResp, response)
+		finalResp[z] = response
 	}
 	return finalResp, nil
 }
@@ -637,7 +637,7 @@ func (b *Bitfinex) GetTrades(ctx context.Context, currencyPair string, limit, ti
 		return nil, err
 	}
 
-	var history []Trade
+	history := make([]Trade, len(resp))
 	for i := range resp {
 		amount, ok := resp[i][2].(float64)
 		if !ok {
@@ -650,24 +650,24 @@ func (b *Bitfinex) GetTrades(ctx context.Context, currencyPair string, limit, ti
 		}
 
 		if len(resp[i]) > 4 {
-			history = append(history, Trade{
+			history[i] = Trade{
 				TID:       int64(resp[i][0].(float64)),
 				Timestamp: int64(resp[i][1].(float64)),
 				Amount:    amount,
 				Rate:      resp[i][3].(float64),
 				Period:    int64(resp[i][4].(float64)),
 				Type:      side,
-			})
+			}
 			continue
 		}
 
-		history = append(history, Trade{
+		history[i] = Trade{
 			TID:       int64(resp[i][0].(float64)),
 			Timestamp: int64(resp[i][1].(float64)),
 			Amount:    amount,
 			Price:     resp[i][3].(float64),
 			Type:      side,
-		})
+		}
 	}
 
 	return history, nil
@@ -983,7 +983,7 @@ func (b *Bitfinex) GetLeaderboard(ctx context.Context, key, timeframe, symbol st
 		return r
 	}
 
-	var result []LeaderboardEntry
+	result := make([]LeaderboardEntry, len(resp))
 	for x := range resp {
 		r, ok := resp[x].([]interface{})
 		if !ok {
@@ -1008,13 +1008,13 @@ func (b *Bitfinex) GetLeaderboard(ctx context.Context, key, timeframe, symbol st
 		if !ok {
 			return nil, errors.New("unable to type assert value")
 		}
-		result = append(result, LeaderboardEntry{
+		result[x] = LeaderboardEntry{
 			Timestamp:     time.UnixMilli(int64(tm)),
 			Username:      username,
 			Ranking:       int(ranking),
 			Value:         value,
 			TwitterHandle: parseTwitterHandle(r[9]),
-		})
+		}
 	}
 	return result, nil
 }

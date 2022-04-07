@@ -227,7 +227,7 @@ func (z *ZB) FetchTradablePairs(ctx context.Context, asset asset.Item) ([]string
 		return nil, err
 	}
 
-	var currencies []string
+	currencies := make([]string, 0, len(markets))
 	for x := range markets {
 		currencies = append(currencies, x)
 	}
@@ -354,7 +354,6 @@ func (z *ZB) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType ass
 // ZB exchange
 func (z *ZB) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	var info account.Holdings
-	var balances []account.Balance
 	var coins []AccountsResponseCoin
 	if z.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		resp, err := z.wsGetAccountInfoRequest(ctx)
@@ -370,6 +369,7 @@ func (z *ZB) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (accou
 		coins = bal.Result.Coins
 	}
 
+	balances := make([]account.Balance, len(coins))
 	for i := range coins {
 		hold, err := strconv.ParseFloat(coins[i].Freeze, 64)
 		if err != nil {
@@ -381,12 +381,12 @@ func (z *ZB) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (accou
 			return info, err
 		}
 
-		balances = append(balances, account.Balance{
+		balances[i] = account.Balance{
 			CurrencyName: currency.NewCode(coins[i].EnName),
 			Total:        hold + avail,
 			Hold:         hold,
 			Free:         avail,
-		})
+		}
 	}
 
 	info.Exchange = z.Name
@@ -1008,9 +1008,9 @@ func (z *ZB) GetAvailableTransferChains(ctx context.Context, cryptocurrency curr
 		return nil, err
 	}
 
-	var availableChains []string
+	availableChains := make([]string, len(chains))
 	for x := range chains {
-		availableChains = append(availableChains, chains[x].Blockchain)
+		availableChains[x] = chains[x].Blockchain
 	}
 	return availableChains, nil
 }

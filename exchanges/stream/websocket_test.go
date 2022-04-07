@@ -1045,12 +1045,12 @@ type GenSubs struct {
 
 // generateSubs default subs created from the enabled pairs list
 func (g *GenSubs) generateSubs() ([]ChannelSubscription, error) {
-	var superduperchannelsubs []ChannelSubscription
+	superduperchannelsubs := make([]ChannelSubscription, len(g.EnabledPairs))
 	for i := range g.EnabledPairs {
-		superduperchannelsubs = append(superduperchannelsubs, ChannelSubscription{
+		superduperchannelsubs[i] = ChannelSubscription{
 			Channel:  "TEST:" + strconv.FormatInt(int64(i), 10),
 			Currency: g.EnabledPairs[i],
-		})
+		}
 	}
 	return superduperchannelsubs, nil
 }

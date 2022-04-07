@@ -159,7 +159,7 @@ func (s *Strategy) SetDefaults() {
 // the decision to handle missing data occurs at the strategy level, not all strategies
 // may wish to modify data
 func (s *Strategy) massageMissingData(data []decimal.Decimal, t time.Time) ([]float64, error) {
-	var resp []float64
+	resp := make([]float64, len(data))
 	var missingDataStreak int64
 	for i := range data {
 		if data[i].IsZero() && i > int(s.rsiPeriod.IntPart()) {
@@ -175,7 +175,7 @@ func (s *Strategy) massageMissingData(data []decimal.Decimal, t time.Time) ([]fl
 				base.ErrTooMuchBadData)
 		}
 		d, _ := data[i].Float64()
-		resp = append(resp, d)
+		resp[i] = d
 	}
 	return resp, nil
 }

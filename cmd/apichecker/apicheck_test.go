@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"os"
 	"reflect"
 	"testing"
@@ -86,7 +85,7 @@ func removeTestFileVars() error {
 	if err != nil {
 		return err
 	}
-	return ioutil.WriteFile(testJSONFile, file, 0770)
+	return os.WriteFile(testJSONFile, file, 0o770)
 }
 
 func canTestTrello() bool {
@@ -439,8 +438,7 @@ func TestUpdate(t *testing.T) {
 
 func TestCheckMissingExchanges(t *testing.T) {
 	t.Parallel()
-	a := checkMissingExchanges()
-	if len(a) > len(exchange.Exchanges) {
+	if a := checkMissingExchanges(); len(a) > len(exchange.Exchanges) {
 		t.Fatal("invalid response")
 	}
 }

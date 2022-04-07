@@ -140,8 +140,12 @@ func TestFTX_wsHandleData_Details(t *testing.T) {
                 "createdAt": "2021-08-08T10:35:02.649437+00:00"
             }
         }`
-	if status := parseRaw(t, inputFilled).(*order.Detail).Status; status != order.Filled {
-		t.Errorf("have %s, want %s", status, order.Filled)
+	orderDetail, ok := parseRaw(t, inputFilled).(*order.Detail)
+	if !ok {
+		t.Error("unable to type asset order detail")
+	}
+	if orderDetail.Status != order.Filled {
+		t.Errorf("have %s, want %s", orderDetail.Status, order.Filled)
 	}
 
 	const inputCancelled = `{
@@ -166,8 +170,13 @@ func TestFTX_wsHandleData_Details(t *testing.T) {
                 "createdAt": "2021-08-08T10:35:02.649437+00:00"
             }
         }`
-	if status := parseRaw(t, inputCancelled).(*order.Detail).Status; status != order.Cancelled {
-		t.Errorf("have %s, want %s", status, order.Cancelled)
+
+	orderDetail, ok = parseRaw(t, inputCancelled).(*order.Detail)
+	if !ok {
+		t.Error("unable to type asset order detail")
+	}
+	if orderDetail.Status != order.Cancelled {
+		t.Errorf("have %s, want %s", orderDetail.Status, order.Cancelled)
 	}
 }
 

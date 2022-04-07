@@ -338,7 +338,11 @@ func (c *CoinbasePro) ProcessUpdate(update WebsocketL2Update) error {
 			return err
 		}
 
-		if update.Changes[i][0].(string) == order.Buy.Lower() {
+		orderSide, ok := update.Changes[i][0].(string)
+		if !ok {
+			return errors.New("unable to type assert orderSide")
+		}
+		if orderSide == order.Buy.Lower() {
 			bids = append(bids, orderbook.Item{Price: price, Amount: volume})
 		} else {
 			asks = append(asks, orderbook.Item{Price: price, Amount: volume})

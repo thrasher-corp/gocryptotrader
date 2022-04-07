@@ -535,8 +535,7 @@ func FormatParameters(request interface{}) (parameters string) {
 		log.Errorf(log.ExchangeSys, "Could not parse %v to URL values. Check that the type has url fields", reflect.TypeOf(request).Name())
 		return
 	}
-	urlEncodedValues := v.Encode()
-	if len(urlEncodedValues) > 0 {
+	if urlEncodedValues := v.Encode(); len(urlEncodedValues) > 0 {
 		parameters = fmt.Sprintf("?%v", urlEncodedValues)
 	}
 	return

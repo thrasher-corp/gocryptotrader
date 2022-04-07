@@ -128,19 +128,19 @@ func (l *Lbank) GetKlines(ctx context.Context, symbol, size, klineType, tm strin
 		return nil, err
 	}
 
-	var k []KlineResponse
+	k := make([]KlineResponse, len(klineTemp))
 	for x := range klineTemp {
 		if len(klineTemp[x]) < 6 {
 			return nil, errors.New("unexpected kline data length")
 		}
-		k = append(k, KlineResponse{
+		k[x] = KlineResponse{
 			TimeStamp:     time.Unix(int64(klineTemp[x][0]), 0).UTC(),
 			OpenPrice:     klineTemp[x][1],
 			HigestPrice:   klineTemp[x][2],
 			LowestPrice:   klineTemp[x][3],
 			ClosePrice:    klineTemp[x][4],
 			TradingVolume: klineTemp[x][5],
-		})
+		}
 	}
 	return k, nil
 }

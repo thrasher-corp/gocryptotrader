@@ -26,15 +26,13 @@ func CollectBalances(accountBalances map[string][]Balance, assetType asset.Item)
 		return nil, fmt.Errorf("%s, %w", assetType, asset.ErrNotSupported)
 	}
 
-	accounts = make([]SubAccount, len(accountBalances))
-	i := 0
+	accounts = make([]SubAccount, 0, len(accountBalances))
 	for accountID, balances := range accountBalances {
-		accounts[i] = SubAccount{
+		accounts = append(accounts, SubAccount{
 			ID:         accountID,
 			AssetType:  assetType,
 			Currencies: balances,
-		}
-		i++
+		})
 	}
 	return
 }

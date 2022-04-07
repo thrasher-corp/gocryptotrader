@@ -788,7 +788,11 @@ func (k *Kraken) wsProcessTrades(channelData *WebsocketChannelData, data []inter
 			return err
 		}
 		var tSide = order.Buy
-		if t[3].(string) == "s" {
+		s, ok := t[3].(string)
+		if !ok {
+			return errors.New("unable to type assert side")
+		}
+		if s == "s" {
 			tSide = order.Sell
 		}
 
@@ -1372,7 +1376,7 @@ func (k *Kraken) wsAddOrder(request *WsAddOrderRequest) (string, error) {
 		return "", err
 	}
 	if resp.ErrorMessage != "" {
-		return "", fmt.Errorf(k.Name + " - " + resp.ErrorMessage)
+		return "", errors.New(k.Name + " - " + resp.ErrorMessage)
 	}
 	return resp.TransactionID, nil
 }
@@ -1436,7 +1440,7 @@ func (k *Kraken) wsCancelAllOrders() (*WsCancelOrderResponse, error) {
 		return &WsCancelOrderResponse{}, err
 	}
 	if resp.ErrorMessage != "" {
-		return &WsCancelOrderResponse{}, fmt.Errorf(k.Name + " - " + resp.ErrorMessage)
+		return &WsCancelOrderResponse{}, errors.New(k.Name + " - " + resp.ErrorMessage)
 	}
 	return &resp, nil
 }

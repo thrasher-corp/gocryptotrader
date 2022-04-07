@@ -83,11 +83,23 @@ func (g *Gateio) GetMarketInfo(ctx context.Context) (MarketInfoResponse, error) 
 			if !ok {
 				return result, errors.New("unable to type assert pairv")
 			}
+			decimalPlaces, ok := pairv["decimal_places"].(float64)
+			if !ok {
+				return result, errors.New("unable to type assert decimal_places")
+			}
+			minAmount, ok := pairv["min_amount"].(float64)
+			if !ok {
+				return result, errors.New("unable to type assert min_amount")
+			}
+			fee, ok := pairv["fee"].(float64)
+			if !ok {
+				return result, errors.New("unable to type assert fee")
+			}
 			result.Pairs = append(result.Pairs, MarketInfoPairsResponse{
 				Symbol:        itemk,
-				DecimalPlaces: pairv["decimal_places"].(float64),
-				MinAmount:     pairv["min_amount"].(float64),
-				Fee:           pairv["fee"].(float64),
+				DecimalPlaces: decimalPlaces,
+				MinAmount:     minAmount,
+				Fee:           fee,
 			})
 		}
 	}

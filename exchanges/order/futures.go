@@ -214,9 +214,9 @@ func (e *MultiPositionTracker) GetPositions() []PositionStats {
 	}
 	e.m.Lock()
 	defer e.m.Unlock()
-	var resp []PositionStats
+	resp := make([]PositionStats, len(e.positions))
 	for i := range e.positions {
-		resp = append(resp, e.positions[i].GetStats())
+		resp[i] = e.positions[i].GetStats()
 	}
 	return resp
 }

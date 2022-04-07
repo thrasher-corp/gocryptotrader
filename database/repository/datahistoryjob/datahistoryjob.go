@@ -368,13 +368,13 @@ func (db *DBService) getByIDPostgres(id string) (*DataHistoryJob, error) {
 }
 
 func (db *DBService) getJobsBetweenSQLite(startDate, endDate time.Time) ([]DataHistoryJob, error) {
-	var jobs []DataHistoryJob
 	query := sqlite3.Datahistoryjobs(qm.Where("created BETWEEN ? AND ? ", startDate.UTC().Format(time.RFC3339), endDate.UTC().Format(time.RFC3339)))
 	results, err := query.All(context.Background(), db.sql)
 	if err != nil {
-		return jobs, err
+		return nil, err
 	}
 
+	jobs := make([]DataHistoryJob, 0, len(results))
 	for i := range results {
 		job, err := db.createSQLiteDataHistoryJobResponse(results[i])
 		if err != nil {
@@ -387,13 +387,13 @@ func (db *DBService) getJobsBetweenSQLite(startDate, endDate time.Time) ([]DataH
 }
 
 func (db *DBService) getJobsBetweenPostgres(startDate, endDate time.Time) ([]DataHistoryJob, error) {
-	var jobs []DataHistoryJob
 	query := postgres.Datahistoryjobs(qm.Where("created BETWEEN ? AND  ? ", startDate, endDate))
 	results, err := query.All(context.Background(), db.sql)
 	if err != nil {
-		return jobs, err
+		return nil, err
 	}
 
+	jobs := make([]DataHistoryJob, 0, len(results))
 	for i := range results {
 		job, err := db.createPostgresDataHistoryJobResponse(results[i])
 		if err != nil {
@@ -440,7 +440,7 @@ func (db *DBService) getAllIncompleteJobsAndResultsSQLite() ([]DataHistoryJob, e
 		return nil, err
 	}
 
-	var jobs []DataHistoryJob
+	jobs := make([]DataHistoryJob, 0, len(results))
 	for i := range results {
 		job, err := db.createSQLiteDataHistoryJobResponse(results[i])
 		if err != nil {
@@ -462,7 +462,7 @@ func (db *DBService) getAllIncompleteJobsAndResultsPostgres() ([]DataHistoryJob,
 		return nil, err
 	}
 
-	var jobs []DataHistoryJob
+	jobs := make([]DataHistoryJob, 0, len(results))
 	for i := range results {
 		job, err := db.createPostgresDataHistoryJobResponse(results[i])
 		if err != nil {
@@ -483,7 +483,7 @@ func (db *DBService) getRelatedUpcomingJobsSQLite(nickname string) ([]*DataHisto
 	if err != nil {
 		return nil, err
 	}
-	var resp []*DataHistoryJob
+	resp := make([]*DataHistoryJob, 0, len(results))
 	for i := range results {
 		job, err := db.createSQLiteDataHistoryJobResponse(results[i])
 		if err != nil {
@@ -500,7 +500,7 @@ func (db *DBService) getRelatedUpcomingJobsPostgres(nickname string) ([]*DataHis
 	if err != nil {
 		return nil, err
 	}
-	var response []*DataHistoryJob
+	response := make([]*DataHistoryJob, 0, len(jobWithRelations.R.JobDatahistoryjobs))
 	for i := range jobWithRelations.R.JobDatahistoryjobs {
 		job, err := db.getByIDPostgres(jobWithRelations.R.JobDatahistoryjobs[i].ID)
 		if err != nil {

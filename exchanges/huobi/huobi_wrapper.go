@@ -1831,9 +1831,9 @@ func (h *HUOBI) GetAvailableTransferChains(ctx context.Context, cryptocurrency c
 		return nil, errors.New("chain data isn't populated")
 	}
 
-	var availableChains []string
+	availableChains := make([]string, len(chains[0].ChainData))
 	for x := range chains[0].ChainData {
-		availableChains = append(availableChains, chains[0].ChainData[x].Chain)
+		availableChains[x] = chains[0].ChainData[x].Chain
 	}
 	return availableChains, nil
 }

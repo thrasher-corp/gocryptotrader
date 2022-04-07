@@ -6,7 +6,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -841,7 +840,7 @@ func jsonifyInterface(params []interface{}) json.RawMessage {
 
 func loadConfig() (Config, error) {
 	var config Config
-	keys, err := ioutil.ReadFile("wrapperconfig.json")
+	keys, err := os.ReadFile("wrapperconfig.json")
 	if err != nil {
 		return config, err
 	}

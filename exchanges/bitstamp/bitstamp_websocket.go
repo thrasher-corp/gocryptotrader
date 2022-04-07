@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	bitstampWSURL = "wss://ws.bitstamp.net"
+	bitstampWSURL = "wss://ws.bitstamp.net" // nolint // gosec false positive
 )
 
 // WsConnect connects to a websocket feed
@@ -255,33 +255,29 @@ func (b *Bitstamp) wsUpdateOrderbook(update websocketOrderBook, p currency.Pair,
 	if len(update.Asks) == 0 && len(update.Bids) == 0 {
 		return errors.New("no orderbook data")
 	}
-	var asks, bids []orderbook.Item
+	asks := make([]orderbook.Item, len(update.Asks))
+	bids := make([]orderbook.Item, len(update.Bids))
 	for i := range update.Asks {
 		target, err := strconv.ParseFloat(update.Asks[i][0], 64)
 		if err != nil {
-			b.Websocket.DataHandler <- err
-			continue
+			return err
 		}
 		amount, err := strconv.ParseFloat(update.Asks[i][1], 64)
 		if err != nil {
-			b.Websocket.DataHandler <- err
-			continue
+			return err
 		}
-		asks = append(asks, orderbook.Item{Price: target, Amount: amount})
+		asks[i] = orderbook.Item{Price: target, Amount: amount}
 	}
 	for i := range update.Bids {
 		target, err := strconv.ParseFloat(update.Bids[i][0], 64)
 		if err != nil {
-			b.Websocket.DataHandler <- err
-			continue
+			return err
 		}
 		amount, err := strconv.ParseFloat(update.Bids[i][1], 64)
 		if err != nil {
-			b.Websocket.DataHandler <- err
-			continue
+			return err
 		}
-
-		bids = append(bids, orderbook.Item{Price: target, Amount: amount})
+		bids[i] = orderbook.Item{Price: target, Amount: amount}
 	}
 	return b.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
 		Bids:            bids,

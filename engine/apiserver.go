@@ -112,8 +112,8 @@ func (m *apiServerManager) newRouter(isREST bool) *mux.Router {
 	if common.ExtractPort(m.websocketListenAddress) == 80 {
 		m.websocketListenAddress = common.ExtractHost(m.websocketListenAddress)
 	} else {
-		m.websocketListenAddress = strings.Join([]string{common.ExtractHost(m.websocketListenAddress),
-			strconv.Itoa(common.ExtractPort(m.websocketListenAddress))}, ":")
+		m.websocketListenAddress = common.ExtractHost(m.websocketListenAddress) + ":" +
+			strconv.Itoa(common.ExtractPort(m.websocketListenAddress))
 	}
 
 	if isREST {
@@ -302,11 +302,13 @@ func (m *apiServerManager) getIndex(w http.ResponseWriter, _ *http.Request) {
 
 // getAllActiveOrderbooks returns all enabled exchanges orderbooks
 func getAllActiveOrderbooks(m iExchangeManager) []EnabledExchangeOrderbooks {
-	var orderbookData []EnabledExchangeOrderbooks
 	exchanges, err := m.GetExchanges()
 	if err != nil {
 		log.Errorf(log.APIServerMgr, "Cannot get exchanges: %v", err)
+		return nil
 	}
+
+	orderbookData := make([]EnabledExchangeOrderbooks, 0, len(exchanges))
 	for x := range exchanges {
 		assets := exchanges[x].GetAssetTypes(true)
 		exchName := exchanges[x].GetName()
@@ -342,11 +344,12 @@ func getAllActiveOrderbooks(m iExchangeManager) []EnabledExchangeOrderbooks {
 
 // getAllActiveTickers returns all enabled exchanges tickers
 func getAllActiveTickers(m iExchangeManager) []EnabledExchangeCurrencies {
-	var tickers []EnabledExchangeCurrencies
 	exchanges, err := m.GetExchanges()
 	if err != nil {
 		log.Errorf(log.APIServerMgr, "Cannot get exchanges: %v", err)
+		return nil
 	}
+	var tickers []EnabledExchangeCurrencies
 	for x := range exchanges {
 		assets := exchanges[x].GetAssetTypes(true)
 		exchName := exchanges[x].GetName()

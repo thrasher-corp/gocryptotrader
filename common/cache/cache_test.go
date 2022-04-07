@@ -20,8 +20,7 @@ func TestCache(t *testing.T) {
 		t.Fatal("expected \"hello\" key to contain value \"world\"")
 	}
 
-	r := lruCache.Remove("hello")
-	if !r {
+	if r := lruCache.Remove("hello"); !r {
 		t.Fatal("expected \"hello\" key to be removed from cache")
 	}
 

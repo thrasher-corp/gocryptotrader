@@ -488,7 +488,7 @@ func (i *instrumentMap) GetInstrumentIDs() []int64 {
 		return nil
 	}
 
-	var instruments []int64
+	instruments := make([]int64, 0, len(i.Instruments))
 	for _, x := range i.Instruments {
 		instruments = append(instruments, x)
 	}

@@ -184,9 +184,9 @@ func TestInformationRatio(t *testing.T) {
 		t.Error(avgComparison)
 	}
 
-	var eachDiff []float64
+	eachDiff := make([]float64, len(figures))
 	for i := range figures {
-		eachDiff = append(eachDiff, figures[i]-comparisonFigures[i])
+		eachDiff[i] = figures[i] - comparisonFigures[i]
 	}
 	stdDev, err := PopulationStandardDeviation(eachDiff)
 	if err != nil {
@@ -583,9 +583,9 @@ func TestDecimalInformationRatio(t *testing.T) {
 		t.Error(avgComparison)
 	}
 
-	var eachDiff []decimal.Decimal
+	eachDiff := make([]decimal.Decimal, len(figures))
 	for i := range figures {
-		eachDiff = append(eachDiff, figures[i].Sub(comparisonFigures[i]))
+		eachDiff[i] = figures[i].Sub(comparisonFigures[i])
 	}
 	stdDev, err := DecimalPopulationStandardDeviation(eachDiff)
 	if err != nil && !errors.Is(err, ErrInexactConversion) {
@@ -703,10 +703,10 @@ func TestDecimalStandardDeviation2(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	var superMean []decimal.Decimal
+	superMean := make([]decimal.Decimal, len(r))
 	for i := range r {
 		result := r[i].Sub(mean).Pow(decimal.NewFromInt(2))
-		superMean = append(superMean, result)
+		superMean[i] = result
 	}
 	superMeany := superMean[0].Add(superMean[1].Add(superMean[2].Add(superMean[3].Add(superMean[4].Add(superMean[5]))))).Div(decimal.NewFromInt(5))
 	fSuperMeany, _ := superMeany.Float64()

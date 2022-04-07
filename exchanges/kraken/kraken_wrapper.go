@@ -666,19 +666,17 @@ func (k *Kraken) GetWithdrawalsHistory(ctx context.Context, c currency.Code) (re
 
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (k *Kraken) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
-	var err error
-	var tradeData []RecentTrades
-	tradeData, err = k.GetTrades(ctx, p)
+	tradeData, err := k.GetTrades(ctx, p)
 	if err != nil {
 		return nil, err
 	}
-	var resp []trade.Data
+	resp := make([]trade.Data, len(tradeData))
 	for i := range tradeData {
 		side := order.Buy
 		if tradeData[i].BuyOrSell == "s" {
 			side = order.Sell
 		}
-		resp = append(resp, trade.Data{
+		resp[i] = trade.Data{
 			Exchange:     k.Name,
 			CurrencyPair: p,
 			AssetType:    assetType,
@@ -686,7 +684,7 @@ func (k *Kraken) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 			Price:        tradeData[i].Price,
 			Amount:       tradeData[i].Volume,
 			Timestamp:    convert.TimeFromUnixTimestampDecimal(tradeData[i].Time),
-		})
+		}
 	}
 
 	err = k.AddTradesToBuffer(resp...)
@@ -809,20 +807,20 @@ func (k *Kraken) CancelOrder(ctx context.Context, o *order.Cancel) error {
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
 func (k *Kraken) CancelBatchOrders(ctx context.Context, orders []order.Cancel) (order.CancelBatchResponse, error) {
-	var ordersList []string
+	if !k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		return order.CancelBatchResponse{}, common.ErrFunctionNotSupported
+	}
+
+	ordersList := make([]string, len(orders))
 	for i := range orders {
 		if err := orders[i].Validate(orders[i].StandardCancel()); err != nil {
 			return order.CancelBatchResponse{}, err
 		}
-		ordersList = append(ordersList, orders[i].ID)
+		ordersList[i] = orders[i].ID
 	}
 
-	if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		err := k.wsCancelOrders(ordersList)
-		return order.CancelBatchResponse{}, err
-	}
-
-	return order.CancelBatchResponse{}, common.ErrFunctionNotSupported
+	err := k.wsCancelOrders(ordersList)
+	return order.CancelBatchResponse{}, err
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
@@ -1555,9 +1553,9 @@ func (k *Kraken) GetAvailableTransferChains(ctx context.Context, cryptocurrency 
 		return nil, err
 	}
 
-	var availableChains []string
+	availableChains := make([]string, len(methods))
 	for x := range methods {
-		availableChains = append(availableChains, methods[x].Method)
+		availableChains[x] = methods[x].Method
 	}
 	return availableChains, nil
 }

@@ -286,7 +286,7 @@ func (c *COINUT) FetchTradablePairs(ctx context.Context, asset asset.Item) ([]st
 	}
 
 	instruments = resp.Instruments
-	var pairs []string
+	pairs := make([]string, 0, len(instruments))
 	for i := range instruments {
 		c.instrumentMap.Seed(instruments[i][0].Base+instruments[i][0].Quote, instruments[i][0].InstrumentID)
 		p := instruments[i][0].Base + format.Delimiter + instruments[i][0].Quote
@@ -548,14 +548,14 @@ func (c *COINUT) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 	if err != nil {
 		return nil, err
 	}
-	var resp []trade.Data
+	resp := make([]trade.Data, len(tradeData.Trades))
 	for i := range tradeData.Trades {
 		var side order.Side
 		side, err = order.StringToOrderSide(tradeData.Trades[i].Side)
 		if err != nil {
 			return nil, err
 		}
-		resp = append(resp, trade.Data{
+		resp[i] = trade.Data{
 			Exchange:     c.Name,
 			TID:          strconv.FormatInt(tradeData.Trades[i].TransactionID, 10),
 			CurrencyPair: p,
@@ -564,7 +564,7 @@ func (c *COINUT) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 			Price:        tradeData.Trades[i].Price,
 			Amount:       tradeData.Trades[i].Quantity,
 			Timestamp:    time.Unix(0, tradeData.Trades[i].Timestamp*int64(time.Microsecond)),
-		})
+		}
 	}
 
 	err = c.AddTradesToBuffer(resp...)

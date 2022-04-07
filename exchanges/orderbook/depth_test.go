@@ -46,7 +46,7 @@ func TestRetrieve(t *testing.T) {
 		pair:             currency.NewPair(currency.THETA, currency.USD),
 		asset:            "Silly asset",
 		lastUpdated:      time.Now(),
-		lastUpdateID:     007,
+		lastUpdateID:     007, // nolint:gocritic //  octal literal false positive
 		priceDuplication: true,
 		isFundingRate:    true,
 		VerifyOrderbook:  true,

@@ -1506,7 +1506,7 @@ func (f *FTX) FetchExchangeLimits(ctx context.Context) ([]order.MinMaxLevel, err
 		return nil, err
 	}
 
-	var limits []order.MinMaxLevel
+	limits := make([]order.MinMaxLevel, 0, len(data))
 	for x := range data {
 		if !data[x].Enabled {
 			continue

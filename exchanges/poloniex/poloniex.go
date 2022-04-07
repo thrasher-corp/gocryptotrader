@@ -105,9 +105,13 @@ func (p *Poloniex) GetOrderbook(ctx context.Context, currencyPair string, depth 
 			if err != nil {
 				return oba, err
 			}
+			amt, ok := resp.Asks[x][1].(float64)
+			if !ok {
+				return oba, errors.New("unable to type assert amount")
+			}
 			ob.Asks = append(ob.Asks, OrderbookItem{
 				Price:  price,
-				Amount: resp.Asks[x][1].(float64),
+				Amount: amt,
 			})
 		}
 
@@ -116,9 +120,13 @@ func (p *Poloniex) GetOrderbook(ctx context.Context, currencyPair string, depth 
 			if err != nil {
 				return oba, err
 			}
+			amt, ok := resp.Bids[x][1].(float64)
+			if !ok {
+				return oba, errors.New("unable to type assert amount")
+			}
 			ob.Bids = append(ob.Bids, OrderbookItem{
 				Price:  price,
-				Amount: resp.Bids[x][1].(float64),
+				Amount: amt,
 			})
 		}
 		oba.Data[currencyPair] = ob
@@ -440,7 +448,7 @@ func (p *Poloniex) GetAuthenticatedOrderStatus(ctx context.Context, orderID stri
 		if err != nil {
 			return o, err
 		}
-		return o, fmt.Errorf(errMsg.Error)
+		return o, errors.New(errMsg.Error)
 	case 1: // success
 		var status map[string]OrderStatusData
 		err = json.Unmarshal(rawOrderStatus.Result, &status)
@@ -483,7 +491,7 @@ func (p *Poloniex) GetAuthenticatedOrderTrades(ctx context.Context, orderID stri
 			return nil, err
 		}
 		if resp.Error != "" {
-			err = fmt.Errorf(resp.Error)
+			err = errors.New(resp.Error)
 		}
 	case '[': // data received
 		err = json.Unmarshal(result, &o)
