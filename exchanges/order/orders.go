@@ -733,20 +733,21 @@ func SortOrdersBySide(orders *[]Detail, reverse bool) {
 // StringToOrderSide for converting case insensitive order side
 // and returning a real Side
 func StringToOrderSide(side string) (Side, error) {
-	switch {
-	case strings.EqualFold(side, Buy.String()):
+	side = strings.ToUpper(side)
+	switch Side(side) {
+	case Buy:
 		return Buy, nil
-	case strings.EqualFold(side, Sell.String()):
+	case Sell:
 		return Sell, nil
-	case strings.EqualFold(side, Bid.String()):
+	case Bid:
 		return Bid, nil
-	case strings.EqualFold(side, Ask.String()):
+	case Ask:
 		return Ask, nil
-	case strings.EqualFold(side, Long.String()):
+	case Long:
 		return Long, nil
-	case strings.EqualFold(side, Short.String()):
+	case Short:
 		return Short, nil
-	case strings.EqualFold(side, AnySide.String()):
+	case AnySide:
 		return AnySide, nil
 	default:
 		return UnknownSide, errors.New(side + " not recognised as order side")
@@ -756,40 +757,29 @@ func StringToOrderSide(side string) (Side, error) {
 // StringToOrderType for converting case insensitive order type
 // and returning a real Type
 func StringToOrderType(oType string) (Type, error) {
-	switch {
-	case strings.EqualFold(oType, Limit.String()),
-		strings.EqualFold(oType, "EXCHANGE LIMIT"):
+	oType = strings.ToUpper(oType)
+	switch oType {
+	case Limit.String(), "EXCHANGE LIMIT":
 		return Limit, nil
-	case strings.EqualFold(oType, Market.String()),
-		strings.EqualFold(oType, "EXCHANGE MARKET"):
+	case Market.String(), "EXCHANGE MARKET":
 		return Market, nil
-	case strings.EqualFold(oType, ImmediateOrCancel.String()),
-		strings.EqualFold(oType, "immediate or cancel"),
-		strings.EqualFold(oType, "IOC"),
-		strings.EqualFold(oType, "EXCHANGE IOC"):
+	case ImmediateOrCancel.String(), "IMMEDIATE OR CANCEL", "IOC", "EXCHANGE IOC":
 		return ImmediateOrCancel, nil
-	case strings.EqualFold(oType, Stop.String()),
-		strings.EqualFold(oType, "stop loss"),
-		strings.EqualFold(oType, "stop_loss"),
-		strings.EqualFold(oType, "EXCHANGE STOP"):
+	case Stop.String(), "STOP LOSS", "STOP_LOSS", "EXCHANGE STOP":
 		return Stop, nil
-	case strings.EqualFold(oType, StopLimit.String()),
-		strings.EqualFold(oType, "EXCHANGE STOP LIMIT"):
+	case StopLimit.String(), "EXCHANGE STOP LIMIT":
 		return StopLimit, nil
-	case strings.EqualFold(oType, TrailingStop.String()),
-		strings.EqualFold(oType, "trailing stop"),
-		strings.EqualFold(oType, "EXCHANGE TRAILING STOP"):
+	case TrailingStop.String(), "TRAILING STOP", "EXCHANGE TRAILING STOP":
 		return TrailingStop, nil
-	case strings.EqualFold(oType, FillOrKill.String()),
-		strings.EqualFold(oType, "EXCHANGE FOK"):
+	case FillOrKill.String(), "EXCHANGE FOK":
 		return FillOrKill, nil
-	case strings.EqualFold(oType, IOS.String()):
+	case IOS.String():
 		return IOS, nil
-	case strings.EqualFold(oType, PostOnly.String()):
+	case PostOnly.String():
 		return PostOnly, nil
-	case strings.EqualFold(oType, AnyType.String()):
+	case AnyType.String():
 		return AnyType, nil
-	case strings.EqualFold(oType, Trigger.String()):
+	case Trigger.String():
 		return Trigger, nil
 	default:
 		return UnknownType, errors.New(oType + " not recognised as order type")
@@ -799,49 +789,39 @@ func StringToOrderType(oType string) (Type, error) {
 // StringToOrderStatus for converting case insensitive order status
 // and returning a real Status
 func StringToOrderStatus(status string) (Status, error) {
-	switch {
-	case strings.EqualFold(status, AnyStatus.String()):
+	status = strings.ToUpper(status)
+	switch status {
+	case AnyStatus.String():
 		return AnyStatus, nil
-	case strings.EqualFold(status, New.String()),
-		strings.EqualFold(status, "placed"):
+	case New.String(), "PLACED":
 		return New, nil
-	case strings.EqualFold(status, Active.String()),
-		strings.EqualFold(status, "STATUS_ACTIVE"): // BTSE case
+	case Active.String(), "STATUS_ACTIVE": // BTSE case
 		return Active, nil
-	case strings.EqualFold(status, PartiallyFilled.String()),
-		strings.EqualFold(status, "partially matched"),
-		strings.EqualFold(status, "partially filled"):
+	case PartiallyFilled.String(), "PARTIALLY MATCHED", "PARTIALLY FILLED":
 		return PartiallyFilled, nil
-	case strings.EqualFold(status, Filled.String()),
-		strings.EqualFold(status, "fully matched"),
-		strings.EqualFold(status, "fully filled"),
-		strings.EqualFold(status, "ORDER_FULLY_TRANSACTED"): // BTSE case
+	case Filled.String(), "FULLY MATCHED", "FULLY FILLED", "ORDER_FULLY_TRANSACTED": // BTSE case
 		return Filled, nil
-	case strings.EqualFold(status, PartiallyCancelled.String()),
-		strings.EqualFold(status, "partially cancelled"),
-		strings.EqualFold(status, "ORDER_PARTIALLY_TRANSACTED"): // BTSE case
+	case PartiallyCancelled.String(), "PARTIALLY CANCELLED", "ORDER_PARTIALLY_TRANSACTED": // BTSE case
 		return PartiallyCancelled, nil
-	case strings.EqualFold(status, Open.String()):
+	case Open.String():
 		return Open, nil
-	case strings.EqualFold(status, Closed.String()):
+	case Closed.String():
 		return Closed, nil
-	case strings.EqualFold(status, Cancelled.String()),
-		strings.EqualFold(status, "CANCELED"),        // Binance and Kraken case
-		strings.EqualFold(status, "ORDER_CANCELLED"): // BTSE case
+	case Cancelled.String(),
+		"CANCELED",        // Binance and Kraken case
+		"ORDER_CANCELLED": // BTSE case
 		return Cancelled, nil
-	case strings.EqualFold(status, PendingCancel.String()),
-		strings.EqualFold(status, "pending cancel"),
-		strings.EqualFold(status, "pending cancellation"):
+	case PendingCancel.String(), "PENDING CANCEL", "PENDING CANCELLATION":
 		return PendingCancel, nil
-	case strings.EqualFold(status, Rejected.String()):
+	case Rejected.String():
 		return Rejected, nil
-	case strings.EqualFold(status, Expired.String()):
+	case Expired.String():
 		return Expired, nil
-	case strings.EqualFold(status, Hidden.String()):
+	case Hidden.String():
 		return Hidden, nil
-	case strings.EqualFold(status, InsufficientBalance.String()):
+	case InsufficientBalance.String():
 		return InsufficientBalance, nil
-	case strings.EqualFold(status, MarketUnavailable.String()):
+	case MarketUnavailable.String():
 		return MarketUnavailable, nil
 	default:
 		return UnknownStatus, errors.New(status + " not recognised as order status")
