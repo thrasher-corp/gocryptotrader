@@ -28,8 +28,6 @@ environment:
   PSQL_SSLMODE: disable
   PSQL_SKIPSQLCMD: true
   PSQL_TESTDBNAME: gct_dev_ci
-  GOROOT: C:\go117
-  GOBIN: C:\go117\bin\
   
 stack: go 1.17.8
 
@@ -37,7 +35,8 @@ services:
   - postgresql96
 
 init:
-  - SET PATH=%POSTGRES_PATH%\bin;%PATH%
+  - set PATH=%POSTGRES_PATH%\bin;%PATH%
+  - set PATH=C:\go117\bin;%PATH%
 
 install:
   - set Path=C:\mingw-w64\x86_64-8.1.0-posix-seh-rt_v6-rev0\mingw64\bin;%Path%
