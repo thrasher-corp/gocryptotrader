@@ -1833,7 +1833,11 @@ func (s *RPCServer) WithdrawalEventsByExchange(ctx context.Context, r *gctrpc.Wi
 			}
 
 			c := currency.NewCode(strings.ToUpper(r.Currency))
-			ret, err := exch.GetWithdrawalsHistory(ctx, c)
+			a, err := asset.New(r.AssetType)
+			if err != nil {
+				return nil, err
+			}
+			ret, err := exch.GetWithdrawalsHistory(ctx, c, a)
 			if err != nil {
 				return nil, err
 			}
