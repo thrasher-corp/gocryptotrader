@@ -2,6 +2,8 @@ package cache
 
 import (
 	"testing"
+
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 )
 
 func TestCache(t *testing.T) {
@@ -16,7 +18,7 @@ func TestCache(t *testing.T) {
 	if v == nil {
 		t.Fatal("expected cache to contain \"hello\" key")
 	}
-	if v.(string) != "world" {
+	if convert.InterfaceToStringOrZeroValue(v) != "world" {
 		t.Fatal("expected \"hello\" key to contain value \"world\"")
 	}
 
@@ -76,39 +78,39 @@ func TestAdd(t *testing.T) {
 	if v == nil {
 		t.Fatal("expected cache to contain \"2\" key")
 	}
-	if v.(int) != 2 {
+	if convert.InterfaceToIntOrZeroValue(v) != 2 {
 		t.Fatal("expected \"2\" key to contain value \"2\"")
 	}
 	k, v := lruCache.getNewest()
-	if k.(int) != 2 {
+	if convert.InterfaceToIntOrZeroValue(k) != 2 {
 		t.Fatal("expected latest key to be 2")
 	}
-	if v.(int) != 2 {
+	if convert.InterfaceToIntOrZeroValue(v) != 2 {
 		t.Fatal("expected latest value to be 2")
 	}
 	lruCache.Add(3, 3)
 	k, _ = lruCache.getNewest()
-	if k.(int) != 3 {
+	if convert.InterfaceToIntOrZeroValue(k) != 3 {
 		t.Fatal("expected latest key to be 3")
 	}
 	k, _ = lruCache.getOldest()
-	if k.(int) != 2 {
+	if convert.InterfaceToIntOrZeroValue(k) != 2 {
 		t.Fatal("expected oldest key to be 2")
 	}
 	k, v = lruCache.getOldest()
-	if k.(int) != 2 {
+	if convert.InterfaceToIntOrZeroValue(k) != 2 {
 		t.Fatal("expected oldest key to be 2")
 	}
-	if v.(int) != 2 {
+	if convert.InterfaceToIntOrZeroValue(v) != 2 {
 		t.Fatal("expected latest value to be 2")
 	}
 	lruCache.Add(2, 2)
 	k, _ = lruCache.getNewest()
-	if k.(int) != 2 {
+	if convert.InterfaceToIntOrZeroValue(k) != 2 {
 		t.Fatal("expected latest key to be 2")
 	}
 	k, _ = lruCache.getOldest()
-	if k.(int) != 3 {
+	if convert.InterfaceToIntOrZeroValue(k) != 3 {
 		t.Fatal("expected oldest key to be 3")
 	}
 }

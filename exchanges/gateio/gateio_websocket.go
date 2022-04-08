@@ -313,6 +313,22 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
+
+		orderID, ok := invalidJSON["id"].(float64)
+		if !ok {
+			return errors.New("unable to type assert order id")
+		}
+
+		ctime, ok := invalidJSON["ctime"].(float64)
+		if !ok {
+			return errors.New("unable to type assert ctime")
+		}
+
+		mtime, ok := invalidJSON["mtime"].(float64)
+		if !ok {
+			return errors.New("unable to type assert mtime")
+		}
+
 		g.Websocket.DataHandler <- &order.Detail{
 			Price:           price,
 			Amount:          amount,
@@ -320,13 +336,13 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 			RemainingAmount: left,
 			Fee:             fee,
 			Exchange:        g.Name,
-			ID:              strconv.FormatFloat(invalidJSON["id"].(float64), 'f', -1, 64),
+			ID:              strconv.FormatFloat(orderID, 'f', -1, 64),
 			Type:            oType,
 			Side:            oSide,
 			Status:          oStatus,
 			AssetType:       a,
-			Date:            convert.TimeFromUnixTimestampDecimal(invalidJSON["ctime"].(float64)),
-			LastUpdated:     convert.TimeFromUnixTimestampDecimal(invalidJSON["mtime"].(float64)),
+			Date:            convert.TimeFromUnixTimestampDecimal(ctime),
+			LastUpdated:     convert.TimeFromUnixTimestampDecimal(mtime),
 			Pair:            p,
 		}
 	case strings.Contains(result.Method, "depth"):

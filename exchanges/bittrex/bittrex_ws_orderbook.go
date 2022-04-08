@@ -49,19 +49,19 @@ func (b *Bittrex) setupOrderbookManager() {
 
 // ProcessUpdateOB processes the websocket orderbook update
 func (b *Bittrex) ProcessUpdateOB(pair currency.Pair, message *OrderbookUpdateMessage) error {
-	var updateBids []orderbook.Item
+	updateBids := make([]orderbook.Item, len(message.BidDeltas))
 	for x := range message.BidDeltas {
-		updateBids = append(updateBids, orderbook.Item{
+		updateBids[x] = orderbook.Item{
 			Price:  message.BidDeltas[x].Rate,
 			Amount: message.BidDeltas[x].Quantity,
-		})
+		}
 	}
-	var updateAsks []orderbook.Item
+	updateAsks := make([]orderbook.Item, len(message.AskDeltas))
 	for x := range message.AskDeltas {
-		updateAsks = append(updateAsks, orderbook.Item{
+		updateAsks[x] = orderbook.Item{
 			Price:  message.AskDeltas[x].Rate,
 			Amount: message.AskDeltas[x].Quantity,
-		})
+		}
 	}
 
 	return b.Websocket.Orderbook.Update(&buffer.Update{

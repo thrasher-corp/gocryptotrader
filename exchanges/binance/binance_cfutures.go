@@ -232,13 +232,11 @@ func (b *Binance) GetIndexAndMarkPrice(ctx context.Context, symbol, pair string)
 
 // GetFuturesKlineData gets futures kline data for CoinMarginedFutures,
 func (b *Binance) GetFuturesKlineData(ctx context.Context, symbol currency.Pair, interval string, limit int64, startTime, endTime time.Time) ([]FuturesCandleStick, error) {
-	var data [][10]interface{}
-	var resp []FuturesCandleStick
 	params := url.Values{}
 	if !symbol.IsEmpty() {
 		symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		params.Set("symbol", symbolValue)
 	}
@@ -246,453 +244,462 @@ func (b *Binance) GetFuturesKlineData(ctx context.Context, symbol currency.Pair,
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !common.StringDataCompare(validFuturesIntervals, interval) {
-		return resp, errors.New("invalid interval parsed")
+		return nil, errors.New("invalid interval parsed")
 	}
 	params.Set("interval", interval)
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if startTime.After(endTime) {
-			return resp, errors.New("startTime cannot be after endTime")
+			return nil, errors.New("startTime cannot be after endTime")
 		}
 		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
 		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
 	}
+
+	var data [][10]interface{}
 	rateBudget := getKlineRateBudget(limit)
 	err := b.SendHTTPRequest(ctx, exchange.RestCoinMargined, cfuturesKlineData+params.Encode(), rateBudget, &data)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
-	var floatData float64
-	var strData string
-	var ok bool
-	var tempData FuturesCandleStick
+
+	resp := make([]FuturesCandleStick, len(data))
 	for x := range data {
+		var floatData float64
+		var strData string
+		var ok bool
+		var tempData FuturesCandleStick
 		floatData, ok = data[x][0].(float64)
 		if !ok {
-			return resp, errors.New("type assertion failed for open time")
+			return nil, errors.New("type assertion failed for open time")
 		}
 		tempData.OpenTime = time.Unix(int64(floatData), 0)
 		strData, ok = data[x][1].(string)
 		if !ok {
-			return resp, errors.New("type assertion failed for open")
+			return nil, errors.New("type assertion failed for open")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		tempData.Open = floatData
 		strData, ok = data[x][2].(string)
 		if !ok {
-			return resp, errors.New("type assertion failed for high")
+			return nil, errors.New("type assertion failed for high")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		tempData.High = floatData
 		strData, ok = data[x][3].(string)
 		if !ok {
-			return resp, errors.New("type assertion failed for low")
+			return nil, errors.New("type assertion failed for low")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		tempData.Low = floatData
 		strData, ok = data[x][4].(string)
 		if !ok {
-			return resp, errors.New("type assertion failed for close")
+			return nil, errors.New("type assertion failed for close")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		tempData.Close = floatData
 		strData, ok = data[x][5].(string)
 		if !ok {
-			return resp, errors.New("type assertion failed for volume")
+			return nil, errors.New("type assertion failed for volume")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		tempData.Volume = floatData
 		floatData, ok = data[x][6].(float64)
 		if !ok {
-			return resp, errors.New("type assertion failed for close time")
+			return nil, errors.New("type assertion failed for close time")
 		}
 		tempData.CloseTime = time.Unix(int64(floatData), 0)
 		strData, ok = data[x][7].(string)
 		if !ok {
-			return resp, errors.New("type assertion failed for base asset volume")
+			return nil, errors.New("type assertion failed for base asset volume")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		tempData.BaseAssetVolume = floatData
 		floatData, ok = data[x][8].(float64)
 		if !ok {
-			return resp, errors.New("type assertion failed for taker buy volume")
+			return nil, errors.New("type assertion failed for taker buy volume")
 		}
 		tempData.TakerBuyVolume = floatData
 		strData, ok = data[x][9].(string)
 		if !ok {
-			return resp, errors.New("type assertion failed for taker buy base asset volume")
+			return nil, errors.New("type assertion failed for taker buy base asset volume")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		tempData.TakerBuyBaseAssetVolume = floatData
-		resp = append(resp, tempData)
+		resp[x] = tempData
 	}
 	return resp, nil
 }
 
 // GetContinuousKlineData gets continuous kline data
 func (b *Binance) GetContinuousKlineData(ctx context.Context, pair, contractType, interval string, limit int64, startTime, endTime time.Time) ([]FuturesCandleStick, error) {
-	var data [][10]interface{}
-	var resp []FuturesCandleStick
 	params := url.Values{}
 	params.Set("pair", pair)
 	if !common.StringDataCompare(validContractType, contractType) {
-		return resp, errors.New("invalid contractType")
+		return nil, errors.New("invalid contractType")
 	}
 	params.Set("contractType", contractType)
 	if limit > 0 && limit <= 1500 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !common.StringDataCompare(validFuturesIntervals, interval) {
-		return resp, errors.New("invalid interval parsed")
+		return nil, errors.New("invalid interval parsed")
 	}
 	params.Set("interval", interval)
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if startTime.After(endTime) {
-			return resp, errors.New("startTime cannot be after endTime")
+			return nil, errors.New("startTime cannot be after endTime")
 		}
 		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
 		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
 	}
 
 	rateBudget := getKlineRateBudget(limit)
+	var data [][10]interface{}
 	err := b.SendHTTPRequest(ctx, exchange.RestCoinMargined, cfuturesContinuousKline+params.Encode(), rateBudget, &data)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
-	var floatData float64
-	var strData string
-	var ok bool
-	var tempData FuturesCandleStick
+
+	resp := make([]FuturesCandleStick, len(data))
 	for x := range data {
+		var floatData float64
+		var strData string
+		var ok bool
+		var tempData FuturesCandleStick
 		floatData, ok = data[x][0].(float64)
 		if !ok {
-			return resp, errors.New("type assertion failed for open time")
+			return nil, errors.New("type assertion failed for open time")
 		}
 		tempData.OpenTime = time.Unix(int64(floatData), 0)
 		strData, ok = data[x][1].(string)
 		if !ok {
-			return resp, errors.New("type assertion failed for open")
+			return nil, errors.New("type assertion failed for open")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		tempData.Open = floatData
 		strData, ok = data[x][2].(string)
 		if !ok {
-			return resp, errors.New("type assertion failed for high")
+			return nil, errors.New("type assertion failed for high")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		tempData.High = floatData
 		strData, ok = data[x][3].(string)
 		if !ok {
-			return resp, errors.New("type assertion failed for low")
+			return nil, errors.New("type assertion failed for low")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		tempData.Low = floatData
 		strData, ok = data[x][4].(string)
 		if !ok {
-			return resp, errors.New("type assertion failed for close")
+			return nil, errors.New("type assertion failed for close")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		tempData.Close = floatData
 		strData, ok = data[x][5].(string)
 		if !ok {
-			return resp, errors.New("type assertion failed for volume")
+			return nil, errors.New("type assertion failed for volume")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		tempData.Volume = floatData
 		floatData, ok = data[x][6].(float64)
 		if !ok {
-			return resp, errors.New("type assertion failed for close time")
+			return nil, errors.New("type assertion failed for close time")
 		}
 		tempData.CloseTime = time.Unix(int64(floatData), 0)
 		strData, ok = data[x][7].(string)
 		if !ok {
-			return resp, errors.New("type assertion failed for base asset volume")
+			return nil, errors.New("type assertion failed for base asset volume")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		tempData.BaseAssetVolume = floatData
 		floatData, ok = data[x][8].(float64)
 		if !ok {
-			return resp, errors.New("type assertion failed for taker buy volume")
+			return nil, errors.New("type assertion failed for taker buy volume")
 		}
 		tempData.TakerBuyVolume = floatData
 		strData, ok = data[x][9].(string)
 		if !ok {
-			return resp, errors.New("type assertion failed for taker buy base asset volume")
+			return nil, errors.New("type assertion failed for taker buy base asset volume")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		tempData.TakerBuyBaseAssetVolume = floatData
-		resp = append(resp, tempData)
+		resp[x] = tempData
 	}
 	return resp, nil
 }
 
 // GetIndexPriceKlines gets continuous kline data
 func (b *Binance) GetIndexPriceKlines(ctx context.Context, pair, interval string, limit int64, startTime, endTime time.Time) ([]FuturesCandleStick, error) {
-	var data [][10]interface{}
-	var resp []FuturesCandleStick
 	params := url.Values{}
 	params.Set("pair", pair)
 	if limit > 0 && limit <= 1500 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !common.StringDataCompare(validFuturesIntervals, interval) {
-		return resp, errors.New("invalid interval parsed")
+		return nil, errors.New("invalid interval parsed")
 	}
 	params.Set("interval", interval)
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if startTime.After(endTime) {
-			return resp, errors.New("startTime cannot be after endTime")
+			return nil, errors.New("startTime cannot be after endTime")
 		}
 		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
 		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
 	}
+
 	rateBudget := getKlineRateBudget(limit)
+	var data [][10]interface{}
 	err := b.SendHTTPRequest(ctx, exchange.RestCoinMargined, cfuturesIndexKline+params.Encode(), rateBudget, &data)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
-	var floatData float64
-	var strData string
-	var ok bool
-	var tempData FuturesCandleStick
+
+	resp := make([]FuturesCandleStick, len(data))
 	for x := range data {
+		var floatData float64
+		var strData string
+		var ok bool
+		var tempData FuturesCandleStick
 		floatData, ok = data[x][0].(float64)
 		if !ok {
-			return resp, errors.New("type assertion failed for open time")
+			return nil, errors.New("type assertion failed for open time")
 		}
 		tempData.OpenTime = time.Unix(int64(floatData), 0)
 		strData, ok = data[x][1].(string)
 		if !ok {
-			return resp, errors.New("type assertion failed for open")
+			return nil, errors.New("type assertion failed for open")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		tempData.Open = floatData
 		strData, ok = data[x][2].(string)
 		if !ok {
-			return resp, errors.New("type assertion failed for high")
+			return nil, errors.New("type assertion failed for high")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		tempData.High = floatData
 		strData, ok = data[x][3].(string)
 		if !ok {
-			return resp, errors.New("type assertion failed for low")
+			return nil, errors.New("type assertion failed for low")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		tempData.Low = floatData
 		strData, ok = data[x][4].(string)
 		if !ok {
-			return resp, errors.New("type assertion failed for close")
+			return nil, errors.New("type assertion failed for close")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		tempData.Close = floatData
 		strData, ok = data[x][5].(string)
 		if !ok {
-			return resp, errors.New("type assertion failed for volume")
+			return nil, errors.New("type assertion failed for volume")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		tempData.Volume = floatData
 		floatData, ok = data[x][6].(float64)
 		if !ok {
-			return resp, errors.New("type assertion failed for close time")
+			return nil, errors.New("type assertion failed for close time")
 		}
 		tempData.CloseTime = time.Unix(int64(floatData), 0)
 		strData, ok = data[x][7].(string)
 		if !ok {
-			return resp, errors.New("type assertion failed for base asset volume")
+			return nil, errors.New("type assertion failed for base asset volume")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		tempData.BaseAssetVolume = floatData
 		floatData, ok = data[x][8].(float64)
 		if !ok {
-			return resp, errors.New("type assertion failed for taker buy volume")
+			return nil, errors.New("type assertion failed for taker buy volume")
 		}
 		tempData.TakerBuyVolume = floatData
 		strData, ok = data[x][9].(string)
 		if !ok {
-			return resp, errors.New("type assertion failed for taker buy base asset volume")
+			return nil, errors.New("type assertion failed for taker buy base asset volume")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		tempData.TakerBuyBaseAssetVolume = floatData
-		resp = append(resp, tempData)
+		resp[x] = tempData
 	}
 	return resp, nil
 }
 
 // GetMarkPriceKline gets mark price kline data
 func (b *Binance) GetMarkPriceKline(ctx context.Context, symbol currency.Pair, interval string, limit int64, startTime, endTime time.Time) ([]FuturesCandleStick, error) {
-	var data [][10]interface{}
-	var resp []FuturesCandleStick
-	params := url.Values{}
 	symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
+	params := url.Values{}
 	params.Set("symbol", symbolValue)
 	if limit > 0 && limit <= 1500 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !common.StringDataCompare(validFuturesIntervals, interval) {
-		return resp, errors.New("invalid interval parsed")
+		return nil, errors.New("invalid interval parsed")
 	}
 	params.Set("interval", interval)
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if startTime.After(endTime) {
-			return resp, errors.New("startTime cannot be after endTime")
+			return nil, errors.New("startTime cannot be after endTime")
 		}
 		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
 		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
 	}
+
+	var data [][10]interface{}
 	rateBudget := getKlineRateBudget(limit)
 	err = b.SendHTTPRequest(ctx, exchange.RestCoinMargined, cfuturesMarkPriceKline+params.Encode(), rateBudget, &data)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
-	var floatData float64
-	var strData string
-	var ok bool
-	var tempData FuturesCandleStick
+
+	resp := make([]FuturesCandleStick, len(data))
 	for x := range data {
+		var floatData float64
+		var strData string
+		var ok bool
+		var tempData FuturesCandleStick
 		floatData, ok = data[x][0].(float64)
 		if !ok {
-			return resp, errors.New("type assertion failed for open time")
+			return nil, errors.New("type assertion failed for open time")
 		}
 		tempData.OpenTime = time.Unix(int64(floatData), 0)
 		strData, ok = data[x][1].(string)
 		if !ok {
-			return resp, errors.New("type assertion failed for open")
+			return nil, errors.New("type assertion failed for open")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		tempData.Open = floatData
 		strData, ok = data[x][2].(string)
 		if !ok {
-			return resp, errors.New("type assertion failed for high")
+			return nil, errors.New("type assertion failed for high")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		tempData.High = floatData
 		strData, ok = data[x][3].(string)
 		if !ok {
-			return resp, errors.New("type assertion failed for low")
+			return nil, errors.New("type assertion failed for low")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		tempData.Low = floatData
 		strData, ok = data[x][4].(string)
 		if !ok {
-			return resp, errors.New("type assertion failed for close")
+			return nil, errors.New("type assertion failed for close")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		tempData.Close = floatData
 		strData, ok = data[x][5].(string)
 		if !ok {
-			return resp, errors.New("type assertion failed for volume")
+			return nil, errors.New("type assertion failed for volume")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		tempData.Volume = floatData
 		floatData, ok = data[x][6].(float64)
 		if !ok {
-			return resp, errors.New("type assertion failed for close time")
+			return nil, errors.New("type assertion failed for close time")
 		}
 		tempData.CloseTime = time.Unix(int64(floatData), 0)
 		strData, ok = data[x][7].(string)
 		if !ok {
-			return resp, errors.New("type assertion failed for base asset volume")
+			return nil, errors.New("type assertion failed for base asset volume")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		tempData.BaseAssetVolume = floatData
 		floatData, ok = data[x][8].(float64)
 		if !ok {
-			return resp, errors.New("type assertion failed for taker buy volume")
+			return nil, errors.New("type assertion failed for taker buy volume")
 		}
 		tempData.TakerBuyVolume = floatData
 		strData, ok = data[x][9].(string)
 		if !ok {
-			return resp, errors.New("type assertion failed for taker buy base asset volume")
+			return nil, errors.New("type assertion failed for taker buy base asset volume")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		tempData.TakerBuyBaseAssetVolume = floatData
-		resp = append(resp, tempData)
+		resp[x] = tempData
 	}
 	return resp, nil
 }
@@ -1466,12 +1473,12 @@ func (b *Binance) FuturesPositionsADLEstimate(ctx context.Context, symbol curren
 
 // FetchCoinMarginExchangeLimits fetches coin margined order execution limits
 func (b *Binance) FetchCoinMarginExchangeLimits(ctx context.Context) ([]order.MinMaxLevel, error) {
-	var limits []order.MinMaxLevel
 	coinFutures, err := b.FuturesExchangeInfo(ctx)
 	if err != nil {
 		return nil, err
 	}
 
+	limits := make([]order.MinMaxLevel, 0, len(coinFutures.Symbols))
 	for x := range coinFutures.Symbols {
 		symbol := strings.Split(coinFutures.Symbols[x].Symbol, currency.UnderscoreDelimiter)
 		var cp currency.Pair

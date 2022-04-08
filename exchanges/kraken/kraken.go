@@ -234,7 +234,7 @@ func (k *Kraken) GetOHLC(ctx context.Context, symbol currency.Pair, interval str
 		return nil, errors.New("invalid data returned")
 	}
 
-	var OHLC []OpenHighLowClose
+	OHLC := make([]OpenHighLowClose, len(ohlcData))
 	for x := range ohlcData {
 		subData, ok := ohlcData[x].([]interface{})
 		if !ok {
@@ -270,7 +270,7 @@ func (k *Kraken) GetOHLC(ctx context.Context, symbol currency.Pair, interval str
 		if o.Count, ok = subData[7].(float64); !ok {
 			return nil, errors.New("unable to type assert count")
 		}
-		OHLC = append(OHLC, o)
+		OHLC[x] = o
 	}
 	return OHLC, nil
 }
@@ -364,7 +364,6 @@ func (k *Kraken) GetTrades(ctx context.Context, symbol currency.Pair) ([]RecentT
 	translatedAsset := assetTranslator.LookupCurrency(symbolValue)
 	values.Set("pair", translatedAsset)
 
-	var recentTrades []RecentTrades
 	var result interface{}
 
 	path := fmt.Sprintf("/%s/public/%s?%s", krakenAPIVersion, krakenTrades, values.Encode())
@@ -422,10 +421,11 @@ func (k *Kraken) GetTrades(ctx context.Context, symbol currency.Pair) ([]RecentT
 		return nil, fmt.Errorf("no trades returned for symbol %v", symbol)
 	}
 
-	for _, x := range trades {
+	recentTrades := make([]RecentTrades, len(trades))
+	for x := range trades {
 		r := RecentTrades{}
 		var individualTrade []interface{}
-		individualTrade, ok = x.([]interface{})
+		individualTrade, ok = trades[x].([]interface{})
 		if !ok {
 			return nil, errors.New("unable to parse individual trade data")
 		}
@@ -456,7 +456,7 @@ func (k *Kraken) GetTrades(ctx context.Context, symbol currency.Pair) ([]RecentT
 		if !ok {
 			return nil, errors.New("unable to parse misc field for individual trade data")
 		}
-		recentTrades = append(recentTrades, r)
+		recentTrades[x] = r
 	}
 	return recentTrades, nil
 }

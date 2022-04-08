@@ -834,15 +834,16 @@ func (b *Binance) GetWithdrawalsHistory(ctx context.Context, c currency.Code) (r
 
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (b *Binance) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
-	var resp []trade.Data
-	limit := 1000
+	const limit = 1000
 	tradeData, err := b.GetMostRecentTrades(ctx,
 		RecentTradeRequestParams{p, limit})
 	if err != nil {
 		return nil, err
 	}
+
+	resp := make([]trade.Data, len(tradeData))
 	for i := range tradeData {
-		resp = append(resp, trade.Data{
+		resp[i] = trade.Data{
 			TID:          strconv.FormatInt(tradeData[i].ID, 10),
 			Exchange:     b.Name,
 			CurrencyPair: p,
@@ -850,7 +851,7 @@ func (b *Binance) GetRecentTrades(ctx context.Context, p currency.Pair, assetTyp
 			Price:        tradeData[i].Price,
 			Amount:       tradeData[i].Quantity,
 			Timestamp:    tradeData[i].Time,
-		})
+		}
 	}
 	if b.IsSaveTradeDataEnabled() {
 		err := trade.AddTradesToBuffer(b.Name, resp...)
@@ -874,11 +875,11 @@ func (b *Binance) GetHistoricTrades(ctx context.Context, p currency.Pair, a asse
 	if err != nil {
 		return nil, err
 	}
-	var result []trade.Data
+	result := make([]trade.Data, len(trades))
 	exName := b.GetName()
 	for i := range trades {
 		t := trades[i].toTradeData(p, exName, a)
-		result = append(result, *t)
+		result[i] = *t
 	}
 	return result, nil
 }

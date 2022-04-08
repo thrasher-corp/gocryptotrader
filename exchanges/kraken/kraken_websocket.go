@@ -767,7 +767,7 @@ func (k *Kraken) wsProcessTrades(channelData *WebsocketChannelData, data []inter
 	if !k.IsSaveTradeDataEnabled() {
 		return nil
 	}
-	var trades []trade.Data
+	trades := make([]trade.Data, len(data))
 	for i := range data {
 		t, ok := data[i].([]interface{})
 		if !ok {
@@ -796,7 +796,7 @@ func (k *Kraken) wsProcessTrades(channelData *WebsocketChannelData, data []inter
 			tSide = order.Sell
 		}
 
-		trades = append(trades, trade.Data{
+		trades[i] = trade.Data{
 			AssetType:    asset.Spot,
 			CurrencyPair: channelData.Pair,
 			Exchange:     k.Name,
@@ -804,7 +804,7 @@ func (k *Kraken) wsProcessTrades(channelData *WebsocketChannelData, data []inter
 			Amount:       amount,
 			Timestamp:    convert.TimeFromUnixTimestampDecimal(timeData),
 			Side:         tSide,
-		})
+		}
 	}
 	return trade.AddTradesToBuffer(k.Name, trades...)
 }

@@ -461,7 +461,7 @@ func (o *OKGroup) wsProcessTrades(respRaw []byte) error {
 	}
 
 	a := o.GetAssetTypeFromTableName(response.Table)
-	var trades []trade.Data
+	trades := make([]trade.Data, len(response.Data))
 	for i := range response.Data {
 		f := strings.Split(response.Data[i].InstrumentID, delimiterDash)
 
@@ -487,7 +487,7 @@ func (o *OKGroup) wsProcessTrades(respRaw []byte) error {
 		if response.Data[i].Quantity != 0 {
 			amount = response.Data[i].Quantity
 		}
-		trades = append(trades, trade.Data{
+		trades[i] = trade.Data{
 			Amount:       amount,
 			AssetType:    o.GetAssetTypeFromTableName(response.Table),
 			CurrencyPair: c,
@@ -496,7 +496,7 @@ func (o *OKGroup) wsProcessTrades(respRaw []byte) error {
 			Side:         tSide,
 			Timestamp:    response.Data[i].Timestamp,
 			TID:          response.Data[i].TradeID,
-		})
+		}
 	}
 	return trade.AddTradesToBuffer(o.Name, trades...)
 }
@@ -644,7 +644,7 @@ func (o *OKGroup) wsResubscribeToOrderbook(response *WebsocketOrderBooksData) er
 // AppendWsOrderbookItems adds websocket orderbook data bid/asks into an
 // orderbook item array
 func (o *OKGroup) AppendWsOrderbookItems(entries [][]interface{}) ([]orderbook.Item, error) {
-	var items []orderbook.Item
+	items := make([]orderbook.Item, len(entries))
 	for j := range entries {
 		amount, err := strconv.ParseFloat(entries[j][1].(string), 64)
 		if err != nil {
@@ -654,7 +654,7 @@ func (o *OKGroup) AppendWsOrderbookItems(entries [][]interface{}) ([]orderbook.I
 		if err != nil {
 			return nil, err
 		}
-		items = append(items, orderbook.Item{Amount: amount, Price: price})
+		items[j] = orderbook.Item{Amount: amount, Price: price}
 	}
 	return items, nil
 }

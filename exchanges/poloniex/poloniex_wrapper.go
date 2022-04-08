@@ -260,7 +260,7 @@ func (p *Poloniex) FetchTradablePairs(ctx context.Context, asset asset.Item) ([]
 		return nil, err
 	}
 
-	var currencies []string
+	currencies := make([]string, 0, len(resp))
 	for x := range resp {
 		currencies = append(currencies, x)
 	}
@@ -412,7 +412,7 @@ func (p *Poloniex) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 		return response, err
 	}
 
-	var currencies []account.Balance
+	currencies := make([]account.Balance, 0, len(accountBalance.Currency))
 	for x, y := range accountBalance.Currency {
 		currencies = append(currencies, account.Balance{
 			CurrencyName: currency.NewCode(x),

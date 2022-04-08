@@ -305,7 +305,11 @@ func TestConnectionMessageErrors(t *testing.T) {
 	ws.ReadMessageErrors <- errors.New("errorText")
 	select {
 	case err := <-ws.ToRoutine:
-		if err.(error).Error() != "errorText" {
+		errText, ok := err.(error)
+		if !ok {
+			t.Error("unable to type assert error")
+		}
+		if errText.Error() != "errorText" {
 			t.Errorf("Expected 'errorText', received %v", err)
 		}
 	case <-timer.C:

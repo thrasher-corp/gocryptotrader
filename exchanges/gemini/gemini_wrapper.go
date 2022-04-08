@@ -319,14 +319,14 @@ func (g *Gemini) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 		return response, err
 	}
 
-	var currencies []account.Balance
+	currencies := make([]account.Balance, len(accountBalance))
 	for i := range accountBalance {
-		currencies = append(currencies, account.Balance{
+		currencies[i] = account.Balance{
 			CurrencyName: currency.NewCode(accountBalance[i].Currency),
 			Total:        accountBalance[i].Amount,
 			Hold:         accountBalance[i].Amount - accountBalance[i].Available,
 			Free:         accountBalance[i].Available,
-		})
+		}
 	}
 
 	response.Accounts = append(response.Accounts, account.SubAccount{
@@ -692,7 +692,7 @@ func (g *Gemini) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 		return nil, err
 	}
 
-	var orders []order.Detail
+	orders := make([]order.Detail, len(resp))
 	for i := range resp {
 		var symbol currency.Pair
 		symbol, err = currency.NewPairFromFormattedPairs(resp[i].Symbol, availPairs, format)
@@ -709,7 +709,7 @@ func (g *Gemini) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 		side := order.Side(strings.ToUpper(resp[i].Type))
 		orderDate := time.Unix(resp[i].Timestamp, 0)
 
-		orders = append(orders, order.Detail{
+		orders[i] = order.Detail{
 			Amount:          resp[i].OriginalAmount,
 			RemainingAmount: resp[i].RemainingAmount,
 			ID:              strconv.FormatInt(resp[i].OrderID, 10),
@@ -720,7 +720,7 @@ func (g *Gemini) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 			Price:           resp[i].Price,
 			Pair:            symbol,
 			Date:            orderDate,
-		})
+		}
 	}
 
 	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
@@ -767,7 +767,7 @@ func (g *Gemini) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 		return nil, err
 	}
 
-	var orders []order.Detail
+	orders := make([]order.Detail, len(trades))
 	for i := range trades {
 		side := order.Side(strings.ToUpper(trades[i].Type))
 		orderDate := time.Unix(trades[i].Timestamp, 0)
@@ -789,7 +789,7 @@ func (g *Gemini) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 			),
 		}
 		detail.InferCostsAndTimes()
-		orders = append(orders, detail)
+		orders[i] = detail
 	}
 
 	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)

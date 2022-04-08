@@ -999,7 +999,7 @@ func TestGetPublicOptionsTrades(t *testing.T) {
 	}
 	tmNow := time.Now()
 	result, err = f.GetPublicOptionsTrades(context.Background(),
-		tmNow.AddDate(0, -1, 0), tmNow, "5")
+		tmNow.AddDate(-1, 0, 0), tmNow, "5")
 	if err != nil {
 		t.Error(err)
 	}

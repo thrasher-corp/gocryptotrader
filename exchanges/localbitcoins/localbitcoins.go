@@ -665,7 +665,7 @@ func (l *LocalBitcoins) GetTradableCurrencies(ctx context.Context) ([]string, er
 		return nil, err
 	}
 
-	var currencies []string
+	currencies := make([]string, 0, len(resp))
 	for x := range resp {
 		currencies = append(currencies, x)
 	}

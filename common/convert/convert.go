@@ -164,3 +164,24 @@ func numberToHumanFriendlyString(str string, dec int, decPoint, thousandsSep str
 
 	return s
 }
+
+func InterfaceToFloat64OrZeroValue(r interface{}) float64 {
+	if v, ok := r.(float64); ok {
+		return v
+	}
+	return 0
+}
+
+func InterfaceToIntOrZeroValue(r interface{}) int {
+	if v, ok := r.(int); ok {
+		return v
+	}
+	return 0
+}
+
+func InterfaceToStringOrZeroValue(r interface{}) string {
+	if v, ok := r.(string); ok {
+		return v
+	}
+	return ""
+}

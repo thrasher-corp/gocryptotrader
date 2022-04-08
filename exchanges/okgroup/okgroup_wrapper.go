@@ -359,7 +359,7 @@ func (o *OKGroup) CancelAllOrders(ctx context.Context, orderCancellation *order.
 	orderIDs := strings.Split(orderCancellation.ID, ",")
 	resp := order.CancelAllResponse{}
 	resp.Status = make(map[string]string)
-	var orderIDNumbers []int64
+	orderIDNumbers := make([]int64, 0, len(orderIDs))
 	for i := range orderIDs {
 		orderIDNumber, err := strconv.ParseInt(orderIDs[i], 10, 64)
 		if err != nil {

@@ -626,7 +626,7 @@ func (b *Binance) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription
 
 // ProcessUpdate processes the websocket orderbook update
 func (b *Binance) ProcessUpdate(cp currency.Pair, a asset.Item, ws *WebsocketDepthStream) error {
-	var updateBid []orderbook.Item
+	updateBid := make([]orderbook.Item, len(ws.UpdateBids))
 	for i := range ws.UpdateBids {
 		price, ok := ws.UpdateBids[i][0].(string)
 		if !ok {
@@ -644,10 +644,10 @@ func (b *Binance) ProcessUpdate(cp currency.Pair, a asset.Item, ws *WebsocketDep
 		if err != nil {
 			return err
 		}
-		updateBid = append(updateBid, orderbook.Item{Price: p, Amount: a})
+		updateBid[i] = orderbook.Item{Price: p, Amount: a}
 	}
 
-	var updateAsk []orderbook.Item
+	updateAsk := make([]orderbook.Item, len(ws.UpdateAsks))
 	for i := range ws.UpdateAsks {
 		price, ok := ws.UpdateAsks[i][0].(string)
 		if !ok {
@@ -665,7 +665,7 @@ func (b *Binance) ProcessUpdate(cp currency.Pair, a asset.Item, ws *WebsocketDep
 		if err != nil {
 			return err
 		}
-		updateAsk = append(updateAsk, orderbook.Item{Price: p, Amount: a})
+		updateAsk[i] = orderbook.Item{Price: p, Amount: a}
 	}
 
 	return b.Websocket.Orderbook.Update(&buffer.Update{

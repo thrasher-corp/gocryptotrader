@@ -502,23 +502,24 @@ func (b *Bittrex) GetWithdrawalsHistory(ctx context.Context, c currency.Code) (r
 
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (b *Bittrex) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
-	var err error
 	formattedPair, err := b.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return nil, err
 	}
+
 	tradeData, err := b.GetMarketHistory(ctx, formattedPair.String())
 	if err != nil {
 		return nil, err
 	}
-	var resp []trade.Data
+
+	resp := make([]trade.Data, len(tradeData))
 	for i := range tradeData {
 		var side order.Side
 		side, err = order.StringToOrderSide(tradeData[i].TakerSide)
 		if err != nil {
 			return nil, err
 		}
-		resp = append(resp, trade.Data{
+		resp[i] = trade.Data{
 			Exchange:     b.Name,
 			TID:          tradeData[i].ID,
 			CurrencyPair: formattedPair,
@@ -527,7 +528,7 @@ func (b *Bittrex) GetRecentTrades(ctx context.Context, p currency.Pair, assetTyp
 			Price:        tradeData[i].Rate,
 			Amount:       tradeData[i].Quantity,
 			Timestamp:    tradeData[i].ExecutedAt,
-		})
+		}
 	}
 
 	err = b.AddTradesToBuffer(resp...)
@@ -772,7 +773,7 @@ func (b *Bittrex) GetActiveOrders(ctx context.Context, req *order.GetOrdersReque
 		return nil, err
 	}
 
-	var resp []order.Detail
+	resp := make([]order.Detail, 0, len(orderData))
 	for i := range orderData {
 		pair, err := currency.NewPairDelimiter(orderData[i].MarketSymbol,
 			format.Delimiter)

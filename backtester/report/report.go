@@ -46,9 +46,7 @@ func (d *Data) GenerateReport() error {
 	d.HoldingsOverTimeChart = d.CreateHoldingsOverTimeChart()
 
 	tmpl := template.Must(
-		template.ParseFiles(
-			filepath.Join(d.TemplatePath),
-		),
+		template.ParseFiles(d.TemplatePath),
 	)
 	var nickName string
 	if d.Config.Nickname != "" {

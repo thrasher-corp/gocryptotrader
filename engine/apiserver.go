@@ -349,7 +349,8 @@ func getAllActiveTickers(m iExchangeManager) []EnabledExchangeCurrencies {
 		log.Errorf(log.APIServerMgr, "Cannot get exchanges: %v", err)
 		return nil
 	}
-	var tickers []EnabledExchangeCurrencies
+
+	tickers := make([]EnabledExchangeCurrencies, 0, len(exchanges))
 	for x := range exchanges {
 		assets := exchanges[x].GetAssetTypes(true)
 		exchName := exchanges[x].GetName()
@@ -385,11 +386,13 @@ func getAllActiveTickers(m iExchangeManager) []EnabledExchangeCurrencies {
 
 // getAllActiveAccounts returns all enabled exchanges accounts
 func getAllActiveAccounts(m iExchangeManager) []AllEnabledExchangeAccounts {
-	var accounts []AllEnabledExchangeAccounts
 	exchanges, err := m.GetExchanges()
 	if err != nil {
 		log.Errorf(log.APIServerMgr, "Cannot get exchanges: %v", err)
+		return nil
 	}
+
+	accounts := make([]AllEnabledExchangeAccounts, 0, len(exchanges))
 	for x := range exchanges {
 		assets := exchanges[x].GetAssetTypes(true)
 		exchName := exchanges[x].GetName()
@@ -683,12 +686,17 @@ func (m *apiServerManager) WebsocketClientHandler(w http.ResponseWriter, r *http
 }
 
 func wsAuth(client *websocketClient, data interface{}) error {
+	d, ok := data.([]byte)
+	if !ok {
+		return errors.New("unable to type assert data")
+	}
+
 	wsResp := WebsocketEventResponse{
 		Event: "auth",
 	}
 
 	var auth WebsocketAuth
-	err := json.Unmarshal(data.([]byte), &auth)
+	err := json.Unmarshal(d, &auth)
 	if err != nil {
 		wsResp.Error = err.Error()
 		sendErr := client.SendWebsocketMessage(wsResp)
@@ -741,11 +749,16 @@ func wsGetConfig(client *websocketClient, _ interface{}) error {
 }
 
 func wsSaveConfig(client *websocketClient, data interface{}) error {
+	d, ok := data.([]byte)
+	if !ok {
+		return errors.New("unable to type assert data")
+	}
+
 	wsResp := WebsocketEventResponse{
 		Event: "SaveConfig",
 	}
 	var respCfg config.Config
-	err := json.Unmarshal(data.([]byte), &respCfg)
+	err := json.Unmarshal(d, &respCfg)
 	if err != nil {
 		wsResp.Error = err.Error()
 		sendErr := client.SendWebsocketMessage(wsResp)
@@ -797,11 +810,16 @@ func wsGetTickers(client *websocketClient, data interface{}) error {
 }
 
 func wsGetTicker(client *websocketClient, data interface{}) error {
+	d, ok := data.([]byte)
+	if !ok {
+		return errors.New("unable to type assert data")
+	}
+
 	wsResp := WebsocketEventResponse{
 		Event: "GetTicker",
 	}
 	var tickerReq WebsocketOrderbookTickerRequest
-	err := json.Unmarshal(data.([]byte), &tickerReq)
+	err := json.Unmarshal(d, &tickerReq)
 	if err != nil {
 		wsResp.Error = err.Error()
 		sendErr := client.SendWebsocketMessage(wsResp)
@@ -852,11 +870,16 @@ func wsGetOrderbooks(client *websocketClient, data interface{}) error {
 }
 
 func wsGetOrderbook(client *websocketClient, data interface{}) error {
+	d, ok := data.([]byte)
+	if !ok {
+		return errors.New("unable to type assert data")
+	}
+
 	wsResp := WebsocketEventResponse{
 		Event: "GetOrderbook",
 	}
 	var orderbookReq WebsocketOrderbookTickerRequest
-	err := json.Unmarshal(data.([]byte), &orderbookReq)
+	err := json.Unmarshal(d, &orderbookReq)
 	if err != nil {
 		wsResp.Error = err.Error()
 		sendErr := client.SendWebsocketMessage(wsResp)

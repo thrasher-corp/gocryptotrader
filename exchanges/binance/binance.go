@@ -356,14 +356,12 @@ func (b *Binance) batchAggregateTrades(ctx context.Context, arg *AggregatedTrade
 // startTime: startTime filter for kline data
 // endTime: endTime filter for the kline data
 func (b *Binance) GetSpotKline(ctx context.Context, arg *KlinesRequestParams) ([]CandleStick, error) {
-	var resp interface{}
-	var klineData []CandleStick
-
-	params := url.Values{}
 	symbol, err := b.FormatSymbol(arg.Symbol, asset.Spot)
 	if err != nil {
 		return nil, err
 	}
+
+	params := url.Values{}
 	params.Set("symbol", symbol)
 	params.Set("interval", arg.Interval)
 	if arg.Limit != 0 {
@@ -377,6 +375,7 @@ func (b *Binance) GetSpotKline(ctx context.Context, arg *KlinesRequestParams) ([
 	}
 
 	path := candleStick + "?" + params.Encode()
+	var resp interface{}
 
 	err = b.SendHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
@@ -390,6 +389,8 @@ func (b *Binance) GetSpotKline(ctx context.Context, arg *KlinesRequestParams) ([
 	if !ok {
 		return nil, errors.New("unable to type assert responseData")
 	}
+
+	klineData := make([]CandleStick, len(responseData))
 	for x := range responseData {
 		individualData, ok := responseData[x].([]interface{})
 		if !ok {
@@ -432,7 +433,7 @@ func (b *Binance) GetSpotKline(ctx context.Context, arg *KlinesRequestParams) ([
 		if candle.TakerBuyQuoteAssetVolume, err = convert.FloatFromString(individualData[10]); err != nil {
 			return nil, err
 		}
-		klineData = append(klineData, candle)
+		klineData[x] = candle
 	}
 	return klineData, nil
 }

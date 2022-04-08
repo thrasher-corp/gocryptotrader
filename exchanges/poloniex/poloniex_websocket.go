@@ -512,7 +512,12 @@ func (p *Poloniex) WsProcessOrderbookUpdate(sequenceNumber float64, data []inter
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (p *Poloniex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
-	var subscriptions []stream.ChannelSubscription
+	enabledCurrencies, err := p.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		return nil, err
+	}
+
+	subscriptions := make([]stream.ChannelSubscription, 0, len(enabledCurrencies))
 	subscriptions = append(subscriptions, stream.ChannelSubscription{
 		Channel: strconv.FormatInt(wsTickerDataID, 10),
 	})
@@ -523,10 +528,6 @@ func (p *Poloniex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription,
 		})
 	}
 
-	enabledCurrencies, err := p.GetEnabledPairs(asset.Spot)
-	if err != nil {
-		return nil, err
-	}
 	for j := range enabledCurrencies {
 		enabledCurrencies[j].Delimiter = currency.UnderscoreDelimiter
 		subscriptions = append(subscriptions, stream.ChannelSubscription{

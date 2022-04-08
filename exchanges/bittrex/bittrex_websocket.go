@@ -61,7 +61,7 @@ var defaultSpotSubscribedChannelsAuth = []string{
 type TickerCache struct {
 	MarketSummaries map[string]*MarketSummaryData
 	Tickers         map[string]*TickerData
-	sync.RWMutex
+	mu              sync.RWMutex
 }
 
 // WsConnect connects to a websocket feed
@@ -520,8 +520,8 @@ func (b *Bittrex) WsProcessUpdateTicker(tickerData TickerData) error {
 
 	tickerPrice, err := ticker.GetTicker(b.Name, pair, asset.Spot)
 	if err != nil {
-		b.tickerCache.Lock()
-		defer b.tickerCache.Unlock()
+		b.tickerCache.mu.Lock()
+		defer b.tickerCache.mu.Unlock()
 		if b.tickerCache.MarketSummaries[tickerData.Symbol] != nil {
 			marketSummaryData := b.tickerCache.MarketSummaries[tickerData.Symbol]
 			tickerPrice = b.constructTicker(tickerData, marketSummaryData, pair, asset.Spot)
@@ -550,8 +550,8 @@ func (b *Bittrex) WsProcessUpdateMarketSummary(marketSummaryData *MarketSummaryD
 
 	tickerPrice, err := ticker.GetTicker(b.Name, pair, asset.Spot)
 	if err != nil {
-		b.tickerCache.Lock()
-		defer b.tickerCache.Unlock()
+		b.tickerCache.mu.Lock()
+		defer b.tickerCache.mu.Unlock()
 		if b.tickerCache.Tickers[marketSummaryData.Symbol] != nil {
 			tickerData := b.tickerCache.Tickers[marketSummaryData.Symbol]
 			tickerPrice = b.constructTicker(*tickerData, marketSummaryData, pair, asset.Spot)
