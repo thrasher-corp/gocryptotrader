@@ -685,7 +685,7 @@ func (m *OrderManager) processOrders() {
 				Exchange: exchanges[i].GetName(),
 			}
 			orders := m.orderStore.getActiveOrders(filter)
-			order.FilterOrdersByCurrencies(&orders, pairs)
+			order.FilterOrdersByPairs(&orders, pairs)
 			requiresProcessing := make(map[string]bool, len(orders))
 			for x := range orders {
 				requiresProcessing[orders[x].InternalOrderID] = true

@@ -783,7 +783,11 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 			if err != nil {
 				return nil, err
 			}
-			side := order.Side(strings.ToUpper(resp.Orders[i].Type))
+			var side order.Side
+			side, err = order.StringToOrderSide(resp.Orders[i].Type)
+			if err != nil {
+				log.Errorf(log.ExchangeSys, "%s %v", g.Name, err)
+			}
 			status, err := order.StringToOrderStatus(resp.Orders[i].Status)
 			if err != nil {
 				log.Errorf(log.ExchangeSys, "%s %v", g.Name, err)
@@ -836,7 +840,11 @@ func (g *Gateio) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 		if err != nil {
 			return nil, err
 		}
-		side := order.Side(strings.ToUpper(trades[i].Type))
+		var side order.Side
+		side, err = order.StringToOrderSide(trades[i].Type)
+		if err != nil {
+			log.Errorf(log.ExchangeSys, "%s %v", g.Name, err)
+		}
 		orderDate := time.Unix(trades[i].TimeUnix, 0)
 		detail := order.Detail{
 			ID:                   strconv.FormatInt(trades[i].OrderID, 10),

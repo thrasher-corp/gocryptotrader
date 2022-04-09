@@ -422,7 +422,7 @@ func (p *PositionTracker) TrackNewOrder(d *Detail) error {
 	if p.asset != d.AssetType {
 		return fmt.Errorf("%w asset '%v' received: '%v'", errOrderNotEqualToTracker, d.AssetType, p.asset)
 	}
-	if d.Side == "" {
+	if d.Side == 0 {
 		return ErrSideIsInvalid
 	}
 	if d.ID == "" {
@@ -473,7 +473,7 @@ func (p *PositionTracker) TrackNewOrder(d *Detail) error {
 		longSide = longSide.Add(decimal.NewFromFloat(p.longPositions[i].Amount))
 	}
 
-	if p.currentDirection == "" {
+	if p.currentDirection == 0 {
 		p.currentDirection = d.Side
 	}
 

@@ -680,13 +680,18 @@ func (b *BTSE) GetOrderInfo(ctx context.Context, orderID string, pair currency.P
 				log.Errorf(log.ExchangeSys,
 					"%s GetOrderInfo unable to parse time: %s\n", b.Name, err)
 			}
+			var orderSide order.Side
+			orderSide, err = order.StringToOrderSide(th[i].Side)
+			if err != nil {
+				return order.Detail{}, err
+			}
 			od.Trades = append(od.Trades, order.TradeHistory{
 				Timestamp: createdAt,
 				TID:       th[i].TradeID,
 				Price:     th[i].Price,
 				Amount:    th[i].Size,
 				Exchange:  b.Name,
-				Side:      order.Side(th[i].Side),
+				Side:      orderSide,
 				Fee:       th[i].FeeAmount,
 			})
 		}
@@ -850,13 +855,18 @@ func (b *BTSE) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest)
 						b.Name,
 						err)
 				}
+				var orderSide order.Side
+				orderSide, err = order.StringToOrderSide(fills[i].Side)
+				if err != nil {
+					return nil, err
+				}
 				openOrder.Trades = append(openOrder.Trades, order.TradeHistory{
 					Timestamp: createdAt,
 					TID:       fills[i].TradeID,
 					Price:     fills[i].Price,
 					Amount:    fills[i].Size,
 					Exchange:  b.Name,
-					Side:      order.Side(fills[i].Side),
+					Side:      orderSide,
 					Fee:       fills[i].FeeAmount,
 				})
 			}
@@ -910,6 +920,11 @@ func (b *BTSE) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetO
 			if err != nil {
 				log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
 			}
+			var orderSide order.Side
+			orderSide, err = order.StringToOrderSide(currentOrder[y].Side)
+			if err != nil {
+				return nil, err
+			}
 			orderTime := time.UnixMilli(currentOrder[y].Timestamp)
 			tempOrder := order.Detail{
 				ID:                   currentOrder[y].OrderID,
@@ -921,7 +936,7 @@ func (b *BTSE) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetO
 				ExecutedAmount:       currentOrder[y].FilledSize,
 				RemainingAmount:      currentOrder[y].Size - currentOrder[y].FilledSize,
 				Date:                 orderTime,
-				Side:                 order.Side(currentOrder[y].Side),
+				Side:                 orderSide,
 				Status:               orderStatus,
 				Pair:                 orderDeref.Pairs[x],
 			}

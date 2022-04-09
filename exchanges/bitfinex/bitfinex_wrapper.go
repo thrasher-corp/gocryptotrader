@@ -892,7 +892,11 @@ func (b *Bitfinex) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequ
 	}
 
 	for i := range resp {
-		orderSide := order.Side(strings.ToUpper(resp[i].Side))
+		var side order.Side
+		side, err = order.StringToOrderSide(resp[i].Side)
+		if err != nil {
+			return nil, err
+		}
 		timestamp, err := strconv.ParseFloat(resp[i].Timestamp, 64)
 		if err != nil {
 			log.Warnf(log.ExchangeSys,
@@ -910,7 +914,7 @@ func (b *Bitfinex) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequ
 			Date:            time.Unix(int64(timestamp), 0),
 			Exchange:        b.Name,
 			ID:              strconv.FormatInt(resp[i].ID, 10),
-			Side:            orderSide,
+			Side:            side,
 			Price:           resp[i].Price,
 			RemainingAmount: resp[i].RemainingAmount,
 			Pair:            pair,
@@ -943,7 +947,7 @@ func (b *Bitfinex) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequ
 	order.FilterOrdersBySide(&orders, req.Side)
 	order.FilterOrdersByType(&orders, req.Type)
 	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
-	order.FilterOrdersByCurrencies(&orders, req.Pairs)
+	order.FilterOrdersByPairs(&orders, req.Pairs)
 	return orders, nil
 }
 
@@ -961,7 +965,11 @@ func (b *Bitfinex) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequ
 	}
 
 	for i := range resp {
-		orderSide := order.Side(strings.ToUpper(resp[i].Side))
+		var side order.Side
+		side, err = order.StringToOrderSide(resp[i].Side)
+		if err != nil {
+			return nil, err
+		}
 		timestamp, err := strconv.ParseInt(resp[i].Timestamp, 10, 64)
 		if err != nil {
 			log.Warnf(log.ExchangeSys, "Unable to convert timestamp '%v', leaving blank", resp[i].Timestamp)
@@ -978,7 +986,7 @@ func (b *Bitfinex) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequ
 			Date:                 orderDate,
 			Exchange:             b.Name,
 			ID:                   strconv.FormatInt(resp[i].ID, 10),
-			Side:                 orderSide,
+			Side:                 side,
 			Price:                resp[i].Price,
 			AverageExecutedPrice: resp[i].AverageExecutionPrice,
 			RemainingAmount:      resp[i].RemainingAmount,
@@ -1016,7 +1024,7 @@ func (b *Bitfinex) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequ
 	for i := range req.Pairs {
 		b.appendOptionalDelimiter(&req.Pairs[i])
 	}
-	order.FilterOrdersByCurrencies(&orders, req.Pairs)
+	order.FilterOrdersByPairs(&orders, req.Pairs)
 	return orders, nil
 }
 

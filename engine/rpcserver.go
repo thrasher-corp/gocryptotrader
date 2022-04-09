@@ -1200,9 +1200,15 @@ func (s *RPCServer) SubmitOrder(ctx context.Context, r *gctrpc.SubmitOrderReques
 		return nil, err
 	}
 
+	var side order.Side
+	side, err = order.StringToOrderSide(r.Side)
+	if err != nil {
+		return nil, err
+	}
+
 	submission := &order.Submit{
 		Pair:          p,
-		Side:          order.Side(r.Side),
+		Side:          side,
 		Type:          order.Type(r.OrderType),
 		Amount:        r.Amount,
 		Price:         r.Price,
@@ -1367,12 +1373,18 @@ func (s *RPCServer) CancelOrder(ctx context.Context, r *gctrpc.CancelOrderReques
 		return nil, err
 	}
 
+	var side order.Side
+	side, err = order.StringToOrderSide(r.Side)
+	if err != nil {
+		return nil, err
+	}
+
 	err = s.OrderManager.Cancel(ctx,
 		&order.Cancel{
 			Exchange:      r.Exchange,
 			AccountID:     r.AccountId,
 			ID:            r.OrderId,
-			Side:          order.Side(r.Side),
+			Side:          side,
 			WalletAddress: r.WalletAddress,
 			Pair:          p,
 			AssetType:     a,
@@ -1407,6 +1419,12 @@ func (s *RPCServer) CancelBatchOrders(ctx context.Context, r *gctrpc.CancelBatch
 		return nil, err
 	}
 
+	var side order.Side
+	side, err = order.StringToOrderSide(r.Side)
+	if err != nil {
+		return nil, err
+	}
+
 	status := make(map[string]string)
 	var request []order.Cancel
 	orders := strings.Split(r.OrdersId, ",")
@@ -1415,7 +1433,7 @@ func (s *RPCServer) CancelBatchOrders(ctx context.Context, r *gctrpc.CancelBatch
 		request = append(request, order.Cancel{
 			AccountID:     r.AccountId,
 			ID:            orderID,
-			Side:          order.Side(r.Side),
+			Side:          side,
 			WalletAddress: r.WalletAddress,
 			Pair:          pair,
 			AssetType:     assetType,

@@ -1344,9 +1344,7 @@ func (h *HUOBI) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 			return nil, errors.New("currency must be supplied")
 		}
 		side := ""
-		if req.Side == order.AnySide || req.Side == "" {
-			side = ""
-		} else if req.Side == order.Sell {
+		if req.Side == order.Sell {
 			side = req.Side.Lower()
 		}
 		if h.Websocket.CanUseAuthenticatedWebsocketForWrapper() {

@@ -775,7 +775,7 @@ func (z *ZB) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (
 		return nil, err
 	}
 
-	if req.Side == order.AnySide || req.Side == "" {
+	if req.Side == order.AnySide {
 		return nil, errors.New("specific order side is required")
 	}
 	var allOrders []Order

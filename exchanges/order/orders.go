@@ -148,7 +148,7 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) {
 		d.Type = m.Type
 		updated = true
 	}
-	if m.Side != "" && m.Side != d.Side {
+	if m.Side != 0 && m.Side != d.Side {
 		d.Side = m.Side
 		updated = true
 	}
@@ -160,53 +160,51 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) {
 		d.AssetType = m.AssetType
 		updated = true
 	}
-	if m.Trades != nil {
-		for x := range m.Trades {
-			var found bool
-			for y := range d.Trades {
-				if d.Trades[y].TID != m.Trades[x].TID {
-					continue
-				}
-				found = true
-				if d.Trades[y].Fee != m.Trades[x].Fee {
-					d.Trades[y].Fee = m.Trades[x].Fee
-					updated = true
-				}
-				if m.Trades[x].Price != 0 && d.Trades[y].Price != m.Trades[x].Price {
-					d.Trades[y].Price = m.Trades[x].Price
-					updated = true
-				}
-				if d.Trades[y].Side != m.Trades[x].Side {
-					d.Trades[y].Side = m.Trades[x].Side
-					updated = true
-				}
-				if d.Trades[y].Type != m.Trades[x].Type {
-					d.Trades[y].Type = m.Trades[x].Type
-					updated = true
-				}
-				if d.Trades[y].Description != m.Trades[x].Description {
-					d.Trades[y].Description = m.Trades[x].Description
-					updated = true
-				}
-				if m.Trades[x].Amount != 0 && d.Trades[y].Amount != m.Trades[x].Amount {
-					d.Trades[y].Amount = m.Trades[x].Amount
-					updated = true
-				}
-				if d.Trades[y].Timestamp != m.Trades[x].Timestamp {
-					d.Trades[y].Timestamp = m.Trades[x].Timestamp
-					updated = true
-				}
-				if d.Trades[y].IsMaker != m.Trades[x].IsMaker {
-					d.Trades[y].IsMaker = m.Trades[x].IsMaker
-					updated = true
-				}
+	for x := range m.Trades {
+		var found bool
+		for y := range d.Trades {
+			if d.Trades[y].TID != m.Trades[x].TID {
+				continue
 			}
-			if !found {
-				d.Trades = append(d.Trades, m.Trades[x])
+			found = true
+			if d.Trades[y].Fee != m.Trades[x].Fee {
+				d.Trades[y].Fee = m.Trades[x].Fee
 				updated = true
 			}
-			m.RemainingAmount -= m.Trades[x].Amount
+			if m.Trades[x].Price != 0 && d.Trades[y].Price != m.Trades[x].Price {
+				d.Trades[y].Price = m.Trades[x].Price
+				updated = true
+			}
+			if d.Trades[y].Side != m.Trades[x].Side {
+				d.Trades[y].Side = m.Trades[x].Side
+				updated = true
+			}
+			if d.Trades[y].Type != m.Trades[x].Type {
+				d.Trades[y].Type = m.Trades[x].Type
+				updated = true
+			}
+			if d.Trades[y].Description != m.Trades[x].Description {
+				d.Trades[y].Description = m.Trades[x].Description
+				updated = true
+			}
+			if m.Trades[x].Amount != 0 && d.Trades[y].Amount != m.Trades[x].Amount {
+				d.Trades[y].Amount = m.Trades[x].Amount
+				updated = true
+			}
+			if d.Trades[y].Timestamp != m.Trades[x].Timestamp {
+				d.Trades[y].Timestamp = m.Trades[x].Timestamp
+				updated = true
+			}
+			if d.Trades[y].IsMaker != m.Trades[x].IsMaker {
+				d.Trades[y].IsMaker = m.Trades[x].IsMaker
+				updated = true
+			}
 		}
+		if !found {
+			d.Trades = append(d.Trades, m.Trades[x])
+			updated = true
+		}
+		m.RemainingAmount -= m.Trades[x].Amount
 	}
 	if m.RemainingAmount > 0 && m.RemainingAmount != d.RemainingAmount {
 		d.RemainingAmount = m.RemainingAmount
@@ -312,7 +310,7 @@ func (d *Detail) UpdateOrderFromModify(m *Modify) {
 		d.Type = m.Type
 		updated = true
 	}
-	if m.Side != "" && m.Side != d.Side {
+	if m.Side != 0 && m.Side != d.Side {
 		d.Side = m.Side
 		updated = true
 	}
@@ -324,53 +322,51 @@ func (d *Detail) UpdateOrderFromModify(m *Modify) {
 		d.AssetType = m.AssetType
 		updated = true
 	}
-	if m.Trades != nil {
-		for x := range m.Trades {
-			var found bool
-			for y := range d.Trades {
-				if d.Trades[y].TID != m.Trades[x].TID {
-					continue
-				}
-				found = true
-				if d.Trades[y].Fee != m.Trades[x].Fee {
-					d.Trades[y].Fee = m.Trades[x].Fee
-					updated = true
-				}
-				if m.Trades[x].Price != 0 && d.Trades[y].Price != m.Trades[x].Price {
-					d.Trades[y].Price = m.Trades[x].Price
-					updated = true
-				}
-				if d.Trades[y].Side != m.Trades[x].Side {
-					d.Trades[y].Side = m.Trades[x].Side
-					updated = true
-				}
-				if d.Trades[y].Type != m.Trades[x].Type {
-					d.Trades[y].Type = m.Trades[x].Type
-					updated = true
-				}
-				if d.Trades[y].Description != m.Trades[x].Description {
-					d.Trades[y].Description = m.Trades[x].Description
-					updated = true
-				}
-				if m.Trades[x].Amount != 0 && d.Trades[y].Amount != m.Trades[x].Amount {
-					d.Trades[y].Amount = m.Trades[x].Amount
-					updated = true
-				}
-				if d.Trades[y].Timestamp != m.Trades[x].Timestamp {
-					d.Trades[y].Timestamp = m.Trades[x].Timestamp
-					updated = true
-				}
-				if d.Trades[y].IsMaker != m.Trades[x].IsMaker {
-					d.Trades[y].IsMaker = m.Trades[x].IsMaker
-					updated = true
-				}
+	for x := range m.Trades {
+		var found bool
+		for y := range d.Trades {
+			if d.Trades[y].TID != m.Trades[x].TID {
+				continue
 			}
-			if !found {
-				d.Trades = append(d.Trades, m.Trades[x])
+			found = true
+			if d.Trades[y].Fee != m.Trades[x].Fee {
+				d.Trades[y].Fee = m.Trades[x].Fee
 				updated = true
 			}
-			m.RemainingAmount -= m.Trades[x].Amount
+			if m.Trades[x].Price != 0 && d.Trades[y].Price != m.Trades[x].Price {
+				d.Trades[y].Price = m.Trades[x].Price
+				updated = true
+			}
+			if d.Trades[y].Side != m.Trades[x].Side {
+				d.Trades[y].Side = m.Trades[x].Side
+				updated = true
+			}
+			if d.Trades[y].Type != m.Trades[x].Type {
+				d.Trades[y].Type = m.Trades[x].Type
+				updated = true
+			}
+			if d.Trades[y].Description != m.Trades[x].Description {
+				d.Trades[y].Description = m.Trades[x].Description
+				updated = true
+			}
+			if m.Trades[x].Amount != 0 && d.Trades[y].Amount != m.Trades[x].Amount {
+				d.Trades[y].Amount = m.Trades[x].Amount
+				updated = true
+			}
+			if d.Trades[y].Timestamp != m.Trades[x].Timestamp {
+				d.Trades[y].Timestamp = m.Trades[x].Timestamp
+				updated = true
+			}
+			if d.Trades[y].IsMaker != m.Trades[x].IsMaker {
+				d.Trades[y].IsMaker = m.Trades[x].IsMaker
+				updated = true
+			}
 		}
+		if !found {
+			d.Trades = append(d.Trades, m.Trades[x])
+			updated = true
+		}
+		m.RemainingAmount -= m.Trades[x].Amount
 	}
 	if m.RemainingAmount > 0 && m.RemainingAmount != d.RemainingAmount {
 		d.RemainingAmount = m.RemainingAmount
@@ -403,7 +399,7 @@ func (d *Detail) MatchFilter(f *Filter) bool {
 	if f.Type != "" && f.Type != AnyType && d.Type != f.Type {
 		return false
 	}
-	if f.Side != "" && f.Side != AnySide && d.Side != f.Side {
+	if f.Side != AnySide && d.Side != f.Side {
 		return false
 	}
 	if f.Status != "" && f.Status != AnyStatus && d.Status != f.Status {
@@ -427,8 +423,8 @@ func (d *Detail) MatchFilter(f *Filter) bool {
 	return true
 }
 
-// IsActive returns true if an order has a status that indicates it is
-// currently available on the exchange
+// IsActive returns true if an order has a status that indicates it is currently
+// available on the exchange
 func (d *Detail) IsActive() bool {
 	if d.Amount <= 0 || d.Amount <= d.ExecutedAmount {
 		return false
@@ -488,27 +484,48 @@ func (t Type) Title() string {
 
 // String implements the stringer interface
 func (s Side) String() string {
-	return string(s)
+	switch s {
+	case Buy:
+		return "BUY"
+	case Sell:
+		return "SELL"
+	case Bid:
+		return "BID"
+	case Ask:
+		return "ASK"
+	case Long:
+		return "LONG"
+	case Short:
+		return "SHORT"
+	case AnySide:
+		return "ANY"
+	default:
+		return ""
+	}
 }
 
 // Lower returns the side lower case string
 func (s Side) Lower() string {
-	return strings.ToLower(string(s))
+	return strings.ToLower(s.String())
 }
 
 // Title returns the side titleized, eg "Buy"
 func (s Side) Title() string {
-	return strings.Title(strings.ToLower(string(s)))
+	return strings.Title(strings.ToLower(s.String()))
 }
+
+const short = Short | Sell | Ask
 
 // IsShort returns if the side is short
 func (s Side) IsShort() bool {
-	return s == Short || s == Sell
+	return (short & s) != 0
 }
+
+const long = Long | Buy | Bid
 
 // IsLong returns if the side is long
 func (s Side) IsLong() bool {
-	return s == Long || s == Buy
+	return (long & s) != 0
 }
 
 // String implements the stringer interface
@@ -549,17 +566,16 @@ func (d *Detail) InferCostsAndTimes() {
 // FilterOrdersBySide removes any order details that don't match the
 // order status provided
 func FilterOrdersBySide(orders *[]Detail, side Side) {
-	if side == "" || side == AnySide {
+	if side == AnySide {
 		return
 	}
 
-	var filteredOrders []Detail
+	filteredOrders := make([]Detail, 0, len(*orders))
 	for i := range *orders {
-		if strings.EqualFold(string((*orders)[i].Side), string(side)) {
+		if (*orders)[i].Side == side {
 			filteredOrders = append(filteredOrders, (*orders)[i])
 		}
 	}
-
 	*orders = filteredOrders
 }
 
@@ -570,13 +586,12 @@ func FilterOrdersByType(orders *[]Detail, orderType Type) {
 		return
 	}
 
-	var filteredOrders []Detail
+	filteredOrders := make([]Detail, 0, len(*orders))
 	for i := range *orders {
-		if strings.EqualFold(string((*orders)[i].Type), string(orderType)) {
+		if (*orders)[i].Type == orderType {
 			filteredOrders = append(filteredOrders, (*orders)[i])
 		}
 	}
-
 	*orders = filteredOrders
 }
 
@@ -590,7 +605,7 @@ func FilterOrdersByTimeRange(orders *[]Detail, startTime, endTime time.Time) {
 		return
 	}
 
-	var filteredOrders []Detail
+	filteredOrders := make([]Detail, 0, len(*orders))
 	for i := range *orders {
 		if ((*orders)[i].Date.Unix() >= startTime.Unix() && (*orders)[i].Date.Unix() <= endTime.Unix()) ||
 			(*orders)[i].Date.IsZero() {
@@ -601,27 +616,26 @@ func FilterOrdersByTimeRange(orders *[]Detail, startTime, endTime time.Time) {
 	*orders = filteredOrders
 }
 
-// FilterOrdersByCurrencies removes any order details that do not match the
-// provided currency list. It is forgiving in that the provided currencies can
-// match quote or base currencies
-func FilterOrdersByCurrencies(orders *[]Detail, currencies []currency.Pair) {
-	if len(currencies) == 0 {
+// FilterOrdersByPairs removes any order details that do not match the
+// provided currency pairs list. It is forgiving in that the provided pairs can
+// match quote or base pairs
+func FilterOrdersByPairs(orders *[]Detail, pairs []currency.Pair) {
+	if len(pairs) == 0 {
 		return
 	}
-	if len(currencies) == 1 && currencies[0].IsEmpty() {
+	if len(pairs) == 1 && pairs[0].IsEmpty() {
 		return
 	}
 
-	var filteredOrders []Detail
-	for i := range *orders {
-		for _, c := range currencies {
-			if (*orders)[i].Pair.EqualIncludeReciprocal(c) {
-				filteredOrders = append(filteredOrders, (*orders)[i])
+	var filteredOrders = make([]Detail, 0, len(*orders))
+	for x := range *orders {
+		for y := range pairs {
+			if (*orders)[x].Pair.EqualIncludeReciprocal(pairs[y]) {
+				filteredOrders = append(filteredOrders, (*orders)[x])
 				break
 			}
 		}
 	}
-
 	*orders = filteredOrders
 }
 
@@ -734,20 +748,20 @@ func SortOrdersBySide(orders *[]Detail, reverse bool) {
 // and returning a real Side
 func StringToOrderSide(side string) (Side, error) {
 	side = strings.ToUpper(side)
-	switch Side(side) {
-	case Buy:
+	switch side {
+	case Buy.String():
 		return Buy, nil
-	case Sell:
+	case Sell.String():
 		return Sell, nil
-	case Bid:
+	case Bid.String():
 		return Bid, nil
-	case Ask:
+	case Ask.String():
 		return Ask, nil
-	case Long:
+	case Long.String():
 		return Long, nil
-	case Short:
+	case Short.String():
 		return Short, nil
-	case AnySide:
+	case AnySide.String():
 		return AnySide, nil
 	default:
 		return UnknownSide, errors.New(side + " not recognised as order side")

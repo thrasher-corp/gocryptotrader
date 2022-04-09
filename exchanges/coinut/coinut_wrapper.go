@@ -895,11 +895,17 @@ func (c *COINUT) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 					return nil, err
 				}
 
+				var side order.Side
+				side, err = order.StringToOrderSide(openOrders.Orders[i].Side)
+				if err != nil {
+					return nil, err
+				}
+
 				orders = append(orders, order.Detail{
 					Exchange:        c.Name,
 					ID:              strconv.FormatInt(openOrders.Orders[i].OrderID, 10),
 					Pair:            fpair,
-					Side:            order.Side(openOrders.Orders[i].Side),
+					Side:            side,
 					Date:            time.Unix(0, openOrders.Orders[i].Timestamp),
 					Status:          order.Active,
 					Price:           openOrders.Orders[i].Price,
@@ -948,14 +954,19 @@ func (c *COINUT) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 					return nil, err
 				}
 
-				orderSide := order.Side(strings.ToUpper(openOrders.Orders[y].Side))
+				var side order.Side
+				side, err = order.StringToOrderSide(openOrders.Orders[y].Side)
+				if err != nil {
+					return nil, err
+				}
+
 				orderDate := time.Unix(openOrders.Orders[y].Timestamp, 0)
 				orders = append(orders, order.Detail{
 					ID:       strconv.FormatInt(openOrders.Orders[y].OrderID, 10),
 					Amount:   openOrders.Orders[y].Quantity,
 					Price:    openOrders.Orders[y].Price,
 					Exchange: c.Name,
-					Side:     orderSide,
+					Side:     side,
 					Date:     orderDate,
 					Pair:     p,
 				})
@@ -994,11 +1005,17 @@ func (c *COINUT) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 						return nil, err
 					}
 
+					var side order.Side
+					side, err = order.StringToOrderSide(trades.Trades[x].Side)
+					if err != nil {
+						return nil, err
+					}
+
 					detail := order.Detail{
 						Exchange:        c.Name,
 						ID:              strconv.FormatInt(trades.Trades[x].OrderID, 10),
 						Pair:            p,
-						Side:            order.Side(trades.Trades[x].Side),
+						Side:            side,
 						Date:            time.Unix(0, trades.Trades[x].Timestamp),
 						Status:          order.Filled,
 						Price:           trades.Trades[x].Price,
@@ -1056,14 +1073,19 @@ func (c *COINUT) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 					return nil, err
 				}
 
-				orderSide := order.Side(strings.ToUpper(orders.Trades[y].Order.Side))
+				var side order.Side
+				side, err = order.StringToOrderSide(orders.Trades[y].Order.Side)
+				if err != nil {
+					return nil, err
+				}
+
 				orderDate := time.Unix(orders.Trades[y].Order.Timestamp, 0)
 				allOrders = append(allOrders, order.Detail{
 					ID:       strconv.FormatInt(orders.Trades[y].Order.OrderID, 10),
 					Amount:   orders.Trades[y].Order.Quantity,
 					Price:    orders.Trades[y].Order.Price,
 					Exchange: c.Name,
-					Side:     orderSide,
+					Side:     side,
 					Date:     orderDate,
 					Pair:     p,
 				})

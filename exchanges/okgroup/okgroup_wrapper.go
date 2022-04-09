@@ -400,8 +400,8 @@ func (o *OKGroup) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 		return
 	}
 
-	if assetType == "" {
-		assetType = asset.Spot
+	if assetType.IsValid() {
+		return resp, fmt.Errorf("%v %w", assetType, asset.ErrNotSupported)
 	}
 
 	format, err := o.GetPairFormat(assetType, false)
@@ -418,6 +418,11 @@ func (o *OKGroup) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%s %v", o.Name, err)
 	}
+
+	side, err := order.StringToOrderSide(mOrder.Side)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", o.Name, err)
+	}
 	resp = order.Detail{
 		Amount:         mOrder.Size,
 		Pair:           p,
@@ -425,7 +430,7 @@ func (o *OKGroup) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 		Date:           mOrder.Timestamp,
 		ExecutedAmount: mOrder.FilledSize,
 		Status:         status,
-		Side:           order.Side(mOrder.Side),
+		Side:           side,
 	}
 	return resp, nil
 }
@@ -521,13 +526,18 @@ func (o *OKGroup) GetActiveOrders(ctx context.Context, req *order.GetOrdersReque
 			if err != nil {
 				log.Errorf(log.ExchangeSys, "%s %v", o.Name, err)
 			}
+			var side order.Side
+			side, err = order.StringToOrderSide(spotOpenOrders[i].Side)
+			if err != nil {
+				log.Errorf(log.ExchangeSys, "%s %v", o.Name, err)
+			}
 			resp = append(resp, order.Detail{
 				ID:             spotOpenOrders[i].OrderID,
 				Price:          spotOpenOrders[i].Price,
 				Amount:         spotOpenOrders[i].Size,
 				Pair:           req.Pairs[x],
 				Exchange:       o.Name,
-				Side:           order.Side(spotOpenOrders[i].Side),
+				Side:           side,
 				Type:           order.Type(spotOpenOrders[i].Type),
 				ExecutedAmount: spotOpenOrders[i].FilledSize,
 				Date:           spotOpenOrders[i].Timestamp,
@@ -567,6 +577,11 @@ func (o *OKGroup) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 			if err != nil {
 				log.Errorf(log.ExchangeSys, "%s %v", o.Name, err)
 			}
+			var side order.Side
+			side, err = order.StringToOrderSide(spotOrders[i].Side)
+			if err != nil {
+				log.Errorf(log.ExchangeSys, "%s %v", o.Name, err)
+			}
 			detail := order.Detail{
 				ID:                   spotOrders[i].OrderID,
 				Price:                spotOrders[i].Price,
@@ -576,7 +591,7 @@ func (o *OKGroup) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 				RemainingAmount:      spotOrders[i].Size - spotOrders[i].FilledSize,
 				Pair:                 req.Pairs[x],
 				Exchange:             o.Name,
-				Side:                 order.Side(spotOrders[i].Side),
+				Side:                 side,
 				Type:                 order.Type(spotOrders[i].Type),
 				Date:                 spotOrders[i].Timestamp,
 				Status:               status,

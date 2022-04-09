@@ -595,7 +595,11 @@ func (y *Yobit) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 				return nil, err
 			}
 			orderDate := time.Unix(int64(resp[id].TimestampCreated), 0)
-			side := order.Side(strings.ToUpper(resp[id].Type))
+			var side order.Side
+			side, err = order.StringToOrderSide(resp[id].Type)
+			if err != nil {
+				return nil, err
+			}
 			orders = append(orders, order.Detail{
 				ID:       id,
 				Amount:   resp[id].Amount,
@@ -656,7 +660,11 @@ func (y *Yobit) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest
 			return nil, err
 		}
 		orderDate := time.Unix(int64(allOrders[i].Timestamp), 0)
-		side := order.Side(strings.ToUpper(allOrders[i].Type))
+		var side order.Side
+		side, err = order.StringToOrderSide(allOrders[i].Type)
+		if err != nil {
+			return nil, err
+		}
 		detail := order.Detail{
 			ID:                   strconv.FormatFloat(allOrders[i].OrderID, 'f', -1, 64),
 			Amount:               allOrders[i].Amount,

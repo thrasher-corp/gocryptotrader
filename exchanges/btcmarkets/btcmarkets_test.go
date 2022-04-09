@@ -987,7 +987,7 @@ func TestFormatOrderType(t *testing.T) {
 
 func TestFormatOrderSide(t *testing.T) {
 	t.Parallel()
-	_, err := b.formatOrderSide("invalid")
+	_, err := b.formatOrderSide(255)
 	if !errors.Is(err, order.ErrSideIsInvalid) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, order.ErrSideIsInvalid)
 	}

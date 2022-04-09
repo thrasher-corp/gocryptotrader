@@ -478,7 +478,7 @@ func (b *BTCMarkets) GetRecentTrades(ctx context.Context, p currency.Pair, asset
 		return nil, err
 	}
 	for i := range tradeData {
-		side := order.Side("")
+		var side order.Side
 		if tradeData[i].Side != "" {
 			side, err = order.StringToOrderSide(tradeData[i].Side)
 			if err != nil {

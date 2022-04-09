@@ -1123,7 +1123,11 @@ func (k *Kraken) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 			if err != nil {
 				return nil, err
 			}
-			side := order.Side(strings.ToUpper(resp.Open[i].Description.Type))
+			var side order.Side
+			side, err = order.StringToOrderSide(resp.Open[i].Description.Type)
+			if err != nil {
+				return nil, err
+			}
 			orderType := order.Type(strings.ToUpper(resp.Open[i].Description.OrderType))
 			orders = append(orders, order.Detail{
 				ID:              i,
@@ -1191,7 +1195,7 @@ func (k *Kraken) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 	}
 	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
 	order.FilterOrdersBySide(&orders, req.Side)
-	order.FilterOrdersByCurrencies(&orders, req.Pairs)
+	order.FilterOrdersByPairs(&orders, req.Pairs)
 	return orders, nil
 }
 
@@ -1240,7 +1244,11 @@ func (k *Kraken) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Ge
 				return nil, err
 			}
 
-			side := order.Side(strings.ToUpper(resp.Closed[i].Description.Type))
+			var side order.Side
+			side, err = order.StringToOrderSide(resp.Closed[i].Description.Type)
+			if err != nil {
+				log.Errorf(log.ExchangeSys, "%s %v", k.Name, err)
+			}
 			status, err := order.StringToOrderStatus(resp.Closed[i].Status)
 			if err != nil {
 				log.Errorf(log.ExchangeSys, "%s %v", k.Name, err)
@@ -1410,7 +1418,7 @@ func (k *Kraken) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Ge
 	}
 
 	order.FilterOrdersBySide(&orders, getOrdersRequest.Side)
-	order.FilterOrdersByCurrencies(&orders, getOrdersRequest.Pairs)
+	order.FilterOrdersByPairs(&orders, getOrdersRequest.Pairs)
 	return orders, nil
 }
 

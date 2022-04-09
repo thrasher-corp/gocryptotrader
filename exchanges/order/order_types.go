@@ -289,20 +289,44 @@ const (
 	Trigger           Type = "TRIGGER"
 )
 
+// // Side enforces a standard for order sides across the code base
+// type Side string
+
+// // Order side types
+// const (
+// 	AnySide     Side = "ANY"
+// 	Buy         Side = "BUY"
+// 	Sell        Side = "SELL"
+// 	Bid         Side = "BID"
+// 	Ask         Side = "ASK"
+// 	UnknownSide Side = "UNKNOWN"
+// 	Long        Side = "LONG"
+// 	Short       Side = "SHORT"
+// )
+
 // Side enforces a standard for order sides across the code base
-type Side string
+type Side uint8
 
 // Order side types
 const (
-	AnySide     Side = "ANY"
-	Buy         Side = "BUY"
-	Sell        Side = "SELL"
-	Bid         Side = "BID"
-	Ask         Side = "ASK"
-	UnknownSide Side = "UNKNOWN"
-	Long        Side = "LONG"
-	Short       Side = "SHORT"
+	AnySide Side = 0
+	Buy     Side = 1 << (iota - 1)
+	Sell
+	Bid
+	Ask
+	UnknownSide
+	Long
+	Short
 )
+
+// AnySide     Side = "ANY"
+// 	Buy         Side = "BUY"
+// 	Sell        Side = "SELL"
+// 	Bid         Side = "BID"
+// 	Ask         Side = "ASK"
+// 	UnknownSide Side = "UNKNOWN"
+// 	Long        Side = "LONG"
+// 	Short       Side = "SHORT"
 
 // ByPrice used for sorting orders by price
 type ByPrice []Detail

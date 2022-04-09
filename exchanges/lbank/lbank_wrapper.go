@@ -723,7 +723,7 @@ func (l *Lbank) GetActiveOrders(ctx context.Context, getOrdersRequest *order.Get
 				if getOrdersRequest.Pairs[y].String() != key {
 					continue
 				}
-				if getOrdersRequest.Side == "ANY" {
+				if getOrdersRequest.Side == order.AnySide {
 					finalResp = append(finalResp, resp)
 					continue
 				}

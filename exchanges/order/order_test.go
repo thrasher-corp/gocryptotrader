@@ -267,6 +267,27 @@ func TestFilterOrdersByType(t *testing.T) {
 	}
 }
 
+var filterOrdersByTypeBenchmark = &[]Detail{
+	{Type: UnknownType},
+	{Type: UnknownType},
+	{Type: UnknownType},
+	{Type: UnknownType},
+	{Type: UnknownType},
+	{Type: UnknownType},
+	{Type: UnknownType},
+	{Type: UnknownType},
+	{Type: UnknownType},
+	{Type: UnknownType},
+}
+
+//  392455	      3226 ns/op	   15840 B/op	       5 allocs/op // PREV
+// 1302124	       935.4 ns/op	    4864 B/op	       1 allocs/op // CURRENT
+func BenchmarkFilterOrdersByType(b *testing.B) {
+	for x := 0; x < b.N; x++ {
+		FilterOrdersByType(filterOrdersByTypeBenchmark, UnknownType)
+	}
+}
+
 func TestFilterOrdersBySide(t *testing.T) {
 	t.Parallel()
 
@@ -293,6 +314,27 @@ func TestFilterOrdersBySide(t *testing.T) {
 	FilterOrdersBySide(&orders, Sell)
 	if len(orders) != 0 {
 		t.Errorf("Orders failed to be filtered. Expected %v, received %v", 0, len(orders))
+	}
+}
+
+var filterOrdersBySideBenchmark = &[]Detail{
+	{Side: Ask},
+	{Side: Ask},
+	{Side: Ask},
+	{Side: Ask},
+	{Side: Ask},
+	{Side: Ask},
+	{Side: Ask},
+	{Side: Ask},
+	{Side: Ask},
+	{Side: Ask},
+}
+
+//   372594	      3049 ns/op	   15840 B/op	       5 allocs/op // PREV
+// 1339786	       891.8 ns/op	    4864 B/op	       1 allocs/op // CURRENT
+func BenchmarkFilterOrdersBySide(b *testing.B) {
+	for x := 0; x < b.N; x++ {
+		FilterOrdersBySide(filterOrdersBySideBenchmark, Ask)
 	}
 }
 
@@ -338,7 +380,28 @@ func TestFilterOrdersByTimeRange(t *testing.T) {
 	}
 }
 
-func TestFilterOrdersByCurrencies(t *testing.T) {
+var filterOrdersByTimeRangeBenchmark = &[]Detail{
+	{Date: time.Unix(100, 0)},
+	{Date: time.Unix(100, 0)},
+	{Date: time.Unix(100, 0)},
+	{Date: time.Unix(100, 0)},
+	{Date: time.Unix(100, 0)},
+	{Date: time.Unix(100, 0)},
+	{Date: time.Unix(100, 0)},
+	{Date: time.Unix(100, 0)},
+	{Date: time.Unix(100, 0)},
+	{Date: time.Unix(100, 0)},
+}
+
+//  390822	      3335 ns/op	   15840 B/op	       5 allocs/op // PREV
+// 1000000	      1005 ns/op	    4864 B/op	       1 allocs/op // CURRENT
+func BenchmarkFilterOrdersByTimeRange(b *testing.B) {
+	for x := 0; x < b.N; x++ {
+		FilterOrdersByTimeRange(filterOrdersByTimeRangeBenchmark, time.Unix(50, 0), time.Unix(150, 0))
+	}
+}
+
+func TestFilterOrdersByPairs(t *testing.T) {
 	t.Parallel()
 
 	var orders = []Detail{
@@ -356,39 +419,61 @@ func TestFilterOrdersByCurrencies(t *testing.T) {
 	currencies := []currency.Pair{currency.NewPair(currency.BTC, currency.USD),
 		currency.NewPair(currency.LTC, currency.EUR),
 		currency.NewPair(currency.DOGE, currency.RUB)}
-	FilterOrdersByCurrencies(&orders, currencies)
+	FilterOrdersByPairs(&orders, currencies)
 	if len(orders) != 3 {
 		t.Errorf("Orders failed to be filtered. Expected %v, received %v", 3, len(orders))
 	}
 
 	currencies = []currency.Pair{currency.NewPair(currency.BTC, currency.USD),
 		currency.NewPair(currency.LTC, currency.EUR)}
-	FilterOrdersByCurrencies(&orders, currencies)
+	FilterOrdersByPairs(&orders, currencies)
 	if len(orders) != 2 {
 		t.Errorf("Orders failed to be filtered. Expected %v, received %v", 2, len(orders))
 	}
 
 	currencies = []currency.Pair{currency.NewPair(currency.BTC, currency.USD)}
-	FilterOrdersByCurrencies(&orders, currencies)
+	FilterOrdersByPairs(&orders, currencies)
 	if len(orders) != 1 {
 		t.Errorf("Orders failed to be filtered. Expected %v, received %v", 1, len(orders))
 	}
 
 	currencies = []currency.Pair{currency.NewPair(currency.USD, currency.BTC)}
-	FilterOrdersByCurrencies(&orders, currencies)
+	FilterOrdersByPairs(&orders, currencies)
 	if len(orders) != 1 {
 		t.Errorf("Reverse Orders failed to be filtered. Expected %v, received %v", 1, len(orders))
 	}
 
 	currencies = []currency.Pair{}
-	FilterOrdersByCurrencies(&orders, currencies)
+	FilterOrdersByPairs(&orders, currencies)
 	if len(orders) != 1 {
 		t.Errorf("Orders failed to be filtered. Expected %v, received %v", 1, len(orders))
 	}
 	currencies = append(currencies, currency.EMPTYPAIR)
-	FilterOrdersByCurrencies(&orders, currencies)
+	FilterOrdersByPairs(&orders, currencies)
 	if len(orders) != 1 {
 		t.Errorf("Orders failed to be filtered. Expected %v, received %v", 1, len(orders))
+	}
+}
+
+var filterOrdersByPairsBenchmark = &[]Detail{
+	{Pair: currency.NewPair(currency.BTC, currency.USD)},
+	{Pair: currency.NewPair(currency.BTC, currency.USD)},
+	{Pair: currency.NewPair(currency.BTC, currency.USD)},
+	{Pair: currency.NewPair(currency.BTC, currency.USD)},
+	{Pair: currency.NewPair(currency.BTC, currency.USD)},
+	{Pair: currency.NewPair(currency.BTC, currency.USD)},
+	{Pair: currency.NewPair(currency.BTC, currency.USD)},
+	{Pair: currency.NewPair(currency.BTC, currency.USD)},
+	{Pair: currency.NewPair(currency.BTC, currency.USD)},
+	{Pair: currency.NewPair(currency.BTC, currency.USD)},
+}
+
+//  400032	      2977 ns/op	   15840 B/op	       5 allocs/op // PREV
+// 1227904	       955.0 ns/op	    4864 B/op	       1 allocs/op // CURRENT
+func BenchmarkFilterOrdersByPairs(b *testing.B) {
+	pairs := []currency.Pair{currency.NewPair(currency.BTC, currency.USD)}
+	for x := 0; x < b.N; x++ {
+		FilterOrdersByPairs(filterOrdersByPairsBenchmark, pairs)
 	}
 }
 
@@ -757,13 +842,13 @@ func TestUpdateOrderFromModify(t *testing.T) {
 		ClientID:          "",
 		WalletAddress:     "",
 		Type:              "",
-		Side:              "",
-		Status:            "",
-		AssetType:         "",
-		Date:              time.Time{},
-		LastUpdated:       time.Time{},
-		Pair:              currency.EMPTYPAIR,
-		Trades:            nil,
+		// Side:              "",
+		Status:      "",
+		AssetType:   "",
+		Date:        time.Time{},
+		LastUpdated: time.Time{},
+		Pair:        currency.EMPTYPAIR,
+		Trades:      nil,
 	}
 	updated := time.Now()
 
@@ -794,7 +879,7 @@ func TestUpdateOrderFromModify(t *testing.T) {
 		ClientID:          "1",
 		WalletAddress:     "1",
 		Type:              "1",
-		Side:              "1",
+		Side:              1,
 		Status:            "1",
 		AssetType:         "1",
 		LastUpdated:       updated,
@@ -863,7 +948,7 @@ func TestUpdateOrderFromModify(t *testing.T) {
 	if od.Type != "1" {
 		t.Error("Failed to update")
 	}
-	if od.Side != "1" {
+	if od.Side != 1 {
 		t.Error("Failed to update")
 	}
 	if od.Status != "1" {
@@ -949,13 +1034,13 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 		ClientID:          "",
 		WalletAddress:     "",
 		Type:              "",
-		Side:              "",
-		Status:            "",
-		AssetType:         "",
-		Date:              time.Time{},
-		LastUpdated:       time.Time{},
-		Pair:              currency.EMPTYPAIR,
-		Trades:            nil,
+		// Side:              "",
+		Status:      "",
+		AssetType:   "",
+		Date:        time.Time{},
+		LastUpdated: time.Time{},
+		Pair:        currency.EMPTYPAIR,
+		Trades:      nil,
 	}
 	updated := time.Now()
 
@@ -986,7 +1071,7 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 		ClientID:          "1",
 		WalletAddress:     "1",
 		Type:              "1",
-		Side:              "1",
+		Side:              1,
 		Status:            "1",
 		AssetType:         "1",
 		LastUpdated:       updated,
@@ -1055,7 +1140,7 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 	if od.Type != "1" {
 		t.Error("Failed to update")
 	}
-	if od.Side != "1" {
+	if od.Side != 1 {
 		t.Error("Failed to update")
 	}
 	if od.Status != "1" {
@@ -1402,6 +1487,17 @@ func TestIsActive(t *testing.T) {
 	}
 }
 
+var activeBenchmark = Detail{Status: Pending, Amount: 1}
+
+//432295344	         2.757 ns/op	       0 B/op	       0 allocs/op
+func BenchmarkIsActive(b *testing.B) {
+	for x := 0; x < b.N; x++ {
+		if !activeBenchmark.IsActive() {
+			b.Fatal("no")
+		}
+	}
+}
+
 func TestIsInctive(t *testing.T) {
 	orders := map[int]Detail{
 		0: {Amount: 0.0, Status: Active},
@@ -1453,6 +1549,17 @@ func TestIsInctive(t *testing.T) {
 	for num, tt := range statusTests {
 		if tt.o.IsInactive() != tt.expRes {
 			t.Errorf("statusTests[%v] failed", num)
+		}
+	}
+}
+
+var inactiveBenchmark = Detail{Status: Closed, Amount: 1}
+
+//425339004	         2.771 ns/op	       0 B/op	       0 allocs/op
+func BenchmarkIsInactive(b *testing.B) {
+	for x := 0; x < b.N; x++ {
+		if !inactiveBenchmark.IsInactive() {
+			b.Fatal("no")
 		}
 	}
 }

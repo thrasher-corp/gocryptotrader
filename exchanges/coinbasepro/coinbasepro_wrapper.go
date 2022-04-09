@@ -780,7 +780,11 @@ func (c *CoinbasePro) GetActiveOrders(ctx context.Context, req *order.GetOrdersR
 		if err != nil {
 			return nil, err
 		}
-		orderSide := order.Side(strings.ToUpper(respOrders[i].Side))
+		var side order.Side
+		side, err = order.StringToOrderSide(respOrders[i].Side)
+		if err != nil {
+			return nil, err
+		}
 		orderType := order.Type(strings.ToUpper(respOrders[i].Type))
 		orders = append(orders, order.Detail{
 			ID:             respOrders[i].ID,
@@ -788,7 +792,7 @@ func (c *CoinbasePro) GetActiveOrders(ctx context.Context, req *order.GetOrdersR
 			ExecutedAmount: respOrders[i].FilledSize,
 			Type:           orderType,
 			Date:           respOrders[i].CreatedAt,
-			Side:           orderSide,
+			Side:           side,
 			Pair:           curr,
 			Exchange:       c.Name,
 		})
@@ -844,7 +848,11 @@ func (c *CoinbasePro) GetOrderHistory(ctx context.Context, req *order.GetOrdersR
 		if err != nil {
 			return nil, err
 		}
-		orderSide := order.Side(strings.ToUpper(respOrders[i].Side))
+		var side order.Side
+		side, err = order.StringToOrderSide(respOrders[i].Side)
+		if err != nil {
+			return nil, err
+		}
 		orderStatus, err := order.StringToOrderStatus(respOrders[i].Status)
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "%s %v", c.Name, err)
@@ -862,7 +870,7 @@ func (c *CoinbasePro) GetOrderHistory(ctx context.Context, req *order.GetOrdersR
 			CloseTime:       respOrders[i].DoneAt,
 			Fee:             respOrders[i].FillFees,
 			FeeAsset:        curr.Quote,
-			Side:            orderSide,
+			Side:            side,
 			Status:          orderStatus,
 			Pair:            curr,
 			Price:           respOrders[i].Price,
