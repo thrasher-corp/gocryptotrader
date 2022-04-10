@@ -384,7 +384,7 @@ func (g *Gemini) wsHandleData(respRaw []byte) error {
 			}
 
 			tradeEvent := trade.Data{
-				Timestamp:    time.Unix(result.Timestamp/1000, 0),
+				Timestamp:    time.UnixMilli(result.Timestamp),
 				CurrencyPair: pair,
 				AssetType:    asset.Spot,
 				Exchange:     g.Name,
@@ -447,7 +447,7 @@ func (g *Gemini) wsHandleData(respRaw []byte) error {
 					return errors.New("unable to type assert interval")
 				}
 				g.Websocket.DataHandler <- stream.KlineData{
-					Timestamp:  time.Unix(int64(candle.Changes[i][0])/1000, 0),
+					Timestamp:  time.UnixMilli(int64(candle.Changes[i][0])),
 					Pair:       pair,
 					AssetType:  asset.Spot,
 					Exchange:   g.Name,
@@ -596,7 +596,7 @@ func (g *Gemini) wsProcessUpdate(result *wsL2MarketData) error {
 			}
 		}
 		trades[x] = trade.Data{
-			Timestamp:    time.Unix(result.Trades[x].Timestamp/1000, 0),
+			Timestamp:    time.UnixMilli(result.Trades[x].Timestamp),
 			CurrencyPair: pair,
 			AssetType:    asset.Spot,
 			Exchange:     g.Name,

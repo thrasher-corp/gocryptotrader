@@ -526,45 +526,39 @@ func (f *FTX) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, er
 	if err != nil {
 		return nil, err
 	}
-	dData := make([]exchange.FundHistory, len(depositData))
-	for x := range depositData {
-		var tempData exchange.FundHistory
-		tempData.Fee = depositData[x].Fee
-		tempData.Timestamp = depositData[x].Time
-		tempData.ExchangeName = f.Name
-		tempData.CryptoToAddress = depositData[x].Address.Address
-		tempData.CryptoTxID = depositData[x].TxID
-		tempData.CryptoChain = depositData[x].Address.Method
-		tempData.Status = depositData[x].Status
-		tempData.Amount = depositData[x].Size
-		tempData.Currency = depositData[x].Coin
-		tempData.TransferID = strconv.FormatInt(depositData[x].ID, 10)
-		dData[x] = tempData
-	}
 	withdrawalData, err := f.FetchWithdrawalHistory(ctx)
 	if err != nil {
 		return nil, err
 	}
-
-	wdData := make([]exchange.FundHistory, len(withdrawalData))
-	for y := range withdrawalData {
-		var tempData exchange.FundHistory
-		tempData.Fee = withdrawalData[y].Fee
-		tempData.Timestamp = withdrawalData[y].Time
-		tempData.ExchangeName = f.Name
-		tempData.CryptoToAddress = withdrawalData[y].Address
-		tempData.CryptoTxID = withdrawalData[y].TXID
-		tempData.CryptoChain = withdrawalData[y].Method
-		tempData.Status = withdrawalData[y].Status
-		tempData.Amount = withdrawalData[y].Size
-		tempData.Currency = withdrawalData[y].Coin
-		tempData.TransferID = strconv.FormatInt(withdrawalData[y].ID, 10)
-		wdData[y] = tempData
+	fundingData := make([]exchange.FundHistory, 0, len(depositData)+len(withdrawalData))
+	for x := range depositData {
+		fundingData = append(fundingData, exchange.FundHistory{
+			Fee:             depositData[x].Fee,
+			Timestamp:       depositData[x].Time,
+			ExchangeName:    f.Name,
+			CryptoToAddress: depositData[x].Address.Address,
+			CryptoTxID:      depositData[x].TxID,
+			CryptoChain:     depositData[x].Address.Method,
+			Status:          depositData[x].Status,
+			Amount:          depositData[x].Size,
+			Currency:        depositData[x].Coin,
+			TransferID:      strconv.FormatInt(depositData[x].ID, 10),
+		})
 	}
-
-	fundingData := make([]exchange.FundHistory, len(dData)+len(wdData))
-	copy(fundingData, dData)
-	copy(fundingData, wdData)
+	for y := range withdrawalData {
+		fundingData = append(fundingData, exchange.FundHistory{
+			Fee:             withdrawalData[y].Fee,
+			Timestamp:       withdrawalData[y].Time,
+			ExchangeName:    f.Name,
+			CryptoToAddress: withdrawalData[y].Address,
+			CryptoTxID:      withdrawalData[y].TXID,
+			CryptoChain:     withdrawalData[y].Method,
+			Status:          withdrawalData[y].Status,
+			Amount:          withdrawalData[y].Size,
+			Currency:        withdrawalData[y].Coin,
+			TransferID:      strconv.FormatInt(withdrawalData[y].ID, 10),
+		})
+	}
 	return fundingData, nil
 }
 

@@ -472,7 +472,7 @@ func (b *BTSE) GetRecentTrades(ctx context.Context, p currency.Pair, assetType a
 
 	resp := make([]trade.Data, len(tradeData))
 	for i := range tradeData {
-		tradeTimestamp := time.Unix(tradeData[i].Time/1000, 0)
+		tradeTimestamp := time.UnixMilli(tradeData[i].Time)
 		var side order.Side
 		side, err = order.StringToOrderSide(tradeData[i].Side)
 		if err != nil {

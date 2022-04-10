@@ -143,7 +143,7 @@ func (p *Poloniex) GetOrderbook(ctx context.Context, currencyPair string, depth 
 		}
 		for currency, orderbook := range resp.Data {
 			ob := Orderbook{
-				Bids: make([]OrderbookItem, len(orderbook.Asks)),
+				Bids: make([]OrderbookItem, len(orderbook.Bids)),
 				Asks: make([]OrderbookItem, len(orderbook.Asks)),
 			}
 			for x := range orderbook.Asks {

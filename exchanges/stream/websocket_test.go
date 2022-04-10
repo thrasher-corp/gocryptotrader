@@ -308,8 +308,7 @@ func TestConnectionMessageErrors(t *testing.T) {
 		errText, ok := err.(error)
 		if !ok {
 			t.Error("unable to type assert error")
-		}
-		if errText.Error() != "errorText" {
+		} else if errText.Error() != "errorText" {
 			t.Errorf("Expected 'errorText', received %v", err)
 		}
 	case <-timer.C:

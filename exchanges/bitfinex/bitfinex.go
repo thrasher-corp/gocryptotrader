@@ -1020,7 +1020,7 @@ func (b *Bitfinex) GetCandles(ctx context.Context, symbol, timeFrame string, sta
 			if !ok {
 				return nil, errors.New("unable to type assert timestamp")
 			}
-			c.Timestamp = time.Unix(int64(timestamp/1000), 0)
+			c.Timestamp = time.UnixMilli(int64(timestamp))
 			if c.Open, ok = response[i][1].(float64); !ok {
 				return nil, errors.New("unable to type assert open")
 			}
@@ -1059,7 +1059,7 @@ func (b *Bitfinex) GetCandles(ctx context.Context, symbol, timeFrame string, sta
 	if !ok {
 		return nil, errors.New("unable to type assert timestamp")
 	}
-	c.Timestamp = time.Unix(int64(timestamp/1000), 0)
+	c.Timestamp = time.UnixMilli(int64(timestamp))
 	if c.Open, ok = response[1].(float64); !ok {
 		return nil, errors.New("unable to type assert open")
 	}

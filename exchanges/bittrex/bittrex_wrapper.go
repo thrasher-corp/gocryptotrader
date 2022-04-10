@@ -449,8 +449,6 @@ func (b *Bittrex) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory
 	if err != nil {
 		return nil, err
 	}
-	depositData := append(closedDepositData, openDepositData...)
-
 	closedWithdrawalData, err := b.GetClosedWithdrawals(ctx)
 	if err != nil {
 		return nil, err
@@ -459,11 +457,18 @@ func (b *Bittrex) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory
 	if err != nil {
 		return nil, err
 	}
-	withdrawalData := append(closedWithdrawalData, openWithdrawalData...)
+
+	depositData := make([]DepositData, 0, len(closedDepositData)+len(openDepositData))
+	depositData = append(depositData, closedDepositData...)
+	depositData = append(depositData, openDepositData...)
+
+	withdrawalData := make([]WithdrawalData, 0, len(closedWithdrawalData)+len(openWithdrawalData))
+	withdrawalData = append(withdrawalData, closedWithdrawalData...)
+	withdrawalData = append(withdrawalData, openWithdrawalData...)
 
 	resp := make([]exchange.FundHistory, 0, len(depositData)+len(withdrawalData))
 	for x := range depositData {
-		resp[x] = exchange.FundHistory{
+		resp = append(resp, exchange.FundHistory{
 			ExchangeName:    b.Name,
 			Status:          depositData[x].Status,
 			Description:     depositData[x].CryptoAddressTag,
@@ -473,12 +478,10 @@ func (b *Bittrex) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory
 			TransferType:    "deposit",
 			CryptoToAddress: depositData[x].CryptoAddress,
 			CryptoTxID:      depositData[x].TxID,
-		}
+		})
 	}
-
-	depositDataLen := len(depositData)
 	for x := range withdrawalData {
-		resp[x+depositDataLen] = exchange.FundHistory{
+		resp = append(resp, exchange.FundHistory{
 			ExchangeName:    b.Name,
 			Status:          withdrawalData[x].Status,
 			Description:     withdrawalData[x].CryptoAddressTag,
@@ -490,7 +493,7 @@ func (b *Bittrex) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory
 			CryptoToAddress: withdrawalData[x].CryptoAddress,
 			CryptoTxID:      withdrawalData[x].TxID,
 			TransferID:      withdrawalData[x].ID,
-		}
+		})
 	}
 	return resp, nil
 }

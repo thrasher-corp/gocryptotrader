@@ -657,13 +657,13 @@ const (
 	wsOrderNewRequest                      = wsOrderNew + wsRequest
 	wsOrderUpdateRequest                   = wsOrderUpdate + wsRequest
 	wsOrderCancelRequest                   = wsOrderCancel + wsRequest
-	wsFundingOrderSnapshot                 = "fos"
-	wsFundingOrderNew                      = "fon"
-	wsFundingOrderUpdate                   = "fou"
-	wsFundingOrderCancel                   = "foc"
-	wsFundingOrderNewRequest               = wsFundingOrderNew + wsRequest
-	wsFundingOrderUpdateRequest            = wsFundingOrderUpdate + wsRequest
-	wsFundingOrderCancelRequest            = wsFundingOrderCancel + wsRequest
+	wsFundingOfferSnapshot                 = "fos"
+	wsFundingOfferNew                      = "fon"
+	wsFundingOfferUpdate                   = "fou"
+	wsFundingOfferCancel                   = "foc"
+	wsFundingOfferNewRequest               = wsFundingOfferNew + wsRequest
+	wsFundingOfferUpdateRequest            = wsFundingOfferUpdate + wsRequest
+	wsFundingOfferCancelRequest            = wsFundingOfferCancel + wsRequest
 	wsCancelMultipleOrders                 = "oc_multi"
 	wsBook                                 = "book"
 	wsCandles                              = "candles"
@@ -686,8 +686,8 @@ type WsAuthRequest struct {
 type WsFundingOffer struct {
 	ID             int64
 	Symbol         string
-	Created        int64
-	Updated        int64
+	Created        time.Time
+	Updated        time.Time
 	Amount         float64
 	OriginalAmount float64
 	Type           string
@@ -706,19 +706,18 @@ type WsFundingOffer struct {
 type WsCredit struct {
 	ID           int64
 	Symbol       string
-	Side         string
-	Created      int64
-	Updated      int64
+	Side         int8 // 1 if you are the lender, 0 if you are both the lender and borrower, -1 if you're the borrower
+	Created      time.Time
+	Updated      time.Time
 	Amount       float64
-	Flags        interface{}
+	Flags        interface{} // Future params object (stay tuned)
 	Status       string
 	Rate         float64
 	Period       int64
-	Opened       int64
-	LastPayout   int64
+	Opened       time.Time
+	LastPayout   time.Time
 	Notify       bool
 	Hidden       bool
-	Insure       bool
 	Renew        bool
 	RateReal     float64
 	NoClose      bool
@@ -755,13 +754,14 @@ type WsMarginInfoBase struct {
 	UserSwaps      float64
 	MarginBalance  float64
 	MarginNet      float64
+	MarginRequired float64
 }
 
 // WsFundingTrade recent funding trades received via websocket
 type WsFundingTrade struct {
 	ID         int64
 	Symbol     string
-	MTSCreated int64
+	MTSCreated time.Time
 	OfferID    int64
 	Amount     float64
 	Rate       float64
