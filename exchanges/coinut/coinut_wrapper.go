@@ -974,8 +974,14 @@ func (c *COINUT) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 		}
 	}
 
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
-	order.FilterOrdersBySide(&orders, req.Side)
+	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", c.Name, err)
+	}
+	err = order.FilterOrdersBySide(&orders, req.Side)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", c.Name, err)
+	}
 	return orders, nil
 }
 
@@ -1093,8 +1099,14 @@ func (c *COINUT) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 		}
 	}
 
-	order.FilterOrdersByTimeRange(&allOrders, req.StartTime, req.EndTime)
-	order.FilterOrdersBySide(&allOrders, req.Side)
+	err = order.FilterOrdersByTimeRange(&allOrders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", c.Name, err)
+	}
+	err = order.FilterOrdersBySide(&allOrders, req.Side)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", c.Name, err)
+	}
 	return allOrders, nil
 }
 

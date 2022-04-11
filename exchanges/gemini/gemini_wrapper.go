@@ -725,9 +725,18 @@ func (g *Gemini) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 		})
 	}
 
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
-	order.FilterOrdersBySide(&orders, req.Side)
-	order.FilterOrdersByType(&orders, req.Type)
+	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", g.Name, err)
+	}
+	err = order.FilterOrdersBySide(&orders, req.Side)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", g.Name, err)
+	}
+	err = order.FilterOrdersByType(&orders, req.Type)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", g.Name, err)
+	}
 	order.FilterOrdersByPairs(&orders, req.Pairs)
 	return orders, nil
 }
@@ -798,8 +807,14 @@ func (g *Gemini) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 		orders = append(orders, detail)
 	}
 
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
-	order.FilterOrdersBySide(&orders, req.Side)
+	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", g.Name, err)
+	}
+	err = order.FilterOrdersBySide(&orders, req.Side)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", g.Name, err)
+	}
 	return orders, nil
 }
 

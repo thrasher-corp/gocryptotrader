@@ -612,8 +612,14 @@ func (y *Yobit) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 		}
 	}
 
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
-	order.FilterOrdersBySide(&orders, req.Side)
+	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", y.Name, err)
+	}
+	err = order.FilterOrdersBySide(&orders, req.Side)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", y.Name, err)
+	}
 	return orders, nil
 }
 
@@ -681,7 +687,10 @@ func (y *Yobit) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest
 		orders = append(orders, detail)
 	}
 
-	order.FilterOrdersBySide(&orders, req.Side)
+	err = order.FilterOrdersBySide(&orders, req.Side)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", y.Name, err)
+	}
 
 	return orders, nil
 }

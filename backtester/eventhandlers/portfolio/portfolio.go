@@ -101,7 +101,7 @@ func (p *Portfolio) OnSignal(ev signal.Event, cs *exchange.Settings, funds fundi
 		},
 		Direction: ev.GetDirection(),
 	}
-	if ev.GetDirection() == gctorder.AnySide {
+	if ev.GetDirection() == gctorder.AnySide || ev.GetDirection() == gctorder.UnknownSide {
 		return o, errInvalidDirection
 	}
 
@@ -260,7 +260,7 @@ func (p *Portfolio) OnFill(ev fill.Event, funding funding.IPairReader) (*fill.Fi
 		direction == gctorder.CouldNotBuy ||
 		direction == gctorder.CouldNotSell ||
 		direction == gctorder.MissingData ||
-		direction == gctorder.AnySide {
+		direction == gctorder.UnknownSide {
 		fe, ok := ev.(*fill.Fill)
 		if !ok {
 			return nil, fmt.Errorf("%w expected fill event", common.ErrInvalidDataType)

@@ -662,8 +662,14 @@ func (e *EXMO) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest)
 		})
 	}
 
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
-	order.FilterOrdersBySide(&orders, req.Side)
+	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", e.Name, err)
+	}
+	err = order.FilterOrdersBySide(&orders, req.Side)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", e.Name, err)
+	}
 	return orders, nil
 }
 
@@ -722,8 +728,14 @@ func (e *EXMO) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest)
 		orders = append(orders, detail)
 	}
 
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
-	order.FilterOrdersBySide(&orders, req.Side)
+	err := order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", e.Name, err)
+	}
+	err = order.FilterOrdersBySide(&orders, req.Side)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", e.Name, err)
+	}
 	return orders, nil
 }
 

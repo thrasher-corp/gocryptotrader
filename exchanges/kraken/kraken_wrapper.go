@@ -1197,8 +1197,14 @@ func (k *Kraken) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 	default:
 		return nil, fmt.Errorf("%s assetType not supported", req.AssetType)
 	}
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
-	order.FilterOrdersBySide(&orders, req.Side)
+	err := order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", k.Name, err)
+	}
+	err = order.FilterOrdersBySide(&orders, req.Side)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", k.Name, err)
+	}
 	order.FilterOrdersByPairs(&orders, req.Pairs)
 	return orders, nil
 }
@@ -1425,7 +1431,10 @@ func (k *Kraken) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Ge
 		}
 	}
 
-	order.FilterOrdersBySide(&orders, getOrdersRequest.Side)
+	err := order.FilterOrdersBySide(&orders, getOrdersRequest.Side)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", k.Name, err)
+	}
 	order.FilterOrdersByPairs(&orders, getOrdersRequest.Pairs)
 	return orders, nil
 }

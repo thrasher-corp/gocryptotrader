@@ -1516,9 +1516,18 @@ func (h *HUOBI) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 			}
 		}
 	}
-	order.FilterOrdersByType(&orders, req.Type)
-	order.FilterOrdersBySide(&orders, req.Side)
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	err := order.FilterOrdersByType(&orders, req.Type)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", h.Name, err)
+	}
+	err = order.FilterOrdersBySide(&orders, req.Side)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", h.Name, err)
+	}
+	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", h.Name, err)
+	}
 	return orders, nil
 }
 

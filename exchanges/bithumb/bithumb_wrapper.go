@@ -736,8 +736,14 @@ func (b *Bithumb) GetActiveOrders(ctx context.Context, req *order.GetOrdersReque
 		}
 	}
 
-	order.FilterOrdersBySide(&orders, req.Side)
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	err = order.FilterOrdersBySide(&orders, req.Side)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
+	}
+	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
+	}
 	order.FilterOrdersByPairs(&orders, req.Pairs)
 	return orders, nil
 }
@@ -794,8 +800,14 @@ func (b *Bithumb) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 		}
 	}
 
-	order.FilterOrdersBySide(&orders, req.Side)
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	err = order.FilterOrdersBySide(&orders, req.Side)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
+	}
+	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
+	}
 	order.FilterOrdersByPairs(&orders, req.Pairs)
 	return orders, nil
 }

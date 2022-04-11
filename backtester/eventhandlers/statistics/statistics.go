@@ -314,7 +314,7 @@ func (s *Statistic) PrintAllEventsChronologically() {
 							direction == gctorder.DoNothing ||
 							direction == gctorder.MissingData ||
 							direction == gctorder.TransferredFunds ||
-							direction == gctorder.AnySide {
+							direction == gctorder.UnknownSide {
 							results = addEventOutputToTime(results, currencyStatistic.Events[i].FillEvent.GetTime(),
 								fmt.Sprintf("%v %v %v %v | Price: $%v - Direction: %v - Reason: %s",
 									currencyStatistic.Events[i].FillEvent.GetTime().Format(gctcommon.SimpleTimeFormat),

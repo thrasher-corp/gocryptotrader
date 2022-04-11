@@ -818,9 +818,18 @@ func (b *BTCMarkets) GetActiveOrders(ctx context.Context, req *order.GetOrdersRe
 			resp = append(resp, tempResp)
 		}
 	}
-	order.FilterOrdersByType(&resp, req.Type)
-	order.FilterOrdersByTimeRange(&resp, req.StartTime, req.EndTime)
-	order.FilterOrdersBySide(&resp, req.Side)
+	err := order.FilterOrdersByType(&resp, req.Type)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
+	}
+	err = order.FilterOrdersByTimeRange(&resp, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
+	}
+	err = order.FilterOrdersBySide(&resp, req.Side)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
+	}
 	return resp, nil
 }
 

@@ -787,9 +787,18 @@ func (b *Bitmex) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 		orders = append(orders, orderDetail)
 	}
 
-	order.FilterOrdersBySide(&orders, req.Side)
-	order.FilterOrdersByType(&orders, req.Type)
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	err = order.FilterOrdersBySide(&orders, req.Side)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
+	}
+	err = order.FilterOrdersByType(&orders, req.Type)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
+	}
+	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
+	}
 	order.FilterOrdersByPairs(&orders, req.Pairs)
 	return orders, nil
 }
@@ -843,9 +852,18 @@ func (b *Bitmex) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 		orders = append(orders, orderDetail)
 	}
 
-	order.FilterOrdersBySide(&orders, req.Side)
-	order.FilterOrdersByType(&orders, req.Type)
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	err = order.FilterOrdersBySide(&orders, req.Side)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
+	}
+	err = order.FilterOrdersByType(&orders, req.Type)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
+	}
+	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
+	}
 	order.FilterOrdersByPairs(&orders, req.Pairs)
 	return orders, nil
 }

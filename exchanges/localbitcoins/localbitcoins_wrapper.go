@@ -583,9 +583,15 @@ func (l *LocalBitcoins) GetActiveOrders(ctx context.Context, getOrdersRequest *o
 		})
 	}
 
-	order.FilterOrdersByTimeRange(&orders, getOrdersRequest.StartTime,
+	err = order.FilterOrdersByTimeRange(&orders, getOrdersRequest.StartTime,
 		getOrdersRequest.EndTime)
-	order.FilterOrdersBySide(&orders, getOrdersRequest.Side)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", l.Name, err)
+	}
+	err = order.FilterOrdersBySide(&orders, getOrdersRequest.Side)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", l.Name, err)
+	}
 
 	return orders, nil
 }
@@ -674,9 +680,15 @@ func (l *LocalBitcoins) GetOrderHistory(ctx context.Context, getOrdersRequest *o
 		})
 	}
 
-	order.FilterOrdersByTimeRange(&orders, getOrdersRequest.StartTime,
+	err = order.FilterOrdersByTimeRange(&orders, getOrdersRequest.StartTime,
 		getOrdersRequest.EndTime)
-	order.FilterOrdersBySide(&orders, getOrdersRequest.Side)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", l.Name, err)
+	}
+	err = order.FilterOrdersBySide(&orders, getOrdersRequest.Side)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", l.Name, err)
+	}
 
 	return orders, nil
 }

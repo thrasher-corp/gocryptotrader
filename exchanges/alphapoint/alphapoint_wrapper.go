@@ -393,9 +393,18 @@ func (a *Alphapoint) GetActiveOrders(ctx context.Context, req *order.GetOrdersRe
 		}
 	}
 
-	order.FilterOrdersByType(&orders, req.Type)
-	order.FilterOrdersBySide(&orders, req.Side)
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	err = order.FilterOrdersByType(&orders, req.Type)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", a.Name, err)
+	}
+	err = order.FilterOrdersBySide(&orders, req.Side)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", a.Name, err)
+	}
+	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", a.Name, err)
+	}
 	return orders, nil
 }
 
@@ -436,9 +445,18 @@ func (a *Alphapoint) GetOrderHistory(ctx context.Context, req *order.GetOrdersRe
 		}
 	}
 
-	order.FilterOrdersByType(&orders, req.Type)
-	order.FilterOrdersBySide(&orders, req.Side)
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	err = order.FilterOrdersByType(&orders, req.Type)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", a.Name, err)
+	}
+	err = order.FilterOrdersBySide(&orders, req.Side)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", a.Name, err)
+	}
+	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", a.Name, err)
+	}
 	return orders, nil
 }
 

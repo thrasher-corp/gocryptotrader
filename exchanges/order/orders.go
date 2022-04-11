@@ -653,7 +653,11 @@ func (d *Detail) InferCostsAndTimes() {
 // FilterOrdersBySide removes any order details that don't match the order
 // status provided
 func FilterOrdersBySide(orders *[]Detail, side Side) error {
-	if side == UnknownSide || side == AnySide {
+	if side == UnknownSide || len(*orders) == 0 {
+		return nil
+	}
+
+	if side == AnySide {
 		return fmt.Errorf("cannot filter orders by side %s: %w", side, errInvalidSide)
 	}
 
@@ -670,7 +674,11 @@ func FilterOrdersBySide(orders *[]Detail, side Side) error {
 // FilterOrdersByType removes any order details that don't match the order type
 // provided
 func FilterOrdersByType(orders *[]Detail, orderType Type) error {
-	if orderType == UnknownType || orderType == AnyType {
+	if orderType == UnknownType || len(*orders) == 0 {
+		return nil
+	}
+
+	if orderType == AnyType {
 		return fmt.Errorf("cannot filter orders by type %s: %w", orderType, errInvalidType)
 	}
 
@@ -692,7 +700,10 @@ func FilterOrdersByTimeRange(orders *[]Detail, startTime, endTime time.Time) err
 		endTime.IsZero() ||
 		startTime.Unix() == 0 ||
 		endTime.Unix() == 0 ||
-		endTime.Before(startTime) {
+		len(*orders) == 0 {
+		return nil
+	}
+	if endTime.Before(startTime) {
 		return fmt.Errorf("cannot filter orders by time range %w %s %s",
 			errInvalidTimeRange, startTime, endTime)
 	}
@@ -711,10 +722,7 @@ func FilterOrdersByTimeRange(orders *[]Detail, startTime, endTime time.Time) err
 // provided currency pairs list. It is forgiving in that the provided pairs can
 // match quote or base pairs
 func FilterOrdersByPairs(orders *[]Detail, pairs []currency.Pair) {
-	if len(pairs) == 0 {
-		return
-	}
-	if len(pairs) == 1 && pairs[0].IsEmpty() {
+	if len(pairs) == 0 || len(pairs) == 1 && pairs[0].IsEmpty() || len(*orders) == 0 {
 		return
 	}
 
