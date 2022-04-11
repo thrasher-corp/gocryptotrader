@@ -801,18 +801,12 @@ func (c *CoinbasePro) GetActiveOrders(ctx context.Context, req *order.GetOrdersR
 		})
 	}
 
-	err = order.FilterOrdersByType(&orders, req.Type)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", c.Name, err)
-	}
+	order.FilterOrdersByType(&orders, req.Type)
 	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%s %v", c.Name, err)
 	}
-	err = order.FilterOrdersBySide(&orders, req.Side)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", c.Name, err)
-	}
+	order.FilterOrdersBySide(&orders, req.Side)
 	return orders, nil
 }
 
@@ -897,18 +891,12 @@ func (c *CoinbasePro) GetOrderHistory(ctx context.Context, req *order.GetOrdersR
 		orders = append(orders, detail)
 	}
 
-	err = order.FilterOrdersByType(&orders, req.Type)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", c.Name, err)
-	}
+	order.FilterOrdersByType(&orders, req.Type)
 	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%s %v", c.Name, err)
 	}
-	err = order.FilterOrdersBySide(&orders, req.Side)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", c.Name, err)
-	}
+	order.FilterOrdersBySide(&orders, req.Side)
 	return orders, nil
 }
 

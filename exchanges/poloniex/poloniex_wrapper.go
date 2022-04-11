@@ -871,10 +871,7 @@ func (p *Poloniex) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequ
 		log.Errorf(log.ExchangeSys, "%s %v", p.Name, err)
 	}
 	order.FilterOrdersByPairs(&orders, req.Pairs)
-	err = order.FilterOrdersBySide(&orders, req.Side)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", p.Name, err)
-	}
+	order.FilterOrdersBySide(&orders, req.Side)
 
 	return orders, nil
 }
@@ -941,10 +938,7 @@ func (p *Poloniex) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequ
 	}
 
 	order.FilterOrdersByPairs(&orders, req.Pairs)
-	err = order.FilterOrdersBySide(&orders, req.Side)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", p.Name, err)
-	}
+	order.FilterOrdersBySide(&orders, req.Side)
 	return orders, nil
 }
 

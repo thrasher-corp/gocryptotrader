@@ -766,10 +766,7 @@ func (z *ZB) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%s %v", z.Name, err)
 	}
-	err = order.FilterOrdersBySide(&orders, req.Side)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", z.Name, err)
-	}
+	order.FilterOrdersBySide(&orders, req.Side)
 	return orders, nil
 }
 

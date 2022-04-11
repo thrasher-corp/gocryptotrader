@@ -666,10 +666,7 @@ func (e *EXMO) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%s %v", e.Name, err)
 	}
-	err = order.FilterOrdersBySide(&orders, req.Side)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", e.Name, err)
-	}
+	order.FilterOrdersBySide(&orders, req.Side)
 	return orders, nil
 }
 
@@ -732,10 +729,7 @@ func (e *EXMO) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%s %v", e.Name, err)
 	}
-	err = order.FilterOrdersBySide(&orders, req.Side)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", e.Name, err)
-	}
+	order.FilterOrdersBySide(&orders, req.Side)
 	return orders, nil
 }
 

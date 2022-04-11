@@ -1448,15 +1448,9 @@ func (b *Binance) GetActiveOrders(ctx context.Context, req *order.GetOrdersReque
 		}
 	}
 	order.FilterOrdersByPairs(&orders, req.Pairs)
-	err := order.FilterOrdersByType(&orders, req.Type)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
-	}
-	err = order.FilterOrdersBySide(&orders, req.Side)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
-	}
-	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	order.FilterOrdersByType(&orders, req.Type)
+	order.FilterOrdersBySide(&orders, req.Side)
+	err := order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
 	}
@@ -1649,15 +1643,9 @@ func (b *Binance) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 	default:
 		return orders, fmt.Errorf("assetType not supported")
 	}
-	err := order.FilterOrdersByType(&orders, req.Type)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
-	}
-	err = order.FilterOrdersBySide(&orders, req.Side)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
-	}
-	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	order.FilterOrdersByType(&orders, req.Type)
+	order.FilterOrdersBySide(&orders, req.Side)
+	err := order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
 	}

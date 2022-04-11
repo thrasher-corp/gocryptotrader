@@ -729,14 +729,8 @@ func (g *Gemini) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%s %v", g.Name, err)
 	}
-	err = order.FilterOrdersBySide(&orders, req.Side)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", g.Name, err)
-	}
-	err = order.FilterOrdersByType(&orders, req.Type)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", g.Name, err)
-	}
+	order.FilterOrdersBySide(&orders, req.Side)
+	order.FilterOrdersByType(&orders, req.Type)
 	order.FilterOrdersByPairs(&orders, req.Pairs)
 	return orders, nil
 }
@@ -811,10 +805,7 @@ func (g *Gemini) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%s %v", g.Name, err)
 	}
-	err = order.FilterOrdersBySide(&orders, req.Side)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", g.Name, err)
-	}
+	order.FilterOrdersBySide(&orders, req.Side)
 	return orders, nil
 }
 

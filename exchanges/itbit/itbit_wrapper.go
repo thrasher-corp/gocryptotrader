@@ -585,10 +585,7 @@ func (i *ItBit) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%s %v", i.Name, err)
 	}
-	err = order.FilterOrdersBySide(&orders, req.Side)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", i.Name, err)
-	}
+	order.FilterOrdersBySide(&orders, req.Side)
 	order.FilterOrdersByPairs(&orders, req.Pairs)
 	return orders, nil
 }
@@ -671,10 +668,7 @@ func (i *ItBit) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%s %v", i.Name, err)
 	}
-	err = order.FilterOrdersBySide(&orders, req.Side)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", i.Name, err)
-	}
+	order.FilterOrdersBySide(&orders, req.Side)
 	order.FilterOrdersByPairs(&orders, req.Pairs)
 	return orders, nil
 }

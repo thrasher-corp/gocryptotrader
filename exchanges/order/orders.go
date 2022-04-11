@@ -10,6 +10,7 @@ import (
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/validate"
 )
 
@@ -19,15 +20,16 @@ const (
 	longSide                  = Long | Buy | Bid
 	inactiveStatuses          = Filled | Cancelled | InsufficientBalance | MarketUnavailable | Rejected | PartiallyCancelled | Expired | Closed
 	activeStatuses            = Active | Open | PartiallyFilled | New | PendingCancel | Hidden | AutoDeleverage | Pending | UnknownStatus | AnyStatus
+	bypassSideFilter          = UnknownSide | AnySide
+	bypassTypeFilter          = UnknownType | AnyType
 )
 
 var (
 	errTimeInForceConflict     = errors.New("multiple time in force options applied")
 	errUnrecognisedOrderSide   = errors.New("unrecognised order side")
 	errUnrecognisedOrderType   = errors.New("unrecognised order type")
-	errInvalidType             = errors.New("invalid type")
-	errInvalidSide             = errors.New("invalid side")
 	errUnrecognisedOrderStatus = errors.New("unrecognised order status")
+	errInvalidTimeRange        = errors.New("invalid time range")
 )
 
 // Validate checks the supplied data and returns whether or not it's valid
@@ -652,47 +654,37 @@ func (d *Detail) InferCostsAndTimes() {
 
 // FilterOrdersBySide removes any order details that don't match the order
 // status provided
-func FilterOrdersBySide(orders *[]Detail, side Side) error {
-	if side == UnknownSide || len(*orders) == 0 {
-		return nil
+func FilterOrdersBySide(orders *[]Detail, side Side) {
+	if bypassSideFilter&side == side || len(*orders) == 0 {
+		return
 	}
 
-	if side == AnySide {
-		return fmt.Errorf("cannot filter orders by side %s: %w", side, errInvalidSide)
-	}
-
-	filteredOrders := make([]Detail, 0, len(*orders))
+	target := 0
 	for i := range *orders {
 		if (*orders)[i].Side == side {
-			filteredOrders = append(filteredOrders, (*orders)[i])
+			(*orders)[target] = (*orders)[i]
+			target++
 		}
 	}
-	*orders = filteredOrders
-	return nil
+	*orders = (*orders)[:target]
 }
 
 // FilterOrdersByType removes any order details that don't match the order type
 // provided
-func FilterOrdersByType(orders *[]Detail, orderType Type) error {
-	if orderType == UnknownType || len(*orders) == 0 {
-		return nil
+func FilterOrdersByType(orders *[]Detail, orderType Type) {
+	if bypassTypeFilter&orderType == orderType || len(*orders) == 0 {
+		return
 	}
 
-	if orderType == AnyType {
-		return fmt.Errorf("cannot filter orders by type %s: %w", orderType, errInvalidType)
-	}
-
-	filteredOrders := make([]Detail, 0, len(*orders))
+	target := 0
 	for i := range *orders {
 		if (*orders)[i].Type == orderType {
-			filteredOrders = append(filteredOrders, (*orders)[i])
+			(*orders)[target] = (*orders)[i]
+			target++
 		}
 	}
-	*orders = filteredOrders
-	return nil
+	*orders = (*orders)[:target]
 }
-
-var errInvalidTimeRange = errors.New("invalid time range")
 
 // FilterOrdersByTimeRange removes any OrderDetails outside of the time range
 func FilterOrdersByTimeRange(orders *[]Detail, startTime, endTime time.Time) error {
@@ -707,14 +699,16 @@ func FilterOrdersByTimeRange(orders *[]Detail, startTime, endTime time.Time) err
 		return fmt.Errorf("cannot filter orders by time range %w %s %s",
 			errInvalidTimeRange, startTime, endTime)
 	}
-	filteredOrders := make([]Detail, 0, len(*orders))
+
+	target := 0
 	for i := range *orders {
 		if ((*orders)[i].Date.Unix() >= startTime.Unix() && (*orders)[i].Date.Unix() <= endTime.Unix()) ||
 			(*orders)[i].Date.IsZero() {
-			filteredOrders = append(filteredOrders, (*orders)[i])
+			(*orders)[target] = (*orders)[i]
+			target++
 		}
 	}
-	*orders = filteredOrders
+	*orders = (*orders)[:target]
 	return nil
 }
 
@@ -726,16 +720,17 @@ func FilterOrdersByPairs(orders *[]Detail, pairs []currency.Pair) {
 		return
 	}
 
-	var filteredOrders = make([]Detail, 0, len(*orders))
+	target := 0
 	for x := range *orders {
 		for y := range pairs {
 			if (*orders)[x].Pair.EqualIncludeReciprocal(pairs[y]) {
-				filteredOrders = append(filteredOrders, (*orders)[x])
+				(*orders)[target] = (*orders)[x]
+				target++
 				break
 			}
 		}
 	}
-	*orders = filteredOrders
+	*orders = (*orders)[:target]
 }
 
 func (b ByPrice) Len() int {
@@ -1005,7 +1000,7 @@ func (g *GetOrdersRequest) Validate(opt ...validate.Checker) error {
 		return ErrGetOrdersRequestIsNil
 	}
 	if !g.AssetType.IsValid() {
-		return fmt.Errorf("assetType %v not supported", g.AssetType)
+		return fmt.Errorf("%v %w", g.AssetType, asset.ErrNotSupported)
 	}
 	var errs common.Errors
 	for _, o := range opt {
@@ -1031,7 +1026,7 @@ func (m *Modify) Validate(opt ...validate.Checker) error {
 		return ErrPairIsEmpty
 	}
 
-	if m.AssetType.String() == "" {
+	if m.AssetType == "" {
 		return ErrAssetNotSet
 	}
 

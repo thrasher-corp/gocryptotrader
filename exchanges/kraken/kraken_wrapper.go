@@ -1201,10 +1201,7 @@ func (k *Kraken) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%s %v", k.Name, err)
 	}
-	err = order.FilterOrdersBySide(&orders, req.Side)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", k.Name, err)
-	}
+	order.FilterOrdersBySide(&orders, req.Side)
 	order.FilterOrdersByPairs(&orders, req.Pairs)
 	return orders, nil
 }
@@ -1431,10 +1428,7 @@ func (k *Kraken) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Ge
 		}
 	}
 
-	err := order.FilterOrdersBySide(&orders, getOrdersRequest.Side)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", k.Name, err)
-	}
+	order.FilterOrdersBySide(&orders, getOrdersRequest.Side)
 	order.FilterOrdersByPairs(&orders, getOrdersRequest.Pairs)
 	return orders, nil
 }
