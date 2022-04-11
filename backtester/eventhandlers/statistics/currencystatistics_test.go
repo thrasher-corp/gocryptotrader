@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
-	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
@@ -15,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 func TestCalculateResults(t *testing.T) {
@@ -106,7 +106,7 @@ func TestCalculateResults(t *testing.T) {
 		SignalEvent: &signal.Signal{
 			Base:       even2,
 			ClosePrice: decimal.NewFromInt(1337),
-			Direction:  common.MissingData,
+			Direction:  gctorder.MissingData,
 		},
 	}
 

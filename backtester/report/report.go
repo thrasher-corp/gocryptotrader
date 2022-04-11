@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
-	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -209,14 +208,14 @@ func (d *Data) enhanceCandles() error {
 			}
 			if !requiresIteration {
 				if statsForCandles.Events[intVal].SignalEvent.GetTime().Equal(d.OriginalCandles[intVal].Candles[j].Time) &&
-					statsForCandles.Events[intVal].SignalEvent.GetDirection() == common.MissingData &&
+					statsForCandles.Events[intVal].SignalEvent.GetDirection() == order.MissingData &&
 					len(enhancedKline.Candles) > 0 {
 					enhancedCandle.copyCloseFromPreviousEvent(&enhancedKline)
 				}
 			} else {
 				for k := range statsForCandles.Events {
 					if statsForCandles.Events[k].SignalEvent.GetTime().Equal(d.OriginalCandles[intVal].Candles[j].Time) &&
-						statsForCandles.Events[k].SignalEvent.GetDirection() == common.MissingData &&
+						statsForCandles.Events[k].SignalEvent.GetDirection() == order.MissingData &&
 						len(enhancedKline.Candles) > 0 {
 						enhancedCandle.copyCloseFromPreviousEvent(&enhancedKline)
 					}
@@ -261,7 +260,7 @@ func (d *DetailedCandle) copyCloseFromPreviousEvent(enhancedKline *DetailedKline
 	d.Colour = "white"
 	d.Position = "aboveBar"
 	d.Shape = "arrowDown"
-	d.Text = common.MissingData.String()
+	d.Text = order.MissingData.String()
 }
 
 // UseDarkMode sets whether to use a dark theme by default

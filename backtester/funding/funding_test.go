@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -500,7 +501,7 @@ func TestReservePair(t *testing.T) {
 	if !errors.Is(err, errCannotAllocate) {
 		t.Errorf("received '%v' expected '%v'", err, errCannotAllocate)
 	}
-	err = pairItems.Reserve(elite, common.DoNothing)
+	err = pairItems.Reserve(elite, order.DoNothing)
 	if !errors.Is(err, errCannotAllocate) {
 		t.Errorf("received '%v' expected '%v'", err, errCannotAllocate)
 	}
@@ -549,7 +550,7 @@ func TestReleasePair(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, errCannotAllocate)
 	}
 
-	err = pairItems.Release(elite, decimal.Zero, common.DoNothing)
+	err = pairItems.Release(elite, decimal.Zero, order.DoNothing)
 	if !errors.Is(err, errCannotAllocate) {
 		t.Errorf("received '%v' expected '%v'", err, errCannotAllocate)
 	}
@@ -595,7 +596,7 @@ func TestIncreaseAvailablePair(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", elite, pairItems.Base.available)
 	}
 
-	pairItems.IncreaseAvailable(elite, common.DoNothing)
+	pairItems.IncreaseAvailable(elite, order.DoNothing)
 	if !pairItems.Base.available.Equal(elite) {
 		t.Errorf("received '%v' expected '%v'", elite, pairItems.Base.available)
 	}
@@ -607,7 +608,7 @@ func TestCanPlaceOrderPair(t *testing.T) {
 		Base:  &Item{},
 		Quote: &Item{},
 	}
-	if p.CanPlaceOrder(common.DoNothing) {
+	if p.CanPlaceOrder(order.DoNothing) {
 		t.Error("expected false")
 	}
 	if p.CanPlaceOrder(gctorder.Buy) {

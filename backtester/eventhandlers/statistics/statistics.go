@@ -309,11 +309,11 @@ func (s *Statistic) PrintAllEventsChronologically() {
 					switch {
 					case currencyStatistic.Events[i].FillEvent != nil:
 						direction := currencyStatistic.Events[i].FillEvent.GetDirection()
-						if direction == common.CouldNotBuy ||
-							direction == common.CouldNotSell ||
-							direction == common.DoNothing ||
-							direction == common.MissingData ||
-							direction == common.TransferredFunds ||
+						if direction == gctorder.CouldNotBuy ||
+							direction == gctorder.CouldNotSell ||
+							direction == gctorder.DoNothing ||
+							direction == gctorder.MissingData ||
+							direction == gctorder.TransferredFunds ||
 							direction == gctorder.AnySide {
 							results = addEventOutputToTime(results, currencyStatistic.Events[i].FillEvent.GetTime(),
 								fmt.Sprintf("%v %v %v %v | Price: $%v - Direction: %v - Reason: %s",

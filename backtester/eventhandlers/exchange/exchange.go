@@ -77,11 +77,11 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 		if err != nil {
 			switch f.GetDirection() {
 			case gctorder.Buy:
-				f.SetDirection(common.CouldNotBuy)
+				f.SetDirection(gctorder.CouldNotBuy)
 			case gctorder.Sell:
-				f.SetDirection(common.CouldNotSell)
+				f.SetDirection(gctorder.CouldNotSell)
 			default:
-				f.SetDirection(common.DoNothing)
+				f.SetDirection(gctorder.DoNothing)
 			}
 			f.AppendReason(err.Error())
 			return f, err
@@ -117,9 +117,9 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 			f.AppendReason(fundErr.Error())
 		}
 		if f.GetDirection() == gctorder.Buy {
-			f.SetDirection(common.CouldNotBuy)
+			f.SetDirection(gctorder.CouldNotBuy)
 		} else if f.GetDirection() == gctorder.Sell {
-			f.SetDirection(common.CouldNotSell)
+			f.SetDirection(gctorder.CouldNotSell)
 		}
 		return f, err
 	}
@@ -138,7 +138,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 		funds.IncreaseAvailable(limitReducedAmount.Mul(adjustedPrice), f.GetDirection())
 	}
 
-	ords := orderManager.GetOrdersSnapshot("")
+	ords := orderManager.GetOrdersSnapshot(gctorder.UnknownStatus)
 	for i := range ords {
 		if ords[i].ID != orderID {
 			continue
@@ -172,13 +172,13 @@ func verifyOrderWithinLimits(f *fill.Fill, limitReducedAmount decimal.Decimal, c
 	switch f.GetDirection() {
 	case gctorder.Buy:
 		minMax = cs.BuySide
-		direction = common.CouldNotBuy
+		direction = gctorder.CouldNotBuy
 	case gctorder.Sell:
 		minMax = cs.SellSide
-		direction = common.CouldNotSell
+		direction = gctorder.CouldNotSell
 	default:
 		direction = f.GetDirection()
-		f.SetDirection(common.DoNothing)
+		f.SetDirection(gctorder.DoNothing)
 		return fmt.Errorf("%w: %v", errInvalidDirection, direction)
 	}
 	var minOrMax, belowExceed string

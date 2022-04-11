@@ -266,31 +266,6 @@ const (
 	Pending
 )
 
-// // Status defines order status types
-// type Status string
-
-// // All order status types
-// const (
-// 	AnyStatus           Status = "ANY"
-// 	New                 Status = "NEW"
-// 	Active              Status = "ACTIVE"
-// 	PartiallyCancelled  Status = "PARTIALLY_CANCELLED"
-// 	PartiallyFilled     Status = "PARTIALLY_FILLED"
-// 	Filled              Status = "FILLED"
-// 	Cancelled           Status = "CANCELLED"
-// 	PendingCancel       Status = "PENDING_CANCEL"
-// 	InsufficientBalance Status = "INSUFFICIENT_BALANCE"
-// 	MarketUnavailable   Status = "MARKET_UNAVAILABLE"
-// 	Rejected            Status = "REJECTED"
-// 	Expired             Status = "EXPIRED"
-// 	Hidden              Status = "HIDDEN"
-// 	UnknownStatus       Status = "UNKNOWN"
-// 	Open                Status = "OPEN"
-// 	AutoDeleverage      Status = "ADL"
-// 	Closed              Status = "CLOSED"
-// 	Pending             Status = "PENDING"
-// )
-
 // Type enforces a standard for order types across the code base
 type Type uint16
 
@@ -314,31 +289,8 @@ const (
 	Trigger
 )
 
-// // Type enforces a standard for order types across the code base
-// type Type string
-
-// // Defined package order types
-// const (
-// 	AnyType           Type = "ANY"
-// 	Limit             Type = "LIMIT"
-// 	Market            Type = "MARKET"
-// 	PostOnly          Type = "POST_ONLY"
-// 	ImmediateOrCancel Type = "IMMEDIATE_OR_CANCEL"
-// 	Stop              Type = "STOP"
-// 	StopLimit         Type = "STOP LIMIT"
-// 	StopMarket        Type = "STOP MARKET"
-// 	TakeProfit        Type = "TAKE PROFIT"
-// 	TakeProfitMarket  Type = "TAKE PROFIT MARKET"
-// 	TrailingStop      Type = "TRAILING_STOP"
-// 	FillOrKill        Type = "FOK"
-// 	IOS               Type = "IOS"
-// 	UnknownType       Type = "UNKNOWN"
-// 	Liquidation       Type = "LIQUIDATION"
-// 	Trigger           Type = "TRIGGER"
-// )
-
 // Side enforces a standard for order sides across the code base
-type Side uint8
+type Side uint16
 
 // Order side types
 const (
@@ -350,6 +302,12 @@ const (
 	AnySide
 	Long
 	Short
+	// Backtester signal type TODO: expand
+	DoNothing
+	TransferredFunds
+	CouldNotBuy
+	CouldNotSell
+	MissingData
 )
 
 // ByPrice used for sorting orders by price

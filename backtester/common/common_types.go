@@ -12,20 +12,6 @@ import (
 )
 
 const (
-	// DoNothing is an explicit signal for the backtester to not perform an action
-	// based upon indicator results
-	DoNothing order.Side = "DO NOTHING"
-	// TransferredFunds is a status signal to do nothing
-	TransferredFunds order.Side = "TRANSFERRED FUNDS"
-	// CouldNotBuy is flagged when a BUY  signal is raised in the strategy/signal phase, but the
-	// portfolio manager or exchange cannot place an order
-	CouldNotBuy order.Side = "COULD NOT BUY"
-	// CouldNotSell is flagged when a SELL  signal is raised in the strategy/signal phase, but the
-	// portfolio manager or exchange cannot place an order
-	CouldNotSell order.Side = "COULD NOT SELL"
-	// MissingData is signalled during the strategy/signal phase when data has been identified as missing
-	// No buy or sell events can occur
-	MissingData order.Side = "MISSING DATA"
 	// CandleStr is a config readable data type to tell the backtester to retrieve candle data
 	CandleStr = "candle"
 	// TradeStr is a config readable data type to tell the backtester to retrieve trade data

@@ -541,6 +541,17 @@ func (s Side) String() string {
 		return "SHORT"
 	case AnySide:
 		return "ANY"
+		// Backtester signal types below.
+	case DoNothing:
+		return "DO NOTHING"
+	case TransferredFunds:
+		return "TRANSFERRED FUNDS"
+	case CouldNotBuy:
+		return "COULD NOT BUY"
+	case CouldNotSell:
+		return "COULD NOT SELL"
+	case MissingData:
+		return "MISSING DATA"
 	default:
 		return "UNKNOWN"
 	}
