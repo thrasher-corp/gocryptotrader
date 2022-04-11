@@ -422,7 +422,7 @@ func (p *PositionTracker) TrackNewOrder(d *Detail) error {
 	if p.asset != d.AssetType {
 		return fmt.Errorf("%w asset '%v' received: '%v'", errOrderNotEqualToTracker, d.AssetType, p.asset)
 	}
-	if d.Side == 0 {
+	if d.Side == UnknownSide {
 		return ErrSideIsInvalid
 	}
 	if d.ID == "" {
