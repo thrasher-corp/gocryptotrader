@@ -13,7 +13,22 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/validate"
 )
 
-var errTimeInForceConflict = errors.New("multiple time in force options applied")
+const (
+	orderSubmissionValidSides = Buy | Sell | Bid | Ask
+	shortSide                 = Short | Sell | Ask
+	longSide                  = Long | Buy | Bid
+	inactiveStatuses          = Filled | Cancelled | InsufficientBalance | MarketUnavailable | Rejected | PartiallyCancelled | Expired | Closed
+	activeStatuses            = Active | Open | PartiallyFilled | New | PendingCancel | Hidden | AutoDeleverage | Pending | UnknownStatus | AnyStatus
+)
+
+var (
+	errTimeInForceConflict     = errors.New("multiple time in force options applied")
+	errUnrecognisedOrderSide   = errors.New("unrecognised order side")
+	errUnrecognisedOrderType   = errors.New("unrecognised order type")
+	errInvalidType             = errors.New("invalid type")
+	errInvalidSide             = errors.New("invalid side")
+	errUnrecognisedOrderStatus = errors.New("unrecognised order status")
+)
 
 // Validate checks the supplied data and returns whether or not it's valid
 func (s *Submit) Validate(opt ...validate.Checker) error {
@@ -29,10 +44,7 @@ func (s *Submit) Validate(opt ...validate.Checker) error {
 		return ErrAssetNotSet
 	}
 
-	if s.Side != Buy &&
-		s.Side != Sell &&
-		s.Side != Bid &&
-		s.Side != Ask {
+	if s.Side == UnknownSide || orderSubmissionValidSides&s.Side != s.Side {
 		return ErrSideIsInvalid
 	}
 
@@ -144,7 +156,7 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) {
 		d.WalletAddress = m.WalletAddress
 		updated = true
 	}
-	if m.Type != "" && m.Type != d.Type {
+	if m.Type != UnknownType && m.Type != d.Type {
 		d.Type = m.Type
 		updated = true
 	}
@@ -152,7 +164,7 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) {
 		d.Side = m.Side
 		updated = true
 	}
-	if m.Status != "" && m.Status != d.Status {
+	if m.Status != UnknownStatus && m.Status != d.Status {
 		d.Status = m.Status
 		updated = true
 	}
@@ -306,7 +318,7 @@ func (d *Detail) UpdateOrderFromModify(m *Modify) {
 		d.WalletAddress = m.WalletAddress
 		updated = true
 	}
-	if m.Type != "" && m.Type != d.Type {
+	if m.Type != UnknownType && m.Type != d.Type {
 		d.Type = m.Type
 		updated = true
 	}
@@ -314,7 +326,7 @@ func (d *Detail) UpdateOrderFromModify(m *Modify) {
 		d.Side = m.Side
 		updated = true
 	}
-	if m.Status != "" && m.Status != d.Status {
+	if m.Status != UnknownStatus && m.Status != d.Status {
 		d.Status = m.Status
 		updated = true
 	}
@@ -396,13 +408,13 @@ func (d *Detail) MatchFilter(f *Filter) bool {
 	if f.ID != "" && d.ID != f.ID {
 		return false
 	}
-	if f.Type != "" && f.Type != AnyType && d.Type != f.Type {
+	if f.Type != UnknownType && f.Type != AnyType && d.Type != f.Type {
 		return false
 	}
-	if f.Side != AnySide && d.Side != f.Side {
+	if f.Side != UnknownSide && f.Side != AnySide && d.Side != f.Side {
 		return false
 	}
-	if f.Status != "" && f.Status != AnyStatus && d.Status != f.Status {
+	if f.Status != UnknownStatus && f.Status != AnyStatus && d.Status != f.Status {
 		return false
 	}
 	if f.ClientOrderID != "" && d.ClientOrderID != f.ClientOrderID {
@@ -426,22 +438,19 @@ func (d *Detail) MatchFilter(f *Filter) bool {
 // IsActive returns true if an order has a status that indicates it is currently
 // available on the exchange
 func (d *Detail) IsActive() bool {
-	if d.Amount <= 0 || d.Amount <= d.ExecutedAmount {
-		return false
-	}
-	return d.Status == Active || d.Status == Open || d.Status == PartiallyFilled || d.Status == New ||
-		d.Status == AnyStatus || d.Status == PendingCancel || d.Status == Hidden || d.Status == UnknownStatus ||
-		d.Status == AutoDeleverage || d.Status == Pending
+	return d.Amount > 0 && d.Amount > d.ExecutedAmount && activeStatuses&d.Status == d.Status
 }
 
 // IsInactive returns true if an order has a status that indicates it is
 // currently not available on the exchange
 func (d *Detail) IsInactive() bool {
+	if d.Status == UnknownStatus {
+		return false
+	}
 	if d.Amount <= 0 || d.Amount <= d.ExecutedAmount {
 		return true
 	}
-	return d.Status == Filled || d.Status == Cancelled || d.Status == InsufficientBalance || d.Status == MarketUnavailable ||
-		d.Status == Rejected || d.Status == PartiallyCancelled || d.Status == Expired || d.Status == Closed
+	return inactiveStatuses&d.Status == d.Status
 }
 
 // GenerateInternalOrderID sets a new V4 order ID or a V5 order ID if
@@ -469,17 +478,50 @@ func (d *Detail) Copy() Detail {
 
 // String implements the stringer interface
 func (t Type) String() string {
-	return string(t)
+	switch t {
+	case AnyType:
+		return "ANY"
+	case Limit:
+		return "LIMIT"
+	case Market:
+		return "MARKET"
+	case PostOnly:
+		return "POST_ONLY"
+	case ImmediateOrCancel:
+		return "IMMEDIATE_OR_CANCEL"
+	case Stop:
+		return "STOP"
+	case StopLimit:
+		return "STOP LIMIT"
+	case StopMarket:
+		return "STOP MARKET"
+	case TakeProfit:
+		return "TAKE PROFIT"
+	case TakeProfitMarket:
+		return "TAKE PROFIT MARKET"
+	case TrailingStop:
+		return "TRAILING_STOP"
+	case FillOrKill:
+		return "FOK"
+	case IOS:
+		return "IOS"
+	case Liquidation:
+		return "LIQUIDATION"
+	case Trigger:
+		return "TRIGGER"
+	default:
+		return "UNKNOWN"
+	}
 }
 
 // Lower returns the type lower case string
 func (t Type) Lower() string {
-	return strings.ToLower(string(t))
+	return strings.ToLower(t.String())
 }
 
 // Title returns the type titleized, eg "Limit"
 func (t Type) Title() string {
-	return strings.Title(strings.ToLower(string(t)))
+	return strings.Title(strings.ToLower(t.String()))
 }
 
 // String implements the stringer interface
@@ -500,7 +542,7 @@ func (s Side) String() string {
 	case AnySide:
 		return "ANY"
 	default:
-		return ""
+		return "UNKNOWN"
 	}
 }
 
@@ -514,26 +556,60 @@ func (s Side) Title() string {
 	return strings.Title(strings.ToLower(s.String()))
 }
 
-const short = Short | Sell | Ask
-
 // IsShort returns if the side is short
 func (s Side) IsShort() bool {
-	return (short & s) != 0
+	return s != UnknownSide && shortSide&s == s
 }
-
-const long = Long | Buy | Bid
 
 // IsLong returns if the side is long
 func (s Side) IsLong() bool {
-	return (long & s) != 0
+	return s != UnknownSide && longSide&s == s
 }
 
 // String implements the stringer interface
 func (s Status) String() string {
-	return string(s)
+	switch s {
+	case AnyStatus:
+		return "ANY"
+	case New:
+		return "NEW"
+	case Active:
+		return "ACTIVE"
+	case PartiallyCancelled:
+		return "PARTIALLY_CANCELLED"
+	case PartiallyFilled:
+		return "PARTIALLY_FILLED"
+	case Filled:
+		return "FILLED"
+	case Cancelled:
+		return "CANCELLED"
+	case PendingCancel:
+		return "PENDING_CANCEL"
+	case InsufficientBalance:
+		return "INSUFFICIENT_BALANCE"
+	case MarketUnavailable:
+		return "MARKET_UNAVAILABLE"
+	case Rejected:
+		return "REJECTED"
+	case Expired:
+		return "EXPIRED"
+	case Hidden:
+		return "HIDDEN"
+	case Open:
+		return "OPEN"
+	case AutoDeleverage:
+		return "ADL"
+	case Closed:
+		return "CLOSED"
+	case Pending:
+		return "PENDING"
+	default:
+		return "UNKNOWN"
+	}
 }
 
-// InferCostsAndTimes infer order costs using execution information and times when available
+// InferCostsAndTimes infer order costs using execution information and times
+// when available
 func (d *Detail) InferCostsAndTimes() {
 	if d.CostAsset.IsEmpty() {
 		d.CostAsset = d.Pair.Quote
@@ -563,11 +639,11 @@ func (d *Detail) InferCostsAndTimes() {
 	}
 }
 
-// FilterOrdersBySide removes any order details that don't match the
-// order status provided
-func FilterOrdersBySide(orders *[]Detail, side Side) {
-	if side == AnySide {
-		return
+// FilterOrdersBySide removes any order details that don't match the order
+// status provided
+func FilterOrdersBySide(orders *[]Detail, side Side) error {
+	if side == UnknownSide || side == AnySide {
+		return fmt.Errorf("cannot filter orders by side %s: %w", side, errInvalidSide)
 	}
 
 	filteredOrders := make([]Detail, 0, len(*orders))
@@ -577,13 +653,14 @@ func FilterOrdersBySide(orders *[]Detail, side Side) {
 		}
 	}
 	*orders = filteredOrders
+	return nil
 }
 
 // FilterOrdersByType removes any order details that don't match the order type
 // provided
-func FilterOrdersByType(orders *[]Detail, orderType Type) {
-	if orderType == "" || orderType == AnyType {
-		return
+func FilterOrdersByType(orders *[]Detail, orderType Type) error {
+	if orderType == UnknownType || orderType == AnyType {
+		return fmt.Errorf("cannot filter orders by type %s: %w", orderType, errInvalidType)
 	}
 
 	filteredOrders := make([]Detail, 0, len(*orders))
@@ -593,18 +670,21 @@ func FilterOrdersByType(orders *[]Detail, orderType Type) {
 		}
 	}
 	*orders = filteredOrders
+	return nil
 }
 
+var errInvalidTimeRange = errors.New("invalid time range")
+
 // FilterOrdersByTimeRange removes any OrderDetails outside of the time range
-func FilterOrdersByTimeRange(orders *[]Detail, startTime, endTime time.Time) {
+func FilterOrdersByTimeRange(orders *[]Detail, startTime, endTime time.Time) error {
 	if startTime.IsZero() ||
 		endTime.IsZero() ||
 		startTime.Unix() == 0 ||
 		endTime.Unix() == 0 ||
 		endTime.Before(startTime) {
-		return
+		return fmt.Errorf("cannot filter orders by time range %w %s %s",
+			errInvalidTimeRange, startTime, endTime)
 	}
-
 	filteredOrders := make([]Detail, 0, len(*orders))
 	for i := range *orders {
 		if ((*orders)[i].Date.Unix() >= startTime.Unix() && (*orders)[i].Date.Unix() <= endTime.Unix()) ||
@@ -612,8 +692,8 @@ func FilterOrdersByTimeRange(orders *[]Detail, startTime, endTime time.Time) {
 			filteredOrders = append(filteredOrders, (*orders)[i])
 		}
 	}
-
 	*orders = filteredOrders
+	return nil
 }
 
 // FilterOrdersByPairs removes any order details that do not match the
@@ -764,7 +844,7 @@ func StringToOrderSide(side string) (Side, error) {
 	case AnySide.String():
 		return AnySide, nil
 	default:
-		return UnknownSide, errors.New(side + " not recognised as order side")
+		return UnknownSide, fmt.Errorf("%s %w", side, errUnrecognisedOrderSide)
 	}
 }
 
@@ -796,7 +876,7 @@ func StringToOrderType(oType string) (Type, error) {
 	case Trigger.String():
 		return Trigger, nil
 	default:
-		return UnknownType, errors.New(oType + " not recognised as order type")
+		return UnknownType, fmt.Errorf("%v %w", oType, errUnrecognisedOrderType)
 	}
 }
 
@@ -838,7 +918,7 @@ func StringToOrderStatus(status string) (Status, error) {
 	case MarketUnavailable.String():
 		return MarketUnavailable, nil
 	default:
-		return UnknownStatus, errors.New(status + " not recognised as order status")
+		return UnknownStatus, fmt.Errorf("%s %w", status, errUnrecognisedOrderStatus)
 	}
 }
 

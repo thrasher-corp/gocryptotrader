@@ -518,9 +518,7 @@ func (m *OrderManager) GetOrdersSnapshot(s order.Status) []order.Detail {
 	var os []order.Detail
 	for _, v := range m.orderStore.Orders {
 		for i := range v {
-			if s != v[i].Status &&
-				s != order.AnyStatus &&
-				s != "" {
+			if s != v[i].Status && s != order.AnyStatus && s != order.UnknownStatus {
 				continue
 			}
 			os = append(os, *v[i])

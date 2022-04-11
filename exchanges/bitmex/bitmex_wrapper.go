@@ -768,11 +768,6 @@ func (b *Bitmex) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
 		}
-		orderType := orderTypeMap[resp[i].OrdType]
-		if orderType == "" {
-			orderType = order.UnknownType
-		}
-
 		orderDetail := order.Detail{
 			Date:            resp[i].Timestamp,
 			Price:           resp[i].Price,
@@ -783,7 +778,7 @@ func (b *Bitmex) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 			ID:              resp[i].OrderID,
 			Side:            orderSide,
 			Status:          orderStatus,
-			Type:            orderType,
+			Type:            orderTypeMap[resp[i].OrdType],
 			Pair: currency.NewPairWithDelimiter(resp[i].Symbol,
 				resp[i].SettlCurrency,
 				format.Delimiter),
@@ -825,10 +820,7 @@ func (b *Bitmex) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
 		}
-		orderType := orderTypeMap[resp[i].OrdType]
-		if orderType == "" {
-			orderType = order.UnknownType
-		}
+
 		pair := currency.NewPairWithDelimiter(resp[i].Symbol, resp[i].SettlCurrency, format.Delimiter)
 
 		orderDetail := order.Detail{
@@ -843,7 +835,7 @@ func (b *Bitmex) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 			ID:                   resp[i].OrderID,
 			Side:                 orderSide,
 			Status:               orderStatus,
-			Type:                 orderType,
+			Type:                 orderTypeMap[resp[i].OrdType],
 			Pair:                 pair,
 		}
 		orderDetail.InferCostsAndTimes()

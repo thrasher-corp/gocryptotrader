@@ -938,7 +938,10 @@ func (b *Bitfinex) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequ
 		if orderType == "trailing-stop" {
 			orderDetail.Type = order.TrailingStop
 		} else {
-			orderDetail.Type = order.Type(strings.ToUpper(orderType))
+			orderDetail.Type, err = order.StringToOrderType(orderType)
+			if err != nil {
+				log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
+			}
 		}
 
 		orders = append(orders, orderDetail)
@@ -1012,7 +1015,10 @@ func (b *Bitfinex) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequ
 		if orderType == "trailing-stop" {
 			orderDetail.Type = order.TrailingStop
 		} else {
-			orderDetail.Type = order.Type(strings.ToUpper(orderType))
+			orderDetail.Type, err = order.StringToOrderType(orderType)
+			if err != nil {
+				log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
+			}
 		}
 
 		orders = append(orders, orderDetail)

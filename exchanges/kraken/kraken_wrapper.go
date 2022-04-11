@@ -1128,7 +1128,11 @@ func (k *Kraken) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 			if err != nil {
 				return nil, err
 			}
-			orderType := order.Type(strings.ToUpper(resp.Open[i].Description.OrderType))
+			var orderType order.Type
+			orderType, err = order.StringToOrderType(resp.Open[i].Description.OrderType)
+			if err != nil {
+				log.Errorf(log.ExchangeSys, "%s %v", k.Name, err)
+			}
 			orders = append(orders, order.Detail{
 				ID:              i,
 				Amount:          resp.Open[i].Volume,
@@ -1253,7 +1257,11 @@ func (k *Kraken) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Ge
 			if err != nil {
 				log.Errorf(log.ExchangeSys, "%s %v", k.Name, err)
 			}
-			orderType := order.Type(strings.ToUpper(resp.Closed[i].Description.OrderType))
+			var orderType order.Type
+			orderType, err = order.StringToOrderType(resp.Closed[i].Description.OrderType)
+			if err != nil {
+				log.Errorf(log.ExchangeSys, "%s %v", k.Name, err)
+			}
 			detail := order.Detail{
 				ID:              i,
 				Amount:          resp.Closed[i].Volume,

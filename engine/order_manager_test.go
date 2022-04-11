@@ -880,7 +880,7 @@ func TestProcessOrders(t *testing.T) {
 		t.Errorf("Expected 3 result, got: %d", len(res))
 	}
 	if res[0].Status != order.Active {
-		t.Errorf("Order 1 should be active, but status is %s", string(res[0].Status))
+		t.Errorf("Order 1 should be active, but status is %s", res[0].Status)
 	}
 
 	// Order2 is not returned by exch.GetActiveOrders()
@@ -893,7 +893,7 @@ func TestProcessOrders(t *testing.T) {
 		t.Errorf("Expected 1 result, got: %d", len(res))
 	}
 	if res[0].Status != order.Cancelled {
-		t.Errorf("Order 2 should be cancelled, but status is %s", string(res[0].Status))
+		t.Errorf("Order 2 should be cancelled, but status is %s", res[0].Status)
 	}
 
 	// Order3 is returned by exch.GetActiveOrders(), which will say it is active
@@ -905,7 +905,7 @@ func TestProcessOrders(t *testing.T) {
 		t.Errorf("Expected 1 result, got: %d", len(res))
 	}
 	if res[0].Status != order.Active {
-		t.Errorf("Order 3 should be active, but status is %s", string(res[0].Status))
+		t.Errorf("Order 3 should be active, but status is %s", res[0].Status)
 	}
 }
 

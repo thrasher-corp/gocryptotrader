@@ -242,66 +242,99 @@ type GetOrdersRequest struct {
 }
 
 // Status defines order status types
-type Status string
+type Status uint32
 
 // All order status types
 const (
-	AnyStatus           Status = "ANY"
-	New                 Status = "NEW"
-	Active              Status = "ACTIVE"
-	PartiallyCancelled  Status = "PARTIALLY_CANCELLED"
-	PartiallyFilled     Status = "PARTIALLY_FILLED"
-	Filled              Status = "FILLED"
-	Cancelled           Status = "CANCELLED"
-	PendingCancel       Status = "PENDING_CANCEL"
-	InsufficientBalance Status = "INSUFFICIENT_BALANCE"
-	MarketUnavailable   Status = "MARKET_UNAVAILABLE"
-	Rejected            Status = "REJECTED"
-	Expired             Status = "EXPIRED"
-	Hidden              Status = "HIDDEN"
-	UnknownStatus       Status = "UNKNOWN"
-	Open                Status = "OPEN"
-	AutoDeleverage      Status = "ADL"
-	Closed              Status = "CLOSED"
-	Pending             Status = "PENDING"
+	UnknownStatus Status = 0
+	AnyStatus     Status = 1 << iota
+	New
+	Active
+	PartiallyCancelled
+	PartiallyFilled
+	Filled
+	Cancelled
+	PendingCancel
+	InsufficientBalance
+	MarketUnavailable
+	Rejected
+	Expired
+	Hidden
+	Open
+	AutoDeleverage
+	Closed
+	Pending
 )
 
+// // Status defines order status types
+// type Status string
+
+// // All order status types
+// const (
+// 	AnyStatus           Status = "ANY"
+// 	New                 Status = "NEW"
+// 	Active              Status = "ACTIVE"
+// 	PartiallyCancelled  Status = "PARTIALLY_CANCELLED"
+// 	PartiallyFilled     Status = "PARTIALLY_FILLED"
+// 	Filled              Status = "FILLED"
+// 	Cancelled           Status = "CANCELLED"
+// 	PendingCancel       Status = "PENDING_CANCEL"
+// 	InsufficientBalance Status = "INSUFFICIENT_BALANCE"
+// 	MarketUnavailable   Status = "MARKET_UNAVAILABLE"
+// 	Rejected            Status = "REJECTED"
+// 	Expired             Status = "EXPIRED"
+// 	Hidden              Status = "HIDDEN"
+// 	UnknownStatus       Status = "UNKNOWN"
+// 	Open                Status = "OPEN"
+// 	AutoDeleverage      Status = "ADL"
+// 	Closed              Status = "CLOSED"
+// 	Pending             Status = "PENDING"
+// )
+
 // Type enforces a standard for order types across the code base
-type Type string
+type Type uint16
 
 // Defined package order types
 const (
-	AnyType           Type = "ANY"
-	Limit             Type = "LIMIT"
-	Market            Type = "MARKET"
-	PostOnly          Type = "POST_ONLY"
-	ImmediateOrCancel Type = "IMMEDIATE_OR_CANCEL"
-	Stop              Type = "STOP"
-	StopLimit         Type = "STOP LIMIT"
-	StopMarket        Type = "STOP MARKET"
-	TakeProfit        Type = "TAKE PROFIT"
-	TakeProfitMarket  Type = "TAKE PROFIT MARKET"
-	TrailingStop      Type = "TRAILING_STOP"
-	FillOrKill        Type = "FOK"
-	IOS               Type = "IOS"
-	UnknownType       Type = "UNKNOWN"
-	Liquidation       Type = "LIQUIDATION"
-	Trigger           Type = "TRIGGER"
+	UnknownType Type = 0
+	Limit       Type = 1 << iota
+	Market
+	PostOnly
+	ImmediateOrCancel
+	Stop
+	StopLimit
+	StopMarket
+	TakeProfit
+	TakeProfitMarket
+	TrailingStop
+	FillOrKill
+	IOS
+	AnyType
+	Liquidation
+	Trigger
 )
 
-// // Side enforces a standard for order sides across the code base
-// type Side string
+// // Type enforces a standard for order types across the code base
+// type Type string
 
-// // Order side types
+// // Defined package order types
 // const (
-// 	AnySide     Side = "ANY"
-// 	Buy         Side = "BUY"
-// 	Sell        Side = "SELL"
-// 	Bid         Side = "BID"
-// 	Ask         Side = "ASK"
-// 	UnknownSide Side = "UNKNOWN"
-// 	Long        Side = "LONG"
-// 	Short       Side = "SHORT"
+// 	AnyType           Type = "ANY"
+// 	Limit             Type = "LIMIT"
+// 	Market            Type = "MARKET"
+// 	PostOnly          Type = "POST_ONLY"
+// 	ImmediateOrCancel Type = "IMMEDIATE_OR_CANCEL"
+// 	Stop              Type = "STOP"
+// 	StopLimit         Type = "STOP LIMIT"
+// 	StopMarket        Type = "STOP MARKET"
+// 	TakeProfit        Type = "TAKE PROFIT"
+// 	TakeProfitMarket  Type = "TAKE PROFIT MARKET"
+// 	TrailingStop      Type = "TRAILING_STOP"
+// 	FillOrKill        Type = "FOK"
+// 	IOS               Type = "IOS"
+// 	UnknownType       Type = "UNKNOWN"
+// 	Liquidation       Type = "LIQUIDATION"
+// 	Trigger           Type = "TRIGGER"
 // )
 
 // Side enforces a standard for order sides across the code base
@@ -309,24 +342,15 @@ type Side uint8
 
 // Order side types
 const (
-	AnySide Side = 0
-	Buy     Side = 1 << (iota - 1)
+	UnknownSide Side = 0
+	Buy         Side = 1 << iota
 	Sell
 	Bid
 	Ask
-	UnknownSide
+	AnySide
 	Long
 	Short
 )
-
-// AnySide     Side = "ANY"
-// 	Buy         Side = "BUY"
-// 	Sell        Side = "SELL"
-// 	Bid         Side = "BID"
-// 	Ask         Side = "ASK"
-// 	UnknownSide Side = "UNKNOWN"
-// 	Long        Side = "LONG"
-// 	Short       Side = "SHORT"
 
 // ByPrice used for sorting orders by price
 type ByPrice []Detail

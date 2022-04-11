@@ -1200,8 +1200,12 @@ func (s *RPCServer) SubmitOrder(ctx context.Context, r *gctrpc.SubmitOrderReques
 		return nil, err
 	}
 
-	var side order.Side
-	side, err = order.StringToOrderSide(r.Side)
+	side, err := order.StringToOrderSide(r.Side)
+	if err != nil {
+		return nil, err
+	}
+
+	oType, err := order.StringToOrderType(r.OrderType)
 	if err != nil {
 		return nil, err
 	}
@@ -1209,7 +1213,7 @@ func (s *RPCServer) SubmitOrder(ctx context.Context, r *gctrpc.SubmitOrderReques
 	submission := &order.Submit{
 		Pair:          p,
 		Side:          side,
-		Type:          order.Type(r.OrderType),
+		Type:          oType,
 		Amount:        r.Amount,
 		Price:         r.Price,
 		ClientID:      r.ClientId,

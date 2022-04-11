@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"sort"
-	"strings"
 	"sync"
 	"time"
 
@@ -662,10 +661,12 @@ func (b *Bittrex) ConstructOrderDetail(orderData *OrderData) (order.Detail, erro
 			orderData.ID,
 			err)
 	}
-	orderType := order.Type(strings.ToUpper(orderData.Type))
+	orderType, err := order.StringToOrderType(orderData.Type)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
+	}
 
 	var orderStatus order.Status
-
 	switch orderData.Status {
 	case order.Open.String():
 		switch orderData.FillQuantity {
@@ -784,12 +785,15 @@ func (b *Bittrex) GetActiveOrders(ctx context.Context, req *order.GetOrdersReque
 				orderData[i].ID,
 				err)
 		}
-		orderType := order.Type(strings.ToUpper(orderData[i].Type))
+
+		orderType, err := order.StringToOrderType(orderData[i].Type)
+		if err != nil {
+			log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
+		}
 
 		orderSide, err := order.StringToOrderSide(orderData[i].Direction)
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "GetActiveOrders - %s - cannot get order side - %s\n", b.Name, err.Error())
-			continue
 		}
 
 		resp = append(resp, order.Detail{
@@ -853,17 +857,17 @@ func (b *Bittrex) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 					orderData[i].ID,
 					err)
 			}
-			orderType := order.Type(strings.ToUpper(orderData[i].Type))
-
+			orderType, err := order.StringToOrderType(orderData[i].Type)
+			if err != nil {
+				log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
+			}
 			orderSide, err := order.StringToOrderSide(orderData[i].Direction)
 			if err != nil {
 				log.Errorf(log.ExchangeSys, "GetActiveOrders - %s - cannot get order side - %s\n", b.Name, err.Error())
-				continue
 			}
 			orderStatus, err := order.StringToOrderStatus(orderData[i].Status)
 			if err != nil {
 				log.Errorf(log.ExchangeSys, "GetActiveOrders - %s - cannot get order status - %s\n", b.Name, err.Error())
-				continue
 			}
 
 			detail := order.Detail{

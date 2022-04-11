@@ -1353,7 +1353,11 @@ func (b *Binance) GetActiveOrders(ctx context.Context, req *order.GetOrdersReque
 				if err != nil {
 					log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
 				}
-				orderType := order.Type(strings.ToUpper(resp[x].Type))
+				var orderType order.Type
+				orderType, err = order.StringToOrderType(resp[x].Type)
+				if err != nil {
+					log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
+				}
 				orderStatus, err := order.StringToOrderStatus(resp[i].Status)
 				if err != nil {
 					log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
@@ -1477,7 +1481,11 @@ func (b *Binance) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 				if err != nil {
 					log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
 				}
-				orderType := order.Type(strings.ToUpper(resp[i].Type))
+				var orderType order.Type
+				orderType, err = order.StringToOrderType(resp[i].Type)
+				if err != nil {
+					log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
+				}
 				orderStatus, err := order.StringToOrderStatus(resp[i].Status)
 				if err != nil {
 					log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)

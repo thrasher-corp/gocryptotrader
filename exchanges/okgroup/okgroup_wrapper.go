@@ -531,6 +531,11 @@ func (o *OKGroup) GetActiveOrders(ctx context.Context, req *order.GetOrdersReque
 			if err != nil {
 				log.Errorf(log.ExchangeSys, "%s %v", o.Name, err)
 			}
+			var orderType order.Type
+			orderType, err = order.StringToOrderType(spotOpenOrders[i].Type)
+			if err != nil {
+				log.Errorf(log.ExchangeSys, "%s %v", o.Name, err)
+			}
 			resp = append(resp, order.Detail{
 				ID:             spotOpenOrders[i].OrderID,
 				Price:          spotOpenOrders[i].Price,
@@ -538,7 +543,7 @@ func (o *OKGroup) GetActiveOrders(ctx context.Context, req *order.GetOrdersReque
 				Pair:           req.Pairs[x],
 				Exchange:       o.Name,
 				Side:           side,
-				Type:           order.Type(spotOpenOrders[i].Type),
+				Type:           orderType,
 				ExecutedAmount: spotOpenOrders[i].FilledSize,
 				Date:           spotOpenOrders[i].Timestamp,
 				Status:         status,
@@ -582,6 +587,11 @@ func (o *OKGroup) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 			if err != nil {
 				log.Errorf(log.ExchangeSys, "%s %v", o.Name, err)
 			}
+			var orderType order.Type
+			orderType, err = order.StringToOrderType(spotOrders[i].Type)
+			if err != nil {
+				log.Errorf(log.ExchangeSys, "%s %v", o.Name, err)
+			}
 			detail := order.Detail{
 				ID:                   spotOrders[i].OrderID,
 				Price:                spotOrders[i].Price,
@@ -592,7 +602,7 @@ func (o *OKGroup) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 				Pair:                 req.Pairs[x],
 				Exchange:             o.Name,
 				Side:                 side,
-				Type:                 order.Type(spotOrders[i].Type),
+				Type:                 orderType,
 				Date:                 spotOrders[i].Timestamp,
 				Status:               status,
 			}

@@ -457,9 +457,14 @@ func ExchangeOrderSubmit(args ...objects.Object) (objects.Object, error) {
 		return nil, err
 	}
 
+	oType, err := order.StringToOrderType(orderType)
+	if err != nil {
+		return nil, err
+	}
+
 	tempSubmit := &order.Submit{
 		Pair:      pair,
-		Type:      order.Type(orderType),
+		Type:      oType,
 		Side:      side,
 		Price:     orderPrice,
 		Amount:    orderAmount,

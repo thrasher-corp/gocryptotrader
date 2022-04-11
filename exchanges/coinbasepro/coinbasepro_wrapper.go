@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -785,7 +784,11 @@ func (c *CoinbasePro) GetActiveOrders(ctx context.Context, req *order.GetOrdersR
 		if err != nil {
 			return nil, err
 		}
-		orderType := order.Type(strings.ToUpper(respOrders[i].Type))
+		var orderType order.Type
+		orderType, err = order.StringToOrderType(respOrders[i].Type)
+		if err != nil {
+			log.Errorf(log.ExchangeSys, "%s %v", c.Name, err)
+		}
 		orders = append(orders, order.Detail{
 			ID:             respOrders[i].ID,
 			Amount:         respOrders[i].Size,
@@ -853,11 +856,16 @@ func (c *CoinbasePro) GetOrderHistory(ctx context.Context, req *order.GetOrdersR
 		if err != nil {
 			return nil, err
 		}
-		orderStatus, err := order.StringToOrderStatus(respOrders[i].Status)
+		var orderStatus order.Status
+		orderStatus, err = order.StringToOrderStatus(respOrders[i].Status)
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "%s %v", c.Name, err)
 		}
-		orderType := order.Type(strings.ToUpper(respOrders[i].Type))
+		var orderType order.Type
+		orderType, err = order.StringToOrderType(respOrders[i].Type)
+		if err != nil {
+			log.Errorf(log.ExchangeSys, "%s %v", c.Name, err)
+		}
 		detail := order.Detail{
 			ID:              respOrders[i].ID,
 			Amount:          respOrders[i].Size,
