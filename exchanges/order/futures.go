@@ -614,8 +614,6 @@ func (p *PNLCalculator) CalculatePNL(_ context.Context, calc *PNLCalculatorReque
 	switch {
 	case calc.OpeningDirection.IsShort() && calc.OrderDirection.IsShort(),
 		calc.OpeningDirection.IsLong() && calc.OrderDirection.IsLong():
-
-		fmt.Println(calc.OpeningDirection.IsShort(), calc.OrderDirection.IsShort())
 		// appending to your position
 		currentExposure = prevExposure.Add(calc.Amount)
 		unrealisedPNL = currentExposure.Mul(first.Sub(second))
