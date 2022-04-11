@@ -101,7 +101,7 @@ func (p *Portfolio) OnSignal(ev signal.Event, cs *exchange.Settings, funds fundi
 		},
 		Direction: ev.GetDirection(),
 	}
-	if ev.GetDirection() == gctorder.AnySide || ev.GetDirection() == gctorder.UnknownSide {
+	if ev.GetDirection() == gctorder.UnknownSide {
 		return o, errInvalidDirection
 	}
 
@@ -116,8 +116,7 @@ func (p *Portfolio) OnSignal(ev signal.Event, cs *exchange.Settings, funds fundi
 
 	if ev.GetDirection() == gctorder.DoNothing ||
 		ev.GetDirection() == gctorder.MissingData ||
-		ev.GetDirection() == gctorder.TransferredFunds ||
-		ev.GetDirection() == gctorder.AnySide {
+		ev.GetDirection() == gctorder.TransferredFunds {
 		return o, nil
 	}
 
