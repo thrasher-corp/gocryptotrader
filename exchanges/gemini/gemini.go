@@ -82,7 +82,7 @@ func (g *Gemini) GetTicker(ctx context.Context, currencyPair string) (TickerV2, 
 //
 // params - limit_bids or limit_asks [OPTIONAL] default 50, 0 returns all Values
 // Type is an integer ie "params.Set("limit_asks", 30)"
-func (g *Gemini) GetOrderbook(ctx context.Context, currencyPair string, params url.Values) (Orderbook, error) {
+func (g *Gemini) GetOrderbook(ctx context.Context, currencyPair string, params url.Values) (*Orderbook, error) {
 	path := common.EncodeURLValues(
 		fmt.Sprintf("/v%s/%s/%s",
 			geminiAPIVersion,
@@ -91,7 +91,7 @@ func (g *Gemini) GetOrderbook(ctx context.Context, currencyPair string, params u
 		params)
 
 	var orderbook Orderbook
-	return orderbook, g.SendHTTPRequest(ctx, exchange.RestSpot, path, &orderbook)
+	return &orderbook, g.SendHTTPRequest(ctx, exchange.RestSpot, path, &orderbook)
 }
 
 // GetTrades return the trades that have executed since the specified timestamp.

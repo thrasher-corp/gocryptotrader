@@ -248,18 +248,20 @@ func (l *LocalBitcoins) UpdateOrderbook(ctx context.Context, p currency.Pair, as
 		return book, err
 	}
 
+	book.Bids = make(orderbook.Items, len(orderbookNew.Bids))
 	for x := range orderbookNew.Bids {
-		book.Bids = append(book.Bids, orderbook.Item{
+		book.Bids[x] = orderbook.Item{
 			Amount: orderbookNew.Bids[x].Amount / orderbookNew.Bids[x].Price,
 			Price:  orderbookNew.Bids[x].Price,
-		})
+		}
 	}
 
+	book.Asks = make(orderbook.Items, len(orderbookNew.Asks))
 	for x := range orderbookNew.Asks {
-		book.Asks = append(book.Asks, orderbook.Item{
+		book.Asks[x] = orderbook.Item{
 			Amount: orderbookNew.Asks[x].Amount / orderbookNew.Asks[x].Price,
 			Price:  orderbookNew.Asks[x].Price,
-		})
+		}
 	}
 
 	book.PriceDuplication = true

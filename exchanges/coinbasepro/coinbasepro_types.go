@@ -427,18 +427,18 @@ type WebsocketTicker struct {
 
 // WebsocketOrderbookSnapshot defines a snapshot response
 type WebsocketOrderbookSnapshot struct {
-	ProductID string          `json:"product_id"`
-	Type      string          `json:"type"`
-	Bids      [][]interface{} `json:"bids"`
-	Asks      [][]interface{} `json:"asks"`
+	ProductID string      `json:"product_id"`
+	Type      string      `json:"type"`
+	Bids      [][2]string `json:"bids"`
+	Asks      [][2]string `json:"asks"`
 }
 
 // WebsocketL2Update defines an update on the L2 orderbooks
 type WebsocketL2Update struct {
-	Type      string          `json:"type"`
-	ProductID string          `json:"product_id"`
-	Time      string          `json:"time"`
-	Changes   [][]interface{} `json:"changes"`
+	Type      string      `json:"type"`
+	ProductID string      `json:"product_id"`
+	Time      string      `json:"time"`
+	Changes   [][3]string `json:"changes"`
 }
 
 type wsMsgType struct {

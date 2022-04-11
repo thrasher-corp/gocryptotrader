@@ -314,7 +314,7 @@ func (o *OKGroup) GetSpotTokenPairDetails(ctx context.Context) (resp []GetSpotTo
 // GetOrderBook Getting the order book of a trading pair. Pagination is not
 // supported here. The whole book will be returned for one request. Websocket is
 // recommended here.
-func (o *OKGroup) GetOrderBook(ctx context.Context, request GetOrderBookRequest, a asset.Item) (resp GetOrderBookResponse, _ error) {
+func (o *OKGroup) GetOrderBook(ctx context.Context, request *GetOrderBookRequest, a asset.Item) (resp *GetOrderBookResponse, _ error) {
 	var requestType, endpoint string
 	switch a {
 	case asset.Spot:

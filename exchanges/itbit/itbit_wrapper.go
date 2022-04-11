@@ -221,9 +221,10 @@ func (i *ItBit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType 
 
 	orderbookNew, err := i.GetOrderbook(ctx, fpair.String())
 	if err != nil {
-		return nil, err
+		return book, err
 	}
 
+	book.Bids = make(orderbook.Items, len(orderbookNew.Bids))
 	for x := range orderbookNew.Bids {
 		var price, amount float64
 		price, err = strconv.ParseFloat(orderbookNew.Bids[x][0], 64)
@@ -234,13 +235,13 @@ func (i *ItBit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType 
 		if err != nil {
 			return book, err
 		}
-		book.Bids = append(book.Bids,
-			orderbook.Item{
-				Amount: amount,
-				Price:  price,
-			})
+		book.Bids[x] = orderbook.Item{
+			Amount: amount,
+			Price:  price,
+		}
 	}
 
+	book.Asks = make(orderbook.Items, len(orderbookNew.Asks))
 	for x := range orderbookNew.Asks {
 		var price, amount float64
 		price, err = strconv.ParseFloat(orderbookNew.Asks[x][0], 64)
@@ -251,11 +252,10 @@ func (i *ItBit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType 
 		if err != nil {
 			return book, err
 		}
-		book.Asks = append(book.Asks,
-			orderbook.Item{
-				Amount: amount,
-				Price:  price,
-			})
+		book.Asks[x] = orderbook.Item{
+			Amount: amount,
+			Price:  price,
+		}
 	}
 	err = book.Process()
 	if err != nil {

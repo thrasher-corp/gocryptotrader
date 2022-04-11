@@ -532,40 +532,44 @@ func (k *Kraken) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 	var err error
 	switch assetType {
 	case asset.Spot:
-		var orderbookNew Orderbook
+		var orderbookNew *Orderbook
 		orderbookNew, err = k.GetDepth(ctx, p)
 		if err != nil {
 			return nil, err
 		}
+		book.Bids = make([]orderbook.Item, len(orderbookNew.Bids))
 		for x := range orderbookNew.Bids {
-			book.Bids = append(book.Bids, orderbook.Item{
+			book.Bids[x] = orderbook.Item{
 				Amount: orderbookNew.Bids[x].Amount,
 				Price:  orderbookNew.Bids[x].Price,
-			})
+			}
 		}
+		book.Asks = make([]orderbook.Item, len(orderbookNew.Asks))
 		for y := range orderbookNew.Asks {
-			book.Asks = append(book.Asks, orderbook.Item{
+			book.Asks[y] = orderbook.Item{
 				Amount: orderbookNew.Asks[y].Amount,
 				Price:  orderbookNew.Asks[y].Price,
-			})
+			}
 		}
 	case asset.Futures:
-		var futuresOB FuturesOrderbookData
+		var futuresOB *FuturesOrderbookData
 		futuresOB, err = k.GetFuturesOrderbook(ctx, p)
 		if err != nil {
 			return nil, err
 		}
+		book.Asks = make([]orderbook.Item, len(futuresOB.Orderbook.Asks))
 		for x := range futuresOB.Orderbook.Asks {
-			book.Asks = append(book.Asks, orderbook.Item{
+			book.Asks[x] = orderbook.Item{
 				Price:  futuresOB.Orderbook.Asks[x][0],
 				Amount: futuresOB.Orderbook.Asks[x][1],
-			})
+			}
 		}
+		book.Bids = make([]orderbook.Item, len(futuresOB.Orderbook.Bids))
 		for y := range futuresOB.Orderbook.Bids {
-			book.Bids = append(book.Bids, orderbook.Item{
+			book.Bids[y] = orderbook.Item{
 				Price:  futuresOB.Orderbook.Bids[y][0],
 				Amount: futuresOB.Orderbook.Bids[y][1],
-			})
+			}
 		}
 	default:
 		return book, fmt.Errorf("invalid assetType: %v", assetType)

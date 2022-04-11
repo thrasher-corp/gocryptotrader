@@ -18,7 +18,6 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 const (
@@ -144,51 +143,51 @@ func (b *Bitstamp) GetTicker(ctx context.Context, currency string, hourly bool) 
 // GetOrderbook Returns a JSON dictionary with "bids" and "asks". Each is a list
 // of open orders and each order is represented as a list holding the price and
 // the amount.
-func (b *Bitstamp) GetOrderbook(ctx context.Context, currency string) (Orderbook, error) {
+func (b *Bitstamp) GetOrderbook(ctx context.Context, currency string) (*Orderbook, error) {
 	type response struct {
-		Timestamp int64      `json:"timestamp,string"`
-		Bids      [][]string `json:"bids"`
-		Asks      [][]string `json:"asks"`
+		Timestamp int64       `json:"timestamp,string"`
+		Bids      [][2]string `json:"bids"`
+		Asks      [][2]string `json:"asks"`
 	}
-	resp := response{}
+
 	path := "/v" + bitstampAPIVersion + "/" + bitstampAPIOrderbook + "/" + strings.ToLower(currency) + "/"
+	var resp response
 	err := b.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
 	if err != nil {
-		return Orderbook{}, err
+		return nil, err
 	}
 
-	orderbook := Orderbook{}
-	orderbook.Timestamp = resp.Timestamp
-
-	for _, x := range resp.Bids {
-		price, err := strconv.ParseFloat(x[0], 64)
-		if err != nil {
-			log.Error(log.ExchangeSys, err)
-			continue
-		}
-		amount, err := strconv.ParseFloat(x[1], 64)
-		if err != nil {
-			log.Error(log.ExchangeSys, err)
-			continue
-		}
-		orderbook.Bids = append(orderbook.Bids, OrderbookBase{price, amount})
+	orderbook := Orderbook{
+		Timestamp: resp.Timestamp,
+		Bids:      make([]OrderbookBase, len(resp.Bids)),
+		Asks:      make([]OrderbookBase, len(resp.Asks)),
 	}
 
-	for _, x := range resp.Asks {
-		price, err := strconv.ParseFloat(x[0], 64)
+	for x := range resp.Bids {
+		price, err := strconv.ParseFloat(resp.Bids[x][0], 64)
 		if err != nil {
-			log.Error(log.ExchangeSys, err)
-			continue
+			return nil, err
 		}
-		amount, err := strconv.ParseFloat(x[1], 64)
+		amount, err := strconv.ParseFloat(resp.Bids[x][1], 64)
 		if err != nil {
-			log.Error(log.ExchangeSys, err)
-			continue
+			return nil, err
 		}
-		orderbook.Asks = append(orderbook.Asks, OrderbookBase{price, amount})
+		orderbook.Bids[x] = OrderbookBase{price, amount}
 	}
 
-	return orderbook, nil
+	for x := range resp.Asks {
+		price, err := strconv.ParseFloat(resp.Asks[x][0], 64)
+		if err != nil {
+			return nil, err
+		}
+		amount, err := strconv.ParseFloat(resp.Asks[x][1], 64)
+		if err != nil {
+			return nil, err
+		}
+		orderbook.Asks[x] = OrderbookBase{price, amount}
+	}
+
+	return &orderbook, nil
 }
 
 // GetTradingPairs returns a list of trading pairs which Bitstamp

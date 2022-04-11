@@ -119,16 +119,15 @@ func (b *Binance) GetExchangeInfo(ctx context.Context) (ExchangeInfo, error) {
 // OrderBookDataRequestParams contains the following members
 // symbol: string of currency pair
 // limit: returned limit amount
-func (b *Binance) GetOrderBook(ctx context.Context, obd OrderBookDataRequestParams) (OrderBook, error) {
-	var orderbook OrderBook
+func (b *Binance) GetOrderBook(ctx context.Context, obd OrderBookDataRequestParams) (*OrderBook, error) {
 	if err := b.CheckLimit(obd.Limit); err != nil {
-		return orderbook, err
+		return nil, err
 	}
 
 	params := url.Values{}
 	symbol, err := b.FormatSymbol(obd.Symbol, asset.Spot)
 	if err != nil {
-		return orderbook, err
+		return nil, err
 	}
 	params.Set("symbol", symbol)
 	params.Set("limit", fmt.Sprintf("%d", obd.Limit))
@@ -138,52 +137,54 @@ func (b *Binance) GetOrderBook(ctx context.Context, obd OrderBookDataRequestPara
 		exchange.RestSpotSupplementary,
 		orderBookDepth+"?"+params.Encode(),
 		orderbookLimit(obd.Limit), &resp); err != nil {
-		return orderbook, err
+		return nil, err
 	}
 
+	orderbook := OrderBook{
+		Bids:         make([]OrderbookItem, len(resp.Bids)),
+		Asks:         make([]OrderbookItem, len(resp.Asks)),
+		LastUpdateID: resp.LastUpdateID,
+	}
 	for x := range resp.Bids {
 		price, err := strconv.ParseFloat(resp.Bids[x][0], 64)
 		if err != nil {
-			return orderbook, err
+			return nil, err
 		}
 
 		amount, err := strconv.ParseFloat(resp.Bids[x][1], 64)
 		if err != nil {
-			return orderbook, err
+			return nil, err
 		}
 
-		orderbook.Bids = append(orderbook.Bids, OrderbookItem{
+		orderbook.Bids[x] = OrderbookItem{
 			Price:    price,
 			Quantity: amount,
-		})
+		}
 	}
 
 	for x := range resp.Asks {
 		price, err := strconv.ParseFloat(resp.Asks[x][0], 64)
 		if err != nil {
-			return orderbook, err
+			return nil, err
 		}
 
 		amount, err := strconv.ParseFloat(resp.Asks[x][1], 64)
 		if err != nil {
-			return orderbook, err
+			return nil, err
 		}
 
-		orderbook.Asks = append(orderbook.Asks, OrderbookItem{
+		orderbook.Asks[x] = OrderbookItem{
 			Price:    price,
 			Quantity: amount,
-		})
+		}
 	}
 
-	orderbook.LastUpdateID = resp.LastUpdateID
-	return orderbook, nil
+	return &orderbook, nil
 }
 
 // GetMostRecentTrades returns recent trade activity
 // limit: Up to 500 results returned
 func (b *Binance) GetMostRecentTrades(ctx context.Context, rtr RecentTradeRequestParams) ([]RecentTrade, error) {
-	var resp []RecentTrade
-
 	params := url.Values{}
 	symbol, err := b.FormatSymbol(rtr.Symbol, asset.Spot)
 	if err != nil {
@@ -194,6 +195,7 @@ func (b *Binance) GetMostRecentTrades(ctx context.Context, rtr RecentTradeReques
 
 	path := recentTrades + "?" + params.Encode()
 
+	var resp []RecentTrade
 	return resp, b.SendHTTPRequest(ctx,
 		exchange.RestSpotSupplementary, path, spotDefaultRate, &resp)
 }

@@ -121,7 +121,7 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
 			return err
 		}
 
-		err = c.ProcessUpdate(update)
+		err = c.ProcessUpdate(&update)
 		if err != nil {
 			return err
 		}
@@ -280,40 +280,43 @@ func statusToStandardStatus(stat string) (order.Status, error) {
 
 // ProcessSnapshot processes the initial orderbook snap shot
 func (c *CoinbasePro) ProcessSnapshot(snapshot *WebsocketOrderbookSnapshot) error {
-	var base orderbook.Base
-	for i := range snapshot.Bids {
-		price, err := strconv.ParseFloat(snapshot.Bids[i][0].(string), 64)
-		if err != nil {
-			return err
-		}
-
-		amount, err := strconv.ParseFloat(snapshot.Bids[i][1].(string), 64)
-		if err != nil {
-			return err
-		}
-
-		base.Bids = append(base.Bids,
-			orderbook.Item{Price: price, Amount: amount})
-	}
-
-	for i := range snapshot.Asks {
-		price, err := strconv.ParseFloat(snapshot.Asks[i][0].(string), 64)
-		if err != nil {
-			return err
-		}
-
-		amount, err := strconv.ParseFloat(snapshot.Asks[i][1].(string), 64)
-		if err != nil {
-			return err
-		}
-
-		base.Asks = append(base.Asks,
-			orderbook.Item{Price: price, Amount: amount})
-	}
-
 	pair, err := currency.NewPairFromString(snapshot.ProductID)
 	if err != nil {
 		return err
+	}
+
+	base := orderbook.Base{
+		Pair: pair,
+		Bids: make(orderbook.Items, len(snapshot.Bids)),
+		Asks: make(orderbook.Items, len(snapshot.Asks)),
+	}
+
+	for i := range snapshot.Bids {
+		price, err := strconv.ParseFloat(snapshot.Bids[i][0], 64)
+		if err != nil {
+			return err
+		}
+
+		amount, err := strconv.ParseFloat(snapshot.Bids[i][1], 64)
+		if err != nil {
+			return err
+		}
+
+		base.Bids[i] = orderbook.Item{Price: price, Amount: amount}
+	}
+
+	for i := range snapshot.Asks {
+		price, err := strconv.ParseFloat(snapshot.Asks[i][0], 64)
+		if err != nil {
+			return err
+		}
+
+		amount, err := strconv.ParseFloat(snapshot.Asks[i][1], 64)
+		if err != nil {
+			return err
+		}
+
+		base.Asks[i] = orderbook.Item{Price: price, Amount: amount}
 	}
 
 	base.Asset = asset.Spot
@@ -325,31 +328,8 @@ func (c *CoinbasePro) ProcessSnapshot(snapshot *WebsocketOrderbookSnapshot) erro
 }
 
 // ProcessUpdate updates the orderbook local cache
-func (c *CoinbasePro) ProcessUpdate(update WebsocketL2Update) error {
-	var asks, bids []orderbook.Item
-
-	for i := range update.Changes {
-		price, err := strconv.ParseFloat(update.Changes[i][1].(string), 64)
-		if err != nil {
-			return err
-		}
-		volume, err := strconv.ParseFloat(update.Changes[i][2].(string), 64)
-		if err != nil {
-			return err
-		}
-
-		orderSide, ok := update.Changes[i][0].(string)
-		if !ok {
-			return errors.New("unable to type assert orderSide")
-		}
-		if orderSide == order.Buy.Lower() {
-			bids = append(bids, orderbook.Item{Price: price, Amount: volume})
-		} else {
-			asks = append(asks, orderbook.Item{Price: price, Amount: volume})
-		}
-	}
-
-	if len(asks) == 0 && len(bids) == 0 {
+func (c *CoinbasePro) ProcessUpdate(update *WebsocketL2Update) error {
+	if len(update.Changes) == 0 {
 		return errors.New("no data in websocket update")
 	}
 
@@ -362,6 +342,26 @@ func (c *CoinbasePro) ProcessUpdate(update WebsocketL2Update) error {
 	if err != nil {
 		return err
 	}
+
+	asks := make(orderbook.Items, 0, len(update.Changes))
+	bids := make(orderbook.Items, 0, len(update.Changes))
+
+	for i := range update.Changes {
+		price, err := strconv.ParseFloat(update.Changes[i][1], 64)
+		if err != nil {
+			return err
+		}
+		volume, err := strconv.ParseFloat(update.Changes[i][2], 64)
+		if err != nil {
+			return err
+		}
+		if update.Changes[i][0] == order.Buy.Lower() {
+			bids = append(bids, orderbook.Item{Price: price, Amount: volume})
+		} else {
+			asks = append(asks, orderbook.Item{Price: price, Amount: volume})
+		}
+	}
+
 	return c.Websocket.Orderbook.Update(&buffer.Update{
 		Bids:       bids,
 		Asks:       asks,
@@ -402,10 +402,15 @@ func (c *CoinbasePro) GenerateDefaultSubscriptions() ([]stream.ChannelSubscripti
 
 // Subscribe sends a websocket message to receive data from the channel
 func (c *CoinbasePro) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
-	creds, err := c.GetCredentials(context.TODO())
-	if err != nil {
-		return err
+	var creds *exchange.Credentials
+	var err error
+	if c.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+		creds, err = c.GetCredentials(context.TODO())
+		if err != nil {
+			return err
+		}
 	}
+
 	subscribe := WebsocketSubscribe{
 		Type: "subscribe",
 	}
@@ -427,8 +432,8 @@ subscriptions:
 			Name: channelsToSubscribe[i].Channel,
 		})
 
-		if channelsToSubscribe[i].Channel == "user" ||
-			channelsToSubscribe[i].Channel == "full" {
+		if (channelsToSubscribe[i].Channel == "user" ||
+			channelsToSubscribe[i].Channel == "full") && creds != nil {
 			n := strconv.FormatInt(time.Now().Unix(), 10)
 			message := n + http.MethodGet + "/users/self/verify"
 			var hmac []byte

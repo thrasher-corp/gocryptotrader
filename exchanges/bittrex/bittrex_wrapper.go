@@ -376,24 +376,22 @@ func (b *Bittrex) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 		Asset:           assetType,
 		VerifyOrderbook: b.CanVerifyOrderbook,
 		LastUpdateID:    sequence,
+		Bids:            make(orderbook.Items, len(orderbookData.Bid)),
+		Asks:            make(orderbook.Items, len(orderbookData.Ask)),
 	}
 
 	for x := range orderbookData.Bid {
-		book.Bids = append(book.Bids,
-			orderbook.Item{
-				Amount: orderbookData.Bid[x].Quantity,
-				Price:  orderbookData.Bid[x].Rate,
-			},
-		)
+		book.Bids[x] = orderbook.Item{
+			Amount: orderbookData.Bid[x].Quantity,
+			Price:  orderbookData.Bid[x].Rate,
+		}
 	}
 
 	for x := range orderbookData.Ask {
-		book.Asks = append(book.Asks,
-			orderbook.Item{
-				Amount: orderbookData.Ask[x].Quantity,
-				Price:  orderbookData.Ask[x].Rate,
-			},
-		)
+		book.Asks[x] = orderbook.Item{
+			Amount: orderbookData.Ask[x].Quantity,
+			Price:  orderbookData.Ask[x].Rate,
+		}
 	}
 	err = book.Process()
 	if err != nil {

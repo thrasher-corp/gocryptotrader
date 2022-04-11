@@ -276,50 +276,49 @@ func (k *Kraken) GetOHLC(ctx context.Context, symbol currency.Pair, interval str
 }
 
 // GetDepth returns the orderbook for a particular currency
-func (k *Kraken) GetDepth(ctx context.Context, symbol currency.Pair) (Orderbook, error) {
-	var result interface{}
-	var orderBook Orderbook
-	values := url.Values{}
+func (k *Kraken) GetDepth(ctx context.Context, symbol currency.Pair) (*Orderbook, error) {
 	symbolValue, err := k.FormatSymbol(symbol, asset.Spot)
 	if err != nil {
-		return orderBook, err
+		return nil, err
 	}
+	values := url.Values{}
 	values.Set("pair", symbolValue)
 	path := fmt.Sprintf("/%s/public/%s?%s", krakenAPIVersion, krakenDepth, values.Encode())
+	var result interface{}
 	err = k.SendHTTPRequest(ctx, exchange.RestSpot, path, &result)
 	if err != nil {
-		return orderBook, err
+		return nil, err
 	}
 
 	if result == nil {
-		return orderBook, fmt.Errorf("%s GetDepth result is nil", k.Name)
+		return nil, fmt.Errorf("%s GetDepth result is nil", k.Name)
 	}
 
 	data, ok := result.(map[string]interface{})
 	if !ok {
-		return orderBook, errors.New("unable to type assert data")
+		return nil, errors.New("unable to type assert data")
 	}
 	orderbookData, ok := data["result"].(map[string]interface{})
 	if !ok {
-		return orderBook, fmt.Errorf("%s GetDepth data[result] is nil", k.Name)
+		return nil, fmt.Errorf("%s GetDepth data[result] is nil", k.Name)
 	}
 	var bidsData []interface{}
 	var asksData []interface{}
 	for _, y := range orderbookData {
 		yData, ok := y.(map[string]interface{})
 		if !ok {
-			return orderBook, errors.New("unable to type assert yData")
+			return nil, errors.New("unable to type assert yData")
 		}
 		if bidsData, ok = yData["bids"].([]interface{}); !ok {
-			return orderBook, errors.New("unable to type assert bidsData")
+			return nil, errors.New("unable to type assert bidsData")
 		}
 		if asksData, ok = yData["asks"].([]interface{}); !ok {
-			return orderBook, errors.New("unable to type assert asksData")
+			return nil, errors.New("unable to type assert asksData")
 		}
 	}
 
 	processOrderbook := func(data []interface{}) ([]OrderbookBase, error) {
-		var result []OrderbookBase
+		result := make([]OrderbookBase, len(data))
 		for x := range data {
 			entry, ok := data[x].([]interface{})
 			if !ok {
@@ -340,18 +339,19 @@ func (k *Kraken) GetDepth(ctx context.Context, symbol currency.Pair) (Orderbook,
 				return nil, amountErr
 			}
 
-			result = append(result, OrderbookBase{Price: price, Amount: amount})
+			result[x] = OrderbookBase{Price: price, Amount: amount}
 		}
 		return result, nil
 	}
 
+	var orderBook Orderbook
 	orderBook.Bids, err = processOrderbook(bidsData)
 	if err != nil {
-		return orderBook, err
+		return nil, err
 	}
 
 	orderBook.Asks, err = processOrderbook(asksData)
-	return orderBook, err
+	return &orderBook, err
 }
 
 // GetTrades returns current trades on Kraken

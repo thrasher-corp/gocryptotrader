@@ -158,12 +158,12 @@ func (h *HUOBI) GetMarketDetailMerged(ctx context.Context, symbol currency.Pair)
 }
 
 // GetDepth returns the depth for the specified symbol
-func (h *HUOBI) GetDepth(ctx context.Context, obd OrderBookDataRequestParams) (Orderbook, error) {
-	vals := url.Values{}
+func (h *HUOBI) GetDepth(ctx context.Context, obd *OrderBookDataRequestParams) (*Orderbook, error) {
 	symbolValue, err := h.FormatSymbol(obd.Symbol, asset.Spot)
 	if err != nil {
-		return Orderbook{}, err
+		return nil, err
 	}
+	vals := url.Values{}
 	vals.Set("symbol", symbolValue)
 
 	if obd.Type != OrderBookDataRequestParamsTypeNone {
@@ -176,12 +176,11 @@ func (h *HUOBI) GetDepth(ctx context.Context, obd OrderBookDataRequestParams) (O
 	}
 
 	var result response
-
 	err = h.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(huobiMarketDepth, vals), &result)
 	if result.ErrorMessage != "" {
-		return result.Depth, errors.New(result.ErrorMessage)
+		return nil, errors.New(result.ErrorMessage)
 	}
-	return result.Depth, err
+	return &result.Depth, err
 }
 
 // GetTrades returns the trades for the specified symbol

@@ -1657,7 +1657,7 @@ func TestGetDepth(t *testing.T) {
 		t.Error(err)
 	}
 	_, err = h.GetDepth(context.Background(),
-		OrderBookDataRequestParams{
+		&OrderBookDataRequestParams{
 			Symbol: cp,
 			Type:   OrderBookDataRequestParamsTypeStep1,
 		})

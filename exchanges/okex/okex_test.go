@@ -1970,21 +1970,21 @@ func TestWithdrawInternationalBank(t *testing.T) {
 func TestGetOrderbook(t *testing.T) {
 	t.Parallel()
 	_, err := o.GetOrderBook(context.Background(),
-		okgroup.GetOrderBookRequest{InstrumentID: "BTC-USDT"},
+		&okgroup.GetOrderBookRequest{InstrumentID: "BTC-USDT"},
 		asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
 	contract := getFutureInstrumentID()
 	_, err = o.GetOrderBook(context.Background(),
-		okgroup.GetOrderBookRequest{InstrumentID: contract},
+		&okgroup.GetOrderBookRequest{InstrumentID: contract},
 		asset.Futures)
 	if err != nil {
 		t.Error(err)
 	}
 
 	_, err = o.GetOrderBook(context.Background(),
-		okgroup.GetOrderBookRequest{InstrumentID: "BTC-USD-SWAP"},
+		&okgroup.GetOrderBookRequest{InstrumentID: "BTC-USD-SWAP"},
 		asset.PerpetualSwap)
 	if err != nil {
 		t.Error(err)

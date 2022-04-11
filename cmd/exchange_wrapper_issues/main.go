@@ -282,7 +282,7 @@ func parseOrderType(orderType string) order.Type {
 }
 
 func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) []ExchangeAssetPairResponses {
-	var response []ExchangeAssetPairResponses
+	response := make([]ExchangeAssetPairResponses, 0)
 	testOrderSide := parseOrderSide(config.OrderSubmission.OrderSide)
 	testOrderType := parseOrderType(config.OrderSubmission.OrderType)
 	assetTypes := base.GetAssetTypes(false)
@@ -834,7 +834,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 }
 
 func jsonifyInterface(params []interface{}) json.RawMessage {
-	response, _ := json.MarshalIndent(params, "", " ")
+	response, _ := json.MarshalIndent(params, "", " ") // nolint:errchkjson // TODO: ignore this for now
 	return response
 }
 

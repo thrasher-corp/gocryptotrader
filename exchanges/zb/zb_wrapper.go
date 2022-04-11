@@ -330,18 +330,20 @@ func (z *ZB) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType ass
 		return book, err
 	}
 
+	book.Bids = make(orderbook.Items, len(orderbookNew.Bids))
 	for x := range orderbookNew.Bids {
-		book.Bids = append(book.Bids, orderbook.Item{
+		book.Bids[x] = orderbook.Item{
 			Amount: orderbookNew.Bids[x][1],
 			Price:  orderbookNew.Bids[x][0],
-		})
+		}
 	}
 
+	book.Asks = make(orderbook.Items, len(orderbookNew.Asks))
 	for x := range orderbookNew.Asks {
-		book.Asks = append(book.Asks, orderbook.Item{
+		book.Asks[x] = orderbook.Item{
 			Amount: orderbookNew.Asks[x][1],
 			Price:  orderbookNew.Asks[x][0],
-		})
+		}
 	}
 	err = book.Process()
 	if err != nil {

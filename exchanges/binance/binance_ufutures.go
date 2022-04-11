@@ -84,22 +84,22 @@ func (b *Binance) UExchangeInfo(ctx context.Context) (UFuturesExchangeInfo, erro
 }
 
 // UFuturesOrderbook gets orderbook data for usdt margined futures
-func (b *Binance) UFuturesOrderbook(ctx context.Context, symbol currency.Pair, limit int64) (OrderBook, error) {
-	var resp OrderBook
-	var data OrderbookData
-	params := url.Values{}
+func (b *Binance) UFuturesOrderbook(ctx context.Context, symbol currency.Pair, limit int64) (*OrderBook, error) {
 	symbolValue, err := b.FormatSymbol(symbol, asset.USDTMarginedFutures)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
+
+	params := url.Values{}
 	params.Set("symbol", symbolValue)
 	strLimit := strconv.FormatInt(limit, 10)
 	if strLimit != "" {
 		if !common.StringDataCompare(uValidOBLimits, strLimit) {
-			return resp, fmt.Errorf("invalid limit: %v", limit)
+			return nil, fmt.Errorf("invalid limit: %v", limit)
 		}
 		params.Set("limit", strLimit)
 	}
+
 	rateBudget := uFuturesDefaultRate
 	switch {
 	case limit == 5, limit == 10, limit == 20, limit == 50:
@@ -111,42 +111,50 @@ func (b *Binance) UFuturesOrderbook(ctx context.Context, symbol currency.Pair, l
 	case limit == 1000:
 		rateBudget = uFuturesOrderbook1000Rate
 	}
+
+	var data OrderbookData
 	err = b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, ufuturesOrderbook+params.Encode(), rateBudget, &data)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
-	resp.Symbol = symbolValue
-	resp.LastUpdateID = data.LastUpdateID
+
+	resp := OrderBook{
+		Symbol:       symbolValue,
+		LastUpdateID: data.LastUpdateID,
+		Bids:         make([]OrderbookItem, len(data.Bids)),
+		Asks:         make([]OrderbookItem, len(data.Asks)),
+	}
+
 	var price, quantity float64
 	for x := range data.Asks {
 		price, err = strconv.ParseFloat(data.Asks[x][0], 64)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		quantity, err = strconv.ParseFloat(data.Asks[x][1], 64)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
-		resp.Asks = append(resp.Asks, OrderbookItem{
+		resp.Asks[x] = OrderbookItem{
 			Price:    price,
 			Quantity: quantity,
-		})
+		}
 	}
 	for y := range data.Bids {
 		price, err = strconv.ParseFloat(data.Bids[y][0], 64)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		quantity, err = strconv.ParseFloat(data.Bids[y][1], 64)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
-		resp.Bids = append(resp.Bids, OrderbookItem{
+		resp.Bids[y] = OrderbookItem{
 			Price:    price,
 			Quantity: quantity,
-		})
+		}
 	}
-	return resp, nil
+	return &resp, nil
 }
 
 // URecentTrades gets recent trades for usdt margined futures

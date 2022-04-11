@@ -288,16 +288,20 @@ func (b *Bitflyer) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 		return book, err
 	}
 
+	book.Asks = make(orderbook.Items, len(orderbookNew.Asks))
 	for x := range orderbookNew.Asks {
-		book.Asks = append(book.Asks, orderbook.Item{
+		book.Asks[x] = orderbook.Item{
 			Price:  orderbookNew.Asks[x].Price,
-			Amount: orderbookNew.Asks[x].Size})
+			Amount: orderbookNew.Asks[x].Size,
+		}
 	}
 
+	book.Bids = make(orderbook.Items, len(orderbookNew.Bids))
 	for x := range orderbookNew.Bids {
-		book.Bids = append(book.Bids, orderbook.Item{
+		book.Bids[x] = orderbook.Item{
 			Price:  orderbookNew.Bids[x].Price,
-			Amount: orderbookNew.Bids[x].Size})
+			Amount: orderbookNew.Bids[x].Size,
+		}
 	}
 
 	err = book.Process()

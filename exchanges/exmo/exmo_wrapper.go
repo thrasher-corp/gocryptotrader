@@ -298,6 +298,7 @@ func (e *EXMO) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType a
 			continue
 		}
 
+		book.Asks = make(orderbook.Items, len(data.Ask))
 		for y := range data.Ask {
 			var price, amount float64
 			price, err = strconv.ParseFloat(data.Ask[y][0], 64)
@@ -310,12 +311,13 @@ func (e *EXMO) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType a
 				return book, err
 			}
 
-			book.Asks = append(book.Asks, orderbook.Item{
+			book.Asks[y] = orderbook.Item{
 				Price:  price,
 				Amount: amount,
-			})
+			}
 		}
 
+		book.Bids = make(orderbook.Items, len(data.Bid))
 		for y := range data.Bid {
 			var price, amount float64
 			price, err = strconv.ParseFloat(data.Bid[y][0], 64)
@@ -328,10 +330,10 @@ func (e *EXMO) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType a
 				return book, err
 			}
 
-			book.Bids = append(book.Bids, orderbook.Item{
+			book.Bids[y] = orderbook.Item{
 				Price:  price,
 				Amount: amount,
-			})
+			}
 		}
 
 		err = book.Process()

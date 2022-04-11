@@ -1298,6 +1298,8 @@ func (b *Bitfinex) WsInsertSnapshot(p currency.Pair, assetType asset.Item, books
 		return errors.New("no orderbooks submitted")
 	}
 	var book orderbook.Base
+	book.Bids = make(orderbook.Items, 0, len(books))
+	book.Asks = make(orderbook.Items, 0, len(books))
 	for i := range books {
 		item := orderbook.Item{
 			ID:     books[i].ID,
@@ -1334,7 +1336,12 @@ func (b *Bitfinex) WsInsertSnapshot(p currency.Pair, assetType asset.Item, books
 // WsUpdateOrderbook updates the orderbook list, removing and adding to the
 // orderbook sides
 func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType asset.Item, book []WebsocketBook, channelID int, sequenceNo int64, fundingRate bool) error {
-	orderbookUpdate := buffer.Update{Asset: assetType, Pair: p}
+	orderbookUpdate := buffer.Update{
+		Asset: assetType,
+		Pair:  p,
+		Bids:  make([]orderbook.Item, 0, len(book)),
+		Asks:  make([]orderbook.Item, 0, len(book)),
+	}
 
 	for i := range book {
 		item := orderbook.Item{

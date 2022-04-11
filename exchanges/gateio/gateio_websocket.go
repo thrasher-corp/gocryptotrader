@@ -365,7 +365,7 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 			return err
 		}
 
-		var asks, bids []orderbook.Item
+		asks := make([]orderbook.Item, len(data.Asks))
 		var amount, price float64
 		for i := range data.Asks {
 			amount, err = strconv.ParseFloat(data.Asks[i][1], 64)
@@ -376,9 +376,10 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 			if err != nil {
 				return err
 			}
-			asks = append(asks, orderbook.Item{Amount: amount, Price: price})
+			asks[i] = orderbook.Item{Amount: amount, Price: price}
 		}
 
+		bids := make([]orderbook.Item, len(data.Bids))
 		for i := range data.Bids {
 			amount, err = strconv.ParseFloat(data.Bids[i][1], 64)
 			if err != nil {
@@ -388,7 +389,7 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 			if err != nil {
 				return err
 			}
-			bids = append(bids, orderbook.Item{Amount: amount, Price: price})
+			bids[i] = orderbook.Item{Amount: amount, Price: price}
 		}
 
 		var p currency.Pair

@@ -359,21 +359,25 @@ func (b *BTSE) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType a
 		return book, err
 	}
 
+	book.Bids = make(orderbook.Items, 0, len(a.BuyQuote))
 	for x := range a.BuyQuote {
 		if b.orderbookFilter(a.BuyQuote[x].Price, a.BuyQuote[x].Size) {
 			continue
 		}
 		book.Bids = append(book.Bids, orderbook.Item{
 			Price:  a.BuyQuote[x].Price,
-			Amount: a.BuyQuote[x].Size})
+			Amount: a.BuyQuote[x].Size,
+		})
 	}
+	book.Asks = make(orderbook.Items, 0, len(a.SellQuote))
 	for x := range a.SellQuote {
 		if b.orderbookFilter(a.SellQuote[x].Price, a.SellQuote[x].Size) {
 			continue
 		}
 		book.Asks = append(book.Asks, orderbook.Item{
 			Price:  a.SellQuote[x].Price,
-			Amount: a.SellQuote[x].Size})
+			Amount: a.SellQuote[x].Size,
+		})
 	}
 	book.Asks.Reverse() // Reverse asks for correct alignment
 	book.Pair = p

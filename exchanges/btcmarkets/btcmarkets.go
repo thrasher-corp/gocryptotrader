@@ -128,50 +128,54 @@ func (b *BTCMarkets) GetTrades(ctx context.Context, marketID string, before, aft
 // 0 - Returns the top bids and ask orders only.
 // 1 - Returns top 50 bids and asks.
 // 2 - Returns full orderbook. WARNING: This is cached every 10 seconds.
-func (b *BTCMarkets) GetOrderbook(ctx context.Context, marketID string, level int64) (Orderbook, error) {
-	var orderbook Orderbook
-	var temp tempOrderbook
+func (b *BTCMarkets) GetOrderbook(ctx context.Context, marketID string, level int64) (*Orderbook, error) {
 	params := url.Values{}
 	if level != 0 {
 		params.Set("level", strconv.FormatInt(level, 10))
 	}
+	var temp tempOrderbook
 	err := b.SendHTTPRequest(ctx, btcMarketsUnauthPath+marketID+btcMarketOrderBook+params.Encode(),
 		&temp)
 	if err != nil {
-		return orderbook, err
+		return nil, err
 	}
 
-	orderbook.MarketID = temp.MarketID
-	orderbook.SnapshotID = temp.SnapshotID
+	orderbook := Orderbook{
+		MarketID:   temp.MarketID,
+		SnapshotID: temp.SnapshotID,
+		Bids:       make([]OBData, len(temp.Bids)),
+		Asks:       make([]OBData, len(temp.Asks)),
+	}
+
 	for x := range temp.Asks {
 		price, err := strconv.ParseFloat(temp.Asks[x][0], 64)
 		if err != nil {
-			return orderbook, err
+			return nil, err
 		}
 		amount, err := strconv.ParseFloat(temp.Asks[x][1], 64)
 		if err != nil {
-			return orderbook, err
+			return nil, err
 		}
-		orderbook.Asks = append(orderbook.Asks, OBData{
+		orderbook.Asks[x] = OBData{
 			Price:  price,
 			Volume: amount,
-		})
+		}
 	}
 	for a := range temp.Bids {
 		price, err := strconv.ParseFloat(temp.Bids[a][0], 64)
 		if err != nil {
-			return orderbook, err
+			return nil, err
 		}
 		amount, err := strconv.ParseFloat(temp.Bids[a][1], 64)
 		if err != nil {
-			return orderbook, err
+			return nil, err
 		}
-		orderbook.Bids = append(orderbook.Bids, OBData{
+		orderbook.Bids[a] = OBData{
 			Price:  price,
 			Volume: amount,
-		})
+		}
 	}
-	return orderbook, nil
+	return &orderbook, nil
 }
 
 // GetMarketCandles gets candles for specified currency pair

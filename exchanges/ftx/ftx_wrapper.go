@@ -431,6 +431,7 @@ func (f *FTX) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType as
 		return book, err
 	}
 
+	book.Bids = make(orderbook.Items, 0, len(tempResp.Bids))
 	for x := range tempResp.Bids {
 		// Bear tokens have illiquid books and contain negative place holders.
 		if tempResp.Bids[x].Size < 0 && strings.Contains(p.String(), "BEAR") {
@@ -438,8 +439,10 @@ func (f *FTX) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType as
 		}
 		book.Bids = append(book.Bids, orderbook.Item{
 			Amount: tempResp.Bids[x].Size,
-			Price:  tempResp.Bids[x].Price})
+			Price:  tempResp.Bids[x].Price,
+		})
 	}
+	book.Asks = make(orderbook.Items, 0, len(tempResp.Asks))
 	for y := range tempResp.Asks {
 		// Bear tokens have illiquid books and contain negative place holders.
 		if tempResp.Asks[y].Size < 0 && strings.Contains(p.String(), "BEAR") {
@@ -447,7 +450,8 @@ func (f *FTX) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType as
 		}
 		book.Asks = append(book.Asks, orderbook.Item{
 			Amount: tempResp.Asks[y].Size,
-			Price:  tempResp.Asks[y].Price})
+			Price:  tempResp.Asks[y].Price,
+		})
 	}
 	err = book.Process()
 	if err != nil {

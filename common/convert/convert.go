@@ -119,8 +119,7 @@ func DecimalToHumanFriendlyString(number decimal.Decimal, rounding int, decPoint
 		neg = true
 	}
 	str := number.String()
-	rnd := strings.Split(str, ".")
-	if len(rnd) == 1 {
+	if rnd := strings.Split(str, "."); len(rnd) == 1 {
 		rounding = 0
 	} else if len(rnd[1]) < rounding {
 		rounding = len(rnd[1])
@@ -165,6 +164,7 @@ func numberToHumanFriendlyString(str string, dec int, decPoint, thousandsSep str
 	return s
 }
 
+// InterfaceToFloat64OrZeroValue returns the type assertion value or variable zero value
 func InterfaceToFloat64OrZeroValue(r interface{}) float64 {
 	if v, ok := r.(float64); ok {
 		return v
@@ -172,6 +172,7 @@ func InterfaceToFloat64OrZeroValue(r interface{}) float64 {
 	return 0
 }
 
+// InterfaceToIntOrZeroValue returns the type assertion value or variable zero value
 func InterfaceToIntOrZeroValue(r interface{}) int {
 	if v, ok := r.(int); ok {
 		return v
@@ -179,6 +180,7 @@ func InterfaceToIntOrZeroValue(r interface{}) int {
 	return 0
 }
 
+// InterfaceToStringOrZeroValue returns the type assertion value or variable zero value
 func InterfaceToStringOrZeroValue(r interface{}) string {
 	if v, ok := r.(string); ok {
 		return v

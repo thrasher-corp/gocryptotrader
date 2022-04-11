@@ -491,17 +491,22 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, p currency.
 
 	switch action {
 	case bitmexActionInitialData:
-		var book orderbook.Base
+		book := orderbook.Base{
+			Asks: make(orderbook.Items, 0, len(data)),
+			Bids: make(orderbook.Items, 0, len(data)),
+		}
+
 		for i := range data {
 			item := orderbook.Item{
 				Price:  data[i].Price,
 				Amount: float64(data[i].Size),
 				ID:     data[i].ID,
 			}
+			side := strings.ToUpper(data[i].Side)
 			switch {
-			case strings.EqualFold(data[i].Side, order.Sell.String()):
+			case side == order.Sell.String():
 				book.Asks = append(book.Asks, item)
-			case strings.EqualFold(data[i].Side, order.Buy.String()):
+			case side == order.Buy.String():
 				book.Bids = append(book.Bids, item)
 			default:
 				return fmt.Errorf("could not process websocket orderbook update, order side could not be matched for %s",
@@ -520,7 +525,8 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, p currency.
 				err)
 		}
 	default:
-		var asks, bids []orderbook.Item
+		asks := make([]orderbook.Item, 0, len(data))
+		bids := make([]orderbook.Item, 0, len(data))
 		for i := range data {
 			nItem := orderbook.Item{
 				Price:  data[i].Price,

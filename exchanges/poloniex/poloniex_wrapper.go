@@ -381,18 +381,20 @@ func (p *Poloniex) UpdateOrderbook(ctx context.Context, c currency.Pair, assetTy
 			continue
 		}
 
+		book.Bids = make(orderbook.Items, len(data.Bids))
 		for y := range data.Bids {
-			book.Bids = append(book.Bids, orderbook.Item{
+			book.Bids[y] = orderbook.Item{
 				Amount: data.Bids[y].Amount,
 				Price:  data.Bids[y].Price,
-			})
+			}
 		}
 
+		book.Asks = make(orderbook.Items, len(data.Asks))
 		for y := range data.Asks {
-			book.Asks = append(book.Asks, orderbook.Item{
+			book.Asks[y] = orderbook.Item{
 				Amount: data.Asks[y].Amount,
 				Price:  data.Asks[y].Price,
-			})
+			}
 		}
 		err = book.Process()
 		if err != nil {

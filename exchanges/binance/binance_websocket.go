@@ -482,31 +482,32 @@ func (b *Binance) SeedLocalCache(ctx context.Context, p currency.Pair) error {
 	if err != nil {
 		return err
 	}
-	return b.SeedLocalCacheWithBook(p, &ob)
+	return b.SeedLocalCacheWithBook(p, ob)
 }
 
 // SeedLocalCacheWithBook seeds the local orderbook cache
 func (b *Binance) SeedLocalCacheWithBook(p currency.Pair, orderbookNew *OrderBook) error {
-	var newOrderBook orderbook.Base
+	newOrderBook := orderbook.Base{
+		Pair:            p,
+		Asset:           asset.Spot,
+		Exchange:        b.Name,
+		LastUpdateID:    orderbookNew.LastUpdateID,
+		VerifyOrderbook: b.CanVerifyOrderbook,
+		Bids:            make(orderbook.Items, len(orderbookNew.Bids)),
+		Asks:            make(orderbook.Items, len(orderbookNew.Asks)),
+	}
 	for i := range orderbookNew.Bids {
-		newOrderBook.Bids = append(newOrderBook.Bids, orderbook.Item{
+		newOrderBook.Bids[i] = orderbook.Item{
 			Amount: orderbookNew.Bids[i].Quantity,
 			Price:  orderbookNew.Bids[i].Price,
-		})
+		}
 	}
 	for i := range orderbookNew.Asks {
-		newOrderBook.Asks = append(newOrderBook.Asks, orderbook.Item{
+		newOrderBook.Asks[i] = orderbook.Item{
 			Amount: orderbookNew.Asks[i].Quantity,
 			Price:  orderbookNew.Asks[i].Price,
-		})
+		}
 	}
-
-	newOrderBook.Pair = p
-	newOrderBook.Asset = asset.Spot
-	newOrderBook.Exchange = b.Name
-	newOrderBook.LastUpdateID = orderbookNew.LastUpdateID
-	newOrderBook.VerifyOrderbook = b.CanVerifyOrderbook
-
 	return b.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 }
 

@@ -92,7 +92,7 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundTransf
 	if len(d) < 4 {
 		return nil, errStrategyCurrencyRequirements
 	}
-	var mfiFundEvents []mfiFundEvent
+	mfiFundEvents := make([]mfiFundEvent, 0, len(d))
 	var resp []signal.Event
 	for i := range d {
 		if d == nil {

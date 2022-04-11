@@ -859,6 +859,8 @@ func (k *Kraken) wsProcessOrderBookPartial(channelData *WebsocketChannelData, as
 		Pair:            channelData.Pair,
 		Asset:           asset.Spot,
 		VerifyOrderbook: k.CanVerifyOrderbook,
+		Bids:            make(orderbook.Items, len(bidData)),
+		Asks:            make(orderbook.Items, len(askData)),
 	}
 	// Kraken ob data is timestamped per price, GCT orderbook data is
 	// timestamped per entry using the highest last update time, we can attempt
@@ -880,13 +882,13 @@ func (k *Kraken) wsProcessOrderBookPartial(channelData *WebsocketChannelData, as
 		if err != nil {
 			return err
 		}
-		base.Asks = append(base.Asks, orderbook.Item{
-			Amount: amount,
-			Price:  price,
-		})
 		timeData, err := strconv.ParseFloat(asks[2].(string), 64)
 		if err != nil {
 			return err
+		}
+		base.Asks[i] = orderbook.Item{
+			Amount: amount,
+			Price:  price,
 		}
 		askUpdatedTime := convert.TimeFromUnixTimestampDecimal(timeData)
 		if highestLastUpdate.Before(askUpdatedTime) {
@@ -910,14 +912,16 @@ func (k *Kraken) wsProcessOrderBookPartial(channelData *WebsocketChannelData, as
 		if err != nil {
 			return err
 		}
-		base.Bids = append(base.Bids, orderbook.Item{
-			Amount: amount,
-			Price:  price,
-		})
 		timeData, err := strconv.ParseFloat(bids[2].(string), 64)
 		if err != nil {
 			return err
 		}
+
+		base.Bids[i] = orderbook.Item{
+			Amount: amount,
+			Price:  price,
+		}
+
 		bidUpdateTime := convert.TimeFromUnixTimestampDecimal(timeData)
 		if highestLastUpdate.Before(bidUpdateTime) {
 			highestLastUpdate = bidUpdateTime
@@ -934,6 +938,8 @@ func (k *Kraken) wsProcessOrderBookUpdate(channelData *WebsocketChannelData, ask
 		Asset:    asset.Spot,
 		Pair:     channelData.Pair,
 		MaxDepth: krakenWsOrderbookDepth,
+		Bids:     make([]orderbook.Item, len(bidData)),
+		Asks:     make([]orderbook.Item, len(askData)),
 	}
 
 	// Calculating checksum requires incoming decimal place checks for both
@@ -969,11 +975,6 @@ func (k *Kraken) wsProcessOrderBookUpdate(channelData *WebsocketChannelData, ask
 			return err
 		}
 
-		update.Asks = append(update.Asks, orderbook.Item{
-			Amount: amount,
-			Price:  price,
-		})
-
 		timeStr, ok := asks[2].(string)
 		if !ok {
 			return errors.New("time type assertion failure")
@@ -982,6 +983,11 @@ func (k *Kraken) wsProcessOrderBookUpdate(channelData *WebsocketChannelData, ask
 		timeData, err := strconv.ParseFloat(timeStr, 64)
 		if err != nil {
 			return err
+		}
+
+		update.Asks[i] = orderbook.Item{
+			Amount: amount,
+			Price:  price,
 		}
 
 		askUpdatedTime := convert.TimeFromUnixTimestampDecimal(timeData)
@@ -1032,11 +1038,6 @@ func (k *Kraken) wsProcessOrderBookUpdate(channelData *WebsocketChannelData, ask
 			return err
 		}
 
-		update.Bids = append(update.Bids, orderbook.Item{
-			Amount: amount,
-			Price:  price,
-		})
-
 		timeStr, ok := bids[2].(string)
 		if !ok {
 			return errors.New("time type assertion failure")
@@ -1045,6 +1046,11 @@ func (k *Kraken) wsProcessOrderBookUpdate(channelData *WebsocketChannelData, ask
 		timeData, err := strconv.ParseFloat(timeStr, 64)
 		if err != nil {
 			return err
+		}
+
+		update.Bids[i] = orderbook.Item{
+			Amount: amount,
+			Price:  price,
 		}
 
 		bidUpdatedTime := convert.TimeFromUnixTimestampDecimal(timeData)

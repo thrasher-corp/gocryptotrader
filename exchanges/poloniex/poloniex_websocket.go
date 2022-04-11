@@ -421,6 +421,7 @@ func (p *Poloniex) WsProcessOrderbookSnapshot(data []interface{}) error {
 	}
 
 	var book orderbook.Base
+	book.Asks = make(orderbook.Items, 0, len(askData))
 	for price, volume := range askData {
 		p, err := strconv.ParseFloat(price, 64)
 		if err != nil {
@@ -438,6 +439,7 @@ func (p *Poloniex) WsProcessOrderbookSnapshot(data []interface{}) error {
 		book.Asks = append(book.Asks, orderbook.Item{Price: p, Amount: a})
 	}
 
+	book.Bids = make(orderbook.Items, 0, len(bidData))
 	for price, volume := range bidData {
 		p, err := strconv.ParseFloat(price, 64)
 		if err != nil {

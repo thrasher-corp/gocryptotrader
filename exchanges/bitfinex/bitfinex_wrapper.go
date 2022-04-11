@@ -442,36 +442,40 @@ func (b *Bitfinex) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 	}
 	if assetType == asset.MarginFunding {
 		o.IsFundingRate = true
+		o.Asks = make(orderbook.Items, len(orderbookNew.Asks))
 		for x := range orderbookNew.Asks {
-			o.Asks = append(o.Asks, orderbook.Item{
+			o.Asks[x] = orderbook.Item{
 				ID:     orderbookNew.Asks[x].OrderID,
 				Price:  orderbookNew.Asks[x].Rate,
 				Amount: orderbookNew.Asks[x].Amount,
 				Period: int64(orderbookNew.Asks[x].Period),
-			})
+			}
 		}
+		o.Bids = make(orderbook.Items, len(orderbookNew.Bids))
 		for x := range orderbookNew.Bids {
-			o.Bids = append(o.Bids, orderbook.Item{
+			o.Bids[x] = orderbook.Item{
 				ID:     orderbookNew.Bids[x].OrderID,
 				Price:  orderbookNew.Bids[x].Rate,
 				Amount: orderbookNew.Bids[x].Amount,
 				Period: int64(orderbookNew.Bids[x].Period),
-			})
+			}
 		}
 	} else {
+		o.Asks = make(orderbook.Items, len(orderbookNew.Asks))
 		for x := range orderbookNew.Asks {
-			o.Asks = append(o.Asks, orderbook.Item{
+			o.Asks[x] = orderbook.Item{
 				ID:     orderbookNew.Asks[x].OrderID,
 				Price:  orderbookNew.Asks[x].Price,
 				Amount: orderbookNew.Asks[x].Amount,
-			})
+			}
 		}
+		o.Bids = make(orderbook.Items, len(orderbookNew.Bids))
 		for x := range orderbookNew.Bids {
-			o.Bids = append(o.Bids, orderbook.Item{
+			o.Bids[x] = orderbook.Item{
 				ID:     orderbookNew.Bids[x].OrderID,
 				Price:  orderbookNew.Bids[x].Price,
 				Amount: orderbookNew.Bids[x].Amount,
-			})
+			}
 		}
 	}
 	err = o.Process()

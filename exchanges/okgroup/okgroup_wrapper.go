@@ -103,7 +103,7 @@ func (o *OKGroup) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.
 	}
 
 	orderbookNew, err := o.GetOrderBook(ctx,
-		GetOrderBookRequest{
+		&GetOrderBookRequest{
 			InstrumentID: fPair.String(),
 			Size:         200,
 		}, a)
@@ -111,6 +111,7 @@ func (o *OKGroup) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.
 		return book, err
 	}
 
+	book.Bids = make(orderbook.Items, len(orderbookNew.Bids))
 	for x := range orderbookNew.Bids {
 		amount, convErr := strconv.ParseFloat(orderbookNew.Bids[x][1], 64)
 		if convErr != nil {
@@ -135,14 +136,15 @@ func (o *OKGroup) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.
 			}
 		}
 
-		book.Bids = append(book.Bids, orderbook.Item{
+		book.Bids[x] = orderbook.Item{
 			Amount:            amount,
 			Price:             price,
 			LiquidationOrders: liquidationOrders,
 			OrderCount:        orderCount,
-		})
+		}
 	}
 
+	book.Asks = make(orderbook.Items, len(orderbookNew.Asks))
 	for x := range orderbookNew.Asks {
 		amount, convErr := strconv.ParseFloat(orderbookNew.Asks[x][1], 64)
 		if convErr != nil {
@@ -167,12 +169,12 @@ func (o *OKGroup) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.
 			}
 		}
 
-		book.Asks = append(book.Asks, orderbook.Item{
+		book.Asks[x] = orderbook.Item{
 			Amount:            amount,
 			Price:             price,
 			LiquidationOrders: liquidationOrders,
 			OrderCount:        orderCount,
-		})
+		}
 	}
 
 	err = book.Process()

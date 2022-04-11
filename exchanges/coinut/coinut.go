@@ -82,7 +82,7 @@ func (c *COINUT) GetInstrumentTicker(ctx context.Context, instrumentID int64) (T
 }
 
 // GetInstrumentOrderbook returns the orderbooks for a specific instrument
-func (c *COINUT) GetInstrumentOrderbook(ctx context.Context, instrumentID, limit int64) (Orderbook, error) {
+func (c *COINUT) GetInstrumentOrderbook(ctx context.Context, instrumentID, limit int64) (*Orderbook, error) {
 	var result Orderbook
 	params := make(map[string]interface{})
 	params["inst_id"] = instrumentID
@@ -90,7 +90,7 @@ func (c *COINUT) GetInstrumentOrderbook(ctx context.Context, instrumentID, limit
 		params["top_n"] = limit
 	}
 
-	return result, c.SendHTTPRequest(ctx, exchange.RestSpot, coinutOrderbook, params, false, &result)
+	return &result, c.SendHTTPRequest(ctx, exchange.RestSpot, coinutOrderbook, params, false, &result)
 }
 
 // GetTrades returns trade information

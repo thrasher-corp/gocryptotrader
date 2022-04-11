@@ -89,14 +89,14 @@ func (l *Lbank) GetCurrencyPairs(ctx context.Context) ([]string, error) {
 }
 
 // GetMarketDepths returns arrays of asks, bids and timestamp
-func (l *Lbank) GetMarketDepths(ctx context.Context, symbol, size, merge string) (MarketDepthResponse, error) {
+func (l *Lbank) GetMarketDepths(ctx context.Context, symbol, size, merge string) (*MarketDepthResponse, error) {
 	var m MarketDepthResponse
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	params.Set("size", size)
 	params.Set("merge", merge)
 	path := fmt.Sprintf("/v%s/%s?%s", lbankAPIVersion2, lbankMarketDepths, params.Encode())
-	return m, l.SendHTTPRequest(ctx, exchange.RestSpot, path, &m)
+	return &m, l.SendHTTPRequest(ctx, exchange.RestSpot, path, &m)
 }
 
 // GetTrades returns an array of available trades regarding a particular exchange

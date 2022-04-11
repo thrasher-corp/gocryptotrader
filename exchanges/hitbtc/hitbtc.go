@@ -159,7 +159,7 @@ func (h *HitBTC) GetTrades(ctx context.Context, currencyPair, by, sort string, f
 
 // GetOrderbook an order book is an electronic list of buy and sell orders for a
 // specific symbol, organized by price level.
-func (h *HitBTC) GetOrderbook(ctx context.Context, currencyPair string, limit int) (Orderbook, error) {
+func (h *HitBTC) GetOrderbook(ctx context.Context, currencyPair string, limit int) (*Orderbook, error) {
 	// limit Limit of orderbook levels, default 100. Set 0 to view full orderbook levels
 	vals := url.Values{}
 
@@ -167,21 +167,16 @@ func (h *HitBTC) GetOrderbook(ctx context.Context, currencyPair string, limit in
 		vals.Set("limit", strconv.Itoa(limit))
 	}
 
-	resp := OrderbookResponse{}
+	var resp Orderbook
 	path := fmt.Sprintf("/%s/%s?%s",
 		apiV2Orderbook,
 		currencyPair,
 		vals.Encode())
-
 	err := h.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
 	if err != nil {
-		return Orderbook{}, err
+		return nil, err
 	}
-
-	ob := Orderbook{}
-	ob.Asks = append(ob.Asks, resp.Asks...)
-	ob.Bids = append(ob.Bids, resp.Bids...)
-	return ob, nil
+	return &resp, nil
 }
 
 // GetCandles returns candles which is used for OHLC a specific currency.

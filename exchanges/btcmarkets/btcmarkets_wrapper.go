@@ -398,15 +398,20 @@ func (b *BTCMarkets) UpdateOrderbook(ctx context.Context, p currency.Pair, asset
 		return book, err
 	}
 
+	book.Bids = make(orderbook.Items, len(tempResp.Bids))
 	for x := range tempResp.Bids {
-		book.Bids = append(book.Bids, orderbook.Item{
+		book.Bids[x] = orderbook.Item{
 			Amount: tempResp.Bids[x].Volume,
-			Price:  tempResp.Bids[x].Price})
+			Price:  tempResp.Bids[x].Price,
+		}
 	}
+
+	book.Asks = make(orderbook.Items, len(tempResp.Asks))
 	for y := range tempResp.Asks {
-		book.Asks = append(book.Asks, orderbook.Item{
+		book.Asks[y] = orderbook.Item{
 			Amount: tempResp.Asks[y].Volume,
-			Price:  tempResp.Asks[y].Price})
+			Price:  tempResp.Asks[y].Price,
+		}
 	}
 	err = book.Process()
 	if err != nil {
