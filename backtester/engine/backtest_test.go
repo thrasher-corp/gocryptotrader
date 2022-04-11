@@ -2,7 +2,6 @@ package engine
 
 import (
 	"errors"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -21,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/dollarcostaverage"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	evkline "github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
@@ -39,13 +39,7 @@ import (
 
 const testExchange = "ftx"
 
-var leet *decimal.Decimal
-
-func TestMain(m *testing.M) {
-	oneThreeThreeSeven := decimal.NewFromInt(1337)
-	leet = &oneThreeThreeSeven
-	os.Exit(m.Run())
-}
+var leet = decimal.NewFromInt(1337)
 
 func TestNewFromConfig(t *testing.T) {
 	t.Parallel()
@@ -135,7 +129,7 @@ func TestLoadDataAPI(t *testing.T) {
 				Base:         cp.Base.String(),
 				Quote:        cp.Quote.String(),
 				SpotDetails: &config.SpotDetails{
-					InitialQuoteFunds: leet,
+					InitialQuoteFunds: &leet,
 				},
 				BuySide:  config.MinMax{},
 				SellSide: config.MinMax{},
@@ -192,7 +186,7 @@ func TestLoadDataDatabase(t *testing.T) {
 				Base:         cp.Base.String(),
 				Quote:        cp.Quote.String(),
 				SpotDetails: &config.SpotDetails{
-					InitialQuoteFunds: leet,
+					InitialQuoteFunds: &leet,
 				},
 				BuySide:  config.MinMax{},
 				SellSide: config.MinMax{},
@@ -260,7 +254,7 @@ func TestLoadDataCSV(t *testing.T) {
 				Base:         cp.Base.String(),
 				Quote:        cp.Quote.String(),
 				SpotDetails: &config.SpotDetails{
-					InitialQuoteFunds: leet,
+					InitialQuoteFunds: &leet,
 				},
 				BuySide:  config.MinMax{},
 				SellSide: config.MinMax{},
@@ -318,7 +312,7 @@ func TestLoadDataLive(t *testing.T) {
 				Base:         cp.Base.String(),
 				Quote:        cp.Quote.String(),
 				SpotDetails: &config.SpotDetails{
-					InitialQuoteFunds: leet,
+					InitialQuoteFunds: &leet,
 				},
 				BuySide:  config.MinMax{},
 				SellSide: config.MinMax{},
@@ -686,8 +680,14 @@ func TestTriggerLiquidationsForExchange(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
 
+	cp := currency.NewPair(currency.BTC, currency.USDT)
+	a := asset.Futures
 	expectedError = common.ErrNilArguments
-	ev := &evkline.Kline{}
+	ev := &evkline.Kline{
+		Base: event.Base{Exchange: testExchange,
+			AssetType:    a,
+			CurrencyPair: cp},
+	}
 	err = bt.triggerLiquidationsForExchange(ev, nil)
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
@@ -695,6 +695,34 @@ func TestTriggerLiquidationsForExchange(t *testing.T) {
 
 	bt.Portfolio = &portfolioOverride{}
 	pnl := &portfolio.PNLSummary{}
+	bt.Datas = &data.HandlerPerCurrency{}
+	d := data.Base{}
+	d.SetStream([]common.DataEventHandler{&evkline.Kline{
+		Base: event.Base{
+			Exchange:     "ftx",
+			Time:         time.Now(),
+			Interval:     gctkline.OneDay,
+			CurrencyPair: cp,
+			AssetType:    a,
+		},
+		Open:   decimal.NewFromInt(1337),
+		Close:  decimal.NewFromInt(1337),
+		Low:    decimal.NewFromInt(1337),
+		High:   decimal.NewFromInt(1337),
+		Volume: decimal.NewFromInt(1337),
+	}})
+	d.Next()
+	da := &kline.DataFromKline{
+		Item: gctkline.Item{
+			Exchange: testExchange,
+			Asset:    a,
+			Pair:     cp,
+		},
+		Base:        d,
+		RangeHolder: &gctkline.IntervalRangeHolder{},
+	}
+	bt.Datas.SetDataForCurrency("ftx", a, cp, da)
+	//data.HandlerPerCurrency{}
 	err = bt.triggerLiquidationsForExchange(ev, pnl)
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)

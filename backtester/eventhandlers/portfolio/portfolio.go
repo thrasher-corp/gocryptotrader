@@ -614,6 +614,15 @@ func (p *Portfolio) GetLatestPNLForEvent(e common.EventHandler) (*PNLSummary, er
 // CheckLiquidationStatus checks funding against position
 // and liquidates and removes funding if position unable to continue
 func (p *Portfolio) CheckLiquidationStatus(ev common.DataEventHandler, collateralReader funding.ICollateralReader, pnl *PNLSummary) error {
+	if ev == nil {
+		return common.ErrNilEvent
+	}
+	if collateralReader == nil {
+		return fmt.Errorf("%w collateral reader missing", common.ErrNilArguments)
+	}
+	if pnl == nil {
+		return fmt.Errorf("%w pnl summary missing", common.ErrNilArguments)
+	}
 	availableFunds := collateralReader.AvailableFunds()
 	position, err := p.GetLatestPosition(ev)
 	if err != nil {

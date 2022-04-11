@@ -53,7 +53,7 @@ var errNotSetup = errors.New("sent incomplete signals")
 // in allowing a strategy to only place an order for X currency if Y currency's price is Z
 func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundingTransferer, p portfolio.Handler) ([]signal.Event, error) {
 	var response []signal.Event
-	sortedSignals, err := sortSignals(d, f)
+	sortedSignals, err := sortSignals(d)
 	if err != nil {
 		return nil, err
 	}
@@ -141,7 +141,7 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundingTra
 	return response, nil
 }
 
-func sortSignals(d []data.Handler, f funding.IFundingTransferer) (map[currency.Pair]cashCarrySignals, error) {
+func sortSignals(d []data.Handler) (map[currency.Pair]cashCarrySignals, error) {
 	var response = make(map[currency.Pair]cashCarrySignals)
 	for i := range d {
 		l := d[i].Latest()

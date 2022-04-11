@@ -26,6 +26,14 @@ func TestName(t *testing.T) {
 	}
 }
 
+func TestDescription(t *testing.T) {
+	t.Parallel()
+	d := Strategy{}
+	if n := d.Description(); n != description {
+		t.Errorf("expected %v", description)
+	}
+}
+
 func TestSupportsSimultaneousProcessing(t *testing.T) {
 	t.Parallel()
 	s := Strategy{}
@@ -81,85 +89,11 @@ func TestOnSignal(t *testing.T) {
 	if !errors.Is(err, base.ErrSimultaneousProcessingOnly) {
 		t.Errorf("received: %v, expected: %v", err, base.ErrSimultaneousProcessingOnly)
 	}
-	dStart := time.Date(2020, 1, 0, 0, 0, 0, 0, time.UTC)
-	dInsert := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
-	dEnd := time.Date(2020, 1, 2, 0, 0, 0, 0, time.UTC)
-	exch := "ftx"
-	a := asset.Futures
-	p := currency.NewPair(currency.BTC, currency.USDT)
-	d := data.Base{}
-	d.SetStream([]common.DataEventHandler{&eventkline.Kline{
-		Base: event.Base{
-			Offset:       3,
-			Exchange:     exch,
-			Time:         dInsert,
-			Interval:     gctkline.OneDay,
-			CurrencyPair: p,
-			AssetType:    a,
-		},
-		Open:   decimal.NewFromInt(1337),
-		Close:  decimal.NewFromInt(1337),
-		Low:    decimal.NewFromInt(1337),
-		High:   decimal.NewFromInt(1337),
-		Volume: decimal.NewFromInt(1337),
-	}},
-	)
-	d.Next()
-	da := &kline.DataFromKline{
-		Item:        gctkline.Item{},
-		Base:        d,
-		RangeHolder: &gctkline.IntervalRangeHolder{},
-	}
-	_, err = s.OnSignal(da, nil, nil)
-	if !errors.Is(err, base.ErrSimultaneousProcessingOnly) {
-		t.Fatalf("expected: %v, received %v", nil, base.ErrSimultaneousProcessingOnly)
-	}
-	s.openShortDistancePercentage = decimal.NewFromInt(1)
-	_, err = s.OnSimultaneousSignals([]data.Handler{da}, nil, nil)
-	if !errors.Is(err, errNotSetup) {
-		t.Fatalf("expected: %v, received %v", nil, errNotSetup)
-	}
-
-	da.Item = gctkline.Item{
-		Exchange: exch,
-		Pair:     p,
-		Asset:    a,
-		Interval: gctkline.OneDay,
-		Candles: []gctkline.Candle{
-			{
-				Time:   dInsert,
-				Open:   1337,
-				High:   1337,
-				Low:    1337,
-				Close:  1337,
-				Volume: 1337,
-			},
-		},
-	}
-	err = da.Load()
-	if err != nil {
-		t.Error(err)
-	}
-
-	ranger, err := gctkline.CalculateCandleDateRanges(dStart, dEnd, gctkline.OneDay, 100000)
-	if err != nil {
-		t.Error(err)
-	}
-	da.RangeHolder = ranger
-	da.RangeHolder.SetHasDataFromCandles(da.Item.Candles)
-	_, err = s.OnSimultaneousSignals([]data.Handler{da}, nil, nil)
-	if !errors.Is(err, errNotSetup) {
-		t.Fatalf("expected: %v, received %v", nil, errNotSetup)
-	}
 }
 
 func TestOnSignals(t *testing.T) {
 	t.Parallel()
 	s := Strategy{}
-	_, err := s.OnSignal(nil, nil, nil)
-	if !errors.Is(err, base.ErrSimultaneousProcessingOnly) {
-		t.Errorf("received: %v, expected: %v", err, base.ErrSimultaneousProcessingOnly)
-	}
 	dInsert := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	exch := "ftx"
 	a := asset.Spot
@@ -185,7 +119,7 @@ func TestOnSignals(t *testing.T) {
 		Base:        d,
 		RangeHolder: &gctkline.IntervalRangeHolder{},
 	}
-	_, err = s.OnSimultaneousSignals([]data.Handler{da}, nil, nil)
+	_, err := s.OnSimultaneousSignals([]data.Handler{da}, nil, nil)
 	if !strings.Contains(err.Error(), errNotSetup.Error()) {
 		// common.Errs type doesn't keep type
 		t.Errorf("received: %v, expected: %v", err, errNotSetup)
@@ -201,5 +135,60 @@ func TestSetDefaults(t *testing.T) {
 	}
 	if !s.closeShortDistancePercentage.Equal(decimal.NewFromInt(0)) {
 		t.Errorf("expected 5, received %v", s.closeShortDistancePercentage)
+	}
+}
+
+func TestSortSignals(t *testing.T) {
+	t.Parallel()
+	dInsert := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
+	exch := "ftx"
+	a := asset.Spot
+	p := currency.NewPair(currency.BTC, currency.USDT)
+	d := data.Base{}
+	d.SetStream([]common.DataEventHandler{&eventkline.Kline{
+		Base: event.Base{
+			Exchange:     exch,
+			Time:         dInsert,
+			Interval:     gctkline.OneDay,
+			CurrencyPair: p,
+			AssetType:    a,
+		},
+		Open:   decimal.NewFromInt(1337),
+		Close:  decimal.NewFromInt(1337),
+		Low:    decimal.NewFromInt(1337),
+		High:   decimal.NewFromInt(1337),
+		Volume: decimal.NewFromInt(1337),
+	}})
+	d.Next()
+	da := &kline.DataFromKline{
+		Item:        gctkline.Item{},
+		Base:        d,
+		RangeHolder: &gctkline.IntervalRangeHolder{},
+	}
+	_, err := sortSignals([]data.Handler{da})
+	if !errors.Is(err, errNotSetup) {
+		t.Errorf("received: %v, expected: %v", err, errNotSetup)
+	}
+
+	d2 := data.Base{}
+	d2.SetStream([]common.DataEventHandler{&eventkline.Kline{
+		Base: event.Base{
+			Exchange:     exch,
+			Time:         dInsert,
+			Interval:     gctkline.OneDay,
+			CurrencyPair: p,
+			AssetType:    asset.Futures,
+		},
+		Open:   decimal.NewFromInt(1337),
+		Close:  decimal.NewFromInt(1337),
+		Low:    decimal.NewFromInt(1337),
+		High:   decimal.NewFromInt(1337),
+		Volume: decimal.NewFromInt(1337),
+	}})
+	d.Next()
+	da := &kline.DataFromKline{
+		Item:        gctkline.Item{},
+		Base:        d,
+		RangeHolder: &gctkline.IntervalRangeHolder{},
 	}
 }

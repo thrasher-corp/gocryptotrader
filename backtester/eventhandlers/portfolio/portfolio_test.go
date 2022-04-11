@@ -1398,3 +1398,83 @@ func TestGetPositionStatus(t *testing.T) {
 		t.Errorf("expected '%v' received '%v'", gctorder.Rejected, status)
 	}
 }
+
+func TestCheckLiquidationStatus(t *testing.T) {
+	t.Parallel()
+	p := &Portfolio{}
+	var expectedError = common.ErrNilEvent
+	err := p.CheckLiquidationStatus(nil, nil, nil)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v', expected '%v'", err, expectedError)
+	}
+
+	ev := &kline.Kline{}
+	expectedError = common.ErrNilArguments
+	err = p.CheckLiquidationStatus(ev, nil, nil)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v', expected '%v'", err, expectedError)
+	}
+
+	item := asset.Futures
+	pair := currency.NewPair(currency.BTC, currency.USD)
+	expectedError = nil
+	contract, err := funding.CreateItem(testExchange, item, pair.Base, decimal.NewFromInt(100), decimal.Zero)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v", err, expectedError)
+	}
+	collateral, err := funding.CreateItem(testExchange, item, pair.Quote, decimal.NewFromInt(100), decimal.Zero)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v", err, expectedError)
+	}
+	collat, err := funding.CreateCollateral(contract, collateral)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v", err, expectedError)
+	}
+
+	expectedError = common.ErrNilArguments
+	err = p.CheckLiquidationStatus(ev, collat, nil)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v', expected '%v'", err, expectedError)
+	}
+
+	pnl := &PNLSummary{}
+	expectedError = gctorder.ErrNotFuturesAsset
+	err = p.CheckLiquidationStatus(ev, collat, pnl)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v', expected '%v'", err, expectedError)
+	}
+
+	pnl.Item = asset.Futures
+	ev.AssetType = asset.Futures
+	ev.Exchange = "ftx"
+	ev.CurrencyPair = pair
+	exch := &ftx.FTX{}
+	exch.Name = testExchange
+	expectedError = nil
+	err = p.SetupCurrencySettingsMap(&exchange.Settings{Exchange: exch, Asset: asset.Futures, Pair: pair})
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v', expected '%v'", err, expectedError)
+	}
+	settings, err := p.getSettings(testExchange, ev.AssetType, ev.Pair())
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v', expected '%v'", err, expectedError)
+	}
+	od := &gctorder.Detail{
+		Price:     1336,
+		Amount:    20,
+		Exchange:  exch.Name,
+		Side:      gctorder.Short,
+		AssetType: ev.AssetType,
+		Date:      time.Now(),
+		Pair:      pair,
+		ID:        "lol",
+	}
+	err = settings.FuturesTracker.TrackNewOrder(od)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v', expected '%v'", err, expectedError)
+	}
+	err = p.CheckLiquidationStatus(ev, collat, pnl)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v', expected '%v'", err, expectedError)
+	}
+}

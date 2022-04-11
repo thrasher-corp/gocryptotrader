@@ -308,7 +308,6 @@ func verifyOrderWithinLimits(f fill.Event, limitReducedAmount decimal.Decimal, c
 		f.SetDirection(direction)
 		e := fmt.Sprintf("Order size %v %s %s size %v", limitReducedAmount, belowExceed, minOrMax, size)
 		f.AppendReason(e)
-		return fmt.Errorf("%w %v", errExceededPortfolioLimit, e)
 	}
 	return nil
 }
