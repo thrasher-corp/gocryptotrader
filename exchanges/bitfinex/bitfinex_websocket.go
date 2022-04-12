@@ -365,29 +365,29 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 						var element []interface{}
 						element, ok = candleBundle[i].([]interface{})
 						if !ok {
-							return errors.New("type assertion for element data")
+							return errors.New("candle type assertion for element data")
 						}
 						if len(element) < 6 {
 							return errors.New("invalid candleBundle length")
 						}
 						var klineData stream.KlineData
 						if klineData.Timestamp, err = convert.TimeFromUnixTimestampFloat(element[0]); err != nil {
-							return fmt.Errorf("unable to convert timestamp: %w", err)
+							return fmt.Errorf("unable to convert candle timestamp: %w", err)
 						}
 						if klineData.OpenPrice, ok = element[1].(float64); !ok {
-							return errors.New("unable to type assert open price")
+							return errors.New("unable to type assert candle open price")
 						}
 						if klineData.ClosePrice, ok = element[2].(float64); !ok {
-							return errors.New("unable to type assert close price")
+							return errors.New("unable to type assert candle close price")
 						}
 						if klineData.HighPrice, ok = element[3].(float64); !ok {
-							return errors.New("unable to type assert high price")
+							return errors.New("unable to type assert candle high price")
 						}
 						if klineData.LowPrice, ok = element[4].(float64); !ok {
-							return errors.New("unable to type assert low price")
+							return errors.New("unable to type assert candle low price")
 						}
 						if klineData.Volume, ok = element[5].(float64); !ok {
-							return errors.New("unable to type assert volume")
+							return errors.New("unable to type assert candle volume")
 						}
 						klineData.Exchange = b.Name
 						klineData.AssetType = chanAsset
@@ -400,22 +400,22 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 					}
 					var klineData stream.KlineData
 					if klineData.Timestamp, err = convert.TimeFromUnixTimestampFloat(candleData); err != nil {
-						return fmt.Errorf("unable to convert timestamp: %w", err)
+						return fmt.Errorf("unable to convert candle timestamp: %w", err)
 					}
 					if klineData.OpenPrice, ok = candleBundle[1].(float64); !ok {
-						return errors.New("unable to type assert open price")
+						return errors.New("unable to type assert candle open price")
 					}
 					if klineData.ClosePrice, ok = candleBundle[2].(float64); !ok {
-						return errors.New("unable to type assert close price")
+						return errors.New("unable to type assert candle close price")
 					}
 					if klineData.HighPrice, ok = candleBundle[3].(float64); !ok {
-						return errors.New("unable to type assert high price")
+						return errors.New("unable to type assert candle high price")
 					}
 					if klineData.LowPrice, ok = candleBundle[4].(float64); !ok {
-						return errors.New("unable to type assert low price")
+						return errors.New("unable to type assert candle low price")
 					}
 					if klineData.Volume, ok = candleBundle[5].(float64); !ok {
-						return errors.New("unable to type assert volume")
+						return errors.New("unable to type assert candle volume")
 					}
 					klineData.Exchange = b.Name
 					klineData.AssetType = chanAsset
@@ -438,59 +438,59 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 
 			if len(tickerData) == 10 {
 				if t.Bid, ok = tickerData[0].(float64); !ok {
-					return errors.New("unable to type assert bid")
+					return errors.New("unable to type assert ticker bid")
 				}
 				if t.Ask, ok = tickerData[2].(float64); !ok {
-					return errors.New("unable to type assert ask")
+					return errors.New("unable to type assert ticker ask")
 				}
 				if t.Last, ok = tickerData[6].(float64); !ok {
-					return errors.New("unable to type assert last")
+					return errors.New("unable to type assert ticker last")
 				}
 				if t.Volume, ok = tickerData[7].(float64); !ok {
-					return errors.New("unable to type assert volume")
+					return errors.New("unable to type assert ticker volume")
 				}
 				if t.High, ok = tickerData[8].(float64); !ok {
-					return errors.New("unable to type assert high")
+					return errors.New("unable to type assert  ticker high")
 				}
 				if t.Low, ok = tickerData[9].(float64); !ok {
-					return errors.New("unable to type assert hilowgh")
+					return errors.New("unable to type assert ticker low")
 				}
 			} else {
 				if t.FlashReturnRate, ok = tickerData[0].(float64); !ok {
-					return errors.New("unable to type assert flash return rate")
+					return errors.New("unable to type assert ticker flash return rate")
 				}
 				if t.Bid, ok = tickerData[1].(float64); !ok {
-					return errors.New("unable to type assert bid")
+					return errors.New("unable to type assert ticker bid")
 				}
 				if t.BidPeriod, ok = tickerData[2].(float64); !ok {
-					return errors.New("unable to type assert bid period")
+					return errors.New("unable to type assert ticker bid period")
 				}
 				if t.BidSize, ok = tickerData[3].(float64); !ok {
-					return errors.New("unable to type assert bid size")
+					return errors.New("unable to type assert ticker bid size")
 				}
 				if t.Ask, ok = tickerData[4].(float64); !ok {
-					return errors.New("unable to type assert ask")
+					return errors.New("unable to type assert ticker ask")
 				}
 				if t.AskPeriod, ok = tickerData[5].(float64); !ok {
-					return errors.New("unable to type assert ask period")
+					return errors.New("unable to type assert ticker ask period")
 				}
 				if t.AskSize, ok = tickerData[6].(float64); !ok {
-					return errors.New("unable to type assert ask size")
+					return errors.New("unable to type assert ticker ask size")
 				}
 				if t.Last, ok = tickerData[9].(float64); !ok {
-					return errors.New("unable to type assert last")
+					return errors.New("unable to type assert ticker last")
 				}
 				if t.Volume, ok = tickerData[10].(float64); !ok {
-					return errors.New("unable to type assert volume")
+					return errors.New("unable to type assert ticker volume")
 				}
 				if t.High, ok = tickerData[11].(float64); !ok {
-					return errors.New("unable to type assert high")
+					return errors.New("unable to type assert ticker high")
 				}
 				if t.Low, ok = tickerData[12].(float64); !ok {
-					return errors.New("unable to type assert low")
+					return errors.New("unable to type assert ticker low")
 				}
 				if t.FlashReturnRateAmount, ok = tickerData[15].(float64); !ok {
-					return errors.New("unable to type assert flash return rate")
+					return errors.New("unable to type assert ticker flash return rate")
 				}
 			}
 			b.Websocket.DataHandler <- t
@@ -507,12 +507,12 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 			case 2:
 				snapshot, ok := d[1].([]interface{})
 				if !ok {
-					return errors.New("unable to type assert snapshot data")
+					return errors.New("unable to type assert trade snapshot data")
 				}
 				for i := range snapshot {
 					elem, ok := snapshot[i].([]interface{})
 					if !ok {
-						return errors.New("unable to type assert snapshot element data")
+						return errors.New("unable to type assert trade snapshot element data")
 					}
 					tradeID, ok := elem[0].(float64)
 					if !ok {
@@ -520,11 +520,11 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 					}
 					timestamp, ok := elem[1].(float64)
 					if !ok {
-						return errors.New("unable to type assert timestamp")
+						return errors.New("unable to type assert trade timestamp")
 					}
 					amount, ok := elem[2].(float64)
 					if !ok {
-						return errors.New("unable to type assert amount")
+						return errors.New("unable to type assert trade amount")
 					}
 					wsTrade := WebsocketTrade{
 						ID:        int64(tradeID),
@@ -534,18 +534,18 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 					if len(elem) == 5 {
 						rate, ok := elem[3].(float64)
 						if !ok {
-							return errors.New("unable to type assert rate")
+							return errors.New("unable to type assert trade rate")
 						}
 						wsTrade.Rate = rate
 						period, ok := elem[4].(float64)
 						if !ok {
-							return errors.New("unable to type assert period")
+							return errors.New("unable to type assert trade period")
 						}
 						wsTrade.Period = int64(period)
 					} else {
 						price, ok := elem[3].(float64)
 						if !ok {
-							return errors.New("unable to type assert price")
+							return errors.New("unable to type assert trade price")
 						}
 						wsTrade.Rate = price
 					}
@@ -562,7 +562,7 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 				}
 				data, ok := d[2].([]interface{})
 				if !ok {
-					return errors.New("data type assertion error")
+					return errors.New("trade data type assertion error")
 				}
 
 				tradeID, ok := data[0].(float64)
@@ -571,11 +571,11 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 				}
 				timestamp, ok := data[1].(float64)
 				if !ok {
-					return errors.New("unable to type assert timestamp")
+					return errors.New("unable to type assert trade timestamp")
 				}
 				amount, ok := data[2].(float64)
 				if !ok {
-					return errors.New("unable to type assert amount")
+					return errors.New("unable to type assert trade amount")
 				}
 				wsTrade := WebsocketTrade{
 					ID:        int64(tradeID),
@@ -585,18 +585,18 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 				if len(data) == 5 {
 					rate, ok := data[3].(float64)
 					if !ok {
-						return errors.New("unable to type assert rate")
+						return errors.New("unable to type assert trade rate")
 					}
 					period, ok := data[4].(float64)
 					if !ok {
-						return errors.New("unable to type assert period")
+						return errors.New("unable to type assert trade period")
 					}
 					wsTrade.Rate = rate
 					wsTrade.Period = int64(period)
 				} else {
 					price, ok := data[3].(float64)
 					if !ok {
-						return errors.New("unable to type assert price")
+						return errors.New("unable to type assert trade price")
 					}
 					wsTrade.Price = price
 				}
@@ -714,36 +714,36 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 							}
 							var position WebsocketPosition
 							if position.Pair, ok = positionData[0].(string); !ok {
-								return errors.New("unable to type assert pair")
+								return errors.New("unable to type assert position snapshot pair")
 							}
 							if position.Status, ok = positionData[1].(string); !ok {
-								return errors.New("unable to type assert status")
+								return errors.New("unable to type assert position snapshot status")
 							}
 							if position.Amount, ok = positionData[2].(float64); !ok {
-								return errors.New("unable to type assert amount")
+								return errors.New("unable to type assert position snapshot amount")
 							}
 							if position.Price, ok = positionData[3].(float64); !ok {
-								return errors.New("unable to type assert price")
+								return errors.New("unable to type assert position snapshot price")
 							}
 							if position.MarginFunding, ok = positionData[4].(float64); !ok {
-								return errors.New("unable to type assert margin funding")
+								return errors.New("unable to type assert position snapshot margin funding")
 							}
 							marginFundingType, ok := positionData[5].(float64)
 							if !ok {
-								return errors.New("unable to type assert margin funding type")
+								return errors.New("unable to type assert position snapshot margin funding type")
 							}
 							position.MarginFundingType = int64(marginFundingType)
 							if position.ProfitLoss, ok = positionData[6].(float64); !ok {
-								return errors.New("unable to type assert profit loss")
+								return errors.New("unable to type assert position snapshot profit loss")
 							}
 							if position.ProfitLossPercent, ok = positionData[7].(float64); !ok {
-								return errors.New("unable to type assert profit loss percent")
+								return errors.New("unable to type assert position snapshot profit loss percent")
 							}
 							if position.LiquidationPrice, ok = positionData[8].(float64); !ok {
-								return errors.New("unable to type assert liquidation price")
+								return errors.New("unable to type assert position snapshot liquidation price")
 							}
 							if position.Leverage, ok = positionData[9].(float64); !ok {
-								return errors.New("unable to type assert leverage")
+								return errors.New("unable to type assert position snapshot leverage")
 							}
 							snapshot[i] = position
 						}
@@ -754,36 +754,36 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 				if positionData, ok := d[2].([]interface{}); ok && len(positionData) > 0 {
 					var position WebsocketPosition
 					if position.Pair, ok = positionData[0].(string); !ok {
-						return errors.New("unable to type assert pair")
+						return errors.New("unable to type assert position pair")
 					}
 					if position.Status, ok = positionData[1].(string); !ok {
-						return errors.New("unable to type assert status")
+						return errors.New("unable to type assert position status")
 					}
 					if position.Amount, ok = positionData[2].(float64); !ok {
-						return errors.New("unable to type assert amount")
+						return errors.New("unable to type assert position amount")
 					}
 					if position.Price, ok = positionData[3].(float64); !ok {
-						return errors.New("unable to type assert price")
+						return errors.New("unable to type assert position price")
 					}
 					if position.MarginFunding, ok = positionData[4].(float64); !ok {
-						return errors.New("unable to type assert margin funding")
+						return errors.New("unable to type assert margin position funding")
 					}
 					marginFundingType, ok := positionData[5].(float64)
 					if !ok {
-						return errors.New("unable to type assert margin funding type")
+						return errors.New("unable to type assert position margin funding type")
 					}
 					position.MarginFundingType = int64(marginFundingType)
 					if position.ProfitLoss, ok = positionData[6].(float64); !ok {
-						return errors.New("unable to type assert profit loss")
+						return errors.New("unable to type assert position profit loss")
 					}
 					if position.ProfitLossPercent, ok = positionData[7].(float64); !ok {
-						return errors.New("unable to type assert profit loss percent")
+						return errors.New("unable to type assert position profit loss percent")
 					}
 					if position.LiquidationPrice, ok = positionData[8].(float64); !ok {
-						return errors.New("unable to type assert liquidation price")
+						return errors.New("unable to type assert position liquidation price")
 					}
 					if position.Leverage, ok = positionData[9].(float64); !ok {
-						return errors.New("unable to type assert leverage")
+						return errors.New("unable to type assert position leverage")
 					}
 					b.Websocket.DataHandler <- position
 				}
@@ -868,7 +868,7 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 							if !ok {
 								return errors.New("unable to type assert wsFundingCreditSnapshot snapBundle data")
 							}
-							fundingCredit, err := wsHandleFundingData(data, true /* include position pair */)
+							fundingCredit, err := wsHandleFundingCreditLoanData(data, true /* include position pair */)
 							if err != nil {
 								return err
 							}
@@ -879,7 +879,7 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 				}
 			case wsFundingCreditNew, wsFundingCreditUpdate, wsFundingCreditCancel:
 				if data, ok := d[2].([]interface{}); ok && len(data) > 0 {
-					fundingCredit, err := wsHandleFundingData(data, true /* include position pair */)
+					fundingCredit, err := wsHandleFundingCreditLoanData(data, true /* include position pair */)
 					if err != nil {
 						return err
 					}
@@ -894,7 +894,7 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 							if !ok {
 								return errors.New("unable to type assert wsFundingLoanSnapshot snapBundle data")
 							}
-							fundingLoanSnapshot, err := wsHandleFundingData(data, false)
+							fundingLoanSnapshot, err := wsHandleFundingCreditLoanData(data, false /* include position pair */)
 							if err != nil {
 								return err
 							}
@@ -905,7 +905,7 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 				}
 			case wsFundingLoanNew, wsFundingLoanUpdate, wsFundingLoanCancel:
 				if data, ok := d[2].([]interface{}); ok && len(data) > 0 {
-					fundingData, err := wsHandleFundingData(data, false)
+					fundingData, err := wsHandleFundingCreditLoanData(data, false /* include position pair */)
 					if err != nil {
 						return err
 					}
@@ -952,11 +952,16 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 					if wallet.Currency, ok = data[1].(string); !ok {
 						return errors.New("unable to type assert wallet snapshot currency")
 					}
-					if wallet.UnsettledInterest, ok = data[3].(float64); !ok {
+					if wallet.Balance, ok = data[2].(float64); !ok {
 						return errors.New("unable to type assert wallet snapshot balance")
 					}
-					if wallet.BalanceAvailable, ok = data[4].(float64); !ok {
+					if wallet.UnsettledInterest, ok = data[3].(float64); !ok {
 						return errors.New("unable to type assert wallet snapshot unsettled interest")
+					}
+					if data[4] != nil {
+						if wallet.BalanceAvailable, ok = data[4].(float64); !ok {
+							return errors.New("unable to type assert wallet snapshot balance available interest")
+						}
 					}
 					b.Websocket.DataHandler <- wallet
 				}
@@ -1067,62 +1072,91 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 
 func wsHandleFundingOffer(data []interface{}, includeRateReal bool) (*WsFundingOffer, error) {
 	var offer WsFundingOffer
-	offerID, ok := data[0].(float64)
-	if !ok {
-		return nil, errors.New("unable to type assert funding offer ID")
+	var ok bool
+	if data[0] != nil {
+		var offerID float64
+		if offerID, ok = data[0].(float64); !ok {
+			return nil, errors.New("unable to type assert funding offer ID")
+		}
+		offer.ID = int64(offerID)
 	}
-	offer.ID = int64(offerID)
-	if offer.Symbol, ok = data[1].(string); !ok {
-		return nil, errors.New("unable to type assert funding offer symbol")
+	if data[1] != nil {
+		if offer.Symbol, ok = data[1].(string); !ok {
+			return nil, errors.New("unable to type assert funding offer symbol")
+		}
 	}
-	var created float64
-	if created, ok = data[2].(float64); !ok {
-		return nil, errors.New("unable to type assert funding offer created")
+	if data[2] != nil {
+		var created float64
+		if created, ok = data[2].(float64); !ok {
+			return nil, errors.New("unable to type assert funding offer created")
+		}
+		offer.Created = time.UnixMilli(int64(created))
 	}
-	offer.Created = time.UnixMilli(int64(created))
-	var updated float64
-	if updated, ok = data[3].(float64); !ok {
-		return nil, errors.New("unable to type assert funding offer updated")
+	if data[3] != nil {
+		var updated float64
+		if updated, ok = data[3].(float64); !ok {
+			return nil, errors.New("unable to type assert funding offer updated")
+		}
+		offer.Updated = time.UnixMilli(int64(updated))
 	}
-	offer.Updated = time.UnixMilli(int64(updated))
-	if offer.Amount, ok = data[4].(float64); !ok {
-		return nil, errors.New("unable to type assert funding offer amount")
+	if data[4] != nil {
+		if offer.Amount, ok = data[4].(float64); !ok {
+			return nil, errors.New("unable to type assert funding offer amount")
+		}
 	}
-	if offer.OriginalAmount, ok = data[5].(float64); !ok {
-		return nil, errors.New("unable to type assert funding offer original amount")
+	if data[5] != nil {
+		if offer.OriginalAmount, ok = data[5].(float64); !ok {
+			return nil, errors.New("unable to type assert funding offer original amount")
+		}
 	}
-	if offer.Type, ok = data[6].(string); !ok {
-		return nil, errors.New("unable to type assert funding offer type")
+	if data[6] != nil {
+		if offer.Type, ok = data[6].(string); !ok {
+			return nil, errors.New("unable to type assert funding offer type")
+		}
 	}
-	if offer.Flags, ok = data[9].(float64); !ok {
-		return nil, errors.New("unable to type assert funding offer flags")
+	if data[9] != nil {
+		if offer.Flags, ok = data[9].(float64); !ok {
+			return nil, errors.New("unable to type assert funding offer flags")
+		}
 	}
-	if offer.Status, ok = data[10].(string); !ok {
-		return nil, errors.New("unable to type assert funding offer status")
+	if data[10] != nil {
+		if offer.Status, ok = data[10].(string); !ok {
+			return nil, errors.New("unable to type assert funding offer status")
+		}
 	}
-	if offer.Rate, ok = data[14].(float64); !ok {
-		return nil, errors.New("unable to type assert funding offer rate")
+	if data[14] != nil {
+		if offer.Rate, ok = data[14].(float64); !ok {
+			return nil, errors.New("unable to type assert funding offer rate")
+		}
 	}
-	var period float64
-	if period, ok = data[15].(float64); !ok {
-		return nil, errors.New("unable to type assert funding offer period")
+	if data[15] != nil {
+		var period float64
+		if period, ok = data[15].(float64); !ok {
+			return nil, errors.New("unable to type assert funding offer period")
+		}
+		offer.Period = int64(period)
 	}
-	offer.Period = int64(period)
-	var notify float64
-	if notify, ok = data[16].(float64); !ok {
-		return nil, errors.New("unable to type assert funding offer notify")
+	if data[16] != nil {
+		var notify float64
+		if notify, ok = data[16].(float64); !ok {
+			return nil, errors.New("unable to type assert funding offer notify")
+		}
+		offer.Notify = notify == 1
 	}
-	offer.Notify = notify == 1
-	var hidden float64
-	if hidden, ok = data[17].(float64); !ok {
-		return nil, errors.New("unable to type assert funding offer hidden")
+	if data[17] != nil {
+		var hidden float64
+		if hidden, ok = data[17].(float64); !ok {
+			return nil, errors.New("unable to type assert funding offer hidden")
+		}
+		offer.Hidden = hidden == 1
 	}
-	offer.Hidden = hidden == 1
-	var renew float64
-	if renew, ok = data[19].(float64); !ok {
-		return nil, errors.New("unable to type assert funding offer renew")
+	if data[19] != nil {
+		var renew float64
+		if renew, ok = data[19].(float64); !ok {
+			return nil, errors.New("unable to type assert funding offer renew")
+		}
+		offer.Renew = renew == 1
 	}
-	offer.Renew = renew == 1
 	if includeRateReal && data[20] != nil {
 		if offer.RateReal, ok = data[20].(float64); !ok {
 			return nil, errors.New("unable to type assert funding offer rate real")
@@ -1131,84 +1165,119 @@ func wsHandleFundingOffer(data []interface{}, includeRateReal bool) (*WsFundingO
 	return &offer, nil
 }
 
-func wsHandleFundingData(data []interface{}, includePositionPair bool) (*WsCredit, error) {
+func wsHandleFundingCreditLoanData(data []interface{}, includePositionPair bool) (*WsCredit, error) {
 	var credit WsCredit
-	id, ok := data[0].(float64)
-	if !ok {
-		return nil, errors.New("unable to type assert credit ID")
+	var ok bool
+	if data[0] != nil {
+		var id float64
+		if id, ok = data[0].(float64); !ok {
+			return nil, errors.New("unable to type assert funding credit ID")
+		}
+		credit.ID = int64(id)
 	}
-	credit.ID = int64(id)
-	if credit.Symbol, ok = data[1].(string); !ok {
-		return nil, errors.New("unable to type assert symbol")
-	}
-	side, ok := data[2].(float64)
-	if !ok {
-		return nil, errors.New("unable to type assert side")
-	}
-	credit.Side = int8(side)
-	created, ok := data[3].(float64)
-	if !ok {
-		return nil, errors.New("unable to type assert created")
-	}
-	credit.Created = time.UnixMilli(int64(created))
-	updated, ok := data[4].(float64)
-	if !ok {
-		return nil, errors.New("unable to type assert updated")
-	}
-	credit.Updated = time.UnixMilli(int64(updated))
-	if credit.Amount, ok = data[5].(float64); !ok {
-		return nil, errors.New("unable to type assert amount")
-	}
-	credit.Flags = data[6]
-	if credit.Status, ok = data[7].(string); !ok {
-		return nil, errors.New("unable to type assert status")
-	}
-	if credit.Rate, ok = data[11].(float64); !ok {
-		return nil, errors.New("unable to type assert rate")
-	}
-	period, ok := data[12].(float64)
-	if !ok {
-		return nil, errors.New("unable to type assert period")
-	}
-	credit.Period = int64(period)
-	opened, ok := data[13].(float64)
-	if !ok {
-		return nil, errors.New("unable to type assert opened")
-	}
-	credit.Opened = time.UnixMilli(int64(opened))
-	lastPayout, ok := data[14].(float64)
-	if !ok {
-		return nil, errors.New("unable to type assert last payout")
-	}
-	credit.LastPayout = time.UnixMilli(int64(lastPayout))
-	notify, ok := data[15].(float64)
-	if !ok {
-		return nil, errors.New("unable to type assert notify")
-	}
-	credit.Notify = notify == 1
-	hidden, ok := data[16].(float64)
-	if !ok {
-		return nil, errors.New("unable to type assert hidden")
-	}
-	credit.Hidden = hidden == 1
-	renew, ok := data[18].(float64)
-	if !ok {
-		return nil, errors.New("unable to type assert renew")
-	}
-	credit.Renew = renew == 1
-	if data[19] != nil {
-		if credit.RateReal, ok = data[19].(float64); !ok {
-			return nil, errors.New("unable to type assert rate real")
+	if data[1] != nil {
+		if credit.Symbol, ok = data[1].(string); !ok {
+			return nil, errors.New("unable to type assert funding credit symbol")
 		}
 	}
-	noClose, ok := data[20].(float64)
-	if !ok {
-		return nil, errors.New("unable to type assert no close")
+	if data[2] != nil {
+		var side float64
+		if side, ok = data[2].(float64); !ok {
+			return nil, errors.New("unable to type assert funding credit side")
+		}
+		credit.Side = int8(side)
 	}
-	credit.NoClose = noClose == 1
+	if data[3] != nil {
+		var created float64
+		if created, ok = data[3].(float64); !ok {
+			return nil, errors.New("unable to type assert funding credit created")
+		}
+		credit.Created = time.UnixMilli(int64(created))
+	}
+	if data[4] != nil {
+		var updated float64
+		if updated, ok = data[4].(float64); !ok {
+			return nil, errors.New("unable to type assert funding credit updated")
+		}
+		credit.Updated = time.UnixMilli(int64(updated))
+	}
+	if data[5] != nil {
+		if credit.Amount, ok = data[5].(float64); !ok {
+			return nil, errors.New("unable to type assert funding credit amount")
+		}
+	}
+	if data[6] != nil {
+		credit.Flags = data[6]
+	}
+	if data[7] != nil {
+		if credit.Status, ok = data[7].(string); !ok {
+			return nil, errors.New("unable to type assert funding credit status")
+		}
+	}
+	if data[11] != nil {
+		if credit.Rate, ok = data[11].(float64); !ok {
+			return nil, errors.New("unable to type assert funding credit rate")
+		}
+	}
+	if data[12] != nil {
+		var period float64
+		if period, ok = data[12].(float64); !ok {
+			return nil, errors.New("unable to type assert funding credit period")
+		}
+		credit.Period = int64(period)
+	}
+	if data[13] != nil {
+		var opened float64
+		if opened, ok = data[13].(float64); !ok {
+			return nil, errors.New("unable to type assert funding credit opened")
+		}
+		credit.Opened = time.UnixMilli(int64(opened))
+	}
+	if data[14] != nil {
+		var lastPayout float64
+		if lastPayout, ok = data[14].(float64); !ok {
+			return nil, errors.New("unable to type assert last funding credit payout")
+		}
+		credit.LastPayout = time.UnixMilli(int64(lastPayout))
+	}
+	if data[15] != nil {
+		var notify float64
+		if notify, ok = data[15].(float64); !ok {
+			return nil, errors.New("unable to type assert funding credit notify")
+		}
+		credit.Notify = notify == 1
+	}
+	if data[16] != nil {
+		var hidden float64
+		if hidden, ok = data[16].(float64); !ok {
+			return nil, errors.New("unable to type assert funding credit hidden")
+		}
+		credit.Hidden = hidden == 1
+	}
+	if data[18] != nil {
+		var renew float64
+		if renew, ok = data[18].(float64); !ok {
+			return nil, errors.New("unable to type assert funding credit renew")
+		}
+		credit.Renew = renew == 1
+	}
+	if data[19] != nil {
+		if credit.RateReal, ok = data[19].(float64); !ok {
+			return nil, errors.New("unable to type assert rate funding credit real")
+		}
+	}
+	if data[20] != nil {
+		var noClose float64
+		if noClose, ok = data[20].(float64); !ok {
+			return nil, errors.New("unable to type assert no funding credit close")
+		}
+		credit.NoClose = noClose == 1
+	}
 	if includePositionPair {
-		if credit.PositionPair, ok = data[21].(string); !ok {
-			return nil, errors.New("unable to type assert position pair")
+		if data[21] != nil {
+			if credit.PositionPair, ok = data[21].(string); !ok {
+				return nil, errors.New("unable to type assert funding credit position pair")
+			}
 		}
 	}
 	return &credit, nil

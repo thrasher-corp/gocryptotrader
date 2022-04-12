@@ -68,20 +68,23 @@ func (h *HUOBI) WsConnect() error {
 	if err != nil {
 		return err
 	}
-	err = h.wsAuthenticatedDial(&dialer)
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%v - authenticated dial failed: %v\n",
-			h.Name,
-			err)
-	}
-	err = h.wsLogin(context.TODO())
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%v - authentication failed: %v\n",
-			h.Name,
-			err)
-		h.Websocket.SetCanUseAuthenticatedEndpoints(false)
+
+	if h.Websocket.CanUseAuthenticatedEndpoints() {
+		err = h.wsAuthenticatedDial(&dialer)
+		if err != nil {
+			log.Errorf(log.ExchangeSys,
+				"%v - authenticated dial failed: %v\n",
+				h.Name,
+				err)
+		}
+		err = h.wsLogin(context.TODO())
+		if err != nil {
+			log.Errorf(log.ExchangeSys,
+				"%v - authentication failed: %v\n",
+				h.Name,
+				err)
+			h.Websocket.SetCanUseAuthenticatedEndpoints(false)
+		}
 	}
 
 	h.Websocket.Wg.Add(1)
@@ -542,14 +545,18 @@ func (h *HUOBI) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, er
 
 // Subscribe sends a websocket message to receive data from the channel
 func (h *HUOBI) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
-	creds, err := h.GetCredentials(context.TODO())
-	if err != nil {
-		return err
+	var creds *exchange.Credentials
+	if h.Websocket.CanUseAuthenticatedEndpoints() {
+		var err error
+		creds, err = h.GetCredentials(context.TODO())
+		if err != nil {
+			return err
+		}
 	}
 	var errs common.Errors
 	for i := range channelsToSubscribe {
-		if strings.Contains(channelsToSubscribe[i].Channel, "orders.") ||
-			strings.Contains(channelsToSubscribe[i].Channel, "accounts") {
+		if (strings.Contains(channelsToSubscribe[i].Channel, "orders.") ||
+			strings.Contains(channelsToSubscribe[i].Channel, "accounts")) && creds != nil {
 			err := h.wsAuthenticatedSubscribe(creds,
 				"sub",
 				wsAccountsOrdersEndPoint+channelsToSubscribe[i].Channel,
@@ -578,14 +585,18 @@ func (h *HUOBI) Subscribe(channelsToSubscribe []stream.ChannelSubscription) erro
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (h *HUOBI) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
-	creds, err := h.GetCredentials(context.TODO())
-	if err != nil {
-		return err
+	var creds *exchange.Credentials
+	if h.Websocket.CanUseAuthenticatedEndpoints() {
+		var err error
+		creds, err = h.GetCredentials(context.TODO())
+		if err != nil {
+			return err
+		}
 	}
 	var errs common.Errors
 	for i := range channelsToUnsubscribe {
-		if strings.Contains(channelsToUnsubscribe[i].Channel, "orders.") ||
-			strings.Contains(channelsToUnsubscribe[i].Channel, "accounts") {
+		if (strings.Contains(channelsToUnsubscribe[i].Channel, "orders.") ||
+			strings.Contains(channelsToUnsubscribe[i].Channel, "accounts")) && creds != nil {
 			err := h.wsAuthenticatedSubscribe(creds,
 				"unsub",
 				wsAccountsOrdersEndPoint+channelsToUnsubscribe[i].Channel,

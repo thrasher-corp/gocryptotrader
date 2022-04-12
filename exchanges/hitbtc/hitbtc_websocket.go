@@ -46,9 +46,11 @@ func (h *HitBTC) WsConnect() error {
 	h.Websocket.Wg.Add(1)
 	go h.wsReadData()
 
-	err = h.wsLogin(context.TODO())
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%v - authentication failed: %v\n", h.Name, err)
+	if h.Websocket.CanUseAuthenticatedEndpoints() {
+		err = h.wsLogin(context.TODO())
+		if err != nil {
+			log.Errorf(log.ExchangeSys, "%v - authentication failed: %v\n", h.Name, err)
+		}
 	}
 
 	return nil

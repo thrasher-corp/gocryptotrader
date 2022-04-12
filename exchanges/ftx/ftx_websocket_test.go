@@ -143,8 +143,7 @@ func TestFTX_wsHandleData_Details(t *testing.T) {
 	orderDetail, ok := parseRaw(t, inputFilled).(*order.Detail)
 	if !ok {
 		t.Error("unable to type asset order detail")
-	}
-	if orderDetail.Status != order.Filled {
+	} else if orderDetail.Status != order.Filled {
 		t.Errorf("have %s, want %s", orderDetail.Status, order.Filled)
 	}
 
@@ -174,8 +173,7 @@ func TestFTX_wsHandleData_Details(t *testing.T) {
 	orderDetail, ok = parseRaw(t, inputCancelled).(*order.Detail)
 	if !ok {
 		t.Error("unable to type asset order detail")
-	}
-	if orderDetail.Status != order.Cancelled {
+	} else if orderDetail.Status != order.Cancelled {
 		t.Errorf("have %s, want %s", orderDetail.Status, order.Cancelled)
 	}
 }

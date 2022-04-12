@@ -543,9 +543,13 @@ func (p *Poloniex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription,
 
 // Subscribe sends a websocket message to receive data from the channel
 func (p *Poloniex) Subscribe(sub []stream.ChannelSubscription) error {
-	creds, err := p.GetCredentials(context.TODO())
-	if err != nil {
-		return err
+	var creds *exchange.Credentials
+	if p.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+		var err error
+		creds, err = p.GetCredentials(context.TODO())
+		if err != nil {
+			return err
+		}
 	}
 	var errs common.Errors
 channels:
@@ -555,7 +559,7 @@ channels:
 		}
 		switch {
 		case strings.EqualFold(strconv.FormatInt(wsAccountNotificationID, 10),
-			sub[i].Channel):
+			sub[i].Channel) && creds != nil:
 			err := p.wsSendAuthorisedCommand(creds.Secret, creds.Key, "subscribe")
 			if err != nil {
 				errs = append(errs, err)
@@ -586,9 +590,13 @@ channels:
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (p *Poloniex) Unsubscribe(unsub []stream.ChannelSubscription) error {
-	creds, err := p.GetCredentials(context.TODO())
-	if err != nil {
-		return err
+	var creds *exchange.Credentials
+	if p.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+		var err error
+		creds, err = p.GetCredentials(context.TODO())
+		if err != nil {
+			return err
+		}
 	}
 	var errs common.Errors
 channels:
@@ -598,7 +606,7 @@ channels:
 		}
 		switch {
 		case strings.EqualFold(strconv.FormatInt(wsAccountNotificationID, 10),
-			unsub[i].Channel):
+			unsub[i].Channel) && creds != nil:
 			err := p.wsSendAuthorisedCommand(creds.Secret, creds.Key, "unsubscribe")
 			if err != nil {
 				errs = append(errs, err)

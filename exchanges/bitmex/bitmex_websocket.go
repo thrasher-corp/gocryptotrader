@@ -97,18 +97,20 @@ func (b *Bitmex) WsConnect() error {
 	b.Websocket.Wg.Add(1)
 	go b.wsReadData()
 
-	err = b.websocketSendAuth(context.TODO())
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%v - authentication failed: %v\n",
-			b.Name,
-			err)
-	} else {
-		authsubs, err := b.GenerateAuthenticatedSubscriptions()
+	if b.Websocket.CanUseAuthenticatedEndpoints() {
+		err = b.websocketSendAuth(context.TODO())
 		if err != nil {
-			return err
+			log.Errorf(log.ExchangeSys,
+				"%v - authentication failed: %v\n",
+				b.Name,
+				err)
+		} else {
+			authsubs, err := b.GenerateAuthenticatedSubscriptions()
+			if err != nil {
+				return err
+			}
+			return b.Websocket.SubscribeToChannels(authsubs)
 		}
-		return b.Websocket.SubscribeToChannels(authsubs)
 	}
 	return nil
 }
