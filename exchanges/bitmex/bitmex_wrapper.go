@@ -397,14 +397,13 @@ func (b *Bitmex) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 	book.Asks = make(orderbook.Items, 0, len(orderbookNew))
 	book.Bids = make(orderbook.Items, 0, len(orderbookNew))
 	for i := range orderbookNew {
-		side := strings.ToUpper(orderbookNew[i].Side)
 		switch {
-		case side == order.Sell.String():
+		case strings.EqualFold(orderbookNew[i].Side, order.Sell.String()):
 			book.Asks = append(book.Asks, orderbook.Item{
 				Amount: float64(orderbookNew[i].Size),
 				Price:  orderbookNew[i].Price,
 			})
-		case side == order.Buy.String():
+		case strings.EqualFold(orderbookNew[i].Side, order.Buy.String()):
 			book.Bids = append(book.Bids, orderbook.Item{
 				Amount: float64(orderbookNew[i].Size),
 				Price:  orderbookNew[i].Price,

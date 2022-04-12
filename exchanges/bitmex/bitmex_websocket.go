@@ -504,11 +504,10 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, p currency.
 				Amount: float64(data[i].Size),
 				ID:     data[i].ID,
 			}
-			side := strings.ToUpper(data[i].Side)
 			switch {
-			case side == order.Sell.String():
+			case strings.EqualFold(data[i].Side, order.Sell.String()):
 				book.Asks = append(book.Asks, item)
-			case side == order.Buy.String():
+			case strings.EqualFold(data[i].Side, order.Buy.String()):
 				book.Bids = append(book.Bids, item)
 			default:
 				return fmt.Errorf("could not process websocket orderbook update, order side could not be matched for %s",
