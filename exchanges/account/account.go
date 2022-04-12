@@ -25,7 +25,7 @@ var (
 	errExchangeAccountsNotFound     = errors.New("exchange accounts not found")
 	errNoExchangeSubAccountBalances = errors.New("no exchange sub account balances")
 	errNoBalanceFound               = errors.New("no balance found")
-	errBalanceIsNil                 = errors.New("balance is nil ")
+	errBalanceIsNil                 = errors.New("balance is nil")
 )
 
 // CollectBalances converts a map of sub-account balances into a slice
