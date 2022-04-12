@@ -51,7 +51,7 @@ func CollectBalances(accountBalances map[string][]Balance, assetType asset.Item)
 	return
 }
 
-// SubscribeToExchangeAccount subcribes to your exchange account
+// SubscribeToExchangeAccount subscribes to your exchange account
 func SubscribeToExchangeAccount(exchange string) (dispatch.Pipe, error) {
 	exchange = strings.ToLower(exchange)
 	service.m.Lock()
