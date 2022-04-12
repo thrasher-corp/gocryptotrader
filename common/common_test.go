@@ -683,4 +683,9 @@ func TestGetAssertError(t *testing.T) {
 	if err.Error() != "type assert failure from <nil> to <nil>" {
 		t.Fatal(err)
 	}
+
+	err = GetAssertError("bruh", struct{}{})
+	if !errors.Is(err, ErrTypeAssertFailure) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrTypeAssertFailure)
+	}
 }

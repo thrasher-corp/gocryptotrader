@@ -1171,6 +1171,7 @@ func TestCurrencyNormalization(t *testing.T) {
 }
 
 func TestGetActionFromString(t *testing.T) {
+	t.Parallel()
 	_, err := b.GetActionFromString("meow")
 	if !errors.Is(err, orderbook.ErrInvalidAction) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, orderbook.ErrInvalidAction)

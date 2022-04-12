@@ -115,7 +115,6 @@ func (d *Dispatcher) stop() error {
 	d.m.Lock()
 	defer d.m.Unlock()
 
-	// Stop new publish jobs coming through
 	if !d.running {
 		return ErrNotRunning
 	}

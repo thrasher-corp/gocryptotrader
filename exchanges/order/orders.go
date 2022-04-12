@@ -795,21 +795,19 @@ func StringToOrderStatus(status string) (Status, error) {
 		return AnyStatus, nil
 	case New.String(), "PLACED":
 		return New, nil
-	case Active.String(), "STATUS_ACTIVE": // BTSE case
+	case Active.String(), "STATUS_ACTIVE":
 		return Active, nil
 	case PartiallyFilled.String(), "PARTIALLY MATCHED", "PARTIALLY FILLED":
 		return PartiallyFilled, nil
-	case Filled.String(), "FULLY MATCHED", "FULLY FILLED", "ORDER_FULLY_TRANSACTED": // BTSE case
+	case Filled.String(), "FULLY MATCHED", "FULLY FILLED", "ORDER_FULLY_TRANSACTED":
 		return Filled, nil
-	case PartiallyCancelled.String(), "PARTIALLY CANCELLED", "ORDER_PARTIALLY_TRANSACTED": // BTSE case
+	case PartiallyCancelled.String(), "PARTIALLY CANCELLED", "ORDER_PARTIALLY_TRANSACTED":
 		return PartiallyCancelled, nil
 	case Open.String():
 		return Open, nil
 	case Closed.String():
 		return Closed, nil
-	case Cancelled.String(),
-		"CANCELED",        // Binance and Kraken case
-		"ORDER_CANCELLED": // BTSE case
+	case Cancelled.String(), "CANCELED", "ORDER_CANCELLED":
 		return Cancelled, nil
 	case PendingCancel.String(), "PENDING CANCEL", "PENDING CANCELLATION":
 		return PendingCancel, nil
