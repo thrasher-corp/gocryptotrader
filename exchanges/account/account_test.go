@@ -58,7 +58,7 @@ func TestCollectBalances(t *testing.T) {
 	}
 }
 
-func TestHoldings(t *testing.T) {
+func TestGetHoldings(t *testing.T) {
 	err := dispatch.Start(dispatch.DefaultMaxWorkers, dispatch.DefaultJobsLimit)
 	if err != nil {
 		t.Fatal(err)
@@ -309,35 +309,41 @@ func TestGetBalance(t *testing.T) {
 }
 
 func TestBalanceInternalWait(t *testing.T) {
-	var bi *BalanceInternal
+	t.Parallel()
+	var bi *ProtectedBalance
 	_, _, err := bi.Wait(0)
 	if !errors.Is(err, errBalanceIsNil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errBalanceIsNil)
 	}
 
-	bi = &BalanceInternal{}
+	bi = &ProtectedBalance{}
 	waiter, _, err := bi.Wait(time.Nanosecond)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
-	<-waiter
+	if !<-waiter {
+		t.Fatal("should been alerted by timeout")
+	}
 
-	waiter, _, err = bi.Wait(time.Minute)
+	waiter, _, err = bi.Wait(0)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
 	bi.notice.Alert()
-	<-waiter
+	if <-waiter {
+		t.Fatal("should have been alerted by change notice")
+	}
 }
 
 func TestBalanceInternalLoad(t *testing.T) {
-	var bi *BalanceInternal
+	t.Parallel()
+	var bi *ProtectedBalance
 	if bi.GetFree() != 0 {
 		t.Fatal("unexpected value")
 	}
 
-	bi = &BalanceInternal{}
+	bi = &ProtectedBalance{}
 	bi.load(Balance{Total: 1, Hold: 2, Free: 3, AvailableWithoutBorrow: 4, Borrowed: 5})
 	bi.m.Lock()
 	if bi.total != 1 {

@@ -27,7 +27,7 @@ type Service struct {
 // Accounts holds a stream ID and a map to the exchange holdings
 type Accounts struct {
 	ID          uuid.UUID
-	SubAccounts map[string]map[asset.Item]map[*currency.Item]*BalanceInternal
+	SubAccounts map[string]map[asset.Item]map[*currency.Item]*ProtectedBalance
 }
 
 // Holdings is a generic type to hold each exchange's holdings for all enabled
@@ -63,8 +63,8 @@ type Change struct {
 	Account  string
 }
 
-// BalanceInternal stores the full balance information for that specific asset
-type BalanceInternal struct {
+// ProtectedBalance stores the full balance information for that specific asset
+type ProtectedBalance struct {
 	total                  float64
 	hold                   float64
 	free                   float64

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -67,14 +68,6 @@ func SubscribeToExchangeAccount(exchange string) (dispatch.Pipe, error) {
 
 // Process processes new account holdings updates
 func Process(h *Holdings) error {
-	if h == nil {
-		return errHoldingsIsNil
-	}
-
-	if h.Exchange == "" {
-		return errExchangeNameUnset
-	}
-
 	return service.Update(h)
 }
 
@@ -128,7 +121,7 @@ func GetHoldings(exch string, assetType asset.Item) (Holdings, error) {
 				AssetType:  ai,
 				Currencies: currencyBalances,
 			})
-			break // Don't continue to iterate through the other assets.
+			break
 		}
 	}
 
@@ -142,7 +135,7 @@ func GetHoldings(exch string, assetType asset.Item) (Holdings, error) {
 }
 
 // GetBalance returns the internal balance for that asset item.
-func GetBalance(exch, subAccount string, ai asset.Item, c currency.Code) (*BalanceInternal, error) {
+func GetBalance(exch, subAccount string, ai asset.Item, c currency.Code) (*ProtectedBalance, error) {
 	if exch == "" {
 		return nil, errExchangeNameUnset
 	}
@@ -163,28 +156,39 @@ func GetBalance(exch, subAccount string, ai asset.Item, c currency.Code) (*Balan
 
 	accounts, ok := service.exchangeAccounts[exch]
 	if !ok {
-		return nil, errExchangeHoldingsNotFound
+		return nil, fmt.Errorf("%s %w", exch, errExchangeHoldingsNotFound)
 	}
 
 	assetBalances, ok := accounts.SubAccounts[subAccount]
 	if !ok {
-		return nil, errNoExchangeSubAccountBalances
+		return nil, fmt.Errorf("%s %s %w",
+			exch, subAccount, errNoExchangeSubAccountBalances)
 	}
 
 	currencyBalances, ok := assetBalances[ai]
 	if !ok {
-		return nil, errAssetHoldingsNotFound
+		return nil, fmt.Errorf("%s %s %s %w",
+			exch, subAccount, ai, errAssetHoldingsNotFound)
 	}
 
 	bal, ok := currencyBalances[c.Item]
 	if !ok {
-		return nil, errNoBalanceFound
+		return nil, fmt.Errorf("%s %s %s %s %w",
+			exch, subAccount, ai, c, errNoBalanceFound)
 	}
 	return bal, nil
 }
 
 // Update updates holdings with new account info
 func (s *Service) Update(a *Holdings) error {
+	if a == nil {
+		return errHoldingsIsNil
+	}
+
+	if a.Exchange == "" {
+		return errExchangeNameUnset
+	}
+
 	exch := strings.ToLower(a.Exchange)
 	s.m.Lock()
 	defer s.m.Unlock()
@@ -196,49 +200,60 @@ func (s *Service) Update(a *Holdings) error {
 		}
 		accounts = &Accounts{
 			ID:          id,
-			SubAccounts: make(map[string]map[asset.Item]map[*currency.Item]*BalanceInternal),
+			SubAccounts: make(map[string]map[asset.Item]map[*currency.Item]*ProtectedBalance),
 		}
 		s.exchangeAccounts[exch] = accounts
 	}
 
+	var errs common.Errors
 	for x := range a.Accounts {
+		if !a.Accounts[x].AssetType.IsValid() {
+			errs = append(errs, fmt.Errorf("cannot load sub account holdings for %s [%s] %w",
+				a.Accounts[x].ID,
+				a.Accounts[x].AssetType,
+				asset.ErrNotSupported))
+			continue
+		}
+
 		lowerSA := strings.ToLower(a.Accounts[x].ID)
-		var accountAssets map[asset.Item]map[*currency.Item]*BalanceInternal
+		var accountAssets map[asset.Item]map[*currency.Item]*ProtectedBalance
 		accountAssets, ok = accounts.SubAccounts[lowerSA]
 		if !ok {
-			accountAssets = make(map[asset.Item]map[*currency.Item]*BalanceInternal)
+			accountAssets = make(map[asset.Item]map[*currency.Item]*ProtectedBalance)
 			accounts.SubAccounts[lowerSA] = accountAssets
 		}
 
-		if !a.Accounts[x].AssetType.IsValid() {
-			return fmt.Errorf("cannot load sub account holdings for %s [%s] %w",
-				a.Accounts[x].ID,
-				a.Accounts[x].AssetType,
-				asset.ErrNotSupported)
-		}
-
-		var currencyBalances map[*currency.Item]*BalanceInternal
+		var currencyBalances map[*currency.Item]*ProtectedBalance
 		currencyBalances, ok = accountAssets[a.Accounts[x].AssetType]
 		if !ok {
-			currencyBalances = make(map[*currency.Item]*BalanceInternal)
+			currencyBalances = make(map[*currency.Item]*ProtectedBalance)
 			accountAssets[a.Accounts[x].AssetType] = currencyBalances
 		}
 
 		for y := range a.Accounts[x].Currencies {
 			bal := currencyBalances[a.Accounts[x].Currencies[y].CurrencyName.Item]
 			if bal == nil {
-				bal = &BalanceInternal{}
+				bal = &ProtectedBalance{}
 				currencyBalances[a.Accounts[x].Currencies[y].CurrencyName.Item] = bal
 			}
 			bal.load(a.Accounts[x].Currencies[y])
 		}
 	}
-	return s.mux.Publish([]uuid.UUID{accounts.ID}, a)
+	err := s.mux.Publish([]uuid.UUID{accounts.ID}, a)
+	if err != nil {
+		return err
+	}
+
+	if errs != nil {
+		return errs
+	}
+
+	return nil
 }
 
 // load checks to see if there is a change from incoming balance, if there is a
 // change it will change then alert external routines.
-func (b *BalanceInternal) load(change Balance) {
+func (b *ProtectedBalance) load(change Balance) {
 	b.m.Lock()
 	defer b.m.Unlock()
 	if b.total == change.Total &&
@@ -258,29 +273,30 @@ func (b *BalanceInternal) load(change Balance) {
 
 // Wait waits for a change in amounts for an asset type. This will pause
 // indefinitely if no change ever occurs. Max wait will return true if it failed
-// to achieve a state change in the time specified.
-func (b *BalanceInternal) Wait(maxWait time.Duration) (wait <-chan bool, cancel chan<- struct{}, err error) {
+// to achieve a state change in the time specified. If Max wait is not specified
+// it will default to a minute wait time.
+func (b *ProtectedBalance) Wait(maxWait time.Duration) (wait <-chan bool, cancel chan<- struct{}, err error) {
 	if b == nil {
 		return nil, nil, errBalanceIsNil
 	}
 
-	ch := make(chan struct{})
-
-	if maxWait > 0 {
-		go func(ch chan<- struct{}, until time.Duration) {
-			time.Sleep(until)
-			select {
-			case ch <- struct{}{}:
-			default:
-			}
-		}(ch, maxWait)
+	if maxWait == 0 {
+		maxWait = time.Minute
 	}
+	ch := make(chan struct{})
+	go func(ch chan<- struct{}, until time.Duration) {
+		time.Sleep(until)
+		select {
+		case ch <- struct{}{}:
+		default:
+		}
+	}(ch, maxWait)
 
 	return b.notice.Wait(ch), ch, nil
 }
 
 // GetFree returns the current free balance for the exchange
-func (b *BalanceInternal) GetFree() float64 {
+func (b *ProtectedBalance) GetFree() float64 {
 	if b == nil {
 		return 0
 	}
