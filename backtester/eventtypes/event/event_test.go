@@ -18,6 +18,12 @@ func TestEvent_AppendWhy(t *testing.T) {
 	if !strings.Contains(y, "test") {
 		t.Error("expected test")
 	}
+	e.AppendReason("test")
+	y = e.GetReason()
+	if y != "test. test" {
+		t.Error("expected 'test. test'")
+	}
+
 }
 
 func TestEvent_GetAssetType(t *testing.T) {
@@ -79,5 +85,39 @@ func TestEvent_Pair(t *testing.T) {
 	y := e.Pair()
 	if y.IsEmpty() {
 		t.Error("expected currency")
+	}
+}
+
+func TestGetOffset(t *testing.T) {
+	t.Parallel()
+	b := Base{
+		Offset: 1337,
+	}
+	if b.GetOffset() != 1337 {
+		t.Error("expected 1337")
+	}
+}
+
+func TestSetOffset(t *testing.T) {
+	t.Parallel()
+	b := Base{
+		Offset: 1337,
+	}
+	b.SetOffset(1339)
+	if b.Offset != 1339 {
+		t.Error("expected 1339")
+	}
+}
+
+func TestAppendReasonf(t *testing.T) {
+	t.Parallel()
+	b := Base{}
+	b.AppendReasonf("%v", "hello moto")
+	if b.Reason != "hello moto" {
+		t.Errorf("epected hello moto, received '%v'", b.Reason)
+	}
+	b.AppendReasonf("%v %v", "hello", "moto")
+	if b.Reason != "hello moto. hello moto" {
+		t.Errorf("epected 'hello moto. hello moto', received '%v'", b.Reason)
 	}
 }

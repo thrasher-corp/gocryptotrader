@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"github.com/shopspring/decimal"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -54,5 +56,89 @@ func TestSetSellLimit(t *testing.T) {
 	s.SetSellLimit(decimal.NewFromInt(20))
 	if !s.GetSellLimit().Equal(decimal.NewFromInt(20)) {
 		t.Errorf("expected 20, received %v", s.GetSellLimit())
+	}
+}
+
+func TestGetAmount(t *testing.T) {
+	t.Parallel()
+	s := Signal{
+		Amount: decimal.NewFromInt(1337),
+	}
+	if !s.GetAmount().Equal(decimal.NewFromInt(1337)) {
+		t.Error("expected decimal.NewFromInt(1337)")
+	}
+}
+
+func TestSetAmount(t *testing.T) {
+	t.Parallel()
+	s := Signal{}
+	s.SetAmount(decimal.NewFromInt(1337))
+	if !s.GetAmount().Equal(decimal.NewFromInt(1337)) {
+		t.Error("expected decimal.NewFromInt(1337)")
+	}
+}
+
+func TestGetUnderlyingPair(t *testing.T) {
+	t.Parallel()
+	s := Signal{
+		Base: event.Base{
+			UnderlyingPair: currency.NewPair(currency.USD, currency.DOGE),
+		},
+	}
+	if !s.GetUnderlyingPair().Equal(s.Base.UnderlyingPair) {
+		t.Errorf("expected '%v'", s.Base.UnderlyingPair)
+	}
+}
+
+func TestPair(t *testing.T) {
+	t.Parallel()
+	s := Signal{
+		Base: event.Base{
+			CurrencyPair: currency.NewPair(currency.USD, currency.DOGE),
+		},
+	}
+	if !s.Pair().Equal(s.Base.UnderlyingPair) {
+		t.Errorf("expected '%v'", s.Base.CurrencyPair)
+	}
+}
+
+func TestGetFillDependentEvent(t *testing.T) {
+	t.Parallel()
+	s := Signal{}
+	if a := s.GetFillDependentEvent(); a != nil {
+		t.Error("expected nil")
+	}
+	s.FillDependentEvent = &Signal{
+		Amount: decimal.NewFromInt(1337),
+	}
+	e := s.GetFillDependentEvent()
+	if !e.GetAmount().Equal(decimal.NewFromInt(1337)) {
+		t.Error("expected 1337")
+	}
+}
+
+func TestGetCollateralCurrency(t *testing.T) {
+	t.Parallel()
+	s := Signal{}
+	c := s.GetCollateralCurrency()
+	if !c.IsEmpty() {
+		t.Error("expected empty currency")
+	}
+	s.CollateralCurrency = currency.BTC
+	c = s.GetCollateralCurrency()
+	if !c.Equal(currency.BTC) {
+		t.Error("expected empty currency")
+	}
+}
+
+func TestIsNil(t *testing.T) {
+	t.Parallel()
+	s := &Signal{}
+	if s.IsNil() {
+		t.Error("expected false")
+	}
+	s = nil
+	if !s.IsNil() {
+		t.Error("expected true")
 	}
 }

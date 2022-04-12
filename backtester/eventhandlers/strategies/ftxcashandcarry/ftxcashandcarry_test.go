@@ -186,7 +186,7 @@ func TestSortSignals(t *testing.T) {
 		Volume: decimal.NewFromInt(1337),
 	}})
 	d.Next()
-	da := &kline.DataFromKline{
+	da = &kline.DataFromKline{
 		Item:        gctkline.Item{},
 		Base:        d,
 		RangeHolder: &gctkline.IntervalRangeHolder{},

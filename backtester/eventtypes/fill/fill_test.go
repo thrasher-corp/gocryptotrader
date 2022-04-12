@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/shopspring/decimal"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -87,5 +88,42 @@ func TestGetSlippageRate(t *testing.T) {
 	}
 	if !f.GetSlippageRate().Equal(decimal.NewFromInt(1)) {
 		t.Error("expected 1")
+	}
+}
+
+func TestGetTotal(t *testing.T) {
+	t.Parallel()
+	f := Fill{}
+	f.Total = decimal.NewFromInt(1337)
+	e := f.GetTotal()
+	if !e.Equal(decimal.NewFromInt(1337)) {
+		t.Error("expected 1337")
+	}
+}
+
+func TestGetFillDependentEvent(t *testing.T) {
+	t.Parallel()
+	f := Fill{}
+	if f.GetFillDependentEvent() != nil {
+		t.Error("expected nil")
+	}
+	f.FillDependentEvent = &signal.Signal{
+		Amount: decimal.NewFromInt(1337),
+	}
+	e := f.GetFillDependentEvent()
+	if !e.GetAmount().Equal(decimal.NewFromInt(1337)) {
+		t.Error("expected 1337")
+	}
+}
+
+func TestIsLiquidated(t *testing.T) {
+	t.Parallel()
+	f := Fill{}
+	if f.IsLiquidated() {
+		t.Error("expected false")
+	}
+	f.Liquidated = true
+	if !f.IsLiquidated() {
+		t.Error("expected true")
 	}
 }

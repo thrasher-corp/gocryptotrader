@@ -84,3 +84,25 @@ func TestGetFunds(t *testing.T) {
 		t.Error("expected decimal.NewFromInt(1337)")
 	}
 }
+
+func TestOpen(t *testing.T) {
+	t.Parallel()
+	k := Order{
+		ClosePrice: decimal.NewFromInt(1337),
+	}
+	if !k.GetClosePrice().Equal(decimal.NewFromInt(1337)) {
+		t.Error("expected decimal.NewFromInt(1337)")
+	}
+}
+
+func TestIsLiquidating(t *testing.T) {
+	t.Parallel()
+	k := Order{}
+	if k.IsLiquidating() {
+		t.Error("expected false")
+	}
+	k.LiquidatingPosition = true
+	if !k.IsLiquidating() {
+		t.Error("expected true")
+	}
+}

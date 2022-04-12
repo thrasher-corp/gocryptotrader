@@ -49,7 +49,7 @@ type Signal struct {
 	// FillDependentEvent ensures that an order can only be placed
 	// if there is corresponding collateral in the selected currency
 	// this enabled cash and carry strategies for example
-	FillDependentEvent *Signal
+	FillDependentEvent Event
 	// CollateralCurrency is an optional paramater
 	// when using futures to limit the collateral available
 	// to a singular currency

@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"github.com/shopspring/decimal"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 )
 
 func TestClose(t *testing.T) {
@@ -43,5 +45,17 @@ func TestOpen(t *testing.T) {
 	}
 	if !k.GetOpenPrice().Equal(decimal.NewFromInt(1337)) {
 		t.Error("expected decimal.NewFromInt(1337)")
+	}
+}
+
+func TestGetUnderlyingPair(t *testing.T) {
+	t.Parallel()
+	k := Kline{
+		Base: event.Base{
+			UnderlyingPair: currency.NewPair(currency.USD, currency.DOGE),
+		},
+	}
+	if !k.GetUnderlyingPair().Equal(k.Base.UnderlyingPair) {
+		t.Errorf("expected '%v'", k.Base.UnderlyingPair)
 	}
 }
