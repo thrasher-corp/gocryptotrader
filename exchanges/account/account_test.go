@@ -338,12 +338,7 @@ func TestBalanceInternalWait(t *testing.T) {
 
 func TestBalanceInternalLoad(t *testing.T) {
 	t.Parallel()
-	var bi *ProtectedBalance
-	if bi.GetFree() != 0 {
-		t.Fatal("unexpected value")
-	}
-
-	bi = &ProtectedBalance{}
+	bi := &ProtectedBalance{}
 	bi.load(Balance{Total: 1, Hold: 2, Free: 3, AvailableWithoutBorrow: 4, Borrowed: 5})
 	bi.m.Lock()
 	if bi.total != 1 {
@@ -364,6 +359,19 @@ func TestBalanceInternalLoad(t *testing.T) {
 	bi.m.Unlock()
 
 	if bi.GetFree() != 3 {
+		t.Fatal("unexpected value")
+	}
+}
+
+func TestGetFree(t *testing.T) {
+	t.Parallel()
+	var bi *ProtectedBalance
+	if bi.GetFree() != 0 {
+		t.Fatal("unexpected value")
+	}
+	bi = &ProtectedBalance{}
+	bi.free = 1
+	if bi.GetFree() != 1 {
 		t.Fatal("unexpected value")
 	}
 }
