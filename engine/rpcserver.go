@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/fs"
 	"net"
 	"net/http"
 	"os"
@@ -2637,7 +2636,7 @@ func (s *RPCServer) GCTScriptUpload(_ context.Context, r *gctrpc.GCTScriptUpload
 			return nil, fmt.Errorf("%s script found and overwrite set to false", r.ScriptName)
 		}
 		f := filepath.Join(gctscript.ScriptPath, "version_history")
-		err = os.MkdirAll(f, fs.FileMode(file.DefaultPermissionOctal))
+		err = os.MkdirAll(f, file.DefaultPermissionOctal)
 		if err != nil {
 			return nil, err
 		}

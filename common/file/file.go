@@ -6,12 +6,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 )
 
 // DefaultPermissionOctal is the default file and folder permission octal used throughout GCT
-const DefaultPermissionOctal = 0o770
+const DefaultPermissionOctal fs.FileMode = 0o770
 
 // Write writes selected data to a file or returns an error if it fails. This
 // func also ensures that all files are set to this permission (only rw access

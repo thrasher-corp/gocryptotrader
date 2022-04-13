@@ -1,5 +1,5 @@
 run:
-  timeout: 6m
+  timeout: 8m
   issues-exit-code: 1
   tests: true
   skip-dirs:
