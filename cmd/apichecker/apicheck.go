@@ -18,6 +18,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
+	gctfile "github.com/thrasher-corp/gocryptotrader/common/file"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -448,7 +449,7 @@ func checkUpdates(fileName string) error {
 	unsup := checkMissingExchanges()
 	log.Warnf(log.Global, "The following exchanges are not supported by apichecker: %v\n", unsup)
 	log.Debugf(log.Global, "Saving the updates to the following file: %s\n", fileName)
-	return os.WriteFile(fileName, file, 0o770)
+	return os.WriteFile(fileName, file, gctfile.DefaultPermissionOctal)
 }
 
 // checkChangeLog checks the exchanges which support changelog updates.json
@@ -559,9 +560,9 @@ func addExch(exchName, checkType string, data interface{}, isUpdate bool) error 
 				return err
 			}
 		}
-		return os.WriteFile(jsonFile, file, 0o770)
+		return os.WriteFile(jsonFile, file, gctfile.DefaultPermissionOctal)
 	}
-	return os.WriteFile(testJSONFile, file, 0o770)
+	return os.WriteFile(testJSONFile, file, gctfile.DefaultPermissionOctal)
 }
 
 // fillData fills exchange data based on the given checkType
@@ -1284,7 +1285,7 @@ func updateFile(name string) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(name, file, 0o770)
+	return os.WriteFile(name, file, gctfile.DefaultPermissionOctal)
 }
 
 // SendGetReq sends get req

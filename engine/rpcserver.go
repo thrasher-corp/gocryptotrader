@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"net"
 	"net/http"
 	"os"
@@ -2534,28 +2535,30 @@ func (s *RPCServer) GCTScriptQuery(_ context.Context, r *gctrpc.GCTScriptQueryRe
 		return &gctrpc.GCTScriptQueryResponse{Status: MsgStatusError, Data: err.Error()}, nil
 	}
 
-	if v, f := gctscript.AllVMSync.Load(UUID); f {
-		vm, ok := v.(*gctscript.VM)
-		if !ok {
-			return nil, errors.New("unable to type assert gctscript.VM")
-		}
-		resp := &gctrpc.GCTScriptQueryResponse{
-			Status: MsgStatusOK,
-			Script: &gctrpc.GCTScript{
-				Name:    vm.ShortName(),
-				UUID:    vm.ID.String(),
-				Path:    vm.Path,
-				NextRun: vm.NextRun.String(),
-			},
-		}
-		data, err := vm.Read()
-		if err != nil {
-			return nil, err
-		}
-		resp.Data = string(data)
-		return resp, nil
+	v, f := gctscript.AllVMSync.Load(UUID)
+	if !f {
+		return &gctrpc.GCTScriptQueryResponse{Status: MsgStatusError, Data: "UUID not found"}, nil
 	}
-	return &gctrpc.GCTScriptQueryResponse{Status: MsgStatusError, Data: "UUID not found"}, nil
+
+	vm, ok := v.(*gctscript.VM)
+	if !ok {
+		return nil, errors.New("unable to type assert gctscript.VM")
+	}
+	resp := &gctrpc.GCTScriptQueryResponse{
+		Status: MsgStatusOK,
+		Script: &gctrpc.GCTScript{
+			Name:    vm.ShortName(),
+			UUID:    vm.ID.String(),
+			Path:    vm.Path,
+			NextRun: vm.NextRun.String(),
+		},
+	}
+	data, err := vm.Read()
+	if err != nil {
+		return nil, err
+	}
+	resp.Data = string(data)
+	return resp, nil
 }
 
 // GCTScriptExecute execute a script
@@ -2600,19 +2603,21 @@ func (s *RPCServer) GCTScriptStop(_ context.Context, r *gctrpc.GCTScriptStopRequ
 		return &gctrpc.GenericResponse{Status: MsgStatusError, Data: err.Error()}, nil // nolint:nilerr // error is returned in the generic response
 	}
 
-	if v, f := gctscript.AllVMSync.Load(UUID); f {
-		vm, ok := v.(*gctscript.VM)
-		if !ok {
-			return nil, errors.New("unable to type assert gctscript.VM")
-		}
-		err = vm.Shutdown()
-		status := " terminated"
-		if err != nil {
-			status = " " + err.Error()
-		}
-		return &gctrpc.GenericResponse{Status: MsgStatusOK, Data: vm.ID.String() + status}, nil
+	v, f := gctscript.AllVMSync.Load(UUID)
+	if !f {
+		return &gctrpc.GenericResponse{Status: MsgStatusError, Data: "no running script found"}, nil
 	}
-	return &gctrpc.GenericResponse{Status: MsgStatusError, Data: "no running script found"}, nil
+
+	vm, ok := v.(*gctscript.VM)
+	if !ok {
+		return nil, errors.New("unable to type assert gctscript.VM")
+	}
+	err = vm.Shutdown()
+	status := " terminated"
+	if err != nil {
+		status = " " + err.Error()
+	}
+	return &gctrpc.GenericResponse{Status: MsgStatusOK, Data: vm.ID.String() + status}, nil
 }
 
 // GCTScriptUpload upload a new script to ScriptPath
@@ -2632,7 +2637,7 @@ func (s *RPCServer) GCTScriptUpload(_ context.Context, r *gctrpc.GCTScriptUpload
 			return nil, fmt.Errorf("%s script found and overwrite set to false", r.ScriptName)
 		}
 		f := filepath.Join(gctscript.ScriptPath, "version_history")
-		err = os.MkdirAll(f, 0o770)
+		err = os.MkdirAll(f, fs.FileMode(file.DefaultPermissionOctal))
 		if err != nil {
 			return nil, err
 		}

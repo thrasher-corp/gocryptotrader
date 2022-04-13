@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	dbPSQL "github.com/thrasher-corp/gocryptotrader/database/drivers/postgres"
 	dbsqlite3 "github.com/thrasher-corp/gocryptotrader/database/drivers/sqlite3"
@@ -140,7 +141,7 @@ func main() {
 		if path == "" {
 			path = wd
 		}
-		err = os.WriteFile(path, resp, 0o770)
+		err = os.WriteFile(path, resp, file.DefaultPermissionOctal)
 		if err != nil {
 			log.Fatal(err)
 		}

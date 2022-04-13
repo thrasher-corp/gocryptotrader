@@ -38,7 +38,7 @@ func one(in, clause string) (out Details, err error) {
 
 	whereQM := qm.Where(clause+"= ?", in)
 	if repository.GetSQLDialect() == database.DBSQLite3 {
-		ret, errS := modelSQLite.Exchanges(whereQM).One(context.Background(), database.DB.SQL)
+		ret, errS := modelSQLite.Exchanges(whereQM).One(context.TODO(), database.DB.SQL)
 		if errS != nil {
 			return out, errS
 		}
@@ -48,7 +48,7 @@ func one(in, clause string) (out Details, err error) {
 			return out, errS
 		}
 	} else {
-		ret, errS := modelPSQL.Exchanges(whereQM).One(context.Background(), database.DB.SQL)
+		ret, errS := modelPSQL.Exchanges(whereQM).One(context.TODO(), database.DB.SQL)
 		if errS != nil {
 			return out, errS
 		}
@@ -68,7 +68,7 @@ func Insert(in Details) error {
 		return database.ErrDatabaseSupportDisabled
 	}
 
-	ctx := context.Background()
+	ctx := context.TODO()
 	tx, err := database.DB.SQL.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -101,7 +101,7 @@ func InsertMany(in []Details) error {
 		return database.ErrDatabaseSupportDisabled
 	}
 
-	ctx := context.Background()
+	ctx := context.TODO()
 	tx, err := database.DB.SQL.BeginTx(ctx, nil)
 	if err != nil {
 		return err

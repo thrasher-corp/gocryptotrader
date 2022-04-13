@@ -45,7 +45,7 @@ func Series(exchangeName, base, quote string, interval int64, asset string, star
 	queries = append(queries, qm.Where("exchange_name_id = ?", exchangeUUID.String()))
 	if repository.GetSQLDialect() == database.DBSQLite3 {
 		queries = append(queries, qm.Where("timestamp between ? and ?", start.UTC().Format(time.RFC3339), end.UTC().Format(time.RFC3339)))
-		retCandle, errC := modelSQLite.Candles(queries...).All(context.Background(), database.DB.SQL)
+		retCandle, errC := modelSQLite.Candles(queries...).All(context.TODO(), database.DB.SQL)
 		if errC != nil {
 			return out, errC
 		}
@@ -68,7 +68,7 @@ func Series(exchangeName, base, quote string, interval int64, asset string, star
 		}
 	} else {
 		queries = append(queries, qm.Where("timestamp between ? and ?", start.UTC(), end.UTC()))
-		retCandle, errC := modelPSQL.Candles(queries...).All(context.Background(), database.DB.SQL)
+		retCandle, errC := modelPSQL.Candles(queries...).All(context.TODO(), database.DB.SQL)
 		if errC != nil {
 			return out, errC
 		}
@@ -108,7 +108,7 @@ func DeleteCandles(in *Item) (int64, error) {
 		return 0, errNoCandleData
 	}
 
-	ctx := context.Background()
+	ctx := context.TODO()
 	queries := []qm.QueryMod{
 		qm.Where("base = ?", strings.ToUpper(in.Base)),
 		qm.Where("quote = ?", strings.ToUpper(in.Quote)),
@@ -189,7 +189,7 @@ func Insert(in *Item) (uint64, error) {
 		return 0, errNoCandleData
 	}
 
-	ctx := context.Background()
+	ctx := context.TODO()
 	tx, err := database.DB.SQL.BeginTx(ctx, nil)
 	if err != nil {
 		return 0, err

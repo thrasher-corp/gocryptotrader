@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
+	gctfile "github.com/thrasher-corp/gocryptotrader/common/file"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -85,7 +86,7 @@ func removeTestFileVars() error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(testJSONFile, file, 0o770)
+	return os.WriteFile(testJSONFile, file, gctfile.DefaultPermissionOctal)
 }
 
 func canTestTrello() bool {

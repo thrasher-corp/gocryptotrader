@@ -413,6 +413,12 @@ func (b *Bittrex) wsDecodeMessage(encodedMessage string, v interface{}) error {
 	if err != nil {
 		return err
 	}
+	if err = reader.Close(); err != nil {
+		log.Warnf(log.WebsocketMgr, "%s wsDecodeMessage: unable to close reader: %s",
+			b.Name,
+			err,
+		)
+	}
 	return json.Unmarshal(message, v)
 }
 

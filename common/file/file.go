@@ -10,17 +10,20 @@ import (
 	"path/filepath"
 )
 
+// DefaultPermissionOctal is the default file and folder permission octal used throughout GCT
+const DefaultPermissionOctal = 0o770
+
 // Write writes selected data to a file or returns an error if it fails. This
 // func also ensures that all files are set to this permission (only rw access
 // for the running user and the group the user is a member of)
 func Write(file string, data []byte) error {
 	basePath := filepath.Dir(file)
 	if !Exists(basePath) {
-		if err := os.MkdirAll(basePath, 0o770); err != nil {
+		if err := os.MkdirAll(basePath, DefaultPermissionOctal); err != nil {
 			return err
 		}
 	}
-	return os.WriteFile(file, data, 0o770)
+	return os.WriteFile(file, data, DefaultPermissionOctal)
 }
 
 // Writer creates a writer to a file or returns an error if it fails. This
@@ -29,11 +32,11 @@ func Write(file string, data []byte) error {
 func Writer(file string) (*os.File, error) {
 	basePath := filepath.Dir(file)
 	if !Exists(basePath) {
-		if err := os.MkdirAll(basePath, 0o770); err != nil {
+		if err := os.MkdirAll(basePath, DefaultPermissionOctal); err != nil {
 			return nil, err
 		}
 	}
-	return os.OpenFile(file, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o770)
+	return os.OpenFile(file, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, DefaultPermissionOctal)
 }
 
 // Move moves a file from a source path to a destination path
@@ -58,7 +61,7 @@ func Move(sourcePath, destPath string) error {
 
 	destDir := filepath.Dir(destPath)
 	if !Exists(destDir) {
-		err = os.MkdirAll(destDir, 0o770)
+		err = os.MkdirAll(destDir, DefaultPermissionOctal)
 		if err != nil {
 			return err
 		}

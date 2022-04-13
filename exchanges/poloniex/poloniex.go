@@ -100,7 +100,7 @@ func (p *Poloniex) GetOrderbook(ctx context.Context, currencyPair string, depth 
 			return oba, fmt.Errorf("%s GetOrderbook() error: %s", p.Name, resp.Error)
 		}
 		ob := Orderbook{
-			Bids: make([]OrderbookItem, len(resp.Asks)),
+			Bids: make([]OrderbookItem, len(resp.Bids)),
 			Asks: make([]OrderbookItem, len(resp.Asks)),
 		}
 		for x := range resp.Asks {

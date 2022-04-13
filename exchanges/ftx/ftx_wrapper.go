@@ -1663,9 +1663,7 @@ func (f *FTX) GetFuturesPositions(ctx context.Context, a asset.Item, cp currency
 	if err != nil {
 		return nil, err
 	}
-	sort.Slice(fills, func(i, j int) bool {
-		return fills[i].Time.Before(fills[j].Time)
-	})
+
 	resp := make([]order.Detail, len(fills))
 	for i := range fills {
 		price := fills[i].Price
@@ -1685,6 +1683,10 @@ func (f *FTX) GetFuturesPositions(ctx context.Context, a asset.Item, cp currency
 			Date:      fills[i].Time,
 		}
 	}
+
+	sort.Slice(resp, func(i, j int) bool {
+		return resp[i].Date.Before(resp[j].Date)
+	})
 
 	return resp, nil
 }

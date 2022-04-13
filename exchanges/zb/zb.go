@@ -227,12 +227,12 @@ func (z *ZB) GetOrderbook(ctx context.Context, symbol string) (*OrderbookRespons
 	}
 
 	// reverse asks data
-	data := make([][2]float64, 0, len(res.Asks))
-	for x := len(res.Asks); x > 0; x-- {
-		data = append(data, res.Asks[x-1])
+	eLen := len(res.Asks)
+	var target int
+	for i := eLen/2 - 1; i >= 0; i-- {
+		target = eLen - 1 - i
+		(res.Asks)[i], (res.Asks)[target] = (res.Asks)[target], (res.Asks)[i]
 	}
-
-	res.Asks = data
 	return &res, nil
 }
 

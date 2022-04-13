@@ -56,7 +56,7 @@ func TestWrite(t *testing.T) {
 func TestMove(t *testing.T) {
 	tester := func(in, out string, write bool) error {
 		if write {
-			if err := os.WriteFile(in, []byte("GoCryptoTrader"), 0o770); err != nil {
+			if err := os.WriteFile(in, []byte("GoCryptoTrader"), DefaultPermissionOctal); err != nil {
 				return err
 			}
 		}

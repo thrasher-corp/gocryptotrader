@@ -404,7 +404,5 @@ func (l *Limits) ConformToAmount(amount float64) float64 {
 	// derive modulus
 	mod := dAmount.Mod(dStep)
 	// subtract modulus to get the floor
-	rVal := dAmount.Sub(mod)
-	fVal, _ := rVal.Float64()
-	return fVal
+	return dAmount.Sub(mod).InexactFloat64()
 }

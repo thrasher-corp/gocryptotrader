@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/database"
@@ -56,7 +57,7 @@ func main() {
 	}
 
 	path := filepath.Join(outputFolder, "sqlboiler.json")
-	err = os.WriteFile(path, jsonOutput, 0o770)
+	err = os.WriteFile(path, jsonOutput, file.DefaultPermissionOctal)
 	if err != nil {
 		fmt.Printf("Write failed: %v", err)
 		os.Exit(1)

@@ -686,13 +686,13 @@ func (l *LocalBitcoins) GetTrades(ctx context.Context, currency string, values u
 // the maximum amount available for the trade request. Price is the hourly
 // updated price. The price is based on the price equation and commission %
 // entered by the ad author.
-func (l *LocalBitcoins) GetOrderbook(ctx context.Context, currency string) (*Orderbook, error) {
+func (l *LocalBitcoins) GetOrderbook(ctx context.Context, curr string) (*Orderbook, error) {
 	type response struct {
 		Bids [][2]string `json:"bids"`
 		Asks [][2]string `json:"asks"`
 	}
 
-	path := localbitcoinsAPIBitcoincharts + currency + localbitcoinsAPIOrderbook
+	path := localbitcoinsAPIBitcoincharts + curr + localbitcoinsAPIOrderbook
 	resp := response{}
 	if err := l.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp, orderBookLimiter); err != nil {
 		return nil, err

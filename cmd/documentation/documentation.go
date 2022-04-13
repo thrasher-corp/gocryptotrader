@@ -359,7 +359,7 @@ func GetConfiguration() (Config, error) {
 		return c, err
 	}
 
-	if err := os.WriteFile(configFilePath, data, 0o770); err != nil {
+	if err := os.WriteFile(configFilePath, data, file.DefaultPermissionOctal); err != nil {
 		return c, err
 	}
 

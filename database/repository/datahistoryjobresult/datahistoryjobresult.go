@@ -40,7 +40,7 @@ func (db *DBService) Upsert(jobs ...*DataHistoryJobResult) error {
 	if len(jobs) == 0 {
 		return nil
 	}
-	ctx := context.Background()
+	ctx := context.TODO()
 
 	tx, err := db.sql.BeginTx(ctx, nil)
 	if err != nil {
@@ -165,7 +165,7 @@ func upsertPostgres(ctx context.Context, tx *sql.Tx, results ...*DataHistoryJobR
 
 func (db *DBService) getByJobIDSQLite(jobID string) ([]DataHistoryJobResult, error) {
 	query := sqlite3.Datahistoryjobresults(qm.Where("job_id = ?", jobID))
-	results, err := query.All(context.Background(), db.sql)
+	results, err := query.All(context.TODO(), db.sql)
 	if err != nil {
 		return nil, err
 	}
@@ -200,7 +200,7 @@ func (db *DBService) getByJobIDSQLite(jobID string) ([]DataHistoryJobResult, err
 
 func (db *DBService) getByJobIDPostgres(jobID string) ([]DataHistoryJobResult, error) {
 	query := postgres.Datahistoryjobresults(qm.Where("job_id = ?", jobID))
-	results, err := query.All(context.Background(), db.sql)
+	results, err := query.All(context.TODO(), db.sql)
 	if err != nil {
 		return nil, err
 	}
@@ -222,7 +222,7 @@ func (db *DBService) getByJobIDPostgres(jobID string) ([]DataHistoryJobResult, e
 
 func (db *DBService) getJobResultsBetweenSQLite(jobID string, startDate, endDate time.Time) ([]DataHistoryJobResult, error) {
 	query := sqlite3.Datahistoryjobresults(qm.Where("job_id = ? AND run_time BETWEEN ? AND ? ", jobID, startDate.UTC().Format(time.RFC3339), endDate.UTC().Format(time.RFC3339)))
-	resp, err := query.All(context.Background(), db.sql)
+	resp, err := query.All(context.TODO(), db.sql)
 	if err != nil {
 		return nil, err
 	}
@@ -258,12 +258,12 @@ func (db *DBService) getJobResultsBetweenSQLite(jobID string, startDate, endDate
 
 func (db *DBService) getJobResultsBetweenPostgres(jobID string, startDate, endDate time.Time) ([]DataHistoryJobResult, error) {
 	query := postgres.Datahistoryjobresults(qm.Where("job_id = ? AND run_time BETWEEN ? AND  ? ", jobID, startDate, endDate))
-	results, err := query.All(context.Background(), db.sql)
+	results, err := query.All(context.TODO(), db.sql)
 	if err != nil {
 		return nil, err
 	}
 
-	var jobs []DataHistoryJobResult
+	jobs := make([]DataHistoryJobResult, len(results))
 	for i := range results {
 		jobs[i] = DataHistoryJobResult{
 			ID:                results[i].ID,

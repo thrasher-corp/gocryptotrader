@@ -14,6 +14,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/thrasher-corp/gocryptotrader/common/file"
 )
 
 func TestSendHTTPRequest(t *testing.T) {
@@ -543,8 +545,8 @@ func TestChangePermission(t *testing.T) {
 		if err != nil {
 			t.Fatalf("os.Stat failed. Err: %v", err)
 		}
-		if a.Mode().Perm() != 0o770 {
-			t.Fatalf("expected file permissions differ. expecting 0o770 got %#o", a.Mode().Perm())
+		if a.Mode().Perm() != file.DefaultPermissionOctal {
+			t.Fatalf("expected file permissions differ. expecting file.DefaultPermissionOctal got %#o", a.Mode().Perm())
 		}
 		err = os.Remove(testDir)
 		if err != nil {

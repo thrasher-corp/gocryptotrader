@@ -34,7 +34,7 @@ func Insert(trades ...Data) error {
 		}
 	}
 
-	ctx := context.Background()
+	ctx := context.TODO()
 	ctx = boil.SkipTimestamps(ctx)
 
 	tx, err := database.DB.SQL.BeginTx(ctx, nil)
@@ -65,7 +65,7 @@ func Insert(trades ...Data) error {
 // VerifyTradeInIntervals will query for ONE trade within each kline interval and verify if data exists
 // if it does, it will set the range holder property "HasData" to true
 func VerifyTradeInIntervals(exchangeName, assetType, base, quote string, irh *kline.IntervalRangeHolder) error {
-	ctx := context.Background()
+	ctx := context.TODO()
 	ctx = boil.SkipTimestamps(ctx)
 
 	tx, err := database.DB.SQL.BeginTx(ctx, nil)
@@ -237,7 +237,7 @@ func getByUUIDSQLite(uuid string) (Data, error) {
 	var td Data
 	var ts time.Time
 	query := sqlite3.Trades(qm.Where("id = ?", uuid))
-	result, err := query.One(context.Background(), database.DB.SQL)
+	result, err := query.One(context.TODO(), database.DB.SQL)
 	if err != nil {
 		return td, err
 	}
@@ -265,7 +265,7 @@ func getByUUIDSQLite(uuid string) (Data, error) {
 func getByUUIDPostgres(uuid string) (td Data, err error) {
 	query := postgres.Trades(qm.Where("id = ?", uuid))
 	var result *postgres.Trade
-	result, err = query.One(context.Background(), database.DB.SQL)
+	result, err = query.One(context.TODO(), database.DB.SQL)
 	if err != nil {
 		return td, err
 	}
@@ -318,7 +318,7 @@ func getInRangeSQLite(exchangeName, assetType, base, quote string, startDate, en
 	q := generateQuery(wheres, startDate, endDate, true)
 	query := sqlite3.Trades(q...)
 	var result []*sqlite3.Trade
-	result, err = query.All(context.Background(), database.DB.SQL)
+	result, err = query.All(context.TODO(), database.DB.SQL)
 	if err != nil {
 		return td, err
 	}
@@ -361,7 +361,7 @@ func getInRangePostgres(exchangeName, assetType, base, quote string, startDate, 
 	q := generateQuery(wheres, startDate, endDate, false)
 	query := postgres.Trades(q...)
 	var result []*postgres.Trade
-	result, err = query.All(context.Background(), database.DB.SQL)
+	result, err = query.All(context.TODO(), database.DB.SQL)
 	if err != nil {
 		return td, err
 	}
@@ -386,7 +386,7 @@ func getInRangePostgres(exchangeName, assetType, base, quote string, startDate, 
 
 // DeleteTrades will remove trades from the database using trade.Data
 func DeleteTrades(trades ...Data) error {
-	ctx := context.Background()
+	ctx := context.TODO()
 	ctx = boil.SkipTimestamps(ctx)
 
 	tx, err := database.DB.SQL.BeginTx(ctx, nil)
@@ -402,9 +402,9 @@ func DeleteTrades(trades ...Data) error {
 		}
 	}()
 	if repository.GetSQLDialect() == database.DBSQLite3 || repository.GetSQLDialect() == database.DBSQLite {
-		err = deleteTradesSQLite(context.Background(), tx, trades...)
+		err = deleteTradesSQLite(context.TODO(), tx, trades...)
 	} else {
-		err = deleteTradesPostgres(context.Background(), tx, trades...)
+		err = deleteTradesPostgres(context.TODO(), tx, trades...)
 	}
 	if err != nil {
 		return err

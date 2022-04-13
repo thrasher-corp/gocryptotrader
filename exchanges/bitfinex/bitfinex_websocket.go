@@ -960,7 +960,7 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 					}
 					if data[4] != nil {
 						if wallet.BalanceAvailable, ok = data[4].(float64); !ok {
-							return errors.New("unable to type assert wallet snapshot balance available interest")
+							return errors.New("unable to type assert wallet snapshot balance available")
 						}
 					}
 					b.Websocket.DataHandler <- wallet
@@ -1058,6 +1058,7 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 					}
 					wsFundingTrade.Period = int64(period)
 					wsFundingTrade.Maker = data[7] != nil
+					b.Websocket.DataHandler <- wsFundingTrade
 				}
 			default:
 				b.Websocket.DataHandler <- stream.UnhandledMessageWarning{

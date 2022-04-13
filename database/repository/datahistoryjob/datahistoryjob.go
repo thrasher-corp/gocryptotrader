@@ -38,7 +38,7 @@ func Setup(db database.IDatabase) (*DBService, error) {
 
 // Upsert inserts or updates jobs into the database
 func (db *DBService) Upsert(jobs ...*DataHistoryJob) error {
-	ctx := context.Background()
+	ctx := context.TODO()
 
 	tx, err := db.sql.BeginTx(ctx, nil)
 	if err != nil {
@@ -156,7 +156,7 @@ func (db *DBService) GetPrerequisiteJob(nickname string) (*DataHistoryJob, error
 // SetRelationshipByID removes a relationship in the event of a changed
 // relationship during upsertion
 func (db *DBService) SetRelationshipByID(prerequisiteJobID, followingJobID string, status int64) error {
-	ctx := context.Background()
+	ctx := context.TODO()
 	if strings.EqualFold(prerequisiteJobID, followingJobID) {
 		return errCannotSetSamePrerequisite
 	}
@@ -191,7 +191,7 @@ func (db *DBService) SetRelationshipByID(prerequisiteJobID, followingJobID strin
 // SetRelationshipByNickname removes a relationship in the event of a changed
 // relationship during upsertion
 func (db *DBService) SetRelationshipByNickname(prerequisiteNickname, followingNickname string, status int64) error {
-	ctx := context.Background()
+	ctx := context.TODO()
 	if strings.EqualFold(prerequisiteNickname, followingNickname) {
 		return errCannotSetSamePrerequisite
 	}
@@ -331,7 +331,7 @@ func upsertPostgres(ctx context.Context, tx *sql.Tx, jobs ...*DataHistoryJob) er
 	return nil
 }
 func (db *DBService) getByNicknameSQLite(nickname string) (*DataHistoryJob, error) {
-	result, err := sqlite3.Datahistoryjobs(qm.Where("nickname = ?", strings.ToLower(nickname))).One(context.Background(), db.sql)
+	result, err := sqlite3.Datahistoryjobs(qm.Where("nickname = ?", strings.ToLower(nickname))).One(context.TODO(), db.sql)
 	if err != nil {
 		return nil, err
 	}
@@ -341,7 +341,7 @@ func (db *DBService) getByNicknameSQLite(nickname string) (*DataHistoryJob, erro
 
 func (db *DBService) getByNicknamePostgres(nickname string) (*DataHistoryJob, error) {
 	query := postgres.Datahistoryjobs(qm.Where("nickname = ?", strings.ToLower(nickname)))
-	result, err := query.One(context.Background(), db.sql)
+	result, err := query.One(context.TODO(), db.sql)
 	if err != nil {
 		return nil, err
 	}
@@ -349,7 +349,7 @@ func (db *DBService) getByNicknamePostgres(nickname string) (*DataHistoryJob, er
 }
 
 func (db *DBService) getByIDSQLite(id string) (*DataHistoryJob, error) {
-	result, err := sqlite3.Datahistoryjobs(qm.Where("id = ?", id)).One(context.Background(), db.sql)
+	result, err := sqlite3.Datahistoryjobs(qm.Where("id = ?", id)).One(context.TODO(), db.sql)
 	if err != nil {
 		return nil, err
 	}
@@ -359,7 +359,7 @@ func (db *DBService) getByIDSQLite(id string) (*DataHistoryJob, error) {
 
 func (db *DBService) getByIDPostgres(id string) (*DataHistoryJob, error) {
 	query := postgres.Datahistoryjobs(qm.Where("id = ?", id))
-	result, err := query.One(context.Background(), db.sql)
+	result, err := query.One(context.TODO(), db.sql)
 	if err != nil {
 		return nil, err
 	}
@@ -369,7 +369,7 @@ func (db *DBService) getByIDPostgres(id string) (*DataHistoryJob, error) {
 
 func (db *DBService) getJobsBetweenSQLite(startDate, endDate time.Time) ([]DataHistoryJob, error) {
 	query := sqlite3.Datahistoryjobs(qm.Where("created BETWEEN ? AND ? ", startDate.UTC().Format(time.RFC3339), endDate.UTC().Format(time.RFC3339)))
-	results, err := query.All(context.Background(), db.sql)
+	results, err := query.All(context.TODO(), db.sql)
 	if err != nil {
 		return nil, err
 	}
@@ -388,7 +388,7 @@ func (db *DBService) getJobsBetweenSQLite(startDate, endDate time.Time) ([]DataH
 
 func (db *DBService) getJobsBetweenPostgres(startDate, endDate time.Time) ([]DataHistoryJob, error) {
 	query := postgres.Datahistoryjobs(qm.Where("created BETWEEN ? AND  ? ", startDate, endDate))
-	results, err := query.All(context.Background(), db.sql)
+	results, err := query.All(context.TODO(), db.sql)
 	if err != nil {
 		return nil, err
 	}
@@ -410,7 +410,7 @@ func (db *DBService) getJobAndAllResultsSQLite(nickname string) (*DataHistoryJob
 		qm.Load(sqlite3.DatahistoryjobRels.JobDatahistoryjobresults),
 		qm.Load(sqlite3.DatahistoryjobRels.ExchangeName),
 		qm.Where("nickname = ?", strings.ToLower(nickname)))
-	result, err := query.One(context.Background(), db.sql)
+	result, err := query.One(context.TODO(), db.sql)
 	if err != nil {
 		return nil, err
 	}
@@ -422,7 +422,7 @@ func (db *DBService) getJobAndAllResultsPostgres(nickname string) (*DataHistoryJ
 	query := postgres.Datahistoryjobs(
 		qm.Load(postgres.DatahistoryjobRels.JobDatahistoryjobresults),
 		qm.Where("nickname = ?", strings.ToLower(nickname)))
-	result, err := query.One(context.Background(), db.sql)
+	result, err := query.One(context.TODO(), db.sql)
 	if err != nil {
 		return nil, err
 	}
@@ -435,7 +435,7 @@ func (db *DBService) getAllIncompleteJobsAndResultsSQLite() ([]DataHistoryJob, e
 		qm.Load(sqlite3.DatahistoryjobRels.ExchangeName),
 		qm.Load(sqlite3.DatahistoryjobRels.JobDatahistoryjobresults),
 		qm.Where("status = ?", 0))
-	results, err := query.All(context.Background(), db.sql)
+	results, err := query.All(context.TODO(), db.sql)
 	if err != nil {
 		return nil, err
 	}
@@ -457,7 +457,7 @@ func (db *DBService) getAllIncompleteJobsAndResultsPostgres() ([]DataHistoryJob,
 	query := postgres.Datahistoryjobs(
 		qm.Load(postgres.DatahistoryjobRels.JobDatahistoryjobresults),
 		qm.Where("status = ?", 0))
-	results, err := query.All(context.Background(), db.sql)
+	results, err := query.All(context.TODO(), db.sql)
 	if err != nil {
 		return nil, err
 	}
@@ -475,11 +475,11 @@ func (db *DBService) getAllIncompleteJobsAndResultsPostgres() ([]DataHistoryJob,
 }
 
 func (db *DBService) getRelatedUpcomingJobsSQLite(nickname string) ([]*DataHistoryJob, error) {
-	job, err := sqlite3.Datahistoryjobs(qm.Where("nickname = ?", nickname)).One(context.Background(), db.sql)
+	job, err := sqlite3.Datahistoryjobs(qm.Where("nickname = ?", nickname)).One(context.TODO(), db.sql)
 	if err != nil {
 		return nil, err
 	}
-	results, err := job.JobDatahistoryjobs().All(context.Background(), db.sql)
+	results, err := job.JobDatahistoryjobs().All(context.TODO(), db.sql)
 	if err != nil {
 		return nil, err
 	}
@@ -496,7 +496,7 @@ func (db *DBService) getRelatedUpcomingJobsSQLite(nickname string) ([]*DataHisto
 
 func (db *DBService) getRelatedUpcomingJobsPostgres(nickname string) ([]*DataHistoryJob, error) {
 	q := postgres.Datahistoryjobs(qm.Load(postgres.DatahistoryjobRels.JobDatahistoryjobs), qm.Where("nickname = ?", nickname))
-	jobWithRelations, err := q.One(context.Background(), db.sql)
+	jobWithRelations, err := q.One(context.TODO(), db.sql)
 	if err != nil {
 		return nil, err
 	}
@@ -556,11 +556,11 @@ func setRelationshipByIDPostgres(ctx context.Context, tx *sql.Tx, prerequisiteJo
 }
 
 func (db *DBService) getPrerequisiteJobSQLite(nickname string) (*DataHistoryJob, error) {
-	result, err := sqlite3.Datahistoryjobs(qm.Where("nickname = ?", nickname)).One(context.Background(), db.sql)
+	result, err := sqlite3.Datahistoryjobs(qm.Where("nickname = ?", nickname)).One(context.TODO(), db.sql)
 	if err != nil {
 		return nil, err
 	}
-	job, err := result.PrerequisiteJobDatahistoryjobs().One(context.Background(), db.sql)
+	job, err := result.PrerequisiteJobDatahistoryjobs().One(context.TODO(), db.sql)
 	if err != nil {
 		return nil, err
 	}
@@ -569,11 +569,11 @@ func (db *DBService) getPrerequisiteJobSQLite(nickname string) (*DataHistoryJob,
 }
 
 func (db *DBService) getPrerequisiteJobPostgres(nickname string) (*DataHistoryJob, error) {
-	job, err := postgres.Datahistoryjobs(qm.Where("nickname = ?", nickname)).One(context.Background(), db.sql)
+	job, err := postgres.Datahistoryjobs(qm.Where("nickname = ?", nickname)).One(context.TODO(), db.sql)
 	if err != nil {
 		return nil, err
 	}
-	result, err := job.PrerequisiteJobDatahistoryjobs().One(context.Background(), db.sql)
+	result, err := job.PrerequisiteJobDatahistoryjobs().One(context.TODO(), db.sql)
 	if err != nil {
 		return nil, err
 	}
@@ -631,7 +631,7 @@ func (db *DBService) createSQLiteDataHistoryJobResponse(result *sqlite3.Datahist
 	if result.R != nil && result.R.ExchangeName != nil {
 		exchange = result.R.ExchangeName
 	} else {
-		exchange, err = result.ExchangeName().One(context.Background(), db.sql)
+		exchange, err = result.ExchangeName().One(context.TODO(), db.sql)
 		if err != nil {
 			return nil, fmt.Errorf("could not retrieve exchange '%v' %w", result.ExchangeNameID, err)
 		}
@@ -639,7 +639,7 @@ func (db *DBService) createSQLiteDataHistoryJobResponse(result *sqlite3.Datahist
 	var secondaryExchangeName string
 	if result.SecondaryExchangeID.String != "" {
 		var secondaryExchangeResult *sqlite3.Exchange
-		secondaryExchangeResult, err = result.SecondaryExchange().One(context.Background(), db.sql)
+		secondaryExchangeResult, err = result.SecondaryExchange().One(context.TODO(), db.sql)
 		if err != nil {
 			return nil, fmt.Errorf("could not retrieve secondary exchange '%v' %w", result.SecondaryExchangeID, err)
 		}
@@ -661,7 +661,7 @@ func (db *DBService) createSQLiteDataHistoryJobResponse(result *sqlite3.Datahist
 		return nil, err
 	}
 
-	prereqJob, err := result.PrerequisiteJobDatahistoryjobs().One(context.Background(), db.sql)
+	prereqJob, err := result.PrerequisiteJobDatahistoryjobs().One(context.TODO(), db.sql)
 	if err != nil && err != sql.ErrNoRows {
 		return nil, err
 	}
@@ -735,7 +735,7 @@ func (db *DBService) createPostgresDataHistoryJobResponse(result *postgres.Datah
 	if result.R != nil && result.R.ExchangeName != nil {
 		exchange = result.R.ExchangeName
 	} else {
-		exchange, err = result.ExchangeName().One(context.Background(), db.sql)
+		exchange, err = result.ExchangeName().One(context.TODO(), db.sql)
 		if err != nil {
 			return nil, fmt.Errorf("could not retrieve exchange '%v' %w", result.ExchangeNameID, err)
 		}
@@ -744,7 +744,7 @@ func (db *DBService) createPostgresDataHistoryJobResponse(result *postgres.Datah
 	var secondaryExchangeName string
 	if result.SecondaryExchangeID.String != "" {
 		var secondaryExchangeResult *postgres.Exchange
-		secondaryExchangeResult, err = result.SecondaryExchange().One(context.Background(), db.sql)
+		secondaryExchangeResult, err = result.SecondaryExchange().One(context.TODO(), db.sql)
 		if err != nil {
 			return nil, fmt.Errorf("could not retrieve secondary exchange '%v' %w", result.SecondaryExchangeID, err)
 		}
@@ -753,7 +753,7 @@ func (db *DBService) createPostgresDataHistoryJobResponse(result *postgres.Datah
 		}
 	}
 
-	prereqJob, err := result.PrerequisiteJobDatahistoryjobs().One(context.Background(), db.sql)
+	prereqJob, err := result.PrerequisiteJobDatahistoryjobs().One(context.TODO(), db.sql)
 	if err != nil && err != sql.ErrNoRows {
 		return nil, err
 	}

@@ -380,9 +380,7 @@ func DecimalGeometricMean(values []decimal.Decimal) (decimal.Decimal, error) {
 // DecimalPow is lovely because shopspring decimal cannot
 // handle ^0.x and instead returns 1
 func DecimalPow(x, y decimal.Decimal) decimal.Decimal {
-	fX, _ := x.Float64()
-	fY, _ := y.Float64()
-	pow := math.Pow(fX, fY)
+	pow := math.Pow(x.InexactFloat64(), y.InexactFloat64())
 	return decimal.NewFromFloat(pow)
 }
 
@@ -405,7 +403,7 @@ func DecimalFinancialGeometricMean(values []decimal.Decimal) (decimal.Decimal, e
 		// as we cannot have negative or zero value geometric numbers
 		// adding a 1 to the percentage movements allows for differentiation between
 		// negative numbers (eg -0.1 translates to 0.9) and positive numbers (eg 0.1 becomes 1.1)
-		modVal, _ := values[i].Add(decimal.NewFromInt(1)).Float64()
+		modVal := values[i].Add(decimal.NewFromInt(1)).InexactFloat64()
 		product *= modVal
 	}
 	prod := 1 / float64(len(values))

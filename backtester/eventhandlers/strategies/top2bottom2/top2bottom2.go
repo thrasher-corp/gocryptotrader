@@ -248,8 +248,7 @@ func (s *Strategy) massageMissingData(data []decimal.Decimal, t time.Time) ([]fl
 				t.Format(gctcommon.SimpleTimeFormat),
 				base.ErrTooMuchBadData)
 		}
-		d, _ := data[i].Float64()
-		resp[i] = d
+		resp[i] = data[i].InexactFloat64()
 	}
 	return resp, nil
 }
