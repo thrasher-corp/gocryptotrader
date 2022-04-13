@@ -421,6 +421,26 @@ func TestUpdate(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
 	}
 
+	err = s.Update(&Holdings{ // No change
+		Exchange: "tEsT",
+		Accounts: []SubAccount{
+			{
+				AssetType: asset.Spot,
+				ID:        "1337",
+				Currencies: []Balance{
+					{
+						CurrencyName: currency.BTC,
+						Total:        100,
+						Hold:         20,
+					},
+				},
+			},
+		},
+	})
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
 	acc, ok := s.exchangeAccounts["test"]
 	if !ok {
 		t.Fatal("account should be loaded")
