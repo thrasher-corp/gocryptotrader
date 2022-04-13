@@ -375,3 +375,67 @@ func TestGetFree(t *testing.T) {
 		t.Fatal("unexpected value")
 	}
 }
+
+func TestUpdate(t *testing.T) {
+	t.Parallel()
+	s := &Service{exchangeAccounts: make(map[string]*Accounts), mux: dispatch.GetNewMux()}
+	err := s.Update(nil)
+	if !errors.Is(err, errHoldingsIsNil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errHoldingsIsNil)
+	}
+
+	err = s.Update(&Holdings{})
+	if !errors.Is(err, errExchangeNameUnset) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errExchangeNameUnset)
+	}
+
+	err = s.Update(&Holdings{
+		Exchange: "TeSt",
+		Accounts: []SubAccount{
+			{
+				AssetType: "skiperino",
+				ID:        "1337",
+				Currencies: []Balance{
+					{
+						CurrencyName: currency.BTC,
+						Total:        100,
+						Hold:         20,
+					},
+				},
+			},
+			{AssetType: asset.UpsideProfitContract, ID: "1337"},
+			{
+				AssetType: asset.Spot,
+				ID:        "1337",
+				Currencies: []Balance{
+					{
+						CurrencyName: currency.BTC,
+						Total:        100,
+						Hold:         20,
+					},
+				},
+			},
+		},
+	})
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
+	}
+
+	acc, ok := s.exchangeAccounts["test"]
+	if !ok {
+		t.Fatal("account should be loaded")
+	}
+
+	b, ok := acc.SubAccounts["1337"][asset.Spot][currency.BTC.Item]
+	if !ok {
+		t.Fatal("account should be loaded")
+	}
+
+	if b.total != 100 {
+		t.Errorf("expecting 100 but received %f", b.total)
+	}
+
+	if b.hold != 20 {
+		t.Errorf("expecting 20 but received %f", b.hold)
+	}
+}
