@@ -78,7 +78,7 @@ func GetHoldings(exch string, assetType asset.Item) (Holdings, error) {
 	}
 
 	if !assetType.IsValid() {
-		return Holdings{}, fmt.Errorf("%s %w", assetType, asset.ErrNotSupported)
+		return Holdings{}, fmt.Errorf("%s %s %w", exch, assetType, asset.ErrNotSupported)
 	}
 
 	exch = strings.ToLower(exch)
@@ -87,7 +87,7 @@ func GetHoldings(exch string, assetType asset.Item) (Holdings, error) {
 	defer service.m.Unlock()
 	accounts, ok := service.exchangeAccounts[exch]
 	if !ok {
-		return Holdings{}, errExchangeHoldingsNotFound
+		return Holdings{}, fmt.Errorf("%s %s %w", exch, assetType, errExchangeHoldingsNotFound)
 	}
 
 	var accountsHoldings []SubAccount
