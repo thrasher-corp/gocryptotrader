@@ -318,11 +318,6 @@ func TestGetNewID(t *testing.T) {
 
 	d = NewDispatcher()
 
-	_, err = d.getNewID(nil)
-	if !errors.Is(err, ErrNotRunning) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrNotRunning)
-	}
-
 	err = d.start(0, 0)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)

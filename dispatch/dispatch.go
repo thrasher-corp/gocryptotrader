@@ -309,16 +309,15 @@ func (d *Dispatcher) getNewID(genFn func() (uuid.UUID, error)) (uuid.UUID, error
 		return uuid.Nil, errDispatcherNotInitialized
 	}
 
-	d.m.RLock()
-	defer d.m.RUnlock()
-
-	if !d.running {
-		return uuid.Nil, ErrNotRunning
-	}
-
 	if genFn == nil {
 		return uuid.Nil, errUUIDGeneratorFunctionIsNil
 	}
+
+	// Continue to allow the generation, input and return of UUIDs even if
+	// service is not currently enabled.
+
+	d.m.RLock()
+	defer d.m.RUnlock()
 
 	// Generate new uuid
 	newID, err := genFn()
