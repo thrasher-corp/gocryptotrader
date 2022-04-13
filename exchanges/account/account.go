@@ -280,7 +280,7 @@ func (b *ProtectedBalance) Wait(maxWait time.Duration) (wait <-chan bool, cancel
 		return nil, nil, errBalanceIsNil
 	}
 
-	if maxWait == 0 {
+	if maxWait <= 0 {
 		maxWait = time.Minute
 	}
 	ch := make(chan struct{})
