@@ -911,13 +911,6 @@ func (c *CoinbasePro) GetHistoricCandles(ctx context.Context, p currency.Pair, a
 		return kline.Item{}, errors.New(kline.ErrRequestExceedsExchangeLimits)
 	}
 
-	candles := kline.Item{
-		Exchange: c.Name,
-		Pair:     p,
-		Asset:    a,
-		Interval: interval,
-	}
-
 	gran, err := strconv.ParseInt(c.FormatExchangeKlineInterval(interval), 10, 64)
 	if err != nil {
 		return kline.Item{}, err
@@ -937,15 +930,23 @@ func (c *CoinbasePro) GetHistoricCandles(ctx context.Context, p currency.Pair, a
 		return kline.Item{}, err
 	}
 
+	candles := kline.Item{
+		Exchange: c.Name,
+		Pair:     p,
+		Asset:    a,
+		Interval: interval,
+		Candles:  make([]kline.Candle, len(history)),
+	}
+
 	for x := range history {
-		candles.Candles = append(candles.Candles, kline.Candle{
-			Time:   time.Unix(history[x].Time, 0),
+		candles.Candles[x] = kline.Candle{
+			Time:   history[x].Time,
 			Low:    history[x].Low,
 			High:   history[x].High,
 			Open:   history[x].Open,
 			Close:  history[x].Close,
 			Volume: history[x].Volume,
-		})
+		}
 	}
 
 	candles.SortCandlesByTimestamp(false)
@@ -956,13 +957,6 @@ func (c *CoinbasePro) GetHistoricCandles(ctx context.Context, p currency.Pair, a
 func (c *CoinbasePro) GetHistoricCandlesExtended(ctx context.Context, p currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	if err := c.ValidateKline(p, a, interval); err != nil {
 		return kline.Item{}, err
-	}
-
-	ret := kline.Item{
-		Exchange: c.Name,
-		Pair:     p,
-		Asset:    a,
-		Interval: interval,
 	}
 
 	gran, err := strconv.ParseInt(c.FormatExchangeKlineInterval(interval), 10, 64)
@@ -979,6 +973,13 @@ func (c *CoinbasePro) GetHistoricCandlesExtended(ctx context.Context, p currency
 		return kline.Item{}, err
 	}
 
+	ret := kline.Item{
+		Exchange: c.Name,
+		Pair:     p,
+		Asset:    a,
+		Interval: interval,
+	}
+
 	for x := range dates.Ranges {
 		var history []History
 		history, err = c.GetHistoricRates(ctx,
@@ -992,7 +993,7 @@ func (c *CoinbasePro) GetHistoricCandlesExtended(ctx context.Context, p currency
 
 		for i := range history {
 			ret.Candles = append(ret.Candles, kline.Candle{
-				Time:   time.Unix(history[i].Time, 0),
+				Time:   history[i].Time,
 				Low:    history[i].Low,
 				High:   history[i].High,
 				Open:   history[i].Open,

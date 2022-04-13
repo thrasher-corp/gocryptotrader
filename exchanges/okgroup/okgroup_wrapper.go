@@ -99,7 +99,7 @@ func (o *OKGroup) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.
 
 	fPair, err := o.FormatExchangeCurrency(p, a)
 	if err != nil {
-		return nil, err
+		return book, err
 	}
 
 	orderbookNew, err := o.GetOrderBook(ctx,

@@ -535,7 +535,7 @@ func (k *Kraken) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 		var orderbookNew *Orderbook
 		orderbookNew, err = k.GetDepth(ctx, p)
 		if err != nil {
-			return nil, err
+			return book, err
 		}
 		book.Bids = make([]orderbook.Item, len(orderbookNew.Bids))
 		for x := range orderbookNew.Bids {
@@ -555,7 +555,7 @@ func (k *Kraken) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 		var futuresOB *FuturesOrderbookData
 		futuresOB, err = k.GetFuturesOrderbook(ctx, p)
 		if err != nil {
-			return nil, err
+			return book, err
 		}
 		book.Asks = make([]orderbook.Item, len(futuresOB.Orderbook.Asks))
 		for x := range futuresOB.Orderbook.Asks {

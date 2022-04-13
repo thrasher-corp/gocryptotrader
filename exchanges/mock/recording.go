@@ -298,13 +298,7 @@ const (
 
 // CheckJSON recursively parses json data to retract keywords, quite intensive.
 func CheckJSON(data interface{}, excluded *Exclusion) (interface{}, error) {
-	var context map[string]interface{}
-
-	if reflect.TypeOf(data).String() == "[]interface {}" {
-		d, ok := data.([]interface{}) // make linters happy, even with the above check
-		if !ok {
-			return nil, errors.New("unable to type assert data")
-		}
+	if d, ok := data.([]interface{}); ok {
 		var sData []interface{}
 		for i := range d {
 			v := d[i]
@@ -329,6 +323,7 @@ func CheckJSON(data interface{}, excluded *Exclusion) (interface{}, error) {
 		return nil, err
 	}
 
+	var context map[string]interface{}
 	err = json.Unmarshal(conv, &context)
 	if err != nil {
 		return nil, err

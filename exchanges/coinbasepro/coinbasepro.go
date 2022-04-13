@@ -232,8 +232,7 @@ func (c *CoinbasePro) GetHistoricRates(ctx context.Context, currencyPair, start,
 		values.Set("granularity", strconv.FormatInt(granularity, 10))
 	}
 
-	var resp [][]interface{}
-
+	var resp [][6]float64
 	path := common.EncodeURLValues(
 		fmt.Sprintf("%s/%s/%s", coinbaseproProducts, currencyPair, coinbaseproHistory),
 		values)
@@ -243,21 +242,14 @@ func (c *CoinbasePro) GetHistoricRates(ctx context.Context, currencyPair, start,
 
 	history := make([]History, len(resp))
 	for x := range resp {
-		var s History
-		single := resp[x]
-		a, _ := single[0].(float64)
-		s.Time = int64(a)
-		b, _ := single[1].(float64)
-		s.Low = b
-		c, _ := single[2].(float64)
-		s.High = c
-		d, _ := single[3].(float64)
-		s.Open = d
-		e, _ := single[4].(float64)
-		s.Close = e
-		f, _ := single[5].(float64)
-		s.Volume = f
-		history[x] = s
+		history[x] = History{
+			Time:   time.Unix(int64(resp[x][0]), 0),
+			Low:    resp[x][1],
+			High:   resp[x][2],
+			Open:   resp[x][3],
+			Close:  resp[x][4],
+			Volume: resp[x][5],
+		}
 	}
 
 	return history, nil

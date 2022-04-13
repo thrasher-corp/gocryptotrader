@@ -554,7 +554,7 @@ func (h *HUOBI) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType 
 				Type:   OrderBookDataRequestParamsTypeStep0,
 			})
 		if err != nil {
-			return nil, err
+			return book, err
 		}
 
 		book.Bids = make(orderbook.Items, len(orderbookNew.Bids))
@@ -576,7 +576,7 @@ func (h *HUOBI) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType 
 		var orderbookNew *OBData
 		orderbookNew, err = h.FGetMarketDepth(ctx, p, "step0")
 		if err != nil {
-			return nil, err
+			return book, err
 		}
 
 		book.Asks = make(orderbook.Items, len(orderbookNew.Asks))
@@ -598,7 +598,7 @@ func (h *HUOBI) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType 
 		var orderbookNew SwapMarketDepthData
 		orderbookNew, err = h.GetSwapMarketDepth(ctx, p, "step0")
 		if err != nil {
-			return nil, err
+			return book, err
 		}
 
 		book.Asks = make(orderbook.Items, len(orderbookNew.Tick.Asks))

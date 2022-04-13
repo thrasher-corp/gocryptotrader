@@ -842,7 +842,7 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 							if !ok {
 								return errors.New("unable to type assert wsFundingOrderSnapshot snapBundle data")
 							}
-							offer, err := wsHandleFundingOffer(data, true /* include rate real */)
+							offer, err := wsHandleFundingOffer(data, false /* include rate real */)
 							if err != nil {
 								return err
 							}
@@ -1005,11 +1005,14 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 			case wsFundingInfoUpdate:
 				if data, ok := d[2].([]interface{}); ok && len(data) > 0 {
 					if fundingType, ok := data[0].(string); ok && fundingType == "sym" {
-						symbolData, ok := data[1].([]interface{})
+						symbolData, ok := data[2].([]interface{})
 						if !ok {
 							return errors.New("unable to type assert wsFundingInfoUpdate symbolData")
 						}
 						var fundingInfo WsFundingInfo
+						if fundingInfo.Symbol, ok = data[1].(string); !ok {
+							return errors.New("unable to type assert symbol")
+						}
 						if fundingInfo.YieldLoan, ok = symbolData[0].(float64); !ok {
 							return errors.New("unable to type assert funding info update yield loan")
 						}
@@ -1019,7 +1022,7 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 						if fundingInfo.DurationLoan, ok = symbolData[2].(float64); !ok {
 							return errors.New("unable to type assert funding info update duration loan")
 						}
-						if fundingInfo.DurationLend, ok = symbolData[2].(float64); !ok {
+						if fundingInfo.DurationLend, ok = symbolData[3].(float64); !ok {
 							return errors.New("unable to type assert funding info update duration lend")
 						}
 						b.Websocket.DataHandler <- fundingInfo

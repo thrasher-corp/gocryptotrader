@@ -250,6 +250,9 @@ func (l *LocalBitcoins) UpdateOrderbook(ctx context.Context, p currency.Pair, as
 
 	book.Bids = make(orderbook.Items, len(orderbookNew.Bids))
 	for x := range orderbookNew.Bids {
+		if orderbookNew.Bids[x].Price == 0 {
+			return book, errors.New("orderbook bid price is 0")
+		}
 		book.Bids[x] = orderbook.Item{
 			Amount: orderbookNew.Bids[x].Amount / orderbookNew.Bids[x].Price,
 			Price:  orderbookNew.Bids[x].Price,
@@ -258,6 +261,9 @@ func (l *LocalBitcoins) UpdateOrderbook(ctx context.Context, p currency.Pair, as
 
 	book.Asks = make(orderbook.Items, len(orderbookNew.Asks))
 	for x := range orderbookNew.Asks {
+		if orderbookNew.Asks[x].Price == 0 {
+			return book, errors.New("orderbook ask price is 0")
+		}
 		book.Asks[x] = orderbook.Item{
 			Amount: orderbookNew.Asks[x].Amount / orderbookNew.Asks[x].Price,
 			Price:  orderbookNew.Asks[x].Price,

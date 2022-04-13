@@ -39,12 +39,12 @@ type Trade struct {
 
 // History holds historic rate information
 type History struct {
-	Time   int64   `json:"time"`
-	Low    float64 `json:"low"`
-	High   float64 `json:"high"`
-	Open   float64 `json:"open"`
-	Close  float64 `json:"close"`
-	Volume float64 `json:"volume"`
+	Time   time.Time
+	Low    float64
+	High   float64
+	Open   float64
+	Close  float64
+	Volume float64
 }
 
 // Stats holds last 24 hr data for coinbasepro

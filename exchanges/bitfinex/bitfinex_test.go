@@ -1388,6 +1388,14 @@ func TestWSMarginInfoUpdate(t *testing.T) {
 	}
 }
 
+func TestWSFundingInfoUpdate(t *testing.T) {
+	b.WsAddSubscriptionChannel(0, "account", "N/A")
+	const pressXToJSON = `[0,"fiu",["sym","tETHUSD",[149361.09689202666,149639.26293509,830.0182168075556,895.0658432466332]]]`
+	if err := b.wsHandleData([]byte(pressXToJSON)); err != nil {
+		t.Error(err)
+	}
+}
+
 func TestWSFundingTrade(t *testing.T) {
 	b.WsAddSubscriptionChannel(0, "account", "N/A")
 	pressXToJSON := `[0,"fte",[636854,"fUSD",1575282446000,41238905,-1000,0.002,7,null]]`

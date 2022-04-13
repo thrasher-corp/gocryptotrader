@@ -438,7 +438,7 @@ func (b *Bitfinex) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 	var orderbookNew Orderbook
 	orderbookNew, err = b.GetOrderbook(ctx, prefix+fPair.String(), "R0", 100)
 	if err != nil {
-		return nil, err
+		return o, err
 	}
 	if assetType == asset.MarginFunding {
 		o.IsFundingRate = true

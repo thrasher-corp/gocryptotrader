@@ -358,27 +358,28 @@ func (b *Bittrex) FetchOrderbook(ctx context.Context, c currency.Pair, assetType
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *Bittrex) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	book := &orderbook.Base{
+		Exchange:        b.Name,
+		Pair:            p,
+		Asset:           assetType,
+		VerifyOrderbook: b.CanVerifyOrderbook,
+	}
+
 	formattedPair, err := b.FormatExchangeCurrency(p, assetType)
 	if err != nil {
-		return nil, err
+		return book, err
 	}
 
 	// Valid order book depths are 1, 25 and 500
 	orderbookData, sequence, err := b.GetOrderbook(ctx,
 		formattedPair.String(), orderbookDepth)
 	if err != nil {
-		return nil, err
+		return book, err
 	}
 
-	book := &orderbook.Base{
-		Exchange:        b.Name,
-		Pair:            p,
-		Asset:           assetType,
-		VerifyOrderbook: b.CanVerifyOrderbook,
-		LastUpdateID:    sequence,
-		Bids:            make(orderbook.Items, len(orderbookData.Bid)),
-		Asks:            make(orderbook.Items, len(orderbookData.Ask)),
-	}
+	book.LastUpdateID = sequence
+	book.Bids = make(orderbook.Items, len(orderbookData.Bid))
+	book.Asks = make(orderbook.Items, len(orderbookData.Ask))
 
 	for x := range orderbookData.Bid {
 		book.Bids[x] = orderbook.Item{
