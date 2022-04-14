@@ -3530,8 +3530,9 @@ func (s *RPCServer) GetRecentTrades(ctx context.Context, r *gctrpc.GetSavedTrade
 	if err != nil {
 		return nil, err
 	}
+
 	var trades []trade.Data
-	trades, err = exch.GetRecentTrades(ctx, cp, asset.Item(r.AssetType))
+	trades, err = exch.GetRecentTrades(ctx, cp, a)
 	if err != nil {
 		return nil, err
 	}
@@ -4072,24 +4073,36 @@ func (s *RPCServer) CurrencyStateGetAll(_ context.Context, r *gctrpc.CurrencySta
 // CurrencyStateWithdraw determines via RPC if the currency code is operational for
 // withdrawal from an exchange
 func (s *RPCServer) CurrencyStateWithdraw(_ context.Context, r *gctrpc.CurrencyStateWithdrawRequest) (*gctrpc.GenericResponse, error) {
+	ai, err := asset.New(r.Asset)
+	if err != nil {
+		return nil, err
+	}
 	return s.currencyStateManager.CanWithdrawRPC(r.Exchange,
 		currency.NewCode(r.Code),
-		asset.Item(r.Asset))
+		ai)
 }
 
 // CurrencyStateDeposit determines via RPC if the currency code is operational for
 // depositing to an exchange
 func (s *RPCServer) CurrencyStateDeposit(_ context.Context, r *gctrpc.CurrencyStateDepositRequest) (*gctrpc.GenericResponse, error) {
+	ai, err := asset.New(r.Asset)
+	if err != nil {
+		return nil, err
+	}
 	return s.currencyStateManager.CanDepositRPC(r.Exchange,
 		currency.NewCode(r.Code),
-		asset.Item(r.Asset))
+		ai)
 }
 
 // CurrencyStateTrading determines via RPC if the currency code is operational for trading
 func (s *RPCServer) CurrencyStateTrading(_ context.Context, r *gctrpc.CurrencyStateTradingRequest) (*gctrpc.GenericResponse, error) {
+	ai, err := asset.New(r.Asset)
+	if err != nil {
+		return nil, err
+	}
 	return s.currencyStateManager.CanTradeRPC(r.Exchange,
 		currency.NewCode(r.Code),
-		asset.Item(r.Asset))
+		ai)
 }
 
 // CurrencyStateTradingPair determines via RPC if the pair is operational for trading
@@ -4104,19 +4117,23 @@ func (s *RPCServer) CurrencyStateTradingPair(_ context.Context, r *gctrpc.Curren
 		return nil, err
 	}
 
-	a := asset.Item(r.Asset)
-	err = checkParams(r.Exchange, exch, a, cp)
+	ai, err := asset.New(r.Asset)
 	if err != nil {
 		return nil, err
 	}
 
-	err = exch.CanTradePair(cp, a)
+	err = checkParams(r.Exchange, exch, ai, cp)
+	if err != nil {
+		return nil, err
+	}
+
+	err = exch.CanTradePair(cp, ai)
 	if err != nil {
 		return nil, err
 	}
 	return s.currencyStateManager.CanTradePairRPC(r.Exchange,
 		cp,
-		asset.Item(r.Asset))
+		ai)
 }
 
 // GetFuturesPositions returns pnl positions for an exchange asset pair
@@ -4130,13 +4147,17 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 		return nil, err
 	}
 
-	a := asset.Item(r.Asset)
-	err = checkParams(r.Exchange, exch, a, cp)
+	ai, err := asset.New(r.Asset)
 	if err != nil {
 		return nil, err
 	}
-	if !a.IsFutures() {
-		return nil, fmt.Errorf("%s %w", a, order.ErrNotFuturesAsset)
+
+	err = checkParams(r.Exchange, exch, ai, cp)
+	if err != nil {
+		return nil, err
+	}
+	if !ai.IsFutures() {
+		return nil, fmt.Errorf("%s %w", ai, order.ErrNotFuturesAsset)
 	}
 	var start, end time.Time
 	if r.StartDate != "" {
@@ -4165,7 +4186,7 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 	if creds.SubAccount != "" {
 		subErr = "for subaccount: " + creds.SubAccount
 	}
-	orders, err := exch.GetFuturesPositions(ctx, a, cp, start, end)
+	orders, err := exch.GetFuturesPositions(ctx, ai, cp, start, end)
 	if err != nil {
 		return nil, fmt.Errorf("%w %v", err, subErr)
 	}
@@ -4173,7 +4194,7 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 		return orders[i].Date.Before(orders[j].Date)
 	})
 	if r.Overwrite {
-		err = s.OrderManager.ClearFuturesTracking(r.Exchange, a, cp)
+		err = s.OrderManager.ClearFuturesTracking(r.Exchange, ai, cp)
 		if err != nil {
 			return nil, fmt.Errorf("%w %v", err, subErr)
 		}
@@ -4186,7 +4207,7 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 			}
 		}
 	}
-	pos, err := s.OrderManager.GetFuturesPositionsForExchange(r.Exchange, a, cp)
+	pos, err := s.OrderManager.GetFuturesPositionsForExchange(r.Exchange, ai, cp)
 	if err != nil {
 		return nil, fmt.Errorf("%w %v", err, subErr)
 	}
@@ -4297,7 +4318,11 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 		return nil, err
 	}
 
-	a := asset.Item(r.Asset)
+	a, err := asset.New(r.Asset)
+	if err != nil {
+		return nil, err
+	}
+
 	err = checkParams(r.Exchange, exch, a, currency.Pair{})
 	if err != nil {
 		return nil, err

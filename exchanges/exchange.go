@@ -165,13 +165,13 @@ func (b *Base) GetPairAssetType(c currency.Pair) (asset.Item, error) {
 	for i := range assetTypes {
 		avail, err := b.GetAvailablePairs(assetTypes[i])
 		if err != nil {
-			return "", err
+			return asset.Empty, err
 		}
 		if avail.Contains(c, true) {
 			return assetTypes[i], nil
 		}
 	}
-	return "", errors.New("asset type not associated with currency pair")
+	return asset.Empty, errors.New("asset type not associated with currency pair")
 }
 
 // GetClientBankAccounts returns banking details associated with
@@ -366,7 +366,7 @@ func (b *Base) GetRequestFormattedPairAndAssetType(p string) (currency.Pair, ass
 			}
 		}
 	}
-	return currency.EMPTYPAIR, "", fmt.Errorf("%s %w", p, currency.ErrPairNotFound)
+	return currency.EMPTYPAIR, asset.Empty, fmt.Errorf("%s %w", p, currency.ErrPairNotFound)
 }
 
 // GetAvailablePairs is a method that returns the available currency pairs

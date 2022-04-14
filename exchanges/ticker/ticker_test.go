@@ -29,7 +29,7 @@ func TestMain(m *testing.M) {
 var cpyMux *dispatch.Mux
 
 func TestSubscribeTicker(t *testing.T) {
-	_, err := SubscribeTicker("", currency.EMPTYPAIR, asset.Item(""))
+	_, err := SubscribeTicker("", currency.EMPTYPAIR, asset.Empty)
 	if err == nil {
 		t.Error("error cannot be nil")
 	}
@@ -68,7 +68,7 @@ func TestSubscribeTicker(t *testing.T) {
 	err = ProcessTicker(&Price{
 		Pair:         sillyP,
 		ExchangeName: "subscribetest",
-		AssetType:    "silly",
+		AssetType:    asset.DownsideProfitContract,
 	})
 	if err == nil {
 		t.Error("error cannot be nil")
@@ -166,13 +166,13 @@ func TestGetTicker(t *testing.T) {
 
 	priceStruct.PriceATH = 9001
 	priceStruct.Pair.Base = currency.ETH
-	priceStruct.AssetType = "futures_3m"
+	priceStruct.AssetType = asset.DownsideProfitContract
 	err = ProcessTicker(&priceStruct)
 	if err != nil {
 		t.Fatal("ProcessTicker error", err)
 	}
 
-	tickerPrice, err = GetTicker("bitfinex", newPair, "futures_3m")
+	tickerPrice, err = GetTicker("bitfinex", newPair, asset.DownsideProfitContract)
 	if err != nil {
 		t.Errorf("Ticker GetTicker init error: %s", err)
 	}
@@ -181,12 +181,12 @@ func TestGetTicker(t *testing.T) {
 		t.Error("ticker tickerPrice.PriceATH value is incorrect")
 	}
 
-	_, err = GetTicker("bitfinex", newPair, "meowCats")
+	_, err = GetTicker("bitfinex", newPair, asset.DownsideProfitContract)
 	if err == nil {
 		t.Error("Ticker GetTicker error cannot be nil")
 	}
 
-	priceStruct.AssetType = "meowCats"
+	priceStruct.AssetType = asset.DownsideProfitContract
 	err = ProcessTicker(&priceStruct)
 	if err != nil {
 		t.Fatal("ProcessTicker error", err)

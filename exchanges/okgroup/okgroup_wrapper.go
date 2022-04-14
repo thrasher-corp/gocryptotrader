@@ -395,13 +395,13 @@ func (o *OKGroup) CancelAllOrders(ctx context.Context, orderCancellation *order.
 
 // GetOrderInfo returns order information based on order ID
 func (o *OKGroup) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (resp order.Detail, err error) {
+	if assetType != asset.Spot {
+		return resp, fmt.Errorf("%s %w", assetType, asset.ErrNotSupported)
+	}
+
 	mOrder, err := o.GetSpotOrder(ctx, GetSpotOrderRequest{OrderID: orderID})
 	if err != nil {
 		return
-	}
-
-	if assetType == "" {
-		assetType = asset.Spot
 	}
 
 	format, err := o.GetPairFormat(assetType, false)

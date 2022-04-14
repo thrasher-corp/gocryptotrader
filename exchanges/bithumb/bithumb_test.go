@@ -666,7 +666,7 @@ func TestGetHistoricTrades(t *testing.T) {
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
-	err := b.UpdateOrderExecutionLimits(context.Background(), "")
+	err := b.UpdateOrderExecutionLimits(context.Background(), asset.Empty)
 	if err != nil {
 		t.Fatal(err)
 	}

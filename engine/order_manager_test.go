@@ -521,14 +521,14 @@ func TestCancelOrder(t *testing.T) {
 
 func TestGetOrderInfo(t *testing.T) {
 	m := OrdersSetup(t)
-	_, err := m.GetOrderInfo(context.Background(), "", "", currency.EMPTYPAIR, "")
+	_, err := m.GetOrderInfo(context.Background(), "", "", currency.EMPTYPAIR, asset.Empty)
 	if err == nil {
 		t.Error("Expected error due to empty order")
 	}
 
 	var result order.Detail
 	result, err = m.GetOrderInfo(context.Background(),
-		testExchange, "1337", currency.EMPTYPAIR, "")
+		testExchange, "1337", currency.EMPTYPAIR, asset.Empty)
 	if err != nil {
 		t.Error(err)
 	}
@@ -537,7 +537,7 @@ func TestGetOrderInfo(t *testing.T) {
 	}
 
 	result, err = m.GetOrderInfo(context.Background(),
-		testExchange, "1337", currency.EMPTYPAIR, "")
+		testExchange, "1337", currency.EMPTYPAIR, asset.Empty)
 	if err != nil {
 		t.Error(err)
 	}
