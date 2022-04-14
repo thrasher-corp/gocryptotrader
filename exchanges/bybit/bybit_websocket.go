@@ -42,6 +42,8 @@ const (
 	cancel = "cancel" // event for unsubscribe
 )
 
+var comms = make(chan stream.Response)
+
 // WsConnect connects to a websocket feed
 func (by *Bybit) WsConnect() error {
 	if !by.Websocket.IsEnabled() || !by.IsEnabled() {
@@ -60,7 +62,7 @@ func (by *Bybit) WsConnect() error {
 		log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", by.Name)
 	}
 
-	go by.wsReadData()
+	go by.wsReadData(by.Websocket.Conn)
 	if by.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
 		err = by.WsAuth(context.TODO())
 		if err != nil {
@@ -69,14 +71,8 @@ func (by *Bybit) WsConnect() error {
 		}
 	}
 
+	go by.WsDataHandler()
 	return nil
-}
-
-func readAuthThings(wow stream.Connection) {
-	for {
-		resp := wow.ReadMessage()
-		fmt.Println("ZOOM: ", string(resp.Raw))
-	}
 }
 
 // WsAuth sends an authentication message to receive auth data
@@ -86,7 +82,7 @@ func (by *Bybit) WsAuth(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	go readAuthThings(by.Websocket.AuthConn)
+	go by.wsReadData(by.Websocket.AuthConn)
 
 	creds, err := by.GetCredentials(ctx)
 	if err != nil {
@@ -178,26 +174,16 @@ func (by *Bybit) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription)
 	return nil
 }
 
-// wsReadData gets and passes on websocket messages for processing
-func (by *Bybit) wsReadData() {
+// wsReadData receives and passes on websocket messages for processing
+func (by *Bybit) wsReadData(ws stream.Connection) {
 	by.Websocket.Wg.Add(1)
 	defer by.Websocket.Wg.Done()
-
 	for {
-		select {
-		case <-by.Websocket.ShutdownC:
+		resp := ws.ReadMessage()
+		if resp.Raw == nil {
 			return
-		default:
-			resp := by.Websocket.Conn.ReadMessage()
-			if resp.Raw == nil {
-				return
-			}
-
-			err := by.wsHandleData(resp.Raw)
-			if err != nil {
-				by.Websocket.DataHandler <- err
-			}
 		}
+		comms <- resp
 	}
 }
 
@@ -236,6 +222,38 @@ func stringToOrderStatus(status string) (order.Status, error) {
 		return order.Expired, nil
 	default:
 		return order.UnknownStatus, errors.New(status + " not recognised as order status")
+	}
+}
+
+// WsDataHandler handles data from wsReadData
+func (by *Bybit) WsDataHandler() {
+	by.Websocket.Wg.Add(1)
+	defer by.Websocket.Wg.Done()
+	for {
+		select {
+		case <-by.Websocket.ShutdownC:
+			select {
+			case resp := <-comms:
+				err := by.wsHandleData(resp.Raw)
+				if err != nil {
+					select {
+					case by.Websocket.DataHandler <- err:
+					default:
+						log.Errorf(log.WebsocketMgr,
+							"%s websocket handle data error: %v",
+							by.Name,
+							err)
+					}
+				}
+			default:
+			}
+			return
+		case resp := <-comms:
+			err := by.wsHandleData(resp.Raw)
+			if err != nil {
+				by.Websocket.DataHandler <- err
+			}
+		}
 	}
 }
 
