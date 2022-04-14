@@ -32,7 +32,7 @@ const (
 	wsOrderbook         = "depth"
 	wsTicker            = "bookTicker"
 	wsTrades            = "trade"
-	wsMarkets           = "kline"
+	wsKlines            = "kline"
 
 	wsAccountInfoStr = "outboundAccountInfo"
 	wsOrderStr       = "executionReport"
@@ -119,7 +119,7 @@ func (by *Bybit) Subscribe(channelsToSubscribe []stream.ChannelSubscription) err
 			errs = append(errs, err)
 			continue
 		}
-		if channelsToSubscribe[i].Channel == wsMarkets {
+		if channelsToSubscribe[i].Channel == wsKlines {
 			subReq.Parameters = WsParams{
 				Symbol:    formattedPair.String(),
 				IsBinary:  true,
@@ -190,7 +190,7 @@ func (by *Bybit) wsReadData(ws stream.Connection) {
 // GenerateDefaultSubscriptions generates default subscription
 func (by *Bybit) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
 	var subscriptions []stream.ChannelSubscription
-	var channels = []string{wsTicker, wsTrades, wsOrderbook}
+	var channels = []string{wsTicker, wsTrades, wsOrderbook, wsKlines}
 	pairs, err := by.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return nil, err
@@ -423,7 +423,7 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 			Pair:         p,
 		}
 
-	case wsMarkets:
+	case wsKlines:
 		var data KlineStream
 		err := json.Unmarshal(respRaw, &data)
 		if err != nil {

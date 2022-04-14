@@ -113,7 +113,7 @@ func (by *Bybit) WsCoinAuth(ctx context.Context) error {
 	sign := crypto.HexEncodeToString(hmac)
 	req := Authenticate{
 		Operation: "auth",
-		Args:      []interface{}{creds.Key, strNonce, sign},
+		Args:      []interface{}{creds.Key, intNonce, sign},
 	}
 	return by.Websocket.Conn.SendJSONMessage(req)
 }
