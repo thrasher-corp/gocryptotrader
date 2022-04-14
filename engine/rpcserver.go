@@ -2115,7 +2115,13 @@ func (s *RPCServer) GetExchangeOrderbookStream(r *gctrpc.GetExchangeOrderbookStr
 			return errDispatchSystem
 		}
 
-		ob, ok := data.(orderbook.Base)
+		d, ok := data.(*interface{})
+		if !ok {
+			return errors.New("unable to type assert data")
+		}
+
+		dd := *d
+		ob, ok := dd.(orderbook.Base)
 		if !ok {
 			return errors.New("unable to type assert orderbook data")
 		}
@@ -2193,7 +2199,13 @@ func (s *RPCServer) GetTickerStream(r *gctrpc.GetTickerStreamRequest, stream gct
 			return errDispatchSystem
 		}
 
-		t, ok := data.(ticker.Price)
+		d, ok := data.(*interface{})
+		if !ok {
+			return errors.New("unable to type assert data")
+		}
+
+		dd := *d
+		t, ok := dd.(ticker.Price)
 		if !ok {
 			return errors.New("unable to type assert ticker data")
 		}
@@ -2246,7 +2258,13 @@ func (s *RPCServer) GetExchangeTickerStream(r *gctrpc.GetExchangeTickerStreamReq
 			return errDispatchSystem
 		}
 
-		t, ok := data.(ticker.Price)
+		d, ok := data.(*interface{})
+		if !ok {
+			return errors.New("unable to type assert data")
+		}
+
+		dd := *d
+		t, ok := dd.(ticker.Price)
 		if !ok {
 			return errors.New("unable to type assert ticker data")
 		}
