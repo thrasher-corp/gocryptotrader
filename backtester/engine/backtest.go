@@ -141,7 +141,10 @@ func (bt *BackTest) processSingleDataEvent(ev common.DataEventHandler, funds fun
 	if err != nil {
 		return err
 	}
-	d := bt.Datas.GetDataForCurrency(ev)
+	d, err := bt.Datas.GetDataForCurrency(ev)
+	if err != nil {
+		return err
+	}
 	s, err := bt.Strategy.OnSignal(d, bt.Funding, bt.Portfolio)
 	if err != nil {
 		if errors.Is(err, base.ErrTooMuchBadData) {
@@ -216,18 +219,24 @@ func (bt *BackTest) processSimultaneousDataEvents() error {
 // updateStatsForDataEvent makes various systems aware of price movements from
 // data events
 func (bt *BackTest) updateStatsForDataEvent(ev common.DataEventHandler, funds funding.IFundReleaser) error {
+	if ev == nil {
+		return common.ErrNilEvent
+	}
+	if funds == nil {
+		return fmt.Errorf("%v %v %v %w missing fund releaser", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), common.ErrNilArguments)
+	}
 	// update statistics with the latest price
 	err := bt.Statistic.SetupEventForTime(ev)
 	if err != nil {
 		if errors.Is(err, statistics.ErrAlreadyProcessed) {
 			return err
 		}
-		log.Errorf(common.SubLoggers[common.Backtester], "SetupEventForTime %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
+		log.Errorf(common.SubLoggers[common.Backtester], "SetupEventForTime %v", err)
 	}
 	// update portfolio manager with the latest price
 	err = bt.Portfolio.UpdateHoldings(ev, funds)
 	if err != nil {
-		log.Errorf(common.SubLoggers[common.Backtester], "UpdateHoldings %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
+		log.Errorf(common.SubLoggers[common.Backtester], "UpdateHoldings %v", err)
 	}
 
 	if ev.GetAssetType().IsFutures() {
@@ -239,7 +248,7 @@ func (bt *BackTest) updateStatsForDataEvent(ev common.DataEventHandler, funds fu
 
 		err = bt.Portfolio.UpdatePNL(ev, ev.GetClosePrice())
 		if err != nil && !errors.Is(err, gctorder.ErrPositionLiquidated) {
-			return fmt.Errorf("UpdatePNL %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
+			return fmt.Errorf("UpdatePNL %v", err)
 		}
 		var pnl *portfolio.PNLSummary
 		pnl, err = bt.Portfolio.GetLatestPNLForEvent(ev)
@@ -283,7 +292,11 @@ func (bt *BackTest) triggerLiquidationsForExchange(ev common.DataEventHandler, p
 		// which may not have been processed yet
 		// this will create and store stats for each order
 		// then liquidate it at the funding level
-		datas := bt.Datas.GetDataForCurrency(orders[i])
+		var datas data.Handler
+		datas, err = bt.Datas.GetDataForCurrency(orders[i])
+		if err != nil {
+			return err
+		}
 		latest := datas.Latest()
 		err = bt.Statistic.SetupEventForTime(latest)
 		if err != nil && !errors.Is(err, statistics.ErrAlreadyProcessed) {
@@ -328,7 +341,10 @@ func (bt *BackTest) processSignalEvent(ev signal.Event, funds funding.IFundReser
 }
 
 func (bt *BackTest) processOrderEvent(ev order.Event, funds funding.IFundReleaser) error {
-	d := bt.Datas.GetDataForCurrency(ev)
+	d, err := bt.Datas.GetDataForCurrency(ev)
+	if err != nil {
+		return err
+	}
 	f, err := bt.Exchange.ExecuteOrder(ev, d, bt.orderManager, funds)
 	if err != nil {
 		if f == nil {

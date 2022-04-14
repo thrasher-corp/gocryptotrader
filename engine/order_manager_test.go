@@ -769,7 +769,7 @@ func TestProcessOrders(t *testing.T) {
 		IBotExchange: exch,
 	}
 	em.Add(fakeExchange)
-	m, err := SetupOrderManager(em, &CommunicationManager{}, &wg, false)
+	m, err := SetupOrderManager(em, &CommunicationManager{}, &wg, false, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}

@@ -176,7 +176,10 @@ func TestGetDataForCurrency(t *testing.T) {
 		AssetType:    a,
 		CurrencyPair: p,
 	}}
-	result := d.GetDataForCurrency(ev)
+	result, err := d.GetDataForCurrency(ev)
+	if err != nil {
+		t.Error(err)
+	}
 	if result != nil {
 		t.Error("expected nil")
 	}

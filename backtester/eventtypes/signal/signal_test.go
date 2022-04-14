@@ -97,7 +97,7 @@ func TestPair(t *testing.T) {
 			CurrencyPair: currency.NewPair(currency.USD, currency.DOGE),
 		},
 	}
-	if !s.Pair().Equal(s.Base.UnderlyingPair) {
+	if !s.Pair().Equal(s.Base.CurrencyPair) {
 		t.Errorf("expected '%v'", s.Base.CurrencyPair)
 	}
 }
