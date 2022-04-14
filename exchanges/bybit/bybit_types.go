@@ -93,6 +93,11 @@ func (b bybitTimeNanoSec) Time() time.Time {
 	return time.Time(b)
 }
 
+// UnmarshalTo acts as interface to exchange API response
+type UnmarshalTo interface {
+	GetError() error
+}
+
 // PairData stores pair data
 type PairData struct {
 	Name              string  `json:"name"`

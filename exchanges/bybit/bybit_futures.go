@@ -601,7 +601,6 @@ func (by *Bybit) SetLeverage(ctx context.Context, symbol currency.Pair, buyLever
 
 // ChangeMode switches mode between One-Way or Hedge Mode
 func (by *Bybit) ChangePositionMode(ctx context.Context, symbol currency.Pair, mode int64) error {
-	var resp Error
 	params := url.Values{}
 	symbolValue, err := by.FormatSymbol(symbol, asset.Futures)
 	if err != nil {
@@ -610,7 +609,7 @@ func (by *Bybit) ChangePositionMode(ctx context.Context, symbol currency.Pair, m
 	params.Set("symbol", symbolValue)
 	params.Set("mode", strconv.FormatInt(mode, 10))
 
-	return by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, futuresSwitchPositionMode, params, &resp, FuturesSwitchPositionModeRate)
+	return by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, futuresSwitchPositionMode, params, nil, FuturesSwitchPositionModeRate)
 }
 
 // ChangeMode switches mode between full or partial position
@@ -637,7 +636,6 @@ func (by *Bybit) ChangeMode(ctx context.Context, symbol currency.Pair, takeProfi
 
 // ChangeMargin switches margin between cross or isolated
 func (by *Bybit) ChangeMargin(ctx context.Context, symbol currency.Pair, buyLeverage, sellLeverage float64, isIsolated bool) error {
-	var resp Error
 	params := url.Values{}
 	symbolValue, err := by.FormatSymbol(symbol, asset.Futures)
 	if err != nil {
@@ -653,7 +651,7 @@ func (by *Bybit) ChangeMargin(ctx context.Context, symbol currency.Pair, buyLeve
 		params.Set("is_isolated", "false")
 	}
 
-	return by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, futuresSwitchMargin, params, &resp, FuturesSwitchMarginRate)
+	return by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, futuresSwitchMargin, params, nil, FuturesSwitchMarginRate)
 }
 
 // GetTradeRecords returns list of user trades

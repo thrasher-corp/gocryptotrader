@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -1063,8 +1064,6 @@ func (by *Bybit) ChangeCoinMode(ctx context.Context, symbol currency.Pair, takeP
 
 // ChangeCoinMargin switches margin between cross or isolated
 func (by *Bybit) ChangeCoinMargin(ctx context.Context, symbol currency.Pair, buyLeverage, sellLeverage float64, isIsolated bool) error {
-	var resp Error
-
 	params := url.Values{}
 	symbolValue, err := by.FormatSymbol(symbol, asset.CoinMarginedFutures)
 	if err != nil {
@@ -1080,7 +1079,7 @@ func (by *Bybit) ChangeCoinMargin(ctx context.Context, symbol currency.Pair, buy
 		params.Set("is_isolated", "false")
 	}
 
-	return by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesSwitchMargin, params, &resp, cFuturesDefaultRate)
+	return by.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPost, bybitFuturesAPIVersion+cfuturesSwitchMargin, params, nil, cFuturesDefaultRate)
 }
 
 // GetTradingFeeRate returns trading taker and maker fee rate
@@ -1273,7 +1272,7 @@ func (by *Bybit) GetWalletWithdrawalRecords(ctx context.Context, startDate, endD
 		params.Set("end_date", endDate)
 	}
 	if !coin.IsEmpty() {
-		params.Set("coin", coin.String())
+		params.Set("coin", strings.ToUpper(coin.String()))
 	}
 	if status != "" {
 		params.Set("status", status)

@@ -739,7 +739,6 @@ func (by *Bybit) GetUSDTPositions(ctx context.Context, symbol currency.Pair) ([]
 
 // SetAutoAddMargin sets auto add margin
 func (by *Bybit) SetAutoAddMargin(ctx context.Context, symbol currency.Pair, autoAddMargin bool, side string) error {
-	var resp Error
 	params := url.Values{}
 	symbolValue, err := by.FormatSymbol(symbol, asset.USDTMarginedFutures)
 	if err != nil {
@@ -756,12 +755,11 @@ func (by *Bybit) SetAutoAddMargin(ctx context.Context, symbol currency.Pair, aut
 	} else {
 		params.Set("take_profit", "false")
 	}
-	return by.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, ufuturesSetAutoAddMargin, params, &resp, uFuturesSetMarginRate)
+	return by.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, ufuturesSetAutoAddMargin, params, nil, uFuturesSetMarginRate)
 }
 
 // ChangeUSDTMargin switches margin between cross or isolated
 func (by *Bybit) ChangeUSDTMargin(ctx context.Context, symbol currency.Pair, buyLeverage, sellLeverage float64, isIsolated bool) error {
-	var resp Error
 	params := url.Values{}
 	symbolValue, err := by.FormatSymbol(symbol, asset.USDTMarginedFutures)
 	if err != nil {
@@ -777,12 +775,11 @@ func (by *Bybit) ChangeUSDTMargin(ctx context.Context, symbol currency.Pair, buy
 		params.Set("is_isolated", "false")
 	}
 
-	return by.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, ufuturesSwitchMargin, params, &resp, uFuturesSwitchMargin)
+	return by.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, ufuturesSwitchMargin, params, nil, uFuturesSwitchMargin)
 }
 
 // SwitchPositionMode switches mode between MergedSingle: One-Way Mode or BothSide: Hedge Mode
 func (by *Bybit) SwitchPositionMode(ctx context.Context, symbol currency.Pair, mode string) error {
-	var resp Error
 	params := url.Values{}
 	symbolValue, err := by.FormatSymbol(symbol, asset.USDTMarginedFutures)
 	if err != nil {
@@ -794,7 +791,7 @@ func (by *Bybit) SwitchPositionMode(ctx context.Context, symbol currency.Pair, m
 	}
 	params.Set("mode", mode)
 
-	return by.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, ufuturesSwitchPositionMode, params, &resp, uFuturesSwitchPosition)
+	return by.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, ufuturesSwitchPositionMode, params, nil, uFuturesSwitchPosition)
 }
 
 // ChangeUSDTMode switches mode between full or partial position
@@ -850,7 +847,6 @@ func (by *Bybit) SetUSDTMargin(ctx context.Context, symbol currency.Pair, side, 
 
 // SetUSDTLeverage sets leverage
 func (by *Bybit) SetUSDTLeverage(ctx context.Context, symbol currency.Pair, buyLeverage, sellLeverage float64) error {
-	var resp Error
 	params := url.Values{}
 	symbolValue, err := by.FormatSymbol(symbol, asset.USDTMarginedFutures)
 	if err != nil {
@@ -867,12 +863,11 @@ func (by *Bybit) SetUSDTLeverage(ctx context.Context, symbol currency.Pair, buyL
 	}
 	params.Set("sell_leverage", strconv.FormatFloat(sellLeverage, 'f', -1, 64))
 
-	return by.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, ufuturesSetLeverage, params, &resp, uFuturesSetLeverageRate)
+	return by.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, ufuturesSetLeverage, params, nil, uFuturesSetLeverageRate)
 }
 
 // SetUSDTTradingAndStop sets take profit, stop loss, and trailing stop for your open position
 func (by *Bybit) SetUSDTTradingAndStop(ctx context.Context, symbol currency.Pair, takeProfit, stopLoss, trailingStop, stopLossQty, takeProfitQty float64, side, takeProfitTriggerBy, stopLossTriggerBy string) error {
-	var resp Error
 	params := url.Values{}
 	symbolValue, err := by.FormatSymbol(symbol, asset.USDTMarginedFutures)
 	if err != nil {
@@ -906,7 +901,7 @@ func (by *Bybit) SetUSDTTradingAndStop(ctx context.Context, symbol currency.Pair
 		params.Set("sl_trigger_by", stopLossTriggerBy)
 	}
 
-	return by.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, ufuturesSetTradingStop, params, &resp, uFuturesSetTradingStopRate)
+	return by.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, ufuturesSetTradingStop, params, nil, uFuturesSetTradingStopRate)
 }
 
 // GetUSDTTradeRecords returns list of user trades

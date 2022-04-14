@@ -772,6 +772,10 @@ func (by *Bybit) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, me
 		return err
 	}
 
+	if result == nil {
+		result = &Error{}
+	}
+
 	endpointPath, err := by.API.Endpoints.GetURL(ePath)
 	if err != nil {
 		return err
@@ -821,10 +825,6 @@ func (by *Bybit) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, me
 		return err
 	}
 	return result.GetError()
-}
-
-type UnmarshalTo interface {
-	GetError() error
 }
 
 // Error defines all error information for each request
