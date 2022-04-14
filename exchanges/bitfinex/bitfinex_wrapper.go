@@ -493,11 +493,11 @@ func (b *Bitfinex) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 	}
 
 	var Accounts = []account.SubAccount{
-		{ID: "deposit"},
-		{ID: "exchange"},
-		{ID: "trading"},
-		{ID: "margin"},
-		{ID: "funding "},
+		{ID: "deposit", AssetType: assetType},
+		{ID: "exchange", AssetType: assetType},
+		{ID: "trading", AssetType: assetType},
+		{ID: "margin", AssetType: assetType},
+		{ID: "funding", AssetType: assetType},
 	}
 
 	for x := range accountBalance {

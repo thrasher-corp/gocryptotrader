@@ -446,6 +446,7 @@ func (b *Bitstamp) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 		})
 	}
 	response.Accounts = append(response.Accounts, account.SubAccount{
+		AssetType:  assetType,
 		Currencies: currencies,
 	})
 

@@ -1300,3 +1300,9 @@ func (b *Base) CalculateTotalCollateral(ctx context.Context, calculator *order.T
 func (b *Base) GetFuturesPositions(context.Context, asset.Item, currency.Pair, time.Time, time.Time) ([]order.Detail, error) {
 	return nil, common.ErrNotYetImplemented
 }
+
+// HasAssetTypeAccountSegregation returns if the accounts are divided into asset
+// types instead of just being denoted as spot holdings.
+func (b *Base) HasAssetTypeAccountSegregation() bool {
+	return b.Features.Supports.RESTCapabilities.HasAssetTypeAccountSegregation
+}

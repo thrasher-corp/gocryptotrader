@@ -450,6 +450,7 @@ func (h *HitBTC) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 	}
 
 	response.Accounts = append(response.Accounts, account.SubAccount{
+		AssetType:  assetType,
 		Currencies: currencies,
 	})
 

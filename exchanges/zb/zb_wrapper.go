@@ -391,6 +391,7 @@ func (z *ZB) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (accou
 
 	info.Exchange = z.Name
 	info.Accounts = append(info.Accounts, account.SubAccount{
+		AssetType:  assetType,
 		Currencies: balances,
 	})
 

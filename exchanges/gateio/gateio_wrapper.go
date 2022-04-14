@@ -418,6 +418,7 @@ func (g *Gateio) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 		}
 
 		info.Accounts = append(info.Accounts, account.SubAccount{
+			AssetType:  assetType,
 			Currencies: balances,
 		})
 	}

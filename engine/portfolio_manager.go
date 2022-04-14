@@ -10,6 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
 )
@@ -76,6 +77,7 @@ func (m *portfolioManager) Start(wg *sync.WaitGroup) error {
 
 	log.Debugf(log.PortfolioMgr, "Portfolio manager %s", MsgSubSystemStarting)
 	m.shutdown = make(chan struct{})
+	wg.Add(1)
 	go m.run(wg)
 	return nil
 }
@@ -100,21 +102,19 @@ func (m *portfolioManager) Stop() error {
 // run periodically will check and update portfolio holdings
 func (m *portfolioManager) run(wg *sync.WaitGroup) {
 	log.Debugln(log.PortfolioMgr, "Portfolio manager started.")
-	wg.Add(1)
-	tick := time.NewTicker(m.portfolioManagerDelay)
-	defer func() {
-		tick.Stop()
-		wg.Done()
-		log.Debugf(log.PortfolioMgr, "Portfolio manager shutdown.")
-	}()
-
-	go m.processPortfolio()
+	timer := time.NewTimer(0)
 	for {
 		select {
 		case <-m.shutdown:
+			if !timer.Stop() {
+				<-timer.C
+			}
+			wg.Done()
+			log.Debugf(log.PortfolioMgr, "Portfolio manager shutdown.")
 			return
-		case <-tick.C:
-			go m.processPortfolio()
+		case <-timer.C:
+			m.processPortfolio()
+			timer.Reset(m.portfolioManagerDelay)
 		}
 	}
 }
@@ -126,6 +126,13 @@ func (m *portfolioManager) processPortfolio() {
 	}
 	m.m.Lock()
 	defer m.m.Unlock()
+	exchanges, err := m.exchangeManager.GetExchanges()
+	if err != nil {
+		log.Errorf(log.PortfolioMgr, "Portfolio manager cannot get exchanges: %v", err)
+	}
+	allExchangesHoldings := m.getExchangeAccountInfo(exchanges)
+	m.seedExchangeAccountInfo(allExchangesHoldings)
+
 	data := m.base.GetPortfolioGroupedCoin()
 	for key, value := range data {
 		err := m.base.UpdatePortfolio(value, key)
@@ -142,13 +149,6 @@ func (m *portfolioManager) processPortfolio() {
 			key,
 			value)
 	}
-
-	exchanges, err := m.exchangeManager.GetExchanges()
-	if err != nil {
-		log.Errorf(log.PortfolioMgr, "Portfolio manager cannot get exchanges: %v", err)
-	}
-	d := m.getExchangeAccountInfo(exchanges)
-	m.seedExchangeAccountInfo(d)
 	atomic.CompareAndSwapInt32(&m.processing, 1, 0)
 }
 
@@ -242,7 +242,7 @@ func (m *portfolioManager) seedExchangeAccountInfo(accounts []account.Holdings) 
 func (m *portfolioManager) getExchangeAccountInfo(exchanges []exchange.IBotExchange) []account.Holdings {
 	var response []account.Holdings
 	for x := range exchanges {
-		if exchanges[x] == nil || !exchanges[x].IsEnabled() {
+		if !exchanges[x].IsEnabled() {
 			continue
 		}
 		if !exchanges[x].GetAuthenticatedAPISupport(exchange.RestAuthentication) {
@@ -253,19 +253,25 @@ func (m *portfolioManager) getExchangeAccountInfo(exchanges []exchange.IBotExcha
 			}
 			continue
 		}
-		assetTypes := exchanges[x].GetAssetTypes(false) // left as available for now, to sync the full spectrum
-		var exchangeHoldings account.Holdings
+
+		assetTypes := asset.Items{asset.Spot}
+		if exchanges[x].HasAssetTypeAccountSegregation() {
+			// Get entire supported exchange asset types to sync all account
+			// information.
+			assetTypes = exchanges[x].GetAssetTypes(false)
+		}
+
+		exchangeHoldings := account.Holdings{Accounts: make([]account.SubAccount, len(assetTypes))}
 		for y := range assetTypes {
-			accountHoldings, err := exchanges[x].FetchAccountInfo(context.TODO(), assetTypes[y])
+			// Update account info to process account updates in memory on
+			// every fetch.
+			accountHoldings, err := exchanges[x].UpdateAccountInfo(context.TODO(), assetTypes[y])
 			if err != nil {
 				log.Errorf(log.PortfolioMgr,
 					"Error encountered retrieving exchange account info for %s. Error %s\n",
 					exchanges[x].GetName(),
 					err)
 				continue
-			}
-			for z := range accountHoldings.Accounts {
-				accountHoldings.Accounts[z].AssetType = assetTypes[y]
 			}
 			exchangeHoldings.Exchange = exchanges[x].GetName()
 			exchangeHoldings.Accounts = append(exchangeHoldings.Accounts, accountHoldings.Accounts...)
