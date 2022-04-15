@@ -254,28 +254,32 @@ func (by *Bybit) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string
 	if !by.SupportsAsset(a) {
 		return nil, fmt.Errorf("asset type of %s is not supported by %s", a, by.Name)
 	}
-	var pairs []string
+
 	switch a {
 	case asset.Spot:
 		allPairs, err := by.GetAllSpotPairs(ctx)
 		if err != nil {
 			return nil, err
 		}
+		pairs := make([]string, len(allPairs))
 		for x := range allPairs {
-			pairs = append(pairs, allPairs[x].BaseCurrency+currency.DashDelimiter+allPairs[x].QuoteCurrency)
+			pairs[x] = allPairs[x].BaseCurrency + currency.DashDelimiter + allPairs[x].QuoteCurrency
 		}
+		return pairs, nil
 	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.Futures:
 		allPairs, err := by.GetSymbolsInfo(ctx)
 		if err != nil {
-			return pairs, err
+			return nil, err
 		}
+		pairs := make([]string, len(allPairs))
 		for x := range allPairs {
 			if allPairs[x].Status == "Trading" {
-				pairs = append(pairs, allPairs[x].BaseCurrency+currency.DashDelimiter+allPairs[x].QuoteCurrency)
+				pairs[x] = allPairs[x].BaseCurrency + currency.DashDelimiter + allPairs[x].QuoteCurrency
 			}
 		}
+		return pairs, nil
 	}
-	return pairs, nil
+	return nil, nil
 }
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
@@ -607,7 +611,7 @@ func (by *Bybit) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory,
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (by *Bybit) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) (withdrawHistory []exchange.WithdrawalHistory, err error) {
+func (by *Bybit) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) ([]exchange.WithdrawalHistory, error) {
 	switch a {
 	case asset.CoinMarginedFutures:
 		w, err := by.GetWalletWithdrawalRecords(ctx, "", "", "", c, 0, 0)
@@ -615,6 +619,7 @@ func (by *Bybit) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a a
 			return nil, err
 		}
 
+		withdrawHistory := make([]exchange.WithdrawalHistory, len(w))
 		for i := range w {
 			withdrawHistory = append(withdrawHistory, exchange.WithdrawalHistory{
 				Status:          w[i].Status,
@@ -627,16 +632,14 @@ func (by *Bybit) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a a
 				Timestamp:       w[i].UpdatedAt,
 			})
 		}
+		return withdrawHistory, nil
 	default:
-		withdrawHistory, err = nil, fmt.Errorf("assetType not supported: %v", a)
+		return nil, fmt.Errorf("assetType not supported: %v", a)
 	}
-	return
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (by *Bybit) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
-	var resp []trade.Data
-
 	switch assetType {
 	case asset.Spot:
 		tradeData, err := by.GetTrades(ctx, "", 0)
@@ -644,6 +647,7 @@ func (by *Bybit) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 			return nil, err
 		}
 
+		resp := make([]trade.Data, len(tradeData))
 		for i := range tradeData {
 			resp = append(resp, trade.Data{
 				Exchange:     by.Name,
@@ -654,6 +658,7 @@ func (by *Bybit) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 				Timestamp:    tradeData[i].Time,
 			})
 		}
+		return resp, nil
 
 	case asset.CoinMarginedFutures, asset.Futures:
 		tradeData, err := by.GetPublicTrades(ctx, currency.Pair{}, 0)
@@ -661,6 +666,7 @@ func (by *Bybit) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 			return nil, err
 		}
 
+		resp := make([]trade.Data, len(tradeData))
 		for i := range tradeData {
 			resp = append(resp, trade.Data{
 				Exchange:     by.Name,
@@ -671,6 +677,7 @@ func (by *Bybit) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 				Timestamp:    tradeData[i].Time,
 			})
 		}
+		return resp, nil
 
 	case asset.USDTMarginedFutures:
 		tradeData, err := by.GetUSDTPublicTrades(ctx, currency.Pair{}, 0)
@@ -678,6 +685,7 @@ func (by *Bybit) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 			return nil, err
 		}
 
+		resp := make([]trade.Data, len(tradeData))
 		for i := range tradeData {
 			resp = append(resp, trade.Data{
 				Exchange:     by.Name,
@@ -688,6 +696,7 @@ func (by *Bybit) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 				Timestamp:    tradeData[i].Time,
 			})
 		}
+		return resp, nil
 
 	default:
 		return nil, fmt.Errorf("assetType not supported: %v", assetType)

@@ -485,7 +485,6 @@ func (by *Bybit) GetConditionalRealtimeOrders(ctx context.Context, symbol curren
 
 // GetPositions returns list of user positions
 func (by *Bybit) GetPositions(ctx context.Context, symbol currency.Pair) ([]PositionResp, error) {
-	var data []PositionResp
 	params := url.Values{}
 	resp := struct {
 		Result []struct {
@@ -498,16 +497,18 @@ func (by *Bybit) GetPositions(ctx context.Context, symbol currency.Pair) ([]Posi
 	if !symbol.IsEmpty() {
 		symbolValue, err := by.FormatSymbol(symbol, asset.Futures)
 		if err != nil {
-			return data, err
+			return nil, err
 		}
 		params.Set("symbol", symbolValue)
 	}
 	err := by.SendAuthHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, futuresPosition, params, &resp, FuturesPositionRate)
 	if err != nil {
-		return data, err
+		return nil, err
 	}
+
+	data := make([]PositionResp, len(resp.Result))
 	for x := range resp.Result {
-		data = append(data, resp.Result[x].Data)
+		data[x] = resp.Result[x].Data
 	}
 	return data, nil
 }
