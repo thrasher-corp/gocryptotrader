@@ -44,6 +44,33 @@ const testExchange = "ftx"
 
 var leet = decimal.NewFromInt(1337)
 
+type portfolioOverride struct {
+	Err error
+	portfolio.Portfolio
+}
+
+func (p portfolioOverride) CreateLiquidationOrdersForExchange(ev common.DataEventHandler, _ funding.IFundingManager) ([]order.Event, error) {
+	if p.Err != nil {
+		return nil, p.Err
+	}
+	return []order.Event{
+		&order.Order{
+			Base: event.Base{
+				Offset:         ev.GetOffset(),
+				Exchange:       ev.GetExchange(),
+				Time:           ev.GetTime(),
+				Interval:       ev.GetInterval(),
+				CurrencyPair:   ev.Pair(),
+				UnderlyingPair: ev.GetUnderlyingPair(),
+				AssetType:      ev.GetAssetType(),
+				Reason:         ev.GetReason(),
+			},
+			ID:        "1",
+			Direction: common.Liquidated,
+		},
+	}, nil
+}
+
 func TestNewFromConfig(t *testing.T) {
 	t.Parallel()
 	_, err := NewFromConfig(nil, "", "", false)
@@ -660,33 +687,6 @@ func TestFullCycleMulti(t *testing.T) {
 	}
 }
 
-type portfolioOverride struct {
-	Err error
-	portfolio.Portfolio
-}
-
-func (p portfolioOverride) CreateLiquidationOrdersForExchange(ev common.DataEventHandler, _ funding.IFundingManager) ([]order.Event, error) {
-	if p.Err != nil {
-		return nil, p.Err
-	}
-	return []order.Event{
-		&order.Order{
-			Base: event.Base{
-				Offset:         ev.GetOffset(),
-				Exchange:       ev.GetExchange(),
-				Time:           ev.GetTime(),
-				Interval:       ev.GetInterval(),
-				CurrencyPair:   ev.Pair(),
-				UnderlyingPair: ev.GetUnderlyingPair(),
-				AssetType:      ev.GetAssetType(),
-				Reason:         ev.GetReason(),
-			},
-			ID:        "1",
-			Direction: common.Liquidated,
-		},
-	}, nil
-}
-
 func TestTriggerLiquidationsForExchange(t *testing.T) {
 	t.Parallel()
 	bt := BackTest{}
@@ -765,6 +765,7 @@ func TestTriggerLiquidationsForExchange(t *testing.T) {
 }
 
 func TestUpdateStatsForDataEvent(t *testing.T) {
+	t.Parallel()
 	pt := &portfolio.Portfolio{}
 	bt := &BackTest{
 		Statistic: &statistics.Statistic{},
@@ -851,23 +852,32 @@ func TestUpdateStatsForDataEvent(t *testing.T) {
 }
 
 func TestProcessSignalEvent(t *testing.T) {
+	t.Parallel()
 	var expectedError error
 	pt, err := portfolio.Setup(&size.Size{}, &risk.Risk{}, decimal.Zero)
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
 	bt := &BackTest{
-		Statistic: &statistics.Statistic{},
-		Funding:   &funding.FundManager{},
-		Portfolio: pt,
-		Exchange:  &exchange.Exchange{},
+		Statistic:  &statistics.Statistic{},
+		Funding:    &funding.FundManager{},
+		Portfolio:  pt,
+		Exchange:   &exchange.Exchange{},
+		EventQueue: &eventholder.Holder{},
 	}
 	cp := currency.NewPair(currency.BTC, currency.USDT)
 	a := asset.Futures
-	ev := &signal.Signal{
+	de := &evkline.Kline{
 		Base: event.Base{Exchange: testExchange,
 			AssetType:    a,
 			CurrencyPair: cp},
+	}
+	err = bt.Statistic.SetupEventForTime(de)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v'", err, expectedError)
+	}
+	ev := &signal.Signal{
+		Base: de.Base,
 	}
 
 	f, err := funding.SetupFundingManager(&engine.ExchangeManager{}, false, true)
@@ -909,6 +919,446 @@ func TestProcessSignalEvent(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
 	err = bt.processSignalEvent(ev, pair)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v'", err, expectedError)
+	}
+}
+
+func TestProcessOrderEvent(t *testing.T) {
+	t.Parallel()
+	var expectedError error
+	pt, err := portfolio.Setup(&size.Size{}, &risk.Risk{}, decimal.Zero)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v'", err, expectedError)
+	}
+	bt := &BackTest{
+		Statistic:  &statistics.Statistic{},
+		Funding:    &funding.FundManager{},
+		Portfolio:  pt,
+		Exchange:   &exchange.Exchange{},
+		EventQueue: &eventholder.Holder{},
+		Datas:      &data.HandlerPerCurrency{},
+	}
+	cp := currency.NewPair(currency.BTC, currency.USDT)
+	a := asset.Futures
+	de := &evkline.Kline{
+		Base: event.Base{Exchange: testExchange,
+			AssetType:    a,
+			CurrencyPair: cp},
+	}
+	err = bt.Statistic.SetupEventForTime(de)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v'", err, expectedError)
+	}
+	ev := &order.Order{
+		Base: de.Base,
+	}
+
+	f, err := funding.SetupFundingManager(&engine.ExchangeManager{}, false, true)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v'", err, expectedError)
+	}
+	b, err := funding.CreateItem(testExchange, a, cp.Base, decimal.Zero, decimal.Zero)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v'", err, expectedError)
+	}
+	quote, err := funding.CreateItem(testExchange, a, cp.Quote, decimal.NewFromInt(1337), decimal.Zero)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v'", err, expectedError)
+	}
+	pair, err := funding.CreateCollateral(b, quote)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v'", err, expectedError)
+	}
+	bt.Funding = f
+	exch := &ftx.FTX{}
+	exch.Name = testExchange
+	err = pt.SetupCurrencySettingsMap(&exchange.Settings{
+		Exchange: exch,
+		Pair:     cp,
+		Asset:    a,
+	})
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v'", err, expectedError)
+	}
+
+	bt.Exchange.SetExchangeAssetCurrencySettings(a, cp, &exchange.Settings{
+		Exchange: exch,
+		Pair:     cp,
+		Asset:    a,
+	})
+	ev.Direction = gctorder.Short
+	err = bt.Statistic.SetEventForOffset(ev)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v'", err, expectedError)
+	}
+	tt := time.Now()
+	bt.Datas.Setup()
+	k := kline.DataFromKline{
+		Item: gctkline.Item{
+			Exchange: testExchange,
+			Pair:     cp,
+			Asset:    a,
+			Interval: gctkline.FifteenMin,
+			Candles: []gctkline.Candle{{
+				Time:   tt,
+				Open:   1337,
+				High:   1337,
+				Low:    1337,
+				Close:  1337,
+				Volume: 1337,
+			}},
+		},
+		Base: data.Base{},
+		RangeHolder: &gctkline.IntervalRangeHolder{
+			Start: gctkline.CreateIntervalTime(tt),
+			End:   gctkline.CreateIntervalTime(tt.Add(gctkline.FifteenMin.Duration())),
+			Ranges: []gctkline.IntervalRange{
+				{
+					Start: gctkline.CreateIntervalTime(tt),
+					End:   gctkline.CreateIntervalTime(tt.Add(gctkline.FifteenMin.Duration())),
+					Intervals: []gctkline.IntervalData{
+						{
+							Start:   gctkline.CreateIntervalTime(tt),
+							End:     gctkline.CreateIntervalTime(tt.Add(gctkline.FifteenMin.Duration())),
+							HasData: true,
+						},
+					},
+				},
+			},
+		},
+	}
+	err = k.Load()
+	if err != nil {
+		t.Error(err)
+	}
+
+	bt.Datas.SetDataForCurrency(testExchange, a, cp, &k)
+	err = bt.processOrderEvent(ev, pair)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v'", err, expectedError)
+	}
+	ev2 := bt.EventQueue.NextEvent()
+	_, ok := ev2.(fill.Event)
+	if !ok {
+		t.Fatal("expected fill event")
+	}
+}
+
+func TestProcessFillEvent(t *testing.T) {
+	t.Parallel()
+	var expectedError error
+	pt, err := portfolio.Setup(&size.Size{}, &risk.Risk{}, decimal.Zero)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v'", err, expectedError)
+	}
+	bt := &BackTest{
+		Statistic:  &statistics.Statistic{},
+		Funding:    &funding.FundManager{},
+		Portfolio:  pt,
+		Exchange:   &exchange.Exchange{},
+		EventQueue: &eventholder.Holder{},
+		Datas:      &data.HandlerPerCurrency{},
+	}
+	cp := currency.NewPair(currency.BTC, currency.USD)
+	a := asset.Futures
+	de := &evkline.Kline{
+		Base: event.Base{Exchange: testExchange,
+			AssetType:    a,
+			CurrencyPair: cp},
+	}
+	err = bt.Statistic.SetupEventForTime(de)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v'", err, expectedError)
+	}
+	ev := &fill.Fill{
+		Base: de.Base,
+	}
+	em := engine.SetupExchangeManager()
+	exch, err := em.NewExchangeByName(testExchange)
+	if err != nil {
+		t.Fatal(err)
+	}
+	exch.SetDefaults()
+	cfg, err := exch.GetDefaultConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = exch.Setup(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	em.Add(exch)
+	f, err := funding.SetupFundingManager(em, false, true)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v'", err, expectedError)
+	}
+	b, err := funding.CreateItem(testExchange, a, cp.Base, decimal.Zero, decimal.Zero)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v'", err, expectedError)
+	}
+	quote, err := funding.CreateItem(testExchange, a, cp.Quote, decimal.NewFromInt(1337), decimal.Zero)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v'", err, expectedError)
+	}
+	pair, err := funding.CreateCollateral(b, quote)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v'", err, expectedError)
+	}
+
+	err = f.AddItem(b)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v'", err, expectedError)
+	}
+	err = f.AddItem(quote)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v'", err, expectedError)
+	}
+
+	spotBase, err := funding.CreateItem(testExchange, asset.Spot, cp.Base, decimal.Zero, decimal.Zero)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v'", err, expectedError)
+	}
+	spotQuote, err := funding.CreateItem(testExchange, asset.Spot, cp.Quote, decimal.NewFromInt(1337), decimal.Zero)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v'", err, expectedError)
+	}
+	spotPair, err := funding.CreatePair(spotBase, spotQuote)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v'", err, expectedError)
+	}
+	err = f.AddPair(spotPair)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v'", err, expectedError)
+	}
+
+	bt.Funding = f
+	err = pt.SetupCurrencySettingsMap(&exchange.Settings{
+		Exchange: exch,
+		Pair:     cp,
+		Asset:    a,
+	})
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v'", err, expectedError)
+	}
+
+	bt.Exchange.SetExchangeAssetCurrencySettings(a, cp, &exchange.Settings{
+		Exchange: exch,
+		Pair:     cp,
+		Asset:    a,
+	})
+	ev.Direction = gctorder.Short
+	err = bt.Statistic.SetEventForOffset(ev)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v'", err, expectedError)
+	}
+	tt := time.Now()
+	bt.Datas.Setup()
+	k := kline.DataFromKline{
+		Item: gctkline.Item{
+			Exchange: testExchange,
+			Pair:     cp,
+			Asset:    a,
+			Interval: gctkline.FifteenMin,
+			Candles: []gctkline.Candle{{
+				Time:   tt,
+				Open:   1337,
+				High:   1337,
+				Low:    1337,
+				Close:  1337,
+				Volume: 1337,
+			}},
+		},
+		Base: data.Base{},
+		RangeHolder: &gctkline.IntervalRangeHolder{
+			Start: gctkline.CreateIntervalTime(tt),
+			End:   gctkline.CreateIntervalTime(tt.Add(gctkline.FifteenMin.Duration())),
+			Ranges: []gctkline.IntervalRange{
+				{
+					Start: gctkline.CreateIntervalTime(tt),
+					End:   gctkline.CreateIntervalTime(tt.Add(gctkline.FifteenMin.Duration())),
+					Intervals: []gctkline.IntervalData{
+						{
+							Start:   gctkline.CreateIntervalTime(tt),
+							End:     gctkline.CreateIntervalTime(tt.Add(gctkline.FifteenMin.Duration())),
+							HasData: true,
+						},
+					},
+				},
+			},
+		},
+	}
+	err = k.Load()
+	if err != nil {
+		t.Error(err)
+	}
+
+	bt.Datas.SetDataForCurrency(testExchange, a, cp, &k)
+	err = bt.processFillEvent(ev, pair)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v'", err, expectedError)
+	}
+}
+
+func TestProcessFuturesFillEvent(t *testing.T) {
+	t.Parallel()
+	var expectedError error
+	pt, err := portfolio.Setup(&size.Size{}, &risk.Risk{}, decimal.Zero)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v'", err, expectedError)
+	}
+	bt := &BackTest{
+		Statistic:  &statistics.Statistic{},
+		Funding:    &funding.FundManager{},
+		Portfolio:  pt,
+		Exchange:   &exchange.Exchange{},
+		EventQueue: &eventholder.Holder{},
+		Datas:      &data.HandlerPerCurrency{},
+	}
+	cp := currency.NewPair(currency.BTC, currency.USD)
+	a := asset.Futures
+	de := &evkline.Kline{
+		Base: event.Base{Exchange: testExchange,
+			AssetType:    a,
+			CurrencyPair: cp},
+	}
+	err = bt.Statistic.SetupEventForTime(de)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v'", err, expectedError)
+	}
+	ev := &fill.Fill{
+		Base: de.Base,
+	}
+	em := engine.SetupExchangeManager()
+	exch, err := em.NewExchangeByName(testExchange)
+	if err != nil {
+		t.Fatal(err)
+	}
+	exch.SetDefaults()
+	cfg, err := exch.GetDefaultConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = exch.Setup(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	em.Add(exch)
+	f, err := funding.SetupFundingManager(em, false, true)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v'", err, expectedError)
+	}
+	b, err := funding.CreateItem(testExchange, a, cp.Base, decimal.Zero, decimal.Zero)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v'", err, expectedError)
+	}
+	quote, err := funding.CreateItem(testExchange, a, cp.Quote, decimal.NewFromInt(1337), decimal.Zero)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v'", err, expectedError)
+	}
+	pair, err := funding.CreateCollateral(b, quote)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v'", err, expectedError)
+	}
+
+	err = f.AddItem(b)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v'", err, expectedError)
+	}
+	err = f.AddItem(quote)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v'", err, expectedError)
+	}
+
+	spotBase, err := funding.CreateItem(testExchange, asset.Spot, cp.Base, decimal.Zero, decimal.Zero)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v'", err, expectedError)
+	}
+	spotQuote, err := funding.CreateItem(testExchange, asset.Spot, cp.Quote, decimal.NewFromInt(1337), decimal.Zero)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v'", err, expectedError)
+	}
+	spotPair, err := funding.CreatePair(spotBase, spotQuote)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v'", err, expectedError)
+	}
+	err = f.AddPair(spotPair)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v'", err, expectedError)
+	}
+	bt.exchangeManager = em
+	bt.Funding = f
+	err = pt.SetupCurrencySettingsMap(&exchange.Settings{
+		Exchange: exch,
+		Pair:     cp,
+		Asset:    a,
+	})
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v'", err, expectedError)
+	}
+
+	bt.Exchange.SetExchangeAssetCurrencySettings(a, cp, &exchange.Settings{
+		Exchange: exch,
+		Pair:     cp,
+		Asset:    a,
+	})
+	ev.Direction = gctorder.Short
+	err = bt.Statistic.SetEventForOffset(ev)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v'", err, expectedError)
+	}
+	tt := time.Now()
+	bt.Datas.Setup()
+	k := kline.DataFromKline{
+		Item: gctkline.Item{
+			Exchange: testExchange,
+			Pair:     cp,
+			Asset:    a,
+			Interval: gctkline.FifteenMin,
+			Candles: []gctkline.Candle{{
+				Time:   tt,
+				Open:   1337,
+				High:   1337,
+				Low:    1337,
+				Close:  1337,
+				Volume: 1337,
+			}},
+		},
+		Base: data.Base{},
+		RangeHolder: &gctkline.IntervalRangeHolder{
+			Start: gctkline.CreateIntervalTime(tt),
+			End:   gctkline.CreateIntervalTime(tt.Add(gctkline.FifteenMin.Duration())),
+			Ranges: []gctkline.IntervalRange{
+				{
+					Start: gctkline.CreateIntervalTime(tt),
+					End:   gctkline.CreateIntervalTime(tt.Add(gctkline.FifteenMin.Duration())),
+					Intervals: []gctkline.IntervalData{
+						{
+							Start:   gctkline.CreateIntervalTime(tt),
+							End:     gctkline.CreateIntervalTime(tt.Add(gctkline.FifteenMin.Duration())),
+							HasData: true,
+						},
+					},
+				},
+			},
+		},
+	}
+	err = k.Load()
+	if err != nil {
+		t.Error(err)
+	}
+	ev.Order = &gctorder.Detail{
+		Exchange:  testExchange,
+		AssetType: ev.AssetType,
+		Pair:      cp,
+		Amount:    1,
+		Price:     1,
+		Side:      gctorder.Short,
+		ID:        "1",
+		Date:      time.Now(),
+	}
+	bt.Datas.SetDataForCurrency(testExchange, a, cp, &k)
+	err = bt.processFuturesFillEvent(ev, pair)
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}

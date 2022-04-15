@@ -62,14 +62,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 	}
 	f.ExchangeFee = cs.ExchangeFee
 	f.Direction = o.GetDirection()
-	highStr := data.StreamHigh()
-	high := highStr[len(highStr)-1]
 
-	lowStr := data.StreamLow()
-	low := lowStr[len(lowStr)-1]
-
-	volStr := data.StreamVol()
-	volume := volStr[len(volStr)-1]
 	var adjustedPrice, amount decimal.Decimal
 
 	if cs.UseRealOrders {
@@ -108,6 +101,14 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 			f.VolumeAdjustedPrice = f.ClosePrice
 			amount = f.Amount
 		} else {
+			highStr := data.StreamHigh()
+			high := highStr[len(highStr)-1]
+
+			lowStr := data.StreamLow()
+			low := lowStr[len(lowStr)-1]
+
+			volStr := data.StreamVol()
+			volume := volStr[len(volStr)-1]
 			f.VolumeAdjustedPrice, amount = ensureOrderFitsWithinHLV(f.ClosePrice, f.Amount, high, low, volume)
 			if !amount.Equal(f.GetAmount()) {
 				f.AppendReasonf("Order size shrunk from %v to %v to fit candle", f.Amount, amount)
