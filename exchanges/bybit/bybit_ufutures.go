@@ -421,6 +421,7 @@ func (by *Bybit) ReplaceActiveUSDTFuturesOrders(ctx context.Context, symbol curr
 
 // GetActiveUSDTRealtimeOrders query real time order data
 func (by *Bybit) GetActiveUSDTRealtimeOrders(ctx context.Context, symbol currency.Pair, orderID, orderLinkID string) ([]FuturesActiveRealtimeOrder, error) {
+	var data []FuturesActiveRealtimeOrder
 	params := url.Values{}
 	symbolValue, err := by.FormatSymbol(symbol, asset.USDTMarginedFutures)
 	if err != nil {

@@ -640,6 +640,8 @@ func (by *Bybit) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a a
 
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (by *Bybit) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+	var resp []trade.Data
+
 	switch assetType {
 	case asset.Spot:
 		tradeData, err := by.GetTrades(ctx, "", 0)
@@ -647,7 +649,6 @@ func (by *Bybit) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 			return nil, err
 		}
 
-		resp := make([]trade.Data, len(tradeData))
 		for i := range tradeData {
 			resp = append(resp, trade.Data{
 				Exchange:     by.Name,
@@ -658,7 +659,6 @@ func (by *Bybit) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 				Timestamp:    tradeData[i].Time,
 			})
 		}
-		return resp, nil
 
 	case asset.CoinMarginedFutures, asset.Futures:
 		tradeData, err := by.GetPublicTrades(ctx, currency.Pair{}, 0)
@@ -666,7 +666,6 @@ func (by *Bybit) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 			return nil, err
 		}
 
-		resp := make([]trade.Data, len(tradeData))
 		for i := range tradeData {
 			resp = append(resp, trade.Data{
 				Exchange:     by.Name,
@@ -677,7 +676,6 @@ func (by *Bybit) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 				Timestamp:    tradeData[i].Time,
 			})
 		}
-		return resp, nil
 
 	case asset.USDTMarginedFutures:
 		tradeData, err := by.GetUSDTPublicTrades(ctx, currency.Pair{}, 0)
@@ -685,7 +683,6 @@ func (by *Bybit) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 			return nil, err
 		}
 
-		resp := make([]trade.Data, len(tradeData))
 		for i := range tradeData {
 			resp = append(resp, trade.Data{
 				Exchange:     by.Name,
@@ -696,7 +693,6 @@ func (by *Bybit) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 				Timestamp:    tradeData[i].Time,
 			})
 		}
-		return resp, nil
 
 	default:
 		return nil, fmt.Errorf("assetType not supported: %v", assetType)

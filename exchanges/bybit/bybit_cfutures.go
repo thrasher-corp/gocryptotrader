@@ -2,6 +2,7 @@ package bybit
 
 import (
 	"context"
+	"math"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -94,23 +95,16 @@ func (by *Bybit) GetFuturesOrderbook(ctx context.Context, symbol currency.Pair) 
 	}
 
 	for x := range data.Result {
-		var price, quantity float64
-		price, err = strconv.ParseFloat(data.Result[x].Price, 64)
-		if err != nil {
-			return resp, err
-		}
-
-		quantity = data.Result[x].Size
 		switch data.Result[x].Side {
 		case sideBuy:
 			resp.Bids = append(resp.Bids, orderbook.Item{
-				Price:  price,
-				Amount: quantity,
+				Price:  data.Result[x].Price,
+				Amount: data.Result[x].Size,
 			})
 		case sideSell:
 			resp.Asks = append(resp.Asks, orderbook.Item{
-				Price:  price,
-				Amount: quantity,
+				Price:  data.Result[x].Price,
+				Amount: data.Result[x].Size,
 			})
 		default:
 			return resp, errInvalidSide
@@ -400,7 +394,12 @@ func (by *Bybit) GetFuturesServerTime(ctx context.Context) (time.Time, error) {
 		Error
 	}{}
 
-	return time.Unix(0, int64(resp.TimeNow*1e9)), by.SendHTTPRequest(ctx, exchange.RestCoinMargined, bybitFuturesAPIVersion+cfuturesGetServerTime, publicFuturesRate, &resp)
+	err := by.SendHTTPRequest(ctx, exchange.RestCoinMargined, bybitFuturesAPIVersion+cfuturesGetServerTime, publicFuturesRate, &resp)
+	if err != nil {
+		return time.Time{}, err
+	}
+	sec, dec := math.Modf(resp.TimeNow)
+	return time.Unix(int64(sec), int64(dec*(1e9))), nil
 }
 
 // GetAnnouncement returns announcements in the last 30 days in reverse order
