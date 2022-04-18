@@ -97,7 +97,7 @@ func (c *CoinbasePro) GetOrderbook(ctx context.Context, symbol string, level int
 			}
 			amountConv, ok := orderbook.Asks[x][1].(string)
 			if !ok {
-				return nil, errors.New("unable to type assert price")
+				return nil, errors.New("unable to type assert amount")
 			}
 			amount, err := strconv.ParseFloat(amountConv, 64)
 			if err != nil {
@@ -120,7 +120,7 @@ func (c *CoinbasePro) GetOrderbook(ctx context.Context, symbol string, level int
 			}
 			amountConv, ok := orderbook.Bids[x][1].(string)
 			if !ok {
-				return nil, errors.New("unable to type assert price")
+				return nil, errors.New("unable to type assert amount")
 			}
 			amount, err := strconv.ParseFloat(amountConv, 64)
 			if err != nil {
