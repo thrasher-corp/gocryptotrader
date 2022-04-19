@@ -106,7 +106,7 @@ func (by *Bybit) GetUSDTPublicTrades(ctx context.Context, symbol currency.Pair, 
 	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestUSDTMargined, path, publicFuturesRate, &resp)
 }
 
-// GetMarkPriceKline gets mark price kline data for USDTMarginedFutures.
+// GetUSDTMarkPriceKline gets mark price kline data for USDTMarginedFutures.
 func (by *Bybit) GetUSDTMarkPriceKline(ctx context.Context, symbol currency.Pair, interval string, limit int64, startTime time.Time) ([]MarkPriceKlineData, error) {
 	resp := struct {
 		Data []MarkPriceKlineData `json:"result"`

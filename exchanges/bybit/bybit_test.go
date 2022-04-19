@@ -429,6 +429,33 @@ func TestWsTicker(t *testing.T) {
 	}
 }
 
+func TestWsKline(t *testing.T) {
+	t.Parallel()
+	pressXToJSON := []byte(`{
+		"topic": "kline",
+		"params": {
+		 	"symbol": "BTCUSDT",
+		  	"binary": "false",
+		  	"klineType": "1m",
+		  	"symbolName": "BTCUSDT"
+		},
+		"data": {
+		  	"t": 1582001880000,
+		  	"s": "BTCUSDT",
+		  	"sn": "BTCUSDT",
+		  	"c": "9799.4",
+		  	"h": "9801.4",
+		  	"l": "9798.91",
+		  	"o": "9799.4",
+		  	"v": "15.917433"
+		}
+	}`)
+	err := b.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 // test cases for CoinMarginedFutures
 
 func TestGetFuturesOrderbook(t *testing.T) {
@@ -1371,6 +1398,17 @@ func TestGetConditionalUSDTRealtimeOrders(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+
+	expectedErr := "Order not exists"
+	_, err = b.GetConditionalUSDTRealtimeOrders(context.Background(), pair, "1234", "")
+	if err != nil && err.Error() != expectedErr {
+		t.Error(err)
+	}
+
+	_, err = b.GetConditionalUSDTRealtimeOrders(context.Background(), pair, "", "1234")
+	if err != nil && err.Error() != expectedErr {
+		t.Error(err)
+	}
 }
 
 func TestGetUSDTPositions(t *testing.T) {
@@ -1384,6 +1422,11 @@ func TestGetUSDTPositions(t *testing.T) {
 	}
 
 	_, err = b.GetUSDTPositions(context.Background(), pair)
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = b.GetUSDTPositions(context.Background(), currency.EMPTYPAIR)
 	if err != nil {
 		t.Error(err)
 	}

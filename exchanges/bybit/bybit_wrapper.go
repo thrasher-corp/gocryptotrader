@@ -642,9 +642,14 @@ func (by *Bybit) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a a
 func (by *Bybit) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
 	var resp []trade.Data
 
+	formattedPair, err := by.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
+
 	switch assetType {
 	case asset.Spot:
-		tradeData, err := by.GetTrades(ctx, "", 0)
+		tradeData, err := by.GetTrades(ctx, formattedPair.String(), 0)
 		if err != nil {
 			return nil, err
 		}
@@ -661,7 +666,7 @@ func (by *Bybit) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 		}
 
 	case asset.CoinMarginedFutures, asset.Futures:
-		tradeData, err := by.GetPublicTrades(ctx, currency.Pair{}, 0)
+		tradeData, err := by.GetPublicTrades(ctx, formattedPair, 0)
 		if err != nil {
 			return nil, err
 		}
@@ -678,7 +683,7 @@ func (by *Bybit) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 		}
 
 	case asset.USDTMarginedFutures:
-		tradeData, err := by.GetUSDTPublicTrades(ctx, currency.Pair{}, 0)
+		tradeData, err := by.GetUSDTPublicTrades(ctx, formattedPair, 0)
 		if err != nil {
 			return nil, err
 		}

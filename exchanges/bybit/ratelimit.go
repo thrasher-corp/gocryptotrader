@@ -15,17 +15,17 @@ const (
 	futuresPublicInterval = time.Second
 	futuresRequestRate    = 50
 
-	spotPrivateRequestRate  = 20
-	futuresInterval         = time.Minute
-	futuresDefaultRate      = 100
-	futuresOrderRate        = 100
-	futuresOrderListRate    = 600
-	futuresExecutionRate    = 120
-	futuresPositionRate     = 75
-	futuresPositionListRate = 120
-	futuresFundingRate      = 120
-	futuresWalletRate       = 120
-	futuresAccountRate      = 600
+	spotPrivateRequestRate   = 20
+	futuresInterval          = time.Minute
+	futuresDefaultRateCount  = 100
+	futuresOrderRate         = 100
+	futuresOrderListRate     = 600
+	futuresExecutionRate     = 120
+	futuresPositionRateCount = 75
+	futuresPositionListRate  = 120
+	futuresFundingRate       = 120
+	futuresWalletRate        = 120
+	futuresAccountRate       = 600
 )
 
 const (
@@ -95,32 +95,32 @@ const (
 	uFuturesGetMyLastFundingFeeRate
 	uFuturesPredictFundingRate
 
-	FuturesDefaultRate
+	futuresDefaultRate
 
-	FuturesCancelOrderRate
-	FuturesCreateOrderRate
-	FuturesReplaceOrderRate
-	FuturesCancelAllOrderRate
-	FuturesCancelAllConditionalOrderRate
-	FuturesReplaceConditionalOrderRate
-	FuturesCancelConditionalOrderRate
-	FuturesCreateConditionalOrderRate
+	futuresCancelOrderRate
+	futuresCreateOrderRate
+	futuresReplaceOrderRate
+	futuresCancelAllOrderRate
+	futuresCancelAllConditionalOrderRate
+	futuresReplaceConditionalOrderRate
+	futuresCancelConditionalOrderRate
+	futuresCreateConditionalOrderRate
 
-	FuturesGetActiveOrderRate
-	FuturesGetConditionalOrderRate
-	FuturesGetActiveRealtimeOrderRate
-	FuturesGetConditionalRealtimeOrderRate
+	futuresGetActiveOrderRate
+	futuresGetConditionalOrderRate
+	futuresGetActiveRealtimeOrderRate
+	futuresGetConditionalRealtimeOrderRate
 
-	FuturesGetTradeRate
+	futuresGetTradeRate
 
-	FuturesSetLeverageRate
-	FuturesUpdateMarginRate
-	FuturesSetTradingStopRate
-	FuturesSwitchPositionModeRate
-	FuturesSwitchMarginRate
-	FuturesSwitchPositionRate
+	futuresSetLeverageRate
+	futuresUpdateMarginRate
+	futuresSetTradingStopRate
+	futuresSwitchPositionModeRate
+	futuresSwitchMarginRate
+	futuresSwitchPositionRate
 
-	FuturesPositionRate
+	futuresPositionRate
 )
 
 // RateLimit implements the request.Limiter interface
@@ -212,26 +212,26 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 	case uFuturesGetMyLastFundingFeeRate, uFuturesPredictFundingRate:
 		limiter, tokens = r.UFuturesFundingRate, 1
 
-	case FuturesDefaultRate:
+	case futuresDefaultRate:
 		limiter, tokens = r.FuturesDefaultRate, 1
 
-	case FuturesCancelOrderRate, FuturesCreateOrderRate, FuturesReplaceOrderRate, FuturesReplaceConditionalOrderRate, FuturesCancelConditionalOrderRate,
-		FuturesCreateConditionalOrderRate:
+	case futuresCancelOrderRate, futuresCreateOrderRate, futuresReplaceOrderRate, futuresReplaceConditionalOrderRate, futuresCancelConditionalOrderRate,
+		futuresCreateConditionalOrderRate:
 		limiter, tokens = r.FuturesOrderRate, 1
 
-	case FuturesCancelAllOrderRate, FuturesCancelAllConditionalOrderRate:
+	case futuresCancelAllOrderRate, futuresCancelAllConditionalOrderRate:
 		limiter, tokens = r.FuturesOrderRate, 10
 
-	case FuturesGetActiveOrderRate, FuturesGetConditionalOrderRate, FuturesGetActiveRealtimeOrderRate, FuturesGetConditionalRealtimeOrderRate:
+	case futuresGetActiveOrderRate, futuresGetConditionalOrderRate, futuresGetActiveRealtimeOrderRate, futuresGetConditionalRealtimeOrderRate:
 		limiter, tokens = r.FuturesOrderListRate, 1
 
-	case FuturesGetTradeRate:
+	case futuresGetTradeRate:
 		limiter, tokens = r.FuturesExecutionRate, 1
 
-	case FuturesSetLeverageRate, FuturesUpdateMarginRate, FuturesSetTradingStopRate, FuturesSwitchPositionModeRate, FuturesSwitchMarginRate, FuturesSwitchPositionRate:
+	case futuresSetLeverageRate, futuresUpdateMarginRate, futuresSetTradingStopRate, futuresSwitchPositionModeRate, futuresSwitchMarginRate, futuresSwitchPositionRate:
 		limiter, tokens = r.FuturesPositionRate, 1
 
-	case FuturesPositionRate:
+	case futuresPositionRate:
 		limiter, tokens = r.FuturesPositionListRate, 1
 
 	default:
@@ -268,26 +268,26 @@ func SetRateLimit() *RateLimit {
 		SpotRate:                  request.NewRateLimit(spotInterval, spotRequestRate),
 		FuturesRate:               request.NewRateLimit(futuresPublicInterval, futuresRequestRate),
 		PrivateSpotRate:           request.NewRateLimit(spotInterval, spotPrivateRequestRate),
-		CMFuturesDefaultRate:      request.NewRateLimit(futuresInterval, futuresDefaultRate),
+		CMFuturesDefaultRate:      request.NewRateLimit(futuresInterval, futuresDefaultRateCount),
 		CMFuturesOrderRate:        request.NewRateLimit(futuresInterval, futuresOrderRate),
 		CMFuturesOrderListRate:    request.NewRateLimit(futuresInterval, futuresOrderListRate),
 		CMFuturesExecutionRate:    request.NewRateLimit(futuresInterval, futuresExecutionRate),
-		CMFuturesPositionRate:     request.NewRateLimit(futuresInterval, futuresPositionRate),
+		CMFuturesPositionRate:     request.NewRateLimit(futuresInterval, futuresPositionRateCount),
 		CMFuturesPositionListRate: request.NewRateLimit(futuresInterval, futuresPositionListRate),
 		CMFuturesFundingRate:      request.NewRateLimit(futuresInterval, futuresFundingRate),
 		CMFuturesWalletRate:       request.NewRateLimit(futuresInterval, futuresWalletRate),
 		CMFuturesAccountRate:      request.NewRateLimit(futuresInterval, futuresAccountRate),
-		UFuturesDefaultRate:       request.NewRateLimit(futuresInterval, futuresDefaultRate),
+		UFuturesDefaultRate:       request.NewRateLimit(futuresInterval, futuresDefaultRateCount),
 		UFuturesOrderRate:         request.NewRateLimit(futuresInterval, futuresOrderRate),
-		UFuturesPositionRate:      request.NewRateLimit(futuresInterval, futuresPositionRate),
+		UFuturesPositionRate:      request.NewRateLimit(futuresInterval, futuresPositionRateCount),
 		UFuturesPositionListRate:  request.NewRateLimit(futuresInterval, futuresPositionListRate),
 		UFuturesOrderListRate:     request.NewRateLimit(futuresInterval, futuresOrderListRate),
 		UFuturesFundingRate:       request.NewRateLimit(futuresInterval, futuresFundingRate),
-		FuturesDefaultRate:        request.NewRateLimit(futuresInterval, futuresDefaultRate),
+		FuturesDefaultRate:        request.NewRateLimit(futuresInterval, futuresDefaultRateCount),
 		FuturesOrderRate:          request.NewRateLimit(futuresInterval, futuresOrderRate),
 		FuturesOrderListRate:      request.NewRateLimit(futuresInterval, futuresOrderListRate),
 		FuturesExecutionRate:      request.NewRateLimit(futuresInterval, futuresExecutionRate),
-		FuturesPositionRate:       request.NewRateLimit(futuresInterval, futuresPositionRate),
+		FuturesPositionRate:       request.NewRateLimit(futuresInterval, futuresPositionRateCount),
 		FuturesPositionListRate:   request.NewRateLimit(futuresInterval, futuresPositionListRate),
 	}
 }

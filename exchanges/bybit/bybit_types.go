@@ -374,7 +374,7 @@ type KlineStreamData struct {
 	HighPrice  float64           `json:"h,string"`
 	LowPrice   float64           `json:"l,string"`
 	OpenPrice  float64           `json:"o,string"`
-	Volume     float64           `json:"vs,string"`
+	Volume     float64           `json:"v,string"`
 }
 
 // KlineStream holds the kline stream data
