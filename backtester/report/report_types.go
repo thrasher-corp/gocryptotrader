@@ -105,6 +105,14 @@ type DetailedCandle struct {
 	PurchasePrice  float64
 }
 
+type linkCurrencyDiff struct {
+	FuturesPair   currency.Pair
+	SpotPair      currency.Pair
+	FuturesEvents []statistics.DataAtOffset
+	SpotEvents    []statistics.DataAtOffset
+	DiffPercent   []decimal.Decimal
+}
+
 // PrettyNumbers is used for report rendering
 // one cannot access packages when rendering data in a template
 // this struct exists purely to help make numbers look pretty

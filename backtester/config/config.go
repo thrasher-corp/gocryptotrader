@@ -269,8 +269,12 @@ func (c *Config) PrintSetting() {
 					c.CurrencySettings[i].Quote)
 			}
 		}
-		log.Infof(common.SubLoggers[common.Config], "Maker fee: %v", c.CurrencySettings[i].TakerFee.Round(8))
-		log.Infof(common.SubLoggers[common.Config], "Taker fee: %v", c.CurrencySettings[i].MakerFee.Round(8))
+		if c.CurrencySettings[i].TakerFee != nil {
+			log.Infof(common.SubLoggers[common.Config], "Maker fee: %v", c.CurrencySettings[i].TakerFee.Round(8))
+		}
+		if c.CurrencySettings[i].MakerFee != nil {
+			log.Infof(common.SubLoggers[common.Config], "Taker fee: %v", c.CurrencySettings[i].MakerFee.Round(8))
+		}
 		log.Infof(common.SubLoggers[common.Config], "Minimum slippage percent %v", c.CurrencySettings[i].MinimumSlippagePercent.Round(8))
 		log.Infof(common.SubLoggers[common.Config], "Maximum slippage percent: %v", c.CurrencySettings[i].MaximumSlippagePercent.Round(8))
 		log.Infof(common.SubLoggers[common.Config], "Buy rules: %+v", c.CurrencySettings[i].BuySide)

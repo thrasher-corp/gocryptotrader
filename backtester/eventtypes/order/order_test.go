@@ -5,6 +5,7 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
@@ -39,7 +40,7 @@ func TestSetAmount(t *testing.T) {
 	}
 }
 
-func TestPair(t *testing.T) {
+func TestIsEmpty(t *testing.T) {
 	t.Parallel()
 	o := Order{
 		Base: event.Base{
@@ -104,5 +105,73 @@ func TestIsLiquidating(t *testing.T) {
 	k.LiquidatingPosition = true
 	if !k.IsLiquidating() {
 		t.Error("expected true")
+	}
+}
+
+func TestGetBuyLimit(t *testing.T) {
+	t.Parallel()
+	k := Order{
+		BuyLimit: decimal.NewFromInt(1337),
+	}
+	bl := k.GetBuyLimit()
+	if !bl.Equal(decimal.NewFromInt(1337)) {
+		t.Errorf("received '%v' expected '%v'", bl, decimal.NewFromInt(1337))
+	}
+}
+
+func TestGetSellLimit(t *testing.T) {
+	t.Parallel()
+	k := Order{
+		SellLimit: decimal.NewFromInt(1337),
+	}
+	sl := k.GetSellLimit()
+	if !sl.Equal(decimal.NewFromInt(1337)) {
+		t.Errorf("received '%v' expected '%v'", sl, decimal.NewFromInt(1337))
+	}
+}
+
+func TestPair(t *testing.T) {
+	t.Parallel()
+	cp := currency.NewPair(currency.BTC, currency.USDT)
+	k := Order{
+		Base: event.Base{
+			CurrencyPair: cp,
+		},
+	}
+	p := k.Pair()
+	if !p.Equal(cp) {
+		t.Errorf("received '%v' expected '%v'", p, cp)
+	}
+}
+
+func TestGetStatus(t *testing.T) {
+	t.Parallel()
+	k := Order{
+		Status: gctorder.UnknownStatus,
+	}
+	s := k.GetStatus()
+	if s != gctorder.UnknownStatus {
+		t.Errorf("received '%v' expected '%v'", s, gctorder.UnknownStatus)
+	}
+}
+
+func TestGetFillDependentEvent(t *testing.T) {
+	t.Parallel()
+	k := Order{
+		FillDependentEvent: &signal.Signal{Amount: decimal.NewFromInt(1337)},
+	}
+	fde := k.GetFillDependentEvent()
+	if !fde.GetAmount().Equal(decimal.NewFromInt(1337)) {
+		t.Errorf("received '%v' expected '%v'", fde, decimal.NewFromInt(1337))
+	}
+}
+func TestIsClosingPosition(t *testing.T) {
+	t.Parallel()
+	k := Order{
+		ClosingPosition: true,
+	}
+	s := k.IsClosingPosition()
+	if !s {
+		t.Errorf("received '%v' expected '%v'", s, true)
 	}
 }

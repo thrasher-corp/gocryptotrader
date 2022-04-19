@@ -95,19 +95,19 @@ func (i *Item) BasicEqual(exch string, a asset.Item, currency, pairedCurrency cu
 	return i != nil &&
 		i.exchange == exch &&
 		i.asset == a &&
-		i.currency == currency &&
+		i.currency.Equal(currency) &&
 		(i.pairedWith == nil ||
 			(i.pairedWith != nil && i.pairedWith.currency.Equal(pairedCurrency)))
 }
 
 // MatchesCurrency checks that an item's currency is equal
 func (i *Item) MatchesCurrency(c currency.Code) bool {
-	return i != nil && i.currency == c
+	return i != nil && i.currency.Equal(c)
 }
 
 // MatchesItemCurrency checks that an item's currency is equal
 func (i *Item) MatchesItemCurrency(item *Item) bool {
-	return i != nil && item != nil && i.currency == item.currency
+	return i != nil && item != nil && i.currency.Equal(item.currency)
 }
 
 // MatchesExchange checks that an item's exchange is equal

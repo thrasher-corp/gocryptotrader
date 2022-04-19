@@ -328,7 +328,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 			if err != nil {
 				return nil, err
 			}
-			var pair *funding.Pair
+			var pair *funding.SpotPair
 			pair, err = funding.CreatePair(baseItem, quoteItem)
 			if err != nil {
 				return nil, err

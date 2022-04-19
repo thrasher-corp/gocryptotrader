@@ -90,6 +90,12 @@ func TestNewFromConfig(t *testing.T) {
 			Base:         "test",
 			Quote:        "test",
 		},
+		{
+			ExchangeName: testExchange,
+			Base:         "BTC",
+			Quote:        "0624",
+			Asset:        asset.Futures.String(),
+		},
 	}
 	_, err = NewFromConfig(cfg, "", "", false)
 	if !errors.Is(err, engine.ErrExchangeNotFound) {
@@ -139,6 +145,28 @@ func TestNewFromConfig(t *testing.T) {
 	cfg.DataSettings.APIData.StartDate = time.Now().Add(-time.Minute)
 	cfg.DataSettings.APIData.EndDate = time.Now()
 	cfg.DataSettings.APIData.InclusiveEndDate = true
+	_, err = NewFromConfig(cfg, "", "", false)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
+	}
+
+	cfg.FundingSettings.UseExchangeLevelFunding = true
+	cfg.FundingSettings.ExchangeLevelFunding = []config.ExchangeLevelFunding{
+		{
+			ExchangeName: testExchange,
+			Asset:        asset.Spot.String(),
+			Currency:     currency.BTC.String(),
+			InitialFunds: leet,
+			TransferFee:  leet,
+		},
+		{
+			ExchangeName: testExchange,
+			Asset:        asset.Futures.String(),
+			Currency:     currency.BTC.String(),
+			InitialFunds: leet,
+			TransferFee:  leet,
+		},
+	}
 	_, err = NewFromConfig(cfg, "", "", false)
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)

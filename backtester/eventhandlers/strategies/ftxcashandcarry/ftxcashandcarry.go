@@ -52,6 +52,15 @@ var errNotSetup = errors.New("sent incomplete signals")
 // OnSimultaneousSignals analyses multiple data points simultaneously, allowing flexibility
 // in allowing a strategy to only place an order for X currency if Y currency's price is Z
 func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundingTransferer, p portfolio.Handler) ([]signal.Event, error) {
+	if len(d) == 0 {
+		return nil, errNoSignals
+	}
+	if f == nil {
+		return nil, fmt.Errorf("%w missing funding transferer", common.ErrNilArguments)
+	}
+	if p == nil {
+		return nil, fmt.Errorf("%w missing portfolio handler", common.ErrNilArguments)
+	}
 	var response []signal.Event
 	sortedSignals, err := sortSignals(d)
 	if err != nil {
@@ -76,8 +85,7 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundingTra
 		futuresSignal.SetDirection(common.DoNothing)
 		fp := v.futureSignal.Latest().GetClosePrice()
 		sp := v.spotSignal.Latest().GetClosePrice()
-		hundred := decimal.NewFromInt(100)
-		diffBetweenFuturesSpot := fp.Sub(sp).Div(sp).Mul(hundred)
+		diffBetweenFuturesSpot := fp.Sub(sp).Div(sp).Mul(decimal.NewFromInt(100))
 		futuresSignal.AppendReasonf("Futures Spot Difference: %v%%", diffBetweenFuturesSpot)
 		if pos != nil && pos[len(pos)-1].Status == order.Open {
 			futuresSignal.AppendReasonf("Unrealised PNL: %v %v", pos[len(pos)-1].UnrealisedPNL, pos[len(pos)-1].Underlying)
@@ -88,60 +96,71 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundingTra
 			response = append(response, &spotSignal, &futuresSignal)
 			continue
 		}
-
-		switch {
-		case len(pos) == 0:
-			// check to see if order is appropriate to action
-			spotSignal.SetPrice(v.spotSignal.Latest().GetClosePrice())
-			spotSignal.AppendReasonf("Signalling purchase of %v", spotSignal.Pair())
-			// first the spot purchase
-			spotSignal.SetDirection(order.Buy)
-			// second the futures purchase, using the newly acquired asset
-			// as collateral to short
-			futuresSignal.SetDirection(order.Short)
-			futuresSignal.SetPrice(v.futureSignal.Latest().GetClosePrice())
-			futuresSignal.AppendReason("Shorting to perform cash and carry")
-			futuresSignal.CollateralCurrency = spotSignal.CurrencyPair.Base
-			spotSignal.AppendReasonf("Signalling shorting of %v", futuresSignal.Pair())
-			// set the FillDependentEvent to use the futures signal
-			// as the futures signal relies on a completed spot order purchase
-			// to use as collateral
-			spotSignal.FillDependentEvent = &futuresSignal
-			// only appending spotSignal as futuresSignal will be raised later
-			response = append(response, &spotSignal)
-		case len(pos) > 0 &&
-			pos[len(pos)-1].Status == order.Open &&
-			v.futureSignal.IsLastEvent():
-			futuresSignal.SetDirection(common.ClosePosition)
-			futuresSignal.AppendReason("Closing position on last event")
-			response = append(response, &spotSignal, &futuresSignal)
-		case len(pos) > 0 &&
-			pos[len(pos)-1].Status == order.Open &&
-			pos[len(pos)-1].OpeningPrice.GreaterThan(futuresSignal.ClosePrice) &&
-			s.alwaysCloseOnProfit:
-			futuresSignal.SetDirection(common.ClosePosition)
-			futuresSignal.AppendReasonf("Closing position. Always close on profit. UPNL %v", pos[len(pos)-1].UnrealisedPNL)
-			response = append(response, &spotSignal, &futuresSignal)
-		case len(pos) > 0 && pos[len(pos)-1].Status == order.Open &&
-			diffBetweenFuturesSpot.LessThanOrEqual(s.closeShortDistancePercentage):
-			futuresSignal.SetDirection(common.ClosePosition)
-			futuresSignal.AppendReasonf("Closing position. Threshold %v", s.closeShortDistancePercentage)
-			response = append(response, &spotSignal, &futuresSignal)
-		case len(pos) > 0 &&
-			pos[len(pos)-1].Status == order.Closed &&
-			diffBetweenFuturesSpot.GreaterThan(s.openShortDistancePercentage):
-			futuresSignal.SetDirection(order.Short)
-			futuresSignal.SetPrice(v.futureSignal.Latest().GetClosePrice())
-			futuresSignal.AppendReasonf("Opening position. Threshold %v", s.openShortDistancePercentage)
-			response = append(response, &spotSignal, &futuresSignal)
-		default:
-			response = append(response, &spotSignal, &futuresSignal)
+		signals, err := s.createSignals(pos, &spotSignal, &futuresSignal, diffBetweenFuturesSpot, v.futureSignal.IsLastEvent())
+		if err != nil {
+			return nil, err
 		}
+		response = append(response, signals...)
+	}
+	return response, nil
+}
+
+func (s *Strategy) createSignals(pos []order.PositionStats, spotSignal, futuresSignal *signal.Signal, diffBetweenFuturesSpot decimal.Decimal, isLastEvent bool) ([]signal.Event, error) {
+	if spotSignal == nil {
+		return nil, fmt.Errorf("%w missing spot signal", common.ErrNilArguments)
+	}
+	if futuresSignal == nil {
+		return nil, fmt.Errorf("%w missing futures signal", common.ErrNilArguments)
+	}
+	var response []signal.Event
+	switch {
+	case len(pos) == 0:
+		// check to see if order is appropriate to action
+		spotSignal.SetPrice(spotSignal.ClosePrice)
+		spotSignal.AppendReasonf("Signalling purchase of %v", spotSignal.Pair())
+		// first the spot purchase
+		spotSignal.SetDirection(order.Buy)
+		// second the futures purchase, using the newly acquired asset
+		// as collateral to short
+		futuresSignal.SetDirection(order.Short)
+		futuresSignal.SetPrice(futuresSignal.ClosePrice)
+		futuresSignal.AppendReason("Shorting to perform cash and carry")
+		futuresSignal.CollateralCurrency = spotSignal.CurrencyPair.Base
+		spotSignal.AppendReasonf("Signalling shorting of %v", futuresSignal.Pair())
+		// set the FillDependentEvent to use the futures signal
+		// as the futures signal relies on a completed spot order purchase
+		// to use as collateral
+		spotSignal.FillDependentEvent = futuresSignal
+		// only appending spotSignal as futuresSignal will be raised later
+		response = append(response, spotSignal)
+	case len(pos) > 0 &&
+		pos[len(pos)-1].Status == order.Open &&
+		isLastEvent:
+		futuresSignal.SetDirection(common.ClosePosition)
+		futuresSignal.AppendReason("Closing position on last event")
+		response = append(response, spotSignal, futuresSignal)
+	case len(pos) > 0 && pos[len(pos)-1].Status == order.Open &&
+		diffBetweenFuturesSpot.LessThanOrEqual(s.closeShortDistancePercentage):
+		futuresSignal.SetDirection(common.ClosePosition)
+		futuresSignal.AppendReasonf("Closing position. Threshold %v", s.closeShortDistancePercentage)
+		response = append(response, spotSignal, futuresSignal)
+	case len(pos) > 0 &&
+		pos[len(pos)-1].Status == order.Closed &&
+		diffBetweenFuturesSpot.GreaterThan(s.openShortDistancePercentage):
+		futuresSignal.SetDirection(order.Short)
+		futuresSignal.SetPrice(futuresSignal.ClosePrice)
+		futuresSignal.AppendReasonf("Opening position. Threshold %v", s.openShortDistancePercentage)
+		response = append(response, spotSignal, futuresSignal)
+	default:
+		response = append(response, spotSignal, futuresSignal)
 	}
 	return response, nil
 }
 
 func sortSignals(d []data.Handler) (map[currency.Pair]cashCarrySignals, error) {
+	if len(d) == 0 {
+		return nil, errNoSignals
+	}
 	var response = make(map[currency.Pair]cashCarrySignals)
 	for i := range d {
 		l := d[i].Latest()
@@ -167,7 +186,6 @@ func sortSignals(d []data.Handler) (map[currency.Pair]cashCarrySignals, error) {
 	for _, v := range response {
 		if v.futureSignal == nil {
 			return nil, errNotSetup
-
 		}
 		if v.spotSignal == nil {
 			return nil, errNotSetup
@@ -205,7 +223,4 @@ func (s *Strategy) SetCustomSettings(customSettings map[string]interface{}) erro
 func (s *Strategy) SetDefaults() {
 	s.openShortDistancePercentage = decimal.Zero
 	s.closeShortDistancePercentage = decimal.Zero
-	// TODO set false
-	s.onlyCloseOnProfit = false
-	s.alwaysCloseOnProfit = false
 }

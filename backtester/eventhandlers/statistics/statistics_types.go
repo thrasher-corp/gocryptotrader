@@ -234,7 +234,7 @@ type FundingItemStatistics struct {
 	TotalOrders              int64
 	MaxDrawdown              Swing
 	HighestCommittedFunds    ValueAtTime
-	// Collateral stats
+	// CollateralPair stats
 	IsCollateral      bool
 	InitialCollateral ValueAtTime
 	FinalCollateral   ValueAtTime

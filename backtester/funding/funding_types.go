@@ -138,15 +138,15 @@ type Item struct {
 	collateralCandles map[currency.Code]kline.DataFromKline
 }
 
-// Pair holds two currencies that are associated with each other
-type Pair struct {
+// SpotPair holds two currencies that are associated with each other
+type SpotPair struct {
 	base  *Item
 	quote *Item
 }
 
-// Collateral consists of a currency pair for a futures contract
+// CollateralPair consists of a currency pair for a futures contract
 // and associates it with an addition collateral pair to take funding from
-type Collateral struct {
+type CollateralPair struct {
 	currentDirection *order.Side
 	contract         *Item
 	collateral       *Item

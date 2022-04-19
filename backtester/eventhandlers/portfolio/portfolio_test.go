@@ -821,7 +821,7 @@ func TestTrackFuturesOrder(t *testing.T) {
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v", err, expectedError)
 	}
-	fundPair := &funding.Pair{}
+	fundPair := &funding.SpotPair{}
 	expectedError = gctorder.ErrSubmissionIsNil
 	_, err = p.TrackFuturesOrder(&fill.Fill{}, fundPair)
 	if !errors.Is(err, expectedError) {

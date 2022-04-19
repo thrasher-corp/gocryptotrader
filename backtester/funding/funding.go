@@ -253,7 +253,7 @@ func (f *FundManager) AddUSDTrackingData(k *kline.DataFromKline) error {
 // the association allows for the same currency to be used multiple times when
 // usingExchangeLevelFunding is false. eg BTC-USDT and LTC-USDT do not share the same
 // USDT level funding
-func CreatePair(base, quote *Item) (*Pair, error) {
+func CreatePair(base, quote *Item) (*SpotPair, error) {
 	if base == nil {
 		return nil, fmt.Errorf("base %w", common.ErrNilArguments)
 	}
@@ -266,14 +266,14 @@ func CreatePair(base, quote *Item) (*Pair, error) {
 	qCopy := *quote
 	bCopy.pairedWith = &qCopy
 	qCopy.pairedWith = &bCopy
-	return &Pair{base: &bCopy, quote: &qCopy}, nil
+	return &SpotPair{base: &bCopy, quote: &qCopy}, nil
 }
 
 // CreateCollateral adds two funding items and associates them with one another
 // the association allows for the same currency to be used multiple times when
 // usingExchangeLevelFunding is false. eg BTC-USDT and LTC-USDT do not share the same
 // USDT level funding
-func CreateCollateral(contract, collateral *Item) (*Collateral, error) {
+func CreateCollateral(contract, collateral *Item) (*CollateralPair, error) {
 	if contract == nil {
 		return nil, fmt.Errorf("base %w", common.ErrNilArguments)
 	}
@@ -286,7 +286,7 @@ func CreateCollateral(contract, collateral *Item) (*Collateral, error) {
 	qCopy := *collateral
 	bCopy.pairedWith = &qCopy
 	qCopy.pairedWith = &bCopy
-	return &Collateral{contract: &bCopy, collateral: &qCopy}, nil
+	return &CollateralPair{contract: &bCopy, collateral: &qCopy}, nil
 }
 
 // Reset clears all settings
@@ -445,7 +445,7 @@ func (f *FundManager) Exists(item *Item) bool {
 }
 
 // AddPair adds a pair to the fund manager if it does not exist
-func (f *FundManager) AddPair(p *Pair) error {
+func (f *FundManager) AddPair(p *SpotPair) error {
 	if f.Exists(p.base) {
 		return fmt.Errorf("%w %v", ErrAlreadyExists, p.base)
 	}
@@ -469,7 +469,7 @@ func (f *FundManager) GetFundingForEvent(ev common.EventHandler) (IFundingPair, 
 // GetFundingForEAP This will construct a funding based on the exchange, asset, currency pair
 func (f *FundManager) getFundingForEAP(exch string, a asset.Item, p currency.Pair) (IFundingPair, error) {
 	if a.IsFutures() {
-		var collat Collateral
+		var collat CollateralPair
 		for i := range f.items {
 			if f.items[i].MatchesCurrency(currency.NewCode(p.String())) {
 				collat.contract = f.items[i]
@@ -478,7 +478,7 @@ func (f *FundManager) getFundingForEAP(exch string, a asset.Item, p currency.Pai
 			}
 		}
 	} else {
-		var resp Pair
+		var resp SpotPair
 		for i := range f.items {
 			if f.items[i].BasicEqual(exch, a, p.Base, p.Quote) {
 				resp.base = f.items[i]
@@ -513,6 +513,9 @@ func (f *FundManager) getFundingForEAC(exch string, a asset.Item, c currency.Cod
 
 // Liquidate will remove all funding for all items belonging to an exchange
 func (f *FundManager) Liquidate(ev common.EventHandler) {
+	if ev == nil {
+		return
+	}
 	for i := range f.items {
 		if f.items[i].exchange == ev.GetExchange() {
 			f.items[i].reserved = decimal.Zero
@@ -548,6 +551,9 @@ func (f *FundManager) GetAllFunding() []BasicItem {
 }
 
 func (f *FundManager) UpdateCollateral(ev common.EventHandler) error {
+	if ev == nil {
+		return common.ErrNilEvent
+	}
 	exchMap := make(map[string]exchange.IBotExchange)
 	var collateralAmount decimal.Decimal
 	var err error
@@ -593,7 +599,11 @@ func (f *FundManager) UpdateCollateral(ev common.EventHandler) error {
 			USDPrice:           usd,
 		})
 	}
-	futureCurrency, futureAsset, err := exchMap[ev.GetExchange()].GetCollateralCurrencyForContract(ev.GetAssetType(), ev.Pair())
+	exch, ok := exchMap[ev.GetExchange()]
+	if !ok {
+		return fmt.Errorf("%v %w", ev.GetExchange(), engine.ErrExchangeNotFound)
+	}
+	futureCurrency, futureAsset, err := exch.GetCollateralCurrencyForContract(ev.GetAssetType(), ev.Pair())
 	if err != nil {
 		return err
 	}
@@ -629,9 +639,7 @@ func (f *FundManager) RealisePNL(receivingExchange string, receivingAsset asset.
 		if f.items[i].exchange == receivingExchange &&
 			f.items[i].asset == receivingAsset &&
 			f.items[i].currency.Equal(receivingCurrency) {
-			f.items[i].available = f.items[i].available.Add(realisedPNL)
-			return nil
-
+			return f.items[i].TakeProfit(realisedPNL)
 		}
 	}
 	return fmt.Errorf("%w to allocate %v to %v %v %v", ErrFundsNotFound, realisedPNL, receivingExchange, receivingAsset, receivingCurrency)

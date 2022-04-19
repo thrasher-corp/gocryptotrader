@@ -14,12 +14,12 @@ const (
 	exchangeName                       = "ftx"
 	openShortDistancePercentageString  = "openShortDistancePercentage"
 	closeShortDistancePercentageString = "closeShortDistancePercentage"
-	onlyCloseOnProfitString            = "onlyCloseOnProfit"
 )
 
 var (
 	errFuturesOnly      = errors.New("can only work with futures")
 	errOnlyFTXSupported = errors.New("only FTX supported for this strategy")
+	errNoSignals        = errors.New("no data signals to process")
 )
 
 // Strategy is an implementation of the Handler interface
@@ -27,6 +27,4 @@ type Strategy struct {
 	base.Strategy
 	openShortDistancePercentage  decimal.Decimal
 	closeShortDistancePercentage decimal.Decimal
-	onlyCloseOnProfit            bool
-	alwaysCloseOnProfit          bool
 }

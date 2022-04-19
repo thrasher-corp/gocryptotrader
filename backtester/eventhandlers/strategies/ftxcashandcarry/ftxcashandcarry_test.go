@@ -2,20 +2,24 @@ package ftxcashandcarry
 
 import (
 	"errors"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
-	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
+	datakline "github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	eventkline "github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
+
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
+	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 func TestName(t *testing.T) {
@@ -91,41 +95,6 @@ func TestOnSignal(t *testing.T) {
 	}
 }
 
-func TestOnSignals(t *testing.T) {
-	t.Parallel()
-	s := Strategy{}
-	dInsert := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
-	exch := "ftx"
-	a := asset.Spot
-	p := currency.NewPair(currency.BTC, currency.USDT)
-	d := data.Base{}
-	d.SetStream([]common.DataEventHandler{&eventkline.Kline{
-		Base: event.Base{
-			Exchange:     exch,
-			Time:         dInsert,
-			Interval:     gctkline.OneDay,
-			CurrencyPair: p,
-			AssetType:    a,
-		},
-		Open:   decimal.NewFromInt(1337),
-		Close:  decimal.NewFromInt(1337),
-		Low:    decimal.NewFromInt(1337),
-		High:   decimal.NewFromInt(1337),
-		Volume: decimal.NewFromInt(1337),
-	}})
-	d.Next()
-	da := &kline.DataFromKline{
-		Item:        gctkline.Item{},
-		Base:        d,
-		RangeHolder: &gctkline.IntervalRangeHolder{},
-	}
-	_, err := s.OnSimultaneousSignals([]data.Handler{da}, nil, nil)
-	if !strings.Contains(err.Error(), errNotSetup.Error()) {
-		// common.Errs type doesn't keep type
-		t.Errorf("received: %v, expected: %v", err, errNotSetup)
-	}
-}
-
 func TestSetDefaults(t *testing.T) {
 	t.Parallel()
 	s := Strategy{}
@@ -160,7 +129,7 @@ func TestSortSignals(t *testing.T) {
 		Volume: decimal.NewFromInt(1337),
 	}})
 	d.Next()
-	da := &kline.DataFromKline{
+	da := &datakline.DataFromKline{
 		Item:        gctkline.Item{},
 		Base:        d,
 		RangeHolder: &gctkline.IntervalRangeHolder{},
@@ -186,9 +155,265 @@ func TestSortSignals(t *testing.T) {
 		Volume: decimal.NewFromInt(1337),
 	}})
 	d.Next()
-	da = &kline.DataFromKline{
+	da = &datakline.DataFromKline{
 		Item:        gctkline.Item{},
 		Base:        d,
 		RangeHolder: &gctkline.IntervalRangeHolder{},
+	}
+}
+
+func TestCreateSignals(t *testing.T) {
+	t.Parallel()
+	s := Strategy{}
+	var expectedError = common.ErrNilArguments
+	_, err := s.createSignals(nil, nil, nil, decimal.Zero, false)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v", err, expectedError)
+	}
+
+	spotSignal := &signal.Signal{
+		Base: event.Base{AssetType: asset.Spot},
+	}
+	_, err = s.createSignals(nil, spotSignal, nil, decimal.Zero, false)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v", err, expectedError)
+	}
+
+	// case len(pos) == 0:
+	expectedError = nil
+	futuresSignal := &signal.Signal{
+		Base: event.Base{AssetType: asset.Futures},
+	}
+	resp, err := s.createSignals(nil, spotSignal, futuresSignal, decimal.Zero, false)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v", err, expectedError)
+	}
+	if len(resp) != 1 {
+		t.Errorf("received '%v' expected '%v", len(resp), 1)
+	}
+	if resp[0].GetAssetType() != asset.Spot {
+		t.Errorf("received '%v' expected '%v", resp[0].GetAssetType(), asset.Spot)
+	}
+
+	// case len(pos) > 0 && pos[len(pos)-1].Status == order.Open &&
+	// 		diffBetweenFuturesSpot.LessThanOrEqual(s.closeShortDistancePercentage):
+	pos := []gctorder.PositionStats{
+		{
+			Status: gctorder.Open,
+		},
+	}
+	resp, err = s.createSignals(pos, spotSignal, futuresSignal, decimal.Zero, false)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v", err, expectedError)
+	}
+	if len(resp) != 2 {
+		t.Errorf("received '%v' expected '%v", len(resp), 2)
+	}
+	caseTested := false
+	for i := range resp {
+		if resp[i].GetAssetType().IsFutures() {
+			if resp[i].GetDirection() != common.ClosePosition {
+				t.Errorf("received '%v' expected '%v", resp[i].GetDirection(), common.ClosePosition)
+			}
+			caseTested = true
+		} else {
+
+		}
+	}
+	if !caseTested {
+		t.Fatal("unhandled issue in test scenario")
+	}
+
+	// case len(pos) > 0 &&
+	//		pos[len(pos)-1].Status == order.Open &&
+	//		isLastEvent:
+	resp, err = s.createSignals(pos, spotSignal, futuresSignal, decimal.Zero, true)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v", err, expectedError)
+	}
+	if len(resp) != 2 {
+		t.Errorf("received '%v' expected '%v", len(resp), 2)
+	}
+	caseTested = false
+	for i := range resp {
+		if resp[i].GetAssetType().IsFutures() {
+			if resp[i].GetDirection() != common.ClosePosition {
+				t.Errorf("received '%v' expected '%v", resp[i].GetDirection(), common.ClosePosition)
+			}
+			caseTested = true
+		} else {
+
+		}
+	}
+	if !caseTested {
+		t.Fatal("unhandled issue in test scenario")
+	}
+	// case len(pos) > 0 &&
+	//		pos[len(pos)-1].Status == order.Closed &&
+	//		diffBetweenFuturesSpot.GreaterThan(s.openShortDistancePercentage):
+	pos[0].Status = gctorder.Closed
+	resp, err = s.createSignals(pos, spotSignal, futuresSignal, decimal.NewFromInt(1337), true)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v", err, expectedError)
+	}
+	if len(resp) != 2 {
+		t.Errorf("received '%v' expected '%v", len(resp), 2)
+	}
+	caseTested = false
+	for i := range resp {
+		if resp[i].GetAssetType().IsFutures() {
+			if resp[i].GetDirection() != gctorder.Short {
+				t.Errorf("received '%v' expected '%v", resp[i].GetDirection(), common.ClosePosition)
+			}
+			caseTested = true
+		} else {
+
+		}
+	}
+	if !caseTested {
+		t.Fatal("unhandled issue in test scenario")
+	}
+
+	// default:
+	pos[0].Status = gctorder.UnknownStatus
+	resp, err = s.createSignals(pos, spotSignal, futuresSignal, decimal.NewFromInt(1337), true)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v", err, expectedError)
+	}
+	if len(resp) != 2 {
+		t.Errorf("received '%v' expected '%v", len(resp), 2)
+	}
+}
+
+// funderino overrides default implementation
+type funderino struct {
+	funding.FundManager
+	hasBeenLiquidated bool
+}
+
+// HasExchangeBeenLiquidated overrides default implementation
+func (f funderino) HasExchangeBeenLiquidated(_ common.EventHandler) bool {
+	return f.hasBeenLiquidated
+}
+
+// portfolerino overrides default implementation
+type portfolerino struct {
+	portfolio.Portfolio
+}
+
+// GetPositions overrides default implementation
+func (p portfolerino) GetPositions(common.EventHandler) ([]gctorder.PositionStats, error) {
+	return []gctorder.PositionStats{
+		{
+			Exchange:           exchangeName,
+			Asset:              asset.Spot,
+			Pair:               currency.NewPair(currency.BTC, currency.USD),
+			Underlying:         currency.BTC,
+			CollateralCurrency: currency.USD,
+		},
+	}, nil
+}
+
+func TestOnSimultaneousSignals(t *testing.T) {
+	t.Parallel()
+	s := Strategy{}
+	var expectedError = errNoSignals
+	_, err := s.OnSimultaneousSignals(nil, nil, nil)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v", err, expectedError)
+	}
+
+	expectedError = common.ErrNilArguments
+	cp := currency.NewPair(currency.BTC, currency.USD)
+	d := &datakline.DataFromKline{
+		Base: data.Base{},
+		Item: gctkline.Item{
+			Exchange:       exchangeName,
+			Asset:          asset.Spot,
+			Pair:           cp,
+			UnderlyingPair: currency.NewPair(currency.BTC, currency.USD),
+		},
+	}
+	tt := time.Now()
+	d.SetStream([]common.DataEventHandler{&eventkline.Kline{
+		Base: event.Base{
+			Exchange:     exchangeName,
+			Time:         tt,
+			Interval:     gctkline.OneDay,
+			CurrencyPair: cp,
+			AssetType:    asset.Spot,
+		},
+		Open:   decimal.NewFromInt(1337),
+		Close:  decimal.NewFromInt(1337),
+		Low:    decimal.NewFromInt(1337),
+		High:   decimal.NewFromInt(1337),
+		Volume: decimal.NewFromInt(1337),
+	}})
+
+	d.Next()
+	signals := []data.Handler{
+		d,
+	}
+	f := &funderino{}
+	_, err = s.OnSimultaneousSignals(signals, f, nil)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v", err, expectedError)
+	}
+
+	p := &portfolerino{}
+	expectedError = errNotSetup
+	_, err = s.OnSimultaneousSignals(signals, f, p)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v", err, expectedError)
+	}
+
+	expectedError = nil
+	d2 := &datakline.DataFromKline{
+		Base: data.Base{},
+		Item: gctkline.Item{
+			Exchange:       exchangeName,
+			Asset:          asset.Futures,
+			Pair:           cp,
+			UnderlyingPair: cp,
+		},
+	}
+	d2.SetStream([]common.DataEventHandler{&eventkline.Kline{
+		Base: event.Base{
+			Exchange:       exchangeName,
+			Time:           tt,
+			Interval:       gctkline.OneDay,
+			CurrencyPair:   cp,
+			AssetType:      asset.Futures,
+			UnderlyingPair: cp,
+		},
+		Open:   decimal.NewFromInt(1337),
+		Close:  decimal.NewFromInt(1337),
+		Low:    decimal.NewFromInt(1337),
+		High:   decimal.NewFromInt(1337),
+		Volume: decimal.NewFromInt(1337),
+	}})
+	d2.Next()
+	signals = []data.Handler{
+		d,
+		d2,
+	}
+	resp, err := s.OnSimultaneousSignals(signals, f, p)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v", err, expectedError)
+	}
+	if len(resp) != 2 {
+		t.Errorf("received '%v' expected '%v", len(resp), 2)
+	}
+
+	f.hasBeenLiquidated = true
+	resp, err = s.OnSimultaneousSignals(signals, f, p)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("received '%v' expected '%v", err, expectedError)
+	}
+	if len(resp) != 2 {
+		t.Fatalf("received '%v' expected '%v", len(resp), 2)
+	}
+	if resp[0].GetDirection() != common.DoNothing {
+		t.Errorf("received '%v' expected '%v", resp[0].GetDirection(), common.DoNothing)
 	}
 }

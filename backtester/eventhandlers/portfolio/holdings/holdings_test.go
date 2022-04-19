@@ -21,7 +21,7 @@ const (
 	testExchange = "binance"
 )
 
-func pair(t *testing.T) *funding.Pair {
+func pair(t *testing.T) *funding.SpotPair {
 	t.Helper()
 	b, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.Zero, decimal.Zero)
 	if err != nil {
@@ -38,7 +38,7 @@ func pair(t *testing.T) *funding.Pair {
 	return p
 }
 
-func collateral(t *testing.T) *funding.Collateral {
+func collateral(t *testing.T) *funding.CollateralPair {
 	t.Helper()
 	b, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.Zero, decimal.Zero)
 	if err != nil {

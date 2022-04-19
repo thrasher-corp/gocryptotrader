@@ -42,10 +42,12 @@ func (d *Data) GenerateReport() error {
 			d.EnhancedCandles[i].Candles = d.EnhancedCandles[i].Candles[:maxChartLimit]
 		}
 	}
-	d.USDTotalsChart = d.createUSDTotalsChart()
-	d.HoldingsOverTimeChart = d.createHoldingsOverTimeChart()
-	d.PNLOverTimeChart = d.createPNLCharts()
-	d.FuturesSpotDiffChart = d.createFuturesSpotDiffChart()
+	if d.Statistics.FundingStatistics != nil && !d.Statistics.FundingStatistics.Report.DisableUSDTracking {
+		d.USDTotalsChart = createUSDTotalsChart(d.Statistics.FundingStatistics.TotalUSDStatistics.HoldingValues, d.Statistics.FundingStatistics.Items)
+		d.HoldingsOverTimeChart = createHoldingsOverTimeChart(d.Statistics.FundingStatistics.Items)
+	}
+	d.PNLOverTimeChart = createPNLCharts(d.Statistics.ExchangeAssetPairStatistics)
+	d.FuturesSpotDiffChart = createFuturesSpotDiffChart(d.Statistics.ExchangeAssetPairStatistics)
 
 	tmpl := template.Must(
 		template.ParseFiles(
