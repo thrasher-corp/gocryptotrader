@@ -692,32 +692,37 @@ func (s *RPCServer) GetAccountInfoStream(r *gctrpc.GetAccountInfoRequest, stream
 			return errDispatchSystem
 		}
 
-		acc, ok := data.(account.Holdings)
+		d, ok := data.(*interface{})
+		if !ok {
+			return errors.New("unable to type assert data")
+		}
+
+		dd := *d
+		acc, ok := dd.(account.Holdings)
 		if !ok {
 			return errors.New("unable to type assert account holdings data")
 		}
 
-		var accounts []*gctrpc.Account
+		accounts := make([]*gctrpc.Account, len(acc.Accounts))
 		for x := range acc.Accounts {
-			var subAccounts []*gctrpc.AccountCurrencyInfo
+			subAccounts := make([]*gctrpc.AccountCurrencyInfo, len(acc.Accounts[x].Currencies))
 			for y := range acc.Accounts[x].Currencies {
-				subAccounts = append(subAccounts, &gctrpc.AccountCurrencyInfo{
+				subAccounts[y] = &gctrpc.AccountCurrencyInfo{
 					Currency:   acc.Accounts[x].Currencies[y].CurrencyName.String(),
 					TotalValue: acc.Accounts[x].Currencies[y].Total,
 					Hold:       acc.Accounts[x].Currencies[y].Hold,
-				})
+				}
 			}
-			accounts = append(accounts, &gctrpc.Account{
+			accounts[x] = &gctrpc.Account{
 				Id:         acc.Accounts[x].ID,
 				Currencies: subAccounts,
-			})
+			}
 		}
 
-		err := stream.Send(&gctrpc.GetAccountInfoResponse{
+		if err := stream.Send(&gctrpc.GetAccountInfoResponse{
 			Exchange: acc.Exchange,
 			Accounts: accounts,
-		})
-		if err != nil {
+		}); err != nil {
 			return err
 		}
 	}
