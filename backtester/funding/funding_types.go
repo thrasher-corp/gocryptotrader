@@ -104,6 +104,7 @@ type IPairReleaser interface {
 	Liquidate()
 }
 
+// ICollateralReleaser limits funding usage for exchange event handling
 type ICollateralReleaser interface {
 	ICollateralReader
 	UpdateContracts(order.Side, decimal.Decimal) error
@@ -201,7 +202,8 @@ type ItemSnapshot struct {
 	Breakdown     []CurrencyContribution
 }
 
-// TODO look into this
+// CurrencyContribution helps breakdown how a USD value
+// determines its number
 type CurrencyContribution struct {
 	Currency currency.Code
 	USD      decimal.Decimal

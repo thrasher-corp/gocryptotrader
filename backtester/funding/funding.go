@@ -495,7 +495,6 @@ func (f *FundManager) getFundingForEAP(exch string, a asset.Item, p currency.Pai
 			return nil, fmt.Errorf("quote %v %w", p.Quote, ErrFundsNotFound)
 		}
 		return &resp, nil
-
 	}
 
 	return nil, fmt.Errorf("%v %v %v %w", exch, a, p, ErrFundsNotFound)
@@ -550,6 +549,8 @@ func (f *FundManager) GetAllFunding() []BasicItem {
 	return result
 }
 
+// UpdateCollateral will recalculate collateral for an exchange
+// based on the event passed in
 func (f *FundManager) UpdateCollateral(ev common.EventHandler) error {
 	if ev == nil {
 		return common.ErrNilEvent
@@ -624,6 +625,7 @@ func (f *FundManager) UpdateCollateral(ev common.EventHandler) error {
 	return fmt.Errorf("%w to allocate %v to %v %v %v", ErrFundsNotFound, collateralAmount, ev.GetExchange(), ev.GetAssetType(), futureCurrency)
 }
 
+// HasFutures returns whether the funding manager contains any futures assets
 func (f *FundManager) HasFutures() bool {
 	for i := range f.items {
 		if f.items[i].isCollateral || f.items[i].asset.IsFutures() {
@@ -651,9 +653,8 @@ func (f *FundManager) HasExchangeBeenLiquidated(ev common.EventHandler) bool {
 	for i := range f.items {
 		if ev.GetExchange() == f.items[i].exchange {
 			return f.items[i].isLiquidated
-		} else {
-			continue
 		}
+		continue
 	}
 	return false
 }

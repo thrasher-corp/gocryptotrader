@@ -136,7 +136,7 @@ func cannotPurchase(ev signal.Event, o *order.Order) (*order.Order, error) {
 		return nil, common.ErrNilEvent
 	}
 	if o == nil {
-		return nil, fmt.Errorf("%w recieved nil order for %v %v %v", common.ErrNilArguments, ev.GetExchange(), ev.GetAssetType(), ev.Pair())
+		return nil, fmt.Errorf("%w received nil order for %v %v %v", common.ErrNilArguments, ev.GetExchange(), ev.GetAssetType(), ev.Pair())
 	}
 	o.AppendReason(notEnoughFundsTo + " " + ev.GetDirection().Lower())
 	switch ev.GetDirection() {
@@ -638,6 +638,7 @@ func (p *Portfolio) CheckLiquidationStatus(ev common.DataEventHandler, collatera
 	return nil
 }
 
+// CreateLiquidationOrdersForExchange creates liquidation orders, for any that exist on the same exchange where a liquidation is occurring
 func (p *Portfolio) CreateLiquidationOrdersForExchange(ev common.DataEventHandler, funds funding.IFundingManager) ([]order.Event, error) {
 	if ev == nil {
 		return nil, common.ErrNilEvent

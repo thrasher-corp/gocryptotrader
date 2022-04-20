@@ -116,7 +116,6 @@ func createPNLCharts(items map[string]map[asset.Item]map[currency.Pair]*statisti
 				response.Data = append(response.Data, unrealisedPNL, realisedPNL)
 			}
 		}
-
 	}
 	return response, nil
 }

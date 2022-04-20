@@ -115,6 +115,7 @@ func (b *Base) List() []common.DataEventHandler {
 	return b.stream[b.offset:]
 }
 
+// IsLastEvent determines whether the latest event is the last event
 func (b *Base) IsLastEvent() bool {
 	return b.latest != nil && b.latest.GetOffset() == int64(len(b.stream))
 }

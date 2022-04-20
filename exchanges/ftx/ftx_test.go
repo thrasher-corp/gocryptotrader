@@ -1004,7 +1004,7 @@ func TestGetPublicOptionsTrades(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if len(result) != 5 {
+	if len(result) > 5 {
 		t.Error("limit of 5 should return 5 items")
 	}
 	_, err = f.GetPublicOptionsTrades(context.Background(),

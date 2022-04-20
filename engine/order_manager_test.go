@@ -1400,6 +1400,7 @@ func TestUpdateExisting(t *testing.T) {
 	if !errors.Is(err, ErrOrderNotFound) {
 		t.Errorf("received '%v', expected '%v'", err, ErrOrderNotFound)
 	}
+	od.Exchange = testExchange
 	od.AssetType = asset.Futures
 	od.ID = "123"
 	od.Pair = currency.NewPair(currency.BTC, currency.USDT)

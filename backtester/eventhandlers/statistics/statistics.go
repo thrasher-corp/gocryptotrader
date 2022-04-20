@@ -133,6 +133,7 @@ func (s *Statistic) AddHoldingsForTime(h *holdings.Holding) error {
 	return fmt.Errorf("%v %v %v %w %v", h.Exchange, h.Asset, h.Pair, errNoDataAtOffset, h.Offset)
 }
 
+// AddPNLForTime stores PNL data for tracking purposes
 func (s *Statistic) AddPNLForTime(pnl *portfolio.PNLSummary) error {
 	if pnl == nil {
 		return fmt.Errorf("%w requires PNL", common.ErrNilArguments)

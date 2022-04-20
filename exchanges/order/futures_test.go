@@ -39,7 +39,9 @@ func (f *FakePNL) GetCurrencyForRealisedPNL(realisedAsset asset.Item, realisedPa
 func TestUpsertPNLEntry(t *testing.T) {
 	t.Parallel()
 	var results []PNLResult
-	result := &PNLResult{}
+	result := &PNLResult{
+		IsOrder: true,
+	}
 	_, err := upsertPNLEntry(results, result)
 	if !errors.Is(err, errTimeUnset) {
 		t.Error(err)
@@ -176,7 +178,7 @@ func TestTrackNewOrder(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Error(err)
 	}
-	if f.currentDirection != UnknownSide {
+	if f.currentDirection != SideNA {
 		t.Errorf("expected recognition that its unknown, received '%v'", f.currentDirection)
 	}
 	if f.status != Closed {
@@ -187,7 +189,7 @@ func TestTrackNewOrder(t *testing.T) {
 	if !errors.Is(err, ErrPositionClosed) {
 		t.Error(err)
 	}
-	if f.currentDirection != UnknownSide {
+	if f.currentDirection != SideNA {
 		t.Errorf("expected recognition that its unknown, received '%v'", f.currentDirection)
 	}
 	if f.status != Closed {
@@ -607,29 +609,32 @@ func TestCalculateRealisedPNL(t *testing.T) {
 	t.Parallel()
 	result := calculateRealisedPNL(nil)
 	if !result.IsZero() {
-		t.Error("expected zero")
+		t.Errorf("received '%v' expected '0'", result)
 	}
 	result = calculateRealisedPNL([]PNLResult{
 		{
+			IsOrder:               true,
 			RealisedPNLBeforeFees: decimal.NewFromInt(1337),
 		},
 	})
 	if !result.Equal(decimal.NewFromInt(1337)) {
-		t.Error("expected 1337")
+		t.Errorf("received '%v' expected '1337'", result)
 	}
 
 	result = calculateRealisedPNL([]PNLResult{
 		{
+			IsOrder:               true,
 			RealisedPNLBeforeFees: decimal.NewFromInt(1339),
 			Fee:                   decimal.NewFromInt(2),
 		},
 		{
+			IsOrder:               true,
 			RealisedPNLBeforeFees: decimal.NewFromInt(2),
 			Fee:                   decimal.NewFromInt(2),
 		},
 	})
 	if !result.Equal(decimal.NewFromInt(1337)) {
-		t.Error("expected 1337")
+		t.Errorf("received '%v' expected '1337'", result)
 	}
 }
 

@@ -820,6 +820,7 @@ func upsertPNLEntry(pnlHistory []PNLResult, entry *PNLResult) ([]PNLResult, erro
 			pnlHistory[i].Direction = entry.Direction
 			pnlHistory[i].Price = entry.Price
 			pnlHistory[i].Status = entry.Status
+			pnlHistory[i].Fee = entry.Fee
 			if entry.IsOrder {
 				pnlHistory[i].IsOrder = true
 			}

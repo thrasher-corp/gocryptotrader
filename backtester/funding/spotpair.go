@@ -136,10 +136,12 @@ func (p *SpotPair) FundReader() IFundReader {
 	return p
 }
 
+// GetPairReader returns an interface of a SpotPair
 func (p *SpotPair) GetPairReader() (IPairReader, error) {
 	return p, nil
 }
 
+// GetCollateralReader returns an error because its not collateral
 func (p *SpotPair) GetCollateralReader() (ICollateralReader, error) {
 	return nil, ErrNotCollateral
 }

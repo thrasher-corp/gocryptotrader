@@ -50,6 +50,7 @@ type DataSettings struct {
 	CSVData      *CSVData      `json:"csv-data,omitempty"`
 }
 
+// FundingSettings contains funding details for individual currencies
 type FundingSettings struct {
 	UseExchangeLevelFunding bool                   `json:"use-exchange-level-funding"`
 	ExchangeLevelFunding    []ExchangeLevelFunding `json:"exchange-level-funding,omitempty"`

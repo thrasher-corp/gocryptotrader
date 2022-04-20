@@ -28,6 +28,7 @@ func (e *Exchange) Reset() {
 	*e = Exchange{}
 }
 
+// ErrDoNothing returns when its an issue to do nothing for an event
 var ErrDoNothing = errors.New("received Do Nothing direction")
 
 // ExecuteOrder assesses the portfolio manager's order event and if it passes validation
@@ -75,7 +76,6 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 				}
 				// update local records
 				cr.Liquidate()
-
 			} else {
 				pr, err := funds.PairReleaser()
 				if err != nil {

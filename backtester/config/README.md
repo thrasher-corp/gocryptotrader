@@ -47,7 +47,6 @@ See below for a set of tables and fields, expected values and what they can do
 | FundingSettings | Defines whether individual funding settings can be used. Defines the funding exchange, asset, currencies at an individual level |
 | PortfolioSettings | Contains a list of global rules for the portfolio manager. CurrencySettings contain their own rules on things like how big a position is allowable, the portfolio manager rules are the same, but override any individual currency's settings |
 | StatisticSettings | Contains settings that impact statistics calculation. Such as the risk-free rate for the sharpe ratio |
-| GoCryptoTraderConfigPath | The filepath for the location of GoCryptoTrader's config path. The Backtester utilises settings from GoCryptoTrader. If unset, will utilise the default filepath via `config.DefaultFilePath`, implemented [here](/config/config.go#L1460) |
 
 
 #### Strategy Settings
@@ -69,6 +68,7 @@ See below for a set of tables and fields, expected values and what they can do
 
 
 ##### Funding Item Config Settings
+
 | Key | Description | Example |
 | --- | ------- | ----- |
 | ExchangeName | The exchange to set funds. See [here](https://github.com/thrasher-corp/gocryptotrader/blob/master/README.md) for a list of supported exchanges | `Binance` |
