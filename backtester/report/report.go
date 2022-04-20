@@ -66,9 +66,7 @@ func (d *Data) GenerateReport() error {
 	}
 
 	tmpl := template.Must(
-		template.ParseFiles(
-			filepath.Join(d.TemplatePath),
-		),
+		template.ParseFiles(d.TemplatePath),
 	)
 	var nickName string
 	if d.Config.Nickname != "" {
@@ -137,7 +135,7 @@ func (d *Data) enhanceCandles() error {
 			Asset:     lookup.Asset,
 			Pair:      lookup.Pair,
 			Interval:  lookup.Interval,
-			Watermark: fmt.Sprintf("%v - %v - %v", strings.Title(lookup.Exchange), lookup.Asset.String(), strings.ToUpper(lookup.Pair.String())),
+			Watermark: fmt.Sprintf("%s - %s - %s", strings.Title(lookup.Exchange), lookup.Asset.String(), lookup.Pair.Upper()), // nolint // Title usage
 		}
 
 		statsForCandles :=

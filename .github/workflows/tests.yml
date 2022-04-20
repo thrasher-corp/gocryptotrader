@@ -1,7 +1,7 @@
 on: [push, pull_request]
 name: CI
 env:
-  GO_VERSION: 1.17.x
+  GO_VERSION: 1.18.x
 jobs:
   backend-psql:
     name: GoCryptoTrader back-end with PSQL
@@ -22,7 +22,7 @@ jobs:
 
     steps:
     - name: Cancel previous workflow runs
-      uses: styfle/cancel-workflow-action@0.9.0
+      uses: styfle/cancel-workflow-action@0.9.1
       with:
         access_token: ${{ github.token }}
 
@@ -35,7 +35,7 @@ jobs:
         go-version: ${{ env.GO_VERSION }}
 
     - name: Cache go modules  
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       with:
         path: |
           ~/go/pkg/mod
@@ -55,7 +55,7 @@ jobs:
         PSQL_SSLMODE: disable
 
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v1
+      uses: codecov/codecov-action@v3
 
   backend-32bit:
     name: GoCryptoTrader back-end 32-bit with PSQL
@@ -76,7 +76,7 @@ jobs:
 
     steps:
     - name: Cancel previous workflow runs
-      uses: styfle/cancel-workflow-action@0.9.0
+      uses: styfle/cancel-workflow-action@0.9.1
       with:
         access_token: ${{ github.token }}
 
@@ -89,7 +89,7 @@ jobs:
         go-version: ${{ env.GO_VERSION }}
 
     - name: Cache go modules  
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       with:
         path: |
           ~/go/pkg/mod
@@ -114,26 +114,26 @@ jobs:
         CGO_ENABLED: 1
 
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v1
+      uses: codecov/codecov-action@v3
 
   frontend:
     name: GoCryptoTrader front-end
     runs-on: ubuntu-latest
     steps:
     - name: Cancel previous workflow runs
-      uses: styfle/cancel-workflow-action@0.9.0
+      uses: styfle/cancel-workflow-action@0.9.1
       with:
         access_token: ${{ github.token }}
 
     - uses: actions/checkout@v2
 
     - name: Use Node.js
-      uses: actions/setup-node@v1
+      uses: actions/setup-node@v3
       with:
         node-version: '10.8.x'
 
     - name: Cache Node.js modules
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       with:
         path: ~/.npm
         key: ${{ runner.OS }}-node-${{ hashFiles('**/package-lock.json') }}

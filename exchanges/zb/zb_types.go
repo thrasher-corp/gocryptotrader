@@ -9,9 +9,9 @@ import (
 
 // OrderbookResponse holds the orderbook data for a symbol
 type OrderbookResponse struct {
-	Timestamp int64       `json:"timestamp"`
-	Asks      [][]float64 `json:"asks"`
-	Bids      [][]float64 `json:"bids"`
+	Timestamp int64        `json:"timestamp"`
+	Asks      [][2]float64 `json:"asks"`
+	Bids      [][2]float64 `json:"bids"`
 }
 
 // AccountsResponseCoin holds the accounts coin details

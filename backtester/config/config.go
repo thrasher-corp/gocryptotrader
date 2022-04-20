@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"strings"
 
 	"github.com/shopspring/decimal"
@@ -23,7 +23,7 @@ func ReadConfigFromFile(path string) (*Config, error) {
 		return nil, errors.New("file not found")
 	}
 
-	fileData, err := ioutil.ReadFile(path)
+	fileData, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}

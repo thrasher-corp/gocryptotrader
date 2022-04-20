@@ -288,16 +288,20 @@ func (b *Bitflyer) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 		return book, err
 	}
 
+	book.Asks = make(orderbook.Items, len(orderbookNew.Asks))
 	for x := range orderbookNew.Asks {
-		book.Asks = append(book.Asks, orderbook.Item{
+		book.Asks[x] = orderbook.Item{
 			Price:  orderbookNew.Asks[x].Price,
-			Amount: orderbookNew.Asks[x].Size})
+			Amount: orderbookNew.Asks[x].Size,
+		}
 	}
 
+	book.Bids = make(orderbook.Items, len(orderbookNew.Bids))
 	for x := range orderbookNew.Bids {
-		book.Bids = append(book.Bids, orderbook.Item{
+		book.Bids[x] = orderbook.Item{
 			Price:  orderbookNew.Bids[x].Price,
-			Amount: orderbookNew.Bids[x].Size})
+			Amount: orderbookNew.Bids[x].Size,
+		}
 	}
 
 	err = book.Process()
@@ -346,7 +350,7 @@ func (b *Bitflyer) GetRecentTrades(ctx context.Context, p currency.Pair, assetTy
 	if err != nil {
 		return nil, err
 	}
-	var resp []trade.Data
+	resp := make([]trade.Data, len(tradeData))
 	for i := range tradeData {
 		var timestamp time.Time
 		timestamp, err = time.Parse("2006-01-02T15:04:05.999999999", tradeData[i].ExecDate)
@@ -358,7 +362,7 @@ func (b *Bitflyer) GetRecentTrades(ctx context.Context, p currency.Pair, assetTy
 		if err != nil {
 			return nil, err
 		}
-		resp = append(resp, trade.Data{
+		resp[i] = trade.Data{
 			TID:          strconv.FormatInt(tradeData[i].ID, 10),
 			Exchange:     b.Name,
 			CurrencyPair: p,
@@ -367,7 +371,7 @@ func (b *Bitflyer) GetRecentTrades(ctx context.Context, p currency.Pair, assetTy
 			Price:        tradeData[i].Price,
 			Amount:       tradeData[i].Size,
 			Timestamp:    timestamp,
-		})
+		}
 	}
 
 	err = b.AddTradesToBuffer(resp...)

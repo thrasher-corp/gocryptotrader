@@ -39,7 +39,7 @@ func TestGenerateReport(t *testing.T) {
 	d := Data{
 		Config:       &config.Config{},
 		OutputPath:   filepath.Join("..", "results"),
-		TemplatePath: filepath.Join("tpl.gohtml"),
+		TemplatePath: "tpl.gohtml",
 		OriginalCandles: []*gctkline.Item{
 			{
 				Candles: []gctkline.Candle{

@@ -2,12 +2,12 @@ package main
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"os"
 	"reflect"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
+	gctfile "github.com/thrasher-corp/gocryptotrader/common/file"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -86,7 +86,7 @@ func removeTestFileVars() error {
 	if err != nil {
 		return err
 	}
-	return ioutil.WriteFile(testJSONFile, file, 0770)
+	return os.WriteFile(testJSONFile, file, gctfile.DefaultPermissionOctal)
 }
 
 func canTestTrello() bool {
@@ -439,8 +439,7 @@ func TestUpdate(t *testing.T) {
 
 func TestCheckMissingExchanges(t *testing.T) {
 	t.Parallel()
-	a := checkMissingExchanges()
-	if len(a) > len(exchange.Exchanges) {
+	if a := checkMissingExchanges(); len(a) > len(exchange.Exchanges) {
 		t.Fatal("invalid response")
 	}
 }

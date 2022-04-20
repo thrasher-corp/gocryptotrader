@@ -59,10 +59,10 @@ func (c *CurrencyPairStatistic) CalculateResults(riskFreeRate decimal.Decimal) e
 	returnsPerCandle := make([]decimal.Decimal, len(c.Events))
 	benchmarkRates := make([]decimal.Decimal, len(c.Events))
 
-	var allDataEvents []common.DataEventHandler
+	allDataEvents := make([]common.DataEventHandler, len(c.Events))
 	for i := range c.Events {
 		returnsPerCandle[i] = c.Events[i].Holdings.ChangeInTotalValuePercent
-		allDataEvents = append(allDataEvents, c.Events[i].DataEvent)
+		allDataEvents[i] = c.Events[i].DataEvent
 		if i == 0 {
 			continue
 		}

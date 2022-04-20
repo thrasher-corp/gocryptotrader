@@ -135,8 +135,7 @@ func TestStreamOpen(t *testing.T) {
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	d := DataFromKline{}
-	bad := d.StreamOpen()
-	if len(bad) > 0 {
+	if bad := d.StreamOpen(); len(bad) > 0 {
 		t.Error("expected no stream")
 	}
 	d.SetStream([]common.DataEventHandler{
@@ -156,8 +155,7 @@ func TestStreamOpen(t *testing.T) {
 		},
 	})
 	d.Next()
-	open := d.StreamOpen()
-	if len(open) == 0 {
+	if open := d.StreamOpen(); len(open) == 0 {
 		t.Error("expected open")
 	}
 }
@@ -168,8 +166,7 @@ func TestStreamVolume(t *testing.T) {
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	d := DataFromKline{}
-	bad := d.StreamVol()
-	if len(bad) > 0 {
+	if bad := d.StreamVol(); len(bad) > 0 {
 		t.Error("expected no stream")
 	}
 	d.SetStream([]common.DataEventHandler{
@@ -189,8 +186,7 @@ func TestStreamVolume(t *testing.T) {
 		},
 	})
 	d.Next()
-	open := d.StreamVol()
-	if len(open) == 0 {
+	if open := d.StreamVol(); len(open) == 0 {
 		t.Error("expected volume")
 	}
 }
@@ -201,8 +197,7 @@ func TestStreamClose(t *testing.T) {
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	d := DataFromKline{}
-	bad := d.StreamClose()
-	if len(bad) > 0 {
+	if bad := d.StreamClose(); len(bad) > 0 {
 		t.Error("expected no stream")
 	}
 	d.SetStream([]common.DataEventHandler{
@@ -222,8 +217,7 @@ func TestStreamClose(t *testing.T) {
 		},
 	})
 	d.Next()
-	open := d.StreamClose()
-	if len(open) == 0 {
+	if open := d.StreamClose(); len(open) == 0 {
 		t.Error("expected close")
 	}
 }
@@ -234,8 +228,7 @@ func TestStreamHigh(t *testing.T) {
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	d := DataFromKline{}
-	bad := d.StreamHigh()
-	if len(bad) > 0 {
+	if bad := d.StreamHigh(); len(bad) > 0 {
 		t.Error("expected no stream")
 	}
 	d.SetStream([]common.DataEventHandler{
@@ -255,8 +248,7 @@ func TestStreamHigh(t *testing.T) {
 		},
 	})
 	d.Next()
-	open := d.StreamHigh()
-	if len(open) == 0 {
+	if open := d.StreamHigh(); len(open) == 0 {
 		t.Error("expected high")
 	}
 }
@@ -269,8 +261,7 @@ func TestStreamLow(t *testing.T) {
 	d := DataFromKline{
 		RangeHolder: &gctkline.IntervalRangeHolder{},
 	}
-	bad := d.StreamLow()
-	if len(bad) > 0 {
+	if bad := d.StreamLow(); len(bad) > 0 {
 		t.Error("expected no stream")
 	}
 	d.SetStream([]common.DataEventHandler{
@@ -290,8 +281,7 @@ func TestStreamLow(t *testing.T) {
 		},
 	})
 	d.Next()
-	open := d.StreamLow()
-	if len(open) == 0 {
+	if open := d.StreamLow(); len(open) == 0 {
 		t.Error("expected low")
 	}
 }

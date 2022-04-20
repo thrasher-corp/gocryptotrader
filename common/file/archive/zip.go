@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -52,7 +53,7 @@ func UnZip(src, dest string) (fileList []string, err error) {
 			continue
 		}
 
-		err = os.MkdirAll(filepath.Dir(fPath), 0770)
+		err = os.MkdirAll(filepath.Dir(fPath), file.DefaultPermissionOctal)
 		if err != nil {
 			return
 		}

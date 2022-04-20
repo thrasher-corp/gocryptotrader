@@ -1106,8 +1106,8 @@ func (e *Endpoints) SetDefaultEndpoints(m map[URL]string) error {
 
 // SetRunning populates running URLs map
 func (e *Endpoints) SetRunning(key, val string) error {
-	e.Lock()
-	defer e.Unlock()
+	e.mu.Lock()
+	defer e.mu.Unlock()
 	err := validateKey(key)
 	if err != nil {
 		return err
@@ -1136,8 +1136,8 @@ func validateKey(keyVal string) error {
 
 // GetURL gets default url from URLs map
 func (e *Endpoints) GetURL(key URL) (string, error) {
-	e.RLock()
-	defer e.RUnlock()
+	e.mu.RLock()
+	defer e.mu.RUnlock()
 	val, ok := e.defaults[key.String()]
 	if !ok {
 		return "", fmt.Errorf("no endpoint path found for the given key: %v", key)
@@ -1147,12 +1147,12 @@ func (e *Endpoints) GetURL(key URL) (string, error) {
 
 // GetURLMap gets all urls for either running or default map based on the bool value supplied
 func (e *Endpoints) GetURLMap() map[string]string {
-	e.RLock()
+	e.mu.RLock()
 	var urlMap = make(map[string]string)
 	for k, v := range e.defaults {
 		urlMap[k] = v
 	}
-	e.RUnlock()
+	e.mu.RUnlock()
 	return urlMap
 }
 

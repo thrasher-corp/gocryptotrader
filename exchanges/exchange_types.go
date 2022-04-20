@@ -177,7 +177,7 @@ type FeaturesSupported struct {
 type Endpoints struct {
 	Exchange string
 	defaults map[string]string
-	sync.RWMutex
+	mu       sync.RWMutex
 }
 
 // API stores the exchange API settings

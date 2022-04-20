@@ -121,7 +121,7 @@ func (m *DataHistoryManager) retrieveJobs() ([]*DataHistoryJob, error) {
 		return nil, err
 	}
 
-	var response []*DataHistoryJob
+	response := make([]*DataHistoryJob, 0, len(dbJobs))
 	for i := range dbJobs {
 		dbJob, err := m.convertDBModelToJob(&dbJobs[i])
 		if err != nil {
@@ -1333,13 +1333,13 @@ func (m *DataHistoryManager) GetAllJobStatusBetween(start, end time.Time) ([]*Da
 	if err != nil {
 		return nil, err
 	}
-	var results []*DataHistoryJob
+	results := make([]*DataHistoryJob, len(dbJobs))
 	for i := range dbJobs {
 		dbJob, err := m.convertDBModelToJob(&dbJobs[i])
 		if err != nil {
 			return nil, err
 		}
-		results = append(results, dbJob)
+		results[i] = dbJob
 	}
 	return results, nil
 }

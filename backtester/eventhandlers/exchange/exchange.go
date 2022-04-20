@@ -339,12 +339,11 @@ func (e *Exchange) placeOrder(ctx context.Context, price, amount decimal.Decimal
 		return "", err
 	}
 	var orderID string
-	p, _ := price.Float64()
-	a, _ := amount.Float64()
-	fee, _ := f.GetExchangeFee().Float64()
+	p := price.InexactFloat64()
+	fee := f.ExchangeFee.InexactFloat64()
 	o := &gctorder.Submit{
 		Price:       p,
-		Amount:      a,
+		Amount:      amount.InexactFloat64(),
 		Fee:         fee,
 		Exchange:    f.GetExchange(),
 		ID:          u.String(),
@@ -365,11 +364,10 @@ func (e *Exchange) placeOrder(ctx context.Context, price, amount decimal.Decimal
 			return orderID, err
 		}
 	} else {
-		rate, _ := f.GetAmount().Float64()
 		submitResponse := gctorder.SubmitResponse{
 			IsOrderPlaced: true,
 			OrderID:       u.String(),
-			Rate:          rate,
+			Rate:          f.Amount.InexactFloat64(),
 			Fee:           fee,
 			Cost:          p,
 			FullyMatched:  true,

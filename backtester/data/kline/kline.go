@@ -60,7 +60,7 @@ func (d *DataFromKline) AppendResults(ki *gctkline.Item) {
 	if d.addedTimes == nil {
 		d.addedTimes = make(map[int64]bool)
 	}
-	var klineData []common.DataEventHandler
+
 	var gctCandles []gctkline.Candle
 	for i := range ki.Candles {
 		if _, ok := d.addedTimes[ki.Candles[i].Time.Unix()]; !ok {
@@ -68,10 +68,11 @@ func (d *DataFromKline) AppendResults(ki *gctkline.Item) {
 			d.addedTimes[ki.Candles[i].Time.Unix()] = true
 		}
 	}
-	var candleTimes []time.Time
 
+	klineData := make([]common.DataEventHandler, len(gctCandles))
+	candleTimes := make([]time.Time, len(gctCandles))
 	for i := range gctCandles {
-		klineData = append(klineData, &kline.Kline{
+		klineData[i] = &kline.Kline{
 			Base: event.Base{
 				Offset:       int64(i + 1),
 				Exchange:     ki.Exchange,
@@ -86,8 +87,8 @@ func (d *DataFromKline) AppendResults(ki *gctkline.Item) {
 			Close:            decimal.NewFromFloat(gctCandles[i].Close),
 			Volume:           decimal.NewFromFloat(gctCandles[i].Volume),
 			ValidationIssues: gctCandles[i].ValidationIssues,
-		})
-		candleTimes = append(candleTimes, gctCandles[i].Time)
+		}
+		candleTimes[i] = gctCandles[i].Time
 	}
 	for i := range d.RangeHolder.Ranges {
 		for j := range d.RangeHolder.Ranges[i].Intervals {

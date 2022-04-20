@@ -84,6 +84,17 @@ func TestGetProducts(t *testing.T) {
 	}
 }
 
+func TestGetOrderbook(t *testing.T) {
+	_, err := c.GetOrderbook(context.Background(), testPair.String(), 2)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = c.GetOrderbook(context.Background(), testPair.String(), 3)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestGetTicker(t *testing.T) {
 	_, err := c.GetTicker(context.Background(), testPair.String())
 	if err != nil {

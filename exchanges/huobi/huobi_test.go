@@ -20,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -55,6 +56,7 @@ func TestMain(m *testing.M) {
 	hConfig.API.Credentials.Key = apiKey
 	hConfig.API.Credentials.Secret = apiSecret
 	h.Websocket = sharedtestvalues.NewTestWebsocket()
+	request.MaxRequestJobs = 100
 	err = h.Setup(hConfig)
 	if err != nil {
 		log.Fatal("Huobi setup error", err)
@@ -1657,7 +1659,7 @@ func TestGetDepth(t *testing.T) {
 		t.Error(err)
 	}
 	_, err = h.GetDepth(context.Background(),
-		OrderBookDataRequestParams{
+		&OrderBookDataRequestParams{
 			Symbol: cp,
 			Type:   OrderBookDataRequestParamsTypeStep1,
 		})

@@ -71,8 +71,7 @@ func TestEvent_GetTime(t *testing.T) {
 func TestEvent_IsEvent(t *testing.T) {
 	t.Parallel()
 	e := &Base{}
-	y := e.IsEvent()
-	if !y {
+	if y := e.IsEvent(); !y {
 		t.Error("it is an event")
 	}
 }

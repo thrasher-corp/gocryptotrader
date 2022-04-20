@@ -39,12 +39,12 @@ type Trade struct {
 
 // History holds historic rate information
 type History struct {
-	Time   int64   `json:"time"`
-	Low    float64 `json:"low"`
-	High   float64 `json:"high"`
-	Open   float64 `json:"open"`
-	Close  float64 `json:"close"`
-	Volume float64 `json:"volume"`
+	Time   time.Time
+	Low    float64
+	High   float64
+	Open   float64
+	Close  float64
+	Volume float64
 }
 
 // Stats holds last 24 hr data for coinbasepro
@@ -331,9 +331,9 @@ type OrderbookL3 struct {
 
 // OrderbookResponse is a generalized response for order books
 type OrderbookResponse struct {
-	Sequence int64           `json:"sequence"`
-	Bids     [][]interface{} `json:"bids"`
-	Asks     [][]interface{} `json:"asks"`
+	Sequence int64            `json:"sequence"`
+	Bids     [][3]interface{} `json:"bids"`
+	Asks     [][3]interface{} `json:"asks"`
 }
 
 // FillResponse contains fill information from the exchange
@@ -427,18 +427,18 @@ type WebsocketTicker struct {
 
 // WebsocketOrderbookSnapshot defines a snapshot response
 type WebsocketOrderbookSnapshot struct {
-	ProductID string          `json:"product_id"`
-	Type      string          `json:"type"`
-	Bids      [][]interface{} `json:"bids"`
-	Asks      [][]interface{} `json:"asks"`
+	ProductID string      `json:"product_id"`
+	Type      string      `json:"type"`
+	Bids      [][2]string `json:"bids"`
+	Asks      [][2]string `json:"asks"`
 }
 
 // WebsocketL2Update defines an update on the L2 orderbooks
 type WebsocketL2Update struct {
-	Type      string          `json:"type"`
-	ProductID string          `json:"product_id"`
-	Time      string          `json:"time"`
-	Changes   [][]interface{} `json:"changes"`
+	Type      string      `json:"type"`
+	ProductID string      `json:"product_id"`
+	Time      string      `json:"time"`
+	Changes   [][3]string `json:"changes"`
 }
 
 type wsMsgType struct {

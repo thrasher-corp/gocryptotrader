@@ -84,8 +84,7 @@ func TestGetSupportedSymbols(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, ok := r.Symbols["AUD"]
-	if !ok {
+	if _, ok := r.Symbols["AUD"]; !ok {
 		t.Error("should contain AUD")
 	}
 }

@@ -1311,6 +1311,7 @@ func TestWsOrderSnapshot(t *testing.T) {
 }
 
 func TestWsNotifications(t *testing.T) {
+	b.WsAddSubscriptionChannel(0, "account", "N/A")
 	pressXToJSON := `[0,"n",[1575282446099,"fon-req",null,null,[41238905,null,null,null,-1000,null,null,null,null,null,null,null,null,null,0.002,2,null,null,null,null,null],null,"SUCCESS","Submitting funding bid of 1000.0 USD at 0.2000 for 2 days."]]`
 	err := b.wsHandleData([]byte(pressXToJSON))
 	if err != nil {
@@ -1320,6 +1321,90 @@ func TestWsNotifications(t *testing.T) {
 	pressXToJSON = `[0,"n",[1575287438.515,"on-req",null,null,[1185815098,null,1575287436979,"tETHUSD",1575287438515,1575287438515,-2.5,-2.5,"LIMIT",null,null,null,0,"ACTIVE",null,null,230,0,0,0,null,null,null,0,null,null,null,null,"API>BFX",null,null,null],null,"SUCCESS","Submitting limit sell order for -2.5 ETH."]]`
 	err = b.wsHandleData([]byte(pressXToJSON))
 	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSFundingOfferSnapshotAndUpdate(t *testing.T) {
+	b.WsAddSubscriptionChannel(0, "account", "N/A")
+	pressXToJSON := `[0,"fos",[[41237920,"fETH",1573912039000,1573912039000,0.5,0.5,"LIMIT",null,null,0,"ACTIVE",null,null,null,0.0024,2,0,0,null,0,null]]]`
+	if err := b.wsHandleData([]byte(pressXToJSON)); err != nil {
+		t.Error(err)
+	}
+
+	pressXToJSON = `[0,"fon",[41238747,"fUST",1575026670000,1575026670000,5000,5000,"LIMIT",null,null,0,"ACTIVE",null,null,null,0.006000000000000001,30,0,0,null,0,null]]`
+	if err := b.wsHandleData([]byte(pressXToJSON)); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSFundingCreditSnapshotAndUpdate(t *testing.T) {
+	b.WsAddSubscriptionChannel(0, "account", "N/A")
+	pressXToJSON := `[0,"fcs",[[26223578,"fUST",1,1575052261000,1575296187000,350,0,"ACTIVE",null,null,null,0,30,1575052261000,1575293487000,0,0,null,0,null,0,"tBTCUST"],[26223711,"fUSD",-1,1575291961000,1575296187000,180,0,"ACTIVE",null,null,null,0.002,7,1575282446000,1575295587000,0,0,null,0,null,0,"tETHUSD"]]]`
+	if err := b.wsHandleData([]byte(pressXToJSON)); err != nil {
+		t.Error(err)
+	}
+
+	pressXToJSON = `[0,"fcu",[26223578,"fUST",1,1575052261000,1575296787000,350,0,"ACTIVE",null,null,null,0,30,1575052261000,1575293487000,0,0,null,0,null,0,"tBTCUST"]]`
+	if err := b.wsHandleData([]byte(pressXToJSON)); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSFundingLoanSnapshotAndUpdate(t *testing.T) {
+	b.WsAddSubscriptionChannel(0, "account", "N/A")
+	pressXToJSON := `[0,"fls",[[2995442,"fUSD",-1,1575291961000,1575295850000,820,0,"ACTIVE",null,null,null,0.002,7,1575282446000,1575295850000,0,0,null,0,null,0]]]`
+	if err := b.wsHandleData([]byte(pressXToJSON)); err != nil {
+		t.Error(err)
+	}
+
+	pressXToJSON = `[0,"fln",[2995444,"fUSD",-1,1575298742000,1575298742000,1000,0,"ACTIVE",null,null,null,0.002,7,1575298742000,1575298742000,0,0,null,0,null,0]]`
+	if err := b.wsHandleData([]byte(pressXToJSON)); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSWalletSnapshot(t *testing.T) {
+	b.WsAddSubscriptionChannel(0, "account", "N/A")
+	pressXToJSON := `[0,"ws",[["exchange","SAN",19.76,0,null,null,null]]]`
+	if err := b.wsHandleData([]byte(pressXToJSON)); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSBalanceUpdate(t *testing.T) {
+	b.WsAddSubscriptionChannel(0, "account", "N/A")
+	const pressXToJSON = `[0,"bu",[4131.85,4131.85]]`
+	if err := b.wsHandleData([]byte(pressXToJSON)); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSMarginInfoUpdate(t *testing.T) {
+	b.WsAddSubscriptionChannel(0, "account", "N/A")
+	const pressXToJSON = `[0,"miu",["base",[-13.014640000000007,0,49331.70267297,49318.68803297,27]]]`
+	if err := b.wsHandleData([]byte(pressXToJSON)); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSFundingInfoUpdate(t *testing.T) {
+	b.WsAddSubscriptionChannel(0, "account", "N/A")
+	const pressXToJSON = `[0,"fiu",["sym","tETHUSD",[149361.09689202666,149639.26293509,830.0182168075556,895.0658432466332]]]`
+	if err := b.wsHandleData([]byte(pressXToJSON)); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSFundingTrade(t *testing.T) {
+	b.WsAddSubscriptionChannel(0, "account", "N/A")
+	pressXToJSON := `[0,"fte",[636854,"fUSD",1575282446000,41238905,-1000,0.002,7,null]]`
+	if err := b.wsHandleData([]byte(pressXToJSON)); err != nil {
+		t.Error(err)
+	}
+
+	pressXToJSON = `[0,"ftu",[636854,"fUSD",1575282446000,41238905,-1000,0.002,7,null]]`
+	if err := b.wsHandleData([]byte(pressXToJSON)); err != nil {
 		t.Error(err)
 	}
 }

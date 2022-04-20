@@ -1,10 +1,13 @@
 version: 2
 updates:
+- package-ecosystem: "github-actions"
+  directory: "/"
+  schedule:
+    interval: "weekly"
 - package-ecosystem: gomod
   directory: "/"
   schedule:
-    interval: daily
-    time: "19:30"
+    interval: "weekly"
   open-pull-requests-limit: 10
 - package-ecosystem: npm
   directory: "/web"
@@ -12,4 +15,3 @@ updates:
     interval: "weekly"
   # deprecated for now as it requires a more in-depth overhaul
   open-pull-requests-limit: 0
-
