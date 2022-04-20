@@ -1067,8 +1067,7 @@ func TestProcessOrderEvent(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
 	ev2 := bt.EventQueue.NextEvent()
-	_, ok := ev2.(fill.Event)
-	if !ok {
+	if _, ok := ev2.(fill.Event); !ok {
 		t.Fatal("expected fill event")
 	}
 }

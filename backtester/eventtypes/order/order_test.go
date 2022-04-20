@@ -113,9 +113,8 @@ func TestGetBuyLimit(t *testing.T) {
 	k := Order{
 		BuyLimit: decimal.NewFromInt(1337),
 	}
-	bl := k.GetBuyLimit()
-	if !bl.Equal(decimal.NewFromInt(1337)) {
-		t.Errorf("received '%v' expected '%v'", bl, decimal.NewFromInt(1337))
+	if !k.GetBuyLimit().Equal(decimal.NewFromInt(1337)) {
+		t.Errorf("received '%v' expected '%v'", k.GetBuyLimit(), decimal.NewFromInt(1337))
 	}
 }
 
@@ -124,9 +123,8 @@ func TestGetSellLimit(t *testing.T) {
 	k := Order{
 		SellLimit: decimal.NewFromInt(1337),
 	}
-	sl := k.GetSellLimit()
-	if !sl.Equal(decimal.NewFromInt(1337)) {
-		t.Errorf("received '%v' expected '%v'", sl, decimal.NewFromInt(1337))
+	if !k.GetSellLimit().Equal(decimal.NewFromInt(1337)) {
+		t.Errorf("received '%v' expected '%v'", k.GetSellLimit(), decimal.NewFromInt(1337))
 	}
 }
 
@@ -138,9 +136,8 @@ func TestPair(t *testing.T) {
 			CurrencyPair: cp,
 		},
 	}
-	p := k.Pair()
-	if !p.Equal(cp) {
-		t.Errorf("received '%v' expected '%v'", p, cp)
+	if !k.Pair().Equal(cp) {
+		t.Errorf("received '%v' expected '%v'", k.Pair(), cp)
 	}
 }
 
@@ -149,9 +146,8 @@ func TestGetStatus(t *testing.T) {
 	k := Order{
 		Status: gctorder.UnknownStatus,
 	}
-	s := k.GetStatus()
-	if s != gctorder.UnknownStatus {
-		t.Errorf("received '%v' expected '%v'", s, gctorder.UnknownStatus)
+	if k.GetStatus() != gctorder.UnknownStatus {
+		t.Errorf("received '%v' expected '%v'", k.GetStatus(), gctorder.UnknownStatus)
 	}
 }
 
@@ -160,9 +156,8 @@ func TestGetFillDependentEvent(t *testing.T) {
 	k := Order{
 		FillDependentEvent: &signal.Signal{Amount: decimal.NewFromInt(1337)},
 	}
-	fde := k.GetFillDependentEvent()
-	if !fde.GetAmount().Equal(decimal.NewFromInt(1337)) {
-		t.Errorf("received '%v' expected '%v'", fde, decimal.NewFromInt(1337))
+	if !k.GetFillDependentEvent().GetAmount().Equal(decimal.NewFromInt(1337)) {
+		t.Errorf("received '%v' expected '%v'", k.GetFillDependentEvent(), decimal.NewFromInt(1337))
 	}
 }
 func TestIsClosingPosition(t *testing.T) {
@@ -170,8 +165,7 @@ func TestIsClosingPosition(t *testing.T) {
 	k := Order{
 		ClosingPosition: true,
 	}
-	s := k.IsClosingPosition()
-	if !s {
-		t.Errorf("received '%v' expected '%v'", s, true)
+	if !k.IsClosingPosition() {
+		t.Errorf("received '%v' expected '%v'", k.IsClosingPosition(), true)
 	}
 }

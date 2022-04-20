@@ -261,10 +261,8 @@ func TestGetCollateralReader(t *testing.T) {
 	p := &SpotPair{
 		base: &Item{exchange: "hello"},
 	}
-	expectedError := ErrNotCollateral
-	_, err := p.GetCollateralReader()
-	if !errors.Is(err, expectedError) {
-		t.Errorf("recevied '%v' expected '%v'", err, expectedError)
+	if _, err := p.GetCollateralReader(); !errors.Is(err, ErrNotCollateral) {
+		t.Errorf("recevied '%v' expected '%v'", err, ErrNotCollateral)
 	}
 }
 

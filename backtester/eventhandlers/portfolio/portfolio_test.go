@@ -1179,9 +1179,8 @@ func TestGetExposure(t *testing.T) {
 			IsLiquidated:          true,
 		},
 	}
-	result := p.GetExposure()
-	if !result.Equal(p.Result.Exposure) {
-		t.Errorf("received '%v' expected '%v'", result, p.Result.Exposure)
+	if !p.GetExposure().Equal(p.Result.Exposure) {
+		t.Errorf("received '%v' expected '%v'", p.GetExposure(), p.Result.Exposure)
 	}
 }
 
@@ -1231,9 +1230,8 @@ func TestGetDirection(t *testing.T) {
 			IsLiquidated:          true,
 		},
 	}
-	result := p.GetDirection()
-	if result != (p.Result.Direction) {
-		t.Errorf("received '%v' expected '%v'", result, p.Result.Direction)
+	if p.GetDirection() != (p.Result.Direction) {
+		t.Errorf("received '%v' expected '%v'", p.GetDirection(), p.Result.Direction)
 	}
 }
 
