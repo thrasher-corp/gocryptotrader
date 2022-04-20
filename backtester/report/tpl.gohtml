@@ -779,8 +779,9 @@
 				// Apply the theme
 				Highcharts.setOptions(Highcharts.theme);
 			</script>
+			{{ if .PNLOverTimeChart }}
 				<h3>PNL Over Time</h3>
-			<div id="pnlovertime" style="max-height: 800px;min-height: 75vh;" >
+				<div id="pnlovertime" style="max-height: 800px;min-height: 75vh;" >
 					<script>
 						Highcharts.chart('pnlovertime', {
 							stockTools: {
@@ -844,73 +845,74 @@
 						});
 					</script>
 				</div>
-
-			<h3>Futures Spot Diff %</h3>
-			<div id="futurespotdiff" style="max-height: 800px;min-height: 75vh;" >
-				<script>
-					Highcharts.chart('futurespotdiff', {
-						stockTools: {
-							gui: {
-								buttons:[ 'simpleShapes', 'lines', 'crookedLines', 'measure', 'advanced', 'toggleAnnotations', 'verticalLabels', 'flags', 'zoomChange', 'currentPriceIndicator' ]
-							}
-						},
-						title: {
-							text: 'Futures spot diff %'
-						},
-						yAxis: {
-							title: {
-								text: 'percent difference'
-							},
-							type: {{.PNLOverTimeChart.AxisType}}
-						},
-						xAxis: {
-							type: 'datetime'
-						},
-						legend: {
-							layout: 'vertical',
-							align: 'right',
-							verticalAlign: 'middle'
-						},
-						plotOptions: {
-							series: {
-								label: {
-									connectorAllowed: false
-								},
-							},
-						},
-						series: [
-							{{ range .FuturesSpotDiffChart.Data }}
-							{
-								name: {{.Name}},
-								pointStart: {{ $.Statistics.StartDate.UnixMilli }},
-								pointInterval: {{$.Statistics.CandleInterval.Duration.Milliseconds}},
-								data: [
-									{{ range .LinePlots }}
-									[ {{ .UnixMilli}}, {{ .Value}} ],
-									{{end}}
-								]
-							},
-							{{end}}
-						],
-						responsive: {
-							rules: [{
-								condition: {
-									maxWidth: 500
-								},
-								chartOptions: {
-									legend: {
-										layout: 'horizontal',
-										align: 'center',
-										verticalAlign: 'bottom'
-									}
+			{{end}}
+			{{if .FuturesSpotDiffChart }}
+				<h3>Futures Spot Diff %</h3>
+				<div id="futurespotdiff" style="max-height: 800px;min-height: 75vh;" >
+					<script>
+						Highcharts.chart('futurespotdiff', {
+							stockTools: {
+								gui: {
+									buttons:[ 'simpleShapes', 'lines', 'crookedLines', 'measure', 'advanced', 'toggleAnnotations', 'verticalLabels', 'flags', 'zoomChange', 'currentPriceIndicator' ]
 								}
-							}]
-						}
+							},
+							title: {
+								text: 'Futures spot diff %'
+							},
+							yAxis: {
+								title: {
+									text: 'percent difference'
+								},
+								type: {{.PNLOverTimeChart.AxisType}}
+							},
+							xAxis: {
+								type: 'datetime'
+							},
+							legend: {
+								layout: 'vertical',
+								align: 'right',
+								verticalAlign: 'middle'
+							},
+							plotOptions: {
+								series: {
+									label: {
+										connectorAllowed: false
+									},
+								},
+							},
+							series: [
+								{{ range .FuturesSpotDiffChart.Data }}
+								{
+									name: {{.Name}},
+									pointStart: {{ $.Statistics.StartDate.UnixMilli }},
+									pointInterval: {{$.Statistics.CandleInterval.Duration.Milliseconds}},
+									data: [
+										{{ range .LinePlots }}
+										[ {{ .UnixMilli}}, {{ .Value}} ],
+										{{end}}
+									]
+								},
+								{{end}}
+							],
+							responsive: {
+								rules: [{
+									condition: {
+										maxWidth: 500
+									},
+									chartOptions: {
+										legend: {
+											layout: 'horizontal',
+											align: 'center',
+											verticalAlign: 'bottom'
+										}
+									}
+								}]
+							}
 
-					});
-				</script>
-			</div>
-
+						});
+					</script>
+				</div>
+			{{end}}
 			{{ if eq $.Config.StrategySettings.DisableUSDTracking false }}
 			<div class="card-body card-body-cascade ">
 				<h3>USD Totals</h3>
@@ -1522,28 +1524,28 @@
 							{{ if .ReportItem.IsCollateral}}
 							{{ else }}
 								{{ if .ReportItem.Currency.IsFiatCurrency}}
-									{{else}}
-								<tr>
-									<td><b>Starting Close Price</b></td>
-									<td>{{$.Prettify.Decimal8 .StartingClosePrice.Value}} at {{.StartingClosePrice.Time}}</td>
-								</tr>
-								<tr>
-									<td><b>Ending Close Price</b></td>
-									<td>{{$.Prettify.Decimal8 .EndingClosePrice.Value}} at {{.EndingClosePrice.Time}}</td>
-								</tr>
-								<tr>
-									<td><b>Highest Close Price</b></td>
-									<td>{{$.Prettify.Decimal8 .HighestClosePrice.Value}} at {{.HighestClosePrice.Time}}</td>
-								</tr>
-								<tr>
-									<td><b>Lowest Close Price</b></td>
-									<td>{{$.Prettify.Decimal8 .LowestClosePrice.Value}} at {{.LowestClosePrice.Time}}</td>
-								</tr>
-								<tr>
-									<td><b>Market Movement</b></td>
-									<td>{{$.Prettify.Decimal8 .MarketMovement}}</td>
-								</tr>
-									{{end }}
+								{{else}}
+									<tr>
+										<td><b>Starting Close Price</b></td>
+										<td>{{$.Prettify.Decimal8 .StartingClosePrice.Value}} at {{.StartingClosePrice.Time}}</td>
+									</tr>
+									<tr>
+										<td><b>Ending Close Price</b></td>
+										<td>{{$.Prettify.Decimal8 .EndingClosePrice.Value}} at {{.EndingClosePrice.Time}}</td>
+									</tr>
+									<tr>
+										<td><b>Highest Close Price</b></td>
+										<td>{{$.Prettify.Decimal8 .HighestClosePrice.Value}} at {{.HighestClosePrice.Time}}</td>
+									</tr>
+									<tr>
+										<td><b>Lowest Close Price</b></td>
+										<td>{{$.Prettify.Decimal8 .LowestClosePrice.Value}} at {{.LowestClosePrice.Time}}</td>
+									</tr>
+									<tr>
+										<td><b>Market Movement</b></td>
+										<td>{{$.Prettify.Decimal8 .MarketMovement}}</td>
+									</tr>
+								{{end }}
 								<tr>
 									<td><b>Strategy Movement</b></td>
 									{{ if .ReportItem.ShowInfinite}}

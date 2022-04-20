@@ -56,15 +56,16 @@ func (d *Data) GenerateReport() error {
 		}
 	}
 
-	d.PNLOverTimeChart, err = createPNLCharts(d.Statistics.ExchangeAssetPairStatistics)
-	if err != nil {
-		return err
+	if d.Statistics.HasCollateral {
+		d.PNLOverTimeChart, err = createPNLCharts(d.Statistics.ExchangeAssetPairStatistics)
+		if err != nil {
+			return err
+		}
+		d.FuturesSpotDiffChart, err = createFuturesSpotDiffChart(d.Statistics.ExchangeAssetPairStatistics)
+		if err != nil {
+			return err
+		}
 	}
-	d.FuturesSpotDiffChart, err = createFuturesSpotDiffChart(d.Statistics.ExchangeAssetPairStatistics)
-	if err != nil {
-		return err
-	}
-
 	tmpl := template.Must(
 		template.ParseFiles(d.TemplatePath),
 	)
