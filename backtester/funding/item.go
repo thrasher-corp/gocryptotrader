@@ -117,17 +117,10 @@ func (i *Item) MatchesExchange(item *Item) bool {
 
 // TakeProfit increases available funds for a futures asset
 func (i *Item) TakeProfit(amount decimal.Decimal) error {
-	if !i.asset.IsFutures() {
-		return fmt.Errorf("%v %v %v %w", i.exchange, i.asset, i.currency, errNotFutures)
-	}
-	if !i.isCollateral {
+	if i.asset.IsFutures() && !i.isCollateral {
 		return fmt.Errorf("%v %v %v %w cannot add profit to contracts", i.exchange, i.asset, i.currency, ErrNotCollateral)
 	}
-	summed := i.available.Add(amount)
-	if summed.LessThan(decimal.Zero) {
-		return fmt.Errorf("%w amount '%v' would take available funds '%v' to '%v'", errNotEnoughFunds, amount, i.available, summed)
-	}
-	i.available = summed
+	i.available = i.available.Add(amount)
 	return nil
 }
 

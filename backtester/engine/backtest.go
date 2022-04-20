@@ -247,8 +247,14 @@ func (bt *BackTest) updateStatsForDataEvent(ev common.DataEventHandler, funds fu
 		}
 
 		err = bt.Portfolio.UpdatePNL(ev, ev.GetClosePrice())
-		if err != nil && !errors.Is(err, gctorder.ErrPositionLiquidated) {
-			return fmt.Errorf("UpdatePNL %v", err)
+		if err != nil {
+			if errors.Is(err, gctorder.ErrPositionsNotLoadedForPair) {
+				// if there is no position yet, there's nothing to update
+				return nil
+			}
+			if !errors.Is(err, gctorder.ErrPositionLiquidated) {
+				return fmt.Errorf("UpdatePNL %v", err)
+			}
 		}
 		var pnl *portfolio.PNLSummary
 		pnl, err = bt.Portfolio.GetLatestPNLForEvent(ev)
