@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/shopspring/decimal"
+	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -11,9 +12,12 @@ import (
 
 // createUSDTotalsChart used for creating a chart in the HTML report
 // to show how much the overall assets are worth over time
-func createUSDTotalsChart(items []statistics.ValueAtTime, stats []statistics.FundingItemStatistics) *Chart {
-	if items == nil || stats == nil {
-		return nil
+func createUSDTotalsChart(items []statistics.ValueAtTime, stats []statistics.FundingItemStatistics) (*Chart, error) {
+	if items == nil {
+		return nil, fmt.Errorf("%w missing values at time", common.ErrNilArguments)
+	}
+	if stats == nil {
+		return nil, fmt.Errorf("%w missing funding item statistics", common.ErrNilArguments)
 	}
 	response := &Chart{}
 	var usdTotalChartPlot []LinePlot
@@ -42,10 +46,45 @@ func createUSDTotalsChart(items []statistics.ValueAtTime, stats []statistics.Fun
 		})
 	}
 
-	return response
+	return response, nil
 }
 
-func createPNLCharts(items map[string]map[asset.Item]map[currency.Pair]*statistics.CurrencyPairStatistic) *Chart {
+// createHoldingsOverTimeChart used for creating a chart in the HTML report
+// to show how many holdings of each type was held over the time of backtesting
+func createHoldingsOverTimeChart(items []statistics.FundingItemStatistics) (*Chart, error) {
+	if items == nil {
+		return nil, fmt.Errorf("%w missing funding item statistics", common.ErrNilArguments)
+	}
+	response := &Chart{
+		AxisType: "logarithmic",
+	}
+	for i := range items {
+		var plots []LinePlot
+		for j := range items[i].ReportItem.Snapshots {
+			if items[i].ReportItem.Snapshots[j].Available.IsZero() {
+				// highcharts can't render zeroes in logarithmic mode
+				response.AxisType = "linear"
+			}
+			plots = append(plots, LinePlot{
+				Value:     items[i].ReportItem.Snapshots[j].Available.InexactFloat64(),
+				UnixMilli: items[i].ReportItem.Snapshots[j].Time.UTC().UnixMilli(),
+			})
+		}
+		response.Data = append(response.Data, ChartLine{
+			Name:      fmt.Sprintf("%v %v %v holdings", items[i].ReportItem.Exchange, items[i].ReportItem.Asset, items[i].ReportItem.Currency),
+			LinePlots: plots,
+		})
+	}
+
+	return response, nil
+}
+
+// createPNLCharts shows a running history of all realised and unrealised PNL values
+// over time
+func createPNLCharts(items map[string]map[asset.Item]map[currency.Pair]*statistics.CurrencyPairStatistic) (*Chart, error) {
+	if items == nil {
+		return nil, fmt.Errorf("%w missing currency pair statistics", common.ErrNilArguments)
+	}
 	response := &Chart{}
 	for exch, assetMap := range items {
 		for item, pairMap := range assetMap {
@@ -79,40 +118,15 @@ func createPNLCharts(items map[string]map[asset.Item]map[currency.Pair]*statisti
 		}
 
 	}
-	return response
+	return response, nil
 }
 
-// createHoldingsOverTimeChart used for creating a chart in the HTML report
-// to show how many holdings of each type was held over the time of backtesting
-func createHoldingsOverTimeChart(items []statistics.FundingItemStatistics) *Chart {
+// createFuturesSpotDiffChart highlights the difference in futures and spot prices
+// over time
+func createFuturesSpotDiffChart(items map[string]map[asset.Item]map[currency.Pair]*statistics.CurrencyPairStatistic) (*Chart, error) {
 	if items == nil {
-		return nil
+		return nil, fmt.Errorf("%w missing currency pair statistics", common.ErrNilArguments)
 	}
-	response := &Chart{
-		AxisType: "logarithmic",
-	}
-	for i := range items {
-		var plots []LinePlot
-		for j := range items[i].ReportItem.Snapshots {
-			if items[i].ReportItem.Snapshots[j].Available.IsZero() {
-				// highcharts can't render zeroes in logarithmic mode
-				response.AxisType = "linear"
-			}
-			plots = append(plots, LinePlot{
-				Value:     items[i].ReportItem.Snapshots[j].Available.InexactFloat64(),
-				UnixMilli: items[i].ReportItem.Snapshots[j].Time.UTC().UnixMilli(),
-			})
-		}
-		response.Data = append(response.Data, ChartLine{
-			Name:      fmt.Sprintf("%v %v %v holdings", items[i].ReportItem.Exchange, items[i].ReportItem.Asset, items[i].ReportItem.Currency),
-			LinePlots: plots,
-		})
-	}
-
-	return response
-}
-
-func createFuturesSpotDiffChart(items map[string]map[asset.Item]map[currency.Pair]*statistics.CurrencyPairStatistic) *Chart {
 	var currs []linkCurrencyDiff
 	response := &Chart{}
 	for _, assetMap := range items {
@@ -164,5 +178,5 @@ func createFuturesSpotDiffChart(items map[string]map[asset.Item]map[currency.Pai
 		}
 		response.Data = append(response.Data, line)
 	}
-	return response
+	return response, nil
 }

@@ -11,7 +11,6 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -56,7 +55,7 @@ func TestGenerateReport(t *testing.T) {
 				},
 			},
 		},
-		EnhancedCandles: []DetailedKline{
+		EnhancedCandles: []EnhancedKline{
 			{
 				Exchange:  e,
 				Asset:     a,
@@ -231,13 +230,23 @@ func TestGenerateReport(t *testing.T) {
 			},
 		},
 		Statistics: &statistics.Statistic{
+			FundingStatistics: &statistics.FundingStatistics{
+				Report: &funding.Report{
+					DisableUSDTracking: true,
+				},
+				Items: []statistics.FundingItemStatistics{
+					{
+						ReportItem: &funding.ReportItem{Snapshots: []funding.ItemSnapshot{{Time: time.Now()}}},
+					},
+				},
+				TotalUSDStatistics: &statistics.TotalFundingStatistics{},
+			},
 			StrategyName: "testStrat",
 			RiskFreeRate: decimal.NewFromFloat(0.03),
 			ExchangeAssetPairStatistics: map[string]map[asset.Item]map[currency.Pair]*statistics.CurrencyPairStatistic{
 				e: {
 					a: {
 						p: &statistics.CurrencyPairStatistic{
-							MaxDrawdown:              statistics.Swing{},
 							LowestClosePrice:         statistics.ValueAtTime{Value: decimal.NewFromInt(100)},
 							HighestClosePrice:        statistics.ValueAtTime{Value: decimal.NewFromInt(200)},
 							MarketMovement:           decimal.NewFromInt(100),
@@ -245,8 +254,6 @@ func TestGenerateReport(t *testing.T) {
 							CompoundAnnualGrowthRate: decimal.NewFromInt(1),
 							BuyOrders:                1,
 							SellOrders:               1,
-							FinalHoldings:            holdings.Holding{},
-							FinalOrders:              compliance.Snapshot{},
 							ArithmeticRatios:         &statistics.Ratios{},
 							GeometricRatios:          &statistics.Ratios{},
 						},
@@ -310,17 +317,10 @@ func TestGenerateReport(t *testing.T) {
 				MarketMovement:   decimal.NewFromInt(1337),
 				StrategyMovement: decimal.NewFromInt(1337),
 			},
-			WasAnyDataMissing: false,
-			FundingStatistics: nil,
 		},
 	}
 	d.OutputPath = tempDir
 	d.Config.StrategySettings.DisableUSDTracking = true
-	d.Statistics.FundingStatistics = &statistics.FundingStatistics{
-		Report: &funding.Report{
-			DisableUSDTracking: true,
-		},
-	}
 	err = d.GenerateReport()
 	if err != nil {
 		t.Error(err)
@@ -461,5 +461,69 @@ func TestEnhanceCandles(t *testing.T) {
 
 	if len(d.EnhancedCandles) == 0 {
 		t.Error("expected enhanced candles")
+	}
+}
+
+func TestUpdateItem(t *testing.T) {
+	t.Parallel()
+	d := Data{}
+	tt := time.Now()
+	d.UpdateItem(&gctkline.Item{
+		Candles: []gctkline.Candle{
+			{
+				Time: tt,
+			},
+		},
+	})
+	if len(d.OriginalCandles) != 1 {
+		t.Fatal("expected Original Candles len of 1")
+	}
+	if len(d.OriginalCandles[0].Candles) != 1 {
+		t.Error("expected one candle")
+	}
+	d.UpdateItem(&gctkline.Item{
+		Candles: []gctkline.Candle{
+			{
+				Time: tt,
+			},
+		},
+	})
+	if len(d.OriginalCandles[0].Candles) != 1 {
+		t.Error("expected one candle")
+	}
+
+	d.UpdateItem(&gctkline.Item{
+		Candles: []gctkline.Candle{
+			{
+				Time: tt.Add(1),
+			},
+		},
+	})
+	if len(d.OriginalCandles[0].Candles) != 2 {
+		t.Error("expected two candles")
+	}
+}
+
+func TestCopyCloseFromPreviousEvent(t *testing.T) {
+	t.Parallel()
+	d := DetailedCandle{}
+	d.copyCloseFromPreviousEvent(&EnhancedKline{
+		Candles: []DetailedCandle{
+			{
+				Close: 1337,
+			},
+		},
+	})
+	if d.Close != 1337 {
+		t.Error("expected 1337")
+	}
+}
+
+func TestUseDarkMode(t *testing.T) {
+	t.Parallel()
+	d := Data{}
+	d.UseDarkMode(true)
+	if !d.UseDarkTheme {
+		t.Error("expected true")
 	}
 }

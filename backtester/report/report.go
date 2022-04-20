@@ -42,12 +42,28 @@ func (d *Data) GenerateReport() error {
 			d.EnhancedCandles[i].Candles = d.EnhancedCandles[i].Candles[:maxChartLimit]
 		}
 	}
-	if d.Statistics.FundingStatistics != nil && !d.Statistics.FundingStatistics.Report.DisableUSDTracking {
-		d.USDTotalsChart = createUSDTotalsChart(d.Statistics.FundingStatistics.TotalUSDStatistics.HoldingValues, d.Statistics.FundingStatistics.Items)
-		d.HoldingsOverTimeChart = createHoldingsOverTimeChart(d.Statistics.FundingStatistics.Items)
+
+	if d.Statistics.FundingStatistics != nil {
+		d.HoldingsOverTimeChart, err = createHoldingsOverTimeChart(d.Statistics.FundingStatistics.Items)
+		if err != nil {
+			return err
+		}
+		if !d.Statistics.FundingStatistics.Report.DisableUSDTracking {
+			d.USDTotalsChart, err = createUSDTotalsChart(d.Statistics.FundingStatistics.TotalUSDStatistics.HoldingValues, d.Statistics.FundingStatistics.Items)
+			if err != nil {
+				return err
+			}
+		}
 	}
-	d.PNLOverTimeChart = createPNLCharts(d.Statistics.ExchangeAssetPairStatistics)
-	d.FuturesSpotDiffChart = createFuturesSpotDiffChart(d.Statistics.ExchangeAssetPairStatistics)
+
+	d.PNLOverTimeChart, err = createPNLCharts(d.Statistics.ExchangeAssetPairStatistics)
+	if err != nil {
+		return err
+	}
+	d.FuturesSpotDiffChart, err = createFuturesSpotDiffChart(d.Statistics.ExchangeAssetPairStatistics)
+	if err != nil {
+		return err
+	}
 
 	tmpl := template.Must(
 		template.ParseFiles(
@@ -116,7 +132,7 @@ func (d *Data) enhanceCandles() error {
 
 	for intVal := range d.OriginalCandles {
 		lookup := d.OriginalCandles[intVal]
-		enhancedKline := DetailedKline{
+		enhancedKline := EnhancedKline{
 			Exchange:  lookup.Exchange,
 			Asset:     lookup.Asset,
 			Pair:      lookup.Pair,
@@ -196,12 +212,12 @@ func (d *Data) enhanceCandles() error {
 	return nil
 }
 
-func (d *DetailedCandle) copyCloseFromPreviousEvent(enhancedKline *DetailedKline) {
+func (d *DetailedCandle) copyCloseFromPreviousEvent(ek *EnhancedKline) {
 	// if the data is missing, ensure that all values just continue the previous candle's close price visually
-	d.Open = enhancedKline.Candles[len(enhancedKline.Candles)-1].Close
-	d.High = enhancedKline.Candles[len(enhancedKline.Candles)-1].Close
-	d.Low = enhancedKline.Candles[len(enhancedKline.Candles)-1].Close
-	d.Close = enhancedKline.Candles[len(enhancedKline.Candles)-1].Close
+	d.Open = ek.Candles[len(ek.Candles)-1].Close
+	d.High = ek.Candles[len(ek.Candles)-1].Close
+	d.Low = ek.Candles[len(ek.Candles)-1].Close
+	d.Close = ek.Candles[len(ek.Candles)-1].Close
 	d.Colour = "white"
 	d.Position = "aboveBar"
 	d.Shape = "arrowDown"
