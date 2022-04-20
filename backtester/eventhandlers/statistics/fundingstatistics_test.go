@@ -193,7 +193,6 @@ func TestCalculateIndividualFundingStatistics(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v expected %v", err, nil)
 	}
-
 }
 
 func TestFundingStatisticsPrintResults(t *testing.T) {

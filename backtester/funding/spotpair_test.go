@@ -273,8 +273,7 @@ func TestFundReader(t *testing.T) {
 	p := &SpotPair{
 		base: &Item{exchange: "hello"},
 	}
-	ip := p.FundReader()
-	if ip != p {
+	if p.FundReader() != p {
 		t.Error("expected the same thing")
 	}
 }
@@ -284,8 +283,7 @@ func TestFundReserver(t *testing.T) {
 	p := &SpotPair{
 		base: &Item{exchange: "hello"},
 	}
-	ip := p.FundReserver()
-	if ip != p {
+	if p.FundReserver() != p {
 		t.Error("expected the same thing")
 	}
 }
@@ -295,8 +293,7 @@ func TestFundReleaser(t *testing.T) {
 	p := &SpotPair{
 		base: &Item{exchange: "hello"},
 	}
-	ip := p.FundReleaser()
-	if ip != p {
+	if p.FundReleaser() != p {
 		t.Error("expected the same thing")
 	}
 }
@@ -306,10 +303,8 @@ func TestPairReleaser(t *testing.T) {
 	p := &SpotPair{
 		base: &Item{exchange: "hello"},
 	}
-	var expectedError error
-	_, err := p.PairReleaser()
-	if !errors.Is(err, expectedError) {
-		t.Errorf("recevied '%v' expected '%v'", err, expectedError)
+	if _, err := p.PairReleaser(); !errors.Is(err, nil) {
+		t.Errorf("recevied '%v' expected '%v'", err, nil)
 	}
 }
 
@@ -318,10 +313,8 @@ func TestCollateralReleaser(t *testing.T) {
 	p := &SpotPair{
 		base: &Item{exchange: "hello"},
 	}
-	expectedError := ErrNotCollateral
-	_, err := p.CollateralReleaser()
-	if !errors.Is(err, expectedError) {
-		t.Errorf("recevied '%v' expected '%v'", err, expectedError)
+	if _, err := p.CollateralReleaser(); !errors.Is(err, ErrNotCollateral) {
+		t.Errorf("recevied '%v' expected '%v'", err, ErrNotCollateral)
 	}
 }
 

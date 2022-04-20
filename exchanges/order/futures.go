@@ -18,7 +18,7 @@ import (
 // to track futures orders
 func SetupPositionController() *PositionController {
 	return &PositionController{
-		positionTrackerControllers: make(map[string]map[asset.Item]map[currency.Pair]*MultiPositionTracker),
+		multiPositionTrackers: make(map[string]map[asset.Item]map[currency.Pair]*MultiPositionTracker),
 	}
 }
 
@@ -37,10 +37,10 @@ func (c *PositionController) TrackNewOrder(d *Detail) error {
 	}
 	c.m.Lock()
 	defer c.m.Unlock()
-	exchM, ok := c.positionTrackerControllers[strings.ToLower(d.Exchange)]
+	exchM, ok := c.multiPositionTrackers[strings.ToLower(d.Exchange)]
 	if !ok {
 		exchM = make(map[asset.Item]map[currency.Pair]*MultiPositionTracker)
-		c.positionTrackerControllers[strings.ToLower(d.Exchange)] = exchM
+		c.multiPositionTrackers[strings.ToLower(d.Exchange)] = exchM
 	}
 	itemM, ok := exchM[d.AssetType]
 	if !ok {
@@ -76,7 +76,7 @@ func (c *PositionController) SetCollateralCurrency(exch string, item asset.Item,
 		return fmt.Errorf("%v %v %v %w", exch, item, pair, ErrNotFuturesAsset)
 	}
 
-	exchM, ok := c.positionTrackerControllers[strings.ToLower(exch)]
+	exchM, ok := c.multiPositionTrackers[strings.ToLower(exch)]
 	if !ok {
 		return fmt.Errorf("cannot set collateral %v for %v %v %v %w", collateralCurrency, exch, item, pair, ErrPositionsNotLoadedForExchange)
 	}
@@ -113,7 +113,7 @@ func (c *PositionController) GetPositionsForExchange(exch string, item asset.Ite
 	if !item.IsFutures() {
 		return nil, fmt.Errorf("%v %v %v %w", exch, item, pair, ErrNotFuturesAsset)
 	}
-	exchM, ok := c.positionTrackerControllers[strings.ToLower(exch)]
+	exchM, ok := c.multiPositionTrackers[strings.ToLower(exch)]
 	if !ok {
 		return nil, fmt.Errorf("%v %v %v %w", exch, item, pair, ErrPositionsNotLoadedForExchange)
 	}
@@ -142,7 +142,7 @@ func (c *PositionController) UpdateOpenPositionUnrealisedPNL(exch string, item a
 
 	c.m.Lock()
 	defer c.m.Unlock()
-	exchM, ok := c.positionTrackerControllers[strings.ToLower(exch)]
+	exchM, ok := c.multiPositionTrackers[strings.ToLower(exch)]
 	if !ok {
 		return decimal.Zero, fmt.Errorf("%v %v %v %w", exch, item, pair, ErrPositionsNotLoadedForExchange)
 	}
@@ -284,7 +284,7 @@ func (c *PositionController) ClearPositionsForExchange(exch string, item asset.I
 	if !item.IsFutures() {
 		return fmt.Errorf("%v %v %v %w", exch, item, pair, ErrNotFuturesAsset)
 	}
-	exchM, ok := c.positionTrackerControllers[strings.ToLower(exch)]
+	exchM, ok := c.multiPositionTrackers[strings.ToLower(exch)]
 	if !ok {
 		return fmt.Errorf("%v %v %v %w", exch, item, pair, ErrPositionsNotLoadedForExchange)
 	}
@@ -320,9 +320,9 @@ func (m *MultiPositionTracker) GetPositions() []PositionStats {
 	}
 	m.m.Lock()
 	defer m.m.Unlock()
-	resp := make([]PositionStats, len(e.positions))
-	for i := range e.positions {
-		resp[i] = e.positions[i].GetStats()
+	resp := make([]PositionStats, len(m.positions))
+	for i := range m.positions {
+		resp[i] = m.positions[i].GetStats()
 	}
 	return resp
 }
@@ -812,23 +812,24 @@ func upsertPNLEntry(pnlHistory []PNLResult, entry *PNLResult) ([]PNLResult, erro
 		return nil, errTimeUnset
 	}
 	for i := range pnlHistory {
-		if entry.Time.Equal(pnlHistory[i].Time) {
-			pnlHistory[i].UnrealisedPNL = entry.UnrealisedPNL
-			pnlHistory[i].RealisedPNL = entry.RealisedPNL
-			pnlHistory[i].RealisedPNLBeforeFees = entry.RealisedPNLBeforeFees
-			pnlHistory[i].Exposure = entry.Exposure
-			pnlHistory[i].Direction = entry.Direction
-			pnlHistory[i].Price = entry.Price
-			pnlHistory[i].Status = entry.Status
-			pnlHistory[i].Fee = entry.Fee
-			if entry.IsOrder {
-				pnlHistory[i].IsOrder = true
-			}
-			if entry.IsLiquidated {
-				pnlHistory[i].IsLiquidated = true
-			}
-			return pnlHistory, nil
+		if !entry.Time.Equal(pnlHistory[i].Time) {
+			continue
 		}
+		pnlHistory[i].UnrealisedPNL = entry.UnrealisedPNL
+		pnlHistory[i].RealisedPNL = entry.RealisedPNL
+		pnlHistory[i].RealisedPNLBeforeFees = entry.RealisedPNLBeforeFees
+		pnlHistory[i].Exposure = entry.Exposure
+		pnlHistory[i].Direction = entry.Direction
+		pnlHistory[i].Price = entry.Price
+		pnlHistory[i].Status = entry.Status
+		pnlHistory[i].Fee = entry.Fee
+		if entry.IsOrder {
+			pnlHistory[i].IsOrder = true
+		}
+		if entry.IsLiquidated {
+			pnlHistory[i].IsLiquidated = true
+		}
+		return pnlHistory, nil
 	}
 	pnlHistory = append(pnlHistory, *entry)
 	sort.Slice(pnlHistory, func(i, j int) bool {

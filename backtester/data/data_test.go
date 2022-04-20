@@ -69,7 +69,6 @@ func TestBaseDataFunctions(t *testing.T) {
 	d.Reset()
 	d.GetStream()
 	d.SortStream()
-
 }
 
 func TestSetup(t *testing.T) {

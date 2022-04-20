@@ -231,7 +231,6 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 		if cfg.CurrencySettings[i].FuturesDetails != nil {
 			portSet.MaximumOrdersWithLeverageRatio = cfg.CurrencySettings[i].FuturesDetails.Leverage.MaximumOrdersWithLeverageRatio
 			portSet.MaxLeverageRate = cfg.CurrencySettings[i].FuturesDetails.Leverage.MaximumOrderLeverageRate
-
 		}
 		portfolioRisk.CurrencySettings[cfg.CurrencySettings[i].ExchangeName][a][curr] = portSet
 		if cfg.CurrencySettings[i].MakerFee != nil &&

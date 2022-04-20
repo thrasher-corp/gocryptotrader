@@ -13,7 +13,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	eventkline "github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
-
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -142,11 +141,12 @@ func TestSortSignals(t *testing.T) {
 	d2 := data.Base{}
 	d2.SetStream([]common.DataEventHandler{&eventkline.Kline{
 		Base: event.Base{
-			Exchange:     exch,
-			Time:         dInsert,
-			Interval:     gctkline.OneDay,
-			CurrencyPair: p,
-			AssetType:    asset.Futures,
+			Exchange:       exch,
+			Time:           dInsert,
+			Interval:       gctkline.OneDay,
+			CurrencyPair:   currency.NewPair(currency.DOGE, currency.XRP),
+			AssetType:      asset.Futures,
+			UnderlyingPair: p,
 		},
 		Open:   decimal.NewFromInt(1337),
 		Close:  decimal.NewFromInt(1337),
@@ -154,11 +154,15 @@ func TestSortSignals(t *testing.T) {
 		High:   decimal.NewFromInt(1337),
 		Volume: decimal.NewFromInt(1337),
 	}})
-	d.Next()
-	da = &datakline.DataFromKline{
+	d2.Next()
+	da2 := &datakline.DataFromKline{
 		Item:        gctkline.Item{},
-		Base:        d,
+		Base:        d2,
 		RangeHolder: &gctkline.IntervalRangeHolder{},
+	}
+	_, err = sortSignals([]data.Handler{da, da2})
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 }
 
@@ -216,8 +220,6 @@ func TestCreateSignals(t *testing.T) {
 				t.Errorf("received '%v' expected '%v", resp[i].GetDirection(), common.ClosePosition)
 			}
 			caseTested = true
-		} else {
-
 		}
 	}
 	if !caseTested {
@@ -241,8 +243,6 @@ func TestCreateSignals(t *testing.T) {
 				t.Errorf("received '%v' expected '%v", resp[i].GetDirection(), common.ClosePosition)
 			}
 			caseTested = true
-		} else {
-
 		}
 	}
 	if !caseTested {
@@ -266,8 +266,6 @@ func TestCreateSignals(t *testing.T) {
 				t.Errorf("received '%v' expected '%v", resp[i].GetDirection(), common.ClosePosition)
 			}
 			caseTested = true
-		} else {
-
 		}
 	}
 	if !caseTested {

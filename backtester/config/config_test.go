@@ -25,7 +25,7 @@ const (
 	testExchange = "ftx"
 	dca          = "dollarcostaverage"
 	// change this if you modify a config and want it to save to the example folder
-	saveConfig = !false
+	saveConfig = false
 )
 
 var (
@@ -1270,7 +1270,7 @@ func TestGenerateFTXCashAndCarryStrategy(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		err = ioutil.WriteFile(filepath.Join(p, "examples", "ftx-cash-carry.strat"), result, 0770)
+		err = os.WriteFile(filepath.Join(p, "examples", "ftx-cash-carry.strat"), result, file.DefaultPermissionOctal)
 		if err != nil {
 			t.Error(err)
 		}

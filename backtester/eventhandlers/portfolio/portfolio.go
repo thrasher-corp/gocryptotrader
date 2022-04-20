@@ -254,7 +254,8 @@ func (p *Portfolio) OnFill(ev fill.Event, funds funding.IFundReleaser) (fill.Eve
 	var err error
 
 	if ev.GetAssetType() == asset.Spot {
-		fp, err := funds.PairReleaser()
+		var fp funding.IPairReleaser
+		fp, err = funds.PairReleaser()
 		if err != nil {
 			return nil, err
 		}
@@ -557,13 +558,14 @@ func (p *Portfolio) TrackFuturesOrder(ev fill.Event, fund funding.IFundReleaser)
 		return nil, fmt.Errorf("%w should not happen", errNoHoldings)
 	}
 	amount := decimal.NewFromFloat(detail.Amount)
-	if ev.IsLiquidated() {
+	switch {
+	case ev.IsLiquidated():
 		collateralReleaser.Liquidate()
 		err = settings.FuturesTracker.Liquidate(ev.GetClosePrice(), ev.GetTime())
 		if err != nil {
 			return nil, err
 		}
-	} else if pos[len(pos)-1].OpeningDirection != detail.Side {
+	case pos[len(pos)-1].OpeningDirection != detail.Side:
 		err = collateralReleaser.TakeProfit(amount, pos[len(pos)-1].RealisedPNL)
 		if err != nil {
 			return nil, err
@@ -572,7 +574,7 @@ func (p *Portfolio) TrackFuturesOrder(ev fill.Event, fund funding.IFundReleaser)
 		if err != nil {
 			return nil, fmt.Errorf("%v %v %v %w", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 		}
-	} else {
+	default:
 		err = collateralReleaser.UpdateContracts(detail.Side, amount)
 		if err != nil {
 			return nil, err
@@ -797,7 +799,7 @@ func (p *Portfolio) GetLatestPNLs() []PNLSummary {
 }
 
 // GetUnrealisedPNL returns a basic struct containing unrealised PNL
-func (p PNLSummary) GetUnrealisedPNL() BasicPNLResult {
+func (p *PNLSummary) GetUnrealisedPNL() BasicPNLResult {
 	return BasicPNLResult{
 		Time:     p.Result.Time,
 		PNL:      p.Result.UnrealisedPNL,
@@ -806,7 +808,7 @@ func (p PNLSummary) GetUnrealisedPNL() BasicPNLResult {
 }
 
 // GetRealisedPNL returns a basic struct containing realised PNL
-func (p PNLSummary) GetRealisedPNL() BasicPNLResult {
+func (p *PNLSummary) GetRealisedPNL() BasicPNLResult {
 	return BasicPNLResult{
 		Time:     p.Result.Time,
 		PNL:      p.Result.RealisedPNL,
@@ -815,21 +817,21 @@ func (p PNLSummary) GetRealisedPNL() BasicPNLResult {
 }
 
 // GetExposure returns the position exposure
-func (p PNLSummary) GetExposure() decimal.Decimal {
+func (p *PNLSummary) GetExposure() decimal.Decimal {
 	return p.Result.Exposure
 }
 
 // GetCollateralCurrency returns the collateral currency
-func (p PNLSummary) GetCollateralCurrency() currency.Code {
+func (p *PNLSummary) GetCollateralCurrency() currency.Code {
 	return p.CollateralCurrency
 }
 
 // GetDirection returns the direction
-func (p PNLSummary) GetDirection() gctorder.Side {
+func (p *PNLSummary) GetDirection() gctorder.Side {
 	return p.Result.Direction
 }
 
 // GetPositionStatus returns the position status
-func (p PNLSummary) GetPositionStatus() gctorder.Status {
+func (p *PNLSummary) GetPositionStatus() gctorder.Status {
 	return p.Result.Status
 }

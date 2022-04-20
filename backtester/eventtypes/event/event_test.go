@@ -23,7 +23,6 @@ func TestEvent_AppendWhy(t *testing.T) {
 	if y != "test. test" {
 		t.Error("expected 'test. test'")
 	}
-
 }
 
 func TestEvent_GetAssetType(t *testing.T) {

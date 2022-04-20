@@ -1411,6 +1411,10 @@ func TestUpdateExisting(t *testing.T) {
 		od,
 	}
 	s.futuresPositionController = order.SetupPositionController()
+	err = s.futuresPositionController.TrackNewOrder(od)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected '%v'", err, nil)
+	}
 	err = s.updateExisting(od)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)

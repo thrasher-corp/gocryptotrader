@@ -100,8 +100,7 @@ func (f *FundManager) LinkCollateralCurrency(item *Item, code currency.Code) err
 		pairedWith:   item,
 		isCollateral: true,
 	}
-	err := f.AddItem(collateral)
-	if err != nil {
+	if err := f.AddItem(collateral); err != nil {
 		return err
 	}
 	item.pairedWith = collateral
@@ -527,7 +526,7 @@ func (f *FundManager) Liquidate(ev common.EventHandler) {
 // GetAllFunding returns basic representations of all current
 // holdings from the latest point
 func (f *FundManager) GetAllFunding() []BasicItem {
-	var result []BasicItem
+	result := make([]BasicItem, len(f.items))
 	for i := range f.items {
 		var usd decimal.Decimal
 		if f.items[i].trackingCandles != nil {
@@ -536,7 +535,7 @@ func (f *FundManager) GetAllFunding() []BasicItem {
 				usd = latest.GetClosePrice()
 			}
 		}
-		result = append(result, BasicItem{
+		result[i] = BasicItem{
 			Exchange:     f.items[i].exchange,
 			Asset:        f.items[i].asset,
 			Currency:     f.items[i].currency,
@@ -544,7 +543,7 @@ func (f *FundManager) GetAllFunding() []BasicItem {
 			Available:    f.items[i].available,
 			Reserved:     f.items[i].reserved,
 			USDPrice:     usd,
-		})
+		}
 	}
 	return result
 }
@@ -567,8 +566,9 @@ func (f *FundManager) UpdateCollateral(ev common.EventHandler) error {
 			// futures positions aren't collateral, they use it
 			continue
 		}
-		exch, ok := exchMap[f.items[i].exchange]
+		_, ok := exchMap[f.items[i].exchange]
 		if !ok {
+			var exch exchange.IBotExchange
 			exch, err = f.exchangeManager.GetExchangeByName(f.items[i].exchange)
 			if err != nil {
 				return err

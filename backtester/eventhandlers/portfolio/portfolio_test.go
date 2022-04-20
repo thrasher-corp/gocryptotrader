@@ -786,6 +786,10 @@ func TestCalculatePNL(t *testing.T) {
 			},
 		},
 	}, false)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
+	}
+
 	err = s.FuturesTracker.TrackNewOrder(od)
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
@@ -895,7 +899,6 @@ func TestTrackFuturesOrder(t *testing.T) {
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v", err, expectedError)
 	}
-
 }
 
 func TestGetHoldingsForTime(t *testing.T) {

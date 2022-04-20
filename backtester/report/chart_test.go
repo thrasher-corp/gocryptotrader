@@ -49,10 +49,10 @@ func TestCreateUSDTotalsChart(t *testing.T) {
 	}
 	resp, err := createUSDTotalsChart(items, stats)
 	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
+		t.Fatalf("received '%v' expected '%v'", err, nil)
 	}
-	if resp == nil {
-		t.Error("expected not nil")
+	if len(resp.Data) == 0 {
+		t.Fatal("expected not nil")
 	}
 	if resp.Data[0].Name != "Total USD value" {
 		t.Error("expected not nil")

@@ -127,8 +127,8 @@ type UsedCollateralBreakdown struct {
 // and so all you need to do is send all orders to
 // the position controller and its all tracked happily
 type PositionController struct {
-	m                          sync.Mutex
-	positionTrackerControllers map[string]map[asset.Item]map[currency.Pair]*MultiPositionTracker
+	m                     sync.Mutex
+	multiPositionTrackers map[string]map[asset.Item]map[currency.Pair]*MultiPositionTracker
 }
 
 // MultiPositionTracker will track the performance of
@@ -272,7 +272,7 @@ type PNLResult struct {
 	Direction             Side
 	Fee                   decimal.Decimal
 	IsLiquidated          bool
-	// Is event is supposed to show that something has happend and it isnt just tracking in time
+	// Is event is supposed to show that something has happened and it isnt just tracking in time
 	IsOrder bool
 }
 

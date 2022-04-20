@@ -20,12 +20,12 @@ func createUSDTotalsChart(items []statistics.ValueAtTime, stats []statistics.Fun
 		return nil, fmt.Errorf("%w missing funding item statistics", common.ErrNilArguments)
 	}
 	response := &Chart{}
-	var usdTotalChartPlot []LinePlot
+	usdTotalChartPlot := make([]LinePlot, len(items))
 	for i := range items {
-		usdTotalChartPlot = append(usdTotalChartPlot, LinePlot{
+		usdTotalChartPlot[i] = LinePlot{
 			Value:     items[i].Value.InexactFloat64(),
 			UnixMilli: items[i].Time.UTC().UnixMilli(),
-		})
+		}
 	}
 	response.Data = append(response.Data, ChartLine{
 		Name:      "Total USD value",

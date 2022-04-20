@@ -94,7 +94,7 @@ func (s *Statistic) PrintAllEventsChronologically() {
 								currencyStatistic.Events[i].FillEvent.GetClosePrice().Round(8),
 								currencyStatistic.Events[i].FillEvent.GetDirection())
 							msg = addReason(currencyStatistic.Events[i].FillEvent.GetReason(), msg)
-							msg = msg + common.ColourDefault
+							msg += common.ColourDefault
 							results = addEventOutputToTime(results, currencyStatistic.Events[i].FillEvent.GetTime(), msg)
 						} else {
 							// successful order!
@@ -114,7 +114,7 @@ func (s *Statistic) PrintAllEventsChronologically() {
 								currencyStatistic.Events[i].FillEvent.GetTotal().Round(8),
 								currencyStatistic.Events[i].FillEvent.GetDirection())
 							msg = addReason(currencyStatistic.Events[i].FillEvent.GetReason(), msg)
-							msg = msg + common.ColourDefault
+							msg += common.ColourDefault
 							results = addEventOutputToTime(results, currencyStatistic.Events[i].FillEvent.GetTime(), msg)
 						}
 					case currencyStatistic.Events[i].SignalEvent != nil:
@@ -125,7 +125,7 @@ func (s *Statistic) PrintAllEventsChronologically() {
 							fSIL(currencyStatistic.Events[i].SignalEvent.Pair().String(), limit14),
 							currencyStatistic.Events[i].SignalEvent.GetClosePrice().Round(8))
 						msg = addReason(currencyStatistic.Events[i].SignalEvent.GetReason(), msg)
-						msg = msg + common.ColourDefault
+						msg += common.ColourDefault
 						results = addEventOutputToTime(results, currencyStatistic.Events[i].SignalEvent.GetTime(), msg)
 					case currencyStatistic.Events[i].DataEvent != nil:
 						msg := fmt.Sprintf("%v %v%v%v| Price: $%v",
@@ -135,7 +135,7 @@ func (s *Statistic) PrintAllEventsChronologically() {
 							fSIL(currencyStatistic.Events[i].DataEvent.Pair().String(), limit14),
 							currencyStatistic.Events[i].DataEvent.GetClosePrice().Round(8))
 						msg = addReason(currencyStatistic.Events[i].DataEvent.GetReason(), msg)
-						msg = msg + common.ColourDefault
+						msg += common.ColourDefault
 						results = addEventOutputToTime(results, currencyStatistic.Events[i].DataEvent.GetTime(), msg)
 					default:
 						errs = append(errs, fmt.Errorf(common.ColourError+"%v%v%v unexpected data received %+v"+common.ColourDefault, exch, a, fSIL(pair.String(), limit14), currencyStatistic.Events[i]))

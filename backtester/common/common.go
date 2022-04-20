@@ -38,7 +38,7 @@ func FitStringToLimit(str, spacer string, limit int, upper bool) string {
 	}
 	spacerLen := len(spacer)
 	for i := 0; i < limResp; i++ {
-		str = str + spacer
+		str += spacer
 		for j := 0; j < spacerLen; j++ {
 			if j > 0 {
 				// prevent clever people from going beyond

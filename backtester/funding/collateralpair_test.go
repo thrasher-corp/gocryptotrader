@@ -44,9 +44,8 @@ func TestCollateralCollateralCurrency(t *testing.T) {
 	c := &CollateralPair{
 		collateral: &Item{currency: currency.DOGE},
 	}
-	doge := c.CollateralCurrency()
-	if !doge.Equal(currency.DOGE) {
-		t.Errorf("recevied '%v' expected '%v'", doge, currency.DOGE)
+	if !c.CollateralCurrency().Equal(currency.DOGE) {
+		t.Errorf("recevied '%v' expected '%v'", c.CollateralCurrency(), currency.DOGE)
 	}
 }
 
@@ -55,9 +54,8 @@ func TestCollateralContractCurrency(t *testing.T) {
 	c := &CollateralPair{
 		contract: &Item{currency: currency.DOGE},
 	}
-	doge := c.ContractCurrency()
-	if !doge.Equal(currency.DOGE) {
-		t.Errorf("recevied '%v' expected '%v'", doge, currency.DOGE)
+	if !c.ContractCurrency().Equal(currency.DOGE) {
+		t.Errorf("recevied '%v' expected '%v'", c.ContractCurrency(), currency.DOGE)
 	}
 }
 
@@ -66,9 +64,8 @@ func TestCollateralInitialFunds(t *testing.T) {
 	c := &CollateralPair{
 		collateral: &Item{initialFunds: decimal.NewFromInt(1337)},
 	}
-	f := c.InitialFunds()
-	if !f.Equal(decimal.NewFromInt(1337)) {
-		t.Errorf("recevied '%v' expected '%v'", f, decimal.NewFromInt(1337))
+	if !c.InitialFunds().Equal(decimal.NewFromInt(1337)) {
+		t.Errorf("recevied '%v' expected '%v'", c.InitialFunds(), decimal.NewFromInt(1337))
 	}
 }
 
@@ -77,9 +74,8 @@ func TestCollateralAvailableFunds(t *testing.T) {
 	c := &CollateralPair{
 		collateral: &Item{available: decimal.NewFromInt(1337)},
 	}
-	f := c.AvailableFunds()
-	if !f.Equal(decimal.NewFromInt(1337)) {
-		t.Errorf("recevied '%v' expected '%v'", f, decimal.NewFromInt(1337))
+	if !c.AvailableFunds().Equal(decimal.NewFromInt(1337)) {
+		t.Errorf("recevied '%v' expected '%v'", c.AvailableFunds(), decimal.NewFromInt(1337))
 	}
 }
 
@@ -89,10 +85,8 @@ func TestCollateralGetPairReader(t *testing.T) {
 		contract:   &Item{},
 		collateral: &Item{},
 	}
-	expectedError := ErrNotPair
-	_, err := c.GetPairReader()
-	if !errors.Is(err, expectedError) {
-		t.Errorf("recevied '%v' expected '%v'", err, expectedError)
+	if _, err := c.GetPairReader(); !errors.Is(err, ErrNotPair) {
+		t.Errorf("recevied '%v' expected '%v'", err, ErrNotPair)
 	}
 }
 
@@ -191,8 +185,7 @@ func TestCollateralFundReader(t *testing.T) {
 	c := &CollateralPair{
 		collateral: &Item{available: decimal.NewFromInt(1337)},
 	}
-	cr := c.FundReader()
-	if cr != c {
+	if c.FundReader() != c {
 		t.Error("expected the same thing")
 	}
 }
@@ -203,10 +196,8 @@ func TestCollateralPairReleaser(t *testing.T) {
 		collateral: &Item{},
 		contract:   &Item{},
 	}
-	expectedError := ErrNotPair
-	_, err := c.PairReleaser()
-	if !errors.Is(err, expectedError) {
-		t.Errorf("recevied '%v' expected '%v'", err, expectedError)
+	if _, err := c.PairReleaser(); !errors.Is(err, ErrNotPair) {
+		t.Errorf("recevied '%v' expected '%v'", err, ErrNotPair)
 	}
 }
 
@@ -215,8 +206,7 @@ func TestCollateralFundReserver(t *testing.T) {
 	c := &CollateralPair{
 		collateral: &Item{available: decimal.NewFromInt(1337)},
 	}
-	cr := c.FundReserver()
-	if cr != c {
+	if c.FundReserver() != c {
 		t.Error("expected the same thing")
 	}
 }
@@ -228,8 +218,7 @@ func TestCollateralCollateralReleaser(t *testing.T) {
 		contract:   &Item{},
 	}
 	var expectedError error
-	_, err := c.CollateralReleaser()
-	if !errors.Is(err, expectedError) {
+	if _, err := c.CollateralReleaser(); !errors.Is(err, expectedError) {
 		t.Errorf("recevied '%v' expected '%v'", err, expectedError)
 	}
 }
@@ -239,8 +228,7 @@ func TestCollateralFundReleaser(t *testing.T) {
 	c := &CollateralPair{
 		collateral: &Item{available: decimal.NewFromInt(1337)},
 	}
-	cr := c.FundReleaser()
-	if cr != c {
+	if c.FundReleaser() != c {
 		t.Error("expected the same thing")
 	}
 }

@@ -98,7 +98,7 @@ func TestFitStringToLimit(t *testing.T) {
 			t.Parallel()
 			result := FitStringToLimit(test.str, test.sep, test.limit, test.upper)
 			if result != test.expected {
-				t.Errorf("recieved '%v' expected '%v'", result, test.expected)
+				t.Errorf("received '%v' expected '%v'", result, test.expected)
 			}
 		})
 	}

@@ -70,14 +70,16 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 		if o.IsLiquidating() {
 			// Liquidation occurs serverside
 			if o.GetAssetType().IsFutures() {
-				cr, err := funds.CollateralReleaser()
+				var cr funding.ICollateralReleaser
+				cr, err = funds.CollateralReleaser()
 				if err != nil {
 					return f, err
 				}
 				// update local records
 				cr.Liquidate()
 			} else {
-				pr, err := funds.PairReleaser()
+				var pr funding.IPairReleaser
+				pr, err = funds.PairReleaser()
 				if err != nil {
 					return f, err
 				}
@@ -340,7 +342,7 @@ func (e *Exchange) placeOrder(ctx context.Context, price, amount decimal.Decimal
 	}
 	var orderID string
 	p := price.InexactFloat64()
-	fee := f.ExchangeFee.InexactFloat64()
+	fee := f.GetExchangeFee().InexactFloat64()
 	o := &gctorder.Submit{
 		Price:       p,
 		Amount:      amount.InexactFloat64(),
@@ -367,7 +369,7 @@ func (e *Exchange) placeOrder(ctx context.Context, price, amount decimal.Decimal
 		submitResponse := gctorder.SubmitResponse{
 			IsOrderPlaced: true,
 			OrderID:       u.String(),
-			Rate:          f.Amount.InexactFloat64(),
+			Rate:          f.GetAmount().InexactFloat64(),
 			Fee:           fee,
 			Cost:          p,
 			FullyMatched:  true,
