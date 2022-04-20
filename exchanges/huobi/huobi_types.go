@@ -553,10 +553,10 @@ type OrderBookDataRequestParams struct {
 
 // Orderbook stores the orderbook data
 type Orderbook struct {
-	ID         int64       `json:"id"`
-	Timetstamp int64       `json:"ts"`
-	Bids       [][]float64 `json:"bids"`
-	Asks       [][]float64 `json:"asks"`
+	ID         int64        `json:"id"`
+	Timetstamp int64        `json:"ts"`
+	Bids       [][2]float64 `json:"bids"`
+	Asks       [][2]float64 `json:"asks"`
 }
 
 // Trade stores the trade data

@@ -305,7 +305,10 @@ func TestConnectionMessageErrors(t *testing.T) {
 	ws.ReadMessageErrors <- errors.New("errorText")
 	select {
 	case err := <-ws.ToRoutine:
-		if err.(error).Error() != "errorText" {
+		errText, ok := err.(error)
+		if !ok {
+			t.Error("unable to type assert error")
+		} else if errText.Error() != "errorText" {
 			t.Errorf("Expected 'errorText', received %v", err)
 		}
 	case <-timer.C:
@@ -1045,12 +1048,12 @@ type GenSubs struct {
 
 // generateSubs default subs created from the enabled pairs list
 func (g *GenSubs) generateSubs() ([]ChannelSubscription, error) {
-	var superduperchannelsubs []ChannelSubscription
+	superduperchannelsubs := make([]ChannelSubscription, len(g.EnabledPairs))
 	for i := range g.EnabledPairs {
-		superduperchannelsubs = append(superduperchannelsubs, ChannelSubscription{
+		superduperchannelsubs[i] = ChannelSubscription{
 			Channel:  "TEST:" + strconv.FormatInt(int64(i), 10),
 			Currency: g.EnabledPairs[i],
-		})
+		}
 	}
 	return superduperchannelsubs, nil
 }

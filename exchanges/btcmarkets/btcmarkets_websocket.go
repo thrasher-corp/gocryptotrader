@@ -333,8 +333,8 @@ func (b *BTCMarkets) generateDefaultSubscriptions() ([]stream.ChannelSubscriptio
 		}
 	}
 
-	var authChannels = []string{fundChange, heartbeat, orderChange}
 	if b.Websocket.CanUseAuthenticatedEndpoints() {
+		var authChannels = []string{fundChange, heartbeat, orderChange}
 		for i := range authChannels {
 			subscriptions = append(subscriptions, stream.ChannelSubscription{
 				Channel: authChannels[i],
@@ -346,12 +346,6 @@ func (b *BTCMarkets) generateDefaultSubscriptions() ([]stream.ChannelSubscriptio
 
 // Subscribe sends a websocket message to receive data from the channel
 func (b *BTCMarkets) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
-	creds, err := b.GetCredentials(context.TODO())
-	if err != nil {
-		return err
-	}
-	var authChannels = []string{fundChange, heartbeat, orderChange}
-
 	var payload WsSubscribe
 	payload.MessageType = subscribe
 
@@ -368,28 +362,34 @@ func (b *BTCMarkets) Subscribe(channelsToSubscribe []stream.ChannelSubscription)
 		}
 	}
 
-	for i := range authChannels {
-		if !common.StringDataCompare(payload.Channels, authChannels[i]) {
-			continue
-		}
-		signTime := strconv.FormatInt(time.Now().UnixMilli(), 10)
-		strToSign := "/users/self/subscribe" + "\n" + signTime
-		var tempSign []byte
-		tempSign, err = crypto.GetHMAC(crypto.HashSHA512,
-			[]byte(strToSign),
-			[]byte(creds.Secret))
+	if b.Websocket.CanUseAuthenticatedEndpoints() {
+		var authChannels = []string{fundChange, heartbeat, orderChange}
+		creds, err := b.GetCredentials(context.TODO())
 		if err != nil {
 			return err
 		}
-		sign := crypto.Base64Encode(tempSign)
-		payload.Key = creds.Key
-		payload.Signature = sign
-		payload.Timestamp = signTime
-		break
+
+		for i := range authChannels {
+			if !common.StringDataCompare(payload.Channels, authChannels[i]) {
+				continue
+			}
+			signTime := strconv.FormatInt(time.Now().UnixMilli(), 10)
+			strToSign := "/users/self/subscribe" + "\n" + signTime
+			tempSign, err := crypto.GetHMAC(crypto.HashSHA512,
+				[]byte(strToSign),
+				[]byte(creds.Secret))
+			if err != nil {
+				return err
+			}
+			sign := crypto.Base64Encode(tempSign)
+			payload.Key = creds.Key
+			payload.Signature = sign
+			payload.Timestamp = signTime
+			break
+		}
 	}
 
-	err = b.Websocket.Conn.SendJSONMessage(payload)
-	if err != nil {
+	if err := b.Websocket.Conn.SendJSONMessage(payload); err != nil {
 		return err
 	}
 	b.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe...)

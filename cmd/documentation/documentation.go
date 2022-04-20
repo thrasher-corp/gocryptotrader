@@ -7,7 +7,6 @@ import (
 	"flag"
 	"fmt"
 	"html/template"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -329,7 +328,7 @@ func GetConfiguration() (Config, error) {
 	configFilePath := filepath.Join(toolDir, "config.json")
 
 	if file.Exists(configFilePath) {
-		config, err := ioutil.ReadFile(configFilePath)
+		config, err := os.ReadFile(configFilePath)
 		if err != nil {
 			return c, err
 		}
@@ -360,7 +359,7 @@ func GetConfiguration() (Config, error) {
 		return c, err
 	}
 
-	if err := ioutil.WriteFile(configFilePath, data, 0770); err != nil {
+	if err := os.WriteFile(configFilePath, data, file.DefaultPermissionOctal); err != nil {
 		return c, err
 	}
 
@@ -485,7 +484,7 @@ func GetPackageName(name string, capital bool) string {
 		i = len(newStrings) - 1
 	}
 	if capital {
-		return strings.Replace(strings.Title(newStrings[i]), "_", " ", -1)
+		return strings.Replace(strings.Title(newStrings[i]), "_", " ", -1) // nolint // ignore staticcheck strings.Title warning
 	}
 	return newStrings[i]
 }
@@ -540,7 +539,7 @@ func UpdateDocumentation(details DocumentationDetails) {
 			continue
 		}
 		if name == engineFolder {
-			d, err := ioutil.ReadDir(details.Directories[i])
+			d, err := os.ReadDir(details.Directories[i])
 			if err != nil {
 				fmt.Println("Excluding file:", err)
 			}

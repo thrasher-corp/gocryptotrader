@@ -221,10 +221,10 @@ type websocketOrderBookResponse struct {
 }
 
 type websocketOrderBook struct {
-	Asks           [][]string `json:"asks"`
-	Bids           [][]string `json:"bids"`
-	Timestamp      int64      `json:"timestamp,string"`
-	Microtimestamp string     `json:"microtimestamp"`
+	Asks           [][2]string `json:"asks"`
+	Bids           [][2]string `json:"bids"`
+	Timestamp      int64       `json:"timestamp,string"`
+	Microtimestamp string      `json:"microtimestamp"`
 }
 
 // OHLCResponse holds returned candle data

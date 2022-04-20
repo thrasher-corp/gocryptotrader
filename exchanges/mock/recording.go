@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -48,7 +48,7 @@ func HTTPRecord(res *http.Response, service string, respContents []byte) error {
 
 	fileout := filepath.Join(DefaultDirectory, service, service+".json")
 
-	contents, err := ioutil.ReadFile(fileout)
+	contents, err := os.ReadFile(fileout)
 	if err != nil {
 		return err
 	}
@@ -80,7 +80,7 @@ func HTTPRecord(res *http.Response, service string, respContents []byte) error {
 		if bodyErr != nil {
 			return bodyErr
 		}
-		payload, bodyErr := ioutil.ReadAll(bodycopy)
+		payload, bodyErr := io.ReadAll(bodycopy)
 		if bodyErr != nil {
 			return bodyErr
 		}
@@ -298,11 +298,10 @@ const (
 
 // CheckJSON recursively parses json data to retract keywords, quite intensive.
 func CheckJSON(data interface{}, excluded *Exclusion) (interface{}, error) {
-	var context map[string]interface{}
-	if reflect.TypeOf(data).String() == "[]interface {}" {
+	if d, ok := data.([]interface{}); ok {
 		var sData []interface{}
-		for i := range data.([]interface{}) {
-			v := data.([]interface{})[i]
+		for i := range d {
+			v := d[i]
 			switch v.(type) {
 			case map[string]interface{}, []interface{}:
 				checkedData, err := CheckJSON(v, excluded)
@@ -324,6 +323,7 @@ func CheckJSON(data interface{}, excluded *Exclusion) (interface{}, error) {
 		return nil, err
 	}
 
+	var context map[string]interface{}
 	err = json.Unmarshal(conv, &context)
 	if err != nil {
 		return nil, err
@@ -426,7 +426,7 @@ func GetExcludedItems() (Exclusion, error) {
 	m.Lock()
 	defer m.Unlock()
 	if !set {
-		file, err := ioutil.ReadFile(exclusionFile)
+		file, err := os.ReadFile(exclusionFile)
 		if err != nil {
 			if !strings.Contains(err.Error(), "no such file or directory") {
 				return excludedList, err
@@ -440,7 +440,7 @@ func GetExcludedItems() (Exclusion, error) {
 				return excludedList, mErr
 			}
 
-			mErr = ioutil.WriteFile(exclusionFile, data, os.ModePerm)
+			mErr = os.WriteFile(exclusionFile, data, os.ModePerm)
 			if mErr != nil {
 				return excludedList, mErr
 			}

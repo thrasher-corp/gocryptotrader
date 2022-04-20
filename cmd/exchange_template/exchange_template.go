@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -138,14 +139,14 @@ func makeExchange(exchangeDirectory string, configTestFile *config.Config, exch 
 	if !os.IsNotExist(err) {
 		return nil, errors.New("directory already exists")
 	}
-	err = os.MkdirAll(exchangeDirectory, 0770)
+	err = os.MkdirAll(exchangeDirectory, file.DefaultPermissionOctal)
 	if err != nil {
 		return nil, err
 	}
 
 	fmt.Printf("Output directory: %s\n", exchangeDirectory)
 
-	exch.CapitalName = strings.Title(exch.Name)
+	exch.CapitalName = strings.Title(exch.Name) // nolint:staticcheck // Ignore Title usage warning
 	exch.Variable = exch.Name[0:2]
 	newExchConfig := &config.Exchange{}
 	newExchConfig.Name = exch.CapitalName
@@ -214,7 +215,7 @@ func makeExchange(exchangeDirectory string, configTestFile *config.Config, exch 
 		outputFile := filepath.Join(exchangeDirectory, filename)
 		newFile(outputFile)
 		var f *os.File
-		f, err = os.OpenFile(outputFile, os.O_WRONLY, 0770)
+		f, err = os.OpenFile(outputFile, os.O_WRONLY, file.DefaultPermissionOctal)
 		if err != nil {
 			return nil, err
 		}

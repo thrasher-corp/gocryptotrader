@@ -44,7 +44,7 @@ func TestExchangeManagerGetExchanges(t *testing.T) {
 	if err != nil {
 		t.Error("no exchange manager found")
 	}
-	if exchanges != nil {
+	if len(exchanges) != 0 {
 		t.Error("unexpected value")
 	}
 	b := new(bitfinex.Bitfinex)

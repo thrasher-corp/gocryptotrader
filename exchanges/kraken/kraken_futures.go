@@ -23,15 +23,15 @@ import (
 var errInvalidBatchOrderType = errors.New("invalid batch order type")
 
 // GetFuturesOrderbook gets orderbook data for futures
-func (k *Kraken) GetFuturesOrderbook(ctx context.Context, symbol currency.Pair) (FuturesOrderbookData, error) {
-	var resp FuturesOrderbookData
-	params := url.Values{}
+func (k *Kraken) GetFuturesOrderbook(ctx context.Context, symbol currency.Pair) (*FuturesOrderbookData, error) {
 	symbolValue, err := k.FormatSymbol(symbol, asset.Futures)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
+	params := url.Values{}
 	params.Set("symbol", symbolValue)
-	return resp, k.SendHTTPRequest(ctx, exchange.RestFutures, futuresOrderbook+"?"+params.Encode(), &resp)
+	var resp FuturesOrderbookData
+	return &resp, k.SendHTTPRequest(ctx, exchange.RestFutures, futuresOrderbook+"?"+params.Encode(), &resp)
 }
 
 // GetFuturesMarkets gets a list of futures markets and their data

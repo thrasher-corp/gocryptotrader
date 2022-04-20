@@ -97,18 +97,20 @@ func (b *Bitmex) WsConnect() error {
 	b.Websocket.Wg.Add(1)
 	go b.wsReadData()
 
-	err = b.websocketSendAuth(context.TODO())
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%v - authentication failed: %v\n",
-			b.Name,
-			err)
-	} else {
-		authsubs, err := b.GenerateAuthenticatedSubscriptions()
+	if b.Websocket.CanUseAuthenticatedEndpoints() {
+		err = b.websocketSendAuth(context.TODO())
 		if err != nil {
-			return err
+			log.Errorf(log.ExchangeSys,
+				"%v - authentication failed: %v\n",
+				b.Name,
+				err)
+		} else {
+			authsubs, err := b.GenerateAuthenticatedSubscriptions()
+			if err != nil {
+				return err
+			}
+			return b.Websocket.SubscribeToChannels(authsubs)
 		}
-		return b.Websocket.SubscribeToChannels(authsubs)
 	}
 	return nil
 }
@@ -491,7 +493,11 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, p currency.
 
 	switch action {
 	case bitmexActionInitialData:
-		var book orderbook.Base
+		book := orderbook.Base{
+			Asks: make(orderbook.Items, 0, len(data)),
+			Bids: make(orderbook.Items, 0, len(data)),
+		}
+
 		for i := range data {
 			item := orderbook.Item{
 				Price:  data[i].Price,
@@ -520,7 +526,8 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, p currency.
 				err)
 		}
 	default:
-		var asks, bids []orderbook.Item
+		asks := make([]orderbook.Item, 0, len(data))
+		bids := make([]orderbook.Item, 0, len(data))
 		for i := range data {
 			nItem := orderbook.Item{
 				Price:  data[i].Price,

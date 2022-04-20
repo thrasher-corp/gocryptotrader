@@ -3,8 +3,8 @@ package main
 import (
 	"encoding/json"
 	"flag"
-	"io/ioutil"
 	"log"
+	"os"
 
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -38,7 +38,7 @@ func main() {
 		key = string(result)
 	}
 
-	fileData, err := ioutil.ReadFile(inFile)
+	fileData, err := os.ReadFile(inFile)
 	if err != nil {
 		log.Fatalf("Unable to read input file %s. Error: %s.", inFile, err)
 	}

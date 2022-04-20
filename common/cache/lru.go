@@ -24,7 +24,9 @@ func NewLRUCache(capacity uint64) *LRU {
 func (l *LRU) Add(key, value interface{}) {
 	if f, o := l.items[key]; o {
 		l.l.MoveToFront(f)
-		f.Value.(*item).value = value
+		if v, ok := f.Value.(*item); ok {
+			v.value = value
+		}
 		return
 	}
 
@@ -40,7 +42,9 @@ func (l *LRU) Add(key, value interface{}) {
 func (l *LRU) Get(key interface{}) interface{} {
 	if i, f := l.items[key]; f {
 		l.l.MoveToFront(i)
-		return i.Value.(*item).value
+		if v, ok := i.Value.(*item); ok {
+			return v.value
+		}
 	}
 	return nil
 }
@@ -48,7 +52,9 @@ func (l *LRU) Get(key interface{}) interface{} {
 // GetOldest returns the oldest entry
 func (l *LRU) getOldest() (key, value interface{}) {
 	if x := l.l.Back(); x != nil {
-		return x.Value.(*item).key, x.Value.(*item).value
+		if v, ok := x.Value.(*item); ok {
+			return v.key, v.value
+		}
 	}
 	return
 }
@@ -56,7 +62,9 @@ func (l *LRU) getOldest() (key, value interface{}) {
 // GetNewest returns the newest entry
 func (l *LRU) getNewest() (key, value interface{}) {
 	if x := l.l.Front(); x != nil {
-		return x.Value.(*item).key, x.Value.(*item).value
+		if v, ok := x.Value.(*item); ok {
+			return v.key, v.value
+		}
 	}
 	return
 }
@@ -99,5 +107,7 @@ func (l *LRU) removeOldestEntry() {
 // removeElement element from the cache
 func (l *LRU) removeElement(e *list.Element) {
 	l.l.Remove(e)
-	delete(l.items, e.Value.(*item).key)
+	if v, ok := e.Value.(*item); ok {
+		delete(l.items, v.key)
+	}
 }

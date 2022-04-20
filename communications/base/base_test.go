@@ -108,8 +108,11 @@ func TestSetup(t *testing.T) {
 
 	for idx, provider := range ic {
 		exp := testConfigs[idx].shouldConnectCalled
-		act := provider.(*CommunicationProvider).ConnectCalled
-		if exp != act {
+		act, ok := provider.(*CommunicationProvider)
+		if !ok {
+			t.Fatal("unable to type assert provider")
+		}
+		if exp != act.ConnectCalled {
 			t.Fatalf("provider should be enabled and not be connected: exp=%v, act=%v", exp, act)
 		}
 	}
@@ -139,8 +142,11 @@ func TestPushEvent(t *testing.T) {
 
 	for idx, provider := range ic {
 		exp := testConfigs[idx].PushEventCalled
-		act := provider.(*CommunicationProvider).PushEventCalled
-		if exp != act {
+		act, ok := provider.(*CommunicationProvider)
+		if !ok {
+			t.Fatal("unable to type assert provider")
+		}
+		if exp != act.PushEventCalled {
 			t.Fatalf("provider should be enabled and connected: exp=%v, act=%v", exp, act)
 		}
 	}
