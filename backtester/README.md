@@ -84,7 +84,7 @@ We welcome pull requests on any feature for the Backtester! We will be especiall
 To run the application using the provided dollar cost average strategy, simply run `go run .` from `gocryptotrader/backtester`. An output of the results will be put in the `results` folder.
 
 # How do I create my own config?
-There is a config generating helper application under `/backtester/config/configbuilder` to help you create a `.strat` file. Read more about it [here](/backtester/config/configbuilder/README.md). There are also a number of tests under `/config/config_test.go` which generate configs into the `examples` folder, which if you have code knowledge, can write your own configs programmatically.
+There is a config generating helper application under `/backtester/config/configbuilder` to help you create a `.strat` file. Read more about it [here](/backtester/config/strategyconfigbuilder/README.md). There are also a number of tests under `/config/config_test.go` which generate configs into the `examples` folder, which if you have code knowledge, can write your own configs programmatically.
 
 # How do I create my own strategy?
 Creating strategies requires programming skills. [Here](/backtester/eventhandlers/strategies/README.md) is a readme on the subject. After reading the readmes, please review the strategies [here](/backtester/eventhandlers/strategies/) to gain an understanding on how to write your own.

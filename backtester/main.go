@@ -100,51 +100,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	cfg, err = config.ReadConfigFromFile(configPath)
-	if err != nil {
-		fmt.Printf("Could not read config. Error: %v.\n", err)
-		os.Exit(1)
-	}
-	if printLogo {
-		fmt.Println(common.Logo())
-	}
+	log.Infof(log.Global, "Starting GRPC server")
+	// set it up
 
-	err = cfg.Validate()
-	if err != nil {
-		fmt.Printf("Could not read config. Error: %v.\n", err)
-		os.Exit(1)
-	}
-	bt, err = backtest.NewFromConfig(cfg, templatePath, reportOutput, verbose)
-	if err != nil {
-		fmt.Printf("Could not setup backtester from config. Error: %v.\n", err)
-		os.Exit(1)
-	}
-	if cfg.DataSettings.LiveData != nil {
-		go func() {
-			err = bt.RunLive()
-			if err != nil {
-				fmt.Printf("Could not complete live run. Error: %v.\n", err)
-				os.Exit(-1)
-			}
-		}()
-		interrupt := signaler.WaitForInterrupt()
-		log.Infof(log.Global, "Captured %v, shutdown requested.\n", interrupt)
-		bt.Stop()
-	} else {
-		bt.Run()
-	}
+	log.Infof(log.Global, "Backtester GRPC server running. Awaiting commands...")
+	interrupt := signaler.WaitForInterrupt()
+	log.Infof(log.Global, "Captured %v, shutdown requested.\n", interrupt)
+	log.Infoln(log.Global, "Exiting.")
 
-	err = bt.Statistic.CalculateAllResults()
-	if err != nil {
-		log.Error(log.Global, err)
-		os.Exit(1)
-	}
-
-	if generateReport {
-		bt.Reports.UseDarkMode(darkReport)
-		err = bt.Reports.GenerateReport()
-		if err != nil {
-			log.Error(log.Global, err)
-		}
-	}
 }
