@@ -39,6 +39,7 @@ import (
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/log"
+	"github.com/thrasher-corp/gocryptotrader/signaler"
 )
 
 // NewFromConfig takes a strategy config and configures a backtester variable to run
@@ -863,5 +864,47 @@ func loadLiveData(cfg *config.Config, base *gctexchange.Base) error {
 		log.Warn(common.Setup, "invalid API credentials set, real orders set to false")
 		cfg.DataSettings.LiveData.RealOrders = false
 	}
+	return nil
+}
+
+func ExecuteStrategy(strategyCfg *config.Config, backtesterCfg *config.BacktesterConfig) error {
+	err := strategyCfg.Validate()
+	if err != nil {
+		return err
+	}
+	bt, err := NewFromConfig(strategyCfg, backtesterCfg.Report.TemplatePath, backtesterCfg.Report.OutputPath, backtesterCfg.Verbose)
+	if err != nil {
+		return err
+	}
+	if strategyCfg.DataSettings.LiveData != nil {
+		go func() {
+			err = bt.RunLive()
+			if err != nil {
+				return
+			}
+		}()
+		interrupt := signaler.WaitForInterrupt()
+		log.Infof(log.Global, "Captured %v, shutdown requested.\n", interrupt)
+		bt.Stop()
+	} else {
+		err = bt.Run()
+		if err != nil {
+			return err
+		}
+	}
+
+	err = bt.Statistic.CalculateAllResults()
+	if err != nil {
+		return err
+	}
+
+	if backtesterCfg.Report.GenerateReport {
+		bt.Reports.UseDarkMode(backtesterCfg.Report.DarkMode)
+		err = bt.Reports.GenerateReport()
+		if err != nil {
+			log.Error(log.Global, err)
+		}
+	}
+
 	return nil
 }

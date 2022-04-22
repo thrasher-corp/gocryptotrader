@@ -1,21 +1,23 @@
 package engine
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"net/http"
-	"os"
 	"path/filepath"
 	"strings"
 
 	grpcauth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
-	"github.com/thrasher-corp/gocryptotrader/backtester/common"
+	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
+	"github.com/thrasher-corp/gocryptotrader/backtester/btrpc"
+	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
+	gctengine "github.com/thrasher-corp/gocryptotrader/engine"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc/auth"
 	"github.com/thrasher-corp/gocryptotrader/log"
-	"github.com/thrasher-corp/gocryptotrader/signaler"
 	"github.com/thrasher-corp/gocryptotrader/utils"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -24,7 +26,89 @@ import (
 
 // RPCServer struct
 type RPCServer struct {
-	gctrpc.UnimplementedGoCryptoTraderServer
+	btrpc.UnimplementedBacktesterServer
+	*config.BacktesterConfig
+}
+
+func SetupRPCServer(cfg *config.BacktesterConfig) *RPCServer {
+	return &RPCServer{
+		BacktesterConfig: cfg,
+	}
+
+}
+
+// StartRPCServer starts a gRPC server with TLS auth
+func StartRPCServer(server *RPCServer) error {
+	targetDir := utils.GetTLSDir(server.GRPC.TLSDir)
+	if err := gctengine.CheckCerts(targetDir); err != nil {
+		return err
+	}
+	log.Debugf(log.GRPCSys, "gRPC server support enabled. Starting gRPC server on https://%v.\n", server.GRPC.ListenAddress)
+	lis, err := net.Listen("tcp", server.GRPC.ListenAddress)
+	if err != nil {
+		return err
+
+	}
+
+	creds, err := credentials.NewServerTLSFromFile(filepath.Join(targetDir, "cert.pem"), filepath.Join(targetDir, "key.pem"))
+	if err != nil {
+		return err
+	}
+
+	opts := []grpc.ServerOption{
+		grpc.Creds(creds),
+		grpc.UnaryInterceptor(grpcauth.UnaryServerInterceptor(server.authenticateClient)),
+	}
+	s := grpc.NewServer(opts...)
+	btrpc.RegisterBacktesterServer(s, server)
+
+	go func() {
+		if err = s.Serve(lis); err != nil {
+			log.Error(log.GRPCSys, err)
+			return
+		}
+	}()
+
+	log.Debugln(log.GRPCSys, "gRPC server started!")
+
+	if server.GRPC.GRPCProxyEnabled {
+		server.StartRPCRESTProxy()
+	}
+	return nil
+}
+
+// StartRPCRESTProxy starts a gRPC proxy
+func (s *RPCServer) StartRPCRESTProxy() {
+	log.Debugf(log.GRPCSys, "gRPC proxy server support enabled. Starting gRPC proxy server on http://%v.\n", s.GRPC.GRPCProxyListenAddress)
+	targetDir := utils.GetTLSDir(s.GRPC.TLSDir)
+	creds, err := credentials.NewClientTLSFromFile(filepath.Join(targetDir, "cert.pem"), "")
+	if err != nil {
+		log.Errorf(log.GRPCSys, "Unabled to start gRPC proxy. Err: %s\n", err)
+		return
+	}
+
+	mux := runtime.NewServeMux()
+	opts := []grpc.DialOption{grpc.WithTransportCredentials(creds),
+		grpc.WithPerRPCCredentials(auth.BasicAuth{
+			Username: s.GRPC.Username,
+			Password: s.GRPC.Password,
+		}),
+	}
+	err = gctrpc.RegisterGoCryptoTraderHandlerFromEndpoint(context.Background(),
+		mux, s.GRPC.ListenAddress, opts)
+	if err != nil {
+		log.Errorf(log.GRPCSys, "Failed to register gRPC proxy. Err: %s\n", err)
+		return
+	}
+
+	go func() {
+		if err := http.ListenAndServe(s.GRPC.GRPCProxyListenAddress, mux); err != nil {
+			log.Errorf(log.GRPCSys, "gRPC proxy failed to server: %s\n", err)
+			return
+		}
+	}()
+
+	log.Debugln(log.GRPCSys, "gRPC proxy server started!")
 }
 
 func (s *RPCServer) authenticateClient(ctx context.Context) (context.Context, error) {
@@ -47,148 +131,29 @@ func (s *RPCServer) authenticateClient(ctx context.Context) (context.Context, er
 		return ctx, fmt.Errorf("unable to base64 decode authorization header")
 	}
 
-	credentials := strings.Split(string(decoded), ":")
+	creds := strings.Split(string(decoded), ":")
+	username := creds[0]
+	password := creds[1]
 
-	username := credentials[0]
-	password := credentials[1]
-
-	if username != s.Config.RemoteControl.Username ||
-		password != s.Config.RemoteControl.Password {
+	if username != s.GRPC.Username ||
+		password != s.GRPC.Password {
 		return ctx, fmt.Errorf("username/password mismatch")
 	}
 	return exchange.ParseCredentialsMetadata(ctx, md)
 }
 
-// StartRPCServer starts a gRPC server with TLS auth
-func StartRPCServer(engine *Engine) {
-	targetDir := utils.GetTLSDir(engine.Settings.DataDir)
-	if err := checkCerts(targetDir); err != nil {
-		log.Errorf(log.GRPCSys, "gRPC checkCerts failed. err: %s\n", err)
-		return
-	}
-	log.Debugf(log.GRPCSys, "gRPC server support enabled. Starting gRPC server on https://%v.\n", engine.Config.RemoteControl.GRPC.ListenAddress)
-	lis, err := net.Listen("tcp", engine.Config.RemoteControl.GRPC.ListenAddress)
+// ExecuteStrategyFromFile will backtest a strategy from the filepath provided
+func (s *RPCServer) ExecuteStrategyFromFile(_ context.Context, request *btrpc.ExecuteStrategyFromFileRequest) (*btrpc.ExecuteStrategyFromFileResponse, error) {
+	dir := request.StrategyFilePath
+	cfg, err := config.ReadStrategyConfigFromFile(dir)
 	if err != nil {
-		log.Errorf(log.GRPCSys, "gRPC server failed to bind to port: %s", err)
-		return
+		return nil, err
 	}
-
-	creds, err := credentials.NewServerTLSFromFile(filepath.Join(targetDir, "cert.pem"), filepath.Join(targetDir, "key.pem"))
+	err = ExecuteStrategy(cfg, s.BacktesterConfig)
 	if err != nil {
-		log.Errorf(log.GRPCSys, "gRPC server could not load TLS keys: %s\n", err)
-		return
+		return nil, err
 	}
-
-	s := RPCServer{Engine: engine}
-	opts := []grpc.ServerOption{
-		grpc.Creds(creds),
-		grpc.UnaryInterceptor(grpcauth.UnaryServerInterceptor(s.authenticateClient)),
-	}
-	server := grpc.NewServer(opts...)
-	gctrpc.RegisterGoCryptoTraderServer(server, &s)
-
-	go func() {
-		if err := server.Serve(lis); err != nil {
-			log.Errorf(log.GRPCSys, "gRPC server failed to serve: %s\n", err)
-			return
-		}
-	}()
-
-	log.Debugln(log.GRPCSys, "gRPC server started!")
-
-	if s.Settings.EnableGRPCProxy {
-		s.StartRPCRESTProxy()
-	}
-}
-
-// StartRPCRESTProxy starts a gRPC proxy
-func (s *RPCServer) StartRPCRESTProxy() {
-	log.Debugf(log.GRPCSys, "gRPC proxy server support enabled. Starting gRPC proxy server on http://%v.\n", s.Config.RemoteControl.GRPC.GRPCProxyListenAddress)
-
-	targetDir := utils.GetTLSDir(s.Settings.DataDir)
-	creds, err := credentials.NewClientTLSFromFile(filepath.Join(targetDir, "cert.pem"), "")
-	if err != nil {
-		log.Errorf(log.GRPCSys, "Unabled to start gRPC proxy. Err: %s\n", err)
-		return
-	}
-
-	mux := runtime.NewServeMux()
-	opts := []grpc.DialOption{grpc.WithTransportCredentials(creds),
-		grpc.WithPerRPCCredentials(auth.BasicAuth{
-			Username: s.Config.RemoteControl.Username,
-			Password: s.Config.RemoteControl.Password,
-		}),
-	}
-	err = gctrpc.RegisterGoCryptoTraderHandlerFromEndpoint(context.Background(),
-		mux, s.Config.RemoteControl.GRPC.ListenAddress, opts)
-	if err != nil {
-		log.Errorf(log.GRPCSys, "Failed to register gRPC proxy. Err: %s\n", err)
-		return
-	}
-
-	go func() {
-		if err := http.ListenAndServe(s.Config.RemoteControl.GRPC.GRPCProxyListenAddress, mux); err != nil {
-			log.Errorf(log.GRPCSys, "gRPC proxy failed to server: %s\n", err)
-			return
-		}
-	}()
-
-	log.Debugln(log.GRPCSys, "gRPC proxy server started!")
-}
-
-func (s *RPCServer) RunStrategy() {
-	cfg, err = config.ReadConfigFromFile(configPath)
-	if err != nil {
-		fmt.Printf("Could not read config. Error: %v.\n", err)
-		os.Exit(1)
-	}
-	if printLogo {
-		for i := range common.LogoLines {
-			fmt.Println(common.LogoLines[i])
-		}
-		fmt.Print(common.ASCIILogo)
-	}
-
-	err = cfg.Validate()
-	if err != nil {
-		fmt.Printf("Could not read config. Error: %v.\n", err)
-		os.Exit(1)
-	}
-	bt, err = backtest.NewFromConfig(cfg, templatePath, reportOutput, verbose)
-	if err != nil {
-		fmt.Printf("Could not setup backtester from config. Error: %v.\n", err)
-		os.Exit(1)
-	}
-	if cfg.DataSettings.LiveData != nil {
-		go func() {
-			err = bt.RunLive()
-			if err != nil {
-				fmt.Printf("Could not complete live run. Error: %v.\n", err)
-				os.Exit(-1)
-			}
-		}()
-		interrupt := signaler.WaitForInterrupt()
-		log.Infof(log.Global, "Captured %v, shutdown requested.\n", interrupt)
-		bt.Stop()
-	} else {
-		err = bt.Run()
-		if err != nil {
-			fmt.Printf("Could not complete run. Error: %v.\n", err)
-			os.Exit(1)
-		}
-	}
-
-	err = bt.Statistic.CalculateAllResults()
-	if err != nil {
-		log.Error(log.Global, err)
-		os.Exit(1)
-	}
-
-	if generateReport {
-		bt.Reports.UseDarkMode(darkReport)
-		err = bt.Reports.GenerateReport()
-		if err != nil {
-			log.Error(log.Global, err)
-		}
-	}
+	return &btrpc.ExecuteStrategyFromFileResponse{
+		Success: true,
+	}, nil
 }

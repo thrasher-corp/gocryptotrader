@@ -55,8 +55,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestLoadConfig(t *testing.T) {
-	t.Parallel()
-	_, err := LoadConfig([]byte(`{}`))
+	_, err := loadBacktesterConfig([]byte(`{}`))
 	if err != nil {
 		t.Error(err)
 	}
@@ -138,81 +137,7 @@ func TestValidateCurrencySettings(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-
-	c.CurrencySettings[0].Asset = asset.PerpetualSwap
-	err = c.validateCurrencySettings()
-	if !errors.Is(err, errPerpetualsUnsupported) {
-		t.Errorf("received: %v, expected: %v", err, errPerpetualsUnsupported)
-	}
-
-	c.CurrencySettings[0].Asset = asset.Futures
-	c.CurrencySettings[0].Quote = currency.NewCode("PERP")
-	err = c.validateCurrencySettings()
-	if !errors.Is(err, errPerpetualsUnsupported) {
-		t.Errorf("received: %v, expected: %v", err, errPerpetualsUnsupported)
-	}
-
-	c.CurrencySettings[0].MinimumSlippagePercent = decimal.NewFromInt(2)
-	c.CurrencySettings[0].MaximumSlippagePercent = decimal.NewFromInt(3)
-	c.CurrencySettings[0].Quote = currency.NewCode("USD")
-	err = c.validateCurrencySettings()
-	if !errors.Is(err, errFeatureIncompatible) {
-		t.Errorf("received: %v, expected: %v", err, errFeatureIncompatible)
-	}
-
-	c.CurrencySettings[0].Asset = asset.Spot
-	c.CurrencySettings[0].MinimumSlippagePercent = decimal.NewFromInt(-1)
-	err = c.validateCurrencySettings()
-	if !errors.Is(err, errBadSlippageRates) {
-		t.Errorf("received: %v, expected: %v", err, errBadSlippageRates)
-	}
-	c.CurrencySettings[0].MinimumSlippagePercent = decimal.NewFromInt(2)
-	c.CurrencySettings[0].MaximumSlippagePercent = decimal.NewFromInt(-1)
-	err = c.validateCurrencySettings()
-	if !errors.Is(err, errBadSlippageRates) {
-		t.Errorf("received: %v, expected: %v", err, errBadSlippageRates)
-	}
-	c.CurrencySettings[0].MinimumSlippagePercent = decimal.NewFromInt(2)
-	c.CurrencySettings[0].MaximumSlippagePercent = decimal.NewFromInt(1)
-	err = c.validateCurrencySettings()
-	if !errors.Is(err, errBadSlippageRates) {
-		t.Errorf("received: %v, expected: %v", err, errBadSlippageRates)
-	}
-
-	c.CurrencySettings[0].SpotDetails = &SpotDetails{}
-	err = c.validateCurrencySettings()
-	if !errors.Is(err, errBadInitialFunds) {
-		t.Errorf("received: %v, expected: %v", err, errBadInitialFunds)
-	}
-
-	z := decimal.Zero
-	c.CurrencySettings[0].SpotDetails.InitialQuoteFunds = &z
-	c.CurrencySettings[0].SpotDetails.InitialBaseFunds = &z
-	err = c.validateCurrencySettings()
-	if !errors.Is(err, errBadInitialFunds) {
-		t.Errorf("received: %v, expected: %v", err, errBadInitialFunds)
-	}
-
-	c.CurrencySettings[0].SpotDetails.InitialQuoteFunds = &leet
-	c.FundingSettings.UseExchangeLevelFunding = true
-	err = c.validateCurrencySettings()
-	if !errors.Is(err, errBadInitialFunds) {
-		t.Errorf("received: %v, expected: %v", err, errBadInitialFunds)
-	}
-
-	c.CurrencySettings[0].SpotDetails.InitialQuoteFunds = &z
-	c.CurrencySettings[0].SpotDetails.InitialBaseFunds = &leet
-	c.FundingSettings.UseExchangeLevelFunding = true
-	err = c.validateCurrencySettings()
-	if !errors.Is(err, errBadInitialFunds) {
-		t.Errorf("received: %v, expected: %v", err, errBadInitialFunds)
-	}
-}
-
-func TestValidateMinMaxes(t *testing.T) {
-	t.Parallel()
-	c := &Config{}
-	err := c.validateMinMaxes()
+	_, err = ReadBacktesterConfigFromPath(passFile.Name())
 	if err != nil {
 		t.Error(err)
 	}

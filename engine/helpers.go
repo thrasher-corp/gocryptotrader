@@ -853,7 +853,8 @@ func verifyCert(pemData []byte) error {
 	return nil
 }
 
-func checkCerts(certDir string) error {
+// CheckCerts checks and verifies RPC server certificates
+func CheckCerts(certDir string) error {
 	certFile := filepath.Join(certDir, "cert.pem")
 	keyFile := filepath.Join(certDir, "key.pem")
 

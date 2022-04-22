@@ -1,0 +1,24 @@
+syntax = "proto3";
+import "google/api/annotations.proto";
+
+package btrpc;
+option go_package = "github.com/thrasher-corp/gocryptotrader/backtester/btrpc";
+
+
+message ExecuteStrategyFromFileRequest {
+   string strategy_file_path = 1;
+}
+
+message ExecuteStrategyFromFileResponse {
+    bool success = 1;
+    string message = 2;
+}
+
+
+service Backtester {
+    rpc ExecuteStrategyFromFile (ExecuteStrategyFromFileRequest) returns (ExecuteStrategyFromFileResponse) {
+        option (google.api.http) = {
+            get :"/v1/executestrategy"
+        };
+    }
+}

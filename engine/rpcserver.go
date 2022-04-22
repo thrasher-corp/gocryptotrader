@@ -114,8 +114,8 @@ func (s *RPCServer) authenticateClient(ctx context.Context) (context.Context, er
 // StartRPCServer starts a gRPC server with TLS auth
 func StartRPCServer(engine *Engine) {
 	targetDir := utils.GetTLSDir(engine.Settings.DataDir)
-	if err := checkCerts(targetDir); err != nil {
-		log.Errorf(log.GRPCSys, "gRPC checkCerts failed. err: %s\n", err)
+	if err := CheckCerts(targetDir); err != nil {
+		log.Errorf(log.GRPCSys, "gRPC CheckCerts failed. err: %s\n", err)
 		return
 	}
 	log.Debugf(log.GRPCSys, "gRPC server support enabled. Starting gRPC server on https://%v.\n", engine.Config.RemoteControl.GRPC.ListenAddress)
