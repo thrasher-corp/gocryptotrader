@@ -126,6 +126,20 @@ func (by *Bybit) SetDefaults() {
 		},
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
+			Kline: kline.ExchangeCapabilitiesEnabled{
+				Intervals: map[string]bool{
+					kline.OneMin.Word():     true,
+					kline.FiveMin.Word():    true,
+					kline.FifteenMin.Word(): true,
+					kline.ThirtyMin.Word():  true,
+					kline.OneHour.Word():    true,
+					kline.FourHour.Word():   true,
+					kline.OneDay.Word():     true,
+					kline.OneWeek.Word():    true,
+					kline.OneMonth.Word():   true,
+					kline.OneYear.Word():    true,
+				},
+			},
 		},
 	}
 
@@ -725,6 +739,12 @@ func (by *Bybit) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submit
 	if err := s.Validate(); err != nil {
 		return submitOrderResponse, err
 	}
+
+	formattedPair, err := by.FormatExchangeCurrency(s.Pair, s.AssetType)
+	if err != nil {
+		return submitOrderResponse, err
+	}
+
 	switch s.AssetType {
 	case asset.Spot:
 		var sideType string
@@ -751,7 +771,7 @@ func (by *Bybit) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submit
 		}
 
 		var orderRequest = PlaceOrderRequest{
-			Symbol:      s.Pair.String(),
+			Symbol:      formattedPair.String(),
 			Side:        sideType,
 			Price:       s.Price,
 			Quantity:    s.Amount,
@@ -787,15 +807,15 @@ func (by *Bybit) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submit
 		switch s.Type {
 		case order.Market:
 			timeInForce = ""
-			oType = "MARKET"
+			oType = "Market"
 		case order.Limit:
-			oType = "LIMIT"
+			oType = "Limit"
 		default:
 			submitOrderResponse.IsOrderPlaced = false
 			return submitOrderResponse, errUnsupportedOrderType
 		}
 
-		o, err := by.CreateCoinFuturesOrder(ctx, s.Pair, sideType, oType, timeInForce,
+		o, err := by.CreateCoinFuturesOrder(ctx, formattedPair, sideType, oType, timeInForce,
 			s.ClientOrderID, "", "",
 			s.Amount, s.Price, 0, 0, false, s.ReduceOnly)
 		if err != nil {
@@ -819,15 +839,15 @@ func (by *Bybit) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submit
 		switch s.Type {
 		case order.Market:
 			timeInForce = ""
-			oType = "MARKET"
+			oType = "Market"
 		case order.Limit:
-			oType = "LIMIT"
+			oType = "Limit"
 		default:
 			submitOrderResponse.IsOrderPlaced = false
 			return submitOrderResponse, errUnsupportedOrderType
 		}
 
-		o, err := by.CreateUSDTFuturesOrder(ctx, s.Pair, sideType, oType, timeInForce,
+		o, err := by.CreateUSDTFuturesOrder(ctx, formattedPair, sideType, oType, timeInForce,
 			s.ClientOrderID, "", "",
 			s.Amount, s.Price, 0, 0, false, s.ReduceOnly)
 		if err != nil {
@@ -851,16 +871,16 @@ func (by *Bybit) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submit
 		switch s.Type {
 		case order.Market:
 			timeInForce = ""
-			oType = "MARKET"
+			oType = "Market"
 		case order.Limit:
-			oType = "LIMIT"
+			oType = "Limit"
 		default:
 			submitOrderResponse.IsOrderPlaced = false
 			return submitOrderResponse, errUnsupportedOrderType
 		}
 
 		// TODO: check position mode
-		o, err := by.CreateFuturesOrder(ctx, 0, s.Pair, sideType, oType, timeInForce,
+		o, err := by.CreateFuturesOrder(ctx, 0, formattedPair, sideType, oType, timeInForce,
 			s.ClientOrderID, "", "",
 			s.Amount, s.Price, 0, 0, false, s.ReduceOnly)
 		if err != nil {
@@ -896,9 +916,6 @@ func (by *Bybit) ModifyOrder(ctx context.Context, action *order.Modify) (order.M
 		err = fmt.Errorf("assetType not supported: %v", action.AssetType)
 	}
 
-	if err != nil {
-		return order.Modify{}, err
-	}
 	return order.Modify{
 		Exchange:  action.Exchange,
 		AssetType: action.AssetType,
@@ -1300,9 +1317,15 @@ func (by *Bybit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 		Asset:    a,
 		Interval: interval,
 	}
+
+	formattedPair, err := by.FormatExchangeCurrency(pair, a)
+	if err != nil {
+		return klineItem, err
+	}
+
 	switch a {
 	case asset.Spot:
-		candles, err := by.GetKlines(ctx, pair.String(), by.FormatExchangeKlineInterval(ctx, interval), int64(by.Features.Enabled.Kline.ResultLimit), start, end)
+		candles, err := by.GetKlines(ctx, formattedPair.String(), by.FormatExchangeKlineInterval(ctx, interval), int64(by.Features.Enabled.Kline.ResultLimit), start, end)
 		if err != nil {
 			return klineItem, err
 		}
@@ -1318,7 +1341,7 @@ func (by *Bybit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 			})
 		}
 	case asset.CoinMarginedFutures, asset.Futures:
-		candles, err := by.GetFuturesKlineData(ctx, pair, by.FormatExchangeKlineInterval(ctx, interval), int64(by.Features.Enabled.Kline.ResultLimit), start)
+		candles, err := by.GetFuturesKlineData(ctx, formattedPair, by.FormatExchangeKlineInterval(ctx, interval), int64(by.Features.Enabled.Kline.ResultLimit), start)
 		if err != nil {
 			return klineItem, err
 		}
@@ -1334,7 +1357,7 @@ func (by *Bybit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 			})
 		}
 	case asset.USDTMarginedFutures:
-		candles, err := by.GetUSDTFuturesKlineData(ctx, pair, by.FormatExchangeKlineInterval(ctx, interval), int64(by.Features.Enabled.Kline.ResultLimit), start)
+		candles, err := by.GetUSDTFuturesKlineData(ctx, formattedPair, by.FormatExchangeKlineInterval(ctx, interval), int64(by.Features.Enabled.Kline.ResultLimit), start)
 		if err != nil {
 			return klineItem, err
 		}
@@ -1365,12 +1388,18 @@ func (by *Bybit) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 		return kline.Item{}, err
 	}
 
-	ret := kline.Item{
+	klineItem := kline.Item{
 		Exchange: by.Name,
 		Pair:     pair,
 		Asset:    a,
 		Interval: interval,
 	}
+
+	formattedPair, err := by.FormatExchangeCurrency(pair, a)
+	if err != nil {
+		return klineItem, err
+	}
+
 	dates, err := kline.CalculateCandleDateRanges(start, end, interval, by.Features.Enabled.Kline.ResultLimit)
 	if err != nil {
 		return kline.Item{}, err
@@ -1378,18 +1407,18 @@ func (by *Bybit) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 
 	switch a {
 	case asset.Spot:
-		candles, err := by.GetKlines(ctx, pair.String(), by.FormatExchangeKlineInterval(ctx, interval), int64(by.Features.Enabled.Kline.ResultLimit), start, end)
+		candles, err := by.GetKlines(ctx, formattedPair.String(), by.FormatExchangeKlineInterval(ctx, interval), int64(by.Features.Enabled.Kline.ResultLimit), start, end)
 		if err != nil {
 			return kline.Item{}, err
 		}
 
 		for i := range candles {
-			for j := range ret.Candles {
-				if ret.Candles[j].Time.Equal(time.Unix(int64(candles[i].Open), 0)) {
+			for j := range klineItem.Candles {
+				if klineItem.Candles[j].Time.Equal(time.Unix(int64(candles[i].Open), 0)) {
 					continue
 				}
 			}
-			ret.Candles = append(ret.Candles, kline.Candle{
+			klineItem.Candles = append(klineItem.Candles, kline.Candle{
 				Time:   time.Unix(int64(candles[i].Open), 0),
 				Open:   candles[i].Open,
 				High:   candles[i].High,
@@ -1399,18 +1428,18 @@ func (by *Bybit) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 			})
 		}
 	case asset.CoinMarginedFutures, asset.Futures:
-		candles, err := by.GetFuturesKlineData(ctx, pair, by.FormatExchangeKlineInterval(ctx, interval), int64(by.Features.Enabled.Kline.ResultLimit), start)
+		candles, err := by.GetFuturesKlineData(ctx, formattedPair, by.FormatExchangeKlineInterval(ctx, interval), int64(by.Features.Enabled.Kline.ResultLimit), start)
 		if err != nil {
 			return kline.Item{}, err
 		}
 
 		for i := range candles {
-			for j := range ret.Candles {
-				if ret.Candles[j].Time.Equal(time.Unix(candles[i].OpenTime, 0)) {
+			for j := range klineItem.Candles {
+				if klineItem.Candles[j].Time.Equal(time.Unix(candles[i].OpenTime, 0)) {
 					continue
 				}
 			}
-			ret.Candles = append(ret.Candles, kline.Candle{
+			klineItem.Candles = append(klineItem.Candles, kline.Candle{
 				Time:   time.Unix(candles[i].OpenTime, 0),
 				Open:   candles[i].Open,
 				High:   candles[i].High,
@@ -1420,18 +1449,18 @@ func (by *Bybit) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 			})
 		}
 	case asset.USDTMarginedFutures:
-		candles, err := by.GetUSDTFuturesKlineData(ctx, pair, by.FormatExchangeKlineInterval(ctx, interval), int64(by.Features.Enabled.Kline.ResultLimit), start)
+		candles, err := by.GetUSDTFuturesKlineData(ctx, formattedPair, by.FormatExchangeKlineInterval(ctx, interval), int64(by.Features.Enabled.Kline.ResultLimit), start)
 		if err != nil {
 			return kline.Item{}, err
 		}
 
 		for i := range candles {
-			for j := range ret.Candles {
-				if ret.Candles[j].Time.Equal(time.Unix(candles[i].OpenTime, 0)) {
+			for j := range klineItem.Candles {
+				if klineItem.Candles[j].Time.Equal(time.Unix(candles[i].OpenTime, 0)) {
 					continue
 				}
 			}
-			ret.Candles = append(ret.Candles, kline.Candle{
+			klineItem.Candles = append(klineItem.Candles, kline.Candle{
 				Time:   time.Unix(candles[i].OpenTime, 0),
 				Open:   candles[i].Open,
 				High:   candles[i].High,
@@ -1445,15 +1474,15 @@ func (by *Bybit) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 		return kline.Item{}, fmt.Errorf("assetType not supported: %v", a)
 	}
 
-	dates.SetHasDataFromCandles(ret.Candles)
+	dates.SetHasDataFromCandles(klineItem.Candles)
 	summary := dates.DataSummary(false)
 	if len(summary) > 0 {
 		log.Warnf(log.ExchangeSys, "%v - %v", by.Name, summary)
 	}
-	ret.RemoveDuplicates()
-	ret.RemoveOutsideRange(start, end)
-	ret.SortCandlesByTimestamp(false)
-	return ret, nil
+	klineItem.RemoveDuplicates()
+	klineItem.RemoveOutsideRange(start, end)
+	klineItem.SortCandlesByTimestamp(false)
+	return klineItem, nil
 }
 
 func (by *Bybit) extractCurrencyPair(symbol string, item asset.Item) (currency.Pair, error) {
