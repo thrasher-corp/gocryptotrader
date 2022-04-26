@@ -16,14 +16,44 @@
     "application/json"
   ],
   "paths": {
-    "/v1/executestrategy": {
+    "/v1/executestrategyfromconfig": {
+      "get": {
+        "operationId": "Backtester_ExecuteStrategyFromConfig",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/btrpcExecuteStrategyResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "strategyFilePath",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "Backtester"
+        ]
+      }
+    },
+    "/v1/executestrategyfromfile": {
       "get": {
         "operationId": "Backtester_ExecuteStrategyFromFile",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/btrpcExecuteStrategyFromFileResponse"
+              "$ref": "#/definitions/btrpcExecuteStrategyResponse"
             }
           },
           "default": {
@@ -48,7 +78,7 @@
     }
   },
   "definitions": {
-    "btrpcExecuteStrategyFromFileResponse": {
+    "btrpcExecuteStrategyResponse": {
       "type": "object",
       "properties": {
         "success": {

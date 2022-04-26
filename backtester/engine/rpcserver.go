@@ -7,9 +7,11 @@ import (
 	"net/http"
 	"path/filepath"
 	"strings"
+	"time"
 
 	grpcauth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/btrpc"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
@@ -143,7 +145,7 @@ func (s *RPCServer) authenticateClient(ctx context.Context) (context.Context, er
 }
 
 // ExecuteStrategyFromFile will backtest a strategy from the filepath provided
-func (s *RPCServer) ExecuteStrategyFromFile(_ context.Context, request *btrpc.ExecuteStrategyFromFileRequest) (*btrpc.ExecuteStrategyFromFileResponse, error) {
+func (s *RPCServer) ExecuteStrategyFromFile(_ context.Context, request *btrpc.ExecuteStrategyFromFileRequest) (*btrpc.ExecuteStrategyResponse, error) {
 	dir := request.StrategyFilePath
 	cfg, err := config.ReadStrategyConfigFromFile(dir)
 	if err != nil {
@@ -153,7 +155,214 @@ func (s *RPCServer) ExecuteStrategyFromFile(_ context.Context, request *btrpc.Ex
 	if err != nil {
 		return nil, err
 	}
-	return &btrpc.ExecuteStrategyFromFileResponse{
+	return &btrpc.ExecuteStrategyResponse{
+		Success: true,
+	}, nil
+}
+
+// ExecuteStrategyFromConfig will backtest a strategy config built from a GRPC command
+// this should be a preferred method of interacting with backtester, as it allows for very quick
+// minor tweaks to strategy to determine the best result - SO LONG AS YOU DONT OVERFIT
+func (s *RPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc.ExecuteStrategyFromConfigRequest) (*btrpc.ExecuteStrategyResponse, error) {
+	// al the decimal conversions
+	rfr, err := decimal.NewFromString(request.Config.StatisticSettings.RiskFreeRate)
+	if err != nil {
+		return nil, err
+	}
+	maximumOrdersWithLeverageRatio, err := decimal.NewFromString(request.Config.PortfolioSettings.Leverage.MaximumOrdersWithLeverageRatio)
+	if err != nil {
+		return nil, err
+	}
+	maximumOrderLeverageRate, err := decimal.NewFromString(request.Config.PortfolioSettings.Leverage.MaximumLeverageRate)
+	if err != nil {
+		return nil, err
+	}
+	maximumCollateralLeverageRate, err := decimal.NewFromString(request.Config.PortfolioSettings.Leverage.MaximumCollateralLeverageRate)
+	if err != nil {
+		return nil, err
+	}
+
+	buySideMinimumSize, err := decimal.NewFromString(request.Config.PortfolioSettings.BuySide.MinimumSize)
+	if err != nil {
+		return nil, err
+	}
+	buySideMaximumSize, err := decimal.NewFromString(request.Config.PortfolioSettings.BuySide.MaximumSize)
+	if err != nil {
+		return nil, err
+	}
+	buySideMaximumTotal, err := decimal.NewFromString(request.Config.PortfolioSettings.BuySide.MaximumTotal)
+	if err != nil {
+		return nil, err
+	}
+
+	sellSideMinimumSize, err := decimal.NewFromString(request.Config.PortfolioSettings.SellSide.MinimumSize)
+	if err != nil {
+		return nil, err
+	}
+	sellSideMaximumSize, err := decimal.NewFromString(request.Config.PortfolioSettings.SellSide.MaximumSize)
+	if err != nil {
+		return nil, err
+	}
+	sellSideMaximumTotal, err := decimal.NewFromString(request.Config.PortfolioSettings.SellSide.MaximumTotal)
+	if err != nil {
+		return nil, err
+	}
+
+	var fundingSettings []config.ExchangeLevelFunding
+	for i := range request.Config.FundingSettings.ExchangeLevelFunding {
+		initialFunds, err := decimal.NewFromString(request.Config.FundingSettings.ExchangeLevelFunding[i].InitialFunds)
+		if err != nil {
+			return nil, err
+		}
+		transferFee, err := decimal.NewFromString(request.Config.FundingSettings.ExchangeLevelFunding[i].TransferFee)
+		if err != nil {
+			return nil, err
+		}
+		fundingSettings = append(fundingSettings, config.ExchangeLevelFunding{
+			ExchangeName: request.Config.FundingSettings.ExchangeLevelFunding[i].ExchangeName,
+			Asset:        request.Config.FundingSettings.ExchangeLevelFunding[i].Asset,
+			Currency:     request.Config.FundingSettings.ExchangeLevelFunding[i].Currency,
+			InitialFunds: initialFunds,
+			TransferFee:  transferFee,
+		})
+	}
+
+	customSettings := make(map[string]interface{})
+	for i := range request.Config.StrategySettings.CustomSettings {
+		customSettings[request.Config.StrategySettings.CustomSettings[i].KeyField] = request.Config.StrategySettings.CustomSettings[i].KeyValue
+	}
+
+	var configSettings []config.CurrencySettings
+	for i := range request.Config.CurrencySettings {
+		currencySettingBuySideMinimumSize, err := decimal.NewFromString(request.Config.CurrencySettings[i].BuySide.MinimumSize)
+		if err != nil {
+			return nil, err
+		}
+		currencySettingBuySideMaximumSize, err := decimal.NewFromString(request.Config.CurrencySettings[i].BuySide.MaximumSize)
+		if err != nil {
+			return nil, err
+		}
+		currencySettingBuySideMaximumTotal, err := decimal.NewFromString(request.Config.CurrencySettings[i].BuySide.MaximumTotal)
+		if err != nil {
+			return nil, err
+		}
+
+		currencySettingSellSideMinimumSize, err := decimal.NewFromString(request.Config.CurrencySettings[i].SellSide.MinimumSize)
+		if err != nil {
+			return nil, err
+		}
+		currencySettingSellSideMaximumSize, err := decimal.NewFromString(request.Config.CurrencySettings[i].SellSide.MaximumSize)
+		if err != nil {
+			return nil, err
+		}
+		currencySettingSellSideMaximumTotal, err := decimal.NewFromString(request.Config.CurrencySettings[i].SellSide.MaximumTotal)
+		if err != nil {
+			return nil, err
+		}
+
+		minimumSlippagePercent, err := decimal.NewFromString(request.Config.CurrencySettings[i].MinSlippagePercent)
+		if err != nil {
+			return nil, err
+		}
+
+		maximumSlippagePercent, err := decimal.NewFromString(request.Config.CurrencySettings[i].MaxSlippagePercent)
+		if err != nil {
+			return nil, err
+		}
+
+		maximumHoldingsRatio, err := decimal.NewFromString(request.Config.CurrencySettings[i].MaximumHoldingsRatio)
+		if err != nil {
+			return nil, err
+		}
+		configSettings = append(configSettings, config.CurrencySettings{
+			ExchangeName: request.Config.CurrencySettings[i].ExchangeName,
+			Asset:        request.Config.CurrencySettings[i].Asset,
+			Base:         request.Config.CurrencySettings[i].Base,
+			Quote:        request.Config.CurrencySettings[i].Quote,
+			//USDTrackingPair:               request.Config.CurrencySettings[i].,
+			SpotDetails:    nil,
+			FuturesDetails: nil,
+			BuySide: config.MinMax{
+				MinimumSize:  currencySettingBuySideMinimumSize,
+				MaximumSize:  currencySettingBuySideMaximumSize,
+				MaximumTotal: currencySettingBuySideMaximumTotal,
+			},
+			SellSide: config.MinMax{
+				MinimumSize:  currencySettingSellSideMinimumSize,
+				MaximumSize:  currencySettingSellSideMaximumSize,
+				MaximumTotal: currencySettingSellSideMaximumTotal,
+			},
+			MinimumSlippagePercent:        minimumSlippagePercent,
+			MaximumSlippagePercent:        maximumSlippagePercent,
+			MakerFee:                      nil,
+			TakerFee:                      nil,
+			MaximumHoldingsRatio:          maximumHoldingsRatio,
+			SkipCandleVolumeFitting:       request.Config.CurrencySettings[i].SkipCandleVolumeFitting,
+			CanUseExchangeLimits:          request.Config.CurrencySettings[i].UseExchangeOrderLimits,
+			ShowExchangeOrderLimitWarning: request.Config.CurrencySettings[i].UseExchangeOrderLimits,
+			UseExchangePNLCalculation:     request.Config.CurrencySettings[i].UseExchange_PNLCalculation,
+		})
+	}
+
+	cfg := &config.Config{
+		Nickname: request.Config.Nickname,
+		Goal:     request.Config.Goal,
+		StrategySettings: config.StrategySettings{
+			Name:                         request.Config.StrategySettings.Name,
+			SimultaneousSignalProcessing: request.Config.StrategySettings.UseSimultaneousSignalProcessing,
+			DisableUSDTracking:           request.Config.StrategySettings.Disable_USDTracking,
+			CustomSettings:               customSettings,
+		},
+		FundingSettings: config.FundingSettings{
+			UseExchangeLevelFunding: request.Config.FundingSettings.UseExchangeLevelFunding,
+			ExchangeLevelFunding:    fundingSettings,
+		},
+		CurrencySettings: nil,
+		DataSettings: config.DataSettings{
+			Interval: time.Duration(request.Config.DataSettings.Interval),
+			DataType: request.Config.DataSettings.Datatype,
+		},
+		PortfolioSettings: config.PortfolioSettings{
+			Leverage: config.Leverage{
+				CanUseLeverage:                 request.Config.PortfolioSettings.Leverage.CanUseLeverage,
+				MaximumOrdersWithLeverageRatio: maximumOrdersWithLeverageRatio,
+				MaximumOrderLeverageRate:       maximumOrderLeverageRate,
+				MaximumCollateralLeverageRate:  maximumCollateralLeverageRate,
+			},
+			BuySide: config.MinMax{
+				MinimumSize:  buySideMinimumSize,
+				MaximumSize:  buySideMaximumSize,
+				MaximumTotal: buySideMaximumTotal,
+			},
+			SellSide: config.MinMax{
+				MinimumSize:  sellSideMinimumSize,
+				MaximumSize:  sellSideMaximumSize,
+				MaximumTotal: sellSideMaximumTotal,
+			},
+		},
+		StatisticSettings: config.StatisticSettings{
+			RiskFreeRate: rfr,
+		},
+	}
+
+	if request.Config.DataSettings.ApiData != nil {
+
+	}
+	if request.Config.DataSettings.ApiData != nil {
+
+	}
+	if request.Config.DataSettings.ApiData != nil {
+
+	}
+	if request.Config.DataSettings.ApiData != nil {
+
+	}
+
+	err = ExecuteStrategy(cfg, s.BacktesterConfig)
+	if err != nil {
+		return nil, err
+	}
+	return &btrpc.ExecuteStrategyResponse{
 		Success: true,
 	}, nil
 }

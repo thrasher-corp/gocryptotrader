@@ -177,7 +177,10 @@ func main() {
 	if !btCfg.Report.GenerateReport && generateReport {
 		btCfg.Report.GenerateReport = generateReport
 	}
-	if btCfg.Report.OutputPath != reportOutput {
+	if btCfg.Report.TemplatePath != templatePath && templatePath != filepath.Join(wd, "report", "tpl.gohtml") {
+		btCfg.Report.TemplatePath = templatePath
+	}
+	if btCfg.Report.OutputPath != reportOutput && reportOutput != filepath.Join(wd, "results") {
 		btCfg.Report.OutputPath = reportOutput
 	}
 

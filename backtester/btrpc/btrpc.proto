@@ -1,24 +1,164 @@
 syntax = "proto3";
 import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
 
 package btrpc;
 option go_package = "github.com/thrasher-corp/gocryptotrader/backtester/btrpc";
 
-
-message ExecuteStrategyFromFileRequest {
-   string strategy_file_path = 1;
+// struct definitions
+message StrategySettings {
+    string name = 1;
+    bool use_simultaneous_signal_processing = 2;
+    bool disable_USD_tracking = 3;
+    repeated CustomSettings custom_settings= 4;
 }
 
-message ExecuteStrategyFromFileResponse {
+message CustomSettings {
+    string key_field = 1;
+    string key_value = 2;
+}
+
+message ExchangeLevelFunding {
+    string exchange_name = 1;
+    string asset = 2;
+    string currency = 3;
+    string initial_funds = 4;
+    string transfer_fee = 5;
+}
+
+message FundingSettings {
+    bool use_exchange_level_funding = 1;
+    repeated ExchangeLevelFunding exchange_level_funding = 2;
+}
+
+message PurchaseSide {
+    string minimum_size = 1;
+    string maximum_size = 2;
+    string maximum_total = 3;
+}
+
+message CurrencySettings {
+    string exchange_name = 1;
+    string asset = 2;
+    string base = 3;
+    string quote = 4;
+    PurchaseSide buy_side = 5;
+    PurchaseSide sell_side = 6;
+    string min_slippage_percent = 7;
+    string max_slippage_percent = 8;
+    string maker_fee_override = 9;
+    string taker_fee_override = 10;
+    string maximum_holdings_ratio = 11;
+    bool skip_candle_volume_fitting = 12;
+    bool use_exchange_order_limits = 13;
+    bool use_exchange_PNL_calculation = 14;
+}
+
+message ApiData {
+    google.protobuf.Timestamp start_date = 1;
+    google.protobuf.Timestamp end_date = 2;
+    bool inclusive_end_date = 3;
+}
+
+message DatabaseConnectionDetails {
+    string host = 1;
+    string port =2;
+    string user_name =3;
+    string password =4;
+    string database =5;
+    string ssl_mode =6;
+}
+
+message DatabaseConfig {
+    bool enabled = 1;
+    bool verbose = 2;
+    string driver = 3;
+    DatabaseConnectionDetails config = 4;
+}
+
+message DatabaseData {
+    google.protobuf.Timestamp start_date = 1;
+    google.protobuf.Timestamp end_date = 2;
+    DatabaseConfig config = 3;
+    string path = 4;
+    bool inclusive_end_date = 5;
+}
+
+message CSVData {
+    string path = 1;
+}
+
+message LiveData {
+    string api_key_override =1;
+    string api_secret_override =2;
+    string api_client_id_override =3;
+    string api_2fa_override =4;
+    string api_sub_account_override =5;
+    bool use_real_orders =6;
+}
+
+message DataSettings {
+    uint64 interval = 1;
+    string datatype = 2;
+    ApiData api_data = 3;
+    DatabaseData database_data = 4;
+    CSVData csv_data = 5;
+    LiveData live_data = 6;
+}
+
+message Leverage {
+    bool can_use_leverage = 1;
+    string maximum_orders_with_leverage_ratio = 2;
+    string maximum_leverage_rate = 3;
+    string maximum_collateral_leverage_rate = 4;
+}
+
+
+message PortfolioSettings {
+    Leverage leverage = 1;
+    PurchaseSide buy_side = 2;
+    PurchaseSide sell_side = 3;
+}
+
+message StatisticSettings {
+    string risk_free_rate = 1;
+}
+
+message Config {
+    string nickname = 1;
+    string goal = 2;
+    StrategySettings strategy_settings = 3;
+    FundingSettings funding_settings = 4;
+    repeated CurrencySettings currency_settings = 5;
+    DataSettings data_settings = 6;
+    PortfolioSettings portfolio_settings = 7;
+    StatisticSettings statistic_settings = 8;
+}
+
+// Requests and responses
+message ExecuteStrategyFromFileRequest {
+    string strategy_file_path = 1;
+}
+
+message ExecuteStrategyResponse {
     bool success = 1;
     string message = 2;
 }
 
+message ExecuteStrategyFromConfigRequest {
+    btrpc.Config config = 1;
+}
+
 
 service Backtester {
-    rpc ExecuteStrategyFromFile (ExecuteStrategyFromFileRequest) returns (ExecuteStrategyFromFileResponse) {
+    rpc ExecuteStrategyFromFile (ExecuteStrategyFromFileRequest) returns (ExecuteStrategyResponse) {
         option (google.api.http) = {
-            get :"/v1/executestrategy"
+            get :"/v1/executestrategyfromfile"
+        };
+    }
+    rpc ExecuteStrategyFromConfig (ExecuteStrategyFromFileRequest) returns (ExecuteStrategyResponse) {
+        option (google.api.http) = {
+            get :"/v1/executestrategyfromconfig"
         };
     }
 }
