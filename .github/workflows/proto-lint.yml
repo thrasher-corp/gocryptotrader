@@ -1,0 +1,31 @@
+name: proto-checks
+'on':
+  - push
+  - pull_request
+jobs:
+  proto-lint:
+    name: proto-checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: 1.18.x
+      - name: Setup build depends
+        run: |
+         go get github.com/grpc-ecosystem/grpc-gateway/v2/internal/descriptor@v2.10.0
+         go get google.golang.org/grpc/cmd/protoc-gen-go-grpc
+         go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway
+         go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2
+         go install google.golang.org/protobuf/cmd/protoc-gen-go
+         go install google.golang.org/grpc/cmd/protoc-gen-go-grpc
+      - uses: bufbuild/buf-setup-action@v1.4.0
+      - name: buf generate
+        working-directory: ./gctrpc
+        run: buf generate
+      - uses: bufbuild/buf-lint-action@v1
+        with:
+          input: gctrpc
+      - name: buf format
+        run: buf format --diff --exit-code

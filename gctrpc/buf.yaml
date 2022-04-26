@@ -1,5 +1,11 @@
-version: v1beta1
+version: v1
 name: buf.build/gocryptotrader/grpc
+lint:
+  use:
+    - DEFAULT
+breaking:
+  use:
+    - FILE
 deps:
-  - buf.build/beta/googleapis
+  - buf.build/googleapis/googleapis
   - buf.build/grpc-ecosystem/grpc-gateway
