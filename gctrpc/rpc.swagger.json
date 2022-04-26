@@ -6,7 +6,7 @@
   },
   "tags": [
     {
-      "name": "GoCryptoTrader"
+      "name": "GoCryptoTraderService"
     }
   ],
   "consumes": [
@@ -18,7 +18,7 @@
   "paths": {
     "/v1/addevent": {
       "post": {
-        "operationId": "GoCryptoTrader_AddEvent",
+        "operationId": "GoCryptoTraderService_AddEvent",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -44,13 +44,13 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/addportfolioaddress": {
       "post": {
-        "operationId": "GoCryptoTrader_AddPortfolioAddress",
+        "operationId": "GoCryptoTraderService_AddPortfolioAddress",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -76,13 +76,13 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/cancelallorders": {
       "post": {
-        "operationId": "GoCryptoTrader_CancelAllOrders",
+        "operationId": "GoCryptoTraderService_CancelAllOrders",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -108,13 +108,13 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/cancelbatchorders": {
       "post": {
-        "operationId": "GoCryptoTrader_CancelBatchOrders",
+        "operationId": "GoCryptoTraderService_CancelBatchOrders",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -140,13 +140,13 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/cancelorder": {
       "post": {
-        "operationId": "GoCryptoTrader_CancelOrder",
+        "operationId": "GoCryptoTraderService_CancelOrder",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -172,13 +172,13 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/converttradestocandles": {
       "get": {
-        "operationId": "GoCryptoTrader_ConvertTradesToCandles",
+        "operationId": "GoCryptoTraderService_ConvertTradesToCandles",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -257,13 +257,13 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/currencystatedeposit": {
       "get": {
-        "operationId": "GoCryptoTrader_CurrencyStateDeposit",
+        "operationId": "GoCryptoTraderService_CurrencyStateDeposit",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -299,13 +299,13 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/currencystategetall": {
       "get": {
-        "operationId": "GoCryptoTrader_CurrencyStateGetAll",
+        "operationId": "GoCryptoTraderService_CurrencyStateGetAll",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -329,13 +329,13 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/currencystatetrading": {
       "get": {
-        "operationId": "GoCryptoTrader_CurrencyStateTrading",
+        "operationId": "GoCryptoTraderService_CurrencyStateTrading",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -371,13 +371,13 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/currencystatetradingpair": {
       "get": {
-        "operationId": "GoCryptoTrader_CurrencyStateTradingPair",
+        "operationId": "GoCryptoTraderService_CurrencyStateTradingPair",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -413,13 +413,13 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/currencystatewithdraw": {
       "get": {
-        "operationId": "GoCryptoTrader_CurrencyStateWithdraw",
+        "operationId": "GoCryptoTraderService_CurrencyStateWithdraw",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -455,13 +455,13 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/disableexchange": {
       "post": {
-        "operationId": "GoCryptoTrader_DisableExchange",
+        "operationId": "GoCryptoTraderService_DisableExchange",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -487,13 +487,13 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/disablesubsystem": {
       "get": {
-        "operationId": "GoCryptoTrader_DisableSubsystem",
+        "operationId": "GoCryptoTraderService_DisableSubsystem",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -517,13 +517,13 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/enableexchange": {
       "post": {
-        "operationId": "GoCryptoTrader_EnableExchange",
+        "operationId": "GoCryptoTraderService_EnableExchange",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -549,13 +549,13 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/enablesubsystem": {
       "get": {
-        "operationId": "GoCryptoTrader_EnableSubsystem",
+        "operationId": "GoCryptoTraderService_EnableSubsystem",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -579,13 +579,13 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/findmissingsavedcandleintervals": {
       "get": {
-        "operationId": "GoCryptoTrader_FindMissingSavedCandleIntervals",
+        "operationId": "GoCryptoTraderService_FindMissingSavedCandleIntervals",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -652,13 +652,13 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/findmissingsavedtradeintervals": {
       "get": {
-        "operationId": "GoCryptoTrader_FindMissingSavedTradeIntervals",
+        "operationId": "GoCryptoTraderService_FindMissingSavedTradeIntervals",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -718,13 +718,13 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/gctscript/autoload": {
       "post": {
-        "operationId": "GoCryptoTrader_GCTScriptAutoLoadToggle",
+        "operationId": "GoCryptoTraderService_GCTScriptAutoLoadToggle",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -750,13 +750,13 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/gctscript/execute": {
       "get": {
-        "operationId": "GoCryptoTrader_GCTScriptExecute",
+        "operationId": "GoCryptoTraderService_GCTScriptExecute",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -773,7 +773,7 @@
         },
         "parameters": [
           {
-            "name": "script.UUID",
+            "name": "script.uuid",
             "in": "query",
             "required": false,
             "type": "string"
@@ -798,115 +798,13 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
-    "/v1/gctscript/query": {
-      "get": {
-        "operationId": "GoCryptoTrader_GCTScriptQuery",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/gctrpcGCTScriptQueryResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "script.UUID",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "name": "script.name",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "name": "script.path",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "name": "script.nextRun",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          }
-        ],
-        "tags": [
-          "GoCryptoTrader"
-        ]
-      }
-    },
-    "/v1/gctscript/read": {
+    "/v1/gctscript/list": {
       "post": {
-        "operationId": "GoCryptoTrader_GCTScriptReadScript",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/gctrpcGCTScriptQueryResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/gctrpcGCTScriptReadScriptRequest"
-            }
-          }
-        ],
-        "tags": [
-          "GoCryptoTrader"
-        ]
-      }
-    },
-    "/v1/gctscript/status": {
-      "get": {
-        "operationId": "GoCryptoTrader_GCTScriptStatus",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/gctrpcGCTScriptStatusResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "tags": [
-          "GoCryptoTrader"
-        ]
-      }
-    },
-    "/v1/gctscript/stop": {
-      "post": {
-        "operationId": "GoCryptoTrader_GCTScriptListAll",
+        "operationId": "GoCryptoTraderService_GCTScriptListAll",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -932,13 +830,179 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
+        ]
+      }
+    },
+    "/v1/gctscript/query": {
+      "get": {
+        "operationId": "GoCryptoTraderService_GCTScriptQuery",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGCTScriptQueryResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "script.uuid",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "script.name",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "script.path",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "script.nextRun",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "GoCryptoTraderService"
+        ]
+      }
+    },
+    "/v1/gctscript/read": {
+      "post": {
+        "operationId": "GoCryptoTraderService_GCTScriptReadScript",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGCTScriptQueryResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/gctrpcGCTScriptReadScriptRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GoCryptoTraderService"
+        ]
+      }
+    },
+    "/v1/gctscript/status": {
+      "get": {
+        "operationId": "GoCryptoTraderService_GCTScriptStatus",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGCTScriptStatusResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "GoCryptoTraderService"
+        ]
+      }
+    },
+    "/v1/gctscript/stop": {
+      "post": {
+        "operationId": "GoCryptoTraderService_GCTScriptStop",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGenericResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/gctrpcGCTScriptStopRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GoCryptoTraderService"
+        ]
+      }
+    },
+    "/v1/gctscript/stopall": {
+      "post": {
+        "operationId": "GoCryptoTraderService_GCTScriptStopAll",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGenericResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/gctrpcGCTScriptStopAllRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/gctscript/upload": {
       "post": {
-        "operationId": "GoCryptoTrader_GCTScriptUpload",
+        "operationId": "GoCryptoTraderService_GCTScriptUpload",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -964,13 +1028,13 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/getaccountinfo": {
       "get": {
-        "operationId": "GoCryptoTrader_GetAccountInfo",
+        "operationId": "GoCryptoTraderService_GetAccountInfo",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -1000,13 +1064,13 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/getaccountinfostream": {
       "get": {
-        "operationId": "GoCryptoTrader_GetAccountInfoStream",
+        "operationId": "GoCryptoTraderService_GetAccountInfoStream",
         "responses": {
           "200": {
             "description": "A successful response.(streaming responses)",
@@ -1045,13 +1109,13 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/getactivedatahistoryjobs": {
       "get": {
-        "operationId": "GoCryptoTrader_GetActiveDataHistoryJobs",
+        "operationId": "GoCryptoTraderService_GetActiveDataHistoryJobs",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -1067,13 +1131,13 @@
           }
         },
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/getauditevent": {
       "get": {
-        "operationId": "GoCryptoTrader_GetAuditEvent",
+        "operationId": "GoCryptoTraderService_GetAuditEvent",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -1123,13 +1187,13 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/getavailabletransferchains": {
       "post": {
-        "operationId": "GoCryptoTrader_GetAvailableTransferChains",
+        "operationId": "GoCryptoTraderService_GetAvailableTransferChains",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -1155,13 +1219,13 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/getcollateral": {
       "get": {
-        "operationId": "GoCryptoTrader_GetCollateral",
+        "operationId": "GoCryptoTraderService_GetCollateral",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -1209,13 +1273,13 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/getcommunicationrelayers": {
       "get": {
-        "operationId": "GoCryptoTrader_GetCommunicationRelayers",
+        "operationId": "GoCryptoTraderService_GetCommunicationRelayers",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -1231,13 +1295,13 @@
           }
         },
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/getconfig": {
       "get": {
-        "operationId": "GoCryptoTrader_GetConfig",
+        "operationId": "GoCryptoTraderService_GetConfig",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -1253,13 +1317,13 @@
           }
         },
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/getcryptodepositaddress": {
       "post": {
-        "operationId": "GoCryptoTrader_GetCryptocurrencyDepositAddress",
+        "operationId": "GoCryptoTraderService_GetCryptocurrencyDepositAddress",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -1285,13 +1349,13 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/getcryptodepositaddresses": {
       "post": {
-        "operationId": "GoCryptoTrader_GetCryptocurrencyDepositAddresses",
+        "operationId": "GoCryptoTraderService_GetCryptocurrencyDepositAddresses",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -1317,13 +1381,13 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/getdatahistoryjobdetails": {
       "get": {
-        "operationId": "GoCryptoTrader_GetDataHistoryJobDetails",
+        "operationId": "GoCryptoTraderService_GetDataHistoryJobDetails",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -1359,13 +1423,13 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/getdatahistoryjobsbetween": {
       "get": {
-        "operationId": "GoCryptoTrader_GetDataHistoryJobsBetween",
+        "operationId": "GoCryptoTraderService_GetDataHistoryJobsBetween",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -1395,13 +1459,13 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/getdatahistoryjobsummary": {
       "get": {
-        "operationId": "GoCryptoTrader_GetDataHistoryJobSummary",
+        "operationId": "GoCryptoTraderService_GetDataHistoryJobSummary",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -1437,13 +1501,13 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/getevents": {
       "get": {
-        "operationId": "GoCryptoTrader_GetEvents",
+        "operationId": "GoCryptoTraderService_GetEvents",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -1459,13 +1523,13 @@
           }
         },
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/getexchangeassets": {
       "get": {
-        "operationId": "GoCryptoTrader_GetExchangeAssets",
+        "operationId": "GoCryptoTraderService_GetExchangeAssets",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -1489,13 +1553,13 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/getexchangeinfo": {
       "get": {
-        "operationId": "GoCryptoTrader_GetExchangeInfo",
+        "operationId": "GoCryptoTraderService_GetExchangeInfo",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -1519,13 +1583,13 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/getexchangeorderbookstream": {
       "get": {
-        "operationId": "GoCryptoTrader_GetExchangeOrderbookStream",
+        "operationId": "GoCryptoTraderService_GetExchangeOrderbookStream",
         "responses": {
           "200": {
             "description": "A successful response.(streaming responses)",
@@ -1558,13 +1622,13 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/getexchangeotp": {
       "get": {
-        "operationId": "GoCryptoTrader_GetExchangeOTPCode",
+        "operationId": "GoCryptoTraderService_GetExchangeOTPCode",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -1588,13 +1652,13 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/getexchangeotps": {
       "get": {
-        "operationId": "GoCryptoTrader_GetExchangeOTPCodes",
+        "operationId": "GoCryptoTraderService_GetExchangeOTPCodes",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -1610,13 +1674,13 @@
           }
         },
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/getexchangepairs": {
       "post": {
-        "operationId": "GoCryptoTrader_GetExchangePairs",
+        "operationId": "GoCryptoTraderService_GetExchangePairs",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -1642,13 +1706,13 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/getexchanges": {
       "get": {
-        "operationId": "GoCryptoTrader_GetExchanges",
+        "operationId": "GoCryptoTraderService_GetExchanges",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -1672,13 +1736,13 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/getexchangetickerstream": {
       "get": {
-        "operationId": "GoCryptoTrader_GetExchangeTickerStream",
+        "operationId": "GoCryptoTraderService_GetExchangeTickerStream",
         "responses": {
           "200": {
             "description": "A successful response.(streaming responses)",
@@ -1711,13 +1775,13 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/getforexproviders": {
       "get": {
-        "operationId": "GoCryptoTrader_GetForexProviders",
+        "operationId": "GoCryptoTraderService_GetForexProviders",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -1733,13 +1797,13 @@
           }
         },
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/getforexrates": {
       "get": {
-        "operationId": "GoCryptoTrader_GetForexRates",
+        "operationId": "GoCryptoTraderService_GetForexRates",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -1755,13 +1819,13 @@
           }
         },
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/getfuturespositions": {
       "get": {
-        "operationId": "GoCryptoTrader_GetFuturesPositions",
+        "operationId": "GoCryptoTraderService_GetFuturesPositions",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -1846,13 +1910,13 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/gethistoriccandles": {
       "get": {
-        "operationId": "GoCryptoTrader_GetHistoricCandles",
+        "operationId": "GoCryptoTraderService_GetHistoricCandles",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -1949,13 +2013,88 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
+        ]
+      }
+    },
+    "/v1/gethistorictrades": {
+      "get": {
+        "operationId": "GoCryptoTraderService_GetHistoricTrades",
+        "responses": {
+          "200": {
+            "description": "A successful response.(streaming responses)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "result": {
+                  "$ref": "#/definitions/gctrpcSavedTradesResponse"
+                },
+                "error": {
+                  "$ref": "#/definitions/rpcStatus"
+                }
+              },
+              "title": "Stream result of gctrpcSavedTradesResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.delimiter",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.base",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.quote",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "assetType",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "start",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/getinfo": {
       "get": {
-        "operationId": "GoCryptoTrader_GetInfo",
+        "operationId": "GoCryptoTraderService_GetInfo",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -1971,13 +2110,13 @@
           }
         },
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/getloggerdetails": {
       "get": {
-        "operationId": "GoCryptoTrader_GetLoggerDetails",
+        "operationId": "GoCryptoTraderService_GetLoggerDetails",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -2001,13 +2140,13 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/getmanagedorders": {
       "post": {
-        "operationId": "GoCryptoTrader_GetManagedOrders",
+        "operationId": "GoCryptoTraderService_GetManagedOrders",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -2033,13 +2172,13 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/getorder": {
       "post": {
-        "operationId": "GoCryptoTrader_GetOrder",
+        "operationId": "GoCryptoTraderService_GetOrder",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -2065,13 +2204,13 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/getorderbook": {
       "post": {
-        "operationId": "GoCryptoTrader_GetOrderbook",
+        "operationId": "GoCryptoTraderService_GetOrderbook",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -2097,13 +2236,13 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/getorderbooks": {
       "get": {
-        "operationId": "GoCryptoTrader_GetOrderbooks",
+        "operationId": "GoCryptoTraderService_GetOrderbooks",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -2119,13 +2258,13 @@
           }
         },
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/getorderbookstream": {
       "get": {
-        "operationId": "GoCryptoTrader_GetOrderbookStream",
+        "operationId": "GoCryptoTraderService_GetOrderbookStream",
         "responses": {
           "200": {
             "description": "A successful response.(streaming responses)",
@@ -2182,13 +2321,13 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/getorders": {
       "post": {
-        "operationId": "GoCryptoTrader_GetOrders",
+        "operationId": "GoCryptoTraderService_GetOrders",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -2214,13 +2353,13 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/getportfolio": {
       "get": {
-        "operationId": "GoCryptoTrader_GetPortfolio",
+        "operationId": "GoCryptoTraderService_GetPortfolio",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -2236,13 +2375,13 @@
           }
         },
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/getportfoliosummary": {
       "get": {
-        "operationId": "GoCryptoTrader_GetPortfolioSummary",
+        "operationId": "GoCryptoTraderService_GetPortfolioSummary",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -2258,35 +2397,13 @@
           }
         },
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
-    "/v1/getrpcendpoints": {
+    "/v1/getrecenttrades": {
       "get": {
-        "operationId": "GoCryptoTrader_GetRPCEndpoints",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/gctrpcGetRPCEndpointsResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "tags": [
-          "GoCryptoTrader"
-        ]
-      }
-    },
-    "/v1/getsavedtrades": {
-      "get": {
-        "operationId": "GoCryptoTrader_GetSavedTrades",
+        "operationId": "GoCryptoTraderService_GetRecentTrades",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -2346,13 +2463,101 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
+        ]
+      }
+    },
+    "/v1/getrpcendpoints": {
+      "get": {
+        "operationId": "GoCryptoTraderService_GetRPCEndpoints",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetRPCEndpointsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "GoCryptoTraderService"
+        ]
+      }
+    },
+    "/v1/getsavedtrades": {
+      "get": {
+        "operationId": "GoCryptoTraderService_GetSavedTrades",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcSavedTradesResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.delimiter",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.base",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.quote",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "assetType",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "start",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/getsubsystems": {
       "get": {
-        "operationId": "GoCryptoTrader_GetSubsystems",
+        "operationId": "GoCryptoTraderService_GetSubsystems",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -2368,13 +2573,13 @@
           }
         },
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/getticker": {
       "post": {
-        "operationId": "GoCryptoTrader_GetTicker",
+        "operationId": "GoCryptoTraderService_GetTicker",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -2400,13 +2605,13 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/gettickers": {
       "get": {
-        "operationId": "GoCryptoTrader_GetTickers",
+        "operationId": "GoCryptoTraderService_GetTickers",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -2422,13 +2627,13 @@
           }
         },
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/gettickerstream": {
       "get": {
-        "operationId": "GoCryptoTrader_GetTickerStream",
+        "operationId": "GoCryptoTraderService_GetTickerStream",
         "responses": {
           "200": {
             "description": "A successful response.(streaming responses)",
@@ -2485,13 +2690,13 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/modifyorder": {
       "get": {
-        "operationId": "GoCryptoTrader_ModifyOrder",
+        "operationId": "GoCryptoTraderService_ModifyOrder",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -2559,13 +2764,13 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/removeevent": {
       "post": {
-        "operationId": "GoCryptoTrader_RemoveEvent",
+        "operationId": "GoCryptoTraderService_RemoveEvent",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -2591,13 +2796,13 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/removeportfolioaddress": {
       "post": {
-        "operationId": "GoCryptoTrader_RemovePortfolioAddress",
+        "operationId": "GoCryptoTraderService_RemovePortfolioAddress",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -2623,13 +2828,13 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/setallexchangepairs": {
       "get": {
-        "operationId": "GoCryptoTrader_SetAllExchangePairs",
+        "operationId": "GoCryptoTraderService_SetAllExchangePairs",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -2659,13 +2864,13 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/setdatahistoryjobstatus": {
       "post": {
-        "operationId": "GoCryptoTrader_SetDataHistoryJobStatus",
+        "operationId": "GoCryptoTraderService_SetDataHistoryJobStatus",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -2691,13 +2896,13 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/setexchangeasset": {
       "get": {
-        "operationId": "GoCryptoTrader_SetExchangeAsset",
+        "operationId": "GoCryptoTraderService_SetExchangeAsset",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -2733,13 +2938,13 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/setexchangepair": {
       "post": {
-        "operationId": "GoCryptoTrader_SetExchangePair",
+        "operationId": "GoCryptoTraderService_SetExchangePair",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -2765,13 +2970,13 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/setexchangetradeprocessing": {
       "get": {
-        "operationId": "GoCryptoTrader_SetExchangeTradeProcessing",
+        "operationId": "GoCryptoTraderService_SetExchangeTradeProcessing",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -2788,26 +2993,26 @@
         },
         "parameters": [
           {
-            "name": "Exchange",
+            "name": "exchange",
             "in": "query",
             "required": false,
             "type": "string"
           },
           {
-            "name": "Status",
+            "name": "status",
             "in": "query",
             "required": false,
             "type": "boolean"
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/setloggerdetails": {
       "post": {
-        "operationId": "GoCryptoTrader_SetLoggerDetails",
+        "operationId": "GoCryptoTraderService_SetLoggerDetails",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -2833,13 +3038,13 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/simulateorder": {
       "post": {
-        "operationId": "GoCryptoTrader_SimulateOrder",
+        "operationId": "GoCryptoTraderService_SimulateOrder",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -2865,13 +3070,13 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/submitorder": {
       "post": {
-        "operationId": "GoCryptoTrader_SubmitOrder",
+        "operationId": "GoCryptoTraderService_SubmitOrder",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -2897,13 +3102,13 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/updateaccountinfo": {
       "get": {
-        "operationId": "GoCryptoTrader_UpdateAccountInfo",
+        "operationId": "GoCryptoTraderService_UpdateAccountInfo",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -2933,13 +3138,13 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/updatedatahistoryjobprerequisite": {
       "post": {
-        "operationId": "GoCryptoTrader_UpdateDataHistoryJobPrerequisite",
+        "operationId": "GoCryptoTraderService_UpdateDataHistoryJobPrerequisite",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -2965,13 +3170,13 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/updateexchangesupportedpairs": {
       "get": {
-        "operationId": "GoCryptoTrader_UpdateExchangeSupportedPairs",
+        "operationId": "GoCryptoTraderService_UpdateExchangeSupportedPairs",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -2995,13 +3200,13 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/upsertdatahistoryjob": {
       "post": {
-        "operationId": "GoCryptoTrader_UpsertDataHistoryJob",
+        "operationId": "GoCryptoTraderService_UpsertDataHistoryJob",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -3027,13 +3232,13 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/websocketgetinfo": {
       "get": {
-        "operationId": "GoCryptoTrader_WebsocketGetInfo",
+        "operationId": "GoCryptoTraderService_WebsocketGetInfo",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -3057,13 +3262,13 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/websocketgetsubscriptions": {
       "get": {
-        "operationId": "GoCryptoTrader_WebsocketGetSubscriptions",
+        "operationId": "GoCryptoTraderService_WebsocketGetSubscriptions",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -3087,13 +3292,13 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/websocketsetenabled": {
       "get": {
-        "operationId": "GoCryptoTrader_WebsocketSetEnabled",
+        "operationId": "GoCryptoTraderService_WebsocketSetEnabled",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -3123,13 +3328,13 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/websocketsetproxy": {
       "get": {
-        "operationId": "GoCryptoTrader_WebsocketSetProxy",
+        "operationId": "GoCryptoTraderService_WebsocketSetProxy",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -3159,13 +3364,13 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/websocketseturl": {
       "get": {
-        "operationId": "GoCryptoTrader_WebsocketSetURL",
+        "operationId": "GoCryptoTraderService_WebsocketSetURL",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -3195,13 +3400,13 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/whalebomb": {
       "post": {
-        "operationId": "GoCryptoTrader_WhaleBomb",
+        "operationId": "GoCryptoTraderService_WhaleBomb",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -3227,13 +3432,13 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/withdrawaleventbydate": {
       "post": {
-        "operationId": "GoCryptoTrader_WithdrawalEventsByDate",
+        "operationId": "GoCryptoTraderService_WithdrawalEventsByDate",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -3259,13 +3464,13 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
-    "/v1/withdrawaleventbyid": {
+    "/v1/withdrawaleventbyexchange": {
       "post": {
-        "operationId": "GoCryptoTrader_WithdrawalEventsByExchange",
+        "operationId": "GoCryptoTraderService_WithdrawalEventsByExchange",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -3291,13 +3496,45 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
+        ]
+      }
+    },
+    "/v1/withdrawaleventbyid": {
+      "post": {
+        "operationId": "GoCryptoTraderService_WithdrawalEventByID",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcWithdrawalEventByIDResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/gctrpcWithdrawalEventByIDRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/withdrawfiatfunds": {
       "post": {
-        "operationId": "GoCryptoTrader_WithdrawFiatFunds",
+        "operationId": "GoCryptoTraderService_WithdrawFiatFunds",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -3323,13 +3560,13 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     },
     "/v1/withdrawithdrawcryptofundswfiatfunds": {
       "post": {
-        "operationId": "GoCryptoTrader_WithdrawCryptocurrencyFunds",
+        "operationId": "GoCryptoTraderService_WithdrawCryptocurrencyFunds",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -3355,7 +3592,7 @@
           }
         ],
         "tags": [
-          "GoCryptoTrader"
+          "GoCryptoTraderService"
         ]
       }
     }
@@ -3687,7 +3924,7 @@
         "scaledToCurrency": {
           "type": "string"
         },
-        "unrealisedPNL": {
+        "unrealisedPnl": {
           "type": "string"
         },
         "fundsInUse": {
@@ -3710,7 +3947,7 @@
         "lockedInStakes": {
           "type": "string"
         },
-        "lockedInNFTBids": {
+        "lockedInNftBids": {
           "type": "string"
         },
         "lockedInFeeVoucher": {
@@ -4070,10 +4307,10 @@
         "currentDirection": {
           "type": "string"
         },
-        "unrealisedPNL": {
+        "unrealisedPnl": {
           "type": "string"
         },
-        "realisedPNL": {
+        "realisedPnl": {
           "type": "string"
         },
         "openingDate": {
@@ -4093,7 +4330,7 @@
     "gctrpcGCTScript": {
       "type": "object",
       "properties": {
-        "UUID": {
+        "uuid": {
           "type": "string"
         },
         "name": {
@@ -4282,7 +4519,7 @@
         "maintenanceCollateral": {
           "type": "string"
         },
-        "unrealisedPNL": {
+        "unrealisedPnl": {
           "type": "string"
         },
         "currencyBreakdown": {
@@ -4520,13 +4757,13 @@
         "subAccount": {
           "type": "string"
         },
-        "totalRealisedPNL": {
+        "totalRealisedPnl": {
           "type": "string"
         },
-        "totalUnrealisedPNL": {
+        "totalUnrealisedPnl": {
           "type": "string"
         },
-        "totalPNL": {
+        "totalPnl": {
           "type": "string"
         },
         "positions": {
