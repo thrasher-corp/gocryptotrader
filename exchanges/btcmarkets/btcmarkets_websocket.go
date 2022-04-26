@@ -342,7 +342,6 @@ func (b *BTCMarkets) generateDefaultSubscriptions() ([]stream.ChannelSubscriptio
 	}
 
 	if b.Websocket.CanUseAuthenticatedEndpoints() {
-		var authChannels = []string{fundChange, heartbeat, orderChange}
 		for i := range authChannels {
 			subscriptions = append(subscriptions, stream.ChannelSubscription{
 				Channel: authChannels[i],
