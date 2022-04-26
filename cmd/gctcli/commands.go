@@ -3,7 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"math"
 	"os"
 	"path/filepath"
@@ -4231,7 +4231,7 @@ func gctScriptUpload(c *cli.Context) error {
 	defer closeConn(conn, cancel)
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 
-	data, err := ioutil.ReadAll(file)
+	data, err := io.ReadAll(file)
 	if err != nil {
 		return err
 	}

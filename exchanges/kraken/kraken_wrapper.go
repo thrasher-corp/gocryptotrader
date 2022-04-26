@@ -532,40 +532,44 @@ func (k *Kraken) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 	var err error
 	switch assetType {
 	case asset.Spot:
-		var orderbookNew Orderbook
+		var orderbookNew *Orderbook
 		orderbookNew, err = k.GetDepth(ctx, p)
 		if err != nil {
-			return nil, err
+			return book, err
 		}
+		book.Bids = make([]orderbook.Item, len(orderbookNew.Bids))
 		for x := range orderbookNew.Bids {
-			book.Bids = append(book.Bids, orderbook.Item{
+			book.Bids[x] = orderbook.Item{
 				Amount: orderbookNew.Bids[x].Amount,
 				Price:  orderbookNew.Bids[x].Price,
-			})
+			}
 		}
+		book.Asks = make([]orderbook.Item, len(orderbookNew.Asks))
 		for y := range orderbookNew.Asks {
-			book.Asks = append(book.Asks, orderbook.Item{
+			book.Asks[y] = orderbook.Item{
 				Amount: orderbookNew.Asks[y].Amount,
 				Price:  orderbookNew.Asks[y].Price,
-			})
+			}
 		}
 	case asset.Futures:
-		var futuresOB FuturesOrderbookData
+		var futuresOB *FuturesOrderbookData
 		futuresOB, err = k.GetFuturesOrderbook(ctx, p)
 		if err != nil {
-			return nil, err
+			return book, err
 		}
+		book.Asks = make([]orderbook.Item, len(futuresOB.Orderbook.Asks))
 		for x := range futuresOB.Orderbook.Asks {
-			book.Asks = append(book.Asks, orderbook.Item{
+			book.Asks[x] = orderbook.Item{
 				Price:  futuresOB.Orderbook.Asks[x][0],
 				Amount: futuresOB.Orderbook.Asks[x][1],
-			})
+			}
 		}
+		book.Bids = make([]orderbook.Item, len(futuresOB.Orderbook.Bids))
 		for y := range futuresOB.Orderbook.Bids {
-			book.Bids = append(book.Bids, orderbook.Item{
+			book.Bids[y] = orderbook.Item{
 				Price:  futuresOB.Orderbook.Bids[y][0],
 				Amount: futuresOB.Orderbook.Bids[y][1],
-			})
+			}
 		}
 	default:
 		return book, fmt.Errorf("invalid assetType: %v", assetType)
@@ -666,19 +670,17 @@ func (k *Kraken) GetWithdrawalsHistory(ctx context.Context, c currency.Code) (re
 
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (k *Kraken) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
-	var err error
-	var tradeData []RecentTrades
-	tradeData, err = k.GetTrades(ctx, p)
+	tradeData, err := k.GetTrades(ctx, p)
 	if err != nil {
 		return nil, err
 	}
-	var resp []trade.Data
+	resp := make([]trade.Data, len(tradeData))
 	for i := range tradeData {
 		side := order.Buy
 		if tradeData[i].BuyOrSell == "s" {
 			side = order.Sell
 		}
-		resp = append(resp, trade.Data{
+		resp[i] = trade.Data{
 			Exchange:     k.Name,
 			CurrencyPair: p,
 			AssetType:    assetType,
@@ -686,7 +688,7 @@ func (k *Kraken) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 			Price:        tradeData[i].Price,
 			Amount:       tradeData[i].Volume,
 			Timestamp:    convert.TimeFromUnixTimestampDecimal(tradeData[i].Time),
-		})
+		}
 	}
 
 	err = k.AddTradesToBuffer(resp...)
@@ -809,20 +811,20 @@ func (k *Kraken) CancelOrder(ctx context.Context, o *order.Cancel) error {
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
 func (k *Kraken) CancelBatchOrders(ctx context.Context, orders []order.Cancel) (order.CancelBatchResponse, error) {
-	var ordersList []string
+	if !k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		return order.CancelBatchResponse{}, common.ErrFunctionNotSupported
+	}
+
+	ordersList := make([]string, len(orders))
 	for i := range orders {
 		if err := orders[i].Validate(orders[i].StandardCancel()); err != nil {
 			return order.CancelBatchResponse{}, err
 		}
-		ordersList = append(ordersList, orders[i].ID)
+		ordersList[i] = orders[i].ID
 	}
 
-	if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		err := k.wsCancelOrders(ordersList)
-		return order.CancelBatchResponse{}, err
-	}
-
-	return order.CancelBatchResponse{}, common.ErrFunctionNotSupported
+	err := k.wsCancelOrders(ordersList)
+	return order.CancelBatchResponse{}, err
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
@@ -1555,9 +1557,9 @@ func (k *Kraken) GetAvailableTransferChains(ctx context.Context, cryptocurrency 
 		return nil, err
 	}
 
-	var availableChains []string
+	availableChains := make([]string, len(methods))
 	for x := range methods {
-		availableChains = append(availableChains, methods[x].Method)
+		availableChains[x] = methods[x].Method
 	}
 	return availableChains, nil
 }

@@ -32,12 +32,6 @@ type Symbol struct {
 	FeeCurrency          string  `json:"feeCurrency"`                 // Default fee rate for market making trades
 }
 
-// OrderbookResponse is the full orderbook response
-type OrderbookResponse struct {
-	Asks []OrderbookItem `json:"ask"` // Ask side array of levels
-	Bids []OrderbookItem `json:"bid"` // Bid side array of levels
-}
-
 // OrderbookItem is a sub type for orderbook response
 type OrderbookItem struct {
 	Price  float64 `json:"price,string"` // Price level
@@ -46,8 +40,8 @@ type OrderbookItem struct {
 
 // Orderbook contains orderbook data
 type Orderbook struct {
-	Asks []OrderbookItem `json:"asks"`
-	Bids []OrderbookItem `json:"bids"`
+	Asks []OrderbookItem `json:"ask"`
+	Bids []OrderbookItem `json:"bid"`
 }
 
 // TradeHistory contains trade history data

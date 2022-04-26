@@ -516,20 +516,20 @@ func (c *COINUT) WsGetInstruments() (Instruments, error) {
 
 // WsProcessOrderbookSnapshot processes the orderbook snapshot
 func (c *COINUT) WsProcessOrderbookSnapshot(ob *WsOrderbookSnapshot) error {
-	var bids []orderbook.Item
+	bids := make([]orderbook.Item, len(ob.Buy))
 	for i := range ob.Buy {
-		bids = append(bids, orderbook.Item{
+		bids[i] = orderbook.Item{
 			Amount: ob.Buy[i].Volume,
 			Price:  ob.Buy[i].Price,
-		})
+		}
 	}
 
-	var asks []orderbook.Item
+	asks := make([]orderbook.Item, len(ob.Sell))
 	for i := range ob.Sell {
-		asks = append(asks, orderbook.Item{
+		asks[i] = orderbook.Item{
 			Amount: ob.Sell[i].Volume,
 			Price:  ob.Sell[i].Price,
-		})
+		}
 	}
 
 	var newOrderBook orderbook.Base
@@ -671,7 +671,12 @@ func (c *COINUT) Unsubscribe(channelToUnsubscribe []stream.ChannelSubscription) 
 			errs = append(errs, err)
 			continue
 		}
-		if response["status"].([]interface{})[0] != "OK" {
+
+		val, ok := response["status"].([]interface{})
+		if !ok {
+			errs = append(errs, errors.New("unable to type assert response status"))
+		}
+		if val[0] != "OK" {
 			errs = append(errs, fmt.Errorf("%v unsubscribe failed for channel %v",
 				c.Name,
 				channelToUnsubscribe[i].Channel))
@@ -795,7 +800,6 @@ func (c *COINUT) wsSubmitOrder(o *WsSubmitOrderParameters) (*order.Detail, error
 
 func (c *COINUT) wsSubmitOrders(orders []WsSubmitOrderParameters) ([]order.Detail, []error) {
 	var errs []error
-	var ordersResponse []order.Detail
 	if !c.Websocket.CanUseAuthenticatedEndpoints() {
 		errs = append(errs, fmt.Errorf("%v not authorised to submit orders",
 			c.Name))
@@ -832,6 +836,8 @@ func (c *COINUT) wsSubmitOrders(orders []WsSubmitOrderParameters) ([]order.Detai
 		errs = append(errs, err)
 		return nil, errs
 	}
+
+	ordersResponse := make([]order.Detail, 0, len(incoming))
 	for i := range incoming {
 		o, err := c.parseOrderContainer(&incoming[i])
 		if err != nil {

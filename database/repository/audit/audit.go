@@ -19,7 +19,7 @@ func Event(id, msgtype, message string) {
 		return
 	}
 
-	ctx := context.Background()
+	ctx := context.TODO()
 	ctx = boil.SkipTimestamps(ctx)
 
 	tx, err := database.DB.SQL.BeginTx(ctx, nil)
@@ -76,7 +76,7 @@ func GetEvent(startTime, endTime time.Time, order string, limit int) (interface{
 	orderByQuery := qm.OrderBy(orderByQueryString)
 	limitQuery := qm.Limit(limit)
 
-	ctx := context.Background()
+	ctx := context.TODO()
 	if repository.GetSQLDialect() == database.DBSQLite3 {
 		return modelSQLite.AuditEvents(query, orderByQuery, limitQuery).All(ctx, database.DB.SQL)
 	}

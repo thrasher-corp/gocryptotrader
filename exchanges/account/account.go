@@ -25,15 +25,13 @@ func CollectBalances(accountBalances map[string][]Balance, assetType asset.Item)
 		return nil, fmt.Errorf("%s, %w", assetType, asset.ErrNotSupported)
 	}
 
-	accounts = make([]SubAccount, len(accountBalances))
-	i := 0
+	accounts = make([]SubAccount, 0, len(accountBalances))
 	for accountID, balances := range accountBalances {
-		accounts[i] = SubAccount{
+		accounts = append(accounts, SubAccount{
 			ID:         accountID,
 			AssetType:  assetType,
 			Currencies: balances,
-		}
-		i++
+		})
 	}
 	return
 }
@@ -41,16 +39,16 @@ func CollectBalances(accountBalances map[string][]Balance, assetType asset.Item)
 // SubscribeToExchangeAccount subcribes to your exchange account
 func SubscribeToExchangeAccount(exchange string) (dispatch.Pipe, error) {
 	exchange = strings.ToLower(exchange)
-	service.Lock()
+	service.mu.Lock()
 
 	acc, ok := service.accounts[exchange]
 	if !ok {
-		service.Unlock()
+		service.mu.Unlock()
 		return dispatch.Pipe{},
 			fmt.Errorf("%s exchange account holdings not found", exchange)
 	}
 
-	defer service.Unlock()
+	defer service.mu.Unlock()
 	return service.mux.Subscribe(acc.ID)
 }
 
@@ -79,8 +77,8 @@ func GetHoldings(exch string, assetType asset.Item) (Holdings, error) {
 		return Holdings{}, fmt.Errorf("assetType %v is invalid", assetType)
 	}
 
-	service.Lock()
-	defer service.Unlock()
+	service.mu.Lock()
+	defer service.mu.Unlock()
 	h, ok := service.accounts[exch]
 	if !ok {
 		return Holdings{}, errors.New("exchange account holdings not found")
@@ -96,22 +94,22 @@ func GetHoldings(exch string, assetType asset.Item) (Holdings, error) {
 // Update updates holdings with new account info
 func (s *Service) Update(a *Holdings) error {
 	exch := strings.ToLower(a.Exchange)
-	s.Lock()
+	s.mu.Lock()
 	acc, ok := s.accounts[exch]
 	if !ok {
 		id, err := s.mux.GetID()
 		if err != nil {
-			s.Unlock()
+			s.mu.Unlock()
 			return err
 		}
 
 		s.accounts[exch] = &Account{h: a, ID: id}
-		s.Unlock()
+		s.mu.Unlock()
 		return nil
 	}
 
 	acc.h.Accounts = a.Accounts
-	defer s.Unlock()
+	defer s.mu.Unlock()
 
 	return s.mux.Publish(acc.h, acc.ID)
 }

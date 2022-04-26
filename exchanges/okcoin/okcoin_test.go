@@ -788,7 +788,7 @@ func TestSendWsMessages(t *testing.T) {
 	}
 	response := <-o.Websocket.DataHandler
 	if err, ok = response.(error); ok && err != nil {
-		if !strings.Contains(response.(error).Error(), subscriptions[0].Channel) {
+		if !strings.Contains(err.Error(), subscriptions[0].Channel) {
 			t.Error("Expecting OKEX error - 30040 message: Channel badChannel doesn't exist")
 		}
 	}
@@ -875,7 +875,10 @@ func TestOrderBookPartialChecksumCalculator(t *testing.T) {
 		t.Error(err)
 	}
 
-	calculatedChecksum := o.CalculatePartialOrderbookChecksum(&dataResponse)
+	calculatedChecksum, err := o.CalculatePartialOrderbookChecksum(&dataResponse)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if calculatedChecksum != dataResponse.Checksum {
 		t.Errorf("Expected %v, received %v", dataResponse.Checksum, calculatedChecksum)
 	}
@@ -1089,21 +1092,21 @@ func TestWithdrawInternationalBank(t *testing.T) {
 func TestGetOrderbook(t *testing.T) {
 	t.Parallel()
 	_, err := o.GetOrderBook(context.Background(),
-		okgroup.GetOrderBookRequest{InstrumentID: "BTC-USDT"},
+		&okgroup.GetOrderBookRequest{InstrumentID: "BTC-USDT"},
 		asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
 
 	_, err = o.GetOrderBook(context.Background(),
-		okgroup.GetOrderBookRequest{InstrumentID: "Payload"},
+		&okgroup.GetOrderBookRequest{InstrumentID: "Payload"},
 		asset.Futures)
 	if err == nil {
 		t.Error("error cannot be nil")
 	}
 
 	_, err = o.GetOrderBook(context.Background(),
-		okgroup.GetOrderBookRequest{InstrumentID: "BTC-USD-SWAP"},
+		&okgroup.GetOrderBookRequest{InstrumentID: "BTC-USD-SWAP"},
 		asset.PerpetualSwap)
 	if err == nil {
 		t.Error("error cannot be nil")

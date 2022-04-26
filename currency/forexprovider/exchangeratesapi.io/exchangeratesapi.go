@@ -45,9 +45,10 @@ func (e *ExchangeRates) cleanCurrencies(baseCurrency, symbols string) string {
 			e.supportedCurrencies = supportedCurrencies
 		}
 	}
-	var cleanedCurrencies []string
+
 	symbols = strings.Replace(symbols, "RUR", "RUB", -1)
 	var s = strings.Split(symbols, ",")
+	cleanedCurrencies := make([]string, 0, len(s))
 	for _, x := range s {
 		// first make sure that the baseCurrency is not in the symbols list
 		// if it is set
@@ -244,7 +245,7 @@ func (e *ExchangeRates) GetSupportedCurrencies() ([]string, error) {
 		return nil, err
 	}
 
-	var supportedCurrencies []string
+	supportedCurrencies := make([]string, 0, len(symbols))
 	for x := range symbols {
 		supportedCurrencies = append(supportedCurrencies, x)
 	}

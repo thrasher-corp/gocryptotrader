@@ -47,7 +47,7 @@ func macd(args ...objects.Object) (objects.Object, error) {
 		return nil, fmt.Errorf(modules.ErrParameterConvertFailed, OHLCV)
 	}
 
-	var ohlcvClose []float64
+	ohlcvClose := make([]float64, len(ohlcvInputData))
 	var allErrors []string
 	for x := range ohlcvInputData {
 		t, ok := ohlcvInputData[x].([]interface{})
@@ -61,7 +61,7 @@ func macd(args ...objects.Object) (objects.Object, error) {
 		if err != nil {
 			allErrors = append(allErrors, err.Error())
 		}
-		ohlcvClose = append(ohlcvClose, value)
+		ohlcvClose[x] = value
 	}
 
 	inFastPeriod, ok := objects.ToInt(args[1])

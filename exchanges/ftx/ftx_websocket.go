@@ -479,12 +479,11 @@ func (f *FTX) WsProcessUpdateOB(data *WsOrderbookData, p currency.Pair, a asset.
 	update := orderbook.Update{
 		Asset:      a,
 		Pair:       p,
-		UpdateTime: timestampFromFloat64(data.Time),
 		Bids:       make([]orderbook.Item, len(data.Bids)),
 		Asks:       make([]orderbook.Item, len(data.Asks)),
+		UpdateTime: timestampFromFloat64(data.Time),
 	}
 
-	var err error
 	for x := range data.Bids {
 		update.Bids[x] = orderbook.Item{
 			Price:  data.Bids[x][0],
@@ -498,7 +497,7 @@ func (f *FTX) WsProcessUpdateOB(data *WsOrderbookData, p currency.Pair, a asset.
 		}
 	}
 
-	err = f.Websocket.Orderbook.Update(&update)
+	err := f.Websocket.Orderbook.Update(&update)
 	if err != nil {
 		return err
 	}
@@ -545,18 +544,19 @@ func (f *FTX) WsProcessPartialOB(data *WsOrderbookData, p currency.Pair, a asset
 			a,
 			p)
 	}
-	var bids, asks []orderbook.Item
+	bids := make(orderbook.Items, len(data.Bids))
+	asks := make(orderbook.Items, len(data.Asks))
 	for x := range data.Bids {
-		bids = append(bids, orderbook.Item{
+		bids[x] = orderbook.Item{
 			Price:  data.Bids[x][0],
 			Amount: data.Bids[x][1],
-		})
+		}
 	}
 	for x := range data.Asks {
-		asks = append(asks, orderbook.Item{
+		asks[x] = orderbook.Item{
 			Price:  data.Asks[x][0],
 			Amount: data.Asks[x][1],
-		})
+		}
 	}
 
 	newOrderBook := orderbook.Base{

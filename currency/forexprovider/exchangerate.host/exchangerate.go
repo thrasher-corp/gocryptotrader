@@ -229,7 +229,7 @@ func (e *ExchangeRateHost) GetSupportedCurrencies() ([]string, error) {
 		return nil, err
 	}
 
-	var symbols []string
+	symbols := make([]string, 0, len(s.Symbols))
 	for x := range s.Symbols {
 		symbols = append(symbols, x)
 	}

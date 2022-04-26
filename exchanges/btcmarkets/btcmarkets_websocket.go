@@ -342,6 +342,7 @@ func (b *BTCMarkets) generateDefaultSubscriptions() ([]stream.ChannelSubscriptio
 	}
 
 	if b.Websocket.CanUseAuthenticatedEndpoints() {
+		var authChannels = []string{fundChange, heartbeat, orderChange}
 		for i := range authChannels {
 			subscriptions = append(subscriptions, stream.ChannelSubscription{
 				Channel: authChannels[i],
@@ -399,8 +400,7 @@ func (b *BTCMarkets) Subscribe(subs []stream.ChannelSubscription) error {
 		payload.Timestamp = signTime
 	}
 
-	err := b.Websocket.Conn.SendJSONMessage(payload)
-	if err != nil {
+	if err := b.Websocket.Conn.SendJSONMessage(payload); err != nil {
 		return err
 	}
 	b.Websocket.AddSuccessfulSubscriptions(subs...)

@@ -75,9 +75,9 @@ func (c *Coinmarketcap) GetCryptocurrencyInfo(currencyID ...int64) (CryptoCurren
 		return resp.Data, err
 	}
 
-	var currStr []string
+	currStr := make([]string, len(currencyID))
 	for i := range currencyID {
-		currStr = append(currStr, strconv.FormatInt(currencyID[i], 10))
+		currStr[i] = strconv.FormatInt(currencyID[i], 10)
 	}
 
 	val := url.Values{}
@@ -315,9 +315,9 @@ func (c *Coinmarketcap) GetCryptocurrencyLatestQuotes(currencyID ...int64) (Cryp
 		return resp.Data, err
 	}
 
-	var currStr []string
-	for _, d := range currencyID {
-		currStr = append(currStr, strconv.FormatInt(d, 10))
+	currStr := make([]string, len(currencyID))
+	for i := range currencyID {
+		currStr[i] = strconv.FormatInt(currencyID[i], 10)
 	}
 
 	val := url.Values{}
@@ -387,9 +387,9 @@ func (c *Coinmarketcap) GetExchangeInfo(exchangeID ...int64) (ExchangeInfo, erro
 		return resp.Data, err
 	}
 
-	var exchStr []string
-	for _, d := range exchangeID {
-		exchStr = append(exchStr, strconv.FormatInt(d, 10))
+	exchStr := make([]string, len(exchangeID))
+	for x := range exchangeID {
+		exchStr[x] = strconv.FormatInt(exchangeID[x], 10)
 	}
 
 	val := url.Values{}
@@ -524,9 +524,9 @@ func (c *Coinmarketcap) GetExchangeLatestQuotes(exchangeID ...int64) (ExchangeLa
 		return resp.Data, err
 	}
 
-	var exchStr []string
-	for _, d := range exchangeID {
-		exchStr = append(exchStr, strconv.FormatInt(d, 10))
+	exchStr := make([]string, len(exchangeID))
+	for x := range exchangeID {
+		exchStr[x] = strconv.FormatInt(exchangeID[x], 10)
 	}
 
 	val := url.Values{}

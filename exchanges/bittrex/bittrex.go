@@ -103,7 +103,7 @@ func (b *Bittrex) GetMarketSummary(ctx context.Context, marketName string) (Mark
 // GetOrderbook method returns current order book information by currency and depth.
 // "marketSymbol" ie ltc-btc
 // "depth" is either 1, 25 or 500. Server side, the depth defaults to 25.
-func (b *Bittrex) GetOrderbook(ctx context.Context, marketName string, depth int64) (OrderbookData, int64, error) {
+func (b *Bittrex) GetOrderbook(ctx context.Context, marketName string, depth int64) (*OrderbookData, int64, error) {
 	strDepth := strconv.FormatInt(depth, 10)
 
 	var resp OrderbookData
@@ -111,14 +111,14 @@ func (b *Bittrex) GetOrderbook(ctx context.Context, marketName string, depth int
 	resultHeader := http.Header{}
 	err := b.SendHTTPRequest(ctx, exchange.RestSpot, fmt.Sprintf(getOrderbook, marketName, strDepth), &resp, &resultHeader)
 	if err != nil {
-		return OrderbookData{}, 0, err
+		return nil, 0, err
 	}
 	sequence, err = strconv.ParseInt(resultHeader.Get("sequence"), 10, 64)
 	if err != nil {
-		return OrderbookData{}, 0, err
+		return nil, 0, err
 	}
 
-	return resp, sequence, nil
+	return &resp, sequence, nil
 }
 
 // GetMarketHistory retrieves the latest trades that have occurred for a specific market

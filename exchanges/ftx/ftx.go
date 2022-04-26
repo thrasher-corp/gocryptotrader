@@ -202,7 +202,7 @@ func (f *FTX) GetMarket(ctx context.Context, marketName string) (MarketData, err
 }
 
 // GetOrderbook gets orderbook for a given market with a given depth (default depth 20)
-func (f *FTX) GetOrderbook(ctx context.Context, marketName string, depth int64) (OrderbookData, error) {
+func (f *FTX) GetOrderbook(ctx context.Context, marketName string, depth int64) (*OrderbookData, error) {
 	result := struct {
 		Data TempOBData `json:"result"`
 	}{}
@@ -216,22 +216,24 @@ func (f *FTX) GetOrderbook(ctx context.Context, marketName string, depth int64) 
 	var resp OrderbookData
 	err := f.SendHTTPRequest(ctx, exchange.RestSpot, fmt.Sprintf(getOrderbook, marketName, strDepth), &result)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 	resp.MarketName = marketName
+	resp.Asks = make([]OData, len(result.Data.Asks))
 	for x := range result.Data.Asks {
-		resp.Asks = append(resp.Asks, OData{
+		resp.Asks[x] = OData{
 			Price: result.Data.Asks[x][0],
 			Size:  result.Data.Asks[x][1],
-		})
+		}
 	}
+	resp.Bids = make([]OData, len(result.Data.Bids))
 	for y := range result.Data.Bids {
-		resp.Bids = append(resp.Bids, OData{
+		resp.Bids[y] = OData{
 			Price: result.Data.Bids[y][0],
 			Size:  result.Data.Bids[y][1],
-		})
+		}
 	}
-	return resp, nil
+	return &resp, nil
 }
 
 // GetTrades gets trades based on the conditions specified
@@ -1506,7 +1508,7 @@ func (f *FTX) FetchExchangeLimits(ctx context.Context) ([]order.MinMaxLevel, err
 		return nil, err
 	}
 
-	var limits []order.MinMaxLevel
+	limits := make([]order.MinMaxLevel, 0, len(data))
 	for x := range data {
 		if !data[x].Enabled {
 			continue

@@ -29,8 +29,8 @@ func init() {
 // stream new ticker updates
 func SubscribeTicker(exchange string, p currency.Pair, a asset.Item) (dispatch.Pipe, error) {
 	exchange = strings.ToLower(exchange)
-	service.Lock()
-	defer service.Unlock()
+	service.mu.Lock()
+	defer service.mu.Unlock()
 
 	tick, ok := service.Tickers[exchange][p.Base.Item][p.Quote.Item][a]
 	if !ok {
@@ -45,8 +45,8 @@ func SubscribeTicker(exchange string, p currency.Pair, a asset.Item) (dispatch.P
 // SubscribeToExchangeTickers subcribes to all tickers on an exchange
 func SubscribeToExchangeTickers(exchange string) (dispatch.Pipe, error) {
 	exchange = strings.ToLower(exchange)
-	service.Lock()
-	defer service.Unlock()
+	service.mu.Lock()
+	defer service.mu.Unlock()
 	id, ok := service.Exchange[exchange]
 	if !ok {
 		return dispatch.Pipe{}, fmt.Errorf("%s exchange tickers not found",
@@ -59,8 +59,8 @@ func SubscribeToExchangeTickers(exchange string) (dispatch.Pipe, error) {
 // GetTicker checks and returns a requested ticker if it exists
 func GetTicker(exchange string, p currency.Pair, a asset.Item) (*Price, error) {
 	exchange = strings.ToLower(exchange)
-	service.Lock()
-	defer service.Unlock()
+	service.mu.Lock()
+	defer service.mu.Unlock()
 	m1, ok := service.Tickers[exchange]
 	if !ok {
 		return nil, fmt.Errorf("no tickers for %s exchange", exchange)
@@ -90,8 +90,8 @@ func GetTicker(exchange string, p currency.Pair, a asset.Item) (*Price, error) {
 
 // FindLast searches for a currency pair and returns the first available
 func FindLast(p currency.Pair, a asset.Item) (float64, error) {
-	service.Lock()
-	defer service.Unlock()
+	service.mu.Lock()
+	defer service.mu.Unlock()
 	for _, m1 := range service.Tickers {
 		m2, ok := m1[p.Base.Item]
 		if !ok {
@@ -146,7 +146,7 @@ func ProcessTicker(p *Price) error {
 // update updates ticker price
 func (s *Service) update(p *Price) error {
 	name := strings.ToLower(p.ExchangeName)
-	s.Lock()
+	s.mu.Lock()
 
 	m1, ok := service.Tickers[name]
 	if !ok {
@@ -171,18 +171,18 @@ func (s *Service) update(p *Price) error {
 		newTicker := &Ticker{}
 		err := s.setItemID(newTicker, p, name)
 		if err != nil {
-			s.Unlock()
+			s.mu.Unlock()
 			return err
 		}
 		m3[p.AssetType] = newTicker
-		s.Unlock()
+		s.mu.Unlock()
 		return nil
 	}
 
 	t.Price = *p
 	// nolint: gocritic
 	ids := append(t.Assoc, t.Main)
-	s.Unlock()
+	s.mu.Unlock()
 	return s.mux.Publish(p, ids...)
 }
 

@@ -431,6 +431,7 @@ func (f *FTX) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType as
 		return book, err
 	}
 
+	book.Bids = make(orderbook.Items, 0, len(tempResp.Bids))
 	for x := range tempResp.Bids {
 		// Bear tokens have illiquid books and contain negative place holders.
 		if tempResp.Bids[x].Size < 0 && strings.Contains(p.String(), "BEAR") {
@@ -438,8 +439,10 @@ func (f *FTX) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType as
 		}
 		book.Bids = append(book.Bids, orderbook.Item{
 			Amount: tempResp.Bids[x].Size,
-			Price:  tempResp.Bids[x].Price})
+			Price:  tempResp.Bids[x].Price,
+		})
 	}
+	book.Asks = make(orderbook.Items, 0, len(tempResp.Asks))
 	for y := range tempResp.Asks {
 		// Bear tokens have illiquid books and contain negative place holders.
 		if tempResp.Asks[y].Size < 0 && strings.Contains(p.String(), "BEAR") {
@@ -447,7 +450,8 @@ func (f *FTX) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType as
 		}
 		book.Asks = append(book.Asks, orderbook.Item{
 			Amount: tempResp.Asks[y].Size,
-			Price:  tempResp.Asks[y].Price})
+			Price:  tempResp.Asks[y].Price,
+		})
 	}
 	err = book.Process()
 	if err != nil {
@@ -522,44 +526,44 @@ func (f *FTX) FetchAccountInfo(ctx context.Context, assetType asset.Item) (accou
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
 func (f *FTX) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
-	var resp []exchange.FundHistory
 	depositData, err := f.FetchDepositHistory(ctx)
 	if err != nil {
-		return resp, err
-	}
-	for x := range depositData {
-		var tempData exchange.FundHistory
-		tempData.Fee = depositData[x].Fee
-		tempData.Timestamp = depositData[x].Time
-		tempData.ExchangeName = f.Name
-		tempData.CryptoToAddress = depositData[x].Address.Address
-		tempData.CryptoTxID = depositData[x].TxID
-		tempData.CryptoChain = depositData[x].Address.Method
-		tempData.Status = depositData[x].Status
-		tempData.Amount = depositData[x].Size
-		tempData.Currency = depositData[x].Coin
-		tempData.TransferID = strconv.FormatInt(depositData[x].ID, 10)
-		resp = append(resp, tempData)
+		return nil, err
 	}
 	withdrawalData, err := f.FetchWithdrawalHistory(ctx)
 	if err != nil {
-		return resp, err
+		return nil, err
+	}
+	fundingData := make([]exchange.FundHistory, 0, len(depositData)+len(withdrawalData))
+	for x := range depositData {
+		fundingData = append(fundingData, exchange.FundHistory{
+			Fee:             depositData[x].Fee,
+			Timestamp:       depositData[x].Time,
+			ExchangeName:    f.Name,
+			CryptoToAddress: depositData[x].Address.Address,
+			CryptoTxID:      depositData[x].TxID,
+			CryptoChain:     depositData[x].Address.Method,
+			Status:          depositData[x].Status,
+			Amount:          depositData[x].Size,
+			Currency:        depositData[x].Coin,
+			TransferID:      strconv.FormatInt(depositData[x].ID, 10),
+		})
 	}
 	for y := range withdrawalData {
-		var tempData exchange.FundHistory
-		tempData.Fee = withdrawalData[y].Fee
-		tempData.Timestamp = withdrawalData[y].Time
-		tempData.ExchangeName = f.Name
-		tempData.CryptoToAddress = withdrawalData[y].Address
-		tempData.CryptoTxID = withdrawalData[y].TXID
-		tempData.CryptoChain = withdrawalData[y].Method
-		tempData.Status = withdrawalData[y].Status
-		tempData.Amount = withdrawalData[y].Size
-		tempData.Currency = withdrawalData[y].Coin
-		tempData.TransferID = strconv.FormatInt(withdrawalData[y].ID, 10)
-		resp = append(resp, tempData)
+		fundingData = append(fundingData, exchange.FundHistory{
+			Fee:             withdrawalData[y].Fee,
+			Timestamp:       withdrawalData[y].Time,
+			ExchangeName:    f.Name,
+			CryptoToAddress: withdrawalData[y].Address,
+			CryptoTxID:      withdrawalData[y].TXID,
+			CryptoChain:     withdrawalData[y].Method,
+			Status:          withdrawalData[y].Status,
+			Amount:          withdrawalData[y].Size,
+			Currency:        withdrawalData[y].Coin,
+			TransferID:      strconv.FormatInt(withdrawalData[y].ID, 10),
+		})
 	}
-	return resp, nil
+	return fundingData, nil
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
@@ -1659,18 +1663,15 @@ func (f *FTX) GetFuturesPositions(ctx context.Context, a asset.Item, cp currency
 	if err != nil {
 		return nil, err
 	}
-	sort.Slice(fills, func(i, j int) bool {
-		return fills[i].Time.Before(fills[j].Time)
-	})
-	var resp []order.Detail
-	var side order.Side
+
+	resp := make([]order.Detail, len(fills))
 	for i := range fills {
 		price := fills[i].Price
-		side, err = order.StringToOrderSide(fills[i].Side)
+		side, err := order.StringToOrderSide(fills[i].Side)
 		if err != nil {
 			return nil, err
 		}
-		resp = append(resp, order.Detail{
+		resp[i] = order.Detail{
 			Side:      side,
 			Pair:      cp,
 			ID:        strconv.FormatInt(fills[i].ID, 10),
@@ -1680,8 +1681,12 @@ func (f *FTX) GetFuturesPositions(ctx context.Context, a asset.Item, cp currency
 			Exchange:  f.Name,
 			Fee:       fills[i].Fee,
 			Date:      fills[i].Time,
-		})
+		}
 	}
+
+	sort.Slice(resp, func(i, j int) bool {
+		return resp[i].Date.Before(resp[j].Date)
+	})
 
 	return resp, nil
 }

@@ -179,11 +179,11 @@ func TestEncryptTwiceReusesSaltButNewCipher(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Problem storing config in file %s: %s\n", enc2, err)
 	}
-	data1, err := ioutil.ReadFile(enc1)
+	data1, err := os.ReadFile(enc1)
 	if err != nil {
 		t.Fatalf("Problem reading file %s: %s\n", enc1, err)
 	}
-	data2, err := ioutil.ReadFile(enc2)
+	data2, err := os.ReadFile(enc2)
 	if err != nil {
 		t.Fatalf("Problem reading file %s: %s\n", enc2, err)
 	}
@@ -281,7 +281,7 @@ func TestReadConfigWithPrompt(t *testing.T) {
 	}
 
 	// Verify results
-	data, err := ioutil.ReadFile(testConfigFile)
+	data, err := os.ReadFile(testConfigFile)
 	if err != nil {
 		t.Fatalf("Problem reading saved file at %s: %s\n", testConfigFile, err)
 	}
@@ -349,7 +349,7 @@ func TestSaveConfigToFileWithErrorInPasswordPrompt(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	data, err := ioutil.ReadFile(targetFile)
+	data, err := os.ReadFile(targetFile)
 	if err != nil {
 		t.Fatal(err)
 	}

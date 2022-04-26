@@ -353,13 +353,13 @@ func ConvertToNewInterval(item *Item, newInterval Interval) (*Item, error) {
 
 	oldIntervalsPerNewCandle := int64(newInterval / item.Interval)
 	var candleBundles [][]Candle
-	var candles []Candle
+	candles := make([]Candle, 0, oldIntervalsPerNewCandle)
 	for i := range item.Candles {
 		candles = append(candles, item.Candles[i])
 		intervalCount := int64(i + 1)
 		if oldIntervalsPerNewCandle == intervalCount {
 			candleBundles = append(candleBundles, candles)
-			candles = []Candle{}
+			candles = candles[:0]
 		}
 	}
 	responseCandle := &Item{

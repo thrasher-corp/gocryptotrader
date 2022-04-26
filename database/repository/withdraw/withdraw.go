@@ -267,7 +267,11 @@ func GetEventsByDate(exchange string, start, end time.Time, limit int) ([]*withd
 }
 
 func generateWhereQuery(columns, id []string, limit int) []qm.QueryMod {
-	var queries []qm.QueryMod
+	x := len(columns)
+	if limit > 0 {
+		x++
+	}
+	queries := make([]qm.QueryMod, 0, x)
 	if limit > 0 {
 		queries = append(queries, qm.Limit(limit))
 	}

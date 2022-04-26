@@ -99,7 +99,11 @@ func (m *WithdrawManager) WithdrawalEventByID(id string) (*withdraw.Response, er
 		return nil, ErrNilSubsystem
 	}
 	if v := withdraw.Cache.Get(id); v != nil {
-		return v.(*withdraw.Response), nil
+		wdResp, ok := v.(*withdraw.Response)
+		if !ok {
+			return nil, errors.New("unable to type assert withdraw.Response")
+		}
+		return wdResp, nil
 	}
 
 	l, err := dbwithdraw.GetEventByUUID(id)

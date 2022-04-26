@@ -665,7 +665,7 @@ func (l *LocalBitcoins) GetTradableCurrencies(ctx context.Context) ([]string, er
 		return nil, err
 	}
 
-	var currencies []string
+	currencies := make([]string, 0, len(resp))
 	for x := range resp {
 		currencies = append(currencies, x)
 	}
@@ -686,44 +686,47 @@ func (l *LocalBitcoins) GetTrades(ctx context.Context, currency string, values u
 // the maximum amount available for the trade request. Price is the hourly
 // updated price. The price is based on the price equation and commission %
 // entered by the ad author.
-func (l *LocalBitcoins) GetOrderbook(ctx context.Context, currency string) (Orderbook, error) {
+func (l *LocalBitcoins) GetOrderbook(ctx context.Context, curr string) (*Orderbook, error) {
 	type response struct {
 		Bids [][2]string `json:"bids"`
 		Asks [][2]string `json:"asks"`
 	}
 
-	path := localbitcoinsAPIBitcoincharts + currency + localbitcoinsAPIOrderbook
+	path := localbitcoinsAPIBitcoincharts + curr + localbitcoinsAPIOrderbook
 	resp := response{}
-	var ob Orderbook
 	if err := l.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp, orderBookLimiter); err != nil {
-		return ob, err
+		return nil, err
 	}
 
+	ob := Orderbook{
+		Bids: make([]Price, len(resp.Bids)),
+		Asks: make([]Price, len(resp.Asks)),
+	}
 	for x := range resp.Bids {
 		price, err := strconv.ParseFloat(resp.Bids[x][0], 64)
 		if err != nil {
-			return ob, err
+			return nil, err
 		}
 		amount, err := strconv.ParseFloat(resp.Bids[x][1], 64)
 		if err != nil {
-			return ob, err
+			return nil, err
 		}
-		ob.Bids = append(ob.Bids, Price{price, amount})
+		ob.Bids[x] = Price{price, amount}
 	}
 
 	for x := range resp.Asks {
 		price, err := strconv.ParseFloat(resp.Asks[x][0], 64)
 		if err != nil {
-			return ob, err
+			return nil, err
 		}
 		amount, err := strconv.ParseFloat(resp.Asks[x][1], 64)
 		if err != nil {
-			return ob, err
+			return nil, err
 		}
-		ob.Asks = append(ob.Asks, Price{price, amount})
+		ob.Asks[x] = Price{price, amount}
 	}
 
-	return ob, nil
+	return &ob, nil
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request

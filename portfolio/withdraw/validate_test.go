@@ -241,8 +241,12 @@ func TestValidateFiat(t *testing.T) {
 			}
 			err := test.request.Validate(test.validate)
 			if err != nil {
-				if test.output.(error).Error() != err.Error() {
-					t.Fatalf("Test Name %s expecting error [%s] but received [%s]", test.name, test.output.(error).Error(), err)
+				errOutput, ok := test.output.(error)
+				if !ok {
+					t.Fatalf("Test Name %s unable to type assert error", test.name)
+				}
+				if errOutput.Error() != err.Error() {
+					t.Fatalf("Test Name %s expecting error [%s] but received [%s]", test.name, errOutput.Error(), err)
 				}
 			}
 		})

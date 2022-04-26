@@ -383,8 +383,7 @@ func TestExists(t *testing.T) {
 	if err := m.orderStore.add(o); err != nil {
 		t.Error(err)
 	}
-	b := m.orderStore.exists(o)
-	if !b {
+	if b := m.orderStore.exists(o); !b {
 		t.Error("Expected true")
 	}
 }

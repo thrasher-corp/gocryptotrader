@@ -782,7 +782,7 @@ func TestWithdraw(t *testing.T) {
 		Amount:          -1,
 		Currency:        currency.BTC,
 		Description:     "WITHDRAW IT ALL",
-		OneTimePassword: 000000,
+		OneTimePassword: 000000, // nolint // gocritic false positive
 	}
 
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
@@ -861,7 +861,11 @@ func TestWsAuth(t *testing.T) {
 	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
 	select {
 	case resp := <-b.Websocket.DataHandler:
-		if !resp.(WebsocketSubscribeResp).Success {
+		sub, ok := resp.(WebsocketSubscribeResp)
+		if !ok {
+			t.Fatal("unable to type assert WebsocketSubscribeResp")
+		}
+		if !sub.Success {
 			t.Error("Expected successful subscription")
 		}
 	case <-timer.C:

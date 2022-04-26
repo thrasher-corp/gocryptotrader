@@ -312,6 +312,22 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
+
+		orderID, ok := invalidJSON["id"].(float64)
+		if !ok {
+			return errors.New("unable to type assert order id")
+		}
+
+		ctime, ok := invalidJSON["ctime"].(float64)
+		if !ok {
+			return errors.New("unable to type assert ctime")
+		}
+
+		mtime, ok := invalidJSON["mtime"].(float64)
+		if !ok {
+			return errors.New("unable to type assert mtime")
+		}
+
 		g.Websocket.DataHandler <- &order.Detail{
 			Price:           price,
 			Amount:          amount,
@@ -319,13 +335,13 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 			RemainingAmount: left,
 			Fee:             fee,
 			Exchange:        g.Name,
-			ID:              strconv.FormatFloat(invalidJSON["id"].(float64), 'f', -1, 64),
+			ID:              strconv.FormatFloat(orderID, 'f', -1, 64),
 			Type:            oType,
 			Side:            oSide,
 			Status:          oStatus,
 			AssetType:       a,
-			Date:            convert.TimeFromUnixTimestampDecimal(invalidJSON["ctime"].(float64)),
-			LastUpdated:     convert.TimeFromUnixTimestampDecimal(invalidJSON["mtime"].(float64)),
+			Date:            convert.TimeFromUnixTimestampDecimal(ctime),
+			LastUpdated:     convert.TimeFromUnixTimestampDecimal(mtime),
 			Pair:            p,
 		}
 	case strings.Contains(result.Method, "depth"):
@@ -348,7 +364,7 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 			return err
 		}
 
-		var asks, bids []orderbook.Item
+		asks := make([]orderbook.Item, len(data.Asks))
 		var amount, price float64
 		for i := range data.Asks {
 			amount, err = strconv.ParseFloat(data.Asks[i][1], 64)
@@ -359,9 +375,10 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 			if err != nil {
 				return err
 			}
-			asks = append(asks, orderbook.Item{Amount: amount, Price: price})
+			asks[i] = orderbook.Item{Amount: amount, Price: price}
 		}
 
+		bids := make([]orderbook.Item, len(data.Bids))
 		for i := range data.Bids {
 			amount, err = strconv.ParseFloat(data.Bids[i][1], 64)
 			if err != nil {
@@ -371,7 +388,7 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 			if err != nil {
 				return err
 			}
-			bids = append(bids, orderbook.Item{Amount: amount, Price: price})
+			bids[i] = orderbook.Item{Amount: amount, Price: price}
 		}
 
 		var p currency.Pair
@@ -615,7 +632,7 @@ func (g *Gateio) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription)
 	// & LTC_USDT this function will unsubscribe both. This function will be
 	// kept unlinked to the websocket subsystem and a full connection flush will
 	// occur when currency items are disabled.
-	var channelsThusFar []string
+	channelsThusFar := make([]string, 0, len(channelsToUnsubscribe))
 	for i := range channelsToUnsubscribe {
 		if common.StringDataCompare(channelsThusFar,
 			channelsToUnsubscribe[i].Channel) {

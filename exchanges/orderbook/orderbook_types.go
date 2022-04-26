@@ -43,7 +43,7 @@ var service = Service{
 type Service struct {
 	books map[string]Exchange
 	*dispatch.Mux
-	sync.Mutex
+	mu sync.Mutex
 }
 
 // Exchange defines a holder for the exchange specific depth items with a

@@ -240,7 +240,7 @@ func (m *portfolioManager) seedExchangeAccountInfo(accounts []account.Holdings) 
 
 // getExchangeAccountInfo returns all the current enabled exchanges
 func (m *portfolioManager) getExchangeAccountInfo(exchanges []exchange.IBotExchange) []account.Holdings {
-	var response []account.Holdings
+	response := make([]account.Holdings, 0, len(exchanges))
 	for x := range exchanges {
 		if exchanges[x] == nil || !exchanges[x].IsEnabled() {
 			continue
