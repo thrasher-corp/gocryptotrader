@@ -2,8 +2,6 @@ package report
 
 import (
 	"errors"
-	"io/ioutil"
-	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -27,16 +25,7 @@ func TestGenerateReport(t *testing.T) {
 	e := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
-	tempDir, err := ioutil.TempDir("", "")
-	if err != nil {
-		t.Fatalf("Problem creating temp dir at %s: %s\n", tempDir, err)
-	}
-	defer func(path string) {
-		err = os.RemoveAll(path)
-		if err != nil {
-			t.Error(err)
-		}
-	}(tempDir)
+	tempDir := t.TempDir()
 	d := Data{
 		Config:       &config.Config{},
 		OutputPath:   filepath.Join("..", "results"),
@@ -322,8 +311,7 @@ func TestGenerateReport(t *testing.T) {
 			DisableUSDTracking: true,
 		},
 	}
-	err = d.GenerateReport()
-	if err != nil {
+	if err := d.GenerateReport(); err != nil {
 		t.Error(err)
 	}
 }
