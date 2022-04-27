@@ -273,8 +273,7 @@ func TestPublish(t *testing.T) {
 func TestPublishReceive(t *testing.T) {
 	t.Parallel()
 	d := NewDispatcher()
-	err := d.start(0, 0)
-	if !errors.Is(err, nil) {
+	if err := d.start(0, 0); !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 

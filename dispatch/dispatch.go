@@ -236,8 +236,7 @@ func (d *Dispatcher) subscribe(id uuid.UUID) (<-chan interface{}, error) {
 
 	d.rMtx.Lock()
 	defer d.rMtx.Unlock()
-	_, ok := d.routes[id]
-	if !ok {
+	if _, ok := d.routes[id]; !ok {
 		return nil, errDispatcherUUIDNotFoundInRouteList
 	}
 
