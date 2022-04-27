@@ -656,7 +656,7 @@ func TestCreateCoinFuturesOrder(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = b.CreateCoinFuturesOrder(context.Background(), pair, "Buy", "Limit", "GTC", "", "", "", 1, 20000, 0, 0, false, false)
+	_, err = b.CreateCoinFuturesOrder(context.Background(), pair, "Buy", "Limit", "GoodTillCancel", "", "", "", 1, 20000, 0, 0, false, false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -757,7 +757,7 @@ func TestCreateConditionalCoinFuturesOrder(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = b.CreateConditionalCoinFuturesOrder(context.Background(), pair, "Buy", "Limit", "GTC", "", "", "", "", 1, 20000, 0, 0, 1, 1, false)
+	_, err = b.CreateConditionalCoinFuturesOrder(context.Background(), pair, "Buy", "Limit", "GoodTillCancel", "", "", "", "", 1, 20000, 0, 0, 1, 1, false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1737,7 +1737,7 @@ func TestCreateConditionalFuturesOrder(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = b.CreateConditionalFuturesOrder(context.Background(), 0, pair, "Buy", "Limit", "GTC", "", "", "", "", 1, 0.5, 0, 0, 1, 1, false)
+	_, err = b.CreateConditionalFuturesOrder(context.Background(), 0, pair, "Buy", "Limit", "GoodTillCancel", "", "", "", "", 1, 0.5, 0, 0, 1, 1, false)
 	if err != nil {
 		t.Error(err)
 	}

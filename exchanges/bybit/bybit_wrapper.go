@@ -802,7 +802,7 @@ func (by *Bybit) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submit
 			return submitOrderResponse, errInvalidSide
 		}
 
-		timeInForce := "GTC"
+		timeInForce := "GoodTillCancel"
 		var oType string
 		switch s.Type {
 		case order.Market:
@@ -834,7 +834,7 @@ func (by *Bybit) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submit
 			return submitOrderResponse, errInvalidSide
 		}
 
-		timeInForce := "GTC"
+		timeInForce := "GoodTillCancel"
 		var oType string
 		switch s.Type {
 		case order.Market:
@@ -866,7 +866,7 @@ func (by *Bybit) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submit
 			return submitOrderResponse, errInvalidSide
 		}
 
-		timeInForce := "GTC"
+		timeInForce := "GoodTillCancel"
 		var oType string
 		switch s.Type {
 		case order.Market:
