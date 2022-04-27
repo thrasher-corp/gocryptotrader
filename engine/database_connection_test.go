@@ -221,6 +221,11 @@ func TestCheckConnection(t *testing.T) {
 	if !errors.Is(err, database.ErrDatabaseNotConnected) {
 		t.Errorf("error '%v', expected '%v'", err, database.ErrDatabaseNotConnected)
 	}
+
+	err = m.Stop()
+	if !errors.Is(err, nil) {
+		t.Errorf("error '%v', expected '%v'", err, nil)
+	}
 }
 
 func TestGetInstance(t *testing.T) {
