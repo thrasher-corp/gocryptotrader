@@ -893,8 +893,8 @@ func TestChecksum(t *testing.T) {
 		},
 	}
 
-	expecting := 3802968298
-	err := checksum(b, uint32(expecting))
+	expecting := uint32(3802968298)
+	err := checksum(b, expecting)
 	if err != nil {
 		t.Fatal(err)
 	}

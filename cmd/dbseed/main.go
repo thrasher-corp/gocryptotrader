@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path/filepath"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
@@ -44,7 +43,7 @@ func main() {
 	workingDir, err = os.Getwd()
 	if err != nil {
 		log.Println("error getting current working path")
-		workingDir = filepath.Join(".")
+		workingDir = "."
 	}
 
 	fmt.Println("GoCryptoTrader database seeding tool")

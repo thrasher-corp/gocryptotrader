@@ -2,9 +2,9 @@ package ta
 
 // AllModuleNames returns a list of all default module names.
 func AllModuleNames() []string {
-	var names []string
-	for name := range Modules {
-		names = append(names, name)
+	names := make([]string, 0, len(Modules))
+	for x := range Modules {
+		names = append(names, x)
 	}
 	return names
 }

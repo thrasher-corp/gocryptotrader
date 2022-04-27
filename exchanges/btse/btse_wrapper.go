@@ -247,12 +247,12 @@ func (b *BTSE) Run() {
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (b *BTSE) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string, error) {
-	var currencies []string
 	m, err := b.GetMarketSummary(ctx, "", a == asset.Spot)
 	if err != nil {
 		return nil, err
 	}
 
+	currencies := make([]string, 0, len(m))
 	for x := range m {
 		if !m[x].Active {
 			continue
@@ -359,21 +359,25 @@ func (b *BTSE) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType a
 		return book, err
 	}
 
+	book.Bids = make(orderbook.Items, 0, len(a.BuyQuote))
 	for x := range a.BuyQuote {
 		if b.orderbookFilter(a.BuyQuote[x].Price, a.BuyQuote[x].Size) {
 			continue
 		}
 		book.Bids = append(book.Bids, orderbook.Item{
 			Price:  a.BuyQuote[x].Price,
-			Amount: a.BuyQuote[x].Size})
+			Amount: a.BuyQuote[x].Size,
+		})
 	}
+	book.Asks = make(orderbook.Items, 0, len(a.SellQuote))
 	for x := range a.SellQuote {
 		if b.orderbookFilter(a.SellQuote[x].Price, a.SellQuote[x].Size) {
 			continue
 		}
 		book.Asks = append(book.Asks, orderbook.Item{
 			Price:  a.SellQuote[x].Price,
-			Amount: a.SellQuote[x].Size})
+			Amount: a.SellQuote[x].Size,
+		})
 	}
 	book.Asks.Reverse() // Reverse asks for correct alignment
 	book.Pair = p
@@ -395,16 +399,14 @@ func (b *BTSE) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (acc
 		return a, err
 	}
 
-	var currencies []account.Balance
+	currencies := make([]account.Balance, len(balance))
 	for b := range balance {
-		currencies = append(currencies,
-			account.Balance{
-				CurrencyName: currency.NewCode(balance[b].Currency),
-				Total:        balance[b].Total,
-				Hold:         balance[b].Total - balance[b].Available,
-				Free:         balance[b].Available,
-			},
-		)
+		currencies[b] = account.Balance{
+			CurrencyName: currency.NewCode(balance[b].Currency),
+			Total:        balance[b].Total,
+			Hold:         balance[b].Total - balance[b].Available,
+			Free:         balance[b].Available,
+		}
 	}
 	a.Exchange = b.Name
 	a.Accounts = []account.SubAccount{
@@ -460,9 +462,8 @@ func (b *BTSE) GetRecentTrades(ctx context.Context, p currency.Pair, assetType a
 	if err != nil {
 		return nil, err
 	}
-	var resp []trade.Data
-	limit := 500
 
+	const limit = 500
 	var tradeData []Trade
 	tradeData, err = b.GetTrades(ctx,
 		p.String(),
@@ -473,14 +474,16 @@ func (b *BTSE) GetRecentTrades(ctx context.Context, p currency.Pair, assetType a
 	if err != nil {
 		return nil, err
 	}
+
+	resp := make([]trade.Data, len(tradeData))
 	for i := range tradeData {
-		tradeTimestamp := time.Unix(tradeData[i].Time/1000, 0)
+		tradeTimestamp := time.UnixMilli(tradeData[i].Time)
 		var side order.Side
 		side, err = order.StringToOrderSide(tradeData[i].Side)
 		if err != nil {
 			return nil, err
 		}
-		resp = append(resp, trade.Data{
+		resp[i] = trade.Data{
 			Exchange:     b.Name,
 			TID:          strconv.FormatInt(tradeData[i].SerialID, 10),
 			CurrencyPair: p,
@@ -489,7 +492,7 @@ func (b *BTSE) GetRecentTrades(ctx context.Context, p currency.Pair, assetType a
 			Price:        tradeData[i].Price,
 			Amount:       tradeData[i].Amount,
 			Timestamp:    tradeTimestamp,
-		})
+		}
 	}
 	err = b.AddTradesToBuffer(resp...)
 	if err != nil {

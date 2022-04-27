@@ -920,7 +920,7 @@ func TestSupportsPair(t *testing.T) {
 			},
 		},
 	}
-	assetType := asset.Spot // nolint // ifshort false positive
+	assetType := asset.Spot
 	if cfg.SupportsPair("asdf",
 		currency.NewPair(currency.BTC, currency.USD), assetType) {
 		t.Error(

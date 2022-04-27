@@ -42,15 +42,13 @@ func (s *SMSGlobal) Setup(cfg *base.CommunicationsConfig) {
 	s.Password = cfg.SMSGlobalConfig.Password
 	s.SendFrom = cfg.SMSGlobalConfig.From
 
-	var contacts []Contact
+	contacts := make([]Contact, len(cfg.SMSGlobalConfig.Contacts))
 	for x := range cfg.SMSGlobalConfig.Contacts {
-		contacts = append(contacts,
-			Contact{
-				Name:    cfg.SMSGlobalConfig.Contacts[x].Name,
-				Number:  cfg.SMSGlobalConfig.Contacts[x].Number,
-				Enabled: cfg.SMSGlobalConfig.Contacts[x].Enabled,
-			},
-		)
+		contacts[x] = Contact{
+			Name:    cfg.SMSGlobalConfig.Contacts[x].Name,
+			Number:  cfg.SMSGlobalConfig.Contacts[x].Number,
+			Enabled: cfg.SMSGlobalConfig.Contacts[x].Enabled,
+		}
 		log.Debugf(log.CommunicationMgr, "SMSGlobal: SMS Contact: %s. Number: %s. Enabled: %v\n",
 			cfg.SMSGlobalConfig.Contacts[x].Name,
 			cfg.SMSGlobalConfig.Contacts[x].Number,

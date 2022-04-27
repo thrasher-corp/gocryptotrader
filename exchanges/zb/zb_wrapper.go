@@ -227,7 +227,7 @@ func (z *ZB) FetchTradablePairs(ctx context.Context, asset asset.Item) ([]string
 		return nil, err
 	}
 
-	var currencies []string
+	currencies := make([]string, 0, len(markets))
 	for x := range markets {
 		currencies = append(currencies, x)
 	}
@@ -330,18 +330,20 @@ func (z *ZB) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType ass
 		return book, err
 	}
 
+	book.Bids = make(orderbook.Items, len(orderbookNew.Bids))
 	for x := range orderbookNew.Bids {
-		book.Bids = append(book.Bids, orderbook.Item{
+		book.Bids[x] = orderbook.Item{
 			Amount: orderbookNew.Bids[x][1],
 			Price:  orderbookNew.Bids[x][0],
-		})
+		}
 	}
 
+	book.Asks = make(orderbook.Items, len(orderbookNew.Asks))
 	for x := range orderbookNew.Asks {
-		book.Asks = append(book.Asks, orderbook.Item{
+		book.Asks[x] = orderbook.Item{
 			Amount: orderbookNew.Asks[x][1],
 			Price:  orderbookNew.Asks[x][0],
-		})
+		}
 	}
 	err = book.Process()
 	if err != nil {
@@ -354,7 +356,6 @@ func (z *ZB) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType ass
 // ZB exchange
 func (z *ZB) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	var info account.Holdings
-	var balances []account.Balance
 	var coins []AccountsResponseCoin
 	if z.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		resp, err := z.wsGetAccountInfoRequest(ctx)
@@ -370,6 +371,7 @@ func (z *ZB) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (accou
 		coins = bal.Result.Coins
 	}
 
+	balances := make([]account.Balance, len(coins))
 	for i := range coins {
 		hold, err := strconv.ParseFloat(coins[i].Freeze, 64)
 		if err != nil {
@@ -381,12 +383,12 @@ func (z *ZB) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (accou
 			return info, err
 		}
 
-		balances = append(balances, account.Balance{
+		balances[i] = account.Balance{
 			CurrencyName: currency.NewCode(coins[i].EnName),
 			Total:        hold + avail,
 			Hold:         hold,
 			Free:         avail,
-		})
+		}
 	}
 
 	info.Exchange = z.Name
@@ -435,7 +437,7 @@ func (z *ZB) GetRecentTrades(ctx context.Context, p currency.Pair, assetType ass
 	if err != nil {
 		return nil, err
 	}
-	var resp []trade.Data
+	resp := make([]trade.Data, len(tradeData))
 	for i := range tradeData {
 		var side order.Side
 		side, err = order.StringToOrderSide(tradeData[i].Type)
@@ -443,7 +445,7 @@ func (z *ZB) GetRecentTrades(ctx context.Context, p currency.Pair, assetType ass
 			return nil, err
 		}
 
-		resp = append(resp, trade.Data{
+		resp[i] = trade.Data{
 			Exchange:     z.Name,
 			TID:          strconv.FormatInt(tradeData[i].Tid, 10),
 			CurrencyPair: p,
@@ -452,7 +454,7 @@ func (z *ZB) GetRecentTrades(ctx context.Context, p currency.Pair, assetType ass
 			Price:        tradeData[i].Price,
 			Amount:       tradeData[i].Amount,
 			Timestamp:    time.Unix(tradeData[i].Date, 0),
-		})
+		}
 	}
 
 	err = z.AddTradesToBuffer(resp...)
@@ -742,7 +744,7 @@ func (z *ZB) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (
 		return nil, err
 	}
 
-	var orders []order.Detail
+	orders := make([]order.Detail, len(allOrders))
 	for i := range allOrders {
 		var symbol currency.Pair
 		symbol, err = currency.NewPairDelimiter(allOrders[i].Currency,
@@ -752,7 +754,7 @@ func (z *ZB) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (
 		}
 		orderDate := time.Unix(int64(allOrders[i].TradeDate), 0)
 		orderSide := orderSideMap[allOrders[i].Type]
-		orders = append(orders, order.Detail{
+		orders[i] = order.Detail{
 			ID:       strconv.FormatInt(allOrders[i].ID, 10),
 			Amount:   allOrders[i].TotalAmount,
 			Exchange: z.Name,
@@ -760,7 +762,7 @@ func (z *ZB) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (
 			Price:    allOrders[i].Price,
 			Side:     orderSide,
 			Pair:     symbol,
-		})
+		}
 	}
 
 	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
@@ -779,8 +781,8 @@ func (z *ZB) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (
 	if req.Side == order.AnySide || req.Side == "" {
 		return nil, errors.New("specific order side is required")
 	}
+
 	var allOrders []Order
-	var orders []order.Detail
 	var side int64
 
 	if z.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
@@ -826,6 +828,7 @@ func (z *ZB) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (
 		return nil, err
 	}
 
+	orders := make([]order.Detail, len(allOrders))
 	for i := range allOrders {
 		var pair currency.Pair
 		pair, err = currency.NewPairDelimiter(allOrders[i].Currency,
@@ -848,7 +851,7 @@ func (z *ZB) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (
 			Pair:                 pair,
 		}
 		detail.InferCostsAndTimes()
-		orders = append(orders, detail)
+		orders[i] = detail
 	}
 
 	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
@@ -1009,9 +1012,9 @@ func (z *ZB) GetAvailableTransferChains(ctx context.Context, cryptocurrency curr
 		return nil, err
 	}
 
-	var availableChains []string
+	availableChains := make([]string, len(chains))
 	for x := range chains {
-		availableChains = append(availableChains, chains[x].Blockchain)
+		availableChains[x] = chains[x].Blockchain
 	}
 	return availableChains, nil
 }

@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -1420,7 +1419,7 @@ func GetFilePath(configFile string) (configPath string, isImplicitDefaultPath bo
 // config directory as `File` or `EncryptedFile` depending on whether the config
 // is encrypted
 func migrateConfig(configFile, targetDir string) (string, error) {
-	data, err := ioutil.ReadFile(configFile)
+	data, err := os.ReadFile(configFile)
 	if err != nil {
 		return "", err
 	}
@@ -1518,7 +1517,7 @@ func ReadConfig(configReader io.Reader, keyProvider func() ([]byte, error)) (*Co
 
 // readEncryptedConf reads encrypted configuration and requests key from provider
 func readEncryptedConfWithKey(reader *bufio.Reader, keyProvider func() ([]byte, error)) (*Config, error) {
-	fileData, err := ioutil.ReadAll(reader)
+	fileData, err := io.ReadAll(reader)
 	if err != nil {
 		return nil, err
 	}

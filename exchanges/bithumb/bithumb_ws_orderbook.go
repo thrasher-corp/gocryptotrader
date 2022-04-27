@@ -26,7 +26,8 @@ const (
 )
 
 func (b *Bithumb) processBooks(updates *WsOrderbooks) error {
-	var bids, asks []orderbook.Item
+	bids := make([]orderbook.Item, 0, len(updates.List))
+	asks := make([]orderbook.Item, 0, len(updates.List))
 	for x := range updates.List {
 		i := orderbook.Item{Price: updates.List[x].Price, Amount: updates.List[x].Quantity}
 		if updates.List[x].OrderSide == "bid" {
@@ -426,17 +427,19 @@ func (b *Bithumb) SeedLocalCache(ctx context.Context, p currency.Pair) error {
 // SeedLocalCacheWithBook seeds the local orderbook cache
 func (b *Bithumb) SeedLocalCacheWithBook(p currency.Pair, o *Orderbook) error {
 	var newOrderBook orderbook.Base
+	newOrderBook.Bids = make(orderbook.Items, len(o.Data.Bids))
 	for i := range o.Data.Bids {
-		newOrderBook.Bids = append(newOrderBook.Bids, orderbook.Item{
+		newOrderBook.Bids[i] = orderbook.Item{
 			Amount: o.Data.Bids[i].Quantity,
 			Price:  o.Data.Bids[i].Price,
-		})
+		}
 	}
+	newOrderBook.Asks = make(orderbook.Items, len(o.Data.Asks))
 	for i := range o.Data.Asks {
-		newOrderBook.Asks = append(newOrderBook.Asks, orderbook.Item{
+		newOrderBook.Asks[i] = orderbook.Item{
 			Amount: o.Data.Asks[i].Quantity,
 			Price:  o.Data.Asks[i].Price,
-		})
+		}
 	}
 
 	newOrderBook.Pair = p

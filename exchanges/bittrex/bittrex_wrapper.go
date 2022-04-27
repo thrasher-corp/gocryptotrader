@@ -257,7 +257,7 @@ func (b *Bittrex) FetchTradablePairs(ctx context.Context, asset asset.Item) ([]s
 		return nil, err
 	}
 
-	var resp []string
+	resp := make([]string, 0, len(markets))
 	for x := range markets {
 		if markets[x].Status != "ONLINE" {
 			continue
@@ -358,42 +358,41 @@ func (b *Bittrex) FetchOrderbook(ctx context.Context, c currency.Pair, assetType
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *Bittrex) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	book := &orderbook.Base{
+		Exchange:        b.Name,
+		Pair:            p,
+		Asset:           assetType,
+		VerifyOrderbook: b.CanVerifyOrderbook,
+	}
+
 	formattedPair, err := b.FormatExchangeCurrency(p, assetType)
 	if err != nil {
-		return nil, err
+		return book, err
 	}
 
 	// Valid order book depths are 1, 25 and 500
 	orderbookData, sequence, err := b.GetOrderbook(ctx,
 		formattedPair.String(), orderbookDepth)
 	if err != nil {
-		return nil, err
+		return book, err
 	}
 
-	book := &orderbook.Base{
-		Exchange:        b.Name,
-		Pair:            p,
-		Asset:           assetType,
-		VerifyOrderbook: b.CanVerifyOrderbook,
-		LastUpdateID:    sequence,
-	}
+	book.LastUpdateID = sequence
+	book.Bids = make(orderbook.Items, len(orderbookData.Bid))
+	book.Asks = make(orderbook.Items, len(orderbookData.Ask))
 
 	for x := range orderbookData.Bid {
-		book.Bids = append(book.Bids,
-			orderbook.Item{
-				Amount: orderbookData.Bid[x].Quantity,
-				Price:  orderbookData.Bid[x].Rate,
-			},
-		)
+		book.Bids[x] = orderbook.Item{
+			Amount: orderbookData.Bid[x].Quantity,
+			Price:  orderbookData.Bid[x].Rate,
+		}
 	}
 
 	for x := range orderbookData.Ask {
-		book.Asks = append(book.Asks,
-			orderbook.Item{
-				Amount: orderbookData.Ask[x].Quantity,
-				Price:  orderbookData.Ask[x].Rate,
-			},
-		)
+		book.Asks[x] = orderbook.Item{
+			Amount: orderbookData.Ask[x].Quantity,
+			Price:  orderbookData.Ask[x].Rate,
+		}
 	}
 	err = book.Process()
 	if err != nil {
@@ -411,14 +410,14 @@ func (b *Bittrex) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 		return resp, err
 	}
 
-	var currencies []account.Balance
+	currencies := make([]account.Balance, len(balanceData))
 	for i := range balanceData {
-		currencies = append(currencies, account.Balance{
+		currencies[i] = account.Balance{
 			CurrencyName: currency.NewCode(balanceData[i].CurrencySymbol),
 			Total:        balanceData[i].Total,
 			Hold:         balanceData[i].Total - balanceData[i].Available,
 			Free:         balanceData[i].Available,
-		})
+		}
 	}
 
 	resp.Accounts = append(resp.Accounts, account.SubAccount{
@@ -442,18 +441,32 @@ func (b *Bittrex) FetchAccountInfo(ctx context.Context, assetType asset.Item) (a
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
 func (b *Bittrex) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
-	var resp []exchange.FundHistory
 	closedDepositData, err := b.GetClosedDeposits(ctx)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 	openDepositData, err := b.GetOpenDeposits(ctx)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
-	// nolint: gocritic
-	depositData := append(closedDepositData, openDepositData...)
+	closedWithdrawalData, err := b.GetClosedWithdrawals(ctx)
+	if err != nil {
+		return nil, err
+	}
+	openWithdrawalData, err := b.GetOpenWithdrawals(ctx)
+	if err != nil {
+		return nil, err
+	}
 
+	depositData := make([]DepositData, 0, len(closedDepositData)+len(openDepositData))
+	depositData = append(depositData, closedDepositData...)
+	depositData = append(depositData, openDepositData...)
+
+	withdrawalData := make([]WithdrawalData, 0, len(closedWithdrawalData)+len(openWithdrawalData))
+	withdrawalData = append(withdrawalData, closedWithdrawalData...)
+	withdrawalData = append(withdrawalData, openWithdrawalData...)
+
+	resp := make([]exchange.FundHistory, 0, len(depositData)+len(withdrawalData))
 	for x := range depositData {
 		resp = append(resp, exchange.FundHistory{
 			ExchangeName:    b.Name,
@@ -467,17 +480,6 @@ func (b *Bittrex) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory
 			CryptoTxID:      depositData[x].TxID,
 		})
 	}
-	closedWithdrawalData, err := b.GetClosedWithdrawals(ctx)
-	if err != nil {
-		return resp, err
-	}
-	openWithdrawalData, err := b.GetOpenWithdrawals(ctx)
-	if err != nil {
-		return resp, err
-	}
-	// nolint: gocritic
-	withdrawalData := append(closedWithdrawalData, openWithdrawalData...)
-
 	for x := range withdrawalData {
 		resp = append(resp, exchange.FundHistory{
 			ExchangeName:    b.Name,
@@ -503,23 +505,24 @@ func (b *Bittrex) GetWithdrawalsHistory(ctx context.Context, c currency.Code) (r
 
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (b *Bittrex) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
-	var err error
 	formattedPair, err := b.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return nil, err
 	}
+
 	tradeData, err := b.GetMarketHistory(ctx, formattedPair.String())
 	if err != nil {
 		return nil, err
 	}
-	var resp []trade.Data
+
+	resp := make([]trade.Data, len(tradeData))
 	for i := range tradeData {
 		var side order.Side
 		side, err = order.StringToOrderSide(tradeData[i].TakerSide)
 		if err != nil {
 			return nil, err
 		}
-		resp = append(resp, trade.Data{
+		resp[i] = trade.Data{
 			Exchange:     b.Name,
 			TID:          tradeData[i].ID,
 			CurrencyPair: formattedPair,
@@ -528,7 +531,7 @@ func (b *Bittrex) GetRecentTrades(ctx context.Context, p currency.Pair, assetTyp
 			Price:        tradeData[i].Rate,
 			Amount:       tradeData[i].Quantity,
 			Timestamp:    tradeData[i].ExecutedAt,
-		})
+		}
 	}
 
 	err = b.AddTradesToBuffer(resp...)
@@ -773,7 +776,7 @@ func (b *Bittrex) GetActiveOrders(ctx context.Context, req *order.GetOrdersReque
 		return nil, err
 	}
 
-	var resp []order.Detail
+	resp := make([]order.Detail, 0, len(orderData))
 	for i := range orderData {
 		pair, err := currency.NewPairDelimiter(orderData[i].MarketSymbol,
 			format.Delimiter)

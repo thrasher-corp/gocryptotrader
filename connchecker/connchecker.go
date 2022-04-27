@@ -74,7 +74,7 @@ type Checker struct {
 	shutdown      chan struct{}
 	wg            sync.WaitGroup
 	connected     bool
-	sync.Mutex
+	mu            sync.Mutex
 }
 
 // Shutdown cleanly shutsdown monitor routine
@@ -136,12 +136,12 @@ func (c *Checker) connectionTest() {
 	for i := range c.DNSList {
 		err := c.CheckDNS(c.DNSList[i])
 		if err == nil {
-			c.Lock()
+			c.mu.Lock()
 			if !c.connected {
 				log.Debugln(log.Global, ConnRe)
 				c.connected = true
 			}
-			c.Unlock()
+			c.mu.Unlock()
 			return
 		}
 	}
@@ -149,22 +149,22 @@ func (c *Checker) connectionTest() {
 	for i := range c.DomainList {
 		err := c.CheckHost(c.DomainList[i])
 		if err == nil {
-			c.Lock()
+			c.mu.Lock()
 			if !c.connected {
 				log.Debugln(log.Global, ConnRe)
 				c.connected = true
 			}
-			c.Unlock()
+			c.mu.Unlock()
 			return
 		}
 	}
 
-	c.Lock()
+	c.mu.Lock()
 	if c.connected {
 		log.Warnln(log.Global, ConnLost)
 		c.connected = false
 	}
-	c.Unlock()
+	c.mu.Unlock()
 }
 
 // CheckDNS checks current dns for connectivity
@@ -185,8 +185,8 @@ func (c *Checker) CheckHost(host string) error {
 
 // IsConnected returns if there is internet connectivity
 func (c *Checker) IsConnected() bool {
-	c.Lock()
+	c.mu.Lock()
 	isConnected := c.connected
-	c.Unlock()
+	c.mu.Unlock()
 	return isConnected
 }

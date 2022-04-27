@@ -101,14 +101,14 @@ func (a *Alphapoint) UpdateAccountInfo(ctx context.Context, assetType asset.Item
 		return response, err
 	}
 
-	var balances []account.Balance
+	balances := make([]account.Balance, len(acc.Currencies))
 	for i := range acc.Currencies {
-		balances = append(balances, account.Balance{
+		balances[i] = account.Balance{
 			CurrencyName: currency.NewCode(acc.Currencies[i].Name),
 			Total:        float64(acc.Currencies[i].Balance),
 			Hold:         float64(acc.Currencies[i].Hold),
 			Free:         float64(acc.Currencies[i].Balance) - float64(acc.Currencies[i].Hold),
-		})
+		}
 	}
 
 	response.Accounts = append(response.Accounts, account.SubAccount{
@@ -182,18 +182,20 @@ func (a *Alphapoint) UpdateOrderbook(ctx context.Context, p currency.Pair, asset
 		return orderBook, err
 	}
 
+	orderBook.Bids = make(orderbook.Items, len(orderbookNew.Bids))
 	for x := range orderbookNew.Bids {
-		orderBook.Bids = append(orderBook.Bids, orderbook.Item{
+		orderBook.Bids[x] = orderbook.Item{
 			Amount: orderbookNew.Bids[x].Quantity,
 			Price:  orderbookNew.Bids[x].Price,
-		})
+		}
 	}
 
+	orderBook.Asks = make(orderbook.Items, len(orderbookNew.Asks))
 	for x := range orderbookNew.Asks {
-		orderBook.Asks = append(orderBook.Asks, orderbook.Item{
+		orderBook.Asks[x] = orderbook.Item{
 			Amount: orderbookNew.Asks[x].Quantity,
 			Price:  orderbookNew.Asks[x].Price,
-		})
+		}
 	}
 
 	orderBook.Pair = p

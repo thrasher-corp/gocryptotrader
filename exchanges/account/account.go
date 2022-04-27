@@ -39,15 +39,13 @@ func CollectBalances(accountBalances map[string][]Balance, assetType asset.Item)
 		return nil, fmt.Errorf("%s, %w", assetType, asset.ErrNotSupported)
 	}
 
-	accounts = make([]SubAccount, len(accountBalances))
-	i := 0
+	accounts = make([]SubAccount, 0, len(accountBalances))
 	for accountID, balances := range accountBalances {
-		accounts[i] = SubAccount{
+		accounts = append(accounts, SubAccount{
 			ID:         accountID,
 			AssetType:  assetType,
 			Currencies: balances,
-		}
-		i++
+		})
 	}
 	return
 }
@@ -55,8 +53,8 @@ func CollectBalances(accountBalances map[string][]Balance, assetType asset.Item)
 // SubscribeToExchangeAccount subscribes to your exchange account
 func SubscribeToExchangeAccount(exchange string) (dispatch.Pipe, error) {
 	exchange = strings.ToLower(exchange)
-	service.m.Lock()
-	defer service.m.Unlock()
+	service.mu.Lock()
+	defer service.mu.Unlock()
 	accounts, ok := service.exchangeAccounts[exchange]
 	if !ok {
 		return dispatch.Pipe{}, fmt.Errorf("cannot subscribe %s %w",
@@ -83,8 +81,8 @@ func GetHoldings(exch string, assetType asset.Item) (Holdings, error) {
 
 	exch = strings.ToLower(exch)
 
-	service.m.Lock()
-	defer service.m.Unlock()
+	service.mu.Lock()
+	defer service.mu.Unlock()
 	accounts, ok := service.exchangeAccounts[exch]
 	if !ok {
 		return Holdings{}, fmt.Errorf("%s %s %w", exch, assetType, errExchangeHoldingsNotFound)
@@ -151,8 +149,8 @@ func GetBalance(exch, subAccount string, ai asset.Item, c currency.Code) (*Prote
 	exch = strings.ToLower(exch)
 	subAccount = strings.ToLower(subAccount)
 
-	service.m.Lock()
-	defer service.m.Unlock()
+	service.mu.Lock()
+	defer service.mu.Unlock()
 
 	accounts, ok := service.exchangeAccounts[exch]
 	if !ok {
@@ -190,8 +188,8 @@ func (s *Service) Update(a *Holdings) error {
 	}
 
 	exch := strings.ToLower(a.Exchange)
-	s.m.Lock()
-	defer s.m.Unlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	accounts, ok := s.exchangeAccounts[exch]
 	if !ok {
 		id, err := s.mux.GetID()

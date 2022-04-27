@@ -148,7 +148,7 @@ func baseMarginInfo(data []interface{}) (MarginInfoV2, error) {
 }
 
 func symbolMarginInfo(data []interface{}) ([]MarginInfoV2, error) {
-	var resp []MarginInfoV2
+	resp := make([]MarginInfoV2, len(data))
 	for x := range data {
 		var tempResp MarginInfoV2
 		tempData, ok := data[x].([]interface{})
@@ -183,7 +183,7 @@ func symbolMarginInfo(data []interface{}) ([]MarginInfoV2, error) {
 		if !ok {
 			return nil, fmt.Errorf("%w for BestBidAmount", errTypeAssert)
 		}
-		resp = append(resp, tempResp)
+		resp[x] = tempResp
 	}
 	return resp, nil
 }
@@ -381,7 +381,6 @@ func (b *Bitfinex) GetAccountInfoV2(ctx context.Context) (AccountV2Data, error) 
 
 // GetV2Balances gets v2 balances
 func (b *Bitfinex) GetV2Balances(ctx context.Context) ([]WalletDataV2, error) {
-	var resp []WalletDataV2
 	var data [][4]interface{}
 	err := b.SendAuthenticatedHTTPRequestV2(ctx,
 		exchange.RestSpot, http.MethodPost,
@@ -390,8 +389,9 @@ func (b *Bitfinex) GetV2Balances(ctx context.Context) ([]WalletDataV2, error) {
 		&data,
 		getAccountFees)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
+	resp := make([]WalletDataV2, len(data))
 	for x := range data {
 		wType, ok := data[x][0].(string)
 		if !ok {
@@ -409,12 +409,12 @@ func (b *Bitfinex) GetV2Balances(ctx context.Context) ([]WalletDataV2, error) {
 		if !ok {
 			return resp, fmt.Errorf("%v GetV2Balances: %w for unsettledInterest", b.Name, errTypeAssert)
 		}
-		resp = append(resp, WalletDataV2{
+		resp[x] = WalletDataV2{
 			WalletType:        wType,
 			Currency:          curr,
 			Balance:           bal,
 			UnsettledInterest: unsettledInterest,
-		})
+		}
 	}
 	return resp, nil
 }
@@ -435,9 +435,6 @@ func (b *Bitfinex) GetMarginPairs(ctx context.Context) ([]string, error) {
 
 // GetDerivativeStatusInfo gets status data for the queried derivative
 func (b *Bitfinex) GetDerivativeStatusInfo(ctx context.Context, keys, startTime, endTime string, sort, limit int64) ([]DerivativeDataResponse, error) {
-	var result [][]interface{}
-	var finalResp []DerivativeDataResponse
-
 	params := url.Values{}
 	params.Set("keys", keys)
 	if startTime != "" {
@@ -452,12 +449,15 @@ func (b *Bitfinex) GetDerivativeStatusInfo(ctx context.Context, keys, startTime,
 	if limit != 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
+
+	var result [][]interface{}
 	path := bitfinexAPIVersion2 + bitfinexDerivativeData +
 		params.Encode()
 	err := b.SendHTTPRequest(ctx, exchange.RestSpot, path, &result, status)
 	if err != nil {
-		return finalResp, err
+		return nil, err
 	}
+	finalResp := make([]DerivativeDataResponse, len(result))
 	for z := range result {
 		if len(result[z]) < 19 {
 			return finalResp, fmt.Errorf("%v GetDerivativeStatusInfo: invalid response, array length too small, check api docs for updates", b.Name)
@@ -507,7 +507,7 @@ func (b *Bitfinex) GetDerivativeStatusInfo(ctx context.Context, keys, startTime,
 				t,
 			)
 		}
-		finalResp = append(finalResp, response)
+		finalResp[z] = response
 	}
 	return finalResp, nil
 }
@@ -526,82 +526,198 @@ func (b *Bitfinex) GetTickerBatch(ctx context.Context) (map[string]Ticker, error
 
 	var tickers = make(map[string]Ticker)
 	for x := range response {
+		symbol, ok := response[x][0].(string)
+		if !ok {
+			return nil, errors.New("unable to type assert symbol")
+		}
+
+		var t Ticker
 		if len(response[x]) > 11 {
-			tickers[response[x][0].(string)] = Ticker{
-				FlashReturnRate:    response[x][1].(float64),
-				Bid:                response[x][2].(float64),
-				BidPeriod:          int64(response[x][3].(float64)),
-				BidSize:            response[x][4].(float64),
-				Ask:                response[x][5].(float64),
-				AskPeriod:          int64(response[x][6].(float64)),
-				AskSize:            response[x][7].(float64),
-				DailyChange:        response[x][8].(float64),
-				DailyChangePerc:    response[x][9].(float64),
-				Last:               response[x][10].(float64),
-				Volume:             response[x][11].(float64),
-				High:               response[x][12].(float64),
-				Low:                response[x][13].(float64),
-				FFRAmountAvailable: response[x][16].(float64),
+			if t.FlashReturnRate, ok = response[x][1].(float64); !ok {
+				return nil, errors.New("unable to type assert flashReturnRate")
 			}
+			if t.Bid, ok = response[x][2].(float64); !ok {
+				return nil, errors.New("unable to type assert bid")
+			}
+			var bidPeriod float64
+			bidPeriod, ok = response[x][3].(float64)
+			if !ok {
+				return nil, errors.New("unable to type assert bidPeriod")
+			}
+			t.BidPeriod = int64(bidPeriod)
+			if t.BidSize, ok = response[x][4].(float64); !ok {
+				return nil, errors.New("unable to type assert bidSize")
+			}
+			if t.Ask, ok = response[x][5].(float64); !ok {
+				return nil, errors.New("unable to type assert ask")
+			}
+			var askPeriod float64
+			askPeriod, ok = response[x][6].(float64)
+			if !ok {
+				return nil, errors.New("unable to type assert askPeriod")
+			}
+			t.AskPeriod = int64(askPeriod)
+			if t.AskSize, ok = response[x][7].(float64); !ok {
+				return nil, errors.New("unable to type assert askSize")
+			}
+			if t.DailyChange, ok = response[x][8].(float64); !ok {
+				return nil, errors.New("unable to type assert dailyChange")
+			}
+			if t.DailyChangePerc, ok = response[x][9].(float64); !ok {
+				return nil, errors.New("unable to type assert dailyChangePerc")
+			}
+			if t.Last, ok = response[x][10].(float64); !ok {
+				return nil, errors.New("unable to type assert last")
+			}
+			if t.Volume, ok = response[x][11].(float64); !ok {
+				return nil, errors.New("unable to type assert volume")
+			}
+			if t.High, ok = response[x][12].(float64); !ok {
+				return nil, errors.New("unable to type assert high")
+			}
+			if t.Low, ok = response[x][13].(float64); !ok {
+				return nil, errors.New("unable to type assert low")
+			}
+			if t.FFRAmountAvailable, ok = response[x][16].(float64); !ok {
+				return nil, errors.New("unable to type assert FFRAmountAvailable")
+			}
+
+			tickers[symbol] = t
 			continue
 		}
-		tickers[response[x][0].(string)] = Ticker{
-			Bid:             response[x][1].(float64),
-			BidSize:         response[x][2].(float64),
-			Ask:             response[x][3].(float64),
-			AskSize:         response[x][4].(float64),
-			DailyChange:     response[x][5].(float64),
-			DailyChangePerc: response[x][6].(float64),
-			Last:            response[x][7].(float64),
-			Volume:          response[x][8].(float64),
-			High:            response[x][9].(float64),
-			Low:             response[x][10].(float64),
+
+		if t.Bid, ok = response[x][1].(float64); !ok {
+			return nil, errors.New("unable to type assert bid")
 		}
+		if t.BidSize, ok = response[x][2].(float64); !ok {
+			return nil, errors.New("unable to type assert bid size")
+		}
+		if t.Ask, ok = response[x][3].(float64); !ok {
+			return nil, errors.New("unable to type assert ask")
+		}
+		if t.AskSize, ok = response[x][4].(float64); !ok {
+			return nil, errors.New("unable to type assert ask size")
+		}
+		if t.DailyChange, ok = response[x][5].(float64); !ok {
+			return nil, errors.New("unable to type assert daily change")
+		}
+		if t.DailyChangePerc, ok = response[x][6].(float64); !ok {
+			return nil, errors.New("unable to type assert daily change perc")
+		}
+		if t.Last, ok = response[x][7].(float64); !ok {
+			return nil, errors.New("unable to type assert last")
+		}
+		if t.Volume, ok = response[x][8].(float64); !ok {
+			return nil, errors.New("unable to type assert volume")
+		}
+		if t.High, ok = response[x][9].(float64); !ok {
+			return nil, errors.New("unable to type assert high")
+		}
+		if t.Low, ok = response[x][10].(float64); !ok {
+			return nil, errors.New("unable to type assert low")
+		}
+		tickers[symbol] = t
 	}
 	return tickers, nil
 }
 
 // GetTicker returns ticker information for one symbol
-func (b *Bitfinex) GetTicker(ctx context.Context, symbol string) (Ticker, error) {
+func (b *Bitfinex) GetTicker(ctx context.Context, symbol string) (*Ticker, error) {
 	var response []interface{}
 
 	path := bitfinexAPIVersion2 + bitfinexTicker + symbol
 
 	err := b.SendHTTPRequest(ctx, exchange.RestSpot, path, &response, tickerFunction)
 	if err != nil {
-		return Ticker{}, err
+		return nil, err
 	}
 
+	var t Ticker
 	if len(response) > 10 {
-		return Ticker{
-			FlashReturnRate:    response[0].(float64),
-			Bid:                response[1].(float64),
-			BidPeriod:          int64(response[2].(float64)),
-			BidSize:            response[3].(float64),
-			Ask:                response[4].(float64),
-			AskPeriod:          int64(response[5].(float64)),
-			AskSize:            response[6].(float64),
-			DailyChange:        response[7].(float64),
-			DailyChangePerc:    response[8].(float64),
-			Last:               response[9].(float64),
-			Volume:             response[10].(float64),
-			High:               response[11].(float64),
-			Low:                response[12].(float64),
-			FFRAmountAvailable: response[15].(float64),
-		}, nil
+		var ok bool
+		if t.FlashReturnRate, ok = response[0].(float64); !ok {
+			return nil, errors.New("unable to type assert flashReturnRate")
+		}
+		if t.Bid, ok = response[1].(float64); !ok {
+			return nil, errors.New("unable to type assert bid")
+		}
+		var bidPeriod float64
+		bidPeriod, ok = response[2].(float64)
+		if !ok {
+			return nil, errors.New("unable to type assert bidPeriod")
+		}
+		t.BidPeriod = int64(bidPeriod)
+		if t.BidSize, ok = response[3].(float64); !ok {
+			return nil, errors.New("unable to type assert bidSize")
+		}
+		if t.Ask, ok = response[4].(float64); !ok {
+			return nil, errors.New("unable to type assert ask")
+		}
+		var askPeriod float64
+		askPeriod, ok = response[5].(float64)
+		if !ok {
+			return nil, errors.New("unable to type assert askPeriod")
+		}
+		t.AskPeriod = int64(askPeriod)
+		if t.AskSize, ok = response[6].(float64); !ok {
+			return nil, errors.New("unable to type assert askSize")
+		}
+		if t.DailyChange, ok = response[7].(float64); !ok {
+			return nil, errors.New("unable to type assert dailyChange")
+		}
+		if t.DailyChangePerc, ok = response[8].(float64); !ok {
+			return nil, errors.New("unable to type assert dailyChangePerc")
+		}
+		if t.Last, ok = response[9].(float64); !ok {
+			return nil, errors.New("unable to type assert last")
+		}
+		if t.Volume, ok = response[10].(float64); !ok {
+			return nil, errors.New("unable to type assert volume")
+		}
+		if t.High, ok = response[11].(float64); !ok {
+			return nil, errors.New("unable to type assert high")
+		}
+		if t.Low, ok = response[12].(float64); !ok {
+			return nil, errors.New("unable to type assert low")
+		}
+		if t.FFRAmountAvailable, ok = response[15].(float64); !ok {
+			return nil, errors.New("unable to type assert FFRAmountAvailable")
+		}
+		return &t, nil
 	}
-	return Ticker{
-		Bid:             response[0].(float64),
-		BidSize:         response[1].(float64),
-		Ask:             response[2].(float64),
-		AskSize:         response[3].(float64),
-		DailyChange:     response[4].(float64),
-		DailyChangePerc: response[5].(float64),
-		Last:            response[6].(float64),
-		Volume:          response[7].(float64),
-		High:            response[8].(float64),
-		Low:             response[9].(float64),
-	}, nil
+
+	var ok bool
+	if t.Bid, ok = response[0].(float64); !ok {
+		return nil, errors.New("unable to type assert bid")
+	}
+	if t.BidSize, ok = response[1].(float64); !ok {
+		return nil, errors.New("unable to type assert bidSize")
+	}
+	if t.Ask, ok = response[2].(float64); !ok {
+		return nil, errors.New("unable to type assert ask")
+	}
+	if t.AskSize, ok = response[3].(float64); !ok {
+		return nil, errors.New("unable to type assert askSize")
+	}
+	if t.DailyChange, ok = response[4].(float64); !ok {
+		return nil, errors.New("unable to type assert dailyChange")
+	}
+	if t.DailyChangePerc, ok = response[5].(float64); !ok {
+		return nil, errors.New("unable to type assert dailyChangePerc")
+	}
+	if t.Last, ok = response[6].(float64); !ok {
+		return nil, errors.New("unable to type assert last")
+	}
+	if t.Volume, ok = response[7].(float64); !ok {
+		return nil, errors.New("unable to type assert volume")
+	}
+	if t.High, ok = response[8].(float64); !ok {
+		return nil, errors.New("unable to type assert high")
+	}
+	if t.Low, ok = response[9].(float64); !ok {
+		return nil, errors.New("unable to type assert low")
+	}
+	return &t, nil
 }
 
 // GetTrades gets historic trades that occurred on the exchange
@@ -637,7 +753,7 @@ func (b *Bitfinex) GetTrades(ctx context.Context, currencyPair string, limit, ti
 		return nil, err
 	}
 
-	var history []Trade
+	history := make([]Trade, len(resp))
 	for i := range resp {
 		amount, ok := resp[i][2].(float64)
 		if !ok {
@@ -649,25 +765,49 @@ func (b *Bitfinex) GetTrades(ctx context.Context, currencyPair string, limit, ti
 			amount *= -1
 		}
 
-		if len(resp[i]) > 4 {
-			history = append(history, Trade{
-				TID:       int64(resp[i][0].(float64)),
-				Timestamp: int64(resp[i][1].(float64)),
-				Amount:    amount,
-				Rate:      resp[i][3].(float64),
-				Period:    int64(resp[i][4].(float64)),
-				Type:      side,
-			})
-			continue
+		tid, ok := resp[i][0].(float64)
+		if !ok {
+			return nil, errors.New("unable to type assert trade ID")
+		}
+		timestamp, ok := resp[i][1].(float64)
+		if !ok {
+			return nil, errors.New("unable to type assert timestamp")
 		}
 
-		history = append(history, Trade{
-			TID:       int64(resp[i][0].(float64)),
-			Timestamp: int64(resp[i][1].(float64)),
+		if len(resp[i]) > 4 {
+			var rate float64
+			rate, ok = resp[i][3].(float64)
+			if !ok {
+				return nil, errors.New("unable to type assert rate")
+			}
+			var period float64
+			period, ok = resp[i][4].(float64)
+			if !ok {
+				return nil, errors.New("unable to type assert period")
+			}
+
+			history[i] = Trade{
+				TID:       int64(tid),
+				Timestamp: int64(timestamp),
+				Amount:    amount,
+				Rate:      rate,
+				Period:    int64(period),
+				Type:      side,
+			}
+			continue
+		}
+		price, ok := resp[i][3].(float64)
+		if !ok {
+			return nil, errors.New("unable to type assert price")
+		}
+
+		history[i] = Trade{
+			TID:       int64(tid),
+			Timestamp: int64(timestamp),
 			Amount:    amount,
-			Price:     resp[i][3].(float64),
+			Price:     price,
 			Type:      side,
-		})
+		}
 	}
 
 	return history, nil
@@ -873,19 +1013,33 @@ func (b *Bitfinex) GetCandles(ctx context.Context, symbol, timeFrame string, sta
 			return nil, err
 		}
 
-		var c []Candle
+		candles := make([]Candle, len(response))
 		for i := range response {
-			c = append(c, Candle{
-				Timestamp: time.Unix(int64(response[i][0].(float64)/1000), 0),
-				Open:      response[i][1].(float64),
-				Close:     response[i][2].(float64),
-				High:      response[i][3].(float64),
-				Low:       response[i][4].(float64),
-				Volume:    response[i][5].(float64),
-			})
+			var c Candle
+			timestamp, ok := response[i][0].(float64)
+			if !ok {
+				return nil, errors.New("unable to type assert timestamp")
+			}
+			c.Timestamp = time.UnixMilli(int64(timestamp))
+			if c.Open, ok = response[i][1].(float64); !ok {
+				return nil, errors.New("unable to type assert open")
+			}
+			if c.Close, ok = response[i][2].(float64); !ok {
+				return nil, errors.New("unable to type assert close")
+			}
+			if c.High, ok = response[i][3].(float64); !ok {
+				return nil, errors.New("unable to type assert high")
+			}
+			if c.Low, ok = response[i][4].(float64); !ok {
+				return nil, errors.New("unable to type assert low")
+			}
+			if c.Volume, ok = response[i][5].(float64); !ok {
+				return nil, errors.New("unable to type assert volume")
+			}
+			candles[i] = c
 		}
 
-		return c, nil
+		return candles, nil
 	}
 
 	path += "/last"
@@ -900,14 +1054,29 @@ func (b *Bitfinex) GetCandles(ctx context.Context, symbol, timeFrame string, sta
 		return nil, errors.New("no data returned")
 	}
 
-	return []Candle{{
-		Timestamp: time.Unix(int64(response[0].(float64))/1000, 0),
-		Open:      response[1].(float64),
-		Close:     response[2].(float64),
-		High:      response[3].(float64),
-		Low:       response[4].(float64),
-		Volume:    response[5].(float64),
-	}}, nil
+	var c Candle
+	timestamp, ok := response[0].(float64)
+	if !ok {
+		return nil, errors.New("unable to type assert timestamp")
+	}
+	c.Timestamp = time.UnixMilli(int64(timestamp))
+	if c.Open, ok = response[1].(float64); !ok {
+		return nil, errors.New("unable to type assert open")
+	}
+	if c.Close, ok = response[2].(float64); !ok {
+		return nil, errors.New("unable to type assert close")
+	}
+	if c.High, ok = response[3].(float64); !ok {
+		return nil, errors.New("unable to type assert high")
+	}
+	if c.Low, ok = response[4].(float64); !ok {
+		return nil, errors.New("unable to type assert low")
+	}
+	if c.Volume, ok = response[5].(float64); !ok {
+		return nil, errors.New("unable to type assert volume")
+	}
+
+	return []Candle{c}, nil
 }
 
 // GetConfigurations fetchs currency and symbol site configuration data.
@@ -983,7 +1152,7 @@ func (b *Bitfinex) GetLeaderboard(ctx context.Context, key, timeframe, symbol st
 		return r
 	}
 
-	var result []LeaderboardEntry
+	result := make([]LeaderboardEntry, len(resp))
 	for x := range resp {
 		r, ok := resp[x].([]interface{})
 		if !ok {
@@ -1008,13 +1177,13 @@ func (b *Bitfinex) GetLeaderboard(ctx context.Context, key, timeframe, symbol st
 		if !ok {
 			return nil, errors.New("unable to type assert value")
 		}
-		result = append(result, LeaderboardEntry{
+		result[x] = LeaderboardEntry{
 			Timestamp:     time.UnixMilli(int64(tm)),
 			Username:      username,
 			Ranking:       int(ranking),
 			Value:         value,
 			TwitterHandle: parseTwitterHandle(r[9]),
-		})
+		}
 	}
 	return result, nil
 }

@@ -438,40 +438,44 @@ func (b *Bitfinex) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 	var orderbookNew Orderbook
 	orderbookNew, err = b.GetOrderbook(ctx, prefix+fPair.String(), "R0", 100)
 	if err != nil {
-		return nil, err
+		return o, err
 	}
 	if assetType == asset.MarginFunding {
 		o.IsFundingRate = true
+		o.Asks = make(orderbook.Items, len(orderbookNew.Asks))
 		for x := range orderbookNew.Asks {
-			o.Asks = append(o.Asks, orderbook.Item{
+			o.Asks[x] = orderbook.Item{
 				ID:     orderbookNew.Asks[x].OrderID,
 				Price:  orderbookNew.Asks[x].Rate,
 				Amount: orderbookNew.Asks[x].Amount,
 				Period: int64(orderbookNew.Asks[x].Period),
-			})
+			}
 		}
+		o.Bids = make(orderbook.Items, len(orderbookNew.Bids))
 		for x := range orderbookNew.Bids {
-			o.Bids = append(o.Bids, orderbook.Item{
+			o.Bids[x] = orderbook.Item{
 				ID:     orderbookNew.Bids[x].OrderID,
 				Price:  orderbookNew.Bids[x].Rate,
 				Amount: orderbookNew.Bids[x].Amount,
 				Period: int64(orderbookNew.Bids[x].Period),
-			})
+			}
 		}
 	} else {
+		o.Asks = make(orderbook.Items, len(orderbookNew.Asks))
 		for x := range orderbookNew.Asks {
-			o.Asks = append(o.Asks, orderbook.Item{
+			o.Asks[x] = orderbook.Item{
 				ID:     orderbookNew.Asks[x].OrderID,
 				Price:  orderbookNew.Asks[x].Price,
 				Amount: orderbookNew.Asks[x].Amount,
-			})
+			}
 		}
+		o.Bids = make(orderbook.Items, len(orderbookNew.Bids))
 		for x := range orderbookNew.Bids {
-			o.Bids = append(o.Bids, orderbook.Item{
+			o.Bids[x] = orderbook.Item{
 				ID:     orderbookNew.Bids[x].OrderID,
 				Price:  orderbookNew.Bids[x].Price,
 				Amount: orderbookNew.Bids[x].Amount,
-			})
+			}
 		}
 	}
 	err = o.Process()
@@ -885,12 +889,12 @@ func (b *Bitfinex) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequ
 		return nil, err
 	}
 
-	var orders []order.Detail
 	resp, err := b.GetOpenOrders(ctx)
 	if err != nil {
 		return nil, err
 	}
 
+	orders := make([]order.Detail, len(resp))
 	for i := range resp {
 		orderSide := order.Side(strings.ToUpper(resp[i].Side))
 		timestamp, err := strconv.ParseFloat(resp[i].Timestamp, 64)
@@ -937,7 +941,7 @@ func (b *Bitfinex) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequ
 			orderDetail.Type = order.Type(strings.ToUpper(orderType))
 		}
 
-		orders = append(orders, orderDetail)
+		orders[i] = orderDetail
 	}
 
 	order.FilterOrdersBySide(&orders, req.Side)
@@ -954,12 +958,12 @@ func (b *Bitfinex) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequ
 		return nil, err
 	}
 
-	var orders []order.Detail
 	resp, err := b.GetInactiveOrders(ctx)
 	if err != nil {
 		return nil, err
 	}
 
+	orders := make([]order.Detail, len(resp))
 	for i := range resp {
 		orderSide := order.Side(strings.ToUpper(resp[i].Side))
 		timestamp, err := strconv.ParseInt(resp[i].Timestamp, 10, 64)
@@ -1007,7 +1011,7 @@ func (b *Bitfinex) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequ
 			orderDetail.Type = order.Type(strings.ToUpper(orderType))
 		}
 
-		orders = append(orders, orderDetail)
+		orders[i] = orderDetail
 	}
 
 	order.FilterOrdersBySide(&orders, req.Side)

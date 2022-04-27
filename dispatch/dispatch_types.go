@@ -71,7 +71,6 @@ type job struct {
 type Mux struct {
 	// Reference to the main running dispatch service
 	d *Dispatcher
-	sync.RWMutex
 }
 
 // Pipe defines an outbound object to the desired routine

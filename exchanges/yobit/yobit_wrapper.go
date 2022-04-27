@@ -165,7 +165,7 @@ func (y *Yobit) FetchTradablePairs(ctx context.Context, asset asset.Item) ([]str
 		return nil, err
 	}
 
-	var currencies []string
+	currencies := make([]string, 0, len(info.Pairs))
 	for x := range info.Pairs {
 		currencies = append(currencies, strings.ToUpper(x))
 	}
@@ -307,7 +307,7 @@ func (y *Yobit) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 		return response, err
 	}
 
-	var currencies []account.Balance
+	currencies := make([]account.Balance, 0, len(accountBalance.FundsInclOrders))
 	for x, y := range accountBalance.FundsInclOrders {
 		var exchangeCurrency account.Balance
 		exchangeCurrency.CurrencyName = currency.NewCode(x)
@@ -364,19 +364,21 @@ func (y *Yobit) GetRecentTrades(ctx context.Context, p currency.Pair, assetType 
 	if err != nil {
 		return nil, err
 	}
-	var resp []trade.Data
+
 	var tradeData []Trade
 	tradeData, err = y.GetTrades(ctx, p.String())
 	if err != nil {
 		return nil, err
 	}
+
+	resp := make([]trade.Data, len(tradeData))
 	for i := range tradeData {
 		tradeTS := time.Unix(tradeData[i].Timestamp, 0)
 		side := order.Buy
 		if tradeData[i].Type == "ask" {
 			side = order.Sell
 		}
-		resp = append(resp, trade.Data{
+		resp[i] = trade.Data{
 			Exchange:     y.Name,
 			TID:          strconv.FormatInt(tradeData[i].TID, 10),
 			CurrencyPair: p,
@@ -385,7 +387,7 @@ func (y *Yobit) GetRecentTrades(ctx context.Context, p currency.Pair, assetType 
 			Price:        tradeData[i].Price,
 			Amount:       tradeData[i].Amount,
 			Timestamp:    tradeTS,
-		})
+		}
 	}
 
 	err = y.AddTradesToBuffer(resp...)
@@ -466,11 +468,12 @@ func (y *Yobit) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.Can
 		Status: make(map[string]string),
 	}
 
-	var allActiveOrders []map[string]ActiveOrders
 	enabledPairs, err := y.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return cancelAllOrdersResponse, err
 	}
+
+	allActiveOrders := make([]map[string]ActiveOrders, len(enabledPairs))
 	for i := range enabledPairs {
 		fCurr, err := y.FormatExchangeCurrency(enabledPairs[i], asset.Spot)
 		if err != nil {
@@ -481,7 +484,7 @@ func (y *Yobit) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.Can
 			return cancelAllOrdersResponse, err
 		}
 
-		allActiveOrders = append(allActiveOrders, activeOrdersForPair)
+		allActiveOrders[i] = activeOrdersForPair
 	}
 
 	for i := range allActiveOrders {
@@ -649,7 +652,7 @@ func (y *Yobit) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest
 		return nil, err
 	}
 
-	var orders []order.Detail
+	orders := make([]order.Detail, len(allOrders))
 	for i := range allOrders {
 		var pair currency.Pair
 		pair, err = currency.NewPairDelimiter(allOrders[i].Pair, format.Delimiter)
@@ -671,7 +674,7 @@ func (y *Yobit) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest
 			Exchange:             y.Name,
 		}
 		detail.InferCostsAndTimes()
-		orders = append(orders, detail)
+		orders[i] = detail
 	}
 
 	order.FilterOrdersBySide(&orders, req.Side)

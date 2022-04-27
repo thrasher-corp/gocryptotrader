@@ -233,9 +233,9 @@ func (b *Bitmex) FetchTradablePairs(ctx context.Context, asset asset.Item) ([]st
 		return nil, err
 	}
 
-	var products []string
+	products := make([]string, len(marketInfo))
 	for x := range marketInfo {
-		products = append(products, marketInfo[x].Symbol.String())
+		products[x] = marketInfo[x].Symbol.String()
 	}
 
 	return products, nil
@@ -394,16 +394,20 @@ func (b *Bitmex) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 		return book, err
 	}
 
+	book.Asks = make(orderbook.Items, 0, len(orderbookNew))
+	book.Bids = make(orderbook.Items, 0, len(orderbookNew))
 	for i := range orderbookNew {
 		switch {
 		case strings.EqualFold(orderbookNew[i].Side, order.Sell.String()):
 			book.Asks = append(book.Asks, orderbook.Item{
 				Amount: float64(orderbookNew[i].Size),
-				Price:  orderbookNew[i].Price})
+				Price:  orderbookNew[i].Price,
+			})
 		case strings.EqualFold(orderbookNew[i].Side, order.Buy.String()):
 			book.Bids = append(book.Bids, orderbook.Item{
 				Amount: float64(orderbookNew[i].Size),
-				Price:  orderbookNew[i].Price})
+				Price:  orderbookNew[i].Price,
+			})
 		default:
 			return book,
 				fmt.Errorf("could not process orderbook, order side [%s] could not be matched",
@@ -748,10 +752,9 @@ func (b *Bitmex) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 		return nil, err
 	}
 
-	var orders []order.Detail
-	params := OrdersRequest{}
-	params.Filter = "{\"open\":true}"
-
+	params := OrdersRequest{
+		Filter: "{\"open\":true}",
+	}
 	resp, err := b.GetOrders(ctx, &params)
 	if err != nil {
 		return nil, err
@@ -762,6 +765,7 @@ func (b *Bitmex) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 		return nil, err
 	}
 
+	orders := make([]order.Detail, len(resp))
 	for i := range resp {
 		orderSide := orderSideMap[resp[i].Side]
 		orderStatus, err := order.StringToOrderStatus(resp[i].OrdStatus)
@@ -789,7 +793,7 @@ func (b *Bitmex) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 				format.Delimiter),
 		}
 
-		orders = append(orders, orderDetail)
+		orders[i] = orderDetail
 	}
 
 	order.FilterOrdersBySide(&orders, req.Side)
@@ -807,7 +811,6 @@ func (b *Bitmex) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 		return nil, err
 	}
 
-	var orders []order.Detail
 	params := OrdersRequest{}
 	resp, err := b.GetOrders(ctx, &params)
 	if err != nil {
@@ -819,6 +822,7 @@ func (b *Bitmex) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 		return nil, err
 	}
 
+	orders := make([]order.Detail, len(resp))
 	for i := range resp {
 		orderSide := orderSideMap[resp[i].Side]
 		orderStatus, err := order.StringToOrderStatus(resp[i].OrdStatus)
@@ -848,7 +852,7 @@ func (b *Bitmex) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 		}
 		orderDetail.InferCostsAndTimes()
 
-		orders = append(orders, orderDetail)
+		orders[i] = orderDetail
 	}
 
 	order.FilterOrdersBySide(&orders, req.Side)
