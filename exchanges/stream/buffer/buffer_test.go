@@ -1101,7 +1101,7 @@ func TestUpdateByIDAndAction(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errAmendFailure)
 	}
 
-	book.LoadSnapshot(append(bids[:0:0], bids...), append(bids[:0:0], bids...), 0, time.Time{}, true) // nolint:gocritic
+	book.LoadSnapshot(bids, bids, 0, time.Time{}, true)
 
 	ob, err = book.Retrieve()
 	if !errors.Is(err, nil) {
