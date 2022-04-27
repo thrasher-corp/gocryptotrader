@@ -1213,7 +1213,7 @@ func TestCreateUSDTFuturesOrder(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = b.CreateUSDTFuturesOrder(context.Background(), pair, "Buy", "Limit", "GoodTillCancel", "", "", "", 1, 1, 0, 0, false, true)
+	_, err = b.CreateUSDTFuturesOrder(context.Background(), pair, "Buy", "Limit", "GoodTillCancel", "", "", "", 1, 10000, 0, 0, false, false)
 	if err != nil {
 		t.Error(err)
 	}

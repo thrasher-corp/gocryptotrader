@@ -271,7 +271,10 @@ func (by *Bybit) CreateUSDTFuturesOrder(ctx context.Context, symbol currency.Pai
 
 	if closeOnTrigger {
 		params.Set("close_on_trigger", "true")
+	} else {
+		params.Set("close_on_trigger", "false")
 	}
+
 	if orderLinkID != "" {
 		params.Set("order_link_id", orderLinkID)
 	}
@@ -289,6 +292,8 @@ func (by *Bybit) CreateUSDTFuturesOrder(ctx context.Context, symbol currency.Pai
 	}
 	if reduceOnly {
 		params.Set("reduce_only", "true")
+	} else {
+		params.Set("reduce_only", "false")
 	}
 	return resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, ufuturesCreateOrder, params, &resp, uFuturesCreateOrderRate)
 }
