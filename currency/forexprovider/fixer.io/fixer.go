@@ -55,7 +55,7 @@ func (f *Fixer) GetSupportedCurrencies() ([]string, error) {
 		return nil, errors.New(resp.Error.Type + resp.Error.Info)
 	}
 
-	var currencies []string
+	currencies := make([]string, 0, len(resp.Map))
 	for key := range resp.Map {
 		currencies = append(currencies, key)
 	}

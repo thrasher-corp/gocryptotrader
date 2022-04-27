@@ -11,8 +11,7 @@ import (
 
 func TestGetStrategies(t *testing.T) {
 	t.Parallel()
-	resp := GetStrategies()
-	if len(resp) < 2 {
+	if resp := GetStrategies(); len(resp) < 2 {
 		t.Error("expected at least 2 strategies to be loaded")
 	}
 }

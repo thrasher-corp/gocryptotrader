@@ -3,7 +3,7 @@ package engine
 import (
 	"encoding/json"
 	"errors"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -253,7 +253,7 @@ func TestConfigAllJsonResponse(t *testing.T) {
 		t.Error(err)
 	}
 	resp := makeHTTPGetRequest(t, c)
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		t.Error("Body not readable", err)
 	}

@@ -17,8 +17,8 @@ func NewMatch() *Match {
 // connections. Stream systems fan in all incoming payloads to one routine for
 // processing.
 type Match struct {
-	m map[interface{}]chan []byte
-	sync.Mutex
+	m  map[interface{}]chan []byte
+	mu sync.Mutex
 }
 
 // Incoming matches with request, disregarding the returned payload
@@ -29,8 +29,8 @@ func (m *Match) Incoming(signature interface{}) bool {
 // IncomingWithData matches with requests and takes in the returned payload, to
 // be processed outside of a stream processing routine
 func (m *Match) IncomingWithData(signature interface{}, data []byte) bool {
-	m.Lock()
-	defer m.Unlock()
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	ch, ok := m.m[signature]
 	if ok {
 		select {
@@ -47,15 +47,15 @@ func (m *Match) IncomingWithData(signature interface{}, data []byte) bool {
 // Sets the signature response channel for incoming data
 func (m *Match) set(signature interface{}) (matcher, error) {
 	var ch chan []byte
-	m.Lock()
+	m.mu.Lock()
 	if _, ok := m.m[signature]; ok {
-		m.Unlock()
+		m.mu.Unlock()
 		return matcher{}, errors.New("signature collision")
 	}
 	// This is buffered so we don't need to wait for receiver.
 	ch = make(chan []byte, 1)
 	m.m[signature] = ch
-	m.Unlock()
+	m.mu.Unlock()
 
 	return matcher{
 		C:   ch,
@@ -73,8 +73,8 @@ type matcher struct {
 
 // Cleanup closes underlying channel and deletes signature from map
 func (m *matcher) Cleanup() {
-	m.m.Lock()
+	m.m.mu.Lock()
 	close(m.C)
 	delete(m.m.m, m.sig)
-	m.m.Unlock()
+	m.m.mu.Unlock()
 }

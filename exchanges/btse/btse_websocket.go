@@ -272,7 +272,10 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		var newOB orderbook.Base
+		newOB := orderbook.Base{
+			Bids: make(orderbook.Items, 0, len(t.Data.BuyQuote)),
+			Asks: make(orderbook.Items, 0, len(t.Data.SellQuote)),
+		}
 		var price, amount float64
 		for i := range t.Data.SellQuote {
 			p := strings.Replace(t.Data.SellQuote[i].Price, ",", "", -1)

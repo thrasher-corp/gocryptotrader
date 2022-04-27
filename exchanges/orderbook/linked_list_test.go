@@ -1434,7 +1434,7 @@ func TestShiftBookmark(t *testing.T) {
 		t.Fatal("nilBookmark not reassigned")
 	}
 
-	head := bookmarkedNode // nolint // ifshort false positive
+	head := bookmarkedNode
 	bookmarkedNode.Prev = nil
 	bookmarkedNode.Next = originalBookmarkNext
 	tip.Next = nil

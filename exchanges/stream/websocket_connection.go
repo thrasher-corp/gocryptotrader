@@ -6,7 +6,7 @@ import (
 	"compress/gzip"
 	"crypto/rand"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"math/big"
 	"net"
 	"net/http"
@@ -156,7 +156,7 @@ func (w *WebsocketConnection) SetupPingHandler(handler PingHandler) {
 				time.Now().Add(handler.Delay))
 			if err == websocket.ErrCloseSent {
 				return nil
-			} else if e, ok := err.(net.Error); ok && e.Temporary() {
+			} else if e, ok := err.(net.Error); ok && e.Timeout() {
 				return nil
 			}
 			return err
@@ -260,7 +260,7 @@ func (w *WebsocketConnection) parseBinaryResponse(resp []byte) ([]byte, error) {
 		if err != nil {
 			return standardMessage, err
 		}
-		standardMessage, err = ioutil.ReadAll(gReader)
+		standardMessage, err = io.ReadAll(gReader)
 		if err != nil {
 			return standardMessage, err
 		}
@@ -270,7 +270,7 @@ func (w *WebsocketConnection) parseBinaryResponse(resp []byte) ([]byte, error) {
 		}
 	} else {
 		reader := flate.NewReader(bytes.NewReader(resp))
-		standardMessage, err = ioutil.ReadAll(reader)
+		standardMessage, err = io.ReadAll(reader)
 		if err != nil {
 			return standardMessage, err
 		}

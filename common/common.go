@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -18,6 +17,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -257,7 +257,7 @@ func SendHTTPRequest(ctx context.Context, method, urlPath string, headers map[st
 	}
 	defer resp.Body.Close()
 
-	contents, err := ioutil.ReadAll(resp.Body)
+	contents, err := io.ReadAll(resp.Body)
 
 	if verbose {
 		log.Debugf(log.Global, "HTTP status: %s, Code: %v",
@@ -348,7 +348,7 @@ func CreateDir(dir string) error {
 	}
 
 	log.Warnf(log.Global, "Directory %s does not exist.. creating.\n", dir)
-	return os.MkdirAll(dir, 0770)
+	return os.MkdirAll(dir, file.DefaultPermissionOctal)
 }
 
 // ChangePermission lists all the directories and files in an array
@@ -357,8 +357,8 @@ func ChangePermission(directory string) error {
 		if err != nil {
 			return err
 		}
-		if info.Mode().Perm() != 0770 {
-			return os.Chmod(path, 0770)
+		if info.Mode().Perm() != file.DefaultPermissionOctal {
+			return os.Chmod(path, file.DefaultPermissionOctal)
 		}
 		return nil
 	})

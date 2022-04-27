@@ -46,7 +46,7 @@ func TestRetrieve(t *testing.T) {
 		pair:             currency.NewPair(currency.THETA, currency.USD),
 		asset:            asset.DownsideProfitContract,
 		lastUpdated:      time.Now(),
-		lastUpdateID:     007,
+		lastUpdateID:     1337,
 		priceDuplication: true,
 		isFundingRate:    true,
 		VerifyOrderbook:  true,

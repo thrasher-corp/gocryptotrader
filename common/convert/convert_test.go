@@ -282,3 +282,36 @@ func TestNumberToHumanFriendlyString(t *testing.T) {
 		t.Error("expected no comma")
 	}
 }
+
+func TestInterfaceToFloat64OrZeroValue(t *testing.T) {
+	var x interface{}
+	if r := InterfaceToFloat64OrZeroValue(x); r != 0 {
+		t.Errorf("expected 0, got: %v", r)
+	}
+	x = float64(420)
+	if r := InterfaceToFloat64OrZeroValue(x); r != 420 {
+		t.Errorf("expected 420, got: %v", x)
+	}
+}
+
+func TestInterfaceToIntOrZeroValue(t *testing.T) {
+	var x interface{}
+	if r := InterfaceToIntOrZeroValue(x); r != 0 {
+		t.Errorf("expected 0, got: %v", r)
+	}
+	x = int(420)
+	if r := InterfaceToIntOrZeroValue(x); r != 420 {
+		t.Errorf("expected 420, got: %v", x)
+	}
+}
+
+func TestInterfaceToStringOrZeroValue(t *testing.T) {
+	var x interface{}
+	if r := InterfaceToStringOrZeroValue(x); r != "" {
+		t.Errorf("expected empty string, got: %v", r)
+	}
+	x = string("meow")
+	if r := InterfaceToStringOrZeroValue(x); r != "meow" {
+		t.Errorf("expected meow, got: %v", x)
+	}
+}

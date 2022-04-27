@@ -3,7 +3,6 @@ package ftx
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log"
 	"math"
 	"os"
@@ -1000,7 +999,7 @@ func TestGetPublicOptionsTrades(t *testing.T) {
 	}
 	tmNow := time.Now()
 	result, err = f.GetPublicOptionsTrades(context.Background(),
-		tmNow.AddDate(0, -1, 0), tmNow, "5")
+		tmNow.AddDate(-1, 0, 0), tmNow, "5")
 	if err != nil {
 		t.Error(err)
 	}
@@ -2036,19 +2035,19 @@ func TestCalculatePNL(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	var orders []order.Detail
+	orders := make([]order.Detail, len(positions))
 	for i := range positions {
-		orders = append(orders, order.Detail{
+		orders[i] = order.Detail{
 			Side:      positions[i].Side,
 			Pair:      pair,
-			ID:        fmt.Sprintf("%v", positions[i].ID),
+			ID:        positions[i].ID,
 			Price:     positions[i].Price,
 			Amount:    positions[i].Amount,
 			AssetType: asset.Futures,
 			Exchange:  f.Name,
 			Fee:       positions[i].Fee,
 			Date:      positions[i].Date,
-		})
+		}
 	}
 
 	exch := f.Name

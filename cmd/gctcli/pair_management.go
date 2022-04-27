@@ -198,7 +198,7 @@ func enableDisableExchangePair(c *cli.Context) error {
 
 	pairList := strings.Split(pairs, ",")
 
-	var validPairs []*gctrpc.CurrencyPair
+	validPairs := make([]*gctrpc.CurrencyPair, len(pairList))
 	for i := range pairList {
 		if !validPair(pairList[i]) {
 			return errInvalidPair
@@ -209,11 +209,11 @@ func enableDisableExchangePair(c *cli.Context) error {
 			return err
 		}
 
-		validPairs = append(validPairs, &gctrpc.CurrencyPair{
+		validPairs[i] = &gctrpc.CurrencyPair{
 			Delimiter: p.Delimiter,
 			Base:      p.Base.String(),
 			Quote:     p.Quote.String(),
-		})
+		}
 	}
 
 	conn, cancel, err := setupClient(c)

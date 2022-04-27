@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -19,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	dbPSQL "github.com/thrasher-corp/gocryptotrader/database/drivers/postgres"
 	dbsqlite3 "github.com/thrasher-corp/gocryptotrader/database/drivers/sqlite3"
@@ -141,7 +141,7 @@ func main() {
 		if path == "" {
 			path = wd
 		}
-		err = ioutil.WriteFile(path, resp, 0770)
+		err = os.WriteFile(path, resp, file.DefaultPermissionOctal)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -235,10 +235,10 @@ func parseExchangeSettings(reader *bufio.Reader, cfg *config.Config) error {
 func parseStrategySettings(cfg *config.Config, reader *bufio.Reader) error {
 	fmt.Println("Firstly, please select which strategy you wish to use")
 	strats := strategies.GetStrategies()
-	var strategiesToUse []string
+	strategiesToUse := make([]string, len(strats))
 	for i := range strats {
 		fmt.Printf("%v. %s\n", i+1, strats[i].Name())
-		strategiesToUse = append(strategiesToUse, strats[i].Name())
+		strategiesToUse[i] = strats[i].Name()
 	}
 	var err error
 	cfg.StrategySettings.Name, err = parseStratName(quickParse(reader), strategiesToUse)

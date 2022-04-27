@@ -83,11 +83,23 @@ func (g *Gateio) GetMarketInfo(ctx context.Context) (MarketInfoResponse, error) 
 			if !ok {
 				return result, errors.New("unable to type assert pairv")
 			}
+			decimalPlaces, ok := pairv["decimal_places"].(float64)
+			if !ok {
+				return result, errors.New("unable to type assert decimal_places")
+			}
+			minAmount, ok := pairv["min_amount"].(float64)
+			if !ok {
+				return result, errors.New("unable to type assert min_amount")
+			}
+			fee, ok := pairv["fee"].(float64)
+			if !ok {
+				return result, errors.New("unable to type assert fee")
+			}
 			result.Pairs = append(result.Pairs, MarketInfoPairsResponse{
 				Symbol:        itemk,
-				DecimalPlaces: pairv["decimal_places"].(float64),
-				MinAmount:     pairv["min_amount"].(float64),
-				Fee:           pairv["fee"].(float64),
+				DecimalPlaces: decimalPlaces,
+				MinAmount:     minAmount,
+				Fee:           fee,
 			})
 		}
 	}
@@ -138,64 +150,59 @@ func (g *Gateio) GetTrades(ctx context.Context, symbol string) (TradeHistory, er
 }
 
 // GetOrderbook returns the orderbook data for a suppled symbol
-func (g *Gateio) GetOrderbook(ctx context.Context, symbol string) (Orderbook, error) {
+func (g *Gateio) GetOrderbook(ctx context.Context, symbol string) (*Orderbook, error) {
 	urlPath := fmt.Sprintf("/%s/%s/%s", gateioAPIVersion, gateioOrderbook, symbol)
 	var resp OrderbookResponse
 	err := g.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, urlPath, &resp)
 	if err != nil {
-		return Orderbook{}, err
+		return nil, err
 	}
 
-	if resp.Result != "true" {
-		return Orderbook{}, errors.New("result was not true")
-	}
-
-	var ob Orderbook
-
-	if len(resp.Asks) == 0 {
-		return ob, errors.New("asks are empty")
+	switch {
+	case resp.Result != "true":
+		return nil, errors.New("result was not true")
+	case len(resp.Asks) == 0:
+		return nil, errors.New("asks are empty")
+	case len(resp.Bids) == 0:
+		return nil, errors.New("bids are empty")
 	}
 
 	// Asks are in reverse order
-	for x := len(resp.Asks) - 1; x != 0; x-- {
-		data := resp.Asks[x]
+	ob := Orderbook{
+		Result:  resp.Result,
+		Elapsed: resp.Elapsed,
+		Bids:    make([]OrderbookItem, len(resp.Bids)),
+		Asks:    make([]OrderbookItem, 0, len(resp.Asks)),
+	}
 
-		price, err := strconv.ParseFloat(data[0], 64)
+	for x := len(resp.Asks) - 1; x != 0; x-- {
+		price, err := strconv.ParseFloat(resp.Asks[x][0], 64)
 		if err != nil {
-			continue
+			return nil, err
 		}
 
-		amount, err := strconv.ParseFloat(data[1], 64)
+		amount, err := strconv.ParseFloat(resp.Asks[x][1], 64)
 		if err != nil {
-			continue
+			return nil, err
 		}
 
 		ob.Asks = append(ob.Asks, OrderbookItem{Price: price, Amount: amount})
 	}
 
-	if len(resp.Bids) == 0 {
-		return ob, errors.New("bids are empty")
-	}
-
 	for x := range resp.Bids {
-		data := resp.Bids[x]
-
-		price, err := strconv.ParseFloat(data[0], 64)
+		price, err := strconv.ParseFloat(resp.Bids[x][0], 64)
 		if err != nil {
-			continue
+			return nil, err
 		}
 
-		amount, err := strconv.ParseFloat(data[1], 64)
+		amount, err := strconv.ParseFloat(resp.Bids[x][1], 64)
 		if err != nil {
-			continue
+			return nil, err
 		}
 
-		ob.Bids = append(ob.Bids, OrderbookItem{Price: price, Amount: amount})
+		ob.Bids[x] = OrderbookItem{Price: price, Amount: amount}
 	}
-
-	ob.Result = resp.Result
-	ob.Elapsed = resp.Elapsed
-	return ob, nil
+	return &ob, nil
 }
 
 // GetSpotKline returns kline data for the most recent time period

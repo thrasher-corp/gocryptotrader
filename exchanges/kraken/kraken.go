@@ -234,7 +234,7 @@ func (k *Kraken) GetOHLC(ctx context.Context, symbol currency.Pair, interval str
 		return nil, errors.New("invalid data returned")
 	}
 
-	var OHLC []OpenHighLowClose
+	OHLC := make([]OpenHighLowClose, len(ohlcData))
 	for x := range ohlcData {
 		subData, ok := ohlcData[x].([]interface{})
 		if !ok {
@@ -270,56 +270,55 @@ func (k *Kraken) GetOHLC(ctx context.Context, symbol currency.Pair, interval str
 		if o.Count, ok = subData[7].(float64); !ok {
 			return nil, errors.New("unable to type assert count")
 		}
-		OHLC = append(OHLC, o)
+		OHLC[x] = o
 	}
 	return OHLC, nil
 }
 
 // GetDepth returns the orderbook for a particular currency
-func (k *Kraken) GetDepth(ctx context.Context, symbol currency.Pair) (Orderbook, error) {
-	var result interface{}
-	var orderBook Orderbook
-	values := url.Values{}
+func (k *Kraken) GetDepth(ctx context.Context, symbol currency.Pair) (*Orderbook, error) {
 	symbolValue, err := k.FormatSymbol(symbol, asset.Spot)
 	if err != nil {
-		return orderBook, err
+		return nil, err
 	}
+	values := url.Values{}
 	values.Set("pair", symbolValue)
 	path := fmt.Sprintf("/%s/public/%s?%s", krakenAPIVersion, krakenDepth, values.Encode())
+	var result interface{}
 	err = k.SendHTTPRequest(ctx, exchange.RestSpot, path, &result)
 	if err != nil {
-		return orderBook, err
+		return nil, err
 	}
 
 	if result == nil {
-		return orderBook, fmt.Errorf("%s GetDepth result is nil", k.Name)
+		return nil, fmt.Errorf("%s GetDepth result is nil", k.Name)
 	}
 
 	data, ok := result.(map[string]interface{})
 	if !ok {
-		return orderBook, errors.New("unable to type assert data")
+		return nil, errors.New("unable to type assert data")
 	}
 	orderbookData, ok := data["result"].(map[string]interface{})
 	if !ok {
-		return orderBook, fmt.Errorf("%s GetDepth data[result] is nil", k.Name)
+		return nil, fmt.Errorf("%s GetDepth data[result] is nil", k.Name)
 	}
 	var bidsData []interface{}
 	var asksData []interface{}
 	for _, y := range orderbookData {
 		yData, ok := y.(map[string]interface{})
 		if !ok {
-			return orderBook, errors.New("unable to type assert yData")
+			return nil, errors.New("unable to type assert yData")
 		}
 		if bidsData, ok = yData["bids"].([]interface{}); !ok {
-			return orderBook, errors.New("unable to type assert bidsData")
+			return nil, errors.New("unable to type assert bidsData")
 		}
 		if asksData, ok = yData["asks"].([]interface{}); !ok {
-			return orderBook, errors.New("unable to type assert asksData")
+			return nil, errors.New("unable to type assert asksData")
 		}
 	}
 
 	processOrderbook := func(data []interface{}) ([]OrderbookBase, error) {
-		var result []OrderbookBase
+		result := make([]OrderbookBase, len(data))
 		for x := range data {
 			entry, ok := data[x].([]interface{})
 			if !ok {
@@ -340,18 +339,19 @@ func (k *Kraken) GetDepth(ctx context.Context, symbol currency.Pair) (Orderbook,
 				return nil, amountErr
 			}
 
-			result = append(result, OrderbookBase{Price: price, Amount: amount})
+			result[x] = OrderbookBase{Price: price, Amount: amount}
 		}
 		return result, nil
 	}
 
+	var orderBook Orderbook
 	orderBook.Bids, err = processOrderbook(bidsData)
 	if err != nil {
-		return orderBook, err
+		return nil, err
 	}
 
 	orderBook.Asks, err = processOrderbook(asksData)
-	return orderBook, err
+	return &orderBook, err
 }
 
 // GetTrades returns current trades on Kraken
@@ -364,7 +364,6 @@ func (k *Kraken) GetTrades(ctx context.Context, symbol currency.Pair) ([]RecentT
 	translatedAsset := assetTranslator.LookupCurrency(symbolValue)
 	values.Set("pair", translatedAsset)
 
-	var recentTrades []RecentTrades
 	var result interface{}
 
 	path := fmt.Sprintf("/%s/public/%s?%s", krakenAPIVersion, krakenTrades, values.Encode())
@@ -422,10 +421,11 @@ func (k *Kraken) GetTrades(ctx context.Context, symbol currency.Pair) ([]RecentT
 		return nil, fmt.Errorf("no trades returned for symbol %v", symbol)
 	}
 
-	for _, x := range trades {
+	recentTrades := make([]RecentTrades, len(trades))
+	for x := range trades {
 		r := RecentTrades{}
 		var individualTrade []interface{}
-		individualTrade, ok = x.([]interface{})
+		individualTrade, ok = trades[x].([]interface{})
 		if !ok {
 			return nil, errors.New("unable to parse individual trade data")
 		}
@@ -456,7 +456,7 @@ func (k *Kraken) GetTrades(ctx context.Context, symbol currency.Pair) ([]RecentT
 		if !ok {
 			return nil, errors.New("unable to parse misc field for individual trade data")
 		}
-		recentTrades = append(recentTrades, r)
+		recentTrades[x] = r
 	}
 	return recentTrades, nil
 }
@@ -489,7 +489,7 @@ func (k *Kraken) GetSpread(ctx context.Context, symbol currency.Pair) ([]Spread,
 		return nil, errors.New("unable to type assert spreadData")
 	}
 
-	var peanutButter []Spread
+	peanutButter := make([]Spread, len(spreadData))
 	for x := range spreadData {
 		subData, ok := spreadData[x].([]interface{})
 		if !ok {
@@ -513,7 +513,7 @@ func (k *Kraken) GetSpread(ctx context.Context, symbol currency.Pair) ([]Spread,
 		if s.Ask, err = convert.FloatFromString(subData[2]); err != nil {
 			return nil, err
 		}
-		peanutButter = append(peanutButter, s)
+		peanutButter[x] = s
 	}
 	return peanutButter, nil
 }
@@ -866,19 +866,19 @@ func (k *Kraken) QueryLedgers(ctx context.Context, id string, ids ...string) (ma
 }
 
 // GetTradeVolume returns your trade volume by currency
-func (k *Kraken) GetTradeVolume(ctx context.Context, feeinfo bool, symbol ...currency.Pair) (TradeVolumeResponse, error) {
+func (k *Kraken) GetTradeVolume(ctx context.Context, feeinfo bool, symbol ...currency.Pair) (*TradeVolumeResponse, error) {
 	var response struct {
-		Error  []string            `json:"error"`
-		Result TradeVolumeResponse `json:"result"`
+		Error  []string             `json:"error"`
+		Result *TradeVolumeResponse `json:"result"`
 	}
 	params := url.Values{}
-	var formattedPairs []string
+	formattedPairs := make([]string, len(symbol))
 	for x := range symbol {
 		symbolValue, err := k.FormatSymbol(symbol[x], asset.Spot)
 		if err != nil {
-			return response.Result, err
+			return nil, err
 		}
-		formattedPairs = append(formattedPairs, symbolValue)
+		formattedPairs[x] = symbolValue
 	}
 	if symbol != nil {
 		params.Set("pair", strings.Join(formattedPairs, ","))
@@ -889,7 +889,7 @@ func (k *Kraken) GetTradeVolume(ctx context.Context, feeinfo bool, symbol ...cur
 	}
 
 	if err := k.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, krakenTradeVolume, params, &response); err != nil {
-		return response.Result, err
+		return nil, err
 	}
 
 	return response.Result, GetError(response.Error)

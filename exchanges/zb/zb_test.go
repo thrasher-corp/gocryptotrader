@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"strconv"
 	"sync"
@@ -288,8 +287,7 @@ func TestGetOrderHistory(t *testing.T) {
 
 func TestSubmitOrder(t *testing.T) {
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
-		t.Skip(fmt.Sprintf("Can place orders: %v",
-			canManipulateRealOrders))
+		t.Skipf("Can place orders: %v", canManipulateRealOrders)
 	}
 	if mockTests {
 		t.Skip("skipping authenticated function for mock testing")

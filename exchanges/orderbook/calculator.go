@@ -139,7 +139,7 @@ func sortOrdersByPrice(o *orderSummary, reverse bool) {
 }
 
 func (b *Base) findAmount(price float64, buy bool) (float64, orderSummary) {
-	var orders orderSummary
+	orders := make(orderSummary, 0)
 	var amt float64
 
 	if buy {
