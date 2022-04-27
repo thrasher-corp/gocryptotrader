@@ -157,11 +157,17 @@ func TestEncryptTwiceReusesSaltButNewCipher(t *testing.T) {
 
 	// Temporarily replace Stdin with a custom input
 	oldIn := os.Stdin
-	defer func() { os.Stdin = oldIn }()
+	t.Cleanup(func() { os.Stdin = oldIn })
 	os.Stdin, err = os.Open(passFile.Name())
 	if err != nil {
 		t.Fatalf("Problem opening temp file at %s: %s\n", passFile.Name(), err)
 	}
+	t.Cleanup(func() {
+		err = os.Stdin.Close()
+		if err != nil {
+			t.Error(err)
+		}
+	})
 
 	// Save encrypted config
 	enc1 := filepath.Join(tempDir, "encrypted.dat")
