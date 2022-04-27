@@ -365,6 +365,7 @@ func TestIsAssetEnabled_SetAssetEnabled(t *testing.T) {
 }
 
 func TestUnmarshalMarshal(t *testing.T) {
+	t.Parallel()
 	var um = make(FullStore)
 	um[asset.Spot] = &PairStore{AssetEnabled: convert.BoolPtr(true)}
 
