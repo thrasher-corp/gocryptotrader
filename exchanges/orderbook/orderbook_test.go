@@ -440,7 +440,7 @@ func TestProcessOrderbook(t *testing.T) {
 		t.Error("Process() error", err)
 	}
 
-	result, err = Get("ProcessOrderbook", c, asset.Binary)
+	result, err = Get("ProcessOrderbook", c, asset.Spot)
 	if err != nil {
 		t.Fatal("TestProcessOrderbook failed to retrieve new orderbook")
 	}

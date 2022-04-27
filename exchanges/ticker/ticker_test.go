@@ -181,12 +181,12 @@ func TestGetTicker(t *testing.T) {
 		t.Error("ticker tickerPrice.PriceATH value is incorrect")
 	}
 
-	_, err = GetTicker("bitfinex", newPair, asset.DownsideProfitContract)
+	_, err = GetTicker("bitfinex", newPair, asset.UpsideProfitContract)
 	if err == nil {
 		t.Error("Ticker GetTicker error cannot be nil")
 	}
 
-	priceStruct.AssetType = asset.DownsideProfitContract
+	priceStruct.AssetType = asset.UpsideProfitContract
 	err = ProcessTicker(&priceStruct)
 	if err != nil {
 		t.Fatal("ProcessTicker error", err)
