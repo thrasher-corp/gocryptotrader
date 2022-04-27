@@ -604,7 +604,7 @@ func (g *Gateio) GetOrderInfo(ctx context.Context, orderID string, pair currency
 		return orderDetail, errors.New("failed to get open orders")
 	}
 
-	if assetType == "" {
+	if assetType == asset.Empty {
 		assetType = asset.Spot
 	}
 

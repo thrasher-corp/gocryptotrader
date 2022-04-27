@@ -1498,11 +1498,15 @@ func dataHistoryTraderLoader(exch, a, base, quote string, start, _ time.Time) ([
 	if err != nil {
 		return nil, err
 	}
+	ai, err := asset.New(a)
+	if err != nil {
+		return nil, err
+	}
 	return []trade.Data{
 		{
 			Exchange:     exch,
 			CurrencyPair: cp,
-			AssetType:    asset.Item(a),
+			AssetType:    ai,
 			Side:         order.Buy,
 			Price:        1337,
 			Amount:       1337,

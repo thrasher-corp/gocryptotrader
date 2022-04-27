@@ -535,7 +535,7 @@ func TestSupportsExchangeAssetType(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = c.SupportsExchangeAssetType(testFakeExchangeName, "asdf")
+	err = c.SupportsExchangeAssetType(testFakeExchangeName, asset.Empty)
 	if err == nil {
 		t.Error("Expected error from invalid asset item")
 	}
@@ -988,7 +988,7 @@ func TestGetPairFormat(t *testing.T) {
 			asset.Spot: new(currency.PairStore),
 		},
 	}
-	_, err = c.GetPairFormat(testFakeExchangeName, asset.Item("invalid"))
+	_, err = c.GetPairFormat(testFakeExchangeName, asset.Empty)
 	if err == nil {
 		t.Error("Expected error from non-existent asset item")
 	}

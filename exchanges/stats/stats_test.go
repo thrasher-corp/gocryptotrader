@@ -127,7 +127,7 @@ func TestAdd(t *testing.T) {
 		t.Error("stats Add did not add exchange info.")
 	}
 
-	err = Add("", p, "", 0, 0)
+	err = Add("", p, asset.Empty, 0, 0)
 	if err == nil {
 		t.Fatal("error cannot be nil")
 	}

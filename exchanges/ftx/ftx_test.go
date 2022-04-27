@@ -1736,7 +1736,7 @@ func TestStakeRequest(t *testing.T) {
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
-	err := f.UpdateOrderExecutionLimits(context.Background(), "")
+	err := f.UpdateOrderExecutionLimits(context.Background(), asset.Empty)
 	if err != nil {
 		t.Fatal(err)
 	}

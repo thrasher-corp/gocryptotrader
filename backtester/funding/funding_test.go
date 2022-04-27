@@ -852,18 +852,7 @@ func TestMatchesCurrency(t *testing.T) {
 func TestCreateSnapshot(t *testing.T) {
 	f := FundManager{}
 	f.CreateSnapshot(time.Time{})
-	f.items = append(f.items, &Item{
-		exchange:           "",
-		asset:              "",
-		currency:           currency.EMPTYCODE,
-		initialFunds:       decimal.Decimal{},
-		available:          decimal.Decimal{},
-		reserved:           decimal.Decimal{},
-		transferFee:        decimal.Decimal{},
-		pairedWith:         nil,
-		usdTrackingCandles: nil,
-		snapshot:           nil,
-	})
+	f.items = append(f.items, &Item{})
 	f.CreateSnapshot(time.Time{})
 
 	dfk := &kline.DataFromKline{

@@ -129,7 +129,7 @@ func ProcessTicker(p *Price) error {
 		return fmt.Errorf("%s %s", p.ExchangeName, errPairNotSet)
 	}
 
-	if p.AssetType == "" {
+	if p.AssetType == asset.Empty {
 		return fmt.Errorf("%s %s %s",
 			p.ExchangeName,
 			p.Pair,
