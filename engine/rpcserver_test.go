@@ -272,6 +272,13 @@ func RPCTestSetup(t *testing.T) *Engine {
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() {
+		err = dbm.Stop()
+		if err != nil {
+			t.Fatal(err)
+		}
+	})
+
 	engerino.Config = &config.Config{}
 	em := SetupExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
