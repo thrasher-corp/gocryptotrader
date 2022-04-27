@@ -609,6 +609,7 @@ func (k *Kraken) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 		}
 		info.Accounts = append(info.Accounts, account.SubAccount{
 			Currencies: balances,
+			AssetType:  assetType,
 		})
 	case asset.Futures:
 		bal, err := k.GetFuturesAccountData(ctx)

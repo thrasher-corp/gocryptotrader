@@ -451,7 +451,7 @@ func (b *Base) SetEnabled(enabled bool) {
 
 // IsEnabled is a method that returns if the current exchange is enabled
 func (b *Base) IsEnabled() bool {
-	return b.Enabled
+	return b != nil && b.Enabled
 }
 
 // SetupDefaults sets the exchange settings based on the supplied config

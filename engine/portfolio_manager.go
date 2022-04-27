@@ -113,7 +113,9 @@ func (m *portfolioManager) run(wg *sync.WaitGroup) {
 			log.Debugf(log.PortfolioMgr, "Portfolio manager shutdown.")
 			return
 		case <-timer.C:
-			m.processPortfolio()
+			// This is run in a go-routine to not prevent the application from
+			// shutting down.
+			go m.processPortfolio()
 			timer.Reset(m.portfolioManagerDelay)
 		}
 	}
@@ -256,9 +258,10 @@ func (m *portfolioManager) getExchangeAccountInfo(exchanges []exchange.IBotExcha
 
 		assetTypes := asset.Items{asset.Spot}
 		if exchanges[x].HasAssetTypeAccountSegregation() {
-			// Get entire supported exchange asset types to sync all account
-			// information.
-			assetTypes = exchanges[x].GetAssetTypes(false)
+			// Get enabled exchange asset types to sync account information.
+			// TODO: Update with further api key asset segration e.g. Kraken has
+			// individual keys associated with different asset types.
+			assetTypes = exchanges[x].GetAssetTypes(true)
 		}
 
 		exchangeHoldings := account.Holdings{Accounts: make([]account.SubAccount, len(assetTypes))}
