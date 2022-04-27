@@ -842,11 +842,13 @@ func (p *Poloniex) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequ
 			return nil, err
 		}
 		for i := range resp.Data[key] {
-			orderSide, err := order.StringToOrderSide(resp.Data[key][i].Type)
+			var orderSide order.Side
+			orderSide, err = order.StringToOrderSide(resp.Data[key][i].Type)
 			if err != nil {
 				return nil, err
 			}
-			orderDate, err := time.Parse(common.SimpleTimeFormat, resp.Data[key][i].Date)
+			var orderDate time.Time
+			orderDate, err = time.Parse(common.SimpleTimeFormat, resp.Data[key][i].Date)
 			if err != nil {
 				log.Errorf(log.ExchangeSys,
 					"Exchange %v Func %v Order %v Could not parse date to unix with value of %v",

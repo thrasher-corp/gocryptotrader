@@ -803,7 +803,8 @@ func (h *HitBTC) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "%s %v", h.Name, err)
 		}
-		status, err := order.StringToOrderStatus(allOrders[i].Status)
+		var status order.Status
+		status, err = order.StringToOrderStatus(allOrders[i].Status)
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "%s %v", h.Name, err)
 		}

@@ -767,8 +767,8 @@ func (b *Bitmex) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 
 	orders := make([]order.Detail, len(resp))
 	for i := range resp {
-		orderSide := orderSideMap[resp[i].Side]
-		orderStatus, err := order.StringToOrderStatus(resp[i].OrdStatus)
+		var orderStatus order.Status
+		orderStatus, err = order.StringToOrderStatus(resp[i].OrdStatus)
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
 		}
@@ -780,7 +780,7 @@ func (b *Bitmex) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 			RemainingAmount: resp[i].LeavesQty,
 			Exchange:        b.Name,
 			ID:              resp[i].OrderID,
-			Side:            orderSide,
+			Side:            orderSideMap[resp[i].Side],
 			Status:          orderStatus,
 			Type:            orderTypeMap[resp[i].OrdType],
 			Pair: currency.NewPairWithDelimiter(resp[i].Symbol,
@@ -823,7 +823,8 @@ func (b *Bitmex) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 	orders := make([]order.Detail, len(resp))
 	for i := range resp {
 		orderSide := orderSideMap[resp[i].Side]
-		orderStatus, err := order.StringToOrderStatus(resp[i].OrdStatus)
+		var orderStatus order.Status
+		orderStatus, err = order.StringToOrderStatus(resp[i].OrdStatus)
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
 		}

@@ -353,30 +353,50 @@ func TestFilterOrdersByTimeRange(t *testing.T) {
 		},
 	}
 
-	FilterOrdersByTimeRange(&orders, time.Unix(0, 0), time.Unix(0, 0))
+	err := FilterOrdersByTimeRange(&orders, time.Unix(0, 0), time.Unix(0, 0))
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(orders) != 3 {
 		t.Errorf("Orders failed to be filtered. Expected %v, received %v", 3, len(orders))
 	}
 
-	FilterOrdersByTimeRange(&orders, time.Unix(100, 0), time.Unix(111, 0))
+	err = FilterOrdersByTimeRange(&orders, time.Unix(100, 0), time.Unix(111, 0))
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(orders) != 3 {
 		t.Errorf("Orders failed to be filtered. Expected %v, received %v", 3, len(orders))
 	}
 
-	FilterOrdersByTimeRange(&orders, time.Unix(101, 0), time.Unix(111, 0))
+	err = FilterOrdersByTimeRange(&orders, time.Unix(101, 0), time.Unix(111, 0))
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(orders) != 2 {
 		t.Errorf("Orders failed to be filtered. Expected %v, received %v", 2, len(orders))
 	}
 
-	FilterOrdersByTimeRange(&orders, time.Unix(200, 0), time.Unix(300, 0))
+	err = FilterOrdersByTimeRange(&orders, time.Unix(200, 0), time.Unix(300, 0))
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(orders) != 0 {
 		t.Errorf("Orders failed to be filtered. Expected %v, received %v", 0, len(orders))
 	}
 	orders = append(orders, Detail{})
 	// test for event no timestamp is set on an order, best to include it
-	FilterOrdersByTimeRange(&orders, time.Unix(200, 0), time.Unix(300, 0))
+	err = FilterOrdersByTimeRange(&orders, time.Unix(200, 0), time.Unix(300, 0))
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(orders) != 1 {
 		t.Errorf("Orders failed to be filtered. Expected %v, received %v", 1, len(orders))
+	}
+
+	err = FilterOrdersByTimeRange(&orders, time.Unix(300, 0), time.Unix(50, 0))
+	if !errors.Is(err, errInvalidTimeRange) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidTimeRange)
 	}
 }
 
@@ -1431,8 +1451,8 @@ func TestIsActive(t *testing.T) {
 
 var activeBenchmark = Detail{Status: Pending, Amount: 1}
 
-//610732089	         2.414 ns/op	       0 B/op	       0 allocs/op // PREV
-//1000000000	         0.9131 ns/op	       0 B/op	       0 allocs/op //CURRENT
+// 610732089	         2.414 ns/op	       0 B/op	       0 allocs/op // PREV
+// 1000000000	         0.9131 ns/op	       0 B/op	       0 allocs/op //CURRENT
 func BenchmarkIsActive(b *testing.B) {
 	for x := 0; x < b.N; x++ {
 		if !activeBenchmark.IsActive() {
@@ -1498,7 +1518,7 @@ func TestIsInactive(t *testing.T) {
 
 var inactiveBenchmark = Detail{Status: Closed, Amount: 1}
 
-//1000000000	         1.043 ns/op	       0 B/op	       0 allocs/op // CURRENT
+// 1000000000	         1.043 ns/op	       0 B/op	       0 allocs/op // CURRENT
 func BenchmarkIsInactive(b *testing.B) {
 	for x := 0; x < b.N; x++ {
 		if !inactiveBenchmark.IsInactive() {

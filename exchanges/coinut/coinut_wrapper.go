@@ -871,11 +871,12 @@ func (c *COINUT) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 	var currenciesToCheck []string
 	if len(req.Pairs) == 0 {
 		for i := range req.Pairs {
-			fpair, err := c.FormatExchangeCurrency(req.Pairs[i], asset.Spot)
+			var fPair currency.Pair
+			fPair, err = c.FormatExchangeCurrency(req.Pairs[i], asset.Spot)
 			if err != nil {
 				return nil, err
 			}
-			currenciesToCheck = append(currenciesToCheck, fpair.String())
+			currenciesToCheck = append(currenciesToCheck, fPair.String())
 		}
 	} else {
 		for k := range c.instrumentMap.Instruments {
@@ -884,7 +885,8 @@ func (c *COINUT) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 	}
 	if c.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		for x := range currenciesToCheck {
-			openOrders, err := c.wsGetOpenOrders(currenciesToCheck[x])
+			var openOrders *WsUserOpenOrdersResponse
+			openOrders, err = c.wsGetOpenOrders(currenciesToCheck[x])
 			if err != nil {
 				return nil, err
 			}
@@ -922,8 +924,8 @@ func (c *COINUT) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 	} else {
 		var instrumentsToUse []int64
 		for x := range req.Pairs {
-			curr, err := c.FormatExchangeCurrency(req.Pairs[x],
-				asset.Spot)
+			var curr currency.Pair
+			curr, err = c.FormatExchangeCurrency(req.Pairs[x], asset.Spot)
 			if err != nil {
 				return nil, err
 			}
@@ -934,7 +936,8 @@ func (c *COINUT) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 			instrumentsToUse = c.instrumentMap.GetInstrumentIDs()
 		}
 
-		pairs, err := c.GetEnabledPairs(asset.Spot)
+		var pairs currency.Pairs
+		pairs, err = c.GetEnabledPairs(asset.Spot)
 		if err != nil {
 			return nil, err
 		}
@@ -1041,8 +1044,8 @@ func (c *COINUT) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 	} else {
 		var instrumentsToUse []int64
 		for x := range req.Pairs {
-			curr, err := c.FormatExchangeCurrency(req.Pairs[x],
-				asset.Spot)
+			var curr currency.Pair
+			curr, err = c.FormatExchangeCurrency(req.Pairs[x], asset.Spot)
 			if err != nil {
 				return nil, err
 			}
@@ -1056,7 +1059,8 @@ func (c *COINUT) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 			instrumentsToUse = c.instrumentMap.GetInstrumentIDs()
 		}
 
-		pairs, err := c.GetEnabledPairs(asset.Spot)
+		var pairs currency.Pairs
+		pairs, err = c.GetEnabledPairs(asset.Spot)
 		if err != nil {
 			return nil, err
 		}

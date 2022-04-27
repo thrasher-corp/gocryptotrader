@@ -561,7 +561,8 @@ func (l *LocalBitcoins) GetActiveOrders(ctx context.Context, getOrdersRequest *o
 
 	orders := make([]order.Detail, len(resp))
 	for i := range resp {
-		orderDate, err := time.Parse(time.RFC3339, resp[i].Data.CreatedAt)
+		var orderDate time.Time
+		orderDate, err = time.Parse(time.RFC3339, resp[i].Data.CreatedAt)
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
 				l.Name,
@@ -578,7 +579,7 @@ func (l *LocalBitcoins) GetActiveOrders(ctx context.Context, getOrdersRequest *o
 		orders[i] = order.Detail{
 			Amount: resp[i].Data.AmountBTC,
 			Price:  resp[i].Data.Amount,
-			ID:     strconv.FormatInt(int64(resp[i].Data.Advertisement.ID), 10),
+			ID:     strconv.FormatInt(resp[i].Data.Advertisement.ID, 10),
 			Date:   orderDate,
 			Fee:    resp[i].Data.FeeBTC,
 			Side:   side,
@@ -631,7 +632,8 @@ func (l *LocalBitcoins) GetOrderHistory(ctx context.Context, getOrdersRequest *o
 
 	orders := make([]order.Detail, len(allTrades))
 	for i := range allTrades {
-		orderDate, err := time.Parse(time.RFC3339, allTrades[i].Data.CreatedAt)
+		var orderDate time.Time
+		orderDate, err = time.Parse(time.RFC3339, allTrades[i].Data.CreatedAt)
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
 				"Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
@@ -662,7 +664,8 @@ func (l *LocalBitcoins) GetOrderHistory(ctx context.Context, getOrdersRequest *o
 			status = "Closed"
 		}
 
-		orderStatus, err := order.StringToOrderStatus(status)
+		var orderStatus order.Status
+		orderStatus, err = order.StringToOrderStatus(status)
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "%s %v", l.Name, err)
 		}
@@ -670,7 +673,7 @@ func (l *LocalBitcoins) GetOrderHistory(ctx context.Context, getOrdersRequest *o
 		orders[i] = order.Detail{
 			Amount: allTrades[i].Data.AmountBTC,
 			Price:  allTrades[i].Data.Amount,
-			ID:     strconv.FormatInt(int64(allTrades[i].Data.Advertisement.ID), 10),
+			ID:     strconv.FormatInt(allTrades[i].Data.Advertisement.ID, 10),
 			Date:   orderDate,
 			Fee:    allTrades[i].Data.FeeBTC,
 			Side:   side,

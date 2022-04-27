@@ -582,11 +582,13 @@ func (y *Yobit) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 	}
 
 	for x := range req.Pairs {
-		fCurr, err := y.FormatExchangeCurrency(req.Pairs[x], asset.Spot)
+		var fCurr currency.Pair
+		fCurr, err = y.FormatExchangeCurrency(req.Pairs[x], asset.Spot)
 		if err != nil {
 			return nil, err
 		}
-		resp, err := y.GetOpenOrders(ctx, fCurr.String())
+		var resp map[string]ActiveOrders
+		resp, err = y.GetOpenOrders(ctx, fCurr.String())
 		if err != nil {
 			return nil, err
 		}
@@ -597,7 +599,6 @@ func (y *Yobit) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 			if err != nil {
 				return nil, err
 			}
-			orderDate := time.Unix(int64(resp[id].TimestampCreated), 0)
 			var side order.Side
 			side, err = order.StringToOrderSide(resp[id].Type)
 			if err != nil {
@@ -608,7 +609,7 @@ func (y *Yobit) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 				Amount:   resp[id].Amount,
 				Price:    resp[id].Rate,
 				Side:     side,
-				Date:     orderDate,
+				Date:     time.Unix(int64(resp[id].TimestampCreated), 0),
 				Pair:     symbol,
 				Exchange: y.Name,
 			})

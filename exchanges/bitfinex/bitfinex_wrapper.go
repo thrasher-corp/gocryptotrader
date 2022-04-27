@@ -901,7 +901,8 @@ func (b *Bitfinex) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequ
 		if err != nil {
 			return nil, err
 		}
-		timestamp, err := strconv.ParseFloat(resp[i].Timestamp, 64)
+		var timestamp float64
+		timestamp, err = strconv.ParseFloat(resp[i].Timestamp, 64)
 		if err != nil {
 			log.Warnf(log.ExchangeSys,
 				"Unable to convert timestamp '%s', leaving blank",
@@ -980,7 +981,8 @@ func (b *Bitfinex) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequ
 		if err != nil {
 			return nil, err
 		}
-		timestamp, err := strconv.ParseInt(resp[i].Timestamp, 10, 64)
+		var timestamp int64
+		timestamp, err = strconv.ParseInt(resp[i].Timestamp, 10, 64)
 		if err != nil {
 			log.Warnf(log.ExchangeSys, "Unable to convert timestamp '%v', leaving blank", resp[i].Timestamp)
 		}

@@ -1006,7 +1006,7 @@ func (l *Lbank) GetStatus(status int64) order.Status {
 	}
 	oStatus, err := order.StringToOrderStatus(s)
 	if err != nil {
-		log.Error(log.Global, "%s %v", l.GetName(), err)
+		log.Errorf(log.Global, "%s %v", l.GetName(), err)
 	}
 	return oStatus
 }

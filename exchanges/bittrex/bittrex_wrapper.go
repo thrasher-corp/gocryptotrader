@@ -815,7 +815,10 @@ func (b *Bittrex) GetActiveOrders(ctx context.Context, req *order.GetOrdersReque
 	}
 
 	order.FilterOrdersByType(&resp, req.Type)
-	order.FilterOrdersByTimeRange(&resp, req.StartTime, req.EndTime)
+	err = order.FilterOrdersByTimeRange(&resp, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
+	}
 	order.FilterOrdersByPairs(&resp, req.Pairs)
 
 	b.WsSequenceOrders = sequence
@@ -893,7 +896,10 @@ func (b *Bittrex) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 		}
 
 		order.FilterOrdersByType(&resp, req.Type)
-		order.FilterOrdersByTimeRange(&resp, req.StartTime, req.EndTime)
+		err = order.FilterOrdersByTimeRange(&resp, req.StartTime, req.EndTime)
+		if err != nil {
+			log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
+		}
 		order.FilterOrdersByPairs(&resp, req.Pairs)
 	}
 

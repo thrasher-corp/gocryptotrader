@@ -549,7 +549,7 @@ func (i *ItBit) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 	orders := make([]order.Detail, 0, len(allOrders))
 	for j := range allOrders {
 		var symbol currency.Pair
-		symbol, err := currency.NewPairDelimiter(allOrders[j].Instrument,
+		symbol, err = currency.NewPairDelimiter(allOrders[j].Instrument,
 			format.Delimiter)
 		if err != nil {
 			return nil, err
@@ -559,7 +559,8 @@ func (i *ItBit) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "%s %v", i.Name, err)
 		}
-		orderDate, err := time.Parse(time.RFC3339, allOrders[j].CreatedTime)
+		var orderDate time.Time
+		orderDate, err = time.Parse(time.RFC3339, allOrders[j].CreatedTime)
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
 				"Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
@@ -633,11 +634,13 @@ func (i *ItBit) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "%s %v", i.Name, err)
 		}
-		status, err := order.StringToOrderStatus(allOrders[j].Status)
+		var status order.Status
+		status, err = order.StringToOrderStatus(allOrders[j].Status)
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "%s %v", i.Name, err)
 		}
-		orderDate, err := time.Parse(time.RFC3339, allOrders[j].CreatedTime)
+		var orderDate time.Time
+		orderDate, err = time.Parse(time.RFC3339, allOrders[j].CreatedTime)
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
 				"Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
