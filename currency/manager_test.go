@@ -366,14 +366,14 @@ func TestIsAssetEnabled_SetAssetEnabled(t *testing.T) {
 
 func TestUnmarshalMarshal(t *testing.T) {
 	var um = make(FullStore)
-	um[asset.Spot] = &PairStore{}
+	um[asset.Spot] = &PairStore{AssetEnabled: convert.BoolPtr(true)}
 
 	data, err := json.Marshal(um)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if string(data) != `{"spot":{"assetEnabled":null,"enabled":"","available":""}}` {
+	if string(data) != `{"spot":{"assetEnabled":true,"enabled":"","available":""}}` {
 		t.Fatal("unexpected value")
 	}
 

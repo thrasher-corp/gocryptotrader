@@ -1481,7 +1481,8 @@ func (m *DataHistoryManager) convertDBModelToJob(dbModel *datahistoryjob.DataHis
 
 	ai, err := asset.New(dbModel.Asset)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("job %s could not derive asset: %w",
+			dbModel.Nickname, err)
 	}
 
 	resp := &DataHistoryJob{

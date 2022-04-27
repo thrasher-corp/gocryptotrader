@@ -9,6 +9,7 @@ import (
 )
 
 func TestString(t *testing.T) {
+	t.Parallel()
 	a := Spot
 	if a.String() != "spot" {
 		t.Fatal("TestString returned an unexpected result")
@@ -21,6 +22,7 @@ func TestString(t *testing.T) {
 }
 
 func TestToStringArray(t *testing.T) {
+	t.Parallel()
 	a := Items{Spot, Futures}
 	result := a.Strings()
 	for x := range a {
@@ -31,6 +33,7 @@ func TestToStringArray(t *testing.T) {
 }
 
 func TestContains(t *testing.T) {
+	t.Parallel()
 	a := Items{Spot, Futures}
 	if a.Contains(666) {
 		t.Fatal("TestContains returned an unexpected result")
@@ -52,6 +55,7 @@ func TestContains(t *testing.T) {
 }
 
 func TestJoinToString(t *testing.T) {
+	t.Parallel()
 	a := Items{Spot, Futures}
 	if a.JoinToString(",") != "spot,futures" {
 		t.Fatal("TestJoinToString returned an unexpected result")
@@ -59,6 +63,7 @@ func TestJoinToString(t *testing.T) {
 }
 
 func TestIsValid(t *testing.T) {
+	t.Parallel()
 	if Item(0).IsValid() {
 		t.Fatal("TestIsValid returned an unexpected result")
 	}
@@ -69,6 +74,7 @@ func TestIsValid(t *testing.T) {
 }
 
 func TestNew(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		Input    string
 		Expected Item
@@ -104,6 +110,7 @@ func TestNew(t *testing.T) {
 }
 
 func TestSupported(t *testing.T) {
+	t.Parallel()
 	s := Supported()
 	if len(supportedList) != len(s) {
 		t.Fatal("TestSupported mismatched lengths")
@@ -183,6 +190,7 @@ func TestIsFutures(t *testing.T) {
 }
 
 func TestUnmarshalMarshal(t *testing.T) {
+	t.Parallel()
 	data, err := json.Marshal(Item(0))
 	if !errors.Is(err, nil) {
 		t.Fatalf("receieved: '%v' but expected: '%v'", err, nil)
@@ -229,6 +237,7 @@ func TestUnmarshalMarshal(t *testing.T) {
 }
 
 func TestUseDefault(t *testing.T) {
+	t.Parallel()
 	if UseDefault() != Spot {
 		t.Fatalf("receieved: '%v' but expected: '%v'", UseDefault(), Spot)
 	}

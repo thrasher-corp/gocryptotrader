@@ -36,6 +36,19 @@ const (
 
 	futuresFlag   = PerpetualContract | PerpetualSwap | Futures | UpsideProfitContract | DownsideProfitContract | CoinMarginedFutures | USDTMarginedFutures
 	supportedFlag = Spot | Margin | MarginFunding | Index | Binary | PerpetualContract | PerpetualSwap | Futures | UpsideProfitContract | DownsideProfitContract | CoinMarginedFutures | USDTMarginedFutures
+
+	spot                   = "spot"
+	margin                 = "margin"
+	marginFunding          = "marginfunding"
+	index                  = "index"
+	binary                 = "binary"
+	perpetualContract      = "perpetualcontract"
+	perpetualSwap          = "perpetualswap"
+	futures                = "futures"
+	upsideProfitContract   = "upsideprofitcontract"
+	downsideProfitContract = "downsideprofitcontract"
+	coinMarginedFutures    = "coinmarginedfutures"
+	usdtMarginedFutures    = "usdtmarginedfutures"
 )
 
 var (
@@ -51,29 +64,29 @@ func Supported() Items {
 func (a Item) String() string {
 	switch a {
 	case Spot:
-		return "spot"
+		return spot
 	case Margin:
-		return "margin"
+		return margin
 	case MarginFunding:
-		return "marginfunding"
+		return marginFunding
 	case Index:
-		return "index"
+		return index
 	case Binary:
-		return "binary"
+		return binary
 	case PerpetualContract:
-		return "perpetualcontract"
+		return perpetualContract
 	case PerpetualSwap:
-		return "perpetualswap"
+		return perpetualSwap
 	case Futures:
-		return "futures"
+		return futures
 	case UpsideProfitContract:
-		return "upsideprofitcontract"
+		return upsideProfitContract
 	case DownsideProfitContract:
-		return "downsideprofitcontract"
+		return downsideProfitContract
 	case CoinMarginedFutures:
-		return "coinmarginedfutures"
+		return coinMarginedFutures
 	case USDTMarginedFutures:
-		return "usdtmarginedfutures"
+		return usdtMarginedFutures
 	default:
 		return ""
 	}
@@ -136,9 +149,6 @@ func (a *Item) UnmarshalJSON(d []byte) error {
 
 // MarshalJSON comforms type to the marshaller interface
 func (a Item) MarshalJSON() ([]byte, error) {
-	if a == Empty {
-		return json.Marshal("")
-	}
 	return json.Marshal(a.String())
 }
 
@@ -146,32 +156,32 @@ func (a Item) MarshalJSON() ([]byte, error) {
 func New(input string) (Item, error) {
 	input = strings.ToLower(input)
 	switch input {
-	case "spot":
+	case spot:
 		return Spot, nil
-	case "margin":
+	case margin:
 		return Margin, nil
-	case "marginfunding":
+	case marginFunding:
 		return MarginFunding, nil
-	case "index":
+	case index:
 		return Index, nil
-	case "binary":
+	case binary:
 		return Binary, nil
-	case "perpetualcontract":
+	case perpetualContract:
 		return PerpetualContract, nil
-	case "perpetualswap":
+	case perpetualSwap:
 		return PerpetualSwap, nil
-	case "futures":
+	case futures:
 		return Futures, nil
-	case "upsideprofitcontract":
+	case upsideProfitContract:
 		return UpsideProfitContract, nil
-	case "downsideprofitcontract":
+	case downsideProfitContract:
 		return DownsideProfitContract, nil
-	case "coinmarginedfutures":
+	case coinMarginedFutures:
 		return CoinMarginedFutures, nil
-	case "usdtmarginedfutures":
+	case usdtMarginedFutures:
 		return USDTMarginedFutures, nil
 	default:
-		return 0, fmt.Errorf("%w %v, only supports %s",
+		return 0, fmt.Errorf("%w '%v', only supports %s",
 			ErrNotSupported,
 			input,
 			supportedList)
