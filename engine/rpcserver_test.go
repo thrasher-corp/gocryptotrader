@@ -2002,7 +2002,16 @@ func TestCurrencyStateWithdraw(t *testing.T) {
 		Engine: &Engine{},
 	}).CurrencyStateWithdraw(context.Background(),
 		&gctrpc.CurrencyStateWithdrawRequest{
-			Exchange: "wow"})
+			Exchange: "wow", Asset: "meow"})
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("received: %v, but expected: %v", err, asset.ErrNotSupported)
+	}
+
+	_, err = (&RPCServer{
+		Engine: &Engine{},
+	}).CurrencyStateWithdraw(context.Background(),
+		&gctrpc.CurrencyStateWithdrawRequest{
+			Exchange: "wow", Asset: "spot"})
 	if !errors.Is(err, ErrSubSystemNotStarted) {
 		t.Fatalf("received: %v, but expected: %v", err, ErrSubSystemNotStarted)
 	}
@@ -2013,7 +2022,15 @@ func TestCurrencyStateDeposit(t *testing.T) {
 	_, err := (&RPCServer{
 		Engine: &Engine{},
 	}).CurrencyStateDeposit(context.Background(),
-		&gctrpc.CurrencyStateDepositRequest{Exchange: "wow"})
+		&gctrpc.CurrencyStateDepositRequest{Exchange: "wow", Asset: "meow"})
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("received: %v, but expected: %v", err, asset.ErrNotSupported)
+	}
+
+	_, err = (&RPCServer{
+		Engine: &Engine{},
+	}).CurrencyStateDeposit(context.Background(),
+		&gctrpc.CurrencyStateDepositRequest{Exchange: "wow", Asset: "spot"})
 	if !errors.Is(err, ErrSubSystemNotStarted) {
 		t.Fatalf("received: %v, but expected: %v", err, ErrSubSystemNotStarted)
 	}
@@ -2024,7 +2041,15 @@ func TestCurrencyStateTrading(t *testing.T) {
 	_, err := (&RPCServer{
 		Engine: &Engine{},
 	}).CurrencyStateTrading(context.Background(),
-		&gctrpc.CurrencyStateTradingRequest{Exchange: "wow"})
+		&gctrpc.CurrencyStateTradingRequest{Exchange: "wow", Asset: "meow"})
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("received: %v, but expected: %v", err, asset.ErrNotSupported)
+	}
+
+	_, err = (&RPCServer{
+		Engine: &Engine{},
+	}).CurrencyStateTrading(context.Background(),
+		&gctrpc.CurrencyStateTradingRequest{Exchange: "wow", Asset: "spot"})
 	if !errors.Is(err, ErrSubSystemNotStarted) {
 		t.Fatalf("received: %v, but expected: %v", err, ErrSubSystemNotStarted)
 	}
