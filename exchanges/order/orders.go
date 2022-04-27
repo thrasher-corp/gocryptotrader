@@ -42,7 +42,7 @@ func (s *Submit) Validate(opt ...validate.Checker) error {
 		return ErrPairIsEmpty
 	}
 
-	if s.AssetType == "" {
+	if s.AssetType == asset.Empty {
 		return ErrAssetNotSet
 	}
 
@@ -170,7 +170,7 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) {
 		d.Status = m.Status
 		updated = true
 	}
-	if m.AssetType != "" && m.AssetType != d.AssetType {
+	if m.AssetType != asset.Empty && m.AssetType != d.AssetType {
 		d.AssetType = m.AssetType
 		updated = true
 	}
@@ -332,7 +332,7 @@ func (d *Detail) UpdateOrderFromModify(m *Modify) {
 		d.Status = m.Status
 		updated = true
 	}
-	if m.AssetType != "" && m.AssetType != d.AssetType {
+	if m.AssetType != asset.Empty && m.AssetType != d.AssetType {
 		d.AssetType = m.AssetType
 		updated = true
 	}
@@ -401,7 +401,7 @@ func (d *Detail) MatchFilter(f *Filter) bool {
 	if f.Exchange != "" && !strings.EqualFold(d.Exchange, f.Exchange) {
 		return false
 	}
-	if f.AssetType != "" && d.AssetType != f.AssetType {
+	if f.AssetType != asset.Empty && d.AssetType != f.AssetType {
 		return false
 	}
 	if !f.Pair.IsEmpty() && !d.Pair.Equal(f.Pair) {
@@ -967,7 +967,7 @@ func (c *Cancel) PairAssetRequired() validate.Checker {
 			return ErrPairIsEmpty
 		}
 
-		if c.AssetType == "" {
+		if c.AssetType == asset.Empty {
 			return ErrAssetNotSet
 		}
 		return nil
@@ -1026,7 +1026,7 @@ func (m *Modify) Validate(opt ...validate.Checker) error {
 		return ErrPairIsEmpty
 	}
 
-	if m.AssetType == "" {
+	if m.AssetType == asset.Empty {
 		return ErrAssetNotSet
 	}
 
