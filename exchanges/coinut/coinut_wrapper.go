@@ -959,7 +959,7 @@ func (c *COINUT) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 			for y := range openOrders.Orders {
 				curr := c.instrumentMap.LookupInstrument(instrumentsToUse[x])
 				var p currency.Pair
-				p, err := currency.NewPairFromFormattedPairs(curr, pairs, format)
+				p, err = currency.NewPairFromFormattedPairs(curr, pairs, format)
 				if err != nil {
 					return nil, err
 				}
