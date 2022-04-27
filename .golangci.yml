@@ -1,11 +1,12 @@
 run:
-  timeout: 6m
+  timeout: 8m
   issues-exit-code: 1
   tests: true
   skip-dirs:
     - vendor
     - web/
     - testdata
+    - database/models/
 
 linters:
   disable-all: true
@@ -24,12 +25,17 @@ linters:
 
 # disabled by default linters
     - asciicheck
+    - bidichk
     - bodyclose
+    - containedctx
+#   - contextcheck
 #   - cyclop
+    - decorder
     - depguard
     - dogsled
 #   - dupl
     - durationcheck
+    - errchkjson
     - errname
 #   - errorlint
 #   - exhaustive
@@ -58,10 +64,13 @@ linters:
     - gomodguard
     - goprintffuncname
     - gosec
+    - grouper
     - ifshort
 #   - importas
 #   - interfacer // deprecated by its owner
+#   - ireturn
 #   - lll 
+#   - maintidx
     - makezero
 #   - maligned
     - misspell
@@ -72,7 +81,7 @@ linters:
     - noctx
     - nolintlint
 #   - paralleltest
-#   - prealloc
+    - prealloc
     - predeclared
 #   - promlinter
     - revive

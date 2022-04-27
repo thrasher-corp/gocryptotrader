@@ -155,9 +155,9 @@ func (l *LocalBitcoins) FetchTradablePairs(ctx context.Context, asset asset.Item
 		return nil, err
 	}
 
-	var pairs []string
+	pairs := make([]string, len(currencies))
 	for x := range currencies {
-		pairs = append(pairs, "BTC"+currencies[x])
+		pairs[x] = "BTC" + currencies[x]
 	}
 
 	return pairs, nil
@@ -248,18 +248,26 @@ func (l *LocalBitcoins) UpdateOrderbook(ctx context.Context, p currency.Pair, as
 		return book, err
 	}
 
+	book.Bids = make(orderbook.Items, len(orderbookNew.Bids))
 	for x := range orderbookNew.Bids {
-		book.Bids = append(book.Bids, orderbook.Item{
+		if orderbookNew.Bids[x].Price == 0 {
+			return book, errors.New("orderbook bid price is 0")
+		}
+		book.Bids[x] = orderbook.Item{
 			Amount: orderbookNew.Bids[x].Amount / orderbookNew.Bids[x].Price,
 			Price:  orderbookNew.Bids[x].Price,
-		})
+		}
 	}
 
+	book.Asks = make(orderbook.Items, len(orderbookNew.Asks))
 	for x := range orderbookNew.Asks {
-		book.Asks = append(book.Asks, orderbook.Item{
+		if orderbookNew.Asks[x].Price == 0 {
+			return book, errors.New("orderbook ask price is 0")
+		}
+		book.Asks[x] = orderbook.Item{
 			Amount: orderbookNew.Asks[x].Amount / orderbookNew.Asks[x].Price,
 			Price:  orderbookNew.Asks[x].Price,
-		})
+		}
 	}
 
 	book.PriceDuplication = true
@@ -332,9 +340,9 @@ func (l *LocalBitcoins) GetRecentTrades(ctx context.Context, p currency.Pair, as
 	if err != nil {
 		return nil, err
 	}
-	var resp []trade.Data
+	resp := make([]trade.Data, len(tradeData))
 	for i := range tradeData {
-		resp = append(resp, trade.Data{
+		resp[i] = trade.Data{
 			Exchange:     l.Name,
 			TID:          strconv.FormatInt(tradeData[i].TID, 10),
 			CurrencyPair: p,
@@ -342,7 +350,7 @@ func (l *LocalBitcoins) GetRecentTrades(ctx context.Context, p currency.Pair, as
 			Price:        tradeData[i].Price,
 			Amount:       tradeData[i].Amount,
 			Timestamp:    time.Unix(tradeData[i].Date, 0),
-		})
+		}
 	}
 
 	err = l.AddTradesToBuffer(resp...)
@@ -551,7 +559,7 @@ func (l *LocalBitcoins) GetActiveOrders(ctx context.Context, getOrdersRequest *o
 		return nil, err
 	}
 
-	var orders []order.Detail
+	orders := make([]order.Detail, len(resp))
 	for i := range resp {
 		orderDate, err := time.Parse(time.RFC3339, resp[i].Data.CreatedAt)
 		if err != nil {
@@ -562,14 +570,12 @@ func (l *LocalBitcoins) GetActiveOrders(ctx context.Context, getOrdersRequest *o
 				resp[i].Data.CreatedAt)
 		}
 
-		var side order.Side
-		if resp[i].Data.IsBuying {
-			side = order.Buy
-		} else if resp[i].Data.IsSelling {
+		side := order.Buy
+		if resp[i].Data.IsSelling {
 			side = order.Sell
 		}
 
-		orders = append(orders, order.Detail{
+		orders[i] = order.Detail{
 			Amount: resp[i].Data.AmountBTC,
 			Price:  resp[i].Data.Amount,
 			ID:     strconv.FormatInt(int64(resp[i].Data.Advertisement.ID), 10),
@@ -580,7 +586,7 @@ func (l *LocalBitcoins) GetActiveOrders(ctx context.Context, getOrdersRequest *o
 				resp[i].Data.Currency,
 				format.Delimiter),
 			Exchange: l.Name,
-		})
+		}
 	}
 
 	err = order.FilterOrdersByTimeRange(&orders, getOrdersRequest.StartTime,
@@ -623,7 +629,7 @@ func (l *LocalBitcoins) GetOrderHistory(ctx context.Context, getOrdersRequest *o
 		return nil, err
 	}
 
-	var orders []order.Detail
+	orders := make([]order.Detail, len(allTrades))
 	for i := range allTrades {
 		orderDate, err := time.Parse(time.RFC3339, allTrades[i].Data.CreatedAt)
 		if err != nil {
@@ -661,7 +667,7 @@ func (l *LocalBitcoins) GetOrderHistory(ctx context.Context, getOrdersRequest *o
 			log.Errorf(log.ExchangeSys, "%s %v", l.Name, err)
 		}
 
-		orders = append(orders, order.Detail{
+		orders[i] = order.Detail{
 			Amount: allTrades[i].Data.AmountBTC,
 			Price:  allTrades[i].Data.Amount,
 			ID:     strconv.FormatInt(int64(allTrades[i].Data.Advertisement.ID), 10),
@@ -673,7 +679,7 @@ func (l *LocalBitcoins) GetOrderHistory(ctx context.Context, getOrdersRequest *o
 				allTrades[i].Data.Currency,
 				format.Delimiter),
 			Exchange: l.Name,
-		})
+		}
 	}
 
 	err = order.FilterOrdersByTimeRange(&orders, getOrdersRequest.StartTime,

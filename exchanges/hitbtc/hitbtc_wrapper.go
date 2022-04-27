@@ -291,11 +291,9 @@ func (h *HitBTC) FetchTradablePairs(ctx context.Context, asset asset.Item) ([]st
 		return nil, err
 	}
 
-	var pairs []string
+	pairs := make([]string, len(symbols))
 	for x := range symbols {
-		pairs = append(pairs, symbols[x].BaseCurrency+
-			format.Delimiter+
-			symbols[x].QuoteCurrency)
+		pairs[x] = symbols[x].BaseCurrency + format.Delimiter + symbols[x].QuoteCurrency
 	}
 	return pairs, nil
 }
@@ -409,18 +407,19 @@ func (h *HitBTC) UpdateOrderbook(ctx context.Context, c currency.Pair, assetType
 		return book, err
 	}
 
+	book.Bids = make(orderbook.Items, len(orderbookNew.Bids))
 	for x := range orderbookNew.Bids {
-		book.Bids = append(book.Bids, orderbook.Item{
+		book.Bids[x] = orderbook.Item{
 			Amount: orderbookNew.Bids[x].Amount,
 			Price:  orderbookNew.Bids[x].Price,
-		})
+		}
 	}
-
+	book.Asks = make(orderbook.Items, len(orderbookNew.Asks))
 	for x := range orderbookNew.Asks {
-		book.Asks = append(book.Asks, orderbook.Item{
+		book.Asks[x] = orderbook.Item{
 			Amount: orderbookNew.Asks[x].Amount,
 			Price:  orderbookNew.Asks[x].Price,
-		})
+		}
 	}
 	err = book.Process()
 	if err != nil {
@@ -439,7 +438,7 @@ func (h *HitBTC) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 		return response, err
 	}
 
-	var currencies []account.Balance
+	currencies := make([]account.Balance, 0, len(accountBalance))
 	for i := range accountBalance {
 		currencies = append(currencies, account.Balance{
 			CurrencyName: currency.NewCode(accountBalance[i].Currency),
@@ -734,7 +733,7 @@ func (h *HitBTC) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 		return nil, err
 	}
 
-	var orders []order.Detail
+	orders := make([]order.Detail, len(allOrders))
 	for i := range allOrders {
 		var symbol currency.Pair
 		symbol, err = currency.NewPairDelimiter(allOrders[i].Symbol,
@@ -747,7 +746,7 @@ func (h *HitBTC) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 		if err != nil {
 			return nil, err
 		}
-		orders = append(orders, order.Detail{
+		orders[i] = order.Detail{
 			ID:       allOrders[i].ID,
 			Amount:   allOrders[i].Quantity,
 			Exchange: h.Name,
@@ -755,7 +754,7 @@ func (h *HitBTC) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 			Date:     allOrders[i].CreatedAt,
 			Side:     side,
 			Pair:     symbol,
-		})
+		}
 	}
 
 	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
@@ -791,7 +790,7 @@ func (h *HitBTC) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 		return nil, err
 	}
 
-	var orders []order.Detail
+	orders := make([]order.Detail, len(allOrders))
 	for i := range allOrders {
 		var pair currency.Pair
 		pair, err = currency.NewPairDelimiter(allOrders[i].Symbol,
@@ -823,7 +822,7 @@ func (h *HitBTC) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 			Pair:                 pair,
 		}
 		detail.InferCostsAndTimes()
-		orders = append(orders, detail)
+		orders[i] = detail
 	}
 
 	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)

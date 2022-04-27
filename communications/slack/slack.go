@@ -47,7 +47,7 @@ type Slack struct {
 	WebsocketConn   *websocket.Conn
 	Connected       bool
 	Shutdown        bool
-	sync.Mutex
+	mu              sync.Mutex
 }
 
 // IsConnected returns whether or not the connection is connected
@@ -91,9 +91,9 @@ func (s *Slack) BuildURL(token string) string {
 
 // GetChannelsString returns a list of all channels on the slack workspace
 func (s *Slack) GetChannelsString() []string {
-	var channels []string
+	channels := make([]string, len(s.Details.Channels))
 	for i := range s.Details.Channels {
-		channels = append(channels, s.Details.Channels[i].NameNormalized)
+		channels[i] = s.Details.Channels[i].NameNormalized
 	}
 	return channels
 }
@@ -355,8 +355,8 @@ func (s *Slack) WebsocketKeepAlive() {
 
 // WebsocketSend sends a message via the websocket connection
 func (s *Slack) WebsocketSend(eventType, text string) error {
-	s.Lock()
-	defer s.Unlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	newMessage := SendMessage{
 		ID:      time.Now().Unix(),
 		Type:    eventType,

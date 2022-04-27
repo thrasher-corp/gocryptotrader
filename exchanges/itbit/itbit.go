@@ -49,11 +49,11 @@ func (i *ItBit) GetTicker(ctx context.Context, currencyPair string) (Ticker, err
 
 // GetOrderbook returns full order book for the specified market.
 // currencyPair - example "XBTUSD" "XBTSGD" "XBTEUR"
-func (i *ItBit) GetOrderbook(ctx context.Context, currencyPair string) (OrderbookResponse, error) {
+func (i *ItBit) GetOrderbook(ctx context.Context, currencyPair string) (*OrderbookResponse, error) {
 	response := OrderbookResponse{}
 	path := fmt.Sprintf("/%s/%s/%s", itbitMarkets, currencyPair, itbitOrderbook)
 
-	return response, i.SendHTTPRequest(ctx, exchange.RestSpot, path, &response)
+	return &response, i.SendHTTPRequest(ctx, exchange.RestSpot, path, &response)
 }
 
 // GetTradeHistory returns recent trades for a specified market.

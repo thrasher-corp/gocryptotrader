@@ -523,7 +523,7 @@ func (t Type) Lower() string {
 
 // Title returns the type titleized, eg "Limit"
 func (t Type) Title() string {
-	return strings.Title(strings.ToLower(t.String()))
+	return strings.Title(strings.ToLower(t.String())) // nolint:staticcheck // Ignore Title usage warning
 }
 
 // String implements the stringer interface
@@ -566,7 +566,7 @@ func (s Side) Lower() string {
 
 // Title returns the side titleized, eg "Buy"
 func (s Side) Title() string {
-	return strings.Title(strings.ToLower(s.String()))
+	return strings.Title(strings.ToLower(s.String())) // nolint:staticcheck // Ignore Title usage warning
 }
 
 // IsShort returns if the side is short

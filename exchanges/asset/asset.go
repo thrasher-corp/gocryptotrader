@@ -60,9 +60,9 @@ func (a Item) String() string {
 
 // Strings converts an asset type array to a string array
 func (a Items) Strings() []string {
-	var assets []string
+	assets := make([]string, len(a))
 	for x := range a {
-		assets = append(assets, string(a[x]))
+		assets[x] = a[x].String()
 	}
 	return assets
 }

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
@@ -398,15 +397,16 @@ func (s *RPCServer) GetTicker(ctx context.Context, r *gctrpc.GetTickerRequest) (
 // enabled currency pairs
 func (s *RPCServer) GetTickers(ctx context.Context, _ *gctrpc.GetTickersRequest) (*gctrpc.GetTickersResponse, error) {
 	activeTickers := s.GetAllActiveTickers(ctx)
-	var tickers []*gctrpc.Tickers
+	tickers := make([]*gctrpc.Tickers, len(activeTickers))
 
 	for x := range activeTickers {
 		t := &gctrpc.Tickers{
 			Exchange: activeTickers[x].ExchangeName,
+			Tickers:  make([]*gctrpc.TickerResponse, len(activeTickers[x].ExchangeValues)),
 		}
 		for y := range activeTickers[x].ExchangeValues {
 			val := activeTickers[x].ExchangeValues[y]
-			t.Tickers = append(t.Tickers, &gctrpc.TickerResponse{
+			t.Tickers[y] = &gctrpc.TickerResponse{
 				Pair: &gctrpc.CurrencyPair{
 					Delimiter: val.Pair.Delimiter,
 					Base:      val.Pair.Base.String(),
@@ -420,9 +420,9 @@ func (s *RPCServer) GetTickers(ctx context.Context, _ *gctrpc.GetTickersRequest)
 				Ask:         val.Ask,
 				Volume:      val.Volume,
 				PriceAth:    val.PriceATH,
-			})
+			}
 		}
-		tickers = append(tickers, t)
+		tickers[x] = t
 	}
 
 	return &gctrpc.GetTickersResponse{Tickers: tickers}, nil
@@ -489,7 +489,7 @@ func (s *RPCServer) GetOrderbooks(ctx context.Context, _ *gctrpc.GetOrderbooksRe
 	if err != nil {
 		return nil, err
 	}
-	var obResponse []*gctrpc.Orderbooks
+	obResponse := make([]*gctrpc.Orderbooks, 0, len(exchanges))
 	var obs []*gctrpc.OrderbookResponse
 	for x := range exchanges {
 		if !exchanges[x].IsEnabled() {
@@ -523,19 +523,20 @@ func (s *RPCServer) GetOrderbooks(ctx context.Context, _ *gctrpc.GetOrderbooksRe
 					},
 					AssetType:   assets[y].String(),
 					LastUpdated: s.unixTimestamp(resp.LastUpdated),
+					Bids:        make([]*gctrpc.OrderbookItem, len(resp.Bids)),
+					Asks:        make([]*gctrpc.OrderbookItem, len(resp.Asks)),
 				}
 				for i := range resp.Bids {
-					ob.Bids = append(ob.Bids, &gctrpc.OrderbookItem{
+					ob.Bids[i] = &gctrpc.OrderbookItem{
 						Amount: resp.Bids[i].Amount,
 						Price:  resp.Bids[i].Price,
-					})
+					}
 				}
-
 				for i := range resp.Asks {
-					ob.Asks = append(ob.Asks, &gctrpc.OrderbookItem{
+					ob.Asks[i] = &gctrpc.OrderbookItem{
 						Amount: resp.Asks[i].Amount,
 						Price:  resp.Asks[i].Price,
-					})
+					}
 				}
 				obs = append(obs, ob)
 			}
@@ -600,7 +601,7 @@ func (s *RPCServer) UpdateAccountInfo(ctx context.Context, r *gctrpc.GetAccountI
 }
 
 func createAccountInfoRequest(h account.Holdings) (*gctrpc.GetAccountInfoResponse, error) {
-	var accounts []*gctrpc.Account
+	accounts := make([]*gctrpc.Account, len(h.Accounts))
 	for x := range h.Accounts {
 		var a gctrpc.Account
 		a.Id = h.Accounts[x].ID
@@ -621,7 +622,7 @@ func createAccountInfoRequest(h account.Holdings) (*gctrpc.GetAccountInfoRespons
 				Borrowed:          y.Borrowed,
 			})
 		}
-		accounts = append(accounts, &a)
+		accounts[x] = &a
 	}
 
 	return &gctrpc.GetAccountInfoResponse{Exchange: h.Exchange, Accounts: accounts}, nil
@@ -649,20 +650,20 @@ func (s *RPCServer) GetAccountInfoStream(r *gctrpc.GetAccountInfoRequest, stream
 		return err
 	}
 
-	var accounts []*gctrpc.Account
+	accounts := make([]*gctrpc.Account, len(initAcc.Accounts))
 	for x := range initAcc.Accounts {
-		var subAccounts []*gctrpc.AccountCurrencyInfo
+		subAccounts := make([]*gctrpc.AccountCurrencyInfo, len(initAcc.Accounts[x].Currencies))
 		for y := range initAcc.Accounts[x].Currencies {
-			subAccounts = append(subAccounts, &gctrpc.AccountCurrencyInfo{
+			subAccounts[y] = &gctrpc.AccountCurrencyInfo{
 				Currency:   initAcc.Accounts[x].Currencies[y].CurrencyName.String(),
 				TotalValue: initAcc.Accounts[x].Currencies[y].Total,
 				Hold:       initAcc.Accounts[x].Currencies[y].Hold,
-			})
+			}
 		}
-		accounts = append(accounts, &gctrpc.Account{
+		accounts[x] = &gctrpc.Account{
 			Id:         initAcc.Accounts[x].ID,
 			Currencies: subAccounts,
-		})
+		}
 	}
 
 	err = stream.Send(&gctrpc.GetAccountInfoResponse{
@@ -691,37 +692,37 @@ func (s *RPCServer) GetAccountInfoStream(r *gctrpc.GetAccountInfoRequest, stream
 			return errDispatchSystem
 		}
 
-		d := *data.(*interface{})
-		if d == nil {
+		d, ok := data.(*interface{})
+		if !ok {
 			return errors.New("unable to type assert data")
 		}
 
-		acc, ok := d.(account.Holdings)
+		dd := *d
+		acc, ok := dd.(account.Holdings)
 		if !ok {
 			return errors.New("unable to type assert account holdings data")
 		}
 
-		var accounts []*gctrpc.Account
+		accounts := make([]*gctrpc.Account, len(acc.Accounts))
 		for x := range acc.Accounts {
-			var subAccounts []*gctrpc.AccountCurrencyInfo
+			subAccounts := make([]*gctrpc.AccountCurrencyInfo, len(acc.Accounts[x].Currencies))
 			for y := range acc.Accounts[x].Currencies {
-				subAccounts = append(subAccounts, &gctrpc.AccountCurrencyInfo{
+				subAccounts[y] = &gctrpc.AccountCurrencyInfo{
 					Currency:   acc.Accounts[x].Currencies[y].CurrencyName.String(),
 					TotalValue: acc.Accounts[x].Currencies[y].Total,
 					Hold:       acc.Accounts[x].Currencies[y].Hold,
-				})
+				}
 			}
-			accounts = append(accounts, &gctrpc.Account{
+			accounts[x] = &gctrpc.Account{
 				Id:         acc.Accounts[x].ID,
 				Currencies: subAccounts,
-			})
+			}
 		}
 
-		err := stream.Send(&gctrpc.GetAccountInfoResponse{
+		if err := stream.Send(&gctrpc.GetAccountInfoResponse{
 			Exchange: acc.Exchange,
 			Accounts: accounts,
-		})
-		if err != nil {
+		}); err != nil {
 			return err
 		}
 	}
@@ -734,15 +735,15 @@ func (s *RPCServer) GetConfig(_ context.Context, _ *gctrpc.GetConfigRequest) (*g
 
 // GetPortfolio returns the portfoliomanager details
 func (s *RPCServer) GetPortfolio(_ context.Context, _ *gctrpc.GetPortfolioRequest) (*gctrpc.GetPortfolioResponse, error) {
-	var addrs []*gctrpc.PortfolioAddress
 	botAddrs := s.portfolioManager.GetAddresses()
+	addrs := make([]*gctrpc.PortfolioAddress, len(botAddrs))
 	for x := range botAddrs {
-		addrs = append(addrs, &gctrpc.PortfolioAddress{
+		addrs[x] = &gctrpc.PortfolioAddress{
 			Address:     botAddrs[x].Address,
 			CoinType:    botAddrs[x].CoinType.String(),
 			Description: botAddrs[x].Description,
 			Balance:     botAddrs[x].Balance,
-		})
+		}
 	}
 
 	resp := &gctrpc.GetPortfolioResponse{
@@ -838,9 +839,9 @@ func (s *RPCServer) GetForexProviders(_ context.Context, _ *gctrpc.GetForexProvi
 		return nil, fmt.Errorf("forex providers is empty")
 	}
 
-	var forexProviders []*gctrpc.ForexProvider
+	forexProviders := make([]*gctrpc.ForexProvider, len(providers))
 	for x := range providers {
-		forexProviders = append(forexProviders, &gctrpc.ForexProvider{
+		forexProviders[x] = &gctrpc.ForexProvider{
 			Name:             providers[x].Name,
 			Enabled:          providers[x].Enabled,
 			Verbose:          providers[x].Verbose,
@@ -848,7 +849,7 @@ func (s *RPCServer) GetForexProviders(_ context.Context, _ *gctrpc.GetForexProvi
 			ApiKey:           providers[x].APIKey,
 			ApiKeyLevel:      int64(providers[x].APIKeyLvl),
 			PrimaryProvider:  providers[x].PrimaryProvider,
-		})
+		}
 	}
 	return &gctrpc.GetForexProvidersResponse{ForexProviders: forexProviders}, nil
 }
@@ -864,7 +865,7 @@ func (s *RPCServer) GetForexRates(_ context.Context, _ *gctrpc.GetForexRatesRequ
 		return nil, fmt.Errorf("forex rates is empty")
 	}
 
-	var forexRates []*gctrpc.ForexRatesConversion
+	forexRates := make([]*gctrpc.ForexRatesConversion, 0, len(rates))
 	for x := range rates {
 		rate, err := rates[x].GetRate()
 		if err != nil {
@@ -952,9 +953,9 @@ func (s *RPCServer) GetOrders(ctx context.Context, r *gctrpc.GetOrdersRequest) (
 		return nil, err
 	}
 
-	var orders []*gctrpc.OrderDetails
+	orders := make([]*gctrpc.OrderDetails, len(resp))
 	for x := range resp {
-		var trades []*gctrpc.TradeHistory
+		trades := make([]*gctrpc.TradeHistory, len(resp[x].Trades))
 		for i := range resp[x].Trades {
 			t := &gctrpc.TradeHistory{
 				Id:        resp[x].Trades[i].TID,
@@ -969,7 +970,7 @@ func (s *RPCServer) GetOrders(ctx context.Context, r *gctrpc.GetOrdersRequest) (
 			if !resp[x].Trades[i].Timestamp.IsZero() {
 				t.CreationTime = s.unixTimestamp(resp[x].Trades[i].Timestamp)
 			}
-			trades = append(trades, t)
+			trades[i] = t
 		}
 		o := &gctrpc.OrderDetails{
 			Exchange:      r.Exchange,
@@ -994,7 +995,7 @@ func (s *RPCServer) GetOrders(ctx context.Context, r *gctrpc.GetOrdersRequest) (
 		if !resp[x].LastUpdated.IsZero() {
 			o.UpdateTime = s.unixTimestamp(resp[x].LastUpdated)
 		}
-		orders = append(orders, o)
+		orders[x] = o
 	}
 
 	return &gctrpc.GetOrdersResponse{Orders: orders}, nil
@@ -1041,9 +1042,9 @@ func (s *RPCServer) GetManagedOrders(_ context.Context, r *gctrpc.GetOrdersReque
 		return nil, err
 	}
 
-	var orders []*gctrpc.OrderDetails
+	orders := make([]*gctrpc.OrderDetails, len(resp))
 	for x := range resp {
-		var trades []*gctrpc.TradeHistory
+		trades := make([]*gctrpc.TradeHistory, len(resp[x].Trades))
 		for i := range resp[x].Trades {
 			t := &gctrpc.TradeHistory{
 				Id:        resp[x].Trades[i].TID,
@@ -1058,7 +1059,7 @@ func (s *RPCServer) GetManagedOrders(_ context.Context, r *gctrpc.GetOrdersReque
 			if !resp[x].Trades[i].Timestamp.IsZero() {
 				t.CreationTime = s.unixTimestamp(resp[x].Trades[i].Timestamp)
 			}
-			trades = append(trades, t)
+			trades[i] = t
 		}
 		o := &gctrpc.OrderDetails{
 			Exchange:      r.Exchange,
@@ -1083,7 +1084,7 @@ func (s *RPCServer) GetManagedOrders(_ context.Context, r *gctrpc.GetOrdersReque
 		if !resp[x].LastUpdated.IsZero() {
 			o.UpdateTime = s.unixTimestamp(resp[x].LastUpdated)
 		}
-		orders = append(orders, o)
+		orders[x] = o
 	}
 
 	return &gctrpc.GetOrdersResponse{Orders: orders}, nil
@@ -1128,9 +1129,9 @@ func (s *RPCServer) GetOrder(ctx context.Context, r *gctrpc.GetOrderRequest) (*g
 	if err != nil {
 		return nil, fmt.Errorf("error whilst trying to retrieve info for order %s: %w", r.OrderId, err)
 	}
-	var trades []*gctrpc.TradeHistory
+	trades := make([]*gctrpc.TradeHistory, len(result.Trades))
 	for i := range result.Trades {
-		trades = append(trades, &gctrpc.TradeHistory{
+		trades[i] = &gctrpc.TradeHistory{
 			CreationTime: s.unixTimestamp(result.Trades[i].Timestamp),
 			Id:           result.Trades[i].TID,
 			Price:        result.Trades[i].Price,
@@ -1140,7 +1141,7 @@ func (s *RPCServer) GetOrder(ctx context.Context, r *gctrpc.GetOrderRequest) (*g
 			OrderSide:    result.Trades[i].Side.String(),
 			Fee:          result.Trades[i].Fee,
 			Total:        result.Trades[i].Total,
-		})
+		}
 	}
 
 	var creationTime, updateTime int64
@@ -1227,14 +1228,14 @@ func (s *RPCServer) SubmitOrder(ctx context.Context, r *gctrpc.SubmitOrderReques
 		return &gctrpc.SubmitOrderResponse{}, err
 	}
 
-	var trades []*gctrpc.Trades
+	trades := make([]*gctrpc.Trades, len(resp.Trades))
 	for i := range resp.Trades {
-		trades = append(trades, &gctrpc.Trades{
+		trades[i] = &gctrpc.Trades{
 			Amount:   resp.Trades[i].Amount,
 			Price:    resp.Trades[i].Price,
 			Fee:      resp.Trades[i].Fee,
 			FeeAsset: resp.Trades[i].FeeAsset,
-		})
+		}
 	}
 
 	return &gctrpc.SubmitOrderResponse{
@@ -1430,18 +1431,19 @@ func (s *RPCServer) CancelBatchOrders(ctx context.Context, r *gctrpc.CancelBatch
 	}
 
 	status := make(map[string]string)
-	var request []order.Cancel
 	orders := strings.Split(r.OrdersId, ",")
-	for _, orderID := range orders {
+	request := make([]order.Cancel, len(orders))
+	for x := range orders {
+		orderID := orders[x]
 		status[orderID] = order.Cancelled.String()
-		request = append(request, order.Cancel{
+		request[x] = order.Cancel{
 			AccountID:     r.AccountId,
 			ID:            orderID,
 			Side:          side,
 			WalletAddress: r.WalletAddress,
 			Pair:          pair,
 			AssetType:     assetType,
-		})
+		}
 	}
 
 	// TODO: Change to order manager
@@ -2140,12 +2142,13 @@ func (s *RPCServer) GetExchangeOrderbookStream(r *gctrpc.GetExchangeOrderbookStr
 			return errDispatchSystem
 		}
 
-		d := *data.(*interface{})
-		if d == nil {
+		d, ok := data.(*interface{})
+		if !ok {
 			return errors.New("unable to type assert data")
 		}
 
-		ob, ok := d.(orderbook.Base)
+		dd := *d
+		ob, ok := dd.(orderbook.Base)
 		if !ok {
 			return errors.New("unable to type assert orderbook data")
 		}
@@ -2223,12 +2226,13 @@ func (s *RPCServer) GetTickerStream(r *gctrpc.GetTickerStreamRequest, stream gct
 			return errDispatchSystem
 		}
 
-		d := *data.(*interface{})
-		if d == nil {
+		d, ok := data.(*interface{})
+		if !ok {
 			return errors.New("unable to type assert data")
 		}
 
-		t, ok := d.(ticker.Price)
+		dd := *d
+		t, ok := dd.(ticker.Price)
 		if !ok {
 			return errors.New("unable to type assert ticker data")
 		}
@@ -2281,12 +2285,13 @@ func (s *RPCServer) GetExchangeTickerStream(r *gctrpc.GetExchangeTickerStreamReq
 			return errDispatchSystem
 		}
 
-		d := *data.(*interface{})
-		if d == nil {
+		d, ok := data.(*interface{})
+		if !ok {
 			return errors.New("unable to type assert data")
 		}
 
-		t, ok := d.(ticker.Price)
+		dd := *d
+		t, ok := dd.(ticker.Price)
 		if !ok {
 			return errors.New("unable to type assert ticker data")
 		}
@@ -2475,16 +2480,16 @@ func (s *RPCServer) GetHistoricCandles(ctx context.Context, r *gctrpc.GetHistori
 }
 
 func fillMissingCandlesWithStoredTrades(startTime, endTime time.Time, klineItem *kline.Item) (*kline.Item, error) {
-	var response kline.Item
-	var candleTimes []time.Time
+	candleTimes := make([]time.Time, len(klineItem.Candles))
 	for i := range klineItem.Candles {
-		candleTimes = append(candleTimes, klineItem.Candles[i].Time)
+		candleTimes[i] = klineItem.Candles[i].Time
 	}
 	ranges, err := timeperiods.FindTimeRangesContainingData(startTime, endTime, klineItem.Interval.Duration(), candleTimes)
 	if err != nil {
 		return nil, err
 	}
 
+	var response kline.Item
 	for i := range ranges {
 		if ranges[i].HasDataInRange {
 			continue
@@ -2574,24 +2579,30 @@ func (s *RPCServer) GCTScriptQuery(_ context.Context, r *gctrpc.GCTScriptQueryRe
 		return &gctrpc.GCTScriptQueryResponse{Status: MsgStatusError, Data: err.Error()}, nil
 	}
 
-	if v, f := gctscript.AllVMSync.Load(UUID); f {
-		resp := &gctrpc.GCTScriptQueryResponse{
-			Status: MsgStatusOK,
-			Script: &gctrpc.GCTScript{
-				Name:    v.(*gctscript.VM).ShortName(),
-				UUID:    v.(*gctscript.VM).ID.String(),
-				Path:    v.(*gctscript.VM).Path,
-				NextRun: v.(*gctscript.VM).NextRun.String(),
-			},
-		}
-		data, err := v.(*gctscript.VM).Read()
-		if err != nil {
-			return nil, err
-		}
-		resp.Data = string(data)
-		return resp, nil
+	v, f := gctscript.AllVMSync.Load(UUID)
+	if !f {
+		return &gctrpc.GCTScriptQueryResponse{Status: MsgStatusError, Data: "UUID not found"}, nil
 	}
-	return &gctrpc.GCTScriptQueryResponse{Status: MsgStatusError, Data: "UUID not found"}, nil
+
+	vm, ok := v.(*gctscript.VM)
+	if !ok {
+		return nil, errors.New("unable to type assert gctscript.VM")
+	}
+	resp := &gctrpc.GCTScriptQueryResponse{
+		Status: MsgStatusOK,
+		Script: &gctrpc.GCTScript{
+			Name:    vm.ShortName(),
+			UUID:    vm.ID.String(),
+			Path:    vm.Path,
+			NextRun: vm.NextRun.String(),
+		},
+	}
+	data, err := vm.Read()
+	if err != nil {
+		return nil, err
+	}
+	resp.Data = string(data)
+	return resp, nil
 }
 
 // GCTScriptExecute execute a script
@@ -2636,15 +2647,21 @@ func (s *RPCServer) GCTScriptStop(_ context.Context, r *gctrpc.GCTScriptStopRequ
 		return &gctrpc.GenericResponse{Status: MsgStatusError, Data: err.Error()}, nil // nolint:nilerr // error is returned in the generic response
 	}
 
-	if v, f := gctscript.AllVMSync.Load(UUID); f {
-		err = v.(*gctscript.VM).Shutdown()
-		status := " terminated"
-		if err != nil {
-			status = " " + err.Error()
-		}
-		return &gctrpc.GenericResponse{Status: MsgStatusOK, Data: v.(*gctscript.VM).ID.String() + status}, nil
+	v, f := gctscript.AllVMSync.Load(UUID)
+	if !f {
+		return &gctrpc.GenericResponse{Status: MsgStatusError, Data: "no running script found"}, nil
 	}
-	return &gctrpc.GenericResponse{Status: MsgStatusError, Data: "no running script found"}, nil
+
+	vm, ok := v.(*gctscript.VM)
+	if !ok {
+		return nil, errors.New("unable to type assert gctscript.VM")
+	}
+	err = vm.Shutdown()
+	status := " terminated"
+	if err != nil {
+		status = " " + err.Error()
+	}
+	return &gctrpc.GenericResponse{Status: MsgStatusOK, Data: vm.ID.String() + status}, nil
 }
 
 // GCTScriptUpload upload a new script to ScriptPath
@@ -2664,7 +2681,7 @@ func (s *RPCServer) GCTScriptUpload(_ context.Context, r *gctrpc.GCTScriptUpload
 			return nil, fmt.Errorf("%s script found and overwrite set to false", r.ScriptName)
 		}
 		f := filepath.Join(gctscript.ScriptPath, "version_history")
-		err = os.MkdirAll(f, 0770)
+		err = os.MkdirAll(f, file.DefaultPermissionOctal)
 		if err != nil {
 			return nil, err
 		}
@@ -2748,7 +2765,7 @@ func (s *RPCServer) GCTScriptReadScript(_ context.Context, r *gctrpc.GCTScriptRe
 	if !strings.HasPrefix(filename, filepath.Clean(gctscript.ScriptPath)+string(os.PathSeparator)) {
 		return nil, fmt.Errorf("%s: invalid file path", filename)
 	}
-	data, err := ioutil.ReadFile(filename)
+	data, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, err
 	}
@@ -3293,9 +3310,9 @@ func (s *RPCServer) FindMissingSavedCandleIntervals(_ context.Context, r *gctrpc
 		Pair:           r.Pair,
 		MissingPeriods: []string{},
 	}
-	var candleTimes []time.Time
+	candleTimes := make([]time.Time, len(klineItem.Candles))
 	for i := range klineItem.Candles {
-		candleTimes = append(candleTimes, klineItem.Candles[i].Time)
+		candleTimes[i] = klineItem.Candles[i].Time
 	}
 	var ranges []timeperiods.TimeRange
 	ranges, err = timeperiods.FindTimeRangesContainingData(start, end, klineItem.Interval.Duration(), candleTimes)
@@ -3395,9 +3412,9 @@ func (s *RPCServer) FindMissingSavedTradeIntervals(_ context.Context, r *gctrpc.
 		Pair:           r.Pair,
 		MissingPeriods: []string{},
 	}
-	var tradeTimes []time.Time
+	tradeTimes := make([]time.Time, len(trades))
 	for i := range trades {
-		tradeTimes = append(tradeTimes, trades[i].Timestamp)
+		tradeTimes[i] = trades[i].Timestamp
 	}
 	var ranges []timeperiods.TimeRange
 	ranges, err = timeperiods.FindTimeRangesContainingData(start, end, time.Hour, tradeTimes)
@@ -3914,9 +3931,9 @@ func (s *RPCServer) GetActiveDataHistoryJobs(_ context.Context, _ *gctrpc.GetInf
 		return nil, err
 	}
 
-	var response []*gctrpc.DataHistoryJob
+	response := make([]*gctrpc.DataHistoryJob, len(jobs))
 	for i := range jobs {
-		response = append(response, &gctrpc.DataHistoryJob{
+		response[i] = &gctrpc.DataHistoryJob{
 			Id:       jobs[i].ID.String(),
 			Nickname: jobs[i].Nickname,
 			Exchange: jobs[i].Exchange,
@@ -3941,7 +3958,7 @@ func (s *RPCServer) GetActiveDataHistoryJobs(_ context.Context, _ *gctrpc.GetInf
 			SecondaryExchangeName:    jobs[i].SecondaryExchangeSource,
 			IssueTolerancePercentage: jobs[i].IssueTolerancePercentage,
 			ReplaceOnIssue:           jobs[i].ReplaceOnIssue,
-		})
+		}
 	}
 	return &gctrpc.DataHistoryJobs{Results: response}, nil
 }
@@ -3968,9 +3985,9 @@ func (s *RPCServer) GetDataHistoryJobsBetween(_ context.Context, r *gctrpc.GetDa
 	if err != nil {
 		return nil, err
 	}
-	var respJobs []*gctrpc.DataHistoryJob
+	respJobs := make([]*gctrpc.DataHistoryJob, len(jobs))
 	for i := range jobs {
-		respJobs = append(respJobs, &gctrpc.DataHistoryJob{
+		respJobs[i] = &gctrpc.DataHistoryJob{
 			Id:       jobs[i].ID.String(),
 			Nickname: jobs[i].Nickname,
 			Exchange: jobs[i].Exchange,
@@ -3995,7 +4012,7 @@ func (s *RPCServer) GetDataHistoryJobsBetween(_ context.Context, r *gctrpc.GetDa
 			SecondaryExchangeName:    jobs[i].SecondaryExchangeSource,
 			IssueTolerancePercentage: jobs[i].IssueTolerancePercentage,
 			ReplaceOnIssue:           jobs[i].ReplaceOnIssue,
-		})
+		}
 	}
 	return &gctrpc.DataHistoryJobs{
 		Results: respJobs,
@@ -4331,17 +4348,15 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 	if err != nil {
 		return nil, err
 	}
-	var calculators []order.CollateralCalculator
-	var acc *account.SubAccount
-	var subAccounts []string
-
 	creds, err := exch.GetBase().GetCredentials(ctx)
 	if err != nil {
 		return nil, err
 	}
 
+	subAccounts := make([]string, len(ai.Accounts))
+	var acc *account.SubAccount
 	for i := range ai.Accounts {
-		subAccounts = append(subAccounts, ai.Accounts[i].ID)
+		subAccounts[i] = ai.Accounts[i].ID
 		if ai.Accounts[i].ID == "main" && creds.SubAccount == "" {
 			acc = &ai.Accounts[i]
 			break
@@ -4366,6 +4381,7 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 		}
 	}
 
+	calculators := make([]order.CollateralCalculator, 0, len(acc.Currencies))
 	for i := range acc.Currencies {
 		total := decimal.NewFromFloat(acc.Currencies[i].Total)
 		free := decimal.NewFromFloat(acc.Currencies[i].AvailableWithoutBorrow)

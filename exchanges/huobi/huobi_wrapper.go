@@ -547,68 +547,74 @@ func (h *HUOBI) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType 
 	var err error
 	switch assetType {
 	case asset.Spot:
-		var orderbookNew Orderbook
+		var orderbookNew *Orderbook
 		orderbookNew, err = h.GetDepth(ctx,
-			OrderBookDataRequestParams{
+			&OrderBookDataRequestParams{
 				Symbol: p,
 				Type:   OrderBookDataRequestParamsTypeStep0,
 			})
 		if err != nil {
-			return nil, err
+			return book, err
 		}
 
+		book.Bids = make(orderbook.Items, len(orderbookNew.Bids))
 		for x := range orderbookNew.Bids {
-			book.Bids = append(book.Bids, orderbook.Item{
+			book.Bids[x] = orderbook.Item{
 				Amount: orderbookNew.Bids[x][1],
 				Price:  orderbookNew.Bids[x][0],
-			})
+			}
 		}
-
+		book.Asks = make(orderbook.Items, len(orderbookNew.Asks))
 		for x := range orderbookNew.Asks {
-			book.Asks = append(book.Asks, orderbook.Item{
+			book.Asks[x] = orderbook.Item{
 				Amount: orderbookNew.Asks[x][1],
 				Price:  orderbookNew.Asks[x][0],
-			})
+			}
 		}
 
 	case asset.Futures:
-		var orderbookNew OBData
+		var orderbookNew *OBData
 		orderbookNew, err = h.FGetMarketDepth(ctx, p, "step0")
 		if err != nil {
-			return nil, err
+			return book, err
 		}
 
+		book.Asks = make(orderbook.Items, len(orderbookNew.Asks))
 		for x := range orderbookNew.Asks {
-			book.Asks = append(book.Asks, orderbook.Item{
+			book.Asks[x] = orderbook.Item{
 				Amount: orderbookNew.Asks[x].Quantity,
 				Price:  orderbookNew.Asks[x].Price,
-			})
+			}
 		}
+		book.Bids = make(orderbook.Items, len(orderbookNew.Bids))
 		for y := range orderbookNew.Bids {
-			book.Bids = append(book.Bids, orderbook.Item{
+			book.Bids[y] = orderbook.Item{
 				Amount: orderbookNew.Bids[y].Quantity,
 				Price:  orderbookNew.Bids[y].Price,
-			})
+			}
 		}
 
 	case asset.CoinMarginedFutures:
 		var orderbookNew SwapMarketDepthData
 		orderbookNew, err = h.GetSwapMarketDepth(ctx, p, "step0")
 		if err != nil {
-			return nil, err
+			return book, err
 		}
 
+		book.Asks = make(orderbook.Items, len(orderbookNew.Tick.Asks))
 		for x := range orderbookNew.Tick.Asks {
-			book.Asks = append(book.Asks, orderbook.Item{
+			book.Asks[x] = orderbook.Item{
 				Amount: orderbookNew.Tick.Asks[x][1],
 				Price:  orderbookNew.Tick.Asks[x][0],
-			})
+			}
 		}
+
+		book.Bids = make(orderbook.Items, len(orderbookNew.Tick.Bids))
 		for y := range orderbookNew.Tick.Bids {
-			book.Bids = append(book.Bids, orderbook.Item{
+			book.Bids[y] = orderbook.Item{
 				Amount: orderbookNew.Tick.Bids[y][1],
 				Price:  orderbookNew.Tick.Bids[y][0],
-			})
+			}
 		}
 	}
 	err = book.Process()
@@ -1832,9 +1838,9 @@ func (h *HUOBI) GetAvailableTransferChains(ctx context.Context, cryptocurrency c
 		return nil, errors.New("chain data isn't populated")
 	}
 
-	var availableChains []string
+	availableChains := make([]string, len(chains[0].ChainData))
 	for x := range chains[0].ChainData {
-		availableChains = append(availableChains, chains[0].ChainData[x].Chain)
+		availableChains[x] = chains[0].ChainData[x].Chain
 	}
 	return availableChains, nil
 }

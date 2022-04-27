@@ -64,7 +64,7 @@ func (r *Rotate) openOrCreateFile(n int64) error {
 		}
 	}
 
-	file, err := os.OpenFile(logFile, os.O_APPEND|os.O_WRONLY, 0600)
+	file, err := os.OpenFile(logFile, os.O_APPEND|os.O_WRONLY, 0o600)
 	if err != nil {
 		return r.openNew()
 	}
@@ -92,7 +92,7 @@ func (r *Rotate) openNew() error {
 		}
 	}
 
-	file, err := os.OpenFile(name, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
+	file, err := os.OpenFile(name, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
 	if err != nil {
 		return fmt.Errorf("can't open new logfile: %s", err)
 	}

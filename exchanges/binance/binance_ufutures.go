@@ -84,22 +84,22 @@ func (b *Binance) UExchangeInfo(ctx context.Context) (UFuturesExchangeInfo, erro
 }
 
 // UFuturesOrderbook gets orderbook data for usdt margined futures
-func (b *Binance) UFuturesOrderbook(ctx context.Context, symbol currency.Pair, limit int64) (OrderBook, error) {
-	var resp OrderBook
-	var data OrderbookData
-	params := url.Values{}
+func (b *Binance) UFuturesOrderbook(ctx context.Context, symbol currency.Pair, limit int64) (*OrderBook, error) {
 	symbolValue, err := b.FormatSymbol(symbol, asset.USDTMarginedFutures)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
+
+	params := url.Values{}
 	params.Set("symbol", symbolValue)
 	strLimit := strconv.FormatInt(limit, 10)
 	if strLimit != "" {
 		if !common.StringDataCompare(uValidOBLimits, strLimit) {
-			return resp, fmt.Errorf("invalid limit: %v", limit)
+			return nil, fmt.Errorf("invalid limit: %v", limit)
 		}
 		params.Set("limit", strLimit)
 	}
+
 	rateBudget := uFuturesDefaultRate
 	switch {
 	case limit == 5, limit == 10, limit == 20, limit == 50:
@@ -111,42 +111,50 @@ func (b *Binance) UFuturesOrderbook(ctx context.Context, symbol currency.Pair, l
 	case limit == 1000:
 		rateBudget = uFuturesOrderbook1000Rate
 	}
+
+	var data OrderbookData
 	err = b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, ufuturesOrderbook+params.Encode(), rateBudget, &data)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
-	resp.Symbol = symbolValue
-	resp.LastUpdateID = data.LastUpdateID
+
+	resp := OrderBook{
+		Symbol:       symbolValue,
+		LastUpdateID: data.LastUpdateID,
+		Bids:         make([]OrderbookItem, len(data.Bids)),
+		Asks:         make([]OrderbookItem, len(data.Asks)),
+	}
+
 	var price, quantity float64
 	for x := range data.Asks {
 		price, err = strconv.ParseFloat(data.Asks[x][0], 64)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		quantity, err = strconv.ParseFloat(data.Asks[x][1], 64)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
-		resp.Asks = append(resp.Asks, OrderbookItem{
+		resp.Asks[x] = OrderbookItem{
 			Price:    price,
 			Quantity: quantity,
-		})
+		}
 	}
 	for y := range data.Bids {
 		price, err = strconv.ParseFloat(data.Bids[y][0], 64)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		quantity, err = strconv.ParseFloat(data.Bids[y][1], 64)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
-		resp.Bids = append(resp.Bids, OrderbookItem{
+		resp.Bids[y] = OrderbookItem{
 			Price:    price,
 			Quantity: quantity,
-		})
+		}
 	}
-	return resp, nil
+	return &resp, nil
 }
 
 // URecentTrades gets recent trades for usdt margined futures
@@ -212,16 +220,14 @@ func (b *Binance) UCompressedTrades(ctx context.Context, symbol currency.Pair, f
 
 // UKlineData gets kline data for usdt margined futures
 func (b *Binance) UKlineData(ctx context.Context, symbol currency.Pair, interval string, limit int64, startTime, endTime time.Time) ([]FuturesCandleStick, error) {
-	var data [][10]interface{}
-	var resp []FuturesCandleStick
 	params := url.Values{}
 	symbolValue, err := b.FormatSymbol(symbol, asset.USDTMarginedFutures)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 	params.Set("symbol", symbolValue)
 	if !common.StringDataCompare(validFuturesIntervals, interval) {
-		return resp, errors.New("invalid interval")
+		return nil, errors.New("invalid interval")
 	}
 	params.Set("interval", interval)
 	if limit > 0 && limit <= 1500 {
@@ -229,7 +235,7 @@ func (b *Binance) UKlineData(ctx context.Context, symbol currency.Pair, interval
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if startTime.After(endTime) {
-			return resp, errors.New("startTime cannot be after endTime")
+			return nil, errors.New("startTime cannot be after endTime")
 		}
 		params.Set("startTime", timeString(startTime))
 		params.Set("endTime", timeString(endTime))
@@ -245,71 +251,76 @@ func (b *Binance) UKlineData(ctx context.Context, symbol currency.Pair, interval
 	case limit > 1000:
 		rateBudget = uFuturesKlineMaxRate
 	}
+
+	var data [][10]interface{}
 	err = b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, ufuturesKlineData+params.Encode(), rateBudget, &data)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
-	var tempData FuturesCandleStick
-	var floatData float64
-	var strData string
-	var ok bool
+
+	resp := make([]FuturesCandleStick, len(data))
 	for x := range data {
+		var tempData FuturesCandleStick
+		var floatData float64
+		var strData string
+		var ok bool
+
 		floatData, ok = data[x][0].(float64)
 		if !ok {
-			return resp, errors.New("type assertion failed for opentime")
+			return nil, errors.New("type assertion failed for opentime")
 		}
 		tempData.OpenTime, err = convert.TimeFromUnixTimestampFloat(floatData)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		strData, ok = data[x][1].(string)
 		if !ok {
-			return resp, errors.New("type assertion failed for open")
+			return nil, errors.New("type assertion failed for open")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		tempData.Open = floatData
 		strData, ok = data[x][2].(string)
 		if !ok {
-			return resp, errors.New("type assertion failed for high")
+			return nil, errors.New("type assertion failed for high")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		tempData.High = floatData
 		strData, ok = data[x][3].(string)
 		if !ok {
-			return resp, errors.New("type assertion failed for low")
+			return nil, errors.New("type assertion failed for low")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		tempData.Low = floatData
 		strData, ok = data[x][4].(string)
 		if !ok {
-			return resp, errors.New("type assertion failed for close")
+			return nil, errors.New("type assertion failed for close")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		tempData.Close = floatData
 		strData, ok = data[x][5].(string)
 		if !ok {
-			return resp, errors.New("type assertion failed for volume")
+			return nil, errors.New("type assertion failed for volume")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		tempData.Volume = floatData
 		floatData, ok = data[x][6].(float64)
 		if !ok {
-			return resp, errors.New("type assertion failed for close time")
+			return nil, errors.New("type assertion failed for close time")
 		}
 		tempData.CloseTime, err = convert.TimeFromUnixTimestampFloat(floatData)
 		if err != nil {
@@ -317,28 +328,28 @@ func (b *Binance) UKlineData(ctx context.Context, symbol currency.Pair, interval
 		}
 		strData, ok = data[x][7].(string)
 		if !ok {
-			return resp, errors.New("type assertion failed base asset volume")
+			return nil, errors.New("type assertion failed base asset volume")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		tempData.BaseAssetVolume = floatData
 		floatData, ok = data[x][8].(float64)
 		if !ok {
-			return resp, errors.New("type assertion failed for taker buy volume")
+			return nil, errors.New("type assertion failed for taker buy volume")
 		}
 		tempData.TakerBuyVolume = floatData
 		strData, ok = data[x][9].(string)
 		if !ok {
-			return resp, errors.New("type assertion failed for taker buy base asset volume")
+			return nil, errors.New("type assertion failed for taker buy base asset volume")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		tempData.TakerBuyBaseAssetVolume = floatData
-		resp = append(resp, tempData)
+		resp[x] = tempData
 	}
 	return resp, nil
 }
@@ -1139,12 +1150,12 @@ func (b *Binance) GetFundingRates(ctx context.Context, symbol currency.Pair, lim
 
 // FetchUSDTMarginExchangeLimits fetches USDT margined order execution limits
 func (b *Binance) FetchUSDTMarginExchangeLimits(ctx context.Context) ([]order.MinMaxLevel, error) {
-	var limits []order.MinMaxLevel
 	usdtFutures, err := b.UExchangeInfo(ctx)
 	if err != nil {
 		return nil, err
 	}
 
+	limits := make([]order.MinMaxLevel, 0, len(usdtFutures.Symbols))
 	for x := range usdtFutures.Symbols {
 		var cp currency.Pair
 		cp, err = currency.NewPairFromStrings(usdtFutures.Symbols[x].BaseAsset,

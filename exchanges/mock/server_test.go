@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"strings"
@@ -48,7 +47,7 @@ func TestNewVCRServer(t *testing.T) {
 		t.Fatal("marshal error", err)
 	}
 
-	err = ioutil.WriteFile(testFile, payload, os.ModePerm)
+	err = os.WriteFile(testFile, payload, os.ModePerm)
 	if err != nil {
 		t.Fatal("marshal error", err)
 	}

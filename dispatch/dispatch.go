@@ -285,11 +285,11 @@ func (d *Dispatcher) subscribe(id uuid.UUID) (chan interface{}, error) {
 
 	// Read lock to read route list
 	d.rMtx.RLock()
-	_, ok := d.routes[id]
-	d.rMtx.RUnlock()
-	if !ok {
+	if _, ok := d.routes[id]; !ok {
+		d.rMtx.RUnlock()
 		return nil, errors.New("dispatcher uuid not found in route list")
 	}
+	d.rMtx.RUnlock()
 
 	// Get an unused channel from the channel pool
 	unusedChan, ok := d.outbound.Get().(chan interface{})
@@ -314,11 +314,11 @@ func (d *Dispatcher) unsubscribe(id uuid.UUID, usedChan chan interface{}) error 
 
 	// Read lock to read route list
 	d.rMtx.RLock()
-	_, ok := d.routes[id]
-	d.rMtx.RUnlock()
-	if !ok {
+	if _, ok := d.routes[id]; !ok {
+		d.rMtx.RUnlock()
 		return errors.New("dispatcher uuid does not reference any channels")
 	}
+	d.rMtx.RUnlock()
 
 	// Lock for write to delete references
 	d.rMtx.Lock()

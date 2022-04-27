@@ -92,7 +92,7 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundTransf
 	if len(d) < 4 {
 		return nil, errStrategyCurrencyRequirements
 	}
-	var mfiFundEvents []mfiFundEvent
+	mfiFundEvents := make([]mfiFundEvent, 0, len(d))
 	var resp []signal.Event
 	for i := range d {
 		if d == nil {
@@ -233,7 +233,7 @@ func (s *Strategy) SetDefaults() {
 // the decision to handle missing data occurs at the strategy level, not all strategies
 // may wish to modify data
 func (s *Strategy) massageMissingData(data []decimal.Decimal, t time.Time) ([]float64, error) {
-	var resp []float64
+	resp := make([]float64, len(data))
 	var missingDataStreak int64
 	for i := range data {
 		if data[i].IsZero() && i > int(s.mfiPeriod.IntPart()) {
@@ -248,8 +248,7 @@ func (s *Strategy) massageMissingData(data []decimal.Decimal, t time.Time) ([]fl
 				t.Format(gctcommon.SimpleTimeFormat),
 				base.ErrTooMuchBadData)
 		}
-		d, _ := data[i].Float64()
-		resp = append(resp, d)
+		resp[i] = data[i].InexactFloat64()
 	}
 	return resp, nil
 }

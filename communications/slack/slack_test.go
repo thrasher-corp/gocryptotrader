@@ -206,7 +206,10 @@ func TestHandlePresenceChange(t *testing.T) {
 		t.Error("slack handlePresenceChange(), unmarshalled malformed json")
 	}
 
-	data, _ := json.Marshal(pres)
+	data, err := json.Marshal(pres)
+	if err != nil {
+		t.Fatal(err)
+	}
 	err = s.handlePresenceChange(data)
 	if err != nil {
 		t.Errorf("slack handlePresenceChange() Error: %s", err)
@@ -235,7 +238,10 @@ func TestHandleMessageResponse(t *testing.T) {
 	var msg Message
 	msg.User = "1337"
 	msg.Text = "Hello World!"
-	resp, _ := json.Marshal(msg)
+	resp, err := json.Marshal(msg)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	err = s.handleMessageResponse(resp, data)
 	if err != nil {
@@ -243,7 +249,10 @@ func TestHandleMessageResponse(t *testing.T) {
 	}
 
 	msg.Text = "!notacommand"
-	resp, _ = json.Marshal(msg)
+	resp, err = json.Marshal(msg)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	err = s.handleMessageResponse(resp, data)
 	if err == nil {
@@ -286,7 +295,10 @@ func TestHandleReconnectResponse(t *testing.T) {
 	}
 	testURL.URL = "https://www.thrasher.io"
 
-	data, _ := json.Marshal(testURL)
+	data, err := json.Marshal(testURL)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	err = s.handleReconnectResponse(data)
 	if err != nil || s.ReconnectURL != "https://www.thrasher.io" {

@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -137,7 +136,7 @@ func (c *Config) decryptConfigData(configReader io.Reader, key []byte) ([]byte, 
 		return nil, err
 	}
 	origKey := key
-	configData, err := ioutil.ReadAll(configReader)
+	configData, err := io.ReadAll(configReader)
 	if err != nil {
 		return nil, err
 	}

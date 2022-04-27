@@ -73,8 +73,7 @@ func TestWsHandleData(t *testing.T) {
 	}
 
 	handled := <-dummy.Websocket.DataHandler
-	_, ok := handled.(*ticker.Price)
-	if !ok {
+	if _, ok := handled.(*ticker.Price); !ok {
 		t.Fatal("unexpected value")
 	}
 

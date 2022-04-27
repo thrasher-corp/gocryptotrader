@@ -66,7 +66,7 @@ func (c *CurrencyLayer) GetSupportedCurrencies() ([]string, error) {
 		return nil, errors.New(resp.Error.Info)
 	}
 
-	var currencies []string
+	currencies := make([]string, 0, len(resp.Currencies))
 	for key := range resp.Currencies {
 		currencies = append(currencies, key)
 	}
