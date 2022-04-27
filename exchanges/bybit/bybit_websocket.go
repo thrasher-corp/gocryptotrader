@@ -62,6 +62,7 @@ func (by *Bybit) WsConnect() error {
 		log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", by.Name)
 	}
 
+	by.Websocket.Wg.Add(1)
 	go by.wsReadData(by.Websocket.Conn)
 	if by.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
 		err = by.WsAuth(context.TODO())
@@ -71,6 +72,7 @@ func (by *Bybit) WsConnect() error {
 		}
 	}
 
+	by.Websocket.Wg.Add(1)
 	go by.WsDataHandler()
 	return nil
 }
@@ -82,6 +84,7 @@ func (by *Bybit) WsAuth(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	by.Websocket.Wg.Add(1)
 	go by.wsReadData(by.Websocket.AuthConn)
 
 	creds, err := by.GetCredentials(ctx)
@@ -176,7 +179,6 @@ func (by *Bybit) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription)
 
 // wsReadData receives and passes on websocket messages for processing
 func (by *Bybit) wsReadData(ws stream.Connection) {
-	by.Websocket.Wg.Add(1)
 	defer by.Websocket.Wg.Done()
 	for {
 		resp := ws.ReadMessage()
@@ -227,26 +229,10 @@ func stringToOrderStatus(status string) (order.Status, error) {
 
 // WsDataHandler handles data from wsReadData
 func (by *Bybit) WsDataHandler() {
-	by.Websocket.Wg.Add(1)
 	defer by.Websocket.Wg.Done()
 	for {
 		select {
 		case <-by.Websocket.ShutdownC:
-			select {
-			case resp := <-comms:
-				err := by.wsHandleData(resp.Raw)
-				if err != nil {
-					select {
-					case by.Websocket.DataHandler <- err:
-					default:
-						log.Errorf(log.WebsocketMgr,
-							"%s websocket handle data error: %v",
-							by.Name,
-							err)
-					}
-				}
-			default:
-			}
 			return
 		case resp := <-comms:
 			err := by.wsHandleData(resp.Raw)
