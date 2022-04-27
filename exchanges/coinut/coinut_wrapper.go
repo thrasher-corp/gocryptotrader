@@ -891,12 +891,14 @@ func (c *COINUT) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 				return nil, err
 			}
 			for i := range openOrders.Orders {
-				p, err := currency.NewPairFromString(currenciesToCheck[x])
+				var p currency.Pair
+				p, err = currency.NewPairFromString(currenciesToCheck[x])
 				if err != nil {
 					return nil, err
 				}
 
-				fpair, err := c.FormatExchangeCurrency(p, asset.Spot)
+				var fPair currency.Pair
+				fPair, err = c.FormatExchangeCurrency(p, asset.Spot)
 				if err != nil {
 					return nil, err
 				}
@@ -910,7 +912,7 @@ func (c *COINUT) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 				orders = append(orders, order.Detail{
 					Exchange:        c.Name,
 					ID:              strconv.FormatInt(openOrders.Orders[i].OrderID, 10),
-					Pair:            fpair,
+					Pair:            fPair,
 					Side:            side,
 					Date:            time.Unix(0, openOrders.Orders[i].Timestamp),
 					Status:          order.Active,
@@ -942,21 +944,22 @@ func (c *COINUT) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 			return nil, err
 		}
 
-		format, err := c.GetPairFormat(asset.Spot, true)
+		var format currency.PairFormat
+		format, err = c.GetPairFormat(asset.Spot, true)
 		if err != nil {
 			return nil, err
 		}
 
 		for x := range instrumentsToUse {
-			openOrders, err := c.GetOpenOrders(ctx, instrumentsToUse[x])
+			var openOrders GetOpenOrdersResponse
+			openOrders, err = c.GetOpenOrders(ctx, instrumentsToUse[x])
 			if err != nil {
 				return nil, err
 			}
 			for y := range openOrders.Orders {
 				curr := c.instrumentMap.LookupInstrument(instrumentsToUse[x])
-				p, err := currency.NewPairFromFormattedPairs(curr,
-					pairs,
-					format)
+				var p currency.Pair
+				p, err := currency.NewPairFromFormattedPairs(curr, pairs, format)
 				if err != nil {
 					return nil, err
 				}
@@ -967,14 +970,13 @@ func (c *COINUT) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 					return nil, err
 				}
 
-				orderDate := time.Unix(openOrders.Orders[y].Timestamp, 0)
 				orders = append(orders, order.Detail{
 					ID:       strconv.FormatInt(openOrders.Orders[y].OrderID, 10),
 					Amount:   openOrders.Orders[y].Quantity,
 					Price:    openOrders.Orders[y].Price,
 					Exchange: c.Name,
 					Side:     side,
-					Date:     orderDate,
+					Date:     time.Unix(openOrders.Orders[y].Timestamp, 0),
 					Pair:     p,
 				})
 			}
@@ -1004,13 +1006,15 @@ func (c *COINUT) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 	if c.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		for i := range req.Pairs {
 			for j := int64(0); ; j += 100 {
-				trades, err := c.wsGetTradeHistory(req.Pairs[i], j, 100)
+				var trades *WsTradeHistoryResponse
+				trades, err = c.wsGetTradeHistory(req.Pairs[i], j, 100)
 				if err != nil {
 					return allOrders, err
 				}
 				for x := range trades.Trades {
 					curr := c.instrumentMap.LookupInstrument(trades.Trades[x].InstrumentID)
-					p, err := currency.NewPairFromString(curr)
+					var p currency.Pair
+					p, err = currency.NewPairFromString(curr)
 					if err != nil {
 						return nil, err
 					}
@@ -1065,21 +1069,22 @@ func (c *COINUT) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 			return nil, err
 		}
 
-		format, err := c.GetPairFormat(asset.Spot, true)
+		var format currency.PairFormat
+		format, err = c.GetPairFormat(asset.Spot, true)
 		if err != nil {
 			return nil, err
 		}
 
 		for x := range instrumentsToUse {
-			orders, err := c.GetTradeHistory(ctx, instrumentsToUse[x], -1, -1)
+			var orders TradeHistory
+			orders, err = c.GetTradeHistory(ctx, instrumentsToUse[x], -1, -1)
 			if err != nil {
 				return nil, err
 			}
 			for y := range orders.Trades {
 				curr := c.instrumentMap.LookupInstrument(instrumentsToUse[x])
-				p, err := currency.NewPairFromFormattedPairs(curr,
-					pairs,
-					format)
+				var p currency.Pair
+				p, err = currency.NewPairFromFormattedPairs(curr, pairs, format)
 				if err != nil {
 					return nil, err
 				}
@@ -1090,14 +1095,13 @@ func (c *COINUT) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 					return nil, err
 				}
 
-				orderDate := time.Unix(orders.Trades[y].Order.Timestamp, 0)
 				allOrders = append(allOrders, order.Detail{
 					ID:       strconv.FormatInt(orders.Trades[y].Order.OrderID, 10),
 					Amount:   orders.Trades[y].Order.Quantity,
 					Price:    orders.Trades[y].Order.Price,
 					Exchange: c.Name,
 					Side:     side,
-					Date:     orderDate,
+					Date:     time.Unix(orders.Trades[y].Order.Timestamp, 0),
 					Pair:     p,
 				})
 			}

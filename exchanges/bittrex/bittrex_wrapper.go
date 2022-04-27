@@ -778,7 +778,8 @@ func (b *Bittrex) GetActiveOrders(ctx context.Context, req *order.GetOrdersReque
 
 	resp := make([]order.Detail, 0, len(orderData))
 	for i := range orderData {
-		pair, err := currency.NewPairDelimiter(orderData[i].MarketSymbol,
+		var pair currency.Pair
+		pair, err = currency.NewPairDelimiter(orderData[i].MarketSymbol,
 			format.Delimiter)
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
@@ -789,12 +790,14 @@ func (b *Bittrex) GetActiveOrders(ctx context.Context, req *order.GetOrdersReque
 				err)
 		}
 
-		orderType, err := order.StringToOrderType(orderData[i].Type)
+		var orderType order.Type
+		orderType, err = order.StringToOrderType(orderData[i].Type)
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
 		}
 
-		orderSide, err := order.StringToOrderSide(orderData[i].Direction)
+		var orderSide order.Side
+		orderSide, err = order.StringToOrderSide(orderData[i].Direction)
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "GetActiveOrders - %s - cannot get order side - %s\n", b.Name, err.Error())
 		}
@@ -842,18 +845,21 @@ func (b *Bittrex) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 
 	var resp []order.Detail
 	for x := range req.Pairs {
-		formattedPair, err := b.FormatExchangeCurrency(req.Pairs[x], req.AssetType)
+		var formattedPair currency.Pair
+		formattedPair, err = b.FormatExchangeCurrency(req.Pairs[x], req.AssetType)
 		if err != nil {
 			return nil, err
 		}
 
-		orderData, err := b.GetOrderHistoryForCurrency(ctx, formattedPair.String())
+		var orderData []OrderData
+		orderData, err = b.GetOrderHistoryForCurrency(ctx, formattedPair.String())
 		if err != nil {
 			return nil, err
 		}
 
 		for i := range orderData {
-			pair, err := currency.NewPairDelimiter(orderData[i].MarketSymbol,
+			var pair currency.Pair
+			pair, err = currency.NewPairDelimiter(orderData[i].MarketSymbol,
 				format.Delimiter)
 			if err != nil {
 				log.Errorf(log.ExchangeSys,
@@ -863,15 +869,20 @@ func (b *Bittrex) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 					orderData[i].ID,
 					err)
 			}
-			orderType, err := order.StringToOrderType(orderData[i].Type)
+			var orderType order.Type
+			orderType, err = order.StringToOrderType(orderData[i].Type)
 			if err != nil {
 				log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
 			}
-			orderSide, err := order.StringToOrderSide(orderData[i].Direction)
+
+			var orderSide order.Side
+			orderSide, err = order.StringToOrderSide(orderData[i].Direction)
 			if err != nil {
 				log.Errorf(log.ExchangeSys, "GetActiveOrders - %s - cannot get order side - %s\n", b.Name, err.Error())
 			}
-			orderStatus, err := order.StringToOrderStatus(orderData[i].Status)
+
+			var orderStatus order.Status
+			orderStatus, err = order.StringToOrderStatus(orderData[i].Status)
 			if err != nil {
 				log.Errorf(log.ExchangeSys, "GetActiveOrders - %s - cannot get order status - %s\n", b.Name, err.Error())
 			}

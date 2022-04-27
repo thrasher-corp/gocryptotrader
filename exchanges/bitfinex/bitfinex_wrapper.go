@@ -909,7 +909,8 @@ func (b *Bitfinex) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequ
 				resp[i].Timestamp)
 		}
 
-		pair, err := currency.NewPairFromString(resp[i].Symbol)
+		var pair currency.Pair
+		pair, err = currency.NewPairFromString(resp[i].Symbol)
 		if err != nil {
 			return nil, err
 		}
@@ -988,7 +989,8 @@ func (b *Bitfinex) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequ
 		}
 		orderDate := time.Unix(timestamp, 0)
 
-		pair, err := currency.NewPairFromString(resp[i].Symbol)
+		var pair currency.Pair
+		pair, err = currency.NewPairFromString(resp[i].Symbol)
 		if err != nil {
 			return nil, err
 		}
