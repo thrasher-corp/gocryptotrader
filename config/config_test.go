@@ -2176,11 +2176,7 @@ func TestMigrateConfig(t *testing.T) {
 		targetDir  string
 	}
 
-	dir, err := ioutil.TempDir("", "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	tests := []struct {
 		name    string

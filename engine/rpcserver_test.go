@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -266,17 +265,20 @@ func RPCTestSetup(t *testing.T) *Engine {
 	if err != nil {
 		t.Fatal(err)
 	}
-	tempDir, err := ioutil.TempDir("", "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	dbm.dbConn.DataPath = tempDir
+	dbm.dbConn.DataPath = t.TempDir()
 	engerino.DatabaseManager = dbm
 	var wg sync.WaitGroup
 	err = dbm.Start(&wg)
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() {
+		err = dbm.Stop()
+		if err != nil {
+			t.Fatal(err)
+		}
+	})
+
 	engerino.Config = &config.Config{}
 	em := SetupExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
