@@ -2,7 +2,6 @@ package report
 
 import (
 	"errors"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -25,10 +24,13 @@ func TestGenerateReport(t *testing.T) {
 	e := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
-	tempDir := t.TempDir()
 	d := Data{
-		Config:       &config.Config{},
-		OutputPath:   filepath.Join("..", "results"),
+		Config: &config.Config{
+			StrategySettings: config.StrategySettings{
+				DisableUSDTracking: true,
+			},
+		},
+		OutputPath:   t.TempDir(),
 		TemplatePath: "tpl.gohtml",
 		OriginalCandles: []*gctkline.Item{
 			{
@@ -301,14 +303,11 @@ func TestGenerateReport(t *testing.T) {
 			},
 			CurrencyPairStatistics: nil,
 			WasAnyDataMissing:      false,
-			FundingStatistics:      nil,
-		},
-	}
-	d.OutputPath = tempDir
-	d.Config.StrategySettings.DisableUSDTracking = true
-	d.Statistics.FundingStatistics = &statistics.FundingStatistics{
-		Report: &funding.Report{
-			DisableUSDTracking: true,
+			FundingStatistics: &statistics.FundingStatistics{
+				Report: &funding.Report{
+					DisableUSDTracking: true,
+				},
+			},
 		},
 	}
 	if err := d.GenerateReport(); err != nil {
