@@ -559,7 +559,7 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 func (bt *BackTest) loadExchangePairAssetBase(exch string, base, quote currency.Code, ai asset.Item) (gctexchange.IBotExchange, currency.Pair, asset.Item, error) {
 	e, err := bt.exchangeManager.GetExchangeByName(exch)
 	if err != nil {
-		return nil, currency.EMPTYPAIR, "", err
+		return nil, currency.EMPTYPAIR, asset.Empty, err
 	}
 
 	var cp, fPair currency.Pair
@@ -572,7 +572,7 @@ func (bt *BackTest) loadExchangePairAssetBase(exch string, base, quote currency.
 
 	fPair, err = exchangeBase.FormatExchangeCurrency(cp, ai)
 	if err != nil {
-		return nil, currency.EMPTYPAIR, "", err
+		return nil, currency.EMPTYPAIR, asset.Empty, err
 	}
 	return e, fPair, ai, nil
 }

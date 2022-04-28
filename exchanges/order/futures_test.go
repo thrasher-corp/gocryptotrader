@@ -31,7 +31,7 @@ func (f *FakePNL) CalculatePNL(context.Context, *PNLCalculatorRequest) (*PNLResu
 // GetCurrencyForRealisedPNL  overrides default pnl calculations
 func (f *FakePNL) GetCurrencyForRealisedPNL(realisedAsset asset.Item, realisedPair currency.Pair) (currency.Code, asset.Item, error) {
 	if f.err != nil {
-		return realisedPair.Base, "", f.err
+		return realisedPair.Base, asset.Empty, f.err
 	}
 	return realisedPair.Base, realisedAsset, nil
 }

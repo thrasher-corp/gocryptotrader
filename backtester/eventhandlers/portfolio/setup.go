@@ -44,7 +44,7 @@ func (p *Portfolio) SetupCurrencySettingsMap(setup *exchange.Settings) error {
 	if setup.Exchange == nil {
 		return errExchangeUnset
 	}
-	if setup.Asset == "" {
+	if setup.Asset == asset.Empty {
 		return errAssetUnset
 	}
 	if setup.Pair.IsEmpty() {

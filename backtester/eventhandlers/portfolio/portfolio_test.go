@@ -19,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
+	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ftx"
@@ -1323,7 +1324,7 @@ func TestCreateLiquidationOrdersForExchange(t *testing.T) {
 	}
 
 	funds := &funding.FundManager{}
-	expectedError = nil
+	expectedError = config.ErrExchangeNotFound
 	_, err = p.CreateLiquidationOrdersForExchange(ev, funds)
 	if !errors.Is(err, expectedError) {
 		t.Fatalf("received '%v' expected '%v'", err, expectedError)
@@ -1332,6 +1333,7 @@ func TestCreateLiquidationOrdersForExchange(t *testing.T) {
 	ff := &ftx.FTX{}
 	ff.Name = testExchange
 	cp := currency.NewPair(currency.BTC, currency.USD)
+	expectedError = nil
 	err = p.SetupCurrencySettingsMap(&exchange.Settings{Exchange: ff, Asset: asset.Futures, Pair: cp})
 	if err != nil {
 		t.Error(err)
@@ -1340,6 +1342,7 @@ func TestCreateLiquidationOrdersForExchange(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	ev.Exchange = testExchange
 	_, err = p.CreateLiquidationOrdersForExchange(ev, funds)
 	if !errors.Is(err, expectedError) {
 		t.Fatalf("received '%v' expected '%v'", err, expectedError)

@@ -19,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	dbPSQL "github.com/thrasher-corp/gocryptotrader/database/drivers/postgres"
 	dbsqlite3 "github.com/thrasher-corp/gocryptotrader/database/drivers/sqlite3"
@@ -290,21 +291,21 @@ func parseStrategySettings(cfg *config.Config, reader *bufio.Reader) error {
 			if intNum > len(supported) || intNum <= 0 {
 				return errors.New("unknown option")
 			}
-			fund.Asset = supported[intNum-1].String()
+			fund.Asset = supported[intNum-1]
 		} else {
 			for i := range supported {
 				if strings.EqualFold(response, supported[i].String()) {
-					fund.Asset = supported[i].String()
+					fund.Asset = supported[i]
 					break
 				}
 			}
-			if fund.Asset == "" {
+			if fund.Asset == asset.Empty {
 				return errors.New("unrecognised data option")
 			}
 		}
 
 		fmt.Println("What is the individual currency to add funding to? eg BTC")
-		fund.Currency = quickParse(reader)
+		fund.Currency = currency.NewCode(quickParse(reader))
 		fmt.Printf("How much funding for %v?\n", fund.Currency)
 		fund.InitialFunds, err = decimal.NewFromString(quickParse(reader))
 		if err != nil {
@@ -502,7 +503,7 @@ func parseDataChoice(reader *bufio.Reader, multiCurrency bool) (string, error) {
 	return "", errors.New("unrecognised data option")
 }
 
-func parseKlineInterval(reader *bufio.Reader) (time.Duration, error) {
+func parseKlineInterval(reader *bufio.Reader) (gctkline.Interval, error) {
 	allCandles := gctkline.SupportedIntervals
 	for i := range allCandles {
 		fmt.Printf("%v. %s\n", i+1, allCandles[i].Word())
@@ -514,11 +515,11 @@ func parseKlineInterval(reader *bufio.Reader) (time.Duration, error) {
 		if intNum > len(allCandles) || intNum <= 0 {
 			return 0, errors.New("unknown option")
 		}
-		return allCandles[intNum-1].Duration(), nil
+		return allCandles[intNum-1], nil
 	}
 	for i := range allCandles {
 		if strings.EqualFold(response, allCandles[i].Word()) {
-			return allCandles[i].Duration(), nil
+			return allCandles[i], nil
 		}
 	}
 	return 0, errors.New("unrecognised interval")
@@ -575,19 +576,18 @@ func addCurrencySetting(reader *bufio.Reader, usingExchangeLevelFunding bool) (*
 		if intNum > len(supported) || intNum <= 0 {
 			return nil, errors.New("unknown option")
 		}
-		setting.Asset = supported[intNum-1].String()
+		setting.Asset = supported[intNum-1]
 	}
 	for i := range supported {
 		if strings.EqualFold(response, supported[i].String()) {
-			setting.Asset = supported[i].String()
+			setting.Asset = supported[i]
 		}
 	}
 
 	var f float64
 	fmt.Println("Enter the currency base. eg BTC")
-	setting.Base = quickParse(reader)
-	switch setting.Asset {
-	case asset.Spot.String():
+	setting.Base = currency.NewCode(quickParse(reader))
+	if setting.Asset == asset.Spot {
 		setting.SpotDetails = &config.SpotDetails{}
 		if !usingExchangeLevelFunding {
 			fmt.Println("Enter the initial base funds. eg 0")
@@ -601,27 +601,22 @@ func addCurrencySetting(reader *bufio.Reader, usingExchangeLevelFunding bool) (*
 				setting.SpotDetails.InitialBaseFunds = &iqf
 			}
 		}
-	case asset.Futures.String():
 	}
 
 	fmt.Println("Enter the currency quote. eg USDT")
-	setting.Quote = quickParse(reader)
+	setting.Quote = currency.NewCode(quickParse(reader))
 
-	switch setting.Asset {
-	case asset.Spot.String():
-		if !usingExchangeLevelFunding {
-			fmt.Println("Enter the initial quote funds. eg 10000")
-			parseNum := quickParse(reader)
-			if parseNum != "" {
-				f, err = strconv.ParseFloat(parseNum, 64)
-				if err != nil {
-					return nil, err
-				}
-				iqf := decimal.NewFromFloat(f)
-				setting.SpotDetails.InitialQuoteFunds = &iqf
+	if setting.Asset == asset.Spot && !usingExchangeLevelFunding {
+		fmt.Println("Enter the initial quote funds. eg 10000")
+		parseNum := quickParse(reader)
+		if parseNum != "" {
+			f, err = strconv.ParseFloat(parseNum, 64)
+			if err != nil {
+				return nil, err
 			}
+			iqf := decimal.NewFromFloat(f)
+			setting.SpotDetails.InitialQuoteFunds = &iqf
 		}
-	case asset.Futures.String():
 	}
 
 	fmt.Println("Do you want to set custom fees? If no, Backtester will use default fees for exchange y/n")

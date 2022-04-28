@@ -1303,12 +1303,12 @@ func (b *Base) GetFuturesPositions(context.Context, asset.Item, currency.Pair, t
 
 // GetCollateralCurrencyForContract returns the collateral currency for an asset and contract pair
 func (b *Base) GetCollateralCurrencyForContract(asset.Item, currency.Pair) (currency.Code, asset.Item, error) {
-	return currency.Code{}, "", common.ErrNotYetImplemented
+	return currency.Code{}, asset.Empty, common.ErrNotYetImplemented
 }
 
 // GetCurrencyForRealisedPNL returns where to put realised PNL
 // example 1: FTX PNL is paid out in USD to your spot wallet
 // example 2: Binance coin margined futures pays returns using the same currency eg BTC
 func (b *Base) GetCurrencyForRealisedPNL(_ asset.Item, _ currency.Pair) (currency.Code, asset.Item, error) {
-	return currency.Code{}, "", common.ErrNotYetImplemented
+	return currency.Code{}, asset.Empty, common.ErrNotYetImplemented
 }
