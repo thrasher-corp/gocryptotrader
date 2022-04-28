@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"errors"
 	"fmt"
 	"sync/atomic"
 
@@ -15,6 +16,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
+
+var errNilInterceptorFunction = errors.New("interceptor function is nil")
 
 // setupWebsocketRoutineManager creates a new websocket routine manager
 func setupWebsocketRoutineManager(exchangeManager iExchangeManager, orderManager iOrderManager, syncer iCurrencyPairSyncer, cfg *currency.Config, verbose bool) (*websocketRoutineManager, error) {
@@ -158,6 +161,12 @@ func (m *websocketRoutineManager) WebsocketDataHandler(exchName string, data int
 		return fmt.Errorf("exchange %s nil data sent to websocket",
 			exchName)
 	}
+
+	m.mu.RLock()
+	if m.interceptor != nil {
+		m.interceptor(exchName, data)
+	}
+	m.mu.RUnlock()
 
 	switch d := data.(type) {
 	case string:
@@ -333,4 +342,21 @@ func (m *websocketRoutineManager) printAccountHoldingsChangeSummary(o account.Ch
 		o.Currency,
 		o.Amount,
 		o.Account)
+}
+
+// registerInterceptor registers an externally (GCT Library) defined dedicated
+// filter to intercept specific data types for strategy use.
+func (m *websocketRoutineManager) registerInterceptor(fn Interceptor) error {
+	if m == nil {
+		return fmt.Errorf("%T %w", m, ErrNilSubsystem)
+	}
+
+	if fn == nil {
+		return errNilInterceptorFunction
+	}
+
+	m.mu.Lock()
+	m.interceptor = fn
+	m.mu.Unlock()
+	return nil
 }

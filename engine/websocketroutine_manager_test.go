@@ -2,6 +2,7 @@ package engine
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 	"testing"
 
@@ -255,5 +256,53 @@ func TestWebsocketRoutineManagerHandleData(t *testing.T) {
 	err = m.WebsocketDataHandler(exchName, "this is a test string")
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestRegisterInterceptorWithFunctionality(t *testing.T) {
+	var m *websocketRoutineManager
+	err := m.registerInterceptor(nil)
+	if !errors.Is(err, ErrNilSubsystem) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrNilSubsystem)
+	}
+
+	m = new(websocketRoutineManager)
+	err = m.registerInterceptor(nil)
+	if !errors.Is(err, errNilInterceptorFunction) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errNilInterceptorFunction)
+	}
+
+	// externally defined capture device
+	dataChan := make(chan interface{})
+	fn := func(_ string, data interface{}) {
+		switch data.(type) {
+		case string:
+			dataChan <- data
+		default:
+			return
+		}
+	}
+
+	err = m.registerInterceptor(fn)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	go func() {
+		err = m.WebsocketDataHandler("", 1336)
+		if !errors.Is(err, nil) {
+			fmt.Println(err)
+			return
+		}
+
+		err = m.WebsocketDataHandler("", "intercepted")
+		if !errors.Is(err, nil) {
+			fmt.Println(err)
+			return
+		}
+	}()
+
+	if r := <-dataChan; r != "intercepted" {
+		t.Fatal("unexpected value received")
 	}
 }

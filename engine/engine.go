@@ -948,3 +948,13 @@ func (bot *Engine) SetupExchanges() error {
 func (bot *Engine) WaitForInitialCurrencySync() error {
 	return bot.currencyPairSyncer.WaitForInitialSync()
 }
+
+// RegisterWebsocketRoutineHandlerInterceptor registers an externally defined
+// interceptor function for diverting and handling websocket notifications
+// across all enabled exchanges.
+func (bot *Engine) RegisterWebsocketRoutineHandlerInterceptor(fn Interceptor) error {
+	if bot == nil {
+		return fmt.Errorf("%T %w", bot, ErrNilSubsystem)
+	}
+	return bot.websocketRoutineManager.registerInterceptor(fn)
+}
