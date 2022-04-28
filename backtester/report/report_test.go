@@ -24,7 +24,11 @@ func TestGenerateReport(t *testing.T) {
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	d := Data{
-		Config:       &config.Config{},
+		Config: &config.Config{
+			StrategySettings: config.StrategySettings{
+				DisableUSDTracking: true,
+			},
+		},
 		OutputPath:   t.TempDir(),
 		TemplatePath: "tpl.gohtml",
 		OriginalCandles: []*gctkline.Item{
@@ -306,9 +310,7 @@ func TestGenerateReport(t *testing.T) {
 			},
 		},
 	}
-	d.Config.StrategySettings.DisableUSDTracking = true
-	err := d.GenerateReport()
-	if err != nil {
+	if err := d.GenerateReport(); err != nil {
 		t.Error(err)
 	}
 }

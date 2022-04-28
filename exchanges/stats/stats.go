@@ -53,7 +53,7 @@ func (b ByVolume) Swap(i, j int) {
 // Add adds or updates the item stats
 func Add(exchange string, p currency.Pair, a asset.Item, price, volume float64) error {
 	if exchange == "" ||
-		a == "" ||
+		a == asset.Empty ||
 		price == 0 ||
 		volume == 0 ||
 		p.Base.IsEmpty() ||

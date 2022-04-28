@@ -399,7 +399,7 @@ func applySlippageToPrice(direction gctorder.Side, price, slippageRate decimal.D
 // SetExchangeAssetCurrencySettings sets the settings for an exchange, asset, currency
 func (e *Exchange) SetExchangeAssetCurrencySettings(a asset.Item, cp currency.Pair, c *Settings) {
 	if c.Exchange == nil ||
-		c.Asset == "" ||
+		c.Asset == asset.Empty ||
 		c.Pair.IsEmpty() {
 		return
 	}

@@ -484,18 +484,7 @@ func TestCreateSnapshot(t *testing.T) {
 	t.Parallel()
 	f := FundManager{}
 	f.CreateSnapshot(time.Time{})
-	f.items = append(f.items, &Item{
-		exchange:        "",
-		asset:           "",
-		currency:        currency.EMPTYCODE,
-		initialFunds:    decimal.Decimal{},
-		available:       decimal.Decimal{},
-		reserved:        decimal.Decimal{},
-		transferFee:     decimal.Decimal{},
-		pairedWith:      nil,
-		trackingCandles: nil,
-		snapshot:        nil,
-	})
+	f.items = append(f.items, &Item{})
 	f.CreateSnapshot(time.Time{})
 
 	dfk := &kline.DataFromKline{
