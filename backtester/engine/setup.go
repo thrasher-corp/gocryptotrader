@@ -98,8 +98,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 
 	if cfg.FundingSettings.UseExchangeLevelFunding {
 		for i := range cfg.FundingSettings.ExchangeLevelFunding {
-			var a asset.Item
-			a = cfg.FundingSettings.ExchangeLevelFunding[i].Asset
+			a := cfg.FundingSettings.ExchangeLevelFunding[i].Asset
 			cq := cfg.FundingSettings.ExchangeLevelFunding[i].Currency
 			var item *funding.Item
 			item, err = funding.CreateItem(cfg.FundingSettings.ExchangeLevelFunding[i].ExchangeName,
@@ -170,8 +169,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 		if portfolioRisk.CurrencySettings[cfg.CurrencySettings[i].ExchangeName] == nil {
 			portfolioRisk.CurrencySettings[cfg.CurrencySettings[i].ExchangeName] = make(map[asset.Item]map[currency.Pair]*risk.CurrencySettings)
 		}
-		var a asset.Item
-		a = cfg.CurrencySettings[i].Asset
+		a := cfg.CurrencySettings[i].Asset
 		if err != nil {
 			return nil, fmt.Errorf(
 				"%w for %v %v %v-%v. Err %v",

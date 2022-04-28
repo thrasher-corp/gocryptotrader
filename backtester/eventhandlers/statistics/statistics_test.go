@@ -917,7 +917,7 @@ func TestCalculateBiggestEventDrawdown(t *testing.T) {
 			Low:   decimal.NewFromInt(1339),
 		},
 	}
-	resp, err = CalculateBiggestEventDrawdown(bogusEvent)
+	_, err = CalculateBiggestEventDrawdown(bogusEvent)
 	if !errors.Is(err, gctcommon.ErrDateUnset) {
 		t.Errorf("received %v expected %v", err, gctcommon.ErrDateUnset)
 	}

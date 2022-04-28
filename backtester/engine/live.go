@@ -73,7 +73,7 @@ func (bt *BackTest) loadLiveDataLoop(resp *kline.DataFromKline, cfg *config.Conf
 	dates, err := gctkline.CalculateCandleDateRanges(
 		startDate,
 		startDate.AddDate(1, 0, 0),
-		gctkline.Interval(cfg.DataSettings.Interval),
+		cfg.DataSettings.Interval,
 		0)
 	if err != nil {
 		log.Errorf(common.Backtester, "%v. Please check your GoCryptoTrader configuration", err)

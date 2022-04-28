@@ -199,7 +199,6 @@ func TestValidateCurrencySettings(t *testing.T) {
 	if !errors.Is(err, errBadInitialFunds) {
 		t.Errorf("received: %v, expected: %v", err, errBadInitialFunds)
 	}
-
 }
 
 func TestValidateMinMaxes(t *testing.T) {

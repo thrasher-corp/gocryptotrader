@@ -24,8 +24,7 @@ func TestLatest(t *testing.T) {
 	t.Parallel()
 	var d Base
 	d.AppendStream(&fakeDataHandler{time: 1})
-	latest := d.Latest()
-	if latest != d.stream[d.offset] {
+	if latest := d.Latest(); latest != d.stream[d.offset] {
 		t.Error("expected latest to match offset")
 	}
 }
@@ -80,7 +79,6 @@ func TestBaseDataFunctions(t *testing.T) {
 	d.Reset()
 	d.GetStream()
 	d.SortStream()
-
 }
 
 func TestSetup(t *testing.T) {
