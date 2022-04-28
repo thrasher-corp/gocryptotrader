@@ -202,24 +202,22 @@ func tradeToSQLData(trades ...Data) ([]tradesql.Data, error) {
 }
 
 // SQLDataToTrade converts sql data to glorious trade data
-func SQLDataToTrade(dbTrades ...tradesql.Data) (result []Data, err error) {
+func SQLDataToTrade(dbTrades ...tradesql.Data) ([]Data, error) {
+	result := make([]Data, len(dbTrades))
 	for i := range dbTrades {
-		var cp currency.Pair
-		cp, err = currency.NewPairFromStrings(dbTrades[i].Base, dbTrades[i].Quote)
+		cp, err := currency.NewPairFromStrings(dbTrades[i].Base, dbTrades[i].Quote)
 		if err != nil {
 			return nil, err
 		}
-		cp = cp.Upper()
-		var a = asset.Item(dbTrades[i].AssetType)
-		if !a.IsValid() {
-			return nil, fmt.Errorf("invalid asset type %v", a)
-		}
-		var s order.Side
-		s, err = order.StringToOrderSide(dbTrades[i].Side)
+		a, err := asset.New(dbTrades[i].AssetType)
 		if err != nil {
 			return nil, err
 		}
-		result = append(result, Data{
+		s, err := order.StringToOrderSide(dbTrades[i].Side)
+		if err != nil {
+			return nil, err
+		}
+		result[i] = Data{
 			ID:           uuid.FromStringOrNil(dbTrades[i].ID),
 			Timestamp:    dbTrades[i].Timestamp.UTC(),
 			Exchange:     dbTrades[i].Exchange,
@@ -228,7 +226,7 @@ func SQLDataToTrade(dbTrades ...tradesql.Data) (result []Data, err error) {
 			Price:        dbTrades[i].Price,
 			Amount:       dbTrades[i].Amount,
 			Side:         s,
-		})
+		}
 	}
 	return result, nil
 }

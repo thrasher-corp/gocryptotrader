@@ -52,7 +52,7 @@ func TestCollectBalances(t *testing.T) {
 		t.Errorf("expecting err %s", errAccountBalancesIsNil.Error())
 	}
 
-	_, err = CollectBalances(map[string][]Balance{}, "nonsense")
+	_, err = CollectBalances(map[string][]Balance{}, asset.Empty)
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
 	}
@@ -146,7 +146,7 @@ func TestGetHoldings(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errExchangeHoldingsNotFound)
 	}
 
-	_, err = GetHoldings("bla", asset.Item("hi"))
+	_, err = GetHoldings("bla", asset.Empty)
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
 	}
@@ -226,12 +226,12 @@ func TestGetHoldings(t *testing.T) {
 }
 
 func TestGetBalance(t *testing.T) {
-	_, err := GetBalance("", "", "", currency.Code{})
+	_, err := GetBalance("", "", asset.Empty, currency.Code{})
 	if !errors.Is(err, errExchangeNameUnset) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errExchangeNameUnset)
 	}
 
-	_, err = GetBalance("bruh", "", "", currency.Code{})
+	_, err = GetBalance("bruh", "", asset.Empty, currency.Code{})
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
 	}
@@ -393,7 +393,7 @@ func TestUpdate(t *testing.T) {
 		Exchange: "TeSt",
 		Accounts: []SubAccount{
 			{
-				AssetType: "skiperino",
+				AssetType: 6969,
 				ID:        "1337",
 				Currencies: []Balance{
 					{
