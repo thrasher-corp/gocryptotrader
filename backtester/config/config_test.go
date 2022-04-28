@@ -55,900 +55,15 @@ func TestMain(m *testing.M) {
 }
 
 func TestLoadConfig(t *testing.T) {
+	t.Parallel()
 	_, err := LoadConfig([]byte(`{}`))
 	if err != nil {
 		t.Error(err)
 	}
 }
 
-func TestReadConfigFromFile(t *testing.T) {
-	tempDir, err := ioutil.TempDir("", "")
-	if err != nil {
-		t.Fatalf("Problem creating temp dir at %s: %s\n", tempDir, err)
-	}
-	defer func() {
-		err = os.RemoveAll(tempDir)
-		if err != nil {
-			t.Error(err)
-		}
-	}()
-	var passFile *os.File
-	passFile, err = ioutil.TempFile(tempDir, "*.start")
-	if err != nil {
-		t.Fatalf("Problem creating temp file at %v: %s\n", passFile, err)
-	}
-	_, err = passFile.WriteString("{}")
-	if err != nil {
-		t.Error(err)
-	}
-	err = passFile.Close()
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = ReadConfigFromFile(passFile.Name())
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestPrintSettings(t *testing.T) {
-	cfg := Config{
-		Nickname: "super fun run",
-		Goal:     "To demonstrate rendering of settings",
-		StrategySettings: StrategySettings{
-			Name: dca,
-			CustomSettings: map[string]interface{}{
-				"dca-dummy1": 30.0,
-				"dca-dummy2": 30.0,
-				"dca-dummy3": 30.0,
-			},
-		},
-		CurrencySettings: []CurrencySettings{
-			{
-				ExchangeName: testExchange,
-				Asset:        asset.Spot.String(),
-				Base:         currency.BTC.String(),
-				Quote:        currency.USDT.String(),
-				SpotDetails: &SpotDetails{
-					InitialQuoteFunds: initialQuoteFunds1,
-				},
-				BuySide:  minMax,
-				SellSide: minMax,
-				MakerFee: &makerFee,
-				TakerFee: &takerFee,
-			},
-		},
-		DataSettings: DataSettings{
-			Interval: kline.OneMin.Duration(),
-			DataType: common.CandleStr,
-			APIData: &APIData{
-				StartDate:        startDate,
-				EndDate:          endDate,
-				InclusiveEndDate: true,
-			},
-			CSVData: &CSVData{
-				FullPath: "fake",
-			},
-			LiveData: &LiveData{
-				APIKeyOverride:        "",
-				APISecretOverride:     "",
-				APIClientIDOverride:   "",
-				API2FAOverride:        "",
-				APISubAccountOverride: "",
-				RealOrders:            false,
-			},
-			DatabaseData: &DatabaseData{
-				StartDate:        startDate,
-				EndDate:          endDate,
-				Config:           database.Config{},
-				InclusiveEndDate: false,
-			},
-		},
-		PortfolioSettings: PortfolioSettings{
-			BuySide:  minMax,
-			SellSide: minMax,
-			Leverage: Leverage{
-				CanUseLeverage: false,
-			},
-		},
-		StatisticSettings: StatisticSettings{
-			RiskFreeRate: decimal.NewFromFloat(0.03),
-		},
-	}
-	cfg.PrintSetting()
-}
-
-func TestGenerateConfigForDCAAPICandles(t *testing.T) {
-	cfg := Config{
-		Nickname: "ExampleStrategyDCAAPICandles",
-		Goal:     "To demonstrate DCA strategy using API candles",
-		StrategySettings: StrategySettings{
-			Name: dca,
-		},
-		CurrencySettings: []CurrencySettings{
-			{
-				ExchangeName: testExchange,
-				Asset:        asset.Spot.String(),
-				Base:         currency.BTC.String(),
-				Quote:        currency.USDT.String(),
-				SpotDetails: &SpotDetails{
-					InitialQuoteFunds: initialQuoteFunds2,
-				},
-				BuySide:  minMax,
-				SellSide: minMax,
-				MakerFee: &makerFee,
-				TakerFee: &takerFee,
-			},
-		},
-		DataSettings: DataSettings{
-			Interval: kline.OneDay.Duration(),
-			DataType: common.CandleStr,
-			APIData: &APIData{
-				StartDate:        startDate,
-				EndDate:          endDate,
-				InclusiveEndDate: false,
-			},
-		},
-		PortfolioSettings: PortfolioSettings{
-			BuySide:  minMax,
-			SellSide: minMax,
-			Leverage: Leverage{
-				CanUseLeverage: false,
-			},
-		},
-		StatisticSettings: StatisticSettings{
-			RiskFreeRate: decimal.NewFromFloat(0.03),
-		},
-	}
-	if saveConfig {
-		result, err := json.MarshalIndent(cfg, "", " ")
-		if err != nil {
-			t.Fatal(err)
-		}
-		p, err := os.Getwd()
-		if err != nil {
-			t.Fatal(err)
-		}
-		err = os.WriteFile(filepath.Join(p, "examples", "dca-api-candles.strat"), result, file.DefaultPermissionOctal)
-		if err != nil {
-			t.Error(err)
-		}
-	}
-}
-
-func TestGenerateConfigForDCAAPICandlesExchangeLevelFunding(t *testing.T) {
-	cfg := Config{
-		Nickname: "ExampleStrategyDCAAPICandlesExchangeLevelFunding",
-		Goal:     "To demonstrate DCA strategy using API candles using a shared pool of funds",
-		StrategySettings: StrategySettings{
-			Name:                         dca,
-			SimultaneousSignalProcessing: true,
-			DisableUSDTracking:           true,
-		},
-		FundingSettings: FundingSettings{
-			UseExchangeLevelFunding: true,
-			ExchangeLevelFunding: []ExchangeLevelFunding{
-				{
-					ExchangeName: testExchange,
-					Asset:        asset.Spot.String(),
-					Currency:     currency.USDT.String(),
-					InitialFunds: decimal.NewFromInt(100000),
-				},
-			},
-		},
-		CurrencySettings: []CurrencySettings{
-			{
-				ExchangeName: testExchange,
-				Asset:        asset.Spot.String(),
-				Base:         currency.BTC.String(),
-				Quote:        currency.USDT.String(),
-				BuySide:      minMax,
-				SellSide:     minMax,
-				MakerFee:     &makerFee,
-				TakerFee:     &takerFee,
-			},
-			{
-				ExchangeName: testExchange,
-				Asset:        asset.Spot.String(),
-				Base:         currency.ETH.String(),
-				Quote:        currency.USDT.String(),
-				BuySide:      minMax,
-				SellSide:     minMax,
-				MakerFee:     &makerFee,
-				TakerFee:     &takerFee,
-			},
-		},
-		DataSettings: DataSettings{
-			Interval: kline.OneDay.Duration(),
-			DataType: common.CandleStr,
-			APIData: &APIData{
-				StartDate:        startDate,
-				EndDate:          endDate,
-				InclusiveEndDate: false,
-			},
-		},
-		PortfolioSettings: PortfolioSettings{
-			BuySide:  minMax,
-			SellSide: minMax,
-			Leverage: Leverage{
-				CanUseLeverage: false,
-			},
-		},
-		StatisticSettings: StatisticSettings{
-			RiskFreeRate: decimal.NewFromFloat(0.03),
-		},
-	}
-	if saveConfig {
-		result, err := json.MarshalIndent(cfg, "", " ")
-		if err != nil {
-			t.Fatal(err)
-		}
-		p, err := os.Getwd()
-		if err != nil {
-			t.Fatal(err)
-		}
-		err = os.WriteFile(filepath.Join(p, "examples", "dca-api-candles-exchange-level-funding.strat"), result, file.DefaultPermissionOctal)
-		if err != nil {
-			t.Error(err)
-		}
-	}
-}
-
-func TestGenerateConfigForDCAAPITrades(t *testing.T) {
-	cfg := Config{
-		Nickname: "ExampleStrategyDCAAPITrades",
-		Goal:     "To demonstrate running the DCA strategy using API trade data",
-		StrategySettings: StrategySettings{
-			Name: dca,
-		},
-		CurrencySettings: []CurrencySettings{
-			{
-				ExchangeName: "ftx",
-				Asset:        asset.Spot.String(),
-				Base:         currency.BTC.String(),
-				Quote:        currency.USDT.String(),
-				SpotDetails: &SpotDetails{
-					InitialQuoteFunds: initialQuoteFunds2,
-				},
-				BuySide:                 minMax,
-				SellSide:                minMax,
-				MakerFee:                &makerFee,
-				TakerFee:                &takerFee,
-				SkipCandleVolumeFitting: true,
-			},
-		},
-		DataSettings: DataSettings{
-			Interval: kline.OneHour.Duration(),
-			DataType: common.TradeStr,
-			APIData: &APIData{
-				StartDate:        startDate,
-				EndDate:          tradeEndDate,
-				InclusiveEndDate: false,
-			},
-		},
-		PortfolioSettings: PortfolioSettings{
-			BuySide: MinMax{
-				MinimumSize:  decimal.NewFromFloat(0.1),
-				MaximumSize:  decimal.NewFromInt(1),
-				MaximumTotal: decimal.NewFromInt(10000),
-			},
-			SellSide: MinMax{
-				MinimumSize:  decimal.NewFromFloat(0.1),
-				MaximumSize:  decimal.NewFromInt(1),
-				MaximumTotal: decimal.NewFromInt(10000),
-			},
-			Leverage: Leverage{
-				CanUseLeverage: false,
-			},
-		},
-		StatisticSettings: StatisticSettings{
-			RiskFreeRate: decimal.NewFromFloat(0.03),
-		},
-	}
-	if saveConfig {
-		result, err := json.MarshalIndent(cfg, "", " ")
-		if err != nil {
-			t.Fatal(err)
-		}
-		p, err := os.Getwd()
-		if err != nil {
-			t.Fatal(err)
-		}
-		err = os.WriteFile(filepath.Join(p, "examples", "dca-api-trades.strat"), result, file.DefaultPermissionOctal)
-		if err != nil {
-			t.Error(err)
-		}
-	}
-}
-
-func TestGenerateConfigForDCAAPICandlesMultipleCurrencies(t *testing.T) {
-	cfg := Config{
-		Nickname: "ExampleStrategyDCAAPICandlesMultipleCurrencies",
-		Goal:     "To demonstrate running the DCA strategy using the API against multiple currencies candle data",
-		StrategySettings: StrategySettings{
-			Name: dca,
-		},
-		CurrencySettings: []CurrencySettings{
-			{
-				ExchangeName: testExchange,
-				Asset:        asset.Spot.String(),
-				Base:         currency.BTC.String(),
-				Quote:        currency.USDT.String(),
-				SpotDetails: &SpotDetails{
-					InitialQuoteFunds: initialQuoteFunds2,
-				},
-				BuySide:  minMax,
-				SellSide: minMax,
-				MakerFee: &makerFee,
-				TakerFee: &takerFee,
-			},
-			{
-				ExchangeName: testExchange,
-				Asset:        asset.Spot.String(),
-				Base:         currency.ETH.String(),
-				Quote:        currency.USDT.String(),
-				SpotDetails: &SpotDetails{
-					InitialQuoteFunds: initialQuoteFunds2,
-				},
-				BuySide:  minMax,
-				SellSide: minMax,
-				MakerFee: &makerFee,
-				TakerFee: &takerFee,
-			},
-		},
-		DataSettings: DataSettings{
-			Interval: kline.OneDay.Duration(),
-			DataType: common.CandleStr,
-			APIData: &APIData{
-				StartDate:        startDate,
-				EndDate:          endDate,
-				InclusiveEndDate: false,
-			},
-		},
-		PortfolioSettings: PortfolioSettings{
-			BuySide:  minMax,
-			SellSide: minMax,
-			Leverage: Leverage{
-				CanUseLeverage: false,
-			},
-		},
-		StatisticSettings: StatisticSettings{
-			RiskFreeRate: decimal.NewFromFloat(0.03),
-		},
-	}
-	if saveConfig {
-		result, err := json.MarshalIndent(cfg, "", " ")
-		if err != nil {
-			t.Fatal(err)
-		}
-		p, err := os.Getwd()
-		if err != nil {
-			t.Fatal(err)
-		}
-		err = os.WriteFile(filepath.Join(p, "examples", "dca-api-candles-multiple-currencies.strat"), result, file.DefaultPermissionOctal)
-		if err != nil {
-			t.Error(err)
-		}
-	}
-}
-
-func TestGenerateConfigForDCAAPICandlesSimultaneousProcessing(t *testing.T) {
-	cfg := Config{
-		Nickname: "ExampleStrategyDCAAPICandlesSimultaneousProcessing",
-		Goal:     "To demonstrate how simultaneous processing can work",
-		StrategySettings: StrategySettings{
-			Name:                         dca,
-			SimultaneousSignalProcessing: true,
-		},
-		CurrencySettings: []CurrencySettings{
-			{
-				ExchangeName: testExchange,
-				Asset:        asset.Spot.String(),
-				Base:         currency.BTC.String(),
-				Quote:        currency.USDT.String(),
-				SpotDetails: &SpotDetails{
-					InitialQuoteFunds: initialQuoteFunds1,
-				},
-				BuySide:  minMax,
-				SellSide: minMax,
-				MakerFee: &makerFee,
-				TakerFee: &takerFee,
-			},
-			{
-				ExchangeName: testExchange,
-				Asset:        asset.Spot.String(),
-				Base:         currency.ETH.String(),
-				Quote:        currency.USDT.String(),
-				SpotDetails: &SpotDetails{
-					InitialQuoteFunds: initialQuoteFunds2,
-				},
-				BuySide:  minMax,
-				SellSide: minMax,
-				MakerFee: &makerFee,
-				TakerFee: &takerFee,
-			},
-		},
-		DataSettings: DataSettings{
-			Interval: kline.OneDay.Duration(),
-			DataType: common.CandleStr,
-			APIData: &APIData{
-				StartDate:        startDate,
-				EndDate:          endDate,
-				InclusiveEndDate: false,
-			},
-		},
-		PortfolioSettings: PortfolioSettings{
-			BuySide:  minMax,
-			SellSide: minMax,
-			Leverage: Leverage{
-				CanUseLeverage: false,
-			},
-		},
-		StatisticSettings: StatisticSettings{
-			RiskFreeRate: decimal.NewFromFloat(0.03),
-		},
-	}
-	if saveConfig {
-		result, err := json.MarshalIndent(cfg, "", " ")
-		if err != nil {
-			t.Fatal(err)
-		}
-		p, err := os.Getwd()
-		if err != nil {
-			t.Fatal(err)
-		}
-		err = os.WriteFile(filepath.Join(p, "examples", "dca-api-candles-simultaneous-processing.strat"), result, file.DefaultPermissionOctal)
-		if err != nil {
-			t.Error(err)
-		}
-	}
-}
-
-func TestGenerateConfigForDCALiveCandles(t *testing.T) {
-	cfg := Config{
-		Nickname: "ExampleStrategyDCALiveCandles",
-		Goal:     "To demonstrate live trading proof of concept against candle data",
-		StrategySettings: StrategySettings{
-			Name:               dca,
-			DisableUSDTracking: true,
-		},
-		CurrencySettings: []CurrencySettings{
-			{
-				ExchangeName: testExchange,
-				Asset:        asset.Spot.String(),
-				Base:         currency.BTC.String(),
-				Quote:        currency.USDT.String(),
-				SpotDetails: &SpotDetails{
-					InitialQuoteFunds: initialQuoteFunds2,
-				},
-				BuySide:  minMax,
-				SellSide: minMax,
-				MakerFee: &makerFee,
-				TakerFee: &takerFee,
-			},
-		},
-		DataSettings: DataSettings{
-			Interval: kline.OneMin.Duration(),
-			DataType: common.CandleStr,
-			LiveData: &LiveData{
-				APIKeyOverride:        "",
-				APISecretOverride:     "",
-				APIClientIDOverride:   "",
-				API2FAOverride:        "",
-				APISubAccountOverride: "",
-				RealOrders:            false,
-			},
-		},
-		PortfolioSettings: PortfolioSettings{
-			BuySide:  minMax,
-			SellSide: minMax,
-			Leverage: Leverage{
-				CanUseLeverage: false,
-			},
-		},
-		StatisticSettings: StatisticSettings{
-			RiskFreeRate: decimal.NewFromFloat(0.03),
-		},
-	}
-	if saveConfig {
-		result, err := json.MarshalIndent(cfg, "", " ")
-		if err != nil {
-			t.Fatal(err)
-		}
-		p, err := os.Getwd()
-		if err != nil {
-			t.Fatal(err)
-		}
-		err = os.WriteFile(filepath.Join(p, "examples", "dca-candles-live.strat"), result, file.DefaultPermissionOctal)
-		if err != nil {
-			t.Error(err)
-		}
-	}
-}
-
-func TestGenerateConfigForRSIAPICustomSettings(t *testing.T) {
-	cfg := Config{
-		Nickname: "TestGenerateRSICandleAPICustomSettingsStrat",
-		Goal:     "To demonstrate the RSI strategy using API candle data and custom settings",
-		StrategySettings: StrategySettings{
-			Name: "rsi",
-			CustomSettings: map[string]interface{}{
-				"rsi-low":    30.0,
-				"rsi-high":   70.0,
-				"rsi-period": 14,
-			},
-		},
-		CurrencySettings: []CurrencySettings{
-			{
-				ExchangeName: testExchange,
-				Asset:        asset.Spot.String(),
-				Base:         currency.BTC.String(),
-				Quote:        currency.USDT.String(),
-				SpotDetails: &SpotDetails{
-					InitialQuoteFunds: initialQuoteFunds2,
-				},
-				BuySide:  minMax,
-				SellSide: minMax,
-				MakerFee: &makerFee,
-				TakerFee: &takerFee,
-			},
-			{
-				ExchangeName: testExchange,
-				Asset:        asset.Spot.String(),
-				Base:         currency.ETH.String(),
-				Quote:        currency.USDT.String(),
-				SpotDetails: &SpotDetails{
-					InitialBaseFunds:  initialBaseFunds,
-					InitialQuoteFunds: initialQuoteFunds1,
-				},
-				BuySide:  minMax,
-				SellSide: minMax,
-				MakerFee: &makerFee,
-				TakerFee: &takerFee,
-			},
-		},
-		DataSettings: DataSettings{
-			Interval: kline.OneDay.Duration(),
-			DataType: common.CandleStr,
-			APIData: &APIData{
-				StartDate:        startDate,
-				EndDate:          endDate,
-				InclusiveEndDate: false,
-			},
-		},
-		PortfolioSettings: PortfolioSettings{
-			BuySide:  minMax,
-			SellSide: minMax,
-			Leverage: Leverage{
-				CanUseLeverage: false,
-			},
-		},
-		StatisticSettings: StatisticSettings{
-			RiskFreeRate: decimal.NewFromFloat(0.03),
-		},
-	}
-	if saveConfig {
-		result, err := json.MarshalIndent(cfg, "", " ")
-		if err != nil {
-			t.Fatal(err)
-		}
-		p, err := os.Getwd()
-		if err != nil {
-			t.Fatal(err)
-		}
-		err = os.WriteFile(filepath.Join(p, "examples", "rsi-api-candles.strat"), result, file.DefaultPermissionOctal)
-		if err != nil {
-			t.Error(err)
-		}
-	}
-}
-
-func TestGenerateConfigForDCACSVCandles(t *testing.T) {
-	fp := filepath.Join("..", "testdata", "binance_BTCUSDT_24h_2019_01_01_2020_01_01.csv")
-	cfg := Config{
-		Nickname: "ExampleStrategyDCACSVCandles",
-		Goal:     "To demonstrate the DCA strategy using CSV candle data",
-		StrategySettings: StrategySettings{
-			Name:               dca,
-			DisableUSDTracking: true,
-		},
-		CurrencySettings: []CurrencySettings{
-			{
-				ExchangeName: testExchange,
-				Asset:        asset.Spot.String(),
-				Base:         currency.BTC.String(),
-				Quote:        currency.USDT.String(),
-				SpotDetails: &SpotDetails{
-					InitialQuoteFunds: initialQuoteFunds2,
-				},
-				BuySide:  minMax,
-				SellSide: minMax,
-				MakerFee: &makerFee,
-				TakerFee: &takerFee,
-			},
-		},
-		DataSettings: DataSettings{
-			Interval: kline.OneDay.Duration(),
-			DataType: common.CandleStr,
-			CSVData: &CSVData{
-				FullPath: fp,
-			},
-		},
-		PortfolioSettings: PortfolioSettings{
-			BuySide:  minMax,
-			SellSide: minMax,
-			Leverage: Leverage{
-				CanUseLeverage: false,
-			},
-		},
-		StatisticSettings: StatisticSettings{
-			RiskFreeRate: decimal.NewFromFloat(0.03),
-		},
-	}
-	if saveConfig {
-		result, err := json.MarshalIndent(cfg, "", " ")
-		if err != nil {
-			t.Fatal(err)
-		}
-		p, err := os.Getwd()
-		if err != nil {
-			t.Fatal(err)
-		}
-		err = os.WriteFile(filepath.Join(p, "examples", "dca-csv-candles.strat"), result, file.DefaultPermissionOctal)
-		if err != nil {
-			t.Error(err)
-		}
-	}
-}
-
-func TestGenerateConfigForDCACSVTrades(t *testing.T) {
-	fp := filepath.Join("..", "testdata", "binance_BTCUSDT_24h-trades_2020_11_16.csv")
-	cfg := Config{
-		Nickname: "ExampleStrategyDCACSVTrades",
-		Goal:     "To demonstrate the DCA strategy using CSV trade data",
-		StrategySettings: StrategySettings{
-			Name:               dca,
-			DisableUSDTracking: true,
-		},
-		CurrencySettings: []CurrencySettings{
-			{
-				ExchangeName: testExchange,
-				Asset:        asset.Spot.String(),
-				Base:         currency.BTC.String(),
-				Quote:        currency.USDT.String(),
-				SpotDetails: &SpotDetails{
-					InitialQuoteFunds: initialQuoteFunds2,
-				},
-				MakerFee: &makerFee,
-				TakerFee: &takerFee,
-			},
-		},
-		DataSettings: DataSettings{
-			Interval: kline.OneMin.Duration(),
-			DataType: common.TradeStr,
-			CSVData: &CSVData{
-				FullPath: fp,
-			},
-		},
-		PortfolioSettings: PortfolioSettings{
-			Leverage: Leverage{
-				CanUseLeverage: false,
-			},
-		},
-		StatisticSettings: StatisticSettings{
-			RiskFreeRate: decimal.NewFromFloat(0.03),
-		},
-	}
-	if saveConfig {
-		result, err := json.MarshalIndent(cfg, "", " ")
-		if err != nil {
-			t.Fatal(err)
-		}
-		p, err := os.Getwd()
-		if err != nil {
-			t.Fatal(err)
-		}
-		err = os.WriteFile(filepath.Join(p, "examples", "dca-csv-trades.strat"), result, file.DefaultPermissionOctal)
-		if err != nil {
-			t.Error(err)
-		}
-	}
-}
-
-func TestGenerateConfigForDCADatabaseCandles(t *testing.T) {
-	cfg := Config{
-		Nickname: "ExampleStrategyDCADatabaseCandles",
-		Goal:     "To demonstrate the DCA strategy using database candle data",
-		StrategySettings: StrategySettings{
-			Name: dca,
-		},
-		CurrencySettings: []CurrencySettings{
-			{
-				ExchangeName: testExchange,
-				Asset:        asset.Spot.String(),
-				Base:         currency.BTC.String(),
-				Quote:        currency.USDT.String(),
-				SpotDetails: &SpotDetails{
-					InitialQuoteFunds: initialQuoteFunds2,
-				},
-				BuySide:  minMax,
-				SellSide: minMax,
-				MakerFee: &makerFee,
-				TakerFee: &takerFee,
-			},
-		},
-		DataSettings: DataSettings{
-			Interval: kline.OneDay.Duration(),
-			DataType: common.CandleStr,
-			DatabaseData: &DatabaseData{
-				StartDate: startDate,
-				EndDate:   endDate,
-				Config: database.Config{
-					Enabled: true,
-					Verbose: false,
-					Driver:  "sqlite",
-					ConnectionDetails: drivers.ConnectionDetails{
-						Host:     "localhost",
-						Database: "testsqlite.db",
-					},
-				},
-				InclusiveEndDate: false,
-			},
-		},
-		PortfolioSettings: PortfolioSettings{
-			BuySide:  minMax,
-			SellSide: minMax,
-			Leverage: Leverage{
-				CanUseLeverage: false,
-			},
-		},
-		StatisticSettings: StatisticSettings{
-			RiskFreeRate: decimal.NewFromFloat(0.03),
-		},
-	}
-	if saveConfig {
-		result, err := json.MarshalIndent(cfg, "", " ")
-		if err != nil {
-			t.Fatal(err)
-		}
-		p, err := os.Getwd()
-		if err != nil {
-			t.Fatal(err)
-		}
-		err = os.WriteFile(filepath.Join(p, "examples", "dca-database-candles.strat"), result, file.DefaultPermissionOctal)
-		if err != nil {
-			t.Error(err)
-		}
-	}
-}
-
-func TestGenerateConfigForTop2Bottom2(t *testing.T) {
-	cfg := Config{
-		Nickname: "ExampleStrategyTop2Bottom2",
-		Goal:     "To demonstrate a complex strategy using exchange level funding and simultaneous processing of data signals",
-		StrategySettings: StrategySettings{
-			Name:                         top2bottom2.Name,
-			SimultaneousSignalProcessing: true,
-
-			CustomSettings: map[string]interface{}{
-				"mfi-low":    32,
-				"mfi-high":   68,
-				"mfi-period": 14,
-			},
-		},
-		FundingSettings: FundingSettings{
-			UseExchangeLevelFunding: true,
-			ExchangeLevelFunding: []ExchangeLevelFunding{
-				{
-					ExchangeName: testExchange,
-					Asset:        asset.Spot.String(),
-					Currency:     currency.BTC.String(),
-					InitialFunds: decimal.NewFromFloat(3),
-				},
-				{
-					ExchangeName: testExchange,
-					Asset:        asset.Spot.String(),
-					Currency:     currency.USDT.String(),
-					InitialFunds: decimal.NewFromInt(10000),
-				},
-			},
-		},
-		CurrencySettings: []CurrencySettings{
-			{
-				ExchangeName: testExchange,
-				Asset:        asset.Spot.String(),
-				Base:         currency.BTC.String(),
-				Quote:        currency.USDT.String(),
-				BuySide:      minMax,
-				SellSide:     minMax,
-				MakerFee:     &makerFee,
-				TakerFee:     &takerFee,
-			},
-			{
-				ExchangeName: testExchange,
-				Asset:        asset.Spot.String(),
-				Base:         currency.DOGE.String(),
-				Quote:        currency.USDT.String(),
-				BuySide:      minMax,
-				SellSide:     minMax,
-				MakerFee:     &makerFee,
-				TakerFee:     &takerFee,
-			},
-			{
-				ExchangeName: testExchange,
-				Asset:        asset.Spot.String(),
-				Base:         currency.ETH.String(),
-				Quote:        currency.BTC.String(),
-				BuySide:      minMax,
-				SellSide:     minMax,
-				MakerFee:     &makerFee,
-				TakerFee:     &takerFee,
-			},
-			{
-				ExchangeName: testExchange,
-				Asset:        asset.Spot.String(),
-				Base:         currency.LTC.String(),
-				Quote:        currency.BTC.String(),
-				BuySide:      minMax,
-				SellSide:     minMax,
-				MakerFee:     &makerFee,
-				TakerFee:     &takerFee,
-			},
-			{
-				ExchangeName: testExchange,
-				Asset:        asset.Spot.String(),
-				Base:         currency.XRP.String(),
-				Quote:        currency.USDT.String(),
-				BuySide:      minMax,
-				SellSide:     minMax,
-				MakerFee:     &makerFee,
-				TakerFee:     &takerFee,
-			},
-			{
-				ExchangeName: testExchange,
-				Asset:        asset.Spot.String(),
-				Base:         currency.BNB.String(),
-				Quote:        currency.BTC.String(),
-				BuySide:      minMax,
-				SellSide:     minMax,
-				MakerFee:     &makerFee,
-				TakerFee:     &takerFee,
-			},
-		},
-		DataSettings: DataSettings{
-			Interval: kline.OneDay.Duration(),
-			DataType: common.CandleStr,
-			APIData: &APIData{
-				StartDate: startDate,
-				EndDate:   endDate,
-			},
-		},
-		PortfolioSettings: PortfolioSettings{
-			BuySide:  minMax,
-			SellSide: minMax,
-			Leverage: Leverage{},
-		},
-		StatisticSettings: StatisticSettings{
-			RiskFreeRate: decimal.NewFromFloat(0.03),
-		},
-	}
-	if saveConfig {
-		result, err := json.MarshalIndent(cfg, "", " ")
-		if err != nil {
-			t.Fatal(err)
-		}
-		p, err := os.Getwd()
-		if err != nil {
-			t.Fatal(err)
-		}
-		err = os.WriteFile(filepath.Join(p, "examples", "t2b2-api-candles-exchange-funding.strat"), result, file.DefaultPermissionOctal)
-		if err != nil {
-			t.Error(err)
-		}
-	}
-}
-
 func TestValidateDate(t *testing.T) {
+	t.Parallel()
 	c := Config{}
 	err := c.validateDate()
 	if err != nil {
@@ -991,6 +106,7 @@ func TestValidateDate(t *testing.T) {
 }
 
 func TestValidateCurrencySettings(t *testing.T) {
+	t.Parallel()
 	c := Config{}
 	err := c.validateCurrencySettings()
 	if !errors.Is(err, errNoCurrencySettings) {
@@ -1007,12 +123,12 @@ func TestValidateCurrencySettings(t *testing.T) {
 	if !errors.Is(err, errUnsetCurrency) {
 		t.Errorf("received: %v, expected: %v", err, errUnsetCurrency)
 	}
-	c.CurrencySettings[0].Base = "lol"
+	c.CurrencySettings[0].Base = currency.NewCode("lol")
 	err = c.validateCurrencySettings()
-	if !errors.Is(err, errUnsetAsset) {
-		t.Errorf("received: %v, expected: %v", err, errUnsetAsset)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Errorf("received: %v, expected: %v", err, asset.ErrNotSupported)
 	}
-	c.CurrencySettings[0].Asset = "lol"
+	c.CurrencySettings[0].Asset = asset.Spot
 	err = c.validateCurrencySettings()
 	if !errors.Is(err, errUnsetExchange) {
 		t.Errorf("received: %v, expected: %v", err, errUnsetExchange)
@@ -1022,6 +138,21 @@ func TestValidateCurrencySettings(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+
+	c.CurrencySettings[0].Asset = asset.PerpetualSwap
+	err = c.validateCurrencySettings()
+	if !errors.Is(err, errPerpetualsUnsupported) {
+		t.Errorf("received: %v, expected: %v", err, errPerpetualsUnsupported)
+	}
+
+	c.CurrencySettings[0].Asset = asset.Futures
+	c.CurrencySettings[0].Quote = currency.NewCode("PERP")
+	err = c.validateCurrencySettings()
+	if !errors.Is(err, errPerpetualsUnsupported) {
+		t.Errorf("received: %v, expected: %v", err, errPerpetualsUnsupported)
+	}
+
+	c.CurrencySettings[0].Asset = asset.Spot
 	c.CurrencySettings[0].MinimumSlippagePercent = decimal.NewFromInt(-1)
 	err = c.validateCurrencySettings()
 	if !errors.Is(err, errBadSlippageRates) {
@@ -1039,6 +170,36 @@ func TestValidateCurrencySettings(t *testing.T) {
 	if !errors.Is(err, errBadSlippageRates) {
 		t.Errorf("received: %v, expected: %v", err, errBadSlippageRates)
 	}
+
+	c.CurrencySettings[0].SpotDetails = &SpotDetails{}
+	err = c.validateCurrencySettings()
+	if !errors.Is(err, errBadInitialFunds) {
+		t.Errorf("received: %v, expected: %v", err, errBadInitialFunds)
+	}
+
+	z := decimal.Zero
+	c.CurrencySettings[0].SpotDetails.InitialQuoteFunds = &z
+	c.CurrencySettings[0].SpotDetails.InitialBaseFunds = &z
+	err = c.validateCurrencySettings()
+	if !errors.Is(err, errBadInitialFunds) {
+		t.Errorf("received: %v, expected: %v", err, errBadInitialFunds)
+	}
+
+	c.CurrencySettings[0].SpotDetails.InitialQuoteFunds = &leet
+	c.FundingSettings.UseExchangeLevelFunding = true
+	err = c.validateCurrencySettings()
+	if !errors.Is(err, errBadInitialFunds) {
+		t.Errorf("received: %v, expected: %v", err, errBadInitialFunds)
+	}
+
+	c.CurrencySettings[0].SpotDetails.InitialQuoteFunds = &z
+	c.CurrencySettings[0].SpotDetails.InitialBaseFunds = &leet
+	c.FundingSettings.UseExchangeLevelFunding = true
+	err = c.validateCurrencySettings()
+	if !errors.Is(err, errBadInitialFunds) {
+		t.Errorf("received: %v, expected: %v", err, errBadInitialFunds)
+	}
+
 }
 
 func TestValidateMinMaxes(t *testing.T) {
@@ -1172,11 +333,93 @@ func TestValidateStrategySettings(t *testing.T) {
 	if !errors.Is(err, errBadInitialFunds) {
 		t.Errorf("received %v expected %v", err, errBadInitialFunds)
 	}
+
+	c.StrategySettings.SimultaneousSignalProcessing = false
+	err = c.validateStrategySettings()
+	if !errors.Is(err, errSimultaneousProcessingRequired) {
+		t.Errorf("received %v expected %v", err, errSimultaneousProcessingRequired)
+	}
+
 	c.FundingSettings.UseExchangeLevelFunding = false
 	err = c.validateStrategySettings()
 	if !errors.Is(err, errExchangeLevelFundingRequired) {
 		t.Errorf("received %v expected %v", err, errExchangeLevelFundingRequired)
 	}
+}
+
+func TestPrintSettings(t *testing.T) {
+	t.Parallel()
+	cfg := Config{
+		Nickname: "super fun run",
+		Goal:     "To demonstrate rendering of settings",
+		StrategySettings: StrategySettings{
+			Name: dca,
+			CustomSettings: map[string]interface{}{
+				"dca-dummy1": 30.0,
+				"dca-dummy2": 30.0,
+				"dca-dummy3": 30.0,
+			},
+		},
+		CurrencySettings: []CurrencySettings{
+			{
+				ExchangeName: testExchange,
+				Asset:        asset.Spot,
+				Base:         currency.BTC,
+				Quote:        currency.USDT,
+				SpotDetails: &SpotDetails{
+					InitialQuoteFunds: initialQuoteFunds1,
+					InitialBaseFunds:  initialQuoteFunds1,
+				},
+				BuySide:        minMax,
+				SellSide:       minMax,
+				MakerFee:       &makerFee,
+				TakerFee:       &takerFee,
+				FuturesDetails: &FuturesDetails{},
+			},
+		},
+		DataSettings: DataSettings{
+			Interval: kline.OneMin,
+			DataType: common.CandleStr,
+			APIData: &APIData{
+				StartDate:        startDate,
+				EndDate:          endDate,
+				InclusiveEndDate: true,
+			},
+			CSVData: &CSVData{
+				FullPath: "fake",
+			},
+			LiveData: &LiveData{
+				APIKeyOverride:        "",
+				APISecretOverride:     "",
+				APIClientIDOverride:   "",
+				API2FAOverride:        "",
+				APISubAccountOverride: "",
+				RealOrders:            false,
+			},
+			DatabaseData: &DatabaseData{
+				StartDate:        startDate,
+				EndDate:          endDate,
+				Config:           database.Config{},
+				InclusiveEndDate: false,
+			},
+		},
+		PortfolioSettings: PortfolioSettings{
+			BuySide:  minMax,
+			SellSide: minMax,
+			Leverage: Leverage{
+				CanUseLeverage: false,
+			},
+		},
+		StatisticSettings: StatisticSettings{
+			RiskFreeRate: decimal.NewFromFloat(0.03),
+		},
+	}
+	cfg.PrintSetting()
+	cfg.FundingSettings = FundingSettings{
+		UseExchangeLevelFunding: true,
+		ExchangeLevelFunding:    []ExchangeLevelFunding{{}},
+	}
+	cfg.PrintSetting()
 }
 
 func TestValidate(t *testing.T) {
@@ -1186,9 +429,9 @@ func TestValidate(t *testing.T) {
 		CurrencySettings: []CurrencySettings{
 			{
 				ExchangeName: testExchange,
-				Asset:        asset.Spot.String(),
-				Base:         currency.BTC.String(),
-				Quote:        currency.USDT.String(),
+				Asset:        asset.Spot,
+				Base:         currency.BTC,
+				Quote:        currency.USDT,
 				SpotDetails: &SpotDetails{
 					InitialBaseFunds:  initialBaseFunds,
 					InitialQuoteFunds: initialQuoteFunds2,
@@ -1206,7 +449,863 @@ func TestValidate(t *testing.T) {
 	}
 }
 
+func TestReadConfigFromFile(t *testing.T) {
+	tempDir, err := ioutil.TempDir("", "")
+	if err != nil {
+		t.Fatalf("Problem creating temp dir at %s: %s\n", tempDir, err)
+	}
+	defer func() {
+		err = os.RemoveAll(tempDir)
+		if err != nil {
+			t.Error(err)
+		}
+	}()
+	var passFile *os.File
+	passFile, err = ioutil.TempFile(tempDir, "*.start")
+	if err != nil {
+		t.Fatalf("Problem creating temp file at %v: %s\n", passFile, err)
+	}
+	_, err = passFile.WriteString("{}")
+	if err != nil {
+		t.Error(err)
+	}
+	err = passFile.Close()
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = ReadConfigFromFile(passFile.Name())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGenerateConfigForDCAAPICandles(t *testing.T) {
+	if !saveConfig {
+		t.Skip()
+	}
+	cfg := Config{
+		Nickname: "ExampleStrategyDCAAPICandles",
+		Goal:     "To demonstrate DCA strategy using API candles",
+		StrategySettings: StrategySettings{
+			Name: dca,
+		},
+		CurrencySettings: []CurrencySettings{
+			{
+				ExchangeName: testExchange,
+				Asset:        asset.Spot,
+				Base:         currency.BTC,
+				Quote:        currency.USDT,
+				SpotDetails: &SpotDetails{
+					InitialQuoteFunds: initialQuoteFunds2,
+				},
+				BuySide:  minMax,
+				SellSide: minMax,
+				MakerFee: &makerFee,
+				TakerFee: &takerFee,
+			},
+		},
+		DataSettings: DataSettings{
+			Interval: kline.OneDay,
+			DataType: common.CandleStr,
+			APIData: &APIData{
+				StartDate:        startDate,
+				EndDate:          endDate,
+				InclusiveEndDate: false,
+			},
+		},
+		PortfolioSettings: PortfolioSettings{
+			BuySide:  minMax,
+			SellSide: minMax,
+			Leverage: Leverage{
+				CanUseLeverage: false,
+			},
+		},
+		StatisticSettings: StatisticSettings{
+			RiskFreeRate: decimal.NewFromFloat(0.03),
+		},
+	}
+	if saveConfig {
+		result, err := json.MarshalIndent(cfg, "", " ")
+		if err != nil {
+			t.Fatal(err)
+		}
+		p, err := os.Getwd()
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = os.WriteFile(filepath.Join(p, "examples", "dca-api-candles.strat"), result, file.DefaultPermissionOctal)
+		if err != nil {
+			t.Error(err)
+		}
+	}
+}
+
+func TestGenerateConfigForDCAAPICandlesExchangeLevelFunding(t *testing.T) {
+	if !saveConfig {
+		t.Skip()
+	}
+	cfg := Config{
+		Nickname: "ExampleStrategyDCAAPICandlesExchangeLevelFunding",
+		Goal:     "To demonstrate DCA strategy using API candles using a shared pool of funds",
+		StrategySettings: StrategySettings{
+			Name:                         dca,
+			SimultaneousSignalProcessing: true,
+			DisableUSDTracking:           true,
+		},
+		FundingSettings: FundingSettings{
+			UseExchangeLevelFunding: true,
+			ExchangeLevelFunding: []ExchangeLevelFunding{
+				{
+					ExchangeName: testExchange,
+					Asset:        asset.Spot,
+					Currency:     currency.USDT,
+					InitialFunds: decimal.NewFromInt(100000),
+				},
+			},
+		},
+		CurrencySettings: []CurrencySettings{
+			{
+				ExchangeName: testExchange,
+				Asset:        asset.Spot,
+				Base:         currency.BTC,
+				Quote:        currency.USDT,
+				BuySide:      minMax,
+				SellSide:     minMax,
+				MakerFee:     &makerFee,
+				TakerFee:     &takerFee,
+			},
+			{
+				ExchangeName: testExchange,
+				Asset:        asset.Spot,
+				Base:         currency.ETH,
+				Quote:        currency.USDT,
+				BuySide:      minMax,
+				SellSide:     minMax,
+				MakerFee:     &makerFee,
+				TakerFee:     &takerFee,
+			},
+		},
+		DataSettings: DataSettings{
+			Interval: kline.OneDay,
+			DataType: common.CandleStr,
+			APIData: &APIData{
+				StartDate:        startDate,
+				EndDate:          endDate,
+				InclusiveEndDate: false,
+			},
+		},
+		PortfolioSettings: PortfolioSettings{
+			BuySide:  minMax,
+			SellSide: minMax,
+			Leverage: Leverage{
+				CanUseLeverage: false,
+			},
+		},
+		StatisticSettings: StatisticSettings{
+			RiskFreeRate: decimal.NewFromFloat(0.03),
+		},
+	}
+	if saveConfig {
+		result, err := json.MarshalIndent(cfg, "", " ")
+		if err != nil {
+			t.Fatal(err)
+		}
+		p, err := os.Getwd()
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = os.WriteFile(filepath.Join(p, "examples", "dca-api-candles-exchange-level-funding.strat"), result, file.DefaultPermissionOctal)
+		if err != nil {
+			t.Error(err)
+		}
+	}
+}
+
+func TestGenerateConfigForDCAAPITrades(t *testing.T) {
+	if !saveConfig {
+		t.Skip()
+	}
+	cfg := Config{
+		Nickname: "ExampleStrategyDCAAPITrades",
+		Goal:     "To demonstrate running the DCA strategy using API trade data",
+		StrategySettings: StrategySettings{
+			Name: dca,
+		},
+		CurrencySettings: []CurrencySettings{
+			{
+				ExchangeName: "ftx",
+				Asset:        asset.Spot,
+				Base:         currency.BTC,
+				Quote:        currency.USDT,
+				SpotDetails: &SpotDetails{
+					InitialQuoteFunds: initialQuoteFunds2,
+				},
+				BuySide:                 minMax,
+				SellSide:                minMax,
+				MakerFee:                &makerFee,
+				TakerFee:                &takerFee,
+				SkipCandleVolumeFitting: true,
+			},
+		},
+		DataSettings: DataSettings{
+			Interval: kline.OneHour,
+			DataType: common.TradeStr,
+			APIData: &APIData{
+				StartDate:        startDate,
+				EndDate:          tradeEndDate,
+				InclusiveEndDate: false,
+			},
+		},
+		PortfolioSettings: PortfolioSettings{
+			BuySide: MinMax{
+				MinimumSize:  decimal.NewFromFloat(0.1),
+				MaximumSize:  decimal.NewFromInt(1),
+				MaximumTotal: decimal.NewFromInt(10000),
+			},
+			SellSide: MinMax{
+				MinimumSize:  decimal.NewFromFloat(0.1),
+				MaximumSize:  decimal.NewFromInt(1),
+				MaximumTotal: decimal.NewFromInt(10000),
+			},
+			Leverage: Leverage{
+				CanUseLeverage: false,
+			},
+		},
+		StatisticSettings: StatisticSettings{
+			RiskFreeRate: decimal.NewFromFloat(0.03),
+		},
+	}
+	if saveConfig {
+		result, err := json.MarshalIndent(cfg, "", " ")
+		if err != nil {
+			t.Fatal(err)
+		}
+		p, err := os.Getwd()
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = os.WriteFile(filepath.Join(p, "examples", "dca-api-trades.strat"), result, file.DefaultPermissionOctal)
+		if err != nil {
+			t.Error(err)
+		}
+	}
+}
+
+func TestGenerateConfigForDCAAPICandlesMultipleCurrencies(t *testing.T) {
+	if !saveConfig {
+		t.Skip()
+	}
+	cfg := Config{
+		Nickname: "ExampleStrategyDCAAPICandlesMultipleCurrencies",
+		Goal:     "To demonstrate running the DCA strategy using the API against multiple currencies candle data",
+		StrategySettings: StrategySettings{
+			Name: dca,
+		},
+		CurrencySettings: []CurrencySettings{
+			{
+				ExchangeName: testExchange,
+				Asset:        asset.Spot,
+				Base:         currency.BTC,
+				Quote:        currency.USDT,
+				SpotDetails: &SpotDetails{
+					InitialQuoteFunds: initialQuoteFunds2,
+				},
+				BuySide:  minMax,
+				SellSide: minMax,
+				MakerFee: &makerFee,
+				TakerFee: &takerFee,
+			},
+			{
+				ExchangeName: testExchange,
+				Asset:        asset.Spot,
+				Base:         currency.ETH,
+				Quote:        currency.USDT,
+				SpotDetails: &SpotDetails{
+					InitialQuoteFunds: initialQuoteFunds2,
+				},
+				BuySide:  minMax,
+				SellSide: minMax,
+				MakerFee: &makerFee,
+				TakerFee: &takerFee,
+			},
+		},
+		DataSettings: DataSettings{
+			Interval: kline.OneDay,
+			DataType: common.CandleStr,
+			APIData: &APIData{
+				StartDate:        startDate,
+				EndDate:          endDate,
+				InclusiveEndDate: false,
+			},
+		},
+		PortfolioSettings: PortfolioSettings{
+			BuySide:  minMax,
+			SellSide: minMax,
+			Leverage: Leverage{
+				CanUseLeverage: false,
+			},
+		},
+		StatisticSettings: StatisticSettings{
+			RiskFreeRate: decimal.NewFromFloat(0.03),
+		},
+	}
+	if saveConfig {
+		result, err := json.MarshalIndent(cfg, "", " ")
+		if err != nil {
+			t.Fatal(err)
+		}
+		p, err := os.Getwd()
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = os.WriteFile(filepath.Join(p, "examples", "dca-api-candles-multiple-currencies.strat"), result, file.DefaultPermissionOctal)
+		if err != nil {
+			t.Error(err)
+		}
+	}
+}
+
+func TestGenerateConfigForDCAAPICandlesSimultaneousProcessing(t *testing.T) {
+	if !saveConfig {
+		t.Skip()
+	}
+	cfg := Config{
+		Nickname: "ExampleStrategyDCAAPICandlesSimultaneousProcessing",
+		Goal:     "To demonstrate how simultaneous processing can work",
+		StrategySettings: StrategySettings{
+			Name:                         dca,
+			SimultaneousSignalProcessing: true,
+		},
+		CurrencySettings: []CurrencySettings{
+			{
+				ExchangeName: testExchange,
+				Asset:        asset.Spot,
+				Base:         currency.BTC,
+				Quote:        currency.USDT,
+				SpotDetails: &SpotDetails{
+					InitialQuoteFunds: initialQuoteFunds1,
+				},
+				BuySide:  minMax,
+				SellSide: minMax,
+				MakerFee: &makerFee,
+				TakerFee: &takerFee,
+			},
+			{
+				ExchangeName: testExchange,
+				Asset:        asset.Spot,
+				Base:         currency.ETH,
+				Quote:        currency.USDT,
+				SpotDetails: &SpotDetails{
+					InitialQuoteFunds: initialQuoteFunds2,
+				},
+				BuySide:  minMax,
+				SellSide: minMax,
+				MakerFee: &makerFee,
+				TakerFee: &takerFee,
+			},
+		},
+		DataSettings: DataSettings{
+			Interval: kline.OneDay,
+			DataType: common.CandleStr,
+			APIData: &APIData{
+				StartDate:        startDate,
+				EndDate:          endDate,
+				InclusiveEndDate: false,
+			},
+		},
+		PortfolioSettings: PortfolioSettings{
+			BuySide:  minMax,
+			SellSide: minMax,
+			Leverage: Leverage{
+				CanUseLeverage: false,
+			},
+		},
+		StatisticSettings: StatisticSettings{
+			RiskFreeRate: decimal.NewFromFloat(0.03),
+		},
+	}
+	if saveConfig {
+		result, err := json.MarshalIndent(cfg, "", " ")
+		if err != nil {
+			t.Fatal(err)
+		}
+		p, err := os.Getwd()
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = os.WriteFile(filepath.Join(p, "examples", "dca-api-candles-simultaneous-processing.strat"), result, file.DefaultPermissionOctal)
+		if err != nil {
+			t.Error(err)
+		}
+	}
+}
+
+func TestGenerateConfigForDCALiveCandles(t *testing.T) {
+	if !saveConfig {
+		t.Skip()
+	}
+	cfg := Config{
+		Nickname: "ExampleStrategyDCALiveCandles",
+		Goal:     "To demonstrate live trading proof of concept against candle data",
+		StrategySettings: StrategySettings{
+			Name:               dca,
+			DisableUSDTracking: true,
+		},
+		CurrencySettings: []CurrencySettings{
+			{
+				ExchangeName: testExchange,
+				Asset:        asset.Spot,
+				Base:         currency.BTC,
+				Quote:        currency.USDT,
+				SpotDetails: &SpotDetails{
+					InitialQuoteFunds: initialQuoteFunds2,
+				},
+				BuySide:  minMax,
+				SellSide: minMax,
+				MakerFee: &makerFee,
+				TakerFee: &takerFee,
+			},
+		},
+		DataSettings: DataSettings{
+			Interval: kline.OneMin,
+			DataType: common.CandleStr,
+			LiveData: &LiveData{
+				APIKeyOverride:        "",
+				APISecretOverride:     "",
+				APIClientIDOverride:   "",
+				API2FAOverride:        "",
+				APISubAccountOverride: "",
+				RealOrders:            false,
+			},
+		},
+		PortfolioSettings: PortfolioSettings{
+			BuySide:  minMax,
+			SellSide: minMax,
+			Leverage: Leverage{
+				CanUseLeverage: false,
+			},
+		},
+		StatisticSettings: StatisticSettings{
+			RiskFreeRate: decimal.NewFromFloat(0.03),
+		},
+	}
+	if saveConfig {
+		result, err := json.MarshalIndent(cfg, "", " ")
+		if err != nil {
+			t.Fatal(err)
+		}
+		p, err := os.Getwd()
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = os.WriteFile(filepath.Join(p, "examples", "dca-candles-live.strat"), result, file.DefaultPermissionOctal)
+		if err != nil {
+			t.Error(err)
+		}
+	}
+}
+
+func TestGenerateConfigForRSIAPICustomSettings(t *testing.T) {
+	if !saveConfig {
+		t.Skip()
+	}
+	cfg := Config{
+		Nickname: "TestGenerateRSICandleAPICustomSettingsStrat",
+		Goal:     "To demonstrate the RSI strategy using API candle data and custom settings",
+		StrategySettings: StrategySettings{
+			Name: "rsi",
+			CustomSettings: map[string]interface{}{
+				"rsi-low":    30.0,
+				"rsi-high":   70.0,
+				"rsi-period": 14,
+			},
+		},
+		CurrencySettings: []CurrencySettings{
+			{
+				ExchangeName: testExchange,
+				Asset:        asset.Spot,
+				Base:         currency.BTC,
+				Quote:        currency.USDT,
+				SpotDetails: &SpotDetails{
+					InitialQuoteFunds: initialQuoteFunds2,
+				},
+				BuySide:  minMax,
+				SellSide: minMax,
+				MakerFee: &makerFee,
+				TakerFee: &takerFee,
+			},
+			{
+				ExchangeName: testExchange,
+				Asset:        asset.Spot,
+				Base:         currency.ETH,
+				Quote:        currency.USDT,
+				SpotDetails: &SpotDetails{
+					InitialBaseFunds:  initialBaseFunds,
+					InitialQuoteFunds: initialQuoteFunds1,
+				},
+				BuySide:  minMax,
+				SellSide: minMax,
+				MakerFee: &makerFee,
+				TakerFee: &takerFee,
+			},
+		},
+		DataSettings: DataSettings{
+			Interval: kline.OneDay,
+			DataType: common.CandleStr,
+			APIData: &APIData{
+				StartDate:        startDate,
+				EndDate:          endDate,
+				InclusiveEndDate: false,
+			},
+		},
+		PortfolioSettings: PortfolioSettings{
+			BuySide:  minMax,
+			SellSide: minMax,
+			Leverage: Leverage{
+				CanUseLeverage: false,
+			},
+		},
+		StatisticSettings: StatisticSettings{
+			RiskFreeRate: decimal.NewFromFloat(0.03),
+		},
+	}
+	if saveConfig {
+		result, err := json.MarshalIndent(cfg, "", " ")
+		if err != nil {
+			t.Fatal(err)
+		}
+		p, err := os.Getwd()
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = os.WriteFile(filepath.Join(p, "examples", "rsi-api-candles.strat"), result, file.DefaultPermissionOctal)
+		if err != nil {
+			t.Error(err)
+		}
+	}
+}
+
+func TestGenerateConfigForDCACSVCandles(t *testing.T) {
+	if !saveConfig {
+		t.Skip()
+	}
+	fp := filepath.Join("..", "testdata", "binance_BTCUSDT_24h_2019_01_01_2020_01_01.csv")
+	cfg := Config{
+		Nickname: "ExampleStrategyDCACSVCandles",
+		Goal:     "To demonstrate the DCA strategy using CSV candle data",
+		StrategySettings: StrategySettings{
+			Name:               dca,
+			DisableUSDTracking: true,
+		},
+		CurrencySettings: []CurrencySettings{
+			{
+				ExchangeName: testExchange,
+				Asset:        asset.Spot,
+				Base:         currency.BTC,
+				Quote:        currency.USDT,
+				SpotDetails: &SpotDetails{
+					InitialQuoteFunds: initialQuoteFunds2,
+				},
+				BuySide:  minMax,
+				SellSide: minMax,
+				MakerFee: &makerFee,
+				TakerFee: &takerFee,
+			},
+		},
+		DataSettings: DataSettings{
+			Interval: kline.OneDay,
+			DataType: common.CandleStr,
+			CSVData: &CSVData{
+				FullPath: fp,
+			},
+		},
+		PortfolioSettings: PortfolioSettings{
+			BuySide:  minMax,
+			SellSide: minMax,
+			Leverage: Leverage{
+				CanUseLeverage: false,
+			},
+		},
+		StatisticSettings: StatisticSettings{
+			RiskFreeRate: decimal.NewFromFloat(0.03),
+		},
+	}
+	if saveConfig {
+		result, err := json.MarshalIndent(cfg, "", " ")
+		if err != nil {
+			t.Fatal(err)
+		}
+		p, err := os.Getwd()
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = os.WriteFile(filepath.Join(p, "examples", "dca-csv-candles.strat"), result, file.DefaultPermissionOctal)
+		if err != nil {
+			t.Error(err)
+		}
+	}
+}
+
+func TestGenerateConfigForDCACSVTrades(t *testing.T) {
+	if !saveConfig {
+		t.Skip()
+	}
+	fp := filepath.Join("..", "testdata", "binance_BTCUSDT_24h-trades_2020_11_16.csv")
+	cfg := Config{
+		Nickname: "ExampleStrategyDCACSVTrades",
+		Goal:     "To demonstrate the DCA strategy using CSV trade data",
+		StrategySettings: StrategySettings{
+			Name:               dca,
+			DisableUSDTracking: true,
+		},
+		CurrencySettings: []CurrencySettings{
+			{
+				ExchangeName: testExchange,
+				Asset:        asset.Spot,
+				Base:         currency.BTC,
+				Quote:        currency.USDT,
+				SpotDetails: &SpotDetails{
+					InitialQuoteFunds: initialQuoteFunds2,
+				},
+				MakerFee: &makerFee,
+				TakerFee: &takerFee,
+			},
+		},
+		DataSettings: DataSettings{
+			Interval: kline.OneMin,
+			DataType: common.TradeStr,
+			CSVData: &CSVData{
+				FullPath: fp,
+			},
+		},
+		PortfolioSettings: PortfolioSettings{
+			Leverage: Leverage{
+				CanUseLeverage: false,
+			},
+		},
+		StatisticSettings: StatisticSettings{
+			RiskFreeRate: decimal.NewFromFloat(0.03),
+		},
+	}
+	if saveConfig {
+		result, err := json.MarshalIndent(cfg, "", " ")
+		if err != nil {
+			t.Fatal(err)
+		}
+		p, err := os.Getwd()
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = os.WriteFile(filepath.Join(p, "examples", "dca-csv-trades.strat"), result, file.DefaultPermissionOctal)
+		if err != nil {
+			t.Error(err)
+		}
+	}
+}
+
+func TestGenerateConfigForDCADatabaseCandles(t *testing.T) {
+	if !saveConfig {
+		t.Skip()
+	}
+	cfg := Config{
+		Nickname: "ExampleStrategyDCADatabaseCandles",
+		Goal:     "To demonstrate the DCA strategy using database candle data",
+		StrategySettings: StrategySettings{
+			Name: dca,
+		},
+		CurrencySettings: []CurrencySettings{
+			{
+				ExchangeName: testExchange,
+				Asset:        asset.Spot,
+				Base:         currency.BTC,
+				Quote:        currency.USDT,
+				SpotDetails: &SpotDetails{
+					InitialQuoteFunds: initialQuoteFunds2,
+				},
+				BuySide:  minMax,
+				SellSide: minMax,
+				MakerFee: &makerFee,
+				TakerFee: &takerFee,
+			},
+		},
+		DataSettings: DataSettings{
+			Interval: kline.OneDay,
+			DataType: common.CandleStr,
+			DatabaseData: &DatabaseData{
+				StartDate: startDate,
+				EndDate:   endDate,
+				Config: database.Config{
+					Enabled: true,
+					Verbose: false,
+					Driver:  "sqlite",
+					ConnectionDetails: drivers.ConnectionDetails{
+						Host:     "localhost",
+						Database: "testsqlite.db",
+					},
+				},
+				InclusiveEndDate: false,
+			},
+		},
+		PortfolioSettings: PortfolioSettings{
+			BuySide:  minMax,
+			SellSide: minMax,
+			Leverage: Leverage{
+				CanUseLeverage: false,
+			},
+		},
+		StatisticSettings: StatisticSettings{
+			RiskFreeRate: decimal.NewFromFloat(0.03),
+		},
+	}
+	if saveConfig {
+		result, err := json.MarshalIndent(cfg, "", " ")
+		if err != nil {
+			t.Fatal(err)
+		}
+		p, err := os.Getwd()
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = os.WriteFile(filepath.Join(p, "examples", "dca-database-candles.strat"), result, file.DefaultPermissionOctal)
+		if err != nil {
+			t.Error(err)
+		}
+	}
+}
+
+func TestGenerateConfigForTop2Bottom2(t *testing.T) {
+	if !saveConfig {
+		t.Skip()
+	}
+	cfg := Config{
+		Nickname: "ExampleStrategyTop2Bottom2",
+		Goal:     "To demonstrate a complex strategy using exchange level funding and simultaneous processing of data signals",
+		StrategySettings: StrategySettings{
+			Name:                         top2bottom2.Name,
+			SimultaneousSignalProcessing: true,
+
+			CustomSettings: map[string]interface{}{
+				"mfi-low":    32,
+				"mfi-high":   68,
+				"mfi-period": 14,
+			},
+		},
+		FundingSettings: FundingSettings{
+			UseExchangeLevelFunding: true,
+			ExchangeLevelFunding: []ExchangeLevelFunding{
+				{
+					ExchangeName: testExchange,
+					Asset:        asset.Spot,
+					Currency:     currency.BTC,
+					InitialFunds: decimal.NewFromFloat(3),
+				},
+				{
+					ExchangeName: testExchange,
+					Asset:        asset.Spot,
+					Currency:     currency.USDT,
+					InitialFunds: decimal.NewFromInt(10000),
+				},
+			},
+		},
+		CurrencySettings: []CurrencySettings{
+			{
+				ExchangeName: testExchange,
+				Asset:        asset.Spot,
+				Base:         currency.BTC,
+				Quote:        currency.USDT,
+				BuySide:      minMax,
+				SellSide:     minMax,
+				MakerFee:     &makerFee,
+				TakerFee:     &takerFee,
+			},
+			{
+				ExchangeName: testExchange,
+				Asset:        asset.Spot,
+				Base:         currency.DOGE,
+				Quote:        currency.USDT,
+				BuySide:      minMax,
+				SellSide:     minMax,
+				MakerFee:     &makerFee,
+				TakerFee:     &takerFee,
+			},
+			{
+				ExchangeName: testExchange,
+				Asset:        asset.Spot,
+				Base:         currency.ETH,
+				Quote:        currency.BTC,
+				BuySide:      minMax,
+				SellSide:     minMax,
+				MakerFee:     &makerFee,
+				TakerFee:     &takerFee,
+			},
+			{
+				ExchangeName: testExchange,
+				Asset:        asset.Spot,
+				Base:         currency.LTC,
+				Quote:        currency.BTC,
+				BuySide:      minMax,
+				SellSide:     minMax,
+				MakerFee:     &makerFee,
+				TakerFee:     &takerFee,
+			},
+			{
+				ExchangeName: testExchange,
+				Asset:        asset.Spot,
+				Base:         currency.XRP,
+				Quote:        currency.USDT,
+				BuySide:      minMax,
+				SellSide:     minMax,
+				MakerFee:     &makerFee,
+				TakerFee:     &takerFee,
+			},
+			{
+				ExchangeName: testExchange,
+				Asset:        asset.Spot,
+				Base:         currency.BNB,
+				Quote:        currency.BTC,
+				BuySide:      minMax,
+				SellSide:     minMax,
+				MakerFee:     &makerFee,
+				TakerFee:     &takerFee,
+			},
+		},
+		DataSettings: DataSettings{
+			Interval: kline.OneDay,
+			DataType: common.CandleStr,
+			APIData: &APIData{
+				StartDate: startDate,
+				EndDate:   endDate,
+			},
+		},
+		PortfolioSettings: PortfolioSettings{
+			BuySide:  minMax,
+			SellSide: minMax,
+			Leverage: Leverage{},
+		},
+		StatisticSettings: StatisticSettings{
+			RiskFreeRate: decimal.NewFromFloat(0.03),
+		},
+	}
+	if saveConfig {
+		result, err := json.MarshalIndent(cfg, "", " ")
+		if err != nil {
+			t.Fatal(err)
+		}
+		p, err := os.Getwd()
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = os.WriteFile(filepath.Join(p, "examples", "t2b2-api-candles-exchange-funding.strat"), result, file.DefaultPermissionOctal)
+		if err != nil {
+			t.Error(err)
+		}
+	}
+}
+
 func TestGenerateFTXCashAndCarryStrategy(t *testing.T) {
+	if !saveConfig {
+		t.Skip()
+	}
 	cfg := Config{
 		Nickname: "Example Cash and Carry",
 		Goal:     "To demonstrate a cash and carry strategy",
@@ -1219,8 +1318,8 @@ func TestGenerateFTXCashAndCarryStrategy(t *testing.T) {
 			ExchangeLevelFunding: []ExchangeLevelFunding{
 				{
 					ExchangeName: "ftx",
-					Asset:        "spot",
-					Currency:     "USD",
+					Asset:        asset.Spot,
+					Currency:     currency.USD,
 					InitialFunds: *initialQuoteFunds2,
 				},
 			},
@@ -1228,23 +1327,23 @@ func TestGenerateFTXCashAndCarryStrategy(t *testing.T) {
 		CurrencySettings: []CurrencySettings{
 			{
 				ExchangeName: "ftx",
-				Asset:        asset.Futures.String(),
-				Base:         "BTC",
-				Quote:        "20210924",
+				Asset:        asset.Futures,
+				Base:         currency.BTC,
+				Quote:        currency.NewCode("20210924"),
 				MakerFee:     &makerFee,
 				TakerFee:     &takerFee,
 			},
 			{
 				ExchangeName: "ftx",
-				Asset:        asset.Spot.String(),
-				Base:         "BTC",
-				Quote:        "USD",
+				Asset:        asset.Spot,
+				Base:         currency.BTC,
+				Quote:        currency.USD,
 				MakerFee:     &makerFee,
 				TakerFee:     &takerFee,
 			},
 		},
 		DataSettings: DataSettings{
-			Interval: kline.OneDay.Duration(),
+			Interval: kline.OneDay,
 			DataType: common.CandleStr,
 			APIData: &APIData{
 				StartDate:        time.Date(2021, 1, 14, 0, 0, 0, 0, time.UTC),

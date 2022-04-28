@@ -1,6 +1,7 @@
 package log
 
 import (
+	"fmt"
 	"io"
 	"strings"
 )
@@ -14,7 +15,7 @@ func NewSubLogger(name string) (*SubLogger, error) {
 	RWM.RLock()
 	if _, ok := SubLoggers[name]; ok {
 		RWM.RUnlock()
-		return nil, ErrSubLoggerAlreadyRegistered
+		return nil, fmt.Errorf("'%v' %w", name, ErrSubLoggerAlreadyRegistered)
 	}
 	RWM.RUnlock()
 	return registerNewSubLogger(name), nil

@@ -87,14 +87,14 @@ func TestNewFromConfig(t *testing.T) {
 	cfg.CurrencySettings = []config.CurrencySettings{
 		{
 			ExchangeName: "test",
-			Base:         "test",
-			Quote:        "test",
+			Base:         currency.NewCode("test"),
+			Quote:        currency.NewCode("test"),
 		},
 		{
 			ExchangeName: testExchange,
-			Base:         "BTC",
-			Quote:        "0624",
-			Asset:        asset.Futures.String(),
+			Base:         currency.BTC,
+			Quote:        currency.NewCode("0624"),
+			Asset:        asset.Futures,
 		},
 	}
 	_, err = NewFromConfig(cfg, "", "", false)
@@ -103,10 +103,10 @@ func TestNewFromConfig(t *testing.T) {
 	}
 	cfg.CurrencySettings[0].ExchangeName = testExchange
 	_, err = NewFromConfig(cfg, "", "", false)
-	if !errors.Is(err, errInvalidConfigAsset) {
-		t.Errorf("received: %v, expected: %v", err, errInvalidConfigAsset)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Errorf("received: %v, expected: %v", err, asset.ErrNotSupported)
 	}
-	cfg.CurrencySettings[0].Asset = asset.Spot.String()
+	cfg.CurrencySettings[0].Asset = asset.Spot
 	_, err = NewFromConfig(cfg, "", "", false)
 	if !errors.Is(err, base.ErrStrategyNotFound) {
 		t.Errorf("received: %v, expected: %v", err, base.ErrStrategyNotFound)
@@ -118,8 +118,8 @@ func TestNewFromConfig(t *testing.T) {
 			"hello": "moto",
 		},
 	}
-	cfg.CurrencySettings[0].Base = "BTC"
-	cfg.CurrencySettings[0].Quote = "USD"
+	cfg.CurrencySettings[0].Base = currency.BTC
+	cfg.CurrencySettings[0].Quote = currency.USD
 	cfg.DataSettings.APIData = &config.APIData{
 		StartDate: time.Time{},
 		EndDate:   time.Time{},
@@ -134,7 +134,7 @@ func TestNewFromConfig(t *testing.T) {
 	if !errors.Is(err, errIntervalUnset) {
 		t.Errorf("received: %v, expected: %v", err, errIntervalUnset)
 	}
-	cfg.DataSettings.Interval = gctkline.OneMin.Duration()
+	cfg.DataSettings.Interval = gctkline.OneMin
 	cfg.CurrencySettings[0].MakerFee = &decimal.Zero
 	cfg.CurrencySettings[0].TakerFee = &decimal.Zero
 	_, err = NewFromConfig(cfg, "", "", false)
@@ -154,15 +154,15 @@ func TestNewFromConfig(t *testing.T) {
 	cfg.FundingSettings.ExchangeLevelFunding = []config.ExchangeLevelFunding{
 		{
 			ExchangeName: testExchange,
-			Asset:        asset.Spot.String(),
-			Currency:     currency.BTC.String(),
+			Asset:        asset.Spot,
+			Currency:     currency.BTC,
 			InitialFunds: leet,
 			TransferFee:  leet,
 		},
 		{
 			ExchangeName: testExchange,
-			Asset:        asset.Futures.String(),
-			Currency:     currency.BTC.String(),
+			Asset:        asset.Futures,
+			Currency:     currency.BTC,
 			InitialFunds: leet,
 			TransferFee:  leet,
 		},
@@ -183,9 +183,9 @@ func TestLoadDataAPI(t *testing.T) {
 		CurrencySettings: []config.CurrencySettings{
 			{
 				ExchangeName: "Binance",
-				Asset:        asset.Spot.String(),
-				Base:         cp.Base.String(),
-				Quote:        cp.Quote.String(),
+				Asset:        asset.Spot,
+				Base:         cp.Base,
+				Quote:        cp.Quote,
 				SpotDetails: &config.SpotDetails{
 					InitialQuoteFunds: &leet,
 				},
@@ -197,7 +197,7 @@ func TestLoadDataAPI(t *testing.T) {
 		},
 		DataSettings: config.DataSettings{
 			DataType: common.CandleStr,
-			Interval: gctkline.OneMin.Duration(),
+			Interval: gctkline.OneMin,
 			APIData: &config.APIData{
 				StartDate: time.Now().Add(-time.Minute),
 				EndDate:   time.Now(),
@@ -240,9 +240,9 @@ func TestLoadDataDatabase(t *testing.T) {
 		CurrencySettings: []config.CurrencySettings{
 			{
 				ExchangeName: "Binance",
-				Asset:        asset.Spot.String(),
-				Base:         cp.Base.String(),
-				Quote:        cp.Quote.String(),
+				Asset:        asset.Spot,
+				Base:         cp.Base,
+				Quote:        cp.Quote,
 				SpotDetails: &config.SpotDetails{
 					InitialQuoteFunds: &leet,
 				},
@@ -254,7 +254,7 @@ func TestLoadDataDatabase(t *testing.T) {
 		},
 		DataSettings: config.DataSettings{
 			DataType: common.CandleStr,
-			Interval: gctkline.OneMin.Duration(),
+			Interval: gctkline.OneMin,
 			DatabaseData: &config.DatabaseData{
 				Config: database.Config{
 					Enabled: true,
@@ -308,9 +308,9 @@ func TestLoadDataCSV(t *testing.T) {
 		CurrencySettings: []config.CurrencySettings{
 			{
 				ExchangeName: "Binance",
-				Asset:        asset.Spot.String(),
-				Base:         cp.Base.String(),
-				Quote:        cp.Quote.String(),
+				Asset:        asset.Spot,
+				Base:         cp.Base,
+				Quote:        cp.Quote,
 				SpotDetails: &config.SpotDetails{
 					InitialQuoteFunds: &leet,
 				},
@@ -322,7 +322,7 @@ func TestLoadDataCSV(t *testing.T) {
 		},
 		DataSettings: config.DataSettings{
 			DataType: common.CandleStr,
-			Interval: gctkline.OneMin.Duration(),
+			Interval: gctkline.OneMin,
 			CSVData: &config.CSVData{
 				FullPath: "test",
 			}},
@@ -366,9 +366,9 @@ func TestLoadDataLive(t *testing.T) {
 		CurrencySettings: []config.CurrencySettings{
 			{
 				ExchangeName: "Binance",
-				Asset:        asset.Spot.String(),
-				Base:         cp.Base.String(),
-				Quote:        cp.Quote.String(),
+				Asset:        asset.Spot,
+				Base:         cp.Base,
+				Quote:        cp.Quote,
 				SpotDetails: &config.SpotDetails{
 					InitialQuoteFunds: &leet,
 				},
@@ -380,7 +380,7 @@ func TestLoadDataLive(t *testing.T) {
 		},
 		DataSettings: config.DataSettings{
 			DataType: common.CandleStr,
-			Interval: gctkline.OneMin.Duration(),
+			Interval: gctkline.OneMin,
 			LiveData: &config.LiveData{
 				APIKeyOverride:      "test",
 				APISecretOverride:   "test",
@@ -457,7 +457,7 @@ func TestLoadLiveData(t *testing.T) {
 
 		RealOrders: true,
 	}
-	cfg.DataSettings.Interval = gctkline.OneDay.Duration()
+	cfg.DataSettings.Interval = gctkline.OneDay
 	cfg.DataSettings.DataType = common.CandleStr
 	err = loadLiveData(cfg, b)
 	if err != nil {
@@ -596,10 +596,7 @@ func TestFullCycle(t *testing.T) {
 	}
 	bt.Datas.SetDataForCurrency(ex, a, cp, &k)
 
-	err = bt.Run()
-	if err != nil {
-		t.Error(err)
-	}
+	bt.Run()
 }
 
 func TestStop(t *testing.T) {
@@ -709,10 +706,7 @@ func TestFullCycleMulti(t *testing.T) {
 
 	bt.Datas.SetDataForCurrency(ex, a, cp, &k)
 
-	err = bt.Run()
-	if err != nil {
-		t.Error(err)
-	}
+	bt.Run()
 }
 
 func TestTriggerLiquidationsForExchange(t *testing.T) {
@@ -749,11 +743,11 @@ func TestTriggerLiquidationsForExchange(t *testing.T) {
 			CurrencyPair: cp,
 			AssetType:    a,
 		},
-		Open:   decimal.NewFromInt(1337),
-		Close:  decimal.NewFromInt(1337),
-		Low:    decimal.NewFromInt(1337),
-		High:   decimal.NewFromInt(1337),
-		Volume: decimal.NewFromInt(1337),
+		Open:   leet,
+		Close:  leet,
+		Low:    leet,
+		High:   leet,
+		Volume: leet,
 	}})
 	d.Next()
 	da := &kline.DataFromKline{

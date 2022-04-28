@@ -45,7 +45,7 @@ func (p *PairsManager) Get(a asset.Item) (*PairStore, error) {
 	c, ok := p.Pairs[a]
 	if !ok {
 		return nil,
-			fmt.Errorf("cannot get pair store, asset type %s not supported", a)
+			fmt.Errorf("cannot get pair store, %v %w", a, asset.ErrNotSupported)
 	}
 	return c, nil
 }

@@ -3,6 +3,8 @@ package common
 import (
 	"fmt"
 	"strings"
+
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // DataTypeToInt converts the config string value into an int
@@ -49,4 +51,57 @@ func FitStringToLimit(str, spacer string, limit int, upper bool) string {
 	}
 
 	return str[0:limit]
+}
+
+// RegisterBacktesterSubLoggers sets up all custom Backtester sub-loggers
+func RegisterBacktesterSubLoggers() error {
+	var err error
+	Backtester, err = log.NewSubLogger("Backtester")
+	if err != nil {
+		return err
+	}
+	Setup, err = log.NewSubLogger("Setup")
+	if err != nil {
+		return err
+	}
+	Strategy, err = log.NewSubLogger("Strategy")
+	if err != nil {
+		return err
+	}
+	Report, err = log.NewSubLogger("Report")
+	if err != nil {
+		return err
+	}
+	Statistics, err = log.NewSubLogger("Statistics")
+	if err != nil {
+		return err
+	}
+	CurrencyStatistics, err = log.NewSubLogger("CurrencyStatistics")
+	if err != nil {
+		return err
+	}
+	FundingStatistics, err = log.NewSubLogger("FundingStatistics")
+	if err != nil {
+		return err
+	}
+	Backtester, err = log.NewSubLogger("Sizing")
+	if err != nil {
+		return err
+	}
+	Holdings, err = log.NewSubLogger("Holdings")
+	if err != nil {
+		return err
+	}
+	Data, err = log.NewSubLogger("Data")
+	if err != nil {
+		return err
+	}
+
+	// Set to existing registered sub-loggers
+	Config = log.ConfigMgr
+	Portfolio = log.PortfolioMgr
+	Exchange = log.ExchangeSys
+	Fill = log.Fill
+
+	return nil
 }

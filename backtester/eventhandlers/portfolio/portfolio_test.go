@@ -721,7 +721,10 @@ func TestCalculatePNL(t *testing.T) {
 	exch := &ftx.FTX{}
 	exch.Name = testExchange
 	a := asset.Futures
-	pair, _ := currency.NewPairFromStrings("BTC", "1231")
+	pair, err := currency.NewPairFromStrings("BTC", "1231")
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
+	}
 	err = p.SetupCurrencySettingsMap(&exchange.Settings{
 		Exchange:      exch,
 		UseRealOrders: false,

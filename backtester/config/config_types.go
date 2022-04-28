@@ -5,7 +5,10 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
 // Errors for config validation
@@ -42,12 +45,12 @@ type Config struct {
 // DataSettings is a container for each type of data retrieval setting.
 // Only ONE can be populated per config
 type DataSettings struct {
-	Interval     time.Duration `json:"interval"`
-	DataType     string        `json:"data-type"`
-	APIData      *APIData      `json:"api-data,omitempty"`
-	DatabaseData *DatabaseData `json:"database-data,omitempty"`
-	LiveData     *LiveData     `json:"live-data,omitempty"`
-	CSVData      *CSVData      `json:"csv-data,omitempty"`
+	Interval     kline.Interval `json:"interval"`
+	DataType     string         `json:"data-type"`
+	APIData      *APIData       `json:"api-data,omitempty"`
+	DatabaseData *DatabaseData  `json:"database-data,omitempty"`
+	LiveData     *LiveData      `json:"live-data,omitempty"`
+	CSVData      *CSVData       `json:"csv-data,omitempty"`
 }
 
 // FundingSettings contains funding details for individual currencies
@@ -78,8 +81,8 @@ type StrategySettings struct {
 // will have dibs
 type ExchangeLevelFunding struct {
 	ExchangeName string          `json:"exchange-name"`
-	Asset        string          `json:"asset"`
-	Currency     string          `json:"currency"`
+	Asset        asset.Item      `json:"asset"`
+	Currency     currency.Code   `json:"currency"`
 	InitialFunds decimal.Decimal `json:"initial-funds"`
 	TransferFee  decimal.Decimal `json:"transfer-fee"`
 }
@@ -104,10 +107,10 @@ type PortfolioSettings struct {
 type Leverage struct {
 	CanUseLeverage                 bool            `json:"can-use-leverage"`
 	MaximumOrdersWithLeverageRatio decimal.Decimal `json:"maximum-orders-with-leverage-ratio"`
-	// this means you can place an order with higher leverage rate. eg have $100 in collateral,
+	// MaximumOrderLeverageRate allows for orders to be placed with higher leverage rate. eg have $100 in collateral,
 	// but place an order for $200 using 2x leverage
 	MaximumOrderLeverageRate decimal.Decimal `json:"maximum-leverage-rate"`
-	// this means you can place orders at `1x leverage, but utilise collateral as leverage to place more.
+	// MaximumCollateralLeverageRate allows for orders to be placed at `1x leverage, but utilise collateral as leverage to place more.
 	// eg if this is 2x, and collateral is $100 I can place two long/shorts of $100
 	MaximumCollateralLeverageRate decimal.Decimal `json:"maximum-collateral-leverage-rate"`
 }
@@ -124,10 +127,10 @@ type MinMax struct {
 // you wish to trade with
 // Backtester will load the data of the currencies specified here
 type CurrencySettings struct {
-	ExchangeName string `json:"exchange-name"`
-	Asset        string `json:"asset"`
-	Base         string `json:"base"`
-	Quote        string `json:"quote"`
+	ExchangeName string        `json:"exchange-name"`
+	Asset        asset.Item    `json:"asset"`
+	Base         currency.Code `json:"base"`
+	Quote        currency.Code `json:"quote"`
 	// USDTrackingPair is used for price tracking data only
 	USDTrackingPair bool `json:"-"`
 
@@ -152,7 +155,7 @@ type CurrencySettings struct {
 }
 
 // SpotDetails contains funding information that cannot be shared with another
-// pair during the backtesting run. Use exchange level funding to shared funds
+// pair during the backtesting run. Use exchange level funding to share funds
 type SpotDetails struct {
 	InitialBaseFunds  *decimal.Decimal `json:"initial-base-funds,omitempty"`
 	InitialQuoteFunds *decimal.Decimal `json:"initial-quote-funds,omitempty"`

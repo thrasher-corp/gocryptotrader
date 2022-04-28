@@ -39,6 +39,9 @@ func (h *HandlerPerCurrency) GetAllData() map[string]map[asset.Item]map[currency
 
 // GetDataForCurrency returns the Handler for a specific exchange, asset, currency
 func (h *HandlerPerCurrency) GetDataForCurrency(ev common.EventHandler) (Handler, error) {
+	if ev == nil {
+		return nil, common.ErrNilEvent
+	}
 	handler, ok := h.data[ev.GetExchange()][ev.GetAssetType()][ev.Pair()]
 	if !ok {
 		return nil, fmt.Errorf("%s %s %s %w", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), ErrHandlerNotFound)

@@ -33,7 +33,7 @@ func LoadData(dataType int64, filepath, exchangeName string, interval time.Durat
 	defer func() {
 		err = csvFile.Close()
 		if err != nil {
-			log.Errorln(common.SubLoggers[common.Data], err)
+			log.Errorln(common.Data, err)
 		}
 	}()
 

@@ -43,7 +43,7 @@ import (
 
 // NewFromConfig takes a strategy config and configures a backtester variable to run
 func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool) (*BackTest, error) {
-	log.Infoln(common.SubLoggers[common.Setup], "loading config...")
+	log.Infoln(common.Setup, "loading config...")
 	if cfg == nil {
 		return nil, errNilConfig
 	}
@@ -99,11 +99,8 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 	if cfg.FundingSettings.UseExchangeLevelFunding {
 		for i := range cfg.FundingSettings.ExchangeLevelFunding {
 			var a asset.Item
-			a, err = asset.New(cfg.FundingSettings.ExchangeLevelFunding[i].Asset)
-			if err != nil {
-				return nil, err
-			}
-			cq := currency.NewCode(cfg.FundingSettings.ExchangeLevelFunding[i].Currency)
+			a = cfg.FundingSettings.ExchangeLevelFunding[i].Asset
+			cq := cfg.FundingSettings.ExchangeLevelFunding[i].Currency
 			var item *funding.Item
 			item, err = funding.CreateItem(cfg.FundingSettings.ExchangeLevelFunding[i].ExchangeName,
 				a,
@@ -174,14 +171,15 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 			portfolioRisk.CurrencySettings[cfg.CurrencySettings[i].ExchangeName] = make(map[asset.Item]map[currency.Pair]*risk.CurrencySettings)
 		}
 		var a asset.Item
-		a, err = asset.New(cfg.CurrencySettings[i].Asset)
+		a = cfg.CurrencySettings[i].Asset
 		if err != nil {
 			return nil, fmt.Errorf(
-				"%w for %v %v %v. Err %v",
+				"%w for %v %v %v-%v. Err %v",
 				errInvalidConfigAsset,
 				cfg.CurrencySettings[i].ExchangeName,
 				cfg.CurrencySettings[i].Asset,
-				cfg.CurrencySettings[i].Base+cfg.CurrencySettings[i].Quote,
+				cfg.CurrencySettings[i].Base,
+				cfg.CurrencySettings[i].Quote,
 				err)
 		}
 		if portfolioRisk.CurrencySettings[cfg.CurrencySettings[i].ExchangeName][a] == nil {
@@ -189,8 +187,8 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 		}
 		var curr currency.Pair
 		var b, q currency.Code
-		b = currency.NewCode(cfg.CurrencySettings[i].Base)
-		q = currency.NewCode(cfg.CurrencySettings[i].Quote)
+		b = cfg.CurrencySettings[i].Base
+		q = cfg.CurrencySettings[i].Quote
 		curr = currency.NewPair(b, q)
 		var exch gctexchange.IBotExchange
 		exch, err = bt.exchangeManager.GetExchangeByName(cfg.CurrencySettings[i].ExchangeName)
@@ -201,7 +199,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 		var requestFormat currency.PairFormat
 		requestFormat, err = exchBase.GetPairFormat(a, true)
 		if err != nil {
-			return nil, fmt.Errorf("could not format currency %v, %w", curr, err)
+			return nil, fmt.Errorf("could not get pair format %v, %w", curr, err)
 		}
 		curr = curr.Format(requestFormat.Delimiter, requestFormat.Uppercase)
 		var avail, enabled currency.Pairs
@@ -236,7 +234,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 		if cfg.CurrencySettings[i].MakerFee != nil &&
 			cfg.CurrencySettings[i].TakerFee != nil &&
 			cfg.CurrencySettings[i].MakerFee.GreaterThan(*cfg.CurrencySettings[i].TakerFee) {
-			log.Warnf(common.SubLoggers[common.Setup], "maker fee '%v' should not exceed taker fee '%v'. Please review config",
+			log.Warnf(common.Setup, "maker fee '%v' should not exceed taker fee '%v'. Please review config",
 				cfg.CurrencySettings[i].MakerFee,
 				cfg.CurrencySettings[i].TakerFee)
 		}
@@ -364,7 +362,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 		StrategyGoal:                cfg.Goal,
 		ExchangeAssetPairStatistics: make(map[string]map[asset.Item]map[currency.Pair]*statistics.CurrencyPairStatistic),
 		RiskFreeRate:                cfg.StatisticSettings.RiskFreeRate,
-		CandleInterval:              gctkline.Interval(cfg.DataSettings.Interval),
+		CandleInterval:              cfg.DataSettings.Interval,
 		FundManager:                 bt.Funding,
 	}
 	bt.Statistic = stats
@@ -389,8 +387,8 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 			for j := range cfg.CurrencySettings {
 				if cfg.CurrencySettings[j].ExchangeName == trackingPairs[i].Exchange &&
 					cfg.CurrencySettings[j].Asset == trackingPairs[i].Asset &&
-					cfg.CurrencySettings[j].Base == trackingPairs[i].Base &&
-					cfg.CurrencySettings[j].Quote == trackingPairs[i].Quote {
+					cfg.CurrencySettings[j].Base.Equal(trackingPairs[i].Base) &&
+					cfg.CurrencySettings[j].Quote.Equal(trackingPairs[i].Quote) {
 					continue trackingPairCheck
 				}
 			}
@@ -424,7 +422,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 }
 
 func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange, error) {
-	log.Infoln(common.SubLoggers[common.Setup], "setting exchange settings...")
+	log.Infoln(common.Setup, "setting exchange settings...")
 	resp := exchange.Exchange{}
 
 	for i := range cfg.CurrencySettings {
@@ -476,7 +474,7 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 		}
 
 		if cfg.CurrencySettings[i].MaximumSlippagePercent.LessThan(decimal.Zero) {
-			log.Warnf(common.SubLoggers[common.Setup], "invalid maximum slippage percent '%v'. Slippage percent is defined as a number, eg '100.00', defaulting to '%v'",
+			log.Warnf(common.Setup, "invalid maximum slippage percent '%v'. Slippage percent is defined as a number, eg '100.00', defaulting to '%v'",
 				cfg.CurrencySettings[i].MaximumSlippagePercent,
 				slippage.DefaultMaximumSlippagePercent)
 			cfg.CurrencySettings[i].MaximumSlippagePercent = slippage.DefaultMaximumSlippagePercent
@@ -485,7 +483,7 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 			cfg.CurrencySettings[i].MaximumSlippagePercent = slippage.DefaultMaximumSlippagePercent
 		}
 		if cfg.CurrencySettings[i].MinimumSlippagePercent.LessThan(decimal.Zero) {
-			log.Warnf(common.SubLoggers[common.Setup], "invalid minimum slippage percent '%v'. Slippage percent is defined as a number, eg '80.00', defaulting to '%v'",
+			log.Warnf(common.Setup, "invalid minimum slippage percent '%v'. Slippage percent is defined as a number, eg '80.00', defaulting to '%v'",
 				cfg.CurrencySettings[i].MinimumSlippagePercent,
 				slippage.DefaultMinimumSlippagePercent)
 			cfg.CurrencySettings[i].MinimumSlippagePercent = slippage.DefaultMinimumSlippagePercent
@@ -520,7 +518,7 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 
 		if limits != nil {
 			if !cfg.CurrencySettings[i].CanUseExchangeLimits {
-				log.Warnf(common.SubLoggers[common.Setup], "exchange %s order execution limits supported but disabled for %s %s, live results may differ",
+				log.Warnf(common.Setup, "exchange %s order execution limits supported but disabled for %s %s, live results may differ",
 					cfg.CurrencySettings[i].ExchangeName,
 					pair,
 					a)
@@ -558,34 +556,25 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 	return resp, nil
 }
 
-func (bt *BackTest) loadExchangePairAssetBase(exch, base, quote, ass string) (gctexchange.IBotExchange, currency.Pair, asset.Item, error) {
+func (bt *BackTest) loadExchangePairAssetBase(exch string, base, quote currency.Code, ai asset.Item) (gctexchange.IBotExchange, currency.Pair, asset.Item, error) {
 	e, err := bt.exchangeManager.GetExchangeByName(exch)
 	if err != nil {
 		return nil, currency.EMPTYPAIR, "", err
 	}
 
 	var cp, fPair currency.Pair
-	cp, err = currency.NewPairFromStrings(base, quote)
-	if err != nil {
-		return nil, currency.EMPTYPAIR, "", err
-	}
-
-	var a asset.Item
-	a, err = asset.New(ass)
-	if err != nil {
-		return nil, currency.EMPTYPAIR, "", err
-	}
+	cp = currency.NewPair(base, quote)
 
 	exchangeBase := e.GetBase()
 	if exchangeBase.ValidateAPICredentials(exchangeBase.GetDefaultCredentials()) != nil {
-		log.Warnf(common.SubLoggers[common.Setup], "no credentials set for %v, this is theoretical only", exchangeBase.Name)
+		log.Warnf(common.Setup, "no credentials set for %v, this is theoretical only", exchangeBase.Name)
 	}
 
-	fPair, err = exchangeBase.FormatExchangeCurrency(cp, a)
+	fPair, err = exchangeBase.FormatExchangeCurrency(cp, ai)
 	if err != nil {
 		return nil, currency.EMPTYPAIR, "", err
 	}
-	return e, fPair, a, nil
+	return e, fPair, ai, nil
 }
 
 // getFees will return an exchange's fee rate from GCT's wrapper function
@@ -598,7 +587,7 @@ func getFees(ctx context.Context, exch gctexchange.IBotExchange, fPair currency.
 			Amount:        1,
 		})
 	if err != nil {
-		log.Errorf(common.SubLoggers[common.Setup], "Could not retrieve taker fee for %v. %v", exch.GetName(), err)
+		log.Errorf(common.Setup, "Could not retrieve taker fee for %v. %v", exch.GetName(), err)
 	}
 
 	fMakerFee, err := exch.GetFeeByType(ctx,
@@ -610,7 +599,7 @@ func getFees(ctx context.Context, exch gctexchange.IBotExchange, fPair currency.
 			Amount:        1,
 		})
 	if err != nil {
-		log.Errorf(common.SubLoggers[common.Setup], "Could not retrieve maker fee for %v. %v", exch.GetName(), err)
+		log.Errorf(common.Setup, "Could not retrieve maker fee for %v. %v", exch.GetName(), err)
 	}
 
 	return decimal.NewFromFloat(fMakerFee), decimal.NewFromFloat(fTakerFee)
@@ -643,7 +632,7 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		return nil, err
 	}
 
-	log.Infof(common.SubLoggers[common.Setup], "loading data for %v %v %v...\n", exch.GetName(), a, fPair)
+	log.Infof(common.Setup, "loading data for %v %v %v...\n", exch.GetName(), a, fPair)
 	resp := &kline.DataFromKline{}
 	switch {
 	case cfg.DataSettings.CSVData != nil:
@@ -654,7 +643,7 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 			dataType,
 			cfg.DataSettings.CSVData.FullPath,
 			strings.ToLower(exch.GetName()),
-			cfg.DataSettings.Interval,
+			cfg.DataSettings.Interval.Duration(),
 			fPair,
 			a,
 			isUSDTrackingPair)
@@ -665,8 +654,8 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		resp.Item.SortCandlesByTimestamp(false)
 		resp.RangeHolder, err = gctkline.CalculateCandleDateRanges(
 			resp.Item.Candles[0].Time,
-			resp.Item.Candles[len(resp.Item.Candles)-1].Time.Add(cfg.DataSettings.Interval),
-			gctkline.Interval(cfg.DataSettings.Interval),
+			resp.Item.Candles[len(resp.Item.Candles)-1].Time.Add(cfg.DataSettings.Interval.Duration()),
+			cfg.DataSettings.Interval,
 			0,
 		)
 		if err != nil {
@@ -675,11 +664,11 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		resp.RangeHolder.SetHasDataFromCandles(resp.Item.Candles)
 		summary := resp.RangeHolder.DataSummary(false)
 		if len(summary) > 0 {
-			log.Warnf(common.SubLoggers[common.Setup], "%v", summary)
+			log.Warnf(common.Setup, "%v", summary)
 		}
 	case cfg.DataSettings.DatabaseData != nil:
 		if cfg.DataSettings.DatabaseData.InclusiveEndDate {
-			cfg.DataSettings.DatabaseData.EndDate = cfg.DataSettings.DatabaseData.EndDate.Add(cfg.DataSettings.Interval)
+			cfg.DataSettings.DatabaseData.EndDate = cfg.DataSettings.DatabaseData.EndDate.Add(cfg.DataSettings.Interval.Duration())
 		}
 		if cfg.DataSettings.DatabaseData.Path == "" {
 			cfg.DataSettings.DatabaseData.Path = filepath.Join(gctcommon.GetDefaultDataDir(runtime.GOOS), "database")
@@ -696,7 +685,7 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		defer func() {
 			stopErr := bt.databaseManager.Stop()
 			if stopErr != nil {
-				log.Error(common.SubLoggers[common.Setup], stopErr)
+				log.Error(common.Setup, stopErr)
 			}
 		}()
 		resp, err = loadDatabaseData(cfg, exch.GetName(), fPair, a, dataType, isUSDTrackingPair)
@@ -709,7 +698,7 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		resp.RangeHolder, err = gctkline.CalculateCandleDateRanges(
 			cfg.DataSettings.DatabaseData.StartDate,
 			cfg.DataSettings.DatabaseData.EndDate,
-			gctkline.Interval(cfg.DataSettings.Interval),
+			cfg.DataSettings.Interval,
 			0,
 		)
 		if err != nil {
@@ -718,11 +707,11 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		resp.RangeHolder.SetHasDataFromCandles(resp.Item.Candles)
 		summary := resp.RangeHolder.DataSummary(false)
 		if len(summary) > 0 {
-			log.Warnf(common.SubLoggers[common.Setup], "%v", summary)
+			log.Warnf(common.Setup, "%v", summary)
 		}
 	case cfg.DataSettings.APIData != nil:
 		if cfg.DataSettings.APIData.InclusiveEndDate {
-			cfg.DataSettings.APIData.EndDate = cfg.DataSettings.APIData.EndDate.Add(cfg.DataSettings.Interval)
+			cfg.DataSettings.APIData.EndDate = cfg.DataSettings.APIData.EndDate.Add(cfg.DataSettings.Interval.Duration())
 		}
 		resp, err = loadAPIData(
 			cfg,
@@ -799,7 +788,7 @@ func loadDatabaseData(cfg *config.Config, name string, fPair currency.Pair, a as
 	return database.LoadData(
 		cfg.DataSettings.DatabaseData.StartDate,
 		cfg.DataSettings.DatabaseData.EndDate,
-		cfg.DataSettings.Interval,
+		cfg.DataSettings.Interval.Duration(),
 		strings.ToLower(name),
 		dataType,
 		fPair,
@@ -814,7 +803,7 @@ func loadAPIData(cfg *config.Config, exch gctexchange.IBotExchange, fPair curren
 	dates, err := gctkline.CalculateCandleDateRanges(
 		cfg.DataSettings.APIData.StartDate,
 		cfg.DataSettings.APIData.EndDate,
-		gctkline.Interval(cfg.DataSettings.Interval),
+		cfg.DataSettings.Interval,
 		resultLimit)
 	if err != nil {
 		return nil, err
@@ -823,7 +812,7 @@ func loadAPIData(cfg *config.Config, exch gctexchange.IBotExchange, fPair curren
 		dataType,
 		cfg.DataSettings.APIData.StartDate,
 		cfg.DataSettings.APIData.EndDate,
-		cfg.DataSettings.Interval,
+		cfg.DataSettings.Interval.Duration(),
 		exch,
 		fPair,
 		a)
@@ -833,7 +822,7 @@ func loadAPIData(cfg *config.Config, exch gctexchange.IBotExchange, fPair curren
 	dates.SetHasDataFromCandles(candles.Candles)
 	summary := dates.DataSummary(false)
 	if len(summary) > 0 {
-		log.Warnf(common.SubLoggers[common.Setup], "%v", summary)
+		log.Warnf(common.Setup, "%v", summary)
 	}
 	candles.FillMissingDataWithEmptyEntries(dates)
 	candles.RemoveOutsideRange(cfg.DataSettings.APIData.StartDate, cfg.DataSettings.APIData.EndDate)
@@ -870,7 +859,7 @@ func loadLiveData(cfg *config.Config, base *gctexchange.Base) error {
 	validated := base.AreCredentialsValid(context.TODO())
 	base.API.AuthenticatedSupport = validated
 	if !validated && cfg.DataSettings.LiveData.RealOrders {
-		log.Warn(common.SubLoggers[common.Setup], "invalid API credentials set, real orders set to false")
+		log.Warn(common.Setup, "invalid API credentials set, real orders set to false")
 		cfg.DataSettings.LiveData.RealOrders = false
 	}
 	return nil

@@ -68,14 +68,12 @@ func (p *Portfolio) SetupCurrencySettingsMap(setup *exchange.Settings) error {
 		return err
 	}
 	settings := &Settings{
-		Fee:            setup.ExchangeFee,
-		BuySideSizing:  setup.BuySide,
-		SellSideSizing: setup.SellSide,
-		Leverage:       setup.Leverage,
-		ComplianceManager: compliance.Manager{
-			Snapshots: []compliance.Snapshot{},
-		},
-		Exchange: setup.Exchange,
+		Fee:               setup.ExchangeFee,
+		BuySideSizing:     setup.BuySide,
+		SellSideSizing:    setup.SellSide,
+		Leverage:          setup.Leverage,
+		Exchange:          setup.Exchange,
+		ComplianceManager: compliance.Manager{},
 	}
 	if setup.Asset.IsFutures() {
 		futureTrackerSetup := &gctorder.MultiPositionTrackerSetup{

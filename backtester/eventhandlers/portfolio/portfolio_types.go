@@ -34,6 +34,7 @@ var (
 	errNoHoldings           = errors.New("no holdings found")
 	errHoldingsNoTimestamp  = errors.New("holding with unset timestamp received")
 	errHoldingsAlreadySet   = errors.New("holding already set")
+	errUnsetFuturesTracker  = errors.New("portfolio settings futures tracker unset")
 )
 
 // Portfolio stores all holdings and rules to assess orders, allowing the portfolio manager to

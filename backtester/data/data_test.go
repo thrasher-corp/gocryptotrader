@@ -1,10 +1,12 @@
 package data
 
 import (
+	"errors"
 	"testing"
 	"time"
 
 	"github.com/shopspring/decimal"
+	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -18,12 +20,19 @@ type fakeDataHandler struct {
 	time int
 }
 
+func TestLatest(t *testing.T) {
+	t.Parallel()
+	var d Base
+	d.AppendStream(&fakeDataHandler{time: 1})
+	latest := d.Latest()
+	if latest != d.stream[d.offset] {
+		t.Error("expected latest to match offset")
+	}
+}
+
 func TestBaseDataFunctions(t *testing.T) {
 	t.Parallel()
 	var d Base
-	if latest := d.Latest(); latest != nil {
-		t.Error("expected nil")
-	}
 
 	d.Next()
 	o := d.Offset()
@@ -43,6 +52,7 @@ func TestBaseDataFunctions(t *testing.T) {
 	d.AppendStream(&fakeDataHandler{time: 3})
 	d.AppendStream(&fakeDataHandler{time: 4})
 	d.Next()
+
 	d.Next()
 	if list := d.List(); len(list) != 2 {
 		t.Errorf("expected 2 received %v", len(list))
@@ -62,6 +72,7 @@ func TestBaseDataFunctions(t *testing.T) {
 	if history := d.History(); len(history) != 4 {
 		t.Errorf("expected 4 received %v", len(history))
 	}
+
 	d.SetStream(nil)
 	if st := d.GetStream(); st != nil {
 		t.Error("expected nil")
@@ -69,6 +80,7 @@ func TestBaseDataFunctions(t *testing.T) {
 	d.Reset()
 	d.GetStream()
 	d.SortStream()
+
 }
 
 func TestSetup(t *testing.T) {
@@ -80,56 +92,6 @@ func TestSetup(t *testing.T) {
 	}
 }
 
-/*
-func TestStream(t *testing.T) {
-	var d Base
-	var f fakeDataHandler
-
-	// shut up coverage report
-	f.GetOffset()
-	f.SetOffset(1)
-	f.IsOrder()
-	f.Pair()
-	f.GetExchange()
-	f.GetInterval()
-	f.GetAssetType()
-	f.GetReason()
-	f.AppendReason("fake")
-	f.GetClosePrice()
-	f.GetHighPrice()
-	f.GetLowPrice()
-	f.GetOpenPrice()
-
-	d.AppendStream(fakeDataHandler{time: 1})
-	d.AppendStream(fakeDataHandler{time: 4})
-	d.AppendStream(fakeDataHandler{time: 10})
-	d.AppendStream(fakeDataHandler{time: 2})
-	d.AppendStream(fakeDataHandler{time: 20})
-
-	d.SortStream()
-
-	f, ok := d.Next().(fakeDataHandler)
-	if f.time != 1 || !ok {
-		t.Error("expected 1")
-	}
-	f, ok = d.Next().(fakeDataHandler)
-	if f.time != 2 || !ok {
-		t.Error("expected 2")
-	}
-	f, ok = d.Next().(fakeDataHandler)
-	if f.time != 4 || !ok {
-		t.Error("expected 4")
-	}
-	f, ok = d.Next().(fakeDataHandler)
-	if f.time != 10 || !ok {
-		t.Error("expected 10")
-	}
-	f, ok = d.Next().(fakeDataHandler)
-	if f.time != 20 || !ok {
-		t.Error("expected 20")
-	}
-}
-*/
 func TestSetDataForCurrency(t *testing.T) {
 	t.Parallel()
 	d := HandlerPerCurrency{}
@@ -165,13 +127,12 @@ func TestGetAllData(t *testing.T) {
 func TestGetDataForCurrency(t *testing.T) {
 	t.Parallel()
 	d := HandlerPerCurrency{}
-	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
-	d.SetDataForCurrency(exch, a, p, nil)
-	d.SetDataForCurrency(exch, a, currency.NewPair(currency.BTC, currency.DOGE), nil)
+	d.SetDataForCurrency(testExchange, a, p, nil)
+	d.SetDataForCurrency(testExchange, a, currency.NewPair(currency.BTC, currency.DOGE), nil)
 	ev := &order.Order{Base: event.Base{
-		Exchange:     exch,
+		Exchange:     testExchange,
 		AssetType:    a,
 		CurrencyPair: p,
 	}}
@@ -181,6 +142,29 @@ func TestGetDataForCurrency(t *testing.T) {
 	}
 	if result != nil {
 		t.Error("expected nil")
+	}
+
+	_, err = d.GetDataForCurrency(nil)
+	if !errors.Is(err, common.ErrNilEvent) {
+		t.Errorf("received '%v' expected '%v'", err, common.ErrNilEvent)
+	}
+
+	_, err = d.GetDataForCurrency(&order.Order{Base: event.Base{
+		Exchange:     "lol",
+		AssetType:    asset.USDTMarginedFutures,
+		CurrencyPair: currency.NewPair(currency.EMB, currency.DOGE),
+	}})
+	if !errors.Is(err, ErrHandlerNotFound) {
+		t.Errorf("received '%v' expected '%v'", err, ErrHandlerNotFound)
+	}
+
+	_, err = d.GetDataForCurrency(&order.Order{Base: event.Base{
+		Exchange:     testExchange,
+		AssetType:    asset.USDTMarginedFutures,
+		CurrencyPair: currency.NewPair(currency.EMB, currency.DOGE),
+	}})
+	if !errors.Is(err, ErrHandlerNotFound) {
+		t.Errorf("received '%v' expected '%v'", err, ErrHandlerNotFound)
 	}
 }
 

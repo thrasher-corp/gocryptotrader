@@ -38,7 +38,7 @@ func LoadData(startDate, endDate time.Time, interval time.Duration, exchangeName
 		resp.Item = klineItem
 		for i := range klineItem.Candles {
 			if klineItem.Candles[i].ValidationIssues != "" {
-				log.Warnf(common.SubLoggers[common.Data], "candle validation issue for %v %v %v: %v", klineItem.Exchange, klineItem.Asset, klineItem.Pair, klineItem.Candles[i].ValidationIssues)
+				log.Warnf(common.Data, "candle validation issue for %v %v %v: %v", klineItem.Exchange, klineItem.Asset, klineItem.Pair, klineItem.Candles[i].ValidationIssues)
 			}
 		}
 	case common.DataTrade:

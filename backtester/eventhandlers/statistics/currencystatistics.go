@@ -5,7 +5,6 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	gctmath "github.com/thrasher-corp/gocryptotrader/common/math"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -149,9 +148,8 @@ func (c *CurrencyPairStatistic) analysePNLGrowth() {
 		if c.Events[i].PNL == nil {
 			continue
 		}
-		var unrealised, realised portfolio.BasicPNLResult
-		unrealised = c.Events[i].PNL.GetUnrealisedPNL()
-		realised = c.Events[i].PNL.GetRealisedPNL()
+		unrealised := c.Events[i].PNL.GetUnrealisedPNL()
+		realised := c.Events[i].PNL.GetRealisedPNL()
 		if unrealised.PNL.LessThan(lowestUnrealised.Value) || !lowestUnrealised.Set {
 			lowestUnrealised.Value = unrealised.PNL
 			lowestUnrealised.Time = unrealised.Time

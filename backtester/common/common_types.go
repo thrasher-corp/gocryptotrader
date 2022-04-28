@@ -80,50 +80,21 @@ type EventHandler interface {
 	AppendReasonf(string, ...interface{})
 }
 
-// List of all the custom sublogger names
-const (
-	Backtester         = "Backtester"
-	Setup              = "Setup"
-	Strategy           = "Strategy"
-	Config             = "Config"
-	Portfolio          = "Portfolio"
-	Exchange           = "Exchange"
-	Fill               = "Fill"
-	Funding            = "Funding"
-	Report             = "Report"
-	Statistics         = "Statistics"
-	CurrencyStatistics = "CurrencyStatistics"
-	FundingStatistics  = "FundingStatistics"
-	Compliance         = "Compliance"
-	Sizing             = "Sizing"
-	Risk               = "Risk"
-	Holdings           = "Holdings"
-	Slippage           = "Slippage"
-	Data               = "Data"
-)
-
+// custom subloggers for backtester use
 var (
-	// SubLoggers is a map of loggers to use across the backtester
-	SubLoggers = map[string]*log.SubLogger{
-		Backtester:         nil,
-		Setup:              nil,
-		Strategy:           nil,
-		Config:             nil,
-		Portfolio:          nil,
-		Exchange:           nil,
-		Fill:               nil,
-		Funding:            nil,
-		Report:             nil,
-		Statistics:         nil,
-		CurrencyStatistics: nil,
-		FundingStatistics:  nil,
-		Compliance:         nil,
-		Sizing:             nil,
-		Risk:               nil,
-		Holdings:           nil,
-		Slippage:           nil,
-		Data:               nil,
-	}
+	Backtester         *log.SubLogger
+	Setup              *log.SubLogger
+	Strategy           *log.SubLogger
+	Config             *log.SubLogger
+	Portfolio          *log.SubLogger
+	Exchange           *log.SubLogger
+	Fill               *log.SubLogger
+	Report             *log.SubLogger
+	Statistics         *log.SubLogger
+	CurrencyStatistics *log.SubLogger
+	FundingStatistics  *log.SubLogger
+	Holdings           *log.SubLogger
+	Data               *log.SubLogger
 )
 
 // DataEventHandler interface used for loading and interacting with Data
@@ -157,50 +128,30 @@ var (
 	ColourInfo     = "\u001B[32m"
 	ColourDebug    = "\u001B[34m"
 	ColourWarn     = "\u001B[33m"
-	ColourProblem  = "\033[38;5;251m"
 	ColourError    = "\033[38;5;196m"
 )
 
-// logo and colour storage
 var (
-	logo01 = "                                                                                "
-	logo02 = "                               " + ColourWhite + "@@@@@@@@@@@@@@@@@                                "
-	logo03 = "                            " + ColourWhite + "@@@@@@@@@@@@@@@@@@@@@@@    " + ColourGrey + ",,,,,," + ColourWhite + "                   "
-	logo04 = "                           " + ColourWhite + "@@@@@@@@" + ColourGrey + ",,,,,    " + ColourWhite + "@@@@@@@@@" + ColourGrey + ",,,,,,,," + ColourWhite + "                   "
-	logo05 = "                         " + ColourWhite + "@@@@@@@@" + ColourGrey + ",,,,,,,       " + ColourWhite + "@@@@@@@" + ColourGrey + ",,,,,,," + ColourWhite + "                   "
-	logo06 = "                         " + ColourWhite + "@@@@@@" + ColourGrey + "(,,,,,,,,      " + ColourGrey + ",," + ColourWhite + "@@@@@@@" + ColourGrey + ",,,,,," + ColourWhite + "                   "
-	logo07 = "                      " + ColourGrey + ",," + ColourWhite + "@@@@@@" + ColourGrey + ",,,,,,,,,   #,,,,,,,,,,,,,,,,,," + ColourWhite + "                   "
-	logo08 = "                   " + ColourGrey + ",,,,*" + ColourWhite + "@@@@@@" + ColourGrey + ",,,,,,,,,,,,,,,,,,,,,,,,,," + ColourGreen + "%%%%%%%" + ColourWhite + "                "
-	logo09 = "                " + ColourGrey + ",,,,,,,*" + ColourWhite + "@@@@@@" + ColourGrey + ",,,,,,,,,,,,,," + ColourGreen + "%%%%%" + ColourGrey + " ,,,,,," + ColourGrey + "%" + ColourGreen + "%%%%%%" + ColourWhite + "                 "
-	logo10 = "               " + ColourGrey + ",,,,,,,,*" + ColourWhite + "@@@@@@" + ColourGrey + ",,,,,,,,,,," + ColourGreen + "%%%%%%%%%%%%%%%%%%" + ColourGrey + "#" + ColourGreen + "%%" + ColourGrey + "                  "
-	logo11 = "                 " + ColourGrey + ",,,,,,*" + ColourWhite + "@@@@@@" + ColourGrey + ",,,,,,,,," + ColourGreen + "%%%" + ColourGrey + " ,,,,," + ColourGreen + "%%%%%%%%" + ColourGrey + ",,,,,                   "
-	logo12 = "                    " + ColourGrey + ",,,*" + ColourWhite + "@@@@@@" + ColourGrey + ",,,,,," + ColourGreen + "%%" + ColourGrey + ",,  ,,,,,,," + ColourWhite + "@" + ColourGreen + "*%%," + ColourWhite + "@" + ColourGrey + ",,,,,,                   "
-	logo13 = "                       " + ColourGrey + "*" + ColourWhite + "@@@@@@" + ColourGrey + ",,,,,,,,,     " + ColourGrey + ",,,,," + ColourWhite + "@@@@@@" + ColourGrey + ",,,,,," + ColourWhite + "                   "
-	logo14 = "                         " + ColourWhite + "@@@@@@" + ColourGrey + ",,,,,,,,,        " + ColourWhite + "@@@@@@@" + ColourGrey + ",,,,,," + ColourWhite + "                   "
-	logo15 = "                         " + ColourWhite + "@@@@@@@@" + ColourGrey + ",,,,,,,       " + ColourWhite + "@@@@@@@" + ColourGrey + ",,,,,,," + ColourWhite + "                   "
-	logo16 = "                           " + ColourWhite + "@@@@@@@@@" + ColourGrey + ",,,,    " + ColourWhite + "@@@@@@@@@" + ColourGrey + "#,,,,,,," + ColourWhite + "                   "
-	logo17 = "                            " + ColourWhite + "@@@@@@@@@@@@@@@@@@@@@@@     " + ColourGrey + "*,,,," + ColourWhite + "                   "
-	logo18 = "                                " + ColourWhite + "@@@@@@@@@@@@@@@@" + ColourDefault + "                                "
-
+	// LogoLines contains the lovely GCT logo
 	LogoLines = []string{
-		logo01,
-		logo02,
-		logo03,
-		logo04,
-		logo05,
-		logo06,
-		logo07,
-		logo08,
-		logo09,
-		logo10,
-		logo11,
-		logo12,
-		logo13,
-		logo14,
-		logo15,
-		logo16,
-		logo17,
-		logo18,
+		"                                                                                ",
+		"                               " + ColourWhite + "@@@@@@@@@@@@@@@@@                                ",
+		"                            " + ColourWhite + "@@@@@@@@@@@@@@@@@@@@@@@    " + ColourGrey + ",,,,,," + ColourWhite + "                   ",
+		"                           " + ColourWhite + "@@@@@@@@" + ColourGrey + ",,,,,    " + ColourWhite + "@@@@@@@@@" + ColourGrey + ",,,,,,,," + ColourWhite + "                   ",
+		"                         " + ColourWhite + "@@@@@@@@" + ColourGrey + ",,,,,,,       " + ColourWhite + "@@@@@@@" + ColourGrey + ",,,,,,," + ColourWhite + "                   ",
+		"                         " + ColourWhite + "@@@@@@" + ColourGrey + "(,,,,,,,,      " + ColourGrey + ",," + ColourWhite + "@@@@@@@" + ColourGrey + ",,,,,," + ColourWhite + "                   ",
+		"                      " + ColourGrey + ",," + ColourWhite + "@@@@@@" + ColourGrey + ",,,,,,,,,   #,,,,,,,,,,,,,,,,,," + ColourWhite + "                   ",
+		"                   " + ColourGrey + ",,,,*" + ColourWhite + "@@@@@@" + ColourGrey + ",,,,,,,,,,,,,,,,,,,,,,,,,," + ColourGreen + "%%%%%%%" + ColourWhite + "                ",
+		"                " + ColourGrey + ",,,,,,,*" + ColourWhite + "@@@@@@" + ColourGrey + ",,,,,,,,,,,,,," + ColourGreen + "%%%%%" + ColourGrey + " ,,,,,," + ColourGrey + "%" + ColourGreen + "%%%%%%" + ColourWhite + "                 ",
+		"               " + ColourGrey + ",,,,,,,,*" + ColourWhite + "@@@@@@" + ColourGrey + ",,,,,,,,,,," + ColourGreen + "%%%%%%%%%%%%%%%%%%" + ColourGrey + "#" + ColourGreen + "%%" + ColourGrey + "                  ",
+		"                 " + ColourGrey + ",,,,,,*" + ColourWhite + "@@@@@@" + ColourGrey + ",,,,,,,,," + ColourGreen + "%%%" + ColourGrey + " ,,,,," + ColourGreen + "%%%%%%%%" + ColourGrey + ",,,,,                   ",
+		"                    " + ColourGrey + ",,,*" + ColourWhite + "@@@@@@" + ColourGrey + ",,,,,," + ColourGreen + "%%" + ColourGrey + ",,  ,,,,,,," + ColourWhite + "@" + ColourGreen + "*%%," + ColourWhite + "@" + ColourGrey + ",,,,,,                   ",
+		"                       " + ColourGrey + "*" + ColourWhite + "@@@@@@" + ColourGrey + ",,,,,,,,,     " + ColourGrey + ",,,,," + ColourWhite + "@@@@@@" + ColourGrey + ",,,,,," + ColourWhite + "       ,            ",
+		"                         " + ColourWhite + "@@@@@@" + ColourGrey + ",,,,,,,,,        " + ColourWhite + "@@@@@@@" + ColourGrey + ",,,,,," + ColourWhite + "                   ",
+		"                         " + ColourWhite + "@@@@@@@@" + ColourGrey + ",,,,,,,       " + ColourWhite + "@@@@@@@" + ColourGrey + ",,,,,,," + ColourWhite + "                   ",
+		"                           " + ColourWhite + "@@@@@@@@@" + ColourGrey + ",,,,    " + ColourWhite + "@@@@@@@@@" + ColourGrey + "#,,,,,,," + ColourWhite + "                   ",
+		"                            " + ColourWhite + "@@@@@@@@@@@@@@@@@@@@@@@     " + ColourGrey + "*,,,," + ColourWhite + "                   ",
+		"                                " + ColourWhite + "@@@@@@@@@@@@@@@@" + ColourDefault + "                                ",
 	}
 )
 

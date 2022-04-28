@@ -1,12 +1,10 @@
 package main
 
 import (
-	"errors"
 	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
@@ -93,7 +91,6 @@ func main() {
 		common.ColourInfo = ""
 		common.ColourDebug = ""
 		common.ColourWarn = ""
-		common.ColourProblem = ""
 		common.ColourDarkGrey = ""
 		common.ColourError = ""
 	}
@@ -111,16 +108,10 @@ func main() {
 		os.Exit(1)
 	}
 
-	for k := range common.SubLoggers {
-		common.SubLoggers[k], err = log.NewSubLogger(k)
-		if err != nil {
-			if errors.Is(err, log.ErrSubLoggerAlreadyRegistered) {
-				common.SubLoggers[k] = log.SubLoggers[strings.ToUpper(k)]
-				continue
-			}
-			fmt.Printf("Could not setup global logger. Error: %v.\n", err)
-			os.Exit(1)
-		}
+	err = common.RegisterBacktesterSubLoggers()
+	if err != nil {
+		fmt.Printf("Could not register subloggers. Error: %v.\n", err)
+		os.Exit(1)
 	}
 
 	cfg, err = config.ReadConfigFromFile(configPath)
@@ -157,11 +148,7 @@ func main() {
 		log.Infof(log.Global, "Captured %v, shutdown requested.\n", interrupt)
 		bt.Stop()
 	} else {
-		err = bt.Run()
-		if err != nil {
-			fmt.Printf("Could not complete run. Error: %v.\n", err)
-			os.Exit(1)
-		}
+		bt.Run()
 	}
 
 	err = bt.Statistic.CalculateAllResults()

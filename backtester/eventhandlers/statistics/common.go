@@ -45,8 +45,7 @@ func CalculateBiggestEventDrawdown(closePrices []common.DataEventHandler) (Swing
 			}
 			intervals, err := gctkline.CalculateCandleDateRanges(highestTime, lowestTime, closePrices[i].GetInterval(), 0)
 			if err != nil {
-				log.Error(common.SubLoggers[common.CurrencyStatistics], err)
-				continue
+				return Swing{}, fmt.Errorf("cannot calculate max drawdown, date range error: %w", err)
 			}
 			if highestPrice.IsPositive() && lowestPrice.IsPositive() {
 				swings = append(swings, Swing{
@@ -77,7 +76,7 @@ func CalculateBiggestEventDrawdown(closePrices []common.DataEventHandler) (Swing
 		}
 		intervals, err := gctkline.CalculateCandleDateRanges(highestTime, lowestTime, closePrices[0].GetInterval(), 0)
 		if err != nil {
-			return Swing{}, err
+			return Swing{}, fmt.Errorf("cannot close out max drawdown calculation: %w", err)
 		}
 		drawdownPercent := decimal.Zero
 		if highestPrice.GreaterThan(decimal.Zero) {
@@ -169,7 +168,7 @@ func CalculateBiggestValueAtTimeDrawdown(closePrices []ValueAtTime, interval gct
 		}
 		intervals, err := gctkline.CalculateCandleDateRanges(highestTime, lowestTime, interval, 0)
 		if err != nil {
-			log.Error(common.SubLoggers[common.CurrencyStatistics], err)
+			log.Error(common.CurrencyStatistics, err)
 		}
 		drawdownPercent := decimal.Zero
 		if highestPrice.GreaterThan(decimal.Zero) {
@@ -239,7 +238,7 @@ func CalculateRatios(benchmarkRates, returnsPerCandle []decimal.Decimal, riskFre
 	arithmeticSortino, err = gctmath.DecimalSortinoRatio(returnsPerCandle, riskFreeRatePerCandle, arithmeticReturnsPerCandle)
 	if err != nil && !errors.Is(err, gctmath.ErrNoNegativeResults) {
 		if errors.Is(err, gctmath.ErrInexactConversion) {
-			log.Warnf(common.SubLoggers[common.Statistics], "%s funding arithmetic sortino ratio %v", logMessage, err)
+			log.Warnf(common.Statistics, "%s funding arithmetic sortino ratio %v", logMessage, err)
 		} else {
 			return nil, nil, err
 		}
@@ -274,7 +273,7 @@ func CalculateRatios(benchmarkRates, returnsPerCandle []decimal.Decimal, riskFre
 	geomSortino, err = gctmath.DecimalSortinoRatio(returnsPerCandle, riskFreeRatePerCandle, geometricReturnsPerCandle)
 	if err != nil && !errors.Is(err, gctmath.ErrNoNegativeResults) {
 		if errors.Is(err, gctmath.ErrInexactConversion) {
-			log.Warnf(common.SubLoggers[common.Statistics], "%s geometric sortino ratio %v", logMessage, err)
+			log.Warnf(common.Statistics, "%s geometric sortino ratio %v", logMessage, err)
 		} else {
 			return nil, nil, err
 		}

@@ -20,7 +20,7 @@ import (
 // It runs by constantly checking for new live datas and running through the list of events
 // once new data is processed. It will run until application close event has been received
 func (bt *BackTest) RunLive() error {
-	log.Info(common.SubLoggers[common.Backtester], "running backtester against live data")
+	log.Info(common.Backtester, "running backtester against live data")
 	timeoutTimer := time.NewTimer(time.Minute * 5)
 	// a frequent timer so that when a new candle is released by an exchange
 	// that it can be processed quickly
@@ -69,24 +69,24 @@ func (bt *BackTest) RunLive() error {
 // loadLiveDataLoop is an incomplete function to continuously retrieve exchange data on a loop
 // from live. Its purpose is to be able to perform strategy analysis against current data
 func (bt *BackTest) loadLiveDataLoop(resp *kline.DataFromKline, cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item, dataType int64) {
-	startDate := time.Now().Add(-cfg.DataSettings.Interval * 2)
+	startDate := time.Now().Add(-cfg.DataSettings.Interval.Duration() * 2)
 	dates, err := gctkline.CalculateCandleDateRanges(
 		startDate,
 		startDate.AddDate(1, 0, 0),
 		gctkline.Interval(cfg.DataSettings.Interval),
 		0)
 	if err != nil {
-		log.Errorf(common.SubLoggers[common.Backtester], "%v. Please check your GoCryptoTrader configuration", err)
+		log.Errorf(common.Backtester, "%v. Please check your GoCryptoTrader configuration", err)
 		return
 	}
 	candles, err := live.LoadData(context.TODO(),
 		exch,
 		dataType,
-		cfg.DataSettings.Interval,
+		cfg.DataSettings.Interval.Duration(),
 		fPair,
 		a)
 	if err != nil {
-		log.Errorf(common.SubLoggers[common.Backtester], "%v. Please check your GoCryptoTrader configuration", err)
+		log.Errorf(common.Backtester, "%v. Please check your GoCryptoTrader configuration", err)
 		return
 	}
 	dates.SetHasDataFromCandles(candles.Candles)
@@ -99,11 +99,11 @@ func (bt *BackTest) loadLiveDataLoop(resp *kline.DataFromKline, cfg *config.Conf
 		case <-bt.shutdown:
 			return
 		case <-loadNewDataTimer.C:
-			log.Infof(common.SubLoggers[common.Backtester], "fetching data for %v %v %v %v", exch.GetName(), a, fPair, cfg.DataSettings.Interval)
+			log.Infof(common.Backtester, "fetching data for %v %v %v %v", exch.GetName(), a, fPair, cfg.DataSettings.Interval)
 			loadNewDataTimer.Reset(time.Second * 15)
 			err = bt.loadLiveData(resp, cfg, exch, fPair, a, dataType)
 			if err != nil {
-				log.Error(common.SubLoggers[common.Backtester], err)
+				log.Error(common.Backtester, err)
 				return
 			}
 		}
@@ -123,7 +123,7 @@ func (bt *BackTest) loadLiveData(resp *kline.DataFromKline, cfg *config.Config, 
 	candles, err := live.LoadData(context.TODO(),
 		exch,
 		dataType,
-		cfg.DataSettings.Interval,
+		cfg.DataSettings.Interval.Duration(),
 		fPair,
 		a)
 	if err != nil {
@@ -134,6 +134,6 @@ func (bt *BackTest) loadLiveData(resp *kline.DataFromKline, cfg *config.Config, 
 	}
 	resp.AppendResults(candles)
 	bt.Reports.UpdateItem(&resp.Item)
-	log.Info(common.SubLoggers[common.Backtester], "sleeping for 30 seconds before checking for new candle data")
+	log.Info(common.Backtester, "sleeping for 30 seconds before checking for new candle data")
 	return nil
 }

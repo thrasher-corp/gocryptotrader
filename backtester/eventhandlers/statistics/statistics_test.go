@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -812,7 +813,7 @@ func TestCalculateTheResults(t *testing.T) {
 	}
 }
 
-func TestCalculateMaxDrawdown(t *testing.T) {
+func TestCalculateBiggestEventDrawdown(t *testing.T) {
 	tt1 := time.Now().Add(-gctkline.OneDay.Duration() * 7).Round(gctkline.OneDay.Duration())
 	exch := testExchange
 	a := asset.Spot
@@ -901,6 +902,24 @@ func TestCalculateMaxDrawdown(t *testing.T) {
 	}
 	if resp.Highest.Value != decimal.NewFromInt(1337) && !resp.Lowest.Value.Equal(decimal.NewFromInt(1238)) {
 		t.Error("unexpected max drawdown")
+	}
+
+	// bogus scenario
+	bogusEvent := []common.DataEventHandler{
+		&kline.Kline{
+			Base: event.Base{
+				Exchange:     exch,
+				CurrencyPair: p,
+				AssetType:    a,
+			},
+			Close: decimal.NewFromInt(1339),
+			High:  decimal.NewFromInt(1339),
+			Low:   decimal.NewFromInt(1339),
+		},
+	}
+	resp, err = CalculateBiggestEventDrawdown(bogusEvent)
+	if !errors.Is(err, gctcommon.ErrDateUnset) {
+		t.Errorf("received %v expected %v", err, gctcommon.ErrDateUnset)
 	}
 }
 
