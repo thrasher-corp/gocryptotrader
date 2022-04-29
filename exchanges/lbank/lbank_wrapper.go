@@ -989,24 +989,25 @@ func (l *Lbank) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pa
 
 // GetStatus returns the order.Status from the int representation.
 func (l *Lbank) GetStatus(status int64) order.Status {
-	var s string
+	var oStatus order.Status
 	switch status {
 	case -1:
-		s = "cancelled"
+		// "cancelled"
+		oStatus = order.Cancelled
 	case 0:
-		s = "on trading"
+		// "on trading"
+		oStatus = order.Active
 	case 1:
-		s = "filled partially"
+		// "filled partially"
+		oStatus = order.PartiallyFilled
 	case 2:
-		s = "Filled totally"
+		// "filled totally"
+		oStatus = order.Filled
 	case 4:
-		s = "Cancelling"
+		// "Cancelling"
+		oStatus = order.Cancelling
 	default:
-		s = "Invalid Order Status"
-	}
-	oStatus, err := order.StringToOrderStatus(s)
-	if err != nil {
-		log.Errorf(log.Global, "%s %v", l.GetName(), err)
+		log.Errorf(log.Global, "%s Unhandled Order Status '%v'", l.GetName(), status)
 	}
 	return oStatus
 }

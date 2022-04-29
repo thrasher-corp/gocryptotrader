@@ -264,6 +264,7 @@ const (
 	AutoDeleverage
 	Closed
 	Pending
+	Cancelling
 )
 
 // Type enforces a standard for order types across the code base
@@ -302,7 +303,7 @@ const (
 	AnySide
 	Long
 	Short
-	// Backtester signal type TODO: expand
+	// Backtester signal types
 	DoNothing
 	TransferredFunds
 	CouldNotBuy

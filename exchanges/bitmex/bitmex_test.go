@@ -1175,3 +1175,20 @@ func TestCurrencyNormalization(t *testing.T) {
 		t.Errorf("amount mismatch, expected 1.0, got %f", w.Amount)
 	}
 }
+
+func TestGetOrderType(t *testing.T) {
+	t.Parallel()
+	_, err := b.getOrderType(0)
+	if !errors.Is(err, order.ErrTypeIsInvalid) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, order.ErrTypeIsInvalid)
+	}
+
+	o, err := b.getOrderType(1)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if o != order.Market {
+		t.Fatal("unexpected value")
+	}
+}

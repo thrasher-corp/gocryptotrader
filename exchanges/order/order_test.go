@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/validate"
@@ -395,8 +396,8 @@ func TestFilterOrdersByTimeRange(t *testing.T) {
 	}
 
 	err = FilterOrdersByTimeRange(&orders, time.Unix(300, 0), time.Unix(50, 0))
-	if !errors.Is(err, errInvalidTimeRange) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidTimeRange)
+	if !errors.Is(err, common.ErrStartAfterEnd) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrStartAfterEnd)
 	}
 }
 
@@ -809,6 +810,7 @@ var stringsToOrderStatus = []struct {
 	{"partially canceLLed", PartiallyCancelled, nil},
 	{"opeN", Open, nil},
 	{"cLosEd", Closed, nil},
+	{"cancellinG", Cancelling, nil},
 	{"woahMan", UnknownStatus, errUnrecognisedOrderStatus},
 }
 
@@ -1422,7 +1424,8 @@ func TestIsActive(t *testing.T) {
 		o      Detail
 		expRes bool
 	}{
-		0:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: AnyStatus}, true},
+		// For now force inactive on any status
+		0:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: AnyStatus}, false},
 		1:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: New}, true},
 		2:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Active}, true},
 		3:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: PartiallyCancelled}, false},
@@ -1435,7 +1438,8 @@ func TestIsActive(t *testing.T) {
 		10: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Rejected}, false},
 		11: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Expired}, false},
 		12: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Hidden}, true},
-		13: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: UnknownStatus}, true},
+		// For now force inactive on unknown status
+		13: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: UnknownStatus}, false},
 		14: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Open}, true},
 		15: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: AutoDeleverage}, true},
 		16: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Closed}, false},
@@ -1452,7 +1456,7 @@ func TestIsActive(t *testing.T) {
 var activeBenchmark = Detail{Status: Pending, Amount: 1}
 
 // 610732089	         2.414 ns/op	       0 B/op	       0 allocs/op // PREV
-// 1000000000	         0.9131 ns/op	       0 B/op	       0 allocs/op //CURRENT
+// 1000000000	         1.188 ns/op	       0 B/op	       0 allocs/op // CURRENT
 func BenchmarkIsActive(b *testing.B) {
 	for x := 0; x < b.N; x++ {
 		if !activeBenchmark.IsActive() {
@@ -1489,7 +1493,8 @@ func TestIsInactive(t *testing.T) {
 		o      Detail
 		expRes bool
 	}{
-		0:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: AnyStatus}, false},
+		// For now force inactive on any status
+		0:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: AnyStatus}, true},
 		1:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: New}, false},
 		2:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Active}, false},
 		3:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: PartiallyCancelled}, true},
@@ -1502,7 +1507,8 @@ func TestIsInactive(t *testing.T) {
 		10: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Rejected}, true},
 		11: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Expired}, true},
 		12: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Hidden}, false},
-		13: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: UnknownStatus}, false},
+		// For now force inactive on unknown status
+		13: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: UnknownStatus}, true},
 		14: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Open}, false},
 		15: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: AutoDeleverage}, false},
 		16: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Closed}, true},

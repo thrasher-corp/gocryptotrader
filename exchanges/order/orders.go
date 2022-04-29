@@ -15,11 +15,11 @@ import (
 )
 
 const (
-	orderSubmissionValidSides = Buy | Sell | Bid | Ask
+	orderSubmissionValidSides = Buy | Sell | Bid | Ask | Long | Short
 	shortSide                 = Short | Sell | Ask
 	longSide                  = Long | Buy | Bid
-	inactiveStatuses          = Filled | Cancelled | InsufficientBalance | MarketUnavailable | Rejected | PartiallyCancelled | Expired | Closed
-	activeStatuses            = Active | Open | PartiallyFilled | New | PendingCancel | Hidden | AutoDeleverage | Pending | UnknownStatus | AnyStatus
+	inactiveStatuses          = Filled | Cancelled | InsufficientBalance | MarketUnavailable | Rejected | PartiallyCancelled | Expired | Closed | AnyStatus
+	activeStatuses            = Active | Open | PartiallyFilled | New | PendingCancel | Hidden | AutoDeleverage | Pending
 	bypassSideFilter          = UnknownSide | AnySide
 	bypassTypeFilter          = UnknownType | AnyType
 )
@@ -29,7 +29,7 @@ var (
 	errUnrecognisedOrderSide   = errors.New("unrecognised order side")
 	errUnrecognisedOrderType   = errors.New("unrecognised order type")
 	errUnrecognisedOrderStatus = errors.New("unrecognised order status")
-	errInvalidTimeRange        = errors.New("invalid time range")
+	// errInvalidTimeRange        = errors.New("invalid time range")
 )
 
 // Validate checks the supplied data and returns whether or not it's valid
@@ -162,7 +162,7 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) {
 		d.Type = m.Type
 		updated = true
 	}
-	if m.Side != 0 && m.Side != d.Side {
+	if m.Side != UnknownSide && m.Side != d.Side {
 		d.Side = m.Side
 		updated = true
 	}
@@ -324,7 +324,7 @@ func (d *Detail) UpdateOrderFromModify(m *Modify) {
 		d.Type = m.Type
 		updated = true
 	}
-	if m.Side != 0 && m.Side != d.Side {
+	if m.Side != UnknownSide && m.Side != d.Side {
 		d.Side = m.Side
 		updated = true
 	}
@@ -440,19 +440,18 @@ func (d *Detail) MatchFilter(f *Filter) bool {
 // IsActive returns true if an order has a status that indicates it is currently
 // available on the exchange
 func (d *Detail) IsActive() bool {
-	return d.Amount > 0 && d.Amount > d.ExecutedAmount && activeStatuses&d.Status == d.Status
+	return d.Status != UnknownStatus &&
+		d.Amount > 0 &&
+		d.Amount > d.ExecutedAmount &&
+		activeStatuses&d.Status == d.Status
 }
 
 // IsInactive returns true if an order has a status that indicates it is
 // currently not available on the exchange
 func (d *Detail) IsInactive() bool {
-	if d.Status == UnknownStatus {
-		return false
-	}
-	if d.Amount <= 0 || d.Amount <= d.ExecutedAmount {
-		return true
-	}
-	return inactiveStatuses&d.Status == d.Status
+	return d.Amount <= 0 ||
+		d.Amount <= d.ExecutedAmount ||
+		inactiveStatuses&d.Status == d.Status
 }
 
 // GenerateInternalOrderID sets a new V4 order ID or a V5 order ID if
@@ -616,6 +615,8 @@ func (s Status) String() string {
 		return "CLOSED"
 	case Pending:
 		return "PENDING"
+	case Cancelling:
+		return "CANCELLING"
 	default:
 		return "UNKNOWN"
 	}
@@ -688,16 +689,15 @@ func FilterOrdersByType(orders *[]Detail, orderType Type) {
 
 // FilterOrdersByTimeRange removes any OrderDetails outside of the time range
 func FilterOrdersByTimeRange(orders *[]Detail, startTime, endTime time.Time) error {
-	if startTime.IsZero() ||
-		endTime.IsZero() ||
-		startTime.Unix() == 0 ||
-		endTime.Unix() == 0 ||
-		len(*orders) == 0 {
+	if len(*orders) == 0 {
 		return nil
 	}
-	if endTime.Before(startTime) {
-		return fmt.Errorf("cannot filter orders by time range %w %s %s",
-			errInvalidTimeRange, startTime, endTime)
+
+	if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+		if errors.Is(err, common.ErrStartAfterEnd) {
+			return fmt.Errorf("cannot filter orders by time range %w", err)
+		}
+		return nil
 	}
 
 	target := 0
@@ -716,7 +716,9 @@ func FilterOrdersByTimeRange(orders *[]Detail, startTime, endTime time.Time) err
 // provided currency pairs list. It is forgiving in that the provided pairs can
 // match quote or base pairs
 func FilterOrdersByPairs(orders *[]Detail, pairs []currency.Pair) {
-	if len(pairs) == 0 || len(pairs) == 1 && pairs[0].IsEmpty() || len(*orders) == 0 {
+	if len(pairs) == 0 ||
+		(len(pairs) == 1 && pairs[0].IsEmpty()) ||
+		len(*orders) == 0 {
 		return
 	}
 
@@ -858,7 +860,7 @@ func StringToOrderSide(side string) (Side, error) {
 	case AnySide.String():
 		return AnySide, nil
 	default:
-		return UnknownSide, fmt.Errorf("%s %w", side, errUnrecognisedOrderSide)
+		return UnknownSide, fmt.Errorf("'%s' %w", side, errUnrecognisedOrderSide)
 	}
 }
 
@@ -890,7 +892,7 @@ func StringToOrderType(oType string) (Type, error) {
 	case Trigger.String():
 		return Trigger, nil
 	default:
-		return UnknownType, fmt.Errorf("%v %w", oType, errUnrecognisedOrderType)
+		return UnknownType, fmt.Errorf("'%v' %w", oType, errUnrecognisedOrderType)
 	}
 }
 
@@ -903,21 +905,19 @@ func StringToOrderStatus(status string) (Status, error) {
 		return AnyStatus, nil
 	case New.String(), "PLACED":
 		return New, nil
-	case Active.String(), "STATUS_ACTIVE": // BTSE case
+	case Active.String(), "STATUS_ACTIVE":
 		return Active, nil
 	case PartiallyFilled.String(), "PARTIALLY MATCHED", "PARTIALLY FILLED":
 		return PartiallyFilled, nil
-	case Filled.String(), "FULLY MATCHED", "FULLY FILLED", "ORDER_FULLY_TRANSACTED": // BTSE case
+	case Filled.String(), "FULLY MATCHED", "FULLY FILLED", "ORDER_FULLY_TRANSACTED":
 		return Filled, nil
-	case PartiallyCancelled.String(), "PARTIALLY CANCELLED", "ORDER_PARTIALLY_TRANSACTED": // BTSE case
+	case PartiallyCancelled.String(), "PARTIALLY CANCELLED", "ORDER_PARTIALLY_TRANSACTED":
 		return PartiallyCancelled, nil
 	case Open.String():
 		return Open, nil
 	case Closed.String():
 		return Closed, nil
-	case Cancelled.String(),
-		"CANCELED",        // Binance and Kraken case
-		"ORDER_CANCELLED": // BTSE case
+	case Cancelled.String(), "CANCELED", "ORDER_CANCELLED":
 		return Cancelled, nil
 	case PendingCancel.String(), "PENDING CANCEL", "PENDING CANCELLATION":
 		return PendingCancel, nil
@@ -931,8 +931,10 @@ func StringToOrderStatus(status string) (Status, error) {
 		return InsufficientBalance, nil
 	case MarketUnavailable.String():
 		return MarketUnavailable, nil
+	case Cancelling.String():
+		return Cancelling, nil
 	default:
-		return UnknownStatus, fmt.Errorf("%s %w", status, errUnrecognisedOrderStatus)
+		return UnknownStatus, fmt.Errorf("'%s' %w", status, errUnrecognisedOrderStatus)
 	}
 }
 
