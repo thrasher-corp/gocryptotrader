@@ -81,8 +81,7 @@ func TestCreateHoldingsOverTimeChart(t *testing.T) {
 						Available: decimal.NewFromInt(1337),
 					},
 					{
-						Time:      tt,
-						Available: decimal.Zero,
+						Time: tt,
 					},
 				},
 			},

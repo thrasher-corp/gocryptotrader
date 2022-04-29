@@ -134,9 +134,7 @@ func TestCalculateIndividualFundingStatistics(t *testing.T) {
 			{
 				USDValue: decimal.NewFromInt(1337),
 			},
-			{
-				USDValue: decimal.Zero,
-			},
+			{},
 		},
 	}
 	rs := []relatedCurrencyPairStatistics{

@@ -47,7 +47,7 @@ func (d *DataFromKline) Load() error {
 			ValidationIssues: d.Item.Candles[i].ValidationIssues,
 		}
 		klineData[i] = newKline
-		d.addedTimes[d.Item.Candles[i].Time.UTC().Unix()] = true
+		d.addedTimes[d.Item.Candles[i].Time.UTC().UnixNano()] = true
 	}
 
 	d.SetStream(klineData)
@@ -63,9 +63,9 @@ func (d *DataFromKline) AppendResults(ki *gctkline.Item) {
 
 	var gctCandles []gctkline.Candle
 	for i := range ki.Candles {
-		if _, ok := d.addedTimes[ki.Candles[i].Time.Unix()]; !ok {
+		if _, ok := d.addedTimes[ki.Candles[i].Time.UnixNano()]; !ok {
 			gctCandles = append(gctCandles, ki.Candles[i])
-			d.addedTimes[ki.Candles[i].Time.Unix()] = true
+			d.addedTimes[ki.Candles[i].Time.UnixNano()] = true
 		}
 	}
 

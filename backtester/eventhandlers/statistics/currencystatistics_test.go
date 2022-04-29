@@ -138,12 +138,7 @@ func TestCalculateResults(t *testing.T) {
 	}
 	cs.Events = append(cs.Events, ev, ev3)
 	cs.Events[0].DataEvent = &kline.Kline{
-		Base:   even2,
-		Open:   decimal.Zero,
-		Close:  decimal.Zero,
-		Low:    decimal.Zero,
-		High:   decimal.Zero,
-		Volume: decimal.Zero,
+		Base: even2,
 	}
 	err = cs.CalculateResults(decimal.NewFromFloat(0.03))
 	if err != nil {
@@ -151,12 +146,7 @@ func TestCalculateResults(t *testing.T) {
 	}
 
 	cs.Events[1].DataEvent = &kline.Kline{
-		Base:   even2,
-		Open:   decimal.Zero,
-		Close:  decimal.Zero,
-		Low:    decimal.Zero,
-		High:   decimal.Zero,
-		Volume: decimal.Zero,
+		Base: even2,
 	}
 	err = cs.CalculateResults(decimal.NewFromFloat(0.03))
 	if err != nil {

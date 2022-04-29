@@ -117,8 +117,8 @@ func (f *FundManager) CreateSnapshot(t time.Time) {
 			if f.items[i].isCollateral {
 				f.items[i].initialFunds = f.items[i].available
 			}
-		} else if _, ok := f.items[i].snapshot[t.Unix()]; ok {
-			f.items[i].snapshot[t.Unix()] = ItemSnapshot{}
+		} else if _, ok := f.items[i].snapshot[t.UnixNano()]; ok {
+			f.items[i].snapshot[t.UnixNano()] = ItemSnapshot{}
 		}
 
 		iss := ItemSnapshot{
@@ -142,7 +142,7 @@ func (f *FundManager) CreateSnapshot(t time.Time) {
 			iss.USDValue = usdClosePrice.Mul(f.items[i].available)
 		}
 
-		f.items[i].snapshot[t.Unix()] = iss
+		f.items[i].snapshot[t.UnixNano()] = iss
 	}
 }
 
@@ -164,31 +164,10 @@ func (f *FundManager) AddUSDTrackingData(k *kline.DataFromKline) error {
 		}
 		if f.items[i].asset.IsFutures() && k.Item.Asset.IsFutures() {
 			if f.items[i].isCollateral {
-				usdCandles := gctkline.Item{
-					Exchange: k.Item.Exchange,
-					Pair:     currency.Pair{Delimiter: k.Item.Pair.Delimiter, Base: f.items[i].currency, Quote: currency.USD},
-					Asset:    k.Item.Asset,
-					Interval: k.Item.Interval,
-					Candles:  make([]gctkline.Candle, len(k.Item.Candles)),
-				}
-				copy(usdCandles.Candles, k.Item.Candles)
-				for j := range usdCandles.Candles {
-					// usd stablecoins do not always match in value,
-					// this is a simplified implementation that can allow
-					// USD tracking for many currencies across many exchanges
-					// without retrieving n candle history and exchange rates
-					usdCandles.Candles[j].Open = 1
-					usdCandles.Candles[j].High = 1
-					usdCandles.Candles[j].Low = 1
-					usdCandles.Candles[j].Close = 1
-				}
-				cpy := *k
-				cpy.Item = usdCandles
-				if err := cpy.Load(); err != nil {
+				err := f.setUSDCandles(k, i)
+				if err != nil {
 					return err
 				}
-				f.items[i].trackingCandles = &cpy
-				quoteSet = true
 			} else {
 				f.items[i].trackingCandles = k
 				baseSet = true
@@ -213,30 +192,10 @@ func (f *FundManager) AddUSDTrackingData(k *kline.DataFromKline) error {
 					continue
 				}
 				if f.items[i].trackingCandles == nil {
-					usdCandles := gctkline.Item{
-						Exchange: k.Item.Exchange,
-						Pair:     currency.Pair{Delimiter: k.Item.Pair.Delimiter, Base: f.items[i].currency, Quote: currency.USD},
-						Asset:    k.Item.Asset,
-						Interval: k.Item.Interval,
-						Candles:  make([]gctkline.Candle, len(k.Item.Candles)),
-					}
-					copy(usdCandles.Candles, k.Item.Candles)
-					for j := range usdCandles.Candles {
-						// usd stablecoins do not always match in value,
-						// this is a simplified implementation that can allow
-						// USD tracking for many currencies across many exchanges
-						// without retrieving n candle history and exchange rates
-						usdCandles.Candles[j].Open = 1
-						usdCandles.Candles[j].High = 1
-						usdCandles.Candles[j].Low = 1
-						usdCandles.Candles[j].Close = 1
-					}
-					cpy := *k
-					cpy.Item = usdCandles
-					if err := cpy.Load(); err != nil {
+					err := f.setUSDCandles(k, i)
+					if err != nil {
 						return err
 					}
-					f.items[i].trackingCandles = &cpy
 				}
 				quoteSet = true
 			}
@@ -246,6 +205,36 @@ func (f *FundManager) AddUSDTrackingData(k *kline.DataFromKline) error {
 		return nil
 	}
 	return fmt.Errorf("%w %v %v %v", errCannotMatchTrackingToItem, k.Item.Exchange, k.Item.Asset, k.Item.Pair)
+}
+
+// setUSDCandles sets usd tracking candles
+// usd stablecoins do not always match in value,
+// this is a simplified implementation that can allow
+// USD tracking for many currencies across many exchanges
+func (f *FundManager) setUSDCandles(k *kline.DataFromKline, i int) error {
+	usdCandles := gctkline.Item{
+		Exchange: k.Item.Exchange,
+		Pair:     currency.Pair{Delimiter: k.Item.Pair.Delimiter, Base: f.items[i].currency, Quote: currency.USD},
+		Asset:    k.Item.Asset,
+		Interval: k.Item.Interval,
+		Candles:  make([]gctkline.Candle, len(k.Item.Candles)),
+	}
+	for j := range usdCandles.Candles {
+		usdCandles.Candles[j] = gctkline.Candle{
+			Time:  k.Item.Candles[j].Time,
+			Open:  1,
+			High:  1,
+			Low:   1,
+			Close: 1,
+		}
+	}
+	cpy := *k
+	cpy.Item = usdCandles
+	if err := cpy.Load(); err != nil {
+		return err
+	}
+	f.items[i].trackingCandles = &cpy
+	return nil
 }
 
 // CreatePair adds two funding items and associates them with one another
@@ -419,7 +408,10 @@ func (f *FundManager) Transfer(amount decimal.Decimal, sender, receiver *Item, i
 	if err != nil {
 		return err
 	}
-	receiver.IncreaseAvailable(receiveAmount)
+	err = receiver.IncreaseAvailable(receiveAmount)
+	if err != nil {
+		return err
+	}
 	return sender.Release(sendAmount, decimal.Zero)
 }
 
@@ -654,7 +646,6 @@ func (f *FundManager) HasExchangeBeenLiquidated(ev common.EventHandler) bool {
 		if ev.GetExchange() == f.items[i].exchange {
 			return f.items[i].isLiquidated
 		}
-		continue
 	}
 	return false
 }

@@ -88,18 +88,10 @@ func TestSetCurrency(t *testing.T) {
 	f := &ftx.FTX{}
 	f.Name = testExchange
 	cs := &Settings{
-		Exchange:            f,
-		UseRealOrders:       true,
-		Pair:                currency.NewPair(currency.BTC, currency.USDT),
-		Asset:               asset.Spot,
-		ExchangeFee:         decimal.Zero,
-		MakerFee:            decimal.Zero,
-		TakerFee:            decimal.Zero,
-		BuySide:             MinMax{},
-		SellSide:            MinMax{},
-		Leverage:            Leverage{},
-		MinimumSlippageRate: decimal.Zero,
-		MaximumSlippageRate: decimal.Zero,
+		Exchange:      f,
+		UseRealOrders: true,
+		Pair:          currency.NewPair(currency.BTC, currency.USDT),
+		Asset:         asset.Spot,
 	}
 	e.SetExchangeAssetCurrencySettings(asset.Spot, currency.NewPair(currency.BTC, currency.USDT), cs)
 	result, err := e.GetCurrencySettings(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
@@ -360,14 +352,10 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 		TakerFee:      decimal.NewFromFloat(0.01),
 		BuySide: MinMax{
 			MaximumSize: decimal.NewFromFloat(0.01),
-			MinimumSize: decimal.Zero,
 		},
 		SellSide: MinMax{
 			MaximumSize: decimal.NewFromFloat(0.1),
-			MinimumSize: decimal.Zero,
 		},
-		Leverage:            Leverage{},
-		MinimumSlippageRate: decimal.Zero,
 		MaximumSlippageRate: decimal.NewFromInt(1),
 		Limits:              limits,
 	}

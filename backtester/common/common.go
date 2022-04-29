@@ -105,3 +105,21 @@ func RegisterBacktesterSubLoggers() error {
 
 	return nil
 }
+
+// PurgeColours removes colour information
+func PurgeColours() {
+	ColourGreen = ""
+	ColourWhite = ""
+	ColourGrey = ""
+	ColourDefault = ""
+	ColourH1 = ""
+	ColourH2 = ""
+	ColourH3 = ""
+	ColourH4 = ""
+	ColourSuccess = ""
+	ColourInfo = ""
+	ColourDebug = ""
+	ColourWarn = ""
+	ColourDarkGrey = ""
+	ColourError = ""
+}

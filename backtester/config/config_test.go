@@ -449,18 +449,8 @@ func TestValidate(t *testing.T) {
 }
 
 func TestReadConfigFromFile(t *testing.T) {
-	tempDir, err := ioutil.TempDir("", "")
-	if err != nil {
-		t.Fatalf("Problem creating temp dir at %s: %s\n", tempDir, err)
-	}
-	defer func() {
-		err = os.RemoveAll(tempDir)
-		if err != nil {
-			t.Error(err)
-		}
-	}()
-	var passFile *os.File
-	passFile, err = ioutil.TempFile(tempDir, "*.start")
+	tempDir := t.TempDir()
+	passFile, err := ioutil.TempFile(tempDir, "*.start")
 	if err != nil {
 		t.Fatalf("Problem creating temp file at %v: %s\n", passFile, err)
 	}

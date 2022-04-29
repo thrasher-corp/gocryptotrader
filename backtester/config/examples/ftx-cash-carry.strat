@@ -36,10 +36,8 @@
    },
    "min-slippage-percent": "0",
    "max-slippage-percent": "0",
-   "maker-fee-override": "0.001",
-   "taker-fee-override": "0.002",
    "maximum-holdings-ratio": "0",
-   "skip-candle-volume-fitting": false,
+   "skip-candle-volume-fitting": true,
    "use-exchange-order-limits": false,
    "use-exchange-pnl-calculation": false
   },
@@ -60,10 +58,8 @@
    },
    "min-slippage-percent": "0",
    "max-slippage-percent": "0",
-   "maker-fee-override": "0.001",
-   "taker-fee-override": "0.002",
    "maximum-holdings-ratio": "0",
-   "skip-candle-volume-fitting": false,
+   "skip-candle-volume-fitting": true,
    "use-exchange-order-limits": false,
    "use-exchange-pnl-calculation": false
   }

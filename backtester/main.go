@@ -79,20 +79,7 @@ func main() {
 	flag.Parse()
 
 	if !colourOutput {
-		common.ColourGreen = ""
-		common.ColourWhite = ""
-		common.ColourGrey = ""
-		common.ColourDefault = ""
-		common.ColourH1 = ""
-		common.ColourH2 = ""
-		common.ColourH3 = ""
-		common.ColourH4 = ""
-		common.ColourSuccess = ""
-		common.ColourInfo = ""
-		common.ColourDebug = ""
-		common.ColourWarn = ""
-		common.ColourDarkGrey = ""
-		common.ColourError = ""
+		common.PurgeColours()
 	}
 	var bt *backtest.BackTest
 	var cfg *config.Config

@@ -584,7 +584,7 @@ func addCurrencySetting(reader *bufio.Reader, usingExchangeLevelFunding bool) (*
 		}
 	}
 
-	var f float64
+	var d decimal.Decimal
 	fmt.Println("Enter the currency base. eg BTC")
 	setting.Base = currency.NewCode(quickParse(reader))
 	if setting.Asset == asset.Spot {
@@ -593,12 +593,11 @@ func addCurrencySetting(reader *bufio.Reader, usingExchangeLevelFunding bool) (*
 			fmt.Println("Enter the initial base funds. eg 0")
 			parseNum := quickParse(reader)
 			if parseNum != "" {
-				f, err = strconv.ParseFloat(parseNum, 64)
+				d, err = decimal.NewFromString(parseNum)
 				if err != nil {
 					return nil, err
 				}
-				iqf := decimal.NewFromFloat(f)
-				setting.SpotDetails.InitialBaseFunds = &iqf
+				setting.SpotDetails.InitialBaseFunds = &d
 			}
 		}
 	}
@@ -610,12 +609,11 @@ func addCurrencySetting(reader *bufio.Reader, usingExchangeLevelFunding bool) (*
 		fmt.Println("Enter the initial quote funds. eg 10000")
 		parseNum := quickParse(reader)
 		if parseNum != "" {
-			f, err = strconv.ParseFloat(parseNum, 64)
+			d, err = decimal.NewFromString(parseNum)
 			if err != nil {
 				return nil, err
 			}
-			iqf := decimal.NewFromFloat(f)
-			setting.SpotDetails.InitialQuoteFunds = &iqf
+			setting.SpotDetails.InitialQuoteFunds = &d
 		}
 	}
 
@@ -625,21 +623,19 @@ func addCurrencySetting(reader *bufio.Reader, usingExchangeLevelFunding bool) (*
 		fmt.Println("Enter the maker-fee. eg 0.001")
 		parseNum := quickParse(reader)
 		if parseNum != "" {
-			f, err = strconv.ParseFloat(parseNum, 64)
+			d, err = decimal.NewFromString(parseNum)
 			if err != nil {
 				return nil, err
 			}
-			d := decimal.NewFromFloat(f)
 			setting.MakerFee = &d
 		}
 		fmt.Println("Enter the taker-fee. eg 0.01")
 		parseNum = quickParse(reader)
 		if parseNum != "" {
-			f, err = strconv.ParseFloat(parseNum, 64)
+			d, err = decimal.NewFromString(parseNum)
 			if err != nil {
 				return nil, err
 			}
-			d := decimal.NewFromFloat(f)
 			setting.TakerFee = &d
 		}
 	}
@@ -680,18 +676,16 @@ func addCurrencySetting(reader *bufio.Reader, usingExchangeLevelFunding bool) (*
 		fmt.Println("If the upper bound is 100, then the price can be unaffected. A minimum of 80 and a maximum of 100 means that the price will randomly be set between those bounds as a way of emulating slippage")
 
 		fmt.Println("What is the lower bounds of slippage? eg 80")
-		f, err = strconv.ParseFloat(quickParse(reader), 64)
+		setting.MinimumSlippagePercent, err = decimal.NewFromString(quickParse(reader))
 		if err != nil {
 			return nil, err
 		}
-		setting.MinimumSlippagePercent = decimal.NewFromFloat(f)
 
 		fmt.Println("What is the upper bounds of slippage? eg 100")
-		f, err = strconv.ParseFloat(quickParse(reader), 64)
+		setting.MaximumSlippagePercent, err = decimal.NewFromString(quickParse(reader))
 		if err != nil {
 			return nil, err
 		}
-		setting.MaximumSlippagePercent = decimal.NewFromFloat(f)
 	}
 
 	return &setting, nil

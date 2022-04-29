@@ -442,7 +442,6 @@ func (p *PositionTracker) TrackPNLByTime(t time.Time, currentPrice float64) erro
 	result := &PNLResult{
 		Time:   t,
 		Price:  price,
-		Fee:    decimal.Zero,
 		Status: p.status,
 	}
 	if p.currentDirection.IsLong() {
@@ -497,17 +496,12 @@ func (p *PositionTracker) Liquidate(price decimal.Decimal, t time.Time) error {
 	p.realisedPNL = decimal.Zero
 	p.unrealisedPNL = decimal.Zero
 	_, err = upsertPNLEntry(p.pnlHistory, &PNLResult{
-		Time:                  t,
-		UnrealisedPNL:         decimal.Zero,
-		RealisedPNLBeforeFees: decimal.Zero,
-		RealisedPNL:           decimal.Zero,
-		Price:                 price,
-		Exposure:              decimal.Zero,
-		Direction:             SideNA,
-		Fee:                   decimal.Zero,
-		IsLiquidated:          true,
-		IsOrder:               true,
-		Status:                p.status,
+		Time:         t,
+		Price:        price,
+		Direction:    SideNA,
+		IsLiquidated: true,
+		IsOrder:      true,
+		Status:       p.status,
 	})
 
 	return err
@@ -728,10 +722,7 @@ func (p *PNLCalculator) CalculatePNL(_ context.Context, calc *PNLCalculatorReque
 	var previousPNL *PNLResult
 	if len(calc.PNLHistory) > 0 {
 		for i := len(calc.PNLHistory) - 1; i >= 0; i-- {
-			if calc.PNLHistory[i].Time.Equal(calc.Time) {
-				continue
-			}
-			if !calc.PNLHistory[i].IsOrder {
+			if calc.PNLHistory[i].Time.Equal(calc.Time) || !calc.PNLHistory[i].IsOrder {
 				continue
 			}
 			previousPNL = &calc.PNLHistory[i]

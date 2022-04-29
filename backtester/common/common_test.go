@@ -103,3 +103,10 @@ func TestFitStringToLimit(t *testing.T) {
 		})
 	}
 }
+
+func TestPurgeColours(t *testing.T) {
+	PurgeColours()
+	if ColourSuccess != "" {
+		t.Error("expected purged colour")
+	}
+}

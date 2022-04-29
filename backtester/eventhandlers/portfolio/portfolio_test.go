@@ -1383,7 +1383,10 @@ func TestCreateLiquidationOrdersForExchange(t *testing.T) {
 	if !errors.Is(err, expectedError) {
 		t.Fatalf("received '%v' expected '%v'", err, expectedError)
 	}
-	item.IncreaseAvailable(decimal.NewFromInt(1337))
+	err = item.IncreaseAvailable(decimal.NewFromInt(1337))
+	if !errors.Is(err, expectedError) {
+		t.Fatalf("received '%v' expected '%v'", err, expectedError)
+	}
 	orders, err := p.CreateLiquidationOrdersForExchange(ev, funds)
 	if !errors.Is(err, expectedError) {
 		t.Fatalf("received '%v' expected '%v'", err, expectedError)

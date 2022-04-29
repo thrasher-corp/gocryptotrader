@@ -52,11 +52,12 @@ func (i *Item) Release(amount, diff decimal.Decimal) error {
 }
 
 // IncreaseAvailable adds funding to the available amount
-func (i *Item) IncreaseAvailable(amount decimal.Decimal) {
+func (i *Item) IncreaseAvailable(amount decimal.Decimal) error {
 	if amount.IsNegative() || amount.IsZero() {
-		return
+		return fmt.Errorf("%w amount <= zero", errZeroAmountReceived)
 	}
 	i.available = i.available.Add(amount)
+	return nil
 }
 
 // CanPlaceOrder checks if the item has any funds available
@@ -115,7 +116,7 @@ func (i *Item) MatchesExchange(item *Item) bool {
 	return i != nil && item != nil && i.exchange == item.exchange
 }
 
-// TakeProfit increases available funds for a futures asset
+// TakeProfit updates available funds for a futures collateral item
 func (i *Item) TakeProfit(amount decimal.Decimal) error {
 	if i.asset.IsFutures() && !i.isCollateral {
 		return fmt.Errorf("%v %v %v %w cannot add profit to contracts", i.exchange, i.asset, i.currency, ErrNotCollateral)

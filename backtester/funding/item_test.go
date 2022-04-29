@@ -90,14 +90,20 @@ func TestReserve(t *testing.T) {
 func TestIncreaseAvailable(t *testing.T) {
 	t.Parallel()
 	i := Item{}
-	i.IncreaseAvailable(elite)
+	err := i.IncreaseAvailable(elite)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
 	if !i.available.Equal(elite) {
 		t.Errorf("expected %v", elite)
 	}
-	i.IncreaseAvailable(decimal.Zero)
-	i.IncreaseAvailable(neg)
-	if !i.available.Equal(elite) {
-		t.Errorf("expected %v", elite)
+	err = i.IncreaseAvailable(decimal.Zero)
+	if !errors.Is(err, errZeroAmountReceived) {
+		t.Errorf("received '%v' expected '%v'", err, errZeroAmountReceived)
+	}
+	err = i.IncreaseAvailable(neg)
+	if !errors.Is(err, errZeroAmountReceived) {
+		t.Errorf("received '%v' expected '%v'", err, errZeroAmountReceived)
 	}
 }
 

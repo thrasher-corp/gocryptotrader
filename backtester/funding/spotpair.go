@@ -42,9 +42,9 @@ func (p *SpotPair) QuoteAvailable() decimal.Decimal {
 // changes which currency to affect based on the order side
 func (p *SpotPair) Reserve(amount decimal.Decimal, side order.Side) error {
 	switch side {
-	case order.Buy:
+	case order.Buy, order.Bid:
 		return p.quote.Reserve(amount)
-	case order.Sell:
+	case order.Sell, order.Ask:
 		return p.base.Reserve(amount)
 	default:
 		return fmt.Errorf("%w for %v %v %v. Unknown side %v",
@@ -61,29 +61,34 @@ func (p *SpotPair) Reserve(amount decimal.Decimal, side order.Side) error {
 // changes which currency to affect based on the order side
 func (p *SpotPair) Release(amount, diff decimal.Decimal, side order.Side) error {
 	switch side {
-	case order.Buy:
+	case order.Buy, order.Bid:
 		return p.quote.Release(amount, diff)
-	case order.Sell:
+	case order.Sell, order.Ask:
 		return p.base.Release(amount, diff)
-	default:
-		return fmt.Errorf("%w for %v %v %v. Unknown side %v",
-			errCannotAllocate,
-			p.base.exchange,
-			p.base.asset,
-			p.base.currency,
-			side)
 	}
+	return fmt.Errorf("%w for %v %v %v. Unknown side %v",
+		errCannotAllocate,
+		p.base.exchange,
+		p.base.asset,
+		p.base.currency,
+		side)
 }
 
 // IncreaseAvailable adds funding to the available amount
 // changes which currency to affect based on the order side
-func (p *SpotPair) IncreaseAvailable(amount decimal.Decimal, side order.Side) {
+func (p *SpotPair) IncreaseAvailable(amount decimal.Decimal, side order.Side) error {
 	switch side {
-	case order.Buy:
-		p.base.IncreaseAvailable(amount)
-	case order.Sell:
-		p.quote.IncreaseAvailable(amount)
+	case order.Buy, order.Bid:
+		return p.base.IncreaseAvailable(amount)
+	case order.Sell, order.Ask:
+		return p.quote.IncreaseAvailable(amount)
 	}
+	return fmt.Errorf("%w for %v %v %v. Unknown side %v",
+		errCannotAllocate,
+		p.base.exchange,
+		p.base.asset,
+		p.base.currency,
+		side)
 }
 
 // CanPlaceOrder does a > 0 check to see if there are any funds
@@ -91,9 +96,9 @@ func (p *SpotPair) IncreaseAvailable(amount decimal.Decimal, side order.Side) {
 // changes which currency to affect based on the order side
 func (p *SpotPair) CanPlaceOrder(side order.Side) bool {
 	switch side {
-	case order.Buy:
+	case order.Buy, order.Bid:
 		return p.quote.CanPlaceOrder()
-	case order.Sell:
+	case order.Sell, order.Ask:
 		return p.base.CanPlaceOrder()
 	}
 	return false

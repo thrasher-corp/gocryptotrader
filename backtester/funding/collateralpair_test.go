@@ -114,9 +114,7 @@ func TestCollateralUpdateContracts(t *testing.T) {
 			asset:        asset.Futures,
 			isCollateral: true,
 		},
-		contract: &Item{asset: asset.Futures,
-			available: decimal.Zero,
-		},
+		contract:         &Item{asset: asset.Futures},
 		currentDirection: &b,
 	}
 	leet := decimal.NewFromInt(1337)
@@ -154,9 +152,7 @@ func TestCollateralReleaseContracts(t *testing.T) {
 			asset:        asset.Futures,
 			isCollateral: true,
 		},
-		contract: &Item{asset: asset.Futures,
-			available: decimal.Zero,
-		},
+		contract:         &Item{asset: asset.Futures},
 		currentDirection: &b,
 	}
 
@@ -241,9 +237,7 @@ func TestCollateralReserve(t *testing.T) {
 			isCollateral: true,
 			available:    decimal.NewFromInt(1337),
 		},
-		contract: &Item{asset: asset.Futures,
-			available: decimal.Zero,
-		},
+		contract: &Item{asset: asset.Futures},
 	}
 	var expectedError error
 	err := c.Reserve(decimal.NewFromInt(1), gctorder.Long)

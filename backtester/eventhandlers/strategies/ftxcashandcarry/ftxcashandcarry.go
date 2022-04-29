@@ -22,8 +22,7 @@ func (s *Strategy) Name() string {
 	return Name
 }
 
-// Description provides a nice overview of the strategy
-// be it definition of terms or to highlight its purpose
+// Description describes the strategy
 func (s *Strategy) Description() string {
 	return description
 }
@@ -35,9 +34,7 @@ func (s *Strategy) OnSignal(data.Handler, funding.IFundingTransferer, portfolio.
 	return nil, base.ErrSimultaneousProcessingOnly
 }
 
-// SupportsSimultaneousProcessing highlights whether the strategy can handle multiple currency calculation
-// There is nothing actually stopping this strategy from considering multiple currencies at once
-// but for demonstration purposes, this strategy does not
+// SupportsSimultaneousProcessing this strategy only supports simultaneous signal processing
 func (s *Strategy) SupportsSimultaneousProcessing() bool {
 	return true
 }
@@ -105,6 +102,8 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundingTra
 	return response, nil
 }
 
+// createSignals creates signals based on the relationships between
+// futures and spot signals
 func (s *Strategy) createSignals(pos []order.PositionStats, spotSignal, futuresSignal *signal.Signal, diffBetweenFuturesSpot decimal.Decimal, isLastEvent bool) ([]signal.Event, error) {
 	if spotSignal == nil {
 		return nil, fmt.Errorf("%w missing spot signal", common.ErrNilArguments)
@@ -133,19 +132,18 @@ func (s *Strategy) createSignals(pos []order.PositionStats, spotSignal, futuresS
 		spotSignal.FillDependentEvent = futuresSignal
 		// only appending spotSignal as futuresSignal will be raised later
 		response = append(response, spotSignal)
-	case len(pos) > 0 &&
-		pos[len(pos)-1].Status == order.Open &&
+	case pos[len(pos)-1].Status == order.Open &&
 		isLastEvent:
 		futuresSignal.SetDirection(common.ClosePosition)
 		futuresSignal.AppendReason("Closing position on last event")
+		spotSignal.SetDirection(order.Sell)
 		response = append(response, spotSignal, futuresSignal)
-	case len(pos) > 0 && pos[len(pos)-1].Status == order.Open &&
+	case pos[len(pos)-1].Status == order.Open &&
 		diffBetweenFuturesSpot.LessThanOrEqual(s.closeShortDistancePercentage):
 		futuresSignal.SetDirection(common.ClosePosition)
 		futuresSignal.AppendReasonf("Closing position. Threshold %v", s.closeShortDistancePercentage)
 		response = append(response, spotSignal, futuresSignal)
-	case len(pos) > 0 &&
-		pos[len(pos)-1].Status == order.Closed &&
+	case pos[len(pos)-1].Status == order.Closed &&
 		diffBetweenFuturesSpot.GreaterThan(s.openShortDistancePercentage):
 		futuresSignal.SetDirection(order.Short)
 		futuresSignal.SetPrice(futuresSignal.ClosePrice)
@@ -157,6 +155,8 @@ func (s *Strategy) createSignals(pos []order.PositionStats, spotSignal, futuresS
 	return response, nil
 }
 
+// sortSignals links spot and futures signals in order to create cash
+// and carry signals
 func sortSignals(d []data.Handler) (map[currency.Pair]cashCarrySignals, error) {
 	if len(d) == 0 {
 		return nil, errNoSignals
@@ -185,30 +185,30 @@ func sortSignals(d []data.Handler) (map[currency.Pair]cashCarrySignals, error) {
 	// validate that each set of signals is matched
 	for _, v := range response {
 		if v.futureSignal == nil {
-			return nil, errNotSetup
+			return nil, fmt.Errorf("%w missing future signal", errNotSetup)
 		}
 		if v.spotSignal == nil {
-			return nil, errNotSetup
+			return nil, fmt.Errorf("%w missing spot signal", errNotSetup)
 		}
 	}
 
 	return response, nil
 }
 
-// SetCustomSettings not required for DCA
+// SetCustomSettings can override default settings
 func (s *Strategy) SetCustomSettings(customSettings map[string]interface{}) error {
 	for k, v := range customSettings {
 		switch k {
 		case openShortDistancePercentageString:
 			osdp, ok := v.(float64)
 			if !ok || osdp <= 0 {
-				return fmt.Errorf("%w provided rsi-high value could not be parsed: %v", base.ErrInvalidCustomSettings, v)
+				return fmt.Errorf("%w provided openShortDistancePercentage value could not be parsed: %v", base.ErrInvalidCustomSettings, v)
 			}
 			s.openShortDistancePercentage = decimal.NewFromFloat(osdp)
 		case closeShortDistancePercentageString:
 			csdp, ok := v.(float64)
 			if !ok || csdp <= 0 {
-				return fmt.Errorf("%w provided rsi-low value could not be parsed: %v", base.ErrInvalidCustomSettings, v)
+				return fmt.Errorf("%w provided closeShortDistancePercentage value could not be parsed: %v", base.ErrInvalidCustomSettings, v)
 			}
 			s.closeShortDistancePercentage = decimal.NewFromFloat(csdp)
 		default:
@@ -219,7 +219,7 @@ func (s *Strategy) SetCustomSettings(customSettings map[string]interface{}) erro
 	return nil
 }
 
-// SetDefaults not required for DCA
+// SetDefaults sets default values for overridable custom settings
 func (s *Strategy) SetDefaults() {
 	s.openShortDistancePercentage = decimal.Zero
 	s.closeShortDistancePercentage = decimal.Zero

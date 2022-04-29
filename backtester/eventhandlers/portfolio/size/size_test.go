@@ -14,7 +14,6 @@ import (
 func TestSizingAccuracy(t *testing.T) {
 	t.Parallel()
 	globalMinMax := exchange.MinMax{
-		MinimumSize:  decimal.Zero,
 		MaximumSize:  decimal.NewFromInt(1),
 		MaximumTotal: decimal.NewFromInt(10),
 	}
@@ -39,7 +38,6 @@ func TestSizingAccuracy(t *testing.T) {
 func TestSizingOverMaxSize(t *testing.T) {
 	t.Parallel()
 	globalMinMax := exchange.MinMax{
-		MinimumSize:  decimal.Zero,
 		MaximumSize:  decimal.NewFromFloat(0.5),
 		MaximumTotal: decimal.NewFromInt(1337),
 	}
@@ -85,7 +83,6 @@ func TestMaximumBuySizeEqualZero(t *testing.T) {
 	t.Parallel()
 	globalMinMax := exchange.MinMax{
 		MinimumSize:  decimal.NewFromInt(1),
-		MaximumSize:  decimal.Zero,
 		MaximumTotal: decimal.NewFromInt(1437),
 	}
 	sizer := Size{
@@ -105,7 +102,6 @@ func TestMaximumSellSizeEqualZero(t *testing.T) {
 	t.Parallel()
 	globalMinMax := exchange.MinMax{
 		MinimumSize:  decimal.NewFromInt(1),
-		MaximumSize:  decimal.Zero,
 		MaximumTotal: decimal.NewFromInt(1437),
 	}
 	sizer := Size{

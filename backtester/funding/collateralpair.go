@@ -99,6 +99,7 @@ func (c *CollateralPair) Reserve(amount decimal.Decimal, side gctorder.Side) err
 }
 
 // Liquidate kills your funds and future
+// all value storage are reduced to zero when triggered
 func (c *CollateralPair) Liquidate() {
 	c.collateral.available = decimal.Zero
 	c.collateral.reserved = decimal.Zero

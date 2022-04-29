@@ -30,8 +30,6 @@ func Create(ev ClosePriceReader, fundReader funding.IFundReader) (Holding, error
 			Timestamp:         ev.GetTime(),
 			QuoteInitialFunds: funds.InitialFunds(),
 			QuoteSize:         funds.InitialFunds(),
-			BaseInitialFunds:  decimal.Zero,
-			BaseSize:          decimal.Zero,
 			TotalInitialValue: funds.InitialFunds(),
 		}, nil
 	} else if ev.GetAssetType() == asset.Spot {

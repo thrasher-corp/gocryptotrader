@@ -89,8 +89,7 @@ func TestEvaluateOrder(t *testing.T) {
 	}
 
 	h = append(h, holdings.Holding{
-		Pair:     currency.NewPair(currency.DOGE, currency.USDT),
-		BaseSize: decimal.Zero,
+		Pair: currency.NewPair(currency.DOGE, currency.USDT),
 	})
 	o.Leverage = decimal.NewFromFloat(1.1)
 	r.CurrencySettings[e][a][p].MaximumHoldingRatio = decimal.Zero

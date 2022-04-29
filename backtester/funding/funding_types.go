@@ -55,7 +55,7 @@ type IFundingPair interface {
 	FundReleaser() IFundReleaser
 }
 
-// IFundReader allows a connoisseur to read
+// IFundReader can read
 // either collateral or pair details
 type IFundReader interface {
 	GetPairReader() (IPairReader, error)
@@ -69,7 +69,7 @@ type IFundReserver interface {
 	Reserve(decimal.Decimal, order.Side) error
 }
 
-// IFundReleaser allows a connoisseur to read
+// IFundReleaser can read
 // or release pair or collateral funds
 type IFundReleaser interface {
 	IFundReader
@@ -99,7 +99,7 @@ type ICollateralReader interface {
 // IPairReleaser limits funding usage for exchange event handling
 type IPairReleaser interface {
 	IPairReader
-	IncreaseAvailable(decimal.Decimal, order.Side)
+	IncreaseAvailable(decimal.Decimal, order.Side) error
 	Release(decimal.Decimal, decimal.Decimal, order.Side) error
 	Liquidate()
 }

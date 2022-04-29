@@ -117,7 +117,6 @@ func (p *Portfolio) OnSignal(ev signal.Event, cs *exchange.Settings, funds fundi
 			if err != nil {
 				return nil, err
 			}
-
 			sizingFunds = collateralFunds.AvailableFunds()
 		}
 	}
