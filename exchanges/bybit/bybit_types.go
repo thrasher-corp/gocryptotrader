@@ -42,6 +42,7 @@ var (
 // bybitTimeSec provides an internal conversion helper
 type bybitTimeSec time.Time
 
+// UnmarshalJSON is custom json unmarshaller for bybitTimeSec
 func (b *bybitTimeSec) UnmarshalJSON(data []byte) error {
 	var timestamp int64
 	err := json.Unmarshal(data, &timestamp)
@@ -60,6 +61,7 @@ func (b bybitTimeSec) Time() time.Time {
 // bybitTimeMilliSec provides an internal conversion helper
 type bybitTimeMilliSec time.Time
 
+// UnmarshalJSON is custom type json unmarshaller for bybitTimeMilliSec
 func (b *bybitTimeMilliSec) UnmarshalJSON(data []byte) error {
 	var timestamp int64
 	err := json.Unmarshal(data, &timestamp)
@@ -78,6 +80,7 @@ func (b bybitTimeMilliSec) Time() time.Time {
 // bybitTimeNanoSec provides an internal conversion helper
 type bybitTimeNanoSec time.Time
 
+// UnmarshalJSON is custom type json unmarshaller for bybitTimeNanoSec
 func (b *bybitTimeNanoSec) UnmarshalJSON(data []byte) error {
 	var timestamp int64
 	err := json.Unmarshal(data, &timestamp)

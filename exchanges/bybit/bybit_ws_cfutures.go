@@ -81,6 +81,7 @@ func (by *Bybit) WsCoinConnect() error {
 		log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", by.Name)
 	}
 
+	by.Websocket.Wg.Add(1)
 	go by.wsCoinReadData()
 	if by.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
 		err = by.WsCoinAuth(context.TODO())
@@ -90,6 +91,8 @@ func (by *Bybit) WsCoinConnect() error {
 		}
 	}
 
+	by.Websocket.Wg.Add(1)
+	go by.WsDataHandler()
 	return nil
 }
 
@@ -206,7 +209,7 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 
 	t, ok := multiStreamData["topic"].(string)
 	if !ok {
-		log.Errorf(log.ExchangeSys, "%s Received unhandle message on websocket: %s\n", by.Name, multiStreamData)
+		log.Errorf(log.ExchangeSys, "%s Received unhandle message on websocket: %v\n", by.Name, multiStreamData)
 		return nil
 	}
 

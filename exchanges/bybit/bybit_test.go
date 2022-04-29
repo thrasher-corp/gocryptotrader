@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log"
 	"os"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -1980,5 +1981,52 @@ func TestSetRiskLimit(t *testing.T) {
 	_, err = b.SetRiskLimit(context.Background(), pair, 2, 0)
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+// Miscellaneous
+
+func TestTimeSecUnmarshalJSON(t *testing.T) {
+	t.Parallel()
+	tInSec := time.Now().Unix()
+
+	var ts bybitTimeSec
+	err := ts.UnmarshalJSON([]byte(strconv.Itoa(int(tInSec))))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !time.Unix(tInSec, 0).Equal(ts.Time()) {
+		t.Errorf("TestTimeSecUnmarshalJSON failed")
+	}
+}
+
+func TestTimeMilliSecUnmarshalJSON(t *testing.T) {
+	t.Parallel()
+	tInMilliSec := time.Now().UnixMilli()
+
+	var tms bybitTimeMilliSec
+	err := tms.UnmarshalJSON([]byte(strconv.Itoa(int(tInMilliSec))))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !time.UnixMilli(tInMilliSec).Equal(tms.Time()) {
+		t.Errorf("TestTimeMilliSecUnmarshalJSON failed")
+	}
+}
+
+func TestTimeNanoSecUnmarshalJSON(t *testing.T) {
+	t.Parallel()
+	tInNanoSec := time.Now().UnixNano()
+
+	var tns bybitTimeNanoSec
+	err := tns.UnmarshalJSON([]byte(strconv.Itoa(int(tInNanoSec))))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !time.Unix(0, tInNanoSec).Equal(tns.Time()) {
+		t.Errorf("TestTimeNanoSecUnmarshalJSON failed")
 	}
 }

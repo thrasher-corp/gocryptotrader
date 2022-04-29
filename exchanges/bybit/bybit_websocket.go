@@ -336,7 +336,7 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 
 	t, ok := multiStreamData["topic"].(string)
 	if !ok {
-		log.Errorf(log.ExchangeSys, "%s Received unhandle message on websocket: %s\n", by.Name, multiStreamData)
+		log.Errorf(log.ExchangeSys, "%s Received unhandle message on websocket: %v\n", by.Name, multiStreamData)
 		return nil
 	}
 
