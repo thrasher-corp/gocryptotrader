@@ -635,7 +635,7 @@ func (by *Bybit) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a a
 
 		withdrawHistory := make([]exchange.WithdrawalHistory, len(w))
 		for i := range w {
-			withdrawHistory = append(withdrawHistory, exchange.WithdrawalHistory{
+			withdrawHistory[i] = exchange.WithdrawalHistory{
 				Status:          w[i].Status,
 				TransferID:      strconv.FormatInt(w[i].ID, 10),
 				Currency:        w[i].Coin,
@@ -644,7 +644,7 @@ func (by *Bybit) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a a
 				CryptoToAddress: w[i].Address,
 				CryptoTxID:      w[i].TxID,
 				Timestamp:       w[i].UpdatedAt,
-			})
+			}
 		}
 		return withdrawHistory, nil
 	default:

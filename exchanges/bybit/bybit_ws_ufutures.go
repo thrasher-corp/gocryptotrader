@@ -518,7 +518,8 @@ func (by *Bybit) wsUSDTHandleData(respRaw []byte) error {
 			return err
 		}
 		for x := range response.Data {
-			p, err := by.extractCurrencyPair(response.Data[x].Symbol, asset.USDTMarginedFutures)
+			var p currency.Pair
+			p, err = by.extractCurrencyPair(response.Data[x].Symbol, asset.USDTMarginedFutures)
 			if err != nil {
 				return err
 			}
@@ -570,7 +571,8 @@ func (by *Bybit) wsUSDTHandleData(respRaw []byte) error {
 			return err
 		}
 		for x := range response.Data {
-			p, err := by.extractCurrencyPair(response.Data[x].Symbol, asset.USDTMarginedFutures)
+			var p currency.Pair
+			p, err = by.extractCurrencyPair(response.Data[x].Symbol, asset.USDTMarginedFutures)
 			if err != nil {
 				return err
 			}

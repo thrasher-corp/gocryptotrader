@@ -310,6 +310,7 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 			if err != nil {
 				return err
 			}
+			counter := 0
 			trades := make([]trade.Data, len(response.TradeData))
 			for i := range response.TradeData {
 				var p currency.Pair
@@ -327,7 +328,7 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 					}
 				}
 
-				trades = append(trades, trade.Data{
+				trades[counter] = trade.Data{
 					TID:          response.TradeData[i].ID,
 					Exchange:     by.Name,
 					CurrencyPair: p,
@@ -336,7 +337,8 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 					Price:        response.TradeData[i].Price,
 					Amount:       response.TradeData[i].Size,
 					Timestamp:    response.TradeData[i].Time,
-				})
+				}
+				counter++
 			}
 			return by.AddTradesToBuffer(trades...)
 
@@ -564,7 +566,8 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 				return err
 			}
 			for x := range response.Data {
-				p, err := by.extractCurrencyPair(response.Data[x].Symbol, asset.CoinMarginedFutures)
+				var p currency.Pair
+				p, err = by.extractCurrencyPair(response.Data[x].Symbol, asset.CoinMarginedFutures)
 				if err != nil {
 					return err
 				}
@@ -616,7 +619,8 @@ func (by *Bybit) wsCoinHandleData(respRaw []byte) error {
 				return err
 			}
 			for x := range response.Data {
-				p, err := by.extractCurrencyPair(response.Data[x].Symbol, asset.CoinMarginedFutures)
+				var p currency.Pair
+				p, err = by.extractCurrencyPair(response.Data[x].Symbol, asset.CoinMarginedFutures)
 				if err != nil {
 					return err
 				}

@@ -83,7 +83,7 @@ func processOB(ob [][2]string) ([]orderbook.Item, error) {
 	return o, nil
 }
 
-func constructOrderbook(o orderbookResponse) (s Orderbook, err error) {
+func constructOrderbook(o *orderbookResponse) (s Orderbook, err error) {
 	s.Bids, err = processOB(o.Data.Bids)
 	if err != nil {
 		return s, err
@@ -113,7 +113,7 @@ func (by *Bybit) GetOrderBook(ctx context.Context, symbol string, depth int64) (
 		return Orderbook{}, err
 	}
 
-	return constructOrderbook(o)
+	return constructOrderbook(&o)
 }
 
 // GetMergedOrderBook gets orderbook for a given market with a given depth (default depth 100)
@@ -137,7 +137,7 @@ func (by *Bybit) GetMergedOrderBook(ctx context.Context, symbol string, scale, d
 		return Orderbook{}, err
 	}
 
-	return constructOrderbook(o)
+	return constructOrderbook(&o)
 }
 
 // GetTrades gets recent trades from the exchange
@@ -793,7 +793,8 @@ func (by *Bybit) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, me
 		params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
 		params.Set("api_key", creds.Key)
 		signature := params.Encode()
-		hmacSigned, err := crypto.GetHMAC(crypto.HashSHA256, []byte(signature), []byte(creds.Secret))
+		var hmacSigned []byte
+		hmacSigned, err = crypto.GetHMAC(crypto.HashSHA256, []byte(signature), []byte(creds.Secret))
 		if err != nil {
 			return nil, err
 		}
