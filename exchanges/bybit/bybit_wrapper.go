@@ -1141,6 +1141,10 @@ func (by *Bybit) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 		return nil, err
 	}
 
+	if len(req.Pairs) == 0 && req.AssetType != asset.Spot {
+		return nil, fmt.Errorf("GetActiveOrders: zero pairs found")
+	}
+
 	if len(req.Pairs) == 0 {
 		// sending an empty currency pair retrieves data for all currencies
 		req.Pairs = append(req.Pairs, currency.Pair{})
