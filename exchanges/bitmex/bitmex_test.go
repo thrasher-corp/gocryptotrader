@@ -1178,8 +1178,7 @@ func TestCurrencyNormalization(t *testing.T) {
 
 func TestGetOrderType(t *testing.T) {
 	t.Parallel()
-	_, err := b.getOrderType(0)
-	if !errors.Is(err, order.ErrTypeIsInvalid) {
+	if _, err := b.getOrderType(0); !errors.Is(err, order.ErrTypeIsInvalid) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, order.ErrTypeIsInvalid)
 	}
 

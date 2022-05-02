@@ -56,6 +56,8 @@ var (
 	errCannotSetInvalidTimeout = errors.New("cannot set new HTTP client with timeout that is equal or less than 0")
 	errUserAgentInvalid        = errors.New("cannot set invalid user agent")
 	errHTTPClientInvalid       = errors.New("custom http client cannot be nil")
+
+	zeroValueUnix = time.Unix(0, 0)
 )
 
 // SetHTTPClientWithTimeout sets a new *http.Client with different timeout
@@ -417,10 +419,10 @@ func (e Errors) Error() string {
 // StartEndTimeCheck provides some basic checks which occur
 // frequently in the codebase
 func StartEndTimeCheck(start, end time.Time) error {
-	if start.IsZero() {
+	if start.IsZero() || start.Equal(zeroValueUnix) {
 		return fmt.Errorf("start %w", ErrDateUnset)
 	}
-	if end.IsZero() {
+	if end.IsZero() || end.Equal(zeroValueUnix) {
 		return fmt.Errorf("end %w", ErrDateUnset)
 	}
 	if start.After(time.Now()) {

@@ -18,7 +18,7 @@ const (
 	orderSubmissionValidSides = Buy | Sell | Bid | Ask | Long | Short
 	shortSide                 = Short | Sell | Ask
 	longSide                  = Long | Buy | Bid
-	inactiveStatuses          = Filled | Cancelled | InsufficientBalance | MarketUnavailable | Rejected | PartiallyCancelled | Expired | Closed | AnyStatus
+	inactiveStatuses          = Filled | Cancelled | InsufficientBalance | MarketUnavailable | Rejected | PartiallyCancelled | Expired | Closed | AnyStatus | Cancelling
 	activeStatuses            = Active | Open | PartiallyFilled | New | PendingCancel | Hidden | AutoDeleverage | Pending
 	bypassSideFilter          = UnknownSide | AnySide
 	bypassTypeFilter          = UnknownType | AnyType
@@ -29,7 +29,6 @@ var (
 	errUnrecognisedOrderSide   = errors.New("unrecognised order side")
 	errUnrecognisedOrderType   = errors.New("unrecognised order type")
 	errUnrecognisedOrderStatus = errors.New("unrecognised order status")
-	// errInvalidTimeRange        = errors.New("invalid time range")
 )
 
 // Validate checks the supplied data and returns whether or not it's valid
@@ -694,10 +693,10 @@ func FilterOrdersByTimeRange(orders *[]Detail, startTime, endTime time.Time) err
 	}
 
 	if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
-		if errors.Is(err, common.ErrStartAfterEnd) {
-			return fmt.Errorf("cannot filter orders by time range %w", err)
+		if errors.Is(err, common.ErrDateUnset) {
+			return nil
 		}
-		return nil
+		return fmt.Errorf("cannot filter orders by time range %w", err)
 	}
 
 	target := 0

@@ -654,6 +654,16 @@ func TestParseStartEndDate(t *testing.T) {
 		t.Errorf("received %v, expected %v", err, ErrDateUnset)
 	}
 
+	err = StartEndTimeCheck(et, zeroValueUnix)
+	if !errors.Is(err, ErrDateUnset) {
+		t.Errorf("received %v, expected %v", err, ErrDateUnset)
+	}
+
+	err = StartEndTimeCheck(zeroValueUnix, et)
+	if !errors.Is(err, ErrDateUnset) {
+		t.Errorf("received %v, expected %v", err, ErrDateUnset)
+	}
+
 	err = StartEndTimeCheck(et, et)
 	if !errors.Is(err, ErrStartEqualsEnd) {
 		t.Errorf("received %v, expected %v", err, ErrStartEqualsEnd)
