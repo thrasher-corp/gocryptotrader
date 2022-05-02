@@ -421,6 +421,7 @@ func (b *Bittrex) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 	}
 
 	resp.Accounts = append(resp.Accounts, account.SubAccount{
+		AssetType:  assetType,
 		Currencies: currencies,
 	})
 	resp.Exchange = b.Name

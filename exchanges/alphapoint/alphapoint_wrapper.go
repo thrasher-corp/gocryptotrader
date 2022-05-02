@@ -113,6 +113,7 @@ func (a *Alphapoint) UpdateAccountInfo(ctx context.Context, assetType asset.Item
 
 	response.Accounts = append(response.Accounts, account.SubAccount{
 		Currencies: balances,
+		AssetType:  assetType,
 	})
 
 	err = account.Process(&response)
