@@ -264,7 +264,10 @@ func (m *portfolioManager) getExchangeAccountInfo(exchanges []exchange.IBotExcha
 			assetTypes = exchanges[x].GetAssetTypes(true)
 		}
 
-		exchangeHoldings := account.Holdings{Accounts: make([]account.SubAccount, 0, len(assetTypes))}
+		exchangeHoldings := account.Holdings{
+			Exchange: exchanges[x].GetName(),
+			Accounts: make([]account.SubAccount, 0, len(assetTypes)),
+		}
 		for y := range assetTypes {
 			// Update account info to process account updates in memory on
 			// every fetch.
@@ -276,10 +279,11 @@ func (m *portfolioManager) getExchangeAccountInfo(exchanges []exchange.IBotExcha
 					err)
 				continue
 			}
-			exchangeHoldings.Exchange = exchanges[x].GetName()
 			exchangeHoldings.Accounts = append(exchangeHoldings.Accounts, accountHoldings.Accounts...)
 		}
-		response = append(response, exchangeHoldings)
+		if len(exchangeHoldings.Accounts) > 0 {
+			response = append(response, exchangeHoldings)
+		}
 	}
 	return response
 }
