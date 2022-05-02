@@ -328,8 +328,22 @@ func (c *CoinbasePro) ProcessSnapshot(snapshot *WebsocketOrderbookSnapshot) erro
 
 // ProcessUpdate updates the orderbook local cache
 func (c *CoinbasePro) ProcessUpdate(update *WebsocketL2Update) error {
-	asks := make([]orderbook.Item, 0, len(update.Changes))
-	bids := make([]orderbook.Item, 0, len(update.Changes))
+	if len(update.Changes) == 0 {
+		return errors.New("no data in websocket update")
+	}
+
+	p, err := currency.NewPairFromString(update.ProductID)
+	if err != nil {
+		return err
+	}
+
+	timestamp, err := time.Parse(time.RFC3339, update.Time)
+	if err != nil {
+		return err
+	}
+
+	asks := make(orderbook.Items, 0, len(update.Changes))
+	bids := make(orderbook.Items, 0, len(update.Changes))
 
 	for i := range update.Changes {
 		price, err := strconv.ParseFloat(update.Changes[i][1], 64)
@@ -347,19 +361,6 @@ func (c *CoinbasePro) ProcessUpdate(update *WebsocketL2Update) error {
 		}
 	}
 
-	if len(asks) == 0 && len(bids) == 0 {
-		return errors.New("no data in websocket update")
-	}
-
-	p, err := currency.NewPairFromString(update.ProductID)
-	if err != nil {
-		return err
-	}
-
-	timestamp, err := time.Parse(time.RFC3339, update.Time)
-	if err != nil {
-		return err
-	}
 	return c.Websocket.Orderbook.Update(&orderbook.Update{
 		Bids:       bids,
 		Asks:       asks,
