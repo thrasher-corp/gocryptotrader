@@ -196,7 +196,8 @@ func (w Wrapper) AccountInformation(ctx context.Context, exch string, assetType 
 		Exchange: exch,
 		Accounts: []account.SubAccount{
 			{
-				ID: exch,
+				ID:        exch,
+				AssetType: assetType,
 				Currencies: []account.Balance{
 					{
 						CurrencyName: currency.Code{

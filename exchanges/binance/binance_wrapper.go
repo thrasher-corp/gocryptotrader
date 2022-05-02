@@ -121,27 +121,28 @@ func (b *Binance) SetDefaults() {
 			REST:      true,
 			Websocket: true,
 			RESTCapabilities: protocol.Features{
-				TickerBatching:        true,
-				TickerFetching:        true,
-				KlineFetching:         true,
-				OrderbookFetching:     true,
-				AutoPairUpdates:       true,
-				AccountInfo:           true,
-				CryptoDeposit:         true,
-				CryptoWithdrawal:      true,
-				GetOrder:              true,
-				GetOrders:             true,
-				CancelOrders:          true,
-				CancelOrder:           true,
-				SubmitOrder:           true,
-				DepositHistory:        true,
-				WithdrawalHistory:     true,
-				TradeFetching:         true,
-				UserTradeHistory:      true,
-				TradeFee:              true,
-				CryptoWithdrawalFee:   true,
-				MultiChainDeposits:    true,
-				MultiChainWithdrawals: true,
+				TickerBatching:                 true,
+				TickerFetching:                 true,
+				KlineFetching:                  true,
+				OrderbookFetching:              true,
+				AutoPairUpdates:                true,
+				AccountInfo:                    true,
+				CryptoDeposit:                  true,
+				CryptoWithdrawal:               true,
+				GetOrder:                       true,
+				GetOrders:                      true,
+				CancelOrders:                   true,
+				CancelOrder:                    true,
+				SubmitOrder:                    true,
+				DepositHistory:                 true,
+				WithdrawalHistory:              true,
+				TradeFetching:                  true,
+				UserTradeHistory:               true,
+				TradeFee:                       true,
+				CryptoWithdrawalFee:            true,
+				MultiChainDeposits:             true,
+				MultiChainWithdrawals:          true,
+				HasAssetTypeAccountSegregation: true,
 			},
 			WebsocketCapabilities: protocol.Features{
 				TradeFetching:          true,
@@ -701,6 +702,7 @@ func (b *Binance) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 func (b *Binance) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	var info account.Holdings
 	var acc account.SubAccount
+	acc.AssetType = assetType
 	info.Exchange = b.Name
 	switch assetType {
 	case asset.Spot:

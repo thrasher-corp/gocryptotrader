@@ -451,7 +451,7 @@ func (b *Base) SetEnabled(enabled bool) {
 
 // IsEnabled is a method that returns if the current exchange is enabled
 func (b *Base) IsEnabled() bool {
-	return b.Enabled
+	return b != nil && b.Enabled
 }
 
 // SetupDefaults sets the exchange settings based on the supplied config
@@ -1299,4 +1299,10 @@ func (b *Base) CalculateTotalCollateral(ctx context.Context, calculator *order.T
 // GetFuturesPositions returns futures positions according to the provided parameters
 func (b *Base) GetFuturesPositions(context.Context, asset.Item, currency.Pair, time.Time, time.Time) ([]order.Detail, error) {
 	return nil, common.ErrNotYetImplemented
+}
+
+// HasAssetTypeAccountSegregation returns if the accounts are divided into asset
+// types instead of just being denoted as spot holdings.
+func (b *Base) HasAssetTypeAccountSegregation() bool {
+	return b.Features.Supports.RESTCapabilities.HasAssetTypeAccountSegregation
 }

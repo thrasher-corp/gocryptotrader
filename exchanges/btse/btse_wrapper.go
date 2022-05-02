@@ -411,6 +411,7 @@ func (b *BTSE) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (acc
 	a.Exchange = b.Name
 	a.Accounts = []account.SubAccount{
 		{
+			AssetType:  assetType,
 			Currencies: currencies,
 		},
 	}

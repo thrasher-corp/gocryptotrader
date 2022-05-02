@@ -627,8 +627,9 @@ func TestErrors(t *testing.T) {
 	if test.Error() != "" {
 		t.Fatal("string should be nil")
 	}
-	test = append(test, errors.New("test1"))
-	if test.Error() != "test1" {
+	errTestOne := errors.New("test1")
+	test = append(test, errTestOne)
+	if !errors.Is(test, errTestOne) {
 		t.Fatal("does not match error")
 	}
 	test = append(test, errors.New("test2"))

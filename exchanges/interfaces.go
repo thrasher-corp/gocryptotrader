@@ -39,8 +39,6 @@ type IBotExchange interface {
 	UpdateTradablePairs(ctx context.Context, forceUpdate bool) error
 	GetEnabledPairs(a asset.Item) (currency.Pairs, error)
 	GetAvailablePairs(a asset.Item) (currency.Pairs, error)
-	FetchAccountInfo(ctx context.Context, a asset.Item) (account.Holdings, error)
-	UpdateAccountInfo(ctx context.Context, a asset.Item) (account.Holdings, error)
 	GetAuthenticatedAPISupport(endpoint uint8) bool
 	SetPairs(pairs currency.Pairs, a asset.Item, enabled bool) error
 	GetAssetTypes(enabled bool) asset.Items
@@ -98,6 +96,8 @@ type IBotExchange interface {
 	GetOrderExecutionLimits(a asset.Item, cp currency.Pair) (*order.Limits, error)
 	CheckOrderExecutionLimits(a asset.Item, cp currency.Pair, price, amount float64, orderType order.Type) error
 	UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error
+
+	AccountManagement
 }
 
 // CurrencyStateManagement defines functionality for currency state management
@@ -108,4 +108,11 @@ type CurrencyStateManagement interface {
 	CanTrade(c currency.Code, a asset.Item) error
 	CanWithdraw(c currency.Code, a asset.Item) error
 	CanDeposit(c currency.Code, a asset.Item) error
+}
+
+// AccountManagement defines functionality for exchange account management
+type AccountManagement interface {
+	UpdateAccountInfo(ctx context.Context, a asset.Item) (account.Holdings, error)
+	FetchAccountInfo(ctx context.Context, a asset.Item) (account.Holdings, error)
+	HasAssetTypeAccountSegregation() bool
 }

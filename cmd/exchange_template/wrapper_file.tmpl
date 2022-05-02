@@ -361,6 +361,8 @@ func ({{.Variable}} *{{.CapitalName}}) UpdateOrderbook(ctx context.Context, pair
 
 // UpdateAccountInfo retrieves balances for all enabled currencies
 func ({{.Variable}} *{{.CapitalName}}) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
+	// If fetching requires more than one asset type please set 
+	// HasAssetTypeAccountSegregation to true in RESTCapabilities above. 
 	return account.Holdings{}, common.ErrNotYetImplemented
 }
 

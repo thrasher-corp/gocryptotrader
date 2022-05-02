@@ -194,7 +194,7 @@ func (o *OKGroup) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 
 	var resp account.Holdings
 	resp.Exchange = o.Name
-	currencyAccount := account.SubAccount{}
+	currencyAccount := account.SubAccount{AssetType: assetType}
 
 	for i := range currencies {
 		hold, parseErr := strconv.ParseFloat(currencies[i].Hold, 64)

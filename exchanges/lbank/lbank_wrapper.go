@@ -327,7 +327,7 @@ func (l *Lbank) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 	if err != nil {
 		return info, err
 	}
-	var acc account.SubAccount
+	acc := account.SubAccount{AssetType: assetType}
 	for key, val := range data.Info.Asset {
 		c := currency.NewCode(key)
 		hold, ok := data.Info.Freeze[key]
