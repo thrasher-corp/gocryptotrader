@@ -473,7 +473,7 @@ func (p *PositionTracker) TrackNewOrder(d *Detail) error {
 		longSide = longSide.Add(decimal.NewFromFloat(p.longPositions[i].Amount))
 	}
 
-	if p.currentDirection == 0 {
+	if p.currentDirection == UnknownSide {
 		p.currentDirection = d.Side
 	}
 
