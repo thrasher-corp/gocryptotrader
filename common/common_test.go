@@ -621,14 +621,13 @@ func TestInArray(t *testing.T) {
 	}
 }
 
-var errTestOne = errors.New("test1")
-
 func TestErrors(t *testing.T) {
 	t.Parallel()
 	var test Errors
 	if test.Error() != "" {
 		t.Fatal("string should be nil")
 	}
+	errTestOne := errors.New("test1")
 	test = append(test, errTestOne)
 	if !errors.Is(test, errTestOne) {
 		t.Fatal("does not match error")
