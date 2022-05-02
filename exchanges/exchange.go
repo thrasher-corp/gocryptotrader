@@ -451,7 +451,7 @@ func (b *Base) SetEnabled(enabled bool) {
 
 // IsEnabled is a method that returns if the current exchange is enabled
 func (b *Base) IsEnabled() bool {
-	return b.Enabled
+	return b != nil && b.Enabled
 }
 
 // SetupDefaults sets the exchange settings based on the supplied config
@@ -1311,4 +1311,10 @@ func (b *Base) GetCollateralCurrencyForContract(asset.Item, currency.Pair) (curr
 // example 2: Binance coin margined futures pays returns using the same currency eg BTC
 func (b *Base) GetCurrencyForRealisedPNL(_ asset.Item, _ currency.Pair) (currency.Code, asset.Item, error) {
 	return currency.Code{}, asset.Empty, common.ErrNotYetImplemented
+}
+  
+// HasAssetTypeAccountSegregation returns if the accounts are divided into asset
+// types instead of just being denoted as spot holdings.
+func (b *Base) HasAssetTypeAccountSegregation() bool {
+	return b.Features.Supports.RESTCapabilities.HasAssetTypeAccountSegregation
 }
