@@ -58,9 +58,6 @@ func (by *Bybit) WsConnect() error {
 		MessageType: websocket.PingMessage,
 		Delay:       bybitWebsocketTimer,
 	})
-	if by.Verbose {
-		log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", by.Name)
-	}
 
 	by.Websocket.Wg.Add(1)
 	go by.wsReadData(by.Websocket.Conn)
@@ -334,111 +331,116 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 		}
 	}
 
-	t, ok := multiStreamData["topic"].(string)
-	if !ok {
-		log.Errorf(log.ExchangeSys, "%s Received unhandle message on websocket: %v\n", by.Name, multiStreamData)
+	if t, ok := multiStreamData["topic"].(string); ok {
+		switch t {
+		case wsOrderbook:
+			var data WsOrderbook
+			err := json.Unmarshal(respRaw, &data)
+			if err != nil {
+				return err
+			}
+			p, err := by.extractCurrencyPair(data.OBData.Symbol, asset.Spot)
+			if err != nil {
+				return err
+			}
+
+			err = by.wsUpdateOrderbook(&data.OBData, p, asset.Spot)
+			if err != nil {
+				return err
+			}
+			return nil
+		case wsTrades:
+			if !by.IsSaveTradeDataEnabled() {
+				return nil
+			}
+			var data WsTrade
+			err := json.Unmarshal(respRaw, &data)
+			if err != nil {
+				return err
+			}
+
+			p, err := by.extractCurrencyPair(data.Parameters.Symbol, asset.Spot)
+			if err != nil {
+				return err
+			}
+
+			side := order.Sell
+			if data.TradeData.Side {
+				side = order.Buy
+			}
+
+			return trade.AddTradesToBuffer(by.Name, trade.Data{
+				Timestamp:    data.TradeData.Time.Time(),
+				CurrencyPair: p,
+				AssetType:    asset.Spot,
+				Exchange:     by.Name,
+				Price:        data.TradeData.Price,
+				Amount:       data.TradeData.Size,
+				Side:         side,
+				TID:          data.TradeData.ID,
+			})
+		case wsTicker:
+			var data WsSpotTicker
+			err := json.Unmarshal(respRaw, &data)
+			if err != nil {
+				return err
+			}
+
+			p, err := by.extractCurrencyPair(data.Ticker.Symbol, asset.Spot)
+			if err != nil {
+				return err
+			}
+
+			by.Websocket.DataHandler <- &ticker.Price{
+				ExchangeName: by.Name,
+				Bid:          data.Ticker.Bid,
+				Ask:          data.Ticker.Ask,
+				LastUpdated:  data.Ticker.Time.Time(),
+				AssetType:    asset.Spot,
+				Pair:         p,
+			}
+			return nil
+		case wsKlines:
+			var data KlineStream
+			err := json.Unmarshal(respRaw, &data)
+			if err != nil {
+				return err
+			}
+
+			p, err := by.extractCurrencyPair(data.Kline.Symbol, asset.Spot)
+			if err != nil {
+				return err
+			}
+
+			by.Websocket.DataHandler <- stream.KlineData{
+				Pair:       p,
+				AssetType:  asset.Spot,
+				Exchange:   by.Name,
+				StartTime:  data.Kline.StartTime.Time(),
+				Interval:   data.Parameters.KlineType,
+				OpenPrice:  data.Kline.OpenPrice,
+				ClosePrice: data.Kline.ClosePrice,
+				HighPrice:  data.Kline.HighPrice,
+				LowPrice:   data.Kline.LowPrice,
+				Volume:     data.Kline.Volume,
+			}
+			return nil
+		default:
+			by.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: by.Name + stream.UnhandledMessage + string(respRaw)}
+		}
+	}
+
+	if m, ok := multiStreamData["auth"].(string); ok {
+		log.Infof(log.WebsocketMgr, "%v received auth response: %v", by.Name, m)
 		return nil
 	}
 
-	switch t {
-	case wsOrderbook:
-		var data WsOrderbook
-		err := json.Unmarshal(respRaw, &data)
-		if err != nil {
-			return err
-		}
-		p, err := by.extractCurrencyPair(data.OBData.Symbol, asset.Spot)
-		if err != nil {
-			return err
-		}
-
-		err = by.wsUpdateOrderbook(&data.OBData, p, asset.Spot)
-		if err != nil {
-			return err
-		}
-
-	case wsTrades:
-		if !by.IsSaveTradeDataEnabled() {
-			return nil
-		}
-		var data WsTrade
-		err := json.Unmarshal(respRaw, &data)
-		if err != nil {
-			return err
-		}
-
-		p, err := by.extractCurrencyPair(data.Parameters.Symbol, asset.Spot)
-		if err != nil {
-			return err
-		}
-
-		side := order.Sell
-		if data.TradeData.Side {
-			side = order.Buy
-		}
-
-		return trade.AddTradesToBuffer(by.Name, trade.Data{
-			Timestamp:    data.TradeData.Time.Time(),
-			CurrencyPair: p,
-			AssetType:    asset.Spot,
-			Exchange:     by.Name,
-			Price:        data.TradeData.Price,
-			Amount:       data.TradeData.Size,
-			Side:         side,
-			TID:          data.TradeData.ID,
-		})
-
-	case wsTicker:
-		var data WsSpotTicker
-		err := json.Unmarshal(respRaw, &data)
-		if err != nil {
-			return err
-		}
-
-		p, err := by.extractCurrencyPair(data.Ticker.Symbol, asset.Spot)
-		if err != nil {
-			return err
-		}
-
-		by.Websocket.DataHandler <- &ticker.Price{
-			ExchangeName: by.Name,
-			Bid:          data.Ticker.Bid,
-			Ask:          data.Ticker.Ask,
-			LastUpdated:  data.Ticker.Time.Time(),
-			AssetType:    asset.Spot,
-			Pair:         p,
-		}
-
-	case wsKlines:
-		var data KlineStream
-		err := json.Unmarshal(respRaw, &data)
-		if err != nil {
-			return err
-		}
-
-		p, err := by.extractCurrencyPair(data.Kline.Symbol, asset.Spot)
-		if err != nil {
-			return err
-		}
-
-		by.Websocket.DataHandler <- stream.KlineData{
-			Pair:       p,
-			AssetType:  asset.Spot,
-			Exchange:   by.Name,
-			StartTime:  data.Kline.StartTime.Time(),
-			Interval:   data.Parameters.KlineType,
-			OpenPrice:  data.Kline.OpenPrice,
-			ClosePrice: data.Kline.ClosePrice,
-			HighPrice:  data.Kline.HighPrice,
-			LowPrice:   data.Kline.LowPrice,
-			Volume:     data.Kline.Volume,
-		}
-
-	default:
-		by.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: by.Name + stream.UnhandledMessage + string(respRaw)}
+	if m, ok := multiStreamData["ping"].(string); ok {
+		log.Infof(log.WebsocketMgr, "%v received ping: %v", by.Name, m)
+		return nil
 	}
 
-	return nil
+	return fmt.Errorf("unhandled stream data %s", string(respRaw))
 }
 
 func (by *Bybit) wsUpdateOrderbook(update *WsOrderbookData, p currency.Pair, assetType asset.Item) error {
