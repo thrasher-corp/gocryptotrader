@@ -378,7 +378,7 @@ func TestGetFree(t *testing.T) {
 
 func TestUpdate(t *testing.T) {
 	t.Parallel()
-	s := &Service{exchangeAccounts: make(map[string]*Accounts), mux: dispatch.GetNewMux()}
+	s := &Service{exchangeAccounts: make(map[string]*Accounts), mux: dispatch.GetNewMux(nil)}
 	err := s.Update(nil)
 	if !errors.Is(err, errHoldingsIsNil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errHoldingsIsNil)
