@@ -954,7 +954,7 @@ func (bot *Engine) WaitForInitialCurrencySync() error {
 // across all enabled exchanges.
 func (bot *Engine) RegisterWebsocketRoutineHandlerInterceptor(fn Interceptor) error {
 	if bot == nil {
-		return fmt.Errorf("%T %w", bot, ErrNilSubsystem)
+		return errNilBot
 	}
 	return bot.websocketRoutineManager.registerInterceptor(fn)
 }
