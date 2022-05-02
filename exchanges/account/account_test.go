@@ -330,7 +330,7 @@ func TestBalanceInternalWait(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	bi.notice.Alert()
+	go bi.notice.Alert()
 	if <-waiter {
 		t.Fatal("should have been alerted by change notice")
 	}

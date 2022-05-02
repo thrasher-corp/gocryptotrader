@@ -283,10 +283,7 @@ func (b *ProtectedBalance) Wait(maxWait time.Duration) (wait <-chan bool, cancel
 	ch := make(chan struct{})
 	go func(ch chan<- struct{}, until time.Duration) {
 		time.Sleep(until)
-		select {
-		case ch <- struct{}{}:
-		default:
-		}
+		close(ch)
 	}(ch, maxWait)
 
 	return b.notice.Wait(ch), ch, nil
