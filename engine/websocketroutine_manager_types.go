@@ -30,4 +30,4 @@ type websocketRoutineManager struct {
 
 // Interceptor defines a function signature for an externally defined function
 // that intercepts the data from the websocket routine manager.
-type Interceptor func(service string, incoming interface{})
+type Interceptor func(service string, incoming interface{}) error
