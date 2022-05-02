@@ -89,7 +89,7 @@ func TestRetrieve(t *testing.T) {
 	d.options = options{
 		exchange:         "THE BIG ONE!!!!!!",
 		pair:             currency.NewPair(currency.THETA, currency.USD),
-		asset:            "Silly asset",
+		asset:            asset.DownsideProfitContract,
 		lastUpdated:      time.Now(),
 		lastUpdateID:     1337,
 		priceDuplication: true,

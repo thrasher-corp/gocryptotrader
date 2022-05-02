@@ -363,6 +363,7 @@ func (g *Gateio) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 		}
 		info.Accounts = append(info.Accounts, account.SubAccount{
 			Currencies: currData,
+			AssetType:  assetType,
 		})
 	} else {
 		balance, err := g.GetBalances(ctx)
@@ -420,6 +421,7 @@ func (g *Gateio) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 		}
 
 		info.Accounts = append(info.Accounts, account.SubAccount{
+			AssetType:  assetType,
 			Currencies: balances,
 		})
 	}
@@ -604,7 +606,7 @@ func (g *Gateio) GetOrderInfo(ctx context.Context, orderID string, pair currency
 		return orderDetail, errors.New("failed to get open orders")
 	}
 
-	if assetType == "" {
+	if assetType == asset.Empty {
 		assetType = asset.Spot
 	}
 

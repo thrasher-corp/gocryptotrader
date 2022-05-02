@@ -199,11 +199,7 @@ func TestWriter(t *testing.T) {
 	type args struct {
 		file string
 	}
-	tmp, err := ioutil.TempDir("", "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmp)
+	tmp := t.TempDir()
 
 	testData := `data`
 
@@ -269,12 +265,8 @@ func TestWriterNoPermissionFails(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("Skip file permissions")
 	}
-	temp, err := ioutil.TempDir("", "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(temp)
-	err = os.Chmod(temp, 0o555)
+	temp := t.TempDir()
+	err := os.Chmod(temp, 0o555)
 	if err != nil {
 		t.Fatal(err)
 	}

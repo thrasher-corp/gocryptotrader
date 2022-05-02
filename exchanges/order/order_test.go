@@ -759,7 +759,6 @@ func TestUpdateOrderFromModify(t *testing.T) {
 		Type:              "",
 		Side:              "",
 		Status:            "",
-		AssetType:         "",
 		Date:              time.Time{},
 		LastUpdated:       time.Time{},
 		Pair:              currency.EMPTYPAIR,
@@ -796,7 +795,7 @@ func TestUpdateOrderFromModify(t *testing.T) {
 		Type:              "1",
 		Side:              "1",
 		Status:            "1",
-		AssetType:         "1",
+		AssetType:         1,
 		LastUpdated:       updated,
 		Pair:              pair,
 		Trades:            []TradeHistory{},
@@ -869,7 +868,7 @@ func TestUpdateOrderFromModify(t *testing.T) {
 	if od.Status != "1" {
 		t.Error("Failed to update")
 	}
-	if od.AssetType != "1" {
+	if od.AssetType != 1 {
 		t.Error("Failed to update")
 	}
 	if od.LastUpdated != updated {
@@ -951,7 +950,6 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 		Type:              "",
 		Side:              "",
 		Status:            "",
-		AssetType:         "",
 		Date:              time.Time{},
 		LastUpdated:       time.Time{},
 		Pair:              currency.EMPTYPAIR,
@@ -988,7 +986,7 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 		Type:              "1",
 		Side:              "1",
 		Status:            "1",
-		AssetType:         "1",
+		AssetType:         1,
 		LastUpdated:       updated,
 		Pair:              pair,
 		Trades:            []TradeHistory{},
@@ -1061,7 +1059,7 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 	if od.Status != "1" {
 		t.Error("Failed to update")
 	}
-	if od.AssetType != "1" {
+	if od.AssetType != 1 {
 		t.Error("Failed to update")
 	}
 	if od.LastUpdated != updated {

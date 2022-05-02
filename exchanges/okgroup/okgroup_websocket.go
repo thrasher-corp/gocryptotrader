@@ -1059,6 +1059,6 @@ func (o *OKGroup) GetAssetTypeFromTableName(table string) asset.Item {
 		log.Warnf(log.ExchangeSys, "%s unhandled asset type %s",
 			o.Name,
 			table[:assetIndex])
-		return asset.Item(table[:assetIndex])
+		return asset.Empty
 	}
 }

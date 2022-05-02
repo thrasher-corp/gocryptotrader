@@ -180,7 +180,7 @@ func (w Wrapper) CancelOrder(ctx context.Context, exch, orderid string, cp curre
 	if !cp.IsEmpty() && cp.IsInvalid() {
 		return false, errTestFailed
 	}
-	if a != "" && !a.IsValid() {
+	if a != asset.Empty && !a.IsValid() {
 		return false, errTestFailed
 	}
 	return true, nil
@@ -196,7 +196,8 @@ func (w Wrapper) AccountInformation(ctx context.Context, exch string, assetType 
 		Exchange: exch,
 		Accounts: []account.SubAccount{
 			{
-				ID: exch,
+				ID:        exch,
+				AssetType: assetType,
 				Currencies: []account.Balance{
 					{
 						CurrencyName: currency.Code{

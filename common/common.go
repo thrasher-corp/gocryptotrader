@@ -417,6 +417,15 @@ func (e Errors) Error() string {
 	return r[:len(r)-2]
 }
 
+// Unwrap implements interface behaviour for errors.Is() matching NOTE: only
+// returns first element.
+func (e Errors) Unwrap() error {
+	if len(e) == 0 {
+		return nil
+	}
+	return e[0]
+}
+
 // StartEndTimeCheck provides some basic checks which occur
 // frequently in the codebase
 func StartEndTimeCheck(start, end time.Time) error {
