@@ -935,3 +935,125 @@ func TestMPTUpdateOpenPositionUnrealisedPNL(t *testing.T) {
 		t.Fatalf("received '%v' expected '%v", err, expectedError)
 	}
 }
+
+func TestMPTLiquidate(t *testing.T) {
+	t.Parallel()
+	item := asset.Futures
+	pair, err := currency.NewPairFromStrings("BTC", "1231")
+	if !errors.Is(err, nil) {
+		t.Error(err)
+	}
+	e := &MultiPositionTracker{
+		exchange:               testExchange,
+		exchangePNLCalculation: &FakePNL{},
+		asset:                  item,
+		orderPositions:         make(map[string]*PositionTracker),
+	}
+
+	err = e.Liquidate(decimal.Zero, time.Time{})
+	if !errors.Is(err, ErrPositionsNotLoadedForPair) {
+		t.Error(err)
+	}
+
+	setup := &PositionTrackerSetup{
+		Pair:  pair,
+		Asset: item,
+	}
+	_, err = e.SetupPositionTracker(setup)
+	if !errors.Is(err, nil) {
+		t.Error(err)
+	}
+
+	tt := time.Now()
+	err = e.TrackNewOrder(&Detail{
+		Date:      tt,
+		Exchange:  testExchange,
+		Pair:      pair,
+		AssetType: item,
+		Side:      Long,
+		ID:        "lol",
+		Price:     1,
+		Amount:    1,
+	})
+	if !errors.Is(err, nil) {
+		t.Error(err)
+	}
+
+	err = e.Liquidate(decimal.Zero, time.Time{})
+	if !errors.Is(err, errCannotLiquidate) {
+		t.Error(err)
+	}
+
+	err = e.Liquidate(decimal.Zero, tt)
+	if !errors.Is(err, nil) {
+		t.Error(err)
+	}
+
+	if e.positions[0].status != Liquidated {
+		t.Errorf("recieved '%v' expected '%v'", e.positions[0].status, Liquidated)
+	}
+	if !e.positions[0].exposure.IsZero() {
+		t.Errorf("recieved '%v' expected '%v'", e.positions[0].exposure, 0)
+	}
+
+	e = nil
+	err = e.Liquidate(decimal.Zero, tt)
+	if !errors.Is(err, common.ErrNilPointer) {
+		t.Error(err)
+	}
+}
+
+func TestPositionLiquidate(t *testing.T) {
+	t.Parallel()
+	item := asset.Futures
+	pair, err := currency.NewPairFromStrings("BTC", "1231")
+	if !errors.Is(err, nil) {
+		t.Error(err)
+	}
+	p := &PositionTracker{
+		contractPair:     pair,
+		asset:            item,
+		exchange:         testExchange,
+		PNLCalculation:   &PNLCalculator{},
+		status:           Open,
+		openingDirection: Long,
+	}
+
+	tt := time.Now()
+	err = p.TrackNewOrder(&Detail{
+		Date:      tt,
+		Exchange:  testExchange,
+		Pair:      pair,
+		AssetType: item,
+		Side:      Long,
+		ID:        "lol",
+		Price:     1,
+		Amount:    1,
+	})
+	if !errors.Is(err, nil) {
+		t.Error(err)
+	}
+
+	err = p.Liquidate(decimal.Zero, time.Time{})
+	if !errors.Is(err, errCannotLiquidate) {
+		t.Error(err)
+	}
+
+	err = p.Liquidate(decimal.Zero, tt)
+	if !errors.Is(err, nil) {
+		t.Error(err)
+	}
+
+	if p.status != Liquidated {
+		t.Errorf("recieved '%v' expected '%v'", p.status, Liquidated)
+	}
+	if !p.exposure.IsZero() {
+		t.Errorf("recieved '%v' expected '%v'", p.exposure, 0)
+	}
+
+	p = nil
+	err = p.Liquidate(decimal.Zero, tt)
+	if !errors.Is(err, common.ErrNilPointer) {
+		t.Error(err)
+	}
+}

@@ -116,7 +116,7 @@ func (i *Item) MatchesExchange(item *Item) bool {
 	return i != nil && item != nil && i.exchange == item.exchange
 }
 
-// TakeProfit updates available funds for a futures collateral item
+// TakeProfit increases/decreases available funds for a futures collateral item
 func (i *Item) TakeProfit(amount decimal.Decimal) error {
 	if i.asset.IsFutures() && !i.isCollateral {
 		return fmt.Errorf("%v %v %v %w cannot add profit to contracts", i.exchange, i.asset, i.currency, ErrNotCollateral)

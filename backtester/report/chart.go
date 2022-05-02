@@ -126,36 +126,26 @@ func createFuturesSpotDiffChart(items map[string]map[asset.Item]map[currency.Pai
 	if items == nil {
 		return nil, fmt.Errorf("%w missing currency pair statistics", common.ErrNilArguments)
 	}
-	var currs []linkCurrencyDiff
+	currs := make(map[currency.Pair]linkCurrencyDiff)
 	response := &Chart{}
 	for _, assetMap := range items {
 		for item, pairMap := range assetMap {
-			if !item.IsFutures() {
-				continue
-			}
 			for pair, result := range pairMap {
-				currs = append(currs, linkCurrencyDiff{
-					FuturesPair:   pair,
-					SpotPair:      result.UnderlyingPair,
-					FuturesEvents: result.Events,
-				})
-			}
-		}
-	}
-	for _, assetMap := range items {
-		for item, pairMap := range assetMap {
-			if item.IsFutures() {
-				continue
-			}
-			for pair, result := range pairMap {
-				for i := range currs {
-					if pair.Equal(currs[i].SpotPair) {
-						currs[i].SpotEvents = result.Events
-					}
+				diff, ok := currs[pair]
+				if !ok {
+					diff = linkCurrencyDiff{}
+				}
+				if item.IsFutures() {
+					diff.FuturesPair = pair
+					diff.SpotPair = result.UnderlyingPair
+					diff.FuturesEvents = result.Events
+				} else {
+					diff.SpotEvents = result.Events
 				}
 			}
 		}
 	}
+
 	for i := range currs {
 		if currs[i].FuturesEvents == nil || currs[i].SpotEvents == nil {
 			continue

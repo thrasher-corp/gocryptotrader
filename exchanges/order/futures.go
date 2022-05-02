@@ -488,7 +488,7 @@ func (p *PositionTracker) Liquidate(price decimal.Decimal, t time.Time) error {
 		return err
 	}
 	if !latest.Time.Equal(t) {
-		return fmt.Errorf("%w. Cannot liquidate from different time. Order closed on %v. Liquidation request on %v Status: %v", ErrPositionClosed, latest.Time, t, p.status)
+		return fmt.Errorf("%w cannot liquidate from a different time. PNL snapshot %v. Liquidation request on %v Status: %v", errCannotLiquidate, latest.Time, t, p.status)
 	}
 	p.status = Liquidated
 	p.currentDirection = SideNA
