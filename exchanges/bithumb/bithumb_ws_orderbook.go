@@ -9,7 +9,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -36,7 +35,7 @@ func (b *Bithumb) processBooks(updates *WsOrderbooks) error {
 		}
 		asks = append(asks, i)
 	}
-	return b.Websocket.Orderbook.Update(&buffer.Update{
+	return b.Websocket.Orderbook.Update(&orderbook.Update{
 		Pair:       updates.List[0].Symbol,
 		Asset:      asset.Spot,
 		Bids:       bids,

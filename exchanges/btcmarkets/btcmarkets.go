@@ -83,6 +83,11 @@ const (
 	tick          = "tick"
 	wsOB          = "orderbookUpdate"
 	tradeEndPoint = "trade"
+
+	// Subscription management when connection and subscription established
+	addSubscription    = "addSubscription"
+	removeSubscription = "removeSubscription"
+	clientType         = "api"
 )
 
 // BTCMarkets is the overarching type across the BTCMarkets package

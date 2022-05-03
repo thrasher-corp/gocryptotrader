@@ -97,6 +97,9 @@ jobs:
         key: ${{ runner.os }}-go-386-${{ hashFiles('**/go.sum') }}
         restore-keys: ${{ runner.os }}-go-386-
 
+    - name: Update apt-get
+      run: sudo apt-get update
+
     - name: Install gcc-multilib
       run: sudo apt-get install gcc-multilib
 

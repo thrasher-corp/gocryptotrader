@@ -563,10 +563,12 @@ var stringsToOrderSide = []struct {
 	{"ask", Ask, nil},
 	{"ASK", Ask, nil},
 	{"aSk", Ask, nil},
+	{"lOnG", Long, nil},
+	{"ShoRt", Short, nil},
 	{"any", AnySide, nil},
 	{"ANY", AnySide, nil},
 	{"aNy", AnySide, nil},
-	{"woahMan", Buy, errors.New("woahMan not recognised as order side")},
+	{"woahMan", Buy, errors.New("WOAHMAN not recognised as order side")},
 }
 
 func TestStringToOrderSide(t *testing.T) {
@@ -582,6 +584,16 @@ func TestStringToOrderSide(t *testing.T) {
 				t.Errorf("Unexpected output %v. Expected %v", out, testData.out)
 			}
 		})
+	}
+}
+
+var sideBenchmark Side
+
+// 9756914	       126.7 ns/op	       0 B/op	       0 allocs/op // PREV
+// 25200660	        57.63 ns/op	       3 B/op	       1 allocs/op // CURRENT
+func BenchmarkStringToOrderSide(b *testing.B) {
+	for x := 0; x < b.N; x++ {
+		sideBenchmark, _ = StringToOrderSide("any")
 	}
 }
 
@@ -619,7 +631,7 @@ var stringsToOrderType = []struct {
 	{"trigger", Trigger, nil},
 	{"TRIGGER", Trigger, nil},
 	{"tRiGgEr", Trigger, nil},
-	{"woahMan", UnknownType, errors.New("woahMan not recognised as order type")},
+	{"woahMan", UnknownType, errors.New("WOAHMAN not recognised as order type")},
 }
 
 func TestStringToOrderType(t *testing.T) {
@@ -635,6 +647,16 @@ func TestStringToOrderType(t *testing.T) {
 				t.Errorf("Unexpected output %v. Expected %v", out, testData.out)
 			}
 		})
+	}
+}
+
+var typeBenchmark Type
+
+// 5703705	       299.9 ns/op	       0 B/op	       0 allocs/op // PREV
+// 16353608	        81.23 ns/op	       8 B/op	       1 allocs/op // CURRENT
+func BenchmarkStringToOrderType(b *testing.B) {
+	for x := 0; x < b.N; x++ {
+		typeBenchmark, _ = StringToOrderType("trigger")
 	}
 }
 
@@ -682,7 +704,8 @@ var stringsToOrderStatus = []struct {
 	{"PARTIALLY_CANCELLEd", PartiallyCancelled, nil},
 	{"partially canceLLed", PartiallyCancelled, nil},
 	{"opeN", Open, nil},
-	{"woahMan", UnknownStatus, errors.New("woahMan not recognised as order status")},
+	{"cLosEd", Closed, nil},
+	{"woahMan", UnknownStatus, errors.New("WOAHMAN not recognised as order status")},
 }
 
 func TestStringToOrderStatus(t *testing.T) {
@@ -698,6 +721,16 @@ func TestStringToOrderStatus(t *testing.T) {
 				t.Errorf("Unexpected output %v. Expected %v", out, testData.out)
 			}
 		})
+	}
+}
+
+var statusBenchmark Status
+
+// 3569052	       351.8 ns/op	       0 B/op	       0 allocs/op // PREV
+// 11126791	       101.9 ns/op	      24 B/op	       1 allocs/op // CURRENT
+func BenchmarkStringToOrderStatus(b *testing.B) {
+	for x := 0; x < b.N; x++ {
+		statusBenchmark, _ = StringToOrderStatus("market_unavailable")
 	}
 }
 

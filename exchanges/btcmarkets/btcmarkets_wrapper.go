@@ -96,6 +96,7 @@ func (b *BTCMarkets) SetDefaults() {
 				OrderbookFetching:      true,
 				AccountInfo:            true,
 				Subscribe:              true,
+				Unsubscribe:            true,
 				AuthenticatedEndpoints: true,
 				GetOrders:              true,
 				GetOrder:               true,
@@ -166,6 +167,7 @@ func (b *BTCMarkets) Setup(exch *config.Exchange) error {
 		RunningURL:            wsURL,
 		Connector:             b.WsConnect,
 		Subscriber:            b.Subscribe,
+		Unsubscriber:          b.Unsubscribe,
 		GenerateSubscriptions: b.generateDefaultSubscriptions,
 		Features:              &b.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig: buffer.Config{

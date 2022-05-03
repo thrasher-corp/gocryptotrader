@@ -3437,8 +3437,12 @@ func getOrderbookStream(c *cli.Context) error {
 			return err
 		}
 
-		fmt.Printf("Orderbook stream for %s %s:\n\n", exchangeName,
-			resp.Pair.String())
+		fmt.Printf("Orderbook stream for %s %s:\n\n", exchangeName, resp.Pair)
+		if resp.Error != "" {
+			fmt.Printf("%s\n", resp.Error)
+			continue
+		}
+
 		fmt.Println("\t\tBids\t\t\t\tAsks")
 		fmt.Println()
 
@@ -3535,9 +3539,10 @@ func getExchangeOrderbookStream(c *cli.Context) error {
 			return err
 		}
 
-		fmt.Printf("Orderbook streamed for %s %s",
-			exchangeName,
-			resp.Pair.String())
+		fmt.Printf("Orderbook streamed for %s %s", exchangeName, resp.Pair)
+		if resp.Error != "" {
+			fmt.Printf("%s\n", resp.Error)
+		}
 	}
 }
 

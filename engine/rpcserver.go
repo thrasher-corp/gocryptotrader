@@ -692,35 +692,29 @@ func (s *RPCServer) GetAccountInfoStream(r *gctrpc.GetAccountInfoRequest, stream
 			return errDispatchSystem
 		}
 
-		d, ok := data.(*interface{})
+		holdings, ok := data.(*account.Holdings)
 		if !ok {
-			return errors.New("unable to type assert data")
+			return common.GetAssertError("*account.Holdings", data)
 		}
 
-		dd := *d
-		acc, ok := dd.(account.Holdings)
-		if !ok {
-			return errors.New("unable to type assert account holdings data")
-		}
-
-		accounts := make([]*gctrpc.Account, len(acc.Accounts))
-		for x := range acc.Accounts {
-			subAccounts := make([]*gctrpc.AccountCurrencyInfo, len(acc.Accounts[x].Currencies))
-			for y := range acc.Accounts[x].Currencies {
+		accounts := make([]*gctrpc.Account, len(holdings.Accounts))
+		for x := range holdings.Accounts {
+			subAccounts := make([]*gctrpc.AccountCurrencyInfo, len(holdings.Accounts[x].Currencies))
+			for y := range holdings.Accounts[x].Currencies {
 				subAccounts[y] = &gctrpc.AccountCurrencyInfo{
-					Currency:   acc.Accounts[x].Currencies[y].CurrencyName.String(),
-					TotalValue: acc.Accounts[x].Currencies[y].Total,
-					Hold:       acc.Accounts[x].Currencies[y].Hold,
+					Currency:   holdings.Accounts[x].Currencies[y].CurrencyName.String(),
+					TotalValue: holdings.Accounts[x].Currencies[y].Total,
+					Hold:       holdings.Accounts[x].Currencies[y].Hold,
 				}
 			}
 			accounts[x] = &gctrpc.Account{
-				Id:         acc.Accounts[x].ID,
+				Id:         holdings.Accounts[x].ID,
 				Currencies: subAccounts,
 			}
 		}
 
 		if err := stream.Send(&gctrpc.GetAccountInfoResponse{
-			Exchange: acc.Exchange,
+			Exchange: holdings.Exchange,
 			Accounts: accounts,
 		}); err != nil {
 			return err
@@ -2064,27 +2058,32 @@ func (s *RPCServer) GetOrderbookStream(r *gctrpc.GetOrderbookStreamRequest, stre
 	}
 
 	for {
-		base := depth.Retrieve()
-		bids := make([]*gctrpc.OrderbookItem, len(base.Bids))
-		for i := range base.Bids {
-			bids[i] = &gctrpc.OrderbookItem{
-				Amount: base.Bids[i].Amount,
-				Price:  base.Bids[i].Price,
-				Id:     base.Bids[i].ID}
-		}
-		asks := make([]*gctrpc.OrderbookItem, len(base.Asks))
-		for i := range base.Asks {
-			asks[i] = &gctrpc.OrderbookItem{
-				Amount: base.Asks[i].Amount,
-				Price:  base.Asks[i].Price,
-				Id:     base.Asks[i].ID}
-		}
-		err := stream.Send(&gctrpc.OrderbookResponse{
+		resp := &gctrpc.OrderbookResponse{
 			Pair:      &gctrpc.CurrencyPair{Base: r.Pair.Base, Quote: r.Pair.Quote},
-			Bids:      bids,
-			Asks:      asks,
 			AssetType: r.AssetType,
-		})
+		}
+		base, err := depth.Retrieve()
+		if err != nil {
+			resp.Error = err.Error()
+			resp.LastUpdated = time.Now().Unix()
+		} else {
+			resp.Bids = make([]*gctrpc.OrderbookItem, len(base.Bids))
+			for i := range base.Bids {
+				resp.Bids[i] = &gctrpc.OrderbookItem{
+					Amount: base.Bids[i].Amount,
+					Price:  base.Bids[i].Price,
+					Id:     base.Bids[i].ID}
+			}
+			resp.Asks = make([]*gctrpc.OrderbookItem, len(base.Asks))
+			for i := range base.Asks {
+				resp.Asks[i] = &gctrpc.OrderbookItem{
+					Amount: base.Asks[i].Amount,
+					Price:  base.Asks[i].Price,
+					Id:     base.Asks[i].ID}
+			}
+		}
+
+		err = stream.Send(resp)
 		if err != nil {
 			return err
 		}
@@ -2120,38 +2119,39 @@ func (s *RPCServer) GetExchangeOrderbookStream(r *gctrpc.GetExchangeOrderbookStr
 			return errDispatchSystem
 		}
 
-		d, ok := data.(*interface{})
+		d, ok := data.(orderbook.Outbound)
 		if !ok {
-			return errors.New("unable to type assert data")
+			return common.GetAssertError("orderbook.Outbound", data)
 		}
 
-		dd := *d
-		ob, ok := dd.(orderbook.Base)
-		if !ok {
-			return errors.New("unable to type assert orderbook data")
+		resp := &gctrpc.OrderbookResponse{}
+		ob, err := d.Retrieve()
+		if err != nil {
+			resp.Error = err.Error()
+			resp.LastUpdated = time.Now().Unix()
+		} else {
+			resp.Pair = &gctrpc.CurrencyPair{
+				Base:  ob.Pair.Base.String(),
+				Quote: ob.Pair.Quote.String(),
+			}
+			resp.AssetType = ob.Asset.String()
+			resp.Bids = make([]*gctrpc.OrderbookItem, len(ob.Bids))
+			for i := range ob.Bids {
+				resp.Bids[i] = &gctrpc.OrderbookItem{
+					Amount: ob.Bids[i].Amount,
+					Price:  ob.Bids[i].Price,
+					Id:     ob.Bids[i].ID}
+			}
+			resp.Asks = make([]*gctrpc.OrderbookItem, len(ob.Asks))
+			for i := range ob.Asks {
+				resp.Asks[i] = &gctrpc.OrderbookItem{
+					Amount: ob.Asks[i].Amount,
+					Price:  ob.Asks[i].Price,
+					Id:     ob.Asks[i].ID}
+			}
 		}
 
-		bids := make([]*gctrpc.OrderbookItem, len(ob.Bids))
-		for i := range ob.Bids {
-			bids[i] = &gctrpc.OrderbookItem{
-				Amount: ob.Bids[i].Amount,
-				Price:  ob.Bids[i].Price,
-				Id:     ob.Bids[i].ID}
-		}
-		asks := make([]*gctrpc.OrderbookItem, len(ob.Asks))
-		for i := range ob.Asks {
-			asks[i] = &gctrpc.OrderbookItem{
-				Amount: ob.Asks[i].Amount,
-				Price:  ob.Asks[i].Price,
-				Id:     ob.Asks[i].ID}
-		}
-		err := stream.Send(&gctrpc.OrderbookResponse{
-			Pair: &gctrpc.CurrencyPair{Base: ob.Pair.Base.String(),
-				Quote: ob.Pair.Quote.String()},
-			Bids:      bids,
-			Asks:      asks,
-			AssetType: ob.Asset.String(),
-		})
+		err = stream.Send(resp)
 		if err != nil {
 			return err
 		}
@@ -2204,15 +2204,9 @@ func (s *RPCServer) GetTickerStream(r *gctrpc.GetTickerStreamRequest, stream gct
 			return errDispatchSystem
 		}
 
-		d, ok := data.(*interface{})
+		t, ok := data.(*ticker.Price)
 		if !ok {
-			return errors.New("unable to type assert data")
-		}
-
-		dd := *d
-		t, ok := dd.(ticker.Price)
-		if !ok {
-			return errors.New("unable to type assert ticker data")
+			return common.GetAssertError("*ticker.Price", data)
 		}
 
 		err := stream.Send(&gctrpc.TickerResponse{
@@ -2263,15 +2257,9 @@ func (s *RPCServer) GetExchangeTickerStream(r *gctrpc.GetExchangeTickerStreamReq
 			return errDispatchSystem
 		}
 
-		d, ok := data.(*interface{})
+		t, ok := data.(*ticker.Price)
 		if !ok {
-			return errors.New("unable to type assert data")
-		}
-
-		dd := *d
-		t, ok := dd.(ticker.Price)
-		if !ok {
-			return errors.New("unable to type assert ticker data")
+			return common.GetAssertError("*ticker.Price", data)
 		}
 
 		err := stream.Send(&gctrpc.TickerResponse{
@@ -2530,7 +2518,7 @@ func (s *RPCServer) GCTScriptStatus(_ context.Context, _ *gctrpc.GCTScriptStatus
 	gctscript.AllVMSync.Range(func(k, v interface{}) bool {
 		vm, ok := v.(*gctscript.VM)
 		if !ok {
-			log.Errorf(log.GRPCSys, "Unable to type assert gctscript.VM")
+			log.Errorf(log.GRPCSys, "%v", common.GetAssertError("*gctscript.VM", v))
 			return false
 		}
 		resp.Scripts = append(resp.Scripts, &gctrpc.GCTScript{

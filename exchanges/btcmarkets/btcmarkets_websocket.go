@@ -19,7 +19,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -32,6 +31,8 @@ const (
 var (
 	errTypeAssertionFailure = errors.New("type assertion failure")
 	errChecksumFailure      = errors.New("crc32 checksum failure")
+
+	authChannels = []string{fundChange, heartbeat, orderChange}
 )
 
 // WsConnect connects to a websocket feed
@@ -144,7 +145,7 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 				VerifyOrderbook: b.CanVerifyOrderbook,
 			})
 		} else {
-			err = b.Websocket.Orderbook.Update(&buffer.Update{
+			err = b.Websocket.Orderbook.Update(&orderbook.Update{
 				UpdateTime: ob.Timestamp,
 				UpdateID:   ob.SnapshotID,
 				Asset:      asset.Spot,
@@ -155,8 +156,15 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 			})
 		}
 		if err != nil {
+			if errors.Is(err, orderbook.ErrOrderbookInvalid) {
+				err2 := b.ReSubscribeSpecificOrderbook(ob.Currency)
+				if err2 != nil {
+					return err2
+				}
+			}
 			return err
 		}
+		return nil
 	case tradeEndPoint:
 		if !b.IsSaveTradeDataEnabled() {
 			return nil
@@ -334,7 +342,6 @@ func (b *BTCMarkets) generateDefaultSubscriptions() ([]stream.ChannelSubscriptio
 	}
 
 	if b.Websocket.CanUseAuthenticatedEndpoints() {
-		var authChannels = []string{fundChange, heartbeat, orderChange}
 		for i := range authChannels {
 			subscriptions = append(subscriptions, stream.ChannelSubscription{
 				Channel: authChannels[i],
@@ -345,55 +352,99 @@ func (b *BTCMarkets) generateDefaultSubscriptions() ([]stream.ChannelSubscriptio
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (b *BTCMarkets) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
+func (b *BTCMarkets) Subscribe(subs []stream.ChannelSubscription) error {
 	var payload WsSubscribe
-	payload.MessageType = subscribe
-
-	for i := range channelsToSubscribe {
-		payload.Channels = append(payload.Channels,
-			channelsToSubscribe[i].Channel)
-
-		if channelsToSubscribe[i].Currency.String() != "" {
-			if !common.StringDataCompare(payload.MarketIDs,
-				channelsToSubscribe[i].Currency.String()) {
-				payload.MarketIDs = append(payload.MarketIDs,
-					channelsToSubscribe[i].Currency.String())
-			}
-		}
+	if len(subs) > 1 {
+		// TODO: Expand this to stream package as this assumes that we are doing
+		// an initial sync.
+		payload.MessageType = subscribe
+	} else {
+		payload.MessageType = addSubscription
+		payload.ClientType = clientType
 	}
 
-	if b.Websocket.CanUseAuthenticatedEndpoints() {
-		var authChannels = []string{fundChange, heartbeat, orderChange}
+	var authenticate bool
+	for i := range subs {
+		if !authenticate && common.StringDataContains(authChannels, subs[i].Channel) {
+			authenticate = true
+		}
+		payload.Channels = append(payload.Channels, subs[i].Channel)
+		if subs[i].Currency.IsEmpty() {
+			continue
+		}
+		pair := subs[i].Currency.String()
+		if common.StringDataCompare(payload.MarketIDs, pair) {
+			continue
+		}
+		payload.MarketIDs = append(payload.MarketIDs, pair)
+	}
+
+	if authenticate {
 		creds, err := b.GetCredentials(context.TODO())
 		if err != nil {
 			return err
 		}
-
-		for i := range authChannels {
-			if !common.StringDataCompare(payload.Channels, authChannels[i]) {
-				continue
-			}
-			signTime := strconv.FormatInt(time.Now().UnixMilli(), 10)
-			strToSign := "/users/self/subscribe" + "\n" + signTime
-			tempSign, err := crypto.GetHMAC(crypto.HashSHA512,
-				[]byte(strToSign),
-				[]byte(creds.Secret))
-			if err != nil {
-				return err
-			}
-			sign := crypto.Base64Encode(tempSign)
-			payload.Key = creds.Key
-			payload.Signature = sign
-			payload.Timestamp = signTime
-			break
+		signTime := strconv.FormatInt(time.Now().UnixMilli(), 10)
+		strToSign := "/users/self/subscribe" + "\n" + signTime
+		var tempSign []byte
+		tempSign, err = crypto.GetHMAC(crypto.HashSHA512,
+			[]byte(strToSign),
+			[]byte(creds.Secret))
+		if err != nil {
+			return err
 		}
+		sign := crypto.Base64Encode(tempSign)
+		payload.Key = creds.Key
+		payload.Signature = sign
+		payload.Timestamp = signTime
 	}
 
 	if err := b.Websocket.Conn.SendJSONMessage(payload); err != nil {
 		return err
 	}
-	b.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe...)
+	b.Websocket.AddSuccessfulSubscriptions(subs...)
 	return nil
+}
+
+// Unsubscribe sends a websocket message to manage and remove a subscription.
+func (b *BTCMarkets) Unsubscribe(subs []stream.ChannelSubscription) error {
+	payload := WsSubscribe{
+		MessageType: removeSubscription,
+		ClientType:  clientType,
+	}
+	for i := range subs {
+		payload.Channels = append(payload.Channels, subs[i].Channel)
+		if subs[i].Currency.IsEmpty() {
+			continue
+		}
+
+		pair := subs[i].Currency.String()
+		if common.StringDataCompare(payload.MarketIDs, pair) {
+			continue
+		}
+		payload.MarketIDs = append(payload.MarketIDs, pair)
+	}
+
+	err := b.Websocket.Conn.SendJSONMessage(payload)
+	if err != nil {
+		return err
+	}
+	b.Websocket.RemoveSuccessfulUnsubscriptions(subs...)
+	return nil
+}
+
+// ReSubscribeSpecificOrderbook removes the subscription and the subscribes
+// again to fetch a new snapshot in the event of a de-sync event.
+func (b *BTCMarkets) ReSubscribeSpecificOrderbook(pair currency.Pair) error {
+	sub := []stream.ChannelSubscription{{
+		Channel:  wsOB,
+		Currency: pair,
+		Asset:    asset.Spot,
+	}}
+	if err := b.Unsubscribe(sub); err != nil {
+		return err
+	}
+	return b.Subscribe(sub)
 }
 
 // checksum provides assurance on current in memory liquidity

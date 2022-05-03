@@ -148,6 +148,7 @@ message OrderbookResponse {
     repeated OrderbookItem asks = 4;
     int64 last_updated = 5;
     string asset_type = 6;
+    string error = 7;
 }
 
 message GetOrderbooksRequest {}

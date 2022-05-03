@@ -196,18 +196,22 @@ func (m *websocketRoutineManager) WebsocketDataHandler(exchName string, data int
 				d.AssetType,
 				d)
 		}
-	case *orderbook.Base:
+	case *orderbook.Depth:
+		base, err := d.Retrieve()
+		if err != nil {
+			return err
+		}
 		if m.syncer.IsRunning() {
 			err := m.syncer.Update(exchName,
-				d.Pair,
-				d.Asset,
+				base.Pair,
+				base.Asset,
 				SyncItemOrderbook,
 				nil)
 			if err != nil {
 				return err
 			}
 		}
-		m.syncer.PrintOrderbookSummary(d, "websocket", nil)
+		m.syncer.PrintOrderbookSummary(base, "websocket", nil)
 	case *order.Detail:
 		m.printOrderSummary(d)
 		if !m.orderManager.Exists(d) {

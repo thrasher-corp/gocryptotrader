@@ -61,6 +61,9 @@ var (
 	errCannotSetInvalidTimeout = errors.New("cannot set new HTTP client with timeout that is equal or less than 0")
 	errUserAgentInvalid        = errors.New("cannot set invalid user agent")
 	errHTTPClientInvalid       = errors.New("custom http client cannot be nil")
+
+	// ErrTypeAssertFailure defines an error when type assertion fails
+	ErrTypeAssertFailure = errors.New("type assert failure")
 )
 
 // MatchesPattern PATTERN , REGULAR EXPRESION
@@ -453,4 +456,10 @@ func StartEndTimeCheck(start, end time.Time) error {
 	}
 
 	return nil
+}
+
+// GetAssertError returns additional information for when an assertion failure
+// occurs.
+func GetAssertError(required string, received interface{}) error {
+	return fmt.Errorf("%w from %T to %s", ErrTypeAssertFailure, received, required)
 }

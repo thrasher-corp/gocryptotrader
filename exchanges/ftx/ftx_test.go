@@ -1003,8 +1003,8 @@ func TestGetPublicOptionsTrades(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if len(result) != 5 {
-		t.Error("limit of 5 should return 5 items")
+	if len(result) > 5 {
+		t.Error("limit of 5 should not exceed 5 items")
 	}
 	_, err = f.GetPublicOptionsTrades(context.Background(),
 		time.Unix(validFTTBTCEndTime, 0), time.Unix(validFTTBTCStartTime, 0), "5")
