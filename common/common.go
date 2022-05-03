@@ -58,6 +58,8 @@ var (
 	errHTTPClientInvalid       = errors.New("custom http client cannot be nil")
 
 	zeroValueUnix = time.Unix(0, 0)
+	// ErrTypeAssertFailure defines an error when type assertion fails
+	ErrTypeAssertFailure = errors.New("type assert failure")
 )
 
 // SetHTTPClientWithTimeout sets a new *http.Client with different timeout
@@ -416,6 +418,15 @@ func (e Errors) Error() string {
 	return r[:len(r)-2]
 }
 
+// Unwrap implements interface behaviour for errors.Is() matching NOTE: only
+// returns first element.
+func (e Errors) Unwrap() error {
+	if len(e) == 0 {
+		return nil
+	}
+	return e[0]
+}
+
 // StartEndTimeCheck provides some basic checks which occur
 // frequently in the codebase
 func StartEndTimeCheck(start, end time.Time) error {
@@ -436,4 +447,10 @@ func StartEndTimeCheck(start, end time.Time) error {
 	}
 
 	return nil
+}
+
+// GetAssertError returns additional information for when an assertion failure
+// occurs.
+func GetAssertError(required string, received interface{}) error {
+	return fmt.Errorf("%w from %T to %s", ErrTypeAssertFailure, received, required)
 }

@@ -298,6 +298,7 @@ func (i *ItBit) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 	}
 
 	info.Accounts = append(info.Accounts, account.SubAccount{
+		AssetType:  assetType,
 		Currencies: fullBalance,
 	})
 

@@ -139,11 +139,7 @@ func TestEncryptTwiceReusesSaltButNewCipher(t *testing.T) {
 	c := &Config{
 		EncryptConfig: 1,
 	}
-	tempDir, err := ioutil.TempDir("", "")
-	if err != nil {
-		t.Fatalf("Problem creating temp dir at %s: %s\n", tempDir, err)
-	}
-	defer os.RemoveAll(tempDir)
+	tempDir := t.TempDir()
 
 	// Prepare input
 	passFile, err := ioutil.TempFile(tempDir, "*.pw")
@@ -161,11 +157,17 @@ func TestEncryptTwiceReusesSaltButNewCipher(t *testing.T) {
 
 	// Temporarily replace Stdin with a custom input
 	oldIn := os.Stdin
-	defer func() { os.Stdin = oldIn }()
+	t.Cleanup(func() { os.Stdin = oldIn })
 	os.Stdin, err = os.Open(passFile.Name())
 	if err != nil {
 		t.Fatalf("Problem opening temp file at %s: %s\n", passFile.Name(), err)
 	}
+	t.Cleanup(func() {
+		err = os.Stdin.Close()
+		if err != nil {
+			t.Error(err)
+		}
+	})
 
 	// Save encrypted config
 	enc1 := filepath.Join(tempDir, "encrypted.dat")
@@ -203,15 +205,11 @@ func TestSaveAndReopenEncryptedConfig(t *testing.T) {
 	c := &Config{}
 	c.Name = "myCustomName"
 	c.EncryptConfig = 1
-	tempDir, err := ioutil.TempDir("", "")
-	if err != nil {
-		t.Fatalf("Problem creating temp dir at %s: %s\n", tempDir, err)
-	}
-	defer os.RemoveAll(tempDir)
+	tempDir := t.TempDir()
 
 	// Save encrypted config
 	enc := filepath.Join(tempDir, "encrypted.dat")
-	err = withInteractiveResponse(t, "pass\npass\n", func() error {
+	err := withInteractiveResponse(t, "pass\npass\n", func() error {
 		return c.SaveConfigToFile(enc)
 	})
 	if err != nil {
@@ -253,11 +251,7 @@ func setAnswersFile(t *testing.T, answerFile string) func() {
 
 func TestReadConfigWithPrompt(t *testing.T) {
 	// Prepare temp dir
-	tempDir, err := ioutil.TempDir("", "")
-	if err != nil {
-		t.Fatalf("Problem creating temp dir at %s: %s\n", tempDir, err)
-	}
-	defer os.RemoveAll(tempDir)
+	tempDir := t.TempDir()
 
 	// Ensure we'll get the prompt when loading
 	c := &Config{
@@ -266,7 +260,7 @@ func TestReadConfigWithPrompt(t *testing.T) {
 
 	// Save config
 	testConfigFile := filepath.Join(tempDir, "config.json")
-	err = c.SaveConfigToFile(testConfigFile)
+	err := c.SaveConfigToFile(testConfigFile)
 	if err != nil {
 		t.Fatalf("Problem saving config file in %s: %s\n", tempDir, err)
 	}

@@ -391,6 +391,7 @@ func (c *COINUT) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 	}
 	info.Exchange = c.Name
 	info.Accounts = append(info.Accounts, account.SubAccount{
+		AssetType:  assetType,
 		Currencies: balances,
 	})
 

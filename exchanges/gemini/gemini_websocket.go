@@ -21,7 +21,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -569,7 +568,7 @@ func (g *Gemini) wsProcessUpdate(result *wsL2MarketData) error {
 		if len(asks) == 0 && len(bids) == 0 {
 			return nil
 		}
-		err := g.Websocket.Orderbook.Update(&buffer.Update{
+		err := g.Websocket.Orderbook.Update(&orderbook.Update{
 			Asks:  asks,
 			Bids:  bids,
 			Pair:  pair,

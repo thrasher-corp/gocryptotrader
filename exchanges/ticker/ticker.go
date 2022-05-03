@@ -22,10 +22,10 @@ func init() {
 	service = new(Service)
 	service.Tickers = make(map[string]map[*currency.Item]map[*currency.Item]map[asset.Item]*Ticker)
 	service.Exchange = make(map[string]uuid.UUID)
-	service.mux = dispatch.GetNewMux()
+	service.mux = dispatch.GetNewMux(nil)
 }
 
-// SubscribeTicker subcribes to a ticker and returns a communication channel to
+// SubscribeTicker subscribes to a ticker and returns a communication channel to
 // stream new ticker updates
 func SubscribeTicker(exchange string, p currency.Pair, a asset.Item) (dispatch.Pipe, error) {
 	exchange = strings.ToLower(exchange)
@@ -42,7 +42,7 @@ func SubscribeTicker(exchange string, p currency.Pair, a asset.Item) (dispatch.P
 	return service.mux.Subscribe(tick.Main)
 }
 
-// SubscribeToExchangeTickers subcribes to all tickers on an exchange
+// SubscribeToExchangeTickers subscribes to all tickers on an exchange
 func SubscribeToExchangeTickers(exchange string) (dispatch.Pipe, error) {
 	exchange = strings.ToLower(exchange)
 	service.mu.Lock()
@@ -183,7 +183,7 @@ func (s *Service) update(p *Price) error {
 	// nolint: gocritic
 	ids := append(t.Assoc, t.Main)
 	s.mu.Unlock()
-	return s.mux.Publish(ids, p)
+	return s.mux.Publish(p, ids...)
 }
 
 // setItemID retrieves and sets dispatch mux publish IDs

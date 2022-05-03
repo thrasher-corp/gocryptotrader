@@ -627,8 +627,9 @@ func TestErrors(t *testing.T) {
 	if test.Error() != "" {
 		t.Fatal("string should be nil")
 	}
-	test = append(test, errors.New("test1"))
-	if test.Error() != "test1" {
+	errTestOne := errors.New("test1")
+	test = append(test, errTestOne)
+	if !errors.Is(test, errTestOne) {
 		t.Fatal("does not match error")
 	}
 	test = append(test, errors.New("test2"))
@@ -682,5 +683,22 @@ func TestParseStartEndDate(t *testing.T) {
 	err = StartEndTimeCheck(pt, et)
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v, expected %v", err, nil)
+	}
+}
+
+func TestGetAssertError(t *testing.T) {
+	err := GetAssertError("*[]string", float64(0))
+	if err.Error() != "type assert failure from float64 to *[]string" {
+		t.Fatal(err)
+	}
+
+	err = GetAssertError("<nil>", nil)
+	if err.Error() != "type assert failure from <nil> to <nil>" {
+		t.Fatal(err)
+	}
+
+	err = GetAssertError("bruh", struct{}{})
+	if !errors.Is(err, ErrTypeAssertFailure) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrTypeAssertFailure)
 	}
 }

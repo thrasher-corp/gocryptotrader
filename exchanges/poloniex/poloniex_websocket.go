@@ -20,7 +20,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -499,7 +498,7 @@ func (p *Poloniex) WsProcessOrderbookUpdate(sequenceNumber float64, data []inter
 	if !ok {
 		return fmt.Errorf("%w buysell not float64", errTypeAssertionFailure)
 	}
-	update := &buffer.Update{
+	update := &orderbook.Update{
 		Pair:     pair,
 		Asset:    asset.Spot,
 		UpdateID: int64(sequenceNumber),
