@@ -86,7 +86,7 @@ updates:
 			tip.Value.Amount = updts[x].Amount
 			continue updates
 		}
-		return fmt.Errorf("update error: %w %d not found",
+		return fmt.Errorf("update error: %w ID: %d not found",
 			errIDCannotBeMatched,
 			updts[x].ID)
 	}
@@ -156,11 +156,9 @@ func (ll *linkedList) amount() (liquidity, value float64) {
 
 // retrieve returns a full slice of contents from the linked list
 func (ll *linkedList) retrieve() Items {
-	depth := make(Items, ll.length)
-	iterator := 0
+	depth := make(Items, 0, ll.length)
 	for tip := ll.head; tip != nil; tip = tip.Next {
-		depth[iterator] = tip.Value
-		iterator++
+		depth = append(depth, tip.Value)
 	}
 	return depth
 }
