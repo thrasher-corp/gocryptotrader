@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 )
 
@@ -2028,5 +2029,62 @@ func TestTimeNanoSecUnmarshalJSON(t *testing.T) {
 
 	if !time.Unix(0, tInNanoSec).Equal(tns.Time()) {
 		t.Errorf("TestTimeNanoSecUnmarshalJSON failed")
+	}
+}
+
+// Wrapper
+func TestUpdateTicker(t *testing.T) {
+	t.Parallel()
+	pair, err := currency.NewPairFromString("BTCUSDT")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = b.UpdateTicker(context.Background(), pair, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = b.UpdateTicker(context.Background(), pair, asset.CoinMarginedFutures)
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = b.UpdateTicker(context.Background(), pair, asset.USDTMarginedFutures)
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = b.UpdateTicker(context.Background(), pair, asset.Futures)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestUpdateOrderbook(t *testing.T) {
+	t.Parallel()
+	pair, err := currency.NewPairFromString("BTCUSDT")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = b.UpdateOrderbook(context.Background(), pair, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = b.UpdateOrderbook(context.Background(), pair, asset.CoinMarginedFutures)
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = b.UpdateOrderbook(context.Background(), pair, asset.USDTMarginedFutures)
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = b.UpdateOrderbook(context.Background(), pair, asset.Futures)
+	if err != nil {
+		t.Error(err)
 	}
 }
