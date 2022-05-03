@@ -1,7 +1,6 @@
 package engine
 
 import (
-	"errors"
 	"fmt"
 	"sync/atomic"
 
@@ -16,8 +15,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
-
-var errNilInterceptorFunction = errors.New("interceptor function is nil")
 
 // setupWebsocketRoutineManager creates a new websocket routine manager
 func setupWebsocketRoutineManager(exchangeManager iExchangeManager, orderManager iOrderManager, syncer iCurrencyPairSyncer, cfg *currency.Config, verbose bool) (*websocketRoutineManager, error) {
@@ -36,14 +33,15 @@ func setupWebsocketRoutineManager(exchangeManager iExchangeManager, orderManager
 	if cfg.CurrencyPairFormat == nil && verbose {
 		return nil, errNilCurrencyPairFormat
 	}
-	return &websocketRoutineManager{
+	man := &websocketRoutineManager{
 		verbose:         verbose,
 		exchangeManager: exchangeManager,
 		orderManager:    orderManager,
 		syncer:          syncer,
 		currencyConfig:  cfg,
 		shutdown:        make(chan struct{}),
-	}, nil
+	}
+	return man, man.registerInterceptor(man.websocketDataHandler, false)
 }
 
 // Start runs the subsystem
@@ -116,7 +114,12 @@ func (m *websocketRoutineManager) websocketRoutine() {
 					if err != nil {
 						log.Errorf(log.WebsocketMgr, "%v", err)
 					}
-					go m.WebsocketDataReceiver(ws)
+
+					if atomic.LoadInt32(&m.started) != 0 {
+						m.wg.Add(1)
+						go m.websocketDataReceiver(ws)
+					}
+
 					err = ws.FlushChannels()
 					if err != nil {
 						log.Errorf(log.WebsocketMgr, "Failed to subscribe: %v", err)
@@ -134,40 +137,32 @@ func (m *websocketRoutineManager) websocketRoutine() {
 
 // WebsocketDataReceiver handles websocket data coming from a websocket feed
 // associated with an exchange
-func (m *websocketRoutineManager) WebsocketDataReceiver(ws *stream.Websocket) {
-	if m == nil || atomic.LoadInt32(&m.started) == 0 {
-		return
-	}
-	m.wg.Add(1)
+func (m *websocketRoutineManager) websocketDataReceiver(ws *stream.Websocket) {
 	defer m.wg.Done()
-
 	for {
 		select {
 		case <-m.shutdown:
 			return
 		case data := <-ws.ToRoutine:
-			err := m.WebsocketDataHandler(ws.GetName(), data)
-			if err != nil {
-				log.Error(log.WebsocketMgr, err)
+			if data == nil {
+				log.Errorf(log.WebsocketMgr, "exchange %s nil data sent to websocket", ws.GetName())
 			}
+			m.mu.RLock()
+			for x := range m.dataHandlers {
+				err := m.dataHandlers[x](ws.GetName(), data)
+				if err != nil {
+					log.Error(log.WebsocketMgr, err)
+				}
+			}
+			m.mu.RUnlock()
 		}
 	}
 }
 
-// WebsocketDataHandler is a central point for exchange websocket implementations to send
-// processed data. WebsocketDataHandler will then pass that to an appropriate handler
-func (m *websocketRoutineManager) WebsocketDataHandler(exchName string, data interface{}) error {
-	if data == nil {
-		return fmt.Errorf("exchange %s nil data sent to websocket",
-			exchName)
-	}
-
-	m.mu.RLock()
-	if m.interceptor != nil {
-		m.interceptor(exchName, data)
-	}
-	m.mu.RUnlock()
-
+// websocketDataHandler is the default central point for exchange websocket
+// implementations to send processed data which will then pass that to an
+// appropriate handler.
+func (m *websocketRoutineManager) websocketDataHandler(exchName string, data interface{}) error {
 	switch d := data.(type) {
 	case string:
 		log.Info(log.WebsocketMgr, d)
@@ -345,18 +340,28 @@ func (m *websocketRoutineManager) printAccountHoldingsChangeSummary(o account.Ch
 }
 
 // registerInterceptor registers an externally (GCT Library) defined dedicated
-// filter to intercept specific data types for strategy use.
-func (m *websocketRoutineManager) registerInterceptor(fn Interceptor) error {
+// filter to intercept specific data types for internal & external strategy use.
+// InterceptorOnly as true will purge all other registered handlers
+// (including default) bypassing all other handling.
+func (m *websocketRoutineManager) registerInterceptor(fn WebsocketDataHandler, interceptorOnly bool) error {
 	if m == nil {
 		return fmt.Errorf("%T %w", m, ErrNilSubsystem)
 	}
 
 	if fn == nil {
-		return errNilInterceptorFunction
+		return errNilWebsocketDataHandlerFunction
 	}
 
 	m.mu.Lock()
-	m.interceptor = fn
-	m.mu.Unlock()
+	defer m.mu.Unlock()
+
+	if interceptorOnly {
+		m.dataHandlers = []WebsocketDataHandler{fn}
+		return nil
+	}
+
+	// Push front so that any registered data handler has first preference
+	// over the gct default handler.
+	m.dataHandlers = append([]WebsocketDataHandler{fn}, m.dataHandlers...)
 	return nil
 }

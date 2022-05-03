@@ -949,12 +949,13 @@ func (bot *Engine) WaitForInitialCurrencySync() error {
 	return bot.currencyPairSyncer.WaitForInitialSync()
 }
 
-// RegisterWebsocketRoutineHandlerInterceptor registers an externally defined
-// interceptor function for diverting and handling websocket notifications
-// across all enabled exchanges.
-func (bot *Engine) RegisterWebsocketRoutineHandlerInterceptor(fn Interceptor) error {
+// RegisterWebsocketDataHandler registers an externally defined data handler
+// for diverting and handling websocket notifications across all enabled
+// exchanges. InterceptorOnly as true will purge all other registered handlers
+// (including default) bypassing all other handling.
+func (bot *Engine) RegisterWebsocketDataHandler(fn WebsocketDataHandler, interceptorOnly bool) error {
 	if bot == nil {
 		return errNilBot
 	}
-	return bot.websocketRoutineManager.registerInterceptor(fn)
+	return bot.websocketRoutineManager.registerInterceptor(fn, interceptorOnly)
 }

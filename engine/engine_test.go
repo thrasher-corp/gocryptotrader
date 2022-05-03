@@ -295,14 +295,15 @@ func TestFlagSetWith(t *testing.T) {
 }
 
 func TestRegisterWebsocketRoutineHandlerInterceptor(t *testing.T) {
+	t.Parallel()
 	var e *Engine
-	err := e.RegisterWebsocketRoutineHandlerInterceptor(nil)
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrNilSubsystem)
+	err := e.RegisterWebsocketDataHandler(nil, false)
+	if !errors.Is(err, errNilBot) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errNilBot)
 	}
 
 	e = &Engine{websocketRoutineManager: &websocketRoutineManager{}}
-	err = e.RegisterWebsocketRoutineHandlerInterceptor(func(_ string, _ interface{}) {})
+	err = e.RegisterWebsocketDataHandler(func(_ string, _ interface{}) error { return nil }, false)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
