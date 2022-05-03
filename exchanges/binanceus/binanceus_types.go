@@ -1,10 +1,14 @@
 package binanceus
 
 import (
+	"strconv"
 	"time"
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 )
 
 var (
@@ -132,6 +136,20 @@ type AggregatedTradeRequestParams struct {
 	EndTime   uint64
 	// Default 500; max 1000.
 	Limit int
+}
+
+// toTradeData this method converts the AggregatedTrade data into an instance of trade.Data...
+func (a *AggregatedTrade) toTradeData(p currency.Pair, exchange string, aType asset.Item) *trade.Data {
+	return &trade.Data{
+		CurrencyPair: p,
+		TID:          strconv.FormatInt(a.ATradeID, 10),
+		Amount:       a.Quantity,
+		Exchange:     exchange,
+		Price:        a.Price,
+		Timestamp:    a.TimeStamp,
+		AssetType:    aType,
+		Side:         order.AnySide,
+	}
 }
 
 // AggregatedTrade holds aggregated trade information
@@ -497,6 +515,7 @@ type OrderRequestParams struct {
 // cancel order method.
 type CancelOrderRequestParams struct {
 	Symbol            currency.Pair
+	SymbolString      string
 	OrderID           uint64
 	OrigClientOrderID string
 	NewClientOrderID  string
@@ -723,15 +742,15 @@ type WithdrawalResponse struct {
 
 // WithdrawStatusResponse defines a withdrawal status response
 type WithdrawStatusResponse struct {
-	ID             string `json:"id"`
-	Amount         string `json:"amount"`
-	TransactionFee string `json:"transactionFee"`
-	Coin           string `json:"coin"`
-	Status         int    `json:"status"`
-	Address        string `json:"address"`
-	ApplyTime      string `json:"applyTime"`
-	Network        string `json:"network"`
-	TransferType   int    `json:"transferType"`
+	ID             string  `json:"id"`
+	Amount         float64 `json:"amount,string"`
+	TransactionFee float64 `json:"transactionFee,string"`
+	Coin           string  `json:"coin"`
+	Status         int     `json:"status"`
+	Address        string  `json:"address"`
+	ApplyTime      string  `json:"applyTime"`
+	Network        string  `json:"network"`
+	TransferType   int     `json:"transferType"`
 }
 
 // FiatAssetRecord ...
