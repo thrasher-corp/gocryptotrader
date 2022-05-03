@@ -1889,8 +1889,7 @@ func (b *Binance) GetServerTime(ctx context.Context, ai asset.Item) (time.Time, 
 		return time.Time{}, fmt.Errorf("%s %w", ai, asset.ErrNotSupported)
 	}
 
-	switch ai {
-	case asset.USDTMarginedFutures:
+	if ai == asset.USDTMarginedFutures {
 		return b.UServerTime(ctx)
 	}
 	return time.Time{}, common.ErrNotYetImplemented
