@@ -294,7 +294,7 @@ func TestFlagSetWith(t *testing.T) {
 	}
 }
 
-func TestRegisterWebsocketRoutineHandlerInterceptor(t *testing.T) {
+func TestRegisterWebsocketDataHandler(t *testing.T) {
 	t.Parallel()
 	var e *Engine
 	err := e.RegisterWebsocketDataHandler(nil, false)

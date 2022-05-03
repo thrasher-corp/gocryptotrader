@@ -957,5 +957,5 @@ func (bot *Engine) RegisterWebsocketDataHandler(fn WebsocketDataHandler, interce
 	if bot == nil {
 		return errNilBot
 	}
-	return bot.websocketRoutineManager.registerInterceptor(fn, interceptorOnly)
+	return bot.websocketRoutineManager.registerWebsocketDataHandler(fn, interceptorOnly)
 }

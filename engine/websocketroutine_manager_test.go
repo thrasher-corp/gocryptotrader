@@ -254,10 +254,10 @@ func TestWebsocketRoutineManagerHandleData(t *testing.T) {
 	}
 }
 
-func TestRegisterInterceptorWithFunctionality(t *testing.T) {
+func TestRegisterWebsocketDataHandlerWithFunctionality(t *testing.T) {
 	t.Parallel()
 	var m *websocketRoutineManager
-	err := m.registerInterceptor(nil, false)
+	err := m.registerWebsocketDataHandler(nil, false)
 	if !errors.Is(err, ErrNilSubsystem) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, ErrNilSubsystem)
 	}
@@ -265,7 +265,7 @@ func TestRegisterInterceptorWithFunctionality(t *testing.T) {
 	m = new(websocketRoutineManager)
 	m.shutdown = make(chan struct{})
 
-	err = m.registerInterceptor(nil, false)
+	err = m.registerWebsocketDataHandler(nil, false)
 	if !errors.Is(err, errNilWebsocketDataHandlerFunction) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNilWebsocketDataHandlerFunction)
 	}
@@ -281,7 +281,7 @@ func TestRegisterInterceptorWithFunctionality(t *testing.T) {
 		return nil
 	}
 
-	err = m.registerInterceptor(fn, true)
+	err = m.registerWebsocketDataHandler(fn, true)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}

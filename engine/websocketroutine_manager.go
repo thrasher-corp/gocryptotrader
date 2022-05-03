@@ -41,7 +41,7 @@ func setupWebsocketRoutineManager(exchangeManager iExchangeManager, orderManager
 		currencyConfig:  cfg,
 		shutdown:        make(chan struct{}),
 	}
-	return man, man.registerInterceptor(man.websocketDataHandler, false)
+	return man, man.registerWebsocketDataHandler(man.websocketDataHandler, false)
 }
 
 // Start runs the subsystem
@@ -339,11 +339,11 @@ func (m *websocketRoutineManager) printAccountHoldingsChangeSummary(o account.Ch
 		o.Account)
 }
 
-// registerInterceptor registers an externally (GCT Library) defined dedicated
-// filter to intercept specific data types for internal & external strategy use.
+// registerWebsocketDataHandler registers an externally (GCT Library) defined
+// dedicated filter specific data types for internal & external strategy use.
 // InterceptorOnly as true will purge all other registered handlers
 // (including default) bypassing all other handling.
-func (m *websocketRoutineManager) registerInterceptor(fn WebsocketDataHandler, interceptorOnly bool) error {
+func (m *websocketRoutineManager) registerWebsocketDataHandler(fn WebsocketDataHandler, interceptorOnly bool) error {
 	if m == nil {
 		return fmt.Errorf("%T %w", m, ErrNilSubsystem)
 	}
