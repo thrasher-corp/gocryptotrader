@@ -85,17 +85,18 @@ func (p *Portfolio) OnSignal(ev signal.Event, cs *exchange.Settings, funds fundi
 	var sizingFunds decimal.Decimal
 	var side = ev.GetDirection()
 	if ev.GetAssetType() == asset.Spot {
-		if ev.GetDirection() == common.ClosePosition {
+		if side == common.ClosePosition {
 			side = gctorder.Sell
 		}
 		pReader, err := funds.GetPairReader()
 		if err != nil {
 			return nil, err
 		}
-		if ev.GetDirection() == gctorder.Sell {
-			sizingFunds = pReader.BaseAvailable()
-		} else {
+		switch side {
+		case gctorder.Buy, gctorder.Bid:
 			sizingFunds = pReader.QuoteAvailable()
+		case gctorder.Sell, gctorder.Ask:
+			sizingFunds = pReader.BaseAvailable()
 		}
 	} else if ev.GetAssetType().IsFutures() {
 		if ev.GetDirection() == common.ClosePosition {
@@ -141,10 +142,10 @@ func cannotPurchase(ev signal.Event, o *order.Order) (*order.Order, error) {
 	}
 	o.AppendReason(notEnoughFundsTo + " " + ev.GetDirection().Lower())
 	switch ev.GetDirection() {
-	case gctorder.Sell:
-		o.SetDirection(common.CouldNotSell)
-	case gctorder.Buy:
+	case gctorder.Buy, gctorder.Bid:
 		o.SetDirection(common.CouldNotBuy)
+	case gctorder.Sell, gctorder.Ask:
+		o.SetDirection(common.CouldNotSell)
 	case gctorder.Short:
 		o.SetDirection(common.CouldNotShort)
 	case gctorder.Long:
@@ -188,12 +189,11 @@ func (p *Portfolio) evaluateOrder(d common.Directioner, originalOrderSignal, ev 
 
 func (p *Portfolio) sizeOrder(d common.Directioner, cs *exchange.Settings, originalOrderSignal *order.Order, sizingFunds decimal.Decimal, funds funding.IFundReserver) *order.Order {
 	sizedOrder, err := p.sizeManager.SizeOrder(originalOrderSignal, sizingFunds, cs)
-	if err != nil {
-		originalOrderSignal.AppendReason(err.Error())
+	if err != nil || sizedOrder.Amount.IsZero() {
 		switch originalOrderSignal.Direction {
-		case gctorder.Buy:
+		case gctorder.Buy, gctorder.Bid:
 			originalOrderSignal.Direction = common.CouldNotBuy
-		case gctorder.Sell:
+		case gctorder.Sell, gctorder.Ask:
 			originalOrderSignal.Direction = common.CouldNotSell
 		case gctorder.Long:
 			originalOrderSignal.Direction = common.CouldNotLong
@@ -203,27 +203,17 @@ func (p *Portfolio) sizeOrder(d common.Directioner, cs *exchange.Settings, origi
 			originalOrderSignal.Direction = common.DoNothing
 		}
 		d.SetDirection(originalOrderSignal.Direction)
-		return originalOrderSignal
-	}
-
-	if sizedOrder.Amount.IsZero() {
-		switch originalOrderSignal.Direction {
-		case gctorder.Buy:
-			originalOrderSignal.Direction = common.CouldNotBuy
-		case gctorder.Sell:
-			originalOrderSignal.Direction = common.CouldNotSell
-		case gctorder.Long:
-			originalOrderSignal.Direction = common.CouldNotLong
-		case gctorder.Short:
-			originalOrderSignal.Direction = common.CouldNotShort
-		default:
-			originalOrderSignal.Direction = common.DoNothing
+		if err != nil {
+			originalOrderSignal.AppendReason(err.Error())
+			return originalOrderSignal
 		}
-		d.SetDirection(originalOrderSignal.Direction)
 		originalOrderSignal.AppendReason("sized order to 0")
 	}
 	switch d.GetDirection() {
-	case gctorder.Sell:
+	case gctorder.Buy, gctorder.Bid:
+		err = funds.Reserve(sizedOrder.Amount.Mul(sizedOrder.ClosePrice), gctorder.Buy)
+		sizedOrder.AllocatedSize = sizedOrder.Amount.Mul(sizedOrder.ClosePrice)
+	case gctorder.Sell, gctorder.Ask:
 		err = funds.Reserve(sizedOrder.Amount, gctorder.Sell)
 		sizedOrder.AllocatedSize = sizedOrder.Amount
 	case gctorder.Short, gctorder.Long:
@@ -238,8 +228,7 @@ func (p *Portfolio) sizeOrder(d common.Directioner, cs *exchange.Settings, origi
 			sizedOrder.AllocatedSize = sizedOrder.Amount
 		}
 	default:
-		err = funds.Reserve(sizedOrder.Amount.Mul(sizedOrder.ClosePrice), gctorder.Buy)
-		sizedOrder.AllocatedSize = sizedOrder.Amount.Mul(sizedOrder.ClosePrice)
+		err = errInvalidDirection
 	}
 	if err != nil {
 		sizedOrder.Direction = common.DoNothing

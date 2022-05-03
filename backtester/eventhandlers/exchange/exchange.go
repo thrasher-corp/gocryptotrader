@@ -118,9 +118,9 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 		}
 		if amount.LessThanOrEqual(decimal.Zero) && f.GetAmount().GreaterThan(decimal.Zero) {
 			switch f.GetDirection() {
-			case gctorder.Buy:
+			case gctorder.Buy, gctorder.Bid:
 				f.SetDirection(common.CouldNotBuy)
-			case gctorder.Sell:
+			case gctorder.Sell, gctorder.Ask:
 				f.SetDirection(common.CouldNotSell)
 			case gctorder.Short:
 				f.SetDirection(common.CouldNotShort)
@@ -204,14 +204,14 @@ func allocateFundsPostOrder(f *fill.Fill, funds funding.IFundReleaser, orderErro
 
 	switch f.AssetType {
 	case asset.Spot:
-		pr, fundErr := funds.PairReleaser()
-		if fundErr != nil {
-			return fundErr
+		pr, err := funds.PairReleaser()
+		if err != nil {
+			return err
 		}
 		if orderError != nil {
-			fundErr = pr.Release(eventFunds, eventFunds, f.GetDirection())
-			if fundErr != nil {
-				f.AppendReason(fundErr.Error())
+			err = pr.Release(eventFunds, eventFunds, f.GetDirection())
+			if err != nil {
+				f.AppendReason(err.Error())
 			}
 			if f.GetDirection() == gctorder.Buy {
 				f.SetDirection(common.CouldNotBuy)
@@ -221,30 +221,36 @@ func allocateFundsPostOrder(f *fill.Fill, funds funding.IFundReleaser, orderErro
 			return orderError
 		}
 		switch f.GetDirection() {
-		case gctorder.Buy:
-			fundErr = pr.Release(eventFunds, eventFunds.Sub(limitReducedAmount.Mul(adjustedPrice)), f.GetDirection())
-			if fundErr != nil {
-				return fundErr
+		case gctorder.Buy, gctorder.Bid:
+			err = pr.Release(eventFunds, eventFunds.Sub(limitReducedAmount.Mul(adjustedPrice)), f.GetDirection())
+			if err != nil {
+				return err
 			}
-			pr.IncreaseAvailable(limitReducedAmount, f.GetDirection())
-		case gctorder.Sell:
-			fundErr = pr.Release(eventFunds, eventFunds.Sub(limitReducedAmount), f.GetDirection())
-			if fundErr != nil {
-				return fundErr
+			err = pr.IncreaseAvailable(limitReducedAmount, f.GetDirection())
+			if err != nil {
+				return err
 			}
-			pr.IncreaseAvailable(limitReducedAmount.Mul(adjustedPrice), f.GetDirection())
+		case gctorder.Sell, gctorder.Ask:
+			err = pr.Release(eventFunds, eventFunds.Sub(limitReducedAmount), f.GetDirection())
+			if err != nil {
+				return err
+			}
+			err = pr.IncreaseAvailable(limitReducedAmount.Mul(adjustedPrice), f.GetDirection())
+			if err != nil {
+				return err
+			}
 		default:
 			return fmt.Errorf("%w asset type %v", common.ErrInvalidDataType, f.GetDirection())
 		}
 	case asset.Futures:
-		cr, fundErr := funds.CollateralReleaser()
-		if fundErr != nil {
-			return fundErr
+		cr, err := funds.CollateralReleaser()
+		if err != nil {
+			return err
 		}
 		if orderError != nil {
-			fundErr = cr.ReleaseContracts(orderAmount)
-			if fundErr != nil {
-				return fundErr
+			err = cr.ReleaseContracts(orderAmount)
+			if err != nil {
+				return err
 			}
 			switch f.GetDirection() {
 			case gctorder.Short:
@@ -274,10 +280,10 @@ func verifyOrderWithinLimits(f fill.Event, limitReducedAmount decimal.Decimal, c
 	var minMax MinMax
 	var direction gctorder.Side
 	switch f.GetDirection() {
-	case gctorder.Buy:
+	case gctorder.Buy, gctorder.Bid:
 		minMax = cs.BuySide
 		direction = common.CouldNotBuy
-	case gctorder.Sell:
+	case gctorder.Sell, gctorder.Ask:
 		minMax = cs.SellSide
 		direction = common.CouldNotSell
 	case gctorder.Long:

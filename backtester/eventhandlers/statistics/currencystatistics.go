@@ -22,9 +22,9 @@ func (c *CurrencyPairStatistic) CalculateResults(riskFreeRate decimal.Decimal) e
 	lastPrice := last.ClosePrice
 	for i := range last.Transactions.Orders {
 		switch last.Transactions.Orders[i].Order.Side {
-		case gctorder.Buy:
+		case gctorder.Buy, gctorder.Bid:
 			c.BuyOrders++
-		case gctorder.Sell:
+		case gctorder.Sell, gctorder.Ask:
 			c.SellOrders++
 		case gctorder.Long:
 			c.LongOrders++

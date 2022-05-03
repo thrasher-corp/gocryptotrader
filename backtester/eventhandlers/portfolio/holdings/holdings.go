@@ -83,10 +83,10 @@ func (h *Holding) update(e fill.Event, f funding.IPairReader) {
 		h.BaseValue = h.BaseSize.Mul(price)
 		h.TotalFees = h.TotalFees.Add(fee)
 		switch direction {
-		case order.Buy:
+		case order.Buy, order.Bid:
 			h.BoughtAmount = h.BoughtAmount.Add(amount)
 			h.BoughtValue = h.BoughtAmount.Mul(price)
-		case order.Sell:
+		case order.Sell, order.Ask:
 			h.SoldAmount = h.SoldAmount.Add(amount)
 			h.SoldValue = h.SoldAmount.Mul(price)
 		case common.DoNothing, common.CouldNotSell, common.CouldNotBuy, common.MissingData, common.TransferredFunds, "":
