@@ -22,7 +22,7 @@ func init() {
 	service = new(Service)
 	service.Tickers = make(map[string]map[*currency.Item]map[*currency.Item]map[asset.Item]*Ticker)
 	service.Exchange = make(map[string]uuid.UUID)
-	service.mux = dispatch.GetNewMux()
+	service.mux = dispatch.GetNewMux(nil)
 }
 
 // SubscribeTicker subscribes to a ticker and returns a communication channel to
@@ -183,7 +183,7 @@ func (s *Service) update(p *Price) error {
 	// nolint: gocritic
 	ids := append(t.Assoc, t.Main)
 	s.mu.Unlock()
-	return s.mux.Publish(ids, p)
+	return s.mux.Publish(p, ids...)
 }
 
 // setItemID retrieves and sets dispatch mux publish IDs

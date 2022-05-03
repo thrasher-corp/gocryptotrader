@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
@@ -15,7 +14,7 @@ import (
 
 func init() {
 	service.exchangeAccounts = make(map[string]*Accounts)
-	service.mux = dispatch.GetNewMux()
+	service.mux = dispatch.GetNewMux(nil)
 }
 
 var (
@@ -237,7 +236,7 @@ func (s *Service) Update(a *Holdings) error {
 			bal.load(a.Accounts[x].Currencies[y])
 		}
 	}
-	err := s.mux.Publish([]uuid.UUID{accounts.ID}, a)
+	err := s.mux.Publish(a, accounts.ID)
 	if err != nil {
 		return err
 	}
@@ -284,10 +283,7 @@ func (b *ProtectedBalance) Wait(maxWait time.Duration) (wait <-chan bool, cancel
 	ch := make(chan struct{})
 	go func(ch chan<- struct{}, until time.Duration) {
 		time.Sleep(until)
-		select {
-		case ch <- struct{}{}:
-		default:
-		}
+		close(ch)
 	}(ch, maxWait)
 
 	return b.notice.Wait(ch), ch, nil
