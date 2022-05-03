@@ -142,11 +142,28 @@ func TestGetMultipleOrderbooks(t *testing.T) {
 	}
 }
 
-func TestGetServerTime(t *testing.T) {
+func TestGetCurrentServerTime(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetServerTime(context.Background())
+	_, err := b.GetCurrentServerTime(context.Background())
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestWrapperGetServerTime(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetServerTime(context.Background(), asset.Empty)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
+	}
+
+	st, err := b.GetServerTime(context.Background(), asset.Spot)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if st.IsZero() {
+		t.Fatal("expected a time")
 	}
 }
 

@@ -273,10 +273,9 @@ func (c *CoinbasePro) GetCurrencies(ctx context.Context) ([]Currency, error) {
 	return currencies, c.SendHTTPRequest(ctx, exchange.RestSpot, coinbaseproCurrencies, &currencies)
 }
 
-// GetServerTime returns the API server time
-func (c *CoinbasePro) GetServerTime(ctx context.Context) (ServerTime, error) {
+// GetCurrentServerTime returns the API server time
+func (c *CoinbasePro) GetCurrentServerTime(ctx context.Context) (ServerTime, error) {
 	serverTime := ServerTime{}
-
 	return serverTime, c.SendHTTPRequest(ctx, exchange.RestSpot, coinbaseproTime, &serverTime)
 }
 

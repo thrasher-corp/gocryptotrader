@@ -144,10 +144,27 @@ func TestGetCurrencies(t *testing.T) {
 	}
 }
 
-func TestGetServerTime(t *testing.T) {
-	_, err := c.GetServerTime(context.Background())
+func TestGetCurrentServerTime(t *testing.T) {
+	_, err := c.GetCurrentServerTime(context.Background())
 	if err != nil {
 		t.Error("GetServerTime() error", err)
+	}
+}
+
+func TestWrapperGetServerTime(t *testing.T) {
+	t.Parallel()
+	_, err := c.GetServerTime(context.Background(), asset.Empty)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
+	}
+
+	st, err := c.GetServerTime(context.Background(), asset.Spot)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if st.IsZero() {
+		t.Fatal("expected a time")
 	}
 }
 

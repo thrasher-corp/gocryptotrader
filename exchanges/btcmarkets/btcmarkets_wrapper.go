@@ -1084,3 +1084,11 @@ func (b *BTCMarkets) GetHistoricCandlesExtended(ctx context.Context, p currency.
 	ret.SortCandlesByTimestamp(false)
 	return ret, nil
 }
+
+// GetServerTime returns the current exchange server time.
+func (b *BTCMarkets) GetServerTime(ctx context.Context, ai asset.Item) (time.Time, error) {
+	if !ai.IsValid() {
+		return time.Time{}, fmt.Errorf("%s %w", ai, asset.ErrNotSupported)
+	}
+	return b.GetCurrentServerTime(ctx)
+}

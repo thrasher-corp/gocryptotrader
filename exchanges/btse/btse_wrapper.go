@@ -1106,3 +1106,16 @@ func OrderSizeLimits(pair string) (limits OrderSizeLimit, found bool) {
 	val, ok := resp.(OrderSizeLimit)
 	return val, ok
 }
+
+// GetServerTime returns the current exchange server time.
+func (b *BTSE) GetServerTime(ctx context.Context, ai asset.Item) (time.Time, error) {
+	if !ai.IsValid() {
+		return time.Time{}, fmt.Errorf("%s %w", ai, asset.ErrNotSupported)
+	}
+
+	st, err := b.GetCurrentServerTime(ctx)
+	if err != nil {
+		return time.Time{}, err
+	}
+	return st.ISO, nil
+}

@@ -75,11 +75,28 @@ func TestStart(t *testing.T) {
 	testWg.Wait()
 }
 
-func TestGetServerTime(t *testing.T) {
+func TestGetCurrentServerTime(t *testing.T) {
 	t.Parallel()
-	_, err := k.GetServerTime(context.Background())
+	_, err := k.GetCurrentServerTime(context.Background())
 	if err != nil {
-		t.Error("GetServerTime() error", err)
+		t.Error("GetCurrentServerTime() error", err)
+	}
+}
+
+func TestWrapperGetServerTime(t *testing.T) {
+	t.Parallel()
+	_, err := k.GetServerTime(context.Background(), asset.Empty)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
+	}
+
+	st, err := k.GetServerTime(context.Background(), asset.Spot)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if st.IsZero() {
+		t.Fatal("expected a time")
 	}
 }
 

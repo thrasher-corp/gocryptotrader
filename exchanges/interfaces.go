@@ -98,6 +98,9 @@ type IBotExchange interface {
 	UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error
 
 	AccountManagement
+
+	// GetServerTime returns the current exchange server time.
+	GetServerTime(ctx context.Context, ai asset.Item) (time.Time, error)
 }
 
 // CurrencyStateManagement defines functionality for currency state management

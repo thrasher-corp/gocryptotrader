@@ -1565,3 +1565,16 @@ func (k *Kraken) GetAvailableTransferChains(ctx context.Context, cryptocurrency 
 	}
 	return availableChains, nil
 }
+
+// GetServerTime returns the current exchange server time.
+func (k *Kraken) GetServerTime(ctx context.Context, ai asset.Item) (time.Time, error) {
+	if !ai.IsValid() {
+		return time.Time{}, fmt.Errorf("%s %w", ai, asset.ErrNotSupported)
+	}
+
+	st, err := k.GetCurrentServerTime(ctx)
+	if err != nil {
+		return time.Time{}, err
+	}
+	return time.Parse("Mon, 02 Jan 06 15:04:05 -0700", st.Rfc1123)
+}
