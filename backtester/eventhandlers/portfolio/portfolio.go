@@ -40,9 +40,7 @@ func (p *Portfolio) OnSignal(ev signal.Event, cs *exchange.Settings, funds fundi
 	if funds == nil {
 		return nil, funding.ErrFundsNotFound
 	}
-	if ev.GetDirection() == common.ClosePosition {
-		log.Debugln(log.Currency, "")
-	}
+
 	o := &order.Order{
 		Base: event.Base{
 			Offset:       ev.GetOffset(),
@@ -87,6 +85,9 @@ func (p *Portfolio) OnSignal(ev signal.Event, cs *exchange.Settings, funds fundi
 	var sizingFunds decimal.Decimal
 	var side = ev.GetDirection()
 	if ev.GetAssetType() == asset.Spot {
+		if ev.GetDirection() == common.ClosePosition {
+			side = gctorder.Sell
+		}
 		pReader, err := funds.GetPairReader()
 		if err != nil {
 			return nil, err
@@ -156,14 +157,14 @@ func cannotPurchase(ev signal.Event, o *order.Order) (*order.Order, error) {
 	return o, nil
 }
 
-func (p *Portfolio) evaluateOrder(d common.Directioner, originalOrderSignal, sizedOrder *order.Order) (*order.Order, error) {
+func (p *Portfolio) evaluateOrder(d common.Directioner, originalOrderSignal, ev *order.Order) (*order.Order, error) {
 	var evaluatedOrder *order.Order
 	cm, err := p.GetComplianceManager(originalOrderSignal.GetExchange(), originalOrderSignal.GetAssetType(), originalOrderSignal.Pair())
 	if err != nil {
 		return nil, err
 	}
 
-	evaluatedOrder, err = p.riskManager.EvaluateOrder(sizedOrder, p.GetLatestHoldingsForAllCurrencies(), cm.GetLatestSnapshot())
+	evaluatedOrder, err = p.riskManager.EvaluateOrder(ev, p.GetLatestHoldingsForAllCurrencies(), cm.GetLatestSnapshot())
 	if err != nil {
 		originalOrderSignal.AppendReason(err.Error())
 		switch d.GetDirection() {
@@ -229,8 +230,13 @@ func (p *Portfolio) sizeOrder(d common.Directioner, cs *exchange.Settings, origi
 		err = funds.Reserve(sizedOrder.Amount, d.GetDirection())
 		sizedOrder.AllocatedSize = sizedOrder.Amount.Div(sizedOrder.ClosePrice)
 	case common.ClosePosition:
-		err = funds.Reserve(sizedOrder.Amount, d.GetDirection())
-		sizedOrder.AllocatedSize = sizedOrder.Amount.Div(sizedOrder.ClosePrice)
+		if originalOrderSignal.AssetType.IsFutures() {
+			err = funds.Reserve(sizedOrder.Amount, d.GetDirection())
+			sizedOrder.AllocatedSize = sizedOrder.Amount.Div(sizedOrder.ClosePrice)
+		} else {
+			err = funds.Reserve(sizedOrder.Amount, d.GetDirection())
+			sizedOrder.AllocatedSize = sizedOrder.Amount
+		}
 	default:
 		err = funds.Reserve(sizedOrder.Amount.Mul(sizedOrder.ClosePrice), gctorder.Buy)
 		sizedOrder.AllocatedSize = sizedOrder.Amount.Mul(sizedOrder.ClosePrice)

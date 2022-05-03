@@ -86,3 +86,9 @@ func (s *Signal) GetCollateralCurrency() currency.Code {
 func (s *Signal) IsNil() bool {
 	return s == nil
 }
+
+// MatchOrderAmount ensures an order must match
+// its set amount or fail
+func (s *Signal) MatchOrderAmount() bool {
+	return s.MatchesOrderAmount
+}

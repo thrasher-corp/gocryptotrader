@@ -5,10 +5,7 @@ import (
 	"testing"
 
 	"github.com/shopspring/decimal"
-	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
-	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 func TestSizingAccuracy(t *testing.T) {
@@ -171,6 +168,7 @@ func TestCalculateSellSize(t *testing.T) {
 	}
 }
 
+/*
 func TestSizeOrder(t *testing.T) {
 	t.Parallel()
 	s := Size{}
@@ -222,4 +220,27 @@ func TestSizeOrder(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+}
+
+
+*/
+func TestFuckYou(t *testing.T) {
+	t.Parallel()
+	weight := 0.95
+	//availableFunds := 438.0
+	spotPrice := 39122.0
+	futurePrice := 43195.0
+
+	for i := 1.0; i < 100000.0; i++ {
+		step1 := (i * weight) / futurePrice
+		futuresNotionalPosition := step1 * futurePrice
+		spotNotionalPosition := step1 * spotPrice
+		spotCollateralSize := spotNotionalPosition * weight
+		extraFundingRequired := futuresNotionalPosition - spotCollateralSize
+		excess := i - spotNotionalPosition
+		leftover := excess - extraFundingRequired
+		t.Log(leftover)
+	}
+
+	//t.Logf("step1 %v\n futuresNotionalPosition %v\n spotNotionalPosition %v\n spotCollateralSize %v\n excess %v\n extraFundingRequired %v\n leftover %v\n", step1, futuresNotionalPosition, spotNotionalPosition, spotCollateralSize, excess, extraFundingRequired, leftover)
 }

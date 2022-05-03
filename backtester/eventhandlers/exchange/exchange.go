@@ -318,13 +318,13 @@ func verifyOrderWithinLimits(f fill.Event, limitReducedAmount decimal.Decimal, c
 
 func reduceAmountToFitPortfolioLimit(adjustedPrice, amount, sizedPortfolioTotal decimal.Decimal, side gctorder.Side) decimal.Decimal {
 	switch side {
-	case gctorder.Buy:
+	case gctorder.Buy, gctorder.Bid:
 		if adjustedPrice.Mul(amount).GreaterThan(sizedPortfolioTotal) {
 			// adjusted amounts exceeds portfolio manager's allowed funds
 			// the amount has to be reduced to equal the sizedPortfolioTotal
 			amount = sizedPortfolioTotal.Div(adjustedPrice)
 		}
-	case gctorder.Sell:
+	case gctorder.Sell, gctorder.Ask:
 		if amount.GreaterThan(sizedPortfolioTotal) {
 			amount = sizedPortfolioTotal
 		}

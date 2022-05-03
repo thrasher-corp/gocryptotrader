@@ -125,6 +125,7 @@ func (s *Strategy) createSignals(pos []order.PositionStats, spotSignal, futuresS
 		futuresSignal.SetPrice(futuresSignal.ClosePrice)
 		futuresSignal.AppendReason("Shorting to perform cash and carry")
 		futuresSignal.CollateralCurrency = spotSignal.CurrencyPair.Base
+		futuresSignal.MatchesOrderAmount = true
 		spotSignal.AppendReasonf("Signalling shorting of %v", futuresSignal.Pair())
 		// set the FillDependentEvent to use the futures signal
 		// as the futures signal relies on a completed spot order purchase
@@ -134,10 +135,11 @@ func (s *Strategy) createSignals(pos []order.PositionStats, spotSignal, futuresS
 		response = append(response, spotSignal)
 	case pos[len(pos)-1].Status == order.Open &&
 		isLastEvent:
+		spotSignal.SetDirection(common.ClosePosition)
+		spotSignal.AppendReason("Selling asset on last event")
 		futuresSignal.SetDirection(common.ClosePosition)
 		futuresSignal.AppendReason("Closing position on last event")
-		spotSignal.SetDirection(order.Sell)
-		response = append(response, spotSignal, futuresSignal)
+		response = append(response, futuresSignal, spotSignal)
 	case pos[len(pos)-1].Status == order.Open &&
 		diffBetweenFuturesSpot.LessThanOrEqual(s.closeShortDistancePercentage):
 		futuresSignal.SetDirection(common.ClosePosition)

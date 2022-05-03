@@ -415,6 +415,10 @@ func (bt *BackTest) processFillEvent(ev fill.Event, funds funding.IFundReleaser)
 		if err != nil {
 			log.Errorf(common.Backtester, "SetEventForOffset %v %v %v %v", fde.GetExchange(), fde.GetAssetType(), fde.Pair(), err)
 		}
+		od := ev.GetOrder()
+		if fde.MatchOrderAmount() && od != nil {
+			fde.SetAmount(ev.GetAmount())
+		}
 		fde.AppendReasonf("raising event after %v %v %v fill", ev.GetExchange(), ev.GetAssetType(), ev.Pair())
 		bt.EventQueue.AppendEvent(fde)
 	}

@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/shopspring/decimal"
+	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -98,7 +99,7 @@ func (p *SpotPair) CanPlaceOrder(side order.Side) bool {
 	switch side {
 	case order.Buy, order.Bid:
 		return p.quote.CanPlaceOrder()
-	case order.Sell, order.Ask:
+	case order.Sell, order.Ask, common.ClosePosition:
 		return p.base.CanPlaceOrder()
 	}
 	return false

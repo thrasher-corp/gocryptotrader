@@ -1,13 +1,16 @@
 package size
 
 import (
+	"context"
 	"fmt"
+	"os"
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // SizeOrder is responsible for ensuring that the order size is within config limits
@@ -22,22 +25,61 @@ func (s *Size) SizeOrder(o order.Event, amountAvailable decimal.Decimal, cs *exc
 	if !ok {
 		return nil, fmt.Errorf("%w expected order event", common.ErrInvalidDataType)
 	}
+	if fde := o.GetFillDependentEvent(); fde != nil && fde.MatchOrderAmount() {
+		hello, err := cs.Exchange.ScaleCollateral(context.TODO(), &gctorder.CollateralCalculator{
+			CalculateOffline:   true,
+			CollateralCurrency: o.Pair().Base,
+			Asset:              fde.GetAssetType(),
+			Side:               gctorder.Short,
+			USDPrice:           fde.GetClosePrice(),
+			IsForNewPosition:   true,
+			FreeCollateral:     amountAvailable,
+		})
+		initialAmount := amountAvailable.Mul(hello.Weighting).Div(fde.GetClosePrice())
+		oNotionalPosition := initialAmount.Mul(o.GetClosePrice())
+		sizedAmount, err := s.calculateAmount(o.GetDirection(), o.GetClosePrice(), oNotionalPosition, cs, o)
+		if err != nil {
+			return retOrder, err
+		}
+		scaledCollateralFromAmount := sizedAmount.Mul(hello.Weighting)
+		excess := amountAvailable.Sub(sizedAmount).Add(scaledCollateralFromAmount)
+		if excess.IsNegative() {
+			os.Exit(-1)
+		}
+		retOrder.SetAmount(sizedAmount)
+		fde.SetAmount(sizedAmount)
+		retOrder.FillDependentEvent = fde
+		log.Infof(common.Backtester, "%v %v", hello.CollateralContribution, err)
+		log.Infof(common.Backtester, "%v %v", hello, err)
+		return retOrder, nil
+	}
+
+	amount, err := s.calculateAmount(retOrder.Direction, retOrder.ClosePrice, amountAvailable, cs, o)
+	if err != nil {
+		return retOrder, err
+	}
+	retOrder.SetAmount(amount)
+
+	return retOrder, nil
+}
+
+func (s *Size) calculateAmount(direction gctorder.Side, closePrice, amountAvailable decimal.Decimal, cs *exchange.Settings, o order.Event) (decimal.Decimal, error) {
 	var amount decimal.Decimal
 	var err error
-	switch retOrder.GetDirection() {
+	switch direction {
 	case common.ClosePosition:
 		amount = amountAvailable
 	case gctorder.Buy, gctorder.Long:
 		// check size against currency specific settings
-		amount, err = s.calculateBuySize(retOrder.ClosePrice, amountAvailable, cs.ExchangeFee, o.GetBuyLimit(), cs.BuySide)
+		amount, err = s.calculateBuySize(closePrice, amountAvailable, cs.ExchangeFee, o.GetBuyLimit(), cs.BuySide)
 		if err != nil {
-			return nil, err
+			return decimal.Decimal{}, err
 		}
 		// check size against portfolio specific settings
 		var portfolioSize decimal.Decimal
-		portfolioSize, err = s.calculateBuySize(retOrder.ClosePrice, amountAvailable, cs.ExchangeFee, o.GetBuyLimit(), s.BuySide)
+		portfolioSize, err = s.calculateBuySize(closePrice, amountAvailable, cs.ExchangeFee, o.GetBuyLimit(), s.BuySide)
 		if err != nil {
-			return nil, err
+			return decimal.Decimal{}, err
 		}
 		// global settings overrule individual currency settings
 		if amount.GreaterThan(portfolioSize) {
@@ -45,28 +87,33 @@ func (s *Size) SizeOrder(o order.Event, amountAvailable decimal.Decimal, cs *exc
 		}
 	case gctorder.Sell, gctorder.Short:
 		// check size against currency specific settings
-		amount, err = s.calculateSellSize(retOrder.ClosePrice, amountAvailable, cs.ExchangeFee, o.GetSellLimit(), cs.SellSide)
+		amount, err = s.calculateSellSize(closePrice, amountAvailable, cs.ExchangeFee, o.GetSellLimit(), cs.SellSide)
 		if err != nil {
-			return nil, err
+			return decimal.Decimal{}, err
 		}
 		// check size against portfolio specific settings
-		portfolioSize, err := s.calculateSellSize(retOrder.ClosePrice, amountAvailable, cs.ExchangeFee, o.GetSellLimit(), s.SellSide)
+		portfolioSize, err := s.calculateSellSize(closePrice, amountAvailable, cs.ExchangeFee, o.GetSellLimit(), s.SellSide)
 		if err != nil {
-			return nil, err
+			return decimal.Decimal{}, err
 		}
 		// global settings overrule individual currency settings
 		if amount.GreaterThan(portfolioSize) {
 			amount = portfolioSize
 		}
 	default:
-		return retOrder, fmt.Errorf("%w at %v for %v %v %v", errCannotAllocate, o.GetTime(), o.GetExchange(), o.GetAssetType(), o.Pair())
+		return decimal.Decimal{}, fmt.Errorf("%w at %v for %v %v %v", errCannotAllocate, o.GetTime(), o.GetExchange(), o.GetAssetType(), o.Pair())
 	}
-	if amount.LessThanOrEqual(decimal.Zero) {
-		return retOrder, fmt.Errorf("%w at %v for %v %v %v, no amount sized", errCannotAllocate, o.GetTime(), o.GetExchange(), o.GetAssetType(), o.Pair())
+	if o.GetAmount().IsPositive() {
+		setAmountSize := o.GetAmount().Mul(closePrice)
+		if setAmountSize.LessThan(amount) {
+			amount = setAmountSize
+		}
 	}
-	retOrder.SetAmount(amount)
 
-	return retOrder, nil
+	if amount.LessThanOrEqual(decimal.Zero) {
+		return decimal.Decimal{}, fmt.Errorf("%w at %v for %v %v %v, no amount sized", errCannotAllocate, o.GetTime(), o.GetExchange(), o.GetAssetType(), o.Pair())
+	}
+	return amount, nil
 }
 
 // calculateBuySize respects config rules and calculates the amount of money
