@@ -1312,7 +1312,7 @@ func (b *Base) GetCollateralCurrencyForContract(asset.Item, currency.Pair) (curr
 func (b *Base) GetCurrencyForRealisedPNL(_ asset.Item, _ currency.Pair) (currency.Code, asset.Item, error) {
 	return currency.Code{}, asset.Empty, common.ErrNotYetImplemented
 }
-  
+
 // HasAssetTypeAccountSegregation returns if the accounts are divided into asset
 // types instead of just being denoted as spot holdings.
 func (b *Base) HasAssetTypeAccountSegregation() bool {

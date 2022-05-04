@@ -191,25 +191,40 @@ func TestIncreaseAvailablePair(t *testing.T) {
 	baseItem.pairedWith = quoteItem
 	quoteItem.pairedWith = baseItem
 	pairItems := SpotPair{base: baseItem, quote: quoteItem}
-	pairItems.IncreaseAvailable(decimal.Zero, gctorder.Buy)
+	err = pairItems.IncreaseAvailable(decimal.Zero, gctorder.Buy)
+	if !errors.Is(err, errZeroAmountReceived) {
+		t.Errorf("received '%v' expected '%v'", err, errZeroAmountReceived)
+	}
 	if !pairItems.quote.available.Equal(elite) {
 		t.Errorf("received '%v' expected '%v'", elite, pairItems.quote.available)
 	}
-	pairItems.IncreaseAvailable(decimal.Zero, gctorder.Sell)
+	err = pairItems.IncreaseAvailable(decimal.Zero, gctorder.Sell)
+	if !errors.Is(err, errZeroAmountReceived) {
+		t.Errorf("received '%v' expected '%v'", err, errZeroAmountReceived)
+	}
 	if !pairItems.base.available.IsZero() {
 		t.Errorf("received '%v' expected '%v'", decimal.Zero, pairItems.base.available)
 	}
 
-	pairItems.IncreaseAvailable(elite.Neg(), gctorder.Sell)
+	err = pairItems.IncreaseAvailable(elite.Neg(), gctorder.Sell)
+	if !errors.Is(err, errZeroAmountReceived) {
+		t.Errorf("received '%v' expected '%v'", err, errZeroAmountReceived)
+	}
 	if !pairItems.quote.available.Equal(elite) {
 		t.Errorf("received '%v' expected '%v'", elite, pairItems.quote.available)
 	}
-	pairItems.IncreaseAvailable(elite, gctorder.Buy)
+	err = pairItems.IncreaseAvailable(elite, gctorder.Buy)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
 	if !pairItems.base.available.Equal(elite) {
 		t.Errorf("received '%v' expected '%v'", elite, pairItems.base.available)
 	}
 
-	pairItems.IncreaseAvailable(elite, common.DoNothing)
+	err = pairItems.IncreaseAvailable(elite, common.DoNothing)
+	if !errors.Is(err, errCannotAllocate) {
+		t.Errorf("received '%v' expected '%v'", err, errCannotAllocate)
+	}
 	if !pairItems.base.available.Equal(elite) {
 		t.Errorf("received '%v' expected '%v'", elite, pairItems.base.available)
 	}

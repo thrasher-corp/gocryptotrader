@@ -261,5 +261,4 @@ func TestSizeOrder(t *testing.T) {
 	if !errors.Is(err, errCannotAllocate) {
 		t.Errorf("received: %v, expected: %v", err, errCannotAllocate)
 	}
-
 }

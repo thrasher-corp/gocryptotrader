@@ -990,10 +990,10 @@ func TestMPTLiquidate(t *testing.T) {
 	}
 
 	if e.positions[0].status != Liquidated {
-		t.Errorf("recieved '%v' expected '%v'", e.positions[0].status, Liquidated)
+		t.Errorf("received '%v' expected '%v'", e.positions[0].status, Liquidated)
 	}
 	if !e.positions[0].exposure.IsZero() {
-		t.Errorf("recieved '%v' expected '%v'", e.positions[0].exposure, 0)
+		t.Errorf("received '%v' expected '%v'", e.positions[0].exposure, 0)
 	}
 
 	e = nil
@@ -1045,10 +1045,10 @@ func TestPositionLiquidate(t *testing.T) {
 	}
 
 	if p.status != Liquidated {
-		t.Errorf("recieved '%v' expected '%v'", p.status, Liquidated)
+		t.Errorf("received '%v' expected '%v'", p.status, Liquidated)
 	}
 	if !p.exposure.IsZero() {
-		t.Errorf("recieved '%v' expected '%v'", p.exposure, 0)
+		t.Errorf("received '%v' expected '%v'", p.exposure, 0)
 	}
 
 	p = nil
