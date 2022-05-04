@@ -94,7 +94,8 @@ const (
 	depositHistory          = "/sapi/v1/capital/deposit/hisrec"
 
 	// Other Consts
-	defaultRecvWindow = 5 * time.Second
+	defaultRecvWindow      = 5 * time.Second
+	binanceUSAPITimeLayout = "2006-01-02 15:04:05"
 )
 
 // EmailRX represents email address maching pattern
@@ -118,6 +119,11 @@ func MatchesEmailPattern(value string) bool {
 		return false
 	}
 	return true
+}
+
+// SetValues sets the default valid values
+func (b *Binanceus) SetValues() {
+	b.validLimits = []int{5, 10, 20, 50, 100, 500, 1000, 5000}
 }
 
 // Start implementing public and private exchange API funcs below
@@ -281,6 +287,7 @@ func (b *Binanceus) batchAggregateTrades(ctx context.Context, arg *AggregatedTra
 	return resp, nil
 }
 
+// GetOrderBookDepth ...
 func (b *Binanceus) GetOrderBookDepth(ctx context.Context, arg *OrderBookDataRequestParams) (*OrderBook, error) {
 	if err := b.CheckLimit(arg.Limit); err != nil {
 		return nil, err
@@ -789,6 +796,18 @@ func (b *Binanceus) GetOrderRateLimits(ctx context.Context, recvWindow uint) ([]
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, orderRateLimit, params, spotDefaultRate, &resp)
 }
 
+// NewOrder sends a new order to Binance
+func (b *Binanceus) NewOrder(ctx context.Context, o *NewOrderRequest) (NewOrderResponse, error) {
+	var resp NewOrderResponse
+	if err := b.newOrder(ctx, orderRequest, o, &resp); err != nil {
+		return resp, err
+	}
+	if resp.Code != 0 {
+		return resp, errors.New(resp.Msg)
+	}
+	return resp, nil
+}
+
 // NewOrderTest sends a new test order to Binance
 func (b *Binanceus) NewOrderTest(ctx context.Context, o *NewOrderRequest) (*NewOrderResponse, error) {
 	var resp NewOrderResponse
@@ -893,7 +912,6 @@ func (b *Binanceus) CancelExistingOrder(ctx context.Context, arg CancelOrderRequ
 }
 
 // CancelOpenOrdersForSymbol request to cancel an open orders.
-//
 func (b *Binanceus) CancelOpenOrdersForSymbol(ctx context.Context, symbol string) ([]Order, error) {
 	params := url.Values{}
 	if symbol == "" || len(symbol) < 4 {
