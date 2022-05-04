@@ -41,8 +41,8 @@ func (bi *Binanceus) GetDefaultConfig() (*config.Exchange, error) {
 	if er != nil {
 		return nil, er
 	}
-	bi.SetCredentials("b5sVEJQPdO4iKu2gCpiRuPoCj503pqNv5gLHlpcZyUJ70zc5ql7WUllFKKxQ2JWj",
-		"8AP2qVomY6T8nseOQQUTwXNT2rUjeCJQrX25ugS675L4TB4IEXP8cOPZpOZyUMjF",
+	bi.SetCredentials("",
+		"",
 		"",
 		"Binanceus",
 		"",
@@ -341,6 +341,7 @@ func (bi *Binanceus) UpdateTickers(ctx context.Context, a asset.Item) error {
 		if err != nil {
 			return err
 		}
+
 		pairs, err := bi.GetEnabledPairs(a)
 		if err != nil {
 			return err
@@ -433,6 +434,7 @@ func (bi *Binanceus) UpdateOrderbook(ctx context.Context, pair currency.Pair, as
 	if err != nil {
 		return book, err
 	}
+
 	book.Bids = make([]orderbook.Item, len(orderbookNew.Bids))
 	for x := range orderbookNew.Bids {
 		book.Bids[x] = orderbook.Item{
@@ -440,6 +442,7 @@ func (bi *Binanceus) UpdateOrderbook(ctx context.Context, pair currency.Pair, as
 			Price:  orderbookNew.Bids[x].Price,
 		}
 	}
+
 	book.Asks = make([]orderbook.Item, len(orderbookNew.Asks))
 	for x := range orderbookNew.Asks {
 		book.Asks[x] = orderbook.Item{
