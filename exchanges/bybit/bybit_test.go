@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 )
 
@@ -2084,6 +2085,174 @@ func TestUpdateOrderbook(t *testing.T) {
 	}
 
 	_, err = b.UpdateOrderbook(context.Background(), pair, asset.Futures)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFetchTradablePairs(t *testing.T) {
+	t.Parallel()
+	_, err := b.FetchTradablePairs(context.Background(), asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = b.FetchTradablePairs(context.Background(), asset.CoinMarginedFutures)
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = b.FetchTradablePairs(context.Background(), asset.USDTMarginedFutures)
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = b.FetchTradablePairs(context.Background(), asset.Futures)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestUpdateTradablePairs(t *testing.T) {
+	t.Parallel()
+	err := b.UpdateTradablePairs(context.Background(), false)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = b.UpdateTradablePairs(context.Background(), true)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetRecentTrades(t *testing.T) {
+	t.Parallel()
+	pair, err := currency.NewPairFromString("BTCUSDT")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = b.GetRecentTrades(context.Background(), pair, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = b.GetRecentTrades(context.Background(), pair, asset.USDTMarginedFutures)
+	if err != nil {
+		t.Error(err)
+	}
+
+	pair1, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = b.GetRecentTrades(context.Background(), pair1, asset.CoinMarginedFutures)
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = b.GetRecentTrades(context.Background(), pair1, asset.Futures)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetHistoricCandles(t *testing.T) {
+	t.Parallel()
+	pair, err := currency.NewPairFromString("BTCUSDT")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	startTime := time.Unix(1546300800, 0)
+	end := time.Unix(1577836799, 0)
+
+	_, err = b.GetHistoricCandles(context.Background(), pair, asset.Spot, startTime, end, kline.OneDay)
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = b.GetHistoricCandles(context.Background(), pair, asset.USDTMarginedFutures, startTime, end, kline.OneDay)
+	if err != nil {
+		t.Error(err)
+	}
+
+	pair1, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = b.GetHistoricCandles(context.Background(), pair1, asset.CoinMarginedFutures, startTime, end, kline.OneMin)
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = b.GetHistoricCandles(context.Background(), pair1, asset.Futures, startTime, end, kline.OneMin)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetHistoricCandlesExtended(t *testing.T) {
+	t.Parallel()
+	pair, err := currency.NewPairFromString("BTCUSDT")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	startTime := time.Now().Add(-time.Hour * 24 * 3)
+	end := time.Now().Add(-time.Hour * 1)
+
+	_, err = b.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, startTime, end, kline.OneMin)
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = b.GetHistoricCandlesExtended(context.Background(), pair, asset.USDTMarginedFutures, startTime, end, kline.OneMin)
+	if err != nil {
+		t.Error(err)
+	}
+
+	pair1, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = b.GetHistoricCandlesExtended(context.Background(), pair1, asset.CoinMarginedFutures, startTime, end, kline.OneMin)
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = b.GetHistoricCandlesExtended(context.Background(), pair1, asset.Futures, startTime, end, kline.OneMin)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFetchAccountInfo(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	t.Parallel()
+
+	_, err := b.FetchAccountInfo(context.Background(), asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = b.FetchAccountInfo(context.Background(), asset.CoinMarginedFutures)
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = b.FetchAccountInfo(context.Background(), asset.USDTMarginedFutures)
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = b.FetchAccountInfo(context.Background(), asset.Futures)
 	if err != nil {
 		t.Error(err)
 	}

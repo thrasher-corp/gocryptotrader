@@ -129,15 +129,18 @@ func (by *Bybit) SetDefaults() {
 			Kline: kline.ExchangeCapabilitiesEnabled{
 				Intervals: map[string]bool{
 					kline.OneMin.Word():     true,
+					kline.ThreeMin.Word():   true,
 					kline.FiveMin.Word():    true,
 					kline.FifteenMin.Word(): true,
 					kline.ThirtyMin.Word():  true,
 					kline.OneHour.Word():    true,
+					kline.TwoHour.Word():    true,
 					kline.FourHour.Word():   true,
+					kline.SixHour.Word():    true,
+					kline.TwelveHour.Word(): true,
 					kline.OneDay.Word():     true,
 					kline.OneWeek.Word():    true,
 					kline.OneMonth.Word():   true,
-					kline.OneYear.Word():    true,
 				},
 			},
 		},
@@ -1309,6 +1312,40 @@ func (by *Bybit) FormatExchangeKlineInterval(ctx context.Context, interval kline
 	}
 }
 
+// FormatExchangeKlineIntervalFutures returns Interval to exchange formatted string for future assets
+func (by *Bybit) FormatExchangeKlineIntervalFutures(ctx context.Context, interval kline.Interval) string {
+	switch interval {
+	case kline.OneMin:
+		return "1"
+	case kline.ThreeMin:
+		return "3"
+	case kline.FiveMin:
+		return "5"
+	case kline.FifteenMin:
+		return "15"
+	case kline.ThirtyMin:
+		return "30"
+	case kline.OneHour:
+		return "60"
+	case kline.TwoHour:
+		return "120"
+	case kline.FourHour:
+		return "240"
+	case kline.SixHour:
+		return "360"
+	case kline.TwelveHour:
+		return "720"
+	case kline.OneDay:
+		return "D"
+	case kline.OneWeek:
+		return "W"
+	case kline.OneMonth:
+		return "M"
+	default:
+		return interval.Short()
+	}
+}
+
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (by *Bybit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	if err := by.ValidateKline(pair, a, interval); err != nil {
@@ -1345,7 +1382,7 @@ func (by *Bybit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 			})
 		}
 	case asset.CoinMarginedFutures, asset.Futures:
-		candles, err := by.GetFuturesKlineData(ctx, formattedPair, by.FormatExchangeKlineInterval(ctx, interval), int64(by.Features.Enabled.Kline.ResultLimit), start)
+		candles, err := by.GetFuturesKlineData(ctx, formattedPair, by.FormatExchangeKlineIntervalFutures(ctx, interval), int64(by.Features.Enabled.Kline.ResultLimit), start)
 		if err != nil {
 			return klineItem, err
 		}
@@ -1361,7 +1398,7 @@ func (by *Bybit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 			})
 		}
 	case asset.USDTMarginedFutures:
-		candles, err := by.GetUSDTFuturesKlineData(ctx, formattedPair, by.FormatExchangeKlineInterval(ctx, interval), int64(by.Features.Enabled.Kline.ResultLimit), start)
+		candles, err := by.GetUSDTFuturesKlineData(ctx, formattedPair, by.FormatExchangeKlineIntervalFutures(ctx, interval), int64(by.Features.Enabled.Kline.ResultLimit), start)
 		if err != nil {
 			return klineItem, err
 		}
@@ -1432,7 +1469,7 @@ func (by *Bybit) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 			})
 		}
 	case asset.CoinMarginedFutures, asset.Futures:
-		candles, err := by.GetFuturesKlineData(ctx, formattedPair, by.FormatExchangeKlineInterval(ctx, interval), int64(by.Features.Enabled.Kline.ResultLimit), start)
+		candles, err := by.GetFuturesKlineData(ctx, formattedPair, by.FormatExchangeKlineIntervalFutures(ctx, interval), int64(by.Features.Enabled.Kline.ResultLimit), start)
 		if err != nil {
 			return kline.Item{}, err
 		}
@@ -1453,7 +1490,7 @@ func (by *Bybit) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 			})
 		}
 	case asset.USDTMarginedFutures:
-		candles, err := by.GetUSDTFuturesKlineData(ctx, formattedPair, by.FormatExchangeKlineInterval(ctx, interval), int64(by.Features.Enabled.Kline.ResultLimit), start)
+		candles, err := by.GetUSDTFuturesKlineData(ctx, formattedPair, by.FormatExchangeKlineIntervalFutures(ctx, interval), int64(by.Features.Enabled.Kline.ResultLimit), start)
 		if err != nil {
 			return kline.Item{}, err
 		}
