@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -15,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 )
 
@@ -2253,6 +2255,158 @@ func TestFetchAccountInfo(t *testing.T) {
 	}
 
 	_, err = b.FetchAccountInfo(context.Background(), asset.Futures)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestSubmitOrder(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+	}
+
+	var oSpot = &order.Submit{
+		Pair: currency.Pair{
+			Delimiter: "-",
+			Base:      currency.LTC,
+			Quote:     currency.BTC,
+		},
+		Side:      order.Buy,
+		Type:      order.Limit,
+		Price:     0.0001,
+		Amount:    10,
+		ClientID:  "newOrder",
+		AssetType: asset.Spot,
+	}
+	_, err := b.SubmitOrder(context.Background(), oSpot)
+	if err != nil {
+		if strings.TrimSpace(err.Error()) != "Balance insufficient" {
+			t.Error(err)
+		}
+	}
+}
+
+func TestModifyOrder(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+	}
+
+	_, err := b.ModifyOrder(context.Background(), &order.Modify{
+		ID:     "1337",
+		Price:  10000,
+		Amount: 10,
+		Side:   order.Sell,
+		Pair: currency.Pair{
+			Delimiter: "-",
+			Base:      currency.BTC,
+			Quote:     currency.USD,
+		},
+		AssetType: asset.CoinMarginedFutures,
+	})
+	if err == nil {
+		t.Error("ModifyOrder() Expected error")
+	}
+}
+
+func TestCancelOrder(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+	}
+
+	err := b.CancelOrder(context.Background(), &order.Cancel{
+		AssetType: asset.CoinMarginedFutures,
+		Pair: currency.Pair{
+			Delimiter: "-",
+			Base:      currency.BTC,
+			Quote:     currency.USD,
+		},
+		ID: "1234",
+	})
+	if err == nil {
+		t.Error("CancelOrder() Expected error")
+	}
+}
+func TestCancelAllOrders(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+	}
+
+	_, err := b.CancelAllOrders(context.Background(),
+		&order.Cancel{AssetType: asset.Spot})
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = b.CancelAllOrders(context.Background(),
+		&order.Cancel{AssetType: asset.CoinMarginedFutures})
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = b.CancelAllOrders(context.Background(),
+		&order.Cancel{AssetType: asset.USDTMarginedFutures})
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = b.CancelAllOrders(context.Background(),
+		&order.Cancel{AssetType: asset.Futures})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetOrderInfo(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	pair, err := currency.NewPairFromString("BTCUSDT")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = b.GetOrderInfo(context.Background(),
+		"12234", pair, asset.Spot)
+	if err == nil {
+		t.Error("GetOrderInfo() Expected error")
+	}
+}
+
+func TestGetActiveOrders(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	pair, err := currency.NewPairFromString("BTCUSDT")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var getOrdersRequestSpot = order.GetOrdersRequest{
+		Type:      order.AnyType,
+		Pairs:     currency.Pairs{pair},
+		AssetType: asset.Spot,
+	}
+
+	_, err = b.GetActiveOrders(context.Background(), &getOrdersRequestSpot)
+	if err != nil {
+		t.Error(err)
+	}
+
+	var getOrdersRequestCMF = order.GetOrdersRequest{
+		Type:      order.AnyType,
+		Pairs:     currency.Pairs{pair},
+		AssetType: asset.USDTMarginedFutures,
+	}
+
+	_, err = b.GetActiveOrders(context.Background(), &getOrdersRequestCMF)
 	if err != nil {
 		t.Error(err)
 	}
