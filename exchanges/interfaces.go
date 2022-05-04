@@ -78,6 +78,7 @@ type IBotExchange interface {
 	GetHistoricCandlesExtended(ctx context.Context, p currency.Pair, a asset.Item, timeStart, timeEnd time.Time, interval kline.Interval) (kline.Item, error)
 	DisableRateLimiter() error
 	EnableRateLimiter() error
+	GetServerTime(ctx context.Context, ai asset.Item) (time.Time, error)
 	CurrencyStateManagement
 
 	order.PNLCalculation
@@ -98,9 +99,6 @@ type IBotExchange interface {
 	UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error
 
 	AccountManagement
-
-	// GetServerTime returns the current exchange server time.
-	GetServerTime(ctx context.Context, ai asset.Item) (time.Time, error)
 }
 
 // CurrencyStateManagement defines functionality for currency state management

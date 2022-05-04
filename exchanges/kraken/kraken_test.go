@@ -85,11 +85,6 @@ func TestGetCurrentServerTime(t *testing.T) {
 
 func TestWrapperGetServerTime(t *testing.T) {
 	t.Parallel()
-	_, err := k.GetServerTime(context.Background(), asset.Empty)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
-	}
-
 	st, err := k.GetServerTime(context.Background(), asset.Spot)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
