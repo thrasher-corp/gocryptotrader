@@ -213,8 +213,11 @@ func TestCreateFuturesSpotDiffChart(t *testing.T) {
 		},
 	}
 
-	_, err = createFuturesSpotDiffChart(d.Statistics.ExchangeAssetPairStatistics)
+	charty, err := createFuturesSpotDiffChart(d.Statistics.ExchangeAssetPairStatistics)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	if len(charty.Data) == 0 {
+		t.Error("expected data")
 	}
 }

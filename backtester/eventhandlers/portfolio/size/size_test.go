@@ -1,11 +1,21 @@
 package size
 
 import (
+	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/shopspring/decimal"
+	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ftx"
+	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 func TestSizingAccuracy(t *testing.T) {
@@ -168,7 +178,6 @@ func TestCalculateSellSize(t *testing.T) {
 	}
 }
 
-/*
 func TestSizeOrder(t *testing.T) {
 	t.Parallel()
 	s := Size{}
@@ -176,7 +185,16 @@ func TestSizeOrder(t *testing.T) {
 	if !errors.Is(err, common.ErrNilArguments) {
 		t.Error(err)
 	}
-	o := &order.Order{}
+	o := &order.Order{
+		Base: event.Base{
+			Offset:         1,
+			Exchange:       "ftx",
+			Time:           time.Now(),
+			CurrencyPair:   currency.NewPair(currency.BTC, currency.USD),
+			UnderlyingPair: currency.NewPair(currency.BTC, currency.USD),
+			AssetType:      asset.Spot,
+		},
+	}
 	cs := &exchange.Settings{}
 	_, err = s.SizeOrder(o, decimal.Zero, cs)
 	if !errors.Is(err, errNoFunds) {
@@ -220,27 +238,28 @@ func TestSizeOrder(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-}
 
-
-*/
-func TestFuckYou(t *testing.T) {
-	t.Parallel()
-	weight := 0.95
-	//availableFunds := 438.0
-	spotPrice := 39122.0
-	futurePrice := 43195.0
-
-	for i := 1.0; i < 100000.0; i++ {
-		step1 := (i * weight) / futurePrice
-		futuresNotionalPosition := step1 * futurePrice
-		spotNotionalPosition := step1 * spotPrice
-		spotCollateralSize := spotNotionalPosition * weight
-		extraFundingRequired := futuresNotionalPosition - spotCollateralSize
-		excess := i - spotNotionalPosition
-		leftover := excess - extraFundingRequired
-		t.Log(leftover)
+	// spot futures sizing
+	o.FillDependentEvent = &signal.Signal{
+		Base:               o.Base,
+		MatchesOrderAmount: true,
+		ClosePrice:         decimal.NewFromInt(1337),
+	}
+	exch := ftx.FTX{}
+	err = exch.LoadCollateralWeightings(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+	cs.Exchange = &exch
+	_, err = s.SizeOrder(o, decimal.NewFromInt(1337), cs)
+	if err != nil {
+		t.Error(err)
 	}
 
-	//t.Logf("step1 %v\n futuresNotionalPosition %v\n spotNotionalPosition %v\n spotCollateralSize %v\n excess %v\n extraFundingRequired %v\n leftover %v\n", step1, futuresNotionalPosition, spotNotionalPosition, spotCollateralSize, excess, extraFundingRequired, leftover)
+	o.ClosePrice = decimal.NewFromInt(1000000000)
+	_, err = s.SizeOrder(o, decimal.NewFromInt(1337), cs)
+	if !errors.Is(err, errCannotAllocate) {
+		t.Errorf("received: %v, expected: %v", err, errCannotAllocate)
+	}
+
 }

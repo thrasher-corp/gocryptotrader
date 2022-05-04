@@ -163,7 +163,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 	if err != nil {
 		return f, err
 	}
-	if !o.IsClosingPosition() && !o.IsLiquidating() {
+	if !o.IsLiquidating() {
 		err = allocateFundsPostOrder(f, funds, err, o.GetAmount(), eventFunds, limitReducedAmount, adjustedPrice)
 		if err != nil {
 			return f, err
@@ -213,9 +213,10 @@ func allocateFundsPostOrder(f *fill.Fill, funds funding.IFundReleaser, orderErro
 			if err != nil {
 				f.AppendReason(err.Error())
 			}
-			if f.GetDirection() == gctorder.Buy {
+			switch f.GetDirection() {
+			case gctorder.Buy, gctorder.Bid:
 				f.SetDirection(common.CouldNotBuy)
-			} else if f.GetDirection() == gctorder.Sell {
+			case gctorder.Sell, gctorder.Ask, common.ClosePosition:
 				f.SetDirection(common.CouldNotSell)
 			}
 			return orderError
@@ -230,7 +231,7 @@ func allocateFundsPostOrder(f *fill.Fill, funds funding.IFundReleaser, orderErro
 			if err != nil {
 				return err
 			}
-		case gctorder.Sell, gctorder.Ask:
+		case gctorder.Sell, gctorder.Ask, common.ClosePosition:
 			err = pr.Release(eventFunds, eventFunds.Sub(limitReducedAmount), f.GetDirection())
 			if err != nil {
 				return err

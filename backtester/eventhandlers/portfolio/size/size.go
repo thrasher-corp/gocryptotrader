@@ -3,14 +3,12 @@ package size
 import (
 	"context"
 	"fmt"
-	"os"
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // SizeOrder is responsible for ensuring that the order size is within config limits
@@ -26,7 +24,7 @@ func (s *Size) SizeOrder(o order.Event, amountAvailable decimal.Decimal, cs *exc
 		return nil, fmt.Errorf("%w expected order event", common.ErrInvalidDataType)
 	}
 	if fde := o.GetFillDependentEvent(); fde != nil && fde.MatchOrderAmount() {
-		hello, err := cs.Exchange.ScaleCollateral(context.TODO(), &gctorder.CollateralCalculator{
+		scalingInfo, err := cs.Exchange.ScaleCollateral(context.TODO(), &gctorder.CollateralCalculator{
 			CalculateOffline:   true,
 			CollateralCurrency: o.Pair().Base,
 			Asset:              fde.GetAssetType(),
@@ -35,28 +33,28 @@ func (s *Size) SizeOrder(o order.Event, amountAvailable decimal.Decimal, cs *exc
 			IsForNewPosition:   true,
 			FreeCollateral:     amountAvailable,
 		})
-		initialAmount := amountAvailable.Mul(hello.Weighting).Div(fde.GetClosePrice())
+		if err != nil {
+			return nil, err
+		}
+		initialAmount := amountAvailable.Mul(scalingInfo.Weighting).Div(fde.GetClosePrice())
 		oNotionalPosition := initialAmount.Mul(o.GetClosePrice())
 		sizedAmount, err := s.calculateAmount(o.GetDirection(), o.GetClosePrice(), oNotionalPosition, cs, o)
 		if err != nil {
-			return retOrder, err
+			return nil, err
 		}
-		scaledCollateralFromAmount := sizedAmount.Mul(hello.Weighting)
+		scaledCollateralFromAmount := sizedAmount.Mul(scalingInfo.Weighting)
 		excess := amountAvailable.Sub(sizedAmount).Add(scaledCollateralFromAmount)
 		if excess.IsNegative() {
-			os.Exit(-1)
+			return nil, fmt.Errorf("%w not enough funding for position", errCannotAllocate)
 		}
 		retOrder.SetAmount(sizedAmount)
 		fde.SetAmount(sizedAmount)
-		retOrder.FillDependentEvent = fde
-		log.Infof(common.Backtester, "%v %v", hello.CollateralContribution, err)
-		log.Infof(common.Backtester, "%v %v", hello, err)
 		return retOrder, nil
 	}
 
 	amount, err := s.calculateAmount(retOrder.Direction, retOrder.ClosePrice, amountAvailable, cs, o)
 	if err != nil {
-		return retOrder, err
+		return nil, err
 	}
 	retOrder.SetAmount(amount)
 

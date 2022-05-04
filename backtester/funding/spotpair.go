@@ -45,7 +45,7 @@ func (p *SpotPair) Reserve(amount decimal.Decimal, side order.Side) error {
 	switch side {
 	case order.Buy, order.Bid:
 		return p.quote.Reserve(amount)
-	case order.Sell, order.Ask:
+	case order.Sell, order.Ask, common.ClosePosition:
 		return p.base.Reserve(amount)
 	default:
 		return fmt.Errorf("%w for %v %v %v. Unknown side %v",
@@ -64,7 +64,7 @@ func (p *SpotPair) Release(amount, diff decimal.Decimal, side order.Side) error 
 	switch side {
 	case order.Buy, order.Bid:
 		return p.quote.Release(amount, diff)
-	case order.Sell, order.Ask:
+	case order.Sell, order.Ask, common.ClosePosition:
 		return p.base.Release(amount, diff)
 	}
 	return fmt.Errorf("%w for %v %v %v. Unknown side %v",
@@ -81,7 +81,7 @@ func (p *SpotPair) IncreaseAvailable(amount decimal.Decimal, side order.Side) er
 	switch side {
 	case order.Buy, order.Bid:
 		return p.base.IncreaseAvailable(amount)
-	case order.Sell, order.Ask:
+	case order.Sell, order.Ask, common.ClosePosition:
 		return p.quote.IncreaseAvailable(amount)
 	}
 	return fmt.Errorf("%w for %v %v %v. Unknown side %v",
