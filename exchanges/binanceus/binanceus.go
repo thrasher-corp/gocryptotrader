@@ -88,6 +88,7 @@ const (
 	assetFeeAndWalletStatus = "/sapi/v1/capital/config/getall"
 	applyWithdrawal         = "/sapi/v1/capital/withdraw/apply"
 	withdrawalHistory       = "/sapi/v1/capital/withdraw/history"
+	withdrawFiat            = "/sapi/v1/fiatpayment/apply/withdraw"
 	fiatWithdrawalhistory   = "/sapi/v1/fiatpayment/query/withdraw/history"
 	fiatDepositHistory      = "/sapi/v1/fiatpayment/query/deposit/history"
 	depositAddress          = "/sapi/v1/capital/deposit/address"
@@ -862,9 +863,10 @@ func (b *Binanceus) GetOrder(ctx context.Context, arg OrderRequestParams) (*Orde
 	params.Set("timestamp", fmt.Sprintf("%d", timestamp))
 	if arg.OrigClientOrderId != "" {
 		params.Set("origClientOrderId", arg.OrigClientOrderId)
-	} else {
-		return nil, errIncompleteArguments
 	}
+	//  else {
+	// 	return nil, errIncompleteArguments
+	// }
 	if arg.RecvWindow > 200 && arg.RecvWindow <= 6000 {
 		params.Set("recvWindow", fmt.Sprint(arg.RecvWindow))
 	}
@@ -1220,11 +1222,11 @@ func (b *Binanceus) WithdrawCrypto(ctx context.Context, arg WithdrawalRequestPar
 	params := url.Values{}
 	params.Set("timestamp", fmt.Sprint(time.Now().UnixMilli()))
 	if arg.Coin == "" {
-		return "", errIncompleteArguments
+		return "", errors.New("Missing Required argument,Coin")
 	}
 	params.Set("coin", arg.Coin)
 	if arg.Network == "" {
-		return "", errIncompleteArguments
+		return "", errors.New("Missing Required argument,Network")
 	}
 	params.Set("network", arg.Network)
 	if arg.WithdrawOrderId != "" { /// Client ID for withdraw
@@ -1328,6 +1330,35 @@ func (b *Binanceus) FiatWithdrawalhistory(ctx context.Context, arg FiatWithdrawa
 		exchange.RestSpotSupplementary,
 		http.MethodGet, fiatWithdrawalhistory,
 		params, spotDefaultRate, &response)
+}
+
+func (b *Binanceus) WithdrawFiat(ctx context.Context, arg WithdrawFiatRequestParams) (string, error) {
+	params := url.Values{}
+	timestamp := fmt.Sprint(time.Now().UnixMilli())
+	params.Set("timestamp", timestamp)
+	if arg.PaymentChannel != "" {
+		params.Set("paymentChannel", arg.PaymentChannel)
+	}
+	if arg.PaymentMethod != "" {
+		params.Set("paymentMethod", arg.PaymentMethod)
+	}
+	if arg.PaymentAccount != "" {
+		return "", errors.New("error: missing payment account")
+	}
+	if arg.FiatCurrency != "" {
+		params.Set("fiatCurrency", arg.FiatCurrency)
+	}
+	if arg.Amount <= 0 {
+		return "", errors.New("error: invalid withdrawal amount")
+	}
+	type response struct {
+		OrderID string `json:"orderId"`
+	}
+	var resp response
+	return resp.OrderID, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary,
+		http.MethodPost, withdrawFiat,
+		params, spotDefaultRate, &resp,
+	)
 }
 
 /*

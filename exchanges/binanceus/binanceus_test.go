@@ -11,10 +11,13 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
 // Please supply your own keys here to do authenticated endpoint testing
@@ -24,7 +27,10 @@ const (
 	canManipulateRealOrders = false
 )
 
-var bi Binanceus
+var (
+	bi              Binanceus
+	testPairMapping = currency.NewPair(currency.BTC, currency.USDT)
+)
 
 func TestMain(m *testing.M) {
 	bi.SetDefaults()
@@ -82,6 +88,293 @@ func TestGetExchangeInfo(t *testing.T) {
 	// 	}
 	// }
 }
+
+/************************************************************************/
+
+func TestUpdateTicker(t *testing.T) {
+	t.Parallel()
+	r, err := bi.UpdateTicker(context.Background(), testPairMapping, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+	if r.Pair.Base != currency.BTC && r.Pair.Quote != currency.USDT {
+		t.Error("invalid pair values")
+	}
+}
+
+func TestUpdateTickers(t *testing.T) {
+	t.Parallel()
+	err := bi.UpdateTickers(context.Background(), asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestUpdateOrderBook(t *testing.T) {
+	t.Parallel()
+	currencyPair, err := currency.NewPairFromString("BTCUSDT")
+	if err != nil {
+		t.Error("Binanceus UpdateOrderBook() error", err)
+	}
+	_, er := bi.UpdateOrderbook(context.Background(), currencyPair, asset.Spot)
+	if er != nil {
+		t.Error("Binanceus UpdateOrderBook() error", er)
+	}
+}
+
+// TestFetchTradablePairs .. testint the tradable pairs for spot asset types.
+func TestFetchTradablePairs(t *testing.T) {
+	t.Parallel()
+	_, err := bi.FetchTradablePairs(context.Background(), asset.Spot)
+	if err != nil {
+		t.Error("Binanceus FetchTradablePairs() error", err)
+	}
+}
+
+func TestUpdateTradablePairs(t *testing.T) {
+	t.Parallel()
+	err := bi.UpdateTradablePairs(context.Background(), false)
+	if err != nil {
+		t.Error("Binanceus UpdateTradablePairs() error", err)
+	}
+}
+
+func TestFetchAccountInfo(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	t.Parallel()
+	if _, err := bi.FetchAccountInfo(context.Background(), asset.Spot); err != nil {
+		t.Error("Binanceus FetchAccountInfo() error", err)
+	}
+}
+
+func TestUpdateAccountInfo(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	t.Parallel()
+	_, err := bi.UpdateAccountInfo(context.Background(), asset.Spot)
+	if err != nil {
+		t.Error("Binanceus UpdateAccountInfo() error", err)
+	}
+}
+
+func TestGetRecentTrades(t *testing.T) {
+	t.Parallel()
+	pair := currency.Pair{Base: currency.BTC, Quote: currency.USD}
+	_, err := bi.GetRecentTrades(context.Background(), pair, asset.Spot)
+	if err != nil {
+		t.Error("Binanceus GetRecentTrades() error", err)
+	}
+}
+
+// TestGetHistoricTrades
+func TestGetHistoricTrades(t *testing.T) {
+	t.Parallel()
+	pair := currency.Pair{Base: currency.BTC, Quote: currency.USD}
+	_, err := bi.GetHistoricTrades(context.Background(), pair, asset.Spot, time.Time{}, time.Time{})
+	if err != nil {
+		t.Error("Binanceus GetHistoricTrades() error", err)
+	}
+}
+
+func TestGetFeeByType(t *testing.T) {
+	// I have not implemented the method GetFeeByType yet
+	t.SkipNow()
+}
+
+func TestGetFundingHistory(t *testing.T) {
+	// This Method is not implemented yet
+	t.SkipNow()
+}
+
+func TestSubmitOrder(t *testing.T) {
+	t.Parallel()
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
+	var orderSubmission = &order.Submit{
+		Pair: currency.Pair{
+			Base:  currency.XRP,
+			Quote: currency.USD,
+		},
+		AssetType: asset.Spot,
+		Side:      order.Sell,
+		Type:      order.Limit,
+		Price:     1000,
+		Amount:    20,
+		ClientID:  "binanceSamOrder",
+	}
+	response, err := bi.SubmitOrder(context.Background(), orderSubmission)
+
+	if areTestAPIKeysSet() && err != nil {
+		t.Errorf("Could not place order: %v", err)
+	}
+	if areTestAPIKeysSet() && !response.IsOrderPlaced {
+		t.Error("Order not placed")
+	}
+	if !areTestAPIKeysSet() && err == nil {
+		t.Error("Expecting an error when no keys are set")
+	}
+}
+
+func TestCancelOrder(t *testing.T) {
+	t.Parallel()
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
+	pair := currency.NewPair(currency.XPR, currency.USD)
+	var cancellationOrder = &order.Cancel{
+		ID:            "1",
+		WalletAddress: core.BitcoinDonationAddress,
+		AccountID:     "1",
+		Pair:          pair,
+		AssetType:     asset.Spot,
+	}
+	err := bi.CancelOrder(context.Background(), cancellationOrder)
+	switch {
+	case areTestAPIKeysSet() && err != nil:
+		t.Error("Binanceus CancelExchangeOrder() error", err)
+	case !areTestAPIKeysSet() && err == nil && !mockTests:
+		t.Error("Binanceus CancelExchangeOrder() expecting an error when no keys are set")
+	case mockTests && err != nil:
+		t.Error("Binanceus Mock CancelExchangeOrder() error", err)
+	}
+}
+
+func TestCancelAllOrders(t *testing.T) {
+	t.Parallel()
+	if areTestAPIKeysSet() && !canManipulateRealOrders && !mockTests {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
+	var orderCancellation = &order.Cancel{
+		ID:            "1",
+		WalletAddress: core.BitcoinDonationAddress,
+		AccountID:     "1",
+		Pair:          currency.NewPair(currency.LTC, currency.BTC),
+		AssetType:     asset.Spot,
+	}
+	_, err := bi.CancelAllOrders(context.Background(), orderCancellation)
+	switch {
+	case areTestAPIKeysSet() && err != nil:
+		t.Error("CancelAllExchangeOrders() error", err)
+	case !areTestAPIKeysSet() && err == nil && !mockTests:
+		t.Error("CancelAllExchangeOrders() expecting an error when no keys are set")
+	case mockTests && err != nil:
+		t.Error("Mock CancelAllExchangeOrders() error", err)
+	}
+}
+
+func TestGetOrderInfo(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("Binanceus GetOrderInfo() skipping test: api keys not set")
+	}
+	tradablePairs, err := bi.FetchTradablePairs(context.Background(),
+		asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+	if len(tradablePairs) == 0 {
+		t.Fatal("Binanceus GetOrderInfo() no tradable pairs")
+	}
+	cp, err := currency.NewPairFromString(tradablePairs[0])
+	if err != nil {
+		t.Error("Binanceus GetOrderInfo() error", err)
+	}
+	_, err = bi.GetOrderInfo(context.Background(),
+		"123", cp, asset.Spot)
+	if !strings.Contains(err.Error(), "Order does not exist.") {
+		t.Error("Binanceus GetOrderInfo() error", err)
+	}
+}
+
+func TestGetDepositAddress(t *testing.T) {
+	t.Parallel()
+	_, err := bi.GetDepositAddress(context.Background(), currency.USDT, "", currency.BNB.String())
+	switch {
+	case areTestAPIKeysSet() && err != nil:
+		t.Error("Binanceus GetDepositAddress() error", err)
+	case !areTestAPIKeysSet() && err == nil && !mockTests:
+		t.Error("Binanceus GetDepositAddress() error cannot be nil")
+	case mockTests && err != nil:
+		t.Error("Binanceus Mock GetDepositAddress() error", err)
+	}
+}
+
+func TestGetOrderHistory(t *testing.T) {
+	// This method is not implemented yet.
+	t.SkipNow()
+}
+
+func TestGetWithdrawalHistory(t *testing.T) {
+	t.Parallel()
+	if areTestAPIKeysSet() && !canManipulateRealOrders && !mockTests {
+		t.Skip("Binanceus API keys set, canManipulateRealOrders false, skipping test")
+	}
+	_, err := bi.GetWithdrawalsHistory(context.Background(), currency.ETH)
+	switch {
+	case areTestAPIKeysSet() && err != nil:
+		t.Error("Binanceus GetWithdrawalsHistory() error", err)
+	case !areTestAPIKeysSet() && err == nil && !mockTests:
+		t.Error("Binanceus GetWithdrawalsHistory() expecting an error when no keys are set")
+	}
+}
+
+func TestWithdrawFiat(t *testing.T) {
+	// t.Parallel()
+	// This method is not yet implemented.
+	t.SkipNow()
+}
+
+func TestGetActiveOrders(t *testing.T) {
+	t.Parallel()
+	var getOrdersRequest = order.GetOrdersRequest{
+		Type: order.AnyType,
+		// Pairs:     currency.Pairs{pair},
+		AssetType: asset.Spot,
+	}
+	orders, err := bi.GetActiveOrders(context.Background(), &getOrdersRequest)
+	t.Logf("Binanceus : %d Orders found", len(orders))
+	switch {
+	case areTestAPIKeysSet() && err != nil:
+		t.Error("GetActiveOrders() error", err)
+	case !areTestAPIKeysSet() && err == nil && !mockTests:
+		t.Error("GetActiveOrders() expecting an error when no keys are set")
+	case mockTests && err != nil:
+		t.Error("Mock GetActiveOrders() error", err)
+	}
+}
+
+// TODO: this test is not completed yet.
+func TestWithdraw(t *testing.T) {
+	t.Parallel()
+	if areTestAPIKeysSet() && !canManipulateRealOrders && !mockTests {
+		t.Skip("Binanceus API keys set, canManipulateRealOrders false, skipping test")
+	}
+
+	withdrawCryptoRequest := withdraw.Request{
+		Exchange:    bi.Name,
+		Amount:      1,
+		Currency:    currency.BTC,
+		Description: "WITHDRAW IT ALL",
+		Crypto: withdraw.CryptoRequest{
+			Address: core.BitcoinDonationAddress,
+		},
+	}
+
+	_, err := bi.WithdrawCryptocurrencyFunds(context.Background(),
+		&withdrawCryptoRequest)
+	switch {
+	case areTestAPIKeysSet() && err != nil:
+		t.Error("Binanceus Withdraw() error", err)
+	case !areTestAPIKeysSet() && err == nil && !mockTests:
+		t.Error("Binanceus Withdraw() expecting an error when no keys are set")
+	}
+}
+
+/************************************************************************/
 
 // TestGetMostRecentTrades -- test most recent trades end-point
 func TestGetMostRecentTrades(t *testing.T) {

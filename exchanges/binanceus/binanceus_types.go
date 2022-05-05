@@ -514,8 +514,8 @@ type OrderRequestParams struct {
 // CancelOrderRequestParams this struct will be used as a parameter for
 // cancel order method.
 type CancelOrderRequestParams struct {
-	Symbol            currency.Pair
-	SymbolString      string
+	Symbol currency.Pair
+	// SymbolString      string
 	OrderID           uint64
 	OrigClientOrderID string
 	NewClientOrderID  string
@@ -768,6 +768,16 @@ type FiatAssetRecord struct {
 // FiatWithdrawalHistory ...
 type FiatAssetsHistory struct {
 	AssetLogRecordList []FiatAssetRecord `json:"assetLogRecordList"`
+}
+
+// WithdrawFiatRequestParams ...
+type WithdrawFiatRequestParams struct {
+	PaymentChannel string
+	PaymentMethod  string
+	PaymentAccount string
+	FiatCurrency   string
+	Amount         float64
+	RecvWindow     uint64
 }
 
 // FiatWithdrawalRequestParams ... to fetch your fiat (USD) withdrawal history.
