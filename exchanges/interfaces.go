@@ -52,12 +52,9 @@ type IBotExchange interface {
 	FormatWithdrawPermissions() string
 	SupportsWithdrawPermissions(permissions uint32) bool
 	GetFundingHistory(ctx context.Context) ([]FundHistory, error)
-	SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error)
-	ModifyOrder(ctx context.Context, action *order.Modify) (order.Modify, error)
-	CancelOrder(ctx context.Context, o *order.Cancel) error
-	CancelBatchOrders(ctx context.Context, o []order.Cancel) (order.CancelBatchResponse, error)
-	CancelAllOrders(ctx context.Context, orders *order.Cancel) (order.CancelAllResponse, error)
-	GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error)
+
+	OrderManagement
+
 	GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, accountID, chain string) (*deposit.Address, error)
 	GetAvailableTransferChains(ctx context.Context, cryptocurrency currency.Code) ([]string, error)
 	GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error)
@@ -98,6 +95,16 @@ type IBotExchange interface {
 	UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error
 
 	AccountManagement
+}
+
+// OrderManagement defines functionality for order management
+type OrderManagement interface {
+	SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error)
+	ModifyOrder(ctx context.Context, action *order.Modify) (*order.Modify, error)
+	CancelOrder(ctx context.Context, o *order.Cancel) error
+	CancelBatchOrders(ctx context.Context, o []order.Cancel) (order.CancelBatchResponse, error)
+	CancelAllOrders(ctx context.Context, orders *order.Cancel) (order.CancelAllResponse, error)
+	GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error)
 }
 
 // CurrencyStateManagement defines functionality for currency state management

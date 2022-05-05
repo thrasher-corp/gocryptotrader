@@ -464,8 +464,8 @@ func (b *BTCMarkets) CancelAllOpenOrdersByPairs(ctx context.Context, marketIDs [
 }
 
 // FetchOrder finds order based on the provided id
-func (b *BTCMarkets) FetchOrder(ctx context.Context, id string) (OrderData, error) {
-	var resp OrderData
+func (b *BTCMarkets) FetchOrder(ctx context.Context, id string) (*OrderData, error) {
+	var resp *OrderData
 	return resp, b.SendAuthenticatedRequest(ctx, http.MethodGet,
 		btcMarketsOrders+"/"+id,
 		nil,
@@ -477,6 +477,17 @@ func (b *BTCMarkets) FetchOrder(ctx context.Context, id string) (OrderData, erro
 func (b *BTCMarkets) RemoveOrder(ctx context.Context, id string) (CancelOrderResp, error) {
 	var resp CancelOrderResp
 	return resp, b.SendAuthenticatedRequest(ctx, http.MethodDelete,
+		btcMarketsOrders+"/"+id,
+		nil,
+		&resp,
+		request.Auth)
+}
+
+// Replace removes a given order
+func (b *BTCMarkets) ReplaceAnOrder(ctx context.Context, id string, price, amount float64) (*OrderData, error) {
+	var resp *OrderData
+	return resp, b.SendAuthenticatedRequest(ctx,
+		http.MethodPut,
 		btcMarketsOrders+"/"+id,
 		nil,
 		&resp,

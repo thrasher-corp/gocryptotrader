@@ -675,14 +675,14 @@ func (b *Bitfinex) SubmitOrder(ctx context.Context, o *order.Submit) (order.Subm
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (b *Bitfinex) ModifyOrder(ctx context.Context, action *order.Modify) (order.Modify, error) {
+func (b *Bitfinex) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Modify, error) {
 	if err := action.Validate(); err != nil {
-		return order.Modify{}, err
+		return nil, err
 	}
 
 	orderIDInt, err := strconv.ParseInt(action.ID, 10, 64)
 	if err != nil {
-		return order.Modify{ID: action.ID}, err
+		return &order.Modify{ID: action.ID}, err
 	}
 	if b.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		request := WsUpdateOrderRequest{
@@ -694,17 +694,16 @@ func (b *Bitfinex) ModifyOrder(ctx context.Context, action *order.Modify) (order
 			request.Amount *= -1
 		}
 		err = b.WsModifyOrder(&request)
-		return order.Modify{
+		return &order.Modify{
 			Exchange:  action.Exchange,
 			AssetType: action.AssetType,
 			Pair:      action.Pair,
 			ID:        action.ID,
-
-			Price:  action.Price,
-			Amount: action.Amount,
+			Price:     action.Price,
+			Amount:    action.Amount,
 		}, err
 	}
-	return order.Modify{}, common.ErrNotYetImplemented
+	return nil, common.ErrNotYetImplemented
 }
 
 // CancelOrder cancels an order by its corresponding ID number
