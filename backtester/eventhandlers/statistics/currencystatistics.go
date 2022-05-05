@@ -7,6 +7,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	gctmath "github.com/thrasher-corp/gocryptotrader/common/math"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -54,7 +55,10 @@ func (c *CurrencyPairStatistic) CalculateResults(riskFreeRate decimal.Decimal) e
 		c.StrategyMovement = last.Holdings.TotalValue.Sub(first.Holdings.TotalValue).Div(first.Holdings.TotalValue).Mul(oneHundred)
 	}
 	c.analysePNLGrowth()
-	c.calculateHighestCommittedFunds()
+	err = c.calculateHighestCommittedFunds()
+	if err != nil {
+		return err
+	}
 	returnsPerCandle := make([]decimal.Decimal, len(c.Events))
 	benchmarkRates := make([]decimal.Decimal, len(c.Events))
 
@@ -113,7 +117,6 @@ func (c *CurrencyPairStatistic) CalculateResults(riskFreeRate decimal.Decimal) e
 	}
 	c.IsStrategyProfitable = last.Holdings.TotalValue.GreaterThan(first.Holdings.TotalValue)
 	c.DoesPerformanceBeatTheMarket = c.StrategyMovement.GreaterThan(c.MarketMovement)
-
 	c.TotalFees = last.Holdings.TotalFees.Round(8)
 	c.TotalValueLostToVolumeSizing = last.Holdings.TotalValueLostToVolumeSizing.Round(2)
 	c.TotalValueLost = last.Holdings.TotalValueLost.Round(2)
@@ -129,14 +132,29 @@ func (c *CurrencyPairStatistic) CalculateResults(riskFreeRate decimal.Decimal) e
 	return nil
 }
 
-func (c *CurrencyPairStatistic) calculateHighestCommittedFunds() {
-	for i := range c.Events {
-		if c.Events[i].Holdings.BaseSize.Mul(c.Events[i].ClosePrice).GreaterThan(c.HighestCommittedFunds.Value) || !c.HighestCommittedFunds.Set {
-			c.HighestCommittedFunds.Value = c.Events[i].Holdings.BaseSize.Mul(c.Events[i].ClosePrice)
-			c.HighestCommittedFunds.Time = c.Events[i].Holdings.Timestamp
-			c.HighestCommittedFunds.Set = true
+func (c *CurrencyPairStatistic) calculateHighestCommittedFunds() error {
+	switch {
+	case c.Asset == asset.Spot:
+		for i := range c.Events {
+			if c.Events[i].Holdings.CommittedFunds.GreaterThan(c.HighestCommittedFunds.Value) || !c.HighestCommittedFunds.Set {
+				c.HighestCommittedFunds.Value = c.Events[i].Holdings.CommittedFunds
+				c.HighestCommittedFunds.Time = c.Events[i].Time
+				c.HighestCommittedFunds.Set = true
+			}
 		}
+	case c.Asset.IsFutures():
+		for i := range c.Events {
+			valueAtTime := c.Events[i].Holdings.BaseSize.Mul(c.Events[i].ClosePrice)
+			if valueAtTime.GreaterThan(c.HighestCommittedFunds.Value) || !c.HighestCommittedFunds.Set {
+				c.HighestCommittedFunds.Value = valueAtTime
+				c.HighestCommittedFunds.Time = c.Events[i].Time
+				c.HighestCommittedFunds.Set = true
+			}
+		}
+	default:
+		return fmt.Errorf("%v %w", c.Asset, asset.ErrNotSupported)
 	}
+	return nil
 }
 
 func (c *CurrencyPairStatistic) analysePNLGrowth() {

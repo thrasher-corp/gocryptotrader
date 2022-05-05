@@ -465,9 +465,14 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 			apiMakerFee, apiTakerFee = getFees(context.TODO(), exch, pair)
 			if cfg.CurrencySettings[i].MakerFee == nil {
 				makerFee = apiMakerFee
+				cfg.CurrencySettings[i].MakerFee = &makerFee
+				cfg.CurrencySettings[i].UsingExchangeMakerFee = true
+
 			}
 			if cfg.CurrencySettings[i].TakerFee == nil {
 				takerFee = apiTakerFee
+				cfg.CurrencySettings[i].TakerFee = &takerFee
+				cfg.CurrencySettings[i].UsingExchangeTakerFee = true
 			}
 		}
 

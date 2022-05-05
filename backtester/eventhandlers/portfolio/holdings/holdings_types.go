@@ -29,10 +29,13 @@ type Holding struct {
 	TotalInitialValue decimal.Decimal `json:"total-initial-value"`
 	QuoteSize         decimal.Decimal `json:"quote-size"`
 	SoldAmount        decimal.Decimal `json:"sold-amount"`
+	ScaledSoldValue   decimal.Decimal `json:"scaled-sold-value"`
 	SoldValue         decimal.Decimal `json:"sold-value"`
 	BoughtAmount      decimal.Decimal `json:"bought-amount"`
-	BoughtValue       decimal.Decimal `json:"bought-value"`
-	IsLiquidated      bool
+	ScaledBoughtValue decimal.Decimal `json:"scaled-bought-value"`
+	CommittedFunds    decimal.Decimal `json:"committed-funds"`
+
+	IsLiquidated bool
 
 	TotalValueDifference      decimal.Decimal
 	ChangeInTotalValuePercent decimal.Decimal

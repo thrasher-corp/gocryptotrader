@@ -199,12 +199,12 @@ func (s *Statistic) CalculateAllResults() error {
 				if err != nil {
 					log.Error(common.Statistics, err)
 				}
-				stats.PrintResults(exchangeName, assetItem, pair, s.FundManager.IsUsingExchangeLevelFunding())
 				stats.FinalHoldings = last.Holdings
 				stats.InitialHoldings = stats.Events[0].Holdings
 				stats.FinalOrders = last.Transactions
 				s.StartDate = stats.Events[0].Time
 				s.EndDate = last.Time
+				stats.PrintResults(exchangeName, assetItem, pair, s.FundManager.IsUsingExchangeLevelFunding())
 
 				finalResults = append(finalResults, FinalResultsHolder{
 					Exchange:         exchangeName,

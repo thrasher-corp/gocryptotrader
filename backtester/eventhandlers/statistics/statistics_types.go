@@ -258,11 +258,6 @@ type TotalFundingStatistics struct {
 	StrategyMovement         decimal.Decimal
 	RiskFreeRate             decimal.Decimal
 	CompoundAnnualGrowthRate decimal.Decimal
-	BuyOrders                int64
-	SellOrders               int64
-	LongOrders               int64
-	ShortOrders              int64
-	TotalOrders              int64
 	MaxDrawdown              Swing
 	GeometricRatios          *Ratios
 	ArithmeticRatios         *Ratios

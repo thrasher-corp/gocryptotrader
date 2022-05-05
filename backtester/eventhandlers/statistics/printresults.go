@@ -86,7 +86,7 @@ func (s *Statistic) PrintAllEventsChronologically() {
 								colour = common.ColourDarkGrey
 							}
 							msg := fmt.Sprintf(colour+
-								"%v %v%v%v| Price: $%v\tDirection: %v",
+								"%v %v%v%v| Price: %v\tDirection: %v",
 								currencyStatistic.Events[i].FillEvent.GetTime().Format(gctcommon.SimpleTimeFormat),
 								fSIL(exch, limit12),
 								fSIL(a.String(), limit10),
@@ -103,16 +103,16 @@ func (s *Statistic) PrintAllEventsChronologically() {
 								colour = common.ColourError
 							}
 							msg := fmt.Sprintf(colour+
-								"%v %v%v%v| Price: $%v\tAmount: %v\tFee: $%v\tTotal: $%v\tDirection %v",
+								"%v %v%v%v| Price: %v\tDirection %v\tOrder placed: Amount: %v\tFee: %v\tTotal: %v",
 								currencyStatistic.Events[i].FillEvent.GetTime().Format(gctcommon.SimpleTimeFormat),
 								fSIL(exch, limit12),
 								fSIL(a.String(), limit10),
 								fSIL(currencyStatistic.Events[i].FillEvent.Pair().String(), limit14),
 								currencyStatistic.Events[i].FillEvent.GetPurchasePrice().Round(8),
+								currencyStatistic.Events[i].FillEvent.GetDirection(),
 								currencyStatistic.Events[i].FillEvent.GetAmount().Round(8),
-								currencyStatistic.Events[i].FillEvent.GetExchangeFee().Round(8),
-								currencyStatistic.Events[i].FillEvent.GetTotal().Round(8),
-								currencyStatistic.Events[i].FillEvent.GetDirection())
+								currencyStatistic.Events[i].FillEvent.GetOrder().Fee,
+								currencyStatistic.Events[i].FillEvent.GetTotal().Round(8))
 							msg = addReason(currencyStatistic.Events[i].FillEvent.GetReason(), msg)
 							msg += common.ColourDefault
 							results = addEventOutputToTime(results, currencyStatistic.Events[i].FillEvent.GetTime(), msg)
@@ -187,14 +187,15 @@ func (c *CurrencyPairStatistic) PrintResults(e string, a asset.Item, p currency.
 		log.Infof(common.CurrencyStatistics, "%s Lowest Unrealised PNL: %s at %v", sep, convert.DecimalToHumanFriendlyString(c.LowestUnrealisedPNL.Value, 8, ".", ","), c.LowestUnrealisedPNL.Time)
 		log.Infof(common.CurrencyStatistics, "%s Highest Realised PNL: %s at %v", sep, convert.DecimalToHumanFriendlyString(c.HighestRealisedPNL.Value, 8, ".", ","), c.HighestRealisedPNL.Time)
 		log.Infof(common.CurrencyStatistics, "%s Lowest Realised PNL: %s at %v", sep, convert.DecimalToHumanFriendlyString(c.LowestRealisedPNL.Value, 8, ".", ","), c.LowestRealisedPNL.Time)
+		log.Infof(common.CurrencyStatistics, "%s Highest committed funds: %s at %v", sep, convert.DecimalToHumanFriendlyString(c.HighestCommittedFunds.Value, 8, ".", ","), c.HighestCommittedFunds.Time)
 	} else {
 		log.Infof(common.CurrencyStatistics, "%s Highest committed funds: %s at %v", sep, convert.DecimalToHumanFriendlyString(c.HighestCommittedFunds.Value, 8, ".", ","), c.HighestCommittedFunds.Time)
 		log.Infof(common.CurrencyStatistics, "%s Buy orders: %s", sep, convert.IntToHumanFriendlyString(c.BuyOrders, ","))
-		log.Infof(common.CurrencyStatistics, "%s Buy value: %s at %v", sep, convert.DecimalToHumanFriendlyString(last.Holdings.BoughtValue, 8, ".", ","), last.Holdings.Timestamp)
 		log.Infof(common.CurrencyStatistics, "%s Buy amount: %s %s", sep, convert.DecimalToHumanFriendlyString(last.Holdings.BoughtAmount, 8, ".", ","), last.Holdings.Pair.Base)
+		log.Infof(common.CurrencyStatistics, "%s Bought amount valued at last candle: %s", sep, convert.DecimalToHumanFriendlyString(last.Holdings.ScaledBoughtValue, 8, ".", ","))
 		log.Infof(common.CurrencyStatistics, "%s Sell orders: %s", sep, convert.IntToHumanFriendlyString(c.SellOrders, ","))
-		log.Infof(common.CurrencyStatistics, "%s Sell value: %s at %v", sep, convert.DecimalToHumanFriendlyString(last.Holdings.SoldValue, 8, ".", ","), last.Holdings.Timestamp)
 		log.Infof(common.CurrencyStatistics, "%s Sell amount: %s", sep, convert.DecimalToHumanFriendlyString(last.Holdings.SoldAmount, 8, ".", ","))
+		log.Infof(common.CurrencyStatistics, "%s Sold amount valued at last candle: %s", sep, convert.DecimalToHumanFriendlyString(last.Holdings.ScaledSoldValue, 8, ".", ","))
 	}
 	log.Infof(common.CurrencyStatistics, "%s Total orders: %s", sep, convert.IntToHumanFriendlyString(c.TotalOrders, ","))
 
@@ -348,11 +349,6 @@ func (f *FundingStatistics) PrintResults(wasAnyDataMissing bool) error {
 	log.Infof(common.FundingStatistics, "%s Strategy Movement: %s%%", sep, convert.DecimalToHumanFriendlyString(f.TotalUSDStatistics.StrategyMovement, 8, ".", ","))
 	log.Infof(common.FundingStatistics, "%s Did strategy make a profit: %v", sep, f.TotalUSDStatistics.DidStrategyMakeProfit)
 	log.Infof(common.FundingStatistics, "%s Did strategy beat the benchmark: %v", sep, f.TotalUSDStatistics.DidStrategyBeatTheMarket)
-	log.Infof(common.FundingStatistics, "%s Buy Orders: %s", sep, convert.IntToHumanFriendlyString(f.TotalUSDStatistics.BuyOrders, ","))
-	log.Infof(common.FundingStatistics, "%s Sell Orders: %s", sep, convert.IntToHumanFriendlyString(f.TotalUSDStatistics.SellOrders, ","))
-	log.Infof(common.FundingStatistics, "%s Long Orders: %s", sep, convert.IntToHumanFriendlyString(f.TotalUSDStatistics.LongOrders, ","))
-	log.Infof(common.FundingStatistics, "%s Short Orders: %s", sep, convert.IntToHumanFriendlyString(f.TotalUSDStatistics.ShortOrders, ","))
-	log.Infof(common.FundingStatistics, "%s Total Orders: %s", sep, convert.IntToHumanFriendlyString(f.TotalUSDStatistics.TotalOrders, ","))
 	log.Infof(common.FundingStatistics, "%s Highest funds: $%s at %v", sep, convert.DecimalToHumanFriendlyString(f.TotalUSDStatistics.HighestHoldingValue.Value, 8, ".", ","), f.TotalUSDStatistics.HighestHoldingValue.Time)
 	log.Infof(common.FundingStatistics, "%s Lowest funds: $%s at %v", sep, convert.DecimalToHumanFriendlyString(f.TotalUSDStatistics.LowestHoldingValue.Value, 8, ".", ","), f.TotalUSDStatistics.LowestHoldingValue.Time)
 

@@ -20,7 +20,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // Reset returns the exchange to initial settings
@@ -381,7 +380,6 @@ func (e *Exchange) placeOrder(ctx context.Context, price, amount decimal.Decimal
 			Cost:          p,
 			FullyMatched:  true,
 		}
-		log.Infof(log.Global, "%v %v %v %v %v - %v %v", f.GetOffset(), f.GetExchange(), f.GetAssetType(), f.Pair(), f.GetTime(), price, amount)
 		resp, err := orderManager.SubmitFakeOrder(o, submitResponse, useExchangeLimits)
 		if resp != nil {
 			orderID = resp.OrderID

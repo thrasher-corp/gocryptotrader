@@ -434,12 +434,12 @@
 							<td>{{.ExchangeName}}</td>
 							<td>{{.Asset}}</td>
 							<td>{{.Base}}-{{.Quote}}</td>
-							<td>{{ $.Prettify.Decimal64 .BuySide.MinimumSize}} {{.Base}}</td>
-							<td>{{ $.Prettify.Decimal64 .BuySide.MaximumSize}} {{.Base}}</td>
-							<td>{{ $.Prettify.Decimal64 .BuySide.MaximumTotal}} {{.Quote}}</td>
-							<td>{{ $.Prettify.Decimal64 .SellSide.MinimumSize}} {{.Base}}</td>
-							<td>{{ $.Prettify.Decimal64 .SellSide.MaximumSize}} {{.Base}}</td>
-							<td>{{ $.Prettify.Decimal64 .SellSide.MaximumTotal}} {{.Quote}}</td>
+							<td>{{ $.Prettify.Decimal64 .BuySide.MinimumSize}} {{if .Asset.IsFutures}} {{.Base}}-{{.Quote}} {{else}}{{.Base}} {{end}}</td>
+							<td>{{ $.Prettify.Decimal64 .BuySide.MaximumSize}}  {{if .Asset.IsFutures}} {{.Base}}-{{.Quote}} {{else}}{{.Base}} {{end}}</td>
+							<td>{{ $.Prettify.Decimal64 .BuySide.MaximumTotal}} {{if .Asset.IsFutures}}{{else}}{{.Quote}} {{end}}</td>
+							<td>{{ $.Prettify.Decimal64 .SellSide.MinimumSize}}  {{if .Asset.IsFutures}} {{.Base}}-{{.Quote}} {{else}}{{.Base}} {{end}}</td>
+							<td>{{ $.Prettify.Decimal64 .SellSide.MaximumSize}}  {{if .Asset.IsFutures}} {{.Base}}-{{.Quote}} {{else}}{{.Base}} {{end}}</td>
+							<td>{{ $.Prettify.Decimal64 .SellSide.MaximumTotal}} {{if .Asset.IsFutures}}{{else}}{{.Quote}} {{end}}</td>
 							<td>{{ $.Prettify.Decimal64 .MinimumSlippagePercent}}%</td>
 							<td>{{ $.Prettify.Decimal64 .MaximumSlippagePercent}}%</td>
 							<td>{{.TakerFee}}</td>
@@ -1271,7 +1271,7 @@
 									</tr>
 									<tr>
 										<td><b>Buy Value</b></td>
-										<td>{{ $.Prettify.Decimal8 $val.FinalHoldings.BoughtValue}} {{$val.FinalHoldings.Pair.Quote}}</td>
+										<td>{{ $.Prettify.Decimal8 $val.FinalHoldings.ScaledBoughtValue}} {{$val.FinalHoldings.Pair.Quote}}</td>
 									</tr>
 									<tr>
 										<td><b>Buy Amount</b></td>
@@ -1283,7 +1283,7 @@
 									</tr>
 									<tr>
 										<td><b>Sell Value</b></td>
-										<td>{{ $.Prettify.Decimal8 $val.FinalHoldings.SoldValue}} {{$val.FinalHoldings.Pair.Quote}}</td>
+										<td>{{ $.Prettify.Decimal8 $val.FinalHoldings.ScaledSoldValue}} {{$val.FinalHoldings.Pair.Quote}}</td>
 									</tr>
 									<tr>
 										<td><b>Sell Amount</b></td>
@@ -1341,26 +1341,6 @@
 											<td>{{ .DoesPerformanceBeatTheMarket }}</td>
 										</tr>
 									{{ end }}
-									<tr>
-										<td><b>Total Value Lost to Volume Sizing</b></td>
-										<td>{{ $.Prettify.Decimal8 $val.FinalHoldings.TotalValueLostToVolumeSizing}}</td>
-									</tr>
-									<tr>
-										<td><b>Total Value Lost to Slippage</b></td>
-										<td>{{ $.Prettify.Decimal8 $val.FinalHoldings.TotalValueLostToSlippage}}</td>
-									</tr>
-									<tr>
-										<td><b>Total Value Lost</b></td>
-										<td>{{ $.Prettify.Decimal8 $val.FinalHoldings.TotalValueLost}}</td>
-									</tr>
-									<tr>
-										<td><b>Total Fees</b></td>
-										<td>{{ $.Prettify.Decimal8 $val.FinalHoldings.TotalFees}} </td>
-									</tr>
-									<tr>
-										<td><b>Final Holdings</b></td>
-										<td>{{ $.Prettify.Decimal8 $val.FinalHoldings.BaseSize}} {{$val.FinalHoldings.Pair.Base}}-{{ $val.FinalHoldings.Pair.Quote }}</td>
-									</tr>
 									{{ if eq $.Statistics.FundingStatistics.Report.UsingExchangeLevelFunding false }}
 										<tr>
 											<td><b>Final Holdings Value</b></td>
@@ -1618,26 +1598,6 @@
 							<td>${{$.Prettify.Decimal8 .Statistics.FundingStatistics.TotalUSDStatistics.LowestHoldingValue.Value}} at {{.Statistics.FundingStatistics.TotalUSDStatistics.LowestHoldingValue.Time}}</td>
 						</tr>
 						<tr>
-							<td><b>Total Buy Orders</b></td>
-							<td>{{$.Prettify.Int .Statistics.FundingStatistics.TotalUSDStatistics.BuyOrders }}</td>
-						</tr>
-						<tr>
-							<td><b>Total Sell Orders</b></td>
-							<td>{{$.Prettify.Int .Statistics.FundingStatistics.TotalUSDStatistics.SellOrders }}</td>
-						</tr>
-						<tr>
-							<td><b>Total Long Orders</b></td>
-							<td>{{$.Prettify.Int .Statistics.FundingStatistics.TotalUSDStatistics.LongOrders }}</td>
-						</tr>
-						<tr>
-							<td><b>Total Short Orders</b></td>
-							<td>{{$.Prettify.Int .Statistics.FundingStatistics.TotalUSDStatistics.ShortOrders }}</td>
-						</tr>
-						<tr>
-							<td><b>Total Orders</b></td>
-							<td>{{$.Prettify.Int .Statistics.FundingStatistics.TotalUSDStatistics.TotalOrders }}</td>
-						</tr>
-						<tr>
 							<td><b>Max Drawdown</b></td>
 							<td><b>Start:</b> {{ .Statistics.FundingStatistics.TotalUSDStatistics.MaxDrawdown.Highest.Time }} <b>End:</b> {{ .Statistics.FundingStatistics.TotalUSDStatistics.MaxDrawdown.Lowest.Time }} <b>Drop:</b> {{ $.Prettify.Decimal8 .Statistics.FundingStatistics.TotalUSDStatistics.MaxDrawdown.DrawdownPercent}}%</td>
 						</tr>
@@ -1765,7 +1725,7 @@
 										{{ else }}
 											<th>{{$pair.Base}} Funds</th>
 											<th>{{$pair.Quote}} Funds</th>
-											<th>Total Value</th>
+											<th>Total value in {{$pair.Quote}}</th>
 										{{ end }}
 
 									</tr>

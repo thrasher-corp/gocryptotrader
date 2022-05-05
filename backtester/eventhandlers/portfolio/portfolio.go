@@ -248,34 +248,33 @@ func (p *Portfolio) OnFill(ev fill.Event, funds funding.IFundReleaser) (fill.Eve
 	}
 	var err error
 
-	if ev.GetAssetType() == asset.Spot {
-		var fp funding.IPairReleaser
-		fp, err = funds.PairReleaser()
+	// Get the holding from the previous iteration, create it if it doesn't yet have a timestamp
+	h := lookup.GetHoldingsForTime(ev.GetTime().Add(-ev.GetInterval().Duration()))
+	if !h.Timestamp.IsZero() {
+		err = h.Update(ev, funds)
 		if err != nil {
 			return nil, err
 		}
-		// Get the holding from the previous iteration, create it if it doesn't yet have a timestamp
-		h := lookup.GetHoldingsForTime(ev.GetTime().Add(-ev.GetInterval().Duration()))
-		if !h.Timestamp.IsZero() {
-			h.Update(ev, fp)
+	} else {
+		h = lookup.GetLatestHoldings()
+		if h.Timestamp.IsZero() {
+			h, err = holdings.Create(ev, funds)
+			if err != nil {
+				return nil, err
+			}
 		} else {
-			h = lookup.GetLatestHoldings()
-			if h.Timestamp.IsZero() {
-				h, err = holdings.Create(ev, funds)
-				if err != nil {
-					return nil, err
-				}
-			} else {
-				h.Update(ev, fp)
+			err = h.Update(ev, funds)
+			if err != nil {
+				return nil, err
 			}
 		}
-		err = p.setHoldingsForOffset(&h, true)
-		if errors.Is(err, errNoHoldings) {
-			err = p.setHoldingsForOffset(&h, false)
-		}
-		if err != nil {
-			log.Error(common.Portfolio, err)
-		}
+	}
+	err = p.setHoldingsForOffset(&h, true)
+	if errors.Is(err, errNoHoldings) {
+		err = p.setHoldingsForOffset(&h, false)
+	}
+	if err != nil {
+		log.Error(common.Portfolio, err)
 	}
 
 	err = p.addComplianceSnapshot(ev)

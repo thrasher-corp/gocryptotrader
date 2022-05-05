@@ -182,8 +182,8 @@ func TestUpdateBuyStats(t *testing.T) {
 	if !h.BoughtAmount.Equal(decimal.NewFromInt(1)) {
 		t.Errorf("expected '%v' received '%v'", 1, h.BoughtAmount)
 	}
-	if !h.BoughtValue.Equal(decimal.NewFromInt(500)) {
-		t.Errorf("expected '%v' received '%v'", 500, h.BoughtValue)
+	if !h.ScaledBoughtValue.Equal(decimal.NewFromInt(500)) {
+		t.Errorf("expected '%v' received '%v'", 500, h.ScaledBoughtValue)
 	}
 	if !h.SoldAmount.IsZero() {
 		t.Errorf("expected '%v' received '%v'", 0, h.SoldAmount)
@@ -229,8 +229,8 @@ func TestUpdateBuyStats(t *testing.T) {
 	if !h.BoughtAmount.Equal(decimal.NewFromFloat(1.5)) {
 		t.Errorf("expected '%v' received '%v'", 1, h.BoughtAmount)
 	}
-	if !h.BoughtValue.Equal(decimal.NewFromInt(750)) {
-		t.Errorf("expected '%v' received '%v'", 750, h.BoughtValue)
+	if !h.ScaledBoughtValue.Equal(decimal.NewFromInt(750)) {
+		t.Errorf("expected '%v' received '%v'", 750, h.ScaledBoughtValue)
 	}
 	if !h.SoldAmount.IsZero() {
 		t.Errorf("expected '%v' received '%v'", 0, h.SoldAmount)
@@ -311,8 +311,8 @@ func TestUpdateSellStats(t *testing.T) {
 	if !h.BoughtAmount.Equal(decimal.NewFromInt(1)) {
 		t.Errorf("expected '%v' received '%v'", 1, h.BoughtAmount)
 	}
-	if !h.BoughtValue.Equal(decimal.NewFromInt(500)) {
-		t.Errorf("expected '%v' received '%v'", 500, h.BoughtValue)
+	if !h.ScaledBoughtValue.Equal(decimal.NewFromInt(500)) {
+		t.Errorf("expected '%v' received '%v'", 500, h.ScaledBoughtValue)
 	}
 	if !h.SoldAmount.IsZero() {
 		t.Errorf("expected '%v' received '%v'", 0, h.SoldAmount)
@@ -355,8 +355,8 @@ func TestUpdateSellStats(t *testing.T) {
 	if !h.BoughtAmount.Equal(decimal.NewFromInt(1)) {
 		t.Errorf("expected '%v' received '%v'", 1, h.BoughtAmount)
 	}
-	if !h.BoughtValue.Equal(decimal.NewFromInt(500)) {
-		t.Errorf("expected '%v' received '%v'", 500, h.BoughtValue)
+	if !h.ScaledBoughtValue.Equal(decimal.NewFromInt(500)) {
+		t.Errorf("expected '%v' received '%v'", 500, h.ScaledBoughtValue)
 	}
 	if !h.SoldAmount.Equal(decimal.NewFromInt(1)) {
 		t.Errorf("expected '%v' received '%v'", 1, h.SoldAmount)

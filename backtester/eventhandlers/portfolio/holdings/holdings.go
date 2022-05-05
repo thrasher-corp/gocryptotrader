@@ -58,10 +58,10 @@ func Create(ev ClosePriceReader, fundReader funding.IFundReader) (Holding, error
 }
 
 // Update calculates holding statistics for the events time
-func (h *Holding) Update(e fill.Event, f funding.IPairReader) {
+func (h *Holding) Update(e fill.Event, f funding.IFundReader) error {
 	h.Timestamp = e.GetTime()
 	h.Offset = e.GetOffset()
-	h.update(e, f)
+	return h.update(e, f)
 }
 
 // UpdateValue calculates the holding's value for a data event's time and price
@@ -72,45 +72,72 @@ func (h *Holding) UpdateValue(d common.DataEventHandler) {
 	h.updateValue(latest)
 }
 
-func (h *Holding) update(e fill.Event, f funding.IPairReader) {
+func (h *Holding) update(e fill.Event, f funding.IFundReader) error {
 	direction := e.GetDirection()
 	if o := e.GetOrder(); o != nil {
 		amount := decimal.NewFromFloat(o.Amount)
 		fee := decimal.NewFromFloat(o.Fee)
 		price := decimal.NewFromFloat(o.Price)
-		h.BaseSize = f.BaseAvailable()
-		h.QuoteSize = f.QuoteAvailable()
+		a := e.GetAssetType()
+		switch {
+		case a == asset.Spot:
+			spotR, err := f.GetPairReader()
+			if err != nil {
+				return err
+			}
+			h.BaseSize = spotR.BaseAvailable()
+			h.QuoteSize = spotR.QuoteAvailable()
+		case a.IsFutures():
+			collat, err := f.GetCollateralReader()
+			if err != nil {
+				return err
+			}
+			h.BaseSize = collat.CurrentHoldings()
+			h.QuoteSize = collat.AvailableFunds()
+		default:
+			return fmt.Errorf("%v %w", a, asset.ErrNotSupported)
+		}
+
 		h.BaseValue = h.BaseSize.Mul(price)
 		h.TotalFees = h.TotalFees.Add(fee)
+		if e.GetAssetType().IsFutures() {
+			// responsibility of tracking futures orders is
+			// with order.PositionTracker
+			return nil
+		}
 		switch direction {
-		case order.Buy, order.Bid:
+		case order.Buy,
+			order.Bid:
 			h.BoughtAmount = h.BoughtAmount.Add(amount)
-			h.BoughtValue = h.BoughtAmount.Mul(price)
-		case order.Sell, order.Ask:
+			h.ScaledBoughtValue = h.BoughtAmount.Mul(price)
+			h.CommittedFunds = h.CommittedFunds.Add(amount.Mul(price))
+		case order.Sell,
+			order.Ask:
 			h.SoldAmount = h.SoldAmount.Add(amount)
-			h.SoldValue = h.SoldAmount.Mul(price)
-		case common.DoNothing, common.CouldNotSell, common.CouldNotBuy, common.MissingData, common.TransferredFunds, "":
+			h.ScaledSoldValue = h.SoldAmount.Mul(price)
+			h.CommittedFunds = h.CommittedFunds.Sub(amount.Mul(price))
 		}
 	}
 	h.TotalValueLostToVolumeSizing = h.TotalValueLostToVolumeSizing.Add(e.GetClosePrice().Sub(e.GetVolumeAdjustedPrice()).Mul(e.GetAmount()))
 	h.TotalValueLostToSlippage = h.TotalValueLostToSlippage.Add(e.GetVolumeAdjustedPrice().Sub(e.GetPurchasePrice()).Mul(e.GetAmount()))
 	h.updateValue(e.GetClosePrice())
+	return nil
 }
 
 func (h *Holding) updateValue(latestPrice decimal.Decimal) {
 	origPosValue := h.BaseValue
-	origBoughtValue := h.BoughtValue
-	origSoldValue := h.SoldValue
+	origBoughtValue := h.ScaledBoughtValue
+	origSoldValue := h.ScaledSoldValue
 	origTotalValue := h.TotalValue
 	h.BaseValue = h.BaseSize.Mul(latestPrice)
-	h.BoughtValue = h.BoughtAmount.Mul(latestPrice)
-	h.SoldValue = h.SoldAmount.Mul(latestPrice)
+	h.ScaledBoughtValue = h.BoughtAmount.Mul(latestPrice)
+	h.ScaledSoldValue = h.SoldAmount.Mul(latestPrice)
 	h.TotalValue = h.BaseValue.Add(h.QuoteSize)
 
 	h.TotalValueDifference = h.TotalValue.Sub(origTotalValue)
-	h.BoughtValueDifference = h.BoughtValue.Sub(origBoughtValue)
+	h.BoughtValueDifference = h.ScaledBoughtValue.Sub(origBoughtValue)
 	h.PositionsValueDifference = h.BaseValue.Sub(origPosValue)
-	h.SoldValueDifference = h.SoldValue.Sub(origSoldValue)
+	h.SoldValueDifference = h.ScaledSoldValue.Sub(origSoldValue)
 
 	if !origTotalValue.IsZero() {
 		h.ChangeInTotalValuePercent = h.TotalValue.Sub(origTotalValue).Div(origTotalValue)

@@ -59,9 +59,6 @@ func CalculateFundingStatistics(funds funding.IFundingManager, currStats map[str
 		if response.Items[i].IsCollateral {
 			continue
 		}
-		usdStats.TotalOrders += response.Items[i].TotalOrders
-		usdStats.BuyOrders += response.Items[i].BuyOrders
-		usdStats.SellOrders += response.Items[i].SellOrders
 	}
 	for i := range report.USDTotalsOverTime {
 		if usdStats.HighestHoldingValue.Value.LessThan(report.USDTotalsOverTime[i].USDValue) {

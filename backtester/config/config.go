@@ -269,12 +269,20 @@ func (c *Config) PrintSetting() {
 			}
 		}
 		if c.CurrencySettings[i].TakerFee != nil {
-			log.Infof(common.Config, "Taker fee: %v", c.CurrencySettings[i].TakerFee.Round(8))
+			if c.CurrencySettings[i].UsingExchangeTakerFee {
+				log.Infof(common.Config, "Taker fee: Using Exchange's API default taker rate: %v", c.CurrencySettings[i].TakerFee.Round(8))
+			} else {
+				log.Infof(common.Config, "Taker fee: %v", c.CurrencySettings[i].TakerFee.Round(8))
+			}
 		}
 		if c.CurrencySettings[i].MakerFee != nil {
-			log.Infof(common.Config, "Maker fee: %v", c.CurrencySettings[i].MakerFee.Round(8))
+			if c.CurrencySettings[i].UsingExchangeMakerFee {
+				log.Infof(common.Config, "Maker fee: Using Exchange's API default maker rate: %v", c.CurrencySettings[i].MakerFee.Round(8))
+			} else {
+				log.Infof(common.Config, "Maker fee: %v", c.CurrencySettings[i].MakerFee.Round(8))
+			}
 		}
-		log.Infof(common.Config, "Minimum slippage percent %v", c.CurrencySettings[i].MinimumSlippagePercent.Round(8))
+		log.Infof(common.Config, "Minimum slippage percent: %v", c.CurrencySettings[i].MinimumSlippagePercent.Round(8))
 		log.Infof(common.Config, "Maximum slippage percent: %v", c.CurrencySettings[i].MaximumSlippagePercent.Round(8))
 		log.Infof(common.Config, "Buy rules: %+v", c.CurrencySettings[i].BuySide)
 		log.Infof(common.Config, "Sell rules: %+v", c.CurrencySettings[i].SellSide)
