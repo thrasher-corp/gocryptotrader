@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"sort"
 	"strconv"
 	"strings"
@@ -1085,4 +1086,34 @@ func (b *BTCMarkets) GetHistoricCandlesExtended(ctx context.Context, p currency.
 	ret.RemoveOutsideRange(start, end)
 	ret.SortCandlesByTimestamp(false)
 	return ret, nil
+}
+
+// UpdateOrderExecutionLimits sets exchange executions for a required asset type
+func (b *BTCMarkets) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
+	if !a.IsValid() || a != asset.Spot {
+		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
+	}
+
+	markets, err := b.GetMarkets(ctx)
+	if err != nil {
+		return err
+	}
+
+	limits := make([]order.MinMaxLevel, len(markets))
+	for x := range markets {
+		pair, err := currency.NewPairFromStrings(markets[x].BaseAsset, markets[x].QuoteAsset)
+		if err != nil {
+			return err
+		}
+
+		limits[x] = order.MinMaxLevel{
+			Pair:       pair,
+			Asset:      asset.Spot,
+			MinAmount:  markets[x].MinOrderAmount,
+			MaxAmount:  markets[x].MaxOrderAmount,
+			StepAmount: math.Pow(10, -markets[x].AmountDecimals),
+			StepPrice:  math.Pow(10, -markets[x].PriceDecimals),
+		}
+	}
+	return b.LoadLimits(limits)
 }

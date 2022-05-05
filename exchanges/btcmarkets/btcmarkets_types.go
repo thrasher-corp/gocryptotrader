@@ -10,12 +10,12 @@ import (
 // Market holds a tradable market instrument
 type Market struct {
 	MarketID       string  `json:"marketId"`
-	BaseAsset      string  `json:"baseAsset"`
-	QuoteAsset     string  `json:"quoteAsset"`
+	BaseAsset      string  `json:"baseAssetName"`
+	QuoteAsset     string  `json:"quoteAssetName"`
 	MinOrderAmount float64 `json:"minOrderAmount,string"`
 	MaxOrderAmount float64 `json:"maxOrderAmount,string"`
-	AmountDecimals int64   `json:"amountDecimals,string"`
-	PriceDecimals  int64   `json:"priceDecimals,string"`
+	AmountDecimals float64 `json:"amountDecimals,string"`
+	PriceDecimals  float64 `json:"priceDecimals,string"`
 }
 
 // Ticker holds ticker information
