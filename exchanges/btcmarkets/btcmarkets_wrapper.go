@@ -256,6 +256,13 @@ func (b *BTCMarkets) Run() {
 		}
 	}
 
+	err = b.UpdateOrderExecutionLimits(context.TODO(), asset.Spot)
+	if err != nil {
+		log.Errorf(log.ExchangeSys,
+			"%s Failed to update order execution limits. Error: %v\n",
+			b.Name, err)
+	}
+
 	if !b.GetEnabledFeatures().AutoPairUpdates && !forceUpdate {
 		return
 	}
