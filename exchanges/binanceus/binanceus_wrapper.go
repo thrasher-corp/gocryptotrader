@@ -700,8 +700,12 @@ func (bi *Binanceus) CancelAllOrders(ctx context.Context, orderCancellation *ord
 			return cancelAllOrdersResponse, er
 		}
 		for _, openO := range openOrders {
+			pair, er := currency.NewPairFromString(openO.Symbol)
+			if er != nil {
+				return cancelAllOrdersResponse, er
+			}
 			_, err := bi.CancelExistingOrder(ctx, CancelOrderRequestParams{
-				SymbolString:      openO.Symbol,
+				Symbol:            pair,
 				OrderID:           openO.OrderID,
 				OrigClientOrderID: openO.ClientOrderID,
 			})
@@ -770,24 +774,51 @@ func (bi *Binanceus) GetOrderInfo(ctx context.Context, orderID string, pair curr
 
 // GetDepositAddress returns a deposit address for a specified currency
 func (bi *Binanceus) GetDepositAddress(ctx context.Context, c currency.Code, accountID string, chain string) (*deposit.Address, error) {
-	return nil, common.ErrNotYetImplemented
+	address, err := bi.GetDepositAddressForCurrency(ctx, c.String(), chain)
+	if err != nil {
+		return nil, err
+	}
+	return &deposit.Address{
+		Address: address.Address,
+		Tag:     address.Tag,
+	}, nil
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (bi *Binanceus) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
-	// if err := withdrawRequest.Validate(); err != nil {
-	//	return nil, err
-	// }
-	return nil, common.ErrNotYetImplemented
+	if err := withdrawRequest.Validate(); err != nil {
+		return nil, err
+	}
+	resp, er := bi.WithdrawCrypto(ctx, WithdrawalRequestParam{
+		Coin:            withdrawRequest.Currency.String(),
+		WithdrawOrderId: "",
+		Network:         withdrawRequest.Crypto.Chain,
+		Address:         withdrawRequest.Crypto.Address,
+		AddressTag:      withdrawRequest.Crypto.AddressTag,
+		Amount:          withdrawRequest.Amount,
+	})
+	if er != nil {
+		return nil, er
+	}
+	return &withdraw.ExchangeResponse{
+		ID: resp,
+	}, nil
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (bi *Binanceus) WithdrawFiatFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	// if err := withdrawRequest.Validate(); err != nil {
-	//	return nil, err
+	// 	return nil, err
 	// }
+
+	// resp, err := bi.WithdrawFiat(ctx, WithdrawFiatRequestParams{
+	// 	PaymentAccount: withdrawRequest.Fiat.IntermediaryBankAccountNumber,
+	// 	FiatCurrency:   "",
+	// 	Amount:         withdrawRequest.Amount,
+	// })
+
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -802,23 +833,75 @@ func (bi *Binanceus) WithdrawFiatFundsToInternationalBank(ctx context.Context, w
 
 // GetActiveOrders retrieves any orders that are active/open
 func (bi *Binanceus) GetActiveOrders(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
-	// if err := getOrdersRequest.Validate(); err != nil {
-	//	return nil, err
-	// }
-	return nil, common.ErrNotYetImplemented
+	if err := getOrdersRequest.Validate(); err != nil {
+		return nil, err
+	}
+	if len(getOrdersRequest.Pairs) == 0 || len(getOrdersRequest.Pairs) >= 40 {
+		getOrdersRequest.Pairs = append(getOrdersRequest.Pairs, currency.EMPTYPAIR)
+	}
+	var orders []order.Detail
+	for i := range getOrdersRequest.Pairs {
+		switch getOrdersRequest.AssetType {
+		case asset.Spot:
+			symbol, err := bi.FormatSymbol(getOrdersRequest.Pairs[i], asset.Spot)
+			if err != nil {
+				return orders, err
+			}
+			resp, err := bi.GetAllOpenOrders(ctx, symbol)
+			if err != nil {
+				return nil, err
+			}
+			for x := range resp {
+				orderSide := order.Side(strings.ToUpper(resp[x].Side))
+				orderType := order.Type(strings.ToUpper(resp[x].Type))
+				orderStatus, err := order.StringToOrderStatus(resp[i].Status)
+				if err != nil {
+					log.Errorf(log.ExchangeSys, "%s %v", bi.Name, err)
+				}
+				orders = append(orders, order.Detail{
+					Amount:        resp[x].OrigQty,
+					Date:          resp[x].Time,
+					Exchange:      bi.Name,
+					ID:            strconv.FormatInt(int64(resp[x].OrderID), 10),
+					ClientOrderID: resp[x].ClientOrderID,
+					Side:          orderSide,
+					Type:          orderType,
+					Price:         resp[x].Price,
+					Status:        orderStatus,
+					Pair:          getOrdersRequest.Pairs[i],
+					AssetType:     getOrdersRequest.AssetType,
+					LastUpdated:   resp[x].UpdateTime,
+				})
+			}
+		default:
+			return orders, fmt.Errorf("assetType not supported")
+		}
+	}
+	order.FilterOrdersByCurrencies(&orders, getOrdersRequest.Pairs)
+	order.FilterOrdersByType(&orders, getOrdersRequest.Type)
+	order.FilterOrdersBySide(&orders, getOrdersRequest.Side)
+	order.FilterOrdersByTimeRange(&orders, getOrdersRequest.StartTime, getOrdersRequest.EndTime)
+	return orders, nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (bi *Binanceus) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
-	// if err := getOrdersRequest.Validate(); err != nil {
-	//	return nil, err
-	// }
+	// An endpoint like /api/v3/allOrders does not exist in the binance us
+	// so This end point is left Un Implemented
 	return nil, common.ErrNotYetImplemented
 }
 
 // GetFeeByType returns an estimate of fee based on the type of transaction
 func (bi *Binanceus) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
+	// if feeBuilder == nil {
+	// 	return 0, fmt.Errorf("%T %w", feeBuilder, common.ErrNilPointer)
+	// }
+	// if (!bi.AreCredentialsValid(ctx) || bi.SkipAuthCheck) && // Todo check connection status
+	// 	feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
+	// 	feeBuilder.FeeType = exchange.OfflineTradeFee
+	// }
+	// return bi.GetTradeFee(ctx,feeBuilder. )
 	return 0, common.ErrNotYetImplemented
 }
 
@@ -830,10 +913,97 @@ func (bi *Binanceus) ValidateCredentials(ctx context.Context, assetType asset.It
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (bi *Binanceus) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	return kline.Item{}, common.ErrNotYetImplemented
+	if err := bi.ValidateKline(pair, a, interval); err != nil {
+		return kline.Item{}, err
+	}
+	if kline.TotalCandlesPerInterval(start, end, interval) > float64(bi.Features.Enabled.Kline.ResultLimit) {
+		return kline.Item{}, errors.New(kline.ErrRequestExceedsExchangeLimits)
+	}
+	req := KlinesRequestParams{
+		Interval:  bi.FormatExchangeKlineInterval(interval),
+		Symbol:    pair,
+		StartTime: start,
+		EndTime:   end,
+		Limit:     int(bi.Features.Enabled.Kline.ResultLimit),
+	}
+	ret := kline.Item{
+		Exchange: bi.Name,
+		Pair:     pair,
+		Asset:    a,
+		Interval: interval,
+	}
+
+	candles, err := bi.GetSpotKline(ctx, &req)
+	if err != nil {
+		return kline.Item{}, err
+	}
+	for x := range candles {
+		ret.Candles = append(ret.Candles, kline.Candle{
+			Time:   candles[x].OpenTime,
+			Open:   candles[x].Open,
+			High:   candles[x].High,
+			Low:    candles[x].Low,
+			Close:  candles[x].Close,
+			Volume: candles[x].Volume,
+		})
+	}
+	ret.SortCandlesByTimestamp(false)
+	return ret, nil
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (bi *Binanceus) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	return kline.Item{}, common.ErrNotYetImplemented
+	if err := bi.ValidateKline(pair, a, interval); err != nil {
+		return kline.Item{}, err
+	}
+	ret := kline.Item{
+		Exchange: bi.Name,
+		Pair:     pair,
+		Asset:    a,
+		Interval: interval,
+	}
+	dates, err := kline.CalculateCandleDateRanges(start, end, interval, bi.Features.Enabled.Kline.ResultLimit)
+	if err != nil {
+		return kline.Item{}, err
+	}
+	var candles []CandleStick
+	for x := range dates.Ranges {
+		req := KlinesRequestParams{
+			Interval:  bi.FormatExchangeKlineInterval(interval),
+			Symbol:    pair,
+			StartTime: dates.Ranges[x].Start.Time,
+			EndTime:   dates.Ranges[x].End.Time,
+			Limit:     int(bi.Features.Enabled.Kline.ResultLimit),
+		}
+
+		candles, err = bi.GetSpotKline(ctx, &req)
+		if err != nil {
+			return kline.Item{}, err
+		}
+
+		for i := range candles {
+			for j := range ret.Candles {
+				if ret.Candles[j].Time.Equal(candles[i].OpenTime) {
+					continue
+				}
+			}
+			ret.Candles = append(ret.Candles, kline.Candle{
+				Time:   candles[i].OpenTime,
+				Open:   candles[i].Open,
+				High:   candles[i].High,
+				Low:    candles[i].Low,
+				Close:  candles[i].Close,
+				Volume: candles[i].Volume,
+			})
+		}
+	}
+	dates.SetHasDataFromCandles(ret.Candles)
+	summary := dates.DataSummary(false)
+	if len(summary) > 0 {
+		log.Warnf(log.ExchangeSys, "%v - %v", bi.Name, summary)
+	}
+	ret.RemoveDuplicates()
+	ret.RemoveOutsideRange(start, end)
+	ret.SortCandlesByTimestamp(false)
+	return ret, nil
 }
