@@ -1030,6 +1030,7 @@ func TestGetTimeInForce(t *testing.T) {
 }
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {
+	t.Parallel()
 	err := b.UpdateOrderExecutionLimits(context.Background(), asset.Empty)
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
