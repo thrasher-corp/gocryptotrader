@@ -54,7 +54,7 @@ func (n *Notice) Alert() {
 		// so as to not worry about slow receivers that will inhibit alert
 		// returning.
 		n.toActuatorRoutine = make(chan struct{}, dataToActuatorDefaultBuffer)
-		// Spawn persistant routine that blocks only when required instead of
+		// Spawn persistent routine that blocks only when required instead of
 		// spawning a routine for every alert.
 		go n.actuate()
 	}
