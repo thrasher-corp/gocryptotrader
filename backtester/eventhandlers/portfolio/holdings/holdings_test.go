@@ -85,12 +85,14 @@ func TestUpdate(t *testing.T) {
 		t.Error(err)
 	}
 	t1 := h.Timestamp // nolint:ifshort,nolintlint // false positive and triggers only on Windows
-	h.Update(&fill.Fill{
+	err = h.Update(&fill.Fill{
 		Base: event.Base{
 			Time: time.Now(),
 		},
 	}, pair(t))
-
+	if err != nil {
+		t.Error(err)
+	}
 	if t1.Equal(h.Timestamp) {
 		t.Errorf("expected '%v' received '%v'", h.Timestamp, t1)
 	}
@@ -134,7 +136,7 @@ func TestUpdateBuyStats(t *testing.T) {
 		t.Error(err)
 	}
 
-	h.update(&fill.Fill{
+	err = h.update(&fill.Fill{
 		Base: event.Base{
 			Exchange:     testExchange,
 			Time:         time.Now(),
@@ -192,7 +194,7 @@ func TestUpdateBuyStats(t *testing.T) {
 		t.Errorf("expected '%v' received '%v'", 1, h.TotalFees)
 	}
 
-	h.update(&fill.Fill{
+	err = h.update(&fill.Fill{
 		Base: event.Base{
 			Exchange:     testExchange,
 			Time:         time.Now(),
@@ -261,7 +263,7 @@ func TestUpdateSellStats(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	h.update(&fill.Fill{
+	err = h.update(&fill.Fill{
 		Base: event.Base{
 			Exchange:     testExchange,
 			Time:         time.Now(),
@@ -321,7 +323,7 @@ func TestUpdateSellStats(t *testing.T) {
 		t.Errorf("expected '%v' received '%v'", 1, h.TotalFees)
 	}
 
-	h.update(&fill.Fill{
+	err = h.update(&fill.Fill{
 		Base: event.Base{
 			Exchange:     testExchange,
 			Time:         time.Now(),
@@ -351,6 +353,9 @@ func TestUpdateSellStats(t *testing.T) {
 			Fee:         1,
 		},
 	}, p)
+	if err != nil {
+		t.Error(err)
+	}
 
 	if !h.BoughtAmount.Equal(decimal.NewFromInt(1)) {
 		t.Errorf("expected '%v' received '%v'", 1, h.BoughtAmount)

@@ -111,7 +111,7 @@ func (s *Statistic) PrintAllEventsChronologically() {
 								currencyStatistic.Events[i].FillEvent.GetPurchasePrice().Round(8),
 								currencyStatistic.Events[i].FillEvent.GetDirection(),
 								currencyStatistic.Events[i].FillEvent.GetAmount().Round(8),
-								currencyStatistic.Events[i].FillEvent.GetOrder().Fee,
+								currencyStatistic.Events[i].FillEvent.GetExchangeFee(),
 								currencyStatistic.Events[i].FillEvent.GetTotal().Round(8))
 							msg = addReason(currencyStatistic.Events[i].FillEvent.GetReason(), msg)
 							msg += common.ColourDefault

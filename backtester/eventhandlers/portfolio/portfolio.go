@@ -281,7 +281,6 @@ func (p *Portfolio) OnFill(ev fill.Event, funds funding.IFundReleaser) (fill.Eve
 	if err != nil {
 		log.Error(common.Portfolio, err)
 	}
-	ev.SetExchangeFee(decimal.Zero)
 
 	return ev, nil
 }

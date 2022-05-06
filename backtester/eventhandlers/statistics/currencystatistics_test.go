@@ -1,6 +1,7 @@
 package statistics
 
 import (
+	"errors"
 	"testing"
 	"time"
 
@@ -20,11 +21,13 @@ import (
 
 func TestCalculateResults(t *testing.T) {
 	t.Parallel()
-	cs := CurrencyPairStatistic{}
+	a := asset.Spot
+	cs := CurrencyPairStatistic{
+		Asset: a,
+	}
 	tt1 := time.Now()
 	tt2 := time.Now().Add(gctkline.OneDay.Duration())
 	exch := testExchange
-	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	even := event.Base{
 		Exchange:     exch,
@@ -251,8 +254,13 @@ func TestPrintResults(t *testing.T) {
 
 func TestCalculateHighestCommittedFunds(t *testing.T) {
 	t.Parallel()
-	c := CurrencyPairStatistic{}
-	c.calculateHighestCommittedFunds()
+	c := CurrencyPairStatistic{
+		Asset: asset.Spot,
+	}
+	err := c.calculateHighestCommittedFunds()
+	if !errors.Is(err, nil) {
+		t.Error(err)
+	}
 	if !c.HighestCommittedFunds.Time.IsZero() {
 		t.Error("expected no time with not committed funds")
 	}
@@ -260,13 +268,29 @@ func TestCalculateHighestCommittedFunds(t *testing.T) {
 	tt2 := time.Date(2021, 2, 1, 0, 0, 0, 0, time.UTC)
 	tt3 := time.Date(2021, 3, 1, 0, 0, 0, 0, time.UTC)
 	c.Events = append(c.Events,
-		DataAtOffset{DataEvent: &kline.Kline{Close: decimal.NewFromInt(1337)}, Holdings: holdings.Holding{Timestamp: tt1, BaseSize: decimal.NewFromInt(10)}},
-		DataAtOffset{DataEvent: &kline.Kline{Close: decimal.NewFromInt(1338)}, Holdings: holdings.Holding{Timestamp: tt2, BaseSize: decimal.NewFromInt(1337)}},
-		DataAtOffset{DataEvent: &kline.Kline{Close: decimal.NewFromInt(1339)}, Holdings: holdings.Holding{Timestamp: tt3, BaseSize: decimal.NewFromInt(11)}},
+		DataAtOffset{DataEvent: &kline.Kline{Close: decimal.NewFromInt(1337)}, Time: tt1, Holdings: holdings.Holding{Timestamp: tt1, CommittedFunds: decimal.NewFromInt(10), BaseSize: decimal.NewFromInt(10)}},
+		DataAtOffset{DataEvent: &kline.Kline{Close: decimal.NewFromInt(1338)}, Time: tt2, Holdings: holdings.Holding{Timestamp: tt2, CommittedFunds: decimal.NewFromInt(1337), BaseSize: decimal.NewFromInt(1337)}},
+		DataAtOffset{DataEvent: &kline.Kline{Close: decimal.NewFromInt(1339)}, Time: tt3, Holdings: holdings.Holding{Timestamp: tt3, CommittedFunds: decimal.NewFromInt(11), BaseSize: decimal.NewFromInt(11)}},
 	)
-	c.calculateHighestCommittedFunds()
-	if c.HighestCommittedFunds.Time != tt1 {
+	err = c.calculateHighestCommittedFunds()
+	if !errors.Is(err, nil) {
+		t.Error(err)
+	}
+	if c.HighestCommittedFunds.Time != tt2 {
 		t.Errorf("expected %v, received %v", tt2, c.HighestCommittedFunds.Time)
+	}
+
+	c.Asset = asset.Futures
+	c.HighestCommittedFunds = ValueAtTime{}
+	err = c.calculateHighestCommittedFunds()
+	if !errors.Is(err, nil) {
+		t.Error(err)
+	}
+
+	c.Asset = asset.Binary
+	err = c.calculateHighestCommittedFunds()
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Error(err)
 	}
 }
 
