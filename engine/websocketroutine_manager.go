@@ -147,7 +147,7 @@ func (m *websocketRoutineManager) websocketDataReceiver(ws *stream.Websocket) er
 	}
 
 	if atomic.LoadInt32(&m.started) == 0 {
-		return nil
+		return errRoutineManagerNotStarted
 	}
 
 	m.wg.Add(1)

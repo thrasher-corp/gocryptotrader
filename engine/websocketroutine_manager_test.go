@@ -292,9 +292,11 @@ func TestRegisterWebsocketDataHandlerWithFunctionality(t *testing.T) {
 
 	mock := stream.New()
 	mock.ToRoutine = make(chan interface{})
-
-	m.wg.Add(1)
-	go m.websocketDataReceiver(mock)
+	m.started = 1
+	err = m.websocketDataReceiver(mock)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	mock.ToRoutine <- nil
 	mock.ToRoutine <- 1336
