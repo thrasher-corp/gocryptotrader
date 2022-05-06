@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -783,22 +782,33 @@ func (c *CoinbasePro) GetActiveOrders(ctx context.Context, req *order.GetOrdersR
 		if err != nil {
 			return nil, err
 		}
-		orderSide := order.Side(strings.ToUpper(respOrders[i].Side))
-		orderType := order.Type(strings.ToUpper(respOrders[i].Type))
+		var side order.Side
+		side, err = order.StringToOrderSide(respOrders[i].Side)
+		if err != nil {
+			return nil, err
+		}
+		var orderType order.Type
+		orderType, err = order.StringToOrderType(respOrders[i].Type)
+		if err != nil {
+			log.Errorf(log.ExchangeSys, "%s %v", c.Name, err)
+		}
 		orders[i] = order.Detail{
 			ID:             respOrders[i].ID,
 			Amount:         respOrders[i].Size,
 			ExecutedAmount: respOrders[i].FilledSize,
 			Type:           orderType,
 			Date:           respOrders[i].CreatedAt,
-			Side:           orderSide,
+			Side:           side,
 			Pair:           curr,
 			Exchange:       c.Name,
 		}
 	}
 
 	order.FilterOrdersByType(&orders, req.Type)
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", c.Name, err)
+	}
 	order.FilterOrdersBySide(&orders, req.Side)
 	return orders, nil
 }
@@ -847,12 +857,21 @@ func (c *CoinbasePro) GetOrderHistory(ctx context.Context, req *order.GetOrdersR
 		if err != nil {
 			return nil, err
 		}
-		orderSide := order.Side(strings.ToUpper(respOrders[i].Side))
-		orderStatus, err := order.StringToOrderStatus(respOrders[i].Status)
+		var side order.Side
+		side, err = order.StringToOrderSide(respOrders[i].Side)
+		if err != nil {
+			return nil, err
+		}
+		var orderStatus order.Status
+		orderStatus, err = order.StringToOrderStatus(respOrders[i].Status)
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "%s %v", c.Name, err)
 		}
-		orderType := order.Type(strings.ToUpper(respOrders[i].Type))
+		var orderType order.Type
+		orderType, err = order.StringToOrderType(respOrders[i].Type)
+		if err != nil {
+			log.Errorf(log.ExchangeSys, "%s %v", c.Name, err)
+		}
 		detail := order.Detail{
 			ID:              respOrders[i].ID,
 			Amount:          respOrders[i].Size,
@@ -865,7 +884,7 @@ func (c *CoinbasePro) GetOrderHistory(ctx context.Context, req *order.GetOrdersR
 			CloseTime:       respOrders[i].DoneAt,
 			Fee:             respOrders[i].FillFees,
 			FeeAsset:        curr.Quote,
-			Side:            orderSide,
+			Side:            side,
 			Status:          orderStatus,
 			Pair:            curr,
 			Price:           respOrders[i].Price,
@@ -876,7 +895,10 @@ func (c *CoinbasePro) GetOrderHistory(ctx context.Context, req *order.GetOrdersR
 	}
 
 	order.FilterOrdersByType(&orders, req.Type)
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", c.Name, err)
+	}
 	order.FilterOrdersBySide(&orders, req.Side)
 	return orders, nil
 }
@@ -1018,4 +1040,13 @@ func (c *CoinbasePro) GetHistoricCandlesExtended(ctx context.Context, p currency
 func (c *CoinbasePro) ValidateCredentials(ctx context.Context, assetType asset.Item) error {
 	_, err := c.UpdateAccountInfo(ctx, assetType)
 	return c.CheckTransientError(err)
+}
+
+// GetServerTime returns the current exchange server time.
+func (c *CoinbasePro) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
+	st, err := c.GetCurrentServerTime(ctx)
+	if err != nil {
+		return time.Time{}, err
+	}
+	return st.ISO, nil
 }

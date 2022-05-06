@@ -56,7 +56,7 @@ func (p *Portfolio) OnSignal(ev signal.Event, cs *exchange.Settings, funds fundi
 		Amount:             ev.GetAmount(),
 		ClosePrice:         ev.GetClosePrice(),
 	}
-	if ev.GetDirection() == "" {
+	if ev.GetDirection() == gctorder.UnknownSide {
 		return o, errInvalidDirection
 	}
 
@@ -69,10 +69,9 @@ func (p *Portfolio) OnSignal(ev signal.Event, cs *exchange.Settings, funds fundi
 			ev.Pair())
 	}
 
-	if ev.GetDirection() == common.DoNothing ||
-		ev.GetDirection() == common.MissingData ||
-		ev.GetDirection() == common.TransferredFunds ||
-		ev.GetDirection() == "" {
+	if ev.GetDirection() == gctorder.DoNothing ||
+		ev.GetDirection() == gctorder.MissingData ||
+		ev.GetDirection() == gctorder.TransferredFunds {
 		return o, nil
 	}
 	if !funds.CanPlaceOrder(ev.GetDirection()) {
@@ -170,7 +169,7 @@ func (p *Portfolio) evaluateOrder(d common.Directioner, originalOrderSignal, ev 
 		originalOrderSignal.AppendReason(err.Error())
 		switch d.GetDirection() {
 		case gctorder.Buy, common.CouldNotBuy:
-			originalOrderSignal.Direction = common.CouldNotBuy
+			originalOrderSignal.Direction = gctorder.CouldNotBuy
 		case gctorder.Sell, common.CouldNotSell:
 			originalOrderSignal.Direction = common.CouldNotSell
 		case gctorder.Short:
@@ -178,7 +177,7 @@ func (p *Portfolio) evaluateOrder(d common.Directioner, originalOrderSignal, ev 
 		case gctorder.Long:
 			originalOrderSignal.Direction = common.CouldNotLong
 		default:
-			originalOrderSignal.Direction = common.DoNothing
+			originalOrderSignal.Direction = gctorder.DoNothing
 		}
 		d.SetDirection(originalOrderSignal.Direction)
 		return originalOrderSignal, nil
@@ -192,15 +191,15 @@ func (p *Portfolio) sizeOrder(d common.Directioner, cs *exchange.Settings, origi
 	if err != nil || sizedOrder.Amount.IsZero() {
 		switch originalOrderSignal.Direction {
 		case gctorder.Buy, gctorder.Bid:
-			originalOrderSignal.Direction = common.CouldNotBuy
+			originalOrderSignal.Direction = gctorder.CouldNotBuy
 		case gctorder.Sell, gctorder.Ask:
-			originalOrderSignal.Direction = common.CouldNotSell
+			originalOrderSignal.Direction = gctorder.CouldNotSell
 		case gctorder.Long:
 			originalOrderSignal.Direction = common.CouldNotLong
 		case gctorder.Short:
 			originalOrderSignal.Direction = common.CouldNotShort
 		default:
-			originalOrderSignal.Direction = common.DoNothing
+			originalOrderSignal.Direction = gctorder.DoNothing
 		}
 		d.SetDirection(originalOrderSignal.Direction)
 		if err != nil {
@@ -231,7 +230,7 @@ func (p *Portfolio) sizeOrder(d common.Directioner, cs *exchange.Settings, origi
 		err = errInvalidDirection
 	}
 	if err != nil {
-		sizedOrder.Direction = common.DoNothing
+		sizedOrder.Direction = gctorder.DoNothing
 		sizedOrder.AppendReason(err.Error())
 	}
 	return sizedOrder

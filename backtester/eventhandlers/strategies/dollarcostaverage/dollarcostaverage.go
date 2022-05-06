@@ -45,7 +45,7 @@ func (s *Strategy) OnSignal(d data.Handler, _ funding.IFundingTransferer, _ port
 	}
 
 	if !d.HasDataAtTime(d.Latest().GetTime()) {
-		es.SetDirection(common.MissingData)
+		es.SetDirection(order.MissingData)
 		es.AppendReasonf("missing data at %v, cannot perform any actions", d.Latest().GetTime())
 		return &es, nil
 	}

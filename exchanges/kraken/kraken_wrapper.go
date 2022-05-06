@@ -1127,8 +1127,16 @@ func (k *Kraken) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 			if err != nil {
 				return nil, err
 			}
-			side := order.Side(strings.ToUpper(resp.Open[i].Description.Type))
-			orderType := order.Type(strings.ToUpper(resp.Open[i].Description.OrderType))
+			var side order.Side
+			side, err = order.StringToOrderSide(resp.Open[i].Description.Type)
+			if err != nil {
+				return nil, err
+			}
+			var orderType order.Type
+			orderType, err = order.StringToOrderType(resp.Open[i].Description.OrderType)
+			if err != nil {
+				log.Errorf(log.ExchangeSys, "%s %v", k.Name, err)
+			}
 			orders = append(orders, order.Detail{
 				ID:              i,
 				Amount:          resp.Open[i].Volume,
@@ -1193,9 +1201,12 @@ func (k *Kraken) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 	default:
 		return nil, fmt.Errorf("%s assetType not supported", req.AssetType)
 	}
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	err := order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", k.Name, err)
+	}
 	order.FilterOrdersBySide(&orders, req.Side)
-	order.FilterOrdersByCurrencies(&orders, req.Pairs)
+	order.FilterOrdersByPairs(&orders, req.Pairs)
 	return orders, nil
 }
 
@@ -1244,12 +1255,20 @@ func (k *Kraken) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Ge
 				return nil, err
 			}
 
-			side := order.Side(strings.ToUpper(resp.Closed[i].Description.Type))
+			var side order.Side
+			side, err = order.StringToOrderSide(resp.Closed[i].Description.Type)
+			if err != nil {
+				log.Errorf(log.ExchangeSys, "%s %v", k.Name, err)
+			}
 			status, err := order.StringToOrderStatus(resp.Closed[i].Status)
 			if err != nil {
 				log.Errorf(log.ExchangeSys, "%s %v", k.Name, err)
 			}
-			orderType := order.Type(strings.ToUpper(resp.Closed[i].Description.OrderType))
+			var orderType order.Type
+			orderType, err = order.StringToOrderType(resp.Closed[i].Description.OrderType)
+			if err != nil {
+				log.Errorf(log.ExchangeSys, "%s %v", k.Name, err)
+			}
 			detail := order.Detail{
 				ID:              i,
 				Amount:          resp.Closed[i].Volume,
@@ -1414,7 +1433,7 @@ func (k *Kraken) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Ge
 	}
 
 	order.FilterOrdersBySide(&orders, getOrdersRequest.Side)
-	order.FilterOrdersByCurrencies(&orders, getOrdersRequest.Pairs)
+	order.FilterOrdersByPairs(&orders, getOrdersRequest.Pairs)
 	return orders, nil
 }
 
@@ -1564,4 +1583,13 @@ func (k *Kraken) GetAvailableTransferChains(ctx context.Context, cryptocurrency 
 		availableChains[x] = methods[x].Method
 	}
 	return availableChains, nil
+}
+
+// GetServerTime returns the current exchange server time.
+func (k *Kraken) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
+	st, err := k.GetCurrentServerTime(ctx)
+	if err != nil {
+		return time.Time{}, err
+	}
+	return time.Parse("Mon, 02 Jan 06 15:04:05 -0700", st.Rfc1123)
 }

@@ -171,35 +171,35 @@ func TestSelectTopAndBottomPerformers(t *testing.T) {
 		{
 			event: &signal.Signal{
 				ClosePrice: decimal.NewFromInt(99),
-				Direction:  common.DoNothing,
+				Direction:  order.DoNothing,
 			},
 			mfi: decimal.NewFromInt(99),
 		},
 		{
 			event: &signal.Signal{
 				ClosePrice: decimal.NewFromInt(98),
-				Direction:  common.DoNothing,
+				Direction:  order.DoNothing,
 			},
 			mfi: decimal.NewFromInt(98),
 		},
 		{
 			event: &signal.Signal{
 				ClosePrice: decimal.NewFromInt(1),
-				Direction:  common.DoNothing,
+				Direction:  order.DoNothing,
 			},
 			mfi: decimal.NewFromInt(1),
 		},
 		{
 			event: &signal.Signal{
 				ClosePrice: decimal.NewFromInt(2),
-				Direction:  common.DoNothing,
+				Direction:  order.DoNothing,
 			},
 			mfi: decimal.NewFromInt(2),
 		},
 		{
 			event: &signal.Signal{
 				ClosePrice: decimal.NewFromInt(50),
-				Direction:  common.DoNothing,
+				Direction:  order.DoNothing,
 			},
 			mfi: decimal.NewFromInt(50),
 		},
@@ -221,7 +221,7 @@ func TestSelectTopAndBottomPerformers(t *testing.T) {
 			if !resp[i].GetClosePrice().Equal(decimal.NewFromInt(99)) && !resp[i].GetClosePrice().Equal(decimal.NewFromInt(98)) {
 				t.Error("expected 99 or 98")
 			}
-		case common.DoNothing:
+		case order.DoNothing:
 			if !resp[i].GetClosePrice().Equal(decimal.NewFromInt(50)) {
 				t.Error("expected 50")
 			}

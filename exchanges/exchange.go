@@ -1318,3 +1318,8 @@ func (b *Base) GetCurrencyForRealisedPNL(_ asset.Item, _ currency.Pair) (currenc
 func (b *Base) HasAssetTypeAccountSegregation() bool {
 	return b.Features.Supports.RESTCapabilities.HasAssetTypeAccountSegregation
 }
+
+// GetServerTime returns the current exchange server time.
+func (b *Base) GetServerTime(_ context.Context, _ asset.Item) (time.Time, error) {
+	return time.Time{}, common.ErrNotYetImplemented
+}

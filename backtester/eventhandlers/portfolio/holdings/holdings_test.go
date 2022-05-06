@@ -17,9 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-const (
-	testExchange = "binance"
-)
+const testExchange = "binance"
 
 func pair(t *testing.T) *funding.SpotPair {
 	t.Helper()

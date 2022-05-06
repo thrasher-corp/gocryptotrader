@@ -532,7 +532,7 @@ func TestOnSignal(t *testing.T) {
 		t.Error("expected issue")
 	}
 
-	s.Direction = common.MissingData
+	s.Direction = gctorder.MissingData
 	_, err = p.OnSignal(s, &exchange.Settings{}, pair)
 	if err != nil {
 		t.Error(err)
@@ -557,7 +557,7 @@ func TestOnSignal(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if resp.Direction != common.CouldNotBuy {
+	if resp.Direction != gctorder.CouldNotBuy {
 		t.Errorf("expected common.CouldNotBuy, received %v", resp.Direction)
 	}
 

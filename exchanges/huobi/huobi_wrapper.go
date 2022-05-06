@@ -1351,9 +1351,7 @@ func (h *HUOBI) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 			return nil, errors.New("currency must be supplied")
 		}
 		side := ""
-		if req.Side == order.AnySide || req.Side == "" {
-			side = ""
-		} else if req.Side == order.Sell {
+		if req.Side == order.Sell {
 			side = req.Side.Lower()
 		}
 		if h.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
@@ -1527,7 +1525,10 @@ func (h *HUOBI) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 	}
 	order.FilterOrdersByType(&orders, req.Type)
 	order.FilterOrdersBySide(&orders, req.Side)
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	err := order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", h.Name, err)
+	}
 	return orders, nil
 }
 
@@ -1687,7 +1688,10 @@ func (h *HUOBI) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest
 			}
 		}
 	}
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	err := order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", h.Name, err)
+	}
 	return orders, nil
 }
 
@@ -1843,4 +1847,9 @@ func (h *HUOBI) GetAvailableTransferChains(ctx context.Context, cryptocurrency c
 		availableChains[x] = chains[0].ChainData[x].Chain
 	}
 	return availableChains, nil
+}
+
+// GetServerTime returns the current exchange server time.
+func (h *HUOBI) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
+	return h.GetCurrentServerTime(ctx)
 }

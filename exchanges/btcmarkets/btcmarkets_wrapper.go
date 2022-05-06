@@ -487,7 +487,7 @@ func (b *BTCMarkets) GetRecentTrades(ctx context.Context, p currency.Pair, asset
 
 	resp := make([]trade.Data, len(tradeData))
 	for i := range tradeData {
-		side := order.Side("")
+		var side order.Side
 		if tradeData[i].Side != "" {
 			side, err = order.StringToOrderSide(tradeData[i].Side)
 			if err != nil {
@@ -829,7 +829,10 @@ func (b *BTCMarkets) GetActiveOrders(ctx context.Context, req *order.GetOrdersRe
 		}
 	}
 	order.FilterOrdersByType(&resp, req.Type)
-	order.FilterOrdersByTimeRange(&resp, req.StartTime, req.EndTime)
+	err := order.FilterOrdersByTimeRange(&resp, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
+	}
 	order.FilterOrdersBySide(&resp, req.Side)
 	return resp, nil
 }
@@ -1085,4 +1088,9 @@ func (b *BTCMarkets) GetHistoricCandlesExtended(ctx context.Context, p currency.
 	ret.RemoveOutsideRange(start, end)
 	ret.SortCandlesByTimestamp(false)
 	return ret, nil
+}
+
+// GetServerTime returns the current exchange server time.
+func (b *BTCMarkets) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
+	return b.GetCurrentServerTime(ctx)
 }

@@ -118,15 +118,15 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 		if amount.LessThanOrEqual(decimal.Zero) && f.GetAmount().GreaterThan(decimal.Zero) {
 			switch f.GetDirection() {
 			case gctorder.Buy, gctorder.Bid:
-				f.SetDirection(common.CouldNotBuy)
+				f.SetDirection(gctorder.CouldNotBuy)
 			case gctorder.Sell, gctorder.Ask:
-				f.SetDirection(common.CouldNotSell)
+				f.SetDirection(gctorder.CouldNotSell)
 			case gctorder.Short:
 				f.SetDirection(common.CouldNotShort)
 			case gctorder.Long:
 				f.SetDirection(common.CouldNotLong)
 			default:
-				f.SetDirection(common.DoNothing)
+				f.SetDirection(gctorder.DoNothing)
 			}
 			f.AppendReasonf("amount set to 0, %s", errDataMayBeIncorrect)
 			return f, err
@@ -169,7 +169,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 		}
 	}
 
-	ords := orderManager.GetOrdersSnapshot("")
+	ords := orderManager.GetOrdersSnapshot(gctorder.UnknownStatus)
 	for i := range ords {
 		if ords[i].ID != orderID {
 			continue
@@ -282,10 +282,10 @@ func verifyOrderWithinLimits(f fill.Event, limitReducedAmount decimal.Decimal, c
 	switch f.GetDirection() {
 	case gctorder.Buy, gctorder.Bid:
 		minMax = cs.BuySide
-		direction = common.CouldNotBuy
+		direction = gctorder.CouldNotBuy
 	case gctorder.Sell, gctorder.Ask:
 		minMax = cs.SellSide
-		direction = common.CouldNotSell
+		direction = gctorder.CouldNotSell
 	case gctorder.Long:
 		minMax = cs.BuySide
 		direction = common.CouldNotLong
@@ -296,7 +296,7 @@ func verifyOrderWithinLimits(f fill.Event, limitReducedAmount decimal.Decimal, c
 		return nil
 	default:
 		direction = f.GetDirection()
-		f.SetDirection(common.DoNothing)
+		f.SetDirection(gctorder.DoNothing)
 		return fmt.Errorf("%w: %v", errInvalidDirection, direction)
 	}
 	var minOrMax, belowExceed string
