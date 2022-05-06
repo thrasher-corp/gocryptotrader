@@ -70,21 +70,7 @@ func (bi *Binanceus) SetDefaults() {
 		RequestFormat: &currency.PairFormat{Uppercase: true},
 		ConfigFormat:  &currency.PairFormat{Uppercase: true},
 	}
-
-	fmt2 := currency.PairStore{
-		RequestFormat: &currency.PairFormat{Uppercase: true, Delimiter: ":"},
-		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: ":"},
-	}
-
 	err := bi.StoreAssetPairFormat(asset.Spot, fmt1)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-	err = bi.StoreAssetPairFormat(asset.Margin, fmt2)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-	err = bi.StoreAssetPairFormat(asset.MarginFunding, fmt1)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -94,27 +80,26 @@ func (bi *Binanceus) SetDefaults() {
 			REST:      true,
 			Websocket: true,
 			RESTCapabilities: protocol.Features{
-				TickerBatching:      true,
-				TickerFetching:      true,
-				OrderbookFetching:   true,
-				AutoPairUpdates:     true,
-				AccountInfo:         true,
-				CryptoDeposit:       true,
-				CryptoWithdrawal:    true,
-				FiatWithdraw:        true,
-				GetOrder:            true,
-				GetOrders:           true,
-				CancelOrders:        true,
-				CancelOrder:         true,
-				SubmitOrder:         true,
-				SubmitOrders:        true,
-				DepositHistory:      true,
-				WithdrawalHistory:   true,
-				TradeFetching:       true,
-				UserTradeHistory:    true,
-				TradeFee:            true,
-				FiatDepositFee:      true,
-				FiatWithdrawalFee:   true,
+				TickerBatching:    true,
+				TickerFetching:    true,
+				OrderbookFetching: true,
+				AutoPairUpdates:   true,
+				AccountInfo:       true,
+				CryptoDeposit:     true,
+				CryptoWithdrawal:  true,
+				GetOrder:          true,
+				GetOrders:         true,
+				CancelOrders:      true,
+				CancelOrder:       true,
+				SubmitOrder:       true,
+				SubmitOrders:      true,
+				DepositHistory:    true,
+				WithdrawalHistory: true,
+				TradeFetching:     true,
+				UserTradeHistory:  true,
+				TradeFee:          true,
+				// FiatDepositFee:      true,
+				// FiatWithdrawalFee:   true,
 				CryptoDepositFee:    true,
 				CryptoWithdrawalFee: true,
 			},
@@ -127,6 +112,26 @@ func (bi *Binanceus) SetDefaults() {
 		},
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
+			Kline: kline.ExchangeCapabilitiesEnabled{
+				Intervals: map[string]bool{
+					kline.OneMin.Word():     true,
+					kline.ThreeMin.Word():   true,
+					kline.FiveMin.Word():    true,
+					kline.FifteenMin.Word(): true,
+					kline.ThirtyMin.Word():  true,
+					kline.OneHour.Word():    true,
+					kline.TwoHour.Word():    true,
+					kline.FourHour.Word():   true,
+					kline.SixHour.Word():    true,
+					kline.EightHour.Word():  true,
+					kline.TwelveHour.Word(): true,
+					kline.OneDay.Word():     true,
+					kline.ThreeDay.Word():   true,
+					kline.OneWeek.Word():    true,
+					kline.OneMonth.Word():   true,
+				},
+				ResultLimit: 1000,
+			},
 		},
 	}
 	// NOTE: SET THE EXCHANGES RATE LIMIT HERE
@@ -808,6 +813,9 @@ func (bi *Binanceus) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRe
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
 // submitted
+// But, GCT has no concept of withdrawal via SEN
+// the fiat withdrawal end point of Binance.US is built to submit a USD withdraw request via Silvergate Exchange Network (SEN).
+// So, this method is not implemented.
 func (bi *Binanceus) WithdrawFiatFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	// if err := withdrawRequest.Validate(); err != nil {
 	// 	return nil, err
@@ -822,8 +830,9 @@ func (bi *Binanceus) WithdrawFiatFunds(ctx context.Context, withdrawRequest *wit
 	return nil, common.ErrNotYetImplemented
 }
 
-// WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is
-// submitted
+// WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is submitted
+// But, GCT has no concept of withdrawal via SEN
+// the fiat withdrawal end point of Binance.US is built to submit a USD withdraw request via Silvergate Exchange Network (SEN).
 func (bi *Binanceus) WithdrawFiatFundsToInternationalBank(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	// if err := withdrawRequest.Validate(); err != nil {
 	//	return nil, err
@@ -894,15 +903,14 @@ func (bi *Binanceus) GetOrderHistory(ctx context.Context, getOrdersRequest *orde
 
 // GetFeeByType returns an estimate of fee based on the type of transaction
 func (bi *Binanceus) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
-	// if feeBuilder == nil {
-	// 	return 0, fmt.Errorf("%T %w", feeBuilder, common.ErrNilPointer)
-	// }
-	// if (!bi.AreCredentialsValid(ctx) || bi.SkipAuthCheck) && // Todo check connection status
-	// 	feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
-	// 	feeBuilder.FeeType = exchange.OfflineTradeFee
-	// }
-	// return bi.GetTradeFee(ctx,feeBuilder. )
-	return 0, common.ErrNotYetImplemented
+	if feeBuilder == nil {
+		return 0, fmt.Errorf("%T %w", feeBuilder, common.ErrNilPointer)
+	}
+	if (!bi.AreCredentialsValid(ctx) || bi.SkipAuthCheck) && // Todo check connection status
+		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
+		feeBuilder.FeeType = exchange.OfflineTradeFee
+	}
+	return bi.GetFee(ctx, feeBuilder)
 }
 
 // ValidateCredentials validates current credentials used for wrapper
@@ -920,7 +928,7 @@ func (bi *Binanceus) GetHistoricCandles(ctx context.Context, pair currency.Pair,
 		return kline.Item{}, errors.New(kline.ErrRequestExceedsExchangeLimits)
 	}
 	req := KlinesRequestParams{
-		Interval:  bi.FormatExchangeKlineInterval(interval),
+		Interval:  bi.GetIntervalEnum(interval),
 		Symbol:    pair,
 		StartTime: start,
 		EndTime:   end,

@@ -214,7 +214,6 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 	default:
 		limiter, tokens = r.SpotRate, 1
 	}
-
 	var finalDelay time.Duration
 	var reserves = make([]*rate.Reservation, tokens)
 	for i := 0; i < tokens; i++ {
@@ -223,7 +222,6 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		reserves[i] = limiter.Reserve()
 		finalDelay = reserves[i].Delay()
 	}
-
 	if dl, ok := ctx.Deadline(); ok && dl.Before(time.Now().Add(finalDelay)) {
 		// Cancel all potential reservations to free up rate limiter if deadline
 		// is exceeded.
@@ -234,7 +232,6 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 			finalDelay,
 			context.DeadlineExceeded)
 	}
-
 	time.Sleep(finalDelay)
 	return nil
 }
@@ -263,7 +260,6 @@ func openOrdersLimit(symbol string) request.EndpointLimit {
 	if symbol == "" {
 		return spotOpenOrdersAllRate
 	}
-
 	return spotOpenOrdersSpecificRate
 }
 
