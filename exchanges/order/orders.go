@@ -18,7 +18,7 @@ const (
 	orderSubmissionValidSides = Buy | Sell | Bid | Ask | Long | Short
 	shortSide                 = Short | Sell | Ask
 	longSide                  = Long | Buy | Bid
-	inactiveStatuses          = Filled | Cancelled | InsufficientBalance | MarketUnavailable | Rejected | PartiallyCancelled | Expired | Closed | AnyStatus | Cancelling
+	inactiveStatuses          = Filled | Cancelled | InsufficientBalance | MarketUnavailable | Rejected | PartiallyCancelled | Expired | Closed | AnyStatus | Cancelling | Liquidated
 	activeStatuses            = Active | Open | PartiallyFilled | New | PendingCancel | Hidden | AutoDeleverage | Pending
 	bypassSideFilter          = UnknownSide | AnySide
 	bypassTypeFilter          = UnknownType | AnyType
@@ -450,7 +450,13 @@ func (d *Detail) IsActive() bool {
 func (d *Detail) IsInactive() bool {
 	return d.Amount <= 0 ||
 		d.Amount <= d.ExecutedAmount ||
-		inactiveStatuses&d.Status == d.Status
+		d.Status.IsInactive()
+}
+
+// IsInactive returns true if the status indicates it is
+// currently not available on the exchange
+func (s Status) IsInactive() bool {
+	return inactiveStatuses&s == s
 }
 
 // GenerateInternalOrderID sets a new V4 order ID or a V5 order ID if
@@ -1056,11 +1062,4 @@ func (m *Modify) Validate(opt ...validate.Checker) error {
 		return ErrOrderIDNotSet
 	}
 	return nil
-}
-
-// IsInactive returns true if order is closed. Only for explicit closed status
-// eg insufficient_balance is likely closed, but not concrete enough to include
-func (s Status) IsInactive() bool {
-	return s == Filled || s == Cancelled || s == InsufficientBalance || s == MarketUnavailable ||
-		s == Rejected || s == PartiallyCancelled || s == Expired || s == Closed || s == Liquidated
 }

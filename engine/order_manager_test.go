@@ -876,7 +876,7 @@ func TestProcessOrders(t *testing.T) {
 		t.Error(err)
 	}
 	if len(res) != 1 {
-		t.Errorf("Expected 3 result, got: %d", len(res))
+		t.Errorf("Expected 1 result, got: %d", len(res))
 	}
 	if res[0].Status != order.Active {
 		t.Errorf("Order 1 should be active, but status is %s", res[0].Status)
