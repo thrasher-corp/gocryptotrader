@@ -88,6 +88,7 @@ func (n *Notice) generator() {
 // notice method Alert. Kick allows for cancellation of waiting or when the
 // caller has been shut down, if this is not needed it can be set to nil. This
 // returns a channel so strategies can cleanly wait on a select statement case.
+// NOTE: Please see README.md for implementation example.
 func (n *Notice) Wait(kick <-chan struct{}) chan bool {
 	reply, ok := pool.Get().(chan bool)
 	if !ok {
