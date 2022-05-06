@@ -1095,6 +1095,11 @@ func (b *BTCMarkets) GetHistoricCandlesExtended(ctx context.Context, p currency.
 	return ret, nil
 }
 
+// GetServerTime returns the current exchange server time.
+func (b *BTCMarkets) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
+	return b.GetCurrentServerTime(ctx)
+}
+
 // UpdateOrderExecutionLimits sets exchange executions for a required asset type
 func (b *BTCMarkets) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
 	if !a.IsValid() || a != asset.Spot {
