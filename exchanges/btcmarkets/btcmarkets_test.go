@@ -946,7 +946,7 @@ func TestTrim(t *testing.T) {
 
 func TestFormatOrderType(t *testing.T) {
 	t.Parallel()
-	_, err := b.formatOrderType(order.Type("SWOOON"))
+	_, err := b.formatOrderType(0)
 	if !errors.Is(err, order.ErrTypeIsInvalid) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, order.ErrTypeIsInvalid)
 	}
@@ -999,7 +999,7 @@ func TestFormatOrderType(t *testing.T) {
 
 func TestFormatOrderSide(t *testing.T) {
 	t.Parallel()
-	_, err := b.formatOrderSide("invalid")
+	_, err := b.formatOrderSide(255)
 	if !errors.Is(err, order.ErrSideIsInvalid) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, order.ErrSideIsInvalid)
 	}

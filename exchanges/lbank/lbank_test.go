@@ -567,3 +567,27 @@ func TestUpdateTickers(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestGetStatus(t *testing.T) {
+	t.Parallel()
+	for _, tt := range []struct {
+		status int64
+		resp   order.Status
+	}{
+		{status: -1, resp: order.Cancelled},
+		{status: 0, resp: order.Active},
+		{status: 1, resp: order.PartiallyFilled},
+		{status: 2, resp: order.Filled},
+		{status: 4, resp: order.Cancelling},
+		{status: 5, resp: order.UnknownStatus},
+	} {
+		tt := tt
+		t.Run("", func(t *testing.T) {
+			t.Parallel()
+			resp := l.GetStatus(tt.status)
+			if resp != tt.resp {
+				t.Fatalf("received: '%v' but expected: '%v'", resp, tt.resp)
+			}
+		})
+	}
+}

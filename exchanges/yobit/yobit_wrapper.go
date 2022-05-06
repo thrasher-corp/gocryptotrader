@@ -583,11 +583,13 @@ func (y *Yobit) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 	}
 
 	for x := range req.Pairs {
-		fCurr, err := y.FormatExchangeCurrency(req.Pairs[x], asset.Spot)
+		var fCurr currency.Pair
+		fCurr, err = y.FormatExchangeCurrency(req.Pairs[x], asset.Spot)
 		if err != nil {
 			return nil, err
 		}
-		resp, err := y.GetOpenOrders(ctx, fCurr.String())
+		var resp map[string]ActiveOrders
+		resp, err = y.GetOpenOrders(ctx, fCurr.String())
 		if err != nil {
 			return nil, err
 		}
@@ -598,21 +600,27 @@ func (y *Yobit) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 			if err != nil {
 				return nil, err
 			}
-			orderDate := time.Unix(int64(resp[id].TimestampCreated), 0)
-			side := order.Side(strings.ToUpper(resp[id].Type))
+			var side order.Side
+			side, err = order.StringToOrderSide(resp[id].Type)
+			if err != nil {
+				return nil, err
+			}
 			orders = append(orders, order.Detail{
 				ID:       id,
 				Amount:   resp[id].Amount,
 				Price:    resp[id].Rate,
 				Side:     side,
-				Date:     orderDate,
+				Date:     time.Unix(int64(resp[id].TimestampCreated), 0),
 				Pair:     symbol,
 				Exchange: y.Name,
 			})
 		}
 	}
 
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", y.Name, err)
+	}
 	order.FilterOrdersBySide(&orders, req.Side)
 	return orders, nil
 }
@@ -660,7 +668,11 @@ func (y *Yobit) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest
 			return nil, err
 		}
 		orderDate := time.Unix(int64(allOrders[i].Timestamp), 0)
-		side := order.Side(strings.ToUpper(allOrders[i].Type))
+		var side order.Side
+		side, err = order.StringToOrderSide(allOrders[i].Type)
+		if err != nil {
+			return nil, err
+		}
 		detail := order.Detail{
 			ID:                   strconv.FormatFloat(allOrders[i].OrderID, 'f', -1, 64),
 			Amount:               allOrders[i].Amount,
@@ -678,7 +690,6 @@ func (y *Yobit) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest
 	}
 
 	order.FilterOrdersBySide(&orders, req.Side)
-
 	return orders, nil
 }
 
