@@ -23,8 +23,8 @@ import (
 // Please supply your own keys here to do authenticated endpoint testing
 
 const (
-	apiKey                  = "b5sVEJQPdO4iKu2gCpiRuPoCj503pqNv5gLHlpcZyUJ70zc5ql7WUllFKKxQ2JWj"
-	apiSecret               = "8AP2qVomY6T8nseOQQUTwXNT2rUjeCJQrX25ugS675L4TB4IEXP8cOPZpOZyUMjF"
+	apiKey                  = ""
+	apiSecret               = ""
 	canManipulateRealOrders = false
 )
 
