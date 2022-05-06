@@ -21,9 +21,10 @@ import (
 )
 
 // Please supply your own keys here to do authenticated endpoint testing
+
 const (
-	apiKey                  = ""
-	apiSecret               = ""
+	apiKey                  = "b5sVEJQPdO4iKu2gCpiRuPoCj503pqNv5gLHlpcZyUJ70zc5ql7WUllFKKxQ2JWj"
+	apiSecret               = "8AP2qVomY6T8nseOQQUTwXNT2rUjeCJQrX25ugS675L4TB4IEXP8cOPZpOZyUMjF"
 	canManipulateRealOrders = false
 )
 
@@ -356,21 +357,77 @@ func TestWithdraw(t *testing.T) {
 
 	withdrawCryptoRequest := withdraw.Request{
 		Exchange:    bi.Name,
-		Amount:      1,
+		Amount:      -1,
 		Currency:    currency.BTC,
 		Description: "WITHDRAW IT ALL",
 		Crypto: withdraw.CryptoRequest{
 			Address: core.BitcoinDonationAddress,
+			Chain:   "BSC",
 		},
 	}
 
 	_, err := bi.WithdrawCryptocurrencyFunds(context.Background(),
 		&withdrawCryptoRequest)
+
 	switch {
 	case areTestAPIKeysSet() && err != nil:
+		if strings.Contains(err.Error(), "amount must be greater than zero") {
+			return
+		}
 		t.Error("Binanceus Withdraw() error", err)
 	case !areTestAPIKeysSet() && err == nil && !mockTests:
 		t.Error("Binanceus Withdraw() expecting an error when no keys are set")
+	}
+}
+
+func TestGetFee(t *testing.T) {
+	t.Parallel()
+
+	var feeBuilder = &exchange.FeeBuilder{
+		Amount:        1,
+		FeeType:       exchange.CryptocurrencyTradeFee,
+		Pair:          currency.NewPair(currency.BTC, currency.LTC),
+		PurchasePrice: 1,
+	}
+	val, er := bi.GetFeeByType(context.Background(), feeBuilder)
+	if er != nil {
+		t.Fatal("Binanceus GetFeeByType() error", er)
+	}
+	println(val)
+
+}
+
+func TestGetHistoricCandles(t *testing.T) {
+	t.Parallel()
+	pair := currency.NewPair(currency.BTC, currency.USDT)
+	startTime := time.Date(2020, 9, 1, 0, 0, 0, 0, time.UTC)
+	endTime := time.Date(2021, 2, 15, 0, 0, 0, 0, time.UTC)
+	_, er := bi.GetHistoricCandles(context.Background(), pair, asset.Spot, startTime, endTime, kline.Interval(time.Hour*5))
+	if !strings.Contains(er.Error(), "interval not supported") {
+		t.Errorf("Binanceus GetHistoricCandles() expected %s, but found %v", "interval not supported", er)
+	}
+	// startTime = time.Unix(time.Now().Unix()-int64(time.Hour*30), 0)
+	// endTime = time.Now()
+	_, er = bi.GetHistoricCandles(context.Background(), pair, asset.Spot, time.Time{}, time.Time{}, kline.Interval(time.Hour*4))
+	if er != nil {
+		t.Error("Binanceus GetHistoricCandles() error", er)
+	}
+}
+
+func TestGetHistoricCandlesExtended(t *testing.T) {
+	t.Parallel()
+	pair := currency.NewPair(currency.BTC, currency.USDT)
+	startTime := time.Date(2020, 9, 1, 0, 0, 0, 0, time.UTC)
+	endTime := time.Date(2021, 2, 15, 0, 0, 0, 0, time.UTC)
+	_, er := bi.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, startTime, endTime, kline.Interval(time.Hour*5))
+	if !strings.Contains(er.Error(), "interval not supported") {
+		t.Errorf("Binanceus GetHistoricCandlesExtended() expected %s, but found %v", "interval not supported", er)
+	}
+	startTime = time.Unix(time.Now().Unix()-int64(time.Hour*30), 0)
+	endTime = time.Now()
+	_, er = bi.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, startTime, endTime, kline.Interval(time.Hour*4))
+	if er != nil {
+		t.Error("Binanceus GetHistoricCandlesExtended() error", er)
 	}
 }
 
@@ -924,4 +981,21 @@ func TestWithdrawCrypto(t *testing.T) {
 	}
 }
 
-//
+func TestGetWsAuthStreamKey(t *testing.T) {
+	t.Parallel()
+
+	lnKey, er := bi.GetWsAuthStreamKey(context.Background())
+	if er != nil {
+		t.Error("Binanceus GetWsAuthStreamKey() error", er)
+	}
+	log.Println(lnKey)
+	er = bi.MaintainWsAuthStreamKey(context.Background())
+	if er != nil {
+		t.Error("Binanceus MaintainWsAuthStreamKey() error", er)
+	}
+	log.Println(lnKey)
+	er = bi.CloseUserDataStream(context.Background())
+	if er != nil {
+		t.Error("Binanceus CloseUserDataStream() error", er)
+	}
+}

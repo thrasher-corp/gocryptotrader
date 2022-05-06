@@ -19,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -94,14 +95,18 @@ const (
 	depositAddress          = "/sapi/v1/capital/deposit/address"
 	depositHistory          = "/sapi/v1/capital/deposit/hisrec"
 
+	// Web socket related route
+	userAccountStream = "/api/v3/userDataStream"
+
 	// Other Consts
 	defaultRecvWindow      = 5 * time.Second
 	binanceUSAPITimeLayout = "2006-01-02 15:04:05"
 )
 
-// EmailRX represents email address maching pattern
+// This are list of error Messages tp be returned by binanceus endpoint methods.
 var (
-	EmailRX                 = regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+\\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
+	EmailRX = regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+\\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
+	// EmailRX represents email address maching pattern
 	errNotValidEmailAddress = errors.New("invalid email address")
 	// errNoParentUser              = errors.New("error Not parent user")
 	errUnacceptableSenderEmail   = errors.New("senders address email is missing")
@@ -353,14 +358,59 @@ func (b *Binanceus) CheckLimit(limit int) error {
 	return errors.New("incorrect limit values - valid values are 5, 10, 20, 50, 100, 500, 1000")
 }
 
+func (b *Binanceus) GetIntervalEnum(interval kline.Interval) string {
+	switch interval {
+	case kline.OneMin:
+		return "1m"
+	case kline.ThreeMin:
+		return "3m"
+	case kline.FiveMin:
+		return "5m"
+	case kline.TenMin:
+		return ""
+	case kline.FifteenMin:
+		return "15m"
+	case kline.ThirtyMin:
+		return "30m"
+	case kline.OneHour:
+		return "1h"
+	case kline.TwoHour:
+		return "2h"
+	case kline.FourHour:
+		return "4h"
+	case kline.SixHour:
+		return "6h"
+	case kline.EightHour:
+		return "8h"
+	case kline.TwelveHour:
+		return "12h"
+	case kline.OneDay:
+		return "1d"
+	case kline.ThreeDay:
+		return "3d"
+	case kline.FifteenDay:
+		return "15d"
+	case kline.OneWeek:
+		return "1w"
+	case kline.TwoWeek:
+		return "2w"
+	case kline.OneMonth:
+		return "1M"
+	case kline.OneYear:
+		return "1y"
+	default:
+		return "notfound"
+	}
+}
+
 func (b *Binanceus) GetSpotKline(ctx context.Context, arg *KlinesRequestParams) ([]CandleStick, error) {
 	symbol, err := b.FormatSymbol(arg.Symbol, asset.Spot)
 	if err != nil {
 		return nil, err
 	}
-
 	params := url.Values{}
 	params.Set("symbol", symbol)
+	fmt.Println("Interval: " + arg.Interval)
 	params.Set("interval", arg.Interval)
 	if arg.Limit != 0 {
 		params.Set("limit", strconv.Itoa(arg.Limit))
@@ -371,10 +421,8 @@ func (b *Binanceus) GetSpotKline(ctx context.Context, arg *KlinesRequestParams) 
 	if !arg.EndTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt((arg.EndTime).UnixMilli(), 10))
 	}
-
 	path := candleStick + "?" + params.Encode()
 	var resp interface{}
-
 	err = b.SendHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
 		path,
@@ -522,10 +570,8 @@ func (b *Binanceus) GetAccount(ctx context.Context) (*Account, error) {
 		Response
 		Account
 	}
-
 	var resp response
 	params := url.Values{}
-
 	if err := b.SendAuthHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
 		http.MethodGet, accountInfo,
@@ -591,7 +637,78 @@ func (b *Binanceus) GetUserAPITradingStatus(ctx context.Context, recvWindow uint
 			&resp)
 }
 
-func (b *Binanceus) GetTradeFee(ctx context.Context, recvWindow uint, symbol string) (*TradeFeeList, error) {
+func (b *Binanceus) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
+	var fee float64
+	switch feeBuilder.FeeType {
+	case exchange.CryptocurrencyTradeFee:
+		{
+			multiplier, er := b.getMultiplier(ctx, feeBuilder.IsMaker, feeBuilder)
+			if er != nil {
+				return 0, er
+			}
+			fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount, multiplier)
+		}
+	case exchange.CryptocurrencyWithdrawalFee:
+		{
+			wallet, er := b.GetAssetFeesAndWalletStatus(ctx)
+			if er != nil {
+				return fee, er
+			}
+			for _, aw := range wallet {
+				for _, net := range aw.NetworkList {
+					if net.IsDefault {
+						return net.WithdrawFee, nil
+					}
+				}
+			}
+		}
+	case exchange.OfflineTradeFee:
+		{
+			fee = getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
+		}
+	}
+	if fee < 0 {
+		fee = 0
+	}
+	return fee, nil
+}
+
+// getMultiplier retrieves account based taker/maker fees
+func (b *Binanceus) getMultiplier(ctx context.Context, isMaker bool, feeBuilder *exchange.FeeBuilder) (float64, error) {
+	multiplier := float64(0.0)
+	symbol, er := b.FormatSymbol(feeBuilder.Pair, asset.Spot)
+	if er != nil {
+		return multiplier, er
+	}
+	trades, er := b.GetTradeFee(ctx, 0, symbol)
+	if er != nil {
+		return multiplier, er
+	}
+	if trades.TradeFee != nil && len(trades.TradeFee) > 0 {
+		for _, trf := range trades.TradeFee {
+			if trf.Symbol == symbol {
+				if isMaker {
+					return trf.Maker, nil
+				}
+				return trf.Taker, nil
+			}
+		}
+	}
+	return multiplier, nil
+}
+
+// getOfflineTradeFee calculates the worst case-scenario trading fee
+func getOfflineTradeFee(price, amount float64) float64 {
+	return 0.001 * price * amount
+}
+
+// calculateTradingFee returns the fee for trading any currency on Bittrex
+func calculateTradingFee(purchasePrice, amount, multiplier float64) float64 {
+	return (multiplier / 100) * purchasePrice * amount
+}
+
+// GetTradeFee ...
+func (b *Binanceus) GetTradeFee(ctx context.Context, recvWindow uint, symbol string) (TradeFeeList, error) {
 	timestamp := time.Now().UnixMilli()
 	params := url.Values{}
 	var resp TradeFeeList
@@ -603,13 +720,13 @@ func (b *Binanceus) GetTradeFee(ctx context.Context, recvWindow uint, symbol str
 			recvWindow = 5000
 		}
 	} else {
-		recvWindow = uint(defaultRecvWindow)
+		recvWindow = uint(60000)
 	}
 	params.Set("recvWindow", strconv.Itoa(int(recvWindow)))
 	if symbol != "" {
 		params.Set("symbol", symbol)
 	}
-	return &resp, b.SendAuthHTTPRequest(ctx,
+	return resp, b.SendAuthHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
 		http.MethodGet,
 		tradeFee,
@@ -890,7 +1007,7 @@ func (b *Binanceus) GetAllOpenOrders(ctx context.Context, symbol string) ([]*Ord
 	return response, b.SendAuthHTTPRequest(ctx,
 		exchange.RestSpotSupplementary, http.MethodGet,
 		openOrders, params,
-		spotDefaultRate, &response)
+		spotAllOrdersRate, &response)
 }
 
 func (b *Binanceus) CancelExistingOrder(ctx context.Context, arg CancelOrderRequestParams) (*Order, error) {
@@ -1240,7 +1357,7 @@ func (b *Binanceus) WithdrawCrypto(ctx context.Context, arg WithdrawalRequestPar
 		params.Set("addressTag", arg.AddressTag)
 	}
 	if arg.Amount <= 0 {
-		return "", errIncompleteArguments
+		return "", errors.New("amount must be greater than 0")
 	}
 	params.Set("amount", fmt.Sprint(arg.Amount))
 	if arg.RecvWindow > 2000 {
@@ -1563,4 +1680,124 @@ func (b *Binanceus) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL,
 		}
 	}
 	return json.Unmarshal(interim, result)
+}
+
+// ----- Web socket related methods
+
+// GetWsAuthStreamKey ... this method 'Creates User Data Stream' will retrieve a key to use for authorised WS streaming
+// Same as that of Binance
+//Start a new user data stream. The stream will close after 60 minutes unless a keepalive is sent.
+//  If the account has an active listenKey,
+// that listenKey will be returned and its validity will be extended for 60 minutes.
+func (b *Binanceus) GetWsAuthStreamKey(ctx context.Context) (string, error) {
+	endpointPath, err := b.API.Endpoints.GetURL(exchange.RestSpotSupplementary)
+	if err != nil {
+		return "", err
+	}
+
+	creds, err := b.GetCredentials(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	var resp UserAccountStream
+	headers := make(map[string]string)
+	headers["X-MBX-APIKEY"] = creds.Key
+	item := &request.Item{
+		Method:        http.MethodPost,
+		Path:          endpointPath + userAccountStream,
+		Headers:       headers,
+		Result:        &resp,
+		AuthRequest:   true,
+		Verbose:       b.Verbose,
+		HTTPDebugging: b.HTTPDebugging,
+		HTTPRecording: b.HTTPRecording,
+	}
+
+	err = b.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
+		return item, nil
+	})
+	if err != nil {
+		return "", err
+	}
+	return resp.ListenKey, nil
+}
+
+// MaintainWsAuthStreamKey will Extend User Data Stream
+// Similar functionality to the same method of Binance.
+// Keepalive a user data stream to prevent a time out.
+// User data streams will close after 60 minutes.
+// It's recommended to send a ping about every 30 minutes.
+func (b *Binanceus) MaintainWsAuthStreamKey(ctx context.Context) error {
+	endpointPath, err := b.API.Endpoints.GetURL(exchange.RestSpotSupplementary)
+	if err != nil {
+		return err
+	}
+	if listenKey == "" {
+		listenKey, err = b.GetWsAuthStreamKey(ctx)
+		return err
+	}
+
+	creds, err := b.GetCredentials(ctx)
+	if err != nil {
+		return err
+	}
+
+	path := endpointPath + userAccountStream
+	params := url.Values{}
+	params.Set("listenKey", listenKey)
+	path = common.EncodeURLValues(path, params)
+	headers := make(map[string]string)
+	headers["X-MBX-APIKEY"] = creds.Key
+	item := &request.Item{
+		Method:        http.MethodPut,
+		Path:          path,
+		Headers:       headers,
+		AuthRequest:   true,
+		Verbose:       b.Verbose,
+		HTTPDebugging: b.HTTPDebugging,
+		HTTPRecording: b.HTTPRecording,
+	}
+
+	return b.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
+		return item, nil
+	})
+}
+
+// CloseUserDataStream
+// Close out a user data stream.
+func (b *Binanceus) CloseUserDataStream(ctx context.Context) error {
+	endpointPath, err := b.API.Endpoints.GetURL(exchange.RestSpotSupplementary)
+	if err != nil {
+		return err
+	}
+	if listenKey == "" {
+		listenKey, err = b.GetWsAuthStreamKey(ctx)
+		return err
+	}
+
+	creds, err := b.GetCredentials(ctx)
+	if err != nil {
+		return err
+	}
+
+	path := endpointPath + userAccountStream
+	params := url.Values{}
+	params.Set("listenKey", listenKey)
+	path = common.EncodeURLValues(path, params)
+	headers := make(map[string]string)
+	headers["X-MBX-APIKEY"] = creds.Key
+	item := &request.Item{
+		Method:        http.MethodDelete,
+		Path:          path,
+		Headers:       headers,
+		AuthRequest:   true,
+		Verbose:       b.Verbose,
+		HTTPDebugging: b.HTTPDebugging,
+		HTTPRecording: b.HTTPRecording,
+	}
+
+	return b.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
+		return item, nil
+	})
 }

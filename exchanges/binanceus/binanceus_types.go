@@ -26,10 +26,8 @@ var (
 
 	// BinanceRequestParamsOrderTakeProfit TAKE_PROFIT
 	BinanceRequestParamsOrderTakeProfit = RequestParamsOrderType("TAKE_PROFIT")
-
 	// BinanceRequestParamsOrderTakeProfitLimit TAKE_PROFIT_LIMIT
 	BinanceRequestParamsOrderTakeProfitLimit = RequestParamsOrderType("TAKE_PROFIT_LIMIT")
-
 	// BinanceRequestParamsOrderLimitMarker LIMIT_MAKER
 	BinanceRequestParamsOrderLimitMarker = RequestParamsOrderType("LIMIT_MAKER")
 )
@@ -700,23 +698,23 @@ type AssetWalletDetail struct {
 	IsLegalMoney      bool   `json:"isLegalMoney"`
 	Trading           bool   `json:"trading"`
 	NetworkList       []struct {
-		Network                 string `json:"network"`
-		Coin                    string `json:"coin"`
-		WithdrawIntegerMultiple string `json:"withdrawIntegerMultiple"`
-		IsDefault               bool   `json:"isDefault"`
-		DepositEnable           bool   `json:"depositEnable"`
-		WithdrawEnable          bool   `json:"withdrawEnable"`
-		DepositDesc             string `json:"depositDesc"`
-		WithdrawDesc            string `json:"withdrawDesc"`
-		Name                    string `json:"name"`
-		ResetAddressStatus      bool   `json:"resetAddressStatus"`
-		WithdrawFee             string `json:"withdrawFee"`
-		WithdrawMin             string `json:"withdrawMin"`
-		WithdrawMax             string `json:"withdrawMax"`
-		AddressRegex            string `json:"addressRegex,omitempty"`
-		MemoRegex               string `json:"memoRegex,omitempty"`
-		MinConfirm              int    `json:"minConfirm,omitempty"`
-		UnLockConfirm           int    `json:"unLockConfirm,omitempty"`
+		Network                 string  `json:"network"`
+		Coin                    string  `json:"coin"`
+		WithdrawIntegerMultiple string  `json:"withdrawIntegerMultiple"`
+		IsDefault               bool    `json:"isDefault"`
+		DepositEnable           bool    `json:"depositEnable"`
+		WithdrawEnable          bool    `json:"withdrawEnable"`
+		DepositDesc             string  `json:"depositDesc"`
+		WithdrawDesc            string  `json:"withdrawDesc"`
+		Name                    string  `json:"name"`
+		ResetAddressStatus      bool    `json:"resetAddressStatus"`
+		WithdrawFee             float64 `json:"withdrawFee,string"`
+		WithdrawMin             float64 `json:"withdrawMin,string"`
+		WithdrawMax             float64 `json:"withdrawMax,string"`
+		AddressRegex            string  `json:"addressRegex,omitempty"`
+		MemoRegex               string  `json:"memoRegex,omitempty"`
+		MinConfirm              int     `json:"minConfirm,omitempty"`
+		UnLockConfirm           int     `json:"unLockConfirm,omitempty"`
 	} `json:"networkList"`
 }
 
@@ -811,4 +809,9 @@ type DepositHistory struct {
 	InsertTime   int64  `json:"insertTime"`
 	TransferType int    `json:"transferType"`
 	ConfirmTimes string `json:"confirmTimes"`
+}
+
+// UserAccountStream
+type UserAccountStream struct {
+	ListenKey string `json:"listenKey"`
 }
