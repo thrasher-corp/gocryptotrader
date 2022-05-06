@@ -557,7 +557,11 @@ func TestCancelAllOrders(t *testing.T) {
 	}
 
 	m.CancelAllOrders(context.Background(), []exchange.IBotExchange{})
-	if o.Status == order.Cancelled {
+	checkDeets, err := m.orderStore.getByExchangeAndID(testExchange, "TestCancelAllOrders")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if checkDeets.Status == order.Cancelled {
 		t.Error("Order should not be cancelled")
 	}
 
@@ -567,14 +571,13 @@ func TestCancelAllOrders(t *testing.T) {
 	}
 
 	m.CancelAllOrders(context.Background(), []exchange.IBotExchange{exch})
-	if o.Status != order.Cancelled {
-		t.Error("Order should be cancelled")
+	checkDeets, err = m.orderStore.getByExchangeAndID(testExchange, "TestCancelAllOrders")
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	o.Status = order.New
-	m.CancelAllOrders(context.Background(), nil)
-	if o.Status != order.New {
-		t.Error("Order should not be cancelled")
+	if checkDeets.Status != order.Cancelled {
+		t.Error("Order should be cancelled", checkDeets.Status)
 	}
 }
 
