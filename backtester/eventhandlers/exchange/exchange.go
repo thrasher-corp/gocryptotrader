@@ -49,7 +49,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 		FillDependentEvent: o.GetFillDependentEvent(),
 		Liquidated:         o.IsLiquidating(),
 	}
-	if o.GetDirection() == common.DoNothing {
+	if o.GetDirection() == gctorder.DoNothing {
 		return f, ErrDoNothing
 	}
 	if o.GetAssetType().IsFutures() && !o.IsClosingPosition() {
@@ -122,9 +122,9 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 			case gctorder.Sell, gctorder.Ask:
 				f.SetDirection(gctorder.CouldNotSell)
 			case gctorder.Short:
-				f.SetDirection(common.CouldNotShort)
+				f.SetDirection(gctorder.CouldNotShort)
 			case gctorder.Long:
-				f.SetDirection(common.CouldNotLong)
+				f.SetDirection(gctorder.CouldNotLong)
 			default:
 				f.SetDirection(gctorder.DoNothing)
 			}
@@ -214,9 +214,9 @@ func allocateFundsPostOrder(f *fill.Fill, funds funding.IFundReleaser, orderErro
 			}
 			switch f.GetDirection() {
 			case gctorder.Buy, gctorder.Bid:
-				f.SetDirection(common.CouldNotBuy)
-			case gctorder.Sell, gctorder.Ask, common.ClosePosition:
-				f.SetDirection(common.CouldNotSell)
+				f.SetDirection(gctorder.CouldNotBuy)
+			case gctorder.Sell, gctorder.Ask, gctorder.ClosePosition:
+				f.SetDirection(gctorder.CouldNotSell)
 			}
 			return orderError
 		}
@@ -230,7 +230,7 @@ func allocateFundsPostOrder(f *fill.Fill, funds funding.IFundReleaser, orderErro
 			if err != nil {
 				return err
 			}
-		case gctorder.Sell, gctorder.Ask, common.ClosePosition:
+		case gctorder.Sell, gctorder.Ask, gctorder.ClosePosition:
 			err = pr.Release(eventFunds, eventFunds.Sub(limitReducedAmount), f.GetDirection())
 			if err != nil {
 				return err
@@ -254,9 +254,9 @@ func allocateFundsPostOrder(f *fill.Fill, funds funding.IFundReleaser, orderErro
 			}
 			switch f.GetDirection() {
 			case gctorder.Short:
-				f.SetDirection(common.CouldNotShort)
+				f.SetDirection(gctorder.CouldNotShort)
 			case gctorder.Long:
-				f.SetDirection(common.CouldNotLong)
+				f.SetDirection(gctorder.CouldNotLong)
 			default:
 				return fmt.Errorf("%w asset type %v", common.ErrInvalidDataType, f.GetDirection())
 			}
@@ -288,11 +288,11 @@ func verifyOrderWithinLimits(f fill.Event, limitReducedAmount decimal.Decimal, c
 		direction = gctorder.CouldNotSell
 	case gctorder.Long:
 		minMax = cs.BuySide
-		direction = common.CouldNotLong
+		direction = gctorder.CouldNotLong
 	case gctorder.Short:
 		minMax = cs.SellSide
-		direction = common.CouldNotShort
-	case common.ClosePosition:
+		direction = gctorder.CouldNotShort
+	case gctorder.ClosePosition:
 		return nil
 	default:
 		direction = f.GetDirection()

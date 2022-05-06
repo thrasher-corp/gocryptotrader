@@ -491,14 +491,14 @@ func (p *PositionTracker) Liquidate(price decimal.Decimal, t time.Time) error {
 		return fmt.Errorf("%w cannot liquidate from a different time. PNL snapshot %v. Liquidation request on %v Status: %v", errCannotLiquidate, latest.Time, t, p.status)
 	}
 	p.status = Liquidated
-	p.currentDirection = SideNA
+	p.currentDirection = ClosePosition
 	p.exposure = decimal.Zero
 	p.realisedPNL = decimal.Zero
 	p.unrealisedPNL = decimal.Zero
 	_, err = upsertPNLEntry(p.pnlHistory, &PNLResult{
 		Time:         t,
 		Price:        price,
-		Direction:    SideNA,
+		Direction:    ClosePosition,
 		IsLiquidated: true,
 		IsOrder:      true,
 		Status:       p.status,
@@ -679,7 +679,7 @@ func (p *PositionTracker) TrackNewOrder(d *Detail) error {
 	case shortSide.GreaterThan(longSide):
 		p.currentDirection = Short
 	default:
-		p.currentDirection = SideNA
+		p.currentDirection = ClosePosition
 	}
 
 	if p.currentDirection.IsLong() {

@@ -65,7 +65,7 @@ func (s *Size) calculateAmount(direction gctorder.Side, closePrice, amountAvaila
 	var amount decimal.Decimal
 	var err error
 	switch direction {
-	case common.ClosePosition:
+	case gctorder.ClosePosition:
 		amount = amountAvailable
 	case gctorder.Buy, gctorder.Long:
 		// check size against currency specific settings

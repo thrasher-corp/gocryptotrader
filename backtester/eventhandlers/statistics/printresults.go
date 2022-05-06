@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -76,13 +77,13 @@ func (s *Statistic) PrintAllEventsChronologically() {
 					switch {
 					case currencyStatistic.Events[i].FillEvent != nil:
 						direction := currencyStatistic.Events[i].FillEvent.GetDirection()
-						if direction == common.CouldNotBuy ||
-							direction == common.CouldNotSell ||
-							direction == common.MissingData ||
-							direction == common.DoNothing ||
-							direction == common.TransferredFunds ||
-							direction == "" {
-							if direction == common.DoNothing {
+						if direction == order.CouldNotBuy ||
+							direction == order.CouldNotSell ||
+							direction == order.MissingData ||
+							direction == order.DoNothing ||
+							direction == order.TransferredFunds ||
+							direction == order.UnknownSide {
+							if direction == order.DoNothing {
 								colour = common.ColourDarkGrey
 							}
 							msg := fmt.Sprintf(colour+

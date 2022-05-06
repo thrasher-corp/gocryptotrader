@@ -17,39 +17,8 @@ const (
 	CandleStr = "candle"
 	// TradeStr is a config readable data type to tell the backtester to retrieve trade data
 	TradeStr = "trade"
-)
 
-// custom order side declarations for backtesting processing and
-// decision-making
-const (
-	// DoNothing is an explicit signal for the backtester to not perform an action
-	// based upon indicator results
-	DoNothing order.Side = "DO NOTHING"
-	// TransferredFunds is a status signal to do nothing
-	TransferredFunds order.Side = "TRANSFERRED FUNDS"
-	// CouldNotBuy is flagged when a BUY  signal is raised in the strategy/signal phase, but the
-	// portfolio manager or exchange cannot place an order
-	CouldNotBuy order.Side = "COULD NOT BUY"
-	// CouldNotSell is flagged when a SELL  signal is raised in the strategy/signal phase, but the
-	// portfolio manager or exchange cannot place an order
-	CouldNotSell  order.Side = "COULD NOT SELL"
-	CouldNotShort order.Side = "COULD NOT SHORT"
-	CouldNotLong  order.Side = "COULD NOT LONG"
-	// ClosePosition is used to signal a complete closure
-	// of any exposure of a position
-	// This will handle any amount of exposure, no need to calculate how
-	// much to close
-	ClosePosition      order.Side = "CLOSE POSITION"
-	CouldNotCloseShort order.Side = "COULD NOT CLOSE SHORT"
-	CouldNotCloseLong  order.Side = "COULD NOT CLOSE LONG"
-	Liquidated         order.Side = "LIQUIDATED"
-	// MissingData is signalled during the strategy/signal phase when data has been identified as missing
-	// No buy or sell events can occur
-	MissingData order.Side = "MISSING DATA"
-)
-
-// DataCandle is an int64 representation of a candle data type
-const (
+	// DataCandle is an int64 representation of a candle data type
 	DataCandle = iota
 	DataTrade
 )

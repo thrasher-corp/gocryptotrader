@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/shopspring/decimal"
-	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -114,7 +113,7 @@ func TestReservePair(t *testing.T) {
 	if !errors.Is(err, errCannotAllocate) {
 		t.Errorf("received '%v' expected '%v'", err, errCannotAllocate)
 	}
-	err = pairItems.Reserve(elite, common.DoNothing)
+	err = pairItems.Reserve(elite, gctorder.DoNothing)
 	if !errors.Is(err, errCannotAllocate) {
 		t.Errorf("received '%v' expected '%v'", err, errCannotAllocate)
 	}
@@ -163,7 +162,7 @@ func TestReleasePair(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, errCannotAllocate)
 	}
 
-	err = pairItems.Release(elite, decimal.Zero, common.DoNothing)
+	err = pairItems.Release(elite, decimal.Zero, gctorder.DoNothing)
 	if !errors.Is(err, errCannotAllocate) {
 		t.Errorf("received '%v' expected '%v'", err, errCannotAllocate)
 	}
@@ -221,7 +220,7 @@ func TestIncreaseAvailablePair(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", elite, pairItems.base.available)
 	}
 
-	err = pairItems.IncreaseAvailable(elite, common.DoNothing)
+	err = pairItems.IncreaseAvailable(elite, gctorder.DoNothing)
 	if !errors.Is(err, errCannotAllocate) {
 		t.Errorf("received '%v' expected '%v'", err, errCannotAllocate)
 	}
@@ -236,7 +235,7 @@ func TestCanPlaceOrderPair(t *testing.T) {
 		base:  &Item{},
 		quote: &Item{},
 	}
-	if p.CanPlaceOrder(common.DoNothing) {
+	if p.CanPlaceOrder(gctorder.DoNothing) {
 		t.Error("expected false")
 	}
 	if p.CanPlaceOrder(gctorder.Buy) {

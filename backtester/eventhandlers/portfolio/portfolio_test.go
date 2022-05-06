@@ -1261,8 +1261,8 @@ func TestCannotPurchase(t *testing.T) {
 	if !errors.Is(err, expectedError) {
 		t.Fatalf("received '%v' expected '%v'", err, expectedError)
 	}
-	if result.Direction != common.CouldNotBuy {
-		t.Errorf("received '%v' expected '%v'", result.Direction, common.CouldNotBuy)
+	if result.Direction != gctorder.CouldNotBuy {
+		t.Errorf("received '%v' expected '%v'", result.Direction, gctorder.CouldNotBuy)
 	}
 
 	s.Direction = gctorder.Sell
@@ -1271,8 +1271,8 @@ func TestCannotPurchase(t *testing.T) {
 	if !errors.Is(err, expectedError) {
 		t.Fatalf("received '%v' expected '%v'", err, expectedError)
 	}
-	if result.Direction != common.CouldNotSell {
-		t.Errorf("received '%v' expected '%v'", result.Direction, common.CouldNotSell)
+	if result.Direction != gctorder.CouldNotSell {
+		t.Errorf("received '%v' expected '%v'", result.Direction, gctorder.CouldNotSell)
 	}
 
 	s.Direction = gctorder.Short
@@ -1281,8 +1281,8 @@ func TestCannotPurchase(t *testing.T) {
 	if !errors.Is(err, expectedError) {
 		t.Fatalf("received '%v' expected '%v'", err, expectedError)
 	}
-	if result.Direction != common.CouldNotShort {
-		t.Errorf("received '%v' expected '%v'", result.Direction, common.CouldNotShort)
+	if result.Direction != gctorder.CouldNotShort {
+		t.Errorf("received '%v' expected '%v'", result.Direction, gctorder.CouldNotShort)
 	}
 
 	s.Direction = gctorder.Long
@@ -1291,8 +1291,8 @@ func TestCannotPurchase(t *testing.T) {
 	if !errors.Is(err, expectedError) {
 		t.Fatalf("received '%v' expected '%v'", err, expectedError)
 	}
-	if result.Direction != common.CouldNotLong {
-		t.Errorf("received '%v' expected '%v'", result.Direction, common.CouldNotLong)
+	if result.Direction != gctorder.CouldNotLong {
+		t.Errorf("received '%v' expected '%v'", result.Direction, gctorder.CouldNotLong)
 	}
 
 	s.Direction = gctorder.UnknownSide
@@ -1301,8 +1301,8 @@ func TestCannotPurchase(t *testing.T) {
 	if !errors.Is(err, expectedError) {
 		t.Fatalf("received '%v' expected '%v'", err, expectedError)
 	}
-	if result.Direction != common.DoNothing {
-		t.Errorf("received '%v' expected '%v'", result.Direction, common.DoNothing)
+	if result.Direction != gctorder.DoNothing {
+		t.Errorf("received '%v' expected '%v'", result.Direction, gctorder.DoNothing)
 	}
 }
 

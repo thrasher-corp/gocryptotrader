@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/shopspring/decimal"
-	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
@@ -86,7 +85,7 @@ func (c *CollateralPair) Reserve(amount decimal.Decimal, side gctorder.Side) err
 	switch side {
 	case gctorder.Long, gctorder.Short:
 		return c.collateral.Reserve(amount)
-	case common.ClosePosition:
+	case gctorder.ClosePosition:
 		return c.collateral.Release(amount, amount)
 	default:
 		return fmt.Errorf("%w for %v %v %v. Unknown side %v",

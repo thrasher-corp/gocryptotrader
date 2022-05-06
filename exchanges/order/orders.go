@@ -541,6 +541,8 @@ func (s Side) String() string {
 		return "SHORT"
 	case AnySide:
 		return "ANY"
+	case ClosePosition:
+		return "CLOSE POSITION"
 		// Backtester signal types below.
 	case DoNothing:
 		return "DO NOTHING"
@@ -550,6 +552,14 @@ func (s Side) String() string {
 		return "COULD NOT BUY"
 	case CouldNotSell:
 		return "COULD NOT SELL"
+	case CouldNotShort:
+		return "COULD NOT SHORT"
+	case CouldNotLong:
+		return "COULD NOT LONG"
+	case CouldNotCloseShort:
+		return "COULD NOT CLOSE SHORT"
+	case CouldNotCloseLong:
+		return "COULD NOT CLOSE LONG"
 	case MissingData:
 		return "MISSING DATA"
 	default:

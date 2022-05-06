@@ -233,7 +233,7 @@ func TestSizeOrder(t *testing.T) {
 		t.Error(err)
 	}
 
-	o.Direction = common.ClosePosition
+	o.Direction = gctorder.ClosePosition
 	_, err = s.SizeOrder(o, decimal.NewFromInt(1337), cs)
 	if err != nil {
 		t.Error(err)

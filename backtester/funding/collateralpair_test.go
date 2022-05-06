@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/shopspring/decimal"
-	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -16,7 +15,7 @@ func TestCollateralCanPlaceOrder(t *testing.T) {
 	c := &CollateralPair{
 		collateral: &Item{available: decimal.NewFromInt(1337)},
 	}
-	if !c.CanPlaceOrder("") {
+	if !c.CanPlaceOrder(gctorder.UnknownSide) {
 		t.Error("expected true")
 	}
 }
@@ -262,7 +261,7 @@ func TestCollateralReserve(t *testing.T) {
 		t.Errorf("recevied '%v' expected '%v'", c.collateral.reserved, decimal.NewFromInt(1335))
 	}
 
-	err = c.Reserve(decimal.NewFromInt(2), common.ClosePosition)
+	err = c.Reserve(decimal.NewFromInt(2), gctorder.ClosePosition)
 	if !errors.Is(err, expectedError) {
 		t.Errorf("recevied '%v' expected '%v'", err, expectedError)
 	}

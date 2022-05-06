@@ -178,7 +178,7 @@ func TestTrackNewOrder(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Error(err)
 	}
-	if f.currentDirection != SideNA {
+	if f.currentDirection != ClosePosition {
 		t.Errorf("expected recognition that its unknown, received '%v'", f.currentDirection)
 	}
 	if f.status != Closed {
@@ -189,7 +189,7 @@ func TestTrackNewOrder(t *testing.T) {
 	if !errors.Is(err, ErrPositionClosed) {
 		t.Error(err)
 	}
-	if f.currentDirection != SideNA {
+	if f.currentDirection != ClosePosition {
 		t.Errorf("expected recognition that its unknown, received '%v'", f.currentDirection)
 	}
 	if f.status != Closed {

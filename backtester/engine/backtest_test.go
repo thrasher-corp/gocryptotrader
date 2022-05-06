@@ -66,7 +66,7 @@ func (p portfolioOverride) CreateLiquidationOrdersForExchange(ev common.DataEven
 				Reason:         ev.GetReason(),
 			},
 			ID:        "1",
-			Direction: common.Liquidated,
+			Direction: gctorder.Short, // ??????????????????
 		},
 	}, nil
 }
@@ -781,7 +781,7 @@ func TestTriggerLiquidationsForExchange(t *testing.T) {
 	if !ok {
 		t.Fatal("expected order event")
 	}
-	if ev2o.GetDirection() != common.Liquidated {
+	if ev2o.GetDirection() != gctorder.Short {
 		t.Error("expected liquidation order")
 	}
 }

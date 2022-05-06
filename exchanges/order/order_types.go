@@ -266,7 +266,7 @@ const (
 	Closed
 	Pending
 	Cancelling
-	Liquidated          Status = "LIQUIDATED"
+	Liquidated
 )
 
 // Type enforces a standard for order types across the code base
@@ -293,7 +293,7 @@ const (
 )
 
 // Side enforces a standard for order sides across the code base
-type Side uint16
+type Side uint32
 
 // Order side types
 const (
@@ -305,13 +305,17 @@ const (
 	AnySide
 	Long
 	Short
+	ClosePosition
 	// Backtester signal types
 	DoNothing
 	TransferredFunds
 	CouldNotBuy
 	CouldNotSell
+	CouldNotShort
+	CouldNotLong
+	CouldNotCloseShort
+	CouldNotCloseLong
 	MissingData
-	SideNA      Side = "N/A"
 )
 
 // ByPrice used for sorting orders by price

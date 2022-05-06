@@ -216,8 +216,8 @@ func TestCreateSignals(t *testing.T) {
 	caseTested := false
 	for i := range resp {
 		if resp[i].GetAssetType().IsFutures() {
-			if resp[i].GetDirection() != common.ClosePosition {
-				t.Errorf("received '%v' expected '%v", resp[i].GetDirection(), common.ClosePosition)
+			if resp[i].GetDirection() != gctorder.ClosePosition {
+				t.Errorf("received '%v' expected '%v", resp[i].GetDirection(), gctorder.ClosePosition)
 			}
 			caseTested = true
 		}
@@ -239,8 +239,8 @@ func TestCreateSignals(t *testing.T) {
 	caseTested = false
 	for i := range resp {
 		if resp[i].GetAssetType().IsFutures() {
-			if resp[i].GetDirection() != common.ClosePosition {
-				t.Errorf("received '%v' expected '%v", resp[i].GetDirection(), common.ClosePosition)
+			if resp[i].GetDirection() != gctorder.ClosePosition {
+				t.Errorf("received '%v' expected '%v", resp[i].GetDirection(), gctorder.ClosePosition)
 			}
 			caseTested = true
 		}
@@ -263,7 +263,7 @@ func TestCreateSignals(t *testing.T) {
 	for i := range resp {
 		if resp[i].GetAssetType().IsFutures() {
 			if resp[i].GetDirection() != gctorder.Short {
-				t.Errorf("received '%v' expected '%v", resp[i].GetDirection(), common.ClosePosition)
+				t.Errorf("received '%v' expected '%v", resp[i].GetDirection(), gctorder.Short)
 			}
 			caseTested = true
 		}
@@ -411,7 +411,7 @@ func TestOnSimultaneousSignals(t *testing.T) {
 	if len(resp) != 2 {
 		t.Fatalf("received '%v' expected '%v", len(resp), 2)
 	}
-	if resp[0].GetDirection() != common.DoNothing {
-		t.Errorf("received '%v' expected '%v", resp[0].GetDirection(), common.DoNothing)
+	if resp[0].GetDirection() != gctorder.DoNothing {
+		t.Errorf("received '%v' expected '%v", resp[0].GetDirection(), gctorder.DoNothing)
 	}
 }

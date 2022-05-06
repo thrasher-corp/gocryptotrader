@@ -78,8 +78,8 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundingTra
 			return nil, err
 		}
 
-		spotSignal.SetDirection(common.DoNothing)
-		futuresSignal.SetDirection(common.DoNothing)
+		spotSignal.SetDirection(order.DoNothing)
+		futuresSignal.SetDirection(order.DoNothing)
 		fp := v.futureSignal.Latest().GetClosePrice()
 		sp := v.spotSignal.Latest().GetClosePrice()
 		diffBetweenFuturesSpot := fp.Sub(sp).Div(sp).Mul(decimal.NewFromInt(100))
@@ -135,14 +135,14 @@ func (s *Strategy) createSignals(pos []order.PositionStats, spotSignal, futuresS
 		response = append(response, spotSignal)
 	case pos[len(pos)-1].Status == order.Open &&
 		isLastEvent:
-		spotSignal.SetDirection(common.ClosePosition)
+		spotSignal.SetDirection(order.ClosePosition)
 		spotSignal.AppendReason("Selling asset on last event")
-		futuresSignal.SetDirection(common.ClosePosition)
+		futuresSignal.SetDirection(order.ClosePosition)
 		futuresSignal.AppendReason("Closing position on last event")
 		response = append(response, futuresSignal, spotSignal)
 	case pos[len(pos)-1].Status == order.Open &&
 		diffBetweenFuturesSpot.LessThanOrEqual(s.closeShortDistancePercentage):
-		futuresSignal.SetDirection(common.ClosePosition)
+		futuresSignal.SetDirection(order.ClosePosition)
 		futuresSignal.AppendReasonf("Closing position. Threshold %v", s.closeShortDistancePercentage)
 		response = append(response, spotSignal, futuresSignal)
 	case pos[len(pos)-1].Status == order.Closed &&
