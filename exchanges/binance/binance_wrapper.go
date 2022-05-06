@@ -1882,3 +1882,24 @@ func (b *Binance) formatUSDTMarginedFuturesPair(p currency.Pair, pairFmt currenc
 	}
 	return p.Format(currency.UnderscoreDelimiter, pairFmt.Uppercase)
 }
+
+// GetServerTime returns the current exchange server time.
+func (b *Binance) GetServerTime(ctx context.Context, ai asset.Item) (time.Time, error) {
+	switch ai {
+	case asset.USDTMarginedFutures:
+		return b.UServerTime(ctx)
+	case asset.Spot:
+		info, err := b.GetExchangeInfo(ctx)
+		if err != nil {
+			return time.Time{}, err
+		}
+		return info.Servertime, nil
+	case asset.CoinMarginedFutures:
+		info, err := b.FuturesExchangeInfo(ctx)
+		if err != nil {
+			return time.Time{}, err
+		}
+		return time.UnixMilli(info.ServerTime), nil
+	}
+	return time.Time{}, fmt.Errorf("%s %w", ai, asset.ErrNotSupported)
+}

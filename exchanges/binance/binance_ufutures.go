@@ -74,7 +74,7 @@ func (b *Binance) UServerTime(ctx context.Context) (time.Time, error) {
 	if err != nil {
 		return time.Time{}, err
 	}
-	return time.Unix(0, data.ServerTime*1000000), nil
+	return time.UnixMilli(data.ServerTime), nil
 }
 
 // UExchangeInfo stores usdt margined futures data

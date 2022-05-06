@@ -570,3 +570,15 @@ func TestUpdateTickers(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestWrapperGetServerTime(t *testing.T) {
+	t.Parallel()
+	st, err := y.GetServerTime(context.Background(), asset.Spot)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if st.IsZero() {
+		t.Fatal("expected a time")
+	}
+}

@@ -698,3 +698,12 @@ func (y *Yobit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a as
 func (y *Yobit) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	return kline.Item{}, common.ErrFunctionNotSupported
 }
+
+// GetServerTime returns the current exchange server time.
+func (y *Yobit) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
+	info, err := y.GetInfo(ctx)
+	if err != nil {
+		return time.Time{}, err
+	}
+	return time.Unix(info.ServerTime, 0), nil
+}

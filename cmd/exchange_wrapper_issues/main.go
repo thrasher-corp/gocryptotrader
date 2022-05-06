@@ -480,6 +480,20 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 				SentParams: jsonifyInterface([]interface{}{p, assetTypes[i], startTime, endTime, kline.OneDay}),
 			})
 
+			var getServerTimeResponse time.Time
+			getServerTimeResponse, err = e.GetServerTime(context.TODO(), assetTypes[i])
+			msg = ""
+			if err != nil {
+				msg = err.Error()
+				responseContainer.ErrorCount++
+			}
+			responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
+				Function:   "GetServerTime",
+				Error:      msg,
+				Response:   getServerTimeResponse,
+				SentParams: jsonifyInterface([]interface{}{assetTypes[i]}),
+			})
+
 			err = e.UpdateOrderExecutionLimits(context.TODO(), assetTypes[i])
 			msg = ""
 			if err != nil {

@@ -1754,9 +1754,25 @@ func TestGetTicker(t *testing.T) {
 
 func TestGetTimestamp(t *testing.T) {
 	t.Parallel()
-	_, err := h.GetTimestamp(context.Background())
+	st, err := h.GetCurrentServerTime(context.Background())
 	if err != nil {
 		t.Errorf("Huobi TestGetTimestamp: %s", err)
+	}
+
+	if st.IsZero() {
+		t.Fatal("expected a time")
+	}
+}
+
+func TestWrapperGetServerTime(t *testing.T) {
+	t.Parallel()
+	st, err := h.GetServerTime(context.Background(), asset.Spot)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if st.IsZero() {
+		t.Fatal("expected a time")
 	}
 }
 

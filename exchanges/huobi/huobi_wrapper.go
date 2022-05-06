@@ -1844,3 +1844,8 @@ func (h *HUOBI) GetAvailableTransferChains(ctx context.Context, cryptocurrency c
 	}
 	return availableChains, nil
 }
+
+// GetServerTime returns the current exchange server time.
+func (h *HUOBI) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
+	return h.GetCurrentServerTime(ctx)
+}

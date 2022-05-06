@@ -37,8 +37,8 @@ type Kraken struct {
 	wsRequestMtx sync.Mutex
 }
 
-// GetServerTime returns current server time
-func (k *Kraken) GetServerTime(ctx context.Context) (TimeResponse, error) {
+// GetCurrentServerTime returns current server time
+func (k *Kraken) GetCurrentServerTime(ctx context.Context) (TimeResponse, error) {
 	path := fmt.Sprintf("/%s/public/%s", krakenAPIVersion, krakenServerTime)
 
 	var response struct {
