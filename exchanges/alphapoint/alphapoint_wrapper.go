@@ -392,17 +392,16 @@ func (a *Alphapoint) GetActiveOrders(ctx context.Context, req *order.GetOrdersRe
 			orderDetail.Side = orderSideMap[resp[x].OpenOrders[y].Side]
 			orderDetail.Date = time.Unix(resp[x].OpenOrders[y].ReceiveTime, 0)
 			orderDetail.Type = orderTypeMap[resp[x].OpenOrders[y].OrderType]
-			if orderDetail.Type == "" {
-				orderDetail.Type = order.UnknownType
-			}
-
 			orders = append(orders, orderDetail)
 		}
 	}
 
 	order.FilterOrdersByType(&orders, req.Type)
 	order.FilterOrdersBySide(&orders, req.Side)
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", a.Name, err)
+	}
 	return orders, nil
 }
 
@@ -439,17 +438,16 @@ func (a *Alphapoint) GetOrderHistory(ctx context.Context, req *order.GetOrdersRe
 			orderDetail.Side = orderSideMap[resp[x].OpenOrders[y].Side]
 			orderDetail.Date = time.Unix(resp[x].OpenOrders[y].ReceiveTime, 0)
 			orderDetail.Type = orderTypeMap[resp[x].OpenOrders[y].OrderType]
-			if orderDetail.Type == "" {
-				orderDetail.Type = order.UnknownType
-			}
-
 			orders = append(orders, orderDetail)
 		}
 	}
 
 	order.FilterOrdersByType(&orders, req.Type)
 	order.FilterOrdersBySide(&orders, req.Side)
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", a.Name, err)
+	}
 	return orders, nil
 }
 

@@ -62,7 +62,7 @@ func (c *CurrencyPairStatistic) CalculateResults(riskFreeRate decimal.Decimal) e
 		if i == 0 {
 			continue
 		}
-		if c.Events[i].SignalEvent != nil && c.Events[i].SignalEvent.GetDirection() == common.MissingData {
+		if c.Events[i].SignalEvent != nil && c.Events[i].SignalEvent.GetDirection() == gctorder.MissingData {
 			c.ShowMissingDataWarning = true
 		}
 		if c.Events[i].DataEvent.GetClosePrice().IsZero() || c.Events[i-1].DataEvent.GetClosePrice().IsZero() {

@@ -59,7 +59,7 @@ func (s *Strategy) OnSignal(d data.Handler, _ funding.IFundTransferer, _ portfol
 
 	if offset := d.Offset(); offset <= int(s.rsiPeriod.IntPart()) {
 		es.AppendReason("Not enough data for signal generation")
-		es.SetDirection(common.DoNothing)
+		es.SetDirection(order.DoNothing)
 		return &es, nil
 	}
 
@@ -72,7 +72,7 @@ func (s *Strategy) OnSignal(d data.Handler, _ funding.IFundTransferer, _ portfol
 	rsi := indicators.RSI(massagedData, int(s.rsiPeriod.IntPart()))
 	latestRSIValue := decimal.NewFromFloat(rsi[len(rsi)-1])
 	if !d.HasDataAtTime(d.Latest().GetTime()) {
-		es.SetDirection(common.MissingData)
+		es.SetDirection(order.MissingData)
 		es.AppendReason(fmt.Sprintf("missing data at %v, cannot perform any actions. RSI %v", d.Latest().GetTime(), latestRSIValue))
 		return &es, nil
 	}
@@ -83,7 +83,7 @@ func (s *Strategy) OnSignal(d data.Handler, _ funding.IFundTransferer, _ portfol
 	case latestRSIValue.LessThanOrEqual(s.rsiLow):
 		es.SetDirection(order.Buy)
 	default:
-		es.SetDirection(common.DoNothing)
+		es.SetDirection(order.DoNothing)
 	}
 	es.AppendReason(fmt.Sprintf("RSI at %v", latestRSIValue))
 

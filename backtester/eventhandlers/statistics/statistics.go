@@ -19,6 +19,7 @@ import (
 	gctmath "github.com/thrasher-corp/gocryptotrader/common/math"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -308,12 +309,12 @@ func (s *Statistic) PrintAllEventsChronologically() {
 					switch {
 					case currencyStatistic.Events[i].FillEvent != nil:
 						direction := currencyStatistic.Events[i].FillEvent.GetDirection()
-						if direction == common.CouldNotBuy ||
-							direction == common.CouldNotSell ||
-							direction == common.DoNothing ||
-							direction == common.MissingData ||
-							direction == common.TransferredFunds ||
-							direction == "" {
+						if direction == gctorder.CouldNotBuy ||
+							direction == gctorder.CouldNotSell ||
+							direction == gctorder.DoNothing ||
+							direction == gctorder.MissingData ||
+							direction == gctorder.TransferredFunds ||
+							direction == gctorder.UnknownSide {
 							results = addEventOutputToTime(results, currencyStatistic.Events[i].FillEvent.GetTime(),
 								fmt.Sprintf("%v %v %v %v | Price: $%v - Direction: %v - Reason: %s",
 									currencyStatistic.Events[i].FillEvent.GetTime().Format(gctcommon.SimpleTimeFormat),

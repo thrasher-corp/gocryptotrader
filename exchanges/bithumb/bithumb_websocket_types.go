@@ -7,7 +7,6 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 // WsResponse is a generalised response data structure which will defer
@@ -48,7 +47,7 @@ type WsOrderbooks struct {
 // WsOrderbook defines a singular orderbook tranche
 type WsOrderbook struct {
 	Symbol    currency.Pair `json:"symbol"`
-	OrderSide order.Side    `json:"orderType"`
+	OrderSide string        `json:"orderType"`
 	Price     float64       `json:"price,string"`
 	Quantity  float64       `json:"quantity,string"`
 	Total     int32         `json:"total,string"`

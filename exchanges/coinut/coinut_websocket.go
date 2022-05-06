@@ -775,7 +775,7 @@ func (c *COINUT) wsSubmitOrder(o *WsSubmitOrderParameters) (*order.Detail, error
 	orderSubmissionRequest.InstrumentID = c.instrumentMap.LookupID(curr.String())
 	orderSubmissionRequest.Quantity = o.Amount
 	orderSubmissionRequest.Price = o.Price
-	orderSubmissionRequest.Side = string(o.Side)
+	orderSubmissionRequest.Side = o.Side.String()
 
 	if o.OrderID > 0 {
 		orderSubmissionRequest.OrderID = o.OrderID
@@ -816,7 +816,7 @@ func (c *COINUT) wsSubmitOrders(orders []WsSubmitOrderParameters) ([]order.Detai
 			WsSubmitOrdersRequestData{
 				Quantity:      orders[i].Amount,
 				Price:         orders[i].Price,
-				Side:          string(orders[i].Side),
+				Side:          orders[i].Side.String(),
 				InstrumentID:  c.instrumentMap.LookupID(curr.String()),
 				ClientOrderID: i + 1,
 			})

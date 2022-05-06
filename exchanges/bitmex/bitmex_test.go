@@ -1174,6 +1174,22 @@ func TestCurrencyNormalization(t *testing.T) {
 	}
 }
 
+func TestGetOrderType(t *testing.T) {
+	t.Parallel()
+	if _, err := b.getOrderType(0); !errors.Is(err, order.ErrTypeIsInvalid) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, order.ErrTypeIsInvalid)
+	}
+
+	o, err := b.getOrderType(1)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if o != order.Market {
+		t.Fatal("unexpected value")
+	}
+}
+
 func TestGetActionFromString(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetActionFromString("meow")

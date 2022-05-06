@@ -7,7 +7,6 @@ import (
 	"net/url"
 	"sort"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -710,8 +709,11 @@ func (g *Gemini) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 		} else if resp[i].Type == "market buy" || resp[i].Type == "market sell" {
 			orderType = order.Market
 		}
-
-		side := order.Side(strings.ToUpper(resp[i].Type))
+		var side order.Side
+		side, err = order.StringToOrderSide(resp[i].Type)
+		if err != nil {
+			return nil, err
+		}
 		orderDate := time.Unix(resp[i].Timestamp, 0)
 
 		orders[i] = order.Detail{
@@ -728,10 +730,13 @@ func (g *Gemini) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 		}
 	}
 
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", g.Name, err)
+	}
 	order.FilterOrdersBySide(&orders, req.Side)
 	order.FilterOrdersByType(&orders, req.Type)
-	order.FilterOrdersByCurrencies(&orders, req.Pairs)
+	order.FilterOrdersByPairs(&orders, req.Pairs)
 	return orders, nil
 }
 
@@ -774,7 +779,11 @@ func (g *Gemini) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 
 	orders := make([]order.Detail, len(trades))
 	for i := range trades {
-		side := order.Side(strings.ToUpper(trades[i].Type))
+		var side order.Side
+		side, err = order.StringToOrderSide(trades[i].Type)
+		if err != nil {
+			return nil, err
+		}
 		orderDate := time.Unix(trades[i].Timestamp, 0)
 
 		detail := order.Detail{
@@ -797,7 +806,10 @@ func (g *Gemini) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 		orders[i] = detail
 	}
 
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", g.Name, err)
+	}
 	order.FilterOrdersBySide(&orders, req.Side)
 	return orders, nil
 }
