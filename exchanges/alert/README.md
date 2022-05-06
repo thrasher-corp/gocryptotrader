@@ -31,7 +31,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 // type for easy access to the notice methods.
 type SomeChangingType struct {
 	ValueThatChanges int64
-	Notice
+	alert.Notice
 	mu sync.Mutex // Protection for routine shenanigans
 }
 
