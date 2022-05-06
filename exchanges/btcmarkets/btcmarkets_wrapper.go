@@ -573,11 +573,10 @@ func (b *BTCMarkets) SubmitOrder(ctx context.Context, s *order.Submit) (order.Su
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
 func (b *BTCMarkets) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Modify, error) {
-	err := action.Validate()
-	if err != nil {
+	if err := action.Validate(); err != nil {
 		return nil, err
 	}
-	resp, err := b.ReplaceAnOrder(ctx, action.ID, action.Price, action.Amount)
+	resp, err := b.ReplaceAnOrder(ctx, action.ID, action.ClientOrderID, action.Price, action.Amount)
 	if err != nil {
 		return nil, err
 	}

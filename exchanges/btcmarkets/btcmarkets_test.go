@@ -1028,3 +1028,57 @@ func TestGetTimeInForce(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", f, fillOrKill)
 	}
 }
+
+func TestReplaceAnOrder(t *testing.T) {
+	t.Parallel()
+	_, err := b.ReplaceAnOrder(context.Background(), "", "bro", 0, 0)
+	if !errors.Is(err, errInvalidAmount) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidAmount)
+	}
+
+	_, err = b.ReplaceAnOrder(context.Background(), "", "bro", 1, 0)
+	if !errors.Is(err, errInvalidAmount) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidAmount)
+	}
+
+	_, err = b.ReplaceAnOrder(context.Background(), "", "bro", 1, 1)
+	if !errors.Is(err, errIDRequired) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errIDRequired)
+	}
+
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
+	}
+
+	_, err = b.ReplaceAnOrder(context.Background(), "8207096301", "bruh", 100000, 0.001)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+}
+
+func TestTestWrapperModifyOrder(t *testing.T) {
+	t.Parallel()
+	_, err := b.ModifyOrder(context.Background(), &order.Modify{})
+	if !errors.Is(err, order.ErrPairIsEmpty) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, order.ErrPairIsEmpty)
+	}
+
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
+	}
+	mo, err := b.ModifyOrder(context.Background(), &order.Modify{
+		Pair:          currency.NewPair(currency.BTC, currency.AUD),
+		AssetType:     asset.Spot,
+		Price:         100000,
+		Amount:        0.001,
+		ID:            "8207123461",
+		ClientOrderID: "bruh3",
+	})
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if mo == nil {
+		t.Fatal("expected data return")
+	}
+}
