@@ -959,3 +959,12 @@ func (bot *Engine) RegisterWebsocketDataHandler(fn WebsocketDataHandler, interce
 	}
 	return bot.websocketRoutineManager.registerWebsocketDataHandler(fn, interceptorOnly)
 }
+
+// SetDefaultWebsocketDataHandler sets the default websocket handler and
+// removing all pre-existing handlers
+func (bot *Engine) SetDefaultWebsocketDataHandler() error {
+	if bot == nil {
+		return errNilBot
+	}
+	return bot.websocketRoutineManager.setWebsocketDataHandler(bot.websocketRoutineManager.websocketDataHandler)
+}

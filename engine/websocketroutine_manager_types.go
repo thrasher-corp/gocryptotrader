@@ -13,6 +13,7 @@ var (
 	errNilCurrencyConfig               = errors.New("nil currency config received")
 	errNilCurrencyPairFormat           = errors.New("nil currency pair format received")
 	errNilWebsocketDataHandlerFunction = errors.New("websocket data handler function is nil")
+	errNilWebsocket                    = errors.New("websocket is nil")
 )
 
 // websocketRoutineManager is used to process websocket updates from a unified location

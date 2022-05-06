@@ -307,3 +307,48 @@ func TestRegisterWebsocketDataHandlerWithFunctionality(t *testing.T) {
 	close(m.shutdown)
 	m.wg.Wait()
 }
+
+func TestSetWebsocketDataHandler(t *testing.T) {
+	t.Parallel()
+	var m *websocketRoutineManager
+	err := m.setWebsocketDataHandler(nil)
+	if !errors.Is(err, ErrNilSubsystem) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrNilSubsystem)
+	}
+
+	m = new(websocketRoutineManager)
+	m.shutdown = make(chan struct{})
+
+	err = m.setWebsocketDataHandler(nil)
+	if !errors.Is(err, errNilWebsocketDataHandlerFunction) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errNilWebsocketDataHandlerFunction)
+	}
+
+	err = m.registerWebsocketDataHandler(m.websocketDataHandler, false)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	err = m.registerWebsocketDataHandler(m.websocketDataHandler, false)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	err = m.registerWebsocketDataHandler(m.websocketDataHandler, false)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if len(m.dataHandlers) != 3 {
+		t.Fatal("unexpected data handler count")
+	}
+
+	err = m.setWebsocketDataHandler(m.websocketDataHandler)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if len(m.dataHandlers) != 1 {
+		t.Fatal("unexpected data handler count")
+	}
+}
