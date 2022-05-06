@@ -1019,3 +1019,12 @@ func (c *CoinbasePro) ValidateCredentials(ctx context.Context, assetType asset.I
 	_, err := c.UpdateAccountInfo(ctx, assetType)
 	return c.CheckTransientError(err)
 }
+
+// GetServerTime returns the current exchange server time.
+func (c *CoinbasePro) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
+	st, err := c.GetCurrentServerTime(ctx)
+	if err != nil {
+		return time.Time{}, err
+	}
+	return st.ISO, nil
+}
