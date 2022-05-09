@@ -1553,7 +1553,7 @@ func TestGenerateInternalOrderID(t *testing.T) {
 	}
 }
 
-func TestDetail_Copy(t *testing.T) {
+func TestDetail_CopyValue(t *testing.T) {
 	d := []Detail{
 		{
 			Exchange: "Binance",
@@ -1566,12 +1566,89 @@ func TestDetail_Copy(t *testing.T) {
 		},
 	}
 	for i := range d {
-		r := d[i].Copy()
+		r := d[i].CopyValue()
 		if !reflect.DeepEqual(d[i], r) {
 			t.Errorf("[%d] Copy does not contain same elements, expected: %v\ngot:%v", i, d[i], r)
 		}
 		if len(d[i].Trades) > 0 {
 			if &d[i].Trades[0] == &r.Trades[0] {
+				t.Errorf("[%d]Trades point to the same data elements", i)
+			}
+		}
+	}
+}
+
+func TestDetail_CopyValueNewAddress(t *testing.T) {
+	d := []Detail{
+		{
+			Exchange: "Binance",
+		},
+		{
+			Exchange: "Binance",
+			Trades: []TradeHistory{
+				{Price: 1},
+			},
+		},
+	}
+	for i := range d {
+		r := d[i].CopyValueNewAddress()
+		if !reflect.DeepEqual(d[i], *r) {
+			t.Errorf("[%d] Copy does not contain same elements, expected: %v\ngot:%v", i, d[i], r)
+		}
+		if len(d[i].Trades) > 0 {
+			if &d[i].Trades[0] == &r.Trades[0] {
+				t.Errorf("[%d]Trades point to the same data elements", i)
+			}
+		}
+	}
+}
+
+func TestDetail_GetCopySlice(t *testing.T) {
+	d := []*Detail{
+		{
+			Exchange: "Binance",
+		},
+		{
+			Exchange: "Binance",
+			Trades: []TradeHistory{
+				{Price: 1},
+			},
+		},
+	}
+
+	sliceCopy := GetCopySlice(d)
+	for i := range sliceCopy {
+		if !reflect.DeepEqual(sliceCopy[i], *d[i]) {
+			t.Errorf("[%d] Copy does not contain same elements, expected: %v\ngot:%v", i, sliceCopy[i], d[i])
+		}
+		if len(sliceCopy[i].Trades) > 0 {
+			if &sliceCopy[i].Trades[0] == &d[i].Trades[0] {
+				t.Errorf("[%d]Trades point to the same data elements", i)
+			}
+		}
+	}
+}
+
+func TestDetail_GetCopySliceAddressed(t *testing.T) {
+	d := []*Detail{
+		{
+			Exchange: "Binance",
+		},
+		{
+			Exchange: "Binance",
+			Trades: []TradeHistory{
+				{Price: 1},
+			},
+		},
+	}
+
+	sliceCopy := GetCopySliceAddressed(d)
+	for i := range sliceCopy {
+		if !reflect.DeepEqual(*sliceCopy[i], *d[i]) {
+			t.Errorf("[%d] Copy does not contain same elements, expected: %v\ngot:%v", i, sliceCopy[i], d[i])
+		}
+		if len(sliceCopy[i].Trades) > 0 {
+			if &sliceCopy[i].Trades[0] == &d[i].Trades[0] {
 				t.Errorf("[%d]Trades point to the same data elements", i)
 			}
 		}

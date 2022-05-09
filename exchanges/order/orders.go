@@ -466,14 +466,45 @@ func (d *Detail) GenerateInternalOrderID() {
 	}
 }
 
-// Copy will return a copy of Detail
-func (d *Detail) Copy() Detail {
+// CopyValue will return a copy of Detail NOTE: This is Addressable.
+func (d *Detail) CopyValue() Detail {
+	return d.copy()
+}
+
+// CopyValueNewAddress will return the address of a new copy of the order Detail
+// WARNING: DO NOT DEREFERENCE USE METHOD CopyValue().
+func (d *Detail) CopyValueNewAddress() *Detail {
+	c := d.copy()
+	return &c
+}
+
+// copy makes a full copy of underlying details
+func (d *Detail) copy() Detail {
 	c := *d
 	if len(d.Trades) > 0 {
 		c.Trades = make([]TradeHistory, len(d.Trades))
 		copy(c.Trades, d.Trades)
 	}
 	return c
+}
+
+// GetCopySlice returns a copy of all order details
+func GetCopySlice(old []*Detail) []Detail {
+	copy := make([]Detail, len(old))
+	for x := range old {
+		copy[x] = old[x].copy()
+	}
+	return copy
+}
+
+// GetCopySliceAddressed returns a copy of all order detail and returns a slice
+// of pointers.
+func GetCopySliceAddressed(old []*Detail) []*Detail {
+	copy := make([]*Detail, len(old))
+	for x := range old {
+		copy[x] = old[x].CopyValueNewAddress()
+	}
+	return copy
 }
 
 // String implements the stringer interface

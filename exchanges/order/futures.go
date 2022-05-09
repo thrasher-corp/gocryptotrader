@@ -440,7 +440,7 @@ func (p *PositionTracker) TrackNewOrder(d *Detail) error {
 		if p.shortPositions[i].ID != d.ID {
 			continue
 		}
-		ord := p.shortPositions[i].Copy()
+		ord := p.shortPositions[i].CopyValue()
 		ord.UpdateOrderFromDetail(d)
 		p.shortPositions[i] = ord
 		updated = true
@@ -450,7 +450,7 @@ func (p *PositionTracker) TrackNewOrder(d *Detail) error {
 		if p.longPositions[i].ID != d.ID {
 			continue
 		}
-		ord := p.longPositions[i].Copy()
+		ord := p.longPositions[i].CopyValue()
 		ord.UpdateOrderFromDetail(d)
 		p.longPositions[i] = ord
 		updated = true
@@ -459,9 +459,9 @@ func (p *PositionTracker) TrackNewOrder(d *Detail) error {
 
 	if !updated {
 		if d.Side.IsShort() {
-			p.shortPositions = append(p.shortPositions, d.Copy())
+			p.shortPositions = append(p.shortPositions, d.CopyValue())
 		} else {
-			p.longPositions = append(p.longPositions, d.Copy())
+			p.longPositions = append(p.longPositions, d.CopyValue())
 		}
 	}
 	var shortSide, longSide decimal.Decimal
