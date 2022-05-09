@@ -650,19 +650,26 @@ func (e *EXMO) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest)
 			return nil, err
 		}
 		orderDate := time.Unix(resp[i].Created, 0)
-		orderSide := order.Side(strings.ToUpper(resp[i].Type))
+		var side order.Side
+		side, err = order.StringToOrderSide(resp[i].Type)
+		if err != nil {
+			return nil, err
+		}
 		orders = append(orders, order.Detail{
 			ID:       strconv.FormatInt(resp[i].OrderID, 10),
 			Amount:   resp[i].Quantity,
 			Date:     orderDate,
 			Price:    resp[i].Price,
-			Side:     orderSide,
+			Side:     side,
 			Exchange: e.Name,
 			Pair:     symbol,
 		})
 	}
 
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", e.Name, err)
+	}
 	order.FilterOrdersBySide(&orders, req.Side)
 	return orders, nil
 }
@@ -701,7 +708,11 @@ func (e *EXMO) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest)
 			return nil, err
 		}
 		orderDate := time.Unix(allTrades[i].Date, 0)
-		orderSide := order.Side(strings.ToUpper(allTrades[i].Type))
+		var side order.Side
+		side, err = order.StringToOrderSide(allTrades[i].Type)
+		if err != nil {
+			return nil, err
+		}
 		detail := order.Detail{
 			ID:             strconv.FormatInt(allTrades[i].TradeID, 10),
 			Amount:         allTrades[i].Quantity,
@@ -710,7 +721,7 @@ func (e *EXMO) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest)
 			CostAsset:      pair.Quote,
 			Date:           orderDate,
 			Price:          allTrades[i].Price,
-			Side:           orderSide,
+			Side:           side,
 			Exchange:       e.Name,
 			Pair:           pair,
 		}
@@ -718,7 +729,10 @@ func (e *EXMO) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest)
 		orders[i] = detail
 	}
 
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	err := order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", e.Name, err)
+	}
 	order.FilterOrdersBySide(&orders, req.Side)
 	return orders, nil
 }

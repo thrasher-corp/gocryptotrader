@@ -700,7 +700,8 @@ func (b *Bithumb) GetActiveOrders(ctx context.Context, req *order.GetOrdersReque
 
 	var orders []order.Detail
 	for x := range req.Pairs {
-		resp, err := b.GetOrders(ctx, "", "", "1000", "", req.Pairs[x].Base.String())
+		var resp Orders
+		resp, err = b.GetOrders(ctx, "", "", "1000", "", req.Pairs[x].Base.String())
 		if err != nil {
 			return nil, err
 		}
@@ -735,8 +736,11 @@ func (b *Bithumb) GetActiveOrders(ctx context.Context, req *order.GetOrdersReque
 	}
 
 	order.FilterOrdersBySide(&orders, req.Side)
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
-	order.FilterOrdersByCurrencies(&orders, req.Pairs)
+	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
+	}
+	order.FilterOrdersByPairs(&orders, req.Pairs)
 	return orders, nil
 }
 
@@ -758,7 +762,8 @@ func (b *Bithumb) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 
 	var orders []order.Detail
 	for x := range req.Pairs {
-		resp, err := b.GetOrders(ctx, "", "", "1000", "", req.Pairs[x].Base.String())
+		var resp Orders
+		resp, err = b.GetOrders(ctx, "", "", "1000", "", req.Pairs[x].Base.String())
 		if err != nil {
 			return nil, err
 		}
@@ -793,8 +798,11 @@ func (b *Bithumb) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 	}
 
 	order.FilterOrdersBySide(&orders, req.Side)
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
-	order.FilterOrdersByCurrencies(&orders, req.Pairs)
+	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
+	}
+	order.FilterOrdersByPairs(&orders, req.Pairs)
 	return orders, nil
 }
 

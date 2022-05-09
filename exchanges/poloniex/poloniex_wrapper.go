@@ -842,8 +842,13 @@ func (p *Poloniex) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequ
 			return nil, err
 		}
 		for i := range resp.Data[key] {
-			orderSide := order.Side(strings.ToUpper(resp.Data[key][i].Type))
-			orderDate, err := time.Parse(common.SimpleTimeFormat, resp.Data[key][i].Date)
+			var orderSide order.Side
+			orderSide, err = order.StringToOrderSide(resp.Data[key][i].Type)
+			if err != nil {
+				return nil, err
+			}
+			var orderDate time.Time
+			orderDate, err = time.Parse(common.SimpleTimeFormat, resp.Data[key][i].Date)
 			if err != nil {
 				log.Errorf(log.ExchangeSys,
 					"Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
@@ -865,8 +870,11 @@ func (p *Poloniex) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequ
 		}
 	}
 
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
-	order.FilterOrdersByCurrencies(&orders, req.Pairs)
+	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", p.Name, err)
+	}
+	order.FilterOrdersByPairs(&orders, req.Pairs)
 	order.FilterOrdersBySide(&orders, req.Side)
 
 	return orders, nil
@@ -901,7 +909,10 @@ func (p *Poloniex) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequ
 		}
 
 		for i := range resp.Data[key] {
-			orderSide := order.Side(strings.ToUpper(resp.Data[key][i].Type))
+			orderSide, err := order.StringToOrderSide(resp.Data[key][i].Type)
+			if err != nil {
+				return nil, err
+			}
 			orderDate, err := time.Parse(common.SimpleTimeFormat,
 				resp.Data[key][i].Date)
 			if err != nil {
@@ -930,9 +941,8 @@ func (p *Poloniex) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequ
 		}
 	}
 
-	order.FilterOrdersByCurrencies(&orders, req.Pairs)
+	order.FilterOrdersByPairs(&orders, req.Pairs)
 	order.FilterOrdersBySide(&orders, req.Side)
-
 	return orders, nil
 }
 

@@ -275,8 +275,8 @@ func (b *BTCMarkets) GetMultipleOrderbooks(ctx context.Context, marketIDs []stri
 	return orderbooks, nil
 }
 
-// GetServerTime gets time from btcmarkets
-func (b *BTCMarkets) GetServerTime(ctx context.Context) (time.Time, error) {
+// GetCurrentServerTime gets time from btcmarkets
+func (b *BTCMarkets) GetCurrentServerTime(ctx context.Context) (time.Time, error) {
 	var resp TimeResp
 	return resp.Time, b.SendHTTPRequest(ctx, btcMarketsAPIURL+btcMarketsAPIVersion+btcMarketsGetTime,
 		&resp)

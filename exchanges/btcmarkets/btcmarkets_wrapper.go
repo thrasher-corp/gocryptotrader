@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"sort"
 	"strconv"
 	"strings"
@@ -256,6 +257,13 @@ func (b *BTCMarkets) Run() {
 		}
 	}
 
+	err = b.UpdateOrderExecutionLimits(context.TODO(), asset.Spot)
+	if err != nil {
+		log.Errorf(log.ExchangeSys,
+			"%s Failed to update order execution limits. Error: %v\n",
+			b.Name, err)
+	}
+
 	if !b.GetEnabledFeatures().AutoPairUpdates && !forceUpdate {
 		return
 	}
@@ -488,7 +496,7 @@ func (b *BTCMarkets) GetRecentTrades(ctx context.Context, p currency.Pair, asset
 
 	resp := make([]trade.Data, len(tradeData))
 	for i := range tradeData {
-		side := order.Side("")
+		var side order.Side
 		if tradeData[i].Side != "" {
 			side, err = order.StringToOrderSide(tradeData[i].Side)
 			if err != nil {
@@ -863,7 +871,10 @@ func (b *BTCMarkets) GetActiveOrders(ctx context.Context, req *order.GetOrdersRe
 		}
 	}
 	order.FilterOrdersByType(&resp, req.Type)
-	order.FilterOrdersByTimeRange(&resp, req.StartTime, req.EndTime)
+	err := order.FilterOrdersByTimeRange(&resp, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
+	}
 	order.FilterOrdersBySide(&resp, req.Side)
 	return resp, nil
 }
@@ -1119,4 +1130,40 @@ func (b *BTCMarkets) GetHistoricCandlesExtended(ctx context.Context, p currency.
 	ret.RemoveOutsideRange(start, end)
 	ret.SortCandlesByTimestamp(false)
 	return ret, nil
+}
+
+// GetServerTime returns the current exchange server time.
+func (b *BTCMarkets) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
+	return b.GetCurrentServerTime(ctx)
+}
+
+// UpdateOrderExecutionLimits sets exchange executions for a required asset type
+func (b *BTCMarkets) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
+	if a != asset.Spot {
+		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
+	}
+
+	markets, err := b.GetMarkets(ctx)
+	if err != nil {
+		return err
+	}
+
+	limits := make([]order.MinMaxLevel, len(markets))
+	for x := range markets {
+		var pair currency.Pair
+		pair, err = currency.NewPairFromStrings(markets[x].BaseAsset, markets[x].QuoteAsset)
+		if err != nil {
+			return err
+		}
+
+		limits[x] = order.MinMaxLevel{
+			Pair:       pair,
+			Asset:      asset.Spot,
+			MinAmount:  markets[x].MinOrderAmount,
+			MaxAmount:  markets[x].MaxOrderAmount,
+			StepAmount: math.Pow(10, -markets[x].AmountDecimals),
+			StepPrice:  math.Pow(10, -markets[x].PriceDecimals),
+		}
+	}
+	return b.LoadLimits(limits)
 }

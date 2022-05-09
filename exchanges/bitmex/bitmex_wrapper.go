@@ -766,16 +766,16 @@ func (b *Bitmex) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 
 	orders := make([]order.Detail, len(resp))
 	for i := range resp {
-		orderSide := orderSideMap[resp[i].Side]
-		orderStatus, err := order.StringToOrderStatus(resp[i].OrdStatus)
+		var orderStatus order.Status
+		orderStatus, err = order.StringToOrderStatus(resp[i].OrdStatus)
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
 		}
-		orderType := orderTypeMap[resp[i].OrdType]
-		if orderType == "" {
-			orderType = order.UnknownType
+		var oType order.Type
+		oType, err = b.getOrderType(resp[i].OrdType)
+		if err != nil {
+			log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
 		}
-
 		orderDetail := order.Detail{
 			Date:            resp[i].Timestamp,
 			Price:           resp[i].Price,
@@ -784,9 +784,9 @@ func (b *Bitmex) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 			RemainingAmount: resp[i].LeavesQty,
 			Exchange:        b.Name,
 			ID:              resp[i].OrderID,
-			Side:            orderSide,
+			Side:            orderSideMap[resp[i].Side],
 			Status:          orderStatus,
-			Type:            orderType,
+			Type:            oType,
 			Pair: currency.NewPairWithDelimiter(resp[i].Symbol,
 				resp[i].SettlCurrency,
 				format.Delimiter),
@@ -797,8 +797,11 @@ func (b *Bitmex) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 
 	order.FilterOrdersBySide(&orders, req.Side)
 	order.FilterOrdersByType(&orders, req.Type)
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
-	order.FilterOrdersByCurrencies(&orders, req.Pairs)
+	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
+	}
+	order.FilterOrdersByPairs(&orders, req.Pairs)
 	return orders, nil
 }
 
@@ -824,15 +827,19 @@ func (b *Bitmex) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 	orders := make([]order.Detail, len(resp))
 	for i := range resp {
 		orderSide := orderSideMap[resp[i].Side]
-		orderStatus, err := order.StringToOrderStatus(resp[i].OrdStatus)
+		var orderStatus order.Status
+		orderStatus, err = order.StringToOrderStatus(resp[i].OrdStatus)
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
 		}
-		orderType := orderTypeMap[resp[i].OrdType]
-		if orderType == "" {
-			orderType = order.UnknownType
-		}
+
 		pair := currency.NewPairWithDelimiter(resp[i].Symbol, resp[i].SettlCurrency, format.Delimiter)
+
+		var oType order.Type
+		oType, err = b.getOrderType(resp[i].OrdType)
+		if err != nil {
+			log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
+		}
 
 		orderDetail := order.Detail{
 			Price:                resp[i].Price,
@@ -846,7 +853,7 @@ func (b *Bitmex) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 			ID:                   resp[i].OrderID,
 			Side:                 orderSide,
 			Status:               orderStatus,
-			Type:                 orderType,
+			Type:                 oType,
 			Pair:                 pair,
 		}
 		orderDetail.InferCostsAndTimes()
@@ -856,8 +863,11 @@ func (b *Bitmex) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 
 	order.FilterOrdersBySide(&orders, req.Side)
 	order.FilterOrdersByType(&orders, req.Type)
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
-	order.FilterOrdersByCurrencies(&orders, req.Pairs)
+	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
+	}
+	order.FilterOrdersByPairs(&orders, req.Pairs)
 	return orders, nil
 }
 
@@ -881,4 +891,13 @@ func (b *Bitmex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (b *Bitmex) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	return kline.Item{}, common.ErrFunctionNotSupported
+}
+
+// getOrderType derives an order type from bitmex int representation
+func (b *Bitmex) getOrderType(id int64) (order.Type, error) {
+	o, ok := orderTypeMap[id]
+	if !ok {
+		return order.UnknownType, fmt.Errorf("unhandled order type for '%d': %w", id, order.ErrTypeIsInvalid)
+	}
+	return o, nil
 }

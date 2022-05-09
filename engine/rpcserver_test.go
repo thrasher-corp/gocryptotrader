@@ -1837,7 +1837,7 @@ func TestGetManagedOrders(t *testing.T) {
 		ClientID:        "",
 		WalletAddress:   "",
 		Type:            order.Limit,
-		Side:            "SELL",
+		Side:            order.Sell,
 		Status:          order.New,
 		AssetType:       asset.Spot,
 		Pair:            currency.NewPair(currency.BTC, currency.USDT),

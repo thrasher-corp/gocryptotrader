@@ -742,7 +742,11 @@ func (h *HitBTC) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 		if err != nil {
 			return nil, err
 		}
-		side := order.Side(strings.ToUpper(allOrders[i].Side))
+		var side order.Side
+		side, err = order.StringToOrderSide(allOrders[i].Side)
+		if err != nil {
+			return nil, err
+		}
 		orders[i] = order.Detail{
 			ID:       allOrders[i].ID,
 			Amount:   allOrders[i].Quantity,
@@ -754,7 +758,10 @@ func (h *HitBTC) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 		}
 	}
 
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", h.Name, err)
+	}
 	order.FilterOrdersBySide(&orders, req.Side)
 	return orders, nil
 }
@@ -792,8 +799,13 @@ func (h *HitBTC) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 		if err != nil {
 			return nil, err
 		}
-		side := order.Side(strings.ToUpper(allOrders[i].Side))
-		status, err := order.StringToOrderStatus(allOrders[i].Status)
+		var side order.Side
+		side, err = order.StringToOrderSide(allOrders[i].Side)
+		if err != nil {
+			log.Errorf(log.ExchangeSys, "%s %v", h.Name, err)
+		}
+		var status order.Status
+		status, err = order.StringToOrderStatus(allOrders[i].Status)
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "%s %v", h.Name, err)
 		}
@@ -815,7 +827,10 @@ func (h *HitBTC) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 		orders[i] = detail
 	}
 
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", h.Name, err)
+	}
 	order.FilterOrdersBySide(&orders, req.Side)
 	return orders, nil
 }

@@ -211,7 +211,7 @@ type DashBoardInfo struct {
 		FeeBTC                float64 `json:"fee_btc,string"`
 		ExchangeRateUpdatedAt string  `json:"exchange_rate_updated_at"`
 		Advertisement         struct {
-			ID         int    `json:"id"`
+			ID         int64  `json:"id"`
 			TradeType  string `json:"trade_type"`
 			Advertiser struct {
 				Username      string `json:"username"`
