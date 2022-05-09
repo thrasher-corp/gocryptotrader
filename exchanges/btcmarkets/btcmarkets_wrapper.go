@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"sort"
 	"strconv"
 	"strings"
@@ -253,6 +254,13 @@ func (b *BTCMarkets) Run() {
 				"%s Failed to update enabled currencies.\n",
 				b.Name)
 		}
+	}
+
+	err = b.UpdateOrderExecutionLimits(context.TODO(), asset.Spot)
+	if err != nil {
+		log.Errorf(log.ExchangeSys,
+			"%s Failed to update order execution limits. Error: %v\n",
+			b.Name, err)
 	}
 
 	if !b.GetEnabledFeatures().AutoPairUpdates && !forceUpdate {
@@ -1093,4 +1101,35 @@ func (b *BTCMarkets) GetHistoricCandlesExtended(ctx context.Context, p currency.
 // GetServerTime returns the current exchange server time.
 func (b *BTCMarkets) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
 	return b.GetCurrentServerTime(ctx)
+}
+
+// UpdateOrderExecutionLimits sets exchange executions for a required asset type
+func (b *BTCMarkets) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
+	if a != asset.Spot {
+		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
+	}
+
+	markets, err := b.GetMarkets(ctx)
+	if err != nil {
+		return err
+	}
+
+	limits := make([]order.MinMaxLevel, len(markets))
+	for x := range markets {
+		var pair currency.Pair
+		pair, err = currency.NewPairFromStrings(markets[x].BaseAsset, markets[x].QuoteAsset)
+		if err != nil {
+			return err
+		}
+
+		limits[x] = order.MinMaxLevel{
+			Pair:       pair,
+			Asset:      asset.Spot,
+			MinAmount:  markets[x].MinOrderAmount,
+			MaxAmount:  markets[x].MaxOrderAmount,
+			StepAmount: math.Pow(10, -markets[x].AmountDecimals),
+			StepPrice:  math.Pow(10, -markets[x].PriceDecimals),
+		}
+	}
+	return b.LoadLimits(limits)
 }

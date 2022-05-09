@@ -1040,3 +1040,25 @@ func TestGetTimeInForce(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", f, fillOrKill)
 	}
 }
+
+func TestUpdateOrderExecutionLimits(t *testing.T) {
+	t.Parallel()
+	err := b.UpdateOrderExecutionLimits(context.Background(), asset.Empty)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
+	}
+
+	err = b.UpdateOrderExecutionLimits(context.Background(), asset.Spot)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	lim, err := b.ExecutionLimits.GetOrderExecutionLimits(asset.Spot, currency.NewPair(currency.BTC, currency.AUD))
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if lim == nil {
+		t.Fatal("expected value return")
+	}
+}
