@@ -484,7 +484,7 @@ func GetPackageName(name string, capital bool) string {
 		i = len(newStrings) - 1
 	}
 	if capital {
-		return strings.Replace(strings.Title(newStrings[i]), "_", " ", -1) // nolint // ignore staticcheck strings.Title warning
+		return strings.Replace(common.EnglishTitleFormat.String(newStrings[i]), "_", " ", -1)
 	}
 	return newStrings[i]
 }

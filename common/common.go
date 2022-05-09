@@ -19,6 +19,8 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/log"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 const (
@@ -60,6 +62,9 @@ var (
 	zeroValueUnix = time.Unix(0, 0)
 	// ErrTypeAssertFailure defines an error when type assertion fails
 	ErrTypeAssertFailure = errors.New("type assert failure")
+
+	// EnglishTitleFormat defines an english title case formatting for a string
+	EnglishTitleFormat = cases.Title(language.English)
 )
 
 // SetHTTPClientWithTimeout sets a new *http.Client with different timeout
