@@ -315,3 +315,213 @@ func (a *OTCTradeOrder) UnmarshalJSON(data []byte) error {
 	}
 	return nil
 }
+
+// UnmarshalJSON deserialises the JSON info, including the timestamp
+func (a *wsListStatus) UnmarshalJSON(data []byte) error {
+	type Alias wsListStatus
+	aux := &struct {
+		Data struct {
+			EventTime       binanceTime `json:"E"`
+			TransactionTime binanceTime `json:"T"`
+			*WsListStatusData
+		} `json:"data"`
+		*Alias
+	}{
+		Alias: (*Alias)(a),
+	}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	a.Data = *aux.Data.WsListStatusData
+	a.Data.EventTime = aux.Data.EventTime.Time()
+	a.Data.TransactionTime = aux.Data.TransactionTime.Time()
+	return nil
+}
+
+// UnmarshalJSON deserialises the JSON info, including the timestamp
+func (a *TickerStream) UnmarshalJSON(data []byte) error {
+	type Alias TickerStream
+	aux := &struct {
+		EventTime binanceTime `json:"E"`
+		OpenTime  binanceTime `json:"O"`
+		CloseTime binanceTime `json:"C"`
+		*Alias
+	}{
+		Alias: (*Alias)(a),
+	}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	a.EventTime = aux.EventTime.Time()
+	a.OpenTime = aux.OpenTime.Time()
+	a.CloseTime = aux.CloseTime.Time()
+	return nil
+}
+
+// UnmarshalJSON deserialises the JSON info, including the timestamp
+func (a *KlineStream) UnmarshalJSON(data []byte) error {
+	type Alias KlineStream
+	aux := &struct {
+		EventTime binanceTime `json:"E"`
+		Kline     struct {
+			StartTime binanceTime `json:"t"`
+			CloseTime binanceTime `json:"T"`
+			*KlineStreamData
+		} `json:"k"`
+		*Alias
+	}{
+		Alias: (*Alias)(a),
+	}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	a.Kline = *aux.Kline.KlineStreamData
+	a.EventTime = aux.EventTime.Time()
+	a.Kline.StartTime = aux.Kline.StartTime.Time()
+	a.Kline.CloseTime = aux.Kline.CloseTime.Time()
+	return nil
+}
+
+// UnmarshalJSON deserialises the JSON info, including the timestamp
+func (a *TradeStream) UnmarshalJSON(data []byte) error {
+	type Alias TradeStream
+	aux := &struct {
+		TimeStamp binanceTime `json:"T"`
+		EventTime binanceTime `json:"E"`
+		*Alias
+	}{
+		Alias: (*Alias)(a),
+	}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	a.TimeStamp = aux.TimeStamp.Time()
+	a.EventTime = aux.EventTime.Time()
+	return nil
+}
+
+// UnmarshalJSON deserialises the JSON info, including the timestamp
+func (a *wsOrderUpdate) UnmarshalJSON(data []byte) error {
+	type Alias wsOrderUpdate
+	aux := &struct {
+		Data struct {
+			EventTime         binanceTime `json:"E"`
+			OrderCreationTime binanceTime `json:"O"`
+			TransactionTime   binanceTime `json:"T"`
+			*WsOrderUpdateData
+		} `json:"data"`
+		*Alias
+	}{
+		Alias: (*Alias)(a),
+	}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	a.Data = *aux.Data.WsOrderUpdateData
+	a.Data.EventTime = aux.Data.EventTime.Time()
+	a.Data.OrderCreationTime = aux.Data.OrderCreationTime.Time()
+	a.Data.TransactionTime = aux.Data.TransactionTime.Time()
+	return nil
+}
+
+// UnmarshalJSON deserialises the JSON info, including the timestamp
+func (a *wsBalanceUpdate) UnmarshalJSON(data []byte) error {
+	type Alias wsBalanceUpdate
+	aux := &struct {
+		Data struct {
+			EventTime binanceTime `json:"E"`
+			ClearTime binanceTime `json:"T"`
+			*WsBalanceUpdateData
+		} `json:"data"`
+		*Alias
+	}{
+		Alias: (*Alias)(a),
+	}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	a.Data = *aux.Data.WsBalanceUpdateData
+	a.Data.EventTime = aux.Data.EventTime.Time()
+	a.Data.ClearTime = aux.Data.ClearTime.Time()
+	return nil
+}
+
+// UnmarshalJSON deserialises the JSON info, including the timestamp
+func (a *wsAccountPosition) UnmarshalJSON(data []byte) error {
+	type Alias wsAccountPosition
+	aux := &struct {
+		Data struct {
+			EventTime   binanceTime `json:"E"`
+			LastUpdated binanceTime `json:"u"`
+			*WsAccountPositionData
+		} `json:"data"`
+		*Alias
+	}{
+		Alias: (*Alias)(a),
+	}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	a.Data = *aux.Data.WsAccountPositionData
+	a.Data.EventTime = aux.Data.EventTime.Time()
+	a.Data.LastUpdated = aux.Data.LastUpdated.Time()
+	return nil
+}
+
+// UnmarshalJSON deserialises the JSON info, including the timestamp
+func (a *wsAccountInfo) UnmarshalJSON(data []byte) error {
+	type Alias wsAccountInfo
+	aux := &struct {
+		Data struct {
+			EventTime   binanceTime `json:"E"`
+			LastUpdated binanceTime `json:"u"`
+			*WsAccountInfoData
+		} `json:"data"`
+		*Alias
+	}{
+		Alias: (*Alias)(a),
+	}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	a.Data = *aux.Data.WsAccountInfoData
+	a.Data.EventTime = aux.Data.EventTime.Time()
+	a.Data.LastUpdated = aux.Data.LastUpdated.Time()
+	return nil
+}
+
+// UnmarshalJSON deserialises the JSON info, including the timestamp
+func (a *WebsocketDepthStream) UnmarshalJSON(data []byte) error {
+	type Alias WebsocketDepthStream
+	aux := &struct {
+		Timestamp binanceTime `json:"E"`
+		*Alias
+	}{
+		Alias: (*Alias)(a),
+	}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	a.Timestamp = aux.Timestamp.Time()
+	return nil
+}
+
+// UnmarshalJSON .. .
+func (a *WebsocketAggregateTradeStream) UnmarshalJSON(data []byte) error {
+	type Alias WebsocketAggregateTradeStream
+	chil := &struct {
+		*Alias
+		TradeTime int64 `json:"T"`
+		EventTime int64 `json:"E"`
+	}{}
+	if err := json.Unmarshal(data, chil); err != nil {
+		return err
+	}
+	if chil.TradeTime > 0 {
+		a.TradeTime = time.UnixMilli(chil.TradeTime)
+	}
+	if chil.EventTime > 0 {
+		a.EventTime = time.UnixMilli(chil.EventTime)
+	}
+	return nil
+}

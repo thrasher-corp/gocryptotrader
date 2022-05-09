@@ -28,6 +28,8 @@ import (
 type Binanceus struct {
 	validLimits []int
 	exchange.Base
+
+	obm *orderbookManager
 }
 
 const (
