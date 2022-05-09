@@ -129,7 +129,6 @@ func (m *OrderManager) CancelAllOrders(ctx context.Context, exchangeNames []exch
 	for i := range exchangeNames {
 		exchangeOrders, ok := orders[strings.ToLower(exchangeNames[i].GetName())]
 		if !ok {
-			fmt.Println("pew")
 			continue
 		}
 		for j := range exchangeOrders {
