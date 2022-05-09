@@ -488,8 +488,8 @@ func (b *BTCMarkets) RemoveOrder(ctx context.Context, id string) (CancelOrderRes
 		request.Auth)
 }
 
-// ReplaceAnOrder cancels an order and then places a new order.
-func (b *BTCMarkets) ReplaceAnOrder(ctx context.Context, id, clientOrderID string, price, amount float64) (*OrderData, error) {
+// ReplaceOrder cancels an order and then places a new order.
+func (b *BTCMarkets) ReplaceOrder(ctx context.Context, id, clientOrderID string, price, amount float64) (*OrderData, error) {
 	if price <= 0 {
 		return nil, fmt.Errorf("price %w", errInvalidAmount)
 	}

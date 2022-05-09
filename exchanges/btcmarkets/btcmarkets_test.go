@@ -1041,19 +1041,19 @@ func TestGetTimeInForce(t *testing.T) {
 	}
 }
 
-func TestReplaceAnOrder(t *testing.T) {
+func TestReplaceOrder(t *testing.T) {
 	t.Parallel()
-	_, err := b.ReplaceAnOrder(context.Background(), "", "bro", 0, 0)
+	_, err := b.ReplaceOrder(context.Background(), "", "bro", 0, 0)
 	if !errors.Is(err, errInvalidAmount) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidAmount)
 	}
 
-	_, err = b.ReplaceAnOrder(context.Background(), "", "bro", 1, 0)
+	_, err = b.ReplaceOrder(context.Background(), "", "bro", 1, 0)
 	if !errors.Is(err, errInvalidAmount) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidAmount)
 	}
 
-	_, err = b.ReplaceAnOrder(context.Background(), "", "bro", 1, 1)
+	_, err = b.ReplaceOrder(context.Background(), "", "bro", 1, 1)
 	if !errors.Is(err, errIDRequired) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errIDRequired)
 	}
@@ -1062,7 +1062,7 @@ func TestReplaceAnOrder(t *testing.T) {
 		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
 	}
 
-	_, err = b.ReplaceAnOrder(context.Background(), "8207096301", "bruh", 100000, 0.001)
+	_, err = b.ReplaceOrder(context.Background(), "8207096301", "bruh", 100000, 0.001)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}

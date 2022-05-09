@@ -584,7 +584,7 @@ func (b *BTCMarkets) ModifyOrder(ctx context.Context, action *order.Modify) (*or
 	if err := action.Validate(); err != nil {
 		return nil, err
 	}
-	resp, err := b.ReplaceAnOrder(ctx, action.ID, action.ClientOrderID, action.Price, action.Amount)
+	resp, err := b.ReplaceOrder(ctx, action.ID, action.ClientOrderID, action.Price, action.Amount)
 	if err != nil {
 		return nil, err
 	}
