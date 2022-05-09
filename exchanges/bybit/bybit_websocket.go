@@ -46,7 +46,7 @@ var comms = make(chan stream.Response)
 
 // WsConnect connects to a websocket feed
 func (by *Bybit) WsConnect() error {
-	if !by.Websocket.IsEnabled() || !by.IsEnabled() {
+	if !by.Websocket.IsEnabled() || !by.IsEnabled() || !by.IsAssetWebsocketSupported(asset.Spot) {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
@@ -430,12 +430,12 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 		}
 	}
 
-	if m, ok := multiStreamData["auth"].(string); ok {
+	if m, ok := multiStreamData["auth"]; ok {
 		log.Infof(log.WebsocketMgr, "%v received auth response: %v", by.Name, m)
 		return nil
 	}
 
-	if m, ok := multiStreamData["ping"].(string); ok {
+	if m, ok := multiStreamData["ping"]; ok {
 		log.Infof(log.WebsocketMgr, "%v received ping: %v", by.Name, m)
 		return nil
 	}

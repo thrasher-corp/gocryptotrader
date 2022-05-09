@@ -2390,7 +2390,6 @@ func TestGetActiveOrders(t *testing.T) {
 	}
 
 	var getOrdersRequestSpot = order.GetOrdersRequest{
-		Type:      order.AnyType,
 		Pairs:     currency.Pairs{pair},
 		AssetType: asset.Spot,
 	}
@@ -2400,13 +2399,42 @@ func TestGetActiveOrders(t *testing.T) {
 		t.Error(err)
 	}
 
-	var getOrdersRequestCMF = order.GetOrdersRequest{
-		Type:      order.AnyType,
+	var getOrdersRequestUMF = order.GetOrdersRequest{
 		Pairs:     currency.Pairs{pair},
 		AssetType: asset.USDTMarginedFutures,
 	}
 
+	_, err = b.GetActiveOrders(context.Background(), &getOrdersRequestUMF)
+	if err != nil {
+		t.Error(err)
+	}
+
+	pair1, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var getOrdersRequestCMF = order.GetOrdersRequest{
+		Pairs:     currency.Pairs{pair1},
+		AssetType: asset.CoinMarginedFutures,
+	}
+
 	_, err = b.GetActiveOrders(context.Background(), &getOrdersRequestCMF)
+	if err != nil {
+		t.Error(err)
+	}
+
+	pair2, err := currency.NewPairFromString("BTCUSDH22")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var getOrdersRequestFutures = order.GetOrdersRequest{
+		Pairs:     currency.Pairs{pair2},
+		AssetType: asset.Futures,
+	}
+
+	_, err = b.GetActiveOrders(context.Background(), &getOrdersRequestFutures)
 	if err != nil {
 		t.Error(err)
 	}
