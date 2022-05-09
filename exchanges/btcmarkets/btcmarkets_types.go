@@ -16,6 +16,7 @@ type Market struct {
 	MaxOrderAmount float64 `json:"maxOrderAmount,string"`
 	AmountDecimals float64 `json:"amountDecimals,string"`
 	PriceDecimals  float64 `json:"priceDecimals,string"`
+	Status         string  `json:"status"`
 }
 
 // Ticker holds ticker information
