@@ -66,3 +66,5 @@ After previous command, make necessary changes to the `rpc.proto` spec file and 
 ```shell
 buf generate
 ```
+
+If any changes were made, ensure that the `rpc.proto` file is formatted correctly by using `buf format -w`
