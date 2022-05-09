@@ -1102,7 +1102,7 @@ func (b *BTCMarkets) GetServerTime(ctx context.Context, _ asset.Item) (time.Time
 
 // UpdateOrderExecutionLimits sets exchange executions for a required asset type
 func (b *BTCMarkets) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
-	if !a.IsValid() || a != asset.Spot {
+	if a != asset.Spot {
 		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
 	}
 
@@ -1113,7 +1113,8 @@ func (b *BTCMarkets) UpdateOrderExecutionLimits(ctx context.Context, a asset.Ite
 
 	limits := make([]order.MinMaxLevel, len(markets))
 	for x := range markets {
-		pair, err := currency.NewPairFromStrings(markets[x].BaseAsset, markets[x].QuoteAsset)
+		var pair currency.Pair
+		pair, err = currency.NewPairFromStrings(markets[x].BaseAsset, markets[x].QuoteAsset)
 		if err != nil {
 			return err
 		}
