@@ -1447,7 +1447,8 @@ func (s *RPCServer) CancelBatchOrders(ctx context.Context, r *gctrpc.CancelBatch
 	}
 
 	return &gctrpc.CancelBatchOrdersResponse{
-		Orders: []*gctrpc.CancelBatchOrdersResponse_Orders{{
+		Orders: []*gctrpc.Orders{{
+			Exchange:    r.Exchange,
 			OrderStatus: status,
 		}},
 	}, nil

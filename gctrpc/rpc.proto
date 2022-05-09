@@ -404,10 +404,12 @@ message CancelBatchOrdersRequest {
   string side = 7;
 }
 
+message Orders {
+  string exchange = 1;
+  map<string, string> order_status = 2;
+}
+
 message CancelBatchOrdersResponse {
-  message Orders {
-    map<string, string> order_status = 1;
-  }
   repeated Orders orders = 1;
 }
 
@@ -416,10 +418,6 @@ message CancelAllOrdersRequest {
 }
 
 message CancelAllOrdersResponse {
-  message Orders {
-    string exchange = 1;
-    map<string, string> order_status = 2;
-  }
   repeated Orders orders = 1;
   int64 count = 2;
 }

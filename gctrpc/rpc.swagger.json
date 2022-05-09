@@ -3727,26 +3727,12 @@
         "orders": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/gctrpcCancelAllOrdersResponseOrders"
+            "$ref": "#/definitions/gctrpcOrders"
           }
         },
         "count": {
           "type": "string",
           "format": "int64"
-        }
-      }
-    },
-    "gctrpcCancelAllOrdersResponseOrders": {
-      "type": "object",
-      "properties": {
-        "exchange": {
-          "type": "string"
-        },
-        "orderStatus": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "string"
-          }
         }
       }
     },
@@ -3782,18 +3768,7 @@
         "orders": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/gctrpcCancelBatchOrdersResponseOrders"
-          }
-        }
-      }
-    },
-    "gctrpcCancelBatchOrdersResponseOrders": {
-      "type": "object",
-      "properties": {
-        "orderStatus": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "string"
+            "$ref": "#/definitions/gctrpcOrders"
           }
         }
       }
@@ -5202,6 +5177,20 @@
           "type": "array",
           "items": {
             "$ref": "#/definitions/gctrpcOrderbookResponse"
+          }
+        }
+      }
+    },
+    "gctrpcOrders": {
+      "type": "object",
+      "properties": {
+        "exchange": {
+          "type": "string"
+        },
+        "orderStatus": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
           }
         }
       }
