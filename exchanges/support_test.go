@@ -3,7 +3,7 @@ package exchange
 import "testing"
 
 func TestIsSupported(t *testing.T) {
-	if ok := IsSupported("BiTStaMp"); !ok {
+	if ok := IsSupported("Binanceus"); !ok {
 		t.Error("supported exchange should be valid")
 	}
 

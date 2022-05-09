@@ -85,6 +85,7 @@ func main() {
 	listenAddr := cfg.RemoteControl.WebsocketRPC.ListenAddress
 	wsHost := fmt.Sprintf("ws://%s:%d/ws", common.ExtractHost(listenAddr),
 		common.ExtractPort(listenAddr))
+
 	log.Printf("Connecting to websocket host: %s", wsHost)
 
 	var dialer websocket.Dialer
@@ -164,7 +165,7 @@ func main() {
 
 	log.Println("Getting specific ticker..")
 	dataReq := WebsocketOrderbookTickerRequest{
-		Exchange:  "Bitfinex",
+		Exchange:  "Binanceus",
 		Currency:  "BTCUSD",
 		AssetType: asset.Spot,
 	}

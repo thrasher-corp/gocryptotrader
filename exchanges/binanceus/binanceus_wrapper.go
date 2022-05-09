@@ -23,6 +23,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -41,12 +42,6 @@ func (bi *Binanceus) GetDefaultConfig() (*config.Exchange, error) {
 	if er != nil {
 		return nil, er
 	}
-	bi.SetCredentials("",
-		"",
-		"",
-		"Binanceus",
-		"",
-		"")
 
 	if bi.Features.Supports.RESTCapabilities.AutoPairUpdates {
 		err := bi.UpdateTradablePairs(context.TODO(), true)
@@ -61,7 +56,7 @@ func (bi *Binanceus) GetDefaultConfig() (*config.Exchange, error) {
 func (bi *Binanceus) SetDefaults() {
 	bi.Name = "Binanceus"
 	bi.Enabled = true
-	bi.Verbose = true
+	bi.Verbose = false
 	bi.API.CredentialsValidator.RequiresKey = true
 	bi.API.CredentialsValidator.RequiresSecret = true
 	bi.SetValues()
@@ -106,6 +101,8 @@ func (bi *Binanceus) SetDefaults() {
 			WebsocketCapabilities: protocol.Features{
 				TickerFetching:    true,
 				OrderbookFetching: true,
+				Subscribe:         true,
+				Unsubscribe:       true,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.AutoWithdrawFiat,
@@ -144,9 +141,10 @@ func (bi *Binanceus) SetDefaults() {
 	// NOTE: SET THE URLs HERE
 	bi.API.Endpoints = bi.NewEndpoints()
 	bi.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
-		exchange.RestSpot:              binanceusAPIURL,
-		exchange.RestSpotSupplementary: binanceusAPIURL,
-		// exchange.WebsocketSpot: binanceusWSAPIURL,
+		exchange.RestSpot:                   binanceusAPIURL,
+		exchange.RestSpotSupplementary:      binanceusAPIURL,
+		exchange.WebsocketSpot:              binanceusDefaultWebsocketURL,
+		exchange.WebsocketSpotSupplementary: binanceusDefaultWebsocketURL,
 	})
 	bi.Websocket = stream.New()
 	bi.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -169,37 +167,35 @@ func (bi *Binanceus) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	// wsRunningEndpoint, err := bi.API.Endpoints.GetURL(exchange.WebsocketSpot)
-	// if err != nil {
-	// 	return err
-	// }
+	ePoint, err := bi.API.Endpoints.GetURL(exchange.WebsocketSpot)
+	if err != nil {
+		return err
+	}
 
-	// If websocket is supported, please fill out the following
+	err = bi.Websocket.Setup(&stream.WebsocketSetup{
+		ExchangeConfig:        exch,
+		DefaultURL:            binanceusDefaultWebsocketURL,
+		RunningURL:            ePoint,
+		Connector:             bi.WsConnect,
+		Subscriber:            bi.Subscribe,
+		Unsubscriber:          bi.Unsubscribe,
+		GenerateSubscriptions: bi.GenerateSubscriptions,
+		Features:              &bi.Features.Supports.WebsocketCapabilities,
+		OrderbookBufferConfig: buffer.Config{
+			SortBuffer:            true,
+			SortBufferByUpdateIDs: true,
+		},
+		TradeFeed: bi.Features.Enabled.TradeFeed,
+	})
+	if err != nil {
+		return err
+	}
 
-	// err = bi.Websocket.Setup(
-	// 	&stream.WebsocketSetup{
-	// 		ExchangeConfig: exch,
-	// 		DefaultURL:     binanceusDefaultWebsocketURL,
-	// 		RunningURL:     wsRunningEndpoint,
-	// 		Connector:      bi.WsConnect,
-	// 		Subscriber:     bi.Subscribe,
-	// 		UnSubscriber:   bi.Unsubscribe,
-	// 		Features:       &bi.Features.Supports.WebsocketCapabilities,
-	// 	})
-	// if err != nil {
-	// 	return err
-	// }
-
-	// bi.WebsocketConn = &stream.WebsocketConnection{
-	// 	ExchangeName:         bi.Name,
-	// 	URL:                  bi.Websocket.GetWebsocketURL(),
-	// 	ProxyURL:             bi.Websocket.GetProxyAddress(),
-	// 	Verbose:              bi.Verbose,
-	// 	ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-	// 	ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-	// }
-
-	return nil
+	return bi.Websocket.SetupNewConnection(stream.ConnectionSetup{
+		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		RateLimit:            wsRateLimitMilliseconds,
+	})
 }
 
 // Start starts the Binanceus go routine
