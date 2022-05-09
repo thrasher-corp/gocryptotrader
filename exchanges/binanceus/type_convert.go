@@ -513,7 +513,9 @@ func (a *WebsocketAggregateTradeStream) UnmarshalJSON(data []byte) error {
 		*Alias
 		TradeTime int64 `json:"T"`
 		EventTime int64 `json:"E"`
-	}{}
+	}{
+		Alias: (*Alias)(a),
+	}
 	if err := json.Unmarshal(data, chil); err != nil {
 		return err
 	}
@@ -525,3 +527,22 @@ func (a *WebsocketAggregateTradeStream) UnmarshalJSON(data []byte) error {
 	}
 	return nil
 }
+
+// func (a *OrderBookTickerStream) UnmarshalJSON(data []byte) error {
+// 	type Alias OrderBookTickerStream
+// 	child := &struct {
+// 		*Alias
+// 		S string `json:"s"`
+// 	}{
+// 		Alias: (*Alias)(a),
+// 	}
+// 	err := json.Unmarshal(data, child)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	if child.S != "" {
+// 		a.Symbol, err = currency.NewPairFromString(child.S)
+// 		return nil
+// 	}
+// 	return nil
+// }

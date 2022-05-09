@@ -438,7 +438,6 @@ func (b *Binanceus) wsHandleData(respRaw []byte) error {
 					}
 					b.Websocket.DataHandler <- depth
 					return nil
-
 				case "bookTicker":
 					var bo OrderBookTickerStream
 					err := json.Unmarshal(rawData, &bo)
@@ -472,7 +471,33 @@ func (b *Binanceus) wsHandleData(respRaw []byte) error {
 				}
 			}
 		} else if wsStream == "!bookTicker" {
-			// TODO: ---
+			var bt OrderBookTickerStream
+			if data, ok := multiStreamData["data"]; ok {
+				rawData, err := json.Marshal(data)
+				if err != nil {
+					return err
+				}
+				pairs, err := b.GetEnabledPairs(asset.Spot)
+				if err != nil {
+					return err
+				}
+
+				format, err := b.GetPairFormat(asset.Spot, true)
+				if err != nil {
+					return err
+				}
+				err = json.Unmarshal(rawData, &bt)
+				if err != nil {
+					return fmt.Errorf("%v - Could not convert to bookOrder structure %s ", err, b.Name)
+				}
+				pair, err := currency.NewPairFromFormattedPairs(bt.S, pairs, format)
+				if err != nil {
+					return err
+				}
+				bt.Symbol = pair
+				b.Websocket.DataHandler <- &bt
+				return nil
+			}
 		}
 	}
 	return fmt.Errorf("unhandled stream data %s", string(respRaw))
