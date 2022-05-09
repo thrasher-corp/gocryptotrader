@@ -368,16 +368,15 @@ func (m *websocketRoutineManager) registerWebsocketDataHandler(fn WebsocketDataH
 		return errNilWebsocketDataHandlerFunction
 	}
 
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
 	if interceptorOnly {
 		return m.setWebsocketDataHandler(fn)
 	}
 
+	m.mu.Lock()
 	// Push front so that any registered data handler has first preference
 	// over the gct default handler.
 	m.dataHandlers = append([]WebsocketDataHandler{fn}, m.dataHandlers...)
+	m.mu.Unlock()
 	return nil
 }
 
@@ -390,6 +389,8 @@ func (m *websocketRoutineManager) setWebsocketDataHandler(fn WebsocketDataHandle
 	if fn == nil {
 		return errNilWebsocketDataHandlerFunction
 	}
+	m.mu.Lock()
 	m.dataHandlers = []WebsocketDataHandler{fn}
+	m.mu.Unlock()
 	return nil
 }
