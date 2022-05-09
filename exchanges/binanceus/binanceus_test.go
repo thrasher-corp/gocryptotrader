@@ -6,10 +6,13 @@ import (
 	"errors"
 	"log"
 	"os"
+	"reflect"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -17,6 +20,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -31,6 +36,8 @@ const (
 var (
 	bi              Binanceus
 	testPairMapping = currency.NewPair(currency.BTC, currency.USDT)
+	// this lock guards against orderbook tests race
+	binanceOrderBookLock = &sync.Mutex{}
 )
 
 func TestMain(m *testing.M) {
@@ -39,26 +46,49 @@ func TestMain(m *testing.M) {
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig("../../testdata/configtest.json", true)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("Binanceus load config error", err)
 	}
 
 	exchCfg, err := cfg.GetExchangeConfig("Binanceus")
 	if err != nil {
 		log.Fatal(err)
 	}
+	bi.SkipAuthCheck = true
 
 	exchCfg.API.AuthenticatedSupport = true
 	exchCfg.API.AuthenticatedWebsocketSupport = true
 	exchCfg.API.Credentials.Key = apiKey
 	exchCfg.API.Credentials.Secret = apiSecret
 
+	bi.Websocket = sharedtestvalues.NewTestWebsocket()
 	err = bi.Setup(exchCfg)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("Binanceus TestMain()", err)
 	}
+	// This method instantiates the Order Book Manager of Binanceus
+	bi.setupOrderbookManager()
 
 	os.Exit(m.Run())
 }
+
+/*  For the websocket testing  */
+
+// This is for testing the wait group
+func TestStart(t *testing.T) {
+	t.Parallel()
+	err := bi.Start(nil)
+	if !errors.Is(err, common.ErrNilPointer) {
+		t.Fatalf("%s received: '%v' but expected: '%v'", bi.Name, err, common.ErrNilPointer)
+	}
+	var testWg sync.WaitGroup
+	err = bi.Start(&testWg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	testWg.Wait()
+}
+
+/* End */
 
 // Ensures that this exchange package is compatible with IBotExchange
 func TestInterface(t *testing.T) {
@@ -81,13 +111,6 @@ func TestGetExchangeInfo(t *testing.T) {
 		println("DERR: ", err.Error())
 		t.Error(err)
 	}
-	// println(info)
-	// if mockTests {
-	// 	serverTime := time.Date(2022, 2, 25, 3, 50, 40, int(601*time.Millisecond), time.UTC)
-	// 	if !info.Servertime.Equal(serverTime) {
-	// 		t.Errorf("Expected %v, got %v", serverTime, info.Servertime)
-	// 	}
-	// }
 }
 
 /************************************************************************/
@@ -981,7 +1004,15 @@ func TestWithdrawCrypto(t *testing.T) {
 	}
 }
 
-func TestGetWsAuthStreamKey(t *testing.T) {
+// WEBSOCKET support testing
+// Since both binance and Binance US has same websocket functions,
+// the tests functions are also simmilar
+
+// TestWebsocketStreamKey .. this test mmethod handles the
+// creating, updating, and deleting of user stream key or "listenKey"
+// all the three methods in one test methods.
+
+func TestWebsocketStreamKey(t *testing.T) {
 	t.Parallel()
 
 	lnKey, er := bi.GetWsAuthStreamKey(context.Background())
@@ -997,5 +1028,467 @@ func TestGetWsAuthStreamKey(t *testing.T) {
 	er = bi.CloseUserDataStream(context.Background())
 	if er != nil {
 		t.Error("Binanceus CloseUserDataStream() error", er)
+	}
+}
+
+var subscriptionRequestString = `{
+	"method": "SUBSCRIBE",
+	"params": [
+	  "btcusdt@aggTrade",
+	  "btcusdt@depth"
+	],
+	"id": 1
+  }`
+
+func TestWebsocketSubscriptionHandling(t *testing.T) {
+	t.Parallel()
+	rawData := []byte(subscriptionRequestString)
+	err := bi.wsHandleData(rawData)
+	if err != nil {
+		t.Error("Binanceus wsHandleData() error", err)
+	}
+}
+
+func TestSubscribe(t *testing.T) {
+	t.Parallel()
+	subscriptions := []stream.ChannelSubscription{
+		{
+			Channel: "btcusdt@depth",
+		},
+		{
+			Channel: "ltcusdt@aggTrade",
+		},
+		{
+			Channel: "btcltc@depth",
+		},
+	}
+	bi.Subscribe(subscriptions)
+}
+func TestWebsocketUnsubscriptionHandling(t *testing.T) {
+	pressXToJSON := []byte(`{
+  "method": "UNSUBSCRIBE",
+  "params": [
+    "btcusdt@depth"
+  ],
+  "id": 312
+}`)
+	err := bi.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestUnsubscription(t *testing.T) {
+	t.Parallel()
+	unsubscriptions := []stream.ChannelSubscription{
+		{
+			Channel: "btcusdt@depth",
+		},
+		{
+			Channel: "ltcusdt@aggTrade",
+		},
+		{
+			Channel: "btcltc@depth",
+		},
+	}
+	bi.Unsubscribe(unsubscriptions)
+}
+
+func TestGetSubscriptions(t *testing.T) {
+	t.Parallel()
+	_, err := bi.GetSubscriptions()
+	if err != nil {
+		t.Error("Binanceus GetSubscriptions() error", err)
+	}
+}
+
+var ticker24hourChangeStream = `{
+	"stream":"btcusdt@ticker",
+	"data" :{
+		"e": "24hrTicker",  
+		"E": 123456789,     
+		"s": "BNBBTC",      
+		"p": "0.0015",      
+		"P": "250.00",      
+		"w": "0.0018",      
+		"x": "0.0009",      
+		"c": "0.0025",      
+		"Q": "10",          
+		"b": "0.0024",       
+		"B": "10",           
+		"a": "0.0026",       
+		"A": "100",          
+		"o": "0.0010",      
+		"h": "0.0025",      
+		"l": "0.0010",      
+		"v": "10000",        
+		"q": "18",           
+		"O": 0,             
+		"C": 86400000,      
+		"F": 0,             
+		"L": 18150,         
+		"n": 18151           
+  }
+}
+`
+
+func TestWebsocketTickerUpdate(t *testing.T) {
+	t.Parallel()
+	err := bi.wsHandleData([]byte(ticker24hourChangeStream))
+	if err != nil {
+		t.Error("Binanceus wsHandleData() for Ticker 24h Change Stream", err)
+	}
+}
+
+func TestWebsocketKlineUpdate(t *testing.T) {
+	t.Parallel()
+	pressXToJSON := []byte(`
+	{
+		"stream":"btcusdt@kline_1m",
+		"data":{
+			"e": "kline",     
+			"E": 123456789,   
+			"s": "BNBBTC",    
+			"k": {
+				"t": 123400000, 
+				"T": 123460000, 
+				"s": "BNBBTC",  
+				"i": "1m",      
+				"f": 100,       
+				"L": 200,       
+				"o": "0.0010",  
+				"c": "0.0020",  
+				"h": "0.0025",  
+				"l": "0.0015",  
+				"v": "1000",    
+				"n": 100,       
+				"x": false,     
+				"q": "1.0000",  
+				"V": "500",     
+				"Q": "0.500",   
+				"B": "123456"   
+	  			}
+			}
+		}`)
+	err := bi.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error("Binanceus wsHandleData() btcusdt@kline_1m stream data conversion ", err)
+	}
+}
+
+func TestWebsocketStreamTradeUpdate(t *testing.T) {
+	t.Parallel()
+	pressXToJSON := []byte(`{"stream":"btcusdt@trade","data":{
+	  "e": "trade",     
+	  "E": 123456789,   
+	  "s": "BNBBTC",    
+	  "t": 12345,       
+	  "p": "0.001",     
+	  "q": "100",
+	  "b": 88,        
+	  "a": 50,          
+	  "T": 123456785,
+	  "m": true,        
+	  "M": true         
+	}}`)
+	err := bi.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error("Binanceus wsHandleData() error", err)
+	}
+}
+
+// TestWsDepthUpdate copied from the Binance Test
+func TestWebsocketDepthUpdate(t *testing.T) {
+	binanceOrderBookLock.Lock()
+	defer binanceOrderBookLock.Unlock()
+	bi.setupOrderbookManager()
+	seedLastUpdateID := int64(161)
+	book := OrderBook{
+		Asks: []OrderbookItem{
+			{Price: 6621.80000000, Quantity: 0.00198100},
+			{Price: 6622.14000000, Quantity: 4.00000000},
+			{Price: 6622.46000000, Quantity: 2.30000000},
+			{Price: 6622.47000000, Quantity: 1.18633300},
+			{Price: 6622.64000000, Quantity: 4.00000000},
+			{Price: 6622.73000000, Quantity: 0.02900000},
+			{Price: 6622.76000000, Quantity: 0.12557700},
+			{Price: 6622.81000000, Quantity: 2.08994200},
+			{Price: 6622.82000000, Quantity: 0.01500000},
+			{Price: 6623.17000000, Quantity: 0.16831300},
+		},
+		Bids: []OrderbookItem{
+			{Price: 6621.55000000, Quantity: 0.16356700},
+			{Price: 6621.45000000, Quantity: 0.16352600},
+			{Price: 6621.41000000, Quantity: 0.86091200},
+			{Price: 6621.25000000, Quantity: 0.16914100},
+			{Price: 6621.23000000, Quantity: 0.09193600},
+			{Price: 6621.22000000, Quantity: 0.00755100},
+			{Price: 6621.13000000, Quantity: 0.08432000},
+			{Price: 6621.03000000, Quantity: 0.00172000},
+			{Price: 6620.94000000, Quantity: 0.30506700},
+			{Price: 6620.93000000, Quantity: 0.00200000},
+		},
+		LastUpdateID: seedLastUpdateID,
+	}
+
+	update1 := []byte(`{"stream":"btcusdt@depth","data":{
+	  "e": "depthUpdate", 
+	  "E": 123456788,     
+	  "s": "BTCUSDT",      
+	  "U": 157,           
+	  "u": 160,           
+	  "b": [              
+		["6621.45", "0.3"]
+	  ],
+	  "a": [              
+		["6622.46", "1.5"]
+	  ]
+	}}`)
+
+	p := currency.NewPairWithDelimiter("BTC", "USDT", "-")
+	if err := bi.SeedLocalCacheWithBook(p, &book); err != nil {
+		t.Error(err)
+	}
+
+	if err := bi.wsHandleData(update1); err != nil {
+		t.Error(err)
+	}
+
+	bi.obm.state[currency.BTC][currency.USDT][asset.Spot].fetchingBook = false
+
+	ob, err := bi.Websocket.Orderbook.GetOrderbook(p, asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if exp, got := seedLastUpdateID, ob.LastUpdateID; got != exp {
+		t.Fatalf("Unexpected Last update id of orderbook for old update. Exp: %d, got: %d", exp, got)
+	}
+	if exp, got := 2.3, ob.Asks[2].Amount; got != exp {
+		t.Fatalf("Ask altered by outdated update. Exp: %f, got %f", exp, got)
+	}
+	if exp, got := 0.163526, ob.Bids[1].Amount; got != exp {
+		t.Fatalf("Bid altered by outdated update. Exp: %f, got %f", exp, got)
+	}
+	update2 := []byte(`{"stream":"btcusdt@depth","data":{
+	  "e": "depthUpdate", 
+	  "E": 123456789,     
+	  "s": "BTCUSDT",      
+	  "U": 161,           
+	  "u": 165,           
+	  "b": [           
+		["6621.45", "0.163526"]
+	  ],
+	  "a": [             
+		["6622.46", "2.3"], 
+		["6622.47", "1.9"]
+	  ]
+	}}`)
+
+	if err = bi.wsHandleData(update2); err != nil {
+		t.Error(err)
+	}
+
+	ob, err = bi.Websocket.Orderbook.GetOrderbook(p, asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if exp, got := int64(165), ob.LastUpdateID; got != exp {
+		t.Fatalf("Binanceus Unexpected Last update id of orderbook for new update. Exp: %d, got: %d", exp, got)
+	}
+	if exp, got := 2.3, ob.Asks[2].Amount; got != exp {
+		t.Fatalf("Binanceus Unexpected Ask amount. Exp: %f, got %f", exp, got)
+	}
+	if exp, got := 1.9, ob.Asks[3].Amount; got != exp {
+		t.Fatalf("Binanceus Unexpected Ask amount. Exp: %f, got %f", exp, got)
+	}
+	if exp, got := 0.163526, ob.Bids[1].Amount; got != exp {
+		t.Fatalf("Binanceus Unexpected Bid amount. Exp: %f, got %f", exp, got)
+	}
+	bi.obm.state[currency.BTC][currency.USDT][asset.Spot].lastUpdateID = 0
+}
+
+var balanceUpdateInputJSON = `
+{
+	"stream":"jTfvpakT2yT0hVIo5gYWVihZhdM2PrBgJUZ5PyfZ4EVpCkx4Uoxk5timcrQc",
+	"data":{
+		"e": "balanceUpdate",         
+		"E": 1573200697110,           
+		"a": "BTC",                   
+		"d": "100.00000000",          
+		"T": 1573200697068            
+  }
+}`
+
+func TestWebsocketBalanceUpdate(t *testing.T) {
+	t.Parallel()
+	thejson := []byte(balanceUpdateInputJSON)
+	err := bi.wsHandleData(thejson)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+var listStatusUserDataStreamPayload = `
+{
+	"stream":"jTfvpakT2yT0hVIo5gYWVihZhdM2PrBgJUZ5PyfZ4EVpCkx4Uoxk5timcrQc",
+	"data":{
+		"e": "listStatus",                
+		"E": 1564035303637,               
+		"s": "ETHBTC",                    
+		"g": 2,                           
+		"c": "OCO",                       
+		"l": "EXEC_STARTED",              
+		"L": "EXECUTING",                 
+		"r": "NONE",                      
+		"C": "F4QN4G8DlFATFlIUQ0cjdD",    
+		"T": 1564035303625,               
+		"O": [                            
+			{
+				"s": "ETHBTC",                
+				"i": 17,                      
+				"c": "AJYsMjErWJesZvqlJCTUgL" 
+			},
+			{
+				"s": "ETHBTC",
+				"i": 18,
+				"c": "bfYPSQdLoqAJeNrOr9adzq"
+			}
+		]
+	}
+}`
+
+func TestWebsocketListStatus(t *testing.T) {
+	t.Parallel()
+	err := bi.wsHandleData([]byte(listStatusUserDataStreamPayload))
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+// TestExecutionTypeToOrderStatus ..
+func TestExecutionTypeToOrderStatus(t *testing.T) {
+	// directly copied from binance
+	type TestCases struct {
+		Case   string
+		Result order.Status
+	}
+	testCases := []TestCases{
+		{Case: "NEW", Result: order.New},
+		{Case: "PARTIALLY_FILLED", Result: order.PartiallyFilled},
+		{Case: "FILLED", Result: order.Filled},
+		{Case: "CANCELED", Result: order.Cancelled},
+		{Case: "PENDING_CANCEL", Result: order.PendingCancel},
+		{Case: "REJECTED", Result: order.Rejected},
+		{Case: "EXPIRED", Result: order.Expired},
+		{Case: "LOL", Result: order.UnknownStatus},
+	}
+	for i := range testCases {
+		result, _ := stringToOrderStatus(testCases[i].Case)
+		if result != testCases[i].Result {
+			t.Errorf("Binanceus Exepcted: %v, received: %v", testCases[i].Result, result)
+		}
+	}
+}
+
+var websocketDepthUpdate = []byte(
+	`{
+		"e": "depthUpdate",
+		"E": 123456789,    
+		"s": "BNBBTC",     
+		"U": 157,          
+		"u": 160,          
+		"b": [             
+		  [
+			"0.0024",      
+			"10"           
+		  ]
+		],
+		"a": [             
+		  [
+			"0.0026",      
+			"100"          
+		  ]
+		]
+	  }
+	`)
+
+func TestProcessUpdate(t *testing.T) {
+	t.Parallel()
+	binanceOrderBookLock.Lock()
+	defer binanceOrderBookLock.Unlock()
+	p := currency.NewPair(currency.BTC, currency.USDT)
+	var depth WebsocketDepthStream
+	err := json.Unmarshal(websocketDepthUpdate, &depth)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = bi.obm.stageWsUpdate(&depth, p, asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = bi.obm.fetchBookViaREST(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = bi.obm.cleanup(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bi.obm.state[currency.BTC][currency.USDT][asset.Spot].lastUpdateID = 0
+}
+
+func TestWebsocketOrderExecutionReport(t *testing.T) {
+	payload := []byte(`{"stream":"jTfvpakT2yT0hVIo5gYWVihZhdM2PrBgJUZ5PyfZ4EVpCkx4Uoxk5timcrQc","data":{"e":"executionReport","E":1616627567900,"s":"BTCUSDT","c":"c4wyKsIhoAaittTYlIVLqk","S":"BUY","o":"LIMIT","f":"GTC","q":"0.00028400","p":"52789.10000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"NEW","X":"NEW","r":"NONE","i":5340845958,"l":"0.00000000","z":"0.00000000","L":"0.00000000","n":"0","N":"BTC","T":1616627567900,"t":-1,"I":11388173160,"w":true,"m":false,"M":false,"O":1616627567900,"Z":"0.00000000","Y":"0.00000000","Q":"0.00000000"}}`)
+	expRes := order.Detail{
+		Price:                52789.1,
+		Amount:               0.00028400,
+		AverageExecutedPrice: 0,
+		QuoteAmount:          0,
+		ExecutedAmount:       0,
+		RemainingAmount:      0.00028400,
+		Cost:                 0,
+		CostAsset:            currency.USDT,
+		Fee:                  0,
+		FeeAsset:             currency.BTC,
+		Exchange:             "Binanceus",
+		ID:                   "5340845958",
+		ClientOrderID:        "c4wyKsIhoAaittTYlIVLqk",
+		Type:                 order.Limit,
+		Side:                 order.Buy,
+		Status:               order.New,
+		AssetType:            asset.Spot,
+		Date:                 time.UnixMilli(1616627567900),
+		LastUpdated:          time.UnixMilli(1616627567900),
+		Pair:                 currency.NewPair(currency.BTC, currency.USDT),
+	}
+	for len(bi.Websocket.DataHandler) > 0 {
+		<-bi.Websocket.DataHandler
+	}
+	err := bi.wsHandleData(payload)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res := <-bi.Websocket.DataHandler
+	switch r := res.(type) {
+	case *order.Detail:
+		if !reflect.DeepEqual(expRes, *r) {
+			t.Errorf("Results do not match:\nexpected: %v\nreceived: %v", expRes, *r)
+		}
+	default:
+		t.Fatalf("expected type order.Detail, found %T", res)
+	}
+	payload = []byte(`{"stream":"jTfvpakT2yT0hVIo5gYWVihZhdM2PrBgJUZ5PyfZ4EVpCkx4Uoxk5timcrQc","data":{"e":"executionReport","E":1616633041556,"s":"BTCUSDT","c":"YeULctvPAnHj5HXCQo9Mob","S":"BUY","o":"LIMIT","f":"GTC","q":"0.00028600","p":"52436.85000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"TRADE","X":"FILLED","r":"NONE","i":5341783271,"l":"0.00028600","z":"0.00028600","L":"52436.85000000","n":"0.00000029","N":"BTC","T":1616633041555,"t":726946523,"I":11390206312,"w":false,"m":false,"M":true,"O":1616633041555,"Z":"14.99693910","Y":"14.99693910","Q":"0.00000000"}}`)
+	err = bi.wsHandleData(payload)
+	if err != nil {
+		t.Fatal("Binanceus OrderExecutionReport json conversion error", err)
+	}
+}
+
+func TestWebsocketOutboundAccountPosition(t *testing.T) {
+	t.Parallel()
+	payload := []byte(`{"stream":"jTfvpakT2yT0hVIo5gYWVihZhdM2PrBgJUZ5PyfZ4EVpCkx4Uoxk5timcrQc","data":{"e":"outboundAccountPosition","E":1616628815745,"u":1616628815745,"B":[{"a":"BTC","f":"0.00225109","l":"0.00123000"},{"a":"BNB","f":"0.00000000","l":"0.00000000"},{"a":"USDT","f":"54.43390661","l":"0.00000000"}]}}`)
+	if err := bi.wsHandleData(payload); err != nil {
+		t.Fatal("Binanceus testing \"outboundAccountPosition\" data conversion error", err)
 	}
 }
