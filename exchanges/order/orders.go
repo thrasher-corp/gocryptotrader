@@ -490,21 +490,21 @@ func (d *Detail) copy() Detail {
 
 // GetCopySlice returns a copy of all order details
 func GetCopySlice(old []*Detail) []Detail {
-	copy := make([]Detail, len(old))
+	copySlice := make([]Detail, len(old))
 	for x := range old {
-		copy[x] = old[x].copy()
+		copySlice[x] = old[x].copy()
 	}
-	return copy
+	return copySlice
 }
 
 // GetCopySliceAddressed returns a copy of all order detail and returns a slice
 // of pointers.
 func GetCopySliceAddressed(old []*Detail) []*Detail {
-	copy := make([]*Detail, len(old))
+	copySlice := make([]*Detail, len(old))
 	for x := range old {
-		copy[x] = old[x].CopyValueNewAddress()
+		copySlice[x] = old[x].CopyValueNewAddress()
 	}
-	return copy
+	return copySlice
 }
 
 // String implements the stringer interface
