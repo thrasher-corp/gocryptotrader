@@ -1056,7 +1056,7 @@ func TestReplaceAnOrder(t *testing.T) {
 	}
 }
 
-func TestTestWrapperModifyOrder(t *testing.T) {
+func TestWrapperModifyOrder(t *testing.T) {
 	t.Parallel()
 	_, err := b.ModifyOrder(context.Background(), &order.Modify{})
 	if !errors.Is(err, order.ErrPairIsEmpty) {
