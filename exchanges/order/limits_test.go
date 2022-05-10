@@ -427,8 +427,7 @@ func TestConformToAmount(t *testing.T) {
 func TestGetSnapShot(t *testing.T) {
 	t.Parallel()
 	var tt *Limits
-	_, err := tt.GetSnapshot()
-	if !errors.Is(err, errLimitIsNil) {
+	if _, err := tt.GetSnapshot(); !errors.Is(err, errLimitIsNil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errLimitIsNil)
 	}
 
