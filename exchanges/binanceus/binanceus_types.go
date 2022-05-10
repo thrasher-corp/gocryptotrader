@@ -420,18 +420,11 @@ var (
 
 // NewOrderRequest request type
 type NewOrderRequest struct {
-	// Symbol (currency pair to trade)
-	Symbol currency.Pair
-	// Side Buy or Sell
-	Side string
-	// TradeType (market or limit order)
-	TradeType RequestParamsOrderType
-	// TimeInForce specifies how long the order remains in effect.
-	// Examples are (Good Till Cancel (GTC), Immediate or Cancel (IOC) and Fill Or Kill (FOK))
-	TimeInForce RequestParamsTimeForceType
-	// Quantity is the total base qty spent or received in an order.
-	Quantity float64
-	// QuoteOrderQty is the total quote qty spent or received in a MARKET order.
+	Symbol           currency.Pair
+	Side             string
+	TradeType        RequestParamsOrderType
+	TimeInForce      RequestParamsTimeForceType
+	Quantity         float64
 	QuoteOrderQty    float64
 	Price            float64
 	NewClientOrderID string
@@ -583,7 +576,6 @@ type OrderShortResponse struct {
 }
 
 // OCONewOrderResponse this model is to be used to fetch the respons of create new OCO order response
-//
 type OCOOrderResponse struct {
 	OrderListId       int64                 `json:"orderListId"`
 	ContingencyType   string                `json:"contingencyType"`
@@ -721,7 +713,7 @@ type AssetWalletDetail struct {
 	} `json:"networkList"`
 }
 
-// AssetWalletList .. list of asset wallet details
+// AssetWalletList list of asset wallet details
 type AssetWalletList []AssetWalletDetail
 
 // WithdrawalRequestParam represents the params for the
@@ -1070,8 +1062,7 @@ type OrderBookTickerStream struct {
 
 // Websocket stream aggregate trade
 type WebsocketAggregateTradeStream struct {
-	EventType string `json:"e"`
-	// EventTime int    `json:"E"`
+	EventType        string    `json:"e"`
 	EventTime        time.Time `json:"E"`
 	Symbol           string    `json:"s"`
 	AggregateTradeID int       `json:"a"`
@@ -1079,8 +1070,6 @@ type WebsocketAggregateTradeStream struct {
 	Quantity         float64   `json:"q,string"`
 	FirstTradeID     int       `json:"f"`
 	LastTradeID      int       `json:"l"`
-	// TradeTime                int       `json:"T"`
-	TradeTime time.Time `json:"T"`
-	IsMaker   bool      `json:"m"`
-	// M         bool      `json:"M"`
+	TradeTime        time.Time `json:"T"`
+	IsMaker          bool      `json:"m"`
 }

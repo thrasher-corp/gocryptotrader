@@ -934,8 +934,6 @@ func (o *orderbookManager) stageWsUpdate(u *WebsocketDepthStream, pair currency.
 	state, ok := m2[a]
 	if !ok {
 		state = &update{
-			// 100ms update assuming we might have up to a 10 second delay.
-			// There could be a potential 100 updates for the currency.
 			buffer:            make(chan *WebsocketDepthStream, maxWSUpdateBuffer),
 			fetchingBook:      false,
 			initialSync:       true,
@@ -1071,8 +1069,6 @@ func (u *update) validate(updt *WebsocketDepthStream, recent *orderbook.Base) (b
 
 	id := recent.LastUpdateID + 1
 	if u.initialSync {
-		// The first processed event should have U <= lastUpdateId+1 AND
-		// u >= lastUpdateId+1.
 		if updt.FirstUpdateID > id || updt.LastUpdateID < id {
 			return false, fmt.Errorf("initial websocket orderbook sync failure for pair %s and asset %s",
 				recent.Pair,

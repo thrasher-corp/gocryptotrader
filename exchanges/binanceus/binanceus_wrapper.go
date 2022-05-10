@@ -69,32 +69,30 @@ func (bi *Binanceus) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	// Fill out the capabilities/features that the exchange supports
+
 	bi.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
 			Websocket: true,
 			RESTCapabilities: protocol.Features{
-				TickerBatching:    true,
-				TickerFetching:    true,
-				OrderbookFetching: true,
-				AutoPairUpdates:   true,
-				AccountInfo:       true,
-				CryptoDeposit:     true,
-				CryptoWithdrawal:  true,
-				GetOrder:          true,
-				GetOrders:         true,
-				CancelOrders:      true,
-				CancelOrder:       true,
-				SubmitOrder:       true,
-				SubmitOrders:      true,
-				DepositHistory:    true,
-				WithdrawalHistory: true,
-				TradeFetching:     true,
-				UserTradeHistory:  true,
-				TradeFee:          true,
-				// FiatDepositFee:      true,
-				// FiatWithdrawalFee:   true,
+				TickerBatching:      true,
+				TickerFetching:      true,
+				OrderbookFetching:   true,
+				AutoPairUpdates:     true,
+				AccountInfo:         true,
+				CryptoDeposit:       true,
+				CryptoWithdrawal:    true,
+				GetOrder:            true,
+				GetOrders:           true,
+				CancelOrders:        true,
+				CancelOrder:         true,
+				SubmitOrder:         true,
+				SubmitOrders:        true,
+				DepositHistory:      true,
+				WithdrawalHistory:   true,
+				TradeFetching:       true,
+				UserTradeHistory:    true,
+				TradeFee:            true,
 				CryptoDepositFee:    true,
 				CryptoWithdrawalFee: true,
 			},
@@ -137,14 +135,12 @@ func (bi *Binanceus) SetDefaults() {
 			},
 		},
 	}
-	// NOTE: SET THE EXCHANGES RATE LIMIT HERE
 	bi.Requester, err = request.New(bi.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	// NOTE: SET THE URLs HERE
 	bi.API.Endpoints = bi.NewEndpoints()
 	bi.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:                   binanceusAPIURL,
@@ -300,12 +296,10 @@ func (bi *Binanceus) UpdateTradablePairs(ctx context.Context, forceUpdate bool) 
 	if err != nil {
 		return err
 	}
-
 	p, err := currency.NewPairsFromStrings(pairs)
 	if err != nil {
 		return err
 	}
-
 	return bi.UpdatePairs(p, asset.Spot, false, forceUpdate)
 }
 
@@ -389,7 +383,6 @@ func (bi *Binanceus) UpdateTickers(ctx context.Context, a asset.Item) error {
 
 // FetchTicker returns the ticker for a currency pair
 func (bi *Binanceus) FetchTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-
 	fpairs, er := bi.FormatExchangeCurrency(p, assetType)
 	if er != nil {
 		return nil, er
@@ -483,7 +476,7 @@ func (bi *Binanceus) UpdateAccountInfo(ctx context.Context, assetType asset.Item
 			currencyBalance = append(currencyBalance, account.Balance{
 				CurrencyName: currency.NewCode(theaccount.Balances[i].Asset),
 				Total:        freeBalance + locked,
-				Hold:         locked, // This are the locked account balances quantity.
+				Hold:         locked,
 				Free:         freeBalance,
 			})
 		}
@@ -553,8 +546,8 @@ func (bi *Binanceus) GetRecentTrades(ctx context.Context, p currency.Pair, asset
 		resp[i] = trade.Data{
 			TID:          fmt.Sprint(tradeData[i].ID),
 			Exchange:     bi.Name,
-			AssetType:    assetType, //  always the asset type is Spot,
-			CurrencyPair: p,         // This is the currency pair input we used.
+			AssetType:    assetType,
+			CurrencyPair: p,
 			Price:        tradeData[i].Price,
 			Amount:       tradeData[i].Quantity,
 			Timestamp:    tradeData[i].Time,
@@ -607,7 +600,6 @@ func (bi *Binanceus) SubmitOrder(ctx context.Context, s *order.Submit) (order.Su
 		} else {
 			sideType = order.Sell.String()
 		}
-		timeInForce = BinanceRequestParamsTimeGTC
 		var requestParamOrderType RequestParamsOrderType
 		switch s.Type {
 		case order.Market:

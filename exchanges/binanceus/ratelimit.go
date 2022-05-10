@@ -10,23 +10,12 @@ import (
 )
 
 const (
-	// Binance limit rates
-	// Global dictates the max rate limit for general request items which is
-	// 1200 requests per minute
 	spotInterval    = time.Minute
 	spotRequestRate = 1200
 	// Order related limits which are segregated from the global rate limits
 	// 100 requests per 10 seconds and max 100000 requests per day.
-	spotOrderInterval        = 10 * time.Second
-	spotOrderRequestRate     = 100
-	cFuturesInterval         = time.Minute
-	cFuturesRequestRate      = 6000
-	cFuturesOrderInterval    = time.Minute
-	cFuturesOrderRequestRate = 1200
-	uFuturesInterval         = time.Minute
-	uFuturesRequestRate      = 2400
-	uFuturesOrderInterval    = time.Minute
-	uFuturesOrderRequestRate = 1200
+	spotOrderInterval    = 10 * time.Second
+	spotOrderRequestRate = 100
 )
 
 // Binance Spot rate limits
@@ -46,62 +35,12 @@ const (
 	spotOrderQueryRate
 	spotAllOrdersRate
 	spotAccountInformationRate
-	uFuturesDefaultRate
-	uFuturesHistoricalTradesRate
-	uFuturesSymbolOrdersRate
-	uFuturesPairOrdersRate
-	uFuturesCurrencyForceOrdersRate
-	uFuturesAllForceOrdersRate
-	uFuturesIncomeHistoryRate
-	uFuturesOrderbook50Rate
-	uFuturesOrderbook100Rate
-	uFuturesOrderbook500Rate
-	uFuturesOrderbook1000Rate
-	uFuturesKline100Rate
-	uFuturesKline500Rate
-	uFuturesKline1000Rate
-	uFuturesKlineMaxRate
-	uFuturesTickerPriceHistoryRate
-	uFuturesOrdersDefaultRate
-	uFuturesGetAllOrdersRate
-	uFuturesAccountInformationRate
-	uFuturesOrderbookTickerAllRate
-	uFuturesCountdownCancelRate
-	uFuturesBatchOrdersRate
-	uFuturesGetAllOpenOrdersRate
-	cFuturesDefaultRate
-	cFuturesHistoricalTradesRate
-	cFuturesTickerPriceHistoryRate
-	cFuturesIncomeHistoryRate
-	cFuturesOrderbook50Rate
-	cFuturesOrderbook100Rate
-	cFuturesOrderbook500Rate
-	cFuturesOrderbook1000Rate
-	cFuturesKline100Rate
-	cFuturesKline500Rate
-	cFuturesKline1000Rate
-	cFuturesKlineMaxRate
-	cFuturesIndexMarkPriceRate
-	cFuturesBatchOrdersRate
-	cFuturesCancelAllOrdersRate
-	cFuturesGetAllOpenOrdersRate
-	cFuturesAllForceOrdersRate
-	cFuturesCurrencyForceOrdersRate
-	cFuturesPairOrdersRate
-	cFuturesSymbolOrdersRate
-	cFuturesAccountInformationRate
-	cFuturesOrderbookTickerAllRate
-	cFuturesOrdersDefaultRate
 )
 
 // RateLimit implements the request.Limiter interface
 type RateLimit struct {
-	SpotRate           *rate.Limiter
-	SpotOrdersRate     *rate.Limiter
-	UFuturesRate       *rate.Limiter
-	UFuturesOrdersRate *rate.Limiter
-	CFuturesRate       *rate.Limiter
-	CFuturesOrdersRate *rate.Limiter
+	SpotRate       *rate.Limiter
+	SpotOrdersRate *rate.Limiter
 }
 
 // Limit executes rate limiting functionality for Binance
@@ -135,82 +74,6 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		limiter, tokens = r.SpotOrdersRate, 10
 	case spotOpenOrdersAllRate:
 		limiter, tokens = r.SpotOrdersRate, 40
-	case uFuturesDefaultRate,
-		uFuturesKline100Rate:
-		limiter, tokens = r.UFuturesRate, 1
-	case uFuturesOrderbook50Rate,
-		uFuturesKline500Rate,
-		uFuturesOrderbookTickerAllRate:
-		limiter, tokens = r.UFuturesRate, 2
-	case uFuturesOrderbook100Rate,
-		uFuturesKline1000Rate,
-		uFuturesAccountInformationRate:
-		limiter, tokens = r.UFuturesRate, 5
-	case uFuturesOrderbook500Rate,
-		uFuturesKlineMaxRate:
-		limiter, tokens = r.UFuturesRate, 10
-	case uFuturesOrderbook1000Rate,
-		uFuturesHistoricalTradesRate:
-		limiter, tokens = r.UFuturesRate, 20
-	case uFuturesTickerPriceHistoryRate:
-		limiter, tokens = r.UFuturesRate, 40
-	case uFuturesOrdersDefaultRate:
-		limiter, tokens = r.UFuturesOrdersRate, 1
-	case uFuturesBatchOrdersRate,
-		uFuturesGetAllOrdersRate:
-		limiter, tokens = r.UFuturesOrdersRate, 5
-	case uFuturesCountdownCancelRate:
-		limiter, tokens = r.UFuturesOrdersRate, 10
-	case uFuturesCurrencyForceOrdersRate,
-		uFuturesSymbolOrdersRate:
-		limiter, tokens = r.UFuturesOrdersRate, 20
-	case uFuturesIncomeHistoryRate:
-		limiter, tokens = r.UFuturesOrdersRate, 30
-	case uFuturesPairOrdersRate,
-		uFuturesGetAllOpenOrdersRate:
-		limiter, tokens = r.UFuturesOrdersRate, 40
-	case uFuturesAllForceOrdersRate:
-		limiter, tokens = r.UFuturesOrdersRate, 50
-	case cFuturesKline100Rate:
-		limiter, tokens = r.CFuturesRate, 1
-	case cFuturesKline500Rate,
-		cFuturesOrderbookTickerAllRate:
-		limiter, tokens = r.CFuturesRate, 2
-	case cFuturesKline1000Rate,
-		cFuturesAccountInformationRate:
-		limiter, tokens = r.CFuturesRate, 5
-	case cFuturesKlineMaxRate,
-		cFuturesIndexMarkPriceRate:
-		limiter, tokens = r.CFuturesRate, 10
-	case cFuturesHistoricalTradesRate,
-		cFuturesCurrencyForceOrdersRate:
-		limiter, tokens = r.CFuturesRate, 20
-	case cFuturesTickerPriceHistoryRate:
-		limiter, tokens = r.CFuturesRate, 40
-	case cFuturesAllForceOrdersRate:
-		limiter, tokens = r.CFuturesRate, 50
-	case cFuturesOrdersDefaultRate:
-		limiter, tokens = r.CFuturesOrdersRate, 1
-	case cFuturesBatchOrdersRate,
-		cFuturesGetAllOpenOrdersRate:
-		limiter, tokens = r.CFuturesOrdersRate, 5
-	case cFuturesCancelAllOrdersRate:
-		limiter, tokens = r.CFuturesOrdersRate, 10
-	case cFuturesIncomeHistoryRate,
-		cFuturesSymbolOrdersRate:
-		limiter, tokens = r.CFuturesOrdersRate, 20
-	case cFuturesPairOrdersRate:
-		limiter, tokens = r.CFuturesOrdersRate, 40
-	case cFuturesOrderbook50Rate:
-		limiter, tokens = r.CFuturesRate, 2
-	case cFuturesOrderbook100Rate:
-		limiter, tokens = r.CFuturesRate, 5
-	case cFuturesOrderbook500Rate:
-		limiter, tokens = r.CFuturesRate, 10
-	case cFuturesOrderbook1000Rate:
-		limiter, tokens = r.CFuturesRate, 20
-	case cFuturesDefaultRate:
-		limiter, tokens = r.CFuturesRate, 1
 	default:
 		limiter, tokens = r.SpotRate, 1
 	}
@@ -239,12 +102,8 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 // SetRateLimit returns the rate limit for the exchange
 func SetRateLimit() *RateLimit {
 	return &RateLimit{
-		SpotRate:           request.NewRateLimit(spotInterval, spotRequestRate),
-		SpotOrdersRate:     request.NewRateLimit(spotOrderInterval, spotOrderRequestRate),
-		UFuturesRate:       request.NewRateLimit(uFuturesInterval, uFuturesRequestRate),
-		UFuturesOrdersRate: request.NewRateLimit(uFuturesOrderInterval, uFuturesOrderRequestRate),
-		CFuturesRate:       request.NewRateLimit(cFuturesInterval, cFuturesRequestRate),
-		CFuturesOrdersRate: request.NewRateLimit(cFuturesOrderInterval, cFuturesOrderRequestRate),
+		SpotRate:       request.NewRateLimit(spotInterval, spotRequestRate),
+		SpotOrdersRate: request.NewRateLimit(spotOrderInterval, spotOrderRequestRate),
 	}
 }
 
@@ -272,6 +131,5 @@ func orderbookLimit(depth int) request.EndpointLimit {
 	case depth <= 1000:
 		return spotOrderbookDepth1000Rate
 	}
-
 	return spotOrderbookDepth5000Rate
 }
