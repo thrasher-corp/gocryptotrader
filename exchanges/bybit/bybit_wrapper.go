@@ -749,20 +749,20 @@ func (by *Bybit) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submit
 		return submitOrderResponse, err
 	}
 
+	var sideType string
+	switch s.Side {
+	case order.Buy:
+		sideType = sideBuy
+	case order.Sell:
+		sideType = sideSell
+	default:
+		return submitOrderResponse, errInvalidSide
+	}
+
 	switch s.AssetType {
 	case asset.Spot:
-		var sideType string
-		switch s.Side {
-		case order.Buy:
-			sideType = sideBuy
-		case order.Sell:
-			sideType = sideSell
-		default:
-			return submitOrderResponse, errInvalidSide
-		}
-
 		timeInForce := BybitRequestParamsTimeGTC
-		var requestParamsOrderType RequestParamsOrderType
+		var requestParamsOrderType string
 		switch s.Type {
 		case order.Market:
 			timeInForce = ""
@@ -796,16 +796,6 @@ func (by *Bybit) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submit
 		}
 		submitOrderResponse.IsOrderPlaced = true
 	case asset.CoinMarginedFutures:
-		var sideType string
-		switch s.Side {
-		case order.Buy:
-			sideType = sideBuy
-		case order.Sell:
-			sideType = sideSell
-		default:
-			return submitOrderResponse, errInvalidSide
-		}
-
 		timeInForce := "GoodTillCancel"
 		var oType string
 		switch s.Type {
@@ -828,16 +818,6 @@ func (by *Bybit) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submit
 		submitOrderResponse.OrderID = o.OrderID
 		submitOrderResponse.IsOrderPlaced = true
 	case asset.USDTMarginedFutures:
-		var sideType string
-		switch s.Side {
-		case order.Buy:
-			sideType = sideBuy
-		case order.Sell:
-			sideType = sideSell
-		default:
-			return submitOrderResponse, errInvalidSide
-		}
-
 		timeInForce := "GoodTillCancel"
 		var oType string
 		switch s.Type {
@@ -860,16 +840,6 @@ func (by *Bybit) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submit
 		submitOrderResponse.OrderID = o.OrderID
 		submitOrderResponse.IsOrderPlaced = true
 	case asset.Futures:
-		var sideType string
-		switch s.Side {
-		case order.Buy:
-			sideType = sideBuy
-		case order.Sell:
-			sideType = sideSell
-		default:
-			return submitOrderResponse, errInvalidSide
-		}
-
 		timeInForce := "GoodTillCancel"
 		var oType string
 		switch s.Type {
@@ -972,7 +942,7 @@ func (by *Bybit) CancelAllOrders(ctx context.Context, orderCancellation *order.C
 			return cancelAllOrdersResponse, err
 		}
 
-		successful, err := by.BatchCancelOrder(ctx, orderCancellation.Symbol, string(orderCancellation.Side), string(orderCancellation.Type))
+		successful, err := by.BatchCancelOrder(ctx, orderCancellation.Symbol, orderCancellation.Side.Title(), orderCancellation.Type.String())
 
 		if !successful {
 			return cancelAllOrdersResponse, fmt.Errorf("failed to cancelAllOrder")
@@ -1019,12 +989,12 @@ func (by *Bybit) GetOrderInfo(ctx context.Context, orderID string, pair currency
 			Exchange:       by.Name,
 			ID:             strconv.FormatInt(resp.OrderID, 10),
 			ClientOrderID:  resp.OrderLinkID,
-			Side:           order.Side(resp.Side),
-			Type:           order.Type(resp.TradeType),
+			Side:           getSide(resp.Side),
+			Type:           getTradeType(resp.TradeType),
 			Pair:           pair,
 			Cost:           resp.CummulativeQuoteQty,
 			AssetType:      assetType,
-			Status:         order.Status(resp.Status),
+			Status:         getOrderStatus(resp.Status),
 			Price:          resp.Price,
 			ExecutedAmount: resp.ExecutedQty,
 			Date:           resp.Time.Time(),
@@ -1045,12 +1015,12 @@ func (by *Bybit) GetOrderInfo(ctx context.Context, orderID string, pair currency
 			Exchange:       by.Name,
 			ID:             resp[0].OrderID,
 			ClientOrderID:  resp[0].OrderLinkID,
-			Side:           order.Side(resp[0].Side),
-			Type:           order.Type(resp[0].OrderType),
+			Side:           getSide(resp[0].Side),
+			Type:           getTradeType(resp[0].OrderType),
 			Pair:           pair,
 			Cost:           resp[0].CumulativeQty,
 			AssetType:      assetType,
-			Status:         order.Status(resp[0].OrderStatus),
+			Status:         getOrderStatus(resp[0].OrderStatus),
 			Price:          resp[0].Price,
 			ExecutedAmount: resp[0].Qty - resp[0].LeavesQty,
 			Date:           resp[0].CreatedAt,
@@ -1072,12 +1042,12 @@ func (by *Bybit) GetOrderInfo(ctx context.Context, orderID string, pair currency
 			Exchange:       by.Name,
 			ID:             resp[0].OrderID,
 			ClientOrderID:  resp[0].OrderLinkID,
-			Side:           order.Side(resp[0].Side),
-			Type:           order.Type(resp[0].OrderType),
+			Side:           getSide(resp[0].Side),
+			Type:           getTradeType(resp[0].OrderType),
 			Pair:           pair,
 			Cost:           resp[0].CumulativeQty,
 			AssetType:      assetType,
-			Status:         order.Status(resp[0].OrderStatus),
+			Status:         getOrderStatus(resp[0].OrderStatus),
 			Price:          resp[0].Price,
 			ExecutedAmount: resp[0].Qty - resp[0].LeavesQty,
 			Date:           resp[0].CreatedAt,
@@ -1099,12 +1069,12 @@ func (by *Bybit) GetOrderInfo(ctx context.Context, orderID string, pair currency
 			Exchange:       by.Name,
 			ID:             resp[0].OrderID,
 			ClientOrderID:  resp[0].OrderLinkID,
-			Side:           order.Side(resp[0].Side),
-			Type:           order.Type(resp[0].OrderType),
+			Side:           getSide(resp[0].Side),
+			Type:           getTradeType(resp[0].OrderType),
 			Pair:           pair,
 			Cost:           resp[0].CumulativeQty,
 			AssetType:      assetType,
-			Status:         order.Status(resp[0].OrderStatus),
+			Status:         getOrderStatus(resp[0].OrderStatus),
 			Price:          resp[0].Price,
 			ExecutedAmount: resp[0].Qty - resp[0].LeavesQty,
 			Date:           resp[0].CreatedAt,
@@ -1169,10 +1139,10 @@ func (by *Bybit) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 					Exchange:      by.Name,
 					ID:            strconv.FormatInt(openOrders[x].OrderID, 10),
 					ClientOrderID: openOrders[x].OrderLinkID,
-					Side:          order.Side(openOrders[x].Side),
-					Type:          order.Type(openOrders[x].TradeType),
+					Side:          getSide(openOrders[x].Side),
+					Type:          getTradeType(openOrders[x].TradeType),
 					Price:         openOrders[x].Price,
-					Status:        order.Status(openOrders[x].Status),
+					Status:        getOrderStatus(openOrders[x].Status),
 					Pair:          req.Pairs[i],
 					AssetType:     req.AssetType,
 					LastUpdated:   openOrders[x].UpdateTime.Time(),
@@ -1194,9 +1164,9 @@ func (by *Bybit) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 					Exchange:        by.Name,
 					ID:              openOrders[x].OrderID,
 					ClientOrderID:   openOrders[x].OrderLinkID,
-					Type:            order.Type(openOrders[x].OrderType),
-					Side:            order.Side(openOrders[x].Side),
-					Status:          order.Status(openOrders[x].OrderStatus),
+					Type:            getTradeType(openOrders[x].OrderType),
+					Side:            getSide(openOrders[x].Side),
+					Status:          getOrderStatus(openOrders[x].OrderStatus),
 					Pair:            req.Pairs[i],
 					AssetType:       req.AssetType,
 					Date:            openOrders[x].CreatedAt,
@@ -1219,9 +1189,9 @@ func (by *Bybit) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 					Exchange:        by.Name,
 					ID:              openOrders[x].OrderID,
 					ClientOrderID:   openOrders[x].OrderLinkID,
-					Type:            order.Type(openOrders[x].OrderType),
-					Side:            order.Side(openOrders[x].Side),
-					Status:          order.Status(openOrders[x].OrderStatus),
+					Type:            getTradeType(openOrders[x].OrderType),
+					Side:            getSide(openOrders[x].Side),
+					Status:          getOrderStatus(openOrders[x].OrderStatus),
 					Pair:            req.Pairs[i],
 					AssetType:       asset.USDTMarginedFutures,
 					Date:            openOrders[x].CreatedAt,
@@ -1243,9 +1213,9 @@ func (by *Bybit) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 					Exchange:        by.Name,
 					ID:              openOrders[x].OrderID,
 					ClientOrderID:   openOrders[x].OrderLinkID,
-					Type:            order.Type(openOrders[x].OrderType),
-					Side:            order.Side(openOrders[x].Side),
-					Status:          order.Status(openOrders[x].OrderStatus),
+					Type:            getTradeType(openOrders[x].OrderType),
+					Side:            getSide(openOrders[x].Side),
+					Status:          getOrderStatus(openOrders[x].OrderStatus),
 					Pair:            req.Pairs[i],
 					AssetType:       req.AssetType,
 					Date:            openOrders[x].CreatedAt,
@@ -1255,10 +1225,13 @@ func (by *Bybit) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 			return orders, fmt.Errorf("assetType not supported: %v", req.AssetType)
 		}
 	}
-	order.FilterOrdersByCurrencies(&orders, req.Pairs)
+	order.FilterOrdersByPairs(&orders, req.Pairs)
 	order.FilterOrdersByType(&orders, req.Type)
 	order.FilterOrdersBySide(&orders, req.Side)
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	err := order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", by.Name, err)
+	}
 	return orders, nil
 }
 
@@ -1527,6 +1500,25 @@ func (by *Bybit) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 	klineItem.RemoveOutsideRange(start, end)
 	klineItem.SortCandlesByTimestamp(false)
 	return klineItem, nil
+}
+
+// GetServerTime returns the current exchange server time.
+func (by *Bybit) GetServerTime(ctx context.Context, a asset.Item) (time.Time, error) {
+	switch a {
+	case asset.Spot:
+		info, err := by.GetSpotServerTime(ctx)
+		if err != nil {
+			return time.Time{}, err
+		}
+		return info, nil
+	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.Futures:
+		info, err := by.GetFuturesServerTime(ctx)
+		if err != nil {
+			return time.Time{}, err
+		}
+		return info, nil
+	}
+	return time.Time{}, fmt.Errorf("%s %w", a, asset.ErrNotSupported)
 }
 
 func (by *Bybit) extractCurrencyPair(symbol string, item asset.Item) (currency.Pair, error) {

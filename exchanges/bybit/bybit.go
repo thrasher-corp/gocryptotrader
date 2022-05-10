@@ -494,10 +494,10 @@ func (by *Bybit) CreatePostOrder(ctx context.Context, o *PlaceOrderRequest) (*Pl
 	params.Set("symbol", o.Symbol)
 	params.Set("qty", strconv.FormatFloat(o.Quantity, 'f', -1, 64))
 	params.Set("side", o.Side)
-	params.Set("type", string(o.TradeType))
+	params.Set("type", o.TradeType)
 
 	if o.TimeInForce != "" {
-		params.Set("timeInForce", string(o.TimeInForce))
+		params.Set("timeInForce", o.TimeInForce)
 	}
 	if (o.TradeType == BybitRequestParamsOrderLimit || o.TradeType == BybitRequestParamsOrderLimitMaker) && o.Price == 0 {
 		return nil, errMissingPrice
@@ -732,8 +732,8 @@ func (by *Bybit) GetWalletBalance(ctx context.Context) ([]Balance, error) {
 	return resp.Data.Balances, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, bybitWalletBalance, url.Values{}, &resp, privateSpotRate)
 }
 
-// GetServerTime returns server time
-func (by *Bybit) GetServerTime(ctx context.Context) (time.Time, error) {
+// GetSpotServerTime returns server time
+func (by *Bybit) GetSpotServerTime(ctx context.Context) (time.Time, error) {
 	resp := struct {
 		Result struct {
 			ServerTime int64 `json:"balances"`
@@ -845,4 +845,49 @@ func (e Error) GetError() error {
 		return errors.New(e.ExtMsg)
 	}
 	return nil
+}
+
+func getSide(side string) order.Side {
+	switch side {
+	case sideBuy:
+		return order.Buy
+	case sideSell:
+		return order.Sell
+	default:
+		return order.UnknownSide
+	}
+}
+
+func getTradeType(tradeType string) order.Type {
+	switch tradeType {
+	case BybitRequestParamsOrderLimit:
+		return order.Limit
+	case BybitRequestParamsOrderMarket:
+		return order.Market
+	case BybitRequestParamsOrderLimitMaker:
+		return order.Limit
+	default:
+		return order.UnknownType
+	}
+}
+
+func getOrderStatus(status string) order.Status {
+	switch status {
+	case "NEW":
+		return order.New
+	case "PARTIALLY_FILLED":
+		return order.PartiallyFilled
+	case "FILLED":
+		return order.Filled
+	case "CANCELED":
+		return order.Cancelled
+	case "PENDING_CANCEL":
+		return order.PendingCancel
+	case "PENDING_NEW":
+		return order.Pending
+	case "REJECTED":
+		return order.Rejected
+	default:
+		return order.UnknownStatus
+	}
 }

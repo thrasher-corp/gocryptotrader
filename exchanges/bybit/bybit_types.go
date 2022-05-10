@@ -180,32 +180,26 @@ type TickerData struct {
 	Time        time.Time
 }
 
-// RequestParamsOrderType trade order type
-type RequestParamsOrderType string
-
 var (
 	// BybitRequestParamsOrderLimit Limit order
-	BybitRequestParamsOrderLimit = RequestParamsOrderType("LIMIT")
+	BybitRequestParamsOrderLimit = "LIMIT"
 
 	// BybitRequestParamsOrderMarket Market order
-	BybitRequestParamsOrderMarket = RequestParamsOrderType("MARKET")
+	BybitRequestParamsOrderMarket = "MARKET"
 
-	// BybitRequestParamsOrderLimitMaker LIMIT_MAKER
-	BybitRequestParamsOrderLimitMaker = RequestParamsOrderType("LIMIT_MAKER")
+	// BybitRequestParamsOrderLimitMaker Limit Maker
+	BybitRequestParamsOrderLimitMaker = "LIMIT_MAKER"
 )
 
-// RequestParamsTimeForceType Time in force
-type RequestParamsTimeForceType string
-
 var (
-	// BybitRequestParamsTimeGTC GTC
-	BybitRequestParamsTimeGTC = RequestParamsTimeForceType("GTC")
+	// BybitRequestParamsTimeGTC Good Till Canceled
+	BybitRequestParamsTimeGTC = "GTC"
 
-	// BybitRequestParamsTimeFOK FOK
-	BybitRequestParamsTimeFOK = RequestParamsTimeForceType("FOK")
+	// BybitRequestParamsTimeFOK Fill or Kill
+	BybitRequestParamsTimeFOK = "FOK"
 
-	// BybitRequestParamsTimeIOC IOC
-	BybitRequestParamsTimeIOC = RequestParamsTimeForceType("IOC")
+	// BybitRequestParamsTimeIOC Immediate or Cancel
+	BybitRequestParamsTimeIOC = "IOC"
 )
 
 // PlaceOrderRequest store new order request type
@@ -213,67 +207,67 @@ type PlaceOrderRequest struct {
 	Symbol      string
 	Quantity    float64
 	Side        string
-	TradeType   RequestParamsOrderType
-	TimeInForce RequestParamsTimeForceType
+	TradeType   string
+	TimeInForce string
 	Price       float64
 	OrderLinkID string
 }
 
 // PlaceOrderResponse store new order response type
 type PlaceOrderResponse struct {
-	OrderID     int64                      `json:"orderId"`
-	OrderLinkID string                     `json:"orderLinkId"`
-	Symbol      string                     `json:"symbol"`
-	Time        bybitTimeMilliSec          `json:"transactTime"` // Note: it is string in doc. ex
-	Price       float64                    `json:"price,string"`
-	Quantity    float64                    `json:"origQty,string"`
-	TradeType   RequestParamsOrderType     `json:"type"`
-	Side        string                     `json:"side"`
-	Status      string                     `json:"status"`
-	TimeInForce RequestParamsTimeForceType `json:"timeInForce"`
-	AccountID   int64                      `json:"accountId"`
-	SymbolName  string                     `json:"symbolName"`
-	ExecutedQty float64                    `json:"executedQty,string"`
+	OrderID     int64             `json:"orderId"`
+	OrderLinkID string            `json:"orderLinkId"`
+	Symbol      string            `json:"symbol"`
+	Time        bybitTimeMilliSec `json:"transactTime"` // Note: it is string in doc. ex
+	Price       float64           `json:"price,string"`
+	Quantity    float64           `json:"origQty,string"`
+	TradeType   string            `json:"type"`
+	Side        string            `json:"side"`
+	Status      string            `json:"status"`
+	TimeInForce string            `json:"timeInForce"`
+	AccountID   int64             `json:"accountId"`
+	SymbolName  string            `json:"symbolName"`
+	ExecutedQty float64           `json:"executedQty,string"`
 }
 
 // QueryOrderResponse holds query order data
 type QueryOrderResponse struct {
-	AccountID           int64                      `json:"accountId"`
-	ExchangeID          int64                      `json:"exchangeId"`
-	Symbol              string                     `json:"symbol"`
-	SymbolName          string                     `json:"symbolName"`
-	OrderLinkID         string                     `json:"orderLinkId"`
-	OrderID             int64                      `json:"orderId"`
-	Price               float64                    `json:"price,string"`
-	Quantity            float64                    `json:"origQty,string"`
-	ExecutedQty         float64                    `json:"executedQty,string"`
-	CummulativeQuoteQty float64                    `json:"cummulativeQuoteQty,string"`
-	AveragePrice        float64                    `json:"avgPrice,string"`
-	Status              string                     `json:"status"`
-	TimeInForce         RequestParamsTimeForceType `json:"timeInForce"`
-	TradeType           RequestParamsOrderType     `json:"type"`
-	Side                string                     `json:"side"`
-	StopPrice           float64                    `json:"stopPrice,string"`
-	IcebergQty          float64                    `json:"icebergQty,string"`
-	Time                bybitTimeMilliSec          `json:"time"`       // Note: it is string in doc. ex
-	UpdateTime          bybitTimeMilliSec          `json:"updateTime"` // Note: it is string in doc. ex
-	IsWorking           bool                       `json:"isWorking"`
+	AccountID           int64             `json:"accountId"`
+	ExchangeID          int64             `json:"exchangeId"`
+	Symbol              string            `json:"symbol"`
+	SymbolName          string            `json:"symbolName"`
+	OrderLinkID         string            `json:"orderLinkId"`
+	OrderID             int64             `json:"orderId"`
+	Price               float64           `json:"price,string"`
+	Quantity            float64           `json:"origQty,string"`
+	ExecutedQty         float64           `json:"executedQty,string"`
+	CummulativeQuoteQty float64           `json:"cummulativeQuoteQty,string"`
+	AveragePrice        float64           `json:"avgPrice,string"`
+	Status              string            `json:"status"`
+	TimeInForce         string            `json:"timeInForce"`
+	TradeType           string            `json:"type"`
+	Side                string            `json:"side"`
+	StopPrice           float64           `json:"stopPrice,string"`
+	IcebergQty          float64           `json:"icebergQty,string"`
+	Time                bybitTimeMilliSec `json:"time"`       // Note: it is string in doc. ex
+	UpdateTime          bybitTimeMilliSec `json:"updateTime"` // Note: it is string in doc. ex
+	IsWorking           bool              `json:"isWorking"`
 }
 
 // CancelOrderResponse is the return structured response from the exchange
 type CancelOrderResponse struct {
-	OrderID     int64                      `json:"orderId"`
-	OrderLinkID string                     `json:"orderLinkId"`
-	Symbol      string                     `json:"symbol"`
-	Status      string                     `json:"status"`
-	AccountID   int64                      `json:"accountId"`
-	Time        bybitTimeMilliSec          `json:"transactTime"` // Note: it is string in doc. ex
-	Price       float64                    `json:"price,string"`
-	Quantity    float64                    `json:"origQty,string"`
-	ExecutedQty float64                    `json:"executedQty,string"`
-	TimeInForce RequestParamsTimeForceType `json:"timeInForce"`
-	TradeType   RequestParamsOrderType     `json:"type"`
-	Side        string                     `json:"side"`
+	OrderID     int64             `json:"orderId"`
+	OrderLinkID string            `json:"orderLinkId"`
+	Symbol      string            `json:"symbol"`
+	Status      string            `json:"status"`
+	AccountID   int64             `json:"accountId"`
+	Time        bybitTimeMilliSec `json:"transactTime"` // Note: it is string in doc. ex
+	Price       float64           `json:"price,string"`
+	Quantity    float64           `json:"origQty,string"`
+	ExecutedQty float64           `json:"executedQty,string"`
+	TimeInForce string            `json:"timeInForce"`
+	TradeType   string            `json:"type"`
+	Side        string            `json:"side"`
 }
 
 // HistoricalTrade holds recent trade data

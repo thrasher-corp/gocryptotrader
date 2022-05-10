@@ -163,7 +163,7 @@ func TestCreatePostOrder(t *testing.T) {
 	_, err := b.CreatePostOrder(context.Background(), &PlaceOrderRequest{
 		Symbol:      "BTCUSDT",
 		Quantity:    1,
-		Side:        "BUY",
+		Side:        "Buy",
 		TradeType:   "LIMIT",
 		TimeInForce: "GTC",
 		Price:       100,
@@ -294,9 +294,9 @@ func TestGetWalletBalance(t *testing.T) {
 	}
 }
 
-func TestGetServerTime(t *testing.T) {
+func TestGetSpotServerTime(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetServerTime(context.Background())
+	_, err := b.GetSpotServerTime(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -19,7 +19,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -716,6 +715,11 @@ func (by *Bybit) processOrderbook(data []WsFuturesOrderbookData, action string, 
 			return fmt.Errorf("process orderbook error -  %s", err)
 		}
 	default:
+		updateAction, err := by.GetActionFromString(action)
+		if err != nil {
+			return err
+		}
+
 		var asks, bids []orderbook.Item
 		for i := range data {
 			item := orderbook.Item{
@@ -735,16 +739,29 @@ func (by *Bybit) processOrderbook(data []WsFuturesOrderbookData, action string, 
 			}
 		}
 
-		err := by.Websocket.Orderbook.Update(&buffer.Update{
+		err = by.Websocket.Orderbook.Update(&orderbook.Update{
 			Bids:   bids,
 			Asks:   asks,
 			Pair:   p,
 			Asset:  a,
-			Action: buffer.Action(action),
+			Action: updateAction,
 		})
 		if err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// GetActionFromString matches a string action to an internal action.
+func (by *Bybit) GetActionFromString(s string) (orderbook.Action, error) {
+	switch s {
+	case wsOrderbookActionUpdate:
+		return orderbook.Amend, nil
+	case wsOrderbookActionDelete:
+		return orderbook.Delete, nil
+	case wsOrderbookActionInsert:
+		return orderbook.Insert, nil
+	}
+	return 0, fmt.Errorf("%s %w", s, orderbook.ErrInvalidAction)
 }
