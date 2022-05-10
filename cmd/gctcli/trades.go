@@ -282,7 +282,7 @@ func findMissingSavedTradeIntervals(c *cli.Context) error {
 	}
 	defer closeConn(conn, cancel)
 
-	client := gctrpc.NewGoCryptoTraderClient(conn)
+	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.FindMissingSavedTradeIntervals(c.Context,
 		&gctrpc.FindMissingTradePeriodsRequest{
 			ExchangeName: exchangeName,
@@ -332,7 +332,7 @@ func setExchangeTradeProcessing(c *cli.Context) error {
 	}
 	defer closeConn(conn, cancel)
 
-	client := gctrpc.NewGoCryptoTraderClient(conn)
+	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.SetExchangeTradeProcessing(c.Context,
 		&gctrpc.SetExchangeTradeProcessingRequest{
 			Exchange: exchangeName,
@@ -415,7 +415,7 @@ func getSavedTrades(c *cli.Context) error {
 	}
 	defer closeConn(conn, cancel)
 
-	client := gctrpc.NewGoCryptoTraderClient(conn)
+	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.GetSavedTrades(c.Context,
 		&gctrpc.GetSavedTradesRequest{
 			Exchange: exchangeName,
@@ -479,7 +479,7 @@ func getRecentTrades(c *cli.Context) error {
 	}
 	defer closeConn(conn, cancel)
 
-	client := gctrpc.NewGoCryptoTraderClient(conn)
+	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.GetRecentTrades(c.Context,
 		&gctrpc.GetSavedTradesRequest{
 			Exchange: exchangeName,
@@ -567,7 +567,7 @@ func getHistoricTrades(c *cli.Context) error {
 	defer closeConn(conn, cancel)
 
 	streamStartTime := time.Now()
-	client := gctrpc.NewGoCryptoTraderClient(conn)
+	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.GetHistoricTrades(c.Context,
 		&gctrpc.GetSavedTradesRequest{
 			Exchange: exchangeName,
@@ -704,7 +704,7 @@ func convertSavedTradesToCandles(c *cli.Context) error {
 	}
 	defer closeConn(conn, cancel)
 
-	client := gctrpc.NewGoCryptoTraderClient(conn)
+	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.ConvertTradesToCandles(c.Context,
 		&gctrpc.ConvertTradesToCandlesRequest{
 			Exchange: exchangeName,
