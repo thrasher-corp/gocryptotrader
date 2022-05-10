@@ -6,7 +6,8 @@ import (
 	"errors"
 	"log"
 	"os"
-	"reflect"
+	reflects "reflect"
+
 	"strings"
 	"sync"
 	"testing"
@@ -25,8 +26,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-// Please supply your own keys here to do authenticated endpoint testing
-
+// Please supply your own keys here to test authenticated endpoints
 const (
 	apiKey                  = ""
 	apiSecret               = ""
@@ -37,7 +37,7 @@ var (
 	bi              Binanceus
 	testPairMapping = currency.NewPair(currency.BTC, currency.USDT)
 	// this lock guards against orderbook tests race
-	binanceOrderBookLock = &sync.Mutex{}
+	binanceusOrderBookLock = &sync.Mutex{}
 )
 
 func TestMain(m *testing.M) {
@@ -1199,8 +1199,8 @@ func TestWebsocketStreamTradeUpdate(t *testing.T) {
 
 // TestWsDepthUpdate copied from the Binance Test
 func TestWebsocketDepthUpdate(t *testing.T) {
-	binanceOrderBookLock.Lock()
-	defer binanceOrderBookLock.Unlock()
+	binanceusOrderBookLock.Lock()
+	defer binanceusOrderBookLock.Unlock()
 	bi.setupOrderbookManager()
 	seedLastUpdateID := int64(161)
 	book := OrderBook{
@@ -1415,8 +1415,8 @@ var websocketDepthUpdate = []byte(
 
 func TestProcessUpdate(t *testing.T) {
 	t.Parallel()
-	binanceOrderBookLock.Lock()
-	defer binanceOrderBookLock.Unlock()
+	binanceusOrderBookLock.Lock()
+	defer binanceusOrderBookLock.Unlock()
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	var depth WebsocketDepthStream
 	err := json.Unmarshal(websocketDepthUpdate, &depth)
@@ -1472,7 +1472,7 @@ func TestWebsocketOrderExecutionReport(t *testing.T) {
 	res := <-bi.Websocket.DataHandler
 	switch r := res.(type) {
 	case *order.Detail:
-		if !reflect.DeepEqual(expRes, *r) {
+		if !reflects.DeepEqual(expRes, *r) {
 			t.Errorf("Results do not match:\nexpected: %v\nreceived: %v", expRes, *r)
 		}
 	default:
