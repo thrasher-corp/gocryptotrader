@@ -12,16 +12,16 @@ import (
 )
 
 // SizeOrder is responsible for ensuring that the order size is within config limits
-func (s *Size) SizeOrder(o order.Event, amountAvailable decimal.Decimal, cs *exchange.Settings) (*order.Order, error) {
+func (s *Size) SizeOrder(o order.Event, amountAvailable decimal.Decimal, cs *exchange.Settings) (*order.Order, decimal.Decimal, error) {
 	if o == nil || cs == nil {
-		return nil, common.ErrNilArguments
+		return nil, decimal.Decimal{}, common.ErrNilArguments
 	}
 	if amountAvailable.LessThanOrEqual(decimal.Zero) {
-		return nil, errNoFunds
+		return nil, decimal.Decimal{}, errNoFunds
 	}
 	retOrder, ok := o.(*order.Order)
 	if !ok {
-		return nil, fmt.Errorf("%w expected order event", common.ErrInvalidDataType)
+		return nil, decimal.Decimal{}, fmt.Errorf("%w expected order event", common.ErrInvalidDataType)
 	}
 	if fde := o.GetFillDependentEvent(); fde != nil && fde.MatchOrderAmount() {
 		scalingInfo, err := cs.Exchange.ScaleCollateral(context.TODO(), &gctorder.CollateralCalculator{
@@ -34,98 +34,103 @@ func (s *Size) SizeOrder(o order.Event, amountAvailable decimal.Decimal, cs *exc
 			FreeCollateral:     amountAvailable,
 		})
 		if err != nil {
-			return nil, err
+			return nil, decimal.Decimal{}, err
 		}
 		initialAmount := amountAvailable.Mul(scalingInfo.Weighting).Div(fde.GetClosePrice())
 		oNotionalPosition := initialAmount.Mul(o.GetClosePrice())
-		sizedAmount, err := s.calculateAmount(o.GetDirection(), o.GetClosePrice(), oNotionalPosition, cs, o)
+		sizedAmount, estFee, err := s.calculateAmount(o.GetDirection(), o.GetClosePrice(), oNotionalPosition, cs, o)
 		if err != nil {
-			return nil, err
+			return nil, decimal.Decimal{}, err
 		}
 		scaledCollateralFromAmount := sizedAmount.Mul(scalingInfo.Weighting)
 		excess := amountAvailable.Sub(sizedAmount).Add(scaledCollateralFromAmount)
 		if excess.IsNegative() {
-			return nil, fmt.Errorf("%w not enough funding for position", errCannotAllocate)
+			return nil, decimal.Decimal{}, fmt.Errorf("%w not enough funding for position", errCannotAllocate)
 		}
 		retOrder.SetAmount(sizedAmount)
 		fde.SetAmount(sizedAmount)
-		return retOrder, nil
+
+		return retOrder, estFee, nil
 	}
 
-	amount, err := s.calculateAmount(retOrder.Direction, retOrder.ClosePrice, amountAvailable, cs, o)
+	amount, estFee, err := s.calculateAmount(retOrder.Direction, retOrder.ClosePrice, amountAvailable, cs, o)
 	if err != nil {
-		return nil, err
+		return nil, decimal.Decimal{}, err
 	}
 	retOrder.SetAmount(amount)
 
-	return retOrder, nil
+	return retOrder, estFee, nil
 }
 
-func (s *Size) calculateAmount(direction gctorder.Side, closePrice, amountAvailable decimal.Decimal, cs *exchange.Settings, o order.Event) (decimal.Decimal, error) {
-	var amount decimal.Decimal
+func (s *Size) calculateAmount(direction gctorder.Side, price, amountAvailable decimal.Decimal, cs *exchange.Settings, o order.Event) (decimal.Decimal, decimal.Decimal, error) {
+	var amount, fee, portfolioAmount, portfolioFee decimal.Decimal
 	var err error
 	switch direction {
 	case gctorder.ClosePosition:
 		amount = amountAvailable
 	case gctorder.Buy, gctorder.Long:
 		// check size against currency specific settings
-		amount, err = s.calculateBuySize(closePrice, amountAvailable, cs.ExchangeFee, o.GetBuyLimit(), cs.BuySide)
+		amount, fee, err = s.calculateBuySize(price, amountAvailable, cs.ExchangeFee, o.GetBuyLimit(), cs.BuySide)
 		if err != nil {
-			return decimal.Decimal{}, err
+			return decimal.Decimal{}, decimal.Decimal{}, err
 		}
 		// check size against portfolio specific settings
-		var portfolioSize decimal.Decimal
-		portfolioSize, err = s.calculateBuySize(closePrice, amountAvailable, cs.ExchangeFee, o.GetBuyLimit(), s.BuySide)
+		portfolioAmount, portfolioFee, err = s.calculateBuySize(price, amountAvailable, cs.ExchangeFee, o.GetBuyLimit(), s.BuySide)
 		if err != nil {
-			return decimal.Decimal{}, err
+			return decimal.Decimal{}, decimal.Decimal{}, err
 		}
 		// global settings overrule individual currency settings
-		if amount.GreaterThan(portfolioSize) {
-			amount = portfolioSize
+		if amount.GreaterThan(portfolioAmount) {
+			amount = portfolioAmount
+			fee = portfolioFee
 		}
 	case gctorder.Sell, gctorder.Short:
 		// check size against currency specific settings
-		amount, err = s.calculateSellSize(closePrice, amountAvailable, cs.ExchangeFee, o.GetSellLimit(), cs.SellSide)
+		amount, fee, err = s.calculateSellSize(price, amountAvailable, cs.ExchangeFee, o.GetSellLimit(), cs.SellSide)
 		if err != nil {
-			return decimal.Decimal{}, err
+			return decimal.Decimal{}, decimal.Decimal{}, err
 		}
 		// check size against portfolio specific settings
-		portfolioSize, err := s.calculateSellSize(closePrice, amountAvailable, cs.ExchangeFee, o.GetSellLimit(), s.SellSide)
+		portfolioAmount, portfolioFee, err = s.calculateSellSize(price, amountAvailable, cs.ExchangeFee, o.GetSellLimit(), s.SellSide)
 		if err != nil {
-			return decimal.Decimal{}, err
+			return decimal.Decimal{}, decimal.Decimal{}, err
 		}
 		// global settings overrule individual currency settings
-		if amount.GreaterThan(portfolioSize) {
-			amount = portfolioSize
+		if amount.GreaterThan(portfolioAmount) {
+			amount = portfolioAmount
+			fee = portfolioFee
 		}
 	default:
-		return decimal.Decimal{}, fmt.Errorf("%w at %v for %v %v %v", errCannotAllocate, o.GetTime(), o.GetExchange(), o.GetAssetType(), o.Pair())
+		return decimal.Decimal{}, decimal.Decimal{}, fmt.Errorf("%w at %v for %v %v %v", errCannotAllocate, o.GetTime(), o.GetExchange(), o.GetAssetType(), o.Pair())
 	}
 	if o.GetAmount().IsPositive() {
-		setAmountSize := o.GetAmount().Mul(closePrice)
+		setAmountSize := o.GetAmount().Mul(price)
 		if setAmountSize.LessThan(amount) {
 			amount = setAmountSize
+			fee = amount.Mul(price).Mul(cs.TakerFee)
 		}
 	}
 
 	if amount.LessThanOrEqual(decimal.Zero) {
-		return decimal.Decimal{}, fmt.Errorf("%w at %v for %v %v %v, no amount sized", errCannotAllocate, o.GetTime(), o.GetExchange(), o.GetAssetType(), o.Pair())
+		return decimal.Decimal{}, decimal.Decimal{}, fmt.Errorf("%w at %v for %v %v %v, no amount sized", errCannotAllocate, o.GetTime(), o.GetExchange(), o.GetAssetType(), o.Pair())
 	}
-	return amount, nil
+
+	return amount, fee, nil
 }
 
 // calculateBuySize respects config rules and calculates the amount of money
 // that is allowed to be spent/sold for an event.
 // As fee calculation occurs during the actual ordering process
 // this can only attempt to factor the potential fee to remain under the max rules
-func (s *Size) calculateBuySize(price, availableFunds, feeRate, buyLimit decimal.Decimal, minMaxSettings exchange.MinMax) (decimal.Decimal, error) {
+func (s *Size) calculateBuySize(price, availableFunds, feeRate, buyLimit decimal.Decimal, minMaxSettings exchange.MinMax) (decimal.Decimal, decimal.Decimal, error) {
 	if availableFunds.LessThanOrEqual(decimal.Zero) {
-		return decimal.Zero, errNoFunds
+		return decimal.Decimal{}, decimal.Decimal{}, errNoFunds
 	}
 	if price.IsZero() {
-		return decimal.Zero, nil
+		return decimal.Decimal{}, decimal.Decimal{}, nil
 	}
-	amount := availableFunds.Mul(decimal.NewFromInt(1).Sub(feeRate)).Div(price)
+	var amount, fee decimal.Decimal
+	amount = availableFunds.Mul(decimal.NewFromInt(1).Sub(feeRate)).Div(price)
 	if !buyLimit.IsZero() &&
 		buyLimit.GreaterThanOrEqual(minMaxSettings.MinimumSize) &&
 		(buyLimit.LessThanOrEqual(minMaxSettings.MaximumSize) || minMaxSettings.MaximumSize.IsZero()) &&
@@ -139,9 +144,10 @@ func (s *Size) calculateBuySize(price, availableFunds, feeRate, buyLimit decimal
 		amount = minMaxSettings.MaximumTotal.Mul(decimal.NewFromInt(1).Sub(feeRate)).Div(price)
 	}
 	if amount.LessThan(minMaxSettings.MinimumSize) && minMaxSettings.MinimumSize.GreaterThan(decimal.Zero) {
-		return decimal.Zero, fmt.Errorf("%w. Sized: '%v' Minimum: '%v'", errLessThanMinimum, amount, minMaxSettings.MinimumSize)
+		return decimal.Decimal{}, decimal.Decimal{}, fmt.Errorf("%w. Sized: '%v' Minimum: '%v'", errLessThanMinimum, amount, minMaxSettings.MinimumSize)
 	}
-	return amount, nil
+	fee = amount.Mul(price).Mul(feeRate)
+	return amount, fee, nil
 }
 
 // calculateSellSize respects config rules and calculates the amount of money
@@ -150,15 +156,16 @@ func (s *Size) calculateBuySize(price, availableFunds, feeRate, buyLimit decimal
 // eg BTC-USD baseAmount will be BTC to be sold
 // As fee calculation occurs during the actual ordering process
 // this can only attempt to factor the potential fee to remain under the max rules
-func (s *Size) calculateSellSize(price, baseAmount, feeRate, sellLimit decimal.Decimal, minMaxSettings exchange.MinMax) (decimal.Decimal, error) {
+func (s *Size) calculateSellSize(price, baseAmount, feeRate, sellLimit decimal.Decimal, minMaxSettings exchange.MinMax) (decimal.Decimal, decimal.Decimal, error) {
 	if baseAmount.LessThanOrEqual(decimal.Zero) {
-		return decimal.Zero, errNoFunds
+		return decimal.Decimal{}, decimal.Decimal{}, errNoFunds
 	}
 	if price.IsZero() {
-		return decimal.Zero, nil
+		return decimal.Decimal{}, decimal.Decimal{}, nil
 	}
 	oneMFeeRate := decimal.NewFromInt(1).Sub(feeRate)
-	amount := baseAmount.Mul(oneMFeeRate)
+	var amount, fee decimal.Decimal
+	amount = baseAmount.Mul(oneMFeeRate)
 	if !sellLimit.IsZero() &&
 		sellLimit.GreaterThanOrEqual(minMaxSettings.MinimumSize) &&
 		(sellLimit.LessThanOrEqual(minMaxSettings.MaximumSize) || minMaxSettings.MaximumSize.IsZero()) &&
@@ -172,8 +179,8 @@ func (s *Size) calculateSellSize(price, baseAmount, feeRate, sellLimit decimal.D
 		amount = minMaxSettings.MaximumTotal.Mul(oneMFeeRate).Div(price)
 	}
 	if amount.LessThan(minMaxSettings.MinimumSize) && minMaxSettings.MinimumSize.GreaterThan(decimal.Zero) {
-		return decimal.Zero, fmt.Errorf("%w. Sized: '%v' Minimum: '%v'", errLessThanMinimum, amount, minMaxSettings.MinimumSize)
+		return decimal.Decimal{}, decimal.Decimal{}, fmt.Errorf("%w. Sized: '%v' Minimum: '%v'", errLessThanMinimum, amount, minMaxSettings.MinimumSize)
 	}
-
-	return amount, nil
+	fee = amount.Mul(price).Mul(feeRate)
+	return amount, fee, nil
 }

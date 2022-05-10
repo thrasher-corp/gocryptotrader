@@ -69,7 +69,7 @@ type Handler interface {
 
 // SizeHandler is the interface to help size orders
 type SizeHandler interface {
-	SizeOrder(order.Event, decimal.Decimal, *exchange.Settings) (*order.Order, error)
+	SizeOrder(order.Event, decimal.Decimal, *exchange.Settings) (*order.Order, decimal.Decimal, error)
 }
 
 // Settings holds all important information for the portfolio manager

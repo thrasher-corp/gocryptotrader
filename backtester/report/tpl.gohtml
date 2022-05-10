@@ -1726,6 +1726,7 @@
 											<th>{{$pair.Base}} Funds</th>
 											<th>{{$pair.Quote}} Funds</th>
 											<th>Total value in {{$pair.Quote}}</th>
+											<th>Committed funds in {{$pair.Quote}}</th>
 										{{ end }}
 
 									</tr>
@@ -1759,6 +1760,7 @@
 												<td>{{ $.Prettify.Decimal8 $ev.Holdings.BaseSize}} {{$pair.Base}}</td>
 												<td>{{ $.Prettify.Decimal8 $ev.Holdings.QuoteSize}} {{$pair.Quote}}</td>
 												<td>{{ $.Prettify.Decimal8 $ev.Holdings.TotalValue}} {{$pair.Quote}}</td>
+												<td>{{ $.Prettify.Decimal8 $ev.Holdings.CommittedFunds}} {{$pair.Quote}}</td>
 											{{end}}
 										</tr>
 									{{end}}

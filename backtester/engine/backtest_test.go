@@ -66,7 +66,7 @@ func (p portfolioOverride) CreateLiquidationOrdersForExchange(ev common.DataEven
 				Reason:         ev.GetReason(),
 			},
 			ID:        "1",
-			Direction: gctorder.Short, // ??????????????????
+			Direction: gctorder.Short,
 		},
 	}, nil
 }

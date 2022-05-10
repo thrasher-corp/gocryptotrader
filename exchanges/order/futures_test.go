@@ -89,11 +89,11 @@ func TestTrackNewOrder(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = f.TrackNewOrder(nil)
+	err = f.TrackNewOrder(nil, false)
 	if !errors.Is(err, ErrSubmissionIsNil) {
 		t.Error(err)
 	}
-	err = f.TrackNewOrder(&Detail{})
+	err = f.TrackNewOrder(&Detail{}, false)
 	if !errors.Is(err, errOrderNotEqualToTracker) {
 		t.Error(err)
 	}
@@ -105,7 +105,7 @@ func TestTrackNewOrder(t *testing.T) {
 		ID:        "1",
 		Price:     1337,
 	}
-	err = f.TrackNewOrder(od)
+	err = f.TrackNewOrder(od, false)
 	if !errors.Is(err, ErrSideIsInvalid) {
 		t.Error(err)
 	}
@@ -113,13 +113,13 @@ func TestTrackNewOrder(t *testing.T) {
 	od.Side = Long
 	od.Amount = 1
 	od.ID = "2"
-	err = f.TrackNewOrder(od)
+	err = f.TrackNewOrder(od, false)
 	if !errors.Is(err, errTimeUnset) {
 		t.Error(err)
 	}
 	f.openingDirection = Long
 	od.Date = time.Now()
-	err = f.TrackNewOrder(od)
+	err = f.TrackNewOrder(od, false)
 	if !errors.Is(err, nil) {
 		t.Error(err)
 	}
@@ -140,7 +140,7 @@ func TestTrackNewOrder(t *testing.T) {
 	od.Amount = 0.4
 	od.Side = Short
 	od.ID = "3"
-	err = f.TrackNewOrder(od)
+	err = f.TrackNewOrder(od, false)
 	if !errors.Is(err, nil) {
 		t.Error(err)
 	}
@@ -159,7 +159,7 @@ func TestTrackNewOrder(t *testing.T) {
 	od.Side = Short
 	od.ID = "4"
 	od.Fee = 0.1
-	err = f.TrackNewOrder(od)
+	err = f.TrackNewOrder(od, false)
 	if !errors.Is(err, nil) {
 		t.Error(err)
 	}
@@ -174,7 +174,7 @@ func TestTrackNewOrder(t *testing.T) {
 	od.ID = "5"
 	od.Side = Long
 	od.Amount = 0.2
-	err = f.TrackNewOrder(od)
+	err = f.TrackNewOrder(od, false)
 	if !errors.Is(err, nil) {
 		t.Error(err)
 	}
@@ -185,7 +185,7 @@ func TestTrackNewOrder(t *testing.T) {
 		t.Errorf("expected recognition that its closed, received '%v'", f.status)
 	}
 
-	err = f.TrackNewOrder(od)
+	err = f.TrackNewOrder(od, false)
 	if !errors.Is(err, ErrPositionClosed) {
 		t.Error(err)
 	}
@@ -194,6 +194,20 @@ func TestTrackNewOrder(t *testing.T) {
 	}
 	if f.status != Closed {
 		t.Errorf("expected recognition that its closed, received '%v'", f.status)
+	}
+
+	err = f.TrackNewOrder(od, true)
+	if !errors.Is(err, errCannotTrackInvalidParams) {
+		t.Error(err)
+	}
+
+	f, err = e.SetupPositionTracker(setup)
+	if !errors.Is(err, nil) {
+		t.Error(err)
+	}
+	err = f.TrackNewOrder(od, true)
+	if !errors.Is(err, nil) {
+		t.Error(err)
 	}
 }
 
@@ -1029,7 +1043,7 @@ func TestPositionLiquidate(t *testing.T) {
 		ID:        "lol",
 		Price:     1,
 		Amount:    1,
-	})
+	}, false)
 	if !errors.Is(err, nil) {
 		t.Error(err)
 	}

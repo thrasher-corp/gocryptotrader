@@ -170,7 +170,7 @@ type CurrencyPairStatistic struct {
 	TotalValueLostToSlippage     decimal.Decimal
 	TotalValueLost               decimal.Decimal
 
-	Events []DataAtOffset `json:"-"`
+	Events []*DataAtOffset `json:"-"`
 
 	MaxDrawdown           Swing               `json:"max-drawdown,omitempty"`
 	HighestCommittedFunds ValueAtTime         `json:"highest-committed-funds"`

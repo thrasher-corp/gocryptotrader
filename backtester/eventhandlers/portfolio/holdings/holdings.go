@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // Create makes a Holding struct to track total values of strategy holdings over the course of a backtesting run
@@ -69,69 +70,74 @@ func (h *Holding) UpdateValue(d common.DataEventHandler) {
 	h.Timestamp = d.GetTime()
 	latest := d.GetClosePrice()
 	h.Offset = d.GetOffset()
-	h.updateValue(latest)
+	h.scaleValuesToCurrentPrice(latest)
 }
 
 func (h *Holding) update(e fill.Event, f funding.IFundReader) error {
 	direction := e.GetDirection()
-	if o := e.GetOrder(); o != nil {
-		amount := decimal.NewFromFloat(o.Amount)
-		fee := decimal.NewFromFloat(o.Fee)
-		price := decimal.NewFromFloat(o.Price)
-		a := e.GetAssetType()
-		switch {
-		case a == asset.Spot:
-			spotR, err := f.GetPairReader()
-			if err != nil {
-				return err
-			}
-			h.BaseSize = spotR.BaseAvailable()
-			h.QuoteSize = spotR.QuoteAvailable()
-		case a.IsFutures():
-			collat, err := f.GetCollateralReader()
-			if err != nil {
-				return err
-			}
-			h.BaseSize = collat.CurrentHoldings()
-			h.QuoteSize = collat.AvailableFunds()
-		default:
-			return fmt.Errorf("%v %w", a, asset.ErrNotSupported)
+	o := e.GetOrder()
+	if o == nil {
+		h.TotalValueLostToVolumeSizing = h.TotalValueLostToVolumeSizing.Add(e.GetClosePrice().Sub(e.GetVolumeAdjustedPrice()).Mul(e.GetAmount()))
+		h.TotalValueLostToSlippage = h.TotalValueLostToSlippage.Add(e.GetVolumeAdjustedPrice().Sub(e.GetPurchasePrice()).Mul(e.GetAmount()))
+		h.scaleValuesToCurrentPrice(e.GetClosePrice())
+		return nil
+	}
+	amount := decimal.NewFromFloat(o.Amount)
+	fee := decimal.NewFromFloat(o.Fee)
+	price := decimal.NewFromFloat(o.Price)
+	a := e.GetAssetType()
+	switch {
+	case a == asset.Spot:
+		spotR, err := f.GetPairReader()
+		if err != nil {
+			return err
 		}
+		h.BaseSize = spotR.BaseAvailable()
+		h.QuoteSize = spotR.QuoteAvailable()
+	case a.IsFutures():
+		collat, err := f.GetCollateralReader()
+		if err != nil {
+			return err
+		}
+		h.BaseSize = collat.CurrentHoldings()
+		h.QuoteSize = collat.AvailableFunds()
+	default:
+		return fmt.Errorf("%v %w", a, asset.ErrNotSupported)
+	}
 
-		h.BaseValue = h.BaseSize.Mul(price)
-		h.TotalFees = h.TotalFees.Add(fee)
-		if e.GetAssetType().IsFutures() {
-			// responsibility of tracking futures orders is
-			// with order.PositionTracker
-			return nil
-		}
-		switch direction {
-		case order.Buy,
-			order.Bid:
-			h.BoughtAmount = h.BoughtAmount.Add(amount)
-			h.ScaledBoughtValue = h.BoughtAmount.Mul(price)
-			h.CommittedFunds = h.CommittedFunds.Add(amount.Mul(price))
-		case order.Sell,
-			order.Ask:
-			h.SoldAmount = h.SoldAmount.Add(amount)
-			h.ScaledSoldValue = h.SoldAmount.Mul(price)
-			h.CommittedFunds = h.CommittedFunds.Sub(amount.Mul(price))
-		}
+	h.BaseValue = h.BaseSize.Mul(price)
+	h.TotalFees = h.TotalFees.Add(fee)
+	if e.GetAssetType().IsFutures() {
+		// responsibility of tracking futures orders is
+		// with order.PositionTracker
+		return nil
+	}
+	switch direction {
+	case order.Buy,
+		order.Bid:
+		h.BoughtAmount = h.BoughtAmount.Add(amount)
+		h.ScaledBoughtValue = h.BoughtAmount.Mul(price)
+		h.CommittedFunds = h.BaseSize.Mul(price)
+	case order.Sell,
+		order.Ask:
+		h.SoldAmount = h.SoldAmount.Add(amount)
+		h.ScaledSoldValue = h.SoldAmount.Mul(price)
+		h.CommittedFunds = h.BaseSize.Mul(price)
 	}
 	h.TotalValueLostToVolumeSizing = h.TotalValueLostToVolumeSizing.Add(e.GetClosePrice().Sub(e.GetVolumeAdjustedPrice()).Mul(e.GetAmount()))
 	h.TotalValueLostToSlippage = h.TotalValueLostToSlippage.Add(e.GetVolumeAdjustedPrice().Sub(e.GetPurchasePrice()).Mul(e.GetAmount()))
-	h.updateValue(e.GetClosePrice())
+	h.scaleValuesToCurrentPrice(e.GetClosePrice())
 	return nil
 }
 
-func (h *Holding) updateValue(latestPrice decimal.Decimal) {
+func (h *Holding) scaleValuesToCurrentPrice(currentPrice decimal.Decimal) {
 	origPosValue := h.BaseValue
 	origBoughtValue := h.ScaledBoughtValue
 	origSoldValue := h.ScaledSoldValue
 	origTotalValue := h.TotalValue
-	h.BaseValue = h.BaseSize.Mul(latestPrice)
-	h.ScaledBoughtValue = h.BoughtAmount.Mul(latestPrice)
-	h.ScaledSoldValue = h.SoldAmount.Mul(latestPrice)
+	h.BaseValue = h.BaseSize.Mul(currentPrice)
+	h.ScaledBoughtValue = h.BoughtAmount.Mul(currentPrice)
+	h.ScaledSoldValue = h.SoldAmount.Mul(currentPrice)
 	h.TotalValue = h.BaseValue.Add(h.QuoteSize)
 
 	h.TotalValueDifference = h.TotalValue.Sub(origTotalValue)

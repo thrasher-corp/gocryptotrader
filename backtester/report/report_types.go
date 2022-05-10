@@ -108,8 +108,8 @@ type DetailedCandle struct {
 type linkCurrencyDiff struct {
 	FuturesPair   currency.Pair
 	SpotPair      currency.Pair
-	FuturesEvents []statistics.DataAtOffset
-	SpotEvents    []statistics.DataAtOffset
+	FuturesEvents []*statistics.DataAtOffset //TODO investigate if that did anything
+	SpotEvents    []*statistics.DataAtOffset
 	DiffPercent   []decimal.Decimal
 }
 

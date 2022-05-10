@@ -44,6 +44,7 @@ var (
 	errNilOrder                       = errors.New("nil order received")
 	errNoPNLHistory                   = errors.New("no pnl history")
 	errCannotCalculateUnrealisedPNL   = errors.New("cannot calculate unrealised PNL")
+	errCannotTrackInvalidParams       = errors.New("parameters set incorrectly, cannot track")
 )
 
 // PNLCalculation is an interface to allow multiple

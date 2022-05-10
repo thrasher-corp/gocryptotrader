@@ -344,7 +344,7 @@ func (m *MultiPositionTracker) TrackNewOrder(d *Detail) error {
 	if tracker, ok := m.orderPositions[d.ID]; ok {
 		// this has already been associated
 		// update the tracker
-		return tracker.TrackNewOrder(d)
+		return tracker.TrackNewOrder(d, false)
 	}
 	if len(m.positions) > 0 {
 		for i := range m.positions {
@@ -353,7 +353,7 @@ func (m *MultiPositionTracker) TrackNewOrder(d *Detail) error {
 			}
 		}
 		if m.positions[len(m.positions)-1].status == Open {
-			err := m.positions[len(m.positions)-1].TrackNewOrder(d)
+			err := m.positions[len(m.positions)-1].TrackNewOrder(d, false)
 			if err != nil && !errors.Is(err, ErrPositionClosed) {
 				return err
 			}
@@ -375,7 +375,7 @@ func (m *MultiPositionTracker) TrackNewOrder(d *Detail) error {
 		return err
 	}
 	m.positions = append(m.positions, tracker)
-	err = tracker.TrackNewOrder(d)
+	err = tracker.TrackNewOrder(d, true)
 	if err != nil {
 		return err
 	}
@@ -518,12 +518,15 @@ func (p *PositionTracker) GetLatestPNLSnapshot() (PNLResult, error) {
 
 // TrackNewOrder knows how things are going for a given
 // futures contract
-func (p *PositionTracker) TrackNewOrder(d *Detail) error {
+func (p *PositionTracker) TrackNewOrder(d *Detail, isInitialOrder bool) error {
 	if p == nil {
 		return fmt.Errorf("position tracker %w", common.ErrNilPointer)
 	}
 	p.m.Lock()
 	defer p.m.Unlock()
+	if isInitialOrder && len(p.pnlHistory) > 0 {
+		return fmt.Errorf("%w received isInitialOrder = true with existing position", errCannotTrackInvalidParams)
+	}
 	if p.status.IsInactive() {
 		return ErrPositionClosed
 	}
@@ -539,6 +542,7 @@ func (p *PositionTracker) TrackNewOrder(d *Detail) error {
 	if p.asset != d.AssetType {
 		return fmt.Errorf("%w asset '%v' received: '%v'", errOrderNotEqualToTracker, d.AssetType, p.asset)
 	}
+
 	if d.Side == UnknownSide {
 		return ErrSideIsInvalid
 	}
@@ -590,7 +594,8 @@ func (p *PositionTracker) TrackNewOrder(d *Detail) error {
 		longSide = longSide.Add(decimal.NewFromFloat(p.longPositions[i].Amount))
 	}
 
-	if p.currentDirection == UnknownSide {
+	if isInitialOrder {
+		p.openingDirection = d.Side
 		p.currentDirection = d.Side
 	}
 
@@ -620,8 +625,18 @@ func (p *PositionTracker) TrackNewOrder(d *Detail) error {
 	if len(p.pnlHistory) != 0 {
 		cal.PreviousPrice = p.pnlHistory[len(p.pnlHistory)-1].Price
 	}
-	if (cal.OrderDirection.IsShort() && cal.CurrentDirection.IsLong() || cal.OrderDirection.IsLong() && cal.CurrentDirection.IsShort()) &&
-		cal.Exposure.LessThan(amount) {
+	switch {
+	case isInitialOrder:
+		result = &PNLResult{
+			IsOrder:       true,
+			Time:          cal.Time,
+			Price:         cal.CurrentPrice,
+			Exposure:      cal.Amount,
+			Fee:           cal.Fee,
+			Direction:     cal.OpeningDirection,
+			UnrealisedPNL: cal.Fee.Neg(),
+		}
+	case (cal.OrderDirection.IsShort() && cal.CurrentDirection.IsLong() || cal.OrderDirection.IsLong() && cal.CurrentDirection.IsShort()) && cal.Exposure.LessThan(amount):
 		// latest order swaps directions!
 		// split the order to calculate PNL from each direction
 		first := cal.Exposure
@@ -655,7 +670,7 @@ func (p *PositionTracker) TrackNewOrder(d *Detail) error {
 		cal.Time = cal.Time.Add(1)
 		cal.PNLHistory = p.pnlHistory
 		result, err = p.PNLCalculation.CalculatePNL(context.TODO(), cal)
-	} else {
+	default:
 		result, err = p.PNLCalculation.CalculatePNL(context.TODO(), cal)
 	}
 	if err != nil {

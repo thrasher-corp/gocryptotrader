@@ -117,8 +117,9 @@ func (f *FundManager) CreateSnapshot(t time.Time) {
 			if f.items[i].isCollateral {
 				f.items[i].initialFunds = f.items[i].available
 			}
-		} else if _, ok := f.items[i].snapshot[t.UnixNano()]; ok {
+		} else if _, ok := f.items[i].snapshot[t.UnixNano()]; !ok {
 			f.items[i].snapshot[t.UnixNano()] = ItemSnapshot{}
+			// todo investigate this
 		}
 
 		iss := ItemSnapshot{

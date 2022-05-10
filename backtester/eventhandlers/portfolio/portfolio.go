@@ -187,7 +187,7 @@ func (p *Portfolio) evaluateOrder(d common.Directioner, originalOrderSignal, ev 
 }
 
 func (p *Portfolio) sizeOrder(d common.Directioner, cs *exchange.Settings, originalOrderSignal *order.Order, sizingFunds decimal.Decimal, funds funding.IFundReserver) *order.Order {
-	sizedOrder, err := p.sizeManager.SizeOrder(originalOrderSignal, sizingFunds, cs)
+	sizedOrder, estFee, err := p.sizeManager.SizeOrder(originalOrderSignal, sizingFunds, cs)
 	if err != nil || sizedOrder.Amount.IsZero() {
 		switch originalOrderSignal.Direction {
 		case gctorder.Buy, gctorder.Bid:
@@ -210,20 +210,20 @@ func (p *Portfolio) sizeOrder(d common.Directioner, cs *exchange.Settings, origi
 	}
 	switch d.GetDirection() {
 	case gctorder.Buy, gctorder.Bid:
-		err = funds.Reserve(sizedOrder.Amount.Mul(sizedOrder.ClosePrice), gctorder.Buy)
+		err = funds.Reserve(sizedOrder.Amount.Mul(sizedOrder.ClosePrice).Add(estFee), gctorder.Buy)
 		sizedOrder.AllocatedSize = sizedOrder.Amount.Mul(sizedOrder.ClosePrice)
 	case gctorder.Sell, gctorder.Ask:
-		err = funds.Reserve(sizedOrder.Amount, gctorder.Sell)
+		err = funds.Reserve(sizedOrder.Amount.Add(estFee), gctorder.Sell)
 		sizedOrder.AllocatedSize = sizedOrder.Amount
 	case gctorder.Short, gctorder.Long:
-		err = funds.Reserve(sizedOrder.Amount, d.GetDirection())
+		err = funds.Reserve(sizedOrder.Amount.Add(estFee), d.GetDirection())
 		sizedOrder.AllocatedSize = sizedOrder.Amount.Div(sizedOrder.ClosePrice)
 	case gctorder.ClosePosition:
 		if originalOrderSignal.AssetType.IsFutures() {
-			err = funds.Reserve(sizedOrder.Amount, d.GetDirection())
+			err = funds.Reserve(sizedOrder.Amount.Add(estFee), d.GetDirection())
 			sizedOrder.AllocatedSize = sizedOrder.Amount.Div(sizedOrder.ClosePrice)
 		} else {
-			err = funds.Reserve(sizedOrder.Amount, d.GetDirection())
+			err = funds.Reserve(sizedOrder.Amount.Add(estFee), d.GetDirection())
 			sizedOrder.AllocatedSize = sizedOrder.Amount
 		}
 	default:
@@ -332,6 +332,7 @@ func (p *Portfolio) setHoldingsForOffset(h *holdings.Holding, overwriteExisting 
 		if lookup.HoldingsSnapshots[i].Offset == h.Offset {
 			if overwriteExisting {
 				lookup.HoldingsSnapshots[i] = *h
+				p.exchangeAssetPairSettings[h.Exchange][h.Asset][h.Pair] = lookup
 				return nil
 			}
 			return errHoldingsAlreadySet
@@ -342,6 +343,7 @@ func (p *Portfolio) setHoldingsForOffset(h *holdings.Holding, overwriteExisting 
 	}
 
 	lookup.HoldingsSnapshots = append(lookup.HoldingsSnapshots, *h)
+	p.exchangeAssetPairSettings[h.Exchange][h.Asset][h.Pair] = lookup
 	return nil
 }
 
