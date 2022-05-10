@@ -2222,12 +2222,12 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = b.GetHistoricCandlesExtended(context.Background(), pair1, asset.CoinMarginedFutures, startTime, end, kline.OneMin)
+	_, err = b.GetHistoricCandlesExtended(context.Background(), pair1, asset.CoinMarginedFutures, startTime, end, kline.OneHour)
 	if err != nil {
 		t.Error(err)
 	}
 
-	_, err = b.GetHistoricCandlesExtended(context.Background(), pair1, asset.Futures, startTime, end, kline.OneMin)
+	_, err = b.GetHistoricCandlesExtended(context.Background(), pair1, asset.Futures, startTime, end, kline.OneDay)
 	if err != nil {
 		t.Error(err)
 	}

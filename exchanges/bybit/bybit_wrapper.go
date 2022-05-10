@@ -142,6 +142,7 @@ func (by *Bybit) SetDefaults() {
 					kline.OneWeek.Word():    true,
 					kline.OneMonth.Word():   true,
 				},
+				ResultLimit: 200,
 			},
 		},
 	}
@@ -1446,73 +1447,75 @@ func (by *Bybit) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 		return kline.Item{}, err
 	}
 
-	switch a {
-	case asset.Spot:
-		candles, err := by.GetKlines(ctx, formattedPair.String(), by.FormatExchangeKlineInterval(ctx, interval), int64(by.Features.Enabled.Kline.ResultLimit), start, end)
-		if err != nil {
-			return kline.Item{}, err
-		}
-
-		for i := range candles {
-			for j := range klineItem.Candles {
-				if klineItem.Candles[j].Time.Equal(time.Unix(int64(candles[i].Open), 0)) {
-					continue
-				}
+	for x := range dates.Ranges {
+		switch a {
+		case asset.Spot:
+			candles, err := by.GetKlines(ctx, formattedPair.String(), by.FormatExchangeKlineInterval(ctx, interval), int64(by.Features.Enabled.Kline.ResultLimit), dates.Ranges[x].Start.Time, dates.Ranges[x].End.Time)
+			if err != nil {
+				return kline.Item{}, err
 			}
-			klineItem.Candles = append(klineItem.Candles, kline.Candle{
-				Time:   time.Unix(int64(candles[i].Open), 0),
-				Open:   candles[i].Open,
-				High:   candles[i].High,
-				Low:    candles[i].Low,
-				Close:  candles[i].Close,
-				Volume: candles[i].Volume,
-			})
-		}
-	case asset.CoinMarginedFutures, asset.Futures:
-		candles, err := by.GetFuturesKlineData(ctx, formattedPair, by.FormatExchangeKlineIntervalFutures(ctx, interval), int64(by.Features.Enabled.Kline.ResultLimit), start)
-		if err != nil {
-			return kline.Item{}, err
-		}
 
-		for i := range candles {
-			for j := range klineItem.Candles {
-				if klineItem.Candles[j].Time.Equal(time.Unix(candles[i].OpenTime, 0)) {
-					continue
+			for i := range candles {
+				for j := range klineItem.Candles {
+					if klineItem.Candles[j].Time.Equal(candles[i].StartTime) {
+						continue
+					}
 				}
+				klineItem.Candles = append(klineItem.Candles, kline.Candle{
+					Time:   candles[i].StartTime,
+					Open:   candles[i].Open,
+					High:   candles[i].High,
+					Low:    candles[i].Low,
+					Close:  candles[i].Close,
+					Volume: candles[i].Volume,
+				})
 			}
-			klineItem.Candles = append(klineItem.Candles, kline.Candle{
-				Time:   time.Unix(candles[i].OpenTime, 0),
-				Open:   candles[i].Open,
-				High:   candles[i].High,
-				Low:    candles[i].Low,
-				Close:  candles[i].Close,
-				Volume: candles[i].Volume,
-			})
-		}
-	case asset.USDTMarginedFutures:
-		candles, err := by.GetUSDTFuturesKlineData(ctx, formattedPair, by.FormatExchangeKlineIntervalFutures(ctx, interval), int64(by.Features.Enabled.Kline.ResultLimit), start)
-		if err != nil {
-			return kline.Item{}, err
-		}
+		case asset.CoinMarginedFutures, asset.Futures:
+			candles, err := by.GetFuturesKlineData(ctx, formattedPair, by.FormatExchangeKlineIntervalFutures(ctx, interval), int64(by.Features.Enabled.Kline.ResultLimit), dates.Ranges[x].Start.Time)
+			if err != nil {
+				return kline.Item{}, err
+			}
 
-		for i := range candles {
-			for j := range klineItem.Candles {
-				if klineItem.Candles[j].Time.Equal(time.Unix(candles[i].OpenTime, 0)) {
-					continue
+			for i := range candles {
+				for j := range klineItem.Candles {
+					if klineItem.Candles[j].Time.Equal(time.Unix(candles[i].OpenTime, 0)) {
+						continue
+					}
 				}
+				klineItem.Candles = append(klineItem.Candles, kline.Candle{
+					Time:   time.Unix(candles[i].OpenTime, 0),
+					Open:   candles[i].Open,
+					High:   candles[i].High,
+					Low:    candles[i].Low,
+					Close:  candles[i].Close,
+					Volume: candles[i].Volume,
+				})
 			}
-			klineItem.Candles = append(klineItem.Candles, kline.Candle{
-				Time:   time.Unix(candles[i].OpenTime, 0),
-				Open:   candles[i].Open,
-				High:   candles[i].High,
-				Low:    candles[i].Low,
-				Close:  candles[i].Close,
-				Volume: candles[i].Volume,
-			})
-		}
+		case asset.USDTMarginedFutures:
+			candles, err := by.GetUSDTFuturesKlineData(ctx, formattedPair, by.FormatExchangeKlineIntervalFutures(ctx, interval), int64(by.Features.Enabled.Kline.ResultLimit), dates.Ranges[x].Start.Time)
+			if err != nil {
+				return kline.Item{}, err
+			}
 
-	default:
-		return kline.Item{}, fmt.Errorf("assetType not supported: %v", a)
+			for i := range candles {
+				for j := range klineItem.Candles {
+					if klineItem.Candles[j].Time.Equal(time.Unix(candles[i].OpenTime, 0)) {
+						continue
+					}
+				}
+				klineItem.Candles = append(klineItem.Candles, kline.Candle{
+					Time:   time.Unix(candles[i].OpenTime, 0),
+					Open:   candles[i].Open,
+					High:   candles[i].High,
+					Low:    candles[i].Low,
+					Close:  candles[i].Close,
+					Volume: candles[i].Volume,
+				})
+			}
+
+		default:
+			return kline.Item{}, fmt.Errorf("assetType not supported: %v", a)
+		}
 	}
 
 	dates.SetHasDataFromCandles(klineItem.Candles)
