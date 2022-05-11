@@ -139,17 +139,12 @@ func (m *OrderManager) CancelAllOrders(ctx context.Context, exchangeNames []exch
 		}
 		for j := range exchangeOrders {
 			log.Debugf(log.OrderMgr, "Order manager: Cancelling order(s) for exchange %s.", exchangeNames[i].GetName())
-			err := m.Cancel(ctx, &order.Cancel{
-				Exchange:      exchangeOrders[j].Exchange,
-				ID:            exchangeOrders[j].ID,
-				AccountID:     exchangeOrders[j].AccountID,
-				ClientID:      exchangeOrders[j].ClientID,
-				WalletAddress: exchangeOrders[j].WalletAddress,
-				Type:          exchangeOrders[j].Type,
-				Side:          exchangeOrders[j].Side,
-				Pair:          exchangeOrders[j].Pair,
-				AssetType:     exchangeOrders[j].AssetType,
-			})
+			cancel, err := exchangeOrders[j].DeriveCancel()
+			if err != nil {
+				log.Error(log.OrderMgr, err)
+				continue
+			}
+			err = m.Cancel(ctx, cancel)
 			if err != nil {
 				log.Error(log.OrderMgr, err)
 			}
