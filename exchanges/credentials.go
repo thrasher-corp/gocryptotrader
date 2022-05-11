@@ -361,7 +361,6 @@ func (b *Base) SetCredentials(apiKey, apiSecret, clientID, subaccount, pemKey, o
 	if b.API.credentials == nil {
 		b.API.credentials = &Credentials{}
 	}
-	println(apiKey, clientID, apiSecret)
 	b.API.credentials.Key = apiKey
 	b.API.credentials.ClientID = clientID
 	b.API.credentials.SubAccount = subaccount
