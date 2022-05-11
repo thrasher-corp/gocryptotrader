@@ -636,6 +636,7 @@ func (b *Binance) OpenOrders(ctx context.Context, pair currency.Pair) ([]QueryOr
 		&resp); err != nil {
 		return resp, err
 	}
+
 	return resp, nil
 }
 

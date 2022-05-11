@@ -74,9 +74,9 @@ func (r *Requester) SendPayload(ctx context.Context, ep EndpointLimit, newReques
 	if atomic.LoadInt32(&r.jobs) >= MaxRequestJobs {
 		return errMaxRequestJobs
 	}
+
 	atomic.AddInt32(&r.jobs, 1)
 	err := r.doRequest(ctx, ep, newRequest)
-
 	atomic.AddInt32(&r.jobs, -1)
 	return err
 }
@@ -172,12 +172,14 @@ func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRe
 				// If the body isn't fully read, the connection cannot be re-used
 				r.drainBody(resp.Body)
 			}
+
 			if attempt > r.maxRetries {
 				if err != nil {
 					return fmt.Errorf("%w, err: %v", errFailedToRetryRequest, err)
 				}
 				return fmt.Errorf("%w, status: %s", errFailedToRetryRequest, resp.Status)
 			}
+
 			after := RetryAfter(resp, time.Now())
 			backoff := r.backoff(attempt)
 			delay := backoff
@@ -212,11 +214,7 @@ func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRe
 		// response to caller.
 		var unmarshallError error
 		if p.Result != nil {
-			println(string(contents))
 			unmarshallError = json.Unmarshal(contents, p.Result)
-			if unmarshallError != nil {
-				fmt.Println(unmarshallError.Error())
-			}
 		}
 
 		if p.HTTPRecording {

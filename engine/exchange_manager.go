@@ -201,12 +201,10 @@ func (m *ExchangeManager) NewExchangeByName(name string) (exchange.IBotExchange,
 	case "zb":
 		exch = new(zb.ZB)
 	default:
-		println("Binanceus Exchange  ..Default")
 		if m.Builder != nil {
 			return m.Builder.NewExchangeByName(nameLower)
 		}
 		return nil, fmt.Errorf("%s, %w", nameLower, ErrExchangeNotFound)
 	}
-
 	return exch, nil
 }

@@ -165,7 +165,7 @@ func main() {
 
 	log.Println("Getting specific ticker..")
 	dataReq := WebsocketOrderbookTickerRequest{
-		Exchange:  "Binanceus",
+		Exchange:  "Bitfinex",
 		Currency:  "BTCUSD",
 		AssetType: asset.Spot,
 	}
