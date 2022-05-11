@@ -595,14 +595,13 @@ func (b *Binanceus) GetUserAccountStatus(ctx context.Context, recvWindow uint) (
 	params := url.Values{}
 	timestamp := time.Now().UnixMilli()
 	params.Set("timestamp", strconv.Itoa(int(timestamp)))
-	if recvWindow > 0 {
+	if recvWindow > 0 && recvWindow < 60000 {
 		if recvWindow < 2000 {
 			recvWindow += 1500
 		}
-	} else {
-		recvWindow = uint(defaultRecvWindow)
+		params.Set("recvWindow", strconv.Itoa(int(recvWindow)))
 	}
-	params.Set("recvWindow", strconv.Itoa(int(recvWindow)))
+
 	return &resp,
 		b.SendAuthHTTPRequest(ctx,
 			exchange.RestSpotSupplementary,
@@ -623,12 +622,10 @@ func (b *Binanceus) GetUserAPITradingStatus(ctx context.Context, recvWindow uint
 	params := url.Values{}
 	timestamp := time.Now().UnixMilli()
 	params.Set("timestamp", strconv.Itoa(int(timestamp)))
-	if recvWindow > 0 {
+	if recvWindow > 0 && recvWindow <= 58000 {
 		if recvWindow < 2000 {
 			recvWindow += 1500
 		}
-	} else {
-		recvWindow = uint(defaultRecvWindow)
 	}
 	params.Set("recvWindow", strconv.Itoa(int(recvWindow)))
 	return &(resp.TC),
@@ -720,14 +717,12 @@ func (b *Binanceus) GetTradeFee(ctx context.Context, recvWindow uint, symbol str
 	params.Set("timestamp", strconv.Itoa(int(timestamp)))
 	if recvWindow > 0 {
 		if recvWindow < 2000 {
-			recvWindow += 2000
-		} else if recvWindow > 6000 {
+			recvWindow += 3000
+		} else if recvWindow > 60000 {
 			recvWindow = 5000
 		}
-	} else {
-		recvWindow = uint(60000)
+		params.Set("recvWindow", strconv.Itoa(int(recvWindow)))
 	}
-	params.Set("recvWindow", strconv.Itoa(int(recvWindow)))
 	if symbol != "" {
 		params.Set("symbol", symbol)
 	}
@@ -756,16 +751,15 @@ func (b *Binanceus) GetAssetDistributionHistory(ctx context.Context, asset strin
 	if startTime > 0 {
 		params.Set("endTime", strconv.Itoa(int(endTime)))
 	}
-	if recvWindow > 0 {
+	if recvWindow > 0 && recvWindow < 60000 {
 		if recvWindow < 2000 {
 			recvWindow += 2000
 		} else if recvWindow > 6000 {
 			recvWindow = 5000
 		}
-	} else {
-		recvWindow = uint(defaultRecvWindow)
+		params.Set("recvWindow", strconv.Itoa(int(recvWindow)))
 	}
-	params.Set("recvWindow", strconv.Itoa(int(recvWindow)))
+
 	if asset != "" {
 		params.Set("asset", asset)
 	}
