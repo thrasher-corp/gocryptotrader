@@ -688,7 +688,8 @@ func (f *FTX) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Mod
 	}
 
 	var id string
-	if action.TriggerPrice != 0 {
+	switch {
+	case action.TriggerPrice != 0:
 		var a TriggerOrderData
 		a, err := f.ModifyTriggerOrder(ctx,
 			action.ID,
@@ -701,7 +702,7 @@ func (f *FTX) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Mod
 			return nil, err
 		}
 		id = strconv.FormatInt(a.ID, 10)
-	} else if action.ID == "" {
+	case action.ID == "":
 		o, err := f.ModifyOrderByClientID(ctx,
 			action.ClientOrderID,
 			action.ClientOrderID,
@@ -711,7 +712,7 @@ func (f *FTX) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Mod
 			return nil, err
 		}
 		id = strconv.FormatInt(o.ID, 10)
-	} else {
+	default:
 		o, err := f.ModifyPlacedOrder(ctx,
 			action.ID,
 			action.ClientOrderID,
