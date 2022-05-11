@@ -674,10 +674,6 @@ func (m *OrderManager) processOrders() {
 			filter := &order.Filter{Exchange: exchanges[i].GetName()}
 			orders := m.orderStore.getActiveOrders(filter)
 			order.FilterOrdersByPairs(&orders, pairs)
-			requiresProcessing := make(map[string]bool, len(orders))
-			for x := range orders {
-				requiresProcessing[orders[x].InternalOrderID] = true
-			}
 
 			result, err := exchanges[i].GetActiveOrders(context.TODO(), &order.GetOrdersRequest{
 				Side:      order.AnySide,
@@ -702,23 +698,28 @@ func (m *OrderManager) processOrders() {
 				if err != nil {
 					log.Error(log.OrderMgr, err)
 				} else {
-					delete(requiresProcessing, upsertResponse.OrderDetails.InternalOrderID)
+					for i := range orders {
+						if orders[i].InternalOrderID != upsertResponse.OrderDetails.InternalOrderID {
+							continue
+						}
+						orders[i] = orders[len(orders)-1]
+						orders = orders[:len(orders)-1]
+					}
 				}
 			}
 			if !exchanges[i].GetBase().GetSupportedFeatures().RESTCapabilities.GetOrder {
 				continue
 			}
 			wg.Add(1)
-			go m.processMatchingOrders(exchanges[i], orders, requiresProcessing, &wg)
+			go m.processMatchingOrders(exchanges[i], orders, &wg)
 		}
 	}
 	wg.Wait()
 }
 
-func (m *OrderManager) processMatchingOrders(exch exchange.IBotExchange, orders []order.Detail, requiresProcessing map[string]bool, wg *sync.WaitGroup) {
+func (m *OrderManager) processMatchingOrders(exch exchange.IBotExchange, orders []order.Detail, wg *sync.WaitGroup) {
 	for x := range orders {
-		if time.Since(orders[x].LastUpdated) < time.Minute ||
-			!requiresProcessing[orders[x].InternalOrderID] {
+		if time.Since(orders[x].LastUpdated) < time.Minute {
 			continue
 		}
 		err := m.FetchAndUpdateExchangeOrder(exch, &orders[x], orders[x].AssetType)
@@ -844,7 +845,7 @@ func (s *store) get() map[string][]*order.Detail {
 	orders := make(map[string][]*order.Detail)
 	s.m.Lock()
 	for k, val := range s.Orders {
-		orders[k] = order.GetCopySliceAddressed(val)
+		orders[k] = order.CopyPointerOrderSlice(val)
 	}
 	s.m.Unlock()
 	return orders
@@ -861,7 +862,7 @@ func (s *store) getByExchangeAndID(exchange, id string) (*order.Detail, error) {
 
 	for x := range r {
 		if r[x].ID == id {
-			return r[x].CopyValueNewAddress(), nil
+			return r[x].CopyToPointer(), nil
 		}
 	}
 	return nil, ErrOrderNotFound
@@ -945,19 +946,19 @@ func (s *store) upsert(od *order.Detail) (*OrderUpsertResponse, error) {
 	if !ok {
 		od.GenerateInternalOrderID()
 		s.Orders[lName] = []*order.Detail{od}
-		return &OrderUpsertResponse{OrderDetails: od.CopyValue(), IsNewOrder: true}, nil
+		return &OrderUpsertResponse{OrderDetails: od.Copy(), IsNewOrder: true}, nil
 	}
 	for x := range r {
 		if r[x].ID != od.ID {
 			continue
 		}
 		r[x].UpdateOrderFromDetail(od)
-		return &OrderUpsertResponse{OrderDetails: r[x].CopyValue(), IsNewOrder: false}, nil
+		return &OrderUpsertResponse{OrderDetails: r[x].Copy(), IsNewOrder: false}, nil
 	}
 	// Untracked websocket orders will not have internalIDs yet
 	od.GenerateInternalOrderID()
 	s.Orders[lName] = append(s.Orders[lName], od)
-	return &OrderUpsertResponse{OrderDetails: od.CopyValue(), IsNewOrder: true}, nil
+	return &OrderUpsertResponse{OrderDetails: od.Copy(), IsNewOrder: true}, nil
 }
 
 // exists verifies if the orderstore contains the provided order
@@ -1022,7 +1023,7 @@ func (s *store) getFilteredOrders(f *order.Filter) ([]order.Detail, error) {
 				if !e[i].MatchFilter(f) {
 					continue
 				}
-				os = append(os, e[i].CopyValue())
+				os = append(os, e[i].Copy())
 			}
 		}
 	} else {
@@ -1031,7 +1032,7 @@ func (s *store) getFilteredOrders(f *order.Filter) ([]order.Detail, error) {
 				if !e[i].MatchFilter(f) {
 					continue
 				}
-				os = append(os, e[i].CopyValue())
+				os = append(os, e[i].Copy())
 			}
 		}
 	}
@@ -1051,7 +1052,7 @@ func (s *store) getActiveOrders(f *order.Filter) []order.Detail {
 				if e[i].Status != order.UnknownStatus && !e[i].IsActive() {
 					continue
 				}
-				orders = append(orders, e[i].CopyValue())
+				orders = append(orders, e[i].Copy())
 			}
 		}
 	case f.Exchange != "":
@@ -1061,7 +1062,7 @@ func (s *store) getActiveOrders(f *order.Filter) []order.Detail {
 				if e[i].Status != order.UnknownStatus && (!e[i].IsActive() || !e[i].MatchFilter(f)) {
 					continue
 				}
-				orders = append(orders, e[i].CopyValue())
+				orders = append(orders, e[i].Copy())
 			}
 		}
 	default:
@@ -1070,7 +1071,7 @@ func (s *store) getActiveOrders(f *order.Filter) []order.Detail {
 				if e[i].Status != order.UnknownStatus && (!e[i].IsActive() || !e[i].MatchFilter(f)) {
 					continue
 				}
-				orders = append(orders, e[i].CopyValue())
+				orders = append(orders, e[i].Copy())
 			}
 		}
 	}

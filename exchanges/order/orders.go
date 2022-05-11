@@ -466,20 +466,15 @@ func (d *Detail) GenerateInternalOrderID() {
 	}
 }
 
-// CopyValue will return a copy of Detail NOTE: This is Addressable.
-func (d *Detail) CopyValue() Detail {
-	return d.copy()
-}
-
-// CopyValueNewAddress will return the address of a new copy of the order Detail
-// WARNING: DO NOT DEREFERENCE USE METHOD CopyValue().
-func (d *Detail) CopyValueNewAddress() *Detail {
-	c := d.copy()
+// CopyToPointer will return the address of a new copy of the order Detail
+// WARNING: DO NOT DEREFERENCE USE METHOD Copy().
+func (d *Detail) CopyToPointer() *Detail {
+	c := d.Copy()
 	return &c
 }
 
-// copy makes a full copy of underlying details
-func (d *Detail) copy() Detail {
+// Copy makes a full copy of underlying details NOTE: This is Addressable.
+func (d *Detail) Copy() Detail {
 	c := *d
 	if len(d.Trades) > 0 {
 		c.Trades = make([]TradeHistory, len(d.Trades))
@@ -488,21 +483,12 @@ func (d *Detail) copy() Detail {
 	return c
 }
 
-// GetCopySlice returns a copy of all order details
-func GetCopySlice(old []*Detail) []Detail {
-	copySlice := make([]Detail, len(old))
-	for x := range old {
-		copySlice[x] = old[x].copy()
-	}
-	return copySlice
-}
-
-// GetCopySliceAddressed returns a copy of all order detail and returns a slice
+// CopyPointerOrderSlice returns a copy of all order detail and returns a slice
 // of pointers.
-func GetCopySliceAddressed(old []*Detail) []*Detail {
+func CopyPointerOrderSlice(old []*Detail) []*Detail {
 	copySlice := make([]*Detail, len(old))
 	for x := range old {
-		copySlice[x] = old[x].CopyValueNewAddress()
+		copySlice[x] = old[x].CopyToPointer()
 	}
 	return copySlice
 }

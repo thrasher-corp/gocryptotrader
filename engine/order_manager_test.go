@@ -940,18 +940,8 @@ func Test_processMatchingOrders(t *testing.T) {
 	orders := []order.Detail{
 		{
 			Exchange:    testExchange,
-			ID:          "Test1",
-			LastUpdated: time.Now(),
-		},
-		{
-			Exchange:    testExchange,
 			ID:          "Test2",
 			LastUpdated: time.Now(),
-		},
-		{
-			Exchange:    testExchange,
-			ID:          "Test3",
-			LastUpdated: time.Now().Add(-time.Hour),
 		},
 		{
 			Exchange:    testExchange,
@@ -959,18 +949,9 @@ func Test_processMatchingOrders(t *testing.T) {
 			LastUpdated: time.Now().Add(-time.Hour),
 		},
 	}
-	requiresProcessing := make(map[string]bool, len(orders))
-	for i := range orders {
-		orders[i].GenerateInternalOrderID()
-		if i%2 == 0 {
-			requiresProcessing[orders[i].InternalOrderID] = false
-		} else {
-			requiresProcessing[orders[i].InternalOrderID] = true
-		}
-	}
 	var wg sync.WaitGroup
 	wg.Add(1)
-	m.processMatchingOrders(exch, orders, requiresProcessing, &wg)
+	go m.processMatchingOrders(exch, orders, &wg)
 	wg.Wait()
 	res, err := m.GetOrdersFiltered(&order.Filter{Exchange: testExchange})
 	if err != nil {
