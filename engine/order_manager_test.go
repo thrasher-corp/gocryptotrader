@@ -84,9 +84,12 @@ func (f omfExchange) GetActiveOrders(ctx context.Context, req *order.GetOrdersRe
 	}}, nil
 }
 
-func (f omfExchange) ModifyOrder(ctx context.Context, action *order.Modify) (order.Modify, error) {
-	ans := *action
-	ans.ID = "modified_order_id"
+func (f omfExchange) ModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
+	ans, err := action.DeriveModifyResponse()
+	if err != nil {
+		return nil, err
+	}
+	ans.OrderID = "modified_order_id"
 	return ans, nil
 }
 
@@ -407,12 +410,12 @@ func TestStore_modifyOrder(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = m.orderStore.modifyExisting("fake_order_id", &order.Modify{
+	err = m.orderStore.modifyExisting("fake_order_id", &order.ModifyResponse{
 		Exchange: testExchange,
 
-		ID:     "another_fake_order_id",
-		Price:  16,
-		Amount: 256,
+		OrderID: "another_fake_order_id",
+		Price:   16,
+		Amount:  256,
 	})
 	if err != nil {
 		t.Error(err)

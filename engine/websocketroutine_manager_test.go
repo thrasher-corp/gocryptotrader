@@ -203,7 +203,7 @@ func TestWebsocketRoutineManagerHandleData(t *testing.T) {
 		t.Error("Bad pipeline")
 	}
 
-	err = m.WebsocketDataHandler(exchName, &order.Modify{
+	err = m.WebsocketDataHandler(exchName, &order.Detail{
 		Exchange: "Bitstamp",
 		ID:       orderID,
 		Status:   order.Active,

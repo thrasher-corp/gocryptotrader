@@ -405,7 +405,7 @@ func (m *OrderManager) Modify(ctx context.Context, mod *order.Modify) (*order.Mo
 	//
 	// XXX: This comes with a race condition, because [request -> changes] are not
 	// atomic.
-	err = m.orderStore.modifyExisting(mod.ID, &res)
+	err = m.orderStore.modifyExisting(mod.ID, res)
 
 	// Notify observers.
 	var message string
@@ -416,9 +416,9 @@ func (m *OrderManager) Modify(ctx context.Context, mod *order.Modify) (*order.Mo
 	}
 	m.orderStore.commsManager.PushEvent(base.Event{
 		Type:    "order",
-		Message: fmt.Sprintf(message, mod.Exchange, res.ID),
+		Message: fmt.Sprintf(message, mod.Exchange, res.OrderID),
 	})
-	return &order.ModifyResponse{OrderID: res.ID}, err
+	return &order.ModifyResponse{OrderID: res.OrderID}, err
 }
 
 // Submit will take in an order struct, send it to the exchange and
@@ -915,7 +915,7 @@ func (s *store) updateExisting(od *order.Detail) error {
 
 // modifyExisting depends on mod.Exchange and given ID to uniquely identify an order and
 // modify it.
-func (s *store) modifyExisting(id string, mod *order.Modify) error {
+func (s *store) modifyExisting(id string, mod *order.ModifyResponse) error {
 	s.m.Lock()
 	defer s.m.Unlock()
 	r, ok := s.Orders[strings.ToLower(mod.Exchange)]

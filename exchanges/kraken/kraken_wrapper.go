@@ -786,8 +786,8 @@ func (k *Kraken) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submit
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (k *Kraken) ModifyOrder(ctx context.Context, action *order.Modify) (order.Modify, error) {
-	return order.Modify{}, common.ErrFunctionNotSupported
+func (k *Kraken) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number

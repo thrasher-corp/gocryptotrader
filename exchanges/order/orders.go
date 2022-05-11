@@ -29,6 +29,7 @@ var (
 	errUnrecognisedOrderSide   = errors.New("unrecognised order side")
 	errUnrecognisedOrderType   = errors.New("unrecognised order type")
 	errUnrecognisedOrderStatus = errors.New("unrecognised order status")
+	errOrderDetailIsNil        = errors.New("order detail is nil")
 )
 
 // Validate checks the supplied data and returns whether or not it's valid
@@ -243,22 +244,14 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) {
 
 // UpdateOrderFromModify Will update an order detail (used in order management)
 // by comparing passed in and existing values
-func (d *Detail) UpdateOrderFromModify(m *Modify) {
+func (d *Detail) UpdateOrderFromModify(m *ModifyResponse) {
 	var updated bool
-	if m.ID != "" && d.ID != m.ID {
-		d.ID = m.ID
+	if m.OrderID != "" && d.ID != m.OrderID {
+		d.ID = m.OrderID
 		updated = true
 	}
 	if d.ImmediateOrCancel != m.ImmediateOrCancel {
 		d.ImmediateOrCancel = m.ImmediateOrCancel
-		updated = true
-	}
-	if d.HiddenOrder != m.HiddenOrder {
-		d.HiddenOrder = m.HiddenOrder
-		updated = true
-	}
-	if d.FillOrKill != m.FillOrKill {
-		d.FillOrKill = m.FillOrKill
 		updated = true
 	}
 	if m.Price > 0 && m.Price != d.Price {
@@ -269,32 +262,8 @@ func (d *Detail) UpdateOrderFromModify(m *Modify) {
 		d.Amount = m.Amount
 		updated = true
 	}
-	if m.LimitPriceUpper > 0 && m.LimitPriceUpper != d.LimitPriceUpper {
-		d.LimitPriceUpper = m.LimitPriceUpper
-		updated = true
-	}
-	if m.LimitPriceLower > 0 && m.LimitPriceLower != d.LimitPriceLower {
-		d.LimitPriceLower = m.LimitPriceLower
-		updated = true
-	}
 	if m.TriggerPrice > 0 && m.TriggerPrice != d.TriggerPrice {
 		d.TriggerPrice = m.TriggerPrice
-		updated = true
-	}
-	if m.QuoteAmount > 0 && m.QuoteAmount != d.QuoteAmount {
-		d.QuoteAmount = m.QuoteAmount
-		updated = true
-	}
-	if m.ExecutedAmount > 0 && m.ExecutedAmount != d.ExecutedAmount {
-		d.ExecutedAmount = m.ExecutedAmount
-		updated = true
-	}
-	if m.Fee > 0 && m.Fee != d.Fee {
-		d.Fee = m.Fee
-		updated = true
-	}
-	if m.AccountID != "" && m.AccountID != d.AccountID {
-		d.AccountID = m.AccountID
 		updated = true
 	}
 	if m.PostOnly != d.PostOnly {
@@ -305,18 +274,6 @@ func (d *Detail) UpdateOrderFromModify(m *Modify) {
 		// TODO: Add a check to see if the original pair is empty as well, but
 		// error if it is changing from BTC-USD -> LTC-USD.
 		d.Pair = m.Pair
-		updated = true
-	}
-	if m.Leverage != 0 && m.Leverage != d.Leverage {
-		d.Leverage = m.Leverage
-		updated = true
-	}
-	if m.ClientID != "" && m.ClientID != d.ClientID {
-		d.ClientID = m.ClientID
-		updated = true
-	}
-	if m.WalletAddress != "" && m.WalletAddress != d.WalletAddress {
-		d.WalletAddress = m.WalletAddress
 		updated = true
 	}
 	if m.Type != UnknownType && m.Type != d.Type {
@@ -334,52 +291,6 @@ func (d *Detail) UpdateOrderFromModify(m *Modify) {
 	if m.AssetType != asset.Empty && m.AssetType != d.AssetType {
 		d.AssetType = m.AssetType
 		updated = true
-	}
-	for x := range m.Trades {
-		var found bool
-		for y := range d.Trades {
-			if d.Trades[y].TID != m.Trades[x].TID {
-				continue
-			}
-			found = true
-			if d.Trades[y].Fee != m.Trades[x].Fee {
-				d.Trades[y].Fee = m.Trades[x].Fee
-				updated = true
-			}
-			if m.Trades[x].Price != 0 && d.Trades[y].Price != m.Trades[x].Price {
-				d.Trades[y].Price = m.Trades[x].Price
-				updated = true
-			}
-			if d.Trades[y].Side != m.Trades[x].Side {
-				d.Trades[y].Side = m.Trades[x].Side
-				updated = true
-			}
-			if d.Trades[y].Type != m.Trades[x].Type {
-				d.Trades[y].Type = m.Trades[x].Type
-				updated = true
-			}
-			if d.Trades[y].Description != m.Trades[x].Description {
-				d.Trades[y].Description = m.Trades[x].Description
-				updated = true
-			}
-			if m.Trades[x].Amount != 0 && d.Trades[y].Amount != m.Trades[x].Amount {
-				d.Trades[y].Amount = m.Trades[x].Amount
-				updated = true
-			}
-			if d.Trades[y].Timestamp != m.Trades[x].Timestamp {
-				d.Trades[y].Timestamp = m.Trades[x].Timestamp
-				updated = true
-			}
-			if d.Trades[y].IsMaker != m.Trades[x].IsMaker {
-				d.Trades[y].IsMaker = m.Trades[x].IsMaker
-				updated = true
-			}
-		}
-		if !found {
-			d.Trades = append(d.Trades, m.Trades[x])
-			updated = true
-		}
-		m.RemainingAmount -= m.Trades[x].Amount
 	}
 	if m.RemainingAmount > 0 && m.RemainingAmount != d.RemainingAmount {
 		d.RemainingAmount = m.RemainingAmount
@@ -474,6 +385,42 @@ func (d *Detail) Copy() Detail {
 		copy(c.Trades, d.Trades)
 	}
 	return c
+}
+
+// DeriveModify populates a modify struct by the managed order details. Note:
+// Price, Amount, Trigger price and order execution bools need to be changed
+// in scope. This only derives identifiers for ease.
+func (d *Detail) DeriveModify() (*Modify, error) {
+	if d == nil {
+		return nil, errOrderDetailIsNil
+	}
+	return &Modify{
+		Exchange:      d.Exchange,
+		ID:            d.ID,
+		ClientOrderID: d.ClientOrderID,
+		Type:          d.Type,
+		Side:          d.Side,
+		AssetType:     d.AssetType,
+		Pair:          d.Pair,
+	}, nil
+}
+
+// DeriveModifyResponse populates a modify response with its identifiers for
+// cross exchange standard. NOTE: New OrderID and/or ClientOrderID plus any
+// changes need to be populated in scope.
+func (d *Modify) DeriveModifyResponse() (*ModifyResponse, error) {
+	if d == nil {
+		return nil, errOrderDetailIsNil
+	}
+	return &ModifyResponse{
+		Exchange:      d.Exchange,
+		OrderID:       d.ID,
+		ClientOrderID: d.ClientOrderID,
+		Type:          d.Type,
+		Side:          d.Side,
+		AssetType:     d.AssetType,
+		Pair:          d.Pair,
+	}, nil
 }
 
 // String implements the stringer interface

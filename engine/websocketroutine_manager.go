@@ -231,17 +231,7 @@ func (m *websocketRoutineManager) WebsocketDataHandler(exchName string, data int
 				return err
 			}
 		}
-	case *order.Modify:
-		m.printOrderChangeSummary(d)
-		od, err := m.orderManager.GetByExchangeAndID(d.Exchange, d.ID)
-		if err != nil {
-			return err
-		}
-		od.UpdateOrderFromModify(d)
-		err = m.orderManager.UpdateExistingOrder(od)
-		if err != nil {
-			return err
-		}
+		m.printOrderSummary(d)
 	case order.ClassificationError:
 		return fmt.Errorf("%w %s", d.Err, d.Error())
 	case stream.UnhandledMessageWarning:
@@ -277,29 +267,6 @@ func (m *websocketRoutineManager) FormatCurrency(p currency.Pair) currency.Pair 
 	}
 	return p.Format(m.currencyConfig.CurrencyPairFormat.Delimiter,
 		m.currencyConfig.CurrencyPairFormat.Uppercase)
-}
-
-// printOrderChangeSummary this function will be deprecated when a order manager
-// update is done.
-func (m *websocketRoutineManager) printOrderChangeSummary(o *order.Modify) {
-	if m == nil || atomic.LoadInt32(&m.started) == 0 || o == nil {
-		return
-	}
-
-	log.Debugf(log.WebsocketMgr,
-		"Order Change: %s %s %s %s %s %s OrderID:%s ClientOrderID:%s Price:%f Amount:%f Executed Amount:%f Remaining Amount:%f",
-		o.Exchange,
-		o.AssetType,
-		o.Pair,
-		o.Status,
-		o.Type,
-		o.Side,
-		o.ID,
-		o.ClientOrderID,
-		o.Price,
-		o.Amount,
-		o.ExecutedAmount,
-		o.RemainingAmount)
 }
 
 // printOrderSummary this function will be deprecated when a order manager

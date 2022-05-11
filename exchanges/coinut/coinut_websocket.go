@@ -194,7 +194,7 @@ func (c *COINUT) wsHandleData(ctx context.Context, respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		c.Websocket.DataHandler <- &order.Modify{
+		c.Websocket.DataHandler <- &order.Detail{
 			Exchange:    c.Name,
 			ID:          strconv.FormatInt(cancel.OrderID, 10),
 			Status:      order.Cancelled,
@@ -208,7 +208,7 @@ func (c *COINUT) wsHandleData(ctx context.Context, respRaw []byte) error {
 			return err
 		}
 		for i := range cancels.Results {
-			c.Websocket.DataHandler <- &order.Modify{
+			c.Websocket.DataHandler <- &order.Detail{
 				Exchange:    c.Name,
 				ID:          strconv.FormatInt(cancels.Results[i].OrderID, 10),
 				Status:      order.Cancelled,

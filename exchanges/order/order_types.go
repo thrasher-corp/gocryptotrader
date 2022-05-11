@@ -83,40 +83,43 @@ type SubmitResponse struct {
 // Each exchange has their own requirements, so not all fields
 // are required to be populated
 type Modify struct {
+	// Order Identifiers
+	Exchange      string
+	ID            string
+	ClientOrderID string
+	Type          Type
+	Side          Side
+	AssetType     asset.Item
+	Pair          currency.Pair
+
+	// Change fields
 	ImmediateOrCancel bool
-	HiddenOrder       bool
-	FillOrKill        bool
 	PostOnly          bool
-	Leverage          float64
 	Price             float64
 	Amount            float64
-	LimitPriceUpper   float64
-	LimitPriceLower   float64
 	TriggerPrice      float64
-	QuoteAmount       float64
-	ExecutedAmount    float64
-	RemainingAmount   float64
-	Fee               float64
-	Exchange          string
-	InternalOrderID   string
-	ID                string
-	ClientOrderID     string
-	AccountID         string
-	ClientID          string
-	WalletAddress     string
-	Type              Type
-	Side              Side
-	Status            Status
-	AssetType         asset.Item
-	Date              time.Time
-	LastUpdated       time.Time
-	Pair              currency.Pair
-	Trades            []TradeHistory
 }
 
 // ModifyResponse is an order modifying return type
 type ModifyResponse struct {
-	OrderID string
+	Exchange      string
+	OrderID       string
+	ClientOrderID string
+	Pair          currency.Pair
+	Type          Type
+	Side          Side
+	Status        Status
+	AssetType     asset.Item
+	Date          time.Time
+	LastUpdated   time.Time
+
+	ImmediateOrCancel bool
+	PostOnly          bool
+
+	Price           float64
+	Amount          float64
+	RemainingAmount float64
+	TriggerPrice    float64
 }
 
 // Detail contains all properties of an order

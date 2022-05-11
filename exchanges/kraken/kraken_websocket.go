@@ -594,7 +594,7 @@ func (k *Kraken) wsProcessOpenOrders(ownOrders interface{}) error {
 					if err != nil {
 						return err
 					}
-					k.Websocket.DataHandler <- &order.Modify{
+					k.Websocket.DataHandler <- &order.Detail{
 						Leverage:        val.Description.Leverage,
 						Price:           val.Price,
 						Amount:          val.Volume,
@@ -612,7 +612,7 @@ func (k *Kraken) wsProcessOpenOrders(ownOrders interface{}) error {
 						Pair:            p,
 					}
 				} else {
-					k.Websocket.DataHandler <- &order.Modify{
+					k.Websocket.DataHandler <- &order.Detail{
 						Exchange: k.Name,
 						ID:       key,
 						Status:   oStatus,

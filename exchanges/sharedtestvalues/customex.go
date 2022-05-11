@@ -150,8 +150,8 @@ func (c *CustomEx) SubmitOrder(ctx context.Context, s *order.Submit) (order.Subm
 	return order.SubmitResponse{}, nil
 }
 
-func (c *CustomEx) ModifyOrder(ctx context.Context, action *order.Modify) (order.Modify, error) {
-	return order.Modify{}, nil
+func (c *CustomEx) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
+	return nil, nil
 }
 
 func (c *CustomEx) CancelOrder(ctx context.Context, o *order.Cancel) error {
