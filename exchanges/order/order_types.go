@@ -102,6 +102,7 @@ type Modify struct {
 
 // ModifyResponse is an order modifying return type
 type ModifyResponse struct {
+	// Order Identifiers
 	Exchange      string
 	OrderID       string
 	ClientOrderID string
@@ -110,16 +111,19 @@ type ModifyResponse struct {
 	Side          Side
 	Status        Status
 	AssetType     asset.Item
-	Date          time.Time
-	LastUpdated   time.Time
 
+	// Fields that will be copied over from Modify
 	ImmediateOrCancel bool
 	PostOnly          bool
+	Price             float64
+	Amount            float64
+	TriggerPrice      float64
 
-	Price           float64
-	Amount          float64
+	// Fields that need to be handled in scope after DeriveModifyResponse()
+	// if applicable
 	RemainingAmount float64
-	TriggerPrice    float64
+	Date            time.Time
+	LastUpdated     time.Time
 }
 
 // Detail contains all properties of an order

@@ -687,7 +687,9 @@ func (f *FTX) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Mod
 		return nil, err
 	}
 
+	var id string
 	if action.TriggerPrice != 0 {
+		var a TriggerOrderData
 		a, err := f.ModifyTriggerOrder(ctx,
 			action.ID,
 			action.Type.String(),
@@ -698,21 +700,9 @@ func (f *FTX) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Mod
 		if err != nil {
 			return nil, err
 		}
-		return &order.ModifyResponse{
-			Exchange:     action.Exchange,
-			AssetType:    action.AssetType,
-			Pair:         action.Pair,
-			OrderID:      strconv.FormatInt(a.ID, 10),
-			Price:        action.Price,
-			Amount:       action.Amount,
-			TriggerPrice: action.TriggerPrice,
-			Type:         action.Type,
-		}, err
-	}
-	var o OrderData
-	var err error
-	if action.ID == "" {
-		o, err = f.ModifyOrderByClientID(ctx,
+		id = strconv.FormatInt(a.ID, 10)
+	} else if action.ID == "" {
+		o, err := f.ModifyOrderByClientID(ctx,
 			action.ClientOrderID,
 			action.ClientOrderID,
 			action.Price,
@@ -720,8 +710,9 @@ func (f *FTX) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Mod
 		if err != nil {
 			return nil, err
 		}
+		id = strconv.FormatInt(o.ID, 10)
 	} else {
-		o, err = f.ModifyPlacedOrder(ctx,
+		o, err := f.ModifyPlacedOrder(ctx,
 			action.ID,
 			action.ClientOrderID,
 			action.Price,
@@ -729,15 +720,14 @@ func (f *FTX) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Mod
 		if err != nil {
 			return nil, err
 		}
+		id = strconv.FormatInt(o.ID, 10)
 	}
-	return &order.ModifyResponse{
-		Exchange:  action.Exchange,
-		AssetType: action.AssetType,
-		Pair:      action.Pair,
-		OrderID:   strconv.FormatInt(o.ID, 10),
-		Price:     action.Price,
-		Amount:    action.Amount,
-	}, err
+	resp, err := action.DeriveModifyResponse()
+	if err != nil {
+		return nil, err
+	}
+	resp.OrderID = id
+	return resp, nil
 }
 
 // CancelOrder cancels an order by its corresponding ID number

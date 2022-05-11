@@ -587,16 +587,12 @@ func (p *Poloniex) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 		return nil, err
 	}
 
-	return &order.ModifyResponse{
-		Exchange:          action.Exchange,
-		AssetType:         action.AssetType,
-		Pair:              action.Pair,
-		OrderID:           strconv.FormatInt(resp.OrderNumber, 10),
-		Price:             action.Price,
-		Amount:            action.Amount,
-		PostOnly:          action.PostOnly,
-		ImmediateOrCancel: action.ImmediateOrCancel,
-	}, nil
+	modResp, err := action.DeriveModifyResponse()
+	if err != nil {
+		return nil, err
+	}
+	modResp.OrderID = strconv.FormatInt(resp.OrderNumber, 10)
+	return modResp, nil
 }
 
 // CancelOrder cancels an order by its corresponding ID number

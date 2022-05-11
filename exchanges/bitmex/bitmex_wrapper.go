@@ -614,29 +614,25 @@ func (b *Bitmex) ModifyOrder(ctx context.Context, action *order.Modify) (*order.
 		return nil, err
 	}
 
-	var params OrderAmendParams
-
 	if math.Mod(action.Amount, 1) != 0 {
 		return nil, errors.New("contract amount can not have decimals")
 	}
 
-	params.OrderID = action.ID
-	params.OrderQty = int32(action.Amount)
-	params.Price = action.Price
-
-	o, err := b.AmendOrder(ctx, &params)
+	o, err := b.AmendOrder(ctx, &OrderAmendParams{
+		OrderID:  action.ID,
+		OrderQty: int32(action.Amount),
+		Price:    action.Price})
 	if err != nil {
 		return nil, err
 	}
 
-	return &order.ModifyResponse{
-		Exchange:  action.Exchange,
-		AssetType: action.AssetType,
-		Pair:      action.Pair,
-		OrderID:   o.OrderID,
-		Price:     action.Price,
-		Amount:    float64(params.OrderQty),
-	}, nil
+	resp, err := action.DeriveModifyResponse()
+	if err != nil {
+		return nil, err
+	}
+
+	resp.OrderID = o.OrderID
+	return resp, nil
 }
 
 // CancelOrder cancels an order by its corresponding ID number

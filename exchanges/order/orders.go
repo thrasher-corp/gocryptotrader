@@ -407,19 +407,24 @@ func (d *Detail) DeriveModify() (*Modify, error) {
 
 // DeriveModifyResponse populates a modify response with its identifiers for
 // cross exchange standard. NOTE: New OrderID and/or ClientOrderID plus any
-// changes need to be populated in scope.
+// changes *might* need to be populated in scope.
 func (d *Modify) DeriveModifyResponse() (*ModifyResponse, error) {
 	if d == nil {
 		return nil, errOrderDetailIsNil
 	}
 	return &ModifyResponse{
-		Exchange:      d.Exchange,
-		OrderID:       d.ID,
-		ClientOrderID: d.ClientOrderID,
-		Type:          d.Type,
-		Side:          d.Side,
-		AssetType:     d.AssetType,
-		Pair:          d.Pair,
+		Exchange:          d.Exchange,
+		OrderID:           d.ID,
+		ClientOrderID:     d.ClientOrderID,
+		Type:              d.Type,
+		Side:              d.Side,
+		AssetType:         d.AssetType,
+		Pair:              d.Pair,
+		ImmediateOrCancel: d.ImmediateOrCancel,
+		PostOnly:          d.PostOnly,
+		Price:             d.Price,
+		Amount:            d.Amount,
+		TriggerPrice:      d.TriggerPrice,
 	}, nil
 }
 

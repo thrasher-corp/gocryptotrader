@@ -680,30 +680,28 @@ func (b *Bitfinex) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 		return nil, err
 	}
 
+	if !b.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		return nil, common.ErrNotYetImplemented
+	}
+
 	orderIDInt, err := strconv.ParseInt(action.ID, 10, 64)
 	if err != nil {
 		return &order.ModifyResponse{OrderID: action.ID}, err
 	}
-	if b.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		request := WsUpdateOrderRequest{
-			OrderID: orderIDInt,
-			Price:   action.Price,
-			Amount:  action.Amount,
-		}
-		if action.Side == order.Sell && action.Amount > 0 {
-			request.Amount *= -1
-		}
-		err = b.WsModifyOrder(&request)
-		return &order.ModifyResponse{
-			Exchange:  action.Exchange,
-			AssetType: action.AssetType,
-			Pair:      action.Pair,
-			OrderID:   action.ID,
-			Price:     action.Price,
-			Amount:    action.Amount,
-		}, err
+
+	request := WsUpdateOrderRequest{
+		OrderID: orderIDInt,
+		Price:   action.Price,
+		Amount:  action.Amount,
 	}
-	return nil, common.ErrNotYetImplemented
+	if action.Side == order.Sell && action.Amount > 0 {
+		request.Amount *= -1
+	}
+	err = b.WsModifyOrder(&request)
+	if err != nil {
+		return nil, err
+	}
+	return action.DeriveModifyResponse()
 }
 
 // CancelOrder cancels an order by its corresponding ID number

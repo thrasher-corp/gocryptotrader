@@ -523,20 +523,20 @@ func (b *Bithumb) ModifyOrder(ctx context.Context, action *order.Modify) (*order
 		action.Side.Lower(),
 		action.Amount,
 		int64(action.Price))
-
 	if err != nil {
 		return nil, err
 	}
 
-	return &order.ModifyResponse{
-		Exchange:  action.Exchange,
-		AssetType: action.AssetType,
-		Pair:      action.Pair,
-		OrderID:   o.Data[0].ContID,
-		Price:     float64(int64(action.Price)),
-		Amount:    action.Amount,
-		Side:      action.Side,
-	}, nil
+	resp, err := action.DeriveModifyResponse()
+	if err != nil {
+		return nil, err
+	}
+
+	if len(o.Data) > 0 {
+		resp.OrderID = o.Data[0].ContID
+	}
+
+	return resp, nil
 }
 
 // CancelOrder cancels an order by its corresponding ID number
