@@ -253,95 +253,6 @@ func TestOrdersAdd(t *testing.T) {
 	}
 }
 
-func TestGetByInternalOrderID(t *testing.T) {
-	m := OrdersSetup(t)
-	err := m.orderStore.add(&order.Detail{
-		Exchange:        testExchange,
-		ID:              "TestGetByInternalOrderID",
-		InternalOrderID: "internalTest",
-	})
-	if err != nil {
-		t.Error(err)
-	}
-
-	o, err := m.orderStore.getByInternalOrderID("internalTest")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if o == nil { //nolint:staticcheck,nolintlint // SA5011 Ignore the nil warnings
-		t.Fatal("Expected a matching order")
-	}
-	if o.ID != "TestGetByInternalOrderID" { //nolint:staticcheck,nolintlint // SA5011 Ignore the nil warnings
-		t.Error("Expected to retrieve order")
-	}
-
-	_, err = m.orderStore.getByInternalOrderID("NoOrder")
-	if err != ErrOrderNotFound {
-		t.Error(err)
-	}
-}
-
-func TestGetByExchange(t *testing.T) {
-	m := OrdersSetup(t)
-	err := m.orderStore.add(&order.Detail{
-		Exchange:        testExchange,
-		ID:              "TestGetByExchange",
-		InternalOrderID: "internalTestGetByExchange",
-	})
-	if err != nil {
-		t.Error(err)
-	}
-
-	err = m.orderStore.add(&order.Detail{
-		Exchange:        testExchange,
-		ID:              "TestGetByExchange2",
-		InternalOrderID: "internalTestGetByExchange2",
-	})
-	if err != nil {
-		t.Error(err)
-	}
-
-	err = m.orderStore.add(&order.Detail{
-		Exchange:        testExchange,
-		ID:              "TestGetByExchange3",
-		InternalOrderID: "internalTest3",
-	})
-	if err != nil {
-		t.Error(err)
-	}
-	var o []*order.Detail
-	o, err = m.orderStore.getByExchange(testExchange)
-	if err != nil {
-		t.Error(err)
-	}
-	if o == nil {
-		t.Error("Expected non nil response")
-	}
-	var o1Found, o2Found bool
-	for i := range o {
-		if o[i].ID == "TestGetByExchange" && o[i].Exchange == testExchange {
-			o1Found = true
-		}
-		if o[i].ID == "TestGetByExchange2" && o[i].Exchange == testExchange {
-			o2Found = true
-		}
-	}
-	if !o1Found || !o2Found {
-		t.Error("Expected orders 'TestGetByExchange' and 'TestGetByExchange2' to be returned")
-	}
-
-	_, err = m.orderStore.getByInternalOrderID("NoOrder")
-	if err != ErrOrderNotFound {
-		t.Error(err)
-	}
-	err = m.orderStore.add(&order.Detail{
-		Exchange: "thisWillFail",
-	})
-	if err == nil {
-		t.Error("Expected exchange not found error")
-	}
-}
-
 func TestGetByExchangeAndID(t *testing.T) {
 	m := OrdersSetup(t)
 	err := m.orderStore.add(&order.Detail{
@@ -557,7 +468,11 @@ func TestCancelAllOrders(t *testing.T) {
 	}
 
 	m.CancelAllOrders(context.Background(), []exchange.IBotExchange{})
-	if o.Status == order.Cancelled {
+	checkDeets, err := m.orderStore.getByExchangeAndID(testExchange, "TestCancelAllOrders")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if checkDeets.Status == order.Cancelled {
 		t.Error("Order should not be cancelled")
 	}
 
@@ -567,14 +482,13 @@ func TestCancelAllOrders(t *testing.T) {
 	}
 
 	m.CancelAllOrders(context.Background(), []exchange.IBotExchange{exch})
-	if o.Status != order.Cancelled {
-		t.Error("Order should be cancelled")
+	checkDeets, err = m.orderStore.getByExchangeAndID(testExchange, "TestCancelAllOrders")
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	o.Status = order.New
-	m.CancelAllOrders(context.Background(), nil)
-	if o.Status != order.New {
-		t.Error("Order should not be cancelled")
+	if checkDeets.Status != order.Cancelled {
+		t.Error("Order should be cancelled", checkDeets.Status)
 	}
 }
 
@@ -1026,18 +940,8 @@ func Test_processMatchingOrders(t *testing.T) {
 	orders := []order.Detail{
 		{
 			Exchange:    testExchange,
-			ID:          "Test1",
-			LastUpdated: time.Now(),
-		},
-		{
-			Exchange:    testExchange,
 			ID:          "Test2",
 			LastUpdated: time.Now(),
-		},
-		{
-			Exchange:    testExchange,
-			ID:          "Test3",
-			LastUpdated: time.Now().Add(-time.Hour),
 		},
 		{
 			Exchange:    testExchange,
@@ -1045,18 +949,9 @@ func Test_processMatchingOrders(t *testing.T) {
 			LastUpdated: time.Now().Add(-time.Hour),
 		},
 	}
-	requiresProcessing := make(map[string]bool, len(orders))
-	for i := range orders {
-		orders[i].GenerateInternalOrderID()
-		if i%2 == 0 {
-			requiresProcessing[orders[i].InternalOrderID] = false
-		} else {
-			requiresProcessing[orders[i].InternalOrderID] = true
-		}
-	}
 	var wg sync.WaitGroup
 	wg.Add(1)
-	m.processMatchingOrders(exch, orders, requiresProcessing, &wg)
+	go m.processMatchingOrders(exch, orders, &wg)
 	wg.Wait()
 	res, err := m.GetOrdersFiltered(&order.Filter{Exchange: testExchange})
 	if err != nil {

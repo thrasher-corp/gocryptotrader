@@ -1554,6 +1554,7 @@ func TestGenerateInternalOrderID(t *testing.T) {
 }
 
 func TestDetail_Copy(t *testing.T) {
+	t.Parallel()
 	d := []Detail{
 		{
 			Exchange: "Binance",
@@ -1572,6 +1573,59 @@ func TestDetail_Copy(t *testing.T) {
 		}
 		if len(d[i].Trades) > 0 {
 			if &d[i].Trades[0] == &r.Trades[0] {
+				t.Errorf("[%d]Trades point to the same data elements", i)
+			}
+		}
+	}
+}
+
+func TestDetail_CopyToPointer(t *testing.T) {
+	t.Parallel()
+	d := []Detail{
+		{
+			Exchange: "Binance",
+		},
+		{
+			Exchange: "Binance",
+			Trades: []TradeHistory{
+				{Price: 1},
+			},
+		},
+	}
+	for i := range d {
+		r := d[i].CopyToPointer()
+		if !reflect.DeepEqual(d[i], *r) {
+			t.Errorf("[%d] Copy does not contain same elements, expected: %v\ngot:%v", i, d[i], r)
+		}
+		if len(d[i].Trades) > 0 {
+			if &d[i].Trades[0] == &r.Trades[0] {
+				t.Errorf("[%d]Trades point to the same data elements", i)
+			}
+		}
+	}
+}
+
+func TestDetail_CopyPointerOrderSlice(t *testing.T) {
+	t.Parallel()
+	d := []*Detail{
+		{
+			Exchange: "Binance",
+		},
+		{
+			Exchange: "Binance",
+			Trades: []TradeHistory{
+				{Price: 1},
+			},
+		},
+	}
+
+	sliceCopy := CopyPointerOrderSlice(d)
+	for i := range sliceCopy {
+		if !reflect.DeepEqual(*sliceCopy[i], *d[i]) {
+			t.Errorf("[%d] Copy does not contain same elements, expected: %v\ngot:%v", i, sliceCopy[i], d[i])
+		}
+		if len(sliceCopy[i].Trades) > 0 {
+			if &sliceCopy[i].Trades[0] == &d[i].Trades[0] {
 				t.Errorf("[%d]Trades point to the same data elements", i)
 			}
 		}
