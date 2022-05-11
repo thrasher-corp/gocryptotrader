@@ -1716,7 +1716,7 @@
 										<th>Date</th>
 										<th>Price</th>
 										<th>Action</th>
-										<th>Why</th>
+										<th>Event Details</th>
 										{{if $asset.IsFutures}}
 											<th>Holdings</th>
 											<th>Position Direction</th>
@@ -1737,12 +1737,24 @@
 												<td><b>{{$ev.FillEvent.GetTime}}</b></td>
 												<td>{{ $.Prettify.Decimal8 $ev.FillEvent.GetClosePrice}} {{if $asset.IsFutures}}{{if ne $ev.PNL nil }}{{$ev.PNL.GetCollateralCurrency}}{{end}}{{else}}{{$pair.Quote}}{{end}}</td>
 												<td>{{$ev.FillEvent.GetDirection}}</td>
-												<td>{{$ev.FillEvent.GetReason}}</td>
+												<td>
+													<ul>
+													{{ range  $ev.FillEvent.GetReasons }}
+													<li>{{.}}</li>
+													{{end}}
+													</ul>
+												</td>
 											{{ else if ne $ev.SignalEvent nil}}
 												<td>{{$ev.SignalEvent.GetTime}}</td>
 												<td>{{ $.Prettify.Decimal8 $ev.SignalEvent.GetPrice}} {{if $asset.IsFutures}}{{if ne $ev.PNL nil }}{{$ev.PNL.GetCollateralCurrency}}{{end}}{{else}}{{$pair.Quote}}{{end}}</td>
 												<td>{{$ev.SignalEvent.GetDirection}}</td>
-												<td>{{$ev.SignalEvent.GetReason}}</td>
+												<td>
+													<ul>
+													{{ range $ev.SignalEvent.GetReasons }}
+														<li>{{.}}</li>
+													{{end}}
+													</ul>
+												</td>
 											{{ end }}
 											{{if $asset.IsFutures}}
 												{{if ne $ev.PNL nil }}

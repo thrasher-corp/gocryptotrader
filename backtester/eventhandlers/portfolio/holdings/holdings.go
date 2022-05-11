@@ -9,7 +9,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // Create makes a Holding struct to track total values of strategy holdings over the course of a backtesting run

@@ -35,6 +35,11 @@ func (b *Base) Pair() currency.Pair {
 	return b.CurrencyPair
 }
 
+// GetUnderlyingPair returns the currency pair
+func (b *Base) GetUnderlyingPair() currency.Pair {
+	return b.UnderlyingPair
+}
+
 // GetExchange returns the exchange
 func (b *Base) GetExchange() string {
 	return strings.ToLower(b.Exchange)
@@ -52,25 +57,28 @@ func (b *Base) GetInterval() kline.Interval {
 
 // AppendReason adds reasoning for a decision being made
 func (b *Base) AppendReason(y string) {
-	if b.Reason == "" {
-		b.Reason = y
-	} else {
-		b.Reason = y + ". " + b.Reason
-	}
+	b.Reason += y + ". "
+	b.Reasons = append(b.Reasons, y)
 }
 
 // AppendReasonf adds reasoning for a decision being made
 // but with formatting
 func (b *Base) AppendReasonf(y string, addons ...interface{}) {
 	y = fmt.Sprintf(y, addons...)
-	if b.Reason == "" {
-		b.Reason = y
-	} else {
-		b.Reason = y + ". " + b.Reason
-	}
+	b.Reason += y + ". "
+	b.Reasons = append(b.Reasons, y)
 }
 
 // GetReason returns the why
 func (b *Base) GetReason() string {
 	return b.Reason
+}
+
+// GetReasons returns each individual reason
+func (b *Base) GetReasons() []string {
+	return b.Reasons
+}
+
+func (b *Base) GetBase() Base {
+	return *b
 }

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -35,15 +36,18 @@ var (
 
 // EventHandler interface implements required GetTime() & Pair() return
 type EventHandler interface {
+	GetBase() event.Base
 	GetOffset() int64
 	SetOffset(int64)
 	IsEvent() bool
 	GetTime() time.Time
 	Pair() currency.Pair
+	GetUnderlyingPair() currency.Pair
 	GetExchange() string
 	GetInterval() kline.Interval
 	GetAssetType() asset.Item
 	GetReason() string
+	GetReasons() []string
 	GetClosePrice() decimal.Decimal
 	AppendReason(string)
 	AppendReasonf(string, ...interface{})

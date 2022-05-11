@@ -126,7 +126,7 @@ func (s *Strategy) createSignals(pos []order.PositionStats, spotSignal, futuresS
 		futuresSignal.AppendReason("Shorting to perform cash and carry")
 		futuresSignal.CollateralCurrency = spotSignal.CurrencyPair.Base
 		futuresSignal.MatchesOrderAmount = true
-		spotSignal.AppendReasonf("Signalling shorting of %v", futuresSignal.Pair())
+		spotSignal.AppendReasonf("Signalling shorting of %v after spot order placed", futuresSignal.Pair())
 		// set the FillDependentEvent to use the futures signal
 		// as the futures signal relies on a completed spot order purchase
 		// to use as collateral

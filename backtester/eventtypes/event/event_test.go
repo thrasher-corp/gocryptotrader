@@ -10,7 +10,7 @@ import (
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
-func TestEvent_AppendWhy(t *testing.T) {
+func TestEvent_GetReason(t *testing.T) {
 	t.Parallel()
 	e := &Base{}
 	e.AppendReason("test")
@@ -22,6 +22,21 @@ func TestEvent_AppendWhy(t *testing.T) {
 	y = e.GetReason()
 	if y != "test. test" {
 		t.Error("expected 'test. test'")
+	}
+}
+
+func TestEvent_GetReasons(t *testing.T) {
+	t.Parallel()
+	e := &Base{}
+	e.AppendReason("test")
+	y := e.GetReasons()
+	if !strings.Contains(y[0], "test") {
+		t.Error("expected test")
+	}
+	e.AppendReason("test2")
+	y = e.GetReasons()
+	if y[1] != "test2" {
+		t.Error("expected 'test2'")
 	}
 }
 

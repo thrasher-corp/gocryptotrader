@@ -42,15 +42,7 @@ func (p *Portfolio) OnSignal(ev signal.Event, cs *exchange.Settings, funds fundi
 	}
 
 	o := &order.Order{
-		Base: event.Base{
-			Offset:       ev.GetOffset(),
-			Exchange:     ev.GetExchange(),
-			Time:         ev.GetTime(),
-			CurrencyPair: ev.Pair(),
-			AssetType:    ev.GetAssetType(),
-			Interval:     ev.GetInterval(),
-			Reason:       ev.GetReason(),
-		},
+		Base:               ev.GetBase(),
 		Direction:          ev.GetDirection(),
 		FillDependentEvent: ev.GetFillDependentEvent(),
 		Amount:             ev.GetAmount(),
@@ -659,7 +651,7 @@ func (p *Portfolio) CreateLiquidationOrdersForExchange(ev common.DataEventHandle
 						Time:           ev.GetTime(),
 						Interval:       ev.GetInterval(),
 						CurrencyPair:   pos.Pair,
-						UnderlyingPair: pos.Pair,
+						UnderlyingPair: ev.GetUnderlyingPair(),
 						AssetType:      pos.Asset,
 						Reason:         "LIQUIDATED",
 					},

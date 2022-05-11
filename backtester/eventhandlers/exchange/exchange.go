@@ -11,7 +11,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange/slippage"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
@@ -34,15 +33,7 @@ var ErrDoNothing = errors.New("received Do Nothing direction")
 // will send an order to the exchange/fake order manager to be stored and raise a fill event
 func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *engine.OrderManager, funds funding.IFundReleaser) (fill.Event, error) {
 	f := &fill.Fill{
-		Base: event.Base{
-			Offset:       o.GetOffset(),
-			Exchange:     o.GetExchange(),
-			Time:         o.GetTime(),
-			CurrencyPair: o.Pair(),
-			AssetType:    o.GetAssetType(),
-			Interval:     o.GetInterval(),
-			Reason:       o.GetReason(),
-		},
+		Base:               o.GetBase(),
 		Direction:          o.GetDirection(),
 		Amount:             o.GetAmount(),
 		ClosePrice:         data.Latest().GetClosePrice(),
@@ -162,12 +153,6 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 	if err != nil {
 		return f, err
 	}
-	if !o.IsLiquidating() {
-		err = allocateFundsPostOrder(f, funds, err, o.GetAmount(), eventFunds, limitReducedAmount, adjustedPrice)
-		if err != nil {
-			return f, err
-		}
-	}
 
 	ords := orderManager.GetOrdersSnapshot(gctorder.UnknownStatus)
 	for i := range ords {
@@ -184,6 +169,12 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 			f.ExchangeFee = decimal.NewFromFloat(ords[i].Fee)
 		}
 		f.Total = f.PurchasePrice.Mul(f.Amount).Add(f.ExchangeFee)
+	}
+	if !o.IsLiquidating() {
+		err = allocateFundsPostOrder(f, funds, err, o.GetAmount(), eventFunds, limitReducedAmount, adjustedPrice)
+		if err != nil {
+			return f, err
+		}
 	}
 
 	if f.Order == nil {
@@ -220,6 +211,7 @@ func allocateFundsPostOrder(f *fill.Fill, funds funding.IFundReleaser, orderErro
 			}
 			return orderError
 		}
+
 		switch f.GetDirection() {
 		case gctorder.Buy, gctorder.Bid:
 			err = pr.Release(eventFunds, eventFunds.Sub(limitReducedAmount.Mul(adjustedPrice)), f.GetDirection())
@@ -242,6 +234,7 @@ func allocateFundsPostOrder(f *fill.Fill, funds funding.IFundReleaser, orderErro
 		default:
 			return fmt.Errorf("%w asset type %v", common.ErrInvalidDataType, f.GetDirection())
 		}
+		f.AppendReason(summarisePosition(f.GetDirection(), f.Amount, f.Amount.Mul(f.PurchasePrice), f.ExchangeFee, f.Order.Pair, currency.EMPTYPAIR))
 	case asset.Futures:
 		cr, err := funds.CollateralReleaser()
 		if err != nil {
@@ -262,10 +255,31 @@ func allocateFundsPostOrder(f *fill.Fill, funds funding.IFundReleaser, orderErro
 			}
 			return orderError
 		}
+		f.AppendReason(summarisePosition(f.GetDirection(), f.Amount, f.Amount.Mul(f.PurchasePrice), f.ExchangeFee, f.Order.Pair, f.UnderlyingPair))
 	default:
 		return fmt.Errorf("%w asset type %v", common.ErrInvalidDataType, f.AssetType)
 	}
 	return nil
+}
+
+func summarisePosition(direction gctorder.Side, orderAmount, orderTotal, orderFee decimal.Decimal, pair, underlying currency.Pair) string {
+	baseCurr := pair.Base.String()
+	quoteCurr := pair.Quote
+	if !underlying.IsEmpty() {
+		baseCurr = pair.String()
+		quoteCurr = underlying.Quote
+	}
+	return fmt.Sprintf("Placed %s order of %v %v for %v %v, with %v %v in fees, totalling %v %v",
+		direction,
+		orderAmount.Round(8),
+		baseCurr,
+		orderTotal.Round(8),
+		quoteCurr,
+		orderFee.Round(8),
+		quoteCurr,
+		orderTotal.Add(orderFee).Round(8),
+		quoteCurr,
+	)
 }
 
 // verifyOrderWithinLimits conforms the amount to fall into the minimum size and maximum size limit after reduced
