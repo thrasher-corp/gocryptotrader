@@ -1643,7 +1643,7 @@ func TestStoreAssetPairFormat(t *testing.T) {
 		Config: &config.Exchange{Name: "kitties"},
 	}
 
-	err := b.StoreAssetPairFormat(asset.Item(""), currency.PairStore{})
+	err := b.StoreAssetPairFormat(asset.Empty, currency.PairStore{})
 	if err == nil {
 		t.Error("error cannot be nil")
 	}
@@ -1679,12 +1679,12 @@ func TestSetGlobalPairsManager(t *testing.T) {
 		Config: &config.Exchange{Name: "kitties"},
 	}
 
-	err := b.SetGlobalPairsManager(nil, nil, "")
+	err := b.SetGlobalPairsManager(nil, nil, asset.Empty)
 	if err == nil {
 		t.Error("error cannot be nil")
 	}
 
-	err = b.SetGlobalPairsManager(&currency.PairFormat{Uppercase: true}, nil, "")
+	err = b.SetGlobalPairsManager(&currency.PairFormat{Uppercase: true}, nil, asset.Empty)
 	if err == nil {
 		t.Error("error cannot be nil")
 	}
@@ -1696,7 +1696,7 @@ func TestSetGlobalPairsManager(t *testing.T) {
 	}
 
 	err = b.SetGlobalPairsManager(&currency.PairFormat{Uppercase: true},
-		&currency.PairFormat{Uppercase: true}, "")
+		&currency.PairFormat{Uppercase: true}, asset.Empty)
 	if err == nil {
 		t.Error("error cannot be nil")
 	}
@@ -2318,5 +2318,13 @@ func TestSetFillsFeedStatus(t *testing.T) {
 	b.SetFillsFeedStatus(false)
 	if b.IsFillsFeedEnabled() {
 		t.Error("expected false")
+	}
+}
+
+func TestGetServerTime(t *testing.T) {
+	t.Parallel()
+	var b Base
+	if _, err := b.GetServerTime(context.Background(), asset.Spot); !errors.Is(err, common.ErrNotYetImplemented) {
+		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
 	}
 }

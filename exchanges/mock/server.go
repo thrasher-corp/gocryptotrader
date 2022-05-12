@@ -4,11 +4,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"reflect"
 	"strconv"
 	"strings"
@@ -42,7 +43,7 @@ func NewVCRServer(path string) (string, *http.Client, error) {
 
 	var mockFile VCRMock
 
-	contents, err := ioutil.ReadFile(path)
+	contents, err := os.ReadFile(path)
 	if err != nil {
 		pathing := strings.Split(path, "/")
 		dirPathing := pathing[:len(pathing)-1]
@@ -126,7 +127,7 @@ func RegisterHandler(pattern string, mock map[string][]HTTPResponse, mux *http.S
 		case http.MethodPost, http.MethodPut:
 			switch r.Header.Get(contentType) {
 			case applicationURLEncoded:
-				readBody, err := ioutil.ReadAll(r.Body)
+				readBody, err := io.ReadAll(r.Body)
 				if err != nil {
 					log.Fatal("Mock Test Failure - ReadAll error", err)
 				}
@@ -154,7 +155,7 @@ func RegisterHandler(pattern string, mock map[string][]HTTPResponse, mux *http.S
 				return
 
 			case applicationJSON:
-				readBody, err := ioutil.ReadAll(r.Body)
+				readBody, err := io.ReadAll(r.Body)
 				if err != nil {
 					log.Fatalf("Mock Test Failure - %v", err)
 				}

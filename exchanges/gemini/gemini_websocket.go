@@ -21,7 +21,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -90,7 +89,7 @@ func (g *Gemini) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 
 // Subscribe sends a websocket message to receive data from the channel
 func (g *Gemini) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
-	var channels []string
+	channels := make([]string, 0, len(channelsToSubscribe))
 	for x := range channelsToSubscribe {
 		if common.StringDataCompareInsensitive(channels, channelsToSubscribe[x].Channel) {
 			continue
@@ -111,12 +110,12 @@ func (g *Gemini) Subscribe(channelsToSubscribe []stream.ChannelSubscription) err
 		return err
 	}
 
-	var subs []wsSubscriptions
+	subs := make([]wsSubscriptions, len(channels))
 	for x := range channels {
-		subs = append(subs, wsSubscriptions{
+		subs[x] = wsSubscriptions{
 			Name:    channels[x],
 			Symbols: strings.Split(fmtPairs, ","),
-		})
+		}
 	}
 
 	wsSub := wsSubscribeRequest{
@@ -134,7 +133,7 @@ func (g *Gemini) Subscribe(channelsToSubscribe []stream.ChannelSubscription) err
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (g *Gemini) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
-	var channels []string
+	channels := make([]string, 0, len(channelsToUnsubscribe))
 	for x := range channelsToUnsubscribe {
 		if common.StringDataCompareInsensitive(channels, channelsToUnsubscribe[x].Channel) {
 			continue
@@ -155,12 +154,12 @@ func (g *Gemini) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription)
 		return err
 	}
 
-	var subs []wsSubscriptions
+	subs := make([]wsSubscriptions, len(channels))
 	for x := range channels {
-		subs = append(subs, wsSubscriptions{
+		subs[x] = wsSubscriptions{
 			Name:    channels[x],
 			Symbols: strings.Split(fmtPairs, ","),
-		})
+		}
 	}
 
 	wsSub := wsSubscribeRequest{
@@ -384,7 +383,7 @@ func (g *Gemini) wsHandleData(respRaw []byte) error {
 			}
 
 			tradeEvent := trade.Data{
-				Timestamp:    time.Unix(result.Timestamp/1000, 0),
+				Timestamp:    time.UnixMilli(result.Timestamp),
 				CurrencyPair: pair,
 				AssetType:    asset.Spot,
 				Exchange:     g.Name,
@@ -442,12 +441,16 @@ func (g *Gemini) wsHandleData(respRaw []byte) error {
 				if len(candle.Changes[i]) != 6 {
 					continue
 				}
+				interval, ok := result["type"].(string)
+				if !ok {
+					return errors.New("unable to type assert interval")
+				}
 				g.Websocket.DataHandler <- stream.KlineData{
-					Timestamp:  time.Unix(int64(candle.Changes[i][0])/1000, 0),
+					Timestamp:  time.UnixMilli(int64(candle.Changes[i][0])),
 					Pair:       pair,
 					AssetType:  asset.Spot,
 					Exchange:   g.Name,
-					Interval:   result["type"].(string),
+					Interval:   interval,
 					OpenPrice:  candle.Changes[i][1],
 					HighPrice:  candle.Changes[i][2],
 					LowPrice:   candle.Changes[i][3],
@@ -526,7 +529,9 @@ func (g *Gemini) wsProcessUpdate(result *wsL2MarketData) error {
 		return err
 	}
 
-	var bids, asks []orderbook.Item
+	bids := make([]orderbook.Item, 0, len(result.Changes))
+	asks := make([]orderbook.Item, 0, len(result.Changes))
+
 	for x := range result.Changes {
 		price, err := strconv.ParseFloat(result.Changes[x][1], 64)
 		if err != nil {
@@ -563,7 +568,7 @@ func (g *Gemini) wsProcessUpdate(result *wsL2MarketData) error {
 		if len(asks) == 0 && len(bids) == 0 {
 			return nil
 		}
-		err := g.Websocket.Orderbook.Update(&buffer.Update{
+		err := g.Websocket.Orderbook.Update(&orderbook.Update{
 			Asks:  asks,
 			Bids:  bids,
 			Pair:  pair,
@@ -582,7 +587,7 @@ func (g *Gemini) wsProcessUpdate(result *wsL2MarketData) error {
 		return nil
 	}
 
-	var trades []trade.Data
+	trades := make([]trade.Data, len(result.Trades))
 	for x := range result.Trades {
 		tSide, err := order.StringToOrderSide(result.Trades[x].Side)
 		if err != nil {
@@ -591,8 +596,8 @@ func (g *Gemini) wsProcessUpdate(result *wsL2MarketData) error {
 				Err:      err,
 			}
 		}
-		trades = append(trades, trade.Data{
-			Timestamp:    time.Unix(result.Trades[x].Timestamp/1000, 0),
+		trades[x] = trade.Data{
+			Timestamp:    time.UnixMilli(result.Trades[x].Timestamp),
 			CurrencyPair: pair,
 			AssetType:    asset.Spot,
 			Exchange:     g.Name,
@@ -600,7 +605,7 @@ func (g *Gemini) wsProcessUpdate(result *wsL2MarketData) error {
 			Amount:       result.Trades[x].Quantity,
 			Side:         tSide,
 			TID:          strconv.FormatInt(result.Trades[x].EventID, 10),
-		})
+		}
 	}
 
 	return trade.AddTradesToBuffer(g.Name, trades...)

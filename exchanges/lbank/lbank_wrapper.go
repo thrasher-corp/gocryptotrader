@@ -281,6 +281,8 @@ func (l *Lbank) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType 
 	if err != nil {
 		return book, err
 	}
+
+	book.Asks = make(orderbook.Items, len(a.Data.Asks))
 	for i := range a.Data.Asks {
 		price, convErr := strconv.ParseFloat(a.Data.Asks[i][0], 64)
 		if convErr != nil {
@@ -290,10 +292,12 @@ func (l *Lbank) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType 
 		if convErr != nil {
 			return book, convErr
 		}
-		book.Asks = append(book.Asks, orderbook.Item{
+		book.Asks[i] = orderbook.Item{
 			Price:  price,
-			Amount: amount})
+			Amount: amount,
+		}
 	}
+	book.Bids = make(orderbook.Items, len(a.Data.Bids))
 	for i := range a.Data.Bids {
 		price, convErr := strconv.ParseFloat(a.Data.Bids[i][0], 64)
 		if convErr != nil {
@@ -303,9 +307,10 @@ func (l *Lbank) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType 
 		if convErr != nil {
 			return book, convErr
 		}
-		book.Bids = append(book.Bids, orderbook.Item{
+		book.Bids[i] = orderbook.Item{
 			Price:  price,
-			Amount: amount})
+			Amount: amount,
+		}
 	}
 	err = book.Process()
 	if err != nil {
@@ -322,7 +327,7 @@ func (l *Lbank) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 	if err != nil {
 		return info, err
 	}
-	var acc account.SubAccount
+	acc := account.SubAccount{AssetType: assetType}
 	for key, val := range data.Info.Asset {
 		c := currency.NewCode(key)
 		hold, ok := data.Info.Freeze[key]
@@ -591,30 +596,16 @@ func (l *Lbank) GetOrderInfo(ctx context.Context, orderID string, pair currency.
 			} else {
 				resp.Side = order.Sell
 			}
-			z := tempResp.Orders[0].Status
-			switch {
-			case z == -1:
-				resp.Status = "cancelled"
-			case z == 0:
-				resp.Status = "on trading"
-			case z == 1:
-				resp.Status = "filled partially"
-			case z == 2:
-				resp.Status = "Filled totally"
-			case z == 4:
-				resp.Status = "Cancelling"
-			default:
-				resp.Status = "Invalid Order Status"
-			}
+
+			resp.Status = l.GetStatus(tempResp.Orders[0].Status)
 			resp.Price = tempResp.Orders[0].Price
 			resp.Amount = tempResp.Orders[0].Amount
 			resp.ExecutedAmount = tempResp.Orders[0].DealAmount
 			resp.RemainingAmount = tempResp.Orders[0].Amount - tempResp.Orders[0].DealAmount
-			resp.Fee, err = l.GetFeeByType(ctx,
-				&exchange.FeeBuilder{
-					FeeType:       exchange.CryptocurrencyTradeFee,
-					Amount:        tempResp.Orders[0].Amount,
-					PurchasePrice: tempResp.Orders[0].Price})
+			resp.Fee, err = l.GetFeeByType(ctx, &exchange.FeeBuilder{
+				FeeType:       exchange.CryptocurrencyTradeFee,
+				Amount:        tempResp.Orders[0].Amount,
+				PurchasePrice: tempResp.Orders[0].Price})
 			if err != nil {
 				resp.Fee = lbankFeeNotFound
 			}
@@ -691,21 +682,7 @@ func (l *Lbank) GetActiveOrders(ctx context.Context, getOrdersRequest *order.Get
 			} else {
 				resp.Side = order.Sell
 			}
-			z := tempResp.Orders[0].Status
-			switch {
-			case z == -1:
-				resp.Status = "cancelled"
-			case z == 1:
-				resp.Status = "on trading"
-			case z == 2:
-				resp.Status = "filled partially"
-			case z == 3:
-				resp.Status = "Filled totally"
-			case z == 4:
-				resp.Status = "Cancelling"
-			default:
-				resp.Status = "Invalid Order Status"
-			}
+			resp.Status = l.GetStatus(tempResp.Orders[0].Status)
 			resp.Price = tempResp.Orders[0].Price
 			resp.Amount = tempResp.Orders[0].Amount
 			resp.Date = time.Unix(tempResp.Orders[0].CreateTime, 0)
@@ -723,7 +700,7 @@ func (l *Lbank) GetActiveOrders(ctx context.Context, getOrdersRequest *order.Get
 				if getOrdersRequest.Pairs[y].String() != key {
 					continue
 				}
-				if getOrdersRequest.Side == "ANY" {
+				if getOrdersRequest.Side == order.AnySide {
 					finalResp = append(finalResp, resp)
 					continue
 				}
@@ -786,21 +763,7 @@ func (l *Lbank) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Get
 				} else {
 					resp.Side = order.Sell
 				}
-				z := tempResp.Orders[x].Status
-				switch {
-				case z == -1:
-					resp.Status = "cancelled"
-				case z == 1:
-					resp.Status = "on trading"
-				case z == 2:
-					resp.Status = "filled partially"
-				case z == 3:
-					resp.Status = "Filled totally"
-				case z == 4:
-					resp.Status = "Cancelling"
-				default:
-					resp.Status = "Invalid Order Status"
-				}
+				resp.Status = l.GetStatus(tempResp.Orders[x].Status)
 				resp.Price = tempResp.Orders[x].Price
 				resp.AverageExecutedPrice = tempResp.Orders[x].AvgPrice
 				resp.Amount = tempResp.Orders[x].Amount
@@ -1022,4 +985,29 @@ func (l *Lbank) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pa
 	ret.RemoveOutsideRange(start, end)
 	ret.SortCandlesByTimestamp(false)
 	return ret, nil
+}
+
+// GetStatus returns the order.Status from the int representation.
+func (l *Lbank) GetStatus(status int64) order.Status {
+	var oStatus order.Status
+	switch status {
+	case -1:
+		// "cancelled"
+		oStatus = order.Cancelled
+	case 0:
+		// "on trading"
+		oStatus = order.Active
+	case 1:
+		// "filled partially"
+		oStatus = order.PartiallyFilled
+	case 2:
+		// "filled totally"
+		oStatus = order.Filled
+	case 4:
+		// "Cancelling"
+		oStatus = order.Cancelling
+	default:
+		log.Errorf(log.Global, "%s Unhandled Order Status '%v'", l.GetName(), status)
+	}
+	return oStatus
 }

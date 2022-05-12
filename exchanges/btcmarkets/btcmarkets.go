@@ -83,6 +83,11 @@ const (
 	tick          = "tick"
 	wsOB          = "orderbookUpdate"
 	tradeEndPoint = "trade"
+
+	// Subscription management when connection and subscription established
+	addSubscription    = "addSubscription"
+	removeSubscription = "removeSubscription"
+	clientType         = "api"
 )
 
 // BTCMarkets is the overarching type across the BTCMarkets package
@@ -128,50 +133,54 @@ func (b *BTCMarkets) GetTrades(ctx context.Context, marketID string, before, aft
 // 0 - Returns the top bids and ask orders only.
 // 1 - Returns top 50 bids and asks.
 // 2 - Returns full orderbook. WARNING: This is cached every 10 seconds.
-func (b *BTCMarkets) GetOrderbook(ctx context.Context, marketID string, level int64) (Orderbook, error) {
-	var orderbook Orderbook
-	var temp tempOrderbook
+func (b *BTCMarkets) GetOrderbook(ctx context.Context, marketID string, level int64) (*Orderbook, error) {
 	params := url.Values{}
 	if level != 0 {
 		params.Set("level", strconv.FormatInt(level, 10))
 	}
+	var temp tempOrderbook
 	err := b.SendHTTPRequest(ctx, btcMarketsUnauthPath+marketID+btcMarketOrderBook+params.Encode(),
 		&temp)
 	if err != nil {
-		return orderbook, err
+		return nil, err
 	}
 
-	orderbook.MarketID = temp.MarketID
-	orderbook.SnapshotID = temp.SnapshotID
+	orderbook := Orderbook{
+		MarketID:   temp.MarketID,
+		SnapshotID: temp.SnapshotID,
+		Bids:       make([]OBData, len(temp.Bids)),
+		Asks:       make([]OBData, len(temp.Asks)),
+	}
+
 	for x := range temp.Asks {
 		price, err := strconv.ParseFloat(temp.Asks[x][0], 64)
 		if err != nil {
-			return orderbook, err
+			return nil, err
 		}
 		amount, err := strconv.ParseFloat(temp.Asks[x][1], 64)
 		if err != nil {
-			return orderbook, err
+			return nil, err
 		}
-		orderbook.Asks = append(orderbook.Asks, OBData{
+		orderbook.Asks[x] = OBData{
 			Price:  price,
 			Volume: amount,
-		})
+		}
 	}
 	for a := range temp.Bids {
 		price, err := strconv.ParseFloat(temp.Bids[a][0], 64)
 		if err != nil {
-			return orderbook, err
+			return nil, err
 		}
 		amount, err := strconv.ParseFloat(temp.Bids[a][1], 64)
 		if err != nil {
-			return orderbook, err
+			return nil, err
 		}
-		orderbook.Bids = append(orderbook.Bids, OBData{
+		orderbook.Bids[a] = OBData{
 			Price:  price,
 			Volume: amount,
-		})
+		}
 	}
-	return orderbook, nil
+	return &orderbook, nil
 }
 
 // GetMarketCandles gets candles for specified currency pair
@@ -216,9 +225,7 @@ func (b *BTCMarkets) GetTickers(ctx context.Context, marketIDs currency.Pairs) (
 
 // GetMultipleOrderbooks gets orderbooks
 func (b *BTCMarkets) GetMultipleOrderbooks(ctx context.Context, marketIDs []string) ([]Orderbook, error) {
-	var orderbooks []Orderbook
 	var temp []tempOrderbook
-	var tempOB Orderbook
 	params := url.Values{}
 	for x := range marketIDs {
 		params.Add("marketId", marketIDs[x])
@@ -226,12 +233,16 @@ func (b *BTCMarkets) GetMultipleOrderbooks(ctx context.Context, marketIDs []stri
 	err := b.SendHTTPRequest(ctx, btcMarketsUnauthPath+btcMarketsMultipleOrderbooks+params.Encode(),
 		&temp)
 	if err != nil {
-		return orderbooks, err
+		return nil, err
 	}
+	orderbooks := make([]Orderbook, 0, len(marketIDs))
 	for i := range temp {
+		var tempOB Orderbook
 		var price, volume float64
 		tempOB.MarketID = temp[i].MarketID
 		tempOB.SnapshotID = temp[i].SnapshotID
+		tempOB.Asks = make([]OBData, len(temp[i].Asks))
+		tempOB.Bids = make([]OBData, len(temp[i].Bids))
 		for a := range temp[i].Asks {
 			volume, err = strconv.ParseFloat(temp[i].Asks[a][1], 64)
 			if err != nil {
@@ -241,7 +252,7 @@ func (b *BTCMarkets) GetMultipleOrderbooks(ctx context.Context, marketIDs []stri
 			if err != nil {
 				return orderbooks, err
 			}
-			tempOB.Asks = append(tempOB.Asks, OBData{Price: price, Volume: volume})
+			tempOB.Asks[a] = OBData{Price: price, Volume: volume}
 		}
 		for y := range temp[i].Bids {
 			volume, err = strconv.ParseFloat(temp[i].Bids[y][1], 64)
@@ -252,15 +263,15 @@ func (b *BTCMarkets) GetMultipleOrderbooks(ctx context.Context, marketIDs []stri
 			if err != nil {
 				return orderbooks, err
 			}
-			tempOB.Bids = append(tempOB.Bids, OBData{Price: price, Volume: volume})
+			tempOB.Bids[y] = OBData{Price: price, Volume: volume}
 		}
 		orderbooks = append(orderbooks, tempOB)
 	}
 	return orderbooks, nil
 }
 
-// GetServerTime gets time from btcmarkets
-func (b *BTCMarkets) GetServerTime(ctx context.Context) (time.Time, error) {
+// GetCurrentServerTime gets time from btcmarkets
+func (b *BTCMarkets) GetCurrentServerTime(ctx context.Context) (time.Time, error) {
 	var resp TimeResp
 	return resp.Time, b.SendHTTPRequest(ctx, btcMarketsAPIURL+btcMarketsAPIVersion+btcMarketsGetTime,
 		&resp)
@@ -708,22 +719,24 @@ func (b *BTCMarkets) RequestWithdraw(ctx context.Context, assetName string, amou
 }
 
 // BatchPlaceCancelOrders places and cancels batch orders
-func (b *BTCMarkets) BatchPlaceCancelOrders(ctx context.Context, cancelOrders []CancelBatch, placeOrders []PlaceBatch) (BatchPlaceCancelResponse, error) {
-	var resp BatchPlaceCancelResponse
-	var orderRequests []interface{}
-	if len(cancelOrders)+len(placeOrders) > 4 {
-		return resp, errors.New("BTCMarkets can only handle 4 orders at a time")
+func (b *BTCMarkets) BatchPlaceCancelOrders(ctx context.Context, cancelOrders []CancelBatch, placeOrders []PlaceBatch) (*BatchPlaceCancelResponse, error) {
+	numActions := len(cancelOrders) + len(placeOrders)
+	if numActions > 4 {
+		return nil, errors.New("BTCMarkets can only handle 4 orders at a time")
 	}
+
+	orderRequests := make([]interface{}, numActions)
 	for x := range cancelOrders {
-		orderRequests = append(orderRequests, CancelOrderMethod{CancelOrder: cancelOrders[x]})
+		orderRequests[x] = CancelOrderMethod{CancelOrder: cancelOrders[x]}
 	}
 	for y := range placeOrders {
 		if placeOrders[y].ClientOrderID == "" {
-			return resp, errors.New("placeorders must have clientorderids filled")
+			return nil, errors.New("placeorders must have ClientOrderID filled")
 		}
-		orderRequests = append(orderRequests, PlaceOrderMethod{PlaceOrder: placeOrders[y]})
+		orderRequests[y] = PlaceOrderMethod{PlaceOrder: placeOrders[y]}
 	}
-	return resp, b.SendAuthenticatedRequest(ctx, http.MethodPost,
+	var resp BatchPlaceCancelResponse
+	return &resp, b.SendAuthenticatedRequest(ctx, http.MethodPost,
 		btcMarketsBatchOrders,
 		orderRequests,
 		&resp,

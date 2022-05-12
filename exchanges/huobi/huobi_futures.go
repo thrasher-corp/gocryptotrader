@@ -178,35 +178,41 @@ func (h *HUOBI) FGetEstimatedDeliveryPrice(ctx context.Context, symbol currency.
 }
 
 // FGetMarketDepth gets market depth data for futures contracts
-func (h *HUOBI) FGetMarketDepth(ctx context.Context, symbol currency.Pair, dataType string) (OBData, error) {
-	var resp OBData
-	var tempData FMarketDepth
-	params := url.Values{}
+func (h *HUOBI) FGetMarketDepth(ctx context.Context, symbol currency.Pair, dataType string) (*OBData, error) {
 	symbolValue, err := h.formatFuturesPair(symbol)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
+	params := url.Values{}
 	params.Set("symbol", symbolValue)
 	params.Set("type", dataType)
 	path := common.EncodeURLValues(fContractMarketDepth, params)
+
+	var tempData FMarketDepth
 	err = h.SendHTTPRequest(ctx, exchange.RestFutures, path, &tempData)
 	if err != nil {
-		return resp, err
+		return nil, err
+	}
+
+	resp := OBData{
+		Symbol: symbolValue,
+		Bids:   make([]obItem, len(tempData.Tick.Bids)),
+		Asks:   make([]obItem, len(tempData.Tick.Asks)),
 	}
 	resp.Symbol = symbolValue
 	for x := range tempData.Tick.Asks {
-		resp.Asks = append(resp.Asks, obItem{
+		resp.Asks[x] = obItem{
 			Price:    tempData.Tick.Asks[x][0],
 			Quantity: tempData.Tick.Asks[x][1],
-		})
+		}
 	}
 	for y := range tempData.Tick.Bids {
-		resp.Bids = append(resp.Bids, obItem{
+		resp.Bids[y] = obItem{
 			Price:    tempData.Tick.Bids[y][0],
 			Quantity: tempData.Tick.Bids[y][1],
-		})
+		}
 	}
-	return resp, nil
+	return &resp, nil
 }
 
 // FGetKlineData gets kline data for futures

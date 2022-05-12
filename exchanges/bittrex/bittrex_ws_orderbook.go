@@ -7,7 +7,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -49,22 +48,22 @@ func (b *Bittrex) setupOrderbookManager() {
 
 // ProcessUpdateOB processes the websocket orderbook update
 func (b *Bittrex) ProcessUpdateOB(pair currency.Pair, message *OrderbookUpdateMessage) error {
-	var updateBids []orderbook.Item
+	updateBids := make([]orderbook.Item, len(message.BidDeltas))
 	for x := range message.BidDeltas {
-		updateBids = append(updateBids, orderbook.Item{
+		updateBids[x] = orderbook.Item{
 			Price:  message.BidDeltas[x].Rate,
 			Amount: message.BidDeltas[x].Quantity,
-		})
+		}
 	}
-	var updateAsks []orderbook.Item
+	updateAsks := make([]orderbook.Item, len(message.AskDeltas))
 	for x := range message.AskDeltas {
-		updateAsks = append(updateAsks, orderbook.Item{
+		updateAsks[x] = orderbook.Item{
 			Price:  message.AskDeltas[x].Rate,
 			Amount: message.AskDeltas[x].Quantity,
-		})
+		}
 	}
 
-	return b.Websocket.Orderbook.Update(&buffer.Update{
+	return b.Websocket.Orderbook.Update(&orderbook.Update{
 		Asset:    asset.Spot,
 		Pair:     pair,
 		UpdateID: message.Sequence,
@@ -116,30 +115,33 @@ func (b *Bittrex) SeedLocalOBCache(ctx context.Context, p currency.Pair) error {
 	if err != nil {
 		return err
 	}
-	return b.SeedLocalCacheWithOrderBook(p, sequence, &ob)
+	return b.SeedLocalCacheWithOrderBook(p, sequence, ob)
 }
 
 // SeedLocalCacheWithOrderBook seeds the local orderbook cache
 func (b *Bittrex) SeedLocalCacheWithOrderBook(p currency.Pair, sequence int64, orderbookNew *OrderbookData) error {
-	var newOrderBook orderbook.Base
-	for i := range orderbookNew.Bid {
-		newOrderBook.Bids = append(newOrderBook.Bids, orderbook.Item{
-			Amount: orderbookNew.Bid[i].Quantity,
-			Price:  orderbookNew.Bid[i].Rate,
-		})
-	}
-	for i := range orderbookNew.Ask {
-		newOrderBook.Asks = append(newOrderBook.Asks, orderbook.Item{
-			Amount: orderbookNew.Ask[i].Quantity,
-			Price:  orderbookNew.Ask[i].Rate,
-		})
+	newOrderBook := orderbook.Base{
+		Pair:            p,
+		Asset:           asset.Spot,
+		Exchange:        b.Name,
+		LastUpdateID:    sequence,
+		VerifyOrderbook: b.CanVerifyOrderbook,
+		Bids:            make(orderbook.Items, len(orderbookNew.Bid)),
+		Asks:            make(orderbook.Items, len(orderbookNew.Ask)),
 	}
 
-	newOrderBook.Pair = p
-	newOrderBook.Asset = asset.Spot
-	newOrderBook.Exchange = b.Name
-	newOrderBook.LastUpdateID = sequence
-	newOrderBook.VerifyOrderbook = b.CanVerifyOrderbook
+	for i := range orderbookNew.Bid {
+		newOrderBook.Bids[i] = orderbook.Item{
+			Amount: orderbookNew.Bid[i].Quantity,
+			Price:  orderbookNew.Bid[i].Rate,
+		}
+	}
+	for i := range orderbookNew.Ask {
+		newOrderBook.Asks[i] = orderbook.Item{
+			Amount: orderbookNew.Ask[i].Quantity,
+			Price:  orderbookNew.Ask[i].Rate,
+		}
+	}
 
 	return b.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 }

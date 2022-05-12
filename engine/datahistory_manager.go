@@ -121,7 +121,7 @@ func (m *DataHistoryManager) retrieveJobs() ([]*DataHistoryJob, error) {
 		return nil, err
 	}
 
-	var response []*DataHistoryJob
+	response := make([]*DataHistoryJob, 0, len(dbJobs))
 	for i := range dbJobs {
 		dbJob, err := m.convertDBModelToJob(&dbJobs[i])
 		if err != nil {
@@ -1332,13 +1332,13 @@ func (m *DataHistoryManager) GetAllJobStatusBetween(start, end time.Time) ([]*Da
 	if err != nil {
 		return nil, err
 	}
-	var results []*DataHistoryJob
+	results := make([]*DataHistoryJob, len(dbJobs))
 	for i := range dbJobs {
 		dbJob, err := m.convertDBModelToJob(&dbJobs[i])
 		if err != nil {
 			return nil, err
 		}
-		results = append(results, dbJob)
+		results[i] = dbJob
 	}
 	return results, nil
 }
@@ -1479,11 +1479,17 @@ func (m *DataHistoryManager) convertDBModelToJob(dbModel *datahistoryjob.DataHis
 		return nil, fmt.Errorf("job %s could not convert database job: %w", dbModel.Nickname, err)
 	}
 
+	ai, err := asset.New(dbModel.Asset)
+	if err != nil {
+		return nil, fmt.Errorf("job %s could not derive asset: %w",
+			dbModel.Nickname, err)
+	}
+
 	resp := &DataHistoryJob{
 		ID:                       id,
 		Nickname:                 dbModel.Nickname,
 		Exchange:                 dbModel.ExchangeName,
-		Asset:                    asset.Item(dbModel.Asset),
+		Asset:                    ai,
 		Pair:                     cp,
 		StartDate:                dbModel.StartDate,
 		EndDate:                  dbModel.EndDate,

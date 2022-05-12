@@ -19,7 +19,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -46,9 +45,11 @@ func (h *HitBTC) WsConnect() error {
 	h.Websocket.Wg.Add(1)
 	go h.wsReadData()
 
-	err = h.wsLogin(context.TODO())
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%v - authentication failed: %v\n", h.Name, err)
+	if h.Websocket.CanUseAuthenticatedEndpoints() {
+		err = h.wsLogin(context.TODO())
+		if err != nil {
+			log.Errorf(log.ExchangeSys, "%v - authentication failed: %v\n", h.Name, err)
+		}
 	}
 
 	return nil
@@ -180,7 +181,7 @@ func (h *HitBTC) wsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		err = h.WsProcessOrderbookSnapshot(obSnapshot)
+		err = h.WsProcessOrderbookSnapshot(&obSnapshot)
 		if err != nil {
 			return err
 		}
@@ -190,7 +191,7 @@ func (h *HitBTC) wsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		err = h.WsProcessOrderbookUpdate(obUpdate)
+		err = h.WsProcessOrderbookUpdate(&obUpdate)
 		if err != nil {
 			return err
 		}
@@ -293,24 +294,26 @@ func (h *HitBTC) wsHandleData(respRaw []byte) error {
 }
 
 // WsProcessOrderbookSnapshot processes a full orderbook snapshot to a local cache
-func (h *HitBTC) WsProcessOrderbookSnapshot(ob WsOrderbook) error {
+func (h *HitBTC) WsProcessOrderbookSnapshot(ob *WsOrderbook) error {
 	if len(ob.Params.Bid) == 0 || len(ob.Params.Ask) == 0 {
 		return errors.New("no orderbooks to process")
 	}
 
-	var newOrderBook orderbook.Base
+	newOrderBook := orderbook.Base{
+		Bids: make(orderbook.Items, len(ob.Params.Bid)),
+		Asks: make(orderbook.Items, len(ob.Params.Ask)),
+	}
 	for i := range ob.Params.Bid {
-		newOrderBook.Bids = append(newOrderBook.Bids, orderbook.Item{
+		newOrderBook.Bids[i] = orderbook.Item{
 			Amount: ob.Params.Bid[i].Size,
 			Price:  ob.Params.Bid[i].Price,
-		})
+		}
 	}
-
 	for i := range ob.Params.Ask {
-		newOrderBook.Asks = append(newOrderBook.Asks, orderbook.Item{
+		newOrderBook.Asks[i] = orderbook.Item{
 			Amount: ob.Params.Ask[i].Size,
 			Price:  ob.Params.Ask[i].Price,
-		})
+		}
 	}
 
 	pairs, err := h.GetEnabledPairs(asset.Spot)
@@ -410,26 +413,27 @@ func (h *HitBTC) wsHandleOrderData(o *wsOrderData) error {
 }
 
 // WsProcessOrderbookUpdate updates a local cache
-func (h *HitBTC) WsProcessOrderbookUpdate(update WsOrderbook) error {
+func (h *HitBTC) WsProcessOrderbookUpdate(update *WsOrderbook) error {
 	if len(update.Params.Bid) == 0 && len(update.Params.Ask) == 0 {
 		// Periodically HitBTC sends empty updates which includes a sequence
 		// can return this as nil.
 		return nil
 	}
 
-	var bids, asks []orderbook.Item
+	bids := make(orderbook.Items, len(update.Params.Bid))
 	for i := range update.Params.Bid {
-		bids = append(bids, orderbook.Item{
+		bids[i] = orderbook.Item{
 			Price:  update.Params.Bid[i].Price,
 			Amount: update.Params.Bid[i].Size,
-		})
+		}
 	}
 
+	asks := make(orderbook.Items, len(update.Params.Ask))
 	for i := range update.Params.Ask {
-		asks = append(asks, orderbook.Item{
+		asks[i] = orderbook.Item{
 			Price:  update.Params.Ask[i].Price,
 			Amount: update.Params.Ask[i].Size,
-		})
+		}
 	}
 
 	pairs, err := h.GetEnabledPairs(asset.Spot)
@@ -449,7 +453,7 @@ func (h *HitBTC) WsProcessOrderbookUpdate(update WsOrderbook) error {
 		return err
 	}
 
-	return h.Websocket.Orderbook.Update(&buffer.Update{
+	return h.Websocket.Orderbook.Update(&orderbook.Update{
 		Asks:     asks,
 		Bids:     bids,
 		Pair:     p,

@@ -20,7 +20,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -461,7 +460,7 @@ func (o *OKGroup) wsProcessTrades(respRaw []byte) error {
 	}
 
 	a := o.GetAssetTypeFromTableName(response.Table)
-	var trades []trade.Data
+	trades := make([]trade.Data, len(response.Data))
 	for i := range response.Data {
 		f := strings.Split(response.Data[i].InstrumentID, delimiterDash)
 
@@ -487,7 +486,7 @@ func (o *OKGroup) wsProcessTrades(respRaw []byte) error {
 		if response.Data[i].Quantity != 0 {
 			amount = response.Data[i].Quantity
 		}
-		trades = append(trades, trade.Data{
+		trades[i] = trade.Data{
 			Amount:       amount,
 			AssetType:    o.GetAssetTypeFromTableName(response.Table),
 			CurrencyPair: c,
@@ -496,7 +495,7 @@ func (o *OKGroup) wsProcessTrades(respRaw []byte) error {
 			Side:         tSide,
 			Timestamp:    response.Data[i].Timestamp,
 			TID:          response.Data[i].TradeID,
-		})
+		}
 	}
 	return trade.AddTradesToBuffer(o.Name, trades...)
 }
@@ -644,7 +643,7 @@ func (o *OKGroup) wsResubscribeToOrderbook(response *WebsocketOrderBooksData) er
 // AppendWsOrderbookItems adds websocket orderbook data bid/asks into an
 // orderbook item array
 func (o *OKGroup) AppendWsOrderbookItems(entries [][]interface{}) ([]orderbook.Item, error) {
-	var items []orderbook.Item
+	items := make([]orderbook.Item, len(entries))
 	for j := range entries {
 		amount, err := strconv.ParseFloat(entries[j][1].(string), 64)
 		if err != nil {
@@ -654,7 +653,7 @@ func (o *OKGroup) AppendWsOrderbookItems(entries [][]interface{}) ([]orderbook.I
 		if err != nil {
 			return nil, err
 		}
-		items = append(items, orderbook.Item{Amount: amount, Price: price})
+		items[j] = orderbook.Item{Amount: amount, Price: price}
 	}
 	return items, nil
 }
@@ -662,7 +661,13 @@ func (o *OKGroup) AppendWsOrderbookItems(entries [][]interface{}) ([]orderbook.I
 // WsProcessPartialOrderBook takes websocket orderbook data and creates an
 // orderbook Calculates checksum to ensure it is valid
 func (o *OKGroup) WsProcessPartialOrderBook(wsEventData *WebsocketOrderBook, instrument currency.Pair, a asset.Item) error {
-	signedChecksum := o.CalculatePartialOrderbookChecksum(wsEventData)
+	signedChecksum, err := o.CalculatePartialOrderbookChecksum(wsEventData)
+	if err != nil {
+		return fmt.Errorf("%s channel: %s. Orderbook unable to calculate partial orderbook checksum: %s",
+			o.Name,
+			a,
+			err)
+	}
 	if signedChecksum != wsEventData.Checksum {
 		return fmt.Errorf("%s channel: %s. Orderbook partial for %v checksum invalid",
 			o.Name,
@@ -702,7 +707,7 @@ func (o *OKGroup) WsProcessPartialOrderBook(wsEventData *WebsocketOrderBook, ins
 // After merging WS data, it will sort, validate and finally update the existing
 // orderbook
 func (o *OKGroup) WsProcessUpdateOrderbook(wsEventData *WebsocketOrderBook, instrument currency.Pair, a asset.Item) error {
-	update := buffer.Update{
+	update := orderbook.Update{
 		Asset:      a,
 		Pair:       instrument,
 		UpdateTime: wsEventData.Timestamp,
@@ -744,24 +749,40 @@ func (o *OKGroup) WsProcessUpdateOrderbook(wsEventData *WebsocketOrderBook, inst
 // quantity with a semicolon (:) deliminating them. This will also work when
 // there are less than 25 entries (for whatever reason)
 // eg Bid:Ask:Bid:Ask:Ask:Ask
-func (o *OKGroup) CalculatePartialOrderbookChecksum(orderbookData *WebsocketOrderBook) int32 {
+func (o *OKGroup) CalculatePartialOrderbookChecksum(orderbookData *WebsocketOrderBook) (int32, error) {
 	var checksum strings.Builder
 	for i := 0; i < allowableIterations; i++ {
 		if len(orderbookData.Bids)-1 >= i {
-			checksum.WriteString(orderbookData.Bids[i][0].(string) +
+			bidPrice, ok := orderbookData.Bids[i][0].(string)
+			if !ok {
+				return 0, fmt.Errorf("unable to type assert bidPrice")
+			}
+			bidAmount, ok := orderbookData.Bids[i][1].(string)
+			if !ok {
+				return 0, fmt.Errorf("unable to type assert bidAmount")
+			}
+			checksum.WriteString(bidPrice +
 				delimiterColon +
-				orderbookData.Bids[i][1].(string) +
+				bidAmount +
 				delimiterColon)
 		}
 		if len(orderbookData.Asks)-1 >= i {
-			checksum.WriteString(orderbookData.Asks[i][0].(string) +
+			askPrice, ok := orderbookData.Asks[i][0].(string)
+			if !ok {
+				return 0, fmt.Errorf("unable to type assert askPrice")
+			}
+			askAmount, ok := orderbookData.Asks[i][1].(string)
+			if !ok {
+				return 0, fmt.Errorf("unable to type assert askAmount")
+			}
+			checksum.WriteString(askPrice +
 				delimiterColon +
-				orderbookData.Asks[i][1].(string) +
+				askAmount +
 				delimiterColon)
 		}
 	}
 	checksumStr := strings.TrimSuffix(checksum.String(), delimiterColon)
-	return int32(crc32.ChecksumIEEE([]byte(checksumStr)))
+	return int32(crc32.ChecksumIEEE([]byte(checksumStr))), nil
 }
 
 // CalculateUpdateOrderbookChecksum alternates over the first 25 bid and ask
@@ -1038,6 +1059,6 @@ func (o *OKGroup) GetAssetTypeFromTableName(table string) asset.Item {
 		log.Warnf(log.ExchangeSys, "%s unhandled asset type %s",
 			o.Name,
 			table[:assetIndex])
-		return asset.Item(table[:assetIndex])
+		return asset.Empty
 	}
 }

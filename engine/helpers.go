@@ -10,7 +10,6 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"math/big"
 	"net"
 	"os"
@@ -326,8 +325,8 @@ func (bot *Engine) GetExchangeOTPByName(exchName string) (string, error) {
 
 // GetAuthAPISupportedExchanges returns a list of auth api enabled exchanges
 func (bot *Engine) GetAuthAPISupportedExchanges() []string {
-	var exchangeNames []string
 	exchanges := bot.GetExchanges()
+	exchangeNames := make([]string, 0, len(exchanges))
 	for x := range exchanges {
 		if !exchanges[x].GetAuthenticatedAPISupport(exchange.RestAuthentication) &&
 			!exchanges[x].GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
@@ -443,7 +442,7 @@ func (bot *Engine) MapCurrenciesByExchange(p currency.Pairs, enabledExchangesOnl
 // GetExchangeNamesByCurrency returns a list of exchanges supporting
 // a currency pair based on whether the exchange is enabled or not
 func (bot *Engine) GetExchangeNamesByCurrency(p currency.Pair, enabled bool, assetType asset.Item) []string {
-	var exchanges []string
+	exchanges := make([]string, 0, len(bot.Config.Exchanges))
 	for x := range bot.Config.Exchanges {
 		if enabled != bot.Config.Exchanges[x].Enabled {
 			continue
@@ -862,7 +861,7 @@ func checkCerts(certDir string) error {
 		return genCert(certDir)
 	}
 
-	pemData, err := ioutil.ReadFile(certFile)
+	pemData, err := os.ReadFile(certFile)
 	if err != nil {
 		return fmt.Errorf("unable to open TLS cert file: %s", err)
 	}

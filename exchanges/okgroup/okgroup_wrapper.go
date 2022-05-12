@@ -99,11 +99,11 @@ func (o *OKGroup) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.
 
 	fPair, err := o.FormatExchangeCurrency(p, a)
 	if err != nil {
-		return nil, err
+		return book, err
 	}
 
 	orderbookNew, err := o.GetOrderBook(ctx,
-		GetOrderBookRequest{
+		&GetOrderBookRequest{
 			InstrumentID: fPair.String(),
 			Size:         200,
 		}, a)
@@ -111,6 +111,7 @@ func (o *OKGroup) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.
 		return book, err
 	}
 
+	book.Bids = make(orderbook.Items, len(orderbookNew.Bids))
 	for x := range orderbookNew.Bids {
 		amount, convErr := strconv.ParseFloat(orderbookNew.Bids[x][1], 64)
 		if convErr != nil {
@@ -135,14 +136,15 @@ func (o *OKGroup) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.
 			}
 		}
 
-		book.Bids = append(book.Bids, orderbook.Item{
+		book.Bids[x] = orderbook.Item{
 			Amount:            amount,
 			Price:             price,
 			LiquidationOrders: liquidationOrders,
 			OrderCount:        orderCount,
-		})
+		}
 	}
 
+	book.Asks = make(orderbook.Items, len(orderbookNew.Asks))
 	for x := range orderbookNew.Asks {
 		amount, convErr := strconv.ParseFloat(orderbookNew.Asks[x][1], 64)
 		if convErr != nil {
@@ -167,12 +169,12 @@ func (o *OKGroup) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.
 			}
 		}
 
-		book.Asks = append(book.Asks, orderbook.Item{
+		book.Asks[x] = orderbook.Item{
 			Amount:            amount,
 			Price:             price,
 			LiquidationOrders: liquidationOrders,
 			OrderCount:        orderCount,
-		})
+		}
 	}
 
 	err = book.Process()
@@ -192,7 +194,7 @@ func (o *OKGroup) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 
 	var resp account.Holdings
 	resp.Exchange = o.Name
-	currencyAccount := account.SubAccount{}
+	currencyAccount := account.SubAccount{AssetType: assetType}
 
 	for i := range currencies {
 		hold, parseErr := strconv.ParseFloat(currencies[i].Hold, 64)
@@ -359,7 +361,7 @@ func (o *OKGroup) CancelAllOrders(ctx context.Context, orderCancellation *order.
 	orderIDs := strings.Split(orderCancellation.ID, ",")
 	resp := order.CancelAllResponse{}
 	resp.Status = make(map[string]string)
-	var orderIDNumbers []int64
+	orderIDNumbers := make([]int64, 0, len(orderIDs))
 	for i := range orderIDs {
 		orderIDNumber, err := strconv.ParseInt(orderIDs[i], 10, 64)
 		if err != nil {
@@ -395,13 +397,13 @@ func (o *OKGroup) CancelAllOrders(ctx context.Context, orderCancellation *order.
 
 // GetOrderInfo returns order information based on order ID
 func (o *OKGroup) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (resp order.Detail, err error) {
+	if assetType != asset.Spot {
+		return resp, fmt.Errorf("%s %w", assetType, asset.ErrNotSupported)
+	}
+
 	mOrder, err := o.GetSpotOrder(ctx, GetSpotOrderRequest{OrderID: orderID})
 	if err != nil {
 		return
-	}
-
-	if assetType == "" {
-		assetType = asset.Spot
 	}
 
 	format, err := o.GetPairFormat(assetType, false)
@@ -418,6 +420,11 @@ func (o *OKGroup) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%s %v", o.Name, err)
 	}
+
+	side, err := order.StringToOrderSide(mOrder.Side)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", o.Name, err)
+	}
 	resp = order.Detail{
 		Amount:         mOrder.Size,
 		Pair:           p,
@@ -425,7 +432,7 @@ func (o *OKGroup) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 		Date:           mOrder.Timestamp,
 		ExecutedAmount: mOrder.FilledSize,
 		Status:         status,
-		Side:           order.Side(mOrder.Side),
+		Side:           side,
 	}
 	return resp, nil
 }
@@ -521,14 +528,24 @@ func (o *OKGroup) GetActiveOrders(ctx context.Context, req *order.GetOrdersReque
 			if err != nil {
 				log.Errorf(log.ExchangeSys, "%s %v", o.Name, err)
 			}
+			var side order.Side
+			side, err = order.StringToOrderSide(spotOpenOrders[i].Side)
+			if err != nil {
+				log.Errorf(log.ExchangeSys, "%s %v", o.Name, err)
+			}
+			var orderType order.Type
+			orderType, err = order.StringToOrderType(spotOpenOrders[i].Type)
+			if err != nil {
+				log.Errorf(log.ExchangeSys, "%s %v", o.Name, err)
+			}
 			resp = append(resp, order.Detail{
 				ID:             spotOpenOrders[i].OrderID,
 				Price:          spotOpenOrders[i].Price,
 				Amount:         spotOpenOrders[i].Size,
 				Pair:           req.Pairs[x],
 				Exchange:       o.Name,
-				Side:           order.Side(spotOpenOrders[i].Side),
-				Type:           order.Type(spotOpenOrders[i].Type),
+				Side:           side,
+				Type:           orderType,
 				ExecutedAmount: spotOpenOrders[i].FilledSize,
 				Date:           spotOpenOrders[i].Timestamp,
 				Status:         status,
@@ -567,6 +584,16 @@ func (o *OKGroup) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 			if err != nil {
 				log.Errorf(log.ExchangeSys, "%s %v", o.Name, err)
 			}
+			var side order.Side
+			side, err = order.StringToOrderSide(spotOrders[i].Side)
+			if err != nil {
+				log.Errorf(log.ExchangeSys, "%s %v", o.Name, err)
+			}
+			var orderType order.Type
+			orderType, err = order.StringToOrderType(spotOrders[i].Type)
+			if err != nil {
+				log.Errorf(log.ExchangeSys, "%s %v", o.Name, err)
+			}
 			detail := order.Detail{
 				ID:                   spotOrders[i].OrderID,
 				Price:                spotOrders[i].Price,
@@ -576,8 +603,8 @@ func (o *OKGroup) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 				RemainingAmount:      spotOrders[i].Size - spotOrders[i].FilledSize,
 				Pair:                 req.Pairs[x],
 				Exchange:             o.Name,
-				Side:                 order.Side(spotOrders[i].Side),
-				Type:                 order.Type(spotOrders[i].Type),
+				Side:                 side,
+				Type:                 orderType,
 				Date:                 spotOrders[i].Timestamp,
 				Status:               status,
 			}

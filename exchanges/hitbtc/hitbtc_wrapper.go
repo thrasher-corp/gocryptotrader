@@ -291,11 +291,9 @@ func (h *HitBTC) FetchTradablePairs(ctx context.Context, asset asset.Item) ([]st
 		return nil, err
 	}
 
-	var pairs []string
+	pairs := make([]string, len(symbols))
 	for x := range symbols {
-		pairs = append(pairs, symbols[x].BaseCurrency+
-			format.Delimiter+
-			symbols[x].QuoteCurrency)
+		pairs[x] = symbols[x].BaseCurrency + format.Delimiter + symbols[x].QuoteCurrency
 	}
 	return pairs, nil
 }
@@ -409,18 +407,19 @@ func (h *HitBTC) UpdateOrderbook(ctx context.Context, c currency.Pair, assetType
 		return book, err
 	}
 
+	book.Bids = make(orderbook.Items, len(orderbookNew.Bids))
 	for x := range orderbookNew.Bids {
-		book.Bids = append(book.Bids, orderbook.Item{
+		book.Bids[x] = orderbook.Item{
 			Amount: orderbookNew.Bids[x].Amount,
 			Price:  orderbookNew.Bids[x].Price,
-		})
+		}
 	}
-
+	book.Asks = make(orderbook.Items, len(orderbookNew.Asks))
 	for x := range orderbookNew.Asks {
-		book.Asks = append(book.Asks, orderbook.Item{
+		book.Asks[x] = orderbook.Item{
 			Amount: orderbookNew.Asks[x].Amount,
 			Price:  orderbookNew.Asks[x].Price,
-		})
+		}
 	}
 	err = book.Process()
 	if err != nil {
@@ -439,7 +438,7 @@ func (h *HitBTC) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 		return response, err
 	}
 
-	var currencies []account.Balance
+	currencies := make([]account.Balance, 0, len(accountBalance))
 	for i := range accountBalance {
 		currencies = append(currencies, account.Balance{
 			CurrencyName: currency.NewCode(accountBalance[i].Currency),
@@ -450,6 +449,7 @@ func (h *HitBTC) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 	}
 
 	response.Accounts = append(response.Accounts, account.SubAccount{
+		AssetType:  assetType,
 		Currencies: currencies,
 	})
 
@@ -734,7 +734,7 @@ func (h *HitBTC) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 		return nil, err
 	}
 
-	var orders []order.Detail
+	orders := make([]order.Detail, len(allOrders))
 	for i := range allOrders {
 		var symbol currency.Pair
 		symbol, err = currency.NewPairDelimiter(allOrders[i].Symbol,
@@ -742,8 +742,12 @@ func (h *HitBTC) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 		if err != nil {
 			return nil, err
 		}
-		side := order.Side(strings.ToUpper(allOrders[i].Side))
-		orders = append(orders, order.Detail{
+		var side order.Side
+		side, err = order.StringToOrderSide(allOrders[i].Side)
+		if err != nil {
+			return nil, err
+		}
+		orders[i] = order.Detail{
 			ID:       allOrders[i].ID,
 			Amount:   allOrders[i].Quantity,
 			Exchange: h.Name,
@@ -751,10 +755,13 @@ func (h *HitBTC) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 			Date:     allOrders[i].CreatedAt,
 			Side:     side,
 			Pair:     symbol,
-		})
+		}
 	}
 
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", h.Name, err)
+	}
 	order.FilterOrdersBySide(&orders, req.Side)
 	return orders, nil
 }
@@ -784,7 +791,7 @@ func (h *HitBTC) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 		return nil, err
 	}
 
-	var orders []order.Detail
+	orders := make([]order.Detail, len(allOrders))
 	for i := range allOrders {
 		var pair currency.Pair
 		pair, err = currency.NewPairDelimiter(allOrders[i].Symbol,
@@ -792,8 +799,13 @@ func (h *HitBTC) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 		if err != nil {
 			return nil, err
 		}
-		side := order.Side(strings.ToUpper(allOrders[i].Side))
-		status, err := order.StringToOrderStatus(allOrders[i].Status)
+		var side order.Side
+		side, err = order.StringToOrderSide(allOrders[i].Side)
+		if err != nil {
+			log.Errorf(log.ExchangeSys, "%s %v", h.Name, err)
+		}
+		var status order.Status
+		status, err = order.StringToOrderStatus(allOrders[i].Status)
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "%s %v", h.Name, err)
 		}
@@ -812,10 +824,13 @@ func (h *HitBTC) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 			Pair:                 pair,
 		}
 		detail.InferCostsAndTimes()
-		orders = append(orders, detail)
+		orders[i] = detail
 	}
 
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", h.Name, err)
+	}
 	order.FilterOrdersBySide(&orders, req.Side)
 	return orders, nil
 }

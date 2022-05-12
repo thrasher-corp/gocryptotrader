@@ -2,9 +2,6 @@ package report
 
 import (
 	"errors"
-	"io/ioutil"
-	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -27,20 +24,14 @@ func TestGenerateReport(t *testing.T) {
 	e := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
-	tempDir, err := ioutil.TempDir("", "")
-	if err != nil {
-		t.Fatalf("Problem creating temp dir at %s: %s\n", tempDir, err)
-	}
-	defer func(path string) {
-		err = os.RemoveAll(path)
-		if err != nil {
-			t.Error(err)
-		}
-	}(tempDir)
 	d := Data{
-		Config:       &config.Config{},
-		OutputPath:   filepath.Join("..", "results"),
-		TemplatePath: filepath.Join("tpl.gohtml"),
+		Config: &config.Config{
+			StrategySettings: config.StrategySettings{
+				DisableUSDTracking: true,
+			},
+		},
+		OutputPath:   t.TempDir(),
+		TemplatePath: "tpl.gohtml",
 		OriginalCandles: []*gctkline.Item{
 			{
 				Candles: []gctkline.Candle{
@@ -312,18 +303,14 @@ func TestGenerateReport(t *testing.T) {
 			},
 			CurrencyPairStatistics: nil,
 			WasAnyDataMissing:      false,
-			FundingStatistics:      nil,
+			FundingStatistics: &statistics.FundingStatistics{
+				Report: &funding.Report{
+					DisableUSDTracking: true,
+				},
+			},
 		},
 	}
-	d.OutputPath = tempDir
-	d.Config.StrategySettings.DisableUSDTracking = true
-	d.Statistics.FundingStatistics = &statistics.FundingStatistics{
-		Report: &funding.Report{
-			DisableUSDTracking: true,
-		},
-	}
-	err = d.GenerateReport()
-	if err != nil {
+	if err := d.GenerateReport(); err != nil {
 		t.Error(err)
 	}
 }

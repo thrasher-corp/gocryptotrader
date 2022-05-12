@@ -155,9 +155,9 @@ func (l *LocalBitcoins) FetchTradablePairs(ctx context.Context, asset asset.Item
 		return nil, err
 	}
 
-	var pairs []string
+	pairs := make([]string, len(currencies))
 	for x := range currencies {
-		pairs = append(pairs, "BTC"+currencies[x])
+		pairs[x] = "BTC" + currencies[x]
 	}
 
 	return pairs, nil
@@ -248,18 +248,26 @@ func (l *LocalBitcoins) UpdateOrderbook(ctx context.Context, p currency.Pair, as
 		return book, err
 	}
 
+	book.Bids = make(orderbook.Items, len(orderbookNew.Bids))
 	for x := range orderbookNew.Bids {
-		book.Bids = append(book.Bids, orderbook.Item{
+		if orderbookNew.Bids[x].Price == 0 {
+			return book, errors.New("orderbook bid price is 0")
+		}
+		book.Bids[x] = orderbook.Item{
 			Amount: orderbookNew.Bids[x].Amount / orderbookNew.Bids[x].Price,
 			Price:  orderbookNew.Bids[x].Price,
-		})
+		}
 	}
 
+	book.Asks = make(orderbook.Items, len(orderbookNew.Asks))
 	for x := range orderbookNew.Asks {
-		book.Asks = append(book.Asks, orderbook.Item{
+		if orderbookNew.Asks[x].Price == 0 {
+			return book, errors.New("orderbook ask price is 0")
+		}
+		book.Asks[x] = orderbook.Item{
 			Amount: orderbookNew.Asks[x].Amount / orderbookNew.Asks[x].Price,
 			Price:  orderbookNew.Asks[x].Price,
-		})
+		}
 	}
 
 	book.PriceDuplication = true
@@ -273,7 +281,7 @@ func (l *LocalBitcoins) UpdateOrderbook(ctx context.Context, p currency.Pair, as
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // LocalBitcoins exchange
-func (l *LocalBitcoins) UpdateAccountInfo(ctx context.Context, _ asset.Item) (account.Holdings, error) {
+func (l *LocalBitcoins) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	var response account.Holdings
 	response.Exchange = l.Name
 	accountBalance, err := l.GetWalletBalance(ctx)
@@ -282,6 +290,7 @@ func (l *LocalBitcoins) UpdateAccountInfo(ctx context.Context, _ asset.Item) (ac
 	}
 
 	response.Accounts = append(response.Accounts, account.SubAccount{
+		AssetType: assetType,
 		Currencies: []account.Balance{
 			{
 				CurrencyName: currency.BTC,
@@ -332,9 +341,9 @@ func (l *LocalBitcoins) GetRecentTrades(ctx context.Context, p currency.Pair, as
 	if err != nil {
 		return nil, err
 	}
-	var resp []trade.Data
+	resp := make([]trade.Data, len(tradeData))
 	for i := range tradeData {
-		resp = append(resp, trade.Data{
+		resp[i] = trade.Data{
 			Exchange:     l.Name,
 			TID:          strconv.FormatInt(tradeData[i].TID, 10),
 			CurrencyPair: p,
@@ -342,7 +351,7 @@ func (l *LocalBitcoins) GetRecentTrades(ctx context.Context, p currency.Pair, as
 			Price:        tradeData[i].Price,
 			Amount:       tradeData[i].Amount,
 			Timestamp:    time.Unix(tradeData[i].Date, 0),
-		})
+		}
 	}
 
 	err = l.AddTradesToBuffer(resp...)
@@ -551,9 +560,10 @@ func (l *LocalBitcoins) GetActiveOrders(ctx context.Context, getOrdersRequest *o
 		return nil, err
 	}
 
-	var orders []order.Detail
+	orders := make([]order.Detail, len(resp))
 	for i := range resp {
-		orderDate, err := time.Parse(time.RFC3339, resp[i].Data.CreatedAt)
+		var orderDate time.Time
+		orderDate, err = time.Parse(time.RFC3339, resp[i].Data.CreatedAt)
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
 				l.Name,
@@ -562,17 +572,15 @@ func (l *LocalBitcoins) GetActiveOrders(ctx context.Context, getOrdersRequest *o
 				resp[i].Data.CreatedAt)
 		}
 
-		var side order.Side
-		if resp[i].Data.IsBuying {
-			side = order.Buy
-		} else if resp[i].Data.IsSelling {
+		side := order.Buy
+		if resp[i].Data.IsSelling {
 			side = order.Sell
 		}
 
-		orders = append(orders, order.Detail{
+		orders[i] = order.Detail{
 			Amount: resp[i].Data.AmountBTC,
 			Price:  resp[i].Data.Amount,
-			ID:     strconv.FormatInt(int64(resp[i].Data.Advertisement.ID), 10),
+			ID:     strconv.FormatInt(resp[i].Data.Advertisement.ID, 10),
 			Date:   orderDate,
 			Fee:    resp[i].Data.FeeBTC,
 			Side:   side,
@@ -580,13 +588,15 @@ func (l *LocalBitcoins) GetActiveOrders(ctx context.Context, getOrdersRequest *o
 				resp[i].Data.Currency,
 				format.Delimiter),
 			Exchange: l.Name,
-		})
+		}
 	}
 
-	order.FilterOrdersByTimeRange(&orders, getOrdersRequest.StartTime,
+	err = order.FilterOrdersByTimeRange(&orders, getOrdersRequest.StartTime,
 		getOrdersRequest.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", l.Name, err)
+	}
 	order.FilterOrdersBySide(&orders, getOrdersRequest.Side)
-
 	return orders, nil
 }
 
@@ -621,9 +631,10 @@ func (l *LocalBitcoins) GetOrderHistory(ctx context.Context, getOrdersRequest *o
 		return nil, err
 	}
 
-	var orders []order.Detail
+	orders := make([]order.Detail, len(allTrades))
 	for i := range allTrades {
-		orderDate, err := time.Parse(time.RFC3339, allTrades[i].Data.CreatedAt)
+		var orderDate time.Time
+		orderDate, err = time.Parse(time.RFC3339, allTrades[i].Data.CreatedAt)
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
 				"Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
@@ -654,15 +665,16 @@ func (l *LocalBitcoins) GetOrderHistory(ctx context.Context, getOrdersRequest *o
 			status = "Closed"
 		}
 
-		orderStatus, err := order.StringToOrderStatus(status)
+		var orderStatus order.Status
+		orderStatus, err = order.StringToOrderStatus(status)
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "%s %v", l.Name, err)
 		}
 
-		orders = append(orders, order.Detail{
+		orders[i] = order.Detail{
 			Amount: allTrades[i].Data.AmountBTC,
 			Price:  allTrades[i].Data.Amount,
-			ID:     strconv.FormatInt(int64(allTrades[i].Data.Advertisement.ID), 10),
+			ID:     strconv.FormatInt(allTrades[i].Data.Advertisement.ID, 10),
 			Date:   orderDate,
 			Fee:    allTrades[i].Data.FeeBTC,
 			Side:   side,
@@ -671,11 +683,14 @@ func (l *LocalBitcoins) GetOrderHistory(ctx context.Context, getOrdersRequest *o
 				allTrades[i].Data.Currency,
 				format.Delimiter),
 			Exchange: l.Name,
-		})
+		}
 	}
 
-	order.FilterOrdersByTimeRange(&orders, getOrdersRequest.StartTime,
+	err = order.FilterOrdersByTimeRange(&orders, getOrdersRequest.StartTime,
 		getOrdersRequest.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", l.Name, err)
+	}
 	order.FilterOrdersBySide(&orders, getOrdersRequest.Side)
 
 	return orders, nil

@@ -83,7 +83,7 @@ func (m *ExchangeManager) GetExchanges() ([]exchange.IBotExchange, error) {
 	}
 	m.m.Lock()
 	defer m.m.Unlock()
-	var exchs []exchange.IBotExchange
+	exchs := make([]exchange.IBotExchange, 0, len(m.exchanges))
 	for _, x := range m.exchanges {
 		exchs = append(exchs, x)
 	}

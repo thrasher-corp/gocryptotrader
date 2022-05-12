@@ -80,59 +80,110 @@ func (c *CoinbasePro) GetOrderbook(ctx context.Context, symbol string, level int
 	}
 
 	if level == 3 {
-		ob := OrderbookL3{}
-		ob.Sequence = orderbook.Sequence
-		for _, x := range orderbook.Asks {
-			price, err := strconv.ParseFloat((x[0].(string)), 64)
-			if err != nil {
-				continue
-			}
-			amount, err := strconv.ParseFloat((x[1].(string)), 64)
-			if err != nil {
-				continue
-			}
-
-			ob.Asks = append(ob.Asks, OrderL3{Price: price, Amount: amount, OrderID: x[2].(string)})
+		ob := OrderbookL3{
+			Sequence: orderbook.Sequence,
+			Bids:     make([]OrderL3, len(orderbook.Bids)),
+			Asks:     make([]OrderL3, len(orderbook.Asks)),
 		}
-		for _, x := range orderbook.Bids {
-			price, err := strconv.ParseFloat((x[0].(string)), 64)
-			if err != nil {
-				continue
+		ob.Sequence = orderbook.Sequence
+		for x := range orderbook.Asks {
+			priceConv, ok := orderbook.Asks[x][0].(string)
+			if !ok {
+				return nil, errors.New("unable to type assert price")
 			}
-			amount, err := strconv.ParseFloat((x[1].(string)), 64)
+			price, err := strconv.ParseFloat(priceConv, 64)
 			if err != nil {
-				continue
+				return nil, err
 			}
-
-			ob.Bids = append(ob.Bids, OrderL3{Price: price, Amount: amount, OrderID: x[2].(string)})
+			amountConv, ok := orderbook.Asks[x][1].(string)
+			if !ok {
+				return nil, errors.New("unable to type assert amount")
+			}
+			amount, err := strconv.ParseFloat(amountConv, 64)
+			if err != nil {
+				return nil, err
+			}
+			ordID, ok := orderbook.Asks[x][2].(string)
+			if !ok {
+				return nil, errors.New("unable to type assert order ID")
+			}
+			ob.Asks[x] = OrderL3{Price: price, Amount: amount, OrderID: ordID}
+		}
+		for x := range orderbook.Bids {
+			priceConv, ok := orderbook.Bids[x][0].(string)
+			if !ok {
+				return nil, errors.New("unable to type assert price")
+			}
+			price, err := strconv.ParseFloat(priceConv, 64)
+			if err != nil {
+				return nil, err
+			}
+			amountConv, ok := orderbook.Bids[x][1].(string)
+			if !ok {
+				return nil, errors.New("unable to type assert amount")
+			}
+			amount, err := strconv.ParseFloat(amountConv, 64)
+			if err != nil {
+				return nil, err
+			}
+			ordID, ok := orderbook.Bids[x][2].(string)
+			if !ok {
+				return nil, errors.New("unable to type assert order ID")
+			}
+			ob.Bids[x] = OrderL3{Price: price, Amount: amount, OrderID: ordID}
 		}
 		return ob, nil
 	}
-	ob := OrderbookL1L2{}
-	ob.Sequence = orderbook.Sequence
-	for _, x := range orderbook.Asks {
-		price, err := strconv.ParseFloat((x[0].(string)), 64)
-		if err != nil {
-			continue
-		}
-		amount, err := strconv.ParseFloat((x[1].(string)), 64)
-		if err != nil {
-			continue
-		}
-
-		ob.Asks = append(ob.Asks, OrderL1L2{Price: price, Amount: amount, NumOrders: x[2].(float64)})
+	ob := OrderbookL1L2{
+		Sequence: orderbook.Sequence,
+		Bids:     make([]OrderL1L2, len(orderbook.Bids)),
+		Asks:     make([]OrderL1L2, len(orderbook.Asks)),
 	}
-	for _, x := range orderbook.Bids {
-		price, err := strconv.ParseFloat((x[0].(string)), 64)
-		if err != nil {
-			continue
+	for x := range orderbook.Asks {
+		priceConv, ok := orderbook.Asks[x][0].(string)
+		if !ok {
+			return nil, errors.New("unable to type assert price")
 		}
-		amount, err := strconv.ParseFloat((x[1].(string)), 64)
+		price, err := strconv.ParseFloat(priceConv, 64)
 		if err != nil {
-			continue
+			return nil, err
 		}
-
-		ob.Bids = append(ob.Bids, OrderL1L2{Price: price, Amount: amount, NumOrders: x[2].(float64)})
+		amountConv, ok := orderbook.Asks[x][1].(string)
+		if !ok {
+			return nil, errors.New("unable to type assert amount")
+		}
+		amount, err := strconv.ParseFloat(amountConv, 64)
+		if err != nil {
+			return nil, err
+		}
+		numOrders, ok := orderbook.Asks[x][2].(float64)
+		if !ok {
+			return nil, errors.New("unable to type assert number of orders")
+		}
+		ob.Asks[x] = OrderL1L2{Price: price, Amount: amount, NumOrders: numOrders}
+	}
+	for x := range orderbook.Bids {
+		priceConv, ok := orderbook.Bids[x][0].(string)
+		if !ok {
+			return nil, errors.New("unable to type assert price")
+		}
+		price, err := strconv.ParseFloat(priceConv, 64)
+		if err != nil {
+			return nil, err
+		}
+		amountConv, ok := orderbook.Bids[x][1].(string)
+		if !ok {
+			return nil, errors.New("unable to type assert amount")
+		}
+		amount, err := strconv.ParseFloat(amountConv, 64)
+		if err != nil {
+			return nil, err
+		}
+		numOrders, ok := orderbook.Bids[x][2].(float64)
+		if !ok {
+			return nil, errors.New("unable to type assert number of orders")
+		}
+		ob.Bids[x] = OrderL1L2{Price: price, Amount: amount, NumOrders: numOrders}
 	}
 	return ob, nil
 }
@@ -158,8 +209,6 @@ func (c *CoinbasePro) GetTrades(ctx context.Context, currencyPair string) ([]Tra
 // GetHistoricRates returns historic rates for a product. Rates are returned in
 // grouped buckets based on requested granularity.
 func (c *CoinbasePro) GetHistoricRates(ctx context.Context, currencyPair, start, end string, granularity int64) ([]History, error) {
-	var resp [][]interface{}
-	var history []History
 	values := url.Values{}
 
 	if len(start) > 0 {
@@ -183,29 +232,24 @@ func (c *CoinbasePro) GetHistoricRates(ctx context.Context, currencyPair, start,
 		values.Set("granularity", strconv.FormatInt(granularity, 10))
 	}
 
+	var resp [][6]float64
 	path := common.EncodeURLValues(
 		fmt.Sprintf("%s/%s/%s", coinbaseproProducts, currencyPair, coinbaseproHistory),
 		values)
-
 	if err := c.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp); err != nil {
-		return history, err
+		return nil, err
 	}
 
-	for _, single := range resp {
-		var s History
-		a, _ := single[0].(float64)
-		s.Time = int64(a)
-		b, _ := single[1].(float64)
-		s.Low = b
-		c, _ := single[2].(float64)
-		s.High = c
-		d, _ := single[3].(float64)
-		s.Open = d
-		e, _ := single[4].(float64)
-		s.Close = e
-		f, _ := single[5].(float64)
-		s.Volume = f
-		history = append(history, s)
+	history := make([]History, len(resp))
+	for x := range resp {
+		history[x] = History{
+			Time:   time.Unix(int64(resp[x][0]), 0),
+			Low:    resp[x][1],
+			High:   resp[x][2],
+			Open:   resp[x][3],
+			Close:  resp[x][4],
+			Volume: resp[x][5],
+		}
 	}
 
 	return history, nil
@@ -229,10 +273,9 @@ func (c *CoinbasePro) GetCurrencies(ctx context.Context) ([]Currency, error) {
 	return currencies, c.SendHTTPRequest(ctx, exchange.RestSpot, coinbaseproCurrencies, &currencies)
 }
 
-// GetServerTime returns the API server time
-func (c *CoinbasePro) GetServerTime(ctx context.Context) (ServerTime, error) {
+// GetCurrentServerTime returns the API server time
+func (c *CoinbasePro) GetCurrentServerTime(ctx context.Context) (ServerTime, error) {
 	serverTime := ServerTime{}
-
 	return serverTime, c.SendHTTPRequest(ctx, exchange.RestSpot, coinbaseproTime, &serverTime)
 }
 

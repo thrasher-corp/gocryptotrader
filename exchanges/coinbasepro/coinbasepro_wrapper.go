@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -295,11 +294,9 @@ func (c *CoinbasePro) FetchTradablePairs(ctx context.Context, asset asset.Item) 
 		return nil, err
 	}
 
-	var products []string
+	products := make([]string, len(pairs))
 	for x := range pairs {
-		products = append(products, pairs[x].BaseCurrency+
-			format.Delimiter+
-			pairs[x].QuoteCurrency)
+		products[x] = pairs[x].BaseCurrency + format.Delimiter + pairs[x].QuoteCurrency
 	}
 
 	return products, nil
@@ -449,16 +446,21 @@ func (c *CoinbasePro) UpdateOrderbook(ctx context.Context, p currency.Pair, asse
 	if !ok {
 		return book, errors.New("unable to type assert orderbook data")
 	}
+
+	book.Bids = make(orderbook.Items, len(obNew.Bids))
 	for x := range obNew.Bids {
-		book.Bids = append(book.Bids, orderbook.Item{
+		book.Bids[x] = orderbook.Item{
 			Amount: obNew.Bids[x].Amount,
-			Price:  obNew.Bids[x].Price})
+			Price:  obNew.Bids[x].Price,
+		}
 	}
 
+	book.Asks = make(orderbook.Items, len(obNew.Asks))
 	for x := range obNew.Asks {
-		book.Asks = append(book.Asks, orderbook.Item{
+		book.Asks[x] = orderbook.Item{
 			Amount: obNew.Asks[x].Amount,
-			Price:  obNew.Asks[x].Price})
+			Price:  obNew.Asks[x].Price,
+		}
 	}
 	err = book.Process()
 	if err != nil {
@@ -490,14 +492,14 @@ func (c *CoinbasePro) GetRecentTrades(ctx context.Context, p currency.Pair, asse
 	if err != nil {
 		return nil, err
 	}
-	var resp []trade.Data
+	resp := make([]trade.Data, len(tradeData))
 	for i := range tradeData {
 		var side order.Side
 		side, err = order.StringToOrderSide(tradeData[i].Side)
 		if err != nil {
 			return nil, err
 		}
-		resp = append(resp, trade.Data{
+		resp[i] = trade.Data{
 			Exchange:     c.Name,
 			TID:          strconv.FormatInt(tradeData[i].TradeID, 10),
 			CurrencyPair: p,
@@ -506,7 +508,7 @@ func (c *CoinbasePro) GetRecentTrades(ctx context.Context, p currency.Pair, asse
 			Price:        tradeData[i].Price,
 			Amount:       tradeData[i].Size,
 			Timestamp:    tradeData[i].Time,
-		})
+		}
 	}
 
 	err = c.AddTradesToBuffer(resp...)
@@ -772,7 +774,7 @@ func (c *CoinbasePro) GetActiveOrders(ctx context.Context, req *order.GetOrdersR
 		return nil, err
 	}
 
-	var orders []order.Detail
+	orders := make([]order.Detail, len(respOrders))
 	for i := range respOrders {
 		var curr currency.Pair
 		curr, err = currency.NewPairDelimiter(respOrders[i].ProductID,
@@ -780,22 +782,33 @@ func (c *CoinbasePro) GetActiveOrders(ctx context.Context, req *order.GetOrdersR
 		if err != nil {
 			return nil, err
 		}
-		orderSide := order.Side(strings.ToUpper(respOrders[i].Side))
-		orderType := order.Type(strings.ToUpper(respOrders[i].Type))
-		orders = append(orders, order.Detail{
+		var side order.Side
+		side, err = order.StringToOrderSide(respOrders[i].Side)
+		if err != nil {
+			return nil, err
+		}
+		var orderType order.Type
+		orderType, err = order.StringToOrderType(respOrders[i].Type)
+		if err != nil {
+			log.Errorf(log.ExchangeSys, "%s %v", c.Name, err)
+		}
+		orders[i] = order.Detail{
 			ID:             respOrders[i].ID,
 			Amount:         respOrders[i].Size,
 			ExecutedAmount: respOrders[i].FilledSize,
 			Type:           orderType,
 			Date:           respOrders[i].CreatedAt,
-			Side:           orderSide,
+			Side:           side,
 			Pair:           curr,
 			Exchange:       c.Name,
-		})
+		}
 	}
 
 	order.FilterOrdersByType(&orders, req.Type)
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", c.Name, err)
+	}
 	order.FilterOrdersBySide(&orders, req.Side)
 	return orders, nil
 }
@@ -836,7 +849,7 @@ func (c *CoinbasePro) GetOrderHistory(ctx context.Context, req *order.GetOrdersR
 		return nil, err
 	}
 
-	var orders []order.Detail
+	orders := make([]order.Detail, len(respOrders))
 	for i := range respOrders {
 		var curr currency.Pair
 		curr, err = currency.NewPairDelimiter(respOrders[i].ProductID,
@@ -844,12 +857,21 @@ func (c *CoinbasePro) GetOrderHistory(ctx context.Context, req *order.GetOrdersR
 		if err != nil {
 			return nil, err
 		}
-		orderSide := order.Side(strings.ToUpper(respOrders[i].Side))
-		orderStatus, err := order.StringToOrderStatus(respOrders[i].Status)
+		var side order.Side
+		side, err = order.StringToOrderSide(respOrders[i].Side)
+		if err != nil {
+			return nil, err
+		}
+		var orderStatus order.Status
+		orderStatus, err = order.StringToOrderStatus(respOrders[i].Status)
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "%s %v", c.Name, err)
 		}
-		orderType := order.Type(strings.ToUpper(respOrders[i].Type))
+		var orderType order.Type
+		orderType, err = order.StringToOrderType(respOrders[i].Type)
+		if err != nil {
+			log.Errorf(log.ExchangeSys, "%s %v", c.Name, err)
+		}
 		detail := order.Detail{
 			ID:              respOrders[i].ID,
 			Amount:          respOrders[i].Size,
@@ -862,18 +884,21 @@ func (c *CoinbasePro) GetOrderHistory(ctx context.Context, req *order.GetOrdersR
 			CloseTime:       respOrders[i].DoneAt,
 			Fee:             respOrders[i].FillFees,
 			FeeAsset:        curr.Quote,
-			Side:            orderSide,
+			Side:            side,
 			Status:          orderStatus,
 			Pair:            curr,
 			Price:           respOrders[i].Price,
 			Exchange:        c.Name,
 		}
 		detail.InferCostsAndTimes()
-		orders = append(orders, detail)
+		orders[i] = detail
 	}
 
 	order.FilterOrdersByType(&orders, req.Type)
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", c.Name, err)
+	}
 	order.FilterOrdersBySide(&orders, req.Side)
 	return orders, nil
 }
@@ -908,13 +933,6 @@ func (c *CoinbasePro) GetHistoricCandles(ctx context.Context, p currency.Pair, a
 		return kline.Item{}, errors.New(kline.ErrRequestExceedsExchangeLimits)
 	}
 
-	candles := kline.Item{
-		Exchange: c.Name,
-		Pair:     p,
-		Asset:    a,
-		Interval: interval,
-	}
-
 	gran, err := strconv.ParseInt(c.FormatExchangeKlineInterval(interval), 10, 64)
 	if err != nil {
 		return kline.Item{}, err
@@ -934,15 +952,23 @@ func (c *CoinbasePro) GetHistoricCandles(ctx context.Context, p currency.Pair, a
 		return kline.Item{}, err
 	}
 
+	candles := kline.Item{
+		Exchange: c.Name,
+		Pair:     p,
+		Asset:    a,
+		Interval: interval,
+		Candles:  make([]kline.Candle, len(history)),
+	}
+
 	for x := range history {
-		candles.Candles = append(candles.Candles, kline.Candle{
-			Time:   time.Unix(history[x].Time, 0),
+		candles.Candles[x] = kline.Candle{
+			Time:   history[x].Time,
 			Low:    history[x].Low,
 			High:   history[x].High,
 			Open:   history[x].Open,
 			Close:  history[x].Close,
 			Volume: history[x].Volume,
-		})
+		}
 	}
 
 	candles.SortCandlesByTimestamp(false)
@@ -953,13 +979,6 @@ func (c *CoinbasePro) GetHistoricCandles(ctx context.Context, p currency.Pair, a
 func (c *CoinbasePro) GetHistoricCandlesExtended(ctx context.Context, p currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	if err := c.ValidateKline(p, a, interval); err != nil {
 		return kline.Item{}, err
-	}
-
-	ret := kline.Item{
-		Exchange: c.Name,
-		Pair:     p,
-		Asset:    a,
-		Interval: interval,
 	}
 
 	gran, err := strconv.ParseInt(c.FormatExchangeKlineInterval(interval), 10, 64)
@@ -976,6 +995,13 @@ func (c *CoinbasePro) GetHistoricCandlesExtended(ctx context.Context, p currency
 		return kline.Item{}, err
 	}
 
+	ret := kline.Item{
+		Exchange: c.Name,
+		Pair:     p,
+		Asset:    a,
+		Interval: interval,
+	}
+
 	for x := range dates.Ranges {
 		var history []History
 		history, err = c.GetHistoricRates(ctx,
@@ -989,7 +1015,7 @@ func (c *CoinbasePro) GetHistoricCandlesExtended(ctx context.Context, p currency
 
 		for i := range history {
 			ret.Candles = append(ret.Candles, kline.Candle{
-				Time:   time.Unix(history[i].Time, 0),
+				Time:   history[i].Time,
 				Low:    history[i].Low,
 				High:   history[i].High,
 				Open:   history[i].Open,
@@ -1014,4 +1040,13 @@ func (c *CoinbasePro) GetHistoricCandlesExtended(ctx context.Context, p currency
 func (c *CoinbasePro) ValidateCredentials(ctx context.Context, assetType asset.Item) error {
 	_, err := c.UpdateAccountInfo(ctx, assetType)
 	return c.CheckTransientError(err)
+}
+
+// GetServerTime returns the current exchange server time.
+func (c *CoinbasePro) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
+	st, err := c.GetCurrentServerTime(ctx)
+	if err != nil {
+		return time.Time{}, err
+	}
+	return st.ISO, nil
 }

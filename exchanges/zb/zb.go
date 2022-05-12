@@ -209,31 +209,31 @@ func (z *ZB) GetTickers(ctx context.Context) (map[string]TickerChildResponse, er
 }
 
 // GetOrderbook returns the orderbook for a given symbol
-func (z *ZB) GetOrderbook(ctx context.Context, symbol string) (OrderbookResponse, error) {
+func (z *ZB) GetOrderbook(ctx context.Context, symbol string) (*OrderbookResponse, error) {
 	urlPath := fmt.Sprintf("/%s/%s/%s?market=%s", zbData, zbAPIVersion, zbDepth, symbol)
 	var res OrderbookResponse
 
 	err := z.SendHTTPRequest(ctx, exchange.RestSpot, urlPath, &res, request.UnAuth)
 	if err != nil {
-		return res, err
+		return nil, err
 	}
 
 	if len(res.Asks) == 0 {
-		return res, fmt.Errorf("ZB GetOrderbook asks is empty")
+		return nil, errors.New("ZB GetOrderbook asks is empty")
 	}
 
 	if len(res.Bids) == 0 {
-		return res, fmt.Errorf("ZB GetOrderbook bids is empty")
+		return nil, errors.New("ZB GetOrderbook bids is empty")
 	}
 
 	// reverse asks data
-	var data [][]float64
-	for x := len(res.Asks); x > 0; x-- {
-		data = append(data, res.Asks[x-1])
+	eLen := len(res.Asks)
+	var target int
+	for i := eLen/2 - 1; i >= 0; i-- {
+		target = eLen - 1 - i
+		(res.Asks)[i], (res.Asks)[target] = (res.Asks)[target], (res.Asks)[i]
 	}
-
-	res.Asks = data
-	return res, nil
+	return &res, nil
 }
 
 // GetSpotKline returns Kline data

@@ -1,6 +1,7 @@
 package vm
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/gofrs/uuid"
@@ -50,17 +51,21 @@ func (g *GctScriptManager) ShutdownAll() (err error) {
 		log.Debugln(log.GCTScriptMgr, "Shutting down all Virtual Machines")
 	}
 
-	var errors []error
+	var shutdownErrors []error
 	AllVMSync.Range(func(k, v interface{}) bool {
-		errShutdown := v.(*VM).Shutdown()
+		vm, ok := v.(*VM)
+		if !ok {
+			shutdownErrors = append(shutdownErrors, errors.New("unable to type assert VM"))
+		}
+		errShutdown := vm.Shutdown()
 		if err != nil {
-			errors = append(errors, errShutdown)
+			shutdownErrors = append(shutdownErrors, errShutdown)
 		}
 		return true
 	})
 
-	if len(errors) > 0 {
-		err = fmt.Errorf("failed to shutdown the following Virtual Machines: %v", errors)
+	if len(shutdownErrors) > 0 {
+		err = fmt.Errorf("failed to shutdown the following Virtual Machines: %v", shutdownErrors)
 	}
 
 	return err

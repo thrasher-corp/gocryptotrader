@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"sort"
-	"strings"
 	"sync"
 	"time"
 
@@ -257,7 +256,7 @@ func (b *Bittrex) FetchTradablePairs(ctx context.Context, asset asset.Item) ([]s
 		return nil, err
 	}
 
-	var resp []string
+	resp := make([]string, 0, len(markets))
 	for x := range markets {
 		if markets[x].Status != "ONLINE" {
 			continue
@@ -358,42 +357,41 @@ func (b *Bittrex) FetchOrderbook(ctx context.Context, c currency.Pair, assetType
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *Bittrex) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	book := &orderbook.Base{
+		Exchange:        b.Name,
+		Pair:            p,
+		Asset:           assetType,
+		VerifyOrderbook: b.CanVerifyOrderbook,
+	}
+
 	formattedPair, err := b.FormatExchangeCurrency(p, assetType)
 	if err != nil {
-		return nil, err
+		return book, err
 	}
 
 	// Valid order book depths are 1, 25 and 500
 	orderbookData, sequence, err := b.GetOrderbook(ctx,
 		formattedPair.String(), orderbookDepth)
 	if err != nil {
-		return nil, err
+		return book, err
 	}
 
-	book := &orderbook.Base{
-		Exchange:        b.Name,
-		Pair:            p,
-		Asset:           assetType,
-		VerifyOrderbook: b.CanVerifyOrderbook,
-		LastUpdateID:    sequence,
-	}
+	book.LastUpdateID = sequence
+	book.Bids = make(orderbook.Items, len(orderbookData.Bid))
+	book.Asks = make(orderbook.Items, len(orderbookData.Ask))
 
 	for x := range orderbookData.Bid {
-		book.Bids = append(book.Bids,
-			orderbook.Item{
-				Amount: orderbookData.Bid[x].Quantity,
-				Price:  orderbookData.Bid[x].Rate,
-			},
-		)
+		book.Bids[x] = orderbook.Item{
+			Amount: orderbookData.Bid[x].Quantity,
+			Price:  orderbookData.Bid[x].Rate,
+		}
 	}
 
 	for x := range orderbookData.Ask {
-		book.Asks = append(book.Asks,
-			orderbook.Item{
-				Amount: orderbookData.Ask[x].Quantity,
-				Price:  orderbookData.Ask[x].Rate,
-			},
-		)
+		book.Asks[x] = orderbook.Item{
+			Amount: orderbookData.Ask[x].Quantity,
+			Price:  orderbookData.Ask[x].Rate,
+		}
 	}
 	err = book.Process()
 	if err != nil {
@@ -411,17 +409,18 @@ func (b *Bittrex) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 		return resp, err
 	}
 
-	var currencies []account.Balance
+	currencies := make([]account.Balance, len(balanceData))
 	for i := range balanceData {
-		currencies = append(currencies, account.Balance{
+		currencies[i] = account.Balance{
 			CurrencyName: currency.NewCode(balanceData[i].CurrencySymbol),
 			Total:        balanceData[i].Total,
 			Hold:         balanceData[i].Total - balanceData[i].Available,
 			Free:         balanceData[i].Available,
-		})
+		}
 	}
 
 	resp.Accounts = append(resp.Accounts, account.SubAccount{
+		AssetType:  assetType,
 		Currencies: currencies,
 	})
 	resp.Exchange = b.Name
@@ -441,18 +440,32 @@ func (b *Bittrex) FetchAccountInfo(ctx context.Context, assetType asset.Item) (a
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
 func (b *Bittrex) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory, error) {
-	var resp []exchange.FundHistory
 	closedDepositData, err := b.GetClosedDeposits(ctx)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 	openDepositData, err := b.GetOpenDeposits(ctx)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
-	// nolint: gocritic
-	depositData := append(closedDepositData, openDepositData...)
+	closedWithdrawalData, err := b.GetClosedWithdrawals(ctx)
+	if err != nil {
+		return nil, err
+	}
+	openWithdrawalData, err := b.GetOpenWithdrawals(ctx)
+	if err != nil {
+		return nil, err
+	}
 
+	depositData := make([]DepositData, 0, len(closedDepositData)+len(openDepositData))
+	depositData = append(depositData, closedDepositData...)
+	depositData = append(depositData, openDepositData...)
+
+	withdrawalData := make([]WithdrawalData, 0, len(closedWithdrawalData)+len(openWithdrawalData))
+	withdrawalData = append(withdrawalData, closedWithdrawalData...)
+	withdrawalData = append(withdrawalData, openWithdrawalData...)
+
+	resp := make([]exchange.FundHistory, 0, len(depositData)+len(withdrawalData))
 	for x := range depositData {
 		resp = append(resp, exchange.FundHistory{
 			ExchangeName:    b.Name,
@@ -466,17 +479,6 @@ func (b *Bittrex) GetFundingHistory(ctx context.Context) ([]exchange.FundHistory
 			CryptoTxID:      depositData[x].TxID,
 		})
 	}
-	closedWithdrawalData, err := b.GetClosedWithdrawals(ctx)
-	if err != nil {
-		return resp, err
-	}
-	openWithdrawalData, err := b.GetOpenWithdrawals(ctx)
-	if err != nil {
-		return resp, err
-	}
-	// nolint: gocritic
-	withdrawalData := append(closedWithdrawalData, openWithdrawalData...)
-
 	for x := range withdrawalData {
 		resp = append(resp, exchange.FundHistory{
 			ExchangeName:    b.Name,
@@ -502,23 +504,24 @@ func (b *Bittrex) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a 
 
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (b *Bittrex) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
-	var err error
 	formattedPair, err := b.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return nil, err
 	}
+
 	tradeData, err := b.GetMarketHistory(ctx, formattedPair.String())
 	if err != nil {
 		return nil, err
 	}
-	var resp []trade.Data
+
+	resp := make([]trade.Data, len(tradeData))
 	for i := range tradeData {
 		var side order.Side
 		side, err = order.StringToOrderSide(tradeData[i].TakerSide)
 		if err != nil {
 			return nil, err
 		}
-		resp = append(resp, trade.Data{
+		resp[i] = trade.Data{
 			Exchange:     b.Name,
 			TID:          tradeData[i].ID,
 			CurrencyPair: formattedPair,
@@ -527,7 +530,7 @@ func (b *Bittrex) GetRecentTrades(ctx context.Context, p currency.Pair, assetTyp
 			Price:        tradeData[i].Rate,
 			Amount:       tradeData[i].Quantity,
 			Timestamp:    tradeData[i].ExecutedAt,
-		})
+		}
 	}
 
 	err = b.AddTradesToBuffer(resp...)
@@ -662,10 +665,12 @@ func (b *Bittrex) ConstructOrderDetail(orderData *OrderData) (order.Detail, erro
 			orderData.ID,
 			err)
 	}
-	orderType := order.Type(strings.ToUpper(orderData.Type))
+	orderType, err := order.StringToOrderType(orderData.Type)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
+	}
 
 	var orderStatus order.Status
-
 	switch orderData.Status {
 	case order.Open.String():
 		switch orderData.FillQuantity {
@@ -772,9 +777,10 @@ func (b *Bittrex) GetActiveOrders(ctx context.Context, req *order.GetOrdersReque
 		return nil, err
 	}
 
-	var resp []order.Detail
+	resp := make([]order.Detail, 0, len(orderData))
 	for i := range orderData {
-		pair, err := currency.NewPairDelimiter(orderData[i].MarketSymbol,
+		var pair currency.Pair
+		pair, err = currency.NewPairDelimiter(orderData[i].MarketSymbol,
 			format.Delimiter)
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
@@ -784,12 +790,17 @@ func (b *Bittrex) GetActiveOrders(ctx context.Context, req *order.GetOrdersReque
 				orderData[i].ID,
 				err)
 		}
-		orderType := order.Type(strings.ToUpper(orderData[i].Type))
 
-		orderSide, err := order.StringToOrderSide(orderData[i].Direction)
+		var orderType order.Type
+		orderType, err = order.StringToOrderType(orderData[i].Type)
+		if err != nil {
+			log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
+		}
+
+		var orderSide order.Side
+		orderSide, err = order.StringToOrderSide(orderData[i].Direction)
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "GetActiveOrders - %s - cannot get order side - %s\n", b.Name, err.Error())
-			continue
 		}
 
 		resp = append(resp, order.Detail{
@@ -808,8 +819,11 @@ func (b *Bittrex) GetActiveOrders(ctx context.Context, req *order.GetOrdersReque
 	}
 
 	order.FilterOrdersByType(&resp, req.Type)
-	order.FilterOrdersByTimeRange(&resp, req.StartTime, req.EndTime)
-	order.FilterOrdersByCurrencies(&resp, req.Pairs)
+	err = order.FilterOrdersByTimeRange(&resp, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
+	}
+	order.FilterOrdersByPairs(&resp, req.Pairs)
 
 	b.WsSequenceOrders = sequence
 	return resp, nil
@@ -832,18 +846,21 @@ func (b *Bittrex) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 
 	var resp []order.Detail
 	for x := range req.Pairs {
-		formattedPair, err := b.FormatExchangeCurrency(req.Pairs[x], req.AssetType)
+		var formattedPair currency.Pair
+		formattedPair, err = b.FormatExchangeCurrency(req.Pairs[x], req.AssetType)
 		if err != nil {
 			return nil, err
 		}
 
-		orderData, err := b.GetOrderHistoryForCurrency(ctx, formattedPair.String())
+		var orderData []OrderData
+		orderData, err = b.GetOrderHistoryForCurrency(ctx, formattedPair.String())
 		if err != nil {
 			return nil, err
 		}
 
 		for i := range orderData {
-			pair, err := currency.NewPairDelimiter(orderData[i].MarketSymbol,
+			var pair currency.Pair
+			pair, err = currency.NewPairDelimiter(orderData[i].MarketSymbol,
 				format.Delimiter)
 			if err != nil {
 				log.Errorf(log.ExchangeSys,
@@ -853,17 +870,22 @@ func (b *Bittrex) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 					orderData[i].ID,
 					err)
 			}
-			orderType := order.Type(strings.ToUpper(orderData[i].Type))
+			var orderType order.Type
+			orderType, err = order.StringToOrderType(orderData[i].Type)
+			if err != nil {
+				log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
+			}
 
-			orderSide, err := order.StringToOrderSide(orderData[i].Direction)
+			var orderSide order.Side
+			orderSide, err = order.StringToOrderSide(orderData[i].Direction)
 			if err != nil {
 				log.Errorf(log.ExchangeSys, "GetActiveOrders - %s - cannot get order side - %s\n", b.Name, err.Error())
-				continue
 			}
-			orderStatus, err := order.StringToOrderStatus(orderData[i].Status)
+
+			var orderStatus order.Status
+			orderStatus, err = order.StringToOrderStatus(orderData[i].Status)
 			if err != nil {
 				log.Errorf(log.ExchangeSys, "GetActiveOrders - %s - cannot get order status - %s\n", b.Name, err.Error())
-				continue
 			}
 
 			detail := order.Detail{
@@ -886,8 +908,11 @@ func (b *Bittrex) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 		}
 
 		order.FilterOrdersByType(&resp, req.Type)
-		order.FilterOrdersByTimeRange(&resp, req.StartTime, req.EndTime)
-		order.FilterOrdersByCurrencies(&resp, req.Pairs)
+		err = order.FilterOrdersByTimeRange(&resp, req.StartTime, req.EndTime)
+		if err != nil {
+			log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
+		}
+		order.FilterOrdersByPairs(&resp, req.Pairs)
 	}
 
 	return resp, nil

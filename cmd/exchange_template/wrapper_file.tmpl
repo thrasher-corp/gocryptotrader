@@ -334,18 +334,20 @@ func ({{.Variable}} *{{.CapitalName}}) UpdateOrderbook(ctx context.Context, pair
 		return book, err
 	}
 
+	book.Bids = make([]orderbook.Item, len(orderbookNew.Bids))
 	for x := range orderbookNew.Bids {
-		book.Bids = append(book.Bids, orderbook.Item{
+		book.Bids[x] = orderbook.Item{
 			Amount: orderbookNew.Bids[x].Quantity, 
 			Price: orderbookNew.Bids[x].Price,
-		})
+		}
 	}
 
+	book.Asks = make([]orderbook.Item, len(orderbookNew.Asks))
 	for x := range orderbookNew.Asks {
-		book.Asks = append(book.Asks, orderbook.Item{
+		book.Asks[x] = orderbook.Item{
 			Amount: orderBookNew.Asks[x].Quantity,
 			Price: orderBookNew.Asks[x].Price,
-		})
+		}
 	}
 	*/
 
@@ -359,6 +361,8 @@ func ({{.Variable}} *{{.CapitalName}}) UpdateOrderbook(ctx context.Context, pair
 
 // UpdateAccountInfo retrieves balances for all enabled currencies
 func ({{.Variable}} *{{.CapitalName}}) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
+	// If fetching requires more than one asset type please set 
+	// HasAssetTypeAccountSegregation to true in RESTCapabilities above. 
 	return account.Holdings{}, common.ErrNotYetImplemented
 }
 

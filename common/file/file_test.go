@@ -56,7 +56,7 @@ func TestWrite(t *testing.T) {
 func TestMove(t *testing.T) {
 	tester := func(in, out string, write bool) error {
 		if write {
-			if err := ioutil.WriteFile(in, []byte("GoCryptoTrader"), 0770); err != nil {
+			if err := os.WriteFile(in, []byte("GoCryptoTrader"), DefaultPermissionOctal); err != nil {
 				return err
 			}
 		}
@@ -65,7 +65,7 @@ func TestMove(t *testing.T) {
 			return err
 		}
 
-		contents, err := ioutil.ReadFile(out)
+		contents, err := os.ReadFile(out)
 		if err != nil {
 			return err
 		}
@@ -124,7 +124,7 @@ func TestExists(t *testing.T) {
 		t.Error("non-existent file should not exist")
 	}
 	tmpFile := filepath.Join(os.TempDir(), "gct-test.txt")
-	if err := ioutil.WriteFile(tmpFile, []byte("hello world"), os.ModeAppend); err != nil {
+	if err := os.WriteFile(tmpFile, []byte("hello world"), os.ModeAppend); err != nil {
 		t.Fatal(err)
 	}
 	if e := Exists(tmpFile); !e {
@@ -199,11 +199,7 @@ func TestWriter(t *testing.T) {
 	type args struct {
 		file string
 	}
-	tmp, err := ioutil.TempDir("", "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmp)
+	tmp := t.TempDir()
 
 	testData := `data`
 
@@ -258,7 +254,7 @@ func TestWriter(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if data, err := ioutil.ReadFile(got.Name()); err != nil || string(data) != testData {
+			if data, err := os.ReadFile(got.Name()); err != nil || string(data) != testData {
 				t.Errorf("Could not write the file, or contents were wrong: expected = %s, got =%s", testData, string(data))
 			}
 		})
@@ -269,12 +265,8 @@ func TestWriterNoPermissionFails(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("Skip file permissions")
 	}
-	temp, err := ioutil.TempDir("", "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(temp)
-	err = os.Chmod(temp, 0555)
+	temp := t.TempDir()
+	err := os.Chmod(temp, 0o555)
 	if err != nil {
 		t.Fatal(err)
 	}

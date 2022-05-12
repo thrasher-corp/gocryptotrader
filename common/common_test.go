@@ -14,6 +14,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/thrasher-corp/gocryptotrader/common/file"
 )
 
 func TestSendHTTPRequest(t *testing.T) {
@@ -509,7 +511,7 @@ func TestChangePermission(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected an error on non-existent path")
 		}
-		err = os.Mkdir(testDir, 0777)
+		err = os.Mkdir(testDir, 0o777)
 		if err != nil {
 			t.Fatalf("Mkdir failed. Err: %v", err)
 		}
@@ -530,7 +532,7 @@ func TestChangePermission(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected an error on non-existent path")
 		}
-		err = os.Mkdir(testDir, 0777)
+		err = os.Mkdir(testDir, 0o777)
 		if err != nil {
 			t.Fatalf("Mkdir failed. Err: %v", err)
 		}
@@ -543,8 +545,8 @@ func TestChangePermission(t *testing.T) {
 		if err != nil {
 			t.Fatalf("os.Stat failed. Err: %v", err)
 		}
-		if a.Mode().Perm() != 0770 {
-			t.Fatalf("expected file permissions differ. expecting 0770 got %#o", a.Mode().Perm())
+		if a.Mode().Perm() != file.DefaultPermissionOctal {
+			t.Fatalf("expected file permissions differ. expecting file.DefaultPermissionOctal got %#o", a.Mode().Perm())
 		}
 		err = os.Remove(testDir)
 		if err != nil {
@@ -625,8 +627,9 @@ func TestErrors(t *testing.T) {
 	if test.Error() != "" {
 		t.Fatal("string should be nil")
 	}
-	test = append(test, errors.New("test1"))
-	if test.Error() != "test1" {
+	errTestOne := errors.New("test1")
+	test = append(test, errTestOne)
+	if !errors.Is(test, errTestOne) {
 		t.Fatal("does not match error")
 	}
 	test = append(test, errors.New("test2"))
@@ -652,6 +655,16 @@ func TestParseStartEndDate(t *testing.T) {
 		t.Errorf("received %v, expected %v", err, ErrDateUnset)
 	}
 
+	err = StartEndTimeCheck(et, zeroValueUnix)
+	if !errors.Is(err, ErrDateUnset) {
+		t.Errorf("received %v, expected %v", err, ErrDateUnset)
+	}
+
+	err = StartEndTimeCheck(zeroValueUnix, et)
+	if !errors.Is(err, ErrDateUnset) {
+		t.Errorf("received %v, expected %v", err, ErrDateUnset)
+	}
+
 	err = StartEndTimeCheck(et, et)
 	if !errors.Is(err, ErrStartEqualsEnd) {
 		t.Errorf("received %v, expected %v", err, ErrStartEqualsEnd)
@@ -670,5 +683,22 @@ func TestParseStartEndDate(t *testing.T) {
 	err = StartEndTimeCheck(pt, et)
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v, expected %v", err, nil)
+	}
+}
+
+func TestGetAssertError(t *testing.T) {
+	err := GetAssertError("*[]string", float64(0))
+	if err.Error() != "type assert failure from float64 to *[]string" {
+		t.Fatal(err)
+	}
+
+	err = GetAssertError("<nil>", nil)
+	if err.Error() != "type assert failure from <nil> to <nil>" {
+		t.Fatal(err)
+	}
+
+	err = GetAssertError("bruh", struct{}{})
+	if !errors.Is(err, ErrTypeAssertFailure) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrTypeAssertFailure)
 	}
 }

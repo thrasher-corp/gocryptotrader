@@ -38,9 +38,9 @@ func (c *CurrencyConverter) GetRates(baseCurrency, symbols string) (map[string]f
 		return c.Convert(baseCurrency, symbols)
 	}
 
-	var completedStrings []string
+	completedStrings := make([]string, len(splitSymbols))
 	for x := range splitSymbols {
-		completedStrings = append(completedStrings, baseCurrency+"_"+splitSymbols[x])
+		completedStrings[x] = baseCurrency + "_" + splitSymbols[x]
 	}
 
 	if (c.APIKey != "" && c.APIKey != "Key") || len(completedStrings) == 2 {
@@ -126,7 +126,7 @@ func (c *CurrencyConverter) GetSupportedCurrencies() ([]string, error) {
 		return nil, err
 	}
 
-	var currencies []string
+	currencies := make([]string, 0, len(result.Results))
 	for key := range result.Results {
 		currencies = append(currencies, key)
 	}

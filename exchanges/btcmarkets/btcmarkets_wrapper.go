@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"sort"
 	"strconv"
 	"strings"
@@ -96,6 +97,7 @@ func (b *BTCMarkets) SetDefaults() {
 				OrderbookFetching:      true,
 				AccountInfo:            true,
 				Subscribe:              true,
+				Unsubscribe:            true,
 				AuthenticatedEndpoints: true,
 				GetOrders:              true,
 				GetOrder:               true,
@@ -166,6 +168,7 @@ func (b *BTCMarkets) Setup(exch *config.Exchange) error {
 		RunningURL:            wsURL,
 		Connector:             b.WsConnect,
 		Subscriber:            b.Subscribe,
+		Unsubscriber:          b.Unsubscribe,
 		GenerateSubscriptions: b.generateDefaultSubscriptions,
 		Features:              &b.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig: buffer.Config{
@@ -253,6 +256,13 @@ func (b *BTCMarkets) Run() {
 		}
 	}
 
+	err = b.UpdateOrderExecutionLimits(context.TODO(), asset.Spot)
+	if err != nil {
+		log.Errorf(log.ExchangeSys,
+			"%s Failed to update order execution limits. Error: %v\n",
+			b.Name, err)
+	}
+
 	if !b.GetEnabledFeatures().AutoPairUpdates && !forceUpdate {
 		return
 	}
@@ -276,9 +286,9 @@ func (b *BTCMarkets) FetchTradablePairs(ctx context.Context, a asset.Item) ([]st
 		return nil, err
 	}
 
-	var pairs []string
+	pairs := make([]string, len(markets))
 	for x := range markets {
-		pairs = append(pairs, markets[x].MarketID)
+		pairs[x] = markets[x].MarketID
 	}
 	return pairs, nil
 }
@@ -398,15 +408,20 @@ func (b *BTCMarkets) UpdateOrderbook(ctx context.Context, p currency.Pair, asset
 		return book, err
 	}
 
+	book.Bids = make(orderbook.Items, len(tempResp.Bids))
 	for x := range tempResp.Bids {
-		book.Bids = append(book.Bids, orderbook.Item{
+		book.Bids[x] = orderbook.Item{
 			Amount: tempResp.Bids[x].Volume,
-			Price:  tempResp.Bids[x].Price})
+			Price:  tempResp.Bids[x].Price,
+		}
 	}
+
+	book.Asks = make(orderbook.Items, len(tempResp.Asks))
 	for y := range tempResp.Asks {
-		book.Asks = append(book.Asks, orderbook.Item{
+		book.Asks[y] = orderbook.Item{
 			Amount: tempResp.Asks[y].Volume,
-			Price:  tempResp.Asks[y].Price})
+			Price:  tempResp.Asks[y].Price,
+		}
 	}
 	err = book.Process()
 	if err != nil {
@@ -471,21 +486,23 @@ func (b *BTCMarkets) GetRecentTrades(ctx context.Context, p currency.Pair, asset
 	if err != nil {
 		return nil, err
 	}
-	var resp []trade.Data
+
 	var tradeData []Trade
 	tradeData, err = b.GetTrades(ctx, p.String(), 0, 0, 200)
 	if err != nil {
 		return nil, err
 	}
+
+	resp := make([]trade.Data, len(tradeData))
 	for i := range tradeData {
-		side := order.Side("")
+		var side order.Side
 		if tradeData[i].Side != "" {
 			side, err = order.StringToOrderSide(tradeData[i].Side)
 			if err != nil {
 				return nil, err
 			}
 		}
-		resp = append(resp, trade.Data{
+		resp[i] = trade.Data{
 			Exchange:     b.Name,
 			TID:          tradeData[i].TradeID,
 			CurrencyPair: p,
@@ -494,7 +511,7 @@ func (b *BTCMarkets) GetRecentTrades(ctx context.Context, p currency.Pair, asset
 			Price:        tradeData[i].Price,
 			Amount:       tradeData[i].Amount,
 			Timestamp:    tradeData[i].Timestamp,
-		})
+		}
 	}
 
 	err = b.AddTradesToBuffer(resp...)
@@ -584,16 +601,17 @@ func (b *BTCMarkets) CancelBatchOrders(ctx context.Context, o []order.Cancel) (o
 // CancelAllOrders cancels all orders associated with a currency pair
 func (b *BTCMarkets) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.CancelAllResponse, error) {
 	var resp order.CancelAllResponse
-	tempMap := make(map[string]string)
-	var orderIDs []string
 	orders, err := b.GetOrders(ctx, "", -1, -1, -1, true)
 	if err != nil {
 		return resp, err
 	}
+
+	orderIDs := make([]string, len(orders))
 	for x := range orders {
-		orderIDs = append(orderIDs, orders[x].OrderID)
+		orderIDs[x] = orders[x].OrderID
 	}
 	splitOrders := common.SplitStringSliceByLimit(orderIDs, 20)
+	tempMap := make(map[string]string)
 	for z := range splitOrders {
 		tempResp, err := b.CancelBatch(ctx, splitOrders[z])
 		if err != nil {
@@ -819,7 +837,10 @@ func (b *BTCMarkets) GetActiveOrders(ctx context.Context, req *order.GetOrdersRe
 		}
 	}
 	order.FilterOrdersByType(&resp, req.Type)
-	order.FilterOrdersByTimeRange(&resp, req.StartTime, req.EndTime)
+	err := order.FilterOrdersByTimeRange(&resp, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
+	}
 	order.FilterOrdersBySide(&resp, req.Side)
 	return resp, nil
 }
@@ -1075,4 +1096,40 @@ func (b *BTCMarkets) GetHistoricCandlesExtended(ctx context.Context, p currency.
 	ret.RemoveOutsideRange(start, end)
 	ret.SortCandlesByTimestamp(false)
 	return ret, nil
+}
+
+// GetServerTime returns the current exchange server time.
+func (b *BTCMarkets) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
+	return b.GetCurrentServerTime(ctx)
+}
+
+// UpdateOrderExecutionLimits sets exchange executions for a required asset type
+func (b *BTCMarkets) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
+	if a != asset.Spot {
+		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
+	}
+
+	markets, err := b.GetMarkets(ctx)
+	if err != nil {
+		return err
+	}
+
+	limits := make([]order.MinMaxLevel, len(markets))
+	for x := range markets {
+		var pair currency.Pair
+		pair, err = currency.NewPairFromStrings(markets[x].BaseAsset, markets[x].QuoteAsset)
+		if err != nil {
+			return err
+		}
+
+		limits[x] = order.MinMaxLevel{
+			Pair:       pair,
+			Asset:      asset.Spot,
+			MinAmount:  markets[x].MinOrderAmount,
+			MaxAmount:  markets[x].MaxOrderAmount,
+			StepAmount: math.Pow(10, -markets[x].AmountDecimals),
+			StepPrice:  math.Pow(10, -markets[x].PriceDecimals),
+		}
+	}
+	return b.LoadLimits(limits)
 }

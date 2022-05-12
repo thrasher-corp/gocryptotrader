@@ -438,40 +438,44 @@ func (b *Bitfinex) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 	var orderbookNew Orderbook
 	orderbookNew, err = b.GetOrderbook(ctx, prefix+fPair.String(), "R0", 100)
 	if err != nil {
-		return nil, err
+		return o, err
 	}
 	if assetType == asset.MarginFunding {
 		o.IsFundingRate = true
+		o.Asks = make(orderbook.Items, len(orderbookNew.Asks))
 		for x := range orderbookNew.Asks {
-			o.Asks = append(o.Asks, orderbook.Item{
+			o.Asks[x] = orderbook.Item{
 				ID:     orderbookNew.Asks[x].OrderID,
 				Price:  orderbookNew.Asks[x].Rate,
 				Amount: orderbookNew.Asks[x].Amount,
 				Period: int64(orderbookNew.Asks[x].Period),
-			})
+			}
 		}
+		o.Bids = make(orderbook.Items, len(orderbookNew.Bids))
 		for x := range orderbookNew.Bids {
-			o.Bids = append(o.Bids, orderbook.Item{
+			o.Bids[x] = orderbook.Item{
 				ID:     orderbookNew.Bids[x].OrderID,
 				Price:  orderbookNew.Bids[x].Rate,
 				Amount: orderbookNew.Bids[x].Amount,
 				Period: int64(orderbookNew.Bids[x].Period),
-			})
+			}
 		}
 	} else {
+		o.Asks = make(orderbook.Items, len(orderbookNew.Asks))
 		for x := range orderbookNew.Asks {
-			o.Asks = append(o.Asks, orderbook.Item{
+			o.Asks[x] = orderbook.Item{
 				ID:     orderbookNew.Asks[x].OrderID,
 				Price:  orderbookNew.Asks[x].Price,
 				Amount: orderbookNew.Asks[x].Amount,
-			})
+			}
 		}
+		o.Bids = make(orderbook.Items, len(orderbookNew.Bids))
 		for x := range orderbookNew.Bids {
-			o.Bids = append(o.Bids, orderbook.Item{
+			o.Bids[x] = orderbook.Item{
 				ID:     orderbookNew.Bids[x].OrderID,
 				Price:  orderbookNew.Bids[x].Price,
 				Amount: orderbookNew.Bids[x].Amount,
-			})
+			}
 		}
 	}
 	err = o.Process()
@@ -493,11 +497,11 @@ func (b *Bitfinex) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 	}
 
 	var Accounts = []account.SubAccount{
-		{ID: "deposit"},
-		{ID: "exchange"},
-		{ID: "trading"},
-		{ID: "margin"},
-		{ID: "funding "},
+		{ID: "deposit", AssetType: assetType},
+		{ID: "exchange", AssetType: assetType},
+		{ID: "trading", AssetType: assetType},
+		{ID: "margin", AssetType: assetType},
+		{ID: "funding", AssetType: assetType},
 	}
 
 	for x := range accountBalance {
@@ -885,22 +889,28 @@ func (b *Bitfinex) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequ
 		return nil, err
 	}
 
-	var orders []order.Detail
 	resp, err := b.GetOpenOrders(ctx)
 	if err != nil {
 		return nil, err
 	}
 
+	orders := make([]order.Detail, len(resp))
 	for i := range resp {
-		orderSide := order.Side(strings.ToUpper(resp[i].Side))
-		timestamp, err := strconv.ParseFloat(resp[i].Timestamp, 64)
+		var side order.Side
+		side, err = order.StringToOrderSide(resp[i].Side)
+		if err != nil {
+			return nil, err
+		}
+		var timestamp float64
+		timestamp, err = strconv.ParseFloat(resp[i].Timestamp, 64)
 		if err != nil {
 			log.Warnf(log.ExchangeSys,
 				"Unable to convert timestamp '%s', leaving blank",
 				resp[i].Timestamp)
 		}
 
-		pair, err := currency.NewPairFromString(resp[i].Symbol)
+		var pair currency.Pair
+		pair, err = currency.NewPairFromString(resp[i].Symbol)
 		if err != nil {
 			return nil, err
 		}
@@ -910,7 +920,7 @@ func (b *Bitfinex) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequ
 			Date:            time.Unix(int64(timestamp), 0),
 			Exchange:        b.Name,
 			ID:              strconv.FormatInt(resp[i].ID, 10),
-			Side:            orderSide,
+			Side:            side,
 			Price:           resp[i].Price,
 			RemainingAmount: resp[i].RemainingAmount,
 			Pair:            pair,
@@ -934,16 +944,22 @@ func (b *Bitfinex) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequ
 		if orderType == "trailing-stop" {
 			orderDetail.Type = order.TrailingStop
 		} else {
-			orderDetail.Type = order.Type(strings.ToUpper(orderType))
+			orderDetail.Type, err = order.StringToOrderType(orderType)
+			if err != nil {
+				log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
+			}
 		}
 
-		orders = append(orders, orderDetail)
+		orders[i] = orderDetail
 	}
 
 	order.FilterOrdersBySide(&orders, req.Side)
 	order.FilterOrdersByType(&orders, req.Type)
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
-	order.FilterOrdersByCurrencies(&orders, req.Pairs)
+	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
+	}
+	order.FilterOrdersByPairs(&orders, req.Pairs)
 	return orders, nil
 }
 
@@ -954,21 +970,27 @@ func (b *Bitfinex) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequ
 		return nil, err
 	}
 
-	var orders []order.Detail
 	resp, err := b.GetInactiveOrders(ctx)
 	if err != nil {
 		return nil, err
 	}
 
+	orders := make([]order.Detail, len(resp))
 	for i := range resp {
-		orderSide := order.Side(strings.ToUpper(resp[i].Side))
-		timestamp, err := strconv.ParseInt(resp[i].Timestamp, 10, 64)
+		var side order.Side
+		side, err = order.StringToOrderSide(resp[i].Side)
+		if err != nil {
+			return nil, err
+		}
+		var timestamp int64
+		timestamp, err = strconv.ParseInt(resp[i].Timestamp, 10, 64)
 		if err != nil {
 			log.Warnf(log.ExchangeSys, "Unable to convert timestamp '%v', leaving blank", resp[i].Timestamp)
 		}
 		orderDate := time.Unix(timestamp, 0)
 
-		pair, err := currency.NewPairFromString(resp[i].Symbol)
+		var pair currency.Pair
+		pair, err = currency.NewPairFromString(resp[i].Symbol)
 		if err != nil {
 			return nil, err
 		}
@@ -978,7 +1000,7 @@ func (b *Bitfinex) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequ
 			Date:                 orderDate,
 			Exchange:             b.Name,
 			ID:                   strconv.FormatInt(resp[i].ID, 10),
-			Side:                 orderSide,
+			Side:                 side,
 			Price:                resp[i].Price,
 			AverageExecutedPrice: resp[i].AverageExecutionPrice,
 			RemainingAmount:      resp[i].RemainingAmount,
@@ -1004,19 +1026,25 @@ func (b *Bitfinex) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequ
 		if orderType == "trailing-stop" {
 			orderDetail.Type = order.TrailingStop
 		} else {
-			orderDetail.Type = order.Type(strings.ToUpper(orderType))
+			orderDetail.Type, err = order.StringToOrderType(orderType)
+			if err != nil {
+				log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
+			}
 		}
 
-		orders = append(orders, orderDetail)
+		orders[i] = orderDetail
 	}
 
 	order.FilterOrdersBySide(&orders, req.Side)
 	order.FilterOrdersByType(&orders, req.Type)
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
+	}
 	for i := range req.Pairs {
 		b.appendOptionalDelimiter(&req.Pairs[i])
 	}
-	order.FilterOrdersByCurrencies(&orders, req.Pairs)
+	order.FilterOrdersByPairs(&orders, req.Pairs)
 	return orders, nil
 }
 

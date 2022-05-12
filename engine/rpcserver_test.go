@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -266,17 +265,20 @@ func RPCTestSetup(t *testing.T) *Engine {
 	if err != nil {
 		t.Fatal(err)
 	}
-	tempDir, err := ioutil.TempDir("", "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	dbm.dbConn.DataPath = tempDir
+	dbm.dbConn.DataPath = t.TempDir()
 	engerino.DatabaseManager = dbm
 	var wg sync.WaitGroup
 	err = dbm.Start(&wg)
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() {
+		err = dbm.Stop()
+		if err != nil {
+			t.Fatal(err)
+		}
+	})
+
 	engerino.Config = &config.Config{}
 	em := SetupExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
@@ -1835,7 +1837,7 @@ func TestGetManagedOrders(t *testing.T) {
 		ClientID:        "",
 		WalletAddress:   "",
 		Type:            order.Limit,
-		Side:            "SELL",
+		Side:            order.Sell,
 		Status:          order.New,
 		AssetType:       asset.Spot,
 		Pair:            currency.NewPair(currency.BTC, currency.USDT),
@@ -2002,7 +2004,16 @@ func TestCurrencyStateWithdraw(t *testing.T) {
 		Engine: &Engine{},
 	}).CurrencyStateWithdraw(context.Background(),
 		&gctrpc.CurrencyStateWithdrawRequest{
-			Exchange: "wow"})
+			Exchange: "wow", Asset: "meow"})
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("received: %v, but expected: %v", err, asset.ErrNotSupported)
+	}
+
+	_, err = (&RPCServer{
+		Engine: &Engine{},
+	}).CurrencyStateWithdraw(context.Background(),
+		&gctrpc.CurrencyStateWithdrawRequest{
+			Exchange: "wow", Asset: "spot"})
 	if !errors.Is(err, ErrSubSystemNotStarted) {
 		t.Fatalf("received: %v, but expected: %v", err, ErrSubSystemNotStarted)
 	}
@@ -2013,7 +2024,15 @@ func TestCurrencyStateDeposit(t *testing.T) {
 	_, err := (&RPCServer{
 		Engine: &Engine{},
 	}).CurrencyStateDeposit(context.Background(),
-		&gctrpc.CurrencyStateDepositRequest{Exchange: "wow"})
+		&gctrpc.CurrencyStateDepositRequest{Exchange: "wow", Asset: "meow"})
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("received: %v, but expected: %v", err, asset.ErrNotSupported)
+	}
+
+	_, err = (&RPCServer{
+		Engine: &Engine{},
+	}).CurrencyStateDeposit(context.Background(),
+		&gctrpc.CurrencyStateDepositRequest{Exchange: "wow", Asset: "spot"})
 	if !errors.Is(err, ErrSubSystemNotStarted) {
 		t.Fatalf("received: %v, but expected: %v", err, ErrSubSystemNotStarted)
 	}
@@ -2024,7 +2043,15 @@ func TestCurrencyStateTrading(t *testing.T) {
 	_, err := (&RPCServer{
 		Engine: &Engine{},
 	}).CurrencyStateTrading(context.Background(),
-		&gctrpc.CurrencyStateTradingRequest{Exchange: "wow"})
+		&gctrpc.CurrencyStateTradingRequest{Exchange: "wow", Asset: "meow"})
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("received: %v, but expected: %v", err, asset.ErrNotSupported)
+	}
+
+	_, err = (&RPCServer{
+		Engine: &Engine{},
+	}).CurrencyStateTrading(context.Background(),
+		&gctrpc.CurrencyStateTradingRequest{Exchange: "wow", Asset: "spot"})
 	if !errors.Is(err, ErrSubSystemNotStarted) {
 		t.Fatalf("received: %v, but expected: %v", err, ErrSubSystemNotStarted)
 	}

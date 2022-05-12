@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
-	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -46,9 +45,7 @@ func (d *Data) GenerateReport() error {
 	d.HoldingsOverTimeChart = d.CreateHoldingsOverTimeChart()
 
 	tmpl := template.Must(
-		template.ParseFiles(
-			filepath.Join(d.TemplatePath),
-		),
+		template.ParseFiles(d.TemplatePath),
 	)
 	var nickName string
 	if d.Config.Nickname != "" {
@@ -89,31 +86,33 @@ func (d *Data) CreateUSDTotalsChart() []TotalsChart {
 	if d.Statistics.FundingStatistics == nil || d.Statistics.FundingStatistics.Report.DisableUSDTracking {
 		return nil
 	}
-	var response []TotalsChart
-	var usdTotalChartPlot []ChartPlot
+
+	usdTotalChartPlot := make([]ChartPlot, len(d.Statistics.FundingStatistics.TotalUSDStatistics.HoldingValues))
 	for i := range d.Statistics.FundingStatistics.TotalUSDStatistics.HoldingValues {
-		usdTotalChartPlot = append(usdTotalChartPlot, ChartPlot{
+		usdTotalChartPlot[i] = ChartPlot{
 			Value:     d.Statistics.FundingStatistics.TotalUSDStatistics.HoldingValues[i].Value.InexactFloat64(),
 			UnixMilli: d.Statistics.FundingStatistics.TotalUSDStatistics.HoldingValues[i].Time.UTC().UnixMilli(),
-		})
+		}
 	}
-	response = append(response, TotalsChart{
+
+	response := make([]TotalsChart, len(d.Statistics.FundingStatistics.Items)+1)
+	response[0] = TotalsChart{
 		Name:       "Total USD value",
 		DataPoints: usdTotalChartPlot,
-	})
+	}
 
 	for i := range d.Statistics.FundingStatistics.Items {
-		var plots []ChartPlot
+		plots := make([]ChartPlot, len(d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots))
 		for j := range d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots {
-			plots = append(plots, ChartPlot{
+			plots[j] = ChartPlot{
 				Value:     d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots[j].USDValue.InexactFloat64(),
 				UnixMilli: d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots[j].Time.UTC().UnixMilli(),
-			})
+			}
 		}
-		response = append(response, TotalsChart{
+		response[i+1] = TotalsChart{
 			Name:       fmt.Sprintf("%v %v %v USD value", d.Statistics.FundingStatistics.Items[i].ReportItem.Exchange, d.Statistics.FundingStatistics.Items[i].ReportItem.Asset, d.Statistics.FundingStatistics.Items[i].ReportItem.Currency),
 			DataPoints: plots,
-		})
+		}
 	}
 
 	return response
@@ -125,19 +124,19 @@ func (d *Data) CreateHoldingsOverTimeChart() []TotalsChart {
 	if d.Statistics.FundingStatistics == nil {
 		return nil
 	}
-	var response []TotalsChart
+	response := make([]TotalsChart, len(d.Statistics.FundingStatistics.Items))
 	for i := range d.Statistics.FundingStatistics.Items {
-		var plots []ChartPlot
+		plots := make([]ChartPlot, len(d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots))
 		for j := range d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots {
-			plots = append(plots, ChartPlot{
+			plots[j] = ChartPlot{
 				Value:     d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots[j].Available.InexactFloat64(),
 				UnixMilli: d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots[j].Time.UTC().UnixMilli(),
-			})
+			}
 		}
-		response = append(response, TotalsChart{
+		response[i] = TotalsChart{
 			Name:       fmt.Sprintf("%v %v %v holdings", d.Statistics.FundingStatistics.Items[i].ReportItem.Exchange, d.Statistics.FundingStatistics.Items[i].ReportItem.Asset, d.Statistics.FundingStatistics.Items[i].ReportItem.Currency),
 			DataPoints: plots,
-		})
+		}
 	}
 
 	return response
@@ -177,7 +176,7 @@ func (d *Data) enhanceCandles() error {
 			Asset:     lookup.Asset,
 			Pair:      lookup.Pair,
 			Interval:  lookup.Interval,
-			Watermark: fmt.Sprintf("%v - %v - %v", strings.Title(lookup.Exchange), lookup.Asset.String(), strings.ToUpper(lookup.Pair.String())),
+			Watermark: fmt.Sprintf("%s - %s - %s", strings.Title(lookup.Exchange), lookup.Asset.String(), lookup.Pair.Upper()), // nolint // Title usage
 		}
 
 		statsForCandles :=
@@ -209,14 +208,14 @@ func (d *Data) enhanceCandles() error {
 			}
 			if !requiresIteration {
 				if statsForCandles.Events[intVal].SignalEvent.GetTime().Equal(d.OriginalCandles[intVal].Candles[j].Time) &&
-					statsForCandles.Events[intVal].SignalEvent.GetDirection() == common.MissingData &&
+					statsForCandles.Events[intVal].SignalEvent.GetDirection() == order.MissingData &&
 					len(enhancedKline.Candles) > 0 {
 					enhancedCandle.copyCloseFromPreviousEvent(&enhancedKline)
 				}
 			} else {
 				for k := range statsForCandles.Events {
 					if statsForCandles.Events[k].SignalEvent.GetTime().Equal(d.OriginalCandles[intVal].Candles[j].Time) &&
-						statsForCandles.Events[k].SignalEvent.GetDirection() == common.MissingData &&
+						statsForCandles.Events[k].SignalEvent.GetDirection() == order.MissingData &&
 						len(enhancedKline.Candles) > 0 {
 						enhancedCandle.copyCloseFromPreviousEvent(&enhancedKline)
 					}
@@ -261,7 +260,7 @@ func (d *DetailedCandle) copyCloseFromPreviousEvent(enhancedKline *DetailedKline
 	d.Colour = "white"
 	d.Position = "aboveBar"
 	d.Shape = "arrowDown"
-	d.Text = common.MissingData.String()
+	d.Text = order.MissingData.String()
 }
 
 // UseDarkMode sets whether to use a dark theme by default

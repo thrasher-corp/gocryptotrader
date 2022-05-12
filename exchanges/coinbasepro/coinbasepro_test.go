@@ -84,6 +84,17 @@ func TestGetProducts(t *testing.T) {
 	}
 }
 
+func TestGetOrderbook(t *testing.T) {
+	_, err := c.GetOrderbook(context.Background(), testPair.String(), 2)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = c.GetOrderbook(context.Background(), testPair.String(), 3)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestGetTicker(t *testing.T) {
 	_, err := c.GetTicker(context.Background(), testPair.String())
 	if err != nil {
@@ -133,10 +144,22 @@ func TestGetCurrencies(t *testing.T) {
 	}
 }
 
-func TestGetServerTime(t *testing.T) {
-	_, err := c.GetServerTime(context.Background())
+func TestGetCurrentServerTime(t *testing.T) {
+	_, err := c.GetCurrentServerTime(context.Background())
 	if err != nil {
 		t.Error("GetServerTime() error", err)
+	}
+}
+
+func TestWrapperGetServerTime(t *testing.T) {
+	t.Parallel()
+	st, err := c.GetServerTime(context.Background(), asset.Spot)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if st.IsZero() {
+		t.Fatal("expected a time")
 	}
 }
 

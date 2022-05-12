@@ -59,7 +59,7 @@ func (s *Strategy) OnSignal(d data.Handler, _ funding.IFundTransferer, _ portfol
 
 	if offset := d.Offset(); offset <= int(s.rsiPeriod.IntPart()) {
 		es.AppendReason("Not enough data for signal generation")
-		es.SetDirection(common.DoNothing)
+		es.SetDirection(order.DoNothing)
 		return &es, nil
 	}
 
@@ -72,7 +72,7 @@ func (s *Strategy) OnSignal(d data.Handler, _ funding.IFundTransferer, _ portfol
 	rsi := indicators.RSI(massagedData, int(s.rsiPeriod.IntPart()))
 	latestRSIValue := decimal.NewFromFloat(rsi[len(rsi)-1])
 	if !d.HasDataAtTime(d.Latest().GetTime()) {
-		es.SetDirection(common.MissingData)
+		es.SetDirection(order.MissingData)
 		es.AppendReason(fmt.Sprintf("missing data at %v, cannot perform any actions. RSI %v", d.Latest().GetTime(), latestRSIValue))
 		return &es, nil
 	}
@@ -83,7 +83,7 @@ func (s *Strategy) OnSignal(d data.Handler, _ funding.IFundTransferer, _ portfol
 	case latestRSIValue.LessThanOrEqual(s.rsiLow):
 		es.SetDirection(order.Buy)
 	default:
-		es.SetDirection(common.DoNothing)
+		es.SetDirection(order.DoNothing)
 	}
 	es.AppendReason(fmt.Sprintf("RSI at %v", latestRSIValue))
 
@@ -159,7 +159,7 @@ func (s *Strategy) SetDefaults() {
 // the decision to handle missing data occurs at the strategy level, not all strategies
 // may wish to modify data
 func (s *Strategy) massageMissingData(data []decimal.Decimal, t time.Time) ([]float64, error) {
-	var resp []float64
+	resp := make([]float64, len(data))
 	var missingDataStreak int64
 	for i := range data {
 		if data[i].IsZero() && i > int(s.rsiPeriod.IntPart()) {
@@ -174,8 +174,7 @@ func (s *Strategy) massageMissingData(data []decimal.Decimal, t time.Time) ([]fl
 				t.Format(gctcommon.SimpleTimeFormat),
 				base.ErrTooMuchBadData)
 		}
-		d, _ := data[i].Float64()
-		resp = append(resp, d)
+		resp[i] = data[i].InexactFloat64()
 	}
 	return resp, nil
 }

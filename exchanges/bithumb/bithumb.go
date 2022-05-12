@@ -64,7 +64,7 @@ func (b *Bithumb) GetTradablePairs(ctx context.Context) ([]string, error) {
 		return nil, err
 	}
 
-	var currencies []string
+	currencies := make([]string, 0, len(result))
 	for x := range result {
 		currencies = append(currencies, x)
 	}
@@ -703,7 +703,7 @@ func (b *Bithumb) FetchExchangeLimits(ctx context.Context) ([]order.MinMaxLevel,
 		return nil, err
 	}
 
-	var limits []order.MinMaxLevel
+	limits := make([]order.MinMaxLevel, 0, len(ticks))
 	for code, data := range ticks {
 		c := currency.NewCode(code)
 		cp := currency.NewPair(c, currency.KRW)

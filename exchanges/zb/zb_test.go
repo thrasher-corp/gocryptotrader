@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"strconv"
 	"sync"
@@ -288,8 +287,7 @@ func TestGetOrderHistory(t *testing.T) {
 
 func TestSubmitOrder(t *testing.T) {
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
-		t.Skip(fmt.Sprintf("Can place orders: %v",
-			canManipulateRealOrders))
+		t.Skipf("Can place orders: %v", canManipulateRealOrders)
 	}
 	if mockTests {
 		t.Skip("skipping authenticated function for mock testing")
@@ -981,11 +979,11 @@ func Test_FormatExchangeKlineInterval(t *testing.T) {
 }
 
 func TestValidateCandlesRequest(t *testing.T) {
-	_, err := z.validateCandlesRequest(currency.EMPTYPAIR, "", time.Time{}, time.Time{}, kline.Interval(-1))
+	_, err := z.validateCandlesRequest(currency.EMPTYPAIR, asset.Empty, time.Time{}, time.Time{}, kline.Interval(-1))
 	if !errors.Is(err, common.ErrDateUnset) {
 		t.Error(err)
 	}
-	_, err = z.validateCandlesRequest(currency.EMPTYPAIR, "", time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC), time.Time{}, kline.Interval(-1))
+	_, err = z.validateCandlesRequest(currency.EMPTYPAIR, asset.Empty, time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC), time.Time{}, kline.Interval(-1))
 	if !errors.Is(err, common.ErrDateUnset) {
 		t.Error(err)
 	}

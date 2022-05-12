@@ -20,7 +20,7 @@ func Event(id, name, path string, data null.Bytes, executionType, status string,
 		return
 	}
 
-	ctx := context.Background()
+	ctx := context.TODO()
 	ctx = boil.SkipTimestamps(ctx)
 	tx, err := database.DB.SQL.BeginTx(ctx, nil)
 	if err != nil {

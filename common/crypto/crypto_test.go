@@ -148,7 +148,7 @@ func TestGetHMAC(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(sha1) != string(expectedSha1) {
+	if !bytes.Equal(sha1, expectedSha1) {
 		t.Errorf("Common GetHMAC error: Expected '%x'. Actual '%x'",
 			expectedSha1, sha1,
 		)
@@ -157,7 +157,7 @@ func TestGetHMAC(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(sha256) != string(expectedsha256) {
+	if !bytes.Equal(sha256, expectedsha256) {
 		t.Errorf("Common GetHMAC error: Expected '%x'. Actual '%x'",
 			expectedsha256, sha256,
 		)
@@ -166,7 +166,7 @@ func TestGetHMAC(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(sha512) != string(expectedsha512) {
+	if !bytes.Equal(sha512, expectedsha512) {
 		t.Errorf("Common GetHMAC error: Expected '%x'. Actual '%x'",
 			expectedsha512, sha512,
 		)
@@ -175,7 +175,7 @@ func TestGetHMAC(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(sha512384) != string(expectedsha512384) {
+	if !bytes.Equal(sha512384, expectedsha512384) {
 		t.Errorf("Common GetHMAC error: Expected '%x'. Actual '%x'",
 			expectedsha512384, sha512384,
 		)
@@ -184,7 +184,7 @@ func TestGetHMAC(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(md5) != string(expectedmd5) {
+	if !bytes.Equal(md5, expectedmd5) {
 		t.Errorf("Common GetHMAC error: Expected '%x'. Actual '%x'",
 			expectedmd5, md5,
 		)

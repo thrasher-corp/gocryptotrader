@@ -102,22 +102,23 @@ func (h *HUOBI) SetDefaults() {
 			REST:      true,
 			Websocket: true,
 			RESTCapabilities: protocol.Features{
-				TickerFetching:        true,
-				KlineFetching:         true,
-				TradeFetching:         true,
-				OrderbookFetching:     true,
-				AutoPairUpdates:       true,
-				AccountInfo:           true,
-				GetOrder:              true,
-				GetOrders:             true,
-				CancelOrders:          true,
-				CancelOrder:           true,
-				SubmitOrder:           true,
-				CryptoDeposit:         true,
-				CryptoWithdrawal:      true,
-				TradeFee:              true,
-				MultiChainDeposits:    true,
-				MultiChainWithdrawals: true,
+				TickerFetching:                 true,
+				KlineFetching:                  true,
+				TradeFetching:                  true,
+				OrderbookFetching:              true,
+				AutoPairUpdates:                true,
+				AccountInfo:                    true,
+				GetOrder:                       true,
+				GetOrders:                      true,
+				CancelOrders:                   true,
+				CancelOrder:                    true,
+				SubmitOrder:                    true,
+				CryptoDeposit:                  true,
+				CryptoWithdrawal:               true,
+				TradeFee:                       true,
+				MultiChainDeposits:             true,
+				MultiChainWithdrawals:          true,
+				HasAssetTypeAccountSegregation: true,
 			},
 			WebsocketCapabilities: protocol.Features{
 				KlineFetching:          true,
@@ -547,68 +548,74 @@ func (h *HUOBI) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType 
 	var err error
 	switch assetType {
 	case asset.Spot:
-		var orderbookNew Orderbook
+		var orderbookNew *Orderbook
 		orderbookNew, err = h.GetDepth(ctx,
-			OrderBookDataRequestParams{
+			&OrderBookDataRequestParams{
 				Symbol: p,
 				Type:   OrderBookDataRequestParamsTypeStep0,
 			})
 		if err != nil {
-			return nil, err
+			return book, err
 		}
 
+		book.Bids = make(orderbook.Items, len(orderbookNew.Bids))
 		for x := range orderbookNew.Bids {
-			book.Bids = append(book.Bids, orderbook.Item{
+			book.Bids[x] = orderbook.Item{
 				Amount: orderbookNew.Bids[x][1],
 				Price:  orderbookNew.Bids[x][0],
-			})
+			}
 		}
-
+		book.Asks = make(orderbook.Items, len(orderbookNew.Asks))
 		for x := range orderbookNew.Asks {
-			book.Asks = append(book.Asks, orderbook.Item{
+			book.Asks[x] = orderbook.Item{
 				Amount: orderbookNew.Asks[x][1],
 				Price:  orderbookNew.Asks[x][0],
-			})
+			}
 		}
 
 	case asset.Futures:
-		var orderbookNew OBData
+		var orderbookNew *OBData
 		orderbookNew, err = h.FGetMarketDepth(ctx, p, "step0")
 		if err != nil {
-			return nil, err
+			return book, err
 		}
 
+		book.Asks = make(orderbook.Items, len(orderbookNew.Asks))
 		for x := range orderbookNew.Asks {
-			book.Asks = append(book.Asks, orderbook.Item{
+			book.Asks[x] = orderbook.Item{
 				Amount: orderbookNew.Asks[x].Quantity,
 				Price:  orderbookNew.Asks[x].Price,
-			})
+			}
 		}
+		book.Bids = make(orderbook.Items, len(orderbookNew.Bids))
 		for y := range orderbookNew.Bids {
-			book.Bids = append(book.Bids, orderbook.Item{
+			book.Bids[y] = orderbook.Item{
 				Amount: orderbookNew.Bids[y].Quantity,
 				Price:  orderbookNew.Bids[y].Price,
-			})
+			}
 		}
 
 	case asset.CoinMarginedFutures:
 		var orderbookNew SwapMarketDepthData
 		orderbookNew, err = h.GetSwapMarketDepth(ctx, p, "step0")
 		if err != nil {
-			return nil, err
+			return book, err
 		}
 
+		book.Asks = make(orderbook.Items, len(orderbookNew.Tick.Asks))
 		for x := range orderbookNew.Tick.Asks {
-			book.Asks = append(book.Asks, orderbook.Item{
+			book.Asks[x] = orderbook.Item{
 				Amount: orderbookNew.Tick.Asks[x][1],
 				Price:  orderbookNew.Tick.Asks[x][0],
-			})
+			}
 		}
+
+		book.Bids = make(orderbook.Items, len(orderbookNew.Tick.Bids))
 		for y := range orderbookNew.Tick.Bids {
-			book.Bids = append(book.Bids, orderbook.Item{
+			book.Bids[y] = orderbook.Item{
 				Amount: orderbookNew.Tick.Bids[y][1],
 				Price:  orderbookNew.Tick.Bids[y][0],
-			})
+			}
 		}
 	}
 	err = book.Process()
@@ -1344,9 +1351,7 @@ func (h *HUOBI) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 			return nil, errors.New("currency must be supplied")
 		}
 		side := ""
-		if req.Side == order.AnySide || req.Side == "" {
-			side = ""
-		} else if req.Side == order.Sell {
+		if req.Side == order.Sell {
 			side = req.Side.Lower()
 		}
 		if h.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
@@ -1520,7 +1525,10 @@ func (h *HUOBI) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 	}
 	order.FilterOrdersByType(&orders, req.Type)
 	order.FilterOrdersBySide(&orders, req.Side)
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	err := order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", h.Name, err)
+	}
 	return orders, nil
 }
 
@@ -1680,7 +1688,10 @@ func (h *HUOBI) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest
 			}
 		}
 	}
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	err := order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", h.Name, err)
+	}
 	return orders, nil
 }
 
@@ -1831,9 +1842,14 @@ func (h *HUOBI) GetAvailableTransferChains(ctx context.Context, cryptocurrency c
 		return nil, errors.New("chain data isn't populated")
 	}
 
-	var availableChains []string
+	availableChains := make([]string, len(chains[0].ChainData))
 	for x := range chains[0].ChainData {
-		availableChains = append(availableChains, chains[0].ChainData[x].Chain)
+		availableChains[x] = chains[0].ChainData[x].Chain
 	}
 	return availableChains, nil
+}
+
+// GetServerTime returns the current exchange server time.
+func (h *HUOBI) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
+	return h.GetCurrentServerTime(ctx)
 }

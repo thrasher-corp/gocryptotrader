@@ -17,13 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-const (
-	testExchange = "binance"
-)
-
-var (
-	riskFreeRate = decimal.NewFromFloat(0.03)
-)
+const testExchange = "binance"
 
 func pair(t *testing.T) *funding.Pair {
 	t.Helper()

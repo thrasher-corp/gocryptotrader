@@ -165,13 +165,13 @@ func (b *Base) GetPairAssetType(c currency.Pair) (asset.Item, error) {
 	for i := range assetTypes {
 		avail, err := b.GetAvailablePairs(assetTypes[i])
 		if err != nil {
-			return "", err
+			return asset.Empty, err
 		}
 		if avail.Contains(c, true) {
 			return assetTypes[i], nil
 		}
 	}
-	return "", errors.New("asset type not associated with currency pair")
+	return asset.Empty, errors.New("asset type not associated with currency pair")
 }
 
 // GetClientBankAccounts returns banking details associated with
@@ -366,7 +366,7 @@ func (b *Base) GetRequestFormattedPairAndAssetType(p string) (currency.Pair, ass
 			}
 		}
 	}
-	return currency.EMPTYPAIR, "", fmt.Errorf("%s %w", p, currency.ErrPairNotFound)
+	return currency.EMPTYPAIR, asset.Empty, fmt.Errorf("%s %w", p, currency.ErrPairNotFound)
 }
 
 // GetAvailablePairs is a method that returns the available currency pairs
@@ -451,7 +451,7 @@ func (b *Base) SetEnabled(enabled bool) {
 
 // IsEnabled is a method that returns if the current exchange is enabled
 func (b *Base) IsEnabled() bool {
-	return b.Enabled
+	return b != nil && b.Enabled
 }
 
 // SetupDefaults sets the exchange settings based on the supplied config
@@ -1106,8 +1106,8 @@ func (e *Endpoints) SetDefaultEndpoints(m map[URL]string) error {
 
 // SetRunning populates running URLs map
 func (e *Endpoints) SetRunning(key, val string) error {
-	e.Lock()
-	defer e.Unlock()
+	e.mu.Lock()
+	defer e.mu.Unlock()
 	err := validateKey(key)
 	if err != nil {
 		return err
@@ -1136,8 +1136,8 @@ func validateKey(keyVal string) error {
 
 // GetURL gets default url from URLs map
 func (e *Endpoints) GetURL(key URL) (string, error) {
-	e.RLock()
-	defer e.RUnlock()
+	e.mu.RLock()
+	defer e.mu.RUnlock()
 	val, ok := e.defaults[key.String()]
 	if !ok {
 		return "", fmt.Errorf("no endpoint path found for the given key: %v", key)
@@ -1147,12 +1147,12 @@ func (e *Endpoints) GetURL(key URL) (string, error) {
 
 // GetURLMap gets all urls for either running or default map based on the bool value supplied
 func (e *Endpoints) GetURLMap() map[string]string {
-	e.RLock()
+	e.mu.RLock()
 	var urlMap = make(map[string]string)
 	for k, v := range e.defaults {
 		urlMap[k] = v
 	}
-	e.RUnlock()
+	e.mu.RUnlock()
 	return urlMap
 }
 
@@ -1299,4 +1299,15 @@ func (b *Base) CalculateTotalCollateral(ctx context.Context, calculator *order.T
 // GetFuturesPositions returns futures positions according to the provided parameters
 func (b *Base) GetFuturesPositions(context.Context, asset.Item, currency.Pair, time.Time, time.Time) ([]order.Detail, error) {
 	return nil, common.ErrNotYetImplemented
+}
+
+// HasAssetTypeAccountSegregation returns if the accounts are divided into asset
+// types instead of just being denoted as spot holdings.
+func (b *Base) HasAssetTypeAccountSegregation() bool {
+	return b.Features.Supports.RESTCapabilities.HasAssetTypeAccountSegregation
+}
+
+// GetServerTime returns the current exchange server time.
+func (b *Base) GetServerTime(_ context.Context, _ asset.Item) (time.Time, error) {
+	return time.Time{}, common.ErrNotYetImplemented
 }

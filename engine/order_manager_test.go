@@ -383,8 +383,7 @@ func TestExists(t *testing.T) {
 	if err := m.orderStore.add(o); err != nil {
 		t.Error(err)
 	}
-	b := m.orderStore.exists(o)
-	if !b {
+	if b := m.orderStore.exists(o); !b {
 		t.Error("Expected true")
 	}
 }
@@ -521,14 +520,14 @@ func TestCancelOrder(t *testing.T) {
 
 func TestGetOrderInfo(t *testing.T) {
 	m := OrdersSetup(t)
-	_, err := m.GetOrderInfo(context.Background(), "", "", currency.EMPTYPAIR, "")
+	_, err := m.GetOrderInfo(context.Background(), "", "", currency.EMPTYPAIR, asset.Empty)
 	if err == nil {
 		t.Error("Expected error due to empty order")
 	}
 
 	var result order.Detail
 	result, err = m.GetOrderInfo(context.Background(),
-		testExchange, "1337", currency.EMPTYPAIR, "")
+		testExchange, "1337", currency.EMPTYPAIR, asset.Empty)
 	if err != nil {
 		t.Error(err)
 	}
@@ -537,7 +536,7 @@ func TestGetOrderInfo(t *testing.T) {
 	}
 
 	result, err = m.GetOrderInfo(context.Background(),
-		testExchange, "1337", currency.EMPTYPAIR, "")
+		testExchange, "1337", currency.EMPTYPAIR, asset.Empty)
 	if err != nil {
 		t.Error(err)
 	}
@@ -880,7 +879,7 @@ func TestProcessOrders(t *testing.T) {
 		t.Errorf("Expected 3 result, got: %d", len(res))
 	}
 	if res[0].Status != order.Active {
-		t.Errorf("Order 1 should be active, but status is %s", string(res[0].Status))
+		t.Errorf("Order 1 should be active, but status is %s", res[0].Status)
 	}
 
 	// Order2 is not returned by exch.GetActiveOrders()
@@ -893,7 +892,7 @@ func TestProcessOrders(t *testing.T) {
 		t.Errorf("Expected 1 result, got: %d", len(res))
 	}
 	if res[0].Status != order.Cancelled {
-		t.Errorf("Order 2 should be cancelled, but status is %s", string(res[0].Status))
+		t.Errorf("Order 2 should be cancelled, but status is %s", res[0].Status)
 	}
 
 	// Order3 is returned by exch.GetActiveOrders(), which will say it is active
@@ -905,7 +904,7 @@ func TestProcessOrders(t *testing.T) {
 		t.Errorf("Expected 1 result, got: %d", len(res))
 	}
 	if res[0].Status != order.Active {
-		t.Errorf("Order 3 should be active, but status is %s", string(res[0].Status))
+		t.Errorf("Order 3 should be active, but status is %s", res[0].Status)
 	}
 }
 

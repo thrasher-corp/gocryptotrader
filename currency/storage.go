@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -51,7 +51,7 @@ var (
 func (s *Storage) SetDefaults() {
 	s.defaultBaseCurrency = USD
 	s.baseCurrency = s.defaultBaseCurrency
-	var fiatCurrencies []Code
+	fiatCurrencies := make([]Code, 0, len(symbols))
 	for item := range symbols {
 		if item == USDT.Item {
 			continue
@@ -125,7 +125,7 @@ func (s *Storage) RunUpdater(overrides BotOverrides, settings *Config, filePath 
 		}
 	}
 
-	var fxSettings []base.Settings
+	fxSettings := make([]base.Settings, 0, len(settings.ForexProviders))
 	var primaryProvider bool
 	for i := range settings.ForexProviders {
 		enabled := (settings.ForexProviders[i].Name == "CurrencyConverter" && overrides.CurrencyConverter) ||
@@ -331,7 +331,7 @@ func (s *Storage) ForeignExchangeUpdater() {
 // SeedCurrencyAnalysisData sets a new instance of a coinmarketcap data.
 func (s *Storage) SeedCurrencyAnalysisData() error {
 	if s.currencyCodes.LastMainUpdate.IsZero() {
-		b, err := ioutil.ReadFile(s.path)
+		b, err := os.ReadFile(s.path)
 		if err != nil {
 			return s.FetchCurrencyAnalysisData()
 		}

@@ -52,13 +52,13 @@ This will place the following binaries in your `$GOBIN`;
 
 Make sure that your `$GOBIN` is in your `$PATH`.
 
-### Linux / macOS
+### Linux / macOS / Windows
 
 GoCryptoTrader requires a local installation of the `buf` cli tool that tries to make Protobuf handling more easier and reliable,
 after [installation](https://docs.buf.build/installation) you'll need to run:
 
 ```shell
-buf beta mod update
+buf mod update
 ```
 
 After previous command, make necessary changes to the `rpc.proto` spec file and run the generation command:
@@ -67,10 +67,4 @@ After previous command, make necessary changes to the `rpc.proto` spec file and 
 buf generate
 ```
 
-### Windows
-
-After the above dependencies are required, make necessary changes to the `rpc.proto`
-spec file and run the generation scripts:
-
-Run `gen_pb_win.bat`
-
+If any changes were made, ensure that the `rpc.proto` file is formatted correctly by using `buf format -w`

@@ -303,7 +303,7 @@ func TestUpdate(t *testing.T) {
 func TestGetFee(t *testing.T) {
 	t.Parallel()
 	p := Portfolio{}
-	f := p.GetFee("", "", currency.EMPTYPAIR)
+	f := p.GetFee("", asset.Empty, currency.EMPTYPAIR)
 	if !f.IsZero() {
 		t.Error("expected 0")
 	}
@@ -323,7 +323,7 @@ func TestGetFee(t *testing.T) {
 func TestGetComplianceManager(t *testing.T) {
 	t.Parallel()
 	p := Portfolio{}
-	_, err := p.GetComplianceManager("", "", currency.EMPTYPAIR)
+	_, err := p.GetComplianceManager("", asset.Empty, currency.EMPTYPAIR)
 	if !errors.Is(err, errNoPortfolioSettings) {
 		t.Errorf("received: %v, expected: %v", err, errNoPortfolioSettings)
 	}
@@ -508,7 +508,7 @@ func TestOnSignal(t *testing.T) {
 		t.Error("expected issue")
 	}
 
-	s.Direction = common.MissingData
+	s.Direction = gctorder.MissingData
 	_, err = p.OnSignal(s, &exchange.Settings{}, pair)
 	if err != nil {
 		t.Error(err)
@@ -533,7 +533,7 @@ func TestOnSignal(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if resp.Direction != common.CouldNotBuy {
+	if resp.Direction != gctorder.CouldNotBuy {
 		t.Errorf("expected common.CouldNotBuy, received %v", resp.Direction)
 	}
 

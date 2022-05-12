@@ -18,6 +18,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -781,7 +782,7 @@ func TestWithdraw(t *testing.T) {
 		Amount:          -1,
 		Currency:        currency.BTC,
 		Description:     "WITHDRAW IT ALL",
-		OneTimePassword: 000000,
+		OneTimePassword: 000000, // nolint // gocritic false positive
 	}
 
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
@@ -860,7 +861,11 @@ func TestWsAuth(t *testing.T) {
 	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
 	select {
 	case resp := <-b.Websocket.DataHandler:
-		if !resp.(WebsocketSubscribeResp).Success {
+		sub, ok := resp.(WebsocketSubscribeResp)
+		if !ok {
+			t.Fatal("unable to type assert WebsocketSubscribeResp")
+		}
+		if !sub.Success {
 			t.Error("Expected successful subscription")
 		}
 	case <-timer.C:
@@ -1037,11 +1042,8 @@ func TestWSOrderbookHandling(t *testing.T) {
       ]
     }`)
 	err = b.wsHandleData(pressXToJSON)
-	if err != nil && err.Error() != "delete error: cannot match ID on linked list 17999995000 not found" {
+	if !errors.Is(err, orderbook.ErrOrderbookInvalid) {
 		t.Error(err)
-	}
-	if err == nil {
-		t.Error("expecting error")
 	}
 }
 
@@ -1169,5 +1171,65 @@ func TestCurrencyNormalization(t *testing.T) {
 
 	if w.Amount != 1.0 {
 		t.Errorf("amount mismatch, expected 1.0, got %f", w.Amount)
+	}
+}
+
+func TestGetOrderType(t *testing.T) {
+	t.Parallel()
+	if _, err := b.getOrderType(0); !errors.Is(err, order.ErrTypeIsInvalid) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, order.ErrTypeIsInvalid)
+	}
+
+	o, err := b.getOrderType(1)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if o != order.Market {
+		t.Fatal("unexpected value")
+	}
+}
+
+func TestGetActionFromString(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetActionFromString("meow")
+	if !errors.Is(err, orderbook.ErrInvalidAction) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, orderbook.ErrInvalidAction)
+	}
+
+	action, err := b.GetActionFromString("update")
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if action != orderbook.Amend {
+		t.Fatalf("received: '%v' but expected: '%v'", action, orderbook.Amend)
+	}
+
+	action, err = b.GetActionFromString("delete")
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if action != orderbook.Delete {
+		t.Fatalf("received: '%v' but expected: '%v'", action, orderbook.Delete)
+	}
+
+	action, err = b.GetActionFromString("insert")
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if action != orderbook.Insert {
+		t.Fatalf("received: '%v' but expected: '%v'", action, orderbook.Insert)
+	}
+
+	action, err = b.GetActionFromString("update/insert")
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if action != orderbook.UpdateInsert {
+		t.Fatalf("received: '%v' but expected: '%v'", action, orderbook.UpdateInsert)
 	}
 }

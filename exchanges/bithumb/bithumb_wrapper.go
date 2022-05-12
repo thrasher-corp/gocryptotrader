@@ -212,7 +212,7 @@ func (b *Bithumb) Run() {
 		b.PrintEnabledPairs()
 	}
 
-	err := b.UpdateOrderExecutionLimits(context.TODO(), "")
+	err := b.UpdateOrderExecutionLimits(context.TODO(), asset.Empty)
 	if err != nil {
 		log.Errorf(log.ExchangeSys,
 			"%s failed to set exchange order execution limits. Err: %v",
@@ -336,20 +336,20 @@ func (b *Bithumb) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 		return book, err
 	}
 
+	book.Bids = make(orderbook.Items, len(orderbookNew.Data.Bids))
 	for i := range orderbookNew.Data.Bids {
-		book.Bids = append(book.Bids,
-			orderbook.Item{
-				Amount: orderbookNew.Data.Bids[i].Quantity,
-				Price:  orderbookNew.Data.Bids[i].Price,
-			})
+		book.Bids[i] = orderbook.Item{
+			Amount: orderbookNew.Data.Bids[i].Quantity,
+			Price:  orderbookNew.Data.Bids[i].Price,
+		}
 	}
 
+	book.Asks = make(orderbook.Items, len(orderbookNew.Data.Asks))
 	for i := range orderbookNew.Data.Asks {
-		book.Asks = append(book.Asks,
-			orderbook.Item{
-				Amount: orderbookNew.Data.Asks[i].Quantity,
-				Price:  orderbookNew.Data.Asks[i].Price,
-			})
+		book.Asks[i] = orderbook.Item{
+			Amount: orderbookNew.Data.Asks[i].Quantity,
+			Price:  orderbookNew.Data.Asks[i].Price,
+		}
 	}
 
 	err = book.Process()
@@ -368,7 +368,7 @@ func (b *Bithumb) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 		return info, err
 	}
 
-	var exchangeBalances []account.Balance
+	exchangeBalances := make([]account.Balance, 0, len(bal.Total))
 	for key, totalAmount := range bal.Total {
 		hold, ok := bal.InUse[key]
 		if !ok {
@@ -435,7 +435,7 @@ func (b *Bithumb) GetRecentTrades(ctx context.Context, p currency.Pair, assetTyp
 	if err != nil {
 		return nil, err
 	}
-	var resp []trade.Data
+	resp := make([]trade.Data, len(tradeData.Data))
 	for i := range tradeData.Data {
 		var side order.Side
 		side, err = order.StringToOrderSide(tradeData.Data[i].Type)
@@ -447,7 +447,7 @@ func (b *Bithumb) GetRecentTrades(ctx context.Context, p currency.Pair, assetTyp
 		if err != nil {
 			return nil, err
 		}
-		resp = append(resp, trade.Data{
+		resp[i] = trade.Data{
 			Exchange:     b.Name,
 			CurrencyPair: p,
 			AssetType:    assetType,
@@ -455,7 +455,7 @@ func (b *Bithumb) GetRecentTrades(ctx context.Context, p currency.Pair, assetTyp
 			Price:        tradeData.Data[i].Price,
 			Amount:       tradeData.Data[i].UnitsTraded,
 			Timestamp:    t,
-		})
+		}
 	}
 
 	err = b.AddTradesToBuffer(resp...)
@@ -702,7 +702,8 @@ func (b *Bithumb) GetActiveOrders(ctx context.Context, req *order.GetOrdersReque
 
 	var orders []order.Detail
 	for x := range req.Pairs {
-		resp, err := b.GetOrders(ctx, "", "", "1000", "", req.Pairs[x].Base.String())
+		var resp Orders
+		resp, err = b.GetOrders(ctx, "", "", "1000", "", req.Pairs[x].Base.String())
 		if err != nil {
 			return nil, err
 		}
@@ -737,8 +738,11 @@ func (b *Bithumb) GetActiveOrders(ctx context.Context, req *order.GetOrdersReque
 	}
 
 	order.FilterOrdersBySide(&orders, req.Side)
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
-	order.FilterOrdersByCurrencies(&orders, req.Pairs)
+	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
+	}
+	order.FilterOrdersByPairs(&orders, req.Pairs)
 	return orders, nil
 }
 
@@ -760,7 +764,8 @@ func (b *Bithumb) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 
 	var orders []order.Detail
 	for x := range req.Pairs {
-		resp, err := b.GetOrders(ctx, "", "", "1000", "", req.Pairs[x].Base.String())
+		var resp Orders
+		resp, err = b.GetOrders(ctx, "", "", "1000", "", req.Pairs[x].Base.String())
 		if err != nil {
 			return nil, err
 		}
@@ -795,8 +800,11 @@ func (b *Bithumb) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 	}
 
 	order.FilterOrdersBySide(&orders, req.Side)
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
-	order.FilterOrdersByCurrencies(&orders, req.Pairs)
+	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
+	}
+	order.FilterOrdersByPairs(&orders, req.Pairs)
 	return orders, nil
 }
 

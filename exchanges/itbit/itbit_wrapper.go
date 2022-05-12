@@ -6,7 +6,6 @@ import (
 	"net/url"
 	"sort"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -221,9 +220,10 @@ func (i *ItBit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType 
 
 	orderbookNew, err := i.GetOrderbook(ctx, fpair.String())
 	if err != nil {
-		return nil, err
+		return book, err
 	}
 
+	book.Bids = make(orderbook.Items, len(orderbookNew.Bids))
 	for x := range orderbookNew.Bids {
 		var price, amount float64
 		price, err = strconv.ParseFloat(orderbookNew.Bids[x][0], 64)
@@ -234,13 +234,13 @@ func (i *ItBit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType 
 		if err != nil {
 			return book, err
 		}
-		book.Bids = append(book.Bids,
-			orderbook.Item{
-				Amount: amount,
-				Price:  price,
-			})
+		book.Bids[x] = orderbook.Item{
+			Amount: amount,
+			Price:  price,
+		}
 	}
 
+	book.Asks = make(orderbook.Items, len(orderbookNew.Asks))
 	for x := range orderbookNew.Asks {
 		var price, amount float64
 		price, err = strconv.ParseFloat(orderbookNew.Asks[x][0], 64)
@@ -251,11 +251,10 @@ func (i *ItBit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType 
 		if err != nil {
 			return book, err
 		}
-		book.Asks = append(book.Asks,
-			orderbook.Item{
-				Amount: amount,
-				Price:  price,
-			})
+		book.Asks[x] = orderbook.Item{
+			Amount: amount,
+			Price:  price,
+		}
 	}
 	err = book.Process()
 	if err != nil {
@@ -288,7 +287,7 @@ func (i *ItBit) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 		}
 	}
 
-	var fullBalance []account.Balance
+	fullBalance := make([]account.Balance, 0, len(amounts))
 	for key := range amounts {
 		fullBalance = append(fullBalance, account.Balance{
 			CurrencyName: currency.NewCode(key),
@@ -299,6 +298,7 @@ func (i *ItBit) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 	}
 
 	info.Accounts = append(info.Accounts, account.SubAccount{
+		AssetType:  assetType,
 		Currencies: fullBalance,
 	})
 
@@ -343,9 +343,9 @@ func (i *ItBit) GetRecentTrades(ctx context.Context, p currency.Pair, assetType 
 	if err != nil {
 		return nil, err
 	}
-	var resp []trade.Data
+	resp := make([]trade.Data, len(tradeData.RecentTrades))
 	for x := range tradeData.RecentTrades {
-		resp = append(resp, trade.Data{
+		resp[x] = trade.Data{
 			Exchange:     i.Name,
 			TID:          tradeData.RecentTrades[x].MatchNumber,
 			CurrencyPair: p,
@@ -353,7 +353,7 @@ func (i *ItBit) GetRecentTrades(ctx context.Context, p currency.Pair, assetType 
 			Price:        tradeData.RecentTrades[x].Price,
 			Amount:       tradeData.RecentTrades[x].Amount,
 			Timestamp:    tradeData.RecentTrades[x].Timestamp,
-		})
+		}
 	}
 
 	err = i.AddTradesToBuffer(resp...)
@@ -547,16 +547,21 @@ func (i *ItBit) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 		return nil, err
 	}
 
-	var orders []order.Detail
+	orders := make([]order.Detail, 0, len(allOrders))
 	for j := range allOrders {
 		var symbol currency.Pair
-		symbol, err := currency.NewPairDelimiter(allOrders[j].Instrument,
+		symbol, err = currency.NewPairDelimiter(allOrders[j].Instrument,
 			format.Delimiter)
 		if err != nil {
 			return nil, err
 		}
-		side := order.Side(strings.ToUpper(allOrders[j].Side))
-		orderDate, err := time.Parse(time.RFC3339, allOrders[j].CreatedTime)
+		var side order.Side
+		side, err = order.StringToOrderSide(allOrders[j].Side)
+		if err != nil {
+			log.Errorf(log.ExchangeSys, "%s %v", i.Name, err)
+		}
+		var orderDate time.Time
+		orderDate, err = time.Parse(time.RFC3339, allOrders[j].CreatedTime)
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
 				"Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
@@ -578,9 +583,12 @@ func (i *ItBit) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 		})
 	}
 
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", i.Name, err)
+	}
 	order.FilterOrdersBySide(&orders, req.Side)
-	order.FilterOrdersByCurrencies(&orders, req.Pairs)
+	order.FilterOrdersByPairs(&orders, req.Pairs)
 	return orders, nil
 }
 
@@ -611,7 +619,7 @@ func (i *ItBit) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest
 		return nil, err
 	}
 
-	var orders []order.Detail
+	orders := make([]order.Detail, 0, len(allOrders))
 	for j := range allOrders {
 		if allOrders[j].Type == "open" {
 			continue
@@ -622,13 +630,18 @@ func (i *ItBit) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest
 		if err != nil {
 			return nil, err
 		}
-
-		side := order.Side(strings.ToUpper(allOrders[j].Side))
-		status, err := order.StringToOrderStatus(allOrders[j].Status)
+		var side order.Side
+		side, err = order.StringToOrderSide(allOrders[j].Side)
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "%s %v", i.Name, err)
 		}
-		orderDate, err := time.Parse(time.RFC3339, allOrders[j].CreatedTime)
+		var status order.Status
+		status, err = order.StringToOrderStatus(allOrders[j].Status)
+		if err != nil {
+			log.Errorf(log.ExchangeSys, "%s %v", i.Name, err)
+		}
+		var orderDate time.Time
+		orderDate, err = time.Parse(time.RFC3339, allOrders[j].CreatedTime)
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
 				"Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
@@ -655,9 +668,12 @@ func (i *ItBit) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest
 		orders = append(orders, detail)
 	}
 
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", i.Name, err)
+	}
 	order.FilterOrdersBySide(&orders, req.Side)
-	order.FilterOrdersByCurrencies(&orders, req.Pairs)
+	order.FilterOrdersByPairs(&orders, req.Pairs)
 	return orders, nil
 }
 

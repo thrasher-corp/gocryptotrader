@@ -101,7 +101,7 @@ func (p *Portfolio) OnSignal(ev signal.Event, cs *exchange.Settings, funds fundi
 		},
 		Direction: ev.GetDirection(),
 	}
-	if ev.GetDirection() == "" {
+	if ev.GetDirection() == gctorder.UnknownSide {
 		return o, errInvalidDirection
 	}
 
@@ -114,20 +114,19 @@ func (p *Portfolio) OnSignal(ev signal.Event, cs *exchange.Settings, funds fundi
 			ev.Pair())
 	}
 
-	if ev.GetDirection() == common.DoNothing ||
-		ev.GetDirection() == common.MissingData ||
-		ev.GetDirection() == common.TransferredFunds ||
-		ev.GetDirection() == "" {
+	if ev.GetDirection() == gctorder.DoNothing ||
+		ev.GetDirection() == gctorder.MissingData ||
+		ev.GetDirection() == gctorder.TransferredFunds {
 		return o, nil
 	}
 
 	if !funds.CanPlaceOrder(ev.GetDirection()) {
 		if ev.GetDirection() == gctorder.Sell {
 			o.AppendReason("no holdings to sell")
-			o.SetDirection(common.CouldNotSell)
+			o.SetDirection(gctorder.CouldNotSell)
 		} else if ev.GetDirection() == gctorder.Buy {
 			o.AppendReason("not enough funds to buy")
-			o.SetDirection(common.CouldNotBuy)
+			o.SetDirection(gctorder.CouldNotBuy)
 		}
 		ev.SetDirection(o.Direction)
 		return o, nil
@@ -160,12 +159,12 @@ func (p *Portfolio) evaluateOrder(d common.Directioner, originalOrderSignal, siz
 		originalOrderSignal.AppendReason(err.Error())
 		switch d.GetDirection() {
 		case gctorder.Buy:
-			originalOrderSignal.Direction = common.CouldNotBuy
+			originalOrderSignal.Direction = gctorder.CouldNotBuy
 		case gctorder.Sell:
-			originalOrderSignal.Direction = common.CouldNotSell
-		case common.CouldNotBuy, common.CouldNotSell:
+			originalOrderSignal.Direction = gctorder.CouldNotSell
+		case gctorder.CouldNotBuy, gctorder.CouldNotSell:
 		default:
-			originalOrderSignal.Direction = common.DoNothing
+			originalOrderSignal.Direction = gctorder.DoNothing
 		}
 		d.SetDirection(originalOrderSignal.Direction)
 		return originalOrderSignal, nil
@@ -180,11 +179,11 @@ func (p *Portfolio) sizeOrder(d common.Directioner, cs *exchange.Settings, origi
 		originalOrderSignal.AppendReason(err.Error())
 		switch originalOrderSignal.Direction {
 		case gctorder.Buy:
-			originalOrderSignal.Direction = common.CouldNotBuy
+			originalOrderSignal.Direction = gctorder.CouldNotBuy
 		case gctorder.Sell:
-			originalOrderSignal.Direction = common.CouldNotSell
+			originalOrderSignal.Direction = gctorder.CouldNotSell
 		default:
-			originalOrderSignal.Direction = common.DoNothing
+			originalOrderSignal.Direction = gctorder.DoNothing
 		}
 		d.SetDirection(originalOrderSignal.Direction)
 		return originalOrderSignal
@@ -193,11 +192,11 @@ func (p *Portfolio) sizeOrder(d common.Directioner, cs *exchange.Settings, origi
 	if sizedOrder.Amount.IsZero() {
 		switch originalOrderSignal.Direction {
 		case gctorder.Buy:
-			originalOrderSignal.Direction = common.CouldNotBuy
+			originalOrderSignal.Direction = gctorder.CouldNotBuy
 		case gctorder.Sell:
-			originalOrderSignal.Direction = common.CouldNotSell
+			originalOrderSignal.Direction = gctorder.CouldNotSell
 		default:
-			originalOrderSignal.Direction = common.DoNothing
+			originalOrderSignal.Direction = gctorder.DoNothing
 		}
 		d.SetDirection(originalOrderSignal.Direction)
 		originalOrderSignal.AppendReason("sized order to 0")
@@ -210,7 +209,7 @@ func (p *Portfolio) sizeOrder(d common.Directioner, cs *exchange.Settings, origi
 		sizedOrder.AllocatedFunds = sizedOrder.Amount.Mul(sizedOrder.Price)
 	}
 	if err != nil {
-		sizedOrder.Direction = common.DoNothing
+		sizedOrder.Direction = gctorder.DoNothing
 		sizedOrder.AppendReason(err.Error())
 	}
 	return sizedOrder
@@ -256,11 +255,11 @@ func (p *Portfolio) OnFill(ev fill.Event, funding funding.IPairReader) (*fill.Fi
 	}
 
 	direction := ev.GetDirection()
-	if direction == common.DoNothing ||
-		direction == common.CouldNotBuy ||
-		direction == common.CouldNotSell ||
-		direction == common.MissingData ||
-		direction == "" {
+	if direction == gctorder.DoNothing ||
+		direction == gctorder.CouldNotBuy ||
+		direction == gctorder.CouldNotSell ||
+		direction == gctorder.MissingData ||
+		direction == gctorder.UnknownSide {
 		fe, ok := ev.(*fill.Fill)
 		if !ok {
 			return nil, fmt.Errorf("%w expected fill event", common.ErrInvalidDataType)
@@ -433,7 +432,7 @@ func (p *Portfolio) SetupCurrencySettingsMap(settings *exchange.Settings) (*Sett
 	if settings.Exchange == "" {
 		return nil, errExchangeUnset
 	}
-	if settings.Asset == "" {
+	if settings.Asset == asset.Empty {
 		return nil, errAssetUnset
 	}
 	if settings.Pair.IsEmpty() {

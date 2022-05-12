@@ -755,12 +755,9 @@ func TestGetSpecificOrderbook(t *testing.T) {
 	t.Parallel()
 	e := CreateTestBot(t)
 
-	var bids []orderbook.Item
-	bids = append(bids, orderbook.Item{Price: 1000, Amount: 1})
-
 	base := orderbook.Base{
 		Pair:     currency.NewPair(currency.BTC, currency.USD),
-		Bids:     bids,
+		Bids:     []orderbook.Item{{Price: 1000, Amount: 1}},
 		Exchange: "Bitstamp",
 		Asset:    asset.Spot,
 	}

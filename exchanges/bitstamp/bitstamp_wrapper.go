@@ -285,7 +285,7 @@ func (b *Bitstamp) FetchTradablePairs(ctx context.Context, asset asset.Item) ([]
 		return nil, err
 	}
 
-	var products []string
+	products := make([]string, 0, len(pairs))
 	for x := range pairs {
 		if pairs[x].Trading != "Enabled" {
 			continue
@@ -406,18 +406,20 @@ func (b *Bitstamp) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 		return book, err
 	}
 
+	book.Bids = make(orderbook.Items, len(orderbookNew.Bids))
 	for x := range orderbookNew.Bids {
-		book.Bids = append(book.Bids, orderbook.Item{
+		book.Bids[x] = orderbook.Item{
 			Amount: orderbookNew.Bids[x].Amount,
 			Price:  orderbookNew.Bids[x].Price,
-		})
+		}
 	}
 
+	book.Asks = make(orderbook.Items, len(orderbookNew.Asks))
 	for x := range orderbookNew.Asks {
-		book.Asks = append(book.Asks, orderbook.Item{
+		book.Asks[x] = orderbook.Item{
 			Amount: orderbookNew.Asks[x].Amount,
 			Price:  orderbookNew.Asks[x].Price,
-		})
+		}
 	}
 	err = book.Process()
 	if err != nil {
@@ -436,7 +438,7 @@ func (b *Bitstamp) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 		return response, err
 	}
 
-	var currencies []account.Balance
+	currencies := make([]account.Balance, 0, len(accountBalance))
 	for k, v := range accountBalance {
 		currencies = append(currencies, account.Balance{
 			CurrencyName: currency.NewCode(k),
@@ -446,6 +448,7 @@ func (b *Bitstamp) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 		})
 	}
 	response.Accounts = append(response.Accounts, account.SubAccount{
+		AssetType:  assetType,
 		Currencies: currencies,
 	})
 
@@ -480,23 +483,23 @@ func (b *Bitstamp) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a
 
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (b *Bitstamp) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
-	var err error
-	p, err = b.FormatExchangeCurrency(p, assetType)
+	p, err := b.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return nil, err
 	}
-	var tradeData []Transactions
-	tradeData, err = b.GetTransactions(ctx, p.String(), "")
+
+	tradeData, err := b.GetTransactions(ctx, p.String(), "")
 	if err != nil {
 		return nil, err
 	}
-	var resp []trade.Data
+
+	resp := make([]trade.Data, len(tradeData))
 	for i := range tradeData {
 		s := order.Buy
 		if tradeData[i].Type == 1 {
 			s = order.Sell
 		}
-		resp = append(resp, trade.Data{
+		resp[i] = trade.Data{
 			Exchange:     b.Name,
 			TID:          strconv.FormatInt(tradeData[i].TradeID, 10),
 			CurrencyPair: p,
@@ -505,7 +508,7 @@ func (b *Bitstamp) GetRecentTrades(ctx context.Context, p currency.Pair, assetTy
 			Price:        tradeData[i].Price,
 			Amount:       tradeData[i].Amount,
 			Timestamp:    time.Unix(tradeData[i].Date, 0),
-		})
+		}
 	}
 
 	err = b.AddTradesToBuffer(resp...)
@@ -720,14 +723,15 @@ func (b *Bitstamp) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequ
 		return nil, err
 	}
 
-	var orders []order.Detail
+	orders := make([]order.Detail, len(resp))
 	for i := range resp {
 		orderSide := order.Buy
 		if resp[i].Type == SellOrder {
 			orderSide = order.Sell
 		}
 
-		tm, err := parseTime(resp[i].DateTime)
+		var tm time.Time
+		tm, err = parseTime(resp[i].DateTime)
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
 				"%s GetActiveOrders unable to parse time: %s\n", b.Name, err)
@@ -745,7 +749,7 @@ func (b *Bitstamp) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequ
 			p = req.Pairs[0]
 		}
 
-		orders = append(orders, order.Detail{
+		orders[i] = order.Detail{
 			Amount:   resp[i].Amount,
 			ID:       strconv.FormatInt(resp[i].ID, 10),
 			Price:    resp[i].Price,
@@ -754,11 +758,14 @@ func (b *Bitstamp) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequ
 			Date:     tm,
 			Pair:     p,
 			Exchange: b.Name,
-		})
+		}
 	}
 
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
-	order.FilterOrdersByCurrencies(&orders, req.Pairs)
+	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
+	}
+	order.FilterOrdersByPairs(&orders, req.Pairs)
 	return orders, nil
 }
 
@@ -788,7 +795,7 @@ func (b *Bitstamp) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequ
 		return nil, err
 	}
 
-	var orders []order.Detail
+	orders := make([]order.Detail, 0, len(resp))
 	for i := range resp {
 		if resp[i].Type != MarketTrade {
 			continue
@@ -826,7 +833,8 @@ func (b *Bitstamp) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequ
 				format.Delimiter)
 		}
 
-		tm, err := parseTime(resp[i].Date)
+		var tm time.Time
+		tm, err = parseTime(resp[i].Date)
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
 				"%s GetOrderHistory unable to parse time: %s\n", b.Name, err)
@@ -840,8 +848,11 @@ func (b *Bitstamp) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequ
 		})
 	}
 
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
-	order.FilterOrdersByCurrencies(&orders, req.Pairs)
+	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
+	}
+	order.FilterOrdersByPairs(&orders, req.Pairs)
 	return orders, nil
 }
 

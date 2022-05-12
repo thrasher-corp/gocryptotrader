@@ -89,14 +89,14 @@ func (l *Lbank) GetCurrencyPairs(ctx context.Context) ([]string, error) {
 }
 
 // GetMarketDepths returns arrays of asks, bids and timestamp
-func (l *Lbank) GetMarketDepths(ctx context.Context, symbol, size, merge string) (MarketDepthResponse, error) {
+func (l *Lbank) GetMarketDepths(ctx context.Context, symbol, size, merge string) (*MarketDepthResponse, error) {
 	var m MarketDepthResponse
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	params.Set("size", size)
 	params.Set("merge", merge)
 	path := fmt.Sprintf("/v%s/%s?%s", lbankAPIVersion2, lbankMarketDepths, params.Encode())
-	return m, l.SendHTTPRequest(ctx, exchange.RestSpot, path, &m)
+	return &m, l.SendHTTPRequest(ctx, exchange.RestSpot, path, &m)
 }
 
 // GetTrades returns an array of available trades regarding a particular exchange
@@ -128,19 +128,19 @@ func (l *Lbank) GetKlines(ctx context.Context, symbol, size, klineType, tm strin
 		return nil, err
 	}
 
-	var k []KlineResponse
+	k := make([]KlineResponse, len(klineTemp))
 	for x := range klineTemp {
 		if len(klineTemp[x]) < 6 {
 			return nil, errors.New("unexpected kline data length")
 		}
-		k = append(k, KlineResponse{
+		k[x] = KlineResponse{
 			TimeStamp:     time.Unix(int64(klineTemp[x][0]), 0).UTC(),
 			OpenPrice:     klineTemp[x][1],
 			HigestPrice:   klineTemp[x][2],
 			LowestPrice:   klineTemp[x][3],
 			ClosePrice:    klineTemp[x][4],
 			TradingVolume: klineTemp[x][5],
-		})
+		}
 	}
 	return k, nil
 }

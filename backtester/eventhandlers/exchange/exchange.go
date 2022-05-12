@@ -77,11 +77,11 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 		if err != nil {
 			switch f.GetDirection() {
 			case gctorder.Buy:
-				f.SetDirection(common.CouldNotBuy)
+				f.SetDirection(gctorder.CouldNotBuy)
 			case gctorder.Sell:
-				f.SetDirection(common.CouldNotSell)
+				f.SetDirection(gctorder.CouldNotSell)
 			default:
-				f.SetDirection(common.DoNothing)
+				f.SetDirection(gctorder.DoNothing)
 			}
 			f.AppendReason(err.Error())
 			return f, err
@@ -117,9 +117,9 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 			f.AppendReason(fundErr.Error())
 		}
 		if f.GetDirection() == gctorder.Buy {
-			f.SetDirection(common.CouldNotBuy)
+			f.SetDirection(gctorder.CouldNotBuy)
 		} else if f.GetDirection() == gctorder.Sell {
-			f.SetDirection(common.CouldNotSell)
+			f.SetDirection(gctorder.CouldNotSell)
 		}
 		return f, err
 	}
@@ -138,7 +138,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 		funds.IncreaseAvailable(limitReducedAmount.Mul(adjustedPrice), f.GetDirection())
 	}
 
-	ords := orderManager.GetOrdersSnapshot("")
+	ords := orderManager.GetOrdersSnapshot(gctorder.UnknownStatus)
 	for i := range ords {
 		if ords[i].ID != orderID {
 			continue
@@ -172,13 +172,13 @@ func verifyOrderWithinLimits(f *fill.Fill, limitReducedAmount decimal.Decimal, c
 	switch f.GetDirection() {
 	case gctorder.Buy:
 		minMax = cs.BuySide
-		direction = common.CouldNotBuy
+		direction = gctorder.CouldNotBuy
 	case gctorder.Sell:
 		minMax = cs.SellSide
-		direction = common.CouldNotSell
+		direction = gctorder.CouldNotSell
 	default:
 		direction = f.GetDirection()
-		f.SetDirection(common.DoNothing)
+		f.SetDirection(gctorder.DoNothing)
 		return fmt.Errorf("%w: %v", errInvalidDirection, direction)
 	}
 	var minOrMax, belowExceed string
@@ -229,12 +229,11 @@ func (e *Exchange) placeOrder(ctx context.Context, price, amount decimal.Decimal
 		return "", err
 	}
 	var orderID string
-	p, _ := price.Float64()
-	a, _ := amount.Float64()
-	fee, _ := f.ExchangeFee.Float64()
+	p := price.InexactFloat64()
+	fee := f.ExchangeFee.InexactFloat64()
 	o := &gctorder.Submit{
 		Price:       p,
-		Amount:      a,
+		Amount:      amount.InexactFloat64(),
 		Fee:         fee,
 		Exchange:    f.Exchange,
 		ID:          u.String(),
@@ -255,11 +254,10 @@ func (e *Exchange) placeOrder(ctx context.Context, price, amount decimal.Decimal
 			return orderID, err
 		}
 	} else {
-		rate, _ := f.Amount.Float64()
 		submitResponse := gctorder.SubmitResponse{
 			IsOrderPlaced: true,
 			OrderID:       u.String(),
-			Rate:          rate,
+			Rate:          f.Amount.InexactFloat64(),
 			Fee:           fee,
 			Cost:          p,
 			FullyMatched:  true,
@@ -314,7 +312,7 @@ func applySlippageToPrice(direction gctorder.Side, price, slippageRate decimal.D
 // SetExchangeAssetCurrencySettings sets the settings for an exchange, asset, currency
 func (e *Exchange) SetExchangeAssetCurrencySettings(exch string, a asset.Item, cp currency.Pair, c *Settings) {
 	if c.Exchange == "" ||
-		c.Asset == "" ||
+		c.Asset == asset.Empty ||
 		c.Pair.IsEmpty() {
 		return
 	}

@@ -158,12 +158,12 @@ func (h *HUOBI) GetMarketDetailMerged(ctx context.Context, symbol currency.Pair)
 }
 
 // GetDepth returns the depth for the specified symbol
-func (h *HUOBI) GetDepth(ctx context.Context, obd OrderBookDataRequestParams) (Orderbook, error) {
-	vals := url.Values{}
+func (h *HUOBI) GetDepth(ctx context.Context, obd *OrderBookDataRequestParams) (*Orderbook, error) {
 	symbolValue, err := h.FormatSymbol(obd.Symbol, asset.Spot)
 	if err != nil {
-		return Orderbook{}, err
+		return nil, err
 	}
+	vals := url.Values{}
 	vals.Set("symbol", symbolValue)
 
 	if obd.Type != OrderBookDataRequestParamsTypeNone {
@@ -176,12 +176,11 @@ func (h *HUOBI) GetDepth(ctx context.Context, obd OrderBookDataRequestParams) (O
 	}
 
 	var result response
-
 	err = h.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(huobiMarketDepth, vals), &result)
 	if result.ErrorMessage != "" {
-		return result.Depth, errors.New(result.ErrorMessage)
+		return nil, errors.New(result.ErrorMessage)
 	}
-	return result.Depth, err
+	return &result.Depth, err
 }
 
 // GetTrades returns the trades for the specified symbol
@@ -325,20 +324,17 @@ func (h *HUOBI) GetCurrenciesIncludingChains(ctx context.Context, curr currency.
 	return resp.Data, nil
 }
 
-// GetTimestamp returns the Huobi server time
-func (h *HUOBI) GetTimestamp(ctx context.Context) (int64, error) {
-	type response struct {
+// GetCurrentServerTime returns the Huobi server time
+func (h *HUOBI) GetCurrentServerTime(ctx context.Context) (time.Time, error) {
+	var result struct {
 		Response
 		Timestamp int64 `json:"data"`
 	}
-
-	var result response
-
 	err := h.SendHTTPRequest(ctx, exchange.RestSpot, "/v"+huobiAPIVersion+"/"+huobiTimestamp, &result)
 	if result.ErrorMessage != "" {
-		return 0, errors.New(result.ErrorMessage)
+		return time.Time{}, errors.New(result.ErrorMessage)
 	}
-	return result.Timestamp, err
+	return time.UnixMilli(result.Timestamp), err
 }
 
 // GetAccounts returns the Huobi user accounts

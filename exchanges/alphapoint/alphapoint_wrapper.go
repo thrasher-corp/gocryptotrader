@@ -101,18 +101,19 @@ func (a *Alphapoint) UpdateAccountInfo(ctx context.Context, assetType asset.Item
 		return response, err
 	}
 
-	var balances []account.Balance
+	balances := make([]account.Balance, len(acc.Currencies))
 	for i := range acc.Currencies {
-		balances = append(balances, account.Balance{
+		balances[i] = account.Balance{
 			CurrencyName: currency.NewCode(acc.Currencies[i].Name),
 			Total:        float64(acc.Currencies[i].Balance),
 			Hold:         float64(acc.Currencies[i].Hold),
 			Free:         float64(acc.Currencies[i].Balance) - float64(acc.Currencies[i].Hold),
-		})
+		}
 	}
 
 	response.Accounts = append(response.Accounts, account.SubAccount{
 		Currencies: balances,
+		AssetType:  assetType,
 	})
 
 	err = account.Process(&response)
@@ -181,18 +182,20 @@ func (a *Alphapoint) UpdateOrderbook(ctx context.Context, p currency.Pair, asset
 		return orderBook, err
 	}
 
+	orderBook.Bids = make(orderbook.Items, len(orderbookNew.Bids))
 	for x := range orderbookNew.Bids {
-		orderBook.Bids = append(orderBook.Bids, orderbook.Item{
+		orderBook.Bids[x] = orderbook.Item{
 			Amount: orderbookNew.Bids[x].Quantity,
 			Price:  orderbookNew.Bids[x].Price,
-		})
+		}
 	}
 
+	orderBook.Asks = make(orderbook.Items, len(orderbookNew.Asks))
 	for x := range orderbookNew.Asks {
-		orderBook.Asks = append(orderBook.Asks, orderbook.Item{
+		orderBook.Asks[x] = orderbook.Item{
 			Amount: orderbookNew.Asks[x].Quantity,
 			Price:  orderbookNew.Asks[x].Price,
-		})
+		}
 	}
 
 	orderBook.Pair = p
@@ -389,17 +392,16 @@ func (a *Alphapoint) GetActiveOrders(ctx context.Context, req *order.GetOrdersRe
 			orderDetail.Side = orderSideMap[resp[x].OpenOrders[y].Side]
 			orderDetail.Date = time.Unix(resp[x].OpenOrders[y].ReceiveTime, 0)
 			orderDetail.Type = orderTypeMap[resp[x].OpenOrders[y].OrderType]
-			if orderDetail.Type == "" {
-				orderDetail.Type = order.UnknownType
-			}
-
 			orders = append(orders, orderDetail)
 		}
 	}
 
 	order.FilterOrdersByType(&orders, req.Type)
 	order.FilterOrdersBySide(&orders, req.Side)
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", a.Name, err)
+	}
 	return orders, nil
 }
 
@@ -436,17 +438,16 @@ func (a *Alphapoint) GetOrderHistory(ctx context.Context, req *order.GetOrdersRe
 			orderDetail.Side = orderSideMap[resp[x].OpenOrders[y].Side]
 			orderDetail.Date = time.Unix(resp[x].OpenOrders[y].ReceiveTime, 0)
 			orderDetail.Type = orderTypeMap[resp[x].OpenOrders[y].OrderType]
-			if orderDetail.Type == "" {
-				orderDetail.Type = order.UnknownType
-			}
-
 			orders = append(orders, orderDetail)
 		}
 	}
 
 	order.FilterOrdersByType(&orders, req.Type)
 	order.FilterOrdersBySide(&orders, req.Side)
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", a.Name, err)
+	}
 	return orders, nil
 }
 

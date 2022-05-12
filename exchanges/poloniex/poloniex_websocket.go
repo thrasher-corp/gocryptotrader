@@ -20,7 +20,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -421,6 +420,7 @@ func (p *Poloniex) WsProcessOrderbookSnapshot(data []interface{}) error {
 	}
 
 	var book orderbook.Base
+	book.Asks = make(orderbook.Items, 0, len(askData))
 	for price, volume := range askData {
 		p, err := strconv.ParseFloat(price, 64)
 		if err != nil {
@@ -438,6 +438,7 @@ func (p *Poloniex) WsProcessOrderbookSnapshot(data []interface{}) error {
 		book.Asks = append(book.Asks, orderbook.Item{Price: p, Amount: a})
 	}
 
+	book.Bids = make(orderbook.Items, 0, len(bidData))
 	for price, volume := range bidData {
 		p, err := strconv.ParseFloat(price, 64)
 		if err != nil {
@@ -497,7 +498,7 @@ func (p *Poloniex) WsProcessOrderbookUpdate(sequenceNumber float64, data []inter
 	if !ok {
 		return fmt.Errorf("%w buysell not float64", errTypeAssertionFailure)
 	}
-	update := &buffer.Update{
+	update := &orderbook.Update{
 		Pair:     pair,
 		Asset:    asset.Spot,
 		UpdateID: int64(sequenceNumber),
@@ -512,7 +513,12 @@ func (p *Poloniex) WsProcessOrderbookUpdate(sequenceNumber float64, data []inter
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (p *Poloniex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
-	var subscriptions []stream.ChannelSubscription
+	enabledCurrencies, err := p.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		return nil, err
+	}
+
+	subscriptions := make([]stream.ChannelSubscription, 0, len(enabledCurrencies))
 	subscriptions = append(subscriptions, stream.ChannelSubscription{
 		Channel: strconv.FormatInt(wsTickerDataID, 10),
 	})
@@ -523,10 +529,6 @@ func (p *Poloniex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription,
 		})
 	}
 
-	enabledCurrencies, err := p.GetEnabledPairs(asset.Spot)
-	if err != nil {
-		return nil, err
-	}
 	for j := range enabledCurrencies {
 		enabledCurrencies[j].Delimiter = currency.UnderscoreDelimiter
 		subscriptions = append(subscriptions, stream.ChannelSubscription{
@@ -540,9 +542,13 @@ func (p *Poloniex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription,
 
 // Subscribe sends a websocket message to receive data from the channel
 func (p *Poloniex) Subscribe(sub []stream.ChannelSubscription) error {
-	creds, err := p.GetCredentials(context.TODO())
-	if err != nil {
-		return err
+	var creds *exchange.Credentials
+	if p.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+		var err error
+		creds, err = p.GetCredentials(context.TODO())
+		if err != nil {
+			return err
+		}
 	}
 	var errs common.Errors
 channels:
@@ -552,7 +558,7 @@ channels:
 		}
 		switch {
 		case strings.EqualFold(strconv.FormatInt(wsAccountNotificationID, 10),
-			sub[i].Channel):
+			sub[i].Channel) && creds != nil:
 			err := p.wsSendAuthorisedCommand(creds.Secret, creds.Key, "subscribe")
 			if err != nil {
 				errs = append(errs, err)
@@ -583,9 +589,13 @@ channels:
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (p *Poloniex) Unsubscribe(unsub []stream.ChannelSubscription) error {
-	creds, err := p.GetCredentials(context.TODO())
-	if err != nil {
-		return err
+	var creds *exchange.Credentials
+	if p.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+		var err error
+		creds, err = p.GetCredentials(context.TODO())
+		if err != nil {
+			return err
+		}
 	}
 	var errs common.Errors
 channels:
@@ -595,7 +605,7 @@ channels:
 		}
 		switch {
 		case strings.EqualFold(strconv.FormatInt(wsAccountNotificationID, 10),
-			unsub[i].Channel):
+			unsub[i].Channel) && creds != nil:
 			err := p.wsSendAuthorisedCommand(creds.Secret, creds.Key, "unsubscribe")
 			if err != nil {
 				errs = append(errs, err)

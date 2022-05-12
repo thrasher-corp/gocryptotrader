@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -33,8 +32,8 @@ func DeployDepth(exchange string, p currency.Pair, a asset.Item) (*Depth, error)
 
 // SubscribeToExchangeOrderbooks returns a pipe to an exchange feed
 func SubscribeToExchangeOrderbooks(exchange string) (dispatch.Pipe, error) {
-	service.Lock()
-	defer service.Unlock()
+	service.mu.Lock()
+	defer service.mu.Unlock()
 	exch, ok := service.books[strings.ToLower(exchange)]
 	if !ok {
 		return dispatch.Pipe{}, fmt.Errorf("%w for %s exchange",
@@ -46,12 +45,12 @@ func SubscribeToExchangeOrderbooks(exchange string) (dispatch.Pipe, error) {
 // Update stores orderbook data
 func (s *Service) Update(b *Base) error {
 	name := strings.ToLower(b.Exchange)
-	s.Lock()
+	s.mu.Lock()
 	m1, ok := s.books[name]
 	if !ok {
 		id, err := s.Mux.GetID()
 		if err != nil {
-			s.Unlock()
+			s.mu.Unlock()
 			return err
 		}
 		m1 = Exchange{
@@ -80,8 +79,8 @@ func (s *Service) Update(b *Base) error {
 		m3[b.Pair.Quote.Item] = book
 	}
 	book.LoadSnapshot(b.Bids, b.Asks, b.LastUpdateID, b.LastUpdated, true)
-	s.Unlock()
-	return s.Mux.Publish([]uuid.UUID{m1.ID}, book.Retrieve())
+	s.mu.Unlock()
+	return s.Mux.Publish(book, m1.ID)
 }
 
 // DeployDepth used for subsystem deployment creates a depth item in the struct
@@ -96,8 +95,8 @@ func (s *Service) DeployDepth(exchange string, p currency.Pair, a asset.Item) (*
 	if !a.IsValid() {
 		return nil, errAssetTypeNotSet
 	}
-	s.Lock()
-	defer s.Unlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	m1, ok := s.books[strings.ToLower(exchange)]
 	if !ok {
 		id, err := s.Mux.GetID()
@@ -134,8 +133,8 @@ func (s *Service) DeployDepth(exchange string, p currency.Pair, a asset.Item) (*
 // GetDepth returns the actual depth struct for potential subsystems and
 // strategies to interact with
 func (s *Service) GetDepth(exchange string, p currency.Pair, a asset.Item) (*Depth, error) {
-	s.Lock()
-	defer s.Unlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	m1, ok := s.books[strings.ToLower(exchange)]
 	if !ok {
 		return nil, fmt.Errorf("%w for %s exchange",
@@ -168,8 +167,8 @@ func (s *Service) GetDepth(exchange string, p currency.Pair, a asset.Item) (*Dep
 // Retrieve gets orderbook depth data from the associated linked list and
 // returns the base equivalent copy
 func (s *Service) Retrieve(exchange string, p currency.Pair, a asset.Item) (*Base, error) {
-	s.Lock()
-	defer s.Unlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	m1, ok := s.books[strings.ToLower(exchange)]
 	if !ok {
 		return nil, fmt.Errorf("%w for %s exchange",
@@ -194,7 +193,7 @@ func (s *Service) Retrieve(exchange string, p currency.Pair, a asset.Item) (*Bas
 			errCannotFindOrderbook,
 			p.Quote)
 	}
-	return book.Retrieve(), nil
+	return book.Retrieve()
 }
 
 // TotalBidsAmount returns the total amount of bids and the total orderbook

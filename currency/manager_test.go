@@ -1,6 +1,8 @@
 package currency
 
 import (
+	"encoding/json"
+	"errors"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
@@ -158,7 +160,7 @@ func TestGetPairs(t *testing.T) {
 		t.Fatal("pairs should be populated")
 	}
 
-	pairs, err = p.GetPairs("blah", true)
+	pairs, err = p.GetPairs(asset.Empty, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -359,5 +361,42 @@ func TestIsAssetEnabled_SetAssetEnabled(t *testing.T) {
 	err = p.IsAssetEnabled(asset.Spot)
 	if err != nil {
 		t.Error("unexpected result")
+	}
+}
+
+func TestUnmarshalMarshal(t *testing.T) {
+	t.Parallel()
+	var um = make(FullStore)
+	um[asset.Spot] = &PairStore{AssetEnabled: convert.BoolPtr(true)}
+
+	data, err := json.Marshal(um)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if string(data) != `{"spot":{"assetEnabled":true,"enabled":"","available":""}}` {
+		t.Fatal("unexpected value")
+	}
+
+	var another FullStore
+	err = json.Unmarshal(data, &another)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if _, ok := another[asset.Spot]; !ok {
+		t.Fatal("expected values to be associated with spot")
+	}
+
+	data = []byte(`{123:{"assetEnabled":null,"enabled":"","available":""}}`)
+	err = json.Unmarshal(data, &another)
+	if errors.Is(err, nil) {
+		t.Fatalf("expected error")
+	}
+
+	data = []byte(`{"bro":{"assetEnabled":null,"enabled":"","available":""}}`)
+	err = json.Unmarshal(data, &another)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
 	}
 }

@@ -260,7 +260,7 @@ func (p *Poloniex) FetchTradablePairs(ctx context.Context, asset asset.Item) ([]
 		return nil, err
 	}
 
-	var currencies []string
+	currencies := make([]string, 0, len(resp))
 	for x := range resp {
 		currencies = append(currencies, x)
 	}
@@ -381,18 +381,20 @@ func (p *Poloniex) UpdateOrderbook(ctx context.Context, c currency.Pair, assetTy
 			continue
 		}
 
+		book.Bids = make(orderbook.Items, len(data.Bids))
 		for y := range data.Bids {
-			book.Bids = append(book.Bids, orderbook.Item{
+			book.Bids[y] = orderbook.Item{
 				Amount: data.Bids[y].Amount,
 				Price:  data.Bids[y].Price,
-			})
+			}
 		}
 
+		book.Asks = make(orderbook.Items, len(data.Asks))
 		for y := range data.Asks {
-			book.Asks = append(book.Asks, orderbook.Item{
+			book.Asks[y] = orderbook.Item{
 				Amount: data.Asks[y].Amount,
 				Price:  data.Asks[y].Price,
-			})
+			}
 		}
 		err = book.Process()
 		if err != nil {
@@ -412,7 +414,7 @@ func (p *Poloniex) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 		return response, err
 	}
 
-	var currencies []account.Balance
+	currencies := make([]account.Balance, 0, len(accountBalance.Currency))
 	for x, y := range accountBalance.Currency {
 		currencies = append(currencies, account.Balance{
 			CurrencyName: currency.NewCode(x),
@@ -421,6 +423,7 @@ func (p *Poloniex) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 	}
 
 	response.Accounts = append(response.Accounts, account.SubAccount{
+		AssetType:  assetType,
 		Currencies: currencies,
 	})
 
@@ -840,8 +843,13 @@ func (p *Poloniex) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequ
 			return nil, err
 		}
 		for i := range resp.Data[key] {
-			orderSide := order.Side(strings.ToUpper(resp.Data[key][i].Type))
-			orderDate, err := time.Parse(common.SimpleTimeFormat, resp.Data[key][i].Date)
+			var orderSide order.Side
+			orderSide, err = order.StringToOrderSide(resp.Data[key][i].Type)
+			if err != nil {
+				return nil, err
+			}
+			var orderDate time.Time
+			orderDate, err = time.Parse(common.SimpleTimeFormat, resp.Data[key][i].Date)
 			if err != nil {
 				log.Errorf(log.ExchangeSys,
 					"Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
@@ -863,8 +871,11 @@ func (p *Poloniex) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequ
 		}
 	}
 
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
-	order.FilterOrdersByCurrencies(&orders, req.Pairs)
+	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", p.Name, err)
+	}
+	order.FilterOrdersByPairs(&orders, req.Pairs)
 	order.FilterOrdersBySide(&orders, req.Side)
 
 	return orders, nil
@@ -899,7 +910,10 @@ func (p *Poloniex) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequ
 		}
 
 		for i := range resp.Data[key] {
-			orderSide := order.Side(strings.ToUpper(resp.Data[key][i].Type))
+			orderSide, err := order.StringToOrderSide(resp.Data[key][i].Type)
+			if err != nil {
+				return nil, err
+			}
 			orderDate, err := time.Parse(common.SimpleTimeFormat,
 				resp.Data[key][i].Date)
 			if err != nil {
@@ -928,9 +942,8 @@ func (p *Poloniex) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequ
 		}
 	}
 
-	order.FilterOrdersByCurrencies(&orders, req.Pairs)
+	order.FilterOrdersByPairs(&orders, req.Pairs)
 	order.FilterOrdersBySide(&orders, req.Side)
-
 	return orders, nil
 }
 

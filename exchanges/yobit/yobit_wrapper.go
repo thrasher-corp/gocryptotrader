@@ -165,7 +165,7 @@ func (y *Yobit) FetchTradablePairs(ctx context.Context, asset asset.Item) ([]str
 		return nil, err
 	}
 
-	var currencies []string
+	currencies := make([]string, 0, len(info.Pairs))
 	for x := range info.Pairs {
 		currencies = append(currencies, strings.ToUpper(x))
 	}
@@ -307,7 +307,7 @@ func (y *Yobit) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 		return response, err
 	}
 
-	var currencies []account.Balance
+	currencies := make([]account.Balance, 0, len(accountBalance.FundsInclOrders))
 	for x, y := range accountBalance.FundsInclOrders {
 		var exchangeCurrency account.Balance
 		exchangeCurrency.CurrencyName = currency.NewCode(x)
@@ -324,6 +324,7 @@ func (y *Yobit) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 	}
 
 	response.Accounts = append(response.Accounts, account.SubAccount{
+		AssetType:  assetType,
 		Currencies: currencies,
 	})
 
@@ -363,19 +364,21 @@ func (y *Yobit) GetRecentTrades(ctx context.Context, p currency.Pair, assetType 
 	if err != nil {
 		return nil, err
 	}
-	var resp []trade.Data
+
 	var tradeData []Trade
 	tradeData, err = y.GetTrades(ctx, p.String())
 	if err != nil {
 		return nil, err
 	}
+
+	resp := make([]trade.Data, len(tradeData))
 	for i := range tradeData {
 		tradeTS := time.Unix(tradeData[i].Timestamp, 0)
 		side := order.Buy
 		if tradeData[i].Type == "ask" {
 			side = order.Sell
 		}
-		resp = append(resp, trade.Data{
+		resp[i] = trade.Data{
 			Exchange:     y.Name,
 			TID:          strconv.FormatInt(tradeData[i].TID, 10),
 			CurrencyPair: p,
@@ -384,7 +387,7 @@ func (y *Yobit) GetRecentTrades(ctx context.Context, p currency.Pair, assetType 
 			Price:        tradeData[i].Price,
 			Amount:       tradeData[i].Amount,
 			Timestamp:    tradeTS,
-		})
+		}
 	}
 
 	err = y.AddTradesToBuffer(resp...)
@@ -465,11 +468,12 @@ func (y *Yobit) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.Can
 		Status: make(map[string]string),
 	}
 
-	var allActiveOrders []map[string]ActiveOrders
 	enabledPairs, err := y.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return cancelAllOrdersResponse, err
 	}
+
+	allActiveOrders := make([]map[string]ActiveOrders, len(enabledPairs))
 	for i := range enabledPairs {
 		fCurr, err := y.FormatExchangeCurrency(enabledPairs[i], asset.Spot)
 		if err != nil {
@@ -480,7 +484,7 @@ func (y *Yobit) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.Can
 			return cancelAllOrdersResponse, err
 		}
 
-		allActiveOrders = append(allActiveOrders, activeOrdersForPair)
+		allActiveOrders[i] = activeOrdersForPair
 	}
 
 	for i := range allActiveOrders {
@@ -579,11 +583,13 @@ func (y *Yobit) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 	}
 
 	for x := range req.Pairs {
-		fCurr, err := y.FormatExchangeCurrency(req.Pairs[x], asset.Spot)
+		var fCurr currency.Pair
+		fCurr, err = y.FormatExchangeCurrency(req.Pairs[x], asset.Spot)
 		if err != nil {
 			return nil, err
 		}
-		resp, err := y.GetOpenOrders(ctx, fCurr.String())
+		var resp map[string]ActiveOrders
+		resp, err = y.GetOpenOrders(ctx, fCurr.String())
 		if err != nil {
 			return nil, err
 		}
@@ -594,21 +600,27 @@ func (y *Yobit) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 			if err != nil {
 				return nil, err
 			}
-			orderDate := time.Unix(int64(resp[id].TimestampCreated), 0)
-			side := order.Side(strings.ToUpper(resp[id].Type))
+			var side order.Side
+			side, err = order.StringToOrderSide(resp[id].Type)
+			if err != nil {
+				return nil, err
+			}
 			orders = append(orders, order.Detail{
 				ID:       id,
 				Amount:   resp[id].Amount,
 				Price:    resp[id].Rate,
 				Side:     side,
-				Date:     orderDate,
+				Date:     time.Unix(int64(resp[id].TimestampCreated), 0),
 				Pair:     symbol,
 				Exchange: y.Name,
 			})
 		}
 	}
 
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", y.Name, err)
+	}
 	order.FilterOrdersBySide(&orders, req.Side)
 	return orders, nil
 }
@@ -648,7 +660,7 @@ func (y *Yobit) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest
 		return nil, err
 	}
 
-	var orders []order.Detail
+	orders := make([]order.Detail, len(allOrders))
 	for i := range allOrders {
 		var pair currency.Pair
 		pair, err = currency.NewPairDelimiter(allOrders[i].Pair, format.Delimiter)
@@ -656,7 +668,11 @@ func (y *Yobit) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest
 			return nil, err
 		}
 		orderDate := time.Unix(int64(allOrders[i].Timestamp), 0)
-		side := order.Side(strings.ToUpper(allOrders[i].Type))
+		var side order.Side
+		side, err = order.StringToOrderSide(allOrders[i].Type)
+		if err != nil {
+			return nil, err
+		}
 		detail := order.Detail{
 			ID:                   strconv.FormatFloat(allOrders[i].OrderID, 'f', -1, 64),
 			Amount:               allOrders[i].Amount,
@@ -670,11 +686,10 @@ func (y *Yobit) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest
 			Exchange:             y.Name,
 		}
 		detail.InferCostsAndTimes()
-		orders = append(orders, detail)
+		orders[i] = detail
 	}
 
 	order.FilterOrdersBySide(&orders, req.Side)
-
 	return orders, nil
 }
 
@@ -693,4 +708,13 @@ func (y *Yobit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a as
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (y *Yobit) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	return kline.Item{}, common.ErrFunctionNotSupported
+}
+
+// GetServerTime returns the current exchange server time.
+func (y *Yobit) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
+	info, err := y.GetInfo(ctx)
+	if err != nil {
+		return time.Time{}, err
+	}
+	return time.Unix(info.ServerTime, 0), nil
 }

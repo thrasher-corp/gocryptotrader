@@ -121,32 +121,51 @@ func (z *ZB) wsHandleData(respRaw []byte) error {
 			return err
 		}
 
-		var book orderbook.Base
-		for i := range depth.Asks {
-			book.Asks = append(book.Asks, orderbook.Item{
-				Amount: depth.Asks[i][1].(float64),
-				Price:  depth.Asks[i][0].(float64),
-			})
-		}
-
-		for i := range depth.Bids {
-			book.Bids = append(book.Bids, orderbook.Item{
-				Amount: depth.Bids[i][1].(float64),
-				Price:  depth.Bids[i][0].(float64),
-			})
-		}
-
 		channelInfo := strings.Split(result.Channel, currency.UnderscoreDelimiter)
 		cPair, err := currency.NewPairFromString(channelInfo[0])
 		if err != nil {
 			return err
 		}
 
+		book := orderbook.Base{
+			Bids:            make(orderbook.Items, len(depth.Bids)),
+			Asks:            make(orderbook.Items, len(depth.Asks)),
+			Asset:           asset.Spot,
+			Pair:            cPair,
+			Exchange:        z.Name,
+			VerifyOrderbook: z.CanVerifyOrderbook,
+		}
+
+		for i := range depth.Asks {
+			amt, ok := depth.Asks[i][1].(float64)
+			if !ok {
+				return errors.New("unable to type assert ask amount")
+			}
+			price, ok := depth.Asks[i][0].(float64)
+			if !ok {
+				return errors.New("unable to type assert ask price")
+			}
+			book.Asks[i] = orderbook.Item{
+				Amount: amt,
+				Price:  price,
+			}
+		}
+		for i := range depth.Bids {
+			amt, ok := depth.Bids[i][1].(float64)
+			if !ok {
+				return errors.New("unable to type assert bid amount")
+			}
+			price, ok := depth.Bids[i][0].(float64)
+			if !ok {
+				return errors.New("unable to type assert bid price")
+			}
+			book.Bids[i] = orderbook.Item{
+				Amount: amt,
+				Price:  price,
+			}
+		}
+
 		book.Asks.Reverse() // Reverse asks for correct alignment
-		book.Asset = asset.Spot
-		book.Pair = cPair
-		book.Exchange = z.Name
-		book.VerifyOrderbook = z.CanVerifyOrderbook
 
 		err = z.Websocket.Orderbook.LoadSnapshot(&book)
 		if err != nil {

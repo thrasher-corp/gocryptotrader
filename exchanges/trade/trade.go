@@ -72,7 +72,7 @@ func AddTradesToBuffer(exchangeName string, data ...Data) error {
 		processor.setup(&wg)
 		wg.Wait()
 	}
-	var validDatas []Data
+	validDatas := make([]Data, 0, len(data))
 	for i := range data {
 		if data[i].Price == 0 ||
 			data[i].Amount == 0 ||
@@ -179,13 +179,13 @@ func HasTradesInRanges(exchangeName, assetType, base, quote string, rangeHolder 
 
 func tradeToSQLData(trades ...Data) ([]tradesql.Data, error) {
 	sort.Sort(ByDate(trades))
-	var results []tradesql.Data
+	results := make([]tradesql.Data, len(trades))
 	for i := range trades {
 		tradeID, err := uuid.NewV4()
 		if err != nil {
 			return nil, err
 		}
-		results = append(results, tradesql.Data{
+		results[i] = tradesql.Data{
 			ID:        tradeID.String(),
 			Timestamp: trades[i].Timestamp,
 			Exchange:  trades[i].Exchange,
@@ -196,30 +196,28 @@ func tradeToSQLData(trades ...Data) ([]tradesql.Data, error) {
 			Amount:    trades[i].Amount,
 			Side:      trades[i].Side.String(),
 			TID:       trades[i].TID,
-		})
+		}
 	}
 	return results, nil
 }
 
 // SQLDataToTrade converts sql data to glorious trade data
-func SQLDataToTrade(dbTrades ...tradesql.Data) (result []Data, err error) {
+func SQLDataToTrade(dbTrades ...tradesql.Data) ([]Data, error) {
+	result := make([]Data, len(dbTrades))
 	for i := range dbTrades {
-		var cp currency.Pair
-		cp, err = currency.NewPairFromStrings(dbTrades[i].Base, dbTrades[i].Quote)
+		cp, err := currency.NewPairFromStrings(dbTrades[i].Base, dbTrades[i].Quote)
 		if err != nil {
 			return nil, err
 		}
-		cp = cp.Upper()
-		var a = asset.Item(dbTrades[i].AssetType)
-		if !a.IsValid() {
-			return nil, fmt.Errorf("invalid asset type %v", a)
-		}
-		var s order.Side
-		s, err = order.StringToOrderSide(dbTrades[i].Side)
+		a, err := asset.New(dbTrades[i].AssetType)
 		if err != nil {
 			return nil, err
 		}
-		result = append(result, Data{
+		s, err := order.StringToOrderSide(dbTrades[i].Side)
+		if err != nil {
+			return nil, err
+		}
+		result[i] = Data{
 			ID:           uuid.FromStringOrNil(dbTrades[i].ID),
 			Timestamp:    dbTrades[i].Timestamp.UTC(),
 			Exchange:     dbTrades[i].Exchange,
@@ -228,7 +226,7 @@ func SQLDataToTrade(dbTrades ...tradesql.Data) (result []Data, err error) {
 			Price:        dbTrades[i].Price,
 			Amount:       dbTrades[i].Amount,
 			Side:         s,
-		})
+		}
 	}
 	return result, nil
 }

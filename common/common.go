@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -18,6 +17,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -56,6 +56,10 @@ var (
 	errCannotSetInvalidTimeout = errors.New("cannot set new HTTP client with timeout that is equal or less than 0")
 	errUserAgentInvalid        = errors.New("cannot set invalid user agent")
 	errHTTPClientInvalid       = errors.New("custom http client cannot be nil")
+
+	zeroValueUnix = time.Unix(0, 0)
+	// ErrTypeAssertFailure defines an error when type assertion fails
+	ErrTypeAssertFailure = errors.New("type assert failure")
 )
 
 // SetHTTPClientWithTimeout sets a new *http.Client with different timeout
@@ -257,7 +261,7 @@ func SendHTTPRequest(ctx context.Context, method, urlPath string, headers map[st
 	}
 	defer resp.Body.Close()
 
-	contents, err := ioutil.ReadAll(resp.Body)
+	contents, err := io.ReadAll(resp.Body)
 
 	if verbose {
 		log.Debugf(log.Global, "HTTP status: %s, Code: %v",
@@ -348,7 +352,7 @@ func CreateDir(dir string) error {
 	}
 
 	log.Warnf(log.Global, "Directory %s does not exist.. creating.\n", dir)
-	return os.MkdirAll(dir, 0770)
+	return os.MkdirAll(dir, file.DefaultPermissionOctal)
 }
 
 // ChangePermission lists all the directories and files in an array
@@ -357,8 +361,8 @@ func ChangePermission(directory string) error {
 		if err != nil {
 			return err
 		}
-		if info.Mode().Perm() != 0770 {
-			return os.Chmod(path, 0770)
+		if info.Mode().Perm() != file.DefaultPermissionOctal {
+			return os.Chmod(path, file.DefaultPermissionOctal)
 		}
 		return nil
 	})
@@ -414,13 +418,22 @@ func (e Errors) Error() string {
 	return r[:len(r)-2]
 }
 
+// Unwrap implements interface behaviour for errors.Is() matching NOTE: only
+// returns first element.
+func (e Errors) Unwrap() error {
+	if len(e) == 0 {
+		return nil
+	}
+	return e[0]
+}
+
 // StartEndTimeCheck provides some basic checks which occur
 // frequently in the codebase
 func StartEndTimeCheck(start, end time.Time) error {
-	if start.IsZero() {
+	if start.IsZero() || start.Equal(zeroValueUnix) {
 		return fmt.Errorf("start %w", ErrDateUnset)
 	}
-	if end.IsZero() {
+	if end.IsZero() || end.Equal(zeroValueUnix) {
 		return fmt.Errorf("end %w", ErrDateUnset)
 	}
 	if start.After(time.Now()) {
@@ -434,4 +447,10 @@ func StartEndTimeCheck(start, end time.Time) error {
 	}
 
 	return nil
+}
+
+// GetAssertError returns additional information for when an assertion failure
+// occurs.
+func GetAssertError(required string, received interface{}) error {
+	return fmt.Errorf("%w from %T to %s", ErrTypeAssertFailure, received, required)
 }

@@ -92,7 +92,7 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundTransf
 	if len(d) < 4 {
 		return nil, errStrategyCurrencyRequirements
 	}
-	var mfiFundEvents []mfiFundEvent
+	mfiFundEvents := make([]mfiFundEvent, 0, len(d))
 	var resp []signal.Event
 	for i := range d {
 		if d == nil {
@@ -107,7 +107,7 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundTransf
 
 		if offset <= int(s.mfiPeriod.IntPart()) {
 			es.AppendReason("Not enough data for signal generation")
-			es.SetDirection(common.DoNothing)
+			es.SetDirection(order.DoNothing)
 			resp = append(resp, &es)
 			continue
 		}
@@ -136,13 +136,13 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundTransf
 		mfi := indicators.MFI(massagedHighData, massagedLowData, massagedCloseData, massagedVolumeData, int(s.mfiPeriod.IntPart()))
 		latestMFI := decimal.NewFromFloat(mfi[len(mfi)-1])
 		if !d[i].HasDataAtTime(d[i].Latest().GetTime()) {
-			es.SetDirection(common.MissingData)
+			es.SetDirection(order.MissingData)
 			es.AppendReason(fmt.Sprintf("missing data at %v, cannot perform any actions. MFI %v", d[i].Latest().GetTime(), latestMFI))
 			resp = append(resp, &es)
 			continue
 		}
 
-		es.SetDirection(common.DoNothing)
+		es.SetDirection(order.DoNothing)
 		es.AppendReason(fmt.Sprintf("MFI at %v", latestMFI))
 
 		funds, err := f.GetFundingForEvent(&es)
@@ -183,7 +183,7 @@ func (s *Strategy) selectTopAndBottomPerformers(mfiFundEvents []mfiFundEvent, re
 		}
 	}
 	for i := range mfiFundEvents {
-		if buyingOrSelling && mfiFundEvents[i].event.GetDirection() == common.DoNothing {
+		if buyingOrSelling && mfiFundEvents[i].event.GetDirection() == order.DoNothing {
 			mfiFundEvents[i].event.AppendReason("MFI was not in the top or bottom two ranks")
 		}
 		resp = append(resp, mfiFundEvents[i].event)
@@ -233,7 +233,7 @@ func (s *Strategy) SetDefaults() {
 // the decision to handle missing data occurs at the strategy level, not all strategies
 // may wish to modify data
 func (s *Strategy) massageMissingData(data []decimal.Decimal, t time.Time) ([]float64, error) {
-	var resp []float64
+	resp := make([]float64, len(data))
 	var missingDataStreak int64
 	for i := range data {
 		if data[i].IsZero() && i > int(s.mfiPeriod.IntPart()) {
@@ -248,8 +248,7 @@ func (s *Strategy) massageMissingData(data []decimal.Decimal, t time.Time) ([]fl
 				t.Format(gctcommon.SimpleTimeFormat),
 				base.ErrTooMuchBadData)
 		}
-		d, _ := data[i].Float64()
-		resp = append(resp, d)
+		resp[i] = data[i].InexactFloat64()
 	}
 	return resp, nil
 }
