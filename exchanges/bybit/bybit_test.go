@@ -2285,6 +2285,61 @@ func TestSubmitOrder(t *testing.T) {
 			t.Error(err)
 		}
 	}
+
+	var oCMF = &order.Submit{
+		Pair: currency.Pair{
+			Delimiter: "-",
+			Base:      currency.BTC,
+			Quote:     currency.USD,
+		},
+		Side:      order.Buy,
+		Type:      order.Limit,
+		Price:     10000,
+		Amount:    1,
+		ClientID:  "newOrder",
+		AssetType: asset.CoinMarginedFutures,
+	}
+	_, err = b.SubmitOrder(context.Background(), oCMF)
+	if err == nil {
+		t.Error("SubmitOrder() Expected error")
+	}
+
+	var oUMF = &order.Submit{
+		Pair: currency.Pair{
+			Delimiter: "-",
+			Base:      currency.BTC,
+			Quote:     currency.USDT,
+		},
+		Side:      order.Buy,
+		Type:      order.Limit,
+		Price:     10000,
+		Amount:    1,
+		ClientID:  "newOrder",
+		AssetType: asset.USDTMarginedFutures,
+	}
+	_, err = b.SubmitOrder(context.Background(), oUMF)
+	if err == nil {
+		t.Error("SubmitOrder() Expected error")
+	}
+
+	pair, err := currency.NewPairFromString("BTCUSDH22")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var oFutures = &order.Submit{
+		Pair:      pair,
+		Side:      order.Buy,
+		Type:      order.Limit,
+		Price:     10000,
+		Amount:    1,
+		ClientID:  "newOrder",
+		AssetType: asset.Futures,
+	}
+	_, err = b.SubmitOrder(context.Background(), oFutures)
+	if err != nil {
+		t.Error(err)
+	}
 }
 
 func TestModifyOrder(t *testing.T) {
@@ -2317,6 +2372,19 @@ func TestCancelOrder(t *testing.T) {
 	}
 
 	err := b.CancelOrder(context.Background(), &order.Cancel{
+		AssetType: asset.Spot,
+		Pair: currency.Pair{
+			Delimiter: "-",
+			Base:      currency.BTC,
+			Quote:     currency.USD,
+		},
+		ID: "1234",
+	})
+	if err == nil {
+		t.Error("CancelOrder() Spot Expected error")
+	}
+
+	err = b.CancelOrder(context.Background(), &order.Cancel{
 		AssetType: asset.CoinMarginedFutures,
 		Pair: currency.Pair{
 			Delimiter: "-",
@@ -2326,9 +2394,37 @@ func TestCancelOrder(t *testing.T) {
 		ID: "1234",
 	})
 	if err == nil {
-		t.Error("CancelOrder() Expected error")
+		t.Error("CancelOrder() CMF Expected error")
+	}
+
+	err = b.CancelOrder(context.Background(), &order.Cancel{
+		AssetType: asset.USDTMarginedFutures,
+		Pair: currency.Pair{
+			Delimiter: "-",
+			Base:      currency.BTC,
+			Quote:     currency.USDT,
+		},
+		ID: "1234",
+	})
+	if err == nil {
+		t.Error("CancelOrder() USDT Expected error")
+	}
+
+	pair, err := currency.NewPairFromString("BTCUSDH22")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = b.CancelOrder(context.Background(), &order.Cancel{
+		AssetType: asset.Futures,
+		Pair:      pair,
+		ID:        "1234",
+	})
+	if err == nil {
+		t.Error("CancelOrder() Futures Expected error")
 	}
 }
+
 func TestCancelAllOrders(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
@@ -2374,7 +2470,35 @@ func TestGetOrderInfo(t *testing.T) {
 	_, err = b.GetOrderInfo(context.Background(),
 		"12234", pair, asset.Spot)
 	if err == nil {
-		t.Error("GetOrderInfo() Expected error")
+		t.Error("GetOrderInfo() Spot Expected error")
+	}
+
+	_, err = b.GetOrderInfo(context.Background(),
+		"12234", pair, asset.USDTMarginedFutures)
+	if err == nil {
+		t.Error("GetOrderInfo() USDT Expected error")
+	}
+
+	pair1, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = b.GetOrderInfo(context.Background(),
+		"12234", pair1, asset.CoinMarginedFutures)
+	if err == nil {
+		t.Error("GetOrderInfo() CMF Expected error")
+	}
+
+	pair2, err := currency.NewPairFromString("BTCUSDH22")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = b.GetOrderInfo(context.Background(),
+		"12234", pair2, asset.Futures)
+	if err == nil {
+		t.Error("GetOrderInfo() Futures Expected error")
 	}
 }
 

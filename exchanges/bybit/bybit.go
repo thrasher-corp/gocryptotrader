@@ -197,10 +197,10 @@ func (by *Bybit) GetKlines(ctx context.Context, symbol, period string, limit int
 	v.Add("symbol", symbol)
 	v.Add("interval", period)
 	if !start.IsZero() {
-		v.Add("start", strconv.FormatInt(start.UnixMilli(), 10))
+		v.Add("startTime", strconv.FormatInt(start.UnixMilli(), 10))
 	}
 	if !end.IsZero() {
-		v.Add("end", strconv.FormatInt(end.UnixMilli(), 10))
+		v.Add("endTime", strconv.FormatInt(end.UnixMilli(), 10))
 	}
 	if limit <= 0 || limit > 10000 {
 		limit = 1000
