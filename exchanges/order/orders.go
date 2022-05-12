@@ -467,7 +467,14 @@ func (d *Detail) GenerateInternalOrderID() {
 	}
 }
 
-// Copy will return a copy of Detail
+// CopyToPointer will return the address of a new copy of the order Detail
+// WARNING: DO NOT DEREFERENCE USE METHOD Copy().
+func (d *Detail) CopyToPointer() *Detail {
+	c := d.Copy()
+	return &c
+}
+
+// Copy makes a full copy of underlying details NOTE: This is Addressable.
 func (d *Detail) Copy() Detail {
 	c := *d
 	if len(d.Trades) > 0 {
@@ -475,6 +482,16 @@ func (d *Detail) Copy() Detail {
 		copy(c.Trades, d.Trades)
 	}
 	return c
+}
+
+// CopyPointerOrderSlice returns a copy of all order detail and returns a slice
+// of pointers.
+func CopyPointerOrderSlice(old []*Detail) []*Detail {
+	copySlice := make([]*Detail, len(old))
+	for x := range old {
+		copySlice[x] = old[x].CopyToPointer()
+	}
+	return copySlice
 }
 
 // DeriveCancel populates a cancel struct by the managed order details
