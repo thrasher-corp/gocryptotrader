@@ -19,6 +19,5 @@ type Base struct {
 	CurrencyPair   currency.Pair  `json:"pair"`
 	UnderlyingPair currency.Pair  `json:"underlying"`
 	AssetType      asset.Item     `json:"asset"`
-	Reason         string         `json:"reason"`
 	Reasons        []string       `json:"reasons"`
 }

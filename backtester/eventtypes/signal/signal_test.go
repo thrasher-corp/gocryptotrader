@@ -81,7 +81,7 @@ func TestSetAmount(t *testing.T) {
 func TestGetUnderlyingPair(t *testing.T) {
 	t.Parallel()
 	s := Signal{
-		Base: event.Base{
+		Base: &event.Base{
 			UnderlyingPair: currency.NewPair(currency.USD, currency.DOGE),
 		},
 	}
@@ -93,7 +93,7 @@ func TestGetUnderlyingPair(t *testing.T) {
 func TestPair(t *testing.T) {
 	t.Parallel()
 	s := Signal{
-		Base: event.Base{
+		Base: &event.Base{
 			CurrencyPair: currency.NewPair(currency.USD, currency.DOGE),
 		},
 	}
@@ -139,6 +139,18 @@ func TestIsNil(t *testing.T) {
 	}
 	s = nil
 	if !s.IsNil() {
+		t.Error("expected true")
+	}
+}
+
+func TestMatchOrderAmount(t *testing.T) {
+	t.Parallel()
+	s := &Signal{}
+	if s.MatchOrderAmount() {
+		t.Error("expected false")
+	}
+	s.MatchesOrderAmount = true
+	if !s.MatchOrderAmount() {
 		t.Error("expected true")
 	}
 }

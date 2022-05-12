@@ -25,7 +25,7 @@ const (
 	testExchange = "ftx"
 	dca          = "dollarcostaverage"
 	// change this if you modify a config and want it to save to the example folder
-	saveConfig = !false
+	saveConfig = false
 )
 
 var (

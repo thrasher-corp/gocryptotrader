@@ -46,7 +46,7 @@ func (s *Statistic) SetupEventForTime(ev common.DataEventHandler) error {
 		}
 	}
 	lookup.Events = append(lookup.Events,
-		&DataAtOffset{
+		DataAtOffset{
 			DataEvent: ev,
 			Offset:    ev.GetOffset(),
 			Time:      ev.GetTime(),

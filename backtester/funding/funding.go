@@ -84,9 +84,19 @@ func CreateItem(exch string, a asset.Item, ci currency.Code, initialFunds, trans
 // LinkCollateralCurrency links an item to an existing currency code
 // for collateral purposes
 func (f *FundManager) LinkCollateralCurrency(item *Item, code currency.Code) error {
+	if item == nil {
+		return fmt.Errorf("%w missing item", common.ErrNilArguments)
+	}
+	if code.IsEmpty() {
+		return fmt.Errorf("%w unset currency", common.ErrNilArguments)
+	}
 	if !item.asset.IsFutures() {
 		return errNotFutures
 	}
+	if item.pairedWith != nil {
+		return fmt.Errorf("%w item already paired with %v", ErrAlreadyExists, item.pairedWith.currency)
+	}
+
 	for i := range f.items {
 		if f.items[i].currency.Equal(code) && f.items[i].asset == item.asset {
 			item.pairedWith = f.items[i]

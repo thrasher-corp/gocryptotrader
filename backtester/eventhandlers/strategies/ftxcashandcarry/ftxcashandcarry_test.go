@@ -114,7 +114,7 @@ func TestSortSignals(t *testing.T) {
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	d := data.Base{}
 	d.SetStream([]common.DataEventHandler{&eventkline.Kline{
-		Base: event.Base{
+		Base: &event.Base{
 			Exchange:     exch,
 			Time:         dInsert,
 			Interval:     gctkline.OneDay,
@@ -140,7 +140,7 @@ func TestSortSignals(t *testing.T) {
 
 	d2 := data.Base{}
 	d2.SetStream([]common.DataEventHandler{&eventkline.Kline{
-		Base: event.Base{
+		Base: &event.Base{
 			Exchange:       exch,
 			Time:           dInsert,
 			Interval:       gctkline.OneDay,
@@ -176,7 +176,7 @@ func TestCreateSignals(t *testing.T) {
 	}
 
 	spotSignal := &signal.Signal{
-		Base: event.Base{AssetType: asset.Spot},
+		Base: &event.Base{AssetType: asset.Spot},
 	}
 	_, err = s.createSignals(nil, spotSignal, nil, decimal.Zero, false)
 	if !errors.Is(err, expectedError) {
@@ -186,7 +186,7 @@ func TestCreateSignals(t *testing.T) {
 	// case len(pos) == 0:
 	expectedError = nil
 	futuresSignal := &signal.Signal{
-		Base: event.Base{AssetType: asset.Futures},
+		Base: &event.Base{AssetType: asset.Futures},
 	}
 	resp, err := s.createSignals(nil, spotSignal, futuresSignal, decimal.Zero, false)
 	if !errors.Is(err, expectedError) {
@@ -334,7 +334,7 @@ func TestOnSimultaneousSignals(t *testing.T) {
 	}
 	tt := time.Now()
 	d.SetStream([]common.DataEventHandler{&eventkline.Kline{
-		Base: event.Base{
+		Base: &event.Base{
 			Exchange:     exchangeName,
 			Time:         tt,
 			Interval:     gctkline.OneDay,
@@ -376,7 +376,7 @@ func TestOnSimultaneousSignals(t *testing.T) {
 		},
 	}
 	d2.SetStream([]common.DataEventHandler{&eventkline.Kline{
-		Base: event.Base{
+		Base: &event.Base{
 			Exchange:       exchangeName,
 			Time:           tt,
 			Interval:       gctkline.OneDay,

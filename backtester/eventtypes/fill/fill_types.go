@@ -10,7 +10,7 @@ import (
 
 // Fill is an event that details the events from placing an order
 type Fill struct {
-	event.Base
+	*event.Base
 	Direction           order.Side      `json:"side"`
 	Amount              decimal.Decimal `json:"amount"`
 	ClosePrice          decimal.Decimal `json:"close-price"`

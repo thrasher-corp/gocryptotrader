@@ -51,7 +51,7 @@ func TestOpen(t *testing.T) {
 func TestGetUnderlyingPair(t *testing.T) {
 	t.Parallel()
 	k := Kline{
-		Base: event.Base{
+		Base: &event.Base{
 			UnderlyingPair: currency.NewPair(currency.USD, currency.DOGE),
 		},
 	}

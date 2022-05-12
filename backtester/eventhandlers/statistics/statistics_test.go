@@ -55,7 +55,7 @@ func TestAddDataEventForTime(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
 	}
 	err = s.SetupEventForTime(&kline.Kline{
-		Base: event.Base{
+		Base: &event.Base{
 			Exchange:     exch,
 			Time:         tt,
 			Interval:     gctkline.OneDay,
@@ -96,19 +96,20 @@ func TestAddSignalEventForTime(t *testing.T) {
 	}
 	s.setupMap(exch, a)
 	s.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*CurrencyPairStatistic)
-	err = s.SetEventForOffset(&signal.Signal{})
+	b := &event.Base{}
+	err = s.SetEventForOffset(&signal.Signal{
+		Base: b,
+	})
 	if !errors.Is(err, errCurrencyStatisticsUnset) {
 		t.Errorf("received: %v, expected: %v", err, errCurrencyStatisticsUnset)
 	}
-
+	b.Exchange = exch
+	b.Time = tt
+	b.Interval = gctkline.OneDay
+	b.CurrencyPair = p
+	b.AssetType = a
 	err = s.SetupEventForTime(&kline.Kline{
-		Base: event.Base{
-			Exchange:     exch,
-			Time:         tt,
-			Interval:     gctkline.OneDay,
-			CurrencyPair: p,
-			AssetType:    a,
-		},
+		Base:   b,
 		Open:   eleet,
 		Close:  eleet,
 		Low:    eleet,
@@ -119,13 +120,7 @@ func TestAddSignalEventForTime(t *testing.T) {
 		t.Error(err)
 	}
 	err = s.SetEventForOffset(&signal.Signal{
-		Base: event.Base{
-			Exchange:     exch,
-			Time:         tt,
-			Interval:     gctkline.OneDay,
-			CurrencyPair: p,
-			AssetType:    a,
-		},
+		Base:       b,
 		ClosePrice: eleet,
 		Direction:  gctorder.Buy,
 	})
@@ -151,19 +146,20 @@ func TestAddExchangeEventForTime(t *testing.T) {
 	}
 	s.setupMap(exch, a)
 	s.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*CurrencyPairStatistic)
-	err = s.SetEventForOffset(&order.Order{})
+	b := &event.Base{}
+	err = s.SetEventForOffset(&order.Order{
+		Base: b,
+	})
 	if !errors.Is(err, errCurrencyStatisticsUnset) {
 		t.Errorf("received: %v, expected: %v", err, errCurrencyStatisticsUnset)
 	}
-
+	b.Exchange = exch
+	b.Time = tt
+	b.Interval = gctkline.OneDay
+	b.CurrencyPair = p
+	b.AssetType = a
 	err = s.SetupEventForTime(&kline.Kline{
-		Base: event.Base{
-			Exchange:     exch,
-			Time:         tt,
-			Interval:     gctkline.OneDay,
-			CurrencyPair: p,
-			AssetType:    a,
-		},
+		Base:   b,
 		Open:   eleet,
 		Close:  eleet,
 		Low:    eleet,
@@ -174,13 +170,7 @@ func TestAddExchangeEventForTime(t *testing.T) {
 		t.Error(err)
 	}
 	err = s.SetEventForOffset(&order.Order{
-		Base: event.Base{
-			Exchange:     exch,
-			Time:         tt,
-			Interval:     gctkline.OneDay,
-			CurrencyPair: p,
-			AssetType:    a,
-		},
+		Base:       b,
 		ID:         "elite",
 		Direction:  gctorder.Buy,
 		Status:     gctorder.New,
@@ -211,19 +201,22 @@ func TestAddFillEventForTime(t *testing.T) {
 	}
 	s.setupMap(exch, a)
 	s.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*CurrencyPairStatistic)
-	err = s.SetEventForOffset(&fill.Fill{})
+	b := &event.Base{}
+	err = s.SetEventForOffset(&fill.Fill{
+		Base: b,
+	})
 	if !errors.Is(err, errCurrencyStatisticsUnset) {
 		t.Errorf("received: %v, expected: %v", err, errCurrencyStatisticsUnset)
 	}
 
+	b.Exchange = exch
+	b.Time = tt
+	b.Interval = gctkline.OneDay
+	b.CurrencyPair = p
+	b.AssetType = a
+
 	err = s.SetupEventForTime(&kline.Kline{
-		Base: event.Base{
-			Exchange:     exch,
-			Time:         tt,
-			Interval:     gctkline.OneDay,
-			CurrencyPair: p,
-			AssetType:    a,
-		},
+		Base:   b,
 		Open:   eleet,
 		Close:  eleet,
 		Low:    eleet,
@@ -234,13 +227,7 @@ func TestAddFillEventForTime(t *testing.T) {
 		t.Error(err)
 	}
 	err = s.SetEventForOffset(&fill.Fill{
-		Base: event.Base{
-			Exchange:     exch,
-			Time:         tt,
-			Interval:     gctkline.OneDay,
-			CurrencyPair: p,
-			AssetType:    a,
-		},
+		Base:                b,
 		Direction:           gctorder.Buy,
 		Amount:              eleet,
 		ClosePrice:          eleet,
@@ -272,7 +259,7 @@ func TestAddHoldingsForTime(t *testing.T) {
 	}
 
 	err = s.SetupEventForTime(&kline.Kline{
-		Base: event.Base{
+		Base: &event.Base{
 			Exchange:     exch,
 			Time:         tt,
 			Interval:     gctkline.OneDay,
@@ -335,19 +322,18 @@ func TestAddComplianceSnapshotForTime(t *testing.T) {
 	}
 	s.setupMap(exch, a)
 	s.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*CurrencyPairStatistic)
-	err = s.AddComplianceSnapshotForTime(compliance.Snapshot{}, &fill.Fill{})
+	b := &event.Base{}
+	err = s.AddComplianceSnapshotForTime(compliance.Snapshot{}, &fill.Fill{Base: b})
 	if !errors.Is(err, errCurrencyStatisticsUnset) {
 		t.Errorf("received: %v, expected: %v", err, errCurrencyStatisticsUnset)
 	}
-
+	b.Exchange = exch
+	b.Time = tt
+	b.Interval = gctkline.OneDay
+	b.CurrencyPair = p
+	b.AssetType = a
 	err = s.SetupEventForTime(&kline.Kline{
-		Base: event.Base{
-			Exchange:     exch,
-			Time:         tt,
-			Interval:     gctkline.OneDay,
-			CurrencyPair: p,
-			AssetType:    a,
-		},
+		Base:   b,
 		Open:   eleet,
 		Close:  eleet,
 		Low:    eleet,
@@ -360,13 +346,7 @@ func TestAddComplianceSnapshotForTime(t *testing.T) {
 	err = s.AddComplianceSnapshotForTime(compliance.Snapshot{
 		Timestamp: tt,
 	}, &fill.Fill{
-		Base: event.Base{
-			Exchange:     exch,
-			Time:         tt,
-			Interval:     gctkline.OneDay,
-			CurrencyPair: p,
-			AssetType:    a,
-		},
+		Base: b,
 	})
 	if err != nil {
 		t.Error(err)
@@ -517,7 +497,7 @@ func TestPrintAllEventsChronologically(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
 	}
 	err = s.SetupEventForTime(&kline.Kline{
-		Base: event.Base{
+		Base: &event.Base{
 			Exchange:     exch,
 			Time:         tt,
 			Interval:     gctkline.OneDay,
@@ -535,7 +515,7 @@ func TestPrintAllEventsChronologically(t *testing.T) {
 	}
 
 	err = s.SetEventForOffset(&fill.Fill{
-		Base: event.Base{
+		Base: &event.Base{
 			Exchange:     exch,
 			Time:         tt,
 			Interval:     gctkline.OneDay,
@@ -555,7 +535,7 @@ func TestPrintAllEventsChronologically(t *testing.T) {
 	}
 
 	err = s.SetEventForOffset(&signal.Signal{
-		Base: event.Base{
+		Base: &event.Base{
 			Exchange:     exch,
 			Time:         tt,
 			Interval:     gctkline.OneDay,
@@ -591,7 +571,7 @@ func TestCalculateTheResults(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
 	}
 	err = s.SetupEventForTime(&kline.Kline{
-		Base: event.Base{
+		Base: &event.Base{
 			Exchange:     exch,
 			Time:         tt,
 			Interval:     gctkline.OneDay,
@@ -609,7 +589,7 @@ func TestCalculateTheResults(t *testing.T) {
 		t.Error(err)
 	}
 	err = s.SetEventForOffset(&signal.Signal{
-		Base: event.Base{
+		Base: &event.Base{
 			Exchange:     exch,
 			Time:         tt,
 			Interval:     gctkline.OneDay,
@@ -628,7 +608,7 @@ func TestCalculateTheResults(t *testing.T) {
 		t.Error(err)
 	}
 	err = s.SetupEventForTime(&kline.Kline{
-		Base: event.Base{
+		Base: &event.Base{
 			Exchange:     exch,
 			Time:         tt,
 			Interval:     gctkline.OneDay,
@@ -647,7 +627,7 @@ func TestCalculateTheResults(t *testing.T) {
 	}
 
 	err = s.SetEventForOffset(&signal.Signal{
-		Base: event.Base{
+		Base: &event.Base{
 			Exchange:     exch,
 			Time:         tt,
 			Interval:     gctkline.OneDay,
@@ -667,7 +647,7 @@ func TestCalculateTheResults(t *testing.T) {
 	}
 
 	err = s.SetupEventForTime(&kline.Kline{
-		Base: event.Base{
+		Base: &event.Base{
 			Exchange:     exch,
 			Time:         tt2,
 			Interval:     gctkline.OneDay,
@@ -685,7 +665,7 @@ func TestCalculateTheResults(t *testing.T) {
 		t.Error(err)
 	}
 	err = s.SetEventForOffset(&signal.Signal{
-		Base: event.Base{
+		Base: &event.Base{
 			Exchange:     exch,
 			Time:         tt2,
 			Interval:     gctkline.OneDay,
@@ -705,7 +685,7 @@ func TestCalculateTheResults(t *testing.T) {
 	}
 
 	err = s.SetupEventForTime(&kline.Kline{
-		Base: event.Base{
+		Base: &event.Base{
 			Exchange:     exch,
 			Time:         tt2,
 			Interval:     gctkline.OneDay,
@@ -723,7 +703,7 @@ func TestCalculateTheResults(t *testing.T) {
 		t.Error(err)
 	}
 	err = s.SetEventForOffset(&signal.Signal{
-		Base: event.Base{
+		Base: &event.Base{
 			Exchange:     exch,
 			Time:         tt2,
 			Interval:     gctkline.OneDay,
@@ -821,7 +801,7 @@ func TestCalculateBiggestEventDrawdown(t *testing.T) {
 	var events []common.DataEventHandler
 	for i := int64(0); i < 100; i++ {
 		tt1 = tt1.Add(gctkline.OneDay.Duration())
-		even := event.Base{
+		even := &event.Base{
 			Exchange:     exch,
 			Time:         tt1,
 			Interval:     gctkline.OneDay,
@@ -847,7 +827,7 @@ func TestCalculateBiggestEventDrawdown(t *testing.T) {
 	}
 
 	tt1 = tt1.Add(gctkline.OneDay.Duration())
-	even := event.Base{
+	even := &event.Base{
 		Exchange:     exch,
 		Time:         tt1,
 		Interval:     gctkline.OneDay,
@@ -862,7 +842,7 @@ func TestCalculateBiggestEventDrawdown(t *testing.T) {
 	})
 
 	tt1 = tt1.Add(gctkline.OneDay.Duration())
-	even = event.Base{
+	even = &event.Base{
 		Exchange:     exch,
 		Time:         tt1,
 		Interval:     gctkline.OneDay,
@@ -877,7 +857,7 @@ func TestCalculateBiggestEventDrawdown(t *testing.T) {
 	})
 
 	tt1 = tt1.Add(gctkline.OneDay.Duration())
-	even = event.Base{
+	even = &event.Base{
 		Exchange:     exch,
 		Time:         tt1,
 		Interval:     gctkline.OneDay,
@@ -907,7 +887,7 @@ func TestCalculateBiggestEventDrawdown(t *testing.T) {
 	// bogus scenario
 	bogusEvent := []common.DataEventHandler{
 		&kline.Kline{
-			Base: event.Base{
+			Base: &event.Base{
 				Exchange:     exch,
 				CurrencyPair: p,
 				AssetType:    a,

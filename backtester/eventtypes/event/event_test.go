@@ -10,22 +10,22 @@ import (
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
-func TestEvent_GetReason(t *testing.T) {
+func TestGetConcatReasons(t *testing.T) {
 	t.Parallel()
 	e := &Base{}
 	e.AppendReason("test")
-	y := e.GetReason()
+	y := e.GetConcatReasons()
 	if !strings.Contains(y, "test") {
 		t.Error("expected test")
 	}
 	e.AppendReason("test")
-	y = e.GetReason()
+	y = e.GetConcatReasons()
 	if y != "test. test" {
 		t.Error("expected 'test. test'")
 	}
 }
 
-func TestEvent_GetReasons(t *testing.T) {
+func TestGetReasons(t *testing.T) {
 	t.Parallel()
 	e := &Base{}
 	e.AppendReason("test")
@@ -40,7 +40,7 @@ func TestEvent_GetReasons(t *testing.T) {
 	}
 }
 
-func TestEvent_GetAssetType(t *testing.T) {
+func TestGetAssetType(t *testing.T) {
 	t.Parallel()
 	e := &Base{
 		AssetType: asset.Spot,
@@ -50,7 +50,7 @@ func TestEvent_GetAssetType(t *testing.T) {
 	}
 }
 
-func TestEvent_GetExchange(t *testing.T) {
+func TestGetExchange(t *testing.T) {
 	t.Parallel()
 	e := &Base{
 		Exchange: "test",
@@ -60,7 +60,7 @@ func TestEvent_GetExchange(t *testing.T) {
 	}
 }
 
-func TestEvent_GetInterval(t *testing.T) {
+func TestGetInterval(t *testing.T) {
 	t.Parallel()
 	e := &Base{
 		Interval: gctkline.OneMin,
@@ -70,7 +70,7 @@ func TestEvent_GetInterval(t *testing.T) {
 	}
 }
 
-func TestEvent_GetTime(t *testing.T) {
+func TestGetTime(t *testing.T) {
 	t.Parallel()
 	tt := time.Now()
 	e := &Base{
@@ -82,7 +82,7 @@ func TestEvent_GetTime(t *testing.T) {
 	}
 }
 
-func TestEvent_IsEvent(t *testing.T) {
+func TestIsEvent(t *testing.T) {
 	t.Parallel()
 	e := &Base{}
 	if y := e.IsEvent(); !y {
@@ -90,7 +90,7 @@ func TestEvent_IsEvent(t *testing.T) {
 	}
 }
 
-func TestEvent_Pair(t *testing.T) {
+func TestPair(t *testing.T) {
 	t.Parallel()
 	e := &Base{
 		CurrencyPair: currency.NewPair(currency.BTC, currency.USDT),
@@ -126,11 +126,31 @@ func TestAppendReasonf(t *testing.T) {
 	t.Parallel()
 	b := Base{}
 	b.AppendReasonf("%v", "hello moto")
-	if b.Reason != "hello moto" {
-		t.Errorf("epected hello moto, received '%v'", b.Reason)
+	if b.GetConcatReasons() != "hello moto" {
+		t.Errorf("expected hello moto, received '%v'", b.GetConcatReasons())
 	}
 	b.AppendReasonf("%v %v", "hello", "moto")
-	if b.Reason != "hello moto. hello moto" {
-		t.Errorf("epected 'hello moto. hello moto', received '%v'", b.Reason)
+	if b.GetConcatReasons() != "hello moto. hello moto" {
+		t.Errorf("expected 'hello moto. hello moto', received '%v'", b.GetConcatReasons())
+	}
+}
+
+func TestGetBase(t *testing.T) {
+	t.Parallel()
+	b1 := &Base{
+		Exchange: "hello",
+	}
+	if b1.Exchange != b1.GetBase().Exchange {
+		t.Errorf("expected '%v' received '%v'", b1.Exchange, b1.GetBase().Exchange)
+	}
+}
+
+func TestGetUnderlyingPair(t *testing.T) {
+	t.Parallel()
+	b1 := &Base{
+		UnderlyingPair: currency.NewPair(currency.BTC, currency.USDT),
+	}
+	if !b1.UnderlyingPair.Equal(b1.GetUnderlyingPair()) {
+		t.Errorf("expected '%v' received '%v'", b1.UnderlyingPair, b1.GetUnderlyingPair())
 	}
 }

@@ -94,7 +94,7 @@ func (s *Statistic) PrintAllEventsChronologically() {
 								fSIL(currencyStatistic.Events[i].FillEvent.Pair().String(), limit14),
 								currencyStatistic.Events[i].FillEvent.GetClosePrice().Round(8),
 								currencyStatistic.Events[i].FillEvent.GetDirection())
-							msg = addReason(currencyStatistic.Events[i].FillEvent.GetReason(), msg)
+							msg = addReason(currencyStatistic.Events[i].FillEvent.GetConcatReasons(), msg)
 							msg += common.ColourDefault
 							results = addEventOutputToTime(results, currencyStatistic.Events[i].FillEvent.GetTime(), msg)
 						} else {
@@ -114,7 +114,7 @@ func (s *Statistic) PrintAllEventsChronologically() {
 								currencyStatistic.Events[i].FillEvent.GetAmount().Round(8),
 								currencyStatistic.Events[i].FillEvent.GetExchangeFee(),
 								currencyStatistic.Events[i].FillEvent.GetTotal().Round(8))
-							msg = addReason(currencyStatistic.Events[i].FillEvent.GetReason(), msg)
+							msg = addReason(currencyStatistic.Events[i].FillEvent.GetConcatReasons(), msg)
 							msg += common.ColourDefault
 							results = addEventOutputToTime(results, currencyStatistic.Events[i].FillEvent.GetTime(), msg)
 						}
@@ -125,7 +125,7 @@ func (s *Statistic) PrintAllEventsChronologically() {
 							fSIL(a.String(), limit10),
 							fSIL(currencyStatistic.Events[i].SignalEvent.Pair().String(), limit14),
 							currencyStatistic.Events[i].SignalEvent.GetClosePrice().Round(8))
-						msg = addReason(currencyStatistic.Events[i].SignalEvent.GetReason(), msg)
+						msg = addReason(currencyStatistic.Events[i].SignalEvent.GetConcatReasons(), msg)
 						msg += common.ColourDefault
 						results = addEventOutputToTime(results, currencyStatistic.Events[i].SignalEvent.GetTime(), msg)
 					case currencyStatistic.Events[i].DataEvent != nil:
@@ -135,7 +135,7 @@ func (s *Statistic) PrintAllEventsChronologically() {
 							fSIL(a.String(), limit10),
 							fSIL(currencyStatistic.Events[i].DataEvent.Pair().String(), limit14),
 							currencyStatistic.Events[i].DataEvent.GetClosePrice().Round(8))
-						msg = addReason(currencyStatistic.Events[i].DataEvent.GetReason(), msg)
+						msg = addReason(currencyStatistic.Events[i].DataEvent.GetConcatReasons(), msg)
 						msg += common.ColourDefault
 						results = addEventOutputToTime(results, currencyStatistic.Events[i].DataEvent.GetTime(), msg)
 					default:

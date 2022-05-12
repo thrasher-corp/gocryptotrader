@@ -645,7 +645,7 @@ func (p *Portfolio) CreateLiquidationOrdersForExchange(ev common.DataEventHandle
 					direction = gctorder.Long
 				}
 				closingOrders = append(closingOrders, &order.Order{
-					Base: event.Base{
+					Base: &event.Base{
 						Offset:         ev.GetOffset(),
 						Exchange:       pos.Exchange,
 						Time:           ev.GetTime(),
@@ -653,7 +653,7 @@ func (p *Portfolio) CreateLiquidationOrdersForExchange(ev common.DataEventHandle
 						CurrencyPair:   pos.Pair,
 						UnderlyingPair: ev.GetUnderlyingPair(),
 						AssetType:      pos.Asset,
-						Reason:         "LIQUIDATED",
+						Reasons:        []string{"LIQUIDATED"},
 					},
 					Direction:           direction,
 					Status:              gctorder.Liquidated,
@@ -675,14 +675,14 @@ func (p *Portfolio) CreateLiquidationOrdersForExchange(ev common.DataEventHandle
 						continue
 					}
 					closingOrders = append(closingOrders, &order.Order{
-						Base: event.Base{
+						Base: &event.Base{
 							Offset:       ev.GetOffset(),
 							Exchange:     ev.GetExchange(),
 							Time:         ev.GetTime(),
 							Interval:     ev.GetInterval(),
 							CurrencyPair: pair,
 							AssetType:    item,
-							Reason:       "LIQUIDATED",
+							Reasons:      []string{"LIQUIDATED"},
 						},
 						Direction:           gctorder.Sell,
 						Status:              gctorder.Liquidated,

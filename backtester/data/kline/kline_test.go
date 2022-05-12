@@ -140,7 +140,7 @@ func TestStreamOpen(t *testing.T) {
 	}
 	d.SetStream([]common.DataEventHandler{
 		&kline.Kline{
-			Base: event.Base{
+			Base: &event.Base{
 				Exchange:     exch,
 				Time:         time.Now(),
 				Interval:     gctkline.OneDay,
@@ -171,7 +171,7 @@ func TestStreamVolume(t *testing.T) {
 	}
 	d.SetStream([]common.DataEventHandler{
 		&kline.Kline{
-			Base: event.Base{
+			Base: &event.Base{
 				Exchange:     exch,
 				Time:         time.Now(),
 				Interval:     gctkline.OneDay,
@@ -202,7 +202,7 @@ func TestStreamClose(t *testing.T) {
 	}
 	d.SetStream([]common.DataEventHandler{
 		&kline.Kline{
-			Base: event.Base{
+			Base: &event.Base{
 				Exchange:     exch,
 				Time:         time.Now(),
 				Interval:     gctkline.OneDay,
@@ -233,7 +233,7 @@ func TestStreamHigh(t *testing.T) {
 	}
 	d.SetStream([]common.DataEventHandler{
 		&kline.Kline{
-			Base: event.Base{
+			Base: &event.Base{
 				Exchange:     exch,
 				Time:         time.Now(),
 				Interval:     gctkline.OneDay,
@@ -266,7 +266,7 @@ func TestStreamLow(t *testing.T) {
 	}
 	d.SetStream([]common.DataEventHandler{
 		&kline.Kline{
-			Base: event.Base{
+			Base: &event.Base{
 				Exchange:     exch,
 				Time:         time.Now(),
 				Interval:     gctkline.OneDay,

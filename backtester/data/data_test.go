@@ -129,7 +129,7 @@ func TestGetDataForCurrency(t *testing.T) {
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	d.SetDataForCurrency(testExchange, a, p, nil)
 	d.SetDataForCurrency(testExchange, a, currency.NewPair(currency.BTC, currency.DOGE), nil)
-	ev := &order.Order{Base: event.Base{
+	ev := &order.Order{Base: &event.Base{
 		Exchange:     testExchange,
 		AssetType:    a,
 		CurrencyPair: p,
@@ -147,7 +147,7 @@ func TestGetDataForCurrency(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, common.ErrNilEvent)
 	}
 
-	_, err = d.GetDataForCurrency(&order.Order{Base: event.Base{
+	_, err = d.GetDataForCurrency(&order.Order{Base: &event.Base{
 		Exchange:     "lol",
 		AssetType:    asset.USDTMarginedFutures,
 		CurrencyPair: currency.NewPair(currency.EMB, currency.DOGE),
@@ -156,7 +156,7 @@ func TestGetDataForCurrency(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, ErrHandlerNotFound)
 	}
 
-	_, err = d.GetDataForCurrency(&order.Order{Base: event.Base{
+	_, err = d.GetDataForCurrency(&order.Order{Base: &event.Base{
 		Exchange:     testExchange,
 		AssetType:    asset.USDTMarginedFutures,
 		CurrencyPair: currency.NewPair(currency.EMB, currency.DOGE),
@@ -181,62 +181,74 @@ func TestReset(t *testing.T) {
 }
 
 // methods that satisfy the common.DataEventHandler interface
-func (t fakeDataHandler) GetOffset() int64 {
+func (f fakeDataHandler) GetOffset() int64 {
 	return 4
 }
 
-func (t fakeDataHandler) SetOffset(int64) {
+func (f fakeDataHandler) SetOffset(int64) {
 }
 
-func (t fakeDataHandler) IsEvent() bool {
+func (f fakeDataHandler) IsEvent() bool {
 	return false
 }
 
-func (t fakeDataHandler) GetTime() time.Time {
-	return time.Now().Add(time.Hour * time.Duration(t.time))
+func (f fakeDataHandler) GetTime() time.Time {
+	return time.Now().Add(time.Hour * time.Duration(f.time))
 }
 
-func (t fakeDataHandler) Pair() currency.Pair {
+func (f fakeDataHandler) Pair() currency.Pair {
 	return currency.NewPair(currency.BTC, currency.USD)
 }
 
-func (t fakeDataHandler) GetExchange() string {
+func (f fakeDataHandler) GetExchange() string {
 	return "fake"
 }
 
-func (t fakeDataHandler) GetInterval() kline.Interval {
+func (f fakeDataHandler) GetInterval() kline.Interval {
 	return kline.Interval(time.Minute)
 }
 
-func (t fakeDataHandler) GetAssetType() asset.Item {
+func (f fakeDataHandler) GetAssetType() asset.Item {
 	return asset.Spot
 }
 
-func (t fakeDataHandler) GetReason() string {
+func (f fakeDataHandler) GetReason() string {
 	return "fake"
 }
 
-func (t fakeDataHandler) AppendReason(string) {
+func (f fakeDataHandler) AppendReason(string) {
 }
 
-func (t fakeDataHandler) GetClosePrice() decimal.Decimal {
+func (f fakeDataHandler) GetClosePrice() decimal.Decimal {
 	return decimal.Zero
 }
 
-func (t fakeDataHandler) GetHighPrice() decimal.Decimal {
+func (f fakeDataHandler) GetHighPrice() decimal.Decimal {
 	return decimal.Zero
 }
 
-func (t fakeDataHandler) GetLowPrice() decimal.Decimal {
+func (f fakeDataHandler) GetLowPrice() decimal.Decimal {
 	return decimal.Zero
 }
 
-func (t fakeDataHandler) GetOpenPrice() decimal.Decimal {
+func (f fakeDataHandler) GetOpenPrice() decimal.Decimal {
 	return decimal.Zero
 }
 
-func (t fakeDataHandler) GetUnderlyingPair() currency.Pair {
-	return t.Pair()
+func (f fakeDataHandler) GetUnderlyingPair() currency.Pair {
+	return f.Pair()
 }
 
-func (t fakeDataHandler) AppendReasonf(s string, i ...interface{}) {}
+func (f fakeDataHandler) AppendReasonf(s string, i ...interface{}) {}
+
+func (f fakeDataHandler) GetBase() *event.Base {
+	return &event.Base{}
+}
+
+func (f fakeDataHandler) GetConcatReasons() string {
+	return ""
+}
+
+func (f fakeDataHandler) GetReasons() []string {
+	return nil
+}

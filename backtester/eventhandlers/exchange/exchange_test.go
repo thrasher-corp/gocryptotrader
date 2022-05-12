@@ -171,7 +171,9 @@ func TestPlaceOrder(t *testing.T) {
 	if !errors.Is(err, common.ErrNilEvent) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
 	}
-	f := &fill.Fill{}
+	f := &fill.Fill{
+		Base: &event.Base{},
+	}
 	_, err = e.placeOrder(context.Background(), decimal.NewFromInt(1), decimal.NewFromInt(1), false, true, f, bot.OrderManager)
 	if !errors.Is(err, engine.ErrExchangeNameIsEmpty) {
 		t.Errorf("received: %v, expected: %v", err, engine.ErrExchangeNameIsEmpty)
@@ -244,7 +246,7 @@ func TestExecuteOrder(t *testing.T) {
 		MaximumSlippageRate: decimal.NewFromInt(1),
 	}
 	e := Exchange{}
-	ev := event.Base{
+	ev := &event.Base{
 		Exchange:     testExchange,
 		Time:         time.Now(),
 		Interval:     gctkline.FifteenMin,
@@ -362,7 +364,7 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 	e := Exchange{
 		CurrencySettings: []Settings{cs},
 	}
-	ev := event.Base{
+	ev := &event.Base{
 		Exchange:     testExchange,
 		Time:         time.Now(),
 		Interval:     gctkline.FifteenMin,
@@ -529,6 +531,7 @@ func TestVerifyOrderWithinLimits(t *testing.T) {
 			MaximumSize: decimal.NewFromInt(1),
 		},
 	}
+	f.Base = &event.Base{}
 	err = verifyOrderWithinLimits(f, decimal.NewFromFloat(0.5), s)
 	if !errors.Is(err, errExceededPortfolioLimit) {
 		t.Errorf("received %v expected %v", err, errExceededPortfolioLimit)
@@ -565,7 +568,7 @@ func TestAllocateFundsPostOrder(t *testing.T) {
 
 	expectedError = common.ErrNilArguments
 	f := &fill.Fill{
-		Base: event.Base{
+		Base: &event.Base{
 			AssetType: asset.Spot,
 		},
 		Direction: gctorder.Buy,
@@ -597,6 +600,7 @@ func TestAllocateFundsPostOrder(t *testing.T) {
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
+	f.Order = &gctorder.Detail{}
 	err = allocateFundsPostOrder(f, fundPair, nil, one, one, one, one)
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)

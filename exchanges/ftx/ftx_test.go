@@ -1850,7 +1850,7 @@ func TestScaleCollateral(t *testing.T) {
 					CalculateOffline:   true,
 				})
 			if !errors.Is(err, order.ErrUSDValueRequired) {
-				t.Errorf("received '%v' exepected '%v'", err, order.ErrUSDValueRequired)
+				t.Errorf("received '%v' expected '%v'", err, order.ErrUSDValueRequired)
 			}
 
 			_, err = f.ScaleCollateral(

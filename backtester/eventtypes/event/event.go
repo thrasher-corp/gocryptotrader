@@ -57,7 +57,6 @@ func (b *Base) GetInterval() kline.Interval {
 
 // AppendReason adds reasoning for a decision being made
 func (b *Base) AppendReason(y string) {
-	b.Reason += y + ". "
 	b.Reasons = append(b.Reasons, y)
 }
 
@@ -65,13 +64,12 @@ func (b *Base) AppendReason(y string) {
 // but with formatting
 func (b *Base) AppendReasonf(y string, addons ...interface{}) {
 	y = fmt.Sprintf(y, addons...)
-	b.Reason += y + ". "
 	b.Reasons = append(b.Reasons, y)
 }
 
-// GetReason returns the why
-func (b *Base) GetReason() string {
-	return b.Reason
+// GetConcatReasons returns the why
+func (b *Base) GetConcatReasons() string {
+	return strings.Join(b.Reasons, ". ")
 }
 
 // GetReasons returns each individual reason
@@ -79,6 +77,6 @@ func (b *Base) GetReasons() []string {
 	return b.Reasons
 }
 
-func (b *Base) GetBase() Base {
-	return *b
+func (b *Base) GetBase() *Base {
+	return b
 }

@@ -62,9 +62,8 @@ func (s *Size) SizeOrder(o order.Event, amountAvailable decimal.Decimal, cs *exc
 	return retOrder, estFee, nil
 }
 
-func (s *Size) calculateAmount(direction gctorder.Side, price, amountAvailable decimal.Decimal, cs *exchange.Settings, o order.Event) (decimal.Decimal, decimal.Decimal, error) {
-	var amount, fee, portfolioAmount, portfolioFee decimal.Decimal
-	var err error
+func (s *Size) calculateAmount(direction gctorder.Side, price, amountAvailable decimal.Decimal, cs *exchange.Settings, o order.Event) (amount, fee decimal.Decimal, err error) {
+	var portfolioAmount, portfolioFee decimal.Decimal
 	switch direction {
 	case gctorder.ClosePosition:
 		amount = amountAvailable
@@ -122,14 +121,13 @@ func (s *Size) calculateAmount(direction gctorder.Side, price, amountAvailable d
 // that is allowed to be spent/sold for an event.
 // As fee calculation occurs during the actual ordering process
 // this can only attempt to factor the potential fee to remain under the max rules
-func (s *Size) calculateBuySize(price, availableFunds, feeRate, buyLimit decimal.Decimal, minMaxSettings exchange.MinMax) (decimal.Decimal, decimal.Decimal, error) {
+func (s *Size) calculateBuySize(price, availableFunds, feeRate, buyLimit decimal.Decimal, minMaxSettings exchange.MinMax) (amount, fee decimal.Decimal, err error) {
 	if availableFunds.LessThanOrEqual(decimal.Zero) {
 		return decimal.Decimal{}, decimal.Decimal{}, errNoFunds
 	}
 	if price.IsZero() {
 		return decimal.Decimal{}, decimal.Decimal{}, nil
 	}
-	var amount, fee decimal.Decimal
 	amount = availableFunds.Mul(decimal.NewFromInt(1).Sub(feeRate)).Div(price)
 	if !buyLimit.IsZero() &&
 		buyLimit.GreaterThanOrEqual(minMaxSettings.MinimumSize) &&
@@ -156,7 +154,7 @@ func (s *Size) calculateBuySize(price, availableFunds, feeRate, buyLimit decimal
 // eg BTC-USD baseAmount will be BTC to be sold
 // As fee calculation occurs during the actual ordering process
 // this can only attempt to factor the potential fee to remain under the max rules
-func (s *Size) calculateSellSize(price, baseAmount, feeRate, sellLimit decimal.Decimal, minMaxSettings exchange.MinMax) (decimal.Decimal, decimal.Decimal, error) {
+func (s *Size) calculateSellSize(price, baseAmount, feeRate, sellLimit decimal.Decimal, minMaxSettings exchange.MinMax) (amount, fee decimal.Decimal, err error) {
 	if baseAmount.LessThanOrEqual(decimal.Zero) {
 		return decimal.Decimal{}, decimal.Decimal{}, errNoFunds
 	}
@@ -164,7 +162,6 @@ func (s *Size) calculateSellSize(price, baseAmount, feeRate, sellLimit decimal.D
 		return decimal.Decimal{}, decimal.Decimal{}, nil
 	}
 	oneMFeeRate := decimal.NewFromInt(1).Sub(feeRate)
-	var amount, fee decimal.Decimal
 	amount = baseAmount.Mul(oneMFeeRate)
 	if !sellLimit.IsZero() &&
 		sellLimit.GreaterThanOrEqual(minMaxSettings.MinimumSize) &&

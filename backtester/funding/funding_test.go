@@ -39,10 +39,13 @@ func (f *fakeEvent) Pair() currency.Pair                      { return pair }
 func (f *fakeEvent) GetExchange() string                      { return exchName }
 func (f *fakeEvent) GetInterval() gctkline.Interval           { return gctkline.OneMin }
 func (f *fakeEvent) GetAssetType() asset.Item                 { return asset.Spot }
-func (f *fakeEvent) GetReason() string                        { return "" }
 func (f *fakeEvent) AppendReason(string)                      {}
 func (f *fakeEvent) GetClosePrice() decimal.Decimal           { return elite }
 func (f *fakeEvent) AppendReasonf(s string, i ...interface{}) {}
+func (f *fakeEvent) GetBase() *event.Base                     { return &event.Base{} }
+func (f *fakeEvent) GetUnderlyingPair() currency.Pair         { return pair }
+func (f *fakeEvent) GetConcatReasons() string                 { return "" }
+func (f *fakeEvent) GetReasons() []string                     { return nil }
 
 func TestSetupFundingManager(t *testing.T) {
 	t.Parallel()
@@ -619,7 +622,7 @@ func TestFundingLiquidate(t *testing.T) {
 	})
 
 	f.Liquidate(&signal.Signal{
-		Base: event.Base{
+		Base: &event.Base{
 			Exchange:     "test",
 			AssetType:    asset.Spot,
 			CurrencyPair: currency.NewPair(currency.BTC, currency.USD),
@@ -641,7 +644,7 @@ func TestHasExchangeBeenLiquidated(t *testing.T) {
 		available: decimal.NewFromInt(1337),
 	})
 	ev := &signal.Signal{
-		Base: event.Base{
+		Base: &event.Base{
 			Exchange:     "test",
 			AssetType:    asset.Spot,
 			CurrencyPair: currency.NewPair(currency.BTC, currency.USD),
@@ -766,7 +769,7 @@ func TestUpdateCollateral(t *testing.T) {
 	}
 
 	ev := &signal.Signal{
-		Base: event.Base{
+		Base: &event.Base{
 			Exchange:     "ftx",
 			AssetType:    asset.Futures,
 			CurrencyPair: currency.NewPair(currency.BTC, currency.USD),
@@ -812,5 +815,53 @@ func TestUpdateCollateral(t *testing.T) {
 	err = f.UpdateCollateral(ev)
 	if !errors.Is(err, expectedError) {
 		t.Errorf("recevied '%v' expected '%v'", err, expectedError)
+	}
+}
+
+func TestCreateFuturesCurrencyCode(t *testing.T) {
+	t.Parallel()
+	if result := CreateFuturesCurrencyCode(currency.BTC, currency.USDT); result != currency.NewCode("BTC-USDT") {
+		t.Errorf("received '%v', expected  '%v'", result, "BTC-USDT")
+	}
+}
+
+func TestLinkCollateralCurrency(t *testing.T) {
+	t.Parallel()
+	f := FundManager{}
+	err := f.LinkCollateralCurrency(nil, currency.EMPTYCODE)
+	if !errors.Is(err, common.ErrNilArguments) {
+		t.Errorf("received '%v', expected  '%v'", err, common.ErrNilArguments)
+	}
+
+	item := &Item{}
+	err = f.LinkCollateralCurrency(item, currency.EMPTYCODE)
+	if !errors.Is(err, common.ErrNilArguments) {
+		t.Errorf("received '%v', expected  '%v'", err, common.ErrNilArguments)
+	}
+
+	err = f.LinkCollateralCurrency(item, currency.BTC)
+	if !errors.Is(err, errNotFutures) {
+		t.Errorf("received '%v', expected  '%v'", err, errNotFutures)
+	}
+
+	item.asset = asset.Futures
+	err = f.LinkCollateralCurrency(item, currency.BTC)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected  '%v'", err, nil)
+	}
+	if !item.pairedWith.currency.Equal(currency.BTC) {
+		t.Errorf("received '%v', expected  '%v'", currency.BTC, item.pairedWith.currency)
+	}
+
+	err = f.LinkCollateralCurrency(item, currency.LTC)
+	if !errors.Is(err, ErrAlreadyExists) {
+		t.Errorf("received '%v', expected  '%v'", err, ErrAlreadyExists)
+	}
+
+	f.items = append(f.items, item.pairedWith)
+	item.pairedWith = nil
+	err = f.LinkCollateralCurrency(item, currency.BTC)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected  '%v'", err, nil)
 	}
 }

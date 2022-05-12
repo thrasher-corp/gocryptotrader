@@ -43,7 +43,7 @@ func TestSetAmount(t *testing.T) {
 func TestIsEmpty(t *testing.T) {
 	t.Parallel()
 	o := Order{
-		Base: event.Base{
+		Base: &event.Base{
 			CurrencyPair: currency.NewPair(currency.BTC, currency.USDT),
 		},
 	}
@@ -132,7 +132,7 @@ func TestPair(t *testing.T) {
 	t.Parallel()
 	cp := currency.NewPair(currency.BTC, currency.USDT)
 	k := Order{
-		Base: event.Base{
+		Base: &event.Base{
 			CurrencyPair: cp,
 		},
 	}

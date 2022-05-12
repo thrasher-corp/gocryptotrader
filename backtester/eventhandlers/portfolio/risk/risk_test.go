@@ -8,6 +8,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -56,15 +57,17 @@ func TestEvaluateOrder(t *testing.T) {
 	if !errors.Is(err, common.ErrNilArguments) {
 		t.Error(err)
 	}
-
-	o := &order.Order{}
-	h := []holdings.Holding{}
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	e := "binance"
 	a := asset.Spot
-	o.Exchange = e
-	o.AssetType = a
-	o.CurrencyPair = p
+	o := &order.Order{
+		Base: &event.Base{
+			Exchange:     e,
+			AssetType:    a,
+			CurrencyPair: p,
+		},
+	}
+	h := []holdings.Holding{}
 	r.CurrencySettings = make(map[string]map[asset.Item]map[currency.Pair]*CurrencySettings)
 	r.CurrencySettings[e] = make(map[asset.Item]map[currency.Pair]*CurrencySettings)
 	r.CurrencySettings[e][a] = make(map[currency.Pair]*CurrencySettings)

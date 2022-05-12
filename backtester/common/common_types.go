@@ -36,7 +36,7 @@ var (
 
 // EventHandler interface implements required GetTime() & Pair() return
 type EventHandler interface {
-	GetBase() event.Base
+	GetBase() *event.Base
 	GetOffset() int64
 	SetOffset(int64)
 	IsEvent() bool
@@ -46,7 +46,7 @@ type EventHandler interface {
 	GetExchange() string
 	GetInterval() kline.Interval
 	GetAssetType() asset.Item
-	GetReason() string
+	GetConcatReasons() string
 	GetReasons() []string
 	GetClosePrice() decimal.Decimal
 	AppendReason(string)

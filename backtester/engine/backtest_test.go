@@ -55,16 +55,7 @@ func (p portfolioOverride) CreateLiquidationOrdersForExchange(ev common.DataEven
 	}
 	return []order.Event{
 		&order.Order{
-			Base: event.Base{
-				Offset:         ev.GetOffset(),
-				Exchange:       ev.GetExchange(),
-				Time:           ev.GetTime(),
-				Interval:       ev.GetInterval(),
-				CurrencyPair:   ev.Pair(),
-				UnderlyingPair: ev.GetUnderlyingPair(),
-				AssetType:      ev.GetAssetType(),
-				Reason:         ev.GetReason(),
-			},
+			Base:      ev.GetBase(),
 			ID:        "1",
 			Direction: gctorder.Short,
 		},
@@ -722,7 +713,7 @@ func TestTriggerLiquidationsForExchange(t *testing.T) {
 	a := asset.Futures
 	expectedError = common.ErrNilArguments
 	ev := &evkline.Kline{
-		Base: event.Base{Exchange: testExchange,
+		Base: &event.Base{Exchange: testExchange,
 			AssetType:    a,
 			CurrencyPair: cp},
 	}
@@ -736,7 +727,7 @@ func TestTriggerLiquidationsForExchange(t *testing.T) {
 	bt.Datas = &data.HandlerPerCurrency{}
 	d := data.Base{}
 	d.SetStream([]common.DataEventHandler{&evkline.Kline{
-		Base: event.Base{
+		Base: &event.Base{
 			Exchange:     testExchange,
 			Time:         time.Now(),
 			Interval:     gctkline.OneDay,
@@ -803,7 +794,7 @@ func TestUpdateStatsForDataEvent(t *testing.T) {
 	cp := currency.NewPair(currency.BTC, currency.USDT)
 	a := asset.Futures
 	ev := &evkline.Kline{
-		Base: event.Base{Exchange: testExchange,
+		Base: &event.Base{Exchange: testExchange,
 			AssetType:    a,
 			CurrencyPair: cp},
 	}
@@ -890,7 +881,7 @@ func TestProcessSignalEvent(t *testing.T) {
 	cp := currency.NewPair(currency.BTC, currency.USDT)
 	a := asset.Futures
 	de := &evkline.Kline{
-		Base: event.Base{Exchange: testExchange,
+		Base: &event.Base{Exchange: testExchange,
 			AssetType:    a,
 			CurrencyPair: cp},
 	}
@@ -964,7 +955,7 @@ func TestProcessOrderEvent(t *testing.T) {
 	cp := currency.NewPair(currency.BTC, currency.USDT)
 	a := asset.Futures
 	de := &evkline.Kline{
-		Base: event.Base{Exchange: testExchange,
+		Base: &event.Base{Exchange: testExchange,
 			AssetType:    a,
 			CurrencyPair: cp},
 	}
@@ -1084,7 +1075,7 @@ func TestProcessFillEvent(t *testing.T) {
 	cp := currency.NewPair(currency.BTC, currency.USD)
 	a := asset.Futures
 	de := &evkline.Kline{
-		Base: event.Base{Exchange: testExchange,
+		Base: &event.Base{Exchange: testExchange,
 			AssetType:    a,
 			CurrencyPair: cp},
 	}
@@ -1239,7 +1230,7 @@ func TestProcessFuturesFillEvent(t *testing.T) {
 	cp := currency.NewPair(currency.BTC, currency.USD)
 	a := asset.Futures
 	de := &evkline.Kline{
-		Base: event.Base{Exchange: testExchange,
+		Base: &event.Base{Exchange: testExchange,
 			AssetType:    a,
 			CurrencyPair: cp},
 	}

@@ -28,7 +28,7 @@ func TestCalculateResults(t *testing.T) {
 	tt2 := time.Now().Add(gctkline.OneDay.Duration())
 	exch := testExchange
 	p := currency.NewPair(currency.BTC, currency.USDT)
-	even := event.Base{
+	even := &event.Base{
 		Exchange:     exch,
 		Time:         tt1,
 		Interval:     gctkline.OneDay,
@@ -163,7 +163,7 @@ func TestPrintResults(t *testing.T) {
 	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
-	even := event.Base{
+	even := &event.Base{
 		Exchange:     exch,
 		Time:         tt1,
 		Interval:     gctkline.OneDay,

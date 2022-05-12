@@ -111,7 +111,7 @@ func TestOnSignals(t *testing.T) {
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	d := data.Base{}
 	d.SetStream([]common.DataEventHandler{&eventkline.Kline{
-		Base: event.Base{
+		Base: &event.Base{
 			Exchange:     exch,
 			Time:         dInsert,
 			Interval:     gctkline.OneDay,
@@ -166,10 +166,11 @@ func TestSelectTopAndBottomPerformers(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-
+	b := &event.Base{}
 	fundEvents := []mfiFundEvent{
 		{
 			event: &signal.Signal{
+				Base:       b,
 				ClosePrice: decimal.NewFromInt(99),
 				Direction:  order.DoNothing,
 			},
@@ -177,6 +178,7 @@ func TestSelectTopAndBottomPerformers(t *testing.T) {
 		},
 		{
 			event: &signal.Signal{
+				Base:       b,
 				ClosePrice: decimal.NewFromInt(98),
 				Direction:  order.DoNothing,
 			},
@@ -184,6 +186,7 @@ func TestSelectTopAndBottomPerformers(t *testing.T) {
 		},
 		{
 			event: &signal.Signal{
+				Base:       b,
 				ClosePrice: decimal.NewFromInt(1),
 				Direction:  order.DoNothing,
 			},
@@ -191,6 +194,7 @@ func TestSelectTopAndBottomPerformers(t *testing.T) {
 		},
 		{
 			event: &signal.Signal{
+				Base:       b,
 				ClosePrice: decimal.NewFromInt(2),
 				Direction:  order.DoNothing,
 			},
@@ -198,6 +202,7 @@ func TestSelectTopAndBottomPerformers(t *testing.T) {
 		},
 		{
 			event: &signal.Signal{
+				Base:       b,
 				ClosePrice: decimal.NewFromInt(50),
 				Direction:  order.DoNothing,
 			},

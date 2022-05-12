@@ -30,7 +30,7 @@ func (d *DataFromKline) Load() error {
 	klineData := make([]common.DataEventHandler, len(d.Item.Candles))
 	for i := range d.Item.Candles {
 		newKline := &kline.Kline{
-			Base: event.Base{
+			Base: &event.Base{
 				Offset:         int64(i + 1),
 				Exchange:       d.Item.Exchange,
 				Time:           d.Item.Candles[i].Time.UTC(),
@@ -73,7 +73,7 @@ func (d *DataFromKline) AppendResults(ki *gctkline.Item) {
 	candleTimes := make([]time.Time, len(gctCandles))
 	for i := range gctCandles {
 		klineData[i] = &kline.Kline{
-			Base: event.Base{
+			Base: &event.Base{
 				Offset:       int64(i + 1),
 				Exchange:     ki.Exchange,
 				Time:         gctCandles[i].Time,

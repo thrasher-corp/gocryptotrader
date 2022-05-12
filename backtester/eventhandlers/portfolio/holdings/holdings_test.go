@@ -60,14 +60,14 @@ func TestCreate(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
 	}
 	_, err = Create(&fill.Fill{
-		Base: event.Base{AssetType: asset.Spot},
+		Base: &event.Base{AssetType: asset.Spot},
 	}, pair(t))
 	if err != nil {
 		t.Error(err)
 	}
 
 	_, err = Create(&fill.Fill{
-		Base: event.Base{AssetType: asset.Futures},
+		Base: &event.Base{AssetType: asset.Futures},
 	}, collateral(t))
 	if err != nil {
 		t.Error(err)
@@ -77,14 +77,14 @@ func TestCreate(t *testing.T) {
 func TestUpdate(t *testing.T) {
 	t.Parallel()
 	h, err := Create(&fill.Fill{
-		Base: event.Base{AssetType: asset.Spot},
+		Base: &event.Base{AssetType: asset.Spot},
 	}, pair(t))
 	if err != nil {
 		t.Error(err)
 	}
 	t1 := h.Timestamp // nolint:ifshort,nolintlint // false positive and triggers only on Windows
 	err = h.Update(&fill.Fill{
-		Base: event.Base{
+		Base: &event.Base{
 			Time: time.Now(),
 		},
 	}, pair(t))
@@ -98,14 +98,16 @@ func TestUpdate(t *testing.T) {
 
 func TestUpdateValue(t *testing.T) {
 	t.Parallel()
+	b := &event.Base{AssetType: asset.Spot}
 	h, err := Create(&fill.Fill{
-		Base: event.Base{AssetType: asset.Spot},
+		Base: b,
 	}, pair(t))
 	if err != nil {
 		t.Error(err)
 	}
 	h.BaseSize = decimal.NewFromInt(1)
 	h.UpdateValue(&kline.Kline{
+		Base:  b,
 		Close: decimal.NewFromInt(1337),
 	})
 	if !h.BaseValue.Equal(decimal.NewFromInt(1337)) {
@@ -128,14 +130,14 @@ func TestUpdateBuyStats(t *testing.T) {
 		t.Fatal(err)
 	}
 	h, err := Create(&fill.Fill{
-		Base: event.Base{AssetType: asset.Spot},
+		Base: &event.Base{AssetType: asset.Spot},
 	}, pair(t))
 	if err != nil {
 		t.Error(err)
 	}
 
 	err = h.update(&fill.Fill{
-		Base: event.Base{
+		Base: &event.Base{
 			Exchange:     testExchange,
 			Time:         time.Now(),
 			Interval:     gctkline.OneHour,
@@ -193,7 +195,7 @@ func TestUpdateBuyStats(t *testing.T) {
 	}
 
 	err = h.update(&fill.Fill{
-		Base: event.Base{
+		Base: &event.Base{
 			Exchange:     testExchange,
 			Time:         time.Now(),
 			Interval:     gctkline.OneHour,
@@ -256,13 +258,13 @@ func TestUpdateSellStats(t *testing.T) {
 	}
 
 	h, err := Create(&fill.Fill{
-		Base: event.Base{AssetType: asset.Spot},
+		Base: &event.Base{AssetType: asset.Spot},
 	}, p)
 	if err != nil {
 		t.Error(err)
 	}
 	err = h.update(&fill.Fill{
-		Base: event.Base{
+		Base: &event.Base{
 			Exchange:     testExchange,
 			Time:         time.Now(),
 			Interval:     gctkline.OneHour,
@@ -322,7 +324,7 @@ func TestUpdateSellStats(t *testing.T) {
 	}
 
 	err = h.update(&fill.Fill{
-		Base: event.Base{
+		Base: &event.Base{
 			Exchange:     testExchange,
 			Time:         time.Now(),
 			Interval:     gctkline.OneHour,
