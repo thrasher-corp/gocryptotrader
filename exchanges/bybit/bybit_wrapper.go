@@ -407,7 +407,7 @@ func (by *Bybit) UpdateTickers(ctx context.Context, assetType asset.Item) error 
 		}
 
 	default:
-		return fmt.Errorf("assetType not supported: %v", assetType)
+		return fmt.Errorf("%s %w", assetType, asset.ErrNotSupported)
 	}
 
 	return nil
@@ -478,7 +478,7 @@ func (by *Bybit) UpdateTicker(ctx context.Context, p currency.Pair, assetType as
 		}
 
 	default:
-		return nil, fmt.Errorf("assetType not supported: %v", assetType)
+		return nil, fmt.Errorf("%s %w", assetType, asset.ErrNotSupported)
 	}
 
 	return ticker.GetTicker(by.Name, p, assetType)
@@ -530,7 +530,7 @@ func (by *Bybit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.Futures:
 		orderbookNew, err = by.GetFuturesOrderbook(ctx, formattedPair)
 	default:
-		return nil, fmt.Errorf("assetType not supported: %v", assetType)
+		return nil, fmt.Errorf("%s %w", assetType, asset.ErrNotSupported)
 	}
 	if err != nil {
 		return book, err
@@ -601,7 +601,7 @@ func (by *Bybit) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 		acc.Currencies = currencyBalance
 
 	default:
-		return info, fmt.Errorf("assetType not supported: %v", assetType)
+		return info, fmt.Errorf("%s %w", assetType, asset.ErrNotSupported)
 	}
 	acc.AssetType = assetType
 	info.Accounts = append(info.Accounts, acc)
@@ -652,7 +652,7 @@ func (by *Bybit) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a a
 		}
 		return withdrawHistory, nil
 	default:
-		return nil, fmt.Errorf("assetType not supported: %v", a)
+		return nil, fmt.Errorf("%s %w", a, asset.ErrNotSupported)
 	}
 }
 
@@ -718,7 +718,7 @@ func (by *Bybit) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 		}
 
 	default:
-		return nil, fmt.Errorf("assetType not supported: %v", assetType)
+		return nil, fmt.Errorf("%s %w", assetType, asset.ErrNotSupported)
 	}
 
 	if by.IsSaveTradeDataEnabled() {
@@ -863,7 +863,7 @@ func (by *Bybit) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submit
 		submitOrderResponse.OrderID = o.OrderID
 		submitOrderResponse.IsOrderPlaced = true
 	default:
-		return submitOrderResponse, fmt.Errorf("assetType not supported: %v", s.AssetType)
+		return submitOrderResponse, fmt.Errorf("%s %w", s.AssetType, asset.ErrNotSupported)
 	}
 
 	return submitOrderResponse, nil
@@ -887,7 +887,7 @@ func (by *Bybit) ModifyOrder(ctx context.Context, action *order.Modify) (order.M
 	case asset.Futures:
 		orderID, err = by.ReplaceActiveFuturesOrders(ctx, action.Pair, action.ID, action.ClientOrderID, "", "", action.Amount, action.Price, 0, 0)
 	default:
-		err = fmt.Errorf("assetType not supported: %v", action.AssetType)
+		err = fmt.Errorf("%s %w", action.AssetType, asset.ErrNotSupported)
 	}
 
 	return order.Modify{
@@ -917,7 +917,7 @@ func (by *Bybit) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 	case asset.Futures:
 		_, err = by.CancelActiveFuturesOrders(ctx, ord.Pair, ord.ID, ord.ClientOrderID)
 	default:
-		return fmt.Errorf("assetType not supported: %v", ord.AssetType)
+		return fmt.Errorf("%s %w", ord.AssetType, asset.ErrNotSupported)
 	}
 	return err
 }
@@ -970,7 +970,7 @@ func (by *Bybit) CancelAllOrders(ctx context.Context, orderCancellation *order.C
 			cancelAllOrdersResponse.Status[resp[i].CancelOrderID] = err.Error()
 		}
 	default:
-		return cancelAllOrdersResponse, fmt.Errorf("assetType not supported: %v", orderCancellation.AssetType)
+		return cancelAllOrdersResponse, fmt.Errorf("%s %w", orderCancellation.AssetType, asset.ErrNotSupported)
 	}
 	return cancelAllOrdersResponse, nil
 }
@@ -1082,7 +1082,7 @@ func (by *Bybit) GetOrderInfo(ctx context.Context, orderID string, pair currency
 		}, nil
 
 	default:
-		return order.Detail{}, fmt.Errorf("assetType not supported: %v", assetType)
+		return order.Detail{}, fmt.Errorf("%s %w", assetType, asset.ErrNotSupported)
 	}
 }
 
@@ -1222,7 +1222,7 @@ func (by *Bybit) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 				})
 			}
 		default:
-			return orders, fmt.Errorf("assetType not supported: %v", req.AssetType)
+			return orders, fmt.Errorf("%s %w", req.AssetType, asset.ErrNotSupported)
 		}
 	}
 	order.FilterOrdersByPairs(&orders, req.Pairs)
@@ -1389,7 +1389,7 @@ func (by *Bybit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 		}
 
 	default:
-		return klineItem, fmt.Errorf("assetType not supported: %v", a)
+		return klineItem, fmt.Errorf("%s %w", a, asset.ErrNotSupported)
 	}
 
 	klineItem.RemoveOutsideRange(start, end)
@@ -1487,7 +1487,7 @@ func (by *Bybit) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 			}
 
 		default:
-			return kline.Item{}, fmt.Errorf("assetType not supported: %v", a)
+			return kline.Item{}, fmt.Errorf("%s %w", a, asset.ErrNotSupported)
 		}
 	}
 
