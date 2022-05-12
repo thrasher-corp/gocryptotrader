@@ -110,7 +110,7 @@ func getwebsocketInfo(c *cli.Context) error {
 	}
 	defer closeConn(conn, cancel)
 
-	client := gctrpc.NewGoCryptoTraderClient(conn)
+	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.WebsocketGetInfo(c.Context,
 		&gctrpc.WebsocketGetInfoRequest{Exchange: exchange})
 	if err != nil {
@@ -139,7 +139,7 @@ func enableDisableWebsocket(c *cli.Context) error {
 	}
 	defer closeConn(conn, cancel)
 
-	client := gctrpc.NewGoCryptoTraderClient(conn)
+	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.WebsocketSetEnabled(c.Context,
 		&gctrpc.WebsocketSetEnabledRequest{Exchange: exchange, Enable: enable})
 	if err != nil {
@@ -167,7 +167,7 @@ func getSubscriptions(c *cli.Context) error {
 	}
 	defer closeConn(conn, cancel)
 
-	client := gctrpc.NewGoCryptoTraderClient(conn)
+	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.WebsocketGetSubscriptions(c.Context,
 		&gctrpc.WebsocketGetSubscriptionsRequest{Exchange: exchange})
 	if err != nil {
@@ -202,7 +202,7 @@ func setProxy(c *cli.Context) error {
 	}
 	defer closeConn(conn, cancel)
 
-	client := gctrpc.NewGoCryptoTraderClient(conn)
+	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.WebsocketSetProxy(c.Context,
 		&gctrpc.WebsocketSetProxyRequest{Exchange: exchange, Proxy: proxy})
 	if err != nil {
@@ -237,7 +237,7 @@ func setURL(c *cli.Context) error {
 	}
 	defer closeConn(conn, cancel)
 
-	client := gctrpc.NewGoCryptoTraderClient(conn)
+	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.WebsocketSetURL(c.Context,
 		&gctrpc.WebsocketSetURLRequest{Exchange: exchange, Url: url})
 	if err != nil {
