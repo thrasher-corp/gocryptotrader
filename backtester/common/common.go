@@ -123,3 +123,28 @@ func PurgeColours() {
 	ColourDarkGrey = ""
 	ColourError = ""
 }
+
+// Logo returns the logo
+func Logo() string {
+	sb := strings.Builder{}
+	sb.WriteString("                                                                                \n")
+	sb.WriteString("                               " + ColourWhite + "@@@@@@@@@@@@@@@@@                                \n")
+	sb.WriteString("                            " + ColourWhite + "@@@@@@@@@@@@@@@@@@@@@@@    " + ColourGrey + ",,,,,," + ColourWhite + "                   \n")
+	sb.WriteString("                           " + ColourWhite + "@@@@@@@@" + ColourGrey + ",,,,,    " + ColourWhite + "@@@@@@@@@" + ColourGrey + ",,,,,,,," + ColourWhite + "                   \n")
+	sb.WriteString("                         " + ColourWhite + "@@@@@@@@" + ColourGrey + ",,,,,,,       " + ColourWhite + "@@@@@@@" + ColourGrey + ",,,,,,," + ColourWhite + "                   \n")
+	sb.WriteString("                         " + ColourWhite + "@@@@@@" + ColourGrey + "(,,,,,,,,      " + ColourGrey + ",," + ColourWhite + "@@@@@@@" + ColourGrey + ",,,,,," + ColourWhite + "                   \n")
+	sb.WriteString("                      " + ColourGrey + ",," + ColourWhite + "@@@@@@" + ColourGrey + ",,,,,,,,,   #,,,,,,,,,,,,,,,,,," + ColourWhite + "                   \n")
+	sb.WriteString("                   " + ColourGrey + ",,,,*" + ColourWhite + "@@@@@@" + ColourGrey + ",,,,,,,,,,,,,,,,,,,,,,,,,," + ColourGreen + "%%%%%%%" + ColourWhite + "                \n")
+	sb.WriteString("                " + ColourGrey + ",,,,,,,*" + ColourWhite + "@@@@@@" + ColourGrey + ",,,,,,,,,,,,,," + ColourGreen + "%%%%%" + ColourGrey + " ,,,,,," + ColourGrey + "%" + ColourGreen + "%%%%%%" + ColourWhite + "                 \n")
+	sb.WriteString("               " + ColourGrey + ",,,,,,,,*" + ColourWhite + "@@@@@@" + ColourGrey + ",,,,,,,,,,," + ColourGreen + "%%%%%%%%%%%%%%%%%%" + ColourGrey + "#" + ColourGreen + "%%" + ColourGrey + "                  \n")
+	sb.WriteString("                 " + ColourGrey + ",,,,,,*" + ColourWhite + "@@@@@@" + ColourGrey + ",,,,,,,,," + ColourGreen + "%%%" + ColourGrey + " ,,,,," + ColourGreen + "%%%%%%%%" + ColourGrey + ",,,,,                   \n")
+	sb.WriteString("                    " + ColourGrey + ",,,*" + ColourWhite + "@@@@@@" + ColourGrey + ",,,,,," + ColourGreen + "%%" + ColourGrey + ",,  ,,,,,,," + ColourWhite + "@" + ColourGreen + "*%%," + ColourWhite + "@" + ColourGrey + ",,,,,,                   \n")
+	sb.WriteString("                       " + ColourGrey + "*" + ColourWhite + "@@@@@@" + ColourGrey + ",,,,,,,,,     " + ColourGrey + ",,,,," + ColourWhite + "@@@@@@" + ColourGrey + ",,,,,," + ColourWhite + "                    \n")
+	sb.WriteString("                         " + ColourWhite + "@@@@@@" + ColourGrey + ",,,,,,,,,        " + ColourWhite + "@@@@@@@" + ColourGrey + ",,,,,," + ColourWhite + "                   \n")
+	sb.WriteString("                         " + ColourWhite + "@@@@@@@@" + ColourGrey + ",,,,,,,       " + ColourWhite + "@@@@@@@" + ColourGrey + ",,,,,,," + ColourWhite + "                   \n")
+	sb.WriteString("                           " + ColourWhite + "@@@@@@@@@" + ColourGrey + ",,,,    " + ColourWhite + "@@@@@@@@@" + ColourGrey + "#,,,,,,," + ColourWhite + "                   \n")
+	sb.WriteString("                            " + ColourWhite + "@@@@@@@@@@@@@@@@@@@@@@@     " + ColourGrey + "*,,,," + ColourWhite + "                   \n")
+	sb.WriteString("                                " + ColourWhite + "@@@@@@@@@@@@@@@@" + ColourDefault + "                                \n")
+	sb.WriteString(ASCIILogo)
+	return sb.String()
+}

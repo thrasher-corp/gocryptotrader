@@ -104,6 +104,17 @@ func TestFitStringToLimit(t *testing.T) {
 	}
 }
 
+func TestLogo(t *testing.T) {
+	colourLogo := Logo()
+	if colourLogo == "" {
+		t.Error("expected a logo")
+	}
+	PurgeColours()
+	if len(colourLogo) == len(Logo()) {
+		t.Error("expected logo with colours removed")
+	}
+}
+
 func TestPurgeColours(t *testing.T) {
 	PurgeColours()
 	if ColourSuccess != "" {

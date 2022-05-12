@@ -77,7 +77,6 @@ func main() {
 		true,
 		"displays logging subheader to track where activity originates")
 	flag.Parse()
-
 	if !colourOutput {
 		common.PurgeColours()
 	}
@@ -107,10 +106,7 @@ func main() {
 		os.Exit(1)
 	}
 	if printLogo {
-		for i := range common.LogoLines {
-			fmt.Println(common.LogoLines[i])
-		}
-		fmt.Print(common.ASCIILogo)
+		fmt.Println(common.Logo())
 	}
 
 	err = cfg.Validate()
