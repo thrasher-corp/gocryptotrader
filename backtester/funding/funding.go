@@ -124,12 +124,6 @@ func (f *FundManager) CreateSnapshot(t time.Time) {
 	for i := range f.items {
 		if f.items[i].snapshot == nil {
 			f.items[i].snapshot = make(map[int64]ItemSnapshot)
-			if f.items[i].isCollateral {
-				f.items[i].initialFunds = f.items[i].available
-			}
-		} else if _, ok := f.items[i].snapshot[t.UnixNano()]; !ok {
-			f.items[i].snapshot[t.UnixNano()] = ItemSnapshot{}
-			// todo investigate this
 		}
 
 		iss := ItemSnapshot{
@@ -305,55 +299,57 @@ func (f *FundManager) GenerateReport() *Report {
 		DisableUSDTracking:        f.disableUSDTracking,
 	}
 	items := make([]ReportItem, len(f.items))
-	for i := range f.items {
+	for x := range f.items {
 		item := ReportItem{
-			Exchange:     f.items[i].exchange,
-			Asset:        f.items[i].asset,
-			Currency:     f.items[i].currency,
-			InitialFunds: f.items[i].initialFunds,
-			TransferFee:  f.items[i].transferFee,
-			FinalFunds:   f.items[i].available,
-			IsCollateral: f.items[i].isCollateral,
+			Exchange:     f.items[x].exchange,
+			Asset:        f.items[x].asset,
+			Currency:     f.items[x].currency,
+			InitialFunds: f.items[x].initialFunds,
+			TransferFee:  f.items[x].transferFee,
+			FinalFunds:   f.items[x].available,
+			IsCollateral: f.items[x].isCollateral,
 		}
 
 		if !f.disableUSDTracking &&
-			f.items[i].trackingCandles != nil {
-			usdStream := f.items[i].trackingCandles.GetStream()
-			item.USDInitialFunds = f.items[i].initialFunds.Mul(usdStream[0].GetClosePrice())
-			item.USDFinalFunds = f.items[i].available.Mul(usdStream[len(usdStream)-1].GetClosePrice())
+			f.items[x].trackingCandles != nil {
+			usdStream := f.items[x].trackingCandles.GetStream()
+			item.USDInitialFunds = f.items[x].initialFunds.Mul(usdStream[0].GetClosePrice())
+			item.USDFinalFunds = f.items[x].available.Mul(usdStream[len(usdStream)-1].GetClosePrice())
 			item.USDInitialCostForOne = usdStream[0].GetClosePrice()
 			item.USDFinalCostForOne = usdStream[len(usdStream)-1].GetClosePrice()
-			item.USDPairCandle = f.items[i].trackingCandles
+			item.USDPairCandle = f.items[x].trackingCandles
 		}
 
+		// create a breakdown of USD values and currency contributions over the span of run
 		var pricingOverTime []ItemSnapshot
 	snaps:
-		for _, v := range f.items[i].snapshot {
-			pricingOverTime = append(pricingOverTime, v)
-			if !f.items[i].asset.IsFutures() && !f.disableUSDTracking {
-				for j := range report.USDTotalsOverTime {
-					if report.USDTotalsOverTime[j].Time.Equal(v.Time) {
-						report.USDTotalsOverTime[j].USDValue = report.USDTotalsOverTime[j].USDValue.Add(v.USDValue)
-						report.USDTotalsOverTime[j].Breakdown = append(report.USDTotalsOverTime[j].Breakdown, CurrencyContribution{
-							Currency: f.items[i].currency,
-							USD:      v.USDValue,
-						})
-						continue snaps
-					} else {
-						continue
-					}
-				}
-				report.USDTotalsOverTime = append(report.USDTotalsOverTime, ItemSnapshot{
-					Time:     v.Time,
-					USDValue: v.USDValue,
-					Breakdown: []CurrencyContribution{
-						{
-							Currency: f.items[i].currency,
-							USD:      v.USDValue,
-						},
-					},
-				})
+		for _, snapshot := range f.items[x].snapshot {
+			pricingOverTime = append(pricingOverTime, snapshot)
+			if f.items[x].asset.IsFutures() || f.disableUSDTracking {
+				// futures contracts / collateral does not contribute to USD value
+				// no USD tracking means no USD values to breakdown
+				break
 			}
+			for y := range report.USDTotalsOverTime {
+				if report.USDTotalsOverTime[y].Time.Equal(snapshot.Time) {
+					report.USDTotalsOverTime[y].USDValue = report.USDTotalsOverTime[y].USDValue.Add(snapshot.USDValue)
+					report.USDTotalsOverTime[y].Breakdown = append(report.USDTotalsOverTime[y].Breakdown, CurrencyContribution{
+						Currency:        f.items[x].currency,
+						USDContribution: snapshot.USDValue,
+					})
+					continue snaps
+				}
+			}
+			report.USDTotalsOverTime = append(report.USDTotalsOverTime, ItemSnapshot{
+				Time:     snapshot.Time,
+				USDValue: snapshot.USDValue,
+				Breakdown: []CurrencyContribution{
+					{
+						Currency:        f.items[x].currency,
+						USDContribution: snapshot.USDValue,
+					},
+				},
+			})
 		}
 
 		sort.Slice(pricingOverTime, func(i, j int) bool {
@@ -361,21 +357,25 @@ func (f *FundManager) GenerateReport() *Report {
 		})
 		item.Snapshots = pricingOverTime
 
-		if f.items[i].initialFunds.IsZero() {
+		if f.items[x].initialFunds.IsZero() {
 			item.ShowInfinite = true
 		} else {
-			item.Difference = f.items[i].available.Sub(f.items[i].initialFunds).Div(f.items[i].initialFunds).Mul(decimal.NewFromInt(100))
+			item.Difference = f.items[x].available.Sub(f.items[x].initialFunds).Div(f.items[x].initialFunds).Mul(decimal.NewFromInt(100))
 		}
-		if f.items[i].pairedWith != nil {
-			item.PairedWith = f.items[i].pairedWith.currency
+		if f.items[x].pairedWith != nil {
+			item.PairedWith = f.items[x].pairedWith.currency
 		}
+		report.InitialFunds = report.InitialFunds.Add(item.USDInitialFunds)
 
-		items[i] = item
+		items[x] = item
 	}
 
-	sort.Slice(report.USDTotalsOverTime, func(i, j int) bool {
-		return report.USDTotalsOverTime[i].Time.Before(report.USDTotalsOverTime[j].Time)
-	})
+	if len(report.USDTotalsOverTime) > 0 {
+		report.FinalFunds = report.USDTotalsOverTime[len(report.USDTotalsOverTime)-1].USDValue
+		sort.Slice(report.USDTotalsOverTime, func(i, j int) bool {
+			return report.USDTotalsOverTime[i].Time.Before(report.USDTotalsOverTime[j].Time)
+		})
+	}
 
 	report.Items = items
 	return &report

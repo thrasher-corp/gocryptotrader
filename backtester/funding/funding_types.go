@@ -170,6 +170,8 @@ type Report struct {
 	UsingExchangeLevelFunding bool
 	Items                     []ReportItem
 	USDTotalsOverTime         []ItemSnapshot
+	InitialFunds              decimal.Decimal
+	FinalFunds                decimal.Decimal
 }
 
 // ReportItem holds reporting fields
@@ -205,6 +207,6 @@ type ItemSnapshot struct {
 // CurrencyContribution helps breakdown how a USD value
 // determines its number
 type CurrencyContribution struct {
-	Currency currency.Code
-	USD      decimal.Decimal
+	Currency        currency.Code
+	USDContribution decimal.Decimal
 }

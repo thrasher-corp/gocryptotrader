@@ -344,8 +344,8 @@ func (f *FundingStatistics) PrintResults(wasAnyDataMissing bool) error {
 	log.Info(common.FundingStatistics, common.ColourH2+"------------------USD Tracking Totals------------------------"+common.ColourDefault)
 	sep := "USD Tracking Total |\t"
 
-	log.Infof(common.FundingStatistics, "%s Initial value: $%s at %v", sep, convert.DecimalToHumanFriendlyString(f.TotalUSDStatistics.InitialHoldingValue.Value, 8, ".", ","), f.TotalUSDStatistics.InitialHoldingValue.Time)
-	log.Infof(common.FundingStatistics, "%s Final value: $%s at %v", sep, convert.DecimalToHumanFriendlyString(f.TotalUSDStatistics.FinalHoldingValue.Value, 8, ".", ","), f.TotalUSDStatistics.FinalHoldingValue.Time)
+	log.Infof(common.FundingStatistics, "%s Initial value: $%s", sep, convert.DecimalToHumanFriendlyString(f.Report.InitialFunds, 8, ".", ","))
+	log.Infof(common.FundingStatistics, "%s Final value: $%s", sep, convert.DecimalToHumanFriendlyString(f.Report.FinalFunds, 8, ".", ","))
 	log.Infof(common.FundingStatistics, "%s Benchmark Market Movement: %s%%", sep, convert.DecimalToHumanFriendlyString(f.TotalUSDStatistics.BenchmarkMarketMovement, 8, ".", ","))
 	log.Infof(common.FundingStatistics, "%s Strategy Movement: %s%%", sep, convert.DecimalToHumanFriendlyString(f.TotalUSDStatistics.StrategyMovement, 8, ".", ","))
 	log.Infof(common.FundingStatistics, "%s Did strategy make a profit: %v", sep, f.TotalUSDStatistics.DidStrategyMakeProfit)

@@ -250,8 +250,6 @@ type FundingItemStatistics struct {
 // TotalFundingStatistics holds values for overall statistics for funding items
 type TotalFundingStatistics struct {
 	HoldingValues            []ValueAtTime
-	InitialHoldingValue      ValueAtTime
-	FinalHoldingValue        ValueAtTime
 	HighestHoldingValue      ValueAtTime
 	LowestHoldingValue       ValueAtTime
 	BenchmarkMarketMovement  decimal.Decimal
