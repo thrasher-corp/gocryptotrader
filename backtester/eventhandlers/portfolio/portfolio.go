@@ -117,6 +117,7 @@ func (p *Portfolio) OnSignal(ev signal.Event, cs *exchange.Settings, funds fundi
 		return cannotPurchase(ev, o)
 	}
 	sizedOrder := p.sizeOrder(ev, cs, o, sizingFunds, funds)
+
 	sizedOrder.SetDirection(side)
 	if ev.GetDirection() == gctorder.ClosePosition {
 		sizedOrder.ClosingPosition = true
