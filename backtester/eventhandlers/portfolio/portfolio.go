@@ -116,8 +116,10 @@ func (p *Portfolio) OnSignal(ev signal.Event, cs *exchange.Settings, funds fundi
 	if sizingFunds.LessThanOrEqual(decimal.Zero) {
 		return cannotPurchase(ev, o)
 	}
-	sizedOrder := p.sizeOrder(ev, cs, o, sizingFunds, funds)
-
+	sizedOrder, err := p.sizeOrder(ev, cs, o, sizingFunds, funds)
+	if err != nil {
+		return sizedOrder, err
+	}
 	sizedOrder.SetDirection(side)
 	if ev.GetDirection() == gctorder.ClosePosition {
 		sizedOrder.ClosingPosition = true
@@ -179,7 +181,7 @@ func (p *Portfolio) evaluateOrder(d common.Directioner, originalOrderSignal, ev 
 	return evaluatedOrder, nil
 }
 
-func (p *Portfolio) sizeOrder(d common.Directioner, cs *exchange.Settings, originalOrderSignal *order.Order, sizingFunds decimal.Decimal, funds funding.IFundReserver) *order.Order {
+func (p *Portfolio) sizeOrder(d common.Directioner, cs *exchange.Settings, originalOrderSignal *order.Order, sizingFunds decimal.Decimal, funds funding.IFundReserver) (*order.Order, error) {
 	sizedOrder, estFee, err := p.sizeManager.SizeOrder(originalOrderSignal, sizingFunds, cs)
 	if err != nil || sizedOrder.Amount.IsZero() {
 		switch originalOrderSignal.Direction {
@@ -197,36 +199,35 @@ func (p *Portfolio) sizeOrder(d common.Directioner, cs *exchange.Settings, origi
 		d.SetDirection(originalOrderSignal.Direction)
 		if err != nil {
 			originalOrderSignal.AppendReason(err.Error())
-			return originalOrderSignal
+			return originalOrderSignal, nil
 		}
 		originalOrderSignal.AppendReason("sized order to 0")
 	}
 	switch d.GetDirection() {
 	case gctorder.Buy, gctorder.Bid:
-		err = funds.Reserve(sizedOrder.Amount.Mul(sizedOrder.ClosePrice).Add(estFee), gctorder.Buy)
-		sizedOrder.AllocatedSize = sizedOrder.Amount.Mul(sizedOrder.ClosePrice)
+		sizedOrder.AllocatedSize = sizedOrder.Amount.Mul(sizedOrder.ClosePrice).Add(estFee)
 	case gctorder.Sell, gctorder.Ask:
-		err = funds.Reserve(sizedOrder.Amount.Add(estFee), gctorder.Sell)
-		sizedOrder.AllocatedSize = sizedOrder.Amount
+		sizedOrder.AllocatedSize = sizedOrder.Amount.Mul(sizedOrder.ClosePrice).Add(estFee)
 	case gctorder.Short, gctorder.Long:
-		err = funds.Reserve(sizedOrder.Amount.Add(estFee), d.GetDirection())
-		sizedOrder.AllocatedSize = sizedOrder.Amount.Div(sizedOrder.ClosePrice)
+		sizedOrder.AllocatedSize = sizedOrder.Amount.Mul(sizedOrder.ClosePrice).Add(estFee)
 	case gctorder.ClosePosition:
 		if originalOrderSignal.AssetType.IsFutures() {
-			err = funds.Reserve(sizedOrder.Amount.Add(estFee), d.GetDirection())
-			sizedOrder.AllocatedSize = sizedOrder.Amount.Div(sizedOrder.ClosePrice)
+			sizedOrder.AllocatedSize = sizedOrder.Amount.Add(estFee)
 		} else {
 			err = funds.Reserve(sizedOrder.Amount.Add(estFee), d.GetDirection())
 			sizedOrder.AllocatedSize = sizedOrder.Amount
 		}
+		//sizedOrder.AllocatedSize = sizedOrder.Amount.Mul(sizedOrder.ClosePrice).Add(estFee)
 	default:
-		err = errInvalidDirection
+		return nil, errInvalidDirection
 	}
+	err = funds.Reserve(sizedOrder.AllocatedSize, d.GetDirection())
 	if err != nil {
 		sizedOrder.Direction = gctorder.DoNothing
-		sizedOrder.AppendReason(err.Error())
+		return sizedOrder, err
 	}
-	return sizedOrder
+	log.Debugf(log.ExchangeSys, "price %v allocatedsize %v, fee %v", sizedOrder.ClosePrice, sizedOrder.AllocatedSize, estFee)
+	return sizedOrder, nil
 }
 
 // OnFill processes the event after an order has been placed by the exchange. Its purpose is to track holdings for future portfolio decisions.

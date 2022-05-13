@@ -19,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // Reset returns the exchange to initial settings
@@ -43,9 +44,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 	if o.GetDirection() == gctorder.DoNothing {
 		return f, ErrDoNothing
 	}
-	if o.GetAssetType().IsFutures() && !o.IsClosingPosition() {
-		f.Amount = o.GetAllocatedFunds()
-	}
+
 	eventFunds := o.GetAllocatedFunds()
 	cs, err := e.GetCurrencySettings(o.GetExchange(), o.GetAssetType(), o.Pair())
 	if err != nil {
@@ -127,16 +126,20 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 		f.ExchangeFee = calculateExchangeFee(adjustedPrice, amount, cs.TakerFee)
 	}
 
+	log.Debugf(log.ExchangeSys, "amount %v", amount)
 	portfolioLimitedAmount := reduceAmountToFitPortfolioLimit(adjustedPrice, amount, eventFunds, f.GetDirection())
 	if !portfolioLimitedAmount.Equal(amount) {
 		f.AppendReasonf("Order size shrunk from %v to %v to remain within portfolio limits", amount, portfolioLimitedAmount)
 	}
+	log.Debugf(log.ExchangeSys, "portfolioLimitedAmount %v", portfolioLimitedAmount)
 
 	limitReducedAmount := portfolioLimitedAmount
+	log.Debugf(log.ExchangeSys, "limitReducedAmount %v", limitReducedAmount)
 	if cs.CanUseExchangeLimits {
 		// Conforms the amount to the exchange order defined step amount
 		// reducing it when needed
 		limitReducedAmount = cs.Limits.ConformToDecimalAmount(portfolioLimitedAmount)
+		log.Debugf(log.ExchangeSys, "limitReducedAmount %v", limitReducedAmount)
 		if !limitReducedAmount.Equal(portfolioLimitedAmount) {
 			f.AppendReasonf("Order size shrunk from %v to %v to remain within exchange step amount limits",
 				portfolioLimitedAmount,
@@ -147,7 +150,9 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 	if err != nil {
 		return f, err
 	}
+	log.Debugf(log.ExchangeSys, "limitReducedAmount %v", limitReducedAmount)
 	f.ExchangeFee = calculateExchangeFee(adjustedPrice, limitReducedAmount, cs.ExchangeFee)
+	log.Debugf(log.ExchangeSys, "price %v amount %v, fee %v", adjustedPrice, limitReducedAmount, f.GetExchangeFee())
 
 	orderID, err := e.placeOrder(context.TODO(), adjustedPrice, limitReducedAmount, cs.UseRealOrders, cs.CanUseExchangeLimits, f, orderManager)
 	if err != nil {

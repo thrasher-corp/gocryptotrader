@@ -7,6 +7,7 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // collateral related errors
@@ -82,6 +83,7 @@ func (c *CollateralPair) ReleaseContracts(amount decimal.Decimal) error {
 
 // Reserve reserves or releases collateral based on order side
 func (c *CollateralPair) Reserve(amount decimal.Decimal, side gctorder.Side) error {
+	log.Debugf(log.ExchangeSys, "reserving amount %v", amount)
 	switch side {
 	case gctorder.Long, gctorder.Short:
 		return c.collateral.Reserve(amount)
