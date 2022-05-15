@@ -531,11 +531,11 @@ message WithdrawalEventByIDResponse {
 }
 
 message WithdrawalEventsByExchangeRequest {
-    string exchange = 1;
-    string id = 2;
-    int32 limit = 3;
-    string currency = 4;
-    string asset_type = 5;
+  string exchange = 1;
+  string id = 2;
+  int32 limit = 3;
+  string currency = 4;
+  string asset_type = 5;
 }
 
 message WithdrawalEventsByDateRequest {
