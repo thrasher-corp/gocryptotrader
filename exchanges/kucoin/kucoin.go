@@ -10,8 +10,8 @@ type Kucoin struct {
 }
 
 const (
-	kucoinAPIURL     = ""
-	kucoinAPIVersion = ""
+	kucoinAPIURL     = "https://api.kucoin.com"
+	kucoinAPIVersion = "1"
 
 	// Public endpoints
 

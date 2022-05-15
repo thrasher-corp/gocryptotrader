@@ -52,41 +52,21 @@ func (ku *Kucoin) SetDefaults() {
 	ku.API.CredentialsValidator.RequiresKey = true
 	ku.API.CredentialsValidator.RequiresSecret = true
 
-	// If using only one pair format for request and configuration, across all
-	// supported asset types either SPOT and FUTURES etc. You can use the
-	// example below:
+	spot := currency.PairStore{
+		RequestFormat: &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter},
+		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter},
+	}
 
-	// Request format denotes what the pair as a string will be, when you send
-	// a request to an exchange.
-	requestFmt := &currency.PairFormat{ /*Set pair request formatting details here for e.g.*/ Uppercase: true, Delimiter: ":"}
-	// Config format denotes what the pair as a string will be, when saved to
-	// the config.json file.
-	configFmt := &currency.PairFormat{ /*Set pair request formatting details here*/ }
-	err := ku.SetGlobalPairsManager(requestFmt, configFmt /*multiple assets can be set here using the asset package ie asset.Spot*/)
+	margin := currency.PairStore{
+		RequestFormat: &currency.PairFormat{Uppercase: true},
+		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter},
+	}
+
+	err := ku.StoreAssetPairFormat(asset.Spot, spot)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-
-	// If assets require multiple differences in formating for request and
-	// configuration, another exchange method can be be used e.g. futures
-	// contracts require a dash as a delimiter rather than an underscore. You
-	// can use this example below:
-
-	fmt1 := currency.PairStore{
-		RequestFormat: &currency.PairFormat{Uppercase: true},
-		ConfigFormat:  &currency.PairFormat{Uppercase: true},
-	}
-
-	fmt2 := currency.PairStore{
-		RequestFormat: &currency.PairFormat{Uppercase: true},
-		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: ":"},
-	}
-
-	err = ku.StoreAssetPairFormat(asset.Spot, fmt1)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-	err = ku.StoreAssetPairFormat(asset.Margin, fmt2)
+	err = ku.StoreAssetPairFormat(asset.Margin, margin)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -267,33 +247,33 @@ func (ku *Kucoin) UpdateTicker(ctx context.Context, p currency.Pair, assetType a
 func (ku *Kucoin) UpdateTickers(ctx context.Context, assetType asset.Item) error {
 	// NOTE: EXAMPLE FOR GETTING TICKER PRICE
 	/*
-		tick, err := ku.GetTickers()
-		if err != nil {
-			return err
-		}
-	    for y := range tick {
-	        cp, err := currency.NewPairFromString(tick[y].Symbol)
-	        if err != nil {
-	            return err
-	        }
-	        err = ticker.ProcessTicker(&ticker.Price{
-	            Last:         tick[y].LastPrice,
-	            High:         tick[y].HighPrice,
-	            Low:          tick[y].LowPrice,
-	            Bid:          tick[y].BidPrice,
-	            Ask:          tick[y].AskPrice,
-	            Volume:       tick[y].Volume,
-	            QuoteVolume:  tick[y].QuoteVolume,
-	            Open:         tick[y].OpenPrice,
-	            Close:        tick[y].PrevClosePrice,
-	            Pair:         cp,
-	            ExchangeName: b.Name,
-	            AssetType:    assetType,
-	        })
-	        if err != nil {
-	            return err
-	        }
-	    }
+			tick, err := ku.GetTickers()
+			if err != nil {
+				return err
+			}
+		    for y := range tick {
+		        cp, err := currency.NewPairFromString(tick[y].Symbol)
+		        if err != nil {
+		            return err
+		        }
+		        err = ticker.ProcessTicker(&ticker.Price{
+		            Last:         tick[y].LastPrice,
+		            High:         tick[y].HighPrice,
+		            Low:          tick[y].LowPrice,
+		            Bid:          tick[y].BidPrice,
+		            Ask:          tick[y].AskPrice,
+		            Volume:       tick[y].Volume,
+		            QuoteVolume:  tick[y].QuoteVolume,
+		            Open:         tick[y].OpenPrice,
+		            Close:        tick[y].PrevClosePrice,
+		            Pair:         cp,
+		            ExchangeName: b.Name,
+		            AssetType:    assetType,
+		        })
+		        if err != nil {
+		            return err
+		        }
+		    }
 	*/
 	return nil
 }
