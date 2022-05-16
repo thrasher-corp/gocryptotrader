@@ -754,6 +754,7 @@ func TestGetHTTPClientUserAgent(t *testing.T) {
 }
 
 func TestContextVerbosity(t *testing.T) {
+	t.Parallel()
 	if isVerbose(context.Background(), false) {
 		t.Fatal("unexpected value")
 	}
