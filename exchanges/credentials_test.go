@@ -456,18 +456,19 @@ func TestGetAuthenticatedAPISupport(t *testing.T) {
 		},
 	}
 
-	if !base.GetAuthenticatedAPISupport(RestAuthentication) {
+	if !base.IsRESTAuthenticationSupported() {
 		t.Fatal("Expected RestAuthentication to return true")
 	}
-	if base.GetAuthenticatedAPISupport(WebsocketAuthentication) {
+	base.API.AuthenticatedSupport = false
+	if base.IsRESTAuthenticationSupported() {
+		t.Fatal("Expected RestAuthentication to return false")
+	}
+	if base.IsWebsocketAuthenticationSupported() {
 		t.Fatal("Expected WebsocketAuthentication to return false")
 	}
 	base.API.AuthenticatedWebsocketSupport = true
-	if !base.GetAuthenticatedAPISupport(WebsocketAuthentication) {
+	if !base.IsWebsocketAuthenticationSupported() {
 		t.Fatal("Expected WebsocketAuthentication to return true")
-	}
-	if base.GetAuthenticatedAPISupport(2) {
-		t.Fatal("Expected default case of 'false' to be returned")
 	}
 }
 

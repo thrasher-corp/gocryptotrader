@@ -15,7 +15,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -64,7 +63,7 @@ func (f *FTX) WsConnect() error {
 	f.Websocket.Wg.Add(1)
 	go f.wsReadData()
 
-	if f.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+	if f.IsWebsocketAuthenticationSupported() {
 		err = f.WsAuth(context.TODO())
 		if err != nil {
 			f.Websocket.DataHandler <- err
@@ -206,7 +205,7 @@ func (f *FTX) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, erro
 			}
 		}
 	}
-	if f.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+	if f.IsWebsocketAuthenticationSupported() {
 		var authchan = []string{wsOrders, wsFills}
 		for x := range authchan {
 			subscriptions = append(subscriptions, stream.ChannelSubscription{
