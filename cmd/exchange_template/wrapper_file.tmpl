@@ -403,11 +403,11 @@ func ({{.Variable}} *{{.CapitalName}}) SubmitOrder(ctx context.Context, s *order
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func ({{.Variable}} *{{.CapitalName}}) ModifyOrder(ctx context.Context, action *order.Modify) (order.Modify, error) {
+func ({{.Variable}} *{{.CapitalName}}) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Modify, error) {
 	// if err := action.Validate(); err != nil {
 	// 	return "", err
 	// }
-	return order.Modify{}, common.ErrNotYetImplemented
+	return nil, common.ErrNotYetImplemented
 }
 
 // CancelOrder cancels an order by its corresponding ID number
