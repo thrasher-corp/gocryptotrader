@@ -950,3 +950,23 @@ func (bot *Engine) SetupExchanges() error {
 func (bot *Engine) WaitForInitialCurrencySync() error {
 	return bot.currencyPairSyncer.WaitForInitialSync()
 }
+
+// RegisterWebsocketDataHandler registers an externally defined data handler
+// for diverting and handling websocket notifications across all enabled
+// exchanges. InterceptorOnly as true will purge all other registered handlers
+// (including default) bypassing all other handling.
+func (bot *Engine) RegisterWebsocketDataHandler(fn WebsocketDataHandler, interceptorOnly bool) error {
+	if bot == nil {
+		return errNilBot
+	}
+	return bot.websocketRoutineManager.registerWebsocketDataHandler(fn, interceptorOnly)
+}
+
+// SetDefaultWebsocketDataHandler sets the default websocket handler and
+// removing all pre-existing handlers
+func (bot *Engine) SetDefaultWebsocketDataHandler() error {
+	if bot == nil {
+		return errNilBot
+	}
+	return bot.websocketRoutineManager.setWebsocketDataHandler(bot.websocketRoutineManager.websocketDataHandler)
+}
