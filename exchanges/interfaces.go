@@ -95,6 +95,7 @@ type IBotExchange interface {
 	UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error
 
 	AccountManagement
+	GetCredentials(ctx context.Context) (*Credentials, error)
 }
 
 // OrderManagement defines functionality for order management
