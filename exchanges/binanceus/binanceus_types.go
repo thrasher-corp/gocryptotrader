@@ -15,16 +15,12 @@ import (
 var (
 	// BinanceRequestParamsOrderLimit Limit order
 	BinanceRequestParamsOrderLimit = RequestParamsOrderType("LIMIT")
-
 	// BinanceRequestParamsOrderMarket Market order
 	BinanceRequestParamsOrderMarket = RequestParamsOrderType("MARKET")
-
 	// BinanceRequestParamsOrderStopLoss STOP_LOSS
 	BinanceRequestParamsOrderStopLoss = RequestParamsOrderType("STOP_LOSS")
-
 	// BinanceRequestParamsOrderStopLossLimit STOP_LOSS_LIMIT
 	BinanceRequestParamsOrderStopLossLimit = RequestParamsOrderType("STOP_LOSS_LIMIT")
-
 	// BinanceRequestParamsOrderTakeProfit TAKE_PROFIT
 	BinanceRequestParamsOrderTakeProfit = RequestParamsOrderType("TAKE_PROFIT")
 	// BinanceRequestParamsOrderTakeProfitLimit TAKE_PROFIT_LIMIT
@@ -52,7 +48,6 @@ type ExchangeInfo struct {
 	Msg        string    `json:"msg"`
 	Timezone   string    `json:"timezone"`
 	Servertime time.Time `json:"serverTime"`
-	// Servertime uint64 `json:"serverTime"`
 	RateLimits []struct {
 		RateLimitType string `json:"rateLimitType"`
 		Interval      string `json:"interval"`
@@ -179,11 +174,9 @@ type OrderbookItem struct {
 
 // OrderBookData is resp data from orderbook endpoint
 type OrderBookData struct {
-	LastUpdateID int64 `json:"lastUpdateId"`
-	// Code         int         `json:"code"`
-	// Msg          string      `json:"msg"`
-	Bids [][2]string `json:"bids"`
-	Asks [][2]string `json:"asks"`
+	LastUpdateID int64       `json:"lastUpdateId"`
+	Bids         [][2]string `json:"bids"`
+	Asks         [][2]string `json:"asks"`
 }
 
 // OrderBook actual structured data that can be used for orderbook
@@ -220,11 +213,13 @@ type CandleStick struct {
 	TakerBuyQuoteAssetVolume float64
 }
 
+// SymbolPrice represents a symbol and it's price.
 type SymbolPrice struct {
 	Symbol string  `json:"symbol"`
 	Price  float64 `json:"price,string"`
 }
 
+// SymbolPrices lis tof Symbol Price
 type SymbolPrices []SymbolPrice
 
 // AveragePrice holds current average symbol price
@@ -301,6 +296,7 @@ type AccountStatusResponse struct {
 	Objs    []string `json:"objs,omitempty"`
 }
 
+// TradeStatus represents trade status and holds list of trade status indicator Item instances.
 type TradeStatus struct {
 	IsLocked           bool                                  `json:"isLocked"`
 	PlannedRecoverTime uint                                  `json:"plannedRecoverTime"`
@@ -309,25 +305,28 @@ type TradeStatus struct {
 	UpdateTime         time.Time                             `json:"updateTime"`
 }
 
+// TradingStatusIndicatorItem represents Trade Status Indication
 type TradingStatusIndicatorItem struct {
-	I string  `json:"i"`
-	C float32 `json:"c"`
-	V float32 `json:"v"`
-	T float32 `json:"t"`
+	IndicatorSymbol  string  `json:"i"`
+	CountOfAllOrders float32 `json:"c"`
+	CurrentValue     float32 `json:"v"`
+	TriggerValue     float32 `json:"t"`
 }
 
+// TradeFee represents the symbol and corresponding maker and taker trading fee value.
 type TradeFee struct {
 	Symbol string  `json:"symbol"`
 	Maker  float64 `json:"maker"`
 	Taker  float64 `json:"taker"`
 }
 
+// TradeFeeList list of trading fee for different trade symbols.
 type TradeFeeList struct {
 	TradeFee []TradeFee `json:"tradeFee"`
 	Success  bool       `json:"success,omitempty"`
 }
 
-// AssetHistory
+// AssetHistory holds the asset type and translation info
 type AssetHistory struct {
 	Amount  float64 `json:"amount,string"` // Amount
 	Asset   string  `json:"asset"`         // Asset Type eg. BHFT
@@ -343,7 +342,8 @@ type AssetDistributionHistories struct {
 	Total uint            `json:"total"`
 }
 
-// SubAccount  ...
+// SubAccount  holds a single sub account instance in a Binance US account.
+// including the email and related information related to it.
 type SubAccount struct {
 	Email      string    `json:"email"`
 	Status     bool      `json:"status"`
@@ -362,17 +362,18 @@ type TransferHistory struct {
 	TimeStamp time.Time `json:"time"`
 }
 
-// SubAccountTransferRequestParams used to transfer an asset from one account to another
-// this
+// SubAccountTransferRequestParams a argument varaibles holder used to transfer an asset from one account to another subaccount
+// this account has to be present in the sub accounts list information.
 type SubaccountTransferRequestParams struct {
-	FromEmail  string  // Mendatory
-	ToEmail    string  // Mendatory
-	Asset      string  // Mendatory
-	Amount     float64 // Mendatory
+	FromEmail  string  // Mandatory
+	ToEmail    string  // Mandatory
+	Asset      string  // Mandatory
+	Amount     float64 // Mandatory
 	RecvWindow uint64
 }
 
-// SubAccountTransferResponse
+// SubAccountTransferResponse repsents a suabccount transffer history
+// having the transaction id which is to be returned due to the transfer
 type SubaccountTransferResponse struct {
 	Success bool   `json:"success"`
 	TxnID   uint64 `json:"txnId,string"`
@@ -480,7 +481,7 @@ type CommonOrder struct {
 	StopPrice           float64 `json:"stopPrice,string"`
 }
 
-// Order struct
+// Order struct represents an ordinary order response.
 type Order struct {
 	CommonOrder
 	IcebergQty        float64   `json:"icebergQty,string"`
@@ -508,15 +509,14 @@ type OrderRequestParams struct {
 // CancelOrderRequestParams this struct will be used as a parameter for
 // cancel order method.
 type CancelOrderRequestParams struct {
-	Symbol currency.Pair
-	// SymbolString      string
+	Symbol            currency.Pair
 	OrderID           uint64
 	OrigClientOrderID string
 	NewClientOrderID  string
 	RecvWindow        uint
 }
 
-// GetTradesParams
+// GetTradesParams  request param to get the trade history
 type GetTradesParams struct {
 	Symbol     string     `json:"symbol"`
 	OrderID    uint64     `json:"orderId"`
@@ -664,7 +664,7 @@ type OTCTradeOrder struct {
 	CreateTime   time.Time `json:"createTime"`
 }
 
-// OTCTradeOrderParams ...
+// OTCTradeOrderParams request param for Over-the-Counter trade order params.
 type OTCTradeOrderRequestParams struct {
 	OrderId   string
 	FromCoin  string
@@ -677,7 +677,7 @@ type OTCTradeOrderRequestParams struct {
 // Wallet Endpoints
 //
 
-// AssetWalletDetail ...
+// AssetWalletDetail represents the wallet asset information.
 type AssetWalletDetail struct {
 	Coin              string `json:"coin"`
 	DepositAllEnable  bool   `json:"depositAllEnable"`
@@ -728,7 +728,7 @@ type WithdrawalRequestParam struct {
 	RecvWindow      uint64  `json:"recvWindow"`
 }
 
-// WithdrawalResponse ...
+// WithdrawalResponse holds the transaction id for a withdrawal action.
 type WithdrawalResponse struct {
 	ID string `json:"id"`
 }
@@ -746,7 +746,7 @@ type WithdrawStatusResponse struct {
 	TransferType   int     `json:"transferType"`
 }
 
-// FiatAssetRecord ...
+// FiatAssetRecord asset information for fiat.
 type FiatAssetRecord struct {
 	OrderID        string `json:"orderId"`
 	PaymentAccount string `json:"paymentAccount"`
@@ -758,12 +758,12 @@ type FiatAssetRecord struct {
 	PlatformFee    string `json:"platformFee"`
 }
 
-// FiatWithdrawalHistory ...
+// FiatWithdrawalHistory holds list of availabel fiat asset records.
 type FiatAssetsHistory struct {
 	AssetLogRecordList []FiatAssetRecord `json:"assetLogRecordList"`
 }
 
-// WithdrawFiatRequestParams ...
+// WithdrawFiatRequestParams repsents the fiat withdrawal request params.
 type WithdrawFiatRequestParams struct {
 	PaymentChannel string
 	PaymentMethod  string
@@ -773,7 +773,7 @@ type WithdrawFiatRequestParams struct {
 	RecvWindow     uint64
 }
 
-// FiatWithdrawalRequestParams ... to fetch your fiat (USD) withdrawal history.
+// FiatWithdrawalRequestParams to fetch your fiat (USD) withdrawal history.
 type FiatWithdrawalRequestParams struct {
 	FiatCurrency   string
 	OrderId        string
@@ -792,7 +792,7 @@ type DepositAddress struct {
 	URL     string `json:"url"`
 }
 
-// DepositHistory stores deposit history info
+// DepositHistory stores deposit history info.
 type DepositHistory struct {
 	Amount       string `json:"amount"`
 	Coin         string `json:"coin"`
@@ -806,7 +806,7 @@ type DepositHistory struct {
 	ConfirmTimes string `json:"confirmTimes"`
 }
 
-// UserAccountStream
+// UserAccountStream represents the response for getting the listen key for the websocket
 type UserAccountStream struct {
 	ListenKey string `json:"listenKey"`
 }
@@ -833,6 +833,7 @@ type job struct {
 	Pair currency.Pair
 }
 
+// update holds websocker depth stream response data and update informations.
 type update struct {
 	buffer            chan *WebsocketDepthStream
 	fetchingBook      bool
@@ -852,13 +853,14 @@ type WebsocketDepthStream struct {
 	UpdateAsks    [][2]interface{} `json:"a"`
 }
 
-// WebsocketDepthDiffStream ...
+// WebsocketDepthDiffStream websocket response of depth diff stream
 type WebsocketDepthDiffStream struct {
 	LastUpdateID int         `json:"lastUpdateId"`
 	Bids         [][2]string `json:"bids"`
 	Asks         [][2]string `json:"asks"`
 }
 
+// wsAccountInfo websocekt response of account information.
 type wsAccountInfo struct {
 	Stream string            `json:"stream"`
 	Data   WsAccountInfoData `json:"data"`
@@ -883,6 +885,7 @@ type WsAccountInfoData struct {
 	} `json:"B"`
 }
 
+// wsAccountPosition websocke response of account position.
 type wsAccountPosition struct {
 	Stream string                `json:"stream"`
 	Data   WsAccountPositionData `json:"data"`
@@ -900,12 +903,13 @@ type WsAccountPositionData struct {
 	EventType   string    `json:"e"`
 }
 
+// wsBalanceUpdate respresents the websocket response of update balance.
 type wsBalanceUpdate struct {
 	Stream string              `json:"stream"`
 	Data   WsBalanceUpdateData `json:"data"`
 }
 
-// WsBalanceUpdateData defines websocket account balance data
+// WsBalanceUpdateData defines websocket account balance data.
 type WsBalanceUpdateData struct {
 	EventTime    time.Time `json:"E"`
 	ClearTime    time.Time `json:"T"`
@@ -955,6 +959,7 @@ type WsOrderUpdateData struct {
 	QuoteOrderQuantity                float64   `json:"Q,string"`
 }
 
+// wsListStatus holder for websocker account listing status response.
 type wsListStatus struct {
 	Stream string           `json:"stream"`
 	Data   WsListStatusData `json:"data"`

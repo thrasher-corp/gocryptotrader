@@ -636,7 +636,7 @@ func (bi *Binanceus) SubmitOrder(ctx context.Context, s *order.Submit) (order.Su
 			})
 		}
 	default:
-		return submitOrderResponse, fmt.Errorf("assetType not supported")
+		return submitOrderResponse, fmt.Errorf("%s %w", s.AssetType, asset.ErrNotSupported)
 	}
 	return submitOrderResponse, nil
 }
@@ -695,15 +695,15 @@ func (bi *Binanceus) CancelAllOrders(ctx context.Context, orderCancellation *ord
 		if er != nil {
 			return cancelAllOrdersResponse, er
 		}
-		for _, openO := range openOrders {
-			pair, er := currency.NewPairFromString(openO.Symbol)
+		for ind := range openOrders {
+			pair, er := currency.NewPairFromString(openOrders[ind].Symbol)
 			if er != nil {
 				return cancelAllOrdersResponse, er
 			}
 			_, err := bi.CancelExistingOrder(ctx, CancelOrderRequestParams{
 				Symbol:            pair,
-				OrderID:           openO.OrderID,
-				OrigClientOrderID: openO.ClientOrderID,
+				OrderID:           openOrders[ind].OrderID,
+				OrigClientOrderID: openOrders[ind].ClientOrderID,
 			})
 			if err != nil {
 				return cancelAllOrdersResponse, err
@@ -732,12 +732,14 @@ func (bi *Binanceus) GetOrderInfo(ctx context.Context, orderID string, pair curr
 			Symbol:            symbolValue,
 			OrderID:           uint64(orderIDInt),
 			OrigClientOrderId: "",
-			// RecvWindow : 60000,
 		})
 		if err != nil {
 			return respData, err
 		}
-		orderSide := order.Side(resp.Side)
+		orderSide, err := order.StringToOrderSide(resp.Side)
+		if err != nil {
+			log.Errorf(log.ExchangeSys, "%s %v", bi.Name, err)
+		}
 		status, err := order.StringToOrderStatus(resp.Status)
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "%s %v", bi.Name, err)
@@ -764,7 +766,7 @@ func (bi *Binanceus) GetOrderInfo(ctx context.Context, orderID string, pair curr
 			LastUpdated:    resp.UpdateTime,
 		}, nil
 	default:
-		return respData, fmt.Errorf("assetType %s not supported", assetType)
+		return respData, fmt.Errorf("%s %w", assetType, asset.ErrNotSupported)
 	}
 }
 
@@ -808,16 +810,6 @@ func (bi *Binanceus) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRe
 // the fiat withdrawal end point of Binance.US is built to submit a USD withdraw request via Silvergate Exchange Network (SEN).
 // So, this method is not implemented.
 func (bi *Binanceus) WithdrawFiatFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
-	// if err := withdrawRequest.Validate(); err != nil {
-	// 	return nil, err
-	// }
-
-	// resp, err := bi.WithdrawFiat(ctx, WithdrawFiatRequestParams{
-	// 	PaymentAccount: withdrawRequest.Fiat.IntermediaryBankAccountNumber,
-	// 	FiatCurrency:   "",
-	// 	Amount:         withdrawRequest.Amount,
-	// })
-
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -825,9 +817,6 @@ func (bi *Binanceus) WithdrawFiatFunds(ctx context.Context, withdrawRequest *wit
 // But, GCT has no concept of withdrawal via SEN
 // the fiat withdrawal end point of Binance.US is built to submit a USD withdraw request via Silvergate Exchange Network (SEN).
 func (bi *Binanceus) WithdrawFiatFundsToInternationalBank(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
-	// if err := withdrawRequest.Validate(); err != nil {
-	//	return nil, err
-	// }
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -852,7 +841,10 @@ func (bi *Binanceus) GetActiveOrders(ctx context.Context, getOrdersRequest *orde
 				return nil, err
 			}
 			for x := range resp {
-				orderSide := order.Side(strings.ToUpper(resp[x].Side))
+				orderSide, eer := order.StringToOrderSide(strings.ToUpper(resp[x].Side))
+				if eer != nil {
+					log.Errorf(log.ExchangeSys, "%s %v", bi.Name, err)
+				}
 				orderType := order.Type(strings.ToUpper(resp[x].Type))
 				orderStatus, err := order.StringToOrderStatus(resp[i].Status)
 				if err != nil {
@@ -874,7 +866,7 @@ func (bi *Binanceus) GetActiveOrders(ctx context.Context, getOrdersRequest *orde
 				})
 			}
 		default:
-			return orders, fmt.Errorf("assetType not supported")
+			return orders, fmt.Errorf("%s %w", getOrdersRequest.AssetType, asset.ErrNotSupported)
 		}
 	}
 	order.FilterOrdersByCurrencies(&orders, getOrdersRequest.Pairs)
@@ -889,7 +881,7 @@ func (bi *Binanceus) GetActiveOrders(ctx context.Context, getOrdersRequest *orde
 func (bi *Binanceus) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
 	// An endpoint like /api/v3/allOrders does not exist in the binance us
 	// so This end point is left Un Implemented
-	return nil, common.ErrNotYetImplemented
+	return nil, common.ErrFunctionNotSupported
 }
 
 // GetFeeByType returns an estimate of fee based on the type of transaction

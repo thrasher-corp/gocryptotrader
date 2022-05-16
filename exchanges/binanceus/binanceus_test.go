@@ -38,6 +38,9 @@ var (
 	testPairMapping = currency.NewPair(currency.BTC, currency.USDT)
 	// this lock guards against orderbook tests race
 	binanceusOrderBookLock = &sync.Mutex{}
+
+	// mockTests
+	mockTests = true
 )
 
 func TestMain(m *testing.M) {
@@ -108,7 +111,6 @@ func TestGetExchangeInfo(t *testing.T) {
 	t.Parallel()
 	_, err := bi.GetExchangeInfo(context.Background())
 	if err != nil {
-		println("DERR: ", err.Error())
 		t.Error(err)
 	}
 }
@@ -371,7 +373,6 @@ func TestGetActiveOrders(t *testing.T) {
 	}
 }
 
-// TODO: this test is not completed yet.
 func TestWithdraw(t *testing.T) {
 	t.Parallel()
 	if areTestAPIKeysSet() && !canManipulateRealOrders && !mockTests {
@@ -412,11 +413,10 @@ func TestGetFee(t *testing.T) {
 		Pair:          currency.NewPair(currency.BTC, currency.LTC),
 		PurchasePrice: 1,
 	}
-	val, er := bi.GetFeeByType(context.Background(), feeBuilder)
+	_, er := bi.GetFeeByType(context.Background(), feeBuilder)
 	if er != nil {
 		t.Fatal("Binanceus GetFeeByType() error", er)
 	}
-	println(val)
 
 }
 
@@ -429,8 +429,6 @@ func TestGetHistoricCandles(t *testing.T) {
 	if !strings.Contains(er.Error(), "interval not supported") {
 		t.Errorf("Binanceus GetHistoricCandles() expected %s, but found %v", "interval not supported", er)
 	}
-	// startTime = time.Unix(time.Now().Unix()-int64(time.Hour*30), 0)
-	// endTime = time.Now()
 	_, er = bi.GetHistoricCandles(context.Background(), pair, asset.Spot, time.Time{}, time.Time{}, kline.Interval(time.Hour*4))
 	if er != nil {
 		t.Error("Binanceus GetHistoricCandles() error", er)
@@ -482,14 +480,6 @@ func TestGetHistoricalTrades(t *testing.T) {
 
 func TestGetAggregateTrades(t *testing.T) {
 	t.Parallel()
-	// _, err := bi.GetAggregateTrades(context.Background(),
-	// 	&AggregatedTradeRequestParams{
-	// 		Symbol: currency.NewPair(currency.BTC, currency.USDT),
-	// 		Limit:  1001,
-	// 	})
-	// if err != nil {
-	// 	t.Error("Binanceus GetAggregateTrades() error", err)
-	// }
 	_, err := bi.GetAggregateTrades(context.Background(),
 		&AggregatedTradeRequestParams{
 			Symbol: currency.NewPair(currency.BTC, currency.USDT),
@@ -498,15 +488,6 @@ func TestGetAggregateTrades(t *testing.T) {
 	if err != nil {
 		t.Error("Binanceus GetAggregateTrades() error", err)
 	}
-	// _, err = bi.GetAggregateTrades(context.Background(),
-	// 	&AggregatedTradeRequestParams{
-	// 		Symbol:  currency.NewPair(currency.BTC, currency.USDT),
-	// 		Limit:   5,
-	// 		EndTime: uint64(time.Now().UnixMilli()),
-	// 	})
-	// if err != nil {
-	// 	t.Error("Binanceus GetAggregateTrades() error", err)
-	// }
 }
 
 func TestGetOrderBookDepth(t *testing.T) {
@@ -598,12 +579,10 @@ func TestGetAccount(t *testing.T) {
 
 func TestGetUserAccountStatus(t *testing.T) {
 	t.Parallel()
-	res, er := bi.GetUserAccountStatus(context.Background(), 3000)
+	_, er := bi.GetUserAccountStatus(context.Background(), 3000)
 	if er != nil {
 		t.Error("Binanceus GetUserAccountStatus() error", er)
 	}
-	val, _ := json.Marshal(res)
-	println("\n", string(val))
 }
 
 func TestGetUserAPITradingStatus(t *testing.T) {
@@ -655,17 +634,9 @@ func TestGetSubaccountTransferHistory(t *testing.T) {
 
 func TestExecuteSubAccountTransfer(t *testing.T) {
 	t.Parallel()
-	_, er := bi.ExecuteSubAccountTransfer(context.Background(), &SubaccountTransferRequestParams{
-		// FromEmail: "fromemail@thrasher.io",
-		// ToEmail:   "toemail@threasher.io",
-		// Asset:     "BTC",
-		// Amount:    0.000005,
-	})
+	_, er := bi.ExecuteSubAccountTransfer(context.Background(), &SubaccountTransferRequestParams{})
 	if !errors.Is(er, errUnacceptableSenderEmail) {
 		t.Errorf("binanceus error: expected %v, but found %v", errUnacceptableSenderEmail, er)
-	}
-	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("Binanceus GetSubaccountTransferhistory() skipping test, either api keys or canManipulateRealOrders isn't set")
 	}
 	_, er = bi.ExecuteSubAccountTransfer(context.Background(), &SubaccountTransferRequestParams{
 		FromEmail: "fromemail@thrasher.io",
@@ -679,7 +650,6 @@ func TestExecuteSubAccountTransfer(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("Binanceus GetSubaccountTransferhistory() skipping test, either api keys or canManipulateRealOrders isn't set")
 	}
-
 }
 
 func TestGetSubaccountAssets(t *testing.T) {
@@ -721,8 +691,6 @@ func TestNewOrderTest(t *testing.T) {
 		t.Error("Binanceus NewOrderTest() expecting an error when no keys are set")
 	case mockTests && err != nil:
 		t.Error("Binanceus Mock NewOrderTest() error", err)
-		// default:
-		// 	t.Error("Binanceus NewOrderTest() error", err)
 	}
 	req = &NewOrderRequest{
 		Symbol:        currency.NewPair(currency.LTC, currency.BTC),
@@ -732,17 +700,10 @@ func TestNewOrderTest(t *testing.T) {
 		QuoteOrderQty: 10,
 	}
 
-	result, err := bi.NewOrderTest(context.Background(), req)
-	switch {
-	case areTestAPIKeysSet() && err != nil:
+	_, err = bi.NewOrderTest(context.Background(), req)
+	if err != nil {
 		t.Error("NewOrderTest() error", err)
-	case !areTestAPIKeysSet() && err == nil && !mockTests:
-		t.Error("NewOrderTest() expecting an error when no keys are set")
-	case mockTests && err != nil:
-		t.Error("Mock NewOrderTest() error", err)
 	}
-	re, _ := json.Marshal(result)
-	println(string(re))
 }
 
 func TestGetOrder(t *testing.T) {
@@ -764,12 +725,10 @@ func TestGetOrder(t *testing.T) {
 
 func TestGetAllOpenOrders(t *testing.T) {
 	t.Parallel()
-	orders, er := bi.GetAllOpenOrders(context.Background(), "")
+	_, er := bi.GetAllOpenOrders(context.Background(), "")
 	if er != nil {
 		t.Error("Binanceus GetAllOpenOrders() error", er)
 	}
-	ordersString, _ := json.Marshal(orders)
-	println(string(ordersString))
 }
 
 func TestCancelExistingOrder(t *testing.T) {
@@ -823,7 +782,6 @@ func TestCreateNewOCOOrder(t *testing.T) {
 	t.Parallel()
 	_, er := bi.CreateNewOCOOrder(context.Background(),
 		OCOOrderInputParams{
-			// Symbol:    "BTCUSDT",
 			StopPrice: 1000,
 			Side:      "BUY",
 			Quantity:  0.0000001,
@@ -832,7 +790,6 @@ func TestCreateNewOCOOrder(t *testing.T) {
 	if !errors.Is(er, errIncompleteArguments) {
 		t.Errorf("Binanceus CreatenewOCOOrder() error expected %v, but found %v", errIncompleteArguments, er)
 	}
-	// TODO: Incomplete yet
 }
 
 func TestGetOCOOrder(t *testing.T) {
@@ -841,7 +798,6 @@ func TestGetOCOOrder(t *testing.T) {
 	if !errors.Is(er, errIncompleteArguments) {
 		t.Errorf("Binanceus GetOCOOrder() error  expecting %v, but found %v", errIncompleteArguments, er)
 	}
-	// TODO:
 }
 
 func TestGetAllOCOOrder(t *testing.T) {
@@ -862,7 +818,6 @@ func TestGetOpenOCOOrders(t *testing.T) {
 
 func TestCancelOCOOrder(t *testing.T) {
 	t.Parallel()
-	//
 	_, er := bi.CancelOCOOrder(context.Background(), OCOOrdersDeleteRequestParams{})
 	if !errors.Is(er, errIncompleteArguments) {
 		t.Errorf("Binanceus CancelOCOOrder() error expected %v, but found %v", errIncompleteArguments, er)
@@ -992,9 +947,6 @@ func TestGetAssetFeesAndWalletStatus(t *testing.T) {
 func TestWithdrawCrypto(t *testing.T) {
 	t.Parallel()
 	_, er := bi.WithdrawCrypto(context.Background(), WithdrawalRequestParam{})
-	// if !errors.Is(er, errIncompleteArguments) {
-	// 	t.Errorf("Binanceus error %v, but found %v", errIncompleteArguments, er)
-	// }
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("Binanceus CancelExistingOrder() skipping test, either api keys or canManipulateRealOrders isn't set")
 	}
@@ -1015,16 +967,14 @@ func TestWithdrawCrypto(t *testing.T) {
 func TestWebsocketStreamKey(t *testing.T) {
 	t.Parallel()
 
-	lnKey, er := bi.GetWsAuthStreamKey(context.Background())
+	_, er := bi.GetWsAuthStreamKey(context.Background())
 	if er != nil {
 		t.Error("Binanceus GetWsAuthStreamKey() error", er)
 	}
-	log.Println(lnKey)
 	er = bi.MaintainWsAuthStreamKey(context.Background())
 	if er != nil {
 		t.Error("Binanceus MaintainWsAuthStreamKey() error", er)
 	}
-	log.Println(lnKey)
 	er = bi.CloseUserDataStream(context.Background())
 	if er != nil {
 		t.Error("Binanceus CloseUserDataStream() error", er)
@@ -1368,7 +1318,6 @@ func TestWebsocketListStatus(t *testing.T) {
 
 // TestExecutionTypeToOrderStatus ..
 func TestExecutionTypeToOrderStatus(t *testing.T) {
-	// directly copied from binance
 	type TestCases struct {
 		Case   string
 		Result order.Status

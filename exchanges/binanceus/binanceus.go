@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -99,40 +98,37 @@ const (
 	// Other Consts
 	defaultRecvWindow      = 5 * time.Second
 	binanceUSAPITimeLayout = "2006-01-02 15:04:05"
+
+	// recvWindowSize5000
+	recvWindowSize5000 = 5000
 )
 
 // This are list of error Messages to be returned by binanceus endpoint methods.
 var (
-	errNotValidEmailAddress      = errors.New("invalid email address")
-	errUnacceptableSenderEmail   = errors.New("senders address email is missing")
-	errUnacceptableReceiverEmail = errors.New("receiver address email is missing")
-	errInvalidAssetValue         = errors.New("invalid asset ")
-	errInvalidAssetAmount        = errors.New("invalid asset amount")
-	errIncompleteArguments       = errors.New("missing required argument")
+	errNotValidEmailAddress            = errors.New("invalid email address")
+	errUnacceptableSenderEmail         = errors.New("senders address email is missing")
+	errUnacceptableReceiverEmail       = errors.New("receiver address email is missing")
+	errInvalidAssetValue               = errors.New("invalid asset ")
+	errInvalidAssetAmount              = errors.New("invalid asset amount")
+	errIncompleteArguments             = errors.New("missing required argument")
+	errStartTimeOrFromIdNotSet         = errors.New("please set StartTime or FromId, but not both")
+	errIncorrectLimitValues            = errors.New("incorrect limit values - valid values are 5, 10, 20, 50, 100, 500, 1000")
+	errUnableToTypeAssertResponseData  = errors.New("unable to type assert responseData")
+	errUnableToTypeAssertInvalidData   = errors.New("unable to type assert individualData")
+	errUnexpectedKlineDataLength       = errors.New("unexpected kline data length")
+	errUnableToTypeAssertTradeCount    = errors.New("unable to type assert trade count")
+	errMissingRequiredArgument_coin    = errors.New("missing required argument,coin")
+	errMissingRequiredArgument_Network = errors.New("missing required argument,network")
+	errAmountValueMustBeGreaterThan0   = errors.New("amount must be greater than 0")
+	errMissingPaymentAccountInfo       = errors.New("error: missing payment account")
 )
-
-var (
-	// EmailRX represents email address maching pattern
-	EmailRX = regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+\\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
-)
-
-// MatchesPattern PATTERN , REGULAR EXPRESION
-func MatchesEmailPattern(value string) bool {
-	if value == "" {
-		return false
-	}
-	if !EmailRX.MatchString(value) {
-		return false
-	}
-	return true
-}
 
 // SetValues sets the default valid values
 func (b *Binanceus) SetValues() {
 	b.validLimits = []int{5, 10, 20, 50, 100, 500, 1000, 5000}
 }
 
-// GetExchangeInfo Start implementing public and private exchange API funcs below
+// GetExchangeInfo to get the current exchange trading rules and trading pair information.
 func (b *Binanceus) GetExchangeInfo(ctx context.Context) (ExchangeInfo, error) {
 	var respo ExchangeInfo
 	return respo, b.SendHTTPRequest(ctx,
@@ -140,7 +136,7 @@ func (b *Binanceus) GetExchangeInfo(ctx context.Context) (ExchangeInfo, error) {
 		exchangeInfo, spotExchangeInfo, &respo)
 }
 
-// GetMostRecentTrades o get older trades. Please note the maximum limit is 1,000 trades.
+// GetMostRecentTrades to get older trades. maximum limit in the RecentTradeRequestParams is 1,000 trades.
 func (b *Binanceus) GetMostRecentTrades(ctx context.Context, rtr RecentTradeRequestParams) ([]RecentTrade, error) {
 	params := url.Values{}
 	symbol, err := b.FormatSymbol(rtr.Symbol, asset.Spot)
@@ -148,8 +144,8 @@ func (b *Binanceus) GetMostRecentTrades(ctx context.Context, rtr RecentTradeRequ
 		return nil, err
 	}
 	params.Set("symbol", symbol)
-	params.Set("limit", fmt.Sprintf("%d", rtr.Limit))
-	path := recentTrades + "?" + params.Encode()
+	params.Set("limit", strconv.Itoa(rtr.Limit))
+	path := common.EncodeURLValues(recentTrades, params)
 	var resp []RecentTrade
 	return resp, b.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, spotDefaultRate, &resp)
 }
@@ -211,7 +207,7 @@ func (b *Binanceus) GetAggregateTrades(ctx context.Context, agg *AggregatedTrade
 		}
 		// Can't handle this request locally or remotely
 		// We would receive {"code":-1128,"msg":"Combination of optional parameters invalid."}
-		return nil, errors.New("please set StartTime or FromId, but not both")
+		return nil, errStartTimeOrFromIdNotSet
 	}
 	var resp []AggregatedTrade
 	path := aggregatedTrades + "?" + params.Encode()
@@ -357,7 +353,7 @@ func (b *Binanceus) CheckLimit(limit int) error {
 			return nil
 		}
 	}
-	return errors.New("incorrect limit values - valid values are 5, 10, 20, 50, 100, 500, 1000")
+	return errIncorrectLimitValues
 }
 
 // GetIntervalEnum allowed interval params by Binanceus
@@ -436,17 +432,17 @@ func (b *Binanceus) GetSpotKline(ctx context.Context, arg *KlinesRequestParams) 
 	}
 	responseData, ok := resp.([]interface{})
 	if !ok {
-		return nil, errors.New("unable to type assert responseData")
+		return nil, errUnableToTypeAssertResponseData
 	}
 
 	klineData := make([]CandleStick, len(responseData))
 	for x := range responseData {
 		individualData, ok := responseData[x].([]interface{})
 		if !ok {
-			return nil, errors.New("unable to type assert individualData")
+			return nil, errUnableToTypeAssertInvalidData
 		}
 		if len(individualData) != 12 {
-			return nil, errors.New("unexpected kline data length")
+			return nil, errUnexpectedKlineDataLength
 		}
 		var candle CandleStick
 		candle.OpenTime = time.UnixMilli(int64(individualData[0].(float64)))
@@ -470,7 +466,7 @@ func (b *Binanceus) GetSpotKline(ctx context.Context, arg *KlinesRequestParams) 
 			return nil, err
 		}
 		if candle.TradeCount, ok = individualData[8].(float64); !ok {
-			return nil, errors.New("unable to type assert trade count")
+			return nil, errUnableToTypeAssertTradeCount
 		}
 		if candle.TakerBuyAssetVolume, err = convert.FloatFromString(individualData[9]); err != nil {
 			return nil, err
@@ -496,6 +492,7 @@ func (b *Binanceus) GetSinglePriceData(ctx context.Context, symbol currency.Pair
 	return res, b.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, spotDefaultRate, &res)
 }
 
+// GetPriceDatas to get the latest price for symbols.
 func (b *Binanceus) GetPriceDatas(ctx context.Context) (SymbolPrices, error) {
 	var res SymbolPrices
 	return res, b.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, tickerPrice, spotDefaultRate, &res)
@@ -643,31 +640,26 @@ func (b *Binanceus) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder)
 	var fee float64
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:
-		{
-			multiplier, er := b.getMultiplier(ctx, feeBuilder.IsMaker, feeBuilder)
-			if er != nil {
-				return 0, er
-			}
-			fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount, multiplier)
+		multiplier, er := b.getMultiplier(ctx, feeBuilder.IsMaker, feeBuilder)
+		if er != nil {
+			return 0, er
 		}
+		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount, multiplier)
 	case exchange.CryptocurrencyWithdrawalFee:
-		{
-			wallet, er := b.GetAssetFeesAndWalletStatus(ctx)
-			if er != nil {
-				return fee, er
-			}
-			for _, aw := range wallet {
-				for _, net := range aw.NetworkList {
-					if net.IsDefault {
-						return net.WithdrawFee, nil
-					}
+		wallet, er := b.GetAssetFeesAndWalletStatus(ctx)
+		if er != nil {
+			return fee, er
+		}
+		for _, aw := range wallet {
+			for _, net := range aw.NetworkList {
+				if net.IsDefault {
+					return net.WithdrawFee, nil
 				}
 			}
 		}
 	case exchange.OfflineTradeFee:
-		{
-			fee = getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
-		}
+		fee = getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
+
 	}
 	if fee < 0 {
 		fee = 0
@@ -686,14 +678,13 @@ func (b *Binanceus) getMultiplier(ctx context.Context, isMaker bool, feeBuilder 
 	if er != nil {
 		return multiplier, er
 	}
-	if trades.TradeFee != nil && len(trades.TradeFee) > 0 {
-		for _, trf := range trades.TradeFee {
-			if trf.Symbol == symbol {
-				if isMaker {
-					return trf.Maker, nil
-				}
-				return trf.Taker, nil
+
+	for x := range trades.TradeFee {
+		if trades.TradeFee[x].Symbol == symbol {
+			if isMaker {
+				return trades.TradeFee[x].Maker, nil
 			}
+			return trades.TradeFee[x].Taker, nil
 		}
 	}
 	return multiplier, nil
@@ -719,7 +710,7 @@ func (b *Binanceus) GetTradeFee(ctx context.Context, recvWindow uint, symbol str
 		if recvWindow < 2000 {
 			recvWindow += 3000
 		} else if recvWindow > 60000 {
-			recvWindow = 5000
+			recvWindow = recvWindowSize5000
 		}
 		params.Set("recvWindow", strconv.Itoa(int(recvWindow)))
 	}
@@ -755,7 +746,7 @@ func (b *Binanceus) GetAssetDistributionHistory(ctx context.Context, asset strin
 		if recvWindow < 2000 {
 			recvWindow += 2000
 		} else if recvWindow > 6000 {
-			recvWindow = 5000
+			recvWindow = recvWindowSize5000
 		}
 		params.Set("recvWindow", strconv.Itoa(int(recvWindow)))
 	}
@@ -791,7 +782,6 @@ func (b *Binanceus) GetSubaccountInformation(ctx context.Context, page uint, lim
 	if limit != 0 {
 		params.Set("limit", strconv.Itoa(int(limit)))
 	}
-	// params.Set("recvWindow", strconv.Itoa(5000))
 	timestamp := time.Now().UnixMilli()
 	params.Set("timestamp", strconv.Itoa(int(timestamp)))
 	return resp.Subaccounts, b.SendAuthHTTPRequest(ctx,
@@ -816,7 +806,7 @@ func (b *Binanceus) GetSubaccountTransferhistory(ctx context.Context,
 		Transfers []*TransferHistory `json:"transfers"`
 	}
 	var resp response
-	if !MatchesEmailPattern(email) {
+	if !common.MatchesEmailPattern(email) {
 		return nil, errNotValidEmailAddress
 	}
 	params.Set("email", email)
@@ -853,10 +843,10 @@ func (b *Binanceus) GetSubaccountTransferhistory(ctx context.Context,
 func (b *Binanceus) ExecuteSubAccountTransfer(ctx context.Context, arg *SubaccountTransferRequestParams) (*SubaccountTransferResponse, error) {
 	params := url.Values{}
 	var response SubaccountTransferResponse
-	if !MatchesEmailPattern(arg.FromEmail) {
+	if !common.MatchesEmailPattern(arg.FromEmail) {
 		return nil, errUnacceptableSenderEmail
 	}
-	if !MatchesEmailPattern(arg.ToEmail) {
+	if !common.MatchesEmailPattern(arg.ToEmail) {
 		return nil, errUnacceptableReceiverEmail
 	}
 	if len(arg.Asset) <= 2 {
@@ -869,7 +859,7 @@ func (b *Binanceus) ExecuteSubAccountTransfer(ctx context.Context, arg *Subaccou
 	params.Set("toEmail", arg.ToEmail)
 	params.Set("asset", arg.Asset)
 	params.Set("amount", fmt.Sprintf("%f", arg.Amount))
-	params.Set("recvWindow", "5000")
+	params.Set("recvWindow", strconv.Itoa(recvWindowSize5000))
 	params.Set("timestamp", fmt.Sprintf("%d", time.Now().UnixMilli()))
 	return &response, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, subaccountTransfer, params, spotDefaultRate, &response)
 }
@@ -879,7 +869,7 @@ func (b *Binanceus) ExecuteSubAccountTransfer(ctx context.Context, arg *Subaccou
 // Use this endpoint to fetch sub-account assets.
 func (b *Binanceus) GetSubaccountAssets(ctx context.Context, email string) (*SubAccountAssets, error) {
 	var resp SubAccountAssets
-	if !MatchesEmailPattern(email) {
+	if !common.MatchesEmailPattern(email) {
 		return nil, errNotValidEmailAddress
 	}
 	params := url.Values{}
@@ -976,15 +966,15 @@ func (b *Binanceus) GetOrder(ctx context.Context, arg OrderRequestParams) (*Orde
 	}
 	params.Set("symbol", strings.ToUpper(arg.Symbol))
 	if arg.OrderID > 0 {
-		params.Set("orderId", fmt.Sprintf("%d", arg.OrderID))
+		params.Set("orderId", strconv.Itoa(int(arg.OrderID)))
 	}
 	timestamp := time.Now().UnixMilli()
-	params.Set("timestamp", fmt.Sprintf("%d", timestamp))
+	params.Set("timestamp", strconv.Itoa(int(timestamp)))
 	if arg.OrigClientOrderId != "" {
 		params.Set("origClientOrderId", arg.OrigClientOrderId)
 	}
 	if arg.RecvWindow > 200 && arg.RecvWindow <= 6000 {
-		params.Set("recvWindow", fmt.Sprint(arg.RecvWindow))
+		params.Set("recvWindow", strconv.Itoa(int(arg.RecvWindow)))
 	}
 	return &resp, b.SendAuthHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
@@ -1002,8 +992,8 @@ func (b *Binanceus) GetAllOpenOrders(ctx context.Context, symbol string) ([]*Ord
 	if symbol != "" {
 		params.Set("symbol", symbol)
 	}
-	params.Set("timestamp", fmt.Sprint(timestamp))
-	params.Set("recvWindow", fmt.Sprint(5000))
+	params.Set("timestamp", strconv.Itoa(int(timestamp)))
+	params.Set("recvWindow", strconv.Itoa(recvWindowSize5000))
 	return response, b.SendAuthHTTPRequest(ctx,
 		exchange.RestSpotSupplementary, http.MethodGet,
 		openOrders, params,
@@ -1038,7 +1028,7 @@ func (b *Binanceus) CancelOpenOrdersForSymbol(ctx context.Context, symbol string
 		return nil, errIncompleteArguments
 	}
 	params.Set("symbol", symbol)
-	params.Set("timestamp", fmt.Sprintf("%d", time.Now().UnixMilli()))
+	params.Set("timestamp", strconv.Itoa(int(time.Now().UnixMilli())))
 	params.Set("recvWindow", "5000")
 	var response []Order
 	return response, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary,
@@ -1054,23 +1044,23 @@ func (b *Binanceus) GetTrades(ctx context.Context, arg GetTradesParams) ([]*Trad
 		return nil, errIncompleteArguments
 	}
 	params.Set("symbol", arg.Symbol)
-	params.Set("timestamp", fmt.Sprint(time.Now().UnixMilli()))
+	params.Set("timestamp", strconv.Itoa(int(time.Now().UnixMilli())))
 	if arg.RecvWindow > 3000 {
-		params.Set("recvWindow", fmt.Sprint(arg.RecvWindow))
+		params.Set("recvWindow", strconv.Itoa(int(arg.RecvWindow)))
 	}
 	if arg.StartTime != nil {
-		params.Set("startTime", fmt.Sprint(arg.StartTime.UnixMilli()))
+		params.Set("startTime", strconv.Itoa(int(arg.StartTime.UnixMilli())))
 	}
 	if arg.EndTime != nil {
-		params.Set("endTime", fmt.Sprint(arg.EndTime.UnixMilli()))
+		params.Set("endTime", strconv.Itoa(int(arg.EndTime.UnixMilli())))
 	}
 	if arg.FromID > 0 {
-		params.Set("fromId", fmt.Sprint(arg.FromID))
+		params.Set("fromId", strconv.Itoa(int(arg.FromID)))
 	}
 	if arg.Limit > 0 && arg.Limit < 1000 {
 		params.Set("limit", fmt.Sprint(arg.Limit))
 	} else if arg.Limit > 1000 {
-		params.Set("limit", fmt.Sprint(1000))
+		params.Set("limit", strconv.Itoa(1000))
 	}
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, myTrades, params, spotDefaultRate, &resp)
 }
@@ -1080,19 +1070,7 @@ func (b *Binanceus) GetTrades(ctx context.Context, arg GetTradesParams) ([]*Trad
 // CreateNewOCOOrder o place a new OCO(one-cancels-the-other) order.
 func (b *Binanceus) CreateNewOCOOrder(ctx context.Context, arg OCOOrderInputParams) (*OCOFullOrderResponse, error) {
 	params := url.Values{}
-	if arg.Symbol == "" || len(arg.Symbol) <= 2 {
-		return nil, errIncompleteArguments
-	}
-	if arg.Quantity == 0 {
-		return nil, errIncompleteArguments
-	}
-	if arg.Side == "" {
-		return nil, errIncompleteArguments
-	}
-	if arg.Price == 0 {
-		return nil, errIncompleteArguments
-	}
-	if arg.StopPrice == 0 {
+	if arg.Symbol == "" || len(arg.Symbol) <= 2 || arg.Quantity == 0 || arg.Side == "" || arg.Price == 0 || arg.StopPrice == 0 {
 		return nil, errIncompleteArguments
 	}
 	params.Set("symbol", arg.Symbol)
@@ -1101,16 +1079,16 @@ func (b *Binanceus) CreateNewOCOOrder(ctx context.Context, arg OCOOrderInputPara
 	params.Set("price", fmt.Sprint(arg.Price))
 	params.Set("stopPrice", fmt.Sprint(arg.StopPrice))
 	if arg.ListClientOrderID != "" {
-		params.Set("listClientOrderId", fmt.Sprint(arg.ListClientOrderID))
+		params.Set("listClientOrderId", arg.ListClientOrderID)
 	}
 	if arg.LimitClientOrderID != "" {
-		params.Set("limitClientOrderId", fmt.Sprint(arg.LimitClientOrderID))
+		params.Set("limitClientOrderId", arg.LimitClientOrderID)
 	}
 	if arg.LimitIcebergQty > 0 {
 		params.Set("limitIcebergQty", fmt.Sprint(arg.LimitIcebergQty))
 	}
 	if arg.StopClientOrderID > "" {
-		params.Set("stopClientOrderId", (arg.StopClientOrderID))
+		params.Set("stopClientOrderId", arg.StopClientOrderID)
 	}
 	if arg.StopLimitPrice > 0.0 {
 		params.Set("stopLimitPrice", fmt.Sprint(arg.StopLimitPrice))
@@ -1226,7 +1204,7 @@ func (b *Binanceus) CancelOCOOrder(ctx context.Context, arg OCOOrdersDeleteReque
 // returns list of CoinPairInfo
 func (b *Binanceus) GetSupportedCoinPairs(ctx context.Context, symbol currency.Pair) ([]*CoinPairInfo, error) {
 	params := url.Values{}
-	if symbol.Base.String() != "" && symbol.Quote.String() != "" {
+	if !symbol.IsEmpty() {
 		params.Set("fromCoin", symbol.Base.String())
 		params.Set("toCoin", symbol.Quote.String())
 	}
@@ -1305,16 +1283,16 @@ func (b *Binanceus) GetAllOTCTradeOrders(ctx context.Context, arg OTCTradeOrderR
 		params.Set("fromCoin", arg.FromCoin)
 	}
 	if (arg.StartTime) != nil {
-		params.Set("startTime", fmt.Sprint(arg.StartTime.UnixMilli()))
+		params.Set("startTime", strconv.FormatInt(arg.StartTime.UnixMilli(), 64))
 	}
 	if arg.EndTime != nil {
-		params.Set("endTime", fmt.Sprint(arg.EndTime.UnixMilli()))
+		params.Set("endTime", strconv.FormatInt(arg.EndTime.UnixMilli(), 64))
 	}
 	if arg.ToCoin != "" {
-		params.Set("toCoin", fmt.Sprint(arg.ToCoin))
+		params.Set("toCoin", arg.ToCoin)
 	}
 	if arg.Limit > 0 {
-		params.Set("limit", fmt.Sprint(arg.Limit))
+		params.Set("limit", strconv.Itoa(int(arg.Limit)))
 	}
 	var response []*OTCTradeOrder
 	return response, b.SendAuthHTTPRequest(ctx,
@@ -1339,13 +1317,13 @@ func (b *Binanceus) GetAssetFeesAndWalletStatus(ctx context.Context) (AssetWalle
 // WithdrawCrypto method to withdraw crypto
 func (b *Binanceus) WithdrawCrypto(ctx context.Context, arg WithdrawalRequestParam) (string, error) {
 	params := url.Values{}
-	params.Set("timestamp", fmt.Sprint(time.Now().UnixMilli()))
+	params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 64))
 	if arg.Coin == "" {
-		return "", errors.New("missing required argument,coin")
+		return "", errMissingRequiredArgument_coin
 	}
 	params.Set("coin", arg.Coin)
 	if arg.Network == "" {
-		return "", errors.New("missing required argument,network")
+		return "", errMissingRequiredArgument_Network
 	}
 	params.Set("network", arg.Network)
 	if arg.WithdrawOrderId != "" {
@@ -1359,11 +1337,11 @@ func (b *Binanceus) WithdrawCrypto(ctx context.Context, arg WithdrawalRequestPar
 		params.Set("addressTag", arg.AddressTag)
 	}
 	if arg.Amount <= 0 {
-		return "", errors.New("amount must be greater than 0")
+		return "", errAmountValueMustBeGreaterThan0
 	}
 	params.Set("amount", fmt.Sprint(arg.Amount))
 	if arg.RecvWindow > 2000 {
-		params.Set("recvWindow", fmt.Sprint(arg.RecvWindow))
+		params.Set("recvWindow", strconv.Itoa(int(arg.RecvWindow)))
 	}
 	var response WithdrawalResponse
 	var er = b.SendAuthHTTPRequest(ctx,
@@ -1427,16 +1405,16 @@ func (b *Binanceus) FiatWithdrawalhistory(ctx context.Context, arg FiatWithdrawa
 	var response FiatAssetsHistory
 	params := url.Values{}
 	if !(arg.EndTime.IsZero()) && !(arg.EndTime.Before(time.Now())) {
-		params.Set("endTime", fmt.Sprint(arg.EndTime.UnixMilli()))
+		params.Set("endTime", strconv.Itoa(int(arg.EndTime.UnixMilli())))
 	}
 	if !(arg.StartTime.IsZero()) && !(arg.StartTime.After(time.Now())) {
-		params.Set("startTime", fmt.Sprint(arg.StartTime.UnixMilli()))
+		params.Set("startTime", strconv.Itoa(int(arg.StartTime.UnixMilli())))
 	}
 	if arg.FiatCurrency != "" {
 		params.Set("fiatCurrency", arg.FiatCurrency)
 	}
 	if arg.Offset > 0 {
-		params.Set("offset", fmt.Sprint(arg.Offset))
+		params.Set("offset", strconv.Itoa(arg.Offset))
 	}
 	if arg.PaymentChannel != "" {
 		params.Set("paymentChannel", arg.PaymentChannel)
@@ -1444,7 +1422,7 @@ func (b *Binanceus) FiatWithdrawalhistory(ctx context.Context, arg FiatWithdrawa
 	if arg.PaymentMethod != "" {
 		params.Set("paymentMethod", arg.PaymentMethod)
 	}
-	params.Set("timestamp", fmt.Sprint(time.Now().UnixMilli()))
+	params.Set("timestamp", strconv.Itoa(int(time.Now().UnixMilli())))
 	return response, b.SendAuthHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
 		http.MethodGet, fiatWithdrawalhistory,
@@ -1455,7 +1433,7 @@ func (b *Binanceus) FiatWithdrawalhistory(ctx context.Context, arg FiatWithdrawa
 // returns the Order ID as string
 func (b *Binanceus) WithdrawFiat(ctx context.Context, arg WithdrawFiatRequestParams) (string, error) {
 	params := url.Values{}
-	timestamp := fmt.Sprint(time.Now().UnixMilli())
+	timestamp := strconv.Itoa(int(time.Now().UnixMilli()))
 	params.Set("timestamp", timestamp)
 	if arg.PaymentChannel != "" {
 		params.Set("paymentChannel", arg.PaymentChannel)
@@ -1464,13 +1442,13 @@ func (b *Binanceus) WithdrawFiat(ctx context.Context, arg WithdrawFiatRequestPar
 		params.Set("paymentMethod", arg.PaymentMethod)
 	}
 	if arg.PaymentAccount != "" {
-		return "", errors.New("error: missing payment account")
+		return "", errMissingPaymentAccountInfo
 	}
 	if arg.FiatCurrency != "" {
 		params.Set("fiatCurrency", arg.FiatCurrency)
 	}
 	if arg.Amount <= 0 {
-		return "", errors.New("error: invalid withdrawal amount")
+		return "", errAmountValueMustBeGreaterThan0
 	}
 	type response struct {
 		OrderID string `json:"orderId"`
@@ -1688,8 +1666,8 @@ func (b *Binanceus) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL,
 
 // GetWsAuthStreamKey ... this method 'Creates User Data Stream' will retrieve a key to use for authorised WS streaming
 // Same as that of Binance
-//Start a new user data stream. The stream will close after 60 minutes unless a keepalive is sent.
-//  If the account has an active listenKey,
+// Start a new user data stream. The stream will close after 60 minutes unless a keepalive is sent.
+// If the account has an active listenKey,
 // that listenKey will be returned and its validity will be extended for 60 minutes.
 func (b *Binanceus) GetWsAuthStreamKey(ctx context.Context) (string, error) {
 	endpointPath, err := b.API.Endpoints.GetURL(exchange.RestSpotSupplementary)

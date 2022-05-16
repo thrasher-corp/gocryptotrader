@@ -31,6 +31,11 @@ const (
 	defaultTimeout = time.Second * 15
 )
 
+var (
+	// EmailRX represents email address maching pattern
+	EmailRX = regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+\\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
+)
+
 // Vars for common.go operations
 var (
 	_HTTPClient    *http.Client
@@ -57,6 +62,11 @@ var (
 	errUserAgentInvalid        = errors.New("cannot set invalid user agent")
 	errHTTPClientInvalid       = errors.New("custom http client cannot be nil")
 )
+
+// MatchesPattern PATTERN , REGULAR EXPRESION
+func MatchesEmailPattern(value string) bool {
+	return value != "" && !EmailRX.MatchString(value)
+}
 
 // SetHTTPClientWithTimeout sets a new *http.Client with different timeout
 // settings

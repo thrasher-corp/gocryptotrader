@@ -96,9 +96,10 @@ func (b *Binanceus) WsConnect() error {
 // keep the WS auth key active
 func (b *Binanceus) KeepAuthKeyAlive() {
 	b.Websocket.Wg.Add(1)
+	// ClosUserDataStream closes the User data stream and remove the listen key when closing the websocket.
 	defer b.CloseUserDataStream(context.Background())
 	defer b.Websocket.Wg.Done()
-	// Looping in 30 seconds and updating the listenKey
+	// Looping in 30 Minutes and updating the listenKey
 	ticks := time.NewTicker(time.Minute * 30)
 	for {
 		select {
@@ -125,7 +126,6 @@ func (b *Binanceus) wsReadData() {
 		if resp.Raw == nil {
 			return
 		}
-		fmt.Println(resp.Raw)
 		err := b.wsHandleData(resp.Raw)
 		if err != nil {
 			b.Websocket.DataHandler <- err
