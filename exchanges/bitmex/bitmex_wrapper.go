@@ -609,15 +609,15 @@ func (b *Bitmex) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submit
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (b *Bitmex) ModifyOrder(ctx context.Context, action *order.Modify) (order.Modify, error) {
+func (b *Bitmex) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Modify, error) {
 	if err := action.Validate(); err != nil {
-		return order.Modify{}, err
+		return nil, err
 	}
 
 	var params OrderAmendParams
 
 	if math.Mod(action.Amount, 1) != 0 {
-		return order.Modify{}, errors.New("contract amount can not have decimals")
+		return nil, errors.New("contract amount can not have decimals")
 	}
 
 	params.OrderID = action.ID
@@ -626,17 +626,16 @@ func (b *Bitmex) ModifyOrder(ctx context.Context, action *order.Modify) (order.M
 
 	o, err := b.AmendOrder(ctx, &params)
 	if err != nil {
-		return order.Modify{}, err
+		return nil, err
 	}
 
-	return order.Modify{
+	return &order.Modify{
 		Exchange:  action.Exchange,
 		AssetType: action.AssetType,
 		Pair:      action.Pair,
 		ID:        o.OrderID,
-
-		Price:  action.Price,
-		Amount: float64(params.OrderQty),
+		Price:     action.Price,
+		Amount:    float64(params.OrderQty),
 	}, nil
 }
 

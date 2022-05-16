@@ -567,14 +567,14 @@ func (p *Poloniex) SubmitOrder(ctx context.Context, s *order.Submit) (order.Subm
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (p *Poloniex) ModifyOrder(ctx context.Context, action *order.Modify) (order.Modify, error) {
+func (p *Poloniex) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Modify, error) {
 	if err := action.Validate(); err != nil {
-		return order.Modify{}, err
+		return nil, err
 	}
 
 	oID, err := strconv.ParseInt(action.ID, 10, 64)
 	if err != nil {
-		return order.Modify{}, err
+		return nil, err
 	}
 
 	resp, err := p.MoveOrder(ctx,
@@ -584,15 +584,14 @@ func (p *Poloniex) ModifyOrder(ctx context.Context, action *order.Modify) (order
 		action.PostOnly,
 		action.ImmediateOrCancel)
 	if err != nil {
-		return order.Modify{}, err
+		return nil, err
 	}
 
-	return order.Modify{
-		Exchange:  action.Exchange,
-		AssetType: action.AssetType,
-		Pair:      action.Pair,
-		ID:        strconv.FormatInt(resp.OrderNumber, 10),
-
+	return &order.Modify{
+		Exchange:          action.Exchange,
+		AssetType:         action.AssetType,
+		Pair:              action.Pair,
+		ID:                strconv.FormatInt(resp.OrderNumber, 10),
 		Price:             action.Price,
 		Amount:            action.Amount,
 		PostOnly:          action.PostOnly,

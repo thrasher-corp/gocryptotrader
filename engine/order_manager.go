@@ -401,7 +401,7 @@ func (m *OrderManager) Modify(ctx context.Context, mod *order.Modify) (*order.Mo
 	//
 	// XXX: This comes with a race condition, because [request -> changes] are not
 	// atomic.
-	err = m.orderStore.modifyExisting(mod.ID, &res)
+	err = m.orderStore.modifyExisting(mod.ID, res)
 
 	// Notify observers.
 	var message string

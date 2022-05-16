@@ -682,9 +682,9 @@ func (f *FTX) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitRes
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (f *FTX) ModifyOrder(ctx context.Context, action *order.Modify) (order.Modify, error) {
+func (f *FTX) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Modify, error) {
 	if err := action.Validate(); err != nil {
-		return order.Modify{}, err
+		return nil, err
 	}
 
 	if action.TriggerPrice != 0 {
@@ -696,14 +696,13 @@ func (f *FTX) ModifyOrder(ctx context.Context, action *order.Modify) (order.Modi
 			action.Price,
 			0)
 		if err != nil {
-			return order.Modify{}, err
+			return nil, err
 		}
-		return order.Modify{
-			Exchange:  action.Exchange,
-			AssetType: action.AssetType,
-			Pair:      action.Pair,
-			ID:        strconv.FormatInt(a.ID, 10),
-
+		return &order.Modify{
+			Exchange:     action.Exchange,
+			AssetType:    action.AssetType,
+			Pair:         action.Pair,
+			ID:           strconv.FormatInt(a.ID, 10),
 			Price:        action.Price,
 			Amount:       action.Amount,
 			TriggerPrice: action.TriggerPrice,
@@ -719,7 +718,7 @@ func (f *FTX) ModifyOrder(ctx context.Context, action *order.Modify) (order.Modi
 			action.Price,
 			action.Amount)
 		if err != nil {
-			return order.Modify{}, err
+			return nil, err
 		}
 	} else {
 		o, err = f.ModifyPlacedOrder(ctx,
@@ -728,17 +727,16 @@ func (f *FTX) ModifyOrder(ctx context.Context, action *order.Modify) (order.Modi
 			action.Price,
 			action.Amount)
 		if err != nil {
-			return order.Modify{}, err
+			return nil, err
 		}
 	}
-	return order.Modify{
+	return &order.Modify{
 		Exchange:  action.Exchange,
 		AssetType: action.AssetType,
 		Pair:      action.Pair,
 		ID:        strconv.FormatInt(o.ID, 10),
-
-		Price:  action.Price,
-		Amount: action.Amount,
+		Price:     action.Price,
+		Amount:    action.Amount,
 	}, err
 }
 

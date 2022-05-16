@@ -90,6 +90,7 @@ func (b *BTCMarkets) SetDefaults() {
 				TradeFee:            true,
 				FiatWithdrawalFee:   true,
 				CryptoWithdrawalFee: true,
+				ModifyOrder:         true,
 			},
 			WebsocketCapabilities: protocol.Features{
 				TickerFetching:         true,
@@ -579,8 +580,41 @@ func (b *BTCMarkets) SubmitOrder(ctx context.Context, s *order.Submit) (order.Su
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (b *BTCMarkets) ModifyOrder(ctx context.Context, action *order.Modify) (order.Modify, error) {
-	return order.Modify{}, common.ErrFunctionNotSupported
+func (b *BTCMarkets) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Modify, error) {
+	if err := action.Validate(); err != nil {
+		return nil, err
+	}
+	resp, err := b.ReplaceOrder(ctx, action.ID, action.ClientOrderID, action.Price, action.Amount)
+	if err != nil {
+		return nil, err
+	}
+	pair, err := currency.NewPairFromString(resp.MarketID)
+	if err != nil {
+		return nil, err
+	}
+	side, err := order.StringToOrderSide(resp.Side)
+	if err != nil {
+		return nil, err
+	}
+	orderT, err := order.StringToOrderType(resp.Type)
+	if err != nil {
+		return nil, err
+	}
+	status, err := order.StringToOrderStatus(resp.Status)
+	if err != nil {
+		return nil, err
+	}
+	return &order.Modify{
+		ID:              resp.OrderID,
+		Pair:            pair,
+		Side:            side,
+		Type:            orderT,
+		Date:            resp.CreationTime,
+		Price:           resp.Price,
+		Amount:          resp.Amount,
+		RemainingAmount: resp.OpenAmount,
+		Status:          status,
+	}, nil
 }
 
 // CancelOrder cancels an order by its corresponding ID number

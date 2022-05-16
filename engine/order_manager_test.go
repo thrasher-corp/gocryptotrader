@@ -84,10 +84,10 @@ func (f omfExchange) GetActiveOrders(ctx context.Context, req *order.GetOrdersRe
 	}}, nil
 }
 
-func (f omfExchange) ModifyOrder(ctx context.Context, action *order.Modify) (order.Modify, error) {
+func (f omfExchange) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Modify, error) {
 	ans := *action
 	ans.ID = "modified_order_id"
-	return ans, nil
+	return &ans, nil
 }
 
 func TestSetupOrderManager(t *testing.T) {
