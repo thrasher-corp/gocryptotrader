@@ -812,6 +812,8 @@ var stringsToOrderStatus = []struct {
 	{"cLosEd", Closed, nil},
 	{"cancellinG", Cancelling, nil},
 	{"woahMan", UnknownStatus, errUnrecognisedOrderStatus},
+	{"PLAcED", New, nil},
+	{"ACCePTED", New, nil},
 }
 
 func TestStringToOrderStatus(t *testing.T) {

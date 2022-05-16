@@ -407,7 +407,7 @@ func ({{.Variable}} *{{.CapitalName}}) ModifyOrder(ctx context.Context, action *
 	// if err := action.Validate(); err != nil {
 	// 	return "", err
 	// }
-	return order.Modify{}, common.ErrNotYetImplemented
+	return nil, common.ErrNotYetImplemented
 }
 
 // CancelOrder cancels an order by its corresponding ID number
