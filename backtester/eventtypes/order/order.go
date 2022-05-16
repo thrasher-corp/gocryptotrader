@@ -80,7 +80,7 @@ func (o *Order) SetLeverage(l decimal.Decimal) {
 // GetAllocatedFunds returns the amount of funds the portfolio manager
 // has allocated to this potential position
 func (o *Order) GetAllocatedFunds() decimal.Decimal {
-	return o.AllocatedSize
+	return o.AllocatedFunds
 }
 
 // GetFillDependentEvent returns the fill dependent event

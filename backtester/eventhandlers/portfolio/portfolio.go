@@ -204,29 +204,23 @@ func (p *Portfolio) sizeOrder(d common.Directioner, cs *exchange.Settings, origi
 		originalOrderSignal.AppendReason("sized order to 0")
 	}
 	switch d.GetDirection() {
-	case gctorder.Buy, gctorder.Bid:
-		sizedOrder.AllocatedSize = sizedOrder.Amount.Mul(sizedOrder.ClosePrice).Add(estFee)
-	case gctorder.Sell, gctorder.Ask:
-		sizedOrder.AllocatedSize = sizedOrder.Amount.Mul(sizedOrder.ClosePrice).Add(estFee)
-	case gctorder.Short, gctorder.Long:
-		sizedOrder.AllocatedSize = sizedOrder.Amount.Mul(sizedOrder.ClosePrice).Add(estFee)
+	case gctorder.Buy,
+		gctorder.Bid,
+		gctorder.Sell,
+		gctorder.Ask,
+		gctorder.Short,
+		gctorder.Long:
+		sizedOrder.AllocatedFunds = sizedOrder.Amount.Mul(sizedOrder.ClosePrice).Add(estFee)
 	case gctorder.ClosePosition:
-		if originalOrderSignal.AssetType.IsFutures() {
-			sizedOrder.AllocatedSize = sizedOrder.Amount.Add(estFee)
-		} else {
-			err = funds.Reserve(sizedOrder.Amount.Add(estFee), d.GetDirection())
-			sizedOrder.AllocatedSize = sizedOrder.Amount
-		}
-		//sizedOrder.AllocatedSize = sizedOrder.Amount.Mul(sizedOrder.ClosePrice).Add(estFee)
+		sizedOrder.AllocatedFunds = sizedOrder.Amount
 	default:
 		return nil, errInvalidDirection
 	}
-	err = funds.Reserve(sizedOrder.AllocatedSize, d.GetDirection())
+	err = funds.Reserve(sizedOrder.AllocatedFunds, d.GetDirection())
 	if err != nil {
 		sizedOrder.Direction = gctorder.DoNothing
 		return sizedOrder, err
 	}
-	log.Debugf(log.ExchangeSys, "price %v allocatedsize %v, fee %v", sizedOrder.ClosePrice, sizedOrder.AllocatedSize, estFee)
 	return sizedOrder, nil
 }
 
@@ -661,7 +655,7 @@ func (p *Portfolio) CreateLiquidationOrdersForExchange(ev common.DataEventHandle
 					Status:              gctorder.Liquidated,
 					ClosePrice:          ev.GetClosePrice(),
 					Amount:              pos.Exposure,
-					AllocatedSize:       pos.Exposure,
+					AllocatedFunds:      pos.Exposure,
 					OrderType:           gctorder.Market,
 					LiquidatingPosition: true,
 				})
@@ -690,7 +684,7 @@ func (p *Portfolio) CreateLiquidationOrdersForExchange(ev common.DataEventHandle
 						Status:              gctorder.Liquidated,
 						Amount:              allFunds[i].Available,
 						OrderType:           gctorder.Market,
-						AllocatedSize:       allFunds[i].Available,
+						AllocatedFunds:      allFunds[i].Available,
 						LiquidatingPosition: true,
 					})
 				}

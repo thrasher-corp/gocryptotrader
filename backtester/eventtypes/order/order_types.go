@@ -18,7 +18,7 @@ type Order struct {
 	Amount              decimal.Decimal
 	OrderType           order.Type
 	Leverage            decimal.Decimal
-	AllocatedSize       decimal.Decimal
+	AllocatedFunds      decimal.Decimal
 	BuyLimit            decimal.Decimal
 	SellLimit           decimal.Decimal
 	FillDependentEvent  signal.Event

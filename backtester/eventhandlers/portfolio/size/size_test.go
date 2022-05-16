@@ -263,6 +263,7 @@ func TestSizeOrder(t *testing.T) {
 	}
 
 	o.ClosePrice = decimal.NewFromInt(1000000000)
+	o.Amount = decimal.NewFromInt(1000000000)
 	_, _, err = s.SizeOrder(o, decimal.NewFromInt(1337), cs)
 	if !errors.Is(err, errCannotAllocate) {
 		t.Errorf("received: %v, expected: %v", err, errCannotAllocate)

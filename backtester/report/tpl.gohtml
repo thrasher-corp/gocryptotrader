@@ -1760,8 +1760,8 @@
 												{{if ne $ev.PNL nil }}
 													<td>{{ $.Prettify.Decimal8 $ev.PNL.GetExposure}} {{$pair.Base}}-{{$pair.Quote}}</td>
 													<td>{{$ev.PNL.GetDirection}}</td>
-													<td>{{$ev.PNL.GetUnrealisedPNL.PNL}} {{if ne $ev.PNL nil }}{{$ev.PNL.GetCollateralCurrency}}{{end}}</td>
-													<td>{{$ev.PNL.GetRealisedPNL.PNL}} {{if ne $ev.PNL nil }}{{$ev.PNL.GetCollateralCurrency}}{{end}}</td>
+													<td>{{$.Prettify.Decimal8 $ev.PNL.GetUnrealisedPNL.PNL}} {{if ne $ev.PNL nil }}{{$ev.PNL.GetCollateralCurrency}}{{end}}</td>
+													<td>{{$.Prettify.Decimal8 $ev.PNL.GetRealisedPNL.PNL}} {{if ne $ev.PNL nil }}{{$ev.PNL.GetCollateralCurrency}}{{end}}</td>
 												{{else}}
 													<td>0 {{$pair.Base}}-{{$pair.Quote}}</td>
 													<td>N/A</td>

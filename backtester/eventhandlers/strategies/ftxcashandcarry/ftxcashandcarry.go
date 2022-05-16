@@ -113,7 +113,9 @@ func (s *Strategy) createSignals(pos []order.PositionStats, spotSignal, futuresS
 	}
 	var response []signal.Event
 	switch {
-	case len(pos) == 0:
+	case len(pos) == 0,
+		pos[len(pos)-1].Status == order.Closed &&
+			diffBetweenFuturesSpot.GreaterThan(s.openShortDistancePercentage):
 		// check to see if order is appropriate to action
 		spotSignal.SetPrice(spotSignal.ClosePrice)
 		spotSignal.AppendReasonf("Signalling purchase of %v", spotSignal.Pair())
@@ -135,6 +137,7 @@ func (s *Strategy) createSignals(pos []order.PositionStats, spotSignal, futuresS
 		response = append(response, spotSignal)
 	case pos[len(pos)-1].Status == order.Open &&
 		isLastEvent:
+		// closing positions on last event
 		spotSignal.SetDirection(order.ClosePosition)
 		spotSignal.AppendReason("Selling asset on last event")
 		futuresSignal.SetDirection(order.ClosePosition)
@@ -142,15 +145,12 @@ func (s *Strategy) createSignals(pos []order.PositionStats, spotSignal, futuresS
 		response = append(response, futuresSignal, spotSignal)
 	case pos[len(pos)-1].Status == order.Open &&
 		diffBetweenFuturesSpot.LessThanOrEqual(s.closeShortDistancePercentage):
+		// closing positions when custom threshold met
+		spotSignal.SetDirection(order.ClosePosition)
+		spotSignal.AppendReasonf("Closing position. Met threshold of %v", s.closeShortDistancePercentage)
 		futuresSignal.SetDirection(order.ClosePosition)
-		futuresSignal.AppendReasonf("Closing position. Threshold %v", s.closeShortDistancePercentage)
-		response = append(response, spotSignal, futuresSignal)
-	case pos[len(pos)-1].Status == order.Closed &&
-		diffBetweenFuturesSpot.GreaterThan(s.openShortDistancePercentage):
-		futuresSignal.SetDirection(order.Short)
-		futuresSignal.SetPrice(futuresSignal.ClosePrice)
-		futuresSignal.AppendReasonf("Opening position. Threshold %v", s.openShortDistancePercentage)
-		response = append(response, spotSignal, futuresSignal)
+		futuresSignal.AppendReasonf("Closing position. Met threshold %v", s.closeShortDistancePercentage)
+		response = append(response, futuresSignal, spotSignal)
 	default:
 		response = append(response, spotSignal, futuresSignal)
 	}

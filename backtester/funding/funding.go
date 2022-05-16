@@ -371,10 +371,10 @@ func (f *FundManager) GenerateReport() *Report {
 	}
 
 	if len(report.USDTotalsOverTime) > 0 {
-		report.FinalFunds = report.USDTotalsOverTime[len(report.USDTotalsOverTime)-1].USDValue
 		sort.Slice(report.USDTotalsOverTime, func(i, j int) bool {
 			return report.USDTotalsOverTime[i].Time.Before(report.USDTotalsOverTime[j].Time)
 		})
+		report.FinalFunds = report.USDTotalsOverTime[len(report.USDTotalsOverTime)-1].USDValue
 	}
 
 	report.Items = items

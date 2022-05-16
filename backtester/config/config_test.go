@@ -32,25 +32,25 @@ var (
 	startDate    = time.Date(time.Now().Year()-1, 8, 1, 0, 0, 0, 0, time.Local)
 	endDate      = time.Date(time.Now().Year()-1, 12, 1, 0, 0, 0, 0, time.Local)
 	tradeEndDate = startDate.Add(time.Hour * 72)
-	makerFee     = decimal.NewFromFloat(0.001)
-	takerFee     = decimal.NewFromFloat(0.002)
+	makerFee     = decimal.NewFromFloat(0.0002)
+	takerFee     = decimal.NewFromFloat(0.0007)
 	minMax       = MinMax{
 		MinimumSize:  decimal.NewFromFloat(0.005),
 		MaximumSize:  decimal.NewFromInt(2),
 		MaximumTotal: decimal.NewFromInt(40000),
 	}
-	initialQuoteFunds1 *decimal.Decimal
-	initialQuoteFunds2 *decimal.Decimal
-	initialBaseFunds   *decimal.Decimal
+	initialFunds1000000 *decimal.Decimal
+	initialFunds100000  *decimal.Decimal
+	initialFunds10      *decimal.Decimal
 )
 
 func TestMain(m *testing.M) {
 	iF1 := decimal.NewFromInt(1000000)
 	iF2 := decimal.NewFromInt(100000)
 	iBF := decimal.NewFromInt(10)
-	initialQuoteFunds1 = &iF1
-	initialQuoteFunds2 = &iF2
-	initialBaseFunds = &iBF
+	initialFunds1000000 = &iF1
+	initialFunds100000 = &iF2
+	initialFunds10 = &iBF
 	os.Exit(m.Run())
 }
 
@@ -366,8 +366,8 @@ func TestPrintSettings(t *testing.T) {
 				Base:         currency.BTC,
 				Quote:        currency.USDT,
 				SpotDetails: &SpotDetails{
-					InitialQuoteFunds: initialQuoteFunds1,
-					InitialBaseFunds:  initialQuoteFunds1,
+					InitialQuoteFunds: initialFunds1000000,
+					InitialBaseFunds:  initialFunds1000000,
 				},
 				BuySide:        minMax,
 				SellSide:       minMax,
@@ -432,8 +432,8 @@ func TestValidate(t *testing.T) {
 				Base:         currency.BTC,
 				Quote:        currency.USDT,
 				SpotDetails: &SpotDetails{
-					InitialBaseFunds:  initialBaseFunds,
-					InitialQuoteFunds: initialQuoteFunds2,
+					InitialBaseFunds:  initialFunds10,
+					InitialQuoteFunds: initialFunds100000,
 				},
 				BuySide: MinMax{
 					MinimumSize:  decimal.NewFromInt(1),
@@ -485,7 +485,7 @@ func TestGenerateConfigForDCAAPICandles(t *testing.T) {
 				Base:         currency.BTC,
 				Quote:        currency.USDT,
 				SpotDetails: &SpotDetails{
-					InitialQuoteFunds: initialQuoteFunds2,
+					InitialQuoteFunds: initialFunds100000,
 				},
 				BuySide:  minMax,
 				SellSide: minMax,
@@ -627,7 +627,7 @@ func TestGenerateConfigForDCAAPITrades(t *testing.T) {
 				Base:         currency.BTC,
 				Quote:        currency.USDT,
 				SpotDetails: &SpotDetails{
-					InitialQuoteFunds: initialQuoteFunds2,
+					InitialQuoteFunds: initialFunds100000,
 				},
 				BuySide:                 minMax,
 				SellSide:                minMax,
@@ -697,7 +697,7 @@ func TestGenerateConfigForDCAAPICandlesMultipleCurrencies(t *testing.T) {
 				Base:         currency.BTC,
 				Quote:        currency.USDT,
 				SpotDetails: &SpotDetails{
-					InitialQuoteFunds: initialQuoteFunds2,
+					InitialQuoteFunds: initialFunds100000,
 				},
 				BuySide:  minMax,
 				SellSide: minMax,
@@ -710,7 +710,7 @@ func TestGenerateConfigForDCAAPICandlesMultipleCurrencies(t *testing.T) {
 				Base:         currency.ETH,
 				Quote:        currency.USDT,
 				SpotDetails: &SpotDetails{
-					InitialQuoteFunds: initialQuoteFunds2,
+					InitialQuoteFunds: initialFunds100000,
 				},
 				BuySide:  minMax,
 				SellSide: minMax,
@@ -772,7 +772,7 @@ func TestGenerateConfigForDCAAPICandlesSimultaneousProcessing(t *testing.T) {
 				Base:         currency.BTC,
 				Quote:        currency.USDT,
 				SpotDetails: &SpotDetails{
-					InitialQuoteFunds: initialQuoteFunds1,
+					InitialQuoteFunds: initialFunds1000000,
 				},
 				BuySide:  minMax,
 				SellSide: minMax,
@@ -785,7 +785,7 @@ func TestGenerateConfigForDCAAPICandlesSimultaneousProcessing(t *testing.T) {
 				Base:         currency.ETH,
 				Quote:        currency.USDT,
 				SpotDetails: &SpotDetails{
-					InitialQuoteFunds: initialQuoteFunds2,
+					InitialQuoteFunds: initialFunds100000,
 				},
 				BuySide:  minMax,
 				SellSide: minMax,
@@ -847,7 +847,7 @@ func TestGenerateConfigForDCALiveCandles(t *testing.T) {
 				Base:         currency.BTC,
 				Quote:        currency.USDT,
 				SpotDetails: &SpotDetails{
-					InitialQuoteFunds: initialQuoteFunds2,
+					InitialQuoteFunds: initialFunds100000,
 				},
 				BuySide:  minMax,
 				SellSide: minMax,
@@ -916,7 +916,7 @@ func TestGenerateConfigForRSIAPICustomSettings(t *testing.T) {
 				Base:         currency.BTC,
 				Quote:        currency.USDT,
 				SpotDetails: &SpotDetails{
-					InitialQuoteFunds: initialQuoteFunds2,
+					InitialQuoteFunds: initialFunds100000,
 				},
 				BuySide:  minMax,
 				SellSide: minMax,
@@ -929,8 +929,8 @@ func TestGenerateConfigForRSIAPICustomSettings(t *testing.T) {
 				Base:         currency.ETH,
 				Quote:        currency.USDT,
 				SpotDetails: &SpotDetails{
-					InitialBaseFunds:  initialBaseFunds,
-					InitialQuoteFunds: initialQuoteFunds1,
+					InitialBaseFunds:  initialFunds10,
+					InitialQuoteFunds: initialFunds1000000,
 				},
 				BuySide:  minMax,
 				SellSide: minMax,
@@ -993,7 +993,7 @@ func TestGenerateConfigForDCACSVCandles(t *testing.T) {
 				Base:         currency.BTC,
 				Quote:        currency.USDT,
 				SpotDetails: &SpotDetails{
-					InitialQuoteFunds: initialQuoteFunds2,
+					InitialQuoteFunds: initialFunds100000,
 				},
 				BuySide:  minMax,
 				SellSide: minMax,
@@ -1054,7 +1054,7 @@ func TestGenerateConfigForDCACSVTrades(t *testing.T) {
 				Base:         currency.BTC,
 				Quote:        currency.USDT,
 				SpotDetails: &SpotDetails{
-					InitialQuoteFunds: initialQuoteFunds2,
+					InitialQuoteFunds: initialFunds100000,
 				},
 				MakerFee: &makerFee,
 				TakerFee: &takerFee,
@@ -1109,7 +1109,7 @@ func TestGenerateConfigForDCADatabaseCandles(t *testing.T) {
 				Base:         currency.BTC,
 				Quote:        currency.USDT,
 				SpotDetails: &SpotDetails{
-					InitialQuoteFunds: initialQuoteFunds2,
+					InitialQuoteFunds: initialFunds100000,
 				},
 				BuySide:  minMax,
 				SellSide: minMax,
@@ -1309,7 +1309,7 @@ func TestGenerateFTXCashAndCarryStrategy(t *testing.T) {
 					ExchangeName: "ftx",
 					Asset:        asset.Spot,
 					Currency:     currency.USD,
-					InitialFunds: *initialQuoteFunds2,
+					InitialFunds: *initialFunds100000,
 				},
 			},
 		},

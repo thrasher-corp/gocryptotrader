@@ -256,14 +256,17 @@ func TestCreateSignals(t *testing.T) {
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v", err, expectedError)
 	}
-	if len(resp) != 2 {
-		t.Errorf("received '%v' expected '%v", len(resp), 2)
+	if len(resp) != 1 {
+		t.Errorf("received '%v' expected '%v", len(resp), 1)
 	}
 	caseTested = false
 	for i := range resp {
-		if resp[i].GetAssetType().IsFutures() {
-			if resp[i].GetDirection() != gctorder.Short {
-				t.Errorf("received '%v' expected '%v", resp[i].GetDirection(), gctorder.Short)
+		if resp[i].GetAssetType() == asset.Spot {
+			if resp[i].GetDirection() != gctorder.Buy {
+				t.Errorf("received '%v' expected '%v", resp[i].GetDirection(), gctorder.Buy)
+			}
+			if resp[i].GetFillDependentEvent() == nil {
+				t.Errorf("received '%v' expected '%v'", nil, "fill dependent event")
 			}
 			caseTested = true
 		}

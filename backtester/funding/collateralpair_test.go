@@ -247,7 +247,7 @@ func TestCollateralReserve(t *testing.T) {
 		t.Errorf("recevied '%v' expected '%v'", c.collateral.reserved, decimal.NewFromInt(1))
 	}
 	if !c.collateral.available.Equal(decimal.NewFromInt(1336)) {
-		t.Errorf("recevied '%v' expected '%v'", c.collateral.reserved, decimal.NewFromInt(1336))
+		t.Errorf("recevied '%v' expected '%v'", c.collateral.available, decimal.NewFromInt(1336))
 	}
 
 	err = c.Reserve(decimal.NewFromInt(1), gctorder.Short)
@@ -258,18 +258,18 @@ func TestCollateralReserve(t *testing.T) {
 		t.Errorf("recevied '%v' expected '%v'", c.collateral.reserved, decimal.NewFromInt(2))
 	}
 	if !c.collateral.available.Equal(decimal.NewFromInt(1335)) {
-		t.Errorf("recevied '%v' expected '%v'", c.collateral.reserved, decimal.NewFromInt(1335))
+		t.Errorf("recevied '%v' expected '%v'", c.collateral.available, decimal.NewFromInt(1335))
 	}
 
 	err = c.Reserve(decimal.NewFromInt(2), gctorder.ClosePosition)
 	if !errors.Is(err, expectedError) {
 		t.Errorf("recevied '%v' expected '%v'", err, expectedError)
 	}
-	if !c.collateral.reserved.Equal(decimal.Zero) {
+	if !c.collateral.reserved.Equal(decimal.NewFromInt(4)) {
 		t.Errorf("recevied '%v' expected '%v'", c.collateral.reserved, decimal.Zero)
 	}
-	if !c.collateral.available.Equal(decimal.NewFromInt(1337)) {
-		t.Errorf("recevied '%v' expected '%v'", c.collateral.reserved, decimal.NewFromInt(1337))
+	if !c.collateral.available.Equal(decimal.NewFromInt(1333)) {
+		t.Errorf("recevied '%v' expected '%v'", c.collateral.available, decimal.NewFromInt(1333))
 	}
 
 	expectedError = errCannotAllocate

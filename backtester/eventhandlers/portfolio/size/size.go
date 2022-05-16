@@ -9,7 +9,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // SizeOrder is responsible for ensuring that the order size is within config limits
@@ -65,18 +64,10 @@ func (s *Size) SizeOrder(o order.Event, amountAvailable decimal.Decimal, cs *exc
 }
 
 func (s *Size) calculateAmount(direction gctorder.Side, price, amountAvailable decimal.Decimal, cs *exchange.Settings, o order.Event) (amount, fee decimal.Decimal, err error) {
-	if o.GetAmount().IsPositive() {
-		// when an order amount is already set
-		// use the pre-set amount and calculate the fee
-		fee = o.GetAmount().Mul(price).Mul(cs.TakerFee)
-		log.Debugf(log.ExchangeSys, "orderAmount %v fee %v feeRate %v price %v fullPrice %v", o.GetAmount(), fee, cs.ExchangeFee, price, price.Mul(o.GetAmount()))
-		return o.GetAmount(), fee, nil
-	}
 	var portfolioAmount, portfolioFee decimal.Decimal
 	switch direction {
 	case gctorder.ClosePosition:
-		oneMFeeRate := decimal.NewFromInt(1).Sub(cs.ExchangeFee)
-		amount = amountAvailable.Mul(oneMFeeRate)
+		amount = amountAvailable
 		fee = amount.Mul(price).Mul(cs.ExchangeFee)
 	case gctorder.Buy, gctorder.Long:
 		// check size against currency specific settings
@@ -96,13 +87,10 @@ func (s *Size) calculateAmount(direction gctorder.Side, price, amountAvailable d
 		}
 	case gctorder.Sell, gctorder.Short:
 		// check size against currency specific settings
-		log.Debugf(log.ExchangeSys, "price %v amount %v, fee %v", price, amount, cs.ExchangeFee)
-		log.Debugf(log.ExchangeSys, "price %v amount %v, fee %v", price, amountAvailable, cs.ExchangeFee)
 		amount, fee, err = s.calculateSellSize(price, amountAvailable, cs.ExchangeFee, o.GetSellLimit(), cs.SellSide)
 		if err != nil {
 			return decimal.Decimal{}, decimal.Decimal{}, err
 		}
-		log.Debugf(log.ExchangeSys, "amount %v, fee %v", amount, fee)
 		// check size against portfolio specific settings
 		portfolioAmount, portfolioFee, err = s.calculateSellSize(price, amountAvailable, cs.ExchangeFee, o.GetSellLimit(), s.SellSide)
 		if err != nil {
@@ -119,6 +107,13 @@ func (s *Size) calculateAmount(direction gctorder.Side, price, amountAvailable d
 
 	if amount.LessThanOrEqual(decimal.Zero) {
 		return decimal.Decimal{}, decimal.Decimal{}, fmt.Errorf("%w at %v for %v %v %v, no amount sized", errCannotAllocate, o.GetTime(), o.GetExchange(), o.GetAssetType(), o.Pair())
+	}
+
+	if o.GetAmount().IsPositive() && o.GetAmount().LessThanOrEqual(amount) {
+		// when an order amount is already set
+		// use the pre-set amount and calculate the fee
+		amount = o.GetAmount()
+		fee = o.GetAmount().Mul(price).Mul(cs.TakerFee)
 	}
 
 	return amount, fee, nil

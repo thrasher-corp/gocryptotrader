@@ -78,7 +78,7 @@ func TestLeverage(t *testing.T) {
 func TestGetFunds(t *testing.T) {
 	t.Parallel()
 	o := Order{
-		AllocatedSize: decimal.NewFromInt(1337),
+		AllocatedFunds: decimal.NewFromInt(1337),
 	}
 	funds := o.GetAllocatedFunds()
 	if !funds.Equal(decimal.NewFromInt(1337)) {
