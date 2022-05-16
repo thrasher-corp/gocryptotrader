@@ -4362,7 +4362,7 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 	if err != nil {
 		return nil, err
 	}
-	creds, err := exch.GetBase().GetCredentials(ctx)
+	creds, err := exch.GetCredentials(ctx)
 	if err != nil {
 		return nil, err
 	}

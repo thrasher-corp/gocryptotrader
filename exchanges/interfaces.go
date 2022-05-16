@@ -87,7 +87,7 @@ type IBotExchange interface {
 	GetCredentials(ctx context.Context) (*Credentials, error)
 	ValidateCredentials(ctx context.Context, a asset.Item) error
 
-	FunctionalityManager
+	FunctionalityChecker
 }
 
 // OrderManagement defines functionality for order management
@@ -119,9 +119,9 @@ type AccountManagement interface {
 	HasAssetTypeAccountSegregation() bool
 }
 
-// FunctionalityManager defines functionality for retrieving exchange
+// FunctionalityChecker defines functionality for retrieving exchange
 // support/enabled features
-type FunctionalityManager interface {
+type FunctionalityChecker interface {
 	IsEnabled() bool
 	IsAssetWebsocketSupported(a asset.Item) bool
 	SupportsAsset(assetType asset.Item) bool
