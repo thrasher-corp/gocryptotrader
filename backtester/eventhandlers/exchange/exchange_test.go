@@ -471,13 +471,33 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 
 func TestApplySlippageToPrice(t *testing.T) {
 	t.Parallel()
-	resp := applySlippageToPrice(gctorder.Buy, decimal.NewFromInt(1), decimal.NewFromFloat(0.9))
+	resp, err := applySlippageToPrice(gctorder.Buy, decimal.NewFromInt(1), decimal.NewFromFloat(0.9))
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
 	if !resp.Equal(decimal.NewFromFloat(1.1)) {
 		t.Errorf("received: %v, expected: %v", resp, decimal.NewFromFloat(1.1))
 	}
-	resp = applySlippageToPrice(gctorder.Sell, decimal.NewFromInt(1), decimal.NewFromFloat(0.9))
+
+	resp, err = applySlippageToPrice(gctorder.Sell, decimal.NewFromInt(1), decimal.NewFromFloat(0.9))
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
 	if !resp.Equal(decimal.NewFromFloat(0.9)) {
 		t.Errorf("received: %v, expected: %v", resp, decimal.NewFromFloat(0.9))
+	}
+
+	resp, err = applySlippageToPrice(gctorder.Sell, decimal.NewFromInt(1), decimal.Zero)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	if !resp.Equal(decimal.NewFromFloat(1)) {
+		t.Errorf("received: %v, expected: %v", resp, decimal.NewFromFloat(1))
+	}
+
+	_, err = applySlippageToPrice(gctorder.UnknownSide, decimal.NewFromInt(1), decimal.NewFromFloat(0.9))
+	if !errors.Is(err, gctorder.ErrSideIsInvalid) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 }
 

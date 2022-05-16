@@ -128,7 +128,10 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 			f.AppendReasonf("amount set to 0, %s", errDataMayBeIncorrect)
 			return f, err
 		}
-		adjustedPrice = applySlippageToPrice(f.GetDirection(), price, slippageRate)
+		adjustedPrice, err = applySlippageToPrice(f.GetDirection(), price, slippageRate)
+		if err != nil {
+			return f, err
+		}
 		if !adjustedPrice.Equal(price) {
 			f.AppendReasonf("Price has slipped from %v to %v", price, adjustedPrice)
 			price = adjustedPrice
@@ -416,19 +419,21 @@ func (e *Exchange) placeOrder(ctx context.Context, price, amount decimal.Decimal
 	return orderID, nil
 }
 
-func applySlippageToPrice(direction gctorder.Side, price, slippageRate decimal.Decimal) decimal.Decimal {
+func applySlippageToPrice(direction gctorder.Side, price, slippageRate decimal.Decimal) (decimal.Decimal, error) {
 	var adjustedPrice decimal.Decimal
 	switch direction {
 	case gctorder.Buy, gctorder.Bid, gctorder.Long:
 		adjustedPrice = price.Add(price.Mul(decimal.NewFromInt(1).Sub(slippageRate)))
 	case gctorder.Sell, gctorder.Ask, gctorder.Short:
 		adjustedPrice = price.Mul(slippageRate)
+	default:
+		return decimal.Decimal{}, fmt.Errorf("%v %w", direction, gctorder.ErrSideIsInvalid)
 	}
 	if adjustedPrice.IsZero() {
 		adjustedPrice = price
 	}
 
-	return adjustedPrice
+	return adjustedPrice, nil
 }
 
 // SetExchangeAssetCurrencySettings sets the settings for an exchange, asset, currency
