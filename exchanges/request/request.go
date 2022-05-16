@@ -18,6 +18,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
+const contextVerboseFlag verbosity = "verbose"
+
 var (
 	// ErrRequestSystemIsNil defines and error if the request system has not
 	// been set up yet.
@@ -30,8 +32,6 @@ var (
 	errFailedToRetryRequest   = errors.New("failed to retry request")
 	errContextRequired        = errors.New("context is required")
 	errTransportNotSet        = errors.New("transport not set, cannot set timeout")
-
-	contextVerboseFlag verbosity = "verbose"
 )
 
 // New returns a new Requester
