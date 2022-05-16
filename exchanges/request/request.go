@@ -30,6 +30,8 @@ var (
 	errFailedToRetryRequest   = errors.New("failed to retry request")
 	errContextRequired        = errors.New("context is required")
 	errTransportNotSet        = errors.New("transport not set, cannot set timeout")
+
+	contextVerboseFlag verbosity = "verbose"
 )
 
 // New returns a new Requester
@@ -146,7 +148,9 @@ func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRe
 			return err
 		}
 
-		if p.Verbose {
+		verbose := isVerbose(ctx, p.Verbose)
+
+		if verbose {
 			log.Debugf(log.RequestSys, "%s attempt %d request path: %s", r.name, attempt, p.Path)
 			for k, d := range req.Header {
 				log.Debugf(log.RequestSys, "%s request header [%s]: %s", r.name, k, d)
@@ -194,7 +198,7 @@ func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRe
 				return fmt.Errorf("deadline would be exceeded by retry, status: %s", resp.Status)
 			}
 
-			if p.Verbose {
+			if verbose {
 				log.Errorf(log.RequestSys,
 					"%s request has failed. Retrying request in %s, attempt %d",
 					r.name,
@@ -255,7 +259,7 @@ func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRe
 				r.name,
 				err)
 		}
-		if p.Verbose {
+		if verbose {
 			log.Debugf(log.RequestSys,
 				"HTTP status: %s, Code: %v",
 				resp.Status,
@@ -366,4 +370,29 @@ func (r *Requester) Shutdown() error {
 		return ErrRequestSystemIsNil
 	}
 	return r._HTTPClient.release()
+}
+
+// WithVerbose adds verbosity to a request context so that specific requests
+// can have distinct verbosity without impacting all requests.
+func WithVerbose(ctx context.Context) context.Context {
+	return context.WithValue(ctx, contextVerboseFlag, true)
+}
+
+// isVerbose checks main verbosity first then checks context verbose values
+// for specific request verbosity.
+func isVerbose(ctx context.Context, verbose bool) bool {
+	if verbose {
+		return true
+	}
+
+	val := ctx.Value(contextVerboseFlag)
+	if val == nil {
+		return false
+	}
+
+	isCtxVerbose, ok := val.(bool)
+	if !ok {
+		return false
+	}
+	return isCtxVerbose
 }
