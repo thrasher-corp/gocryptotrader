@@ -903,11 +903,13 @@ func (a *AggregatedTrade) toTradeData(p currency.Pair, exchange string, aType as
 }
 
 // SubmitOrder submits a new order
-func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
-	var submitOrderResponse order.SubmitResponse
+func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Detail, error) {
 	if err := s.Validate(); err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
+	var orderID string
+	status := order.New
+	var trades []order.TradeHistory
 	switch s.AssetType {
 	case asset.Spot, asset.Margin:
 		var sideType string
@@ -926,8 +928,7 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submi
 		case order.Limit:
 			requestParamsOrderType = BinanceRequestParamsOrderLimit
 		default:
-			submitOrderResponse.IsOrderPlaced = false
-			return submitOrderResponse, errors.New("unsupported order type")
+			return nil, errors.New("unsupported order type")
 		}
 
 		var orderRequest = NewOrderRequest{
@@ -941,26 +942,23 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submi
 		}
 		response, err := b.NewOrder(ctx, &orderRequest)
 		if err != nil {
-			return submitOrderResponse, err
+			return nil, err
 		}
 
-		if response.OrderID > 0 {
-			submitOrderResponse.OrderID = strconv.FormatInt(response.OrderID, 10)
-		}
+		orderID = strconv.FormatInt(response.OrderID, 10)
 		if response.ExecutedQty == response.OrigQty {
-			submitOrderResponse.FullyMatched = true
+			status = order.Filled
 		}
-		submitOrderResponse.IsOrderPlaced = true
 
+		trades = make([]order.TradeHistory, len(response.Fills))
 		for i := range response.Fills {
-			submitOrderResponse.Trades = append(submitOrderResponse.Trades, order.TradeHistory{
+			trades[i] = order.TradeHistory{
 				Price:    response.Fills[i].Price,
 				Amount:   response.Fills[i].Qty,
 				Fee:      response.Fills[i].Commission,
 				FeeAsset: response.Fills[i].CommissionAsset,
-			})
+			}
 		}
-
 	case asset.CoinMarginedFutures:
 		var reqSide string
 		switch s.Side {
@@ -969,7 +967,7 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submi
 		case order.Sell:
 			reqSide = "SELL"
 		default:
-			return submitOrderResponse, fmt.Errorf("invalid side")
+			return nil, fmt.Errorf("invalid side")
 		}
 
 		var (
@@ -994,7 +992,7 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submi
 		case order.TrailingStop:
 			oType = cfuturesTrailingStopMarket
 		default:
-			return submitOrderResponse, errors.New("invalid type, check api docs for updates")
+			return nil, errors.New("invalid type, check api docs for updates")
 		}
 
 		o, err := b.FuturesNewOrder(
@@ -1011,10 +1009,9 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submi
 			},
 		)
 		if err != nil {
-			return submitOrderResponse, err
+			return nil, err
 		}
-		submitOrderResponse.OrderID = strconv.FormatInt(o.OrderID, 10)
-		submitOrderResponse.IsOrderPlaced = true
+		orderID = strconv.FormatInt(o.OrderID, 10)
 	case asset.USDTMarginedFutures:
 		var reqSide string
 		switch s.Side {
@@ -1023,7 +1020,7 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submi
 		case order.Sell:
 			reqSide = "SELL"
 		default:
-			return submitOrderResponse, fmt.Errorf("invalid side")
+			return nil, fmt.Errorf("invalid side")
 		}
 		var oType string
 		switch s.Type {
@@ -1042,7 +1039,7 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submi
 		case order.TrailingStop:
 			oType = "TRAILING_STOP_MARKET"
 		default:
-			return submitOrderResponse, errors.New("invalid type, check api docs for updates")
+			return nil, errors.New("invalid type, check api docs for updates")
 		}
 		order, err := b.UFuturesNewOrder(ctx,
 			s.Pair, reqSide,
@@ -1050,15 +1047,19 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submi
 			s.ClientOrderID, "", "",
 			s.Amount, s.Price, 0, 0, 0, s.ReduceOnly)
 		if err != nil {
-			return submitOrderResponse, err
+			return nil, err
 		}
-		submitOrderResponse.OrderID = strconv.FormatInt(order.OrderID, 10)
-		submitOrderResponse.IsOrderPlaced = true
+		orderID = strconv.FormatInt(order.OrderID, 10)
 	default:
-		return submitOrderResponse, fmt.Errorf("assetType not supported")
+		return nil, fmt.Errorf("assetType not supported")
 	}
 
-	return submitOrderResponse, nil
+	detail, err := s.DeriveDetail(orderID, status, time.Now())
+	if err != nil {
+		return nil, err
+	}
+	detail.Trades = trades
+	return detail, nil
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to

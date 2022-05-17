@@ -228,43 +228,38 @@ func (e *Exchange) placeOrder(ctx context.Context, price, amount decimal.Decimal
 	if err != nil {
 		return "", err
 	}
-	var orderID string
 	p := price.InexactFloat64()
 	fee := f.ExchangeFee.InexactFloat64()
 	o := &gctorder.Submit{
-		Price:       p,
-		Amount:      amount.InexactFloat64(),
-		Fee:         fee,
-		Exchange:    f.Exchange,
-		ID:          u.String(),
-		Side:        f.Direction,
-		AssetType:   f.AssetType,
-		Date:        f.GetTime(),
-		LastUpdated: f.GetTime(),
-		Pair:        f.Pair(),
-		Type:        gctorder.Market,
+		Price:     p,
+		Amount:    amount.InexactFloat64(),
+		Exchange:  f.Exchange,
+		Side:      f.Direction,
+		AssetType: f.AssetType,
+		Pair:      f.Pair(),
+		Type:      gctorder.Market,
 	}
 
+	var orderID string
 	if useRealOrders {
 		resp, err := orderManager.Submit(ctx, o)
 		if resp != nil {
-			orderID = resp.OrderID
+			orderID = resp.ID
 		}
 		if err != nil {
 			return orderID, err
 		}
 	} else {
-		submitResponse := gctorder.SubmitResponse{
-			IsOrderPlaced: true,
-			OrderID:       u.String(),
-			Rate:          f.Amount.InexactFloat64(),
-			Fee:           fee,
-			Cost:          p,
-			FullyMatched:  true,
+		submitResponse := &gctorder.Detail{
+			Status: gctorder.Filled,
+			ID:     u.String(),
+			Amount: f.Amount.InexactFloat64(),
+			Fee:    fee,
+			Cost:   p,
 		}
 		resp, err := orderManager.SubmitFakeOrder(o, submitResponse, useExchangeLimits)
 		if resp != nil {
-			orderID = resp.OrderID
+			orderID = resp.ID
 		}
 		if err != nil {
 			return orderID, err

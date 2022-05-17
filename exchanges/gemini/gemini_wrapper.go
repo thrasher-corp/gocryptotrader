@@ -537,20 +537,18 @@ allTrades:
 }
 
 // SubmitOrder submits a new order
-func (g *Gemini) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
-	var submitOrderResponse order.SubmitResponse
+func (g *Gemini) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Detail, error) {
 	if err := s.Validate(); err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
 	if s.Type != order.Limit {
-		return submitOrderResponse,
-			errors.New("only limit orders are enabled through this exchange")
+		return nil, errors.New("only limit orders are enabled through this exchange")
 	}
 
 	fpair, err := g.FormatExchangeCurrency(s.Pair, asset.Spot)
 	if err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
 	response, err := g.NewOrder(ctx,
@@ -560,15 +558,10 @@ func (g *Gemini) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submit
 		s.Side.String(),
 		"exchange limit")
 	if err != nil {
-		return submitOrderResponse, err
-	}
-	if response > 0 {
-		submitOrderResponse.OrderID = strconv.FormatInt(response, 10)
+		return nil, err
 	}
 
-	submitOrderResponse.IsOrderPlaced = true
-
-	return submitOrderResponse, nil
+	return s.DeriveDetail(strconv.FormatInt(response, 10), order.New, time.Now())
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to

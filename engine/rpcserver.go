@@ -1233,10 +1233,10 @@ func (s *RPCServer) SubmitOrder(ctx context.Context, r *gctrpc.SubmitOrderReques
 	}
 
 	return &gctrpc.SubmitOrderResponse{
-		OrderId:     resp.OrderID,
-		OrderPlaced: resp.IsOrderPlaced,
+		OrderId:     resp.ID,
+		OrderPlaced: resp.IsActive(),
 		Trades:      trades,
-	}, err
+	}, nil
 }
 
 // SimulateOrder simulates an order specified by exchange, currency pair and asset

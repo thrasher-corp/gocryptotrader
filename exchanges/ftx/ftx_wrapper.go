@@ -644,10 +644,9 @@ allTrades:
 }
 
 // SubmitOrder submits a new order
-func (f *FTX) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
-	var resp order.SubmitResponse
+func (f *FTX) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Detail, error) {
 	if err := s.Validate(); err != nil {
-		return resp, err
+		return nil, err
 	}
 
 	if s.Side == order.Ask {
@@ -659,7 +658,7 @@ func (f *FTX) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitRes
 
 	fPair, err := f.FormatExchangeCurrency(s.Pair, s.AssetType)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 
 	tempResp, err := f.Order(ctx,
@@ -673,11 +672,9 @@ func (f *FTX) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitRes
 		s.Price,
 		s.Amount)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
-	resp.IsOrderPlaced = true
-	resp.OrderID = strconv.FormatInt(tempResp.ID, 10)
-	return resp, nil
+	return s.DeriveDetail(strconv.FormatInt(tempResp.ID, 10), order.New, time.Now())
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to

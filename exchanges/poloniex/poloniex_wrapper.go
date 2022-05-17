@@ -531,15 +531,14 @@ allTrades:
 }
 
 // SubmitOrder submits a new order
-func (p *Poloniex) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
-	var submitOrderResponse order.SubmitResponse
+func (p *Poloniex) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Detail, error) {
 	if err := s.Validate(); err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
 	fPair, err := p.FormatExchangeCurrency(s.Pair, s.AssetType)
 	if err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
 	fillOrKill := s.Type == order.Market
@@ -552,17 +551,17 @@ func (p *Poloniex) SubmitOrder(ctx context.Context, s *order.Submit) (order.Subm
 		fillOrKill,
 		isBuyOrder)
 	if err != nil {
-		return submitOrderResponse, err
-	}
-	if response.OrderNumber > 0 {
-		submitOrderResponse.OrderID = strconv.FormatInt(response.OrderNumber, 10)
+		return nil, err
 	}
 
-	submitOrderResponse.IsOrderPlaced = true
+	status := order.New
 	if s.Type == order.Market {
-		submitOrderResponse.FullyMatched = true
+		status = order.Filled
 	}
-	return submitOrderResponse, nil
+
+	return s.DeriveDetail(strconv.FormatInt(response.OrderNumber, 10),
+		status,
+		time.Now())
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to

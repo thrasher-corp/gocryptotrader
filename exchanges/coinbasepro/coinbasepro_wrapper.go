@@ -526,21 +526,20 @@ func (c *CoinbasePro) GetHistoricTrades(_ context.Context, _ currency.Pair, _ as
 }
 
 // SubmitOrder submits a new order
-func (c *CoinbasePro) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
-	var submitOrderResponse order.SubmitResponse
+func (c *CoinbasePro) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Detail, error) {
 	if err := s.Validate(); err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
 	fpair, err := c.FormatExchangeCurrency(s.Pair, asset.Spot)
 	if err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
-	var response string
+	var orderID string
 	switch s.Type {
 	case order.Market:
-		response, err = c.PlaceMarketOrder(ctx,
+		orderID, err = c.PlaceMarketOrder(ctx,
 			"",
 			s.Amount,
 			s.Amount,
@@ -548,7 +547,7 @@ func (c *CoinbasePro) SubmitOrder(ctx context.Context, s *order.Submit) (order.S
 			fpair.String(),
 			"")
 	case order.Limit:
-		response, err = c.PlaceLimitOrder(ctx,
+		orderID, err = c.PlaceLimitOrder(ctx,
 			"",
 			s.Price,
 			s.Amount,
@@ -562,18 +561,13 @@ func (c *CoinbasePro) SubmitOrder(ctx context.Context, s *order.Submit) (order.S
 		err = errors.New("order type not supported")
 	}
 	if err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
+	status := order.New
 	if s.Type == order.Market {
-		submitOrderResponse.FullyMatched = true
+		status = order.Filled
 	}
-	if response != "" {
-		submitOrderResponse.OrderID = response
-	}
-
-	submitOrderResponse.IsOrderPlaced = true
-
-	return submitOrderResponse, nil
+	return s.DeriveDetail(orderID, status, time.Now())
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to

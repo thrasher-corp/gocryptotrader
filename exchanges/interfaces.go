@@ -99,7 +99,7 @@ type IBotExchange interface {
 
 // OrderManagement defines functionality for order management
 type OrderManagement interface {
-	SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error)
+	SubmitOrder(ctx context.Context, s *order.Submit) (*order.Detail, error)
 	ModifyOrder(ctx context.Context, action *order.Modify) (*order.Modify, error)
 	CancelOrder(ctx context.Context, o *order.Cancel) error
 	CancelBatchOrders(ctx context.Context, o []order.Cancel) (order.CancelBatchResponse, error)

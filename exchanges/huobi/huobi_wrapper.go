@@ -878,16 +878,18 @@ func (h *HUOBI) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.It
 }
 
 // SubmitOrder submits a new order
-func (h *HUOBI) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
-	var submitOrderResponse order.SubmitResponse
+func (h *HUOBI) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Detail, error) {
 	if err := s.Validate(); err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
+
+	var orderID string
+	status := order.New
 	switch s.AssetType {
 	case asset.Spot:
 		accountID, err := strconv.ParseInt(s.ClientID, 10, 64)
 		if err != nil {
-			return submitOrderResponse, err
+			return nil, err
 		}
 		var formattedType SpotNewOrderRequestParamsType
 		var params = SpotNewOrderRequestParams{
@@ -911,14 +913,12 @@ func (h *HUOBI) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitR
 		params.Type = formattedType
 		response, err := h.SpotNewOrder(ctx, &params)
 		if err != nil {
-			return submitOrderResponse, err
+			return nil, err
 		}
-		if response > 0 {
-			submitOrderResponse.OrderID = strconv.FormatInt(response, 10)
-		}
-		submitOrderResponse.IsOrderPlaced = true
+		orderID = strconv.FormatInt(response, 10)
+
 		if s.Type == order.Market {
-			submitOrderResponse.FullyMatched = true
+			status = order.Filled
 		}
 	case asset.CoinMarginedFutures:
 		var oDirection string
@@ -935,20 +935,23 @@ func (h *HUOBI) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitR
 		case order.PostOnly:
 			oType = "post_only"
 		}
-		order, err := h.PlaceSwapOrders(ctx,
+		offset := "open"
+		if s.ReduceOnly {
+			offset = "close"
+		}
+		orderResp, err := h.PlaceSwapOrders(ctx,
 			s.Pair,
 			s.ClientOrderID,
 			oDirection,
-			s.Offset,
+			offset,
 			oType,
 			s.Price,
 			s.Amount,
 			s.Leverage)
 		if err != nil {
-			return submitOrderResponse, err
+			return nil, err
 		}
-		submitOrderResponse.OrderID = order.Data.OrderIDString
-		submitOrderResponse.IsOrderPlaced = true
+		orderID = orderResp.Data.OrderIDString
 	case asset.Futures:
 		var oDirection string
 		switch s.Side {
@@ -977,24 +980,27 @@ func (h *HUOBI) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitR
 		case order.PostOnly:
 			oType = "post_only"
 		}
+		offset := "open"
+		if s.ReduceOnly {
+			offset = "close"
+		}
 		order, err := h.FOrder(ctx,
 			s.Pair,
 			"",
 			"",
 			s.ClientOrderID,
 			oDirection,
-			s.Offset,
+			offset,
 			oType,
 			s.Price,
 			s.Amount,
 			s.Leverage)
 		if err != nil {
-			return submitOrderResponse, err
+			return nil, err
 		}
-		submitOrderResponse.OrderID = order.Data.OrderIDStr
-		submitOrderResponse.IsOrderPlaced = true
+		orderID = order.Data.OrderIDStr
 	}
-	return submitOrderResponse, nil
+	return s.DeriveDetail(orderID, status, time.Now())
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to

@@ -428,7 +428,7 @@ func TestSubmitOrder(t *testing.T) {
 
 	response, err := g.SubmitOrder(context.Background(), orderSubmission)
 	switch {
-	case areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced):
+	case areTestAPIKeysSet() && (err != nil || response.Status != order.New):
 		t.Errorf("Order failed to be placed: %v", err)
 	case !areTestAPIKeysSet() && err == nil && !mockTests:
 		t.Error("Expecting an error when no keys are set")

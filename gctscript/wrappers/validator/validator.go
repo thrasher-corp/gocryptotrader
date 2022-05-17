@@ -149,7 +149,7 @@ func (w Wrapper) QueryOrder(ctx context.Context, exch, _ string, _ currency.Pair
 }
 
 // SubmitOrder validator for test execution/scripts
-func (w Wrapper) SubmitOrder(ctx context.Context, o *order.Submit) (*order.SubmitResponse, error) {
+func (w Wrapper) SubmitOrder(ctx context.Context, o *order.Submit) (*order.Detail, error) {
 	if o == nil {
 		return nil, errTestFailed
 	}
@@ -157,16 +157,12 @@ func (w Wrapper) SubmitOrder(ctx context.Context, o *order.Submit) (*order.Submi
 		return nil, errTestFailed
 	}
 
-	tempOrder := &order.SubmitResponse{
-		IsOrderPlaced: false,
-		OrderID:       o.Exchange,
-	}
-
+	status := order.Rejected
 	if o.Exchange == "true" {
-		tempOrder.IsOrderPlaced = true
+		status = order.New
 	}
 
-	return tempOrder, nil
+	return o.DeriveDetail(o.Exchange, status, time.Now())
 }
 
 // CancelOrder validator for test execution/scripts

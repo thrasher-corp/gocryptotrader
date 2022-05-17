@@ -472,12 +472,13 @@ func (z *ZB) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.Item,
 }
 
 // SubmitOrder submits a new order
-func (z *ZB) SubmitOrder(ctx context.Context, o *order.Submit) (order.SubmitResponse, error) {
-	var submitOrderResponse order.SubmitResponse
+func (z *ZB) SubmitOrder(ctx context.Context, o *order.Submit) (*order.Detail, error) {
 	err := o.Validate()
 	if err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
+
+	var orderID string
 	if z.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		var isBuyOrder int64
 		if o.Side == order.Buy {
@@ -488,9 +489,9 @@ func (z *ZB) SubmitOrder(ctx context.Context, o *order.Submit) (order.SubmitResp
 		var response *WsSubmitOrderResponse
 		response, err = z.wsSubmitOrder(ctx, o.Pair, o.Amount, o.Price, isBuyOrder)
 		if err != nil {
-			return submitOrderResponse, err
+			return nil, err
 		}
-		submitOrderResponse.OrderID = strconv.FormatInt(response.Data.EntrustID, 10)
+		orderID = strconv.FormatInt(response.Data.EntrustID, 10)
 	} else {
 		var oT SpotNewOrderRequestParamsType
 		if o.Side == order.Buy {
@@ -501,7 +502,7 @@ func (z *ZB) SubmitOrder(ctx context.Context, o *order.Submit) (order.SubmitResp
 
 		fPair, err := z.FormatExchangeCurrency(o.Pair, o.AssetType)
 		if err != nil {
-			return submitOrderResponse, err
+			return nil, err
 		}
 
 		var params = SpotNewOrderRequestParams{
@@ -513,17 +514,15 @@ func (z *ZB) SubmitOrder(ctx context.Context, o *order.Submit) (order.SubmitResp
 		var response int64
 		response, err = z.SpotNewOrder(ctx, params)
 		if err != nil {
-			return submitOrderResponse, err
+			return nil, err
 		}
-		if response > 0 {
-			submitOrderResponse.OrderID = strconv.FormatInt(response, 10)
-		}
+		orderID = strconv.FormatInt(response, 10)
 	}
-	submitOrderResponse.IsOrderPlaced = true
+	status := order.New
 	if o.Type == order.Market {
-		submitOrderResponse.FullyMatched = true
+		status = order.Filled
 	}
-	return submitOrderResponse, nil
+	return o.DeriveDetail(orderID, status, time.Now())
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to

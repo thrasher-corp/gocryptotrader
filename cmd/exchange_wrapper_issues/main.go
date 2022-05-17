@@ -564,7 +564,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			ClientID:  config.OrderSubmission.OrderID,
 			AssetType: assetTypes[i],
 		}
-		var submitOrderResponse order.SubmitResponse
+		var submitOrderResponse *order.Detail
 		submitOrderResponse, err = e.SubmitOrder(context.TODO(), s)
 		msg = ""
 		if err != nil {

@@ -526,37 +526,34 @@ func (b *Bitstamp) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset
 }
 
 // SubmitOrder submits a new order
-func (b *Bitstamp) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
-	var submitOrderResponse order.SubmitResponse
+func (b *Bitstamp) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Detail, error) {
 	if err := s.Validate(); err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
 	fPair, err := b.FormatExchangeCurrency(s.Pair, s.AssetType)
 	if err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
-	buy := s.Side == order.Buy
-	market := s.Type == order.Market
+	isMarket := s.Type == order.Market
 	response, err := b.PlaceOrder(ctx,
 		fPair.String(),
 		s.Price,
 		s.Amount,
-		buy,
-		market)
+		s.Side == order.Buy,
+		isMarket)
 	if err != nil {
-		return submitOrderResponse, err
-	}
-	if response.ID > 0 {
-		submitOrderResponse.OrderID = strconv.FormatInt(response.ID, 10)
+		return nil, err
 	}
 
-	submitOrderResponse.IsOrderPlaced = true
-	if s.Type == order.Market {
-		submitOrderResponse.FullyMatched = true
+	orderID := strconv.FormatInt(response.ID, 10)
+
+	status := order.New
+	if isMarket {
+		status = order.Filled
 	}
-	return submitOrderResponse, nil
+	return s.DeriveDetail(orderID, status, time.Now())
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to

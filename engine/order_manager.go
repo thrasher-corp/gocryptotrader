@@ -465,12 +465,12 @@ func (m *OrderManager) Submit(ctx context.Context, newOrder *order.Submit) (*Ord
 		return nil, err
 	}
 
-	return m.processSubmittedOrder(newOrder, result)
+	return m.processSubmittedOrder(result)
 }
 
 // SubmitFakeOrder runs through the same process as order submission
 // but does not touch live endpoints
-func (m *OrderManager) SubmitFakeOrder(newOrder *order.Submit, resultingOrder order.SubmitResponse, checkExchangeLimits bool) (*OrderSubmitResponse, error) {
+func (m *OrderManager) SubmitFakeOrder(newOrder *order.Submit, resultingOrder *order.Detail, checkExchangeLimits bool) (*OrderSubmitResponse, error) {
 	if m == nil {
 		return nil, fmt.Errorf("order manager %w", ErrNilSubsystem)
 	}
@@ -501,7 +501,7 @@ func (m *OrderManager) SubmitFakeOrder(newOrder *order.Submit, resultingOrder or
 				err)
 		}
 	}
-	return m.processSubmittedOrder(newOrder, resultingOrder)
+	return m.processSubmittedOrder(resultingOrder)
 }
 
 // GetOrdersSnapshot returns a snapshot of all orders in the orderstore. It optionally filters any orders that do not match the status
@@ -549,82 +549,38 @@ func (m *OrderManager) GetOrdersActive(f *order.Filter) ([]order.Detail, error) 
 }
 
 // processSubmittedOrder adds a new order to the manager
-func (m *OrderManager) processSubmittedOrder(newOrder *order.Submit, result order.SubmitResponse) (*OrderSubmitResponse, error) {
-	if !result.IsOrderPlaced {
-		return nil, errUnableToPlaceOrder
+func (m *OrderManager) processSubmittedOrder(result *order.Detail) (*OrderSubmitResponse, error) {
+	if result == nil {
+		return nil, order.ErrOrderDetailIsNil
 	}
 
 	id, err := uuid.NewV4()
 	if err != nil {
-		log.Warnf(log.OrderMgr,
-			"Order manager: Unable to generate UUID. Err: %s",
-			err)
+		log.Warnf(log.OrderMgr, "Order manager: Unable to generate UUID. Err: %s", err)
 	}
-	if newOrder.Date.IsZero() {
-		newOrder.Date = time.Now()
-	}
+
 	msg := fmt.Sprintf("Order manager: Exchange %s submitted order ID=%v [Ours: %v] pair=%v price=%v amount=%v quoteAmount=%v side=%v type=%v for time %v.",
-		newOrder.Exchange,
-		result.OrderID,
+		result.Exchange,
+		result.ID,
 		id.String(),
-		newOrder.Pair,
-		newOrder.Price,
-		newOrder.Amount,
-		newOrder.QuoteAmount,
-		newOrder.Side,
-		newOrder.Type,
-		newOrder.Date)
+		result.Pair,
+		result.Price,
+		result.Amount,
+		result.QuoteAmount,
+		result.Side,
+		result.Type,
+		result.Date)
 
 	log.Debugln(log.OrderMgr, msg)
-	m.orderStore.commsManager.PushEvent(base.Event{
-		Type:    "order",
-		Message: msg,
-	})
-	status := order.New
-	if result.FullyMatched {
-		status = order.Filled
-	}
-	err = m.orderStore.add(&order.Detail{
-		ImmediateOrCancel: newOrder.ImmediateOrCancel,
-		HiddenOrder:       newOrder.HiddenOrder,
-		FillOrKill:        newOrder.FillOrKill,
-		PostOnly:          newOrder.PostOnly,
-		Price:             newOrder.Price,
-		Amount:            newOrder.Amount,
-		LimitPriceUpper:   newOrder.LimitPriceUpper,
-		LimitPriceLower:   newOrder.LimitPriceLower,
-		TriggerPrice:      newOrder.TriggerPrice,
-		QuoteAmount:       newOrder.QuoteAmount,
-		ExecutedAmount:    newOrder.ExecutedAmount,
-		RemainingAmount:   newOrder.RemainingAmount,
-		Fee:               newOrder.Fee,
-		Exchange:          newOrder.Exchange,
-		InternalOrderID:   id.String(),
-		ID:                result.OrderID,
-		AccountID:         newOrder.AccountID,
-		ClientID:          newOrder.ClientID,
-		ClientOrderID:     newOrder.ClientOrderID,
-		WalletAddress:     newOrder.WalletAddress,
-		Type:              newOrder.Type,
-		Side:              newOrder.Side,
-		Status:            status,
-		AssetType:         newOrder.AssetType,
-		Date:              time.Now(),
-		LastUpdated:       time.Now(),
-		Pair:              newOrder.Pair,
-		Leverage:          newOrder.Leverage,
-	})
+	m.orderStore.commsManager.PushEvent(base.Event{Type: "order", Message: msg})
+
+	err = m.orderStore.add(result)
 	if err != nil {
-		return nil, fmt.Errorf("unable to add %v order %v to orderStore: %s", newOrder.Exchange, result.OrderID, err)
+		return nil, fmt.Errorf("unable to add %v order %v to orderStore: %s",
+			result.Exchange, result.ID, err)
 	}
 
-	return &OrderSubmitResponse{
-		SubmitResponse: order.SubmitResponse{
-			IsOrderPlaced: result.IsOrderPlaced,
-			OrderID:       result.OrderID,
-		},
-		InternalOrderID: id.String(),
-	}, nil
+	return &OrderSubmitResponse{Detail: result, InternalOrderID: id.String()}, nil
 }
 
 // processOrders iterates over all exchange orders via API

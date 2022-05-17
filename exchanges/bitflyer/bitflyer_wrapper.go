@@ -389,8 +389,8 @@ func (b *Bitflyer) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset
 }
 
 // SubmitOrder submits a new order
-func (b *Bitflyer) SubmitOrder(_ context.Context, _ *order.Submit) (order.SubmitResponse, error) {
-	return order.SubmitResponse{}, common.ErrNotYetImplemented
+func (b *Bitflyer) SubmitOrder(_ context.Context, _ *order.Submit) (*order.Detail, error) {
+	return nil, common.ErrNotYetImplemented
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to

@@ -587,17 +587,19 @@ func (c *COINUT) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.I
 }
 
 // SubmitOrder submits a new order
-func (c *COINUT) SubmitOrder(ctx context.Context, o *order.Submit) (order.SubmitResponse, error) {
-	if err := o.Validate(); err != nil {
-		return order.SubmitResponse{}, err
+func (c *COINUT) SubmitOrder(ctx context.Context, o *order.Submit) (*order.Detail, error) {
+	err := o.Validate()
+	if err != nil {
+		return nil, err
 	}
 
-	var submitOrderResponse order.SubmitResponse
-	var err error
 	if _, err = strconv.Atoi(o.ClientID); err != nil {
-		return submitOrderResponse, fmt.Errorf("%s - ClientID must be a number, received: %s", c.Name, o.ClientID)
+		return nil, fmt.Errorf("%s - ClientID must be a number, received: %s",
+			c.Name, o.ClientID)
 	}
 
+	var orderID string
+	status := order.New
 	if c.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		var response *order.Detail
 		response, err = c.wsSubmitOrder(&WsSubmitOrderParameters{
@@ -607,74 +609,67 @@ func (c *COINUT) SubmitOrder(ctx context.Context, o *order.Submit) (order.Submit
 			Price:    o.Price,
 		})
 		if err != nil {
-			return submitOrderResponse, err
+			return nil, err
 		}
-		submitOrderResponse.OrderID = response.ID
-		submitOrderResponse.IsOrderPlaced = true
+		orderID = response.ID
 	} else {
 		err = c.loadInstrumentsIfNotLoaded()
 		if err != nil {
-			return submitOrderResponse, err
+			return nil, err
 		}
 
 		fpair, err := c.FormatExchangeCurrency(o.Pair, asset.Spot)
 		if err != nil {
-			return submitOrderResponse, err
+			return nil, err
 		}
 
 		currencyID := c.instrumentMap.LookupID(fpair.String())
 		if currencyID == 0 {
-			return submitOrderResponse, errLookupInstrumentID
+			return nil, errLookupInstrumentID
 		}
 
 		var APIResponse interface{}
 		var clientIDInt uint64
-		isBuyOrder := o.Side == order.Buy
-		clientIDInt, err = strconv.ParseUint(o.ClientID, 0, 32)
+		clientIDInt, err = strconv.ParseUint(o.ClientID, 10, 32)
 		if err != nil {
-			return submitOrderResponse, err
+			return nil, err
 		}
-		clientIDUint := uint32(clientIDInt)
 		APIResponse, err = c.NewOrder(ctx,
 			currencyID,
 			o.Amount,
 			o.Price,
-			isBuyOrder,
-			clientIDUint)
+			o.Side == order.Buy,
+			uint32(clientIDInt))
 		if err != nil {
-			return submitOrderResponse, err
+			return nil, err
 		}
 		responseMap, ok := APIResponse.(map[string]interface{})
 		if !ok {
-			return submitOrderResponse, errors.New("unable to type assert responseMap")
+			return nil, errors.New("unable to type assert responseMap")
 		}
 		orderType, ok := responseMap["reply"].(string)
 		if !ok {
-			return submitOrderResponse, errors.New("unable to type assert orderType")
+			return nil, errors.New("unable to type assert orderType")
 		}
 		switch orderType {
 		case "order_rejected":
-			return submitOrderResponse, fmt.Errorf("clientOrderID: %v was rejected: %v", o.ClientID, responseMap["reasons"])
+			return nil, fmt.Errorf("clientOrderID: %v was rejected: %v", o.ClientID, responseMap["reasons"])
 		case "order_filled":
-			orderID, ok := responseMap["order_id"].(float64)
+			orderIDResp, ok := responseMap["order_id"].(float64)
 			if !ok {
-				return submitOrderResponse, errors.New("unable to type assert orderID")
+				return nil, errors.New("unable to type assert orderID")
 			}
-			submitOrderResponse.OrderID = strconv.FormatFloat(orderID, 'f', -1, 64)
-			submitOrderResponse.IsOrderPlaced = true
-			submitOrderResponse.FullyMatched = true
-			return submitOrderResponse, nil
+			orderID = strconv.FormatFloat(orderIDResp, 'f', -1, 64)
+			status = order.Filled
 		case "order_accepted":
-			orderID, ok := responseMap["order_id"].(float64)
+			orderIDResp, ok := responseMap["order_id"].(float64)
 			if !ok {
-				return submitOrderResponse, errors.New("unable to type assert orderID")
+				return nil, errors.New("unable to type assert orderID")
 			}
-			submitOrderResponse.OrderID = strconv.FormatFloat(orderID, 'f', -1, 64)
-			submitOrderResponse.IsOrderPlaced = true
-			return submitOrderResponse, nil
+			orderID = strconv.FormatFloat(orderIDResp, 'f', -1, 64)
 		}
 	}
-	return submitOrderResponse, nil
+	return o.DeriveDetail(orderID, status, time.Now())
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to

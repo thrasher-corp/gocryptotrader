@@ -3,9 +3,11 @@ package coinut
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -310,7 +312,7 @@ func TestSubmitOrder(t *testing.T) {
 		AssetType: asset.Spot,
 	}
 	response, err := c.SubmitOrder(context.Background(), orderSubmission)
-	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
+	if areTestAPIKeysSet() && (err != nil || response.Status != order.New) {
 		t.Errorf("Order failed to be placed: %v", err)
 	} else if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expecting an error when no keys are set")
@@ -1161,4 +1163,14 @@ func TestGetHistoricTrades(t *testing.T) {
 	if err != nil && err != common.ErrFunctionNotSupported {
 		t.Error(err)
 	}
+}
+
+func TestXxx(t *testing.T) {
+	// Testing 0 value base conversion...
+	wow, err := strconv.ParseUint("12347", 0, 32)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	fmt.Println(wow)
 }

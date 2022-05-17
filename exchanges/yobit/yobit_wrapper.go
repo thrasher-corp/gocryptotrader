@@ -406,19 +406,18 @@ func (y *Yobit) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.It
 
 // SubmitOrder submits a new order
 // Yobit only supports limit orders
-func (y *Yobit) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
-	var submitOrderResponse order.SubmitResponse
+func (y *Yobit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Detail, error) {
 	if err := s.Validate(); err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
 	if s.Type != order.Limit {
-		return submitOrderResponse, errors.New("only limit orders are allowed")
+		return nil, errors.New("only limit orders are allowed")
 	}
 
 	fPair, err := y.FormatExchangeCurrency(s.Pair, s.AssetType)
 	if err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
 	response, err := y.Trade(ctx,
@@ -427,14 +426,9 @@ func (y *Yobit) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitR
 		s.Amount,
 		s.Price)
 	if err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
-	if response > 0 {
-		submitOrderResponse.OrderID = strconv.FormatInt(response, 10)
-	}
-
-	submitOrderResponse.IsOrderPlaced = true
-	return submitOrderResponse, nil
+	return s.DeriveDetail(strconv.FormatInt(response, 10), order.New, time.Now())
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to

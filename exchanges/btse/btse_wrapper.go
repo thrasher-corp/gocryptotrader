@@ -509,19 +509,18 @@ func (b *BTSE) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.Ite
 }
 
 // SubmitOrder submits a new order
-func (b *BTSE) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
-	var resp order.SubmitResponse
+func (b *BTSE) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Detail, error) {
 	if err := s.Validate(); err != nil {
-		return resp, err
+		return nil, err
 	}
 
 	fPair, err := b.FormatExchangeCurrency(s.Pair, s.AssetType)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 	inLimits := b.withinLimits(fPair, s.Amount)
 	if !inLimits {
-		return resp, errors.New("order outside of limits")
+		return nil, errors.New("order outside of limits")
 	}
 
 	r, err := b.CreateOrder(ctx,
@@ -537,16 +536,18 @@ func (b *BTSE) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitRe
 		"",
 		s.Type.String())
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 
-	resp.IsOrderPlaced = true
-	resp.OrderID = r[0].OrderID
-
+	var orderID string
+	if len(r) > 0 {
+		orderID = r[0].OrderID
+	}
+	status := order.New
 	if s.Type == order.Market {
-		resp.FullyMatched = true
+		status = order.Filled
 	}
-	return resp, nil
+	return s.DeriveDetail(orderID, status, time.Now())
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to

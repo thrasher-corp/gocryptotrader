@@ -38,7 +38,7 @@ type Exchange interface {
 	Ticker(ctx context.Context, exch string, pair currency.Pair, item asset.Item) (*ticker.Price, error)
 	Pairs(exch string, enabledOnly bool, item asset.Item) (*currency.Pairs, error)
 	QueryOrder(ctx context.Context, exch, orderid string, pair currency.Pair, assetType asset.Item) (*order.Detail, error)
-	SubmitOrder(ctx context.Context, submit *order.Submit) (*order.SubmitResponse, error)
+	SubmitOrder(ctx context.Context, submit *order.Submit) (*order.Detail, error)
 	CancelOrder(ctx context.Context, exch, orderid string, pair currency.Pair, item asset.Item) (bool, error)
 	AccountInformation(ctx context.Context, exch string, assetType asset.Item) (account.Holdings, error)
 	DepositAddress(exch, chain string, currencyCode currency.Code) (*deposit.Address, error)

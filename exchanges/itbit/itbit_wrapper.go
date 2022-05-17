@@ -372,16 +372,15 @@ func (i *ItBit) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.It
 }
 
 // SubmitOrder submits a new order
-func (i *ItBit) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
-	var submitOrderResponse order.SubmitResponse
+func (i *ItBit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Detail, error) {
 	if err := s.Validate(); err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
 	var wallet string
 	wallets, err := i.GetWallets(ctx, url.Values{})
 	if err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
 	// Determine what wallet ID to use if there is any actual available currency to make the trade!
@@ -395,7 +394,7 @@ func (i *ItBit) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitR
 	}
 
 	if wallet == "" {
-		return submitOrderResponse,
+		return nil,
 			fmt.Errorf("no wallet found with currency: %s with amount >= %v",
 				s.Pair.Base,
 				s.Amount)
@@ -403,7 +402,7 @@ func (i *ItBit) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitR
 
 	fPair, err := i.FormatExchangeCurrency(s.Pair, s.AssetType)
 	if err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
 	response, err := i.PlaceOrder(ctx,
@@ -416,17 +415,13 @@ func (i *ItBit) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitR
 		fPair.String(),
 		"")
 	if err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
-	if response.ID != "" {
-		submitOrderResponse.OrderID = response.ID
-	}
-
+	status := order.New
 	if response.AmountFilled == s.Amount {
-		submitOrderResponse.FullyMatched = true
+		status = order.Filled
 	}
-	submitOrderResponse.IsOrderPlaced = true
-	return submitOrderResponse, nil
+	return s.DeriveDetail(response.ID, status, time.Now())
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to

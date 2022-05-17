@@ -565,20 +565,19 @@ allTrades:
 }
 
 // SubmitOrder submits a new order
-func (b *Bitmex) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
-	var submitOrderResponse order.SubmitResponse
+func (b *Bitmex) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Detail, error) {
 	if err := s.Validate(); err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
 	if math.Mod(s.Amount, 1) != 0 {
-		return submitOrderResponse,
+		return nil,
 			errors.New("order contract amount can not have decimals")
 	}
 
 	fPair, err := b.FormatExchangeCurrency(s.Pair, s.AssetType)
 	if err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
 	var orderNewParams = OrderNewParams{
@@ -594,17 +593,13 @@ func (b *Bitmex) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submit
 
 	response, err := b.CreateOrder(ctx, &orderNewParams)
 	if err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
-	if response.OrderID != "" {
-		submitOrderResponse.OrderID = response.OrderID
-	}
+	status := order.New
 	if s.Type == order.Market {
-		submitOrderResponse.FullyMatched = true
+		status = order.Filled
 	}
-	submitOrderResponse.IsOrderPlaced = true
-
-	return submitOrderResponse, nil
+	return s.DeriveDetail(response.OrderID, status, time.Now())
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to

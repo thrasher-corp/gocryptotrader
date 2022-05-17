@@ -88,13 +88,13 @@ func (e Exchange) QueryOrder(ctx context.Context, exch, orderID string, pair cur
 }
 
 // SubmitOrder submit new order on exchange
-func (e Exchange) SubmitOrder(ctx context.Context, submit *order.Submit) (*order.SubmitResponse, error) {
+func (e Exchange) SubmitOrder(ctx context.Context, submit *order.Submit) (*order.Detail, error) {
 	r, err := engine.Bot.OrderManager.Submit(ctx, submit)
 	if err != nil {
 		return nil, err
 	}
 
-	return &r.SubmitResponse, nil
+	return r.Detail, nil
 }
 
 // CancelOrder wrapper to cancel order on exchange

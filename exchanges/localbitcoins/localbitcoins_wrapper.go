@@ -369,15 +369,14 @@ func (l *LocalBitcoins) GetHistoricTrades(_ context.Context, _ currency.Pair, _ 
 }
 
 // SubmitOrder submits a new order
-func (l *LocalBitcoins) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
-	var submitOrderResponse order.SubmitResponse
+func (l *LocalBitcoins) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Detail, error) {
 	if err := s.Validate(); err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
 	fPair, err := l.FormatExchangeCurrency(s.Pair, s.AssetType)
 	if err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
 	// These are placeholder details
@@ -405,15 +404,17 @@ func (l *LocalBitcoins) SubmitOrder(ctx context.Context, s *order.Submit) (order
 	// Does not return any orderID, so create the add, then get the order
 	err = l.CreateAd(ctx, &params)
 	if err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
-
-	submitOrderResponse.IsOrderPlaced = true
 
 	// Now to figure out what ad we just submitted
 	// The only details we have are the params above
-	var adID string
 	ads, err := l.Getads(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var adID string
 	for i := range ads.AdList {
 		if ads.AdList[i].Data.PriceEquation == params.PriceEquation &&
 			ads.AdList[i].Data.Lat == float64(params.Latitude) &&
@@ -431,16 +432,15 @@ func (l *LocalBitcoins) SubmitOrder(ctx context.Context, s *order.Submit) (order
 			ads.AdList[i].Data.TradeType == params.TradeType &&
 			ads.AdList[i].Data.MinAmount == strconv.FormatInt(int64(params.MinAmount), 10) {
 			adID = strconv.FormatInt(ads.AdList[i].Data.AdID, 10)
+			break
 		}
 	}
 
-	if adID != "" {
-		submitOrderResponse.OrderID = adID
-	} else {
-		return submitOrderResponse, errors.New("ad placed, but not found via API")
+	if adID == "" {
+		return nil, errors.New("ad placed, but not found via API")
 	}
 
-	return submitOrderResponse, err
+	return s.DeriveDetail(adID, order.New, time.Now())
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to

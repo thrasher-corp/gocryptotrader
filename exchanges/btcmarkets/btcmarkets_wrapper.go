@@ -530,10 +530,9 @@ func (b *BTCMarkets) GetHistoricTrades(_ context.Context, _ currency.Pair, _ ass
 }
 
 // SubmitOrder submits a new order
-func (b *BTCMarkets) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
-	var resp order.SubmitResponse
+func (b *BTCMarkets) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Detail, error) {
 	if err := s.Validate(); err != nil {
-		return resp, err
+		return nil, err
 	}
 
 	if s.Side == order.Sell {
@@ -545,17 +544,17 @@ func (b *BTCMarkets) SubmitOrder(ctx context.Context, s *order.Submit) (order.Su
 
 	fpair, err := b.FormatExchangeCurrency(s.Pair, asset.Spot)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 
 	fOrderType, err := b.formatOrderType(s.Type)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 
 	fOrderSide, err := b.formatOrderSide(s.Side)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 
 	tempResp, err := b.NewOrder(ctx,
@@ -571,11 +570,9 @@ func (b *BTCMarkets) SubmitOrder(ctx context.Context, s *order.Submit) (order.Su
 		s.ClientID,
 		s.PostOnly)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
-	resp.IsOrderPlaced = true
-	resp.OrderID = tempResp.OrderID
-	return resp, nil
+	return s.DeriveDetail(tempResp.OrderID, order.New, time.Now())
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to

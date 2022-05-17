@@ -497,7 +497,7 @@ func TestSubmitOrder(t *testing.T) {
 	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Withdraw failed to be placed: %v", err)
 
-		if !response.IsOrderPlaced {
+		if response.Status != order.New {
 			t.Errorf("Order failed to be placed: %v", err)
 		}
 	}

@@ -460,16 +460,15 @@ func (e *EXMO) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.Ite
 }
 
 // SubmitOrder submits a new order
-func (e *EXMO) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
-	var submitOrderResponse order.SubmitResponse
+func (e *EXMO) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Detail, error) {
 	if err := s.Validate(); err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
 	var oT string
 	switch s.Type {
 	case order.Limit:
-		return submitOrderResponse, errors.New("unsupported order type")
+		return nil, errors.New("unsupported order type")
 	case order.Market:
 		if s.Side == order.Sell {
 			oT = "market_sell"
@@ -480,22 +479,21 @@ func (e *EXMO) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitRe
 
 	fPair, err := e.FormatExchangeCurrency(s.Pair, s.AssetType)
 	if err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
 	response, err := e.CreateOrder(ctx, fPair.String(), oT, s.Price, s.Amount)
 	if err != nil {
-		return submitOrderResponse, err
-	}
-	if response > 0 {
-		submitOrderResponse.OrderID = strconv.FormatInt(response, 10)
+		return nil, err
 	}
 
-	submitOrderResponse.IsOrderPlaced = true
+	orderID := strconv.FormatInt(response, 10)
+
+	status := order.New
 	if s.Type == order.Market {
-		submitOrderResponse.FullyMatched = true
+		status = order.Filled
 	}
-	return submitOrderResponse, nil
+	return s.DeriveDetail(orderID, status, time.Now())
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to

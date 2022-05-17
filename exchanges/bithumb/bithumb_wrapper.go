@@ -474,15 +474,14 @@ func (b *Bithumb) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.
 
 // SubmitOrder submits a new order
 // TODO: Fill this out to support limit orders
-func (b *Bithumb) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
-	var submitOrderResponse order.SubmitResponse
+func (b *Bithumb) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Detail, error) {
 	if err := s.Validate(); err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
 	fPair, err := b.FormatExchangeCurrency(s.Pair, s.AssetType)
 	if err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
 	var orderID string
@@ -490,24 +489,18 @@ func (b *Bithumb) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submi
 		var result MarketBuy
 		result, err = b.MarketBuyOrder(ctx, fPair, s.Amount)
 		if err != nil {
-			return submitOrderResponse, err
+			return nil, err
 		}
 		orderID = result.OrderID
 	} else if s.Side == order.Sell {
 		var result MarketSell
 		result, err = b.MarketSellOrder(ctx, fPair, s.Amount)
 		if err != nil {
-			return submitOrderResponse, err
+			return nil, err
 		}
 		orderID = result.OrderID
 	}
-	if orderID != "" {
-		submitOrderResponse.OrderID = orderID
-		submitOrderResponse.FullyMatched = true
-	}
-	submitOrderResponse.IsOrderPlaced = true
-
-	return submitOrderResponse, nil
+	return s.DeriveDetail(orderID, order.New, time.Now())
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to

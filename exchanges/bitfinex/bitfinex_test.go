@@ -892,7 +892,7 @@ func TestSubmitOrder(t *testing.T) {
 	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Could not place order: %v", err)
 	}
-	if areTestAPIKeysSet() && !response.IsOrderPlaced {
+	if areTestAPIKeysSet() && response.Status != order.New {
 		t.Error("Order not placed")
 	}
 	if !areTestAPIKeysSet() && err == nil {

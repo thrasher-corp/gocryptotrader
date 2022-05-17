@@ -450,21 +450,20 @@ allTrades:
 }
 
 // SubmitOrder submits a new order
-func (l *Lbank) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
-	var resp order.SubmitResponse
+func (l *Lbank) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Detail, error) {
 	if err := s.Validate(); err != nil {
-		return resp, err
+		return nil, err
 	}
 
 	if s.Side != order.Buy && s.Side != order.Sell {
-		return resp,
+		return nil,
 			fmt.Errorf("%s order side is not supported by the exchange",
 				s.Side)
 	}
 
 	fpair, err := l.FormatExchangeCurrency(s.Pair, asset.Spot)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 
 	tempResp, err := l.CreateOrder(ctx,
@@ -473,14 +472,14 @@ func (l *Lbank) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitR
 		s.Amount,
 		s.Price)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
-	resp.IsOrderPlaced = true
-	resp.OrderID = tempResp.OrderID
+
+	status := order.New
 	if s.Type == order.Market {
-		resp.FullyMatched = true
+		status = order.Filled
 	}
-	return resp, nil
+	return s.DeriveDetail(tempResp.OrderID, status, time.Now())
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to

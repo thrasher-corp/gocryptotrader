@@ -556,26 +556,28 @@ allTrades:
 }
 
 // SubmitOrder submits a new order
-func (h *HitBTC) SubmitOrder(ctx context.Context, o *order.Submit) (order.SubmitResponse, error) {
-	var submitOrderResponse order.SubmitResponse
+func (h *HitBTC) SubmitOrder(ctx context.Context, o *order.Submit) (*order.Detail, error) {
 	err := o.Validate()
 	if err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
+
+	var orderID string
+	status := order.New
 	if h.Websocket.IsConnected() && h.Websocket.CanUseAuthenticatedEndpoints() {
 		var response *WsSubmitOrderSuccessResponse
 		response, err = h.wsPlaceOrder(o.Pair, o.Side.String(), o.Amount, o.Price)
 		if err != nil {
-			return submitOrderResponse, err
+			return nil, err
 		}
-		submitOrderResponse.OrderID = strconv.FormatInt(response.ID, 10)
+		orderID = strconv.FormatInt(response.ID, 10)
 		if response.Result.CumQuantity == o.Amount {
-			submitOrderResponse.FullyMatched = true
+			status = order.Filled
 		}
 	} else {
 		fPair, err := h.FormatExchangeCurrency(o.Pair, o.AssetType)
 		if err != nil {
-			return submitOrderResponse, err
+			return nil, err
 		}
 
 		var response OrderResponse
@@ -583,21 +585,17 @@ func (h *HitBTC) SubmitOrder(ctx context.Context, o *order.Submit) (order.Submit
 			fPair.String(),
 			o.Price,
 			o.Amount,
-			strings.ToLower(o.Type.String()),
-			strings.ToLower(o.Side.String()))
+			o.Type.Lower(),
+			o.Side.Lower())
 		if err != nil {
-			return submitOrderResponse, err
+			return nil, err
 		}
-		if response.OrderNumber > 0 {
-			submitOrderResponse.OrderID = strconv.FormatInt(response.OrderNumber, 10)
-		}
+		orderID = strconv.FormatInt(response.OrderNumber, 10)
 		if o.Type == order.Market {
-			submitOrderResponse.FullyMatched = true
+			status = order.Filled
 		}
 	}
-	submitOrderResponse.IsOrderPlaced = true
-
-	return submitOrderResponse, nil
+	return o.DeriveDetail(orderID, status, time.Now())
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to

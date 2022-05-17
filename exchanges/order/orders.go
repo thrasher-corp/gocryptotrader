@@ -29,6 +29,10 @@ var (
 	errUnrecognisedOrderSide   = errors.New("unrecognised order side")
 	errUnrecognisedOrderType   = errors.New("unrecognised order type")
 	errUnrecognisedOrderStatus = errors.New("unrecognised order status")
+
+	// ErrUnableToPlaceOrder defines an error when an order submission has
+	// failed.
+	ErrUnableToPlaceOrder = errors.New("order not placed")
 )
 
 // Validate checks the supplied data and returns whether or not it's valid
@@ -456,14 +460,15 @@ func (d *Detail) IsInactive() bool {
 // GenerateInternalOrderID sets a new V4 order ID or a V5 order ID if
 // the V4 function returns an error
 func (d *Detail) GenerateInternalOrderID() {
-	if d.InternalOrderID == "" {
-		var id uuid.UUID
-		id, err := uuid.NewV4()
-		if err != nil {
-			id = uuid.NewV5(uuid.UUID{}, d.ID)
-		}
-		d.InternalOrderID = id.String()
+	if d.InternalOrderID != "" {
+		return
 	}
+	var id uuid.UUID
+	id, err := uuid.NewV4()
+	if err != nil {
+		id = uuid.NewV5(uuid.UUID{}, d.ID)
+	}
+	d.InternalOrderID = id.String()
 }
 
 // CopyToPointer will return the address of a new copy of the order Detail
@@ -481,6 +486,51 @@ func (d *Detail) Copy() Detail {
 		copy(c.Trades, d.Trades)
 	}
 	return c
+}
+
+// DeriveDetail will construct an order detail when a successful submission
+// has occured.
+func (s *Submit) DeriveDetail(orderID string, status Status, execTime time.Time) (*Detail, error) {
+	if s == nil {
+		return nil, errors.New("order submit is nil")
+	}
+
+	if orderID == "" {
+		return nil, errors.New("order ID unset")
+	}
+
+	if status == UnknownStatus {
+		return nil, errors.New("order status unset")
+	}
+
+	if execTime.IsZero() {
+		return nil, errors.New("order execution time unset")
+	}
+
+	return &Detail{
+		Exchange:  s.Exchange,
+		Type:      s.Type,
+		Side:      s.Side,
+		Pair:      s.Pair,
+		AssetType: s.AssetType,
+
+		ImmediateOrCancel: s.ImmediateOrCancel,
+		FillOrKill:        s.FillOrKill,
+		PostOnly:          s.PostOnly,
+		ReduceOnly:        s.ReduceOnly,
+		Leverage:          s.Leverage,
+		Price:             s.Price,
+		Amount:            s.Amount,
+		QuoteAmount:       s.QuoteAmount,
+		TriggerPrice:      s.TriggerPrice,
+		ClientID:          s.ClientID,
+		ClientOrderID:     s.ClientOrderID,
+
+		LastUpdated: execTime,
+		Date:        execTime,
+		Status:      status,
+		ID:          orderID,
+	}, nil
 }
 
 // CopyPointerOrderSlice returns a copy of all order detail and returns a slice

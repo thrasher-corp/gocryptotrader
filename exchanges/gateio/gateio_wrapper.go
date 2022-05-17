@@ -502,10 +502,9 @@ func (g *Gateio) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.I
 
 // SubmitOrder submits a new order
 // TODO: support multiple order types (IOC)
-func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
-	var submitOrderResponse order.SubmitResponse
+func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Detail, error) {
 	if err := s.Validate(); err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
 	var orderTypeFormat string
@@ -517,7 +516,7 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submit
 
 	fPair, err := g.FormatExchangeCurrency(s.Pair, s.AssetType)
 	if err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
 	var spotNewOrderRequestParams = SpotNewOrderRequestParams{
@@ -529,17 +528,15 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submit
 
 	response, err := g.SpotNewOrder(ctx, spotNewOrderRequestParams)
 	if err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
-	if response.OrderNumber > 0 {
-		submitOrderResponse.OrderID = strconv.FormatInt(response.OrderNumber, 10)
-	}
-	if response.LeftAmount == 0 {
-		submitOrderResponse.FullyMatched = true
-	}
-	submitOrderResponse.IsOrderPlaced = true
 
-	return submitOrderResponse, nil
+	orderID := strconv.FormatInt(response.OrderNumber, 10)
+	status := order.New
+	if response.LeftAmount == 0 {
+		status = order.Filled
+	}
+	return s.DeriveDetail(orderID, status, time.Now())
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to

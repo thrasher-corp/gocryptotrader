@@ -278,14 +278,14 @@ func (o *OKGroup) GetFundingHistory(ctx context.Context) (resp []exchange.FundHi
 }
 
 // SubmitOrder submits a new order
-func (o *OKGroup) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
+func (o *OKGroup) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Detail, error) {
 	if err := s.Validate(); err != nil {
-		return order.SubmitResponse{}, err
+		return nil, err
 	}
 
 	fpair, err := o.FormatExchangeCurrency(s.Pair, s.AssetType)
 	if err != nil {
-		return order.SubmitResponse{}, err
+		return nil, err
 	}
 
 	request := PlaceOrderRequest{
@@ -301,17 +301,18 @@ func (o *OKGroup) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submi
 
 	orderResponse, err := o.PlaceSpotOrder(ctx, &request)
 	if err != nil {
-		return order.SubmitResponse{}, err
+		return nil, err
 	}
 
-	var resp order.SubmitResponse
-	resp.IsOrderPlaced = orderResponse.Result
-	resp.OrderID = orderResponse.OrderID
+	if !orderResponse.Result {
+		return nil, order.ErrUnableToPlaceOrder
+	}
+
+	status := order.New
 	if s.Type == order.Market {
-		resp.FullyMatched = true
+		status = order.Filled
 	}
-
-	return resp, nil
+	return s.DeriveDetail(orderResponse.OrderID, status, time.Now())
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to

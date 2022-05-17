@@ -499,12 +499,7 @@ func TestSubmit(t *testing.T) {
 		t.Error("Expected error from nil order")
 	}
 
-	o := &order.Submit{
-		Exchange: "",
-		ID:       "FakePassingExchangeOrder",
-		Status:   order.New,
-		Type:     order.Market,
-	}
+	o := &order.Submit{Type: order.Market}
 	_, err = m.Submit(context.Background(), o)
 	if err == nil {
 		t.Error("Expected error from empty exchange")
@@ -1209,7 +1204,7 @@ func TestUpdateOpenPositionUnrealisedPNL(t *testing.T) {
 func TestSubmitFakeOrder(t *testing.T) {
 	t.Parallel()
 	o := &OrderManager{}
-	resp := order.SubmitResponse{}
+	resp := &order.Detail{}
 	_, err := o.SubmitFakeOrder(nil, resp, false)
 	if !errors.Is(err, ErrSubSystemNotStarted) {
 		t.Errorf("received '%v', expected '%v'", err, ErrSubSystemNotStarted)
@@ -1241,12 +1236,11 @@ func TestSubmitFakeOrder(t *testing.T) {
 	o.orderStore.exchangeManager = em
 
 	_, err = o.SubmitFakeOrder(ord, resp, false)
-	if !errors.Is(err, errUnableToPlaceOrder) {
-		t.Errorf("received '%v', expected '%v'", err, errUnableToPlaceOrder)
+	if !errors.Is(err, order.ErrUnableToPlaceOrder) {
+		t.Errorf("received '%v', expected '%v'", err, order.ErrUnableToPlaceOrder)
 	}
 
-	resp.IsOrderPlaced = true
-	resp.FullyMatched = true
+	resp.Status = order.Filled
 	o.orderStore.commsManager = &CommunicationManager{}
 	o.orderStore.Orders = make(map[string][]*order.Detail)
 	_, err = o.SubmitFakeOrder(ord, resp, false)

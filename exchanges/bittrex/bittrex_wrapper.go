@@ -549,9 +549,9 @@ func (b *Bittrex) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.
 }
 
 // SubmitOrder submits a new order
-func (b *Bittrex) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
+func (b *Bittrex) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Detail, error) {
 	if err := s.Validate(); err != nil {
-		return order.SubmitResponse{}, err
+		return nil, err
 	}
 
 	if s.Side == order.Ask {
@@ -564,7 +564,7 @@ func (b *Bittrex) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submi
 
 	formattedPair, err := b.FormatExchangeCurrency(s.Pair, s.AssetType)
 	if err != nil {
-		return order.SubmitResponse{}, err
+		return nil, err
 	}
 
 	orderData, err := b.Order(ctx,
@@ -576,13 +576,9 @@ func (b *Bittrex) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submi
 		s.Amount,
 		0.0)
 	if err != nil {
-		return order.SubmitResponse{}, err
+		return nil, err
 	}
-
-	return order.SubmitResponse{
-		IsOrderPlaced: true,
-		OrderID:       orderData.ID,
-	}, nil
+	return s.DeriveDetail(orderData.ID, order.New, time.Now())
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to

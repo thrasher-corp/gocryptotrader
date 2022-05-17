@@ -620,20 +620,21 @@ allTrades:
 }
 
 // SubmitOrder submits a new order
-func (b *Bitfinex) SubmitOrder(ctx context.Context, o *order.Submit) (order.SubmitResponse, error) {
-	var submitOrderResponse order.SubmitResponse
+func (b *Bitfinex) SubmitOrder(ctx context.Context, o *order.Submit) (*order.Detail, error) {
 	err := o.Validate()
 	if err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
 	fpair, err := b.FormatExchangeCurrency(o.Pair, o.AssetType)
 	if err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
+	var orderID string
+	status := order.New
 	if b.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		submitOrderResponse.OrderID, err = b.WsNewOrder(&WsNewOrderRequest{
+		orderID, err = b.WsNewOrder(&WsNewOrderRequest{
 			CustomID: b.Websocket.AuthConn.GenerateMessageID(false),
 			Type:     o.Type.String(),
 			Symbol:   fpair.String(),
@@ -641,11 +642,10 @@ func (b *Bitfinex) SubmitOrder(ctx context.Context, o *order.Submit) (order.Subm
 			Price:    o.Price,
 		})
 		if err != nil {
-			return submitOrderResponse, err
+			return nil, err
 		}
 	} else {
 		var response Order
-		isBuying := o.Side == order.Buy
 		b.appendOptionalDelimiter(&fpair)
 		orderType := o.Type.Lower()
 		if o.AssetType == asset.Spot {
@@ -656,21 +656,18 @@ func (b *Bitfinex) SubmitOrder(ctx context.Context, o *order.Submit) (order.Subm
 			orderType,
 			o.Amount,
 			o.Price,
-			isBuying,
+			o.Side == order.Buy,
 			false)
 		if err != nil {
-			return submitOrderResponse, err
+			return nil, err
 		}
-		if response.ID > 0 {
-			submitOrderResponse.OrderID = strconv.FormatInt(response.ID, 10)
-		}
-		if response.RemainingAmount == 0 {
-			submitOrderResponse.FullyMatched = true
-		}
+		orderID = strconv.FormatInt(response.ID, 10)
 
-		submitOrderResponse.IsOrderPlaced = true
+		if response.RemainingAmount == 0 {
+			status = order.Filled
+		}
 	}
-	return submitOrderResponse, err
+	return o.DeriveDetail(orderID, status, time.Now())
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to

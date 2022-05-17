@@ -479,8 +479,8 @@ func ExchangeOrderSubmit(args ...objects.Object) (objects.Object, error) {
 	}
 
 	data := make(map[string]objects.Object, 2)
-	data["orderid"] = &objects.String{Value: rtn.OrderID}
-	if rtn.IsOrderPlaced {
+	data["orderid"] = &objects.String{Value: rtn.ID}
+	if rtn.IsActive() {
 		data["isorderplaced"] = objects.TrueValue
 	} else {
 		data["isorderplaced"] = objects.FalseValue

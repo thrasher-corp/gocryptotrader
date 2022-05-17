@@ -708,17 +708,19 @@ func (k *Kraken) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.I
 }
 
 // SubmitOrder submits a new order
-func (k *Kraken) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
-	var submitOrderResponse order.SubmitResponse
-	if err := s.Validate(); err != nil {
-		return submitOrderResponse, err
+func (k *Kraken) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Detail, error) {
+	err := s.Validate()
+	if err != nil {
+		return nil, err
 	}
+
+	var orderID string
+	status := order.New
 	switch s.AssetType {
 	case asset.Spot:
 		if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			var resp string
 			s.Pair.Delimiter = "/" // required pair format: ISO 4217-A3
-			resp, err := k.wsAddOrder(&WsAddOrderRequest{
+			orderID, err = k.wsAddOrder(&WsAddOrderRequest{
 				OrderType: s.Type.Lower(),
 				OrderSide: s.Side.Lower(),
 				Pair:      s.Pair.String(),
@@ -726,13 +728,11 @@ func (k *Kraken) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submit
 				Volume:    s.Amount,
 			})
 			if err != nil {
-				return submitOrderResponse, err
+				return nil, err
 			}
-			submitOrderResponse.OrderID = resp
-			submitOrderResponse.IsOrderPlaced = true
 		} else {
 			var response AddOrderResponse
-			response, err := k.AddOrder(ctx,
+			response, err = k.AddOrder(ctx,
 				s.Pair,
 				s.Side.String(),
 				s.Type.String(),
@@ -742,16 +742,15 @@ func (k *Kraken) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submit
 				0,
 				&AddOrderOptions{})
 			if err != nil {
-				return submitOrderResponse, err
+				return nil, err
 			}
 			if len(response.TransactionIds) > 0 {
-				submitOrderResponse.OrderID = strings.Join(response.TransactionIds, ", ")
+				orderID = strings.Join(response.TransactionIds, ", ")
 			}
 		}
 		if s.Type == order.Market {
-			submitOrderResponse.FullyMatched = true
+			status = order.Filled
 		}
-		submitOrderResponse.IsOrderPlaced = true
 	case asset.Futures:
 		order, err := k.FuturesSendOrder(ctx,
 			s.Type,
@@ -766,22 +765,18 @@ func (k *Kraken) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submit
 			0,
 		)
 		if err != nil {
-			return submitOrderResponse, err
+			return nil, err
 		}
 
 		// check the status, anything that is not placed we error out
 		if order.SendStatus.Status != "placed" {
-			return submitOrderResponse,
-				fmt.Errorf("submit order failed: %s",
-					order.SendStatus.Status)
+			return nil, fmt.Errorf("submit order failed: %s", order.SendStatus.Status)
 		}
-
-		submitOrderResponse.OrderID = order.SendStatus.OrderID
-		submitOrderResponse.IsOrderPlaced = true
+		orderID = order.SendStatus.OrderID
 	default:
-		return submitOrderResponse, fmt.Errorf("invalid assetType")
+		return nil, fmt.Errorf("invalid assetType")
 	}
-	return submitOrderResponse, nil
+	return s.DeriveDetail(orderID, status, time.Now())
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to

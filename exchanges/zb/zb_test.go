@@ -312,7 +312,7 @@ func TestSubmitOrder(t *testing.T) {
 	} else if !areTestAPIKeysSet() && err == nil {
 		t.Error("expecting an error when no keys are set")
 	}
-	if areTestAPIKeysSet() && response.OrderID == "" {
+	if areTestAPIKeysSet() && response.ID == "" {
 		t.Error("expected order id")
 	}
 }

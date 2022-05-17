@@ -243,15 +243,14 @@ func (a *Alphapoint) GetHistoricTrades(_ context.Context, _ currency.Pair, _ ass
 
 // SubmitOrder submits a new order and returns a true value when
 // successfully submitted
-func (a *Alphapoint) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
-	var submitOrderResponse order.SubmitResponse
+func (a *Alphapoint) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Detail, error) {
 	if err := s.Validate(); err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
 	fPair, err := a.FormatExchangeCurrency(s.Pair, s.AssetType)
 	if err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
 	response, err := a.CreateOrder(ctx,
@@ -261,17 +260,15 @@ func (a *Alphapoint) SubmitOrder(ctx context.Context, s *order.Submit) (order.Su
 		s.Amount,
 		s.Price)
 	if err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
-	if response > 0 {
-		submitOrderResponse.OrderID = strconv.FormatInt(response, 10)
-	}
-	if s.Type == order.Market {
-		submitOrderResponse.FullyMatched = true
-	}
-	submitOrderResponse.IsOrderPlaced = true
 
-	return submitOrderResponse, nil
+	orderID := strconv.FormatInt(response, 10)
+	status := order.New
+	if s.Type == order.Market {
+		status = order.Filled
+	}
+	return s.DeriveDetail(orderID, status, time.Now())
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
