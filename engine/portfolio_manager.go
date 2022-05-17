@@ -163,8 +163,8 @@ func (m *portfolioManager) seedExchangeAccountInfo(accounts []account.Holdings) 
 		exchangeName := accounts[x].Exchange
 		var currencies []account.Balance
 		for y := range accounts[x].Accounts {
+		next:
 			for z := range accounts[x].Accounts[y].Currencies {
-				var update bool
 				for i := range currencies {
 					if !accounts[x].Accounts[y].Currencies[z].CurrencyName.Equal(currencies[i].CurrencyName) {
 						continue
@@ -174,10 +174,7 @@ func (m *portfolioManager) seedExchangeAccountInfo(accounts []account.Holdings) 
 					currencies[i].AvailableWithoutBorrow += accounts[x].Accounts[y].Currencies[z].AvailableWithoutBorrow
 					currencies[i].Free += accounts[x].Accounts[y].Currencies[z].Free
 					currencies[i].Borrowed += accounts[x].Accounts[y].Currencies[z].Borrowed
-					update = true
-				}
-				if update {
-					continue
+					continue next
 				}
 				currencies = append(currencies, account.Balance{
 					CurrencyName:           accounts[x].Accounts[y].Currencies[z].CurrencyName,

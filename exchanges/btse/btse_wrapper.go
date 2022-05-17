@@ -416,7 +416,11 @@ func (b *BTSE) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (acc
 		},
 	}
 
-	err = account.Process(&a)
+	creds, err := b.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	err = account.Process(&a, creds)
 	if err != nil {
 		return account.Holdings{}, err
 	}

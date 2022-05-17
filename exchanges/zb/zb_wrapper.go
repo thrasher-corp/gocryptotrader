@@ -397,7 +397,11 @@ func (z *ZB) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (accou
 		Currencies: balances,
 	})
 
-	if err := account.Process(&info); err != nil {
+	creds, err := z.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	if err := account.Process(&info, creds); err != nil {
 		return account.Holdings{}, err
 	}
 

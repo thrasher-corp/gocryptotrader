@@ -788,7 +788,11 @@ func (b *Binance) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 	}
 	acc.AssetType = assetType
 	info.Accounts = append(info.Accounts, acc)
-	if err := account.Process(&info); err != nil {
+	creds, err := b.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	if err := account.Process(&info, creds); err != nil {
 		return account.Holdings{}, err
 	}
 	return info, nil

@@ -451,7 +451,11 @@ func (b *BTCMarkets) UpdateAccountInfo(ctx context.Context, assetType asset.Item
 	resp.Accounts = append(resp.Accounts, acc)
 	resp.Exchange = b.Name
 
-	err = account.Process(&resp)
+	creds, err := b.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	err = account.Process(&resp, creds)
 	if err != nil {
 		return account.Holdings{}, err
 	}

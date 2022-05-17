@@ -116,7 +116,12 @@ func (a *Alphapoint) UpdateAccountInfo(ctx context.Context, assetType asset.Item
 		AssetType:  assetType,
 	})
 
-	err = account.Process(&response)
+	creds, err := a.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+
+	err = account.Process(&response, creds)
 	if err != nil {
 		return account.Holdings{}, err
 	}

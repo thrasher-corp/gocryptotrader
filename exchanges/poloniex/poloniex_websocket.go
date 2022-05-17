@@ -542,7 +542,7 @@ func (p *Poloniex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription,
 
 // Subscribe sends a websocket message to receive data from the channel
 func (p *Poloniex) Subscribe(sub []stream.ChannelSubscription) error {
-	var creds *exchange.Credentials
+	var creds *account.Credentials
 	if p.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
 		var err error
 		creds, err = p.GetCredentials(context.TODO())
@@ -589,7 +589,7 @@ channels:
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (p *Poloniex) Unsubscribe(unsub []stream.ChannelSubscription) error {
-	var creds *exchange.Credentials
+	var creds *account.Credentials
 	if p.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
 		var err error
 		creds, err = p.GetCredentials(context.TODO())

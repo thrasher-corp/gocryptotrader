@@ -425,7 +425,11 @@ func (b *Bittrex) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 	})
 	resp.Exchange = b.Name
 
-	return resp, account.Process(&resp)
+	creds, err := b.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	return resp, account.Process(&resp, creds)
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies

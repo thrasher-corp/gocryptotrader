@@ -353,7 +353,11 @@ func (l *Lbank) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 	info.Accounts = append(info.Accounts, acc)
 	info.Exchange = l.Name
 
-	err = account.Process(&info)
+	creds, err := l.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	err = account.Process(&info, creds)
 	if err != nil {
 		return account.Holdings{}, err
 	}

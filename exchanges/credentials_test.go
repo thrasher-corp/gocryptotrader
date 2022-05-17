@@ -6,96 +6,8 @@ import (
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
-	"google.golang.org/grpc/metadata"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 )
-
-func TestParseCredentialsMetadata(t *testing.T) {
-	t.Parallel()
-	_, err := ParseCredentialsMetadata(context.Background(), nil)
-	if !errors.Is(err, errMetaDataIsNil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errMetaDataIsNil)
-	}
-
-	_, err = ParseCredentialsMetadata(context.Background(), metadata.MD{})
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	ctx := metadata.AppendToOutgoingContext(context.Background(),
-		string(contextCredentialsFlag), "wow", string(contextCredentialsFlag), "wow2")
-	nortyMD, _ := metadata.FromOutgoingContext(ctx)
-
-	_, err = ParseCredentialsMetadata(context.Background(), nortyMD)
-	if !errors.Is(err, errInvalidCredentialMetaDataLength) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidCredentialMetaDataLength)
-	}
-
-	ctx = metadata.AppendToOutgoingContext(context.Background(),
-		string(contextCredentialsFlag), "brokenstring")
-	nortyMD, _ = metadata.FromOutgoingContext(ctx)
-
-	_, err = ParseCredentialsMetadata(context.Background(), nortyMD)
-	if !errors.Is(err, errMissingInfo) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errMissingInfo)
-	}
-
-	beforeCreds := Credentials{
-		Key:             "superkey",
-		Secret:          "supersecret",
-		SubAccount:      "supersub",
-		ClientID:        "superclient",
-		PEMKey:          "superpem",
-		OneTimePassword: "superOneTimePasssssss",
-	}
-
-	flag, outGoing := beforeCreds.GetMetaData()
-	ctx = metadata.AppendToOutgoingContext(context.Background(), flag, outGoing)
-	lovelyMD, _ := metadata.FromOutgoingContext(ctx)
-
-	ctx, err = ParseCredentialsMetadata(context.Background(), lovelyMD)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	store, ok := ctx.Value(contextCredentialsFlag).(*contextCredentialsStore)
-	if !ok {
-		t.Fatal("should have processed")
-	}
-
-	afterCreds := store.Get()
-
-	if afterCreds.Key != "superkey" &&
-		afterCreds.Secret != "supersecret" &&
-		afterCreds.SubAccount != "supersub" &&
-		afterCreds.ClientID != "superclient" &&
-		afterCreds.PEMKey != "superpem" &&
-		afterCreds.OneTimePassword != "superOneTimePasssssss" {
-		t.Fatal("unexpected values")
-	}
-
-	// subaccount override
-	subaccount := Credentials{
-		SubAccount: "supersub",
-	}
-
-	flag, outGoing = subaccount.GetMetaData()
-	ctx = metadata.AppendToOutgoingContext(context.Background(), flag, outGoing)
-	lovelyMD, _ = metadata.FromOutgoingContext(ctx)
-
-	ctx, err = ParseCredentialsMetadata(context.Background(), lovelyMD)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	sa, ok := ctx.Value(contextSubAccountFlag).(string)
-	if !ok {
-		t.Fatal("should have processed")
-	}
-
-	if sa != "supersub" {
-		t.Fatal("unexpected value")
-	}
-}
 
 func TestGetCredentials(t *testing.T) {
 	t.Parallel()
@@ -106,26 +18,26 @@ func TestGetCredentials(t *testing.T) {
 	}
 
 	b.API.CredentialsValidator.RequiresKey = true
-	ctx := DeployCredentialsToContext(context.Background(), &Credentials{Secret: "wow"})
+	ctx := account.DeployCredentialsToContext(context.Background(), &account.Credentials{Secret: "wow"})
 	_, err = b.GetCredentials(ctx)
 	if !errors.Is(err, errRequiresAPIKey) {
 		t.Fatalf("received: %v but expected: %v", err, errRequiresAPIKey)
 	}
 
 	b.API.CredentialsValidator.RequiresSecret = true
-	ctx = DeployCredentialsToContext(context.Background(), &Credentials{Key: "wow"})
+	ctx = account.DeployCredentialsToContext(context.Background(), &account.Credentials{Key: "wow"})
 	_, err = b.GetCredentials(ctx)
 	if !errors.Is(err, errRequiresAPISecret) {
 		t.Fatalf("received: %v but expected: %v", err, errRequiresAPISecret)
 	}
 
-	ctx = context.WithValue(context.Background(), contextCredentialsFlag, "pewpew")
+	ctx = context.WithValue(context.Background(), account.ContextCredentialsFlag, "pewpew")
 	_, err = b.GetCredentials(ctx)
 	if !errors.Is(err, errContextCredentialsFailure) {
 		t.Fatalf("received: %v but expected: %v", err, errContextCredentialsFailure)
 	}
 
-	fullCred := Credentials{
+	fullCred := account.Credentials{
 		Key:             "superkey",
 		Secret:          "supersecret",
 		SubAccount:      "supersub",
@@ -134,7 +46,7 @@ func TestGetCredentials(t *testing.T) {
 		OneTimePassword: "superOneTimePasssssss",
 	}
 
-	flag, store := fullCred.getInternal()
+	flag, store := fullCred.GetInternal()
 
 	ctx = context.WithValue(context.Background(), flag, store)
 	creds, err := b.GetCredentials(ctx)
@@ -151,7 +63,7 @@ func TestGetCredentials(t *testing.T) {
 		t.Fatal("unexpected values")
 	}
 
-	lonelyCred := Credentials{
+	lonelyCred := account.Credentials{
 		Key:             "superkey",
 		Secret:          "supersecret",
 		SubAccount:      "supersub",
@@ -159,7 +71,7 @@ func TestGetCredentials(t *testing.T) {
 		OneTimePassword: "superOneTimePasssssss",
 	}
 
-	flag, store = lonelyCred.getInternal()
+	flag, store = lonelyCred.GetInternal()
 
 	ctx = context.WithValue(context.Background(), flag, store)
 	b.API.CredentialsValidator.RequiresClientID = true
@@ -171,7 +83,7 @@ func TestGetCredentials(t *testing.T) {
 	b.API.SetKey("hello")
 	b.API.SetSecret("sir")
 	b.API.SetClientID("1337")
-	ctx = deploySubAccountOverrideToContext(context.Background(), "superaccount")
+	ctx = account.DeploySubAccountOverrideToContext(context.Background(), "superaccount")
 	overridedSA, err := b.GetCredentials(ctx)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: %v but expected: %v", err, nil)
@@ -203,7 +115,7 @@ func TestAreCredentialsValid(t *testing.T) {
 	if b.AreCredentialsValid(context.Background()) {
 		t.Fatal("should not be valid")
 	}
-	ctx := DeployCredentialsToContext(context.Background(), &Credentials{Key: "hello"})
+	ctx := account.DeployCredentialsToContext(context.Background(), &account.Credentials{Key: "hello"})
 	if !b.AreCredentialsValid(ctx) {
 		t.Fatal("should be valid")
 	}
@@ -277,11 +189,11 @@ func TestCheckCredentials(t *testing.T) {
 
 	b := Base{
 		SkipAuthCheck: true,
-		API:           API{credentials: &Credentials{}},
+		API:           API{credentials: &account.Credentials{}},
 	}
 
 	// Test SkipAuthCheck
-	err := b.CheckCredentials(&Credentials{}, false)
+	err := b.CheckCredentials(&account.Credentials{}, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -324,15 +236,15 @@ func TestCheckCredentials(t *testing.T) {
 
 func TestGetInternal(t *testing.T) {
 	t.Parallel()
-	flag, store := (&Credentials{}).getInternal()
+	flag, store := (&account.Credentials{}).GetInternal()
 	if flag != "" {
 		t.Fatal("unexpected value")
 	}
 	if store != nil {
 		t.Fatal("unexpected value")
 	}
-	flag, store = (&Credentials{Key: "wow"}).getInternal()
-	if flag != contextCredentialsFlag {
+	flag, store = (&account.Credentials{Key: "wow"}).GetInternal()
+	if flag != account.ContextCredentialsFlag {
 		t.Fatal("unexpected value")
 	}
 	if store == nil {
@@ -346,32 +258,32 @@ func TestGetInternal(t *testing.T) {
 func TestAPISetters(t *testing.T) {
 	t.Parallel()
 	api := API{}
-	api.SetKey(key)
-	if api.credentials.Key != key {
+	api.SetKey(account.Key)
+	if api.credentials.Key != account.Key {
 		t.Fatal("unexpected value")
 	}
 
 	api = API{}
-	api.SetSecret(secret)
-	if api.credentials.Secret != secret {
+	api.SetSecret(account.Secret)
+	if api.credentials.Secret != account.Secret {
 		t.Fatal("unexpected value")
 	}
 
 	api = API{}
-	api.SetClientID((clientID))
-	if api.credentials.ClientID != clientID {
+	api.SetClientID(account.ClientID)
+	if api.credentials.ClientID != account.ClientID {
 		t.Fatal("unexpected value")
 	}
 
 	api = API{}
-	api.SetPEMKey(_PEMKey)
-	if api.credentials.PEMKey != _PEMKey {
+	api.SetPEMKey(account.PEMKey)
+	if api.credentials.PEMKey != account.PEMKey {
 		t.Fatal("unexpected value")
 	}
 
 	api = API{}
-	api.SetSubAccount(subAccount)
-	if api.credentials.SubAccount != subAccount {
+	api.SetSubAccount(account.SubAccountSTR)
+	if api.credentials.SubAccount != account.SubAccountSTR {
 		t.Fatal("unexpected value")
 	}
 }
@@ -468,21 +380,5 @@ func TestGetAuthenticatedAPISupport(t *testing.T) {
 	}
 	if base.GetAuthenticatedAPISupport(2) {
 		t.Fatal("Expected default case of 'false' to be returned")
-	}
-}
-
-func TestIsEmpty(t *testing.T) {
-	var c *Credentials
-	if !c.IsEmpty() {
-		t.Fatalf("expected: %v but received: %v", true, c.IsEmpty())
-	}
-	c = new(Credentials)
-	if !c.IsEmpty() {
-		t.Fatalf("expected: %v but received: %v", true, c.IsEmpty())
-	}
-
-	c.SubAccount = "woow"
-	if c.IsEmpty() {
-		t.Fatalf("expected: %v but received: %v", false, c.IsEmpty())
 	}
 }

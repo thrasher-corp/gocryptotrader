@@ -216,7 +216,11 @@ func (o *OKGroup) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 
 	resp.Accounts = append(resp.Accounts, currencyAccount)
 
-	err = account.Process(&resp)
+	creds, err := o.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	err = account.Process(&resp, creds)
 	if err != nil {
 		return resp, err
 	}

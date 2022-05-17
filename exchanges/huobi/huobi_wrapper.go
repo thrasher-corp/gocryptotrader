@@ -808,7 +808,11 @@ func (h *HUOBI) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 	}
 	acc.AssetType = assetType
 	info.Accounts = append(info.Accounts, acc)
-	if err := account.Process(&info); err != nil {
+	creds, err := h.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	if err := account.Process(&info, creds); err != nil {
 		return info, err
 	}
 	return info, nil

@@ -300,7 +300,11 @@ func (l *LocalBitcoins) UpdateAccountInfo(ctx context.Context, assetType asset.I
 			}},
 	})
 
-	err = account.Process(&response)
+	creds, err := l.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	err = account.Process(&response, creds)
 	if err != nil {
 		return account.Holdings{}, err
 	}

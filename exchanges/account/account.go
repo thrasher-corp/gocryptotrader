@@ -26,6 +26,8 @@ var (
 	errNoExchangeSubAccountBalances = errors.New("no exchange sub account balances")
 	errNoBalanceFound               = errors.New("no balance found")
 	errBalanceIsNil                 = errors.New("balance is nil")
+	errNoCredentialBalances         = errors.New("no balances associated with credentials")
+	errCredentialsAreNil            = errors.New("credentials are nil")
 )
 
 // CollectBalances converts a map of sub-account balances into a slice
@@ -63,12 +65,14 @@ func SubscribeToExchangeAccount(exchange string) (dispatch.Pipe, error) {
 	return service.mux.Subscribe(accounts.ID)
 }
 
-// Process processes new account holdings updates
-func Process(h *Holdings) error {
-	return service.Update(h)
+// Process processes new account holdings updates and returns the resultant.
+func Process(h *Holdings, c *Credentials) error {
+	return service.Update(h, c)
 }
 
-// GetHoldings returns full holdings for an exchange
+// GetHoldings returns full holdings for an exchange.
+// NOTE: Due to credentials these amounts could be N*APIKEY actual holdings.
+// TODO: Add jurisdiction and differentiation between APIKEY holdings.
 func GetHoldings(exch string, assetType asset.Item) (Holdings, error) {
 	if exch == "" {
 		return Holdings{}, errExchangeNameUnset
@@ -88,37 +92,40 @@ func GetHoldings(exch string, assetType asset.Item) (Holdings, error) {
 	}
 
 	var accountsHoldings []SubAccount
-	for subAccount, assetHoldings := range accounts.SubAccounts {
-		for ai, currencyHoldings := range assetHoldings {
-			if ai != assetType {
-				continue
-			}
-			var currencyBalances = make([]Balance, len(currencyHoldings))
-			target := 0
-			for item, balance := range currencyHoldings {
-				balance.m.Lock()
-				currencyBalances[target] = Balance{
-					CurrencyName:           currency.Code{Item: item, UpperCase: true},
-					Total:                  balance.total,
-					Hold:                   balance.hold,
-					Free:                   balance.free,
-					AvailableWithoutBorrow: balance.availableWithoutBorrow,
-					Borrowed:               balance.borrowed,
+	for credentials, subAccountHoldings := range accounts.SubAccounts {
+		for subAccount, assetHoldings := range subAccountHoldings {
+			for ai, currencyHoldings := range assetHoldings {
+				if ai != assetType {
+					continue
 				}
-				balance.m.Unlock()
-				target++
-			}
+				var currencyBalances = make([]Balance, len(currencyHoldings))
+				target := 0
+				for item, balance := range currencyHoldings {
+					balance.m.Lock()
+					currencyBalances[target] = Balance{
+						CurrencyName:           currency.Code{Item: item, UpperCase: true},
+						Total:                  balance.total,
+						Hold:                   balance.hold,
+						Free:                   balance.free,
+						AvailableWithoutBorrow: balance.availableWithoutBorrow,
+						Borrowed:               balance.borrowed,
+					}
+					balance.m.Unlock()
+					target++
+				}
 
-			if len(currencyBalances) == 0 {
-				continue
-			}
+				if len(currencyBalances) == 0 {
+					continue
+				}
 
-			accountsHoldings = append(accountsHoldings, SubAccount{
-				ID:         subAccount,
-				AssetType:  ai,
-				Currencies: currencyBalances,
-			})
-			break
+				accountsHoldings = append(accountsHoldings, SubAccount{
+					Credentials: credentials,
+					ID:          subAccount,
+					AssetType:   ai,
+					Currencies:  currencyBalances,
+				})
+				break
+			}
 		}
 	}
 
@@ -132,17 +139,21 @@ func GetHoldings(exch string, assetType asset.Item) (Holdings, error) {
 }
 
 // GetBalance returns the internal balance for that asset item.
-func GetBalance(exch, subAccount string, ai asset.Item, c currency.Code) (*ProtectedBalance, error) {
+func GetBalance(exch, subAccount string, creds *Credentials, ai asset.Item, c currency.Code) (*ProtectedBalance, error) {
 	if exch == "" {
-		return nil, errExchangeNameUnset
+		return nil, fmt.Errorf("cannot get balance: %w", errExchangeNameUnset)
 	}
 
 	if !ai.IsValid() {
-		return nil, fmt.Errorf("%s %w", ai, asset.ErrNotSupported)
+		return nil, fmt.Errorf("cannot get balance: %s %w", ai, asset.ErrNotSupported)
+	}
+
+	if creds.IsEmpty() {
+		return nil, fmt.Errorf("cannot get balance: %w", errCredentialsAreNil)
 	}
 
 	if c.IsEmpty() {
-		return nil, currency.ErrCurrencyCodeEmpty
+		return nil, fmt.Errorf("cannot get balance: %w", currency.ErrCurrencyCodeEmpty)
 	}
 
 	exch = strings.ToLower(exch)
@@ -156,7 +167,13 @@ func GetBalance(exch, subAccount string, ai asset.Item, c currency.Code) (*Prote
 		return nil, fmt.Errorf("%s %w", exch, errExchangeHoldingsNotFound)
 	}
 
-	assetBalances, ok := accounts.SubAccounts[subAccount]
+	subAccounts, ok := accounts.SubAccounts[*creds]
+	if !ok {
+		return nil, fmt.Errorf("%s %s %w",
+			exch, creds, errNoCredentialBalances)
+	}
+
+	assetBalances, ok := subAccounts[subAccount]
 	if !ok {
 		return nil, fmt.Errorf("%s %s %w",
 			exch, subAccount, errNoExchangeSubAccountBalances)
@@ -177,13 +194,17 @@ func GetBalance(exch, subAccount string, ai asset.Item, c currency.Code) (*Prote
 }
 
 // Update updates holdings with new account info
-func (s *Service) Update(a *Holdings) error {
+func (s *Service) Update(a *Holdings, creds *Credentials) error {
 	if a == nil {
-		return errHoldingsIsNil
+		return fmt.Errorf("cannot update holdings: %w", errHoldingsIsNil)
 	}
 
 	if a.Exchange == "" {
-		return errExchangeNameUnset
+		return fmt.Errorf("cannot update holdings: %w", errExchangeNameUnset)
+	}
+
+	if creds.IsEmpty() {
+		return fmt.Errorf("cannot update holdings: %w", errCredentialsAreNil)
 	}
 
 	exch := strings.ToLower(a.Exchange)
@@ -197,7 +218,7 @@ func (s *Service) Update(a *Holdings) error {
 		}
 		accounts = &Accounts{
 			ID:          id,
-			SubAccounts: make(map[string]map[asset.Item]map[*currency.Item]*ProtectedBalance),
+			SubAccounts: make(map[Credentials]map[string]map[asset.Item]map[*currency.Item]*ProtectedBalance),
 		}
 		s.exchangeAccounts[exch] = accounts
 	}
@@ -212,12 +233,25 @@ func (s *Service) Update(a *Holdings) error {
 			continue
 		}
 
+		// This assignment outside of scope is designed to have minimal impact
+		// on the exchange implementation UpdateAccountInfo() and portfoio
+		// management.
+		// TODO: Update incoming Holdings type to already be populated. (Suggestion)
+		a.Accounts[x].Credentials = *creds
+
+		var subAccounts map[string]map[asset.Item]map[*currency.Item]*ProtectedBalance
+		subAccounts, ok = accounts.SubAccounts[*creds]
+		if !ok {
+			subAccounts = make(map[string]map[asset.Item]map[*currency.Item]*ProtectedBalance)
+			accounts.SubAccounts[*creds] = subAccounts
+		}
+
 		lowerSA := strings.ToLower(a.Accounts[x].ID)
 		var accountAssets map[asset.Item]map[*currency.Item]*ProtectedBalance
-		accountAssets, ok = accounts.SubAccounts[lowerSA]
+		accountAssets, ok = subAccounts[lowerSA]
 		if !ok {
 			accountAssets = make(map[asset.Item]map[*currency.Item]*ProtectedBalance)
-			accounts.SubAccounts[lowerSA] = accountAssets
+			subAccounts[lowerSA] = accountAssets
 		}
 
 		var currencyBalances map[*currency.Item]*ProtectedBalance

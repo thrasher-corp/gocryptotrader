@@ -506,7 +506,7 @@ func (f *FTX) UpdateAccountInfo(ctx context.Context, a asset.Item) (account.Hold
 	}
 
 	resp.Exchange = f.Name
-	if err := account.Process(&resp); err != nil {
+	if err := account.Process(&resp, creds); err != nil {
 		return account.Holdings{}, err
 	}
 
