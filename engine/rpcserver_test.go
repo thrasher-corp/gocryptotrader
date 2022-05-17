@@ -1827,20 +1827,14 @@ func TestGetManagedOrders(t *testing.T) {
 	}
 
 	o := order.Detail{
-		Price:           100000,
-		Amount:          0.002,
-		Exchange:        "Binance",
-		InternalOrderID: "",
-		ID:              "",
-		ClientOrderID:   "",
-		AccountID:       "",
-		ClientID:        "",
-		WalletAddress:   "",
-		Type:            order.Limit,
-		Side:            order.Sell,
-		Status:          order.New,
-		AssetType:       asset.Spot,
-		Pair:            currency.NewPair(currency.BTC, currency.USDT),
+		Price:     100000,
+		Amount:    0.002,
+		Exchange:  "Binance",
+		Type:      order.Limit,
+		Side:      order.Sell,
+		Status:    order.New,
+		AssetType: asset.Spot,
+		Pair:      currency.NewPair(currency.BTC, currency.USDT),
 	}
 	err = om.Add(&o)
 	if err != nil {

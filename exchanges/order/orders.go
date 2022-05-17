@@ -20,8 +20,6 @@ const (
 	longSide                  = Long | Buy | Bid
 	inactiveStatuses          = Filled | Cancelled | InsufficientBalance | MarketUnavailable | Rejected | PartiallyCancelled | Expired | Closed | AnyStatus | Cancelling
 	activeStatuses            = Active | Open | PartiallyFilled | New | PendingCancel | Hidden | AutoDeleverage | Pending
-	bypassSideFilter          = UnknownSide | AnySide
-	bypassTypeFilter          = UnknownType | AnyType
 )
 
 var (
@@ -29,6 +27,9 @@ var (
 	errUnrecognisedOrderSide   = errors.New("unrecognised order side")
 	errUnrecognisedOrderType   = errors.New("unrecognised order type")
 	errUnrecognisedOrderStatus = errors.New("unrecognised order status")
+	errExchangeNameUnset       = errors.New("exchange name unset")
+	errOrderSubmitIsNil        = errors.New("order submit is nil")
+	errOrderExecutionTimeUnset = errors.New("order execution time unset")
 
 	// ErrUnableToPlaceOrder defines an error when an order submission has
 	// failed.
@@ -41,12 +42,20 @@ func (s *Submit) Validate(opt ...validate.Checker) error {
 		return ErrSubmissionIsNil
 	}
 
+	if s.Exchange == "" {
+		return errExchangeNameUnset
+	}
+
 	if s.Pair.IsEmpty() {
 		return ErrPairIsEmpty
 	}
 
 	if s.AssetType == asset.Empty {
 		return ErrAssetNotSet
+	}
+
+	if !s.AssetType.IsValid() {
+		return fmt.Errorf("'%s' %w", s.AssetType, asset.ErrNotSupported)
 	}
 
 	if s.Side == UnknownSide || orderSubmissionValidSides&s.Side != s.Side {
@@ -89,7 +98,15 @@ func (s *Submit) Validate(opt ...validate.Checker) error {
 
 // UpdateOrderFromDetail Will update an order detail (used in order management)
 // by comparing passed in and existing values
-func (d *Detail) UpdateOrderFromDetail(m *Detail) {
+func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
+	if d == nil {
+		return ErrOrderDetailIsNil
+	}
+
+	if m == nil {
+		return fmt.Errorf("incoming %w", ErrOrderDetailIsNil)
+	}
+
 	var updated bool
 	if d.ImmediateOrCancel != m.ImmediateOrCancel {
 		d.ImmediateOrCancel = m.ImmediateOrCancel
@@ -240,9 +257,10 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) {
 	if d.ID == "" {
 		d.ID = m.ID
 	}
-	if d.InternalOrderID == "" {
+	if d.InternalOrderID.IsNil() {
 		d.InternalOrderID = m.InternalOrderID
 	}
+	return nil
 }
 
 // UpdateOrderFromModify Will update an order detail (used in order management)
@@ -401,40 +419,18 @@ func (d *Detail) UpdateOrderFromModify(m *Modify) {
 // MatchFilter will return true if a detail matches the filter criteria
 // empty elements are ignored
 func (d *Detail) MatchFilter(f *Filter) bool {
-	if f.Exchange != "" && !strings.EqualFold(d.Exchange, f.Exchange) {
-		return false
-	}
-	if f.AssetType != asset.Empty && d.AssetType != f.AssetType {
-		return false
-	}
-	if !f.Pair.IsEmpty() && !d.Pair.Equal(f.Pair) {
-		return false
-	}
-	if f.ID != "" && d.ID != f.ID {
-		return false
-	}
-	if f.Type != UnknownType && f.Type != AnyType && d.Type != f.Type {
-		return false
-	}
-	if f.Side != UnknownSide && f.Side != AnySide && d.Side != f.Side {
-		return false
-	}
-	if f.Status != UnknownStatus && f.Status != AnyStatus && d.Status != f.Status {
-		return false
-	}
-	if f.ClientOrderID != "" && d.ClientOrderID != f.ClientOrderID {
-		return false
-	}
-	if f.ClientID != "" && d.ClientID != f.ClientID {
-		return false
-	}
-	if f.InternalOrderID != "" && d.InternalOrderID != f.InternalOrderID {
-		return false
-	}
-	if f.AccountID != "" && d.AccountID != f.AccountID {
-		return false
-	}
-	if f.WalletAddress != "" && d.WalletAddress != f.WalletAddress {
+	if (f.Exchange != "" && !strings.EqualFold(d.Exchange, f.Exchange)) ||
+		(f.AssetType != asset.Empty && d.AssetType != f.AssetType) ||
+		(!f.Pair.IsEmpty() && !d.Pair.Equal(f.Pair)) ||
+		(f.ID != "" && d.ID != f.ID) ||
+		(f.Type != UnknownType && f.Type != AnyType && d.Type != f.Type) ||
+		(f.Side != UnknownSide && f.Side != AnySide && d.Side != f.Side) ||
+		(f.Status != UnknownStatus && f.Status != AnyStatus && d.Status != f.Status) ||
+		(f.ClientOrderID != "" && d.ClientOrderID != f.ClientOrderID) ||
+		(f.ClientID != "" && d.ClientID != f.ClientID) ||
+		(!f.InternalOrderID.IsNil() && d.InternalOrderID != f.InternalOrderID) ||
+		(f.AccountID != "" && d.AccountID != f.AccountID) ||
+		(f.WalletAddress != "" && d.WalletAddress != f.WalletAddress) {
 		return false
 	}
 	return true
@@ -460,15 +456,14 @@ func (d *Detail) IsInactive() bool {
 // GenerateInternalOrderID sets a new V4 order ID or a V5 order ID if
 // the V4 function returns an error
 func (d *Detail) GenerateInternalOrderID() {
-	if d.InternalOrderID != "" {
+	if !d.InternalOrderID.IsNil() {
 		return
 	}
-	var id uuid.UUID
-	id, err := uuid.NewV4()
+	var err error
+	d.InternalOrderID, err = uuid.NewV4()
 	if err != nil {
-		id = uuid.NewV5(uuid.UUID{}, d.ID)
+		d.InternalOrderID = uuid.NewV5(uuid.UUID{}, d.ID)
 	}
-	d.InternalOrderID = id.String()
 }
 
 // CopyToPointer will return the address of a new copy of the order Detail
@@ -492,19 +487,24 @@ func (d *Detail) Copy() Detail {
 // has occured.
 func (s *Submit) DeriveDetail(orderID string, status Status, execTime time.Time) (*Detail, error) {
 	if s == nil {
-		return nil, errors.New("order submit is nil")
+		return nil, errOrderSubmitIsNil
 	}
 
 	if orderID == "" {
-		return nil, errors.New("order ID unset")
+		return nil, ErrOrderIDNotSet
 	}
 
 	if status == UnknownStatus {
-		return nil, errors.New("order status unset")
+		return nil, fmt.Errorf("'%s' %w", status, errUnrecognisedOrderStatus)
 	}
 
 	if execTime.IsZero() {
-		return nil, errors.New("order execution time unset")
+		return nil, errOrderExecutionTimeUnset
+	}
+
+	id, err := uuid.NewV4()
+	if err != nil {
+		return nil, err
 	}
 
 	return &Detail{
@@ -525,6 +525,8 @@ func (s *Submit) DeriveDetail(orderID string, status Status, execTime time.Time)
 		TriggerPrice:      s.TriggerPrice,
 		ClientID:          s.ClientID,
 		ClientOrderID:     s.ClientOrderID,
+
+		InternalOrderID: id,
 
 		LastUpdated: execTime,
 		Date:        execTime,
@@ -722,7 +724,7 @@ func (d *Detail) InferCostsAndTimes() {
 // FilterOrdersBySide removes any order details that don't match the order
 // status provided
 func FilterOrdersBySide(orders *[]Detail, side Side) {
-	if bypassSideFilter&side == side || len(*orders) == 0 {
+	if AnySide == side || len(*orders) == 0 {
 		return
 	}
 
@@ -739,7 +741,7 @@ func FilterOrdersBySide(orders *[]Detail, side Side) {
 // FilterOrdersByType removes any order details that don't match the order type
 // provided
 func FilterOrdersByType(orders *[]Detail, orderType Type) {
-	if bypassTypeFilter&orderType == orderType || len(*orders) == 0 {
+	if AnyType == orderType || len(*orders) == 0 {
 		return
 	}
 

@@ -571,7 +571,7 @@ func TestSubmit(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if o2.InternalOrderID == "" {
+	if o2.InternalOrderID.IsNil() {
 		t.Error("Failed to assign internal order id")
 	}
 }
@@ -1235,9 +1235,9 @@ func TestSubmitFakeOrder(t *testing.T) {
 	em.Add(exch)
 	o.orderStore.exchangeManager = em
 
-	_, err = o.SubmitFakeOrder(ord, resp, false)
-	if !errors.Is(err, order.ErrUnableToPlaceOrder) {
-		t.Errorf("received '%v', expected '%v'", err, order.ErrUnableToPlaceOrder)
+	resp, err = ord.DeriveDetail("1234", order.New, time.Now())
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	resp.Status = order.Filled

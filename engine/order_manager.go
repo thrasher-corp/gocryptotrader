@@ -572,7 +572,9 @@ func (m *OrderManager) processSubmittedOrder(result *order.Detail) (*OrderSubmit
 		result.Date)
 
 	log.Debugln(log.OrderMgr, msg)
-	m.orderStore.commsManager.PushEvent(base.Event{Type: "order", Message: msg})
+	if m.orderStore.commsManager != nil {
+		m.orderStore.commsManager.PushEvent(base.Event{Type: "order", Message: msg})
+	}
 
 	err = m.orderStore.add(result)
 	if err != nil {

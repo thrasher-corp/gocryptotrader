@@ -4,6 +4,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
@@ -79,7 +80,7 @@ type Modify struct {
 	RemainingAmount   float64
 	Fee               float64
 	Exchange          string
-	InternalOrderID   string
+	InternalOrderID   uuid.UUID
 	ID                string
 	ClientOrderID     string
 	AccountID         string
@@ -98,22 +99,6 @@ type Modify struct {
 // ModifyResponse is an order modifying return type
 type ModifyResponse struct {
 	OrderID string
-}
-
-// Identifier defines fields for order identification
-type Identifier struct {
-	Exchange      string
-	ID            string
-	ClientOrderID string
-	Pair          currency.Pair
-	AssetType     asset.Item
-}
-
-// State defines an orders state
-type State struct {
-	Type   Type
-	Side   Side
-	Status Status
 }
 
 // Detail contains all properties of an order
@@ -140,7 +125,7 @@ type Detail struct {
 	Fee                  float64
 	FeeAsset             currency.Code
 	Exchange             string
-	InternalOrderID      string
+	InternalOrderID      uuid.UUID
 	ID                   string
 	ClientOrderID        string
 	AccountID            string
@@ -161,7 +146,7 @@ type Detail struct {
 // empty strings indicate to ignore the property otherwise all need to match
 type Filter struct {
 	Exchange        string
-	InternalOrderID string
+	InternalOrderID uuid.UUID
 	ID              string
 	ClientOrderID   string
 	AccountID       string
