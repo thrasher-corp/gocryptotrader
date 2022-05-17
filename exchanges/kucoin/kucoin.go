@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"strconv"
@@ -34,19 +35,19 @@ const (
 func (k *Kucoin) GetSymbols(ctx context.Context) ([]SymbolInfo, error) {
 	resp := struct {
 		Data []SymbolInfo `json:"data"`
-		Code string       `json:"code"`
+		Error
 	}{}
 	return resp.Data, k.SendHTTPRequest(ctx, exchange.RestSpot, kucoinGetSymbols, publicSpotRate, &resp)
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
-func (k *Kucoin) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path string, f request.EndpointLimit, result interface{}) error {
+func (k *Kucoin) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path string, f request.EndpointLimit, result UnmarshalTo) error {
 	endpointPath, err := k.API.Endpoints.GetURL(ePath)
 	if err != nil {
 		return err
 	}
 
-	return k.SendPayload(ctx, f, func() (*request.Item, error) {
+	err = k.SendPayload(ctx, f, func() (*request.Item, error) {
 		return &request.Item{
 			Method:        http.MethodGet,
 			Path:          endpointPath + path,
@@ -55,10 +56,14 @@ func (k *Kucoin) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path s
 			HTTPDebugging: k.HTTPDebugging,
 			HTTPRecording: k.HTTPRecording}, nil
 	})
+	if err != nil {
+		return err
+	}
+	return result.GetError()
 }
 
 // SendAuthHTTPRequest sends an authenticated HTTP request
-func (k *Kucoin) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, method, path string, params map[string]interface{}, f request.EndpointLimit, result interface{}) error {
+func (k *Kucoin) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, method, path string, params map[string]interface{}, f request.EndpointLimit, result UnmarshalTo) error {
 	creds, err := k.GetCredentials(ctx)
 	if err != nil {
 		return err
@@ -67,6 +72,10 @@ func (k *Kucoin) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, me
 	endpointPath, err := k.API.Endpoints.GetURL(ePath)
 	if err != nil {
 		return err
+	}
+
+	if result == nil {
+		result = &Error{}
 	}
 
 	err = k.SendPayload(ctx, f, func() (*request.Item, error) {
@@ -106,5 +115,30 @@ func (k *Kucoin) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, me
 			HTTPDebugging: k.HTTPDebugging,
 			HTTPRecording: k.HTTPRecording}, nil
 	})
-	return err
+	if err != nil {
+		return err
+	}
+	return result.GetError()
+}
+
+// Error defines all error information for each request
+type Error struct {
+	Code string `json:"code"`
+	Msg  string `json:"msg"`
+}
+
+// GetError checks and returns an error if it is supplied.
+func (e Error) GetError() error {
+	code, err := strconv.ParseInt(e.Code, 10, 64)
+	if err != nil {
+		return err
+
+	}
+
+	switch code {
+	case 200000:
+		return nil
+	default:
+		return errors.New(e.Msg)
+	}
 }

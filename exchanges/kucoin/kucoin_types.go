@@ -1,5 +1,10 @@
 package kucoin
 
+// UnmarshalTo acts as interface to exchange API response
+type UnmarshalTo interface {
+	GetError() error
+}
+
 type SymbolInfo struct {
 	Symbol          string  `json:"symbol"`
 	Name            string  `json:"name"`
