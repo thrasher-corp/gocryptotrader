@@ -3,11 +3,9 @@ package coinut
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
-	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -1163,14 +1161,4 @@ func TestGetHistoricTrades(t *testing.T) {
 	if err != nil && err != common.ErrFunctionNotSupported {
 		t.Error(err)
 	}
-}
-
-func TestXxx(t *testing.T) {
-	// Testing 0 value base conversion...
-	wow, err := strconv.ParseUint("12347", 0, 32)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	fmt.Println(wow)
 }
