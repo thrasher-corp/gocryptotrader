@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -85,6 +84,9 @@ func main() {
 		true,
 		"displays logging subheader to track where activity originates")
 	flag.Parse()
+	if !colourOutput {
+		common.PurgeColours()
+	}
 	log.GlobalLogConfig = log.GenDefaultSettings()
 	log.GlobalLogConfig.AdvancedSettings.ShowLogSystemName = convert.BoolPtr(logSubHeader)
 	log.GlobalLogConfig.AdvancedSettings.Headers.Info = common.ColourInfo + "[INFO]" + common.ColourDefault
@@ -170,7 +172,6 @@ func main() {
 		common.ColourInfo = ""
 		common.ColourDebug = ""
 		common.ColourWarn = ""
-		common.ColourProblem = ""
 		common.ColourDarkGrey = ""
 		common.ColourError = ""
 	}

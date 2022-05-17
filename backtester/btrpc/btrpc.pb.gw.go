@@ -72,7 +72,7 @@ var (
 )
 
 func request_Backtester_ExecuteStrategyFromConfig_0(ctx context.Context, marshaler runtime.Marshaler, client BacktesterClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq ExecuteStrategyFromFileRequest
+	var protoReq ExecuteStrategyFromConfigRequest
 	var metadata runtime.ServerMetadata
 
 	if err := req.ParseForm(); err != nil {
@@ -88,7 +88,7 @@ func request_Backtester_ExecuteStrategyFromConfig_0(ctx context.Context, marshal
 }
 
 func local_request_Backtester_ExecuteStrategyFromConfig_0(ctx context.Context, marshaler runtime.Marshaler, server BacktesterServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq ExecuteStrategyFromFileRequest
+	var protoReq ExecuteStrategyFromConfigRequest
 	var metadata runtime.ServerMetadata
 
 	if err := req.ParseForm(); err != nil {
@@ -115,12 +115,13 @@ func RegisterBacktesterHandlerServer(ctx context.Context, mux *runtime.ServeMux,
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/btrpc.Backtester/ExecuteStrategyFromFile", runtime.WithHTTPPathPattern("/v1/executestrategyfromfile"))
+		var err error
+		ctx, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/btrpc.Backtester/ExecuteStrategyFromFile", runtime.WithHTTPPathPattern("/v1/executestrategyfromfile"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := local_request_Backtester_ExecuteStrategyFromFile_0(rctx, inboundMarshaler, server, req, pathParams)
+		resp, md, err := local_request_Backtester_ExecuteStrategyFromFile_0(ctx, inboundMarshaler, server, req, pathParams)
 		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
@@ -138,12 +139,13 @@ func RegisterBacktesterHandlerServer(ctx context.Context, mux *runtime.ServeMux,
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/btrpc.Backtester/ExecuteStrategyFromConfig", runtime.WithHTTPPathPattern("/v1/executestrategyfromconfig"))
+		var err error
+		ctx, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/btrpc.Backtester/ExecuteStrategyFromConfig", runtime.WithHTTPPathPattern("/v1/executestrategyfromconfig"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := local_request_Backtester_ExecuteStrategyFromConfig_0(rctx, inboundMarshaler, server, req, pathParams)
+		resp, md, err := local_request_Backtester_ExecuteStrategyFromConfig_0(ctx, inboundMarshaler, server, req, pathParams)
 		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
@@ -200,12 +202,13 @@ func RegisterBacktesterHandlerClient(ctx context.Context, mux *runtime.ServeMux,
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/btrpc.Backtester/ExecuteStrategyFromFile", runtime.WithHTTPPathPattern("/v1/executestrategyfromfile"))
+		var err error
+		ctx, err = runtime.AnnotateContext(ctx, mux, req, "/btrpc.Backtester/ExecuteStrategyFromFile", runtime.WithHTTPPathPattern("/v1/executestrategyfromfile"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_Backtester_ExecuteStrategyFromFile_0(rctx, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_Backtester_ExecuteStrategyFromFile_0(ctx, inboundMarshaler, client, req, pathParams)
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
@@ -220,12 +223,13 @@ func RegisterBacktesterHandlerClient(ctx context.Context, mux *runtime.ServeMux,
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/btrpc.Backtester/ExecuteStrategyFromConfig", runtime.WithHTTPPathPattern("/v1/executestrategyfromconfig"))
+		var err error
+		ctx, err = runtime.AnnotateContext(ctx, mux, req, "/btrpc.Backtester/ExecuteStrategyFromConfig", runtime.WithHTTPPathPattern("/v1/executestrategyfromconfig"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_Backtester_ExecuteStrategyFromConfig_0(rctx, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_Backtester_ExecuteStrategyFromConfig_0(ctx, inboundMarshaler, client, req, pathParams)
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)

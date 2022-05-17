@@ -52,6 +52,5 @@ type CMDColours struct {
 	Info          string `json:"info"`
 	Debug         string `json:"debug"`
 	Warn          string `json:"warn"`
-	Problem       string `json:"problem"`
 	Error         string `json:"error"`
 }

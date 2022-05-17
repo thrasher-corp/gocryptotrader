@@ -887,10 +887,7 @@ func ExecuteStrategy(strategyCfg *config.Config, backtesterCfg *config.Backteste
 		log.Infof(log.Global, "Captured %v, shutdown requested.\n", interrupt)
 		bt.Stop()
 	} else {
-		err = bt.Run()
-		if err != nil {
-			return err
-		}
+		bt.Run()
 	}
 
 	err = bt.Statistic.CalculateAllResults()

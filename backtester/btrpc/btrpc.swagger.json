@@ -35,7 +35,258 @@
         },
         "parameters": [
           {
-            "name": "strategyFilePath",
+            "name": "config.nickname",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "config.goal",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "config.strategySettings.name",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "config.strategySettings.useSimultaneousSignalProcessing",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "config.strategySettings.disableUSDTracking",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "config.fundingSettings.useExchangeLevelFunding",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "config.dataSettings.interval",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "uint64"
+          },
+          {
+            "name": "config.dataSettings.datatype",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "config.dataSettings.apiData.startDate",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "name": "config.dataSettings.apiData.endDate",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "name": "config.dataSettings.apiData.inclusiveEndDate",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "config.dataSettings.databaseData.startDate",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "name": "config.dataSettings.databaseData.endDate",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "name": "config.dataSettings.databaseData.config.enabled",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "config.dataSettings.databaseData.config.verbose",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "config.dataSettings.databaseData.config.driver",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "config.dataSettings.databaseData.config.config.host",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "config.dataSettings.databaseData.config.config.port",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "config.dataSettings.databaseData.config.config.userName",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "config.dataSettings.databaseData.config.config.password",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "config.dataSettings.databaseData.config.config.database",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "config.dataSettings.databaseData.config.config.sslMode",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "config.dataSettings.databaseData.path",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "config.dataSettings.databaseData.inclusiveEndDate",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "config.dataSettings.csvData.path",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "config.dataSettings.liveData.apiKeyOverride",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "config.dataSettings.liveData.apiSecretOverride",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "config.dataSettings.liveData.apiClientIdOverride",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "config.dataSettings.liveData.api2faOverride",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "config.dataSettings.liveData.apiSubAccountOverride",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "config.dataSettings.liveData.useRealOrders",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "config.portfolioSettings.leverage.canUseLeverage",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "config.portfolioSettings.leverage.maximumOrdersWithLeverageRatio",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "config.portfolioSettings.leverage.maximumLeverageRate",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "config.portfolioSettings.leverage.maximumCollateralLeverageRate",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "config.portfolioSettings.buySide.minimumSize",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "config.portfolioSettings.buySide.maximumSize",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "config.portfolioSettings.buySide.maximumTotal",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "config.portfolioSettings.sellSide.minimumSize",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "config.portfolioSettings.sellSide.maximumSize",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "config.portfolioSettings.sellSide.maximumTotal",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "config.statisticSettings.riskFreeRate",
             "in": "query",
             "required": false,
             "type": "string"
@@ -78,6 +329,226 @@
     }
   },
   "definitions": {
+    "btrpcApiData": {
+      "type": "object",
+      "properties": {
+        "startDate": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "endDate": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "inclusiveEndDate": {
+          "type": "boolean"
+        }
+      }
+    },
+    "btrpcCSVData": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string"
+        }
+      }
+    },
+    "btrpcConfig": {
+      "type": "object",
+      "properties": {
+        "nickname": {
+          "type": "string"
+        },
+        "goal": {
+          "type": "string"
+        },
+        "strategySettings": {
+          "$ref": "#/definitions/btrpcStrategySettings"
+        },
+        "fundingSettings": {
+          "$ref": "#/definitions/btrpcFundingSettings"
+        },
+        "currencySettings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/btrpcCurrencySettings"
+          }
+        },
+        "dataSettings": {
+          "$ref": "#/definitions/btrpcDataSettings"
+        },
+        "portfolioSettings": {
+          "$ref": "#/definitions/btrpcPortfolioSettings"
+        },
+        "statisticSettings": {
+          "$ref": "#/definitions/btrpcStatisticSettings"
+        }
+      }
+    },
+    "btrpcCurrencySettings": {
+      "type": "object",
+      "properties": {
+        "exchangeName": {
+          "type": "string"
+        },
+        "asset": {
+          "type": "string"
+        },
+        "base": {
+          "type": "string"
+        },
+        "quote": {
+          "type": "string"
+        },
+        "buySide": {
+          "$ref": "#/definitions/btrpcPurchaseSide"
+        },
+        "sellSide": {
+          "$ref": "#/definitions/btrpcPurchaseSide"
+        },
+        "minSlippagePercent": {
+          "type": "string"
+        },
+        "maxSlippagePercent": {
+          "type": "string"
+        },
+        "makerFeeOverride": {
+          "type": "string"
+        },
+        "takerFeeOverride": {
+          "type": "string"
+        },
+        "maximumHoldingsRatio": {
+          "type": "string"
+        },
+        "skipCandleVolumeFitting": {
+          "type": "boolean"
+        },
+        "useExchangeOrderLimits": {
+          "type": "boolean"
+        },
+        "useExchangePNLCalculation": {
+          "type": "boolean"
+        }
+      }
+    },
+    "btrpcCustomSettings": {
+      "type": "object",
+      "properties": {
+        "keyField": {
+          "type": "string"
+        },
+        "keyValue": {
+          "type": "string"
+        }
+      }
+    },
+    "btrpcDataSettings": {
+      "type": "object",
+      "properties": {
+        "interval": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "datatype": {
+          "type": "string"
+        },
+        "apiData": {
+          "$ref": "#/definitions/btrpcApiData"
+        },
+        "databaseData": {
+          "$ref": "#/definitions/btrpcDatabaseData"
+        },
+        "csvData": {
+          "$ref": "#/definitions/btrpcCSVData"
+        },
+        "liveData": {
+          "$ref": "#/definitions/btrpcLiveData"
+        }
+      }
+    },
+    "btrpcDatabaseConfig": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "verbose": {
+          "type": "boolean"
+        },
+        "driver": {
+          "type": "string"
+        },
+        "config": {
+          "$ref": "#/definitions/btrpcDatabaseConnectionDetails"
+        }
+      }
+    },
+    "btrpcDatabaseConnectionDetails": {
+      "type": "object",
+      "properties": {
+        "host": {
+          "type": "string"
+        },
+        "port": {
+          "type": "string"
+        },
+        "userName": {
+          "type": "string"
+        },
+        "password": {
+          "type": "string"
+        },
+        "database": {
+          "type": "string"
+        },
+        "sslMode": {
+          "type": "string"
+        }
+      }
+    },
+    "btrpcDatabaseData": {
+      "type": "object",
+      "properties": {
+        "startDate": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "endDate": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "config": {
+          "$ref": "#/definitions/btrpcDatabaseConfig"
+        },
+        "path": {
+          "type": "string"
+        },
+        "inclusiveEndDate": {
+          "type": "boolean"
+        }
+      }
+    },
+    "btrpcExchangeLevelFunding": {
+      "type": "object",
+      "properties": {
+        "exchangeName": {
+          "type": "string"
+        },
+        "asset": {
+          "type": "string"
+        },
+        "currency": {
+          "type": "string"
+        },
+        "initialFunds": {
+          "type": "string"
+        },
+        "transferFee": {
+          "type": "string"
+        }
+      }
+    },
     "btrpcExecuteStrategyResponse": {
       "type": "object",
       "properties": {
@@ -89,17 +560,125 @@
         }
       }
     },
+    "btrpcFundingSettings": {
+      "type": "object",
+      "properties": {
+        "useExchangeLevelFunding": {
+          "type": "boolean"
+        },
+        "exchangeLevelFunding": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/btrpcExchangeLevelFunding"
+          }
+        }
+      }
+    },
+    "btrpcLeverage": {
+      "type": "object",
+      "properties": {
+        "canUseLeverage": {
+          "type": "boolean"
+        },
+        "maximumOrdersWithLeverageRatio": {
+          "type": "string"
+        },
+        "maximumLeverageRate": {
+          "type": "string"
+        },
+        "maximumCollateralLeverageRate": {
+          "type": "string"
+        }
+      }
+    },
+    "btrpcLiveData": {
+      "type": "object",
+      "properties": {
+        "apiKeyOverride": {
+          "type": "string"
+        },
+        "apiSecretOverride": {
+          "type": "string"
+        },
+        "apiClientIdOverride": {
+          "type": "string"
+        },
+        "api2faOverride": {
+          "type": "string"
+        },
+        "apiSubAccountOverride": {
+          "type": "string"
+        },
+        "useRealOrders": {
+          "type": "boolean"
+        }
+      }
+    },
+    "btrpcPortfolioSettings": {
+      "type": "object",
+      "properties": {
+        "leverage": {
+          "$ref": "#/definitions/btrpcLeverage"
+        },
+        "buySide": {
+          "$ref": "#/definitions/btrpcPurchaseSide"
+        },
+        "sellSide": {
+          "$ref": "#/definitions/btrpcPurchaseSide"
+        }
+      }
+    },
+    "btrpcPurchaseSide": {
+      "type": "object",
+      "properties": {
+        "minimumSize": {
+          "type": "string"
+        },
+        "maximumSize": {
+          "type": "string"
+        },
+        "maximumTotal": {
+          "type": "string"
+        }
+      }
+    },
+    "btrpcStatisticSettings": {
+      "type": "object",
+      "properties": {
+        "riskFreeRate": {
+          "type": "string"
+        }
+      }
+    },
+    "btrpcStrategySettings": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "useSimultaneousSignalProcessing": {
+          "type": "boolean"
+        },
+        "disableUSDTracking": {
+          "type": "boolean"
+        },
+        "customSettings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/btrpcCustomSettings"
+          }
+        }
+      },
+      "title": "struct definitions"
+    },
     "protobufAny": {
       "type": "object",
       "properties": {
-        "typeUrl": {
+        "@type": {
           "type": "string"
-        },
-        "value": {
-          "type": "string",
-          "format": "byte"
         }
-      }
+      },
+      "additionalProperties": {}
     },
     "rpcStatus": {
       "type": "object",

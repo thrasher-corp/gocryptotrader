@@ -156,7 +156,7 @@ service Backtester {
             get :"/v1/executestrategyfromfile"
         };
     }
-    rpc ExecuteStrategyFromConfig (ExecuteStrategyFromFileRequest) returns (ExecuteStrategyResponse) {
+    rpc ExecuteStrategyFromConfig (ExecuteStrategyFromConfigRequest) returns (ExecuteStrategyResponse) {
         option (google.api.http) = {
             get :"/v1/executestrategyfromconfig"
         };

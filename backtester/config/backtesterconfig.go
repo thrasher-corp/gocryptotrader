@@ -48,7 +48,6 @@ func GenerateDefaultConfig() (*BacktesterConfig, error) {
 			Info:          common.ColourInfo,
 			Debug:         common.ColourDebug,
 			Warn:          common.ColourWarn,
-			Problem:       common.ColourProblem,
 			Error:         common.ColourError,
 		},
 	}, nil

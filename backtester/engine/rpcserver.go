@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"path/filepath"
 	"strings"
-	"time"
 
 	grpcauth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
@@ -15,9 +14,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/btrpc"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	gctengine "github.com/thrasher-corp/gocryptotrader/engine"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/gctrpc"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc/auth"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/utils"
@@ -96,7 +97,7 @@ func (s *RPCServer) StartRPCRESTProxy() {
 			Password: s.GRPC.Password,
 		}),
 	}
-	err = gctrpc.RegisterGoCryptoTraderHandlerFromEndpoint(context.Background(),
+	err = btrpc.RegisterBacktesterHandlerFromEndpoint(context.Background(),
 		mux, s.GRPC.ListenAddress, opts)
 	if err != nil {
 		log.Errorf(log.GRPCSys, "Failed to register gRPC proxy. Err: %s\n", err)
@@ -218,10 +219,15 @@ func (s *RPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc.
 		if err != nil {
 			return nil, err
 		}
+		a, err := asset.New(request.Config.FundingSettings.ExchangeLevelFunding[i].Asset)
+		if err != nil {
+			return nil, err
+		}
+
 		fundingSettings = append(fundingSettings, config.ExchangeLevelFunding{
 			ExchangeName: request.Config.FundingSettings.ExchangeLevelFunding[i].ExchangeName,
-			Asset:        request.Config.FundingSettings.ExchangeLevelFunding[i].Asset,
-			Currency:     request.Config.FundingSettings.ExchangeLevelFunding[i].Currency,
+			Asset:        a,
+			Currency:     currency.NewCode(request.Config.FundingSettings.ExchangeLevelFunding[i].Currency),
 			InitialFunds: initialFunds,
 			TransferFee:  transferFee,
 		})
@@ -274,11 +280,33 @@ func (s *RPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc.
 		if err != nil {
 			return nil, err
 		}
+		a, err := asset.New(request.Config.FundingSettings.ExchangeLevelFunding[i].Asset)
+		if err != nil {
+			return nil, err
+		}
+		var maker, taker *decimal.Decimal
+		if request.Config.CurrencySettings[i].MakerFeeOverride != "" {
+			// nil is a valid option
+			m, err := decimal.NewFromString(request.Config.CurrencySettings[i].MakerFeeOverride)
+			if err != nil {
+				return nil, fmt.Errorf("%v %v %v-%v maker fee %w", request.Config.CurrencySettings[i].ExchangeName, request.Config.CurrencySettings[i].Asset, request.Config.CurrencySettings[i].Base, request.Config.CurrencySettings[i].Quote, err)
+			}
+			maker = &m
+		}
+		if request.Config.CurrencySettings[i].TakerFeeOverride != "" {
+			// nil is a valid option
+			t, err := decimal.NewFromString(request.Config.CurrencySettings[i].MakerFeeOverride)
+			if err != nil {
+				return nil, fmt.Errorf("%v %v %v-%v taker fee %w", request.Config.CurrencySettings[i].ExchangeName, request.Config.CurrencySettings[i].Asset, request.Config.CurrencySettings[i].Base, request.Config.CurrencySettings[i].Quote, err)
+			}
+			taker = &t
+		}
+
 		configSettings = append(configSettings, config.CurrencySettings{
 			ExchangeName: request.Config.CurrencySettings[i].ExchangeName,
-			Asset:        request.Config.CurrencySettings[i].Asset,
-			Base:         request.Config.CurrencySettings[i].Base,
-			Quote:        request.Config.CurrencySettings[i].Quote,
+			Asset:        a,
+			Base:         currency.NewCode(request.Config.CurrencySettings[i].Base),
+			Quote:        currency.NewCode(request.Config.CurrencySettings[i].Quote),
 			//USDTrackingPair:               request.Config.CurrencySettings[i].,
 			SpotDetails:    nil,
 			FuturesDetails: nil,
@@ -294,8 +322,8 @@ func (s *RPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc.
 			},
 			MinimumSlippagePercent:        minimumSlippagePercent,
 			MaximumSlippagePercent:        maximumSlippagePercent,
-			MakerFee:                      nil,
-			TakerFee:                      nil,
+			MakerFee:                      maker,
+			TakerFee:                      taker,
 			MaximumHoldingsRatio:          maximumHoldingsRatio,
 			SkipCandleVolumeFitting:       request.Config.CurrencySettings[i].SkipCandleVolumeFitting,
 			CanUseExchangeLimits:          request.Config.CurrencySettings[i].UseExchangeOrderLimits,
@@ -319,7 +347,7 @@ func (s *RPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc.
 		},
 		CurrencySettings: nil,
 		DataSettings: config.DataSettings{
-			Interval: time.Duration(request.Config.DataSettings.Interval),
+			Interval: gctkline.Interval(request.Config.DataSettings.Interval),
 			DataType: request.Config.DataSettings.Datatype,
 		},
 		PortfolioSettings: config.PortfolioSettings{
