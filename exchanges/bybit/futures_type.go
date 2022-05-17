@@ -663,16 +663,16 @@ type FundRecord struct {
 
 // FundWithdrawalRecord stores funding withdrawal records
 type FundWithdrawalRecord struct {
-	ID         int64     `json:"id"`
-	UserID     int64     `json:"user_id"`
-	Coin       string    `json:"coin"`
-	Status     string    `json:"status"`
-	Amount     float64   `json:"amount,string"`
-	Fee        float64   `json:"fee"`
-	Address    string    `json:"address"`
-	TxID       string    `json:"tx_id"`
-	SubmitedAt time.Time `json:"submited_at"`
-	UpdatedAt  time.Time `json:"updated_at"`
+	ID          int64     `json:"id"`
+	UserID      int64     `json:"user_id"`
+	Coin        string    `json:"coin"`
+	Status      string    `json:"status"`
+	Amount      float64   `json:"amount,string"`
+	Fee         float64   `json:"fee"`
+	Address     string    `json:"address"`
+	TxID        string    `json:"tx_id"`
+	SubmittedAt time.Time `json:"submited_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 // AssetExchangeRecord stores asset exchange records

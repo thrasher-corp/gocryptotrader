@@ -415,12 +415,12 @@ type WsTrade struct {
 
 // wsAccountInfo defines websocket account info data
 type wsAccountInfo struct {
-	EventType   string            `json:"e"`
-	EventTime   bybitTimeMilliSec `json:"E"` // Note: it is string in doc. ex
-	CanTrade    bool              `json:"T"`
-	CanWithdraw bool              `json:"W"`
-	CanDeposit  bool              `json:"D"`
-	Balance     []Currencies      `json:"B"`
+	EventType   string       `json:"e"`
+	EventTime   string       `json:"E"`
+	CanTrade    bool         `json:"T"`
+	CanWithdraw bool         `json:"W"`
+	CanDeposit  bool         `json:"D"`
+	Balance     []Currencies `json:"B"`
 }
 
 // Currencies stores currencies data
@@ -432,31 +432,31 @@ type Currencies struct {
 
 // wsOrderUpdate defines websocket account order update data
 type wsOrderUpdate struct {
-	EventType                         string            `json:"e"`
-	EventTime                         bybitTimeMilliSec `json:"E"`
-	Symbol                            string            `json:"s"`
-	ClientOrderID                     string            `json:"c"`
-	Side                              string            `json:"S"`
-	OrderType                         string            `json:"o"`
-	TimeInForce                       string            `json:"f"`
-	Quantity                          float64           `json:"q,string"`
-	Price                             float64           `json:"p,string"`
-	OrderStatus                       string            `json:"X"`
-	OrderID                           int64             `json:"i"`
-	OpponentOrderID                   string            `json:"M"`
-	LastExecutedQuantity              float64           `json:"l,string"`
-	CumulativeFilledQuantity          float64           `json:"z,string"`
-	LastExecutedPrice                 float64           `json:"L,string"`
-	Commission                        float64           `json:"n,string"`
-	CommissionAsset                   string            `json:"N"`
-	IsNormal                          bool              `json:"u"`
-	IsOnOrderBook                     bool              `json:"w"`
-	IsLimitMaker                      bool              `json:"m"`
-	OrderCreationTime                 bybitTimeMilliSec `json:"O"` // Note: it is string in doc. ex
-	CumulativeQuoteTransactedQuantity float64           `json:"Z,string"`
-	AccountID                         string            `json:"A"`
-	IsClose                           bool              `json:"C"`
-	Leverage                          float64           `json:"v,string"`
+	EventType                         string  `json:"e"`
+	EventTime                         string  `json:"E"`
+	Symbol                            string  `json:"s"`
+	ClientOrderID                     string  `json:"c"`
+	Side                              string  `json:"S"`
+	OrderType                         string  `json:"o"`
+	TimeInForce                       string  `json:"f"`
+	Quantity                          float64 `json:"q,string"`
+	Price                             float64 `json:"p,string"`
+	OrderStatus                       string  `json:"X"`
+	OrderID                           string  `json:"i"`
+	OpponentOrderID                   string  `json:"M"`
+	LastExecutedQuantity              float64 `json:"l,string"`
+	CumulativeFilledQuantity          float64 `json:"z,string"`
+	LastExecutedPrice                 float64 `json:"L,string"`
+	Commission                        float64 `json:"n,string"`
+	CommissionAsset                   string  `json:"N"`
+	IsNormal                          bool    `json:"u"`
+	IsOnOrderBook                     bool    `json:"w"`
+	IsLimitMaker                      bool    `json:"m"`
+	OrderCreationTime                 string  `json:"O"`
+	CumulativeQuoteTransactedQuantity float64 `json:"Z,string"`
+	AccountID                         string  `json:"A"`
+	IsClose                           bool    `json:"C"`
+	Leverage                          float64 `json:"v,string"`
 }
 
 // WsFuturesOrderbookData stores ws futures orderbook data

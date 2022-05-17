@@ -461,6 +461,61 @@ func TestWsKline(t *testing.T) {
 	}
 }
 
+func TestWSAccountInfo(t *testing.T) {
+	t.Parallel()
+	pressXToJSON := []byte(`[{
+		"e":"outboundAccountInfo",
+		"E":"1629969654753",
+		"T":true,
+		"W":true,
+		"D":true,
+		"B":[{
+			"a":"BTC",
+			"f":"10000000097.1982823144",
+			"l":"0"
+		}]
+	}]`)
+	err := b.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestWSOrderExecution(t *testing.T) {
+	t.Parallel()
+	pressXToJSON := []byte(`[{
+		"e": "executionReport",      
+		"E": "1499405658658",            
+		"s": "BTCUSDT",                 
+		"c": "1000087761",               
+		"S": "BUY",                    
+		"o": "LIMIT",                  
+		"f": "GTC",                    
+		"q": "1.00000000",             
+		"p": "0.10264410",             
+		"X": "NEW",                    
+		"i": "4293153",     
+		"M": "0",             
+		"l": "0.00000000",             
+		"z": "0.00000000",             
+		"L": "0.00000000",             
+		"n": "0",                      
+		"N": "BTC",                     
+		"u": true,                     
+		"w": true,                     
+		"m": false,                    
+		"O": "1499405658657",            
+		"Z": "473.199",
+		"A": "0",
+		"C": false,
+		"v": "0"              
+	}]`)
+	err := b.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 // test cases for CoinMarginedFutures
 
 func TestGetFuturesOrderbook(t *testing.T) {
@@ -2559,6 +2614,37 @@ func TestGetActiveOrders(t *testing.T) {
 	}
 
 	_, err = b.GetActiveOrders(context.Background(), &getOrdersRequestFutures)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetWithdrawalsHistory(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := b.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.CoinMarginedFutures)
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = b.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Spot)
+	if err == nil {
+		t.Error("GetWithdrawalsHistory() Spot Expected error")
+	}
+}
+
+func TestGetServerTime(t *testing.T) {
+	t.Parallel()
+
+	_, err := b.GetServerTime(context.Background(), asset.CoinMarginedFutures)
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = b.GetServerTime(context.Background(), asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
