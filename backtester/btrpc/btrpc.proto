@@ -37,6 +37,15 @@ message PurchaseSide {
     string maximum_total = 3;
 }
 
+message SpotDetails {
+string initial_base_funds = 1;
+string initial_quote_funds = 2;
+}
+
+message FuturesDetails {
+    Leverage leverage = 1;
+}
+
 message CurrencySettings {
     string exchange_name = 1;
     string asset = 2;
@@ -52,6 +61,8 @@ message CurrencySettings {
     bool skip_candle_volume_fitting = 12;
     bool use_exchange_order_limits = 13;
     bool use_exchange_PNL_calculation = 14;
+    SpotDetails spot_details = 15;
+    FuturesDetails futures_details = 16;
 }
 
 message ApiData {
@@ -60,9 +71,34 @@ message ApiData {
     bool inclusive_end_date = 3;
 }
 
+message DbConfig {
+    bool   enabled = 1;
+    bool   verbose = 2;
+    string driver = 3;
+    string host = 4;
+    int64 port = 5;
+    string username = 6;
+    string password = 7;
+    string database = 8;
+    string ssl_mode = 9;
+}
+
+message DbData {
+    google.protobuf.Timestamp start_date = 1;
+    google.protobuf.Timestamp end_date = 2;
+    DbConfig config = 3;
+    string path = 4;
+    bool inclusive_end_date = 5;
+
+}
+
+message CsvData {
+   string path = 1;
+}
+
 message DatabaseConnectionDetails {
     string host = 1;
-    string port =2;
+    int64 port =2;
     string user_name =3;
     string password =4;
     string database =5;

@@ -145,7 +145,8 @@
             "name": "config.dataSettings.databaseData.config.config.port",
             "in": "query",
             "required": false,
-            "type": "string"
+            "type": "string",
+            "format": "int64"
           },
           {
             "name": "config.dataSettings.databaseData.config.config.userName",
@@ -429,6 +430,12 @@
         },
         "useExchangePNLCalculation": {
           "type": "boolean"
+        },
+        "spotDetails": {
+          "$ref": "#/definitions/btrpcSpotDetails"
+        },
+        "futuresDetails": {
+          "$ref": "#/definitions/btrpcFuturesDetails"
         }
       }
     },
@@ -491,7 +498,8 @@
           "type": "string"
         },
         "port": {
-          "type": "string"
+          "type": "string",
+          "format": "int64"
         },
         "userName": {
           "type": "string"
@@ -574,6 +582,14 @@
         }
       }
     },
+    "btrpcFuturesDetails": {
+      "type": "object",
+      "properties": {
+        "leverage": {
+          "$ref": "#/definitions/btrpcLeverage"
+        }
+      }
+    },
     "btrpcLeverage": {
       "type": "object",
       "properties": {
@@ -638,6 +654,17 @@
           "type": "string"
         },
         "maximumTotal": {
+          "type": "string"
+        }
+      }
+    },
+    "btrpcSpotDetails": {
+      "type": "object",
+      "properties": {
+        "initialBaseFunds": {
+          "type": "string"
+        },
+        "initialQuoteFunds": {
           "type": "string"
         }
       }

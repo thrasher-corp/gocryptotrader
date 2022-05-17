@@ -14,10 +14,11 @@ var (
 )
 
 type BacktesterConfig struct {
-	SingleRun               bool       `json:"single-run"`
-	SingleRunStrategyConfig string     `json:"single-run-strategy-config"`
+	PrintLogo               bool       `json:"print-logo"`
 	Verbose                 bool       `json:"verbose"`
 	LogSubheaders           bool       `json:"log-subheaders"`
+	SingleRun               bool       `json:"single-run"`
+	SingleRunStrategyConfig string     `json:"single-run-strategy-config"`
 	Report                  Report     `json:"report"`
 	GRPC                    GRPC       `json:"grpc"`
 	Colours                 CMDColours `json:"cmd-colours"`

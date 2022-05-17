@@ -15,6 +15,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/database"
+	"github.com/thrasher-corp/gocryptotrader/database/drivers"
 	gctengine "github.com/thrasher-corp/gocryptotrader/engine"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -302,14 +304,23 @@ func (s *RPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc.
 			taker = &t
 		}
 
+		var spotDetails *config.SpotDetails
+		if request.Config.CurrencySettings[i].SpotDetails != nil {
+
+		}
+
+		var futuresDetails *config.FuturesDetails
+		if request.Config.CurrencySettings[i].FuturesDetails != nil {
+
+		}
+
 		configSettings = append(configSettings, config.CurrencySettings{
-			ExchangeName: request.Config.CurrencySettings[i].ExchangeName,
-			Asset:        a,
-			Base:         currency.NewCode(request.Config.CurrencySettings[i].Base),
-			Quote:        currency.NewCode(request.Config.CurrencySettings[i].Quote),
-			//USDTrackingPair:               request.Config.CurrencySettings[i].,
-			SpotDetails:    nil,
-			FuturesDetails: nil,
+			ExchangeName:   request.Config.CurrencySettings[i].ExchangeName,
+			Asset:          a,
+			Base:           currency.NewCode(request.Config.CurrencySettings[i].Base),
+			Quote:          currency.NewCode(request.Config.CurrencySettings[i].Quote),
+			SpotDetails:    spotDetails,
+			FuturesDetails: futuresDetails,
 			BuySide: config.MinMax{
 				MinimumSize:  currencySettingBuySideMinimumSize,
 				MaximumSize:  currencySettingBuySideMaximumSize,
@@ -332,6 +343,48 @@ func (s *RPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc.
 		})
 	}
 
+	var apiData *config.APIData
+	if request.Config.DataSettings.ApiData != nil {
+		apiData.StartDate = request.Config.DataSettings.ApiData.StartDate.AsTime()
+		apiData.EndDate = request.Config.DataSettings.ApiData.EndDate.AsTime()
+		apiData.InclusiveEndDate = request.Config.DataSettings.ApiData.InclusiveEndDate
+	}
+	var dbData *config.DatabaseData
+	if request.Config.DataSettings.DatabaseData != nil {
+		dbData.StartDate = request.Config.DataSettings.DatabaseData.StartDate.AsTime()
+		dbData.EndDate = request.Config.DataSettings.DatabaseData.EndDate.AsTime()
+		dbData.Path = request.Config.DataSettings.DatabaseData.Path
+		dbData.InclusiveEndDate = request.Config.DataSettings.DatabaseData.InclusiveEndDate
+
+		cfg := database.Config{
+			Enabled: request.Config.DataSettings.DatabaseData.Config.Enabled,
+			Verbose: request.Config.DataSettings.DatabaseData.Config.Verbose,
+			Driver:  request.Config.DataSettings.DatabaseData.Config.Driver,
+			ConnectionDetails: drivers.ConnectionDetails{
+				Host:     request.Config.DataSettings.DatabaseData.Config.Config.Host,
+				Port:     uint16(request.Config.DataSettings.DatabaseData.Config.Config.Port),
+				Username: request.Config.DataSettings.DatabaseData.Config.Config.UserName,
+				Password: request.Config.DataSettings.DatabaseData.Config.Config.Password,
+				Database: request.Config.DataSettings.DatabaseData.Config.Config.Database,
+				SSLMode:  request.Config.DataSettings.DatabaseData.Config.Config.SslMode,
+			},
+		}
+		dbData.Config = cfg
+	}
+	var liveData *config.LiveData
+	if request.Config.DataSettings.LiveData != nil {
+		liveData.APIKeyOverride = request.Config.DataSettings.LiveData.ApiKeyOverride
+		liveData.APISecretOverride = request.Config.DataSettings.LiveData.ApiSecretOverride
+		liveData.APIClientIDOverride = request.Config.DataSettings.LiveData.ApiClientIdOverride
+		liveData.API2FAOverride = request.Config.DataSettings.LiveData.Api_2FaOverride
+		liveData.APISubAccountOverride = request.Config.DataSettings.LiveData.ApiSubAccountOverride
+		liveData.RealOrders = request.Config.DataSettings.LiveData.UseRealOrders
+	}
+	var csvData *config.CSVData
+	if request.Config.DataSettings.CsvData != nil {
+		csvData.FullPath = request.Config.DataSettings.CsvData.Path
+	}
+
 	cfg := &config.Config{
 		Nickname: request.Config.Nickname,
 		Goal:     request.Config.Goal,
@@ -345,10 +398,14 @@ func (s *RPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc.
 			UseExchangeLevelFunding: request.Config.FundingSettings.UseExchangeLevelFunding,
 			ExchangeLevelFunding:    fundingSettings,
 		},
-		CurrencySettings: nil,
+		CurrencySettings: configSettings,
 		DataSettings: config.DataSettings{
-			Interval: gctkline.Interval(request.Config.DataSettings.Interval),
-			DataType: request.Config.DataSettings.Datatype,
+			Interval:     gctkline.Interval(request.Config.DataSettings.Interval),
+			DataType:     request.Config.DataSettings.Datatype,
+			APIData:      apiData,
+			DatabaseData: dbData,
+			LiveData:     liveData,
+			CSVData:      csvData,
 		},
 		PortfolioSettings: config.PortfolioSettings{
 			Leverage: config.Leverage{
@@ -371,19 +428,6 @@ func (s *RPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc.
 		StatisticSettings: config.StatisticSettings{
 			RiskFreeRate: rfr,
 		},
-	}
-
-	if request.Config.DataSettings.ApiData != nil {
-
-	}
-	if request.Config.DataSettings.ApiData != nil {
-
-	}
-	if request.Config.DataSettings.ApiData != nil {
-
-	}
-	if request.Config.DataSettings.ApiData != nil {
-
 	}
 
 	err = ExecuteStrategy(cfg, s.BacktesterConfig)

@@ -84,25 +84,6 @@ func main() {
 		true,
 		"displays logging subheader to track where activity originates")
 	flag.Parse()
-	if !colourOutput {
-		common.PurgeColours()
-	}
-	log.GlobalLogConfig = log.GenDefaultSettings()
-	log.GlobalLogConfig.AdvancedSettings.ShowLogSystemName = convert.BoolPtr(logSubHeader)
-	log.GlobalLogConfig.AdvancedSettings.Headers.Info = common.ColourInfo + "[INFO]" + common.ColourDefault
-	log.GlobalLogConfig.AdvancedSettings.Headers.Warn = common.ColourWarn + "[WARN]" + common.ColourDefault
-	log.GlobalLogConfig.AdvancedSettings.Headers.Debug = common.ColourDebug + "[DEBUG]" + common.ColourDefault
-	log.GlobalLogConfig.AdvancedSettings.Headers.Error = common.ColourError + "[ERROR]" + common.ColourDefault
-	err = log.SetupGlobalLogger()
-	if err != nil {
-		fmt.Printf("Could not setup global logger. Error: %v.\n", err)
-		os.Exit(1)
-	}
-
-	for i := range common.LogoLines {
-		fmt.Println(common.LogoLines[i])
-	}
-	fmt.Print(common.ASCIILogo)
 
 	for k := range common.SubLoggers {
 		common.SubLoggers[k], err = log.NewSubLogger(k)
@@ -156,24 +137,26 @@ func main() {
 		return
 	}
 
+	log.GlobalLogConfig = log.GenDefaultSettings()
+	log.GlobalLogConfig.AdvancedSettings.ShowLogSystemName = convert.BoolPtr(logSubHeader)
+	log.GlobalLogConfig.AdvancedSettings.Headers.Info = common.ColourInfo + "[INFO]" + common.ColourDefault
+	log.GlobalLogConfig.AdvancedSettings.Headers.Warn = common.ColourWarn + "[WARN]" + common.ColourDefault
+	log.GlobalLogConfig.AdvancedSettings.Headers.Debug = common.ColourDebug + "[DEBUG]" + common.ColourDefault
+	log.GlobalLogConfig.AdvancedSettings.Headers.Error = common.ColourError + "[ERROR]" + common.ColourDefault
+	err = log.SetupGlobalLogger()
+	if err != nil {
+		fmt.Printf("Could not setup global logger. Error: %v.\n", err)
+		os.Exit(1)
+	}
+
+	err = common.RegisterBacktesterSubLoggers()
+	if err != nil {
+		fmt.Printf("Could not register subloggers. Error: %v.\n", err)
+		os.Exit(1)
+	}
+
 	if !btCfg.Colours.UseCMDColours && colourOutput {
 		btCfg.Colours.UseCMDColours = colourOutput
-	}
-	if !btCfg.Colours.UseCMDColours {
-		common.ColourGreen = ""
-		common.ColourWhite = ""
-		common.ColourGrey = ""
-		common.ColourDefault = ""
-		common.ColourH1 = ""
-		common.ColourH2 = ""
-		common.ColourH3 = ""
-		common.ColourH4 = ""
-		common.ColourSuccess = ""
-		common.ColourInfo = ""
-		common.ColourDebug = ""
-		common.ColourWarn = ""
-		common.ColourDarkGrey = ""
-		common.ColourError = ""
 	}
 	if !btCfg.Report.GenerateReport && generateReport {
 		btCfg.Report.GenerateReport = generateReport
@@ -183,6 +166,13 @@ func main() {
 	}
 	if btCfg.Report.OutputPath != reportOutput && reportOutput != filepath.Join(wd, "results") {
 		btCfg.Report.OutputPath = reportOutput
+	}
+
+	if !btCfg.Colours.UseCMDColours {
+		common.PurgeColours()
+	}
+	if btCfg.PrintLogo {
+		fmt.Println(common.Logo())
 	}
 
 	if singleRun {
@@ -209,12 +199,14 @@ func main() {
 	}
 
 	go func(c *config.BacktesterConfig) {
+		log.Info(log.GRPCSys, "starting GRPC server")
 		s := backtest.SetupRPCServer(c)
 		err = backtest.StartRPCServer(s)
 		if err != nil {
 			fmt.Printf("Could not read config. Error: %v.\n", err)
 			os.Exit(1)
 		}
+		log.Info(log.GRPCSys, "ready to receive commands")
 	}(btCfg)
 	interrupt := signaler.WaitForInterrupt()
 	log.Infof(log.Global, "Captured %v, shutdown requested.\n", interrupt)

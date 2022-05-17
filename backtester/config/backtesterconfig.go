@@ -14,6 +14,7 @@ func GenerateDefaultConfig() (*BacktesterConfig, error) {
 		return nil, err
 	}
 	return &BacktesterConfig{
+		PrintLogo:               true,
 		SingleRun:               false,
 		SingleRunStrategyConfig: filepath.Join(wd, "config", "examples", "ftx-cash-carry.strat"),
 		Verbose:                 false,
@@ -34,7 +35,7 @@ func GenerateDefaultConfig() (*BacktesterConfig, error) {
 			TLSDir: DefaultBTDir,
 		},
 		Colours: CMDColours{
-			UseCMDColours: false,
+			UseCMDColours: true,
 			Default:       common.ColourDefault,
 			Green:         common.ColourGreen,
 			White:         common.ColourWhite,

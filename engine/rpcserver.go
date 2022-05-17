@@ -99,10 +99,9 @@ func (s *RPCServer) authenticateClient(ctx context.Context) (context.Context, er
 		return ctx, fmt.Errorf("unable to base64 decode authorization header")
 	}
 
-	credentials := strings.Split(string(decoded), ":")
-
-	username := credentials[0]
-	password := credentials[1]
+	cred := strings.Split(string(decoded), ":")
+	username := cred[0]
+	password := cred[1]
 
 	if username != s.Config.RemoteControl.Username ||
 		password != s.Config.RemoteControl.Password {
@@ -423,6 +422,7 @@ func (s *RPCServer) GetTickers(ctx context.Context, _ *gctrpc.GetTickersRequest)
 				Volume:      val.Volume,
 				PriceAth:    val.PriceATH,
 			}
+
 		}
 		tickers[x] = t
 	}
