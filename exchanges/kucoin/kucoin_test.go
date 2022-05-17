@@ -1,6 +1,7 @@
 package kucoin
 
 import (
+	"context"
 	"log"
 	"os"
 	"testing"
@@ -16,10 +17,10 @@ const (
 	canManipulateRealOrders = false
 )
 
-var ku Kucoin
+var k Kucoin
 
 func TestMain(m *testing.M) {
-	ku.SetDefaults()
+	k.SetDefaults()
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig("../../testdata/configtest.json", true)
 	if err != nil {
@@ -36,7 +37,7 @@ func TestMain(m *testing.M) {
 	exchCfg.API.Credentials.Key = apiKey
 	exchCfg.API.Credentials.Secret = apiSecret
 
-	err = ku.Setup(exchCfg)
+	err = k.Setup(exchCfg)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -53,7 +54,15 @@ func TestInterface(t *testing.T) {
 }
 
 func areTestAPIKeysSet() bool {
-	return ku.ValidateAPICredentials(ku.GetDefaultCredentials()) == nil
+	return k.ValidateAPICredentials(k.GetDefaultCredentials()) == nil
 }
 
 // Implement tests for API endpoints below
+func TestGetSymbols(t *testing.T) {
+	t.Parallel()
+
+	_, err := k.GetSymbols(context.Background())
+	if err != nil {
+		t.Error("GetSymbols() error", err)
+	}
+}

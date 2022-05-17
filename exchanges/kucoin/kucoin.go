@@ -30,8 +30,6 @@ const (
 	// Authenticated endpoints
 )
 
-// Start implementing public and private exchange API funcs below
-
 // GetAllSpotPairs gets all pairs on the exchange
 func (k *Kucoin) GetSymbols(ctx context.Context) ([]SymbolInfo, error) {
 	resp := struct {
