@@ -24,6 +24,7 @@ type Settings struct {
 	PortfolioManagerDelay       time.Duration
 	EnableGRPC                  bool
 	EnableGRPCProxy             bool
+	EnableGRPCShutdown          bool
 	EnableWebsocketRPC          bool
 	EnableDeprecatedRPC         bool
 	EnableCommsRelayer          bool

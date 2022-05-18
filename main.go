@@ -39,6 +39,7 @@ func main() {
 	flag.DurationVar(&settings.PortfolioManagerDelay, "portfoliomanagerdelay", time.Duration(0), "sets the portfolio managers sleep delay between updates")
 	flag.BoolVar(&settings.EnableGRPC, "grpc", true, "enables the grpc server")
 	flag.BoolVar(&settings.EnableGRPCProxy, "grpcproxy", false, "enables the grpc proxy server")
+	flag.BoolVar(&settings.EnableGRPCShutdown, "grpcshutdown", false, "enables the allowance of the grpc to terminate services")
 	flag.BoolVar(&settings.EnableWebsocketRPC, "websocketrpc", true, "enables the websocket RPC server")
 	flag.BoolVar(&settings.EnableDeprecatedRPC, "deprecatedrpc", true, "enables the deprecated RPC server")
 	flag.BoolVar(&settings.EnableCommsRelayer, "enablecommsrelayer", true, "enables available communications relayer")
@@ -141,8 +142,24 @@ func main() {
 		os.Exit(1)
 	}
 
-	interrupt := signaler.WaitForInterrupt()
-	gctlog.Infof(gctlog.Global, "Captured %v, shutdown requested.\n", interrupt)
+	waiter := make(chan struct{})
+	go waitForInterupt(waiter)
+	if engine.Bot.Settings.EnableGRPCShutdown {
+		go waitForGPRCShutdown(engine.Bot, waiter)
+	}
+	<-waiter
 	engine.Bot.Stop()
 	gctlog.Infoln(gctlog.Global, "Exiting.")
+}
+
+func waitForInterupt(waiter chan<- struct{}) {
+	interrupt := signaler.WaitForInterrupt()
+	gctlog.Infof(gctlog.Global, "Captured %v, shutdown requested.\n", interrupt)
+	waiter <- struct{}{}
+}
+
+func waitForGPRCShutdown(bot *engine.Engine, waiter chan<- struct{}) {
+	<-bot.GRPCShutdownSignal
+	gctlog.Warnln(gctlog.Global, "Captured gRPC, shutdown requested.")
+	waiter <- struct{}{}
 }
