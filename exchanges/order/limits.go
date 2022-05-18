@@ -401,13 +401,11 @@ func (l *Limits) ConformToAmount(amount float64) float64 {
 
 // GetSnapshot exposes a snapshot of order execution limit values for quick easy
 // use.
-func (l *Limits) GetSnapshot() (*MinMaxLevel, error) {
+func (l *Limits) GetSnapshot() (MinMaxLevel, error) {
 	if l == nil {
-		return nil, errLimitIsNil
+		return MinMaxLevel{}, errLimitIsNil
 	}
-
 	l.m.RLock()
-	cpy := l.protected
-	l.m.RUnlock()
-	return &cpy, nil
+	defer l.m.RUnlock()
+	return l.protected, nil
 }

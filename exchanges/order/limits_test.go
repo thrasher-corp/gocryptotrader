@@ -437,8 +437,8 @@ func TestGetSnapShot(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	if ll == nil {
-		t.Fatal("should not be nil")
+	if ll == (MinMaxLevel{}) {
+		t.Fatal("should not be empty")
 	}
 
 	if ll.MinPrice != 1337 {
