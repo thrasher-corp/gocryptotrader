@@ -643,8 +643,8 @@ func (bi *Binanceus) SubmitOrder(ctx context.Context, s *order.Submit) (order.Su
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (bi *Binanceus) ModifyOrder(ctx context.Context, action *order.Modify) (order.Modify, error) {
-	return order.Modify{}, common.ErrNotYetImplemented
+func (bi *Binanceus) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Modify, error) {
+	return nil, common.ErrNotYetImplemented
 }
 
 // CancelOrder cancels an order by its corresponding ID number
@@ -845,7 +845,10 @@ func (bi *Binanceus) GetActiveOrders(ctx context.Context, getOrdersRequest *orde
 				if eer != nil {
 					log.Errorf(log.ExchangeSys, "%s %v", bi.Name, err)
 				}
-				orderType := order.Type(strings.ToUpper(resp[x].Type))
+				orderType, err := order.StringToOrderType(strings.ToUpper(resp[x].Type))
+				if err != nil {
+					log.Errorf(log.ExchangeSys, "%s %v", bi.Name, err)
+				}
 				orderStatus, err := order.StringToOrderStatus(resp[i].Status)
 				if err != nil {
 					log.Errorf(log.ExchangeSys, "%s %v", bi.Name, err)
@@ -869,7 +872,7 @@ func (bi *Binanceus) GetActiveOrders(ctx context.Context, getOrdersRequest *orde
 			return orders, fmt.Errorf("%s %w", getOrdersRequest.AssetType, asset.ErrNotSupported)
 		}
 	}
-	order.FilterOrdersByCurrencies(&orders, getOrdersRequest.Pairs)
+	order.FilterOrdersByPairs(&orders, getOrdersRequest.Pairs)
 	order.FilterOrdersByType(&orders, getOrdersRequest.Type)
 	order.FilterOrdersBySide(&orders, getOrdersRequest.Side)
 	order.FilterOrdersByTimeRange(&orders, getOrdersRequest.StartTime, getOrdersRequest.EndTime)
