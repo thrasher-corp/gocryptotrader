@@ -26,7 +26,7 @@ func GenerateDefaultConfig() (*BacktesterConfig, error) {
 			DarkMode:       false,
 		},
 		GRPC: GRPC{
-			Username: "backtester",
+			Username: "rpcuser",
 			Password: "helloImTheDefaultPassword",
 			GRPCConfig: gctconfig.GRPCConfig{
 				Enabled:       true,

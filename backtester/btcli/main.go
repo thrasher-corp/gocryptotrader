@@ -21,6 +21,11 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
+const (
+	defaultUsername = "rpcuser"
+	defaultPassword = "helloImTheDefaultPassword"
+)
+
 var (
 	host          string
 	username      string
@@ -79,13 +84,13 @@ func main() {
 		},
 		&cli.StringFlag{
 			Name:        "rpcuser",
-			Value:       "backtester",
+			Value:       defaultUsername,
 			Usage:       "the gRPC username",
 			Destination: &username,
 		},
 		&cli.StringFlag{
 			Name:        "rpcpassword",
-			Value:       "helloImTheDefaultPassword",
+			Value:       defaultPassword,
 			Usage:       "the gRPC password",
 			Destination: &password,
 		},
@@ -110,6 +115,7 @@ func main() {
 	}
 	app.Commands = []*cli.Command{
 		executeStrategyFromFileCommand,
+		executeStrategyFromConfigCommand,
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
