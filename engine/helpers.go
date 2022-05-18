@@ -328,8 +328,8 @@ func (bot *Engine) GetAuthAPISupportedExchanges() []string {
 	exchanges := bot.GetExchanges()
 	exchangeNames := make([]string, 0, len(exchanges))
 	for x := range exchanges {
-		if !exchanges[x].GetAuthenticatedAPISupport(exchange.RestAuthentication) &&
-			!exchanges[x].GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+		if !exchanges[x].IsRESTAuthenticationSupported() &&
+			!exchanges[x].IsWebsocketAuthenticationSupported() {
 			continue
 		}
 		exchangeNames = append(exchangeNames, exchanges[x].GetName())
@@ -696,10 +696,10 @@ func (bot *Engine) GetAllExchangeCryptocurrencyDepositAddresses() map[string]map
 	depositSyncer.Add(len(exchanges))
 	var m sync.Mutex
 	for x := range exchanges {
-		go func(x int) {
+		go func(exch exchange.IBotExchange) {
 			defer depositSyncer.Done()
-			exchName := exchanges[x].GetName()
-			if !exchanges[x].GetAuthenticatedAPISupport(exchange.RestAuthentication) {
+			exchName := exch.GetName()
+			if !exch.IsRESTAuthenticationSupported() {
 				if bot.Settings.Verbose {
 					log.Debugf(log.ExchangeSys, "GetAllExchangeCryptocurrencyDepositAddresses: Skippping %s due to disabled authenticated API support.\n", exchName)
 				}
@@ -711,15 +711,15 @@ func (bot *Engine) GetAllExchangeCryptocurrencyDepositAddresses() map[string]map
 				log.Errorf(log.ExchangeSys, "%s failed to get cryptocurrency deposit addresses. Err: %s\n", exchName, err)
 				return
 			}
-			supportsMultiChain := exchanges[x].GetBase().Features.Supports.RESTCapabilities.MultiChainDeposits
-			requiresChainSet := exchanges[x].GetBase().Features.Supports.RESTCapabilities.MultiChainDepositRequiresChainSet
+			supportsMultiChain := exch.GetBase().Features.Supports.RESTCapabilities.MultiChainDeposits
+			requiresChainSet := exch.GetBase().Features.Supports.RESTCapabilities.MultiChainDepositRequiresChainSet
 			cryptoAddr := make(map[string][]deposit.Address)
 			for y := range cryptoCurrencies {
 				cryptocurrency := cryptoCurrencies[y]
 				isSingular := false
 				var depositAddrs []deposit.Address
 				if supportsMultiChain {
-					availChains, err := exchanges[x].GetAvailableTransferChains(context.TODO(), currency.NewCode(cryptocurrency))
+					availChains, err := exch.GetAvailableTransferChains(context.TODO(), currency.NewCode(cryptocurrency))
 					if err != nil {
 						log.Errorf(log.Global, "%s failed to get cryptocurrency available transfer chains. Err: %s\n", exchName, err)
 						continue
@@ -728,7 +728,7 @@ func (bot *Engine) GetAllExchangeCryptocurrencyDepositAddresses() map[string]map
 						// store the default non-chain specified address for a specified crypto
 						chainContainsItself := common.StringDataCompareInsensitive(availChains, cryptocurrency)
 						if !chainContainsItself && !requiresChainSet {
-							depositAddr, err := exchanges[x].GetDepositAddress(context.TODO(), currency.NewCode(cryptocurrency), "", "")
+							depositAddr, err := exch.GetDepositAddress(context.TODO(), currency.NewCode(cryptocurrency), "", "")
 							if err != nil {
 								log.Errorf(log.Global, "%s failed to get cryptocurrency deposit address for %s. Err: %s\n",
 									exchName,
@@ -740,7 +740,7 @@ func (bot *Engine) GetAllExchangeCryptocurrencyDepositAddresses() map[string]map
 							depositAddrs = append(depositAddrs, *depositAddr)
 						}
 						for z := range availChains {
-							depositAddr, err := exchanges[x].GetDepositAddress(context.TODO(), currency.NewCode(cryptocurrency), "", availChains[z])
+							depositAddr, err := exch.GetDepositAddress(context.TODO(), currency.NewCode(cryptocurrency), "", availChains[z])
 							if err != nil {
 								log.Errorf(log.Global, "%s failed to get cryptocurrency deposit address for %s [chain %s]. Err: %s\n",
 									exchName,
@@ -759,7 +759,7 @@ func (bot *Engine) GetAllExchangeCryptocurrencyDepositAddresses() map[string]map
 				}
 
 				if !supportsMultiChain || isSingular {
-					depositAddr, err := exchanges[x].GetDepositAddress(context.TODO(), currency.NewCode(cryptocurrency), "", "")
+					depositAddr, err := exch.GetDepositAddress(context.TODO(), currency.NewCode(cryptocurrency), "", "")
 					if err != nil {
 						log.Errorf(log.Global, "%s failed to get cryptocurrency deposit address for %s. Err: %s\n",
 							exchName,
@@ -774,7 +774,7 @@ func (bot *Engine) GetAllExchangeCryptocurrencyDepositAddresses() map[string]map
 			m.Lock()
 			result[exchName] = cryptoAddr
 			m.Unlock()
-		}(x)
+		}(exchanges[x])
 	}
 	depositSyncer.Wait()
 	if len(result) > 0 {

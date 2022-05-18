@@ -212,7 +212,6 @@ func TestAreCredentialsValid(t *testing.T) {
 func TestValidateAPICredentials(t *testing.T) {
 	t.Parallel()
 
-	var b Base
 	type tester struct {
 		Key                        string
 		Secret                     string
@@ -247,7 +246,8 @@ func TestValidateAPICredentials(t *testing.T) {
 		{RequiresBase64DecodeSecret: true, Secret: "aGVsbG8gd29ybGQ="},
 	}
 
-	setupBase := func(b *Base, tData *tester) {
+	setupBase := func(tData *tester) *Base {
+		b := &Base{}
 		b.API.SetKey(tData.Key)
 		b.API.SetSecret(tData.Secret)
 		b.API.SetClientID(tData.ClientID)
@@ -257,13 +257,14 @@ func TestValidateAPICredentials(t *testing.T) {
 		b.API.CredentialsValidator.RequiresPEM = tData.RequiresPEM
 		b.API.CredentialsValidator.RequiresClientID = tData.RequiresClientID
 		b.API.CredentialsValidator.RequiresBase64DecodeSecret = tData.RequiresBase64DecodeSecret
+		return b
 	}
 
 	for x := range testCases {
 		testData := &testCases[x]
 		t.Run("", func(t *testing.T) {
 			t.Parallel()
-			setupBase(&b, testData)
+			b := setupBase(testData)
 			if err := b.ValidateAPICredentials(b.API.credentials); !errors.Is(err, testData.Expected) {
 				t.Errorf("Test %d: expected: %v: got %v", x+1, testData.Expected, err)
 			}
@@ -455,18 +456,19 @@ func TestGetAuthenticatedAPISupport(t *testing.T) {
 		},
 	}
 
-	if !base.GetAuthenticatedAPISupport(RestAuthentication) {
+	if !base.IsRESTAuthenticationSupported() {
 		t.Fatal("Expected RestAuthentication to return true")
 	}
-	if base.GetAuthenticatedAPISupport(WebsocketAuthentication) {
+	base.API.AuthenticatedSupport = false
+	if base.IsRESTAuthenticationSupported() {
+		t.Fatal("Expected RestAuthentication to return false")
+	}
+	if base.IsWebsocketAuthenticationSupported() {
 		t.Fatal("Expected WebsocketAuthentication to return false")
 	}
 	base.API.AuthenticatedWebsocketSupport = true
-	if !base.GetAuthenticatedAPISupport(WebsocketAuthentication) {
+	if !base.IsWebsocketAuthenticationSupported() {
 		t.Fatal("Expected WebsocketAuthentication to return true")
-	}
-	if base.GetAuthenticatedAPISupport(2) {
-		t.Fatal("Expected default case of 'false' to be returned")
 	}
 }
 

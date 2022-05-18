@@ -551,8 +551,8 @@ func (b *BTSE) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitRe
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (b *BTSE) ModifyOrder(ctx context.Context, action *order.Modify) (order.Modify, error) {
-	return order.Modify{}, common.ErrFunctionNotSupported
+func (b *BTSE) ModifyOrder(_ context.Context, _ *order.Modify) (*order.Modify, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number
@@ -684,13 +684,18 @@ func (b *BTSE) GetOrderInfo(ctx context.Context, orderID string, pair currency.P
 				log.Errorf(log.ExchangeSys,
 					"%s GetOrderInfo unable to parse time: %s\n", b.Name, err)
 			}
+			var orderSide order.Side
+			orderSide, err = order.StringToOrderSide(th[i].Side)
+			if err != nil {
+				return order.Detail{}, err
+			}
 			od.Trades = append(od.Trades, order.TradeHistory{
 				Timestamp: createdAt,
 				TID:       th[i].TradeID,
 				Price:     th[i].Price,
 				Amount:    th[i].Size,
 				Exchange:  b.Name,
-				Side:      order.Side(th[i].Side),
+				Side:      orderSide,
 				Fee:       th[i].FeeAmount,
 			})
 		}
@@ -854,13 +859,18 @@ func (b *BTSE) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest)
 						b.Name,
 						err)
 				}
+				var orderSide order.Side
+				orderSide, err = order.StringToOrderSide(fills[i].Side)
+				if err != nil {
+					return nil, err
+				}
 				openOrder.Trades = append(openOrder.Trades, order.TradeHistory{
 					Timestamp: createdAt,
 					TID:       fills[i].TradeID,
 					Price:     fills[i].Price,
 					Amount:    fills[i].Size,
 					Exchange:  b.Name,
-					Side:      order.Side(fills[i].Side),
+					Side:      orderSide,
 					Fee:       fills[i].FeeAmount,
 				})
 			}
@@ -869,7 +879,10 @@ func (b *BTSE) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest)
 	}
 
 	order.FilterOrdersByType(&orders, req.Type)
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	err := order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
+	}
 	order.FilterOrdersBySide(&orders, req.Side)
 	return orders, nil
 }
@@ -914,6 +927,11 @@ func (b *BTSE) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetO
 			if err != nil {
 				log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
 			}
+			var orderSide order.Side
+			orderSide, err = order.StringToOrderSide(currentOrder[y].Side)
+			if err != nil {
+				return nil, err
+			}
 			orderTime := time.UnixMilli(currentOrder[y].Timestamp)
 			tempOrder := order.Detail{
 				ID:                   currentOrder[y].OrderID,
@@ -925,7 +943,7 @@ func (b *BTSE) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetO
 				ExecutedAmount:       currentOrder[y].FilledSize,
 				RemainingAmount:      currentOrder[y].Size - currentOrder[y].FilledSize,
 				Date:                 orderTime,
-				Side:                 order.Side(currentOrder[y].Side),
+				Side:                 orderSide,
 				Status:               orderStatus,
 				Pair:                 orderDeref.Pairs[x],
 			}
@@ -1105,4 +1123,13 @@ func OrderSizeLimits(pair string) (limits OrderSizeLimit, found bool) {
 	}
 	val, ok := resp.(OrderSizeLimit)
 	return val, ok
+}
+
+// GetServerTime returns the current exchange server time.
+func (b *BTSE) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
+	st, err := b.GetCurrentServerTime(ctx)
+	if err != nil {
+		return time.Time{}, err
+	}
+	return st.ISO, nil
 }

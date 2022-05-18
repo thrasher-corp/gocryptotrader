@@ -6,7 +6,6 @@ import (
 	"net/url"
 	"sort"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -432,8 +431,8 @@ func (i *ItBit) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitR
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (i *ItBit) ModifyOrder(ctx context.Context, action *order.Modify) (order.Modify, error) {
-	return order.Modify{}, common.ErrFunctionNotSupported
+func (i *ItBit) ModifyOrder(_ context.Context, _ *order.Modify) (*order.Modify, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number
@@ -551,13 +550,18 @@ func (i *ItBit) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 	orders := make([]order.Detail, 0, len(allOrders))
 	for j := range allOrders {
 		var symbol currency.Pair
-		symbol, err := currency.NewPairDelimiter(allOrders[j].Instrument,
+		symbol, err = currency.NewPairDelimiter(allOrders[j].Instrument,
 			format.Delimiter)
 		if err != nil {
 			return nil, err
 		}
-		side := order.Side(strings.ToUpper(allOrders[j].Side))
-		orderDate, err := time.Parse(time.RFC3339, allOrders[j].CreatedTime)
+		var side order.Side
+		side, err = order.StringToOrderSide(allOrders[j].Side)
+		if err != nil {
+			log.Errorf(log.ExchangeSys, "%s %v", i.Name, err)
+		}
+		var orderDate time.Time
+		orderDate, err = time.Parse(time.RFC3339, allOrders[j].CreatedTime)
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
 				"Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
@@ -579,9 +583,12 @@ func (i *ItBit) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 		})
 	}
 
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", i.Name, err)
+	}
 	order.FilterOrdersBySide(&orders, req.Side)
-	order.FilterOrdersByCurrencies(&orders, req.Pairs)
+	order.FilterOrdersByPairs(&orders, req.Pairs)
 	return orders, nil
 }
 
@@ -623,13 +630,18 @@ func (i *ItBit) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest
 		if err != nil {
 			return nil, err
 		}
-
-		side := order.Side(strings.ToUpper(allOrders[j].Side))
-		status, err := order.StringToOrderStatus(allOrders[j].Status)
+		var side order.Side
+		side, err = order.StringToOrderSide(allOrders[j].Side)
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "%s %v", i.Name, err)
 		}
-		orderDate, err := time.Parse(time.RFC3339, allOrders[j].CreatedTime)
+		var status order.Status
+		status, err = order.StringToOrderStatus(allOrders[j].Status)
+		if err != nil {
+			log.Errorf(log.ExchangeSys, "%s %v", i.Name, err)
+		}
+		var orderDate time.Time
+		orderDate, err = time.Parse(time.RFC3339, allOrders[j].CreatedTime)
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
 				"Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
@@ -656,9 +668,12 @@ func (i *ItBit) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest
 		orders = append(orders, detail)
 	}
 
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", i.Name, err)
+	}
 	order.FilterOrdersBySide(&orders, req.Side)
-	order.FilterOrdersByCurrencies(&orders, req.Pairs)
+	order.FilterOrdersByPairs(&orders, req.Pairs)
 	return orders, nil
 }
 

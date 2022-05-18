@@ -752,3 +752,32 @@ func TestGetHTTPClientUserAgent(t *testing.T) {
 		t.Fatal("unexpected value")
 	}
 }
+
+func TestContextVerbosity(t *testing.T) {
+	t.Parallel()
+	if isVerbose(context.Background(), false) {
+		t.Fatal("unexpected value")
+	}
+
+	if !isVerbose(context.Background(), true) {
+		t.Fatal("unexpected value")
+	}
+
+	ctx := context.Background()
+	ctx = WithVerbose(ctx)
+	if !isVerbose(ctx, false) {
+		t.Fatal("unexpected value")
+	}
+
+	ctx = context.Background()
+	ctx = context.WithValue(ctx, contextVerboseFlag, false)
+	if isVerbose(ctx, false) {
+		t.Fatal("unexpected value")
+	}
+
+	ctx = context.Background()
+	ctx = context.WithValue(ctx, contextVerboseFlag, "bruh")
+	if isVerbose(ctx, false) {
+		t.Fatal("unexpected value")
+	}
+}

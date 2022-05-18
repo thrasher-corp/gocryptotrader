@@ -485,8 +485,8 @@ func (l *Lbank) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitR
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (l *Lbank) ModifyOrder(ctx context.Context, action *order.Modify) (order.Modify, error) {
-	return order.Modify{}, common.ErrFunctionNotSupported
+func (l *Lbank) ModifyOrder(_ context.Context, _ *order.Modify) (*order.Modify, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number
@@ -596,30 +596,16 @@ func (l *Lbank) GetOrderInfo(ctx context.Context, orderID string, pair currency.
 			} else {
 				resp.Side = order.Sell
 			}
-			z := tempResp.Orders[0].Status
-			switch {
-			case z == -1:
-				resp.Status = "cancelled"
-			case z == 0:
-				resp.Status = "on trading"
-			case z == 1:
-				resp.Status = "filled partially"
-			case z == 2:
-				resp.Status = "Filled totally"
-			case z == 4:
-				resp.Status = "Cancelling"
-			default:
-				resp.Status = "Invalid Order Status"
-			}
+
+			resp.Status = l.GetStatus(tempResp.Orders[0].Status)
 			resp.Price = tempResp.Orders[0].Price
 			resp.Amount = tempResp.Orders[0].Amount
 			resp.ExecutedAmount = tempResp.Orders[0].DealAmount
 			resp.RemainingAmount = tempResp.Orders[0].Amount - tempResp.Orders[0].DealAmount
-			resp.Fee, err = l.GetFeeByType(ctx,
-				&exchange.FeeBuilder{
-					FeeType:       exchange.CryptocurrencyTradeFee,
-					Amount:        tempResp.Orders[0].Amount,
-					PurchasePrice: tempResp.Orders[0].Price})
+			resp.Fee, err = l.GetFeeByType(ctx, &exchange.FeeBuilder{
+				FeeType:       exchange.CryptocurrencyTradeFee,
+				Amount:        tempResp.Orders[0].Amount,
+				PurchasePrice: tempResp.Orders[0].Price})
 			if err != nil {
 				resp.Fee = lbankFeeNotFound
 			}
@@ -696,21 +682,7 @@ func (l *Lbank) GetActiveOrders(ctx context.Context, getOrdersRequest *order.Get
 			} else {
 				resp.Side = order.Sell
 			}
-			z := tempResp.Orders[0].Status
-			switch {
-			case z == -1:
-				resp.Status = "cancelled"
-			case z == 1:
-				resp.Status = "on trading"
-			case z == 2:
-				resp.Status = "filled partially"
-			case z == 3:
-				resp.Status = "Filled totally"
-			case z == 4:
-				resp.Status = "Cancelling"
-			default:
-				resp.Status = "Invalid Order Status"
-			}
+			resp.Status = l.GetStatus(tempResp.Orders[0].Status)
 			resp.Price = tempResp.Orders[0].Price
 			resp.Amount = tempResp.Orders[0].Amount
 			resp.Date = time.Unix(tempResp.Orders[0].CreateTime, 0)
@@ -728,7 +700,7 @@ func (l *Lbank) GetActiveOrders(ctx context.Context, getOrdersRequest *order.Get
 				if getOrdersRequest.Pairs[y].String() != key {
 					continue
 				}
-				if getOrdersRequest.Side == "ANY" {
+				if getOrdersRequest.Side == order.AnySide {
 					finalResp = append(finalResp, resp)
 					continue
 				}
@@ -791,21 +763,7 @@ func (l *Lbank) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Get
 				} else {
 					resp.Side = order.Sell
 				}
-				z := tempResp.Orders[x].Status
-				switch {
-				case z == -1:
-					resp.Status = "cancelled"
-				case z == 1:
-					resp.Status = "on trading"
-				case z == 2:
-					resp.Status = "filled partially"
-				case z == 3:
-					resp.Status = "Filled totally"
-				case z == 4:
-					resp.Status = "Cancelling"
-				default:
-					resp.Status = "Invalid Order Status"
-				}
+				resp.Status = l.GetStatus(tempResp.Orders[x].Status)
 				resp.Price = tempResp.Orders[x].Price
 				resp.AverageExecutedPrice = tempResp.Orders[x].AvgPrice
 				resp.Amount = tempResp.Orders[x].Amount
@@ -1027,4 +985,29 @@ func (l *Lbank) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pa
 	ret.RemoveOutsideRange(start, end)
 	ret.SortCandlesByTimestamp(false)
 	return ret, nil
+}
+
+// GetStatus returns the order.Status from the int representation.
+func (l *Lbank) GetStatus(status int64) order.Status {
+	var oStatus order.Status
+	switch status {
+	case -1:
+		// "cancelled"
+		oStatus = order.Cancelled
+	case 0:
+		// "on trading"
+		oStatus = order.Active
+	case 1:
+		// "filled partially"
+		oStatus = order.PartiallyFilled
+	case 2:
+		// "filled totally"
+		oStatus = order.Filled
+	case 4:
+		// "Cancelling"
+		oStatus = order.Cancelling
+	default:
+		log.Errorf(log.Global, "%s Unhandled Order Status '%v'", l.GetName(), status)
+	}
+	return oStatus
 }

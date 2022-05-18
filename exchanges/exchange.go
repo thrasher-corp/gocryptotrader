@@ -1306,3 +1306,8 @@ func (b *Base) GetFuturesPositions(context.Context, asset.Item, currency.Pair, t
 func (b *Base) HasAssetTypeAccountSegregation() bool {
 	return b.Features.Supports.RESTCapabilities.HasAssetTypeAccountSegregation
 }
+
+// GetServerTime returns the current exchange server time.
+func (b *Base) GetServerTime(_ context.Context, _ asset.Item) (time.Time, error) {
+	return time.Time{}, common.ErrNotYetImplemented
+}

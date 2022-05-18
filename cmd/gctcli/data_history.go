@@ -320,7 +320,7 @@ func getDataHistoryJob(c *cli.Context) error {
 	}
 	defer closeConn(conn, cancel)
 
-	client := gctrpc.NewGoCryptoTraderClient(conn)
+	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	request := &gctrpc.GetDataHistoryJobDetailsRequest{
 		Id:       id,
 		Nickname: nickname,
@@ -344,7 +344,7 @@ func getActiveDataHistoryJobs(c *cli.Context) error {
 	}
 	defer closeConn(conn, cancel)
 
-	client := gctrpc.NewGoCryptoTraderClient(conn)
+	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.GetActiveDataHistoryJobs(c.Context,
 		&gctrpc.GetInfoRequest{})
 	if err != nil {
@@ -494,7 +494,7 @@ func upsertDataHistoryJob(c *cli.Context) error {
 	}
 	defer closeConn(conn, cancel)
 
-	client := gctrpc.NewGoCryptoTraderClient(conn)
+	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	request := &gctrpc.UpsertDataHistoryJobRequest{
 		Nickname: nickname,
 		Exchange: exchange,
@@ -563,7 +563,7 @@ func getDataHistoryJobsBetween(c *cli.Context) error {
 	}
 	defer closeConn(conn, cancel)
 
-	client := gctrpc.NewGoCryptoTraderClient(conn)
+	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.GetDataHistoryJobsBetween(c.Context,
 		&gctrpc.GetDataHistoryJobsBetweenRequest{
 			StartDate: negateLocalOffset(s),
@@ -615,7 +615,7 @@ func setDataHistoryJobStatus(c *cli.Context) error {
 	}
 	defer closeConn(conn, cancel)
 
-	client := gctrpc.NewGoCryptoTraderClient(conn)
+	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	request := &gctrpc.SetDataHistoryJobStatusRequest{
 		Id:       id,
 		Nickname: nickname,
@@ -648,7 +648,7 @@ func getDataHistoryJobSummary(c *cli.Context) error {
 	}
 	defer closeConn(conn, cancel)
 
-	client := gctrpc.NewGoCryptoTraderClient(conn)
+	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	request := &gctrpc.GetDataHistoryJobDetailsRequest{
 		Nickname: nickname,
 	}
@@ -690,7 +690,7 @@ func setPrerequisiteJob(c *cli.Context) error {
 	}
 	defer closeConn(conn, cancel)
 
-	client := gctrpc.NewGoCryptoTraderClient(conn)
+	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	request := &gctrpc.UpdateDataHistoryJobPrerequisiteRequest{
 		PrerequisiteJobNickname: prerequisite,
 		Nickname:                nickname,

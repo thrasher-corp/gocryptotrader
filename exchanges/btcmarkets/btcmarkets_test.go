@@ -142,11 +142,23 @@ func TestGetMultipleOrderbooks(t *testing.T) {
 	}
 }
 
-func TestGetServerTime(t *testing.T) {
+func TestGetCurrentServerTime(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetServerTime(context.Background())
+	_, err := b.GetCurrentServerTime(context.Background())
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestWrapperGetServerTime(t *testing.T) {
+	t.Parallel()
+	st, err := b.GetServerTime(context.Background(), asset.Spot)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if st.IsZero() {
+		t.Fatal("expected a time")
 	}
 }
 
@@ -934,7 +946,7 @@ func TestTrim(t *testing.T) {
 
 func TestFormatOrderType(t *testing.T) {
 	t.Parallel()
-	_, err := b.formatOrderType(order.Type("SWOOON"))
+	_, err := b.formatOrderType(0)
 	if !errors.Is(err, order.ErrTypeIsInvalid) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, order.ErrTypeIsInvalid)
 	}
@@ -987,7 +999,7 @@ func TestFormatOrderType(t *testing.T) {
 
 func TestFormatOrderSide(t *testing.T) {
 	t.Parallel()
-	_, err := b.formatOrderSide("invalid")
+	_, err := b.formatOrderSide(255)
 	if !errors.Is(err, order.ErrSideIsInvalid) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, order.ErrSideIsInvalid)
 	}
@@ -1026,5 +1038,81 @@ func TestGetTimeInForce(t *testing.T) {
 	f = b.getTimeInForce(&order.Submit{FillOrKill: true})
 	if f != fillOrKill {
 		t.Fatalf("received: '%v' but expected: '%v'", f, fillOrKill)
+	}
+}
+
+func TestReplaceOrder(t *testing.T) {
+	t.Parallel()
+	_, err := b.ReplaceOrder(context.Background(), "", "bro", 0, 0)
+	if !errors.Is(err, errInvalidAmount) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidAmount)
+	}
+
+	_, err = b.ReplaceOrder(context.Background(), "", "bro", 1, 0)
+	if !errors.Is(err, errInvalidAmount) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidAmount)
+	}
+
+	_, err = b.ReplaceOrder(context.Background(), "", "bro", 1, 1)
+	if !errors.Is(err, errIDRequired) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errIDRequired)
+	}
+
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
+	}
+
+	_, err = b.ReplaceOrder(context.Background(), "8207096301", "bruh", 100000, 0.001)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+}
+
+func TestWrapperModifyOrder(t *testing.T) {
+	t.Parallel()
+	_, err := b.ModifyOrder(context.Background(), &order.Modify{})
+	if !errors.Is(err, order.ErrPairIsEmpty) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, order.ErrPairIsEmpty)
+	}
+
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
+	}
+	mo, err := b.ModifyOrder(context.Background(), &order.Modify{
+		Pair:          currency.NewPair(currency.BTC, currency.AUD),
+		AssetType:     asset.Spot,
+		Price:         100000,
+		Amount:        0.001,
+		ID:            "8207123461",
+		ClientOrderID: "bruh3",
+	})
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if mo == nil {
+		t.Fatal("expected data return")
+	}
+}
+
+func TestUpdateOrderExecutionLimits(t *testing.T) {
+	t.Parallel()
+	err := b.UpdateOrderExecutionLimits(context.Background(), asset.Empty)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
+	}
+
+	err = b.UpdateOrderExecutionLimits(context.Background(), asset.Spot)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	lim, err := b.ExecutionLimits.GetOrderExecutionLimits(asset.Spot, currency.NewPair(currency.BTC, currency.AUD))
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if lim == nil {
+		t.Fatal("expected value return")
 	}
 }

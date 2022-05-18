@@ -73,7 +73,7 @@ var (
 
 // RPCServer struct
 type RPCServer struct {
-	gctrpc.UnimplementedGoCryptoTraderServer
+	gctrpc.UnimplementedGoCryptoTraderServiceServer
 	*Engine
 }
 
@@ -135,7 +135,7 @@ func StartRPCServer(engine *Engine) {
 		grpc.UnaryInterceptor(grpcauth.UnaryServerInterceptor(s.authenticateClient)),
 	}
 	server := grpc.NewServer(opts...)
-	gctrpc.RegisterGoCryptoTraderServer(server, &s)
+	gctrpc.RegisterGoCryptoTraderServiceServer(server, &s)
 
 	go func() {
 		if err := server.Serve(lis); err != nil {
@@ -169,7 +169,7 @@ func (s *RPCServer) StartRPCRESTProxy() {
 			Password: s.Config.RemoteControl.Password,
 		}),
 	}
-	err = gctrpc.RegisterGoCryptoTraderHandlerFromEndpoint(context.Background(),
+	err = gctrpc.RegisterGoCryptoTraderServiceHandlerFromEndpoint(context.Background(),
 		mux, s.Config.RemoteControl.GRPC.ListenAddress, opts)
 	if err != nil {
 		log.Errorf(log.GRPCSys, "Failed to register gRPC proxy. Err: %s\n", err)
@@ -629,7 +629,7 @@ func createAccountInfoRequest(h account.Holdings) (*gctrpc.GetAccountInfoRespons
 }
 
 // GetAccountInfoStream streams an account balance for a specific exchange
-func (s *RPCServer) GetAccountInfoStream(r *gctrpc.GetAccountInfoRequest, stream gctrpc.GoCryptoTrader_GetAccountInfoStreamServer) error {
+func (s *RPCServer) GetAccountInfoStream(r *gctrpc.GetAccountInfoRequest, stream gctrpc.GoCryptoTraderService_GetAccountInfoStreamServer) error {
 	assetType, err := asset.New(r.AssetType)
 	if err != nil {
 		return err
@@ -1195,10 +1195,20 @@ func (s *RPCServer) SubmitOrder(ctx context.Context, r *gctrpc.SubmitOrderReques
 		return nil, err
 	}
 
+	side, err := order.StringToOrderSide(r.Side)
+	if err != nil {
+		return nil, err
+	}
+
+	oType, err := order.StringToOrderType(r.OrderType)
+	if err != nil {
+		return nil, err
+	}
+
 	submission := &order.Submit{
 		Pair:          p,
-		Side:          order.Side(r.Side),
-		Type:          order.Type(r.OrderType),
+		Side:          side,
+		Type:          oType,
 		Amount:        r.Amount,
 		Price:         r.Price,
 		ClientID:      r.ClientId,
@@ -1362,12 +1372,18 @@ func (s *RPCServer) CancelOrder(ctx context.Context, r *gctrpc.CancelOrderReques
 		return nil, err
 	}
 
+	var side order.Side
+	side, err = order.StringToOrderSide(r.Side)
+	if err != nil {
+		return nil, err
+	}
+
 	err = s.OrderManager.Cancel(ctx,
 		&order.Cancel{
 			Exchange:      r.Exchange,
 			AccountID:     r.AccountId,
 			ID:            r.OrderId,
-			Side:          order.Side(r.Side),
+			Side:          side,
 			WalletAddress: r.WalletAddress,
 			Pair:          p,
 			AssetType:     a,
@@ -1402,6 +1418,12 @@ func (s *RPCServer) CancelBatchOrders(ctx context.Context, r *gctrpc.CancelBatch
 		return nil, err
 	}
 
+	var side order.Side
+	side, err = order.StringToOrderSide(r.Side)
+	if err != nil {
+		return nil, err
+	}
+
 	status := make(map[string]string)
 	orders := strings.Split(r.OrdersId, ",")
 	request := make([]order.Cancel, len(orders))
@@ -1411,7 +1433,7 @@ func (s *RPCServer) CancelBatchOrders(ctx context.Context, r *gctrpc.CancelBatch
 		request[x] = order.Cancel{
 			AccountID:     r.AccountId,
 			ID:            orderID,
-			Side:          order.Side(r.Side),
+			Side:          side,
 			WalletAddress: r.WalletAddress,
 			Pair:          pair,
 			AssetType:     assetType,
@@ -1425,7 +1447,8 @@ func (s *RPCServer) CancelBatchOrders(ctx context.Context, r *gctrpc.CancelBatch
 	}
 
 	return &gctrpc.CancelBatchOrdersResponse{
-		Orders: []*gctrpc.CancelBatchOrdersResponse_Orders{{
+		Orders: []*gctrpc.Orders{{
+			Exchange:    r.Exchange,
 			OrderStatus: status,
 		}},
 	}, nil
@@ -1547,7 +1570,7 @@ func (s *RPCServer) GetCryptocurrencyDepositAddresses(ctx context.Context, r *gc
 		return nil, err
 	}
 
-	if !exch.GetAuthenticatedAPISupport(exchange.RestAuthentication) {
+	if !exch.IsRESTAuthenticationSupported() {
 		return nil, fmt.Errorf("%s, %w", r.Exchange, exchange.ErrAuthenticationSupportNotEnabled)
 	}
 
@@ -1580,7 +1603,7 @@ func (s *RPCServer) GetCryptocurrencyDepositAddress(ctx context.Context, r *gctr
 		return nil, err
 	}
 
-	if !exch.GetAuthenticatedAPISupport(exchange.RestAuthentication) {
+	if !exch.IsRESTAuthenticationSupported() {
 		return nil, fmt.Errorf("%s, %w", r.Exchange, exchange.ErrAuthenticationSupportNotEnabled)
 	}
 
@@ -2030,7 +2053,7 @@ func (s *RPCServer) SetExchangePair(_ context.Context, r *gctrpc.SetExchangePair
 }
 
 // GetOrderbookStream streams the requested updated orderbook
-func (s *RPCServer) GetOrderbookStream(r *gctrpc.GetOrderbookStreamRequest, stream gctrpc.GoCryptoTrader_GetOrderbookStreamServer) error {
+func (s *RPCServer) GetOrderbookStream(r *gctrpc.GetOrderbookStreamRequest, stream gctrpc.GoCryptoTraderService_GetOrderbookStreamServer) error {
 	a, err := asset.New(r.AssetType)
 	if err != nil {
 		return err
@@ -2092,7 +2115,7 @@ func (s *RPCServer) GetOrderbookStream(r *gctrpc.GetOrderbookStreamRequest, stre
 }
 
 // GetExchangeOrderbookStream streams all orderbooks associated with an exchange
-func (s *RPCServer) GetExchangeOrderbookStream(r *gctrpc.GetExchangeOrderbookStreamRequest, stream gctrpc.GoCryptoTrader_GetExchangeOrderbookStreamServer) error {
+func (s *RPCServer) GetExchangeOrderbookStream(r *gctrpc.GetExchangeOrderbookStreamRequest, stream gctrpc.GoCryptoTraderService_GetExchangeOrderbookStreamServer) error {
 	if r.Exchange == "" {
 		return errExchangeNameUnset
 	}
@@ -2159,7 +2182,7 @@ func (s *RPCServer) GetExchangeOrderbookStream(r *gctrpc.GetExchangeOrderbookStr
 }
 
 // GetTickerStream streams the requested updated ticker
-func (s *RPCServer) GetTickerStream(r *gctrpc.GetTickerStreamRequest, stream gctrpc.GoCryptoTrader_GetTickerStreamServer) error {
+func (s *RPCServer) GetTickerStream(r *gctrpc.GetTickerStreamRequest, stream gctrpc.GoCryptoTraderService_GetTickerStreamServer) error {
 	if r.Exchange == "" {
 		return errExchangeNameUnset
 	}
@@ -2230,7 +2253,7 @@ func (s *RPCServer) GetTickerStream(r *gctrpc.GetTickerStreamRequest, stream gct
 }
 
 // GetExchangeTickerStream streams all tickers associated with an exchange
-func (s *RPCServer) GetExchangeTickerStream(r *gctrpc.GetExchangeTickerStreamRequest, stream gctrpc.GoCryptoTrader_GetExchangeTickerStreamServer) error {
+func (s *RPCServer) GetExchangeTickerStream(r *gctrpc.GetExchangeTickerStreamRequest, stream gctrpc.GoCryptoTraderService_GetExchangeTickerStreamServer) error {
 	if r.Exchange == "" {
 		return errExchangeNameUnset
 	}
@@ -2522,7 +2545,7 @@ func (s *RPCServer) GCTScriptStatus(_ context.Context, _ *gctrpc.GCTScriptStatus
 			return false
 		}
 		resp.Scripts = append(resp.Scripts, &gctrpc.GCTScript{
-			UUID:    vm.ID.String(),
+			Uuid:    vm.ID.String(),
 			Name:    vm.ShortName(),
 			NextRun: vm.NextRun.String(),
 		})
@@ -2539,7 +2562,7 @@ func (s *RPCServer) GCTScriptQuery(_ context.Context, r *gctrpc.GCTScriptQueryRe
 		return &gctrpc.GCTScriptQueryResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
 	}
 
-	UUID, err := uuid.FromString(r.Script.UUID)
+	UUID, err := uuid.FromString(r.Script.Uuid)
 	if err != nil {
 		// nolint:nilerr // error is returned in the GCTScriptQueryResponse
 		return &gctrpc.GCTScriptQueryResponse{Status: MsgStatusError, Data: err.Error()}, nil
@@ -2558,7 +2581,7 @@ func (s *RPCServer) GCTScriptQuery(_ context.Context, r *gctrpc.GCTScriptQueryRe
 		Status: MsgStatusOK,
 		Script: &gctrpc.GCTScript{
 			Name:    vm.ShortName(),
-			UUID:    vm.ID.String(),
+			Uuid:    vm.ID.String(),
 			Path:    vm.Path,
 			NextRun: vm.NextRun.String(),
 		},
@@ -2608,7 +2631,7 @@ func (s *RPCServer) GCTScriptStop(_ context.Context, r *gctrpc.GCTScriptStopRequ
 		return &gctrpc.GenericResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
 	}
 
-	UUID, err := uuid.FromString(r.Script.UUID)
+	UUID, err := uuid.FromString(r.Script.Uuid)
 	if err != nil {
 		return &gctrpc.GenericResponse{Status: MsgStatusError, Data: err.Error()}, nil // nolint:nilerr // error is returned in the generic response
 	}
@@ -3431,7 +3454,7 @@ func (s *RPCServer) SetExchangeTradeProcessing(_ context.Context, r *gctrpc.SetE
 }
 
 // GetHistoricTrades returns trades between a set of dates
-func (s *RPCServer) GetHistoricTrades(r *gctrpc.GetSavedTradesRequest, stream gctrpc.GoCryptoTrader_GetHistoricTradesServer) error {
+func (s *RPCServer) GetHistoricTrades(r *gctrpc.GetSavedTradesRequest, stream gctrpc.GoCryptoTraderService_GetHistoricTradesServer) error {
 	if r.Exchange == "" || r.Pair == nil || r.AssetType == "" || r.Pair.String() == "" {
 		return errInvalidArguments
 	}
@@ -4238,14 +4261,14 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 		response.TotalOrders += int64(len(pos[i].Orders))
 		details := &gctrpc.FuturePosition{
 			Status:        pos[i].Status.String(),
-			UnrealisedPNL: pos[i].UnrealisedPNL.String(),
-			RealisedPNL:   pos[i].RealisedPNL.String(),
+			UnrealisedPnl: pos[i].UnrealisedPNL.String(),
+			RealisedPnl:   pos[i].RealisedPNL.String(),
 		}
 		if !pos[i].UnrealisedPNL.IsZero() {
-			details.UnrealisedPNL = pos[i].UnrealisedPNL.String()
+			details.UnrealisedPnl = pos[i].UnrealisedPNL.String()
 		}
 		if !pos[i].RealisedPNL.IsZero() {
-			details.RealisedPNL = pos[i].RealisedPNL.String()
+			details.RealisedPnl = pos[i].RealisedPNL.String()
 		}
 		if pos[i].LatestDirection != order.UnknownSide {
 			details.CurrentDirection = pos[i].LatestDirection.String()
@@ -4303,13 +4326,13 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 	}
 
 	if !totalUnrealisedPNL.IsZero() {
-		response.TotalUnrealisedPNL = totalUnrealisedPNL.String()
+		response.TotalUnrealisedPnl = totalUnrealisedPNL.String()
 	}
 	if !totalRealisedPNL.IsZero() {
-		response.TotalRealisedPNL = totalRealisedPNL.String()
+		response.TotalRealisedPnl = totalRealisedPNL.String()
 	}
 	if !totalUnrealisedPNL.IsZero() && !totalRealisedPNL.IsZero() {
-		response.TotalPNL = totalRealisedPNL.Add(totalUnrealisedPNL).String()
+		response.TotalPnl = totalRealisedPNL.Add(totalUnrealisedPNL).String()
 	}
 	return response, nil
 }
@@ -4339,7 +4362,7 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 	if err != nil {
 		return nil, err
 	}
-	creds, err := exch.GetBase().GetCredentials(ctx)
+	creds, err := exch.GetCredentials(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -4432,7 +4455,7 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 		result.MaintenanceCollateral = collateral.AvailableMaintenanceCollateral.String() + collateralDisplayCurrency
 	}
 	if !collateral.UnrealisedPNL.IsZero() {
-		result.UnrealisedPNL = collateral.UnrealisedPNL.String()
+		result.UnrealisedPnl = collateral.UnrealisedPNL.String()
 	}
 	if collateral.UsedBreakdown != nil {
 		result.UsedBreakdown = &gctrpc.CollateralUsedBreakdown{}
@@ -4440,7 +4463,7 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 			result.UsedBreakdown.LockedInStakes = collateral.UsedBreakdown.LockedInStakes.String() + collateralDisplayCurrency
 		}
 		if !collateral.UsedBreakdown.LockedInNFTBids.IsZero() {
-			result.UsedBreakdown.LockedIn_NFTBids = collateral.UsedBreakdown.LockedInNFTBids.String() + collateralDisplayCurrency
+			result.UsedBreakdown.LockedInNftBids = collateral.UsedBreakdown.LockedInNFTBids.String() + collateralDisplayCurrency
 		}
 		if !collateral.UsedBreakdown.LockedInFeeVoucher.IsZero() {
 			result.UsedBreakdown.LockedInFeeVoucher = collateral.UsedBreakdown.LockedInFeeVoucher.String() + collateralDisplayCurrency
@@ -4496,7 +4519,7 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 				cb.FundsInUse = collateral.BreakdownByCurrency[i].ScaledUsed.String() + collateralDisplayCurrency
 			}
 			if !collateral.BreakdownByCurrency[i].UnrealisedPNL.IsZero() {
-				cb.Unrealised_PNL = collateral.BreakdownByCurrency[i].UnrealisedPNL.String() + collateralDisplayCurrency
+				cb.UnrealisedPnl = collateral.BreakdownByCurrency[i].UnrealisedPNL.String() + collateralDisplayCurrency
 			}
 			if collateral.BreakdownByCurrency[i].ScaledUsedBreakdown != nil {
 				breakDownDisplayCurrency := collateralDisplayCurrency
@@ -4509,7 +4532,7 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 					cb.UsedBreakdown.LockedInStakes = collateral.BreakdownByCurrency[i].ScaledUsedBreakdown.LockedInStakes.String() + breakDownDisplayCurrency
 				}
 				if !collateral.BreakdownByCurrency[i].ScaledUsedBreakdown.LockedInNFTBids.IsZero() {
-					cb.UsedBreakdown.LockedIn_NFTBids = collateral.BreakdownByCurrency[i].ScaledUsedBreakdown.LockedInNFTBids.String() + breakDownDisplayCurrency
+					cb.UsedBreakdown.LockedInNftBids = collateral.BreakdownByCurrency[i].ScaledUsedBreakdown.LockedInNFTBids.String() + breakDownDisplayCurrency
 				}
 				if !collateral.BreakdownByCurrency[i].ScaledUsedBreakdown.LockedInFeeVoucher.IsZero() {
 					cb.UsedBreakdown.LockedInFeeVoucher = collateral.BreakdownByCurrency[i].ScaledUsedBreakdown.LockedInFeeVoucher.String() + breakDownDisplayCurrency

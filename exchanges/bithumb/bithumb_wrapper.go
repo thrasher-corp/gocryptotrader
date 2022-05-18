@@ -512,9 +512,9 @@ func (b *Bithumb) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submi
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (b *Bithumb) ModifyOrder(ctx context.Context, action *order.Modify) (order.Modify, error) {
+func (b *Bithumb) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Modify, error) {
 	if err := action.Validate(); err != nil {
-		return order.Modify{}, err
+		return nil, err
 	}
 
 	o, err := b.ModifyTrade(ctx,
@@ -523,20 +523,18 @@ func (b *Bithumb) ModifyOrder(ctx context.Context, action *order.Modify) (order.
 		action.Side.Lower(),
 		action.Amount,
 		int64(action.Price))
-
 	if err != nil {
-		return order.Modify{}, err
+		return nil, err
 	}
 
-	return order.Modify{
+	return &order.Modify{
 		Exchange:  action.Exchange,
 		AssetType: action.AssetType,
 		Pair:      action.Pair,
 		ID:        o.Data[0].ContID,
-
-		Price:  float64(int64(action.Price)),
-		Amount: action.Amount,
-		Side:   action.Side,
+		Price:     float64(int64(action.Price)),
+		Amount:    action.Amount,
+		Side:      action.Side,
 	}, nil
 }
 
@@ -702,7 +700,8 @@ func (b *Bithumb) GetActiveOrders(ctx context.Context, req *order.GetOrdersReque
 
 	var orders []order.Detail
 	for x := range req.Pairs {
-		resp, err := b.GetOrders(ctx, "", "", "1000", "", req.Pairs[x].Base.String())
+		var resp Orders
+		resp, err = b.GetOrders(ctx, "", "", "1000", "", req.Pairs[x].Base.String())
 		if err != nil {
 			return nil, err
 		}
@@ -737,8 +736,11 @@ func (b *Bithumb) GetActiveOrders(ctx context.Context, req *order.GetOrdersReque
 	}
 
 	order.FilterOrdersBySide(&orders, req.Side)
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
-	order.FilterOrdersByCurrencies(&orders, req.Pairs)
+	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
+	}
+	order.FilterOrdersByPairs(&orders, req.Pairs)
 	return orders, nil
 }
 
@@ -760,7 +762,8 @@ func (b *Bithumb) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 
 	var orders []order.Detail
 	for x := range req.Pairs {
-		resp, err := b.GetOrders(ctx, "", "", "1000", "", req.Pairs[x].Base.String())
+		var resp Orders
+		resp, err = b.GetOrders(ctx, "", "", "1000", "", req.Pairs[x].Base.String())
 		if err != nil {
 			return nil, err
 		}
@@ -795,8 +798,11 @@ func (b *Bithumb) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 	}
 
 	order.FilterOrdersBySide(&orders, req.Side)
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
-	order.FilterOrdersByCurrencies(&orders, req.Pairs)
+	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
+	}
+	order.FilterOrdersByPairs(&orders, req.Pairs)
 	return orders, nil
 }
 

@@ -561,8 +561,8 @@ func (b *Bitstamp) SubmitOrder(ctx context.Context, s *order.Submit) (order.Subm
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (b *Bitstamp) ModifyOrder(ctx context.Context, action *order.Modify) (order.Modify, error) {
-	return order.Modify{}, common.ErrFunctionNotSupported
+func (b *Bitstamp) ModifyOrder(_ context.Context, _ *order.Modify) (*order.Modify, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number
@@ -730,7 +730,8 @@ func (b *Bitstamp) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequ
 			orderSide = order.Sell
 		}
 
-		tm, err := parseTime(resp[i].DateTime)
+		var tm time.Time
+		tm, err = parseTime(resp[i].DateTime)
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
 				"%s GetActiveOrders unable to parse time: %s\n", b.Name, err)
@@ -760,8 +761,11 @@ func (b *Bitstamp) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequ
 		}
 	}
 
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
-	order.FilterOrdersByCurrencies(&orders, req.Pairs)
+	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
+	}
+	order.FilterOrdersByPairs(&orders, req.Pairs)
 	return orders, nil
 }
 
@@ -829,7 +833,8 @@ func (b *Bitstamp) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequ
 				format.Delimiter)
 		}
 
-		tm, err := parseTime(resp[i].Date)
+		var tm time.Time
+		tm, err = parseTime(resp[i].Date)
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
 				"%s GetOrderHistory unable to parse time: %s\n", b.Name, err)
@@ -843,8 +848,11 @@ func (b *Bitstamp) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequ
 		})
 	}
 
-	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
-	order.FilterOrdersByCurrencies(&orders, req.Pairs)
+	err = order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
+	}
+	order.FilterOrdersByPairs(&orders, req.Pairs)
 	return orders, nil
 }
 
