@@ -400,7 +400,9 @@ func (l *Limits) ConformToAmount(amount float64) float64 {
 }
 
 // GetSnapshot exposes a snapshot of order execution limit values for quick easy
-// use.
+// use. NOTE: This will be deprecated when limit methods are more robust for
+// usage.
+// TODO: Add Limit methods for full MinMaxLevel interaction.
 func (l *Limits) GetSnapshot() (MinMaxLevel, error) {
 	if l == nil {
 		return MinMaxLevel{}, errLimitIsNil
