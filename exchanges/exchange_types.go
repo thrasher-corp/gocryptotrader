@@ -17,8 +17,6 @@ import (
 
 // Endpoint authentication types
 const (
-	RestAuthentication      uint8 = 0
-	WebsocketAuthentication uint8 = 1
 	// Repeated exchange strings
 	// FeeType custom type for calculating fees based on method
 	WireTransfer InternationalBankTransactionType = iota

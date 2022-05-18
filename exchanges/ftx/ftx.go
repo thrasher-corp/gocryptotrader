@@ -1290,7 +1290,7 @@ func (f *FTX) SendAuthHTTPRequest(ctx context.Context, ep exchange.URL, method, 
 // GetFee returns an estimate of fee based on type of transaction
 func (f *FTX) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
 	var fee float64
-	if !f.GetAuthenticatedAPISupport(exchange.RestAuthentication) {
+	if !f.IsRESTAuthenticationSupported() {
 		feeBuilder.FeeType = exchange.OfflineTradeFee
 	}
 	switch feeBuilder.FeeType {
@@ -1697,7 +1697,7 @@ func (f *FTX) LoadCollateralWeightings(ctx context.Context) error {
 	f.collateralWeight.load("ZM", 0.9, 0.85, 0.01)
 	f.collateralWeight.load("ZRX", 0.85, 0.8, 0.001)
 
-	if !f.GetAuthenticatedAPISupport(exchange.RestAuthentication) {
+	if !f.IsRESTAuthenticationSupported() {
 		return nil
 	}
 	coins, err := f.GetCoins(ctx)

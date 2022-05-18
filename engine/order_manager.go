@@ -642,7 +642,7 @@ func (m *OrderManager) processOrders() {
 	}
 	var wg sync.WaitGroup
 	for i := range exchanges {
-		if !exchanges[i].GetAuthenticatedAPISupport(exchange.RestAuthentication) {
+		if !exchanges[i].IsRESTAuthenticationSupported() {
 			continue
 		}
 		log.Debugf(log.OrderMgr,
