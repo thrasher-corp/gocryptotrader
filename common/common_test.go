@@ -702,3 +702,21 @@ func TestGetAssertError(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, ErrTypeAssertFailure)
 	}
 }
+func TestMatchesEmailPattern(t *testing.T) {
+	success := MatchesEmailPattern("someone semail")
+	if success {
+		t.Error("MatchesEmailPattern() unexpected test validation result")
+	}
+	success = MatchesEmailPattern("someon esemail@gmail")
+	if success {
+		t.Error("MatchesEmailPattern() unexpected test validation result")
+	}
+	success = MatchesEmailPattern("123@gmail")
+	if !success {
+		t.Error("MatchesEmailPattern() unexpected test validation result")
+	}
+	success = MatchesEmailPattern("someonesemail@email.com")
+	if !success {
+		t.Error("MatchesEmailPattern() unexpected test validation result")
+	}
+}

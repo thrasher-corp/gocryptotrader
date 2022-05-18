@@ -94,7 +94,7 @@ func (a *TradeStatus) UnmarshalJSON(data []byte) error {
 		return er
 	}
 	if chil.UpdateTime > 0 {
-		a.UpdateTime = time.UnixMilli(int64(chil.UpdateTime))
+		a.UpdateTime = time.UnixMilli(chil.UpdateTime)
 	}
 	return nil
 }
@@ -458,8 +458,8 @@ func (a *wsAccountInfo) UnmarshalJSON(data []byte) error {
 	type Alias wsAccountInfo
 	aux := &struct {
 		Data struct {
-			EventTime   binanceusTime `json:"E"`
-			LastUpdated binanceusTime `json:"u"`
+			EventTime   int64 `json:"E"`
+			LastUpdated int64 `json:"u"`
 			*WsAccountInfoData
 		} `json:"data"`
 		*Alias
@@ -470,8 +470,8 @@ func (a *wsAccountInfo) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	a.Data = *aux.Data.WsAccountInfoData
-	a.Data.EventTime = aux.Data.EventTime.Time()
-	a.Data.LastUpdated = aux.Data.LastUpdated.Time()
+	a.Data.EventTime = time.UnixMilli(aux.Data.EventTime)
+	a.Data.LastUpdated = time.UnixMilli(aux.Data.LastUpdated)
 	return nil
 }
 

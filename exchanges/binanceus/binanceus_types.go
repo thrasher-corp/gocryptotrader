@@ -134,6 +134,18 @@ type AggregatedTradeRequestParams struct {
 	Limit int
 }
 
+// AggregatedTrade holds aggregated trade information
+type AggregatedTrade struct {
+	ATradeID       int64     `json:"a"`
+	Price          float64   `json:"p,string"`
+	Quantity       float64   `json:"q,string"`
+	FirstTradeID   int64     `json:"f"`
+	LastTradeID    int64     `json:"l"`
+	TimeStamp      time.Time `json:"T"`
+	Maker          bool      `json:"m"`
+	BestMatchPrice bool      `json:"M"`
+}
+
 // toTradeData this method converts the AggregatedTrade data into an instance of trade.Data...
 func (a *AggregatedTrade) toTradeData(p currency.Pair, exchange string, aType asset.Item) *trade.Data {
 	return &trade.Data{
@@ -146,18 +158,6 @@ func (a *AggregatedTrade) toTradeData(p currency.Pair, exchange string, aType as
 		AssetType:    aType,
 		Side:         order.AnySide,
 	}
-}
-
-// AggregatedTrade holds aggregated trade information
-type AggregatedTrade struct {
-	ATradeID       int64     `json:"a"`
-	Price          float64   `json:"p,string"`
-	Quantity       float64   `json:"q,string"`
-	FirstTradeID   int64     `json:"f"`
-	LastTradeID    int64     `json:"l"`
-	TimeStamp      time.Time `json:"T"`
-	Maker          bool      `json:"m"`
-	BestMatchPrice bool      `json:"M"`
 }
 
 // OrderBookDataRequestParams represents Klines request data.
@@ -362,7 +362,7 @@ type TransferHistory struct {
 	TimeStamp time.Time `json:"time"`
 }
 
-// SubAccountTransferRequestParams a argument varaibles holder used to transfer an asset from one account to another subaccount
+// SubAccountTransferRequestParams a argument variables holder used to transfer an asset from one account to another subaccount
 // this account has to be present in the sub accounts list information.
 type SubaccountTransferRequestParams struct {
 	FromEmail  string  // Mandatory
@@ -502,8 +502,8 @@ type OCOOrderReportItem struct {
 type OrderRequestParams struct {
 	Symbol            string `json:"symbol"` // REQUIRED
 	OrderID           uint64 `json:"orderId"`
-	OrigClientOrderId string `json:"origClientOrderId"`
-	RecvWindow        uint
+	OrigClientOrderID string `json:"origClientOrderId"`
+	recvWindow        uint
 }
 
 // CancelOrderRequestParams this struct will be used as a parameter for
@@ -532,7 +532,7 @@ type Trade struct {
 	Symbol          string    `json:"symbol"`
 	ID              uint64    `json:"id"`
 	OrderID         uint64    `json:"orderId"`
-	OrderListId     int       `json:"orderListId"`
+	OrderListID     int       `json:"orderListId"`
 	Price           float64   `json:"price"`
 	Qty             float64   `json:"qty"`
 	QuoteQty        float64   `json:"quoteQty"`
@@ -577,11 +577,11 @@ type OrderShortResponse struct {
 
 // OCONewOrderResponse this model is to be used to fetch the respons of create new OCO order response
 type OCOOrderResponse struct {
-	OrderListId       int64                 `json:"orderListId"`
+	OrderListID       int64                 `json:"orderListId"`
 	ContingencyType   string                `json:"contingencyType"`
 	ListStatusType    string                `json:"listStatusType"`
 	ListOrderStatus   string                `json:"listOrderStatus"`
-	ListClientOrderId string                `json:"listClientOrderId"`
+	ListClientOrderID string                `json:"listClientOrderId"`
 	TransactionTime   time.Time             `json:"transactionTime"`
 	Symbol            string                `json:"symbol"`
 	Orders            []*OrderShortResponse `json:"orders"`
@@ -634,7 +634,7 @@ type RequestQuoteParams struct {
 
 // RequestQuote
 type RequestQuote struct {
-	QuoteId        string  `json:"quoteId"`
+	QuoteID        string  `json:"quoteId"`
 	Symbol         string  `json:"symbol"`
 	Ratio          float64 `json:"ratio"`
 	InverseRatio   float64 `json:"inverseRatio"`
@@ -666,7 +666,7 @@ type OTCTradeOrder struct {
 
 // OTCTradeOrderParams request param for Over-the-Counter trade order params.
 type OTCTradeOrderRequestParams struct {
-	OrderId   string
+	OrderID   string
 	FromCoin  string
 	ToCoin    string
 	StartTime *time.Time
@@ -721,7 +721,7 @@ type AssetWalletList []AssetWalletDetail
 type WithdrawalRequestParam struct {
 	Coin            string  `json:"coin"`
 	Network         string  `json:"network"`
-	WithdrawOrderId string  `json:"withdrawOrderId"` // Client ID for withdraw
+	WithdrawOrderID string  `json:"withdrawOrderId"` // Client ID for withdraw
 	Address         string  `json:"address"`
 	AddressTag      string  `json:"addressTag"`
 	Amount          float64 `json:"amount"`
@@ -776,7 +776,7 @@ type WithdrawFiatRequestParams struct {
 // FiatWithdrawalRequestParams to fetch your fiat (USD) withdrawal history.
 type FiatWithdrawalRequestParams struct {
 	FiatCurrency   string
-	OrderId        string
+	OrderID        string
 	Offset         int
 	PaymentChannel string
 	PaymentMethod  string

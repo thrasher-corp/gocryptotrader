@@ -32,8 +32,8 @@ const (
 )
 
 var (
-	// EmailRX represents email address maching pattern
-	EmailRX = regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+\\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
+	// emailRX represents email address matching pattern
+	emailRX = regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+\\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
 )
 
 // Vars for common.go operations
@@ -67,9 +67,12 @@ var (
 	ErrTypeAssertFailure = errors.New("type assert failure")
 )
 
-// MatchesPattern PATTERN , REGULAR EXPRESION
+// MatchesEmailPattern ensures that the string is an email address by regexp check
 func MatchesEmailPattern(value string) bool {
-	return value != "" && !EmailRX.MatchString(value)
+	if len(value) < 3 || len(value) > 254 {
+		return false
+	}
+	return emailRX.MatchString(value)
 }
 
 // SetHTTPClientWithTimeout sets a new *http.Client with different timeout
