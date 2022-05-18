@@ -381,7 +381,7 @@ func (c *CoinbasePro) GenerateDefaultSubscriptions() ([]stream.ChannelSubscripti
 	var subscriptions []stream.ChannelSubscription
 	for i := range channels {
 		if (channels[i] == "user" || channels[i] == "full") &&
-			!c.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+			!c.IsWebsocketAuthenticationSupported() {
 			continue
 		}
 		for j := range enabledCurrencies {
@@ -404,7 +404,7 @@ func (c *CoinbasePro) GenerateDefaultSubscriptions() ([]stream.ChannelSubscripti
 func (c *CoinbasePro) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
 	var creds *account.Credentials
 	var err error
-	if c.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+	if c.IsWebsocketAuthenticationSupported() {
 		creds, err = c.GetCredentials(context.TODO())
 		if err != nil {
 			return err

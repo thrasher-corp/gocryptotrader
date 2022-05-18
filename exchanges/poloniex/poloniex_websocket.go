@@ -14,7 +14,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -523,7 +522,7 @@ func (p *Poloniex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription,
 		Channel: strconv.FormatInt(wsTickerDataID, 10),
 	})
 
-	if p.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+	if p.IsWebsocketAuthenticationSupported() {
 		subscriptions = append(subscriptions, stream.ChannelSubscription{
 			Channel: strconv.FormatInt(wsAccountNotificationID, 10),
 		})
@@ -543,7 +542,7 @@ func (p *Poloniex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription,
 // Subscribe sends a websocket message to receive data from the channel
 func (p *Poloniex) Subscribe(sub []stream.ChannelSubscription) error {
 	var creds *account.Credentials
-	if p.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+	if p.IsWebsocketAuthenticationSupported() {
 		var err error
 		creds, err = p.GetCredentials(context.TODO())
 		if err != nil {
@@ -590,7 +589,7 @@ channels:
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (p *Poloniex) Unsubscribe(unsub []stream.ChannelSubscription) error {
 	var creds *account.Credentials
-	if p.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+	if p.IsWebsocketAuthenticationSupported() {
 		var err error
 		creds, err = p.GetCredentials(context.TODO())
 		if err != nil {

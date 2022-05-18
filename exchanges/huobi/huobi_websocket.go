@@ -104,7 +104,7 @@ func (h *HUOBI) wsDial(dialer *websocket.Dialer) error {
 }
 
 func (h *HUOBI) wsAuthenticatedDial(dialer *websocket.Dialer) error {
-	if !h.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+	if !h.IsWebsocketAuthenticationSupported() {
 		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled",
 			h.Name)
 	}
@@ -637,7 +637,7 @@ func (h *HUOBI) wsGenerateSignature(creds *account.Credentials, timestamp, endpo
 }
 
 func (h *HUOBI) wsLogin(ctx context.Context) error {
-	if !h.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+	if !h.IsWebsocketAuthenticationSupported() {
 		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", h.Name)
 	}
 	creds, err := h.GetCredentials(ctx)

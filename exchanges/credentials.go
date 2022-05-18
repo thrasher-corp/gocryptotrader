@@ -248,14 +248,14 @@ func (b *Base) SetAPICredentialDefaults() {
 	}
 }
 
-// GetAuthenticatedAPISupport returns whether the exchange supports
-// authenticated API requests
-func (b *Base) GetAuthenticatedAPISupport(endpoint uint8) bool {
-	switch endpoint {
-	case RestAuthentication:
-		return b.API.AuthenticatedSupport
-	case WebsocketAuthentication:
-		return b.API.AuthenticatedWebsocketSupport
-	}
-	return false
+// IsWebsocketAuthenticationSupported returns whether the exchange supports
+// websocket authenticated API requests
+func (b *Base) IsWebsocketAuthenticationSupported() bool {
+	return b.API.AuthenticatedWebsocketSupport
+}
+
+// IsRESTAuthenticationSupported returns whether the exchange supports REST authenticated
+// API requests
+func (b *Base) IsRESTAuthenticationSupported() bool {
+	return b.API.AuthenticatedSupport
 }

@@ -244,7 +244,7 @@ func (m *portfolioManager) getExchangeAccountInfo(exchanges []exchange.IBotExcha
 		if !exchanges[x].IsEnabled() {
 			continue
 		}
-		if !exchanges[x].GetAuthenticatedAPISupport(exchange.RestAuthentication) {
+		if !exchanges[x].IsRESTAuthenticationSupported() {
 			if m.base.Verbose {
 				log.Debugf(log.PortfolioMgr,
 					"skipping %s due to disabled authenticated API support.\n",
