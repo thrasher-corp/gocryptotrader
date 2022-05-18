@@ -1,13 +1,10 @@
 package alert
 
 import (
+	"errors"
 	"sync"
 	"sync/atomic"
 )
-
-// pool is a silent shared pool between all notice instances for alerting
-// external routines waiting on a state change.
-var pool = sync.Pool{New: func() interface{} { return make(chan bool) }}
 
 const (
 	inactive = uint32(iota)
@@ -15,8 +12,38 @@ const (
 	alerting
 
 	dataToActuatorDefaultBuffer = 1
-	preAllocCommsDefaultBuffer  = 5
+	PreAllocCommsDefaultBuffer  = 5
 )
+
+var (
+	// pool is a silent shared pool between all notice instances for alerting
+	// external routines waiting on a state change.
+	pool = sync.Pool{New: func() interface{} { return make(chan bool) }}
+
+	preAllocBufferSize = PreAllocCommsDefaultBuffer
+	mu                 sync.RWMutex
+
+	errInvalidBufferSize = errors.New("invalid buffer size cannot be equal or less than zero")
+)
+
+// SetPreAllocationCommsBuffer sets buffer size of the pre-allocated comms.
+func SetPreAllocationCommsBuffer(size int) error {
+	if size <= 0 {
+		return errInvalidBufferSize
+	}
+	mu.Lock()
+	preAllocBufferSize = size
+	mu.Unlock()
+	return nil
+}
+
+// SetDefaultPreAllocationCommsBuffer sets default buffer size of the
+// pre-allocated comms.
+func SetDefaultPreAllocationCommsBuffer() {
+	mu.Lock()
+	preAllocBufferSize = PreAllocCommsDefaultBuffer
+	mu.Unlock()
+}
 
 // Notice defines fields required to alert sub-systems of a change of state so a
 // routine can re-check in memory data
@@ -97,7 +124,9 @@ func (n *Notice) Wait(kick <-chan struct{}) chan bool {
 	n.mu.Lock()
 	if atomic.CompareAndSwapUint32(&n.sema, inactive, active) {
 		if n.alerters == nil {
-			n.alerters = make(chan chan struct{}, preAllocCommsDefaultBuffer)
+			mu.RLock()
+			n.alerters = make(chan chan struct{}, preAllocBufferSize)
+			mu.RUnlock()
 			go n.generator()
 		}
 		n.forAlert = <-n.alerters

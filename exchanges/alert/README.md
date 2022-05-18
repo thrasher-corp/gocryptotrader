@@ -45,9 +45,9 @@ func (s *SomeChangingType) Update(newValue int64) {
 	s.mu.Unlock()
 }
 
-// WhatsTheValueScott will retrieve the value that was changed and should be
+// WhatsTheValue will retrieve the value that was changed and should be
 // different from the past value. Efficiency++
-func (s *SomeChangingType) WhatsTheValueScott() int64 {
+func (s *SomeChangingType) WhatsTheValue() int64 {
 	s.mu.Lock()
 	scottsValue := s.ValueThatChanges
 	s.mu.Unlock()
@@ -67,7 +67,7 @@ func ExampleRoutineThatWaits(potentialChange *SomeChangingType) {
 	// to the shared nature of the underlying channels using a sync.Pool.
 	// Every iteration requires a Wait() call.
 	for range potentialChange.Wait(nil) {
-		supaVal := potentialChange.WhatsTheValueScott()
+		supaVal := potentialChange.WhatsTheValue()
 		fmt.Println("WOW:", supaVal)
 	}
 }
