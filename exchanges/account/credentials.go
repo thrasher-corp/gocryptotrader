@@ -10,13 +10,13 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
-// contextCredential is a string flag for use with context values when setting
+// ContextCredential is a string flag for use with context values when setting
 // credentials internally or via gRPC.
-type contextCredential string
+type ContextCredential string
 
 const (
-	ContextCredentialsFlag contextCredential = "apicredentials"
-	ContextSubAccountFlag  contextCredential = "subaccountoverride"
+	ContextCredentialsFlag ContextCredential = "apicredentials"
+	ContextSubAccountFlag  ContextCredential = "subaccountoverride"
 
 	Key             = "key"
 	Secret          = "secret"
@@ -77,7 +77,7 @@ func (c *Credentials) String() string {
 }
 
 // GetInternal returns the values for assignment to an internal context
-func (c *Credentials) GetInternal() (contextCredential, *ContextCredentialsStore) {
+func (c *Credentials) GetInternal() (ContextCredential, *ContextCredentialsStore) {
 	if c.IsEmpty() {
 		return "", nil
 	}
