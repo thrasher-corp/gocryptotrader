@@ -34,9 +34,9 @@ const (
 	wsTrades            = "trade"
 	wsKlines            = "kline"
 
-	wsAccountInfoStr = "outboundAccountInfo"
-	wsOrderStr       = "executionReport"
-	wsOrderFilledStr = "ticketInfo"
+	wsAccountInfo    = "outboundAccountInfo"
+	wsOrderExecution = "executionReport"
+	wsOrderFilled    = "ticketInfo"
 
 	sub    = "sub"    // event for subscribe
 	cancel = "cancel" // event for unsubscribe
@@ -366,84 +366,94 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 			return nil
 		}
 	case []interface{}:
-		if obj, ok := d[0].(map[string]interface{}); ok {
-			if e, ok := obj["e"].(string); ok {
-				switch e {
-				case wsAccountInfoStr:
-					var data []wsAccountInfo
-					err := json.Unmarshal(respRaw, &data)
-					if err != nil {
-						return fmt.Errorf("%v - Could not convert to outboundAccountInfo structure %s",
-							by.Name,
-							err)
-					}
-					by.Websocket.DataHandler <- data[0]
-					return nil
-				case wsOrderStr:
-					var data []wsOrderUpdate
-					err := json.Unmarshal(respRaw, &data)
-					if err != nil {
-						return fmt.Errorf("%v - Could not convert to executionReport structure %s",
-							by.Name,
-							err)
-					}
-					oType, err := order.StringToOrderType(data[0].OrderType)
+		for i := range d {
+			obj, ok := d[i].(map[string]interface{})
+			if !ok {
+				return common.GetAssertError("map[string]interface{}", d[i])
+			}
+			e, ok := obj["e"].(string)
+			if !ok {
+				return common.GetAssertError("string", obj["e"])
+			}
+
+			switch e {
+			case wsAccountInfo:
+				var data []wsAccount
+				err := json.Unmarshal(respRaw, &data)
+				if err != nil {
+					return fmt.Errorf("%v - Could not convert to outboundAccountInfo structure %w",
+						by.Name,
+						err)
+				}
+				by.Websocket.DataHandler <- data
+				return nil
+			case wsOrderExecution:
+				var data []wsOrderUpdate
+				err := json.Unmarshal(respRaw, &data)
+				if err != nil {
+					return fmt.Errorf("%v - Could not convert to executionReport structure %w",
+						by.Name,
+						err)
+				}
+
+				for j := range data {
+					oType, err := order.StringToOrderType(data[j].OrderType)
 					if err != nil {
 						by.Websocket.DataHandler <- order.ClassificationError{
 							Exchange: by.Name,
-							OrderID:  data[0].OrderID,
+							OrderID:  data[j].OrderID,
 							Err:      err,
 						}
 					}
 					var oSide order.Side
-					oSide, err = order.StringToOrderSide(data[0].Side)
+					oSide, err = order.StringToOrderSide(data[j].Side)
 					if err != nil {
 						by.Websocket.DataHandler <- order.ClassificationError{
 							Exchange: by.Name,
-							OrderID:  data[0].OrderID,
+							OrderID:  data[j].OrderID,
 							Err:      err,
 						}
 					}
 					var oStatus order.Status
-					oStatus, err = stringToOrderStatus(data[0].OrderStatus)
+					oStatus, err = stringToOrderStatus(data[j].OrderStatus)
 					if err != nil {
 						by.Websocket.DataHandler <- order.ClassificationError{
 							Exchange: by.Name,
-							OrderID:  data[0].OrderID,
+							OrderID:  data[j].OrderID,
 							Err:      err,
 						}
 					}
 
-					p, err := by.extractCurrencyPair(data[0].Symbol, asset.Spot)
+					p, err := by.extractCurrencyPair(data[j].Symbol, asset.Spot)
 					if err != nil {
 						return err
 					}
 
-					oTimeInMilliSec, err := strconv.ParseInt(data[0].OrderCreationTime, 10, 64)
+					oTimeInMilliSec, err := strconv.ParseInt(data[j].OrderCreationTime, 10, 64)
 					if err != nil {
 						return err
 					}
 
-					by.Websocket.DataHandler <- &order.Detail{
-						Price:           data[0].Price,
-						Amount:          data[0].Quantity,
-						ExecutedAmount:  data[0].CumulativeFilledQuantity,
-						RemainingAmount: data[0].Quantity - data[0].CumulativeFilledQuantity,
+					by.Websocket.DataHandler <- order.Detail{
+						Price:           data[j].Price,
+						Amount:          data[j].Quantity,
+						ExecutedAmount:  data[j].CumulativeFilledQuantity,
+						RemainingAmount: data[j].Quantity - data[j].CumulativeFilledQuantity,
 						Exchange:        by.Name,
-						ID:              data[0].OrderID,
+						ID:              data[j].OrderID,
 						Type:            oType,
 						Side:            oSide,
 						Status:          oStatus,
 						AssetType:       asset.Spot,
 						Date:            time.UnixMilli(oTimeInMilliSec),
 						Pair:            p,
-						ClientOrderID:   data[0].ClientOrderID,
+						ClientOrderID:   data[j].ClientOrderID,
 					}
-					return nil
-				case wsOrderFilledStr:
-					// already handled in wsOrderStr case
-					return nil
 				}
+				return nil
+			case wsOrderFilled:
+				// already handled in wsOrderExecution case
+				return nil
 			}
 		}
 	}
