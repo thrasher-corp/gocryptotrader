@@ -94,10 +94,6 @@ func (c *CustomEx) UpdateAccountInfo(ctx context.Context, a asset.Item) (account
 	return account.Holdings{}, nil
 }
 
-func (c *CustomEx) GetAuthenticatedAPISupport(endpoint uint8) bool {
-	return false
-}
-
 func (c *CustomEx) SetPairs(pairs currency.Pairs, a asset.Item, enabled bool) error {
 	return nil
 }
@@ -150,8 +146,8 @@ func (c *CustomEx) SubmitOrder(ctx context.Context, s *order.Submit) (order.Subm
 	return order.SubmitResponse{}, nil
 }
 
-func (c *CustomEx) ModifyOrder(ctx context.Context, action *order.Modify) (order.Modify, error) {
-	return order.Modify{}, nil
+func (c *CustomEx) ModifyOrder(_ context.Context, _ *order.Modify) (*order.Modify, error) {
+	return nil, nil
 }
 
 func (c *CustomEx) CancelOrder(ctx context.Context, o *order.Cancel) error {

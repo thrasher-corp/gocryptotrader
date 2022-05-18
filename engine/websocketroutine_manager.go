@@ -33,14 +33,15 @@ func setupWebsocketRoutineManager(exchangeManager iExchangeManager, orderManager
 	if cfg.CurrencyPairFormat == nil && verbose {
 		return nil, errNilCurrencyPairFormat
 	}
-	return &websocketRoutineManager{
+	man := &websocketRoutineManager{
 		verbose:         verbose,
 		exchangeManager: exchangeManager,
 		orderManager:    orderManager,
 		syncer:          syncer,
 		currencyConfig:  cfg,
 		shutdown:        make(chan struct{}),
-	}, nil
+	}
+	return man, man.registerWebsocketDataHandler(man.websocketDataHandler, false)
 }
 
 // Start runs the subsystem
@@ -113,7 +114,12 @@ func (m *websocketRoutineManager) websocketRoutine() {
 					if err != nil {
 						log.Errorf(log.WebsocketMgr, "%v", err)
 					}
-					go m.WebsocketDataReceiver(ws)
+
+					err = m.websocketDataReceiver(ws)
+					if err != nil {
+						log.Errorf(log.WebsocketMgr, "%v", err)
+					}
+
 					err = ws.FlushChannels()
 					if err != nil {
 						log.Errorf(log.WebsocketMgr, "Failed to subscribe: %v", err)
@@ -131,34 +137,48 @@ func (m *websocketRoutineManager) websocketRoutine() {
 
 // WebsocketDataReceiver handles websocket data coming from a websocket feed
 // associated with an exchange
-func (m *websocketRoutineManager) WebsocketDataReceiver(ws *stream.Websocket) {
-	if m == nil || atomic.LoadInt32(&m.started) == 0 {
-		return
+func (m *websocketRoutineManager) websocketDataReceiver(ws *stream.Websocket) error {
+	if m == nil {
+		return fmt.Errorf("websocket routine manager %w", ErrNilSubsystem)
 	}
-	m.wg.Add(1)
-	defer m.wg.Done()
 
-	for {
-		select {
-		case <-m.shutdown:
-			return
-		case data := <-ws.ToRoutine:
-			err := m.WebsocketDataHandler(ws.GetName(), data)
-			if err != nil {
-				log.Error(log.WebsocketMgr, err)
+	if ws == nil {
+		return errNilWebsocket
+	}
+
+	if atomic.LoadInt32(&m.started) == 0 {
+		return errRoutineManagerNotStarted
+	}
+
+	m.wg.Add(1)
+	go func() {
+		defer m.wg.Done()
+		for {
+			select {
+			case <-m.shutdown:
+				return
+			case data := <-ws.ToRoutine:
+				if data == nil {
+					log.Errorf(log.WebsocketMgr, "exchange %s nil data sent to websocket", ws.GetName())
+				}
+				m.mu.RLock()
+				for x := range m.dataHandlers {
+					err := m.dataHandlers[x](ws.GetName(), data)
+					if err != nil {
+						log.Error(log.WebsocketMgr, err)
+					}
+				}
+				m.mu.RUnlock()
 			}
 		}
-	}
+	}()
+	return nil
 }
 
-// WebsocketDataHandler is a central point for exchange websocket implementations to send
-// processed data. WebsocketDataHandler will then pass that to an appropriate handler
-func (m *websocketRoutineManager) WebsocketDataHandler(exchName string, data interface{}) error {
-	if data == nil {
-		return fmt.Errorf("exchange %s nil data sent to websocket",
-			exchName)
-	}
-
+// websocketDataHandler is the default central point for exchange websocket
+// implementations to send processed data which will then pass that to an
+// appropriate handler.
+func (m *websocketRoutineManager) websocketDataHandler(exchName string, data interface{}) error {
 	switch d := data.(type) {
 	case string:
 		log.Info(log.WebsocketMgr, d)
@@ -337,4 +357,44 @@ func (m *websocketRoutineManager) printAccountHoldingsChangeSummary(o account.Ch
 		o.Currency,
 		o.Amount,
 		o.Account)
+}
+
+// registerWebsocketDataHandler registers an externally (GCT Library) defined
+// dedicated filter specific data types for internal & external strategy use.
+// InterceptorOnly as true will purge all other registered handlers
+// (including default) bypassing all other handling.
+func (m *websocketRoutineManager) registerWebsocketDataHandler(fn WebsocketDataHandler, interceptorOnly bool) error {
+	if m == nil {
+		return fmt.Errorf("%T %w", m, ErrNilSubsystem)
+	}
+
+	if fn == nil {
+		return errNilWebsocketDataHandlerFunction
+	}
+
+	if interceptorOnly {
+		return m.setWebsocketDataHandler(fn)
+	}
+
+	m.mu.Lock()
+	// Push front so that any registered data handler has first preference
+	// over the gct default handler.
+	m.dataHandlers = append([]WebsocketDataHandler{fn}, m.dataHandlers...)
+	m.mu.Unlock()
+	return nil
+}
+
+// setWebsocketDataHandler sets a single websocket data handler, removing all
+// pre-existing handlers.
+func (m *websocketRoutineManager) setWebsocketDataHandler(fn WebsocketDataHandler) error {
+	if m == nil {
+		return fmt.Errorf("%T %w", m, ErrNilSubsystem)
+	}
+	if fn == nil {
+		return errNilWebsocketDataHandlerFunction
+	}
+	m.mu.Lock()
+	m.dataHandlers = []WebsocketDataHandler{fn}
+	m.mu.Unlock()
+	return nil
 }

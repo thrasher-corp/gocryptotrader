@@ -466,7 +466,14 @@ func (d *Detail) GenerateInternalOrderID() {
 	}
 }
 
-// Copy will return a copy of Detail
+// CopyToPointer will return the address of a new copy of the order Detail
+// WARNING: DO NOT DEREFERENCE USE METHOD Copy().
+func (d *Detail) CopyToPointer() *Detail {
+	c := d.Copy()
+	return &c
+}
+
+// Copy makes a full copy of underlying details NOTE: This is Addressable.
 func (d *Detail) Copy() Detail {
 	c := *d
 	if len(d.Trades) > 0 {
@@ -474,6 +481,16 @@ func (d *Detail) Copy() Detail {
 		copy(c.Trades, d.Trades)
 	}
 	return c
+}
+
+// CopyPointerOrderSlice returns a copy of all order detail and returns a slice
+// of pointers.
+func CopyPointerOrderSlice(old []*Detail) []*Detail {
+	copySlice := make([]*Detail, len(old))
+	for x := range old {
+		copySlice[x] = old[x].CopyToPointer()
+	}
+	return copySlice
 }
 
 // String implements the stringer interface
@@ -902,7 +919,7 @@ func StringToOrderStatus(status string) (Status, error) {
 	switch status {
 	case AnyStatus.String():
 		return AnyStatus, nil
-	case New.String(), "PLACED":
+	case New.String(), "PLACED", "ACCEPTED":
 		return New, nil
 	case Active.String(), "STATUS_ACTIVE":
 		return Active, nil
@@ -920,7 +937,7 @@ func StringToOrderStatus(status string) (Status, error) {
 		return Cancelled, nil
 	case PendingCancel.String(), "PENDING CANCEL", "PENDING CANCELLATION":
 		return PendingCancel, nil
-	case Rejected.String():
+	case Rejected.String(), "FAILED":
 		return Rejected, nil
 	case Expired.String():
 		return Expired, nil
