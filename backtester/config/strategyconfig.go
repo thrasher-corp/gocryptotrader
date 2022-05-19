@@ -31,10 +31,12 @@ func ReadBacktesterConfigFromPath(path string) (*BacktesterConfig, error) {
 	return loadBacktesterConfig(fileData)
 }
 
+var ErrFileNotFound = errors.New("file not found")
+
 // ReadStrategyConfigFromFile will take a config from a path
 func ReadStrategyConfigFromFile(path string) (*Config, error) {
 	if !file.Exists(path) {
-		return nil, errors.New("file not found")
+		return nil, fmt.Errorf("%w %v", ErrFileNotFound, path)
 	}
 
 	fileData, err := os.ReadFile(path)

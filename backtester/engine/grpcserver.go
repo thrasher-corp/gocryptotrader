@@ -12,6 +12,7 @@ import (
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/btrpc"
+	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -149,6 +150,9 @@ func (s *GRPCServer) authenticateClient(ctx context.Context) (context.Context, e
 
 // ExecuteStrategyFromFile will backtest a strategy from the filepath provided
 func (s *GRPCServer) ExecuteStrategyFromFile(_ context.Context, request *btrpc.ExecuteStrategyFromFileRequest) (*btrpc.ExecuteStrategyResponse, error) {
+	if request == nil {
+		return nil, fmt.Errorf("%w nil request", common.ErrNilArguments)
+	}
 	dir := request.StrategyFilePath
 	cfg, err := config.ReadStrategyConfigFromFile(dir)
 	if err != nil {
