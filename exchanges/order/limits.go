@@ -208,7 +208,7 @@ func (e *ExecutionLimits) CheckOrderExecutionLimits(a asset.Item, cp currency.Pa
 }
 
 // Conforms checks outbound parameters
-func (m MinMaxLevel) Conforms(price, amount float64, orderType Type) error {
+func (m *MinMaxLevel) Conforms(price, amount float64, orderType Type) error {
 	if m.MinAmount != 0 && amount < m.MinAmount {
 		return fmt.Errorf("%w min: %.8f supplied %.8f",
 			ErrAmountBelowMin,
@@ -315,7 +315,7 @@ func (m MinMaxLevel) Conforms(price, amount float64, orderType Type) error {
 }
 
 // ConformToDecimalAmount (POC) conforms amount to its amount interval
-func (m MinMaxLevel) ConformToDecimalAmount(amount decimal.Decimal) decimal.Decimal {
+func (m *MinMaxLevel) ConformToDecimalAmount(amount decimal.Decimal) decimal.Decimal {
 	dStep := decimal.NewFromFloat(m.StepIncrementSizeAmount)
 	if dStep.IsZero() || amount.Equal(dStep) {
 		return amount
@@ -330,9 +330,8 @@ func (m MinMaxLevel) ConformToDecimalAmount(amount decimal.Decimal) decimal.Deci
 }
 
 // ConformToAmount (POC) conforms amount to its amount interval
-func (m MinMaxLevel) ConformToAmount(amount float64) float64 {
-	if m.StepIncrementSizeAmount == 0 ||
-		amount == m.StepIncrementSizeAmount {
+func (m *MinMaxLevel) ConformToAmount(amount float64) float64 {
+	if m.StepIncrementSizeAmount == 0 || amount == m.StepIncrementSizeAmount {
 		return amount
 	}
 
