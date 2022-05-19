@@ -1,15 +1,11 @@
-{{define "backtester engine" -}}
+{{define "engine live" -}}
 {{template "backtester-header" .}}
 ## {{.CapitalName}} package overview
 
-The engine package is the most important package of the GoCryptoTrader backtester. It is the engine which combines all elements.
+The backtest package is responsible for handling all events. It is the engine which combines all elements.
 It is responsible for the following functionality
-- Loading settings from a provided config file
-- Retrieving data
-- Loading the data into assessable chunks
 - Analysing the data via the `handleEvent` function
 - Looping through all data
-- Outputting results into a report
 
 
 A flow of the application is as follows:

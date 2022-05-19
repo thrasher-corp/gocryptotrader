@@ -538,7 +538,7 @@ func UpdateDocumentation(details DocumentationDetails) {
 			}
 			continue
 		}
-		if name == engineFolder {
+		if strings.Contains(name, engineFolder) {
 			d, err := os.ReadDir(details.Directories[i])
 			if err != nil {
 				fmt.Println("Excluding file:", err)

@@ -1,0 +1,18 @@
+{{define "engine backtest" -}}
+{{template "backtester-header" .}}
+## {{.CapitalName}} package overview
+
+The backtest package is responsible for handling all events. It is the engine which combines all elements.
+It is responsible for the following functionality
+- Analysing the data via the `handleEvent` function
+- Looping through all data
+
+
+A flow of the application is as follows:
+![workflow](https://i.imgur.com/Kup6IA9.png)
+
+
+### Please click GoDocs chevron above to view current GoDoc information for this package
+{{template "contributions"}}
+{{template "donations" .}}
+{{end}}
