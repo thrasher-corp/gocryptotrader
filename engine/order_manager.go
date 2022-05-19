@@ -116,36 +116,29 @@ func (m *OrderManager) run() {
 }
 
 // CancelAllOrders iterates and cancels all orders for each exchange provided
-func (m *OrderManager) CancelAllOrders(ctx context.Context, exchangeNames []exchange.IBotExchange) {
+func (m *OrderManager) CancelAllOrders(ctx context.Context, exchanges []exchange.IBotExchange) {
 	if m == nil || atomic.LoadInt32(&m.started) == 0 {
 		return
 	}
 
-	orders := m.orderStore.get()
-	if orders == nil {
+	allOrders := m.orderStore.get()
+	if len(allOrders) == 0 {
 		return
 	}
 
-	for i := range exchangeNames {
-		exchangeOrders, ok := orders[strings.ToLower(exchangeNames[i].GetName())]
+	for i := range exchanges {
+		orders, ok := allOrders[strings.ToLower(exchanges[i].GetName())]
 		if !ok {
 			continue
 		}
-		for j := range exchangeOrders {
-			log.Debugf(log.OrderMgr,
-				"Order manager: Cancelling order(s) for exchange %s.",
-				exchangeNames[i].GetName())
-			err := m.Cancel(ctx, &order.Cancel{
-				Exchange:      exchangeOrders[j].Exchange,
-				ID:            exchangeOrders[j].ID,
-				AccountID:     exchangeOrders[j].AccountID,
-				ClientID:      exchangeOrders[j].ClientID,
-				WalletAddress: exchangeOrders[j].WalletAddress,
-				Type:          exchangeOrders[j].Type,
-				Side:          exchangeOrders[j].Side,
-				Pair:          exchangeOrders[j].Pair,
-				AssetType:     exchangeOrders[j].AssetType,
-			})
+		for j := range orders {
+			log.Debugf(log.OrderMgr, "Order manager: Cancelling order(s) for exchange %s.", exchanges[i].GetName())
+			cancel, err := orders[j].DeriveCancel()
+			if err != nil {
+				log.Error(log.OrderMgr, err)
+				continue
+			}
+			err = m.Cancel(ctx, cancel)
 			if err != nil {
 				log.Error(log.OrderMgr, err)
 			}
