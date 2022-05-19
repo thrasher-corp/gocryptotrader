@@ -182,9 +182,13 @@ func validateSettings(b *Engine, s *Settings, flagSet FlagSet) {
 
 	flagSet.WithBool("grpc", &b.Settings.EnableGRPC, b.Config.RemoteControl.GRPC.Enabled)
 	flagSet.WithBool("grpcproxy", &b.Settings.EnableGRPCProxy, b.Config.RemoteControl.GRPC.GRPCProxyEnabled)
+
+	flagSet.WithBool("grpcshutdown", &b.Settings.EnableGRPCShutdown, b.Config.RemoteControl.GRPC.GRPCAllowBotShutdown)
 	if b.Settings.EnableGRPCShutdown {
 		b.GRPCShutdownSignal = make(chan struct{})
+		go b.waitForGPRCShutdown()
 	}
+
 	flagSet.WithBool("websocketrpc", &b.Settings.EnableWebsocketRPC, b.Config.RemoteControl.WebsocketRPC.Enabled)
 	flagSet.WithBool("deprecatedrpc", &b.Settings.EnableDeprecatedRPC, b.Config.RemoteControl.DeprecatedRPC.Enabled)
 
@@ -972,4 +976,12 @@ func (bot *Engine) SetDefaultWebsocketDataHandler() error {
 		return errNilBot
 	}
 	return bot.websocketRoutineManager.setWebsocketDataHandler(bot.websocketRoutineManager.websocketDataHandler)
+}
+
+// waitForGPRCShutdown routines waits for a signal from the grpc server to
+// send a shutdown signal.
+func (bot *Engine) waitForGPRCShutdown() {
+	<-bot.GRPCShutdownSignal
+	gctlog.Warnln(gctlog.Global, "Captured gRPC, shutdown requested.")
+	bot.Settings.Shutdown <- struct{}{}
 }

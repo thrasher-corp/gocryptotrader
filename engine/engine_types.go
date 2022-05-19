@@ -91,6 +91,9 @@ type Settings struct {
 
 	// Withdraw settings
 	WithdrawCacheSize uint64
+
+	// Main shutdown channel
+	Shutdown chan struct{}
 }
 
 const (

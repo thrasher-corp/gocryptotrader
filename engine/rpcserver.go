@@ -69,7 +69,7 @@ var (
 	errNoTrades                = errors.New("no trades returned from supplied params")
 	errNilRequestData          = errors.New("nil request data received, cannot continue")
 	errNoAccountInformation    = errors.New("account information does not exist")
-	errShutdownNotAllowed      = errors.New("shutting down this bot instance is not allowed via gRPC, please enable by command line flag --grpcshutdown")
+	errShutdownNotAllowed      = errors.New("shutting down this bot instance is not allowed via gRPC, please enable by command line flag --grpcshutdown or config.json")
 	errGRPCShutdownSignalIsNil = errors.New("cannot shutdown, grpc shutdown channel is nil")
 )
 

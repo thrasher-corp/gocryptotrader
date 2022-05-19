@@ -128,6 +128,7 @@ func main() {
 		settings.ConfigFile = ""
 	}
 
+	settings.Shutdown = make(chan struct{})
 	engine.Bot, err = engine.NewFromSettings(&settings, flagSet)
 	if engine.Bot == nil || err != nil {
 		log.Fatalf("Unable to initialise bot engine. Error: %s\n", err)
@@ -142,12 +143,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	waiter := make(chan struct{})
-	go waitForInterupt(waiter)
-	if engine.Bot.Settings.EnableGRPCShutdown {
-		go waitForGPRCShutdown(engine.Bot, waiter)
-	}
-	<-waiter
+	go waitForInterupt(settings.Shutdown)
+	<-settings.Shutdown
 	engine.Bot.Stop()
 	gctlog.Infoln(gctlog.Global, "Exiting.")
 }
@@ -155,11 +152,5 @@ func main() {
 func waitForInterupt(waiter chan<- struct{}) {
 	interrupt := signaler.WaitForInterrupt()
 	gctlog.Infof(gctlog.Global, "Captured %v, shutdown requested.\n", interrupt)
-	waiter <- struct{}{}
-}
-
-func waitForGPRCShutdown(bot *engine.Engine, waiter chan<- struct{}) {
-	<-bot.GRPCShutdownSignal
-	gctlog.Warnln(gctlog.Global, "Captured gRPC, shutdown requested.")
 	waiter <- struct{}{}
 }
