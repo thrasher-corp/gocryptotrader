@@ -445,6 +445,25 @@ func (m *Modify) DeriveModifyResponse() (*ModifyResponse, error) {
 	}, nil
 }
 
+// DeriveCancel populates a cancel struct by the managed order details
+func (d *Detail) DeriveCancel() (*Cancel, error) {
+	if d == nil {
+		return nil, errOrderDetailIsNil
+	}
+	return &Cancel{
+		Exchange:      d.Exchange,
+		ID:            d.ID,
+		AccountID:     d.AccountID,
+		ClientID:      d.ClientID,
+		ClientOrderID: d.ClientOrderID,
+		WalletAddress: d.WalletAddress,
+		Type:          d.Type,
+		Side:          d.Side,
+		Pair:          d.Pair,
+		AssetType:     d.AssetType,
+	}, nil
+}
+
 // String implements the stringer interface
 func (t Type) String() string {
 	switch t {

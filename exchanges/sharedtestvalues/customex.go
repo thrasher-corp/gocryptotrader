@@ -94,10 +94,6 @@ func (c *CustomEx) UpdateAccountInfo(ctx context.Context, a asset.Item) (account
 	return account.Holdings{}, nil
 }
 
-func (c *CustomEx) GetAuthenticatedAPISupport(endpoint uint8) bool {
-	return false
-}
-
 func (c *CustomEx) SetPairs(pairs currency.Pairs, a asset.Item, enabled bool) error {
 	return nil
 }

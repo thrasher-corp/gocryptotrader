@@ -27,7 +27,6 @@ type omfExchange struct {
 // CancelOrder overrides testExchange's cancel order function
 // to do the bare minimum required with no API calls or credentials required
 func (f omfExchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
-	o.Status = order.Cancelled
 	return nil
 }
 
@@ -417,9 +416,7 @@ func TestCancelOrder(t *testing.T) {
 		Exchange:  testExchange,
 		ID:        "1337",
 		Side:      order.Sell,
-		Status:    order.New,
 		AssetType: asset.Spot,
-		Date:      time.Now(),
 		Pair:      pair,
 	}
 	err = m.Cancel(context.Background(), cancel)
