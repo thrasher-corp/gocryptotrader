@@ -70,7 +70,7 @@ var (
 	errNilRequestData          = errors.New("nil request data received, cannot continue")
 	errNoAccountInformation    = errors.New("account information does not exist")
 	errShutdownNotAllowed      = errors.New("shutting down this bot instance is not allowed via gRPC, please enable by command line flag --grpcshutdown or config.json")
-	errGRPCShutdownSignalIsNil = errors.New("cannot shutdown, grpc shutdown channel is nil")
+	errGRPCShutdownSignalIsNil = errors.New("cannot shutdown, gRPC shutdown channel is nil")
 )
 
 // RPCServer struct
