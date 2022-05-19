@@ -282,7 +282,7 @@ func (s *RPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc.
 		if err != nil {
 			return nil, err
 		}
-		a, err := asset.New(request.Config.FundingSettings.ExchangeLevelFunding[i].Asset)
+		a, err := asset.New(request.Config.CurrencySettings[i].Asset)
 		if err != nil {
 			return nil, err
 		}
@@ -345,17 +345,14 @@ func (s *RPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc.
 
 	var apiData *config.APIData
 	if request.Config.DataSettings.ApiData != nil {
-		apiData.StartDate = request.Config.DataSettings.ApiData.StartDate.AsTime()
-		apiData.EndDate = request.Config.DataSettings.ApiData.EndDate.AsTime()
-		apiData.InclusiveEndDate = request.Config.DataSettings.ApiData.InclusiveEndDate
+		apiData = &config.APIData{
+			StartDate:        request.Config.DataSettings.ApiData.StartDate.AsTime(),
+			EndDate:          request.Config.DataSettings.ApiData.EndDate.AsTime(),
+			InclusiveEndDate: request.Config.DataSettings.ApiData.InclusiveEndDate,
+		}
 	}
 	var dbData *config.DatabaseData
 	if request.Config.DataSettings.DatabaseData != nil {
-		dbData.StartDate = request.Config.DataSettings.DatabaseData.StartDate.AsTime()
-		dbData.EndDate = request.Config.DataSettings.DatabaseData.EndDate.AsTime()
-		dbData.Path = request.Config.DataSettings.DatabaseData.Path
-		dbData.InclusiveEndDate = request.Config.DataSettings.DatabaseData.InclusiveEndDate
-
 		cfg := database.Config{
 			Enabled: request.Config.DataSettings.DatabaseData.Config.Enabled,
 			Verbose: request.Config.DataSettings.DatabaseData.Config.Verbose,
@@ -369,20 +366,30 @@ func (s *RPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc.
 				SSLMode:  request.Config.DataSettings.DatabaseData.Config.Config.SslMode,
 			},
 		}
-		dbData.Config = cfg
+		dbData = &config.DatabaseData{
+			StartDate:        request.Config.DataSettings.DatabaseData.StartDate.AsTime(),
+			EndDate:          request.Config.DataSettings.DatabaseData.EndDate.AsTime(),
+			Path:             request.Config.DataSettings.DatabaseData.Path,
+			Config:           cfg,
+			InclusiveEndDate: request.Config.DataSettings.DatabaseData.InclusiveEndDate,
+		}
 	}
 	var liveData *config.LiveData
 	if request.Config.DataSettings.LiveData != nil {
-		liveData.APIKeyOverride = request.Config.DataSettings.LiveData.ApiKeyOverride
-		liveData.APISecretOverride = request.Config.DataSettings.LiveData.ApiSecretOverride
-		liveData.APIClientIDOverride = request.Config.DataSettings.LiveData.ApiClientIdOverride
-		liveData.API2FAOverride = request.Config.DataSettings.LiveData.Api_2FaOverride
-		liveData.APISubAccountOverride = request.Config.DataSettings.LiveData.ApiSubAccountOverride
-		liveData.RealOrders = request.Config.DataSettings.LiveData.UseRealOrders
+		liveData = &config.LiveData{
+			APIKeyOverride:        request.Config.DataSettings.LiveData.ApiKeyOverride,
+			APISecretOverride:     request.Config.DataSettings.LiveData.ApiSecretOverride,
+			APIClientIDOverride:   request.Config.DataSettings.LiveData.ApiClientIdOverride,
+			API2FAOverride:        request.Config.DataSettings.LiveData.Api_2FaOverride,
+			APISubAccountOverride: request.Config.DataSettings.LiveData.ApiSubAccountOverride,
+			RealOrders:            request.Config.DataSettings.LiveData.UseRealOrders,
+		}
 	}
 	var csvData *config.CSVData
 	if request.Config.DataSettings.CsvData != nil {
-		csvData.FullPath = request.Config.DataSettings.CsvData.Path
+		csvData = &config.CSVData{
+			FullPath: request.Config.DataSettings.CsvData.Path,
+		}
 	}
 
 	cfg := &config.Config{

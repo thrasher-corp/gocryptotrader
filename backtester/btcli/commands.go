@@ -119,7 +119,11 @@ func executeStrategyFromConfig(c *cli.Context) error {
 				MaximumSize:  defaultConfig.CurrencySettings[i].BuySide.MaximumSize.String(),
 				MaximumTotal: defaultConfig.CurrencySettings[i].BuySide.MaximumTotal.String(),
 			},
-			SellSide:                   nil,
+			SellSide: &btrpc.PurchaseSide{
+				MinimumSize:  defaultConfig.CurrencySettings[i].SellSide.MinimumSize.String(),
+				MaximumSize:  defaultConfig.CurrencySettings[i].SellSide.MaximumSize.String(),
+				MaximumTotal: defaultConfig.CurrencySettings[i].SellSide.MaximumTotal.String(),
+			},
 			MinSlippagePercent:         defaultConfig.CurrencySettings[i].MinimumSlippagePercent.String(),
 			MaxSlippagePercent:         defaultConfig.CurrencySettings[i].MaximumSlippagePercent.String(),
 			MakerFeeOverride:           defaultConfig.CurrencySettings[i].MakerFee.String(),
