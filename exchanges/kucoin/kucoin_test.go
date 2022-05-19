@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 )
 
@@ -61,7 +62,12 @@ func areTestAPIKeysSet() bool {
 func TestGetSymbols(t *testing.T) {
 	t.Parallel()
 
-	_, err := k.GetSymbols(context.Background())
+	_, err := k.GetSymbols(context.Background(), "")
+	if err != nil {
+		t.Error("GetSymbols() error", err)
+	}
+
+	_, err = k.GetSymbols(context.Background(), currency.BTC.String())
 	if err != nil {
 		t.Error("GetSymbols() error", err)
 	}

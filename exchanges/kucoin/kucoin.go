@@ -7,9 +7,11 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -31,13 +33,19 @@ const (
 	// Authenticated endpoints
 )
 
-// GetAllSpotPairs gets all pairs on the exchange
-func (k *Kucoin) GetSymbols(ctx context.Context) ([]SymbolInfo, error) {
+// GetSymbols gets all pairs on the exchange
+func (k *Kucoin) GetSymbols(ctx context.Context, currency string) ([]SymbolInfo, error) {
 	resp := struct {
 		Data []SymbolInfo `json:"data"`
 		Error
 	}{}
-	return resp.Data, k.SendHTTPRequest(ctx, exchange.RestSpot, kucoinGetSymbols, publicSpotRate, &resp)
+
+	params := url.Values{}
+	if currency != "" {
+		params.Set("market", currency)
+	}
+	path := common.EncodeURLValues(kucoinGetSymbols, params)
+	return resp.Data, k.SendHTTPRequest(ctx, exchange.RestSpot, path, publicSpotRate, &resp)
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
