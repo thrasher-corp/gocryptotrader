@@ -982,6 +982,6 @@ func (bot *Engine) SetDefaultWebsocketDataHandler() error {
 // send a shutdown signal.
 func (bot *Engine) waitForGPRCShutdown() {
 	<-bot.GRPCShutdownSignal
-	gctlog.Warnln(gctlog.Global, "Captured gRPC, shutdown requested.")
+	gctlog.Warnln(gctlog.Global, "Captured gRPC shutdown request.")
 	bot.Settings.Shutdown <- struct{}{}
 }
