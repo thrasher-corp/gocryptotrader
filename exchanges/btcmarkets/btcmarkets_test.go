@@ -1112,7 +1112,7 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	if lim == nil {
+	if lim == (order.MinMaxLevel{}) {
 		t.Fatal("expected value return")
 	}
 }

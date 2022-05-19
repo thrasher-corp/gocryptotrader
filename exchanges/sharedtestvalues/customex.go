@@ -274,8 +274,8 @@ func (c *CustomEx) AuthenticateWebsocket(ctx context.Context) error {
 	return nil
 }
 
-func (c *CustomEx) GetOrderExecutionLimits(a asset.Item, cp currency.Pair) (*order.Limits, error) {
-	return nil, nil
+func (c *CustomEx) GetOrderExecutionLimits(a asset.Item, cp currency.Pair) (order.MinMaxLevel, error) {
+	return order.MinMaxLevel{}, nil
 }
 
 func (c *CustomEx) CheckOrderExecutionLimits(a asset.Item, cp currency.Pair, price, amount float64, orderType order.Type) error {
