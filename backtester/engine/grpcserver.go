@@ -29,21 +29,21 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
-// RPCServer struct
-type RPCServer struct {
-	btrpc.UnimplementedBacktesterServer
+// GRPCServer struct
+type GRPCServer struct {
+	btrpc.BacktesterServer
 	*config.BacktesterConfig
 }
 
-func SetupRPCServer(cfg *config.BacktesterConfig) *RPCServer {
-	return &RPCServer{
+func SetupRPCServer(cfg *config.BacktesterConfig) *GRPCServer {
+	return &GRPCServer{
 		BacktesterConfig: cfg,
 	}
 
 }
 
 // StartRPCServer starts a gRPC server with TLS auth
-func StartRPCServer(server *RPCServer) error {
+func StartRPCServer(server *GRPCServer) error {
 	targetDir := utils.GetTLSDir(server.GRPC.TLSDir)
 	if err := gctengine.CheckCerts(targetDir); err != nil {
 		return err
@@ -83,7 +83,7 @@ func StartRPCServer(server *RPCServer) error {
 }
 
 // StartRPCRESTProxy starts a gRPC proxy
-func (s *RPCServer) StartRPCRESTProxy() {
+func (s *GRPCServer) StartRPCRESTProxy() {
 	log.Debugf(log.GRPCSys, "gRPC proxy server support enabled. Starting gRPC proxy server on http://%v.\n", s.GRPC.GRPCProxyListenAddress)
 	targetDir := utils.GetTLSDir(s.GRPC.TLSDir)
 	creds, err := credentials.NewClientTLSFromFile(filepath.Join(targetDir, "cert.pem"), "")
@@ -116,7 +116,7 @@ func (s *RPCServer) StartRPCRESTProxy() {
 	log.Debugln(log.GRPCSys, "gRPC proxy server started!")
 }
 
-func (s *RPCServer) authenticateClient(ctx context.Context) (context.Context, error) {
+func (s *GRPCServer) authenticateClient(ctx context.Context) (context.Context, error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
 		return ctx, fmt.Errorf("unable to extract metadata")
@@ -148,7 +148,7 @@ func (s *RPCServer) authenticateClient(ctx context.Context) (context.Context, er
 }
 
 // ExecuteStrategyFromFile will backtest a strategy from the filepath provided
-func (s *RPCServer) ExecuteStrategyFromFile(_ context.Context, request *btrpc.ExecuteStrategyFromFileRequest) (*btrpc.ExecuteStrategyResponse, error) {
+func (s *GRPCServer) ExecuteStrategyFromFile(_ context.Context, request *btrpc.ExecuteStrategyFromFileRequest) (*btrpc.ExecuteStrategyResponse, error) {
 	dir := request.StrategyFilePath
 	cfg, err := config.ReadStrategyConfigFromFile(dir)
 	if err != nil {
@@ -166,7 +166,7 @@ func (s *RPCServer) ExecuteStrategyFromFile(_ context.Context, request *btrpc.Ex
 // ExecuteStrategyFromConfig will backtest a strategy config built from a GRPC command
 // this should be a preferred method of interacting with backtester, as it allows for very quick
 // minor tweaks to strategy to determine the best result - SO LONG AS YOU DONT OVERFIT
-func (s *RPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc.ExecuteStrategyFromConfigRequest) (*btrpc.ExecuteStrategyResponse, error) {
+func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc.ExecuteStrategyFromConfigRequest) (*btrpc.ExecuteStrategyResponse, error) {
 	// al the decimal conversions
 	rfr, err := decimal.NewFromString(request.Config.StatisticSettings.RiskFreeRate)
 	if err != nil {
