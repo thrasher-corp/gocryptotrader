@@ -459,6 +459,23 @@ type wsOrderUpdate struct {
 	Leverage                          float64 `json:"v,string"`
 }
 
+// wsOrderFilled defines websocket account order filled data
+type wsOrderFilled struct {
+	EventType         string  `json:"e"`
+	EventTime         string  `json:"E"`
+	Symbol            string  `json:"s"`
+	Quantity          float64 `json:"q,string"`
+	Timestamp         string  `json:"t"`
+	Price             float64 `json:"p,string"`
+	TradeID           string  `json:"T"`
+	OrderID           string  `json:"o"`
+	UserGenOrderID    string  `json:"c"`
+	OpponentOrderID   string  `json:"O"`
+	AccountID         string  `json:"a"`
+	OpponentAccountID string  `json:"A"`
+	IsMaker           bool    `json:"m"`
+}
+
 // WsFuturesOrderbookData stores ws futures orderbook data
 type WsFuturesOrderbookData struct {
 	Price  float64 `json:"price,string"`

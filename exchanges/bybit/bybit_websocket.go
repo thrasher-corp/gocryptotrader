@@ -36,7 +36,7 @@ const (
 
 	wsAccountInfo    = "outboundAccountInfo"
 	wsOrderExecution = "executionReport"
-	wsOrderFilled    = "ticketInfo"
+	wsTickerInfo     = "ticketInfo"
 
 	sub    = "sub"    // event for subscribe
 	cancel = "cancel" // event for unsubscribe
@@ -451,8 +451,44 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 					}
 				}
 				return nil
-			case wsOrderFilled:
-				// already handled in wsOrderExecution case
+			case wsTickerInfo:
+				var data []wsOrderFilled
+				err := json.Unmarshal(respRaw, &data)
+				if err != nil {
+					return fmt.Errorf("%v - Could not convert to ticketInfo structure %w",
+						by.Name,
+						err)
+				}
+
+				for j := range data {
+					p, err := by.extractCurrencyPair(data[j].Symbol, asset.Spot)
+					if err != nil {
+						return err
+					}
+
+					oTimeInMilliSec, err := strconv.ParseInt(data[j].Timestamp, 10, 64)
+					if err != nil {
+						return err
+					}
+
+					by.Websocket.DataHandler <- order.Modify{
+						Exchange:  by.Name,
+						ID:        data[j].OrderID,
+						AccountID: data[j].AccountID,
+						AssetType: asset.Spot,
+						Pair:      p,
+						Trades: []order.TradeHistory{
+							{
+								Price:     data[j].Price,
+								Amount:    data[j].Quantity,
+								Exchange:  by.Name,
+								TID:       data[j].TradeID,
+								Timestamp: time.UnixMilli(oTimeInMilliSec),
+								IsMaker:   data[j].IsMaker,
+							},
+						},
+					}
+				}
 				return nil
 			}
 		}

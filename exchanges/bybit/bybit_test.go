@@ -516,6 +516,29 @@ func TestWSOrderExecution(t *testing.T) {
 	}
 }
 
+func TestWSTickerInfo(t *testing.T) {
+	t.Parallel()
+	pressXToJSON := []byte(`[{
+		"e":"ticketInfo",
+		"E":"1621912542359",
+		"s":"BTCUSDT",
+		"q":"0.001639",
+		"t":"1621912542314",
+		"p":"61000.0",
+		"T":"899062000267837441",
+		"o":"899048013515737344",
+		"c":"1621910874883",
+		"O":"899062000118679808",
+		"a":"10043",
+		"A":"10024",
+		"m":true
+	}]`)
+	err := b.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 // test cases for CoinMarginedFutures
 
 func TestGetFuturesOrderbook(t *testing.T) {
