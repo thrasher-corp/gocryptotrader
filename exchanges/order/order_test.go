@@ -1633,6 +1633,7 @@ func TestDetail_CopyPointerOrderSlice(t *testing.T) {
 }
 
 func TestDeriveCancel(t *testing.T) {
+	t.Parallel()
 	var o *Detail
 	if _, err := o.DeriveCancel(); !errors.Is(err, errOrderDetailIsNil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errOrderDetailIsNil)
