@@ -359,7 +359,7 @@ func (bt *BackTest) processOrderEvent(ev order.Event, funds funding.IFundRelease
 			log.Errorf(common.Backtester, "ExecuteOrder fill event should always be returned, please fix, %v", err)
 			return fmt.Errorf("ExecuteOrder fill event should always be returned, please fix, %v", err)
 		}
-		if !errors.Is(err, exchange.ErrDoNothing) {
+		if !errors.Is(err, exchange.ErrCannotTransact) {
 			log.Errorf(common.Backtester, "ExecuteOrder %v %v %v %v", f.GetExchange(), f.GetAssetType(), f.Pair(), err)
 		}
 	}

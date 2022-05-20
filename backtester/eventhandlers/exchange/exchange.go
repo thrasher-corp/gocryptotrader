@@ -26,8 +26,8 @@ func (e *Exchange) Reset() {
 	*e = Exchange{}
 }
 
-// ErrDoNothing returns when its an issue to do nothing for an event
-var ErrDoNothing = errors.New("received Do Nothing direction")
+// ErrCannotTransact returns when its an issue to do nothing for an event
+var ErrCannotTransact = errors.New("cannot transact")
 
 // ExecuteOrder assesses the portfolio manager's order event and if it passes validation
 // will send an order to the exchange/fake order manager to be stored and raise a fill event
@@ -40,8 +40,8 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 		FillDependentEvent: o.GetFillDependentEvent(),
 		Liquidated:         o.IsLiquidating(),
 	}
-	if o.GetDirection() == gctorder.DoNothing {
-		return f, ErrDoNothing
+	if !common.CanTransact(o.GetDirection()) {
+		return f, fmt.Errorf("%w order direction %v", ErrCannotTransact, o.GetDirection())
 	}
 
 	eventFunds := o.GetAllocatedFunds()

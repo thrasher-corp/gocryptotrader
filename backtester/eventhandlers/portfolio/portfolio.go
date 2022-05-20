@@ -120,7 +120,9 @@ func (p *Portfolio) OnSignal(ev signal.Event, cs *exchange.Settings, funds fundi
 	if err != nil {
 		return sizedOrder, err
 	}
-	sizedOrder.SetDirection(side)
+	if common.CanTransact(sizedOrder.Direction) {
+		sizedOrder.SetDirection(side)
+	}
 	if ev.GetDirection() == gctorder.ClosePosition {
 		sizedOrder.ClosingPosition = true
 	}

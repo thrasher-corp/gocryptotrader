@@ -4,8 +4,15 @@ import (
 	"fmt"
 	"strings"
 
+	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
+
+// CanTransact checks whether an order side is valid
+// to the backtester's standards
+func CanTransact(side gctorder.Side) bool {
+	return side.IsLong() || side.IsShort() || side == gctorder.ClosePosition
+}
 
 // DataTypeToInt converts the config string value into an int
 func DataTypeToInt(dataType string) (int64, error) {

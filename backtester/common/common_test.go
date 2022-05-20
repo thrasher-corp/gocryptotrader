@@ -3,7 +3,98 @@ package common
 import (
 	"fmt"
 	"testing"
+
+	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
+
+func TestCanTransact(t *testing.T) {
+	t.Parallel()
+	for _, ti := range []struct {
+		side     gctorder.Side
+		expected bool
+	}{
+		{
+			side:     gctorder.UnknownSide,
+			expected: false,
+		},
+		{
+			side:     gctorder.Buy,
+			expected: true,
+		},
+		{
+			side:     gctorder.Sell,
+			expected: true,
+		},
+		{
+			side:     gctorder.Bid,
+			expected: true,
+		},
+		{
+			side:     gctorder.Ask,
+			expected: true,
+		},
+		{
+			// while anyside can work in GCT, it's a no for the backtester
+			side:     gctorder.AnySide,
+			expected: false,
+		},
+		{
+			side:     gctorder.Long,
+			expected: true,
+		},
+		{
+			side:     gctorder.Short,
+			expected: true,
+		},
+		{
+			side:     gctorder.ClosePosition,
+			expected: true,
+		},
+		{
+			side:     gctorder.DoNothing,
+			expected: false,
+		},
+		{
+			side:     gctorder.TransferredFunds,
+			expected: false,
+		},
+		{
+			side:     gctorder.CouldNotBuy,
+			expected: false,
+		},
+		{
+			side:     gctorder.CouldNotSell,
+			expected: false,
+		},
+		{
+			side:     gctorder.CouldNotShort,
+			expected: false,
+		},
+		{
+			side:     gctorder.CouldNotLong,
+			expected: false,
+		},
+		{
+			side:     gctorder.CouldNotCloseShort,
+			expected: false,
+		},
+		{
+			side:     gctorder.CouldNotCloseLong,
+			expected: false,
+		},
+		{
+			side:     gctorder.MissingData,
+			expected: false,
+		},
+	} {
+		t.Run(ti.side.String(), func(t *testing.T) {
+			t.Parallel()
+			if CanTransact(ti.side) != ti.expected {
+				t.Errorf("received '%v' expected '%v'", ti.side, ti.expected)
+			}
+		})
+	}
+}
 
 func TestDataTypeConversion(t *testing.T) {
 	t.Parallel()
