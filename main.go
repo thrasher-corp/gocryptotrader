@@ -39,6 +39,7 @@ func main() {
 	flag.DurationVar(&settings.PortfolioManagerDelay, "portfoliomanagerdelay", time.Duration(0), "sets the portfolio managers sleep delay between updates")
 	flag.BoolVar(&settings.EnableGRPC, "grpc", true, "enables the grpc server")
 	flag.BoolVar(&settings.EnableGRPCProxy, "grpcproxy", false, "enables the grpc proxy server")
+	flag.BoolVar(&settings.EnableGRPCShutdown, "grpcshutdown", false, "enables gRPC bot instance shutdown functionality")
 	flag.BoolVar(&settings.EnableWebsocketRPC, "websocketrpc", true, "enables the websocket RPC server")
 	flag.BoolVar(&settings.EnableDeprecatedRPC, "deprecatedrpc", true, "enables the deprecated RPC server")
 	flag.BoolVar(&settings.EnableCommsRelayer, "enablecommsrelayer", true, "enables available communications relayer")
@@ -127,6 +128,7 @@ func main() {
 		settings.ConfigFile = ""
 	}
 
+	settings.Shutdown = make(chan struct{})
 	engine.Bot, err = engine.NewFromSettings(&settings, flagSet)
 	if engine.Bot == nil || err != nil {
 		log.Fatalf("Unable to initialise bot engine. Error: %s\n", err)
@@ -141,8 +143,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	interrupt := signaler.WaitForInterrupt()
-	gctlog.Infof(gctlog.Global, "Captured %v, shutdown requested.\n", interrupt)
+	go waitForInterupt(settings.Shutdown)
+	<-settings.Shutdown
 	engine.Bot.Stop()
 	gctlog.Infoln(gctlog.Global, "Exiting.")
+}
+
+func waitForInterupt(waiter chan<- struct{}) {
+	interrupt := signaler.WaitForInterrupt()
+	gctlog.Infof(gctlog.Global, "Captured %v, shutdown requested.\n", interrupt)
+	waiter <- struct{}{}
 }

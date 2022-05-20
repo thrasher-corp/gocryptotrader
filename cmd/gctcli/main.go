@@ -202,6 +202,7 @@ func main() {
 		currencyStateManagementCommand,
 		getFuturesPositionsCommand,
 		getCollateralCommand,
+		shutdownCommand,
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
