@@ -36,7 +36,7 @@ func main() {
 			wd,
 			"config",
 			"strategyexamples",
-			"ftx-cash-carry.strat"),
+			"dca-api-candles.strat"),
 		"the config containing strategy params, only used if --singlerun=true")
 	flag.StringVar(
 		&btConfigDir,
@@ -137,12 +137,31 @@ func main() {
 		return
 	}
 
+	if !btCfg.UseCMDColours && colourOutput {
+		btCfg.UseCMDColours = colourOutput
+	}
+	if !btCfg.Report.GenerateReport && generateReport {
+		btCfg.Report.GenerateReport = generateReport
+	}
+	if btCfg.Report.TemplatePath != templatePath && templatePath != filepath.Join(wd, "report", "tpl.gohtml") {
+		btCfg.Report.TemplatePath = templatePath
+	}
+	if btCfg.Report.OutputPath != reportOutput && reportOutput != filepath.Join(wd, "results") {
+		btCfg.Report.OutputPath = reportOutput
+	}
+
+	if btCfg.UseCMDColours {
+		common.SetColours(btCfg.Colours)
+	} else {
+		common.PurgeColours()
+	}
+
 	log.GlobalLogConfig = log.GenDefaultSettings()
 	log.GlobalLogConfig.AdvancedSettings.ShowLogSystemName = convert.BoolPtr(logSubHeader)
-	log.GlobalLogConfig.AdvancedSettings.Headers.Info = common.ColourInfo + "[INFO]" + common.ColourDefault
-	log.GlobalLogConfig.AdvancedSettings.Headers.Warn = common.ColourWarn + "[WARN]" + common.ColourDefault
-	log.GlobalLogConfig.AdvancedSettings.Headers.Debug = common.ColourDebug + "[DEBUG]" + common.ColourDefault
-	log.GlobalLogConfig.AdvancedSettings.Headers.Error = common.ColourError + "[ERROR]" + common.ColourDefault
+	log.GlobalLogConfig.AdvancedSettings.Headers.Info = common.CMDColours.Info + "[INFO]" + common.CMDColours.Default
+	log.GlobalLogConfig.AdvancedSettings.Headers.Warn = common.CMDColours.Warn + "[WARN]" + common.CMDColours.Default
+	log.GlobalLogConfig.AdvancedSettings.Headers.Debug = common.CMDColours.Debug + "[DEBUG]" + common.CMDColours.Default
+	log.GlobalLogConfig.AdvancedSettings.Headers.Error = common.CMDColours.Error + "[ERROR]" + common.CMDColours.Default
 	err = log.SetupGlobalLogger()
 	if err != nil {
 		fmt.Printf("Could not setup global logger. Error: %v.\n", err)
@@ -155,22 +174,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	if !btCfg.Colours.UseCMDColours && colourOutput {
-		btCfg.Colours.UseCMDColours = colourOutput
-	}
-	if !btCfg.Report.GenerateReport && generateReport {
-		btCfg.Report.GenerateReport = generateReport
-	}
-	if btCfg.Report.TemplatePath != templatePath && templatePath != filepath.Join(wd, "report", "tpl.gohtml") {
-		btCfg.Report.TemplatePath = templatePath
-	}
-	if btCfg.Report.OutputPath != reportOutput && reportOutput != filepath.Join(wd, "results") {
-		btCfg.Report.OutputPath = reportOutput
-	}
-
-	if !btCfg.Colours.UseCMDColours {
-		common.PurgeColours()
-	}
 	if btCfg.PrintLogo {
 		fmt.Println(common.Logo())
 	}

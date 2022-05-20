@@ -20,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange/slippage"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/risk"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/size"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics"
@@ -414,6 +415,18 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, verbose bool
 		}
 	}
 	bt.Portfolio = p
+
+	hasFunding := false
+	fundingItems := funds.GetAllFunding()
+	for i := range fundingItems {
+		if fundingItems[i].InitialFunds.IsPositive() {
+			hasFunding = true
+			break
+		}
+	}
+	if !hasFunding {
+		return nil, holdings.ErrInitialFundsZero
+	}
 
 	cfg.PrintSetting()
 
@@ -868,10 +881,13 @@ func loadLiveData(cfg *config.Config, base *gctexchange.Base) error {
 }
 
 func ExecuteStrategy(strategyCfg *config.Config, backtesterCfg *config.BacktesterConfig) error {
-	err := strategyCfg.Validate()
-	if err != nil {
+	if err := strategyCfg.Validate(); err != nil {
 		return err
 	}
+	if backtesterCfg == nil {
+		return fmt.Errorf("%w backtester config", common.ErrNilArguments)
+	}
+
 	bt, err := NewFromConfig(strategyCfg, backtesterCfg.Report.TemplatePath, backtesterCfg.Report.OutputPath, backtesterCfg.Verbose)
 	if err != nil {
 		return err

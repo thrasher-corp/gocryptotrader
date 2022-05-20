@@ -88,23 +88,41 @@ type Directioner interface {
 	GetDirection() order.Side
 }
 
-// colours to display for the terminal output
-var (
-	ColourDefault  = "\u001b[0m"
-	ColourGreen    = "\033[38;5;157m"
-	ColourWhite    = "\033[38;5;255m"
-	ColourGrey     = "\033[38;5;240m"
-	ColourDarkGrey = "\033[38;5;243m"
-	ColourH1       = "\033[38;5;33m"
-	ColourH2       = "\033[38;5;39m"
-	ColourH3       = "\033[38;5;45m"
-	ColourH4       = "\033[38;5;51m"
-	ColourSuccess  = "\033[38;5;40m"
-	ColourInfo     = "\u001B[32m"
-	ColourDebug    = "\u001B[34m"
-	ColourWarn     = "\u001B[33m"
-	ColourError    = "\033[38;5;196m"
-)
+// Colours defines colour types for CMD output
+type Colours struct {
+	Default  string
+	Green    string
+	White    string
+	Grey     string
+	DarkGrey string
+	H1       string
+	H2       string
+	H3       string
+	H4       string
+	Success  string
+	Info     string
+	Debug    string
+	Warn     string
+	Error    string
+}
+
+// CMDColours holds colour information for CMD output
+var CMDColours = Colours{
+	Default:  "\u001b[0m",
+	Green:    "\033[38;5;157m",
+	White:    "\033[38;5;255m",
+	Grey:     "\033[38;5;240m",
+	DarkGrey: "\033[38;5;243m",
+	H1:       "\033[38;5;33m",
+	H2:       "\033[38;5;39m",
+	H3:       "\033[38;5;45m",
+	H4:       "\033[38;5;51m",
+	Success:  "\033[38;5;40m",
+	Info:     "\u001B[32m",
+	Debug:    "\u001B[34m",
+	Warn:     "\u001B[33m",
+	Error:    "\033[38;5;196m",
+}
 
 // ASCIILogo is a sweet logo that is optionally printed to the command line window
 const ASCIILogo = `

@@ -134,43 +134,90 @@ func RegisterBacktesterSubLoggers() error {
 
 // PurgeColours removes colour information
 func PurgeColours() {
-	ColourGreen = ""
-	ColourWhite = ""
-	ColourGrey = ""
-	ColourDefault = ""
-	ColourH1 = ""
-	ColourH2 = ""
-	ColourH3 = ""
-	ColourH4 = ""
-	ColourSuccess = ""
-	ColourInfo = ""
-	ColourDebug = ""
-	ColourWarn = ""
-	ColourDarkGrey = ""
-	ColourError = ""
+	CMDColours.Green = ""
+	CMDColours.White = ""
+	CMDColours.Grey = ""
+	CMDColours.Default = ""
+	CMDColours.H1 = ""
+	CMDColours.H2 = ""
+	CMDColours.H3 = ""
+	CMDColours.H4 = ""
+	CMDColours.Success = ""
+	CMDColours.Info = ""
+	CMDColours.Debug = ""
+	CMDColours.Warn = ""
+	CMDColours.DarkGrey = ""
+	CMDColours.Error = ""
+}
+
+// SetColours sets cmd output colours at startup. Doing it at any other point
+// risks races and this really isn't worth adding a mutex for
+func SetColours(colours Colours) {
+	if colours.Default != "" && colours.Default != CMDColours.Default {
+		CMDColours.Default = colours.Default
+	}
+	if colours.Green != "" && colours.Green != CMDColours.Green {
+		CMDColours.Green = colours.Green
+	}
+	if colours.Error != "" && colours.Error != CMDColours.Error {
+		CMDColours.Error = colours.Error
+	}
+	if colours.White != "" && colours.White != CMDColours.White {
+		CMDColours.White = colours.White
+	}
+	if colours.Grey != "" && colours.Grey != CMDColours.Grey {
+		CMDColours.Grey = colours.Grey
+	}
+	if colours.H1 != "" && colours.H1 != CMDColours.H1 {
+		CMDColours.H1 = colours.H1
+	}
+	if colours.H2 != "" && colours.H2 != CMDColours.H2 {
+		CMDColours.H2 = colours.H2
+	}
+	if colours.H3 != "" && colours.H3 != CMDColours.H3 {
+		CMDColours.H3 = colours.H3
+	}
+	if colours.H4 != "" && colours.H4 != CMDColours.H4 {
+		CMDColours.H4 = colours.H4
+	}
+	if colours.Success != "" && colours.Error != CMDColours.Success {
+		CMDColours.Success = colours.Success
+	}
+	if colours.Info != "" && colours.Info != CMDColours.Info {
+		CMDColours.Info = colours.Info
+	}
+	if colours.Debug != "" && colours.Debug != CMDColours.Debug {
+		CMDColours.Debug = colours.Debug
+	}
+	if colours.Warn != "" && colours.Warn != CMDColours.Warn {
+		CMDColours.Warn = colours.Warn
+	}
+	if colours.DarkGrey != "" && colours.DarkGrey != CMDColours.DarkGrey {
+		CMDColours.DarkGrey = colours.DarkGrey
+	}
 }
 
 // Logo returns the logo
 func Logo() string {
 	sb := strings.Builder{}
 	sb.WriteString("                                                                                \n")
-	sb.WriteString("                               " + ColourWhite + "@@@@@@@@@@@@@@@@@                                \n")
-	sb.WriteString("                            " + ColourWhite + "@@@@@@@@@@@@@@@@@@@@@@@    " + ColourGrey + ",,,,,," + ColourWhite + "                   \n")
-	sb.WriteString("                           " + ColourWhite + "@@@@@@@@" + ColourGrey + ",,,,,    " + ColourWhite + "@@@@@@@@@" + ColourGrey + ",,,,,,,," + ColourWhite + "                   \n")
-	sb.WriteString("                         " + ColourWhite + "@@@@@@@@" + ColourGrey + ",,,,,,,       " + ColourWhite + "@@@@@@@" + ColourGrey + ",,,,,,," + ColourWhite + "                   \n")
-	sb.WriteString("                         " + ColourWhite + "@@@@@@" + ColourGrey + "(,,,,,,,,      " + ColourGrey + ",," + ColourWhite + "@@@@@@@" + ColourGrey + ",,,,,," + ColourWhite + "                   \n")
-	sb.WriteString("                      " + ColourGrey + ",," + ColourWhite + "@@@@@@" + ColourGrey + ",,,,,,,,,   #,,,,,,,,,,,,,,,,,," + ColourWhite + "                   \n")
-	sb.WriteString("                   " + ColourGrey + ",,,,*" + ColourWhite + "@@@@@@" + ColourGrey + ",,,,,,,,,,,,,,,,,,,,,,,,,," + ColourGreen + "%%%%%%%" + ColourWhite + "                \n")
-	sb.WriteString("                " + ColourGrey + ",,,,,,,*" + ColourWhite + "@@@@@@" + ColourGrey + ",,,,,,,,,,,,,," + ColourGreen + "%%%%%" + ColourGrey + " ,,,,,," + ColourGrey + "%" + ColourGreen + "%%%%%%" + ColourWhite + "                 \n")
-	sb.WriteString("               " + ColourGrey + ",,,,,,,,*" + ColourWhite + "@@@@@@" + ColourGrey + ",,,,,,,,,,," + ColourGreen + "%%%%%%%%%%%%%%%%%%" + ColourGrey + "#" + ColourGreen + "%%" + ColourGrey + "                  \n")
-	sb.WriteString("                 " + ColourGrey + ",,,,,,*" + ColourWhite + "@@@@@@" + ColourGrey + ",,,,,,,,," + ColourGreen + "%%%" + ColourGrey + " ,,,,," + ColourGreen + "%%%%%%%%" + ColourGrey + ",,,,,                   \n")
-	sb.WriteString("                    " + ColourGrey + ",,,*" + ColourWhite + "@@@@@@" + ColourGrey + ",,,,,," + ColourGreen + "%%" + ColourGrey + ",,  ,,,,,,," + ColourWhite + "@" + ColourGreen + "*%%," + ColourWhite + "@" + ColourGrey + ",,,,,,                   \n")
-	sb.WriteString("                       " + ColourGrey + "*" + ColourWhite + "@@@@@@" + ColourGrey + ",,,,,,,,,     " + ColourGrey + ",,,,," + ColourWhite + "@@@@@@" + ColourGrey + ",,,,,," + ColourWhite + "                    \n")
-	sb.WriteString("                         " + ColourWhite + "@@@@@@" + ColourGrey + ",,,,,,,,,        " + ColourWhite + "@@@@@@@" + ColourGrey + ",,,,,," + ColourWhite + "                   \n")
-	sb.WriteString("                         " + ColourWhite + "@@@@@@@@" + ColourGrey + ",,,,,,,       " + ColourWhite + "@@@@@@@" + ColourGrey + ",,,,,,," + ColourWhite + "                   \n")
-	sb.WriteString("                           " + ColourWhite + "@@@@@@@@@" + ColourGrey + ",,,,    " + ColourWhite + "@@@@@@@@@" + ColourGrey + "#,,,,,,," + ColourWhite + "                   \n")
-	sb.WriteString("                            " + ColourWhite + "@@@@@@@@@@@@@@@@@@@@@@@     " + ColourGrey + "*,,,," + ColourWhite + "                   \n")
-	sb.WriteString("                                " + ColourWhite + "@@@@@@@@@@@@@@@@" + ColourDefault + "                                \n")
+	sb.WriteString("                               " + CMDColours.White + "@@@@@@@@@@@@@@@@@                                \n")
+	sb.WriteString("                            " + CMDColours.White + "@@@@@@@@@@@@@@@@@@@@@@@    " + CMDColours.Grey + ",,,,,," + CMDColours.White + "                   \n")
+	sb.WriteString("                           " + CMDColours.White + "@@@@@@@@" + CMDColours.Grey + ",,,,,    " + CMDColours.White + "@@@@@@@@@" + CMDColours.Grey + ",,,,,,,," + CMDColours.White + "                   \n")
+	sb.WriteString("                         " + CMDColours.White + "@@@@@@@@" + CMDColours.Grey + ",,,,,,,       " + CMDColours.White + "@@@@@@@" + CMDColours.Grey + ",,,,,,," + CMDColours.White + "                   \n")
+	sb.WriteString("                         " + CMDColours.White + "@@@@@@" + CMDColours.Grey + "(,,,,,,,,      " + CMDColours.Grey + ",," + CMDColours.White + "@@@@@@@" + CMDColours.Grey + ",,,,,," + CMDColours.White + "                   \n")
+	sb.WriteString("                      " + CMDColours.Grey + ",," + CMDColours.White + "@@@@@@" + CMDColours.Grey + ",,,,,,,,,   #,,,,,,,,,,,,,,,,,," + CMDColours.White + "                   \n")
+	sb.WriteString("                   " + CMDColours.Grey + ",,,,*" + CMDColours.White + "@@@@@@" + CMDColours.Grey + ",,,,,,,,,,,,,,,,,,,,,,,,,," + CMDColours.Green + "%%%%%%%" + CMDColours.White + "                \n")
+	sb.WriteString("                " + CMDColours.Grey + ",,,,,,,*" + CMDColours.White + "@@@@@@" + CMDColours.Grey + ",,,,,,,,,,,,,," + CMDColours.Green + "%%%%%" + CMDColours.Grey + " ,,,,,," + CMDColours.Grey + "%" + CMDColours.Green + "%%%%%%" + CMDColours.White + "                 \n")
+	sb.WriteString("               " + CMDColours.Grey + ",,,,,,,,*" + CMDColours.White + "@@@@@@" + CMDColours.Grey + ",,,,,,,,,,," + CMDColours.Green + "%%%%%%%%%%%%%%%%%%" + CMDColours.Grey + "#" + CMDColours.Green + "%%" + CMDColours.Grey + "                  \n")
+	sb.WriteString("                 " + CMDColours.Grey + ",,,,,,*" + CMDColours.White + "@@@@@@" + CMDColours.Grey + ",,,,,,,,," + CMDColours.Green + "%%%" + CMDColours.Grey + " ,,,,," + CMDColours.Green + "%%%%%%%%" + CMDColours.Grey + ",,,,,                   \n")
+	sb.WriteString("                    " + CMDColours.Grey + ",,,*" + CMDColours.White + "@@@@@@" + CMDColours.Grey + ",,,,,," + CMDColours.Green + "%%" + CMDColours.Grey + ",,  ,,,,,,," + CMDColours.White + "@" + CMDColours.Green + "*%%," + CMDColours.White + "@" + CMDColours.Grey + ",,,,,,                   \n")
+	sb.WriteString("                       " + CMDColours.Grey + "*" + CMDColours.White + "@@@@@@" + CMDColours.Grey + ",,,,,,,,,     " + CMDColours.Grey + ",,,,," + CMDColours.White + "@@@@@@" + CMDColours.Grey + ",,,,,," + CMDColours.White + "                    \n")
+	sb.WriteString("                         " + CMDColours.White + "@@@@@@" + CMDColours.Grey + ",,,,,,,,,        " + CMDColours.White + "@@@@@@@" + CMDColours.Grey + ",,,,,," + CMDColours.White + "                   \n")
+	sb.WriteString("                         " + CMDColours.White + "@@@@@@@@" + CMDColours.Grey + ",,,,,,,       " + CMDColours.White + "@@@@@@@" + CMDColours.Grey + ",,,,,,," + CMDColours.White + "                   \n")
+	sb.WriteString("                           " + CMDColours.White + "@@@@@@@@@" + CMDColours.Grey + ",,,,    " + CMDColours.White + "@@@@@@@@@" + CMDColours.Grey + "#,,,,,,," + CMDColours.White + "                   \n")
+	sb.WriteString("                            " + CMDColours.White + "@@@@@@@@@@@@@@@@@@@@@@@     " + CMDColours.Grey + "*,,,," + CMDColours.White + "                   \n")
+	sb.WriteString("                                " + CMDColours.White + "@@@@@@@@@@@@@@@@" + CMDColours.Default + "                                \n")
 	sb.WriteString(ASCIILogo)
 	return sb.String()
 }

@@ -171,6 +171,10 @@ func (s *GRPCServer) ExecuteStrategyFromFile(_ context.Context, request *btrpc.E
 // this should be a preferred method of interacting with backtester, as it allows for very quick
 // minor tweaks to strategy to determine the best result - SO LONG AS YOU DONT OVERFIT
 func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc.ExecuteStrategyFromConfigRequest) (*btrpc.ExecuteStrategyResponse, error) {
+	if request == nil || request.Config == nil {
+		return nil, fmt.Errorf("%w nil request", common.ErrNilArguments)
+	}
+
 	// al the decimal conversions
 	rfr, err := decimal.NewFromString(request.Config.StatisticSettings.RiskFreeRate)
 	if err != nil {
@@ -310,12 +314,48 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 
 		var spotDetails *config.SpotDetails
 		if request.Config.CurrencySettings[i].SpotDetails != nil {
-
+			spotDetails = &config.SpotDetails{}
+			if request.Config.CurrencySettings[i].SpotDetails.InitialBaseFunds != "" {
+				var ibf decimal.Decimal
+				ibf, err = decimal.NewFromString(request.Config.CurrencySettings[i].SpotDetails.InitialBaseFunds)
+				if err != nil {
+					return nil, err
+				}
+				spotDetails.InitialBaseFunds = &ibf
+			}
+			if request.Config.CurrencySettings[i].SpotDetails.InitialQuoteFunds != "" {
+				var iqf decimal.Decimal
+				iqf, err = decimal.NewFromString(request.Config.CurrencySettings[i].SpotDetails.InitialQuoteFunds)
+				if err != nil {
+					return nil, err
+				}
+				spotDetails.InitialQuoteFunds = &iqf
+			}
 		}
 
 		var futuresDetails *config.FuturesDetails
-		if request.Config.CurrencySettings[i].FuturesDetails != nil {
+		if request.Config.CurrencySettings[i].FuturesDetails != nil &&
+			request.Config.CurrencySettings[i].FuturesDetails.Leverage != nil {
+			futuresDetails = &config.FuturesDetails{}
+			mowlr, err := decimal.NewFromString(request.Config.CurrencySettings[i].FuturesDetails.Leverage.MaximumOrdersWithLeverageRatio)
+			if err != nil {
+				return nil, err
+			}
+			mlr, err := decimal.NewFromString(request.Config.CurrencySettings[i].FuturesDetails.Leverage.MaximumLeverageRate)
+			if err != nil {
+				return nil, err
+			}
+			mclr, err := decimal.NewFromString(request.Config.CurrencySettings[i].FuturesDetails.Leverage.MaximumCollateralLeverageRate)
+			if err != nil {
+				return nil, err
+			}
 
+			futuresDetails.Leverage = config.Leverage{
+				CanUseLeverage:                 request.Config.CurrencySettings[i].FuturesDetails.Leverage.CanUseLeverage,
+				MaximumOrdersWithLeverageRatio: mowlr,
+				MaximumOrderLeverageRate:       mlr,
+				MaximumCollateralLeverageRate:  mclr,
+			}
 		}
 
 		configSettings = append(configSettings, config.CurrencySettings{

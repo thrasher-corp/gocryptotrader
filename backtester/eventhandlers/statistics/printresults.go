@@ -31,13 +31,13 @@ func addReason(reason, msg string) string {
 
 // PrintTotalResults outputs all results to the CMD
 func (s *Statistic) PrintTotalResults() {
-	log.Info(common.Statistics, common.ColourH1+"------------------Strategy-----------------------------------"+common.ColourDefault)
+	log.Info(common.Statistics, common.CMDColours.H1+"------------------Strategy-----------------------------------"+common.CMDColours.Default)
 	log.Infof(common.Statistics, "Strategy Name: %v", s.StrategyName)
 	log.Infof(common.Statistics, "Strategy Nickname: %v", s.StrategyNickname)
 	log.Infof(common.Statistics, "Strategy Goal: %v\n\n", s.StrategyGoal)
 
-	log.Info(common.Statistics, common.ColourH2+"------------------Total Results------------------------------"+common.ColourDefault)
-	log.Info(common.Statistics, common.ColourH3+"------------------Orders-------------------------------------"+common.ColourDefault)
+	log.Info(common.Statistics, common.CMDColours.H2+"------------------Total Results------------------------------"+common.CMDColours.Default)
+	log.Info(common.Statistics, common.CMDColours.H3+"------------------Orders-------------------------------------"+common.CMDColours.Default)
 	log.Infof(common.Statistics, "Total buy orders: %v", convert.IntToHumanFriendlyString(s.TotalBuyOrders, ","))
 	log.Infof(common.Statistics, "Total sell orders: %v", convert.IntToHumanFriendlyString(s.TotalSellOrders, ","))
 	log.Infof(common.Statistics, "Total long orders: %v", convert.IntToHumanFriendlyString(s.TotalLongOrders, ","))
@@ -45,7 +45,7 @@ func (s *Statistic) PrintTotalResults() {
 	log.Infof(common.Statistics, "Total orders: %v\n\n", convert.IntToHumanFriendlyString(s.TotalOrders, ","))
 
 	if s.BiggestDrawdown != nil {
-		log.Info(common.Statistics, common.ColourH3+"------------------Biggest Drawdown-----------------------"+common.ColourDefault)
+		log.Info(common.Statistics, common.CMDColours.H3+"------------------Biggest Drawdown-----------------------"+common.CMDColours.Default)
 		log.Infof(common.Statistics, "Exchange: %v Asset: %v Currency: %v", s.BiggestDrawdown.Exchange, s.BiggestDrawdown.Asset, s.BiggestDrawdown.Pair)
 		log.Infof(common.Statistics, "Highest Price: %s", convert.DecimalToHumanFriendlyString(s.BiggestDrawdown.MaxDrawdown.Highest.Value, 8, ".", ","))
 		log.Infof(common.Statistics, "Highest Price Time: %v", s.BiggestDrawdown.MaxDrawdown.Highest.Time)
@@ -56,7 +56,7 @@ func (s *Statistic) PrintTotalResults() {
 		log.Infof(common.Statistics, "Drawdown length: %v candles\n\n", convert.IntToHumanFriendlyString(s.BiggestDrawdown.MaxDrawdown.IntervalDuration, ","))
 	}
 	if s.BestMarketMovement != nil && s.BestStrategyResults != nil {
-		log.Info(common.Statistics, common.ColourH4+"------------------Orders----------------------------------"+common.ColourDefault)
+		log.Info(common.Statistics, common.CMDColours.H4+"------------------Orders----------------------------------"+common.CMDColours.Default)
 		log.Infof(common.Statistics, "Best performing market movement: %v %v %v %v%%", s.BestMarketMovement.Exchange, s.BestMarketMovement.Asset, s.BestMarketMovement.Pair, convert.DecimalToHumanFriendlyString(s.BestMarketMovement.MarketMovement, 2, ".", ","))
 		log.Infof(common.Statistics, "Best performing strategy movement: %v %v %v %v%%\n\n", s.BestStrategyResults.Exchange, s.BestStrategyResults.Asset, s.BestStrategyResults.Pair, convert.DecimalToHumanFriendlyString(s.BestStrategyResults.StrategyMovement, 2, ".", ","))
 	}
@@ -67,9 +67,9 @@ func (s *Statistic) PrintTotalResults() {
 // grouped by time to allow a clearer picture of events
 func (s *Statistic) PrintAllEventsChronologically() {
 	var results []eventOutputHolder
-	log.Info(common.Statistics, common.ColourH1+"------------------Events-------------------------------------"+common.ColourDefault)
+	log.Info(common.Statistics, common.CMDColours.H1+"------------------Events-------------------------------------"+common.CMDColours.Default)
 	var errs gctcommon.Errors
-	colour := common.ColourDefault
+	colour := common.CMDColours.Default
 	for exch, x := range s.ExchangeAssetPairStatistics {
 		for a, y := range x {
 			for pair, currencyStatistic := range y {
@@ -84,7 +84,7 @@ func (s *Statistic) PrintAllEventsChronologically() {
 							direction == order.TransferredFunds ||
 							direction == order.UnknownSide {
 							if direction == order.DoNothing {
-								colour = common.ColourDarkGrey
+								colour = common.CMDColours.DarkGrey
 							}
 							msg := fmt.Sprintf(colour+
 								"%v %v%v%v| Price: %v\tDirection: %v",
@@ -95,13 +95,13 @@ func (s *Statistic) PrintAllEventsChronologically() {
 								currencyStatistic.Events[i].FillEvent.GetClosePrice().Round(8),
 								currencyStatistic.Events[i].FillEvent.GetDirection())
 							msg = addReason(currencyStatistic.Events[i].FillEvent.GetConcatReasons(), msg)
-							msg += common.ColourDefault
+							msg += common.CMDColours.Default
 							results = addEventOutputToTime(results, currencyStatistic.Events[i].FillEvent.GetTime(), msg)
 						} else {
 							// successful order!
-							colour = common.ColourSuccess
+							colour = common.CMDColours.Success
 							if currencyStatistic.Events[i].FillEvent.IsLiquidated() {
-								colour = common.ColourError
+								colour = common.CMDColours.Error
 							}
 							msg := fmt.Sprintf(colour+
 								"%v %v%v%v| Price: %v\tDirection %v\tOrder placed: Amount: %v\tFee: %v\tTotal: %v",
@@ -115,7 +115,7 @@ func (s *Statistic) PrintAllEventsChronologically() {
 								currencyStatistic.Events[i].FillEvent.GetExchangeFee(),
 								currencyStatistic.Events[i].FillEvent.GetTotal().Round(8))
 							msg = addReason(currencyStatistic.Events[i].FillEvent.GetConcatReasons(), msg)
-							msg += common.ColourDefault
+							msg += common.CMDColours.Default
 							results = addEventOutputToTime(results, currencyStatistic.Events[i].FillEvent.GetTime(), msg)
 						}
 					case currencyStatistic.Events[i].SignalEvent != nil:
@@ -126,7 +126,7 @@ func (s *Statistic) PrintAllEventsChronologically() {
 							fSIL(currencyStatistic.Events[i].SignalEvent.Pair().String(), limit14),
 							currencyStatistic.Events[i].SignalEvent.GetClosePrice().Round(8))
 						msg = addReason(currencyStatistic.Events[i].SignalEvent.GetConcatReasons(), msg)
-						msg += common.ColourDefault
+						msg += common.CMDColours.Default
 						results = addEventOutputToTime(results, currencyStatistic.Events[i].SignalEvent.GetTime(), msg)
 					case currencyStatistic.Events[i].DataEvent != nil:
 						msg := fmt.Sprintf("%v %v%v%v| Price: $%v",
@@ -136,10 +136,10 @@ func (s *Statistic) PrintAllEventsChronologically() {
 							fSIL(currencyStatistic.Events[i].DataEvent.Pair().String(), limit14),
 							currencyStatistic.Events[i].DataEvent.GetClosePrice().Round(8))
 						msg = addReason(currencyStatistic.Events[i].DataEvent.GetConcatReasons(), msg)
-						msg += common.ColourDefault
+						msg += common.CMDColours.Default
 						results = addEventOutputToTime(results, currencyStatistic.Events[i].DataEvent.GetTime(), msg)
 					default:
-						errs = append(errs, fmt.Errorf(common.ColourError+"%v%v%v unexpected data received %+v"+common.ColourDefault, exch, a, fSIL(pair.String(), limit14), currencyStatistic.Events[i]))
+						errs = append(errs, fmt.Errorf(common.CMDColours.Error+"%v%v%v unexpected data received %+v"+common.CMDColours.Default, exch, a, fSIL(pair.String(), limit14), currencyStatistic.Events[i]))
 					}
 				}
 			}
@@ -157,7 +157,7 @@ func (s *Statistic) PrintAllEventsChronologically() {
 		}
 	}
 	if len(errs) > 0 {
-		log.Info(common.Statistics, common.ColourError+"------------------Errors-------------------------------------"+common.ColourDefault)
+		log.Info(common.Statistics, common.CMDColours.Error+"------------------Errors-------------------------------------"+common.CMDColours.Default)
 		for i := range errs {
 			log.Error(common.Statistics, errs[i].Error())
 		}
@@ -179,7 +179,7 @@ func (c *CurrencyPairStatistic) PrintResults(e string, a asset.Item, p currency.
 	c.TotalOrders = c.BuyOrders + c.SellOrders + c.ShortOrders + c.LongOrders
 	last.Holdings.TotalValueLost = last.Holdings.TotalValueLostToSlippage.Add(last.Holdings.TotalValueLostToVolumeSizing)
 	sep := fmt.Sprintf("%v %v %v |\t", fSIL(e, limit12), fSIL(a.String(), limit10), fSIL(p.String(), limit14))
-	currStr := fmt.Sprintf(common.ColourH1+"------------------Stats for %v %v %v------------------------------------------------------"+common.ColourDefault, e, a, p)
+	currStr := fmt.Sprintf(common.CMDColours.H1+"------------------Stats for %v %v %v------------------------------------------------------"+common.CMDColours.Default, e, a, p)
 	log.Infof(common.CurrencyStatistics, currStr[:70])
 	if a.IsFutures() {
 		log.Infof(common.CurrencyStatistics, "%s Long orders: %s", sep, convert.IntToHumanFriendlyString(c.LongOrders, ","))
@@ -199,17 +199,17 @@ func (c *CurrencyPairStatistic) PrintResults(e string, a asset.Item, p currency.
 
 	log.Infof(common.CurrencyStatistics, "%s Total orders: %s", sep, convert.IntToHumanFriendlyString(c.TotalOrders, ","))
 
-	log.Info(common.CurrencyStatistics, common.ColourH2+"------------------Max Drawdown-------------------------------"+common.ColourDefault)
+	log.Info(common.CurrencyStatistics, common.CMDColours.H2+"------------------Max Drawdown-------------------------------"+common.CMDColours.Default)
 	log.Infof(common.CurrencyStatistics, "%s Highest Price of drawdown: %s at %v", sep, convert.DecimalToHumanFriendlyString(c.MaxDrawdown.Highest.Value, 8, ".", ","), c.MaxDrawdown.Highest.Time)
 	log.Infof(common.CurrencyStatistics, "%s Lowest Price of drawdown: %s at %v", sep, convert.DecimalToHumanFriendlyString(c.MaxDrawdown.Lowest.Value, 8, ".", ","), c.MaxDrawdown.Lowest.Time)
 	log.Infof(common.CurrencyStatistics, "%s Calculated Drawdown: %s%%", sep, convert.DecimalToHumanFriendlyString(c.MaxDrawdown.DrawdownPercent, 8, ".", ","))
 	log.Infof(common.CurrencyStatistics, "%s Difference: %s", sep, convert.DecimalToHumanFriendlyString(c.MaxDrawdown.Highest.Value.Sub(c.MaxDrawdown.Lowest.Value), 2, ".", ","))
 	log.Infof(common.CurrencyStatistics, "%s Drawdown length: %s", sep, convert.IntToHumanFriendlyString(c.MaxDrawdown.IntervalDuration, ","))
 	if !usingExchangeLevelFunding {
-		log.Info(common.CurrencyStatistics, common.ColourH2+"------------------Ratios------------------------------------------------"+common.ColourDefault)
-		log.Info(common.CurrencyStatistics, common.ColourH3+"------------------Rates-------------------------------------------------"+common.ColourDefault)
+		log.Info(common.CurrencyStatistics, common.CMDColours.H2+"------------------Ratios------------------------------------------------"+common.CMDColours.Default)
+		log.Info(common.CurrencyStatistics, common.CMDColours.H3+"------------------Rates-------------------------------------------------"+common.CMDColours.Default)
 		log.Infof(common.CurrencyStatistics, "%s Compound Annual Growth Rate: %s", sep, convert.DecimalToHumanFriendlyString(c.CompoundAnnualGrowthRate, 2, ".", ","))
-		log.Info(common.CurrencyStatistics, common.ColourH4+"------------------Arithmetic--------------------------------------------"+common.ColourDefault)
+		log.Info(common.CurrencyStatistics, common.CMDColours.H4+"------------------Arithmetic--------------------------------------------"+common.CMDColours.Default)
 		if c.ShowMissingDataWarning {
 			log.Infoln(common.CurrencyStatistics, "Missing data was detected during this backtesting run")
 			log.Infoln(common.CurrencyStatistics, "Ratio calculations will be skewed")
@@ -219,7 +219,7 @@ func (c *CurrencyPairStatistic) PrintResults(e string, a asset.Item, p currency.
 		log.Infof(common.CurrencyStatistics, "%s Information ratio: %v", sep, c.ArithmeticRatios.InformationRatio.Round(4))
 		log.Infof(common.CurrencyStatistics, "%s Calmar ratio: %v", sep, c.ArithmeticRatios.CalmarRatio.Round(4))
 
-		log.Info(common.CurrencyStatistics, common.ColourH4+"------------------Geometric--------------------------------------------"+common.ColourDefault)
+		log.Info(common.CurrencyStatistics, common.CMDColours.H4+"------------------Geometric--------------------------------------------"+common.CMDColours.Default)
 		if c.ShowMissingDataWarning {
 			log.Infoln(common.CurrencyStatistics, "Missing data was detected during this backtesting run")
 			log.Infoln(common.CurrencyStatistics, "Ratio calculations will be skewed")
@@ -230,7 +230,7 @@ func (c *CurrencyPairStatistic) PrintResults(e string, a asset.Item, p currency.
 		log.Infof(common.CurrencyStatistics, "%s Calmar ratio: %v", sep, c.GeometricRatios.CalmarRatio.Round(4))
 	}
 
-	log.Info(common.CurrencyStatistics, common.ColourH2+"------------------Results------------------------------------"+common.ColourDefault)
+	log.Info(common.CurrencyStatistics, common.CMDColours.H2+"------------------Results------------------------------------"+common.CMDColours.Default)
 	log.Infof(common.CurrencyStatistics, "%s Starting Close Price: %s at %v", sep, convert.DecimalToHumanFriendlyString(c.StartingClosePrice.Value, 8, ".", ","), c.StartingClosePrice.Time)
 	log.Infof(common.CurrencyStatistics, "%s Finishing Close Price: %s at %v", sep, convert.DecimalToHumanFriendlyString(c.EndingClosePrice.Value, 8, ".", ","), c.EndingClosePrice.Time)
 	log.Infof(common.CurrencyStatistics, "%s Lowest Close Price: %s at %v", sep, convert.DecimalToHumanFriendlyString(c.LowestClosePrice.Value, 8, ".", ","), c.LowestClosePrice.Time)
@@ -263,7 +263,7 @@ func (c *CurrencyPairStatistic) PrintResults(e string, a asset.Item, p currency.
 		log.Infof(common.CurrencyStatistics, "%s Final Realised PNL: %s", sep, convert.DecimalToHumanFriendlyString(realised.PNL, 8, ".", ","))
 	}
 	if len(errs) > 0 {
-		log.Info(common.CurrencyStatistics, common.ColourError+"------------------Errors-------------------------------------"+common.ColourDefault)
+		log.Info(common.CurrencyStatistics, common.CMDColours.Error+"------------------Errors-------------------------------------"+common.CMDColours.Default)
 		for i := range errs {
 			log.Error(common.CurrencyStatistics, errs[i].Error())
 		}
@@ -284,10 +284,10 @@ func (f *FundingStatistics) PrintResults(wasAnyDataMissing bool) error {
 		}
 	}
 	if len(spotResults) > 0 || len(futuresResults) > 0 {
-		log.Info(common.FundingStatistics, common.ColourH1+"------------------Funding------------------------------------"+common.ColourDefault)
+		log.Info(common.FundingStatistics, common.CMDColours.H1+"------------------Funding------------------------------------"+common.CMDColours.Default)
 	}
 	if len(spotResults) > 0 {
-		log.Info(common.FundingStatistics, common.ColourH2+"------------------Funding Spot Item Results------------------"+common.ColourDefault)
+		log.Info(common.FundingStatistics, common.CMDColours.H2+"------------------Funding Spot Item Results------------------"+common.CMDColours.Default)
 		for i := range spotResults {
 			sep := fmt.Sprintf("%v%v%v| ", fSIL(spotResults[i].ReportItem.Exchange, limit12), fSIL(spotResults[i].ReportItem.Asset.String(), limit10), fSIL(spotResults[i].ReportItem.Currency.String(), limit14))
 			if !spotResults[i].ReportItem.PairedWith.IsEmpty() {
@@ -314,7 +314,7 @@ func (f *FundingStatistics) PrintResults(wasAnyDataMissing bool) error {
 		}
 	}
 	if len(futuresResults) > 0 {
-		log.Info(common.FundingStatistics, common.ColourH2+"------------------Funding Futures Item Results---------------"+common.ColourDefault)
+		log.Info(common.FundingStatistics, common.CMDColours.H2+"------------------Funding Futures Item Results---------------"+common.CMDColours.Default)
 		for i := range futuresResults {
 			sep := fmt.Sprintf("%v%v%v| ", fSIL(futuresResults[i].ReportItem.Exchange, limit12), fSIL(futuresResults[i].ReportItem.Asset.String(), limit10), fSIL(futuresResults[i].ReportItem.Currency.String(), limit14))
 			log.Infof(common.FundingStatistics, "%s Is Collateral: %v", sep, futuresResults[i].IsCollateral)
@@ -340,7 +340,7 @@ func (f *FundingStatistics) PrintResults(wasAnyDataMissing bool) error {
 	if f.Report.DisableUSDTracking {
 		return nil
 	}
-	log.Info(common.FundingStatistics, common.ColourH2+"------------------USD Tracking Totals------------------------"+common.ColourDefault)
+	log.Info(common.FundingStatistics, common.CMDColours.H2+"------------------USD Tracking Totals------------------------"+common.CMDColours.Default)
 	sep := "USD Tracking Total |\t"
 
 	log.Infof(common.FundingStatistics, "%s Initial value: $%s", sep, convert.DecimalToHumanFriendlyString(f.Report.InitialFunds, 8, ".", ","))
@@ -352,14 +352,14 @@ func (f *FundingStatistics) PrintResults(wasAnyDataMissing bool) error {
 	log.Infof(common.FundingStatistics, "%s Highest funds: $%s at %v", sep, convert.DecimalToHumanFriendlyString(f.TotalUSDStatistics.HighestHoldingValue.Value, 8, ".", ","), f.TotalUSDStatistics.HighestHoldingValue.Time)
 	log.Infof(common.FundingStatistics, "%s Lowest funds: $%s at %v", sep, convert.DecimalToHumanFriendlyString(f.TotalUSDStatistics.LowestHoldingValue.Value, 8, ".", ","), f.TotalUSDStatistics.LowestHoldingValue.Time)
 
-	log.Info(common.FundingStatistics, common.ColourH3+"------------------Ratios------------------------------------------------"+common.ColourDefault)
-	log.Info(common.FundingStatistics, common.ColourH4+"------------------Rates-------------------------------------------------"+common.ColourDefault)
+	log.Info(common.FundingStatistics, common.CMDColours.H3+"------------------Ratios------------------------------------------------"+common.CMDColours.Default)
+	log.Info(common.FundingStatistics, common.CMDColours.H4+"------------------Rates-------------------------------------------------"+common.CMDColours.Default)
 	log.Infof(common.FundingStatistics, "%s Risk free rate: %s%%", sep, convert.DecimalToHumanFriendlyString(f.TotalUSDStatistics.RiskFreeRate.Mul(decimal.NewFromInt(100)), 2, ".", ","))
 	log.Infof(common.FundingStatistics, "%s Compound Annual Growth Rate: %v%%", sep, convert.DecimalToHumanFriendlyString(f.TotalUSDStatistics.CompoundAnnualGrowthRate, 8, ".", ","))
 	if f.TotalUSDStatistics.ArithmeticRatios == nil || f.TotalUSDStatistics.GeometricRatios == nil {
 		return fmt.Errorf("%w missing ratio calculations", common.ErrNilArguments)
 	}
-	log.Info(common.FundingStatistics, common.ColourH4+"------------------Arithmetic--------------------------------------------"+common.ColourDefault)
+	log.Info(common.FundingStatistics, common.CMDColours.H4+"------------------Arithmetic--------------------------------------------"+common.CMDColours.Default)
 	if wasAnyDataMissing {
 		log.Infoln(common.FundingStatistics, "Missing data was detected during this backtesting run")
 		log.Infoln(common.FundingStatistics, "Ratio calculations will be skewed")
@@ -369,7 +369,7 @@ func (f *FundingStatistics) PrintResults(wasAnyDataMissing bool) error {
 	log.Infof(common.FundingStatistics, "%s Information ratio: %v", sep, f.TotalUSDStatistics.ArithmeticRatios.InformationRatio.Round(4))
 	log.Infof(common.FundingStatistics, "%s Calmar ratio: %v", sep, f.TotalUSDStatistics.ArithmeticRatios.CalmarRatio.Round(4))
 
-	log.Info(common.FundingStatistics, common.ColourH4+"------------------Geometric--------------------------------------------"+common.ColourDefault)
+	log.Info(common.FundingStatistics, common.CMDColours.H4+"------------------Geometric--------------------------------------------"+common.CMDColours.Default)
 	if wasAnyDataMissing {
 		log.Infoln(common.FundingStatistics, "Missing data was detected during this backtesting run")
 		log.Infoln(common.FundingStatistics, "Ratio calculations will be skewed")
