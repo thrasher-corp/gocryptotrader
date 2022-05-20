@@ -106,3 +106,73 @@ type IndexComponentItem struct {
 	ConverToPrice   float64 `json:"cnvPx,string"`
 	ExchangeName    string  `json:"exch"`
 }
+
+// InstrumentsFetchParams ...
+type InstrumentsFetchParams struct {
+	InstrumentType string // Mandatory
+	Underlying     string // Optional
+	InstrumentID   string // Optional
+}
+
+// Instrument  representing an instrument with open contract.
+type Instrument struct {
+	InstType                        string    `json:"instType"`
+	InstID                          string    `json:"instId"`
+	Underlying                      string    `json:"uly"`
+	Category                        string    `json:"category"`
+	BaseCurrency                    string    `json:"baseCcy"`
+	QuoteCurrency                   string    `json:"quoteCcy"`
+	SettlementCurrency              string    `json:"settleCcy"`
+	ContactValue                    int       `json:"ctVal,string"`
+	ContractMultiplier              int       `json:"ctMult,string"`
+	ContractValueCurrency           string    `json:"ctValCcy"`
+	OptionType                      string    `json:"optType"`
+	StrikePrice                     string    `json:"stk"`
+	ListTime                        time.Time `json:"listTime"`
+	ExpTime                         time.Time `json:"expTime"`
+	MaxLeverage                     int64     `json:"lever,string"`
+	TickSize                        float64   `json:"tickSz,string"`
+	LotSize                         int64     `json:"lotSz,string"`
+	MinimumOrderSize                int64     `json:"minSz,string"`
+	ContractType                    string    `json:"ctType"`
+	Alias                           string    `json:"alias"`
+	State                           string    `json:"state"`
+	MaxQuantityoOfSpotLimitOrder    float64   `json:"maxLmtSz,string"`
+	MaxQuantityOfMarketLimitOrder   float64   `json:"maxMktSz,string"`
+	MaxQuantityOfSpotTwapLimitOrder float64   `json:"maxTwapSz,string"`
+	MaxSpotIcebergSize              float64   `json:"maxIcebergSz,string"`
+	MaxTriggerSize                  float64   `json:"maxTriggerSz,string"`
+	MaxStopSize                     float64   `json:"maxStopSz,string"`
+}
+
+// {   "ts":"1597026383085",
+// "details":[
+// 	{
+// 		"type":"delivery",
+// 		"instId":"BTC-USD-190927",
+// 		"px":"0.016"
+// 	}
+// ]
+// },
+
+// DeliveryHistoryDetail ...
+type DeliveryHistoryDetail struct {
+	Type          string  `json:"type"`
+	InstrumentID  string  `json:"instId"`
+	DeliveryPrice float64 `json:"px,string"`
+}
+
+// DeliveryHistoryResponse
+type DeliveryHistoryResponse struct {
+	Timestamp time.Time                `json:"ts"`
+	Details   []*DeliveryHistoryDetail `json:"details"`
+}
+
+// OpenInterestResponse Retrieve the total open interest for contracts on OKX.
+type OpenInterestResponse struct {
+	InstrumentType       string    `json:"instType"`
+	InstrumentID         string    `json:"instId"`
+	OpenInterest         float64   `json:"oi"`
+	OpenInterestCurrency float64   `json:"oiCcy"`
+	Timestamp            time.Time `json:"ts"`
+}

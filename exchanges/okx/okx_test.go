@@ -142,3 +142,21 @@ func TestGetIndexComponents(t *testing.T) {
 		t.Error("Okx GetIndexComponents() error", er)
 	}
 }
+
+func TestGetinstrument(t *testing.T) {
+	t.Parallel()
+	_, er := ok.GetInstruments(context.Background(), &InstrumentsFetchParams{
+		InstrumentType: "SPOT",
+	})
+	if er != nil {
+		t.Error("Okx GetInstruments() error", er)
+	}
+}
+
+func TestGetDeliveryHistory(t *testing.T) {
+	t.Parallel()
+	_, er := ok.GetDeliveryHistory(context.Background(), "BTC-USDT", "", time.Time{}, time.Time{}, 200)
+	if er != nil {
+		t.Error("okx GetDeliveryHistory() error", er)
+	}
+}

@@ -31,6 +31,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/localbitcoins"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/okcoin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/okex"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/okx"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/poloniex"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/yobit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/zb"
@@ -146,6 +147,8 @@ func (m *ExchangeManager) NewExchangeByName(name string) (exchange.IBotExchange,
 	var exch exchange.IBotExchange
 
 	switch nameLower {
+	case "okx":
+		exch = new(okx.Okx)
 	case "binanceus":
 		exch = new(binanceus.Binanceus)
 	case "binance":

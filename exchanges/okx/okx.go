@@ -60,6 +60,9 @@ const (
 	marketIndexComponents        = "market/index-components"
 
 	// Public endpoints
+	publicInstruments             = "public/instruments"
+	publicDeliveryExerciseHistory = "public/delivery-exercise-history"
+	publicOpenInterestValues      = "public/open-interest"
 
 	// Authenticated endpoints
 )
@@ -76,9 +79,10 @@ var (
 	errOracleInformationNotFound           = errors.New("oracle informations not found")
 	errExchangeInfoNotFound                = errors.New("exchange information not found")
 	errIndexComponentNotFound              = errors.New("unable to fetch index components")
+	errMissingRequiredArgInstType          = errors.New("invalid required argument instrument type")
 )
 
-// MarketData Endpoints
+/************************************ MarketData Endpoints *************************************************/
 
 func (ok *Okx) GetTickers(ctx context.Context, instType, uly, instId string) ([]MarketDataResponse, error) {
 	params := url.Values{}
@@ -398,10 +402,85 @@ func (ok *Okx) GetIndexComponents(ctx context.Context, index currency.Pair) (*In
 	return resp.Data, nil
 }
 
-// Public Data endpoinsts
+/************************************ Public Data Endpoinst *************************************************/
 
-// GetInstruments retrieve a list of instruments with open contracts.
-// func (ok *Okx) GetInstruments(ctx context.Context, instrumentType, uly, instrumentId string)()
+// GetInstruments Retrieve a list of instruments with open contracts.
+func (ok *Okx) GetInstruments(ctx context.Context, arg *InstrumentsFetchParams) ([]*Instrument, error) {
+	params := url.Values{}
+	if !(strings.EqualFold(arg.InstrumentType, "SPOT") || strings.EqualFold(arg.InstrumentType, "MARGIN") || strings.EqualFold(arg.InstrumentType, "SWAP") || strings.EqualFold(arg.InstrumentType, "FUTURES") || strings.EqualFold(arg.InstrumentType, "OPTION")) {
+		return nil, errMissingRequiredArgInstType
+	} else {
+		params.Set("instType", arg.InstrumentType)
+	}
+	if arg.Underlying != "" {
+		params.Set("uly", arg.Underlying)
+	}
+	if arg.InstrumentID != "" {
+		params.Set("instId", arg.InstrumentID)
+	}
+	type response struct {
+		Code int           `json:"code,string"`
+		Msg  string        `json:"msg"`
+		Data []*Instrument `json:"data"`
+	}
+
+	var resp response
+	path := common.EncodeURLValues(publicInstruments, params)
+	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, false)
+}
+
+// GetDeliveryHistory retrieve the estimated delivery price of the last 3 months, which will only have a return value one hour before the delivery/exercise.
+func (ok *Okx) GetDeliveryHistory(ctx context.Context, instrumentType, underlying string, after, before time.Time, limit int) ([]*DeliveryHistoryResponse, error) {
+	params := url.Values{}
+	if instrumentType == "" {
+		return nil, errMissingRequiredArgInstType
+	}
+	if underlying != "" {
+		params.Set("uly", underlying)
+	}
+	if !(after.IsZero()) {
+		params.Set("after", strconv.Itoa(int(after.UnixMilli())))
+	}
+	if !(before.IsZero()) {
+		params.Set("before", strconv.Itoa(int(before.UnixMilli())))
+	}
+	if limit > 0 && limit <= 100 {
+		params.Set("limit", strconv.Itoa(limit))
+	} else {
+		return nil, fmt.Errorf("limit value exceeds the maximum value %d", 1000)
+	}
+	type response struct {
+		Code int                        `json:"code,string"`
+		Msg  string                     `json:"msg"`
+		Data []*DeliveryHistoryResponse `json:"data"`
+	}
+	var resp response
+	path := common.EncodeURLValues(publicDeliveryExerciseHistory, params)
+	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, false)
+}
+
+// GetOpenInterest retrieve the total open interest for contracts on OKX
+func (ok *Okx) GetOpenInterest(ctx context.Context, instType, uly, instId string) ([]*OpenInterestResponse, error) {
+	params := url.Values{}
+	if !(strings.EqualFold(instType, "SPOT") || strings.EqualFold(instType, "FUTURES") || strings.EqualFold(instType, "OPTION")) {
+		return nil, errMissingRequiredArgInstType
+	} else {
+		params.Set("instType", instType)
+	}
+	if uly != "" {
+		params.Set("uly", uly)
+	}
+	if instId != "" {
+		params.Set("instId", instId)
+	}
+	type response struct {
+		Code int                     `json:"code,string"`
+		Msg  string                  `json:"msg"`
+		Data []*OpenInterestResponse `json:"data"`
+	}
+	var resp response
+	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, publicOpenInterestValues, nil, &resp, false)
+}
 
 // SendHTTPRequest sends an authenticated http request to a desired
 // path with a JSON payload (of present)

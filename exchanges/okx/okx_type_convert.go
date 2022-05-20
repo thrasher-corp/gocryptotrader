@@ -95,3 +95,57 @@ func (a *IndexComponent) UnmarshalJSON(data []byte) error {
 	}
 	return nil
 }
+
+// UnmarshalJSON
+func (a *Instrument) UnmarshalJSON(data []byte) error {
+	type Alias Instrument
+	chil := &struct {
+		*Alias
+		ListTime int64 `json:"listTime"`
+		ExpTime  int64 `json:"expTime"`
+	}{Alias: (*Alias)(a)}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	if chil.ListTime > 0 {
+		a.ListTime = time.UnixMilli(chil.ListTime)
+	}
+	if chil.ExpTime > 0 {
+		a.ExpTime = time.UnixMilli(chil.ExpTime)
+	}
+	return nil
+}
+
+// UnmarshalJSON unmarshals the json obeject to the DeliveryHistoryResponse
+func (a *DeliveryHistoryResponse) UnmarshalJSON(data []byte) error {
+	type Alias DeliveryHistoryResponse
+	chil := &struct {
+		*Alias
+		Timestamp int64 `json:"ts"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	if chil.Timestamp > 0 {
+		a.Timestamp = time.UnixMilli(chil.Timestamp)
+	}
+	return nil
+}
+
+// UnmarshalJSON decoder for OpenInterestResponse instance.
+func (a *OpenInterestResponse) UnmarshalJSON(data []byte) error {
+	type Alias OpenInterestResponse
+	chil := &struct {
+		*Alias
+		Timestamp int64 `json:"ts"`
+	}{Alias: (*Alias)(a)}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	if chil.Timestamp > 0 {
+		a.Timestamp = time.UnixMilli(chil.Timestamp)
+	}
+	return nil
+}
