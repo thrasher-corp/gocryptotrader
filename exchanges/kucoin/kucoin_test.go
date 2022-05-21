@@ -58,7 +58,7 @@ func areTestAPIKeysSet() bool {
 	return k.ValidateAPICredentials(k.GetDefaultCredentials()) == nil
 }
 
-// Implement tests for API endpoints below
+// Spot asset test cases starts from here
 func TestGetSymbols(t *testing.T) {
 	t.Parallel()
 
@@ -70,5 +70,41 @@ func TestGetSymbols(t *testing.T) {
 	_, err = k.GetSymbols(context.Background(), currency.BTC.String())
 	if err != nil {
 		t.Error("GetSymbols() error", err)
+	}
+}
+
+func TestGetTicker(t *testing.T) {
+	t.Parallel()
+
+	_, err := k.GetTicker(context.Background(), "BTC-USDT")
+	if err != nil {
+		t.Error("GetTicker() error", err)
+	}
+}
+
+func TestGetAllTickers(t *testing.T) {
+	t.Parallel()
+
+	_, err := k.GetAllTickers(context.Background())
+	if err != nil {
+		t.Error("GetAllTickers() error", err)
+	}
+}
+
+func TestGet24hrStats(t *testing.T) {
+	t.Parallel()
+
+	_, err := k.Get24hrStats(context.Background(), "BTC-USDT")
+	if err != nil {
+		t.Error("Get24hrStats() error", err)
+	}
+}
+
+func TestGetMarketList(t *testing.T) {
+	t.Parallel()
+
+	_, err := k.GetMarketList(context.Background())
+	if err != nil {
+		t.Error("GetMarketList() error", err)
 	}
 }
