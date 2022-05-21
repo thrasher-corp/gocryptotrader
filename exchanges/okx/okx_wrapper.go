@@ -61,6 +61,7 @@ func (ok *Okx) SetDefaults() {
 	configFmt := &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}
 	err := ok.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot, asset.Futures, asset.PerpetualSwap)
 	if err != nil {
+		println("Prints:", err.Error())
 		log.Errorln(log.ExchangeSys, err)
 	}
 
@@ -94,8 +95,8 @@ func (ok *Okx) SetDefaults() {
 	// NOTE: SET THE URLs HERE
 	ok.API.Endpoints = ok.NewEndpoints()
 	ok.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
-		exchange.RestSpot: okxAPIURL,
-		// exchange.WebsocketSpot: okxWSAPIURL,
+		exchange.RestSpot:      okxAPIURL,
+		exchange.WebsocketSpot: okxWebsocketURL,
 	})
 	ok.Websocket = stream.New()
 	ok.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit

@@ -63,32 +63,53 @@ const (
 	publicInstruments             = "public/instruments"
 	publicDeliveryExerciseHistory = "public/delivery-exercise-history"
 	publicOpenInterestValues      = "public/open-interest"
+	publicFundingRate             = "public/funding-rate"
+	publicFundingRateHistory      = "public/funding-rate-history"
+	publicLimitPath               = "public/price-limit"
+	publicOptionalData            = "public/opt-summary"
+	publicEstimatedPrice          = "public/estimated-price"
+	publicDiscountRate            = "public/discount-rate-interest-free-quota"
+	publicTime                    = "public/time"
+	publicLiquidationOrders       = "public/liquidation-orders"
+	publicMarkPrice               = "public/mark-price"
+	publicPositionTiers           = "public/position-tiers"
 
 	// Authenticated endpoints
 )
 
 var (
-	errEmptyPairValues                     = errors.New("empty pair values")
-	errDataNotFound                        = errors.New("data not found ")
-	errMissingInstructionIDParam           = errors.New("missing required instruction id parameter value")
-	errUnableToTypeAssertResponseData      = errors.New("unable to type assert responseData")
-	errUnableToTypeAssertKlineData         = errors.New("unable to type assert kline data")
-	errUnexpectedKlineDataLength           = errors.New("unexpected kline data length")
-	errLimitExceedsMaximumResultPerRequest = errors.New("maximum result per request exeeds the limit")
-	errNo24HrTradeVolumeFound              = errors.New("no trade record found in the 24 trade volume ")
-	errOracleInformationNotFound           = errors.New("oracle informations not found")
-	errExchangeInfoNotFound                = errors.New("exchange information not found")
-	errIndexComponentNotFound              = errors.New("unable to fetch index components")
-	errMissingRequiredArgInstType          = errors.New("invalid required argument instrument type")
+	errEmptyPairValues                        = errors.New("empty pair values")
+	errDataNotFound                           = errors.New("data not found ")
+	errMissingInstructionIDParam              = errors.New("missing required instruction id parameter value")
+	errUnableToTypeAssertResponseData         = errors.New("unable to type assert responseData")
+	errUnableToTypeAssertKlineData            = errors.New("unable to type assert kline data")
+	errUnexpectedKlineDataLength              = errors.New("unexpected kline data length")
+	errLimitExceedsMaximumResultPerRequest    = errors.New("maximum result per request exeeds the limit")
+	errNo24HrTradeVolumeFound                 = errors.New("no trade record found in the 24 trade volume ")
+	errOracleInformationNotFound              = errors.New("oracle informations not found")
+	errExchangeInfoNotFound                   = errors.New("exchange information not found")
+	errIndexComponentNotFound                 = errors.New("unable to fetch index components")
+	errMissingRequiredArgInstType             = errors.New("invalid required argument instrument type")
+	errLimitValueExceedsMaxof100              = fmt.Errorf("limit value exceeds the maximum value %d", 100)
+	errParameterUnderlyingCanNotBeEmpty       = errors.New("parameter uly can not be empty.")
+	errUnacceptableUnderlyingValue            = errors.New("unacceptable underlying value")
+	errMissingInstrumentID                    = errors.New("missing instrument id")
+	errFundingRateHistoryNotFound             = errors.New("funding rate history not found")
+	errMissingRequiredUnderlying              = errors.New("error missing required parameter underlying")
+	errMissingRequiredParamInstID             = errors.New("missing required parameter instrument id")
+	errDeliveryEstimatedPriceResponseNotFound = errors.New("delivery estimated price response not found")
+	errLiquidationOrderResponseNotFound       = errors.New("liquidation order not found")
+	errEitherInstIDOrCcyIsRequired            = errors.New("either parameter instId or ccy is required")
+	errIncorrectRequiredParameterTradeMode    = errors.New("unacceptable required argument, trade mode")
 )
 
 /************************************ MarketData Endpoints *************************************************/
 
 func (ok *Okx) GetTickers(ctx context.Context, instType, uly, instId string) ([]MarketDataResponse, error) {
 	params := url.Values{}
-	if instType == "spot" || instType == "swap" || instType == "futures" || instType == "option" {
+	if strings.EqualFold(instType, "spot") || strings.EqualFold(instType, "swap") || strings.EqualFold(instType, "futures") || strings.EqualFold(instType, "option") {
 		params.Set("instType", instType)
-		if (instType == "swap" || instType == "futures" || instType == "option") && uly != "" {
+		if (strings.EqualFold(instType, "swap") || strings.EqualFold(instType, "futures") || strings.EqualFold(instType, "option")) && uly != "" {
 			params.Set("uly", uly)
 		}
 	} else if instId != "" {
@@ -98,7 +119,7 @@ func (ok *Okx) GetTickers(ctx context.Context, instType, uly, instId string) ([]
 	}
 	path := marketTickers
 	if len(params) > 0 {
-		path = path + "?" + params.Encode()
+		path = common.EncodeURLValues(path, params)
 	}
 	var response OkxMarketDataResponse
 	return response.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &response, false)
@@ -419,7 +440,7 @@ func (ok *Okx) GetInstruments(ctx context.Context, arg *InstrumentsFetchParams) 
 		params.Set("instId", arg.InstrumentID)
 	}
 	type response struct {
-		Code int           `json:"code,string"`
+		Code string        `json:"code"`
 		Msg  string        `json:"msg"`
 		Data []*Instrument `json:"data"`
 	}
@@ -430,13 +451,20 @@ func (ok *Okx) GetInstruments(ctx context.Context, arg *InstrumentsFetchParams) 
 }
 
 // GetDeliveryHistory retrieve the estimated delivery price of the last 3 months, which will only have a return value one hour before the delivery/exercise.
-func (ok *Okx) GetDeliveryHistory(ctx context.Context, instrumentType, underlying string, after, before time.Time, limit int) ([]*DeliveryHistoryResponse, error) {
+func (ok *Okx) GetDeliveryHistory(ctx context.Context, instrumentType, underlying string, after, before time.Time, limit int) ([]*DeliveryHistory, error) {
 	params := url.Values{}
-	if instrumentType == "" {
+	if instrumentType != "" && !(strings.EqualFold(instrumentType, "FUTURES") || strings.EqualFold(instrumentType, "OPTION")) {
+		return nil, fmt.Errorf("unacceptable instrument Type! Only %s and %s are allowed", "FUTURE", "OPTION")
+	} else if instrumentType == "" {
 		return nil, errMissingRequiredArgInstType
+	} else {
+		params.Set("instType", instrumentType)
 	}
 	if underlying != "" {
+		params.Set("Underlying", underlying)
 		params.Set("uly", underlying)
+	} else {
+		return nil, errParameterUnderlyingCanNotBeEmpty
 	}
 	if !(after.IsZero()) {
 		params.Set("after", strconv.Itoa(int(after.UnixMilli())))
@@ -447,14 +475,14 @@ func (ok *Okx) GetDeliveryHistory(ctx context.Context, instrumentType, underlyin
 	if limit > 0 && limit <= 100 {
 		params.Set("limit", strconv.Itoa(limit))
 	} else {
-		return nil, fmt.Errorf("limit value exceeds the maximum value %d", 1000)
+		return nil, errLimitValueExceedsMaxof100
 	}
 	type response struct {
 		Code int                        `json:"code,string"`
 		Msg  string                     `json:"msg"`
 		Data []*DeliveryHistoryResponse `json:"data"`
 	}
-	var resp response
+	var resp DeliveryHistoryResponse
 	path := common.EncodeURLValues(publicDeliveryExerciseHistory, params)
 	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, false)
 }
@@ -479,14 +507,269 @@ func (ok *Okx) GetOpenInterest(ctx context.Context, instType, uly, instId string
 		Data []*OpenInterestResponse `json:"data"`
 	}
 	var resp response
-	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, publicOpenInterestValues, nil, &resp, false)
+	path := common.EncodeURLValues(publicOpenInterestValues, params)
+	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, false)
+}
+
+// GetFundingRate  Retrieve funding rate.
+func (ok *Okx) GetFundingRate(ctx context.Context, instrumentID string) (*FundingRateResponse, error) {
+	params := url.Values{}
+	if instrumentID != "" {
+		params.Set("instId", instrumentID)
+	} else {
+		return nil, errMissingInstrumentID
+	}
+	path := common.EncodeURLValues(publicFundingRate, params)
+	type response struct {
+		Code string                 `json:"code"`
+		Data []*FundingRateResponse `json:"data"`
+		Msg  string                 `json:"msg"`
+	}
+	var resp response
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, false)
+	if len(resp.Data) > 0 {
+		return resp.Data[0], nil
+	}
+	return nil, err
+}
+
+// GetFundingRateHistory retrieve funding rate history. This endpoint can retrieve data from the last 3 months.
+func (ok *Okx) GetFundingRateHistory(ctx context.Context, instrumentID string, before time.Time, after time.Time, limit uint) ([]*FundingRateResponse, error) {
+	params := url.Values{}
+	if instrumentID != "" {
+		params.Set("instId", instrumentID)
+	} else {
+		return nil, errMissingInstrumentID
+	}
+	if !before.IsZero() {
+		params.Set("before", strconv.Itoa(int(before.UnixMilli())))
+	}
+	if !after.IsZero() {
+		params.Set("after", strconv.Itoa(int(after.UnixMilli())))
+	}
+	if limit > 0 && limit < 100 {
+		params.Set("limit", strconv.Itoa(int(limit)))
+	} else if limit > 0 {
+		return nil, errLimitValueExceedsMaxof100
+	}
+	type response struct {
+		Code string                 `json:"code"`
+		Msg  string                 `json:"msg"`
+		Data []*FundingRateResponse `json:"data"`
+	}
+	path := common.EncodeURLValues(publicFundingRateHistory, params)
+	var resp response
+	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, false)
+}
+
+// GetLimitPrice retrieve the highest buy limit and lowest sell limit of the instrument.
+func (ok *Okx) GetLimitPrice(ctx context.Context, instrumentID string) (*LimitPriceResponse, error) {
+	params := url.Values{}
+	if instrumentID != "" {
+		params.Set("instId", instrumentID)
+	} else {
+		return nil, errMissingInstrumentID
+	}
+	path := common.EncodeURLValues(publicLimitPath, params)
+	type response struct {
+		Code string                `json:"code"`
+		Msg  string                `json:"msg"`
+		Data []*LimitPriceResponse `json:"data"`
+	}
+	var resp response
+	if er := ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, false); er != nil {
+		return nil, er
+	}
+	if len(resp.Data) > 0 {
+		return resp.Data[0], nil
+	}
+	return nil, errFundingRateHistoryNotFound
+}
+
+// GetOptionMarketData retrieve option market data.
+func (ok *Okx) GetOptionMarketData(ctx context.Context, underlying string, expTime time.Time) ([]*OptionMarketDataResponse, error) {
+	params := url.Values{}
+	if underlying != "" {
+		params.Set("uly", underlying)
+	} else {
+		return nil, errMissingRequiredUnderlying
+	}
+	if !expTime.IsZero() {
+		params.Set("expTime", fmt.Sprintf("%d%d%d", expTime.Year(), expTime.Month(), expTime.Day()))
+	}
+	path := common.EncodeURLValues(publicOptionalData, params)
+	type response struct {
+		Code string                      `json:"code"`
+		Msg  string                      `json:"msg"`
+		Data []*OptionMarketDataResponse `json:"data"`
+	}
+	var resp response
+	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, false)
+}
+
+// GetEstimatedDeliveryPrice retrieve the estimated delivery price which will only have a return value one hour before the delivery/exercise.
+func (ok *Okx) GetEstimatedDeliveryPrice(ctx context.Context, instrumentID string) (*DeliveryEstimatedPrice, error) {
+	var resp DeliveryEstimatedPriceResponse
+	params := url.Values{}
+	if instrumentID != "" {
+		params.Set("instId", instrumentID)
+	} else {
+		return nil, errMissingRequiredParamInstID
+	}
+	path := common.EncodeURLValues(publicEstimatedPrice, params)
+	if er := ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, false); er != nil {
+		return nil, er
+	}
+	if len(resp.Data) > 0 {
+		return resp.Data[0], nil
+	}
+	return nil, errors.New(resp.Msg)
+}
+
+// GetDiscountRateAndInterestFreeQuota retrieve discount rate level and interest-free quota.
+func (ok *Okx) GetDiscountRateAndInterestFreeQuota(ctx context.Context, currency string, discountLevel int8) (*DiscountRate, error) {
+	var response DiscountRateResponse
+	params := url.Values{}
+	if currency != "" {
+		params.Set("ccy", currency)
+	}
+	if discountLevel > 0 && discountLevel < 5 {
+		params.Set("discountLv", strconv.Itoa(int(discountLevel)))
+	}
+	path := common.EncodeURLValues(publicDiscountRate, params)
+	if er := ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &response, false); er != nil {
+		return nil, er
+	}
+	if len(response.Data) > 0 {
+		return response.Data[0], nil
+	}
+	return nil, errors.New(response.Msg)
+}
+
+// GetSystemTime Retrieve API server time.
+func (ok *Okx) GetSystemTime(ctx context.Context) (*time.Time, error) {
+	type response struct {
+		Code string       `json:"code"`
+		Msg  string       `json:"msg"`
+		Data []ServerTime `json:"data"`
+	}
+	var resp response
+	if er := ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, publicTime, nil, &resp, false); er != nil {
+		return nil, er
+	}
+	if len(resp.Data) > 0 {
+		return &(resp.Data[0].Timestamp), nil
+	}
+	return nil, errors.New(resp.Msg)
+}
+
+// GetLiquidationOrders retrieve information on liquidation orders in the last day.
+func (ok *Okx) GetLiquidationOrders(ctx context.Context, arg *LiquidationOrderRequestParams) (*LiquidationOrder, error) {
+	params := url.Values{}
+	if !(strings.EqualFold(arg.InstrumentType, "MARGIN") || strings.EqualFold(arg.InstrumentType, "FUTURES") || strings.EqualFold(arg.InstrumentType, "SWAP") || strings.EqualFold(arg.InstrumentType, "OPTION")) {
+		return nil, errMissingRequiredArgInstType
+	} else {
+		params.Set("instType", arg.InstrumentType)
+	}
+	if strings.EqualFold(arg.MarginMode, "isolated") || strings.EqualFold(arg.MarginMode, "cross") {
+		params.Set("mgnMode", arg.MarginMode)
+	}
+	if strings.EqualFold(arg.InstrumentType, "MARGIN") && arg.InstrumentID != "" {
+		params.Set("instId", arg.InstrumentID)
+	} else if strings.EqualFold("MARGIN", arg.InstrumentType) && arg.Currency.String() != "" {
+		params.Set("ccy", arg.Currency.String())
+	} else {
+		return nil, errEitherInstIDOrCcyIsRequired
+	}
+	if (strings.EqualFold(arg.InstrumentType, "FUTURES") || strings.EqualFold(arg.InstrumentType, "SWAP") || strings.EqualFold(arg.InstrumentType, "OPTION")) && arg.Underlying != "" {
+		params.Set("uly", arg.Underlying)
+	}
+	if strings.EqualFold(arg.InstrumentType, "FUTURES") && (strings.EqualFold(arg.Alias, "this_week") || strings.EqualFold(arg.Alias, "next_week ") || strings.EqualFold(arg.Alias, "quarter") || strings.EqualFold(arg.Alias, "next_quarter")) {
+		params.Set("alias", arg.Alias)
+	}
+	if ((strings.EqualFold(arg.InstrumentType, "FUTURES") || strings.EqualFold(arg.InstrumentType, "SWAP")) &&
+		strings.EqualFold(arg.Alias, "unfilled")) || strings.EqualFold(arg.Alias, "filled ") {
+		params.Set("alias", arg.Underlying)
+	}
+	if !arg.Before.IsZero() {
+		params.Set("before", strconv.FormatInt(arg.Before.UnixMilli(), 10))
+	}
+	if !arg.After.IsZero() {
+		params.Set("after", strconv.FormatInt(arg.After.UnixMilli(), 10))
+	}
+	if arg.Limit > 0 && arg.Limit < 100 {
+		params.Set("limit", strconv.FormatInt(arg.Limit, 10))
+	}
+	path := common.EncodeURLValues(publicLiquidationOrders, params)
+	var response LiquidationOrderResponse
+	println("No ERROR MESSAGE UNTIL NOW")
+	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &response, false)
+	if er != nil {
+		return nil, er
+	}
+	if len(response.Data) > 0 {
+		return response.Data[0], nil
+	}
+	return nil, errLiquidationOrderResponseNotFound
+}
+
+// GetMarkPrice  Retrieve mark price.
+func (ok *Okx) GetMarkPrice(ctx context.Context, instrumentType, underlying, instrumentID string) ([]*MarkPrice, error) {
+	params := url.Values{}
+	if !(strings.EqualFold(instrumentType, "MARGIN") ||
+		strings.EqualFold(instrumentType, "FUTURES") ||
+		strings.EqualFold(instrumentType, "SWAP") ||
+		strings.EqualFold(instrumentType, "OPTION")) {
+		return nil, errMissingRequiredArgInstType
+	} else {
+		params.Set("instType", instrumentType)
+	}
+	if underlying != "" {
+		params.Set("uly", underlying)
+	}
+	if instrumentID != "" {
+		params.Set("instId", instrumentID)
+	}
+	var response MarkPriceResponse
+	path := common.EncodeURLValues(publicMarkPrice, params)
+	return response.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &response, false)
+}
+
+// GetPositionTiers retrieve position tiers information，maximum leverage depends on your borrowings and margin ratio.
+func (ok *Okx) GetPositionTiers(ctx context.Context, instrumentType, tradeMode, underlying, instrumentID, tiers string) ([]*PositionTiers, error) {
+	params := url.Values{}
+	if !(strings.EqualFold(instrumentType, "MARGIN") ||
+		strings.EqualFold(instrumentType, "FUTURES") ||
+		strings.EqualFold(instrumentType, "SWAP") ||
+		strings.EqualFold(instrumentType, "OPTION")) {
+		return nil, errMissingRequiredArgInstType
+	} else {
+		params.Set("instType", instrumentType)
+	}
+	if !(strings.EqualFold(tradeMode, "cross") || strings.EqualFold(tradeMode, "isolated")) {
+		return nil, errIncorrectRequiredParameterTradeMode
+	}
+	if (!strings.EqualFold(instrumentType, "MARGIN")) && underlying != "" {
+		params.Set("uly", underlying)
+	}
+	if strings.EqualFold(instrumentType, "MARGIN") && instrumentID != "" {
+		params.Set("instId", instrumentID)
+	} else if strings.EqualFold(instrumentType, "MARGIN") {
+		return nil, errMissingInstrumentID
+	}
+	if tiers != "" {
+		params.Set("tiers", tiers)
+	}
+	var response PositionTiersResponse
+	path := common.EncodeURLValues(publicPositionTiers, params)
+	return response.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &response, false)
 }
 
 // SendHTTPRequest sends an authenticated http request to a desired
 // path with a JSON payload (of present)
 // URL arguments must be in the request path and not as url.URL values
-func (o *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, httpMethod, requestPath string, data, result interface{}, authenticated bool) (err error) {
-	endpoint, err := o.API.Endpoints.GetURL(ep)
+func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, httpMethod, requestPath string, data, result interface{}, authenticated bool) (err error) {
+	endpoint, err := ok.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
 	}
@@ -501,13 +784,12 @@ func (o *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, httpMethod, 
 				return nil, err
 			}
 		}
-
 		path := endpoint /* + o.APIVersion */ + requestPath
 		headers := make(map[string]string)
 		headers["Content-Type"] = "application/json"
 		if authenticated {
 			var creds *exchange.Credentials
-			creds, err = o.GetCredentials(ctx)
+			creds, err = ok.GetCredentials(ctx)
 			if err != nil {
 				return nil, err
 			}
@@ -531,13 +813,13 @@ func (o *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, httpMethod, 
 			Body:          bytes.NewBuffer(payload),
 			Result:        &intermediary,
 			AuthRequest:   authenticated,
-			Verbose:       o.Verbose,
-			HTTPDebugging: o.HTTPDebugging,
-			HTTPRecording: o.HTTPRecording,
+			Verbose:       ok.Verbose,
+			HTTPDebugging: ok.HTTPDebugging,
+			HTTPRecording: ok.HTTPRecording,
 		}, nil
 	}
 
-	err = o.SendPayload(ctx, request.Unset, newRequest)
+	err = ok.SendPayload(ctx, request.Unset, newRequest)
 	if err != nil {
 		return err
 	}
@@ -548,7 +830,6 @@ func (o *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, httpMethod, 
 		Result       bool   `json:"result,string,omitempty"`
 	}
 	errCap := errCapFormat{Result: true}
-
 	err = json.Unmarshal(intermediary, &errCap)
 	if err == nil {
 		if errCap.ErrorMessage != "" {
@@ -556,7 +837,7 @@ func (o *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, httpMethod, 
 		}
 		if errCap.Error > 0 {
 			return fmt.Errorf("sendHTTPRequest error - %s",
-				o.ErrorCodes[strconv.FormatInt(errCap.Error, 10)])
+				ok.ErrorCodes[strconv.FormatInt(errCap.Error, 10)])
 		}
 		if !errCap.Result {
 			return errors.New("unspecified error occurred")
