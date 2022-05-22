@@ -13,7 +13,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
@@ -54,7 +53,7 @@ func (by *Bybit) WsUSDTConnect() error {
 	}
 
 	go by.wsUSDTReadData()
-	if by.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+	if by.IsWebsocketAuthenticationSupported() {
 		err = by.WsUSDTAuth(context.TODO())
 		if err != nil {
 			by.Websocket.DataHandler <- err

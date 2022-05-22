@@ -2516,19 +2516,41 @@ func TestCancelAllOrders(t *testing.T) {
 	}
 
 	_, err = b.CancelAllOrders(context.Background(),
-		&order.Cancel{AssetType: asset.CoinMarginedFutures})
+		&order.Cancel{
+			AssetType: asset.CoinMarginedFutures,
+			Pair: currency.Pair{
+				Delimiter: "-",
+				Base:      currency.BTC,
+				Quote:     currency.USD,
+			},
+		})
 	if err != nil {
 		t.Error(err)
 	}
 
 	_, err = b.CancelAllOrders(context.Background(),
-		&order.Cancel{AssetType: asset.USDTMarginedFutures})
+		&order.Cancel{
+			AssetType: asset.USDTMarginedFutures,
+			Pair: currency.Pair{
+				Delimiter: "-",
+				Base:      currency.BTC,
+				Quote:     currency.USDT,
+			},
+		})
 	if err != nil {
 		t.Error(err)
 	}
 
+	pair, err := currency.NewPairFromString("BTCUSDH22")
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	_, err = b.CancelAllOrders(context.Background(),
-		&order.Cancel{AssetType: asset.Futures})
+		&order.Cancel{
+			AssetType: asset.Futures,
+			Pair:      pair,
+		})
 	if err != nil {
 		t.Error(err)
 	}

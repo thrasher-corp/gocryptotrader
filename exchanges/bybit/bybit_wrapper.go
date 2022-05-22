@@ -871,9 +871,9 @@ func (by *Bybit) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submit
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (by *Bybit) ModifyOrder(ctx context.Context, action *order.Modify) (order.Modify, error) {
+func (by *Bybit) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Modify, error) {
 	if err := action.Validate(); err != nil {
-		return order.Modify{}, err
+		return nil, err
 	}
 
 	var orderID string
@@ -890,7 +890,7 @@ func (by *Bybit) ModifyOrder(ctx context.Context, action *order.Modify) (order.M
 		err = fmt.Errorf("%s %w", action.AssetType, asset.ErrNotSupported)
 	}
 
-	return order.Modify{
+	return &order.Modify{
 		Exchange:  action.Exchange,
 		AssetType: action.AssetType,
 		Pair:      action.Pair,
@@ -937,12 +937,21 @@ func (by *Bybit) CancelAllOrders(ctx context.Context, orderCancellation *order.C
 	cancelAllOrdersResponse.Status = make(map[string]string)
 	switch orderCancellation.AssetType {
 	case asset.Spot:
-		activeOrder, err := by.ListOpenOrders(ctx, orderCancellation.Symbol, "", 0)
+		activeOrder, err := by.ListOpenOrders(ctx, orderCancellation.Pair.String(), "", 0)
 		if err != nil {
 			return cancelAllOrdersResponse, err
 		}
 
-		successful, err := by.BatchCancelOrder(ctx, orderCancellation.Symbol, orderCancellation.Side.Title(), orderCancellation.Type.String())
+		var orderType, side string
+		if orderCancellation.Type != order.UnknownType {
+			orderType = orderCancellation.Type.String()
+		}
+
+		if orderCancellation.Side != order.UnknownSide {
+			side = orderCancellation.Side.Title()
+		}
+
+		successful, err := by.BatchCancelOrder(ctx, orderCancellation.Pair.String(), side, orderType)
 
 		if !successful {
 			return cancelAllOrdersResponse, fmt.Errorf("failed to cancelAllOrder")
