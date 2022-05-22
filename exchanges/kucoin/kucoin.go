@@ -60,7 +60,7 @@ func (k *Kucoin) GetTicker(ctx context.Context, pair string) (Ticker, error) {
 	}{}
 
 	params := url.Values{}
-	if pair != "" {
+	if pair == "" {
 		return Ticker{}, errors.New("pair can't be empty") // TODO: error as constant
 	}
 	params.Set("symbol", pair)
@@ -89,7 +89,7 @@ func (k *Kucoin) Get24hrStats(ctx context.Context, pair string) (Stats24hrs, err
 	}{}
 
 	params := url.Values{}
-	if pair != "" {
+	if pair == "" {
 		return Stats24hrs{}, errors.New("pair can't be empty")
 	}
 	params.Set("symbol", pair)
