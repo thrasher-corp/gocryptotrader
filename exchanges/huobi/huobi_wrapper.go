@@ -999,8 +999,8 @@ func (h *HUOBI) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitR
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (h *HUOBI) ModifyOrder(ctx context.Context, action *order.Modify) (order.Modify, error) {
-	return order.Modify{}, common.ErrFunctionNotSupported
+func (h *HUOBI) ModifyOrder(_ context.Context, _ *order.Modify) (*order.Modify, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number
@@ -1020,7 +1020,7 @@ func (h *HUOBI) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	case asset.CoinMarginedFutures:
 		_, err = h.CancelSwapOrder(ctx, o.ID, o.ClientID, o.Pair)
 	case asset.Futures:
-		_, err = h.FCancelOrder(ctx, o.Symbol, o.ClientID, o.ClientOrderID)
+		_, err = h.FCancelOrder(ctx, o.Pair.Base, o.ClientID, o.ClientOrderID)
 	default:
 		return fmt.Errorf("%v assetType not supported", o.AssetType)
 	}

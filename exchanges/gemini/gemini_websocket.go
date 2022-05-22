@@ -177,7 +177,7 @@ func (g *Gemini) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription)
 
 // WsAuth will connect to Gemini's secure endpoint
 func (g *Gemini) WsAuth(ctx context.Context, dialer *websocket.Dialer) error {
-	if !g.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+	if !g.IsWebsocketAuthenticationSupported() {
 		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", g.Name)
 	}
 	creds, err := g.GetCredentials(ctx)

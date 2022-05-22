@@ -1116,6 +1116,10 @@ message CollateralUsedBreakdown {
   string used_in_spot_margin = 8;
 }
 
+message ShutdownRequest {}
+
+message ShutdownResponse {}
+
 service GoCryptoTraderService {
   rpc GetInfo(GetInfoRequest) returns (GetInfoResponse) {
     option (google.api.http) = {
@@ -1712,6 +1716,11 @@ service GoCryptoTraderService {
   rpc GetCollateral(GetCollateralRequest) returns (GetCollateralResponse) {
     option (google.api.http) = {
       get: "/v1/getcollateral"
+    };
+  }
+  rpc Shutdown(ShutdownRequest) returns (ShutdownResponse) {
+    option (google.api.http) = {
+      get: "/v1/shutdown"
     };
   }
 }

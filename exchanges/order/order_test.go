@@ -812,6 +812,9 @@ var stringsToOrderStatus = []struct {
 	{"cLosEd", Closed, nil},
 	{"cancellinG", Cancelling, nil},
 	{"woahMan", UnknownStatus, errUnrecognisedOrderStatus},
+	{"PLAcED", New, nil},
+	{"ACCePTED", New, nil},
+	{"FAILeD", Rejected, nil},
 }
 
 func TestStringToOrderStatus(t *testing.T) {
@@ -1554,6 +1557,7 @@ func TestGenerateInternalOrderID(t *testing.T) {
 }
 
 func TestDetail_Copy(t *testing.T) {
+	t.Parallel()
 	d := []Detail{
 		{
 			Exchange: "Binance",
@@ -1575,5 +1579,98 @@ func TestDetail_Copy(t *testing.T) {
 				t.Errorf("[%d]Trades point to the same data elements", i)
 			}
 		}
+	}
+}
+
+func TestDetail_CopyToPointer(t *testing.T) {
+	t.Parallel()
+	d := []Detail{
+		{
+			Exchange: "Binance",
+		},
+		{
+			Exchange: "Binance",
+			Trades: []TradeHistory{
+				{Price: 1},
+			},
+		},
+	}
+	for i := range d {
+		r := d[i].CopyToPointer()
+		if !reflect.DeepEqual(d[i], *r) {
+			t.Errorf("[%d] Copy does not contain same elements, expected: %v\ngot:%v", i, d[i], r)
+		}
+		if len(d[i].Trades) > 0 {
+			if &d[i].Trades[0] == &r.Trades[0] {
+				t.Errorf("[%d]Trades point to the same data elements", i)
+			}
+		}
+	}
+}
+
+func TestDetail_CopyPointerOrderSlice(t *testing.T) {
+	t.Parallel()
+	d := []*Detail{
+		{
+			Exchange: "Binance",
+		},
+		{
+			Exchange: "Binance",
+			Trades: []TradeHistory{
+				{Price: 1},
+			},
+		},
+	}
+
+	sliceCopy := CopyPointerOrderSlice(d)
+	for i := range sliceCopy {
+		if !reflect.DeepEqual(*sliceCopy[i], *d[i]) {
+			t.Errorf("[%d] Copy does not contain same elements, expected: %v\ngot:%v", i, sliceCopy[i], d[i])
+		}
+		if len(sliceCopy[i].Trades) > 0 {
+			if &sliceCopy[i].Trades[0] == &d[i].Trades[0] {
+				t.Errorf("[%d]Trades point to the same data elements", i)
+			}
+		}
+	}
+}
+
+func TestDeriveCancel(t *testing.T) {
+	t.Parallel()
+	var o *Detail
+	if _, err := o.DeriveCancel(); !errors.Is(err, errOrderDetailIsNil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errOrderDetailIsNil)
+	}
+
+	pair := currency.NewPair(currency.BTC, currency.AUD)
+
+	o = &Detail{
+		Exchange:      "wow",
+		ID:            "wow1",
+		AccountID:     "wow2",
+		ClientID:      "wow3",
+		ClientOrderID: "wow4",
+		WalletAddress: "wow5",
+		Type:          Market,
+		Side:          Long,
+		Pair:          pair,
+		AssetType:     asset.Futures,
+	}
+	cancel, err := o.DeriveCancel()
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if cancel.Exchange != "wow" ||
+		cancel.ID != "wow1" ||
+		cancel.AccountID != "wow2" ||
+		cancel.ClientID != "wow3" ||
+		cancel.ClientOrderID != "wow4" ||
+		cancel.WalletAddress != "wow5" ||
+		cancel.Type != Market ||
+		cancel.Side != Long ||
+		!cancel.Pair.Equal(pair) ||
+		cancel.AssetType != asset.Futures {
+		t.Fatal("unexpected values")
 	}
 }

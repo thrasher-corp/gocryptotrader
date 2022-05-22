@@ -53,22 +53,24 @@ import (
 )
 
 var (
-	errExchangeNotLoaded    = errors.New("exchange is not loaded/doesn't exist")
-	errExchangeNotEnabled   = errors.New("exchange is not enabled")
-	errExchangeBaseNotFound = errors.New("cannot get exchange base")
-	errInvalidArguments     = errors.New("invalid arguments received")
-	errExchangeNameUnset    = errors.New("exchange name unset")
-	errCurrencyPairUnset    = errors.New("currency pair unset")
-	errInvalidTimes         = errors.New("invalid start and end times")
-	errAssetTypeDisabled    = errors.New("asset type is disabled")
-	errAssetTypeUnset       = errors.New("asset type unset")
-	errDispatchSystem       = errors.New("dispatch system offline")
-	errCurrencyNotEnabled   = errors.New("currency not enabled")
-	errCurrencyNotSpecified = errors.New("a currency must be specified")
-	errCurrencyPairInvalid  = errors.New("currency provided is not found in the available pairs list")
-	errNoTrades             = errors.New("no trades returned from supplied params")
-	errNilRequestData       = errors.New("nil request data received, cannot continue")
-	errNoAccountInformation = errors.New("account information does not exist")
+	errExchangeNotLoaded       = errors.New("exchange is not loaded/doesn't exist")
+	errExchangeNotEnabled      = errors.New("exchange is not enabled")
+	errExchangeBaseNotFound    = errors.New("cannot get exchange base")
+	errInvalidArguments        = errors.New("invalid arguments received")
+	errExchangeNameUnset       = errors.New("exchange name unset")
+	errCurrencyPairUnset       = errors.New("currency pair unset")
+	errInvalidTimes            = errors.New("invalid start and end times")
+	errAssetTypeDisabled       = errors.New("asset type is disabled")
+	errAssetTypeUnset          = errors.New("asset type unset")
+	errDispatchSystem          = errors.New("dispatch system offline")
+	errCurrencyNotEnabled      = errors.New("currency not enabled")
+	errCurrencyNotSpecified    = errors.New("a currency must be specified")
+	errCurrencyPairInvalid     = errors.New("currency provided is not found in the available pairs list")
+	errNoTrades                = errors.New("no trades returned from supplied params")
+	errNilRequestData          = errors.New("nil request data received, cannot continue")
+	errNoAccountInformation    = errors.New("account information does not exist")
+	errShutdownNotAllowed      = errors.New("shutting down this bot instance is not allowed via gRPC, please enable by command line flag --grpcshutdown or config.json field grpcAllowBotShutdown")
+	errGRPCShutdownSignalIsNil = errors.New("cannot shutdown, gRPC shutdown channel is nil")
 )
 
 // RPCServer struct
@@ -1570,7 +1572,7 @@ func (s *RPCServer) GetCryptocurrencyDepositAddresses(ctx context.Context, r *gc
 		return nil, err
 	}
 
-	if !exch.GetAuthenticatedAPISupport(exchange.RestAuthentication) {
+	if !exch.IsRESTAuthenticationSupported() {
 		return nil, fmt.Errorf("%s, %w", r.Exchange, exchange.ErrAuthenticationSupportNotEnabled)
 	}
 
@@ -1603,7 +1605,7 @@ func (s *RPCServer) GetCryptocurrencyDepositAddress(ctx context.Context, r *gctr
 		return nil, err
 	}
 
-	if !exch.GetAuthenticatedAPISupport(exchange.RestAuthentication) {
+	if !exch.IsRESTAuthenticationSupported() {
 		return nil, fmt.Errorf("%s, %w", r.Exchange, exchange.ErrAuthenticationSupportNotEnabled)
 	}
 
@@ -4366,7 +4368,7 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 	if err != nil {
 		return nil, err
 	}
-	creds, err := exch.GetBase().GetCredentials(ctx)
+	creds, err := exch.GetCredentials(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -4564,4 +4566,19 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 		}
 	}
 	return result, nil
+}
+
+// Shutdown terminates bot session externally
+func (s *RPCServer) Shutdown(_ context.Context, _ *gctrpc.ShutdownRequest) (*gctrpc.ShutdownResponse, error) {
+	if !s.Engine.Settings.EnableGRPCShutdown {
+		return nil, errShutdownNotAllowed
+	}
+
+	if s.Engine.GRPCShutdownSignal == nil {
+		return nil, errGRPCShutdownSignalIsNil
+	}
+
+	s.Engine.GRPCShutdownSignal <- struct{}{}
+	s.Engine.GRPCShutdownSignal = nil
+	return &gctrpc.ShutdownResponse{}, nil
 }

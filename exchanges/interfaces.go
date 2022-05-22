@@ -27,9 +27,7 @@ type IBotExchange interface {
 	Start(wg *sync.WaitGroup) error
 	SetDefaults()
 	GetName() string
-	IsEnabled() bool
 	SetEnabled(bool)
-	ValidateCredentials(ctx context.Context, a asset.Item) error
 	FetchTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error)
 	UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error)
 	UpdateTickers(ctx context.Context, a asset.Item) error
@@ -39,41 +37,30 @@ type IBotExchange interface {
 	UpdateTradablePairs(ctx context.Context, forceUpdate bool) error
 	GetEnabledPairs(a asset.Item) (currency.Pairs, error)
 	GetAvailablePairs(a asset.Item) (currency.Pairs, error)
-	GetAuthenticatedAPISupport(endpoint uint8) bool
 	SetPairs(pairs currency.Pairs, a asset.Item, enabled bool) error
 	GetAssetTypes(enabled bool) asset.Items
 	GetRecentTrades(ctx context.Context, p currency.Pair, a asset.Item) ([]trade.Data, error)
 	GetHistoricTrades(ctx context.Context, p currency.Pair, a asset.Item, startTime, endTime time.Time) ([]trade.Data, error)
-	SupportsAutoPairUpdates() bool
-	SupportsRESTTickerBatchUpdates() bool
 	GetFeeByType(ctx context.Context, f *FeeBuilder) (float64, error)
 	GetLastPairsUpdateTime() int64
 	GetWithdrawPermissions() uint32
 	FormatWithdrawPermissions() string
-	SupportsWithdrawPermissions(permissions uint32) bool
 	GetFundingHistory(ctx context.Context) ([]FundHistory, error)
-	SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error)
-	ModifyOrder(ctx context.Context, action *order.Modify) (order.Modify, error)
-	CancelOrder(ctx context.Context, o *order.Cancel) error
-	CancelBatchOrders(ctx context.Context, o []order.Cancel) (order.CancelBatchResponse, error)
-	CancelAllOrders(ctx context.Context, orders *order.Cancel) (order.CancelAllResponse, error)
-	GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error)
+
+	OrderManagement
+
 	GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, accountID, chain string) (*deposit.Address, error)
 	GetAvailableTransferChains(ctx context.Context, cryptocurrency currency.Code) ([]string, error)
-	GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error)
 	GetWithdrawalsHistory(ctx context.Context, code currency.Code, a asset.Item) ([]WithdrawalHistory, error)
-	GetActiveOrders(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error)
+
 	WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error)
 	WithdrawFiatFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error)
 	WithdrawFiatFundsToInternationalBank(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error)
 	SetHTTPClientUserAgent(ua string) error
 	GetHTTPClientUserAgent() (string, error)
 	SetClientProxyAddress(addr string) error
-	SupportsREST() bool
-	GetSubscriptions() ([]stream.ChannelSubscription, error)
 	GetDefaultConfig() (*config.Exchange, error)
 	GetBase() *Base
-	SupportsAsset(assetType asset.Item) bool
 	GetHistoricCandles(ctx context.Context, p currency.Pair, a asset.Item, timeStart, timeEnd time.Time, interval kline.Interval) (kline.Item, error)
 	GetHistoricCandlesExtended(ctx context.Context, p currency.Pair, a asset.Item, timeStart, timeEnd time.Time, interval kline.Interval) (kline.Item, error)
 	DisableRateLimiter() error
@@ -86,11 +73,9 @@ type IBotExchange interface {
 	GetFuturesPositions(context.Context, asset.Item, currency.Pair, time.Time, time.Time) ([]order.Detail, error)
 
 	GetWebsocket() (*stream.Websocket, error)
-	IsWebsocketEnabled() bool
-	SupportsWebsocket() bool
 	SubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error
 	UnsubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error
-	IsAssetWebsocketSupported(aType asset.Item) bool
+	GetSubscriptions() ([]stream.ChannelSubscription, error)
 	FlushWebsocketChannels() error
 	AuthenticateWebsocket(ctx context.Context) error
 
@@ -99,6 +84,22 @@ type IBotExchange interface {
 	UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error
 
 	AccountManagement
+	GetCredentials(ctx context.Context) (*Credentials, error)
+	ValidateCredentials(ctx context.Context, a asset.Item) error
+
+	FunctionalityChecker
+}
+
+// OrderManagement defines functionality for order management
+type OrderManagement interface {
+	SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error)
+	ModifyOrder(ctx context.Context, action *order.Modify) (*order.Modify, error)
+	CancelOrder(ctx context.Context, o *order.Cancel) error
+	CancelBatchOrders(ctx context.Context, o []order.Cancel) (order.CancelBatchResponse, error)
+	CancelAllOrders(ctx context.Context, orders *order.Cancel) (order.CancelAllResponse, error)
+	GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error)
+	GetActiveOrders(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error)
+	GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error)
 }
 
 // CurrencyStateManagement defines functionality for currency state management
@@ -116,4 +117,20 @@ type AccountManagement interface {
 	UpdateAccountInfo(ctx context.Context, a asset.Item) (account.Holdings, error)
 	FetchAccountInfo(ctx context.Context, a asset.Item) (account.Holdings, error)
 	HasAssetTypeAccountSegregation() bool
+}
+
+// FunctionalityChecker defines functionality for retrieving exchange
+// support/enabled features
+type FunctionalityChecker interface {
+	IsEnabled() bool
+	IsAssetWebsocketSupported(a asset.Item) bool
+	SupportsAsset(assetType asset.Item) bool
+	SupportsREST() bool
+	SupportsWithdrawPermissions(permissions uint32) bool
+	SupportsRESTTickerBatchUpdates() bool
+	IsWebsocketEnabled() bool
+	SupportsWebsocket() bool
+	SupportsAutoPairUpdates() bool
+	IsWebsocketAuthenticationSupported() bool
+	IsRESTAuthenticationSupported() bool
 }
