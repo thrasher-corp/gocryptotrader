@@ -3,6 +3,9 @@ package kucoin
 import (
 	"errors"
 	"strconv"
+	"time"
+
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 )
 
 // UnmarshalTo acts as interface to exchange API response
@@ -89,4 +92,21 @@ type TickerInfo struct {
 type Stats24hrs struct {
 	tickerInfoBase
 	Time uint64 `json:"time"`
+}
+
+// Orderbook stores the orderbook data
+type Orderbook struct {
+	Bids   []orderbook.Item
+	Asks   []orderbook.Item
+	Symbol string
+	Time   time.Time
+}
+
+type orderbookResponse struct {
+	Data struct {
+		Asks [][2]string `json:"asks"`
+		Bids [][2]string `json:"bids"`
+		Time uint64      `json:"time"`
+	} `json:"result"`
+	Error
 }

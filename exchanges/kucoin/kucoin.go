@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
@@ -28,12 +29,13 @@ const (
 	kucoinAPIKeyVersion = "2"
 
 	// Public endpoints
-	kucoinGetSymbols    = "/api/v1/symbols"
-	kucoinGetTicker     = "/api/v1/market/orderbook/level1"
-	kucoinGetAllTickers = "/api/v1/market/allTickers"
-	kucoinGet24hrStats  = "/api/v1/market/stats"
-	kucoinGetMarketList = "/api/v1/markets"
-
+	kucoinGetSymbols          = "/api/v1/symbols"
+	kucoinGetTicker           = "/api/v1/market/orderbook/level1"
+	kucoinGetAllTickers       = "/api/v1/market/allTickers"
+	kucoinGet24hrStats        = "/api/v1/market/stats"
+	kucoinGetMarketList       = "/api/v1/markets"
+	kucoinGetPastOrderbook20  = "/api/v1/market/orderbook/level2_20"
+	kucoinGetPastOrderbook100 = "/api/v1/market/orderbook/level2_100"
 	// Authenticated endpoints
 )
 
@@ -106,6 +108,51 @@ func (k *Kucoin) GetMarketList(ctx context.Context) ([]string, error) {
 	}{}
 
 	return resp.Data, k.SendHTTPRequest(ctx, exchange.RestSpot, kucoinGetMarketList, publicSpotRate, &resp)
+}
+
+func processOB(ob [][2]string) ([]orderbook.Item, error) {
+	o := make([]orderbook.Item, len(ob))
+	for x := range ob {
+		var price, amount float64
+		amount, err := strconv.ParseFloat(ob[x][1], 64)
+		if err != nil {
+			return nil, err
+		}
+		price, err = strconv.ParseFloat(ob[x][0], 64)
+		if err != nil {
+			return nil, err
+		}
+		o[x] = orderbook.Item{
+			Price:  price,
+			Amount: amount,
+		}
+	}
+	return o, nil
+}
+
+func constructOrderbook(o *orderbookResponse) (s Orderbook, err error) {
+	s.Bids, err = processOB(o.Data.Bids)
+	if err != nil {
+		return s, err
+	}
+	s.Asks, err = processOB(o.Data.Asks)
+	if err != nil {
+		return s, err
+	}
+	s.Time = o.Data.Time.Time()
+	return
+}
+
+// GetPastOrderbook20 gets orderbook for a specified pair with depth 20
+func (k *Kucoin) GetPastOrderbook20(ctx context.Context, pair string) (Orderbook, error) {
+	var o orderbookResponse
+	params := url.Values{}
+	if pair == "" {
+		return Orderbook{}, errors.New("pair can't be empty")
+	}
+	params.Set("symbol", pair)
+	k.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(kucoinGetPastOrderbook20, params), publicSpotRate, &o)
+	return constructOrderbook(&o)
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
