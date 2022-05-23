@@ -316,28 +316,6 @@ func TestUpdate(t *testing.T) {
 	}
 }
 
-func TestGetFee(t *testing.T) {
-	t.Parallel()
-	p := Portfolio{}
-	f := p.GetFee("", asset.Empty, currency.EMPTYPAIR)
-	if !f.IsZero() {
-		t.Error("expected 0")
-	}
-	cp := currency.NewPair(currency.BTC, currency.USD)
-	ff := &ftx.FTX{}
-	ff.Name = testExchange
-	err := p.SetupCurrencySettingsMap(&exchange.Settings{Exchange: ff, Asset: asset.Spot, Pair: cp})
-	if err != nil {
-		t.Error(err)
-	}
-
-	p.exchangeAssetPairSettings[testExchange][asset.Spot][cp].Fee = decimal.NewFromInt(1337)
-	f = p.GetFee(testExchange, asset.Spot, cp)
-	if !f.Equal(decimal.NewFromInt(1337)) {
-		t.Errorf("expected %v received %v", 1337, f)
-	}
-}
-
 func TestGetComplianceManager(t *testing.T) {
 	t.Parallel()
 	p := Portfolio{}

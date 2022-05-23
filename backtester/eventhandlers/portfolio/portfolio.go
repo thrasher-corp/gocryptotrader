@@ -371,18 +371,6 @@ func (p *Portfolio) GetComplianceManager(exchangeName string, a asset.Item, cp c
 	return &lookup.ComplianceManager, nil
 }
 
-// GetFee can panic for bad requests, but why are you getting things that don't exist?
-func (p *Portfolio) GetFee(exchangeName string, a asset.Item, cp currency.Pair) decimal.Decimal {
-	if p.exchangeAssetPairSettings == nil {
-		return decimal.Zero
-	}
-	lookup := p.exchangeAssetPairSettings[exchangeName][a][cp]
-	if lookup == nil {
-		return decimal.Zero
-	}
-	return lookup.Fee
-}
-
 // UpdateHoldings updates the portfolio holdings for the data event
 func (p *Portfolio) UpdateHoldings(e common.DataEventHandler, funds funding.IFundReleaser) error {
 	if e == nil {

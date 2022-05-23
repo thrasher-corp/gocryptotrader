@@ -17,7 +17,6 @@ var (
 	errNoCurrencySettings               = errors.New("no currency settings set in the config")
 	errBadInitialFunds                  = errors.New("initial funds set with invalid data, please check your config")
 	errUnsetExchange                    = errors.New("exchange name unset for currency settings, please check your config")
-	errUnsetAsset                       = errors.New("asset unset for currency settings, please check your config")
 	errUnsetCurrency                    = errors.New("currency unset for currency settings, please check your config")
 	errBadSlippageRates                 = errors.New("invalid slippage rates in currency settings, please check your config")
 	errStartEndUnset                    = errors.New("data start and end dates are invalid, please check your config")
@@ -28,6 +27,7 @@ var (
 	errMaxSizeMinSizeMismatch           = errors.New("maximum size must be greater to minimum size")
 	errMinMaxEqual                      = errors.New("minimum and maximum limits cannot be equal")
 	errPerpetualsUnsupported            = errors.New("perpetual futures not yet supported")
+	errFeatureIncompatible              = errors.New("feature is not compatible")
 )
 
 // Config defines what is in an individual strategy config

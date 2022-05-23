@@ -240,7 +240,6 @@ func TestExecuteOrder(t *testing.T) {
 		UseRealOrders:       false,
 		Pair:                p,
 		Asset:               a,
-		ExchangeFee:         decimal.NewFromFloat(0.01),
 		MakerFee:            decimal.NewFromFloat(0.01),
 		TakerFee:            decimal.NewFromFloat(0.01),
 		MaximumSlippageRate: decimal.NewFromInt(1),
@@ -258,6 +257,7 @@ func TestExecuteOrder(t *testing.T) {
 		Direction:      gctorder.Buy,
 		Amount:         decimal.NewFromInt(10),
 		AllocatedFunds: decimal.NewFromInt(1337),
+		ClosePrice:     decimal.NewFromInt(1),
 	}
 
 	item := gctkline.Item{
@@ -349,7 +349,6 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 		UseRealOrders: false,
 		Pair:          p,
 		Asset:         a,
-		ExchangeFee:   decimal.NewFromFloat(0.01),
 		MakerFee:      decimal.NewFromFloat(0.01),
 		TakerFee:      decimal.NewFromFloat(0.01),
 		BuySide: MinMax{
@@ -455,6 +454,7 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 		Direction:      gctorder.Sell,
 		Amount:         decimal.NewFromFloat(0.02),
 		AllocatedFunds: decimal.NewFromFloat(0.01337),
+		ClosePrice:     decimal.NewFromFloat(1337),
 	}
 	cs.SellSide.MaximumSize = decimal.Zero
 	cs.SellSide.MinimumSize = decimal.NewFromFloat(0.01)
@@ -462,6 +462,7 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 	cs.UseRealOrders = true
 	cs.CanUseExchangeLimits = true
 	o.Direction = gctorder.Sell
+
 	e.CurrencySettings = []Settings{cs}
 	_, err = e.ExecuteOrder(o, d, bot.OrderManager, &fakeFund{})
 	if !errors.Is(err, exchange.ErrAuthenticationSupportNotEnabled) {

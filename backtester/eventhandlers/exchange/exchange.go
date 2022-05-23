@@ -36,7 +36,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 		Base:               o.GetBase(),
 		Direction:          o.GetDirection(),
 		Amount:             o.GetAmount(),
-		ClosePrice:         data.Latest().GetClosePrice(),
+		ClosePrice:         o.GetClosePrice(),
 		FillDependentEvent: o.GetFillDependentEvent(),
 		Liquidated:         o.IsLiquidating(),
 	}

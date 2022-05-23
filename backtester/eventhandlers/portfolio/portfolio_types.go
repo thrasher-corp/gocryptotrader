@@ -56,7 +56,6 @@ type Handler interface {
 	setHoldingsForOffset(*holdings.Holding, bool) error
 	UpdateHoldings(common.DataEventHandler, funding.IFundReleaser) error
 	GetComplianceManager(string, asset.Item, currency.Pair) (*compliance.Manager, error)
-	GetFee(string, asset.Item, currency.Pair) decimal.Decimal
 	GetPositions(common.EventHandler) ([]gctorder.PositionStats, error)
 	TrackFuturesOrder(fill.Event, funding.IFundReleaser) (*PNLSummary, error)
 	UpdatePNL(common.EventHandler, decimal.Decimal) error
@@ -75,7 +74,6 @@ type SizeHandler interface {
 // Settings holds all important information for the portfolio manager
 // to assess purchasing decisions
 type Settings struct {
-	Fee               decimal.Decimal
 	BuySideSizing     exchange.MinMax
 	SellSideSizing    exchange.MinMax
 	Leverage          exchange.Leverage

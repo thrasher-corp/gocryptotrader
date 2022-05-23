@@ -152,6 +152,14 @@ func TestValidateCurrencySettings(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, errPerpetualsUnsupported)
 	}
 
+	c.CurrencySettings[0].MinimumSlippagePercent = decimal.NewFromInt(2)
+	c.CurrencySettings[0].MaximumSlippagePercent = decimal.NewFromInt(3)
+	c.CurrencySettings[0].Quote = currency.NewCode("USD")
+	err = c.validateCurrencySettings()
+	if !errors.Is(err, errFeatureIncompatible) {
+		t.Errorf("received: %v, expected: %v", err, errFeatureIncompatible)
+	}
+
 	c.CurrencySettings[0].Asset = asset.Spot
 	c.CurrencySettings[0].MinimumSlippagePercent = decimal.NewFromInt(-1)
 	err = c.validateCurrencySettings()

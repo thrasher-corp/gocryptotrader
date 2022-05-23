@@ -68,7 +68,6 @@ func (p *Portfolio) SetupCurrencySettingsMap(setup *exchange.Settings) error {
 		return err
 	}
 	settings := &Settings{
-		Fee:               setup.ExchangeFee,
 		BuySideSizing:     setup.BuySide,
 		SellSideSizing:    setup.SellSide,
 		Leverage:          setup.Leverage,

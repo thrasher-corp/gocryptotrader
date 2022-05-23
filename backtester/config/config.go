@@ -164,6 +164,7 @@ func (c *Config) validateCurrencySettings() error {
 	if len(c.CurrencySettings) == 0 {
 		return errNoCurrencySettings
 	}
+	var hasFutures, hasSlippage bool
 	for i := range c.CurrencySettings {
 		if c.CurrencySettings[i].Asset == asset.PerpetualSwap ||
 			c.CurrencySettings[i].Asset == asset.PerpetualContract {
@@ -172,6 +173,9 @@ func (c *Config) validateCurrencySettings() error {
 		if c.CurrencySettings[i].Asset == asset.Futures &&
 			(c.CurrencySettings[i].Quote.String() == "PERP" || c.CurrencySettings[i].Base.String() == "PI") {
 			return errPerpetualsUnsupported
+		}
+		if c.CurrencySettings[i].Asset.IsFutures() {
+			hasFutures = true
 		}
 		if c.CurrencySettings[i].SpotDetails != nil {
 			if c.FundingSettings.UseExchangeLevelFunding {
@@ -211,12 +215,19 @@ func (c *Config) validateCurrencySettings() error {
 		if c.CurrencySettings[i].ExchangeName == "" {
 			return errUnsetExchange
 		}
+		if !c.CurrencySettings[i].MinimumSlippagePercent.IsZero() ||
+			!c.CurrencySettings[i].MaximumSlippagePercent.IsZero() {
+			hasSlippage = true
+		}
 		if c.CurrencySettings[i].MinimumSlippagePercent.LessThan(decimal.Zero) ||
 			c.CurrencySettings[i].MaximumSlippagePercent.LessThan(decimal.Zero) ||
 			c.CurrencySettings[i].MinimumSlippagePercent.GreaterThan(c.CurrencySettings[i].MaximumSlippagePercent) {
 			return errBadSlippageRates
 		}
 		c.CurrencySettings[i].ExchangeName = strings.ToLower(c.CurrencySettings[i].ExchangeName)
+	}
+	if hasSlippage && hasFutures {
+		return fmt.Errorf("%w futures sizing currently incompatible with slippage", errFeatureIncompatible)
 	}
 	return nil
 }

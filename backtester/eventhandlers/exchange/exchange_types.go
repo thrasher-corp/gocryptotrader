@@ -44,9 +44,8 @@ type Settings struct {
 	Pair  currency.Pair
 	Asset asset.Item
 
-	ExchangeFee decimal.Decimal
-	MakerFee    decimal.Decimal
-	TakerFee    decimal.Decimal
+	MakerFee decimal.Decimal
+	TakerFee decimal.Decimal
 
 	BuySide  MinMax
 	SellSide MinMax
