@@ -76,8 +76,6 @@ func (h *Holding) update(e fill.Event, f funding.IFundReader) error {
 	direction := e.GetDirection()
 	o := e.GetOrder()
 	if o == nil {
-		h.TotalValueLostToVolumeSizing = h.TotalValueLostToVolumeSizing.Add(e.GetClosePrice().Sub(e.GetVolumeAdjustedPrice()).Mul(e.GetAmount()))
-		h.TotalValueLostToSlippage = h.TotalValueLostToSlippage.Add(e.GetVolumeAdjustedPrice().Sub(e.GetPurchasePrice()).Mul(e.GetAmount()))
 		h.scaleValuesToCurrentPrice(e.GetClosePrice())
 		return nil
 	}
@@ -123,8 +121,13 @@ func (h *Holding) update(e fill.Event, f funding.IFundReader) error {
 		h.ScaledSoldValue = h.SoldAmount.Mul(price)
 		h.CommittedFunds = h.BaseSize.Mul(price)
 	}
-	h.TotalValueLostToVolumeSizing = h.TotalValueLostToVolumeSizing.Add(e.GetClosePrice().Sub(e.GetVolumeAdjustedPrice()).Mul(e.GetAmount()))
-	h.TotalValueLostToSlippage = h.TotalValueLostToSlippage.Add(e.GetVolumeAdjustedPrice().Sub(e.GetPurchasePrice()).Mul(e.GetAmount()))
+
+	if !e.GetVolumeAdjustedPrice().IsZero() {
+		h.TotalValueLostToVolumeSizing = h.TotalValueLostToVolumeSizing.Add(e.GetClosePrice().Sub(e.GetVolumeAdjustedPrice()).Mul(e.GetAmount()))
+	}
+	if !e.GetClosePrice().Equal(e.GetPurchasePrice()) && !e.GetPurchasePrice().IsZero() {
+		h.TotalValueLostToSlippage = h.TotalValueLostToSlippage.Add(e.GetClosePrice().Sub(e.GetPurchasePrice()).Mul(e.GetAmount()))
+	}
 	h.scaleValuesToCurrentPrice(e.GetClosePrice())
 	return nil
 }
