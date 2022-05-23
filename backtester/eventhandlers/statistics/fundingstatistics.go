@@ -223,9 +223,9 @@ func CalculateIndividualFundingStatistics(disableUSDTracking bool, reportItem *f
 		if item.ReportItem.Snapshots[0].USDValue.IsZero() {
 			item.ReportItem.ShowInfinite = true
 		} else {
-			item.StrategyMovement = item.ReportItem.Snapshots[len(item.ReportItem.Snapshots)-1].USDValue.Sub(
-				item.ReportItem.Snapshots[0].USDValue).Div(
-				item.ReportItem.Snapshots[0].USDValue).Mul(
+			item.StrategyMovement = item.ReportItem.USDFinalFunds.Sub(
+				item.ReportItem.USDInitialFunds).Div(
+				item.ReportItem.USDInitialFunds).Mul(
 				decimal.NewFromInt(100))
 		}
 	}

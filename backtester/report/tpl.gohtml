@@ -1533,14 +1533,6 @@
 									</tr>
 								{{end }}
 								<tr>
-									<td><b>Strategy Movement</b></td>
-									{{ if .ReportItem.ShowInfinite}}
-										<td>{{$.Prettify.Decimal8 .StrategyMovement}}</td>
-									{{ else }}
-										<td>Infinity%</td>
-									{{end}}
-								</tr>
-								<tr>
 									<td><b>Did Strategy Beat The Market?</b></td>
 									<td>{{.DidStrategyBeatTheMarket}}</td>
 								</tr>

@@ -153,6 +153,8 @@ func TestCalculateIndividualFundingStatistics(t *testing.T) {
 	}
 
 	rs[0].stat = &CurrencyPairStatistic{}
+	ri.USDInitialFunds = decimal.NewFromInt(1000)
+	ri.USDFinalFunds = decimal.NewFromInt(1337)
 	_, err = CalculateIndividualFundingStatistics(false, ri, rs)
 	if !errors.Is(err, errMissingSnapshots) {
 		t.Errorf("received %v expected %v", err, errMissingSnapshots)
