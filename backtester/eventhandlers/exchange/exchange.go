@@ -240,7 +240,7 @@ func allocateFundsPostOrder(f *fill.Fill, funds funding.IFundReleaser, orderErro
 			if err != nil {
 				return err
 			}
-			err = pr.IncreaseAvailable(limitReducedAmount.Mul(adjustedPrice), f.GetDirection())
+			err = pr.IncreaseAvailable(limitReducedAmount.Mul(adjustedPrice).Sub(fee), f.GetDirection())
 			if err != nil {
 				return err
 			}
