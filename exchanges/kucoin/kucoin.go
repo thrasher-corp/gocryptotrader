@@ -34,8 +34,10 @@ const (
 	kucoinGetAllTickers       = "/api/v1/market/allTickers"
 	kucoinGet24hrStats        = "/api/v1/market/stats"
 	kucoinGetMarketList       = "/api/v1/markets"
-	kucoinGetPastOrderbook20  = "/api/v1/market/orderbook/level2_20"
-	kucoinGetPastOrderbook100 = "/api/v1/market/orderbook/level2_100"
+	kucoinGetPartOrderbook20  = "/api/v1/market/orderbook/level2_20"
+	kucoinGetPartOrderbook100 = "/api/v1/market/orderbook/level2_100"
+	kucoinGetOrderbook        = "/api/v3/market/orderbook/level2"
+
 	// Authenticated endpoints
 )
 
@@ -113,12 +115,11 @@ func (k *Kucoin) GetMarketList(ctx context.Context) ([]string, error) {
 func processOB(ob [][2]string) ([]orderbook.Item, error) {
 	o := make([]orderbook.Item, len(ob))
 	for x := range ob {
-		var price, amount float64
 		amount, err := strconv.ParseFloat(ob[x][1], 64)
 		if err != nil {
 			return nil, err
 		}
-		price, err = strconv.ParseFloat(ob[x][0], 64)
+		price, err := strconv.ParseFloat(ob[x][0], 64)
 		if err != nil {
 			return nil, err
 		}
@@ -143,15 +144,48 @@ func constructOrderbook(o *orderbookResponse) (s Orderbook, err error) {
 	return
 }
 
-// GetPastOrderbook20 gets orderbook for a specified pair with depth 20
-func (k *Kucoin) GetPastOrderbook20(ctx context.Context, pair string) (Orderbook, error) {
+// GetPartOrderbook20 gets orderbook for a specified pair with depth 20
+func (k *Kucoin) GetPartOrderbook20(ctx context.Context, pair string) (Orderbook, error) {
 	var o orderbookResponse
 	params := url.Values{}
 	if pair == "" {
 		return Orderbook{}, errors.New("pair can't be empty")
 	}
 	params.Set("symbol", pair)
-	k.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(kucoinGetPastOrderbook20, params), publicSpotRate, &o)
+	err := k.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(kucoinGetPartOrderbook20, params), publicSpotRate, &o)
+	if err != nil {
+		return Orderbook{}, err
+	}
+	return constructOrderbook(&o)
+}
+
+// GetPartOrderbook100 gets orderbook for a specified pair with depth 100
+func (k *Kucoin) GetPartOrderbook100(ctx context.Context, pair string) (Orderbook, error) {
+	var o orderbookResponse
+	params := url.Values{}
+	if pair == "" {
+		return Orderbook{}, errors.New("pair can't be empty")
+	}
+	params.Set("symbol", pair)
+	err := k.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(kucoinGetPartOrderbook100, params), publicSpotRate, &o)
+	if err != nil {
+		return Orderbook{}, err
+	}
+	return constructOrderbook(&o)
+}
+
+// GetOrderbook gets full orderbook for a specified pair
+func (k *Kucoin) GetOrderbook(ctx context.Context, pair string) (Orderbook, error) {
+	var o orderbookResponse
+	params := url.Values{}
+	if pair == "" {
+		return Orderbook{}, errors.New("pair can't be empty")
+	}
+	params.Set("symbol", pair)
+	err := k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinGetOrderbook, params), nil, publicSpotRate, &o)
+	if err != nil {
+		return Orderbook{}, err
+	}
 	return constructOrderbook(&o)
 }
 
@@ -196,7 +230,7 @@ func (k *Kucoin) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, me
 	err = k.SendPayload(ctx, f, func() (*request.Item, error) {
 		var body io.Reader
 		var payload []byte
-		if len(params) != 0 {
+		if params != nil && len(params) != 0 {
 			payload, err = json.Marshal(params)
 			if err != nil {
 				return nil, err

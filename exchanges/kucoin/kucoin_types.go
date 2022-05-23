@@ -1,6 +1,7 @@
 package kucoin
 
 import (
+	"encoding/json"
 	"errors"
 	"strconv"
 	"time"
@@ -33,6 +34,25 @@ func (e Error) GetError() error {
 	default:
 		return errors.New(e.Msg)
 	}
+}
+
+// kucoinTimeMilliSec provides an internal conversion helper
+type kucoinTimeMilliSec time.Time
+
+// UnmarshalJSON is custom type json unmarshaller for kucoinTimeMilliSec
+func (k *kucoinTimeMilliSec) UnmarshalJSON(data []byte) error {
+	var timestamp int64
+	err := json.Unmarshal(data, &timestamp)
+	if err != nil {
+		return err
+	}
+	*k = kucoinTimeMilliSec(time.UnixMilli(timestamp))
+	return nil
+}
+
+// Time returns a time.Time object
+func (k kucoinTimeMilliSec) Time() time.Time {
+	return time.Time(k)
 }
 
 type SymbolInfo struct {
@@ -96,17 +116,17 @@ type Stats24hrs struct {
 
 // Orderbook stores the orderbook data
 type Orderbook struct {
-	Bids   []orderbook.Item
-	Asks   []orderbook.Item
-	Symbol string
-	Time   time.Time
+	Bids []orderbook.Item
+	Asks []orderbook.Item
+	Time time.Time
 }
 
 type orderbookResponse struct {
 	Data struct {
-		Asks [][2]string `json:"asks"`
-		Bids [][2]string `json:"bids"`
-		Time uint64      `json:"time"`
+		Asks     [][2]string        `json:"asks"`
+		Bids     [][2]string        `json:"bids"`
+		Time     kucoinTimeMilliSec `json:"time"`
+		Sequence string             `json:"sequence"`
 	} `json:"result"`
 	Error
 }
