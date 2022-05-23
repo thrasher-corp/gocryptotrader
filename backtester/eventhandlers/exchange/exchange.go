@@ -44,16 +44,16 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 		return f, fmt.Errorf("%w order direction %v", ErrCannotTransact, o.GetDirection())
 	}
 
-	eventFunds := o.GetAllocatedFunds()
+	allocatedFunds := o.GetAllocatedFunds()
 	cs, err := e.GetCurrencySettings(o.GetExchange(), o.GetAssetType(), o.Pair())
 	if err != nil {
 		return f, err
 	}
-	f.ExchangeFee = cs.ExchangeFee
 	f.Direction = o.GetDirection()
 
 	var price, adjustedPrice,
-		amount, adjustedAmount decimal.Decimal
+		amount, adjustedAmount,
+		fee decimal.Decimal
 	amount = o.GetAmount()
 	price = o.GetClosePrice()
 	if cs.UseRealOrders {
@@ -85,7 +85,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 			return f, err
 		}
 		// calculate an estimated slippage rate
-		price, amount = slippage.CalculateSlippageByOrderbook(ob, o.GetDirection(), eventFunds, f.ExchangeFee)
+		price, amount = slippage.CalculateSlippageByOrderbook(ob, o.GetDirection(), allocatedFunds, f.ExchangeFee)
 		f.Slippage = price.Sub(f.ClosePrice).Div(f.ClosePrice).Mul(decimal.NewFromInt(100))
 	} else {
 		slippageRate := slippage.EstimateSlippagePercentage(cs.MinimumSlippageRate, cs.MaximumSlippageRate)
@@ -137,10 +137,9 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 			price = adjustedPrice
 		}
 		f.Slippage = slippageRate.Mul(decimal.NewFromInt(100)).Sub(decimal.NewFromInt(100))
-		f.ExchangeFee = calculateExchangeFee(price, amount, cs.TakerFee)
 	}
 
-	adjustedAmount = reduceAmountToFitPortfolioLimit(adjustedPrice, amount, eventFunds, f.GetDirection())
+	adjustedAmount = reduceAmountToFitPortfolioLimit(adjustedPrice, amount, allocatedFunds, f.GetDirection())
 	if !adjustedAmount.Equal(amount) {
 		f.AppendReasonf("Order size shrunk from %v to %v to remain within portfolio limits", amount, adjustedAmount)
 		amount = adjustedAmount
@@ -161,9 +160,9 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 	if err != nil {
 		return f, err
 	}
-	f.ExchangeFee = calculateExchangeFee(price, amount, cs.ExchangeFee)
 
-	orderID, err := e.placeOrder(context.TODO(), price, amount, cs.UseRealOrders, cs.CanUseExchangeLimits, f, orderManager)
+	fee = calculateExchangeFee(price, amount, cs.TakerFee)
+	orderID, err := e.placeOrder(context.TODO(), price, amount, fee, cs.UseRealOrders, cs.CanUseExchangeLimits, f, orderManager)
 	if err != nil {
 		return f, err
 	}
@@ -185,7 +184,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 		f.Total = f.PurchasePrice.Mul(f.Amount).Add(f.ExchangeFee)
 	}
 	if !o.IsLiquidating() {
-		err = allocateFundsPostOrder(f, funds, err, o.GetAmount(), eventFunds, amount, adjustedPrice)
+		err = allocateFundsPostOrder(f, funds, err, o.GetAmount(), allocatedFunds, amount, adjustedPrice, fee)
 		if err != nil {
 			return f, err
 		}
@@ -198,7 +197,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 	return f, nil
 }
 
-func allocateFundsPostOrder(f *fill.Fill, funds funding.IFundReleaser, orderError error, orderAmount, eventFunds, limitReducedAmount, adjustedPrice decimal.Decimal) error {
+func allocateFundsPostOrder(f *fill.Fill, funds funding.IFundReleaser, orderError error, orderAmount, allocatedFunds, limitReducedAmount, adjustedPrice, fee decimal.Decimal) error {
 	if f == nil {
 		return fmt.Errorf("%w: fill event", common.ErrNilEvent)
 	}
@@ -213,7 +212,7 @@ func allocateFundsPostOrder(f *fill.Fill, funds funding.IFundReleaser, orderErro
 			return err
 		}
 		if orderError != nil {
-			err = pr.Release(eventFunds, eventFunds, f.GetDirection())
+			err = pr.Release(allocatedFunds, allocatedFunds, f.GetDirection())
 			if err != nil {
 				f.AppendReason(err.Error())
 			}
@@ -228,7 +227,7 @@ func allocateFundsPostOrder(f *fill.Fill, funds funding.IFundReleaser, orderErro
 
 		switch f.GetDirection() {
 		case gctorder.Buy, gctorder.Bid:
-			err = pr.Release(eventFunds, eventFunds.Sub(limitReducedAmount.Mul(adjustedPrice)), f.GetDirection())
+			err = pr.Release(allocatedFunds, allocatedFunds.Sub(limitReducedAmount.Mul(adjustedPrice).Add(fee)), f.GetDirection())
 			if err != nil {
 				return err
 			}
@@ -236,8 +235,8 @@ func allocateFundsPostOrder(f *fill.Fill, funds funding.IFundReleaser, orderErro
 			if err != nil {
 				return err
 			}
-		case gctorder.Sell, gctorder.Ask, gctorder.ClosePosition:
-			err = pr.Release(eventFunds, eventFunds.Sub(limitReducedAmount), f.GetDirection())
+		case gctorder.Sell, gctorder.Ask:
+			err = pr.Release(allocatedFunds, allocatedFunds.Sub(limitReducedAmount), f.GetDirection())
 			if err != nil {
 				return err
 			}
@@ -366,7 +365,7 @@ func reduceAmountToFitPortfolioLimit(adjustedPrice, amount, sizedPortfolioTotal 
 	return amount
 }
 
-func (e *Exchange) placeOrder(ctx context.Context, price, amount decimal.Decimal, useRealOrders, useExchangeLimits bool, f fill.Event, orderManager *engine.OrderManager) (string, error) {
+func (e *Exchange) placeOrder(ctx context.Context, price, amount, fee decimal.Decimal, useRealOrders, useExchangeLimits bool, f fill.Event, orderManager *engine.OrderManager) (string, error) {
 	if f == nil {
 		return "", common.ErrNilEvent
 	}
@@ -376,11 +375,10 @@ func (e *Exchange) placeOrder(ctx context.Context, price, amount decimal.Decimal
 	}
 	var orderID string
 	p := price.InexactFloat64()
-	fee := f.GetExchangeFee().InexactFloat64()
 	o := &gctorder.Submit{
 		Price:       p,
 		Amount:      amount.InexactFloat64(),
-		Fee:         fee,
+		Fee:         fee.InexactFloat64(),
 		Exchange:    f.GetExchange(),
 		ID:          u.String(),
 		Side:        f.GetDirection(),
@@ -403,8 +401,8 @@ func (e *Exchange) placeOrder(ctx context.Context, price, amount decimal.Decimal
 		submitResponse := gctorder.SubmitResponse{
 			IsOrderPlaced: true,
 			OrderID:       u.String(),
-			Rate:          f.GetAmount().InexactFloat64(),
-			Fee:           fee,
+			Rate:          o.Amount,
+			Fee:           fee.InexactFloat64(),
 			Cost:          p,
 			FullyMatched:  true,
 		}

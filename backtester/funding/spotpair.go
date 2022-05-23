@@ -63,7 +63,7 @@ func (p *SpotPair) Release(amount, diff decimal.Decimal, side order.Side) error 
 	switch side {
 	case order.Buy, order.Bid:
 		return p.quote.Release(amount, diff)
-	case order.Sell, order.Ask, order.ClosePosition:
+	case order.Sell, order.Ask:
 		return p.base.Release(amount, diff)
 	}
 	return fmt.Errorf("%w for %v %v %v. Unknown side %v",

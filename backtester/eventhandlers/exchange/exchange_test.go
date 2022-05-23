@@ -167,32 +167,32 @@ func TestPlaceOrder(t *testing.T) {
 		t.Error(err)
 	}
 	e := Exchange{}
-	_, err = e.placeOrder(context.Background(), decimal.NewFromInt(1), decimal.NewFromInt(1), false, true, nil, nil)
+	_, err = e.placeOrder(context.Background(), decimal.NewFromInt(1), decimal.NewFromInt(1), decimal.Zero, false, true, nil, nil)
 	if !errors.Is(err, common.ErrNilEvent) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
 	}
 	f := &fill.Fill{
 		Base: &event.Base{},
 	}
-	_, err = e.placeOrder(context.Background(), decimal.NewFromInt(1), decimal.NewFromInt(1), false, true, f, bot.OrderManager)
+	_, err = e.placeOrder(context.Background(), decimal.NewFromInt(1), decimal.NewFromInt(1), decimal.Zero, false, true, f, bot.OrderManager)
 	if !errors.Is(err, engine.ErrExchangeNameIsEmpty) {
 		t.Errorf("received: %v, expected: %v", err, engine.ErrExchangeNameIsEmpty)
 	}
 
 	f.Exchange = testExchange
-	_, err = e.placeOrder(context.Background(), decimal.NewFromInt(1), decimal.NewFromInt(1), false, true, f, bot.OrderManager)
+	_, err = e.placeOrder(context.Background(), decimal.NewFromInt(1), decimal.NewFromInt(1), decimal.Zero, false, true, f, bot.OrderManager)
 	if !errors.Is(err, gctorder.ErrPairIsEmpty) {
 		t.Errorf("received: %v, expected: %v", err, gctorder.ErrPairIsEmpty)
 	}
 	f.CurrencyPair = currency.NewPair(currency.BTC, currency.USDT)
 	f.AssetType = asset.Spot
 	f.Direction = gctorder.Buy
-	_, err = e.placeOrder(context.Background(), decimal.NewFromInt(1), decimal.NewFromInt(1), false, true, f, bot.OrderManager)
+	_, err = e.placeOrder(context.Background(), decimal.NewFromInt(1), decimal.NewFromInt(1), decimal.Zero, false, true, f, bot.OrderManager)
 	if err != nil {
 		t.Error(err)
 	}
 
-	_, err = e.placeOrder(context.Background(), decimal.NewFromInt(1), decimal.NewFromInt(1), true, true, f, bot.OrderManager)
+	_, err = e.placeOrder(context.Background(), decimal.NewFromInt(1), decimal.NewFromInt(1), decimal.Zero, true, true, f, bot.OrderManager)
 	if !errors.Is(err, exchange.ErrAuthenticationSupportNotEnabled) {
 		t.Errorf("received: %v but expected: %v", err, exchange.ErrAuthenticationSupportNotEnabled)
 	}
@@ -581,7 +581,7 @@ func TestVerifyOrderWithinLimits(t *testing.T) {
 func TestAllocateFundsPostOrder(t *testing.T) {
 	t.Parallel()
 	expectedError := common.ErrNilEvent
-	err := allocateFundsPostOrder(nil, nil, nil, decimal.Zero, decimal.Zero, decimal.Zero, decimal.Zero)
+	err := allocateFundsPostOrder(nil, nil, nil, decimal.Zero, decimal.Zero, decimal.Zero, decimal.Zero, decimal.Zero)
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
@@ -593,7 +593,7 @@ func TestAllocateFundsPostOrder(t *testing.T) {
 		},
 		Direction: gctorder.Buy,
 	}
-	err = allocateFundsPostOrder(f, nil, nil, decimal.Zero, decimal.Zero, decimal.Zero, decimal.Zero)
+	err = allocateFundsPostOrder(f, nil, nil, decimal.Zero, decimal.Zero, decimal.Zero, decimal.Zero, decimal.Zero)
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
@@ -621,19 +621,19 @@ func TestAllocateFundsPostOrder(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
 	f.Order = &gctorder.Detail{}
-	err = allocateFundsPostOrder(f, fundPair, nil, one, one, one, one)
+	err = allocateFundsPostOrder(f, fundPair, nil, one, one, one, one, decimal.Zero)
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
 	f.SetDirection(gctorder.Sell)
-	err = allocateFundsPostOrder(f, fundPair, nil, one, one, one, one)
+	err = allocateFundsPostOrder(f, fundPair, nil, one, one, one, one, decimal.Zero)
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
 
 	expectedError = gctorder.ErrSubmissionIsNil
 	orderError := gctorder.ErrSubmissionIsNil
-	err = allocateFundsPostOrder(f, fundPair, orderError, one, one, one, one)
+	err = allocateFundsPostOrder(f, fundPair, orderError, one, one, one, one, decimal.Zero)
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
@@ -663,31 +663,31 @@ func TestAllocateFundsPostOrder(t *testing.T) {
 	}
 
 	expectedError = gctorder.ErrSubmissionIsNil
-	err = allocateFundsPostOrder(f, collateralPair, orderError, one, one, one, one)
+	err = allocateFundsPostOrder(f, collateralPair, orderError, one, one, one, one, decimal.Zero)
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
 	expectedError = nil
-	err = allocateFundsPostOrder(f, collateralPair, nil, one, one, one, one)
+	err = allocateFundsPostOrder(f, collateralPair, nil, one, one, one, one, decimal.Zero)
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
 
 	expectedError = gctorder.ErrSubmissionIsNil
 	f.SetDirection(gctorder.Long)
-	err = allocateFundsPostOrder(f, collateralPair, orderError, one, one, one, one)
+	err = allocateFundsPostOrder(f, collateralPair, orderError, one, one, one, one, decimal.Zero)
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
 	expectedError = nil
-	err = allocateFundsPostOrder(f, collateralPair, nil, one, one, one, one)
+	err = allocateFundsPostOrder(f, collateralPair, nil, one, one, one, one, decimal.Zero)
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
 
 	f.AssetType = asset.Margin
 	expectedError = common.ErrInvalidDataType
-	err = allocateFundsPostOrder(f, collateralPair, nil, one, one, one, one)
+	err = allocateFundsPostOrder(f, collateralPair, nil, one, one, one, one, decimal.Zero)
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}

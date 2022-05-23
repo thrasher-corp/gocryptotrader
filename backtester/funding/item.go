@@ -35,7 +35,7 @@ func (i *Item) Release(amount, diff decimal.Decimal) error {
 		return errZeroAmountReceived
 	}
 	if diff.IsNegative() && !i.asset.IsFutures() {
-		return fmt.Errorf("%w diff", errNegativeAmountReceived)
+		return fmt.Errorf("%w diff %v", errNegativeAmountReceived, diff)
 	}
 	if amount.GreaterThan(i.reserved) {
 		return fmt.Errorf("%w for %v %v %v. Requested %v Reserved: %v",

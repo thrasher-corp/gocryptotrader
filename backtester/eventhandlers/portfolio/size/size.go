@@ -68,15 +68,15 @@ func (s *Size) calculateAmount(direction gctorder.Side, price, amountAvailable d
 	switch direction {
 	case gctorder.ClosePosition:
 		amount = amountAvailable
-		fee = amount.Mul(price).Mul(cs.ExchangeFee)
+		fee = amount.Mul(price).Mul(cs.TakerFee)
 	case gctorder.Buy, gctorder.Long:
 		// check size against currency specific settings
-		amount, fee, err = s.calculateBuySize(price, amountAvailable, cs.ExchangeFee, o.GetBuyLimit(), cs.BuySide)
+		amount, fee, err = s.calculateBuySize(price, amountAvailable, cs.TakerFee, o.GetBuyLimit(), cs.BuySide)
 		if err != nil {
 			return decimal.Decimal{}, decimal.Decimal{}, err
 		}
 		// check size against portfolio specific settings
-		portfolioAmount, portfolioFee, err = s.calculateBuySize(price, amountAvailable, cs.ExchangeFee, o.GetBuyLimit(), s.BuySide)
+		portfolioAmount, portfolioFee, err = s.calculateBuySize(price, amountAvailable, cs.TakerFee, o.GetBuyLimit(), s.BuySide)
 		if err != nil {
 			return decimal.Decimal{}, decimal.Decimal{}, err
 		}
@@ -87,12 +87,12 @@ func (s *Size) calculateAmount(direction gctorder.Side, price, amountAvailable d
 		}
 	case gctorder.Sell, gctorder.Short:
 		// check size against currency specific settings
-		amount, fee, err = s.calculateSellSize(price, amountAvailable, cs.ExchangeFee, o.GetSellLimit(), cs.SellSide)
+		amount, fee, err = s.calculateSellSize(price, amountAvailable, cs.TakerFee, o.GetSellLimit(), cs.SellSide)
 		if err != nil {
 			return decimal.Decimal{}, decimal.Decimal{}, err
 		}
 		// check size against portfolio specific settings
-		portfolioAmount, portfolioFee, err = s.calculateSellSize(price, amountAvailable, cs.ExchangeFee, o.GetSellLimit(), s.SellSide)
+		portfolioAmount, portfolioFee, err = s.calculateSellSize(price, amountAvailable, cs.TakerFee, o.GetSellLimit(), s.SellSide)
 		if err != nil {
 			return decimal.Decimal{}, decimal.Decimal{}, err
 		}
