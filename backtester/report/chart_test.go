@@ -92,8 +92,8 @@ func TestCreateHoldingsOverTimeChart(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 
-	if resp.AxisType != "linear" {
-		t.Error("expected linear from zero available")
+	if !resp.ShowZeroDisclaimer {
+		t.Error("expected ShowZeroDisclaimer")
 	}
 }
 

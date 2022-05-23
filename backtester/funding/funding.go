@@ -328,7 +328,7 @@ func (f *FundManager) GenerateReport() *Report {
 			if f.items[x].asset.IsFutures() || f.disableUSDTracking {
 				// futures contracts / collateral does not contribute to USD value
 				// no USD tracking means no USD values to breakdown
-				break
+				continue
 			}
 			for y := range report.USDTotalsOverTime {
 				if report.USDTotalsOverTime[y].Time.Equal(snapshot.Time) {

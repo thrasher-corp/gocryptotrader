@@ -916,6 +916,9 @@
 			{{ if eq $.Config.StrategySettings.DisableUSDTracking false }}
 			<div class="card-body card-body-cascade ">
 				<h3>USD Totals</h3>
+				{{ if .USDTotalsChart.ShowZeroDisclaimer}}
+					<i>Note: zero values are not rendered on chart. If line abruptly ends, it is because its value is zero</i>
+				{{end}}
 				<div id="usdtotals" style="max-height: 800px;min-height: 75vh;" >
 					<script>
 						Highcharts.chart('usdtotals', {
@@ -983,6 +986,9 @@
 				</div>
 				{{end }}
 				<h3>Holdings Over Time</h3>
+				{{ if .HoldingsOverTimeChart.ShowZeroDisclaimer}}
+				<i>Note: zero values are not rendered on chart. If line abruptly ends, it is because its value is zero</i>
+				{{end}}
 				<div id="holdingsovertime" style="max-height: 800px;min-height: 75vh;" >
 					<script>
 						Highcharts.chart('holdingsovertime', {

@@ -19,7 +19,9 @@ func createUSDTotalsChart(items []statistics.ValueAtTime, stats []statistics.Fun
 	if stats == nil {
 		return nil, fmt.Errorf("%w missing funding item statistics", common.ErrNilArguments)
 	}
-	response := &Chart{}
+	response := &Chart{
+		AxisType: "logarithmic",
+	}
 	usdTotalChartPlot := make([]LinePlot, len(items))
 	for i := range items {
 		usdTotalChartPlot[i] = LinePlot{
@@ -35,6 +37,9 @@ func createUSDTotalsChart(items []statistics.ValueAtTime, stats []statistics.Fun
 	for i := range stats {
 		var plots []LinePlot
 		for j := range stats[i].ReportItem.Snapshots {
+			if stats[i].ReportItem.Snapshots[j].Available.IsZero() {
+				response.ShowZeroDisclaimer = true
+			}
 			plots = append(plots, LinePlot{
 				Value:     stats[i].ReportItem.Snapshots[j].USDValue.InexactFloat64(),
 				UnixMilli: stats[i].ReportItem.Snapshots[j].Time.UTC().UnixMilli(),
@@ -51,27 +56,26 @@ func createUSDTotalsChart(items []statistics.ValueAtTime, stats []statistics.Fun
 
 // createHoldingsOverTimeChart used for creating a chart in the HTML report
 // to show how many holdings of each type was held over the time of backtesting
-func createHoldingsOverTimeChart(items []statistics.FundingItemStatistics) (*Chart, error) {
-	if items == nil {
+func createHoldingsOverTimeChart(stats []statistics.FundingItemStatistics) (*Chart, error) {
+	if stats == nil {
 		return nil, fmt.Errorf("%w missing funding item statistics", common.ErrNilArguments)
 	}
 	response := &Chart{
 		AxisType: "logarithmic",
 	}
-	for i := range items {
+	for i := range stats {
 		var plots []LinePlot
-		for j := range items[i].ReportItem.Snapshots {
-			if items[i].ReportItem.Snapshots[j].Available.IsZero() {
-				// highcharts can't render zeroes in logarithmic mode
-				response.AxisType = "linear"
+		for j := range stats[i].ReportItem.Snapshots {
+			if stats[i].ReportItem.Snapshots[j].Available.IsZero() {
+				response.ShowZeroDisclaimer = true
 			}
 			plots = append(plots, LinePlot{
-				Value:     items[i].ReportItem.Snapshots[j].Available.InexactFloat64(),
-				UnixMilli: items[i].ReportItem.Snapshots[j].Time.UTC().UnixMilli(),
+				UnixMilli: stats[i].ReportItem.Snapshots[j].Time.UTC().UnixMilli(),
+				Value:     stats[i].ReportItem.Snapshots[j].Available.InexactFloat64(),
 			})
 		}
 		response.Data = append(response.Data, ChartLine{
-			Name:      fmt.Sprintf("%v %v %v holdings", items[i].ReportItem.Exchange, items[i].ReportItem.Asset, items[i].ReportItem.Currency),
+			Name:      fmt.Sprintf("%v %v %v holdings", stats[i].ReportItem.Exchange, stats[i].ReportItem.Asset, stats[i].ReportItem.Currency),
 			LinePlots: plots,
 		})
 	}
@@ -85,7 +89,9 @@ func createPNLCharts(items map[string]map[asset.Item]map[currency.Pair]*statisti
 	if items == nil {
 		return nil, fmt.Errorf("%w missing currency pair statistics", common.ErrNilArguments)
 	}
-	response := &Chart{}
+	response := &Chart{
+		AxisType: "linear",
+	}
 	for exch, assetMap := range items {
 		for item, pairMap := range assetMap {
 			for pair, result := range pairMap {
@@ -127,7 +133,9 @@ func createFuturesSpotDiffChart(items map[string]map[asset.Item]map[currency.Pai
 		return nil, fmt.Errorf("%w missing currency pair statistics", common.ErrNilArguments)
 	}
 	currs := make(map[currency.Pair]linkCurrencyDiff)
-	response := &Chart{}
+	response := &Chart{
+		AxisType: "linear",
+	}
 
 	for _, assetMap := range items {
 		for item, pairMap := range assetMap {

@@ -48,8 +48,9 @@ type Data struct {
 
 // Chart holds chart data along with an axis
 type Chart struct {
-	AxisType string
-	Data     []ChartLine
+	AxisType           string
+	ShowZeroDisclaimer bool
+	Data               []ChartLine
 }
 
 // ChartLine holds chart plot data
