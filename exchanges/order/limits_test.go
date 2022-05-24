@@ -285,7 +285,7 @@ func TestConforms(t *testing.T) {
 		t.Fatalf("expected error %v but received %v", nil, err)
 	}
 
-	tt.StepIncrementSizePrice = 0.001
+	tt.PriceStepIncrementSize = 0.001
 	err = tt.Conforms(200.0001, .5, Limit)
 	if !errors.Is(err, ErrPriceExceedsStep) {
 		t.Fatalf("expected error %v but received %v", ErrPriceExceedsStep, err)
@@ -295,7 +295,7 @@ func TestConforms(t *testing.T) {
 		t.Fatalf("expected error %v but received %v", nil, err)
 	}
 
-	tt.StepIncrementSizeAmount = 0.001
+	tt.AmountStepIncrementSize = 0.001
 	err = tt.Conforms(200, .0002, Limit)
 	if !errors.Is(err, ErrAmountExceedsStep) {
 		t.Fatalf("expected error %v but received %v", ErrAmountExceedsStep, err)
@@ -346,7 +346,7 @@ func TestConformToDecimalAmount(t *testing.T) {
 		t.Fatal("unexpected amount")
 	}
 
-	tt.StepIncrementSizeAmount = 0.001
+	tt.AmountStepIncrementSize = 0.001
 	val = tt.ConformToDecimalAmount(decimal.NewFromFloat(1.001))
 	if !val.Equal(decimal.NewFromFloat(1.001)) {
 		t.Error("unexpected amount", val)
@@ -362,7 +362,7 @@ func TestConformToDecimalAmount(t *testing.T) {
 		t.Error("unexpected amount", val)
 	}
 
-	tt.StepIncrementSizeAmount = 100
+	tt.AmountStepIncrementSize = 100
 	val = tt.ConformToDecimalAmount(decimal.NewFromInt(100))
 	if !val.Equal(decimal.NewFromInt(100)) {
 		t.Fatal("unexpected amount", val)
@@ -392,7 +392,7 @@ func TestConformToAmount(t *testing.T) {
 		t.Fatal("unexpected amount")
 	}
 
-	tt.StepIncrementSizeAmount = 0.001
+	tt.AmountStepIncrementSize = 0.001
 	val = tt.ConformToAmount(1.001)
 	if val != 1.001 {
 		t.Error("unexpected amount", val)
@@ -408,7 +408,7 @@ func TestConformToAmount(t *testing.T) {
 		t.Error("unexpected amount", val)
 	}
 
-	tt.StepIncrementSizeAmount = 100
+	tt.AmountStepIncrementSize = 100
 	val = tt.ConformToAmount(100)
 	if val != 100 {
 		t.Fatal("unexpected amount", val)

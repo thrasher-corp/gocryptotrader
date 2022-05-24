@@ -1536,8 +1536,8 @@ func (f *FTX) FetchExchangeLimits(ctx context.Context) ([]order.MinMaxLevel, err
 		limits = append(limits, order.MinMaxLevel{
 			Pair:                    cp,
 			Asset:                   a,
-			StepIncrementSizePrice:  data[x].PriceIncrement,
-			StepIncrementSizeAmount: data[x].SizeIncrement,
+			PriceStepIncrementSize:  data[x].PriceIncrement,
+			AmountStepIncrementSize: data[x].SizeIncrement,
 			MinAmount:               data[x].MinProvideSize,
 		})
 	}

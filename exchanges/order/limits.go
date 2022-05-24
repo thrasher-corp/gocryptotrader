@@ -69,14 +69,14 @@ type MinMaxLevel struct {
 	Asset                   asset.Item
 	MinPrice                float64
 	MaxPrice                float64
-	StepIncrementSizePrice  float64
+	PriceStepIncrementSize  float64
 	MultiplierUp            float64
 	MultiplierDown          float64
 	MultiplierDecimal       float64
 	AveragePriceMinutes     int64
 	MinAmount               float64
 	MaxAmount               float64
-	StepIncrementSizeAmount float64
+	AmountStepIncrementSize float64
 	MinNotional             float64
 	MaxIcebergParts         int64
 	MarketMinQty            float64
@@ -225,14 +225,14 @@ func (m *MinMaxLevel) Conforms(price, amount float64, orderType Type) error {
 			m.MaxAmount,
 			amount)
 	}
-	if m.StepIncrementSizeAmount != 0 {
+	if m.AmountStepIncrementSize != 0 {
 		dAmount := decimal.NewFromFloat(amount)
 		dMinAmount := decimal.NewFromFloat(m.MinAmount)
-		dStep := decimal.NewFromFloat(m.StepIncrementSizeAmount)
+		dStep := decimal.NewFromFloat(m.AmountStepIncrementSize)
 		if !dAmount.Sub(dMinAmount).Mod(dStep).IsZero() {
 			return fmt.Errorf("%w stepSize: %.8f supplied %.8f",
 				ErrAmountExceedsStep,
-				m.StepIncrementSizeAmount,
+				m.AmountStepIncrementSize,
 				amount)
 		}
 	}
@@ -273,14 +273,14 @@ func (m *MinMaxLevel) Conforms(price, amount float64, orderType Type) error {
 				m.MinNotional,
 				amount*price)
 		}
-		if m.StepIncrementSizePrice != 0 {
+		if m.PriceStepIncrementSize != 0 {
 			dPrice := decimal.NewFromFloat(price)
 			dMinPrice := decimal.NewFromFloat(m.MinPrice)
-			dStep := decimal.NewFromFloat(m.StepIncrementSizePrice)
+			dStep := decimal.NewFromFloat(m.PriceStepIncrementSize)
 			if !dPrice.Sub(dMinPrice).Mod(dStep).IsZero() {
 				return fmt.Errorf("%w stepSize: %.8f supplied %.8f",
 					ErrPriceExceedsStep,
-					m.StepIncrementSizePrice,
+					m.PriceStepIncrementSize,
 					price)
 			}
 		}
@@ -304,7 +304,7 @@ func (m *MinMaxLevel) Conforms(price, amount float64, orderType Type) error {
 			amount)
 	}
 	if m.MarketStepIncrementSize != 0 &&
-		m.StepIncrementSizeAmount != m.MarketStepIncrementSize {
+		m.AmountStepIncrementSize != m.MarketStepIncrementSize {
 		dAmount := decimal.NewFromFloat(amount)
 		dMinMAmount := decimal.NewFromFloat(m.MarketMinQty)
 		dStep := decimal.NewFromFloat(m.MarketStepIncrementSize)
@@ -324,7 +324,7 @@ func (m *MinMaxLevel) ConformToDecimalAmount(amount decimal.Decimal) decimal.Dec
 		return amount
 	}
 
-	dStep := decimal.NewFromFloat(m.StepIncrementSizeAmount)
+	dStep := decimal.NewFromFloat(m.AmountStepIncrementSize)
 	if dStep.IsZero() || amount.Equal(dStep) {
 		return amount
 	}
@@ -343,17 +343,17 @@ func (m *MinMaxLevel) ConformToAmount(amount float64) float64 {
 		return amount
 	}
 
-	if m.StepIncrementSizeAmount == 0 || amount == m.StepIncrementSizeAmount {
+	if m.AmountStepIncrementSize == 0 || amount == m.AmountStepIncrementSize {
 		return amount
 	}
 
-	if amount < m.StepIncrementSizeAmount {
+	if amount < m.AmountStepIncrementSize {
 		return 0
 	}
 
 	// Convert floats to decimal types
 	dAmount := decimal.NewFromFloat(amount)
-	dStep := decimal.NewFromFloat(m.StepIncrementSizeAmount)
+	dStep := decimal.NewFromFloat(m.AmountStepIncrementSize)
 	// derive modulus
 	mod := dAmount.Mod(dStep)
 	// subtract modulus to get the floor

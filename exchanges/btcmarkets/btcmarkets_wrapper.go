@@ -1161,8 +1161,8 @@ func (b *BTCMarkets) UpdateOrderExecutionLimits(ctx context.Context, a asset.Ite
 			Asset:                   asset.Spot,
 			MinAmount:               markets[x].MinOrderAmount,
 			MaxAmount:               markets[x].MaxOrderAmount,
-			StepIncrementSizeAmount: math.Pow(10, -markets[x].AmountDecimals),
-			StepIncrementSizePrice:  math.Pow(10, -markets[x].PriceDecimals),
+			AmountStepIncrementSize: math.Pow(10, -markets[x].AmountDecimals),
+			PriceStepIncrementSize:  math.Pow(10, -markets[x].PriceDecimals),
 		}
 	}
 	return b.LoadLimits(limits)
