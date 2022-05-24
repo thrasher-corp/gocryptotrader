@@ -101,8 +101,9 @@ func (c *CurrencyPairStatistic) CalculateResults(riskFreeRate decimal.Decimal) e
 		return err
 	}
 
-	if last.Holdings.QuoteInitialFunds.GreaterThan(decimal.Zero) {
-		cagr, err := gctmath.DecimalCompoundAnnualGrowthRate(
+	if !last.Holdings.QuoteInitialFunds.IsZero() {
+		var cagr decimal.Decimal
+		cagr, err = gctmath.DecimalCompoundAnnualGrowthRate(
 			last.Holdings.QuoteInitialFunds,
 			last.Holdings.TotalValue,
 			decimal.NewFromFloat(intervalsPerYear),
@@ -111,9 +112,7 @@ func (c *CurrencyPairStatistic) CalculateResults(riskFreeRate decimal.Decimal) e
 		if err != nil {
 			errs = append(errs, err)
 		}
-		if !cagr.IsZero() {
-			c.CompoundAnnualGrowthRate = cagr
-		}
+		c.CompoundAnnualGrowthRate = cagr
 	}
 	c.IsStrategyProfitable = last.Holdings.TotalValue.GreaterThan(first.Holdings.TotalValue)
 	c.DoesPerformanceBeatTheMarket = c.StrategyMovement.GreaterThan(c.MarketMovement)
@@ -168,23 +167,27 @@ func (c *CurrencyPairStatistic) analysePNLGrowth() {
 		}
 		unrealised := c.Events[i].PNL.GetUnrealisedPNL()
 		realised := c.Events[i].PNL.GetRealisedPNL()
-		if unrealised.PNL.LessThan(lowestUnrealised.Value) || !lowestUnrealised.Set {
+		if unrealised.PNL.LessThan(lowestUnrealised.Value) ||
+			(!lowestUnrealised.Set && !unrealised.PNL.IsZero()) {
 			lowestUnrealised.Value = unrealised.PNL
 			lowestUnrealised.Time = unrealised.Time
 			lowestUnrealised.Set = true
 		}
-		if unrealised.PNL.GreaterThan(highestUnrealised.Value) || !highestUnrealised.Set {
+		if unrealised.PNL.GreaterThan(highestUnrealised.Value) ||
+			(!highestUnrealised.Set && !unrealised.PNL.IsZero()) {
 			highestUnrealised.Value = unrealised.PNL
 			highestUnrealised.Time = unrealised.Time
 			highestUnrealised.Set = true
 		}
 
-		if realised.PNL.LessThan(lowestRealised.Value) || !lowestRealised.Set {
+		if realised.PNL.LessThan(lowestRealised.Value) ||
+			(!lowestRealised.Set && !realised.PNL.IsZero()) {
 			lowestRealised.Value = realised.PNL
 			lowestRealised.Time = realised.Time
 			lowestRealised.Set = true
 		}
-		if realised.PNL.GreaterThan(highestRealised.Value) || !highestRealised.Set {
+		if realised.PNL.GreaterThan(highestRealised.Value) ||
+			(!highestRealised.Set && !realised.PNL.IsZero()) {
 			highestRealised.Value = realised.PNL
 			highestRealised.Time = realised.Time
 			highestRealised.Set = true

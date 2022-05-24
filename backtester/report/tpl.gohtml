@@ -987,7 +987,7 @@
 				{{end }}
 				<h3>Holdings Over Time</h3>
 				{{ if .HoldingsOverTimeChart.ShowZeroDisclaimer}}
-				<i>Note: zero values are not rendered on chart. If line abruptly ends, it is because its value is zero</i>
+					<i>Note: zero values are not rendered on chart. If line abruptly ends, it is because its value is zero</i>
 				{{end}}
 				<div id="holdingsovertime" style="max-height: 800px;min-height: 75vh;" >
 					<script>
@@ -1405,7 +1405,11 @@
 									</tr>
 									<tr>
 										<td><b>Compound Annual Growth Rate</b></td>
-										<td>{{ $.Prettify.Decimal8 $val.CompoundAnnualGrowthRate}}%</td>
+										{{ if  $val.CompoundAnnualGrowthRate.IsZero}}
+											<td>N/A</td>
+										{{else}}
+											<td>{{ $.Prettify.Decimal8 $val.CompoundAnnualGrowthRate}}%</td>
+										{{end}}
 									</tr>
 									</tbody>
 								</table>
@@ -1497,7 +1501,6 @@
 								<td>{{ $.Prettify.Decimal8 .ReportItem.FinalFunds}}</td>
 							</tr>
 						{{end }}
-
 						<tr>
 							<td><b>Difference</b></td>
 							{{ if .ReportItem.ShowInfinite}}
@@ -1529,7 +1532,7 @@
 									</tr>
 									<tr>
 										<td><b>Market Movement</b></td>
-										<td>{{$.Prettify.Decimal8 .MarketMovement}}</td>
+										<td>{{$.Prettify.Decimal8 .MarketMovement}}%</td>
 									</tr>
 								{{end }}
 								<tr>
@@ -1538,7 +1541,11 @@
 								</tr>
 								<tr>
 									<td><b>Compound Annual Growth Rate</b></td>
-									<td>{{$.Prettify.Decimal8 .CompoundAnnualGrowthRate}}%</td>
+									{{ if .CompoundAnnualGrowthRate.IsZero}}
+										<td>N/A</td>
+									{{else}}
+										<td>{{$.Prettify.Decimal8 .CompoundAnnualGrowthRate}}%</td>
+									{{end}}
 								</tr>
 							{{end }}
 						{{end}}
@@ -1573,11 +1580,11 @@
 						</tr>
 						<tr>
 							<td><b>Benchmark movement</b></td>
-							<td>{{$.Prettify.Decimal8 .Statistics.FundingStatistics.TotalUSDStatistics.BenchmarkMarketMovement}}</td>
+							<td>{{$.Prettify.Decimal8 .Statistics.FundingStatistics.TotalUSDStatistics.BenchmarkMarketMovement}}%</td>
 						</tr>
 						<tr>
 							<td><b>Overall strategy movement</b></td>
-							<td>{{$.Prettify.Decimal8 .Statistics.FundingStatistics.TotalUSDStatistics.StrategyMovement}}</td>
+							<td>{{$.Prettify.Decimal8 .Statistics.FundingStatistics.TotalUSDStatistics.StrategyMovement}}%</td>
 						</tr>
 						<tr>
 							<td><b>Did strategy beat the benchmark?</b></td>
@@ -1598,6 +1605,14 @@
 						<tr>
 							<td><b>Max Drawdown</b></td>
 							<td><b>Start:</b> {{ .Statistics.FundingStatistics.TotalUSDStatistics.MaxDrawdown.Highest.Time }} <b>End:</b> {{ .Statistics.FundingStatistics.TotalUSDStatistics.MaxDrawdown.Lowest.Time }} <b>Drop:</b> {{ $.Prettify.Decimal8 .Statistics.FundingStatistics.TotalUSDStatistics.MaxDrawdown.DrawdownPercent}}%</td>
+						</tr>
+						<tr>
+							<td><b>Compound Annual Growth Rate</b></td>
+							{{ if .Statistics.FundingStatistics.TotalUSDStatistics.CompoundAnnualGrowthRate.IsZero}}
+								<td>N/A</td>
+							{{else}}
+								<td>{{.Statistics.FundingStatistics.TotalUSDStatistics.CompoundAnnualGrowthRate}}%</td>
+							{{end}}
 						</tr>
 						</tbody>
 					</table>
@@ -1737,9 +1752,9 @@
 												<td>{{$ev.FillEvent.GetDirection}}</td>
 												<td>
 													<ul>
-													{{ range  $ev.FillEvent.GetReasons }}
-													<li>{{.}}</li>
-													{{end}}
+														{{ range  $ev.FillEvent.GetReasons }}
+															<li>{{.}}</li>
+														{{end}}
 													</ul>
 												</td>
 											{{ else if ne $ev.SignalEvent nil}}
@@ -1748,9 +1763,9 @@
 												<td>{{$ev.SignalEvent.GetDirection}}</td>
 												<td>
 													<ul>
-													{{ range $ev.SignalEvent.GetReasons }}
-														<li>{{.}}</li>
-													{{end}}
+														{{ range $ev.SignalEvent.GetReasons }}
+															<li>{{.}}</li>
+														{{end}}
 													</ul>
 												</td>
 											{{ end }}

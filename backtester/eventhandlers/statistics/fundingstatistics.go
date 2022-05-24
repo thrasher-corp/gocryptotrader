@@ -55,11 +55,7 @@ func CalculateFundingStatistics(funds funding.IFundingManager, currStats map[str
 		LowestHoldingValue:  ValueAtTime{},
 		RiskFreeRate:        riskFreeRate,
 	}
-	for i := range response.Items {
-		if response.Items[i].IsCollateral {
-			continue
-		}
-	}
+
 	for i := range report.USDTotalsOverTime {
 		if usdStats.HighestHoldingValue.Value.LessThan(report.USDTotalsOverTime[i].USDValue) {
 			usdStats.HighestHoldingValue.Time = report.USDTotalsOverTime[i].Time
@@ -118,8 +114,25 @@ func CalculateFundingStatistics(funds funding.IFundingManager, currStats map[str
 		return nil, err
 	}
 
+	for i := range response.Items {
+		var cagr decimal.Decimal
+		if response.Items[i].ReportItem.InitialFunds.IsZero() {
+			continue
+		}
+		cagr, err = gctmath.DecimalCompoundAnnualGrowthRate(
+			response.Items[i].ReportItem.InitialFunds,
+			response.Items[i].ReportItem.FinalFunds,
+			decimal.NewFromFloat(interval.IntervalsPerYear()),
+			decimal.NewFromInt(int64(len(usdStats.HoldingValues))),
+		)
+		if err != nil {
+			return nil, err
+		}
+		response.Items[i].CompoundAnnualGrowthRate = cagr
+	}
 	if !usdStats.HoldingValues[0].Value.IsZero() {
-		cagr, err := gctmath.DecimalCompoundAnnualGrowthRate(
+		var cagr decimal.Decimal
+		cagr, err = gctmath.DecimalCompoundAnnualGrowthRate(
 			usdStats.HoldingValues[0].Value,
 			usdStats.HoldingValues[len(usdStats.HoldingValues)-1].Value,
 			decimal.NewFromFloat(interval.IntervalsPerYear()),
@@ -128,9 +141,7 @@ func CalculateFundingStatistics(funds funding.IFundingManager, currStats map[str
 		if err != nil {
 			return nil, err
 		}
-		if !cagr.IsZero() {
-			usdStats.CompoundAnnualGrowthRate = cagr
-		}
+		usdStats.CompoundAnnualGrowthRate = cagr
 	}
 	usdStats.DidStrategyMakeProfit = usdStats.HoldingValues[len(usdStats.HoldingValues)-1].Value.GreaterThan(usdStats.HoldingValues[0].Value)
 	usdStats.DidStrategyBeatTheMarket = usdStats.StrategyMovement.GreaterThan(usdStats.BenchmarkMarketMovement)
