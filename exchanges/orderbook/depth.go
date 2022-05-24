@@ -330,3 +330,26 @@ func (d *Depth) updateAndAlert(update *Update) {
 	d.lastUpdated = update.UpdateTime
 	d.Alert()
 }
+
+// GetMaxVolumeBySlippage returns the potential max volume that can be deployed
+// to achieve this slippage amount. Useful to get max fit at current time.
+func (d *Depth) GetMaxVolumeBySlippage(slippage float64, bid bool) (float64, error) {
+	d.m.Lock()
+	defer d.m.Unlock()
+	if bid {
+		return d.bids.getVolumeBySlippage(slippage)
+	}
+	return d.asks.getVolumeBySlippage(slippage)
+}
+
+// GetMaxVolumeBySlippage returns the potential slippage if the amount was
+// deployed to the order book. Useful for getting impact values on current
+// balance.
+func (d *Depth) GetSlippageByVolume(volume float64, bid bool) (float64, error) {
+	d.m.Lock()
+	defer d.m.Unlock()
+	if bid {
+		return d.bids.getSlippageByVolume(volume)
+	}
+	return d.asks.getSlippageByVolume(volume)
+}

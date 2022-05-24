@@ -30,6 +30,29 @@ var ask = Items{
 	Item{Price: 1356, Amount: 1},
 }
 
+var bid = Items{
+	Item{Price: 1356, Amount: 1},
+	Item{Price: 1355, Amount: 1},
+	Item{Price: 1354, Amount: 1},
+	Item{Price: 1353, Amount: 1},
+	Item{Price: 1352, Amount: 1},
+	Item{Price: 1351, Amount: 1},
+	Item{Price: 1350, Amount: 1},
+	Item{Price: 1349, Amount: 1},
+	Item{Price: 1348, Amount: 1},
+	Item{Price: 1347, Amount: 1},
+	Item{Price: 1346, Amount: 1},
+	Item{Price: 1345, Amount: 1},
+	Item{Price: 1344, Amount: 1},
+	Item{Price: 1343, Amount: 1},
+	Item{Price: 1342, Amount: 1},
+	Item{Price: 1341, Amount: 1},
+	Item{Price: 1340, Amount: 1},
+	Item{Price: 1339, Amount: 1},
+	Item{Price: 1338, Amount: 1},
+	Item{Price: 1337, Amount: 1},
+}
+
 // Display displays depth content for tests
 func (ll *linkedList) display() {
 	for tip := ll.head; tip != nil; tip = tip.Next {
@@ -1445,5 +1468,177 @@ func TestShiftBookmark(t *testing.T) {
 
 	if head != originalBookmarkNext {
 		t.Fatal("unexpected pointer variable")
+	}
+}
+
+func TestGetSlippageByVolume(t *testing.T) {
+	t.Parallel()
+
+	ll := &linkedList{}
+	_, err := ll.getSlippageByVolume(1)
+	if !errors.Is(err, errNoLiquidity) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
+	}
+
+	ll.load(ask, newStack())
+
+	slipped, err := ll.getSlippageByVolume(1)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if slipped != 0 {
+		t.Fatal("unexpected value")
+	}
+
+	slipped, err = ll.getSlippageByVolume(2)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if slipped != 0.07479431563202077 {
+		t.Fatal("unexpected value")
+	}
+
+	slipped, err = ll.getSlippageByVolume(20) // last tranche
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if slipped != 1.421091997008217 {
+		t.Fatal("unexpected value")
+	}
+
+	slipped, err = ll.getSlippageByVolume(20.1) // exceeds full liquidity
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if slipped != 100 {
+		t.Fatal("unexpected value")
+	}
+
+	ll.load(bid, newStack())
+
+	slipped, err = ll.getSlippageByVolume(1)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if slipped != 0 {
+		t.Fatal("unexpected value")
+	}
+
+	slipped, err = ll.getSlippageByVolume(2)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if slipped != 0.07374631268436405 {
+		t.Fatal("unexpected value")
+	}
+
+	slipped, err = ll.getSlippageByVolume(20) // last tranche
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if slipped != 1.4011799410029502 {
+		t.Fatal("unexpected value")
+	}
+
+	slipped, err = ll.getSlippageByVolume(20.1) // exceeds full liquidity
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if slipped != 100 {
+		t.Fatal("unexpected value")
+	}
+}
+
+func TestGetVolumeBySlippage(t *testing.T) {
+	t.Parallel()
+
+	ll := &linkedList{}
+	_, err := ll.getVolumeBySlippage(0)
+	if !errors.Is(err, errNoLiquidity) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
+	}
+
+	ll.load(ask, newStack())
+
+	amount, err := ll.getVolumeBySlippage(0) // Top head retreival amount
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if amount != 1 {
+		t.Fatal("unexpected value")
+	}
+
+	amount, err = ll.getVolumeBySlippage(0.07479431563202077)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if amount != 2 {
+		t.Fatal("unexpected value")
+	}
+
+	amount, err = ll.getVolumeBySlippage(1.421091997008217) // last tranche
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if amount != 20 {
+		t.Fatal("unexpected value")
+	}
+
+	amount, err = ll.getVolumeBySlippage(100) // exceeds full liquidity
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if amount != 20 { // Should be the same as above because you are not exceeding percent.
+		t.Fatal("unexpected value")
+	}
+
+	ll.load(bid, newStack())
+
+	amount, err = ll.getVolumeBySlippage(0)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if amount != 1 {
+		t.Fatal("unexpected value")
+	}
+
+	amount, err = ll.getVolumeBySlippage(0.07374631268436405)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if amount != 2 {
+		t.Fatal("unexpected value")
+	}
+
+	amount, err = ll.getVolumeBySlippage(1.4011799410029502) // last tranche
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if amount != 20 {
+		t.Fatal("unexpected value")
+	}
+
+	amount, err = ll.getVolumeBySlippage(100) // exceeds full liquidity
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if amount != 20 { // Should be the same as above because you are not exceeding percent.
+		t.Fatal("unexpected value")
 	}
 }

@@ -340,6 +340,63 @@ func (ll *linkedList) insertUpdates(updts Items, stack *stack, comp comparison) 
 	return nil
 }
 
+// getSlippageByVolume returns the slippage percentage by impact volume on
+// liquidity
+func (ll *linkedList) getSlippageByVolume(volume float64) (float64, error) {
+	var slippage, shiftedPrice float64
+	for tip := &ll.head; *tip != nil; tip = &(*tip).Next {
+		shiftedPrice = (*tip).Value.Price
+		if slippage == 0 {
+			slippage = 1 / shiftedPrice
+		}
+		volume -= (*tip).Value.Amount
+		if volume <= 0 {
+			break
+		}
+	}
+	if shiftedPrice == 0 {
+		return 0, errNoLiquidity
+	}
+	if volume > 0 {
+		// Full book wiped out, return 100 percent.
+		return 100, nil
+	}
+	ratio := (slippage * shiftedPrice) - 1
+	if ratio < 0 { // Return ABS
+		ratio *= -1
+	}
+	return ratio * 100, nil
+}
+
+// getVolumeBySlippage returns the slippage percentage by impact volume on
+// liquidity
+func (ll *linkedList) getVolumeBySlippage(slippage float64) (float64, error) {
+	var volume, initialPrice float64
+	for tip := &ll.head; *tip != nil; tip = &(*tip).Next {
+		if initialPrice == 0 {
+			initialPrice = 1 / (*tip).Value.Price
+			volume += (*tip).Value.Amount
+			continue
+		}
+
+		ratio := (initialPrice * (*tip).Value.Price) - 1
+		if ratio < 0 { // ABS
+			ratio *= -1
+		}
+
+		if slippage < ratio*100 {
+			break
+		}
+
+		volume += (*tip).Value.Amount
+	}
+
+	if initialPrice == 0 {
+		return 0, errNoLiquidity
+	}
+	return volume, nil
+}
+
 // bids embed a linked list to attach methods for bid depth specific
 // functionality
 type bids struct {
