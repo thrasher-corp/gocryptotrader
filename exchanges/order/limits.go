@@ -58,32 +58,32 @@ var (
 // order size, order pricing, total notional values, total maximum orders etc
 // for execution on an exchange.
 type ExecutionLimits struct {
-	m   map[asset.Item]map[*currency.Item]map[*currency.Item]*Limits
+	m   map[asset.Item]map[*currency.Item]map[*currency.Item]MinMaxLevel
 	mtx sync.RWMutex
 }
 
 // MinMaxLevel defines the minimum and maximum parameters for a currency pair
 // for outbound exchange execution
 type MinMaxLevel struct {
-	Pair                currency.Pair
-	Asset               asset.Item
-	MinPrice            float64
-	MaxPrice            float64
-	StepPrice           float64
-	MultiplierUp        float64
-	MultiplierDown      float64
-	MultiplierDecimal   float64
-	AveragePriceMinutes int64
-	MinAmount           float64
-	MaxAmount           float64
-	StepAmount          float64
-	MinNotional         float64
-	MaxIcebergParts     int64
-	MarketMinQty        float64
-	MarketMaxQty        float64
-	MarketStepSize      float64
-	MaxTotalOrders      int64
-	MaxAlgoOrders       int64
+	Pair                    currency.Pair
+	Asset                   asset.Item
+	MinPrice                float64
+	MaxPrice                float64
+	PriceStepIncrementSize  float64
+	MultiplierUp            float64
+	MultiplierDown          float64
+	MultiplierDecimal       float64
+	AveragePriceMinutes     int64
+	MinAmount               float64
+	MaxAmount               float64
+	AmountStepIncrementSize float64
+	MinNotional             float64
+	MaxIcebergParts         int64
+	MarketMinQty            float64
+	MarketMaxQty            float64
+	MarketStepIncrementSize float64
+	MaxTotalOrders          int64
+	MaxAlgoOrders           int64
 }
 
 // LoadLimits loads all limits levels into memory
@@ -94,7 +94,7 @@ func (e *ExecutionLimits) LoadLimits(levels []MinMaxLevel) error {
 	e.mtx.Lock()
 	defer e.mtx.Unlock()
 	if e.m == nil {
-		e.m = make(map[asset.Item]map[*currency.Item]map[*currency.Item]*Limits)
+		e.m = make(map[asset.Item]map[*currency.Item]map[*currency.Item]MinMaxLevel)
 	}
 
 	for x := range levels {
@@ -105,20 +105,18 @@ func (e *ExecutionLimits) LoadLimits(levels []MinMaxLevel) error {
 		}
 		m1, ok := e.m[levels[x].Asset]
 		if !ok {
-			m1 = make(map[*currency.Item]map[*currency.Item]*Limits)
+			m1 = make(map[*currency.Item]map[*currency.Item]MinMaxLevel)
 			e.m[levels[x].Asset] = m1
+		}
+
+		if levels[x].Pair.IsEmpty() {
+			return currency.ErrCurrencyPairEmpty
 		}
 
 		m2, ok := m1[levels[x].Pair.Base.Item]
 		if !ok {
-			m2 = make(map[*currency.Item]*Limits)
+			m2 = make(map[*currency.Item]MinMaxLevel)
 			m1[levels[x].Pair.Base.Item] = m2
-		}
-
-		limit, ok := m2[levels[x].Pair.Quote.Item]
-		if !ok {
-			limit = new(Limits)
-			m2[levels[x].Pair.Quote.Item] = limit
 		}
 
 		if levels[x].MinPrice > 0 &&
@@ -142,50 +140,34 @@ func (e *ExecutionLimits) LoadLimits(levels []MinMaxLevel) error {
 				levels[x].MinAmount,
 				levels[x].MaxAmount)
 		}
-		limit.m.Lock()
-		limit.minPrice = levels[x].MinPrice
-		limit.maxPrice = levels[x].MaxPrice
-		limit.stepIncrementSizePrice = levels[x].StepPrice
-		limit.minAmount = levels[x].MinAmount
-		limit.maxAmount = levels[x].MaxAmount
-		limit.stepIncrementSizeAmount = levels[x].StepAmount
-		limit.minNotional = levels[x].MinNotional
-		limit.multiplierUp = levels[x].MultiplierUp
-		limit.multiplierDown = levels[x].MultiplierDown
-		limit.averagePriceMinutes = levels[x].AveragePriceMinutes
-		limit.maxIcebergParts = levels[x].MaxIcebergParts
-		limit.marketMinQty = levels[x].MarketMinQty
-		limit.marketMaxQty = levels[x].MarketMaxQty
-		limit.marketStepIncrementSize = levels[x].MarketStepSize
-		limit.maxTotalOrders = levels[x].MaxTotalOrders
-		limit.maxAlgoOrders = levels[x].MaxAlgoOrders
-		limit.m.Unlock()
+
+		m2[levels[x].Pair.Quote.Item] = levels[x]
 	}
 	return nil
 }
 
 // GetOrderExecutionLimits returns the exchange limit parameters for a currency
-func (e *ExecutionLimits) GetOrderExecutionLimits(a asset.Item, cp currency.Pair) (*Limits, error) {
+func (e *ExecutionLimits) GetOrderExecutionLimits(a asset.Item, cp currency.Pair) (MinMaxLevel, error) {
 	e.mtx.RLock()
 	defer e.mtx.RUnlock()
 
 	if e.m == nil {
-		return nil, ErrExchangeLimitNotLoaded
+		return MinMaxLevel{}, ErrExchangeLimitNotLoaded
 	}
 
 	m1, ok := e.m[a]
 	if !ok {
-		return nil, errExchangeLimitAsset
+		return MinMaxLevel{}, errExchangeLimitAsset
 	}
 
 	m2, ok := m1[cp.Base.Item]
 	if !ok {
-		return nil, errExchangeLimitBase
+		return MinMaxLevel{}, errExchangeLimitBase
 	}
 
 	limit, ok := m2[cp.Quote.Item]
 	if !ok {
-		return nil, errExchangeLimitQuote
+		return MinMaxLevel{}, errExchangeLimitQuote
 	}
 
 	return limit, nil
@@ -225,136 +207,111 @@ func (e *ExecutionLimits) CheckOrderExecutionLimits(a asset.Item, cp currency.Pa
 	return nil
 }
 
-// Limits defines total limit values for an associated currency to be checked
-// before execution on an exchange
-type Limits struct {
-	minPrice                float64
-	maxPrice                float64
-	stepIncrementSizePrice  float64
-	minAmount               float64
-	maxAmount               float64
-	stepIncrementSizeAmount float64
-	minNotional             float64
-	multiplierUp            float64
-	multiplierDown          float64
-	averagePriceMinutes     int64
-	maxIcebergParts         int64
-	marketMinQty            float64
-	marketMaxQty            float64
-	marketStepIncrementSize float64
-	maxTotalOrders          int64
-	maxAlgoOrders           int64
-	m                       sync.RWMutex
-}
-
 // Conforms checks outbound parameters
-func (l *Limits) Conforms(price, amount float64, orderType Type) error {
-	if l == nil {
-		// For when we return a nil pointer we can assume there's nothing to
-		// check
+func (m *MinMaxLevel) Conforms(price, amount float64, orderType Type) error {
+	if m == nil {
 		return nil
 	}
 
-	l.m.RLock()
-	defer l.m.RUnlock()
-	if l.minAmount != 0 && amount < l.minAmount {
+	if m.MinAmount != 0 && amount < m.MinAmount {
 		return fmt.Errorf("%w min: %.8f supplied %.8f",
 			ErrAmountBelowMin,
-			l.minAmount,
+			m.MinAmount,
 			amount)
 	}
-	if l.maxAmount != 0 && amount > l.maxAmount {
+	if m.MaxAmount != 0 && amount > m.MaxAmount {
 		return fmt.Errorf("%w min: %.8f supplied %.8f",
 			ErrAmountExceedsMax,
-			l.maxAmount,
+			m.MaxAmount,
 			amount)
 	}
-	if l.stepIncrementSizeAmount != 0 {
+	if m.AmountStepIncrementSize != 0 {
 		dAmount := decimal.NewFromFloat(amount)
-		dMinAmount := decimal.NewFromFloat(l.minAmount)
-		dStep := decimal.NewFromFloat(l.stepIncrementSizeAmount)
+		dMinAmount := decimal.NewFromFloat(m.MinAmount)
+		dStep := decimal.NewFromFloat(m.AmountStepIncrementSize)
 		if !dAmount.Sub(dMinAmount).Mod(dStep).IsZero() {
 			return fmt.Errorf("%w stepSize: %.8f supplied %.8f",
 				ErrAmountExceedsStep,
-				l.stepIncrementSizeAmount,
+				m.AmountStepIncrementSize,
 				amount)
 		}
 	}
 
 	// Multiplier checking not done due to the fact we need coherence with the
 	// last average price (TODO)
-	// l.multiplierUp will be used to determine how far our price can go up
-	// l.multiplierDown will be used to determine how far our price can go down
-	// l.averagePriceMinutes will be used to determine mean over this period
+	// m.multiplierUp will be used to determine how far our price can go up
+	// m.multiplierDown will be used to determine how far our price can go down
+	// m.averagePriceMinutes will be used to determine mean over this period
 
 	// Max iceberg parts checking not done as we do not have that
 	// functionality yet (TODO)
-	// l.maxIcebergParts // How many components in an iceberg order
+	// m.maxIcebergParts // How many components in an iceberg order
 
 	// Max total orders not done due to order manager limitations (TODO)
-	// l.maxTotalOrders
+	// m.maxTotalOrders
 
 	// Max algo orders not done due to order manager limitations (TODO)
-	// l.maxAlgoOrders
+	// m.maxAlgoOrders
 
 	// If order type is Market we do not need to do price checks
 	if orderType != Market {
-		if l.minPrice != 0 && price < l.minPrice {
+		if m.MinPrice != 0 && price < m.MinPrice {
 			return fmt.Errorf("%w min: %.8f supplied %.8f",
 				ErrPriceBelowMin,
-				l.minPrice,
+				m.MinPrice,
 				price)
 		}
-		if l.maxPrice != 0 && price > l.maxPrice {
+		if m.MaxPrice != 0 && price > m.MaxPrice {
 			return fmt.Errorf("%w max: %.8f supplied %.8f",
 				ErrPriceExceedsMax,
-				l.maxPrice,
+				m.MaxPrice,
 				price)
 		}
-		if l.minNotional != 0 && (amount*price) < l.minNotional {
+		if m.MinNotional != 0 && (amount*price) < m.MinNotional {
 			return fmt.Errorf("%w minimum notional: %.8f value of order %.8f",
 				ErrNotionalValue,
-				l.minNotional,
+				m.MinNotional,
 				amount*price)
 		}
-		if l.stepIncrementSizePrice != 0 {
+		if m.PriceStepIncrementSize != 0 {
 			dPrice := decimal.NewFromFloat(price)
-			dMinPrice := decimal.NewFromFloat(l.minPrice)
-			dStep := decimal.NewFromFloat(l.stepIncrementSizePrice)
+			dMinPrice := decimal.NewFromFloat(m.MinPrice)
+			dStep := decimal.NewFromFloat(m.PriceStepIncrementSize)
 			if !dPrice.Sub(dMinPrice).Mod(dStep).IsZero() {
 				return fmt.Errorf("%w stepSize: %.8f supplied %.8f",
 					ErrPriceExceedsStep,
-					l.stepIncrementSizePrice,
+					m.PriceStepIncrementSize,
 					price)
 			}
 		}
 		return nil
 	}
 
-	if l.marketMinQty != 0 &&
-		l.minAmount < l.marketMinQty &&
-		amount < l.marketMinQty {
+	if m.MarketMinQty != 0 &&
+		m.MinAmount < m.MarketMinQty &&
+		amount < m.MarketMinQty {
 		return fmt.Errorf("%w min: %.8f supplied %.8f",
 			ErrMarketAmountBelowMin,
-			l.marketMinQty,
+			m.MarketMinQty,
 			amount)
 	}
-	if l.marketMaxQty != 0 &&
-		l.maxAmount > l.marketMaxQty &&
-		amount > l.marketMaxQty {
+	if m.MarketMaxQty != 0 &&
+		m.MaxAmount > m.MarketMaxQty &&
+		amount > m.MarketMaxQty {
 		return fmt.Errorf("%w max: %.8f supplied %.8f",
 			ErrMarketAmountExceedsMax,
-			l.marketMaxQty,
+			m.MarketMaxQty,
 			amount)
 	}
-	if l.marketStepIncrementSize != 0 && l.stepIncrementSizeAmount != l.marketStepIncrementSize {
+	if m.MarketStepIncrementSize != 0 &&
+		m.AmountStepIncrementSize != m.MarketStepIncrementSize {
 		dAmount := decimal.NewFromFloat(amount)
-		dMinMAmount := decimal.NewFromFloat(l.marketMinQty)
-		dStep := decimal.NewFromFloat(l.marketStepIncrementSize)
+		dMinMAmount := decimal.NewFromFloat(m.MarketMinQty)
+		dStep := decimal.NewFromFloat(m.MarketStepIncrementSize)
 		if !dAmount.Sub(dMinMAmount).Mod(dStep).IsZero() {
 			return fmt.Errorf("%w stepSize: %.8f supplied %.8f",
 				ErrMarketAmountExceedsStep,
-				l.marketStepIncrementSize,
+				m.MarketStepIncrementSize,
 				amount)
 		}
 	}
@@ -362,13 +319,12 @@ func (l *Limits) Conforms(price, amount float64, orderType Type) error {
 }
 
 // ConformToDecimalAmount (POC) conforms amount to its amount interval
-func (l *Limits) ConformToDecimalAmount(amount decimal.Decimal) decimal.Decimal {
-	if l == nil {
+func (m *MinMaxLevel) ConformToDecimalAmount(amount decimal.Decimal) decimal.Decimal {
+	if m == nil {
 		return amount
 	}
-	l.m.Lock()
-	defer l.m.Unlock()
-	dStep := decimal.NewFromFloat(l.stepIncrementSizeAmount)
+
+	dStep := decimal.NewFromFloat(m.AmountStepIncrementSize)
 	if dStep.IsZero() || amount.Equal(dStep) {
 		return amount
 	}
@@ -382,25 +338,22 @@ func (l *Limits) ConformToDecimalAmount(amount decimal.Decimal) decimal.Decimal 
 }
 
 // ConformToAmount (POC) conforms amount to its amount interval
-func (l *Limits) ConformToAmount(amount float64) float64 {
-	if l == nil {
-		// For when we return a nil pointer we can assume there's nothing to
-		// check
-		return amount
-	}
-	l.m.Lock()
-	defer l.m.Unlock()
-	if l.stepIncrementSizeAmount == 0 || amount == l.stepIncrementSizeAmount {
+func (m *MinMaxLevel) ConformToAmount(amount float64) float64 {
+	if m == nil {
 		return amount
 	}
 
-	if amount < l.stepIncrementSizeAmount {
+	if m.AmountStepIncrementSize == 0 || amount == m.AmountStepIncrementSize {
+		return amount
+	}
+
+	if amount < m.AmountStepIncrementSize {
 		return 0
 	}
 
 	// Convert floats to decimal types
 	dAmount := decimal.NewFromFloat(amount)
-	dStep := decimal.NewFromFloat(l.stepIncrementSizeAmount)
+	dStep := decimal.NewFromFloat(m.AmountStepIncrementSize)
 	// derive modulus
 	mod := dAmount.Mod(dStep)
 	// subtract modulus to get the floor

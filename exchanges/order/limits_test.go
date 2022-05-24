@@ -9,9 +9,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
-var btcusd = currency.NewPair(currency.BTC, currency.USD)
-var ltcusd = currency.NewPair(currency.LTC, currency.USD)
-var btcltc = currency.NewPair(currency.BTC, currency.LTC)
+var (
+	btcusd = currency.NewPair(currency.BTC, currency.USD)
+	ltcusd = currency.NewPair(currency.LTC, currency.USD)
+	btcltc = currency.NewPair(currency.BTC, currency.LTC)
+)
 
 func TestLoadLimits(t *testing.T) {
 	t.Parallel()
@@ -35,6 +37,21 @@ func TestLoadLimits(t *testing.T) {
 		t.Fatalf("expected error %v but received %v",
 			asset.ErrNotSupported,
 			err)
+	}
+
+	invalidPairLoading := []MinMaxLevel{
+		{
+			Asset:     asset.Spot,
+			MinPrice:  100000,
+			MaxPrice:  1000000,
+			MinAmount: 1,
+			MaxAmount: 10,
+		},
+	}
+
+	err = e.LoadLimits(invalidPairLoading)
+	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
+		t.Fatalf("expected error %v but received %v", currency.ErrCurrencyPairEmpty, err)
 	}
 
 	newLimits := []MinMaxLevel{
@@ -168,10 +185,10 @@ func TestGetOrderExecutionLimits(t *testing.T) {
 		t.Fatalf("expected error %v but received %v", nil, err)
 	}
 
-	if tt.maxAmount != newLimits[0].MaxAmount ||
-		tt.minAmount != newLimits[0].MinAmount ||
-		tt.maxPrice != newLimits[0].MaxPrice ||
-		tt.minPrice != newLimits[0].MinPrice {
+	if tt.MaxAmount != newLimits[0].MaxAmount ||
+		tt.MinAmount != newLimits[0].MinAmount ||
+		tt.MaxPrice != newLimits[0].MaxPrice ||
+		tt.MinPrice != newLimits[0].MinPrice {
 		t.Fatal("unexpected values")
 	}
 }
@@ -248,14 +265,14 @@ func TestCheckLimit(t *testing.T) {
 
 func TestConforms(t *testing.T) {
 	t.Parallel()
-	var tt *Limits
+	var tt MinMaxLevel
 	err := tt.Conforms(0, 0, Limit)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	tt = &Limits{
-		minNotional: 100,
+	tt = MinMaxLevel{
+		MinNotional: 100,
 	}
 
 	err = tt.Conforms(1, 1, Limit)
@@ -268,7 +285,7 @@ func TestConforms(t *testing.T) {
 		t.Fatalf("expected error %v but received %v", nil, err)
 	}
 
-	tt.stepIncrementSizePrice = 0.001
+	tt.PriceStepIncrementSize = 0.001
 	err = tt.Conforms(200.0001, .5, Limit)
 	if !errors.Is(err, ErrPriceExceedsStep) {
 		t.Fatalf("expected error %v but received %v", ErrPriceExceedsStep, err)
@@ -278,7 +295,7 @@ func TestConforms(t *testing.T) {
 		t.Fatalf("expected error %v but received %v", nil, err)
 	}
 
-	tt.stepIncrementSizeAmount = 0.001
+	tt.AmountStepIncrementSize = 0.001
 	err = tt.Conforms(200, .0002, Limit)
 	if !errors.Is(err, ErrAmountExceedsStep) {
 		t.Fatalf("expected error %v but received %v", ErrAmountExceedsStep, err)
@@ -288,10 +305,10 @@ func TestConforms(t *testing.T) {
 		t.Fatalf("expected error %v but received %v", nil, err)
 	}
 
-	tt.minAmount = 1
-	tt.maxAmount = 10
-	tt.marketMinQty = 1.1
-	tt.marketMaxQty = 9.9
+	tt.MinAmount = 1
+	tt.MaxAmount = 10
+	tt.MarketMinQty = 1.1
+	tt.MarketMaxQty = 9.9
 
 	err = tt.Conforms(200000, 1, Market)
 	if !errors.Is(err, ErrMarketAmountBelowMin) {
@@ -303,12 +320,12 @@ func TestConforms(t *testing.T) {
 		t.Fatalf("expected error %v but received: %v", ErrMarketAmountExceedsMax, err)
 	}
 
-	tt.marketStepIncrementSize = 10
+	tt.MarketStepIncrementSize = 10
 	err = tt.Conforms(200000, 9.1, Market)
 	if !errors.Is(err, ErrMarketAmountExceedsStep) {
 		t.Fatalf("expected error %v but received: %v", ErrMarketAmountExceedsStep, err)
 	}
-	tt.marketStepIncrementSize = 1
+	tt.MarketStepIncrementSize = 1
 	err = tt.Conforms(200000, 9.1, Market)
 	if !errors.Is(err, nil) {
 		t.Fatalf("expected error %v but received: %v", nil, err)
@@ -317,19 +334,19 @@ func TestConforms(t *testing.T) {
 
 func TestConformToDecimalAmount(t *testing.T) {
 	t.Parallel()
-	var tt *Limits
+	var tt MinMaxLevel
 	if !tt.ConformToDecimalAmount(decimal.NewFromFloat(1.001)).Equal(decimal.NewFromFloat(1.001)) {
 		t.Fatal("value should not be changed")
 	}
 
-	tt = &Limits{}
+	tt = MinMaxLevel{}
 	val := tt.ConformToDecimalAmount(decimal.NewFromInt(1))
 	if !val.Equal(decimal.NewFromInt(1)) { // If there is no step amount set this should not change
 		// the inputted amount
 		t.Fatal("unexpected amount")
 	}
 
-	tt.stepIncrementSizeAmount = 0.001
+	tt.AmountStepIncrementSize = 0.001
 	val = tt.ConformToDecimalAmount(decimal.NewFromFloat(1.001))
 	if !val.Equal(decimal.NewFromFloat(1.001)) {
 		t.Error("unexpected amount", val)
@@ -345,7 +362,7 @@ func TestConformToDecimalAmount(t *testing.T) {
 		t.Error("unexpected amount", val)
 	}
 
-	tt.stepIncrementSizeAmount = 100
+	tt.AmountStepIncrementSize = 100
 	val = tt.ConformToDecimalAmount(decimal.NewFromInt(100))
 	if !val.Equal(decimal.NewFromInt(100)) {
 		t.Fatal("unexpected amount", val)
@@ -363,19 +380,19 @@ func TestConformToDecimalAmount(t *testing.T) {
 
 func TestConformToAmount(t *testing.T) {
 	t.Parallel()
-	var tt *Limits
+	var tt MinMaxLevel
 	if tt.ConformToAmount(1.001) != 1.001 {
 		t.Fatal("value should not be changed")
 	}
 
-	tt = &Limits{}
+	tt = MinMaxLevel{}
 	val := tt.ConformToAmount(1)
 	if val != 1 { // If there is no step amount set this should not change
 		// the inputted amount
 		t.Fatal("unexpected amount")
 	}
 
-	tt.stepIncrementSizeAmount = 0.001
+	tt.AmountStepIncrementSize = 0.001
 	val = tt.ConformToAmount(1.001)
 	if val != 1.001 {
 		t.Error("unexpected amount", val)
@@ -391,7 +408,7 @@ func TestConformToAmount(t *testing.T) {
 		t.Error("unexpected amount", val)
 	}
 
-	tt.stepIncrementSizeAmount = 100
+	tt.AmountStepIncrementSize = 100
 	val = tt.ConformToAmount(100)
 	if val != 100 {
 		t.Fatal("unexpected amount", val)
