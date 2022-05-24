@@ -18,6 +18,7 @@ import (
 const (
 	apiKey                  = ""
 	apiSecret               = ""
+	passphrase              = ""
 	canManipulateRealOrders = false
 )
 
@@ -30,17 +31,15 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	exchCfg, err := cfg.GetExchangeConfig("okx")
 	if err != nil {
-		println("Bra, the error is:", err.Error())
 		log.Fatal(err)
 	}
-
 	exchCfg.API.AuthenticatedSupport = true
 	exchCfg.API.AuthenticatedWebsocketSupport = true
 	exchCfg.API.Credentials.Key = apiKey
 	exchCfg.API.Credentials.Secret = apiSecret
+	exchCfg.API.Credentials.ClientID = passphrase
 
 	err = ok.Setup(exchCfg)
 	if err != nil {
@@ -62,7 +61,6 @@ func TestGetTickers(t *testing.T) {
 	}
 }
 
-// TestGetIndexTickers
 func TestGetIndexTickers(t *testing.T) {
 	t.Parallel()
 	_, er := ok.GetIndexTickers(context.Background(), "USDT", "")
@@ -138,7 +136,7 @@ func TestGetIndexComponents(t *testing.T) {
 func TestGetinstrument(t *testing.T) {
 	t.Parallel()
 	_, er := ok.GetInstruments(context.Background(), &InstrumentsFetchParams{
-		InstrumentType: "SPOT",
+		InstrumentType: "MARGIN",
 	})
 	if er != nil {
 		t.Error("Okx GetInstruments() error", er)
@@ -155,7 +153,7 @@ var deliveryHistoryData = `{
             "details":[
                 {
                     "type":"delivery",
-                    "instId":"BTC-USD-190927",
+                    "instId":"ZIL-BTC",
                     "px":"0.016"
                 }
             ]
@@ -180,6 +178,7 @@ var deliveryHistoryData = `{
 
 func TestGetDeliveryHistory(t *testing.T) {
 	t.Parallel()
+	t.Skip()
 	var repo DeliveryHistoryResponse
 	if err := json.Unmarshal([]byte(deliveryHistoryData), &repo); err != nil {
 		t.Error("Okx error", err)
@@ -285,7 +284,217 @@ func TestGetMarkPrice(t *testing.T) {
 
 func TestGetPositionTiers(t *testing.T) {
 	t.Parallel()
+	t.Skip()
 	if _, er := ok.GetPositionTiers(context.Background(), "FUTURES", "cross", "BTC-USDT", "", ""); er != nil {
 		t.Error("Okx GetPositionTiers() error", er)
+	}
+}
+
+func TestGetInterestRateAndLoanQuota(t *testing.T) {
+	t.Parallel()
+	if _, er := ok.GetInterestRateAndLoanQuota(context.Background()); er != nil {
+		t.Error("Okx GetInterestRateAndLoanQuota() error", er)
+	}
+}
+
+func TestGetInterestRateAndLoanQuotaForVIPLoans(t *testing.T) {
+	t.Parallel()
+	if _, er := ok.GetInterestRateAndLoanQuotaForVIPLoans(context.Background()); er != nil {
+		t.Error("Okx GetInterestRateAndLoanQuotaForVIPLoans() error", er)
+	}
+}
+
+func TestGetPublicUnderlyings(t *testing.T) {
+	t.Parallel()
+	if _, er := ok.GetPublicUnderlyings(context.Background(), "swap"); er != nil {
+		t.Error("Okx GetPublicUnderlyings() error", er)
+	}
+}
+
+func TestGetInsuranceFundInformations(t *testing.T) {
+	t.Parallel()
+	// getting the Underlyings usig the Get public Underlyinggs method for specific instrument type.
+	var underlyings []string
+	var er error
+	if underlyings, er = ok.GetPublicUnderlyings(context.Background(), "futures"); er != nil {
+		t.Error("Okx GetPublicUnderlyings() error", er)
+		t.SkipNow()
+	}
+	if _, er := ok.GetInsuranceFundInformations(context.Background(), InsuranceFundInformationRequestParams{
+		InstrumentType: "FUTURES",
+		Underlying:     underlyings[0],
+	}); er != nil {
+		t.Error("Okx GetInsuranceFundInformations() error", er)
+	}
+}
+
+// Trading related enndpoints test functions.
+
+func TestGetSupportCoins(t *testing.T) {
+	t.Parallel()
+	if _, er := ok.GetSupportCoins(context.Background()); er != nil {
+		t.Error("Okx GetSupportCoins() error", er)
+	}
+}
+
+func TestGetTakerVolume(t *testing.T) {
+	t.Parallel()
+	if _, er := ok.GetTakerVolume(context.Background(), "BTC", "SPOT", time.Time{}, time.Time{}, kline.OneDay); er != nil {
+		t.Error("Okx GetTakerVolume() error", er)
+	}
+}
+func TestGetMarginLendingRatio(t *testing.T) {
+	t.Parallel()
+	if _, er := ok.GetMarginLendingRatio(context.Background(), "BTC", time.Time{}, time.Time{}, kline.OneDay); er != nil {
+		t.Error("Okx GetMarginLendingRatio() error", er)
+	}
+}
+
+func TestGetLongShortRatio(t *testing.T) {
+	t.Parallel()
+	if _, er := ok.GetLongShortRatio(context.Background(), "BTC", time.Time{}, time.Time{}, kline.OneDay); er != nil {
+		t.Error("Okx GetLongShortRatio() error", er)
+	}
+}
+
+func TestGetContractsOpenInterestAndVolume(t *testing.T) {
+	t.Parallel()
+	if _, er := ok.GetContractsOpenInterestAndVolume(context.Background(), "BTC", time.Time{}, time.Time{}, kline.OneDay); er != nil {
+		t.Error("Okx GetContractsOpenInterestAndVolume() error", er)
+	}
+}
+
+func TestGetOptionsOpenInterestAndVolume(t *testing.T) {
+	t.Parallel()
+	if _, er := ok.GetOptionsOpenInterestAndVolume(context.Background(), "BTC", kline.OneDay); er != nil {
+		t.Error("Okx GetOptionsOpenInterestAndVolume() error", er)
+	}
+}
+
+func TestGetPutCallRatio(t *testing.T) {
+	t.Parallel()
+	if _, er := ok.GetPutCallRatio(context.Background(), "BTC", kline.OneDay); er != nil {
+		t.Error("Okx GetPutCallRatio() error", er)
+	}
+}
+
+func TestGetOpenInterestAndVolumeExpiry(t *testing.T) {
+	t.Parallel()
+	if _, er := ok.GetOpenInterestAndVolumeExpiry(context.Background(), "BTC", kline.OneDay); er != nil {
+		t.Error("Okx GetOpenInterestAndVolume() error", er)
+	}
+}
+
+func TestGetOpenInterestAndVolumeStrike(t *testing.T) {
+	t.Parallel()
+	if _, er := ok.GetOpenInterestAndVolumeStrike(context.Background(), "BTC", time.Now(), kline.OneDay); er != nil {
+		t.Error("Okx GetOpenInterestAndVolumeStrike() error", er)
+	}
+}
+
+func TestGetTakerFlow(t *testing.T) {
+	t.Parallel()
+	if _, er := ok.GetTakerFlow(context.Background(), "BTC", kline.OneDay); er != nil {
+		t.Error("Okx GetTakerFlow() error", er)
+	}
+}
+
+func TestPlaceOrder(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if resp, er := ok.PlaceOrder(context.Background(), PlaceOrderRequestParam{
+		InstrumentID:        "REN-USDT",
+		TradeMode:           "cross",
+		Side:                "sell",
+		OrderType:           "limit",
+		QuantityToBuyOrSell: 1,
+		OrderPrice:          1,
+	}); er != nil {
+		t.Error("Okx PlaceOrder() error", er)
+	} else {
+		println(string(MarshalThis(resp)))
+	}
+}
+
+func MarshalThis(vv interface{}) []byte {
+	v, _ := json.Marshal(vv)
+	return v
+}
+
+func TestPlaceMultipleOrders(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, er := ok.PlaceMultipleOrders(context.Background(),
+		[]PlaceOrderRequestParam{
+			{
+				InstrumentID:        "FIL-BTC",
+				TradeMode:           "cross",
+				Side:                "sell",
+				OrderType:           "limit",
+				QuantityToBuyOrSell: 1,
+				OrderPrice:          1,
+			},
+		}); er != nil {
+		t.Error("Okx PlaceOrderRequestParam() error", er)
+	}
+}
+
+func TestCancelOrder(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, er := ok.CancelOrder(context.Background(),
+		CancelOrderRequestParam{
+			InstrumentID: "BTC-USD-190927",
+			OrderID:      "2510789768709120",
+		}); er != nil {
+		t.Error("Okx CancelOrder() error", er)
+	}
+}
+
+func TestCancelMultipleOrders(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, er := ok.CancelMultipleOrders(context.Background(), []CancelOrderRequestParam{{
+		InstrumentID: "DCR-BTC",
+		OrderID:      "2510789768709120",
+	}}); er != nil {
+		t.Error("Okx CancelMultipleOrders() error", er)
+	}
+}
+
+func TestAmendOrder(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, er := ok.AmendOrder(context.Background(), &AmendOrderRequestParams{
+		InstrumentID: "DCR-BTC",
+		OrderID:      "2510789768709120",
+		NewPrice:     1233324.332,
+	}); er != nil {
+		t.Error("Okx AmendOrder() error", er)
+	}
+}
+func TestAmendMultipleOrders(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if responses, er := ok.AmendMultipleOrders(context.Background(), []AmendOrderRequestParams{{
+		InstrumentID: "DCR-BTC",
+		OrderID:      "2510789768709120",
+		NewPrice:     1233324.332,
+	}}); er != nil {
+		t.Error("Okx AmendMultipleOrders() error", er)
+	} else {
+		println(string(MarshalThis(responses)))
 	}
 }

@@ -345,3 +345,250 @@ type PositionTiers struct {
 	Tier                          string  `json:"tier"`
 	Underlying                    string  `json:"uly"`
 }
+
+// InterestRateLoanQuotaItem holds the basic Currency, loan,and interest rate informations.
+type InterestRateLoanQuotaBasic struct {
+	Currency     string  `json:"ccy"`
+	LoanQuota    string  `json:"quota"`
+	InterestRate float64 `json:"rate,string"`
+}
+
+// InterestRateLoanQuotaItem holds the basic Currency, loan,interest rate, and other level and VIP related informations.
+type InterestRateLoanQuotaItem struct {
+	InterestRateLoanQuotaBasic
+	InterestRateDiscount float64 `json:"0.7,string"`
+	LoanQuotaCoefficient float64 `json:"loanQuotaCoef,string"`
+	Level                string  `json:"level"`
+}
+
+// InterestRateLoanQuotaResponse holds a response information for InterestRateLoadQuotaItem informations.
+type InterestRateLoanQuotaResponse struct {
+	Msg  string                                    `json:"msg"`
+	Code string                                    `json:"code"`
+	Data []map[string][]*InterestRateLoanQuotaItem `json:"data"`
+}
+
+// VIPInterestRateAndLoanQuotaInformation holds interest rate and loan quoata information for VIP users.
+type VIPInterestRateAndLoanQuotaInformation struct {
+	InterestRateLoanQuotaBasic
+	LevelList []struct {
+		Level     string  `json:"level"`
+		LoanQuota float64 `json:"loanQuota,string"`
+	} `json:"levelList"`
+}
+
+// VIPInterestRateAndLoanQuotaInformationResponse holds the response information for VIPInterestRateAndLoanQuotaInformation messages.
+type VIPInterestRateAndLoanQuotaInformationResponse struct {
+	Code string                                    `json:"code"`
+	Msg  string                                    `json:"msg"`
+	Data []*VIPInterestRateAndLoanQuotaInformation `json:"data"`
+}
+
+// InsuranceFundInformationRequestParams insurance fund balance information.
+type InsuranceFundInformationRequestParams struct {
+	InstrumentType string    `json:"instType"`
+	Type           string    `json:"type"` //  Type values allowed are `liquidation_balance_deposit, bankruptcy_loss, and platform_revenue`
+	Underlying     string    `json:"uly"`
+	Currency       string    `json:"ccy"`
+	Before         time.Time `json:"before"`
+	After          time.Time `json:"after"`
+	Limit          uint      `json:"limit"`
+}
+
+// InsuranceFundInformationResponse holds the insurance fund information response data coming from the server.
+type InsuranceFundInformationResponse struct {
+	Code string                      `json:"code"`
+	Msg  string                      `json:"msg"`
+	Data []*InsuranceFundInformation `json:"data"`
+}
+
+// InsuranceFundInformation holds insurance fund information data.
+type InsuranceFundInformation struct {
+	Details []*InsuranceFundInformationDetail `json:"details"`
+	Total   float64                           `json:"total,string"`
+}
+
+// InsuranceFundInformationDetail represents an Insurance fund information item for a
+// single currency and type
+type InsuranceFundInformationDetail struct {
+	Amount    float64   `json:"amt,string"`
+	Balance   float64   `json:"balance,string"`
+	Currency  string    `json:"ccy"`
+	Timestamp time.Time `json:"ts"`
+	Type      string    `json:"type"`
+}
+
+// SupportedCoinsResponse Retrieve the currencies supported by the trading data endpoints.
+type SupportedCoinsResponse struct {
+	Code string              `json:"code"`
+	Msg  string              `json:"msg"`
+	Data *SupportedCoinsData `json:"data"`
+}
+
+// SupportedCoinsData holds information about currencies supported by the trading data endpoints.
+type SupportedCoinsData struct {
+	Contract                      []string `json:"contract"`
+	TradingOptions                []string `json:"option"`
+	CurrenciesSupportedBySpotSpot []string `json:"spot"`
+}
+
+// TakerVolumeResponse list of taker volume
+type TakerVolumeResponse struct {
+	Code string      `json:"code"`
+	Msg  string      `json:"msg"`
+	Data [][3]string `json:"data"`
+}
+
+// TakerVolume
+type TakerVolume struct {
+	Timestamp  time.Time `json:"ts"`
+	SellVolume float64
+	BuyVolume  float64
+}
+
+// MarginLendRatioItem
+type MarginLendRatioItem struct {
+	Timestamp       time.Time `json:"ts"`
+	MarginLendRatio float64   `json:"ratio"`
+}
+
+// MarginLendRatioResponse
+type MarginLendRatioResponse struct {
+	Code string      `json:"code"`
+	Msg  string      `json:"msg"`
+	Data [][2]string `json:"data"`
+}
+
+// // LongShortRatio
+type LongShortRatio struct {
+	Timestamp       time.Time `json:"ts"`
+	MarginLendRatio float64   `json:"ratio"`
+}
+
+// LongShortRatioResponse
+type LongShortRatioResponse struct {
+	Code string      `json:"code"`
+	Msg  string      `json:"msg"`
+	Data [][2]string `json:"data"`
+}
+
+// OpenIntereseVolume
+type OpenInterestVolume struct {
+	Timestamp    time.Time `json:"ts"`
+	OpenInterest float64   `json:"oi"`
+	Volume       float64   `json:"vol"`
+}
+
+// OpenInterestVolumeResponse
+type OpenInterestVolumeResponse struct {
+	Code string      `json:"code"`
+	Msg  string      `json:"msg"`
+	Data [][3]string `json:"data"`
+}
+
+// OpenInterestVolumeRatio
+type OpenInterestVolumeRatio struct {
+	Timestamp         time.Time `json:"ts"`
+	OpenInterestRatio float64   `json:"oiRatio"`
+	VolumeRatio       float64   `json:"volRatio"`
+}
+
+// ExpiryOpenInterestAndVolume
+type ExpiryOpenInterestAndVolume struct {
+	Timestamp        time.Time
+	ExpiryTime       time.Time
+	CallOpenInterest float64
+	PutOpenInterest  float64
+	CallVolume       float64
+	PutVolume        float64
+}
+
+// StrikeOpenInterestAndVolume ..
+type StrikeOpenInterestAndVolume struct {
+	Timestamp        time.Time
+	Strike           int64
+	CallOpenInterest float64
+	PutOpenInterest  float64
+	CallVolume       float64
+	PutVolume        float64
+}
+
+// CurrencyTakerFlow holds the taker volume information for a single currency.
+type CurrencyTakerFlow struct {
+	Timestamp       time.Time
+	CallBuyVolume   float64
+	CallSellVolume  float64
+	PutBuyVolume    float64
+	PutSellVolume   float64
+	CallBlockVolume float64
+	PutBlockVolume  float64
+}
+
+// PlaceOrderRequestParam requesting parameter for placing an order.
+type PlaceOrderRequestParam struct {
+	InstrumentID          string  `json:"instId"`
+	TradeMode             string  `json:"tdMode"` // cash isolated
+	ClientSupplierOrderID string  `json:"clOrdId"`
+	Currency              string  `json:"ccy,omitempty"` // Only applicable to cross MARGIN orders in Single-currency margin.
+	OrderTag              string  `json:"tag"`
+	Side                  string  `json:"side"`
+	PositionSide          string  `json:"posSide"`
+	OrderType             string  `json:"ordType"`
+	QuantityToBuyOrSell   float64 `json:"sz,string"`
+	OrderPrice            float64 `json:"px,string"`
+	ReduceOnly            bool    `json:"reduceOnly,string,omitempty"`
+	QuantityType          string  `json:"tgtCcy,omitempty"` // values base_ccy and quote_ccy
+
+}
+
+// PlaceOrderResponse respnse message for placing an order.
+type PlaceOrderResponse struct {
+	OrderID               string `json:"ordId"`
+	ClientSupplierOrderID string `json:"clOrdId"`
+	Tag                   string `json:"tag"`
+	StatusCode            int    `json:"sCode,string"`
+	StatusMessage         string `json:"sMsg"`
+}
+
+// CancelOrderRequestParams
+type CancelOrderRequestParam struct {
+	InstrumentID          string `json:"instId"`
+	OrderID               string `json:"ordId"`
+	ClientSupplierOrderID string `json:"clOrdId,omitempty"`
+}
+
+// CancelOrderResponse
+type CancelOrderResponse struct {
+	OrderID       string `json:"ordId"`
+	ClientOrderID string `json:"clOrdId"`
+	StatusCode    int    `json:"sCode,string"`
+	Msg           string `json:"sMsg"`
+}
+
+// // OrderResponse
+// type CancelOrderResponse struct {
+// 	OrderID       string `json:"orderId"`
+// 	ClientOrderID string `json:"clOrdId"`
+// 	StatusCode    string `json:"sCode"`
+// 	StatusMessage string `json:"sMsg"`
+// }
+
+// AmendOrderRequestParams
+type AmendOrderRequestParams struct {
+	InstrumentID            string  `json:"instId"`
+	CancelOnFail            bool    `json:"cxlOnFail"`
+	OrderID                 string  `json:"ordId"`
+	ClientSuppliedOrderID   string  `json:"clOrdId"`
+	ClientSuppliedRequestID string  `json:"reqId"`
+	NewQuantity             float64 `json:"newSz,string"`
+	NewPrice                float64 `json:"newPx,string"`
+}
+
+// AmendOrderResponse
+type AmendOrderResponse struct {
+	OrderID                 string  `json:"ordId"`
+	ClientSuppliedOrderID   string  `json:"clOrdId"`
+	ClientSuppliedRequestID string  `json:"reqId"`
+	StatusCode              float64 `json:"sCode,string"`
+	StatusMsg               string  `json:"sMsg"`
+}

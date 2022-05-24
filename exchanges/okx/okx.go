@@ -30,7 +30,7 @@ type Okx struct {
 
 const (
 	okxRateInterval = time.Second
-	okxAPIURL       = "https://www.okx.com/" + okxAPIPath
+	okxAPIURL       = "https://aws.okx.com/" + okxAPIPath
 	okxAPIVersion   = "/v5/"
 
 	okxStandardRequestRate = 6
@@ -38,12 +38,15 @@ const (
 	okxExchangeName        = "OKCOIN International"
 	okxWebsocketURL        = "wss://ws.okx.com:8443/ws" + okxAPIVersion
 
-	publicWsURL  = okxWebsocketURL + "public"
-	privateWsURL = okxWebsocketURL + "private"
+	// publicWsURL  = okxWebsocketURL + "public"
+	// privateWsURL = okxWebsocketURL + "private"
 
 	// tradeEndpoints
-	placeOrderUrl         = "trade/order"
-	placeMultipleOrderUrl = "trade/batch-orders"
+	tradeOrder             = "trade/order"
+	placeMultipleOrderUrl  = "trade/batch-orders"
+	cancelTradeOrder       = "trade/cancel-order"
+	cancelBatchTradeOrders = "trade/cancel-batch-orders"
+	amendOrder             = "trade/amend-order"
 
 	// Market Data
 	marketTickers                = "market/tickers"
@@ -60,51 +63,253 @@ const (
 	marketIndexComponents        = "market/index-components"
 
 	// Public endpoints
-	publicInstruments             = "public/instruments"
-	publicDeliveryExerciseHistory = "public/delivery-exercise-history"
-	publicOpenInterestValues      = "public/open-interest"
-	publicFundingRate             = "public/funding-rate"
-	publicFundingRateHistory      = "public/funding-rate-history"
-	publicLimitPath               = "public/price-limit"
-	publicOptionalData            = "public/opt-summary"
-	publicEstimatedPrice          = "public/estimated-price"
-	publicDiscountRate            = "public/discount-rate-interest-free-quota"
-	publicTime                    = "public/time"
-	publicLiquidationOrders       = "public/liquidation-orders"
-	publicMarkPrice               = "public/mark-price"
-	publicPositionTiers           = "public/position-tiers"
+	publicInstruments                 = "public/instruments"
+	publicDeliveryExerciseHistory     = "public/delivery-exercise-history"
+	publicOpenInterestValues          = "public/open-interest"
+	publicFundingRate                 = "public/funding-rate"
+	publicFundingRateHistory          = "public/funding-rate-history"
+	publicLimitPath                   = "public/price-limit"
+	publicOptionalData                = "public/opt-summary"
+	publicEstimatedPrice              = "public/estimated-price"
+	publicDiscountRate                = "public/discount-rate-interest-free-quota"
+	publicTime                        = "public/time"
+	publicLiquidationOrders           = "public/liquidation-orders"
+	publicMarkPrice                   = "public/mark-price"
+	publicPositionTiers               = "public/position-tiers"
+	publicInterestRateAndLoanQuota    = "public/interest-rate-loan-quota"
+	publicVIPInterestRateAndLoanQuota = "public/vip-interest-rate-loan-quota"
+	publicUnderlyings                 = "public/underlying"
+	publicInsuranceFunds              = "public/insurance-fund"
+
+	// Trading Endpoints
+	tradingDataSupportedCoins      = "rubik/stat/trading-data/support-coin"
+	tradingTakerVolume             = "rubik/stat/taker-volume"
+	tradingMarginLoanRatio         = "rubik/stat/margin/loan-ratio"
+	longShortAccountRatio          = "rubik/stat/contracts/long-short-account-ratio"
+	contractOpenInterestVolume     = "rubik/stat/contracts/open-interest-volume"
+	optionOpenInterestVolume       = "rubik/stat/option/open-interest-volume"
+	optionOpenInterestVolumeRatio  = "rubik/stat/option/open-interest-volume-ratio"
+	optionOpenInterestVolumeExpiry = "rubik/stat/option/open-interest-volume-expiry"
+	optionOpenInterestVolumeStrike = "rubik/stat/option/open-interest-volume-strike"
+	takerBlockVolume               = "rubik/stat/option/taker-block-volume"
 
 	// Authenticated endpoints
 )
 
 var (
-	errEmptyPairValues                        = errors.New("empty pair values")
-	errDataNotFound                           = errors.New("data not found ")
-	errMissingInstructionIDParam              = errors.New("missing required instruction id parameter value")
-	errUnableToTypeAssertResponseData         = errors.New("unable to type assert responseData")
-	errUnableToTypeAssertKlineData            = errors.New("unable to type assert kline data")
-	errUnexpectedKlineDataLength              = errors.New("unexpected kline data length")
-	errLimitExceedsMaximumResultPerRequest    = errors.New("maximum result per request exeeds the limit")
-	errNo24HrTradeVolumeFound                 = errors.New("no trade record found in the 24 trade volume ")
-	errOracleInformationNotFound              = errors.New("oracle informations not found")
-	errExchangeInfoNotFound                   = errors.New("exchange information not found")
-	errIndexComponentNotFound                 = errors.New("unable to fetch index components")
-	errMissingRequiredArgInstType             = errors.New("invalid required argument instrument type")
-	errLimitValueExceedsMaxof100              = fmt.Errorf("limit value exceeds the maximum value %d", 100)
-	errParameterUnderlyingCanNotBeEmpty       = errors.New("parameter uly can not be empty.")
-	errUnacceptableUnderlyingValue            = errors.New("unacceptable underlying value")
-	errMissingInstrumentID                    = errors.New("missing instrument id")
-	errFundingRateHistoryNotFound             = errors.New("funding rate history not found")
-	errMissingRequiredUnderlying              = errors.New("error missing required parameter underlying")
-	errMissingRequiredParamInstID             = errors.New("missing required parameter instrument id")
-	errDeliveryEstimatedPriceResponseNotFound = errors.New("delivery estimated price response not found")
-	errLiquidationOrderResponseNotFound       = errors.New("liquidation order not found")
-	errEitherInstIDOrCcyIsRequired            = errors.New("either parameter instId or ccy is required")
-	errIncorrectRequiredParameterTradeMode    = errors.New("unacceptable required argument, trade mode")
+	errEmptyPairValues                         = errors.New("empty pair values")
+	errDataNotFound                            = errors.New("data not found ")
+	errMissingInstructionIDParam               = errors.New("missing required instruction id parameter value")
+	errUnableToTypeAssertResponseData          = errors.New("unable to type assert responseData")
+	errUnableToTypeAssertKlineData             = errors.New("unable to type assert kline data")
+	errUnexpectedKlineDataLength               = errors.New("unexpected kline data length")
+	errLimitExceedsMaximumResultPerRequest     = errors.New("maximum result per request exeeds the limit")
+	errNo24HrTradeVolumeFound                  = errors.New("no trade record found in the 24 trade volume ")
+	errOracleInformationNotFound               = errors.New("oracle informations not found")
+	errExchangeInfoNotFound                    = errors.New("exchange information not found")
+	errIndexComponentNotFound                  = errors.New("unable to fetch index components")
+	errMissingRequiredArgInstType              = errors.New("invalid required argument instrument type")
+	errLimitValueExceedsMaxof100               = fmt.Errorf("limit value exceeds the maximum value %d", 100)
+	errParameterUnderlyingCanNotBeEmpty        = errors.New("parameter uly can not be empty")
+	errMissingInstrumentID                     = errors.New("missing instrument id")
+	errFundingRateHistoryNotFound              = errors.New("funding rate history not found")
+	errMissingRequiredUnderlying               = errors.New("error missing required parameter underlying")
+	errMissingRequiredParamInstID              = errors.New("missing required parameter instrument id")
+	errLiquidationOrderResponseNotFound        = errors.New("liquidation order not found")
+	errEitherInstIDOrCcyIsRequired             = errors.New("either parameter instId or ccy is required")
+	errIncorrectRequiredParameterTradeMode     = errors.New("unacceptable required argument, trade mode")
+	errInterestRateAndLoanQuotaNotFound        = errors.New("interest rate and loan quota not found")
+	errUnderlyingsForSpecifiedInstTypeNofFound = errors.New("underlyings for the specified instrument id is not found")
+	errInsuranceFundInformationNotFound        = errors.New("insurance fund information not found")
+	errMissingExpiryTimeParameter              = errors.New("missing expiry date parameter")
+	errParsingResponseError                    = errors.New("error while parsing the response")
+	errInvalidTradeModeValue                   = errors.New("invalid trade mode value")
+	errMissingOrderSide                        = errors.New("missing order side")
+	errInvalidOrderType                        = errors.New("invalid order type")
+	errInvalidQuantityToButOrSell              = errors.New("unacceptable quantity to buy or sell")
+	errMissingClientOrderIDOrOrderID           = errors.New("client supplier order id or order id is missing")
+	errMissingNewSizeOrPriceInformation        = errors.New("missing the new size or price information")
 )
 
 /************************************ MarketData Endpoints *************************************************/
 
+// PlaceOrder place an order only if you have sufficient funds.
+func (ok *Okx) PlaceOrder(ctx context.Context, arg PlaceOrderRequestParam) (*PlaceOrderResponse, error) {
+	if arg.InstrumentID == "" {
+		return nil, errMissingInstructionIDParam
+	}
+	arg.TradeMode = strings.Trim(arg.TradeMode, " ")
+	if !(strings.EqualFold("cross", arg.TradeMode) || strings.EqualFold("isolated", arg.TradeMode) || strings.EqualFold("cash", arg.TradeMode)) {
+		return nil, errInvalidTradeModeValue
+	}
+	if !(strings.EqualFold(arg.Side, "buy") || strings.EqualFold(arg.Side, "sell")) {
+		return nil, errMissingOrderSide
+	}
+	if !(strings.EqualFold(arg.OrderType, "market") || strings.EqualFold(arg.OrderType, "limit") || strings.EqualFold(arg.OrderType, "post_only") ||
+		strings.EqualFold(arg.OrderType, "fok") || strings.EqualFold(arg.OrderType, "ioc") || strings.EqualFold(arg.OrderType, "optimal_limit_ioc")) {
+		return nil, errInvalidOrderType
+	}
+	if arg.QuantityToBuyOrSell <= 0 {
+		return nil, errInvalidQuantityToButOrSell
+	}
+	if arg.OrderPrice <= 0 && (strings.EqualFold(arg.OrderType, "limit") || strings.EqualFold(arg.OrderType, "post_only") ||
+		strings.EqualFold(arg.OrderType, "fok") || strings.EqualFold(arg.OrderType, "ioc")) {
+		return nil, fmt.Errorf("invalid order price for %s order types", arg.OrderType)
+	}
+	if !(strings.EqualFold(arg.QuantityType, "base_ccy") || strings.EqualFold(arg.QuantityType, "quote_ccy")) {
+		arg.QuantityType = ""
+	}
+	type response struct {
+		Msg  string                `json:"msg"`
+		Code string                `json:"code"`
+		Data []*PlaceOrderResponse `json:"data"`
+	}
+	var resp response
+	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, tradeOrder, arg, &resp, true)
+	if er != nil {
+		return nil, er
+	}
+	if len(resp.Data) == 0 {
+		return nil, fmt.Errorf("error parsing the response")
+	}
+	println("Length : ", len(resp.Data))
+	return resp.Data[0], nil
+}
+
+// PlaceMultipleOrders  to place orders in batches. Maximum 20 orders can be placed at a time. Request parameters should be passed in the form of an array.
+func (ok *Okx) PlaceMultipleOrders(ctx context.Context, args []PlaceOrderRequestParam) ([]*PlaceOrderResponse, error) {
+	for x := range args {
+		arg := args[x]
+		if arg.InstrumentID == "" {
+			return nil, errMissingInstructionIDParam
+		}
+		arg.TradeMode = strings.Trim(arg.TradeMode, " ")
+		if !(strings.EqualFold("cross", arg.TradeMode) || strings.EqualFold("isolated", arg.TradeMode) || strings.EqualFold("cash", arg.TradeMode)) {
+			return nil, errInvalidTradeModeValue
+		}
+		if !(strings.EqualFold(arg.Side, "buy") || strings.EqualFold(arg.Side, "sell")) {
+			return nil, errMissingOrderSide
+		}
+		if !(strings.EqualFold(arg.OrderType, "market") || strings.EqualFold(arg.OrderType, "limit") || strings.EqualFold(arg.OrderType, "post_only") ||
+			strings.EqualFold(arg.OrderType, "fok") || strings.EqualFold(arg.OrderType, "ioc") || strings.EqualFold(arg.OrderType, "optimal_limit_ioc")) {
+			return nil, errInvalidOrderType
+		}
+		if arg.QuantityToBuyOrSell <= 0 {
+			return nil, errInvalidQuantityToButOrSell
+		}
+		if arg.OrderPrice <= 0 && (strings.EqualFold(arg.OrderType, "limit") || strings.EqualFold(arg.OrderType, "post_only") ||
+			strings.EqualFold(arg.OrderType, "fok") || strings.EqualFold(arg.OrderType, "ioc")) {
+			return nil, fmt.Errorf("invalid order price for %s order types", arg.OrderType)
+		}
+		if !(strings.EqualFold(arg.QuantityType, "base_ccy") || strings.EqualFold(arg.QuantityType, "quote_ccy")) {
+			arg.QuantityType = ""
+		}
+	}
+	type response struct {
+		Msg  string                `json:"msg"`
+		Code string                `json:"code"`
+		Data []*PlaceOrderResponse `json:"data"`
+	}
+	var resp response
+	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, placeMultipleOrderUrl, args, &resp, true)
+}
+
+// CancelOrder cancel an incomplete order.
+func (ok *Okx) CancelOrder(ctx context.Context, arg CancelOrderRequestParam) (*CancelOrderResponse, error) {
+	if strings.Trim(arg.InstrumentID, " ") == "" {
+		return nil, errMissingInstrumentID
+	}
+	if arg.OrderID == "" && arg.ClientSupplierOrderID == "" {
+		return nil, fmt.Errorf("either order id or client supplier id is required")
+	}
+	type response struct {
+		Msg  string                 `json:"msg"`
+		Code string                 `json:"code"`
+		Data []*CancelOrderResponse `json:"data"`
+	}
+	var resp response
+	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, cancelTradeOrder, arg, &resp, true)
+	if er != nil {
+		return nil, er
+	}
+	if len(resp.Data) == 0 {
+		return nil, errors.New("error parsing the response data")
+	}
+	return resp.Data[0], nil
+}
+
+// CancelMultipleOrders cancel incomplete orders in batches. Maximum 20 orders can be canceled at a time.
+// Request parameters should be passed in the form of an array.
+func (ok *Okx) CancelMultipleOrders(ctx context.Context, args []CancelOrderRequestParam) ([]*CancelOrderResponse, error) {
+	for x := range args {
+		arg := args[x]
+		if strings.Trim(arg.InstrumentID, " ") == "" {
+			return nil, errMissingInstrumentID
+		}
+		if arg.OrderID == "" && arg.ClientSupplierOrderID == "" {
+			return nil, fmt.Errorf("either order id or client supplier id is required")
+		}
+	}
+	type response struct {
+		Msg  string                 `json:"msg"`
+		Code string                 `json:"code"`
+		Data []*CancelOrderResponse `json:"data"`
+	}
+	var resp response
+	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot,
+		http.MethodPost, cancelBatchTradeOrders, args, &resp, true)
+}
+
+// AmendOrder an incomplete order.
+func (ok *Okx) AmendOrder(ctx context.Context, arg *AmendOrderRequestParams) (*AmendOrderResponse, error) {
+	if strings.Trim(arg.InstrumentID, " ") == "" {
+		return nil, errMissingInstrumentID
+	}
+	if arg.ClientSuppliedOrderID == "" && arg.OrderID == "" {
+		return nil, errMissingClientOrderIDOrOrderID
+	}
+	if arg.NewQuantity <= 0 && arg.NewPrice <= 0 {
+		return nil, errMissingNewSizeOrPriceInformation
+	}
+	type response struct {
+		Code string                `json:"code"`
+		Msg  string                `json:"msg"`
+		Data []*AmendOrderResponse `json:"data"`
+	}
+	var resp response
+	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, amendOrder, arg, &resp, true)
+	if er != nil {
+		return nil, er
+	}
+	if len(resp.Data) == 0 {
+		return nil, errParsingResponseError
+	}
+	return resp.Data[0], nil
+}
+
+// AmendMultipleOrders amend incomplete orders in batches. Maximum 20 orders can be amended at a time. Request parameters should be passed in the form of an array.
+func (ok *Okx) AmendMultipleOrders(ctx context.Context, args []AmendOrderRequestParams) ([]*AmendOrderResponse, error) {
+	for x := range args {
+		if strings.Trim(args[x].InstrumentID, " ") == "" {
+			return nil, errMissingInstrumentID
+		}
+		if args[x].ClientSuppliedOrderID == "" && args[x].OrderID == "" {
+			return nil, errMissingClientOrderIDOrOrderID
+		}
+		if args[x].NewQuantity <= 0 && args[x].NewPrice <= 0 {
+			return nil, errMissingNewSizeOrPriceInformation
+		}
+	}
+	type response struct {
+		Code string                `json:"code"`
+		Msg  string                `json:"msg"`
+		Data []*AmendOrderResponse `json:"data"`
+	}
+	var resp response
+	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, amendOrder, args, &resp, true)
+}
+
+// GetTickers retrives the latest price snopshots best bid/ ask price, and tranding volume in the last 34 hours.
 func (ok *Okx) GetTickers(ctx context.Context, instType, uly, instId string) ([]MarketDataResponse, error) {
 	params := url.Values{}
 	if strings.EqualFold(instType, "spot") || strings.EqualFold(instType, "swap") || strings.EqualFold(instType, "futures") || strings.EqualFold(instType, "option") {
@@ -765,6 +970,614 @@ func (ok *Okx) GetPositionTiers(ctx context.Context, instrumentType, tradeMode, 
 	return response.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &response, false)
 }
 
+// GetInterestRate retrives an interest rate and loan quota information for various currencies.
+func (ok *Okx) GetInterestRateAndLoanQuota(ctx context.Context) (map[string][]*InterestRateLoanQuotaItem, error) {
+	var response InterestRateLoanQuotaResponse
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, publicInterestRateAndLoanQuota, nil, &response, false)
+	if err != nil {
+		return nil, err
+	} else if len(response.Data) == 0 {
+		return nil, errInterestRateAndLoanQuotaNotFound
+	}
+	return response.Data[0], nil
+}
+
+// GetInterestRate retrives an interest rate and loan quota information for VIP users of various currencies.
+func (ok *Okx) GetInterestRateAndLoanQuotaForVIPLoans(ctx context.Context) (*VIPInterestRateAndLoanQuotaInformation, error) {
+	var response VIPInterestRateAndLoanQuotaInformationResponse
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, publicVIPInterestRateAndLoanQuota, nil, &response, false)
+	if err != nil {
+		return nil, err
+	} else if len(response.Data) == 0 {
+		return nil, errInterestRateAndLoanQuotaNotFound
+	}
+	return response.Data[0], nil
+}
+
+// GetPublicUnderlyings returns list of underlyings for various instrument types.
+func (ok *Okx) GetPublicUnderlyings(ctx context.Context, instrumentType string) ([]string, error) {
+	params := url.Values{}
+	if !(strings.EqualFold(instrumentType, "FUTURES") ||
+		strings.EqualFold(instrumentType, "SWAP") ||
+		strings.EqualFold(instrumentType, "OPTION")) {
+		return nil, errMissingRequiredArgInstType
+	} else {
+		params.Set("instType", strings.ToUpper(instrumentType))
+	}
+	path := common.EncodeURLValues(publicUnderlyings, params)
+	type response struct {
+		Code string     `json:"code"`
+		Msg  string     `json:"msg"`
+		Data [][]string `json:"data"`
+	}
+	var resp response
+	if er := ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, false); er != nil {
+		return nil, er
+	}
+	if len(resp.Data) > 0 {
+		return resp.Data[0], nil
+	}
+	return nil, errUnderlyingsForSpecifiedInstTypeNofFound
+}
+
+// Trading data Endpoints
+
+// GetSupportCoins retrieve the currencies supported by the trading data endpoints
+func (ok *Okx) GetSupportCoins(ctx context.Context) (*SupportedCoinsData, error) {
+	var response SupportedCoinsResponse
+	return response.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, tradingDataSupportedCoins, nil, &response, false)
+}
+
+// GetTakerVolume retrieve the taker volume for both buyers and sellers.
+func (ok *Okx) GetTakerVolume(ctx context.Context, currency, instrumentType string, begin, end time.Time, period kline.Interval) ([]*TakerVolume, error) {
+	params := url.Values{}
+	if !(strings.EqualFold(instrumentType, "CONTRACTS") ||
+		strings.EqualFold(instrumentType, "SPOT")) {
+		return nil, errMissingRequiredArgInstType
+	} else if strings.EqualFold(instrumentType, "FUTURES") ||
+		strings.EqualFold(instrumentType, "MARGIN") ||
+		strings.EqualFold(instrumentType, "SWAP") ||
+		strings.EqualFold(instrumentType, "OPTION") {
+		return nil, fmt.Errorf("instrument type %s is not allowed for this query", instrumentType)
+	} else {
+		params.Set("instType", strings.ToUpper(instrumentType))
+	}
+	interval := ok.GetIntervalEnum(period)
+	if interval != "" {
+		params.Set("period", interval)
+	}
+	if currency != "" {
+		params.Set("ccy", currency)
+	}
+	if !begin.IsZero() {
+		params.Set("begin", strconv.FormatInt(begin.UnixMilli(), 10))
+	}
+	if !end.IsZero() {
+		params.Set("end", strconv.FormatInt(end.UnixMilli(), 10))
+	}
+	path := common.EncodeURLValues(tradingTakerVolume, params)
+	var response TakerVolumeResponse
+	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &response, false)
+	if er != nil {
+		return nil, er
+	}
+	takerVolumes := []*TakerVolume{}
+	for x := range response.Data {
+		if len(response.Data[x]) != 3 {
+			continue
+		}
+		timestamp, er := strconv.Atoi(response.Data[x][0])
+		if er != nil {
+			continue
+		}
+		sellVolume, er := strconv.ParseFloat(response.Data[x][1], 64)
+		if er != nil {
+			continue
+		}
+		buyVolume, er := strconv.ParseFloat(response.Data[x][2], 64)
+		if er != nil {
+			continue
+		}
+		takerVolume := &TakerVolume{
+			Timestamp:  time.UnixMilli(int64(timestamp)),
+			SellVolume: sellVolume,
+			BuyVolume:  buyVolume,
+		}
+		takerVolumes = append(takerVolumes, takerVolume)
+	}
+	return takerVolumes, nil
+}
+
+// GetInsuranceFund returns insurance fund balance informations.
+func (ok *Okx) GetInsuranceFundInformations(ctx context.Context, arg InsuranceFundInformationRequestParams) (*InsuranceFundInformation, error) {
+	params := url.Values{}
+	if !(strings.EqualFold(arg.InstrumentType, "FUTURES") ||
+		strings.EqualFold(arg.InstrumentType, "MARGIN") ||
+		strings.EqualFold(arg.InstrumentType, "SWAP") ||
+		strings.EqualFold(arg.InstrumentType, "OPTION")) {
+		return nil, errMissingRequiredArgInstType
+	} else {
+		params.Set("instType", strings.ToUpper(arg.InstrumentType))
+	}
+	if strings.EqualFold(arg.Type, "liquidation_balance_deposit") ||
+		strings.EqualFold(arg.Type, "bankruptcy_loss") ||
+		strings.EqualFold(arg.Type, "platform_revenue ") {
+		params.Set("type", arg.Type)
+	}
+	if (!strings.EqualFold(arg.InstrumentType, "MARGIN")) && arg.Underlying != "" {
+		params.Set("uly", arg.Underlying)
+	} else if !strings.EqualFold(arg.InstrumentType, "MARGIN") {
+		return nil, errParameterUnderlyingCanNotBeEmpty
+	}
+	if (strings.EqualFold(arg.InstrumentType, "MARGIN")) && arg.Currency != "" {
+		params.Set("ccy", arg.Currency)
+	}
+	if !arg.Before.IsZero() {
+		params.Set("before", strconv.FormatInt(arg.Before.UnixMilli(), 10))
+	}
+	if !arg.After.IsZero() {
+		params.Set("after", strconv.FormatInt(arg.After.UnixMilli(), 10))
+	}
+	if arg.Limit > 0 && arg.Limit < 100 {
+		params.Set("limit", strconv.Itoa(int(arg.Limit)))
+	}
+	var response InsuranceFundInformationResponse
+	path := common.EncodeURLValues(publicInsuranceFunds, params)
+	if er := ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &response, false); er != nil {
+		return nil, er
+	}
+	if len(response.Data) > 0 {
+		return response.Data[0], nil
+	}
+	return nil, errInsuranceFundInformationNotFound
+}
+
+// GetMarginLendingRatio retrieve the ratio of cumulative amount between currency margin quote currency and base currency.
+func (ok *Okx) GetMarginLendingRatio(ctx context.Context, currency string, begin, end time.Time, period kline.Interval) ([]*MarginLendRatioItem, error) {
+	params := url.Values{}
+	if currency != "" {
+		params.Set("ccy", currency)
+	}
+	if !begin.IsZero() {
+		params.Set("begin", strconv.FormatInt(begin.UnixMilli(), 10))
+	}
+	if !end.IsZero() {
+		params.Set("end", strconv.FormatInt(begin.UnixMilli(), 10))
+	}
+	interval := ok.GetIntervalEnum(period)
+	if interval != "" {
+		params.Set("period", interval)
+	}
+	var response MarginLendRatioResponse
+	path := common.EncodeURLValues(tradingMarginLoanRatio, params)
+	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &response, false)
+	if er != nil {
+		return nil, er
+	}
+	lendingRatios := []*MarginLendRatioItem{}
+	for x := range response.Data {
+		if len(response.Data[x]) != 2 {
+			continue
+		}
+		timestamp, er := strconv.Atoi(response.Data[x][0])
+		if er != nil || timestamp <= 0 {
+			continue
+		}
+		ratio, er := strconv.ParseFloat(response.Data[x][0], 64)
+		if er != nil || ratio <= 0 {
+			continue
+		}
+		lendRatio := &MarginLendRatioItem{
+			Timestamp:       time.UnixMilli(int64(timestamp)),
+			MarginLendRatio: ratio,
+		}
+		lendingRatios = append(lendingRatios, lendRatio)
+	}
+	return lendingRatios, nil
+}
+
+// GetLongShortRatio retrieve the ratio of users with net long vs net short positions for futures and perpetual swaps.
+func (ok *Okx) GetLongShortRatio(ctx context.Context, currency string, begin, end time.Time, period kline.Interval) ([]*LongShortRatio, error) {
+	params := url.Values{}
+	if currency != "" {
+		params.Set("ccy", currency)
+	}
+	if !begin.IsZero() {
+		params.Set("begin", strconv.FormatInt(begin.UnixMilli(), 10))
+	}
+	if !end.IsZero() {
+		params.Set("end", strconv.FormatInt(begin.UnixMilli(), 10))
+	}
+	interval := ok.GetIntervalEnum(period)
+	if interval != "" {
+		params.Set("period", interval)
+	}
+	var response LongShortRatioResponse
+	path := common.EncodeURLValues(longShortAccountRatio, params)
+	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &response, false)
+	if er != nil {
+		return nil, er
+	}
+	ratios := []*LongShortRatio{}
+	for x := range response.Data {
+		if len(response.Data[x]) != 2 {
+			continue
+		}
+		timestamp, er := strconv.Atoi(response.Data[x][0])
+		if er != nil || timestamp <= 0 {
+			continue
+		}
+		ratio, er := strconv.ParseFloat(response.Data[x][0], 64)
+		if er != nil || ratio <= 0 {
+			continue
+		}
+		dratio := &LongShortRatio{
+			Timestamp:       time.UnixMilli(int64(timestamp)),
+			MarginLendRatio: ratio,
+		}
+		ratios = append(ratios, dratio)
+	}
+	return ratios, nil
+}
+
+// GetContractsOpenInterestAndVolume retrieve the open interest and trading volume for futures and perpetual swaps.
+func (ok *Okx) GetContractsOpenInterestAndVolume(
+	ctx context.Context, currency string,
+	begin, end time.Time, period kline.Interval) ([]*OpenInterestVolume, error) {
+	params := url.Values{}
+	if currency != "" {
+		params.Set("ccy", currency)
+	}
+	if !begin.IsZero() {
+		params.Set("begin", strconv.FormatInt(begin.UnixMilli(), 10))
+	}
+	if !end.IsZero() {
+		params.Set("end", strconv.FormatInt(begin.UnixMilli(), 10))
+	}
+	interval := ok.GetIntervalEnum(period)
+	if interval != "" {
+		params.Set("period", interval)
+	}
+	openInterestVolumes := []*OpenInterestVolume{}
+	var response OpenInterestVolumeResponse
+	path := common.EncodeURLValues(contractOpenInterestVolume, params)
+	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &response, false)
+	if er != nil {
+		return nil, er
+	}
+	for x := range response.Data {
+		if len(response.Data[x]) != 3 {
+			continue
+		}
+		timestamp, er := strconv.Atoi(response.Data[x][0])
+		if er != nil || timestamp <= 0 {
+			continue
+		}
+		openInterest, er := strconv.Atoi(response.Data[x][1])
+		if er != nil || openInterest <= 0 {
+			continue
+		}
+		volumen, err := strconv.Atoi(response.Data[x][2])
+		if err != nil {
+			continue
+		}
+		openInterestVolume := &OpenInterestVolume{
+			Timestamp:    time.UnixMilli(int64(timestamp)),
+			Volume:       float64(volumen),
+			OpenInterest: float64(openInterest),
+		}
+		openInterestVolumes = append(openInterestVolumes, openInterestVolume)
+	}
+	return openInterestVolumes, nil
+}
+
+// GetOptionsOpenInterestAndVolume retrieve the open interest and trading volume for options.
+func (ok *Okx) GetOptionsOpenInterestAndVolume(ctx context.Context, currency string,
+	period kline.Interval) ([]*OpenInterestVolume, error) {
+	params := url.Values{}
+	if currency != "" {
+		params.Set("ccy", currency)
+	}
+	interval := ok.GetIntervalEnum(period)
+	if interval != "" {
+		params.Set("period", interval)
+	}
+	openInterestVolumes := []*OpenInterestVolume{}
+	var response OpenInterestVolumeResponse
+	path := common.EncodeURLValues(optionOpenInterestVolume, params)
+	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &response, false)
+	if er != nil {
+		return nil, er
+	}
+	for x := range response.Data {
+		if len(response.Data[x]) != 3 {
+			continue
+		}
+		timestamp, er := strconv.Atoi(response.Data[x][0])
+		if er != nil || timestamp <= 0 {
+			continue
+		}
+		openInterest, er := strconv.Atoi(response.Data[x][1])
+		if er != nil || openInterest <= 0 {
+			continue
+		}
+		volumen, err := strconv.Atoi(response.Data[x][2])
+		if err != nil {
+			continue
+		}
+		openInterestVolume := &OpenInterestVolume{
+			Timestamp:    time.UnixMilli(int64(timestamp)),
+			Volume:       float64(volumen),
+			OpenInterest: float64(openInterest),
+		}
+		openInterestVolumes = append(openInterestVolumes, openInterestVolume)
+	}
+	return openInterestVolumes, nil
+}
+
+// GetPutCallRatio retrieve the open interest ration and trading volume ratio of calls vs puts.
+func (ok *Okx) GetPutCallRatio(ctx context.Context, currency string,
+	period kline.Interval) ([]*OpenInterestVolumeRatio, error) {
+	params := url.Values{}
+	if currency != "" {
+		params.Set("ccy", currency)
+	}
+	interval := ok.GetIntervalEnum(period)
+	if interval != "" {
+		params.Set("period", interval)
+	}
+	openInterestVolumeRatios := []*OpenInterestVolumeRatio{}
+	var response OpenInterestVolumeResponse
+	path := common.EncodeURLValues(optionOpenInterestVolumeRatio, params)
+	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &response, false)
+	if er != nil {
+		return nil, er
+	}
+	for x := range response.Data {
+		if len(response.Data[x]) != 3 {
+			continue
+		}
+		timestamp, er := strconv.Atoi(response.Data[x][0])
+		if er != nil || timestamp <= 0 {
+			continue
+		}
+		openInterest, er := strconv.Atoi(response.Data[x][1])
+		if er != nil || openInterest <= 0 {
+			continue
+		}
+		volumen, err := strconv.Atoi(response.Data[x][2])
+		if err != nil {
+			continue
+		}
+		openInterestVolume := &OpenInterestVolumeRatio{
+			Timestamp:         time.UnixMilli(int64(timestamp)),
+			VolumeRatio:       float64(volumen),
+			OpenInterestRatio: float64(openInterest),
+		}
+		openInterestVolumeRatios = append(openInterestVolumeRatios, openInterestVolume)
+	}
+	return openInterestVolumeRatios, nil
+}
+
+// GetOpenInterestAndVolume retrieve the open interest and trading volume of calls and puts for each upcoming expiration.
+func (ok *Okx) GetOpenInterestAndVolumeExpiry(ctx context.Context, currency string, period kline.Interval) ([]*ExpiryOpenInterestAndVolume, error) {
+	params := url.Values{}
+	if currency != "" {
+		params.Set("ccy", currency)
+	}
+	interval := ok.GetIntervalEnum(period)
+	if interval != "" {
+		params.Set("period", interval)
+	}
+	type response struct {
+		Code string      `json:"code"`
+		Msg  string      `json:"msg"`
+		Data [][6]string `json:"data"`
+	}
+	var resp response
+	path := common.EncodeURLValues(optionOpenInterestVolumeExpiry, params)
+	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, false)
+	if er != nil {
+		return nil, er
+	}
+	var volumes []*ExpiryOpenInterestAndVolume
+	for x := range resp.Data {
+		if len(resp.Data[x]) != 6 {
+			continue
+		}
+		timestamp, er := strconv.Atoi(resp.Data[x][0])
+		if er != nil {
+			continue
+		}
+		var expiryTime time.Time
+		expTime := resp.Data[x][1]
+		if expTime != "" && len(expTime) == 8 {
+			year, er := strconv.Atoi(expTime[0:4])
+			if er != nil {
+				continue
+			}
+			month, er := strconv.Atoi(expTime[4:6])
+			var months string
+			var days string
+			if month <= 9 {
+				months = fmt.Sprintf("0%d", month)
+			} else {
+				months = strconv.Itoa(month)
+			}
+			if er != nil {
+				continue
+			}
+			day, er := strconv.Atoi(expTime[6:])
+			if day <= 9 {
+				days = fmt.Sprintf("0%d", day)
+			} else {
+				days = strconv.Itoa(day)
+			}
+			if er != nil {
+				continue
+			}
+			expiryTime, er = time.Parse("2006-01-02", fmt.Sprintf("%d-%s-%s", year, months, days))
+			if er != nil {
+				continue
+			}
+		}
+		calloi, er := strconv.ParseFloat(resp.Data[x][2], 64)
+		if er != nil {
+			continue
+		}
+		putoi, er := strconv.ParseFloat(resp.Data[x][3], 64)
+		if er != nil {
+			continue
+		}
+		callvol, er := strconv.ParseFloat(resp.Data[x][4], 64)
+		if er != nil {
+			continue
+		}
+		putvol, er := strconv.ParseFloat(resp.Data[x][5], 64)
+		if er != nil {
+			continue
+		}
+		volume := &ExpiryOpenInterestAndVolume{
+			Timestamp:        time.UnixMilli(int64(timestamp)),
+			ExpiryTime:       expiryTime,
+			CallOpenInterest: calloi,
+			PutOpenInterest:  putoi,
+			CallVolume:       callvol,
+			PutVolume:        putvol,
+		}
+		volumes = append(volumes, volume)
+	}
+	return volumes, nil
+}
+
+// GetOpenInterestAndVolumeStrike retrieve the taker volume for both buyers and sellers of calls and puts.
+func (ok *Okx) GetOpenInterestAndVolumeStrike(ctx context.Context, currency string,
+	expTime time.Time, period kline.Interval) ([]*StrikeOpenInterestAndVolume, error) {
+	params := url.Values{}
+	if currency != "" {
+		params.Set("ccy", currency)
+	}
+	interval := ok.GetIntervalEnum(period)
+	if interval != "" {
+		params.Set("period", interval)
+	}
+	if !expTime.IsZero() {
+		var months string
+		var days string
+		if expTime.Month() <= 9 {
+			months = fmt.Sprintf("0%d", expTime.Month())
+		} else {
+			months = strconv.Itoa(int(expTime.Month()))
+		}
+		if expTime.Day() <= 9 {
+			days = fmt.Sprintf("0%d", expTime.Day())
+		} else {
+			days = strconv.Itoa(int(expTime.Day()))
+		}
+		params.Set("expTime", fmt.Sprintf("%d%s%s", expTime.Year(), months, days))
+	} else {
+		return nil, errMissingExpiryTimeParameter
+	}
+	type response struct {
+		Code string      `json:"code"`
+		Msg  string      `json:"msg"`
+		Data [][6]string `json:"data"`
+	}
+	var resp response
+	path := common.EncodeURLValues(optionOpenInterestVolumeStrike, params)
+	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, false)
+	if er != nil {
+		return nil, er
+	}
+	var volumes []*StrikeOpenInterestAndVolume
+	for x := range resp.Data {
+		if len(resp.Data[x]) != 6 {
+			continue
+		}
+		timestamp, er := strconv.Atoi(resp.Data[x][0])
+		if er != nil {
+			continue
+		}
+		strike, er := strconv.ParseInt(resp.Data[x][1], 10, 64)
+		if er != nil {
+			continue
+		}
+		calloi, er := strconv.ParseFloat(resp.Data[x][2], 64)
+		if er != nil {
+			continue
+		}
+		putoi, er := strconv.ParseFloat(resp.Data[x][3], 64)
+		if er != nil {
+			continue
+		}
+		callvol, er := strconv.ParseFloat(resp.Data[x][4], 64)
+		if er != nil {
+			continue
+		}
+		putvol, er := strconv.ParseFloat(resp.Data[x][5], 64)
+		if er != nil {
+			continue
+		}
+		volume := &StrikeOpenInterestAndVolume{
+			Timestamp:        time.UnixMilli(int64(timestamp)),
+			Strike:           strike,
+			CallOpenInterest: calloi,
+			PutOpenInterest:  putoi,
+			CallVolume:       callvol,
+			PutVolume:        putvol,
+		}
+		volumes = append(volumes, volume)
+	}
+	return volumes, nil
+}
+
+// GetTakerFlow shows the relative buy/sell volume for calls and puts.
+// It shows whether traders are bullish or bearish on price and volatility
+func (ok *Okx) GetTakerFlow(ctx context.Context, currency string, period kline.Interval) (*CurrencyTakerFlow, error) {
+	params := url.Values{}
+	if currency != "" {
+		params.Set("ccy", currency)
+	}
+	interval := ok.GetIntervalEnum(period)
+	if interval != "" {
+		params.Set("period", interval)
+	}
+	type response struct {
+		Msg  string    `json:"msg"`
+		Code string    `json:"code"`
+		Data [7]string `json:"data"`
+	}
+	var resp response
+	path := common.EncodeURLValues(takerBlockVolume, params)
+	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, false)
+	if er != nil {
+		return nil, er
+	}
+	timestamp, era := strconv.ParseInt(resp.Data[0], 10, 64)
+	callbuyvol, erb := strconv.ParseFloat(resp.Data[1], 64)
+	callselvol, erc := strconv.ParseFloat(resp.Data[2], 64)
+	putbutvol, erd := strconv.ParseFloat(resp.Data[3], 64)
+	putsellvol, ere := strconv.ParseFloat(resp.Data[4], 64)
+	callblockvol, erf := strconv.ParseFloat(resp.Data[5], 64)
+	putblockvol, erg := strconv.ParseFloat(resp.Data[6], 64)
+	if era != nil || erb != nil || erc != nil || erd != nil || ere != nil || erf != nil || erg != nil {
+		return nil, errParsingResponseError
+	}
+	return &CurrencyTakerFlow{
+		Timestamp:       time.UnixMilli(timestamp),
+		CallBuyVolume:   callbuyvol,
+		CallSellVolume:  callselvol,
+		PutBuyVolume:    putbutvol,
+		PutSellVolume:   putsellvol,
+		CallBlockVolume: callblockvol,
+		PutBlockVolume:  putblockvol,
+	}, nil
+}
+
+// Stauts Endpoints
+// https://www.okx.com/docs-v5/en/#rest-api-status
+// The response out of this endpoint is an XML file. So, for the timebeing, it is not implemented.
+
 // SendHTTPRequest sends an authenticated http request to a desired
 // path with a JSON payload (of present)
 // URL arguments must be in the request path and not as url.URL values
@@ -805,6 +1618,7 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, httpMethod,
 			headers["OK-ACCESS-SIGN"] = crypto.Base64Encode(hmac)
 			headers["OK-ACCESS-TIMESTAMP"] = utcTime
 			headers["OK-ACCESS-PASSPHRASE"] = creds.ClientID
+			headers["x-simulated-trading"] = "1"
 		}
 		return &request.Item{
 			Method:        strings.ToUpper(httpMethod),
@@ -818,12 +1632,10 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, httpMethod,
 			HTTPRecording: ok.HTTPRecording,
 		}, nil
 	}
-
 	err = ok.SendPayload(ctx, request.Unset, newRequest)
 	if err != nil {
 		return err
 	}
-
 	type errCapFormat struct {
 		Error        int64  `json:"error_code,omitempty"`
 		ErrorMessage string `json:"error_message,omitempty"`

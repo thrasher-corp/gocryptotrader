@@ -381,12 +381,12 @@ func (ok *Okx) ModifyOrder(ctx context.Context, action *order.Modify) (order.Mod
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (ok *Okx) CancelOrder(ctx context.Context, ord *order.Cancel) error {
-	// if err := ord.Validate(ord.StandardCancel()); err != nil {
-	//	 return err
-	// }
-	return common.ErrNotYetImplemented
-}
+// func (ok *Okx) CancelOrder(ctx context.Context, ord *order.Cancel) error {
+// if err := ord.Validate(ord.StandardCancel()); err != nil {
+//	 return err
+// }
+// return common.ErrNotYetImplemented
+// }
 
 // CancelBatchOrders cancels orders by their corresponding ID numbers
 func (ok *Okx) CancelBatchOrders(ctx context.Context, orders []order.Cancel) (order.CancelBatchResponse, error) {

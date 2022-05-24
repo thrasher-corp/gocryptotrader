@@ -287,3 +287,20 @@ func (a *MarkPrice) UnmarshalJSON(data []byte) error {
 	}
 	return nil
 }
+
+func (a *InsuranceFundInformationDetail) UnmarshalJSON(data []byte) error {
+	type Alias InsuranceFundInformationDetail
+	chil := &struct {
+		*Alias
+		Timestamp int64 `json:"ts,string"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	if chil.Timestamp > 0 {
+		a.Timestamp = time.UnixMilli(chil.Timestamp)
+	}
+	return nil
+}
