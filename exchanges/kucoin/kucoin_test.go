@@ -108,3 +108,12 @@ func TestGetMarketList(t *testing.T) {
 		t.Error("GetMarketList() error", err)
 	}
 }
+
+func TestGetOrderbook(t *testing.T) {
+	t.Parallel()
+
+	_, err := k.GetOrderbook(context.Background(), "BTC-USDT")
+	if err != nil {
+		t.Error("GetOrderbook() error", err)
+	}
+}
