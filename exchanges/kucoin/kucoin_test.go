@@ -111,6 +111,9 @@ func TestGetMarketList(t *testing.T) {
 
 func TestGetOrderbook(t *testing.T) {
 	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
 
 	_, err := k.GetOrderbook(context.Background(), "BTC-USDT")
 	if err != nil {

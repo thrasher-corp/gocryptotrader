@@ -1667,7 +1667,7 @@
      }
     },
     "api": {
-     "authenticatedSupport": false,
+     "authenticatedSupport": true,
      "authenticatedWebsocketApiSupport": false,
      "endpoints": {
       "url": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
