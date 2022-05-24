@@ -11,7 +11,7 @@ require (
 	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.10.0
 	github.com/kat-co/vala v0.0.0-20170210184112-42e1d8b61f12
-	github.com/lib/pq v1.10.5
+	github.com/lib/pq v1.10.6
 	github.com/mattn/go-sqlite3 v1.14.10
 	github.com/pkg/errors v0.9.1
 	github.com/pquerna/otp v1.3.0
