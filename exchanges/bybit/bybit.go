@@ -202,7 +202,7 @@ func (by *Bybit) GetKlines(ctx context.Context, symbol, period string, limit int
 	if !end.IsZero() {
 		v.Add("endTime", strconv.FormatInt(end.UnixMilli(), 10))
 	}
-	if limit <= 0 || limit > 10000 {
+	if limit <= 0 || limit > 1000 {
 		limit = 1000
 	}
 	v.Add("limit", strconv.FormatInt(limit, 10))
@@ -736,11 +736,12 @@ func (by *Bybit) GetWalletBalance(ctx context.Context) ([]Balance, error) {
 func (by *Bybit) GetSpotServerTime(ctx context.Context) (time.Time, error) {
 	resp := struct {
 		Result struct {
-			ServerTime int64 `json:"balances"`
+			ServerTime int64 `json:"serverTime"`
 		} `json:"result"`
 		Error
 	}{}
-	return time.UnixMilli(resp.Result.ServerTime), by.SendHTTPRequest(ctx, exchange.RestSpot, bybitServerTime, publicSpotRate, &resp)
+	err := by.SendHTTPRequest(ctx, exchange.RestSpot, bybitServerTime, publicSpotRate, &resp)
+	return time.UnixMilli(resp.Result.ServerTime), err
 }
 
 // SendHTTPRequest sends an unauthenticated request

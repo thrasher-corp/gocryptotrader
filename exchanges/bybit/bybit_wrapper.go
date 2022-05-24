@@ -946,37 +946,48 @@ func (by *Bybit) CancelAllOrders(ctx context.Context, orderCancellation *order.C
 		if orderCancellation.Type != order.UnknownType {
 			orderType = orderCancellation.Type.String()
 		}
-
 		if orderCancellation.Side != order.UnknownSide {
 			side = orderCancellation.Side.Title()
 		}
 
 		successful, err := by.BatchCancelOrder(ctx, orderCancellation.Pair.String(), side, orderType)
-
 		if !successful {
 			return cancelAllOrdersResponse, fmt.Errorf("failed to cancelAllOrder")
 		}
+		status := "success"
+		if err != nil {
+			status = err.Error()
+		}
 		for i := range activeOrder {
-			cancelAllOrdersResponse.Status[strconv.FormatInt(activeOrder[i].OrderID, 10)] = err.Error()
+			cancelAllOrdersResponse.Status[strconv.FormatInt(activeOrder[i].OrderID, 10)] = status
 		}
 
 	case asset.CoinMarginedFutures:
 		resp, err := by.CancelAllActiveCoinFuturesOrders(ctx, orderCancellation.Pair)
-
+		status := "success"
+		if err != nil {
+			status = err.Error()
+		}
 		for i := range resp {
-			cancelAllOrdersResponse.Status[resp[i].OrderID] = err.Error()
+			cancelAllOrdersResponse.Status[resp[i].OrderID] = status
 		}
 	case asset.USDTMarginedFutures:
 		resp, err := by.CancelAllActiveUSDTFuturesOrders(ctx, orderCancellation.Pair)
-
+		status := "success"
+		if err != nil {
+			status = err.Error()
+		}
 		for i := range resp {
-			cancelAllOrdersResponse.Status[resp[i]] = err.Error()
+			cancelAllOrdersResponse.Status[resp[i]] = status
 		}
 	case asset.Futures:
 		resp, err := by.CancelAllActiveFuturesOrders(ctx, orderCancellation.Pair)
-
+		status := "success"
+		if err != nil {
+			status = err.Error()
+		}
 		for i := range resp {
-			cancelAllOrdersResponse.Status[resp[i].CancelOrderID] = err.Error()
+			cancelAllOrdersResponse.Status[resp[i].CancelOrderID] = status
 		}
 	default:
 		return cancelAllOrdersResponse, fmt.Errorf("%s %w", orderCancellation.AssetType, asset.ErrNotSupported)
