@@ -342,7 +342,7 @@ func (d *Depth) GetMaxVolumeBySlippage(slippage float64, bid bool) (float64, err
 	return d.asks.getVolumeBySlippage(slippage)
 }
 
-// GetMaxVolumeBySlippage returns the potential slippage if the amount was
+// GetSlippageByVolume returns the potential slippage if the amount was
 // deployed to the order book. Useful for getting impact values on current
 // balance.
 func (d *Depth) GetSlippageByVolume(volume float64, bid bool) (float64, error) {
