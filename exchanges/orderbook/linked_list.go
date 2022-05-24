@@ -341,7 +341,7 @@ func (ll *linkedList) insertUpdates(updts Items, stack *stack, comp comparison) 
 }
 
 // getSlippageByVolume returns the slippage percentage by impact volume on
-// liquidity
+// liquidity.
 func (ll *linkedList) getSlippageByVolume(volume float64) (float64, error) {
 	var slippage, shiftedPrice float64
 	for tip := &ll.head; *tip != nil; tip = &(*tip).Next {
@@ -368,8 +368,7 @@ func (ll *linkedList) getSlippageByVolume(volume float64) (float64, error) {
 	return ratio * 100, nil
 }
 
-// getVolumeBySlippage returns the slippage percentage by impact volume on
-// liquidity
+// getVolumeBySlippage returns the max volume amount by allowable slippage.
 func (ll *linkedList) getVolumeBySlippage(slippage float64) (float64, error) {
 	var volume, initialPrice float64
 	for tip := &ll.head; *tip != nil; tip = &(*tip).Next {
