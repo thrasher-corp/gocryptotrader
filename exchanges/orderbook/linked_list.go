@@ -3,6 +3,8 @@ package orderbook
 import (
 	"errors"
 	"fmt"
+
+	"github.com/thrasher-corp/gocryptotrader/common/math"
 )
 
 var (
@@ -356,7 +358,7 @@ func (ll *linkedList) getSlippageByVolume(volume float64) (float64, error) {
 			if shiftedPrice == 0 {
 				return 0, fmt.Errorf("invalid orderbook tranche %w", errPriceNotSet)
 			}
-			slippage = 1 / shiftedPrice
+			slippage = shiftedPrice
 		}
 		volume -= (*tip).Value.Amount
 		if volume <= 0 {
@@ -370,11 +372,11 @@ func (ll *linkedList) getSlippageByVolume(volume float64) (float64, error) {
 		// Full book wiped out, return 100 percent.
 		return 100, nil
 	}
-	percentageChange := (slippage * shiftedPrice) - 1
+	percentageChange := math.CalculatePercentageGainOrLoss(shiftedPrice, slippage)
 	if percentageChange < 0 { // Return ABS
 		percentageChange *= -1
 	}
-	return percentageChange * 100, nil
+	return percentageChange, nil
 }
 
 // getVolumeBySlippage returns the max volume amount by allowable slippage.
@@ -388,17 +390,17 @@ func (ll *linkedList) getVolumeBySlippage(slippage float64) (float64, error) {
 			if (*tip).Value.Price == 0 {
 				return 0, fmt.Errorf("invalid orderbook tranche %w", errPriceNotSet)
 			}
-			initialPrice = 1 / (*tip).Value.Price
+			initialPrice = (*tip).Value.Price
 			volume += (*tip).Value.Amount
 			continue
 		}
 
-		percentageChange := (initialPrice * (*tip).Value.Price) - 1
-		if percentageChange < 0 { // ABS
+		percentageChange := math.CalculatePercentageGainOrLoss((*tip).Value.Price, initialPrice)
+		if percentageChange < 0 { // Return ABS
 			percentageChange *= -1
 		}
 
-		if slippage < percentageChange*100 {
+		if slippage < percentageChange {
 			break
 		}
 

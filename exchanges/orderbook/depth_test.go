@@ -695,7 +695,7 @@ func TestDepthGetSlippageByVolume(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	if dev != 1.4011799410029502 {
+	if dev != 1.4011799410029497 {
 		t.Fatal("unexpected value")
 	}
 
@@ -704,7 +704,7 @@ func TestDepthGetSlippageByVolume(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	if dev != 1.421091997008217 {
+	if dev != 1.4210919970082274 {
 		t.Fatal("unexpected value")
 	}
 }
