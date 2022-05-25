@@ -1590,7 +1590,7 @@ func TestGetVolumeBySlippage(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidSlippage)
 	}
 
-	amount, err := ll.getVolumeBySlippage(0) // Top head retreival amount
+	amount, err := ll.getVolumeBySlippage(0) // Top head retrieval amount
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
