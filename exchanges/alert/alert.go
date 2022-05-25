@@ -29,7 +29,7 @@ var (
 // SetPreAllocationCommsBuffer sets buffer size of the pre-allocated comms.
 func SetPreAllocationCommsBuffer(size int) error {
 	if size <= 0 {
-		return errInvalidBufferSize
+		return fmt.Errorf("%w received %v", errInvalidBufferSize, size)
 	}
 	mu.Lock()
 	preAllocBufferSize = size
