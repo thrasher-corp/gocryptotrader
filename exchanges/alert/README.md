@@ -63,8 +63,8 @@ func (s *SomeChangingType) WhatsTheValue() int64 {
 func ExampleRoutineThatWaits(potentialChange *SomeChangingType) {
 	// Every iteration requires a Wait() call.
 	for range potentialChange.Wait(nil) {
-		supaVal := potentialChange.WhatsTheValueScott()
-		fmt.Println("Value:", supaVal)
+		val := potentialChange.WhatsTheValue()
+		fmt.Println("Value:", val)
 	}
 }
 
@@ -75,8 +75,8 @@ func AnotherExampleRoutineThatWaits(potentialChange *SomeChangingType) {
 	for {
 		select {
 			case <-potentialChange.Wait(nil):
-				supaVal := potentialChange.WhatsTheValueScott()
-				fmt.Println("Value:", supaVal)
+				val := potentialChange.WhatsTheValue()
+				fmt.Println("Value:", val)
 			case <-shutdownChannel:
 				fmt.Println("Good-Bye!")
 			return 
@@ -94,8 +94,8 @@ func ABadExampleRoutineThatWaits(potentialChange *SomeChangingType) {
 		select {
 			case <-capturedChannel:
 				// This will produce incorrect results or no change. 
-				supaVal := potentialChange.WhatsTheValueScott()
-				fmt.Println("Value:", supaVal)
+				val := potentialChange.WhatsTheValue()
+				fmt.Println("Value:", val)
 			case <-shutdownChannel:
 				fmt.Println("Good-Bye!")
 			return 
