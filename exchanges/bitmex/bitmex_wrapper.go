@@ -632,6 +632,8 @@ func (b *Bitmex) ModifyOrder(ctx context.Context, action *order.Modify) (*order.
 	}
 
 	resp.OrderID = o.OrderID
+	resp.RemainingAmount = o.OrderQty
+	resp.LastUpdated = o.TransactTime
 	return resp, nil
 }
 

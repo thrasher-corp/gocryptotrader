@@ -867,7 +867,7 @@ func TestUpdateOrderFromModify(t *testing.T) {
 		Pair:              pair,
 	}
 
-	od.UpdateOrderFromModify(&om)
+	od.UpdateOrderFromModifyResponse(&om)
 	if od.InternalOrderID == "1" {
 		t.Error("Should not be able to update the internal order ID")
 	}

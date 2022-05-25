@@ -242,7 +242,7 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) {
 	}
 }
 
-// UpdateOrderFromModify Will update an order detail (used in order management)
+// UpdateOrderFromModifyResponse Will update an order detail (used in order management)
 // by comparing passed in and existing values
 func (d *Detail) UpdateOrderFromModifyResponse(m *ModifyResponse) {
 	var updated bool

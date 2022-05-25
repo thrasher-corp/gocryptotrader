@@ -688,6 +688,7 @@ func (f *FTX) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Mod
 	}
 
 	var id string
+	var remainingAmount float64
 	switch {
 	case action.TriggerPrice != 0:
 		var a TriggerOrderData
@@ -702,6 +703,7 @@ func (f *FTX) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Mod
 			return nil, err
 		}
 		id = strconv.FormatInt(a.ID, 10)
+		remainingAmount = a.Size - a.FilledSize
 	case action.ID == "":
 		o, err := f.ModifyOrderByClientID(ctx,
 			action.ClientOrderID,
@@ -712,6 +714,7 @@ func (f *FTX) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Mod
 			return nil, err
 		}
 		id = strconv.FormatInt(o.ID, 10)
+		remainingAmount = o.RemainingSize
 	default:
 		o, err := f.ModifyPlacedOrder(ctx,
 			action.ID,
@@ -722,12 +725,14 @@ func (f *FTX) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Mod
 			return nil, err
 		}
 		id = strconv.FormatInt(o.ID, 10)
+		remainingAmount = o.RemainingSize
 	}
 	resp, err := action.DeriveModifyResponse()
 	if err != nil {
 		return nil, err
 	}
 	resp.OrderID = id
+	resp.RemainingAmount = remainingAmount
 	return resp, nil
 }
 

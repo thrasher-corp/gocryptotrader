@@ -903,7 +903,7 @@ func (s *store) modifyExisting(id string, mod *order.ModifyResponse) error {
 		if r[x].ID != id {
 			continue
 		}
-		r[x].UpdateOrderFromModify(mod)
+		r[x].UpdateOrderFromModifyResponse(mod)
 		if !r[x].AssetType.IsFutures() {
 			return nil
 		}
