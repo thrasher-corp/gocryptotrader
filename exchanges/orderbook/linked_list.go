@@ -5,9 +5,12 @@ import (
 	"fmt"
 )
 
-var errIDCannotBeMatched = errors.New("cannot match ID on linked list")
-var errCollisionDetected = errors.New("cannot insert update collision detected")
-var errAmountCannotBeLessOrEqualToZero = errors.New("amount cannot be less or equal to zero")
+var (
+	errIDCannotBeMatched               = errors.New("cannot match ID on linked list")
+	errCollisionDetected               = errors.New("cannot insert update collision detected")
+	errAmountCannotBeLessOrEqualToZero = errors.New("amount cannot be less or equal to zero")
+	errInvalidSlippage                 = errors.New("invalid slippage amount must be greater than or equal to zero and less than 100")
+)
 
 // linkedList defines a linked list for a depth level, reutilisation of nodes
 // to and from a stack.
@@ -343,10 +346,16 @@ func (ll *linkedList) insertUpdates(updts Items, stack *stack, comp comparison) 
 // getSlippageByVolume returns the slippage percentage by impact volume on
 // liquidity.
 func (ll *linkedList) getSlippageByVolume(volume float64) (float64, error) {
+	if volume <= 0 {
+		return 0, errAmountInvalid
+	}
 	var slippage, shiftedPrice float64
 	for tip := &ll.head; *tip != nil; tip = &(*tip).Next {
 		shiftedPrice = (*tip).Value.Price
 		if slippage == 0 {
+			if shiftedPrice == 0 {
+				return 0, fmt.Errorf("invalid orderbook tranche %w", errPriceNotSet)
+			}
 			slippage = 1 / shiftedPrice
 		}
 		volume -= (*tip).Value.Amount
@@ -361,29 +370,35 @@ func (ll *linkedList) getSlippageByVolume(volume float64) (float64, error) {
 		// Full book wiped out, return 100 percent.
 		return 100, nil
 	}
-	ratio := (slippage * shiftedPrice) - 1
-	if ratio < 0 { // Return ABS
-		ratio *= -1
+	percentageChange := (slippage * shiftedPrice) - 1
+	if percentageChange < 0 { // Return ABS
+		percentageChange *= -1
 	}
-	return ratio * 100, nil
+	return percentageChange * 100, nil
 }
 
 // getVolumeBySlippage returns the max volume amount by allowable slippage.
 func (ll *linkedList) getVolumeBySlippage(slippage float64) (float64, error) {
+	if slippage < 0 || slippage > 100 {
+		return 0, errInvalidSlippage
+	}
 	var volume, initialPrice float64
 	for tip := &ll.head; *tip != nil; tip = &(*tip).Next {
 		if initialPrice == 0 {
+			if (*tip).Value.Price == 0 {
+				return 0, fmt.Errorf("invalid orderbook tranche %w", errPriceNotSet)
+			}
 			initialPrice = 1 / (*tip).Value.Price
 			volume += (*tip).Value.Amount
 			continue
 		}
 
-		ratio := (initialPrice * (*tip).Value.Price) - 1
-		if ratio < 0 { // ABS
-			ratio *= -1
+		percentageChange := (initialPrice * (*tip).Value.Price) - 1
+		if percentageChange < 0 { // ABS
+			percentageChange *= -1
 		}
 
-		if slippage < ratio*100 {
+		if slippage < percentageChange*100 {
 			break
 		}
 

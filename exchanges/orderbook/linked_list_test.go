@@ -1482,6 +1482,11 @@ func TestGetSlippageByVolume(t *testing.T) {
 
 	ll.load(ask, newStack())
 
+	_, err = ll.getSlippageByVolume(0)
+	if !errors.Is(err, errAmountInvalid) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errAmountInvalid)
+	}
+
 	slipped, err := ll.getSlippageByVolume(1)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
@@ -1555,6 +1560,13 @@ func TestGetSlippageByVolume(t *testing.T) {
 	if slipped != 100 {
 		t.Fatal("unexpected value")
 	}
+
+	// load invalid item
+	ll.load(Items{{Amount: 1337}}, newStack())
+	_, err = ll.getSlippageByVolume(20.1)
+	if !errors.Is(err, errPriceNotSet) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errPriceNotSet)
+	}
 }
 
 func TestGetVolumeBySlippage(t *testing.T) {
@@ -1567,6 +1579,16 @@ func TestGetVolumeBySlippage(t *testing.T) {
 	}
 
 	ll.load(ask, newStack())
+
+	_, err = ll.getVolumeBySlippage(-1)
+	if !errors.Is(err, errInvalidSlippage) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidSlippage)
+	}
+
+	_, err = ll.getVolumeBySlippage(101)
+	if !errors.Is(err, errInvalidSlippage) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidSlippage)
+	}
 
 	amount, err := ll.getVolumeBySlippage(0) // Top head retreival amount
 	if !errors.Is(err, nil) {
@@ -1640,5 +1662,12 @@ func TestGetVolumeBySlippage(t *testing.T) {
 
 	if amount != 20 { // Should be the same as above because you are not exceeding percent.
 		t.Fatal("unexpected value")
+	}
+
+	// load invalid item
+	ll.load(Items{{Amount: 1337}}, newStack())
+	_, err = ll.getVolumeBySlippage(50)
+	if !errors.Is(err, errPriceNotSet) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errPriceNotSet)
 	}
 }
