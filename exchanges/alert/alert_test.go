@@ -110,7 +110,7 @@ func BenchmarkWait(b *testing.B) {
 	}
 }
 
-// not needed in binary
+// getSize checks the buffer size for testing purposes
 func getSize() int {
 	mu.RLock()
 	defer mu.RUnlock()
