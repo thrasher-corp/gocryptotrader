@@ -49,9 +49,9 @@ func (s *SomeChangingType) Update(newValue int64) {
 // different from the past value. Efficiency++
 func (s *SomeChangingType) WhatsTheValue() int64 {
 	s.mu.Lock()
-	scottsValue := s.ValueThatChanges
+	value := s.ValueThatChanges
 	s.mu.Unlock()
-	return scottsValue
+	return value
 }
 ```
 
@@ -61,14 +61,45 @@ func (s *SomeChangingType) WhatsTheValue() int64 {
 // ExampleRoutineThatWaits defines an exchange potential routine that will wait
 // for an impending change.
 func ExampleRoutineThatWaits(potentialChange *SomeChangingType) {
-	// Warning: Don't do this:
-	// dontCapture := potentialChange.Wait(nil)
-	// <-dontCapture // This will stop alerting for this specific data type due
-	// to the shared nature of the underlying channels using a sync.Pool.
 	// Every iteration requires a Wait() call.
 	for range potentialChange.Wait(nil) {
-		supaVal := potentialChange.WhatsTheValue()
-		fmt.Println("WOW:", supaVal)
+		supaVal := potentialChange.WhatsTheValueScott()
+		fmt.Println("Value:", supaVal)
+	}
+}
+
+// AnotherExampleRoutineThatWaits defines an exchange potential routine that 
+// will wait for an impending change.
+func AnotherExampleRoutineThatWaits(potentialChange *SomeChangingType) {
+	// Every iteration requires a Wait() call.
+	for {
+		select {
+			case <-potentialChange.Wait(nil):
+				supaVal := potentialChange.WhatsTheValueScott()
+				fmt.Println("Value:", supaVal)
+			case <-shutdownChannel:
+				fmt.Println("Good-Bye!")
+			return 
+		}
+	}
+}
+
+
+// WARNING: PLEASE DON'T DO THIS.
+// This will stop alerting for this specific data type due to the shared nature 
+// of the underlying channels using a sync.Pool.
+func ABadExampleRoutineThatWaits(potentialChange *SomeChangingType) {
+	capturedChannel := potentialChange.Wait(nil)
+	for {
+		select {
+			case <-capturedChannel:
+				// This will produce incorrect results or no change. 
+				supaVal := potentialChange.WhatsTheValueScott()
+				fmt.Println("Value:", supaVal)
+			case <-shutdownChannel:
+				fmt.Println("Good-Bye!")
+			return 
+		}
 	}
 }
 ```
