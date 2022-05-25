@@ -244,7 +244,7 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) {
 
 // UpdateOrderFromModify Will update an order detail (used in order management)
 // by comparing passed in and existing values
-func (d *Detail) UpdateOrderFromModify(m *ModifyResponse) {
+func (d *Detail) UpdateOrderFromModifyResponse(m *ModifyResponse) {
 	var updated bool
 	if m.OrderID != "" && d.ID != m.OrderID {
 		d.ID = m.OrderID
