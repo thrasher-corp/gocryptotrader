@@ -237,18 +237,22 @@ func (k *Kucoin) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, me
 			}
 			body = bytes.NewBuffer(payload)
 		}
-		signature := strconv.FormatInt(time.Now().UnixMilli(), 10) + method + path + string(payload)
-		var hmacSigned []byte
-		hmacSigned, err = crypto.GetHMAC(crypto.HashSHA256, []byte(signature), []byte(creds.Secret))
+		timeStamp := strconv.FormatInt(time.Now().UnixMilli(), 10)
+		var signHash, passPhraseHash []byte
+		signHash, err = crypto.GetHMAC(crypto.HashSHA256, []byte(timeStamp+method+path+string(payload)), []byte(creds.Secret))
 		if err != nil {
 			return nil, err
 		}
 
+		passPhraseHash, err = crypto.GetHMAC(crypto.HashSHA256, []byte(creds.OneTimePassword), []byte(creds.Secret))
+		if err != nil {
+			return nil, err
+		}
 		headers := map[string]string{
 			"KC-API-KEY":         creds.Key,
-			"KC-API-SIGN":        crypto.HexEncodeToString(hmacSigned),
-			"KC-API-TIMESTAMP":   strconv.FormatInt(time.Now().UnixMilli(), 10),
-			"KC-API-PASSPHRASE":  creds.OneTimePassword, // TODO: need pass phrase here!,
+			"KC-API-SIGN":        crypto.Base64Encode(signHash),
+			"KC-API-TIMESTAMP":   timeStamp,
+			"KC-API-PASSPHRASE":  crypto.Base64Encode(passPhraseHash), // TODO: need pass phrase here!,
 			"KC-API-KEY-VERSION": kucoinAPIKeyVersion,
 			"Content-Type":       "application/json",
 		}

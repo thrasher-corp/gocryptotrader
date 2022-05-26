@@ -15,6 +15,7 @@ import (
 const (
 	apiKey                  = ""
 	apiSecret               = ""
+	passPhrase              = ""
 	canManipulateRealOrders = false
 )
 
@@ -37,7 +38,8 @@ func TestMain(m *testing.M) {
 	exchCfg.API.AuthenticatedWebsocketSupport = true
 	exchCfg.API.Credentials.Key = apiKey
 	exchCfg.API.Credentials.Secret = apiSecret
-
+	exchCfg.API.Credentials.OTPSecret = passPhrase
+	exchCfg.Verbose = true
 	err = k.Setup(exchCfg)
 	if err != nil {
 		log.Fatal(err)
