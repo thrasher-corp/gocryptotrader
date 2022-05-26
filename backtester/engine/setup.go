@@ -518,7 +518,7 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 			return resp, err
 		}
 
-		if limits != nil {
+		if limits != (gctorder.MinMaxLevel{}) {
 			if !cfg.CurrencySettings[i].CanUseExchangeLimits {
 				log.Warnf(common.Setup, "exchange %s order execution limits supported but disabled for %s %s, live results may differ",
 					cfg.CurrencySettings[i].ExchangeName,
