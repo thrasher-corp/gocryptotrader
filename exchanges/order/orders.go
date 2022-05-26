@@ -24,18 +24,18 @@ const (
 )
 
 var (
-	errTimeInForceConflict     = errors.New("multiple time in force options applied")
-	errUnrecognisedOrderSide   = errors.New("unrecognised order side")
-	errUnrecognisedOrderType   = errors.New("unrecognised order type")
-	errUnrecognisedOrderStatus = errors.New("unrecognised order status")
-	errExchangeNameUnset       = errors.New("exchange name unset")
-	errOrderSubmitIsNil        = errors.New("order submit is nil")
-	errOrderExecutionTimeUnset = errors.New("order execution time unset")
-
 	// ErrUnableToPlaceOrder defines an error when an order submission has
 	// failed.
 	ErrUnableToPlaceOrder = errors.New("order not placed")
-	errOrderDetailIsNil   = errors.New("order detail is nil")
+
+	errTimeInForceConflict      = errors.New("multiple time in force options applied")
+	errUnrecognisedOrderSide    = errors.New("unrecognised order side")
+	errUnrecognisedOrderType    = errors.New("unrecognised order type")
+	errUnrecognisedOrderStatus  = errors.New("unrecognised order status")
+	errExchangeNameUnset        = errors.New("exchange name unset")
+	errOrderSubmitIsNil         = errors.New("order submit is nil")
+	errOrderSubmitResponseIsNil = errors.New("order submit response is nil")
+	errOrderDetailIsNil         = errors.New("order detail is nil")
 )
 
 // Validate checks the supplied data and returns whether or not it's valid
@@ -553,10 +553,11 @@ func (s *Submit) DeriveSubmitResponse(orderID string) (*SubmitResponse, error) {
 }
 
 // DeriveDetail will construct an order detail when a successful submission
-// has occured.
+// has occured. Has an optional parameter field internal uuid for internal
+// management.
 func (s *SubmitResponse) DeriveDetail(internal uuid.UUID) (*Detail, error) {
 	if s == nil {
-		return nil, errOrderSubmitIsNil
+		return nil, errOrderSubmitResponseIsNil
 	}
 
 	return &Detail{

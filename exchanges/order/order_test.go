@@ -220,53 +220,29 @@ func TestSubmit_DeriveSubmitResponse(t *testing.T) {
 	}
 }
 
-// func TestSubmit_DeriveSubmitResponse(t *testing.T) {
-// 	t.Parallel()
-// 	var s *Submit
-// 	_, err := s.DeriveSubmitResponse("", 0, time.Time{})
-// 	if !errors.Is(err, errOrderSubmitIsNil) {
-// 		t.Fatalf("received: '%v' but expected: '%v'", err, errOrderSubmitIsNil)
-// 	}
+func TestSubmitResponse_DeriveDetail(t *testing.T) {
+	t.Parallel()
+	var s *SubmitResponse
+	_, err := s.DeriveDetail(uuid.Nil)
+	if !errors.Is(err, errOrderSubmitResponseIsNil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errOrderSubmitResponseIsNil)
+	}
 
-// 	s = &Submit{}
-// 	_, err = s.DeriveDetail("", 0, time.Time{})
-// 	if !errors.Is(err, ErrOrderIDNotSet) {
-// 		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderIDNotSet)
-// 	}
+	id, err := uuid.NewV4()
+	if err != nil {
+		t.Fatal(err)
+	}
 
-// 	_, err = s.DeriveDetail("1337", 0, time.Time{})
-// 	if !errors.Is(err, errUnrecognisedOrderStatus) {
-// 		t.Fatalf("received: '%v' but expected: '%v'", err, errUnrecognisedOrderStatus)
-// 	}
+	s = &SubmitResponse{}
+	deets, err := s.DeriveDetail(id)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 
-// 	_, err = s.DeriveDetail("1337", New, time.Time{})
-// 	if !errors.Is(err, errOrderExecutionTimeUnset) {
-// 		t.Fatalf("received: '%v' but expected: '%v'", err, errOrderExecutionTimeUnset)
-// 	}
-
-// 	tn := time.Now()
-
-// 	detail, err := s.DeriveDetail("1337", New, tn)
-// 	if !errors.Is(err, nil) {
-// 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-// 	}
-
-// 	if detail.ID != "1337" {
-// 		t.Fatal("unexpected value")
-// 	}
-
-// 	if detail.Status != New {
-// 		t.Fatal("unexpected value")
-// 	}
-
-// 	if !detail.Date.Equal(tn) {
-// 		t.Fatal("unexpected value")
-// 	}
-
-// 	if !detail.LastUpdated.Equal(tn) {
-// 		t.Fatal("unexpected value")
-// 	}
-// }
+	if deets.InternalOrderID != id {
+		t.Fatal("unexpected value")
+	}
+}
 
 func TestOrderSides(t *testing.T) {
 	t.Parallel()
