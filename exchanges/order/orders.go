@@ -585,6 +585,8 @@ func (s *SubmitResponse) DeriveDetail(internal uuid.UUID) (*Detail, error) {
 		Status:      s.Status,
 		OrderID:     s.OrderID,
 		Trades:      s.Trades,
+		Fee:         s.Fee,
+		Cost:        s.Cost,
 	}, nil
 }
 

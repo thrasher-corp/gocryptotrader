@@ -85,6 +85,8 @@ type SubmitResponse struct {
 	Status      Status
 	OrderID     string
 	Trades      []TradeHistory
+	Fee         float64
+	Cost        float64
 }
 
 // Modify contains all properties of an order

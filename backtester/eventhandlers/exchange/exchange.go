@@ -140,7 +140,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 
 	ords := orderManager.GetOrdersSnapshot(gctorder.UnknownStatus)
 	for i := range ords {
-		if ords[i].ID != orderID {
+		if ords[i].OrderID != orderID {
 			continue
 		}
 		ords[i].Date = o.GetTime()
@@ -244,22 +244,22 @@ func (e *Exchange) placeOrder(ctx context.Context, price, amount decimal.Decimal
 	if useRealOrders {
 		resp, err := orderManager.Submit(ctx, o)
 		if resp != nil {
-			orderID = resp.ID
+			orderID = resp.OrderID
 		}
 		if err != nil {
 			return orderID, err
 		}
 	} else {
-		submitResponse := &gctorder.Detail{
-			Status: gctorder.Filled,
-			ID:     u.String(),
-			Amount: f.Amount.InexactFloat64(),
-			Fee:    fee,
-			Cost:   p,
+		submitResponse := &gctorder.SubmitResponse{
+			Status:  gctorder.Filled,
+			OrderID: u.String(),
+			Amount:  f.Amount.InexactFloat64(),
+			Fee:     fee,
+			Cost:    p,
 		}
 		resp, err := orderManager.SubmitFakeOrder(o, submitResponse, useExchangeLimits)
 		if resp != nil {
-			orderID = resp.ID
+			orderID = resp.OrderID
 		}
 		if err != nil {
 			return orderID, err
