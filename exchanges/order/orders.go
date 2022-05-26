@@ -269,8 +269,8 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 // by comparing passed in and existing values
 func (d *Detail) UpdateOrderFromModify(m *Modify) {
 	var updated bool
-	if m.ID != "" && d.OrderID != m.ID {
-		d.OrderID = m.ID
+	if m.OrderID != "" && d.OrderID != m.OrderID {
+		d.OrderID = m.OrderID
 		updated = true
 	}
 	if d.ImmediateOrCancel != m.ImmediateOrCancel {
@@ -605,7 +605,7 @@ func (d *Detail) DeriveCancel() (*Cancel, error) {
 	}
 	return &Cancel{
 		Exchange:      d.Exchange,
-		ID:            d.OrderID,
+		OrderID:       d.OrderID,
 		AccountID:     d.AccountID,
 		ClientID:      d.ClientID,
 		ClientOrderID: d.ClientOrderID,
@@ -1094,7 +1094,7 @@ func (o *ClassificationError) Error() string {
 // for a standard cancel
 func (c *Cancel) StandardCancel() validate.Checker {
 	return validate.Check(func() error {
-		if c.ID == "" {
+		if c.OrderID == "" {
 			return errors.New("ID not set")
 		}
 		return nil
@@ -1183,7 +1183,7 @@ func (m *Modify) Validate(opt ...validate.Checker) error {
 	if errs != nil {
 		return errs
 	}
-	if m.ClientOrderID == "" && m.ID == "" {
+	if m.ClientOrderID == "" && m.OrderID == "" {
 		return ErrOrderIDNotSet
 	}
 	return nil

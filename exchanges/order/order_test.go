@@ -1020,7 +1020,7 @@ func TestUpdateOrderFromModify(t *testing.T) {
 		Fee:               1,
 		Exchange:          "1",
 		InternalOrderID:   id,
-		ID:                "1",
+		OrderID:           "1",
 		AccountID:         "1",
 		ClientID:          "1",
 		WalletAddress:     "1",
@@ -1405,7 +1405,7 @@ func TestValidationOnOrderTypes(t *testing.T) {
 	})) != nil {
 		t.Fatal("should return nil")
 	}
-	cancelMe.ID = "1337"
+	cancelMe.OrderID = "1337"
 	if cancelMe.Validate(cancelMe.StandardCancel()) != nil {
 		t.Fatal("should return nil")
 	}
@@ -1876,7 +1876,7 @@ func TestDeriveCancel(t *testing.T) {
 	}
 
 	if cancel.Exchange != "wow" ||
-		cancel.ID != "wow1" ||
+		cancel.OrderID != "wow1" ||
 		cancel.AccountID != "wow2" ||
 		cancel.ClientID != "wow3" ||
 		cancel.ClientOrderID != "wow4" ||

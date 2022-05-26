@@ -108,7 +108,7 @@ type Modify struct {
 	Fee               float64
 	Exchange          string
 	InternalOrderID   uuid.UUID
-	ID                string
+	OrderID           string
 	ClientOrderID     string
 	AccountID         string
 	ClientID          string
@@ -192,7 +192,7 @@ type Filter struct {
 // are required to be populated
 type Cancel struct {
 	Exchange      string
-	ID            string
+	OrderID       string
 	ClientOrderID string
 	AccountID     string
 	ClientID      string
