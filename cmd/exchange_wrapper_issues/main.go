@@ -556,6 +556,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		})
 
 		s := &order.Submit{
+			Exchange:  e.GetName(),
 			Pair:      p,
 			Side:      testOrderSide,
 			Type:      testOrderType,

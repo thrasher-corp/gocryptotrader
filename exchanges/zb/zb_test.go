@@ -294,6 +294,7 @@ func TestSubmitOrder(t *testing.T) {
 	}
 
 	var orderSubmission = &order.Submit{
+		Exchange: z.Name,
 		Pair: currency.Pair{
 			Delimiter: "_",
 			Base:      currency.XRP,

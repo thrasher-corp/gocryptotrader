@@ -585,6 +585,7 @@ func TestSubmitOrder(t *testing.T) {
 		t.Skip("skipping test, either api keys are unset or canManipulateRealOrders is false")
 	}
 	var orderSubmission = &order.Submit{
+		Exchange: b.Name,
 		Pair: currency.Pair{
 			Base:  currency.BTC,
 			Quote: currency.USD,

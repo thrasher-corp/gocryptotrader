@@ -656,6 +656,7 @@ func TestSubmitOrder(t *testing.T) {
 	}
 
 	var orderSubmission = &order.Submit{
+		Exchange:      f.Name,
 		Pair:          currencyPair,
 		Side:          order.Sell,
 		Type:          order.Limit,

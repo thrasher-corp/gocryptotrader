@@ -978,6 +978,7 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 func TestSubmitOrder(t *testing.T) {
 	TestSetRealOrderDefaults(t)
 	var orderSubmission = &order.Submit{
+		Exchange: o.Name,
 		Pair: currency.Pair{
 			Base:  currency.BTC,
 			Quote: currency.USD,

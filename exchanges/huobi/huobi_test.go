@@ -2040,6 +2040,7 @@ func TestSubmitOrder(t *testing.T) {
 	}
 
 	var orderSubmission = &order.Submit{
+		Exchange: h.Name,
 		Pair: currency.Pair{
 			Base:  currency.BTC,
 			Quote: currency.USDT,

@@ -525,6 +525,7 @@ func TestSubmitOrder(t *testing.T) {
 	}
 
 	var orderSubmission = &order.Submit{
+		Exchange: b.GetName(),
 		Pair: currency.Pair{
 			Delimiter: currency.DashDelimiter,
 			Base:      currency.BTC,

@@ -1846,6 +1846,7 @@ func TestSubmitOrder(t *testing.T) {
 	TestSetRealOrderDefaults(t)
 	t.Parallel()
 	var orderSubmission = &order.Submit{
+		Exchange: o.Name,
 		Pair: currency.Pair{
 			Base:  currency.BTC,
 			Quote: currency.USDT,
