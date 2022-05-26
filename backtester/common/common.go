@@ -152,7 +152,7 @@ func PurgeColours() {
 
 // SetColours sets cmd output colours at startup. Doing it at any other point
 // risks races and this really isn't worth adding a mutex for
-func SetColours(colours Colours) {
+func SetColours(colours *Colours) {
 	if colours.Default != "" && colours.Default != CMDColours.Default {
 		CMDColours.Default = colours.Default
 	}

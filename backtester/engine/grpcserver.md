@@ -20,14 +20,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 ## Grpcserver package overview
 
-The backtest package is responsible for handling all events. It is the engine which combines all elements.
-It is responsible for the following functionality
-- Analysing the data via the `handleEvent` function
-- Looping through all data
-
-
-A flow of the application is as follows:
-![workflow](https://i.imgur.com/Kup6IA9.png)
+The GRPC server is responsible for handling requests from the client. All GRPC functionality as defined in the proto file is implemented here
 
 
 ### Please click GoDocs chevron above to view current GoDoc information for this package

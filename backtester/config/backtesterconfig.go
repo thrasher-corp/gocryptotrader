@@ -1,13 +1,33 @@
 package config
 
 import (
+	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
+	"github.com/thrasher-corp/gocryptotrader/common/file"
 	gctconfig "github.com/thrasher-corp/gocryptotrader/config"
 )
 
+// ReadBacktesterConfigFromPath will take a config from a path
+func ReadBacktesterConfigFromPath(path string) (*BacktesterConfig, error) {
+	if !file.Exists(path) {
+		return nil, errors.New("file not found")
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp *BacktesterConfig
+	err = json.Unmarshal(data, &resp)
+	return resp, err
+}
+
+// GenerateDefaultConfig will return the default backtester config
 func GenerateDefaultConfig() (*BacktesterConfig, error) {
 	wd, err := os.Getwd()
 	if err != nil {

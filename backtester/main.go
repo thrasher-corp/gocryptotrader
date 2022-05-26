@@ -99,7 +99,7 @@ func main() {
 
 	if btConfigDir == "" {
 		btConfigDir = config.DefaultBTConfigDir
-		log.Infof(log.Global, "blank config received, using default path '%v'")
+		log.Infof(log.Global, "blank config received, using default path '%v'", btConfigDir)
 	}
 	fe := file.Exists(btConfigDir)
 	var btCfg *config.BacktesterConfig
@@ -116,8 +116,8 @@ func main() {
 			fmt.Printf("Could not generate config. Error: %v.\n", err)
 			os.Exit(1)
 		}
-		var btCfgJson []byte
-		btCfgJson, err = json.MarshalIndent(btCfg, "", " ")
+		var btCfgJSON []byte
+		btCfgJSON, err = json.MarshalIndent(btCfg, "", " ")
 		if err != nil {
 			fmt.Printf("Could not generate config. Error: %v.\n", err)
 			os.Exit(1)
@@ -127,7 +127,7 @@ func main() {
 			fmt.Printf("Could not generate config. Error: %v.\n", err)
 			os.Exit(1)
 		}
-		err = os.WriteFile(btConfigDir, btCfgJson, file.DefaultPermissionOctal)
+		err = os.WriteFile(btConfigDir, btCfgJSON, file.DefaultPermissionOctal)
 		if err != nil {
 			fmt.Printf("Could not generate config. Error: %v.\n", err)
 			os.Exit(1)
@@ -151,7 +151,7 @@ func main() {
 	}
 
 	if btCfg.UseCMDColours {
-		common.SetColours(btCfg.Colours)
+		common.SetColours(&btCfg.Colours)
 	} else {
 		common.PurgeColours()
 	}

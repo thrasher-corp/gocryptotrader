@@ -54,13 +54,6 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func TestLoadConfig(t *testing.T) {
-	_, err := loadBacktesterConfig([]byte(`{}`))
-	if err != nil {
-		t.Error(err)
-	}
-}
-
 func TestValidateDate(t *testing.T) {
 	t.Parallel()
 	c := Config{}
@@ -137,11 +130,6 @@ func TestValidateCurrencySettings(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = ReadBacktesterConfigFromPath(passFile.Name())
-	if err != nil {
-		t.Error(err)
-	}
-
 	c.CurrencySettings = []CurrencySettings{
 		{
 			SellSide: MinMax{
@@ -381,7 +369,7 @@ func TestValidate(t *testing.T) {
 	}
 }
 
-func TestReadConfigFromFile(t *testing.T) {
+func TestReadStrategyConfigFromFile(t *testing.T) {
 	tempDir := t.TempDir()
 	passFile, err := ioutil.TempFile(tempDir, "*.start")
 	if err != nil {
@@ -395,7 +383,7 @@ func TestReadConfigFromFile(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = ReadConfigFromFile(passFile.Name())
+	_, err = ReadStrategyConfigFromFile(passFile.Name())
 	if err != nil {
 		t.Error(err)
 	}

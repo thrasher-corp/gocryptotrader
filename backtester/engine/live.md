@@ -20,10 +20,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 ## Live package overview
 
-The backtest package is responsible for handling all events. It is the engine which combines all elements.
-It is responsible for the following functionality
-- Analysing the data via the `handleEvent` function
-- Looping through all data
+Live trading has specific requirements separate from backtesting. Handling the looping of candle data and managing real orders and orderbooks will be handled here
 
 
 A flow of the application is as follows:

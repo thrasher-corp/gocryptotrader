@@ -422,7 +422,6 @@ func (s *RPCServer) GetTickers(ctx context.Context, _ *gctrpc.GetTickersRequest)
 				Volume:      val.Volume,
 				PriceAth:    val.PriceATH,
 			}
-
 		}
 		tickers[x] = t
 	}

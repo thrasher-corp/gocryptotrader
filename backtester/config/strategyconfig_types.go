@@ -11,8 +11,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
-// Errors for config validation
 var (
+	// ErrFileNotFound returned when the file is not found
+	ErrFileNotFound = errors.New("file not found")
+
 	errBadDate                          = errors.New("start date >= end date, please check your config")
 	errNoCurrencySettings               = errors.New("no currency settings set in the config")
 	errBadInitialFunds                  = errors.New("initial funds set with invalid data, please check your config")

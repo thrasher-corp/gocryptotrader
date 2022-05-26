@@ -10,10 +10,13 @@ import (
 )
 
 var (
-	DefaultBTDir       = filepath.Join(gctcommon.GetDefaultDataDir(runtime.GOOS), "backtester")
+	// DefaultBTDir is the default backtester config directory
+	DefaultBTDir = filepath.Join(gctcommon.GetDefaultDataDir(runtime.GOOS), "backtester")
+	// DefaultBTConfigDir is the default backtester config file
 	DefaultBTConfigDir = filepath.Join(DefaultBTDir, "config.json")
 )
 
+// BacktesterConfig contains the configuration for the backtester
 type BacktesterConfig struct {
 	PrintLogo               bool           `json:"print-logo"`
 	Verbose                 bool           `json:"verbose"`
@@ -26,6 +29,7 @@ type BacktesterConfig struct {
 	Colours                 common.Colours `json:"cmd-colours"`
 }
 
+// Report contains the report settings
 type Report struct {
 	GenerateReport bool   `json:"output-report"`
 	TemplatePath   string `json:"template-path"`
@@ -33,6 +37,7 @@ type Report struct {
 	DarkMode       bool   `json:"dark-mode"`
 }
 
+// GRPC holds the GRPC configuration
 type GRPC struct {
 	Username string `json:"username"`
 	Password string `json:"password"`

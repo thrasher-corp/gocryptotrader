@@ -21,6 +21,7 @@ const (
 
 	// DataCandle is an int64 representation of a candle data type
 	DataCandle = iota
+	// DataTrade is an int64 representation of a trade data type
 	DataTrade
 )
 

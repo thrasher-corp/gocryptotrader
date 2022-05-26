@@ -85,15 +85,17 @@ func executeStrategyFromConfig(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	var customSettings []*btrpc.CustomSettings
+	customSettings := make([]*btrpc.CustomSettings, len(defaultConfig.StrategySettings.CustomSettings))
+	x := 0
 	for k, v := range defaultConfig.StrategySettings.CustomSettings {
-		customSettings = append(customSettings, &btrpc.CustomSettings{
+		customSettings[x] = &btrpc.CustomSettings{
 			KeyField: k,
 			KeyValue: fmt.Sprintf("%v", v),
-		})
+		}
+		x++
 	}
 
-	var currencySettings []*btrpc.CurrencySettings
+	currencySettings := make([]*btrpc.CurrencySettings, len(defaultConfig.CurrencySettings))
 	for i := range defaultConfig.CurrencySettings {
 		var sd *btrpc.SpotDetails
 		if defaultConfig.CurrencySettings[i].SpotDetails != nil {
@@ -109,7 +111,7 @@ func executeStrategyFromConfig(c *cli.Context) error {
 				MaximumCollateralLeverageRate:  defaultConfig.CurrencySettings[i].FuturesDetails.Leverage.MaximumCollateralLeverageRate.String(),
 			}
 		}
-		currencySettings = append(currencySettings, &btrpc.CurrencySettings{
+		currencySettings[i] = &btrpc.CurrencySettings{
 			ExchangeName: defaultConfig.CurrencySettings[i].ExchangeName,
 			Asset:        defaultConfig.CurrencySettings[i].Asset.String(),
 			Base:         defaultConfig.CurrencySettings[i].Base.String(),
@@ -134,18 +136,18 @@ func executeStrategyFromConfig(c *cli.Context) error {
 			UseExchange_PNLCalculation: defaultConfig.CurrencySettings[i].UseExchangePNLCalculation,
 			SpotDetails:                sd,
 			FuturesDetails:             fd,
-		})
+		}
 	}
 
-	var exchangeLevelFunding []*btrpc.ExchangeLevelFunding
+	exchangeLevelFunding := make([]*btrpc.ExchangeLevelFunding, len(defaultConfig.FundingSettings.ExchangeLevelFunding))
 	for i := range defaultConfig.FundingSettings.ExchangeLevelFunding {
-		exchangeLevelFunding = append(exchangeLevelFunding, &btrpc.ExchangeLevelFunding{
+		exchangeLevelFunding[i] = &btrpc.ExchangeLevelFunding{
 			ExchangeName: defaultConfig.FundingSettings.ExchangeLevelFunding[i].ExchangeName,
 			Asset:        defaultConfig.FundingSettings.ExchangeLevelFunding[i].Asset.String(),
 			Currency:     defaultConfig.FundingSettings.ExchangeLevelFunding[i].Currency.String(),
 			InitialFunds: defaultConfig.FundingSettings.ExchangeLevelFunding[i].InitialFunds.String(),
 			TransferFee:  defaultConfig.FundingSettings.ExchangeLevelFunding[i].TransferFee.String(),
-		})
+		}
 	}
 
 	dataSettings := &btrpc.DataSettings{
@@ -175,7 +177,7 @@ func executeStrategyFromConfig(c *cli.Context) error {
 		}
 	}
 	if defaultConfig.DataSettings.DatabaseData != nil {
-		dbDbConfig := &btrpc.DatabaseConnectionDetails{
+		dbConnectionDetails := &btrpc.DatabaseConnectionDetails{
 			Host:     defaultConfig.DataSettings.DatabaseData.Config.Host,
 			Port:     int64(defaultConfig.DataSettings.DatabaseData.Config.Port),
 			Password: defaultConfig.DataSettings.DatabaseData.Config.Password,
@@ -187,7 +189,7 @@ func executeStrategyFromConfig(c *cli.Context) error {
 			Enabled: false,
 			Verbose: false,
 			Driver:  "",
-			Config:  dbDbConfig,
+			Config:  dbConnectionDetails,
 		}
 		dataSettings.DatabaseData = &btrpc.DatabaseData{
 			StartDate:        timestamppb.New(defaultConfig.DataSettings.DatabaseData.StartDate),

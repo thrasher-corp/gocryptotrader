@@ -880,6 +880,7 @@ func loadLiveData(cfg *config.Config, base *gctexchange.Base) error {
 	return nil
 }
 
+// ExecuteStrategy executes the strategy using the provided configs
 func ExecuteStrategy(strategyCfg *config.Config, backtesterCfg *config.BacktesterConfig) error {
 	if err := strategyCfg.Validate(); err != nil {
 		return err

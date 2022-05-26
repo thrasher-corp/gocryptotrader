@@ -2,7 +2,6 @@ package config
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -17,44 +16,18 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-// ReadBacktesterConfigFromPath will take a config from a path
-func ReadBacktesterConfigFromPath(path string) (*BacktesterConfig, error) {
-	if !file.Exists(path) {
-		return nil, errors.New("file not found")
-	}
-
-	fileData, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-
-	return loadBacktesterConfig(fileData)
-}
-
-var ErrFileNotFound = errors.New("file not found")
-
 // ReadStrategyConfigFromFile will take a config from a path
 func ReadStrategyConfigFromFile(path string) (*Config, error) {
 	if !file.Exists(path) {
 		return nil, fmt.Errorf("%w %v", ErrFileNotFound, path)
 	}
 
-	fileData, err := os.ReadFile(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
 
-	return loadStrategyConfig(fileData)
-}
-
-// loadBacktesterConfig unmarshalls byte data into a config struct
-func loadBacktesterConfig(data []byte) (resp *BacktesterConfig, err error) {
-	err = json.Unmarshal(data, &resp)
-	return resp, err
-}
-
-// loadBacktesterConfig unmarshalls byte data into a config struct
-func loadStrategyConfig(data []byte) (resp *Config, err error) {
+	var resp *Config
 	err = json.Unmarshal(data, &resp)
 	return resp, err
 }
