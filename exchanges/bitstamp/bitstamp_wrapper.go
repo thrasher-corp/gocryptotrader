@@ -526,7 +526,7 @@ func (b *Bitstamp) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset
 }
 
 // SubmitOrder submits a new order
-func (b *Bitstamp) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Detail, error) {
+func (b *Bitstamp) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	if err := s.Validate(); err != nil {
 		return nil, err
 	}
@@ -536,24 +536,16 @@ func (b *Bitstamp) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Det
 		return nil, err
 	}
 
-	isMarket := s.Type == order.Market
 	response, err := b.PlaceOrder(ctx,
 		fPair.String(),
 		s.Price,
 		s.Amount,
 		s.Side == order.Buy,
-		isMarket)
+		s.Type == order.Market)
 	if err != nil {
 		return nil, err
 	}
-
-	orderID := strconv.FormatInt(response.ID, 10)
-
-	status := order.New
-	if isMarket {
-		status = order.Filled
-	}
-	return s.DeriveDetail(orderID, status, time.Now())
+	return s.DeriveSubmitResponse(strconv.FormatInt(response.ID, 10))
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
@@ -748,7 +740,7 @@ func (b *Bitstamp) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequ
 
 		orders[i] = order.Detail{
 			Amount:   resp[i].Amount,
-			ID:       strconv.FormatInt(resp[i].ID, 10),
+			OrderID:  strconv.FormatInt(resp[i].ID, 10),
 			Price:    resp[i].Price,
 			Type:     order.Limit,
 			Side:     orderSide,
@@ -838,7 +830,7 @@ func (b *Bitstamp) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequ
 		}
 
 		orders = append(orders, order.Detail{
-			ID:       strconv.FormatInt(resp[i].OrderID, 10),
+			OrderID:  strconv.FormatInt(resp[i].OrderID, 10),
 			Date:     tm,
 			Exchange: b.Name,
 			Pair:     currPair,

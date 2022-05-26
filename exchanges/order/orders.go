@@ -254,8 +254,8 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 	if d.Exchange == "" {
 		d.Exchange = m.Exchange
 	}
-	if d.ID == "" {
-		d.ID = m.ID
+	if d.OrderID == "" {
+		d.OrderID = m.OrderID
 	}
 	if d.InternalOrderID.IsNil() {
 		d.InternalOrderID = m.InternalOrderID
@@ -267,8 +267,8 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 // by comparing passed in and existing values
 func (d *Detail) UpdateOrderFromModify(m *Modify) {
 	var updated bool
-	if m.ID != "" && d.ID != m.ID {
-		d.ID = m.ID
+	if m.ID != "" && d.OrderID != m.ID {
+		d.OrderID = m.ID
 		updated = true
 	}
 	if d.ImmediateOrCancel != m.ImmediateOrCancel {
@@ -419,21 +419,34 @@ func (d *Detail) UpdateOrderFromModify(m *Modify) {
 // MatchFilter will return true if a detail matches the filter criteria
 // empty elements are ignored
 func (d *Detail) MatchFilter(f *Filter) bool {
-	if (f.Exchange != "" && !strings.EqualFold(d.Exchange, f.Exchange)) ||
-		(f.AssetType != asset.Empty && d.AssetType != f.AssetType) ||
-		(!f.Pair.IsEmpty() && !d.Pair.Equal(f.Pair)) ||
-		(f.ID != "" && d.ID != f.ID) ||
-		(f.Type != UnknownType && f.Type != AnyType && d.Type != f.Type) ||
-		(f.Side != UnknownSide && f.Side != AnySide && d.Side != f.Side) ||
-		(f.Status != UnknownStatus && f.Status != AnyStatus && d.Status != f.Status) ||
-		(f.ClientOrderID != "" && d.ClientOrderID != f.ClientOrderID) ||
-		(f.ClientID != "" && d.ClientID != f.ClientID) ||
-		(!f.InternalOrderID.IsNil() && d.InternalOrderID != f.InternalOrderID) ||
-		(f.AccountID != "" && d.AccountID != f.AccountID) ||
-		(f.WalletAddress != "" && d.WalletAddress != f.WalletAddress) {
+	switch {
+	case f.Exchange != "" && !strings.EqualFold(d.Exchange, f.Exchange):
 		return false
+	case f.AssetType != asset.Empty && d.AssetType != f.AssetType:
+		return false
+	case !f.Pair.IsEmpty() && !d.Pair.Equal(f.Pair):
+		return false
+	case f.OrderID != "" && d.OrderID != f.OrderID:
+		return false
+	case f.Type != UnknownType && f.Type != AnyType && d.Type != f.Type:
+		return false
+	case f.Side != UnknownSide && f.Side != AnySide && d.Side != f.Side:
+		return false
+	case f.Status != UnknownStatus && f.Status != AnyStatus && d.Status != f.Status:
+		return false
+	case f.ClientOrderID != "" && d.ClientOrderID != f.ClientOrderID:
+		return false
+	case f.ClientID != "" && d.ClientID != f.ClientID:
+		return false
+	case !f.InternalOrderID.IsNil() && d.InternalOrderID != f.InternalOrderID:
+		return false
+	case f.AccountID != "" && d.AccountID != f.AccountID:
+		return false
+	case f.WalletAddress != "" && d.WalletAddress != f.WalletAddress:
+		return false
+	default:
+		return true
 	}
-	return true
 }
 
 // IsActive returns true if an order has a status that indicates it is currently
@@ -462,7 +475,7 @@ func (d *Detail) GenerateInternalOrderID() {
 	var err error
 	d.InternalOrderID, err = uuid.NewV4()
 	if err != nil {
-		d.InternalOrderID = uuid.NewV5(uuid.UUID{}, d.ID)
+		d.InternalOrderID = uuid.NewV5(uuid.UUID{}, d.OrderID)
 	}
 }
 
@@ -483,9 +496,12 @@ func (d *Detail) Copy() Detail {
 	return c
 }
 
-// DeriveDetail will construct an order detail when a successful submission
-// has occured.
-func (s *Submit) DeriveDetail(orderID string, status Status, execTime time.Time) (*Detail, error) {
+// DeriveDetail will construct an order SubmitResponse when a successful
+// submission has occured. NOTE: order status is populated as order.Filled for a
+// market order else order.New if an order is accepted as default, date and
+// lastupdated fields have been populated as time.Now(). All fields can be
+// customized in caller scope if needed.
+func (s *Submit) DeriveSubmitResponse(orderID string) (*SubmitResponse, error) {
 	if s == nil {
 		return nil, errOrderSubmitIsNil
 	}
@@ -494,17 +510,42 @@ func (s *Submit) DeriveDetail(orderID string, status Status, execTime time.Time)
 		return nil, ErrOrderIDNotSet
 	}
 
-	if status == UnknownStatus {
-		return nil, fmt.Errorf("'%s' %w", status, errUnrecognisedOrderStatus)
+	status := New
+	if s.Type == Market { // NOTE: This will need to be scrutinized.
+		status = Filled
 	}
 
-	if execTime.IsZero() {
-		return nil, errOrderExecutionTimeUnset
-	}
+	return &SubmitResponse{
+		Exchange:  s.Exchange,
+		Type:      s.Type,
+		Side:      s.Side,
+		Pair:      s.Pair,
+		AssetType: s.AssetType,
 
-	id, err := uuid.NewV4()
-	if err != nil {
-		return nil, err
+		ImmediateOrCancel: s.ImmediateOrCancel,
+		FillOrKill:        s.FillOrKill,
+		PostOnly:          s.PostOnly,
+		ReduceOnly:        s.ReduceOnly,
+		Leverage:          s.Leverage,
+		Price:             s.Price,
+		Amount:            s.Amount,
+		QuoteAmount:       s.QuoteAmount,
+		TriggerPrice:      s.TriggerPrice,
+		ClientID:          s.ClientID,
+		ClientOrderID:     s.ClientOrderID,
+
+		LastUpdated: time.Now(),
+		Date:        time.Now(),
+		Status:      status,
+		OrderID:     orderID,
+	}, nil
+}
+
+// DeriveDetail will construct an order detail when a successful submission
+// has occured.
+func (s *SubmitResponse) DeriveDetail(internal uuid.UUID) (*Detail, error) {
+	if s == nil {
+		return nil, errOrderSubmitIsNil
 	}
 
 	return &Detail{
@@ -526,12 +567,13 @@ func (s *Submit) DeriveDetail(orderID string, status Status, execTime time.Time)
 		ClientID:          s.ClientID,
 		ClientOrderID:     s.ClientOrderID,
 
-		InternalOrderID: id,
+		InternalOrderID: internal,
 
-		LastUpdated: execTime,
-		Date:        execTime,
-		Status:      status,
-		ID:          orderID,
+		LastUpdated: s.LastUpdated,
+		Date:        s.Date,
+		Status:      s.Status,
+		OrderID:     s.OrderID,
+		Trades:      s.Trades,
 	}, nil
 }
 

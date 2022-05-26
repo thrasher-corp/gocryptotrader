@@ -537,7 +537,7 @@ allTrades:
 }
 
 // SubmitOrder submits a new order
-func (g *Gemini) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Detail, error) {
+func (g *Gemini) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	if err := s.Validate(); err != nil {
 		return nil, err
 	}
@@ -561,7 +561,7 @@ func (g *Gemini) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Detai
 		return nil, err
 	}
 
-	return s.DeriveDetail(strconv.FormatInt(response, 10), order.New, time.Now())
+	return s.DeriveSubmitResponse(strconv.FormatInt(response, 10))
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
@@ -712,7 +712,7 @@ func (g *Gemini) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 		orders[i] = order.Detail{
 			Amount:          resp[i].OriginalAmount,
 			RemainingAmount: resp[i].RemainingAmount,
-			ID:              strconv.FormatInt(resp[i].OrderID, 10),
+			OrderID:         strconv.FormatInt(resp[i].OrderID, 10),
 			ExecutedAmount:  resp[i].ExecutedAmount,
 			Exchange:        g.Name,
 			Type:            orderType,
@@ -780,7 +780,7 @@ func (g *Gemini) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 		orderDate := time.Unix(trades[i].Timestamp, 0)
 
 		detail := order.Detail{
-			ID:                   strconv.FormatInt(trades[i].OrderID, 10),
+			OrderID:              strconv.FormatInt(trades[i].OrderID, 10),
 			Amount:               trades[i].Amount,
 			ExecutedAmount:       trades[i].Amount,
 			Exchange:             g.Name,

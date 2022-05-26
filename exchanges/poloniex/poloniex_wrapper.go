@@ -531,7 +531,7 @@ allTrades:
 }
 
 // SubmitOrder submits a new order
-func (p *Poloniex) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Detail, error) {
+func (p *Poloniex) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	if err := s.Validate(); err != nil {
 		return nil, err
 	}
@@ -540,28 +540,17 @@ func (p *Poloniex) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Det
 	if err != nil {
 		return nil, err
 	}
-
-	fillOrKill := s.Type == order.Market
-	isBuyOrder := s.Side == order.Buy
 	response, err := p.PlaceOrder(ctx,
 		fPair.String(),
 		s.Price,
 		s.Amount,
 		false,
-		fillOrKill,
-		isBuyOrder)
+		s.Type == order.Market,
+		s.Side == order.Buy)
 	if err != nil {
 		return nil, err
 	}
-
-	status := order.New
-	if s.Type == order.Market {
-		status = order.Filled
-	}
-
-	return s.DeriveDetail(strconv.FormatInt(response.OrderNumber, 10),
-		status,
-		time.Now())
+	return s.DeriveSubmitResponse(strconv.FormatInt(response.OrderNumber, 10))
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
@@ -858,7 +847,7 @@ func (p *Poloniex) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequ
 			}
 
 			orders = append(orders, order.Detail{
-				ID:       strconv.FormatInt(resp.Data[key][i].OrderNumber, 10),
+				OrderID:  strconv.FormatInt(resp.Data[key][i].OrderNumber, 10),
 				Side:     orderSide,
 				Amount:   resp.Data[key][i].Amount,
 				Date:     orderDate,
@@ -924,7 +913,7 @@ func (p *Poloniex) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequ
 			}
 
 			detail := order.Detail{
-				ID:                   strconv.FormatInt(resp.Data[key][i].GlobalTradeID, 10),
+				OrderID:              strconv.FormatInt(resp.Data[key][i].GlobalTradeID, 10),
 				Side:                 orderSide,
 				Amount:               resp.Data[key][i].Amount,
 				ExecutedAmount:       resp.Data[key][i].Amount,

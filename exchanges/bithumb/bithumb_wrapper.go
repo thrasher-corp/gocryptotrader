@@ -474,7 +474,7 @@ func (b *Bithumb) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.
 
 // SubmitOrder submits a new order
 // TODO: Fill this out to support limit orders
-func (b *Bithumb) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Detail, error) {
+func (b *Bithumb) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	if err := s.Validate(); err != nil {
 		return nil, err
 	}
@@ -500,7 +500,7 @@ func (b *Bithumb) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Deta
 		}
 		orderID = result.OrderID
 	}
-	return s.DeriveDetail(orderID, order.New, time.Now())
+	return s.DeriveSubmitResponse(orderID)
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
@@ -708,7 +708,7 @@ func (b *Bithumb) GetActiveOrders(ctx context.Context, req *order.GetOrdersReque
 				Amount:          resp.Data[i].Units,
 				Exchange:        b.Name,
 				ExecutedAmount:  resp.Data[i].Units - resp.Data[i].UnitsRemaining,
-				ID:              resp.Data[i].OrderID,
+				OrderID:         resp.Data[i].OrderID,
 				Date:            resp.Data[i].OrderDate.Time(),
 				Price:           resp.Data[i].Price,
 				RemainingAmount: resp.Data[i].UnitsRemaining,
@@ -771,7 +771,7 @@ func (b *Bithumb) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 				ExecutedAmount:  resp.Data[i].Units - resp.Data[i].UnitsRemaining,
 				RemainingAmount: resp.Data[i].UnitsRemaining,
 				Exchange:        b.Name,
-				ID:              resp.Data[i].OrderID,
+				OrderID:         resp.Data[i].OrderID,
 				Date:            resp.Data[i].OrderDate.Time(),
 				Price:           resp.Data[i].Price,
 				Pair: currency.NewPairWithDelimiter(resp.Data[i].OrderCurrency,

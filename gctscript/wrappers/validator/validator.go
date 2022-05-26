@@ -122,7 +122,7 @@ func (w Wrapper) QueryOrder(ctx context.Context, exch, _ string, _ currency.Pair
 	return &order.Detail{
 		Exchange:        exch,
 		AccountID:       "hello",
-		ID:              "1",
+		OrderID:         "1",
 		Pair:            pair,
 		Side:            order.Ask,
 		Type:            order.Limit,
@@ -149,7 +149,7 @@ func (w Wrapper) QueryOrder(ctx context.Context, exch, _ string, _ currency.Pair
 }
 
 // SubmitOrder validator for test execution/scripts
-func (w Wrapper) SubmitOrder(ctx context.Context, o *order.Submit) (*order.Detail, error) {
+func (w Wrapper) SubmitOrder(ctx context.Context, o *order.Submit) (*order.SubmitResponse, error) {
 	if o == nil {
 		return nil, errTestFailed
 	}
@@ -157,12 +157,17 @@ func (w Wrapper) SubmitOrder(ctx context.Context, o *order.Submit) (*order.Detai
 		return nil, errTestFailed
 	}
 
-	status := order.Rejected
-	if o.Exchange == "true" {
-		status = order.New
+	resp, err := o.DeriveSubmitResponse(o.Exchange)
+	if err != nil {
+		return nil, err
 	}
 
-	return o.DeriveDetail(o.Exchange, status, time.Now())
+	resp.Status = order.Rejected
+	if o.Exchange == "true" {
+		resp.Status = order.New
+	}
+
+	return resp, nil
 }
 
 // CancelOrder validator for test execution/scripts

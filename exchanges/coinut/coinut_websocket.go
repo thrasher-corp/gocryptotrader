@@ -447,7 +447,7 @@ func (c *COINUT) parseOrderContainer(oContainer *wsOrderContainer) (*order.Detai
 		ExecutedAmount:  oContainer.FillQuantity,
 		RemainingAmount: oContainer.OpenQuantity,
 		Exchange:        c.Name,
-		ID:              orderID,
+		OrderID:         orderID,
 		Side:            oSide,
 		Status:          oStatus,
 		Date:            time.Unix(0, oContainer.Timestamp),
@@ -464,7 +464,7 @@ func (c *COINUT) parseOrderContainer(oContainer *wsOrderContainer) (*order.Detai
 		}
 		o.RemainingAmount = oContainer.Order.OpenQuantity
 		o.Amount = oContainer.Order.Quantity
-		o.ID = strconv.FormatInt(oContainer.Order.OrderID, 10)
+		o.OrderID = strconv.FormatInt(oContainer.Order.OrderID, 10)
 		o.LastUpdated = time.Unix(0, oContainer.Timestamp)
 		o.Pair, o.AssetType, err = c.GetRequestFormattedPairAndAssetType(c.instrumentMap.LookupInstrument(oContainer.Order.InstrumentID))
 		if err != nil {

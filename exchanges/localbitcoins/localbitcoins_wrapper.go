@@ -369,7 +369,7 @@ func (l *LocalBitcoins) GetHistoricTrades(_ context.Context, _ currency.Pair, _ 
 }
 
 // SubmitOrder submits a new order
-func (l *LocalBitcoins) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Detail, error) {
+func (l *LocalBitcoins) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	if err := s.Validate(); err != nil {
 		return nil, err
 	}
@@ -439,8 +439,7 @@ func (l *LocalBitcoins) SubmitOrder(ctx context.Context, s *order.Submit) (*orde
 	if adID == "" {
 		return nil, errors.New("ad placed, but not found via API")
 	}
-
-	return s.DeriveDetail(adID, order.New, time.Now())
+	return s.DeriveSubmitResponse(adID)
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
@@ -578,12 +577,12 @@ func (l *LocalBitcoins) GetActiveOrders(ctx context.Context, getOrdersRequest *o
 		}
 
 		orders[i] = order.Detail{
-			Amount: resp[i].Data.AmountBTC,
-			Price:  resp[i].Data.Amount,
-			ID:     strconv.FormatInt(resp[i].Data.Advertisement.ID, 10),
-			Date:   orderDate,
-			Fee:    resp[i].Data.FeeBTC,
-			Side:   side,
+			Amount:  resp[i].Data.AmountBTC,
+			Price:   resp[i].Data.Amount,
+			OrderID: strconv.FormatInt(resp[i].Data.Advertisement.ID, 10),
+			Date:    orderDate,
+			Fee:     resp[i].Data.FeeBTC,
+			Side:    side,
 			Pair: currency.NewPairWithDelimiter(currency.BTC.String(),
 				resp[i].Data.Currency,
 				format.Delimiter),
@@ -672,13 +671,13 @@ func (l *LocalBitcoins) GetOrderHistory(ctx context.Context, getOrdersRequest *o
 		}
 
 		orders[i] = order.Detail{
-			Amount: allTrades[i].Data.AmountBTC,
-			Price:  allTrades[i].Data.Amount,
-			ID:     strconv.FormatInt(allTrades[i].Data.Advertisement.ID, 10),
-			Date:   orderDate,
-			Fee:    allTrades[i].Data.FeeBTC,
-			Side:   side,
-			Status: orderStatus,
+			Amount:  allTrades[i].Data.AmountBTC,
+			Price:   allTrades[i].Data.Amount,
+			OrderID: strconv.FormatInt(allTrades[i].Data.Advertisement.ID, 10),
+			Date:    orderDate,
+			Fee:     allTrades[i].Data.FeeBTC,
+			Side:    side,
+			Status:  orderStatus,
 			Pair: currency.NewPairWithDelimiter(currency.BTC.String(),
 				allTrades[i].Data.Currency,
 				format.Delimiter),

@@ -278,7 +278,7 @@ func (o *OKGroup) GetFundingHistory(ctx context.Context) (resp []exchange.FundHi
 }
 
 // SubmitOrder submits a new order
-func (o *OKGroup) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Detail, error) {
+func (o *OKGroup) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	if err := s.Validate(); err != nil {
 		return nil, err
 	}
@@ -307,12 +307,7 @@ func (o *OKGroup) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Deta
 	if !orderResponse.Result {
 		return nil, order.ErrUnableToPlaceOrder
 	}
-
-	status := order.New
-	if s.Type == order.Market {
-		status = order.Filled
-	}
-	return s.DeriveDetail(orderResponse.OrderID, status, time.Now())
+	return s.DeriveSubmitResponse(orderResponse.OrderID)
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
@@ -540,7 +535,7 @@ func (o *OKGroup) GetActiveOrders(ctx context.Context, req *order.GetOrdersReque
 				log.Errorf(log.ExchangeSys, "%s %v", o.Name, err)
 			}
 			resp = append(resp, order.Detail{
-				ID:             spotOpenOrders[i].OrderID,
+				OrderID:        spotOpenOrders[i].OrderID,
 				Price:          spotOpenOrders[i].Price,
 				Amount:         spotOpenOrders[i].Size,
 				Pair:           req.Pairs[x],
@@ -596,7 +591,7 @@ func (o *OKGroup) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 				log.Errorf(log.ExchangeSys, "%s %v", o.Name, err)
 			}
 			detail := order.Detail{
-				ID:                   spotOrders[i].OrderID,
+				OrderID:              spotOrders[i].OrderID,
 				Price:                spotOrders[i].Price,
 				AverageExecutedPrice: spotOrders[i].PriceAvg,
 				Amount:               spotOrders[i].Size,

@@ -379,7 +379,7 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 						Price:     response.Data[x].Price,
 						Amount:    response.Data[x].OrderQuantity,
 						Exchange:  b.Name,
-						ID:        response.Data[x].OrderID,
+						OrderID:   response.Data[x].OrderID,
 						AccountID: strconv.FormatInt(response.Data[x].Account, 10),
 						Type:      oType,
 						Side:      oSide,

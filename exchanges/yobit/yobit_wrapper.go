@@ -406,7 +406,7 @@ func (y *Yobit) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.It
 
 // SubmitOrder submits a new order
 // Yobit only supports limit orders
-func (y *Yobit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Detail, error) {
+func (y *Yobit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	if err := s.Validate(); err != nil {
 		return nil, err
 	}
@@ -428,7 +428,7 @@ func (y *Yobit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Detail
 	if err != nil {
 		return nil, err
 	}
-	return s.DeriveDetail(strconv.FormatInt(response, 10), order.New, time.Now())
+	return s.DeriveSubmitResponse(strconv.FormatInt(response, 10))
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
@@ -600,7 +600,7 @@ func (y *Yobit) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 				return nil, err
 			}
 			orders = append(orders, order.Detail{
-				ID:       id,
+				OrderID:  id,
 				Amount:   resp[id].Amount,
 				Price:    resp[id].Rate,
 				Side:     side,
@@ -668,7 +668,7 @@ func (y *Yobit) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest
 			return nil, err
 		}
 		detail := order.Detail{
-			ID:                   strconv.FormatFloat(allOrders[i].OrderID, 'f', -1, 64),
+			OrderID:              strconv.FormatFloat(allOrders[i].OrderID, 'f', -1, 64),
 			Amount:               allOrders[i].Amount,
 			ExecutedAmount:       allOrders[i].Amount,
 			Price:                allOrders[i].Rate,

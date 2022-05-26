@@ -313,7 +313,7 @@ func (h *HUOBI) wsHandleData(respRaw []byte) error {
 			ExecutedAmount:  response.Data.FilledAmount,
 			RemainingAmount: response.Data.UnfilledAmount,
 			Exchange:        h.Name,
-			ID:              orderID,
+			OrderID:         orderID,
 			Type:            oType,
 			Side:            oSide,
 			Status:          oStatus,

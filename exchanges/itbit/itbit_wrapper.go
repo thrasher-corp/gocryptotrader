@@ -372,7 +372,7 @@ func (i *ItBit) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.It
 }
 
 // SubmitOrder submits a new order
-func (i *ItBit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Detail, error) {
+func (i *ItBit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	if err := s.Validate(); err != nil {
 		return nil, err
 	}
@@ -417,11 +417,14 @@ func (i *ItBit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Detail
 	if err != nil {
 		return nil, err
 	}
-	status := order.New
-	if response.AmountFilled == s.Amount {
-		status = order.Filled
+	subResp, err := s.DeriveSubmitResponse(response.ID)
+	if err != nil {
+		return nil, err
 	}
-	return s.DeriveDetail(response.ID, status, time.Now())
+	if response.AmountFilled == s.Amount {
+		subResp.Status = order.Filled
+	}
+	return subResp, nil
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
@@ -567,7 +570,7 @@ func (i *ItBit) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 		}
 
 		orders = append(orders, order.Detail{
-			ID:              allOrders[j].ID,
+			OrderID:         allOrders[j].ID,
 			Side:            side,
 			Amount:          allOrders[j].Amount,
 			ExecutedAmount:  allOrders[j].AmountFilled,
@@ -647,7 +650,7 @@ func (i *ItBit) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest
 		}
 
 		detail := order.Detail{
-			ID:                   allOrders[j].ID,
+			OrderID:              allOrders[j].ID,
 			Side:                 side,
 			Status:               status,
 			Amount:               allOrders[j].Amount,

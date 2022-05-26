@@ -372,7 +372,7 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 			resp.Cost = resp.AverageExecutedPrice * resultData.OrderData.FilledSize
 			// Fee: orderVars.Fee is incorrect.
 			resp.Exchange = f.Name
-			resp.ID = strconv.FormatInt(resultData.OrderData.ID, 10)
+			resp.OrderID = strconv.FormatInt(resultData.OrderData.ID, 10)
 			resp.ClientOrderID = resultData.OrderData.ClientID
 			resp.Type = orderVars.OrderType
 			resp.Side = orderVars.Side

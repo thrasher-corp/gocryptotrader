@@ -216,7 +216,7 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 				Amount:       notification.Data[i].Size,
 				TriggerPrice: notification.Data[i].TriggerPrice,
 				Exchange:     b.Name,
-				ID:           notification.Data[i].OrderID,
+				OrderID:      notification.Data[i].OrderID,
 				Type:         oType,
 				Side:         oSide,
 				Status:       oStatus,

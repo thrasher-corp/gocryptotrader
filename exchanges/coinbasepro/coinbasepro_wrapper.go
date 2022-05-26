@@ -526,7 +526,7 @@ func (c *CoinbasePro) GetHistoricTrades(_ context.Context, _ currency.Pair, _ as
 }
 
 // SubmitOrder submits a new order
-func (c *CoinbasePro) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Detail, error) {
+func (c *CoinbasePro) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	if err := s.Validate(); err != nil {
 		return nil, err
 	}
@@ -563,11 +563,7 @@ func (c *CoinbasePro) SubmitOrder(ctx context.Context, s *order.Submit) (*order.
 	if err != nil {
 		return nil, err
 	}
-	status := order.New
-	if s.Type == order.Market {
-		status = order.Filled
-	}
-	return s.DeriveDetail(orderID, status, time.Now())
+	return s.DeriveSubmitResponse(orderID)
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
@@ -621,7 +617,7 @@ func (c *CoinbasePro) GetOrderInfo(ctx context.Context, orderID string, pair cur
 
 	response := order.Detail{
 		Exchange:        c.GetName(),
-		ID:              genOrderDetail.ID,
+		OrderID:         genOrderDetail.ID,
 		Pair:            p,
 		Side:            ss,
 		Type:            tt,
@@ -787,7 +783,7 @@ func (c *CoinbasePro) GetActiveOrders(ctx context.Context, req *order.GetOrdersR
 			log.Errorf(log.ExchangeSys, "%s %v", c.Name, err)
 		}
 		orders[i] = order.Detail{
-			ID:             respOrders[i].ID,
+			OrderID:        respOrders[i].ID,
 			Amount:         respOrders[i].Size,
 			ExecutedAmount: respOrders[i].FilledSize,
 			Type:           orderType,
@@ -867,7 +863,7 @@ func (c *CoinbasePro) GetOrderHistory(ctx context.Context, req *order.GetOrdersR
 			log.Errorf(log.ExchangeSys, "%s %v", c.Name, err)
 		}
 		detail := order.Detail{
-			ID:              respOrders[i].ID,
+			OrderID:         respOrders[i].ID,
 			Amount:          respOrders[i].Size,
 			ExecutedAmount:  respOrders[i].FilledSize,
 			RemainingAmount: respOrders[i].Size - respOrders[i].FilledSize,

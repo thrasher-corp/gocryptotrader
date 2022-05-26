@@ -903,7 +903,7 @@ func (a *AggregatedTrade) toTradeData(p currency.Pair, exchange string, aType as
 }
 
 // SubmitOrder submits a new order
-func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Detail, error) {
+func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	if err := s.Validate(); err != nil {
 		return nil, err
 	}
@@ -1054,12 +1054,13 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Deta
 		return nil, fmt.Errorf("assetType not supported")
 	}
 
-	detail, err := s.DeriveDetail(orderID, status, time.Now())
+	resp, err := s.DeriveSubmitResponse(orderID)
 	if err != nil {
 		return nil, err
 	}
-	detail.Trades = trades
-	return detail, nil
+	resp.Trades = trades
+	resp.Status = status
+	return resp, nil
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
@@ -1199,7 +1200,7 @@ func (b *Binance) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 		return order.Detail{
 			Amount:         resp.OrigQty,
 			Exchange:       b.Name,
-			ID:             strconv.FormatInt(resp.OrderID, 10),
+			OrderID:        strconv.FormatInt(resp.OrderID, 10),
 			ClientOrderID:  resp.ClientOrderID,
 			Side:           side,
 			Type:           orderType,
@@ -1232,7 +1233,7 @@ func (b *Binance) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 		respData.Exchange = b.Name
 		respData.ExecutedAmount = orderData.ExecutedQuantity
 		respData.Fee = fee
-		respData.ID = orderID
+		respData.OrderID = orderID
 		respData.Pair = pair
 		respData.Price = orderData.Price
 		respData.RemainingAmount = orderData.OriginalQuantity - orderData.ExecutedQuantity
@@ -1261,7 +1262,7 @@ func (b *Binance) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 		respData.Exchange = b.Name
 		respData.ExecutedAmount = orderData.ExecutedQuantity
 		respData.Fee = fee
-		respData.ID = orderID
+		respData.OrderID = orderID
 		respData.Pair = pair
 		respData.Price = orderData.Price
 		respData.RemainingAmount = orderData.OriginalQuantity - orderData.ExecutedQuantity
@@ -1373,7 +1374,7 @@ func (b *Binance) GetActiveOrders(ctx context.Context, req *order.GetOrdersReque
 					Amount:        resp[x].OrigQty,
 					Date:          resp[x].Time,
 					Exchange:      b.Name,
-					ID:            strconv.FormatInt(resp[x].OrderID, 10),
+					OrderID:       strconv.FormatInt(resp[x].OrderID, 10),
 					ClientOrderID: resp[x].ClientOrderID,
 					Side:          side,
 					Type:          orderType,
@@ -1406,7 +1407,7 @@ func (b *Binance) GetActiveOrders(ctx context.Context, req *order.GetOrdersReque
 					RemainingAmount: openOrders[y].OrigQty - openOrders[y].ExecutedQty,
 					Fee:             fee,
 					Exchange:        b.Name,
-					ID:              strconv.FormatInt(openOrders[y].OrderID, 10),
+					OrderID:         strconv.FormatInt(openOrders[y].OrderID, 10),
 					ClientOrderID:   openOrders[y].ClientOrderID,
 					Type:            orderVars.OrderType,
 					Side:            orderVars.Side,
@@ -1439,7 +1440,7 @@ func (b *Binance) GetActiveOrders(ctx context.Context, req *order.GetOrdersReque
 					RemainingAmount: openOrders[y].OriginalQuantity - openOrders[y].ExecutedQuantity,
 					Fee:             fee,
 					Exchange:        b.Name,
-					ID:              strconv.FormatInt(openOrders[y].OrderID, 10),
+					OrderID:         strconv.FormatInt(openOrders[y].OrderID, 10),
 					ClientOrderID:   openOrders[y].ClientOrderID,
 					Type:            orderVars.OrderType,
 					Side:            orderVars.Side,
@@ -1520,7 +1521,7 @@ func (b *Binance) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 					Date:            resp[i].Time,
 					LastUpdated:     resp[i].UpdateTime,
 					Exchange:        b.Name,
-					ID:              strconv.FormatInt(resp[i].OrderID, 10),
+					OrderID:         strconv.FormatInt(resp[i].OrderID, 10),
 					Side:            side,
 					Type:            orderType,
 					Price:           resp[i].Price,
@@ -1578,7 +1579,7 @@ func (b *Binance) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 					RemainingAmount: orderHistory[y].OrigQty - orderHistory[y].ExecutedQty,
 					Fee:             fee,
 					Exchange:        b.Name,
-					ID:              strconv.FormatInt(orderHistory[y].OrderID, 10),
+					OrderID:         strconv.FormatInt(orderHistory[y].OrderID, 10),
 					ClientOrderID:   orderHistory[y].ClientOrderID,
 					Type:            orderVars.OrderType,
 					Side:            orderVars.Side,
@@ -1636,7 +1637,7 @@ func (b *Binance) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 					RemainingAmount: orderHistory[y].OrigQty - orderHistory[y].ExecutedQty,
 					Fee:             fee,
 					Exchange:        b.Name,
-					ID:              strconv.FormatInt(orderHistory[y].OrderID, 10),
+					OrderID:         strconv.FormatInt(orderHistory[y].OrderID, 10),
 					ClientOrderID:   orderHistory[y].ClientOrderID,
 					Type:            orderVars.OrderType,
 					Side:            orderVars.Side,

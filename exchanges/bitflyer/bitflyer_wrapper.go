@@ -389,7 +389,7 @@ func (b *Bitflyer) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset
 }
 
 // SubmitOrder submits a new order
-func (b *Bitflyer) SubmitOrder(_ context.Context, _ *order.Submit) (*order.Detail, error) {
+func (b *Bitflyer) SubmitOrder(_ context.Context, _ *order.Submit) (*order.SubmitResponse, error) {
 	return nil, common.ErrNotYetImplemented
 }
 

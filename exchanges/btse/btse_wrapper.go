@@ -509,7 +509,7 @@ func (b *BTSE) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.Ite
 }
 
 // SubmitOrder submits a new order
-func (b *BTSE) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Detail, error) {
+func (b *BTSE) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	if err := s.Validate(); err != nil {
 		return nil, err
 	}
@@ -543,11 +543,7 @@ func (b *BTSE) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Detail,
 	if len(r) > 0 {
 		orderID = r[0].OrderID
 	}
-	status := order.New
-	if s.Type == order.Market {
-		status = order.Filled
-	}
-	return s.DeriveDetail(orderID, status, time.Now())
+	return s.DeriveSubmitResponse(orderID)
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
@@ -657,7 +653,7 @@ func (b *BTSE) GetOrderInfo(ctx context.Context, orderID string, pair currency.P
 		}
 		od.Exchange = b.Name
 		od.Amount = o[i].Size
-		od.ID = o[i].OrderID
+		od.OrderID = o[i].OrderID
 		od.Date = time.Unix(o[i].Timestamp, 0)
 		od.Side = side
 
@@ -825,7 +821,7 @@ func (b *BTSE) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest)
 				Amount:          resp[i].Size,
 				ExecutedAmount:  resp[i].FilledSize,
 				RemainingAmount: resp[i].Size - resp[i].FilledSize,
-				ID:              resp[i].OrderID,
+				OrderID:         resp[i].OrderID,
 				Date:            time.Unix(resp[i].Timestamp, 0),
 				Side:            side,
 				Price:           resp[i].Price,
@@ -935,7 +931,7 @@ func (b *BTSE) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetO
 			}
 			orderTime := time.UnixMilli(currentOrder[y].Timestamp)
 			tempOrder := order.Detail{
-				ID:                   currentOrder[y].OrderID,
+				OrderID:              currentOrder[y].OrderID,
 				ClientID:             currentOrder[y].ClOrderID,
 				Exchange:             b.Name,
 				Price:                currentOrder[y].Price,

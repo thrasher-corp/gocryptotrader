@@ -143,7 +143,7 @@ func (f fExchange) GetFuturesPositions(_ context.Context, a asset.Item, cp curre
 			Fee:       1.337,
 			FeeAsset:  currency.Code{},
 			Exchange:  f.GetName(),
-			ID:        "test",
+			OrderID:   "test",
 			Side:      order.Long,
 			Status:    order.Open,
 			AssetType: a,

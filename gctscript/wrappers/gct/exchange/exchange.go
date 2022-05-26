@@ -88,13 +88,20 @@ func (e Exchange) QueryOrder(ctx context.Context, exch, orderID string, pair cur
 }
 
 // SubmitOrder submit new order on exchange
-func (e Exchange) SubmitOrder(ctx context.Context, submit *order.Submit) (*order.Detail, error) {
+func (e Exchange) SubmitOrder(ctx context.Context, submit *order.Submit) (*order.SubmitResponse, error) {
 	r, err := engine.Bot.OrderManager.Submit(ctx, submit)
 	if err != nil {
 		return nil, err
 	}
 
-	return r.Detail, nil
+	resp, err := submit.DeriveSubmitResponse(r.OrderID)
+	if err != nil {
+		return nil, err
+	}
+	resp.Status = r.Status
+	resp.Trades = make([]order.TradeHistory, len(r.Trades))
+	copy(resp.Trades, r.Trades)
+	return resp, nil
 }
 
 // CancelOrder wrapper to cancel order on exchange
@@ -106,7 +113,7 @@ func (e Exchange) CancelOrder(ctx context.Context, exch, orderID string, cp curr
 
 	cancel := &order.Cancel{
 		AccountID: orderDetails.AccountID,
-		ID:        orderDetails.ID,
+		ID:        orderDetails.OrderID,
 		Pair:      orderDetails.Pair,
 		Side:      orderDetails.Side,
 		AssetType: orderDetails.AssetType,

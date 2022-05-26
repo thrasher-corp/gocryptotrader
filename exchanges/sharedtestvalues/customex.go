@@ -146,7 +146,7 @@ func (c *CustomEx) GetFundingHistory(ctx context.Context) ([]exchange.FundHistor
 	return nil, nil
 }
 
-func (c *CustomEx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Detail, error) {
+func (c *CustomEx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	return nil, nil
 }
 

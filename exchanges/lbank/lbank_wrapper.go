@@ -450,7 +450,7 @@ allTrades:
 }
 
 // SubmitOrder submits a new order
-func (l *Lbank) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Detail, error) {
+func (l *Lbank) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	if err := s.Validate(); err != nil {
 		return nil, err
 	}
@@ -474,12 +474,7 @@ func (l *Lbank) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Detail
 	if err != nil {
 		return nil, err
 	}
-
-	status := order.New
-	if s.Type == order.Market {
-		status = order.Filled
-	}
-	return s.DeriveDetail(tempResp.OrderID, status, time.Now())
+	return s.DeriveSubmitResponse(tempResp.OrderID)
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to

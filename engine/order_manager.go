@@ -137,7 +137,7 @@ func (m *OrderManager) CancelAllOrders(ctx context.Context, exchangeNames []exch
 				exchangeNames[i].GetName())
 			err := m.Cancel(ctx, &order.Cancel{
 				Exchange:      exchangeOrders[j].Exchange,
-				ID:            exchangeOrders[j].ID,
+				ID:            exchangeOrders[j].OrderID,
 				AccountID:     exchangeOrders[j].AccountID,
 				ClientID:      exchangeOrders[j].ClientID,
 				WalletAddress: exchangeOrders[j].WalletAddress,
@@ -216,7 +216,7 @@ func (m *OrderManager) Cancel(ctx context.Context, cancel *order.Cancel) error {
 	}
 
 	msg := fmt.Sprintf("Order manager: Exchange %s order ID=%v cancelled.",
-		od.Exchange, od.ID)
+		od.Exchange, od.OrderID)
 	log.Debugln(log.OrderMgr, msg)
 	m.orderStore.commsManager.PushEvent(base.Event{Type: "order", Message: msg})
 	return nil
@@ -470,7 +470,7 @@ func (m *OrderManager) Submit(ctx context.Context, newOrder *order.Submit) (*Ord
 
 // SubmitFakeOrder runs through the same process as order submission
 // but does not touch live endpoints
-func (m *OrderManager) SubmitFakeOrder(newOrder *order.Submit, resultingOrder *order.Detail, checkExchangeLimits bool) (*OrderSubmitResponse, error) {
+func (m *OrderManager) SubmitFakeOrder(newOrder *order.Submit, resultingOrder *order.SubmitResponse, checkExchangeLimits bool) (*OrderSubmitResponse, error) {
 	if m == nil {
 		return nil, fmt.Errorf("order manager %w", ErrNilSubsystem)
 	}
@@ -549,8 +549,8 @@ func (m *OrderManager) GetOrdersActive(f *order.Filter) ([]order.Detail, error) 
 }
 
 // processSubmittedOrder adds a new order to the manager
-func (m *OrderManager) processSubmittedOrder(result *order.Detail) (*OrderSubmitResponse, error) {
-	if result == nil {
+func (m *OrderManager) processSubmittedOrder(newOrderResp *order.SubmitResponse) (*OrderSubmitResponse, error) {
+	if newOrderResp == nil {
 		return nil, order.ErrOrderDetailIsNil
 	}
 
@@ -559,30 +559,35 @@ func (m *OrderManager) processSubmittedOrder(result *order.Detail) (*OrderSubmit
 		log.Warnf(log.OrderMgr, "Order manager: Unable to generate UUID. Err: %s", err)
 	}
 
+	detail, err := newOrderResp.DeriveDetail(id)
+	if err != nil {
+		return nil, err
+	}
+
 	msg := fmt.Sprintf("Order manager: Exchange %s submitted order ID=%v [Ours: %v] pair=%v price=%v amount=%v quoteAmount=%v side=%v type=%v for time %v.",
-		result.Exchange,
-		result.ID,
-		id.String(),
-		result.Pair,
-		result.Price,
-		result.Amount,
-		result.QuoteAmount,
-		result.Side,
-		result.Type,
-		result.Date)
+		detail.Exchange,
+		detail.OrderID,
+		detail.InternalOrderID.String(),
+		detail.Pair,
+		detail.Price,
+		detail.Amount,
+		detail.QuoteAmount,
+		detail.Side,
+		detail.Type,
+		detail.Date)
 
 	log.Debugln(log.OrderMgr, msg)
 	if m.orderStore.commsManager != nil {
 		m.orderStore.commsManager.PushEvent(base.Event{Type: "order", Message: msg})
 	}
 
-	err = m.orderStore.add(result)
+	err = m.orderStore.add(detail.CopyToPointer())
 	if err != nil {
 		return nil, fmt.Errorf("unable to add %v order %v to orderStore: %s",
-			result.Exchange, result.ID, err)
+			detail.Exchange, detail.OrderID, err)
 	}
 
-	return &OrderSubmitResponse{Detail: result, InternalOrderID: id.String()}, nil
+	return &OrderSubmitResponse{Detail: detail, InternalOrderID: id.String()}, nil
 }
 
 // processOrders iterates over all exchange orders via API
@@ -695,7 +700,7 @@ func (m *OrderManager) FetchAndUpdateExchangeOrder(exch exchange.IBotExchange, o
 	if ord == nil {
 		return errors.New("order manager: Order is nil")
 	}
-	fetchedOrder, err := exch.GetOrderInfo(context.TODO(), ord.ID, ord.Pair, assetType)
+	fetchedOrder, err := exch.GetOrderInfo(context.TODO(), ord.OrderID, ord.Pair, assetType)
 	if err != nil {
 		ord.Status = order.UnknownStatus
 		return err
@@ -778,7 +783,7 @@ func (m *OrderManager) UpsertOrder(od *order.Detail) (resp *OrderUpsertResponse,
 	if err != nil {
 		msg = fmt.Sprintf(
 			"Order manager: Exchange %s unable to upsert order ID=%v internal ID=%v pair=%v price=%.8f amount=%.8f side=%v type=%v status=%v: %s",
-			od.Exchange, od.ID, od.InternalOrderID, od.Pair, od.Price, od.Amount, od.Side, od.Type, od.Status, err)
+			od.Exchange, od.OrderID, od.InternalOrderID, od.Pair, od.Price, od.Amount, od.Side, od.Type, od.Status, err)
 		return nil, err
 	}
 
@@ -787,7 +792,7 @@ func (m *OrderManager) UpsertOrder(od *order.Detail) (resp *OrderUpsertResponse,
 		status = "added"
 	}
 	msg = fmt.Sprintf("Order manager: Exchange %s %s order ID=%v internal ID=%v pair=%v price=%.8f amount=%.8f side=%v type=%v status=%v.",
-		upsertResponse.OrderDetails.Exchange, status, upsertResponse.OrderDetails.ID, upsertResponse.OrderDetails.InternalOrderID,
+		upsertResponse.OrderDetails.Exchange, status, upsertResponse.OrderDetails.OrderID, upsertResponse.OrderDetails.InternalOrderID,
 		upsertResponse.OrderDetails.Pair, upsertResponse.OrderDetails.Price, upsertResponse.OrderDetails.Amount,
 		upsertResponse.OrderDetails.Side, upsertResponse.OrderDetails.Type, upsertResponse.OrderDetails.Status)
 	if upsertResponse.IsNewOrder {
@@ -819,7 +824,7 @@ func (s *store) getByExchangeAndID(exchange, id string) (*order.Detail, error) {
 	}
 
 	for x := range r {
-		if r[x].ID == id {
+		if r[x].OrderID == id {
 			return r[x].CopyToPointer(), nil
 		}
 	}
@@ -839,7 +844,7 @@ func (s *store) updateExisting(od *order.Detail) error {
 		return ErrExchangeNotFound
 	}
 	for x := range r {
-		if r[x].ID != od.ID {
+		if r[x].OrderID != od.OrderID {
 			continue
 		}
 		r[x].UpdateOrderFromDetail(od)
@@ -865,7 +870,7 @@ func (s *store) modifyExisting(id string, mod *order.Modify) error {
 		return ErrExchangeNotFound
 	}
 	for x := range r {
-		if r[x].ID != id {
+		if r[x].OrderID != id {
 			continue
 		}
 		r[x].UpdateOrderFromModify(mod)
@@ -907,7 +912,7 @@ func (s *store) upsert(od *order.Detail) (*OrderUpsertResponse, error) {
 		return &OrderUpsertResponse{OrderDetails: od.Copy(), IsNewOrder: true}, nil
 	}
 	for x := range r {
-		if r[x].ID != od.ID {
+		if r[x].OrderID != od.OrderID {
 			continue
 		}
 		r[x].UpdateOrderFromDetail(od)
@@ -932,7 +937,7 @@ func (s *store) exists(det *order.Detail) bool {
 	}
 
 	for x := range r {
-		if r[x].ID == det.ID {
+		if r[x].OrderID == det.OrderID {
 			return true
 		}
 	}

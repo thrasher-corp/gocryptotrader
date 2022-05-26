@@ -472,13 +472,12 @@ func (z *ZB) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.Item,
 }
 
 // SubmitOrder submits a new order
-func (z *ZB) SubmitOrder(ctx context.Context, o *order.Submit) (*order.Detail, error) {
+func (z *ZB) SubmitOrder(ctx context.Context, o *order.Submit) (*order.SubmitResponse, error) {
 	err := o.Validate()
 	if err != nil {
 		return nil, err
 	}
 
-	var orderID string
 	if z.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		var isBuyOrder int64
 		if o.Side == order.Buy {
@@ -491,38 +490,30 @@ func (z *ZB) SubmitOrder(ctx context.Context, o *order.Submit) (*order.Detail, e
 		if err != nil {
 			return nil, err
 		}
-		orderID = strconv.FormatInt(response.Data.EntrustID, 10)
-	} else {
-		var oT SpotNewOrderRequestParamsType
-		if o.Side == order.Buy {
-			oT = SpotNewOrderRequestParamsTypeBuy
-		} else {
-			oT = SpotNewOrderRequestParamsTypeSell
-		}
-
-		fPair, err := z.FormatExchangeCurrency(o.Pair, o.AssetType)
-		if err != nil {
-			return nil, err
-		}
-
-		var params = SpotNewOrderRequestParams{
-			Amount: o.Amount,
-			Price:  o.Price,
-			Symbol: fPair.Lower().String(),
-			Type:   oT,
-		}
-		var response int64
-		response, err = z.SpotNewOrder(ctx, params)
-		if err != nil {
-			return nil, err
-		}
-		orderID = strconv.FormatInt(response, 10)
+		o.DeriveSubmitResponse(strconv.FormatInt(response.Data.EntrustID, 10))
 	}
-	status := order.New
-	if o.Type == order.Market {
-		status = order.Filled
+	var oT = SpotNewOrderRequestParamsTypeSell
+	if o.Side == order.Buy {
+		oT = SpotNewOrderRequestParamsTypeBuy
 	}
-	return o.DeriveDetail(orderID, status, time.Now())
+
+	fPair, err := z.FormatExchangeCurrency(o.Pair, o.AssetType)
+	if err != nil {
+		return nil, err
+	}
+
+	var params = SpotNewOrderRequestParams{
+		Amount: o.Amount,
+		Price:  o.Price,
+		Symbol: fPair.Lower().String(),
+		Type:   oT,
+	}
+	var response int64
+	response, err = z.SpotNewOrder(ctx, params)
+	if err != nil {
+		return nil, err
+	}
+	return o.DeriveSubmitResponse(strconv.FormatInt(response, 10))
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
@@ -754,7 +745,7 @@ func (z *ZB) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest) (
 		orderDate := time.Unix(int64(allOrders[i].TradeDate), 0)
 		orderSide := orderSideMap[allOrders[i].Type]
 		orders[i] = order.Detail{
-			ID:       strconv.FormatInt(allOrders[i].ID, 10),
+			OrderID:  strconv.FormatInt(allOrders[i].ID, 10),
 			Amount:   allOrders[i].TotalAmount,
 			Exchange: z.Name,
 			Date:     orderDate,
@@ -841,7 +832,7 @@ func (z *ZB) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest) (
 		orderDate := time.Unix(int64(allOrders[i].TradeDate), 0)
 		orderSide := orderSideMap[allOrders[i].Type]
 		detail := order.Detail{
-			ID:                   strconv.FormatInt(allOrders[i].ID, 10),
+			OrderID:              strconv.FormatInt(allOrders[i].ID, 10),
 			Amount:               allOrders[i].TotalAmount,
 			ExecutedAmount:       allOrders[i].TradeAmount,
 			RemainingAmount:      allOrders[i].TotalAmount - allOrders[i].TradeAmount,

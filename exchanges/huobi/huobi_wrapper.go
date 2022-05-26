@@ -878,7 +878,7 @@ func (h *HUOBI) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.It
 }
 
 // SubmitOrder submits a new order
-func (h *HUOBI) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Detail, error) {
+func (h *HUOBI) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	if err := s.Validate(); err != nil {
 		return nil, err
 	}
@@ -1000,7 +1000,12 @@ func (h *HUOBI) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Detail
 		}
 		orderID = order.Data.OrderIDStr
 	}
-	return s.DeriveDetail(orderID, status, time.Now())
+	resp, err := s.DeriveSubmitResponse(orderID)
+	if err != nil {
+		return nil, err
+	}
+	resp.Status = status
+	return resp, nil
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
@@ -1211,7 +1216,7 @@ func (h *HUOBI) GetOrderInfo(ctx context.Context, orderID string, pair currency.
 		}
 		orderDetail = order.Detail{
 			Exchange:       h.Name,
-			ID:             orderID,
+			OrderID:        orderID,
 			AccountID:      strconv.FormatInt(respData.AccountID, 10),
 			Pair:           p,
 			Type:           orderType,
@@ -1397,7 +1402,7 @@ func (h *HUOBI) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 					orders = append(orders, order.Detail{
 						Exchange:        h.Name,
 						AccountID:       strconv.FormatInt(resp.Data[j].AccountID, 10),
-						ID:              orderID,
+						OrderID:         orderID,
 						Pair:            req.Pairs[i],
 						Type:            orderType,
 						Side:            orderSide,
@@ -1427,7 +1432,7 @@ func (h *HUOBI) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 				}
 				for x := range resp {
 					orderDetail := order.Detail{
-						ID:              strconv.FormatInt(resp[x].ID, 10),
+						OrderID:         strconv.FormatInt(resp[x].ID, 10),
 						Price:           resp[x].Price,
 						Amount:          resp[x].Amount,
 						ExecutedAmount:  resp[x].FilledAmount,
@@ -1475,7 +1480,7 @@ func (h *HUOBI) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 						Fee:             openOrders.Data.Orders[x].Fee,
 						Exchange:        h.Name,
 						AssetType:       req.AssetType,
-						ID:              openOrders.Data.Orders[x].OrderIDString,
+						OrderID:         openOrders.Data.Orders[x].OrderIDString,
 						Side:            orderVars.Side,
 						Type:            orderVars.OrderType,
 						Status:          orderVars.Status,
@@ -1517,7 +1522,7 @@ func (h *HUOBI) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 						Fee:             openOrders.Data.Orders[x].Fee,
 						Exchange:        h.Name,
 						AssetType:       req.AssetType,
-						ID:              openOrders.Data.Orders[x].OrderIDString,
+						OrderID:         openOrders.Data.Orders[x].OrderIDString,
 						Side:            orderVars.Side,
 						Type:            orderVars.OrderType,
 						Status:          orderVars.Status,
@@ -1566,7 +1571,7 @@ func (h *HUOBI) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest
 			}
 			for x := range resp {
 				orderDetail := order.Detail{
-					ID:              strconv.FormatInt(resp[x].ID, 10),
+					OrderID:         strconv.FormatInt(resp[x].ID, 10),
 					Price:           resp[x].Price,
 					Amount:          resp[x].Amount,
 					ExecutedAmount:  resp[x].FilledAmount,
@@ -1623,7 +1628,7 @@ func (h *HUOBI) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest
 						Fee:             orderHistory.Data.Orders[x].Fee,
 						Exchange:        h.Name,
 						AssetType:       req.AssetType,
-						ID:              orderHistory.Data.Orders[x].OrderIDString,
+						OrderID:         orderHistory.Data.Orders[x].OrderIDString,
 						Side:            orderVars.Side,
 						Type:            orderVars.OrderType,
 						Status:          orderVars.Status,
@@ -1681,7 +1686,7 @@ func (h *HUOBI) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest
 						Fee:             openOrders.Data.Orders[x].Fee,
 						Exchange:        h.Name,
 						AssetType:       req.AssetType,
-						ID:              openOrders.Data.Orders[x].OrderIDString,
+						OrderID:         openOrders.Data.Orders[x].OrderIDString,
 						Side:            orderVars.Side,
 						Type:            orderVars.OrderType,
 						Status:          orderVars.Status,

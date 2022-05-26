@@ -243,7 +243,7 @@ func (a *Alphapoint) GetHistoricTrades(_ context.Context, _ currency.Pair, _ ass
 
 // SubmitOrder submits a new order and returns a true value when
 // successfully submitted
-func (a *Alphapoint) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Detail, error) {
+func (a *Alphapoint) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	if err := s.Validate(); err != nil {
 		return nil, err
 	}
@@ -262,13 +262,7 @@ func (a *Alphapoint) SubmitOrder(ctx context.Context, s *order.Submit) (*order.D
 	if err != nil {
 		return nil, err
 	}
-
-	orderID := strconv.FormatInt(response, 10)
-	status := order.New
-	if s.Type == order.Market {
-		status = order.Filled
-	}
-	return s.DeriveDetail(orderID, status, time.Now())
+	return s.DeriveSubmitResponse(strconv.FormatInt(response, 10))
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
@@ -381,7 +375,7 @@ func (a *Alphapoint) GetActiveOrders(ctx context.Context, req *order.GetOrdersRe
 				Exchange:        a.Name,
 				ExecutedAmount:  resp[x].OpenOrders[y].QtyTotal - resp[x].OpenOrders[y].QtyRemaining,
 				AccountID:       strconv.FormatInt(int64(resp[x].OpenOrders[y].AccountID), 10),
-				ID:              strconv.FormatInt(int64(resp[x].OpenOrders[y].ServerOrderID), 10),
+				OrderID:         strconv.FormatInt(int64(resp[x].OpenOrders[y].ServerOrderID), 10),
 				Price:           resp[x].OpenOrders[y].Price,
 				RemainingAmount: resp[x].OpenOrders[y].QtyRemaining,
 			}
@@ -427,7 +421,7 @@ func (a *Alphapoint) GetOrderHistory(ctx context.Context, req *order.GetOrdersRe
 				AccountID:       strconv.FormatInt(int64(resp[x].OpenOrders[y].AccountID), 10),
 				Exchange:        a.Name,
 				ExecutedAmount:  resp[x].OpenOrders[y].QtyTotal - resp[x].OpenOrders[y].QtyRemaining,
-				ID:              strconv.FormatInt(int64(resp[x].OpenOrders[y].ServerOrderID), 10),
+				OrderID:         strconv.FormatInt(int64(resp[x].OpenOrders[y].ServerOrderID), 10),
 				Price:           resp[x].OpenOrders[y].Price,
 				RemainingAmount: resp[x].OpenOrders[y].QtyRemaining,
 			}

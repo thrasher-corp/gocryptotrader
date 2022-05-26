@@ -753,7 +753,7 @@ func (p *Poloniex) processAccountPendingOrder(notification []interface{}) error 
 
 	p.Websocket.DataHandler <- &order.Detail{
 		Exchange:        p.Name,
-		ID:              strconv.FormatFloat(orderID, 'f', -1, 64),
+		OrderID:         strconv.FormatFloat(orderID, 'f', -1, 64),
 		Pair:            pair,
 		AssetType:       asset.Spot,
 		Side:            orderSide,
@@ -915,7 +915,7 @@ func (p *Poloniex) processAccountOrderLimit(notification []interface{}) error {
 		RemainingAmount: orderAmount,
 		ExecutedAmount:  origOrderAmount - orderAmount,
 		Amount:          origOrderAmount,
-		ID:              strconv.FormatFloat(orderID, 'f', -1, 64),
+		OrderID:         strconv.FormatFloat(orderID, 'f', -1, 64),
 		Type:            order.Limit,
 		Side:            orderSide,
 		Status:          order.New,

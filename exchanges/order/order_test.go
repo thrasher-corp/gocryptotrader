@@ -184,53 +184,89 @@ func TestSubmit_Validate(t *testing.T) {
 	}
 }
 
-func TestSubmit_DeriveDetail(t *testing.T) {
+func TestSubmit_DeriveSubmitResponse(t *testing.T) {
 	t.Parallel()
 	var s *Submit
-	_, err := s.DeriveDetail("", 0, time.Time{})
+	_, err := s.DeriveSubmitResponse("")
 	if !errors.Is(err, errOrderSubmitIsNil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errOrderSubmitIsNil)
 	}
 
 	s = &Submit{}
-	_, err = s.DeriveDetail("", 0, time.Time{})
+	_, err = s.DeriveSubmitResponse("")
 	if !errors.Is(err, ErrOrderIDNotSet) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderIDNotSet)
 	}
 
-	_, err = s.DeriveDetail("1337", 0, time.Time{})
-	if !errors.Is(err, errUnrecognisedOrderStatus) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errUnrecognisedOrderStatus)
-	}
-
-	_, err = s.DeriveDetail("1337", New, time.Time{})
-	if !errors.Is(err, errOrderExecutionTimeUnset) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errOrderExecutionTimeUnset)
-	}
-
-	tn := time.Now()
-
-	detail, err := s.DeriveDetail("1337", New, tn)
+	resp, err := s.DeriveSubmitResponse("1337")
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	if detail.ID != "1337" {
+	if resp.OrderID != "1337" {
 		t.Fatal("unexpected value")
 	}
 
-	if detail.Status != New {
+	if resp.Status != New {
 		t.Fatal("unexpected value")
 	}
 
-	if !detail.Date.Equal(tn) {
+	if resp.Date.IsZero() {
 		t.Fatal("unexpected value")
 	}
 
-	if !detail.LastUpdated.Equal(tn) {
+	if resp.LastUpdated.IsZero() {
 		t.Fatal("unexpected value")
 	}
 }
+
+// func TestSubmit_DeriveSubmitResponse(t *testing.T) {
+// 	t.Parallel()
+// 	var s *Submit
+// 	_, err := s.DeriveSubmitResponse("", 0, time.Time{})
+// 	if !errors.Is(err, errOrderSubmitIsNil) {
+// 		t.Fatalf("received: '%v' but expected: '%v'", err, errOrderSubmitIsNil)
+// 	}
+
+// 	s = &Submit{}
+// 	_, err = s.DeriveDetail("", 0, time.Time{})
+// 	if !errors.Is(err, ErrOrderIDNotSet) {
+// 		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderIDNotSet)
+// 	}
+
+// 	_, err = s.DeriveDetail("1337", 0, time.Time{})
+// 	if !errors.Is(err, errUnrecognisedOrderStatus) {
+// 		t.Fatalf("received: '%v' but expected: '%v'", err, errUnrecognisedOrderStatus)
+// 	}
+
+// 	_, err = s.DeriveDetail("1337", New, time.Time{})
+// 	if !errors.Is(err, errOrderExecutionTimeUnset) {
+// 		t.Fatalf("received: '%v' but expected: '%v'", err, errOrderExecutionTimeUnset)
+// 	}
+
+// 	tn := time.Now()
+
+// 	detail, err := s.DeriveDetail("1337", New, tn)
+// 	if !errors.Is(err, nil) {
+// 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+// 	}
+
+// 	if detail.ID != "1337" {
+// 		t.Fatal("unexpected value")
+// 	}
+
+// 	if detail.Status != New {
+// 		t.Fatal("unexpected value")
+// 	}
+
+// 	if !detail.Date.Equal(tn) {
+// 		t.Fatal("unexpected value")
+// 	}
+
+// 	if !detail.LastUpdated.Equal(tn) {
+// 		t.Fatal("unexpected value")
+// 	}
+// }
 
 func TestOrderSides(t *testing.T) {
 	t.Parallel()
@@ -954,7 +990,7 @@ func BenchmarkStringToOrderStatus(b *testing.B) {
 
 func TestUpdateOrderFromModify(t *testing.T) {
 	var leet = "1337"
-	od := Detail{ID: "1"}
+	od := Detail{OrderID: "1"}
 	updated := time.Now()
 
 	pair, err := currency.NewPairFromString("BTCUSD")
@@ -1046,7 +1082,7 @@ func TestUpdateOrderFromModify(t *testing.T) {
 	if od.Exchange != "" {
 		t.Error("Should not be able to update exchange via modify")
 	}
-	if od.ID != "1" {
+	if od.OrderID != "1" {
 		t.Error("Failed to update")
 	}
 	if od.ClientID != "1" {
@@ -1159,7 +1195,7 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 		Fee:               1,
 		Exchange:          "1",
 		InternalOrderID:   id,
-		ID:                "1",
+		OrderID:           "1",
 		AccountID:         "1",
 		ClientID:          "1",
 		WalletAddress:     "1",
@@ -1231,7 +1267,7 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 	if od.Exchange != "test" {
 		t.Error("Should not be able to update exchange via modify")
 	}
-	if od.ID != "1" {
+	if od.OrderID != "1" {
 		t.Error("Failed to update")
 	}
 	if od.ClientID != "1" {
@@ -1449,7 +1485,7 @@ func TestMatchFilter(t *testing.T) {
 		0:  {},
 		1:  {Exchange: "Binance"},
 		2:  {InternalOrderID: id},
-		3:  {ID: "2222"},
+		3:  {OrderID: "2222"},
 		4:  {ClientOrderID: "3333"},
 		5:  {ClientID: "4444"},
 		6:  {WalletAddress: "5555"},
@@ -1470,7 +1506,7 @@ func TestMatchFilter(t *testing.T) {
 		0:  {},
 		1:  {Exchange: "Binance"},
 		2:  {InternalOrderID: id},
-		3:  {ID: "2222"},
+		3:  {OrderID: "2222"},
 		4:  {ClientOrderID: "3333"},
 		5:  {ClientID: "4444"},
 		6:  {WalletAddress: "5555"},

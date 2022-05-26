@@ -644,7 +644,7 @@ allTrades:
 }
 
 // SubmitOrder submits a new order
-func (f *FTX) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Detail, error) {
+func (f *FTX) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	if err := s.Validate(); err != nil {
 		return nil, err
 	}
@@ -674,7 +674,8 @@ func (f *FTX) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Detail, 
 	if err != nil {
 		return nil, err
 	}
-	return s.DeriveDetail(strconv.FormatInt(tempResp.ID, 10), order.New, time.Now())
+
+	return s.DeriveSubmitResponse(strconv.FormatInt(tempResp.ID, 10))
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
@@ -846,7 +847,7 @@ func (f *FTX) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pair,
 	if err != nil {
 		return resp, err
 	}
-	resp.ID = strconv.FormatInt(orderData.ID, 10)
+	resp.OrderID = strconv.FormatInt(orderData.ID, 10)
 	resp.Amount = orderData.Size
 	resp.ClientOrderID = orderData.ClientID
 	resp.Date = orderData.CreatedAt
@@ -950,7 +951,7 @@ func (f *FTX) GetActiveOrders(ctx context.Context, getOrdersRequest *order.GetOr
 				return nil, err
 			}
 
-			tempResp.ID = strconv.FormatInt(orderData[y].ID, 10)
+			tempResp.OrderID = strconv.FormatInt(orderData[y].ID, 10)
 			tempResp.Amount = orderData[y].Size
 			tempResp.AssetType = assetType
 			tempResp.ClientOrderID = orderData[y].ClientID
@@ -990,7 +991,7 @@ func (f *FTX) GetActiveOrders(ctx context.Context, getOrdersRequest *order.GetOr
 			if err != nil {
 				return nil, err
 			}
-			tempResp.ID = strconv.FormatInt(triggerOrderData[z].ID, 10)
+			tempResp.OrderID = strconv.FormatInt(triggerOrderData[z].ID, 10)
 			tempResp.Amount = triggerOrderData[z].Size
 			tempResp.AssetType = assetType
 			tempResp.Date = triggerOrderData[z].CreatedAt
@@ -1054,7 +1055,7 @@ func (f *FTX) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetOr
 			if err != nil {
 				return nil, err
 			}
-			tempResp.ID = strconv.FormatInt(orderData[y].ID, 10)
+			tempResp.OrderID = strconv.FormatInt(orderData[y].ID, 10)
 			tempResp.Amount = orderData[y].Size
 			tempResp.AssetType = assetType
 			tempResp.AverageExecutedPrice = orderData[y].AvgFillPrice
@@ -1098,7 +1099,7 @@ func (f *FTX) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetOr
 			if err != nil {
 				return nil, err
 			}
-			tempResp.ID = strconv.FormatInt(triggerOrderData[z].ID, 10)
+			tempResp.OrderID = strconv.FormatInt(triggerOrderData[z].ID, 10)
 			tempResp.Amount = triggerOrderData[z].Size
 			tempResp.AssetType = assetType
 			tempResp.Date = triggerOrderData[z].CreatedAt
@@ -1669,7 +1670,7 @@ func (f *FTX) GetFuturesPositions(ctx context.Context, a asset.Item, cp currency
 		resp[i] = order.Detail{
 			Side:      side,
 			Pair:      cp,
-			ID:        strconv.FormatInt(fills[i].ID, 10),
+			OrderID:   strconv.FormatInt(fills[i].ID, 10),
 			Price:     price,
 			Amount:    fills[i].Size,
 			AssetType: a,

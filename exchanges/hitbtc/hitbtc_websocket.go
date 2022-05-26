@@ -399,7 +399,7 @@ func (h *HitBTC) wsHandleOrderData(o *wsOrderData) error {
 		ExecutedAmount:  o.CumQuantity,
 		RemainingAmount: o.Quantity - o.CumQuantity,
 		Exchange:        h.Name,
-		ID:              o.ID,
+		OrderID:         o.ID,
 		Type:            oType,
 		Side:            oSide,
 		Status:          oStatus,

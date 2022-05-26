@@ -968,7 +968,7 @@ func (s *RPCServer) GetOrders(ctx context.Context, r *gctrpc.GetOrdersRequest) (
 		}
 		o := &gctrpc.OrderDetails{
 			Exchange:      r.Exchange,
-			Id:            resp[x].ID,
+			Id:            resp[x].OrderID,
 			ClientOrderId: resp[x].ClientOrderID,
 			BaseCurrency:  resp[x].Pair.Base.String(),
 			QuoteCurrency: resp[x].Pair.Quote.String(),
@@ -1057,7 +1057,7 @@ func (s *RPCServer) GetManagedOrders(_ context.Context, r *gctrpc.GetOrdersReque
 		}
 		o := &gctrpc.OrderDetails{
 			Exchange:      r.Exchange,
-			Id:            resp[x].ID,
+			Id:            resp[x].OrderID,
 			ClientOrderId: resp[x].ClientOrderID,
 			BaseCurrency:  resp[x].Pair.Base.String(),
 			QuoteCurrency: resp[x].Pair.Quote.String(),
@@ -1148,7 +1148,7 @@ func (s *RPCServer) GetOrder(ctx context.Context, r *gctrpc.GetOrderRequest) (*g
 
 	return &gctrpc.OrderDetails{
 		Exchange:      result.Exchange,
-		Id:            result.ID,
+		Id:            result.OrderID,
 		ClientOrderId: result.ClientOrderID,
 		BaseCurrency:  result.Pair.Base.String(),
 		QuoteCurrency: result.Pair.Quote.String(),
@@ -1233,7 +1233,7 @@ func (s *RPCServer) SubmitOrder(ctx context.Context, r *gctrpc.SubmitOrderReques
 	}
 
 	return &gctrpc.SubmitOrderResponse{
-		OrderId:     resp.ID,
+		OrderId:     resp.OrderID,
 		OrderPlaced: resp.IsActive(),
 		Trades:      trades,
 	}, nil
@@ -4302,7 +4302,7 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 			}
 			od := &gctrpc.OrderDetails{
 				Exchange:      pos[i].Orders[j].Exchange,
-				Id:            pos[i].Orders[j].ID,
+				Id:            pos[i].Orders[j].OrderID,
 				ClientOrderId: pos[i].Orders[j].ClientOrderID,
 				BaseCurrency:  pos[i].Orders[j].Pair.Base.String(),
 				QuoteCurrency: pos[i].Orders[j].Pair.Quote.String(),

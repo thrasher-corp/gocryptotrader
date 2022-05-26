@@ -386,7 +386,7 @@ func (o *OKGroup) wsProcessOrder(respRaw []byte) error {
 			ExecutedAmount:    resp.Data[i].LastFillQty,
 			RemainingAmount:   resp.Data[i].Size - resp.Data[i].LastFillQty,
 			Exchange:          o.Name,
-			ID:                resp.Data[i].OrderID,
+			OrderID:           resp.Data[i].OrderID,
 			Type:              oType,
 			Side:              oSide,
 			Status:            oStatus,

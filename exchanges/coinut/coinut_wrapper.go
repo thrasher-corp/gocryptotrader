@@ -587,7 +587,7 @@ func (c *COINUT) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.I
 }
 
 // SubmitOrder submits a new order
-func (c *COINUT) SubmitOrder(ctx context.Context, o *order.Submit) (*order.Detail, error) {
+func (c *COINUT) SubmitOrder(ctx context.Context, o *order.Submit) (*order.SubmitResponse, error) {
 	err := o.Validate()
 	if err != nil {
 		return nil, err
@@ -611,7 +611,7 @@ func (c *COINUT) SubmitOrder(ctx context.Context, o *order.Submit) (*order.Detai
 		if err != nil {
 			return nil, err
 		}
-		orderID = response.ID
+		orderID = response.OrderID
 	} else {
 		err = c.loadInstrumentsIfNotLoaded()
 		if err != nil {
@@ -669,7 +669,12 @@ func (c *COINUT) SubmitOrder(ctx context.Context, o *order.Submit) (*order.Detai
 			orderID = strconv.FormatFloat(orderIDResp, 'f', -1, 64)
 		}
 	}
-	return o.DeriveDetail(orderID, status, time.Now())
+	resp, err := o.DeriveSubmitResponse(orderID)
+	if err != nil {
+		return nil, err
+	}
+	resp.Status = status
+	return resp, nil
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
@@ -907,7 +912,7 @@ func (c *COINUT) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 
 				orders = append(orders, order.Detail{
 					Exchange:        c.Name,
-					ID:              strconv.FormatInt(openOrders.Orders[i].OrderID, 10),
+					OrderID:         strconv.FormatInt(openOrders.Orders[i].OrderID, 10),
 					Pair:            fPair,
 					Side:            side,
 					Date:            time.Unix(0, openOrders.Orders[i].Timestamp),
@@ -967,7 +972,7 @@ func (c *COINUT) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 				}
 
 				orders = append(orders, order.Detail{
-					ID:       strconv.FormatInt(openOrders.Orders[y].OrderID, 10),
+					OrderID:  strconv.FormatInt(openOrders.Orders[y].OrderID, 10),
 					Amount:   openOrders.Orders[y].Quantity,
 					Price:    openOrders.Orders[y].Price,
 					Exchange: c.Name,
@@ -1023,7 +1028,7 @@ func (c *COINUT) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 
 					detail := order.Detail{
 						Exchange:        c.Name,
-						ID:              strconv.FormatInt(trades.Trades[x].OrderID, 10),
+						OrderID:         strconv.FormatInt(trades.Trades[x].OrderID, 10),
 						Pair:            p,
 						Side:            side,
 						Date:            time.Unix(0, trades.Trades[x].Timestamp),
@@ -1092,7 +1097,7 @@ func (c *COINUT) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 				}
 
 				allOrders = append(allOrders, order.Detail{
-					ID:       strconv.FormatInt(orders.Trades[y].Order.OrderID, 10),
+					OrderID:  strconv.FormatInt(orders.Trades[y].Order.OrderID, 10),
 					Amount:   orders.Trades[y].Order.Quantity,
 					Price:    orders.Trades[y].Order.Price,
 					Exchange: c.Name,

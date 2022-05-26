@@ -502,7 +502,7 @@ func (g *Gateio) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.I
 
 // SubmitOrder submits a new order
 // TODO: support multiple order types (IOC)
-func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Detail, error) {
+func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	if err := s.Validate(); err != nil {
 		return nil, err
 	}
@@ -530,13 +530,14 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Detai
 	if err != nil {
 		return nil, err
 	}
-
-	orderID := strconv.FormatInt(response.OrderNumber, 10)
-	status := order.New
-	if response.LeftAmount == 0 {
-		status = order.Filled
+	subResp, err := s.DeriveSubmitResponse(strconv.FormatInt(response.OrderNumber, 10))
+	if err != nil {
+		return nil, err
 	}
-	return s.DeriveDetail(orderID, status, time.Now())
+	if response.LeftAmount == 0 {
+		subResp.Status = order.Filled
+	}
+	return subResp, nil
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
@@ -617,7 +618,7 @@ func (g *Gateio) GetOrderInfo(ctx context.Context, orderID string, pair currency
 			continue
 		}
 		orderDetail.Exchange = g.Name
-		orderDetail.ID = orders.Orders[x].OrderNumber
+		orderDetail.OrderID = orders.Orders[x].OrderNumber
 		orderDetail.RemainingAmount = orders.Orders[x].InitialAmount - orders.Orders[x].FilledAmount
 		orderDetail.ExecutedAmount = orders.Orders[x].FilledAmount
 		orderDetail.Amount = orders.Orders[x].InitialAmount
@@ -747,7 +748,7 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 				orders = append(orders, order.Detail{
 					Exchange:        g.Name,
 					AccountID:       strconv.FormatInt(resp.WebSocketOrderQueryRecords[j].User, 10),
-					ID:              strconv.FormatInt(resp.WebSocketOrderQueryRecords[j].ID, 10),
+					OrderID:         strconv.FormatInt(resp.WebSocketOrderQueryRecords[j].ID, 10),
 					Pair:            p,
 					Side:            orderSide,
 					Type:            orderType,
@@ -795,7 +796,7 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 			}
 			orderDate := time.Unix(resp.Orders[i].Timestamp, 0)
 			orders = append(orders, order.Detail{
-				ID:              resp.Orders[i].OrderNumber,
+				OrderID:         resp.Orders[i].OrderNumber,
 				Amount:          resp.Orders[i].Amount,
 				ExecutedAmount:  resp.Orders[i].Amount - resp.Orders[i].FilledAmount,
 				RemainingAmount: resp.Orders[i].FilledAmount,
@@ -851,7 +852,7 @@ func (g *Gateio) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 		}
 		orderDate := time.Unix(trades[i].TimeUnix, 0)
 		detail := order.Detail{
-			ID:                   strconv.FormatInt(trades[i].OrderID, 10),
+			OrderID:              strconv.FormatInt(trades[i].OrderID, 10),
 			Amount:               trades[i].Amount,
 			ExecutedAmount:       trades[i].Amount,
 			Price:                trades[i].Rate,

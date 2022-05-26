@@ -2040,7 +2040,7 @@ func TestCalculatePNL(t *testing.T) {
 		orders[i] = order.Detail{
 			Side:      positions[i].Side,
 			Pair:      pair,
-			ID:        positions[i].ID,
+			OrderID:   positions[i].OrderID,
 			Price:     positions[i].Price,
 			Amount:    positions[i].Amount,
 			AssetType: asset.Futures,

@@ -565,7 +565,7 @@ allTrades:
 }
 
 // SubmitOrder submits a new order
-func (b *Bitmex) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Detail, error) {
+func (b *Bitmex) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	if err := s.Validate(); err != nil {
 		return nil, err
 	}
@@ -595,11 +595,7 @@ func (b *Bitmex) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Detai
 	if err != nil {
 		return nil, err
 	}
-	status := order.New
-	if s.Type == order.Market {
-		status = order.Filled
-	}
-	return s.DeriveDetail(response.OrderID, status, time.Now())
+	return s.DeriveSubmitResponse(response.OrderID)
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
@@ -778,7 +774,7 @@ func (b *Bitmex) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 			ExecutedAmount:  resp[i].CumQty,
 			RemainingAmount: resp[i].LeavesQty,
 			Exchange:        b.Name,
-			ID:              resp[i].OrderID,
+			OrderID:         resp[i].OrderID,
 			Side:            orderSideMap[resp[i].Side],
 			Status:          orderStatus,
 			Type:            oType,
@@ -845,7 +841,7 @@ func (b *Bitmex) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 			Date:                 resp[i].TransactTime,
 			CloseTime:            resp[i].Timestamp,
 			Exchange:             b.Name,
-			ID:                   resp[i].OrderID,
+			OrderID:              resp[i].OrderID,
 			Side:                 orderSide,
 			Status:               orderStatus,
 			Type:                 oType,

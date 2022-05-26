@@ -556,7 +556,7 @@ allTrades:
 }
 
 // SubmitOrder submits a new order
-func (h *HitBTC) SubmitOrder(ctx context.Context, o *order.Submit) (*order.Detail, error) {
+func (h *HitBTC) SubmitOrder(ctx context.Context, o *order.Submit) (*order.SubmitResponse, error) {
 	err := o.Validate()
 	if err != nil {
 		return nil, err
@@ -595,7 +595,12 @@ func (h *HitBTC) SubmitOrder(ctx context.Context, o *order.Submit) (*order.Detai
 			status = order.Filled
 		}
 	}
-	return o.DeriveDetail(orderID, status, time.Now())
+	resp, err := o.DeriveSubmitResponse(orderID)
+	if err != nil {
+		return nil, err
+	}
+	resp.Status = status
+	return resp, nil
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
@@ -746,7 +751,7 @@ func (h *HitBTC) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 			return nil, err
 		}
 		orders[i] = order.Detail{
-			ID:       allOrders[i].ID,
+			OrderID:  allOrders[i].ID,
 			Amount:   allOrders[i].Quantity,
 			Exchange: h.Name,
 			Price:    allOrders[i].Price,
@@ -808,7 +813,7 @@ func (h *HitBTC) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 			log.Errorf(log.ExchangeSys, "%s %v", h.Name, err)
 		}
 		detail := order.Detail{
-			ID:                   allOrders[i].ID,
+			OrderID:              allOrders[i].ID,
 			Amount:               allOrders[i].Quantity,
 			ExecutedAmount:       allOrders[i].CumQuantity,
 			RemainingAmount:      allOrders[i].Quantity - allOrders[i].CumQuantity,

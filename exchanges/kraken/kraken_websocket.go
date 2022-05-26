@@ -340,7 +340,7 @@ func (k *Kraken) wsHandleData(respRaw []byte) error {
 
 				k.Websocket.DataHandler <- &order.Detail{
 					Exchange: k.Name,
-					ID:       status.TransactionID,
+					OrderID:  status.TransactionID,
 					Status:   order.New,
 				}
 
@@ -527,7 +527,7 @@ func (k *Kraken) wsProcessOwnTrades(ownOrders interface{}) error {
 				}
 				k.Websocket.DataHandler <- &order.Detail{
 					Exchange: k.Name,
-					ID:       val.OrderTransactionID,
+					OrderID:  val.OrderTransactionID,
 					Trades:   []order.TradeHistory{trade},
 				}
 			}

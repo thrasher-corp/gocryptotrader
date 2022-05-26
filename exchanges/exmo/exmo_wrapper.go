@@ -460,7 +460,7 @@ func (e *EXMO) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.Ite
 }
 
 // SubmitOrder submits a new order
-func (e *EXMO) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Detail, error) {
+func (e *EXMO) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	if err := s.Validate(); err != nil {
 		return nil, err
 	}
@@ -487,13 +487,7 @@ func (e *EXMO) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Detail,
 		return nil, err
 	}
 
-	orderID := strconv.FormatInt(response, 10)
-
-	status := order.New
-	if s.Type == order.Market {
-		status = order.Filled
-	}
-	return s.DeriveDetail(orderID, status, time.Now())
+	return s.DeriveSubmitResponse(strconv.FormatInt(response, 10))
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
@@ -654,7 +648,7 @@ func (e *EXMO) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest)
 			return nil, err
 		}
 		orders = append(orders, order.Detail{
-			ID:       strconv.FormatInt(resp[i].OrderID, 10),
+			OrderID:  strconv.FormatInt(resp[i].OrderID, 10),
 			Amount:   resp[i].Quantity,
 			Date:     orderDate,
 			Price:    resp[i].Price,
@@ -712,7 +706,7 @@ func (e *EXMO) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest)
 			return nil, err
 		}
 		detail := order.Detail{
-			ID:             strconv.FormatInt(allTrades[i].TradeID, 10),
+			OrderID:        strconv.FormatInt(allTrades[i].TradeID, 10),
 			Amount:         allTrades[i].Quantity,
 			ExecutedAmount: allTrades[i].Quantity,
 			Cost:           allTrades[i].Amount,

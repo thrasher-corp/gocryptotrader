@@ -60,6 +60,33 @@ type Submit struct {
 	ClientOrderID string
 }
 
+// SubmitResponse is what is returned after submitting an order to an exchange
+type SubmitResponse struct {
+	Exchange  string
+	Type      Type
+	Side      Side
+	Pair      currency.Pair
+	AssetType asset.Item
+
+	ImmediateOrCancel bool
+	FillOrKill        bool
+	PostOnly          bool
+	ReduceOnly        bool
+	Leverage          float64
+	Price             float64
+	Amount            float64
+	QuoteAmount       float64
+	TriggerPrice      float64
+	ClientID          string
+	ClientOrderID     string
+
+	LastUpdated time.Time
+	Date        time.Time
+	Status      Status
+	OrderID     string
+	Trades      []TradeHistory
+}
+
 // Modify contains all properties of an order
 // that may be updated after it has been created
 // Each exchange has their own requirements, so not all fields
@@ -126,7 +153,7 @@ type Detail struct {
 	FeeAsset             currency.Code
 	Exchange             string
 	InternalOrderID      uuid.UUID
-	ID                   string
+	OrderID              string
 	ClientOrderID        string
 	AccountID            string
 	ClientID             string
@@ -147,7 +174,7 @@ type Detail struct {
 type Filter struct {
 	Exchange        string
 	InternalOrderID uuid.UUID
-	ID              string
+	OrderID         string
 	ClientOrderID   string
 	AccountID       string
 	ClientID        string

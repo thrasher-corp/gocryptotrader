@@ -549,7 +549,7 @@ func (b *Bittrex) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.
 }
 
 // SubmitOrder submits a new order
-func (b *Bittrex) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Detail, error) {
+func (b *Bittrex) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	if err := s.Validate(); err != nil {
 		return nil, err
 	}
@@ -578,7 +578,7 @@ func (b *Bittrex) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Deta
 	if err != nil {
 		return nil, err
 	}
-	return s.DeriveDetail(orderData.ID, order.New, time.Now())
+	return s.DeriveSubmitResponse(orderData.ID)
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
@@ -693,7 +693,7 @@ func (b *Bittrex) ConstructOrderDetail(orderData *OrderData) (order.Detail, erro
 		RemainingAmount:   orderData.Quantity - orderData.FillQuantity,
 		Price:             orderData.Limit,
 		Date:              orderData.CreatedAt,
-		ID:                orderData.ID,
+		OrderID:           orderData.ID,
 		Exchange:          b.Name,
 		Type:              orderType,
 		Pair:              orderPair,
@@ -805,7 +805,7 @@ func (b *Bittrex) GetActiveOrders(ctx context.Context, req *order.GetOrdersReque
 			ExecutedAmount:  orderData[i].FillQuantity,
 			Price:           orderData[i].Limit,
 			Date:            orderData[i].CreatedAt,
-			ID:              orderData[i].ID,
+			OrderID:         orderData[i].ID,
 			Exchange:        b.Name,
 			Type:            orderType,
 			Side:            orderSide,
@@ -891,7 +891,7 @@ func (b *Bittrex) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 				Price:           orderData[i].Limit,
 				Date:            orderData[i].CreatedAt,
 				CloseTime:       orderData[i].ClosedAt,
-				ID:              orderData[i].ID,
+				OrderID:         orderData[i].ID,
 				Exchange:        b.Name,
 				Type:            orderType,
 				Side:            orderSide,

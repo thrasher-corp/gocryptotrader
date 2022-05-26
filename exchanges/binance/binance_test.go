@@ -2653,7 +2653,7 @@ func TestWsOrderExecutionReport(t *testing.T) {
 		Fee:                  0,
 		FeeAsset:             currency.BTC,
 		Exchange:             "Binance",
-		ID:                   "5340845958",
+		OrderID:              "5340845958",
 		ClientOrderID:        "c4wyKsIhoAaittTYlIVLqk",
 		Type:                 order.Limit,
 		Side:                 order.Buy,

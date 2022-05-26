@@ -620,7 +620,7 @@ allTrades:
 }
 
 // SubmitOrder submits a new order
-func (b *Bitfinex) SubmitOrder(ctx context.Context, o *order.Submit) (*order.Detail, error) {
+func (b *Bitfinex) SubmitOrder(ctx context.Context, o *order.Submit) (*order.SubmitResponse, error) {
 	err := o.Validate()
 	if err != nil {
 		return nil, err
@@ -667,7 +667,12 @@ func (b *Bitfinex) SubmitOrder(ctx context.Context, o *order.Submit) (*order.Det
 			status = order.Filled
 		}
 	}
-	return o.DeriveDetail(orderID, status, time.Now())
+	resp, err := o.DeriveSubmitResponse(orderID)
+	if err != nil {
+		return nil, err
+	}
+	resp.Status = status
+	return resp, nil
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
@@ -915,7 +920,7 @@ func (b *Bitfinex) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequ
 			Amount:          resp[i].OriginalAmount,
 			Date:            time.Unix(int64(timestamp), 0),
 			Exchange:        b.Name,
-			ID:              strconv.FormatInt(resp[i].ID, 10),
+			OrderID:         strconv.FormatInt(resp[i].ID, 10),
 			Side:            side,
 			Price:           resp[i].Price,
 			RemainingAmount: resp[i].RemainingAmount,
@@ -995,7 +1000,7 @@ func (b *Bitfinex) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequ
 			Amount:               resp[i].OriginalAmount,
 			Date:                 orderDate,
 			Exchange:             b.Name,
-			ID:                   strconv.FormatInt(resp[i].ID, 10),
+			OrderID:              strconv.FormatInt(resp[i].ID, 10),
 			Side:                 side,
 			Price:                resp[i].Price,
 			AverageExecutedPrice: resp[i].AverageExecutionPrice,
