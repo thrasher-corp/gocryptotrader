@@ -827,7 +827,7 @@ func (p *Poloniex) processAccountOrderUpdate(notification []interface{}) error {
 		RemainingAmount: cancelledAmount,
 		Amount:          amount + cancelledAmount,
 		ExecutedAmount:  amount,
-		ID:              strconv.FormatFloat(orderID, 'f', -1, 64),
+		OrderID:         strconv.FormatFloat(orderID, 'f', -1, 64),
 		Type:            order.Limit,
 		Status:          oStatus,
 		AssetType:       asset.Spot,
@@ -1050,7 +1050,7 @@ func (p *Poloniex) processAccountTrades(notification []interface{}) error {
 
 	p.Websocket.DataHandler <- &order.Modify{
 		Exchange: p.Name,
-		ID:       strconv.FormatFloat(orderID, 'f', -1, 64),
+		OrderID:  strconv.FormatFloat(orderID, 'f', -1, 64),
 		Fee:      totalFee,
 		Trades: []order.TradeHistory{{
 			Price:     rate,
@@ -1082,7 +1082,7 @@ func (p *Poloniex) processAccountKilledOrder(notification []interface{}) error {
 
 	p.Websocket.DataHandler <- &order.Modify{
 		Exchange:      p.Name,
-		ID:            strconv.FormatFloat(orderID, 'f', -1, 64),
+		OrderID:       strconv.FormatFloat(orderID, 'f', -1, 64),
 		Status:        order.Cancelled,
 		AssetType:     asset.Spot,
 		ClientOrderID: clientOrderID,

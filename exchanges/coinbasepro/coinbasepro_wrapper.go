@@ -577,7 +577,7 @@ func (c *CoinbasePro) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	if err := o.Validate(o.StandardCancel()); err != nil {
 		return err
 	}
-	return c.CancelExistingOrder(ctx, o.ID)
+	return c.CancelExistingOrder(ctx, o.OrderID)
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers

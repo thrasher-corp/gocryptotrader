@@ -693,7 +693,7 @@ func (c *COINUT) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	if err != nil {
 		return err
 	}
-	orderIDInt, err := strconv.ParseInt(o.ID, 10, 64)
+	orderIDInt, err := strconv.ParseInt(o.OrderID, 10, 64)
 	if err != nil {
 		return err
 	}
@@ -715,7 +715,7 @@ func (c *COINUT) CancelOrder(ctx context.Context, o *order.Cancel) error {
 			return err
 		}
 		if len(resp.Status) >= 1 && resp.Status[0] != "OK" {
-			return errors.New(c.Name + " - Failed to cancel order " + o.ID)
+			return errors.New(c.Name + " - Failed to cancel order " + o.OrderID)
 		}
 	} else {
 		if currencyID == 0 {

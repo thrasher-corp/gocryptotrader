@@ -798,12 +798,12 @@ func (k *Kraken) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	switch o.AssetType {
 	case asset.Spot:
 		if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			return k.wsCancelOrders([]string{o.ID})
+			return k.wsCancelOrders([]string{o.OrderID})
 		}
-		_, err := k.CancelExistingOrder(ctx, o.ID)
+		_, err := k.CancelExistingOrder(ctx, o.OrderID)
 		return err
 	case asset.Futures:
-		_, err := k.FuturesCancelOrder(ctx, o.ID, "")
+		_, err := k.FuturesCancelOrder(ctx, o.OrderID, "")
 		if err != nil {
 			return err
 		}
@@ -822,7 +822,7 @@ func (k *Kraken) CancelBatchOrders(ctx context.Context, orders []order.Cancel) (
 		if err := orders[i].Validate(orders[i].StandardCancel()); err != nil {
 			return order.CancelBatchResponse{}, err
 		}
-		ordersList[i] = orders[i].ID
+		ordersList[i] = orders[i].OrderID
 	}
 
 	err := k.wsCancelOrders(ordersList)

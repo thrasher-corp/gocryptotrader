@@ -1083,7 +1083,7 @@ func TestWrapperModifyOrder(t *testing.T) {
 		AssetType:     asset.Spot,
 		Price:         100000,
 		Amount:        0.001,
-		ID:            "8207123461",
+		OrderID:       "8207123461",
 		ClientOrderID: "bruh3",
 	})
 	if !errors.Is(err, nil) {

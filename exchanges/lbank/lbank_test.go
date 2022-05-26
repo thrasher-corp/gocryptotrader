@@ -368,7 +368,7 @@ func TestCancelOrder(t *testing.T) {
 	var a order.Cancel
 	a.Pair = cp
 	a.AssetType = asset.Spot
-	a.ID = "24f7ce27-af1d-4dca-a8c1-ef1cbeec1b23"
+	a.OrderID = "24f7ce27-af1d-4dca-a8c1-ef1cbeec1b23"
 	err := l.CancelOrder(context.Background(), &a)
 	if err != nil {
 		t.Error(err)

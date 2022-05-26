@@ -492,7 +492,7 @@ func (l *Lbank) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	if err != nil {
 		return err
 	}
-	_, err = l.RemoveOrder(ctx, fpair.String(), o.ID)
+	_, err = l.RemoveOrder(ctx, fpair.String(), o.OrderID)
 	return err
 }
 

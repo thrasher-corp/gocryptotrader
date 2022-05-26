@@ -253,7 +253,7 @@ func (m *websocketRoutineManager) websocketDataHandler(exchName string, data int
 		}
 	case *order.Modify:
 		m.printOrderChangeSummary(d)
-		od, err := m.orderManager.GetByExchangeAndID(d.Exchange, d.ID)
+		od, err := m.orderManager.GetByExchangeAndID(d.Exchange, d.OrderID)
 		if err != nil {
 			return err
 		}
@@ -314,7 +314,7 @@ func (m *websocketRoutineManager) printOrderChangeSummary(o *order.Modify) {
 		o.Status,
 		o.Type,
 		o.Side,
-		o.ID,
+		o.OrderID,
 		o.ClientOrderID,
 		o.Price,
 		o.Amount,

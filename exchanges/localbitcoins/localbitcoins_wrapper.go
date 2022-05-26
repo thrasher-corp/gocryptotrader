@@ -453,7 +453,7 @@ func (l *LocalBitcoins) CancelOrder(ctx context.Context, o *order.Cancel) error 
 	if err := o.Validate(o.StandardCancel()); err != nil {
 		return err
 	}
-	return l.DeleteAd(ctx, o.ID)
+	return l.DeleteAd(ctx, o.OrderID)
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers

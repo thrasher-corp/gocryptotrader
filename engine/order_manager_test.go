@@ -85,7 +85,7 @@ func (f omfExchange) GetActiveOrders(ctx context.Context, req *order.GetOrdersRe
 
 func (f omfExchange) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Modify, error) {
 	ans := *action
-	ans.ID = "modified_order_id"
+	ans.OrderID = "modified_order_id"
 	return &ans, nil
 }
 
@@ -319,10 +319,9 @@ func TestStore_modifyOrder(t *testing.T) {
 
 	err = m.orderStore.modifyExisting("fake_order_id", &order.Modify{
 		Exchange: testExchange,
-
-		ID:     "another_fake_order_id",
-		Price:  16,
-		Amount: 256,
+		OrderID:  "another_fake_order_id",
+		Price:    16,
+		Amount:   256,
 	})
 	if err != nil {
 		t.Error(err)
@@ -368,18 +367,17 @@ func TestCancelOrder(t *testing.T) {
 	}
 
 	err = m.Cancel(context.Background(), &order.Cancel{
-		ID: "ID",
+		OrderID: "ID",
 	})
 	if err == nil {
 		t.Error("Expected error due to no Exchange")
 	}
 
-	err = m.Cancel(context.Background(),
-		&order.Cancel{
-			ID:        "ID",
-			Exchange:  testExchange,
-			AssetType: asset.Binary,
-		})
+	err = m.Cancel(context.Background(), &order.Cancel{
+		OrderID:   "ID",
+		Exchange:  testExchange,
+		AssetType: asset.Binary,
+	})
 	if err == nil {
 		t.Error("Expected error due to bad asset type")
 	}
@@ -394,12 +392,11 @@ func TestCancelOrder(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = m.Cancel(context.Background(),
-		&order.Cancel{
-			ID:        "Unknown",
-			Exchange:  testExchange,
-			AssetType: asset.Spot,
-		})
+	err = m.Cancel(context.Background(), &order.Cancel{
+		OrderID:   "Unknown",
+		Exchange:  testExchange,
+		AssetType: asset.Spot,
+	})
 	if err == nil {
 		t.Error("Expected error due to no order found")
 	}
@@ -411,7 +408,7 @@ func TestCancelOrder(t *testing.T) {
 
 	cancel := &order.Cancel{
 		Exchange:  testExchange,
-		ID:        "1337",
+		OrderID:   "1337",
 		Side:      order.Sell,
 		AssetType: asset.Spot,
 		Pair:      pair,
@@ -626,7 +623,7 @@ func TestOrderManager_Modify(t *testing.T) {
 		Exchange:  testExchange,
 		AssetType: asset.Spot,
 		Pair:      pair,
-		ID:        "fake_order_id",
+		OrderID:   "fake_order_id",
 		// These fields modify the order.
 		Price:  0,
 		Amount: 0,
@@ -634,7 +631,7 @@ func TestOrderManager_Modify(t *testing.T) {
 
 	// [1] Test if nonexistent order returns an error.
 	one := model
-	one.ID = "nonexistent_order_id"
+	one.OrderID = "nonexistent_order_id"
 	f(one, true, 0, 0)
 
 	// [2] Test if price of 0 is ignored.

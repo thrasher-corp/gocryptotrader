@@ -560,7 +560,7 @@ func (p *Poloniex) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 		return nil, err
 	}
 
-	oID, err := strconv.ParseInt(action.ID, 10, 64)
+	oID, err := strconv.ParseInt(action.OrderID, 10, 64)
 	if err != nil {
 		return nil, err
 	}
@@ -579,7 +579,7 @@ func (p *Poloniex) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 		Exchange:          action.Exchange,
 		AssetType:         action.AssetType,
 		Pair:              action.Pair,
-		ID:                strconv.FormatInt(resp.OrderNumber, 10),
+		OrderID:           strconv.FormatInt(resp.OrderNumber, 10),
 		Price:             action.Price,
 		Amount:            action.Amount,
 		PostOnly:          action.PostOnly,
@@ -593,7 +593,7 @@ func (p *Poloniex) CancelOrder(ctx context.Context, o *order.Cancel) error {
 		return err
 	}
 
-	orderIDInt, err := strconv.ParseInt(o.ID, 10, 64)
+	orderIDInt, err := strconv.ParseInt(o.OrderID, 10, 64)
 	if err != nil {
 		return err
 	}

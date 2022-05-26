@@ -427,7 +427,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 	}
 
 	orderCancellation := &order.Cancel{
-		ID:        "1234",
+		OrderID:   "1234",
 		AssetType: asset.Spot,
 	}
 	err := b.CancelOrder(context.Background(), orderCancellation)

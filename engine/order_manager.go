@@ -173,7 +173,7 @@ func (m *OrderManager) Cancel(ctx context.Context, cancel *order.Cancel) error {
 		err = errors.New("order exchange name is empty")
 		return err
 	}
-	if cancel.ID == "" {
+	if cancel.OrderID == "" {
 		err = errors.New("order id is empty")
 		return err
 	}
@@ -189,16 +189,17 @@ func (m *OrderManager) Cancel(ctx context.Context, cancel *order.Cancel) error {
 	}
 
 	log.Debugf(log.OrderMgr, "Order manager: Cancelling order ID %v [%+v]",
-		cancel.ID, cancel)
+		cancel.OrderID, cancel)
 
 	err = exch.CancelOrder(ctx, cancel)
 	if err != nil {
 		err = fmt.Errorf("%v - Failed to cancel order: %w", cancel.Exchange, err)
 		return err
 	}
-	od, err := m.orderStore.getByExchangeAndID(cancel.Exchange, cancel.ID)
+	od, err := m.orderStore.getByExchangeAndID(cancel.Exchange, cancel.OrderID)
 	if err != nil {
-		err = fmt.Errorf("%v - Failed to retrieve order %v to update cancelled status: %w", cancel.Exchange, cancel.ID, err)
+		err = fmt.Errorf("%v - Failed to retrieve order %v to update cancelled status: %w",
+			cancel.Exchange, cancel.OrderID, err)
 		return err
 	}
 	od.Status = order.Cancelled
@@ -350,7 +351,7 @@ func (m *OrderManager) Modify(ctx context.Context, mod *order.Modify) (*order.Mo
 	}
 
 	// Fetch details from locally managed order store.
-	det, err := m.orderStore.getByExchangeAndID(mod.Exchange, mod.ID)
+	det, err := m.orderStore.getByExchangeAndID(mod.Exchange, mod.OrderID)
 	if det == nil || err != nil {
 		return nil, fmt.Errorf("order does not exist: %w", err)
 	}
@@ -381,7 +382,7 @@ func (m *OrderManager) Modify(ctx context.Context, mod *order.Modify) (*order.Mo
 		message := fmt.Sprintf(
 			"Order manager: Exchange %s order ID=%v: failed to modify",
 			mod.Exchange,
-			mod.ID,
+			mod.OrderID,
 		)
 		m.orderStore.commsManager.PushEvent(base.Event{
 			Type:    "order",
@@ -394,7 +395,7 @@ func (m *OrderManager) Modify(ctx context.Context, mod *order.Modify) (*order.Mo
 	//
 	// XXX: This comes with a race condition, because [request -> changes] are not
 	// atomic.
-	err = m.orderStore.modifyExisting(mod.ID, res)
+	err = m.orderStore.modifyExisting(mod.OrderID, res)
 
 	// Notify observers.
 	var message string
@@ -405,9 +406,9 @@ func (m *OrderManager) Modify(ctx context.Context, mod *order.Modify) (*order.Mo
 	}
 	m.orderStore.commsManager.PushEvent(base.Event{
 		Type:    "order",
-		Message: fmt.Sprintf(message, mod.Exchange, res.ID),
+		Message: fmt.Sprintf(message, mod.Exchange, res.OrderID),
 	})
-	return &order.ModifyResponse{OrderID: res.ID}, err
+	return &order.ModifyResponse{OrderID: res.OrderID}, err
 }
 
 // Submit will take in an order struct, send it to the exchange and

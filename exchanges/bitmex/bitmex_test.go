@@ -690,7 +690,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 	var orderCancellation = &order.Cancel{
-		ID:            "123456789012345678901234567890123456",
+		OrderID:       "123456789012345678901234567890123456",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		Pair:          currencyPair,
@@ -714,7 +714,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 	var orderCancellation = &order.Cancel{
-		ID:            "123456789012345678901234567890123456",
+		OrderID:       "123456789012345678901234567890123456",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		Pair:          currencyPair,
@@ -766,7 +766,7 @@ func TestModifyOrder(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 	_, err := b.ModifyOrder(context.Background(),
-		&order.Modify{ID: "1337", AssetType: asset.Futures})
+		&order.Modify{OrderID: "1337", AssetType: asset.Futures})
 	if err == nil {
 		t.Error("ModifyOrder() error")
 	}

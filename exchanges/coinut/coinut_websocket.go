@@ -196,7 +196,7 @@ func (c *COINUT) wsHandleData(ctx context.Context, respRaw []byte) error {
 		}
 		c.Websocket.DataHandler <- &order.Modify{
 			Exchange:    c.Name,
-			ID:          strconv.FormatInt(cancel.OrderID, 10),
+			OrderID:     strconv.FormatInt(cancel.OrderID, 10),
 			Status:      order.Cancelled,
 			LastUpdated: time.Now(),
 			AssetType:   asset.Spot,
@@ -210,7 +210,7 @@ func (c *COINUT) wsHandleData(ctx context.Context, respRaw []byte) error {
 		for i := range cancels.Results {
 			c.Websocket.DataHandler <- &order.Modify{
 				Exchange:    c.Name,
-				ID:          strconv.FormatInt(cancels.Results[i].OrderID, 10),
+				OrderID:     strconv.FormatInt(cancels.Results[i].OrderID, 10),
 				Status:      order.Cancelled,
 				LastUpdated: time.Now(),
 				AssetType:   asset.Spot,

@@ -201,7 +201,7 @@ func TestWebsocketRoutineManagerHandleData(t *testing.T) {
 
 	err = m.websocketDataHandler(exchName, &order.Modify{
 		Exchange: "Bitstamp",
-		ID:       orderID,
+		OrderID:  orderID,
 		Status:   order.Active,
 	})
 	if err != nil {

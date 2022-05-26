@@ -1023,13 +1023,13 @@ func (h *HUOBI) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	switch o.AssetType {
 	case asset.Spot:
 		var orderIDInt int64
-		orderIDInt, err = strconv.ParseInt(o.ID, 10, 64)
+		orderIDInt, err = strconv.ParseInt(o.OrderID, 10, 64)
 		if err != nil {
 			return err
 		}
 		_, err = h.CancelExistingOrder(ctx, orderIDInt)
 	case asset.CoinMarginedFutures:
-		_, err = h.CancelSwapOrder(ctx, o.ID, o.ClientID, o.Pair)
+		_, err = h.CancelSwapOrder(ctx, o.OrderID, o.ClientID, o.Pair)
 	case asset.Futures:
 		_, err = h.FCancelOrder(ctx, o.Pair.Base, o.ClientID, o.ClientOrderID)
 	default:

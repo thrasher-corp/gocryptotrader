@@ -528,7 +528,7 @@ func (z *ZB) CancelOrder(ctx context.Context, o *order.Cancel) error {
 		return err
 	}
 
-	orderIDInt, err := strconv.ParseInt(o.ID, 10, 64)
+	orderIDInt, err := strconv.ParseInt(o.OrderID, 10, 64)
 	if err != nil {
 		return err
 	}
@@ -540,7 +540,7 @@ func (z *ZB) CancelOrder(ctx context.Context, o *order.Cancel) error {
 			return err
 		}
 		if !response.Success {
-			return fmt.Errorf("%v - Could not cancel order %v", z.Name, o.ID)
+			return fmt.Errorf("%v - Could not cancel order %v", z.Name, o.OrderID)
 		}
 		return nil
 	}
@@ -601,12 +601,11 @@ func (z *ZB) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.Cancel
 			continue
 		}
 
-		err = z.CancelOrder(ctx,
-			&order.Cancel{
-				ID:        strconv.FormatInt(allOpenOrders[i].ID, 10),
-				Pair:      p,
-				AssetType: asset.Spot,
-			})
+		err = z.CancelOrder(ctx, &order.Cancel{
+			OrderID:   strconv.FormatInt(allOpenOrders[i].ID, 10),
+			Pair:      p,
+			AssetType: asset.Spot,
+		})
 		if err != nil {
 			cancelAllOrdersResponse.Status[strconv.FormatInt(allOpenOrders[i].ID, 10)] = err.Error()
 		}

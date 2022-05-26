@@ -682,9 +682,9 @@ func (b *Bitfinex) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 		return nil, err
 	}
 
-	orderIDInt, err := strconv.ParseInt(action.ID, 10, 64)
+	orderIDInt, err := strconv.ParseInt(action.OrderID, 10, 64)
 	if err != nil {
-		return &order.Modify{ID: action.ID}, err
+		return &order.Modify{OrderID: action.OrderID}, err
 	}
 	if b.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		request := WsUpdateOrderRequest{
@@ -700,7 +700,7 @@ func (b *Bitfinex) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 			Exchange:  action.Exchange,
 			AssetType: action.AssetType,
 			Pair:      action.Pair,
-			ID:        action.ID,
+			OrderID:   action.OrderID,
 			Price:     action.Price,
 			Amount:    action.Amount,
 		}, err
@@ -714,7 +714,7 @@ func (b *Bitfinex) CancelOrder(ctx context.Context, o *order.Cancel) error {
 		return err
 	}
 
-	orderIDInt, err := strconv.ParseInt(o.ID, 10, 64)
+	orderIDInt, err := strconv.ParseInt(o.OrderID, 10, 64)
 	if err != nil {
 		return err
 	}

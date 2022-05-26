@@ -581,7 +581,7 @@ func (b *BTCMarkets) ModifyOrder(ctx context.Context, action *order.Modify) (*or
 	if err := action.Validate(); err != nil {
 		return nil, err
 	}
-	resp, err := b.ReplaceOrder(ctx, action.ID, action.ClientOrderID, action.Price, action.Amount)
+	resp, err := b.ReplaceOrder(ctx, action.OrderID, action.ClientOrderID, action.Price, action.Amount)
 	if err != nil {
 		return nil, err
 	}
@@ -602,7 +602,7 @@ func (b *BTCMarkets) ModifyOrder(ctx context.Context, action *order.Modify) (*or
 		return nil, err
 	}
 	return &order.Modify{
-		ID:              resp.OrderID,
+		OrderID:         resp.OrderID,
 		Pair:            pair,
 		Side:            side,
 		Type:            orderT,
@@ -620,7 +620,7 @@ func (b *BTCMarkets) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	if err != nil {
 		return err
 	}
-	_, err = b.RemoveOrder(ctx, o.ID)
+	_, err = b.RemoveOrder(ctx, o.OrderID)
 	return err
 }
 

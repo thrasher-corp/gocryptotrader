@@ -602,7 +602,7 @@ func (k *Kraken) wsProcessOpenOrders(ownOrders interface{}) error {
 						RemainingAmount: val.Volume - val.ExecutedVolume,
 						Fee:             val.Fee,
 						Exchange:        k.Name,
-						ID:              key,
+						OrderID:         key,
 						Type:            oType,
 						Side:            oSide,
 						Status:          oStatus,
@@ -613,7 +613,7 @@ func (k *Kraken) wsProcessOpenOrders(ownOrders interface{}) error {
 				} else {
 					k.Websocket.DataHandler <- &order.Modify{
 						Exchange: k.Name,
-						ID:       key,
+						OrderID:  key,
 						Status:   oStatus,
 					}
 				}

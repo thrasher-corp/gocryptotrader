@@ -698,7 +698,7 @@ func TestCancelOrder(t *testing.T) {
 	}
 
 	c := order.Cancel{
-		ID:        "12366984218",
+		OrderID:   "12366984218",
 		Pair:      currencyPair,
 		AssetType: asset.Spot,
 	}

@@ -592,7 +592,7 @@ func (b *Bittrex) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 	if err := ord.Validate(ord.StandardCancel()); err != nil {
 		return err
 	}
-	_, err := b.CancelExistingOrder(ctx, ord.ID)
+	_, err := b.CancelExistingOrder(ctx, ord.OrderID)
 	return err
 }
 

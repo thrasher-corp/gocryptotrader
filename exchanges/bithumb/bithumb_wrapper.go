@@ -511,7 +511,7 @@ func (b *Bithumb) ModifyOrder(ctx context.Context, action *order.Modify) (*order
 	}
 
 	o, err := b.ModifyTrade(ctx,
-		action.ID,
+		action.OrderID,
 		action.Pair.Base.String(),
 		action.Side.Lower(),
 		action.Amount,
@@ -524,7 +524,7 @@ func (b *Bithumb) ModifyOrder(ctx context.Context, action *order.Modify) (*order
 		Exchange:  action.Exchange,
 		AssetType: action.AssetType,
 		Pair:      action.Pair,
-		ID:        o.Data[0].ContID,
+		OrderID:   o.Data[0].ContID,
 		Price:     float64(int64(action.Price)),
 		Amount:    action.Amount,
 		Side:      action.Side,
@@ -537,9 +537,7 @@ func (b *Bithumb) CancelOrder(ctx context.Context, o *order.Cancel) error {
 		return err
 	}
 
-	_, err := b.CancelTrade(ctx, o.Side.String(),
-		o.ID,
-		o.Pair.Base.String())
+	_, err := b.CancelTrade(ctx, o.Side.String(), o.OrderID, o.Pair.Base.String())
 	return err
 }
 

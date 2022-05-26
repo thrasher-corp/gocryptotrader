@@ -1076,7 +1076,7 @@ func (b *Binance) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	}
 	switch o.AssetType {
 	case asset.Spot, asset.Margin:
-		orderIDInt, err := strconv.ParseInt(o.ID, 10, 64)
+		orderIDInt, err := strconv.ParseInt(o.OrderID, 10, 64)
 		if err != nil {
 			return err
 		}
@@ -1088,12 +1088,12 @@ func (b *Binance) CancelOrder(ctx context.Context, o *order.Cancel) error {
 			return err
 		}
 	case asset.CoinMarginedFutures:
-		_, err := b.FuturesCancelOrder(ctx, o.Pair, o.ID, "")
+		_, err := b.FuturesCancelOrder(ctx, o.Pair, o.OrderID, "")
 		if err != nil {
 			return err
 		}
 	case asset.USDTMarginedFutures:
-		_, err := b.UCancelOrder(ctx, o.Pair, o.ID, "")
+		_, err := b.UCancelOrder(ctx, o.Pair, o.OrderID, "")
 		if err != nil {
 			return err
 		}

@@ -558,13 +558,12 @@ func (b *BTSE) CancelOrder(ctx context.Context, o *order.Cancel) error {
 		return err
 	}
 
-	fPair, err := b.FormatExchangeCurrency(o.Pair,
-		o.AssetType)
+	fPair, err := b.FormatExchangeCurrency(o.Pair, o.AssetType)
 	if err != nil {
 		return err
 	}
 
-	_, err = b.CancelExistingOrder(ctx, o.ID, fPair.String(), o.ClientOrderID)
+	_, err = b.CancelExistingOrder(ctx, o.OrderID, fPair.String(), o.ClientOrderID)
 	if err != nil {
 		return err
 	}
