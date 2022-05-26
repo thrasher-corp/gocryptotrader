@@ -113,7 +113,7 @@ func (e Exchange) CancelOrder(ctx context.Context, exch, orderID string, cp curr
 
 	cancel := &order.Cancel{
 		AccountID: orderDetails.AccountID,
-		ID:        orderDetails.OrderID,
+		OrderID:   orderDetails.OrderID,
 		Pair:      orderDetails.Pair,
 		Side:      orderDetails.Side,
 		AssetType: orderDetails.AssetType,
