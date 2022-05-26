@@ -729,14 +729,7 @@ func (m *OrderManager) GetByExchangeAndID(exchangeName, id string) (*order.Detai
 	if atomic.LoadInt32(&m.started) == 0 {
 		return nil, fmt.Errorf("order manager %w", ErrSubSystemNotStarted)
 	}
-
-	o, err := m.orderStore.getByExchangeAndID(exchangeName, id)
-	if err != nil {
-		return nil, err
-	}
-	var cpy order.Detail
-	cpy.UpdateOrderFromDetail(o)
-	return &cpy, nil
+	return m.orderStore.getByExchangeAndID(exchangeName, id)
 }
 
 // UpdateExistingOrder will update an existing order in the orderstore
@@ -841,11 +834,14 @@ func (s *store) updateExisting(od *order.Detail) error {
 		if r[x].OrderID != od.OrderID {
 			continue
 		}
-		r[x].UpdateOrderFromDetail(od)
+		err := r[x].UpdateOrderFromDetail(od)
+		if err != nil {
+			return err
+		}
 		if !r[x].AssetType.IsFutures() {
 			return nil
 		}
-		err := s.futuresPositionController.TrackNewOrder(r[x])
+		err = s.futuresPositionController.TrackNewOrder(r[x])
 		if err != nil && !errors.Is(err, order.ErrPositionClosed) {
 			return err
 		}
@@ -899,18 +895,21 @@ func (s *store) upsert(od *order.Detail) (*OrderUpsertResponse, error) {
 			return nil, err
 		}
 	}
-	r, ok := s.Orders[lName]
-	if !ok {
-		od.GenerateInternalOrderID()
-		s.Orders[lName] = []*order.Detail{od}
-		return &OrderUpsertResponse{OrderDetails: od.Copy(), IsNewOrder: true}, nil
-	}
-	for x := range r {
-		if r[x].OrderID != od.OrderID {
+	// TODO: Return pointer to slice because new orders we are accessing map
+	// twice for lookup.
+	exchangeOrders := s.Orders[lName]
+	for x := range exchangeOrders {
+		if exchangeOrders[x].OrderID != od.OrderID {
 			continue
 		}
-		r[x].UpdateOrderFromDetail(od)
-		return &OrderUpsertResponse{OrderDetails: r[x].Copy(), IsNewOrder: false}, nil
+		err := exchangeOrders[x].UpdateOrderFromDetail(od)
+		if err != nil {
+			return nil, err
+		}
+		return &OrderUpsertResponse{
+			OrderDetails: exchangeOrders[x].Copy(),
+			IsNewOrder:   false,
+		}, nil
 	}
 	// Untracked websocket orders will not have internalIDs yet
 	od.GenerateInternalOrderID()
@@ -925,13 +924,9 @@ func (s *store) exists(det *order.Detail) bool {
 	}
 	s.m.RLock()
 	defer s.m.RUnlock()
-	r, ok := s.Orders[strings.ToLower(det.Exchange)]
-	if !ok {
-		return false
-	}
-
-	for x := range r {
-		if r[x].OrderID == det.OrderID {
+	exchangeOrders := s.Orders[strings.ToLower(det.Exchange)]
+	for x := range exchangeOrders {
+		if exchangeOrders[x].OrderID == det.OrderID {
 			return true
 		}
 	}
@@ -943,21 +938,20 @@ func (s *store) add(det *order.Detail) error {
 	if det == nil {
 		return errNilOrder
 	}
-	_, err := s.exchangeManager.GetExchangeByName(det.Exchange)
+	name := strings.ToLower(det.Exchange)
+	_, err := s.exchangeManager.GetExchangeByName(name)
 	if err != nil {
 		return err
 	}
-	if s.exists(det) {
+	if s.exists(det) { // TODO: Error on conflict; remove unnecessary locking.
 		return ErrOrdersAlreadyExists
 	}
+
 	// Untracked websocket orders will not have internalIDs yet
 	det.GenerateInternalOrderID()
 	s.m.Lock()
 	defer s.m.Unlock()
-	orders := s.Orders[strings.ToLower(det.Exchange)]
-	orders = append(orders, det)
-	s.Orders[strings.ToLower(det.Exchange)] = orders
-
+	s.Orders[name] = append(s.Orders[name], det)
 	if !det.AssetType.IsFutures() {
 		return nil
 	}

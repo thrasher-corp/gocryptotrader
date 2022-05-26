@@ -752,7 +752,8 @@ func (k *Kraken) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 			status = order.Filled
 		}
 	case asset.Futures:
-		order, err := k.FuturesSendOrder(ctx,
+		var fOrder FuturesSendOrderData
+		fOrder, err = k.FuturesSendOrder(ctx,
 			s.Type,
 			s.Pair,
 			s.Side.Lower(),
@@ -769,10 +770,10 @@ func (k *Kraken) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		}
 
 		// check the status, anything that is not placed we error out
-		if order.SendStatus.Status != "placed" {
-			return nil, fmt.Errorf("submit order failed: %s", order.SendStatus.Status)
+		if fOrder.SendStatus.Status != "placed" {
+			return nil, fmt.Errorf("submit order failed: %s", fOrder.SendStatus.Status)
 		}
-		orderID = order.SendStatus.OrderID
+		orderID = fOrder.SendStatus.OrderID
 	default:
 		return nil, fmt.Errorf("invalid assetType")
 	}

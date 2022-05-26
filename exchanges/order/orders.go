@@ -508,7 +508,7 @@ func (d *Detail) Copy() Detail {
 }
 
 // DeriveDetail will construct an order SubmitResponse when a successful
-// submission has occured. NOTE: order status is populated as order.Filled for a
+// submission has occurred. NOTE: order status is populated as order.Filled for a
 // market order else order.New if an order is accepted as default, date and
 // lastupdated fields have been populated as time.Now(). All fields can be
 // customized in caller scope if needed.
@@ -553,7 +553,7 @@ func (s *Submit) DeriveSubmitResponse(orderID string) (*SubmitResponse, error) {
 }
 
 // DeriveDetail will construct an order detail when a successful submission
-// has occured. Has an optional parameter field internal uuid for internal
+// has occurred. Has an optional parameter field internal uuid for internal
 // management.
 func (s *SubmitResponse) DeriveDetail(internal uuid.UUID) (*Detail, error) {
 	if s == nil {

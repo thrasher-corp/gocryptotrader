@@ -244,7 +244,10 @@ func (m *websocketRoutineManager) websocketDataHandler(exchName string, data int
 			if err != nil {
 				return err
 			}
-			od.UpdateOrderFromDetail(d)
+			err = od.UpdateOrderFromDetail(d)
+			if err != nil {
+				return err
+			}
 
 			err = m.orderManager.UpdateExistingOrder(od)
 			if err != nil {

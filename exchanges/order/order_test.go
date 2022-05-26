@@ -1275,7 +1275,10 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 	}
 
 	om.Trades = append(om.Trades, TradeHistory{TID: "1"}, TradeHistory{TID: "2"})
-	od.UpdateOrderFromDetail(om)
+	err = od.UpdateOrderFromDetail(om)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(od.Trades) != 2 {
 		t.Error("Failed to add trades")
 	}
@@ -1288,7 +1291,10 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 	om.Trades[0].Side = UnknownSide
 	om.Trades[0].Type = UnknownType
 	om.Trades[0].Amount = 1337
-	od.UpdateOrderFromDetail(om)
+	err = od.UpdateOrderFromDetail(om)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if od.Trades[0].Exchange == leet {
 		t.Error("Should not be able to update exchange from update")
 	}
@@ -1326,7 +1332,10 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 		InternalOrderID: id,
 	}
 
-	od.UpdateOrderFromDetail(om)
+	err = od.UpdateOrderFromDetail(om)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if od.InternalOrderID == id {
 		t.Error("Should not be able to update the internal order ID after initialization")
 	}

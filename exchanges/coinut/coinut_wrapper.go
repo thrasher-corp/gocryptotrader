@@ -618,12 +618,13 @@ func (c *COINUT) SubmitOrder(ctx context.Context, o *order.Submit) (*order.Submi
 			return nil, err
 		}
 
-		fpair, err := c.FormatExchangeCurrency(o.Pair, asset.Spot)
+		var fPair currency.Pair
+		fPair, err = c.FormatExchangeCurrency(o.Pair, asset.Spot)
 		if err != nil {
 			return nil, err
 		}
 
-		currencyID := c.instrumentMap.LookupID(fpair.String())
+		currencyID := c.instrumentMap.LookupID(fPair.String())
 		if currencyID == 0 {
 			return nil, errLookupInstrumentID
 		}

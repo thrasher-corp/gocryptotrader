@@ -575,7 +575,8 @@ func (h *HitBTC) SubmitOrder(ctx context.Context, o *order.Submit) (*order.Submi
 			status = order.Filled
 		}
 	} else {
-		fPair, err := h.FormatExchangeCurrency(o.Pair, o.AssetType)
+		var fPair currency.Pair
+		fPair, err = h.FormatExchangeCurrency(o.Pair, o.AssetType)
 		if err != nil {
 			return nil, err
 		}
