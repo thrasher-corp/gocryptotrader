@@ -2325,3 +2325,24 @@ func TestGetCollateral(t *testing.T) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
 }
+
+func TestShutdown(t *testing.T) {
+	t.Parallel()
+	s := RPCServer{Engine: &Engine{}}
+	_, err := s.Shutdown(context.Background(), &gctrpc.ShutdownRequest{})
+	if !errors.Is(err, errShutdownNotAllowed) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errShutdownNotAllowed)
+	}
+
+	s.Engine.Settings.EnableGRPCShutdown = true
+	_, err = s.Shutdown(context.Background(), &gctrpc.ShutdownRequest{})
+	if !errors.Is(err, errGRPCShutdownSignalIsNil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errGRPCShutdownSignalIsNil)
+	}
+
+	s.Engine.GRPCShutdownSignal = make(chan struct{}, 1)
+	_, err = s.Shutdown(context.Background(), &gctrpc.ShutdownRequest{})
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+}

@@ -716,7 +716,7 @@ func (f *FTX) WsConnect() error {
 	// This reader routine is called prior to initiating a subscription for
 	// efficient processing.
 	go f.wsReadData()
-	if f.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+	if f.IsWebsocketAuthenticationSupported() {
 		err = f.WsAuth(context.TODO())
 		if err != nil {
 			f.Websocket.DataHandler <- err
@@ -766,7 +766,7 @@ func (f *FTX) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, erro
 		}
 	}
 	// Appends authenticated channels to the subscription list
-	if f.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+	if f.IsWebsocketAuthenticationSupported() {
 		var authchan = []string{wsOrders, wsFills}
 		for x := range authchan {
 			subscriptions = append(subscriptions, stream.ChannelSubscription{

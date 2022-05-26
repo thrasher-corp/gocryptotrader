@@ -182,8 +182,6 @@ type Filter struct {
 // Each exchange has their own requirements, so not all fields
 // are required to be populated
 type Cancel struct {
-	Price         float64
-	Amount        float64
 	Exchange      string
 	ID            string
 	ClientOrderID string
@@ -192,12 +190,8 @@ type Cancel struct {
 	WalletAddress string
 	Type          Type
 	Side          Side
-	Status        Status
 	AssetType     asset.Item
-	Date          time.Time
 	Pair          currency.Pair
-	Symbol        string
-	Trades        []TradeHistory
 }
 
 // CancelAllResponse returns the status from attempting to

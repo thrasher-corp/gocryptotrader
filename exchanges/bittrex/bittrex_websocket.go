@@ -117,7 +117,7 @@ func (b *Bittrex) WsConnect() error {
 		Tickers:         make(map[string]*TickerData),
 	}
 
-	if b.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+	if b.IsWebsocketAuthenticationSupported() {
 		err = b.WsAuth(context.TODO())
 		if err != nil {
 			b.Websocket.DataHandler <- err
@@ -217,7 +217,7 @@ func (b *Bittrex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 	}
 
 	channels := defaultSpotSubscribedChannels
-	if b.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+	if b.IsWebsocketAuthenticationSupported() {
 		channels = append(channels, defaultSpotSubscribedChannelsAuth...)
 	}
 

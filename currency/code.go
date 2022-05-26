@@ -11,14 +11,16 @@ import (
 var (
 	// ErrCurrencyCodeEmpty defines an error if the currency code is empty
 	ErrCurrencyCodeEmpty = errors.New("currency code is empty")
-	errItemIsNil         = errors.New("item is nil")
-	errItemIsEmpty       = errors.New("item is empty")
-	errRoleUnset         = errors.New("role unset")
-
+	// ErrCurrencyPairEmpty defines an error if the currency pair is empty
+	ErrCurrencyPairEmpty = errors.New("currency pair is empty")
 	// EMPTYCODE is an empty currency code
 	EMPTYCODE = Code{}
 	// EMPTYPAIR is an empty currency pair
 	EMPTYPAIR = Pair{}
+
+	errItemIsNil   = errors.New("item is nil")
+	errItemIsEmpty = errors.New("item is empty")
+	errRoleUnset   = errors.New("role unset")
 )
 
 func (r Role) String() string {
