@@ -1031,7 +1031,7 @@ func (h *HUOBI) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	case asset.CoinMarginedFutures:
 		_, err = h.CancelSwapOrder(ctx, o.ID, o.ClientID, o.Pair)
 	case asset.Futures:
-		_, err = h.FCancelOrder(ctx, o.Symbol, o.ClientID, o.ClientOrderID)
+		_, err = h.FCancelOrder(ctx, o.Pair.Base, o.ClientID, o.ClientOrderID)
 	default:
 		return fmt.Errorf("%v assetType not supported", o.AssetType)
 	}

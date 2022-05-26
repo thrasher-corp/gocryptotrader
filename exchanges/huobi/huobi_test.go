@@ -505,11 +505,12 @@ func TestFPlaceBatchOrder(t *testing.T) {
 }
 
 func TestFCancelOrder(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
 	}
-	t.Parallel()
-	_, err := h.FCancelOrder(context.Background(), "BTC", "123", "")
+
+	_, err := h.FCancelOrder(context.Background(), currency.BTC, "123", "")
 	if err != nil {
 		t.Error(err)
 	}

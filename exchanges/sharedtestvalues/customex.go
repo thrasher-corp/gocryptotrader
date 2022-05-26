@@ -94,10 +94,6 @@ func (c *CustomEx) UpdateAccountInfo(ctx context.Context, a asset.Item) (account
 	return account.Holdings{}, nil
 }
 
-func (c *CustomEx) GetAuthenticatedAPISupport(endpoint uint8) bool {
-	return false
-}
-
 func (c *CustomEx) SetPairs(pairs currency.Pairs, a asset.Item, enabled bool) error {
 	return nil
 }
@@ -278,8 +274,8 @@ func (c *CustomEx) AuthenticateWebsocket(ctx context.Context) error {
 	return nil
 }
 
-func (c *CustomEx) GetOrderExecutionLimits(a asset.Item, cp currency.Pair) (*order.Limits, error) {
-	return nil, nil
+func (c *CustomEx) GetOrderExecutionLimits(a asset.Item, cp currency.Pair) (order.MinMaxLevel, error) {
+	return order.MinMaxLevel{}, nil
 }
 
 func (c *CustomEx) CheckOrderExecutionLimits(a asset.Item, cp currency.Pair, price, amount float64, orderType order.Type) error {

@@ -35,6 +35,7 @@ var (
 	// ErrUnableToPlaceOrder defines an error when an order submission has
 	// failed.
 	ErrUnableToPlaceOrder = errors.New("order not placed")
+	errOrderDetailIsNil   = errors.New("order detail is nil")
 )
 
 // Validate checks the supplied data and returns whether or not it's valid
@@ -595,6 +596,25 @@ func CopyPointerOrderSlice(old []*Detail) []*Detail {
 		copySlice[x] = old[x].CopyToPointer()
 	}
 	return copySlice
+}
+
+// DeriveCancel populates a cancel struct by the managed order details
+func (d *Detail) DeriveCancel() (*Cancel, error) {
+	if d == nil {
+		return nil, errOrderDetailIsNil
+	}
+	return &Cancel{
+		Exchange:      d.Exchange,
+		ID:            d.OrderID,
+		AccountID:     d.AccountID,
+		ClientID:      d.ClientID,
+		ClientOrderID: d.ClientOrderID,
+		WalletAddress: d.WalletAddress,
+		Type:          d.Type,
+		Side:          d.Side,
+		Pair:          d.Pair,
+		AssetType:     d.AssetType,
+	}, nil
 }
 
 // String implements the stringer interface

@@ -2622,7 +2622,7 @@ func TestSetExchangeOrderExecutionLimits(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if limit == nil {
+	if limit == (order.MinMaxLevel{}) {
 		t.Fatal("exchange limit should be loaded")
 	}
 
