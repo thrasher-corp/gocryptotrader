@@ -490,7 +490,7 @@ func (z *ZB) SubmitOrder(ctx context.Context, o *order.Submit) (*order.SubmitRes
 		if err != nil {
 			return nil, err
 		}
-		o.DeriveSubmitResponse(strconv.FormatInt(response.Data.EntrustID, 10))
+		return o.DeriveSubmitResponse(strconv.FormatInt(response.Data.EntrustID, 10))
 	}
 	var oT = SpotNewOrderRequestParamsTypeSell
 	if o.Side == order.Buy {
