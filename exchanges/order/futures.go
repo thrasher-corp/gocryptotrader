@@ -446,7 +446,10 @@ func (p *PositionTracker) TrackNewOrder(d *Detail) error {
 			continue
 		}
 		ord := p.shortPositions[i].Copy()
-		ord.UpdateOrderFromDetail(d)
+		err := ord.UpdateOrderFromDetail(d)
+		if err != nil {
+			return err
+		}
 		p.shortPositions[i] = ord
 		updated = true
 		break
@@ -456,7 +459,10 @@ func (p *PositionTracker) TrackNewOrder(d *Detail) error {
 			continue
 		}
 		ord := p.longPositions[i].Copy()
-		ord.UpdateOrderFromDetail(d)
+		err := ord.UpdateOrderFromDetail(d)
+		if err != nil {
+			return err
+		}
 		p.longPositions[i] = ord
 		updated = true
 		break
