@@ -20,6 +20,7 @@ const (
 	longSide                  = Long | Buy | Bid
 	inactiveStatuses          = Filled | Cancelled | InsufficientBalance | MarketUnavailable | Rejected | PartiallyCancelled | Expired | Closed | AnyStatus | Cancelling
 	activeStatuses            = Active | Open | PartiallyFilled | New | PendingCancel | Hidden | AutoDeleverage | Pending
+	notPlaced                 = InsufficientBalance | MarketUnavailable | Rejected
 )
 
 var (
@@ -464,6 +465,15 @@ func (d *Detail) IsInactive() bool {
 	return d.Amount <= 0 ||
 		d.Amount <= d.ExecutedAmount ||
 		inactiveStatuses&d.Status == d.Status
+}
+
+// WasOrderPlaced returns true if an order has a status that indicates that it
+// was accepted by an exchange.
+func (d *Detail) WasOrderPlaced() bool {
+	if d.Status == UnknownStatus || d.Status == AnyStatus {
+		return false
+	}
+	return notPlaced&d.Status != d.Status
 }
 
 // GenerateInternalOrderID sets a new V4 order ID or a V5 order ID if

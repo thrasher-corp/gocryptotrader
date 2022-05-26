@@ -1718,6 +1718,38 @@ func BenchmarkIsInactive(b *testing.B) {
 	}
 }
 
+func TestIsOrderPlaced(t *testing.T) {
+	statusTests := map[int]struct {
+		o      Detail
+		expRes bool
+	}{
+		0:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: AnyStatus}, false},
+		1:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: New}, true},
+		2:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Active}, true},
+		3:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: PartiallyCancelled}, true},
+		4:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: PartiallyFilled}, true},
+		5:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Filled}, true},
+		6:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Cancelled}, true},
+		7:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: PendingCancel}, true},
+		8:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: InsufficientBalance}, false},
+		9:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: MarketUnavailable}, false},
+		10: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Rejected}, false},
+		11: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Expired}, true},
+		12: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Hidden}, true},
+		13: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: UnknownStatus}, false},
+		14: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Open}, true},
+		15: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: AutoDeleverage}, true},
+		16: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Closed}, true},
+		17: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Pending}, true},
+	}
+	// specific tests
+	for num, tt := range statusTests {
+		if tt.o.WasOrderPlaced() != tt.expRes {
+			t.Errorf("statusTests[%v] failed", num)
+		}
+	}
+}
+
 func TestGenerateInternalOrderID(t *testing.T) {
 	id, err := uuid.NewV4()
 	if err != nil {
