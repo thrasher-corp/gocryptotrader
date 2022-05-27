@@ -507,7 +507,7 @@ func (d *Detail) Copy() Detail {
 	return c
 }
 
-// DeriveDetail will construct an order SubmitResponse when a successful
+// DeriveSubmitResponse will construct an order SubmitResponse when a successful
 // submission has occurred. NOTE: order status is populated as order.Filled for a
 // market order else order.New if an order is accepted as default, date and
 // lastupdated fields have been populated as time.Now(). All fields can be
