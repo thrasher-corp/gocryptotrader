@@ -212,6 +212,7 @@ func (k *Kucoin) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path s
 }
 
 // SendAuthHTTPRequest sends an authenticated HTTP request
+// Request parameters are added to path variable for GET and DELETE request and for other requests its passed in params variable
 func (k *Kucoin) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, method, path string, params map[string]interface{}, f request.EndpointLimit, result UnmarshalTo) error {
 	creds, err := k.GetCredentials(ctx)
 	if err != nil {
@@ -228,8 +229,11 @@ func (k *Kucoin) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, me
 	}
 
 	err = k.SendPayload(ctx, f, func() (*request.Item, error) {
-		var body io.Reader
-		var payload []byte
+		var (
+			body    io.Reader
+			payload []byte
+			err     error
+		)
 		if params != nil && len(params) != 0 {
 			payload, err = json.Marshal(params)
 			if err != nil {
