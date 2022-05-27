@@ -224,14 +224,13 @@ func (e *Exchange) placeOrder(ctx context.Context, price, amount decimal.Decimal
 	if f == nil {
 		return "", common.ErrNilEvent
 	}
-	u, err := uuid.NewV4()
+	orderID, err := uuid.NewV4()
 	if err != nil {
 		return "", err
 	}
-	p := price.InexactFloat64()
-	fee := f.ExchangeFee.InexactFloat64()
-	o := &gctorder.Submit{
-		Price:     p,
+
+	submit := &gctorder.Submit{
+		Price:     price.InexactFloat64(),
 		Amount:    amount.InexactFloat64(),
 		Exchange:  f.Exchange,
 		Side:      f.Direction,
@@ -240,32 +239,27 @@ func (e *Exchange) placeOrder(ctx context.Context, price, amount decimal.Decimal
 		Type:      gctorder.Market,
 	}
 
-	var orderID string
+	var resp *engine.OrderSubmitResponse
 	if useRealOrders {
-		resp, err := orderManager.Submit(ctx, o)
-		if resp != nil {
-			orderID = resp.OrderID
-		}
-		if err != nil {
-			return orderID, err
-		}
+		resp, err = orderManager.Submit(ctx, submit)
 	} else {
-		submitResponse := &gctorder.SubmitResponse{
-			Status:  gctorder.Filled,
-			OrderID: u.String(),
-			Amount:  f.Amount.InexactFloat64(),
-			Fee:     fee,
-			Cost:    p,
-		}
-		resp, err := orderManager.SubmitFakeOrder(o, submitResponse, useExchangeLimits)
-		if resp != nil {
-			orderID = resp.OrderID
-		}
+		var submitResponse *gctorder.SubmitResponse
+		submitResponse, err = submit.DeriveSubmitResponse(orderID.String())
 		if err != nil {
-			return orderID, err
+			return orderID.String(), err
 		}
+		submitResponse.Status = gctorder.Filled
+		submitResponse.OrderID = orderID.String()
+		submitResponse.Fee = f.ExchangeFee.InexactFloat64()
+		submitResponse.Cost = submit.Price
+		submitResponse.LastUpdated = f.GetTime()
+		submitResponse.Date = f.GetTime()
+		resp, err = orderManager.SubmitFakeOrder(submit, submitResponse, useExchangeLimits)
 	}
-	return orderID, nil
+	if err != nil {
+		return orderID.String(), err
+	}
+	return resp.OrderID, nil
 }
 
 func (e *Exchange) sizeOfflineOrder(high, low, volume decimal.Decimal, cs *Settings, f *fill.Fill) (adjustedPrice, adjustedAmount decimal.Decimal, err error) {

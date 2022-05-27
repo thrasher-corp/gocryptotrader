@@ -775,7 +775,7 @@ func (k *Kraken) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		}
 		orderID = fOrder.SendStatus.OrderID
 	default:
-		return nil, fmt.Errorf("invalid assetType")
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, s.AssetType)
 	}
 	resp, err := s.DeriveSubmitResponse(orderID)
 	if err != nil {
