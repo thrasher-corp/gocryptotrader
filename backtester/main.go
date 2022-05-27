@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"plugin"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	backtest "github.com/thrasher-corp/gocryptotrader/backtester/engine"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/signaler"
@@ -100,6 +102,19 @@ func main() {
 		os.Exit(1)
 	}
 
+	p, err := plugin.Open(filepath.Join(wd, "eventhandlers", "strategies", "plugeroo", "plugeroo.so"))
+	if err != nil {
+		fmt.Printf("Could not open plugin. Error: %v.\n", err)
+		os.Exit(1)
+	}
+	v, err := p.Lookup("GetStrategy")
+	if err != nil {
+		fmt.Printf("Could not lookup plugin. Error: %v.\n", err)
+		os.Exit(1)
+	}
+	strat := v.(func() strategies.Handler)()
+	strategies.AllStrats = append(strategies.AllStrats, strat)
+
 	cfg, err = config.ReadConfigFromFile(configPath)
 	if err != nil {
 		fmt.Printf("Could not read config. Error: %v.\n", err)
@@ -114,6 +129,7 @@ func main() {
 		fmt.Printf("Could not read config. Error: %v.\n", err)
 		os.Exit(1)
 	}
+
 	bt, err = backtest.NewFromConfig(cfg, templatePath, reportOutput, verbose)
 	if err != nil {
 		fmt.Printf("Could not setup backtester from config. Error: %v.\n", err)

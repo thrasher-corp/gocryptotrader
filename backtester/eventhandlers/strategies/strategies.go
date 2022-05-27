@@ -35,10 +35,12 @@ func LoadStrategyByName(name string, useSimultaneousProcessing bool) (Handler, e
 // GetStrategies returns a static list of set strategies
 // they must be set in here for the backtester to recognise them
 func GetStrategies() []Handler {
-	return []Handler{
-		new(dollarcostaverage.Strategy),
-		new(rsi.Strategy),
-		new(top2bottom2.Strategy),
-		new(ftxcashandcarry.Strategy),
-	}
+	return AllStrats
+}
+
+var AllStrats = []Handler{
+	new(dollarcostaverage.Strategy),
+	new(rsi.Strategy),
+	new(top2bottom2.Strategy),
+	new(ftxcashandcarry.Strategy),
 }
