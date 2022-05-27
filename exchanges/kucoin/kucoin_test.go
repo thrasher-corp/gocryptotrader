@@ -40,7 +40,6 @@ func TestMain(m *testing.M) {
 	exchCfg.API.Credentials.Key = apiKey
 	exchCfg.API.Credentials.Secret = apiSecret
 	exchCfg.API.Credentials.OTPSecret = passPhrase
-	exchCfg.Verbose = true
 	err = k.Setup(exchCfg)
 	if err != nil {
 		log.Fatal(err)
@@ -162,5 +161,42 @@ func TestGetKlines(t *testing.T) {
 	_, err = k.GetKlines(context.Background(), "BTC-USDT", "5min", time.Now().Add(-time.Hour*1), time.Now())
 	if err != nil {
 		t.Error("GetKlines() error", err)
+	}
+}
+
+func TestGetCurrencies(t *testing.T) {
+	t.Parallel()
+
+	_, err := k.GetCurrencies(context.Background())
+	if err != nil {
+		t.Error("GetCurrencies() error", err)
+	}
+}
+
+func TestGetCurrency(t *testing.T) {
+	t.Parallel()
+
+	_, err := k.GetCurrency(context.Background(), "BTC", "")
+	if err != nil {
+		t.Error("GetCurrency() error", err)
+	}
+
+	_, err = k.GetCurrency(context.Background(), "BTC", "ETH")
+	if err != nil {
+		t.Error("GetCurrency() error", err)
+	}
+}
+
+func TestGetFiatPrice(t *testing.T) {
+	t.Parallel()
+
+	_, err := k.GetFiatPrice(context.Background(), "", "")
+	if err != nil {
+		t.Error("GetFiatPrice() error", err)
+	}
+
+	_, err = k.GetFiatPrice(context.Background(), "EUR", "ETH,BTC")
+	if err != nil {
+		t.Error("GetFiatPrice() error", err)
 	}
 }

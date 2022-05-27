@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -38,6 +39,9 @@ const (
 	kucoinGetPartOrderbook100 = "/api/v1/market/orderbook/level2_100"
 	kucoinGetTradeHistory     = "/api/v1/market/histories"
 	kucoinGetKlines           = "/api/v1/market/candles"
+	kucoinGetCurrencies       = "/api/v1/currencies"
+	kucoinGetCurrency         = "/api/v2/currencies/"
+	kucoinGetFiatPrice        = "/api/v1/prices"
 
 	// Authenticated endpoints
 	kucoinGetOrderbook = "/api/v3/market/orderbook/level2"
@@ -283,6 +287,50 @@ func (k *Kucoin) GetKlines(ctx context.Context, pair, period string, start, end 
 		}
 	}
 	return klines, nil
+}
+
+// GetCurrencies gets list of currencies
+func (k *Kucoin) GetCurrencies(ctx context.Context) ([]Currency, error) {
+	resp := struct {
+		Data []Currency `json:"data"`
+		Error
+	}{}
+
+	return resp.Data, k.SendHTTPRequest(ctx, exchange.RestSpot, kucoinGetCurrencies, publicSpotRate, &resp)
+}
+
+// GetCurrencies gets list of currencies
+func (k *Kucoin) GetCurrency(ctx context.Context, currency, chain string) (CurrencyDetail, error) {
+	resp := struct {
+		Data CurrencyDetail `json:"data"`
+		Error
+	}{}
+
+	if currency == "" {
+		return CurrencyDetail{}, errors.New("currency can't be empty")
+	}
+	params := url.Values{}
+	if chain != "" {
+		params.Set("chain", chain)
+	}
+	return resp.Data, k.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(kucoinGetCurrency+strings.ToUpper(currency), params), publicSpotRate, &resp)
+}
+
+// GetFiatPrice gets fiat prices of currencies, default base currency is USD
+func (k *Kucoin) GetFiatPrice(ctx context.Context, base, currencies string) (map[string]string, error) {
+	resp := struct {
+		Data map[string]string `json:"data"`
+		Error
+	}{}
+
+	params := url.Values{}
+	if base != "" {
+		params.Set("base", base)
+	}
+	if currencies != "" {
+		params.Set("currencies", currencies)
+	}
+	return resp.Data, k.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(kucoinGetFiatPrice, params), publicSpotRate, &resp)
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request

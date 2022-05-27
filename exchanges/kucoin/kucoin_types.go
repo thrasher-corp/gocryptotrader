@@ -173,3 +173,37 @@ type Kline struct {
 	Volume    float64 // Transaction volume
 	Amount    float64 // Transaction amount
 }
+
+type currencyBase struct {
+	Currency        string `json:"currency"` // a unique currency code that will never change
+	Name            string `json:"name"`     // will change after renaming
+	Fullname        string `json:"fullName"`
+	Precision       int64  `json:"precision"`
+	Confirms        int64  `json:"confirms"`
+	ContractAddress string `json:"contractAddress"`
+	IsMarginEnabled bool   `json:"isMarginEnabled"`
+	IsDebitEnabled  bool   `json:"isDebitEnabled"`
+}
+
+type Currency struct {
+	currencyBase
+	WithdrawalMinSize float64 `json:"withdrawalMinSize,string"`
+	WithdrawalMinFee  float64 `json:"withdrawalMinFee,string"`
+	IsWithdrawEnabled bool    `json:"isWithdrawEnabled"`
+	IsDepositEnabled  bool    `json:"isDepositEnabled"`
+}
+
+type Chain struct {
+	Name              string  `json:"chainName"`
+	Confirms          int64   `json:"confirms"`
+	ContractAddress   string  `json:"contractAddress"`
+	WithdrawalMinSize float64 `json:"withdrawalMinSize,string"`
+	WithdrawalMinFee  float64 `json:"withdrawalMinFee,string"`
+	IsWithdrawEnabled bool    `json:"isWithdrawEnabled"`
+	IsDepositEnabled  bool    `json:"isDepositEnabled"`
+}
+
+type CurrencyDetail struct {
+	currencyBase
+	Chains []Chain `json:"chains"`
+}
