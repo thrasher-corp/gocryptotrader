@@ -41,7 +41,7 @@ type Submit struct {
 	FillOrKill        bool
 
 	PostOnly bool
-	// ReduceOnly reduces a swap position instead of opening an opposing
+	// ReduceOnly reduces a position instead of opening an opposing
 	// position; this also equates to closing the position in huobi_wrapper.go
 	// swaps.
 	ReduceOnly bool
