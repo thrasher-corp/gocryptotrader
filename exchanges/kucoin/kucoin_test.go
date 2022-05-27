@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -111,6 +112,24 @@ func TestGetMarketList(t *testing.T) {
 	}
 }
 
+func TestGetPartOrderbook20(t *testing.T) {
+	t.Parallel()
+
+	_, err := k.GetPartOrderbook20(context.Background(), "BTC-USDT")
+	if err != nil {
+		t.Error("GetPartOrderbook20() error", err)
+	}
+}
+
+func TestGetPartOrderbook100(t *testing.T) {
+	t.Parallel()
+
+	_, err := k.GetPartOrderbook100(context.Background(), "BTC-USDT")
+	if err != nil {
+		t.Error("GetPartOrderbook100() error", err)
+	}
+}
+
 func TestGetOrderbook(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
@@ -120,5 +139,28 @@ func TestGetOrderbook(t *testing.T) {
 	_, err := k.GetOrderbook(context.Background(), "BTC-USDT")
 	if err != nil {
 		t.Error("GetOrderbook() error", err)
+	}
+}
+
+func TestGetTradeHistory(t *testing.T) {
+	t.Parallel()
+
+	_, err := k.GetTradeHistory(context.Background(), "BTC-USDT")
+	if err != nil {
+		t.Error("GetTradeHistory() error", err)
+	}
+}
+
+func TestGetKlines(t *testing.T) {
+	t.Parallel()
+
+	_, err := k.GetKlines(context.Background(), "BTC-USDT", "1week", time.Time{}, time.Time{})
+	if err != nil {
+		t.Error("GetKlines() error", err)
+	}
+
+	_, err = k.GetKlines(context.Background(), "BTC-USDT", "5min", time.Now().Add(-time.Hour*1), time.Now())
+	if err != nil {
+		t.Error("GetKlines() error", err)
 	}
 }

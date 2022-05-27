@@ -36,9 +36,11 @@ const (
 	kucoinGetMarketList       = "/api/v1/markets"
 	kucoinGetPartOrderbook20  = "/api/v1/market/orderbook/level2_20"
 	kucoinGetPartOrderbook100 = "/api/v1/market/orderbook/level2_100"
-	kucoinGetOrderbook        = "/api/v3/market/orderbook/level2"
+	kucoinGetTradeHistory     = "/api/v1/market/histories"
+	kucoinGetKlines           = "/api/v1/market/candles"
 
 	// Authenticated endpoints
+	kucoinGetOrderbook = "/api/v3/market/orderbook/level2"
 )
 
 // GetSymbols gets pairs details on the exchange
@@ -52,8 +54,7 @@ func (k *Kucoin) GetSymbols(ctx context.Context, currency string) ([]SymbolInfo,
 	if currency != "" {
 		params.Set("market", currency)
 	}
-	path := common.EncodeURLValues(kucoinGetSymbols, params)
-	return resp.Data, k.SendHTTPRequest(ctx, exchange.RestSpot, path, publicSpotRate, &resp)
+	return resp.Data, k.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(kucoinGetSymbols, params), publicSpotRate, &resp)
 }
 
 // GetTicker gets pair ticker information
@@ -68,8 +69,7 @@ func (k *Kucoin) GetTicker(ctx context.Context, pair string) (Ticker, error) {
 		return Ticker{}, errors.New("pair can't be empty") // TODO: error as constant
 	}
 	params.Set("symbol", pair)
-	path := common.EncodeURLValues(kucoinGetTicker, params)
-	return resp.Data, k.SendHTTPRequest(ctx, exchange.RestSpot, path, publicSpotRate, &resp)
+	return resp.Data, k.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(kucoinGetTicker, params), publicSpotRate, &resp)
 }
 
 // GetAllTickers gets all trading pair ticker information including 24h volume
@@ -97,9 +97,7 @@ func (k *Kucoin) Get24hrStats(ctx context.Context, pair string) (Stats24hrs, err
 		return Stats24hrs{}, errors.New("pair can't be empty")
 	}
 	params.Set("symbol", pair)
-	path := common.EncodeURLValues(kucoinGet24hrStats, params)
-
-	return resp.Data, k.SendHTTPRequest(ctx, exchange.RestSpot, path, publicSpotRate, &resp)
+	return resp.Data, k.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(kucoinGet24hrStats, params), publicSpotRate, &resp)
 }
 
 // GetMarketList get the transaction currency for the entire trading market
@@ -187,6 +185,104 @@ func (k *Kucoin) GetOrderbook(ctx context.Context, pair string) (Orderbook, erro
 		return Orderbook{}, err
 	}
 	return constructOrderbook(&o)
+}
+
+// GetTradeHistory gets trade history of the specified pair
+func (k *Kucoin) GetTradeHistory(ctx context.Context, pair string) ([]Trade, error) {
+	resp := struct {
+		Data []Trade `json:"data"`
+		Error
+	}{}
+
+	params := url.Values{}
+	if pair == "" {
+		return nil, errors.New("pair can't be empty")
+	}
+	params.Set("symbol", pair)
+	return resp.Data, k.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(kucoinGetTradeHistory, params), publicSpotRate, &resp)
+}
+
+// GetKlines gets kline of the specified pair
+func (k *Kucoin) GetKlines(ctx context.Context, pair, period string, start, end time.Time) ([]Kline, error) {
+	resp := struct {
+		Data [][7]string `json:"data"`
+		Error
+	}{}
+
+	params := url.Values{}
+	if pair == "" {
+		return nil, errors.New("pair can't be empty")
+	}
+	params.Set("symbol", pair)
+
+	if period == "" {
+		return nil, errors.New("period can't be empty")
+	}
+	if !common.StringDataContains(validPeriods, period) {
+		return nil, errors.New("invalid period")
+	}
+	params.Set("type", period)
+
+	if !start.IsZero() {
+		params.Set("startAt", strconv.FormatInt(start.Unix(), 10))
+	}
+
+	if !end.IsZero() {
+		params.Set("endAt", strconv.FormatInt(end.Unix(), 10))
+	}
+	err := k.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(kucoinGetKlines, params), publicSpotRate, &resp)
+	if err != nil {
+		return nil, err
+	}
+
+	klines := make([]Kline, len(resp.Data))
+	for i := range resp.Data {
+		t, err := strconv.ParseInt(resp.Data[i][0], 10, 64)
+		if err != nil {
+			return nil, err
+		}
+
+		open, err := strconv.ParseFloat(resp.Data[i][1], 64)
+		if err != nil {
+			return nil, err
+		}
+
+		close, err := strconv.ParseFloat(resp.Data[i][2], 64)
+		if err != nil {
+			return nil, err
+		}
+
+		high, err := strconv.ParseFloat(resp.Data[i][3], 64)
+		if err != nil {
+			return nil, err
+		}
+
+		low, err := strconv.ParseFloat(resp.Data[i][4], 64)
+		if err != nil {
+			return nil, err
+		}
+
+		volume, err := strconv.ParseFloat(resp.Data[i][5], 64)
+		if err != nil {
+			return nil, err
+		}
+
+		amount, err := strconv.ParseFloat(resp.Data[i][6], 64)
+		if err != nil {
+			return nil, err
+		}
+
+		klines[i] = Kline{
+			StartTime: time.Unix(t, 0),
+			Open:      open,
+			Close:     close,
+			High:      high,
+			Low:       low,
+			Volume:    volume,
+			Amount:    amount,
+		}
+	}
+	return klines, nil
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request

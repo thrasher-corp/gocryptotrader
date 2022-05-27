@@ -9,6 +9,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 )
 
+var (
+	validPeriods = []string{
+		"1min", "3min", "5min", "15min", "30min", "1hour", "2hour", "4hour", "6hour", "8hour", "12hour", "1day", "1week",
+	}
+)
+
 // UnmarshalTo acts as interface to exchange API response
 type UnmarshalTo interface {
 	GetError() error
@@ -52,6 +58,25 @@ func (k *kucoinTimeMilliSec) UnmarshalJSON(data []byte) error {
 
 // Time returns a time.Time object
 func (k kucoinTimeMilliSec) Time() time.Time {
+	return time.Time(k)
+}
+
+// kucoinTimeNanoSec provides an internal conversion helper
+type kucoinTimeNanoSec time.Time
+
+// UnmarshalJSON is custom type json unmarshaller for kucoinTimeNanoSec
+func (k *kucoinTimeNanoSec) UnmarshalJSON(data []byte) error {
+	var timestamp int64
+	err := json.Unmarshal(data, &timestamp)
+	if err != nil {
+		return err
+	}
+	*k = kucoinTimeNanoSec(time.Unix(0, timestamp))
+	return nil
+}
+
+// Time returns a time.Time object
+func (k kucoinTimeNanoSec) Time() time.Time {
 	return time.Time(k)
 }
 
@@ -129,4 +154,22 @@ type orderbookResponse struct {
 		Sequence string             `json:"sequence"`
 	} `json:"result"`
 	Error
+}
+
+type Trade struct {
+	Sequence string            `json:"sequence"`
+	Price    float64           `json:"price,string"`
+	Size     float64           `json:"size,string"`
+	Side     string            `json:"side"`
+	Time     kucoinTimeNanoSec `json:"time"`
+}
+
+type Kline struct {
+	StartTime time.Time
+	Open      float64
+	Close     float64
+	High      float64
+	Low       float64
+	Volume    float64 // Transaction volume
+	Amount    float64 // Transaction amount
 }
