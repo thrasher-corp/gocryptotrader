@@ -207,3 +207,38 @@ type CurrencyDetail struct {
 	currencyBase
 	Chains []Chain `json:"chains"`
 }
+
+type MarkPrice struct {
+	Symbol      string             `json:"symbol"`
+	Granularity int64              `json:"granularity"`
+	TimePoint   kucoinTimeMilliSec `json:"timePoint"`
+	Value       float64            `json:"value"`
+}
+
+type MarginConfiguration struct {
+	CurrencyList     []string `json:"currencyList"`
+	WarningDebtRatio float64  `json:"warningDebtRatio,string"`
+	LiqDebtRatio     float64  `json:"liqDebtRatio,string"`
+	MaxLeverage      float64  `json:"maxLeverage"`
+}
+
+type MarginAccount struct {
+	CurrencyList  float64 `json:"availableBalance,string"`
+	Currency      string  `json:"currency"`
+	HoldBalance   float64 `json:"holdBalance,string"`
+	Liability     float64 `json:"liability,string"`
+	MaxBorrowSize float64 `json:"maxBorrowSize,string"`
+	TotalBalance  float64 `json:"totalBalance,string"`
+}
+
+type MarginAccounts struct {
+	Accounts  []MarginAccount `json:"accounts"`
+	DebtRatio float64         `json:"debtRatio,string"`
+}
+
+type MarginRiskLimit struct {
+	Currency        string  `json:""`
+	BorrowMaxAmount float64 `json:"borrowMaxAmount,string"`
+	BuyMaxAmount    float64 `json:"buyMaxAmount,string"`
+	Precision       int64   `json:"precision"`
+}

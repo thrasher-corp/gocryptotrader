@@ -200,3 +200,55 @@ func TestGetFiatPrice(t *testing.T) {
 		t.Error("GetFiatPrice() error", err)
 	}
 }
+
+func TestGetMarkPrice(t *testing.T) {
+	t.Parallel()
+
+	_, err := k.GetMarkPrice(context.Background(), "USDT-BTC")
+	if err != nil {
+		t.Error("GetMarkPrice() error", err)
+	}
+}
+
+func TestGetMarginConfiguration(t *testing.T) {
+	t.Parallel()
+
+	_, err := k.GetMarginConfiguration(context.Background())
+	if err != nil {
+		t.Error("GetMarginConfiguration() error", err)
+	}
+}
+
+func TestGetMarginAccount(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := k.GetMarginAccount(context.Background())
+	if err != nil {
+		t.Error("GetMarginAccount() error", err)
+	}
+}
+
+func TestGetMarginRiskLimit(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := k.GetMarginRiskLimit(context.Background(), "")
+	if err != nil {
+		t.Error("GetMarginRiskLimi() error", err)
+	}
+
+	_, err = k.GetMarginRiskLimit(context.Background(), "cross")
+	if err != nil {
+		t.Error("GetMarginRiskLimi() error", err)
+	}
+
+	_, err = k.GetMarginRiskLimit(context.Background(), "isolated")
+	if err != nil {
+		t.Error("GetMarginRiskLimi() error", err)
+	}
+}

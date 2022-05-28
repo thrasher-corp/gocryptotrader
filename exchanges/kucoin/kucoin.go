@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -30,21 +31,25 @@ const (
 	kucoinAPIKeyVersion = "2"
 
 	// Public endpoints
-	kucoinGetSymbols          = "/api/v1/symbols"
-	kucoinGetTicker           = "/api/v1/market/orderbook/level1"
-	kucoinGetAllTickers       = "/api/v1/market/allTickers"
-	kucoinGet24hrStats        = "/api/v1/market/stats"
-	kucoinGetMarketList       = "/api/v1/markets"
-	kucoinGetPartOrderbook20  = "/api/v1/market/orderbook/level2_20"
-	kucoinGetPartOrderbook100 = "/api/v1/market/orderbook/level2_100"
-	kucoinGetTradeHistory     = "/api/v1/market/histories"
-	kucoinGetKlines           = "/api/v1/market/candles"
-	kucoinGetCurrencies       = "/api/v1/currencies"
-	kucoinGetCurrency         = "/api/v2/currencies/"
-	kucoinGetFiatPrice        = "/api/v1/prices"
+	kucoinGetSymbols             = "/api/v1/symbols"
+	kucoinGetTicker              = "/api/v1/market/orderbook/level1"
+	kucoinGetAllTickers          = "/api/v1/market/allTickers"
+	kucoinGet24hrStats           = "/api/v1/market/stats"
+	kucoinGetMarketList          = "/api/v1/markets"
+	kucoinGetPartOrderbook20     = "/api/v1/market/orderbook/level2_20"
+	kucoinGetPartOrderbook100    = "/api/v1/market/orderbook/level2_100"
+	kucoinGetTradeHistory        = "/api/v1/market/histories"
+	kucoinGetKlines              = "/api/v1/market/candles"
+	kucoinGetCurrencies          = "/api/v1/currencies"
+	kucoinGetCurrency            = "/api/v2/currencies/"
+	kucoinGetFiatPrice           = "/api/v1/prices"
+	kucoinGetMarkPrice           = "/api/v1/mark-price/%s/current"
+	kucoinGetMarginConfiguration = "/api/v1/margin/config"
 
 	// Authenticated endpoints
-	kucoinGetOrderbook = "/api/v3/market/orderbook/level2"
+	kucoinGetOrderbook       = "/api/v3/market/orderbook/level2"
+	kucoinGetMarginAccount   = "/api/v1/margin/account"
+	kucoinGetMarginRiskLimit = "/api/v1/risk/limit/strategy"
 )
 
 // GetSymbols gets pairs details on the exchange
@@ -331,6 +336,53 @@ func (k *Kucoin) GetFiatPrice(ctx context.Context, base, currencies string) (map
 		params.Set("currencies", currencies)
 	}
 	return resp.Data, k.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(kucoinGetFiatPrice, params), publicSpotRate, &resp)
+}
+
+// GetMarkPrice gets index price of the specified pair
+func (k *Kucoin) GetMarkPrice(ctx context.Context, pair string) (MarkPrice, error) {
+	resp := struct {
+		Data MarkPrice `json:"data"`
+		Error
+	}{}
+
+	if pair == "" {
+		return MarkPrice{}, errors.New("pair can't be empty")
+	}
+	return resp.Data, k.SendHTTPRequest(ctx, exchange.RestSpot, fmt.Sprintf(kucoinGetMarkPrice, pair), publicSpotRate, &resp)
+}
+
+// GetMarginConfiguration gets configure info of the margin
+func (k *Kucoin) GetMarginConfiguration(ctx context.Context) (MarginConfiguration, error) {
+	resp := struct {
+		Data MarginConfiguration `json:"data"`
+		Error
+	}{}
+
+	return resp.Data, k.SendHTTPRequest(ctx, exchange.RestSpot, kucoinGetMarginConfiguration, publicSpotRate, &resp)
+}
+
+// GetMarginAccount gets configure info of the margin
+func (k *Kucoin) GetMarginAccount(ctx context.Context) (MarginAccounts, error) {
+	resp := struct {
+		Data MarginAccounts `json:"data"`
+		Error
+	}{}
+
+	return resp.Data, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, kucoinGetMarginAccount, nil, publicSpotRate, &resp)
+}
+
+// GetMarginRiskLimit gets cross/isolated margin risk limit, default model is cross margin
+func (k *Kucoin) GetMarginRiskLimit(ctx context.Context, marginModel string) ([]MarginRiskLimit, error) {
+	resp := struct {
+		Data []MarginRiskLimit `json:"data"`
+		Error
+	}{}
+
+	params := url.Values{}
+	if marginModel != "" {
+		params.Set("marginModel", marginModel)
+	}
+	return resp.Data, k.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues(kucoinGetMarginRiskLimit, params), nil, publicSpotRate, &resp)
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
