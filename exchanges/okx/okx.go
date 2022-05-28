@@ -47,6 +47,14 @@ const (
 	cancelTradeOrder       = "trade/cancel-order"
 	cancelBatchTradeOrders = "trade/cancel-batch-orders"
 	amendOrder             = "trade/amend-order"
+	amendBatchOrders       = "trade/amend-batch-orders"
+	closePositionPath      = "trade/close-position"
+	pandingTradeOrders     = "trade/orders-pending"
+	tradeHistory           = "trade/orders-history"
+	orderHistoryArchive    = "trade/orders-history-archive"
+	tradeFills             = "trade/fills"
+	tradeFillsHistory      = "trade/fills-history"
+	algoTradeOrder         = "trade/order-algo"
 
 	// Market Data
 	marketTickers                = "market/tickers"
@@ -99,7 +107,6 @@ const (
 var (
 	errEmptyPairValues                         = errors.New("empty pair values")
 	errDataNotFound                            = errors.New("data not found ")
-	errMissingInstructionIDParam               = errors.New("missing required instruction id parameter value")
 	errUnableToTypeAssertResponseData          = errors.New("unable to type assert responseData")
 	errUnableToTypeAssertKlineData             = errors.New("unable to type assert kline data")
 	errUnexpectedKlineDataLength               = errors.New("unexpected kline data length")
@@ -129,6 +136,10 @@ var (
 	errInvalidQuantityToButOrSell              = errors.New("unacceptable quantity to buy or sell")
 	errMissingClientOrderIDOrOrderID           = errors.New("client supplier order id or order id is missing")
 	errMissingNewSizeOrPriceInformation        = errors.New("missing the new size or price information")
+	errMissingNewSize                          = errors.New("missing the order size information")
+	errMissingMarginMode                       = errors.New("missing required param margin mode \"mgnMode\"")
+	errMissingRequiredParamCurrency            = errors.New("missing required parameter currency")
+	errMissingTradeMode                        = errors.New("missing trade mode")
 )
 
 /************************************ MarketData Endpoints *************************************************/
@@ -136,7 +147,7 @@ var (
 // PlaceOrder place an order only if you have sufficient funds.
 func (ok *Okx) PlaceOrder(ctx context.Context, arg PlaceOrderRequestParam) (*PlaceOrderResponse, error) {
 	if arg.InstrumentID == "" {
-		return nil, errMissingInstructionIDParam
+		return nil, errMissingInstrumentID
 	}
 	arg.TradeMode = strings.Trim(arg.TradeMode, " ")
 	if !(strings.EqualFold("cross", arg.TradeMode) || strings.EqualFold("isolated", arg.TradeMode) || strings.EqualFold("cash", arg.TradeMode)) {
@@ -165,14 +176,13 @@ func (ok *Okx) PlaceOrder(ctx context.Context, arg PlaceOrderRequestParam) (*Pla
 		Data []*PlaceOrderResponse `json:"data"`
 	}
 	var resp response
-	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, tradeOrder, arg, &resp, true)
+	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, tradeOrder, &arg, &resp, true)
 	if er != nil {
 		return nil, er
 	}
 	if len(resp.Data) == 0 {
 		return nil, fmt.Errorf("error parsing the response")
 	}
-	println("Length : ", len(resp.Data))
 	return resp.Data[0], nil
 }
 
@@ -181,7 +191,7 @@ func (ok *Okx) PlaceMultipleOrders(ctx context.Context, args []PlaceOrderRequest
 	for x := range args {
 		arg := args[x]
 		if arg.InstrumentID == "" {
-			return nil, errMissingInstructionIDParam
+			return nil, errMissingInstrumentID
 		}
 		arg.TradeMode = strings.Trim(arg.TradeMode, " ")
 		if !(strings.EqualFold("cross", arg.TradeMode) || strings.EqualFold("isolated", arg.TradeMode) || strings.EqualFold("cash", arg.TradeMode)) {
@@ -211,7 +221,7 @@ func (ok *Okx) PlaceMultipleOrders(ctx context.Context, args []PlaceOrderRequest
 		Data []*PlaceOrderResponse `json:"data"`
 	}
 	var resp response
-	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, placeMultipleOrderUrl, args, &resp, true)
+	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, placeMultipleOrderUrl, &args, &resp, true)
 }
 
 // CancelOrder cancel an incomplete order.
@@ -228,7 +238,7 @@ func (ok *Okx) CancelOrder(ctx context.Context, arg CancelOrderRequestParam) (*C
 		Data []*CancelOrderResponse `json:"data"`
 	}
 	var resp response
-	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, cancelTradeOrder, arg, &resp, true)
+	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, cancelTradeOrder, &arg, &resp, true)
 	if er != nil {
 		return nil, er
 	}
@@ -306,7 +316,288 @@ func (ok *Okx) AmendMultipleOrders(ctx context.Context, args []AmendOrderRequest
 		Data []*AmendOrderResponse `json:"data"`
 	}
 	var resp response
-	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, amendOrder, args, &resp, true)
+	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, amendBatchOrders, &args, &resp, true)
+}
+
+// ClosePositions Close all positions of an instrument via a market order.
+func (ok *Okx) ClosePositions(ctx context.Context, arg *ClosePositionsRequestParams) (*ClosePositionResponse, error) {
+	if strings.Trim(arg.InstrumentID, " ") == "" {
+		return nil, errMissingInstrumentID
+	}
+	if !(arg.MarginMode != "" && (strings.EqualFold(arg.MarginMode, "cross") || strings.EqualFold(arg.MarginMode, "isolated"))) {
+		return nil, errMissingMarginMode
+	}
+	// if arg.MarginMode != "" && strings.EqualFold(arg.MarginMode, "cross") && (arg.Currency == "") {
+	// 	return nil, errMissingRequiredParamCurrency
+	// }
+	type response struct {
+		Msg  string                   `json:"msg"`
+		Code string                   `json:"code"`
+		Data []*ClosePositionResponse `json:"data"`
+	}
+	var resp response
+	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, closePositionPath, arg, &resp, true)
+	if er != nil {
+		return nil, er
+	}
+	if len(resp.Data) == 0 {
+		return nil, errors.New(resp.Msg)
+	}
+	return resp.Data[0], nil
+}
+
+// GetOrderDetails retrieve order details.
+func (ok *Okx) GetOrderDetail(ctx context.Context, arg *OrderDetailRequestParam) (*OrderDetail, error) {
+	params := url.Values{}
+	if strings.Trim(arg.InstrumentID, " ") == "" {
+		return nil, errMissingInstrumentID
+	}
+	params.Set("instId", arg.InstrumentID)
+	if arg.OrderID == "" && arg.ClientSupplierOrderID == "" {
+		return nil, errMissingClientOrderIDOrOrderID
+	} else if arg.ClientSupplierOrderID == "" {
+		params.Set("ordId", arg.OrderID)
+	} else {
+		params.Set("clOrdId", arg.ClientSupplierOrderID)
+	}
+	type response struct {
+		Code string         `json:"code"`
+		Msg  string         `json:"msg"`
+		Data []*OrderDetail `json:"data"`
+	}
+	var resp response
+	path := common.EncodeURLValues(tradeOrder, params)
+	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, true)
+	if er != nil {
+		return nil, er
+	}
+	if len(resp.Data) == 0 {
+		return nil, errors.New(resp.Msg)
+	}
+	return resp.Data[0], nil
+}
+
+// GetOrderList retrieve all incomplete orders under the current account.
+func (ok *Okx) GetOrderList(ctx context.Context, arg *OrderListRequestParams) ([]*PendingOrderItem, error) {
+	params := url.Values{}
+	if strings.EqualFold(arg.InstrumentType, "SPOT") ||
+		strings.EqualFold(arg.InstrumentType, "MARGIN") ||
+		strings.EqualFold(arg.InstrumentType, "SWAP") ||
+		strings.EqualFold(arg.InstrumentType, "FUTURES") ||
+		strings.EqualFold(arg.InstrumentType, "OPTION") {
+		params.Set("instType", arg.InstrumentType)
+	}
+	if arg.InstrumentID != "" {
+		params.Set("instId", arg.InstrumentID)
+	}
+	if arg.Underlying != "" {
+		params.Set("uly", arg.Underlying)
+	}
+	if strings.EqualFold(arg.OrderType, "market") ||
+		strings.EqualFold(arg.OrderType, "limit") ||
+		strings.EqualFold(arg.OrderType, "post_only") ||
+		strings.EqualFold(arg.OrderType, "fok") ||
+		strings.EqualFold(arg.OrderType, "ioc") ||
+		strings.EqualFold(arg.OrderType, "optimal_limit_ioc") {
+		params.Set("orderType", arg.OrderType)
+	}
+	if strings.EqualFold(arg.State, "canceled") ||
+		strings.EqualFold(arg.State, "filled") {
+		params.Set("state", arg.State)
+	}
+	if !(arg.Before.IsZero()) {
+		params.Set("before", strconv.FormatInt(arg.Before.UnixMilli(), 10))
+	}
+	if !(arg.After.IsZero()) {
+		params.Set("after", strconv.FormatInt(arg.After.UnixMilli(), 10))
+	}
+	if arg.Limit > 0 {
+		params.Set("limit", strconv.Itoa(arg.Limit))
+	}
+	path := common.EncodeURLValues(pandingTradeOrders, params)
+	type response struct {
+		Code string              `json:"code"`
+		Msg  string              `json:"msg"`
+		Data []*PendingOrderItem `json:"data"`
+	}
+	var resp response
+	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, true)
+}
+
+// Get7DayOrderHistory retrieve the completed order data for the last 7 days, and the incomplete orders that have been cancelled are only reserved for 2 hours.
+func (ok *Okx) Get7DayOrderHistory(ctx context.Context, arg *OrderHistoryRequestParams) ([]*PendingOrderItem, error) {
+	return ok.getOrderHistory(ctx, arg, tradeHistory)
+}
+
+// Get3MonthOrderHistory retrieve the completed order data for the last 7 days, and the incomplete orders that have been cancelled are only reserved for 2 hours.
+func (ok *Okx) Get3MonthOrderHistory(ctx context.Context, arg *OrderHistoryRequestParams) ([]*PendingOrderItem, error) {
+	return ok.getOrderHistory(ctx, arg, orderHistoryArchive)
+}
+
+// getOrderHistory retrives the order history of the past limited times
+func (ok *Okx) getOrderHistory(ctx context.Context, arg *OrderHistoryRequestParams, route string) ([]*PendingOrderItem, error) {
+	params := url.Values{}
+	if strings.EqualFold(arg.InstrumentType, "SPOT") ||
+		strings.EqualFold(arg.InstrumentType, "MARGIN") ||
+		strings.EqualFold(arg.InstrumentType, "SWAP") ||
+		strings.EqualFold(arg.InstrumentType, "FUTURES") ||
+		strings.EqualFold(arg.InstrumentType, "OPTION") {
+		params.Set("instType", arg.InstrumentType)
+	} else {
+		return nil, errMissingRequiredArgInstType
+	}
+	if arg.InstrumentID != "" {
+		params.Set("instId", arg.InstrumentID)
+	}
+	if arg.Underlying != "" {
+		params.Set("uly", arg.Underlying)
+	}
+	if strings.EqualFold(arg.OrderType, "market") ||
+		strings.EqualFold(arg.OrderType, "limit") ||
+		strings.EqualFold(arg.OrderType, "post_only") ||
+		strings.EqualFold(arg.OrderType, "fok") ||
+		strings.EqualFold(arg.OrderType, "ioc") ||
+		strings.EqualFold(arg.OrderType, "optimal_limit_ioc") {
+		params.Set("orderType", arg.OrderType)
+	}
+	if strings.EqualFold(arg.State, "canceled") ||
+		strings.EqualFold(arg.State, "filled") {
+		params.Set("state", arg.State)
+	}
+	if !(arg.Before.IsZero()) {
+		params.Set("before", strconv.FormatInt(arg.Before.UnixMilli(), 10))
+	}
+	if !(arg.After.IsZero()) {
+		params.Set("after", strconv.FormatInt(arg.After.UnixMilli(), 10))
+	}
+	if arg.Limit > 0 {
+		params.Set("limit", strconv.Itoa(arg.Limit))
+	}
+	if strings.EqualFold("twap", arg.Category) || strings.EqualFold("adl", arg.Category) || strings.EqualFold("full_liquidation", arg.Category) || strings.EqualFold("partial_liquidation", arg.Category) || strings.EqualFold("delivery", arg.Category) || strings.EqualFold("ddh", arg.Category) {
+		params.Set("category", strings.ToLower(arg.Category))
+	}
+	path := common.EncodeURLValues(tradeHistory, params)
+	type response struct {
+		Code string              `json:"code"`
+		Msg  string              `json:"msg"`
+		Data []*PendingOrderItem `json:"data"`
+	}
+	var resp response
+	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, true)
+}
+
+// GetTransactionDetailsLast3Days retrieve recently-filled transaction details in the last 3 day.
+func (ok *Okx) GetTransactionDetailsLast3Days(ctx context.Context, arg *TransactionDetailRequestParams) ([]*TransactionDetail, error) {
+	return ok.getTransactionDetails(ctx, arg, tradeFills)
+}
+
+// GetTransactionDetailsLast3Months Retrieve recently-filled transaction details in the last 3 months.
+func (ok *Okx) GetTransactionDetailsLast3Months(ctx context.Context, arg *TransactionDetailRequestParams) ([]*TransactionDetail, error) {
+	return ok.getTransactionDetails(ctx, arg, tradeFillsHistory)
+}
+
+// GetTransactionDetails retrieve recently-filled transaction details.
+func (ok *Okx) getTransactionDetails(ctx context.Context, arg *TransactionDetailRequestParams, route string) ([]*TransactionDetail, error) {
+	params := url.Values{}
+	if strings.EqualFold(arg.InstrumentType, "SPOT") ||
+		strings.EqualFold(arg.InstrumentType, "MARGIN") ||
+		strings.EqualFold(arg.InstrumentType, "SWAP") ||
+		strings.EqualFold(arg.InstrumentType, "FUTURES") ||
+		strings.EqualFold(arg.InstrumentType, "OPTION") {
+		params.Set("instType", arg.InstrumentType)
+	} else {
+		return nil, errMissingRequiredArgInstType
+	}
+	if arg.InstrumentID != "" {
+		params.Set("instId", arg.InstrumentID)
+	}
+	if arg.Underlying != "" {
+		params.Set("uly", arg.Underlying)
+	}
+	if strings.EqualFold(arg.OrderType, "market") ||
+		strings.EqualFold(arg.OrderType, "limit") ||
+		strings.EqualFold(arg.OrderType, "post_only") ||
+		strings.EqualFold(arg.OrderType, "fok") ||
+		strings.EqualFold(arg.OrderType, "ioc") ||
+		strings.EqualFold(arg.OrderType, "optimal_limit_ioc") {
+		params.Set("orderType", arg.OrderType)
+	}
+	if !(arg.Begin.IsZero()) {
+		params.Set("begin", strconv.FormatInt(arg.Begin.UnixMilli(), 10))
+	}
+	if !(arg.End.IsZero()) {
+		params.Set("end", strconv.FormatInt(arg.End.UnixMilli(), 10))
+	}
+	if arg.Limit > 0 {
+		params.Set("limit", strconv.Itoa(arg.Limit))
+	}
+	if arg.InstrumentID != "" {
+		params.Set("instId", arg.InstrumentID)
+	}
+	if arg.After != "" {
+		params.Set("after", arg.After)
+	}
+	if arg.Before != "" {
+		params.Set("before", arg.Before)
+	}
+	path := common.EncodeURLValues(route, params)
+	type response struct {
+		Code string               `json:"code"`
+		Msg  string               `json:"msg"`
+		Data []*TransactionDetail `json:"data"`
+	}
+	var resp response
+	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, true)
+}
+
+// PlaceAlgoOrder order includes trigger order, oco order, conditional order,iceberg order, twap order and trailing order.
+func (ok *Okx) PlaceAlgoOrder(ctx context.Context, arg *AlgoOrderParams) (*AlgoOrderResponse, error) {
+	if !(arg.InstrumentID != "") {
+		return nil, errMissingInstrumentID
+	}
+	if !(arg.TradeMode != "") {
+		return nil, errMissingTradeMode
+	}
+	if arg.Side == "" {
+		return nil, errMissingOrderSide
+	}
+	if arg.OrderType == "" {
+		return nil, errInvalidOrderType
+	}
+	if arg.Size <= 0 {
+		return nil, errMissingNewSize
+	}
+	type response struct {
+		Code string               `json:"code"`
+		Msg  string               `json:"msg"`
+		Data []*AlgoOrderResponse `json:"data"`
+	}
+	var resp response
+	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, algoTradeOrder, arg, &resp, true)
+	if er != nil {
+		return nil, er
+	}
+	if len(resp.Data) > 0 {
+		return resp.Data[0], nil
+	}
+	return nil, errors.New(resp.Msg)
+}
+
+func (ok *Okx) StopOrderParams(ctx context.Context, arg *StopOrderParams) (*AlgoOrderResponse, error) {
+	type response struct {
+		Code string               `json:"code"`
+		Msg  string               `json:"msg"`
+		Data []*AlgoOrderResponse `json:"data"`
+	}
+	var resp response
+	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, algoTradeOrder, arg, &resp, true)
+	if er != nil {
+		return nil, er
+	}
+	if len(resp.Data) > 0 {
+		return resp.Data[0], nil
+	}
+	return nil, errors.New(resp.Msg)
 }
 
 // GetTickers retrives the latest price snopshots best bid/ ask price, and tranding volume in the last 34 hours.
@@ -454,7 +745,7 @@ func (ok *Okx) GetMarkPriceCandlesticks(ctx context.Context, instrumentID string
 func (ok *Okx) GetCandlestickData(ctx context.Context, instrumentID string, interval kline.Interval, before time.Time, after time.Time, limit uint64, route string) ([]CandleStick, error) {
 	params := url.Values{}
 	if instrumentID == "" {
-		return nil, errMissingInstructionIDParam
+		return nil, errMissingInstrumentID
 	} else {
 		params.Set("instId", instrumentID)
 	}
@@ -537,7 +828,7 @@ func (ok *Okx) GetTrades(ctx context.Context, instrumentId string, limit uint) (
 	var resp response
 	params := url.Values{}
 	if instrumentId == "" {
-		return nil, errMissingInstructionIDParam
+		return nil, errMissingInstrumentID
 	} else {
 		params.Set("instId", instrumentId)
 	}

@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 // Market Data Endoints
@@ -591,4 +592,187 @@ type AmendOrderResponse struct {
 	ClientSuppliedRequestID string  `json:"reqId"`
 	StatusCode              float64 `json:"sCode,string"`
 	StatusMsg               string  `json:"sMsg"`
+}
+
+// ClosePositionsRequestParams input parameters for close position endpoints
+type ClosePositionsRequestParams struct {
+	InstrumentID          string `json:"instId"` // REQUIRED
+	PositionSide          string `json:"posSide"`
+	MarginMode            string `json:"mgnMode"` // cross or isolated
+	Currency              string `json:"ccy"`
+	AutomaticallyCanceled bool   `json:"autoCxl"`
+}
+
+// ClosePositionResponse response data for close position.
+type ClosePositionResponse struct {
+	InstrumentID string `json:"instId"`
+	POsitionSide string `json:"posSide"`
+}
+
+// OrderDetailRequestParam payload data to request order detail
+type OrderDetailRequestParam struct {
+	InstrumentID          string `json:"instId"`
+	OrderID               string `json:"ordId"`
+	ClientSupplierOrderID string `json:"clOrdId"`
+}
+
+// OrderDetailResponse returns a order detail information
+type OrderDetail struct {
+	InstrumentType             string     `json:"instType"`
+	InstrumentID               string     `json:"instId"`
+	Currency                   string     `json:"ccy"`
+	OrderID                    string     `json:"ordId"`
+	ClientSupplierOrderID      string     `json:"clOrdId"`
+	Tag                        string     `json:"tag"`
+	Price                      float64    `json:"px,string"`
+	Size                       float64    `json:"sz,string"`
+	ProfitAndLoss              string     `json:"pnl"`
+	OrderType                  string     `json:"ordType"`
+	Side                       order.Side `json:"side"`
+	PositionSide               string     `json:"posSide"`
+	TradeMode                  string     `json:"tdMode"`
+	AccumulatedFillSize        string     `json:"accFillSz"`
+	FillPrice                  string     `json:"fillPx"`
+	TradeID                    string     `json:"tradeId"`
+	FillSize                   string     `json:"fillSz"`
+	FillTime                   string     `json:"fillTime"`
+	State                      string     `json:"state"`
+	AvgPrice                   string     `json:"avgPx"`
+	Leverage                   float64    `json:"lever,string"`
+	TakeProfitTriggerPrice     string     `json:"tpTriggerPx"`
+	TakeProfitTriggerPriceType string     `json:"tpTriggerPxType"`
+	TakeProfitOrdPrice         string     `json:"tpOrdPx"`
+	StopLossTriggerPrice       string     `json:"slTriggerPx"`
+	StopLossTriggerPriceType   string     `json:"slTriggerPxType"`
+	StopLossOrdPx              string     `json:"slOrdPx"`
+	FeeCurrency                string     `json:"feeCcy"`
+	TransactionFee             string     `json:"fee"`
+	RebateCurrency             string     `json:"rebateCcy"`
+	RebateAmount               string     `json:"rebate"`
+	QuantityType               string     `json:"tgtCcy"`   // base_ccy and quote_ccy
+	Category                   string     `json:"category"` // normal, twap, adl, full_liquidation, partial_liquidation, delivery, ddh
+	UpdateTime                 time.Time  `json:"uTime"`
+	CreationTime               time.Time  `json:"cTime"`
+}
+
+// OrderListRequestParams
+type OrderListRequestParams struct {
+	InstrumentType string    `json:"instType"` // SPOT , MARGIN, SWAP, FUTURES , option
+	Underlying     string    `json:"uly"`
+	InstrumentID   string    `json:"instId"`
+	OrderType      string    `json:"orderType"`
+	State          string    `json:"state"` // live, partially_filled
+	After          time.Time `json:"after"`
+	Before         time.Time `json:"before"`
+	Limit          int       `json:"limit"`
+}
+
+// OrderHistoryRequestParams holds parameters to request order data history of last 7 days.
+type OrderHistoryRequestParams struct {
+	OrderListRequestParams
+	Category string `json:"category"` // twap, adl, full_liquidation, partial_liquidation, delivery, ddh
+}
+
+// PendingOrderItem represents a pending order Item in pending orders list.
+type PendingOrderItem struct {
+	AccumulatedFillSize        string     `json:"accFillSz"`
+	AvgPx                      string     `json:"avgPx"`
+	CreationTime               time.Time  `json:"cTime"`
+	Category                   string     `json:"category"`
+	Currency                   string     `json:"ccy"`
+	ClientSupplierOrderID      string     `json:"clOrdId"`
+	TransactionFee             string     `json:"fee"`
+	FeeCcy                     string     `json:"feeCcy"`
+	LastFilledPrice            string     `json:"fillPx"`
+	FillSize                   string     `json:"fillSz"`
+	FillTime                   string     `json:"fillTime"`
+	InstrumentID               string     `json:"instId"`
+	InstrumentType             string     `json:"instType"`
+	Leverage                   float64    `json:"lever,string"`
+	OrderID                    string     `json:"ordId"`
+	OrderType                  string     `json:"ordType"`
+	ProfitAndLose              string     `json:"pnl"`
+	PositionSide               string     `json:"posSide"`
+	RebateAmount               string     `json:"rebate"`
+	RebateCurrency             string     `json:"rebateCcy"`
+	Side                       order.Side `json:"side"`
+	StopLossOrdPrice           string     `json:"slOrdPx"`
+	StopLossTriggerPrice       string     `json:"slTriggerPx"`
+	StopLossTriggerPriceType   string     `json:"slTriggerPxType"`
+	State                      string     `json:"state"`
+	Price                      float64    `json:"px,string"`
+	Size                       float64    `json:"sz,string"`
+	Tag                        string     `json:"tag"`
+	QuantityType               string     `json:"tgtCcy"`
+	TradeMode                  string     `json:"tdMode"`
+	Source                     string     `json:"source"` //
+	TakeProfitOrdPrice         string     `json:"tpOrdPx"`
+	TakeProfitTriggerPrice     string     `json:"tpTriggerPx"`
+	TakeProfitTriggerPriceType string     `json:"tpTriggerPxType"`
+	TradeID                    string     `json:"tradeId"`
+	UpdateTime                 time.Time  `json:"uTime"`
+}
+
+// TransactionDetailRequestParams retrieve recently-filled transaction details in the last 3 day.
+type TransactionDetailRequestParams struct {
+	InstrumentType string    `json:"instType"` // SPOT , MARGIN, SWAP, FUTURES , option
+	Underlying     string    `json:"uly"`
+	InstrumentID   string    `json:"instId"`
+	OrderID        string    `json:"ordId"`
+	OrderType      string    `json:"orderType"`
+	After          string    `json:"after"`  // after billid
+	Before         string    `json:"before"` // before billid
+	Begin          time.Time `json:"begin"`
+	End            time.Time `json:"end"`
+	Limit          int       `json:"limit"`
+}
+
+// TransactionDetail holds ecently-filled transaction detail data.
+type TransactionDetail struct {
+	InstrumentType        string    `json:"instType"`
+	InstrumentID          string    `json:"instId"`
+	TradeID               string    `json:"tradeId"`
+	OrderID               string    `json:"ordId"`
+	ClientSuppliedOrderID string    `json:"clOrdId"`
+	BillID                string    `json:"billId"`
+	Tag                   string    `json:"tag"`
+	FillPrice             float64   `json:"fillPx,string"`
+	FillSize              float64   `json:"fillSz,string"`
+	Side                  string    `json:"side"`
+	PositionSide          string    `json:"posSide"`
+	ExecType              string    `json:"execType"`
+	FeeCurrency           string    `json:"feeCcy"`
+	Fee                   string    `json:"fee"`
+	Timestamp             time.Time `json:"ts"`
+}
+
+// AlgoOrderParams holds algo order informations.
+type AlgoOrderParams struct {
+	InstrumentID string     `json:"instId"` // Required
+	TradeMode    string     `json:"tdMode"` // Required
+	Currency     string     `json:"ccy"`
+	Side         order.Side `json:"side"` // Required
+	PositionSide string     `json:"posSide"`
+	OrderType    string     `json:"ordType"`   // Required
+	Size         float64    `json:"sz,string"` // Required
+	OrderTag     string     `json:"tag"`
+	ReduceOnly   bool       `json:"reduceOnly"`
+	QuantityType string     `json:"tgtCcy"`
+}
+
+// StopOrder holds stop order request payload.
+type StopOrderParams struct {
+	TakeProfitTriggerPrice     string `json:"tpTriggerPx"`
+	TakeProfitTriggerPriceType string `json:"tpTriggerPxType"`
+	TakeProfitOrderType        string `json:"tpOrdPx"`
+	StopLossTriggerPrice       string `json:"slTriggerPx"`
+	StopLossTriggerPriceType   string `json:"slTriggerPxType"`
+	StopLossOrderPrice         string `json:"slOrdPx"`
+}
+
+// AlgoOrderResponse algo requests response
+type AlgoOrderResponse struct {
+	AlgoID     string `json:"algoId"`
+	StatusCode string `json:"sCode"`
+	StatusMsg  string `json:"sMsg"`
 }

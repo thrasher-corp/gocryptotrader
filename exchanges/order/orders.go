@@ -15,6 +15,26 @@ import (
 
 var errTimeInForceConflict = errors.New("multiple time in force options applied")
 
+// ParseOrderSideString converts an order side string to an order.Side instance
+func ParseOrderSideString(orderString string) Side {
+	if strings.EqualFold(orderString, "any") {
+		return AnySide
+	} else if strings.EqualFold(orderString, "buy") {
+		return Buy
+	} else if strings.EqualFold(orderString, "Sell") {
+		return Sell
+	} else if strings.EqualFold(orderString, "bid") {
+		return Bid
+	} else if strings.EqualFold(orderString, "ask") {
+		return Ask
+	} else if strings.EqualFold(orderString, "long") {
+		return Long
+	} else if strings.EqualFold(orderString, "short") {
+		return Short
+	}
+	return UnknownSide
+}
+
 // Validate checks the supplied data and returns whether or not it's valid
 func (s *Submit) Validate(opt ...validate.Checker) error {
 	if s == nil {

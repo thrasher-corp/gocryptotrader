@@ -136,7 +136,7 @@ func TestGetIndexComponents(t *testing.T) {
 func TestGetinstrument(t *testing.T) {
 	t.Parallel()
 	_, er := ok.GetInstruments(context.Background(), &InstrumentsFetchParams{
-		InstrumentType: "MARGIN",
+		InstrumentType: "SPOT",
 	})
 	if er != nil {
 		t.Error("Okx GetInstruments() error", er)
@@ -404,23 +404,16 @@ func TestPlaceOrder(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if resp, er := ok.PlaceOrder(context.Background(), PlaceOrderRequestParam{
-		InstrumentID:        "REN-USDT",
+	if _, er := ok.PlaceOrder(context.Background(), PlaceOrderRequestParam{
+		InstrumentID:        "GNX-BTC",
 		TradeMode:           "cross",
 		Side:                "sell",
-		OrderType:           "limit",
+		OrderType:           "optimal_limit_ioc",
 		QuantityToBuyOrSell: 1,
 		OrderPrice:          1,
 	}); er != nil {
 		t.Error("Okx PlaceOrder() error", er)
-	} else {
-		println(string(MarshalThis(resp)))
 	}
-}
-
-func MarshalThis(vv interface{}) []byte {
-	v, _ := json.Marshal(vv)
-	return v
 }
 
 func TestPlaceMultipleOrders(t *testing.T) {
@@ -431,7 +424,7 @@ func TestPlaceMultipleOrders(t *testing.T) {
 	if _, er := ok.PlaceMultipleOrders(context.Background(),
 		[]PlaceOrderRequestParam{
 			{
-				InstrumentID:        "FIL-BTC",
+				InstrumentID:        "GNX-BTC",
 				TradeMode:           "cross",
 				Side:                "sell",
 				OrderType:           "limit",
@@ -488,13 +481,246 @@ func TestAmendMultipleOrders(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if responses, er := ok.AmendMultipleOrders(context.Background(), []AmendOrderRequestParams{{
-		InstrumentID: "DCR-BTC",
+	if _, er := ok.AmendMultipleOrders(context.Background(), []AmendOrderRequestParams{{
+		InstrumentID: "BTC-USDT",
 		OrderID:      "2510789768709120",
 		NewPrice:     1233324.332,
 	}}); er != nil {
 		t.Error("Okx AmendMultipleOrders() error", er)
-	} else {
-		println(string(MarshalThis(responses)))
+	}
+}
+
+func TestClosePositions(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	// this test function has to be re-modified
+	if _, er := ok.ClosePositions(context.Background(), &ClosePositionsRequestParams{
+		InstrumentID: "BTC-USDT",
+		MarginMode:   "cross",
+		PositionSide: "long",
+		Currency:     currency.BTC.String(),
+	}); !strings.Contains(er.Error(), "Token does not exist.") {
+		t.Error("Okc ClosePositions() error", er)
+	}
+}
+
+var orderDetail = `{
+	"instType": "FUTURES",
+	"instId": "BTC-USD-200329",
+	"ccy": "",
+	"ordId": "312269865356374016",
+	"clOrdId": "b1",
+	"tag": "",
+	"px": "999",
+	"sz": "3",
+	"pnl": "5",
+	"ordType": "limit",
+	"side": "buy",
+	"posSide": "long",
+	"tdMode": "isolated",
+	"accFillSz": "0",
+	"fillPx": "0",
+	"tradeId": "0",
+	"fillSz": "0",
+	"fillTime": "0",
+	"state": "live",
+	"avgPx": "0",
+	"lever": "20",
+	"tpTriggerPx": "",
+	"tpTriggerPxType": "last",
+	"tpOrdPx": "",
+	"slTriggerPx": "",
+	"slTriggerPxType": "last",
+	"slOrdPx": "",
+	"feeCcy": "",
+	"fee": "",
+	"rebateCcy": "",
+	"rebate": "",
+	"tgtCcy":"",
+	"category": "",
+	"uTime": "1597026383085",
+	"cTime": "1597026383085"
+  }`
+
+func TestGetOrderDetail(t *testing.T) {
+	t.Parallel()
+	var odetail OrderDetail
+	if er := json.Unmarshal([]byte(orderDetail), &odetail); er != nil {
+		t.Error("Okx OrderDetail error", er)
+	}
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, er := ok.GetOrderDetail(context.Background(), &OrderDetailRequestParam{
+		InstrumentID: "BTC-USDT",
+		OrderID:      "2510789768709120",
+	}); !strings.Contains(er.Error(), "Instrument ID does not exist.") {
+		t.Error("Okx GetOrderDetail() error", er)
+	}
+}
+
+const pendingOrderItemJSON = `{
+	"accFillSz": "0",
+	"avgPx": "",
+	"cTime": "1618235248028",
+	"category": "normal",
+	"ccy": "",
+	"clOrdId": "",
+	"fee": "0",
+	"feeCcy": "BTC",
+	"fillPx": "",
+	"fillSz": "0",
+	"fillTime": "",
+	"instId": "BTC-USDT",
+	"instType": "SPOT",
+	"lever": "5.6",
+	"ordId": "301835739059335168",
+	"ordType": "limit",
+	"pnl": "0",
+	"posSide": "net",
+	"px": "59200",
+	"rebate": "0",
+	"rebateCcy": "USDT",
+	"side": "buy",
+	"slOrdPx": "",
+	"slTriggerPx": "",
+	"slTriggerPxType": "last",
+	"state": "live",
+	"sz": "1",
+	"tag": "",
+	"tgtCcy": "",
+	"tdMode": "cross",
+	"source":"",
+	"tpOrdPx": "",
+	"tpTriggerPx": "",
+	"tpTriggerPxType": "last",
+	"tradeId": "",
+	"uTime": "1618235248028"
+}`
+
+func TestGetOrderList(t *testing.T) {
+	t.Parallel()
+	var pending PendingOrderItem
+	if er := json.Unmarshal([]byte(pendingOrderItemJSON), &pending); er != nil {
+		t.Error("Okx PendingPrderItem error", er)
+	}
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, er := ok.GetOrderList(context.Background(), &OrderListRequestParams{}); er != nil {
+		t.Error("Okx GetOrderList() error", er)
+	}
+}
+
+var orderHistory = `{
+	"instType": "FUTURES",
+	"instId": "BTC-USD-200329",
+	"ccy": "",
+	"ordId": "312269865356374016",
+	"clOrdId": "b1",
+	"tag": "",
+	"px": "999",
+	"sz": "3",
+	"ordType": "limit",
+	"side": "buy",
+	"posSide": "long",
+	"tdMode": "isolated",
+	"accFillSz": "0",
+	"fillPx": "0",
+	"tradeId": "0",
+	"fillSz": "0",
+	"fillTime": "0",
+	"state": "filled",
+	"avgPx": "0",
+	"lever": "20",
+	"tpTriggerPx": "",
+	"tpTriggerPxType": "last",
+	"tpOrdPx": "",
+	"slTriggerPx": "",
+	"slTriggerPxType": "last",
+	"slOrdPx": "",
+	"feeCcy": "",
+	"fee": "",
+	"rebateCcy": "",
+	"source":"",
+	"rebate": "",
+	"tgtCcy":"",
+	"pnl": "",
+	"category": "",
+	"uTime": "1597026383085",
+	"cTime": "1597026383085"
+  }`
+
+func TestGet7And3MonthDayOrderHistory(t *testing.T) {
+	t.Parallel()
+	var history PendingOrderItem
+	if er := json.Unmarshal([]byte(orderHistory), &history); er != nil {
+		t.Error("Okx OrderHistory error", er)
+	}
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, er := ok.Get7DayOrderHistory(context.Background(), &OrderHistoryRequestParams{
+		OrderListRequestParams: OrderListRequestParams{InstrumentType: "MARGIN"},
+	}); er != nil {
+		t.Error("Okx Get7DayOrderHistory() error", er)
+	}
+	if _, er := ok.Get3MonthOrderHistory(context.Background(), &OrderHistoryRequestParams{
+		OrderListRequestParams: OrderListRequestParams{InstrumentType: "MARGIN"},
+	}); er != nil {
+		t.Error("Okx Get3MonthOrderHistory() error", er)
+	}
+}
+
+var transactionhistoryJSON = `{
+	"instType":"FUTURES",
+	"instId":"BTC-USD-200329",
+	"tradeId":"123",
+	"ordId":"123445",
+	"clOrdId": "b16",
+	"billId":"1111",
+	"tag":"",
+	"fillPx":"999",
+	"fillSz":"3",
+	"side":"buy",
+	"posSide":"long",
+	"execType":"M",             
+	"feeCcy":"",
+	"fee":"",
+	"ts":"1597026383085"
+}`
+
+func TestTransactionHistory(t *testing.T) {
+	t.Parallel()
+	var transactionhist TransactionDetail
+	if er := json.Unmarshal([]byte(transactionhistoryJSON), &transactionhist); er != nil {
+		t.Error("Okx Transaction Detail error", er.Error())
+	}
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, er := ok.GetTransactionDetailsLast3Days(context.Background(), &TransactionDetailRequestParams{
+		InstrumentType: "MARGIN",
+	}); er != nil {
+		t.Error("Okx GetTransactionDetailsLast3Days() error", er)
+	}
+	if _, er := ok.GetTransactionDetailsLast3Months(context.Background(), &TransactionDetailRequestParams{
+		InstrumentType: "MARGIN",
+	}); er != nil {
+		t.Error("Okx GetTransactionDetailsLast3Days() error", er)
+	}
+}
+func TestStopOrder(t *testing.T) {
+	t.Parallel()
+	// this test function had to be re modified.
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, er := ok.StopOrderParams(context.Background(), &StopOrderParams{
+		TakeProfitTriggerPriceType: "index",
+	}); !strings.Contains(er.Error(), "Unsupported operation") {
+		t.Error("Okx StopOrderParams() error", er)
 	}
 }

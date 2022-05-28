@@ -5,6 +5,8 @@ import (
 	"regexp"
 	"strconv"
 	"time"
+
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 func (a *OrderBookResponse) UnmarshalJSON(data []byte) error {
@@ -302,5 +304,58 @@ func (a *InsuranceFundInformationDetail) UnmarshalJSON(data []byte) error {
 	if chil.Timestamp > 0 {
 		a.Timestamp = time.UnixMilli(chil.Timestamp)
 	}
+	return nil
+}
+
+func (a *OrderDetail) UnmarshalJSON(data []byte) error {
+	type Alias OrderDetail
+	chil := &struct {
+		*Alias
+		Side         string `json:"side"`
+		UpdateTime   int64  `json:"uTime,string"`
+		CreationTime int64  `json:"cTime,string"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	a.UpdateTime = time.UnixMilli(chil.UpdateTime)
+	a.CreationTime = time.UnixMilli(chil.CreationTime)
+	a.Side = order.ParseOrderSideString(chil.Side)
+	return nil
+}
+
+func (a *PendingOrderItem) UnmarshalJSON(data []byte) error {
+	type Alias PendingOrderItem
+	chil := &struct {
+		*Alias
+		Side         string `json:"side"`
+		UpdateTime   int64  `json:"uTime,string"`
+		CreationTime int64  `json:"cTime,string"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	a.UpdateTime = time.UnixMilli(chil.UpdateTime)
+	a.CreationTime = time.UnixMilli(chil.CreationTime)
+	a.Side = order.ParseOrderSideString(chil.Side)
+	return nil
+}
+
+func (a *TransactionDetail) UnmarshalJSON(data []byte) error {
+	type Alias TransactionDetail
+	chil := &struct {
+		*Alias
+		Timestamp int64 `json:"ts,string"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	a.Timestamp = time.UnixMilli(chil.Timestamp)
 	return nil
 }
