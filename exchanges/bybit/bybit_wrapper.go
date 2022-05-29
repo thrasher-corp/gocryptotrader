@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -284,16 +285,68 @@ func (by *Bybit) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string
 			pairs[x] = allPairs[x].BaseCurrency + currency.DashDelimiter + allPairs[x].QuoteCurrency
 		}
 		return pairs, nil
-	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.Futures:
+	case asset.CoinMarginedFutures:
 		allPairs, err := by.GetSymbolsInfo(ctx)
 		if err != nil {
 			return nil, err
 		}
-		pairs := make([]string, len(allPairs))
+		m := make(map[string]struct{})
 		for x := range allPairs {
-			if allPairs[x].Status == "Trading" {
-				pairs[x] = allPairs[x].BaseCurrency + currency.DashDelimiter + allPairs[x].QuoteCurrency
+			if allPairs[x].Status != "Trading" || allPairs[x].QuoteCurrency != "USD" {
+				continue
 			}
+			symbol := allPairs[x].BaseCurrency + currency.DashDelimiter + allPairs[x].QuoteCurrency
+			m[symbol] = struct{}{}
+		}
+
+		pairs := make([]string, len(m))
+		target := 0
+		for symbol := range m {
+			pairs[target] = symbol
+			target++
+		}
+		return pairs, nil
+	case asset.USDTMarginedFutures:
+		allPairs, err := by.GetSymbolsInfo(ctx)
+		if err != nil {
+			return nil, err
+		}
+		m := make(map[string]struct{})
+		for x := range allPairs {
+			if allPairs[x].Status != "Trading" || allPairs[x].QuoteCurrency != "USDT" {
+				continue
+			}
+
+			symbol := allPairs[x].BaseCurrency +
+				currency.DashDelimiter +
+				allPairs[x].QuoteCurrency
+			m[symbol] = struct{}{}
+		}
+		pairs := make([]string, len(m))
+		target := 0
+		for symbol := range m {
+			pairs[target] = symbol
+			target++
+		}
+		return pairs, nil
+	case asset.Futures:
+		allPairs, err := by.GetSymbolsInfo(ctx)
+		if err != nil {
+			return nil, err
+		}
+		pairs := make([]string, 0, len(allPairs))
+		for x := range allPairs {
+			if allPairs[x].Status != "Trading" {
+				continue
+			}
+
+			symbol := allPairs[x].BaseCurrency + allPairs[x].QuoteCurrency
+			filter := strings.Split(allPairs[x].Name, symbol)
+
+			if len(filter) != 2 || len(filter[1]) == 0 {
+				continue
+			}
+			pairs = append(pairs, symbol+currency.DashDelimiter+filter[1])
 		}
 		return pairs, nil
 	}
