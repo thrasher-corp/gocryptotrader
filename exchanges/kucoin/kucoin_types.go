@@ -237,8 +237,13 @@ type MarginAccounts struct {
 }
 
 type MarginRiskLimit struct {
-	Currency        string  `json:""`
+	Currency        string  `json:"currency"`
 	BorrowMaxAmount float64 `json:"borrowMaxAmount,string"`
 	BuyMaxAmount    float64 `json:"buyMaxAmount,string"`
 	Precision       int64   `json:"precision"`
+}
+
+type PostBorrowOrderResp struct {
+	OrderID  string `json:"orderId"`
+	Currency string `json:"currency"`
 }

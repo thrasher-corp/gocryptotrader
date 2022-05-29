@@ -239,16 +239,33 @@ func TestGetMarginRiskLimit(t *testing.T) {
 
 	_, err := k.GetMarginRiskLimit(context.Background(), "")
 	if err != nil {
-		t.Error("GetMarginRiskLimi() error", err)
+		t.Error("GetMarginRiskLimit() error", err)
 	}
 
 	_, err = k.GetMarginRiskLimit(context.Background(), "cross")
 	if err != nil {
-		t.Error("GetMarginRiskLimi() error", err)
+		t.Error("GetMarginRiskLimit() error", err)
 	}
 
 	_, err = k.GetMarginRiskLimit(context.Background(), "isolated")
 	if err != nil {
-		t.Error("GetMarginRiskLimi() error", err)
+		t.Error("GetMarginRiskLimit() error", err)
+	}
+}
+
+func TestPostBorrowOrder(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := k.PostBorrowOrder(context.Background(), "USDT", "FOK", "", 10, 0)
+	if err != nil {
+		t.Error("PostBorrowOrder() error", err)
+	}
+
+	_, err = k.PostBorrowOrder(context.Background(), "USDT", "IOC", "7,14,28", 10, 10)
+	if err != nil {
+		t.Error("PostBorrowOrder() error", err)
 	}
 }
