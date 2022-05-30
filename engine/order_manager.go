@@ -852,7 +852,7 @@ func (s *store) updateExisting(od *order.Detail) error {
 
 // modifyExisting depends on mod.Exchange and given ID to uniquely identify an order and
 // modify it.
-func (s *store) modifyExisting(id string, mod *order.Modify) error {
+func (s *store) modifyExisting(id string, mod *order.ModifyResponse) error {
 	s.m.Lock()
 	defer s.m.Unlock()
 	r, ok := s.Orders[strings.ToLower(mod.Exchange)]
@@ -863,7 +863,7 @@ func (s *store) modifyExisting(id string, mod *order.Modify) error {
 		if r[x].OrderID != id {
 			continue
 		}
-		r[x].UpdateOrderFromModify(mod)
+		r[x].UpdateOrderFromModifyResponse(mod)
 		if !r[x].AssetType.IsFutures() {
 			return nil
 		}

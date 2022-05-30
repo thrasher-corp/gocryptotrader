@@ -146,7 +146,7 @@ func (c *CustomEx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	return nil, nil
 }
 
-func (c *CustomEx) ModifyOrder(_ context.Context, _ *order.Modify) (*order.Modify, error) {
+func (c *CustomEx) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
 	return nil, nil
 }
 

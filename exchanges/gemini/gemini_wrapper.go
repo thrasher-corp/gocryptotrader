@@ -566,7 +566,7 @@ func (g *Gemini) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (g *Gemini) ModifyOrder(_ context.Context, _ *order.Modify) (*order.Modify, error) {
+func (g *Gemini) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

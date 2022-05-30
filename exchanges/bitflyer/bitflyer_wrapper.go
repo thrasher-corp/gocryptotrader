@@ -395,7 +395,7 @@ func (b *Bitflyer) SubmitOrder(_ context.Context, _ *order.Submit) (*order.Submi
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (b *Bitflyer) ModifyOrder(_ context.Context, _ *order.Modify) (*order.Modify, error) {
+func (b *Bitflyer) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

@@ -822,7 +822,7 @@ func (p *Poloniex) processAccountOrderUpdate(notification []interface{}) error {
 	// null returned so ok check is not needed
 	clientOrderID, _ := notification[4].(string)
 
-	p.Websocket.DataHandler <- &order.Modify{
+	p.Websocket.DataHandler <- &order.Detail{
 		Exchange:        p.Name,
 		RemainingAmount: cancelledAmount,
 		Amount:          amount + cancelledAmount,
@@ -1048,7 +1048,7 @@ func (p *Poloniex) processAccountTrades(notification []interface{}) error {
 		return err
 	}
 
-	p.Websocket.DataHandler <- &order.Modify{
+	p.Websocket.DataHandler <- &order.Detail{
 		Exchange: p.Name,
 		OrderID:  strconv.FormatFloat(orderID, 'f', -1, 64),
 		Fee:      totalFee,
@@ -1080,7 +1080,7 @@ func (p *Poloniex) processAccountKilledOrder(notification []interface{}) error {
 	// null returned so ok check is not needed
 	clientOrderID, _ := notification[2].(string)
 
-	p.Websocket.DataHandler <- &order.Modify{
+	p.Websocket.DataHandler <- &order.Detail{
 		Exchange:      p.Name,
 		OrderID:       strconv.FormatFloat(orderID, 'f', -1, 64),
 		Status:        order.Cancelled,

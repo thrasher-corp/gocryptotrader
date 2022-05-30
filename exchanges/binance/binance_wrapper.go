@@ -1065,7 +1065,7 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (b *Binance) ModifyOrder(_ context.Context, _ *order.Modify) (*order.Modify, error) {
+func (b *Binance) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

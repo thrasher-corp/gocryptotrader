@@ -219,7 +219,7 @@ func (z *ZB) wsHandleData(respRaw []byte) error {
 			return err
 		}
 
-		z.Websocket.DataHandler <- &order.Modify{
+		z.Websocket.DataHandler <- &order.Detail{
 			Exchange: z.Name,
 			OrderID:  strconv.FormatInt(o.Data.EntrustID, 10),
 			Pair:     p,

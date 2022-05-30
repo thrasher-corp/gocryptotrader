@@ -313,7 +313,7 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 						Err:      err,
 					}
 				}
-				b.Websocket.DataHandler <- &order.Modify{
+				b.Websocket.DataHandler <- &order.Detail{
 					Exchange:  b.Name,
 					OrderID:   response.Data[i].OrderID,
 					AccountID: strconv.FormatInt(response.Data[i].Account, 10),
@@ -424,7 +424,7 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 							Err:      err,
 						}
 					}
-					b.Websocket.DataHandler <- &order.Modify{
+					b.Websocket.DataHandler <- &order.Detail{
 						Price:     response.Data[x].Price,
 						Amount:    response.Data[x].OrderQuantity,
 						Exchange:  b.Name,

@@ -615,7 +615,7 @@ func (b *Bittrex) WsProcessUpdateOrder(data *OrderUpdateMessage) error {
 		}
 	}
 
-	b.Websocket.DataHandler <- &order.Modify{
+	b.Websocket.DataHandler <- &order.Detail{
 		ImmediateOrCancel: data.Delta.TimeInForce == string(ImmediateOrCancel),
 		FillOrKill:        data.Delta.TimeInForce == string(GoodTilCancelled),
 		PostOnly:          data.Delta.TimeInForce == string(PostOnlyGoodTilCancelled),

@@ -577,7 +577,7 @@ func (b *BTCMarkets) SubmitOrder(ctx context.Context, s *order.Submit) (*order.S
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (b *BTCMarkets) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Modify, error) {
+func (b *BTCMarkets) ModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
 	if err := action.Validate(); err != nil {
 		return nil, err
 	}
@@ -585,33 +585,32 @@ func (b *BTCMarkets) ModifyOrder(ctx context.Context, action *order.Modify) (*or
 	if err != nil {
 		return nil, err
 	}
-	pair, err := currency.NewPairFromString(resp.MarketID)
+	mod, err := action.DeriveModifyResponse()
 	if err != nil {
 		return nil, err
 	}
-	side, err := order.StringToOrderSide(resp.Side)
+	mod.Pair, err = currency.NewPairFromString(resp.MarketID)
 	if err != nil {
 		return nil, err
 	}
-	orderT, err := order.StringToOrderType(resp.Type)
+	mod.Side, err = order.StringToOrderSide(resp.Side)
 	if err != nil {
 		return nil, err
 	}
-	status, err := order.StringToOrderStatus(resp.Status)
+	mod.Type, err = order.StringToOrderType(resp.Type)
 	if err != nil {
 		return nil, err
 	}
-	return &order.Modify{
-		OrderID:         resp.OrderID,
-		Pair:            pair,
-		Side:            side,
-		Type:            orderT,
-		Date:            resp.CreationTime,
-		Price:           resp.Price,
-		Amount:          resp.Amount,
-		RemainingAmount: resp.OpenAmount,
-		Status:          status,
-	}, nil
+	mod.Status, err = order.StringToOrderStatus(resp.Status)
+	if err != nil {
+		return nil, err
+	}
+	mod.OrderID = resp.OrderID
+	mod.LastUpdated = resp.CreationTime
+	mod.Price = resp.Price
+	mod.Amount = resp.Amount
+	mod.RemainingAmount = resp.OpenAmount
+	return mod, nil
 }
 
 // CancelOrder cancels an order by its corresponding ID number
