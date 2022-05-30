@@ -387,22 +387,6 @@ func (b *Bithumb) PlaceTrade(ctx context.Context, orderCurrency, transactionType
 		b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, privatePlaceTrade, params, &response)
 }
 
-// ModifyTrade modifies an order already on the exchange books
-func (b *Bithumb) ModifyTrade(ctx context.Context, orderID, orderCurrency, transactionType string, units float64, price int64) (OrderPlace, error) {
-	response := OrderPlace{}
-
-	params := url.Values{}
-	params.Set("order_currency", strings.ToUpper(orderCurrency))
-	params.Set("payment_currency", "KRW")
-	params.Set("type", strings.ToUpper(transactionType))
-	params.Set("units", strconv.FormatFloat(units, 'f', -1, 64))
-	params.Set("price", strconv.FormatInt(price, 10))
-	params.Set("order_id", orderID)
-
-	return response,
-		b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, privatePlaceTrade, params, &response)
-}
-
 // GetOrderDetails returns specific order details
 //
 // orderID: Order number registered for purchase/sales

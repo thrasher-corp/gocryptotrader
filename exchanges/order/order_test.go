@@ -843,7 +843,6 @@ func BenchmarkStringToOrderStatus(b *testing.B) {
 }
 
 func TestUpdateOrderFromModify(t *testing.T) {
-	var leet = "1337"
 	od := Detail{ID: "1"}
 	updated := time.Now()
 
@@ -852,53 +851,30 @@ func TestUpdateOrderFromModify(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	om := Modify{
+	om := ModifyResponse{
 		ImmediateOrCancel: true,
-		HiddenOrder:       true,
-		FillOrKill:        true,
 		PostOnly:          true,
-		Leverage:          1.0,
 		Price:             1,
 		Amount:            1,
-		LimitPriceUpper:   1,
-		LimitPriceLower:   1,
 		TriggerPrice:      1,
-		QuoteAmount:       1,
-		ExecutedAmount:    1,
 		RemainingAmount:   1,
-		Fee:               1,
 		Exchange:          "1",
-		InternalOrderID:   "1",
-		ID:                "1",
-		AccountID:         "1",
-		ClientID:          "1",
-		WalletAddress:     "1",
 		Type:              1,
 		Side:              1,
 		Status:            1,
 		AssetType:         1,
 		LastUpdated:       updated,
 		Pair:              pair,
-		Trades:            []TradeHistory{},
 	}
 
-	od.UpdateOrderFromModify(&om)
+	od.UpdateOrderFromModifyResponse(&om)
 	if od.InternalOrderID == "1" {
 		t.Error("Should not be able to update the internal order ID")
 	}
 	if !od.ImmediateOrCancel {
 		t.Error("Failed to update")
 	}
-	if !od.HiddenOrder {
-		t.Error("Failed to update")
-	}
-	if !od.FillOrKill {
-		t.Error("Failed to update")
-	}
 	if !od.PostOnly {
-		t.Error("Failed to update")
-	}
-	if od.Leverage != 1 {
 		t.Error("Failed to update")
 	}
 	if od.Price != 1 {
@@ -907,37 +883,16 @@ func TestUpdateOrderFromModify(t *testing.T) {
 	if od.Amount != 1 {
 		t.Error("Failed to update")
 	}
-	if od.LimitPriceLower != 1 {
-		t.Error("Failed to update")
-	}
-	if od.LimitPriceUpper != 1 {
-		t.Error("Failed to update")
-	}
 	if od.TriggerPrice != 1 {
 		t.Error("Failed to update")
 	}
-	if od.QuoteAmount != 1 {
-		t.Error("Failed to update")
-	}
-	if od.ExecutedAmount != 1 {
-		t.Error("Failed to update")
-	}
 	if od.RemainingAmount != 1 {
-		t.Error("Failed to update")
-	}
-	if od.Fee != 1 {
 		t.Error("Failed to update")
 	}
 	if od.Exchange != "" {
 		t.Error("Should not be able to update exchange via modify")
 	}
 	if od.ID != "1" {
-		t.Error("Failed to update")
-	}
-	if od.ClientID != "1" {
-		t.Error("Failed to update")
-	}
-	if od.WalletAddress != "1" {
 		t.Error("Failed to update")
 	}
 	if od.Type != 1 {
@@ -960,49 +915,6 @@ func TestUpdateOrderFromModify(t *testing.T) {
 	}
 	if od.Trades != nil {
 		t.Error("Failed to update")
-	}
-
-	om.Trades = append(om.Trades, TradeHistory{TID: "1"}, TradeHistory{TID: "2"})
-	od.UpdateOrderFromModify(&om)
-	if len(od.Trades) != 2 {
-		t.Error("Failed to add trades")
-	}
-	om.Trades[0].Exchange = leet
-	om.Trades[0].Price = 1337
-	om.Trades[0].Fee = 1337
-	om.Trades[0].IsMaker = true
-	om.Trades[0].Timestamp = updated
-	om.Trades[0].Description = leet
-	om.Trades[0].Side = UnknownSide
-	om.Trades[0].Type = UnknownType
-	om.Trades[0].Amount = 1337
-	od.UpdateOrderFromModify(&om)
-	if od.Trades[0].Exchange == leet {
-		t.Error("Should not be able to update exchange from update")
-	}
-	if od.Trades[0].Price != 1337 {
-		t.Error("Failed to update trades")
-	}
-	if od.Trades[0].Fee != 1337 {
-		t.Error("Failed to update trades")
-	}
-	if !od.Trades[0].IsMaker {
-		t.Error("Failed to update trades")
-	}
-	if od.Trades[0].Timestamp != updated {
-		t.Error("Failed to update trades")
-	}
-	if od.Trades[0].Description != leet {
-		t.Error("Failed to update trades")
-	}
-	if od.Trades[0].Side != UnknownSide {
-		t.Error("Failed to update trades")
-	}
-	if od.Trades[0].Type != UnknownType {
-		t.Error("Failed to update trades")
-	}
-	if od.Trades[0].Amount != 1337 {
-		t.Error("Failed to update trades")
 	}
 }
 
@@ -1635,6 +1547,84 @@ func TestDetail_CopyPointerOrderSlice(t *testing.T) {
 	}
 }
 
+func TestDeriveModify(t *testing.T) {
+	t.Parallel()
+	var o *Detail
+	if _, err := o.DeriveModify(); !errors.Is(err, errOrderDetailIsNil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errOrderDetailIsNil)
+	}
+
+	pair := currency.NewPair(currency.BTC, currency.AUD)
+
+	o = &Detail{
+		Exchange:      "wow",
+		ID:            "wow2",
+		ClientOrderID: "wow3",
+		Type:          Market,
+		Side:          Long,
+		AssetType:     asset.Futures,
+		Pair:          pair,
+	}
+
+	mod, err := o.DeriveModify()
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if mod == nil {
+		t.Fatal("should not be nil")
+	}
+
+	if mod.Exchange != "wow" ||
+		mod.ID != "wow2" ||
+		mod.ClientOrderID != "wow3" ||
+		mod.Type != Market ||
+		mod.Side != Long ||
+		mod.AssetType != asset.Futures ||
+		!mod.Pair.Equal(pair) {
+		t.Fatal("unexpected values")
+	}
+}
+
+func TestDeriveModifyResponse(t *testing.T) {
+	t.Parallel()
+	var mod *Modify
+	if _, err := mod.DeriveModifyResponse(); !errors.Is(err, errOrderDetailIsNil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errOrderDetailIsNil)
+	}
+
+	pair := currency.NewPair(currency.BTC, currency.AUD)
+
+	mod = &Modify{
+		Exchange:      "wow",
+		ID:            "wow2",
+		ClientOrderID: "wow3",
+		Type:          Market,
+		Side:          Long,
+		AssetType:     asset.Futures,
+		Pair:          pair,
+	}
+
+	modresp, err := mod.DeriveModifyResponse()
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if modresp == nil {
+		t.Fatal("should not be nil")
+	}
+
+	if modresp.Exchange != "wow" ||
+		modresp.OrderID != "wow2" ||
+		modresp.ClientOrderID != "wow3" ||
+		modresp.Type != Market ||
+		modresp.Side != Long ||
+		modresp.AssetType != asset.Futures ||
+		!modresp.Pair.Equal(pair) {
+		t.Fatal("unexpected values")
+	}
+}
+
 func TestDeriveCancel(t *testing.T) {
 	t.Parallel()
 	var o *Detail
@@ -1660,7 +1650,6 @@ func TestDeriveCancel(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
-
 	if cancel.Exchange != "wow" ||
 		cancel.ID != "wow1" ||
 		cancel.AccountID != "wow2" ||
@@ -1671,6 +1660,6 @@ func TestDeriveCancel(t *testing.T) {
 		cancel.Side != Long ||
 		!cancel.Pair.Equal(pair) ||
 		cancel.AssetType != asset.Futures {
-		t.Fatal("unexpected values")
+		t.Fatalf("unexpected values %+v", cancel)
 	}
 }
