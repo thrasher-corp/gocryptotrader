@@ -2,6 +2,7 @@ package order
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -1704,6 +1705,7 @@ func BenchmarkIsInactive(b *testing.B) {
 }
 
 func TestIsOrderPlaced(t *testing.T) {
+	t.Parallel()
 	statusTests := map[int]struct {
 		o      Detail
 		expRes bool
@@ -1729,9 +1731,13 @@ func TestIsOrderPlaced(t *testing.T) {
 	}
 	// specific tests
 	for num, tt := range statusTests {
-		if tt.o.WasOrderPlaced() != tt.expRes {
-			t.Errorf("statusTests[%v] failed", num)
-		}
+		tt := tt
+		t.Run(fmt.Sprintf("TEST CASE: %d", num), func(t *testing.T) {
+			t.Parallel()
+			if tt.o.WasOrderPlaced() != tt.expRes {
+				t.Errorf("statusTests[%v] failed", num)
+			}
+		})
 	}
 }
 
