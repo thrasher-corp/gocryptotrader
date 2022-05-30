@@ -233,12 +233,12 @@ func (m *websocketRoutineManager) websocketDataHandler(exchName string, data int
 		}
 		m.syncer.PrintOrderbookSummary(base, "websocket", nil)
 	case *order.Detail:
-		m.printOrderSummary(d)
 		if !m.orderManager.Exists(d) {
 			err := m.orderManager.Add(d)
 			if err != nil {
 				return err
 			}
+			m.printOrderSummary(d, false)
 		} else {
 			od, err := m.orderManager.GetByExchangeAndID(d.Exchange, d.ID)
 			if err != nil {
@@ -250,17 +250,7 @@ func (m *websocketRoutineManager) websocketDataHandler(exchName string, data int
 			if err != nil {
 				return err
 			}
-		}
-	case *order.Modify:
-		m.printOrderChangeSummary(d)
-		od, err := m.orderManager.GetByExchangeAndID(d.Exchange, d.ID)
-		if err != nil {
-			return err
-		}
-		od.UpdateOrderFromModify(d)
-		err = m.orderManager.UpdateExistingOrder(od)
-		if err != nil {
-			return err
+			m.printOrderSummary(d, true)
 		}
 	case order.ClassificationError:
 		return fmt.Errorf("%w %s", d.Err, d.Error())
@@ -299,37 +289,21 @@ func (m *websocketRoutineManager) FormatCurrency(p currency.Pair) currency.Pair 
 		m.currencyConfig.CurrencyPairFormat.Uppercase)
 }
 
-// printOrderChangeSummary this function will be deprecated when a order manager
-// update is done.
-func (m *websocketRoutineManager) printOrderChangeSummary(o *order.Modify) {
-	if m == nil || atomic.LoadInt32(&m.started) == 0 || o == nil {
-		return
-	}
-
-	log.Debugf(log.WebsocketMgr,
-		"Order Change: %s %s %s %s %s %s OrderID:%s ClientOrderID:%s Price:%f Amount:%f Executed Amount:%f Remaining Amount:%f",
-		o.Exchange,
-		o.AssetType,
-		o.Pair,
-		o.Status,
-		o.Type,
-		o.Side,
-		o.ID,
-		o.ClientOrderID,
-		o.Price,
-		o.Amount,
-		o.ExecutedAmount,
-		o.RemainingAmount)
-}
-
 // printOrderSummary this function will be deprecated when a order manager
 // update is done.
-func (m *websocketRoutineManager) printOrderSummary(o *order.Detail) {
+func (m *websocketRoutineManager) printOrderSummary(o *order.Detail, isUpdate bool) {
 	if m == nil || atomic.LoadInt32(&m.started) == 0 || o == nil {
 		return
 	}
+
+	orderNotif := "New Order:"
+	if isUpdate {
+		orderNotif = "Order Change:"
+	}
+
 	log.Debugf(log.WebsocketMgr,
-		"New Order: %s %s %s %s %s %s OrderID:%s ClientOrderID:%s Price:%f Amount:%f Executed Amount:%f Remaining Amount:%f",
+		"%s %s %s %s %s %s %s OrderID:%s ClientOrderID:%s Price:%f Amount:%f Executed Amount:%f Remaining Amount:%f",
+		orderNotif,
 		o.Exchange,
 		o.AssetType,
 		o.Pair,

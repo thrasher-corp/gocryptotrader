@@ -999,7 +999,7 @@ func (h *HUOBI) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitR
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (h *HUOBI) ModifyOrder(_ context.Context, _ *order.Modify) (*order.Modify, error) {
+func (h *HUOBI) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

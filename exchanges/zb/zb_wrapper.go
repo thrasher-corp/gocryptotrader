@@ -528,7 +528,7 @@ func (z *ZB) SubmitOrder(ctx context.Context, o *order.Submit) (order.SubmitResp
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (z *ZB) ModifyOrder(_ context.Context, _ *order.Modify) (*order.Modify, error) {
+func (z *ZB) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

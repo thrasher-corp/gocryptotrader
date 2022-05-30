@@ -587,7 +587,7 @@ func (b *Bittrex) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submi
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (b *Bittrex) ModifyOrder(_ context.Context, _ *order.Modify) (*order.Modify, error) {
+func (b *Bittrex) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

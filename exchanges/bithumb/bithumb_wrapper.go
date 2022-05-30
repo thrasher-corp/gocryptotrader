@@ -89,7 +89,6 @@ func (b *Bithumb) SetDefaults() {
 				GetOrder:            true,
 				CancelOrder:         true,
 				SubmitOrder:         true,
-				ModifyOrder:         true,
 				DepositHistory:      true,
 				WithdrawalHistory:   true,
 				UserTradeHistory:    true,
@@ -512,30 +511,8 @@ func (b *Bithumb) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submi
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (b *Bithumb) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Modify, error) {
-	if err := action.Validate(); err != nil {
-		return nil, err
-	}
-
-	o, err := b.ModifyTrade(ctx,
-		action.ID,
-		action.Pair.Base.String(),
-		action.Side.Lower(),
-		action.Amount,
-		int64(action.Price))
-	if err != nil {
-		return nil, err
-	}
-
-	return &order.Modify{
-		Exchange:  action.Exchange,
-		AssetType: action.AssetType,
-		Pair:      action.Pair,
-		ID:        o.Data[0].ContID,
-		Price:     float64(int64(action.Price)),
-		Amount:    action.Amount,
-		Side:      action.Side,
-	}, nil
+func (b *Bithumb) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number

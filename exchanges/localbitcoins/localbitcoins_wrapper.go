@@ -445,7 +445,7 @@ func (l *LocalBitcoins) SubmitOrder(ctx context.Context, s *order.Submit) (order
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (l *LocalBitcoins) ModifyOrder(_ context.Context, _ *order.Modify) (*order.Modify, error) {
+func (l *LocalBitcoins) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

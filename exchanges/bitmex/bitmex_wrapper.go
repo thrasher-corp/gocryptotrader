@@ -609,34 +609,32 @@ func (b *Bitmex) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submit
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (b *Bitmex) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Modify, error) {
+func (b *Bitmex) ModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
 	if err := action.Validate(); err != nil {
 		return nil, err
 	}
-
-	var params OrderAmendParams
 
 	if math.Mod(action.Amount, 1) != 0 {
 		return nil, errors.New("contract amount can not have decimals")
 	}
 
-	params.OrderID = action.ID
-	params.OrderQty = int32(action.Amount)
-	params.Price = action.Price
-
-	o, err := b.AmendOrder(ctx, &params)
+	o, err := b.AmendOrder(ctx, &OrderAmendParams{
+		OrderID:  action.ID,
+		OrderQty: int32(action.Amount),
+		Price:    action.Price})
 	if err != nil {
 		return nil, err
 	}
 
-	return &order.Modify{
-		Exchange:  action.Exchange,
-		AssetType: action.AssetType,
-		Pair:      action.Pair,
-		ID:        o.OrderID,
-		Price:     action.Price,
-		Amount:    float64(params.OrderQty),
-	}, nil
+	resp, err := action.DeriveModifyResponse()
+	if err != nil {
+		return nil, err
+	}
+
+	resp.OrderID = o.OrderID
+	resp.RemainingAmount = o.OrderQty
+	resp.LastUpdated = o.TransactTime
+	return resp, nil
 }
 
 // CancelOrder cancels an order by its corresponding ID number
