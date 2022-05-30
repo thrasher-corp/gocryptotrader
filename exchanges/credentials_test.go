@@ -234,27 +234,6 @@ func TestCheckCredentials(t *testing.T) {
 	}
 }
 
-func TestGetInternal(t *testing.T) {
-	t.Parallel()
-	flag, store := (&account.Credentials{}).GetInternal()
-	if flag != "" {
-		t.Fatal("unexpected value")
-	}
-	if store != nil {
-		t.Fatal("unexpected value")
-	}
-	flag, store = (&account.Credentials{Key: "wow"}).GetInternal()
-	if flag != account.ContextCredentialsFlag {
-		t.Fatal("unexpected value")
-	}
-	if store == nil {
-		t.Fatal("unexpected value")
-	}
-	if store.Get().Key != "wow" {
-		t.Fatal("unexpected value")
-	}
-}
-
 func TestAPISetters(t *testing.T) {
 	t.Parallel()
 	api := API{}

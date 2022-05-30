@@ -111,3 +111,39 @@ func TestParseCredentialsMetadata(t *testing.T) {
 		t.Fatal("unexpected value")
 	}
 }
+
+func TestGetInternal(t *testing.T) {
+	t.Parallel()
+	flag, store := (&Credentials{}).getInternal()
+	if flag != "" {
+		t.Fatal("unexpected value")
+	}
+	if store != nil {
+		t.Fatal("unexpected value")
+	}
+	flag, store = (&Credentials{Key: "wow"}).getInternal()
+	if flag != ContextCredentialsFlag {
+		t.Fatal("unexpected value")
+	}
+	if store == nil {
+		t.Fatal("unexpected value")
+	}
+	if store.Get().Key != "wow" {
+		t.Fatal("unexpected value")
+	}
+}
+
+func TestString(t *testing.T) {
+	creds := Credentials{}
+	if s := creds.String(); s != "Key:[...] SubAccount:[] ClientID:[]" {
+		t.Fatal("unexpected value")
+	}
+
+	creds.Key = "12345678910111234"
+	creds.SubAccount = "sub"
+	creds.ClientID = "client"
+
+	if s := creds.String(); s != "Key:[1234567891011123...] SubAccount:[sub] ClientID:[client]" {
+		t.Fatal("unexpected value")
+	}
+}

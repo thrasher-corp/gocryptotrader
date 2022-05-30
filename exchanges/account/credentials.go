@@ -10,13 +10,13 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
-// ContextCredential is a string flag for use with context values when setting
+// contextCredential is a string flag for use with context values when setting
 // credentials internally or via gRPC.
-type ContextCredential string
+type contextCredential string
 
 const (
-	ContextCredentialsFlag ContextCredential = "apicredentials"
-	ContextSubAccountFlag  ContextCredential = "subaccountoverride"
+	ContextCredentialsFlag contextCredential = "apicredentials"
+	ContextSubAccountFlag  contextCredential = "subaccountoverride"
 
 	Key             = "key"
 	Secret          = "secret"
@@ -24,6 +24,8 @@ const (
 	ClientID        = "clientid"
 	OneTimePassword = "otp"
 	PEMKey          = "pemkey"
+
+	apiKeyDisplaySize = 16
 )
 
 var (
@@ -43,7 +45,7 @@ type Credentials struct {
 	// TODO: Add AccessControl uint8 for READ/WRITE/Withdraw capabilities.
 }
 
-// GetMetaData returns the credentials for metadata context deployment
+// getMetaData returns the credentials for metadata context deployment
 func (c *Credentials) GetMetaData() (flag, values string) {
 	vals := make([]string, 0, 6)
 	if c.Key != "" {
@@ -70,14 +72,18 @@ func (c *Credentials) GetMetaData() (flag, values string) {
 // String prints out basic credential info (obfuscated) to track key instances
 // associated with exchanges.
 func (c *Credentials) String() string {
+	obfuscated := c.Key
+	if len(obfuscated) > apiKeyDisplaySize {
+		obfuscated = obfuscated[:apiKeyDisplaySize]
+	}
 	return fmt.Sprintf("Key:[%s...] SubAccount:[%s] ClientID:[%s]",
-		c.Key[:16],
+		obfuscated,
 		c.SubAccount,
 		c.ClientID)
 }
 
-// GetInternal returns the values for assignment to an internal context
-func (c *Credentials) GetInternal() (ContextCredential, *ContextCredentialsStore) {
+// getInternal returns the values for assignment to an internal context
+func (c *Credentials) getInternal() (contextCredential, *ContextCredentialsStore) {
 	if c.IsEmpty() {
 		return "", nil
 	}
@@ -166,7 +172,7 @@ func ParseCredentialsMetadata(ctx context.Context, md metadata.MD) (context.Cont
 	}
 	if ctxCreds.IsEmpty() && subAccountHere != "" {
 		// This will override default sub account details if needed.
-		return DeploySubAccountOverrideToContext(ctx, subAccountHere), nil
+		return deploySubAccountOverrideToContext(ctx, subAccountHere), nil
 	}
 	// merge sub account to main context credentials
 	ctxCreds.SubAccount = subAccountHere
@@ -176,12 +182,12 @@ func ParseCredentialsMetadata(ctx context.Context, md metadata.MD) (context.Cont
 // DeployCredentialsToContext sets credentials for internal use to context which
 // can override default credential values.
 func DeployCredentialsToContext(ctx context.Context, creds *Credentials) context.Context {
-	flag, store := creds.GetInternal()
+	flag, store := creds.getInternal()
 	return context.WithValue(ctx, flag, store)
 }
 
-// DeploySubAccountOverrideToContext sets subaccount as override to credentials
+// deploySubAccountOverrideToContext sets subaccount as override to credentials
 // as a separate flag.
-func DeploySubAccountOverrideToContext(ctx context.Context, subAccount string) context.Context {
+func deploySubAccountOverrideToContext(ctx context.Context, subAccount string) context.Context {
 	return context.WithValue(ctx, ContextSubAccountFlag, subAccount)
 }
