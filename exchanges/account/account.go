@@ -65,7 +65,7 @@ func SubscribeToExchangeAccount(exchange string) (dispatch.Pipe, error) {
 	return service.mux.Subscribe(accounts.ID)
 }
 
-// Process processes new account holdings updates and returns the resultant.
+// Process processes new account holdings updates
 func Process(h *Holdings, c *Credentials) error {
 	return service.Update(h, c)
 }
