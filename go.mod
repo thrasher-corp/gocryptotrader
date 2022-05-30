@@ -20,7 +20,7 @@ require (
 	github.com/thrasher-corp/gct-ta v0.0.0-20200623072738-f2b55b7f9f41
 	github.com/thrasher-corp/goose v2.7.0-rc4.0.20191002032028-0f2c2a27abdb+incompatible
 	github.com/thrasher-corp/sqlboiler v1.0.1-0.20191001234224-71e17f37a85e
-	github.com/urfave/cli/v2 v2.8.0
+	github.com/urfave/cli/v2 v2.8.1
 	github.com/volatiletech/null v8.0.0+incompatible
 	golang.org/x/crypto v0.0.0-20220411220226-7b82a4e95df4
 	golang.org/x/net v0.0.0-20220520000938-2e3eb7b945c2
@@ -31,7 +31,6 @@ require (
 )
 
 require (
-	github.com/antzucaro/matchr v0.0.0-20210222213004-b04723ef80f0 // indirect
 	github.com/boombuler/barcode v1.0.1-0.20190219062509-6c824513bacc // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.1 // indirect
 	github.com/friendsofgo/errors v0.9.2 // indirect
@@ -51,6 +50,7 @@ require (
 	github.com/subosito/gotenv v1.3.0 // indirect
 	github.com/volatiletech/inflect v0.0.1 // indirect
 	github.com/volatiletech/sqlboiler v3.7.1+incompatible // indirect
+	github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 // indirect
 	golang.org/x/sys v0.0.0-20220520151302-bc2c85ada10a // indirect
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/xerrors v0.0.0-20220517211312-f3a8303e98df // indirect
