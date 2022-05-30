@@ -1,16 +1,16 @@
-# GoCryptoTrader Backtester: Example package
+# GoCryptoTrader Backtester: Strategies package
 
 <img src="/backtester/common/backtester.png?raw=true" width="350px" height="350px" hspace="70">
 
 
 [![Build Status](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
-[![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader/backtester/plugins/strategies/example)
+[![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader/backtester/plugins/strategies)
 [![Coverage Status](http://codecov.io/github/thrasher-corp/gocryptotrader/coverage.svg?branch=master)](http://codecov.io/github/thrasher-corp/gocryptotrader?branch=master)
 [![Go Report Card](https://goreportcard.com/badge/github.com/thrasher-corp/gocryptotrader)](https://goreportcard.com/report/github.com/thrasher-corp/gocryptotrader)
 
 
-This example package is part of the GoCryptoTrader codebase.
+This strategies package is part of the GoCryptoTrader codebase.
 
 ## This is still in active development
 
@@ -18,9 +18,7 @@ You can track ideas, planned features and what's in progress on this Trello boar
 
 Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://join.slack.com/t/gocryptotrader/shared_invite/enQtNTQ5NDAxMjA2Mjc5LTc5ZDE1ZTNiOGM3ZGMyMmY1NTAxYWZhODE0MWM5N2JlZDk1NDU0YTViYzk4NTk3OTRiMDQzNGQ1YTc4YmRlMTk)
 
-## Example package overview
-
-This is a custom strategy for the GoCryptoTrader Backtester. It is a simple example of a strategy that trades a pair of assets and is used to highlight how strategies can be loaded from external sources.
+## Strategies package overview
 
 ### Designing a strategy
 - File must contain `main` package
@@ -33,16 +31,10 @@ See [here](./backtester/plugins/README.md) for details on how to build the plugi
 ### Running
 Plugins can only be loaded via Linux, macOS and WSL. Windows itself is not supported.
 
-To run this strategy you will need to use the following flags when running the GoCryptoTrader Backtester:
+To run a strategy you will need to use the following flags when running the GoCryptoTrader Backtester:
 
 ```bash
 ./backtester -strategypluginpath="path/to/strategy/example.so"
-```
-
-To run this specific example strategy, use:
-
-```bash
-./backtester --strategypluginpath="/plugins/strategies/example/example.so"
 ```
 
 Upon startup, the GoCryptoTrader Backtester will load the strategy and run it for all events.

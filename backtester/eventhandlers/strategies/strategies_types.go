@@ -7,6 +7,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 )
 
+type StrategyHolder []Handler
+
 // Handler defines all functions required to run strategies against data events
 type Handler interface {
 	Name() string

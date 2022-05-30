@@ -16,14 +16,111 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/signaler"
 )
 
+var configPath, templatePath, reportOutput, strategyPluginPath string
+var printLogo, generateReport, darkReport, verbose, colourOutput, logSubHeader bool
+
 func main() {
-	var configPath, templatePath, reportOutput string
-	var printLogo, generateReport, darkReport, verbose, colourOutput, logSubHeader bool
 	wd, err := os.Getwd()
 	if err != nil {
 		fmt.Printf("Could not get working directory. Error: %v.\n", err)
 		os.Exit(1)
 	}
+	parseFlags(wd)
+	if !colourOutput {
+		common.PurgeColours()
+	}
+	var bt *backtest.BackTest
+	var cfg *config.Config
+	log.GlobalLogConfig = log.GenDefaultSettings()
+	log.GlobalLogConfig.AdvancedSettings.ShowLogSystemName = convert.BoolPtr(logSubHeader)
+	log.GlobalLogConfig.AdvancedSettings.Headers.Info = common.ColourInfo + "[INFO]" + common.ColourDefault
+	log.GlobalLogConfig.AdvancedSettings.Headers.Warn = common.ColourWarn + "[WARN]" + common.ColourDefault
+	log.GlobalLogConfig.AdvancedSettings.Headers.Debug = common.ColourDebug + "[DEBUG]" + common.ColourDefault
+	log.GlobalLogConfig.AdvancedSettings.Headers.Error = common.ColourError + "[ERROR]" + common.ColourDefault
+	err = log.SetupGlobalLogger()
+	if err != nil {
+		fmt.Printf("Could not setup global logger. Error: %v.\n", err)
+		os.Exit(1)
+	}
+
+	err = common.RegisterBacktesterSubLoggers()
+	if err != nil {
+		fmt.Printf("Could not register subloggers. Error: %v.\n", err)
+		os.Exit(1)
+	}
+
+	if strategyPluginPath != "" {
+		err = loadCustomStrategy(strategyPluginPath)
+	}
+
+	cfg, err = config.ReadConfigFromFile(configPath)
+	if err != nil {
+		fmt.Printf("Could not read config. Error: %v.\n", err)
+		os.Exit(1)
+	}
+	if printLogo {
+		fmt.Println(common.Logo())
+	}
+
+	err = cfg.Validate()
+	if err != nil {
+		fmt.Printf("Could not read config. Error: %v.\n", err)
+		os.Exit(1)
+	}
+
+	bt, err = backtest.NewFromConfig(cfg, templatePath, reportOutput, verbose)
+	if err != nil {
+		fmt.Printf("Could not setup backtester from config. Error: %v.\n", err)
+		os.Exit(1)
+	}
+	if cfg.DataSettings.LiveData != nil {
+		go func() {
+			err = bt.RunLive()
+			if err != nil {
+				fmt.Printf("Could not complete live run. Error: %v.\n", err)
+				os.Exit(-1)
+			}
+		}()
+		interrupt := signaler.WaitForInterrupt()
+		log.Infof(log.Global, "Captured %v, shutdown requested.\n", interrupt)
+		bt.Stop()
+	} else {
+		bt.Run()
+	}
+
+	err = bt.Statistic.CalculateAllResults()
+	if err != nil {
+		log.Error(log.Global, err)
+		os.Exit(1)
+	}
+
+	if generateReport {
+		bt.Reports.UseDarkMode(darkReport)
+		err = bt.Reports.GenerateReport()
+		if err != nil {
+			log.Error(log.Global, err)
+		}
+	}
+}
+
+func loadCustomStrategy(strategyPluginPath string) error {
+	p, err := plugin.Open(strategyPluginPath)
+	if err != nil {
+		return fmt.Errorf("could not open plugin: %w", err)
+	}
+	v, err := p.Lookup("GetStrategy")
+	if err != nil {
+		return fmt.Errorf("could not lookup plugin. Plugin must have function `GetStrategy`. Error: %w", err)
+	}
+	customStrategy, ok := v.(func() strategies.Handler)
+	if !ok {
+		return fmt.Errorf("could not cast plugin to strategies.Handler")
+	}
+	strategies.AddStrategy(customStrategy())
+	return nil
+}
+
+func parseFlags(wd string) {
 	flag.StringVar(
 		&configPath,
 		"configpath",
@@ -78,89 +175,10 @@ func main() {
 		"logsubheader",
 		true,
 		"displays logging subheader to track where activity originates")
+	flag.StringVar(
+		&strategyPluginPath,
+		"strategypluginpath",
+		"",
+		"example path: "+filepath.Join(wd, "plugins", "strategies", "example", "example.so"))
 	flag.Parse()
-	if !colourOutput {
-		common.PurgeColours()
-	}
-	var bt *backtest.BackTest
-	var cfg *config.Config
-	log.GlobalLogConfig = log.GenDefaultSettings()
-	log.GlobalLogConfig.AdvancedSettings.ShowLogSystemName = convert.BoolPtr(logSubHeader)
-	log.GlobalLogConfig.AdvancedSettings.Headers.Info = common.ColourInfo + "[INFO]" + common.ColourDefault
-	log.GlobalLogConfig.AdvancedSettings.Headers.Warn = common.ColourWarn + "[WARN]" + common.ColourDefault
-	log.GlobalLogConfig.AdvancedSettings.Headers.Debug = common.ColourDebug + "[DEBUG]" + common.ColourDefault
-	log.GlobalLogConfig.AdvancedSettings.Headers.Error = common.ColourError + "[ERROR]" + common.ColourDefault
-	err = log.SetupGlobalLogger()
-	if err != nil {
-		fmt.Printf("Could not setup global logger. Error: %v.\n", err)
-		os.Exit(1)
-	}
-
-	err = common.RegisterBacktesterSubLoggers()
-	if err != nil {
-		fmt.Printf("Could not register subloggers. Error: %v.\n", err)
-		os.Exit(1)
-	}
-
-	p, err := plugin.Open(filepath.Join(wd, "eventhandlers", "strategies", "plugeroo", "plugeroo.so"))
-	if err != nil {
-		fmt.Printf("Could not open plugin. Error: %v.\n", err)
-		os.Exit(1)
-	}
-	v, err := p.Lookup("GetStrategy")
-	if err != nil {
-		fmt.Printf("Could not lookup plugin. Error: %v.\n", err)
-		os.Exit(1)
-	}
-	strat := v.(func() strategies.Handler)()
-	strategies.AllStrats = append(strategies.AllStrats, strat)
-
-	cfg, err = config.ReadConfigFromFile(configPath)
-	if err != nil {
-		fmt.Printf("Could not read config. Error: %v.\n", err)
-		os.Exit(1)
-	}
-	if printLogo {
-		fmt.Println(common.Logo())
-	}
-
-	err = cfg.Validate()
-	if err != nil {
-		fmt.Printf("Could not read config. Error: %v.\n", err)
-		os.Exit(1)
-	}
-
-	bt, err = backtest.NewFromConfig(cfg, templatePath, reportOutput, verbose)
-	if err != nil {
-		fmt.Printf("Could not setup backtester from config. Error: %v.\n", err)
-		os.Exit(1)
-	}
-	if cfg.DataSettings.LiveData != nil {
-		go func() {
-			err = bt.RunLive()
-			if err != nil {
-				fmt.Printf("Could not complete live run. Error: %v.\n", err)
-				os.Exit(-1)
-			}
-		}()
-		interrupt := signaler.WaitForInterrupt()
-		log.Infof(log.Global, "Captured %v, shutdown requested.\n", interrupt)
-		bt.Stop()
-	} else {
-		bt.Run()
-	}
-
-	err = bt.Statistic.CalculateAllResults()
-	if err != nil {
-		log.Error(log.Global, err)
-		os.Exit(1)
-	}
-
-	if generateReport {
-		bt.Reports.UseDarkMode(darkReport)
-		err = bt.Reports.GenerateReport()
-		if err != nil {
-			log.Error(log.Global, err)
-		}
-	}
 }
