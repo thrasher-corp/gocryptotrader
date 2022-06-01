@@ -185,3 +185,23 @@ func TestCreddentialsEqual(t *testing.T) {
 		t.Fatal("unexpectedd value")
 	}
 }
+
+func TestProtectedString(t *testing.T) {
+	t.Parallel()
+	p := Protected{}
+	if p.String() != "" {
+		t.Fatal("unexpected value")
+	}
+	p.creds = &Credentials{}
+	if s := p.String(); s != "Key:[...] SubAccount:[] ClientID:[]" {
+		t.Fatal("unexpected value")
+	}
+
+	p.creds.Key = "12345678910111234"
+	p.creds.SubAccount = "sub"
+	p.creds.ClientID = "client"
+
+	if s := p.creds.String(); s != "Key:[1234567891011123...] SubAccount:[sub] ClientID:[client]" {
+		t.Fatal("unexpected value")
+	}
+}

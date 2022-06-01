@@ -206,3 +206,11 @@ func DeployCredentialsToContext(ctx context.Context, creds *Credentials) context
 func DeploySubAccountOverrideToContext(ctx context.Context, subAccount string) context.Context {
 	return context.WithValue(ctx, ContextSubAccountFlag, subAccount)
 }
+
+// String strings the credentials in a protected way.
+func (p Protected) String() string {
+	if p.creds == nil {
+		return ""
+	}
+	return p.creds.String()
+}

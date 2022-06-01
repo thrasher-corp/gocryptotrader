@@ -44,7 +44,7 @@ type Holdings struct {
 
 // SubAccount defines a singular account type with associated currency balances
 type SubAccount struct {
-	Credentials Credentials
+	Credentials Protected
 	ID          string
 	AssetType   asset.Item
 	Currencies  []Balance
@@ -81,4 +81,10 @@ type ProtectedBalance struct {
 	// notice alerts for when the balance changes for strategy inspection and
 	// usage.
 	notice alert.Notice
+}
+
+// Protected limits the access to the underlying credentials outside of this
+// package and allows it to be nil.
+type Protected struct {
+	creds *Credentials
 }

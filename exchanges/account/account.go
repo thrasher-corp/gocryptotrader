@@ -118,8 +118,13 @@ func GetHoldings(exch string, assetType asset.Item) (Holdings, error) {
 					continue
 				}
 
+				// Add differentiation between accounts if available
+				if credentials.SubAccount == "" {
+					credentials.SubAccount = subAccount
+				}
+
 				accountsHoldings = append(accountsHoldings, SubAccount{
-					Credentials: credentials,
+					Credentials: Protected{creds: &credentials},
 					ID:          subAccount,
 					AssetType:   ai,
 					Currencies:  currencyBalances,
@@ -237,7 +242,11 @@ func (s *Service) Update(a *Holdings, creds *Credentials) error {
 		// on the exchange implementation UpdateAccountInfo() and portfoio
 		// management.
 		// TODO: Update incoming Holdings type to already be populated. (Suggestion)
-		a.Accounts[x].Credentials = *creds
+		cpy := *creds
+		if cpy.SubAccount == "" {
+			cpy.SubAccount = a.Accounts[x].ID
+		}
+		a.Accounts[x].Credentials.creds = &cpy
 
 		var subAccounts map[string]map[asset.Item]map[*currency.Item]*ProtectedBalance
 		subAccounts, ok = accounts.SubAccounts[*creds]
