@@ -417,35 +417,36 @@ var errReferencePriceNotSet = errors.New("reference price invalid")
 var errQuoteAmountInvalid = errors.New("quote amount invalid")
 var errAmountExceedsSideLiquidity = errors.New("amount exceeds orderbook side liquidity")
 
-// getMaxQuoteFromNominalSlippage returns the max quotation currency that can
-// fit to achieve the supplied nominal slippage percentage.
-func (ll *linkedList) getMaxQuoteFromNominalSlippage(refPrice, slippage float64) (float64, float64, error) {
+// getMaxAmountsFromFromNominalSlippage returns the max quotation and base
+// currency that canfit to achieve the supplied nominal slippage percentage.
+func (ll *linkedList) getMaxAmountsFromFromNominalSlippage(refPrice, slippage float64) (quote float64, base float64, err error) {
 	if refPrice <= 0 {
 		return 0, 0, errReferencePriceNotSet
 	}
 	if slippage <= 0 {
 		return 0, 0, errQuoteAmountInvalid
 	}
+
+	approxAggCost := ((slippage / 100) + 1) * refPrice
+
 	var totalValue, amounts float64
 	for tip := &ll.head; *tip != nil; tip = &(*tip).Next {
-		percent, _, err := getPercentageChangeAndCost(0, amounts, totalValue, refPrice)
-		if err != nil {
-			return 0, 0, err
+		aggTrancheValue := totalValue + (*tip).Value.Price*(*tip).Value.Amount
+		aggTrancheAmounts := amounts + (*tip).Value.Amount
+		aggTrancheCost := aggTrancheValue / aggTrancheAmounts
+
+		fmt.Println("Aggregated Tranche Value:", aggTrancheValue)
+		fmt.Println("Aggregated Tranche Amounts:", aggTrancheAmounts)
+		fmt.Println("Aggregated Tranche Costs:", aggTrancheCost)
+		fmt.Println("approx:", approxAggCost)
+
+		if approxAggCost > aggTrancheCost {
+			totalValue = aggTrancheValue
+			amounts = aggTrancheAmounts
+			continue
 		}
 
-		fmt.Println(percent)
-
-		if percent > slippage {
-			// check zero
-			return totalValue, amounts, nil
-		}
-
-		totalValue += (*tip).Value.Price * (*tip).Value.Amount
-		amounts += (*tip).Value.Amount
-
-		if percent == slippage {
-			return totalValue, amounts, nil
-		}
+		return totalValue, amounts, nil
 	}
 
 	return 0, 0, errors.New("no liquidity")

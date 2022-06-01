@@ -1824,7 +1824,7 @@ func TestGetNominalSlippageByBase(t *testing.T) {
 		},
 	}
 	d.LoadSnapshot(bid, asks, 0, time.Time{}, true)
-	percentage, cost, err := d.asks.getNominalSlippageByBase(10000, 12.5)
+	percentage, cost, err := d.asks.getNominalSlippageByBase(10000, 10)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1861,7 +1861,7 @@ func TestGetMaxQuoteFromNominalSlippage(t *testing.T) {
 		},
 	}
 	d.LoadSnapshot(bid, asks, 0, time.Time{}, true)
-	quote, base, err := d.asks.getMaxQuoteFromNominalSlippage(10000, 0.8999999999999999)
+	quote, base, err := d.asks.getMaxAmountsFromFromNominalSlippage(10000, 0.8999999999999999)
 	if err != nil {
 		t.Fatal(err)
 	}
