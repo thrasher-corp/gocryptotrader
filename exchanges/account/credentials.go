@@ -109,7 +109,7 @@ func (c *Credentials) IsEmpty() bool {
 
 // Equal determines if the keys are the same.
 // OTP omitted because it's generated per request.
-// PEMKey and Secret omited because of direct correlation with api key.
+// PEMKey and Secret omitted because of direct correlation with api key.
 func (c *Credentials) Equal(other *Credentials) bool {
 	return c != nil &&
 		other != nil &&
