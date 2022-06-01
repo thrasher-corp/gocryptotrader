@@ -46,9 +46,6 @@ type IBotExchange interface {
 	GetWithdrawPermissions() uint32
 	FormatWithdrawPermissions() string
 	GetFundingHistory(ctx context.Context) ([]FundHistory, error)
-
-	OrderManagement
-
 	GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, accountID, chain string) (*deposit.Address, error)
 	GetAvailableTransferChains(ctx context.Context, cryptocurrency currency.Code) ([]string, error)
 	GetWithdrawalsHistory(ctx context.Context, code currency.Code) ([]WithdrawalHistory, error)
@@ -65,28 +62,26 @@ type IBotExchange interface {
 	DisableRateLimiter() error
 	EnableRateLimiter() error
 	GetServerTime(ctx context.Context, ai asset.Item) (time.Time, error)
-	CurrencyStateManagement
-
-	order.PNLCalculation
-	order.CollateralManagement
 	GetFuturesPositions(context.Context, asset.Item, currency.Pair, time.Time, time.Time) ([]order.Detail, error)
-
 	GetWebsocket() (*stream.Websocket, error)
 	SubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error
 	UnsubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error
 	GetSubscriptions() ([]stream.ChannelSubscription, error)
 	FlushWebsocketChannels() error
 	AuthenticateWebsocket(ctx context.Context) error
-
 	GetOrderExecutionLimits(a asset.Item, cp currency.Pair) (order.MinMaxLevel, error)
 	CheckOrderExecutionLimits(a asset.Item, cp currency.Pair, price, amount float64, orderType order.Type) error
 	UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error
-
-	AccountManagement
 	GetCredentials(ctx context.Context) (*Credentials, error)
 	ValidateCredentials(ctx context.Context, a asset.Item) error
 
 	FunctionalityChecker
+	AccountManagement
+	OrderManagement
+	CurrencyStateManagement
+	order.PNLCalculation
+	order.CollateralManagement
+	order.PositionAnalysis
 }
 
 // OrderManagement defines functionality for order management

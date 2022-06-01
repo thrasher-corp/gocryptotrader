@@ -32,6 +32,8 @@ var (
 	ErrUSDValueRequired = errors.New("USD value required")
 	// ErrOfflineCalculationSet is raised when collateral calculation is set to be offline, yet is attempted online
 	ErrOfflineCalculationSet = errors.New("offline calculation set")
+	// ErrPositionNotFound is raised when a position is not found
+	ErrPositionNotFound = errors.New("position not found")
 
 	errExchangeNameEmpty              = errors.New("exchange name empty")
 	errTimeUnset                      = errors.New("time unset")
@@ -46,6 +48,15 @@ var (
 	errCannotCalculateUnrealisedPNL   = errors.New("cannot calculate unrealised PNL")
 	errCannotTrackInvalidParams       = errors.New("parameters set incorrectly, cannot track")
 )
+
+type PositionAnalysis interface {
+	AnalysePosition(ctx context.Context,
+		asset asset.Item,
+		exchangeName string,
+		time time.Time,
+		calculateOffline bool,
+		pnlResult *PNLResult) error
+}
 
 // PNLCalculation is an interface to allow multiple
 // ways of calculating PNL to be used for futures positions

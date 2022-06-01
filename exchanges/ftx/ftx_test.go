@@ -274,7 +274,12 @@ func TestGetPositions(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	_, err := f.GetPositions(context.Background())
+	_, err := f.GetPositions(context.Background(), false)
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = f.GetPositions(context.Background(), true)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2196,4 +2201,110 @@ func TestGetCollateral(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+}
+
+func TestAnalysePosition(t *testing.T) {
+	t.Parallel()
+	f.Verbose = true
+	hi, err := f.GetFuturesPositions(
+		context.Background(),
+		asset.Futures,
+		currency.NewPair(currency.BTC, currency.NewCode("PERP")),
+		time.Now().Add(-time.Hour*24*365),
+		time.Now())
+	if err != nil {
+		t.Error(err)
+	}
+	datarooni, err := f.GetPositionSummary(context.Background(), &PositionSummaryRequest{Asset: asset.Futures, Pair: hi[0].Pair})
+	if err != nil {
+		t.Error(err)
+	}
+	t.Logf("%+v", datarooni)
+	acc, err := f.GetAccountInfo(context.Background())
+	size := decimal.NewFromFloat(hi[0].Amount)
+	if hi[0].Side == order.Sell {
+		size = size.Neg()
+	}
+	offlinerooo, err := f.GetPositionSummary(context.Background(), &PositionSummaryRequest{
+		Asset:            asset.Futures,
+		Pair:             hi[0].Pair,
+		CalculateOffline: true,
+		OpeningSize:      size,
+		CurrentSize:      size,
+		TotalCollateral:  decimal.NewFromFloat(acc.Collateral),
+		OpeningPrice:     decimal.NewFromFloat(hi[0].Price),
+		CurrentPrice:     datarooni.MarkPrice,
+		Leverage:         decimal.Decimal{},
+		FreeCollateral:   decimal.NewFromFloat(acc.FreeCollateral),
+	})
+	if err != nil {
+		t.Error(err)
+	}
+	t.Logf("%+v", offlinerooo)
+}
+
+func TestSlippage(t *testing.T) {
+	type entry struct {
+		price, amount float64
+	}
+	ob := []entry{
+		{
+			price:  151.08,
+			amount: 2800,
+		},
+		{
+			price:  151.08,
+			amount: 1100,
+		},
+		{
+			price:  151.09,
+			amount: 3800,
+		},
+		{
+			price:  151.10,
+			amount: 900,
+		},
+		{
+			price:  151.11,
+			amount: 3700,
+		},
+		{
+			price:  151.12,
+			amount: 1200,
+		},
+		{
+			price:  151.13,
+			amount: 3700,
+		},
+		{
+			price:  151.14,
+			amount: 200,
+		},
+		{
+			price:  151.15,
+			amount: 1000,
+		},
+		{
+			price:  151.18,
+			amount: 400,
+		},
+		{
+			price:  151.22,
+			amount: 100,
+		},
+		{
+			price:  151.24,
+			amount: 600,
+		},
+		{
+			price:  151.25,
+			amount: 500,
+		},
+	}
+	var avg float64
+	for i := range ob {
+		avg += ob[i].price
+	}
+	avg /= float64(len(ob))
+	t.Log(avg)
 }

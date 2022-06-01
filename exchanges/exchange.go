@@ -1323,3 +1323,7 @@ func (b *Base) HasAssetTypeAccountSegregation() bool {
 func (b *Base) GetServerTime(_ context.Context, _ asset.Item) (time.Time, error) {
 	return time.Time{}, common.ErrNotYetImplemented
 }
+
+func (b *Base) AnalysePosition(ctx context.Context, a asset.Item, exch string, t time.Time, calculateOffline bool, pnlResult *order.PNLResult) error {
+	return common.ErrNotYetImplemented
+}

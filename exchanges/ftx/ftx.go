@@ -521,11 +521,17 @@ func (f *FTX) GetAccountInfo(ctx context.Context) (AccountInfoData, error) {
 }
 
 // GetPositions gets the users positions
-func (f *FTX) GetPositions(ctx context.Context) ([]PositionData, error) {
+func (f *FTX) GetPositions(ctx context.Context, includeAverages bool) ([]PositionData, error) {
 	resp := struct {
 		Data []PositionData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, getPositions, nil, &resp)
+	requestURL := getPositions
+	if includeAverages {
+		vals := url.Values{}
+		vals.Set("showAvgPrice", "true")
+		requestURL = common.EncodeURLValues(getPositions, vals)
+	}
+	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, requestURL, nil, &resp)
 }
 
 // ChangeAccountLeverage changes default leverage used by account

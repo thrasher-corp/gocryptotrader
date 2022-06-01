@@ -186,26 +186,26 @@ type IndexWeights struct {
 
 // PositionData stores data of an open position
 type PositionData struct {
-	CollateralUsed               float64       `json:"collateralUsed"`
+	Future                       currency.Pair `json:"future"`
+	Size                         float64       `json:"size"`
+	Side                         string        `json:"side"`
+	NetSize                      float64       `json:"netSize"`
+	LongOrderSize                float64       `json:"longOrderSize"`
+	ShortOrderSize               float64       `json:"shortOrderSize"`
 	Cost                         float64       `json:"cost"`
+	EntryPrice                   float64       `json:"entryPrice"`
+	UnrealizedPNL                float64       `json:"unrealizedPnl"`
+	RealizedPNL                  float64       `json:"realizedPnl"`
+	InitialMarginRequirement     float64       `json:"initialMarginRequirement"`
+	MaintenanceMarginRequirement float64       `json:"maintenanceMarginRequirement"`
+	OpenSize                     float64       `json:"openSize"`
+	CollateralUsed               float64       `json:"collateralUsed"`
+	EstimatedLiquidationPrice    float64       `json:"estimatedLiquidationPrice"`
+	RecentAverageOpenPrice       float64       `json:"recentAverageOpenPrice"`
+	RecentPNL                    float64       `json:"recentPnl"`
+	RecentBreakEvenPrice         float64       `json:"recentBreakEvenPrice"`
 	CumulativeBuySize            float64       `json:"cumulativeBuySize"`
 	CumulativeSellSize           float64       `json:"cumulativeSellSize"`
-	EntryPrice                   float64       `json:"entryPrice"`
-	EstimatedLiquidationPrice    float64       `json:"estimatedLiquidationPrice"`
-	Future                       currency.Pair `json:"future"`
-	InitialMarginRequirement     float64       `json:"initialMarginRequirement"`
-	LongOrderSize                float64       `json:"longOrderSize"`
-	MaintenanceMarginRequirement float64       `json:"maintenanceMarginRequirement"`
-	NetSize                      float64       `json:"netSize"`
-	OpenSize                     float64       `json:"openSize"`
-	RealizedPNL                  float64       `json:"realizedPnl"`
-	RecentAverageOpenPrice       float64       `json:"recentAverageOpenPrice"`
-	RecentBreakEvenPrice         float64       `json:"recentBreakEvenPrice"`
-	RecentPnl                    float64       `json:"recentPnl"`
-	ShortOrderSize               float64       `json:"shortOrderSize"`
-	Side                         string        `json:"side"`
-	Size                         float64       `json:"size"`
-	UnrealizedPNL                float64       `json:"unrealizedPnl"`
 }
 
 // AccountInfoData stores account data
