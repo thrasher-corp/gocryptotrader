@@ -205,3 +205,40 @@ func TestProtectedString(t *testing.T) {
 		t.Fatal("unexpected value")
 	}
 }
+
+func TestProtectedCreddentialsEqual(t *testing.T) {
+	t.Parallel()
+	var this Protected
+	var that *Credentials
+	if this.Equal(that) {
+		t.Fatal("unexpectedd value")
+	}
+	this.creds = &Credentials{}
+	if this.Equal(that) {
+		t.Fatal("unexpectedd value")
+	}
+	that = &Credentials{Key: "1337"}
+	if this.Equal(that) {
+		t.Fatal("unexpectedd value")
+	}
+	this.creds.Key = "1337"
+	if !this.Equal(that) {
+		t.Fatal("unexpectedd value")
+	}
+	this.creds.ClientID = "1337"
+	if this.Equal(that) {
+		t.Fatal("unexpectedd value")
+	}
+	that.ClientID = "1337"
+	if !this.Equal(that) {
+		t.Fatal("unexpectedd value")
+	}
+	this.creds.SubAccount = "someSub"
+	if this.Equal(that) {
+		t.Fatal("unexpectedd value")
+	}
+	that.SubAccount = "someSub"
+	if !this.Equal(that) {
+		t.Fatal("unexpectedd value")
+	}
+}
