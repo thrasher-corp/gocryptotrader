@@ -130,7 +130,9 @@ func (b *Base) GetCredentials(ctx context.Context) (*account.Credentials, error)
 	if value != nil {
 		ctxCredStore, ok := value.(*account.ContextCredentialsStore)
 		if !ok {
-			return nil, errContextCredentialsFailure
+			// NOTE: Return empty credentials on error to limit panic on
+			// websocket handling.
+			return &account.Credentials{}, errContextCredentialsFailure
 		}
 
 		creds := ctxCredStore.Get()
@@ -142,7 +144,9 @@ func (b *Base) GetCredentials(ctx context.Context) (*account.Credentials, error)
 
 	err := b.CheckCredentials(b.API.credentials, false)
 	if err != nil {
-		return nil, err
+		// NOTE: Return empty credentials on error to limit panic on websocket
+		// handling.
+		return &account.Credentials{}, err
 	}
 	subAccountOverride, ok := ctx.Value(account.ContextSubAccountFlag).(string)
 	b.API.credMu.RLock()
