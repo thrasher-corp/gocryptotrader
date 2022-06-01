@@ -124,7 +124,7 @@ func GetHoldings(exch string, assetType asset.Item) (Holdings, error) {
 				}
 
 				accountsHoldings = append(accountsHoldings, SubAccount{
-					Credentials: Protected{creds: &credentials},
+					Credentials: Protected{creds: credentials},
 					ID:          subAccount,
 					AssetType:   ai,
 					Currencies:  currencyBalances,
@@ -246,7 +246,7 @@ func (s *Service) Update(a *Holdings, creds *Credentials) error {
 		if cpy.SubAccount == "" {
 			cpy.SubAccount = a.Accounts[x].ID
 		}
-		a.Accounts[x].Credentials.creds = &cpy
+		a.Accounts[x].Credentials.creds = cpy
 
 		var subAccounts map[string]map[asset.Item]map[*currency.Item]*ProtectedBalance
 		subAccounts, ok = accounts.SubAccounts[*creds]

@@ -209,9 +209,6 @@ func DeploySubAccountOverrideToContext(ctx context.Context, subAccount string) c
 
 // String strings the credentials in a protected way.
 func (p Protected) String() string {
-	if p.creds == nil {
-		return ""
-	}
 	return p.creds.String()
 }
 

@@ -189,10 +189,6 @@ func TestCreddentialsEqual(t *testing.T) {
 func TestProtectedString(t *testing.T) {
 	t.Parallel()
 	p := Protected{}
-	if p.String() != "" {
-		t.Fatal("unexpected value")
-	}
-	p.creds = &Credentials{}
 	if s := p.String(); s != "Key:[...] SubAccount:[] ClientID:[]" {
 		t.Fatal("unexpected value")
 	}
@@ -213,7 +209,7 @@ func TestProtectedCreddentialsEqual(t *testing.T) {
 	if this.Equal(that) {
 		t.Fatal("unexpectedd value")
 	}
-	this.creds = &Credentials{}
+	this.creds = Credentials{}
 	if this.Equal(that) {
 		t.Fatal("unexpectedd value")
 	}
