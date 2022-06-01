@@ -15,8 +15,12 @@ import (
 type contextCredential string
 
 const (
+	// ContextCredentialsFlag used for retrieving api credentials from context
 	ContextCredentialsFlag contextCredential = "apicredentials"
-	ContextSubAccountFlag  contextCredential = "subaccountoverride"
+	// ContextSubAccountFlag used for retrieving just the sub account from
+	// context, when the default config credentials sub account needs to be
+	// changed while the same keys can be used.
+	ContextSubAccountFlag contextCredential = "subaccountoverride"
 
 	Key             = "key"
 	Secret          = "secret"
@@ -183,7 +187,7 @@ func ParseCredentialsMetadata(ctx context.Context, md metadata.MD) (context.Cont
 	}
 	if ctxCreds.IsEmpty() && subAccountHere != "" {
 		// This will override default sub account details if needed.
-		return deploySubAccountOverrideToContext(ctx, subAccountHere), nil
+		return DeploySubAccountOverrideToContext(ctx, subAccountHere), nil
 	}
 	// merge sub account to main context credentials
 	ctxCreds.SubAccount = subAccountHere
@@ -197,8 +201,8 @@ func DeployCredentialsToContext(ctx context.Context, creds *Credentials) context
 	return context.WithValue(ctx, flag, store)
 }
 
-// deploySubAccountOverrideToContext sets subaccount as override to credentials
-// as a separate flag.
-func deploySubAccountOverrideToContext(ctx context.Context, subAccount string) context.Context {
+// DeploySubAccountOverrideToContext sets subaccount as override to credentials
+// as a separate flag. EXPORTED FOR TESTING IN EXCHANGES/CREDENTIALS_TEST.GO
+func DeploySubAccountOverrideToContext(ctx context.Context, subAccount string) context.Context {
 	return context.WithValue(ctx, ContextSubAccountFlag, subAccount)
 }

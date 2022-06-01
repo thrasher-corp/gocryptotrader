@@ -37,7 +37,7 @@ func TestGetCredentials(t *testing.T) {
 		t.Fatalf("received: %v but expected: %v", err, errContextCredentialsFailure)
 	}
 
-	fullCred := account.Credentials{
+	fullCred := &account.Credentials{
 		Key:             "superkey",
 		Secret:          "supersecret",
 		SubAccount:      "supersub",
@@ -46,9 +46,7 @@ func TestGetCredentials(t *testing.T) {
 		OneTimePassword: "superOneTimePasssssss",
 	}
 
-	flag, store := fullCred.GetInternal()
-
-	ctx = context.WithValue(context.Background(), flag, store)
+	ctx = account.DeployCredentialsToContext(context.Background(), fullCred)
 	creds, err := b.GetCredentials(ctx)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: %v but expected: %v", err, nil)
@@ -63,7 +61,7 @@ func TestGetCredentials(t *testing.T) {
 		t.Fatal("unexpected values")
 	}
 
-	lonelyCred := account.Credentials{
+	lonelyCred := &account.Credentials{
 		Key:             "superkey",
 		Secret:          "supersecret",
 		SubAccount:      "supersub",
@@ -71,9 +69,7 @@ func TestGetCredentials(t *testing.T) {
 		OneTimePassword: "superOneTimePasssssss",
 	}
 
-	flag, store = lonelyCred.GetInternal()
-
-	ctx = context.WithValue(context.Background(), flag, store)
+	ctx = account.DeployCredentialsToContext(context.Background(), lonelyCred)
 	b.API.CredentialsValidator.RequiresClientID = true
 	_, err = b.GetCredentials(ctx)
 	if !errors.Is(err, errRequiresAPIClientID) {
@@ -83,6 +79,7 @@ func TestGetCredentials(t *testing.T) {
 	b.API.SetKey("hello")
 	b.API.SetSecret("sir")
 	b.API.SetClientID("1337")
+
 	ctx = account.DeploySubAccountOverrideToContext(context.Background(), "superaccount")
 	overridedSA, err := b.GetCredentials(ctx)
 	if !errors.Is(err, nil) {
