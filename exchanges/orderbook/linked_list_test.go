@@ -1715,3 +1715,157 @@ func TestGetVolumeBySlippage(t *testing.T) {
 		t.Fatal("unexpected value")
 	}
 }
+
+func TestDepthGetSlippageByVolume2(t *testing.T) {
+	// t.Parallel()
+	// d := NewDepth(id)
+
+	// asks := Items{{Price: 100, Amount: 1}, {Price: 110, Amount: 1}}
+
+	// d.LoadSnapshot(bid, asks, 0, time.Time{}, true)
+
+	// s, err := d.GetSlippageByVolume(1.5, false)
+	// if err != nil {
+	// 	t.Fatal(err)
+	// }
+	// t.Log(s)
+
+	// b := Base{
+	// 	Asks: asks,
+	// }
+	// r1, err := b.GetAveragePrice(true, 1.5)
+	// if err != nil {
+	// 	t.Fatal(err)
+	// }
+
+	// fmt.Println(r1)
+
+	// s2 := (r1 - asks[0].Price) / asks[0].Price
+	// t.Log(s2 * 100)
+
+	t.Parallel()
+	d := NewDepth(id)
+
+	asks := Items{
+		{
+			Price:  10000,
+			Amount: 2,
+		}, {
+			Price:  10100,
+			Amount: 7,
+		}, {
+			Price:  10200,
+			Amount: 3,
+		},
+	}
+
+	d.LoadSnapshot(bid, asks, 0, time.Time{}, true)
+
+	s, err := d.GetSlippageByVolume(10, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(s)
+
+	b := Base{
+		Asks: asks,
+	}
+	r1, err := b.GetAveragePrice(true, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	fmt.Println("COST: ", r1)
+
+	s2 := (r1 - asks[0].Price) / asks[0].Price
+	t.Log(s2 * 100)
+}
+
+func TestGetNominalSlippageByQuote(t *testing.T) {
+	t.Parallel()
+	d := NewDepth(id)
+
+	asks := Items{
+		{
+			Price:  10000,
+			Amount: 2,
+		}, {
+			Price:  10100,
+			Amount: 7,
+		}, {
+			Price:  10200,
+			Amount: 3,
+		},
+	}
+	d.LoadSnapshot(bid, asks, 0, time.Time{}, true)
+	percentage, cost, err := d.asks.getNominalSlippageByQuote(10000, 100900)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Log(percentage)
+	t.Log(cost)
+}
+
+func TestGetNominalSlippageByBase(t *testing.T) {
+	t.Parallel()
+	d := NewDepth(id)
+
+	asks := Items{
+		{
+			Price:  10000,
+			Amount: 2,
+		}, {
+			Price:  10100,
+			Amount: 7,
+		}, {
+			Price:  10200,
+			Amount: 3,
+		},
+	}
+	d.LoadSnapshot(bid, asks, 0, time.Time{}, true)
+	percentage, cost, err := d.asks.getNominalSlippageByBase(10000, 12.5)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Log(percentage)
+	t.Log(cost)
+}
+
+func TestAnother(t *testing.T) {
+	bestAsk := 151.08
+	sharesToPurchase := 20000.0
+	t.Logf("%f", sharesToPurchase*bestAsk)
+	avgExec := 151.11585
+	r := (avgExec - bestAsk) / bestAsk
+	t.Logf("%.2f", r*100)
+	r2 := (sharesToPurchase * bestAsk * r)
+	t.Logf("%.2f", r2)
+}
+
+func TestGetMaxQuoteFromNominalSlippage(t *testing.T) {
+	t.Parallel()
+	d := NewDepth(id)
+
+	asks := Items{
+		{
+			Price:  10000,
+			Amount: 2,
+		}, {
+			Price:  10100,
+			Amount: 7,
+		}, {
+			Price:  10200,
+			Amount: 3,
+		},
+	}
+	d.LoadSnapshot(bid, asks, 0, time.Time{}, true)
+	quote, base, err := d.asks.getMaxQuoteFromNominalSlippage(10000, 0.8999999999999999)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Log(quote)
+	t.Log(base)
+}

@@ -413,6 +413,114 @@ func (ll *linkedList) getVolumeBySlippage(slippage float64) (float64, error) {
 	return volume, nil
 }
 
+var errReferencePriceNotSet = errors.New("reference price invalid")
+var errQuoteAmountInvalid = errors.New("quote amount invalid")
+var errAmountExceedsSideLiquidity = errors.New("amount exceeds orderbook side liquidity")
+
+// getMaxQuoteFromNominalSlippage returns the max quotation currency that can
+// fit to achieve the supplied nominal slippage percentage.
+func (ll *linkedList) getMaxQuoteFromNominalSlippage(refPrice, slippage float64) (float64, float64, error) {
+	if refPrice <= 0 {
+		return 0, 0, errReferencePriceNotSet
+	}
+	if slippage <= 0 {
+		return 0, 0, errQuoteAmountInvalid
+	}
+	var totalValue, amounts float64
+	for tip := &ll.head; *tip != nil; tip = &(*tip).Next {
+		percent, _, err := getPercentageChangeAndCost(0, amounts, totalValue, refPrice)
+		if err != nil {
+			return 0, 0, err
+		}
+
+		fmt.Println(percent)
+
+		if percent > slippage {
+			// check zero
+			return totalValue, amounts, nil
+		}
+
+		totalValue += (*tip).Value.Price * (*tip).Value.Amount
+		amounts += (*tip).Value.Amount
+
+		if percent == slippage {
+			return totalValue, amounts, nil
+		}
+	}
+
+	return 0, 0, errors.New("no liquidity")
+}
+
+// getNominalSlippageByQuote returns the nominal slippage by quote currency.
+func (ll *linkedList) getNominalSlippageByQuote(refPrice, quote float64) (float64, float64, error) {
+	if refPrice <= 0 {
+		return 0, 0, errReferencePriceNotSet
+	}
+	if quote <= 0 {
+		return 0, 0, errQuoteAmountInvalid
+	}
+	var totalValue, amounts float64
+	for tip := &ll.head; *tip != nil; tip = &(*tip).Next {
+		trancheValue := (*tip).Value.Price * (*tip).Value.Amount
+		leftover := quote - trancheValue
+		if leftover < 0 {
+			amount := quote / (*tip).Value.Price
+			totalValue += (*tip).Value.Price * amount
+			amounts += amount
+			quote = 0
+			break
+		}
+		// Full tranche consumed
+		totalValue += trancheValue
+		amounts += (*tip).Value.Amount
+		quote = leftover
+		if leftover == 0 {
+			break
+		}
+	}
+	return getPercentageChangeAndCost(quote, amounts, totalValue, refPrice)
+}
+
+// getNominalSlippageByBase returns the nominal slippage by base currency.
+func (ll *linkedList) getNominalSlippageByBase(refPrice, base float64) (float64, float64, error) {
+	if refPrice <= 0 {
+		return 0, 0, errReferencePriceNotSet
+	}
+	if base <= 0 {
+		return 0, 0, errQuoteAmountInvalid
+	}
+	var totalValue, amounts float64
+	for tip := &ll.head; *tip != nil; tip = &(*tip).Next {
+		leftover := base - (*tip).Value.Amount
+		if leftover <= 0 {
+			totalValue += (*tip).Value.Price * base
+			amounts += base
+			base = 0
+			break
+		}
+		// Full tranche consumed
+		totalValue += (*tip).Value.Price * (*tip).Value.Amount
+		amounts += (*tip).Value.Amount
+		base = leftover
+	}
+	return getPercentageChangeAndCost(base, amounts, totalValue, refPrice)
+}
+
+func getPercentageChangeAndCost(leftover, amounts, totalValue, refPrice float64) (float64, float64, error) {
+	if leftover > 0 {
+		// Full book wiped out, return 100 percent.
+		return 100, 0, errAmountExceedsSideLiquidity
+	}
+	cost := totalValue / amounts
+	costOfSlippage := totalValue - (amounts * refPrice)
+	percentageChange := math.CalculatePercentageGainOrLoss(cost, refPrice)
+	if percentageChange < 0 { // Return ABS
+		percentageChange *= -1
+		costOfSlippage *= -1
+	}
+	return percentageChange, costOfSlippage, nil
+}
+
 // bids embed a linked list to attach methods for bid depth specific
 // functionality
 type bids struct {

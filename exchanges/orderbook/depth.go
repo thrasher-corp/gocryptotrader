@@ -353,3 +353,17 @@ func (d *Depth) GetSlippageByVolume(volume float64, bid bool) (float64, error) {
 	}
 	return d.asks.getSlippageByVolume(volume)
 }
+
+// GetNominalSlippageByBase derives your slippage from the initial price to the
+// potential deployment on book cost using the base amount. The midPrice is a
+// reference value for initial price; if false it will default to best ask/bid.
+func (d *Depth) GetNominalSlippageByBase(base float64, bid, midPrice bool) (float64, error) {
+	return 0, nil
+}
+
+// GetNominalSlippageByQuote derives your slippage from the initial price to the
+// potential deployment on book cost using the quote amount. The midPrice is
+// a reference value for initial price; if false it will default to best ask/bid.
+func (d *Depth) GetNominalSlippageByQuote(quote float64, bid, midPrice bool) (float64, error) {
+	return 0, nil
+}
