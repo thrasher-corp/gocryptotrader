@@ -103,6 +103,17 @@ func (c *Credentials) IsEmpty() bool {
 		c.SubAccount == ""
 }
 
+// Equal determines if the keys are the same.
+// OTP omitted because it's generated per request.
+// PEMKey and Secret omited because of direct correlation with api key.
+func (c *Credentials) Equal(other *Credentials) bool {
+	return c != nil &&
+		other != nil &&
+		c.Key == other.Key &&
+		c.ClientID == other.ClientID &&
+		c.SubAccount == other.SubAccount
+}
+
 // ContextCredentialsStore protects the stored credentials for use in a context
 type ContextCredentialsStore struct {
 	creds *Credentials

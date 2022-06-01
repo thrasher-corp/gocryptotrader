@@ -9,6 +9,7 @@ import (
 )
 
 func TestIsEmpty(t *testing.T) {
+	t.Parallel()
 	var c *Credentials
 	if !c.IsEmpty() {
 		t.Fatalf("expected: %v but received: %v", true, c.IsEmpty())
@@ -134,6 +135,7 @@ func TestGetInternal(t *testing.T) {
 }
 
 func TestString(t *testing.T) {
+	t.Parallel()
 	creds := Credentials{}
 	if s := creds.String(); s != "Key:[...] SubAccount:[] ClientID:[]" {
 		t.Fatal("unexpected value")
@@ -145,5 +147,41 @@ func TestString(t *testing.T) {
 
 	if s := creds.String(); s != "Key:[1234567891011123...] SubAccount:[sub] ClientID:[client]" {
 		t.Fatal("unexpected value")
+	}
+}
+
+func TestCreddentialsEqual(t *testing.T) {
+	t.Parallel()
+	var this, that *Credentials
+	if this.Equal(that) {
+		t.Fatal("unexpectedd value")
+	}
+	this = &Credentials{}
+	if this.Equal(that) {
+		t.Fatal("unexpectedd value")
+	}
+	that = &Credentials{Key: "1337"}
+	if this.Equal(that) {
+		t.Fatal("unexpectedd value")
+	}
+	this.Key = "1337"
+	if !this.Equal(that) {
+		t.Fatal("unexpectedd value")
+	}
+	this.ClientID = "1337"
+	if this.Equal(that) {
+		t.Fatal("unexpectedd value")
+	}
+	that.ClientID = "1337"
+	if !this.Equal(that) {
+		t.Fatal("unexpectedd value")
+	}
+	this.SubAccount = "someSub"
+	if this.Equal(that) {
+		t.Fatal("unexpectedd value")
+	}
+	that.SubAccount = "someSub"
+	if !this.Equal(that) {
+		t.Fatal("unexpectedd value")
 	}
 }
