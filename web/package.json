@@ -62,7 +62,7 @@
     "@angular/common": "^7.0.3",
     "@angular/compiler": "^7.0.3",
     "@angular/compiler-cli": "^7.0.3",
-    "@angular/core": "^7.0.3",
+    "@angular/core": "^11.0.5",
     "@angular/forms": "^7.0.3",
     "@angular/http": "^7.0.3",
     "@angular/language-service": "^7.0.3",
