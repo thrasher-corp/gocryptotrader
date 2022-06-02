@@ -1697,7 +1697,6 @@ func (f *FTX) GetCurrencyForRealisedPNL(_ asset.Item, _ currency.Pair) (currency
 type PositionSummary struct {
 	MaintenanceMarginRequirement decimal.Decimal
 	InitialMarginRequirement     decimal.Decimal
-	AverageLeverage              decimal.Decimal
 	EstimatedLiquidationPrice    decimal.Decimal
 	CollateralUsed               decimal.Decimal
 	MarkPrice                    decimal.Decimal
@@ -1713,40 +1712,71 @@ type PositionSummary struct {
 type PositionSummaryRequest struct {
 	Asset asset.Item
 	Pair  currency.Pair
-	// offline calculation requirements below
 
-	CalculateOffline bool
-	FreeCollateral   decimal.Decimal
-	TotalCollateral  decimal.Decimal
-	OpeningPrice     decimal.Decimal
-	CurrentPrice     decimal.Decimal
-	OpeningSize      decimal.Decimal
-	CurrentSize      decimal.Decimal
-	Leverage         decimal.Decimal
-	CollateralUsed   decimal.Decimal
+	// offline calculation requirements below
+	CalculateOffline          bool
+	Direction                 order.Side
+	FreeCollateral            decimal.Decimal
+	TotalCollateral           decimal.Decimal
+	OpeningPrice              decimal.Decimal
+	CurrentPrice              decimal.Decimal
+	OpeningSize               decimal.Decimal
+	CurrentSize               decimal.Decimal
+	CollateralUsed            decimal.Decimal
+	NotionalPrice             decimal.Decimal
+	Leverage                  decimal.Decimal
+	MaxLeverageForAccount     decimal.Decimal
+	TotalAccountValue         decimal.Decimal
+	TotalOpenPositionNotional decimal.Decimal
 }
 
 func (f *FTX) GetPositionSummary(ctx context.Context, request *PositionSummaryRequest) (*PositionSummary, error) {
+	if request == nil {
+		return nil, fmt.Errorf("%w PositionSummaryRequest", common.ErrNilPointer)
+	}
 	if request.CalculateOffline {
 		positionSize := request.CurrentSize.Mul(request.CurrentPrice)
 		var marginFraction decimal.Decimal
 		if request.TotalCollateral.IsPositive() {
-			marginFraction = request.TotalCollateral.Div(positionSize)
+			marginFraction = request.TotalCollateral.Div(positionSize).Mul(decimal.NewFromFloat(100))
 		}
-
-		breakEventPrice := request.OpeningPrice.Mul(request.OpeningSize).Sub(request.CurrentSize.Mul(request.CurrentPrice)).Div(request.OpeningSize.Sub(request.CurrentSize))
-		//estimatedLiquidationPrice := request.CurrentPrice.Mul(decimal.NewFromInt(1).Sub(maintenanceMarginRequirement.Add(request.TotalCollateral)))
+		breakEventPrice := request.OpeningPrice
+		if !request.OpeningSize.Equal(request.CurrentSize) {
+			breakEventPrice = request.OpeningPrice.Mul(request.OpeningSize).Sub(request.CurrentSize.Mul(request.CurrentPrice)).Div(request.OpeningSize.Sub(request.CurrentSize))
+		}
+		var estimatedLiquidationPrice, maintenanceMarginRequirement, positionMaintenanceMarginFraction decimal.Decimal
+		currSizePNL := request.CurrentSize
+		openSizePNL := request.OpeningSize
+		switch {
+		case request.Direction.IsLong():
+			estimatedLiquidationPrice = request.CurrentPrice.Mul(decimal.NewFromInt(1).Add(maintenanceMarginRequirement).Sub(request.TotalCollateral)).Div(request.CurrentPrice.Mul(request.CurrentSize))
+		case request.Direction.IsShort():
+			estimatedLiquidationPrice = request.CurrentPrice.Mul(decimal.NewFromInt(1).Sub(maintenanceMarginRequirement).Add(request.TotalCollateral.Div(request.CurrentPrice.Mul(request.CurrentSize))))
+			currSizePNL = currSizePNL.Neg()
+			openSizePNL = openSizePNL.Neg()
+		default:
+			return nil, fmt.Errorf("%w '%s' invalid direction", asset.ErrNotSupported, request.Direction)
+		}
+		if request.Leverage.LessThanOrEqual(decimal.NewFromFloat(20)) {
+			positionMaintenanceMarginFraction = decimal.NewFromFloat(0.03)
+		} else {
+			// leverage can never be above 20, but will remain in event of change in policy
+			positionMaintenanceMarginFraction = decimal.NewFromFloat(0.006)
+		}
+		// baseIMF is always 1/20 as 20 is the max leverage
+		baseIMF := decimal.NewFromInt(1).Div(decimal.NewFromInt(20))
+		maintenanceMarginRequirement = decimal.Max(positionMaintenanceMarginFraction, decimal.NewFromFloat(0.6).Mul(baseIMF))
+		//omf := decimal.Min(request.TotalCollateral, request.TotalAccountValue).Div(request.TotalOpenPositionNotional)
 		return &PositionSummary{
-			MaintenanceMarginRequirement: decimal.Zero,
-			InitialMarginRequirement:     positionSize.Div(request.TotalCollateral),
-			AverageLeverage:              decimal.Decimal{},
-			EstimatedLiquidationPrice:    decimal.Zero,
+			MaintenanceMarginRequirement: maintenanceMarginRequirement,
+			InitialMarginRequirement:     request.TotalCollateral.Div(positionSize),
+			EstimatedLiquidationPrice:    estimatedLiquidationPrice,
 			CollateralUsed:               request.CollateralUsed,
 			MarkPrice:                    request.CurrentPrice,
 			CurrentSize:                  request.CurrentSize.Abs(),
 			BreakEvenPrice:               breakEventPrice,
 			AverageOpenPrice:             request.OpeningPrice,
-			RecentPNL:                    request.CurrentPrice.Mul(request.CurrentSize).Sub(request.OpeningPrice.Mul(request.CurrentSize)),
+			RecentPNL:                    request.CurrentPrice.Mul(currSizePNL).Sub(request.OpeningPrice.Mul(openSizePNL)),
 			MarginFraction:               marginFraction,
 			FreeCollateral:               request.FreeCollateral,
 			TotalCollateral:              request.TotalCollateral,
@@ -1765,7 +1795,6 @@ func (f *FTX) GetPositionSummary(ctx context.Context, request *PositionSummaryRe
 			return &PositionSummary{
 				MaintenanceMarginRequirement: decimal.NewFromFloat(positions[i].MaintenanceMarginRequirement),
 				InitialMarginRequirement:     decimal.NewFromFloat(positions[i].InitialMarginRequirement),
-				AverageLeverage:              decimal.Decimal{},
 				EstimatedLiquidationPrice:    decimal.NewFromFloat(positions[i].EstimatedLiquidationPrice),
 				CollateralUsed:               decimal.NewFromFloat(positions[i].CollateralUsed),
 				MarkPrice:                    decimal.NewFromFloat(positions[i].EntryPrice),
@@ -1773,7 +1802,7 @@ func (f *FTX) GetPositionSummary(ctx context.Context, request *PositionSummaryRe
 				BreakEvenPrice:               decimal.NewFromFloat(positions[i].RecentBreakEvenPrice),
 				AverageOpenPrice:             decimal.NewFromFloat(positions[i].RecentAverageOpenPrice),
 				RecentPNL:                    decimal.NewFromFloat(positions[i].RecentPNL),
-				MarginFraction:               decimal.NewFromFloat(acc.MarginFraction),
+				MarginFraction:               decimal.NewFromFloat(acc.MarginFraction * 100),
 				FreeCollateral:               decimal.NewFromFloat(acc.FreeCollateral),
 				TotalCollateral:              decimal.NewFromFloat(acc.Collateral),
 			}, nil

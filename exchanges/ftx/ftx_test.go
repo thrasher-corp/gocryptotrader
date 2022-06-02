@@ -2205,7 +2205,6 @@ func TestGetCollateral(t *testing.T) {
 
 func TestAnalysePosition(t *testing.T) {
 	t.Parallel()
-	f.Verbose = true
 	hi, err := f.GetFuturesPositions(
 		context.Background(),
 		asset.Futures,
@@ -2219,27 +2218,40 @@ func TestAnalysePosition(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	t.Logf("%+v", datarooni)
 	acc, err := f.GetAccountInfo(context.Background())
 	size := decimal.NewFromFloat(hi[0].Amount)
-	if hi[0].Side == order.Sell {
-		size = size.Neg()
+
+	underlyingStr, err := f.FormatSymbol(currency.NewPair(currency.BTC, currency.USD), asset.Spot)
+	if err != nil {
+		t.Error(err)
 	}
+	underlying, err := f.GetMarket(context.Background(), underlyingStr)
+	if err != nil {
+		t.Error(err)
+	}
+	t.Log(acc.Leverage)
 	offlinerooo, err := f.GetPositionSummary(context.Background(), &PositionSummaryRequest{
-		Asset:            asset.Futures,
-		Pair:             hi[0].Pair,
-		CalculateOffline: true,
-		OpeningSize:      size,
-		CurrentSize:      size,
-		TotalCollateral:  decimal.NewFromFloat(acc.Collateral),
-		OpeningPrice:     decimal.NewFromFloat(hi[0].Price),
-		CurrentPrice:     datarooni.MarkPrice,
-		Leverage:         decimal.Decimal{},
-		FreeCollateral:   decimal.NewFromFloat(acc.FreeCollateral),
+		Asset:                     asset.Futures,
+		Pair:                      hi[0].Pair,
+		CalculateOffline:          true,
+		Direction:                 hi[0].Side,
+		FreeCollateral:            decimal.NewFromFloat(acc.FreeCollateral),
+		TotalCollateral:           decimal.NewFromFloat(acc.Collateral),
+		OpeningPrice:              decimal.NewFromFloat(hi[0].Price),
+		CurrentPrice:              datarooni.MarkPrice,
+		OpeningSize:               size,
+		CurrentSize:               size,
+		CollateralUsed:            datarooni.CollateralUsed,
+		NotionalPrice:             decimal.NewFromFloat(underlying.Last),
+		Leverage:                  decimal.NewFromInt(1),
+		MaxLeverageForAccount:     decimal.NewFromFloat(acc.Leverage),
+		TotalAccountValue:         decimal.NewFromFloat(acc.TotalAccountValue),
+		TotalOpenPositionNotional: decimal.NewFromFloat(acc.TotalPositionSize),
 	})
 	if err != nil {
 		t.Error(err)
 	}
+	t.Logf("%+v", datarooni)
 	t.Logf("%+v", offlinerooo)
 }
 
