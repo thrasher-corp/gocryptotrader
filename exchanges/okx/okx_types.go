@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -335,14 +336,14 @@ type PositionTiersResponse struct {
 // PositionTiers ...
 type PositionTiers struct {
 	BaseMaxLoan                   string  `json:"baseMaxLoan"`
-	InitialMarginRequirement      float64 `json:"imr,string"`
+	InitialMarginRequirement      string  `json:"imr"`
 	InstID                        string  `json:"instId"`
 	MaxLever                      string  `json:"maxLever"`
 	MaxSize                       float64 `json:"maxSz,string"`
 	MinSize                       float64 `json:"minSz,string"`
-	MaintainanceMarginRequirement float64 `json:"mmr,string"`
+	MaintainanceMarginRequirement string  `json:"mmr"`
 	OptionalMarginFactor          string  `json:"optMgnFactor"`
-	QuoteMaxLoan                  float64 `json:"quoteMaxLoan,string"`
+	QuoteMaxLoan                  string  `json:"quoteMaxLoan"`
 	Tier                          string  `json:"tier"`
 	Underlying                    string  `json:"uly"`
 }
@@ -771,8 +772,221 @@ type StopOrderParams struct {
 }
 
 // AlgoOrderResponse algo requests response
-type AlgoOrderResponse struct {
+type AlgoOrder struct {
 	AlgoID     string `json:"algoId"`
 	StatusCode string `json:"sCode"`
 	StatusMsg  string `json:"sMsg"`
+}
+
+// TriggerAlogOrderParams trigger algo orders params.
+// notice: Trigger orders are not available in the net mode of futures and perpetual swaps
+type TriggerAlogOrderParams struct {
+	TriggerPrice     float64 `json:"triggerPx,string"`
+	TriggerPriceType string  `json:"triggerPxType"`  // last, index, and mark
+	OrderPrice       int     `json:"orderPx,string"` // if the price i -1, then the order will be executed on the market.
+}
+
+// TrailingStopOrderRequestParam
+type TrailingStopOrderRequestParam struct {
+	CallbackRatio          float64 `json:"callbackRatio,string"` // Optional
+	CallbackSpreadVariance string  `json:"callbackSpread"`       // Optional
+	ActivePrice            string  `json:"activePx"`
+}
+
+// IceburgOrder ...
+type IceburgOrder struct {
+	PriceRatio    string  `json:"pxVar"`          // Optional
+	PriceVariance string  `json:"pxSpread"`       // Optional
+	AverageAmount float64 `json:"szLimit,string"` // Required
+	PriceLimit    float64 `json:"pxLimit,string"` // Required
+}
+
+// TWAPOrder
+type TWAPOrderRequestParams struct {
+	PriceRatio    string         `json:"pxVar"`          // optional with pxSpread
+	PriceVariance string         `json:"pxSpread"`       // optional
+	AverageAmount float64        `json:"szLimit,string"` // Required
+	PriceLimit    float64        `json:"pxLimit"`        // Required
+	Timeinterval  kline.Interval `json:"interval"`       // Required
+}
+
+// AlgoOrderCancelParams algo order request parameter
+type AlgoOrderCancelParams struct {
+	AlgoOrderID  string `json:"algoId"`
+	InstrumentID string `json:"instId"`
+}
+
+// AlgoOrderResponse holds algo order informations.
+type AlgoOrderResponse struct {
+	InstrumentType             string    `json:"instType"`
+	InstrumentID               string    `json:"instId"`
+	OrderID                    string    `json:"ordId"`
+	Currency                   string    `json:"ccy"`
+	AlgoOrderID                string    `json:"algoId"`
+	Quantity                   string    `json:"sz"`
+	OrderType                  string    `json:"ordType"`
+	Side                       string    `json:"side"`
+	PositionSide               string    `json:"posSide"`
+	TradeMode                  string    `json:"tdMode"`
+	QuantityType               string    `json:"tgtCcy"`
+	State                      string    `json:"state"`
+	Lever                      string    `json:"lever"`
+	TakeProfitTriggerPrice     string    `json:"tpTriggerPx"`
+	TakeProfitTriggerPriceType string    `json:"tpTriggerPxType"`
+	TakeProfitOrdPrice         string    `json:"tpOrdPx"`
+	StopLossTriggerPriceType   string    `json:"slTriggerPxType"`
+	StopLossTriggerPrice       string    `json:"slTriggerPx"`
+	TriggerPrice               string    `json:"triggerPx"`
+	TriggerPriceType           string    `json:"triggerPxType"`
+	OrdPrice                   string    `json:"ordPx"`
+	ActualSize                 string    `json:"actualSz"`
+	ActualPrice                string    `json:"actualPx"`
+	ActualSide                 string    `json:"actualSide"`
+	PriceVar                   string    `json:"pxVar"`
+	PriceSpread                string    `json:"pxSpread"`
+	PriceLimit                 string    `json:"pxLimit"`
+	SizeLimit                  string    `json:"szLimit"`
+	TimeInterval               string    `json:"timeInterval"`
+	TriggerTime                time.Time `json:"triggerTime"`
+	CallbackRatio              string    `json:"callbackRatio"`
+	CallbackSpread             string    `json:"callbackSpread"`
+	ActivePrice                string    `json:"activePx"`
+	MoveTriggerPrice           string    `json:"moveTriggerPx"`
+	CreationTime               time.Time `json:"cTime"`
+}
+
+// CurrencyResponse
+type CurrencyResponse struct {
+	CanDeposit           bool    `json:"canDep"`        // Availability to deposit from chain. false: not available true: available
+	CanInternalTransffer bool    `json:"canInternal"`   // Availability to internal transfer.
+	CanWithdraw          bool    `json:"canWd"`         // Availability to withdraw to chain.
+	Currency             string  `json:"ccy"`           //
+	Chain                string  `json:"chain"`         //
+	LogoLink             string  `json:"logoLink"`      // Logo link of currency
+	MainNet              bool    `json:"mainNet"`       // If current chain is main net then return true, otherwise return false
+	MaxFee               float64 `json:"maxFee,string"` // Minimum withdrawal fee
+	MaxWithdrawal        float64 `json:"maxWd,string"`  // Minimum amount of currency withdrawal in a single transaction
+	MinFee               float64 `json:"minFee,string"` // Minimum withdrawal fee
+	MinWithdrawal        string  `json:"minWd"`         // Minimum amount of currency withdrawal in a single transaction
+	Name                 string  `json:"name"`          // Chinese name of currency
+	UsedWithdrawalQuota  string  `json:"usedWdQuota"`   // Amount of currency withdrawal used in the past 24 hours, unit in BTC
+	WithdrawalQuota      string  `json:"wdQuota"`       // Minimum amount of currency withdrawal in a single transaction
+	WithdrawalTickSize   string  `json:"wdTickSz"`      // Withdrawal precision, indicating the number of digits after the decimal point
+}
+
+// AssetBalance  asset balance
+type AssetBalance struct {
+	AvailBal      float64 `json:"availBal,string"`
+	Balance       string  `json:"bal"`
+	Currency      string  `json:"ccy"`
+	FrozenBalance float64 `json:"frozenBal,string"`
+}
+
+// AccountAssetValuation
+type AccountAssetValuation struct {
+	Details struct {
+		Classic float64 `json:"classic,string"`
+		Earn    float64 `json:"earn,string"`
+		Funding float64 `json:"funding,string"`
+		Trading float64 `json:"trading,string"`
+	} `json:"details"`
+	TotalBal  float64   `json:"totalBal,string"`
+	Timestamp time.Time `json:"ts"`
+}
+
+// FundingTransferRequestInput
+type FundingTransferRequestInput struct {
+	Currency      string  `json:"ccy"`
+	Type          int     `json:"type,string"`
+	Amount        float64 `json:"amt,string"`
+	From          string  `json:"from"` // "6": Funding account, "18": Trading account
+	To            string  `json:"to"`
+	SubAccount    string  `json:"subAcct"`
+	LoanTransffer bool    `json:"loanTrans,string"`
+	ClientID      string  `json:"clientId"` // Client-supplied ID A combination of case-sensitive alphanumerics, all numbers, or all letters of up to 32 characters.
+}
+
+// FundingTransferResponse
+type FundingTransferResponse struct {
+	TransferID string  `json:"transId"`
+	Currency   string  `json:"ccy"`
+	ClientID   string  `json:"clientId"`
+	From       int64   `json:"from,string"`
+	Amount     float64 `json:"amt,string"`
+	To         int64   `json:"to,string"`
+}
+
+// TransferFundRateResponse
+type TransferFundRateResponse struct {
+	Amount         float64 `json:"amt,string"`
+	Currency       string  `json:"ccy"`
+	ClientID       string  `json:"clientId"`
+	From           string  `json:"from"`
+	InstrumentID   string  `json:"instId"`
+	State          string  `json:"state"`
+	SubAccountt    string  `json:"subAcct"`
+	To             string  `json:"to"`
+	ToInstrumentID string  `json:"toInstId"`
+	TransrumentID  string  `json:"transId"`
+	Type           int     `json:"type,string"`
+}
+
+// AssetBillDetail response
+type AssetBillDetail struct {
+	BillID         string    `json:"billId"`
+	Currency       string    `json:"ccy"`
+	ClientID       string    `json:"clientId"`
+	BalanceChange  string    `json:"balChg"`
+	AccountBalance string    `json:"bal"`
+	Type           int       `json:"type,string"`
+	Timestamp      time.Time `json:"ts"`
+}
+
+// LightningDeposit for creating an invoice
+type LightningDepositItem struct {
+	CreationTime time.Time `json:"cTime"`
+	Invoice      string    `json:"invoice"`
+}
+
+// CurrencyDepositResponseItem represents the deposit address information item.
+type CurrencyDepositResponseItem struct {
+	Chain                string `json:"chain"`
+	ContractAddress      string `json:"ctAddr"`
+	Currency             string `json:"ccy"`
+	ToBeneficiaryAccount string `json:"to"`
+	Address              string `json:"addr"`
+	Selected             bool   `json:"selected"`
+}
+
+// DepositHistoryResponseItem deposit history response item.
+type DepositHistoryResponseItem struct {
+	Amount           string    `json:"amt"`
+	TransactionID    string    `json:"txId"` // Hash record of the deposit
+	Currency         string    `json:"ccy"`
+	Chain            string    `json:"chain"`
+	From             string    `json:"from"`
+	ToDepositAddress string    `json:"to"`
+	Timestamp        time.Time `json:"ts"`
+	State            int       `json:"state,string"`
+	DepositID        string    `json:"depId"`
+}
+
+// WithdrawalInput ...
+type WithdrawalInput struct {
+	Amount                float64 `json:"amt,string"`
+	TransactionFee        float64 `json:"fee,string"`
+	WithdrawalDestination string  `json:"dest"`
+	Currency              string  `json:"ccy"`
+	ChainName             string  `json:"chain"`
+	ToAddress             string  `json:"toAddr"`
+	ClientSuppliedID      string  `json:"clientId"`
+}
+
+// WithdrawalResponse
+type WithdrawalResponse struct {
+	Amount       float64 `json:"amt,string"`
+	WithdrawalID string  `json:"wdId"`
+	Currency     string  `json:"ccy"`
+	ClientID     string  `json:"clientId"`
+	Chain        string  `json:"chain"`
 }

@@ -16,9 +16,9 @@ import (
 
 // Please supply your own keys here to do authenticated endpoint testing
 const (
-	apiKey                  = ""
-	apiSecret               = ""
-	passphrase              = ""
+	apiKey                  = "bcb7564b-c51d-4f1d-ab78-aea2cc12d6de"
+	apiSecret               = "B0D6A3AD35B13A2B3FB15C621D186404"
+	passphrase              = "1NM0qIKtJav88TKocmp2"
 	canManipulateRealOrders = false
 )
 
@@ -284,7 +284,6 @@ func TestGetMarkPrice(t *testing.T) {
 
 func TestGetPositionTiers(t *testing.T) {
 	t.Parallel()
-	t.Skip()
 	if _, er := ok.GetPositionTiers(context.Background(), "FUTURES", "cross", "BTC-USDT", "", ""); er != nil {
 		t.Error("Okx GetPositionTiers() error", er)
 	}
@@ -329,7 +328,6 @@ func TestGetInsuranceFundInformations(t *testing.T) {
 }
 
 // Trading related enndpoints test functions.
-
 func TestGetSupportCoins(t *testing.T) {
 	t.Parallel()
 	if _, er := ok.GetSupportCoins(context.Background()); er != nil {
@@ -404,8 +402,8 @@ func TestPlaceOrder(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, er := ok.PlaceOrder(context.Background(), PlaceOrderRequestParam{
-		InstrumentID:        "GNX-BTC",
+	if resp, er := ok.PlaceOrder(context.Background(), PlaceOrderRequestParam{
+		InstrumentID:        "MATIC-USDC",
 		TradeMode:           "cross",
 		Side:                "sell",
 		OrderType:           "optimal_limit_ioc",
@@ -413,6 +411,9 @@ func TestPlaceOrder(t *testing.T) {
 		OrderPrice:          1,
 	}); er != nil {
 		t.Error("Okx PlaceOrder() error", er)
+	} else {
+		binary, _ := json.Marshal(resp)
+		println(string(binary))
 	}
 }
 
@@ -714,6 +715,7 @@ func TestTransactionHistory(t *testing.T) {
 }
 func TestStopOrder(t *testing.T) {
 	t.Parallel()
+	t.SkipNow()
 	// this test function had to be re modified.
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
@@ -722,5 +724,332 @@ func TestStopOrder(t *testing.T) {
 		TakeProfitTriggerPriceType: "index",
 	}); !strings.Contains(er.Error(), "Unsupported operation") {
 		t.Error("Okx StopOrderParams() error", er)
+	}
+	if _, er := ok.PlaceTrailingStopOrder(context.Background(), &TrailingStopOrderRequestParam{
+		CallbackRatio: 0.01,
+	}); er != nil {
+		t.Error("Okx PlaceTrailingStopOrder error", er)
+	}
+	if _, er := ok.PlaceIceburgOrder(context.Background(), &IceburgOrder{
+		PriceLimit:    100.22,
+		AverageAmount: 9999.9,
+		PriceRatio:    "0.04",
+	}); er != nil {
+		t.Error("Okx PlaceIceburgOrder() error", er)
+	}
+	if _, er := ok.PlaceTWAPOrder(context.Background(), &TWAPOrderRequestParams{
+		PriceLimit:    100.22,
+		AverageAmount: 9999.9,
+		PriceRatio:    "0.4",
+		Timeinterval:  kline.ThreeDay,
+	}); er != nil {
+		t.Error("Okx PlaceTWAPOrder() error", er)
+	}
+	if _, er := ok.TriggerAlogOrder(context.Background(), &TriggerAlogOrderParams{
+		TriggerPriceType: "mark",
+	}); er != nil {
+		t.Error("Okx TriggerAlogOrder() error", er)
+	}
+}
+
+func TestCancelAlgoOrder(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, er := ok.CancelAlgoOrder(context.Background(), []AlgoOrderCancelParams{
+		{
+			InstrumentID: "BTC-USDT",
+			AlgoOrderID:  "90994943",
+		},
+	}); er != nil {
+		t.Error("Okx CancelAlgoOrder() error", er)
+	}
+}
+
+func TestCancelAdvanceAlgoOrder(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, er := ok.CancelAdvanceAlgoOrder(context.Background(), []AlgoOrderCancelParams{{
+		InstrumentID: "BTC-USDT",
+		AlgoOrderID:  "90994943",
+	}}); er != nil {
+		t.Error("Okx CancelAdvanceAlgoOrder() error", er)
+	}
+}
+
+var algoOrderResponse = `{
+	"instType": "FUTURES",
+	"instId": "BTC-USD-200329",
+	"ordId": "312269865356374016",
+	"ccy": "BTC",
+	"algoId": "1234",
+	"sz": "999",
+	"ordType": "oco",
+	"side": "buy",
+	"posSide": "long",
+	"tdMode": "cross",
+	"tgtCcy": "",
+	"state": "1",
+	"lever": "20",
+	"tpTriggerPx": "",
+	"tpTriggerPxType": "",
+	"tpOrdPx": "",
+	"slTriggerPx": "",
+	"slTriggerPxType": "",
+	"triggerPx": "99",
+	"triggerPxType": "last",
+	"ordPx": "12",
+	"actualSz": "",
+	"actualPx": "",
+	"actualSide": "",
+	"pxVar":"",
+	"pxSpread":"",
+	"pxLimit":"",
+	"szLimit":"",
+	"timeInterval":"",
+	"triggerTime": "1597026383085",
+	"callbackRatio":"",
+	"callbackSpread":"",
+	"activePx":"",
+	"moveTriggerPx":"",
+	"cTime": "1597026383000"
+  }`
+
+func TestGetAlgoOrderList(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	var order AlgoOrderResponse
+	if er := json.Unmarshal([]byte(algoOrderResponse), &order); er != nil {
+		t.Error("Okx Unmarshaling AlgoOrder Response error", er)
+	}
+	if _, er := ok.GetAlgoOrderList(context.Background(), "conditional", "", "", "", time.Time{}, time.Time{}, 20); er != nil {
+		t.Error("Okx GetAlgoOrderList() error", er)
+	}
+}
+
+//
+func TestGetAlgoOrderHistory(t *testing.T) {
+	t.Parallel()
+
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	var order AlgoOrderResponse
+	if er := json.Unmarshal([]byte(algoOrderResponse), &order); er != nil {
+		t.Error("Okx Unmarshaling AlgoOrder Response error", er)
+	}
+	if _, er := ok.GetAlgoOrderHistory(context.Background(), "conditional", "effective", "", "", "", time.Time{}, time.Time{}, 20); er != nil {
+		t.Error("Okx GetAlgoOrderList() error", er)
+	}
+}
+
+func TestGetCurrencies(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, er := ok.GetCurrencies(context.Background()); er != nil {
+		t.Error("Okx  GetCurrencies() error", er)
+	}
+}
+
+func TestGetBalance(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, er := ok.GetBalance(context.Background(), ""); er != nil {
+		t.Error("Okx GetBalance() error", er)
+	}
+}
+
+func TestGetAccountAssetValuation(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, er := ok.GetAccountAssetValuation(context.Background(), ""); er != nil {
+		t.Error("Okx  GetAccountAssetValuation() error", er)
+	}
+}
+
+var fundingTransferRequest = `{
+    "ccy":"USDT",
+    "type":"4",
+    "amt":"1.5",
+    "from":"6",
+    "to":"6",
+    "subAcct":"mini"
+}`
+
+var fundingTransferResponseMessage = `{
+	"transId": "754147",
+	"ccy": "USDT",
+	"clientId": "",
+	"from": "6",
+	"amt": "0.1",
+	"to": "18"
+  }`
+
+func TestFundingTransfer(t *testing.T) {
+	t.Parallel()
+	var fundReq FundingTransferRequestInput
+	if er := json.Unmarshal([]byte(fundingTransferRequest), &fundReq); er != nil {
+		t.Error("Okx FundingTransferRequestInput{} unmarshal  error", er)
+	}
+	var fundResponse FundingTransferResponse
+	if er := json.Unmarshal([]byte(fundingTransferResponseMessage), &fundResponse); er != nil {
+		t.Error("okx FundingTransferRequestInput{} unmarshal error", er)
+	}
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, er := ok.FundingTransfer(context.Background(), &FundingTransferRequestInput{
+		Amount:   12.000,
+		To:       "6",
+		From:     "6",
+		Currency: "BTC",
+	}); er != nil {
+		t.Error("Okx FundingTransfer() error", er)
+	}
+}
+
+var fundingRateTransferResponseJSON = `{
+	"amt": "1.5",
+	"ccy": "USDT",
+	"clientId": "",
+	"from": "18",
+	"instId": "",
+	"state": "success",
+	"subAcct": "test",
+	"to": "6",
+	"toInstId": "",
+	"transId": "1",
+	"type": "1"
+}`
+
+func TestGetFundsTransferState(t *testing.T) {
+	t.Parallel()
+	var transResponse TransferFundRateResponse
+	if er := json.Unmarshal([]byte(fundingRateTransferResponseJSON), &transResponse); er != nil {
+		t.Error("Okx TransferFundRateResponse{} unmarshal error", er)
+	}
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, er := ok.GetFundsTransferState(context.Background(), "abcdefg", "", 2); er != nil {
+		t.Error("Okx GetFundsTransferState() error", er)
+	}
+}
+
+var assetBillDetailResponse = `{
+	"billId": "12344",
+	"ccy": "BTC",
+	"clientId": "",
+	"balChg": "2",
+	"bal": "12",
+	"type": "1",
+	"ts": "1597026383085"
+}`
+
+func TestGetAssetBillsDetails(t *testing.T) {
+	t.Parallel()
+	var response AssetBillDetail
+	er := json.Unmarshal([]byte(assetBillDetailResponse), &response)
+	if er != nil {
+		t.Error("Okx Unmarshaling error", er)
+	}
+	_, er = ok.GetAssetBillsDetails(context.Background(), "", 0, "", "", time.Time{}, time.Time{}, 5)
+	if er != nil {
+		t.Error("Okx GetAssetBillsDetail() error", er)
+	}
+}
+
+var lightningDepositResponseString = `{
+	"cTime": "1631171307612",
+	"invoice": "lnbc100u1psnnvhtpp5yq2x3q5hhrzsuxpwx7ptphwzc4k4wk0j3stp0099968m44cyjg9sdqqcqzpgxqzjcsp5hzzdszuv6yv6yw5svctl8kc8uv6y77szv5kma2kuculj86tk3yys9qyyssqd8urqgcensh9l4zwlwr3lxlcdqrlflvvlwldutm6ljx486h7lylqmd06kky6scas7warx69sregzrx20ffmsr4sp865x3wasrjd8ttgqrlx3tr"
+}`
+
+func TestGetLightningDeposits(t *testing.T) {
+	t.Parallel()
+	var response LightningDepositItem
+	er := json.Unmarshal([]byte(lightningDepositResponseString), &response)
+	if er != nil {
+		t.Error("Okx Unamrshaling to LightningDepositItem error", er)
+	}
+	if _, er = ok.GetLightningDeposits(context.Background(), "BTC", 1.00, 0); er != nil {
+		t.Error("Okx GetLightningDeposits() error", er)
+	}
+}
+
+var depositAddressResponseItemString = `{
+	"chain": "BTC-OKC",
+	"ctAddr": "",
+	"ccy": "BTC",
+	"to": "6",
+	"addr": "0x66d0edc2e63b6b992381ee668fbcb01f20ae0428",
+	"selected": true
+}`
+
+func TestGetCurrencyDepositAddress(t *testing.T) {
+	t.Parallel()
+	var response CurrencyDepositResponseItem
+	er := json.Unmarshal([]byte(depositAddressResponseItemString), &response)
+	if er != nil {
+		t.Error("Okx unmarshaling to CurrencyDepositResponseItem error", er)
+	}
+	if _, er = ok.GetCurrencyDepositAddress(context.Background(), "BTC"); er != nil {
+		t.Error("Okx GetCurrencyDepositAddress() error", er)
+	}
+}
+
+var depositHistoryResponseString = `{
+	"amt": "0.01044408",
+	"txId": "1915737_3_0_0_asset",
+	"ccy": "BTC",
+	"chain":"BTC-Bitcoin",
+	"from": "13801825426",
+	"to": "",
+	"ts": "1597026383085",
+	"state": "2",
+	"depId": "4703879"
+  }`
+
+func TestGetCurrencyDepositHistory(t *testing.T) {
+	t.Parallel()
+	var response DepositHistoryResponseItem
+	er := json.Unmarshal([]byte(depositHistoryResponseString), &response)
+	if er != nil {
+		t.Error("Okx DepositHistoryResponseItem unmarshaling error", er)
+	}
+	if _, er := ok.GetCurrencyDepositHistory(context.Background(), "BTC", "", "", 0, time.Time{}, time.Time{}, 5); er != nil {
+		t.Error("Okx GetCurrencyDepositHistory() error", er)
+	}
+}
+
+var withdrawalResponseString = `{
+	"amt": "0.1",
+	"wdId": "67485",
+	"ccy": "BTC",
+	"clientId": "",
+	"chain": "BTC-Bitcoin"
+}`
+
+func TestWithdrawal(t *testing.T) {
+	t.Parallel()
+	var response WithdrawalResponse
+	er := json.Unmarshal([]byte(withdrawalResponseString), &response)
+	if er != nil {
+		t.Error("Okx WithdrawalResponse unmarshaling json error", er)
+	}
+	t.Skip()
+	_, er = ok.Withdrawal(context.Background(), WithdrawalInput{Amount: 0.1, TransactionFee: 0.00005, Currency: "BTC", WithdrawalDestination: "4", ToAddress: "17DKe3kkkkiiiiTvAKKi2vMPbm1Bz3CMKw"})
+	if er != nil {
+		t.Error("Okx Withdrawal error", er)
 	}
 }

@@ -359,3 +359,84 @@ func (a *TransactionDetail) UnmarshalJSON(data []byte) error {
 	a.Timestamp = time.UnixMilli(chil.Timestamp)
 	return nil
 }
+
+func (a *AlgoOrderResponse) UnmarshalJSON(data []byte) error {
+	type Alias AlgoOrderResponse
+	chil := &struct {
+		*Alias
+		CreationTime int64 `json:"cTime,string"`
+		TriggerTime  int64 `json:"triggerTime,string"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	a.CreationTime = time.UnixMilli(chil.CreationTime)
+	a.TriggerTime = time.UnixMilli(chil.TriggerTime)
+	return nil
+}
+
+func (a *AccountAssetValuation) UnmarshalJSON(data []byte) error {
+	type Alias AccountAssetValuation
+	chil := &struct {
+		*Alias
+		Timestamp int64 `json:"ts,string"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	a.Timestamp = time.UnixMilli(chil.Timestamp)
+	return nil
+}
+
+// UnmarshalJSON deserialises the JSON info, including the timestamp
+func (a *AssetBillDetail) UnmarshalJSON(data []byte) error {
+	type Alias AssetBillDetail
+	chil := &struct {
+		*Alias
+		Timestamp int64 `json:"ts,string"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	a.Timestamp = time.UnixMilli(chil.Timestamp)
+	return nil
+}
+
+// UnmarshalJSON to unmarshal the timestamp information to the struct.
+func (a *LightningDepositItem) UnmarshalJSON(data []byte) error {
+	type Alias LightningDepositItem
+	chil := &struct {
+		*Alias
+		CreationTime int64 `json:"cTime,string"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	a.CreationTime = time.UnixMilli(chil.CreationTime)
+	return nil
+}
+
+// UnmarshalJSON a custom unmarshaling function implementing the Unmarshaler interface to safely unmarshal the incomming messages.
+func (a *DepositHistoryResponseItem) UnmarshalJSON(data []byte) error {
+	type Alias DepositHistoryResponseItem
+	chil := &struct {
+		*Alias
+		Timestamp int64 `json:"ts,string"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	er := json.Unmarshal(data, chil)
+	if er != nil {
+		return er
+	}
+	a.Timestamp = time.UnixMilli(chil.Timestamp)
+	return nil
+}
