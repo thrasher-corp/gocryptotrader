@@ -331,39 +331,74 @@ func (d *Depth) updateAndAlert(update *Update) {
 	d.Alert()
 }
 
-// GetMaxVolumeBySlippage returns the potential max volume that can be deployed
+// GetDeploymentBySlippage returns the potential quote or base amount deployed
 // to achieve this slippage amount. Useful to get max fit at current time.
-func (d *Depth) GetMaxVolumeBySlippage(slippage float64, bid bool) (float64, error) {
+func (d *Depth) GetDeploymentBySlippage(slippage float64, bid, midPrice bool) (quote, base float64, err error) {
 	d.m.Lock()
 	defer d.m.Unlock()
 	if bid {
-		return d.bids.getVolumeBySlippage(slippage)
+		if midPrice {
+			return d.bids.getMaxDeploymentFromNominalSlippage(d.getMidPrice(), slippage)
+		}
+		return d.bids.getMaxDeploymentFromNominalSlippage(d.bids.getHeadPrice(), slippage)
 	}
-	return d.asks.getVolumeBySlippage(slippage)
-}
-
-// GetSlippageByVolume returns the potential slippage if the amount was
-// deployed to the order book. Useful for getting impact values on current
-// balance.
-func (d *Depth) GetSlippageByVolume(volume float64, bid bool) (float64, error) {
-	d.m.Lock()
-	defer d.m.Unlock()
-	if bid {
-		return d.bids.getSlippageByVolume(volume)
+	if midPrice {
+		return d.asks.getMaxDeploymentFromNominalSlippage(d.getMidPrice(), slippage)
 	}
-	return d.asks.getSlippageByVolume(volume)
+	return d.asks.getMaxDeploymentFromNominalSlippage(d.asks.getHeadPrice(), slippage)
 }
 
 // GetNominalSlippageByBase derives your slippage from the initial price to the
 // potential deployment on book cost using the base amount. The midPrice is a
 // reference value for initial price; if false it will default to best ask/bid.
-func (d *Depth) GetNominalSlippageByBase(base float64, bid, midPrice bool) (float64, error) {
-	return 0, nil
+func (d *Depth) GetSlippageByBase(base float64, bid, midPrice bool) (nominal, impact, cost float64, err error) {
+	d.m.Lock()
+	defer d.m.Unlock()
+	if bid {
+		if midPrice {
+			return d.bids.getSlippageByBase(d.GetMidPrice(), base)
+		}
+		return d.bids.getSlippageByBase(d.bids.getHeadPrice(), base)
+	}
+	if midPrice {
+		return d.asks.getSlippageByBase(d.GetMidPrice(), base)
+	}
+	return d.asks.getSlippageByBase(d.bids.getHeadPrice(), base)
 }
 
 // GetNominalSlippageByQuote derives your slippage from the initial price to the
 // potential deployment on book cost using the quote amount. The midPrice is
 // a reference value for initial price; if false it will default to best ask/bid.
-func (d *Depth) GetNominalSlippageByQuote(quote float64, bid, midPrice bool) (float64, error) {
-	return 0, nil
+func (d *Depth) GetSlippageByQuote(quote float64, bid, midPrice bool) (nominal, impact, cost float64, err error) {
+	d.m.Lock()
+	defer d.m.Unlock()
+	if bid {
+		if midPrice {
+			return d.bids.getSlippageByQuote(d.getMidPrice(), quote)
+		}
+		return d.bids.getSlippageByQuote(d.bids.getHeadPrice(), quote)
+	}
+	if midPrice {
+		return d.asks.getSlippageByQuote(d.getMidPrice(), quote)
+	}
+	return d.asks.getSlippageByQuote(d.bids.getHeadPrice(), quote)
+}
+
+// GetMidPrice returns the mid price between the ask and bid spread
+func (d *Depth) GetMidPrice() float64 {
+	d.m.Lock()
+	defer d.m.Unlock()
+	return d.getMidPrice()
+}
+
+// getMidPrice is an unprotected helper that gets mid price
+func (d *Depth) getMidPrice() float64 {
+	return (d.bids.getHeadPrice() + d.asks.getHeadPrice()) / 2
+}
+
+// GetBestBid returns the best bid price
+func (d *Depth) GetBestBid() float64 {
+	d.m.Lock()
+	defer d.m.Unlock()
+	return d.bids.getHeadPrice()
 }
