@@ -33,9 +33,10 @@ const (
 	DownsideProfitContract
 	CoinMarginedFutures
 	USDTMarginedFutures
+	USDCMarginedFutures
 
-	futuresFlag   = PerpetualContract | PerpetualSwap | Futures | UpsideProfitContract | DownsideProfitContract | CoinMarginedFutures | USDTMarginedFutures
-	supportedFlag = Spot | Margin | MarginFunding | Index | Binary | PerpetualContract | PerpetualSwap | Futures | UpsideProfitContract | DownsideProfitContract | CoinMarginedFutures | USDTMarginedFutures
+	futuresFlag   = PerpetualContract | PerpetualSwap | Futures | UpsideProfitContract | DownsideProfitContract | CoinMarginedFutures | USDTMarginedFutures | USDCMarginedFutures
+	supportedFlag = Spot | Margin | MarginFunding | Index | Binary | PerpetualContract | PerpetualSwap | Futures | UpsideProfitContract | DownsideProfitContract | CoinMarginedFutures | USDTMarginedFutures | USDCMarginedFutures
 
 	spot                   = "spot"
 	margin                 = "margin"
@@ -49,10 +50,11 @@ const (
 	downsideProfitContract = "downsideprofitcontract"
 	coinMarginedFutures    = "coinmarginedfutures"
 	usdtMarginedFutures    = "usdtmarginedfutures"
+	usdcMarginedFutures    = "usdcmarginedfutures"
 )
 
 var (
-	supportedList = Items{Spot, Margin, MarginFunding, Index, Binary, PerpetualContract, PerpetualSwap, Futures, UpsideProfitContract, DownsideProfitContract, CoinMarginedFutures, USDTMarginedFutures}
+	supportedList = Items{Spot, Margin, MarginFunding, Index, Binary, PerpetualContract, PerpetualSwap, Futures, UpsideProfitContract, DownsideProfitContract, CoinMarginedFutures, USDTMarginedFutures, USDCMarginedFutures}
 )
 
 // Supported returns a list of supported asset types
@@ -87,6 +89,8 @@ func (a Item) String() string {
 		return coinMarginedFutures
 	case USDTMarginedFutures:
 		return usdtMarginedFutures
+	case USDCMarginedFutures:
+		return usdcMarginedFutures
 	default:
 		return ""
 	}
@@ -180,6 +184,8 @@ func New(input string) (Item, error) {
 		return CoinMarginedFutures, nil
 	case usdtMarginedFutures:
 		return USDTMarginedFutures, nil
+	case usdcMarginedFutures:
+		return USDCMarginedFutures, nil
 	default:
 		return 0, fmt.Errorf("%w '%v', only supports %s",
 			ErrNotSupported,

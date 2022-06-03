@@ -92,6 +92,7 @@ func TestNew(t *testing.T) {
 		{Input: "DownsideProfitContract", Expected: DownsideProfitContract},
 		{Input: "CoinMarginedFutures", Expected: CoinMarginedFutures},
 		{Input: "USDTMarginedFutures", Expected: USDTMarginedFutures},
+		{Input: "USDCMarginedFutures", Expected: USDCMarginedFutures},
 	}
 
 	for x := range cases {
@@ -175,6 +176,10 @@ func TestIsFutures(t *testing.T) {
 		},
 		{
 			item:      USDTMarginedFutures,
+			isFutures: true,
+		},
+		{
+			item:      USDCMarginedFutures,
 			isFutures: true,
 		},
 	}
