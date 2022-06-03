@@ -36,6 +36,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
@@ -108,7 +109,15 @@ func (s *RPCServer) authenticateClient(ctx context.Context) (context.Context, er
 		password != s.Config.RemoteControl.Password {
 		return ctx, fmt.Errorf("username/password mismatch")
 	}
-	return exchange.ParseCredentialsMetadata(ctx, md)
+	ctx, err = exchange.ParseCredentialsMetadata(ctx, md)
+	if err != nil {
+		return ctx, err
+	}
+
+	if _, ok := md["verbose"]; ok {
+		ctx = request.WithVerbose(ctx)
+	}
+	return ctx, nil
 }
 
 // StartRPCServer starts a gRPC server with TLS auth
@@ -4577,4 +4586,49 @@ func (s *RPCServer) Shutdown(_ context.Context, _ *gctrpc.ShutdownRequest) (*gct
 	s.Engine.GRPCShutdownSignal <- struct{}{}
 	s.Engine.GRPCShutdownSignal = nil
 	return &gctrpc.ShutdownResponse{}, nil
+}
+
+// GetAveragePrice returns the weighted average price by requested algo.
+func (s *RPCServer) GetAveragePrice(ctx context.Context, r *gctrpc.GetAveragePriceRequest) (*gctrpc.GetAveragePriceResponse, error) {
+	exch, err := s.GetExchangeByName(r.Exchange)
+	if err != nil {
+		return nil, err
+	}
+
+	as, err := asset.New(r.AssetType)
+	if err != nil {
+		return nil, err
+	}
+
+	pair, err := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
+	if err != nil {
+		return nil, err
+	}
+
+	klineInt := kline.Interval(r.Interval)
+
+	klines, err := exch.GetHistoricCandles(ctx, pair, as, r.Start.AsTime(), r.End.AsTime(), klineInt)
+	if err != nil {
+		return nil, err
+	}
+
+	var prices []float64
+	switch r.AlgorithmType {
+	case "TWAP":
+		var price float64
+		price, err = klines.GetTWAP()
+		if err != nil {
+			return nil, err
+		}
+		prices = []float64{price}
+	case "VWAP":
+		prices, err = klines.GetVWAPs()
+		if err != nil {
+			return nil, err
+		}
+	default:
+		return nil, errors.New("invalid algorithm to derive weighted price")
+	}
+
+	return &gctrpc.GetAveragePriceResponse{Signal: prices}, nil
 }
