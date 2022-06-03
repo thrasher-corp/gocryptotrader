@@ -1297,6 +1297,13 @@
             "required": false,
             "type": "string",
             "format": "date-time"
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "int64"
           }
         ],
         "tags": [

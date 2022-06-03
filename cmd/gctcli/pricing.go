@@ -46,6 +46,12 @@ var commonFlag = []cli.Flag{
 		Value:       time.Now().Format(common.SimpleTimeFormat),
 		Destination: &priceEndTime,
 	},
+	&cli.Int64Flag{
+		Name:        "period",
+		Usage:       "denotes period (rolling window) for technical analysis",
+		Value:       9,
+		Destination: &pricePeriod,
+	},
 }
 
 var pricingCommand = &cli.Command{
@@ -67,6 +73,62 @@ var pricingCommand = &cli.Command{
 			Flags:     commonFlag,
 			Action:    getVwap,
 		},
+		{
+			Name:      "atr",
+			Usage:     "returns the average true range",
+			ArgsUsage: "<exchange> <pair> <asset> <granularity> <start> <end>",
+			Flags:     commonFlag,
+			Action:    getATR,
+		},
+		// { // TODO: With comparison exchange pairs
+		// 	Name:      "coco",
+		// 	Usage:     "returns the correlation-coefficient",
+		// 	ArgsUsage: "<exchange> <pair> <asset> <granularity> <start> <end>",
+		// 	Flags:     commonFlag,
+		// 	Action:    getCOCO,
+		// },
+		{
+			Name:      "sma",
+			Usage:     "returns the simple moving average",
+			ArgsUsage: "<exchange> <pair> <asset> <granularity> <start> <end>",
+			Flags:     commonFlag,
+			Action:    getSMA,
+		},
+		{
+			Name:      "ema",
+			Usage:     "returns the exponential moving average",
+			ArgsUsage: "<exchange> <pair> <asset> <granularity> <start> <end>",
+			Flags:     commonFlag,
+			Action:    getEMA,
+		},
+		{
+			Name:      "macd",
+			Usage:     "returns the moving average convergence divergence",
+			ArgsUsage: "<exchange> <pair> <asset> <granularity> <start> <end>",
+			Flags:     commonFlag,
+			Action:    getMACD,
+		},
+		{
+			Name:      "mfi",
+			Usage:     "returns the money flow index",
+			ArgsUsage: "<exchange> <pair> <asset> <granularity> <start> <end>",
+			Flags:     commonFlag,
+			Action:    getMFI,
+		},
+		{
+			Name:      "obv",
+			Usage:     "returns the on balance volume",
+			ArgsUsage: "<exchange> <pair> <asset> <granularity> <start> <end>",
+			Flags:     commonFlag,
+			Action:    getOBV,
+		},
+		{
+			Name:      "rsi",
+			Usage:     "returns the relative strength index",
+			ArgsUsage: "<exchange> <pair> <asset> <granularity> <start> <end>",
+			Flags:     commonFlag,
+			Action:    getRSI,
+		},
 	},
 }
 
@@ -78,9 +140,47 @@ func getVwap(c *cli.Context) error {
 	return getPrice(c, "VWAP")
 }
 
+func getATR(c *cli.Context) error {
+	return getPrice(c, "ATR")
+}
+
+func getBBANDS(c *cli.Context) error {
+	return getPrice(c, "BBANDS")
+}
+
+// TODO: I'm in love with the coco
+// func getCOCO(c *cli.Context) error {
+// 	return getPrice(c, "COCO")
+// }
+
+func getSMA(c *cli.Context) error {
+	return getPrice(c, "SMA")
+}
+
+func getEMA(c *cli.Context) error {
+	return getPrice(c, "EMA")
+}
+
+func getMACD(c *cli.Context) error {
+	return getPrice(c, "MACD")
+}
+
+func getMFI(c *cli.Context) error {
+	return getPrice(c, "MFI")
+}
+
+func getOBV(c *cli.Context) error {
+	return getPrice(c, "OBV")
+}
+
+func getRSI(c *cli.Context) error {
+	return getPrice(c, "RSI")
+}
+
 var priceStartTime string
 var priceEndTime string
 var priceGranularity int64
+var pricePeriod int64
 
 func getPrice(c *cli.Context, algo string) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
@@ -156,6 +256,17 @@ func getPrice(c *cli.Context, algo string) error {
 		return errors.New("start cannot be after end")
 	}
 
+	if !c.IsSet("period") {
+		if c.Args().Get(6) != "" {
+			pricePeriod, err = strconv.ParseInt(c.Args().Get(6), 10, 64)
+			if err != nil {
+				return err
+			}
+		}
+	} else {
+		pricePeriod = c.Value("period").(int64)
+	}
+
 	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
@@ -173,9 +284,10 @@ func getPrice(c *cli.Context, algo string) error {
 		Interval:      priceGranularity * int64(time.Second),
 		Start:         timestamppb.New(s),
 		End:           timestamppb.New(e),
+		Period:        pricePeriod,
 	}
 
-	fmt.Println(req)
+	fmt.Println("Request: ", req)
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.GetAveragePrice(c.Context, req)

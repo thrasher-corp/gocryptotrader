@@ -1128,6 +1128,7 @@ message GetAveragePriceRequest {
   int64 interval = 5;
   google.protobuf.Timestamp start = 6;
   google.protobuf.Timestamp end = 7;
+  int64 period = 8;
 }
 
 message GetAveragePriceResponse {

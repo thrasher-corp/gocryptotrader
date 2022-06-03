@@ -4626,6 +4626,55 @@ func (s *RPCServer) GetAveragePrice(ctx context.Context, r *gctrpc.GetAveragePri
 		if err != nil {
 			return nil, err
 		}
+	case "ATR":
+		prices, err = klines.GetOHLC().GetAverageTrueRange(int(r.Period))
+		if err != nil {
+			return nil, err
+		}
+	// case "BBANDS":
+	// 	prices, err = klines.GetOHLC().GetBollingerBands()
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// case "COCO":
+	// 	prices, err = klines.GetVWAPs()
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	case "SMA":
+		ohlc := klines.GetOHLC()
+		prices, err = ohlc.GetSimpleMovingAverage(ohlc.Close, int(r.Period))
+		if err != nil {
+			return nil, err
+		}
+	case "EMA":
+		ohlc := klines.GetOHLC()
+		prices, err = ohlc.GetExponentialMovingAverage(ohlc.Close, int(r.Period))
+		if err != nil {
+			return nil, err
+		}
+	// case "MACD":
+	// 	ohlc := klines.GetOHLC()
+	// 	prices, err = ohlc.GetMovingAverageConvergenceDivergence()
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	case "MFI":
+		prices, err = klines.GetOHLC().GetMoneyFlowIndex(int(r.Period))
+		if err != nil {
+			return nil, err
+		}
+	case "OBV":
+		prices, err = klines.GetOHLC().GetOnBalanceVolume()
+		if err != nil {
+			return nil, err
+		}
+	case "RSI":
+		ohlc := klines.GetOHLC()
+		prices, err = klines.GetOHLC().GetRelativeStrengthIndex(ohlc.Close, int(r.Period))
+		if err != nil {
+			return nil, err
+		}
 	default:
 		return nil, errors.New("invalid algorithm to derive weighted price")
 	}
