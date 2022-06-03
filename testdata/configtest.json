@@ -696,7 +696,8 @@
      "RestFuturesURL": "https://api.bybit.com",
      "RestSpotURL": "https://api.bybit.com",
      "RestUSDTMarginedFuturesURL": "https://api.bybit.com",
-     "WebsocketSpotURL": "wss://stream.bybit.com/spot/quote/ws/v2"
+     "WebsocketSpotURL": "wss://stream.bybit.com/spot/quote/ws/v2",
+     "RestUSDCMarginedFuturesURL": "https://api.bybit.com"
     }
    },
    "features": {

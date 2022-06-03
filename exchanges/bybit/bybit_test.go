@@ -2113,7 +2113,7 @@ func TestTimeNanoSecUnmarshalJSON(t *testing.T) {
 	}
 }
 
-// Wrapper
+// test cases for Wrapper
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
 	pair, err := currency.NewPairFromString("BTCUSDT")
@@ -2690,6 +2690,50 @@ func TestGetServerTime(t *testing.T) {
 	}
 
 	_, err = b.GetServerTime(context.Background(), asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+// test cases for USDCMarginedFutures
+
+func TestGetUSDCFuturesOrderbook(t *testing.T) {
+	t.Parallel()
+	//BTCPERP
+	pair, err := currency.NewPairFromString("BTCUSDT")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = b.GetUSDCFuturesOrderbook(context.Background(), pair)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetUSDCContracts(t *testing.T) {
+	t.Parallel()
+	//BTCPERP
+	pair, err := currency.NewPairFromString("BTCUSDT")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = b.GetUSDCContracts(context.Background(), pair, "", 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetUSDCSymbols(t *testing.T) {
+	t.Parallel()
+	//BTCPERP
+	pair, err := currency.NewPairFromString("BTCUSDT")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = b.GetUSDCSymbols(context.Background(), pair)
 	if err != nil {
 		t.Error(err)
 	}

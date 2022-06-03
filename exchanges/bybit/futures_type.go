@@ -686,3 +686,55 @@ type AssetExchangeRecord struct {
 	FromFee      float64 `json:"from_fee"`
 	CreatedAt    string  `json:"created_at"`
 }
+
+// USDCOrderbookData stores orderbook data for USDCMarginedFutures
+type USDCOrderbookData struct {
+	Price float64 `json:"price,string"`
+	Size  float64 `json:"size,string"`
+	Side  string  `json:"side"`
+}
+
+// USDCContract stores contract information
+type USDCContract struct {
+	Symbol        string  `json:"symbol"`
+	Status        string  `json:"status"`
+	BaseCoin      string  `json:"baseCoin"`
+	QuoteCoin     string  `json:"quoteCoin"`
+	TakerFeeRate  float64 `json:"takerFeeRate,string"`
+	MakerFeeRate  float64 `json:"makerFeeRate,string"`
+	MinLeverage   float64 `json:"minLeverage,string"`
+	MaxLeverage   float64 `json:"maxLeverage,string"`
+	LeverageStep  float64 `json:"leverageStep,string"`
+	MinPrice      float64 `json:"minPrice,string"`
+	MaxPrice      float64 `json:"maxPrice,string"`
+	TickSize      float64 `json:"tickSize,string"`
+	MaxTradingQty float64 `json:"maxTradingQty,string"`
+	MinTradingQty float64 `json:"minTradingQty,string"`
+	QtyStep       float64 `json:"qtyStep,string"`
+	DeliveryTime  float64 `json:"deliveryTime,string"`
+}
+
+// USDCSymbol stores symbol information
+type USDCSymbol struct {
+	Symbol               string  `json:"symbol"`
+	NextFundingTime      string  `json:"nextFundingTime"`
+	Bid                  float64 `json:"bid,string"`
+	BidSize              float64 `json:"bidSize,string"`
+	Ask                  float64 `json:"ask,string"`
+	AskSize              float64 `json:"askSize,string"`
+	LastPrice            float64 `json:"lastPrice,string"`
+	OpenInterest         float64 `json:"openInterest,string"`
+	IndexPrice           float64 `json:"indexPrice,string"`
+	MarkPrice            float64 `json:"markPrice,string"`
+	Change24h            float64 `json:"change24h,string"`
+	High24h              float64 `json:"high24h,string"`
+	Low24h               float64 `json:"low24h,string"`
+	Volume24h            float64 `json:"volume24h,string"`
+	Turnover24h          float64 `json:"turnover24h,string"`
+	TotalVolume          float64 `json:"totalVolume,string"`
+	TotalTurnover        float64 `json:"totalTurnover,string"`
+	FundingRate          float64 `json:"fundingRate,string"`
+	PredictedFundingRate float64 `json:"predictedFundingRate,string"`
+	CountdownHour        float64 `json:"countdownHour,string"`
+	UnderlyingPrice      float64 `json:"underlyingPrice,string"`
+}
