@@ -1035,15 +1035,34 @@ message GetFuturesPositionsRequest {
   int64 position_limit = 7;
   bool verbose = 8;
   bool overwrite = 9;
+  bool get_funding_data = 10;
+  bool get_position_stats = 11;
 }
 
-message GetFuturesPositionsResponse {
-  int64 total_orders = 1;
-  string sub_account = 2;
-  string total_realised_pnl = 3;
-  string total_unrealised_pnl = 4;
-  string total_pnl = 5;
-  repeated FuturePosition positions = 6;
+message FundingRate {
+  string date = 1;
+  string rate = 2;
+  string payment = 3;
+}
+
+message FundingData {
+  repeated FundingRate funding_rates = 1;
+  string funding_rate_sum = 2;
+}
+
+message FuturesPositionStats {
+  string maintenance_margin_requirement = 1;
+  string initial_margin_requirement = 2;
+  string estimated_liquidation_price = 3;
+  string collateral_used = 4;
+  string mark_price = 5;
+  string current_size = 6;
+  string break_even_price = 7;
+  string average_open_price = 8;
+  string recent_pnl = 9;
+  string margin_fraction = 10;
+  string free_collateral = 11;
+  string total_collateral = 12;
 }
 
 message FuturePosition {
@@ -1054,6 +1073,17 @@ message FuturePosition {
   string opening_date = 5;
   string closing_date = 6;
   repeated OrderDetails orders = 7;
+}
+
+message GetFuturesPositionsResponse {
+  int64 total_orders = 1;
+  string sub_account = 2;
+  string total_realised_pnl = 3;
+  string total_unrealised_pnl = 4;
+  string total_pnl = 5;
+  repeated FuturePosition positions = 6;
+  FuturesPositionStats position_stats = 7;
+  FundingData funding_data = 8;
 }
 
 message GetCollateralRequest {

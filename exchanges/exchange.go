@@ -1324,6 +1324,12 @@ func (b *Base) GetServerTime(_ context.Context, _ asset.Item) (time.Time, error)
 	return time.Time{}, common.ErrNotYetImplemented
 }
 
-func (b *Base) AnalysePosition(ctx context.Context, a asset.Item, exch string, t time.Time, calculateOffline bool, pnlResult *order.PNLResult) error {
-	return common.ErrNotYetImplemented
+// GetPositionSummary returns stats for a future position
+func (b *Base) GetPositionSummary(ctx context.Context, request *order.PositionSummaryRequest) (*order.PositionSummary, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
+// GetFundingDetails returns funding rate details for a future for a specific time period
+func (b *Base) GetFundingDetails(ctx context.Context, request *order.FundingRateDetailsRequest) (*order.FundingRateDetails, error) {
+	return nil, common.ErrNotYetImplemented
 }

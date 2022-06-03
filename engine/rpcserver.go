@@ -4280,6 +4280,58 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 		}
 		totalRealisedPNL = totalRealisedPNL.Add(pos[i].RealisedPNL)
 		totalUnrealisedPNL = totalUnrealisedPNL.Add(pos[i].UnrealisedPNL)
+		if r.GetPositionStats {
+			stats, err := exch.GetPositionSummary(ctx, &order.PositionSummaryRequest{
+				Asset: pos[i].Asset,
+				Pair:  pos[i].Pair,
+			})
+			if err != nil {
+				return nil, err
+			}
+			response.PositionStats = &gctrpc.FuturesPositionStats{
+				MaintenanceMarginRequirement: stats.MaintenanceMarginRequirement.String(),
+				InitialMarginRequirement:     stats.InitialMarginRequirement.String(),
+				EstimatedLiquidationPrice:    stats.EstimatedLiquidationPrice.String(),
+				CollateralUsed:               stats.CollateralUsed.String(),
+				MarkPrice:                    stats.MarkPrice.String(),
+				CurrentSize:                  stats.CurrentSize.String(),
+				BreakEvenPrice:               stats.BreakEvenPrice.String(),
+				AverageOpenPrice:             stats.AverageOpenPrice.String(),
+				RecentPnl:                    stats.RecentPNL.String(),
+				MarginFraction:               stats.MarginFraction.String(),
+				FreeCollateral:               stats.FreeCollateral.String(),
+				TotalCollateral:              stats.TotalCollateral.String(),
+			}
+		}
+		if r.GetFundingData {
+			var endDate = time.Now()
+			if pos[i].Status == order.Closed {
+				endDate = pos[i].Orders[len(pos[i].Orders)-1].Date
+			}
+			fundingDetails, err := exch.GetFundingDetails(ctx, &order.FundingRateDetailsRequest{
+				Asset:     pos[i].Asset,
+				Pair:      pos[i].Pair,
+				StartDate: pos[i].Orders[0].Date,
+				EndDate:   endDate,
+			})
+			if err != nil {
+				return nil, err
+			}
+			var funding []*gctrpc.FundingRate
+			if r.Verbose {
+				for j := range fundingDetails.FundingRates {
+					funding = append(funding, &gctrpc.FundingRate{
+						Date:    fundingDetails.FundingRates[j].Time.Format(common.SimpleTimeFormatWithTimezone),
+						Rate:    fundingDetails.FundingRates[j].Rate.String(),
+						Payment: fundingDetails.FundingRates[j].Payment.String(),
+					})
+				}
+			}
+			response.FundingData = &gctrpc.FundingData{
+				FundingRates:   funding,
+				FundingRateSum: fundingDetails.Sum.String(),
+			}
+		}
 		if !r.Verbose {
 			response.Positions = append(response.Positions, details)
 			continue

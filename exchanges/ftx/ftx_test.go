@@ -2205,7 +2205,7 @@ func TestGetCollateral(t *testing.T) {
 
 func TestAnalysePosition(t *testing.T) {
 	t.Parallel()
-	hi, err := f.GetFuturesPositions(
+	positions, err := f.GetFuturesPositions(
 		context.Background(),
 		asset.Futures,
 		currency.NewPair(currency.BTC, currency.NewCode("PERP")),
@@ -2214,12 +2214,12 @@ func TestAnalysePosition(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	datarooni, err := f.GetPositionSummary(context.Background(), &PositionSummaryRequest{Asset: asset.Futures, Pair: hi[0].Pair})
+	datarooni, err := f.GetPositionSummary(context.Background(), &order.PositionSummaryRequest{Asset: asset.Futures, Pair: positions[0].Pair})
 	if err != nil {
 		t.Error(err)
 	}
 	acc, err := f.GetAccountInfo(context.Background())
-	size := decimal.NewFromFloat(hi[0].Amount)
+	size := decimal.NewFromFloat(positions[0].Amount)
 
 	underlyingStr, err := f.FormatSymbol(currency.NewPair(currency.BTC, currency.USD), asset.Spot)
 	if err != nil {
@@ -2229,21 +2229,20 @@ func TestAnalysePosition(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	t.Log(acc.Leverage)
-	offlinerooo, err := f.GetPositionSummary(context.Background(), &PositionSummaryRequest{
+	offlinerooo, err := f.GetPositionSummary(context.Background(), &order.PositionSummaryRequest{
 		Asset:                     asset.Futures,
-		Pair:                      hi[0].Pair,
+		Pair:                      positions[0].Pair,
 		CalculateOffline:          true,
-		Direction:                 hi[0].Side,
+		Direction:                 positions[0].Side,
 		FreeCollateral:            decimal.NewFromFloat(acc.FreeCollateral),
 		TotalCollateral:           decimal.NewFromFloat(acc.Collateral),
-		OpeningPrice:              decimal.NewFromFloat(hi[0].Price),
+		OpeningPrice:              decimal.NewFromFloat(positions[0].Price),
 		CurrentPrice:              datarooni.MarkPrice,
 		OpeningSize:               size,
 		CurrentSize:               size,
 		CollateralUsed:            datarooni.CollateralUsed,
 		NotionalPrice:             decimal.NewFromFloat(underlying.Last),
-		Leverage:                  decimal.NewFromInt(1),
+		Leverage:                  decimal.NewFromFloat(acc.Leverage),
 		MaxLeverageForAccount:     decimal.NewFromFloat(acc.Leverage),
 		TotalAccountValue:         decimal.NewFromFloat(acc.TotalAccountValue),
 		TotalOpenPositionNotional: decimal.NewFromFloat(acc.TotalPositionSize),
@@ -2253,70 +2252,4 @@ func TestAnalysePosition(t *testing.T) {
 	}
 	t.Logf("%+v", datarooni)
 	t.Logf("%+v", offlinerooo)
-}
-
-func TestSlippage(t *testing.T) {
-	type entry struct {
-		price, amount float64
-	}
-	ob := []entry{
-		{
-			price:  151.08,
-			amount: 2800,
-		},
-		{
-			price:  151.08,
-			amount: 1100,
-		},
-		{
-			price:  151.09,
-			amount: 3800,
-		},
-		{
-			price:  151.10,
-			amount: 900,
-		},
-		{
-			price:  151.11,
-			amount: 3700,
-		},
-		{
-			price:  151.12,
-			amount: 1200,
-		},
-		{
-			price:  151.13,
-			amount: 3700,
-		},
-		{
-			price:  151.14,
-			amount: 200,
-		},
-		{
-			price:  151.15,
-			amount: 1000,
-		},
-		{
-			price:  151.18,
-			amount: 400,
-		},
-		{
-			price:  151.22,
-			amount: 100,
-		},
-		{
-			price:  151.24,
-			amount: 600,
-		},
-		{
-			price:  151.25,
-			amount: 500,
-		},
-	}
-	var avg float64
-	for i := range ob {
-		avg += ob[i].price
-	}
-	avg /= float64(len(ob))
-	t.Log(avg)
 }

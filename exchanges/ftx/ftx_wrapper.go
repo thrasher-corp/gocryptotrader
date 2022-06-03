@@ -1694,47 +1694,15 @@ func (f *FTX) GetCurrencyForRealisedPNL(_ asset.Item, _ currency.Pair) (currency
 	return currency.USD, asset.Spot, nil
 }
 
-type PositionSummary struct {
-	MaintenanceMarginRequirement decimal.Decimal
-	InitialMarginRequirement     decimal.Decimal
-	EstimatedLiquidationPrice    decimal.Decimal
-	CollateralUsed               decimal.Decimal
-	MarkPrice                    decimal.Decimal
-	CurrentSize                  decimal.Decimal
-	BreakEvenPrice               decimal.Decimal
-	AverageOpenPrice             decimal.Decimal
-	RecentPNL                    decimal.Decimal
-	MarginFraction               decimal.Decimal
-	FreeCollateral               decimal.Decimal
-	TotalCollateral              decimal.Decimal
-}
-
-type PositionSummaryRequest struct {
-	Asset asset.Item
-	Pair  currency.Pair
-
-	// offline calculation requirements below
-	CalculateOffline          bool
-	Direction                 order.Side
-	FreeCollateral            decimal.Decimal
-	TotalCollateral           decimal.Decimal
-	OpeningPrice              decimal.Decimal
-	CurrentPrice              decimal.Decimal
-	OpeningSize               decimal.Decimal
-	CurrentSize               decimal.Decimal
-	CollateralUsed            decimal.Decimal
-	NotionalPrice             decimal.Decimal
-	Leverage                  decimal.Decimal
-	MaxLeverageForAccount     decimal.Decimal
-	TotalAccountValue         decimal.Decimal
-	TotalOpenPositionNotional decimal.Decimal
-}
-
-func (f *FTX) GetPositionSummary(ctx context.Context, request *PositionSummaryRequest) (*PositionSummary, error) {
-	if request == nil {
+// GetPositionSummary returns an overview of a future position
+func (f *FTX) GetPositionSummary(ctx context.Context, request *order.PositionSummaryRequest) (*order.PositionSummary, error) {	if request == nil {
 		return nil, fmt.Errorf("%w PositionSummaryRequest", common.ErrNilPointer)
 	}
+	if !request.Asset.IsFutures() {
+		return nil, fmt.Errorf("%w '%s' is not a futures asset", asset.ErrNotSupported, request.Asset)
+	}
 	if request.CalculateOffline {
+		one := decimal.NewFromInt(1)
 		positionSize := request.CurrentSize.Mul(request.CurrentPrice)
 		var marginFraction decimal.Decimal
 		if request.TotalCollateral.IsPositive() {
@@ -1747,16 +1715,6 @@ func (f *FTX) GetPositionSummary(ctx context.Context, request *PositionSummaryRe
 		var estimatedLiquidationPrice, maintenanceMarginRequirement, positionMaintenanceMarginFraction decimal.Decimal
 		currSizePNL := request.CurrentSize
 		openSizePNL := request.OpeningSize
-		switch {
-		case request.Direction.IsLong():
-			estimatedLiquidationPrice = request.CurrentPrice.Mul(decimal.NewFromInt(1).Add(maintenanceMarginRequirement).Sub(request.TotalCollateral)).Div(request.CurrentPrice.Mul(request.CurrentSize))
-		case request.Direction.IsShort():
-			estimatedLiquidationPrice = request.CurrentPrice.Mul(decimal.NewFromInt(1).Sub(maintenanceMarginRequirement).Add(request.TotalCollateral.Div(request.CurrentPrice.Mul(request.CurrentSize))))
-			currSizePNL = currSizePNL.Neg()
-			openSizePNL = openSizePNL.Neg()
-		default:
-			return nil, fmt.Errorf("%w '%s' invalid direction", asset.ErrNotSupported, request.Direction)
-		}
 		if request.Leverage.LessThanOrEqual(decimal.NewFromFloat(20)) {
 			positionMaintenanceMarginFraction = decimal.NewFromFloat(0.03)
 		} else {
@@ -1764,12 +1722,25 @@ func (f *FTX) GetPositionSummary(ctx context.Context, request *PositionSummaryRe
 			positionMaintenanceMarginFraction = decimal.NewFromFloat(0.006)
 		}
 		// baseIMF is always 1/20 as 20 is the max leverage
-		baseIMF := decimal.NewFromInt(1).Div(decimal.NewFromInt(20))
+		baseIMF := one.Div(decimal.NewFromInt(20))
 		maintenanceMarginRequirement = decimal.Max(positionMaintenanceMarginFraction, decimal.NewFromFloat(0.6).Mul(baseIMF))
+
+		switch {
+		case request.Direction.IsLong():
+			estimatedLiquidationPrice = request.CurrentPrice.Mul(one.Add(maintenanceMarginRequirement).Sub(request.TotalCollateral)).Div(request.CurrentPrice.Mul(request.CurrentSize))
+		case request.Direction.IsShort():
+			estimatedLiquidationPrice = request.CurrentPrice.Mul(one.Sub(maintenanceMarginRequirement).Add(request.TotalCollateral.Div(request.TotalAccountValue)))
+			currSizePNL = currSizePNL.Neg()
+			openSizePNL = openSizePNL.Neg()
+		default:
+			return nil, fmt.Errorf("%w '%s' invalid direction", asset.ErrNotSupported, request.Direction)
+		}
+
 		//omf := decimal.Min(request.TotalCollateral, request.TotalAccountValue).Div(request.TotalOpenPositionNotional)
-		return &PositionSummary{
+		imf := one.Div(request.Leverage)
+		return &order.PositionSummary{
 			MaintenanceMarginRequirement: maintenanceMarginRequirement,
-			InitialMarginRequirement:     request.TotalCollateral.Div(positionSize),
+			InitialMarginRequirement:     imf,
 			EstimatedLiquidationPrice:    estimatedLiquidationPrice,
 			CollateralUsed:               request.CollateralUsed,
 			MarkPrice:                    request.CurrentPrice,
@@ -1791,8 +1762,7 @@ func (f *FTX) GetPositionSummary(ctx context.Context, request *PositionSummaryRe
 			if !positions[i].Future.Equal(request.Pair) {
 				continue
 			}
-
-			return &PositionSummary{
+			return &order.PositionSummary{
 				MaintenanceMarginRequirement: decimal.NewFromFloat(positions[i].MaintenanceMarginRequirement),
 				InitialMarginRequirement:     decimal.NewFromFloat(positions[i].InitialMarginRequirement),
 				EstimatedLiquidationPrice:    decimal.NewFromFloat(positions[i].EstimatedLiquidationPrice),
@@ -1809,4 +1779,32 @@ func (f *FTX) GetPositionSummary(ctx context.Context, request *PositionSummaryRe
 		}
 	}
 	return nil, fmt.Errorf("unable to calculate position summary %w for %v %v", order.ErrPositionNotFound, request.Asset, request.Pair)
+}
+
+// GetFundingDetails returns a funding rate summary for a given future
+func (f *FTX) GetFundingDetails(ctx context.Context, request *order.FundingRateDetailsRequest) (*order.FundingRateDetails, error) {
+	if !request.Asset.IsFutures() {
+		return nil, fmt.Errorf("%w '%s' is not a futures asset", asset.ErrNotSupported, request.Asset)
+	}
+	fPair, err := f.FormatSymbol(request.Pair, request.Asset)
+	if err != nil {
+		return nil, err
+	}
+	fundingDetails, err := f.GetFundingPayments(ctx, request.StartDate, request.EndDate, fPair)
+	if err != nil {
+		return nil, err
+	}
+	var response order.FundingRateDetails
+	for i := range fundingDetails {
+		response.FundingRates = append(response.FundingRates, order.FundingRate{
+			Time:    fundingDetails[i].Time,
+			Rate:    decimal.NewFromFloat(fundingDetails[i].Rate),
+			Payment: decimal.NewFromFloat(fundingDetails[i].Payment),
+		})
+		response.Sum = response.Sum.Add(decimal.NewFromFloat(fundingDetails[i].Payment))
+	}
+	sort.Slice(response.FundingRates, func(i, j int) bool {
+		return response.FundingRates[i].Time.Before(response.FundingRates[j].Time)
+	})
+	return &response, nil
 }

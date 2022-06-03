@@ -1907,6 +1907,18 @@
             "in": "query",
             "required": false,
             "type": "boolean"
+          },
+          {
+            "name": "getFundingData",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "getPositionStats",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
           }
         ],
         "tags": [
@@ -4295,6 +4307,34 @@
         }
       }
     },
+    "gctrpcFundingData": {
+      "type": "object",
+      "properties": {
+        "fundingRates": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/gctrpcFundingRate"
+          }
+        },
+        "fundingRateSum": {
+          "type": "string"
+        }
+      }
+    },
+    "gctrpcFundingRate": {
+      "type": "object",
+      "properties": {
+        "date": {
+          "type": "string"
+        },
+        "rate": {
+          "type": "string"
+        },
+        "payment": {
+          "type": "string"
+        }
+      }
+    },
     "gctrpcFuturePosition": {
       "type": "object",
       "properties": {
@@ -4321,6 +4361,47 @@
           "items": {
             "$ref": "#/definitions/gctrpcOrderDetails"
           }
+        }
+      }
+    },
+    "gctrpcFuturesPositionStats": {
+      "type": "object",
+      "properties": {
+        "maintenanceMarginRequirement": {
+          "type": "string"
+        },
+        "initialMarginRequirement": {
+          "type": "string"
+        },
+        "estimatedLiquidationPrice": {
+          "type": "string"
+        },
+        "collateralUsed": {
+          "type": "string"
+        },
+        "markPrice": {
+          "type": "string"
+        },
+        "currentSize": {
+          "type": "string"
+        },
+        "breakEvenPrice": {
+          "type": "string"
+        },
+        "averageOpenPrice": {
+          "type": "string"
+        },
+        "recentPnl": {
+          "type": "string"
+        },
+        "marginFraction": {
+          "type": "string"
+        },
+        "freeCollateral": {
+          "type": "string"
+        },
+        "totalCollateral": {
+          "type": "string"
         }
       }
     },
@@ -4768,6 +4849,12 @@
           "items": {
             "$ref": "#/definitions/gctrpcFuturePosition"
           }
+        },
+        "positionStats": {
+          "$ref": "#/definitions/gctrpcFuturesPositionStats"
+        },
+        "fundingData": {
+          "$ref": "#/definitions/gctrpcFundingData"
         }
       }
     },

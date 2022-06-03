@@ -50,12 +50,8 @@ var (
 )
 
 type PositionAnalysis interface {
-	AnalysePosition(ctx context.Context,
-		asset asset.Item,
-		exchangeName string,
-		time time.Time,
-		calculateOffline bool,
-		pnlResult *PNLResult) error
+	GetPositionSummary(context.Context, *PositionSummaryRequest) (*PositionSummary, error)
+	GetFundingDetails(context.Context, *FundingRateDetailsRequest) (*FundingRateDetails, error)
 }
 
 // PNLCalculation is an interface to allow multiple
@@ -288,8 +284,7 @@ type PNLResult struct {
 	IsOrder bool
 }
 
-// PositionStats is a basic holder
-// for position information
+// PositionStats is a basic holder for position information
 type PositionStats struct {
 	Exchange           string
 	Asset              asset.Item
@@ -306,4 +301,63 @@ type PositionStats struct {
 	OpeningPrice       decimal.Decimal
 	LatestPrice        decimal.Decimal
 	PNLHistory         []PNLResult
+}
+
+// PositionSummary returns basic details on an open position
+type PositionSummary struct {
+	MaintenanceMarginRequirement decimal.Decimal
+	InitialMarginRequirement     decimal.Decimal
+	EstimatedLiquidationPrice    decimal.Decimal
+	CollateralUsed               decimal.Decimal
+	MarkPrice                    decimal.Decimal
+	CurrentSize                  decimal.Decimal
+	BreakEvenPrice               decimal.Decimal
+	AverageOpenPrice             decimal.Decimal
+	RecentPNL                    decimal.Decimal
+	MarginFraction               decimal.Decimal
+	FreeCollateral               decimal.Decimal
+	TotalCollateral              decimal.Decimal
+}
+
+// PositionSummaryRequest is used to request a summary of an open position
+type PositionSummaryRequest struct {
+	Asset asset.Item
+	Pair  currency.Pair
+
+	// offline calculation requirements below
+	CalculateOffline          bool
+	Direction                 Side
+	FreeCollateral            decimal.Decimal
+	TotalCollateral           decimal.Decimal
+	OpeningPrice              decimal.Decimal
+	CurrentPrice              decimal.Decimal
+	OpeningSize               decimal.Decimal
+	CurrentSize               decimal.Decimal
+	CollateralUsed            decimal.Decimal
+	NotionalPrice             decimal.Decimal
+	Leverage                  decimal.Decimal
+	MaxLeverageForAccount     decimal.Decimal
+	TotalAccountValue         decimal.Decimal
+	TotalOpenPositionNotional decimal.Decimal
+}
+
+// FundingRateDetailsRequest is used to request funding rate details for a position
+type FundingRateDetailsRequest struct {
+	Asset     asset.Item
+	Pair      currency.Pair
+	StartDate time.Time
+	EndDate   time.Time
+}
+
+// FundingRateDetails is used to return funding rate details for a position
+type FundingRateDetails struct {
+	FundingRates []FundingRate
+	Sum          decimal.Decimal
+}
+
+// FundingRate holds details for an individual funding rate
+type FundingRate struct {
+	Rate    decimal.Decimal
+	Payment decimal.Decimal
+	Time    time.Time
 }

@@ -4729,7 +4729,7 @@ func findMissingSavedCandleIntervals(c *cli.Context) error {
 }
 
 var getFuturesPositionsCommand = &cli.Command{
-	Name:      "getfuturesposition",
+	Name:      "getfuturespositions",
 	Usage:     "will retrieve all futures positions in a timeframe, then calculate PNL based on that. Note, the dates have an impact on PNL calculations, ensure your start date is not after a new position is opened",
 	ArgsUsage: "<exchange> <pair> <asset> <start> <end> <limit> <status> <verbose> <overwrite>",
 	Action:    getFuturesPositions,
@@ -4785,6 +4785,16 @@ var getFuturesPositionsCommand = &cli.Command{
 			Name:    "overwrite",
 			Aliases: []string{"o"},
 			Usage:   "if true, will overwrite futures results for the provided exchange, asset, pair",
+		},
+		&cli.BoolFlag{
+			Name:    "getfundingdata",
+			Aliases: []string{"f"},
+			Usage:   "if true, will return funding rate summary",
+		},
+		&cli.BoolFlag{
+			Name:    "getpositionstats",
+			Aliases: []string{"stats"},
+			Usage:   "if true, will return extra stats on the position",
 		},
 	},
 }
@@ -4882,6 +4892,26 @@ func getFuturesPositions(c *cli.Context) error {
 		}
 	}
 
+	var getFundingData bool
+	if c.IsSet("getfundingdata") {
+		getFundingData = c.Bool("getfundingdata")
+	} else if c.Args().Get(9) != "" {
+		getFundingData, err = strconv.ParseBool(c.Args().Get(9))
+		if err != nil {
+			return err
+		}
+	}
+
+	var getPositionsStats bool
+	if c.IsSet("getpositionstats") {
+		getPositionsStats = c.Bool("getpositionstats")
+	} else if c.Args().Get(10) != "" {
+		getPositionsStats, err = strconv.ParseBool(c.Args().Get(10))
+		if err != nil {
+			return err
+		}
+	}
+
 	var s, e time.Time
 	s, err = time.Parse(common.SimpleTimeFormat, startTime)
 	if err != nil {
@@ -4912,12 +4942,14 @@ func getFuturesPositions(c *cli.Context) error {
 				Base:      p.Base.String(),
 				Quote:     p.Quote.String(),
 			},
-			StartDate:     negateLocalOffset(s),
-			EndDate:       negateLocalOffset(e),
-			Status:        status,
-			PositionLimit: int64(limit),
-			Verbose:       verbose,
-			Overwrite:     overwrite,
+			StartDate:        negateLocalOffset(s),
+			EndDate:          negateLocalOffset(e),
+			Status:           status,
+			PositionLimit:    int64(limit),
+			Verbose:          verbose,
+			Overwrite:        overwrite,
+			GetFundingData:   getFundingData,
+			GetPositionStats: getPositionsStats,
 		})
 	if err != nil {
 		return err
