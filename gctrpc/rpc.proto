@@ -1119,7 +1119,6 @@ message ShutdownRequest {}
 
 message ShutdownResponse {}
 
-
 message GetAveragePriceRequest {
   string exchange = 1;
   CurrencyPair pair = 2;

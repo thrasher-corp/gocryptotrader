@@ -49,6 +49,12 @@ func TestGetAverageTrueRange(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
+
+	wrap := Item{Candles: []Candle{{High: 1337, Low: 1337, Close: 1337}}}
+	_, err = wrap.GetAverageTrueRange(9)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 }
 
 func TestGetBollingerBands(t *testing.T) {
@@ -91,6 +97,12 @@ func TestGetBollingerBands(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
+
+	wrap := Item{Candles: []Candle{{Close: 1337}, {Close: 1337}, {Close: 1337}, {Close: 1337}, {Close: 1337}, {Close: 1337}, {Close: 1337}, {Close: 1337}, {Close: 1337}}}
+	_, _, _, err = wrap.GetBollingerBands(9, 1, 1, 5)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 }
 
 func TestGetCorrelationCoefficient(t *testing.T) {
@@ -128,6 +140,12 @@ func TestGetCorrelationCoefficient(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
+
+	wrap := Item{Candles: []Candle{{Close: 1337}}}
+	_, err = wrap.GetCorrelationCoefficient(&Item{Candles: []Candle{{Close: 1337}}}, 9)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 }
 
 func TestGetSimpleMovingAverage(t *testing.T) {
@@ -154,6 +172,12 @@ func TestGetSimpleMovingAverage(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
+
+	wrap := Item{Candles: []Candle{{Close: 1337}}}
+	_, err = wrap.GetSimpleMovingAverageOnClose(9)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 }
 
 func TestGetExponentialMovingAverage(t *testing.T) {
@@ -177,6 +201,12 @@ func TestGetExponentialMovingAverage(t *testing.T) {
 	}
 
 	_, err = ohlc.GetExponentialMovingAverage([]float64{1337}, 9)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	wrap := Item{Candles: []Candle{{Close: 1337}}}
+	_, err = wrap.GetExponentialMovingAverageOnClose(9)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
@@ -213,6 +243,12 @@ func TestGetMovingAverageConvergenceDivergence(t *testing.T) {
 	}
 
 	_, _, _, err = ohlc.GetMovingAverageConvergenceDivergence([]float64{1337}, 1, 1, 9)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	wrap := Item{Candles: []Candle{{Close: 1337}}}
+	_, _, _, err = wrap.GetMovingAverageConvergenceDivergenceOnClose(1, 1, 9)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
@@ -272,6 +308,16 @@ func TestGetMoneyFlowIndex(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
+
+	wrap := Item{Candles: []Candle{
+		{Close: 1337, High: 1337, Low: 1337, Volume: 1337},
+		{Close: 1337, High: 1337, Low: 1337, Volume: 1337},
+		{Close: 1337, High: 1337, Low: 1337, Volume: 1337},
+	}}
+	_, err = wrap.GetMoneyFlowIndex(2)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 }
 
 func TestGetOnBalanceVolume(t *testing.T) {
@@ -300,6 +346,12 @@ func TestGetOnBalanceVolume(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
+
+	wrap := Item{Candles: []Candle{{Close: 1337, Volume: 1337}}}
+	_, err = wrap.GetOnBalanceVolume()
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
 }
 
 func TestGetRelativeStrengthIndex(t *testing.T) {
@@ -323,6 +375,12 @@ func TestGetRelativeStrengthIndex(t *testing.T) {
 	}
 
 	_, err = ohlc.GetRelativeStrengthIndex([]float64{1337}, 9)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	wrap := Item{Candles: []Candle{{Close: 1337, Volume: 1337}}}
+	_, err = wrap.GetRelativeStrengthIndexOnClose(9)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}

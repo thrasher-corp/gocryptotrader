@@ -43,6 +43,11 @@ func (i *Item) GetOHLC() *OHLC {
 }
 
 // GetAverageTrueRange returns the Average True Range for the given period.
+func (i *Item) GetAverageTrueRange(period int) ([]float64, error) {
+	return i.GetOHLC().GetAverageTrueRange(period)
+}
+
+// GetAverageTrueRange returns the Average True Range for the given period.
 func (o *OHLC) GetAverageTrueRange(period int) ([]float64, error) {
 	if o == nil {
 		return nil, fmt.Errorf("get average true range %w", errNilOHLC)
@@ -60,6 +65,11 @@ func (o *OHLC) GetAverageTrueRange(period int) ([]float64, error) {
 		return nil, fmt.Errorf("get average true range close %w", errNoData)
 	}
 	return indicators.ATR(o.High, o.Low, o.Close, period), nil
+}
+
+// GetBollingerBands returns Bollinger Bands for the given period.
+func (i *Item) GetBollingerBands(period int, nbDevUp, nbDevDown float64, m indicators.MaType) (upper, middle, lower []float64, err error) {
+	return i.GetOHLC().GetBollingerBands(period, nbDevUp, nbDevDown, m)
 }
 
 // GetBollingerBands returns Bollinger Bands for the given period.
@@ -89,6 +99,12 @@ func (o *OHLC) GetBollingerBands(period int, nbDevUp, nbDevDown float64, m indic
 
 // GetCorrelationCoefficient returns GetCorrelation Coefficient against another
 // candle data set for the given period.
+func (i *Item) GetCorrelationCoefficient(other *Item, period int) ([]float64, error) {
+	return i.GetOHLC().GetCorrelationCoefficient(other.GetOHLC(), period)
+}
+
+// GetCorrelationCoefficient returns GetCorrelation Coefficient against another
+// candle data set for the given period.
 func (o *OHLC) GetCorrelationCoefficient(other *OHLC, period int) ([]float64, error) {
 	if o == nil {
 		return nil, fmt.Errorf("get correlation coefficient %w", errNilOHLC)
@@ -108,6 +124,13 @@ func (o *OHLC) GetCorrelationCoefficient(other *OHLC, period int) ([]float64, er
 	return indicators.CorrelationCoefficient(o.Close, other.Close, period), nil
 }
 
+// GetSimpleMovingAverageOnClose returns MA the close prices set for the given
+// period.
+func (i *Item) GetSimpleMovingAverageOnClose(period int) ([]float64, error) {
+	ohlc := i.GetOHLC()
+	return ohlc.GetSimpleMovingAverage(ohlc.Close, period)
+}
+
 // GetSimpleMovingAverage returns MA for the supplied price set for the given
 // period.
 func (o *OHLC) GetSimpleMovingAverage(option []float64, period int) ([]float64, error) {
@@ -123,6 +146,13 @@ func (o *OHLC) GetSimpleMovingAverage(option []float64, period int) ([]float64, 
 	return indicators.SMA(option, period), nil
 }
 
+// GetExponentialMovingAverage returns the EMA on the close price set for the
+// given period.
+func (i *Item) GetExponentialMovingAverageOnClose(period int) ([]float64, error) {
+	ohlc := i.GetOHLC()
+	return ohlc.GetExponentialMovingAverage(ohlc.Close, period)
+}
+
 // GetExponentialMovingAverage returns the EMA on the supplied price set for the
 // given period.
 func (o *OHLC) GetExponentialMovingAverage(option []float64, period int) ([]float64, error) {
@@ -136,6 +166,14 @@ func (o *OHLC) GetExponentialMovingAverage(option []float64, period int) ([]floa
 		return nil, fmt.Errorf("get exponential moving average %w", errNoData)
 	}
 	return indicators.EMA(option, period), nil
+}
+
+// GetMovingAverageConvergenceDivergence returns the
+// MACD (macd, signal period vals, histogram) for the given price
+// set and the paramaters fast, slow signal time periods.
+func (i *Item) GetMovingAverageConvergenceDivergenceOnClose(fast, slow, signal int) (macd, signalVals, histogram []float64, err error) {
+	ohlc := i.GetOHLC()
+	return ohlc.GetMovingAverageConvergenceDivergence(ohlc.Close, fast, slow, signal)
 }
 
 // GetMovingAverageConvergenceDivergence returns the
@@ -159,6 +197,11 @@ func (o *OHLC) GetMovingAverageConvergenceDivergence(option []float64, fast, slo
 	}
 	macd, signalVals, histogram = indicators.MACD(option, fast, slow, signal)
 	return
+}
+
+// GetMoneyFlowIndex returns Money Flow Index for the given period.
+func (i *Item) GetMoneyFlowIndex(period int) ([]float64, error) {
+	return i.GetOHLC().GetMoneyFlowIndex(period)
 }
 
 // GetMoneyFlowIndex returns Money Flow Index for the given period.
@@ -200,6 +243,11 @@ func (o *OHLC) GetMoneyFlowIndex(period int) ([]float64, error) {
 }
 
 // GetOnBalanceVolume returns On Balance Volume.
+func (i *Item) GetOnBalanceVolume() ([]float64, error) {
+	return i.GetOHLC().GetOnBalanceVolume()
+}
+
+// GetOnBalanceVolume returns On Balance Volume.
 func (o *OHLC) GetOnBalanceVolume() ([]float64, error) {
 	if o == nil {
 		return nil, fmt.Errorf("get on balance volume %w", errNilOHLC)
@@ -211,6 +259,13 @@ func (o *OHLC) GetOnBalanceVolume() ([]float64, error) {
 		return nil, fmt.Errorf("get on balance volume %w for volume", errNoData)
 	}
 	return indicators.OBV(o.Close, o.Volume), nil
+}
+
+// GetRelativeStrengthIndex returns the relative strength index from the the
+// given price set and period.
+func (i *Item) GetRelativeStrengthIndexOnClose(period int) ([]float64, error) {
+	ohlc := i.GetOHLC()
+	return ohlc.GetRelativeStrengthIndex(ohlc.Close, period)
 }
 
 // GetRelativeStrengthIndex returns the relative strength index from the the
