@@ -2743,3 +2743,59 @@ func TestGetUSDCSymbols(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestGetUSDCKlines(t *testing.T) {
+	t.Parallel()
+
+	pair, err := currency.NewPairFromString("BTCPERP")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = b.GetUSDCKlines(context.Background(), pair, "5", time.Now().Add(-time.Hour), 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetUSDCMarkPriceKlines(t *testing.T) {
+	t.Parallel()
+
+	pair, err := currency.NewPairFromString("BTCPERP")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = b.GetUSDCMarkPriceKlines(context.Background(), pair, "5", time.Now().Add(-time.Hour), 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetUSDCIndexPriceKlines(t *testing.T) {
+	t.Parallel()
+
+	pair, err := currency.NewPairFromString("BTCPERP")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = b.GetUSDCIndexPriceKlines(context.Background(), pair, "5", time.Now().Add(-time.Hour), 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetUSDCPremiumIndexKlines(t *testing.T) {
+	t.Parallel()
+
+	pair, err := currency.NewPairFromString("BTCPERP")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = b.GetUSDCPremiumIndexKlines(context.Background(), pair, "5", time.Now().Add(-time.Hour), 0)
+	if err != nil {
+		t.Error(err)
+	}
+}

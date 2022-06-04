@@ -738,3 +738,21 @@ type USDCSymbol struct {
 	CountdownHour        float64 `json:"countdownHour,string"`
 	UnderlyingPrice      string  `json:"underlyingPrice"`
 }
+
+// USDCKlineBase stores Kline Base
+type USDCKlineBase struct {
+	Symbol   string       `json:"symbol"`
+	Period   string       `json:"period"`
+	OpenTime bybitTimeSec `json:"openTime"`
+	Open     float64      `json:"open,string"`
+	High     float64      `json:"high,string"`
+	Low      float64      `json:"low,string"`
+	Close    float64      `json:"close,string"`
+}
+
+// USDCKline stores kline data
+type USDCKline struct {
+	USDCKlineBase
+	Volume   float64 `json:"volume,string"`
+	Turnover float64 `json:"turnover,string"`
+}

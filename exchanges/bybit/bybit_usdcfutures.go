@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/url"
 	"strconv"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -15,10 +16,13 @@ import (
 const (
 
 	// public endpoint
-	usdcfuturesGetOrderbook = "/perpetual/usdc/openapi/public/v1/order-book"
-	usdcfuturesGetContracts = "/perpetual/usdc/openapi/public/v1/symbols"
-	usdcfuturesGetSymbols   = "/perpetual/usdc/openapi/public/v1/tick"
-	usdcfutures             = ""
+	usdcfuturesGetOrderbook          = "/perpetual/usdc/openapi/public/v1/order-book"
+	usdcfuturesGetContracts          = "/perpetual/usdc/openapi/public/v1/symbols"
+	usdcfuturesGetSymbols            = "/perpetual/usdc/openapi/public/v1/tick"
+	usdcfuturesGetKlines             = "/perpetual/usdc/openapi/public/v1/kline/list"
+	usdcfuturesGetMarkPriceKlines    = "/perpetual/usdc/openapi/public/v1/mark-price-kline"
+	usdcfuturesGetIndexPriceKlines   = "/perpetual/usdc/openapi/public/v1/index-price-kline"
+	usdcfuturesGetPremiumIndexKlines = "/perpetual/usdc/openapi/public/v1/premium-index-kline"
 
 	// auth endpoint
 	usdcfuturesPlaceOrder = "/perpetual/usdc/openapi/private/v1/place-order"
@@ -82,11 +86,9 @@ func (by *Bybit) GetUSDCContracts(ctx context.Context, symbol currency.Pair, dir
 	if direction != "" {
 		params.Set("direction", direction)
 	}
-
-	if limit <= 0 || limit > 200 {
-		limit = 200
+	if limit > 0 && limit <= 200 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	params.Set("limit", strconv.FormatInt(limit, 10))
 
 	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestUSDCMargined, common.EncodeURLValues(usdcfuturesGetContracts, params), publicFuturesRate, &resp)
 }
@@ -110,4 +112,144 @@ func (by *Bybit) GetUSDCSymbols(ctx context.Context, symbol currency.Pair) (USDC
 	}
 
 	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestUSDCMargined, common.EncodeURLValues(usdcfuturesGetSymbols, params), publicFuturesRate, &resp)
+}
+
+// GetUSDCKlines gets kline of symbol for USDCMarginedFutures.
+func (by *Bybit) GetUSDCKlines(ctx context.Context, symbol currency.Pair, period string, startTime time.Time, limit int64) ([]USDCKline, error) {
+	resp := struct {
+		Data []USDCKline `json:"result"`
+		Error
+	}{}
+
+	params := url.Values{}
+	if !symbol.IsEmpty() {
+		symbolValue, err := by.FormatSymbol(symbol, asset.USDCMarginedFutures)
+		if err != nil {
+			return resp.Data, err
+		}
+		params.Set("symbol", symbolValue)
+	} else {
+		return nil, errSymbolMissing
+	}
+
+	if !common.StringDataCompare(validFuturesIntervals, period) {
+		return resp.Data, errInvalidPeriod
+	}
+	params.Set("period", period)
+
+	if startTime.IsZero() {
+		return nil, errInvalidStartTime
+	} else {
+		params.Set("startTime", strconv.FormatInt(startTime.Unix(), 10))
+	}
+
+	if limit > 0 && limit <= 200 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestUSDCMargined, common.EncodeURLValues(usdcfuturesGetKlines, params), publicFuturesRate, &resp)
+}
+
+// GetUSDCMarkPriceKlines gets mark price kline of symbol for USDCMarginedFutures.
+func (by *Bybit) GetUSDCMarkPriceKlines(ctx context.Context, symbol currency.Pair, period string, startTime time.Time, limit int64) ([]USDCKlineBase, error) {
+	resp := struct {
+		Data []USDCKlineBase `json:"result"`
+		Error
+	}{}
+
+	params := url.Values{}
+	if !symbol.IsEmpty() {
+		symbolValue, err := by.FormatSymbol(symbol, asset.USDCMarginedFutures)
+		if err != nil {
+			return resp.Data, err
+		}
+		params.Set("symbol", symbolValue)
+	} else {
+		return nil, errSymbolMissing
+	}
+
+	if !common.StringDataCompare(validFuturesIntervals, period) {
+		return resp.Data, errInvalidPeriod
+	}
+	params.Set("period", period)
+
+	if startTime.IsZero() {
+		return nil, errInvalidStartTime
+	} else {
+		params.Set("startTime", strconv.FormatInt(startTime.Unix(), 10))
+	}
+
+	if limit > 0 && limit <= 200 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestUSDCMargined, common.EncodeURLValues(usdcfuturesGetMarkPriceKlines, params), publicFuturesRate, &resp)
+}
+
+// GetUSDCIndexPriceKlines gets index price kline of symbol for USDCMarginedFutures.
+func (by *Bybit) GetUSDCIndexPriceKlines(ctx context.Context, symbol currency.Pair, period string, startTime time.Time, limit int64) ([]USDCKlineBase, error) {
+	resp := struct {
+		Data []USDCKlineBase `json:"result"`
+		Error
+	}{}
+
+	params := url.Values{}
+	if !symbol.IsEmpty() {
+		symbolValue, err := by.FormatSymbol(symbol, asset.USDCMarginedFutures)
+		if err != nil {
+			return resp.Data, err
+		}
+		params.Set("symbol", symbolValue)
+	} else {
+		return nil, errSymbolMissing
+	}
+
+	if !common.StringDataCompare(validFuturesIntervals, period) {
+		return resp.Data, errInvalidPeriod
+	}
+	params.Set("period", period)
+
+	if startTime.IsZero() {
+		return nil, errInvalidStartTime
+	} else {
+		params.Set("startTime", strconv.FormatInt(startTime.Unix(), 10))
+	}
+
+	if limit > 0 && limit <= 200 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestUSDCMargined, common.EncodeURLValues(usdcfuturesGetIndexPriceKlines, params), publicFuturesRate, &resp)
+}
+
+// GetUSDCIndexPriceKlines gets premium index kline of symbol for USDCMarginedFutures.
+func (by *Bybit) GetUSDCPremiumIndexKlines(ctx context.Context, symbol currency.Pair, period string, startTime time.Time, limit int64) ([]USDCKlineBase, error) {
+	resp := struct {
+		Data []USDCKlineBase `json:"result"`
+		Error
+	}{}
+
+	params := url.Values{}
+	if !symbol.IsEmpty() {
+		symbolValue, err := by.FormatSymbol(symbol, asset.USDCMarginedFutures)
+		if err != nil {
+			return resp.Data, err
+		}
+		params.Set("symbol", symbolValue)
+	} else {
+		return nil, errSymbolMissing
+	}
+
+	if !common.StringDataCompare(validFuturesIntervals, period) {
+		return resp.Data, errInvalidPeriod
+	}
+	params.Set("period", period)
+
+	if startTime.IsZero() {
+		return nil, errInvalidStartTime
+	} else {
+		params.Set("startTime", strconv.FormatInt(startTime.Unix(), 10))
+	}
+
+	if limit > 0 && limit <= 200 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestUSDCMargined, common.EncodeURLValues(usdcfuturesGetPremiumIndexKlines, params), publicFuturesRate, &resp)
 }
