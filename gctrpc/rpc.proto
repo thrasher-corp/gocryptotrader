@@ -1128,10 +1128,19 @@ message GetAveragePriceRequest {
   google.protobuf.Timestamp start = 6;
   google.protobuf.Timestamp end = 7;
   int64 period = 8;
+  int64 fast_period = 9;
+  int64 slow_period = 10;
+  double standard_deviation_up = 11;
+  double standard_deviation_down = 12;
+  int64 moving_average_type = 13;
+}
+
+message ListOfSignals {
+  repeated double signals = 1;
 }
 
 message GetAveragePriceResponse {
-  repeated double signal = 1;
+  map<string, ListOfSignals>  signals = 1;
 }
 
 service GoCryptoTraderService {

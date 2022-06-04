@@ -19,6 +19,7 @@ import (
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/pquerna/otp/totp"
 	"github.com/shopspring/decimal"
+	"github.com/thrasher-corp/gct-ta/indicators"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
@@ -4612,7 +4613,7 @@ func (s *RPCServer) GetAveragePrice(ctx context.Context, r *gctrpc.GetAveragePri
 		return nil, err
 	}
 
-	var prices []float64
+	signals := make(map[string]*gctrpc.ListOfSignals)
 	switch r.AlgorithmType {
 	case "TWAP":
 		var price float64
@@ -4620,39 +4621,52 @@ func (s *RPCServer) GetAveragePrice(ctx context.Context, r *gctrpc.GetAveragePri
 		if err != nil {
 			return nil, err
 		}
-		prices = []float64{price}
+		signals["TWAP"] = &gctrpc.ListOfSignals{Signals: []float64{price}}
 	case "VWAP":
+		var prices []float64
 		prices, err = klines.GetVWAPs()
 		if err != nil {
 			return nil, err
 		}
+		signals["VWAP"] = &gctrpc.ListOfSignals{Signals: prices}
 	case "ATR":
-		prices, err = klines.GetOHLC().GetAverageTrueRange(int(r.Period))
+		var prices []float64
+		prices, err = klines.GetAverageTrueRange(int(r.Period))
 		if err != nil {
 			return nil, err
 		}
-	// case "BBANDS":
-	// 	prices, err = klines.GetOHLC().GetBollingerBands()
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
+		signals["ATR"] = &gctrpc.ListOfSignals{Signals: prices}
+	case "BBANDS":
+		var upper, middle, lower []float64
+		upper, middle, lower, err = klines.GetBollingerBands(int(r.Period),
+			r.StandardDeviationUp,
+			r.StandardDeviationDown,
+			indicators.MaType(r.MovingAverageType))
+		if err != nil {
+			return nil, err
+		}
+		signals["UPPER"] = &gctrpc.ListOfSignals{Signals: upper}
+		signals["MIDDLE"] = &gctrpc.ListOfSignals{Signals: middle}
+		signals["LOWER"] = &gctrpc.ListOfSignals{Signals: lower}
 	// case "COCO":
 	// 	prices, err = klines.GetVWAPs()
 	// 	if err != nil {
 	// 		return nil, err
 	// 	}
 	case "SMA":
-		ohlc := klines.GetOHLC()
-		prices, err = ohlc.GetSimpleMovingAverage(ohlc.Close, int(r.Period))
+		var prices []float64
+		prices, err = klines.GetSimpleMovingAverageOnClose(int(r.Period))
 		if err != nil {
 			return nil, err
 		}
+		signals["SMA"] = &gctrpc.ListOfSignals{Signals: prices}
 	case "EMA":
-		ohlc := klines.GetOHLC()
-		prices, err = ohlc.GetExponentialMovingAverage(ohlc.Close, int(r.Period))
+		var prices []float64
+		prices, err = klines.GetExponentialMovingAverageOnClose(int(r.Period))
 		if err != nil {
 			return nil, err
 		}
+		signals["EMA"] = &gctrpc.ListOfSignals{Signals: prices}
 	// case "MACD":
 	// 	ohlc := klines.GetOHLC()
 	// 	prices, err = ohlc.GetMovingAverageConvergenceDivergence()
@@ -4660,24 +4674,29 @@ func (s *RPCServer) GetAveragePrice(ctx context.Context, r *gctrpc.GetAveragePri
 	// 		return nil, err
 	// 	}
 	case "MFI":
-		prices, err = klines.GetOHLC().GetMoneyFlowIndex(int(r.Period))
+		var prices []float64
+		prices, err = klines.GetMoneyFlowIndex(int(r.Period))
 		if err != nil {
 			return nil, err
 		}
+		signals["MFI"] = &gctrpc.ListOfSignals{Signals: prices}
 	case "OBV":
-		prices, err = klines.GetOHLC().GetOnBalanceVolume()
+		var prices []float64
+		prices, err = klines.GetOnBalanceVolume()
 		if err != nil {
 			return nil, err
 		}
+		signals["OBV"] = &gctrpc.ListOfSignals{Signals: prices}
 	case "RSI":
-		ohlc := klines.GetOHLC()
-		prices, err = klines.GetOHLC().GetRelativeStrengthIndex(ohlc.Close, int(r.Period))
+		var prices []float64
+		prices, err = klines.GetRelativeStrengthIndexOnClose(int(r.Period))
 		if err != nil {
 			return nil, err
 		}
+		signals["RSI"] = &gctrpc.ListOfSignals{Signals: prices}
 	default:
 		return nil, errors.New("invalid algorithm to derive weighted price")
 	}
 
-	return &gctrpc.GetAveragePriceResponse{Signal: prices}, nil
+	return &gctrpc.GetAveragePriceResponse{Signals: signals}, nil
 }

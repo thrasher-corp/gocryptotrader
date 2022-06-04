@@ -1304,6 +1304,41 @@
             "required": false,
             "type": "string",
             "format": "int64"
+          },
+          {
+            "name": "fastPeriod",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "slowPeriod",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "standardDeviationUp",
+            "in": "query",
+            "required": false,
+            "type": "number",
+            "format": "double"
+          },
+          {
+            "name": "standardDeviationDown",
+            "in": "query",
+            "required": false,
+            "type": "number",
+            "format": "double"
+          },
+          {
+            "name": "movingAverageType",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "int64"
           }
         ],
         "tags": [
@@ -4580,11 +4615,10 @@
     "gctrpcGetAveragePriceResponse": {
       "type": "object",
       "properties": {
-        "signal": {
-          "type": "array",
-          "items": {
-            "type": "number",
-            "format": "double"
+        "signals": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/gctrpcListOfSignals"
           }
         }
       }
@@ -5110,6 +5144,18 @@
           "type": "array",
           "items": {
             "$ref": "#/definitions/gctrpcTickers"
+          }
+        }
+      }
+    },
+    "gctrpcListOfSignals": {
+      "type": "object",
+      "properties": {
+        "signals": {
+          "type": "array",
+          "items": {
+            "type": "number",
+            "format": "double"
           }
         }
       }
