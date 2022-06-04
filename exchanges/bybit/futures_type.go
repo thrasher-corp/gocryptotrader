@@ -736,5 +736,5 @@ type USDCSymbol struct {
 	FundingRate          float64 `json:"fundingRate,string"`
 	PredictedFundingRate float64 `json:"predictedFundingRate,string"`
 	CountdownHour        float64 `json:"countdownHour,string"`
-	UnderlyingPrice      float64 `json:"underlyingPrice,string"`
+	UnderlyingPrice      string  `json:"underlyingPrice"`
 }

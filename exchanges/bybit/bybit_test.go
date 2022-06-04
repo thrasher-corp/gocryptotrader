@@ -484,31 +484,31 @@ func TestWSAccountInfo(t *testing.T) {
 func TestWSOrderExecution(t *testing.T) {
 	t.Parallel()
 	pressXToJSON := []byte(`[{
-		"e": "executionReport",      
-		"E": "1499405658658",            
-		"s": "BTCUSDT",                 
-		"c": "1000087761",               
-		"S": "BUY",                    
-		"o": "LIMIT",                  
-		"f": "GTC",                    
-		"q": "1.00000000",             
-		"p": "0.10264410",             
-		"X": "NEW",                    
-		"i": "4293153",     
-		"M": "0",             
-		"l": "0.00000000",             
-		"z": "0.00000000",             
-		"L": "0.00000000",             
-		"n": "0",                      
-		"N": "BTC",                     
-		"u": true,                     
-		"w": true,                     
-		"m": false,                    
-		"O": "1499405658657",            
+		"e": "executionReport",
+		"E": "1499405658658",
+		"s": "BTCUSDT",
+		"c": "1000087761",
+		"S": "BUY",
+		"o": "LIMIT",
+		"f": "GTC",
+		"q": "1.00000000",
+		"p": "0.10264410",
+		"X": "NEW",
+		"i": "4293153",
+		"M": "0",
+		"l": "0.00000000",
+		"z": "0.00000000",
+		"L": "0.00000000",
+		"n": "0",
+		"N": "BTC",
+		"u": true,
+		"w": true,
+		"m": false,
+		"O": "1499405658657",
 		"Z": "473.199",
 		"A": "0",
 		"C": false,
-		"v": "0"              
+		"v": "0"
 	}]`)
 	err := b.wsHandleData(pressXToJSON)
 	if err != nil {
@@ -2699,8 +2699,8 @@ func TestGetServerTime(t *testing.T) {
 
 func TestGetUSDCFuturesOrderbook(t *testing.T) {
 	t.Parallel()
-	//BTCPERP
-	pair, err := currency.NewPairFromString("BTCUSDT")
+
+	pair, err := currency.NewPairFromString("BTCPERP")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2713,13 +2713,18 @@ func TestGetUSDCFuturesOrderbook(t *testing.T) {
 
 func TestGetUSDCContracts(t *testing.T) {
 	t.Parallel()
-	//BTCPERP
-	pair, err := currency.NewPairFromString("BTCUSDT")
+
+	pair, err := currency.NewPairFromString("BTCPERP")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = b.GetUSDCContracts(context.Background(), pair, "", 0)
+	_, err = b.GetUSDCContracts(context.Background(), pair, "next", 1500)
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = b.GetUSDCContracts(context.Background(), currency.EMPTYPAIR, "", 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2727,8 +2732,8 @@ func TestGetUSDCContracts(t *testing.T) {
 
 func TestGetUSDCSymbols(t *testing.T) {
 	t.Parallel()
-	//BTCPERP
-	pair, err := currency.NewPairFromString("BTCUSDT")
+
+	pair, err := currency.NewPairFromString("BTCPERP")
 	if err != nil {
 		t.Fatal(err)
 	}

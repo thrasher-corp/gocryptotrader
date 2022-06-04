@@ -160,6 +160,7 @@ func (by *Bybit) SetDefaults() {
 		exchange.RestCoinMargined: bybitAPIURL,
 		exchange.RestUSDTMargined: bybitAPIURL,
 		exchange.RestFutures:      bybitAPIURL,
+		exchange.RestUSDCMargined: bybitAPIURL,
 		exchange.WebsocketSpot:    bybitWSBaseURL + wsSpotPublicTopicV2,
 	})
 	if err != nil {

@@ -92,9 +92,9 @@ func (by *Bybit) GetUSDCContracts(ctx context.Context, symbol currency.Pair, dir
 }
 
 // GetUSDCSymbols gets all symbol information for USDCMarginedFutures.
-func (by *Bybit) GetUSDCSymbols(ctx context.Context, symbol currency.Pair) ([]USDCSymbol, error) {
+func (by *Bybit) GetUSDCSymbols(ctx context.Context, symbol currency.Pair) (USDCSymbol, error) {
 	resp := struct {
-		Data []USDCSymbol `json:"result"`
+		Data USDCSymbol `json:"result"`
 		Error
 	}{}
 
@@ -106,7 +106,7 @@ func (by *Bybit) GetUSDCSymbols(ctx context.Context, symbol currency.Pair) ([]US
 		}
 		params.Set("symbol", symbolValue)
 	} else {
-		return nil, errSymbolMissing
+		return USDCSymbol{}, errSymbolMissing
 	}
 
 	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestUSDCMargined, common.EncodeURLValues(usdcfuturesGetSymbols, params), publicFuturesRate, &resp)
