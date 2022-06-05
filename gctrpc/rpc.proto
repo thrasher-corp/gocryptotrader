@@ -1143,7 +1143,7 @@ message ListOfSignals {
 }
 
 message GetTechnicalAnalysisResponse {
-  map<string, ListOfSignals>  signals = 1;
+  map<string, ListOfSignals> signals = 1;
 }
 
 service GoCryptoTraderService {
