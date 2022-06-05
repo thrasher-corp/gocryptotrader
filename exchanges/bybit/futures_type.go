@@ -694,7 +694,7 @@ type USDCOrderbookData struct {
 	Side  string  `json:"side"`
 }
 
-// USDCContract stores contract information
+// USDCContract stores contract data
 type USDCContract struct {
 	Symbol        string  `json:"symbol"`
 	Status        string  `json:"status"`
@@ -714,7 +714,7 @@ type USDCContract struct {
 	DeliveryTime  float64 `json:"deliveryTime,string"`
 }
 
-// USDCSymbol stores symbol information
+// USDCSymbol stores symbol data
 type USDCSymbol struct {
 	Symbol               string  `json:"symbol"`
 	NextFundingTime      string  `json:"nextFundingTime"`
@@ -741,13 +741,13 @@ type USDCSymbol struct {
 
 // USDCKlineBase stores Kline Base
 type USDCKlineBase struct {
-	Symbol   string       `json:"symbol"`
-	Period   string       `json:"period"`
-	OpenTime bybitTimeSec `json:"openTime"`
-	Open     float64      `json:"open,string"`
-	High     float64      `json:"high,string"`
-	Low      float64      `json:"low,string"`
-	Close    float64      `json:"close,string"`
+	Symbol   string  `json:"symbol"`
+	Period   string  `json:"period"`
+	OpenTime string  `json:"openTime"`
+	Open     float64 `json:"open,string"`
+	High     float64 `json:"high,string"`
+	Low      float64 `json:"low,string"`
+	Close    float64 `json:"close,string"`
 }
 
 // USDCKline stores kline data
