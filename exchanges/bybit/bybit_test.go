@@ -2799,3 +2799,59 @@ func TestGetUSDCPremiumIndexKlines(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestGetUSDCOpenInterest(t *testing.T) {
+	t.Parallel()
+
+	pair, err := currency.NewPairFromString("BTCPERP")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = b.GetUSDCOpenInterest(context.Background(), pair, "1d", 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetUSDCLargeOrders(t *testing.T) {
+	t.Parallel()
+
+	pair, err := currency.NewPairFromString("BTCPERP")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = b.GetUSDCLargeOrders(context.Background(), pair, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetUSDCAccountRatio(t *testing.T) {
+	t.Parallel()
+
+	pair, err := currency.NewPairFromString("BTCPERP")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = b.GetUSDCAccountRatio(context.Background(), pair, "1d", 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetUSDCLatestTrades(t *testing.T) {
+	t.Parallel()
+
+	pair, err := currency.NewPairFromString("BTCPERP")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = b.GetUSDCLatestTrades(context.Background(), pair, "PERPETUAL", 0)
+	if err != nil {
+		t.Error(err)
+	}
+}

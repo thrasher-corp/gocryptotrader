@@ -2,6 +2,7 @@ package bybit
 
 import (
 	"context"
+	"errors"
 	"net/url"
 	"strconv"
 	"time"
@@ -23,6 +24,10 @@ const (
 	usdcfuturesGetMarkPriceKlines    = "/perpetual/usdc/openapi/public/v1/mark-price-kline"
 	usdcfuturesGetIndexPriceKlines   = "/perpetual/usdc/openapi/public/v1/index-price-kline"
 	usdcfuturesGetPremiumIndexKlines = "/perpetual/usdc/openapi/public/v1/premium-index-kline"
+	usdcfuturesGetOpenInterest       = "/perpetual/usdc/openapi/public/v1/open-interest"
+	usdcfuturesGetLargeOrders        = "/perpetual/usdc/openapi/public/v1/big-deal"
+	usdcfuturesGetAccountRatio       = "/perpetual/usdc/openapi/public/v1/account-ratio"
+	usdcfuturesGetLatestTrades       = "/option/usdc/openapi/public/v1/query-trade-latest"
 
 	// auth endpoint
 	usdcfuturesPlaceOrder = "/perpetual/usdc/openapi/private/v1/place-order"
@@ -219,7 +224,7 @@ func (by *Bybit) GetUSDCIndexPriceKlines(ctx context.Context, symbol currency.Pa
 	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestUSDCMargined, common.EncodeURLValues(usdcfuturesGetIndexPriceKlines, params), publicFuturesRate, &resp)
 }
 
-// GetUSDCIndexPriceKlines gets premium index kline of symbol for USDCMarginedFutures.
+// GetUSDCPremiumIndexKlines gets premium index kline of symbol for USDCMarginedFutures.
 func (by *Bybit) GetUSDCPremiumIndexKlines(ctx context.Context, symbol currency.Pair, period string, startTime time.Time, limit int64) ([]USDCKlineBase, error) {
 	resp := struct {
 		Data []USDCKlineBase `json:"result"`
@@ -252,4 +257,118 @@ func (by *Bybit) GetUSDCPremiumIndexKlines(ctx context.Context, symbol currency.
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestUSDCMargined, common.EncodeURLValues(usdcfuturesGetPremiumIndexKlines, params), publicFuturesRate, &resp)
+}
+
+// GetUSDCOpenInterest gets open interest of symbol for USDCMarginedFutures.
+func (by *Bybit) GetUSDCOpenInterest(ctx context.Context, symbol currency.Pair, period string, limit int64) ([]USDCOpenInterest, error) {
+	resp := struct {
+		Data []USDCOpenInterest `json:"result"`
+		Error
+	}{}
+
+	params := url.Values{}
+	if !symbol.IsEmpty() {
+		symbolValue, err := by.FormatSymbol(symbol, asset.USDCMarginedFutures)
+		if err != nil {
+			return resp.Data, err
+		}
+		params.Set("symbol", symbolValue)
+	} else {
+		return nil, errSymbolMissing
+	}
+
+	if !common.StringDataCompare(validFuturesPeriods, period) {
+		return resp.Data, errInvalidPeriod
+	}
+	params.Set("period", period)
+
+	if limit > 0 && limit <= 200 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestUSDCMargined, common.EncodeURLValues(usdcfuturesGetOpenInterest, params), publicFuturesRate, &resp)
+}
+
+// GetUSDCLargeOrders gets large order of symbol for USDCMarginedFutures.
+func (by *Bybit) GetUSDCLargeOrders(ctx context.Context, symbol currency.Pair, limit int64) ([]USDCLargeOrder, error) {
+	resp := struct {
+		Data []USDCLargeOrder `json:"result"`
+		Error
+	}{}
+
+	params := url.Values{}
+	if !symbol.IsEmpty() {
+		symbolValue, err := by.FormatSymbol(symbol, asset.USDCMarginedFutures)
+		if err != nil {
+			return resp.Data, err
+		}
+		params.Set("symbol", symbolValue)
+	} else {
+		return nil, errSymbolMissing
+	}
+
+	if limit > 0 && limit <= 100 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestUSDCMargined, common.EncodeURLValues(usdcfuturesGetLargeOrders, params), publicFuturesRate, &resp)
+}
+
+// GetUSDCAccountRatio gets account long short ratio of symbol for USDCMarginedFutures.
+func (by *Bybit) GetUSDCAccountRatio(ctx context.Context, symbol currency.Pair, period string, limit int64) ([]USDCAccountRatio, error) {
+	resp := struct {
+		Data []USDCAccountRatio `json:"result"`
+		Error
+	}{}
+
+	params := url.Values{}
+	if !symbol.IsEmpty() {
+		symbolValue, err := by.FormatSymbol(symbol, asset.USDCMarginedFutures)
+		if err != nil {
+			return resp.Data, err
+		}
+		params.Set("symbol", symbolValue)
+	} else {
+		return nil, errSymbolMissing
+	}
+
+	if !common.StringDataCompare(validFuturesPeriods, period) {
+		return resp.Data, errInvalidPeriod
+	}
+	params.Set("period", period)
+
+	if limit > 0 && limit <= 500 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestUSDCMargined, common.EncodeURLValues(usdcfuturesGetAccountRatio, params), publicFuturesRate, &resp)
+}
+
+// GetUSDCLatestTrades gets lastest 500 trades for USDCMarginedFutures.
+func (by *Bybit) GetUSDCLatestTrades(ctx context.Context, symbol currency.Pair, category string, limit int64) ([]USDCTrade, error) {
+	resp := struct {
+		Result struct {
+			ResultSize int64       `json:"resultTotalSize"`
+			Cursor     string      `json:"cursor"`
+			Data       []USDCTrade `json:"dataList"`
+		} `json:"result"`
+		Error
+	}{}
+
+	params := url.Values{}
+	if category != "" {
+		params.Set("category", category)
+	} else {
+		return nil, errors.New("invalid category")
+	}
+
+	if !symbol.IsEmpty() {
+		symbolValue, err := by.FormatSymbol(symbol, asset.USDCMarginedFutures)
+		if err != nil {
+			return resp.Result.Data, err
+		}
+		params.Set("symbol", symbolValue)
+	}
+
+	if limit > 0 && limit <= 500 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	return resp.Result.Data, by.SendHTTPRequest(ctx, exchange.RestUSDCMargined, common.EncodeURLValues(usdcfuturesGetLatestTrades, params), publicFuturesRate, &resp)
 }

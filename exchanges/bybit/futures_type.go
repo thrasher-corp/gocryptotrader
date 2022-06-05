@@ -756,3 +756,36 @@ type USDCKline struct {
 	Volume   float64 `json:"volume,string"`
 	Turnover float64 `json:"turnover,string"`
 }
+
+// USDCOpenInterest stores open interest data
+type USDCOpenInterest struct {
+	Symbol       string  `json:"symbol"`
+	Timestamp    string  `json:"timestamp"`
+	OpenInterest float64 `json:"openInterest,string"`
+}
+
+// USDCLargeOrder stores large order data
+type USDCLargeOrder struct {
+	Symbol    string  `json:"symbol"`
+	Side      string  `json:"side"`
+	Timestamp string  `json:"timestamp"`
+	Value     float64 `json:"value"`
+}
+
+// USDCAccountRatio stores long-short ratio data
+type USDCAccountRatio struct {
+	Symbol    string  `json:"symbol"`
+	BuyRatio  float64 `json:"buyRatio"`
+	SellRatio float64 `json:"sellRatio"`
+	Timestamp string  `json:"timestamp"`
+}
+
+// USDCTrade stores trade data
+type USDCTrade struct {
+	ID         string  `json:"id"`
+	Symbol     string  `json:"symbol"`
+	OrderPrice float64 `json:"orderPrice,string"`
+	OrderQty   float64 `json:"orderQty,string"`
+	Side       string  `json:"side"`
+	Timestamp  string  `json:"time"`
+}
