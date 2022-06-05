@@ -1783,8 +1783,24 @@ func (f *FTX) GetPositionSummary(ctx context.Context, request *order.PositionSum
 
 // GetFundingDetails returns a funding rate summary for a given future
 func (f *FTX) GetFundingDetails(ctx context.Context, request *order.FundingRateDetailsRequest) (*order.FundingRateDetails, error) {
+	if request == nil {
+		return nil, fmt.Errorf("%w FundingRateDetailsRequest", common.ErrNilPointer)
+	}
 	if !request.Asset.IsFutures() {
 		return nil, fmt.Errorf("%w '%s' is not a futures asset", asset.ErrNotSupported, request.Asset)
+	}
+	var response order.FundingRateDetails
+	if request.CalculateOffline {
+		for i := range request.Rates {
+			payment := request.Rates[i].PositionSize.Mul(request.Rates[i].TWAP).Div(decimal.NewFromInt(24))
+			response.FundingRates = append(response.FundingRates, order.FundingRate{
+				Rate:    request.Rates[i].Rate,
+				Payment: payment,
+				Time:    request.Rates[i].Time,
+			})
+			response.Sum = response.Sum.Add(payment)
+		}
+		return &response, nil
 	}
 	fPair, err := f.FormatSymbol(request.Pair, request.Asset)
 	if err != nil {
@@ -1794,7 +1810,6 @@ func (f *FTX) GetFundingDetails(ctx context.Context, request *order.FundingRateD
 	if err != nil {
 		return nil, err
 	}
-	var response order.FundingRateDetails
 	for i := range fundingDetails {
 		response.FundingRates = append(response.FundingRates, order.FundingRate{
 			Time:    fundingDetails[i].Time,

@@ -347,6 +347,18 @@ type FundingRateDetailsRequest struct {
 	Pair      currency.Pair
 	StartDate time.Time
 	EndDate   time.Time
+	// offline calculation requirements below
+	CalculateOffline bool
+	Rates []FundingRateData
+}
+
+type FundingRateData struct {
+	Time         time.Time
+	Rate         decimal.Decimal
+	PositionSize decimal.Decimal
+	MarkPrice    decimal.Decimal
+	IndexPrice   decimal.Decimal
+	TWAP         decimal.Decimal
 }
 
 // FundingRateDetails is used to return funding rate details for a position
