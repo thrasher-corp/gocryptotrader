@@ -1339,6 +1339,36 @@
             "required": false,
             "type": "string",
             "format": "int64"
+          },
+          {
+            "name": "otherExchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "otherPair.delimiter",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "otherPair.base",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "otherPair.quote",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "otherAssetType",
+            "in": "query",
+            "required": false,
+            "type": "string"
           }
         ],
         "tags": [

@@ -212,7 +212,7 @@ func main() {
 		getFuturesPositionsCommand,
 		getCollateralCommand,
 		shutdownCommand,
-		pricingCommand,
+		technicalAnalysisCommand,
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())

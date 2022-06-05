@@ -1133,6 +1133,9 @@ message GetAveragePriceRequest {
   double standard_deviation_up = 11;
   double standard_deviation_down = 12;
   int64 moving_average_type = 13;
+  string other_exchange = 14;
+  CurrencyPair other_pair = 15;
+  string other_asset_type = 16;
 }
 
 message ListOfSignals {

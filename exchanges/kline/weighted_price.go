@@ -14,6 +14,7 @@ func (c Candle) GetAveragePrice() float64 {
 // GetTWAP returns the time weighted average price for the specified period.
 // NOTE: This assumes the most recent price is at the tail end of the slice.
 // Based off: https://blog.quantinsti.com/twap/
+// Only returns one item as all other items are just the average price.
 func (i *Item) GetTWAP() (float64, error) {
 	if len(i.Candles) == 0 {
 		return 0, errNoDataData

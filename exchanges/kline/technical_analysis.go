@@ -99,7 +99,7 @@ func (o *OHLC) GetBollingerBands(period int, nbDevUp, nbDevDown float64, m indic
 
 // GetCorrelationCoefficient returns GetCorrelation Coefficient against another
 // candle data set for the given period.
-func (i *Item) GetCorrelationCoefficient(other *Item, period int) ([]float64, error) {
+func (i *Item) GetCorrelationCoefficient(other Item, period int) ([]float64, error) {
 	return i.GetOHLC().GetCorrelationCoefficient(other.GetOHLC(), period)
 }
 

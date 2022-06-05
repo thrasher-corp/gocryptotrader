@@ -4648,11 +4648,33 @@ func (s *RPCServer) GetAveragePrice(ctx context.Context, r *gctrpc.GetAveragePri
 		signals["UPPER"] = &gctrpc.ListOfSignals{Signals: upper}
 		signals["MIDDLE"] = &gctrpc.ListOfSignals{Signals: middle}
 		signals["LOWER"] = &gctrpc.ListOfSignals{Signals: lower}
-	// case "COCO":
-	// 	prices, err = klines.GetVWAPs()
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
+	case "COCO":
+		otherExch, err := s.GetExchangeByName(r.OtherExchange)
+		if err != nil {
+			return nil, err
+		}
+
+		otherAs, err := asset.New(r.OtherAssetType)
+		if err != nil {
+			return nil, err
+		}
+
+		otherPair, err := currency.NewPairFromStrings(r.OtherPair.Base, r.OtherPair.Quote)
+		if err != nil {
+			return nil, err
+		}
+
+		otherKlines, err := otherExch.GetHistoricCandles(ctx, otherPair, otherAs, r.Start.AsTime(), r.End.AsTime(), klineInt)
+		if err != nil {
+			return nil, err
+		}
+
+		var correlation []float64
+		correlation, err = klines.GetCorrelationCoefficient(otherKlines, int(r.Period))
+		if err != nil {
+			return nil, err
+		}
+		signals["COCO"] = &gctrpc.ListOfSignals{Signals: correlation}
 	case "SMA":
 		var prices []float64
 		prices, err = klines.GetSimpleMovingAverageOnClose(int(r.Period))
@@ -4667,12 +4689,21 @@ func (s *RPCServer) GetAveragePrice(ctx context.Context, r *gctrpc.GetAveragePri
 			return nil, err
 		}
 		signals["EMA"] = &gctrpc.ListOfSignals{Signals: prices}
-	// case "MACD":
-	// 	ohlc := klines.GetOHLC()
-	// 	prices, err = ohlc.GetMovingAverageConvergenceDivergence()
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
+	case "MACD":
+		// TODO: Investigate MACD as its too unstable to implement with library.
+		// {FTX btcusd spot 24h0m0s [{2022-05-06 00:00:00 +0000 +0000 36539 36661 35246 36003 7.526053006281e+08 } {2022-05-07 00:00:00 +0000 +0000 36003 36128 34737 35462 2.888383447845e+08 } {2022-05-08 00:00:00 +0000 +0000 35462 35497 33693 34036 6.710680987507e+08 } {2022-05-09 00:00:00 +0000 +0000 34036 34238 30050 30082 1.8297726597975e+09 } {2022-05-10 00:00:00 +0000 +0000 30082 32647 29721 31006 1.3292892021314e+09 } {2022-05-11 00:00:00 +0000 +0000 31006 37250 27669 28971 1.8054297628767e+09 } {2022-05-12 00:00:00 +0000 +0000 28971 30113 25429 28945 1.7521245544033e+09 } {2022-05-13 00:00:00 +0000 +0000 28945 30991 28662 29233 8.823144327387e+08 } {2022-05-14 00:00:00 +0000 +0000 29233 30308 28559 30047 5.816387004339e+08 } {2022-05-15 00:00:00 +0000 +0000 30047 31430 29436 31292 5.060547773158e+08 } {2022-05-16 00:00:00 +0000 +0000 31292 31292 29053 29839 8.355457860912e+08 } {2022-05-17 00:00:00 +0000 +0000 29839 30756 29420 30428 7.075772823321e+08 } {2022-05-18 00:00:00 +0000 +0000 30428 30697 28616 28678 9.910965614497e+08 } {2022-05-19 00:00:00 +0000 +0000 28678 30531 28658 30291 8.851542033057e+08 } {2022-05-20 00:00:00 +0000 +0000 30291 30743 28688 29166 8.430031130954e+08 } {2022-05-21 00:00:00 +0000 +0000 29166 29630 28908 29415 3.939325333337e+08 } {2022-05-22 00:00:00 +0000 +0000 29415 30468 29224 30269 4.585271334962e+08 } {2022-05-23 00:00:00 +0000 +0000 30269 30648 28834 29080 8.388853710919e+08 } {2022-05-24 00:00:00 +0000 +0000 29080 29822 28635 29633 6.832470214785e+08 } {2022-05-25 00:00:00 +0000 +0000 29633 30200 29317 29515 7.482279248583e+08 } {2022-05-26 00:00:00 +0000 +0000 29515 29867 27990 29171 1.0184472575469e+09 } {2022-05-27 00:00:00 +0000 +0000 29171 29364 28245 28605 1.0838486050116e+09 } {2022-05-28 00:00:00 +0000 +0000 28605 29241 28496 28992 3.422694688218e+08 } {2022-05-29 00:00:00 +0000 +0000 28992 29566 28808 29438 2.746053369555e+08 } {2022-05-30 00:00:00 +0000 +0000 29438 32200 29277 31711 7.549759990239e+08 } {2022-05-31 00:00:00 +0000 +0000 31711 32380 31209 31779 6.903745358225e+08 } {2022-06-01 00:00:00 +0000 +0000 31779 31958 29300 29779 1.0391133309013e+09 } {2022-06-02 00:00:00 +0000 +0000 29779 30677 29554 30432 7.082378860964e+08 } {2022-06-03 00:00:00 +0000 +0000 30432 30678 29267 29671 5.89094884051e+08 } {2022-06-04 00:00:00 +0000 +0000 29671 29955 29453 29842 2.223259475732e+08 } {2022-06-05 00:00:00 +0000 +0000 29842 29870 29654 29720 4.59918130418e+07 }] 00000000-0000-0000-0000-000000000000 00000000-0000-0000-0000-000000000000}
+		// With periods 12 fast, 26 slow, 9 periods causes a panic.
+		// var macd, signal, histogram []float64
+		// macd, signal, histogram, err = klines.GetMovingAverageConvergenceDivergenceOnClose(int(r.FastPeriod),
+		// 	int(r.SlowPeriod),
+		// 	int(r.Period))
+		// if err != nil {
+		// 	return nil, err
+		// }
+		// signals["MACD"] = &gctrpc.ListOfSignals{Signals: macd}
+		// signals["SIGNAL"] = &gctrpc.ListOfSignals{Signals: signal}
+		// signals["HISTOGRAM"] = &gctrpc.ListOfSignals{Signals: histogram}
+		return nil, common.ErrNotYetImplemented
 	case "MFI":
 		var prices []float64
 		prices, err = klines.GetMoneyFlowIndex(int(r.Period))
