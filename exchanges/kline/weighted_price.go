@@ -7,7 +7,7 @@ import (
 var errNoDataData = errors.New("no candle data")
 
 // GetAveragePrice returns the average price from the open, high, low and close
-func (c Candle) GetAveragePrice() float64 {
+func (c *Candle) GetAveragePrice() float64 {
 	return (c.Open + c.High + c.Low + c.Close) / 4
 }
 
@@ -15,21 +15,20 @@ func (c Candle) GetAveragePrice() float64 {
 // NOTE: This assumes the most recent price is at the tail end of the slice.
 // Based off: https://blog.quantinsti.com/twap/
 // Only returns one item as all other items are just the average price.
-func (i *Item) GetTWAP() (float64, error) {
-	if len(i.Candles) == 0 {
+func (k *Item) GetTWAP() (float64, error) {
+	if len(k.Candles) == 0 {
 		return 0, errNoDataData
 	}
 	var cumAveragePrice float64
-	for x := range i.Candles {
-		cumAveragePrice += i.Candles[x].GetAveragePrice()
-
+	for x := range k.Candles {
+		cumAveragePrice += k.Candles[x].GetAveragePrice()
 	}
-	return cumAveragePrice / float64(len(i.Candles)), nil
+	return cumAveragePrice / float64(len(k.Candles)), nil
 }
 
 // GetTypicalPrice returns the typical average price from the high, low and
 // close values.
-func (c Candle) GetTypicalPrice() float64 {
+func (c *Candle) GetTypicalPrice() float64 {
 	return (c.High + c.Low + c.Close) / 3
 }
 
@@ -37,15 +36,15 @@ func (c Candle) GetTypicalPrice() float64 {
 // average price with respect to the volume.
 // NOTE: This assumes the most recent price is at the tail end of the slice.
 // Based off: https://blog.quantinsti.com/vwap-strategy/
-func (i *Item) GetVWAPs() ([]float64, error) {
-	if len(i.Candles) == 0 {
+func (k *Item) GetVWAPs() ([]float64, error) {
+	if len(k.Candles) == 0 {
 		return nil, errNoDataData
 	}
-	store := make([]float64, len(i.Candles))
+	store := make([]float64, len(k.Candles))
 	var cumTotal, cumVolume float64
-	for x := range i.Candles {
-		cumTotal += i.Candles[x].GetTypicalPrice() * i.Candles[x].Volume
-		cumVolume += i.Candles[x].Volume
+	for x := range k.Candles {
+		cumTotal += k.Candles[x].GetTypicalPrice() * k.Candles[x].Volume
+		cumVolume += k.Candles[x].Volume
 		store[x] = cumTotal / cumVolume
 	}
 	return store, nil

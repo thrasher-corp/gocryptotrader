@@ -61,45 +61,45 @@ func TestGetBollingerBands(t *testing.T) {
 	t.Parallel()
 
 	var ohlc *OHLC
-	_, _, _, err := ohlc.GetBollingerBands(0, 0, 0, 5)
+	_, err := ohlc.GetBollingerBands(0, 0, 0, 5)
 	if !errors.Is(err, errNilOHLC) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNilOHLC)
 	}
 
 	ohlc = &OHLC{}
-	_, _, _, err = ohlc.GetBollingerBands(0, 0, 0, 5)
+	_, err = ohlc.GetBollingerBands(0, 0, 0, 5)
 	if !errors.Is(err, errInvalidPeriod) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidPeriod)
 	}
 
-	_, _, _, err = ohlc.GetBollingerBands(9, 0, 0, 5)
+	_, err = ohlc.GetBollingerBands(9, 0, 0, 5)
 	if !errors.Is(err, errInvalidDeviationMultiplier) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidDeviationMultiplier)
 	}
 
-	_, _, _, err = ohlc.GetBollingerBands(9, 1, 0, 5)
+	_, err = ohlc.GetBollingerBands(9, 1, 0, 5)
 	if !errors.Is(err, errInvalidDeviationMultiplier) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidDeviationMultiplier)
 	}
 
-	_, _, _, err = ohlc.GetBollingerBands(9, 1, 1, 5)
+	_, err = ohlc.GetBollingerBands(9, 1, 1, 5)
 	if !errors.Is(err, errNoData) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoData)
 	}
 
 	ohlc.Close = append(ohlc.Close, 1337, 1337, 1337, 1337, 1337, 1337, 1337, 1337, 1337)
-	_, _, _, err = ohlc.GetBollingerBands(10, 1, 1, 5)
+	_, err = ohlc.GetBollingerBands(10, 1, 1, 5)
 	if !errors.Is(err, errInvalidPeriod) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidPeriod)
 	}
 
-	_, _, _, err = ohlc.GetBollingerBands(9, 1, 1, 5)
+	_, err = ohlc.GetBollingerBands(9, 1, 1, 5)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
 	wrap := Item{Candles: []Candle{{Close: 1337}, {Close: 1337}, {Close: 1337}, {Close: 1337}, {Close: 1337}, {Close: 1337}, {Close: 1337}, {Close: 1337}, {Close: 1337}}}
-	_, _, _, err = wrap.GetBollingerBands(9, 1, 1, 5)
+	_, err = wrap.GetBollingerBands(9, 1, 1, 5)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
@@ -142,7 +142,7 @@ func TestGetCorrelationCoefficient(t *testing.T) {
 	}
 
 	wrap := Item{Candles: []Candle{{Close: 1337}}}
-	_, err = wrap.GetCorrelationCoefficient(Item{Candles: []Candle{{Close: 1337}}}, 9)
+	_, err = wrap.GetCorrelationCoefficient(&Item{Candles: []Candle{{Close: 1337}}}, 9)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
@@ -216,39 +216,39 @@ func TestGetMovingAverageConvergenceDivergence(t *testing.T) {
 	t.Parallel()
 
 	var ohlc *OHLC
-	_, _, _, err := ohlc.GetMovingAverageConvergenceDivergence(nil, 0, 0, 0)
+	_, err := ohlc.GetMovingAverageConvergenceDivergence(nil, 0, 0, 0)
 	if !errors.Is(err, errNilOHLC) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNilOHLC)
 	}
 
 	ohlc = &OHLC{}
-	_, _, _, err = ohlc.GetMovingAverageConvergenceDivergence(nil, 0, 0, 0)
+	_, err = ohlc.GetMovingAverageConvergenceDivergence(nil, 0, 0, 0)
 	if !errors.Is(err, errInvalidPeriod) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidPeriod)
 	}
 
-	_, _, _, err = ohlc.GetMovingAverageConvergenceDivergence(nil, 1, 0, 0)
+	_, err = ohlc.GetMovingAverageConvergenceDivergence(nil, 1, 0, 0)
 	if !errors.Is(err, errInvalidPeriod) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidPeriod)
 	}
 
-	_, _, _, err = ohlc.GetMovingAverageConvergenceDivergence(nil, 1, 1, 0)
+	_, err = ohlc.GetMovingAverageConvergenceDivergence(nil, 1, 1, 0)
 	if !errors.Is(err, errInvalidPeriod) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidPeriod)
 	}
 
-	_, _, _, err = ohlc.GetMovingAverageConvergenceDivergence(nil, 1, 1, 1)
+	_, err = ohlc.GetMovingAverageConvergenceDivergence(nil, 1, 1, 1)
 	if !errors.Is(err, errNoData) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoData)
 	}
 
-	_, _, _, err = ohlc.GetMovingAverageConvergenceDivergence([]float64{1337}, 1, 1, 9)
+	_, err = ohlc.GetMovingAverageConvergenceDivergence([]float64{1337}, 1, 1, 9)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
 	wrap := Item{Candles: []Candle{{Close: 1337}}}
-	_, _, _, err = wrap.GetMovingAverageConvergenceDivergenceOnClose(1, 1, 9)
+	_, err = wrap.GetMovingAverageConvergenceDivergenceOnClose(1, 1, 9)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}

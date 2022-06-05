@@ -279,7 +279,7 @@ func getPrice(c *cli.Context, algo string) error {
 			priceStartTime = c.Args().Get(4)
 		}
 	} else {
-		priceStartTime = c.Value("start").(string)
+		priceStartTime, _ = c.Value("start").(string)
 	}
 
 	if !c.IsSet("end") {
@@ -287,7 +287,7 @@ func getPrice(c *cli.Context, algo string) error {
 			priceEndTime = c.Args().Get(5)
 		}
 	} else {
-		priceEndTime = c.Value("end").(string)
+		priceEndTime, _ = c.Value("end").(string)
 	}
 
 	s, err := time.Parse(common.SimpleTimeFormat, priceStartTime)
@@ -311,7 +311,7 @@ func getPrice(c *cli.Context, algo string) error {
 			}
 		}
 	} else {
-		pricePeriod = c.Value("period").(int64)
+		pricePeriod, _ = c.Value("period").(int64)
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -396,7 +396,7 @@ func getBollingerBands(c *cli.Context) error {
 			priceStartTime = c.Args().Get(4)
 		}
 	} else {
-		priceStartTime = c.Value("start").(string)
+		priceStartTime, _ = c.Value("start").(string)
 	}
 
 	if !c.IsSet("end") {
@@ -404,7 +404,7 @@ func getBollingerBands(c *cli.Context) error {
 			priceEndTime = c.Args().Get(5)
 		}
 	} else {
-		priceEndTime = c.Value("end").(string)
+		priceEndTime, _ = c.Value("end").(string)
 	}
 
 	s, err := time.Parse(common.SimpleTimeFormat, priceStartTime)
@@ -428,7 +428,7 @@ func getBollingerBands(c *cli.Context) error {
 			}
 		}
 	} else {
-		pricePeriod = c.Value("period").(int64)
+		pricePeriod, _ = c.Value("period").(int64)
 	}
 
 	if !c.IsSet("stddevup") {
@@ -439,7 +439,7 @@ func getBollingerBands(c *cli.Context) error {
 			}
 		}
 	} else {
-		priceStdDevUp = c.Value("stddevup").(float64)
+		priceStdDevUp, _ = c.Value("stddevup").(float64)
 	}
 
 	if !c.IsSet("stddevdown") {
@@ -450,21 +450,21 @@ func getBollingerBands(c *cli.Context) error {
 			}
 		}
 	} else {
-		priceStdDevDown = c.Value("stddevdown").(float64)
+		priceStdDevDown, _ = c.Value("stddevdown").(float64)
 	}
 
 	if !c.IsSet("movingaveragetype") && c.Args().Get(9) != "" {
 		priceMovingAverageType = c.Args().Get(9)
 	} else {
-		priceMovingAverageType = c.Value("movingaveragetype").(string)
+		priceMovingAverageType, _ = c.Value("movingaveragetype").(string)
 	}
 
 	var maType int64
-	if priceMovingAverageType == "sma" {
-	} else if priceMovingAverageType == "ema" {
+	switch {
+	case priceMovingAverageType == "sma":
+	case priceMovingAverageType == "ema":
 		maType = 1
-	} else {
-		fmt.Println(priceMovingAverageType)
+	default:
 		return errors.New("invalid moving average type")
 	}
 
@@ -553,7 +553,7 @@ func getMACD(c *cli.Context) error {
 			priceStartTime = c.Args().Get(4)
 		}
 	} else {
-		priceStartTime = c.Value("start").(string)
+		priceStartTime, _ = c.Value("start").(string)
 	}
 
 	if !c.IsSet("end") {
@@ -561,7 +561,7 @@ func getMACD(c *cli.Context) error {
 			priceEndTime = c.Args().Get(5)
 		}
 	} else {
-		priceEndTime = c.Value("end").(string)
+		priceEndTime, _ = c.Value("end").(string)
 	}
 
 	s, err := time.Parse(common.SimpleTimeFormat, priceStartTime)
@@ -585,7 +585,7 @@ func getMACD(c *cli.Context) error {
 			}
 		}
 	} else {
-		pricePeriod = c.Value("period").(int64)
+		pricePeriod, _ = c.Value("period").(int64)
 	}
 
 	if !c.IsSet("fastperiod") {
@@ -596,7 +596,7 @@ func getMACD(c *cli.Context) error {
 			}
 		}
 	} else {
-		priceFastPeriod = c.Value("fastperiod").(int64)
+		priceFastPeriod, _ = c.Value("fastperiod").(int64)
 	}
 
 	if !c.IsSet("slowperiod") {
@@ -607,7 +607,7 @@ func getMACD(c *cli.Context) error {
 			}
 		}
 	} else {
-		priceSlowPeriod = c.Value("slowperiod").(int64)
+		priceSlowPeriod, _ = c.Value("slowperiod").(int64)
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -694,7 +694,7 @@ func getCoco(c *cli.Context) error {
 			priceStartTime = c.Args().Get(4)
 		}
 	} else {
-		priceStartTime = c.Value("start").(string)
+		priceStartTime, _ = c.Value("start").(string)
 	}
 
 	if !c.IsSet("end") {
@@ -702,7 +702,7 @@ func getCoco(c *cli.Context) error {
 			priceEndTime = c.Args().Get(5)
 		}
 	} else {
-		priceEndTime = c.Value("end").(string)
+		priceEndTime, _ = c.Value("end").(string)
 	}
 
 	s, err := time.Parse(common.SimpleTimeFormat, priceStartTime)
@@ -726,7 +726,7 @@ func getCoco(c *cli.Context) error {
 			}
 		}
 	} else {
-		pricePeriod = c.Value("period").(int64)
+		pricePeriod, _ = c.Value("period").(int64)
 	}
 
 	var otherExchange string
