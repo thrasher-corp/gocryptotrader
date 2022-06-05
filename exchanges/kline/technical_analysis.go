@@ -27,19 +27,21 @@ type OHLC struct {
 // GetOHLC returns the entire subset of candles as a friendly type for gct
 // technical analysis usage.
 func (k *Item) GetOHLC() *OHLC {
-	open := make([]float64, len(k.Candles))
-	high := make([]float64, len(k.Candles))
-	low := make([]float64, len(k.Candles))
-	close := make([]float64, len(k.Candles))
-	volume := make([]float64, len(k.Candles))
-	for x := range k.Candles {
-		open[x] = k.Candles[x].Open
-		high[x] = k.Candles[x].High
-		low[x] = k.Candles[x].Low
-		close[x] = k.Candles[x].Close
-		volume[x] = k.Candles[x].Volume
+	ohlc := &OHLC{
+		Open:   make([]float64, len(k.Candles)),
+		High:   make([]float64, len(k.Candles)),
+		Low:    make([]float64, len(k.Candles)),
+		Close:  make([]float64, len(k.Candles)),
+		Volume: make([]float64, len(k.Candles)),
 	}
-	return &OHLC{open, high, low, close, volume}
+	for x := range k.Candles {
+		ohlc.Open[x] = k.Candles[x].Open
+		ohlc.High[x] = k.Candles[x].High
+		ohlc.Low[x] = k.Candles[x].Low
+		ohlc.Close[x] = k.Candles[x].Close
+		ohlc.Volume[x] = k.Candles[x].Volume
+	}
+	return ohlc
 }
 
 // GetAverageTrueRange returns the Average True Range for the given period.

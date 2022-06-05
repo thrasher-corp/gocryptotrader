@@ -46,8 +46,7 @@ var twapdataset = []Candle{
 
 func TestGetTWAP(t *testing.T) {
 	candles := Item{}
-	_, err := candles.GetTWAP()
-	if !errors.Is(err, errNoDataData) {
+	if _, err := candles.GetTWAP(); !errors.Is(err, errNoDataData) {
 		t.Fatal(err)
 	}
 
@@ -97,8 +96,7 @@ var vwapdataset = []Candle{
 
 func TestGetVWAPs(t *testing.T) {
 	candles := Item{}
-	_, err := candles.GetVWAPs()
-	if !errors.Is(err, errNoDataData) {
+	if _, err := candles.GetVWAPs(); !errors.Is(err, errNoDataData) {
 		t.Fatal(err)
 	}
 
