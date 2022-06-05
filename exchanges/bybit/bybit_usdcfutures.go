@@ -3,6 +3,7 @@ package bybit
 import (
 	"context"
 	"errors"
+	"net/http"
 	"net/url"
 	"strconv"
 	"time"
@@ -30,7 +31,10 @@ const (
 	usdcfuturesGetLatestTrades       = "/option/usdc/openapi/public/v1/query-trade-latest"
 
 	// auth endpoint
-	usdcfuturesPlaceOrder = "/perpetual/usdc/openapi/private/v1/place-order"
+	usdcfuturesPlaceOrder           = "/perpetual/usdc/openapi/private/v1/place-order"
+	usdcfuturesModifyOrder          = "/perpetual/usdc/openapi/private/v1/replace-order"
+	usdcfuturesCancelOrder          = "/perpetual/usdc/openapi/private/v1/cancel-order"
+	usdcfuturesCancelAllActiveOrder = "/perpetual/usdc/openapi/private/v1/cancel-all"
 )
 
 // GetUSDCFuturesOrderbook gets orderbook data for USDCMarginedFutures.
@@ -371,4 +375,228 @@ func (by *Bybit) GetUSDCLatestTrades(ctx context.Context, symbol currency.Pair, 
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	return resp.Result.Data, by.SendHTTPRequest(ctx, exchange.RestUSDCMargined, common.EncodeURLValues(usdcfuturesGetLatestTrades, params), publicFuturesRate, &resp)
+}
+
+// PlaceUSDCOrder create new USDC derivatives order.
+func (by *Bybit) PlaceUSDCOrder(ctx context.Context, symbol currency.Pair, orderType, orderFilter, side, timeInForce, orderLinkID string, orderPrice, orderQty, takeProfit, stopLoss, tptriggerby, slTriggerBy, triggerPrice, triggerBy float64, reduceOnly, closeOnTrigger, mmp bool) (USDCCreateOrderResp, error) {
+	resp := struct {
+		Result USDCCreateOrderResp `json:"result"`
+		Error
+	}{}
+
+	params := url.Values{}
+	if !symbol.IsEmpty() {
+		symbolValue, err := by.FormatSymbol(symbol, asset.USDCMarginedFutures)
+		if err != nil {
+			return resp.Result, err
+		}
+		params.Set("symbol", symbolValue)
+	} else {
+		return USDCCreateOrderResp{}, errSymbolMissing
+	}
+
+	if orderType != "" {
+		params.Set("orderType", orderType)
+	} else {
+		return USDCCreateOrderResp{}, errInvalidOrderType
+	}
+
+	if orderFilter != "" {
+		params.Set("orderFilter", orderFilter)
+	} else {
+		return USDCCreateOrderResp{}, errInvalidOrderFilter
+	}
+
+	if side != "" {
+		params.Set("side", side)
+	} else {
+		return USDCCreateOrderResp{}, errInvalidSide
+	}
+
+	if orderQty != 0 {
+		params.Set("orderQty", strconv.FormatFloat(orderQty, 'f', -1, 64))
+	} else {
+		return USDCCreateOrderResp{}, errInvalidQuantity
+	}
+
+	if orderPrice != 0 {
+		params.Set("orderPrice", strconv.FormatFloat(orderPrice, 'f', -1, 64))
+	}
+
+	if timeInForce != "" {
+		params.Set("timeInForce", timeInForce)
+	}
+
+	if orderLinkID != "" {
+		params.Set("orderLinkId", orderLinkID)
+	}
+
+	if reduceOnly {
+		params.Set("reduceOnly", "true")
+	} else {
+		params.Set("reduceOnly", "false")
+	}
+
+	if closeOnTrigger {
+		params.Set("closeOnTrigger", "true")
+	} else {
+		params.Set("closeOnTrigger", "false")
+	}
+
+	if mmp {
+		params.Set("mmp", "true")
+	} else {
+		params.Set("mmp", "false")
+	}
+
+	if takeProfit != 0 {
+		params.Set("takeProfit", strconv.FormatFloat(takeProfit, 'f', -1, 64))
+	}
+
+	if stopLoss != 0 {
+		params.Set("stopLoss", strconv.FormatFloat(stopLoss, 'f', -1, 64))
+	}
+
+	if tptriggerby != 0 {
+		params.Set("tptriggerby", strconv.FormatFloat(tptriggerby, 'f', -1, 64))
+	}
+
+	if slTriggerBy != 0 {
+		params.Set("slTriggerBy", strconv.FormatFloat(slTriggerBy, 'f', -1, 64))
+	}
+
+	if triggerPrice != 0 {
+		params.Set("triggerPrice", strconv.FormatFloat(triggerPrice, 'f', -1, 64))
+	}
+
+	if triggerBy != 0 {
+		params.Set("triggerBy", strconv.FormatFloat(triggerBy, 'f', -1, 64))
+	}
+	return resp.Result, by.SendAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesPlaceOrder, params, &resp, publicFuturesRate)
+}
+
+// ModifyUSDCOrder modifies USDC derivatives order.
+func (by *Bybit) ModifyUSDCOrder(ctx context.Context, symbol currency.Pair, orderFilter, orderID, orderLinkID string, orderPrice, orderQty, takeProfit, stopLoss, tptriggerby, slTriggerBy, triggerPrice float64) (string, error) {
+	resp := struct {
+		Result struct {
+			OrderID       string `json:"orderId"`
+			OrderLinkedID string `json:"orderLinkId"`
+		} `json:"result"`
+		Error
+	}{}
+
+	params := url.Values{}
+	if !symbol.IsEmpty() {
+		symbolValue, err := by.FormatSymbol(symbol, asset.USDCMarginedFutures)
+		if err != nil {
+			return resp.Result.OrderID, err
+		}
+		params.Set("symbol", symbolValue)
+	} else {
+		return resp.Result.OrderID, errSymbolMissing
+	}
+
+	if orderFilter != "" {
+		params.Set("orderFilter", orderFilter)
+	} else {
+		return resp.Result.OrderID, errInvalidOrderFilter
+	}
+
+	if orderID != "" {
+		params.Set("orderId", orderID)
+	}
+
+	if orderLinkID != "" {
+		params.Set("orderLinkId", orderLinkID)
+	}
+
+	if orderPrice != 0 {
+		params.Set("orderPrice", strconv.FormatFloat(orderPrice, 'f', -1, 64))
+	}
+
+	if orderQty != 0 {
+		params.Set("orderQty", strconv.FormatFloat(orderQty, 'f', -1, 64))
+	}
+
+	if takeProfit != 0 {
+		params.Set("takeProfit", strconv.FormatFloat(takeProfit, 'f', -1, 64))
+	}
+
+	if stopLoss != 0 {
+		params.Set("stopLoss", strconv.FormatFloat(stopLoss, 'f', -1, 64))
+	}
+
+	if tptriggerby != 0 {
+		params.Set("tptriggerby", strconv.FormatFloat(tptriggerby, 'f', -1, 64))
+	}
+
+	if slTriggerBy != 0 {
+		params.Set("slTriggerBy", strconv.FormatFloat(slTriggerBy, 'f', -1, 64))
+	}
+
+	if triggerPrice != 0 {
+		params.Set("triggerPrice", strconv.FormatFloat(triggerPrice, 'f', -1, 64))
+	}
+	return resp.Result.OrderID, by.SendAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesModifyOrder, params, &resp, publicFuturesRate)
+}
+
+// CancelUSDCOrder cancels USDC derivatives order.
+func (by *Bybit) CancelUSDCOrder(ctx context.Context, symbol currency.Pair, orderFilter, orderID, orderLinkID string) (string, error) {
+	resp := struct {
+		Result struct {
+			OrderID string `json:"orderId"`
+		} `json:"result"`
+		Error
+	}{}
+
+	params := url.Values{}
+	if !symbol.IsEmpty() {
+		symbolValue, err := by.FormatSymbol(symbol, asset.USDCMarginedFutures)
+		if err != nil {
+			return resp.Result.OrderID, err
+		}
+		params.Set("symbol", symbolValue)
+	} else {
+		return resp.Result.OrderID, errSymbolMissing
+	}
+
+	if orderFilter != "" {
+		params.Set("orderFilter", orderFilter)
+	} else {
+		return resp.Result.OrderID, errInvalidOrderFilter
+	}
+
+	if orderID != "" {
+		params.Set("orderId", orderID)
+	}
+
+	if orderLinkID != "" {
+		params.Set("orderLinkId", orderLinkID)
+	}
+	return resp.Result.OrderID, by.SendAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesCancelOrder, params, &resp, publicFuturesRate)
+}
+
+// CancelAllActiveUSDCOrder cancels all active USDC derivatives order.
+func (by *Bybit) CancelAllActiveUSDCOrder(ctx context.Context, symbol currency.Pair, orderFilter string) error {
+	resp := struct {
+		Error
+	}{}
+
+	params := url.Values{}
+	if !symbol.IsEmpty() {
+		symbolValue, err := by.FormatSymbol(symbol, asset.USDCMarginedFutures)
+		if err != nil {
+			return err
+		}
+		params.Set("symbol", symbolValue)
+	} else {
+		return errSymbolMissing
+	}
+
+	if orderFilter != "" {
+		params.Set("orderFilter", orderFilter)
+	} else {
+		return errInvalidOrderFilter
+	}
+	return by.SendAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesCancelAllActiveOrder, params, &resp, publicFuturesRate)
 }

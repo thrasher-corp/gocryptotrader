@@ -789,3 +789,14 @@ type USDCTrade struct {
 	Side       string  `json:"side"`
 	Timestamp  string  `json:"time"`
 }
+
+// USDCCreateOrderResp stores create order response
+type USDCCreateOrderResp struct {
+	ID          string  `json:"orderId"`
+	OrderLinkId string  `json:"orderLinkId"`
+	Symbol      string  `json:"symbol"`
+	OrderPrice  float64 `json:"orderPrice,string"`
+	OrderQty    float64 `json:"orderQty,string"`
+	OrderType   string  `json:"orderType"`
+	Side        string  `json:"side"`
+}
