@@ -1119,7 +1119,7 @@ message ShutdownRequest {}
 
 message ShutdownResponse {}
 
-message GetAveragePriceRequest {
+message GetTechnicalAnalysisRequest {
   string exchange = 1;
   CurrencyPair pair = 2;
   string asset_type = 3;
@@ -1142,7 +1142,7 @@ message ListOfSignals {
   repeated double signals = 1;
 }
 
-message GetAveragePriceResponse {
+message GetTechnicalAnalysisResponse {
   map<string, ListOfSignals>  signals = 1;
 }
 
@@ -1749,9 +1749,9 @@ service GoCryptoTraderService {
       get: "/v1/shutdown"
     };
   }
-  rpc GetAveragePrice(GetAveragePriceRequest) returns (GetAveragePriceResponse) {
+  rpc GetTechnicalAnalysis(GetTechnicalAnalysisRequest) returns (GetTechnicalAnalysisResponse) {
     option (google.api.http) = {
-      get: "/v1/getaverageprice"
+      get: "/v1/gettechnicalanalysis"
     };
   }
 }

@@ -142,7 +142,7 @@ func TestGetCorrelationCoefficient(t *testing.T) {
 	}
 
 	wrap := Item{Candles: []Candle{{Close: 1337}}}
-	_, err = wrap.GetCorrelationCoefficient(&Item{Candles: []Candle{{Close: 1337}}}, 9)
+	_, err = wrap.GetCorrelationCoefficient(Item{Candles: []Candle{{Close: 1337}}}, 9)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}

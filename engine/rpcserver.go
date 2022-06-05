@@ -4589,8 +4589,8 @@ func (s *RPCServer) Shutdown(_ context.Context, _ *gctrpc.ShutdownRequest) (*gct
 	return &gctrpc.ShutdownResponse{}, nil
 }
 
-// GetAveragePrice returns the weighted average price by requested algo.
-func (s *RPCServer) GetAveragePrice(ctx context.Context, r *gctrpc.GetAveragePriceRequest) (*gctrpc.GetAveragePriceResponse, error) {
+// GetTechnicalAnalysis returns the weighted average price by requested algo.
+func (s *RPCServer) GetTechnicalAnalysis(ctx context.Context, r *gctrpc.GetTechnicalAnalysisRequest) (*gctrpc.GetTechnicalAnalysisResponse, error) {
 	exch, err := s.GetExchangeByName(r.Exchange)
 	if err != nil {
 		return nil, err
@@ -4729,5 +4729,5 @@ func (s *RPCServer) GetAveragePrice(ctx context.Context, r *gctrpc.GetAveragePri
 		return nil, errors.New("invalid algorithm to derive weighted price")
 	}
 
-	return &gctrpc.GetAveragePriceResponse{Signals: signals}, nil
+	return &gctrpc.GetTechnicalAnalysisResponse{Signals: signals}, nil
 }

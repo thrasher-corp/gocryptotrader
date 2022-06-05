@@ -320,7 +320,7 @@ func getPrice(c *cli.Context, algo string) error {
 	}
 	defer closeConn(conn, cancel)
 
-	req := &gctrpc.GetAveragePriceRequest{
+	req := &gctrpc.GetTechnicalAnalysisRequest{
 		Exchange: exchange,
 		Pair: &gctrpc.CurrencyPair{
 			Base:  pair.Base.String(),
@@ -337,7 +337,7 @@ func getPrice(c *cli.Context, algo string) error {
 	fmt.Println("Request: ", req)
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.GetAveragePrice(c.Context, req)
+	result, err := client.GetTechnicalAnalysis(c.Context, req)
 	if err != nil {
 		return err
 	}
@@ -474,7 +474,7 @@ func getBollingerBands(c *cli.Context) error {
 	}
 	defer closeConn(conn, cancel)
 
-	req := &gctrpc.GetAveragePriceRequest{
+	req := &gctrpc.GetTechnicalAnalysisRequest{
 		Exchange: exchange,
 		Pair: &gctrpc.CurrencyPair{
 			Base:  pair.Base.String(),
@@ -494,7 +494,7 @@ func getBollingerBands(c *cli.Context) error {
 	fmt.Println("Request: ", req)
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.GetAveragePrice(c.Context, req)
+	result, err := client.GetTechnicalAnalysis(c.Context, req)
 	if err != nil {
 		return err
 	}
@@ -616,7 +616,7 @@ func getMACD(c *cli.Context) error {
 	}
 	defer closeConn(conn, cancel)
 
-	req := &gctrpc.GetAveragePriceRequest{
+	req := &gctrpc.GetTechnicalAnalysisRequest{
 		Exchange: exchange,
 		Pair: &gctrpc.CurrencyPair{
 			Base:  pair.Base.String(),
@@ -635,7 +635,7 @@ func getMACD(c *cli.Context) error {
 	fmt.Println("Request: ", req)
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.GetAveragePrice(c.Context, req)
+	result, err := client.GetTechnicalAnalysis(c.Context, req)
 	if err != nil {
 		return err
 	}
@@ -766,7 +766,7 @@ func getCoco(c *cli.Context) error {
 	}
 	defer closeConn(conn, cancel)
 
-	req := &gctrpc.GetAveragePriceRequest{
+	req := &gctrpc.GetTechnicalAnalysisRequest{
 		Exchange: exchange,
 		Pair: &gctrpc.CurrencyPair{
 			Base:  pair.Base.String(),
@@ -786,7 +786,7 @@ func getCoco(c *cli.Context) error {
 	fmt.Println("Request: ", req)
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.GetAveragePrice(c.Context, req)
+	result, err := client.GetTechnicalAnalysis(c.Context, req)
 	if err != nil {
 		return err
 	}
