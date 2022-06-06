@@ -13,6 +13,7 @@ var (
 	errInvalidDeviationMultiplier = errors.New("invalid deviation multiplier")
 	errNilOHLC                    = errors.New("nil OHLC data")
 	errInvalidDataSetLengths      = errors.New("invalid data set lengths")
+	errNotEnoughData              = errors.New("not enough data to derive signal")
 )
 
 // OHLC is a connector for technical analysis usage
@@ -215,6 +216,15 @@ func (o *OHLC) GetMovingAverageConvergenceDivergence(option []float64, fast, slo
 	}
 	if len(option) == 0 {
 		return nil, fmt.Errorf("get macd %w", errNoData)
+	}
+
+	if len(option) < slow+signal-2 {
+		return nil, fmt.Errorf("get macd %w %v data points are less than minimum %v length requirement derived from the slow %v and signal %v period subtract two, increase end date or scale down granularity",
+			errNotEnoughData,
+			len(option),
+			slow+signal-2,
+			slow,
+			signal)
 	}
 	var macd MACD
 	macd.MACD, macd.SignalVals, macd.Histogram = indicators.MACD(option,

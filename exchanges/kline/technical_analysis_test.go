@@ -243,11 +243,16 @@ func TestGetMovingAverageConvergenceDivergence(t *testing.T) {
 	}
 
 	_, err = ohlc.GetMovingAverageConvergenceDivergence([]float64{1337}, 1, 1, 9)
+	if !errors.Is(err, errNotEnoughData) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errNotEnoughData)
+	}
+
+	_, err = ohlc.GetMovingAverageConvergenceDivergence([]float64{1337, 1337, 1337, 1337, 1337, 1337, 1337, 1337}, 1, 1, 9)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	wrap := Item{Candles: []Candle{{Close: 1337}}}
+	wrap := Item{Candles: []Candle{{Close: 1337}, {Close: 1337}, {Close: 1337}, {Close: 1337}, {Close: 1337}, {Close: 1337}, {Close: 1337}, {Close: 1337}}}
 	_, err = wrap.GetMovingAverageConvergenceDivergenceOnClose(1, 1, 9)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
