@@ -4589,7 +4589,8 @@ func (s *RPCServer) Shutdown(_ context.Context, _ *gctrpc.ShutdownRequest) (*gct
 	return &gctrpc.ShutdownResponse{}, nil
 }
 
-// GetTechnicalAnalysis returns the weighted average price by requested algo.
+// GetTechnicalAnalysis using the requested technical analysis method will
+// return a set(s) of signals for price action analysis.
 func (s *RPCServer) GetTechnicalAnalysis(ctx context.Context, r *gctrpc.GetTechnicalAnalysisRequest) (*gctrpc.GetTechnicalAnalysisResponse, error) {
 	exch, err := s.GetExchangeByName(r.Exchange)
 	if err != nil {
@@ -4606,15 +4607,15 @@ func (s *RPCServer) GetTechnicalAnalysis(ctx context.Context, r *gctrpc.GetTechn
 		return nil, err
 	}
 
-	klineInt := kline.Interval(r.Interval)
+	klineInterval := kline.Interval(r.Interval)
 
-	klines, err := exch.GetHistoricCandles(ctx, pair, as, r.Start.AsTime(), r.End.AsTime(), klineInt)
+	klines, err := exch.GetHistoricCandles(ctx, pair, as, r.Start.AsTime(), r.End.AsTime(), klineInterval)
 	if err != nil {
 		return nil, err
 	}
 
 	signals := make(map[string]*gctrpc.ListOfSignals)
-	switch r.AlgorithmType {
+	switch strings.ToUpper(r.AlgorithmType) {
 	case "TWAP":
 		var price float64
 		price, err = klines.GetTWAP()
@@ -4631,14 +4632,14 @@ func (s *RPCServer) GetTechnicalAnalysis(ctx context.Context, r *gctrpc.GetTechn
 		signals["VWAP"] = &gctrpc.ListOfSignals{Signals: prices}
 	case "ATR":
 		var prices []float64
-		prices, err = klines.GetAverageTrueRange(int(r.Period))
+		prices, err = klines.GetAverageTrueRange(r.Period)
 		if err != nil {
 			return nil, err
 		}
 		signals["ATR"] = &gctrpc.ListOfSignals{Signals: prices}
 	case "BBANDS":
 		var bollinger *kline.Bollinger
-		bollinger, err = klines.GetBollingerBands(int(r.Period),
+		bollinger, err = klines.GetBollingerBands(r.Period,
 			r.StandardDeviationUp,
 			r.StandardDeviationDown,
 			indicators.MaType(r.MovingAverageType))
@@ -4649,16 +4650,24 @@ func (s *RPCServer) GetTechnicalAnalysis(ctx context.Context, r *gctrpc.GetTechn
 		signals["MIDDLE"] = &gctrpc.ListOfSignals{Signals: bollinger.Middle}
 		signals["LOWER"] = &gctrpc.ListOfSignals{Signals: bollinger.Lower}
 	case "COCO":
-		var otherExch exchange.IBotExchange
-		otherExch, err = s.GetExchangeByName(r.OtherExchange)
-		if err != nil {
-			return nil, err
+		otherExch := exch
+		if r.OtherExchange != "" {
+			otherExch, err = s.GetExchangeByName(r.OtherExchange)
+			if err != nil {
+				return nil, err
+			}
 		}
 
-		var otherAs asset.Item
-		otherAs, err = asset.New(r.OtherAssetType)
-		if err != nil {
-			return nil, err
+		otherAs := as
+		if r.OtherAssetType != "" {
+			otherAs, err = asset.New(r.OtherAssetType)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		if r.OtherPair.String() == "" {
+			return nil, errors.New("other pair is empty, to compare this must be specified")
 		}
 
 		var otherPair currency.Pair
@@ -4669,45 +4678,45 @@ func (s *RPCServer) GetTechnicalAnalysis(ctx context.Context, r *gctrpc.GetTechn
 
 		var otherKlines kline.Item
 		otherKlines, err = otherExch.GetHistoricCandles(ctx,
-			otherPair, otherAs, r.Start.AsTime(), r.End.AsTime(), klineInt)
+			otherPair, otherAs, r.Start.AsTime(), r.End.AsTime(), klineInterval)
 		if err != nil {
 			return nil, err
 		}
 
 		var correlation []float64
-		correlation, err = klines.GetCorrelationCoefficient(&otherKlines, int(r.Period))
+		correlation, err = klines.GetCorrelationCoefficient(&otherKlines, r.Period)
 		if err != nil {
 			return nil, err
 		}
 		signals["COCO"] = &gctrpc.ListOfSignals{Signals: correlation}
 	case "SMA":
 		var prices []float64
-		prices, err = klines.GetSimpleMovingAverageOnClose(int(r.Period))
+		prices, err = klines.GetSimpleMovingAverageOnClose(r.Period)
 		if err != nil {
 			return nil, err
 		}
 		signals["SMA"] = &gctrpc.ListOfSignals{Signals: prices}
 	case "EMA":
 		var prices []float64
-		prices, err = klines.GetExponentialMovingAverageOnClose(int(r.Period))
+		prices, err = klines.GetExponentialMovingAverageOnClose(r.Period)
 		if err != nil {
 			return nil, err
 		}
 		signals["EMA"] = &gctrpc.ListOfSignals{Signals: prices}
 	case "MACD":
 		var macd *kline.MACD
-		macd, err = klines.GetMovingAverageConvergenceDivergenceOnClose(int(r.FastPeriod),
-			int(r.SlowPeriod),
-			int(r.Period))
+		macd, err = klines.GetMovingAverageConvergenceDivergenceOnClose(r.FastPeriod,
+			r.SlowPeriod,
+			r.Period)
 		if err != nil {
 			return nil, err
 		}
-		signals["MACD"] = &gctrpc.ListOfSignals{Signals: macd.MACD}
+		signals["MACD"] = &gctrpc.ListOfSignals{Signals: macd.Results}
 		signals["SIGNAL"] = &gctrpc.ListOfSignals{Signals: macd.SignalVals}
 		signals["HISTOGRAM"] = &gctrpc.ListOfSignals{Signals: macd.Histogram}
 	case "MFI":
 		var prices []float64
-		prices, err = klines.GetMoneyFlowIndex(int(r.Period))
+		prices, err = klines.GetMoneyFlowIndex(r.Period)
 		if err != nil {
 			return nil, err
 		}
@@ -4721,13 +4730,13 @@ func (s *RPCServer) GetTechnicalAnalysis(ctx context.Context, r *gctrpc.GetTechn
 		signals["OBV"] = &gctrpc.ListOfSignals{Signals: prices}
 	case "RSI":
 		var prices []float64
-		prices, err = klines.GetRelativeStrengthIndexOnClose(int(r.Period))
+		prices, err = klines.GetRelativeStrengthIndexOnClose(r.Period)
 		if err != nil {
 			return nil, err
 		}
 		signals["RSI"] = &gctrpc.ListOfSignals{Signals: prices}
 	default:
-		return nil, errors.New("invalid algorithm to derive weighted price")
+		return nil, fmt.Errorf("invalid indicator '%s'", r.AlgorithmType)
 	}
 
 	return &gctrpc.GetTechnicalAnalysisResponse{Signals: signals}, nil

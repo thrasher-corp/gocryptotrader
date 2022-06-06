@@ -19,6 +19,39 @@ func TestGetAveragePrice(t *testing.T) {
 	}
 }
 
+func TestGetAveragePrice_OHLC(t *testing.T) {
+	t.Parallel()
+	var ohlc *OHLC
+	_, err := ohlc.GetAveragePrice(-1)
+	if !errors.Is(err, errNilOHLC) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errNilOHLC)
+	}
+
+	ohlc = &OHLC{}
+	_, err = ohlc.GetAveragePrice(-1)
+	if !errors.Is(err, errInvalidElement) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidElement)
+	}
+
+	_, err = ohlc.GetAveragePrice(0)
+	if !errors.Is(err, errElementExceedsDataLength) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errElementExceedsDataLength)
+	}
+
+	ohlc.High = append(ohlc.High, 20)
+	ohlc.Open = append(ohlc.Open, 0)
+	ohlc.Low = append(ohlc.Low, 0)
+	ohlc.Close = append(ohlc.Close, 0)
+	avgPrice, err := ohlc.GetAveragePrice(0)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if avgPrice != 5 {
+		t.Fatal("unexpected value")
+	}
+}
+
 var twapdataset = []Candle{
 	{Time: time.Date(2020, 6, 17, 0, 0, 0, 0, time.UTC), Close: 351.59, Open: 355.15, High: 355.40, Low: 351.09},
 	{Time: time.Date(2020, 6, 16, 0, 0, 0, 0, time.UTC), Close: 352.08, Open: 351.46, High: 353.20, Low: 344.72},
@@ -44,9 +77,47 @@ var twapdataset = []Candle{
 	{Time: time.Date(2020, 5, 18, 0, 0, 0, 0, time.UTC), Close: 314.96, Open: 313.17, High: 316.50, Low: 310.32},
 }
 
+func TestGetTWAP_OHLC(t *testing.T) {
+	t.Parallel()
+	var ohlc *OHLC
+	_, err := ohlc.GetTWAP()
+	if !errors.Is(err, errNilOHLC) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errNilOHLC)
+	}
+
+	ohlc = &OHLC{}
+	_, err = ohlc.GetTWAP()
+	if !errors.Is(err, errNoData) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errNoData)
+	}
+
+	ohlc.Open = append(ohlc.Open, 20)
+	ohlc.High = append(ohlc.High, 20)
+	ohlc.Low = append(ohlc.Low, 20)
+	ohlc.Close = append(ohlc.Close, 20, 20)
+	_, err = ohlc.GetTWAP()
+	if !errors.Is(err, errDataLengthMismatch) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errDataLengthMismatch)
+	}
+
+	i := Item{}
+	i.Candles = twapdataset
+
+	ohlc = i.GetOHLC()
+	twap, err := ohlc.GetTWAP()
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if twap != 328.147840909091 {
+		t.Fatal("unexpected value returned from data-set")
+	}
+}
+
 func TestGetTWAP(t *testing.T) {
+	t.Parallel()
 	candles := Item{}
-	if _, err := candles.GetTWAP(); !errors.Is(err, errNoDataData) {
+	if _, err := candles.GetTWAP(); !errors.Is(err, errNoData) {
 		t.Fatal(err)
 	}
 
@@ -95,8 +166,9 @@ var vwapdataset = []Candle{
 }
 
 func TestGetVWAPs(t *testing.T) {
+	t.Parallel()
 	candles := Item{}
-	if _, err := candles.GetVWAPs(); !errors.Is(err, errNoDataData) {
+	if _, err := candles.GetVWAPs(); !errors.Is(err, errNoData) {
 		t.Fatal(err)
 	}
 
@@ -137,5 +209,102 @@ func TestGetVWAPs(t *testing.T) {
 		vwap[28] != 247.16505290840146 &&
 		vwap[29] != 247.23522648930867 {
 		t.Fatal("unexpected values")
+	}
+}
+
+func TestGetVWAPs_OHLC(t *testing.T) {
+	t.Parallel()
+	var ohlc *OHLC
+	_, err := ohlc.GetVWAPs()
+	if !errors.Is(err, errNilOHLC) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errNilOHLC)
+	}
+
+	ohlc = &OHLC{}
+	_, err = ohlc.GetVWAPs()
+	if !errors.Is(err, errNoData) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errNoData)
+	}
+
+	ohlc.Open = append(ohlc.Open, 20)
+	ohlc.High = append(ohlc.High, 20)
+	ohlc.Low = append(ohlc.Low, 20)
+	ohlc.Close = append(ohlc.Close, 20, 20)
+
+	_, err = ohlc.GetVWAPs()
+	if !errors.Is(err, errDataLengthMismatch) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errDataLengthMismatch)
+	}
+
+	ohlc = (&Item{Candles: vwapdataset}).GetOHLC()
+
+	vwap, err := ohlc.GetVWAPs()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if vwap[0] != 245.05046666666664 &&
+		vwap[1] != 245.00156932123465 &&
+		vwap[2] != 245.07320400593073 &&
+		vwap[3] != 245.19714781780763 &&
+		vwap[4] != 245.248374356565 &&
+		vwap[5] != 245.35797872352975 &&
+		vwap[6] != 245.45540807301208 &&
+		vwap[7] != 245.57298124760712 &&
+		vwap[8] != 245.61797546720302 &&
+		vwap[9] != 245.6901232761351 &&
+		vwap[10] != 245.7435986712912 &&
+		vwap[11] != 245.76128302894574 &&
+		vwap[12] != 245.771994363731 &&
+		vwap[13] != 245.7768929849006 &&
+		vwap[14] != 245.80115004533573 &&
+		vwap[15] != 245.82471633454026 &&
+		vwap[16] != 245.90964645148168 &&
+		vwap[17] != 246.0356579876492 &&
+		vwap[18] != 246.20233204964117 &&
+		vwap[19] != 246.29892677543359 &&
+		vwap[20] != 246.57315726207088 &&
+		vwap[21] != 246.70305234595537 &&
+		vwap[22] != 246.73669536160304 &&
+		vwap[23] != 246.7746731036053 &&
+		vwap[24] != 246.83849361010806 &&
+		vwap[25] != 246.89338504378165 &&
+		vwap[26] != 246.96313273581723 &&
+		vwap[27] != 247.03640100225914 &&
+		vwap[28] != 247.16505290840146 &&
+		vwap[29] != 247.23522648930867 {
+		t.Fatal("unexpected values")
+	}
+}
+
+func TestGetTypicalPrice_OHLC(t *testing.T) {
+	t.Parallel()
+	var ohlc *OHLC
+	_, err := ohlc.GetTypicalPrice(-1)
+	if !errors.Is(err, errNilOHLC) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errNilOHLC)
+	}
+
+	ohlc = &OHLC{}
+	_, err = ohlc.GetTypicalPrice(-1)
+	if !errors.Is(err, errInvalidElement) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidElement)
+	}
+
+	_, err = ohlc.GetTypicalPrice(0)
+	if !errors.Is(err, errElementExceedsDataLength) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errElementExceedsDataLength)
+	}
+
+	ohlc.High = append(ohlc.High, 15)
+	ohlc.Low = append(ohlc.Low, 0)
+	ohlc.Close = append(ohlc.Close, 0)
+	avgPrice, err := ohlc.GetTypicalPrice(0)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if avgPrice != 5 {
+		t.Fatal("unexpected value")
 	}
 }

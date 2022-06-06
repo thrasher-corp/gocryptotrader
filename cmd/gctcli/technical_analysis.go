@@ -11,7 +11,18 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
 	"github.com/urfave/cli/v2"
-	"google.golang.org/protobuf/types/known/timestamppb"
+)
+
+var (
+	taStartTime         string
+	taEndTime           string
+	taGranularity       int64
+	taPeriod            int64
+	taFastPeriod        int64
+	taSlowPeriod        int64
+	taMovingAverageType string
+	taStdDevUp          float64
+	taStdDevDown        float64
 )
 
 var commonFlag = []cli.Flag{
@@ -32,25 +43,25 @@ var commonFlag = []cli.Flag{
 		Aliases:     []string{"g"},
 		Usage:       klineMessage,
 		Value:       86400,
-		Destination: &priceGranularity,
+		Destination: &taGranularity,
 	},
 	&cli.StringFlag{
 		Name:        "start",
 		Usage:       "the start date",
 		Value:       time.Now().AddDate(0, -1, 0).Format(common.SimpleTimeFormat),
-		Destination: &priceStartTime,
+		Destination: &taStartTime,
 	},
 	&cli.StringFlag{
 		Name:        "end",
 		Usage:       "the end date",
 		Value:       time.Now().Format(common.SimpleTimeFormat),
-		Destination: &priceEndTime,
+		Destination: &taEndTime,
 	},
 	&cli.Int64Flag{
 		Name:        "period",
 		Usage:       "denotes period (rolling window) for technical analysis",
 		Value:       9,
-		Destination: &pricePeriod,
+		Destination: &taPeriod,
 	},
 }
 
@@ -59,52 +70,56 @@ var (
 		Name:        "fastperiod",
 		Usage:       "denotes fast period (ema) for macd generation",
 		Value:       12,
-		Destination: &priceFastPeriod,
+		Destination: &taFastPeriod,
 	}
 	slowFlag = &cli.Int64Flag{
 		Name:        "slowperiod",
 		Usage:       "denotes slow period (ema) for macd generation",
 		Value:       26,
-		Destination: &priceSlowPeriod,
+		Destination: &taSlowPeriod,
 	}
 	stdDevUpFlag = &cli.Float64Flag{
 		Name:        "stddevup",
 		Usage:       "standard deviation limit for upper band",
 		Value:       1.5,
-		Destination: &priceStdDevUp,
+		Destination: &taStdDevUp,
 	}
 	stdDevDownFlag = &cli.Float64Flag{
 		Name:        "stddevdown",
 		Usage:       "standard deviation limit for lower band",
 		Value:       1.5,
-		Destination: &priceStdDevDown,
+		Destination: &taStdDevDown,
 	}
 	maTypeFlag = &cli.StringFlag{
 		Name:        "movingaveragetype",
 		Usage:       "defines the moving average type for underlying calculation ('ema'/'sma')",
 		Value:       "sma",
-		Destination: &priceMovingAverageType,
+		Destination: &taMovingAverageType,
 	}
 
 	otherAssetFlag = []cli.Flag{
 		&cli.StringFlag{
-			Name:  "oexchange",
-			Usage: "the other exchange to compare to",
+			Name:    "comparisonexchange",
+			Usage:   "the other exchange to compare to - if not supplied will default to initial exchange",
+			Aliases: []string{"ce", "cexchange", "oe", "otherexchange"},
 		},
 		&cli.StringFlag{
-			Name:  "opair",
-			Usage: "the other currency pair",
+			Name:    "comparisonpair",
+			Usage:   "the other currency pair",
+			Aliases: []string{"cp", "cpair", "op", "otherpair"},
 		},
 		&cli.StringFlag{
-			Name:  "oasset",
-			Usage: "the other asset",
+			Name:    "comparisonasset",
+			Usage:   "the other asset - if not supplied will default to initial exchange",
+			Aliases: []string{"ca", "casset", "oa", "otherasset"},
 		},
 	}
 )
 
 var technicalAnalysisCommand = &cli.Command{
-	Name:      "techanalysis",
+	Name:      "technicalanalysis",
 	Usage:     "get techincal analysis command",
+	Aliases:   []string{"ta"},
 	ArgsUsage: "<command> <args>",
 	Subcommands: []*cli.Command{
 		{
@@ -112,14 +127,14 @@ var technicalAnalysisCommand = &cli.Command{
 			Usage:     "returns the time weighted average price",
 			ArgsUsage: "<exchange> <pair> <asset> <granularity> <start> <end> <period>",
 			Flags:     commonFlag,
-			Action:    getTwap,
+			Action:    getTWAP,
 		},
 		{
 			Name:      "vwap",
 			Usage:     "returns the volume weighted average price",
 			ArgsUsage: "<exchange> <pair> <asset> <granularity> <start> <end> <period>",
 			Flags:     commonFlag,
-			Action:    getVwap,
+			Action:    getVWAP,
 		},
 		{
 			Name:      "atr",
@@ -187,49 +202,39 @@ var technicalAnalysisCommand = &cli.Command{
 	},
 }
 
-func getTwap(c *cli.Context) error {
-	return getPrice(c, "TWAP")
+func getTWAP(c *cli.Context) error {
+	return getTecnicalAnalysis(c, "TWAP")
 }
 
-func getVwap(c *cli.Context) error {
-	return getPrice(c, "VWAP")
+func getVWAP(c *cli.Context) error {
+	return getTecnicalAnalysis(c, "VWAP")
 }
 
 func getATR(c *cli.Context) error {
-	return getPrice(c, "ATR")
+	return getTecnicalAnalysis(c, "ATR")
 }
 
 func getSMA(c *cli.Context) error {
-	return getPrice(c, "SMA")
+	return getTecnicalAnalysis(c, "SMA")
 }
 
 func getEMA(c *cli.Context) error {
-	return getPrice(c, "EMA")
+	return getTecnicalAnalysis(c, "EMA")
 }
 
 func getMFI(c *cli.Context) error {
-	return getPrice(c, "MFI")
+	return getTecnicalAnalysis(c, "MFI")
 }
 
 func getOBV(c *cli.Context) error {
-	return getPrice(c, "OBV")
+	return getTecnicalAnalysis(c, "OBV")
 }
 
 func getRSI(c *cli.Context) error {
-	return getPrice(c, "RSI")
+	return getTecnicalAnalysis(c, "RSI")
 }
 
-var priceStartTime string
-var priceEndTime string
-var priceGranularity int64
-var pricePeriod int64
-var priceFastPeriod int64
-var priceSlowPeriod int64
-var priceMovingAverageType string
-var priceStdDevUp float64
-var priceStdDevDown float64
-
-func getPrice(c *cli.Context, algo string) error {
+func getTecnicalAnalysis(c *cli.Context, algo string) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
@@ -266,9 +271,9 @@ func getPrice(c *cli.Context, algo string) error {
 	}
 
 	if c.IsSet("granularity") {
-		priceGranularity = c.Int64("granularity")
-	} else if c.Args().Get(4) != "" {
-		priceGranularity, err = strconv.ParseInt(c.Args().Get(3), 10, 64)
+		taGranularity = c.Int64("granularity")
+	} else if c.Args().Get(3) != "" {
+		taGranularity, err = strconv.ParseInt(c.Args().Get(3), 10, 64)
 		if err != nil {
 			return err
 		}
@@ -276,25 +281,25 @@ func getPrice(c *cli.Context, algo string) error {
 
 	if !c.IsSet("start") {
 		if c.Args().Get(4) != "" {
-			priceStartTime = c.Args().Get(4)
+			taStartTime = c.Args().Get(4)
 		}
 	} else {
-		priceStartTime, _ = c.Value("start").(string)
+		taStartTime, _ = c.Value("start").(string)
 	}
 
 	if !c.IsSet("end") {
 		if c.Args().Get(5) != "" {
-			priceEndTime = c.Args().Get(5)
+			taEndTime = c.Args().Get(5)
 		}
 	} else {
-		priceEndTime, _ = c.Value("end").(string)
+		taEndTime, _ = c.Value("end").(string)
 	}
 
-	s, err := time.Parse(common.SimpleTimeFormat, priceStartTime)
+	s, err := time.Parse(common.SimpleTimeFormat, taStartTime)
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
-	e, err := time.Parse(common.SimpleTimeFormat, priceEndTime)
+	e, err := time.Parse(common.SimpleTimeFormat, taEndTime)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
@@ -305,13 +310,13 @@ func getPrice(c *cli.Context, algo string) error {
 
 	if !c.IsSet("period") {
 		if c.Args().Get(6) != "" {
-			pricePeriod, err = strconv.ParseInt(c.Args().Get(6), 10, 64)
+			taPeriod, err = strconv.ParseInt(c.Args().Get(6), 10, 64)
 			if err != nil {
 				return err
 			}
 		}
 	} else {
-		pricePeriod, _ = c.Value("period").(int64)
+		taPeriod, _ = c.Value("period").(int64)
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -328,13 +333,11 @@ func getPrice(c *cli.Context, algo string) error {
 		},
 		AssetType:     asset,
 		AlgorithmType: algo,
-		Interval:      priceGranularity * int64(time.Second),
-		Start:         timestamppb.New(s),
-		End:           timestamppb.New(e),
-		Period:        pricePeriod,
+		Interval:      taGranularity * int64(time.Second),
+		Start:         negateLocalOffsetTs(s),
+		End:           negateLocalOffsetTs(e),
+		Period:        taPeriod,
 	}
-
-	fmt.Println("Request: ", req)
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.GetTechnicalAnalysis(c.Context, req)
@@ -383,9 +386,9 @@ func getBollingerBands(c *cli.Context) error {
 	}
 
 	if c.IsSet("granularity") {
-		priceGranularity = c.Int64("granularity")
-	} else if c.Args().Get(4) != "" {
-		priceGranularity, err = strconv.ParseInt(c.Args().Get(3), 10, 64)
+		taGranularity = c.Int64("granularity")
+	} else if c.Args().Get(3) != "" {
+		taGranularity, err = strconv.ParseInt(c.Args().Get(3), 10, 64)
 		if err != nil {
 			return err
 		}
@@ -393,25 +396,25 @@ func getBollingerBands(c *cli.Context) error {
 
 	if !c.IsSet("start") {
 		if c.Args().Get(4) != "" {
-			priceStartTime = c.Args().Get(4)
+			taStartTime = c.Args().Get(4)
 		}
 	} else {
-		priceStartTime, _ = c.Value("start").(string)
+		taStartTime, _ = c.Value("start").(string)
 	}
 
 	if !c.IsSet("end") {
 		if c.Args().Get(5) != "" {
-			priceEndTime = c.Args().Get(5)
+			taEndTime = c.Args().Get(5)
 		}
 	} else {
-		priceEndTime, _ = c.Value("end").(string)
+		taEndTime, _ = c.Value("end").(string)
 	}
 
-	s, err := time.Parse(common.SimpleTimeFormat, priceStartTime)
+	s, err := time.Parse(common.SimpleTimeFormat, taStartTime)
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
-	e, err := time.Parse(common.SimpleTimeFormat, priceEndTime)
+	e, err := time.Parse(common.SimpleTimeFormat, taEndTime)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
@@ -422,47 +425,47 @@ func getBollingerBands(c *cli.Context) error {
 
 	if !c.IsSet("period") {
 		if c.Args().Get(6) != "" {
-			pricePeriod, err = strconv.ParseInt(c.Args().Get(6), 10, 64)
+			taPeriod, err = strconv.ParseInt(c.Args().Get(6), 10, 64)
 			if err != nil {
 				return err
 			}
 		}
 	} else {
-		pricePeriod, _ = c.Value("period").(int64)
+		taPeriod, _ = c.Value("period").(int64)
 	}
 
 	if !c.IsSet("stddevup") {
 		if c.Args().Get(7) != "" {
-			priceStdDevUp, err = strconv.ParseFloat(c.Args().Get(7), 64)
+			taStdDevUp, err = strconv.ParseFloat(c.Args().Get(7), 64)
 			if err != nil {
 				return err
 			}
 		}
 	} else {
-		priceStdDevUp, _ = c.Value("stddevup").(float64)
+		taStdDevUp, _ = c.Value("stddevup").(float64)
 	}
 
 	if !c.IsSet("stddevdown") {
 		if c.Args().Get(8) != "" {
-			priceStdDevDown, err = strconv.ParseFloat(c.Args().Get(8), 64)
+			taStdDevDown, err = strconv.ParseFloat(c.Args().Get(8), 64)
 			if err != nil {
 				return err
 			}
 		}
 	} else {
-		priceStdDevDown, _ = c.Value("stddevdown").(float64)
+		taStdDevDown, _ = c.Value("stddevdown").(float64)
 	}
 
 	if !c.IsSet("movingaveragetype") && c.Args().Get(9) != "" {
-		priceMovingAverageType = c.Args().Get(9)
+		taMovingAverageType = c.Args().Get(9)
 	} else {
-		priceMovingAverageType, _ = c.Value("movingaveragetype").(string)
+		taMovingAverageType, _ = c.Value("movingaveragetype").(string)
 	}
 
 	var maType int64
-	switch {
-	case priceMovingAverageType == "sma":
-	case priceMovingAverageType == "ema":
+	switch strings.ToLower(taMovingAverageType) {
+	case "sma":
+	case "ema":
 		maType = 1
 	default:
 		return errors.New("invalid moving average type")
@@ -482,16 +485,14 @@ func getBollingerBands(c *cli.Context) error {
 		},
 		AssetType:             asset,
 		AlgorithmType:         "BBANDS",
-		Interval:              priceGranularity * int64(time.Second),
-		Start:                 timestamppb.New(s),
-		End:                   timestamppb.New(e),
-		Period:                pricePeriod,
-		StandardDeviationUp:   priceStdDevUp,
-		StandardDeviationDown: priceStdDevDown,
+		Interval:              taGranularity * int64(time.Second),
+		Start:                 negateLocalOffsetTs(s),
+		End:                   negateLocalOffsetTs(e),
+		Period:                taPeriod,
+		StandardDeviationUp:   taStdDevUp,
+		StandardDeviationDown: taStdDevDown,
 		MovingAverageType:     maType,
 	}
-
-	fmt.Println("Request: ", req)
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.GetTechnicalAnalysis(c.Context, req)
@@ -540,9 +541,9 @@ func getMACD(c *cli.Context) error {
 	}
 
 	if c.IsSet("granularity") {
-		priceGranularity = c.Int64("granularity")
-	} else if c.Args().Get(4) != "" {
-		priceGranularity, err = strconv.ParseInt(c.Args().Get(3), 10, 64)
+		taGranularity = c.Int64("granularity")
+	} else if c.Args().Get(3) != "" {
+		taGranularity, err = strconv.ParseInt(c.Args().Get(3), 10, 64)
 		if err != nil {
 			return err
 		}
@@ -550,25 +551,25 @@ func getMACD(c *cli.Context) error {
 
 	if !c.IsSet("start") {
 		if c.Args().Get(4) != "" {
-			priceStartTime = c.Args().Get(4)
+			taStartTime = c.Args().Get(4)
 		}
 	} else {
-		priceStartTime, _ = c.Value("start").(string)
+		taStartTime, _ = c.Value("start").(string)
 	}
 
 	if !c.IsSet("end") {
 		if c.Args().Get(5) != "" {
-			priceEndTime = c.Args().Get(5)
+			taEndTime = c.Args().Get(5)
 		}
 	} else {
-		priceEndTime, _ = c.Value("end").(string)
+		taEndTime, _ = c.Value("end").(string)
 	}
 
-	s, err := time.Parse(common.SimpleTimeFormat, priceStartTime)
+	s, err := time.Parse(common.SimpleTimeFormat, taStartTime)
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
-	e, err := time.Parse(common.SimpleTimeFormat, priceEndTime)
+	e, err := time.Parse(common.SimpleTimeFormat, taEndTime)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
@@ -579,35 +580,35 @@ func getMACD(c *cli.Context) error {
 
 	if !c.IsSet("period") {
 		if c.Args().Get(6) != "" {
-			pricePeriod, err = strconv.ParseInt(c.Args().Get(6), 10, 64)
+			taPeriod, err = strconv.ParseInt(c.Args().Get(6), 10, 64)
 			if err != nil {
 				return err
 			}
 		}
 	} else {
-		pricePeriod, _ = c.Value("period").(int64)
+		taPeriod, _ = c.Value("period").(int64)
 	}
 
 	if !c.IsSet("fastperiod") {
 		if c.Args().Get(7) != "" {
-			priceFastPeriod, err = strconv.ParseInt(c.Args().Get(7), 10, 64)
+			taFastPeriod, err = strconv.ParseInt(c.Args().Get(7), 10, 64)
 			if err != nil {
 				return err
 			}
 		}
 	} else {
-		priceFastPeriod, _ = c.Value("fastperiod").(int64)
+		taFastPeriod, _ = c.Value("fastperiod").(int64)
 	}
 
 	if !c.IsSet("slowperiod") {
 		if c.Args().Get(8) != "" {
-			priceSlowPeriod, err = strconv.ParseInt(c.Args().Get(8), 10, 64)
+			taSlowPeriod, err = strconv.ParseInt(c.Args().Get(8), 10, 64)
 			if err != nil {
 				return err
 			}
 		}
 	} else {
-		priceSlowPeriod, _ = c.Value("slowperiod").(int64)
+		taSlowPeriod, _ = c.Value("slowperiod").(int64)
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -624,15 +625,13 @@ func getMACD(c *cli.Context) error {
 		},
 		AssetType:     asset,
 		AlgorithmType: "MACD",
-		Interval:      priceGranularity * int64(time.Second),
-		Start:         timestamppb.New(s),
-		End:           timestamppb.New(e),
-		Period:        pricePeriod,
-		SlowPeriod:    priceSlowPeriod,
-		FastPeriod:    priceFastPeriod,
+		Interval:      taGranularity * int64(time.Second),
+		Start:         negateLocalOffsetTs(s),
+		End:           negateLocalOffsetTs(e),
+		Period:        taPeriod,
+		SlowPeriod:    taSlowPeriod,
+		FastPeriod:    taFastPeriod,
 	}
-
-	fmt.Println("Request: ", req)
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.GetTechnicalAnalysis(c.Context, req)
@@ -681,9 +680,9 @@ func getCoco(c *cli.Context) error {
 	}
 
 	if c.IsSet("granularity") {
-		priceGranularity = c.Int64("granularity")
-	} else if c.Args().Get(4) != "" {
-		priceGranularity, err = strconv.ParseInt(c.Args().Get(3), 10, 64)
+		taGranularity = c.Int64("granularity")
+	} else if c.Args().Get(3) != "" {
+		taGranularity, err = strconv.ParseInt(c.Args().Get(3), 10, 64)
 		if err != nil {
 			return err
 		}
@@ -691,25 +690,25 @@ func getCoco(c *cli.Context) error {
 
 	if !c.IsSet("start") {
 		if c.Args().Get(4) != "" {
-			priceStartTime = c.Args().Get(4)
+			taStartTime = c.Args().Get(4)
 		}
 	} else {
-		priceStartTime, _ = c.Value("start").(string)
+		taStartTime, _ = c.Value("start").(string)
 	}
 
 	if !c.IsSet("end") {
 		if c.Args().Get(5) != "" {
-			priceEndTime = c.Args().Get(5)
+			taEndTime = c.Args().Get(5)
 		}
 	} else {
-		priceEndTime, _ = c.Value("end").(string)
+		taEndTime, _ = c.Value("end").(string)
 	}
 
-	s, err := time.Parse(common.SimpleTimeFormat, priceStartTime)
+	s, err := time.Parse(common.SimpleTimeFormat, taStartTime)
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
-	e, err := time.Parse(common.SimpleTimeFormat, priceEndTime)
+	e, err := time.Parse(common.SimpleTimeFormat, taEndTime)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
@@ -720,43 +719,46 @@ func getCoco(c *cli.Context) error {
 
 	if !c.IsSet("period") {
 		if c.Args().Get(6) != "" {
-			pricePeriod, err = strconv.ParseInt(c.Args().Get(6), 10, 64)
+			taPeriod, err = strconv.ParseInt(c.Args().Get(6), 10, 64)
 			if err != nil {
 				return err
 			}
 		}
 	} else {
-		pricePeriod, _ = c.Value("period").(int64)
+		taPeriod, _ = c.Value("period").(int64)
 	}
 
 	var otherExchange string
-	if c.IsSet("oexchange") {
-		otherExchange = c.String("oexchange")
+	if c.IsSet("comparisonexchange") {
+		otherExchange = c.String("comparisonexchange")
 	} else {
 		otherExchange = c.Args().Get(7)
 	}
 
 	var oCpString string
-	if c.IsSet("opair") {
-		oCpString = c.String("opair")
+	if c.IsSet("comparisonpair") {
+		oCpString = c.String("comparisonpair")
 	} else {
 		oCpString = c.Args().Get(8)
 	}
 
+	if oCpString == "" {
+		return errors.New("other pair is empty, to compare this must be specified")
+	}
 	otherPair, err := currency.NewPairFromString(oCpString)
 	if err != nil {
 		return err
 	}
 
 	var otherAsset string
-	if c.IsSet("asset") {
-		otherAsset = c.String("oasset")
+	if c.IsSet("comparisonasset") {
+		otherAsset = c.String("comparisonasset")
 	} else {
 		otherAsset = c.Args().Get(9)
 	}
 
 	otherAsset = strings.ToLower(otherAsset)
-	if !validAsset(otherAsset) {
+	if otherAsset != "" && !validAsset(otherAsset) {
 		return errInvalidAsset
 	}
 
@@ -774,16 +776,14 @@ func getCoco(c *cli.Context) error {
 		},
 		AssetType:      asset,
 		AlgorithmType:  "COCO",
-		Interval:       priceGranularity * int64(time.Second),
-		Start:          timestamppb.New(s),
-		End:            timestamppb.New(e),
-		Period:         pricePeriod,
+		Interval:       taGranularity * int64(time.Second),
+		Start:          negateLocalOffsetTs(s),
+		End:            negateLocalOffsetTs(e),
+		Period:         taPeriod,
 		OtherExchange:  otherExchange,
 		OtherPair:      &gctrpc.CurrencyPair{Base: otherPair.Base.String(), Quote: otherPair.Quote.String()},
 		OtherAssetType: otherAsset,
 	}
-
-	fmt.Println("Request: ", req)
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.GetTechnicalAnalysis(c.Context, req)
