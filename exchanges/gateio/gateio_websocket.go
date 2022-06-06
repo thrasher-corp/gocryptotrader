@@ -334,7 +334,7 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 			RemainingAmount: left,
 			Fee:             fee,
 			Exchange:        g.Name,
-			ID:              strconv.FormatFloat(orderID, 'f', -1, 64),
+			OrderID:         strconv.FormatFloat(orderID, 'f', -1, 64),
 			Type:            oType,
 			Side:            oSide,
 			Status:          oStatus,

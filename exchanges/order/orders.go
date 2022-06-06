@@ -20,16 +20,22 @@ const (
 	longSide                  = Long | Buy | Bid
 	inactiveStatuses          = Filled | Cancelled | InsufficientBalance | MarketUnavailable | Rejected | PartiallyCancelled | Expired | Closed | AnyStatus | Cancelling
 	activeStatuses            = Active | Open | PartiallyFilled | New | PendingCancel | Hidden | AutoDeleverage | Pending
-	bypassSideFilter          = UnknownSide | AnySide
-	bypassTypeFilter          = UnknownType | AnyType
+	notPlaced                 = InsufficientBalance | MarketUnavailable | Rejected
 )
 
 var (
-	errTimeInForceConflict     = errors.New("multiple time in force options applied")
-	errUnrecognisedOrderSide   = errors.New("unrecognised order side")
-	errUnrecognisedOrderType   = errors.New("unrecognised order type")
-	errUnrecognisedOrderStatus = errors.New("unrecognised order status")
-	errOrderDetailIsNil        = errors.New("order detail is nil")
+	// ErrUnableToPlaceOrder defines an error when an order submission has
+	// failed.
+	ErrUnableToPlaceOrder = errors.New("order not placed")
+
+	errTimeInForceConflict      = errors.New("multiple time in force options applied")
+	errUnrecognisedOrderSide    = errors.New("unrecognised order side")
+	errUnrecognisedOrderType    = errors.New("unrecognised order type")
+	errUnrecognisedOrderStatus  = errors.New("unrecognised order status")
+	errExchangeNameUnset        = errors.New("exchange name unset")
+	errOrderSubmitIsNil         = errors.New("order submit is nil")
+	errOrderSubmitResponseIsNil = errors.New("order submit response is nil")
+	errOrderDetailIsNil         = errors.New("order detail is nil")
 )
 
 // Validate checks the supplied data and returns whether or not it's valid
@@ -38,12 +44,20 @@ func (s *Submit) Validate(opt ...validate.Checker) error {
 		return ErrSubmissionIsNil
 	}
 
+	if s.Exchange == "" {
+		return errExchangeNameUnset
+	}
+
 	if s.Pair.IsEmpty() {
 		return ErrPairIsEmpty
 	}
 
 	if s.AssetType == asset.Empty {
 		return ErrAssetNotSet
+	}
+
+	if !s.AssetType.IsValid() {
+		return fmt.Errorf("'%s' %w", s.AssetType, asset.ErrNotSupported)
 	}
 
 	if s.Side == UnknownSide || orderSubmissionValidSides&s.Side != s.Side {
@@ -86,7 +100,15 @@ func (s *Submit) Validate(opt ...validate.Checker) error {
 
 // UpdateOrderFromDetail Will update an order detail (used in order management)
 // by comparing passed in and existing values
-func (d *Detail) UpdateOrderFromDetail(m *Detail) {
+func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
+	if d == nil {
+		return ErrOrderDetailIsNil
+	}
+
+	if m == nil {
+		return fmt.Errorf("incoming %w", ErrOrderDetailIsNil)
+	}
+
 	var updated bool
 	if d.ImmediateOrCancel != m.ImmediateOrCancel {
 		d.ImmediateOrCancel = m.ImmediateOrCancel
@@ -234,20 +256,21 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) {
 	if d.Exchange == "" {
 		d.Exchange = m.Exchange
 	}
-	if d.ID == "" {
-		d.ID = m.ID
+	if d.OrderID == "" {
+		d.OrderID = m.OrderID
 	}
-	if d.InternalOrderID == "" {
+	if d.InternalOrderID.IsNil() {
 		d.InternalOrderID = m.InternalOrderID
 	}
+	return nil
 }
 
 // UpdateOrderFromModifyResponse Will update an order detail (used in order management)
 // by comparing passed in and existing values
 func (d *Detail) UpdateOrderFromModifyResponse(m *ModifyResponse) {
 	var updated bool
-	if m.OrderID != "" && d.ID != m.OrderID {
-		d.ID = m.OrderID
+	if m.OrderID != "" && d.OrderID != m.OrderID {
+		d.OrderID = m.OrderID
 		updated = true
 	}
 	if d.ImmediateOrCancel != m.ImmediateOrCancel {
@@ -308,43 +331,34 @@ func (d *Detail) UpdateOrderFromModifyResponse(m *ModifyResponse) {
 // MatchFilter will return true if a detail matches the filter criteria
 // empty elements are ignored
 func (d *Detail) MatchFilter(f *Filter) bool {
-	if f.Exchange != "" && !strings.EqualFold(d.Exchange, f.Exchange) {
+	switch {
+	case f.Exchange != "" && !strings.EqualFold(d.Exchange, f.Exchange):
 		return false
-	}
-	if f.AssetType != asset.Empty && d.AssetType != f.AssetType {
+	case f.AssetType != asset.Empty && d.AssetType != f.AssetType:
 		return false
-	}
-	if !f.Pair.IsEmpty() && !d.Pair.Equal(f.Pair) {
+	case !f.Pair.IsEmpty() && !d.Pair.Equal(f.Pair):
 		return false
-	}
-	if f.ID != "" && d.ID != f.ID {
+	case f.OrderID != "" && d.OrderID != f.OrderID:
 		return false
-	}
-	if f.Type != UnknownType && f.Type != AnyType && d.Type != f.Type {
+	case f.Type != UnknownType && f.Type != AnyType && d.Type != f.Type:
 		return false
-	}
-	if f.Side != UnknownSide && f.Side != AnySide && d.Side != f.Side {
+	case f.Side != UnknownSide && f.Side != AnySide && d.Side != f.Side:
 		return false
-	}
-	if f.Status != UnknownStatus && f.Status != AnyStatus && d.Status != f.Status {
+	case f.Status != UnknownStatus && f.Status != AnyStatus && d.Status != f.Status:
 		return false
-	}
-	if f.ClientOrderID != "" && d.ClientOrderID != f.ClientOrderID {
+	case f.ClientOrderID != "" && d.ClientOrderID != f.ClientOrderID:
 		return false
-	}
-	if f.ClientID != "" && d.ClientID != f.ClientID {
+	case f.ClientID != "" && d.ClientID != f.ClientID:
 		return false
-	}
-	if f.InternalOrderID != "" && d.InternalOrderID != f.InternalOrderID {
+	case !f.InternalOrderID.IsNil() && d.InternalOrderID != f.InternalOrderID:
 		return false
-	}
-	if f.AccountID != "" && d.AccountID != f.AccountID {
+	case f.AccountID != "" && d.AccountID != f.AccountID:
 		return false
-	}
-	if f.WalletAddress != "" && d.WalletAddress != f.WalletAddress {
+	case f.WalletAddress != "" && d.WalletAddress != f.WalletAddress:
 		return false
+	default:
+		return true
 	}
-	return true
 }
 
 // IsActive returns true if an order has a status that indicates it is currently
@@ -364,16 +378,25 @@ func (d *Detail) IsInactive() bool {
 		inactiveStatuses&d.Status == d.Status
 }
 
+// WasOrderPlaced returns true if an order has a status that indicates that it
+// was accepted by an exchange.
+func (d *Detail) WasOrderPlaced() bool {
+	if d.Status == UnknownStatus || d.Status == AnyStatus {
+		return false
+	}
+	return notPlaced&d.Status != d.Status
+}
+
 // GenerateInternalOrderID sets a new V4 order ID or a V5 order ID if
 // the V4 function returns an error
 func (d *Detail) GenerateInternalOrderID() {
-	if d.InternalOrderID == "" {
-		var id uuid.UUID
-		id, err := uuid.NewV4()
-		if err != nil {
-			id = uuid.NewV5(uuid.UUID{}, d.ID)
-		}
-		d.InternalOrderID = id.String()
+	if !d.InternalOrderID.IsNil() {
+		return
+	}
+	var err error
+	d.InternalOrderID, err = uuid.NewV4()
+	if err != nil {
+		d.InternalOrderID = uuid.NewV5(uuid.UUID{}, d.OrderID)
 	}
 }
 
@@ -392,6 +415,90 @@ func (d *Detail) Copy() Detail {
 		copy(c.Trades, d.Trades)
 	}
 	return c
+}
+
+// DeriveSubmitResponse will construct an order SubmitResponse when a successful
+// submission has occurred. NOTE: order status is populated as order.Filled for a
+// market order else order.New if an order is accepted as default, date and
+// lastupdated fields have been populated as time.Now(). All fields can be
+// customized in caller scope if needed.
+func (s *Submit) DeriveSubmitResponse(orderID string) (*SubmitResponse, error) {
+	if s == nil {
+		return nil, errOrderSubmitIsNil
+	}
+
+	if orderID == "" {
+		return nil, ErrOrderIDNotSet
+	}
+
+	status := New
+	if s.Type == Market { // NOTE: This will need to be scrutinized.
+		status = Filled
+	}
+
+	return &SubmitResponse{
+		Exchange:  s.Exchange,
+		Type:      s.Type,
+		Side:      s.Side,
+		Pair:      s.Pair,
+		AssetType: s.AssetType,
+
+		ImmediateOrCancel: s.ImmediateOrCancel,
+		FillOrKill:        s.FillOrKill,
+		PostOnly:          s.PostOnly,
+		ReduceOnly:        s.ReduceOnly,
+		Leverage:          s.Leverage,
+		Price:             s.Price,
+		Amount:            s.Amount,
+		QuoteAmount:       s.QuoteAmount,
+		TriggerPrice:      s.TriggerPrice,
+		ClientID:          s.ClientID,
+		ClientOrderID:     s.ClientOrderID,
+
+		LastUpdated: time.Now(),
+		Date:        time.Now(),
+		Status:      status,
+		OrderID:     orderID,
+	}, nil
+}
+
+// DeriveDetail will construct an order detail when a successful submission
+// has occurred. Has an optional parameter field internal uuid for internal
+// management.
+func (s *SubmitResponse) DeriveDetail(internal uuid.UUID) (*Detail, error) {
+	if s == nil {
+		return nil, errOrderSubmitResponseIsNil
+	}
+
+	return &Detail{
+		Exchange:  s.Exchange,
+		Type:      s.Type,
+		Side:      s.Side,
+		Pair:      s.Pair,
+		AssetType: s.AssetType,
+
+		ImmediateOrCancel: s.ImmediateOrCancel,
+		FillOrKill:        s.FillOrKill,
+		PostOnly:          s.PostOnly,
+		ReduceOnly:        s.ReduceOnly,
+		Leverage:          s.Leverage,
+		Price:             s.Price,
+		Amount:            s.Amount,
+		QuoteAmount:       s.QuoteAmount,
+		TriggerPrice:      s.TriggerPrice,
+		ClientID:          s.ClientID,
+		ClientOrderID:     s.ClientOrderID,
+
+		InternalOrderID: internal,
+
+		LastUpdated: s.LastUpdated,
+		Date:        s.Date,
+		Status:      s.Status,
+		OrderID:     s.OrderID,
+		Trades:      s.Trades,
+		Fee:         s.Fee,
+		Cost:        s.Cost,
+	}, nil
 }
 
 // CopyPointerOrderSlice returns a copy of all order detail and returns a slice
@@ -413,7 +520,7 @@ func (d *Detail) DeriveModify() (*Modify, error) {
 	}
 	return &Modify{
 		Exchange:      d.Exchange,
-		ID:            d.ID,
+		OrderID:       d.OrderID,
 		ClientOrderID: d.ClientOrderID,
 		Type:          d.Type,
 		Side:          d.Side,
@@ -431,7 +538,7 @@ func (m *Modify) DeriveModifyResponse() (*ModifyResponse, error) {
 	}
 	return &ModifyResponse{
 		Exchange:          m.Exchange,
-		OrderID:           m.ID,
+		OrderID:           m.OrderID,
 		ClientOrderID:     m.ClientOrderID,
 		Type:              m.Type,
 		Side:              m.Side,
@@ -452,7 +559,7 @@ func (d *Detail) DeriveCancel() (*Cancel, error) {
 	}
 	return &Cancel{
 		Exchange:      d.Exchange,
-		ID:            d.ID,
+		OrderID:       d.OrderID,
 		AccountID:     d.AccountID,
 		ClientID:      d.ClientID,
 		ClientOrderID: d.ClientOrderID,
@@ -643,7 +750,7 @@ func (d *Detail) InferCostsAndTimes() {
 // FilterOrdersBySide removes any order details that don't match the order
 // status provided
 func FilterOrdersBySide(orders *[]Detail, side Side) {
-	if bypassSideFilter&side == side || len(*orders) == 0 {
+	if AnySide == side || len(*orders) == 0 {
 		return
 	}
 
@@ -660,7 +767,7 @@ func FilterOrdersBySide(orders *[]Detail, side Side) {
 // FilterOrdersByType removes any order details that don't match the order type
 // provided
 func FilterOrdersByType(orders *[]Detail, orderType Type) {
-	if bypassTypeFilter&orderType == orderType || len(*orders) == 0 {
+	if AnyType == orderType || len(*orders) == 0 {
 		return
 	}
 
@@ -941,7 +1048,7 @@ func (o *ClassificationError) Error() string {
 // for a standard cancel
 func (c *Cancel) StandardCancel() validate.Checker {
 	return validate.Check(func() error {
-		if c.ID == "" {
+		if c.OrderID == "" {
 			return errors.New("ID not set")
 		}
 		return nil
@@ -1030,7 +1137,7 @@ func (m *Modify) Validate(opt ...validate.Checker) error {
 	if errs != nil {
 		return errs
 	}
-	if m.ClientOrderID == "" && m.ID == "" {
+	if m.ClientOrderID == "" && m.OrderID == "" {
 		return ErrOrderIDNotSet
 	}
 	return nil

@@ -509,19 +509,18 @@ func (b *BTSE) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.Ite
 }
 
 // SubmitOrder submits a new order
-func (b *BTSE) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
-	var resp order.SubmitResponse
+func (b *BTSE) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	if err := s.Validate(); err != nil {
-		return resp, err
+		return nil, err
 	}
 
 	fPair, err := b.FormatExchangeCurrency(s.Pair, s.AssetType)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 	inLimits := b.withinLimits(fPair, s.Amount)
 	if !inLimits {
-		return resp, errors.New("order outside of limits")
+		return nil, errors.New("order outside of limits")
 	}
 
 	r, err := b.CreateOrder(ctx,
@@ -537,16 +536,14 @@ func (b *BTSE) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitRe
 		"",
 		s.Type.String())
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 
-	resp.IsOrderPlaced = true
-	resp.OrderID = r[0].OrderID
-
-	if s.Type == order.Market {
-		resp.FullyMatched = true
+	var orderID string
+	if len(r) > 0 {
+		orderID = r[0].OrderID
 	}
-	return resp, nil
+	return s.DeriveSubmitResponse(orderID)
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
@@ -561,13 +558,12 @@ func (b *BTSE) CancelOrder(ctx context.Context, o *order.Cancel) error {
 		return err
 	}
 
-	fPair, err := b.FormatExchangeCurrency(o.Pair,
-		o.AssetType)
+	fPair, err := b.FormatExchangeCurrency(o.Pair, o.AssetType)
 	if err != nil {
 		return err
 	}
 
-	_, err = b.CancelExistingOrder(ctx, o.ID, fPair.String(), o.ClientOrderID)
+	_, err = b.CancelExistingOrder(ctx, o.OrderID, fPair.String(), o.ClientOrderID)
 	if err != nil {
 		return err
 	}
@@ -656,7 +652,7 @@ func (b *BTSE) GetOrderInfo(ctx context.Context, orderID string, pair currency.P
 		}
 		od.Exchange = b.Name
 		od.Amount = o[i].Size
-		od.ID = o[i].OrderID
+		od.OrderID = o[i].OrderID
 		od.Date = time.Unix(o[i].Timestamp, 0)
 		od.Side = side
 
@@ -824,7 +820,7 @@ func (b *BTSE) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest)
 				Amount:          resp[i].Size,
 				ExecutedAmount:  resp[i].FilledSize,
 				RemainingAmount: resp[i].Size - resp[i].FilledSize,
-				ID:              resp[i].OrderID,
+				OrderID:         resp[i].OrderID,
 				Date:            time.Unix(resp[i].Timestamp, 0),
 				Side:            side,
 				Price:           resp[i].Price,
@@ -934,7 +930,7 @@ func (b *BTSE) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetO
 			}
 			orderTime := time.UnixMilli(currentOrder[y].Timestamp)
 			tempOrder := order.Detail{
-				ID:                   currentOrder[y].OrderID,
+				OrderID:              currentOrder[y].OrderID,
 				ClientID:             currentOrder[y].ClOrderID,
 				Exchange:             b.Name,
 				Price:                currentOrder[y].Price,

@@ -556,26 +556,29 @@ allTrades:
 }
 
 // SubmitOrder submits a new order
-func (h *HitBTC) SubmitOrder(ctx context.Context, o *order.Submit) (order.SubmitResponse, error) {
-	var submitOrderResponse order.SubmitResponse
+func (h *HitBTC) SubmitOrder(ctx context.Context, o *order.Submit) (*order.SubmitResponse, error) {
 	err := o.Validate()
 	if err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
+
+	var orderID string
+	status := order.New
 	if h.Websocket.IsConnected() && h.Websocket.CanUseAuthenticatedEndpoints() {
 		var response *WsSubmitOrderSuccessResponse
 		response, err = h.wsPlaceOrder(o.Pair, o.Side.String(), o.Amount, o.Price)
 		if err != nil {
-			return submitOrderResponse, err
+			return nil, err
 		}
-		submitOrderResponse.OrderID = strconv.FormatInt(response.ID, 10)
+		orderID = strconv.FormatInt(response.ID, 10)
 		if response.Result.CumQuantity == o.Amount {
-			submitOrderResponse.FullyMatched = true
+			status = order.Filled
 		}
 	} else {
-		fPair, err := h.FormatExchangeCurrency(o.Pair, o.AssetType)
+		var fPair currency.Pair
+		fPair, err = h.FormatExchangeCurrency(o.Pair, o.AssetType)
 		if err != nil {
-			return submitOrderResponse, err
+			return nil, err
 		}
 
 		var response OrderResponse
@@ -583,21 +586,22 @@ func (h *HitBTC) SubmitOrder(ctx context.Context, o *order.Submit) (order.Submit
 			fPair.String(),
 			o.Price,
 			o.Amount,
-			strings.ToLower(o.Type.String()),
-			strings.ToLower(o.Side.String()))
+			o.Type.Lower(),
+			o.Side.Lower())
 		if err != nil {
-			return submitOrderResponse, err
+			return nil, err
 		}
-		if response.OrderNumber > 0 {
-			submitOrderResponse.OrderID = strconv.FormatInt(response.OrderNumber, 10)
-		}
+		orderID = strconv.FormatInt(response.OrderNumber, 10)
 		if o.Type == order.Market {
-			submitOrderResponse.FullyMatched = true
+			status = order.Filled
 		}
 	}
-	submitOrderResponse.IsOrderPlaced = true
-
-	return submitOrderResponse, nil
+	resp, err := o.DeriveSubmitResponse(orderID)
+	if err != nil {
+		return nil, err
+	}
+	resp.Status = status
+	return resp, nil
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
@@ -612,7 +616,7 @@ func (h *HitBTC) CancelOrder(ctx context.Context, o *order.Cancel) error {
 		return err
 	}
 
-	orderIDInt, err := strconv.ParseInt(o.ID, 10, 64)
+	orderIDInt, err := strconv.ParseInt(o.OrderID, 10, 64)
 	if err != nil {
 		return err
 	}
@@ -748,7 +752,7 @@ func (h *HitBTC) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 			return nil, err
 		}
 		orders[i] = order.Detail{
-			ID:       allOrders[i].ID,
+			OrderID:  allOrders[i].ID,
 			Amount:   allOrders[i].Quantity,
 			Exchange: h.Name,
 			Price:    allOrders[i].Price,
@@ -810,7 +814,7 @@ func (h *HitBTC) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 			log.Errorf(log.ExchangeSys, "%s %v", h.Name, err)
 		}
 		detail := order.Detail{
-			ID:                   allOrders[i].ID,
+			OrderID:              allOrders[i].ID,
 			Amount:               allOrders[i].Quantity,
 			ExecutedAmount:       allOrders[i].CumQuantity,
 			RemainingAmount:      allOrders[i].Quantity - allOrders[i].CumQuantity,

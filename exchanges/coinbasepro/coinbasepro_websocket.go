@@ -190,7 +190,7 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
 				RemainingAmount: wsOrder.RemainingSize,
 				Fee:             wsOrder.TakerFeeRate,
 				Exchange:        c.Name,
-				ID:              wsOrder.OrderID,
+				OrderID:         wsOrder.OrderID,
 				AccountID:       wsOrder.ProfileID,
 				ClientID:        creds.ClientID,
 				Type:            oType,
@@ -223,7 +223,7 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
 
 		if wsOrder.UserID != "" {
 			c.Websocket.DataHandler <- &order.Detail{
-				ID:        wsOrder.OrderID,
+				OrderID:   wsOrder.OrderID,
 				Pair:      p,
 				AssetType: a,
 				Trades: []order.TradeHistory{

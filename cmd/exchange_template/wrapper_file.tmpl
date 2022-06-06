@@ -393,20 +393,36 @@ func ({{.Variable}} *{{.CapitalName}}) GetHistoricTrades (ctx context.Context, p
 }
 
 // SubmitOrder submits a new order
-func ({{.Variable}} *{{.CapitalName}}) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
-	var submitOrderResponse order.SubmitResponse
+func ({{.Variable}} *{{.CapitalName}}) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	if err := s.Validate(); err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
-	return submitOrderResponse, common.ErrNotYetImplemented
+	// When an order has been submitted you can use this helpful constructor to
+	// return. Please add any additional order details to the 
+	// order.SubmitResponse if you think they are applicable.
+	// resp, err := s.DeriveSubmitResponse( /*newOrderID*/)
+	// if err != nil {
+	// 	return nil, nil 
+	// }
+	// resp.Date = exampleTime // e.g. If this is supplied by the exchanges API.
+	// return resp, nil 
+	return nil, common.ErrNotYetImplemented
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
 func ({{.Variable}} *{{.CapitalName}}) ModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
-	// if err := action.Validate(); err != nil {
-	// 	return "", err
+	if err := action.Validate(); err != nil {
+		return nil, err
+	}
+	// When an order has been modified you can use this helpful constructor to
+	// return. Please add any additional order details to the
+	// order.ModifyResponse if you think they are applicable.
+	// resp, err := action.DeriveModifyResponse()
+	// if err != nil {
+	// 	return nil, nil
 	// }
+	// resp.OrderID = maybeANewOrderID // e.g. If this is supplied by the exchanges API.
 	return nil, common.ErrNotYetImplemented
 }
 

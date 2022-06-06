@@ -537,20 +537,18 @@ allTrades:
 }
 
 // SubmitOrder submits a new order
-func (g *Gemini) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
-	var submitOrderResponse order.SubmitResponse
+func (g *Gemini) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	if err := s.Validate(); err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
 	if s.Type != order.Limit {
-		return submitOrderResponse,
-			errors.New("only limit orders are enabled through this exchange")
+		return nil, errors.New("only limit orders are enabled through this exchange")
 	}
 
 	fpair, err := g.FormatExchangeCurrency(s.Pair, asset.Spot)
 	if err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
 	response, err := g.NewOrder(ctx,
@@ -560,15 +558,10 @@ func (g *Gemini) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submit
 		s.Side.String(),
 		"exchange limit")
 	if err != nil {
-		return submitOrderResponse, err
-	}
-	if response > 0 {
-		submitOrderResponse.OrderID = strconv.FormatInt(response, 10)
+		return nil, err
 	}
 
-	submitOrderResponse.IsOrderPlaced = true
-
-	return submitOrderResponse, nil
+	return s.DeriveSubmitResponse(strconv.FormatInt(response, 10))
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
@@ -583,7 +576,7 @@ func (g *Gemini) CancelOrder(ctx context.Context, o *order.Cancel) error {
 		return err
 	}
 
-	orderIDInt, err := strconv.ParseInt(o.ID, 10, 64)
+	orderIDInt, err := strconv.ParseInt(o.OrderID, 10, 64)
 	if err != nil {
 		return err
 	}
@@ -719,7 +712,7 @@ func (g *Gemini) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 		orders[i] = order.Detail{
 			Amount:          resp[i].OriginalAmount,
 			RemainingAmount: resp[i].RemainingAmount,
-			ID:              strconv.FormatInt(resp[i].OrderID, 10),
+			OrderID:         strconv.FormatInt(resp[i].OrderID, 10),
 			ExecutedAmount:  resp[i].ExecutedAmount,
 			Exchange:        g.Name,
 			Type:            orderType,
@@ -787,7 +780,7 @@ func (g *Gemini) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 		orderDate := time.Unix(trades[i].Timestamp, 0)
 
 		detail := order.Detail{
-			ID:                   strconv.FormatInt(trades[i].OrderID, 10),
+			OrderID:              strconv.FormatInt(trades[i].OrderID, 10),
 			Amount:               trades[i].Amount,
 			ExecutedAmount:       trades[i].Amount,
 			Exchange:             g.Name,

@@ -323,7 +323,7 @@ func (g *Gemini) wsHandleData(respRaw []byte) error {
 				ExecutedAmount:  result[i].ExecutedAmount,
 				RemainingAmount: result[i].RemainingAmount,
 				Exchange:        g.Name,
-				ID:              result[i].OrderID,
+				OrderID:         result[i].OrderID,
 				Type:            oType,
 				Side:            oSide,
 				Status:          oStatus,

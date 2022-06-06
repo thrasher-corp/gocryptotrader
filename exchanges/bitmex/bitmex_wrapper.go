@@ -565,20 +565,19 @@ allTrades:
 }
 
 // SubmitOrder submits a new order
-func (b *Bitmex) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
-	var submitOrderResponse order.SubmitResponse
+func (b *Bitmex) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	if err := s.Validate(); err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
 	if math.Mod(s.Amount, 1) != 0 {
-		return submitOrderResponse,
+		return nil,
 			errors.New("order contract amount can not have decimals")
 	}
 
 	fPair, err := b.FormatExchangeCurrency(s.Pair, s.AssetType)
 	if err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
 	var orderNewParams = OrderNewParams{
@@ -594,17 +593,9 @@ func (b *Bitmex) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submit
 
 	response, err := b.CreateOrder(ctx, &orderNewParams)
 	if err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
-	if response.OrderID != "" {
-		submitOrderResponse.OrderID = response.OrderID
-	}
-	if s.Type == order.Market {
-		submitOrderResponse.FullyMatched = true
-	}
-	submitOrderResponse.IsOrderPlaced = true
-
-	return submitOrderResponse, nil
+	return s.DeriveSubmitResponse(response.OrderID)
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
@@ -619,7 +610,7 @@ func (b *Bitmex) ModifyOrder(ctx context.Context, action *order.Modify) (*order.
 	}
 
 	o, err := b.AmendOrder(ctx, &OrderAmendParams{
-		OrderID:  action.ID,
+		OrderID:  action.OrderID,
 		OrderQty: int32(action.Amount),
 		Price:    action.Price})
 	if err != nil {
@@ -642,10 +633,9 @@ func (b *Bitmex) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	if err := o.Validate(o.StandardCancel()); err != nil {
 		return err
 	}
-	var params = OrderCancelParams{
-		OrderID: o.ID,
-	}
-	_, err := b.CancelOrders(ctx, &params)
+	_, err := b.CancelOrders(ctx, &OrderCancelParams{
+		OrderID: o.OrderID,
+	})
 	return err
 }
 
@@ -781,7 +771,7 @@ func (b *Bitmex) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 			ExecutedAmount:  resp[i].CumQty,
 			RemainingAmount: resp[i].LeavesQty,
 			Exchange:        b.Name,
-			ID:              resp[i].OrderID,
+			OrderID:         resp[i].OrderID,
 			Side:            orderSideMap[resp[i].Side],
 			Status:          orderStatus,
 			Type:            oType,
@@ -848,7 +838,7 @@ func (b *Bitmex) GetOrderHistory(ctx context.Context, req *order.GetOrdersReques
 			Date:                 resp[i].TransactTime,
 			CloseTime:            resp[i].Timestamp,
 			Exchange:             b.Name,
-			ID:                   resp[i].OrderID,
+			OrderID:              resp[i].OrderID,
 			Side:                 orderSide,
 			Status:               orderStatus,
 			Type:                 oType,

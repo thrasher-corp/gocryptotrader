@@ -624,7 +624,7 @@ func (b *Bittrex) WsProcessUpdateOrder(data *OrderUpdateMessage) error {
 		RemainingAmount:   data.Delta.Quantity - data.Delta.FillQuantity,
 		ExecutedAmount:    data.Delta.FillQuantity,
 		Exchange:          b.Name,
-		ID:                data.Delta.ID,
+		OrderID:           data.Delta.ID,
 		Type:              orderType,
 		Side:              orderSide,
 		Status:            orderStatus,

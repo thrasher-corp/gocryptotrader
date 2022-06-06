@@ -530,10 +530,9 @@ func (b *BTCMarkets) GetHistoricTrades(_ context.Context, _ currency.Pair, _ ass
 }
 
 // SubmitOrder submits a new order
-func (b *BTCMarkets) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
-	var resp order.SubmitResponse
+func (b *BTCMarkets) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	if err := s.Validate(); err != nil {
-		return resp, err
+		return nil, err
 	}
 
 	if s.Side == order.Sell {
@@ -545,17 +544,17 @@ func (b *BTCMarkets) SubmitOrder(ctx context.Context, s *order.Submit) (order.Su
 
 	fpair, err := b.FormatExchangeCurrency(s.Pair, asset.Spot)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 
 	fOrderType, err := b.formatOrderType(s.Type)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 
 	fOrderSide, err := b.formatOrderSide(s.Side)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 
 	tempResp, err := b.NewOrder(ctx,
@@ -571,11 +570,9 @@ func (b *BTCMarkets) SubmitOrder(ctx context.Context, s *order.Submit) (order.Su
 		s.ClientID,
 		s.PostOnly)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
-	resp.IsOrderPlaced = true
-	resp.OrderID = tempResp.OrderID
-	return resp, nil
+	return s.DeriveSubmitResponse(tempResp.OrderID)
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
@@ -584,7 +581,7 @@ func (b *BTCMarkets) ModifyOrder(ctx context.Context, action *order.Modify) (*or
 	if err := action.Validate(); err != nil {
 		return nil, err
 	}
-	resp, err := b.ReplaceOrder(ctx, action.ID, action.ClientOrderID, action.Price, action.Amount)
+	resp, err := b.ReplaceOrder(ctx, action.OrderID, action.ClientOrderID, action.Price, action.Amount)
 	if err != nil {
 		return nil, err
 	}
@@ -622,7 +619,7 @@ func (b *BTCMarkets) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	if err != nil {
 		return err
 	}
-	_, err = b.RemoveOrder(ctx, o.ID)
+	_, err = b.RemoveOrder(ctx, o.OrderID)
 	return err
 }
 
@@ -675,7 +672,7 @@ func (b *BTCMarkets) GetOrderInfo(ctx context.Context, orderID string, pair curr
 	}
 
 	resp.Exchange = b.Name
-	resp.ID = orderID
+	resp.OrderID = orderID
 	resp.Pair = p
 	resp.Price = o.Price
 	resp.Date = o.CreationTime
@@ -828,7 +825,7 @@ func (b *BTCMarkets) GetActiveOrders(ctx context.Context, req *order.GetOrdersRe
 			var tempResp order.Detail
 			tempResp.Exchange = b.Name
 			tempResp.Pair = req.Pairs[x]
-			tempResp.ID = tempData[y].OrderID
+			tempResp.OrderID = tempData[y].OrderID
 			tempResp.Side = order.Bid
 			if tempData[y].Side == ask {
 				tempResp.Side = order.Ask
@@ -945,7 +942,7 @@ func (b *BTCMarkets) GetOrderHistory(ctx context.Context, req *order.GetOrdersRe
 			if tempData.Orders[c].Side == ask {
 				tempResp.Side = order.Ask
 			}
-			tempResp.ID = tempData.Orders[c].OrderID
+			tempResp.OrderID = tempData.Orders[c].OrderID
 			tempResp.Date = tempData.Orders[c].CreationTime
 			tempResp.Price = tempData.Orders[c].Price
 			tempResp.Amount = tempData.Orders[c].Amount

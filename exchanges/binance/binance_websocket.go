@@ -272,7 +272,7 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 					Fee:                  data.Data.Commission,
 					FeeAsset:             feeAsset,
 					Exchange:             b.Name,
-					ID:                   orderID,
+					OrderID:              orderID,
 					ClientOrderID:        clientOrderID,
 					Type:                 orderType,
 					Side:                 orderSide,

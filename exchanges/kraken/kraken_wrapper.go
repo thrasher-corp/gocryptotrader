@@ -708,17 +708,19 @@ func (k *Kraken) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.I
 }
 
 // SubmitOrder submits a new order
-func (k *Kraken) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
-	var submitOrderResponse order.SubmitResponse
-	if err := s.Validate(); err != nil {
-		return submitOrderResponse, err
+func (k *Kraken) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
+	err := s.Validate()
+	if err != nil {
+		return nil, err
 	}
+
+	var orderID string
+	status := order.New
 	switch s.AssetType {
 	case asset.Spot:
 		if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			var resp string
 			s.Pair.Delimiter = "/" // required pair format: ISO 4217-A3
-			resp, err := k.wsAddOrder(&WsAddOrderRequest{
+			orderID, err = k.wsAddOrder(&WsAddOrderRequest{
 				OrderType: s.Type.Lower(),
 				OrderSide: s.Side.Lower(),
 				Pair:      s.Pair.String(),
@@ -726,13 +728,11 @@ func (k *Kraken) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submit
 				Volume:    s.Amount,
 			})
 			if err != nil {
-				return submitOrderResponse, err
+				return nil, err
 			}
-			submitOrderResponse.OrderID = resp
-			submitOrderResponse.IsOrderPlaced = true
 		} else {
 			var response AddOrderResponse
-			response, err := k.AddOrder(ctx,
+			response, err = k.AddOrder(ctx,
 				s.Pair,
 				s.Side.String(),
 				s.Type.String(),
@@ -742,18 +742,18 @@ func (k *Kraken) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submit
 				0,
 				&AddOrderOptions{})
 			if err != nil {
-				return submitOrderResponse, err
+				return nil, err
 			}
 			if len(response.TransactionIds) > 0 {
-				submitOrderResponse.OrderID = strings.Join(response.TransactionIds, ", ")
+				orderID = strings.Join(response.TransactionIds, ", ")
 			}
 		}
 		if s.Type == order.Market {
-			submitOrderResponse.FullyMatched = true
+			status = order.Filled
 		}
-		submitOrderResponse.IsOrderPlaced = true
 	case asset.Futures:
-		order, err := k.FuturesSendOrder(ctx,
+		var fOrder FuturesSendOrderData
+		fOrder, err = k.FuturesSendOrder(ctx,
 			s.Type,
 			s.Pair,
 			s.Side.Lower(),
@@ -766,22 +766,23 @@ func (k *Kraken) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submit
 			0,
 		)
 		if err != nil {
-			return submitOrderResponse, err
+			return nil, err
 		}
 
 		// check the status, anything that is not placed we error out
-		if order.SendStatus.Status != "placed" {
-			return submitOrderResponse,
-				fmt.Errorf("submit order failed: %s",
-					order.SendStatus.Status)
+		if fOrder.SendStatus.Status != "placed" {
+			return nil, fmt.Errorf("submit order failed: %s", fOrder.SendStatus.Status)
 		}
-
-		submitOrderResponse.OrderID = order.SendStatus.OrderID
-		submitOrderResponse.IsOrderPlaced = true
+		orderID = fOrder.SendStatus.OrderID
 	default:
-		return submitOrderResponse, fmt.Errorf("invalid assetType")
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, s.AssetType)
 	}
-	return submitOrderResponse, nil
+	resp, err := s.DeriveSubmitResponse(orderID)
+	if err != nil {
+		return nil, err
+	}
+	resp.Status = status
+	return resp, nil
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
@@ -798,12 +799,12 @@ func (k *Kraken) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	switch o.AssetType {
 	case asset.Spot:
 		if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			return k.wsCancelOrders([]string{o.ID})
+			return k.wsCancelOrders([]string{o.OrderID})
 		}
-		_, err := k.CancelExistingOrder(ctx, o.ID)
+		_, err := k.CancelExistingOrder(ctx, o.OrderID)
 		return err
 	case asset.Futures:
-		_, err := k.FuturesCancelOrder(ctx, o.ID, "")
+		_, err := k.FuturesCancelOrder(ctx, o.OrderID, "")
 		if err != nil {
 			return err
 		}
@@ -822,7 +823,7 @@ func (k *Kraken) CancelBatchOrders(ctx context.Context, orders []order.Cancel) (
 		if err := orders[i].Validate(orders[i].StandardCancel()); err != nil {
 			return order.CancelBatchResponse{}, err
 		}
-		ordersList[i] = orders[i].ID
+		ordersList[i] = orders[i].OrderID
 	}
 
 	err := k.wsCancelOrders(ordersList)
@@ -942,7 +943,7 @@ func (k *Kraken) GetOrderInfo(ctx context.Context, orderID string, pair currency
 
 		orderDetail = order.Detail{
 			Exchange:        k.Name,
-			ID:              orderID,
+			OrderID:         orderID,
 			Pair:            p,
 			Side:            side,
 			Type:            oType,
@@ -983,7 +984,7 @@ func (k *Kraken) GetOrderInfo(ctx context.Context, orderID string, pair currency
 				return orderDetail, err
 			}
 			orderDetail = order.Detail{
-				ID:       orderID,
+				OrderID:  orderID,
 				Price:    orderInfo.Fills[y].Price,
 				Amount:   orderInfo.Fills[y].Size,
 				Side:     oSide,
@@ -1138,7 +1139,7 @@ func (k *Kraken) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 				log.Errorf(log.ExchangeSys, "%s %v", k.Name, err)
 			}
 			orders = append(orders, order.Detail{
-				ID:              i,
+				OrderID:         i,
 				Amount:          resp.Open[i].Volume,
 				RemainingAmount: (resp.Open[i].Volume - resp.Open[i].VolumeExecuted),
 				ExecutedAmount:  resp.Open[i].VolumeExecuted,
@@ -1187,7 +1188,7 @@ func (k *Kraken) GetActiveOrders(ctx context.Context, req *order.GetOrdersReques
 					return orders, err
 				}
 				orders = append(orders, order.Detail{
-					ID:       activeOrders.OpenOrders[a].OrderID,
+					OrderID:  activeOrders.OpenOrders[a].OrderID,
 					Price:    activeOrders.OpenOrders[a].LimitPrice,
 					Amount:   activeOrders.OpenOrders[a].FilledSize,
 					Side:     oSide,
@@ -1270,7 +1271,7 @@ func (k *Kraken) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Ge
 				log.Errorf(log.ExchangeSys, "%s %v", k.Name, err)
 			}
 			detail := order.Detail{
-				ID:              i,
+				OrderID:         i,
 				Amount:          resp.Closed[i].Volume,
 				ExecutedAmount:  resp.Closed[i].VolumeExecuted,
 				RemainingAmount: resp.Closed[i].Volume - resp.Closed[i].VolumeExecuted,
@@ -1327,7 +1328,7 @@ func (k *Kraken) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Ge
 						ExecutedAmount: orderHistory.OrderEvents[o].Event.ExecutionEvent.Execution.TakerOrder.Filled,
 						RemainingAmount: orderHistory.OrderEvents[o].Event.ExecutionEvent.Execution.TakerOrder.Quantity -
 							orderHistory.OrderEvents[o].Event.ExecutionEvent.Execution.TakerOrder.Filled,
-						ID:        orderHistory.OrderEvents[o].Event.ExecutionEvent.Execution.TakerOrder.UID,
+						OrderID:   orderHistory.OrderEvents[o].Event.ExecutionEvent.Execution.TakerOrder.UID,
 						ClientID:  orderHistory.OrderEvents[o].Event.ExecutionEvent.Execution.TakerOrder.ClientID,
 						AssetType: asset.Futures,
 						Type:      oType,
@@ -1356,7 +1357,7 @@ func (k *Kraken) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Ge
 						ExecutedAmount: orderHistory.OrderEvents[o].Event.OrderRejected.RecentOrder.Filled,
 						RemainingAmount: orderHistory.OrderEvents[o].Event.OrderRejected.RecentOrder.Quantity -
 							orderHistory.OrderEvents[o].Event.OrderRejected.RecentOrder.Filled,
-						ID:        orderHistory.OrderEvents[o].Event.OrderRejected.RecentOrder.UID,
+						OrderID:   orderHistory.OrderEvents[o].Event.OrderRejected.RecentOrder.UID,
 						ClientID:  orderHistory.OrderEvents[o].Event.OrderRejected.RecentOrder.AccountID,
 						AssetType: asset.Futures,
 						Type:      oType,
@@ -1386,7 +1387,7 @@ func (k *Kraken) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Ge
 						ExecutedAmount: orderHistory.OrderEvents[o].Event.OrderCancelled.RecentOrder.Filled,
 						RemainingAmount: orderHistory.OrderEvents[o].Event.OrderCancelled.RecentOrder.Quantity -
 							orderHistory.OrderEvents[o].Event.OrderCancelled.RecentOrder.Filled,
-						ID:        orderHistory.OrderEvents[o].Event.OrderCancelled.RecentOrder.UID,
+						OrderID:   orderHistory.OrderEvents[o].Event.OrderCancelled.RecentOrder.UID,
 						ClientID:  orderHistory.OrderEvents[o].Event.OrderCancelled.RecentOrder.AccountID,
 						AssetType: asset.Futures,
 						Type:      oType,
@@ -1416,7 +1417,7 @@ func (k *Kraken) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Ge
 						ExecutedAmount: orderHistory.OrderEvents[o].Event.OrderPlaced.RecentOrder.Filled,
 						RemainingAmount: orderHistory.OrderEvents[o].Event.OrderPlaced.RecentOrder.Quantity -
 							orderHistory.OrderEvents[o].Event.OrderPlaced.RecentOrder.Filled,
-						ID:        orderHistory.OrderEvents[o].Event.OrderPlaced.RecentOrder.UID,
+						OrderID:   orderHistory.OrderEvents[o].Event.OrderPlaced.RecentOrder.UID,
 						ClientID:  orderHistory.OrderEvents[o].Event.OrderPlaced.RecentOrder.AccountID,
 						AssetType: asset.Futures,
 						Type:      oType,

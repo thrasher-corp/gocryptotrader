@@ -2,6 +2,7 @@ package order
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -16,7 +17,7 @@ import (
 
 var errValidationCheckFailed = errors.New("validation check failed")
 
-func TestValidate(t *testing.T) {
+func TestSubmit_Validate(t *testing.T) {
 	t.Parallel()
 	testPair := currency.NewPair(currency.BTC, currency.LTC)
 	tester := []struct {
@@ -29,22 +30,38 @@ func TestValidate(t *testing.T) {
 			Submit:      nil,
 		}, // nil struct
 		{
-			ExpectedErr: ErrPairIsEmpty,
+			ExpectedErr: errExchangeNameUnset,
 			Submit:      &Submit{},
+		}, // empty exchange
+		{
+			ExpectedErr: ErrPairIsEmpty,
+			Submit:      &Submit{Exchange: "test"},
 		}, // empty pair
 		{
 
 			ExpectedErr: ErrAssetNotSet,
-			Submit:      &Submit{Pair: testPair},
+			Submit:      &Submit{Exchange: "test", Pair: testPair},
 		}, // valid pair but invalid asset
 		{
-
+			ExpectedErr: asset.ErrNotSupported,
+			Submit: &Submit{
+				Exchange:  "test",
+				Pair:      testPair,
+				AssetType: 255,
+			},
+		}, // valid pair but invalid asset
+		{
 			ExpectedErr: ErrSideIsInvalid,
-			Submit:      &Submit{Pair: testPair, AssetType: asset.Spot},
+			Submit: &Submit{
+				Exchange:  "test",
+				Pair:      testPair,
+				AssetType: asset.Spot,
+			},
 		}, // valid pair but invalid order side
 		{
 			ExpectedErr: errTimeInForceConflict,
 			Submit: &Submit{
+				Exchange:          "test",
 				Pair:              testPair,
 				AssetType:         asset.Spot,
 				Side:              Ask,
@@ -55,61 +72,107 @@ func TestValidate(t *testing.T) {
 		},
 		{
 			ExpectedErr: ErrTypeIsInvalid,
-			Submit: &Submit{Pair: testPair,
+			Submit: &Submit{
+				Exchange:  "test",
+				Pair:      testPair,
 				Side:      Buy,
-				AssetType: asset.Spot},
+				AssetType: asset.Spot,
+			},
 		}, // valid pair and order side but invalid order type
 		{
 			ExpectedErr: ErrTypeIsInvalid,
-			Submit: &Submit{Pair: testPair,
+			Submit: &Submit{
+				Exchange:  "test",
+				Pair:      testPair,
 				Side:      Sell,
-				AssetType: asset.Spot},
+				AssetType: asset.Spot,
+			},
 		}, // valid pair and order side but invalid order type
 		{
 			ExpectedErr: ErrTypeIsInvalid,
-			Submit: &Submit{Pair: testPair,
+			Submit: &Submit{
+				Exchange:  "test",
+				Pair:      testPair,
 				Side:      Bid,
-				AssetType: asset.Spot},
+				AssetType: asset.Spot,
+			},
 		}, // valid pair and order side but invalid order type
 		{
 			ExpectedErr: ErrTypeIsInvalid,
-			Submit: &Submit{Pair: testPair,
+			Submit: &Submit{
+				Exchange:  "test",
+				Pair:      testPair,
 				Side:      Ask,
-				AssetType: asset.Spot},
+				AssetType: asset.Spot,
+			},
 		}, // valid pair and order side but invalid order type
 		{
 			ExpectedErr: ErrAmountIsInvalid,
-			Submit: &Submit{Pair: testPair,
+			Submit: &Submit{
+				Exchange:  "test",
+				Pair:      testPair,
 				Side:      Ask,
 				Type:      Market,
-				AssetType: asset.Spot},
+				AssetType: asset.Spot,
+			},
+		}, // valid pair, order side, type but invalid amount
+		{
+			ExpectedErr: ErrAmountIsInvalid,
+			Submit: &Submit{
+				Exchange:  "test",
+				Pair:      testPair,
+				Side:      Ask,
+				Type:      Market,
+				AssetType: asset.Spot,
+				Amount:    -1,
+			},
+		}, // valid pair, order side, type but invalid amount
+		{
+			ExpectedErr: ErrAmountIsInvalid,
+			Submit: &Submit{
+				Exchange:    "test",
+				Pair:        testPair,
+				Side:        Ask,
+				Type:        Market,
+				AssetType:   asset.Spot,
+				QuoteAmount: -1,
+			},
 		}, // valid pair, order side, type but invalid amount
 		{
 			ExpectedErr: ErrPriceMustBeSetIfLimitOrder,
-			Submit: &Submit{Pair: testPair,
+			Submit: &Submit{
+				Exchange:  "test",
+				Pair:      testPair,
 				Side:      Ask,
 				Type:      Limit,
 				Amount:    1,
-				AssetType: asset.Spot},
+				AssetType: asset.Spot,
+			},
 		}, // valid pair, order side, type, amount but invalid price
 		{
 			ExpectedErr: errValidationCheckFailed,
-			Submit: &Submit{Pair: testPair,
+			Submit: &Submit{
+				Exchange:  "test",
+				Pair:      testPair,
 				Side:      Ask,
 				Type:      Limit,
 				Amount:    1,
 				Price:     1000,
-				AssetType: asset.Spot},
+				AssetType: asset.Spot,
+			},
 			ValidOpts: validate.Check(func() error { return errValidationCheckFailed }),
 		}, // custom validation error check
 		{
 			ExpectedErr: nil,
-			Submit: &Submit{Pair: testPair,
+			Submit: &Submit{
+				Exchange:  "test",
+				Pair:      testPair,
 				Side:      Ask,
 				Type:      Limit,
 				Amount:    1,
 				Price:     1000,
-				AssetType: asset.Spot},
+				AssetType: asset.Spot,
+			},
 			ValidOpts: validate.Check(func() error { return nil }),
 		}, // valid order!
 	}
@@ -119,6 +182,66 @@ func TestValidate(t *testing.T) {
 		if !errors.Is(err, tester[x].ExpectedErr) {
 			t.Fatalf("Unexpected result. %d Got: %v, want: %v", x+1, err, tester[x].ExpectedErr)
 		}
+	}
+}
+
+func TestSubmit_DeriveSubmitResponse(t *testing.T) {
+	t.Parallel()
+	var s *Submit
+	_, err := s.DeriveSubmitResponse("")
+	if !errors.Is(err, errOrderSubmitIsNil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errOrderSubmitIsNil)
+	}
+
+	s = &Submit{}
+	_, err = s.DeriveSubmitResponse("")
+	if !errors.Is(err, ErrOrderIDNotSet) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderIDNotSet)
+	}
+
+	resp, err := s.DeriveSubmitResponse("1337")
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if resp.OrderID != "1337" {
+		t.Fatal("unexpected value")
+	}
+
+	if resp.Status != New {
+		t.Fatal("unexpected value")
+	}
+
+	if resp.Date.IsZero() {
+		t.Fatal("unexpected value")
+	}
+
+	if resp.LastUpdated.IsZero() {
+		t.Fatal("unexpected value")
+	}
+}
+
+func TestSubmitResponse_DeriveDetail(t *testing.T) {
+	t.Parallel()
+	var s *SubmitResponse
+	_, err := s.DeriveDetail(uuid.Nil)
+	if !errors.Is(err, errOrderSubmitResponseIsNil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errOrderSubmitResponseIsNil)
+	}
+
+	id, err := uuid.NewV4()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	s = &SubmitResponse{}
+	deets, err := s.DeriveDetail(id)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if deets.InternalOrderID != id {
+		t.Fatal("unexpected value")
 	}
 }
 
@@ -842,8 +965,8 @@ func BenchmarkStringToOrderStatus(b *testing.B) {
 	}
 }
 
-func TestUpdateOrderFromModify(t *testing.T) {
-	od := Detail{ID: "1"}
+func TestUpdateOrderFromModifyResponse(t *testing.T) {
+	od := Detail{OrderID: "1"}
 	updated := time.Now()
 
 	pair, err := currency.NewPairFromString("BTCUSD")
@@ -868,9 +991,7 @@ func TestUpdateOrderFromModify(t *testing.T) {
 	}
 
 	od.UpdateOrderFromModifyResponse(&om)
-	if od.InternalOrderID == "1" {
-		t.Error("Should not be able to update the internal order ID")
-	}
+
 	if !od.ImmediateOrCancel {
 		t.Error("Failed to update")
 	}
@@ -892,7 +1013,7 @@ func TestUpdateOrderFromModify(t *testing.T) {
 	if od.Exchange != "" {
 		t.Error("Should not be able to update exchange via modify")
 	}
-	if od.ID != "1" {
+	if od.OrderID != "1" {
 		t.Error("Failed to update")
 	}
 	if od.Type != 1 {
@@ -920,7 +1041,7 @@ func TestUpdateOrderFromModify(t *testing.T) {
 
 func TestUpdateOrderFromDetail(t *testing.T) {
 	var leet = "1337"
-	od := Detail{Exchange: "test"}
+
 	updated := time.Now()
 
 	pair, err := currency.NewPairFromString("BTCUSD")
@@ -928,7 +1049,18 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	om := Detail{
+	id, err := uuid.NewV4()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var od *Detail
+	err = od.UpdateOrderFromDetail(nil)
+	if !errors.Is(err, ErrOrderDetailIsNil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderDetailIsNil)
+	}
+
+	om := &Detail{
 		ImmediateOrCancel: true,
 		HiddenOrder:       true,
 		FillOrKill:        true,
@@ -944,8 +1076,8 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 		RemainingAmount:   1,
 		Fee:               1,
 		Exchange:          "1",
-		InternalOrderID:   "1",
-		ID:                "1",
+		InternalOrderID:   id,
+		OrderID:           "1",
 		AccountID:         "1",
 		ClientID:          "1",
 		WalletAddress:     "1",
@@ -958,8 +1090,18 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 		Trades:            []TradeHistory{},
 	}
 
-	od.UpdateOrderFromDetail(&om)
-	if od.InternalOrderID != "1" {
+	od = &Detail{Exchange: "test"}
+
+	err = od.UpdateOrderFromDetail(nil)
+	if !errors.Is(err, ErrOrderDetailIsNil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderDetailIsNil)
+	}
+
+	err = od.UpdateOrderFromDetail(om)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+	if od.InternalOrderID != id {
 		t.Error("Failed to initialize the internal order ID")
 	}
 	if !od.ImmediateOrCancel {
@@ -1007,7 +1149,7 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 	if od.Exchange != "test" {
 		t.Error("Should not be able to update exchange via modify")
 	}
-	if od.ID != "1" {
+	if od.OrderID != "1" {
 		t.Error("Failed to update")
 	}
 	if od.ClientID != "1" {
@@ -1039,7 +1181,10 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 	}
 
 	om.Trades = append(om.Trades, TradeHistory{TID: "1"}, TradeHistory{TID: "2"})
-	od.UpdateOrderFromDetail(&om)
+	err = od.UpdateOrderFromDetail(om)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(od.Trades) != 2 {
 		t.Error("Failed to add trades")
 	}
@@ -1052,7 +1197,10 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 	om.Trades[0].Side = UnknownSide
 	om.Trades[0].Type = UnknownType
 	om.Trades[0].Amount = 1337
-	od.UpdateOrderFromDetail(&om)
+	err = od.UpdateOrderFromDetail(om)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if od.Trades[0].Exchange == leet {
 		t.Error("Should not be able to update exchange from update")
 	}
@@ -1081,12 +1229,20 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 		t.Error("Failed to update trades")
 	}
 
-	om = Detail{
-		InternalOrderID: "2",
+	id, err = uuid.NewV4()
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	od.UpdateOrderFromDetail(&om)
-	if od.InternalOrderID == "2" {
+	om = &Detail{
+		InternalOrderID: id,
+	}
+
+	err = od.UpdateOrderFromDetail(om)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if od.InternalOrderID == id {
 		t.Error("Should not be able to update the internal order ID after initialization")
 	}
 }
@@ -1140,7 +1296,7 @@ func TestValidationOnOrderTypes(t *testing.T) {
 	})) != nil {
 		t.Fatal("should return nil")
 	}
-	cancelMe.ID = "1337"
+	cancelMe.OrderID = "1337"
 	if cancelMe.Validate(cancelMe.StandardCancel()) != nil {
 		t.Fatal("should return nil")
 	}
@@ -1211,11 +1367,16 @@ func TestValidationOnOrderTypes(t *testing.T) {
 }
 
 func TestMatchFilter(t *testing.T) {
+	t.Parallel()
+	id, err := uuid.NewV4()
+	if err != nil {
+		t.Fatal(err)
+	}
 	filters := map[int]Filter{
 		0:  {},
 		1:  {Exchange: "Binance"},
-		2:  {InternalOrderID: "1234"},
-		3:  {ID: "2222"},
+		2:  {InternalOrderID: id},
+		3:  {OrderID: "2222"},
 		4:  {ClientOrderID: "3333"},
 		5:  {ClientID: "4444"},
 		6:  {WalletAddress: "5555"},
@@ -1235,8 +1396,8 @@ func TestMatchFilter(t *testing.T) {
 	orders := map[int]Detail{
 		0:  {},
 		1:  {Exchange: "Binance"},
-		2:  {InternalOrderID: "1234"},
-		3:  {ID: "2222"},
+		2:  {InternalOrderID: id},
+		3:  {OrderID: "2222"},
 		4:  {ClientOrderID: "3333"},
 		5:  {ClientID: "4444"},
 		6:  {WalletAddress: "5555"},
@@ -1448,22 +1609,59 @@ func BenchmarkIsInactive(b *testing.B) {
 	}
 }
 
+func TestIsOrderPlaced(t *testing.T) {
+	t.Parallel()
+	statusTests := map[int]struct {
+		o      Detail
+		expRes bool
+	}{
+		0:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: AnyStatus}, false},
+		1:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: New}, true},
+		2:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Active}, true},
+		3:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: PartiallyCancelled}, true},
+		4:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: PartiallyFilled}, true},
+		5:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Filled}, true},
+		6:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Cancelled}, true},
+		7:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: PendingCancel}, true},
+		8:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: InsufficientBalance}, false},
+		9:  {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: MarketUnavailable}, false},
+		10: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Rejected}, false},
+		11: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Expired}, true},
+		12: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Hidden}, true},
+		13: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: UnknownStatus}, false},
+		14: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Open}, true},
+		15: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: AutoDeleverage}, true},
+		16: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Closed}, true},
+		17: {Detail{Amount: 1.0, ExecutedAmount: 0.0, Status: Pending}, true},
+	}
+	// specific tests
+	for num, tt := range statusTests {
+		tt := tt
+		t.Run(fmt.Sprintf("TEST CASE: %d", num), func(t *testing.T) {
+			t.Parallel()
+			if tt.o.WasOrderPlaced() != tt.expRes {
+				t.Errorf("statusTests[%v] failed", num)
+			}
+		})
+	}
+}
+
 func TestGenerateInternalOrderID(t *testing.T) {
 	id, err := uuid.NewV4()
 	if err != nil {
 		t.Errorf("unable to create uuid: %s", err)
 	}
 	od := Detail{
-		InternalOrderID: id.String(),
+		InternalOrderID: id,
 	}
 	od.GenerateInternalOrderID()
-	if od.InternalOrderID != id.String() {
+	if od.InternalOrderID != id {
 		t.Error("Should not be able to generate a new internal order ID")
 	}
 
 	od = Detail{}
 	od.GenerateInternalOrderID()
-	if od.InternalOrderID == "" {
+	if od.InternalOrderID.IsNil() {
 		t.Error("unable to generate internal order ID")
 	}
 }
@@ -1558,7 +1756,7 @@ func TestDeriveModify(t *testing.T) {
 
 	o = &Detail{
 		Exchange:      "wow",
-		ID:            "wow2",
+		OrderID:       "wow2",
 		ClientOrderID: "wow3",
 		Type:          Market,
 		Side:          Long,
@@ -1576,7 +1774,7 @@ func TestDeriveModify(t *testing.T) {
 	}
 
 	if mod.Exchange != "wow" ||
-		mod.ID != "wow2" ||
+		mod.OrderID != "wow2" ||
 		mod.ClientOrderID != "wow3" ||
 		mod.Type != Market ||
 		mod.Side != Long ||
@@ -1597,7 +1795,7 @@ func TestDeriveModifyResponse(t *testing.T) {
 
 	mod = &Modify{
 		Exchange:      "wow",
-		ID:            "wow2",
+		OrderID:       "wow2",
 		ClientOrderID: "wow3",
 		Type:          Market,
 		Side:          Long,
@@ -1636,7 +1834,7 @@ func TestDeriveCancel(t *testing.T) {
 
 	o = &Detail{
 		Exchange:      "wow",
-		ID:            "wow1",
+		OrderID:       "wow1",
 		AccountID:     "wow2",
 		ClientID:      "wow3",
 		ClientOrderID: "wow4",
@@ -1651,7 +1849,7 @@ func TestDeriveCancel(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 	if cancel.Exchange != "wow" ||
-		cancel.ID != "wow1" ||
+		cancel.OrderID != "wow1" ||
 		cancel.AccountID != "wow2" ||
 		cancel.ClientID != "wow3" ||
 		cancel.ClientOrderID != "wow4" ||

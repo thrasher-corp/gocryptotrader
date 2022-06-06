@@ -240,11 +240,14 @@ func (m *websocketRoutineManager) websocketDataHandler(exchName string, data int
 			}
 			m.printOrderSummary(d, false)
 		} else {
-			od, err := m.orderManager.GetByExchangeAndID(d.Exchange, d.ID)
+			od, err := m.orderManager.GetByExchangeAndID(d.Exchange, d.OrderID)
 			if err != nil {
 				return err
 			}
-			od.UpdateOrderFromDetail(d)
+			err = od.UpdateOrderFromDetail(d)
+			if err != nil {
+				return err
+			}
 
 			err = m.orderManager.UpdateExistingOrder(od)
 			if err != nil {
@@ -310,7 +313,7 @@ func (m *websocketRoutineManager) printOrderSummary(o *order.Detail, isUpdate bo
 		o.Status,
 		o.Type,
 		o.Side,
-		o.ID,
+		o.OrderID,
 		o.ClientOrderID,
 		o.Price,
 		o.Amount,
