@@ -50,7 +50,7 @@ func negateLocalOffset(t time.Time) string {
 	return t.In(loc).Format(common.SimpleTimeFormat)
 }
 
-func negateLocalOffsetTs(t time.Time) *timestamppb.Timestamp {
+func negateLocalOffsetTS(t time.Time) *timestamppb.Timestamp {
 	_, offset := time.Now().Zone()
 	return timestamppb.New(t.Add(time.Duration(-offset) * time.Second))
 }
