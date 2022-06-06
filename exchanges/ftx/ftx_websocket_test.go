@@ -101,7 +101,7 @@ func TestFTX_wsHandleData_Details(t *testing.T) {
 	}
 	// "reduceOnly" and "liquidation" do not have corresponding fields in
 	// order.Detail.
-	if x.ID != "69350095302" ||
+	if x.OrderID != "69350095302" ||
 		x.ClientOrderID != "192ab87ae99970b79f624ef8bd783351" ||
 		x.Pair.Base.Item.Symbol != "BTC" ||
 		x.Pair.Quote.Item.Symbol != "USDT" ||

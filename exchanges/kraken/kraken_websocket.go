@@ -339,7 +339,7 @@ func (k *Kraken) wsHandleData(respRaw []byte) error {
 
 				k.Websocket.DataHandler <- &order.Detail{
 					Exchange: k.Name,
-					ID:       status.TransactionID,
+					OrderID:  status.TransactionID,
 					Status:   order.New,
 				}
 
@@ -526,7 +526,7 @@ func (k *Kraken) wsProcessOwnTrades(ownOrders interface{}) error {
 				}
 				k.Websocket.DataHandler <- &order.Detail{
 					Exchange: k.Name,
-					ID:       val.OrderTransactionID,
+					OrderID:  val.OrderTransactionID,
 					Trades:   []order.TradeHistory{trade},
 				}
 			}
@@ -602,7 +602,7 @@ func (k *Kraken) wsProcessOpenOrders(ownOrders interface{}) error {
 						RemainingAmount: val.Volume - val.ExecutedVolume,
 						Fee:             val.Fee,
 						Exchange:        k.Name,
-						ID:              key,
+						OrderID:         key,
 						Type:            oType,
 						Side:            oSide,
 						Status:          oStatus,
@@ -613,7 +613,7 @@ func (k *Kraken) wsProcessOpenOrders(ownOrders interface{}) error {
 				} else {
 					k.Websocket.DataHandler <- &order.Detail{
 						Exchange: k.Name,
-						ID:       key,
+						OrderID:  key,
 						Status:   oStatus,
 					}
 				}

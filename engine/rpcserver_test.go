@@ -143,7 +143,7 @@ func (f fExchange) GetFuturesPositions(_ context.Context, a asset.Item, cp curre
 			Fee:       1.337,
 			FeeAsset:  currency.Code{},
 			Exchange:  f.GetName(),
-			ID:        "test",
+			OrderID:   "test",
 			Side:      order.Long,
 			Status:    order.Open,
 			AssetType: a,
@@ -1827,20 +1827,14 @@ func TestGetManagedOrders(t *testing.T) {
 	}
 
 	o := order.Detail{
-		Price:           100000,
-		Amount:          0.002,
-		Exchange:        "Binance",
-		InternalOrderID: "",
-		ID:              "",
-		ClientOrderID:   "",
-		AccountID:       "",
-		ClientID:        "",
-		WalletAddress:   "",
-		Type:            order.Limit,
-		Side:            order.Sell,
-		Status:          order.New,
-		AssetType:       asset.Spot,
-		Pair:            currency.NewPair(currency.BTC, currency.USDT),
+		Price:     100000,
+		Amount:    0.002,
+		Exchange:  "Binance",
+		Type:      order.Limit,
+		Side:      order.Sell,
+		Status:    order.New,
+		AssetType: asset.Spot,
+		Pair:      currency.NewPair(currency.BTC, currency.USDT),
 	}
 	err = om.Add(&o)
 	if err != nil {

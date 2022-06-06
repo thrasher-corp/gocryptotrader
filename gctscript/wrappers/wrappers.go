@@ -6,7 +6,7 @@ import (
 )
 
 // GetWrapper returns the instance of each wrapper to use
-func GetWrapper() modules.GCT {
+func GetWrapper() modules.GCTExchange {
 	if validator.IsTestExecution.Load() == true {
 		return validator.Wrapper{}
 	}
