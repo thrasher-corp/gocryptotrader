@@ -148,3 +148,17 @@ type Update struct {
 	// only exchange utilising this field.
 	MaxDepth int
 }
+
+// Movement defines orderbook traversal details from either hitting the bid or
+// lifting the ask.
+type Movement struct {
+	// NominalPercentage (real-world) defines how far in percentage terms is
+	// your average order price away from the reference price.
+	NominalPercentage float64
+	// ImpactPercentage defines how far the price has moved on the order book
+	// from the reference price.
+	ImpactPercentage float64
+	// SlippageCost is the cost of the slippage. For Ask returns quotation, for
+	// bid returns base.
+	SlippageCost float64
+}
