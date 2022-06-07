@@ -366,33 +366,27 @@ func (d *Depth) GetSlippageByBase(base float64, bid, midPrice bool) (nominal, im
 	return d.asks.getSlippageByBase(d.bids.getHeadPrice(), base)
 }
 
-// GetNominalSlippageByQuote derives your slippage from the initial price to the
+// GetMovementByQuotation derives your slippage from the initial price to the
 // potential deployment on book cost using the quote amount. The midPrice is
 // a reference value for initial price; if false it will default to best ask/bid.
-func (d *Depth) GetSlippageByQuote(quote float64, bid, midPrice bool) (nominal, impact, cost float64, err error) {
+func (d *Depth) GetMovementByQuotation(quote float64, midPrice bool) (*Movement, error) {
 	d.m.Lock()
 	defer d.m.Unlock()
-	if bid {
-		if midPrice {
-			return d.bids.getSlippageByQuote(d.getMidPrice(), quote)
-		}
-		return d.bids.getSlippageByQuote(d.bids.getHeadPrice(), quote)
-	}
 	if midPrice {
-		return d.asks.getSlippageByQuote(d.getMidPrice(), quote)
+		return d.asks.getMovementByQuoteAmount(quote, d.getMidPriceNoLock())
 	}
-	return d.asks.getSlippageByQuote(d.bids.getHeadPrice(), quote)
+	return d.asks.getMovementByQuoteAmount(quote, d.asks.getHeadPrice())
 }
 
 // GetMidPrice returns the mid price between the ask and bid spread
 func (d *Depth) GetMidPrice() float64 {
 	d.m.Lock()
 	defer d.m.Unlock()
-	return d.getMidPrice()
+	return d.getMidPriceNoLock()
 }
 
-// getMidPrice is an unprotected helper that gets mid price
-func (d *Depth) getMidPrice() float64 {
+// getMidPriceNoLock is an unprotected helper that gets mid price
+func (d *Depth) getMidPriceNoLock() float64 {
 	return (d.bids.getHeadPrice() + d.asks.getHeadPrice()) / 2
 }
 
