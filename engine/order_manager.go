@@ -219,7 +219,7 @@ func (m *OrderManager) Cancel(ctx context.Context, cancel *order.Cancel) error {
 
 // GetFuturesPositionsForExchange returns futures positions stored within
 // the order manager's futures position tracker that match the provided params
-func (m *OrderManager) GetFuturesPositionsForExchange(exch string, item asset.Item, pair currency.Pair) ([]order.PositionStats, error) {
+func (m *OrderManager) GetFuturesPositionsForExchange(exch string, item asset.Item, pair currency.Pair) ([]order.Position, error) {
 	if m == nil {
 		return nil, fmt.Errorf("order manager %w", ErrNilSubsystem)
 	}
@@ -599,21 +599,21 @@ func (m *OrderManager) processOrders() {
 		return
 	}
 	var wg sync.WaitGroup
-	for i := range exchanges {
-		if !exchanges[i].IsRESTAuthenticationSupported() {
+	for x := range exchanges {
+		if !exchanges[x].IsRESTAuthenticationSupported() {
 			continue
 		}
 		log.Debugf(log.OrderMgr,
 			"Order manager: Processing orders for exchange %v.",
-			exchanges[i].GetName())
+			exchanges[x].GetName())
 
-		enabledAssets := exchanges[i].GetAssetTypes(true)
+		enabledAssets := exchanges[x].GetAssetTypes(true)
 		for y := range enabledAssets {
-			pairs, err := exchanges[i].GetEnabledPairs(enabledAssets[y])
+			pairs, err := exchanges[x].GetEnabledPairs(enabledAssets[y])
 			if err != nil {
 				log.Errorf(log.OrderMgr,
 					"Order manager: Unable to get enabled pairs for %s and asset type %s: %s",
-					exchanges[i].GetName(),
+					exchanges[x].GetName(),
 					enabledAssets[y],
 					err)
 				continue
@@ -623,17 +623,17 @@ func (m *OrderManager) processOrders() {
 				if m.verbose {
 					log.Debugf(log.OrderMgr,
 						"Order manager: No pairs enabled for %s and asset type %s, skipping...",
-						exchanges[i].GetName(),
+						exchanges[x].GetName(),
 						enabledAssets[y])
 				}
 				continue
 			}
 
-			filter := &order.Filter{Exchange: exchanges[i].GetName()}
+			filter := &order.Filter{Exchange: exchanges[x].GetName()}
 			orders := m.orderStore.getActiveOrders(filter)
 			order.FilterOrdersByPairs(&orders, pairs)
 
-			result, err := exchanges[i].GetActiveOrders(context.TODO(), &order.GetOrdersRequest{
+			result, err := exchanges[x].GetActiveOrders(context.TODO(), &order.GetOrdersRequest{
 				Side:      order.AnySide,
 				Type:      order.AnyType,
 				Pairs:     pairs,
@@ -642,34 +642,48 @@ func (m *OrderManager) processOrders() {
 			if err != nil {
 				log.Errorf(log.OrderMgr,
 					"Order manager: Unable to get active orders for %s and asset type %s: %s",
-					exchanges[i].GetName(),
+					exchanges[x].GetName(),
 					enabledAssets[y],
 					err)
 				continue
 			}
-			if len(orders) == 0 && len(result) == 0 {
-				continue
-			}
-
-			for z := range result {
-				upsertResponse, err := m.UpsertOrder(&result[z])
-				if err != nil {
-					log.Error(log.OrderMgr, err)
-				} else {
-					for i := range orders {
-						if orders[i].InternalOrderID != upsertResponse.OrderDetails.InternalOrderID {
-							continue
+			if len(orders) > 0 && len(result) > 0 {
+				for z := range result {
+					upsertResponse, err := m.UpsertOrder(&result[z])
+					if err != nil {
+						log.Error(log.OrderMgr, err)
+					} else {
+						for i := range orders {
+							if orders[i].InternalOrderID != upsertResponse.OrderDetails.InternalOrderID {
+								continue
+							}
+							orders[i] = orders[len(orders)-1]
+							orders = orders[:len(orders)-1]
 						}
-						orders[i] = orders[len(orders)-1]
-						orders = orders[:len(orders)-1]
 					}
 				}
 			}
-			if !exchanges[i].GetBase().GetSupportedFeatures().RESTCapabilities.GetOrder {
+			if !exchanges[x].GetBase().GetSupportedFeatures().RESTCapabilities.GetOrder {
 				continue
 			}
 			wg.Add(1)
-			go m.processMatchingOrders(exchanges[i], orders, &wg)
+			go m.processMatchingOrders(exchanges[x], orders, &wg)
+
+			if enabledAssets[y].IsFutures() {
+				openPositions, err := exchanges[x].GetOpenPositions(context.TODO(), enabledAssets[y], time.Now().Add(-time.Hour*24*365), time.Now())
+				if err != nil {
+					log.Error(log.OrderMgr, err)
+				} else {
+					for z := range openPositions {
+						for i := range openPositions[z].Orders {
+							err = m.orderStore.futuresPositionController.TrackNewOrder(&openPositions[z].Orders[i])
+							if err != nil {
+								log.Error(log.OrderMgr, err)
+							}
+						}
+					}
+				}
+			}
 		}
 	}
 	wg.Wait()

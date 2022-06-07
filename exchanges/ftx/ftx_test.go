@@ -2250,6 +2250,17 @@ func TestAnalysePosition(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	t.Log(acc.TotalPositionSize)
 	t.Logf("%+v", datarooni)
 	t.Logf("%+v", offlinerooo)
+	t.Log(10406.25 * (1 - 0.04 + 808.73/10406.25))
+	t.Log(10406.25 * (1 - 0.04 + 808.73/10406.25))
+	t.Log(10406.25 * (1 + 0.04 - 808.73/10406.25))
+	t.Log(underlying.Last * (1 - acc.MaintenanceMarginRequirement + acc.Collateral/acc.TotalPositionSize))
+	t.Log(datarooni.EstimatedLiquidationPrice.Div(decimal.NewFromFloat(underlying.Last * (1 - acc.MaintenanceMarginRequirement + acc.Collateral/acc.TotalPositionSize))))
+}
+
+func TestButts(t *testing.T) {
+	acc, _ := f.GetAccountInfo(context.Background())
+	t.Logf("%+v", acc)
 }

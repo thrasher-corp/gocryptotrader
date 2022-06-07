@@ -123,13 +123,13 @@ func TestTrackNewOrder(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Error(err)
 	}
-	if !f.entryPrice.Equal(decimal.NewFromInt(1337)) {
-		t.Errorf("expected 1337, received %v", f.entryPrice)
+	if !f.openingPrice.Equal(decimal.NewFromInt(1337)) {
+		t.Errorf("expected 1337, received %v", f.openingPrice)
 	}
 	if len(f.longPositions) != 1 {
 		t.Error("expected a long")
 	}
-	if f.currentDirection != Long {
+	if f.latestDirection != Long {
 		t.Error("expected recognition that its long")
 	}
 	if f.exposure.InexactFloat64() != od.Amount {
@@ -147,7 +147,7 @@ func TestTrackNewOrder(t *testing.T) {
 	if len(f.shortPositions) != 1 {
 		t.Error("expected a short")
 	}
-	if f.currentDirection != Long {
+	if f.latestDirection != Long {
 		t.Error("expected recognition that its long")
 	}
 	if f.exposure.InexactFloat64() != 0.6 {
@@ -163,7 +163,7 @@ func TestTrackNewOrder(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Error(err)
 	}
-	if f.currentDirection != Short {
+	if f.latestDirection != Short {
 		t.Error("expected recognition that its short")
 	}
 	if !f.exposure.Equal(decimal.NewFromFloat(0.2)) {
@@ -178,8 +178,8 @@ func TestTrackNewOrder(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Error(err)
 	}
-	if f.currentDirection != ClosePosition {
-		t.Errorf("expected recognition that its unknown, received '%v'", f.currentDirection)
+	if f.latestDirection != UnknownSide {
+		t.Errorf("expected recognition that its unknown, received '%v'", f.latestDirection)
 	}
 	if f.status != Closed {
 		t.Errorf("expected recognition that its closed, received '%v'", f.status)
@@ -189,8 +189,8 @@ func TestTrackNewOrder(t *testing.T) {
 	if !errors.Is(err, ErrPositionClosed) {
 		t.Error(err)
 	}
-	if f.currentDirection != ClosePosition {
-		t.Errorf("expected recognition that its unknown, received '%v'", f.currentDirection)
+	if f.latestDirection != UnknownSide {
+		t.Errorf("expected recognition that its unknown, received '%v'", f.latestDirection)
 	}
 	if f.status != Closed {
 		t.Errorf("expected recognition that its closed, received '%v'", f.status)

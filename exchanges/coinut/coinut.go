@@ -236,8 +236,8 @@ func (c *COINUT) GetPositionHistory(ctx context.Context, secType string, start, 
 	return result, c.SendHTTPRequest(ctx, exchange.RestSpot, coinutPositionHistory, params, true, &result)
 }
 
-// GetOpenPositions returns all your current opened positions
-func (c *COINUT) GetOpenPositions(ctx context.Context, instrumentID int) ([]OpenPosition, error) {
+// GetOpenPositionsForInstrument returns all your current opened positions
+func (c *COINUT) GetOpenPositionsForInstrument(ctx context.Context, instrumentID int) ([]OpenPosition, error) {
 	type Response struct {
 		Positions []OpenPosition `json:"positions"`
 	}

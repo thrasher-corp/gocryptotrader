@@ -1145,6 +1145,24 @@ message CollateralUsedBreakdown {
   string used_in_spot_margin = 8;
 }
 
+message OpenPositionsRequest {
+  string exchange = 1;
+  string asset = 2;
+  string start_date = 3;
+  string end_date = 4;
+}
+
+message OpenPositionsResponse {
+  int64 total_orders = 1;
+  string sub_account = 2;
+  string total_realised_pnl = 3;
+  string total_unrealised_pnl = 4;
+  string total_pnl = 5;
+  repeated FuturePosition positions = 6;
+  FuturesPositionStats position_stats = 7;
+  FundingData funding_data = 8;
+}
+
 message ShutdownRequest {}
 
 message ShutdownResponse {}

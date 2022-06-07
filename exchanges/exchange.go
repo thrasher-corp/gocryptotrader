@@ -1333,3 +1333,8 @@ func (b *Base) GetPositionSummary(ctx context.Context, request *order.PositionSu
 func (b *Base) GetFundingDetails(ctx context.Context, request *order.FundingRateDetailsRequest) (*order.FundingRateDetails, error) {
 	return nil, common.ErrNotYetImplemented
 }
+
+// GetOpenPositions returns all open futures positions
+func (b *Base) GetOpenPositions(ctx context.Context, a asset.Item, startDate, endDate time.Time) ([]order.OpenPositionDetails, error) {
+	return nil, common.ErrNotYetImplemented
+}

@@ -4291,7 +4291,6 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 			response.PositionStats = &gctrpc.FuturesPositionStats{
 				MaintenanceMarginRequirement: stats.MaintenanceMarginRequirement.String(),
 				InitialMarginRequirement:     stats.InitialMarginRequirement.String(),
-				EstimatedLiquidationPrice:    stats.EstimatedLiquidationPrice.String(),
 				CollateralUsed:               stats.CollateralUsed.String(),
 				MarkPrice:                    stats.MarkPrice.String(),
 				CurrentSize:                  stats.CurrentSize.String(),
@@ -4301,6 +4300,9 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 				MarginFraction:               stats.MarginFraction.String(),
 				FreeCollateral:               stats.FreeCollateral.String(),
 				TotalCollateral:              stats.TotalCollateral.String(),
+			}
+			if !stats.EstimatedLiquidationPrice.IsZero() {
+				response.PositionStats.EstimatedLiquidationPrice = stats.EstimatedLiquidationPrice.String()
 			}
 		}
 		if r.GetFundingData {
@@ -4330,6 +4332,10 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 			response.FundingData = &gctrpc.FundingData{
 				FundingRates:   funding,
 				FundingRateSum: fundingDetails.Sum.String(),
+			}
+			err = s.OrderManager.orderStore.futuresPositionController.TrackFundingDetails(fundingDetails)
+			if err != nil {
+				return nil, err
 			}
 		}
 		if !r.Verbose {

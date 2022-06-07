@@ -79,9 +79,7 @@ type IBotExchange interface {
 	AccountManagement
 	OrderManagement
 	CurrencyStateManagement
-	order.PNLCalculation
-	order.CollateralManagement
-	order.PositionAnalysis
+	FuturesManagement
 }
 
 // OrderManagement defines functionality for order management
@@ -127,4 +125,14 @@ type FunctionalityChecker interface {
 	SupportsAutoPairUpdates() bool
 	IsWebsocketAuthenticationSupported() bool
 	IsRESTAuthenticationSupported() bool
+}
+
+// FuturesManagement manages futures orders, pnl and collateral calculations
+type FuturesManagement interface {
+	GetPositionSummary(context.Context, *order.PositionSummaryRequest) (*order.PositionSummary, error)
+	GetFundingDetails(context.Context, *order.FundingRateDetailsRequest) (*order.FundingRateDetails, error)
+	CalculatePNL(context.Context, *order.PNLCalculatorRequest) (*order.PNLResult, error)
+	ScaleCollateral(ctx context.Context, calculator *order.CollateralCalculator) (*order.CollateralByCurrency, error)
+	CalculateTotalCollateral(context.Context, *order.TotalCollateralCalculator) (*order.TotalCollateralResponse, error)
+	GetOpenPositions(ctx context.Context, item asset.Item, startDate, endDate time.Time) ([]order.OpenPositionDetails, error)
 }

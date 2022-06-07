@@ -49,11 +49,6 @@ var (
 	errCannotTrackInvalidParams       = errors.New("parameters set incorrectly, cannot track")
 )
 
-type PositionAnalysis interface {
-	GetPositionSummary(context.Context, *PositionSummaryRequest) (*PositionSummary, error)
-	GetFundingDetails(context.Context, *FundingRateDetailsRequest) (*FundingRateDetails, error)
-}
-
 // PNLCalculation is an interface to allow multiple
 // ways of calculating PNL to be used for futures positions
 type PNLCalculation interface {
@@ -180,27 +175,34 @@ type MultiPositionTrackerSetup struct {
 // completely within this position tracker, however, can still provide a good
 // timeline of performance until the position is closed
 type PositionTracker struct {
-	m                     sync.Mutex
-	exchange              string
-	asset                 asset.Item
-	contractPair          currency.Pair
-	underlyingAsset       currency.Code
+
+	useExchangePNLCalculation bool
+
 	collateralCurrency    currency.Code
-	exposure              decimal.Decimal
-	currentDirection      Side
-	openingDirection      Side
-	status                Status
-	unrealisedPNL         decimal.Decimal
-	realisedPNL           decimal.Decimal
-	shortPositions        []Detail
-	longPositions         []Detail
-	pnlHistory            []PNLResult
-	entryPrice            decimal.Decimal
-	closingPrice          decimal.Decimal
 	offlinePNLCalculation bool
 	PNLCalculation
-	latestPrice               decimal.Decimal
-	useExchangePNLCalculation bool
+
+	exchange           string
+	asset              asset.Item
+	contractPair       currency.Pair
+	underlying         currency.Code
+	exposure           decimal.Decimal
+	openingDirection   Side
+	openingPrice       decimal.Decimal
+	openingSize        decimal.Decimal
+	openingDate        time.Time
+	latestDirection    Side
+	latestPrice        decimal.Decimal
+	lastUpdated        time.Time
+	unrealisedPNL      decimal.Decimal
+	realisedPNL        decimal.Decimal
+	status             Status
+	closingPrice       decimal.Decimal
+	closingDate        time.Time
+	shortPositions     []Detail
+	longPositions      []Detail
+	pnlHistory         []PNLResult
+	fundingRateDetails []FundingRate
 }
 
 // PositionTrackerSetup contains all required fields to
@@ -284,39 +286,27 @@ type PNLResult struct {
 	IsOrder bool
 }
 
-// PositionStats is a basic holder for position information
-type PositionStats struct {
+// Position is a basic holder for position information
+type Position struct {
 	Exchange           string
 	Asset              asset.Item
 	Pair               currency.Pair
 	Underlying         currency.Code
 	CollateralCurrency currency.Code
-	Orders             []Detail
-	RealisedPNL        decimal.Decimal
-	UnrealisedPNL      decimal.Decimal
-	Exposure           decimal.Decimal
-	LatestDirection    Side
-	Status             Status
-	OpeningDirection   Side
-	OpeningPrice       decimal.Decimal
-	LatestPrice        decimal.Decimal
-	PNLHistory         []PNLResult
-}
-
-// PositionSummary returns basic details on an open position
-type PositionSummary struct {
-	MaintenanceMarginRequirement decimal.Decimal
-	InitialMarginRequirement     decimal.Decimal
-	EstimatedLiquidationPrice    decimal.Decimal
-	CollateralUsed               decimal.Decimal
-	MarkPrice                    decimal.Decimal
-	CurrentSize                  decimal.Decimal
-	BreakEvenPrice               decimal.Decimal
-	AverageOpenPrice             decimal.Decimal
-	RecentPNL                    decimal.Decimal
-	MarginFraction               decimal.Decimal
-	FreeCollateral               decimal.Decimal
-	TotalCollateral              decimal.Decimal
+	RealisedPNL      decimal.Decimal
+	UnrealisedPNL    decimal.Decimal
+	Status           Status
+	OpeningDate      time.Time
+	OpeningPrice     decimal.Decimal
+	OpeningSize      decimal.Decimal
+	OpeningDirection Side
+	LatestPrice      decimal.Decimal
+	LatestSize       decimal.Decimal
+	LatestDirection  Side
+	CloseDate        time.Time
+	Orders           []Detail
+	PNLHistory       []PNLResult
+	FundingRates     []FundingRate
 }
 
 // PositionSummaryRequest is used to request a summary of an open position
@@ -341,28 +331,37 @@ type PositionSummaryRequest struct {
 	TotalOpenPositionNotional decimal.Decimal
 }
 
+// PositionSummary returns basic details on an open position
+type PositionSummary struct {
+	MaintenanceMarginRequirement decimal.Decimal
+	InitialMarginRequirement     decimal.Decimal
+	EstimatedLiquidationPrice    decimal.Decimal
+	CollateralUsed               decimal.Decimal
+	MarkPrice                    decimal.Decimal
+	CurrentSize                  decimal.Decimal
+	BreakEvenPrice               decimal.Decimal
+	AverageOpenPrice             decimal.Decimal
+	RecentPNL                    decimal.Decimal
+	MarginFraction               decimal.Decimal
+	FreeCollateral               decimal.Decimal
+	TotalCollateral              decimal.Decimal
+}
+
 // FundingRateDetailsRequest is used to request funding rate details for a position
 type FundingRateDetailsRequest struct {
 	Asset     asset.Item
 	Pair      currency.Pair
 	StartDate time.Time
 	EndDate   time.Time
-	// offline calculation requirements below
-	CalculateOffline bool
-	Rates []FundingRateData
-}
-
-type FundingRateData struct {
-	Time         time.Time
-	Rate         decimal.Decimal
-	PositionSize decimal.Decimal
-	MarkPrice    decimal.Decimal
-	IndexPrice   decimal.Decimal
-	TWAP         decimal.Decimal
 }
 
 // FundingRateDetails is used to return funding rate details for a position
 type FundingRateDetails struct {
+	Exchange     string
+	Asset        asset.Item
+	Pair         currency.Pair
+	StartDate    time.Time
+	EndDate      time.Time
 	FundingRates []FundingRate
 	Sum          decimal.Decimal
 }
@@ -372,4 +371,13 @@ type FundingRate struct {
 	Rate    decimal.Decimal
 	Payment decimal.Decimal
 	Time    time.Time
+}
+
+// OpenPositionDetails are used to track open positions
+// in the order manager
+type OpenPositionDetails struct {
+	Exchange string
+	Asset    asset.Item
+	Pair     currency.Pair
+	Orders   []Detail
 }

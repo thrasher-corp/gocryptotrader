@@ -22,19 +22,58 @@ func SetupPositionController() *PositionController {
 	}
 }
 
+func (c *PositionController) TrackFundingDetails(d *FundingRateDetails) error {
+	if c == nil {
+		return fmt.Errorf("position controller %w", common.ErrNilPointer)
+	}
+	if d == nil {
+		return fmt.Errorf("%w funding rate details", common.ErrNilPointer)
+	}
+	if !d.Asset.IsFutures() {
+		return fmt.Errorf("%v %v %v %w", d.Exchange, d.Asset, d.Pair, ErrNotFuturesAsset)
+	}
+	c.m.Lock()
+	defer c.m.Unlock()
+	exchM, ok := c.positionTrackerControllers[strings.ToLower(d.Exchange)]
+	if !ok {
+		exchM = make(map[asset.Item]map[currency.Pair]*MultiPositionTracker)
+		c.positionTrackerControllers[strings.ToLower(d.Exchange)] = exchM
+	}
+	itemM, ok := exchM[d.Asset]
+	if !ok {
+		itemM = make(map[currency.Pair]*MultiPositionTracker)
+		exchM[d.Asset] = itemM
+	}
+	var err error
+	multiPositionTracker, ok := itemM[d.Pair]
+	if !ok {
+		multiPositionTracker, err = SetupMultiPositionTracker(&MultiPositionTrackerSetup{
+			Exchange:   strings.ToLower(d.Exchange),
+			Asset:      d.Asset,
+			Pair:       d.Pair,
+			Underlying: d.Pair.Base,
+		})
+		if err != nil {
+			return err
+		}
+		itemM[d.Pair] = multiPositionTracker
+	}
+	return multiPositionTracker.TrackingFundingDetails(d)
+}
+
 // TrackNewOrder sets up the maps to then create a
 // multi position tracker which funnels down into the
 // position tracker, to then track an order's pnl
 func (c *PositionController) TrackNewOrder(d *Detail) error {
+	if c == nil {
+		return fmt.Errorf("position controller %w", common.ErrNilPointer)
+	}
 	if d == nil {
 		return errNilOrder
 	}
 	if !d.AssetType.IsFutures() {
 		return fmt.Errorf("order %v %v %v %v %w",
 			d.Exchange, d.AssetType, d.Pair, d.OrderID, ErrNotFuturesAsset)
-	}
-	if c == nil {
-		return fmt.Errorf("position controller %w", common.ErrNilPointer)
 	}
 	c.m.Lock()
 	defer c.m.Unlock()
@@ -105,7 +144,7 @@ func (c *PositionController) SetCollateralCurrency(exch string, item asset.Item,
 
 // GetPositionsForExchange returns all positions for an
 // exchange, asset pair that is stored in the position controller
-func (c *PositionController) GetPositionsForExchange(exch string, item asset.Item, pair currency.Pair) ([]PositionStats, error) {
+func (c *PositionController) GetPositionsForExchange(exch string, item asset.Item, pair currency.Pair) ([]Position, error) {
 	if c == nil {
 		return nil, fmt.Errorf("position controller %w", common.ErrNilPointer)
 	}
@@ -128,6 +167,38 @@ func (c *PositionController) GetPositionsForExchange(exch string, item asset.Ite
 	}
 
 	return multiPositionTracker.GetPositions(), nil
+}
+
+// GetOpenPositions returns all open positions with optional filters
+func (c *PositionController) GetOpenPositions(exch string, item asset.Item, pair currency.Pair) ([]Position, error) {
+	if c == nil {
+		return nil, fmt.Errorf("position controller %w", common.ErrNilPointer)
+	}
+	c.m.Lock()
+	defer c.m.Unlock()
+	var openPositions []Position
+	for exchStr, exchM := range c.positionTrackerControllers {
+		if exch != "" && exch != exchStr {
+			continue
+		}
+		for a, itemM := range exchM {
+			if item != asset.Empty && item != a {
+				continue
+			}
+			for cp, multiPositionTracker := range itemM {
+				if !pair.IsEmpty() && !pair.Equal(cp) {
+					continue
+				}
+				positions := multiPositionTracker.GetPositions()
+				for i := range positions {
+					if positions[i].Status != Closed {
+						openPositions = append(openPositions, positions[i])
+					}
+				}
+			}
+		}
+	}
+	return openPositions, nil
 }
 
 // UpdateOpenPositionUnrealisedPNL finds an open position from
@@ -315,17 +386,43 @@ func (c *PositionController) ClearPositionsForExchange(exch string, item asset.I
 }
 
 // GetPositions returns all positions
-func (m *MultiPositionTracker) GetPositions() []PositionStats {
-	if m == nil {
+func (e *MultiPositionTracker) GetPositions() []Position {
+	if e == nil {
 		return nil
 	}
-	m.m.Lock()
-	defer m.m.Unlock()
-	resp := make([]PositionStats, len(m.positions))
-	for i := range m.positions {
-		resp[i] = m.positions[i].GetStats()
+	e.m.Lock()
+	defer e.m.Unlock()
+	resp := make([]Position, len(e.positions))
+	for i := range e.positions {
+		resp[i] = e.positions[i].GetStats()
 	}
 	return resp
+}
+
+var errNoPositionsFoundForTimeframe = errors.New("no positions found for timeframe")
+
+func (e *MultiPositionTracker) TrackingFundingDetails(d *FundingRateDetails) error {
+	if e == nil {
+		return fmt.Errorf("multi-position tracker %w", common.ErrNilPointer)
+	}
+	if d == nil {
+		return ErrSubmissionIsNil
+	}
+	e.m.Lock()
+	defer e.m.Unlock()
+	if d.Asset != e.asset {
+		return errAssetMismatch
+	}
+	if len(e.positions) == 0 {
+		return fmt.Errorf("%w %v %v %v", ErrPositionsNotLoadedForPair, d.Exchange, d.Asset, d.Pair)
+	}
+	for i := range e.positions {
+		if e.positions[i].pnlHistory[0].Time.Before(d.StartDate) || e.positions[i].pnlHistory[0].Time.After(d.EndDate) {
+			continue
+		}
+		return e.positions[i].TrackingFundingDetails(d)
+	}
+	return fmt.Errorf("%w %v %v %v %v-%v", errNoPositionsFoundForTimeframe, d.Exchange, d.Asset, d.Pair, d.StartDate, d.EndDate)
 }
 
 // TrackNewOrder upserts an order to the tracker and updates position
@@ -399,32 +496,34 @@ func (m *MultiPositionTracker) Liquidate(price decimal.Decimal, t time.Time) err
 }
 
 // GetStats returns a summary of a future position
-func (p *PositionTracker) GetStats() PositionStats {
+func (p *PositionTracker) GetStats() Position {
 	if p == nil {
-		return PositionStats{}
+		return Position{}
 	}
 	p.m.Lock()
 	defer p.m.Unlock()
 	var orders []Detail
 	orders = append(orders, p.longPositions...)
 	orders = append(orders, p.shortPositions...)
-
-	return PositionStats{
-		Exchange:           p.exchange,
-		Asset:              p.asset,
-		Pair:               p.contractPair,
-		Underlying:         p.underlyingAsset,
-		CollateralCurrency: p.collateralCurrency,
-		Status:             p.status,
-		Orders:             orders,
-		RealisedPNL:        p.realisedPNL,
-		UnrealisedPNL:      p.unrealisedPNL,
-		LatestDirection:    p.currentDirection,
-		OpeningDirection:   p.openingDirection,
-		OpeningPrice:       p.entryPrice,
-		LatestPrice:        p.latestPrice,
-		PNLHistory:         p.pnlHistory,
-		Exposure:           p.exposure,
+	return Position{
+		Exchange:         p.exchange,
+		Asset:            p.asset,
+		Pair:             p.contractPair,
+		Underlying:       p.underlying,
+		RealisedPNL:      p.realisedPNL,
+		UnrealisedPNL:    p.unrealisedPNL,
+		Status:           p.status,
+		OpeningDate:      p.openingDate,
+		OpeningPrice:     p.openingPrice,
+		OpeningSize:      p.openingSize,
+		OpeningDirection: p.openingDirection,
+		LatestPrice:      p.latestPrice,
+		LatestSize:       p.exposure,
+		LatestDirection:  p.latestDirection,
+		CloseDate:        p.closingDate,
+		Orders:           orders,
+		PNLHistory:       p.pnlHistory,
+		FundingRates:     p.fundingRateDetails,
 	}
 }
 
@@ -445,11 +544,11 @@ func (p *PositionTracker) TrackPNLByTime(t time.Time, currentPrice float64) erro
 		Price:  price,
 		Status: p.status,
 	}
-	if p.currentDirection.IsLong() {
-		diff := price.Sub(p.entryPrice)
+	if p.latestDirection.IsLong() {
+		diff := price.Sub(p.openingPrice)
 		result.UnrealisedPNL = p.exposure.Mul(diff)
-	} else if p.currentDirection.IsShort() {
-		diff := p.entryPrice.Sub(price)
+	} else if p.latestDirection.IsShort() {
+		diff := p.openingPrice.Sub(price)
 		result.UnrealisedPNL = p.exposure.Mul(diff)
 	}
 	if len(p.pnlHistory) > 0 {
@@ -517,6 +616,47 @@ func (p *PositionTracker) GetLatestPNLSnapshot() (PNLResult, error) {
 	return p.pnlHistory[len(p.pnlHistory)-1], nil
 }
 
+var errFundingRateOutOfRange = fmt.Errorf("funding rate out of range")
+var errDoesntMatch = errors.New("doesn't match")
+
+func (p *PositionTracker) TrackingFundingDetails(d *FundingRateDetails) error {
+	if p == nil {
+		return fmt.Errorf("position tracker %w", common.ErrNilPointer)
+	}
+	if d == nil {
+		return fmt.Errorf("funding rate details %w", common.ErrNilPointer)
+	}
+	p.m.Lock()
+	defer p.m.Unlock()
+	if p.exchange != d.Exchange ||
+		p.asset != d.Asset ||
+		!p.contractPair.Equal(d.Pair) {
+		return errDoesntMatch
+	}
+	if len(p.pnlHistory) == 0 {
+		return fmt.Errorf("%w %v %v %v %v-%v", errNoPositionsFoundForTimeframe, p.exchange, p.asset, p.contractPair, d.StartDate, d.EndDate)
+	}
+	if p.pnlHistory[0].Time.Before(d.StartDate) || p.pnlHistory[len(p.pnlHistory)-1].Time.After(d.EndDate) {
+		return fmt.Errorf("%w", errFundingRateOutOfRange)
+	}
+	if p.fundingRateDetails == nil {
+		p.fundingRateDetails = d.FundingRates
+		return nil
+	}
+	for i := range p.fundingRateDetails {
+		for j := range d.FundingRates {
+			if !p.fundingRateDetails[i].Time.Equal(d.FundingRates[j].Time) {
+				continue
+			}
+			p.fundingRateDetails[i] = d.FundingRates[j]
+			d.FundingRates = append(d.FundingRates[:j], d.FundingRates[j+1:]...)
+			break
+		}
+	}
+	p.fundingRateDetails = append(p.fundingRateDetails, d.FundingRates...)
+	return nil
+}
+
 // TrackNewOrder knows how things are going for a given
 // futures contract
 func (p *PositionTracker) TrackNewOrder(d *Detail, isInitialOrder bool) error {
@@ -558,7 +698,9 @@ func (p *PositionTracker) TrackNewOrder(d *Detail, isInitialOrder bool) error {
 			errTimeUnset, d.Exchange, d.AssetType, d.Pair, d.OrderID)
 	}
 	if len(p.shortPositions) == 0 && len(p.longPositions) == 0 {
-		p.entryPrice = decimal.NewFromFloat(d.Price)
+		p.openingPrice = decimal.NewFromFloat(d.Price)
+		p.openingSize = decimal.NewFromFloat(d.Amount)
+		p.openingDate = d.Date
 	}
 
 	var updated bool
@@ -573,6 +715,7 @@ func (p *PositionTracker) TrackNewOrder(d *Detail, isInitialOrder bool) error {
 		}
 		p.shortPositions[i] = ord
 		updated = true
+		p.lastUpdated = time.Now()
 		break
 	}
 	for i := range p.longPositions {
@@ -586,6 +729,7 @@ func (p *PositionTracker) TrackNewOrder(d *Detail, isInitialOrder bool) error {
 		}
 		p.longPositions[i] = ord
 		updated = true
+		p.lastUpdated = time.Now()
 		break
 	}
 
@@ -597,7 +741,6 @@ func (p *PositionTracker) TrackNewOrder(d *Detail, isInitialOrder bool) error {
 		}
 	}
 	var shortSide, longSide decimal.Decimal
-
 	for i := range p.shortPositions {
 		shortSide = shortSide.Add(decimal.NewFromFloat(p.shortPositions[i].Amount))
 	}
@@ -607,7 +750,7 @@ func (p *PositionTracker) TrackNewOrder(d *Detail, isInitialOrder bool) error {
 
 	if isInitialOrder {
 		p.openingDirection = d.Side
-		p.currentDirection = d.Side
+		p.latestDirection = d.Side
 	}
 
 	var result *PNLResult
@@ -617,17 +760,17 @@ func (p *PositionTracker) TrackNewOrder(d *Detail, isInitialOrder bool) error {
 	amount = decimal.NewFromFloat(d.Amount)
 	leverage = decimal.NewFromFloat(d.Leverage)
 	cal := &PNLCalculatorRequest{
-		Underlying:       p.underlyingAsset,
+		Underlying:       p.underlying,
 		Asset:            p.asset,
 		OrderDirection:   d.Side,
 		Leverage:         leverage,
-		EntryPrice:       p.entryPrice,
+		EntryPrice:       p.openingPrice,
 		Amount:           amount,
 		CurrentPrice:     price,
 		Pair:             p.contractPair,
 		Time:             d.Date,
 		OpeningDirection: p.openingDirection,
-		CurrentDirection: p.currentDirection,
+		CurrentDirection: p.latestDirection,
 		PNLHistory:       p.pnlHistory,
 		Exposure:         p.exposure,
 		Fee:              decimal.NewFromFloat(d.Fee),
@@ -690,6 +833,8 @@ func (p *PositionTracker) TrackNewOrder(d *Detail, isInitialOrder bool) error {
 		}
 		result.UnrealisedPNL = decimal.Zero
 		result.RealisedPNLBeforeFees = decimal.Zero
+		p.closingPrice = result.Price
+		p.closingDate = result.Time
 		p.status = Closed
 	}
 	result.Status = p.status
@@ -701,14 +846,14 @@ func (p *PositionTracker) TrackNewOrder(d *Detail, isInitialOrder bool) error {
 
 	switch {
 	case longSide.GreaterThan(shortSide):
-		p.currentDirection = Long
+		p.latestDirection = Long
 	case shortSide.GreaterThan(longSide):
-		p.currentDirection = Short
+		p.latestDirection = Short
 	default:
 		p.currentDirection = ClosePosition
 	}
 
-	if p.currentDirection.IsLong() {
+	if p.latestDirection.IsLong() {
 		p.exposure = longSide.Sub(shortSide)
 	} else {
 		p.exposure = shortSide.Sub(longSide)
@@ -723,10 +868,10 @@ func (p *PositionTracker) TrackNewOrder(d *Detail, isInitialOrder bool) error {
 		p.pnlHistory[len(p.pnlHistory)-1].UnrealisedPNL = p.unrealisedPNL
 		p.pnlHistory[len(p.pnlHistory)-1].Direction = p.currentDirection
 	} else if p.exposure.IsNegative() {
-		if p.currentDirection.IsLong() {
-			p.currentDirection = Short
+		if p.latestDirection.IsLong() {
+			p.latestDirection = Short
 		} else {
-			p.currentDirection = Long
+			p.latestDirection = Long
 		}
 		p.exposure = p.exposure.Abs()
 	}

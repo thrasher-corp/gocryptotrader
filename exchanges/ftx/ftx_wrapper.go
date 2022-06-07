@@ -1019,75 +1019,82 @@ func (f *FTX) GetActiveOrders(ctx context.Context, getOrdersRequest *order.GetOr
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (f *FTX) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
-	if err := getOrdersRequest.Validate(); err != nil {
+func (f *FTX) GetOrderHistory(ctx context.Context, request *order.GetOrdersRequest) ([]order.Detail, error) {
+	if err := request.Validate(); err != nil {
 		return nil, err
 	}
 	var resp []order.Detail
-	for x := range getOrdersRequest.Pairs {
-		var tempResp order.Detail
-		assetType, err := f.GetPairAssetType(getOrdersRequest.Pairs[x])
-		if err != nil {
-			return resp, err
-		}
-
-		formattedPair, err := f.FormatExchangeCurrency(getOrdersRequest.Pairs[x],
-			assetType)
+	for x := range request.Pairs {
+		var d order.Detail
+		a, err := f.GetPairAssetType(request.Pairs[x])
 		if err != nil {
 			return nil, err
 		}
 
-		orderData, err := f.FetchOrderHistory(ctx,
-			formattedPair.String(),
-			getOrdersRequest.StartTime,
-			getOrdersRequest.EndTime,
+		fp, err := f.FormatExchangeCurrency(request.Pairs[x],
+			a)
+		if err != nil {
+			return nil, err
+		}
+
+		history, err := f.FetchOrderHistory(ctx,
+			fp.String(),
+			request.StartTime,
+			request.EndTime,
 			"")
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
-		for y := range orderData {
+		for y := range history {
 			var p currency.Pair
-			p, err = currency.NewPairFromString(orderData[y].Market)
+			p, err = currency.NewPairFromString(history[y].Market)
 			if err != nil {
 				return nil, err
 			}
-			tempResp.OrderID = strconv.FormatInt(orderData[y].ID, 10)
-			tempResp.Amount = orderData[y].Size
-			tempResp.AssetType = assetType
-			tempResp.AverageExecutedPrice = orderData[y].AvgFillPrice
-			tempResp.ClientOrderID = orderData[y].ClientID
-			tempResp.Date = orderData[y].CreatedAt
-			tempResp.Exchange = f.Name
-			tempResp.ExecutedAmount = orderData[y].Size - orderData[y].RemainingSize
-			tempResp.Pair = p
-			tempResp.Price = orderData[y].Price
-			tempResp.RemainingAmount = orderData[y].RemainingSize
+			d.OrderID = strconv.FormatInt(history[y].ID, 10)
+			d.Amount = history[y].Size
+			d.AssetType = a
+			d.AverageExecutedPrice = history[y].AvgFillPrice
+			d.ClientOrderID = history[y].ClientID
+			d.Date = history[y].CreatedAt
+			d.Exchange = f.Name
+			d.ExecutedAmount = history[y].Size - history[y].RemainingSize
+			d.Pair = p
+			d.Price = history[y].Price
+			d.RemainingAmount = history[y].RemainingSize
 			var orderVars OrderVars
 			orderVars, err = f.compatibleOrderVars(ctx,
-				orderData[y].Side,
-				orderData[y].Status,
-				orderData[y].OrderType,
-				orderData[y].Size,
-				orderData[y].FilledSize,
-				orderData[y].AvgFillPrice)
+				history[y].Side,
+				history[y].Status,
+				history[y].OrderType,
+				history[y].Size,
+				history[y].FilledSize,
+				history[y].AvgFillPrice)
 			if err != nil {
 				return resp, err
 			}
-			tempResp.Status = orderVars.Status
-			tempResp.Side = orderVars.Side
-			tempResp.Type = orderVars.OrderType
-			tempResp.Fee = orderVars.Fee
-			resp = append(resp, tempResp)
+			d.Status = orderVars.Status
+			d.Side = orderVars.Side
+			d.Type = orderVars.OrderType
+			d.Fee = orderVars.Fee
+			resp = append(resp, d)
+		}
+		var side, t string
+		if request.Side != order.UnknownSide {
+			side = request.Side.Lower()
+		}
+		if request.Type != order.UnknownType {
+			t = request.Type.Lower()
 		}
 		triggerOrderData, err := f.GetTriggerOrderHistory(ctx,
-			formattedPair.String(),
-			getOrdersRequest.StartTime,
-			getOrdersRequest.EndTime,
-			strings.ToLower(getOrdersRequest.Side.String()),
-			strings.ToLower(getOrdersRequest.Type.String()),
+			fp.String(),
+			request.StartTime,
+			request.EndTime,
+			side,
+			t,
 			"")
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		for z := range triggerOrderData {
 			var p currency.Pair
@@ -1095,17 +1102,18 @@ func (f *FTX) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetOr
 			if err != nil {
 				return nil, err
 			}
-			tempResp.OrderID = strconv.FormatInt(triggerOrderData[z].ID, 10)
-			tempResp.Amount = triggerOrderData[z].Size
-			tempResp.AssetType = assetType
-			tempResp.Date = triggerOrderData[z].CreatedAt
-			tempResp.Exchange = f.Name
-			tempResp.ExecutedAmount = triggerOrderData[z].FilledSize
-			tempResp.Pair = p
-			tempResp.Price = triggerOrderData[z].AvgFillPrice
-			tempResp.RemainingAmount = triggerOrderData[z].Size - triggerOrderData[z].FilledSize
-			tempResp.TriggerPrice = triggerOrderData[z].TriggerPrice
-			orderVars, err := f.compatibleOrderVars(ctx,
+			d.OrderID = strconv.FormatInt(triggerOrderData[z].ID, 10)
+			d.Amount = triggerOrderData[z].Size
+			d.AssetType = a
+			d.Date = triggerOrderData[z].CreatedAt
+			d.Exchange = f.Name
+			d.ExecutedAmount = triggerOrderData[z].FilledSize
+			d.Pair = p
+			d.Price = triggerOrderData[z].AvgFillPrice
+			d.RemainingAmount = triggerOrderData[z].Size - triggerOrderData[z].FilledSize
+			d.TriggerPrice = triggerOrderData[z].TriggerPrice
+			var orderVars OrderVars
+			orderVars, err = f.compatibleOrderVars(ctx,
 				triggerOrderData[z].Side,
 				triggerOrderData[z].Status,
 				triggerOrderData[z].OrderType,
@@ -1113,14 +1121,14 @@ func (f *FTX) GetOrderHistory(ctx context.Context, getOrdersRequest *order.GetOr
 				triggerOrderData[z].FilledSize,
 				triggerOrderData[z].AvgFillPrice)
 			if err != nil {
-				return resp, err
+				return nil, err
 			}
-			tempResp.Status = orderVars.Status
-			tempResp.Side = orderVars.Side
-			tempResp.Type = orderVars.OrderType
-			tempResp.Fee = orderVars.Fee
-			tempResp.InferCostsAndTimes()
-			resp = append(resp, tempResp)
+			d.Status = orderVars.Status
+			d.Side = orderVars.Side
+			d.Type = orderVars.OrderType
+			d.Fee = orderVars.Fee
+			d.InferCostsAndTimes()
+			resp = append(resp, d)
 		}
 	}
 	return resp, nil
@@ -1712,9 +1720,9 @@ func (f *FTX) GetPositionSummary(ctx context.Context, request *order.PositionSum
 		if !request.OpeningSize.Equal(request.CurrentSize) {
 			breakEventPrice = request.OpeningPrice.Mul(request.OpeningSize).Sub(request.CurrentSize.Mul(request.CurrentPrice)).Div(request.OpeningSize.Sub(request.CurrentSize))
 		}
-		var estimatedLiquidationPrice, maintenanceMarginRequirement, positionMaintenanceMarginFraction decimal.Decimal
-		currSizePNL := request.CurrentSize
-		openSizePNL := request.OpeningSize
+		var maintenanceMarginRequirement, positionMaintenanceMarginFraction decimal.Decimal
+		currSize := request.CurrentSize
+		openSize := request.OpeningSize
 		if request.Leverage.LessThanOrEqual(decimal.NewFromFloat(20)) {
 			positionMaintenanceMarginFraction = decimal.NewFromFloat(0.03)
 		} else {
@@ -1725,29 +1733,24 @@ func (f *FTX) GetPositionSummary(ctx context.Context, request *order.PositionSum
 		baseIMF := one.Div(decimal.NewFromInt(20))
 		maintenanceMarginRequirement = decimal.Max(positionMaintenanceMarginFraction, decimal.NewFromFloat(0.6).Mul(baseIMF))
 
-		switch {
-		case request.Direction.IsLong():
-			estimatedLiquidationPrice = request.CurrentPrice.Mul(one.Add(maintenanceMarginRequirement).Sub(request.TotalCollateral)).Div(request.CurrentPrice.Mul(request.CurrentSize))
-		case request.Direction.IsShort():
-			estimatedLiquidationPrice = request.CurrentPrice.Mul(one.Sub(maintenanceMarginRequirement).Add(request.TotalCollateral.Div(request.TotalAccountValue)))
-			currSizePNL = currSizePNL.Neg()
-			openSizePNL = openSizePNL.Neg()
-		default:
-			return nil, fmt.Errorf("%w '%s' invalid direction", asset.ErrNotSupported, request.Direction)
+		if request.Direction.IsShort() {
+			currSize = currSize.Neg()
+			openSize = openSize.Neg()
 		}
-
-		//omf := decimal.Min(request.TotalCollateral, request.TotalAccountValue).Div(request.TotalOpenPositionNotional)
 		imf := one.Div(request.Leverage)
+		// estimated liquidation price is not included in offline summary
+		// the formula does not match the API output - despite the example matching
+		// see https://help.ftx.com/hc/en-us/articles/360027668712-Liquidations vs
+		// https://docs.ftx.com/#get-account-information
 		return &order.PositionSummary{
 			MaintenanceMarginRequirement: maintenanceMarginRequirement,
 			InitialMarginRequirement:     imf,
-			EstimatedLiquidationPrice:    estimatedLiquidationPrice,
 			CollateralUsed:               request.CollateralUsed,
 			MarkPrice:                    request.CurrentPrice,
 			CurrentSize:                  request.CurrentSize.Abs(),
 			BreakEvenPrice:               breakEventPrice,
 			AverageOpenPrice:             request.OpeningPrice,
-			RecentPNL:                    request.CurrentPrice.Mul(currSizePNL).Sub(request.OpeningPrice.Mul(openSizePNL)),
+			RecentPNL:                    request.CurrentPrice.Mul(currSize).Sub(request.OpeningPrice.Mul(openSize)),
 			MarginFraction:               marginFraction,
 			FreeCollateral:               request.FreeCollateral,
 			TotalCollateral:              request.TotalCollateral,
@@ -1789,18 +1792,12 @@ func (f *FTX) GetFundingDetails(ctx context.Context, request *order.FundingRateD
 	if !request.Asset.IsFutures() {
 		return nil, fmt.Errorf("%w '%s' is not a futures asset", asset.ErrNotSupported, request.Asset)
 	}
-	var response order.FundingRateDetails
-	if request.CalculateOffline {
-		for i := range request.Rates {
-			payment := request.Rates[i].PositionSize.Mul(request.Rates[i].TWAP).Div(decimal.NewFromInt(24))
-			response.FundingRates = append(response.FundingRates, order.FundingRate{
-				Rate:    request.Rates[i].Rate,
-				Payment: payment,
-				Time:    request.Rates[i].Time,
-			})
-			response.Sum = response.Sum.Add(payment)
-		}
-		return &response, nil
+	response := order.FundingRateDetails{
+		Exchange:  f.Name,
+		Asset:     request.Asset,
+		Pair:      request.Pair,
+		StartDate: request.StartDate,
+		EndDate:   request.EndDate,
 	}
 	fPair, err := f.FormatSymbol(request.Pair, request.Asset)
 	if err != nil {
@@ -1822,4 +1819,56 @@ func (f *FTX) GetFundingDetails(ctx context.Context, request *order.FundingRateD
 		return response.FundingRates[i].Time.Before(response.FundingRates[j].Time)
 	})
 	return &response, nil
+}
+
+func (f *FTX) GetOpenPositions(ctx context.Context, item asset.Item, startDate, endDate time.Time) ([]order.OpenPositionDetails, error) {
+	if !item.IsFutures() {
+		return nil, fmt.Errorf("%w '%s' is not a futures asset", asset.ErrNotSupported, item)
+	}
+	positions, err := f.GetPositions(ctx, false)
+	if err != nil {
+		return nil, err
+	}
+	var pairs []currency.Pair
+	for x := range positions {
+		pairs = append(pairs, positions[x].Future)
+	}
+	orders, err := f.GetOrderHistory(ctx, &order.GetOrdersRequest{
+		StartTime: startDate,
+		EndTime:   endDate,
+		AssetType: item,
+		Pairs:     pairs,
+	})
+	if err != nil {
+		return nil, err
+	}
+	sort.Slice(orders, func(i, j int) bool {
+		return orders[i].Date.Before(orders[j].Date)
+	})
+	var response []order.OpenPositionDetails
+	for x := range positions {
+		openPositionDetails := order.OpenPositionDetails{
+			Exchange: f.Name,
+			Asset:    item,
+			Pair:     positions[x].Future,
+		}
+		for z := range orders {
+			if !positions[x].Future.Equal(orders[z].Pair) {
+				continue
+			}
+			if len(openPositionDetails.Orders) == 0 && orders[z].Amount != positions[x].OpenSize {
+				// this is not the opening order for tracking open positions
+				continue
+			}
+			if orders[z].Date.Before(startDate) || orders[z].Date.After(endDate) {
+				continue
+			}
+			openPositionDetails.Orders = append(openPositionDetails.Orders, orders[z])
+		}
+		if len(openPositionDetails.Orders) == 0 {
+			return nil, fmt.Errorf("%w open order found for %v but no orders between %v-%v", order.ErrPositionNotFound, positions[x].Future, startDate, endDate)
+		}
+		response = append(response, openPositionDetails)
+	}
+	return response, nil
 }
