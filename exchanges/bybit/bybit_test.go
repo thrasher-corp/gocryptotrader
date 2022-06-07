@@ -2928,3 +2928,54 @@ func TestCancelAllActiveUSDCOrder(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestGetActiveUSDCOrder(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	pair, err := currency.NewPairFromString("BTCPERP")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = b.GetActiveUSDCOrder(context.Background(), pair, "PERPETUAL", "", "", "", "", "", 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetUSDCOrderHistory(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	pair, err := currency.NewPairFromString("BTCPERP")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = b.GetUSDCOrderHistory(context.Background(), pair, "PERPETUAL", "", "", "", "", "", 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetUSDCTradeHistory(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	pair, err := currency.NewPairFromString("BTCPERP")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = b.GetUSDCTradeHistory(context.Background(), pair, "PERPETUAL", "", "", "", "", 0, time.Now().Add(-time.Hour))
+	if err != nil {
+		t.Error(err)
+	}
+}

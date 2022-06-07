@@ -800,3 +800,58 @@ type USDCCreateOrderResp struct {
 	OrderType   string  `json:"orderType"`
 	Side        string  `json:"side"`
 }
+
+// USDCOrder store order data
+type USDCOrder struct {
+	ID              string  `json:"orderId"`
+	OrderLinkId     string  `json:"orderLinkId"`
+	Symbol          string  `json:"symbol"`
+	OrderType       string  `json:"orderType"`
+	Side            string  `json:"side"`
+	Qty             float64 `json:"qty,string"`
+	Price           float64 `json:"price,string"`
+	TimeInForce     string  `json:"timeInForce"`
+	TotalOrderValue float64 `json:"cumExecValue,string"`
+	TotalFilledQty  float64 `json:"cumExecQty,string"`
+	TotalFee        float64 `json:"cumExecFee,string"`
+	InitialMargin   string  `json:"orderIM"`
+	OrderStatus     string  `json:"orderStatus"`
+	TakeProfit      float64 `json:"takeProfit,string"`
+	StopLoss        float64 `json:"stopLoss,string"`
+	TPTriggerBy     string  `json:"tpTriggerBy"`
+	SLTriggerBy     string  `json:"slTriggerBy"`
+	LastExecPrice   float64 `json:"lastExecPrice"`
+	BasePrice       string  `json:"basePrice"`
+	TriggerPrice    float64 `json:"triggerPrice,string"`
+	TriggerBy       string  `json:"triggerBy"`
+	ReduceOnly      bool    `json:"reduceOnly"`
+	StopOrderType   string  `json:"stopOrderType"`
+	CloseOnTrigger  string  `json:"closeOnTrigger"`
+	CreatedAt       string  `json:"createdAt"`
+}
+
+// USDCOrderHistory stores order history
+type USDCOrderHistory struct {
+	USDCOrder
+	LeavesValue float64 `json:"leavesValue,string"` //Est. order value of unfilled orders
+	CashFlow    string  `json:"cashFlow"`
+	RealisedPnl float64 `json:"realisedPnl,string"`
+	UpdatedAt   string  `json:"updatedAt"`
+}
+
+// USDCTradeHistory stores trade history
+type USDCTradeHistory struct {
+	ID               string  `json:"orderId"`
+	OrderLinkId      string  `json:"orderLinkId"`
+	Symbol           string  `json:"symbol"`
+	Side             string  `json:"side"`
+	TradeID          string  `json:"tradeId"`
+	ExecPrice        float64 `json:"execPrice,string"`
+	ExecQty          float64 `json:"execQty,string"`
+	ExecFee          float64 `json:"execFee,string"`
+	FeeRate          float64 `json:"feeRate,string"`
+	ExecType         string  `json:"execType"`
+	ExecValue        float64 `json:"execValue,string"`
+	TradeTime        string  `json:"tradeTime"`
+	LastLiquidityInd string  `json:"lastLiquidityInd"`
+}

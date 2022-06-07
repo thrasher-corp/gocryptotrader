@@ -35,6 +35,9 @@ const (
 	usdcfuturesModifyOrder          = "/perpetual/usdc/openapi/private/v1/replace-order"
 	usdcfuturesCancelOrder          = "/perpetual/usdc/openapi/private/v1/cancel-order"
 	usdcfuturesCancelAllActiveOrder = "/perpetual/usdc/openapi/private/v1/cancel-all"
+	usdcfuturesGetActiveOrder       = "/option/usdc/openapi/private/v1/query-active-orders"
+	usdcfuturesGetOrderHistory      = "/option/usdc/openapi/private/v1/query-order-history"
+	usdcfuturesGetTradeHistory      = "/option/usdc/openapi/private/v1/execution-list"
 )
 
 // GetUSDCFuturesOrderbook gets orderbook data for USDCMarginedFutures.
@@ -599,4 +602,162 @@ func (by *Bybit) CancelAllActiveUSDCOrder(ctx context.Context, symbol currency.P
 		return errInvalidOrderFilter
 	}
 	return by.SendAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesCancelAllActiveOrder, params, &resp, publicFuturesRate)
+}
+
+// GetActiveUSDCOrder gets all active USDC derivatives order.
+func (by *Bybit) GetActiveUSDCOrder(ctx context.Context, symbol currency.Pair, category, orderID, orderLinkID, orderFilter, direction, cursor string, limit int64) ([]USDCOrder, error) {
+	resp := struct {
+		Result struct {
+			Cursor          string      `json:"cursor"`
+			ResultTotalSize int64       `json:"resultTotalSize"`
+			Data            []USDCOrder `json:"dataList"`
+		} `json:"result"`
+		Error
+	}{}
+
+	params := url.Values{}
+	if !symbol.IsEmpty() {
+		symbolValue, err := by.FormatSymbol(symbol, asset.USDCMarginedFutures)
+		if err != nil {
+			return resp.Result.Data, err
+		}
+		params.Set("symbol", symbolValue)
+	}
+
+	if category != "" {
+		params.Set("category", category)
+	} else {
+		return nil, errors.New("invalid category")
+	}
+
+	if orderID != "" {
+		params.Set("orderId", orderID)
+	}
+
+	if orderLinkID != "" {
+		params.Set("orderLinkId", orderLinkID)
+	}
+
+	if orderFilter != "" {
+		params.Set("orderFilter", orderFilter)
+	}
+
+	if direction != "" {
+		params.Set("direction", direction)
+	}
+
+	if limit != 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+
+	if cursor != "" {
+		params.Set("cursor", cursor)
+	}
+	return resp.Result.Data, by.SendAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesGetActiveOrder, params, &resp, publicFuturesRate)
+}
+
+// GetUSDCOrderHistory gets order history with support of last 30 days of USDC derivatives order.
+func (by *Bybit) GetUSDCOrderHistory(ctx context.Context, symbol currency.Pair, category, orderID, orderLinkID, orderStatus, direction, cursor string, limit int64) ([]USDCOrderHistory, error) {
+	resp := struct {
+		Result struct {
+			Cursor          string             `json:"cursor"`
+			ResultTotalSize int64              `json:"resultTotalSize"`
+			Data            []USDCOrderHistory `json:"dataList"`
+		} `json:"result"`
+		Error
+	}{}
+
+	params := url.Values{}
+	if !symbol.IsEmpty() {
+		symbolValue, err := by.FormatSymbol(symbol, asset.USDCMarginedFutures)
+		if err != nil {
+			return resp.Result.Data, err
+		}
+		params.Set("symbol", symbolValue)
+	}
+
+	if category != "" {
+		params.Set("category", category)
+	} else {
+		return nil, errors.New("invalid category")
+	}
+
+	if orderID != "" {
+		params.Set("orderId", orderID)
+	}
+
+	if orderLinkID != "" {
+		params.Set("orderLinkId", orderLinkID)
+	}
+
+	if orderStatus != "" {
+		params.Set("orderStatus", orderStatus)
+	}
+
+	if direction != "" {
+		params.Set("direction", direction)
+	}
+
+	if limit != 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+
+	if cursor != "" {
+		params.Set("cursor", cursor)
+	}
+	return resp.Result.Data, by.SendAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesGetOrderHistory, params, &resp, publicFuturesRate)
+}
+
+// GetUSDCTradeHistory gets trade history with support of last 30 days of USDC derivatives trades.
+func (by *Bybit) GetUSDCTradeHistory(ctx context.Context, symbol currency.Pair, category, orderID, orderLinkID, direction, cursor string, limit int64, startTime time.Time) ([]USDCTradeHistory, error) {
+	resp := struct {
+		Result struct {
+			Cursor          string             `json:"cursor"`
+			ResultTotalSize int64              `json:"resultTotalSize"`
+			Data            []USDCTradeHistory `json:"dataList"`
+		} `json:"result"`
+		Error
+	}{}
+
+	params := url.Values{}
+	if !symbol.IsEmpty() {
+		symbolValue, err := by.FormatSymbol(symbol, asset.USDCMarginedFutures)
+		if err != nil {
+			return resp.Result.Data, err
+		}
+		params.Set("symbol", symbolValue)
+	}
+
+	if category != "" {
+		params.Set("category", category)
+	} else {
+		return nil, errors.New("invalid category")
+	}
+
+	if orderID != "" {
+		params.Set("orderId", orderID)
+	}
+
+	if orderLinkID != "" {
+		params.Set("orderLinkId", orderLinkID)
+	}
+
+	if startTime.IsZero() {
+		return nil, errInvalidStartTime
+	} else {
+		params.Set("startTime", strconv.FormatInt(startTime.Unix(), 10))
+	}
+
+	if direction != "" {
+		params.Set("direction", direction)
+	}
+
+	if limit > 0 && limit <= 50 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+
+	if cursor != "" {
+		params.Set("cursor", cursor)
+	}
+	return resp.Result.Data, by.SendAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesGetTradeHistory, params, &resp, publicFuturesRate)
 }
