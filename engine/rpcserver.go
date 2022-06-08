@@ -4263,7 +4263,7 @@ func (s *RPCServer) GetManagedPosition(ctx context.Context, r *gctrpc.GetManaged
 	if err != nil {
 		return nil, err
 	}
-	position, err := s.OrderManager.orderStore.futuresPositionController.GetOpenPosition(strings.ToLower(r.Exchange), ai, cp)
+	position, err := s.OrderManager.orderStore.futuresPositionController.GetOpenPosition(r.Exchange, ai, cp)
 	if err != nil {
 		return nil, err
 	}

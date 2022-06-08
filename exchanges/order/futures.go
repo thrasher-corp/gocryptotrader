@@ -176,6 +176,7 @@ func (c *PositionController) GetOpenPosition(exch string, item asset.Item, pair 
 	}
 	c.m.Lock()
 	defer c.m.Unlock()
+	exch = strings.ToLower(exch)
 loop:
 	for exchStr, exchM := range c.positionTrackerControllers {
 		if exch != "" && exch != exchStr {
@@ -654,7 +655,7 @@ func (p *PositionTracker) TrackingFundingDetails(d *FundingRateDetails) error {
 	}
 	p.m.Lock()
 	defer p.m.Unlock()
-	if p.exchange != d.Exchange ||
+	if p.exchange != strings.ToLower(d.Exchange) ||
 		p.asset != d.Asset ||
 		!p.contractPair.Equal(d.Pair) {
 		return errDoesntMatch
