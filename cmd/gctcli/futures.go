@@ -13,11 +13,11 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-var getOpenPositionsCommand = &cli.Command{
-	Name:      "getopenpositions",
-	Usage:     "will retrieve all futures positions in a timeframe, then calculate PNL based on that. Note, the dates have an impact on PNL calculations, ensure your start date is not after a new position is opened",
+var getManagedPositionCommand = &cli.Command{
+	Name:      "getmanagedposition",
+	Usage:     "retrieves the latest active managed position from the order manager",
 	ArgsUsage: "<exchange> <asset> <start> <end>",
-	Action:    getOpenPositions,
+	Action:    getManagedPosition,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
 			Name:    "exchange",
@@ -30,25 +30,31 @@ var getOpenPositionsCommand = &cli.Command{
 			Usage:   "the asset type of the currency pair, must be a futures type",
 		},
 		&cli.StringFlag{
-			Name:        "start",
-			Aliases:     []string{"sd"},
-			Usage:       "<start> rounded down to the nearest hour, ensure your starting position is within this window for accurate calculations",
-			Value:       time.Now().AddDate(-1, 0, 0).Truncate(time.Hour).Format(common.SimpleTimeFormat),
-			Destination: &startTime,
+			Name:    "pair",
+			Aliases: []string{"p"},
+			Usage:   "the currency pair of the position",
 		},
-		&cli.StringFlag{
-			Name:        "end",
-			Aliases:     []string{"ed"},
-			Usage:       "<end> rounded down to the nearest hour, ensure your last position is within this window for accurate calculations",
-			Value:       time.Now().Format(common.SimpleTimeFormat),
-			Destination: &endTime,
+		&cli.BoolFlag{
+			Name:    "includeorderdetails",
+			Aliases: []string{"orders"},
+			Usage:   "includes all orders that make up a position in the response",
+		},
+		&cli.BoolFlag{
+			Name:    "getfundingdata",
+			Aliases: []string{"funding"},
+			Usage:   "if true, will return funding rate summary",
+		},
+		&cli.BoolFlag{
+			Name:    "includefundingentries",
+			Aliases: []string{"fundingentries"},
+			Usage:   "if true, will return all funding rate entries",
 		},
 	},
 }
 
-func getOpenPositions(c *cli.Context) error {
+func getManagedPosition(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "getopenpositions")
+		return cli.ShowCommandHelp(c, "getmanagedposition")
 	}
 
 	var exchangeName string
@@ -64,36 +70,24 @@ func getOpenPositions(c *cli.Context) error {
 	} else {
 		assetType = c.Args().Get(1)
 	}
-
 	if !validAsset(assetType) {
 		return errInvalidAsset
 	}
 
-	if !c.IsSet("start") {
-		if c.Args().Get(3) != "" {
-			startTime = c.Args().Get(3)
-		}
+	var currencyPair string
+	if c.IsSet("pair") {
+		currencyPair = c.String("pair")
+	} else {
+		currencyPair = c.Args().Get(2)
+	}
+	if !validPair(currencyPair) {
+		return errInvalidPair
 	}
 
-	if !c.IsSet("end") {
-		if c.Args().Get(4) != "" {
-			endTime = c.Args().Get(4)
-		}
-	}
-
-	s, err := time.Parse(common.SimpleTimeFormat, startTime)
+	p, err := currency.NewPairDelimiter(currencyPair, pairDelimiter)
 	if err != nil {
-		return fmt.Errorf("invalid time format for start: %v", err)
+		return err
 	}
-	e, err := time.Parse(common.SimpleTimeFormat, endTime)
-	if err != nil {
-		return fmt.Errorf("invalid time format for end: %v", err)
-	}
-
-	if e.Before(s) {
-		return errors.New("start cannot be after end")
-	}
-
 	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
@@ -101,12 +95,15 @@ func getOpenPositions(c *cli.Context) error {
 	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.GetFuturesPositions(c.Context,
-		&gctrpc.GetFuturesPositionsRequest{
-			Exchange:  exchangeName,
-			Asset:     assetType,
-			StartDate: negateLocalOffset(s),
-			EndDate:   negateLocalOffset(e),
+	result, err := client.GetManagedPosition(c.Context,
+		&gctrpc.GetManagedPositionRequest{
+			Exchange: exchangeName,
+			Asset:    assetType,
+			Pair: &gctrpc.CurrencyPair{
+				Delimiter: p.Delimiter,
+				Base:      p.Base.String(),
+				Quote:     p.Quote.String(),
+			},
 		})
 	if err != nil {
 		return err
@@ -165,24 +162,29 @@ var getFuturesPositionsCommand = &cli.Command{
 			Value:   "ANY",
 		},
 		&cli.BoolFlag{
-			Name:    "verbose",
-			Aliases: []string{"v"},
-			Usage:   "includes all orders that make up a position in the response",
-		},
-		&cli.BoolFlag{
 			Name:    "overwrite",
 			Aliases: []string{"o"},
 			Usage:   "if true, will overwrite futures results for the provided exchange, asset, pair",
 		},
 		&cli.BoolFlag{
+			Name:    "includeorderdetails",
+			Aliases: []string{"orders"},
+			Usage:   "includes all orders that make up a position in the response",
+		},
+		&cli.BoolFlag{
 			Name:    "getfundingdata",
-			Aliases: []string{"f"},
+			Aliases: []string{"funding"},
 			Usage:   "if true, will return funding rate summary",
+		},
+		&cli.BoolFlag{
+			Name:    "includefundingentries",
+			Aliases: []string{"fundingentries"},
+			Usage:   "if true, will return all funding rate entries",
 		},
 		&cli.BoolFlag{
 			Name:    "getpositionstats",
 			Aliases: []string{"stats"},
-			Usage:   "if true, will return extra stats on the position",
+			Usage:   "if true, will return extra stats on the position from the exchange",
 		},
 	},
 }
@@ -260,21 +262,21 @@ func getFuturesPositions(c *cli.Context) error {
 		return errors.New("unrecognised status")
 	}
 
-	var verbose bool
-	if c.IsSet("verbose") {
-		verbose = c.Bool("verbose")
+	var overwrite bool
+	if c.IsSet("overwrite") {
+		overwrite = c.Bool("overwrite")
 	} else if c.Args().Get(7) != "" {
-		verbose, err = strconv.ParseBool(c.Args().Get(7))
+		overwrite, err = strconv.ParseBool(c.Args().Get(7))
 		if err != nil {
 			return err
 		}
 	}
 
-	var overwrite bool
-	if c.IsSet("overwrite") {
-		overwrite = c.Bool("overwrite")
+	var includeOrderDetails bool
+	if c.IsSet("includeorderdetails") {
+		includeOrderDetails = c.Bool("includeorderdetails")
 	} else if c.Args().Get(8) != "" {
-		overwrite, err = strconv.ParseBool(c.Args().Get(8))
+		includeOrderDetails, err = strconv.ParseBool(c.Args().Get(8))
 		if err != nil {
 			return err
 		}
@@ -290,11 +292,21 @@ func getFuturesPositions(c *cli.Context) error {
 		}
 	}
 
+	var includeFundingEntries bool
+	if c.IsSet("includefundingentries") {
+		includeFundingEntries = c.Bool("includefundingentries")
+	} else if c.Args().Get(10) != "" {
+		includeFundingEntries, err = strconv.ParseBool(c.Args().Get(10))
+		if err != nil {
+			return err
+		}
+	}
+
 	var getPositionsStats bool
 	if c.IsSet("getpositionstats") {
 		getPositionsStats = c.Bool("getpositionstats")
-	} else if c.Args().Get(10) != "" {
-		getPositionsStats, err = strconv.ParseBool(c.Args().Get(10))
+	} else if c.Args().Get(11) != "" {
+		getPositionsStats, err = strconv.ParseBool(c.Args().Get(11))
 		if err != nil {
 			return err
 		}
@@ -330,14 +342,15 @@ func getFuturesPositions(c *cli.Context) error {
 				Base:      p.Base.String(),
 				Quote:     p.Quote.String(),
 			},
-			StartDate:        negateLocalOffset(s),
-			EndDate:          negateLocalOffset(e),
-			Status:           status,
-			PositionLimit:    int64(limit),
-			Verbose:          verbose,
-			Overwrite:        overwrite,
-			GetFundingData:   getFundingData,
-			GetPositionStats: getPositionsStats,
+			StartDate:               negateLocalOffset(s),
+			EndDate:                 negateLocalOffset(e),
+			Status:                  status,
+			PositionLimit:           int64(limit),
+			Overwrite:               overwrite,
+			GetPositionStats:        getPositionsStats,
+			IncludeFullOrderData:    includeOrderDetails,
+			GetFundingPayments:      getFundingData,
+			IncludeFullFundingRates: includeFundingEntries,
 		})
 	if err != nil {
 		return err

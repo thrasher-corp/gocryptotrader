@@ -169,14 +169,14 @@ func (c *PositionController) GetPositionsForExchange(exch string, item asset.Ite
 	return multiPositionTracker.GetPositions(), nil
 }
 
-// GetOpenPositions returns all open positions with optional filters
-func (c *PositionController) GetOpenPositions(exch string, item asset.Item, pair currency.Pair) ([]Position, error) {
+// GetOpenPosition returns an open positions that matches the exchange, asset, pair
+func (c *PositionController) GetOpenPosition(exch string, item asset.Item, pair currency.Pair) (*Position, error) {
 	if c == nil {
 		return nil, fmt.Errorf("position controller %w", common.ErrNilPointer)
 	}
 	c.m.Lock()
 	defer c.m.Unlock()
-	var openPositions []Position
+loop:
 	for exchStr, exchM := range c.positionTrackerControllers {
 		if exch != "" && exch != exchStr {
 			continue
@@ -189,6 +189,32 @@ func (c *PositionController) GetOpenPositions(exch string, item asset.Item, pair
 				if !pair.IsEmpty() && !pair.Equal(cp) {
 					continue
 				}
+				positions := multiPositionTracker.GetPositions()
+				if len(positions) == 0 {
+					break loop
+				}
+				position := positions[len(positions)-1]
+				if position.Status == Closed {
+					break loop
+				}
+				return &position, nil
+			}
+		}
+	}
+	return nil, fmt.Errorf("%w no open position for %v %v %v", ErrPositionNotFound, exch, item, pair)
+}
+
+// GetAllOpenPositions returns all open positions with optional filters
+func (c *PositionController) GetAllOpenPositions() ([]Position, error) {
+	if c == nil {
+		return nil, fmt.Errorf("position controller %w", common.ErrNilPointer)
+	}
+	c.m.Lock()
+	defer c.m.Unlock()
+	var openPositions []Position
+	for _, exchM := range c.positionTrackerControllers {
+		for _, itemM := range exchM {
+			for _, multiPositionTracker := range itemM {
 				positions := multiPositionTracker.GetPositions()
 				for i := range positions {
 					if positions[i].Status != Closed {

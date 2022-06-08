@@ -1025,19 +1025,6 @@ message CurrencyState {
   bool trading_enabled = 5;
 }
 
-message GetFuturesPositionsRequest {
-  string exchange = 1;
-  string asset = 2;
-  CurrencyPair pair = 3;
-  string start_date = 4;
-  string end_date = 5;
-  string status = 6;
-  int64 position_limit = 7;
-  bool verbose = 8;
-  bool overwrite = 9;
-  bool get_funding_data = 10;
-  bool get_position_stats = 11;
-}
 
 message FundingRate {
   string date = 1;
@@ -1066,13 +1053,54 @@ message FuturesPositionStats {
 }
 
 message FuturePosition {
-  string status = 1;
-  string current_direction = 2;
-  string unrealised_pnl = 3;
-  string realised_pnl = 4;
-  string opening_date = 5;
-  string closing_date = 6;
-  repeated OrderDetails orders = 7;
+  string exchange = 1;
+  string asset = 2;
+  CurrencyPair pair = 3;
+  string status = 4;
+  string current_direction = 5;
+  string unrealised_pnl = 6;
+  string realised_pnl = 7;
+  string opening_date = 8;
+  string closing_date = 9;
+  repeated OrderDetails orders = 10;
+  FuturesPositionStats position_stats = 11;
+  FundingData funding_data = 12;
+}
+
+message GetManagedPositionRequest {
+  string exchange = 1;
+  string asset = 2;
+  CurrencyPair pair = 3;
+  bool get_position_stats = 4;
+  bool include_full_order_data = 5;
+  bool get_funding_payments = 6;
+  bool include_full_funding_rates = 7;
+}
+
+message GetAllManagedPositionsRequest {
+  bool get_position_stats = 4;
+  bool include_full_order_data = 5;
+  bool get_funding_payments = 6;
+  bool include_full_funding_rates = 7;
+}
+
+message GetManagedPositionsResponse {
+  repeated FuturePosition positions = 1;
+}
+
+message GetFuturesPositionsRequest {
+  string exchange = 1;
+  string asset = 2;
+  CurrencyPair pair = 3;
+  string start_date = 4;
+  string end_date = 5;
+  string status = 6;
+  int64 position_limit = 7;
+  bool overwrite = 8;
+  bool get_position_stats = 9;
+  bool include_full_order_data = 10;
+  bool get_funding_payments = 11;
+  bool include_full_funding_rates = 12;
 }
 
 message GetFuturesPositionsResponse {
@@ -1082,8 +1110,6 @@ message GetFuturesPositionsResponse {
   string total_unrealised_pnl = 4;
   string total_pnl = 5;
   repeated FuturePosition positions = 6;
-  FuturesPositionStats position_stats = 7;
-  FundingData funding_data = 8;
 }
 
 message GetCollateralRequest {
@@ -1145,22 +1171,16 @@ message CollateralUsedBreakdown {
   string used_in_spot_margin = 8;
 }
 
-message OpenPositionsRequest {
+message GetFundingPaymentsRequest {
   string exchange = 1;
   string asset = 2;
-  string start_date = 3;
-  string end_date = 4;
+  string pair = 3;
+  string start_date = 4;
+  string end_date = 5;
 }
 
-message OpenPositionsResponse {
-  int64 total_orders = 1;
-  string sub_account = 2;
-  string total_realised_pnl = 3;
-  string total_unrealised_pnl = 4;
-  string total_pnl = 5;
-  repeated FuturePosition positions = 6;
-  FuturesPositionStats position_stats = 7;
-  FundingData funding_data = 8;
+message GetFundingPaymentsResponse {
+  FundingData funding_payments = 1;
 }
 
 message ShutdownRequest {}
@@ -1768,6 +1788,21 @@ service GoCryptoTraderService {
   rpc Shutdown(ShutdownRequest) returns (ShutdownResponse) {
     option (google.api.http) = {
       get: "/v1/shutdown"
+    };
+  }
+  rpc GetManagedPosition(GetManagedPositionRequest) returns (GetManagedPositionsResponse) {
+    option (google.api.http) = {
+      get: "/v1/getmanagedposition"
+    };
+  }
+  rpc GetAllManagedPositions(GetAllManagedPositionsRequest) returns (GetManagedPositionsResponse) {
+    option (google.api.http) = {
+      get: "/v1/getallmanagedpositions"
+    };
+  }
+  rpc GetFundingPayments(GetFundingPaymentsRequest) returns (GetFundingPaymentsResponse) {
+    option (google.api.http) = {
+      get: "/v1/getfundingpayments"
     };
   }
 }

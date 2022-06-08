@@ -1135,6 +1135,54 @@
         ]
       }
     },
+    "/v1/getallmanagedpositions": {
+      "get": {
+        "operationId": "GoCryptoTraderService_GetAllManagedPositions",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetManagedPositionsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "getPositionStats",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "includeFullOrderData",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "getFundingPayments",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "includeFullFundingRates",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          }
+        ],
+        "tags": [
+          "GoCryptoTraderService"
+        ]
+      }
+    },
     "/v1/getauditevent": {
       "get": {
         "operationId": "GoCryptoTraderService_GetAuditEvent",
@@ -1823,6 +1871,60 @@
         ]
       }
     },
+    "/v1/getfundingpayments": {
+      "get": {
+        "operationId": "GoCryptoTraderService_GetFundingPayments",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetFundingPaymentsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "asset",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "startDate",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "endDate",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "GoCryptoTraderService"
+        ]
+      }
+    },
     "/v1/getfuturespositions": {
       "get": {
         "operationId": "GoCryptoTraderService_GetFuturesPositions",
@@ -1897,25 +1999,31 @@
             "format": "int64"
           },
           {
-            "name": "verbose",
-            "in": "query",
-            "required": false,
-            "type": "boolean"
-          },
-          {
             "name": "overwrite",
             "in": "query",
             "required": false,
             "type": "boolean"
           },
           {
-            "name": "getFundingData",
+            "name": "getPositionStats",
             "in": "query",
             "required": false,
             "type": "boolean"
           },
           {
-            "name": "getPositionStats",
+            "name": "includeFullOrderData",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "getFundingPayments",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "includeFullFundingRates",
             "in": "query",
             "required": false,
             "type": "boolean"
@@ -2181,6 +2289,84 @@
             "schema": {
               "$ref": "#/definitions/gctrpcGetOrdersRequest"
             }
+          }
+        ],
+        "tags": [
+          "GoCryptoTraderService"
+        ]
+      }
+    },
+    "/v1/getmanagedposition": {
+      "get": {
+        "operationId": "GoCryptoTraderService_GetManagedPosition",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetManagedPositionsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "asset",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.delimiter",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.base",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.quote",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "getPositionStats",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "includeFullOrderData",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "getFundingPayments",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "includeFullFundingRates",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
           }
         ],
         "tags": [
@@ -4338,6 +4524,15 @@
     "gctrpcFuturePosition": {
       "type": "object",
       "properties": {
+        "exchange": {
+          "type": "string"
+        },
+        "asset": {
+          "type": "string"
+        },
+        "pair": {
+          "$ref": "#/definitions/gctrpcCurrencyPair"
+        },
         "status": {
           "type": "string"
         },
@@ -4361,6 +4556,12 @@
           "items": {
             "$ref": "#/definitions/gctrpcOrderDetails"
           }
+        },
+        "positionStats": {
+          "$ref": "#/definitions/gctrpcFuturesPositionStats"
+        },
+        "fundingData": {
+          "$ref": "#/definitions/gctrpcFundingData"
         }
       }
     },
@@ -4825,6 +5026,14 @@
         }
       }
     },
+    "gctrpcGetFundingPaymentsResponse": {
+      "type": "object",
+      "properties": {
+        "fundingPayments": {
+          "$ref": "#/definitions/gctrpcFundingData"
+        }
+      }
+    },
     "gctrpcGetFuturesPositionsResponse": {
       "type": "object",
       "properties": {
@@ -4849,12 +5058,6 @@
           "items": {
             "$ref": "#/definitions/gctrpcFuturePosition"
           }
-        },
-        "positionStats": {
-          "$ref": "#/definitions/gctrpcFuturesPositionStats"
-        },
-        "fundingData": {
-          "$ref": "#/definitions/gctrpcFundingData"
         }
       }
     },
@@ -4932,6 +5135,17 @@
         },
         "error": {
           "type": "boolean"
+        }
+      }
+    },
+    "gctrpcGetManagedPositionsResponse": {
+      "type": "object",
+      "properties": {
+        "positions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/gctrpcFuturePosition"
+          }
         }
       }
     },

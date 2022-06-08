@@ -1784,8 +1784,8 @@ func (f *FTX) GetPositionSummary(ctx context.Context, request *order.PositionSum
 	return nil, fmt.Errorf("unable to calculate position summary %w for %v %v", order.ErrPositionNotFound, request.Asset, request.Pair)
 }
 
-// GetFundingDetails returns a funding rate summary for a given future
-func (f *FTX) GetFundingDetails(ctx context.Context, request *order.FundingRateDetailsRequest) (*order.FundingRateDetails, error) {
+// GetFundingPaymentDetails returns a funding rate summary for a given future
+func (f *FTX) GetFundingPaymentDetails(ctx context.Context, request *order.FundingRateDetailsRequest) (*order.FundingRateDetails, error) {
 	if request == nil {
 		return nil, fmt.Errorf("%w FundingRateDetailsRequest", common.ErrNilPointer)
 	}

@@ -670,16 +670,35 @@ func (m *OrderManager) processOrders() {
 			go m.processMatchingOrders(exchanges[x], orders, &wg)
 
 			if enabledAssets[y].IsFutures() {
-				openPositions, err := exchanges[x].GetOpenPositions(context.TODO(), enabledAssets[y], time.Now().Add(-time.Hour*24*365), time.Now())
+				tn := time.Now()
+				openPositions, err := exchanges[x].GetOpenPositions(context.TODO(), enabledAssets[y], time.Now().Add(-time.Hour*24*365), tn)
 				if err != nil {
 					log.Error(log.OrderMgr, err)
 				} else {
 					for z := range openPositions {
+						if len(openPositions[z].Orders) == 0 {
+							continue
+						}
 						for i := range openPositions[z].Orders {
 							err = m.orderStore.futuresPositionController.TrackNewOrder(&openPositions[z].Orders[i])
 							if err != nil {
 								log.Error(log.OrderMgr, err)
+								continue
 							}
+						}
+						frp, err := exchanges[x].GetFundingPaymentDetails(context.TODO(), &order.FundingRateDetailsRequest{
+							Asset:     openPositions[z].Asset,
+							Pair:      openPositions[z].Pair,
+							StartDate: openPositions[z].Orders[0].Date,
+							EndDate:   tn,
+						})
+						if err != nil {
+							log.Error(log.OrderMgr, err)
+							continue
+						}
+						err = m.orderStore.futuresPositionController.TrackFundingDetails(frp)
+						if err != nil {
+							log.Error(log.OrderMgr, err)
 						}
 					}
 				}

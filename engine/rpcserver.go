@@ -4163,6 +4163,130 @@ func (s *RPCServer) CurrencyStateTradingPair(_ context.Context, r *gctrpc.Curren
 		ai)
 }
 
+func (s *RPCServer) buildFuturePosition(position *order.Position, getFundingPayments, includeFundingRates, includeOrders bool) *gctrpc.FuturePosition {
+	response := &gctrpc.FuturePosition{
+		Exchange: position.Exchange,
+		Asset:    position.Asset.String(),
+		Pair: &gctrpc.CurrencyPair{
+			Delimiter: position.Pair.Delimiter,
+			Base:      position.Pair.Base.String(),
+			Quote:     position.Pair.Quote.String(),
+		},
+		Status:           position.Status.String(),
+		CurrentDirection: position.LatestDirection.String(),
+		UnrealisedPnl:    position.UnrealisedPNL.String(),
+		RealisedPnl:      position.RealisedPNL.String(),
+		OpeningDate:      position.OpeningDate.Format(common.SimpleTimeFormatWithTimezone),
+	}
+	if getFundingPayments {
+		var sum decimal.Decimal
+		fundingData := &gctrpc.FundingData{}
+		for i := range position.FundingRates {
+			if includeFundingRates {
+				fundingData.FundingRates = append(fundingData.FundingRates, &gctrpc.FundingRate{
+					Date:    position.FundingRates[i].Time.Format(common.SimpleTimeFormatWithTimezone),
+					Rate:    position.FundingRates[i].Rate.String(),
+					Payment: position.FundingRates[i].Payment.String(),
+				})
+			}
+			sum = sum.Add(position.FundingRates[i].Payment)
+		}
+		fundingData.FundingRateSum = sum.String()
+	}
+
+	if includeOrders {
+		for i := range position.Orders {
+			od := &gctrpc.OrderDetails{
+				Exchange:      position.Orders[i].Exchange,
+				Id:            position.Orders[i].ID,
+				ClientOrderId: position.Orders[i].ClientOrderID,
+				BaseCurrency:  position.Orders[i].Pair.Base.String(),
+				QuoteCurrency: position.Orders[i].Pair.Quote.String(),
+				AssetType:     position.Orders[i].AssetType.String(),
+				OrderSide:     position.Orders[i].Side.String(),
+				OrderType:     position.Orders[i].Type.String(),
+				CreationTime:  position.Orders[i].Date.Unix(),
+				UpdateTime:    position.Orders[i].LastUpdated.Unix(),
+				Status:        position.Orders[i].Status.String(),
+				Price:         position.Orders[i].Price,
+				Amount:        position.Orders[i].Cost,
+				OpenVolume:    position.Orders[i].RemainingAmount,
+				Fee:           position.Orders[i].Fee,
+				Cost:          position.Orders[i].Cost,
+			}
+			for j := range position.Orders[i].Trades {
+				od.Trades = append(od.Trades, &gctrpc.TradeHistory{
+					CreationTime: position.Orders[i].Trades[j].Timestamp.Unix(),
+					Id:           position.Orders[i].Trades[j].TID,
+					Price:        position.Orders[i].Trades[j].Price,
+					Amount:       position.Orders[i].Trades[j].Amount,
+					Exchange:     position.Orders[i].Trades[j].Exchange,
+					AssetType:    position.Orders[i].AssetType.String(),
+					OrderSide:    position.Orders[i].Trades[j].Side.String(),
+					Fee:          position.Orders[i].Trades[j].Fee,
+					Total:        position.Orders[i].Trades[j].Total,
+				})
+			}
+			response.Orders = append(response.Orders, od)
+		}
+	}
+	return response
+}
+
+// GetManagedPosition returns an open positions from the order manager, no calling any API endpoints to return this information
+func (s *RPCServer) GetManagedPosition(ctx context.Context, r *gctrpc.GetManagedPositionRequest) (*gctrpc.GetManagedPositionsResponse, error) {
+	var (
+		exch exchange.IBotExchange
+		ai   asset.Item
+		cp   currency.Pair
+		err  error
+	)
+	exch, err = s.GetExchangeByName(r.Exchange)
+	if err != nil {
+		return nil, err
+	}
+	if !exch.IsEnabled() {
+		return nil, fmt.Errorf("%w '%v'", errExchangeDisabled, exch.GetName())
+	}
+	ai, err = asset.New(r.Asset)
+	if err != nil {
+		return nil, err
+	}
+	if !ai.IsFutures() {
+		return nil, fmt.Errorf("%w '%v'", order.ErrNotFuturesAsset, ai)
+	}
+	cp, err = currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
+	if err != nil {
+		return nil, err
+	}
+	err = checkParams(r.Exchange, exch, ai, cp)
+	if err != nil {
+		return nil, err
+	}
+	position, err := s.OrderManager.orderStore.futuresPositionController.GetOpenPosition(strings.ToLower(r.Exchange), ai, cp)
+	if err != nil {
+		return nil, err
+	}
+
+	return &gctrpc.GetManagedPositionsResponse{Positions: []*gctrpc.FuturePosition{
+		s.buildFuturePosition(position, r.GetFundingPayments, r.IncludeFullFundingRates, r.IncludeFullOrderData),
+	}}, nil
+}
+
+// GetAllManagedPositions returns all open positions from the order manager, no calling any API endpoints to return this information
+func (s *RPCServer) GetAllManagedPositions(ctx context.Context, r *gctrpc.GetAllManagedPositionsRequest) (*gctrpc.GetManagedPositionsResponse, error) {
+	positions, err := s.OrderManager.orderStore.futuresPositionController.GetAllOpenPositions()
+	if err != nil {
+		return nil, err
+	}
+	var response []*gctrpc.FuturePosition
+	for i := range positions {
+		response = append(response, s.buildFuturePosition(&positions[i], r.GetFundingPayments, r.IncludeFullFundingRates, r.IncludeFullOrderData))
+	}
+
+	return &gctrpc.GetManagedPositionsResponse{Positions: response}, nil
+}
+
 // GetFuturesPositions returns pnl positions for an exchange asset pair
 func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuturesPositionsRequest) (*gctrpc.GetFuturesPositionsResponse, error) {
 	exch, err := s.GetExchangeByName(r.Exchange)
@@ -4259,6 +4383,13 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 		}
 		response.TotalOrders += int64(len(pos[i].Orders))
 		details := &gctrpc.FuturePosition{
+			Exchange: pos[i].Exchange,
+			Asset:    pos[i].Asset.String(),
+			Pair: &gctrpc.CurrencyPair{
+				Delimiter: pos[i].Pair.Delimiter,
+				Base:      pos[i].Pair.Base.String(),
+				Quote:     pos[i].Pair.Quote.String(),
+			},
 			Status:        pos[i].Status.String(),
 			UnrealisedPnl: pos[i].UnrealisedPNL.String(),
 			RealisedPnl:   pos[i].RealisedPNL.String(),
@@ -4288,7 +4419,7 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 			if err != nil {
 				return nil, err
 			}
-			response.PositionStats = &gctrpc.FuturesPositionStats{
+			details.PositionStats = &gctrpc.FuturesPositionStats{
 				MaintenanceMarginRequirement: stats.MaintenanceMarginRequirement.String(),
 				InitialMarginRequirement:     stats.InitialMarginRequirement.String(),
 				CollateralUsed:               stats.CollateralUsed.String(),
@@ -4302,15 +4433,15 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 				TotalCollateral:              stats.TotalCollateral.String(),
 			}
 			if !stats.EstimatedLiquidationPrice.IsZero() {
-				response.PositionStats.EstimatedLiquidationPrice = stats.EstimatedLiquidationPrice.String()
+				details.PositionStats.EstimatedLiquidationPrice = stats.EstimatedLiquidationPrice.String()
 			}
 		}
-		if r.GetFundingData {
+		if r.GetFundingPayments {
 			var endDate = time.Now()
 			if pos[i].Status == order.Closed {
 				endDate = pos[i].Orders[len(pos[i].Orders)-1].Date
 			}
-			fundingDetails, err := exch.GetFundingDetails(ctx, &order.FundingRateDetailsRequest{
+			fundingDetails, err := exch.GetFundingPaymentDetails(ctx, &order.FundingRateDetailsRequest{
 				Asset:     pos[i].Asset,
 				Pair:      pos[i].Pair,
 				StartDate: pos[i].Orders[0].Date,
@@ -4320,7 +4451,7 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 				return nil, err
 			}
 			var funding []*gctrpc.FundingRate
-			if r.Verbose {
+			if r.IncludeFullFundingRates {
 				for j := range fundingDetails.FundingRates {
 					funding = append(funding, &gctrpc.FundingRate{
 						Date:    fundingDetails.FundingRates[j].Time.Format(common.SimpleTimeFormatWithTimezone),
@@ -4329,7 +4460,7 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 					})
 				}
 			}
-			response.FundingData = &gctrpc.FundingData{
+			details.FundingData = &gctrpc.FundingData{
 				FundingRates:   funding,
 				FundingRateSum: fundingDetails.Sum.String(),
 			}
@@ -4338,7 +4469,7 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 				return nil, err
 			}
 		}
-		if !r.Verbose {
+		if !r.IncludeFullOrderData {
 			response.Positions = append(response.Positions, details)
 			continue
 		}
@@ -4391,6 +4522,75 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 	if !totalUnrealisedPNL.IsZero() && !totalRealisedPNL.IsZero() {
 		response.TotalPnl = totalRealisedPNL.Add(totalUnrealisedPNL).String()
 	}
+	return response, nil
+}
+
+func (s *RPCServer) GetFundingPayments(ctx context.Context, r *gctrpc.GetFundingPaymentsRequest) (*gctrpc.GetFundingPaymentsResponse, error) {
+	exch, err := s.GetExchangeByName(r.Exchange)
+	if err != nil {
+		return nil, err
+	}
+
+	a, err := asset.New(r.Asset)
+	if err != nil {
+		return nil, err
+	}
+
+	cp, err := currency.NewPairFromString(r.Pair)
+	if err != nil {
+		return nil, err
+	}
+
+	err = checkParams(r.Exchange, exch, a, cp)
+	if err != nil {
+		return nil, err
+	}
+	if !a.IsFutures() {
+		return nil, fmt.Errorf("%s %w", a, order.ErrNotFuturesAsset)
+	}
+	start := time.Now().AddDate(-1, 0, 0)
+	end := time.Now()
+	if r.StartDate != "" {
+		start, err = time.Parse(common.SimpleTimeFormat, r.StartDate)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if r.EndDate != "" {
+		end, err = time.Parse(common.SimpleTimeFormat, r.EndDate)
+		if err != nil {
+			return nil, err
+		}
+	}
+	err = common.StartEndTimeCheck(start, end)
+	if err != nil && !errors.Is(err, common.ErrDateUnset) {
+		return nil, err
+	}
+
+	funding, err := exch.GetFundingPaymentDetails(ctx, &order.FundingRateDetailsRequest{
+		Asset:     a,
+		Pair:      cp,
+		StartDate: start,
+		EndDate:   end,
+	})
+	if err != nil {
+		return nil, err
+	}
+	var payments []*gctrpc.FundingRate
+	for i := range funding.FundingRates {
+		payments = append(payments, &gctrpc.FundingRate{
+			Date:    funding.FundingRates[i].Time.Format(common.SimpleTimeFormatWithTimezone),
+			Rate:    funding.FundingRates[i].Rate.String(),
+			Payment: funding.FundingRates[i].Payment.String(),
+		})
+	}
+	response := &gctrpc.GetFundingPaymentsResponse{
+		FundingPayments: &gctrpc.FundingData{
+			FundingRates:   payments,
+			FundingRateSum: funding.Sum.String(),
+		},
+	}
+
 	return response, nil
 }
 
