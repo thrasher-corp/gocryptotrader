@@ -119,6 +119,9 @@ type GoCryptoTraderServiceClient interface {
 	GetFuturesPositions(ctx context.Context, in *GetFuturesPositionsRequest, opts ...grpc.CallOption) (*GetFuturesPositionsResponse, error)
 	GetCollateral(ctx context.Context, in *GetCollateralRequest, opts ...grpc.CallOption) (*GetCollateralResponse, error)
 	Shutdown(ctx context.Context, in *ShutdownRequest, opts ...grpc.CallOption) (*ShutdownResponse, error)
+	GetOrderbookMovement(ctx context.Context, in *GetOrderbookMovementRequest, opts ...grpc.CallOption) (*GetOrderbookMovementResponse, error)
+	GetOrderbookAmountByNominal(ctx context.Context, in *GetOrderbookAmountByNominalRequest, opts ...grpc.CallOption) (*GetOrderbookAmountByNominalResponse, error)
+	GetOrderbookAmountByImpact(ctx context.Context, in *GetOrderbookAmountByImpactRequest, opts ...grpc.CallOption) (*GetOrderbookAmountByImpactResponse, error)
 }
 
 type goCryptoTraderServiceClient struct {
@@ -1140,6 +1143,33 @@ func (c *goCryptoTraderServiceClient) Shutdown(ctx context.Context, in *Shutdown
 	return out, nil
 }
 
+func (c *goCryptoTraderServiceClient) GetOrderbookMovement(ctx context.Context, in *GetOrderbookMovementRequest, opts ...grpc.CallOption) (*GetOrderbookMovementResponse, error) {
+	out := new(GetOrderbookMovementResponse)
+	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTraderService/GetOrderbookMovement", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *goCryptoTraderServiceClient) GetOrderbookAmountByNominal(ctx context.Context, in *GetOrderbookAmountByNominalRequest, opts ...grpc.CallOption) (*GetOrderbookAmountByNominalResponse, error) {
+	out := new(GetOrderbookAmountByNominalResponse)
+	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTraderService/GetOrderbookAmountByNominal", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *goCryptoTraderServiceClient) GetOrderbookAmountByImpact(ctx context.Context, in *GetOrderbookAmountByImpactRequest, opts ...grpc.CallOption) (*GetOrderbookAmountByImpactResponse, error) {
+	out := new(GetOrderbookAmountByImpactResponse)
+	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTraderService/GetOrderbookAmountByImpact", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // GoCryptoTraderServiceServer is the server API for GoCryptoTraderService service.
 // All implementations must embed UnimplementedGoCryptoTraderServiceServer
 // for forward compatibility
@@ -1241,6 +1271,9 @@ type GoCryptoTraderServiceServer interface {
 	GetFuturesPositions(context.Context, *GetFuturesPositionsRequest) (*GetFuturesPositionsResponse, error)
 	GetCollateral(context.Context, *GetCollateralRequest) (*GetCollateralResponse, error)
 	Shutdown(context.Context, *ShutdownRequest) (*ShutdownResponse, error)
+	GetOrderbookMovement(context.Context, *GetOrderbookMovementRequest) (*GetOrderbookMovementResponse, error)
+	GetOrderbookAmountByNominal(context.Context, *GetOrderbookAmountByNominalRequest) (*GetOrderbookAmountByNominalResponse, error)
+	GetOrderbookAmountByImpact(context.Context, *GetOrderbookAmountByImpactRequest) (*GetOrderbookAmountByImpactResponse, error)
 	mustEmbedUnimplementedGoCryptoTraderServiceServer()
 }
 
@@ -1538,6 +1571,15 @@ func (UnimplementedGoCryptoTraderServiceServer) GetCollateral(context.Context, *
 }
 func (UnimplementedGoCryptoTraderServiceServer) Shutdown(context.Context, *ShutdownRequest) (*ShutdownResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Shutdown not implemented")
+}
+func (UnimplementedGoCryptoTraderServiceServer) GetOrderbookMovement(context.Context, *GetOrderbookMovementRequest) (*GetOrderbookMovementResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetOrderbookMovement not implemented")
+}
+func (UnimplementedGoCryptoTraderServiceServer) GetOrderbookAmountByNominal(context.Context, *GetOrderbookAmountByNominalRequest) (*GetOrderbookAmountByNominalResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetOrderbookAmountByNominal not implemented")
+}
+func (UnimplementedGoCryptoTraderServiceServer) GetOrderbookAmountByImpact(context.Context, *GetOrderbookAmountByImpactRequest) (*GetOrderbookAmountByImpactResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetOrderbookAmountByImpact not implemented")
 }
 func (UnimplementedGoCryptoTraderServiceServer) mustEmbedUnimplementedGoCryptoTraderServiceServer() {}
 
@@ -3316,6 +3358,60 @@ func _GoCryptoTraderService_Shutdown_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _GoCryptoTraderService_GetOrderbookMovement_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetOrderbookMovementRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GoCryptoTraderServiceServer).GetOrderbookMovement(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/gctrpc.GoCryptoTraderService/GetOrderbookMovement",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GoCryptoTraderServiceServer).GetOrderbookMovement(ctx, req.(*GetOrderbookMovementRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _GoCryptoTraderService_GetOrderbookAmountByNominal_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetOrderbookAmountByNominalRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GoCryptoTraderServiceServer).GetOrderbookAmountByNominal(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/gctrpc.GoCryptoTraderService/GetOrderbookAmountByNominal",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GoCryptoTraderServiceServer).GetOrderbookAmountByNominal(ctx, req.(*GetOrderbookAmountByNominalRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _GoCryptoTraderService_GetOrderbookAmountByImpact_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetOrderbookAmountByImpactRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GoCryptoTraderServiceServer).GetOrderbookAmountByImpact(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/gctrpc.GoCryptoTraderService/GetOrderbookAmountByImpact",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GoCryptoTraderServiceServer).GetOrderbookAmountByImpact(ctx, req.(*GetOrderbookAmountByImpactRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // GoCryptoTraderService_ServiceDesc is the grpc.ServiceDesc for GoCryptoTraderService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -3686,6 +3782,18 @@ var GoCryptoTraderService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Shutdown",
 			Handler:    _GoCryptoTraderService_Shutdown_Handler,
+		},
+		{
+			MethodName: "GetOrderbookMovement",
+			Handler:    _GoCryptoTraderService_GetOrderbookMovement_Handler,
+		},
+		{
+			MethodName: "GetOrderbookAmountByNominal",
+			Handler:    _GoCryptoTraderService_GetOrderbookAmountByNominal_Handler,
+		},
+		{
+			MethodName: "GetOrderbookAmountByImpact",
+			Handler:    _GoCryptoTraderService_GetOrderbookAmountByImpact_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

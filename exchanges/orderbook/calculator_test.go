@@ -2,6 +2,7 @@ package orderbook
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"testing"
 
@@ -27,32 +28,172 @@ func TestWhaleBomb(t *testing.T) {
 	t.Parallel()
 	b := testSetup()
 
-	// invalid price amount
 	_, err := b.WhaleBomb(-1, true)
-	if err == nil {
-		t.Error("unexpected result")
+	if !errors.Is(err, errPriceTargetInvalid) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errPriceTargetInvalid)
 	}
 
-	// valid
-	_, err = b.WhaleBomb(7001, true)
+	result, err := b.WhaleBomb(7001, true) // <- This price should not be wiped out on the book.
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if result.Amount != 7000 {
+		t.Fatalf("received: '%v' but expected: '%v'", result.Amount, 7000)
+	}
+
+	if result.MaximumPrice != 7001 {
+		t.Fatalf("received: '%v' but expected: '%v'", result.MaximumPrice, 7001)
+	}
+
+	if result.MinimumPrice != 7000 {
+		t.Fatalf("received: '%v' but expected: '%v'", result.MinimumPrice, 7000)
+	}
+
+	if result.PercentageGainOrLoss != 0.014285714285714287 {
+		t.Fatalf("received: '%v' but expected: '%v'", result.PercentageGainOrLoss, 0.014285714285714287)
+	}
+
+	fmt.Println(result.Status)
+
+	result, err = b.WhaleBomb(7000.5, true) // <- Slot between prices will lift to next ask tranche
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
-	// invalid
-	_, err = b.WhaleBomb(7002, true)
-	if err == nil {
-		t.Error("unexpected result")
+
+	if result.Amount != 7000 {
+		t.Fatalf("received: '%v' but expected: '%v'", result.Amount, 7000)
 	}
 
-	// valid
-	_, err = b.WhaleBomb(6998, false)
+	if result.MaximumPrice != 7001 {
+		t.Fatalf("received: '%v' but expected: '%v'", result.MaximumPrice, 7001)
+	}
+
+	if result.MinimumPrice != 7000 {
+		t.Fatalf("received: '%v' but expected: '%v'", result.MinimumPrice, 7000)
+	}
+
+	if result.PercentageGainOrLoss != 0.014285714285714287 {
+		t.Fatalf("received: '%v' but expected: '%v'", result.PercentageGainOrLoss, 0.014285714285714287)
+	}
+
+	fmt.Println(result.Status)
+
+	_, err = b.WhaleBomb(7002, true) // <- exceed available quotations
+	if !errors.Is(err, errNotEnoughLiquidity) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errNotEnoughLiquidity)
+	}
+
+	result, err = b.WhaleBomb(7000, true) // <- Book should not move
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if result.Amount != 0 {
+		t.Fatalf("received: '%v' but expected: '%v'", result.Amount, 0)
+	}
+
+	if result.MaximumPrice != 7000 {
+		t.Fatalf("received: '%v' but expected: '%v'", result.MaximumPrice, 7000)
+	}
+
+	if result.MinimumPrice != 7000 {
+		t.Fatalf("received: '%v' but expected: '%v'", result.MinimumPrice, 7000)
+	}
+
+	if result.PercentageGainOrLoss != 0 {
+		t.Fatalf("received: '%v' but expected: '%v'", result.PercentageGainOrLoss, 0)
+	}
+
+	fmt.Println(result.Status)
+
+	_, err = b.WhaleBomb(6000, true)
+	if !errors.Is(err, errUnableToHitPriceTarget) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errUnableToHitPriceTarget)
+	}
+
+	_, err = b.WhaleBomb(-1, false)
+	if !errors.Is(err, errPriceTargetInvalid) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errPriceTargetInvalid)
+	}
+
+	result, err = b.WhaleBomb(6998, false) // <- This price should not be wiped out on the book.
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if result.Amount != 1 {
+		t.Fatalf("received: '%v' but expected: '%v'", result.Amount, 1)
+	}
+
+	if result.MaximumPrice != 6999 {
+		t.Fatalf("received: '%v' but expected: '%v'", result.MaximumPrice, 6999)
+	}
+
+	if result.MinimumPrice != 6998 {
+		t.Fatalf("received: '%v' but expected: '%v'", result.MinimumPrice, 6998)
+	}
+
+	if result.PercentageGainOrLoss != -0.014287755393627661 {
+		t.Fatalf("received: '%v' but expected: '%v'", result.PercentageGainOrLoss, -0.014287755393627661)
+	}
+
+	fmt.Println(result.Status)
+
+	result, err = b.WhaleBomb(6998.5, false) // <- Slot between prices will drop to next bid tranche
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
-	// invalid
-	_, err = b.WhaleBomb(6997, false)
-	if err == nil {
-		t.Error("unexpected result")
+
+	if result.Amount != 1 {
+		t.Fatalf("received: '%v' but expected: '%v'", result.Amount, 1)
+	}
+
+	if result.MaximumPrice != 6999 {
+		t.Fatalf("received: '%v' but expected: '%v'", result.MaximumPrice, 6999)
+	}
+
+	if result.MinimumPrice != 6998 {
+		t.Fatalf("received: '%v' but expected: '%v'", result.MinimumPrice, 6998)
+	}
+
+	if result.PercentageGainOrLoss != -0.014287755393627661 {
+		t.Fatalf("received: '%v' but expected: '%v'", result.PercentageGainOrLoss, -0.014287755393627661)
+	}
+
+	fmt.Println(result.Status)
+
+	_, err = b.WhaleBomb(6997, false) // <- exceed available quotations
+	if !errors.Is(err, errNotEnoughLiquidity) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errNotEnoughLiquidity)
+	}
+
+	result, err = b.WhaleBomb(6999, false) // <- Book should not move
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if result.Amount != 0 {
+		t.Fatalf("received: '%v' but expected: '%v'", result.Amount, 0)
+	}
+
+	if result.MaximumPrice != 6999 {
+		t.Fatalf("received: '%v' but expected: '%v'", result.MaximumPrice, 6999)
+	}
+
+	if result.MinimumPrice != 6999 {
+		t.Fatalf("received: '%v' but expected: '%v'", result.MinimumPrice, 6999)
+	}
+
+	if result.PercentageGainOrLoss != 0 {
+		t.Fatalf("received: '%v' but expected: '%v'", result.PercentageGainOrLoss, 0)
+	}
+
+	fmt.Println(result.Status)
+
+	_, err = b.WhaleBomb(7500, false)
+	if !errors.Is(err, errUnableToHitPriceTarget) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errUnableToHitPriceTarget)
 	}
 }
 
@@ -61,35 +202,6 @@ func TestSimulateOrder(t *testing.T) {
 	b := testSetup()
 	b.SimulateOrder(8000, true)
 	b.SimulateOrder(1.5, false)
-}
-
-func TestOrderSummary(t *testing.T) {
-	var o orderSummary
-	if p := o.MaximumPrice(false); p != 0 {
-		t.Error("unexpected result")
-	}
-	if p := o.MinimumPrice(false); p != 0 {
-		t.Error("unexpected result")
-	}
-
-	o = orderSummary{
-		{Price: 1337, Amount: 1},
-		{Price: 9001, Amount: 1},
-	}
-	if p := o.MaximumPrice(false); p != 1337 {
-		t.Error("unexpected result")
-	}
-	if p := o.MaximumPrice(true); p != 9001 {
-		t.Error("unexpected result")
-	}
-	if p := o.MinimumPrice(false); p != 1337 {
-		t.Error("unexpected result")
-	}
-	if p := o.MinimumPrice(true); p != 9001 {
-		t.Error("unexpected result")
-	}
-
-	o.Print()
 }
 
 func TestGetAveragePrice(t *testing.T) {

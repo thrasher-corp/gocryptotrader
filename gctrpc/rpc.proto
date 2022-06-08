@@ -1119,6 +1119,44 @@ message ShutdownRequest {}
 
 message ShutdownResponse {}
 
+message GetOrderbookMovementRequest {
+  string exchange = 1;
+  string asset = 2;
+  CurrencyPair pair = 3;
+  double amount = 6;
+  bool sell = 7;
+}
+
+message GetOrderbookMovementResponse {
+  double nominal_percentage = 1;
+  double impact_percentage = 2;
+  double slippage_cost = 3;
+}
+
+message GetOrderbookAmountByNominalRequest {
+  string exchange = 1;
+  string asset = 2;
+  CurrencyPair pair = 3;
+  double nominal_percentage = 6;
+  bool sell = 7;
+}
+
+message GetOrderbookAmountByNominalResponse {
+  double amount = 1;
+}
+
+message GetOrderbookAmountByImpactRequest {
+  string exchange = 1;
+  string asset = 2;
+  CurrencyPair pair = 3;
+  double impact_percentage = 6;
+  bool sell = 7;
+}
+
+message GetOrderbookAmountByImpactResponse {
+  double amount = 1;
+}
+
 service GoCryptoTraderService {
   rpc GetInfo(GetInfoRequest) returns (GetInfoResponse) {
     option (google.api.http) = {
@@ -1720,6 +1758,21 @@ service GoCryptoTraderService {
   rpc Shutdown(ShutdownRequest) returns (ShutdownResponse) {
     option (google.api.http) = {
       get: "/v1/shutdown"
+    };
+  }
+  rpc GetOrderbookMovement(GetOrderbookMovementRequest) returns (GetOrderbookMovementResponse) {
+    option (google.api.http) = {
+      get: "/v1/getorderbookmovement"
+    };
+  }
+  rpc GetOrderbookAmountByNominal(GetOrderbookAmountByNominalRequest) returns (GetOrderbookAmountByNominalResponse) {
+    option (google.api.http) = {
+      get: "/v1/getorderbookamountbynominal"
+    };
+  }
+  rpc GetOrderbookAmountByImpact(GetOrderbookAmountByImpactRequest) returns (GetOrderbookAmountByImpactResponse) {
+    option (google.api.http) = {
+      get: "/v1/getorderbookamountbyimpact"
     };
   }
 }

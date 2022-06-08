@@ -439,8 +439,10 @@ func (ll *bids) getBaseAmountFromNominalSlippage(slippage, refPrice float64) (fl
 	}
 
 	averageOrderPriceTarget := (1 - (slippage / 100)) * refPrice
+	fmt.Println("price target", averageOrderPriceTarget)
 	var totalValue, amounts float64
 	for tip := &ll.head; *tip != nil; tip = &(*tip).Next {
+		fmt.Println(totalValue)
 		trancheValue := (*tip).Value.Price * (*tip).Value.Amount
 		currentValue := trancheValue + totalValue
 		currentAmounts := amounts + (*tip).Value.Amount

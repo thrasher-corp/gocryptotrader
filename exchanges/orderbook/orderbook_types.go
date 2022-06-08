@@ -158,7 +158,6 @@ type Movement struct {
 	// ImpactPercentage defines how far the price has moved on the order book
 	// from the reference price.
 	ImpactPercentage float64
-	// SlippageCost is the cost of the slippage. For Ask returns quotation, for
-	// bid returns base.
+	// SlippageCost is the cost of the slippage. This is priced in quotation.
 	SlippageCost float64
 }

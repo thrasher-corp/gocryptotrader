@@ -4578,3 +4578,119 @@ func (s *RPCServer) Shutdown(_ context.Context, _ *gctrpc.ShutdownRequest) (*gct
 	s.Engine.GRPCShutdownSignal = nil
 	return &gctrpc.ShutdownResponse{}, nil
 }
+
+// GetOrderbookMovement using the requested amount simulates a buy or sell
+// and returns the nominal/impact percentages and costings.
+func (s *RPCServer) GetOrderbookMovement(ctx context.Context, r *gctrpc.GetOrderbookMovementRequest) (*gctrpc.GetOrderbookMovementResponse, error) {
+	exch, err := s.GetExchangeByName(r.Exchange)
+	if err != nil {
+		return nil, err
+	}
+
+	as, err := asset.New(r.Asset)
+	if err != nil {
+		return nil, err
+	}
+
+	pair, err := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
+	if err != nil {
+		return nil, err
+	}
+
+	depth, err := orderbook.GetDepth(exch.GetName(), pair, as)
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Println(r)
+
+	var move *orderbook.Movement
+	if r.Sell {
+		move, err = depth.GetMovementByBaseFromBest(r.Amount)
+	} else {
+		move, err = depth.GetMovementByQuoteFromBest(r.Amount)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return &gctrpc.GetOrderbookMovementResponse{
+		NominalPercentage: move.NominalPercentage,
+		ImpactPercentage:  move.ImpactPercentage,
+		SlippageCost:      move.SlippageCost,
+	}, nil
+}
+
+// GetOrderbookAmountByNominal using the requested nominal percentage
+// requirement determines the amount on orderbook that can fit without exceeding
+// that.
+func (s *RPCServer) GetOrderbookAmountByNominal(ctx context.Context, r *gctrpc.GetOrderbookAmountByNominalRequest) (*gctrpc.GetOrderbookAmountByNominalResponse, error) {
+	exch, err := s.GetExchangeByName(r.Exchange)
+	if err != nil {
+		return nil, err
+	}
+
+	as, err := asset.New(r.Asset)
+	if err != nil {
+		return nil, err
+	}
+
+	pair, err := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
+	if err != nil {
+		return nil, err
+	}
+
+	depth, err := orderbook.GetDepth(exch.GetName(), pair, as)
+	if err != nil {
+		return nil, err
+	}
+
+	var amount float64
+	if r.Sell {
+		amount, err = depth.GetBaseFromNominalSlippageFromBest(r.NominalPercentage)
+	} else {
+		amount, err = depth.GetQuoteFromNominalSlippageFromBest(r.NominalPercentage)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return &gctrpc.GetOrderbookAmountByNominalResponse{Amount: amount}, nil
+}
+
+// GetOrderbookAmountByImpact using the requested impact percentage requirement
+// determines the amount on orderbook that can fit without that will slip the
+// orderbook.
+func (s *RPCServer) GetOrderbookAmountByImpact(ctx context.Context, r *gctrpc.GetOrderbookAmountByImpactRequest) (*gctrpc.GetOrderbookAmountByImpactResponse, error) {
+	exch, err := s.GetExchangeByName(r.Exchange)
+	if err != nil {
+		return nil, err
+	}
+
+	as, err := asset.New(r.Asset)
+	if err != nil {
+		return nil, err
+	}
+
+	pair, err := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
+	if err != nil {
+		return nil, err
+	}
+
+	depth, err := orderbook.GetDepth(exch.GetName(), pair, as)
+	if err != nil {
+		return nil, err
+	}
+
+	var amount float64
+	if r.Sell {
+		amount, err = depth.GetBaseFromImpactSlippageFromBest(r.ImpactPercentage)
+	} else {
+		amount, err = depth.GetQuoteFromImpactSlippageFromBest(r.ImpactPercentage)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return &gctrpc.GetOrderbookAmountByImpactResponse{Amount: amount}, nil
+}
