@@ -161,3 +161,11 @@ type Movement struct {
 	// SlippageCost is the cost of the slippage. This is priced in quotation.
 	SlippageCost float64
 }
+
+// SideAmounts define the amounts total for the tranches, total value in
+// quotation and the cumulative base amounts.
+type SideAmounts struct {
+	Tranches   int
+	QuoteValue float64
+	BaseAmount float64
+}

@@ -2,6 +2,7 @@ package orderbook
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -625,86 +626,460 @@ func TestIsValid(t *testing.T) {
 	}
 }
 
-func TestDepthGetMaxVolumeBySlippage(t *testing.T) {
-	// t.Parallel()
-	// d := NewDepth(id)
-	// d.LoadSnapshot(bid, ask, 0, time.Time{}, true)
+func TestGetBaseFromNominalSlippage(t *testing.T) {
+	t.Parallel()
+	depth := NewDepth(id)
+	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
+	_, err := depth.GetBaseFromNominalSlippage(10, 1355.5)
+	if !errors.Is(err, errNotEnoughLiquidity) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errNotEnoughLiquidity)
+	}
 
-	// vol, err := d.GetMaxVolumeBySlippage(100, true)
+	// First and second price
+	amt, err := depth.GetBaseFromNominalSlippage(0.018443378827001, 1336)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if amt != 2.0005644917294916 {
+		t.Fatalf("received: '%v' but expected: '%v'", amt, 2.0005644917294916)
+	}
+
+	// All the way up to the last price
+	amt, err = depth.GetBaseFromNominalSlippage(0.71107784431138, 1336)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	// This exceeds the entire total base available - should be 20.
+	if amt != 20.00721336370539 {
+		t.Fatalf("received: '%v' but expected: '%v'", amt, 20.00721336370539)
+	}
+}
+
+func TestGetBaseFromNominalSlippageFromMid(t *testing.T) {
+	t.Parallel()
+	depth := NewDepth(id)
+
+	_, err := depth.GetBaseFromNominalSlippageFromMid(10)
+	if !errors.Is(err, errNoLiquidity) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
+	}
+
+	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
+	_, err = depth.GetBaseFromNominalSlippageFromMid(10)
+	if !errors.Is(err, errNotEnoughLiquidity) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errNotEnoughLiquidity)
+	}
+
+	// First price from mid point
+	amt, err := depth.GetBaseFromNominalSlippageFromMid(0.03741114852226)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if amt != 1 {
+		t.Fatalf("received: '%v' but expected: '%v'", amt, 1)
+	}
+
+	// All the way up to the last price from mid price
+	amt, err = depth.GetBaseFromNominalSlippageFromMid(0.74822297044519)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	// This exceeds the entire total base available - should be 20.
+	if amt != 20.00721336370539 {
+		t.Fatalf("received: '%v' but expected: '%v'", amt, 20.00721336370539)
+	}
+}
+
+func TestGetBaseFromNominalSlippageFromBest(t *testing.T) {
+	t.Parallel()
+	depth := NewDepth(id)
+
+	_, err := depth.GetBaseFromNominalSlippageFromBest(10)
+	if !errors.Is(err, errNoLiquidity) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
+	}
+
+	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
+	_, err = depth.GetBaseFromNominalSlippageFromBest(10)
+	if !errors.Is(err, errNotEnoughLiquidity) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errNotEnoughLiquidity)
+	}
+
+	// First and second price from best bid
+	amt, err := depth.GetBaseFromNominalSlippageFromBest(0.037425149700599)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if amt != 2.000374531835206 {
+		t.Fatalf("received: '%v' but expected: '%v'", amt, 2.000374531835206)
+	}
+
+	// All the way up to the last price from best bid price
+	amt, err = depth.GetBaseFromNominalSlippageFromBest(0.71107784431138)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	// This exceeds the entire total base available - should be 20.
+	if amt != 20.00721336370539 {
+		t.Fatalf("received: '%v' but expected: '%v'", amt, 20.00721336370539)
+	}
+}
+
+func TestGetQuoteFromNominalSlippage(t *testing.T) {
+	t.Parallel()
+	depth := NewDepth(id)
+	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
+	_, err := depth.GetQuoteFromNominalSlippage(10, 1355.5)
+	if !errors.Is(err, errNotEnoughLiquidity) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errNotEnoughLiquidity)
+	}
+
+	// First and second price
+	amt, err := depth.GetQuoteFromNominalSlippage(0.037397157816006, 1337)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if amt != 2674.5 {
+		t.Fatalf("received: '%v' but expected: '%v'", amt, 2674.5)
+	}
+
+	// All the way up to the last price
+	amt, err = depth.GetQuoteFromNominalSlippage(0.71054599850411, 1337)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	// This does not match the entire total quote available - should be 26930.
+	if amt != 26920.5 {
+		t.Fatalf("received: '%v' but expected: '%v'", amt, 26920.5)
+	}
+}
+
+func TestGetQuoteFromNominalSlippageFromMid(t *testing.T) {
+	t.Parallel()
+	depth := NewDepth(id)
+
+	_, err := depth.GetQuoteFromNominalSlippageFromMid(10)
+	if !errors.Is(err, errNoLiquidity) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
+	}
+
+	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
+	_, err = depth.GetQuoteFromNominalSlippageFromMid(10)
+	if !errors.Is(err, errNotEnoughLiquidity) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errNotEnoughLiquidity)
+	}
+
+	// First price from mid point
+	amt, err := depth.GetQuoteFromNominalSlippageFromMid(0.074822297044519)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	fmt.Println(depth.asks.getSideAmounts())
+
+	if amt != 2674.5 {
+		t.Fatalf("received: '%v' but expected: '%v'", amt, 2674.5)
+	}
+
+	// All the way up to the last price from mid price
+	amt, err = depth.GetQuoteFromNominalSlippageFromMid(0.74822297044519)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	// This does not match the entire total quote available - should be 26930.
+	if amt != 26920.5 {
+		t.Fatalf("received: '%v' but expected: '%v'", amt, 26920.5)
+	}
+}
+
+func TestGetQuoteFromNominalSlippageFromBest(t *testing.T) {
+	t.Parallel()
+	depth := NewDepth(id)
+
+	_, err := depth.GetQuoteFromNominalSlippageFromBest(10)
+	if !errors.Is(err, errNoLiquidity) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
+	}
+
+	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
+	_, err = depth.GetQuoteFromNominalSlippageFromBest(10)
+	if !errors.Is(err, errNotEnoughLiquidity) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errNotEnoughLiquidity)
+	}
+
+	// First and second price from best bid
+	amt, err := depth.GetQuoteFromNominalSlippageFromBest(0.037397157816006)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if amt != 2674.5 {
+		t.Fatalf("received: '%v' but expected: '%v'", amt, 2674.5)
+	}
+
+	// All the way up to the last price from best bid price
+	amt, err = depth.GetQuoteFromNominalSlippageFromBest(0.71054599850411)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	// This does not match the entire total quote available - should be 26930.
+	if amt != 26920.5 {
+		t.Fatalf("received: '%v' but expected: '%v'", amt, 26920.5)
+	}
+}
+
+func TestGetBaseFromImpactSlippage(t *testing.T) {
+	t.Parallel()
+	depth := NewDepth(id)
+	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
+	_, err := depth.GetBaseFromImpactSlippage(10, 1336)
+	if !errors.Is(err, errNotEnoughLiquidity) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errNotEnoughLiquidity)
+	}
+
+	// First and second price from best bid - price level target 1326 (which should be kept)
+	amt, err := depth.GetBaseFromImpactSlippage(0.7485029940119761, 1336)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if amt != 10 {
+		t.Fatalf("received: '%v' but expected: '%v'", amt, 10)
+	}
+
+	// All the way up to the last price from best bid price
+	amt, err = depth.GetBaseFromImpactSlippage(1.4221556886227544, 1336)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	// This does not match the entire total quote available - should be 26930.
+	if amt != 19 {
+		t.Fatalf("received: '%v' but expected: '%v'", amt, 19)
+	}
+}
+
+func TestGetBaseFromImpactSlippageFromMid(t *testing.T) {
+	t.Parallel()
+	depth := NewDepth(id)
+	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
+	_, err := depth.GetBaseFromImpactSlippageFromMid(10)
+	if !errors.Is(err, errNotEnoughLiquidity) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errNotEnoughLiquidity)
+	}
+
+	// First and second price from mid - price level target 1326 (which should be kept)
+	amt, err := depth.GetBaseFromImpactSlippageFromMid(0.7485029940119761)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if amt != 10 {
+		t.Fatalf("received: '%v' but expected: '%v'", amt, 10)
+	}
+
+	// All the way up to the last price from best bid price
+	amt, err = depth.GetBaseFromImpactSlippageFromMid(1.4221556886227544)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	// This does not match the entire total quote available - should be 26930.
+	if amt != 19 {
+		t.Fatalf("received: '%v' but expected: '%v'", amt, 19)
+	}
+}
+
+func TestGetBaseFromImpactSlippageFromBest(t *testing.T) {
+	t.Parallel()
+	depth := NewDepth(id)
+	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
+	_, err := depth.GetBaseFromImpactSlippageFromBest(10)
+	if !errors.Is(err, errNotEnoughLiquidity) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errNotEnoughLiquidity)
+	}
+
+	// First and second price from mid - price level target 1326 (which should be kept)
+	amt, err := depth.GetBaseFromImpactSlippageFromBest(0.7485029940119761)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if amt != 10 {
+		t.Fatalf("received: '%v' but expected: '%v'", amt, 10)
+	}
+
+	// All the way up to the last price from best bid price
+	amt, err = depth.GetBaseFromImpactSlippageFromBest(1.4221556886227544)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	// This does not match the entire total quote available - should be 26930.
+	if amt != 19 {
+		t.Fatalf("received: '%v' but expected: '%v'", amt, 19)
+	}
+}
+
+func TestGetQuoteFromImpactSlippage(t *testing.T) {
+	t.Parallel()
+	depth := NewDepth(id)
+	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
+	_, err := depth.GetQuoteFromImpactSlippage(10, 1337)
+	if !errors.Is(err, errNotEnoughLiquidity) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errNotEnoughLiquidity)
+	}
+
+	// First and second price from best bid - price level target 1326 (which should be kept)
+	amt, err := depth.GetQuoteFromImpactSlippage(0.7479431563201197, 1337)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if amt != 13415 {
+		t.Fatalf("received: '%v' but expected: '%v'", amt, 13415)
+	}
+
+	// All the way up to the last price from best bid price
+	amt, err = depth.GetQuoteFromImpactSlippage(1.4210919970082274, 1337)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	// This does not match the entire total quote available - should be 26930.
+	if amt != 25574 {
+		t.Fatalf("received: '%v' but expected: '%v'", amt, 25574)
+	}
+}
+
+func TestGetQuoteFromImpactSlippageFromMid(t *testing.T) {
+	t.Parallel()
+	depth := NewDepth(id)
+	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
+	_, err := depth.GetQuoteFromImpactSlippageFromMid(10)
+	if !errors.Is(err, errNotEnoughLiquidity) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errNotEnoughLiquidity)
+	}
+
+	// First and second price from mid - price level target 1326 (which should be kept)
+	amt, err := depth.GetQuoteFromImpactSlippageFromMid(0.7485029940119761)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if amt != 13415 {
+		t.Fatalf("received: '%v' but expected: '%v'", amt, 13415)
+	}
+
+	// All the way up to the last price from best bid price
+	amt, err = depth.GetQuoteFromImpactSlippageFromMid(1.4221556886227544)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	// This does not match the entire total quote available - should be 26930.
+	if amt != 25574 {
+		t.Fatalf("received: '%v' but expected: '%v'", amt, 25574)
+	}
+}
+
+func TestGetQuoteFromImpactSlippageFromBest(t *testing.T) {
+	t.Parallel()
+	depth := NewDepth(id)
+	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
+	_, err := depth.GetQuoteFromImpactSlippageFromBest(10)
+	if !errors.Is(err, errNotEnoughLiquidity) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errNotEnoughLiquidity)
+	}
+
+	// First and second price from mid - price level target 1326 (which should be kept)
+	amt, err := depth.GetQuoteFromImpactSlippageFromBest(0.7485029940119761)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if amt != 13415 {
+		t.Fatalf("received: '%v' but expected: '%v'", amt, 13415)
+	}
+
+	// All the way up to the last price from best bid price
+	amt, err = depth.GetQuoteFromImpactSlippageFromBest(1.4221556886227544)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	// This does not match the entire total quote available - should be 26930.
+	if amt != 25574 {
+		t.Fatalf("received: '%v' but expected: '%v'", amt, 25574)
+	}
+}
+
+func TestGetMovementByBase(t *testing.T) {
+	t.Parallel()
+	depth := NewDepth(id)
+	depth.LoadSnapshot(bid, ask, 0, time.Time{}, true)
+	_, err := depth.GetMovementByBase(20.1, 1336)
+	if !errors.Is(err, errAmountExceedsSideLiquidity) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errAmountExceedsSideLiquidity)
+	}
+
+	mov, err := depth.GetMovementByBase(1, 1336)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if mov.NominalPercentage != 0 {
+		t.Fatalf("received: '%v' but expected: '%v'", mov.NominalPercentage, 0)
+	}
+	if mov.ImpactPercentage != 0.07485029940119761 {
+		t.Fatalf("received: '%v' but expected: '%v'", mov.ImpactPercentage, 0.07485029940119761)
+	}
+	if mov.SlippageCost != 0 {
+		t.Fatalf("received: '%v' but expected: '%v'", mov.SlippageCost, 0)
+	}
+
+	mov, err = depth.GetMovementByBase(19.5, 1336)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	fmt.Println(depth.bids.getSideAmounts())
+
+	if mov.NominalPercentage != 0.692845079072617 { // Should be 0.6933008982035955
+		t.Fatalf("received: '%v' but expected: '%v'", mov.NominalPercentage, 0.692845079072617)
+	}
+	if mov.ImpactPercentage != 1.4221556886227544 {
+		t.Fatalf("received: '%v' but expected: '%v'", mov.ImpactPercentage, 1.4221556886227544)
+	}
+	if mov.SlippageCost != 180.5 { // Expecting 185.25
+		t.Fatalf("received: '%v' but expected: '%v'", mov.SlippageCost, 180.5)
+	}
+
+	// // All the way up to the last price from best bid price
+	// mov, err = depth.GetMovementByBase(1.4221556886227544, 1336)
 	// if !errors.Is(err, nil) {
 	// 	t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	// }
 
-	// if vol != 20 {
-	// 	t.Fatal("unexpected value")
-	// }
-
-	// vol, err = d.GetMaxVolumeBySlippage(100, false)
-	// if !errors.Is(err, nil) {
-	// 	t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	// }
-
-	// if vol != 20 {
-	// 	t.Fatal("unexpected value")
-	// }
-
-	// vol, err = d.GetMaxVolumeBySlippage(0, true)
-	// if !errors.Is(err, nil) {
-	// 	t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	// }
-
-	// if vol != 1 {
-	// 	t.Fatal("unexpected value")
-	// }
-
-	// vol, err = d.GetMaxVolumeBySlippage(0, false)
-	// if !errors.Is(err, nil) {
-	// 	t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	// }
-
-	// if vol != 1 {
-	// 	t.Fatal("unexpected value")
+	// // This does not match the entire total quote available - should be 26930.
+	// if mov != 19 {
+	// 	t.Fatalf("received: '%v' but expected: '%v'", mov, 19)
 	// }
 }
 
-func TestDepthGetSlippageByVolume(t *testing.T) {
-	// t.Parallel()
-	// d := NewDepth(id)
-	// d.LoadSnapshot(bid, ask, 0, time.Time{}, true)
+func TestXxx(t *testing.T) {
+	for x := 0; x < 20; x++ {
+		fmt.Println(1336 - x)
+	}
 
-	// dev, err := d.GetSlippageByVolume(1, true)
-	// if !errors.Is(err, nil) {
-	// 	t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	// }
-
-	// if dev != 0 {
-	// 	t.Fatal("unexpected value")
-	// }
-
-	// dev, err = d.GetSlippageByVolume(1, false)
-	// if !errors.Is(err, nil) {
-	// 	t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	// }
-
-	// if dev != 0 {
-	// 	t.Fatal("unexpected value")
-	// }
-
-	// dev, err = d.GetSlippageByVolume(20, true)
-	// if !errors.Is(err, nil) {
-	// 	t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	// }
-
-	// if dev != 1.4011799410029497 {
-	// 	t.Fatal("unexpected value")
-	// }
-
-	// dev, err = d.GetSlippageByVolume(20, false)
-	// if !errors.Is(err, nil) {
-	// 	t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	// }
-
-	// if dev != 1.4210919970082274 {
-	// 	t.Fatal("unexpected value")
-	// }
 }

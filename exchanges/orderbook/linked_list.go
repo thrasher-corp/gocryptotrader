@@ -353,9 +353,22 @@ func (ll *linkedList) insertUpdates(updts Items, stack *stack, comp comparison) 
 	return nil
 }
 
-// getHeadPrice gets top price
-func (ll *linkedList) getHeadPrice() float64 {
-	return ll.head.Value.Price
+// getSideAmounts returns the amounts pertaining to the liquidity side
+func (ll *linkedList) getSideAmounts() (val SideAmounts) {
+	for tip := ll.head; tip != nil; tip = tip.Next {
+		val.Tranches++
+		val.QuoteValue += tip.Value.Price * tip.Value.Amount
+		val.BaseAmount += tip.Value.Amount
+	}
+	return
+}
+
+// getHeadPrice gets best/head price
+func (ll *linkedList) getHeadPrice() (float64, error) {
+	if ll.head == nil {
+		return 0, errNoLiquidity
+	}
+	return ll.head.Value.Price, nil
 }
 
 // bids embed a linked list to attach methods for bid depth specific
@@ -395,26 +408,27 @@ func (ll *bids) getMovementByBaseAmount(amount, refPrice float64) (*Movement, er
 	if refPrice <= 0 {
 		return nil, errInvalidReferencePrice
 	}
+
 	var totalValue, amounts, tranchePrice float64
 	var noLiquidity bool
-	for tip := &ll.head; *tip != nil; tip = &(*tip).Next {
+	for tip := ll.head; tip != nil; tip = tip.Next {
 		leftover := amount - (*tip).Value.Amount
 		if leftover < 0 {
-			totalValue += (*tip).Value.Price * amount
+			totalValue += tip.Value.Price * amount
 			amounts += amount
 			// This tranche is not consumed so the book shifts to this price.
-			tranchePrice = (*tip).Value.Price
+			tranchePrice = tip.Value.Price
 			amount = 0
 			break
 		}
 		// Full tranche consumed
-		totalValue += (*tip).Value.Price * (*tip).Value.Amount
-		amounts += (*tip).Value.Amount
+		totalValue += tip.Value.Price * tip.Value.Amount
+		amounts += tip.Value.Amount
 		amount = leftover
 		if leftover == 0 {
 			// Price no longer exists on the book so use next full price tranche
 			// to calculate book impact.
-			node := (*tip).Next
+			node := tip.Next
 			if node != nil {
 				tranchePrice = node.Value.Price
 			} else {
@@ -439,21 +453,19 @@ func (ll *bids) getBaseAmountFromNominalSlippage(slippage, refPrice float64) (fl
 	}
 
 	averageOrderPriceTarget := (1 - (slippage / 100)) * refPrice
-	fmt.Println("price target", averageOrderPriceTarget)
 	var totalValue, amounts float64
-	for tip := &ll.head; *tip != nil; tip = &(*tip).Next {
-		fmt.Println(totalValue)
-		trancheValue := (*tip).Value.Price * (*tip).Value.Amount
+	for tip := ll.head; tip != nil; tip = tip.Next {
+		trancheValue := tip.Value.Price * tip.Value.Amount
 		currentValue := trancheValue + totalValue
-		currentAmounts := amounts + (*tip).Value.Amount
+		currentAmounts := amounts + tip.Value.Amount
 		aggTrancheCost := currentValue / currentAmounts
 		if averageOrderPriceTarget < aggTrancheCost {
 			totalValue = currentValue
 			amounts = currentAmounts
 			continue
 		}
-		normaliseToTranche := (*tip).Value.Amount / (*tip).Value.Price * averageOrderPriceTarget
-		actualAmount := normaliseToTranche / (*tip).Value.Amount
+		normaliseToTranche := tip.Value.Amount / tip.Value.Price * averageOrderPriceTarget
+		actualAmount := normaliseToTranche / tip.Value.Amount
 		return amounts + actualAmount, nil
 	}
 	return 0, errNotEnoughLiquidity
@@ -472,13 +484,19 @@ func (ll *bids) getBaseAmountFromImpact(slippage, refPrice float64) (float64, er
 	}
 
 	var amounts float64
-	for tip := &ll.head; *tip != nil; tip = &(*tip).Next {
-		val := math.CalculatePercentageGainOrLoss((*tip).Value.Price, refPrice)
+	for tip := ll.head; tip != nil; tip = tip.Next {
+		val := math.CalculatePercentageGainOrLoss(tip.Value.Price, refPrice)
+		fmt.Printf("price: %v ref: %v, amounts:%v, pct:%v\n",
+			tip.Value.Price,
+			refPrice,
+			amounts,
+			val,
+		)
 		val *= -1
 		if slippage <= val {
 			return amounts, nil
 		}
-		amounts += (*tip).Value.Amount
+		amounts += tip.Value.Amount
 	}
 	return 0, errNotEnoughLiquidity
 }
@@ -522,26 +540,26 @@ func (ll *asks) getMovementByQuoteAmount(amount, refPrice float64) (*Movement, e
 	}
 	var totalValue, amounts, tranchePrice float64
 	var noLiquidity bool
-	for tip := &ll.head; *tip != nil; tip = &(*tip).Next {
-		trancheValue := (*tip).Value.Price * (*tip).Value.Amount
+	for tip := ll.head; tip != nil; tip = tip.Next {
+		trancheValue := tip.Value.Price * tip.Value.Amount
 		leftover := amount - trancheValue
 		if leftover < 0 {
-			baseAmountToCoverLeftOverQuote := amount / (*tip).Value.Price
-			totalValue += (*tip).Value.Price * baseAmountToCoverLeftOverQuote
+			baseAmountToCoverLeftOverQuote := amount / tip.Value.Price
+			totalValue += tip.Value.Price * baseAmountToCoverLeftOverQuote
 			amounts += baseAmountToCoverLeftOverQuote
 			amount = 0
 			// This tranche is not consumed so the book shifts to this price.
-			tranchePrice = (*tip).Value.Price
+			tranchePrice = tip.Value.Price
 			break
 		}
 		// Full tranche consumed
 		totalValue += trancheValue
-		amounts += (*tip).Value.Amount
+		amounts += tip.Value.Amount
 		amount = leftover
 		if leftover == 0 {
 			// Price no longer exists on the book so use next full price tranche
 			// to calculate book impact.
-			node := (*tip).Next
+			node := tip.Next
 			if node != nil {
 				tranchePrice = node.Value.Price
 			} else {
@@ -564,10 +582,10 @@ func (ll *asks) getQuoteAmountFromNominalSlippage(slippage, refPrice float64) (f
 
 	averageOrderPriceTarget := ((slippage / 100) + 1) * refPrice
 	var totalValue, amounts float64
-	for tip := &ll.head; *tip != nil; tip = &(*tip).Next {
-		trancheValue := (*tip).Value.Price * (*tip).Value.Amount
+	for tip := ll.head; tip != nil; tip = tip.Next {
+		trancheValue := tip.Value.Price * tip.Value.Amount
 		currentValue := trancheValue + totalValue
-		currentAmounts := amounts + (*tip).Value.Amount
+		currentAmounts := amounts + tip.Value.Amount
 		aggTrancheCost := currentValue / currentAmounts
 		if averageOrderPriceTarget > aggTrancheCost {
 			totalValue = currentValue
@@ -575,9 +593,9 @@ func (ll *asks) getQuoteAmountFromNominalSlippage(slippage, refPrice float64) (f
 			continue
 		}
 
-		normaliseToTranche := (*tip).Value.Amount / (*tip).Value.Price * averageOrderPriceTarget
-		actualAmount := normaliseToTranche / (*tip).Value.Amount
-		totalValue += actualAmount * (*tip).Value.Price
+		normaliseToTranche := tip.Value.Amount / tip.Value.Price * averageOrderPriceTarget
+		actualAmount := normaliseToTranche / tip.Value.Amount
+		totalValue += actualAmount * tip.Value.Price
 		return totalValue, nil
 	}
 	return 0, errNotEnoughLiquidity
@@ -596,12 +614,18 @@ func (ll *asks) getQuoteAmountFromImpact(slippage, refPrice float64) (float64, e
 	}
 
 	var totalValue float64
-	for tip := &ll.head; *tip != nil; tip = &(*tip).Next {
-		val := math.CalculatePercentageGainOrLoss((*tip).Value.Price, refPrice)
+	for tip := ll.head; tip != nil; tip = tip.Next {
+		val := math.CalculatePercentageGainOrLoss(tip.Value.Price, refPrice)
+		fmt.Printf("price: %v ref: %v, amounts:%v, pct:%v\n",
+			tip.Value.Price,
+			refPrice,
+			totalValue,
+			val,
+		)
 		if slippage <= val {
 			return totalValue, nil
 		}
-		totalValue += (*tip).Value.Amount * (*tip).Value.Price
+		totalValue += tip.Value.Amount * tip.Value.Price
 	}
 	return 0, errNotEnoughLiquidity
 }

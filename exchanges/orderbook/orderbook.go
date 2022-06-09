@@ -354,34 +354,3 @@ func (elem *Items) SortAsks() {
 func (elem *Items) SortBids() {
 	sort.Sort(sort.Reverse(byOBPrice(*elem)))
 }
-
-func (elem Items) Print() {
-	for x := range elem {
-		log.Debugf(log.OrderBook, "Tranche: Price: %f Amount: %f",
-			elem[x].Price, elem[x].Amount)
-	}
-}
-
-func (elem Items) MinimumPrice(reverse bool) float64 {
-	if len(elem) == 0 {
-		return 0
-	}
-	if reverse {
-		sort.Sort(sort.Reverse(byOBPrice(elem)))
-	} else {
-		sort.Sort(byOBPrice(elem))
-	}
-	return (elem)[0].Price
-}
-
-func (elem Items) MaximumPrice(reverse bool) float64 {
-	if len(elem) == 0 {
-		return 0
-	}
-	if reverse {
-		sort.Sort(sort.Reverse(byOBPrice(elem)))
-	} else {
-		sort.Sort(byOBPrice(elem))
-	}
-	return (elem)[0].Price
-}

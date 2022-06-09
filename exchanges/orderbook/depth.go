@@ -336,8 +336,12 @@ func (d *Depth) updateAndAlert(update *Update) {
 // Warning: This is not accurate.
 func (d *Depth) GetBaseFromNominalSlippage(maxSlippage float64, refPrice float64) (float64, error) {
 	d.m.Lock()
-	defer d.m.Unlock()
-	return d.bids.getBaseAmountFromNominalSlippage(maxSlippage, refPrice)
+	baseAmt, err := d.bids.getBaseAmountFromNominalSlippage(maxSlippage, refPrice)
+	d.m.Unlock()
+	if err != nil {
+		return 0, d.AddTrimmingToError(err, true)
+	}
+	return baseAmt, nil
 }
 
 // GetBaseFromNominalSlippageFromMid return the base amount when hitting the
@@ -345,8 +349,18 @@ func (d *Depth) GetBaseFromNominalSlippage(maxSlippage float64, refPrice float64
 // Warning: this is not accurate.
 func (d *Depth) GetBaseFromNominalSlippageFromMid(maxSlippage float64) (float64, error) {
 	d.m.Lock()
-	defer d.m.Unlock()
-	return d.bids.getBaseAmountFromNominalSlippage(maxSlippage, d.getMidPriceNoLock())
+	mid, err := d.getMidPriceNoLock()
+	if err != nil {
+		d.m.Unlock()
+		return 0, err
+	}
+
+	baseAmt, err := d.bids.getBaseAmountFromNominalSlippage(maxSlippage, mid)
+	d.m.Unlock()
+	if err != nil {
+		return 0, d.AddTrimmingToError(err, true)
+	}
+	return baseAmt, nil
 }
 
 // GetBaseFromNominalSlippageFromBest return the base amount when hitting the
@@ -354,8 +368,18 @@ func (d *Depth) GetBaseFromNominalSlippageFromMid(maxSlippage float64) (float64,
 // Warning: this is not accurate.
 func (d *Depth) GetBaseFromNominalSlippageFromBest(maxSlippage float64) (float64, error) {
 	d.m.Lock()
-	defer d.m.Unlock()
-	return d.bids.getBaseAmountFromNominalSlippage(maxSlippage, d.bids.getHeadPrice())
+	head, err := d.bids.getHeadPrice()
+	if err != nil {
+		d.m.Unlock()
+		return 0, err
+	}
+	fmt.Println(head)
+	baseAmt, err := d.bids.getBaseAmountFromNominalSlippage(maxSlippage, head)
+	d.m.Unlock()
+	if err != nil {
+		return 0, d.AddTrimmingToError(err, true)
+	}
+	return baseAmt, nil
 }
 
 // GetQuoteFromNominalSlippage return the quote amount when lifting the asks to
@@ -363,8 +387,12 @@ func (d *Depth) GetBaseFromNominalSlippageFromBest(maxSlippage float64) (float64
 // Warning: this is not accurate.
 func (d *Depth) GetQuoteFromNominalSlippage(maxSlippage float64, refPrice float64) (float64, error) {
 	d.m.Lock()
-	defer d.m.Unlock()
-	return d.asks.getQuoteAmountFromNominalSlippage(maxSlippage, refPrice)
+	quoteAmt, err := d.asks.getQuoteAmountFromNominalSlippage(maxSlippage, refPrice)
+	d.m.Unlock()
+	if err != nil {
+		return 0, d.AddTrimmingToError(err, false)
+	}
+	return quoteAmt, nil
 }
 
 // GetQuoteFromNominalSlippageFromMid return the quote amount when lifting the
@@ -372,8 +400,17 @@ func (d *Depth) GetQuoteFromNominalSlippage(maxSlippage float64, refPrice float6
 // Warning: this is not accurate.
 func (d *Depth) GetQuoteFromNominalSlippageFromMid(maxSlippage float64) (float64, error) {
 	d.m.Lock()
-	defer d.m.Unlock()
-	return d.asks.getQuoteAmountFromNominalSlippage(maxSlippage, d.getMidPriceNoLock())
+	mid, err := d.getMidPriceNoLock()
+	if err != nil {
+		d.m.Unlock()
+		return 0, err
+	}
+	quoteAmt, err := d.asks.getQuoteAmountFromNominalSlippage(maxSlippage, mid)
+	d.m.Unlock()
+	if err != nil {
+		return 0, d.AddTrimmingToError(err, false)
+	}
+	return quoteAmt, nil
 }
 
 // GetQuoteFromNominalSlippageFromBest return the quote amount when lifting the
@@ -381,8 +418,17 @@ func (d *Depth) GetQuoteFromNominalSlippageFromMid(maxSlippage float64) (float64
 // Warning: this is not accurate.
 func (d *Depth) GetQuoteFromNominalSlippageFromBest(maxSlippage float64) (float64, error) {
 	d.m.Lock()
-	defer d.m.Unlock()
-	return d.asks.getQuoteAmountFromNominalSlippage(maxSlippage, d.asks.getHeadPrice())
+	head, err := d.asks.getHeadPrice()
+	if err != nil {
+		d.m.Unlock()
+		return 0, err
+	}
+	quoteAmt, err := d.asks.getQuoteAmountFromNominalSlippage(maxSlippage, head)
+	d.m.Unlock()
+	if err != nil {
+		return 0, d.AddTrimmingToError(err, false)
+	}
+	return quoteAmt, nil
 }
 
 // GetBaseFromImpactSlippage return the base amount when hitting the bids to
@@ -390,8 +436,12 @@ func (d *Depth) GetQuoteFromNominalSlippageFromBest(maxSlippage float64) (float6
 // from the reference price.
 func (d *Depth) GetBaseFromImpactSlippage(maxSlippage float64, refPrice float64) (float64, error) {
 	d.m.Lock()
-	defer d.m.Unlock()
-	return d.bids.getBaseAmountFromImpact(maxSlippage, refPrice)
+	baseAmt, err := d.bids.getBaseAmountFromImpact(maxSlippage, refPrice)
+	d.m.Unlock()
+	if err != nil {
+		return 0, d.AddTrimmingToError(err, true)
+	}
+	return baseAmt, nil
 }
 
 // GetBaseFromImpactSlippageFromMid return the base amount when hitting the bids to
@@ -399,8 +449,17 @@ func (d *Depth) GetBaseFromImpactSlippage(maxSlippage float64, refPrice float64)
 // from the orderbook mid price.
 func (d *Depth) GetBaseFromImpactSlippageFromMid(maxSlippage float64) (float64, error) {
 	d.m.Lock()
-	defer d.m.Unlock()
-	return d.bids.getBaseAmountFromImpact(maxSlippage, d.getMidPriceNoLock())
+	mid, err := d.getMidPriceNoLock()
+	if err != nil {
+		d.m.Unlock()
+		return 0, err
+	}
+	baseAmt, err := d.bids.getBaseAmountFromImpact(maxSlippage, mid)
+	d.m.Unlock()
+	if err != nil {
+		return 0, d.AddTrimmingToError(err, true)
+	}
+	return baseAmt, nil
 }
 
 // GetBaseFromImpactSlippageFromBest return the base amount when hitting the bids to
@@ -408,8 +467,17 @@ func (d *Depth) GetBaseFromImpactSlippageFromMid(maxSlippage float64) (float64, 
 // from the bid best price.
 func (d *Depth) GetBaseFromImpactSlippageFromBest(maxSlippage float64) (float64, error) {
 	d.m.Lock()
-	defer d.m.Unlock()
-	return d.bids.getBaseAmountFromImpact(maxSlippage, d.bids.getHeadPrice())
+	head, err := d.bids.getHeadPrice()
+	if err != nil {
+		d.m.Unlock()
+		return 0, err
+	}
+	baseAmt, err := d.bids.getBaseAmountFromImpact(maxSlippage, head)
+	d.m.Unlock()
+	if err != nil {
+		return 0, d.AddTrimmingToError(err, true)
+	}
+	return baseAmt, nil
 }
 
 // GetQuoteFromImpactSlippage return the quote amount when lifting the asks to
@@ -417,8 +485,12 @@ func (d *Depth) GetBaseFromImpactSlippageFromBest(maxSlippage float64) (float64,
 // from the reference price.
 func (d *Depth) GetQuoteFromImpactSlippage(maxSlippage float64, refPrice float64) (float64, error) {
 	d.m.Lock()
-	defer d.m.Unlock()
-	return d.asks.getQuoteAmountFromImpact(maxSlippage, refPrice)
+	quoteAmt, err := d.asks.getQuoteAmountFromImpact(maxSlippage, refPrice)
+	d.m.Unlock()
+	if err != nil {
+		return 0, d.AddTrimmingToError(err, false)
+	}
+	return quoteAmt, nil
 }
 
 // GetQuoteFromImpactSlippageFromMid return the quote amount when lifting the asks to
@@ -426,8 +498,17 @@ func (d *Depth) GetQuoteFromImpactSlippage(maxSlippage float64, refPrice float64
 // from the orderbook mid price.
 func (d *Depth) GetQuoteFromImpactSlippageFromMid(maxSlippage float64) (float64, error) {
 	d.m.Lock()
-	defer d.m.Unlock()
-	return d.asks.getQuoteAmountFromImpact(maxSlippage, d.getMidPriceNoLock())
+	mid, err := d.getMidPriceNoLock()
+	if err != nil {
+		d.m.Unlock()
+		return 0, err
+	}
+	quoteAmt, err := d.asks.getQuoteAmountFromImpact(maxSlippage, mid)
+	d.m.Unlock()
+	if err != nil {
+		return 0, d.AddTrimmingToError(err, false)
+	}
+	return quoteAmt, nil
 }
 
 // GetQuoteFromImpactSlippageFromBest return the quote amount when lifting the
@@ -435,8 +516,17 @@ func (d *Depth) GetQuoteFromImpactSlippageFromMid(maxSlippage float64) (float64,
 // percentage from the ask best price.
 func (d *Depth) GetQuoteFromImpactSlippageFromBest(maxSlippage float64) (float64, error) {
 	d.m.Lock()
-	defer d.m.Unlock()
-	return d.asks.getQuoteAmountFromImpact(maxSlippage, d.asks.getHeadPrice())
+	head, err := d.asks.getHeadPrice()
+	if err != nil {
+		d.m.Unlock()
+		return 0, err
+	}
+	quoteAmt, err := d.asks.getQuoteAmountFromImpact(maxSlippage, head)
+	d.m.Unlock()
+	if err != nil {
+		return 0, d.AddTrimmingToError(err, false)
+	}
+	return quoteAmt, nil
 }
 
 // GetMovementByBase derives your slippage from the reference price to the
@@ -444,8 +534,12 @@ func (d *Depth) GetQuoteFromImpactSlippageFromBest(maxSlippage float64) (float64
 // bids when you are ask/sell side.
 func (d *Depth) GetMovementByBase(base float64, refPrice float64) (*Movement, error) {
 	d.m.Lock()
-	defer d.m.Unlock()
-	return d.bids.getMovementByBaseAmount(base, refPrice)
+	move, err := d.bids.getMovementByBaseAmount(base, refPrice)
+	d.m.Unlock()
+	if err != nil {
+		return nil, d.AddTrimmingToError(err, true)
+	}
+	return move, nil
 }
 
 // GetMovementByQuotationFromMid derives your slippage from the mid price
@@ -453,8 +547,17 @@ func (d *Depth) GetMovementByBase(base float64, refPrice float64) (*Movement, er
 // cost using the quote amount. This hits the bids when you are ask/sell side.
 func (d *Depth) GetMovementByBaseFromMid(base float64) (*Movement, error) {
 	d.m.Lock()
-	defer d.m.Unlock()
-	return d.bids.getMovementByBaseAmount(base, d.getMidPriceNoLock())
+	mid, err := d.getMidPriceNoLock()
+	if err != nil {
+		d.m.Unlock()
+		return nil, err
+	}
+	move, err := d.bids.getMovementByBaseAmount(base, mid)
+	d.m.Unlock()
+	if err != nil {
+		return nil, d.AddTrimmingToError(err, true)
+	}
+	return move, nil
 }
 
 // GetMovementByQuotationFromBest derives your slippage from the best price ask
@@ -462,9 +565,17 @@ func (d *Depth) GetMovementByBaseFromMid(base float64) (*Movement, error) {
 // amount. This hits the bids when you are ask/sell side.
 func (d *Depth) GetMovementByBaseFromBest(base float64) (*Movement, error) {
 	d.m.Lock()
-	defer d.m.Unlock()
-	fmt.Println("TOP:", d.bids.getHeadPrice(), base, "BTC")
-	return d.bids.getMovementByBaseAmount(base, d.bids.getHeadPrice())
+	head, err := d.bids.getHeadPrice()
+	if err != nil {
+		d.m.Unlock()
+		return nil, err
+	}
+	move, err := d.bids.getMovementByBaseAmount(base, head)
+	d.m.Unlock()
+	if err != nil {
+		return nil, d.AddTrimmingToError(err, true)
+	}
+	return move, nil
 }
 
 // GetMovementByQuote derives your slippage from the reference price to the
@@ -472,8 +583,12 @@ func (d *Depth) GetMovementByBaseFromBest(base float64) (*Movement, error) {
 // the offers when you are bid/buy side.
 func (d *Depth) GetMovementByQuote(quote float64, refPrice float64) (*Movement, error) {
 	d.m.Lock()
-	defer d.m.Unlock()
-	return d.asks.getMovementByQuoteAmount(quote, refPrice)
+	move, err := d.asks.getMovementByQuoteAmount(quote, refPrice)
+	d.m.Unlock()
+	if err != nil {
+		return nil, d.AddTrimmingToError(err, false)
+	}
+	return move, nil
 }
 
 // GetMovementByQuoteFromMid derives your slippage from the mid price
@@ -481,8 +596,17 @@ func (d *Depth) GetMovementByQuote(quote float64, refPrice float64) (*Movement, 
 // cost using the quote amount. This lifts the offers when you are bid/buy side.
 func (d *Depth) GetMovementByQuoteFromMid(quote float64) (*Movement, error) {
 	d.m.Lock()
-	defer d.m.Unlock()
-	return d.asks.getMovementByQuoteAmount(quote, d.getMidPriceNoLock())
+	mid, err := d.getMidPriceNoLock()
+	if err != nil {
+		d.m.Unlock()
+		return nil, err
+	}
+	move, err := d.asks.getMovementByQuoteAmount(quote, mid)
+	d.m.Unlock()
+	if err != nil {
+		return nil, d.AddTrimmingToError(err, false)
+	}
+	return move, nil
 }
 
 // GetMovementByQuoteFromBest derives your slippage from the best price ask
@@ -490,45 +614,81 @@ func (d *Depth) GetMovementByQuoteFromMid(quote float64) (*Movement, error) {
 // amount. This lifts the offers when you are bid/buy side.
 func (d *Depth) GetMovementByQuoteFromBest(quote float64) (*Movement, error) {
 	d.m.Lock()
-	defer d.m.Unlock()
-	return d.asks.getMovementByQuoteAmount(quote, d.asks.getHeadPrice())
+	head, err := d.asks.getHeadPrice()
+	if err != nil {
+		d.m.Unlock()
+		return nil, err
+	}
+	move, err := d.asks.getMovementByQuoteAmount(quote, head)
+	d.m.Unlock()
+	if err != nil {
+		return nil, d.AddTrimmingToError(err, false)
+	}
+	return move, nil
 }
 
 // GetMidPrice returns the mid price between the ask and bid spread
-func (d *Depth) GetMidPrice() float64 {
+func (d *Depth) GetMidPrice() (float64, error) {
 	d.m.Lock()
 	defer d.m.Unlock()
 	return d.getMidPriceNoLock()
 }
 
 // getMidPriceNoLock is an unprotected helper that gets mid price
-func (d *Depth) getMidPriceNoLock() float64 {
-	return (d.bids.getHeadPrice() + d.asks.getHeadPrice()) / 2
+func (d *Depth) getMidPriceNoLock() (float64, error) {
+	bidHead, err := d.bids.getHeadPrice()
+	if err != nil {
+		return 0, err
+	}
+	askHead, err := d.asks.getHeadPrice()
+	if err != nil {
+		return 0, err
+	}
+	return (bidHead + askHead) / 2, nil
 }
 
 // GetBestBid returns the best bid price
-func (d *Depth) GetBestBid() float64 {
+func (d *Depth) GetBestBid() (float64, error) {
 	d.m.Lock()
 	defer d.m.Unlock()
 	return d.bids.getHeadPrice()
 }
 
 // GetBestAsk returns the best ask price
-func (d *Depth) GetBestAsk() float64 {
+func (d *Depth) GetBestAsk() (float64, error) {
 	d.m.Lock()
 	defer d.m.Unlock()
 	return d.asks.getHeadPrice()
 }
 
-type Stats struct {
-	BestAsk          float64
-	AskVolume        float64
-	AskValue         float64
-	BestBid          float64
-	BidVolume        float64
-	BidValue         float64
-	Imbalance        float64
-	Spread           float64
-	SpreadPerentage  float64
-	SpreadBasisPoint float64
+// AddTrimmingToError add liquidity side information to error if there is not
+// enough liquidity on the book. WRT websocket books this might mean there is
+// only a limited amount of returned data compared to REST.
+func (d *Depth) AddTrimmingToError(err error, bid bool) error {
+	if err == nil || !errors.Is(err, errNotEnoughLiquidity) {
+		fmt.Println("bruh")
+		return err
+	}
+	fmt.Println("bruh2")
+	var amounts SideAmounts
+	var liquiditySide string
+
+	if bid {
+		d.m.Lock()
+		amounts = d.bids.getSideAmounts()
+		d.m.Unlock()
+		liquiditySide = "bid"
+	} else {
+		d.m.Lock()
+		amounts = d.asks.getSideAmounts()
+		d.m.Unlock()
+		liquiditySide = "ask"
+	}
+
+	return fmt.Errorf("%w on current %s depth - tranche levels:%v max value:%v max amount:%v ",
+		err,
+		liquiditySide,
+		amounts.Tranches,
+		amounts.QuoteValue,
+		amounts.BaseAmount)
 }

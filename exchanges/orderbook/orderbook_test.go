@@ -723,32 +723,3 @@ func BenchmarkCopySlice(b *testing.B) {
 		copy(cpy, s)
 	}
 }
-
-func TestOrderSummary(t *testing.T) {
-	var o Items
-	if p := o.MaximumPrice(false); p != 0 {
-		t.Error("unexpected result")
-	}
-	if p := o.MinimumPrice(false); p != 0 {
-		t.Error("unexpected result")
-	}
-
-	o = Items{
-		{Price: 1337, Amount: 1},
-		{Price: 9001, Amount: 1},
-	}
-	if p := o.MaximumPrice(false); p != 1337 {
-		t.Error("unexpected result")
-	}
-	if p := o.MaximumPrice(true); p != 9001 {
-		t.Error("unexpected result")
-	}
-	if p := o.MinimumPrice(false); p != 1337 {
-		t.Error("unexpected result")
-	}
-	if p := o.MinimumPrice(true); p != 9001 {
-		t.Error("unexpected result")
-	}
-
-	o.Print()
-}
