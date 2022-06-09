@@ -1330,7 +1330,7 @@ func (b *Base) GetPositionSummary(ctx context.Context, request *order.PositionSu
 }
 
 // GetFundingDetails returns funding rate details for a future for a specific time period
-func (b *Base) GetFundingPaymentDetails(ctx context.Context, request *order.FundingRateDetailsRequest) (*order.FundingRateDetails, error) {
+func (b *Base) GetFundingPaymentDetails(ctx context.Context, request *order.FundingPaymentDetailsRequest) (*order.FundingPaymentDetails, error) {
 	return nil, common.ErrNotYetImplemented
 }
 

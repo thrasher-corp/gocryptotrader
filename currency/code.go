@@ -13,6 +13,8 @@ var (
 	ErrCurrencyCodeEmpty = errors.New("currency code is empty")
 	// ErrCurrencyPairEmpty defines an error if the currency pair is empty
 	ErrCurrencyPairEmpty = errors.New("currency pair is empty")
+	// ErrCurrencyPairsEmpty returns when a currency.Pairs has len == 0
+	ErrCurrencyPairsEmpty = errors.New("currency pairs is empty")
 	// EMPTYCODE is an empty currency code
 	EMPTYCODE = Code{}
 	// EMPTYPAIR is an empty currency pair

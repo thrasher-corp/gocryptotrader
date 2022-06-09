@@ -743,7 +743,7 @@ func (m *OrderManager) processFuturesPositions(exch exchange.IBotExchange, posit
 			return err
 		}
 	}
-	frp, err := exch.GetFundingPaymentDetails(context.TODO(), &order.FundingRateDetailsRequest{
+	frp, err := exch.GetFundingPayments(context.TODO(), &order.FundingPaymentDetailsRequest{
 		Asset:     position.Asset,
 		Pair:      position.Pair,
 		StartDate: position.Orders[0].Date,

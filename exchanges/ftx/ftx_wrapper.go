@@ -1784,10 +1784,10 @@ func (f *FTX) GetPositionSummary(ctx context.Context, request *order.PositionSum
 	return nil, fmt.Errorf("unable to calculate position summary %w for %v %v", order.ErrPositionNotFound, request.Asset, request.Pair)
 }
 
-// GetFundingPaymentDetails returns a funding rate summary for a given future
-func (f *FTX) GetFundingPaymentDetails(ctx context.Context, request *order.FundingRateDetailsRequest) (*order.FundingRateDetails, error) {
+// GetFundingPayments returns a funding rate summary for a given future
+func (f *FTX) GetFundingPayments(ctx context.Context, request *order.FundingPaymentDetailsRequest) (*order.FundingPaymentDetails, error) {
 	if request == nil {
-		return nil, fmt.Errorf("%w FundingRateDetailsRequest", common.ErrNilPointer)
+		return nil, fmt.Errorf("%w FundingPaymentDetailsRequest", common.ErrNilPointer)
 	}
 	if !request.Asset.IsFutures() {
 		return nil, fmt.Errorf("%w '%s' is not a futures asset", asset.ErrNotSupported, request.Asset)
@@ -1795,7 +1795,7 @@ func (f *FTX) GetFundingPaymentDetails(ctx context.Context, request *order.Fundi
 	if !request.Pair.Quote.Equal(currency.PERP) {
 		return nil, order.ErrNotPerpetualFuture
 	}
-	response := order.FundingRateDetails{
+	response := order.FundingPaymentDetails{
 		Exchange:  f.Name,
 		Asset:     request.Asset,
 		Pair:      request.Pair,
@@ -1806,12 +1806,12 @@ func (f *FTX) GetFundingPaymentDetails(ctx context.Context, request *order.Fundi
 	if err != nil {
 		return nil, err
 	}
-	fundingDetails, err := f.GetFundingPayments(ctx, request.StartDate, request.EndDate, fPair)
+	fundingDetails, err := f.FundingPayments(ctx, request.StartDate, request.EndDate, fPair)
 	if err != nil {
 		return nil, err
 	}
 	for i := range fundingDetails {
-		response.FundingRates = append(response.FundingRates, order.FundingRate{
+		response.FundingRates = append(response.FundingRates, order.FundingPayment{
 			Time:    fundingDetails[i].Time,
 			Rate:    decimal.NewFromFloat(fundingDetails[i].Rate),
 			Payment: decimal.NewFromFloat(fundingDetails[i].Payment),
@@ -1876,6 +1876,62 @@ func (f *FTX) GetOpenPositions(ctx context.Context, item asset.Item, startDate, 
 			return nil, fmt.Errorf("%w open order found for %v but no orders between %v-%v", order.ErrPositionNotFound, positions[x].Future, startDate, endDate)
 		}
 		response = append(response, openPositionDetails)
+	}
+	return response, nil
+}
+
+// GetFundingRates returns stats about funding rates for pairs
+func (f *FTX) GetFundingRates(ctx context.Context, item asset.Item, pairs currency.Pairs, start, end time.Time) ([]order.FundingRateDetails, error) {
+	if !item.IsFutures() {
+		return nil, fmt.Errorf("%w '%s' is not a futures asset", asset.ErrNotSupported, item)
+	}
+	if len(pairs) == 0 {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	err := common.StartEndTimeCheck(start, end)
+	if err != nil {
+		return nil, err
+	}
+	var response []order.FundingRateDetails
+	for i := range pairs {
+		var (
+			fPair string
+			rates []FundingRatesData
+			stats FutureStatsData
+		)
+		fPair, err = f.FormatSymbol(pairs[i], item)
+		if err != nil {
+			return nil, err
+		}
+		rates, err = f.FundingRates(ctx, start, end, fPair)
+		if err != nil {
+			return nil, err
+		}
+		stats, err = f.GetFutureStats(ctx, fPair)
+		if err != nil {
+			return nil, err
+		}
+		upcoming := order.FundingRate{
+			Rate: decimal.NewFromFloat(stats.NextFundingRate),
+			Time: stats.NextFundingTime,
+		}
+		currencyRates := order.FundingRateDetails{
+			Exchange:              f.Name,
+			Asset:                 item,
+			Pair:                  pairs[i],
+			PredictedUpcomingRate: upcoming,
+		}
+		for j := range rates {
+			currencyRates.PastRates = append(currencyRates.PastRates, order.FundingRate{
+				Rate: decimal.NewFromFloat(rates[j].Rate),
+				Time: rates[j].Time,
+			})
+		}
+		if end.Sub(time.Now()) <= time.Hour {
+			// only state the current rate if its actually current
+			currencyRates.CurrentRate = currencyRates.PastRates[len(currencyRates.PastRates)-1]
+		}
+		response = append(response, currencyRates)
 	}
 	return response, nil
 }

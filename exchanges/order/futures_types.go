@@ -204,7 +204,7 @@ type PositionTracker struct {
 	shortPositions     []Detail
 	longPositions      []Detail
 	pnlHistory         []PNLResult
-	fundingRateDetails []FundingRate
+	fundingRateDetails []FundingPayment
 }
 
 // PositionTrackerSetup contains all required fields to
@@ -308,7 +308,7 @@ type Position struct {
 	CloseDate        time.Time
 	Orders           []Detail
 	PNLHistory       []PNLResult
-	FundingRates     []FundingRate
+	FundingPayments  []FundingPayment
 }
 
 // PositionSummaryRequest is used to request a summary of an open position
@@ -349,30 +349,45 @@ type PositionSummary struct {
 	TotalCollateral              decimal.Decimal
 }
 
-// FundingRateDetailsRequest is used to request funding rate details for a position
-type FundingRateDetailsRequest struct {
+// FundingRateDetails contains funding rate details for an exchange, asset, pair
+type FundingRateDetails struct {
+	Exchange              string
+	Asset                 asset.Item
+	Pair                  currency.Pair
+	CurrentRate           FundingRate
+	PredictedUpcomingRate FundingRate
+	PastRates             []FundingRate
+}
+
+// FundingRate contains funding rate information
+type FundingRate struct {
+	Rate decimal.Decimal
+	Time time.Time
+}
+
+// FundingPaymentDetailsRequest is used to request funding rate details for a position
+type FundingPaymentDetailsRequest struct {
 	Asset     asset.Item
 	Pair      currency.Pair
 	StartDate time.Time
 	EndDate   time.Time
 }
 
-// FundingRateDetails is used to return funding rate details for a position
-type FundingRateDetails struct {
+// FundingPaymentDetails is used to return funding rate details for a position
+type FundingPaymentDetails struct {
 	Exchange     string
 	Asset        asset.Item
 	Pair         currency.Pair
 	StartDate    time.Time
 	EndDate      time.Time
-	FundingRates []FundingRate
+	FundingRates []FundingPayment
 	Sum          decimal.Decimal
 }
 
-// FundingRate holds details for an individual funding rate
-type FundingRate struct {
-	Rate    decimal.Decimal
+// FundingPayment holds details for an individual funding rate
+type FundingPayment struct {
+	FundingRate
 	Payment decimal.Decimal
-	Time    time.Time
 }
 
 // OpenPositionDetails are used to track open positions

@@ -4186,15 +4186,15 @@ func (s *RPCServer) buildFuturePosition(position *order.Position, getFundingPaym
 	if getFundingPayments {
 		var sum decimal.Decimal
 		fundingData := &gctrpc.FundingData{}
-		for i := range position.FundingRates {
+		for i := range position.FundingPayments {
 			if includeFundingRates {
 				fundingData.FundingRates = append(fundingData.FundingRates, &gctrpc.FundingRate{
-					Date:    position.FundingRates[i].Time.Format(common.SimpleTimeFormatWithTimezone),
-					Rate:    position.FundingRates[i].Rate.String(),
-					Payment: position.FundingRates[i].Payment.String(),
+					Date:    position.FundingPayments[i].Time.Format(common.SimpleTimeFormatWithTimezone),
+					Rate:    position.FundingPayments[i].Rate.String(),
+					Payment: position.FundingPayments[i].Payment.String(),
 				})
 			}
-			sum = sum.Add(position.FundingRates[i].Payment)
+			sum = sum.Add(position.FundingPayments[i].Payment)
 		}
 		fundingData.FundingRateSum = sum.String()
 		response.FundingData = fundingData
@@ -4461,7 +4461,7 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 			if pos[i].Status == order.Closed {
 				endDate = pos[i].Orders[len(pos[i].Orders)-1].Date
 			}
-			fundingDetails, err := exch.GetFundingPaymentDetails(ctx, &order.FundingRateDetailsRequest{
+			fundingDetails, err := exch.GetFundingPayments(ctx, &order.FundingPaymentDetailsRequest{
 				Asset:     pos[i].Asset,
 				Pair:      pos[i].Pair,
 				StartDate: pos[i].Orders[0].Date,
@@ -4588,7 +4588,7 @@ func (s *RPCServer) GetFundingPayments(ctx context.Context, r *gctrpc.GetFunding
 		return nil, err
 	}
 
-	funding, err := exch.GetFundingPaymentDetails(ctx, &order.FundingRateDetailsRequest{
+	funding, err := exch.GetFundingPayments(ctx, &order.FundingPaymentDetailsRequest{
 		Asset:     a,
 		Pair:      cp,
 		StartDate: start,

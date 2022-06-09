@@ -22,7 +22,7 @@ func SetupPositionController() *PositionController {
 	}
 }
 
-func (c *PositionController) TrackFundingDetails(d *FundingRateDetails) error {
+func (c *PositionController) TrackFundingDetails(d *FundingPaymentDetails) error {
 	if c == nil {
 		return fmt.Errorf("position controller %w", common.ErrNilPointer)
 	}
@@ -428,7 +428,7 @@ func (e *MultiPositionTracker) GetPositions() []Position {
 
 var errNoPositionsFoundForTimeframe = errors.New("no positions found for timeframe")
 
-func (e *MultiPositionTracker) TrackingFundingDetails(d *FundingRateDetails) error {
+func (e *MultiPositionTracker) TrackingFundingDetails(d *FundingPaymentDetails) error {
 	if e == nil {
 		return fmt.Errorf("multi-position tracker %w", common.ErrNilPointer)
 	}
@@ -550,7 +550,7 @@ func (p *PositionTracker) GetStats() Position {
 		CloseDate:        p.closingDate,
 		Orders:           orders,
 		PNLHistory:       p.pnlHistory,
-		FundingRates:     p.fundingRateDetails,
+		FundingPayments:  p.fundingRateDetails,
 	}
 }
 
@@ -646,7 +646,7 @@ func (p *PositionTracker) GetLatestPNLSnapshot() (PNLResult, error) {
 var errFundingRateOutOfRange = fmt.Errorf("funding rate out of range")
 var errDoesntMatch = errors.New("doesn't match")
 
-func (p *PositionTracker) TrackingFundingDetails(d *FundingRateDetails) error {
+func (p *PositionTracker) TrackingFundingDetails(d *FundingPaymentDetails) error {
 	if p == nil {
 		return fmt.Errorf("position tracker %w", common.ErrNilPointer)
 	}
