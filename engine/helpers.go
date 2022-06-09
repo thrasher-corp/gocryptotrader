@@ -137,8 +137,8 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 					bot.ExchangeManager,
 					bot.CommunicationsManager,
 					&bot.ServicesWG,
-					bot.Settings.EnableFuturesTracking,
-					bot.Settings.Verbose)
+					bot.Config.OrderManager.Verbose,
+					bot.Config.OrderManager.TrackFuturesPositions)
 				if err != nil {
 					return err
 				}

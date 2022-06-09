@@ -24,6 +24,7 @@ var (
 	errNilCommunicationsManager = errors.New("cannot start with nil communications manager")
 	errNilOrder                 = errors.New("nil order received")
 	errFuturesTrackerNotSetup   = errors.New("futures position tracker not setup")
+	errFuturesTrackingDisabled  = errors.New("tracking futures positions disabled. enable it in config")
 
 	orderManagerDelay = time.Second * 10
 )
@@ -51,12 +52,13 @@ type store struct {
 
 // OrderManager processes and stores orders across enabled exchanges
 type OrderManager struct {
-	started          int32
-	processingOrders int32
-	shutdown         chan struct{}
-	orderStore       store
-	cfg              orderManagerConfig
-	verbose          bool
+	started               int32
+	processingOrders      int32
+	shutdown              chan struct{}
+	orderStore            store
+	cfg                   orderManagerConfig
+	verbose               bool
+	trackFuturesPositions bool
 }
 
 // OrderSubmitResponse contains the order response along with an internal order ID

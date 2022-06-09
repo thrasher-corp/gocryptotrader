@@ -81,6 +81,7 @@ type Config struct {
 	Database             database.Config           `json:"database"`
 	Logging              log.Config                `json:"logging"`
 	ConnectionMonitor    ConnectionMonitorConfig   `json:"connectionMonitor"`
+	OrderManager         OrderManager              `json:"orderManager"`
 	DataHistoryManager   DataHistoryManager        `json:"dataHistoryManager"`
 	CurrencyStateManager CurrencyStateManager      `json:"currencyStateManager"`
 	Profiler             Profiler                  `json:"profiler"`
@@ -102,6 +103,13 @@ type Config struct {
 	// encryption session values
 	storedSalt []byte
 	sessionDK  []byte
+}
+
+// OrderManager holds settings used for the order manager
+type OrderManager struct {
+	Enabled               *bool `json:"enabled"`
+	TrackFuturesPositions bool  `json:"trackFuturesPositions"`
+	Verbose               bool  `json:"verbose"`
 }
 
 // DataHistoryManager holds all information required for the data history manager

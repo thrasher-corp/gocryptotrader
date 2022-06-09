@@ -145,8 +145,7 @@ var (
 	errInvalidOrderAmounts                               = errors.New("filled amount should not exceed order amount")
 	errCollateralCurrencyNotFound                        = errors.New("no collateral scaling information found")
 	errCollateralInitialMarginFractionMissing            = errors.New("cannot scale collateral, missing initial margin fraction information")
-
-	validResolutionData = []int64{15, 60, 300, 900, 3600, 14400, 86400}
+	validResolutionData                                  = []int64{15, 60, 300, 900, 3600, 14400, 86400}
 )
 
 // GetHistoricalIndex gets historical index data

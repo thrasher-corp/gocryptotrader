@@ -200,10 +200,8 @@ func main() {
 		tradeCommand,
 		dataHistoryCommands,
 		currencyStateManagementCommand,
-		getFuturesPositionsCommand,
-		getCollateralCommand,
+		futuresCommands,
 		shutdownCommand,
-		getManagedPositionCommand,
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())

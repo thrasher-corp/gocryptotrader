@@ -1792,6 +1792,9 @@ func (f *FTX) GetFundingPaymentDetails(ctx context.Context, request *order.Fundi
 	if !request.Asset.IsFutures() {
 		return nil, fmt.Errorf("%w '%s' is not a futures asset", asset.ErrNotSupported, request.Asset)
 	}
+	if !request.Pair.Quote.Equal(currency.PERP) {
+		return nil, order.ErrNotPerpetualFuture
+	}
 	response := order.FundingRateDetails{
 		Exchange:  f.Name,
 		Asset:     request.Asset,
@@ -1862,6 +1865,10 @@ func (f *FTX) GetOpenPositions(ctx context.Context, item asset.Item, startDate, 
 			}
 			if orders[z].Date.Before(startDate) || orders[z].Date.After(endDate) {
 				continue
+			}
+			if orders[z].Price == 0 {
+				// sometimes FTX sends a null price
+				orders[z].Price = orders[z].AverageExecutedPrice
 			}
 			openPositionDetails.Orders = append(openPositionDetails.Orders, orders[z])
 		}

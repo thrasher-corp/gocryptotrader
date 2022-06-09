@@ -4173,10 +4173,15 @@ func (s *RPCServer) buildFuturePosition(position *order.Position, getFundingPaym
 			Quote:     position.Pair.Quote.String(),
 		},
 		Status:           position.Status.String(),
+		OpeningDate:      position.OpeningDate.Format(common.SimpleTimeFormatWithTimezone),
+		OpeningDirection: position.OpeningDirection.String(),
+		OpeningPrice:     position.OpeningPrice.String(),
+		OpeningSize:      position.OpeningSize.String(),
 		CurrentDirection: position.LatestDirection.String(),
+		CurrentPrice:     position.LatestPrice.String(),
+		CurrentSize:      position.LatestSize.String(),
 		UnrealisedPnl:    position.UnrealisedPNL.String(),
 		RealisedPnl:      position.RealisedPNL.String(),
-		OpeningDate:      position.OpeningDate.Format(common.SimpleTimeFormatWithTimezone),
 	}
 	if getFundingPayments {
 		var sum decimal.Decimal
@@ -4192,6 +4197,7 @@ func (s *RPCServer) buildFuturePosition(position *order.Position, getFundingPaym
 			sum = sum.Add(position.FundingRates[i].Payment)
 		}
 		fundingData.FundingRateSum = sum.String()
+		response.FundingData = fundingData
 	}
 
 	if includeOrders {
@@ -4234,7 +4240,7 @@ func (s *RPCServer) buildFuturePosition(position *order.Position, getFundingPaym
 }
 
 // GetManagedPosition returns an open positions from the order manager, no calling any API endpoints to return this information
-func (s *RPCServer) GetManagedPosition(ctx context.Context, r *gctrpc.GetManagedPositionRequest) (*gctrpc.GetManagedPositionsResponse, error) {
+func (s *RPCServer) GetManagedPosition(_ context.Context, r *gctrpc.GetManagedPositionRequest) (*gctrpc.GetManagedPositionsResponse, error) {
 	var (
 		exch exchange.IBotExchange
 		ai   asset.Item
@@ -4263,8 +4269,11 @@ func (s *RPCServer) GetManagedPosition(ctx context.Context, r *gctrpc.GetManaged
 	if err != nil {
 		return nil, err
 	}
-	position, err := s.OrderManager.orderStore.futuresPositionController.GetOpenPosition(r.Exchange, ai, cp)
+	position, err := s.OrderManager.GetOpenFuturesPosition(r.Exchange, ai, cp)
 	if err != nil {
+		if !s.Config.OrderManager.TrackFuturesPositions {
+			return nil, fmt.Errorf("%v or use GetFuturesPositions command. err: %w", errFuturesTrackingDisabled, err)
+		}
 		return nil, err
 	}
 
@@ -4274,9 +4283,12 @@ func (s *RPCServer) GetManagedPosition(ctx context.Context, r *gctrpc.GetManaged
 }
 
 // GetAllManagedPositions returns all open positions from the order manager, no calling any API endpoints to return this information
-func (s *RPCServer) GetAllManagedPositions(ctx context.Context, r *gctrpc.GetAllManagedPositionsRequest) (*gctrpc.GetManagedPositionsResponse, error) {
-	positions, err := s.OrderManager.orderStore.futuresPositionController.GetAllOpenPositions()
+func (s *RPCServer) GetAllManagedPositions(_ context.Context, r *gctrpc.GetAllManagedPositionsRequest) (*gctrpc.GetManagedPositionsResponse, error) {
+	positions, err := s.OrderManager.GetAllOpenFuturesPositions()
 	if err != nil {
+		if !s.Config.OrderManager.TrackFuturesPositions {
+			return nil, fmt.Errorf("%v or use GetFuturesPositions command. err: %w", errFuturesTrackingDisabled, err)
+		}
 		return nil, err
 	}
 	var response []*gctrpc.FuturePosition
@@ -4380,6 +4392,7 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 			if err != nil {
 				return nil, fmt.Errorf("%w when updating unrealised PNL for %v %v %v", err, pos[i].Exchange, pos[i].Asset, pos[i].Pair)
 			}
+			pos[i].LatestPrice = decimal.NewFromFloat(tick.Last)
 		}
 		response.TotalOrders += int64(len(pos[i].Orders))
 		details := &gctrpc.FuturePosition{
@@ -4390,9 +4403,16 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 				Base:      pos[i].Pair.Base.String(),
 				Quote:     pos[i].Pair.Quote.String(),
 			},
-			Status:        pos[i].Status.String(),
-			UnrealisedPnl: pos[i].UnrealisedPNL.String(),
-			RealisedPnl:   pos[i].RealisedPNL.String(),
+			Status:           pos[i].Status.String(),
+			OpeningDate:      pos[i].OpeningDate.Format(common.SimpleTimeFormatWithTimezone),
+			OpeningDirection: pos[i].OpeningDirection.String(),
+			OpeningPrice:     pos[i].OpeningPrice.String(),
+			OpeningSize:      pos[i].OpeningSize.String(),
+			CurrentDirection: pos[i].LatestDirection.String(),
+			CurrentPrice:     pos[i].LatestPrice.String(),
+			CurrentSize:      pos[i].LatestSize.String(),
+			UnrealisedPnl:    pos[i].UnrealisedPNL.String(),
+			RealisedPnl:      pos[i].RealisedPNL.String(),
 		}
 		if !pos[i].UnrealisedPNL.IsZero() {
 			details.UnrealisedPnl = pos[i].UnrealisedPNL.String()
@@ -4525,6 +4545,7 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 	return response, nil
 }
 
+//
 func (s *RPCServer) GetFundingPayments(ctx context.Context, r *gctrpc.GetFundingPaymentsRequest) (*gctrpc.GetFundingPaymentsResponse, error) {
 	exch, err := s.GetExchangeByName(r.Exchange)
 	if err != nil {
@@ -4536,7 +4557,7 @@ func (s *RPCServer) GetFundingPayments(ctx context.Context, r *gctrpc.GetFunding
 		return nil, err
 	}
 
-	cp, err := currency.NewPairFromString(r.Pair)
+	cp, err := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
 	if err != nil {
 		return nil, err
 	}

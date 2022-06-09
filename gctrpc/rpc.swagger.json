@@ -1154,12 +1154,6 @@
         },
         "parameters": [
           {
-            "name": "getPositionStats",
-            "in": "query",
-            "required": false,
-            "type": "boolean"
-          },
-          {
             "name": "includeFullOrderData",
             "in": "query",
             "required": false,
@@ -1902,7 +1896,19 @@
             "type": "string"
           },
           {
-            "name": "pair",
+            "name": "pair.delimiter",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.base",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.quote",
             "in": "query",
             "required": false,
             "type": "string"
@@ -2343,12 +2349,6 @@
             "in": "query",
             "required": false,
             "type": "string"
-          },
-          {
-            "name": "getPositionStats",
-            "in": "query",
-            "required": false,
-            "type": "boolean"
           },
           {
             "name": "includeFullOrderData",
@@ -4536,16 +4536,31 @@
         "status": {
           "type": "string"
         },
+        "openingDate": {
+          "type": "string"
+        },
+        "openingDirection": {
+          "type": "string"
+        },
+        "openingPrice": {
+          "type": "string"
+        },
+        "openingSize": {
+          "type": "string"
+        },
         "currentDirection": {
+          "type": "string"
+        },
+        "currentPrice": {
+          "type": "string"
+        },
+        "currentSize": {
           "type": "string"
         },
         "unrealisedPnl": {
           "type": "string"
         },
         "realisedPnl": {
-          "type": "string"
-        },
-        "openingDate": {
           "type": "string"
         },
         "closingDate": {

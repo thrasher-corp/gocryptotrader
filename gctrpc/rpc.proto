@@ -1057,31 +1057,34 @@ message FuturePosition {
   string asset = 2;
   CurrencyPair pair = 3;
   string status = 4;
-  string current_direction = 5;
-  string unrealised_pnl = 6;
-  string realised_pnl = 7;
-  string opening_date = 8;
-  string closing_date = 9;
-  repeated OrderDetails orders = 10;
-  FuturesPositionStats position_stats = 11;
-  FundingData funding_data = 12;
+  string opening_date = 5;
+  string opening_direction = 6;
+  string opening_price = 7;
+  string opening_size = 8;
+  string current_direction = 9;
+  string current_price = 10;
+  string current_size = 11;
+  string unrealised_pnl = 12;
+  string realised_pnl = 13;
+  string closing_date = 14;
+  repeated OrderDetails orders = 15;
+  FuturesPositionStats position_stats = 16;
+  FundingData funding_data = 17;
 }
 
 message GetManagedPositionRequest {
   string exchange = 1;
   string asset = 2;
   CurrencyPair pair = 3;
-  bool get_position_stats = 4;
-  bool include_full_order_data = 5;
-  bool get_funding_payments = 6;
-  bool include_full_funding_rates = 7;
+  bool include_full_order_data = 4;
+  bool get_funding_payments = 5;
+  bool include_full_funding_rates = 6;
 }
 
 message GetAllManagedPositionsRequest {
-  bool get_position_stats = 4;
-  bool include_full_order_data = 5;
-  bool get_funding_payments = 6;
-  bool include_full_funding_rates = 7;
+  bool include_full_order_data = 1;
+  bool get_funding_payments = 2;
+  bool include_full_funding_rates = 3;
 }
 
 message GetManagedPositionsResponse {
@@ -1174,7 +1177,7 @@ message CollateralUsedBreakdown {
 message GetFundingPaymentsRequest {
   string exchange = 1;
   string asset = 2;
-  string pair = 3;
+  CurrencyPair pair = 3;
   string start_date = 4;
   string end_date = 5;
 }

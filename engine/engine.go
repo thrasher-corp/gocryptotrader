@@ -163,6 +163,7 @@ func validateSettings(b *Engine, s *Settings, flagSet FlagSet) {
 	b.Settings = *s
 
 	flagSet.WithBool("coinmarketcap", &b.Settings.EnableCoinmarketcapAnalysis, b.Config.Currency.CryptocurrencyProvider.Enabled)
+	flagSet.WithBool("ordermanager", &b.Settings.EnableOrderManager, b.Config.OrderManager.Enabled != nil && *b.Config.OrderManager.Enabled)
 
 	flagSet.WithBool("currencyconverter", &b.Settings.EnableCurrencyConverter, b.Config.Currency.ForexProviders.IsEnabled("currencyconverter"))
 
@@ -525,8 +526,8 @@ func (bot *Engine) Start() error {
 			bot.ExchangeManager,
 			bot.CommunicationsManager,
 			&bot.ServicesWG,
-			bot.Settings.EnableFuturesTracking,
-			bot.Settings.Verbose)
+			bot.Config.OrderManager.Verbose,
+			bot.Config.OrderManager.TrackFuturesPositions)
 		if err != nil {
 			gctlog.Errorf(gctlog.Global, "Order manager unable to setup: %s", err)
 		} else {

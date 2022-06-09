@@ -1336,6 +1336,15 @@ func (c *Config) CheckCurrencyStateManager() {
 	}
 }
 
+// CheckOrderManagerConfig ensures the order manager is setup correctly
+func (c *Config) CheckOrderManagerConfig() {
+	m.Lock()
+	defer m.Unlock()
+	if c.OrderManager.Enabled == nil {
+		c.OrderManager.Enabled = convert.BoolPtr(true)
+	}
+}
+
 // CheckConnectionMonitorConfig checks and if zero value assigns default values
 func (c *Config) CheckConnectionMonitorConfig() {
 	m.Lock()
@@ -1684,6 +1693,7 @@ func (c *Config) CheckConfig() error {
 	c.CheckConnectionMonitorConfig()
 	c.CheckDataHistoryMonitorConfig()
 	c.CheckCurrencyStateManager()
+	c.CheckOrderManagerConfig()
 	c.CheckCommunicationsConfig()
 	c.CheckClientBankAccounts()
 	c.CheckBankAccountConfig()

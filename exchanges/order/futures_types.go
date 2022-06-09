@@ -34,6 +34,8 @@ var (
 	ErrOfflineCalculationSet = errors.New("offline calculation set")
 	// ErrPositionNotFound is raised when a position is not found
 	ErrPositionNotFound = errors.New("position not found")
+	// ErrNotPerpetualFuture is returned when a currency is not a perpetual future
+	ErrNotPerpetualFuture = errors.New("not a perpetual future")
 
 	errExchangeNameEmpty              = errors.New("exchange name empty")
 	errTimeUnset                      = errors.New("time unset")
