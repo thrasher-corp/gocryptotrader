@@ -4579,8 +4579,8 @@ func (s *RPCServer) Shutdown(_ context.Context, _ *gctrpc.ShutdownRequest) (*gct
 	return &gctrpc.ShutdownResponse{}, nil
 }
 
-// GetOrderbookMovement using the requested amount simulates a buy or sell
-// and returns the nominal/impact percentages and costings.
+// GetOrderbookMovement using the requested amount simulates a buy or sell and
+// returns the nominal/impact percentages and costings.
 func (s *RPCServer) GetOrderbookMovement(ctx context.Context, r *gctrpc.GetOrderbookMovementRequest) (*gctrpc.GetOrderbookMovementResponse, error) {
 	exch, err := s.GetExchangeByName(r.Exchange)
 	if err != nil {
@@ -4619,9 +4619,8 @@ func (s *RPCServer) GetOrderbookMovement(ctx context.Context, r *gctrpc.GetOrder
 	}, nil
 }
 
-// GetOrderbookAmountByNominal using the requested nominal percentage
-// requirement determines the amount on orderbook that can fit without exceeding
-// that.
+// GetOrderbookAmountByNominal using the requested nominal percentage requirement
+// returns the amount on orderbook that can fit without exceeding that value.
 func (s *RPCServer) GetOrderbookAmountByNominal(ctx context.Context, r *gctrpc.GetOrderbookAmountByNominalRequest) (*gctrpc.GetOrderbookAmountByNominalResponse, error) {
 	exch, err := s.GetExchangeByName(r.Exchange)
 	if err != nil {
@@ -4652,13 +4651,11 @@ func (s *RPCServer) GetOrderbookAmountByNominal(ctx context.Context, r *gctrpc.G
 	if err != nil {
 		return nil, err
 	}
-
 	return &gctrpc.GetOrderbookAmountByNominalResponse{Amount: amount}, nil
 }
 
 // GetOrderbookAmountByImpact using the requested impact percentage requirement
-// determines the amount on orderbook that can fit without that will slip the
-// orderbook.
+// determines the amount on orderbook that can fit that will slip the orderbook.
 func (s *RPCServer) GetOrderbookAmountByImpact(ctx context.Context, r *gctrpc.GetOrderbookAmountByImpactRequest) (*gctrpc.GetOrderbookAmountByImpactResponse, error) {
 	exch, err := s.GetExchangeByName(r.Exchange)
 	if err != nil {
@@ -4689,6 +4686,5 @@ func (s *RPCServer) GetOrderbookAmountByImpact(ctx context.Context, r *gctrpc.Ge
 	if err != nil {
 		return nil, err
 	}
-
 	return &gctrpc.GetOrderbookAmountByImpactResponse{Amount: amount}, nil
 }

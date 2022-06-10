@@ -62,11 +62,8 @@ func (b *Base) WhaleBomb(priceTarget float64, buy bool) (*WhaleBombResult, error
 	}, err
 }
 
-// OrderSimulationResult returns the order simulation result
-type OrderSimulationResult WhaleBombResult
-
 // SimulateOrder simulates an order
-func (b *Base) SimulateOrder(amount float64, buy bool) *OrderSimulationResult {
+func (b *Base) SimulateOrder(amount float64, buy bool) *WhaleBombResult {
 	if buy {
 		action, err := b.buy(amount)
 		if err != nil {
@@ -76,7 +73,7 @@ func (b *Base) SimulateOrder(amount float64, buy bool) *OrderSimulationResult {
 		status := fmt.Sprintf("Buying %.2f %v worth of %v will send the price from %v to %v [%.2f%%] and take %v orders.",
 			amount, b.Pair.Quote.String(), b.Pair.Base.String(), action.ReferencePrice, action.TranchePositionPrice,
 			pct, len(action.Orders))
-		return &OrderSimulationResult{
+		return &WhaleBombResult{
 			Orders:               action.Orders,
 			Amount:               action.BaseAmount,
 			MinimumPrice:         action.ReferencePrice,
@@ -93,7 +90,7 @@ func (b *Base) SimulateOrder(amount float64, buy bool) *OrderSimulationResult {
 	status := fmt.Sprintf("Selling %f %v worth of %v will send the price from %v to %v [%.2f%%] and take %v orders.",
 		amount, b.Pair.Base.String(), b.Pair.Quote.String(), action.ReferencePrice, action.TranchePositionPrice,
 		pct, len(action.Orders))
-	return &OrderSimulationResult{
+	return &WhaleBombResult{
 		Orders:               action.Orders,
 		Amount:               action.QuoteAmount,
 		MinimumPrice:         action.TranchePositionPrice,
