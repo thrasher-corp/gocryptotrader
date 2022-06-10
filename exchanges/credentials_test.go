@@ -80,7 +80,7 @@ func TestGetCredentials(t *testing.T) {
 	b.API.SetSecret("sir")
 	b.API.SetClientID("1337")
 
-	ctx = context.WithValue(context.Background(), account.ContextCredentialsFlag, "superaccount")
+	ctx = context.WithValue(context.Background(), account.ContextSubAccountFlag, "superaccount")
 	overridedSA, err := b.GetCredentials(ctx)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: %v but expected: %v", err, nil)
