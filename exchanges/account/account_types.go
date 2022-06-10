@@ -84,7 +84,7 @@ type ProtectedBalance struct {
 }
 
 // Protected limits the access to the underlying credentials outside of this
-// package and allows it to be nil.
+// package.
 type Protected struct {
 	creds Credentials
 }

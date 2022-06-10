@@ -141,27 +141,37 @@ func TestGetHoldings(t *testing.T) {
 		t.Error(err)
 	}
 
-	_, err = GetHoldings("", asset.Spot)
+	_, err = GetHoldings("", nil, asset.Spot)
 	if !errors.Is(err, errExchangeNameUnset) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errExchangeNameUnset)
 	}
 
-	_, err = GetHoldings("bla", asset.Spot)
+	_, err = GetHoldings("bla", nil, asset.Spot)
+	if !errors.Is(err, errCredentialsAreNil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errCredentialsAreNil)
+	}
+
+	_, err = GetHoldings("bla", &Credentials{Key: "AAAAA"}, asset.Spot)
 	if !errors.Is(err, errExchangeHoldingsNotFound) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errExchangeHoldingsNotFound)
 	}
 
-	_, err = GetHoldings("bla", asset.Empty)
+	_, err = GetHoldings("bla", &Credentials{Key: "AAAAA"}, asset.Empty)
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
 	}
 
-	_, err = GetHoldings("Test", asset.UpsideProfitContract)
+	_, err = GetHoldings("Test", &Credentials{Key: "AAAAA"}, asset.UpsideProfitContract)
 	if !errors.Is(err, errAssetHoldingsNotFound) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errAssetHoldingsNotFound)
 	}
 
-	u, err := GetHoldings("Test", asset.Spot)
+	_, err = GetHoldings("Test", &Credentials{Key: "BBBBB"}, asset.Spot)
+	if !errors.Is(err, errNoCredentialBalances) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errNoCredentialBalances)
+	}
+
+	u, err := GetHoldings("Test", &Credentials{Key: "AAAAA"}, asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}

@@ -410,11 +410,14 @@ func (z *ZB) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (accou
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (z *ZB) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	acc, err := account.GetHoldings(z.Name, assetType)
+	creds, err := z.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	acc, err := account.GetHoldings(z.Name, creds, assetType)
 	if err != nil {
 		return z.UpdateAccountInfo(ctx, assetType)
 	}
-
 	return acc, nil
 }
 

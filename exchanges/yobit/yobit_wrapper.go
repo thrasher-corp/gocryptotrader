@@ -342,11 +342,14 @@ func (y *Yobit) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (y *Yobit) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	acc, err := account.GetHoldings(y.Name, assetType)
+	creds, err := y.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	acc, err := account.GetHoldings(y.Name, creds, assetType)
 	if err != nil {
 		return y.UpdateAccountInfo(ctx, assetType)
 	}
-
 	return acc, nil
 }
 

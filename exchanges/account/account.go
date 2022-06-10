@@ -73,9 +73,13 @@ func Process(h *Holdings, c *Credentials) error {
 // GetHoldings returns full holdings for an exchange.
 // NOTE: Due to credentials these amounts could be N*APIKEY actual holdings.
 // TODO: Add jurisdiction and differentiation between APIKEY holdings.
-func GetHoldings(exch string, assetType asset.Item) (Holdings, error) {
+func GetHoldings(exch string, creds *Credentials, assetType asset.Item) (Holdings, error) {
 	if exch == "" {
 		return Holdings{}, errExchangeNameUnset
+	}
+
+	if creds.IsEmpty() {
+		return Holdings{}, fmt.Errorf("%s %s %w", exch, assetType, errCredentialsAreNil)
 	}
 
 	if !assetType.IsValid() {
@@ -92,45 +96,52 @@ func GetHoldings(exch string, assetType asset.Item) (Holdings, error) {
 	}
 
 	var accountsHoldings []SubAccount
-	for credentials, subAccountHoldings := range accounts.SubAccounts {
-		for subAccount, assetHoldings := range subAccountHoldings {
-			for ai, currencyHoldings := range assetHoldings {
-				if ai != assetType {
-					continue
-				}
-				var currencyBalances = make([]Balance, len(currencyHoldings))
-				target := 0
-				for item, balance := range currencyHoldings {
-					balance.m.Lock()
-					currencyBalances[target] = Balance{
-						CurrencyName:           currency.Code{Item: item, UpperCase: true},
-						Total:                  balance.total,
-						Hold:                   balance.hold,
-						Free:                   balance.free,
-						AvailableWithoutBorrow: balance.availableWithoutBorrow,
-						Borrowed:               balance.borrowed,
-					}
-					balance.m.Unlock()
-					target++
-				}
+	subAccountHoldings, ok := accounts.SubAccounts[*creds]
+	if !ok {
+		return Holdings{}, fmt.Errorf("%s %s %s %w",
+			exch,
+			creds,
+			assetType,
+			errNoCredentialBalances)
+	}
 
-				if len(currencyBalances) == 0 {
-					continue
-				}
-
-				// Add differentiation between accounts if available
-				if credentials.SubAccount == "" {
-					credentials.SubAccount = subAccount
-				}
-
-				accountsHoldings = append(accountsHoldings, SubAccount{
-					Credentials: Protected{creds: credentials},
-					ID:          subAccount,
-					AssetType:   ai,
-					Currencies:  currencyBalances,
-				})
-				break
+	for subAccount, assetHoldings := range subAccountHoldings {
+		for ai, currencyHoldings := range assetHoldings {
+			if ai != assetType {
+				continue
 			}
+			var currencyBalances = make([]Balance, len(currencyHoldings))
+			target := 0
+			for item, balance := range currencyHoldings {
+				balance.m.Lock()
+				currencyBalances[target] = Balance{
+					CurrencyName:           currency.Code{Item: item, UpperCase: true},
+					Total:                  balance.total,
+					Hold:                   balance.hold,
+					Free:                   balance.free,
+					AvailableWithoutBorrow: balance.availableWithoutBorrow,
+					Borrowed:               balance.borrowed,
+				}
+				balance.m.Unlock()
+				target++
+			}
+
+			if len(currencyBalances) == 0 {
+				continue
+			}
+
+			cpy := *creds
+			if cpy.SubAccount == "" {
+				cpy.SubAccount = subAccount
+			}
+
+			accountsHoldings = append(accountsHoldings, SubAccount{
+				Credentials: Protected{creds: cpy},
+				ID:          subAccount,
+				AssetType:   ai,
+				Currencies:  currencyBalances,
+			})
+			break
 		}
 	}
 
@@ -162,8 +173,6 @@ func GetBalance(exch, subAccount string, creds *Credentials, ai asset.Item, c cu
 	}
 
 	exch = strings.ToLower(exch)
-	subAccount = strings.ToLower(subAccount)
-
 	service.mu.Lock()
 	defer service.mu.Unlock()
 
@@ -199,12 +208,12 @@ func GetBalance(exch, subAccount string, creds *Credentials, ai asset.Item, c cu
 }
 
 // Update updates holdings with new account info
-func (s *Service) Update(a *Holdings, creds *Credentials) error {
-	if a == nil {
+func (s *Service) Update(incoming *Holdings, creds *Credentials) error {
+	if incoming == nil {
 		return fmt.Errorf("cannot update holdings: %w", errHoldingsIsNil)
 	}
 
-	if a.Exchange == "" {
+	if incoming.Exchange == "" {
 		return fmt.Errorf("cannot update holdings: %w", errExchangeNameUnset)
 	}
 
@@ -212,7 +221,7 @@ func (s *Service) Update(a *Holdings, creds *Credentials) error {
 		return fmt.Errorf("cannot update holdings: %w", errCredentialsAreNil)
 	}
 
-	exch := strings.ToLower(a.Exchange)
+	exch := strings.ToLower(incoming.Exchange)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	accounts, ok := s.exchangeAccounts[exch]
@@ -229,11 +238,11 @@ func (s *Service) Update(a *Holdings, creds *Credentials) error {
 	}
 
 	var errs common.Errors
-	for x := range a.Accounts {
-		if !a.Accounts[x].AssetType.IsValid() {
+	for x := range incoming.Accounts {
+		if !incoming.Accounts[x].AssetType.IsValid() {
 			errs = append(errs, fmt.Errorf("cannot load sub account holdings for %s [%s] %w",
-				a.Accounts[x].ID,
-				a.Accounts[x].AssetType,
+				incoming.Accounts[x].ID,
+				incoming.Accounts[x].AssetType,
 				asset.ErrNotSupported))
 			continue
 		}
@@ -244,9 +253,9 @@ func (s *Service) Update(a *Holdings, creds *Credentials) error {
 		// TODO: Update incoming Holdings type to already be populated. (Suggestion)
 		cpy := *creds
 		if cpy.SubAccount == "" {
-			cpy.SubAccount = a.Accounts[x].ID
+			cpy.SubAccount = incoming.Accounts[x].ID
 		}
-		a.Accounts[x].Credentials.creds = cpy
+		incoming.Accounts[x].Credentials.creds = cpy
 
 		var subAccounts map[string]map[asset.Item]map[*currency.Item]*ProtectedBalance
 		subAccounts, ok = accounts.SubAccounts[*creds]
@@ -255,31 +264,33 @@ func (s *Service) Update(a *Holdings, creds *Credentials) error {
 			accounts.SubAccounts[*creds] = subAccounts
 		}
 
-		lowerSA := strings.ToLower(a.Accounts[x].ID)
 		var accountAssets map[asset.Item]map[*currency.Item]*ProtectedBalance
-		accountAssets, ok = subAccounts[lowerSA]
+		accountAssets, ok = subAccounts[incoming.Accounts[x].ID]
 		if !ok {
 			accountAssets = make(map[asset.Item]map[*currency.Item]*ProtectedBalance)
-			subAccounts[lowerSA] = accountAssets
+			// Note: Sub accounts are case sensitive and an account "name" is
+			// different to account "naMe".
+			subAccounts[incoming.Accounts[x].ID] = accountAssets
 		}
 
 		var currencyBalances map[*currency.Item]*ProtectedBalance
-		currencyBalances, ok = accountAssets[a.Accounts[x].AssetType]
+		currencyBalances, ok = accountAssets[incoming.Accounts[x].AssetType]
 		if !ok {
 			currencyBalances = make(map[*currency.Item]*ProtectedBalance)
-			accountAssets[a.Accounts[x].AssetType] = currencyBalances
+			accountAssets[incoming.Accounts[x].AssetType] = currencyBalances
 		}
 
-		for y := range a.Accounts[x].Currencies {
-			bal := currencyBalances[a.Accounts[x].Currencies[y].CurrencyName.Item]
+		for y := range incoming.Accounts[x].Currencies {
+			bal := currencyBalances[incoming.Accounts[x].Currencies[y].CurrencyName.Item]
 			if bal == nil {
 				bal = &ProtectedBalance{}
-				currencyBalances[a.Accounts[x].Currencies[y].CurrencyName.Item] = bal
+				currencyBalances[incoming.Accounts[x].Currencies[y].CurrencyName.Item] = bal
 			}
-			bal.load(a.Accounts[x].Currencies[y])
+			bal.load(incoming.Accounts[x].Currencies[y])
 		}
 	}
-	err := s.mux.Publish(a, accounts.ID)
+
+	err := s.mux.Publish(incoming, accounts.ID)
 	if err != nil {
 		return err
 	}

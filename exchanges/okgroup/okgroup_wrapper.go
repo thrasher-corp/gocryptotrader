@@ -230,11 +230,14 @@ func (o *OKGroup) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (o *OKGroup) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	acc, err := account.GetHoldings(o.Name, assetType)
+	creds, err := o.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	acc, err := account.GetHoldings(o.Name, creds, assetType)
 	if err != nil {
 		return o.UpdateAccountInfo(ctx, assetType)
 	}
-
 	return acc, nil
 }
 

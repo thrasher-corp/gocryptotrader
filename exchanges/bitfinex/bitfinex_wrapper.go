@@ -533,11 +533,14 @@ func (b *Bitfinex) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (b *Bitfinex) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	acc, err := account.GetHoldings(b.Name, assetType)
+	creds, err := b.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	acc, err := account.GetHoldings(b.Name, creds, assetType)
 	if err != nil {
 		return b.UpdateAccountInfo(ctx, assetType)
 	}
-
 	return acc, nil
 }
 
