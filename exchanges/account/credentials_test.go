@@ -150,7 +150,7 @@ func TestString(t *testing.T) {
 	}
 }
 
-func TestCreddentialsEqual(t *testing.T) {
+func TestCredentialsEqual(t *testing.T) {
 	t.Parallel()
 	var this, that *Credentials
 	if this.Equal(that) {
@@ -202,7 +202,7 @@ func TestProtectedString(t *testing.T) {
 	}
 }
 
-func TestProtectedCreddentialsEqual(t *testing.T) {
+func TestProtectedCredentialsEqual(t *testing.T) {
 	t.Parallel()
 	var this Protected
 	var that *Credentials
