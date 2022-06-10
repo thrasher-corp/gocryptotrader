@@ -187,7 +187,7 @@ func ParseCredentialsMetadata(ctx context.Context, md metadata.MD) (context.Cont
 	}
 	if ctxCreds.IsEmpty() && subAccountHere != "" {
 		// This will override default sub account details if needed.
-		return DeploySubAccountOverrideToContext(ctx, subAccountHere), nil
+		return deploySubAccountOverrideToContext(ctx, subAccountHere), nil
 	}
 	// merge sub account to main context credentials
 	ctxCreds.SubAccount = subAccountHere
@@ -201,9 +201,9 @@ func DeployCredentialsToContext(ctx context.Context, creds *Credentials) context
 	return context.WithValue(ctx, flag, store)
 }
 
-// DeploySubAccountOverrideToContext sets subaccount as override to credentials
-// as a separate flag. EXPORTED FOR TESTING IN EXCHANGES/CREDENTIALS_TEST.GO
-func DeploySubAccountOverrideToContext(ctx context.Context, subAccount string) context.Context {
+// deploySubAccountOverrideToContext sets subaccount as override to credentials
+// as a separate flag.
+func deploySubAccountOverrideToContext(ctx context.Context, subAccount string) context.Context {
 	return context.WithValue(ctx, ContextSubAccountFlag, subAccount)
 }
 

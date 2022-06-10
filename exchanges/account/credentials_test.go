@@ -154,35 +154,35 @@ func TestCreddentialsEqual(t *testing.T) {
 	t.Parallel()
 	var this, that *Credentials
 	if this.Equal(that) {
-		t.Fatal("unexpectedd value")
+		t.Fatal("unexpected value")
 	}
 	this = &Credentials{}
 	if this.Equal(that) {
-		t.Fatal("unexpectedd value")
+		t.Fatal("unexpected value")
 	}
 	that = &Credentials{Key: "1337"}
 	if this.Equal(that) {
-		t.Fatal("unexpectedd value")
+		t.Fatal("unexpected value")
 	}
 	this.Key = "1337"
 	if !this.Equal(that) {
-		t.Fatal("unexpectedd value")
+		t.Fatal("unexpected value")
 	}
 	this.ClientID = "1337"
 	if this.Equal(that) {
-		t.Fatal("unexpectedd value")
+		t.Fatal("unexpected value")
 	}
 	that.ClientID = "1337"
 	if !this.Equal(that) {
-		t.Fatal("unexpectedd value")
+		t.Fatal("unexpected value")
 	}
 	this.SubAccount = "someSub"
 	if this.Equal(that) {
-		t.Fatal("unexpectedd value")
+		t.Fatal("unexpected value")
 	}
 	that.SubAccount = "someSub"
 	if !this.Equal(that) {
-		t.Fatal("unexpectedd value")
+		t.Fatal("unexpected value")
 	}
 }
 
@@ -207,34 +207,34 @@ func TestProtectedCreddentialsEqual(t *testing.T) {
 	var this Protected
 	var that *Credentials
 	if this.Equal(that) {
-		t.Fatal("unexpectedd value")
+		t.Fatal("unexpected value")
 	}
 	this.creds = Credentials{}
 	if this.Equal(that) {
-		t.Fatal("unexpectedd value")
+		t.Fatal("unexpected value")
 	}
 	that = &Credentials{Key: "1337"}
 	if this.Equal(that) {
-		t.Fatal("unexpectedd value")
+		t.Fatal("unexpected value")
 	}
 	this.creds.Key = "1337"
 	if !this.Equal(that) {
-		t.Fatal("unexpectedd value")
+		t.Fatal("unexpected value")
 	}
 	this.creds.ClientID = "1337"
 	if this.Equal(that) {
-		t.Fatal("unexpectedd value")
+		t.Fatal("unexpected value")
 	}
 	that.ClientID = "1337"
 	if !this.Equal(that) {
-		t.Fatal("unexpectedd value")
+		t.Fatal("unexpected value")
 	}
 	this.creds.SubAccount = "someSub"
 	if this.Equal(that) {
-		t.Fatal("unexpectedd value")
+		t.Fatal("unexpected value")
 	}
 	that.SubAccount = "someSub"
 	if !this.Equal(that) {
-		t.Fatal("unexpectedd value")
+		t.Fatal("unexpected value")
 	}
 }
