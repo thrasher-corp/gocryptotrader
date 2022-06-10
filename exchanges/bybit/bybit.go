@@ -3,6 +3,7 @@ package bybit
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -800,17 +801,20 @@ func (by *Bybit) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, me
 			return nil, err
 		}
 		hmacSignedStr := crypto.HexEncodeToString(hmacSigned)
+		params.Set("sign", hmacSignedStr)
 
 		headers := make(map[string]string)
 		var payload []byte
-		headers["Content-Type"] = "application/x-www-form-urlencoded"
 		switch method {
 		case http.MethodPost:
-			params.Set("sign", hmacSignedStr)
-			payload = []byte(params.Encode())
+			headers["Content-Type"] = "application/json"
+			payload, err = json.Marshal(params)
+			if err != nil {
+				return nil, err
+			}
 		default:
+			headers["Content-Type"] = "application/x-www-form-urlencoded"
 			path = common.EncodeURLValues(path, params)
-			path += "&sign=" + hmacSignedStr
 		}
 		return &request.Item{
 			Method:        method,
