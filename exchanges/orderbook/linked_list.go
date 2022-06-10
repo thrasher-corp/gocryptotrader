@@ -770,7 +770,7 @@ func getMovement(leftover, amounts, totalValue, headPrice, refPrice, tranchePric
 	// Nominal pct deference is from the reference price twap/vwap, mid, best
 	// etc to stay within average order costing.
 	nominalP := math.CalculatePercentageGainOrLoss(averageOrderPrice, refPrice)
-	// Impact orderbook pct is how much the book slips from the intial
+	// Impact orderbook pct is how much the book slips from the initial
 	// deployment head (best ask/bid) to left over tranche price.
 	impactP := math.CalculatePercentageGainOrLoss(tranchePrice, headPrice)
 	// Slippage cost is the total imaginary best price ask/bid to the total
