@@ -4602,8 +4602,6 @@ func (s *RPCServer) GetOrderbookMovement(ctx context.Context, r *gctrpc.GetOrder
 		return nil, err
 	}
 
-	fmt.Println(r)
-
 	var move *orderbook.Movement
 	if r.Sell {
 		move, err = depth.GetMovementByBaseFromBest(r.Amount)

@@ -1497,7 +1497,7 @@ func TestGetMovementByBaseAmount(t *testing.T) {
 			Name:           "not enough liquidity to service quote amount",
 			BaseAmount:     1,
 			ReferencePrice: 1000,
-			ExpectedError:  errAmountExceedsSideLiquidity,
+			ExpectedError:  errNoLiquidity,
 		},
 		{
 			Name:            "thrasher test",
@@ -1732,7 +1732,7 @@ func TestGetMovementByQuoteAmount(t *testing.T) {
 			Name:           "not enough liquidity to service quote amount",
 			QuoteAmount:    1,
 			ReferencePrice: 1000,
-			ExpectedError:  errAmountExceedsSideLiquidity,
+			ExpectedError:  errNoLiquidity,
 		},
 		{
 			Name:            "thrasher test",
@@ -1944,7 +1944,7 @@ func TestGetHeadPrice(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	if val != 1355.5 {
+	if val != 1336 {
 		t.Fatal("unexpected value")
 	}
 
@@ -1989,7 +1989,7 @@ func TestGetSideAmounts(t *testing.T) {
 	if amt.BaseAmount != 20 {
 		t.Fatal("unexpected value")
 	}
-	if amt.QuoteValue != 26929.5 {
+	if amt.QuoteValue != 26530 {
 		t.Fatal("unexpected value", amt.QuoteValue)
 	}
 }

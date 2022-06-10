@@ -399,8 +399,7 @@ func (ll *bids) insertUpdates(updts Items, stack *stack) error {
 }
 
 // getMovementByBaseAmount hits the bid liquidity with base amount to acquire
-// quote amount and returns movement details from reference price for this
-// simulation. This is market selling. (ASK/SELL side).
+// quote amount and returns movement details. This is market selling. (ASK/SELL side).
 func (ll *bids) getMovementByBaseAmount(amount, refPrice float64) (*Movement, error) {
 	if amount <= 0 {
 		return nil, errBaseAmountInvalid
@@ -409,10 +408,15 @@ func (ll *bids) getMovementByBaseAmount(amount, refPrice float64) (*Movement, er
 		return nil, errInvalidReferencePrice
 	}
 
+	head, err := ll.getHeadPrice()
+	if err != nil {
+		return nil, err
+	}
+
 	var totalValue, amounts, tranchePrice float64
 	var noLiquidity bool
 	for tip := ll.head; tip != nil; tip = tip.Next {
-		leftover := amount - (*tip).Value.Amount
+		leftover := amount - tip.Value.Amount
 		if leftover < 0 {
 			totalValue += tip.Value.Price * amount
 			amounts += amount
@@ -436,7 +440,7 @@ func (ll *bids) getMovementByBaseAmount(amount, refPrice float64) (*Movement, er
 			}
 		}
 	}
-	return getMovement(amount, amounts, totalValue, refPrice, tranchePrice, noLiquidity)
+	return getMovement(amount, amounts, totalValue, head, refPrice, tranchePrice, noLiquidity)
 }
 
 // getBaseAmountFromNominalSlippage returns the base amount that can be deployed
@@ -486,12 +490,6 @@ func (ll *bids) getBaseAmountFromImpact(slippage, refPrice float64) (float64, er
 	var amounts float64
 	for tip := ll.head; tip != nil; tip = tip.Next {
 		val := math.CalculatePercentageGainOrLoss(tip.Value.Price, refPrice)
-		fmt.Printf("price: %v ref: %v, amounts:%v, pct:%v\n",
-			tip.Value.Price,
-			refPrice,
-			amounts,
-			val,
-		)
 		val *= -1
 		if slippage <= val {
 			return amounts, nil
@@ -538,6 +536,12 @@ func (ll *asks) getMovementByQuoteAmount(amount, refPrice float64) (*Movement, e
 	if refPrice <= 0 {
 		return nil, errInvalidReferencePrice
 	}
+
+	head, err := ll.getHeadPrice()
+	if err != nil {
+		return nil, err
+	}
+
 	var totalValue, amounts, tranchePrice float64
 	var noLiquidity bool
 	for tip := ll.head; tip != nil; tip = tip.Next {
@@ -568,7 +572,7 @@ func (ll *asks) getMovementByQuoteAmount(amount, refPrice float64) (*Movement, e
 			break
 		}
 	}
-	return getMovement(amount, amounts, totalValue, refPrice, tranchePrice, noLiquidity)
+	return getMovement(amount, amounts, totalValue, head, refPrice, tranchePrice, noLiquidity)
 }
 
 func (ll *asks) getQuoteAmountFromNominalSlippage(slippage, refPrice float64) (float64, error) {
@@ -616,12 +620,6 @@ func (ll *asks) getQuoteAmountFromImpact(slippage, refPrice float64) (float64, e
 	var totalValue float64
 	for tip := ll.head; tip != nil; tip = tip.Next {
 		val := math.CalculatePercentageGainOrLoss(tip.Value.Price, refPrice)
-		fmt.Printf("price: %v ref: %v, amounts:%v, pct:%v\n",
-			tip.Value.Price,
-			refPrice,
-			totalValue,
-			val,
-		)
 		if slippage <= val {
 			return totalValue, nil
 		}
@@ -764,14 +762,21 @@ func shiftBookmark(tip *Node, bookmark, head **Node, updt Item) bool {
 }
 
 // getMovement returns movement on tranche amounts
-func getMovement(leftover, amounts, totalValue, refPrice, tranchePrice float64, noLiquidity bool) (*Movement, error) {
+func getMovement(leftover, amounts, totalValue, headPrice, refPrice, tranchePrice float64, noLiquidity bool) (*Movement, error) {
 	if leftover > 0 {
 		return nil, errAmountExceedsSideLiquidity
 	}
 	averageOrderPrice := totalValue / amounts
+	// Nominal pct deference is from the reference price twap/vwap, mid, best
+	// etc to stay within average order costing.
 	nominalP := math.CalculatePercentageGainOrLoss(averageOrderPrice, refPrice)
-	impactP := math.CalculatePercentageGainOrLoss(tranchePrice, refPrice)
-	slippageCost := totalValue - (amounts * refPrice)
+	// Impact orderbook pct is how much the book slips from the intial
+	// deployment head (best ask/bid) to left over tranche price.
+	impactP := math.CalculatePercentageGainOrLoss(tranchePrice, headPrice)
+	// Slippage cost is the total imaginary best price ask/bid to the total
+	// base deployment minus total value which is the aggregate total of all
+	// prices and amounts used.
+	slippageCost := totalValue - (amounts * headPrice)
 	if nominalP < 0 { // Return ABS
 		nominalP *= -1
 	}
@@ -788,7 +793,7 @@ func getMovement(leftover, amounts, totalValue, refPrice, tranchePrice float64, 
 		SlippageCost:      slippageCost,
 	}
 	if noLiquidity {
-		// If there is no more liquidity alert caller nominal percentage is
+		// If there is no more liquidity alert caller, nominal percentage is
 		// still valid.
 		return m, ErrFullLiquidityUsed
 	}

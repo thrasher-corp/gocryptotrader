@@ -44,13 +44,6 @@ var orderbookCommand = &cli.Command{
 			ArgsUsage:   "<command> <args>",
 			Subcommands: []*cli.Command{nominal, impact, quote},
 		},
-		{
-			Name:      "getstate",
-			Usage:     "returns current spread, spread (percentage), spread (basis points), imbalance, best bid/ask, volume etc",
-			ArgsUsage: "<exchange> <code> <asset>",
-			Flags:     orderbookCommonFlags,
-			Action:    stateGetDeposit,
-		},
 		getOrderbookCommand,
 		getOrderbooksCommand,
 		getOrderbookStreamCommand,
@@ -328,6 +321,7 @@ func getMovement(c *cli.Context) error {
 	}
 
 	jsonOutput(result)
+
 	return nil
 }
 
