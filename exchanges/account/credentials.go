@@ -49,7 +49,7 @@ type Credentials struct {
 	// TODO: Add AccessControl uint8 for READ/WRITE/Withdraw capabilities.
 }
 
-// getMetaData returns the credentials for metadata context deployment
+// GetMetaData returns the credentials for metadata context deployment
 func (c *Credentials) GetMetaData() (flag, values string) {
 	vals := make([]string, 0, 6)
 	if c.Key != "" {
