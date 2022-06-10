@@ -1320,21 +1320,32 @@ func (b *Base) HasAssetTypeAccountSegregation() bool {
 }
 
 // GetServerTime returns the current exchange server time.
-func (b *Base) GetServerTime(_ context.Context, _ asset.Item) (time.Time, error) {
+func (b *Base) GetServerTime(context.Context, asset.Item) (time.Time, error) {
 	return time.Time{}, common.ErrNotYetImplemented
 }
 
 // GetPositionSummary returns stats for a future position
-func (b *Base) GetPositionSummary(ctx context.Context, request *order.PositionSummaryRequest) (*order.PositionSummary, error) {
+func (b *Base) GetPositionSummary(context.Context, *order.PositionSummaryRequest) (*order.PositionSummary, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
-// GetFundingDetails returns funding rate details for a future for a specific time period
-func (b *Base) GetFundingPaymentDetails(ctx context.Context, request *order.FundingPaymentDetailsRequest) (*order.FundingPaymentDetails, error) {
+// GetFundingPaymentDetails returns funding payment details for a future for a specific time period
+func (b *Base) GetFundingPaymentDetails(context.Context, *order.FundingRatesRequest) (*order.FundingRates, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
 // GetOpenPositions returns all open futures positions
-func (b *Base) GetOpenPositions(ctx context.Context, a asset.Item, startDate, endDate time.Time) ([]order.OpenPositionDetails, error) {
+func (b *Base) GetOpenPositions(context.Context, asset.Item, time.Time) ([]order.OpenPositionDetails, error) {
 	return nil, common.ErrNotYetImplemented
+}
+
+// GetFundingRates returns funding rates based on request data
+func (b *Base) GetFundingRates(ctx context.Context, request *order.FundingRatesRequest) ([]order.FundingRates, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
+// IsPerpetualFutureCurrency ensures a given asset and currency is a perpetual future
+// differs by exchange
+func (b *Base) IsPerpetualFutureCurrency(asset.Item, currency.Pair) bool {
+	return false
 }

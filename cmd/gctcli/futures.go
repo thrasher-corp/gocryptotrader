@@ -25,7 +25,7 @@ var futuresCommands = &cli.Command{
 			Name:      "getmanagedposition",
 			Aliases:   []string{"managedposition", "mp"},
 			Usage:     "retrieves an open position monitored by the order manager",
-			ArgsUsage: "<exchange> <asset> <start> <end>",
+			ArgsUsage: "<exchange> <asset> <pair> <includeorderdetails> <getfundingdata> <includefundingentries> <includepredictedrate>",
 			Action:    getManagedPosition,
 			Flags: []cli.Flag{
 				&cli.StringFlag{
@@ -58,13 +58,18 @@ var futuresCommands = &cli.Command{
 					Aliases: []string{"allfunding", "af"},
 					Usage:   "if true, will return all funding rate entries - requires --getfundingdata",
 				},
+				&cli.BoolFlag{
+					Name:    "includepredictedrate",
+					Aliases: []string{"predicted", "pr"},
+					Usage:   "if true, will return the predicted funding rate - requires --getfundingdata",
+				},
 			},
 		},
 		{
 			Name:      "getallmanagedpositions",
 			Aliases:   []string{"managedpositions", "mps"},
 			Usage:     "retrieves all open positions monitored by the order manager",
-			ArgsUsage: "<includeorderdetails> <getfundingdata> <includefundingentries>",
+			ArgsUsage: "<includeorderdetails> <getfundingdata> <includefundingentries> <includepredictedrate>",
 			Action:    getAllManagedPositions,
 			Flags: []cli.Flag{
 				&cli.BoolFlag{
@@ -82,6 +87,11 @@ var futuresCommands = &cli.Command{
 					Aliases: []string{"allfunding", "af"},
 					Usage:   "if true, will return all funding rate entries - requires --getfundingdata",
 				},
+				&cli.BoolFlag{
+					Name:    "includepredictedrate",
+					Aliases: []string{"predicted", "pr"},
+					Usage:   "if true, will return the predicted funding rate - requires --getfundingdata",
+				},
 			},
 		},
 
@@ -89,7 +99,7 @@ var futuresCommands = &cli.Command{
 			Name:      "getfuturespositions",
 			Aliases:   []string{"positions", "p"},
 			Usage:     "will retrieve all futures positions in a timeframe, then calculate PNL based on that. Note, the dates have an impact on PNL calculations, ensure your start date is not after a new position is opened",
-			ArgsUsage: "<exchange> <pair> <asset> <start> <end> <limit> <status> <verbose> <overwrite>",
+			ArgsUsage: "<exchange> <asset> <pair> <start> <end> <limit> <status> <overwrite> <includeorderdetails> <getpositionstats> <getfundingdata> <includefundingentries> <includepredictedrate>",
 			Action:    getFuturesPositions,
 			Flags: []cli.Flag{
 				&cli.StringFlag{
@@ -145,6 +155,11 @@ var futuresCommands = &cli.Command{
 					Usage:   "includes all orders that make up a position in the response",
 				},
 				&cli.BoolFlag{
+					Name:    "getpositionstats",
+					Aliases: []string{"stats"},
+					Usage:   "if true, will return extra stats on the position from the exchange",
+				},
+				&cli.BoolFlag{
 					Name:    "getfundingdata",
 					Aliases: []string{"funding", "f"},
 					Usage:   "if true, will return funding rate summary",
@@ -155,9 +170,9 @@ var futuresCommands = &cli.Command{
 					Usage:   "if true, will return all funding rate entries - requires --getfundingdata",
 				},
 				&cli.BoolFlag{
-					Name:    "getpositionstats",
-					Aliases: []string{"stats"},
-					Usage:   "if true, will return extra stats on the position from the exchange",
+					Name:    "includepredictedrate",
+					Aliases: []string{"predicted", "pr"},
+					Usage:   "if true, will return the predicted funding rate - requires --getfundingdata",
 				},
 			},
 		},
@@ -196,11 +211,11 @@ var futuresCommands = &cli.Command{
 			},
 		},
 		{
-			Name:      "getfundingpayments",
+			Name:      "getfundingrates",
 			Aliases:   []string{"funding", "f"},
 			Usage:     "returns funding rate data between two dates",
-			ArgsUsage: "<exchange> <asset> <pair> <start> <end>",
-			Action:    getFundingPayments,
+			ArgsUsage: "<exchange> <asset> <pairs> <start> <end> <includepredicted> <includepayments>",
+			Action:    getfundingRates,
 			Flags: []cli.Flag{
 				&cli.StringFlag{
 					Name:    "exchange",
@@ -212,10 +227,10 @@ var futuresCommands = &cli.Command{
 					Aliases: []string{"a"},
 					Usage:   "the asset type of the currency pair, must be a futures type",
 				},
-				&cli.StringFlag{
-					Name:    "pair",
+				&cli.StringSliceFlag{
+					Name:    "pairs",
 					Aliases: []string{"p"},
-					Usage:   "the currency pair",
+					Usage:   "comma delimited list of pairs you wish to get funding rate data for",
 				},
 				&cli.StringFlag{
 					Name:        "start",
@@ -230,6 +245,16 @@ var futuresCommands = &cli.Command{
 					Usage:       "<end> rounded down to the nearest hour, ensure your last position is within this window for accurate calculations",
 					Value:       time.Now().Format(common.SimpleTimeFormat),
 					Destination: &endTime,
+				},
+				&cli.BoolFlag{
+					Name:    "includepredicted",
+					Aliases: []string{"ip", "predicted"},
+					Usage:   "include the predicted next funding rate",
+				},
+				&cli.BoolFlag{
+					Name:    "includepayments",
+					Aliases: []string{"pay"},
+					Usage:   "include funding rate payments",
 				},
 			},
 		},
@@ -336,8 +361,13 @@ func getAllManagedPositions(c *cli.Context) error {
 		return cli.ShowCommandHelp(c, "getallmanagedpositions")
 	}
 
-	var err error
-	var includeOrderDetails bool
+	var (
+		err                   error
+		includeOrderDetails   bool
+		getFundingData        bool
+		includeFundingEntries bool
+		includePredictedRate  bool
+	)
 	if c.IsSet("includeorderdetails") {
 		includeOrderDetails = c.Bool("includeorderdetails")
 	} else if c.Args().Get(0) != "" {
@@ -347,7 +377,6 @@ func getAllManagedPositions(c *cli.Context) error {
 		}
 	}
 
-	var getFundingData bool
 	if c.IsSet("getfundingdata") {
 		getFundingData = c.Bool("getfundingdata")
 	} else if c.Args().Get(1) != "" {
@@ -357,7 +386,6 @@ func getAllManagedPositions(c *cli.Context) error {
 		}
 	}
 
-	var includeFundingEntries bool
 	if c.IsSet("includefundingentries") {
 		includeFundingEntries = c.Bool("includefundingentries")
 	} else if c.Args().Get(2) != "" {
@@ -379,6 +407,7 @@ func getAllManagedPositions(c *cli.Context) error {
 			IncludeFullOrderData:    includeOrderDetails,
 			GetFundingPayments:      getFundingData,
 			IncludeFullFundingRates: includeFundingEntries,
+			IncludePredictedRate:    includePredictedRate,
 		})
 	if err != nil {
 		return err
@@ -392,15 +421,26 @@ func getFuturesPositions(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
 		return cli.ShowCommandHelp(c, "getfuturespositions")
 	}
-
-	var exchangeName string
+	var (
+		exchangeName          string
+		assetType             string
+		currencyPair          string
+		err                   error
+		includeOrderDetails   bool
+		status                string
+		overwrite             bool
+		getFundingData        bool
+		includeFundingEntries bool
+		getPositionsStats     bool
+		includePredicted      bool
+		s, e                  time.Time
+	)
 	if c.IsSet("exchange") {
 		exchangeName = c.String("exchange")
 	} else {
 		exchangeName = c.Args().First()
 	}
 
-	var assetType string
 	if c.IsSet("asset") {
 		assetType = c.String("asset")
 	} else {
@@ -411,7 +451,6 @@ func getFuturesPositions(c *cli.Context) error {
 		return errInvalidAsset
 	}
 
-	var currencyPair string
 	if c.IsSet("pair") {
 		currencyPair = c.String("pair")
 	} else {
@@ -448,7 +487,6 @@ func getFuturesPositions(c *cli.Context) error {
 		limit = int(limit64)
 	}
 
-	var status string
 	if c.IsSet("status") {
 		status = c.String("status")
 	} else if c.Args().Get(6) != "" {
@@ -461,7 +499,6 @@ func getFuturesPositions(c *cli.Context) error {
 		return errors.New("unrecognised status")
 	}
 
-	var overwrite bool
 	if c.IsSet("overwrite") {
 		overwrite = c.Bool("overwrite")
 	} else if c.Args().Get(7) != "" {
@@ -471,7 +508,6 @@ func getFuturesPositions(c *cli.Context) error {
 		}
 	}
 
-	var includeOrderDetails bool
 	if c.IsSet("includeorderdetails") {
 		includeOrderDetails = c.Bool("includeorderdetails")
 	} else if c.Args().Get(8) != "" {
@@ -480,28 +516,6 @@ func getFuturesPositions(c *cli.Context) error {
 			return err
 		}
 	}
-
-	var getFundingData bool
-	if c.IsSet("getfundingdata") {
-		getFundingData = c.Bool("getfundingdata")
-	} else if c.Args().Get(9) != "" {
-		getFundingData, err = strconv.ParseBool(c.Args().Get(9))
-		if err != nil {
-			return err
-		}
-	}
-
-	var includeFundingEntries bool
-	if c.IsSet("includefundingentries") {
-		includeFundingEntries = c.Bool("includefundingentries")
-	} else if c.Args().Get(10) != "" {
-		includeFundingEntries, err = strconv.ParseBool(c.Args().Get(10))
-		if err != nil {
-			return err
-		}
-	}
-
-	var getPositionsStats bool
 	if c.IsSet("getpositionstats") {
 		getPositionsStats = c.Bool("getpositionstats")
 	} else if c.Args().Get(11) != "" {
@@ -510,8 +524,28 @@ func getFuturesPositions(c *cli.Context) error {
 			return err
 		}
 	}
+	if c.IsSet("getfundingdata") {
+		getFundingData = c.Bool("getfundingdata")
+	} else if c.Args().Get(9) != "" {
+		getFundingData, err = strconv.ParseBool(c.Args().Get(9))
+		if err != nil {
+			return err
+		}
+	}
+	if c.IsSet("includefundingentries") {
+		includeFundingEntries = c.Bool("includefundingentries")
+	} else if c.Args().Get(10) != "" {
+		includeFundingEntries, err = strconv.ParseBool(c.Args().Get(10))
+		if err != nil {
+			return err
+		}
+	}
+	if !c.IsSet("includepredicted") {
+		if c.Args().Get(5) != "" {
+			includePredicted, err = strconv.ParseBool(c.Args().Get(5))
+		}
+	}
 
-	var s, e time.Time
 	s, err = time.Parse(common.SimpleTimeFormat, startTime)
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
@@ -550,6 +584,7 @@ func getFuturesPositions(c *cli.Context) error {
 			IncludeFullOrderData:    includeOrderDetails,
 			GetFundingPayments:      getFundingData,
 			IncludeFullFundingRates: includeFundingEntries,
+			IncludePredictedRate:    includePredicted,
 		})
 	if err != nil {
 		return err
@@ -563,15 +598,16 @@ func getCollateral(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
 		return cli.ShowCommandHelp(c, c.Command.Name)
 	}
-
-	var exchangeName string
+	var (
+		exchangeName, assetType                               string
+		calculateOffline, includeBreakdown, includeZeroValues bool
+		err                                                   error
+	)
 	if c.IsSet("exchange") {
 		exchangeName = c.String("exchange")
 	} else {
 		exchangeName = c.Args().First()
 	}
-
-	var assetType string
 	if c.IsSet("asset") {
 		assetType = c.String("asset")
 	} else {
@@ -582,8 +618,6 @@ func getCollateral(c *cli.Context) error {
 		return errInvalidAsset
 	}
 
-	var err error
-	var calculateOffline bool
 	if c.IsSet("calculateoffline") {
 		calculateOffline = c.Bool("calculateoffline")
 	} else if c.Args().Get(2) != "" {
@@ -593,7 +627,6 @@ func getCollateral(c *cli.Context) error {
 		}
 	}
 
-	var includeBreakdown bool
 	if c.IsSet("includebreakdown") {
 		includeBreakdown = c.Bool("includebreakdown")
 	} else if c.Args().Get(3) != "" {
@@ -603,7 +636,6 @@ func getCollateral(c *cli.Context) error {
 		}
 	}
 
-	var includeZeroValues bool
 	if c.IsSet("includezerovalues") {
 		includeZeroValues = c.Bool("includezerovalues")
 	} else if c.Args().Get(4) != "" {
@@ -636,19 +668,24 @@ func getCollateral(c *cli.Context) error {
 	return nil
 }
 
-func getFundingPayments(c *cli.Context) error {
+func getfundingRates(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "getfundingpayments")
+		return cli.ShowCommandHelp(c, "getfundingrates")
 	}
-
-	var exchangeName string
+	var (
+		exchangeName, assetType           string
+		currencyPairs                     []string
+		includePredicted, includePayments bool
+		p                                 currency.Pair
+		s, e                              time.Time
+		err                               error
+	)
 	if c.IsSet("exchange") {
 		exchangeName = c.String("exchange")
 	} else {
 		exchangeName = c.Args().First()
 	}
 
-	var assetType string
 	if c.IsSet("asset") {
 		assetType = c.String("asset")
 	} else {
@@ -658,35 +695,47 @@ func getFundingPayments(c *cli.Context) error {
 	if !validAsset(assetType) {
 		return errInvalidAsset
 	}
-
-	var currencyPair string
-	if c.IsSet("pair") {
-		currencyPair = c.String("pair")
+	if c.IsSet("pairs") {
+		currencyPairs = c.StringSlice("pairs")
 	} else {
-		currencyPair = c.Args().Get(2)
+		currencyPairs = strings.Split(c.Args().Get(2), ",")
 	}
-	if !validPair(currencyPair) {
-		return errInvalidPair
+	for i := range currencyPairs {
+		if !validPair(currencyPairs[i]) {
+			return errInvalidPair
+		}
+		p, err = currency.NewPairDelimiter(currencyPairs[i], pairDelimiter)
+		if err != nil {
+			return err
+		}
+		currencyPairs[i] = p.String()
 	}
-
-	p, err := currency.NewPairDelimiter(currencyPair, pairDelimiter)
-	if err != nil {
-		return err
-	}
-
 	if !c.IsSet("start") {
 		if c.Args().Get(3) != "" {
 			startTime = c.Args().Get(3)
 		}
 	}
-
 	if !c.IsSet("end") {
 		if c.Args().Get(4) != "" {
 			endTime = c.Args().Get(4)
 		}
 	}
-
-	var s, e time.Time
+	if c.IsSet("includepredicted") {
+		includePredicted = c.Bool("includepredicted")
+	} else if c.Args().Get(5) != "" {
+		includePredicted, err = strconv.ParseBool(c.Args().Get(5))
+		if err != nil {
+			return err
+		}
+	}
+	if c.IsSet("includepayments") {
+		includePayments = c.Bool("includepayments")
+	} else if c.Args().Get(6) != "" {
+		includePayments, err = strconv.ParseBool(c.Args().Get(6))
+		if err != nil {
+			return err
+		}
+	}
 	s, err = time.Parse(common.SimpleTimeFormat, startTime)
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
@@ -707,17 +756,15 @@ func getFundingPayments(c *cli.Context) error {
 	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.GetFundingPayments(c.Context,
-		&gctrpc.GetFundingPaymentsRequest{
-			Exchange: exchangeName,
-			Asset:    assetType,
-			Pair: &gctrpc.CurrencyPair{
-				Delimiter: p.Delimiter,
-				Base:      p.Base.String(),
-				Quote:     p.Quote.String(),
-			},
-			StartDate: negateLocalOffset(s),
-			EndDate:   negateLocalOffset(e),
+	result, err := client.GetFundingRates(c.Context,
+		&gctrpc.GetFundingRatesRequest{
+			Exchange:         exchangeName,
+			Asset:            assetType,
+			Pairs:            currencyPairs,
+			StartDate:        negateLocalOffset(s),
+			EndDate:          negateLocalOffset(e),
+			IncludePredicted: includePredicted,
+			IncludePayments:  includePayments,
 		})
 	if err != nil {
 		return err

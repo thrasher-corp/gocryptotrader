@@ -22,7 +22,7 @@ func SetupPositionController() *PositionController {
 	}
 }
 
-func (c *PositionController) TrackFundingDetails(d *FundingPaymentDetails) error {
+func (c *PositionController) TrackFundingDetails(d *FundingRates) error {
 	if c == nil {
 		return fmt.Errorf("position controller %w", common.ErrNilPointer)
 	}
@@ -428,7 +428,7 @@ func (e *MultiPositionTracker) GetPositions() []Position {
 
 var errNoPositionsFoundForTimeframe = errors.New("no positions found for timeframe")
 
-func (e *MultiPositionTracker) TrackingFundingDetails(d *FundingPaymentDetails) error {
+func (e *MultiPositionTracker) TrackingFundingDetails(d *FundingRates) error {
 	if e == nil {
 		return fmt.Errorf("multi-position tracker %w", common.ErrNilPointer)
 	}
@@ -532,6 +532,11 @@ func (p *PositionTracker) GetStats() Position {
 	var orders []Detail
 	orders = append(orders, p.longPositions...)
 	orders = append(orders, p.shortPositions...)
+	var fr FundingRates
+	if p.fundingRateDetails != nil {
+		fr = *p.fundingRateDetails
+		copy(fr.FundingRates, p.fundingRateDetails.FundingRates)
+	}
 	return Position{
 		Exchange:         p.exchange,
 		Asset:            p.asset,
@@ -550,7 +555,7 @@ func (p *PositionTracker) GetStats() Position {
 		CloseDate:        p.closingDate,
 		Orders:           orders,
 		PNLHistory:       p.pnlHistory,
-		FundingPayments:  p.fundingRateDetails,
+		FundingRates:     fr,
 	}
 }
 
@@ -646,7 +651,8 @@ func (p *PositionTracker) GetLatestPNLSnapshot() (PNLResult, error) {
 var errFundingRateOutOfRange = fmt.Errorf("funding rate out of range")
 var errDoesntMatch = errors.New("doesn't match")
 
-func (p *PositionTracker) TrackingFundingDetails(d *FundingPaymentDetails) error {
+// TrackingFundingDetails sets funding rates to a position
+func (p *PositionTracker) TrackingFundingDetails(d *FundingRates) error {
 	if p == nil {
 		return fmt.Errorf("position tracker %w", common.ErrNilPointer)
 	}
@@ -663,24 +669,24 @@ func (p *PositionTracker) TrackingFundingDetails(d *FundingPaymentDetails) error
 	if len(p.pnlHistory) == 0 {
 		return fmt.Errorf("%w %v %v %v %v-%v", errNoPositionsFoundForTimeframe, p.exchange, p.asset, p.contractPair, d.StartDate, d.EndDate)
 	}
-	if p.pnlHistory[0].Time.Before(d.StartDate) || p.pnlHistory[len(p.pnlHistory)-1].Time.After(d.EndDate) {
+	if p.openingDate.Before(d.StartDate) || p.pnlHistory[len(p.pnlHistory)-1].Time.After(d.EndDate) {
 		return fmt.Errorf("%w", errFundingRateOutOfRange)
 	}
 	if p.fundingRateDetails == nil {
-		p.fundingRateDetails = d.FundingRates
+		p.fundingRateDetails = d
 		return nil
 	}
-	for i := range p.fundingRateDetails {
+	for i := range p.fundingRateDetails.FundingRates {
 		for j := range d.FundingRates {
-			if !p.fundingRateDetails[i].Time.Equal(d.FundingRates[j].Time) {
+			if !p.fundingRateDetails.FundingRates[i].Time.Equal(d.FundingRates[j].Time) {
 				continue
 			}
-			p.fundingRateDetails[i] = d.FundingRates[j]
+			p.fundingRateDetails.FundingRates[i] = d.FundingRates[j]
 			d.FundingRates = append(d.FundingRates[:j], d.FundingRates[j+1:]...)
 			break
 		}
 	}
-	p.fundingRateDetails = append(p.fundingRateDetails, d.FundingRates...)
+	p.fundingRateDetails.FundingRates = append(p.fundingRateDetails.FundingRates, d.FundingRates...)
 	return nil
 }
 

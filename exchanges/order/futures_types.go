@@ -204,7 +204,7 @@ type PositionTracker struct {
 	shortPositions     []Detail
 	longPositions      []Detail
 	pnlHistory         []PNLResult
-	fundingRateDetails []FundingPayment
+	fundingRateDetails *FundingRates
 }
 
 // PositionTrackerSetup contains all required fields to
@@ -308,7 +308,7 @@ type Position struct {
 	CloseDate        time.Time
 	Orders           []Detail
 	PNLHistory       []PNLResult
-	FundingPayments  []FundingPayment
+	FundingRates     FundingRates
 }
 
 // PositionSummaryRequest is used to request a summary of an open position
@@ -349,44 +349,33 @@ type PositionSummary struct {
 	TotalCollateral              decimal.Decimal
 }
 
-// FundingRateDetails contains funding rate details for an exchange, asset, pair
-type FundingRateDetails struct {
+// FundingRatesRequest is used to request funding rate details for a position
+type FundingRatesRequest struct {
+	Asset                asset.Item
+	Pairs                currency.Pairs
+	StartDate            time.Time
+	EndDate              time.Time
+	IncludePayments      bool
+	IncludePredictedRate bool
+}
+
+// FundingRates is used to return funding rate details for a position
+type FundingRates struct {
 	Exchange              string
 	Asset                 asset.Item
 	Pair                  currency.Pair
-	CurrentRate           FundingRate
+	StartDate             time.Time
+	EndDate               time.Time
+	LatestRate            FundingRate
 	PredictedUpcomingRate FundingRate
-	PastRates             []FundingRate
+	FundingRates          []FundingRate
+	PaymentSum            decimal.Decimal
 }
 
-// FundingRate contains funding rate information
+// FundingRate holds details for an individual funding rate
 type FundingRate struct {
-	Rate decimal.Decimal
-	Time time.Time
-}
-
-// FundingPaymentDetailsRequest is used to request funding rate details for a position
-type FundingPaymentDetailsRequest struct {
-	Asset     asset.Item
-	Pair      currency.Pair
-	StartDate time.Time
-	EndDate   time.Time
-}
-
-// FundingPaymentDetails is used to return funding rate details for a position
-type FundingPaymentDetails struct {
-	Exchange     string
-	Asset        asset.Item
-	Pair         currency.Pair
-	StartDate    time.Time
-	EndDate      time.Time
-	FundingRates []FundingPayment
-	Sum          decimal.Decimal
-}
-
-// FundingPayment holds details for an individual funding rate
-type FundingPayment struct {
-	FundingRate
+	Time    time.Time
+	Rate    decimal.Decimal
 	Payment decimal.Decimal
 }
 

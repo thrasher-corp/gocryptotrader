@@ -1033,8 +1033,15 @@ message FundingRate {
 }
 
 message FundingData {
-  repeated FundingRate funding_rates = 1;
-  string funding_rate_sum = 2;
+  string exchange = 1;
+  string asset = 2;
+  CurrencyPair pair = 3;
+  string start_date = 4;
+  string end_date = 5;
+  repeated FundingRate rates = 6;
+  FundingRate latest_rate = 7;
+  FundingRate upcoming_rate = 8;
+  string payment_sum = 9;
 }
 
 message FuturesPositionStats {
@@ -1079,12 +1086,14 @@ message GetManagedPositionRequest {
   bool include_full_order_data = 4;
   bool get_funding_payments = 5;
   bool include_full_funding_rates = 6;
+  bool include_predicted_rate = 7;
 }
 
 message GetAllManagedPositionsRequest {
   bool include_full_order_data = 1;
   bool get_funding_payments = 2;
   bool include_full_funding_rates = 3;
+  bool include_predicted_rate = 4;
 }
 
 message GetManagedPositionsResponse {
@@ -1104,6 +1113,7 @@ message GetFuturesPositionsRequest {
   bool include_full_order_data = 10;
   bool get_funding_payments = 11;
   bool include_full_funding_rates = 12;
+  bool include_predicted_rate = 13;
 }
 
 message GetFuturesPositionsResponse {
@@ -1174,16 +1184,18 @@ message CollateralUsedBreakdown {
   string used_in_spot_margin = 8;
 }
 
-message GetFundingPaymentsRequest {
+message GetFundingRatesRequest {
   string exchange = 1;
   string asset = 2;
-  CurrencyPair pair = 3;
+  repeated string pairs = 3;
   string start_date = 4;
   string end_date = 5;
+  bool include_predicted = 6;
+  bool include_payments = 7;
 }
 
-message GetFundingPaymentsResponse {
-  FundingData funding_payments = 1;
+message GetFundingRatesResponse {
+  repeated FundingData funding_payments = 1;
 }
 
 message ShutdownRequest {}
@@ -1803,9 +1815,9 @@ service GoCryptoTraderService {
       get: "/v1/getallmanagedpositions"
     };
   }
-  rpc GetFundingPayments(GetFundingPaymentsRequest) returns (GetFundingPaymentsResponse) {
+  rpc GetFundingRates(GetFundingRatesRequest) returns (GetFundingRatesResponse) {
     option (google.api.http) = {
-      get: "/v1/getfundingpayments"
+      get: "/v1/getfundingrates"
     };
   }
 }

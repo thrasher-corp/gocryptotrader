@@ -121,7 +121,7 @@ type GoCryptoTraderServiceClient interface {
 	Shutdown(ctx context.Context, in *ShutdownRequest, opts ...grpc.CallOption) (*ShutdownResponse, error)
 	GetManagedPosition(ctx context.Context, in *GetManagedPositionRequest, opts ...grpc.CallOption) (*GetManagedPositionsResponse, error)
 	GetAllManagedPositions(ctx context.Context, in *GetAllManagedPositionsRequest, opts ...grpc.CallOption) (*GetManagedPositionsResponse, error)
-	GetFundingPayments(ctx context.Context, in *GetFundingPaymentsRequest, opts ...grpc.CallOption) (*GetFundingPaymentsResponse, error)
+	GetFundingRates(ctx context.Context, in *GetFundingRatesRequest, opts ...grpc.CallOption) (*GetFundingRatesResponse, error)
 }
 
 type goCryptoTraderServiceClient struct {
@@ -1161,9 +1161,9 @@ func (c *goCryptoTraderServiceClient) GetAllManagedPositions(ctx context.Context
 	return out, nil
 }
 
-func (c *goCryptoTraderServiceClient) GetFundingPayments(ctx context.Context, in *GetFundingPaymentsRequest, opts ...grpc.CallOption) (*GetFundingPaymentsResponse, error) {
-	out := new(GetFundingPaymentsResponse)
-	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTraderService/GetFundingPayments", in, out, opts...)
+func (c *goCryptoTraderServiceClient) GetFundingRates(ctx context.Context, in *GetFundingRatesRequest, opts ...grpc.CallOption) (*GetFundingRatesResponse, error) {
+	out := new(GetFundingRatesResponse)
+	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTraderService/GetFundingRates", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1273,7 +1273,7 @@ type GoCryptoTraderServiceServer interface {
 	Shutdown(context.Context, *ShutdownRequest) (*ShutdownResponse, error)
 	GetManagedPosition(context.Context, *GetManagedPositionRequest) (*GetManagedPositionsResponse, error)
 	GetAllManagedPositions(context.Context, *GetAllManagedPositionsRequest) (*GetManagedPositionsResponse, error)
-	GetFundingPayments(context.Context, *GetFundingPaymentsRequest) (*GetFundingPaymentsResponse, error)
+	GetFundingRates(context.Context, *GetFundingRatesRequest) (*GetFundingRatesResponse, error)
 	mustEmbedUnimplementedGoCryptoTraderServiceServer()
 }
 
@@ -1578,8 +1578,8 @@ func (UnimplementedGoCryptoTraderServiceServer) GetManagedPosition(context.Conte
 func (UnimplementedGoCryptoTraderServiceServer) GetAllManagedPositions(context.Context, *GetAllManagedPositionsRequest) (*GetManagedPositionsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetAllManagedPositions not implemented")
 }
-func (UnimplementedGoCryptoTraderServiceServer) GetFundingPayments(context.Context, *GetFundingPaymentsRequest) (*GetFundingPaymentsResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetFundingPayments not implemented")
+func (UnimplementedGoCryptoTraderServiceServer) GetFundingRates(context.Context, *GetFundingRatesRequest) (*GetFundingRatesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetFundingRates not implemented")
 }
 func (UnimplementedGoCryptoTraderServiceServer) mustEmbedUnimplementedGoCryptoTraderServiceServer() {}
 
@@ -3394,20 +3394,20 @@ func _GoCryptoTraderService_GetAllManagedPositions_Handler(srv interface{}, ctx 
 	return interceptor(ctx, in, info, handler)
 }
 
-func _GoCryptoTraderService_GetFundingPayments_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetFundingPaymentsRequest)
+func _GoCryptoTraderService_GetFundingRates_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetFundingRatesRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(GoCryptoTraderServiceServer).GetFundingPayments(ctx, in)
+		return srv.(GoCryptoTraderServiceServer).GetFundingRates(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/gctrpc.GoCryptoTraderService/GetFundingPayments",
+		FullMethod: "/gctrpc.GoCryptoTraderService/GetFundingRates",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(GoCryptoTraderServiceServer).GetFundingPayments(ctx, req.(*GetFundingPaymentsRequest))
+		return srv.(GoCryptoTraderServiceServer).GetFundingRates(ctx, req.(*GetFundingRatesRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -3792,8 +3792,8 @@ var GoCryptoTraderService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _GoCryptoTraderService_GetAllManagedPositions_Handler,
 		},
 		{
-			MethodName: "GetFundingPayments",
-			Handler:    _GoCryptoTraderService_GetFundingPayments_Handler,
+			MethodName: "GetFundingRates",
+			Handler:    _GoCryptoTraderService_GetFundingRates_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

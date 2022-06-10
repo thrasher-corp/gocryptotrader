@@ -1127,8 +1127,8 @@ func (b *Binance) GetPerpMarkets(ctx context.Context) (PerpsExchangeInfo, error)
 	return resp, b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, perpExchangeInfo, uFuturesDefaultRate, &resp)
 }
 
-// GetFundingRates gets funding rate history for perpetual contracts
-func (b *Binance) GetFundingRates(ctx context.Context, symbol currency.Pair, limit string, startTime, endTime time.Time) ([]FundingRateData, error) {
+// FundingRates gets funding rate history for perpetual contracts
+func (b *Binance) FundingRates(ctx context.Context, symbol currency.Pair, limit string, startTime, endTime time.Time) ([]FundingRateData, error) {
 	var resp []FundingRateData
 	params := url.Values{}
 	symbolValue, err := b.FormatSymbol(symbol, asset.USDTMarginedFutures)

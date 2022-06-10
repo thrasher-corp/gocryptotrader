@@ -1170,6 +1170,12 @@
             "in": "query",
             "required": false,
             "type": "boolean"
+          },
+          {
+            "name": "includePredictedRate",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
           }
         ],
         "tags": [
@@ -1865,14 +1871,14 @@
         ]
       }
     },
-    "/v1/getfundingpayments": {
+    "/v1/getfundingrates": {
       "get": {
-        "operationId": "GoCryptoTraderService_GetFundingPayments",
+        "operationId": "GoCryptoTraderService_GetFundingRates",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/gctrpcGetFundingPaymentsResponse"
+              "$ref": "#/definitions/gctrpcGetFundingRatesResponse"
             }
           },
           "default": {
@@ -1896,22 +1902,14 @@
             "type": "string"
           },
           {
-            "name": "pair.delimiter",
+            "name": "pairs",
             "in": "query",
             "required": false,
-            "type": "string"
-          },
-          {
-            "name": "pair.base",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "name": "pair.quote",
-            "in": "query",
-            "required": false,
-            "type": "string"
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
           },
           {
             "name": "startDate",
@@ -1924,6 +1922,18 @@
             "in": "query",
             "required": false,
             "type": "string"
+          },
+          {
+            "name": "includePredicted",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "includePayments",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
           }
         ],
         "tags": [
@@ -2030,6 +2040,12 @@
           },
           {
             "name": "includeFullFundingRates",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "includePredictedRate",
             "in": "query",
             "required": false,
             "type": "boolean"
@@ -2364,6 +2380,12 @@
           },
           {
             "name": "includeFullFundingRates",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "includePredictedRate",
             "in": "query",
             "required": false,
             "type": "boolean"
@@ -4496,13 +4518,34 @@
     "gctrpcFundingData": {
       "type": "object",
       "properties": {
-        "fundingRates": {
+        "exchange": {
+          "type": "string"
+        },
+        "asset": {
+          "type": "string"
+        },
+        "pair": {
+          "$ref": "#/definitions/gctrpcCurrencyPair"
+        },
+        "startDate": {
+          "type": "string"
+        },
+        "endDate": {
+          "type": "string"
+        },
+        "rates": {
           "type": "array",
           "items": {
             "$ref": "#/definitions/gctrpcFundingRate"
           }
         },
-        "fundingRateSum": {
+        "latestRate": {
+          "$ref": "#/definitions/gctrpcFundingRate"
+        },
+        "upcomingRate": {
+          "$ref": "#/definitions/gctrpcFundingRate"
+        },
+        "paymentSum": {
           "type": "string"
         }
       }
@@ -5041,11 +5084,14 @@
         }
       }
     },
-    "gctrpcGetFundingPaymentsResponse": {
+    "gctrpcGetFundingRatesResponse": {
       "type": "object",
       "properties": {
         "fundingPayments": {
-          "$ref": "#/definitions/gctrpcFundingData"
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/gctrpcFundingData"
+          }
         }
       }
     },

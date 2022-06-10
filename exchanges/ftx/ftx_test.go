@@ -787,17 +787,17 @@ func TestGetFundingPayments(t *testing.T) {
 		t.Skip()
 	}
 	// optional params
-	_, err := f.GetFundingPayments(context.Background(),
+	_, err := f.GetFundingRates(context.Background(),
 		time.Time{}, time.Time{}, "")
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = f.GetFundingPayments(context.Background(),
+	_, err = f.GetFundingRates(context.Background(),
 		time.Unix(authStartTime, 0), time.Unix(authEndTime, 0), futuresPair)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = f.GetFundingPayments(context.Background(),
+	_, err = f.GetFundingRates(context.Background(),
 		time.Unix(authEndTime, 0), time.Unix(authStartTime, 0), futuresPair)
 	if err != errStartTimeCannotBeAfterEndTime {
 		t.Errorf("should have thrown errStartTimeCannotBeAfterEndTime, got %v", err)
@@ -2205,6 +2205,9 @@ func TestGetCollateral(t *testing.T) {
 
 func TestAnalysePosition(t *testing.T) {
 	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	positions, err := f.GetFuturesPositions(
 		context.Background(),
 		asset.Futures,
@@ -2214,7 +2217,7 @@ func TestAnalysePosition(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	datarooni, err := f.GetPositionSummary(context.Background(), &order.PositionSummaryRequest{Asset: asset.Futures, Pair: positions[0].Pair})
+	onlineCalculation, err := f.GetPositionSummary(context.Background(), &order.PositionSummaryRequest{Asset: asset.Futures, Pair: positions[0].Pair})
 	if err != nil {
 		t.Error(err)
 	}
@@ -2229,7 +2232,7 @@ func TestAnalysePosition(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	offlinerooo, err := f.GetPositionSummary(context.Background(), &order.PositionSummaryRequest{
+	offlineCalculation, err := f.GetPositionSummary(context.Background(), &order.PositionSummaryRequest{
 		Asset:                     asset.Futures,
 		Pair:                      positions[0].Pair,
 		CalculateOffline:          true,
@@ -2237,10 +2240,10 @@ func TestAnalysePosition(t *testing.T) {
 		FreeCollateral:            decimal.NewFromFloat(acc.FreeCollateral),
 		TotalCollateral:           decimal.NewFromFloat(acc.Collateral),
 		OpeningPrice:              decimal.NewFromFloat(positions[0].Price),
-		CurrentPrice:              datarooni.MarkPrice,
+		CurrentPrice:              onlineCalculation.MarkPrice,
 		OpeningSize:               size,
 		CurrentSize:               size,
-		CollateralUsed:            datarooni.CollateralUsed,
+		CollateralUsed:            onlineCalculation.CollateralUsed,
 		NotionalPrice:             decimal.NewFromFloat(underlying.Last),
 		Leverage:                  decimal.NewFromFloat(acc.Leverage),
 		MaxLeverageForAccount:     decimal.NewFromFloat(acc.Leverage),
@@ -2250,17 +2253,53 @@ func TestAnalysePosition(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	t.Log(acc.TotalPositionSize)
-	t.Logf("%+v", datarooni)
-	t.Logf("%+v", offlinerooo)
-	t.Log(10406.25 * (1 - 0.04 + 808.73/10406.25))
-	t.Log(10406.25 * (1 - 0.04 + 808.73/10406.25))
-	t.Log(10406.25 * (1 + 0.04 - 808.73/10406.25))
-	t.Log(underlying.Last * (1 - acc.MaintenanceMarginRequirement + acc.Collateral/acc.TotalPositionSize))
-	t.Log(datarooni.EstimatedLiquidationPrice.Div(decimal.NewFromFloat(underlying.Last * (1 - acc.MaintenanceMarginRequirement + acc.Collateral/acc.TotalPositionSize))))
+	if !onlineCalculation.MaintenanceMarginRequirement.Equal(offlineCalculation.MaintenanceMarginRequirement) {
+		t.Errorf("expected '%v' received '%v'", onlineCalculation.MaintenanceMarginRequirement, offlineCalculation.MaintenanceMarginRequirement)
+	}
+	if !onlineCalculation.MarkPrice.Equal(offlineCalculation.MarkPrice) {
+		t.Errorf("expected '%v' received '%v'", onlineCalculation.MarkPrice, offlineCalculation.MarkPrice)
+	}
+	if !onlineCalculation.CurrentSize.Equal(offlineCalculation.CurrentSize) {
+		t.Errorf("expected '%v' received '%v'", onlineCalculation.CurrentSize, offlineCalculation.CurrentSize)
+	}
+	if !onlineCalculation.TotalCollateral.Equal(offlineCalculation.TotalCollateral) {
+		t.Errorf("expected '%v' received '%v'", onlineCalculation.TotalCollateral, offlineCalculation.TotalCollateral)
+	}
+	if !onlineCalculation.FreeCollateral.Equal(offlineCalculation.FreeCollateral) {
+		t.Errorf("expected '%v' received '%v'", onlineCalculation.FreeCollateral, offlineCalculation.FreeCollateral)
+	}
+	if !onlineCalculation.MarginFraction.Equal(offlineCalculation.MarginFraction) {
+		t.Errorf("expected '%v' received '%v'", onlineCalculation.MarginFraction, offlineCalculation.MarginFraction)
+	}
+	if !onlineCalculation.RecentPNL.Equal(offlineCalculation.RecentPNL) {
+		t.Errorf("expected '%v' received '%v'", onlineCalculation.RecentPNL, offlineCalculation.RecentPNL)
+	}
+	if !onlineCalculation.AverageOpenPrice.Equal(offlineCalculation.AverageOpenPrice) {
+		t.Errorf("expected '%v' received '%v'", onlineCalculation.AverageOpenPrice, offlineCalculation.AverageOpenPrice)
+	}
+	if !onlineCalculation.BreakEvenPrice.Equal(offlineCalculation.BreakEvenPrice) {
+		t.Errorf("expected '%v' received '%v'", onlineCalculation.BreakEvenPrice, offlineCalculation.BreakEvenPrice)
+	}
+	if !onlineCalculation.CollateralUsed.Equal(offlineCalculation.CollateralUsed) {
+		t.Errorf("expected '%v' received '%v'", onlineCalculation.CollateralUsed, offlineCalculation.CollateralUsed)
+	}
+	if !onlineCalculation.InitialMarginRequirement.Equal(offlineCalculation.InitialMarginRequirement) {
+		t.Errorf("expected '%v' received '%v'", onlineCalculation.InitialMarginRequirement, offlineCalculation.InitialMarginRequirement)
+	}
 }
 
-func TestButts(t *testing.T) {
-	acc, _ := f.GetAccountInfo(context.Background())
-	t.Logf("%+v", acc)
+func TestIsPerpetualFuture(t *testing.T) {
+	t.Parallel()
+	if f.IsPerpetualFutureCurrency(asset.Spot, currency.NewPair(currency.LUNA, currency.UST)) {
+		t.Error("expected false")
+	}
+	if f.IsPerpetualFutureCurrency(asset.Futures, currency.NewPair(currency.LUNA, currency.UST)) {
+		t.Error("expected false")
+	}
+	if f.IsPerpetualFutureCurrency(asset.Spot, currency.NewPair(currency.LUNA, currency.PERP)) {
+		t.Error("expected false")
+	}
+	if !f.IsPerpetualFutureCurrency(asset.Futures, currency.NewPair(currency.LUNA, currency.PERP)) {
+		t.Error("expected true")
+	}
 }

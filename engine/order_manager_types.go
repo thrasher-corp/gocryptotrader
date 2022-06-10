@@ -52,13 +52,14 @@ type store struct {
 
 // OrderManager processes and stores orders across enabled exchanges
 type OrderManager struct {
-	started               int32
-	processingOrders      int32
-	shutdown              chan struct{}
-	orderStore            store
-	cfg                   orderManagerConfig
-	verbose               bool
-	trackFuturesPositions bool
+	started                  int32
+	processingOrders         int32
+	shutdown                 chan struct{}
+	orderStore               store
+	cfg                      orderManagerConfig
+	verbose                  bool
+	trackFuturesPositions    bool
+	openPositionSeekDuration time.Duration
 }
 
 // OrderSubmitResponse contains the order response along with an internal order ID
