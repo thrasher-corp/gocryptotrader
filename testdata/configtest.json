@@ -665,8 +665,8 @@
      },
      "futures": {
       "assetEnabled": true,
-      "enabled": "",
-      "available": "BTCUSD-U22,BTCUSD-M22,ETHUSD-U22,ETHUSD-M22"
+      "enabled": "BTCUSD-Z22",
+      "available": "BTCUSD-U22,BTCUSD-M22,BTCUSD-Z22,ETHUSD-U22,ETHUSD-M22"
      },
      "spot": {
       "assetEnabled": true,
