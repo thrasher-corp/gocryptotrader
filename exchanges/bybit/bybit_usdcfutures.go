@@ -387,95 +387,95 @@ func (by *Bybit) PlaceUSDCOrder(ctx context.Context, symbol currency.Pair, order
 		Error
 	}{}
 
-	params := url.Values{}
+	req := make(map[string]interface{})
 	if !symbol.IsEmpty() {
 		symbolValue, err := by.FormatSymbol(symbol, asset.USDCMarginedFutures)
 		if err != nil {
 			return resp.Result, err
 		}
-		params.Set("symbol", symbolValue)
+		req["symbol"] = symbolValue
 	} else {
 		return USDCCreateOrderResp{}, errSymbolMissing
 	}
 
 	if orderType != "" {
-		params.Set("orderType", orderType)
+		req["orderType"] = orderType
 	} else {
 		return USDCCreateOrderResp{}, errInvalidOrderType
 	}
 
 	if orderFilter != "" {
-		params.Set("orderFilter", orderFilter)
+		req["orderFilter"] = orderFilter
 	} else {
 		return USDCCreateOrderResp{}, errInvalidOrderFilter
 	}
 
 	if side != "" {
-		params.Set("side", side)
+		req["side"] = side
 	} else {
 		return USDCCreateOrderResp{}, errInvalidSide
 	}
 
 	if orderQty != 0 {
-		params.Set("orderQty", strconv.FormatFloat(orderQty, 'f', -1, 64))
+		req["orderQty"] = strconv.FormatFloat(orderQty, 'f', -1, 64)
 	} else {
 		return USDCCreateOrderResp{}, errInvalidQuantity
 	}
 
 	if orderPrice != 0 {
-		params.Set("orderPrice", strconv.FormatFloat(orderPrice, 'f', -1, 64))
+		req["orderPrice"] = strconv.FormatFloat(orderPrice, 'f', -1, 64)
 	}
 
 	if timeInForce != "" {
-		params.Set("timeInForce", timeInForce)
+		req["timeInForce"] = timeInForce
 	}
 
 	if orderLinkID != "" {
-		params.Set("orderLinkId", orderLinkID)
+		req["orderLinkId"] = orderLinkID
 	}
 
 	if reduceOnly {
-		params.Set("reduceOnly", "true")
+		req["reduceOnly"] = true
 	} else {
-		params.Set("reduceOnly", "false")
+		req["reduceOnly"] = false
 	}
 
 	if closeOnTrigger {
-		params.Set("closeOnTrigger", "true")
+		req["closeOnTrigger"] = true
 	} else {
-		params.Set("closeOnTrigger", "false")
+		req["closeOnTrigger"] = false
 	}
 
 	if mmp {
-		params.Set("mmp", "true")
+		req["mmp"] = true
 	} else {
-		params.Set("mmp", "false")
+		req["mmp"] = false
 	}
 
 	if takeProfit != 0 {
-		params.Set("takeProfit", strconv.FormatFloat(takeProfit, 'f', -1, 64))
+		req["takeProfit"] = strconv.FormatFloat(takeProfit, 'f', -1, 64)
 	}
 
 	if stopLoss != 0 {
-		params.Set("stopLoss", strconv.FormatFloat(stopLoss, 'f', -1, 64))
+		req["stopLoss"] = strconv.FormatFloat(stopLoss, 'f', -1, 64)
 	}
 
 	if tptriggerby != 0 {
-		params.Set("tptriggerby", strconv.FormatFloat(tptriggerby, 'f', -1, 64))
+		req["tptriggerby"] = tptriggerby
 	}
 
 	if slTriggerBy != 0 {
-		params.Set("slTriggerBy", strconv.FormatFloat(slTriggerBy, 'f', -1, 64))
+		req["slTriggerBy"] = strconv.FormatFloat(slTriggerBy, 'f', -1, 64)
 	}
 
 	if triggerPrice != 0 {
-		params.Set("triggerPrice", strconv.FormatFloat(triggerPrice, 'f', -1, 64))
+		req["triggerPrice"] = strconv.FormatFloat(triggerPrice, 'f', -1, 64)
 	}
 
 	if triggerBy != 0 {
-		params.Set("triggerBy", strconv.FormatFloat(triggerBy, 'f', -1, 64))
+		req["triggerBy"] = triggerBy
 	}
-	return resp.Result, by.SendAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesPlaceOrder, params, &resp, publicFuturesRate)
+	return resp.Result, by.SendAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesPlaceOrder, nil, req, &resp, publicFuturesRate)
 }
 
 // ModifyUSDCOrder modifies USDC derivatives order.
@@ -540,7 +540,7 @@ func (by *Bybit) ModifyUSDCOrder(ctx context.Context, symbol currency.Pair, orde
 	if triggerPrice != 0 {
 		params.Set("triggerPrice", strconv.FormatFloat(triggerPrice, 'f', -1, 64))
 	}
-	return resp.Result.OrderID, by.SendAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesModifyOrder, params, &resp, publicFuturesRate)
+	return resp.Result.OrderID, by.SendAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesModifyOrder, params, nil, &resp, publicFuturesRate)
 }
 
 // CancelUSDCOrder cancels USDC derivatives order.
@@ -576,7 +576,7 @@ func (by *Bybit) CancelUSDCOrder(ctx context.Context, symbol currency.Pair, orde
 	if orderLinkID != "" {
 		params.Set("orderLinkId", orderLinkID)
 	}
-	return resp.Result.OrderID, by.SendAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesCancelOrder, params, &resp, publicFuturesRate)
+	return resp.Result.OrderID, by.SendAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesCancelOrder, params, nil, &resp, publicFuturesRate)
 }
 
 // CancelAllActiveUSDCOrder cancels all active USDC derivatives order.
@@ -601,7 +601,7 @@ func (by *Bybit) CancelAllActiveUSDCOrder(ctx context.Context, symbol currency.P
 	} else {
 		return errInvalidOrderFilter
 	}
-	return by.SendAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesCancelAllActiveOrder, params, &resp, publicFuturesRate)
+	return by.SendAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesCancelAllActiveOrder, params, nil, &resp, publicFuturesRate)
 }
 
 // GetActiveUSDCOrder gets all active USDC derivatives order.
@@ -653,7 +653,7 @@ func (by *Bybit) GetActiveUSDCOrder(ctx context.Context, symbol currency.Pair, c
 	if cursor != "" {
 		params.Set("cursor", cursor)
 	}
-	return resp.Result.Data, by.SendAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesGetActiveOrder, params, &resp, publicFuturesRate)
+	return resp.Result.Data, by.SendAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesGetActiveOrder, params, nil, &resp, publicFuturesRate)
 }
 
 // GetUSDCOrderHistory gets order history with support of last 30 days of USDC derivatives order.
@@ -705,7 +705,7 @@ func (by *Bybit) GetUSDCOrderHistory(ctx context.Context, symbol currency.Pair, 
 	if cursor != "" {
 		params.Set("cursor", cursor)
 	}
-	return resp.Result.Data, by.SendAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesGetOrderHistory, params, &resp, publicFuturesRate)
+	return resp.Result.Data, by.SendAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesGetOrderHistory, params, nil, &resp, publicFuturesRate)
 }
 
 // GetUSDCTradeHistory gets trade history with support of last 30 days of USDC derivatives trades.
@@ -759,5 +759,5 @@ func (by *Bybit) GetUSDCTradeHistory(ctx context.Context, symbol currency.Pair, 
 	if cursor != "" {
 		params.Set("cursor", cursor)
 	}
-	return resp.Result.Data, by.SendAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesGetTradeHistory, params, &resp, publicFuturesRate)
+	return resp.Result.Data, by.SendAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesGetTradeHistory, params, nil, &resp, publicFuturesRate)
 }
