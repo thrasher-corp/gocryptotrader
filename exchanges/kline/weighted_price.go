@@ -93,7 +93,7 @@ func (o *OHLC) GetTypicalPrice(element int) (float64, error) {
 
 // GetVWAPs returns the Volume Weighted Averages prices which are the cumulative
 // average price with respect to the volume.
-// NOTE: This assumes the most recent price is at the tail end of the slice.
+// NOTE: This assumes candles are sorted by time
 // Based off: https://blog.quantinsti.com/vwap-strategy/
 func (k *Item) GetVWAPs() ([]float64, error) {
 	if len(k.Candles) == 0 {
