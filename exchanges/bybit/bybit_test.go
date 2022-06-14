@@ -2887,12 +2887,12 @@ func TestPlaceUSDCOrder(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = b.PlaceUSDCOrder(context.Background(), pair, "Limit", "Order", "Buy", "", "", 0, 64300, 0, 0, 0, 0, 0, 0, false, false, false)
+	_, err = b.PlaceUSDCOrder(context.Background(), pair, "Limit", "Order", "Buy", "", "", 10000, 1, 0, 0, 0, 0, 0, 0, false, false, false)
 	if err != nil {
 		t.Error(err)
 	}
 
-	_, err = b.PlaceUSDCOrder(context.Background(), pair, "Limit", "StopOrder", "Buy", "ImmediateOrCancel", "", 0, 64300, 0, 0, 0, 0, 0, 0, false, false, false)
+	_, err = b.PlaceUSDCOrder(context.Background(), pair, "Market", "StopOrder", "Buy", "ImmediateOrCancel", "", 0, 64300, 0, 0, 0, 0, 1000, 0, false, false, false)
 	if err != nil {
 		t.Error(err)
 	}

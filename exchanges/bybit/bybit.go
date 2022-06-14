@@ -28,7 +28,7 @@ type Bybit struct {
 // TODO: Visit change logs for all asset which were made after development started
 const (
 	bybitAPIURL       = "https://api.bybit.com"
-	defaultRecvWindow = 5 * time.Second
+	defaultRecvWindow = "5000" // 5000 milli second
 
 	sideBuy  = "Buy"
 	sideSell = "Sell"
@@ -788,12 +788,12 @@ func (by *Bybit) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, me
 	}
 
 	if params.Get("recvWindow") == "" {
-		params.Set("recvWindow", strconv.FormatInt(defaultRecvWindow.Milliseconds(), 10))
+		params.Set("recvWindow", defaultRecvWindow)
 	}
 
 	err = by.SendPayload(ctx, f, func() (*request.Item, error) {
-		nowTimeInMilli := time.Now().UnixMilli()
-		params.Set("timestamp", strconv.FormatInt(nowTimeInMilli, 10))
+		nowTimeInMilli := strconv.FormatInt(time.Now().UnixMilli(), 10)
+		params.Set("timestamp", nowTimeInMilli)
 		params.Set("api_key", creds.Key)
 		var hmacSigned []byte
 		hmacSigned, err = crypto.GetHMAC(crypto.HashSHA256, []byte(params.Encode()), []byte(creds.Secret))
@@ -811,28 +811,26 @@ func (by *Bybit) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, me
 				params.Set("sign", hmacSignedStr)
 				payload = []byte(params.Encode())
 			} else {
+				var err error
 				headers["Content-Type"] = "application/json"
 				if d, ok := data.(map[string]interface{}); ok {
-					payloadTemp, err := json.Marshal(d)
-					if err != nil {
-						return nil, err
-					}
-
-					var hmacSigned []byte
-					hmacSigned, err = crypto.GetHMAC(crypto.HashSHA256, payloadTemp, []byte(creds.Secret))
-					if err != nil {
-						return nil, err
-					}
-					hmacSignedStr := crypto.HexEncodeToString(hmacSigned)
-					d["sign"] = hmacSignedStr
-					d["recvWindow"] = defaultRecvWindow.Milliseconds()
-					d["timestamp"] = nowTimeInMilli
-					d["api_key"] = creds.Key
-
 					payload, err = json.Marshal(d)
 					if err != nil {
 						return nil, err
 					}
+
+					pL := nowTimeInMilli + creds.Key + defaultRecvWindow + string(payload)
+					var hmacSigned []byte
+					hmacSigned, err = crypto.GetHMAC(crypto.HashSHA256, []byte(pL), []byte(creds.Secret))
+					if err != nil {
+						return nil, err
+					}
+					hmacSignedStr := crypto.HexEncodeToString(hmacSigned)
+					headers["X-BAPI-API-KEY"] = creds.Key
+					headers["X-BAPI-SIGN"] = hmacSignedStr
+					headers["X-BAPI-SIGN-TYPE"] = "2"
+					headers["X-BAPI-TIMESTAMP"] = nowTimeInMilli
+					headers["X-BAPI-RECV-WINDOW"] = defaultRecvWindow
 				}
 			}
 		default:
