@@ -4247,6 +4247,12 @@ func (s *RPCServer) buildFuturePosition(position *order.Position, getFundingPaym
 
 // GetManagedPosition returns an open positions from the order manager, no calling any API endpoints to return this information
 func (s *RPCServer) GetManagedPosition(_ context.Context, r *gctrpc.GetManagedPositionRequest) (*gctrpc.GetManagedPositionsResponse, error) {
+	if r == nil {
+		return nil, fmt.Errorf("%w GetManagedPositionRequest", common.ErrNilPointer)
+	}
+	if r.Pair == nil {
+		return nil, fmt.Errorf("%w request pair", common.ErrNilPointer)
+	}
 	var (
 		exch exchange.IBotExchange
 		ai   asset.Item
@@ -4277,7 +4283,7 @@ func (s *RPCServer) GetManagedPosition(_ context.Context, r *gctrpc.GetManagedPo
 	}
 	position, err := s.OrderManager.GetOpenFuturesPosition(r.Exchange, ai, cp)
 	if err != nil {
-		if !s.Config.OrderManager.TrackFuturesPositions {
+		if !s.OrderManager.trackFuturesPositions {
 			return nil, fmt.Errorf("%v or use GetFuturesPositions command. err: %w", errFuturesTrackingDisabled, err)
 		}
 		return nil, err
@@ -4290,9 +4296,12 @@ func (s *RPCServer) GetManagedPosition(_ context.Context, r *gctrpc.GetManagedPo
 
 // GetAllManagedPositions returns all open positions from the order manager, no calling any API endpoints to return this information
 func (s *RPCServer) GetAllManagedPositions(_ context.Context, r *gctrpc.GetAllManagedPositionsRequest) (*gctrpc.GetManagedPositionsResponse, error) {
+	if r == nil {
+		return nil, fmt.Errorf("%w GetAllManagedPositions", common.ErrNilPointer)
+	}
 	positions, err := s.OrderManager.GetAllOpenFuturesPositions()
 	if err != nil {
-		if !s.Config.OrderManager.TrackFuturesPositions {
+		if !s.OrderManager.trackFuturesPositions {
 			return nil, fmt.Errorf("%v or use GetFuturesPositions command. err: %w", errFuturesTrackingDisabled, err)
 		}
 		return nil, err
@@ -4567,6 +4576,9 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 
 // GetFundingRates returns the funding rates for a slice of pairs of an exchange, asset
 func (s *RPCServer) GetFundingRates(ctx context.Context, r *gctrpc.GetFundingRatesRequest) (*gctrpc.GetFundingRatesResponse, error) {
+	if r == nil {
+		return nil, fmt.Errorf("%w GetFundingRateRequest", common.ErrNilPointer)
+	}
 	exch, err := s.GetExchangeByName(r.Exchange)
 	if err != nil {
 		return nil, err

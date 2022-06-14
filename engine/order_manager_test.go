@@ -93,21 +93,21 @@ func (f omfExchange) ModifyOrder(ctx context.Context, action *order.Modify) (*or
 }
 
 func TestSetupOrderManager(t *testing.T) {
-	_, err := SetupOrderManager(nil, nil, nil, false, false)
+	_, err := SetupOrderManager(nil, nil, nil, false, false, 0)
 	if !errors.Is(err, errNilExchangeManager) {
 		t.Errorf("error '%v', expected '%v'", err, errNilExchangeManager)
 	}
 
-	_, err = SetupOrderManager(SetupExchangeManager(), nil, nil, false, false)
+	_, err = SetupOrderManager(SetupExchangeManager(), nil, nil, false, false, 0)
 	if !errors.Is(err, errNilCommunicationsManager) {
 		t.Errorf("error '%v', expected '%v'", err, errNilCommunicationsManager)
 	}
-	_, err = SetupOrderManager(SetupExchangeManager(), &CommunicationManager{}, nil, false, false)
+	_, err = SetupOrderManager(SetupExchangeManager(), &CommunicationManager{}, nil, false, false, 0)
 	if !errors.Is(err, errNilWaitGroup) {
 		t.Errorf("error '%v', expected '%v'", err, errNilWaitGroup)
 	}
 	var wg sync.WaitGroup
-	_, err = SetupOrderManager(SetupExchangeManager(), &CommunicationManager{}, &wg, false, false)
+	_, err = SetupOrderManager(SetupExchangeManager(), &CommunicationManager{}, &wg, false, false, 0)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -120,7 +120,7 @@ func TestOrderManagerStart(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
 	}
 	var wg sync.WaitGroup
-	m, err = SetupOrderManager(SetupExchangeManager(), &CommunicationManager{}, &wg, false, false)
+	m, err = SetupOrderManager(SetupExchangeManager(), &CommunicationManager{}, &wg, false, false, 0)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -141,7 +141,7 @@ func TestOrderManagerIsRunning(t *testing.T) {
 	}
 
 	var wg sync.WaitGroup
-	m, err := SetupOrderManager(SetupExchangeManager(), &CommunicationManager{}, &wg, false, false)
+	m, err := SetupOrderManager(SetupExchangeManager(), &CommunicationManager{}, &wg, false, false, 0)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -166,7 +166,7 @@ func TestOrderManagerStop(t *testing.T) {
 	}
 
 	var wg sync.WaitGroup
-	m, err = SetupOrderManager(SetupExchangeManager(), &CommunicationManager{}, &wg, false, false)
+	m, err = SetupOrderManager(SetupExchangeManager(), &CommunicationManager{}, &wg, false, false, 0)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -209,7 +209,7 @@ func OrdersSetup(t *testing.T) *OrderManager {
 		IBotExchange: exch,
 	}
 	em.Add(fakeExchange)
-	m, err := SetupOrderManager(em, &CommunicationManager{}, &wg, false, false)
+	m, err := SetupOrderManager(em, &CommunicationManager{}, &wg, false, false, 0)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -674,7 +674,7 @@ func TestProcessOrders(t *testing.T) {
 		IBotExchange: exch,
 	}
 	em.Add(fakeExchange)
-	m, err := SetupOrderManager(em, &CommunicationManager{}, &wg, false, false)
+	m, err := SetupOrderManager(em, &CommunicationManager{}, &wg, false, false, 0)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}

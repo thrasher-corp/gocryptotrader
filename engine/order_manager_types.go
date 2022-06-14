@@ -23,10 +23,9 @@ var (
 
 	errNilCommunicationsManager = errors.New("cannot start with nil communications manager")
 	errNilOrder                 = errors.New("nil order received")
-	errFuturesTrackerNotSetup   = errors.New("futures position tracker not setup")
 	errFuturesTrackingDisabled  = errors.New("tracking futures positions disabled. enable it in config")
-
-	orderManagerDelay = time.Second * 10
+	errFuturesTrackerNotSetup   = errors.New("futures position tracker not setup")
+	orderManagerDelay           = time.Second * 10
 )
 
 type orderManagerConfig struct {
