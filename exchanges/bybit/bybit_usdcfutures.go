@@ -42,6 +42,8 @@ const (
 	usdcfuturesGetActiveOrder       = "/option/usdc/openapi/private/v1/query-active-orders"
 	usdcfuturesGetOrderHistory      = "/option/usdc/openapi/private/v1/query-order-history"
 	usdcfuturesGetTradeHistory      = "/option/usdc/openapi/private/v1/execution-list"
+	usdcfuturesGetTransactionLog    = "/option/usdc/openapi/private/v1/query-transaction-log"
+	usdcfuturesGetWalletBalance     = "/option/usdc/openapi/private/v1/query-wallet-balance"
 )
 
 // GetUSDCFuturesOrderbook gets orderbook data for USDCMarginedFutures.
@@ -774,6 +776,64 @@ func (by *Bybit) GetUSDCTradeHistory(ctx context.Context, symbol currency.Pair, 
 	return resp.Result.Data, by.SendUSDCAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesGetTradeHistory, req, &resp, publicFuturesRate)
 }
 
+// GetUSDCTransactionLog gets transaction logs with support of last 30 days of USDC derivatives trades.
+func (by *Bybit) GetUSDCTransactionLog(ctx context.Context, startTime, endTime time.Time, txType, category, direction, cursor string, limit int64) ([]USDCTxLog, error) {
+	resp := struct {
+		Result struct {
+			Cursor          string      `json:"cursor"`
+			ResultTotalSize int64       `json:"resultTotalSize"`
+			Data            []USDCTxLog `json:"dataList"`
+		} `json:"result"`
+		USDCError
+	}{}
+
+	req := make(map[string]interface{})
+	if startTime.IsZero() {
+		return nil, errInvalidStartTime
+	} else {
+		req["startTime"] = strconv.FormatInt(startTime.Unix(), 10)
+	}
+
+	if endTime.IsZero() {
+		return nil, errInvalidStartTime
+	} else {
+		req["startTime"] = strconv.FormatInt(startTime.Unix(), 10)
+	}
+
+	if txType != "" {
+		req["type"] = txType
+	} else {
+		return nil, errors.New("type missing")
+	}
+
+	if category != "" {
+		req["category"] = category
+	}
+
+	if direction != "" {
+		req["direction"] = direction
+	}
+
+	if limit > 0 && limit <= 50 {
+		req["limit"] = strconv.FormatInt(limit, 10)
+	}
+
+	if cursor != "" {
+		req["cursor"] = cursor
+	}
+	return resp.Result.Data, by.SendUSDCAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesGetTransactionLog, req, &resp, publicFuturesRate)
+}
+
+// GetUSDCWalletBalance gets USDC wallet balance.
+func (by *Bybit) GetUSDCWalletBalance(ctx context.Context) (USDCWalletBalance, error) {
+	resp := struct {
+		Result USDCWalletBalance `json:"result"`
+		USDCError
+	}{}
+
+	return resp.Result, by.SendUSDCAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesGetWalletBalance, nil, &resp, publicFuturesRate)
+}
+
 // SendUSDCAuthHTTPRequest sends an authenticated HTTP request
 func (by *Bybit) SendUSDCAuthHTTPRequest(ctx context.Context, ePath exchange.URL, method, path string, data interface{}, result UnmarshalTo, f request.EndpointLimit) error {
 	creds, err := by.GetCredentials(ctx)
@@ -794,29 +854,30 @@ func (by *Bybit) SendUSDCAuthHTTPRequest(ctx context.Context, ePath exchange.URL
 		nowTimeInMilli := strconv.FormatInt(time.Now().UnixMilli(), 10)
 		headers := make(map[string]string)
 		var (
-			payload []byte
-			err     error
+			payload, hmacSigned []byte
+			err                 error
 		)
 
-		if d, ok := data.(map[string]interface{}); ok {
-			payload, err = json.Marshal(d)
-			if err != nil {
-				return nil, err
+		if data != nil {
+			if d, ok := data.(map[string]interface{}); ok {
+				payload, err = json.Marshal(d)
+				if err != nil {
+					return nil, err
+				}
+				signInput := nowTimeInMilli + creds.Key + defaultRecvWindow + string(payload)
+				hmacSigned, err = crypto.GetHMAC(crypto.HashSHA256, []byte(signInput), []byte(creds.Secret))
+				if err != nil {
+					return nil, err
+				}
 			}
-
-			signInput := nowTimeInMilli + creds.Key + defaultRecvWindow + string(payload)
-			var hmacSigned []byte
-			hmacSigned, err = crypto.GetHMAC(crypto.HashSHA256, []byte(signInput), []byte(creds.Secret))
-			if err != nil {
-				return nil, err
-			}
-			headers["Content-Type"] = "application/json"
-			headers["X-BAPI-API-KEY"] = creds.Key
-			headers["X-BAPI-SIGN"] = crypto.HexEncodeToString(hmacSigned)
-			headers["X-BAPI-SIGN-TYPE"] = "2"
-			headers["X-BAPI-TIMESTAMP"] = nowTimeInMilli
-			headers["X-BAPI-RECV-WINDOW"] = defaultRecvWindow
 		}
+
+		headers["Content-Type"] = "application/json"
+		headers["X-BAPI-API-KEY"] = creds.Key
+		headers["X-BAPI-SIGN"] = crypto.HexEncodeToString(hmacSigned)
+		headers["X-BAPI-SIGN-TYPE"] = "2"
+		headers["X-BAPI-TIMESTAMP"] = nowTimeInMilli
+		headers["X-BAPI-RECV-WINDOW"] = defaultRecvWindow
 
 		return &request.Item{
 			Method:        method,

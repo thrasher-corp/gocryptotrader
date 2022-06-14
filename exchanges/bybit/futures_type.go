@@ -793,7 +793,7 @@ type USDCTrade struct {
 // USDCCreateOrderResp stores create order response
 type USDCCreateOrderResp struct {
 	ID          string  `json:"orderId"`
-	OrderLinkId string  `json:"orderLinkId"`
+	OrderLinkID string  `json:"orderLinkId"`
 	Symbol      string  `json:"symbol"`
 	OrderPrice  float64 `json:"orderPrice,string"`
 	OrderQty    float64 `json:"orderQty,string"`
@@ -804,7 +804,7 @@ type USDCCreateOrderResp struct {
 // USDCOrder store order data
 type USDCOrder struct {
 	ID              string  `json:"orderId"`
-	OrderLinkId     string  `json:"orderLinkId"`
+	OrderLinkID     string  `json:"orderLinkId"`
 	Symbol          string  `json:"symbol"`
 	OrderType       string  `json:"orderType"`
 	Side            string  `json:"side"`
@@ -842,7 +842,7 @@ type USDCOrderHistory struct {
 // USDCTradeHistory stores trade history
 type USDCTradeHistory struct {
 	ID               string  `json:"orderId"`
-	OrderLinkId      string  `json:"orderLinkId"`
+	OrderLinkID      string  `json:"orderLinkId"`
 	Symbol           string  `json:"symbol"`
 	Side             string  `json:"side"`
 	TradeID          string  `json:"tradeId"`
@@ -854,4 +854,36 @@ type USDCTradeHistory struct {
 	ExecValue        float64 `json:"execValue,string"`
 	TradeTime        string  `json:"tradeTime"`
 	LastLiquidityInd string  `json:"lastLiquidityInd"`
+}
+
+// USDCTxLog stores transaction log data
+type USDCTxLog struct {
+	TxTime        string  `json:"transactionTime"`
+	Symbol        string  `json:"symbol"`
+	Type          string  `json:"type"`
+	Side          string  `json:"side"`
+	Quantity      float64 `json:"qty,string"`
+	Size          float64 `json:"size,string"`
+	TradePrice    float64 `json:"tradePrice,string"`
+	Funding       float64 `json:"funding,string"`
+	Fee           float64 `json:"fee,string"`
+	CashFlow      string  `json:"cashFlow"`
+	Change        float64 `json:"change,string"`
+	WalletBalance float64 `json:"walletBalance,string"`
+	FeeRate       float64 `json:"feeRate,string"`
+	TradeID       string  `json:"tradeId"`
+	OrderID       string  `json:"orderId"`
+	OrderLinkID   string  `json:"orderLinkId"`
+	Info          string  `json:"info"`
+}
+
+type USDCWalletBalance struct {
+	Equity           float64 `json:"equity,string"`
+	WalletBalance    float64 `json:"walletBalance,string"`
+	AvailableBalance float64 `json:"availableBalance,string"`
+	AccountIM        float64 `json:"accountIM,string"`
+	AccountMM        float64 `json:"accountMM,string"`
+	TotalRPL         float64 `json:"totalRPL,string"`
+	TotalSessionUPL  float64 `json:"totalSessionUPL,string"`
+	TotalSessionRPL  float64 `json:"totalSessionRPL,string"`
 }

@@ -2999,3 +2999,27 @@ func TestGetUSDCTradeHistory(t *testing.T) {
 		t.Error("GetUSDCTradeHistory() Expected error")
 	}
 }
+
+func TestGetUSDCTransactionLog(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := b.GetUSDCTransactionLog(context.Background(), time.Now().Add(-time.Hour*24), time.Now(), "SETTLEMENT", "", "", "", 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetUSDCWalletBalance(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := b.GetUSDCWalletBalance(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+}
