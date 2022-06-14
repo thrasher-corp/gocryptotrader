@@ -3,7 +3,6 @@ package bybit
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -514,7 +513,7 @@ func (by *Bybit) CreatePostOrder(ctx context.Context, o *PlaceOrderRequest) (*Pl
 		Data PlaceOrderResponse `json:"result"`
 		Error
 	}{}
-	return &resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, bybitSpotOrder, params, nil, &resp, privateSpotRate)
+	return &resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, bybitSpotOrder, params, &resp, privateSpotRate)
 }
 
 // QueryOrder returns order data based upon orderID or orderLinkID
@@ -535,7 +534,7 @@ func (by *Bybit) QueryOrder(ctx context.Context, orderID, orderLinkID string) (*
 		Data QueryOrderResponse `json:"result"`
 		Error
 	}{}
-	return &resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, bybitSpotOrder, params, nil, &resp, privateSpotRate)
+	return &resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, bybitSpotOrder, params, &resp, privateSpotRate)
 }
 
 // CancelExistingOrder cancels existing order based upon orderID or orderLinkID
@@ -556,7 +555,7 @@ func (by *Bybit) CancelExistingOrder(ctx context.Context, orderID, orderLinkID s
 		Data CancelOrderResponse `json:"result"`
 		Error
 	}{}
-	return &resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, bybitSpotOrder, params, nil, &resp, privateSpotRate)
+	return &resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, bybitSpotOrder, params, &resp, privateSpotRate)
 }
 
 // FastCancelExistingOrder cancels existing order based upon orderID or orderLinkID
@@ -582,7 +581,7 @@ func (by *Bybit) FastCancelExistingOrder(ctx context.Context, symbol, orderID, o
 		Data CancelOrderResponse `json:"result"`
 		Error
 	}{}
-	return &resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, bybitFastCancelSpotOrder, params, nil, &resp, privateSpotRate)
+	return &resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, bybitFastCancelSpotOrder, params, &resp, privateSpotRate)
 }
 
 // BatchCancelOrder cancels orders in batch based upon symbol, side or orderType
@@ -604,7 +603,7 @@ func (by *Bybit) BatchCancelOrder(ctx context.Context, symbol, side, orderTypes 
 		} `json:"result"`
 		Error
 	}{}
-	return resp.Result.Success, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, bybitBatchCancelSpotOrder, params, nil, &resp, privateSpotRate)
+	return resp.Result.Success, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, bybitBatchCancelSpotOrder, params, &resp, privateSpotRate)
 }
 
 // BatchFastCancelOrder cancels orders in batch based upon symbol, side or orderType
@@ -626,7 +625,7 @@ func (by *Bybit) BatchFastCancelOrder(ctx context.Context, symbol, side, orderTy
 		} `json:"result"`
 		Error
 	}{}
-	return resp.Result.Success, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, bybitFastBatchCancelSpotOrder, params, nil, &resp, privateSpotRate)
+	return resp.Result.Success, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, bybitFastBatchCancelSpotOrder, params, &resp, privateSpotRate)
 }
 
 // BatchCancelOrderByIDs cancels orders in batch based on comma separated order id's
@@ -643,7 +642,7 @@ func (by *Bybit) BatchCancelOrderByIDs(ctx context.Context, orderIDs []string) (
 		} `json:"result"`
 		Error
 	}{}
-	return resp.Result.Success, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, bybitFastBatchCancelSpotOrder, params, nil, &resp, privateSpotRate)
+	return resp.Result.Success, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, bybitFastBatchCancelSpotOrder, params, &resp, privateSpotRate)
 }
 
 // ListOpenOrders returns all open orders
@@ -663,7 +662,7 @@ func (by *Bybit) ListOpenOrders(ctx context.Context, symbol, orderID string, lim
 		Data []QueryOrderResponse `json:"result"`
 		Error
 	}{}
-	return resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, bybitOpenOrder, params, nil, &resp, privateSpotRate)
+	return resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, bybitOpenOrder, params, &resp, privateSpotRate)
 }
 
 // GetPastOrders returns all past orders from history
@@ -688,7 +687,7 @@ func (by *Bybit) GetPastOrders(ctx context.Context, symbol, orderID string, limi
 		Data []QueryOrderResponse `json:"result"`
 		Error
 	}{}
-	return resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, bybitPastOrder, params, nil, &resp, privateSpotRate)
+	return resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, bybitPastOrder, params, &resp, privateSpotRate)
 }
 
 // GetTradeHistory returns user trades
@@ -719,7 +718,7 @@ func (by *Bybit) GetTradeHistory(ctx context.Context, limit int64, symbol, fromI
 		Data []HistoricalTrade `json:"result"`
 		Error
 	}{}
-	return resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, bybitTradeHistory, params, nil, &resp, privateSpotRate)
+	return resp.Data, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, bybitTradeHistory, params, &resp, privateSpotRate)
 }
 
 // GetWalletBalance returns user wallet balance
@@ -730,7 +729,7 @@ func (by *Bybit) GetWalletBalance(ctx context.Context) ([]Balance, error) {
 		} `json:"result"`
 		Error
 	}{}
-	return resp.Data.Balances, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, bybitWalletBalance, url.Values{}, nil, &resp, privateSpotRate)
+	return resp.Data.Balances, by.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, bybitWalletBalance, url.Values{}, &resp, privateSpotRate)
 }
 
 // GetSpotServerTime returns server time
@@ -768,7 +767,7 @@ func (by *Bybit) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path s
 }
 
 // SendAuthHTTPRequest sends an authenticated HTTP request
-func (by *Bybit) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, method, path string, params url.Values, data interface{}, result UnmarshalTo, f request.EndpointLimit) error {
+func (by *Bybit) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, method, path string, params url.Values, result UnmarshalTo, f request.EndpointLimit) error {
 	creds, err := by.GetCredentials(ctx)
 	if err != nil {
 		return err
@@ -792,11 +791,11 @@ func (by *Bybit) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, me
 	}
 
 	err = by.SendPayload(ctx, f, func() (*request.Item, error) {
-		nowTimeInMilli := strconv.FormatInt(time.Now().UnixMilli(), 10)
-		params.Set("timestamp", nowTimeInMilli)
+		params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
 		params.Set("api_key", creds.Key)
+		signature := params.Encode()
 		var hmacSigned []byte
-		hmacSigned, err = crypto.GetHMAC(crypto.HashSHA256, []byte(params.Encode()), []byte(creds.Secret))
+		hmacSigned, err = crypto.GetHMAC(crypto.HashSHA256, []byte(signature), []byte(creds.Secret))
 		if err != nil {
 			return nil, err
 		}
@@ -807,32 +806,8 @@ func (by *Bybit) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, me
 		headers["Content-Type"] = "application/x-www-form-urlencoded"
 		switch method {
 		case http.MethodPost:
-			if data == nil {
-				params.Set("sign", hmacSignedStr)
-				payload = []byte(params.Encode())
-			} else {
-				var err error
-				headers["Content-Type"] = "application/json"
-				if d, ok := data.(map[string]interface{}); ok {
-					payload, err = json.Marshal(d)
-					if err != nil {
-						return nil, err
-					}
-
-					pL := nowTimeInMilli + creds.Key + defaultRecvWindow + string(payload)
-					var hmacSigned []byte
-					hmacSigned, err = crypto.GetHMAC(crypto.HashSHA256, []byte(pL), []byte(creds.Secret))
-					if err != nil {
-						return nil, err
-					}
-					hmacSignedStr := crypto.HexEncodeToString(hmacSigned)
-					headers["X-BAPI-API-KEY"] = creds.Key
-					headers["X-BAPI-SIGN"] = hmacSignedStr
-					headers["X-BAPI-SIGN-TYPE"] = "2"
-					headers["X-BAPI-TIMESTAMP"] = nowTimeInMilli
-					headers["X-BAPI-RECV-WINDOW"] = defaultRecvWindow
-				}
-			}
+			params.Set("sign", hmacSignedStr)
+			payload = []byte(params.Encode())
 		default:
 			path = common.EncodeURLValues(path, params)
 			path += "&sign=" + hmacSignedStr
