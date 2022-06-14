@@ -2878,8 +2878,8 @@ func TestGetUSDCLatestTrades(t *testing.T) {
 
 func TestPlaceUSDCOrder(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
 	}
 
 	pair, err := currency.NewPairFromString("BTCPERP")
@@ -2900,8 +2900,8 @@ func TestPlaceUSDCOrder(t *testing.T) {
 
 func TestModifyUSDCOrder(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
 	}
 
 	pair, err := currency.NewPairFromString("BTCPERP")
@@ -2909,7 +2909,7 @@ func TestModifyUSDCOrder(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = b.ModifyUSDCOrder(context.Background(), pair, "Order", "", "", 0, 0, 0, 0, 0, 0, 0)
+	_, err = b.ModifyUSDCOrder(context.Background(), pair, "Order", "", "orderLinkID", 0, 0, 0, 0, 0, 0, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2917,8 +2917,8 @@ func TestModifyUSDCOrder(t *testing.T) {
 
 func TestCancelUSDCOrder(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
 	}
 
 	pair, err := currency.NewPairFromString("BTCPERP")
@@ -2934,8 +2934,8 @@ func TestCancelUSDCOrder(t *testing.T) {
 
 func TestCancelAllActiveUSDCOrder(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
 	}
 
 	pair, err := currency.NewPairFromString("BTCPERP")

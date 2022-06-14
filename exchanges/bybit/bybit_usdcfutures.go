@@ -1,7 +1,9 @@
 package bybit
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/url"
@@ -9,10 +11,12 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
 const (
@@ -45,7 +49,7 @@ func (by *Bybit) GetUSDCFuturesOrderbook(ctx context.Context, symbol currency.Pa
 	var resp Orderbook
 	data := struct {
 		Result []USDCOrderbookData `json:"result"`
-		Error
+		USDCError
 	}{}
 
 	params := url.Values{}
@@ -83,7 +87,7 @@ func (by *Bybit) GetUSDCFuturesOrderbook(ctx context.Context, symbol currency.Pa
 func (by *Bybit) GetUSDCContracts(ctx context.Context, symbol currency.Pair, direction string, limit int64) ([]USDCContract, error) {
 	resp := struct {
 		Data []USDCContract `json:"result"`
-		Error
+		USDCError
 	}{}
 
 	params := url.Values{}
@@ -109,7 +113,7 @@ func (by *Bybit) GetUSDCContracts(ctx context.Context, symbol currency.Pair, dir
 func (by *Bybit) GetUSDCSymbols(ctx context.Context, symbol currency.Pair) (USDCSymbol, error) {
 	resp := struct {
 		Data USDCSymbol `json:"result"`
-		Error
+		USDCError
 	}{}
 
 	params := url.Values{}
@@ -130,7 +134,7 @@ func (by *Bybit) GetUSDCSymbols(ctx context.Context, symbol currency.Pair) (USDC
 func (by *Bybit) GetUSDCKlines(ctx context.Context, symbol currency.Pair, period string, startTime time.Time, limit int64) ([]USDCKline, error) {
 	resp := struct {
 		Data []USDCKline `json:"result"`
-		Error
+		USDCError
 	}{}
 
 	params := url.Values{}
@@ -165,7 +169,7 @@ func (by *Bybit) GetUSDCKlines(ctx context.Context, symbol currency.Pair, period
 func (by *Bybit) GetUSDCMarkPriceKlines(ctx context.Context, symbol currency.Pair, period string, startTime time.Time, limit int64) ([]USDCKlineBase, error) {
 	resp := struct {
 		Data []USDCKlineBase `json:"result"`
-		Error
+		USDCError
 	}{}
 
 	params := url.Values{}
@@ -200,7 +204,7 @@ func (by *Bybit) GetUSDCMarkPriceKlines(ctx context.Context, symbol currency.Pai
 func (by *Bybit) GetUSDCIndexPriceKlines(ctx context.Context, symbol currency.Pair, period string, startTime time.Time, limit int64) ([]USDCKlineBase, error) {
 	resp := struct {
 		Data []USDCKlineBase `json:"result"`
-		Error
+		USDCError
 	}{}
 
 	params := url.Values{}
@@ -235,7 +239,7 @@ func (by *Bybit) GetUSDCIndexPriceKlines(ctx context.Context, symbol currency.Pa
 func (by *Bybit) GetUSDCPremiumIndexKlines(ctx context.Context, symbol currency.Pair, period string, startTime time.Time, limit int64) ([]USDCKlineBase, error) {
 	resp := struct {
 		Data []USDCKlineBase `json:"result"`
-		Error
+		USDCError
 	}{}
 
 	params := url.Values{}
@@ -270,7 +274,7 @@ func (by *Bybit) GetUSDCPremiumIndexKlines(ctx context.Context, symbol currency.
 func (by *Bybit) GetUSDCOpenInterest(ctx context.Context, symbol currency.Pair, period string, limit int64) ([]USDCOpenInterest, error) {
 	resp := struct {
 		Data []USDCOpenInterest `json:"result"`
-		Error
+		USDCError
 	}{}
 
 	params := url.Values{}
@@ -299,7 +303,7 @@ func (by *Bybit) GetUSDCOpenInterest(ctx context.Context, symbol currency.Pair, 
 func (by *Bybit) GetUSDCLargeOrders(ctx context.Context, symbol currency.Pair, limit int64) ([]USDCLargeOrder, error) {
 	resp := struct {
 		Data []USDCLargeOrder `json:"result"`
-		Error
+		USDCError
 	}{}
 
 	params := url.Values{}
@@ -323,7 +327,7 @@ func (by *Bybit) GetUSDCLargeOrders(ctx context.Context, symbol currency.Pair, l
 func (by *Bybit) GetUSDCAccountRatio(ctx context.Context, symbol currency.Pair, period string, limit int64) ([]USDCAccountRatio, error) {
 	resp := struct {
 		Data []USDCAccountRatio `json:"result"`
-		Error
+		USDCError
 	}{}
 
 	params := url.Values{}
@@ -356,7 +360,7 @@ func (by *Bybit) GetUSDCLatestTrades(ctx context.Context, symbol currency.Pair, 
 			Cursor     string      `json:"cursor"`
 			Data       []USDCTrade `json:"dataList"`
 		} `json:"result"`
-		Error
+		USDCError
 	}{}
 
 	params := url.Values{}
@@ -384,7 +388,7 @@ func (by *Bybit) GetUSDCLatestTrades(ctx context.Context, symbol currency.Pair, 
 func (by *Bybit) PlaceUSDCOrder(ctx context.Context, symbol currency.Pair, orderType, orderFilter, side, timeInForce, orderLinkID string, orderPrice, orderQty, takeProfit, stopLoss, tptriggerby, slTriggerBy, triggerPrice, triggerBy float64, reduceOnly, closeOnTrigger, mmp bool) (USDCCreateOrderResp, error) {
 	resp := struct {
 		Result USDCCreateOrderResp `json:"result"`
-		Error
+		USDCError
 	}{}
 
 	req := make(map[string]interface{})
@@ -475,7 +479,7 @@ func (by *Bybit) PlaceUSDCOrder(ctx context.Context, symbol currency.Pair, order
 	if triggerBy != 0 {
 		req["triggerBy"] = triggerBy
 	}
-	return resp.Result, by.SendAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesPlaceOrder, nil, req, &resp, publicFuturesRate)
+	return resp.Result, by.SendUSDCAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesPlaceOrder, req, &resp, publicFuturesRate)
 }
 
 // ModifyUSDCOrder modifies USDC derivatives order.
@@ -485,62 +489,66 @@ func (by *Bybit) ModifyUSDCOrder(ctx context.Context, symbol currency.Pair, orde
 			OrderID       string `json:"orderId"`
 			OrderLinkedID string `json:"orderLinkId"`
 		} `json:"result"`
-		Error
+		USDCError
 	}{}
 
-	params := url.Values{}
+	req := make(map[string]interface{})
 	if !symbol.IsEmpty() {
 		symbolValue, err := by.FormatSymbol(symbol, asset.USDCMarginedFutures)
 		if err != nil {
 			return resp.Result.OrderID, err
 		}
-		params.Set("symbol", symbolValue)
+		req["symbol"] = symbolValue
 	} else {
 		return resp.Result.OrderID, errSymbolMissing
 	}
 
 	if orderFilter != "" {
-		params.Set("orderFilter", orderFilter)
+		req["orderFilter"] = orderFilter
 	} else {
 		return resp.Result.OrderID, errInvalidOrderFilter
 	}
 
+	if orderID == "" && orderLinkID == "" {
+		return resp.Result.OrderID, errOrderOrOrderLinkIDMissing
+	}
+
 	if orderID != "" {
-		params.Set("orderId", orderID)
+		req["orderId"] = orderID
 	}
 
 	if orderLinkID != "" {
-		params.Set("orderLinkId", orderLinkID)
+		req["orderLinkId"] = orderLinkID
 	}
 
 	if orderPrice != 0 {
-		params.Set("orderPrice", strconv.FormatFloat(orderPrice, 'f', -1, 64))
+		req["orderPrice"] = strconv.FormatFloat(orderPrice, 'f', -1, 64)
 	}
 
 	if orderQty != 0 {
-		params.Set("orderQty", strconv.FormatFloat(orderQty, 'f', -1, 64))
+		req["orderQty"] = strconv.FormatFloat(orderQty, 'f', -1, 64)
 	}
 
 	if takeProfit != 0 {
-		params.Set("takeProfit", strconv.FormatFloat(takeProfit, 'f', -1, 64))
+		req["takeProfit"] = strconv.FormatFloat(takeProfit, 'f', -1, 64)
 	}
 
 	if stopLoss != 0 {
-		params.Set("stopLoss", strconv.FormatFloat(stopLoss, 'f', -1, 64))
+		req["stopLoss"] = strconv.FormatFloat(stopLoss, 'f', -1, 64)
 	}
 
 	if tptriggerby != 0 {
-		params.Set("tptriggerby", strconv.FormatFloat(tptriggerby, 'f', -1, 64))
+		req["tptriggerby"] = strconv.FormatFloat(tptriggerby, 'f', -1, 64)
 	}
 
 	if slTriggerBy != 0 {
-		params.Set("slTriggerBy", strconv.FormatFloat(slTriggerBy, 'f', -1, 64))
+		req["slTriggerBy"] = strconv.FormatFloat(slTriggerBy, 'f', -1, 64)
 	}
 
 	if triggerPrice != 0 {
-		params.Set("triggerPrice", strconv.FormatFloat(triggerPrice, 'f', -1, 64))
+		req["triggerPrice"] = strconv.FormatFloat(triggerPrice, 'f', -1, 64)
 	}
-	return resp.Result.OrderID, by.SendAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesModifyOrder, params, nil, &resp, publicFuturesRate)
+	return resp.Result.OrderID, by.SendUSDCAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesModifyOrder, req, &resp, publicFuturesRate)
 }
 
 // CancelUSDCOrder cancels USDC derivatives order.
@@ -549,59 +557,55 @@ func (by *Bybit) CancelUSDCOrder(ctx context.Context, symbol currency.Pair, orde
 		Result struct {
 			OrderID string `json:"orderId"`
 		} `json:"result"`
-		Error
+		USDCError
 	}{}
 
-	params := url.Values{}
+	req := make(map[string]interface{})
 	if !symbol.IsEmpty() {
 		symbolValue, err := by.FormatSymbol(symbol, asset.USDCMarginedFutures)
 		if err != nil {
 			return resp.Result.OrderID, err
 		}
-		params.Set("symbol", symbolValue)
+		req["symbol"] = symbolValue
 	} else {
 		return resp.Result.OrderID, errSymbolMissing
 	}
 
 	if orderFilter != "" {
-		params.Set("orderFilter", orderFilter)
+		req["orderFilter"] = orderFilter
 	} else {
 		return resp.Result.OrderID, errInvalidOrderFilter
 	}
 
 	if orderID != "" {
-		params.Set("orderId", orderID)
+		req["orderId"] = orderID
 	}
 
 	if orderLinkID != "" {
-		params.Set("orderLinkId", orderLinkID)
+		req["orderLinkId"] = orderLinkID
 	}
-	return resp.Result.OrderID, by.SendAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesCancelOrder, params, nil, &resp, publicFuturesRate)
+	return resp.Result.OrderID, by.SendUSDCAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesCancelOrder, req, &resp, publicFuturesRate)
 }
 
 // CancelAllActiveUSDCOrder cancels all active USDC derivatives order.
 func (by *Bybit) CancelAllActiveUSDCOrder(ctx context.Context, symbol currency.Pair, orderFilter string) error {
-	resp := struct {
-		Error
-	}{}
-
-	params := url.Values{}
+	req := make(map[string]interface{})
 	if !symbol.IsEmpty() {
 		symbolValue, err := by.FormatSymbol(symbol, asset.USDCMarginedFutures)
 		if err != nil {
 			return err
 		}
-		params.Set("symbol", symbolValue)
+		req["symbol"] = symbolValue
 	} else {
 		return errSymbolMissing
 	}
 
 	if orderFilter != "" {
-		params.Set("orderFilter", orderFilter)
+		req["orderFilter"] = orderFilter
 	} else {
 		return errInvalidOrderFilter
 	}
-	return by.SendAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesCancelAllActiveOrder, params, nil, &resp, publicFuturesRate)
+	return by.SendUSDCAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesCancelAllActiveOrder, req, nil, publicFuturesRate)
 }
 
 // GetActiveUSDCOrder gets all active USDC derivatives order.
@@ -612,48 +616,48 @@ func (by *Bybit) GetActiveUSDCOrder(ctx context.Context, symbol currency.Pair, c
 			ResultTotalSize int64       `json:"resultTotalSize"`
 			Data            []USDCOrder `json:"dataList"`
 		} `json:"result"`
-		Error
+		USDCError
 	}{}
 
-	params := url.Values{}
+	req := make(map[string]interface{})
 	if !symbol.IsEmpty() {
 		symbolValue, err := by.FormatSymbol(symbol, asset.USDCMarginedFutures)
 		if err != nil {
 			return resp.Result.Data, err
 		}
-		params.Set("symbol", symbolValue)
+		req["symbol"] = symbolValue
 	}
 
 	if category != "" {
-		params.Set("category", category)
+		req["category"] = category
 	} else {
 		return nil, errors.New("invalid category")
 	}
 
 	if orderID != "" {
-		params.Set("orderId", orderID)
+		req["orderId"] = orderID
 	}
 
 	if orderLinkID != "" {
-		params.Set("orderLinkId", orderLinkID)
+		req["orderLinkId"] = orderLinkID
 	}
 
 	if orderFilter != "" {
-		params.Set("orderFilter", orderFilter)
+		req["orderFilter"] = orderFilter
 	}
 
 	if direction != "" {
-		params.Set("direction", direction)
+		req["direction"] = direction
 	}
 
 	if limit != 0 {
-		params.Set("limit", strconv.FormatInt(limit, 10))
+		req["limit"] = strconv.FormatInt(limit, 10)
 	}
 
 	if cursor != "" {
-		params.Set("cursor", cursor)
+		req["cursor"] = cursor
 	}
-	return resp.Result.Data, by.SendAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesGetActiveOrder, params, nil, &resp, publicFuturesRate)
+	return resp.Result.Data, by.SendUSDCAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesGetActiveOrder, req, &resp, publicFuturesRate)
 }
 
 // GetUSDCOrderHistory gets order history with support of last 30 days of USDC derivatives order.
@@ -664,48 +668,48 @@ func (by *Bybit) GetUSDCOrderHistory(ctx context.Context, symbol currency.Pair, 
 			ResultTotalSize int64              `json:"resultTotalSize"`
 			Data            []USDCOrderHistory `json:"dataList"`
 		} `json:"result"`
-		Error
+		USDCError
 	}{}
 
-	params := url.Values{}
+	req := make(map[string]interface{})
 	if !symbol.IsEmpty() {
 		symbolValue, err := by.FormatSymbol(symbol, asset.USDCMarginedFutures)
 		if err != nil {
 			return resp.Result.Data, err
 		}
-		params.Set("symbol", symbolValue)
+		req["symbol"] = symbolValue
 	}
 
 	if category != "" {
-		params.Set("category", category)
+		req["category"] = category
 	} else {
 		return nil, errors.New("invalid category")
 	}
 
 	if orderID != "" {
-		params.Set("orderId", orderID)
+		req["orderId"] = orderID
 	}
 
 	if orderLinkID != "" {
-		params.Set("orderLinkId", orderLinkID)
+		req["orderLinkId"] = orderLinkID
 	}
 
 	if orderStatus != "" {
-		params.Set("orderStatus", orderStatus)
+		req["orderStatus"] = orderStatus
 	}
 
 	if direction != "" {
-		params.Set("direction", direction)
+		req["direction"] = direction
 	}
 
 	if limit != 0 {
-		params.Set("limit", strconv.FormatInt(limit, 10))
+		req["limit"] = strconv.FormatInt(limit, 10)
 	}
 
 	if cursor != "" {
-		params.Set("cursor", cursor)
+		req["cursor"] = cursor
 	}
-	return resp.Result.Data, by.SendAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesGetOrderHistory, params, nil, &resp, publicFuturesRate)
+	return resp.Result.Data, by.SendUSDCAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesGetOrderHistory, req, &resp, publicFuturesRate)
 }
 
 // GetUSDCTradeHistory gets trade history with support of last 30 days of USDC derivatives trades.
@@ -716,48 +720,123 @@ func (by *Bybit) GetUSDCTradeHistory(ctx context.Context, symbol currency.Pair, 
 			ResultTotalSize int64              `json:"resultTotalSize"`
 			Data            []USDCTradeHistory `json:"dataList"`
 		} `json:"result"`
-		Error
+		USDCError
 	}{}
 
-	params := url.Values{}
+	req := make(map[string]interface{})
 	if !symbol.IsEmpty() {
 		symbolValue, err := by.FormatSymbol(symbol, asset.USDCMarginedFutures)
 		if err != nil {
 			return resp.Result.Data, err
 		}
-		params.Set("symbol", symbolValue)
+		req["symbol"] = symbolValue
 	}
 
 	if category != "" {
-		params.Set("category", category)
+		req["category"] = category
 	} else {
 		return nil, errors.New("invalid category")
 	}
 
 	if orderID != "" {
-		params.Set("orderId", orderID)
+		req["orderId"] = orderID
 	}
 
 	if orderLinkID != "" {
-		params.Set("orderLinkId", orderLinkID)
+		req["orderLinkId"] = orderLinkID
 	}
 
 	if startTime.IsZero() {
 		return nil, errInvalidStartTime
 	} else {
-		params.Set("startTime", strconv.FormatInt(startTime.Unix(), 10))
+		req["startTime"] = strconv.FormatInt(startTime.Unix(), 10)
 	}
 
 	if direction != "" {
-		params.Set("direction", direction)
+		req["direction"] = direction
 	}
 
 	if limit > 0 && limit <= 50 {
-		params.Set("limit", strconv.FormatInt(limit, 10))
+		req["limit"] = strconv.FormatInt(limit, 10)
 	}
 
 	if cursor != "" {
-		params.Set("cursor", cursor)
+		req["cursor"] = cursor
 	}
-	return resp.Result.Data, by.SendAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesGetTradeHistory, params, nil, &resp, publicFuturesRate)
+	return resp.Result.Data, by.SendUSDCAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesGetTradeHistory, req, &resp, publicFuturesRate)
+}
+
+// SendUSDCAuthHTTPRequest sends an authenticated HTTP request
+func (by *Bybit) SendUSDCAuthHTTPRequest(ctx context.Context, ePath exchange.URL, method, path string, data interface{}, result UnmarshalTo, f request.EndpointLimit) error {
+	creds, err := by.GetCredentials(ctx)
+	if err != nil {
+		return err
+	}
+
+	if result == nil {
+		result = &USDCError{}
+	}
+
+	endpointPath, err := by.API.Endpoints.GetURL(ePath)
+	if err != nil {
+		return err
+	}
+
+	err = by.SendPayload(ctx, f, func() (*request.Item, error) {
+		nowTimeInMilli := strconv.FormatInt(time.Now().UnixMilli(), 10)
+		headers := make(map[string]string)
+		var (
+			payload []byte
+			err     error
+		)
+
+		if d, ok := data.(map[string]interface{}); ok {
+			payload, err = json.Marshal(d)
+			if err != nil {
+				return nil, err
+			}
+
+			signInput := nowTimeInMilli + creds.Key + defaultRecvWindow + string(payload)
+			var hmacSigned []byte
+			hmacSigned, err = crypto.GetHMAC(crypto.HashSHA256, []byte(signInput), []byte(creds.Secret))
+			if err != nil {
+				return nil, err
+			}
+			headers["Content-Type"] = "application/json"
+			headers["X-BAPI-API-KEY"] = creds.Key
+			headers["X-BAPI-SIGN"] = crypto.HexEncodeToString(hmacSigned)
+			headers["X-BAPI-SIGN-TYPE"] = "2"
+			headers["X-BAPI-TIMESTAMP"] = nowTimeInMilli
+			headers["X-BAPI-RECV-WINDOW"] = defaultRecvWindow
+		}
+
+		return &request.Item{
+			Method:        method,
+			Path:          endpointPath + path,
+			Headers:       headers,
+			Body:          bytes.NewBuffer(payload),
+			Result:        &result,
+			AuthRequest:   true,
+			Verbose:       by.Verbose,
+			HTTPDebugging: by.HTTPDebugging,
+			HTTPRecording: by.HTTPRecording}, nil
+	})
+	if err != nil {
+		return err
+	}
+	return result.GetError()
+}
+
+// USDCError defines all error information for each USDC request
+type USDCError struct {
+	ReturnCode int64  `json:"retCode"`
+	ReturnMsg  string `json:"retMsg"`
+}
+
+// GetError checks and returns an error if it is supplied.
+func (e USDCError) GetError() error {
+	if e.ReturnCode != 0 && e.ReturnMsg != "" {
+		return errors.New(e.ReturnMsg)
+	}
+	return nil
 }
