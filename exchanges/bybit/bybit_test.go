@@ -2926,7 +2926,7 @@ func TestCancelUSDCOrder(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = b.CancelUSDCOrder(context.Background(), pair, "Order", "", "")
+	_, err = b.CancelUSDCOrder(context.Background(), pair, "Order", "", "orderLinkID")
 	if err != nil {
 		t.Error(err)
 	}
@@ -2994,8 +2994,8 @@ func TestGetUSDCTradeHistory(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = b.GetUSDCTradeHistory(context.Background(), pair, "PERPETUAL", "", "", "", "", 0, time.Now().Add(-time.Hour))
-	if err != nil {
-		t.Error(err)
+	_, err = b.GetUSDCTradeHistory(context.Background(), pair, "PERPETUAL", "", "orderLinkID", "", "", 50, time.Now().Add(-time.Hour))
+	if err == nil { // order with link ID "orderLinkID" not present
+		t.Error("GetUSDCTradeHistory() Expected error")
 	}
 }

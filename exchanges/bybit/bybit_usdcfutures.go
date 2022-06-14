@@ -577,6 +577,10 @@ func (by *Bybit) CancelUSDCOrder(ctx context.Context, symbol currency.Pair, orde
 		return resp.Result.OrderID, errInvalidOrderFilter
 	}
 
+	if orderID == "" && orderLinkID == "" {
+		return resp.Result.OrderID, errOrderOrOrderLinkIDMissing
+	}
+
 	if orderID != "" {
 		req["orderId"] = orderID
 	}
@@ -736,6 +740,10 @@ func (by *Bybit) GetUSDCTradeHistory(ctx context.Context, symbol currency.Pair, 
 		req["category"] = category
 	} else {
 		return nil, errors.New("invalid category")
+	}
+
+	if orderID == "" && orderLinkID == "" {
+		return nil, errOrderOrOrderLinkIDMissing
 	}
 
 	if orderID != "" {
