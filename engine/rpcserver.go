@@ -73,6 +73,7 @@ var (
 	errNoAccountInformation    = errors.New("account information does not exist")
 	errShutdownNotAllowed      = errors.New("shutting down this bot instance is not allowed via gRPC, please enable by command line flag --grpcshutdown or config.json field grpcAllowBotShutdown")
 	errGRPCShutdownSignalIsNil = errors.New("cannot shutdown, gRPC shutdown channel is nil")
+	errInvalidStrategy         = errors.New("invalid strategy")
 )
 
 // RPCServer struct
@@ -4609,7 +4610,17 @@ func (s *RPCServer) GetTechnicalAnalysis(ctx context.Context, r *gctrpc.GetTechn
 
 	klineInterval := kline.Interval(r.Interval)
 
-	klines, err := exch.GetHistoricCandles(ctx, pair, as, r.Start.AsTime(), r.End.AsTime(), klineInterval)
+	err = exch.GetBase().ValidateKline(pair, as, klineInterval)
+	if err != nil {
+		return nil, err
+	}
+
+	klines, err := exch.GetHistoricCandlesExtended(ctx,
+		pair,
+		as,
+		r.Start.AsTime(),
+		r.End.AsTime(),
+		klineInterval)
 	if err != nil {
 		return nil, err
 	}
@@ -4736,7 +4747,7 @@ func (s *RPCServer) GetTechnicalAnalysis(ctx context.Context, r *gctrpc.GetTechn
 		}
 		signals["RSI"] = &gctrpc.ListOfSignals{Signals: prices}
 	default:
-		return nil, fmt.Errorf("invalid indicator '%s'", r.AlgorithmType)
+		return nil, fmt.Errorf("%w '%s'", errInvalidStrategy, r.AlgorithmType)
 	}
 
 	return &gctrpc.GetTechnicalAnalysisResponse{Signals: signals}, nil

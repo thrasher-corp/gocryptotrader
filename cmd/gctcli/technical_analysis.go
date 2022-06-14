@@ -304,8 +304,9 @@ func getTecnicalAnalysis(c *cli.Context, algo string) error {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
 
-	if e.Before(s) {
-		return errors.New("start cannot be after end")
+	err = common.StartEndTimeCheck(s, e)
+	if err != nil {
+		return err
 	}
 
 	if !c.IsSet("period") {
@@ -419,8 +420,9 @@ func getBollingerBands(c *cli.Context) error {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
 
-	if e.Before(s) {
-		return errors.New("start cannot be after end")
+	err = common.StartEndTimeCheck(s, e)
+	if err != nil {
+		return err
 	}
 
 	if !c.IsSet("period") {
@@ -574,8 +576,9 @@ func getMACD(c *cli.Context) error {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
 
-	if e.Before(s) {
-		return errors.New("start cannot be after end")
+	err = common.StartEndTimeCheck(s, e)
+	if err != nil {
+		return err
 	}
 
 	if !c.IsSet("period") {
@@ -713,8 +716,9 @@ func getCoco(c *cli.Context) error {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
 
-	if e.Before(s) {
-		return errors.New("start cannot be after end")
+	err = common.StartEndTimeCheck(s, e)
+	if err != nil {
+		return err
 	}
 
 	if !c.IsSet("period") {
