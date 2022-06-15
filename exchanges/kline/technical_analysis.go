@@ -67,6 +67,10 @@ func (o *OHLC) GetAverageTrueRange(period int64) ([]float64, error) {
 	if len(o.Close) == 0 {
 		return nil, fmt.Errorf("get average true range close %w", errNoData)
 	}
+	if int(period) > len(o.Close) {
+		return nil, fmt.Errorf("get average true range close %w exceeds data length, please reduce",
+			errInvalidPeriod)
+	}
 	return indicators.ATR(o.High, o.Low, o.Close, int(period)), nil
 }
 
@@ -127,14 +131,29 @@ func (o *OHLC) GetCorrelationCoefficient(other *OHLC, period int64) ([]float64, 
 	if period <= 0 {
 		return nil, fmt.Errorf("get correlation coefficient %w", errInvalidPeriod)
 	}
+	if period == 1 {
+		// TODO: Check correlation calculation.
+		return nil, fmt.Errorf("get correlation coefficient %w using period 1 results in NaN return",
+			errInvalidPeriod)
+	}
 	if other == nil {
 		return nil, fmt.Errorf("get correlation coefficient %w", errNilOHLC)
 	}
+
 	if len(o.Close) == 0 {
 		return nil, fmt.Errorf("get correlation coefficient close %w", errNoData)
 	}
 	if len(other.Close) == 0 {
 		return nil, fmt.Errorf("get correlation coefficient comparison close %w", errNoData)
+	}
+	if int(period) > len(o.Close) || int(period) > len(other.Close) {
+		return nil, fmt.Errorf("get correlation coefficient %w exceeds data length, please reduce",
+			errInvalidPeriod)
+	}
+	if len(o.Close) != len(other.Close) {
+		return nil,
+			fmt.Errorf("get correlation coefficient comparison close %w between data sets",
+				errInvalidDataSetLengths)
 	}
 	return indicators.CorrelationCoefficient(o.Close, other.Close, int(period)), nil
 }
@@ -158,6 +177,10 @@ func (o *OHLC) GetSimpleMovingAverage(option []float64, period int64) ([]float64
 	if len(option) == 0 {
 		return nil, fmt.Errorf("get simple moving average %w", errNoData)
 	}
+	if int(period) > len(option) {
+		return nil, fmt.Errorf("get simple moving average %w exceeds data length, please reduce",
+			errInvalidPeriod)
+	}
 	return indicators.SMA(option, int(period)), nil
 }
 
@@ -179,6 +202,10 @@ func (o *OHLC) GetExponentialMovingAverage(option []float64, period int64) ([]fl
 	}
 	if len(option) == 0 {
 		return nil, fmt.Errorf("get exponential moving average %w", errNoData)
+	}
+	if int(period) > len(option) {
+		return nil, fmt.Errorf("get exponential moving average %w exceeds data length, please reduce",
+			errInvalidPeriod)
 	}
 	return indicators.EMA(option, int(period)), nil
 }
@@ -210,6 +237,9 @@ func (o *OHLC) GetMovingAverageConvergenceDivergence(option []float64, fast, slo
 	}
 	if slow <= 0 {
 		return nil, fmt.Errorf("get macd %w slow", errInvalidPeriod)
+	}
+	if fast >= slow {
+		return nil, fmt.Errorf("get macd %w fast should not be equal or exceed slow", errInvalidPeriod)
 	}
 	if signal <= 0 {
 		return nil, fmt.Errorf("get macd %w signal", errInvalidPeriod)
@@ -309,11 +339,16 @@ func (o *OHLC) GetRelativeStrengthIndex(option []float64, period int64) ([]float
 	if o == nil {
 		return nil, fmt.Errorf("get relative strength index %w", errNilOHLC)
 	}
-	if period <= 0 {
-		return nil, fmt.Errorf("get relative strength index %w", errInvalidPeriod)
+	if period <= 1 {
+		return nil, fmt.Errorf("get relative strength index %w cannot be equal or below 1", errInvalidPeriod)
 	}
-	if len(option) == 0 {
-		return nil, fmt.Errorf("get relative strength index %w", errNoData)
+	if len(option) <= 2 {
+		// TODO: Check why 2 data points causes panic.
+		return nil, fmt.Errorf("get relative strength index %w, requires atleast 3 data points", errNotEnoughData)
+	}
+	if int(period) > len(option) {
+		return nil, fmt.Errorf("get exponential moving average %w exceeds data length, please reduce",
+			errInvalidPeriod)
 	}
 	return indicators.RSI(option, int(period)), nil
 }

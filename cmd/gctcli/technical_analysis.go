@@ -57,15 +57,15 @@ var commonFlag = []cli.Flag{
 		Value:       time.Now().Format(common.SimpleTimeFormat),
 		Destination: &taEndTime,
 	},
-	&cli.Int64Flag{
+}
+
+var (
+	periodFlag = &cli.Int64Flag{
 		Name:        "period",
 		Usage:       "denotes period (rolling window) for technical analysis",
 		Value:       9,
 		Destination: &taPeriod,
-	},
-}
-
-var (
+	}
 	fastFlag = &cli.Int64Flag{
 		Name:        "fastperiod",
 		Usage:       "denotes fast period (ema) for macd generation",
@@ -125,14 +125,14 @@ var technicalAnalysisCommand = &cli.Command{
 		{
 			Name:      "twap",
 			Usage:     "returns the time weighted average price",
-			ArgsUsage: "<exchange> <pair> <asset> <granularity> <start> <end> <period>",
+			ArgsUsage: "<exchange> <pair> <asset> <granularity> <start> <end>",
 			Flags:     commonFlag,
 			Action:    getTWAP,
 		},
 		{
 			Name:      "vwap",
 			Usage:     "returns the volume weighted average price",
-			ArgsUsage: "<exchange> <pair> <asset> <granularity> <start> <end> <period>",
+			ArgsUsage: "<exchange> <pair> <asset> <granularity> <start> <end>",
 			Flags:     commonFlag,
 			Action:    getVWAP,
 		},
@@ -140,55 +140,55 @@ var technicalAnalysisCommand = &cli.Command{
 			Name:      "atr",
 			Usage:     "returns the average true range",
 			ArgsUsage: "<exchange> <pair> <asset> <granularity> <start> <end> <period>",
-			Flags:     commonFlag,
+			Flags:     append(commonFlag, periodFlag),
 			Action:    getATR,
 		},
 		{
 			Name:      "bbands",
 			Usage:     "returns the bollinger bands",
-			ArgsUsage: "<exchange> <pair> <asset> <granularity> <start> <end> <period> <std deviation down> <moving average type>",
-			Flags:     append(commonFlag, stdDevUpFlag, stdDevDownFlag, maTypeFlag),
+			ArgsUsage: "<exchange> <pair> <asset> <granularity> <start> <end> <period> <std deviation up> <std deviation down> <moving average type>",
+			Flags:     append(commonFlag, periodFlag, stdDevUpFlag, stdDevDownFlag, maTypeFlag),
 			Action:    getBollingerBands,
 		},
 		{
 			Name:      "coco",
 			Usage:     "returns the correlation-coefficient",
 			ArgsUsage: "<exchange> <pair> <asset> <granularity> <start> <end> <other exchange> <other asset> <other pair>",
-			Flags:     append(commonFlag, otherAssetFlag...),
+			Flags:     append(commonFlag, append([]cli.Flag{periodFlag}, otherAssetFlag...)...),
 			Action:    getCoco,
 		},
 		{
 			Name:      "sma",
 			Usage:     "returns the simple moving average",
 			ArgsUsage: "<exchange> <pair> <asset> <granularity> <start> <end> <period>",
-			Flags:     commonFlag,
+			Flags:     append(commonFlag, periodFlag),
 			Action:    getSMA,
 		},
 		{
 			Name:      "ema",
 			Usage:     "returns the exponential moving average",
 			ArgsUsage: "<exchange> <pair> <asset> <granularity> <start> <end> <period>",
-			Flags:     commonFlag,
+			Flags:     append(commonFlag, periodFlag),
 			Action:    getEMA,
 		},
 		{
 			Name:      "macd",
 			Usage:     "returns the moving average convergence divergence",
-			ArgsUsage: "<exchange> <pair> <asset> <granularity> <start> <end> <period>",
-			Flags:     append(commonFlag, fastFlag, slowFlag),
+			ArgsUsage: "<exchange> <pair> <asset> <granularity> <start> <end> <period> <fast period> <slow period>",
+			Flags:     append(commonFlag, periodFlag, fastFlag, slowFlag),
 			Action:    getMACD,
 		},
 		{
 			Name:      "mfi",
 			Usage:     "returns the money flow index",
 			ArgsUsage: "<exchange> <pair> <asset> <granularity> <start> <end> <period>",
-			Flags:     commonFlag,
+			Flags:     append(commonFlag, periodFlag),
 			Action:    getMFI,
 		},
 		{
 			Name:      "obv",
 			Usage:     "returns the on balance volume",
-			ArgsUsage: "<exchange> <pair> <asset> <granularity> <start> <end> <period>",
+			ArgsUsage: "<exchange> <pair> <asset> <granularity> <start> <end>",
 			Flags:     commonFlag,
 			Action:    getOBV,
 		},
@@ -196,7 +196,7 @@ var technicalAnalysisCommand = &cli.Command{
 			Name:      "rsi",
 			Usage:     "returns the relative strength index",
 			ArgsUsage: "<exchange> <pair> <asset> <granularity> <start> <end> <period>",
-			Flags:     commonFlag,
+			Flags:     append(commonFlag, periodFlag),
 			Action:    getRSI,
 		},
 	},
