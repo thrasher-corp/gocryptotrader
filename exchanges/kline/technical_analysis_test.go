@@ -238,7 +238,7 @@ func TestGetExponentialMovingAverage(t *testing.T) {
 	}
 
 	wrap := Item{Candles: []Candle{{Close: 1337}, {Close: 1337}, {Close: 1337}}}
-	_, err = wrap.GetExponentialMovingAverageOnClose(9)
+	_, err = wrap.GetExponentialMovingAverageOnClose(2)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
