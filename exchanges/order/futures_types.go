@@ -37,6 +37,8 @@ var (
 	ErrPositionNotFound = errors.New("position not found")
 	// ErrNotPerpetualFuture is returned when a currency is not a perpetual future
 	ErrNotPerpetualFuture = errors.New("not a perpetual future")
+	// ErrNoPositionsFound returned when there is no positions returned
+	ErrNoPositionsFound = errors.New("no positions found")
 
 	errExchangeNameEmpty              = errors.New("exchange name empty")
 	errTimeUnset                      = errors.New("time unset")
@@ -49,7 +51,6 @@ var (
 	errNilOrder                       = errors.New("nil order received")
 	errNoPNLHistory                   = errors.New("no pnl history")
 	errCannotCalculateUnrealisedPNL   = errors.New("cannot calculate unrealised PNL")
-	errNoPositionsFound               = errors.New("no positions found")
 	errFundingRateOutOfRange          = fmt.Errorf("funding rate out of range")
 	errDoesntMatch                    = errors.New("doesn't match")
 	errCannotTrackInvalidParams       = errors.New("parameters set incorrectly, cannot track")

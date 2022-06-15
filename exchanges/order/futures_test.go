@@ -1107,8 +1107,8 @@ func TestGetAllOpenPositions(t *testing.T) {
 	pc := SetupPositionController()
 
 	_, err := pc.GetAllOpenPositions()
-	if !errors.Is(err, errNoPositionsFound) {
-		t.Errorf("received '%v' expected '%v", err, errNoPositionsFound)
+	if !errors.Is(err, ErrNoPositionsFound) {
+		t.Errorf("received '%v' expected '%v", err, ErrNoPositionsFound)
 	}
 
 	cp := currency.NewPair(currency.BTC, currency.PERP)
@@ -1276,8 +1276,8 @@ func TestPTTrackFundingDetails(t *testing.T) {
 	rates.EndDate = time.Now()
 	p.openingDate = rates.StartDate
 	err = p.TrackFundingDetails(rates)
-	if !errors.Is(err, errNoPositionsFound) {
-		t.Errorf("received '%v' expected '%v", err, errNoPositionsFound)
+	if !errors.Is(err, ErrNoPositionsFound) {
+		t.Errorf("received '%v' expected '%v", err, ErrNoPositionsFound)
 	}
 
 	p.pnlHistory = append(p.pnlHistory, PNLResult{

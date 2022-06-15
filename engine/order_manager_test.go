@@ -1458,8 +1458,8 @@ func TestGetAllOpenFuturesPositions(t *testing.T) {
 	o.trackFuturesPositions = true
 	o.orderStore.futuresPositionController = &order.PositionController{}
 	_, err = o.GetAllOpenFuturesPositions()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
+	if !errors.Is(err, order.ErrNoPositionsFound) {
+		t.Errorf("received '%v', expected '%v'", err, order.ErrNoPositionsFound)
 	}
 
 	o = nil
@@ -1632,7 +1632,7 @@ func TestProcessFuturesPositions(t *testing.T) {
 		Pair:      cp,
 		Side:      order.Buy,
 		Type:      order.Market,
-		Date:      time.Now(),
+		Date:      time.Now().Add(-time.Hour),
 		Amount:    1337,
 		Exchange:  b.Name,
 	}

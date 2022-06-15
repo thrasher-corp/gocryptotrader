@@ -227,7 +227,7 @@ func (c *PositionController) GetAllOpenPositions() ([]Position, error) {
 		}
 	}
 	if len(openPositions) == 0 {
-		return nil, errNoPositionsFound
+		return nil, ErrNoPositionsFound
 	}
 	return openPositions, nil
 }
@@ -508,7 +508,7 @@ func (e *MultiPositionTracker) TrackFundingDetails(d *FundingRates) error {
 		}
 		return e.positions[i].TrackFundingDetails(d)
 	}
-	return fmt.Errorf("%w for timeframe %v %v %v %v-%v", errNoPositionsFound, d.Exchange, d.Asset, d.Pair, d.StartDate, d.EndDate)
+	return fmt.Errorf("%w for timeframe %v %v %v %v-%v", ErrNoPositionsFound, d.Exchange, d.Asset, d.Pair, d.StartDate, d.EndDate)
 }
 
 // SetupPositionTracker creates a new position tracker to track n futures orders
@@ -751,11 +751,12 @@ func (p *PositionTracker) TrackFundingDetails(d *FundingRates) error {
 		return fmt.Errorf("provided details %v %v %v %w %v %v %v tracker",
 			d.Exchange, d.Asset, d.Pair, errDoesntMatch, p.exchange, p.asset, p.contractPair)
 	}
-	if err := common.StartEndTimeCheck(d.StartDate, d.EndDate); err != nil {
+	if err := common.StartEndTimeCheck(d.StartDate, d.EndDate); err != nil && !errors.Is(err, common.ErrStartEqualsEnd) {
+		// start end being equal is valid if say, only one funding rate is retrieved
 		return err
 	}
 	if len(p.pnlHistory) == 0 {
-		return fmt.Errorf("%w for timeframe %v %v %v %v-%v", errNoPositionsFound, p.exchange, p.asset, p.contractPair, d.StartDate, d.EndDate)
+		return fmt.Errorf("%w for timeframe %v %v %v %v-%v", ErrNoPositionsFound, p.exchange, p.asset, p.contractPair, d.StartDate, d.EndDate)
 	}
 	if d.StartDate.Before(p.openingDate) || (d.EndDate.After(p.closingDate) && p.status == Closed) {
 		return fmt.Errorf("%w", errFundingRateOutOfRange)

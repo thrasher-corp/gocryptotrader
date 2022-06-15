@@ -2699,8 +2699,8 @@ func TestGetAllManagedPositions(t *testing.T) {
 	}
 	s.OrderManager.started = 1
 	_, err = s.GetAllManagedPositions(context.Background(), request)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
+	if !errors.Is(err, order.ErrNoPositionsFound) {
+		t.Errorf("received '%v', expected '%v'", err, order.ErrNoPositionsFound)
 	}
 
 	err = s.OrderManager.orderStore.futuresPositionController.TrackNewOrder(&order.Detail{
