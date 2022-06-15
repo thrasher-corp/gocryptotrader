@@ -700,6 +700,7 @@ func (m *OrderManager) processOrders() {
 							}
 							orders[i] = orders[len(orders)-1]
 							orders = orders[:len(orders)-1]
+							break
 						}
 					}
 				}
@@ -736,8 +737,14 @@ func (m *OrderManager) processFuturesPositions(exch exchange.IBotExchange, posit
 	if !m.trackFuturesPositions {
 		return errFuturesTrackingDisabled
 	}
+	if exch == nil {
+		return fmt.Errorf("%w IBotExchange", common.ErrNilPointer)
+	}
+	if position == nil {
+		return fmt.Errorf("%w OpenPositionDetails", common.ErrNilPointer)
+	}
 	if len(position.Orders) == 0 {
-		return fmt.Errorf("%w position for '%v' '%v' '%v' has not orders", errNilOrder, position.Exchange, position.Asset, position.Pair)
+		return fmt.Errorf("%w position for '%v' '%v' '%v' has no orders", errNilOrder, position.Exchange, position.Asset, position.Pair)
 	}
 	var err error
 	for i := range position.Orders {

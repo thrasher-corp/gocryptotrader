@@ -4306,9 +4306,9 @@ func (s *RPCServer) GetAllManagedPositions(_ context.Context, r *gctrpc.GetAllMa
 		}
 		return nil, err
 	}
-	var response []*gctrpc.FuturePosition
+	response := make([]*gctrpc.FuturePosition, len(positions))
 	for i := range positions {
-		response = append(response, s.buildFuturePosition(&positions[i], r.GetFundingPayments, r.IncludeFullFundingRates, r.IncludeFullOrderData, r.IncludePredictedRate))
+		response[i] = s.buildFuturePosition(&positions[i], r.GetFundingPayments, r.IncludeFullFundingRates, r.IncludeFullOrderData, r.IncludePredictedRate)
 	}
 
 	return &gctrpc.GetManagedPositionsResponse{Positions: response}, nil
@@ -4631,7 +4631,7 @@ func (s *RPCServer) GetFundingRates(ctx context.Context, r *gctrpc.GetFundingRat
 		return nil, err
 	}
 	var response gctrpc.GetFundingRatesResponse
-	var responses []*gctrpc.FundingData
+	responses := make([]*gctrpc.FundingData, len(funding))
 	for i := range funding {
 		fundingData := &gctrpc.FundingData{
 			Exchange: r.Exchange,
@@ -4669,7 +4669,7 @@ func (s *RPCServer) GetFundingRates(ctx context.Context, r *gctrpc.GetFundingRat
 				Rate: funding[i].PredictedUpcomingRate.Rate.String(),
 			}
 		}
-		responses = append(responses, fundingData)
+		responses[i] = fundingData
 	}
 	response.FundingPayments = responses
 	return &response, nil

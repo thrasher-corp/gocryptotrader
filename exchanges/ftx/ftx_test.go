@@ -247,11 +247,11 @@ func TestGetFutureStats(t *testing.T) {
 func TestGetFundingRates(t *testing.T) {
 	t.Parallel()
 	// optional params
-	_, err := f.GetFundingRates(context.Background(), time.Time{}, time.Time{}, "")
+	_, err := f.FundingRates(context.Background(), time.Time{}, time.Time{}, "")
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = f.GetFundingRates(context.Background(),
+	_, err = f.FundingRates(context.Background(),
 		time.Now().Add(-time.Hour), time.Now(), "BTC-PERP")
 	if err != nil {
 		t.Error(err)
@@ -781,23 +781,23 @@ func TestGetFills(t *testing.T) {
 	}
 }
 
-func TestGetFundingPayments(t *testing.T) {
+func TestFundingPayments(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
 	// optional params
-	_, err := f.GetFundingRates(context.Background(),
+	_, err := f.FundingPayments(context.Background(),
 		time.Time{}, time.Time{}, "")
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = f.GetFundingRates(context.Background(),
+	_, err = f.FundingPayments(context.Background(),
 		time.Unix(authStartTime, 0), time.Unix(authEndTime, 0), futuresPair)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = f.GetFundingRates(context.Background(),
+	_, err = f.FundingPayments(context.Background(),
 		time.Unix(authEndTime, 0), time.Unix(authStartTime, 0), futuresPair)
 	if err != errStartTimeCannotBeAfterEndTime {
 		t.Errorf("should have thrown errStartTimeCannotBeAfterEndTime, got %v", err)
@@ -2222,6 +2222,9 @@ func TestAnalysePosition(t *testing.T) {
 		t.Error(err)
 	}
 	acc, err := f.GetAccountInfo(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
 	size := decimal.NewFromFloat(positions[0].Amount)
 
 	underlyingStr, err := f.FormatSymbol(currency.NewPair(currency.BTC, currency.USD), asset.Spot)

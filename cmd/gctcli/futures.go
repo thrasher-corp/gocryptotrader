@@ -543,6 +543,9 @@ func getFuturesPositions(c *cli.Context) error {
 	if !c.IsSet("includepredicted") {
 		if c.Args().Get(5) != "" {
 			includePredicted, err = strconv.ParseBool(c.Args().Get(5))
+			if err != nil {
+				return err
+			}
 		}
 	}
 

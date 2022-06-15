@@ -3,6 +3,7 @@ package order
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -48,6 +49,9 @@ var (
 	errNilOrder                       = errors.New("nil order received")
 	errNoPNLHistory                   = errors.New("no pnl history")
 	errCannotCalculateUnrealisedPNL   = errors.New("cannot calculate unrealised PNL")
+	errNoPositionsFound               = errors.New("no positions found")
+	errFundingRateOutOfRange          = fmt.Errorf("funding rate out of range")
+	errDoesntMatch                    = errors.New("doesn't match")
 	errCannotTrackInvalidParams       = errors.New("parameters set incorrectly, cannot track")
 )
 
@@ -305,6 +309,7 @@ type Position struct {
 	LatestPrice      decimal.Decimal
 	LatestSize       decimal.Decimal
 	LatestDirection  Side
+	LastUpdated      time.Time
 	CloseDate        time.Time
 	Orders           []Detail
 	PNLHistory       []PNLResult

@@ -1071,3 +1071,247 @@ func TestPositionLiquidate(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestGetOpenPosition(t *testing.T) {
+	t.Parallel()
+	pc := SetupPositionController()
+	cp := currency.NewPair(currency.BTC, currency.PERP)
+	tn := time.Now()
+
+	_, err := pc.GetOpenPosition(testExchange, asset.Futures, cp)
+	if !errors.Is(err, ErrPositionNotFound) {
+		t.Errorf("received '%v' expected '%v", err, ErrPositionNotFound)
+	}
+
+	err = pc.TrackNewOrder(&Detail{
+		Date:      tn,
+		Exchange:  testExchange,
+		Pair:      cp,
+		AssetType: asset.Futures,
+		Side:      Long,
+		OrderID:   "lol",
+		Price:     1337,
+		Amount:    1337,
+	})
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v", err, nil)
+	}
+	_, err = pc.GetOpenPosition(testExchange, asset.Futures, cp)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v", err, nil)
+	}
+}
+
+func TestGetAllOpenPositions(t *testing.T) {
+	t.Parallel()
+	pc := SetupPositionController()
+
+	_, err := pc.GetAllOpenPositions()
+	if !errors.Is(err, errNoPositionsFound) {
+		t.Errorf("received '%v' expected '%v", err, errNoPositionsFound)
+	}
+
+	cp := currency.NewPair(currency.BTC, currency.PERP)
+	tn := time.Now()
+	err = pc.TrackNewOrder(&Detail{
+		Date:      tn,
+		Exchange:  testExchange,
+		Pair:      cp,
+		AssetType: asset.Futures,
+		Side:      Long,
+		OrderID:   "lol",
+		Price:     1337,
+		Amount:    1337,
+	})
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v", err, nil)
+	}
+	_, err = pc.GetAllOpenPositions()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v", err, nil)
+	}
+}
+
+func TestPCTrackFundingDetails(t *testing.T) {
+	t.Parallel()
+	pc := SetupPositionController()
+	err := pc.TrackFundingDetails(nil)
+	if !errors.Is(err, common.ErrNilPointer) {
+		t.Errorf("received '%v' expected '%v", err, common.ErrNilPointer)
+	}
+
+	cp := currency.NewPair(currency.BTC, currency.PERP)
+	rates := &FundingRates{
+		Exchange: testExchange,
+		Asset:    asset.Futures,
+		Pair:     cp,
+	}
+	err = pc.TrackFundingDetails(rates)
+	if !errors.Is(err, ErrPositionsNotLoadedForPair) {
+		t.Errorf("received '%v' expected '%v", err, ErrPositionsNotLoadedForPair)
+	}
+
+	tn := time.Now()
+	err = pc.TrackNewOrder(&Detail{
+		Date:      tn,
+		Exchange:  testExchange,
+		Pair:      cp,
+		AssetType: asset.Futures,
+		Side:      Long,
+		OrderID:   "lol",
+		Price:     1337,
+		Amount:    1337,
+	})
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v", err, nil)
+	}
+
+	rates.StartDate = tn.Add(-time.Hour)
+	rates.EndDate = tn
+	rates.FundingRates = []FundingRate{
+		{
+			Time:    tn,
+			Rate:    decimal.NewFromInt(1337),
+			Payment: decimal.NewFromInt(1337),
+		},
+	}
+	pc.positionTrackerControllers[testExchange][asset.Futures][cp].orderPositions["lol"].openingDate = tn.Add(-time.Hour)
+	pc.positionTrackerControllers[testExchange][asset.Futures][cp].orderPositions["lol"].lastUpdated = tn
+	err = pc.TrackFundingDetails(rates)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v", err, nil)
+	}
+}
+
+func TestMPTTrackFundingDetails(t *testing.T) {
+	t.Parallel()
+	mpt := &MultiPositionTracker{
+		orderPositions: make(map[string]*PositionTracker),
+	}
+
+	err := mpt.TrackFundingDetails(nil)
+	if !errors.Is(err, common.ErrNilPointer) {
+		t.Errorf("received '%v' expected '%v", err, common.ErrNilPointer)
+	}
+
+	cp := currency.NewPair(currency.BTC, currency.PERP)
+	rates := &FundingRates{
+		Exchange: testExchange,
+		Asset:    asset.Futures,
+		Pair:     cp,
+	}
+	err = mpt.TrackFundingDetails(rates)
+	if !errors.Is(err, errAssetMismatch) {
+		t.Errorf("received '%v' expected '%v", err, errAssetMismatch)
+	}
+
+	mpt.asset = rates.Asset
+	mpt.exchange = testExchange
+	mpt.pair = cp
+	err = mpt.TrackFundingDetails(rates)
+	if !errors.Is(err, ErrPositionsNotLoadedForPair) {
+		t.Errorf("received '%v' expected '%v", err, ErrPositionsNotLoadedForPair)
+	}
+
+	tn := time.Now()
+	err = mpt.TrackNewOrder(&Detail{
+		Date:      tn,
+		Exchange:  testExchange,
+		Pair:      cp,
+		AssetType: asset.Futures,
+		Side:      Long,
+		OrderID:   "lol",
+		Price:     1337,
+		Amount:    1337,
+	})
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v", err, nil)
+	}
+
+	rates.StartDate = tn.Add(-time.Hour)
+	rates.EndDate = tn
+	rates.FundingRates = []FundingRate{
+		{
+			Time:    tn,
+			Rate:    decimal.NewFromInt(1337),
+			Payment: decimal.NewFromInt(1337),
+		},
+	}
+	mpt.orderPositions["lol"].openingDate = tn.Add(-time.Hour)
+	mpt.orderPositions["lol"].lastUpdated = tn
+	err = mpt.TrackFundingDetails(rates)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v", err, nil)
+	}
+}
+
+func TestPTTrackFundingDetails(t *testing.T) {
+	t.Parallel()
+	p := &PositionTracker{}
+	err := p.TrackFundingDetails(nil)
+	if !errors.Is(err, common.ErrNilPointer) {
+		t.Errorf("received '%v' expected '%v", err, common.ErrNilPointer)
+	}
+
+	cp := currency.NewPair(currency.BTC, currency.PERP)
+	rates := &FundingRates{
+		Exchange: testExchange,
+		Asset:    asset.Futures,
+		Pair:     cp,
+	}
+	err = p.TrackFundingDetails(rates)
+	if !errors.Is(err, errDoesntMatch) {
+		t.Errorf("received '%v' expected '%v", err, errDoesntMatch)
+	}
+
+	p.exchange = testExchange
+	p.asset = asset.Futures
+	p.contractPair = cp
+	err = p.TrackFundingDetails(rates)
+	if !errors.Is(err, common.ErrDateUnset) {
+		t.Errorf("received '%v' expected '%v", err, common.ErrDateUnset)
+	}
+
+	rates.StartDate = time.Now().Add(-time.Hour)
+	rates.EndDate = time.Now()
+	p.openingDate = rates.StartDate
+	err = p.TrackFundingDetails(rates)
+	if !errors.Is(err, errNoPositionsFound) {
+		t.Errorf("received '%v' expected '%v", err, errNoPositionsFound)
+	}
+
+	p.pnlHistory = append(p.pnlHistory, PNLResult{
+		Time:                  rates.EndDate,
+		UnrealisedPNL:         decimal.NewFromInt(1337),
+		RealisedPNLBeforeFees: decimal.NewFromInt(1337),
+		Price:                 decimal.NewFromInt(1337),
+		Exposure:              decimal.NewFromInt(1337),
+		Fee:                   decimal.NewFromInt(1337),
+	})
+	err = p.TrackFundingDetails(rates)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v", err, nil)
+	}
+
+	rates.FundingRates = []FundingRate{
+		{
+			Time:    rates.StartDate,
+			Rate:    decimal.NewFromInt(1337),
+			Payment: decimal.NewFromInt(1337),
+		},
+	}
+	err = p.TrackFundingDetails(rates)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v", err, nil)
+	}
+	err = p.TrackFundingDetails(rates)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v", err, nil)
+	}
+
+	rates.StartDate = rates.StartDate.Add(-time.Hour)
+	err = p.TrackFundingDetails(rates)
+	if !errors.Is(err, errFundingRateOutOfRange) {
+		t.Errorf("received '%v' expected '%v", err, errFundingRateOutOfRange)
+	}
+}

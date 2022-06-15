@@ -1755,31 +1755,33 @@ func (f *FTX) GetPositionSummary(ctx context.Context, request *order.PositionSum
 			FreeCollateral:               request.FreeCollateral,
 			TotalCollateral:              request.TotalCollateral,
 		}, nil
-	} else {
-		positions, err := f.GetPositions(ctx, true)
-		if err != nil {
-			return nil, err
+	}
+	positions, err := f.GetPositions(ctx, true)
+	if err != nil {
+		return nil, err
+	}
+	acc, err := f.GetAccountInfo(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for i := range positions {
+		if !positions[i].Future.Equal(request.Pair) {
+			continue
 		}
-		acc, err := f.GetAccountInfo(ctx)
-		for i := range positions {
-			if !positions[i].Future.Equal(request.Pair) {
-				continue
-			}
-			return &order.PositionSummary{
-				MaintenanceMarginRequirement: decimal.NewFromFloat(positions[i].MaintenanceMarginRequirement),
-				InitialMarginRequirement:     decimal.NewFromFloat(positions[i].InitialMarginRequirement),
-				EstimatedLiquidationPrice:    decimal.NewFromFloat(positions[i].EstimatedLiquidationPrice),
-				CollateralUsed:               decimal.NewFromFloat(positions[i].CollateralUsed),
-				MarkPrice:                    decimal.NewFromFloat(positions[i].EntryPrice),
-				CurrentSize:                  decimal.NewFromFloat(positions[i].Size),
-				BreakEvenPrice:               decimal.NewFromFloat(positions[i].RecentBreakEvenPrice),
-				AverageOpenPrice:             decimal.NewFromFloat(positions[i].RecentAverageOpenPrice),
-				RecentPNL:                    decimal.NewFromFloat(positions[i].RecentPNL),
-				MarginFraction:               decimal.NewFromFloat(acc.MarginFraction * 100),
-				FreeCollateral:               decimal.NewFromFloat(acc.FreeCollateral),
-				TotalCollateral:              decimal.NewFromFloat(acc.Collateral),
-			}, nil
-		}
+		return &order.PositionSummary{
+			MaintenanceMarginRequirement: decimal.NewFromFloat(positions[i].MaintenanceMarginRequirement),
+			InitialMarginRequirement:     decimal.NewFromFloat(positions[i].InitialMarginRequirement),
+			EstimatedLiquidationPrice:    decimal.NewFromFloat(positions[i].EstimatedLiquidationPrice),
+			CollateralUsed:               decimal.NewFromFloat(positions[i].CollateralUsed),
+			MarkPrice:                    decimal.NewFromFloat(positions[i].EntryPrice),
+			CurrentSize:                  decimal.NewFromFloat(positions[i].Size),
+			BreakEvenPrice:               decimal.NewFromFloat(positions[i].RecentBreakEvenPrice),
+			AverageOpenPrice:             decimal.NewFromFloat(positions[i].RecentAverageOpenPrice),
+			RecentPNL:                    decimal.NewFromFloat(positions[i].RecentPNL),
+			MarginFraction:               decimal.NewFromFloat(acc.MarginFraction * 100),
+			FreeCollateral:               decimal.NewFromFloat(acc.FreeCollateral),
+			TotalCollateral:              decimal.NewFromFloat(acc.Collateral),
+		}, nil
 	}
 	return nil, fmt.Errorf("unable to calculate position summary %w for %v %v", order.ErrPositionNotFound, request.Asset, request.Pair)
 }
@@ -1793,9 +1795,9 @@ func (f *FTX) GetOpenPositions(ctx context.Context, item asset.Item, startDate t
 	if err != nil {
 		return nil, err
 	}
-	var pairs []currency.Pair
+	pairs := make([]currency.Pair, len(positions))
 	for x := range positions {
-		pairs = append(pairs, positions[x].Future)
+		pairs[x] = positions[x].Future
 	}
 	r := &order.GetOrdersRequest{
 		StartTime: startDate,
@@ -1810,7 +1812,7 @@ func (f *FTX) GetOpenPositions(ctx context.Context, item asset.Item, startDate t
 	sort.Slice(orders, func(i, j int) bool {
 		return orders[i].Date.Before(orders[j].Date)
 	})
-	var response []order.OpenPositionDetails
+	response := make([]order.OpenPositionDetails, len(positions))
 	for x := range positions {
 		openPositionDetails := order.OpenPositionDetails{
 			Exchange: f.Name,
@@ -1837,13 +1839,16 @@ func (f *FTX) GetOpenPositions(ctx context.Context, item asset.Item, startDate t
 		if len(openPositionDetails.Orders) == 0 {
 			return nil, fmt.Errorf("%w open order found for %v but no orders after %v-%v", order.ErrPositionNotFound, positions[x].Future, startDate, r.EndTime)
 		}
-		response = append(response, openPositionDetails)
+		response[x] = openPositionDetails
 	}
 	return response, nil
 }
 
 // GetFundingRates returns stats about funding rates for pairs
 func (f *FTX) GetFundingRates(ctx context.Context, request *order.FundingRatesRequest) ([]order.FundingRates, error) {
+	if request == nil {
+		return nil, fmt.Errorf("%w FundingRatesRequest", common.ErrNilPointer)
+	}
 	if len(request.Pairs) == 0 {
 		return nil, currency.ErrCurrencyPairsEmpty
 	}
@@ -1851,7 +1856,7 @@ func (f *FTX) GetFundingRates(ctx context.Context, request *order.FundingRatesRe
 	if err != nil {
 		return nil, err
 	}
-	var response []order.FundingRates
+	response := make([]order.FundingRates, len(request.Pairs))
 	for i := range request.Pairs {
 		if !f.IsPerpetualFutureCurrency(request.Asset, request.Pairs[i]) {
 			return nil, fmt.Errorf("%w '%v' '%v'", order.ErrNotPerpetualFuture, request.Asset, request.Pairs[i])
@@ -1914,7 +1919,7 @@ func (f *FTX) GetFundingRates(ctx context.Context, request *order.FundingRatesRe
 			return pairResponse.FundingRates[i].Time.Before(pairResponse.FundingRates[j].Time)
 		})
 		pairResponse.LatestRate = pairResponse.FundingRates[len(pairResponse.FundingRates)-1]
-		response = append(response, pairResponse)
+		response[i] = pairResponse
 	}
 	return response, nil
 }

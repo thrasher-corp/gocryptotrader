@@ -22,45 +22,6 @@ func SetupPositionController() *PositionController {
 	}
 }
 
-func (c *PositionController) TrackFundingDetails(d *FundingRates) error {
-	if c == nil {
-		return fmt.Errorf("position controller %w", common.ErrNilPointer)
-	}
-	if d == nil {
-		return fmt.Errorf("%w funding rate details", common.ErrNilPointer)
-	}
-	if !d.Asset.IsFutures() {
-		return fmt.Errorf("%v %v %v %w", d.Exchange, d.Asset, d.Pair, ErrNotFuturesAsset)
-	}
-	c.m.Lock()
-	defer c.m.Unlock()
-	exchM, ok := c.positionTrackerControllers[strings.ToLower(d.Exchange)]
-	if !ok {
-		exchM = make(map[asset.Item]map[currency.Pair]*MultiPositionTracker)
-		c.positionTrackerControllers[strings.ToLower(d.Exchange)] = exchM
-	}
-	itemM, ok := exchM[d.Asset]
-	if !ok {
-		itemM = make(map[currency.Pair]*MultiPositionTracker)
-		exchM[d.Asset] = itemM
-	}
-	var err error
-	multiPositionTracker, ok := itemM[d.Pair]
-	if !ok {
-		multiPositionTracker, err = SetupMultiPositionTracker(&MultiPositionTrackerSetup{
-			Exchange:   strings.ToLower(d.Exchange),
-			Asset:      d.Asset,
-			Pair:       d.Pair,
-			Underlying: d.Pair.Base,
-		})
-		if err != nil {
-			return err
-		}
-		itemM[d.Pair] = multiPositionTracker
-	}
-	return multiPositionTracker.TrackingFundingDetails(d)
-}
-
 // TrackNewOrder sets up the maps to then create a
 // multi position tracker which funnels down into the
 // position tracker, to then track an order's pnl
@@ -169,6 +130,46 @@ func (c *PositionController) GetPositionsForExchange(exch string, item asset.Ite
 	return multiPositionTracker.GetPositions(), nil
 }
 
+// TrackFundingDetails applies funding rate details to a tracked position
+func (c *PositionController) TrackFundingDetails(d *FundingRates) error {
+	if c == nil {
+		return fmt.Errorf("position controller %w", common.ErrNilPointer)
+	}
+	if d == nil {
+		return fmt.Errorf("%w funding rate details", common.ErrNilPointer)
+	}
+	if !d.Asset.IsFutures() {
+		return fmt.Errorf("%v %v %v %w", d.Exchange, d.Asset, d.Pair, ErrNotFuturesAsset)
+	}
+	c.m.Lock()
+	defer c.m.Unlock()
+	exchM, ok := c.positionTrackerControllers[strings.ToLower(d.Exchange)]
+	if !ok {
+		exchM = make(map[asset.Item]map[currency.Pair]*MultiPositionTracker)
+		c.positionTrackerControllers[strings.ToLower(d.Exchange)] = exchM
+	}
+	itemM, ok := exchM[d.Asset]
+	if !ok {
+		itemM = make(map[currency.Pair]*MultiPositionTracker)
+		exchM[d.Asset] = itemM
+	}
+	var err error
+	multiPositionTracker, ok := itemM[d.Pair]
+	if !ok {
+		multiPositionTracker, err = SetupMultiPositionTracker(&MultiPositionTrackerSetup{
+			Exchange:   strings.ToLower(d.Exchange),
+			Asset:      d.Asset,
+			Pair:       d.Pair,
+			Underlying: d.Pair.Base,
+		})
+		if err != nil {
+			return err
+		}
+		itemM[d.Pair] = multiPositionTracker
+	}
+	return multiPositionTracker.TrackFundingDetails(d)
+}
+
 // GetOpenPosition returns an open positions that matches the exchange, asset, pair
 func (c *PositionController) GetOpenPosition(exch string, item asset.Item, pair currency.Pair) (*Position, error) {
 	if c == nil {
@@ -224,6 +225,9 @@ func (c *PositionController) GetAllOpenPositions() ([]Position, error) {
 				}
 			}
 		}
+	}
+	if len(openPositions) == 0 {
+		return nil, errNoPositionsFound
 	}
 	return openPositions, nil
 }
@@ -426,32 +430,6 @@ func (e *MultiPositionTracker) GetPositions() []Position {
 	return resp
 }
 
-var errNoPositionsFoundForTimeframe = errors.New("no positions found for timeframe")
-
-func (e *MultiPositionTracker) TrackingFundingDetails(d *FundingRates) error {
-	if e == nil {
-		return fmt.Errorf("multi-position tracker %w", common.ErrNilPointer)
-	}
-	if d == nil {
-		return ErrSubmissionIsNil
-	}
-	e.m.Lock()
-	defer e.m.Unlock()
-	if d.Asset != e.asset {
-		return errAssetMismatch
-	}
-	if len(e.positions) == 0 {
-		return fmt.Errorf("%w %v %v %v", ErrPositionsNotLoadedForPair, d.Exchange, d.Asset, d.Pair)
-	}
-	for i := range e.positions {
-		if e.positions[i].pnlHistory[0].Time.Before(d.StartDate) || e.positions[i].pnlHistory[0].Time.After(d.EndDate) {
-			continue
-		}
-		return e.positions[i].TrackingFundingDetails(d)
-	}
-	return fmt.Errorf("%w %v %v %v %v-%v", errNoPositionsFoundForTimeframe, d.Exchange, d.Asset, d.Pair, d.StartDate, d.EndDate)
-}
-
 // TrackNewOrder upserts an order to the tracker and updates position
 // status and exposure. PNL is calculated separately as it requires mark prices
 func (m *MultiPositionTracker) TrackNewOrder(d *Detail) error {
@@ -508,18 +486,124 @@ func (m *MultiPositionTracker) TrackNewOrder(d *Detail) error {
 	return nil
 }
 
-// Liquidate will update the latest open position's
-// to reflect its liquidated status
-func (m *MultiPositionTracker) Liquidate(price decimal.Decimal, t time.Time) error {
-	if m == nil {
+// TrackFundingDetails applies funding rate details to a tracked position
+func (e *MultiPositionTracker) TrackFundingDetails(d *FundingRates) error {
+	if e == nil {
 		return fmt.Errorf("multi-position tracker %w", common.ErrNilPointer)
+	}
+	if d == nil {
+		return fmt.Errorf("%w FundingRates", common.ErrNilPointer)
+	}
+	e.m.Lock()
+	defer e.m.Unlock()
+	if d.Asset != e.asset {
+		return fmt.Errorf("%w tracker: %v supplied: %v", errAssetMismatch, e.asset, d.Asset)
+	}
+	if len(e.positions) == 0 {
+		return fmt.Errorf("%w %v %v %v", ErrPositionsNotLoadedForPair, d.Exchange, d.Asset, d.Pair)
+	}
+	for i := range e.positions {
+		if e.positions[i].pnlHistory[0].Time.Before(d.StartDate) || e.positions[i].pnlHistory[0].Time.After(d.EndDate) {
+			continue
+		}
+		return e.positions[i].TrackFundingDetails(d)
+	}
+	return fmt.Errorf("%w for timeframe %v %v %v %v-%v", errNoPositionsFound, d.Exchange, d.Asset, d.Pair, d.StartDate, d.EndDate)
+}
+
+// SetupPositionTracker creates a new position tracker to track n futures orders
+// until the position(s) are closed
+func (e *MultiPositionTracker) SetupPositionTracker(setup *PositionTrackerSetup) (*PositionTracker, error) {
+	if e == nil {
+		return nil, fmt.Errorf("multi-position tracker %w", common.ErrNilPointer)
 	}
 	m.m.Lock()
 	defer m.m.Unlock()
 	if len(m.positions) == 0 {
 		return fmt.Errorf("%v %v %v %w", m.exchange, m.asset, m.pair, ErrPositionsNotLoadedForPair)
 	}
+	if setup == nil {
+		return nil, errNilSetup
+	}
+	if !setup.Asset.IsValid() || !setup.Asset.IsFutures() {
+		return nil, ErrNotFuturesAsset
+	}
+	if setup.Pair.IsEmpty() {
+		return nil, ErrPairIsEmpty
+	}
+
+	resp := &PositionTracker{
+		exchange:                  strings.ToLower(e.exchange),
+		asset:                     setup.Asset,
+		contractPair:              setup.Pair,
+		underlying:                setup.Underlying,
+		status:                    Open,
+		openingPrice:              setup.EntryPrice,
+		latestDirection:           setup.Side,
+		openingDirection:          setup.Side,
+		useExchangePNLCalculation: setup.UseExchangePNLCalculation,
+		offlinePNLCalculation:     e.offlinePNLCalculation,
+		lastUpdated:               time.Now(),
+	}
+	if !setup.UseExchangePNLCalculation {
+		// use position tracker's pnl calculation by default
+		resp.PNLCalculation = &PNLCalculator{}
+	} else {
+		if e.exchangePNLCalculation == nil {
+			return nil, ErrNilPNLCalculator
+		}
+		resp.PNLCalculation = e.exchangePNLCalculation
+	}
+	return resp, nil
+}
+
+// Liquidate will update the latest open position's
+// to reflect its liquidated status
+func (m *MultiPositionTracker) Liquidate(price decimal.Decimal, t time.Time) error {
+	if m == nil {
+		return fmt.Errorf("multi-position tracker %w", common.ErrNilPointer)
+	}
+	if e.exchange == "" {
+		return nil, errExchangeNameEmpty
+	m.m.Lock()
+	defer m.m.Unlock()
+	if len(m.positions) == 0 {
+		return fmt.Errorf("%v %v %v %w", m.exchange, m.asset, m.pair, ErrPositionsNotLoadedForPair)
+	}
+	if setup == nil {
+		return nil, errNilSetup
+	}
+	if !setup.Asset.IsValid() || !setup.Asset.IsFutures() {
+		return nil, ErrNotFuturesAsset
+	}
+	if setup.Pair.IsEmpty() {
+		return nil, ErrPairIsEmpty
+	}
+
+	resp := &PositionTracker{
+		exchange:                  strings.ToLower(e.exchange),
+		asset:                     setup.Asset,
+		contractPair:              setup.Pair,
+		underlying:                setup.Underlying,
+		status:                    Open,
+		openingPrice:              setup.EntryPrice,
+		latestDirection:           setup.Side,
+		openingDirection:          setup.Side,
+		useExchangePNLCalculation: setup.UseExchangePNLCalculation,
+		offlinePNLCalculation:     e.offlinePNLCalculation,
+	}
+	if !setup.UseExchangePNLCalculation {
+		// use position tracker's pnl calculation by default
+		resp.PNLCalculation = &PNLCalculator{}
+	} else {
+		if e.exchangePNLCalculation == nil {
+			return nil, ErrNilPNLCalculator
+		}
+		resp.PNLCalculation = e.exchangePNLCalculation
+	}
+	return resp, nil
 	return m.positions[len(m.positions)-1].Liquidate(price, t)
+
 }
 
 // GetStats returns a summary of a future position
@@ -556,6 +640,7 @@ func (p *PositionTracker) GetStats() Position {
 		Orders:           orders,
 		PNLHistory:       p.pnlHistory,
 		FundingRates:     fr,
+		LastUpdated:      p.lastUpdated,
 	}
 }
 
@@ -594,6 +679,8 @@ func (p *PositionTracker) TrackPNLByTime(t time.Time, currentPrice float64) erro
 	var err error
 	p.pnlHistory, err = upsertPNLEntry(p.pnlHistory, result)
 	p.unrealisedPNL = result.UnrealisedPNL
+	p.lastUpdated = time.Now()
+
 	return err
 }
 
@@ -648,11 +735,8 @@ func (p *PositionTracker) GetLatestPNLSnapshot() (PNLResult, error) {
 	return p.pnlHistory[len(p.pnlHistory)-1], nil
 }
 
-var errFundingRateOutOfRange = fmt.Errorf("funding rate out of range")
-var errDoesntMatch = errors.New("doesn't match")
-
-// TrackingFundingDetails sets funding rates to a position
-func (p *PositionTracker) TrackingFundingDetails(d *FundingRates) error {
+// TrackFundingDetails sets funding rates to a position
+func (p *PositionTracker) TrackFundingDetails(d *FundingRates) error {
 	if p == nil {
 		return fmt.Errorf("position tracker %w", common.ErrNilPointer)
 	}
@@ -661,15 +745,19 @@ func (p *PositionTracker) TrackingFundingDetails(d *FundingRates) error {
 	}
 	p.m.Lock()
 	defer p.m.Unlock()
-	if p.exchange != strings.ToLower(d.Exchange) ||
+	if !strings.EqualFold(p.exchange, d.Exchange) ||
 		p.asset != d.Asset ||
 		!p.contractPair.Equal(d.Pair) {
-		return errDoesntMatch
+		return fmt.Errorf("provided details %v %v %v %w %v %v %v tracker",
+			d.Exchange, d.Asset, d.Pair, errDoesntMatch, p.exchange, p.asset, p.contractPair)
+	}
+	if err := common.StartEndTimeCheck(d.StartDate, d.EndDate); err != nil {
+		return err
 	}
 	if len(p.pnlHistory) == 0 {
-		return fmt.Errorf("%w %v %v %v %v-%v", errNoPositionsFoundForTimeframe, p.exchange, p.asset, p.contractPair, d.StartDate, d.EndDate)
+		return fmt.Errorf("%w for timeframe %v %v %v %v-%v", errNoPositionsFound, p.exchange, p.asset, p.contractPair, d.StartDate, d.EndDate)
 	}
-	if p.openingDate.Before(d.StartDate) || p.pnlHistory[len(p.pnlHistory)-1].Time.After(d.EndDate) {
+	if d.StartDate.Before(p.openingDate) || (d.EndDate.After(p.closingDate) && p.status == Closed) {
 		return fmt.Errorf("%w", errFundingRateOutOfRange)
 	}
 	if p.fundingRateDetails == nil {
@@ -687,6 +775,7 @@ func (p *PositionTracker) TrackingFundingDetails(d *FundingRates) error {
 		}
 	}
 	p.fundingRateDetails.FundingRates = append(p.fundingRateDetails.FundingRates, d.FundingRates...)
+	p.lastUpdated = time.Now()
 	return nil
 }
 
