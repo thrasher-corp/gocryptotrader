@@ -4688,7 +4688,7 @@ func (s *RPCServer) GetTechnicalAnalysis(ctx context.Context, r *gctrpc.GetTechn
 		}
 
 		var otherKlines kline.Item
-		otherKlines, err = otherExch.GetHistoricCandles(ctx,
+		otherKlines, err = otherExch.GetHistoricCandlesExtended(ctx,
 			otherPair, otherAs, r.Start.AsTime(), r.End.AsTime(), klineInterval)
 		if err != nil {
 			return nil, err

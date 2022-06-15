@@ -2494,8 +2494,8 @@ func TestGetTechnicalAnalysis(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	if len(resp.Signals["COCO"].Signals) != 0 {
-		t.Fatalf("received: '%v' but expected: '%v'", len(resp.Signals["COCO"].Signals), 0)
+	if len(resp.Signals["COCO"].Signals) != 33 {
+		t.Fatalf("received: '%v' but expected: '%v'", len(resp.Signals["COCO"].Signals), 33)
 	}
 
 	resp, err = s.GetTechnicalAnalysis(context.Background(), &gctrpc.GetTechnicalAnalysisRequest{
