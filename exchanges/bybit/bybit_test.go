@@ -3023,3 +3023,32 @@ func TestGetUSDCWalletBalance(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestGetUSDCAssetInfo(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := b.GetUSDCAssetInfo(context.Background(), "")
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = b.GetUSDCAssetInfo(context.Background(), "BTC")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetMarginInfo(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	_, err := b.GetMarginInfo(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+}

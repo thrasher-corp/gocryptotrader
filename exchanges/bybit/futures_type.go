@@ -887,3 +887,16 @@ type USDCWalletBalance struct {
 	TotalSessionUPL  float64 `json:"totalSessionUPL,string"`
 	TotalSessionRPL  float64 `json:"totalSessionRPL,string"`
 }
+
+type USDCAssetInfo struct {
+	BaseCoin   string  `json:"baseCoin"`
+	TotalDelta float64 `json:"totalDelta,string"`
+	TotalGamma float64 `json:"totalGamma,string"`
+	TotalVega  float64 `json:"totalVega,string"`
+	TotalTheta float64 `json:"totalTheta,string"`
+	TotalRPL   float64 `json:"totalRPL,string"`
+	SessionUPL float64 `json:"sessionUPL,string"`
+	SessionRPL float64 `json:"sessionRPL,string"`
+	IM         float64 `json:"im,string"`
+	MM         float64 `json:"mm,string"`
+}

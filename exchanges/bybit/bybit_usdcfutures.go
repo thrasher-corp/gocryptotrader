@@ -44,6 +44,8 @@ const (
 	usdcfuturesGetTradeHistory      = "/option/usdc/openapi/private/v1/execution-list"
 	usdcfuturesGetTransactionLog    = "/option/usdc/openapi/private/v1/query-transaction-log"
 	usdcfuturesGetWalletBalance     = "/option/usdc/openapi/private/v1/query-wallet-balance"
+	usdcfuturesGetAssetInfo         = "/option/usdc/openapi/private/v1/query-asset-info"
+	usdcfuturesGetMarginInfo        = "/option/usdc/openapi/private/v1/query-margin-info"
 )
 
 // GetUSDCFuturesOrderbook gets orderbook data for USDCMarginedFutures.
@@ -797,7 +799,7 @@ func (by *Bybit) GetUSDCTransactionLog(ctx context.Context, startTime, endTime t
 	if endTime.IsZero() {
 		return nil, errInvalidStartTime
 	} else {
-		req["startTime"] = strconv.FormatInt(startTime.Unix(), 10)
+		req["endTime"] = strconv.FormatInt(endTime.Unix(), 10)
 	}
 
 	if txType != "" {
@@ -834,6 +836,36 @@ func (by *Bybit) GetUSDCWalletBalance(ctx context.Context) (USDCWalletBalance, e
 	return resp.Result, by.SendUSDCAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesGetWalletBalance, nil, &resp, publicFuturesRate)
 }
 
+// GetUSDCAssetInfo gets USDC asset information.
+func (by *Bybit) GetUSDCAssetInfo(ctx context.Context, baseCoin string) ([]USDCAssetInfo, error) {
+	resp := struct {
+		Result struct {
+			ResultTotalSize int64           `json:"resultTotalSize"`
+			Data            []USDCAssetInfo `json:"dataList"`
+		} `json:"result"`
+		USDCError
+	}{}
+
+	req := make(map[string]interface{})
+	if baseCoin != "" {
+		req["baseCoin"] = baseCoin
+	}
+
+	return resp.Result.Data, by.SendUSDCAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesGetAssetInfo, req, &resp, publicFuturesRate)
+}
+
+// GetMarginInfo gets USDC account margin information.
+func (by *Bybit) GetMarginInfo(ctx context.Context) (string, error) {
+	resp := struct {
+		Result struct {
+			MarginMode string `json:"marginMode"`
+		} `json:"result"`
+		USDCError
+	}{}
+
+	return resp.Result.MarginMode, by.SendUSDCAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesGetMarginInfo, nil, &resp, publicFuturesRate)
+}
+
 // SendUSDCAuthHTTPRequest sends an authenticated HTTP request
 func (by *Bybit) SendUSDCAuthHTTPRequest(ctx context.Context, ePath exchange.URL, method, path string, data interface{}, result UnmarshalTo, f request.EndpointLimit) error {
 	creds, err := by.GetCredentials(ctx)
@@ -864,12 +896,13 @@ func (by *Bybit) SendUSDCAuthHTTPRequest(ctx context.Context, ePath exchange.URL
 				if err != nil {
 					return nil, err
 				}
-				signInput := nowTimeInMilli + creds.Key + defaultRecvWindow + string(payload)
-				hmacSigned, err = crypto.GetHMAC(crypto.HashSHA256, []byte(signInput), []byte(creds.Secret))
-				if err != nil {
-					return nil, err
-				}
 			}
+		}
+
+		signInput := nowTimeInMilli + creds.Key + defaultRecvWindow + string(payload)
+		hmacSigned, err = crypto.GetHMAC(crypto.HashSHA256, []byte(signInput), []byte(creds.Secret))
+		if err != nil {
+			return nil, err
 		}
 
 		headers["Content-Type"] = "application/json"
