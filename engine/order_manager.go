@@ -709,7 +709,9 @@ func (m *OrderManager) processOrders() {
 				var openPositions []order.OpenPositionDetails
 				openPositions, err = exchanges[x].GetOpenPositions(context.TODO(), enabledAssets[y], time.Now().Add(m.openPositionSeekDuration))
 				if err != nil {
-					log.Error(log.OrderMgr, err)
+					if !errors.Is(err, common.ErrNotYetImplemented) {
+						log.Error(log.OrderMgr, err)
+					}
 				} else {
 					for z := range openPositions {
 						if len(openPositions[z].Orders) == 0 {
