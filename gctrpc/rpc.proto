@@ -1025,7 +1025,6 @@ message CurrencyState {
   bool trading_enabled = 5;
 }
 
-
 message FundingRate {
   string date = 1;
   string rate = 2;
