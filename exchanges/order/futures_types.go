@@ -39,6 +39,8 @@ var (
 	ErrNotPerpetualFuture = errors.New("not a perpetual future")
 	// ErrNoPositionsFound returned when there is no positions returned
 	ErrNoPositionsFound = errors.New("no positions found")
+	// ErrNoRates returned when no funding rates are received
+	ErrNoRates = errors.New("no funding rates")
 
 	errExchangeNameEmpty              = errors.New("exchange name empty")
 	errTimeUnset                      = errors.New("time unset")

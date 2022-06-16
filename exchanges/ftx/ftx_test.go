@@ -71,8 +71,13 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
+	err = f.CurrencyPairs.EnablePair(asset.Futures, currency.NewPair(currency.BTC, currency.PERP))
+	if err != nil {
+		log.Fatal(err)
+	}
 	f.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	f.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
+
 	os.Exit(m.Run())
 }
 
@@ -244,7 +249,7 @@ func TestGetFutureStats(t *testing.T) {
 	}
 }
 
-func TestGetFundingRates(t *testing.T) {
+func TestFundingRates(t *testing.T) {
 	t.Parallel()
 	// optional params
 	_, err := f.FundingRates(context.Background(), time.Time{}, time.Time{}, "")
@@ -1795,51 +1800,57 @@ func TestScaleCollateral(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	walletInfo, err := f.GetAllWalletBalances(context.Background())
+	walletInfo, err := f.GetBalances(context.Background(), true, true)
 	if err != nil {
 		t.Error(err)
 	}
 	localScaling := 0.0
-	providedUSDValue := 0.0
-	for _, v := range walletInfo {
-		for v2 := range v {
-			coin := v[v2].Coin
-			if coin.Equal(currency.USD) {
-				localScaling += v[v2].Total
-				providedUSDValue += v[v2].USDValue
+	var coverageTested bool
+	for i := range walletInfo {
+		coin := walletInfo[i].Coin
+		if coin.Equal(currency.USD) {
+			localScaling += walletInfo[i].Total
+			continue
+		}
+		var tick MarketData
+		usdPrice := walletInfo[i].USDValue / walletInfo[i].Total
+		tick, err = f.GetMarket(context.Background(), currency.NewPairWithDelimiter(coin.String(), "usd", "/").String())
+		if err != nil {
+			if walletInfo[i].USDValue == 0 {
+				// sometimes spot market for currency/USD doesn't exist and has no value, skip
 				continue
 			}
-			var tick MarketData
-			tick, err = f.GetMarket(context.Background(), currency.NewPairWithDelimiter(coin.String(), "usd", "/").String())
-			if err != nil {
-				// not all markets exist like this, skip
+			t.Logf("using wallet USD price for %v - %v", coin, usdPrice)
+		} else {
+			usdPrice = tick.Price
+		}
+		var offlineScaledCollateral *order.CollateralByCurrency
+		offlineScaledCollateral, err = f.ScaleCollateral(
+			context.Background(),
+			&order.CollateralCalculator{
+				CollateralCurrency: coin,
+				Asset:              asset.Spot,
+				Side:               order.Buy,
+				FreeCollateral:     decimal.NewFromFloat(walletInfo[i].Total),
+				USDPrice:           decimal.NewFromFloat(usdPrice),
+				CalculateOffline:   true,
+			})
+		if err != nil {
+			if errors.Is(err, errCollateralCurrencyNotFound) ||
+				errors.Is(err, order.ErrUSDValueRequired) {
 				continue
 			}
-			_, err = f.ScaleCollateral(
-				context.Background(),
-				&order.CollateralCalculator{
-					CollateralCurrency: coin,
-					Asset:              asset.Spot,
-					Side:               order.Buy,
-					FreeCollateral:     decimal.NewFromFloat(v[v2].Total),
-					USDPrice:           decimal.NewFromFloat(tick.Price),
-					CalculateOffline:   true,
-				})
-			if err != nil {
-				if errors.Is(err, errCollateralCurrencyNotFound) ||
-					errors.Is(err, order.ErrUSDValueRequired) {
-					continue
-				}
-				t.Error(err)
-			}
-			providedUSDValue += v[v2].USDValue
+			t.Error(err)
+		}
+		localScaling += offlineScaledCollateral.CollateralContribution.InexactFloat64()
+		if !coverageTested {
 			_, err = f.ScaleCollateral(context.Background(),
 				&order.CollateralCalculator{
 					CollateralCurrency: coin,
 					Asset:              asset.Spot,
 					Side:               order.Buy,
-					FreeCollateral:     decimal.NewFromFloat(v[v2].Total),
-					USDPrice:           decimal.NewFromFloat(tick.Price),
+					FreeCollateral:     decimal.NewFromFloat(walletInfo[i].Total),
+					USDPrice:           decimal.NewFromFloat(usdPrice),
 					IsForNewPosition:   true,
 					CalculateOffline:   true,
 				})
@@ -1851,7 +1862,7 @@ func TestScaleCollateral(t *testing.T) {
 					CollateralCurrency: coin,
 					Asset:              asset.Spot,
 					Side:               order.Buy,
-					FreeCollateral:     decimal.NewFromFloat(v[v2].Total),
+					FreeCollateral:     decimal.NewFromFloat(walletInfo[i].Total),
 					IsLiquidating:      true,
 					CalculateOffline:   true,
 				})
@@ -1869,13 +1880,14 @@ func TestScaleCollateral(t *testing.T) {
 			if err != nil {
 				t.Error(err)
 			}
+			coverageTested = true
 		}
 	}
 	if accountInfo.Collateral == 0 {
 		return
 	}
 	if (math.Abs((localScaling-accountInfo.Collateral)/accountInfo.Collateral) * 100) > 5 {
-		t.Errorf("collateral scaling less than 95%% accurate, received '%v' expected roughly '%v'", localScaling, accountInfo.Collateral)
+		t.Errorf("collateral scaling less than 95%% accurate, received '%v'/%v%% expected roughly '%v'", localScaling, math.Abs((localScaling-accountInfo.Collateral)/accountInfo.Collateral)*100, accountInfo.Collateral)
 	}
 }
 
@@ -1884,44 +1896,41 @@ func TestCalculateTotalCollateral(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test, api keys not set")
 	}
-	walletInfo, err := f.GetAllWalletBalances(context.Background())
+	walletInfo, err := f.GetBalances(context.Background(), true, true)
 	if err != nil {
 		t.Error(err)
 	}
-	var scales []order.CollateralCalculator
-	for _, v := range walletInfo {
-		for v2 := range v {
-			coin := v[v2].Coin
-			if coin.Equal(currency.USD) {
-				total := decimal.NewFromFloat(v[v2].Total)
-				scales = append(scales, order.CollateralCalculator{
-					CollateralCurrency: coin,
-					Asset:              asset.Spot,
-					Side:               order.Buy,
-					FreeCollateral:     total,
-					USDPrice:           total,
-					CalculateOffline:   true,
-				})
-				continue
-			}
-			var tick MarketData
-			tick, err = f.GetMarket(context.Background(), currency.NewPairWithDelimiter(coin.String(), "usd", "/").String())
-			if err != nil {
-				// some assumed markets don't exist, just don't process them
-				t.Log(err)
-				continue
-			}
-			if tick.Price == 0 {
-				continue
-			}
-			scales = append(scales, order.CollateralCalculator{
+	scales := make([]order.CollateralCalculator, len(walletInfo))
+	for i := range walletInfo {
+		coin := walletInfo[i].Coin
+		if coin.Equal(currency.USD) {
+			total := decimal.NewFromFloat(walletInfo[i].Total)
+			scales[i] = order.CollateralCalculator{
 				CollateralCurrency: coin,
 				Asset:              asset.Spot,
 				Side:               order.Buy,
-				FreeCollateral:     decimal.NewFromFloat(v[v2].Total),
-				USDPrice:           decimal.NewFromFloat(tick.Price),
+				FreeCollateral:     total,
+				USDPrice:           total,
 				CalculateOffline:   true,
-			})
+			}
+			continue
+		}
+		var tick MarketData
+		tick, err = f.GetMarket(context.Background(), currency.NewPairWithDelimiter(coin.String(), "usd", "/").String())
+		if err != nil {
+			// some assumed markets don't exist, just don't process them
+			continue
+		}
+		if tick.Price == 0 {
+			continue
+		}
+		scales[i] = order.CollateralCalculator{
+			CollateralCurrency: coin,
+			Asset:              asset.Spot,
+			Side:               order.Buy,
+			FreeCollateral:     decimal.NewFromFloat(walletInfo[i].Total),
+			USDPrice:           decimal.NewFromFloat(tick.Price),
+			CalculateOffline:   true,
 		}
 	}
 	calc := &order.TotalCollateralCalculator{
@@ -2203,7 +2212,7 @@ func TestGetCollateral(t *testing.T) {
 	}
 }
 
-func TestAnalysePosition(t *testing.T) {
+func TestGetPositionSummary(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip()
@@ -2217,16 +2226,22 @@ func TestAnalysePosition(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	if len(positions) == 0 {
+		t.Skip("no positions to get summary")
+	}
 	onlineCalculation, err := f.GetPositionSummary(context.Background(), &order.PositionSummaryRequest{Asset: asset.Futures, Pair: positions[0].Pair})
 	if err != nil {
 		t.Error(err)
+	}
+	if onlineCalculation.CurrentSize.IsZero() {
+		// you have no positions to calculate offline summary for
+		return
 	}
 	acc, err := f.GetAccountInfo(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
 	size := decimal.NewFromFloat(positions[0].Amount)
-
 	underlyingStr, err := f.FormatSymbol(currency.NewPair(currency.BTC, currency.USD), asset.Spot)
 	if err != nil {
 		t.Error(err)
@@ -2235,6 +2250,7 @@ func TestAnalysePosition(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+
 	offlineCalculation, err := f.GetPositionSummary(context.Background(), &order.PositionSummaryRequest{
 		Asset:                     asset.Futures,
 		Pair:                      positions[0].Pair,
@@ -2291,18 +2307,126 @@ func TestAnalysePosition(t *testing.T) {
 	}
 }
 
-func TestIsPerpetualFuture(t *testing.T) {
+func TestGetFundingRates(t *testing.T) {
 	t.Parallel()
-	if f.IsPerpetualFutureCurrency(asset.Spot, currency.NewPair(currency.LUNA, currency.UST)) {
+	_, err := f.GetFundingRates(context.Background(), nil)
+	if !errors.Is(err, common.ErrNilPointer) {
+		t.Errorf("received '%v' expected '%v'", err, common.ErrNilPointer)
+	}
+
+	request := &order.FundingRatesRequest{}
+	_, err = f.GetFundingRates(context.Background(), request)
+	if !errors.Is(err, currency.ErrCurrencyPairsEmpty) {
+		t.Errorf("received '%v' expected '%v'", err, currency.ErrCurrencyPairsEmpty)
+	}
+
+	request.Pairs = currency.Pairs{
+		currency.NewPair(currency.BTC, currency.USD),
+	}
+	_, err = f.GetFundingRates(context.Background(), request)
+	if !errors.Is(err, common.ErrDateUnset) {
+		t.Errorf("received '%v' expected '%v'", err, common.ErrDateUnset)
+	}
+
+	request.StartDate = time.Now().Add(-time.Hour * 24 * 31)
+	request.EndDate = time.Now()
+	_, err = f.GetFundingRates(context.Background(), request)
+	if !errors.Is(err, currency.ErrPairNotFound) {
+		t.Errorf("received '%v' expected '%v'", err, currency.ErrPairNotFound)
+	}
+
+	request.Pairs = currency.Pairs{
+		currency.NewPair(currency.BTC, currency.PERP),
+	}
+	request.Asset = asset.Futures
+	_, err = f.GetFundingRates(context.Background(), request)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+
+	if !areTestAPIKeysSet() {
+		return
+	}
+	request.IncludePayments = true
+	request.IncludePredictedRate = true
+	resp, err := f.GetFundingRates(context.Background(), request)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	if len(resp) != 1 {
+		t.Error("expected one result")
+	}
+	if resp[0].PredictedUpcomingRate.Time.IsZero() {
+		t.Error("expected predicted rates")
+	}
+	if resp[0].PaymentSum.IsZero() {
+		t.Log("expected payments, but you may not have had a position open, so not a failure")
+	}
+}
+
+func TestGetOpenPositions(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := f.GetOpenPositions(context.Background(), asset.Spot, time.Now())
+	if !errors.Is(err, order.ErrNotFuturesAsset) {
+		t.Errorf("received '%v' expected '%v'", err, order.ErrNotFuturesAsset)
+	}
+	_, err = f.GetOpenPositions(context.Background(), asset.Futures, time.Now())
+	if !errors.Is(err, order.ErrPositionNotFound) {
+		t.Errorf("received '%v' expected '%v'", err, order.ErrPositionNotFound)
+	}
+
+	resp, err := f.GetOpenPositions(context.Background(), asset.Futures, time.Now().Add(-time.Hour*24*31))
+	if len(resp) == 0 {
+		// you have no open positions, that is okay
+		return
+	}
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+}
+
+func TestIsPerpetualFutureCurrency(t *testing.T) {
+	t.Parallel()
+	cp1 := currency.NewPair(currency.BTC, currency.USD)
+	cp2 := currency.NewPair(currency.BTC, currency.PERP)
+	result, err := f.IsPerpetualFutureCurrency(asset.Spot, cp1)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	if result {
 		t.Error("expected false")
 	}
-	if f.IsPerpetualFutureCurrency(asset.Futures, currency.NewPair(currency.LUNA, currency.UST)) {
+
+	result, err = f.IsPerpetualFutureCurrency(asset.Spot, cp1)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	if result {
 		t.Error("expected false")
 	}
-	if f.IsPerpetualFutureCurrency(asset.Spot, currency.NewPair(currency.LUNA, currency.PERP)) {
-		t.Error("expected false")
+
+	_, err = f.IsPerpetualFutureCurrency(asset.Spot, cp2)
+	if !errors.Is(err, currency.ErrPairNotFound) {
+		t.Errorf("received '%v' expected '%v'", err, currency.ErrPairNotFound)
 	}
-	if !f.IsPerpetualFutureCurrency(asset.Futures, currency.NewPair(currency.LUNA, currency.PERP)) {
+	_, err = f.IsPerpetualFutureCurrency(asset.Spot, cp2)
+	if !errors.Is(err, currency.ErrPairNotFound) {
+		t.Errorf("received '%v' expected '%v'", err, currency.ErrPairNotFound)
+	}
+
+	_, err = f.IsPerpetualFutureCurrency(asset.Futures, cp1)
+	if !errors.Is(err, currency.ErrPairNotFound) {
+		t.Errorf("received '%v' expected '%v'", err, currency.ErrPairNotFound)
+	}
+
+	result, err = f.IsPerpetualFutureCurrency(asset.Futures, cp2)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	if !result {
 		t.Error("expected true")
 	}
 }

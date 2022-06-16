@@ -1713,7 +1713,7 @@ func (f *FTX) GetPositionSummary(ctx context.Context, request *order.PositionSum
 		one := decimal.NewFromInt(1)
 		positionSize := request.CurrentSize.Mul(request.CurrentPrice)
 		var marginFraction decimal.Decimal
-		if request.TotalCollateral.IsPositive() {
+		if positionSize.IsPositive() && request.TotalCollateral.IsPositive() {
 			marginFraction = request.TotalCollateral.Div(positionSize).Mul(decimal.NewFromFloat(100))
 		}
 		breakEventPrice := request.OpeningPrice
@@ -1789,7 +1789,7 @@ func (f *FTX) GetPositionSummary(ctx context.Context, request *order.PositionSum
 // GetOpenPositions returns all open positions
 func (f *FTX) GetOpenPositions(ctx context.Context, item asset.Item, startDate time.Time) ([]order.OpenPositionDetails, error) {
 	if !item.IsFutures() {
-		return nil, fmt.Errorf("%w '%s' is not a futures asset", asset.ErrNotSupported, item)
+		return nil, fmt.Errorf("%w '%s'", order.ErrNotFuturesAsset, item)
 	}
 	positions, err := f.GetPositions(ctx, false)
 	if err != nil {
@@ -1857,9 +1857,14 @@ func (f *FTX) GetFundingRates(ctx context.Context, request *order.FundingRatesRe
 		return nil, err
 	}
 	response := make([]order.FundingRates, len(request.Pairs))
-	for i := range request.Pairs {
-		if !f.IsPerpetualFutureCurrency(request.Asset, request.Pairs[i]) {
-			return nil, fmt.Errorf("%w '%v' '%v'", order.ErrNotPerpetualFuture, request.Asset, request.Pairs[i])
+	for x := range request.Pairs {
+		var isPerp bool
+		isPerp, err = f.IsPerpetualFutureCurrency(request.Asset, request.Pairs[x])
+		if err != nil {
+			return nil, err
+		}
+		if !isPerp {
+			return nil, fmt.Errorf("%w '%v' '%v'", order.ErrNotPerpetualFuture, request.Asset, request.Pairs[x])
 		}
 		var (
 			fPair          string
@@ -1867,7 +1872,7 @@ func (f *FTX) GetFundingRates(ctx context.Context, request *order.FundingRatesRe
 			fundingDetails []FundingPaymentsData
 			stats          FutureStatsData
 		)
-		fPair, err = f.FormatSymbol(request.Pairs[i], request.Asset)
+		fPair, err = f.FormatSymbol(request.Pairs[x], request.Asset)
 		if err != nil {
 			return nil, err
 		}
@@ -1875,34 +1880,53 @@ func (f *FTX) GetFundingRates(ctx context.Context, request *order.FundingRatesRe
 		pairResponse := order.FundingRates{
 			Exchange:  f.Name,
 			Asset:     request.Asset,
-			Pair:      request.Pairs[i],
+			Pair:      request.Pairs[x],
 			StartDate: request.StartDate,
 			EndDate:   request.EndDate,
 		}
-		if request.IncludePayments {
-			fundingDetails, err = f.FundingPayments(ctx, request.StartDate, request.EndDate, fPair)
+		endTime := request.EndDate
+	allRates:
+		for {
+			rates, err = f.FundingRates(ctx, request.StartDate, endTime, fPair)
 			if err != nil {
 				return nil, err
 			}
-			for j := range fundingDetails {
+			for y := range rates {
+				if request.StartDate.Equal(rates[y].Time) || rates[y].Time.Before(request.StartDate) {
+					// reached end of trades to crawl
+					break allRates
+				}
+				if rates[y].Time.After(endTime) {
+					continue
+				}
 				pairResponse.FundingRates = append(pairResponse.FundingRates, order.FundingRate{
-					Time:    fundingDetails[j].Time,
-					Rate:    decimal.NewFromFloat(fundingDetails[j].Rate),
-					Payment: decimal.NewFromFloat(fundingDetails[j].Payment),
-				})
-				pairResponse.PaymentSum = pairResponse.PaymentSum.Add(decimal.NewFromFloat(fundingDetails[j].Payment))
-			}
-		} else {
-			rates, err = f.FundingRates(ctx, request.StartDate, request.EndDate, fPair)
-			if err != nil {
-				return nil, err
-			}
-			for j := range rates {
-				pairResponse.FundingRates = append(pairResponse.FundingRates, order.FundingRate{
-					Rate: decimal.NewFromFloat(rates[j].Rate),
-					Time: rates[j].Time,
+					Rate: decimal.NewFromFloat(rates[y].Rate),
+					Time: rates[y].Time,
 				})
 			}
+			if request.IncludePayments {
+				fundingDetails, err = f.FundingPayments(ctx, request.StartDate, endTime, fPair)
+				if err != nil {
+					return nil, err
+				}
+				for y := range fundingDetails {
+					for z := range pairResponse.FundingRates {
+						if !fundingDetails[y].Time.Equal(pairResponse.FundingRates[z].Time) {
+							continue
+						}
+						pairResponse.FundingRates[z].Payment = decimal.NewFromFloat(fundingDetails[y].Payment)
+						pairResponse.PaymentSum = pairResponse.PaymentSum.Add(decimal.NewFromFloat(fundingDetails[y].Payment))
+						break
+					}
+				}
+			}
+			if endTime.Equal(rates[len(rates)-1].Time) {
+				break allRates
+			}
+			endTime = rates[len(rates)-1].Time
+		}
+		if len(pairResponse.FundingRates) == 0 {
+			return nil, order.ErrNoRates
 		}
 		if request.IncludePredictedRate {
 			stats, err = f.GetFutureStats(ctx, fPair)
@@ -1919,12 +1943,19 @@ func (f *FTX) GetFundingRates(ctx context.Context, request *order.FundingRatesRe
 			return pairResponse.FundingRates[i].Time.Before(pairResponse.FundingRates[j].Time)
 		})
 		pairResponse.LatestRate = pairResponse.FundingRates[len(pairResponse.FundingRates)-1]
-		response[i] = pairResponse
+		response[x] = pairResponse
 	}
 	return response, nil
 }
 
 // IsPerpetualFutureCurrency returns whether a currency is a perpetual future
-func (f *FTX) IsPerpetualFutureCurrency(a asset.Item, cp currency.Pair) bool {
-	return cp.Quote.Equal(currency.PERP) && a.IsFutures()
+func (f *FTX) IsPerpetualFutureCurrency(a asset.Item, cp currency.Pair) (bool, error) {
+	pairs, err := f.GetEnabledPairs(a)
+	if err != nil {
+		return false, err
+	}
+	if !pairs.Contains(cp, false) {
+		return false, fmt.Errorf("%w '%v'", currency.ErrPairNotFound, cp)
+	}
+	return cp.Quote.Equal(currency.PERP) && a.IsFutures(), nil
 }

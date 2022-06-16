@@ -1346,6 +1346,6 @@ func (b *Base) GetFundingRates(ctx context.Context, request *order.FundingRatesR
 
 // IsPerpetualFutureCurrency ensures a given asset and currency is a perpetual future
 // differs by exchange
-func (b *Base) IsPerpetualFutureCurrency(asset.Item, currency.Pair) bool {
-	return false
+func (b *Base) IsPerpetualFutureCurrency(asset.Item, currency.Pair) (bool, error) {
+	return false, common.ErrNotYetImplemented
 }

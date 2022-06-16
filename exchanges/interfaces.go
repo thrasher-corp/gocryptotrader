@@ -135,5 +135,5 @@ type FuturesManagement interface {
 	GetOpenPositions(context.Context, asset.Item, time.Time) ([]order.OpenPositionDetails, error)
 	GetFuturesPositions(context.Context, asset.Item, currency.Pair, time.Time, time.Time) ([]order.Detail, error)
 	GetFundingRates(context.Context, *order.FundingRatesRequest) ([]order.FundingRates, error)
-	IsPerpetualFutureCurrency(asset.Item, currency.Pair) bool
+	IsPerpetualFutureCurrency(asset.Item, currency.Pair) (bool, error)
 }

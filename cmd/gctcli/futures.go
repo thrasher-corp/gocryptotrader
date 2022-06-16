@@ -45,12 +45,12 @@ var futuresCommands = &cli.Command{
 				},
 				&cli.BoolFlag{
 					Name:    "includeorderdetails",
-					Aliases: []string{"orders", "o"},
+					Aliases: []string{"orders"},
 					Usage:   "includes all orders that make up a position in the response",
 				},
 				&cli.BoolFlag{
 					Name:    "getfundingdata",
-					Aliases: []string{"funding", "f"},
+					Aliases: []string{"funding", "fd"},
 					Usage:   "if true, will return funding rate summary",
 				},
 				&cli.BoolFlag{
@@ -74,12 +74,12 @@ var futuresCommands = &cli.Command{
 			Flags: []cli.Flag{
 				&cli.BoolFlag{
 					Name:    "includeorderdetails",
-					Aliases: []string{"orders", "o"},
+					Aliases: []string{"orders"},
 					Usage:   "includes all orders that make up a position in the response",
 				},
 				&cli.BoolFlag{
 					Name:    "getfundingdata",
-					Aliases: []string{"funding", "f"},
+					Aliases: []string{"funding", "fd"},
 					Usage:   "if true, will return funding rate summary",
 				},
 				&cli.BoolFlag{
@@ -151,7 +151,7 @@ var futuresCommands = &cli.Command{
 				},
 				&cli.BoolFlag{
 					Name:    "includeorderdetails",
-					Aliases: []string{"orders", "o"},
+					Aliases: []string{"orders"},
 					Usage:   "includes all orders that make up a position in the response",
 				},
 				&cli.BoolFlag{
@@ -161,7 +161,7 @@ var futuresCommands = &cli.Command{
 				},
 				&cli.BoolFlag{
 					Name:    "getfundingdata",
-					Aliases: []string{"funding", "f"},
+					Aliases: []string{"funding", "fd"},
 					Usage:   "if true, will return funding rate summary",
 				},
 				&cli.BoolFlag{

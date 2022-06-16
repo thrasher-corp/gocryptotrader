@@ -2328,3 +2328,43 @@ func TestGetServerTime(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
 	}
 }
+
+func TestGetPositionSummary(t *testing.T) {
+	t.Parallel()
+	var b Base
+	if _, err := b.GetPositionSummary(context.Background(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
+		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
+	}
+}
+
+func TestGetOpenPositions(t *testing.T) {
+	t.Parallel()
+	var b Base
+	if _, err := b.GetOpenPositions(context.Background(), asset.Spot, time.Now()); !errors.Is(err, common.ErrNotYetImplemented) {
+		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
+	}
+}
+
+func TestGetFundingPaymentDetails(t *testing.T) {
+	t.Parallel()
+	var b Base
+	if _, err := b.GetFundingPaymentDetails(context.Background(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
+		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
+	}
+}
+
+func TestGetFundingRates(t *testing.T) {
+	t.Parallel()
+	var b Base
+	if _, err := b.GetFundingRates(context.Background(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
+		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
+	}
+}
+
+func TestIsPerpetualFutureCurrency(t *testing.T) {
+	t.Parallel()
+	var b Base
+	if _, err := b.IsPerpetualFutureCurrency(asset.Spot, currency.NewPair(currency.BTC, currency.USD)); !errors.Is(err, common.ErrNotYetImplemented) {
+		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
+	}
+}
