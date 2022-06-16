@@ -616,11 +616,15 @@ func (p *PositionTracker) GetStats() Position {
 	var orders []Detail
 	orders = append(orders, p.longPositions...)
 	orders = append(orders, p.shortPositions...)
+	sort.Slice(orders, func(i, j int) bool {
+		return orders[i].Date.Before(orders[j].Date)
+	})
 	var fr FundingRates
 	if p.fundingRateDetails != nil {
 		fr = *p.fundingRateDetails
 		copy(fr.FundingRates, p.fundingRateDetails.FundingRates)
 	}
+
 	return Position{
 		Exchange:         p.exchange,
 		Asset:            p.asset,
@@ -990,6 +994,7 @@ func (p *PositionTracker) TrackNewOrder(d *Detail, isInitialOrder bool) error {
 		p.pnlHistory[len(p.pnlHistory)-1].RealisedPNL = p.realisedPNL
 		p.pnlHistory[len(p.pnlHistory)-1].UnrealisedPNL = p.unrealisedPNL
 		p.pnlHistory[len(p.pnlHistory)-1].Direction = p.currentDirection
+		p.closingDate = d.Date
 	} else if p.exposure.IsNegative() {
 		if p.latestDirection.IsLong() {
 			p.latestDirection = Short

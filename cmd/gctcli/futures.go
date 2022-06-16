@@ -357,10 +357,6 @@ func getManagedPosition(c *cli.Context) error {
 }
 
 func getAllManagedPositions(c *cli.Context) error {
-	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "getallmanagedpositions")
-	}
-
 	var (
 		err                   error
 		includeOrderDetails   bool

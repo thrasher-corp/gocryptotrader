@@ -4447,7 +4447,8 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 		totalRealisedPNL = totalRealisedPNL.Add(pos[i].RealisedPNL)
 		totalUnrealisedPNL = totalUnrealisedPNL.Add(pos[i].UnrealisedPNL)
 		if r.GetPositionStats {
-			stats, err := exch.GetPositionSummary(ctx, &order.PositionSummaryRequest{
+			var stats *order.PositionSummary
+			stats, err = exch.GetPositionSummary(ctx, &order.PositionSummaryRequest{
 				Asset: pos[i].Asset,
 				Pair:  pos[i].Pair,
 			})
@@ -4476,7 +4477,8 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 			if pos[i].Status == order.Closed {
 				endDate = pos[i].Orders[len(pos[i].Orders)-1].Date
 			}
-			fundingDetails, err := exch.GetFundingRates(ctx, &order.FundingRatesRequest{
+			var fundingDetails []order.FundingRates
+			fundingDetails, err = exch.GetFundingRates(ctx, &order.FundingRatesRequest{
 				Asset:                pos[i].Asset,
 				Pairs:                currency.Pairs{pos[i].Pair},
 				StartDate:            pos[i].Orders[0].Date,
@@ -4501,10 +4503,11 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 				}
 			}
 			fundingRates := &gctrpc.FundingData{
-				Rates:        funding,
-				LatestRate:   funding[len(funding)-1],
-				UpcomingRate: nil,
-				PaymentSum:   fundingDetails[0].PaymentSum.String(),
+				Rates:      funding,
+				PaymentSum: fundingDetails[0].PaymentSum.String(),
+			}
+			if r.IncludeFullFundingRates {
+				fundingRates.LatestRate = funding[len(fundingRates.Rates)-1]
 			}
 			if r.IncludePredictedRate {
 				fundingRates.UpcomingRate = &gctrpc.FundingRate{

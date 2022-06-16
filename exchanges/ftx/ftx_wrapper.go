@@ -1682,6 +1682,7 @@ func (f *FTX) GetFuturesPositions(ctx context.Context, a asset.Item, cp currency
 			Exchange:  f.Name,
 			Fee:       fills[i].Fee,
 			Date:      fills[i].Time,
+			Status:    order.Filled,
 		}
 	}
 

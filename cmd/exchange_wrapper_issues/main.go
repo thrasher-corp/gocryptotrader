@@ -15,6 +15,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -507,6 +508,41 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 				Error:      msg,
 				Response:   jsonifyInterface([]interface{}{""}),
 			})
+
+			fundingRateRequest := &order.FundingRatesRequest{
+				Asset:     assetTypes[i],
+				Pairs:     currency.Pairs{p},
+				StartDate: time.Now().Add(-time.Hour),
+				EndDate:   time.Now(),
+			}
+			var fundingRateResponse []order.FundingRates
+			fundingRateResponse, err = e.GetFundingRates(context.TODO(), fundingRateRequest)
+			msg = ""
+			if err != nil {
+				msg = err.Error()
+				responseContainer.ErrorCount++
+			}
+
+			responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
+				SentParams: jsonifyInterface([]interface{}{fundingRateRequest}),
+				Function:   "GetFundingRates",
+				Error:      msg,
+				Response:   jsonifyInterface([]interface{}{fundingRateResponse}),
+			})
+
+			var isPerpetualFutures bool
+			isPerpetualFutures, err = e.IsPerpetualFutureCurrency(assetTypes[i], p)
+			msg = ""
+			if err != nil {
+				msg = err.Error()
+				responseContainer.ErrorCount++
+			}
+			responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
+				SentParams: jsonifyInterface([]interface{}{assetTypes[i], p}),
+				Function:   "IsPerpetualFutureCurrency",
+				Error:      msg,
+				Response:   jsonifyInterface([]interface{}{isPerpetualFutures}),
+			})
 		}
 
 		var fetchAccountInfoResponse account.Holdings
@@ -664,7 +700,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			responseContainer.ErrorCount++
 		}
 		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
-			SentParams: jsonifyInterface([]interface{}{config.OrderSubmission.OrderID}),
+			SentParams: jsonifyInterface([]interface{}{config.OrderSubmission.OrderID, p, assetTypes[i]}),
 			Function:   "GetOrderInfo",
 			Error:      msg,
 			Response:   jsonifyInterface([]interface{}{r15}),
@@ -675,6 +711,8 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Side:      testOrderSide,
 			Pairs:     []currency.Pair{p},
 			AssetType: assetTypes[i],
+			StartTime: time.Now().Add(-time.Hour),
+			EndTime:   time.Now(),
 		}
 		var getOrderHistoryResponse []order.Detail
 		getOrderHistoryResponse, err = e.GetOrderHistory(context.TODO(), &historyRequest)
@@ -695,6 +733,8 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Side:      testOrderSide,
 			Pairs:     []currency.Pair{p},
 			AssetType: assetTypes[i],
+			StartTime: time.Now().Add(-time.Hour),
+			EndTime:   time.Now(),
 		}
 		var getActiveOrdersResponse []order.Detail
 		getActiveOrdersResponse, err = e.GetActiveOrders(context.TODO(), &orderRequest)
@@ -846,6 +886,121 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Error:      msg,
 			Response:   withdrawFiatFundsInternationalResponse,
 		})
+
+		positionSummaryRequest := &order.PositionSummaryRequest{
+			Asset: assetTypes[i],
+			Pair:  p,
+		}
+		var positionSummaryResponse *order.PositionSummary
+		positionSummaryResponse, err = e.GetPositionSummary(context.TODO(), positionSummaryRequest)
+		msg = ""
+		if err != nil {
+			msg = err.Error()
+			responseContainer.ErrorCount++
+		}
+		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
+			SentParams: jsonifyInterface([]interface{}{positionSummaryRequest}),
+			Function:   "GetPositionSummary",
+			Error:      msg,
+			Response:   jsonifyInterface([]interface{}{positionSummaryResponse}),
+		})
+
+		calculatePNLRequest := &order.PNLCalculatorRequest{
+			Pair:             p,
+			Underlying:       p.Quote,
+			Asset:            assetTypes[i],
+			EntryPrice:       decimal.NewFromInt(1337),
+			OpeningDirection: testOrderSide,
+			OrderDirection:   testOrderSide,
+			Time:             time.Now(),
+			Exposure:         decimal.NewFromInt(1337),
+			EntryAmount:      decimal.NewFromInt(1337),
+			PreviousPrice:    decimal.NewFromInt(1337),
+		}
+		var calculatePNLResponse *order.PNLResult
+		calculatePNLResponse, err = e.CalculatePNL(context.TODO(), calculatePNLRequest)
+		msg = ""
+		if err != nil {
+			msg = err.Error()
+			responseContainer.ErrorCount++
+		}
+		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
+			SentParams: jsonifyInterface([]interface{}{calculatePNLRequest}),
+			Function:   "CalculatePNL",
+			Error:      msg,
+			Response:   jsonifyInterface([]interface{}{calculatePNLResponse}),
+		})
+
+		collateralCalculator := &order.CollateralCalculator{
+			CollateralCurrency: p.Quote,
+			Asset:              assetTypes[i],
+			Side:               testOrderSide,
+			USDPrice:           decimal.NewFromInt(1337),
+			IsLiquidating:      false,
+			IsForNewPosition:   false,
+			FreeCollateral:     decimal.NewFromInt(1337),
+			LockedCollateral:   decimal.NewFromInt(1337),
+			UnrealisedPNL:      decimal.NewFromInt(1337),
+		}
+		var scaleCollateralResponse *order.CollateralByCurrency
+		scaleCollateralResponse, err = e.ScaleCollateral(context.TODO(), collateralCalculator)
+		msg = ""
+		if err != nil {
+			msg = err.Error()
+			responseContainer.ErrorCount++
+		}
+		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
+			SentParams: jsonifyInterface([]interface{}{collateralCalculator}),
+			Function:   "ScaleCollateral",
+			Error:      msg,
+			Response:   jsonifyInterface([]interface{}{scaleCollateralResponse}),
+		})
+
+		totalCollateralCalculator := &order.TotalCollateralCalculator{
+			CollateralAssets: []order.CollateralCalculator{*collateralCalculator},
+		}
+		var calculateTotalCollateralResponse *order.TotalCollateralResponse
+		calculateTotalCollateralResponse, err = e.CalculateTotalCollateral(context.TODO(), totalCollateralCalculator)
+		msg = ""
+		if err != nil {
+			msg = err.Error()
+			responseContainer.ErrorCount++
+		}
+		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
+			SentParams: jsonifyInterface([]interface{}{totalCollateralCalculator}),
+			Function:   "CalculateTotalCollateral",
+			Error:      msg,
+			Response:   jsonifyInterface([]interface{}{calculateTotalCollateralResponse}),
+		})
+
+		var openPositionsResponse []order.OpenPositionDetails
+		openPositionsResponse, err = e.GetOpenPositions(context.TODO(), assetTypes[i], time.Now().Add(-time.Hour))
+		msg = ""
+		if err != nil {
+			msg = err.Error()
+			responseContainer.ErrorCount++
+		}
+		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
+			SentParams: jsonifyInterface([]interface{}{assetTypes[i], time.Now().Add(-time.Hour)}),
+			Function:   "GetOpenPositions",
+			Error:      msg,
+			Response:   jsonifyInterface([]interface{}{openPositionsResponse}),
+		})
+
+		var getFuturesPositionsResponse []order.Detail
+		getFuturesPositionsResponse, err = e.GetFuturesPositions(context.TODO(), assetTypes[i], p, time.Now().Add(-time.Hour), time.Now())
+		msg = ""
+		if err != nil {
+			msg = err.Error()
+			responseContainer.ErrorCount++
+		}
+		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
+			SentParams: jsonifyInterface([]interface{}{assetTypes[i], p, time.Now().Add(-time.Hour), time.Now()}),
+			Function:   "GetFuturesPositions",
+			Error:      msg,
+			Response:   jsonifyInterface([]interface{}{getFuturesPositionsResponse}),
+		})
+
 		response = append(response, responseContainer)
 	}
 	return response
