@@ -3041,13 +3041,47 @@ func TestGetUSDCAssetInfo(t *testing.T) {
 	}
 }
 
-func TestGetMarginInfo(t *testing.T) {
+func TestGetUSDCMarginInfo(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
 
-	_, err := b.GetMarginInfo(context.Background())
+	_, err := b.GetUSDCMarginInfo(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetUSDCPositions(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	pair, err := currency.NewPairFromString("BTCPERP")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = b.GetUSDCPosition(context.Background(), pair, "PERPETUAL", "", "", 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestSetUSDCLeverage(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	pair, err := currency.NewPairFromString("BTCPERP")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = b.SetUSDCLeverage(context.Background(), pair, 1)
 	if err != nil {
 		t.Error(err)
 	}

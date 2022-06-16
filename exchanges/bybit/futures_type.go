@@ -900,3 +900,33 @@ type USDCAssetInfo struct {
 	IM         float64 `json:"im,string"`
 	MM         float64 `json:"mm,string"`
 }
+
+type USDCPosition struct {
+	Symbol              string  `json:"symbol"`
+	Leverage            float64 `json:"leverage,string"`
+	ClosingFee          float64 `json:"occClosingFee,string"`
+	LiquidPrice         string  `json:"liqPrice"`
+	Position            float64 `json:"positionValue"`
+	TakeProfit          float64 `json:"takeProfit,string"`
+	RiskID              string  `json:"riskId"`
+	TrailingStop        float64 `json:"trailingStop,string"`
+	UnrealisedPnl       float64 `json:"unrealisedPnl,string"`
+	MarkPrice           float64 `json:"markPrice,string"`
+	CumRealisedPnl      float64 `json:"cumRealisedPnl,string"`
+	PositionMM          float64 `json:"positionMM,string"`
+	PositionIM          float64 `json:"positionIM,string"`
+	EntryPrice          float64 `json:"entryPrice,string"`
+	Size                float64 `json:"size,string"`
+	SessionRPL          float64 `json:"sessionRPL,string"`
+	SessionUPL          float64 `json:"sessionUPL,string"`
+	StopLoss            float64 `json:"stopLoss,string"`
+	OrderMargin         float64 `json:"orderMargin,string"`
+	SessionAvgPrice     float64 `json:"sessionAvgPrice,string"`
+	CreatedAt           string  `json:"createdAt"`
+	UpdatedAt           string  `json:"updatedAt"`
+	TpSLMode            string  `json:"tpSLMode"`
+	Side                string  `json:"side"`
+	BustPrice           string  `json:"bustPrice"`
+	PositionStatus      string  `json:"positionStatus"`
+	DeleverageIndicator int64   `json:"deleverageIndicator"`
+}

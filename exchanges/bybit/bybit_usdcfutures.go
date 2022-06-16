@@ -35,17 +35,24 @@ const (
 	usdcfuturesGetLatestTrades       = "/option/usdc/openapi/public/v1/query-trade-latest"
 
 	// auth endpoint
-	usdcfuturesPlaceOrder           = "/perpetual/usdc/openapi/private/v1/place-order"
-	usdcfuturesModifyOrder          = "/perpetual/usdc/openapi/private/v1/replace-order"
-	usdcfuturesCancelOrder          = "/perpetual/usdc/openapi/private/v1/cancel-order"
-	usdcfuturesCancelAllActiveOrder = "/perpetual/usdc/openapi/private/v1/cancel-all"
-	usdcfuturesGetActiveOrder       = "/option/usdc/openapi/private/v1/query-active-orders"
-	usdcfuturesGetOrderHistory      = "/option/usdc/openapi/private/v1/query-order-history"
-	usdcfuturesGetTradeHistory      = "/option/usdc/openapi/private/v1/execution-list"
-	usdcfuturesGetTransactionLog    = "/option/usdc/openapi/private/v1/query-transaction-log"
-	usdcfuturesGetWalletBalance     = "/option/usdc/openapi/private/v1/query-wallet-balance"
-	usdcfuturesGetAssetInfo         = "/option/usdc/openapi/private/v1/query-asset-info"
-	usdcfuturesGetMarginInfo        = "/option/usdc/openapi/private/v1/query-margin-info"
+	usdcfuturesPlaceOrder              = "/perpetual/usdc/openapi/private/v1/place-order"
+	usdcfuturesModifyOrder             = "/perpetual/usdc/openapi/private/v1/replace-order"
+	usdcfuturesCancelOrder             = "/perpetual/usdc/openapi/private/v1/cancel-order"
+	usdcfuturesCancelAllActiveOrder    = "/perpetual/usdc/openapi/private/v1/cancel-all"
+	usdcfuturesGetActiveOrder          = "/option/usdc/openapi/private/v1/query-active-orders"
+	usdcfuturesGetOrderHistory         = "/option/usdc/openapi/private/v1/query-order-history"
+	usdcfuturesGetTradeHistory         = "/option/usdc/openapi/private/v1/execution-list"
+	usdcfuturesGetTransactionLog       = "/option/usdc/openapi/private/v1/query-transaction-log"
+	usdcfuturesGetWalletBalance        = "/option/usdc/openapi/private/v1/query-wallet-balance"
+	usdcfuturesGetAssetInfo            = "/option/usdc/openapi/private/v1/query-asset-info"
+	usdcfuturesGetMarginInfo           = "/option/usdc/openapi/private/v1/query-margin-info"
+	usdcfuturesGetPosition             = "/option/usdc/openapi/private/v1/query-position"
+	usdcfuturesSetLeverage             = "/perpetual/usdc/openapi/private/v1/position/leverage/save"
+	usdcfuturesGetSettlementHistory    = "/option/usdc/openapi/private/v1/session-settlement"
+	usdcfuturesGetRiskLimit            = "/perpetual/usdc/openapi/public/v1/risk-limit/list" //GET
+	usdcfuturesSetRiskLimit            = "/perpetual/usdc/openapi/private/v1/position/set-risk-limit"
+	usdcfuturesGetLastFundingRate      = "/perpetual/usdc/openapi/public/v1/prev-funding-rate" //GET
+	usdcfuturesGetPredictedFundingRate = "/perpetual/usdc/openapi/private/v1/predicted-funding"
 )
 
 // GetUSDCFuturesOrderbook gets orderbook data for USDCMarginedFutures.
@@ -854,8 +861,8 @@ func (by *Bybit) GetUSDCAssetInfo(ctx context.Context, baseCoin string) ([]USDCA
 	return resp.Result.Data, by.SendUSDCAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesGetAssetInfo, req, &resp, publicFuturesRate)
 }
 
-// GetMarginInfo gets USDC account margin information.
-func (by *Bybit) GetMarginInfo(ctx context.Context) (string, error) {
+// GetUSDCMarginInfo gets USDC account margin information.
+func (by *Bybit) GetUSDCMarginInfo(ctx context.Context) (string, error) {
 	resp := struct {
 		Result struct {
 			MarginMode string `json:"marginMode"`
@@ -864,6 +871,76 @@ func (by *Bybit) GetMarginInfo(ctx context.Context) (string, error) {
 	}{}
 
 	return resp.Result.MarginMode, by.SendUSDCAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesGetMarginInfo, nil, &resp, publicFuturesRate)
+}
+
+// GetUSDCPosition gets USDC position information.
+func (by *Bybit) GetUSDCPosition(ctx context.Context, symbol currency.Pair, category, direction, cursor string, limit int64) ([]USDCPosition, error) {
+	resp := struct {
+		Result struct {
+			Cursor          string         `json:"cursor"`
+			ResultTotalSize int64          `json:"resultTotalSize"`
+			Data            []USDCPosition `json:"dataList"`
+		} `json:"result"`
+		USDCError
+	}{}
+
+	req := make(map[string]interface{})
+	if !symbol.IsEmpty() {
+		symbolValue, err := by.FormatSymbol(symbol, asset.USDCMarginedFutures)
+		if err != nil {
+			return resp.Result.Data, err
+		}
+		req["symbol"] = symbolValue
+	}
+
+	if category != "" {
+		req["category"] = category
+	} else {
+		return nil, errors.New("invalid category")
+	}
+
+	if cursor != "" {
+		req["cursor"] = cursor
+	}
+
+	if direction != "" {
+		req["direction"] = direction
+	}
+
+	if limit > 0 && limit <= 50 {
+		req["limit"] = strconv.FormatInt(limit, 10)
+	}
+
+	return resp.Result.Data, by.SendUSDCAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesGetPosition, req, &resp, publicFuturesRate)
+}
+
+// SetUSDCLeverage sets USDC leverage.
+func (by *Bybit) SetUSDCLeverage(ctx context.Context, symbol currency.Pair, leverage float64) (float64, error) {
+	resp := struct {
+		Result struct {
+			Leverage float64 `json:"leverage"`
+		} `json:"result"`
+		USDCError
+	}{}
+
+	req := make(map[string]interface{})
+	if !symbol.IsEmpty() {
+		symbolValue, err := by.FormatSymbol(symbol, asset.USDCMarginedFutures)
+		if err != nil {
+			return resp.Result.Leverage, err
+		}
+		req["symbol"] = symbolValue
+	} else {
+		return 0, errSymbolMissing
+	}
+
+	if leverage <= 0 {
+		req["leverage"] = strconv.FormatFloat(leverage, 'f', -1, 64)
+	} else {
+		return 0, errInvalidLeverage
+	}
+
+	return resp.Result.Leverage, by.SendUSDCAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesSetLeverage, req, &resp, publicFuturesRate)
 }
 
 // SendUSDCAuthHTTPRequest sends an authenticated HTTP request
