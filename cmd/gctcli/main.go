@@ -209,6 +209,7 @@ func main() {
 		technicalAnalysisCommand,
 		getMarginRatesHistoryCommand,
 		orderbookCommand,
+		strategyManagementCommand,
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())

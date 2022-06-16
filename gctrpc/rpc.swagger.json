@@ -3822,6 +3822,116 @@
         ]
       }
     },
+    "/v1/twapstream": {
+      "get": {
+        "operationId": "GoCryptoTraderService_TWAPStream",
+        "responses": {
+          "200": {
+            "description": "A successful response.(streaming responses)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "result": {
+                  "$ref": "#/definitions/gctrpcTWAPResponse"
+                },
+                "error": {
+                  "$ref": "#/definitions/rpcStatus"
+                }
+              },
+              "title": "Stream result of gctrpcTWAPResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.delimiter",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.base",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.quote",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "asset",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "start",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "name": "interval",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "amount",
+            "in": "query",
+            "required": false,
+            "type": "number",
+            "format": "double"
+          },
+          {
+            "name": "maxSlippage",
+            "in": "query",
+            "required": false,
+            "type": "number",
+            "format": "double"
+          },
+          {
+            "name": "accumulate",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "allowTradingPastEnd",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          }
+        ],
+        "tags": [
+          "GoCryptoTraderService"
+        ]
+      }
+    },
     "/v1/updateaccountinfo": {
       "get": {
         "operationId": "GoCryptoTraderService_UpdateAccountInfo",
@@ -6554,6 +6664,28 @@
           "type": "array",
           "items": {
             "$ref": "#/definitions/gctrpcTrades"
+          }
+        }
+      }
+    },
+    "gctrpcTWAPResponse": {
+      "type": "object",
+      "properties": {
+        "order": {
+          "type": "string"
+        },
+        "slippage": {
+          "type": "number",
+          "format": "double"
+        },
+        "error": {
+          "type": "string"
+        },
+        "balance": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number",
+            "format": "double"
           }
         }
       }
