@@ -877,6 +877,7 @@ type USDCTxLog struct {
 	Info          string  `json:"info"`
 }
 
+// USDCWalletBalance store USDC wallet balance
 type USDCWalletBalance struct {
 	Equity           float64 `json:"equity,string"`
 	WalletBalance    float64 `json:"walletBalance,string"`
@@ -888,6 +889,7 @@ type USDCWalletBalance struct {
 	TotalSessionRPL  float64 `json:"totalSessionRPL,string"`
 }
 
+// USDCAssetInfo stores USDC asset data
 type USDCAssetInfo struct {
 	BaseCoin   string  `json:"baseCoin"`
 	TotalDelta float64 `json:"totalDelta,string"`
@@ -901,6 +903,7 @@ type USDCAssetInfo struct {
 	MM         float64 `json:"mm,string"`
 }
 
+// USDCPosition store USDC position data
 type USDCPosition struct {
 	Symbol              string  `json:"symbol"`
 	Leverage            float64 `json:"leverage,string"`
@@ -929,4 +932,34 @@ type USDCPosition struct {
 	BustPrice           string  `json:"bustPrice"`
 	PositionStatus      string  `json:"positionStatus"`
 	DeleverageIndicator int64   `json:"deleverageIndicator"`
+}
+
+// USDCSettlementHistory store USDC settlement history data
+type USDCSettlementHistory struct {
+	Symbol          string  `json:"symbol"`
+	Side            string  `json:"side"`
+	Time            string  `json:"time"`
+	Size            float64 `json:"size,string"`
+	SessionAvgPrice float64 `json:"sessionAvgPrice,string"`
+	MarkPrice       float64 `json:"markPrice,string"`
+	SessionRpl      float64 `json:"sessionRpl,string"`
+}
+
+// USDCRiskLimit store USDC risk limit data
+type USDCRiskLimit struct {
+	RiskID         string   `json:"riskId"`
+	Symbol         string   `json:"symbol"`
+	Limit          string   `json:"limit"`
+	Section        []string `json:"section"`
+	StartingMargin float64  `json:"startingMargin,string"`
+	MaintainMargin float64  `json:"maintainMargin,string"`
+	IsLowestRisk   bool     `json:"isLowestRisk"`
+	MaxLeverage    float64  `json:"maxLeverage,string"`
+}
+
+// USDCFundingInfo store USDC funding data
+type USDCFundingInfo struct {
+	Symbol string  `json:"symbol"`
+	Time   string  `json:"fundingRateTimestamp"`
+	Rate   float64 `json:"fundingRate,string"`
 }

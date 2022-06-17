@@ -2719,7 +2719,6 @@ func TestGetServerTime(t *testing.T) {
 
 func TestGetUSDCFuturesOrderbook(t *testing.T) {
 	t.Parallel()
-
 	pair, err := currency.NewPairFromString("BTCPERP")
 	if err != nil {
 		t.Fatal(err)
@@ -2733,7 +2732,6 @@ func TestGetUSDCFuturesOrderbook(t *testing.T) {
 
 func TestGetUSDCContracts(t *testing.T) {
 	t.Parallel()
-
 	pair, err := currency.NewPairFromString("BTCPERP")
 	if err != nil {
 		t.Fatal(err)
@@ -2752,7 +2750,6 @@ func TestGetUSDCContracts(t *testing.T) {
 
 func TestGetUSDCSymbols(t *testing.T) {
 	t.Parallel()
-
 	pair, err := currency.NewPairFromString("BTCPERP")
 	if err != nil {
 		t.Fatal(err)
@@ -2766,7 +2763,6 @@ func TestGetUSDCSymbols(t *testing.T) {
 
 func TestGetUSDCKlines(t *testing.T) {
 	t.Parallel()
-
 	pair, err := currency.NewPairFromString("BTCPERP")
 	if err != nil {
 		t.Fatal(err)
@@ -2780,7 +2776,6 @@ func TestGetUSDCKlines(t *testing.T) {
 
 func TestGetUSDCMarkPriceKlines(t *testing.T) {
 	t.Parallel()
-
 	pair, err := currency.NewPairFromString("BTCPERP")
 	if err != nil {
 		t.Fatal(err)
@@ -2794,7 +2789,6 @@ func TestGetUSDCMarkPriceKlines(t *testing.T) {
 
 func TestGetUSDCIndexPriceKlines(t *testing.T) {
 	t.Parallel()
-
 	pair, err := currency.NewPairFromString("BTCPERP")
 	if err != nil {
 		t.Fatal(err)
@@ -2808,7 +2802,6 @@ func TestGetUSDCIndexPriceKlines(t *testing.T) {
 
 func TestGetUSDCPremiumIndexKlines(t *testing.T) {
 	t.Parallel()
-
 	pair, err := currency.NewPairFromString("BTCPERP")
 	if err != nil {
 		t.Fatal(err)
@@ -2822,7 +2815,6 @@ func TestGetUSDCPremiumIndexKlines(t *testing.T) {
 
 func TestGetUSDCOpenInterest(t *testing.T) {
 	t.Parallel()
-
 	pair, err := currency.NewPairFromString("BTCPERP")
 	if err != nil {
 		t.Fatal(err)
@@ -2836,7 +2828,6 @@ func TestGetUSDCOpenInterest(t *testing.T) {
 
 func TestGetUSDCLargeOrders(t *testing.T) {
 	t.Parallel()
-
 	pair, err := currency.NewPairFromString("BTCPERP")
 	if err != nil {
 		t.Fatal(err)
@@ -2850,7 +2841,6 @@ func TestGetUSDCLargeOrders(t *testing.T) {
 
 func TestGetUSDCAccountRatio(t *testing.T) {
 	t.Parallel()
-
 	pair, err := currency.NewPairFromString("BTCPERP")
 	if err != nil {
 		t.Fatal(err)
@@ -2864,7 +2854,6 @@ func TestGetUSDCAccountRatio(t *testing.T) {
 
 func TestGetUSDCLatestTrades(t *testing.T) {
 	t.Parallel()
-
 	pair, err := currency.NewPairFromString("BTCPERP")
 	if err != nil {
 		t.Fatal(err)
@@ -3072,6 +3061,23 @@ func TestGetUSDCPositions(t *testing.T) {
 
 func TestSetUSDCLeverage(t *testing.T) {
 	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+	}
+
+	pair, err := currency.NewPairFromString("BTCPERP")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = b.SetUSDCLeverage(context.Background(), pair, 2)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetUSDCSettlementHistory(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
@@ -3081,7 +3087,67 @@ func TestSetUSDCLeverage(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = b.SetUSDCLeverage(context.Background(), pair, 1)
+	_, err = b.GetUSDCSettlementHistory(context.Background(), pair, "", "", 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetUSDCRiskLimit(t *testing.T) {
+	t.Parallel()
+	pair, err := currency.NewPairFromString("BTCPERP")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = b.GetUSDCRiskLimit(context.Background(), pair)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestSetUSDCRiskLimit(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+	}
+
+	pair, err := currency.NewPairFromString("BTCPERP")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = b.SetUSDCRiskLimit(context.Background(), pair, 2)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetUSDCLastFundingRate(t *testing.T) {
+	t.Parallel()
+	pair, err := currency.NewPairFromString("BTCPERP")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = b.GetUSDCLastFundingRate(context.Background(), pair)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetUSDCPredictedFundingRate(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	pair, err := currency.NewPairFromString("BTCPERP")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, _, err = b.GetUSDCPredictedFundingRate(context.Background(), pair)
 	if err != nil {
 		t.Error(err)
 	}

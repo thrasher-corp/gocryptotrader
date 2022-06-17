@@ -918,7 +918,7 @@ func (by *Bybit) GetUSDCPosition(ctx context.Context, symbol currency.Pair, cate
 func (by *Bybit) SetUSDCLeverage(ctx context.Context, symbol currency.Pair, leverage float64) (float64, error) {
 	resp := struct {
 		Result struct {
-			Leverage float64 `json:"leverage"`
+			Leverage float64 `json:"leverage,string"`
 		} `json:"result"`
 		USDCError
 	}{}
@@ -935,12 +935,144 @@ func (by *Bybit) SetUSDCLeverage(ctx context.Context, symbol currency.Pair, leve
 	}
 
 	if leverage <= 0 {
-		req["leverage"] = strconv.FormatFloat(leverage, 'f', -1, 64)
-	} else {
 		return 0, errInvalidLeverage
+	} else {
+		req["leverage"] = strconv.FormatFloat(leverage, 'f', -1, 64)
 	}
 
 	return resp.Result.Leverage, by.SendUSDCAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesSetLeverage, req, &resp, publicFuturesRate)
+}
+
+// GetUSDCSettlementHistory gets USDC settlement history with support of last 30 days.
+func (by *Bybit) GetUSDCSettlementHistory(ctx context.Context, symbol currency.Pair, direction, cursor string, limit int64) ([]USDCSettlementHistory, error) {
+	resp := struct {
+		Result struct {
+			Cursor          string                  `json:"cursor"`
+			ResultTotalSize int64                   `json:"resultTotalSize"`
+			Data            []USDCSettlementHistory `json:"dataList"`
+		} `json:"result"`
+		USDCError
+	}{}
+
+	req := make(map[string]interface{})
+	if !symbol.IsEmpty() {
+		symbolValue, err := by.FormatSymbol(symbol, asset.USDCMarginedFutures)
+		if err != nil {
+			return resp.Result.Data, err
+		}
+		req["symbol"] = symbolValue
+	} else {
+		return resp.Result.Data, errSymbolMissing
+	}
+
+	if cursor != "" {
+		req["cursor"] = cursor
+	}
+
+	if direction != "" {
+		req["direction"] = direction
+	}
+
+	if limit > 0 && limit <= 50 {
+		req["limit"] = strconv.FormatInt(limit, 10)
+	}
+
+	return resp.Result.Data, by.SendUSDCAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesGetSettlementHistory, req, &resp, publicFuturesRate)
+}
+
+// GetUSDCRiskLimit gets USDC risk limits data.
+func (by *Bybit) GetUSDCRiskLimit(ctx context.Context, symbol currency.Pair) ([]USDCRiskLimit, error) {
+	resp := struct {
+		Result []USDCRiskLimit `json:"result"`
+		USDCError
+	}{}
+
+	params := url.Values{}
+	if !symbol.IsEmpty() {
+		symbolValue, err := by.FormatSymbol(symbol, asset.USDCMarginedFutures)
+		if err != nil {
+			return resp.Result, err
+		}
+		params.Set("symbol", symbolValue)
+	} else {
+		return nil, errSymbolMissing
+	}
+
+	return resp.Result, by.SendHTTPRequest(ctx, exchange.RestUSDCMargined, common.EncodeURLValues(usdcfuturesGetRiskLimit, params), publicFuturesRate, &resp)
+}
+
+// SetUSDCRiskLimit sets USDC risk limit.
+func (by *Bybit) SetUSDCRiskLimit(ctx context.Context, symbol currency.Pair, riskID int64) (string, error) {
+	resp := struct {
+		Result struct {
+			RiskID string `json:"riskId"`
+		} `json:"result"`
+		USDCError
+	}{}
+
+	req := make(map[string]interface{})
+	if !symbol.IsEmpty() {
+		symbolValue, err := by.FormatSymbol(symbol, asset.USDCMarginedFutures)
+		if err != nil {
+			return resp.Result.RiskID, err
+		}
+		req["symbol"] = symbolValue
+	} else {
+		return resp.Result.RiskID, errSymbolMissing
+	}
+
+	if riskID <= 0 {
+		return resp.Result.RiskID, errInvalidRiskID
+	} else {
+		req["riskId"] = riskID
+	}
+
+	return resp.Result.RiskID, by.SendUSDCAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesSetRiskLimit, req, &resp, publicFuturesRate)
+}
+
+// GetUSDCLastFundingRate gets USDC last funding rates.
+func (by *Bybit) GetUSDCLastFundingRate(ctx context.Context, symbol currency.Pair) (USDCFundingInfo, error) {
+	resp := struct {
+		Result USDCFundingInfo `json:"result"`
+		USDCError
+	}{}
+
+	params := url.Values{}
+	if !symbol.IsEmpty() {
+		symbolValue, err := by.FormatSymbol(symbol, asset.USDCMarginedFutures)
+		if err != nil {
+			return resp.Result, err
+		}
+		params.Set("symbol", symbolValue)
+	} else {
+		return resp.Result, errSymbolMissing
+	}
+
+	return resp.Result, by.SendHTTPRequest(ctx, exchange.RestUSDCMargined, common.EncodeURLValues(usdcfuturesGetLastFundingRate, params), publicFuturesRate, &resp)
+}
+
+// GetUSDCPredictedFundingRate gets predicted funding rates and my predicted funding fee.
+func (by *Bybit) GetUSDCPredictedFundingRate(ctx context.Context, symbol currency.Pair) (float64, float64, error) {
+	resp := struct {
+		Result struct {
+			PredictedFundingRate float64 `json:"predictedFundingRate,string"`
+			PredictedFundingFee  float64 `json:"predictedFundingFee,string"`
+		} `json:"result"`
+		USDCError
+	}{}
+
+	req := make(map[string]interface{})
+	if !symbol.IsEmpty() {
+		symbolValue, err := by.FormatSymbol(symbol, asset.USDCMarginedFutures)
+		if err != nil {
+			return resp.Result.PredictedFundingRate, resp.Result.PredictedFundingFee, err
+		}
+		req["symbol"] = symbolValue
+	} else {
+		return resp.Result.PredictedFundingRate, resp.Result.PredictedFundingFee, errSymbolMissing
+	}
+
+	return resp.Result.PredictedFundingRate, resp.Result.PredictedFundingFee, by.SendUSDCAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesGetPredictedFundingRate, req, &resp, publicFuturesRate)
 }
 
 // SendUSDCAuthHTTPRequest sends an authenticated HTTP request
