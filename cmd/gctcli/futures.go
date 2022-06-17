@@ -9,6 +9,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
 	"github.com/urfave/cli/v2"
 )
@@ -215,7 +216,7 @@ var futuresCommands = &cli.Command{
 			Aliases:   []string{"funding", "f"},
 			Usage:     "returns funding rate data between two dates",
 			ArgsUsage: "<exchange> <asset> <pairs> <start> <end> <includepredicted> <includepayments>",
-			Action:    getfundingRates,
+			Action:    getFundingRates,
 			Flags: []cli.Flag{
 				&cli.StringFlag{
 					Name:    "exchange",
@@ -279,10 +280,9 @@ func getManagedPosition(c *cli.Context) error {
 	} else {
 		assetType = c.Args().Get(1)
 	}
-	if !validAsset(assetType) {
-		return errInvalidAsset
+	if err := isFuturesAsset(assetType); err != nil {
+		return err
 	}
-
 	var currencyPair string
 	if c.IsSet("pair") {
 		currencyPair = c.String("pair")
@@ -328,6 +328,20 @@ func getManagedPosition(c *cli.Context) error {
 		}
 	}
 
+	var includePredictedRate bool
+	if c.IsSet("includepredictedrate") {
+		includePredictedRate = c.Bool("includepredictedrate")
+	} else if c.Args().Get(6) != "" {
+		includePredictedRate, err = strconv.ParseBool(c.Args().Get(6))
+		if err != nil {
+			return err
+		}
+	}
+
+	if err = order.AreFundingRatePrerequisitesMet(getFundingData, includePredictedRate, includeFundingEntries); err != nil {
+		return err
+	}
+
 	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
@@ -347,6 +361,7 @@ func getManagedPosition(c *cli.Context) error {
 			IncludeFullOrderData:    includeOrderDetails,
 			GetFundingPayments:      getFundingData,
 			IncludeFullFundingRates: includeFundingEntries,
+			IncludePredictedRate:    includePredictedRate,
 		})
 	if err != nil {
 		return err
@@ -389,6 +404,19 @@ func getAllManagedPositions(c *cli.Context) error {
 		if err != nil {
 			return err
 		}
+	}
+
+	if c.IsSet("includepredictedrate") {
+		includePredictedRate = c.Bool("includepredictedrate")
+	} else if c.Args().Get(2) != "" {
+		includePredictedRate, err = strconv.ParseBool(c.Args().Get(3))
+		if err != nil {
+			return err
+		}
+	}
+
+	if err = order.AreFundingRatePrerequisitesMet(getFundingData, includePredictedRate, includeFundingEntries); err != nil {
+		return err
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -443,10 +471,9 @@ func getFuturesPositions(c *cli.Context) error {
 		assetType = c.Args().Get(1)
 	}
 
-	if !validAsset(assetType) {
-		return errInvalidAsset
+	if err := isFuturesAsset(assetType); err != nil {
+		return err
 	}
-
 	if c.IsSet("pair") {
 		currencyPair = c.String("pair")
 	} else {
@@ -482,6 +509,9 @@ func getFuturesPositions(c *cli.Context) error {
 		}
 		limit = int(limit64)
 	}
+	if limit <= 0 {
+		return errors.New("limit must be greater than 0")
+	}
 
 	if c.IsSet("status") {
 		status = c.String("status")
@@ -514,35 +544,39 @@ func getFuturesPositions(c *cli.Context) error {
 	}
 	if c.IsSet("getpositionstats") {
 		getPositionsStats = c.Bool("getpositionstats")
-	} else if c.Args().Get(11) != "" {
-		getPositionsStats, err = strconv.ParseBool(c.Args().Get(11))
+	} else if c.Args().Get(9) != "" {
+		getPositionsStats, err = strconv.ParseBool(c.Args().Get(9))
 		if err != nil {
 			return err
 		}
 	}
 	if c.IsSet("getfundingdata") {
 		getFundingData = c.Bool("getfundingdata")
-	} else if c.Args().Get(9) != "" {
-		getFundingData, err = strconv.ParseBool(c.Args().Get(9))
+	} else if c.Args().Get(10) != "" {
+		getFundingData, err = strconv.ParseBool(c.Args().Get(10))
 		if err != nil {
 			return err
 		}
 	}
 	if c.IsSet("includefundingentries") {
 		includeFundingEntries = c.Bool("includefundingentries")
-	} else if c.Args().Get(10) != "" {
-		includeFundingEntries, err = strconv.ParseBool(c.Args().Get(10))
+	} else if c.Args().Get(11) != "" {
+		includeFundingEntries, err = strconv.ParseBool(c.Args().Get(11))
 		if err != nil {
 			return err
 		}
 	}
-	if !c.IsSet("includepredicted") {
-		if c.Args().Get(5) != "" {
-			includePredicted, err = strconv.ParseBool(c.Args().Get(5))
-			if err != nil {
-				return err
-			}
+	if c.IsSet("includepredictedrate") {
+		includePredicted = c.Bool("includepredictedrate")
+	} else if c.Args().Get(12) != "" {
+		includePredicted, err = strconv.ParseBool(c.Args().Get(12))
+		if err != nil {
+			return err
 		}
+	}
+
+	if err = order.AreFundingRatePrerequisitesMet(getFundingData, includePredicted, includeFundingEntries); err != nil {
+		return err
 	}
 
 	s, err = time.Parse(common.SimpleTimeFormat, startTime)
@@ -613,10 +647,9 @@ func getCollateral(c *cli.Context) error {
 		assetType = c.Args().Get(1)
 	}
 
-	if !validAsset(assetType) {
-		return errInvalidAsset
+	if err := isFuturesAsset(assetType); err != nil {
+		return err
 	}
-
 	if c.IsSet("calculateoffline") {
 		calculateOffline = c.Bool("calculateoffline")
 	} else if c.Args().Get(2) != "" {
@@ -667,7 +700,7 @@ func getCollateral(c *cli.Context) error {
 	return nil
 }
 
-func getfundingRates(c *cli.Context) error {
+func getFundingRates(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
 		return cli.ShowCommandHelp(c, "getfundingrates")
 	}
@@ -691,8 +724,8 @@ func getfundingRates(c *cli.Context) error {
 		assetType = c.Args().Get(1)
 	}
 
-	if !validAsset(assetType) {
-		return errInvalidAsset
+	if err := isFuturesAsset(assetType); err != nil {
+		return err
 	}
 	if c.IsSet("pairs") {
 		currencyPairs = c.StringSlice("pairs")

@@ -41,6 +41,8 @@ var (
 	ErrNoPositionsFound = errors.New("no positions found")
 	// ErrNoRates returned when no funding rates are received
 	ErrNoRates = errors.New("no funding rates")
+	// ErrGetFundingDataRequired is returned when requesting funding rate data without the prerequisite
+	ErrGetFundingDataRequired = errors.New("getfundingdata is a prerequisite")
 
 	errExchangeNameEmpty              = errors.New("exchange name empty")
 	errTimeUnset                      = errors.New("time unset")

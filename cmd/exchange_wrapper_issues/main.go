@@ -907,7 +907,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 
 		calculatePNLRequest := &order.PNLCalculatorRequest{
 			Pair:             p,
-			Underlying:       p.Quote,
+			Underlying:       p.Base,
 			Asset:            assetTypes[i],
 			EntryPrice:       decimal.NewFromInt(1337),
 			OpeningDirection: testOrderSide,

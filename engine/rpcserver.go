@@ -67,6 +67,7 @@ var (
 	errCurrencyNotSpecified    = errors.New("a currency must be specified")
 	errCurrencyPairInvalid     = errors.New("currency provided is not found in the available pairs list")
 	errNoTrades                = errors.New("no trades returned from supplied params")
+	errUnexpectedResponseSize  = errors.New("unexpected slice size")
 	errNilRequestData          = errors.New("nil request data received, cannot continue")
 	errNoAccountInformation    = errors.New("account information does not exist")
 	errShutdownNotAllowed      = errors.New("shutting down this bot instance is not allowed via gRPC, please enable by command line flag --grpcshutdown or config.json field grpcAllowBotShutdown")
@@ -4250,6 +4251,9 @@ func (s *RPCServer) GetManagedPosition(_ context.Context, r *gctrpc.GetManagedPo
 	if r == nil {
 		return nil, fmt.Errorf("%w GetManagedPositionRequest", common.ErrNilPointer)
 	}
+	if err := order.AreFundingRatePrerequisitesMet(r.GetFundingPayments, r.IncludePredictedRate, r.GetFundingPayments); err != nil {
+		return nil, err
+	}
 	if r.Pair == nil {
 		return nil, fmt.Errorf("%w request pair", common.ErrNilPointer)
 	}
@@ -4299,6 +4303,9 @@ func (s *RPCServer) GetAllManagedPositions(_ context.Context, r *gctrpc.GetAllMa
 	if r == nil {
 		return nil, fmt.Errorf("%w GetAllManagedPositions", common.ErrNilPointer)
 	}
+	if err := order.AreFundingRatePrerequisitesMet(r.GetFundingPayments, r.IncludePredictedRate, r.GetFundingPayments); err != nil {
+		return nil, err
+	}
 	positions, err := s.OrderManager.GetAllOpenFuturesPositions()
 	if err != nil {
 		if !s.OrderManager.trackFuturesPositions {
@@ -4316,6 +4323,12 @@ func (s *RPCServer) GetAllManagedPositions(_ context.Context, r *gctrpc.GetAllMa
 
 // GetFuturesPositions returns pnl positions for an exchange asset pair
 func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuturesPositionsRequest) (*gctrpc.GetFuturesPositionsResponse, error) {
+	if r == nil {
+		return nil, fmt.Errorf("%w GetFuturesPositions", common.ErrNilPointer)
+	}
+	if err := order.AreFundingRatePrerequisitesMet(r.GetFundingPayments, r.IncludePredictedRate, r.GetFundingPayments); err != nil {
+		return nil, err
+	}
 	exch, err := s.GetExchangeByName(r.Exchange)
 	if err != nil {
 		return nil, err
@@ -4394,6 +4407,9 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 	}
 	var totalRealisedPNL, totalUnrealisedPNL decimal.Decimal
 	for i := range pos {
+		if pos[i].Status.String() != strings.ToUpper(r.Status) {
+			continue
+		}
 		if r.PositionLimit > 0 && len(response.Positions) >= int(r.PositionLimit) {
 			break
 		}
@@ -4490,7 +4506,7 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 				return nil, err
 			}
 			if len(fundingDetails) != 1 {
-				return nil, err
+				return nil, fmt.Errorf("%w expected 1 funding rate, got %d", errUnexpectedResponseSize, len(fundingDetails))
 			}
 			var funding []*gctrpc.FundingRate
 			if r.IncludeFullFundingRates {
