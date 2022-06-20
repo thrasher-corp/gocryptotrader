@@ -1857,7 +1857,7 @@ func (f *FTX) GetFundingRates(ctx context.Context, request *order.FundingRatesRe
 	if err != nil {
 		return nil, err
 	}
-	response := make([]order.FundingRates, len(request.Pairs))
+	response := make([]order.FundingRates, 0, len(request.Pairs))
 	for x := range request.Pairs {
 		var isPerp bool
 		isPerp, err = f.IsPerpetualFutureCurrency(request.Asset, request.Pairs[x])
@@ -1891,6 +1891,9 @@ func (f *FTX) GetFundingRates(ctx context.Context, request *order.FundingRatesRe
 			rates, err = f.FundingRates(ctx, request.StartDate, endTime, fPair)
 			if err != nil {
 				return nil, err
+			}
+			if len(rates) == 0 {
+				break allRates
 			}
 			for y := range rates {
 				if request.StartDate.Equal(rates[y].Time) || rates[y].Time.Before(request.StartDate) {
@@ -1927,7 +1930,7 @@ func (f *FTX) GetFundingRates(ctx context.Context, request *order.FundingRatesRe
 			endTime = rates[len(rates)-1].Time
 		}
 		if len(pairResponse.FundingRates) == 0 {
-			return nil, order.ErrNoRates
+			return nil, fmt.Errorf("%w for %v %v", order.ErrNoRates, request.Asset, request.Pairs[x])
 		}
 		if request.IncludePredictedRate {
 			stats, err = f.GetFutureStats(ctx, fPair)
@@ -1944,7 +1947,7 @@ func (f *FTX) GetFundingRates(ctx context.Context, request *order.FundingRatesRe
 			return pairResponse.FundingRates[i].Time.Before(pairResponse.FundingRates[j].Time)
 		})
 		pairResponse.LatestRate = pairResponse.FundingRates[len(pairResponse.FundingRates)-1]
-		response[x] = pairResponse
+		response = append(response, pairResponse)
 	}
 	return response, nil
 }

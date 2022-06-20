@@ -23,7 +23,7 @@ var (
 
 	errNilCommunicationsManager = errors.New("cannot start with nil communications manager")
 	errNilOrder                 = errors.New("nil order received")
-	errFuturesTrackingDisabled  = errors.New("tracking futures positions disabled. enable it in config")
+	errFuturesTrackingDisabled  = errors.New("tracking futures positions disabled. enable it via config under orderManager trackFuturesPositions")
 	errFuturesTrackerNotSetup   = errors.New("futures position tracker not setup")
 	orderManagerDelay           = time.Second * 10
 )

@@ -763,7 +763,13 @@ func (m *OrderManager) processFuturesPositions(exch exchange.IBotExchange, posit
 	if err != nil {
 		return fmt.Errorf("%w when updating unrealised PNL for %v %v %v", err, position.Exchange, position.Asset, position.Pair)
 	}
-
+	isPerp, err := exch.IsPerpetualFutureCurrency(position.Asset, position.Pair)
+	if err != nil {
+		return err
+	}
+	if !isPerp {
+		return nil
+	}
 	frp, err := exch.GetFundingRates(context.TODO(), &order.FundingRatesRequest{
 		Asset:                position.Asset,
 		Pairs:                currency.Pairs{position.Pair},
@@ -777,7 +783,7 @@ func (m *OrderManager) processFuturesPositions(exch exchange.IBotExchange, posit
 	}
 	for i := range frp {
 		err = m.orderStore.futuresPositionController.TrackFundingDetails(&frp[i])
-		if err != nil && !errors.Is(err, order.ErrNotPerpetualFuture) {
+		if err != nil {
 			return err
 		}
 	}

@@ -1315,3 +1315,46 @@ func TestPTTrackFundingDetails(t *testing.T) {
 		t.Errorf("received '%v' expected '%v", err, errFundingRateOutOfRange)
 	}
 }
+
+func TestAreFundingRatePrerequisitesMet(t *testing.T) {
+	t.Parallel()
+	err := CheckFundingRatePrerequisites(false, false, false)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v", err, nil)
+	}
+
+	err = CheckFundingRatePrerequisites(true, false, false)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v", err, nil)
+	}
+
+	err = CheckFundingRatePrerequisites(true, true, false)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v", err, nil)
+	}
+
+	err = CheckFundingRatePrerequisites(true, true, true)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v", err, nil)
+	}
+
+	err = CheckFundingRatePrerequisites(true, false, true)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v", err, nil)
+	}
+
+	err = CheckFundingRatePrerequisites(false, false, true)
+	if !errors.Is(err, ErrGetFundingDataRequired) {
+		t.Errorf("received '%v' expected '%v", err, ErrGetFundingDataRequired)
+	}
+
+	err = CheckFundingRatePrerequisites(false, true, true)
+	if !errors.Is(err, ErrGetFundingDataRequired) {
+		t.Errorf("received '%v' expected '%v", err, ErrGetFundingDataRequired)
+	}
+
+	err = CheckFundingRatePrerequisites(false, true, false)
+	if !errors.Is(err, ErrGetFundingDataRequired) {
+		t.Errorf("received '%v' expected '%v", err, ErrGetFundingDataRequired)
+	}
+}

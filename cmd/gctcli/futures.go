@@ -280,7 +280,8 @@ func getManagedPosition(c *cli.Context) error {
 	} else {
 		assetType = c.Args().Get(1)
 	}
-	if err := isFuturesAsset(assetType); err != nil {
+	err := isFuturesAsset(assetType)
+	if err != nil {
 		return err
 	}
 	var currencyPair string
@@ -338,7 +339,8 @@ func getManagedPosition(c *cli.Context) error {
 		}
 	}
 
-	if err = order.AreFundingRatePrerequisitesMet(getFundingData, includePredictedRate, includeFundingEntries); err != nil {
+	err = order.CheckFundingRatePrerequisites(getFundingData, includePredictedRate, includeFundingEntries)
+	if err != nil {
 		return err
 	}
 
@@ -415,7 +417,8 @@ func getAllManagedPositions(c *cli.Context) error {
 		}
 	}
 
-	if err = order.AreFundingRatePrerequisitesMet(getFundingData, includePredictedRate, includeFundingEntries); err != nil {
+	err = order.CheckFundingRatePrerequisites(getFundingData, includePredictedRate, includeFundingEntries)
+	if err != nil {
 		return err
 	}
 
@@ -471,7 +474,8 @@ func getFuturesPositions(c *cli.Context) error {
 		assetType = c.Args().Get(1)
 	}
 
-	if err := isFuturesAsset(assetType); err != nil {
+	err = isFuturesAsset(assetType)
+	if err != nil {
 		return err
 	}
 	if c.IsSet("pair") {
@@ -574,8 +578,8 @@ func getFuturesPositions(c *cli.Context) error {
 			return err
 		}
 	}
-
-	if err = order.AreFundingRatePrerequisitesMet(getFundingData, includePredicted, includeFundingEntries); err != nil {
+	err = order.CheckFundingRatePrerequisites(getFundingData, includePredicted, includeFundingEntries)
+	if err != nil {
 		return err
 	}
 
@@ -647,7 +651,8 @@ func getCollateral(c *cli.Context) error {
 		assetType = c.Args().Get(1)
 	}
 
-	if err := isFuturesAsset(assetType); err != nil {
+	err = isFuturesAsset(assetType)
+	if err != nil {
 		return err
 	}
 	if c.IsSet("calculateoffline") {
@@ -724,7 +729,8 @@ func getFundingRates(c *cli.Context) error {
 		assetType = c.Args().Get(1)
 	}
 
-	if err := isFuturesAsset(assetType); err != nil {
+	err = isFuturesAsset(assetType)
+	if err != nil {
 		return err
 	}
 	if c.IsSet("pairs") {

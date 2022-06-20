@@ -1345,8 +1345,8 @@ func (c *Config) CheckOrderManagerConfig() {
 		c.OrderManager.TrackFuturesPositions = true
 	}
 	if c.OrderManager.OpenPositionSeekDuration <= 0 {
-		// one likely isn't to have a perpetual futures order open
-		// for longer than a year, but who am I, but a shrimp?
+		// one isn't likely to have a perpetual futures order open
+		// for longer than a year
 		c.OrderManager.OpenPositionSeekDuration = -time.Hour * 24 * 365
 	}
 }
