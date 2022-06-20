@@ -1313,6 +1313,6 @@ func (b *Base) GetServerTime(_ context.Context, _ asset.Item) (time.Time, error)
 }
 
 // GetMarginRatesHistory returns the margin rate history for the supplied currency
-func (b *Base) GetMarginRatesHistory(context.Context, *order.LendingRateRequest) (*order.LendingRateResponse, error) {
+func (b *Base) GetMarginRatesHistory(context.Context, *order.MarginRateHistoryRequest) (*order.MarginRateHistoryResponse, error) {
 	return nil, common.ErrNotYetImplemented
 }

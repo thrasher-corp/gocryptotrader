@@ -843,6 +843,31 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Error:      msg,
 			Response:   withdrawFiatFundsInternationalResponse,
 		})
+
+		marginRateHistoryRequest := &order.MarginRateHistoryRequest{
+			Exchange:           e.GetName(),
+			Asset:              assetTypes[i],
+			Currency:           p.Base,
+			StartDate:          time.Now().Add(-time.Hour * 24),
+			EndDate:            time.Now(),
+			GetPredictedRate:   true,
+			GetLendingPayments: true,
+			GetBorrowRates:     true,
+			GetBorrowCosts:     true,
+		}
+		marginRateHistoryResponse, err := e.GetMarginRatesHistory(context.TODO(), marginRateHistoryRequest)
+		msg = ""
+		if err != nil {
+			msg = err.Error()
+			responseContainer.ErrorCount++
+		}
+		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
+			SentParams: jsonifyInterface([]interface{}{marginRateHistoryRequest}),
+			Function:   "GetMarginRatesHistory",
+			Error:      msg,
+			Response:   marginRateHistoryResponse,
+		})
+
 		response = append(response, responseContainer)
 	}
 	return response

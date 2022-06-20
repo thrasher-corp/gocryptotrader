@@ -350,8 +350,8 @@ type ClassificationError struct {
 	Err      error
 }
 
-// LendingRateRequest is used to request a funding rate
-type LendingRateRequest struct {
+// MarginRateHistoryRequest is used to request a funding rate
+type MarginRateHistoryRequest struct {
 	Exchange           string
 	Asset              asset.Item
 	Currency           currency.Code
@@ -368,24 +368,24 @@ type LendingRateRequest struct {
 	CalculateOffline bool
 	TakeFeeRate      decimal.Decimal
 	// Rates is used when calculating offline and determiningPayments
-	// Each LendingRate must have the Rate and Size fields populated
-	Rates []LendingRate
+	// Each MarginRate must have the Rate and Size fields populated
+	Rates []MarginRate
 }
 
-// LendingRateResponse has the funding rate details
-type LendingRateResponse struct {
-	Rates              []LendingRate
+// MarginRateHistoryResponse has the funding rate details
+type MarginRateHistoryResponse struct {
+	Rates              []MarginRate
 	SumBorrowCosts     decimal.Decimal
 	SumBorrowSize      decimal.Decimal
 	SumLendingPayments decimal.Decimal
 	SumLendingSize     decimal.Decimal
-	PredictedRate      LendingRate
+	PredictedRate      MarginRate
 	TakerFeeRate       decimal.Decimal
 }
 
-// LendingRate has the funding rate details
+// MarginRate has the funding rate details
 // and optionally the borrow rate
-type LendingRate struct {
+type MarginRate struct {
 	Time              time.Time
 	TotalBorrowedSize decimal.Decimal
 	Rate              decimal.Decimal

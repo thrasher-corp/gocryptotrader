@@ -91,9 +91,9 @@ func (f fExchange) GetHistoricCandlesExtended(ctx context.Context, p currency.Pa
 	}, nil
 }
 
-func (f fExchange) GetMarginRatesHistory(context.Context, *order.LendingRateRequest) (*order.LendingRateResponse, error) {
+func (f fExchange) GetMarginRatesHistory(context.Context, *order.MarginRateHistoryRequest) (*order.MarginRateHistoryResponse, error) {
 	leet := decimal.NewFromInt(1337)
-	rates := []order.LendingRate{
+	rates := []order.MarginRate{
 		{
 			Time:              time.Now(),
 			TotalBorrowedSize: leet,
@@ -109,7 +109,7 @@ func (f fExchange) GetMarginRatesHistory(context.Context, *order.LendingRateRequ
 			},
 		},
 	}
-	resp := &order.LendingRateResponse{
+	resp := &order.MarginRateHistoryResponse{
 		Rates:              rates,
 		SumBorrowCosts:     leet,
 		SumBorrowSize:      leet,

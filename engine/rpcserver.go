@@ -4624,7 +4624,7 @@ func (s *RPCServer) GetMarginRatesHistory(ctx context.Context, r *gctrpc.GetMarg
 		return nil, err
 	}
 
-	request := &order.LendingRateRequest{
+	request := &order.MarginRateHistoryRequest{
 		Exchange:           exch.GetName(),
 		Asset:              a,
 		Currency:           c,
@@ -4652,7 +4652,7 @@ func (s *RPCServer) GetMarginRatesHistory(ctx context.Context, r *gctrpc.GetMarg
 			return nil, fmt.Errorf("%w for offline calculations", common.ErrCannotCalculateOffline)
 		}
 		for i := range r.Rates {
-			var offlineRate order.LendingRate
+			var offlineRate order.MarginRate
 			offlineRate.Time, err = time.Parse(common.SimpleTimeFormat, r.Rates[i].Time)
 			if err != nil {
 				return nil, err

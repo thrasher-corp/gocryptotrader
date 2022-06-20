@@ -66,7 +66,7 @@ type IBotExchange interface {
 	EnableRateLimiter() error
 	GetServerTime(ctx context.Context, ai asset.Item) (time.Time, error)
 	CurrencyStateManagement
-	GetMarginRatesHistory(context.Context, *order.LendingRateRequest) (*order.LendingRateResponse, error)
+	GetMarginRatesHistory(context.Context, *order.MarginRateHistoryRequest) (*order.MarginRateHistoryResponse, error)
 
 	order.PNLCalculation
 	order.CollateralManagement

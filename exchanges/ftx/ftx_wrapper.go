@@ -1685,7 +1685,7 @@ func (f *FTX) GetFuturesPositions(ctx context.Context, a asset.Item, cp currency
 
 // GetMarginRatesHistory gets the margin rate history for the given currency, asset, pair
 // Can also include borrow rates, or lending income/borrow payments
-func (f *FTX) GetMarginRatesHistory(ctx context.Context, request *order.LendingRateRequest) (*order.LendingRateResponse, error) {
+func (f *FTX) GetMarginRatesHistory(ctx context.Context, request *order.MarginRateHistoryRequest) (*order.MarginRateHistoryResponse, error) {
 	if request == nil {
 		return nil, fmt.Errorf("%w funding rate request is nil", common.ErrNilPointer)
 	}
@@ -1720,7 +1720,7 @@ func (f *FTX) GetMarginRatesHistory(ctx context.Context, request *order.LendingR
 		}
 		takerFeeRate = decimal.NewFromFloat(accountInfo.TakerFee)
 	}
-	response := &order.LendingRateResponse{
+	response := &order.MarginRateHistoryResponse{
 		TakerFeeRate: takerFeeRate,
 	}
 	if request.CalculateOffline {
@@ -1729,7 +1729,7 @@ func (f *FTX) GetMarginRatesHistory(ctx context.Context, request *order.LendingR
 		}
 		response.Rates = request.Rates
 	} else {
-		var responseRates []order.LendingRate
+		var responseRates []order.MarginRate
 		endDate := request.EndDate
 		for {
 			var rates []MarginTransactionHistoryData
@@ -1744,7 +1744,7 @@ func (f *FTX) GetMarginRatesHistory(ctx context.Context, request *order.LendingR
 				if !rates[i].Coin.Equal(request.Currency) {
 					continue
 				}
-				rate := order.LendingRate{
+				rate := order.MarginRate{
 					Time: rates[i].Time,
 					Rate: decimal.NewFromFloat(rates[i].Rate),
 				}
@@ -1780,7 +1780,7 @@ func (f *FTX) GetMarginRatesHistory(ctx context.Context, request *order.LendingR
 			if !borrowRates[i].Coin.Equal(request.Currency) {
 				continue
 			}
-			response.PredictedRate = order.LendingRate{
+			response.PredictedRate = order.MarginRate{
 				Time: response.Rates[len(response.Rates)-1].Time.Add(time.Hour),
 				Rate: decimal.NewFromFloat(borrowRates[i].Estimate),
 			}
