@@ -5061,11 +5061,11 @@ func shutdown(c *cli.Context) error {
 	return nil
 }
 
-var getLendingRatesCommand = &cli.Command{
-	Name:      "getlendingrates",
+var getMarginRatesHistoryCommand = &cli.Command{
+	Name:      "getmarginrateshistory",
 	Usage:     "returns lending/borrow rates for a period",
 	ArgsUsage: "<exchange> <asset> <currency> <includebreakdown> <includezerovalues>",
-	Action:    getLendingRates,
+	Action:    getMarginRatesHistory,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
 			Name:    "exchange",
@@ -5124,7 +5124,7 @@ var getLendingRatesCommand = &cli.Command{
 	},
 }
 
-func getLendingRates(c *cli.Context) error {
+func getMarginRatesHistory(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
 		return cli.ShowCommandHelp(c, c.Command.Name)
 	}
@@ -5239,8 +5239,8 @@ func getLendingRates(c *cli.Context) error {
 	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.GetLendingRates(c.Context,
-		&gctrpc.GetLendingRatesRequest{
+	result, err := client.GetMarginRatesHistory(c.Context,
+		&gctrpc.GetMarginRatesHistoryRequest{
 			Exchange:           exchangeName,
 			Asset:              assetType,
 			Currency:           curr,

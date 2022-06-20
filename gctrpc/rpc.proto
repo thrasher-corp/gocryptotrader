@@ -1119,7 +1119,7 @@ message ShutdownRequest {}
 
 message ShutdownResponse {}
 
-message GetLendingRatesRequest {
+message GetMarginRatesHistoryRequest {
   string exchange = 1;
   string asset = 2;
   string currency = 3;
@@ -1151,7 +1151,7 @@ message LendingRate {
   BorrowCost BorrowCost = 6;
 }
 
-message GetLendingRatesResponse {
+message GetMarginRatesHistoryResponse {
   repeated LendingRate rates = 1;
   string SumBorrowCosts = 2;
   string SumBorrowSize = 3;
@@ -1764,9 +1764,9 @@ service GoCryptoTraderService {
       get: "/v1/shutdown"
     };
   }
-  rpc GetLendingRates(GetLendingRatesRequest) returns (GetLendingRatesResponse) {
+  rpc GetMarginRatesHistory(GetMarginRatesHistoryRequest) returns (GetMarginRatesHistoryResponse) {
     option (google.api.http) = {
-      get: "/v1/getlendingrates"
+      get: "/v1/getmarginrateshistory"
     };
   }
 }

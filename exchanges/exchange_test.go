@@ -2332,7 +2332,7 @@ func TestGetServerTime(t *testing.T) {
 func TestGetFundingRateHistory(t *testing.T) {
 	t.Parallel()
 	var b Base
-	if _, err := b.GetLendingRateHistory(context.Background(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
+	if _, err := b.GetMarginRatesHistory(context.Background(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
 	}
 }

@@ -91,6 +91,37 @@ func (f fExchange) GetHistoricCandlesExtended(ctx context.Context, p currency.Pa
 	}, nil
 }
 
+func (f fExchange) GetMarginRatesHistory(context.Context, *order.LendingRateRequest) (*order.LendingRateResponse, error) {
+	leet := decimal.NewFromInt(1337)
+	rates := []order.LendingRate{
+		{
+			Time:              time.Now(),
+			TotalBorrowedSize: leet,
+			Rate:              leet,
+			BorrowRate:        leet,
+			LendingPayment: order.LendingPayment{
+				Payment: leet,
+				Size:    leet,
+			},
+			BorrowCost: order.BorrowCost{
+				Cost: leet,
+				Size: leet,
+			},
+		},
+	}
+	resp := &order.LendingRateResponse{
+		Rates:              rates,
+		SumBorrowCosts:     leet,
+		SumBorrowSize:      leet,
+		SumLendingPayments: leet,
+		SumLendingSize:     leet,
+		PredictedRate:      rates[0],
+		TakerFeeRate:       leet,
+	}
+
+	return resp, nil
+}
+
 func (f fExchange) FetchTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
 	return &ticker.Price{
 		Last:         1337,
@@ -2317,5 +2348,101 @@ func TestShutdown(t *testing.T) {
 	_, err = s.Shutdown(context.Background(), &gctrpc.ShutdownRequest{})
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+}
+
+func TestGetMarginRatesHistory(t *testing.T) {
+	t.Parallel()
+	em := SetupExchangeManager()
+	exch, err := em.NewExchangeByName(testExchange)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := exch.GetBase()
+	b.Name = fakeExchangeName
+	b.Enabled = true
+
+	cp, err := currency.NewPairFromString("btc-usd")
+	if !errors.Is(err, nil) {
+		t.Fatalf("received '%v', expected '%v'", err, nil)
+	}
+
+	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
+	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
+		AssetEnabled: convert.BoolPtr(true),
+		ConfigFormat: &currency.PairFormat{},
+		Available:    currency.Pairs{cp},
+		Enabled:      currency.Pairs{cp},
+	}
+	fakeExchange := fExchange{
+		IBotExchange: exch,
+	}
+	em.Add(fakeExchange)
+	s := RPCServer{
+		Engine: &Engine{
+			ExchangeManager: em,
+			currencyStateManager: &CurrencyStateManager{
+				started: 1, iExchangeManager: em,
+			},
+		},
+	}
+	_, err = s.GetMarginRatesHistory(context.Background(), nil)
+	if !errors.Is(err, common.ErrNilPointer) {
+		t.Errorf("received '%v' expected '%v'", err, common.ErrNilPointer)
+	}
+
+	request := &gctrpc.GetMarginRatesHistoryRequest{}
+	_, err = s.GetMarginRatesHistory(context.Background(), request)
+	if !errors.Is(err, ErrExchangeNameIsEmpty) {
+		t.Errorf("received '%v' expected '%v'", err, ErrExchangeNameIsEmpty)
+	}
+
+	request.Exchange = fakeExchangeName
+	_, err = s.GetMarginRatesHistory(context.Background(), request)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Errorf("received '%v' expected '%v'", err, asset.ErrNotSupported)
+	}
+
+	request.Asset = asset.Spot.String()
+	_, err = s.GetMarginRatesHistory(context.Background(), request)
+	if !errors.Is(err, currency.ErrCurrencyNotFound) {
+		t.Errorf("received '%v' expected '%v'", err, currency.ErrCurrencyNotFound)
+	}
+
+	request.Currency = "usd"
+	_, err = s.GetMarginRatesHistory(context.Background(), request)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+
+	request.GetBorrowRates = true
+	request.GetLendingPayments = true
+	request.GetBorrowCosts = true
+	request.GetPredictedRate = true
+	request.IncludeAllRates = true
+	resp, err := s.GetMarginRatesHistory(context.Background(), request)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	if len(resp.Rates) == 0 {
+		t.Errorf("received '%v' expected '%v'", len(resp.Rates), 1)
+	}
+	if resp.PredictedRate == nil {
+		t.Errorf("received '%v' expected '%v'", nil, "not nil")
+	}
+	if resp.TakerFeeRate != "1337" {
+		t.Errorf("received '%v' expected '%v'", resp.TakerFeeRate, "1337")
+	}
+	if resp.SumLendingPayments != "1337" {
+		t.Errorf("received '%v' expected '%v'", resp.SumLendingPayments, "1337")
+	}
+	if resp.SumBorrowSize != "1337" {
+		t.Errorf("received '%v' expected '%v'", resp.SumBorrowSize, "1337")
+	}
+	if resp.SumLendingSize != "1337" {
+		t.Errorf("received '%v' expected '%v'", resp.SumLendingSize, "1337")
+	}
+	if resp.SumBorrowCosts != "1337" {
+		t.Errorf("received '%v' expected '%v'", resp.SumBorrowCosts, "1337")
 	}
 }

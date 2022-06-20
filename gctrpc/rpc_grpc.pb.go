@@ -119,7 +119,7 @@ type GoCryptoTraderServiceClient interface {
 	GetFuturesPositions(ctx context.Context, in *GetFuturesPositionsRequest, opts ...grpc.CallOption) (*GetFuturesPositionsResponse, error)
 	GetCollateral(ctx context.Context, in *GetCollateralRequest, opts ...grpc.CallOption) (*GetCollateralResponse, error)
 	Shutdown(ctx context.Context, in *ShutdownRequest, opts ...grpc.CallOption) (*ShutdownResponse, error)
-	GetLendingRates(ctx context.Context, in *GetLendingRatesRequest, opts ...grpc.CallOption) (*GetLendingRatesResponse, error)
+	GetMarginRatesHistory(ctx context.Context, in *GetMarginRatesHistoryRequest, opts ...grpc.CallOption) (*GetMarginRatesHistoryResponse, error)
 }
 
 type goCryptoTraderServiceClient struct {
@@ -1141,9 +1141,9 @@ func (c *goCryptoTraderServiceClient) Shutdown(ctx context.Context, in *Shutdown
 	return out, nil
 }
 
-func (c *goCryptoTraderServiceClient) GetLendingRates(ctx context.Context, in *GetLendingRatesRequest, opts ...grpc.CallOption) (*GetLendingRatesResponse, error) {
-	out := new(GetLendingRatesResponse)
-	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTraderService/GetLendingRates", in, out, opts...)
+func (c *goCryptoTraderServiceClient) GetMarginRatesHistory(ctx context.Context, in *GetMarginRatesHistoryRequest, opts ...grpc.CallOption) (*GetMarginRatesHistoryResponse, error) {
+	out := new(GetMarginRatesHistoryResponse)
+	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTraderService/GetMarginRatesHistory", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1251,7 +1251,7 @@ type GoCryptoTraderServiceServer interface {
 	GetFuturesPositions(context.Context, *GetFuturesPositionsRequest) (*GetFuturesPositionsResponse, error)
 	GetCollateral(context.Context, *GetCollateralRequest) (*GetCollateralResponse, error)
 	Shutdown(context.Context, *ShutdownRequest) (*ShutdownResponse, error)
-	GetLendingRates(context.Context, *GetLendingRatesRequest) (*GetLendingRatesResponse, error)
+	GetMarginRatesHistory(context.Context, *GetMarginRatesHistoryRequest) (*GetMarginRatesHistoryResponse, error)
 	mustEmbedUnimplementedGoCryptoTraderServiceServer()
 }
 
@@ -1550,8 +1550,8 @@ func (UnimplementedGoCryptoTraderServiceServer) GetCollateral(context.Context, *
 func (UnimplementedGoCryptoTraderServiceServer) Shutdown(context.Context, *ShutdownRequest) (*ShutdownResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Shutdown not implemented")
 }
-func (UnimplementedGoCryptoTraderServiceServer) GetLendingRates(context.Context, *GetLendingRatesRequest) (*GetLendingRatesResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetLendingRates not implemented")
+func (UnimplementedGoCryptoTraderServiceServer) GetMarginRatesHistory(context.Context, *GetMarginRatesHistoryRequest) (*GetMarginRatesHistoryResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetMarginRatesHistory not implemented")
 }
 func (UnimplementedGoCryptoTraderServiceServer) mustEmbedUnimplementedGoCryptoTraderServiceServer() {}
 
@@ -3330,20 +3330,20 @@ func _GoCryptoTraderService_Shutdown_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
-func _GoCryptoTraderService_GetLendingRates_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetLendingRatesRequest)
+func _GoCryptoTraderService_GetMarginRatesHistory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetMarginRatesHistoryRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(GoCryptoTraderServiceServer).GetLendingRates(ctx, in)
+		return srv.(GoCryptoTraderServiceServer).GetMarginRatesHistory(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/gctrpc.GoCryptoTraderService/GetLendingRates",
+		FullMethod: "/gctrpc.GoCryptoTraderService/GetMarginRatesHistory",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(GoCryptoTraderServiceServer).GetLendingRates(ctx, req.(*GetLendingRatesRequest))
+		return srv.(GoCryptoTraderServiceServer).GetMarginRatesHistory(ctx, req.(*GetMarginRatesHistoryRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -3720,8 +3720,8 @@ var GoCryptoTraderService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _GoCryptoTraderService_Shutdown_Handler,
 		},
 		{
-			MethodName: "GetLendingRates",
-			Handler:    _GoCryptoTraderService_GetLendingRates_Handler,
+			MethodName: "GetMarginRatesHistory",
+			Handler:    _GoCryptoTraderService_GetMarginRatesHistory_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

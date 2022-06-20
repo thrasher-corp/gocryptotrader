@@ -1683,28 +1683,22 @@ func (f *FTX) GetFuturesPositions(ctx context.Context, a asset.Item, cp currency
 	return resp, nil
 }
 
-// GetLendingRateHistory gets the funding rate history for the given currency, asset, pair
+// GetMarginRatesHistory gets the margin rate history for the given currency, asset, pair
 // Can also include borrow rates, or lending income/borrow payments
-func (f *FTX) GetLendingRateHistory(ctx context.Context, request *order.LendingRateRequest) (*order.LendingRateResponse, error) {
+func (f *FTX) GetMarginRatesHistory(ctx context.Context, request *order.LendingRateRequest) (*order.LendingRateResponse, error) {
 	if request == nil {
 		return nil, fmt.Errorf("%w funding rate request is nil", common.ErrNilPointer)
 	}
 	if request.Currency.IsEmpty() {
 		return nil, fmt.Errorf("%w funding rate request is empty", currency.ErrCurrencyCodeEmpty)
 	}
-	pairs, err := f.CurrencyPairs.GetPairs(request.Asset, true)
+	pairs, err := f.GetEnabledPairs(request.Asset)
 	if err != nil {
 		return nil, err
 	}
-	var found bool
-	for i := range pairs {
-		if pairs[i].Contains(request.Currency) {
-			found = true
-			break
-		}
-	}
-	if !found {
-		return nil, fmt.Errorf("'%v' %w", request.Currency, errCurrencyNotEnabled)
+
+	if !pairs.ContainsCurrency(request.Currency) {
+		return nil, fmt.Errorf("%w '%v' in enabled pairs", currency.ErrCurrencyNotFound, request.Currency)
 	}
 
 	err = common.StartEndTimeCheck(request.StartDate, request.EndDate)

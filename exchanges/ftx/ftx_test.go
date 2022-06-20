@@ -2199,7 +2199,7 @@ func TestGetCollateral(t *testing.T) {
 	}
 }
 
-func TestGetLendingRateHistory(t *testing.T) {
+func TestGetMarginRatesHistory(t *testing.T) {
 	t.Parallel()
 	type testCase struct {
 		name         string
@@ -2224,7 +2224,7 @@ func TestGetLendingRateHistory(t *testing.T) {
 				Asset:    asset.Futures,
 				Currency: currency.LUNA,
 			},
-			err: errCurrencyNotEnabled,
+			err: currency.ErrCurrencyNotFound,
 		},
 		{
 			name: "empty date request",
@@ -2408,11 +2408,10 @@ func TestGetLendingRateHistory(t *testing.T) {
 				t.Skip("requires auth")
 			}
 
-			_, err := f.GetLendingRateHistory(context.Background(), tt.request)
+			_, err := f.GetMarginRatesHistory(context.Background(), tt.request)
 			if !errors.Is(err, tt.err) {
 				t.Errorf("receieved '%v' expected '%v'", err, tt.err)
 			}
-
 		})
 	}
 }

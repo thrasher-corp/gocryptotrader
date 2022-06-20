@@ -2114,14 +2114,76 @@
         ]
       }
     },
-    "/v1/getlendingrates": {
+    "/v1/getloggerdetails": {
       "get": {
-        "operationId": "GoCryptoTraderService_GetLendingRates",
+        "operationId": "GoCryptoTraderService_GetLoggerDetails",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/gctrpcGetLendingRatesResponse"
+              "$ref": "#/definitions/gctrpcGetLoggerDetailsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "logger",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "GoCryptoTraderService"
+        ]
+      }
+    },
+    "/v1/getmanagedorders": {
+      "post": {
+        "operationId": "GoCryptoTraderService_GetManagedOrders",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetOrdersResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetOrdersRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GoCryptoTraderService"
+        ]
+      }
+    },
+    "/v1/getmarginrateshistory": {
+      "get": {
+        "operationId": "GoCryptoTraderService_GetMarginRatesHistory",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetMarginRatesHistoryResponse"
             }
           },
           "default": {
@@ -2191,68 +2253,6 @@
             "in": "query",
             "required": false,
             "type": "boolean"
-          }
-        ],
-        "tags": [
-          "GoCryptoTraderService"
-        ]
-      }
-    },
-    "/v1/getloggerdetails": {
-      "get": {
-        "operationId": "GoCryptoTraderService_GetLoggerDetails",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/gctrpcGetLoggerDetailsResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "logger",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          }
-        ],
-        "tags": [
-          "GoCryptoTraderService"
-        ]
-      }
-    },
-    "/v1/getmanagedorders": {
-      "post": {
-        "operationId": "GoCryptoTraderService_GetManagedOrders",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/gctrpcGetOrdersResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/gctrpcGetOrdersRequest"
-            }
           }
         ],
         "tags": [
@@ -4926,7 +4926,24 @@
         }
       }
     },
-    "gctrpcGetLendingRatesResponse": {
+    "gctrpcGetLoggerDetailsResponse": {
+      "type": "object",
+      "properties": {
+        "info": {
+          "type": "boolean"
+        },
+        "debug": {
+          "type": "boolean"
+        },
+        "warn": {
+          "type": "boolean"
+        },
+        "error": {
+          "type": "boolean"
+        }
+      }
+    },
+    "gctrpcGetMarginRatesHistoryResponse": {
       "type": "object",
       "properties": {
         "rates": {
@@ -4952,23 +4969,6 @@
         },
         "TakerFeeRate": {
           "type": "string"
-        }
-      }
-    },
-    "gctrpcGetLoggerDetailsResponse": {
-      "type": "object",
-      "properties": {
-        "info": {
-          "type": "boolean"
-        },
-        "debug": {
-          "type": "boolean"
-        },
-        "warn": {
-          "type": "boolean"
-        },
-        "error": {
-          "type": "boolean"
         }
       }
     },

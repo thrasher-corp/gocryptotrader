@@ -4576,8 +4576,8 @@ func (s *RPCServer) Shutdown(_ context.Context, _ *gctrpc.ShutdownRequest) (*gct
 	return &gctrpc.ShutdownResponse{}, nil
 }
 
-// GetLendingRates returns the lending rates for an exchange, asset, currency along with many customisable options
-func (s *RPCServer) GetLendingRates(ctx context.Context, r *gctrpc.GetLendingRatesRequest) (*gctrpc.GetLendingRatesResponse, error) {
+// GetMarginRatesHistory returns the margin lending or borrow rates for an exchange, asset, currency along with many customisable options
+func (s *RPCServer) GetMarginRatesHistory(ctx context.Context, r *gctrpc.GetMarginRatesHistoryRequest) (*gctrpc.GetMarginRatesHistoryResponse, error) {
 	if r == nil {
 		return nil, fmt.Errorf("%w GetLendingRatesRequest", common.ErrNilPointer)
 	}
@@ -4597,6 +4597,14 @@ func (s *RPCServer) GetLendingRates(ctx context.Context, r *gctrpc.GetLendingRat
 	}
 
 	c := currency.NewCode(r.Currency)
+	pairs, err := exch.GetEnabledPairs(a)
+	if err != nil {
+		return nil, err
+	}
+	if !pairs.ContainsCurrency(c) {
+		return nil, fmt.Errorf("%w '%v' in enabled pairs", currency.ErrCurrencyNotFound, r.Currency)
+	}
+
 	start := time.Now().Add(-time.Hour * 24 * 7)
 	end := time.Now()
 	if r.StartDate != "" {
@@ -4612,6 +4620,9 @@ func (s *RPCServer) GetLendingRates(ctx context.Context, r *gctrpc.GetLendingRat
 		}
 	}
 	err = common.StartEndTimeCheck(start, end)
+	if err != nil {
+		return nil, err
+	}
 
 	request := &order.LendingRateRequest{
 		Exchange:           exch.GetName(),
@@ -4624,11 +4635,11 @@ func (s *RPCServer) GetLendingRates(ctx context.Context, r *gctrpc.GetLendingRat
 		GetBorrowRates:     r.GetBorrowRates,
 		GetBorrowCosts:     r.GetBorrowCosts,
 	}
-	lendingResp, err := exch.GetLendingRateHistory(ctx, request)
+	lendingResp, err := exch.GetMarginRatesHistory(ctx, request)
 	if err != nil {
 		return nil, err
 	}
-	resp := &gctrpc.GetLendingRatesResponse{
+	resp := &gctrpc.GetMarginRatesHistoryResponse{
 		SumBorrowCosts:     lendingResp.SumBorrowCosts.String(),
 		SumBorrowSize:      lendingResp.SumBorrowSize.String(),
 		SumLendingPayments: lendingResp.SumLendingPayments.String(),
