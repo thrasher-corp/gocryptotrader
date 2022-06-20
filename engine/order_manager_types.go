@@ -24,7 +24,6 @@ var (
 	errNilCommunicationsManager = errors.New("cannot start with nil communications manager")
 	errNilOrder                 = errors.New("nil order received")
 	errFuturesTrackerNotSetup   = errors.New("futures position tracker not setup")
-	errUnableToPlaceOrder       = errors.New("cannot process order, order not placed")
 
 	orderManagerDelay = time.Second * 10
 )
@@ -62,7 +61,7 @@ type OrderManager struct {
 
 // OrderSubmitResponse contains the order response along with an internal order ID
 type OrderSubmitResponse struct {
-	order.SubmitResponse
+	*order.Detail
 	InternalOrderID string
 }
 

@@ -174,7 +174,7 @@ func (m *OrderManager) Cancel(ctx context.Context, cancel *order.Cancel) error {
 		err = errors.New("order exchange name is empty")
 		return err
 	}
-	if cancel.ID == "" {
+	if cancel.OrderID == "" {
 		err = errors.New("order id is empty")
 		return err
 	}
@@ -190,16 +190,17 @@ func (m *OrderManager) Cancel(ctx context.Context, cancel *order.Cancel) error {
 	}
 
 	log.Debugf(log.OrderMgr, "Order manager: Cancelling order ID %v [%+v]",
-		cancel.ID, cancel)
+		cancel.OrderID, cancel)
 
 	err = exch.CancelOrder(ctx, cancel)
 	if err != nil {
 		err = fmt.Errorf("%v - Failed to cancel order: %w", cancel.Exchange, err)
 		return err
 	}
-	od, err := m.orderStore.getByExchangeAndID(cancel.Exchange, cancel.ID)
+	od, err := m.orderStore.getByExchangeAndID(cancel.Exchange, cancel.OrderID)
 	if err != nil {
-		err = fmt.Errorf("%v - Failed to retrieve order %v to update cancelled status: %w", cancel.Exchange, cancel.ID, err)
+		err = fmt.Errorf("%v - Failed to retrieve order %v to update cancelled status: %w",
+			cancel.Exchange, cancel.OrderID, err)
 		return err
 	}
 	od.Status = order.Cancelled
@@ -210,7 +211,7 @@ func (m *OrderManager) Cancel(ctx context.Context, cancel *order.Cancel) error {
 	}
 
 	msg := fmt.Sprintf("Order manager: Exchange %s order ID=%v cancelled.",
-		od.Exchange, od.ID)
+		od.Exchange, od.OrderID)
 	log.Debugln(log.OrderMgr, msg)
 	m.orderStore.commsManager.PushEvent(base.Event{Type: "order", Message: msg})
 	return nil
@@ -351,7 +352,7 @@ func (m *OrderManager) Modify(ctx context.Context, mod *order.Modify) (*order.Mo
 	}
 
 	// Fetch details from locally managed order store.
-	det, err := m.orderStore.getByExchangeAndID(mod.Exchange, mod.ID)
+	det, err := m.orderStore.getByExchangeAndID(mod.Exchange, mod.OrderID)
 	if det == nil || err != nil {
 		return nil, fmt.Errorf("order does not exist: %w", err)
 	}
@@ -382,7 +383,7 @@ func (m *OrderManager) Modify(ctx context.Context, mod *order.Modify) (*order.Mo
 		message := fmt.Sprintf(
 			"Order manager: Exchange %s order ID=%v: failed to modify",
 			mod.Exchange,
-			mod.ID,
+			mod.OrderID,
 		)
 		m.orderStore.commsManager.PushEvent(base.Event{
 			Type:    "order",
@@ -395,7 +396,7 @@ func (m *OrderManager) Modify(ctx context.Context, mod *order.Modify) (*order.Mo
 	//
 	// XXX: This comes with a race condition, because [request -> changes] are not
 	// atomic.
-	err = m.orderStore.modifyExisting(mod.ID, res)
+	err = m.orderStore.modifyExisting(mod.OrderID, res)
 
 	// Notify observers.
 	var message string
@@ -406,9 +407,9 @@ func (m *OrderManager) Modify(ctx context.Context, mod *order.Modify) (*order.Mo
 	}
 	m.orderStore.commsManager.PushEvent(base.Event{
 		Type:    "order",
-		Message: fmt.Sprintf(message, mod.Exchange, res.ID),
+		Message: fmt.Sprintf(message, mod.Exchange, res.OrderID),
 	})
-	return &order.ModifyResponse{OrderID: res.ID}, err
+	return &order.ModifyResponse{OrderID: res.OrderID}, err
 }
 
 // Submit will take in an order struct, send it to the exchange and
@@ -459,12 +460,12 @@ func (m *OrderManager) Submit(ctx context.Context, newOrder *order.Submit) (*Ord
 		return nil, err
 	}
 
-	return m.processSubmittedOrder(newOrder, result)
+	return m.processSubmittedOrder(result)
 }
 
 // SubmitFakeOrder runs through the same process as order submission
 // but does not touch live endpoints
-func (m *OrderManager) SubmitFakeOrder(newOrder *order.Submit, resultingOrder order.SubmitResponse, checkExchangeLimits bool) (*OrderSubmitResponse, error) {
+func (m *OrderManager) SubmitFakeOrder(newOrder *order.Submit, resultingOrder *order.SubmitResponse, checkExchangeLimits bool) (*OrderSubmitResponse, error) {
 	if m == nil {
 		return nil, fmt.Errorf("order manager %w", ErrNilSubsystem)
 	}
@@ -495,7 +496,7 @@ func (m *OrderManager) SubmitFakeOrder(newOrder *order.Submit, resultingOrder or
 				err)
 		}
 	}
-	return m.processSubmittedOrder(newOrder, resultingOrder)
+	return m.processSubmittedOrder(resultingOrder)
 }
 
 // GetOrdersSnapshot returns a snapshot of all orders in the orderstore. It optionally filters any orders that do not match the status
@@ -543,82 +544,45 @@ func (m *OrderManager) GetOrdersActive(f *order.Filter) ([]order.Detail, error) 
 }
 
 // processSubmittedOrder adds a new order to the manager
-func (m *OrderManager) processSubmittedOrder(newOrder *order.Submit, result order.SubmitResponse) (*OrderSubmitResponse, error) {
-	if !result.IsOrderPlaced {
-		return nil, errUnableToPlaceOrder
+func (m *OrderManager) processSubmittedOrder(newOrderResp *order.SubmitResponse) (*OrderSubmitResponse, error) {
+	if newOrderResp == nil {
+		return nil, order.ErrOrderDetailIsNil
 	}
 
 	id, err := uuid.NewV4()
 	if err != nil {
-		log.Warnf(log.OrderMgr,
-			"Order manager: Unable to generate UUID. Err: %s",
-			err)
+		log.Warnf(log.OrderMgr, "Order manager: Unable to generate UUID. Err: %s", err)
 	}
-	if newOrder.Date.IsZero() {
-		newOrder.Date = time.Now()
+
+	detail, err := newOrderResp.DeriveDetail(id)
+	if err != nil {
+		return nil, err
 	}
+
 	msg := fmt.Sprintf("Order manager: Exchange %s submitted order ID=%v [Ours: %v] pair=%v price=%v amount=%v quoteAmount=%v side=%v type=%v for time %v.",
-		newOrder.Exchange,
-		result.OrderID,
-		id.String(),
-		newOrder.Pair,
-		newOrder.Price,
-		newOrder.Amount,
-		newOrder.QuoteAmount,
-		newOrder.Side,
-		newOrder.Type,
-		newOrder.Date)
+		detail.Exchange,
+		detail.OrderID,
+		detail.InternalOrderID.String(),
+		detail.Pair,
+		detail.Price,
+		detail.Amount,
+		detail.QuoteAmount,
+		detail.Side,
+		detail.Type,
+		detail.Date)
 
 	log.Debugln(log.OrderMgr, msg)
-	m.orderStore.commsManager.PushEvent(base.Event{
-		Type:    "order",
-		Message: msg,
-	})
-	status := order.New
-	if result.FullyMatched {
-		status = order.Filled
-	}
-	err = m.orderStore.add(&order.Detail{
-		ImmediateOrCancel: newOrder.ImmediateOrCancel,
-		HiddenOrder:       newOrder.HiddenOrder,
-		FillOrKill:        newOrder.FillOrKill,
-		PostOnly:          newOrder.PostOnly,
-		Price:             newOrder.Price,
-		Amount:            newOrder.Amount,
-		LimitPriceUpper:   newOrder.LimitPriceUpper,
-		LimitPriceLower:   newOrder.LimitPriceLower,
-		TriggerPrice:      newOrder.TriggerPrice,
-		QuoteAmount:       newOrder.QuoteAmount,
-		ExecutedAmount:    newOrder.ExecutedAmount,
-		RemainingAmount:   newOrder.RemainingAmount,
-		Fee:               newOrder.Fee,
-		Exchange:          newOrder.Exchange,
-		InternalOrderID:   id.String(),
-		ID:                result.OrderID,
-		AccountID:         newOrder.AccountID,
-		ClientID:          newOrder.ClientID,
-		ClientOrderID:     newOrder.ClientOrderID,
-		WalletAddress:     newOrder.WalletAddress,
-		Type:              newOrder.Type,
-		Side:              newOrder.Side,
-		Status:            status,
-		AssetType:         newOrder.AssetType,
-		Date:              time.Now(),
-		LastUpdated:       time.Now(),
-		Pair:              newOrder.Pair,
-		Leverage:          newOrder.Leverage,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("unable to add %v order %v to orderStore: %s", newOrder.Exchange, result.OrderID, err)
+	if m.orderStore.commsManager != nil {
+		m.orderStore.commsManager.PushEvent(base.Event{Type: "order", Message: msg})
 	}
 
-	return &OrderSubmitResponse{
-		SubmitResponse: order.SubmitResponse{
-			IsOrderPlaced: result.IsOrderPlaced,
-			OrderID:       result.OrderID,
-		},
-		InternalOrderID: id.String(),
-	}, nil
+	err = m.orderStore.add(detail.CopyToPointer())
+	if err != nil {
+		return nil, fmt.Errorf("unable to add %v order %v to orderStore: %s",
+			detail.Exchange, detail.OrderID, err)
+	}
+
+	return &OrderSubmitResponse{Detail: detail, InternalOrderID: id.String()}, nil
 }
 
 // processOrders iterates over all exchange orders via API
@@ -731,7 +695,7 @@ func (m *OrderManager) FetchAndUpdateExchangeOrder(exch exchange.IBotExchange, o
 	if ord == nil {
 		return errors.New("order manager: Order is nil")
 	}
-	fetchedOrder, err := exch.GetOrderInfo(context.TODO(), ord.ID, ord.Pair, assetType)
+	fetchedOrder, err := exch.GetOrderInfo(context.TODO(), ord.OrderID, ord.Pair, assetType)
 	if err != nil {
 		ord.Status = order.UnknownStatus
 		return err
@@ -766,14 +730,7 @@ func (m *OrderManager) GetByExchangeAndID(exchangeName, id string) (*order.Detai
 	if atomic.LoadInt32(&m.started) == 0 {
 		return nil, fmt.Errorf("order manager %w", ErrSubSystemNotStarted)
 	}
-
-	o, err := m.orderStore.getByExchangeAndID(exchangeName, id)
-	if err != nil {
-		return nil, err
-	}
-	var cpy order.Detail
-	cpy.UpdateOrderFromDetail(o)
-	return &cpy, nil
+	return m.orderStore.getByExchangeAndID(exchangeName, id)
 }
 
 // UpdateExistingOrder will update an existing order in the orderstore
@@ -814,7 +771,7 @@ func (m *OrderManager) UpsertOrder(od *order.Detail) (resp *OrderUpsertResponse,
 	if err != nil {
 		msg = fmt.Sprintf(
 			"Order manager: Exchange %s unable to upsert order ID=%v internal ID=%v pair=%v price=%.8f amount=%.8f side=%v type=%v status=%v: %s",
-			od.Exchange, od.ID, od.InternalOrderID, od.Pair, od.Price, od.Amount, od.Side, od.Type, od.Status, err)
+			od.Exchange, od.OrderID, od.InternalOrderID, od.Pair, od.Price, od.Amount, od.Side, od.Type, od.Status, err)
 		return nil, err
 	}
 
@@ -823,7 +780,7 @@ func (m *OrderManager) UpsertOrder(od *order.Detail) (resp *OrderUpsertResponse,
 		status = "added"
 	}
 	msg = fmt.Sprintf("Order manager: Exchange %s %s order ID=%v internal ID=%v pair=%v price=%.8f amount=%.8f side=%v type=%v status=%v.",
-		upsertResponse.OrderDetails.Exchange, status, upsertResponse.OrderDetails.ID, upsertResponse.OrderDetails.InternalOrderID,
+		upsertResponse.OrderDetails.Exchange, status, upsertResponse.OrderDetails.OrderID, upsertResponse.OrderDetails.InternalOrderID,
 		upsertResponse.OrderDetails.Pair, upsertResponse.OrderDetails.Price, upsertResponse.OrderDetails.Amount,
 		upsertResponse.OrderDetails.Side, upsertResponse.OrderDetails.Type, upsertResponse.OrderDetails.Status)
 	if upsertResponse.IsNewOrder {
@@ -855,7 +812,7 @@ func (s *store) getByExchangeAndID(exchange, id string) (*order.Detail, error) {
 	}
 
 	for x := range r {
-		if r[x].ID == id {
+		if r[x].OrderID == id {
 			return r[x].CopyToPointer(), nil
 		}
 	}
@@ -875,14 +832,17 @@ func (s *store) updateExisting(od *order.Detail) error {
 		return ErrExchangeNotFound
 	}
 	for x := range r {
-		if r[x].ID != od.ID {
+		if r[x].OrderID != od.OrderID {
 			continue
 		}
-		r[x].UpdateOrderFromDetail(od)
+		err := r[x].UpdateOrderFromDetail(od)
+		if err != nil {
+			return err
+		}
 		if !r[x].AssetType.IsFutures() {
 			return nil
 		}
-		err := s.futuresPositionController.TrackNewOrder(r[x])
+		err = s.futuresPositionController.TrackNewOrder(r[x])
 		if err != nil && !errors.Is(err, order.ErrPositionClosed) {
 			return err
 		}
@@ -893,7 +853,7 @@ func (s *store) updateExisting(od *order.Detail) error {
 
 // modifyExisting depends on mod.Exchange and given ID to uniquely identify an order and
 // modify it.
-func (s *store) modifyExisting(id string, mod *order.Modify) error {
+func (s *store) modifyExisting(id string, mod *order.ModifyResponse) error {
 	s.m.Lock()
 	defer s.m.Unlock()
 	r, ok := s.Orders[strings.ToLower(mod.Exchange)]
@@ -901,10 +861,10 @@ func (s *store) modifyExisting(id string, mod *order.Modify) error {
 		return ErrExchangeNotFound
 	}
 	for x := range r {
-		if r[x].ID != id {
+		if r[x].OrderID != id {
 			continue
 		}
-		r[x].UpdateOrderFromModify(mod)
+		r[x].UpdateOrderFromModifyResponse(mod)
 		if !r[x].AssetType.IsFutures() {
 			return nil
 		}
@@ -936,18 +896,21 @@ func (s *store) upsert(od *order.Detail) (*OrderUpsertResponse, error) {
 			return nil, err
 		}
 	}
-	r, ok := s.Orders[lName]
-	if !ok {
-		od.GenerateInternalOrderID()
-		s.Orders[lName] = []*order.Detail{od}
-		return &OrderUpsertResponse{OrderDetails: od.Copy(), IsNewOrder: true}, nil
-	}
-	for x := range r {
-		if r[x].ID != od.ID {
+	// TODO: Return pointer to slice because new orders we are accessing map
+	// twice for lookup.
+	exchangeOrders := s.Orders[lName]
+	for x := range exchangeOrders {
+		if exchangeOrders[x].OrderID != od.OrderID {
 			continue
 		}
-		r[x].UpdateOrderFromDetail(od)
-		return &OrderUpsertResponse{OrderDetails: r[x].Copy(), IsNewOrder: false}, nil
+		err := exchangeOrders[x].UpdateOrderFromDetail(od)
+		if err != nil {
+			return nil, err
+		}
+		return &OrderUpsertResponse{
+			OrderDetails: exchangeOrders[x].Copy(),
+			IsNewOrder:   false,
+		}, nil
 	}
 	// Untracked websocket orders will not have internalIDs yet
 	od.GenerateInternalOrderID()
@@ -962,13 +925,9 @@ func (s *store) exists(det *order.Detail) bool {
 	}
 	s.m.RLock()
 	defer s.m.RUnlock()
-	r, ok := s.Orders[strings.ToLower(det.Exchange)]
-	if !ok {
-		return false
-	}
-
-	for x := range r {
-		if r[x].ID == det.ID {
+	exchangeOrders := s.Orders[strings.ToLower(det.Exchange)]
+	for x := range exchangeOrders {
+		if exchangeOrders[x].OrderID == det.OrderID {
 			return true
 		}
 	}
@@ -980,21 +939,20 @@ func (s *store) add(det *order.Detail) error {
 	if det == nil {
 		return errNilOrder
 	}
-	_, err := s.exchangeManager.GetExchangeByName(det.Exchange)
+	name := strings.ToLower(det.Exchange)
+	_, err := s.exchangeManager.GetExchangeByName(name)
 	if err != nil {
 		return err
 	}
-	if s.exists(det) {
+	if s.exists(det) { // TODO: Error on conflict; remove unnecessary locking.
 		return ErrOrdersAlreadyExists
 	}
+
 	// Untracked websocket orders will not have internalIDs yet
 	det.GenerateInternalOrderID()
 	s.m.Lock()
 	defer s.m.Unlock()
-	orders := s.Orders[strings.ToLower(det.Exchange)]
-	orders = append(orders, det)
-	s.Orders[strings.ToLower(det.Exchange)] = orders
-
+	s.Orders[name] = append(s.Orders[name], det)
 	if !det.AssetType.IsFutures() {
 		return nil
 	}

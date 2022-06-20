@@ -102,7 +102,7 @@ func TestTrackNewOrder(t *testing.T) {
 		Exchange:  exch,
 		AssetType: item,
 		Pair:      pair,
-		ID:        "1",
+		OrderID:   "1",
 		Price:     1337,
 	}
 	err = f.TrackNewOrder(od, false)
@@ -112,7 +112,7 @@ func TestTrackNewOrder(t *testing.T) {
 
 	od.Side = Long
 	od.Amount = 1
-	od.ID = "2"
+	od.OrderID = "2"
 	err = f.TrackNewOrder(od, false)
 	if !errors.Is(err, errTimeUnset) {
 		t.Error(err)
@@ -139,7 +139,7 @@ func TestTrackNewOrder(t *testing.T) {
 	od.Date = od.Date.Add(1)
 	od.Amount = 0.4
 	od.Side = Short
-	od.ID = "3"
+	od.OrderID = "3"
 	err = f.TrackNewOrder(od, false)
 	if !errors.Is(err, nil) {
 		t.Error(err)
@@ -157,7 +157,7 @@ func TestTrackNewOrder(t *testing.T) {
 	od.Date = od.Date.Add(1)
 	od.Amount = 0.8
 	od.Side = Short
-	od.ID = "4"
+	od.OrderID = "4"
 	od.Fee = 0.1
 	err = f.TrackNewOrder(od, false)
 	if !errors.Is(err, nil) {
@@ -171,7 +171,7 @@ func TestTrackNewOrder(t *testing.T) {
 	}
 
 	od.Date = od.Date.Add(1)
-	od.ID = "5"
+	od.OrderID = "5"
 	od.Side = Long
 	od.Amount = 0.2
 	err = f.TrackNewOrder(od, false)
@@ -288,7 +288,7 @@ func TestExchangeTrackNewOrder(t *testing.T) {
 		AssetType: item,
 		Pair:      pair,
 		Side:      Short,
-		ID:        "1",
+		OrderID:   "1",
 		Amount:    1,
 	})
 	if !errors.Is(err, nil) {
@@ -304,7 +304,7 @@ func TestExchangeTrackNewOrder(t *testing.T) {
 		AssetType: item,
 		Pair:      pair,
 		Side:      Short,
-		ID:        "2",
+		OrderID:   "2",
 		Amount:    1,
 	})
 	if !errors.Is(err, nil) {
@@ -320,7 +320,7 @@ func TestExchangeTrackNewOrder(t *testing.T) {
 		AssetType: item,
 		Pair:      pair,
 		Side:      Long,
-		ID:        "3",
+		OrderID:   "3",
 		Amount:    2,
 	})
 	if !errors.Is(err, nil) {
@@ -340,7 +340,7 @@ func TestExchangeTrackNewOrder(t *testing.T) {
 		AssetType: item,
 		Pair:      pair,
 		Side:      Long,
-		ID:        "4",
+		OrderID:   "4",
 		Amount:    2,
 	})
 	if !errors.Is(err, errPositionDiscrepancy) {
@@ -355,7 +355,7 @@ func TestExchangeTrackNewOrder(t *testing.T) {
 		AssetType: item,
 		Pair:      pair,
 		Side:      Long,
-		ID:        "4",
+		OrderID:   "4",
 		Amount:    2,
 	})
 	if !errors.Is(err, nil) {
@@ -372,7 +372,7 @@ func TestExchangeTrackNewOrder(t *testing.T) {
 		Pair:      pair,
 		AssetType: asset.USDTMarginedFutures,
 		Side:      Long,
-		ID:        "5",
+		OrderID:   "5",
 		Amount:    2,
 	})
 	if !errors.Is(err, errAssetMismatch) {
@@ -402,7 +402,7 @@ func TestPositionControllerTestTrackNewOrder(t *testing.T) {
 		Pair:      currency.NewPair(currency.BTC, currency.USDT),
 		AssetType: asset.Spot,
 		Side:      Long,
-		ID:        "lol",
+		OrderID:   "lol",
 	})
 	if !errors.Is(err, ErrNotFuturesAsset) {
 		t.Error(err)
@@ -414,7 +414,7 @@ func TestPositionControllerTestTrackNewOrder(t *testing.T) {
 		Pair:      currency.NewPair(currency.BTC, currency.USDT),
 		AssetType: asset.Futures,
 		Side:      Long,
-		ID:        "lol",
+		OrderID:   "lol",
 	})
 	if !errors.Is(err, nil) {
 		t.Error(err)
@@ -792,7 +792,7 @@ func TestUpdateOpenPositionUnrealisedPNL(t *testing.T) {
 		Pair:      currency.NewPair(currency.BTC, currency.USDT),
 		AssetType: asset.Futures,
 		Side:      Long,
-		ID:        "lol",
+		OrderID:   "lol",
 		Price:     1,
 		Amount:    1,
 	})

@@ -371,6 +371,7 @@ func TestSubmitOrder(t *testing.T) {
 	}
 
 	var orderSubmission = &order.Submit{
+		Exchange: p.Name,
 		Pair: currency.Pair{
 			Delimiter: currency.UnderscoreDelimiter,
 			Base:      currency.BTC,
@@ -386,7 +387,7 @@ func TestSubmitOrder(t *testing.T) {
 
 	response, err := p.SubmitOrder(context.Background(), orderSubmission)
 	switch {
-	case areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced):
+	case areTestAPIKeysSet() && (err != nil || response.Status != order.Filled):
 		t.Errorf("Order failed to be placed: %v", err)
 	case !areTestAPIKeysSet() && !mockTests && err == nil:
 		t.Error("Expecting an error when no keys are set")
@@ -401,7 +402,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 	var orderCancellation = &order.Cancel{
-		ID:            "1",
+		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		Pair:          currency.NewPair(currency.LTC, currency.BTC),
@@ -427,7 +428,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 	var orderCancellation = &order.Cancel{
-		ID:            "1",
+		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		Pair:          currencyPair,
@@ -454,10 +455,12 @@ func TestModifyOrder(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	_, err := p.ModifyOrder(context.Background(), &order.Modify{ID: "1337",
+	_, err := p.ModifyOrder(context.Background(), &order.Modify{
+		OrderID:   "1337",
 		Price:     1337,
 		AssetType: asset.Spot,
-		Pair:      currency.NewPair(currency.BTC, currency.USDT)})
+		Pair:      currency.NewPair(currency.BTC, currency.USDT),
+	})
 	switch {
 	case areTestAPIKeysSet() && err != nil && mockTests:
 		t.Error("ModifyOrder() error", err)

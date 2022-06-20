@@ -45,7 +45,7 @@ func (f omfExchange) GetOrderInfo(ctx context.Context, orderID string, pair curr
 			Side:        order.Buy,
 			Status:      order.Active,
 			LastUpdated: time.Now().Add(-time.Hour),
-			ID:          "Order1-unknown-to-active",
+			OrderID:     "Order1-unknown-to-active",
 		}, nil
 	case "Order2-active-to-inactive":
 		return order.Detail{
@@ -56,13 +56,13 @@ func (f omfExchange) GetOrderInfo(ctx context.Context, orderID string, pair curr
 			Side:        order.Sell,
 			Status:      order.Cancelled,
 			LastUpdated: time.Now().Add(-time.Hour),
-			ID:          "Order2-active-to-inactive",
+			OrderID:     "Order2-active-to-inactive",
 		}, nil
 	}
 
 	return order.Detail{
 		Exchange:  testExchange,
-		ID:        orderID,
+		OrderID:   orderID,
 		Pair:      pair,
 		AssetType: assetType,
 		Status:    order.Cancelled,
@@ -79,14 +79,17 @@ func (f omfExchange) GetActiveOrders(ctx context.Context, req *order.GetOrdersRe
 		Side:        order.Sell,
 		Status:      order.Active,
 		LastUpdated: time.Now().Add(-time.Hour),
-		ID:          "Order3-unknown-to-active",
+		OrderID:     "Order3-unknown-to-active",
 	}}, nil
 }
 
-func (f omfExchange) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Modify, error) {
-	ans := *action
-	ans.ID = "modified_order_id"
-	return &ans, nil
+func (f omfExchange) ModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
+	ans, err := action.DeriveModifyResponse()
+	if err != nil {
+		return nil, err
+	}
+	ans.OrderID = "modified_order_id"
+	return ans, nil
 }
 
 func TestSetupOrderManager(t *testing.T) {
@@ -225,14 +228,14 @@ func TestOrdersAdd(t *testing.T) {
 	m := OrdersSetup(t)
 	err := m.orderStore.add(&order.Detail{
 		Exchange: testExchange,
-		ID:       "TestOrdersAdd",
+		OrderID:  "TestOrdersAdd",
 	})
 	if err != nil {
 		t.Error(err)
 	}
 	err = m.orderStore.add(&order.Detail{
 		Exchange: "testTest",
-		ID:       "TestOrdersAdd",
+		OrderID:  "TestOrdersAdd",
 	})
 	if err == nil {
 		t.Error("Expected error from non existent exchange")
@@ -245,7 +248,7 @@ func TestOrdersAdd(t *testing.T) {
 
 	err = m.orderStore.add(&order.Detail{
 		Exchange: testExchange,
-		ID:       "TestOrdersAdd",
+		OrderID:  "TestOrdersAdd",
 	})
 	if err == nil {
 		t.Error("Expected error re-adding order")
@@ -256,7 +259,7 @@ func TestGetByExchangeAndID(t *testing.T) {
 	m := OrdersSetup(t)
 	err := m.orderStore.add(&order.Detail{
 		Exchange: testExchange,
-		ID:       "TestGetByExchangeAndID",
+		OrderID:  "TestGetByExchangeAndID",
 	})
 	if err != nil {
 		t.Error(err)
@@ -266,7 +269,7 @@ func TestGetByExchangeAndID(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if o.ID != "TestGetByExchangeAndID" {
+	if o.OrderID != "TestGetByExchangeAndID" {
 		t.Error("Expected to retrieve order")
 	}
 
@@ -288,7 +291,7 @@ func TestExists(t *testing.T) {
 	}
 	o := &order.Detail{
 		Exchange: testExchange,
-		ID:       "TestExists",
+		OrderID:  "TestExists",
 	}
 	if err := m.orderStore.add(o); err != nil {
 		t.Error(err)
@@ -308,7 +311,7 @@ func TestStore_modifyOrder(t *testing.T) {
 		Exchange:  testExchange,
 		AssetType: asset.Spot,
 		Pair:      pair,
-		ID:        "fake_order_id",
+		OrderID:   "fake_order_id",
 
 		Price:  8,
 		Amount: 128,
@@ -317,12 +320,11 @@ func TestStore_modifyOrder(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = m.orderStore.modifyExisting("fake_order_id", &order.Modify{
+	err = m.orderStore.modifyExisting("fake_order_id", &order.ModifyResponse{
 		Exchange: testExchange,
-
-		ID:     "another_fake_order_id",
-		Price:  16,
-		Amount: 256,
+		OrderID:  "another_fake_order_id",
+		Price:    16,
+		Amount:   256,
 	})
 	if err != nil {
 		t.Error(err)
@@ -338,10 +340,10 @@ func TestStore_modifyOrder(t *testing.T) {
 	if det == nil || err != nil { //nolint:staticcheck,nolintlint // SA5011 Ignore the nil warnings
 		t.Fatal("Failed to fetch order details")
 	}
-	if det.ID != "another_fake_order_id" || det.Price != 16 || det.Amount != 256 { //nolint:staticcheck,nolintlint // SA5011 Ignore the nil warnings
+	if det.OrderID != "another_fake_order_id" || det.Price != 16 || det.Amount != 256 { //nolint:staticcheck,nolintlint // SA5011 Ignore the nil warnings
 		t.Errorf(
 			"have (%s,%f,%f), want (%s,%f,%f)",
-			det.ID, det.Price, det.Amount,
+			det.OrderID, det.Price, det.Amount,
 			"another_fake_order_id", 16., 256.,
 		)
 	}
@@ -368,25 +370,24 @@ func TestCancelOrder(t *testing.T) {
 	}
 
 	err = m.Cancel(context.Background(), &order.Cancel{
-		ID: "ID",
+		OrderID: "ID",
 	})
 	if err == nil {
 		t.Error("Expected error due to no Exchange")
 	}
 
-	err = m.Cancel(context.Background(),
-		&order.Cancel{
-			ID:        "ID",
-			Exchange:  testExchange,
-			AssetType: asset.Binary,
-		})
+	err = m.Cancel(context.Background(), &order.Cancel{
+		OrderID:   "ID",
+		Exchange:  testExchange,
+		AssetType: asset.Binary,
+	})
 	if err == nil {
 		t.Error("Expected error due to bad asset type")
 	}
 
 	o := &order.Detail{
 		Exchange: testExchange,
-		ID:       "1337",
+		OrderID:  "1337",
 		Status:   order.New,
 	}
 	err = m.orderStore.add(o)
@@ -394,12 +395,11 @@ func TestCancelOrder(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = m.Cancel(context.Background(),
-		&order.Cancel{
-			ID:        "Unknown",
-			Exchange:  testExchange,
-			AssetType: asset.Spot,
-		})
+	err = m.Cancel(context.Background(), &order.Cancel{
+		OrderID:   "Unknown",
+		Exchange:  testExchange,
+		AssetType: asset.Spot,
+	})
 	if err == nil {
 		t.Error("Expected error due to no order found")
 	}
@@ -411,7 +411,7 @@ func TestCancelOrder(t *testing.T) {
 
 	cancel := &order.Cancel{
 		Exchange:  testExchange,
-		ID:        "1337",
+		OrderID:   "1337",
 		Side:      order.Sell,
 		AssetType: asset.Spot,
 		Pair:      pair,
@@ -439,7 +439,7 @@ func TestGetOrderInfo(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if result.ID != "1337" {
+	if result.OrderID != "1337" {
 		t.Error("unexpected order returned")
 	}
 
@@ -448,7 +448,7 @@ func TestGetOrderInfo(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if result.ID != "1337" {
+	if result.OrderID != "1337" {
 		t.Error("unexpected order returned")
 	}
 }
@@ -457,7 +457,7 @@ func TestCancelAllOrders(t *testing.T) {
 	m := OrdersSetup(t)
 	o := &order.Detail{
 		Exchange: testExchange,
-		ID:       "TestCancelAllOrders",
+		OrderID:  "TestCancelAllOrders",
 		Status:   order.New,
 	}
 	if err := m.orderStore.add(o); err != nil {
@@ -496,12 +496,7 @@ func TestSubmit(t *testing.T) {
 		t.Error("Expected error from nil order")
 	}
 
-	o := &order.Submit{
-		Exchange: "",
-		ID:       "FakePassingExchangeOrder",
-		Status:   order.New,
-		Type:     order.Market,
-	}
+	o := &order.Submit{Type: order.Market}
 	_, err = m.Submit(context.Background(), o)
 	if err == nil {
 		t.Error("Expected error from empty exchange")
@@ -563,7 +558,7 @@ func TestSubmit(t *testing.T) {
 
 	err = m.orderStore.add(&order.Detail{
 		Exchange: testExchange,
-		ID:       "FakePassingExchangeOrder",
+		OrderID:  "FakePassingExchangeOrder",
 	})
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
@@ -573,7 +568,7 @@ func TestSubmit(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if o2.InternalOrderID == "" {
+	if o2.InternalOrderID.IsNil() {
 		t.Error("Failed to assign internal order id")
 	}
 }
@@ -591,7 +586,7 @@ func TestOrderManager_Modify(t *testing.T) {
 			Exchange:  testExchange,
 			AssetType: asset.Spot,
 			Pair:      pair,
-			ID:        "fake_order_id",
+			OrderID:   "fake_order_id",
 			Price:     8,
 			Amount:    128,
 		})
@@ -617,10 +612,10 @@ func TestOrderManager_Modify(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if det.ID != resp.OrderID || det.Price != price || det.Amount != amount {
+		if det.OrderID != resp.OrderID || det.Price != price || det.Amount != amount {
 			t.Errorf(
 				"have (%s,%f,%f), want (%s,%f,%f)",
-				det.ID, det.Price, det.Amount,
+				det.OrderID, det.Price, det.Amount,
 				resp.OrderID, price, amount,
 			)
 		}
@@ -631,7 +626,7 @@ func TestOrderManager_Modify(t *testing.T) {
 		Exchange:  testExchange,
 		AssetType: asset.Spot,
 		Pair:      pair,
-		ID:        "fake_order_id",
+		OrderID:   "fake_order_id",
 		// These fields modify the order.
 		Price:  0,
 		Amount: 0,
@@ -639,7 +634,7 @@ func TestOrderManager_Modify(t *testing.T) {
 
 	// [1] Test if nonexistent order returns an error.
 	one := model
-	one.ID = "nonexistent_order_id"
+	one.OrderID = "nonexistent_order_id"
 	f(one, true, 0, 0)
 
 	// [2] Test if price of 0 is ignored.
@@ -749,7 +744,7 @@ func TestProcessOrders(t *testing.T) {
 			Side:        order.Buy,
 			Status:      order.UnknownStatus,
 			LastUpdated: time.Now().Add(-time.Hour),
-			ID:          "Order1-unknown-to-active",
+			OrderID:     "Order1-unknown-to-active",
 		},
 		{
 			Exchange:    testExchange,
@@ -759,7 +754,7 @@ func TestProcessOrders(t *testing.T) {
 			Side:        order.Sell,
 			Status:      order.Active,
 			LastUpdated: time.Now().Add(-time.Hour),
-			ID:          "Order2-active-to-inactive",
+			OrderID:     "Order2-active-to-inactive",
 		},
 		{
 			Exchange:    testExchange,
@@ -769,7 +764,7 @@ func TestProcessOrders(t *testing.T) {
 			Side:        order.Sell,
 			Status:      order.UnknownStatus,
 			LastUpdated: time.Now().Add(-time.Hour),
-			ID:          "Order3-unknown-to-active",
+			OrderID:     "Order3-unknown-to-active",
 		},
 	}
 	for i := range orders {
@@ -782,7 +777,7 @@ func TestProcessOrders(t *testing.T) {
 
 	// Order1 is not returned by exch.GetActiveOrders()
 	// It will be fetched by exch.GetOrderInfo(), which will say it is active
-	res, err := m.GetOrdersFiltered(&order.Filter{ID: "Order1-unknown-to-active"})
+	res, err := m.GetOrdersFiltered(&order.Filter{OrderID: "Order1-unknown-to-active"})
 	if err != nil {
 		t.Error(err)
 	}
@@ -795,7 +790,7 @@ func TestProcessOrders(t *testing.T) {
 
 	// Order2 is not returned by exch.GetActiveOrders()
 	// It will be fetched by exch.GetOrderInfo(), which will say it is cancelled
-	res, err = m.GetOrdersFiltered(&order.Filter{ID: "Order2-active-to-inactive"})
+	res, err = m.GetOrdersFiltered(&order.Filter{OrderID: "Order2-active-to-inactive"})
 	if err != nil {
 		t.Error(err)
 	}
@@ -807,7 +802,7 @@ func TestProcessOrders(t *testing.T) {
 	}
 
 	// Order3 is returned by exch.GetActiveOrders(), which will say it is active
-	res, err = m.GetOrdersFiltered(&order.Filter{ID: "Order3-unknown-to-active"})
+	res, err = m.GetOrdersFiltered(&order.Filter{OrderID: "Order3-unknown-to-active"})
 	if err != nil {
 		t.Error(err)
 	}
@@ -828,11 +823,11 @@ func TestGetOrdersFiltered(t *testing.T) {
 	orders := []order.Detail{
 		{
 			Exchange: testExchange,
-			ID:       "Test1",
+			OrderID:  "Test1",
 		},
 		{
 			Exchange: testExchange,
-			ID:       "Test2",
+			OrderID:  "Test2",
 		},
 	}
 	for i := range orders {
@@ -840,7 +835,7 @@ func TestGetOrdersFiltered(t *testing.T) {
 			t.Error(err)
 		}
 	}
-	res, err := m.GetOrdersFiltered(&order.Filter{ID: "Test2"})
+	res, err := m.GetOrdersFiltered(&order.Filter{OrderID: "Test2"})
 	if err != nil {
 		t.Error(err)
 	}
@@ -860,11 +855,11 @@ func Test_getFilteredOrders(t *testing.T) {
 	orders := []order.Detail{
 		{
 			Exchange: testExchange,
-			ID:       "Test1",
+			OrderID:  "Test1",
 		},
 		{
 			Exchange: testExchange,
-			ID:       "Test2",
+			OrderID:  "Test2",
 		},
 	}
 	for i := range orders {
@@ -872,7 +867,7 @@ func Test_getFilteredOrders(t *testing.T) {
 			t.Error(err)
 		}
 	}
-	res, err := m.orderStore.getFilteredOrders(&order.Filter{ID: "Test1"})
+	res, err := m.orderStore.getFilteredOrders(&order.Filter{OrderID: "Test1"})
 	if err != nil {
 		t.Error(err)
 	}
@@ -890,14 +885,14 @@ func TestGetOrdersActive(t *testing.T) {
 			Amount:   1.0,
 			Side:     order.Buy,
 			Status:   order.Cancelled,
-			ID:       "Test1",
+			OrderID:  "Test1",
 		},
 		{
 			Exchange: testExchange,
 			Amount:   1.0,
 			Side:     order.Sell,
 			Status:   order.Active,
-			ID:       "Test2",
+			OrderID:  "Test2",
 		},
 	}
 	for i := range orders {
@@ -937,12 +932,12 @@ func Test_processMatchingOrders(t *testing.T) {
 	orders := []order.Detail{
 		{
 			Exchange:    testExchange,
-			ID:          "Test2",
+			OrderID:     "Test2",
 			LastUpdated: time.Now(),
 		},
 		{
 			Exchange:    testExchange,
-			ID:          "Test4",
+			OrderID:     "Test4",
 			LastUpdated: time.Now().Add(-time.Hour),
 		},
 	}
@@ -957,7 +952,7 @@ func Test_processMatchingOrders(t *testing.T) {
 	if len(res) != 1 {
 		t.Errorf("Expected 1 result, got: %d", len(res))
 	}
-	if res[0].ID != "Test4" {
+	if res[0].OrderID != "Test4" {
 		t.Error("Order Test4 should have been fetched and updated")
 	}
 }
@@ -977,7 +972,7 @@ func TestFetchAndUpdateExchangeOrder(t *testing.T) {
 		Amount:   1.0,
 		Side:     order.Sell,
 		Status:   order.Active,
-		ID:       "Test",
+		OrderID:  "Test",
 	}
 	err = m.FetchAndUpdateExchangeOrder(exch, o, asset.Spot)
 	if err != nil {
@@ -1017,14 +1012,14 @@ func Test_getActiveOrders(t *testing.T) {
 			Amount:   1.0,
 			Side:     order.Buy,
 			Status:   order.Cancelled,
-			ID:       "Test1",
+			OrderID:  "Test1",
 		},
 		{
 			Exchange: testExchange,
 			Amount:   1.0,
 			Side:     order.Sell,
 			Status:   order.Active,
-			ID:       "Test2",
+			OrderID:  "Test2",
 		},
 	}
 	for i := range orders {
@@ -1071,7 +1066,7 @@ func TestGetFuturesPositionsForExchange(t *testing.T) {
 	}
 
 	err = o.orderStore.futuresPositionController.TrackNewOrder(&order.Detail{
-		ID:        "test",
+		OrderID:   "test",
 		Date:      time.Now(),
 		Exchange:  "test",
 		AssetType: asset.Futures,
@@ -1122,7 +1117,7 @@ func TestClearFuturesPositionsForExchange(t *testing.T) {
 	}
 
 	err = o.orderStore.futuresPositionController.TrackNewOrder(&order.Detail{
-		ID:        "test",
+		OrderID:   "test",
 		Date:      time.Now(),
 		Exchange:  "test",
 		AssetType: asset.Futures,
@@ -1177,7 +1172,7 @@ func TestUpdateOpenPositionUnrealisedPNL(t *testing.T) {
 	}
 
 	err = o.orderStore.futuresPositionController.TrackNewOrder(&order.Detail{
-		ID:        "test",
+		OrderID:   "test",
 		Date:      time.Now(),
 		Exchange:  "test",
 		AssetType: asset.Futures,
@@ -1206,7 +1201,7 @@ func TestUpdateOpenPositionUnrealisedPNL(t *testing.T) {
 func TestSubmitFakeOrder(t *testing.T) {
 	t.Parallel()
 	o := &OrderManager{}
-	resp := order.SubmitResponse{}
+	resp := &order.SubmitResponse{}
 	_, err := o.SubmitFakeOrder(nil, resp, false)
 	if !errors.Is(err, ErrSubSystemNotStarted) {
 		t.Errorf("received '%v', expected '%v'", err, ErrSubSystemNotStarted)
@@ -1237,13 +1232,12 @@ func TestSubmitFakeOrder(t *testing.T) {
 	em.Add(exch)
 	o.orderStore.exchangeManager = em
 
-	_, err = o.SubmitFakeOrder(ord, resp, false)
-	if !errors.Is(err, errUnableToPlaceOrder) {
-		t.Errorf("received '%v', expected '%v'", err, errUnableToPlaceOrder)
+	resp, err = ord.DeriveSubmitResponse("1234")
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	resp.IsOrderPlaced = true
-	resp.FullyMatched = true
+	resp.Status = order.Filled
 	o.orderStore.commsManager = &CommunicationManager{}
 	o.orderStore.Orders = make(map[string][]*order.Detail)
 	_, err = o.SubmitFakeOrder(ord, resp, false)
@@ -1293,7 +1287,7 @@ func TestUpdateExisting(t *testing.T) {
 	}
 	od.Exchange = testExchange
 	od.AssetType = asset.Futures
-	od.ID = "123"
+	od.OrderID = "123"
 	od.Pair = currency.NewPair(currency.BTC, currency.USDT)
 	od.Side = order.Buy
 	od.Type = order.Market

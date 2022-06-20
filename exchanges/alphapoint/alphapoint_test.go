@@ -477,6 +477,7 @@ func TestSubmitOrder(t *testing.T) {
 	}
 
 	var orderSubmission = &order.Submit{
+		Exchange: a.Name,
 		Pair: currency.Pair{
 			Delimiter: "_",
 			Base:      currency.BTC,
@@ -497,7 +498,7 @@ func TestSubmitOrder(t *testing.T) {
 	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Withdraw failed to be placed: %v", err)
 
-		if !response.IsOrderPlaced {
+		if response.Status != order.New {
 			t.Errorf("Order failed to be placed: %v", err)
 		}
 	}
@@ -511,7 +512,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 
 	currencyPair := currency.NewPair(currency.BTC, currency.LTC)
 	var orderCancellation = &order.Cancel{
-		ID:            "1",
+		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		Pair:          currencyPair,
@@ -535,7 +536,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 
 	currencyPair := currency.NewPair(currency.BTC, currency.LTC)
 	var orderCancellation = &order.Cancel{
-		ID:            "1",
+		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		Pair:          currencyPair,

@@ -169,7 +169,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 
 	ords := orderManager.GetOrdersSnapshot(gctorder.UnknownStatus)
 	for i := range ords {
-		if ords[i].ID != orderID {
+		if ords[i].OrderID != orderID {
 			continue
 		}
 		ords[i].Date = o.GetTime()
@@ -369,52 +369,42 @@ func (e *Exchange) placeOrder(ctx context.Context, price, amount, fee decimal.De
 	if f == nil {
 		return "", common.ErrNilEvent
 	}
-	u, err := uuid.NewV4()
+	orderID, err := uuid.NewV4()
 	if err != nil {
 		return "", err
 	}
-	var orderID string
-	p := price.InexactFloat64()
-	o := &gctorder.Submit{
-		Price:       p,
-		Amount:      amount.InexactFloat64(),
-		Fee:         fee.InexactFloat64(),
-		Exchange:    f.GetExchange(),
-		ID:          u.String(),
-		Side:        f.GetDirection(),
-		AssetType:   f.GetAssetType(),
-		Date:        f.GetTime(),
-		LastUpdated: f.GetTime(),
-		Pair:        f.Pair(),
-		Type:        gctorder.Market,
+
+	submit := &gctorder.Submit{
+		Price:     price.InexactFloat64(),
+		Amount:    amount.InexactFloat64(),
+		Exchange:  f.Exchange,
+		Side:      f.Direction,
+		AssetType: f.AssetType,
+		Pair:      f.Pair(),
+		Type:      gctorder.Market,
 	}
 
+	var resp *engine.OrderSubmitResponse
 	if useRealOrders {
-		resp, err := orderManager.Submit(ctx, o)
-		if resp != nil {
-			orderID = resp.OrderID
-		}
-		if err != nil {
-			return orderID, err
-		}
+		resp, err = orderManager.Submit(ctx, submit)
 	} else {
-		submitResponse := gctorder.SubmitResponse{
-			IsOrderPlaced: true,
-			OrderID:       u.String(),
-			Rate:          o.Amount,
-			Fee:           fee.InexactFloat64(),
-			Cost:          p,
-			FullyMatched:  true,
-		}
-		resp, err := orderManager.SubmitFakeOrder(o, submitResponse, useExchangeLimits)
-		if resp != nil {
-			orderID = resp.OrderID
-		}
+		var submitResponse *gctorder.SubmitResponse
+		submitResponse, err = submit.DeriveSubmitResponse(orderID.String())
 		if err != nil {
-			return orderID, err
+			return orderID.String(), err
 		}
+		submitResponse.Status = gctorder.Filled
+		submitResponse.OrderID = orderID.String()
+		submitResponse.Fee = f.ExchangeFee.InexactFloat64()
+		submitResponse.Cost = submit.Price
+		submitResponse.LastUpdated = f.GetTime()
+		submitResponse.Date = f.GetTime()
+		resp, err = orderManager.SubmitFakeOrder(submit, submitResponse, useExchangeLimits)
 	}
-	return orderID, nil
+	if err != nil {
+		return orderID.String(), err
+	}
+	return resp.OrderID, nil
 }
 
 func applySlippageToPrice(direction gctorder.Side, price, slippageRate decimal.Decimal) (decimal.Decimal, error) {

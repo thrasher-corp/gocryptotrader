@@ -903,11 +903,13 @@ func (a *AggregatedTrade) toTradeData(p currency.Pair, exchange string, aType as
 }
 
 // SubmitOrder submits a new order
-func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
-	var submitOrderResponse order.SubmitResponse
+func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	if err := s.Validate(); err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
+	var orderID string
+	status := order.New
+	var trades []order.TradeHistory
 	switch s.AssetType {
 	case asset.Spot, asset.Margin:
 		var sideType string
@@ -926,8 +928,7 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submi
 		case order.Limit:
 			requestParamsOrderType = BinanceRequestParamsOrderLimit
 		default:
-			submitOrderResponse.IsOrderPlaced = false
-			return submitOrderResponse, errors.New("unsupported order type")
+			return nil, errors.New("unsupported order type")
 		}
 
 		var orderRequest = NewOrderRequest{
@@ -941,26 +942,23 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submi
 		}
 		response, err := b.NewOrder(ctx, &orderRequest)
 		if err != nil {
-			return submitOrderResponse, err
+			return nil, err
 		}
 
-		if response.OrderID > 0 {
-			submitOrderResponse.OrderID = strconv.FormatInt(response.OrderID, 10)
-		}
+		orderID = strconv.FormatInt(response.OrderID, 10)
 		if response.ExecutedQty == response.OrigQty {
-			submitOrderResponse.FullyMatched = true
+			status = order.Filled
 		}
-		submitOrderResponse.IsOrderPlaced = true
 
+		trades = make([]order.TradeHistory, len(response.Fills))
 		for i := range response.Fills {
-			submitOrderResponse.Trades = append(submitOrderResponse.Trades, order.TradeHistory{
+			trades[i] = order.TradeHistory{
 				Price:    response.Fills[i].Price,
 				Amount:   response.Fills[i].Qty,
 				Fee:      response.Fills[i].Commission,
 				FeeAsset: response.Fills[i].CommissionAsset,
-			})
+			}
 		}
-
 	case asset.CoinMarginedFutures:
 		var reqSide string
 		switch s.Side {
@@ -969,7 +967,7 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submi
 		case order.Sell:
 			reqSide = "SELL"
 		default:
-			return submitOrderResponse, fmt.Errorf("invalid side")
+			return nil, fmt.Errorf("invalid side")
 		}
 
 		var (
@@ -994,7 +992,7 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submi
 		case order.TrailingStop:
 			oType = cfuturesTrailingStopMarket
 		default:
-			return submitOrderResponse, errors.New("invalid type, check api docs for updates")
+			return nil, errors.New("invalid type, check api docs for updates")
 		}
 
 		o, err := b.FuturesNewOrder(
@@ -1011,10 +1009,9 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submi
 			},
 		)
 		if err != nil {
-			return submitOrderResponse, err
+			return nil, err
 		}
-		submitOrderResponse.OrderID = strconv.FormatInt(o.OrderID, 10)
-		submitOrderResponse.IsOrderPlaced = true
+		orderID = strconv.FormatInt(o.OrderID, 10)
 	case asset.USDTMarginedFutures:
 		var reqSide string
 		switch s.Side {
@@ -1023,7 +1020,7 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submi
 		case order.Sell:
 			reqSide = "SELL"
 		default:
-			return submitOrderResponse, fmt.Errorf("invalid side")
+			return nil, fmt.Errorf("invalid side")
 		}
 		var oType string
 		switch s.Type {
@@ -1042,7 +1039,7 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submi
 		case order.TrailingStop:
 			oType = "TRAILING_STOP_MARKET"
 		default:
-			return submitOrderResponse, errors.New("invalid type, check api docs for updates")
+			return nil, errors.New("invalid type, check api docs for updates")
 		}
 		order, err := b.UFuturesNewOrder(ctx,
 			s.Pair, reqSide,
@@ -1050,20 +1047,25 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submi
 			s.ClientOrderID, "", "",
 			s.Amount, s.Price, 0, 0, 0, s.ReduceOnly)
 		if err != nil {
-			return submitOrderResponse, err
+			return nil, err
 		}
-		submitOrderResponse.OrderID = strconv.FormatInt(order.OrderID, 10)
-		submitOrderResponse.IsOrderPlaced = true
+		orderID = strconv.FormatInt(order.OrderID, 10)
 	default:
-		return submitOrderResponse, fmt.Errorf("assetType not supported")
+		return nil, fmt.Errorf("assetType not supported")
 	}
 
-	return submitOrderResponse, nil
+	resp, err := s.DeriveSubmitResponse(orderID)
+	if err != nil {
+		return nil, err
+	}
+	resp.Trades = trades
+	resp.Status = status
+	return resp, nil
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (b *Binance) ModifyOrder(_ context.Context, _ *order.Modify) (*order.Modify, error) {
+func (b *Binance) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -1074,7 +1076,7 @@ func (b *Binance) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	}
 	switch o.AssetType {
 	case asset.Spot, asset.Margin:
-		orderIDInt, err := strconv.ParseInt(o.ID, 10, 64)
+		orderIDInt, err := strconv.ParseInt(o.OrderID, 10, 64)
 		if err != nil {
 			return err
 		}
@@ -1086,12 +1088,12 @@ func (b *Binance) CancelOrder(ctx context.Context, o *order.Cancel) error {
 			return err
 		}
 	case asset.CoinMarginedFutures:
-		_, err := b.FuturesCancelOrder(ctx, o.Pair, o.ID, "")
+		_, err := b.FuturesCancelOrder(ctx, o.Pair, o.OrderID, "")
 		if err != nil {
 			return err
 		}
 	case asset.USDTMarginedFutures:
-		_, err := b.UCancelOrder(ctx, o.Pair, o.ID, "")
+		_, err := b.UCancelOrder(ctx, o.Pair, o.OrderID, "")
 		if err != nil {
 			return err
 		}
@@ -1198,7 +1200,7 @@ func (b *Binance) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 		return order.Detail{
 			Amount:         resp.OrigQty,
 			Exchange:       b.Name,
-			ID:             strconv.FormatInt(resp.OrderID, 10),
+			OrderID:        strconv.FormatInt(resp.OrderID, 10),
 			ClientOrderID:  resp.ClientOrderID,
 			Side:           side,
 			Type:           orderType,
@@ -1231,7 +1233,7 @@ func (b *Binance) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 		respData.Exchange = b.Name
 		respData.ExecutedAmount = orderData.ExecutedQuantity
 		respData.Fee = fee
-		respData.ID = orderID
+		respData.OrderID = orderID
 		respData.Pair = pair
 		respData.Price = orderData.Price
 		respData.RemainingAmount = orderData.OriginalQuantity - orderData.ExecutedQuantity
@@ -1260,7 +1262,7 @@ func (b *Binance) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 		respData.Exchange = b.Name
 		respData.ExecutedAmount = orderData.ExecutedQuantity
 		respData.Fee = fee
-		respData.ID = orderID
+		respData.OrderID = orderID
 		respData.Pair = pair
 		respData.Price = orderData.Price
 		respData.RemainingAmount = orderData.OriginalQuantity - orderData.ExecutedQuantity
@@ -1372,7 +1374,7 @@ func (b *Binance) GetActiveOrders(ctx context.Context, req *order.GetOrdersReque
 					Amount:        resp[x].OrigQty,
 					Date:          resp[x].Time,
 					Exchange:      b.Name,
-					ID:            strconv.FormatInt(resp[x].OrderID, 10),
+					OrderID:       strconv.FormatInt(resp[x].OrderID, 10),
 					ClientOrderID: resp[x].ClientOrderID,
 					Side:          side,
 					Type:          orderType,
@@ -1405,7 +1407,7 @@ func (b *Binance) GetActiveOrders(ctx context.Context, req *order.GetOrdersReque
 					RemainingAmount: openOrders[y].OrigQty - openOrders[y].ExecutedQty,
 					Fee:             fee,
 					Exchange:        b.Name,
-					ID:              strconv.FormatInt(openOrders[y].OrderID, 10),
+					OrderID:         strconv.FormatInt(openOrders[y].OrderID, 10),
 					ClientOrderID:   openOrders[y].ClientOrderID,
 					Type:            orderVars.OrderType,
 					Side:            orderVars.Side,
@@ -1438,7 +1440,7 @@ func (b *Binance) GetActiveOrders(ctx context.Context, req *order.GetOrdersReque
 					RemainingAmount: openOrders[y].OriginalQuantity - openOrders[y].ExecutedQuantity,
 					Fee:             fee,
 					Exchange:        b.Name,
-					ID:              strconv.FormatInt(openOrders[y].OrderID, 10),
+					OrderID:         strconv.FormatInt(openOrders[y].OrderID, 10),
 					ClientOrderID:   openOrders[y].ClientOrderID,
 					Type:            orderVars.OrderType,
 					Side:            orderVars.Side,
@@ -1519,7 +1521,7 @@ func (b *Binance) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 					Date:            resp[i].Time,
 					LastUpdated:     resp[i].UpdateTime,
 					Exchange:        b.Name,
-					ID:              strconv.FormatInt(resp[i].OrderID, 10),
+					OrderID:         strconv.FormatInt(resp[i].OrderID, 10),
 					Side:            side,
 					Type:            orderType,
 					Price:           resp[i].Price,
@@ -1577,7 +1579,7 @@ func (b *Binance) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 					RemainingAmount: orderHistory[y].OrigQty - orderHistory[y].ExecutedQty,
 					Fee:             fee,
 					Exchange:        b.Name,
-					ID:              strconv.FormatInt(orderHistory[y].OrderID, 10),
+					OrderID:         strconv.FormatInt(orderHistory[y].OrderID, 10),
 					ClientOrderID:   orderHistory[y].ClientOrderID,
 					Type:            orderVars.OrderType,
 					Side:            orderVars.Side,
@@ -1635,7 +1637,7 @@ func (b *Binance) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 					RemainingAmount: orderHistory[y].OrigQty - orderHistory[y].ExecutedQty,
 					Fee:             fee,
 					Exchange:        b.Name,
-					ID:              strconv.FormatInt(orderHistory[y].OrderID, 10),
+					OrderID:         strconv.FormatInt(orderHistory[y].OrderID, 10),
 					ClientOrderID:   orderHistory[y].ClientOrderID,
 					Type:            orderVars.OrderType,
 					Side:            orderVars.Side,

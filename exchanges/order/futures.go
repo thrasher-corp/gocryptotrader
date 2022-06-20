@@ -30,7 +30,8 @@ func (c *PositionController) TrackNewOrder(d *Detail) error {
 		return errNilOrder
 	}
 	if !d.AssetType.IsFutures() {
-		return fmt.Errorf("order %v %v %v %v %w", d.Exchange, d.AssetType, d.Pair, d.ID, ErrNotFuturesAsset)
+		return fmt.Errorf("order %v %v %v %v %w",
+			d.Exchange, d.AssetType, d.Pair, d.OrderID, ErrNotFuturesAsset)
 	}
 	if c == nil {
 		return fmt.Errorf("position controller %w", common.ErrNilPointer)
@@ -341,7 +342,7 @@ func (m *MultiPositionTracker) TrackNewOrder(d *Detail) error {
 	if d.AssetType != m.asset {
 		return errAssetMismatch
 	}
-	if tracker, ok := m.orderPositions[d.ID]; ok {
+	if tracker, ok := m.orderPositions[d.OrderID]; ok {
 		// this has already been associated
 		// update the tracker
 		return tracker.TrackNewOrder(d, false)
@@ -357,7 +358,7 @@ func (m *MultiPositionTracker) TrackNewOrder(d *Detail) error {
 			if err != nil && !errors.Is(err, ErrPositionClosed) {
 				return err
 			}
-			m.orderPositions[d.ID] = m.positions[len(m.positions)-1]
+			m.orderPositions[d.OrderID] = m.positions[len(m.positions)-1]
 			return nil
 		}
 	}
@@ -379,7 +380,7 @@ func (m *MultiPositionTracker) TrackNewOrder(d *Detail) error {
 	if err != nil {
 		return err
 	}
-	m.orderPositions[d.ID] = tracker
+	m.orderPositions[d.OrderID] = tracker
 	return nil
 }
 
@@ -534,23 +535,27 @@ func (p *PositionTracker) TrackNewOrder(d *Detail, isInitialOrder bool) error {
 		return ErrSubmissionIsNil
 	}
 	if !p.contractPair.Equal(d.Pair) {
-		return fmt.Errorf("%w pair '%v' received: '%v'", errOrderNotEqualToTracker, d.Pair, p.contractPair)
+		return fmt.Errorf("%w pair '%v' received: '%v'",
+			errOrderNotEqualToTracker, d.Pair, p.contractPair)
 	}
 	if !strings.EqualFold(p.exchange, d.Exchange) {
-		return fmt.Errorf("%w exchange '%v' received: '%v'", errOrderNotEqualToTracker, d.Exchange, p.exchange)
+		return fmt.Errorf("%w exchange '%v' received: '%v'",
+			errOrderNotEqualToTracker, d.Exchange, p.exchange)
 	}
 	if p.asset != d.AssetType {
-		return fmt.Errorf("%w asset '%v' received: '%v'", errOrderNotEqualToTracker, d.AssetType, p.asset)
+		return fmt.Errorf("%w asset '%v' received: '%v'",
+			errOrderNotEqualToTracker, d.AssetType, p.asset)
 	}
 
 	if d.Side == UnknownSide {
 		return ErrSideIsInvalid
 	}
-	if d.ID == "" {
+	if d.OrderID == "" {
 		return ErrOrderIDNotSet
 	}
 	if d.Date.IsZero() {
-		return fmt.Errorf("%w for %v %v %v order ID: %v unset", errTimeUnset, d.Exchange, d.AssetType, d.Pair, d.ID)
+		return fmt.Errorf("%w for %v %v %v order ID: %v unset",
+			errTimeUnset, d.Exchange, d.AssetType, d.Pair, d.OrderID)
 	}
 	if len(p.shortPositions) == 0 && len(p.longPositions) == 0 {
 		p.entryPrice = decimal.NewFromFloat(d.Price)
@@ -558,21 +563,27 @@ func (p *PositionTracker) TrackNewOrder(d *Detail, isInitialOrder bool) error {
 
 	var updated bool
 	for i := range p.shortPositions {
-		if p.shortPositions[i].ID != d.ID {
+		if p.shortPositions[i].OrderID != d.OrderID {
 			continue
 		}
 		ord := p.shortPositions[i].Copy()
-		ord.UpdateOrderFromDetail(d)
+		err := ord.UpdateOrderFromDetail(d)
+		if err != nil {
+			return err
+		}
 		p.shortPositions[i] = ord
 		updated = true
 		break
 	}
 	for i := range p.longPositions {
-		if p.longPositions[i].ID != d.ID {
+		if p.longPositions[i].OrderID != d.OrderID {
 			continue
 		}
 		ord := p.longPositions[i].Copy()
-		ord.UpdateOrderFromDetail(d)
+		err := ord.UpdateOrderFromDetail(d)
+		if err != nil {
+			return err
+		}
 		p.longPositions[i] = ord
 		updated = true
 		break

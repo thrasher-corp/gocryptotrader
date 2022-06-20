@@ -174,7 +174,7 @@ func TestWebsocketRoutineManagerHandleData(t *testing.T) {
 	}
 	origOrder := &order.Detail{
 		Exchange: exchName,
-		ID:       orderID,
+		OrderID:  orderID,
 		Amount:   1337,
 		Price:    1337,
 	}
@@ -185,13 +185,13 @@ func TestWebsocketRoutineManagerHandleData(t *testing.T) {
 	// Send it again since it exists now
 	err = m.websocketDataHandler(exchName, &order.Detail{
 		Exchange: exchName,
-		ID:       orderID,
+		OrderID:  orderID,
 		Amount:   1338,
 	})
 	if err != nil {
 		t.Error(err)
 	}
-	updated, err := m.orderManager.GetByExchangeAndID(origOrder.Exchange, origOrder.ID)
+	updated, err := m.orderManager.GetByExchangeAndID(origOrder.Exchange, origOrder.OrderID)
 	if err != nil {
 		t.Error(err)
 	}
@@ -199,15 +199,15 @@ func TestWebsocketRoutineManagerHandleData(t *testing.T) {
 		t.Error("Bad pipeline")
 	}
 
-	err = m.websocketDataHandler(exchName, &order.Modify{
+	err = m.websocketDataHandler(exchName, &order.Detail{
 		Exchange: "Bitstamp",
-		ID:       orderID,
+		OrderID:  orderID,
 		Status:   order.Active,
 	})
 	if err != nil {
 		t.Error(err)
 	}
-	updated, err = m.orderManager.GetByExchangeAndID(origOrder.Exchange, origOrder.ID)
+	updated, err = m.orderManager.GetByExchangeAndID(origOrder.Exchange, origOrder.OrderID)
 	if err != nil {
 		t.Error(err)
 	}
