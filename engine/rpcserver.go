@@ -4373,13 +4373,13 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 	if err != nil {
 		return nil, err
 	}
-	var subErr string
+	var subAccount string
 	if creds.SubAccount != "" {
-		subErr = "for subaccount: " + creds.SubAccount
+		subAccount = "for subaccount: " + creds.SubAccount
 	}
 	orders, err := exch.GetFuturesPositions(ctx, ai, cp, start, end)
 	if err != nil {
-		return nil, fmt.Errorf("%w %v", err, subErr)
+		return nil, fmt.Errorf("%w %v", err, subAccount)
 	}
 	sort.Slice(orders, func(i, j int) bool {
 		return orders[i].Date.Before(orders[j].Date)
@@ -4387,7 +4387,7 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 	if r.Overwrite {
 		err = s.OrderManager.ClearFuturesTracking(r.Exchange, ai, cp)
 		if err != nil {
-			return nil, fmt.Errorf("%w %v", err, subErr)
+			return nil, fmt.Errorf("cannot overwrite %w %v", err, subAccount)
 		}
 	}
 	for i := range orders {
@@ -4400,7 +4400,7 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 	}
 	pos, err := s.OrderManager.GetFuturesPositionsForExchange(r.Exchange, ai, cp)
 	if err != nil {
-		return nil, fmt.Errorf("%w %v", err, subErr)
+		return nil, fmt.Errorf("cannot GetFuturesPositionsForExchange %w %v", err, subAccount)
 	}
 	response := &gctrpc.GetFuturesPositionsResponse{
 		SubAccount: creds.SubAccount,
@@ -4417,11 +4417,11 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 			var tick *ticker.Price
 			tick, err = exch.FetchTicker(ctx, pos[i].Pair, pos[i].Asset)
 			if err != nil {
-				return nil, fmt.Errorf("%w when fetching ticker data for %v %v %v", err, pos[i].Exchange, pos[i].Asset, pos[i].Pair)
+				return nil, fmt.Errorf("%w when fetching ticker data for %v %v %v %v", err, pos[i].Exchange, pos[i].Asset, pos[i].Pair, subAccount)
 			}
 			pos[i].UnrealisedPNL, err = s.OrderManager.UpdateOpenPositionUnrealisedPNL(pos[i].Exchange, pos[i].Asset, pos[i].Pair, tick.Last, tick.LastUpdated)
 			if err != nil {
-				return nil, fmt.Errorf("%w when updating unrealised PNL for %v %v %v", err, pos[i].Exchange, pos[i].Asset, pos[i].Pair)
+				return nil, fmt.Errorf("%w when updating unrealised PNL for %v %v %v %v", err, pos[i].Exchange, pos[i].Asset, pos[i].Pair, subAccount)
 			}
 			pos[i].LatestPrice = decimal.NewFromFloat(tick.Last)
 		}
@@ -4469,7 +4469,7 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 				Pair:  pos[i].Pair,
 			})
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("cannot GetPositionSummary %w %v", err, subAccount)
 			}
 			details.PositionStats = &gctrpc.FuturesPositionStats{
 				MaintenanceMarginRequirement: stats.MaintenanceMarginRequirement.String(),
@@ -4506,7 +4506,7 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 				return nil, err
 			}
 			if len(fundingDetails) != 1 {
-				return nil, fmt.Errorf("%w expected 1 funding rate, got %d", errUnexpectedResponseSize, len(fundingDetails))
+				return nil, fmt.Errorf("%w expected 1 set of funding rates, got %d %v", errUnexpectedResponseSize, len(fundingDetails), subAccount)
 			}
 			var funding []*gctrpc.FundingRate
 			if r.IncludeFullFundingRates {
