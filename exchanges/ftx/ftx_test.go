@@ -2198,3 +2198,221 @@ func TestGetCollateral(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestGetLendingRateHistory(t *testing.T) {
+	t.Parallel()
+	type testCase struct {
+		name         string
+		request      *order.LendingRateRequest
+		err          error
+		requiresAuth bool
+	}
+	tests := []testCase{
+		{
+			name:    "nil request",
+			request: nil,
+			err:     common.ErrNilPointer,
+		},
+		{
+			name:    "empty request",
+			request: &order.LendingRateRequest{},
+			err:     currency.ErrCurrencyCodeEmpty,
+		},
+		{
+			name: "disabled currency request",
+			request: &order.LendingRateRequest{
+				Asset:    asset.Futures,
+				Currency: currency.LUNA,
+			},
+			err: errCurrencyNotEnabled,
+		},
+		{
+			name: "empty date request",
+			request: &order.LendingRateRequest{
+				Asset:    asset.Spot,
+				Currency: currency.USD,
+			},
+			err: common.ErrDateUnset,
+		},
+		{
+			name: "nice basic request",
+			request: &order.LendingRateRequest{
+				Asset:     asset.Spot,
+				Currency:  currency.USD,
+				StartDate: time.Now().Add(-time.Hour * 24 * 7),
+				EndDate:   time.Now(),
+			},
+			err: nil,
+		},
+		{
+			name: "include predicted rate",
+			request: &order.LendingRateRequest{
+				Asset:            asset.Spot,
+				Currency:         currency.USD,
+				StartDate:        time.Now().Add(-time.Hour * 24 * 7),
+				EndDate:          time.Now(),
+				GetPredictedRate: true,
+			},
+			err: nil,
+		},
+		{
+			name: "include borrowed rates",
+			request: &order.LendingRateRequest{
+				Asset:          asset.Spot,
+				Currency:       currency.USD,
+				StartDate:      time.Now().Add(-time.Hour * 24 * 7),
+				EndDate:        time.Now(),
+				GetBorrowRates: true,
+			},
+			err:          nil,
+			requiresAuth: true,
+		},
+		{
+			name: "include predicted borrowed rates",
+			request: &order.LendingRateRequest{
+				Asset:            asset.Spot,
+				Currency:         currency.USD,
+				StartDate:        time.Now().Add(-time.Hour * 24 * 7),
+				EndDate:          time.Now(),
+				GetBorrowRates:   true,
+				GetPredictedRate: true,
+			},
+			err:          nil,
+			requiresAuth: true,
+		},
+		{
+			name: "all you can eat",
+			request: &order.LendingRateRequest{
+				Asset:              asset.Spot,
+				Currency:           currency.USD,
+				StartDate:          time.Now().Add(-time.Hour * 24 * 365 * 2),
+				EndDate:            time.Now(),
+				GetBorrowRates:     true,
+				GetPredictedRate:   true,
+				GetLendingPayments: true,
+				GetBorrowCosts:     true,
+			},
+			err:          nil,
+			requiresAuth: true,
+		},
+		{
+			name: "offline failure, no rates",
+			request: &order.LendingRateRequest{
+				Asset:            asset.Spot,
+				Currency:         currency.USD,
+				StartDate:        time.Now().Add(-time.Hour * 24 * 7),
+				EndDate:          time.Now(),
+				CalculateOffline: true,
+			},
+			err: common.ErrCannotCalculateOffline,
+		},
+		{
+			name: "offline failure, no fee for lending",
+			request: &order.LendingRateRequest{
+				Asset:              asset.Spot,
+				Currency:           currency.USD,
+				StartDate:          time.Now().Add(-time.Hour * 24 * 7),
+				EndDate:            time.Now(),
+				CalculateOffline:   true,
+				GetLendingPayments: true,
+				Rates: []order.LendingRate{
+					{
+						Time: time.Now().Add(-time.Hour),
+						Rate: decimal.NewFromInt(1337),
+					},
+				},
+			},
+			err: common.ErrCannotCalculateOffline,
+		},
+		{
+			name: "offline failure, no fee for borrow",
+			request: &order.LendingRateRequest{
+				Asset:            asset.Spot,
+				Currency:         currency.USD,
+				StartDate:        time.Now().Add(-time.Hour * 24 * 7),
+				EndDate:          time.Now(),
+				CalculateOffline: true,
+				GetBorrowCosts:   true,
+				Rates: []order.LendingRate{
+					{
+						Time: time.Now().Add(-time.Hour),
+						Rate: decimal.NewFromInt(1337),
+					},
+				},
+			},
+			err: common.ErrCannotCalculateOffline,
+		},
+		{
+			name: "offline pass, lending w fee",
+			request: &order.LendingRateRequest{
+				Asset:              asset.Spot,
+				Currency:           currency.USD,
+				StartDate:          time.Now().Add(-time.Hour * 24 * 7),
+				EndDate:            time.Now(),
+				CalculateOffline:   true,
+				TakeFeeRate:        decimal.NewFromFloat(0.01),
+				GetLendingPayments: true,
+				Rates: []order.LendingRate{
+					{
+						Time: time.Now().Add(-time.Hour),
+						Rate: decimal.NewFromInt(1337),
+					},
+				},
+			},
+			err: nil,
+		},
+		{
+			name: "offline pass, borrow w fee",
+			request: &order.LendingRateRequest{
+				Asset:              asset.Spot,
+				Currency:           currency.USD,
+				StartDate:          time.Now().Add(-time.Hour * 24 * 7),
+				EndDate:            time.Now(),
+				CalculateOffline:   true,
+				TakeFeeRate:        decimal.NewFromFloat(0.01),
+				GetLendingPayments: true,
+				Rates: []order.LendingRate{
+					{
+						Time: time.Now().Add(-time.Hour),
+						Rate: decimal.NewFromInt(1337),
+					},
+				},
+			},
+			err: nil,
+		},
+		{
+			name: "offline failure, cannot predict offline",
+			request: &order.LendingRateRequest{
+				Asset:            asset.Spot,
+				Currency:         currency.USD,
+				StartDate:        time.Now().Add(-time.Hour * 24 * 7),
+				EndDate:          time.Now(),
+				CalculateOffline: true,
+				TakeFeeRate:      decimal.NewFromFloat(0.01),
+				Rates: []order.LendingRate{
+					{
+						Time: time.Now().Add(-time.Hour),
+						Rate: decimal.NewFromInt(1337),
+					},
+				},
+				GetPredictedRate: true,
+			},
+			err: common.ErrCannotCalculateOffline,
+		},
+	}
+	for i := range tests {
+		tt := tests[i]
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			if tt.requiresAuth && !areTestAPIKeysSet() {
+				t.Skip("requires auth")
+			}
+
+			_, err := f.GetLendingRateHistory(context.Background(), tt.request)
+			if !errors.Is(err, tt.err) {
+				t.Errorf("receieved '%v' expected '%v'", err, tt.err)
+			}
+
+		})
+	}
+}

@@ -145,6 +145,7 @@ var (
 	errInvalidOrderAmounts                               = errors.New("filled amount should not exceed order amount")
 	errCollateralCurrencyNotFound                        = errors.New("no collateral scaling information found")
 	errCollateralInitialMarginFractionMissing            = errors.New("cannot scale collateral, missing initial margin fraction information")
+	errCurrencyNotEnabled                                = errors.New("individual currency has no enabled pairs associated")
 
 	validResolutionData = []int64{15, 60, 300, 900, 3600, 14400, 86400}
 )
@@ -398,7 +399,7 @@ func (f *FTX) GetMarginLendingRates(ctx context.Context) ([]MarginFundingData, e
 	r := struct {
 		Data []MarginFundingData `json:"result"`
 	}{}
-	return r.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, marginLendingRates, nil, &r)
+	return r.Data, f.SendHTTPRequest(ctx, exchange.RestSpot, marginLendingRates, &r)
 }
 
 // MarginDailyBorrowedAmounts gets daily borrowed amounts for margin
@@ -452,7 +453,7 @@ func (f *FTX) GetMarginMarketLendingHistory(ctx context.Context, coin currency.C
 		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
 	}
 	endpoint := common.EncodeURLValues(marginLendingHistory, params)
-	return r.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, endpoint, params, &r)
+	return r.Data, f.SendHTTPRequest(ctx, exchange.RestSpot, endpoint, &r)
 }
 
 // GetMarginLendingHistory gets margin lending history

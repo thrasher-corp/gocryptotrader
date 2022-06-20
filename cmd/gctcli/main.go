@@ -203,6 +203,7 @@ func main() {
 		getFuturesPositionsCommand,
 		getCollateralCommand,
 		shutdownCommand,
+		getLendingRatesCommand,
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())

@@ -1311,3 +1311,8 @@ func (b *Base) HasAssetTypeAccountSegregation() bool {
 func (b *Base) GetServerTime(_ context.Context, _ asset.Item) (time.Time, error) {
 	return time.Time{}, common.ErrNotYetImplemented
 }
+
+// GetFundingRateHistory returns the funding rate history for the supplied currency
+func (b *Base) GetLendingRateHistory(context.Context, *order.LendingRateRequest) (*order.LendingRateResponse, error) {
+	return nil, common.ErrNotYetImplemented
+}

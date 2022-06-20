@@ -1119,6 +1119,48 @@ message ShutdownRequest {}
 
 message ShutdownResponse {}
 
+message GetLendingRatesRequest {
+  string exchange = 1;
+  string asset = 2;
+  string currency = 3;
+  string start_date = 4;
+  string end_date = 5;
+  bool get_predicted_rate = 6;
+  bool get_lending_payments = 7;
+  bool get_borrow_rates = 8;
+  bool get_borrow_costs = 9;
+  bool include_all_rates = 10;
+}
+
+message LendingPayment {
+  string payment = 1;
+  string size = 2;
+}
+
+message BorrowCost {
+  string cost = 1;
+  string size = 2;
+}
+
+message LendingRate {
+  string Time = 1;
+  string TotalBorrowedSize = 2;
+  string Rate = 3;
+  string BorrowRate = 4;
+  LendingPayment LendingPayment = 5;
+  BorrowCost BorrowCost = 6;
+}
+
+message GetLendingRatesResponse {
+  repeated LendingRate rates = 1;
+  string SumBorrowCosts = 2;
+  string SumBorrowSize = 3;
+  string SumLendingPayments = 4;
+  string SumLendingSize = 5;
+  LendingRate PredictedRate = 6;
+  string TakerFeeRate = 7;
+}
+
 service GoCryptoTraderService {
   rpc GetInfo(GetInfoRequest) returns (GetInfoResponse) {
     option (google.api.http) = {
@@ -1720,6 +1762,11 @@ service GoCryptoTraderService {
   rpc Shutdown(ShutdownRequest) returns (ShutdownResponse) {
     option (google.api.http) = {
       get: "/v1/shutdown"
+    };
+  }
+  rpc GetLendingRates(GetLendingRatesRequest) returns (GetLendingRatesResponse) {
+    option (google.api.http) = {
+      get: "/v1/getlendingrates"
     };
   }
 }

@@ -4575,3 +4575,98 @@ func (s *RPCServer) Shutdown(_ context.Context, _ *gctrpc.ShutdownRequest) (*gct
 	s.Engine.GRPCShutdownSignal = nil
 	return &gctrpc.ShutdownResponse{}, nil
 }
+
+// GetLendingRates returns the lending rates for an exchange, asset, currency along with many customisable options
+func (s *RPCServer) GetLendingRates(ctx context.Context, r *gctrpc.GetLendingRatesRequest) (*gctrpc.GetLendingRatesResponse, error) {
+	if r == nil {
+		return nil, fmt.Errorf("%w GetLendingRatesRequest", common.ErrNilPointer)
+	}
+	exch, err := s.GetExchangeByName(r.Exchange)
+	if err != nil {
+		return nil, err
+	}
+
+	a, err := asset.New(r.Asset)
+	if err != nil {
+		return nil, err
+	}
+
+	err = checkParams(r.Exchange, exch, a, currency.Pair{})
+	if err != nil {
+		return nil, err
+	}
+
+	c := currency.NewCode(r.Currency)
+	start := time.Now().Add(-time.Hour * 24 * 7)
+	end := time.Now()
+	if r.StartDate != "" {
+		start, err = time.Parse(common.SimpleTimeFormat, r.StartDate)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if r.EndDate != "" {
+		end, err = time.Parse(common.SimpleTimeFormat, r.EndDate)
+		if err != nil {
+			return nil, err
+		}
+	}
+	err = common.StartEndTimeCheck(start, end)
+
+	request := &order.LendingRateRequest{
+		Exchange:           exch.GetName(),
+		Asset:              a,
+		Currency:           c,
+		StartDate:          start,
+		EndDate:            end,
+		GetPredictedRate:   r.GetPredictedRate,
+		GetLendingPayments: r.GetLendingPayments,
+		GetBorrowRates:     r.GetBorrowRates,
+		GetBorrowCosts:     r.GetBorrowCosts,
+	}
+	lendingResp, err := exch.GetLendingRateHistory(ctx, request)
+	if err != nil {
+		return nil, err
+	}
+	resp := &gctrpc.GetLendingRatesResponse{
+		SumBorrowCosts:     lendingResp.SumBorrowCosts.String(),
+		SumBorrowSize:      lendingResp.SumBorrowSize.String(),
+		SumLendingPayments: lendingResp.SumLendingPayments.String(),
+		SumLendingSize:     lendingResp.SumLendingSize.String(),
+		TakerFeeRate:       lendingResp.TakerFeeRate.String(),
+	}
+	if r.GetPredictedRate {
+		resp.PredictedRate = &gctrpc.LendingRate{
+			Time:       lendingResp.PredictedRate.Time.Format(common.SimpleTimeFormatWithTimezone),
+			Rate:       lendingResp.PredictedRate.Rate.String(),
+			BorrowRate: lendingResp.PredictedRate.BorrowRate.String(),
+		}
+	}
+	if r.IncludeAllRates {
+		for i := range lendingResp.Rates {
+			rate := &gctrpc.LendingRate{
+				Time: lendingResp.Rates[i].Time.Format(common.SimpleTimeFormatWithTimezone),
+				Rate: lendingResp.Rates[i].Rate.String(),
+			}
+			if r.GetBorrowRates {
+				rate.TotalBorrowedSize = lendingResp.Rates[i].TotalBorrowedSize.String()
+				rate.BorrowRate = lendingResp.Rates[i].BorrowRate.String()
+			}
+			if r.GetBorrowCosts {
+				rate.BorrowCost = &gctrpc.BorrowCost{
+					Cost: lendingResp.Rates[i].BorrowCost.Cost.String(),
+					Size: lendingResp.Rates[i].BorrowCost.Size.String(),
+				}
+			}
+			if r.GetLendingPayments {
+				rate.LendingPayment = &gctrpc.LendingPayment{
+					Payment: lendingResp.Rates[i].LendingPayment.Payment.String(),
+					Size:    lendingResp.Rates[i].LendingPayment.Size.String(),
+				}
+			}
+			resp.Rates = append(resp.Rates, rate)
+		}
+	}
+
+	return resp, nil
+}

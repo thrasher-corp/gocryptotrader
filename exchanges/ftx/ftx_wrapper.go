@@ -1682,3 +1682,202 @@ func (f *FTX) GetFuturesPositions(ctx context.Context, a asset.Item, cp currency
 
 	return resp, nil
 }
+
+// GetLendingRateHistory gets the funding rate history for the given currency, asset, pair
+// Can also include borrow rates, or lending income/borrow payments
+func (f *FTX) GetLendingRateHistory(ctx context.Context, request *order.LendingRateRequest) (*order.LendingRateResponse, error) {
+	if request == nil {
+		return nil, fmt.Errorf("%w funding rate request is nil", common.ErrNilPointer)
+	}
+	if request.Currency.IsEmpty() {
+		return nil, fmt.Errorf("%w funding rate request is empty", currency.ErrCurrencyCodeEmpty)
+	}
+	pairs, err := f.CurrencyPairs.GetPairs(request.Asset, true)
+	if err != nil {
+		return nil, err
+	}
+	var found bool
+	for i := range pairs {
+		if pairs[i].Contains(request.Currency) {
+			found = true
+			break
+		}
+	}
+	if !found {
+		return nil, fmt.Errorf("'%v' %w", request.Currency, errCurrencyNotEnabled)
+	}
+
+	err = common.StartEndTimeCheck(request.StartDate, request.EndDate)
+	if err != nil {
+		return nil, err
+	}
+
+	one := decimal.NewFromInt(1)
+	fiveHundred := decimal.NewFromInt(500)
+	var takerFeeRate decimal.Decimal
+	if request.CalculateOffline {
+		takerFeeRate = request.TakeFeeRate
+	} else if request.GetBorrowRates {
+		var accountInfo AccountInfoData
+		accountInfo, err = f.GetAccountInfo(ctx)
+		if err != nil {
+			return nil, err
+		}
+		takerFeeRate = decimal.NewFromFloat(accountInfo.TakerFee)
+	}
+	response := &order.LendingRateResponse{
+		TakerFeeRate: takerFeeRate,
+	}
+	if request.CalculateOffline {
+		if len(request.Rates) == 0 {
+			return nil, fmt.Errorf("%w calculation requires rates", common.ErrCannotCalculateOffline)
+		}
+		response.Rates = request.Rates
+	} else {
+		var responseRates []order.LendingRate
+		endDate := request.EndDate
+		for {
+			var rates []MarginTransactionHistoryData
+			rates, err = f.GetMarginMarketLendingHistory(ctx, request.Currency, request.StartDate, endDate)
+			if err != nil {
+				return nil, err
+			}
+			if len(rates) == 0 || rates[len(rates)-1].Time.Equal(endDate) {
+				break
+			}
+			for i := range rates {
+				if !rates[i].Coin.Equal(request.Currency) {
+					continue
+				}
+				rate := order.LendingRate{
+					Time: rates[i].Time,
+					Rate: decimal.NewFromFloat(rates[i].Rate),
+				}
+				if request.GetBorrowRates {
+					rate.BorrowRate = rate.Rate.Mul(one.Add(fiveHundred.Mul(takerFeeRate)))
+				}
+				responseRates = append(responseRates, rate)
+			}
+			if rates[len(rates)-1].Time.Before(request.StartDate) {
+				break
+			}
+			endDate = rates[len(rates)-1].Time
+		}
+		if len(responseRates) == 0 {
+			return nil, fmt.Errorf("%w no rates returned between %v-%v", common.ErrNoResponse, request.StartDate, request.EndDate)
+		}
+		sort.Slice(responseRates, func(i, j int) bool {
+			return responseRates[i].Time.Before(responseRates[j].Time)
+		})
+		response.Rates = responseRates
+	}
+
+	if request.GetPredictedRate {
+		if request.CalculateOffline {
+			return nil, fmt.Errorf("%w predicted rate is online only", common.ErrCannotCalculateOffline)
+		}
+		var borrowRates []MarginFundingData
+		borrowRates, err = f.GetMarginLendingRates(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for i := range borrowRates {
+			if !borrowRates[i].Coin.Equal(request.Currency) {
+				continue
+			}
+			response.PredictedRate = order.LendingRate{
+				Time: response.Rates[len(response.Rates)-1].Time.Add(time.Hour),
+				Rate: decimal.NewFromFloat(borrowRates[i].Estimate),
+			}
+			if request.GetBorrowRates {
+				response.PredictedRate.BorrowRate = response.PredictedRate.Rate.Mul(one.Add(fiveHundred.Mul(takerFeeRate)))
+			}
+		}
+	}
+	if request.GetLendingPayments {
+		if request.CalculateOffline {
+			if request.TakeFeeRate.IsZero() {
+				return nil, fmt.Errorf("%w taker fee unset", common.ErrCannotCalculateOffline)
+			}
+			for i := range request.Rates {
+				response.Rates[i].LendingPayment.Payment = response.Rates[i].Rate.Mul(response.Rates[i].LendingPayment.Size)
+				response.SumLendingPayments = response.SumLendingPayments.Add(response.Rates[i].LendingPayment.Payment)
+				response.SumLendingSize = response.SumLendingPayments.Add(response.Rates[i].LendingPayment.Size)
+			}
+		} else {
+			endDate := request.EndDate
+			for {
+				var payments []MarginTransactionHistoryData
+				payments, err = f.GetMarginLendingHistory(ctx, request.Currency, request.StartDate, endDate)
+				if err != nil {
+					return nil, err
+				}
+				if len(payments) == 0 || payments[len(payments)-1].Time.Equal(endDate) {
+					break
+				}
+				for i := range payments {
+					for j := range response.Rates {
+						if !response.Rates[j].Time.Equal(payments[i].Time) {
+							continue
+						}
+						response.Rates[j].LendingPayment.Payment = decimal.NewFromFloat(payments[i].Proceeds)
+						response.Rates[j].LendingPayment.Size = decimal.NewFromFloat(payments[i].Size)
+						response.SumLendingPayments = response.SumLendingPayments.Add(response.Rates[j].LendingPayment.Payment)
+						response.SumLendingSize = response.SumLendingPayments.Add(response.Rates[j].LendingPayment.Size)
+						break
+					}
+				}
+				if payments[len(payments)-1].Time.Before(request.StartDate) {
+					break
+				}
+				endDate = payments[len(payments)-1].Time
+			}
+		}
+	}
+	if request.GetBorrowCosts {
+		if request.CalculateOffline {
+			if request.TakeFeeRate.IsZero() {
+				return nil, fmt.Errorf("%w taker fee unset", common.ErrCannotCalculateOffline)
+			}
+			for i := range request.Rates {
+				response.Rates[i].BorrowCost.Cost = response.Rates[i].BorrowRate.Mul(response.Rates[i].BorrowCost.Size)
+				response.SumBorrowCosts = response.SumBorrowCosts.Add(response.Rates[i].BorrowCost.Cost)
+				response.SumBorrowSize = response.SumLendingPayments.Add(response.Rates[i].BorrowCost.Size)
+			}
+		} else {
+			endDate := request.EndDate
+			for {
+				var costs []MarginTransactionHistoryData
+				costs, err = f.GetMarginBorrowHistory(ctx, request.StartDate, endDate)
+				if err != nil {
+					return nil, err
+				}
+				if len(costs) == 0 || costs[len(costs)-1].Time.Equal(endDate) {
+					break
+				}
+				for i := range costs {
+					if costs[i].Coin.Equal(request.Currency) {
+						continue
+					}
+					for j := range response.Rates {
+						if !response.Rates[j].Time.Equal(costs[i].Time) {
+							continue
+						}
+
+						response.Rates[j].BorrowCost.Cost = decimal.NewFromFloat(costs[i].Cost)
+						response.Rates[j].BorrowCost.Size = decimal.NewFromFloat(costs[i].Size)
+						response.SumBorrowCosts = response.SumBorrowCosts.Add(response.Rates[j].BorrowCost.Cost)
+						response.SumBorrowSize = response.SumLendingPayments.Add(response.Rates[j].BorrowCost.Size)
+						break
+					}
+				}
+				if costs[len(costs)-1].Time.Before(request.StartDate) {
+					break
+				}
+				endDate = costs[len(costs)-1].Time
+			}
+		}
+	}
+
+	return response, nil
+}
