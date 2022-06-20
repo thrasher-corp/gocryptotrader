@@ -2364,6 +2364,26 @@ func TestGetMarginRatesHistory(t *testing.T) {
 		{
 			name: "offline pass, borrow w fee",
 			request: &order.LendingRateRequest{
+				Asset:            asset.Spot,
+				Currency:         currency.USD,
+				StartDate:        time.Now().Add(-time.Hour * 24 * 7),
+				EndDate:          time.Now(),
+				CalculateOffline: true,
+				TakeFeeRate:      decimal.NewFromFloat(0.01),
+				GetBorrowCosts:   true,
+				Rates: []order.LendingRate{
+					{
+						Time:       time.Now().Add(-time.Hour),
+						Rate:       decimal.NewFromInt(1337),
+						BorrowCost: order.BorrowCost{Size: decimal.NewFromFloat(1337)},
+					},
+				},
+			},
+			err: nil,
+		},
+		{
+			name: "offline pass, lending size",
+			request: &order.LendingRateRequest{
 				Asset:              asset.Spot,
 				Currency:           currency.USD,
 				StartDate:          time.Now().Add(-time.Hour * 24 * 7),
@@ -2373,8 +2393,9 @@ func TestGetMarginRatesHistory(t *testing.T) {
 				GetLendingPayments: true,
 				Rates: []order.LendingRate{
 					{
-						Time: time.Now().Add(-time.Hour),
-						Rate: decimal.NewFromInt(1337),
+						Time:           time.Now().Add(-time.Hour),
+						Rate:           decimal.NewFromInt(1337),
+						LendingPayment: order.LendingPayment{Size: decimal.NewFromFloat(1337)},
 					},
 				},
 			},
@@ -2413,5 +2434,39 @@ func TestGetMarginRatesHistory(t *testing.T) {
 				t.Errorf("receieved '%v' expected '%v'", err, tt.err)
 			}
 		})
+	}
+	if !areTestAPIKeysSet() {
+		return
+	}
+
+	// test offline calculation against real data
+	online, err := f.GetMarginRatesHistory(context.Background(), &order.LendingRateRequest{
+		Asset:          asset.Spot,
+		Currency:       currency.USD,
+		StartDate:      time.Now().Add(-time.Hour * 24 * 2),
+		EndDate:        time.Now(),
+		GetBorrowRates: true,
+		GetBorrowCosts: true,
+	})
+	if !errors.Is(err, nil) {
+		t.Errorf("receieved '%v' expected '%v'", err, nil)
+	}
+
+	offline, err := f.GetMarginRatesHistory(context.Background(), &order.LendingRateRequest{
+		Asset:            asset.Spot,
+		Currency:         currency.USD,
+		StartDate:        time.Now().Add(-time.Hour * 24 * 2),
+		EndDate:          time.Now(),
+		GetBorrowRates:   true,
+		GetBorrowCosts:   true,
+		Rates:            online.Rates,
+		TakeFeeRate:      online.TakerFeeRate,
+		CalculateOffline: true,
+	})
+	if !errors.Is(err, nil) {
+		t.Errorf("receieved '%v' expected '%v'", err, nil)
+	}
+	if !online.Rates[0].BorrowCost.Cost.Equal(offline.Rates[0].BorrowCost.Cost) {
+		t.Errorf("expected '%v' received '%v'", online.Rates[0].BorrowCost.Cost, offline.Rates[0].BorrowCost.Cost)
 	}
 }

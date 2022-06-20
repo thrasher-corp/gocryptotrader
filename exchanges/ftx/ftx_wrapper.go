@@ -1709,9 +1709,10 @@ func (f *FTX) GetMarginRatesHistory(ctx context.Context, request *order.LendingR
 	one := decimal.NewFromInt(1)
 	fiveHundred := decimal.NewFromInt(500)
 	var takerFeeRate decimal.Decimal
-	if request.CalculateOffline {
+	switch {
+	case request.CalculateOffline:
 		takerFeeRate = request.TakeFeeRate
-	} else if request.GetBorrowRates {
+	case request.GetBorrowRates:
 		var accountInfo AccountInfoData
 		accountInfo, err = f.GetAccountInfo(ctx)
 		if err != nil {
@@ -1834,6 +1835,7 @@ func (f *FTX) GetMarginRatesHistory(ctx context.Context, request *order.LendingR
 				return nil, fmt.Errorf("%w taker fee unset", common.ErrCannotCalculateOffline)
 			}
 			for i := range request.Rates {
+				response.Rates[i].BorrowRate = response.Rates[i].Rate.Mul(one.Add(fiveHundred.Mul(takerFeeRate)))
 				response.Rates[i].BorrowCost.Cost = response.Rates[i].BorrowRate.Mul(response.Rates[i].BorrowCost.Size)
 				response.SumBorrowCosts = response.SumBorrowCosts.Add(response.Rates[i].BorrowCost.Cost)
 				response.SumBorrowSize = response.SumLendingPayments.Add(response.Rates[i].BorrowCost.Size)

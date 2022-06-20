@@ -1130,6 +1130,9 @@ message GetMarginRatesHistoryRequest {
   bool get_borrow_rates = 8;
   bool get_borrow_costs = 9;
   bool include_all_rates = 10;
+  bool calculate_offline = 11;
+  string taker_fee_rate = 12;
+  repeated LendingRate rates = 13;
 }
 
 message LendingPayment {

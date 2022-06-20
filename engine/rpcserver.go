@@ -4605,7 +4605,7 @@ func (s *RPCServer) GetMarginRatesHistory(ctx context.Context, r *gctrpc.GetMarg
 		return nil, fmt.Errorf("%w '%v' in enabled pairs", currency.ErrCurrencyNotFound, r.Currency)
 	}
 
-	start := time.Now().Add(-time.Hour * 24 * 7)
+	start := time.Now().AddDate(0, -1, 0)
 	end := time.Now()
 	if r.StartDate != "" {
 		start, err = time.Parse(common.SimpleTimeFormat, r.StartDate)
@@ -4634,7 +4634,52 @@ func (s *RPCServer) GetMarginRatesHistory(ctx context.Context, r *gctrpc.GetMarg
 		GetLendingPayments: r.GetLendingPayments,
 		GetBorrowRates:     r.GetBorrowRates,
 		GetBorrowCosts:     r.GetBorrowCosts,
+		CalculateOffline:   r.CalculateOffline,
 	}
+	if request.CalculateOffline {
+		if r.TakerFeeRate == "" {
+			return nil, fmt.Errorf("%w for offline calculations", common.ErrCannotCalculateOffline)
+		}
+		request.TakeFeeRate, err = decimal.NewFromString(r.TakerFeeRate)
+		if err != nil {
+			return nil, err
+		}
+
+		if request.TakeFeeRate.LessThanOrEqual(decimal.Zero) {
+			return nil, fmt.Errorf("%w for offline calculations", common.ErrCannotCalculateOffline)
+		}
+		if len(r.Rates) == 0 {
+			return nil, fmt.Errorf("%w for offline calculations", common.ErrCannotCalculateOffline)
+		}
+		for i := range r.Rates {
+			var offlineRate order.LendingRate
+			offlineRate.Time, err = time.Parse(common.SimpleTimeFormat, r.Rates[i].Time)
+			if err != nil {
+				return nil, err
+			}
+
+			offlineRate.Rate, err = decimal.NewFromString(r.Rates[i].Rate)
+			if err != nil {
+				return nil, err
+			}
+
+			if r.Rates[i].BorrowCost != nil {
+				offlineRate.BorrowCost.Size, err = decimal.NewFromString(r.Rates[i].BorrowCost.Size)
+				if err != nil {
+					return nil, err
+				}
+			}
+			if r.Rates[i].LendingPayment != nil {
+				offlineRate.LendingPayment.Size, err = decimal.NewFromString(r.Rates[i].LendingPayment.Size)
+				if err != nil {
+					return nil, err
+				}
+			}
+
+			request.Rates = append(request.Rates, offlineRate)
+		}
+	}
+
 	lendingResp, err := exch.GetMarginRatesHistory(ctx, request)
 	if err != nil {
 		return nil, err

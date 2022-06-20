@@ -5063,8 +5063,8 @@ func shutdown(c *cli.Context) error {
 
 var getMarginRatesHistoryCommand = &cli.Command{
 	Name:      "getmarginrateshistory",
-	Usage:     "returns lending/borrow rates for a period",
-	ArgsUsage: "<exchange> <asset> <currency> <includebreakdown> <includezerovalues>",
+	Usage:     "returns margin lending/borrow rates for a period",
+	ArgsUsage: "<exchange> <asset> <currency> <start> <end> <getpredictedrate> <getlendingpayments> <getborrowrates> <getborrowcosts> <includeallrates>",
 	Action:    getMarginRatesHistory,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
@@ -5085,14 +5085,14 @@ var getMarginRatesHistoryCommand = &cli.Command{
 		&cli.StringFlag{
 			Name:        "start",
 			Aliases:     []string{"sd"},
-			Usage:       "<start> rounded down to the nearest hour, ensure your starting position is within this window for accurate calculations",
-			Value:       time.Now().AddDate(-1, 0, 0).Truncate(time.Hour).Format(common.SimpleTimeFormat),
+			Usage:       "<start>",
+			Value:       time.Now().AddDate(0, -1, 0).Truncate(time.Hour).Format(common.SimpleTimeFormat),
 			Destination: &startTime,
 		},
 		&cli.StringFlag{
 			Name:        "end",
 			Aliases:     []string{"ed"},
-			Usage:       "<end> rounded down to the nearest hour, ensure your last position is within this window for accurate calculations",
+			Usage:       "<end>",
 			Value:       time.Now().Format(common.SimpleTimeFormat),
 			Destination: &endTime,
 		},

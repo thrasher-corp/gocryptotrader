@@ -2253,6 +2253,18 @@
             "in": "query",
             "required": false,
             "type": "boolean"
+          },
+          {
+            "name": "calculateOffline",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "takerFeeRate",
+            "in": "query",
+            "required": false,
+            "type": "string"
           }
         ],
         "tags": [

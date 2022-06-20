@@ -2445,4 +2445,46 @@ func TestGetMarginRatesHistory(t *testing.T) {
 	if resp.SumBorrowCosts != "1337" {
 		t.Errorf("received '%v' expected '%v'", resp.SumBorrowCosts, "1337")
 	}
+
+	request.CalculateOffline = true
+	_, err = s.GetMarginRatesHistory(context.Background(), request)
+	if !errors.Is(err, common.ErrCannotCalculateOffline) {
+		t.Errorf("received '%v' expected '%v'", err, common.ErrCannotCalculateOffline)
+	}
+
+	request.TakerFeeRate = "-1337"
+	_, err = s.GetMarginRatesHistory(context.Background(), request)
+	if !errors.Is(err, common.ErrCannotCalculateOffline) {
+		t.Errorf("received '%v' expected '%v'", err, common.ErrCannotCalculateOffline)
+	}
+
+	request.TakerFeeRate = "1337"
+	_, err = s.GetMarginRatesHistory(context.Background(), request)
+	if !errors.Is(err, common.ErrCannotCalculateOffline) {
+		t.Errorf("received '%v' expected '%v'", err, common.ErrCannotCalculateOffline)
+	}
+
+	request.Rates = []*gctrpc.LendingRate{
+		{
+			Time: time.Now().Format(common.SimpleTimeFormat),
+			Rate: "1337",
+		},
+	}
+	_, err = s.GetMarginRatesHistory(context.Background(), request)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+
+	request.Rates = []*gctrpc.LendingRate{
+		{
+			Time:           time.Now().Format(common.SimpleTimeFormat),
+			Rate:           "1337",
+			LendingPayment: &gctrpc.LendingPayment{Size: "1337"},
+			BorrowCost:     &gctrpc.BorrowCost{Size: "1337"},
+		},
+	}
+	_, err = s.GetMarginRatesHistory(context.Background(), request)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
 }

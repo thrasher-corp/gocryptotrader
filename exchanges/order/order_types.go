@@ -362,6 +362,9 @@ type LendingRateRequest struct {
 	GetBorrowRates     bool
 	GetBorrowCosts     bool
 
+	// CalculateOffline allows for the borrow rate, lending payment amount
+	// and borrow costs to be calculated offline. It requires the takerfeerate
+	// and existing rates
 	CalculateOffline bool
 	TakeFeeRate      decimal.Decimal
 	// Rates is used when calculating offline and determiningPayments
