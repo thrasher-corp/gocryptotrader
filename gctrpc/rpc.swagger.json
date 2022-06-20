@@ -4952,22 +4952,29 @@
             "$ref": "#/definitions/gctrpcLendingRate"
           }
         },
-        "SumBorrowCosts": {
+        "totalRates": {
+          "type": "string",
+          "format": "int64"
+        },
+        "sumBorrowCosts": {
           "type": "string"
         },
-        "SumBorrowSize": {
+        "sumBorrowSize": {
           "type": "string"
         },
-        "SumLendingPayments": {
+        "sumLendingPayments": {
           "type": "string"
         },
-        "SumLendingSize": {
+        "sumLendingSize": {
           "type": "string"
         },
-        "PredictedRate": {
+        "latestRate": {
           "$ref": "#/definitions/gctrpcLendingRate"
         },
-        "TakerFeeRate": {
+        "predictedRate": {
+          "$ref": "#/definitions/gctrpcLendingRate"
+        },
+        "takerFeeRate": {
           "type": "string"
         }
       }
@@ -5152,22 +5159,22 @@
     "gctrpcLendingRate": {
       "type": "object",
       "properties": {
-        "Time": {
+        "time": {
           "type": "string"
         },
-        "TotalBorrowedSize": {
+        "totalBorrowedSize": {
           "type": "string"
         },
-        "Rate": {
+        "rate": {
           "type": "string"
         },
-        "BorrowRate": {
+        "borrowRate": {
           "type": "string"
         },
-        "LendingPayment": {
+        "lendingPayment": {
           "$ref": "#/definitions/gctrpcLendingPayment"
         },
-        "BorrowCost": {
+        "borrowCost": {
           "$ref": "#/definitions/gctrpcBorrowCost"
         }
       }
