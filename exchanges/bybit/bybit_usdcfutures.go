@@ -33,6 +33,8 @@ const (
 	usdcfuturesGetLargeOrders        = "/perpetual/usdc/openapi/public/v1/big-deal"
 	usdcfuturesGetAccountRatio       = "/perpetual/usdc/openapi/public/v1/account-ratio"
 	usdcfuturesGetLatestTrades       = "/option/usdc/openapi/public/v1/query-trade-latest"
+	usdcfuturesGetLastFundingRate    = "/perpetual/usdc/openapi/public/v1/prev-funding-rate"
+	usdcfuturesGetRiskLimit          = "/perpetual/usdc/openapi/public/v1/risk-limit/list"
 
 	// auth endpoint
 	usdcfuturesPlaceOrder              = "/perpetual/usdc/openapi/private/v1/place-order"
@@ -49,9 +51,7 @@ const (
 	usdcfuturesGetPosition             = "/option/usdc/openapi/private/v1/query-position"
 	usdcfuturesSetLeverage             = "/perpetual/usdc/openapi/private/v1/position/leverage/save"
 	usdcfuturesGetSettlementHistory    = "/option/usdc/openapi/private/v1/session-settlement"
-	usdcfuturesGetRiskLimit            = "/perpetual/usdc/openapi/public/v1/risk-limit/list" //GET
 	usdcfuturesSetRiskLimit            = "/perpetual/usdc/openapi/private/v1/position/set-risk-limit"
-	usdcfuturesGetLastFundingRate      = "/perpetual/usdc/openapi/public/v1/prev-funding-rate" //GET
 	usdcfuturesGetPredictedFundingRate = "/perpetual/usdc/openapi/private/v1/predicted-funding"
 )
 
@@ -70,7 +70,7 @@ func (by *Bybit) GetUSDCFuturesOrderbook(ctx context.Context, symbol currency.Pa
 	}
 	params.Set("symbol", symbolValue)
 
-	err = by.SendHTTPRequest(ctx, exchange.RestUSDCMargined, common.EncodeURLValues(usdcfuturesGetOrderbook, params), publicFuturesRate, &data)
+	err = by.SendHTTPRequest(ctx, exchange.RestUSDCMargined, common.EncodeURLValues(usdcfuturesGetOrderbook, params), usdcPublicRate, &data)
 	if err != nil {
 		return resp, err
 	}
@@ -117,7 +117,7 @@ func (by *Bybit) GetUSDCContracts(ctx context.Context, symbol currency.Pair, dir
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 
-	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestUSDCMargined, common.EncodeURLValues(usdcfuturesGetContracts, params), publicFuturesRate, &resp)
+	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestUSDCMargined, common.EncodeURLValues(usdcfuturesGetContracts, params), usdcPublicRate, &resp)
 }
 
 // GetUSDCSymbols gets all symbol information for USDCMarginedFutures.
@@ -138,7 +138,7 @@ func (by *Bybit) GetUSDCSymbols(ctx context.Context, symbol currency.Pair) (USDC
 		return USDCSymbol{}, errSymbolMissing
 	}
 
-	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestUSDCMargined, common.EncodeURLValues(usdcfuturesGetSymbols, params), publicFuturesRate, &resp)
+	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestUSDCMargined, common.EncodeURLValues(usdcfuturesGetSymbols, params), usdcPublicRate, &resp)
 }
 
 // GetUSDCKlines gets kline of symbol for USDCMarginedFutures.
@@ -173,7 +173,7 @@ func (by *Bybit) GetUSDCKlines(ctx context.Context, symbol currency.Pair, period
 	if limit > 0 && limit <= 200 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestUSDCMargined, common.EncodeURLValues(usdcfuturesGetKlines, params), publicFuturesRate, &resp)
+	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestUSDCMargined, common.EncodeURLValues(usdcfuturesGetKlines, params), usdcPublicRate, &resp)
 }
 
 // GetUSDCMarkPriceKlines gets mark price kline of symbol for USDCMarginedFutures.
@@ -208,7 +208,7 @@ func (by *Bybit) GetUSDCMarkPriceKlines(ctx context.Context, symbol currency.Pai
 	if limit > 0 && limit <= 200 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestUSDCMargined, common.EncodeURLValues(usdcfuturesGetMarkPriceKlines, params), publicFuturesRate, &resp)
+	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestUSDCMargined, common.EncodeURLValues(usdcfuturesGetMarkPriceKlines, params), usdcPublicRate, &resp)
 }
 
 // GetUSDCIndexPriceKlines gets index price kline of symbol for USDCMarginedFutures.
@@ -243,7 +243,7 @@ func (by *Bybit) GetUSDCIndexPriceKlines(ctx context.Context, symbol currency.Pa
 	if limit > 0 && limit <= 200 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestUSDCMargined, common.EncodeURLValues(usdcfuturesGetIndexPriceKlines, params), publicFuturesRate, &resp)
+	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestUSDCMargined, common.EncodeURLValues(usdcfuturesGetIndexPriceKlines, params), usdcPublicRate, &resp)
 }
 
 // GetUSDCPremiumIndexKlines gets premium index kline of symbol for USDCMarginedFutures.
@@ -278,7 +278,7 @@ func (by *Bybit) GetUSDCPremiumIndexKlines(ctx context.Context, symbol currency.
 	if limit > 0 && limit <= 200 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestUSDCMargined, common.EncodeURLValues(usdcfuturesGetPremiumIndexKlines, params), publicFuturesRate, &resp)
+	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestUSDCMargined, common.EncodeURLValues(usdcfuturesGetPremiumIndexKlines, params), usdcPublicRate, &resp)
 }
 
 // GetUSDCOpenInterest gets open interest of symbol for USDCMarginedFutures.
@@ -307,7 +307,7 @@ func (by *Bybit) GetUSDCOpenInterest(ctx context.Context, symbol currency.Pair, 
 	if limit > 0 && limit <= 200 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestUSDCMargined, common.EncodeURLValues(usdcfuturesGetOpenInterest, params), publicFuturesRate, &resp)
+	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestUSDCMargined, common.EncodeURLValues(usdcfuturesGetOpenInterest, params), usdcPublicRate, &resp)
 }
 
 // GetUSDCLargeOrders gets large order of symbol for USDCMarginedFutures.
@@ -331,7 +331,7 @@ func (by *Bybit) GetUSDCLargeOrders(ctx context.Context, symbol currency.Pair, l
 	if limit > 0 && limit <= 100 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestUSDCMargined, common.EncodeURLValues(usdcfuturesGetLargeOrders, params), publicFuturesRate, &resp)
+	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestUSDCMargined, common.EncodeURLValues(usdcfuturesGetLargeOrders, params), usdcPublicRate, &resp)
 }
 
 // GetUSDCAccountRatio gets account long short ratio of symbol for USDCMarginedFutures.
@@ -360,7 +360,7 @@ func (by *Bybit) GetUSDCAccountRatio(ctx context.Context, symbol currency.Pair, 
 	if limit > 0 && limit <= 500 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestUSDCMargined, common.EncodeURLValues(usdcfuturesGetAccountRatio, params), publicFuturesRate, &resp)
+	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestUSDCMargined, common.EncodeURLValues(usdcfuturesGetAccountRatio, params), usdcPublicRate, &resp)
 }
 
 // GetUSDCLatestTrades gets lastest 500 trades for USDCMarginedFutures.
@@ -392,7 +392,7 @@ func (by *Bybit) GetUSDCLatestTrades(ctx context.Context, symbol currency.Pair, 
 	if limit > 0 && limit <= 500 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	return resp.Result.Data, by.SendHTTPRequest(ctx, exchange.RestUSDCMargined, common.EncodeURLValues(usdcfuturesGetLatestTrades, params), publicFuturesRate, &resp)
+	return resp.Result.Data, by.SendHTTPRequest(ctx, exchange.RestUSDCMargined, common.EncodeURLValues(usdcfuturesGetLatestTrades, params), usdcPublicRate, &resp)
 }
 
 // PlaceUSDCOrder create new USDC derivatives order.
@@ -490,7 +490,7 @@ func (by *Bybit) PlaceUSDCOrder(ctx context.Context, symbol currency.Pair, order
 	if triggerBy != 0 {
 		req["triggerBy"] = triggerBy
 	}
-	return resp.Result, by.SendUSDCAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesPlaceOrder, req, &resp, publicFuturesRate)
+	return resp.Result, by.SendUSDCAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesPlaceOrder, req, &resp, usdcPlaceOrderRate)
 }
 
 // ModifyUSDCOrder modifies USDC derivatives order.
@@ -559,7 +559,7 @@ func (by *Bybit) ModifyUSDCOrder(ctx context.Context, symbol currency.Pair, orde
 	if triggerPrice != 0 {
 		req["triggerPrice"] = strconv.FormatFloat(triggerPrice, 'f', -1, 64)
 	}
-	return resp.Result.OrderID, by.SendUSDCAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesModifyOrder, req, &resp, publicFuturesRate)
+	return resp.Result.OrderID, by.SendUSDCAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesModifyOrder, req, &resp, usdcModifyOrderRate)
 }
 
 // CancelUSDCOrder cancels USDC derivatives order.
@@ -599,7 +599,7 @@ func (by *Bybit) CancelUSDCOrder(ctx context.Context, symbol currency.Pair, orde
 	if orderLinkID != "" {
 		req["orderLinkId"] = orderLinkID
 	}
-	return resp.Result.OrderID, by.SendUSDCAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesCancelOrder, req, &resp, publicFuturesRate)
+	return resp.Result.OrderID, by.SendUSDCAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesCancelOrder, req, &resp, usdcCancelOrderRate)
 }
 
 // CancelAllActiveUSDCOrder cancels all active USDC derivatives order.
@@ -620,7 +620,7 @@ func (by *Bybit) CancelAllActiveUSDCOrder(ctx context.Context, symbol currency.P
 	} else {
 		return errInvalidOrderFilter
 	}
-	return by.SendUSDCAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesCancelAllActiveOrder, req, nil, publicFuturesRate)
+	return by.SendUSDCAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesCancelAllActiveOrder, req, nil, usdcCancelAllOrderRate)
 }
 
 // GetActiveUSDCOrder gets all active USDC derivatives order.
@@ -672,7 +672,7 @@ func (by *Bybit) GetActiveUSDCOrder(ctx context.Context, symbol currency.Pair, c
 	if cursor != "" {
 		req["cursor"] = cursor
 	}
-	return resp.Result.Data, by.SendUSDCAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesGetActiveOrder, req, &resp, publicFuturesRate)
+	return resp.Result.Data, by.SendUSDCAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesGetActiveOrder, req, &resp, usdcGetOrderRate)
 }
 
 // GetUSDCOrderHistory gets order history with support of last 30 days of USDC derivatives order.
@@ -724,7 +724,7 @@ func (by *Bybit) GetUSDCOrderHistory(ctx context.Context, symbol currency.Pair, 
 	if cursor != "" {
 		req["cursor"] = cursor
 	}
-	return resp.Result.Data, by.SendUSDCAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesGetOrderHistory, req, &resp, publicFuturesRate)
+	return resp.Result.Data, by.SendUSDCAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesGetOrderHistory, req, &resp, usdcGetOrderHistoryRate)
 }
 
 // GetUSDCTradeHistory gets trade history with support of last 30 days of USDC derivatives trades.
@@ -782,7 +782,7 @@ func (by *Bybit) GetUSDCTradeHistory(ctx context.Context, symbol currency.Pair, 
 	if cursor != "" {
 		req["cursor"] = cursor
 	}
-	return resp.Result.Data, by.SendUSDCAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesGetTradeHistory, req, &resp, publicFuturesRate)
+	return resp.Result.Data, by.SendUSDCAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesGetTradeHistory, req, &resp, usdcGetTradeHistoryRate)
 }
 
 // GetUSDCTransactionLog gets transaction logs with support of last 30 days of USDC derivatives trades.
@@ -830,7 +830,7 @@ func (by *Bybit) GetUSDCTransactionLog(ctx context.Context, startTime, endTime t
 	if cursor != "" {
 		req["cursor"] = cursor
 	}
-	return resp.Result.Data, by.SendUSDCAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesGetTransactionLog, req, &resp, publicFuturesRate)
+	return resp.Result.Data, by.SendUSDCAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesGetTransactionLog, req, &resp, usdcGetTransactionRate)
 }
 
 // GetUSDCWalletBalance gets USDC wallet balance.
@@ -840,7 +840,7 @@ func (by *Bybit) GetUSDCWalletBalance(ctx context.Context) (USDCWalletBalance, e
 		USDCError
 	}{}
 
-	return resp.Result, by.SendUSDCAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesGetWalletBalance, nil, &resp, publicFuturesRate)
+	return resp.Result, by.SendUSDCAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesGetWalletBalance, nil, &resp, usdcGetWalletRate)
 }
 
 // GetUSDCAssetInfo gets USDC asset information.
@@ -858,7 +858,7 @@ func (by *Bybit) GetUSDCAssetInfo(ctx context.Context, baseCoin string) ([]USDCA
 		req["baseCoin"] = baseCoin
 	}
 
-	return resp.Result.Data, by.SendUSDCAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesGetAssetInfo, req, &resp, publicFuturesRate)
+	return resp.Result.Data, by.SendUSDCAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesGetAssetInfo, req, &resp, usdcGetAssetRate)
 }
 
 // GetUSDCMarginInfo gets USDC account margin information.
@@ -870,7 +870,7 @@ func (by *Bybit) GetUSDCMarginInfo(ctx context.Context) (string, error) {
 		USDCError
 	}{}
 
-	return resp.Result.MarginMode, by.SendUSDCAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesGetMarginInfo, nil, &resp, publicFuturesRate)
+	return resp.Result.MarginMode, by.SendUSDCAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesGetMarginInfo, nil, &resp, usdcGetMarginRate)
 }
 
 // GetUSDCPosition gets USDC position information.
@@ -911,7 +911,7 @@ func (by *Bybit) GetUSDCPosition(ctx context.Context, symbol currency.Pair, cate
 		req["limit"] = strconv.FormatInt(limit, 10)
 	}
 
-	return resp.Result.Data, by.SendUSDCAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesGetPosition, req, &resp, publicFuturesRate)
+	return resp.Result.Data, by.SendUSDCAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesGetPosition, req, &resp, usdcGetPositionRate)
 }
 
 // SetUSDCLeverage sets USDC leverage.
@@ -940,7 +940,7 @@ func (by *Bybit) SetUSDCLeverage(ctx context.Context, symbol currency.Pair, leve
 		req["leverage"] = strconv.FormatFloat(leverage, 'f', -1, 64)
 	}
 
-	return resp.Result.Leverage, by.SendUSDCAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesSetLeverage, req, &resp, publicFuturesRate)
+	return resp.Result.Leverage, by.SendUSDCAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesSetLeverage, req, &resp, usdcSetLeverageRate)
 }
 
 // GetUSDCSettlementHistory gets USDC settlement history with support of last 30 days.
@@ -977,7 +977,7 @@ func (by *Bybit) GetUSDCSettlementHistory(ctx context.Context, symbol currency.P
 		req["limit"] = strconv.FormatInt(limit, 10)
 	}
 
-	return resp.Result.Data, by.SendUSDCAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesGetSettlementHistory, req, &resp, publicFuturesRate)
+	return resp.Result.Data, by.SendUSDCAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesGetSettlementHistory, req, &resp, usdcGetSettlementRate)
 }
 
 // GetUSDCRiskLimit gets USDC risk limits data.
@@ -998,7 +998,7 @@ func (by *Bybit) GetUSDCRiskLimit(ctx context.Context, symbol currency.Pair) ([]
 		return nil, errSymbolMissing
 	}
 
-	return resp.Result, by.SendHTTPRequest(ctx, exchange.RestUSDCMargined, common.EncodeURLValues(usdcfuturesGetRiskLimit, params), publicFuturesRate, &resp)
+	return resp.Result, by.SendHTTPRequest(ctx, exchange.RestUSDCMargined, common.EncodeURLValues(usdcfuturesGetRiskLimit, params), usdcPublicRate, &resp)
 }
 
 // SetUSDCRiskLimit sets USDC risk limit.
@@ -1027,7 +1027,7 @@ func (by *Bybit) SetUSDCRiskLimit(ctx context.Context, symbol currency.Pair, ris
 		req["riskId"] = riskID
 	}
 
-	return resp.Result.RiskID, by.SendUSDCAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesSetRiskLimit, req, &resp, publicFuturesRate)
+	return resp.Result.RiskID, by.SendUSDCAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesSetRiskLimit, req, &resp, usdcSetRiskRate)
 }
 
 // GetUSDCLastFundingRate gets USDC last funding rates.
@@ -1048,7 +1048,7 @@ func (by *Bybit) GetUSDCLastFundingRate(ctx context.Context, symbol currency.Pai
 		return resp.Result, errSymbolMissing
 	}
 
-	return resp.Result, by.SendHTTPRequest(ctx, exchange.RestUSDCMargined, common.EncodeURLValues(usdcfuturesGetLastFundingRate, params), publicFuturesRate, &resp)
+	return resp.Result, by.SendHTTPRequest(ctx, exchange.RestUSDCMargined, common.EncodeURLValues(usdcfuturesGetLastFundingRate, params), usdcPublicRate, &resp)
 }
 
 // GetUSDCPredictedFundingRate gets predicted funding rates and my predicted funding fee.
@@ -1072,7 +1072,7 @@ func (by *Bybit) GetUSDCPredictedFundingRate(ctx context.Context, symbol currenc
 		return resp.Result.PredictedFundingRate, resp.Result.PredictedFundingFee, errSymbolMissing
 	}
 
-	return resp.Result.PredictedFundingRate, resp.Result.PredictedFundingFee, by.SendUSDCAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesGetPredictedFundingRate, req, &resp, publicFuturesRate)
+	return resp.Result.PredictedFundingRate, resp.Result.PredictedFundingFee, by.SendUSDCAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesGetPredictedFundingRate, req, &resp, usdcGetPredictedFundingRate)
 }
 
 // SendUSDCAuthHTTPRequest sends an authenticated HTTP request
