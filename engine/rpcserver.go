@@ -4689,8 +4689,9 @@ func (s *RPCServer) GetMarginRatesHistory(ctx context.Context, r *gctrpc.GetMarg
 	}
 	resp := &gctrpc.GetMarginRatesHistoryResponse{
 		LatestRate: &gctrpc.LendingRate{
-			Time: lendingResp.Rates[len(lendingResp.Rates)-1].Time.Format(common.SimpleTimeFormatWithTimezone),
-			Rate: lendingResp.Rates[len(lendingResp.Rates)-1].Rate.String(),
+			Time:       lendingResp.Rates[len(lendingResp.Rates)-1].Time.Format(common.SimpleTimeFormatWithTimezone),
+			Rate:       lendingResp.Rates[len(lendingResp.Rates)-1].Rate.String(),
+			YearlyRate: lendingResp.Rates[len(lendingResp.Rates)-1].YearlyRate.String(),
 		},
 		TotalRates: int64(len(lendingResp.Rates)),
 	}
@@ -4712,14 +4713,16 @@ func (s *RPCServer) GetMarginRatesHistory(ctx context.Context, r *gctrpc.GetMarg
 		resp.PredictedRate = &gctrpc.LendingRate{
 			Time:       lendingResp.PredictedRate.Time.Format(common.SimpleTimeFormatWithTimezone),
 			Rate:       lendingResp.PredictedRate.Rate.String(),
+			YearlyRate: lendingResp.PredictedRate.YearlyRate.String(),
 			BorrowRate: lendingResp.PredictedRate.BorrowRate.String(),
 		}
 	}
 	if r.IncludeAllRates {
 		for i := range lendingResp.Rates {
 			rate := &gctrpc.LendingRate{
-				Time: lendingResp.Rates[i].Time.Format(common.SimpleTimeFormatWithTimezone),
-				Rate: lendingResp.Rates[i].Rate.String(),
+				Time:       lendingResp.Rates[i].Time.Format(common.SimpleTimeFormatWithTimezone),
+				Rate:       lendingResp.Rates[i].Rate.String(),
+				YearlyRate: lendingResp.Rates[i].YearlyRate.String(),
 			}
 			if r.GetBorrowRates {
 				rate.TotalBorrowedSize = lendingResp.Rates[i].TotalBorrowedSize.String()

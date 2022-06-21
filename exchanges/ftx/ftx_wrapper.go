@@ -1748,6 +1748,7 @@ func (f *FTX) GetMarginRatesHistory(ctx context.Context, request *order.MarginRa
 					Time: rates[i].Time,
 					Rate: decimal.NewFromFloat(rates[i].Rate),
 				}
+				rate.YearlyRate = rate.Rate.Mul(decimal.NewFromInt(24).Mul(decimal.NewFromInt(365)))
 				if request.GetBorrowRates {
 					rate.BorrowRate = rate.Rate.Mul(one.Add(fiveHundred.Mul(takerFeeRate)))
 				}
@@ -1784,6 +1785,8 @@ func (f *FTX) GetMarginRatesHistory(ctx context.Context, request *order.MarginRa
 				Time: response.Rates[len(response.Rates)-1].Time.Add(time.Hour),
 				Rate: decimal.NewFromFloat(borrowRates[i].Estimate),
 			}
+			response.PredictedRate.YearlyRate = response.PredictedRate.Rate.Mul(decimal.NewFromInt(24).Mul(decimal.NewFromInt(365)))
+
 			if request.GetBorrowRates {
 				response.PredictedRate.BorrowRate = response.PredictedRate.Rate.Mul(one.Add(fiveHundred.Mul(takerFeeRate)))
 			}

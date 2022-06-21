@@ -389,6 +389,7 @@ type MarginRate struct {
 	Time              time.Time
 	TotalBorrowedSize decimal.Decimal
 	Rate              decimal.Decimal
+	YearlyRate        decimal.Decimal
 	BorrowRate        decimal.Decimal
 	LendingPayment    LendingPayment
 	BorrowCost        BorrowCost

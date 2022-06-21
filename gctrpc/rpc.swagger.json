@@ -5180,6 +5180,9 @@
         "rate": {
           "type": "string"
         },
+        "yearlyRate": {
+          "type": "string"
+        },
         "borrowRate": {
           "type": "string"
         },
