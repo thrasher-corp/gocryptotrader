@@ -179,7 +179,7 @@ func (l *LocalBitcoins) Getads(ctx context.Context, args ...string) (AdData, err
 //
 // params - see localbitcoins_types.go AdEdit for reference
 // adID - string for the ad you already created
-// TODO
+// TODO use parameter
 func (l *LocalBitcoins) EditAd(ctx context.Context, _ *AdEdit, adID string) error {
 	resp := struct {
 		Data  AdData `json:"data"`
@@ -209,7 +209,7 @@ func (l *LocalBitcoins) EditAd(ctx context.Context, _ *AdEdit, adID string) erro
 // CreateAd creates a new advertisement
 //
 // params - see localbitcoins_types.go AdCreate for reference
-// TODO
+// TODO use parameter
 func (l *LocalBitcoins) CreateAd(ctx context.Context, _ *AdCreate) error {
 	return l.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, localbitcoinsAPIAdCreate, nil, nil)
 }
@@ -220,7 +220,7 @@ func (l *LocalBitcoins) CreateAd(ctx context.Context, _ *AdCreate) error {
 //
 // equation - string of equation
 // adID - string of specific ad identification
-// TODO
+// TODO use parameter
 func (l *LocalBitcoins) UpdatePriceEquation(ctx context.Context, adID string) error {
 	return l.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, localbitcoinsAPIUpdateEquation+adID, nil, nil)
 }
@@ -228,7 +228,6 @@ func (l *LocalBitcoins) UpdatePriceEquation(ctx context.Context, adID string) er
 // DeleteAd deletes the advertisement by adID.
 //
 // adID - string of specific ad identification
-// TODO
 func (l *LocalBitcoins) DeleteAd(ctx context.Context, adID string) error {
 	resp := struct {
 		Error struct {
@@ -263,7 +262,6 @@ func (l *LocalBitcoins) ReleaseFunds(ctx context.Context, contactID string) erro
 // ReleaseFundsByPin releases Bitcoin trades specified by ID {contact_id}. if
 // the current pincode is provided. If the release was successful a message is
 // returned on the data key.
-// TODO
 func (l *LocalBitcoins) ReleaseFundsByPin(ctx context.Context, contactID string) error {
 	return l.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, localbitcoinsAPIReleaseByPin+contactID, nil, nil)
 }
@@ -286,7 +284,6 @@ func (l *LocalBitcoins) GetMessages(ctx context.Context, contactID string) (Mess
 
 // SendMessage posts a message and/or uploads an image to the trade. Encode
 // images with multipart/form-data encoding.
-// TODO
 func (l *LocalBitcoins) SendMessage(ctx context.Context, contactID string) error {
 	return l.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, localbitcoinsAPISendMessage+contactID, nil, nil)
 }
@@ -295,7 +292,7 @@ func (l *LocalBitcoins) SendMessage(ctx context.Context, contactID string) error
 // starting the dispute has been fulfilled.
 //
 // topic - [optional] String	Short description of issue to LocalBitcoins customer support.
-// TODO
+// TODO use parameter
 func (l *LocalBitcoins) Dispute(ctx context.Context, _, contactID string) error {
 	return l.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, localbitcoinsAPIDispute+contactID, nil, nil)
 }
@@ -325,7 +322,6 @@ func (l *LocalBitcoins) VerifyIdentity(ctx context.Context, contactID string) er
 
 // InitiateTrade sttempts to start a Bitcoin trade from the specified
 // advertisement ID.
-// TODO
 func (l *LocalBitcoins) InitiateTrade(ctx context.Context, adID string) error {
 	return l.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, localbitcoinsAPIInitiateTrade+adID, nil, nil)
 }
@@ -422,7 +418,7 @@ func (l *LocalBitcoins) GetDashboardClosedTrades(ctx context.Context) ([]DashBoa
 // msg - [optional] Feedback message displayed alongside feedback on receivers
 // profile page.
 // username - username of trade contact
-// TODO
+// TODO add support
 func (l *LocalBitcoins) SetFeedback(ctx context.Context) error {
 	return l.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, localbitcoinsAPIFeedback, nil, nil)
 }
@@ -435,14 +431,14 @@ func (l *LocalBitcoins) Logout(ctx context.Context) error {
 }
 
 // CreateNewInvoice creates a new invoice.
-// TODO
+// TODO add support
 func (l *LocalBitcoins) CreateNewInvoice(ctx context.Context) error {
 	return l.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, localbitcoinsAPICreateInvoice, nil, nil)
 }
 
 // GetInvoice returns information about a specific invoice created by the token
 // owner.
-// TODO
+// TODO add support
 func (l *LocalBitcoins) GetInvoice(ctx context.Context) (Invoice, error) {
 	resp := Invoice{}
 	return resp, l.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, localbitcoinsAPICreateInvoice, nil, &resp)
@@ -452,7 +448,7 @@ func (l *LocalBitcoins) GetInvoice(ctx context.Context) (Invoice, error) {
 // it is sure that receiver cannot accidentally pay the invoice at the same time
 // as the merchant is deleting it. You can use the API request
 // /api/merchant/invoice/{invoice_id}/ to check if deleting is possible.
-// TODO
+// TODO add support
 func (l *LocalBitcoins) DeleteInvoice(ctx context.Context) (Invoice, error) {
 	resp := Invoice{}
 	return resp, l.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, localbitcoinsAPICreateInvoice, nil, &resp)
@@ -465,7 +461,7 @@ func (l *LocalBitcoins) GetNotifications(ctx context.Context) ([]NotificationInf
 }
 
 // MarkNotifications marks a specific notification as read.
-// TODO
+// TODO add support
 func (l *LocalBitcoins) MarkNotifications(ctx context.Context) error {
 	return l.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, localbitcoinsAPIMarkNotification, nil, nil)
 }
@@ -513,7 +509,7 @@ func (l *LocalBitcoins) CheckPincode(ctx context.Context, pin int) (bool, error)
 
 // GetPlaces Looks up places near lat, lon and provides full URLs to buy and
 // sell listings for each.
-// TODO
+// TODO add support
 func (l *LocalBitcoins) GetPlaces(ctx context.Context) error {
 	return l.SendHTTPRequest(ctx, exchange.RestSpot, localbitcoinsAPIPlaces, nil, request.Unset)
 }
@@ -527,7 +523,7 @@ func (l *LocalBitcoins) VerifyUsername(ctx context.Context) error {
 // GetRecentMessages returns maximum of 25 newest trade messages. Does not
 // return messages older than one month. Messages are ordered by sending time,
 // and the newest one is first.
-// TODO
+// TODO add support
 func (l *LocalBitcoins) GetRecentMessages(ctx context.Context) error {
 	return l.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, localbitcoinsAPIVerifyUsername, nil, nil)
 }
@@ -641,13 +637,13 @@ func (l *LocalBitcoins) GetWalletAddress(ctx context.Context) (string, error) {
 }
 
 // GetBitcoinsWithCashAd returns buy or sell as cash local advertisements.
-// TODO
+// TODO add support
 func (l *LocalBitcoins) GetBitcoinsWithCashAd(ctx context.Context) error {
 	return l.SendHTTPRequest(ctx, exchange.RestSpot, localbitcoinsAPICashBuy, nil, request.Unset)
 }
 
 // GetBitcoinsOnlineAd this API returns buy or sell Bitcoin online ads.
-// TODO
+// TODO add support
 func (l *LocalBitcoins) GetBitcoinsOnlineAd(ctx context.Context) error {
 	return l.SendHTTPRequest(ctx, exchange.RestSpot, localbitcoinsAPIOnlineBuy, nil, request.Unset)
 }

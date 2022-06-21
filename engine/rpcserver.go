@@ -868,7 +868,7 @@ func (s *RPCServer) GetForexRates(_ context.Context, _ *gctrpc.GetForexRatesRequ
 			continue
 		}
 
-		// TODO
+		// TODO add inverse rate
 		// inverseRate, err := rates[x].GetInversionRate()
 		// if err != nil {
 		//	 continue
