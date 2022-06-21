@@ -849,7 +849,7 @@ func TestUpdateStatsForDataEvent(t *testing.T) {
 			Amount:    1,
 			Price:     1,
 			Side:      gctorder.Short,
-			ID:        "1",
+			OrderID:   "1",
 			Date:      time.Now(),
 		},
 	}
@@ -1366,7 +1366,7 @@ func TestProcessFuturesFillEvent(t *testing.T) {
 		Amount:    1,
 		Price:     1,
 		Side:      gctorder.Short,
-		ID:        "1",
+		OrderID:   "1",
 		Date:      time.Now(),
 	}
 	bt.Datas.SetDataForCurrency(testExchange, a, cp, &k)

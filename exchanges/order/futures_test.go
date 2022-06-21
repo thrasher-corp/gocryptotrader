@@ -878,7 +878,7 @@ func TestSetCollateralCurrency(t *testing.T) {
 		Pair:      cp,
 		AssetType: asset.Futures,
 		Side:      Long,
-		ID:        "lol",
+		OrderID:   "lol",
 		Price:     1,
 		Amount:    1,
 	})
@@ -920,7 +920,7 @@ func TestMPTUpdateOpenPositionUnrealisedPNL(t *testing.T) {
 		Pair:      cp,
 		AssetType: asset.Futures,
 		Side:      Long,
-		ID:        "lol",
+		OrderID:   "lol",
 		Price:     1,
 		Amount:    1,
 	})
@@ -985,7 +985,7 @@ func TestMPTLiquidate(t *testing.T) {
 		Pair:      pair,
 		AssetType: item,
 		Side:      Long,
-		ID:        "lol",
+		OrderID:   "lol",
 		Price:     1,
 		Amount:    1,
 	})
@@ -1040,7 +1040,7 @@ func TestPositionLiquidate(t *testing.T) {
 		Pair:      pair,
 		AssetType: item,
 		Side:      Long,
-		ID:        "lol",
+		OrderID:   "lol",
 		Price:     1,
 		Amount:    1,
 	}, false)

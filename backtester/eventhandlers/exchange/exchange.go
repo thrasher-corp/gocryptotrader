@@ -377,9 +377,9 @@ func (e *Exchange) placeOrder(ctx context.Context, price, amount, fee decimal.De
 	submit := &gctorder.Submit{
 		Price:     price.InexactFloat64(),
 		Amount:    amount.InexactFloat64(),
-		Exchange:  f.Exchange,
-		Side:      f.Direction,
-		AssetType: f.AssetType,
+		Exchange:  f.GetExchange(),
+		Side:      f.GetDirection(),
+		AssetType: f.GetAssetType(),
 		Pair:      f.Pair(),
 		Type:      gctorder.Market,
 	}
@@ -395,7 +395,7 @@ func (e *Exchange) placeOrder(ctx context.Context, price, amount, fee decimal.De
 		}
 		submitResponse.Status = gctorder.Filled
 		submitResponse.OrderID = orderID.String()
-		submitResponse.Fee = f.ExchangeFee.InexactFloat64()
+		submitResponse.Fee = fee.InexactFloat64()
 		submitResponse.Cost = submit.Price
 		submitResponse.LastUpdated = f.GetTime()
 		submitResponse.Date = f.GetTime()

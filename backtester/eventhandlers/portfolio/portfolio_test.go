@@ -742,7 +742,7 @@ func TestCalculatePNL(t *testing.T) {
 		AssetType: a,
 		Date:      tt0,
 		Pair:      pair,
-		ID:        "lol",
+		OrderID:   "lol",
 	}
 
 	s, ok := p.exchangeAssetPairSettings[strings.ToLower(exch.Name)][a][pair]
@@ -875,7 +875,7 @@ func TestTrackFuturesOrder(t *testing.T) {
 	od.AssetType = asset.Futures
 	od.Amount = 1337
 	od.Price = 1337
-	od.ID = testExchange
+	od.OrderID = testExchange
 	od.Date = time.Now()
 	expectedError = nil
 
@@ -981,7 +981,7 @@ func TestGetLatestPNLForEvent(t *testing.T) {
 		Pair:      ev.Pair(),
 		Amount:    1,
 		Price:     1,
-		ID:        "one",
+		OrderID:   "one",
 		Date:      time.Now(),
 		Side:      gctorder.Buy,
 	})
@@ -1076,7 +1076,7 @@ func TestGetLatestPNLs(t *testing.T) {
 		Pair:      ev.Pair(),
 		Amount:    1,
 		Price:     1,
-		ID:        "one",
+		OrderID:   "one",
 		Date:      time.Now(),
 		Side:      gctorder.Buy,
 	})
@@ -1356,7 +1356,7 @@ func TestCreateLiquidationOrdersForExchange(t *testing.T) {
 		AssetType: asset.Futures,
 		Pair:      cp,
 		Side:      gctorder.Long,
-		ID:        "lol",
+		OrderID:   "lol",
 		Date:      time.Now(),
 		Amount:    1337,
 		Price:     1337,
@@ -1477,7 +1477,7 @@ func TestCheckLiquidationStatus(t *testing.T) {
 		AssetType: ev.AssetType,
 		Date:      time.Now(),
 		Pair:      pair,
-		ID:        "lol",
+		OrderID:   "lol",
 	}
 	err = settings.FuturesTracker.TrackNewOrder(od)
 	if !errors.Is(err, expectedError) {

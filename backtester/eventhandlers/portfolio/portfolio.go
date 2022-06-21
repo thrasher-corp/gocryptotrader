@@ -502,7 +502,7 @@ func (p *Portfolio) TrackFuturesOrder(ev fill.Event, fund funding.IFundReleaser)
 		return nil, gctorder.ErrSubmissionIsNil
 	}
 	if !detail.AssetType.IsFutures() {
-		return nil, fmt.Errorf("order '%v' %w", detail.ID, gctorder.ErrNotFuturesAsset)
+		return nil, fmt.Errorf("order '%v' %w", detail.OrderID, gctorder.ErrNotFuturesAsset)
 	}
 
 	collateralReleaser, err := fund.CollateralReleaser()

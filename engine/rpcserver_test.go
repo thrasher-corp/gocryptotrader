@@ -2183,7 +2183,7 @@ func TestGetFuturesPositions(t *testing.T) {
 		Amount:    1337,
 		Fee:       1.337,
 		Exchange:  fakeExchangeName,
-		ID:        "test",
+		OrderID:   "test",
 		Side:      order.Long,
 		Status:    order.Open,
 		AssetType: asset.Futures,

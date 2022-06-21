@@ -580,12 +580,12 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		})
 
 		modifyRequest := order.Modify{
-			OrderID: config.OrderSubmission.OrderID,
-			Type:    testOrderType,
-			Side:    testOrderSide,
-			Pair:    p,
-			Price:   config.OrderSubmission.Price,
-			Amount:  config.OrderSubmission.Amount,
+			OrderID:   config.OrderSubmission.OrderID,
+			Type:      testOrderType,
+			Side:      testOrderSide,
+			Pair:      p,
+			Price:     config.OrderSubmission.Price,
+			Amount:    config.OrderSubmission.Amount,
 			AssetType: assetTypes[i],
 		}
 		modifyOrderResponse, err := e.ModifyOrder(context.TODO(), &modifyRequest)
