@@ -4697,6 +4697,7 @@ func (s *RPCServer) GetMarginRatesHistory(ctx context.Context, r *gctrpc.GetMarg
 	}
 	if r.GetBorrowRates {
 		resp.LatestRate.BorrowRate = lendingResp.Rates[len(lendingResp.Rates)-1].BorrowRate.String()
+		resp.LatestRate.YearlyBorrowRate = lendingResp.Rates[len(lendingResp.Rates)-1].YearlyBorrowRate.String()
 	}
 	if r.GetBorrowRates || r.GetLendingPayments {
 		resp.TakerFeeRate = lendingResp.TakerFeeRate.String()
@@ -4714,7 +4715,10 @@ func (s *RPCServer) GetMarginRatesHistory(ctx context.Context, r *gctrpc.GetMarg
 			Time:       lendingResp.PredictedRate.Time.Format(common.SimpleTimeFormatWithTimezone),
 			Rate:       lendingResp.PredictedRate.Rate.String(),
 			YearlyRate: lendingResp.PredictedRate.YearlyRate.String(),
-			BorrowRate: lendingResp.PredictedRate.BorrowRate.String(),
+		}
+		if r.GetBorrowRates {
+			resp.PredictedRate.BorrowRate = lendingResp.PredictedRate.BorrowRate.String()
+			resp.PredictedRate.YearlyBorrowRate = lendingResp.PredictedRate.YearlyBorrowRate.String()
 		}
 	}
 	if r.IncludeAllRates {
@@ -4727,6 +4731,7 @@ func (s *RPCServer) GetMarginRatesHistory(ctx context.Context, r *gctrpc.GetMarg
 			if r.GetBorrowRates {
 				rate.TotalBorrowedSize = lendingResp.Rates[i].TotalBorrowedSize.String()
 				rate.BorrowRate = lendingResp.Rates[i].BorrowRate.String()
+				rate.YearlyBorrowRate = lendingResp.Rates[i].YearlyBorrowRate.String()
 			}
 			if r.GetBorrowCosts {
 				rate.BorrowCost = &gctrpc.BorrowCost{

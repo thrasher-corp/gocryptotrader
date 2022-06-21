@@ -1708,6 +1708,8 @@ func (f *FTX) GetMarginRatesHistory(ctx context.Context, request *order.MarginRa
 
 	one := decimal.NewFromInt(1)
 	fiveHundred := decimal.NewFromInt(500)
+	twentyFour := decimal.NewFromInt(24)
+	threeSixFive := decimal.NewFromInt(365)
 	var takerFeeRate decimal.Decimal
 	switch {
 	case request.CalculateOffline:
@@ -1748,9 +1750,10 @@ func (f *FTX) GetMarginRatesHistory(ctx context.Context, request *order.MarginRa
 					Time: rates[i].Time,
 					Rate: decimal.NewFromFloat(rates[i].Rate),
 				}
-				rate.YearlyRate = rate.Rate.Mul(decimal.NewFromInt(24).Mul(decimal.NewFromInt(365)))
+				rate.YearlyRate = rate.Rate.Mul(twentyFour.Mul(threeSixFive))
 				if request.GetBorrowRates {
 					rate.BorrowRate = rate.Rate.Mul(one.Add(fiveHundred.Mul(takerFeeRate)))
+					rate.YearlyBorrowRate = rate.BorrowRate.Mul(twentyFour.Mul(threeSixFive))
 				}
 				responseRates = append(responseRates, rate)
 			}
@@ -1785,10 +1788,11 @@ func (f *FTX) GetMarginRatesHistory(ctx context.Context, request *order.MarginRa
 				Time: response.Rates[len(response.Rates)-1].Time.Add(time.Hour),
 				Rate: decimal.NewFromFloat(borrowRates[i].Estimate),
 			}
-			response.PredictedRate.YearlyRate = response.PredictedRate.Rate.Mul(decimal.NewFromInt(24).Mul(decimal.NewFromInt(365)))
+			response.PredictedRate.YearlyRate = response.PredictedRate.Rate.Mul(twentyFour.Mul(threeSixFive))
 
 			if request.GetBorrowRates {
 				response.PredictedRate.BorrowRate = response.PredictedRate.Rate.Mul(one.Add(fiveHundred.Mul(takerFeeRate)))
+				response.PredictedRate.YearlyBorrowRate = response.PredictedRate.BorrowRate.Mul(twentyFour.Mul(threeSixFive))
 			}
 		}
 	}
@@ -1839,6 +1843,7 @@ func (f *FTX) GetMarginRatesHistory(ctx context.Context, request *order.MarginRa
 			}
 			for i := range request.Rates {
 				response.Rates[i].BorrowRate = response.Rates[i].Rate.Mul(one.Add(fiveHundred.Mul(takerFeeRate)))
+				response.Rates[i].YearlyBorrowRate = response.Rates[i].BorrowRate.Mul(one.Add(fiveHundred.Mul(takerFeeRate)))
 				response.Rates[i].BorrowCost.Cost = response.Rates[i].BorrowRate.Mul(response.Rates[i].BorrowCost.Size)
 				response.SumBorrowCosts = response.SumBorrowCosts.Add(response.Rates[i].BorrowCost.Cost)
 				response.SumBorrowSize = response.SumLendingPayments.Add(response.Rates[i].BorrowCost.Size)

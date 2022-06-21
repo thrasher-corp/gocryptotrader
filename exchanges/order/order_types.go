@@ -391,6 +391,7 @@ type MarginRate struct {
 	Rate              decimal.Decimal
 	YearlyRate        decimal.Decimal
 	BorrowRate        decimal.Decimal
+	YearlyBorrowRate  decimal.Decimal
 	LendingPayment    LendingPayment
 	BorrowCost        BorrowCost
 }

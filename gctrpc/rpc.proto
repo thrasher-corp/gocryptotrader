@@ -1151,8 +1151,9 @@ message LendingRate {
   string rate = 3;
   string yearly_rate = 4;
   string borrow_rate = 5;
-  LendingPayment lending_payment = 6;
-  BorrowCost borrow_cost = 7;
+  string yearly_borrow_rate = 6;
+  LendingPayment lending_payment = 7;
+  BorrowCost borrow_cost = 8;
 }
 
 message GetMarginRatesHistoryResponse {

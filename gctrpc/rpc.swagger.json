@@ -5186,6 +5186,9 @@
         "borrowRate": {
           "type": "string"
         },
+        "yearlyBorrowRate": {
+          "type": "string"
+        },
         "lendingPayment": {
           "$ref": "#/definitions/gctrpcLendingPayment"
         },
