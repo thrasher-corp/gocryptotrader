@@ -31,7 +31,7 @@ var (
 
 const wsRateLimitMilliseconds = 250
 
-// withdrawals status codes description
+// crypto withdrawals status codes description
 const (
 	EmailSent = iota
 	Cancelled
@@ -858,12 +858,6 @@ type WebsocketDepthDiffStream struct {
 	LastUpdateID int         `json:"lastUpdateId"`
 	Bids         [][2]string `json:"bids"`
 	Asks         [][2]string `json:"asks"`
-}
-
-// wsAccountInfo websocekt response of account information.
-type wsAccountInfo struct {
-	Stream string            `json:"stream"`
-	Data   WsAccountInfoData `json:"data"`
 }
 
 // WsAccountInfoData defines websocket account info data

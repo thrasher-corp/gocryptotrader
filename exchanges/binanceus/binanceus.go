@@ -21,13 +21,13 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/log"
+	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
 // Binanceus is the overarching type across this package
 type Binanceus struct {
 	validLimits []int
 	exchange.Base
-
 	obm *orderbookManager
 }
 
@@ -87,7 +87,7 @@ const (
 	applyWithdrawal         = "/sapi/v1/capital/withdraw/apply"
 	withdrawalHistory       = "/sapi/v1/capital/withdraw/history"
 	withdrawFiat            = "/sapi/v1/fiatpayment/apply/withdraw"
-	fiatWithdrawalhistory   = "/sapi/v1/fiatpayment/query/withdraw/history"
+	fiatWithdrawalHistory   = "/sapi/v1/fiatpayment/query/withdraw/history"
 	fiatDepositHistory      = "/sapi/v1/fiatpayment/query/deposit/history"
 	depositAddress          = "/sapi/v1/capital/deposit/address"
 	depositHistory          = "/sapi/v1/capital/deposit/hisrec"
@@ -107,25 +107,28 @@ var (
 	recvWindowSize5000String = strconv.Itoa(recvWindowSize5000)
 )
 
-// This are list of error Messages to be returned by binanceus endpoint methods.
+// This is a list of error Messages to be returned by binanceus endpoint methods.
 var (
-	errNotValidEmailAddress           = errors.New("invalid email address")
-	errUnacceptableSenderEmail        = errors.New("senders address email is missing")
-	errUnacceptableReceiverEmail      = errors.New("receiver address email is missing")
-	errInvalidAssetValue              = errors.New("invalid asset ")
-	errInvalidAssetAmount             = errors.New("invalid asset amount")
-	errIncompleteArguments            = errors.New("missing required argument")
-	errStartTimeOrFromIDNotSet        = errors.New("please set StartTime or FromId, but not both")
-	errIncorrectLimitValues           = errors.New("incorrect limit values - valid values are 5, 10, 20, 50, 100, 500, 1000")
-	errUnableToTypeAssertResponseData = errors.New("unable to type assert responseData")
-	errUnableToTypeAssertInvalidData  = errors.New("unable to type assert individualData")
-	errUnexpectedKlineDataLength      = errors.New("unexpected kline data length")
-	errUnableToTypeAssertTradeCount   = errors.New("unable to type assert trade count")
-	errMissingRequiredArgumentCoin    = errors.New("missing required argument,coin")
-	errMissingRequiredArgumentNetwork = errors.New("missing required argument,network")
-	errAmountValueMustBeGreaterThan0  = errors.New("amount must be greater than 0")
-	errMissingPaymentAccountInfo      = errors.New("error: missing payment account")
-	errUnixMilliSecTypeAssertion      = errors.New("error while asserting unix time integer")
+	errNotValidEmailAddress                   = errors.New("invalid email address")
+	errUnacceptableSenderEmail                = errors.New("senders address email is missing")
+	errUnacceptableReceiverEmail              = errors.New("receiver address email is missing")
+	errInvalidAssetValue                      = errors.New("invalid asset ")
+	errInvalidAssetAmount                     = errors.New("invalid asset amount")
+	errIncompleteArguments                    = errors.New("missing required argument")
+	errStartTimeOrFromIDNotSet                = errors.New("please set StartTime or FromId, but not both")
+	errIncorrectLimitValues                   = errors.New("incorrect limit values - valid values are 5, 10, 20, 50, 100, 500, 1000")
+	errUnableToTypeAssertResponseData         = errors.New("unable to type assert responseData")
+	errUnableToTypeAssertInvalidData          = errors.New("unable to type assert individualData")
+	errUnexpectedKlineDataLength              = errors.New("unexpected kline data length")
+	errUnableToTypeAssertTradeCount           = errors.New("unable to type assert trade count")
+	errMissingRequiredArgumentCoin            = errors.New("missing required argument,coin")
+	errMissingRequiredArgumentNetwork         = errors.New("missing required argument,network")
+	errAmountValueMustBeGreaterThan0          = errors.New("amount must be greater than 0")
+	errMissingPaymentAccountInfo              = errors.New("error: missing payment account")
+	errUnixMilliSecTypeAssertion              = errors.New("error while asserting unix time integer")
+	errMissingRequiredParameterAddress        = errors.New("missing required paramter \"address\"")
+	errMissingCurrencySymbol                  = errors.New("missing currency symbol")
+	errEitherOrderIDOrClientOrderIDIsRequired = errors.New("either order id or client order id is required")
 )
 
 // SetValues sets the default valid values
@@ -197,16 +200,16 @@ func (bi *Binanceus) GetAggregateTrades(ctx context.Context, agg *AggregatedTrad
 		endTime = startTime.Add(time.Minute * 59)
 	}
 
-	if !startTime.IsZero() {
+	if !startTime.IsZero() && startTime.Unix() != 0 {
 		params.Set("startTime", strconv.Itoa(int(agg.StartTime)))
 	}
-	if !endTime.IsZero() {
+	if !endTime.IsZero() && endTime.Unix() != 0 {
 		params.Set("endTime", strconv.Itoa(int(agg.EndTime)))
 	}
 	needBatch = needBatch || (!startTime.IsZero() && !endTime.IsZero() && endTime.Sub(startTime) > time.Hour)
 	if needBatch {
 		// fromId xor start time must be set
-		canBatch := (agg.FromID == 0) != (startTime.IsZero())
+		canBatch := agg.FromID == 0 != startTime.IsZero()
 		if canBatch {
 			return bi.batchAggregateTrades(ctx, agg, params)
 		}
@@ -276,7 +279,7 @@ func (bi *Binanceus) batchAggregateTrades(ctx context.Context, arg *AggregatedTr
 			return resp, err
 		}
 		lastIndex := len(additionalTrades)
-		if !endTime.IsZero() {
+		if !endTime.IsZero() && endTime.Unix() != 0 {
 			// get index for truncating to end time
 			lastIndex = sort.Search(len(additionalTrades), func(i int) bool {
 				return endTime.Before(additionalTrades[i].TimeStamp)
@@ -370,8 +373,6 @@ func (bi *Binanceus) GetIntervalEnum(interval kline.Interval) string {
 		return "3m"
 	case kline.FiveMin:
 		return "5m"
-	case kline.TenMin:
-		return ""
 	case kline.FifteenMin:
 		return "15m"
 	case kline.ThirtyMin:
@@ -392,16 +393,10 @@ func (bi *Binanceus) GetIntervalEnum(interval kline.Interval) string {
 		return "1d"
 	case kline.ThreeDay:
 		return "3d"
-	case kline.FifteenDay:
-		return "15d"
 	case kline.OneWeek:
 		return "1w"
-	case kline.TwoWeek:
-		return "2w"
 	case kline.OneMonth:
 		return "1M"
-	case kline.OneYear:
-		return "1y"
 	default:
 		return "notfound"
 	}
@@ -419,10 +414,10 @@ func (bi *Binanceus) GetSpotKline(ctx context.Context, arg *KlinesRequestParams)
 	if arg.Limit != 0 {
 		params.Set("limit", strconv.Itoa(arg.Limit))
 	}
-	if !arg.StartTime.IsZero() {
+	if !arg.StartTime.IsZero() && arg.StartTime.Unix() != 0 {
 		params.Set("startTime", strconv.FormatInt((arg.StartTime).UnixMilli(), 10))
 	}
-	if !arg.EndTime.IsZero() {
+	if !arg.EndTime.IsZero() && arg.EndTime.Unix() != 0 {
 		params.Set("endTime", strconv.FormatInt((arg.EndTime).UnixMilli(), 10))
 	}
 	path := candleStick + "?" + params.Encode()
@@ -684,19 +679,27 @@ func (bi *Binanceus) getMultiplier(ctx context.Context, isMaker bool, feeBuilder
 	if er != nil {
 		return multiplier, er
 	}
+	println("symbol", symbol)
+	symbol = "BTC-USD"
 	trades, er := bi.GetTradeFee(ctx, 0, symbol)
 	if er != nil {
 		return multiplier, er
 	}
+	vla, _ := json.Marshal(trades)
+	println(string(vla))
 
 	for x := range trades.TradeFee {
 		if trades.TradeFee[x].Symbol == symbol {
 			if isMaker {
+				println("Is Maker" + strconv.FormatFloat(trades.TradeFee[x].Maker, 'f', 0, 64))
 				return trades.TradeFee[x].Maker, nil
 			}
+			println("Is Taker " + strconv.FormatFloat(trades.TradeFee[x].Taker, 'f', 0, 64))
 			return trades.TradeFee[x].Taker, nil
 		}
 	}
+	print(multiplier)
+	println("Don't reach here.")
 	return multiplier, nil
 }
 
@@ -802,8 +805,8 @@ func (bi *Binanceus) GetSubaccountInformation(ctx context.Context, page, limit u
 		resp)
 }
 
-// GetSubaccountTransferhistory to fetch sub-account asset transfer history.
-func (bi *Binanceus) GetSubaccountTransferhistory(ctx context.Context,
+// GetSubaccountTransferHistory to fetch sub-account asset transfer history.
+func (bi *Binanceus) GetSubaccountTransferHistory(ctx context.Context,
 	email string,
 	startTime uint64,
 	endTime uint64,
@@ -1019,11 +1022,14 @@ func (bi *Binanceus) CancelExistingOrder(ctx context.Context, arg *CancelOrderRe
 	var response Order
 	symbolValue, err := bi.FormatSymbol(arg.Symbol, asset.Spot)
 	if err != nil || symbolValue == "" {
-		return nil, errIncompleteArguments
+		return nil, errMissingCurrencySymbol
 	}
 	params.Set("symbol", symbolValue)
+	if arg.OrderID == 0 && arg.OrigClientOrderID == "" {
+		return nil, errEitherOrderIDOrClientOrderIDIsRequired
+	}
 	if arg.OrigClientOrderID != "" {
-		params.Set("origClientOrderID", arg.OrigClientOrderID)
+		params.Set("origClientOrderId", arg.OrigClientOrderID)
 	}
 	if arg.OrderID != 0 {
 		params.Set("orderID", fmt.Sprint(arg.OrderID))
@@ -1038,7 +1044,7 @@ func (bi *Binanceus) CancelExistingOrder(ctx context.Context, arg *CancelOrderRe
 func (bi *Binanceus) CancelOpenOrdersForSymbol(ctx context.Context, symbol string) ([]Order, error) {
 	params := url.Values{}
 	if symbol == "" || len(symbol) < 4 {
-		return nil, errIncompleteArguments
+		return nil, errMissingCurrencySymbol
 	}
 	params.Set("symbol", symbol)
 	params.Set("timestamp", strconv.Itoa(int(time.Now().UnixMilli())))
@@ -1083,7 +1089,7 @@ func (bi *Binanceus) GetTrades(ctx context.Context, arg *GetTradesParams) ([]*Tr
 // CreateNewOCOOrder o place a new OCO(one-cancels-the-other) order.
 func (bi *Binanceus) CreateNewOCOOrder(ctx context.Context, arg *OCOOrderInputParams) (*OCOFullOrderResponse, error) {
 	params := url.Values{}
-	if arg.Symbol == "" || len(arg.Symbol) <= 2 || arg.Quantity == 0 || arg.Side == "" || arg.Price == 0 || arg.StopPrice == 0 {
+	if arg == nil || arg.Symbol == "" || len(arg.Symbol) <= 2 || arg.Quantity == 0 || arg.Side == "" || arg.Price == 0 || arg.StopPrice == 0 {
 		return nil, errIncompleteArguments
 	}
 	params.Set("symbol", arg.Symbol)
@@ -1100,7 +1106,7 @@ func (bi *Binanceus) CreateNewOCOOrder(ctx context.Context, arg *OCOOrderInputPa
 	if arg.LimitIcebergQty > 0 {
 		params.Set("limitIcebergQty", strconv.FormatFloat(arg.LimitIcebergQty, 'f', 5, 64))
 	}
-	if arg.StopClientOrderID > "" {
+	if arg.StopClientOrderID != "" {
 		params.Set("stopClientOrderId", arg.StopClientOrderID)
 	}
 	if arg.StopLimitPrice > 0.0 {
@@ -1117,6 +1123,8 @@ func (bi *Binanceus) CreateNewOCOOrder(ctx context.Context, arg *OCOOrderInputPa
 	}
 	if arg.RecvWindow > 200 {
 		params.Set("recvWindow", strconv.Itoa(int(arg.RecvWindow)))
+	} else {
+		params.Set("recvWindow", "6000")
 	}
 	params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
 	var response OCOFullOrderResponse
@@ -1323,33 +1331,33 @@ func (bi *Binanceus) GetAssetFeesAndWalletStatus(ctx context.Context) (AssetWall
 }
 
 // WithdrawCrypto method to withdraw crypto
-func (bi *Binanceus) WithdrawCrypto(ctx context.Context, arg *WithdrawalRequestParam) (string, error) {
+func (bi *Binanceus) WithdrawCrypto(ctx context.Context, arg *withdraw.Request, withdrawOrderID string, recvWindow uint) (string, error) {
 	params := url.Values{}
-	params.Set("timestamp", strconv.Itoa(int(time.Now().UnixMilli())))
-	if arg.Coin == "" {
+	params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
+	if arg.Currency.String() == "" {
 		return "", errMissingRequiredArgumentCoin
 	}
-	params.Set("coin", arg.Coin)
-	if arg.Network == "" {
+	params.Set("coin", arg.Currency.String())
+	if arg.Crypto.Chain == "" {
 		return "", errMissingRequiredArgumentNetwork
 	}
-	params.Set("network", arg.Network)
-	if arg.WithdrawOrderID != "" {
-		params.Set("withdrawOrderId", arg.WithdrawOrderID)
+	params.Set("network", arg.Crypto.Chain)
+	if withdrawOrderID != "" {
+		params.Set("withdrawOrderId", withdrawOrderID)
 	}
-	if arg.Address != "" {
-		return "", errIncompleteArguments
+	if arg.Crypto.Address == "" {
+		return "", errMissingRequiredParameterAddress
 	}
-	params.Set("address", arg.Address)
-	if arg.AddressTag != "" {
-		params.Set("addressTag", arg.AddressTag)
+	params.Set("address", arg.Crypto.Address)
+	if arg.Crypto.AddressTag != "" {
+		params.Set("addressTag", arg.Crypto.AddressTag)
 	}
 	if arg.Amount <= 0 {
 		return "", errAmountValueMustBeGreaterThan0
 	}
-	params.Set("amount", fmt.Sprint(arg.Amount))
-	if arg.RecvWindow > 2000 {
-		params.Set("recvWindow", strconv.Itoa(int(arg.RecvWindow)))
+	params.Set("amount", strconv.FormatFloat(arg.Amount, 'f', 0, 64))
+	if recvWindow > 2000 {
+		params.Set("recvWindow", strconv.Itoa(int(recvWindow)))
 	}
 	var response WithdrawalResponse
 	var er = bi.SendAuthHTTPRequest(ctx,
@@ -1362,7 +1370,7 @@ func (bi *Binanceus) WithdrawCrypto(ctx context.Context, arg *WithdrawalRequestP
 	return response.ID, er
 }
 
-// WithdrawHistory gets the status of recent withdrawals
+// WithdrawalHistory gets the status of recent withdrawals
 // status `param` used as string to prevent default value 0 (for int) interpreting as EmailSent status
 func (bi *Binanceus) WithdrawalHistory(ctx context.Context, c currency.Code, status string, startTime, endTime time.Time, offset, limit int) ([]WithdrawStatusResponse, error) {
 	params := url.Values{}
@@ -1382,10 +1390,10 @@ func (bi *Binanceus) WithdrawalHistory(ctx context.Context, c currency.Code, sta
 		}
 		params.Set("status", status)
 	}
-	if !startTime.IsZero() {
+	if !startTime.IsZero() && startTime.Unix() != 0 {
 		params.Set("startTime", strconv.FormatInt(startTime.UTC().Unix(), 10))
 	}
-	if !endTime.IsZero() {
+	if !endTime.IsZero() && endTime.Unix() != 0 {
 		params.Set("endTime", strconv.FormatInt(endTime.UTC().Unix(), 10))
 	}
 	if offset != 0 {
@@ -1407,15 +1415,15 @@ func (bi *Binanceus) WithdrawalHistory(ctx context.Context, c currency.Code, sta
 	return withdrawStatus, nil
 }
 
-// FiatWithdrawalhistory to fetch your fiat (USD) withdrawal history.
+// FiatWithdrawalHistory to fetch your fiat (USD) withdrawal history.
 // returns FiatAssetHistory containing list of fiat asset records.
-func (bi *Binanceus) FiatWithdrawalhistory(ctx context.Context, arg *FiatWithdrawalRequestParams) (FiatAssetsHistory, error) {
+func (bi *Binanceus) FiatWithdrawalHistory(ctx context.Context, arg *FiatWithdrawalRequestParams) (FiatAssetsHistory, error) {
 	var response FiatAssetsHistory
 	params := url.Values{}
 	if !(arg.EndTime.IsZero()) && !(arg.EndTime.Before(time.Now())) {
 		params.Set("endTime", strconv.Itoa(int(arg.EndTime.UnixMilli())))
 	}
-	if !(arg.StartTime.IsZero()) && !(arg.StartTime.After(time.Now())) {
+	if !arg.StartTime.IsZero() && !(arg.StartTime.After(time.Now())) {
 		params.Set("startTime", strconv.Itoa(int(arg.StartTime.UnixMilli())))
 	}
 	if arg.FiatCurrency != "" {
@@ -1433,7 +1441,7 @@ func (bi *Binanceus) FiatWithdrawalhistory(ctx context.Context, arg *FiatWithdra
 	params.Set("timestamp", strconv.Itoa(int(time.Now().UnixMilli())))
 	return response, bi.SendAuthHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
-		http.MethodGet, fiatWithdrawalhistory,
+		http.MethodGet, fiatWithdrawalHistory,
 		params, spotDefaultRate, &response)
 }
 
@@ -1442,6 +1450,9 @@ func (bi *Binanceus) FiatWithdrawalhistory(ctx context.Context, arg *FiatWithdra
 func (bi *Binanceus) WithdrawFiat(ctx context.Context, arg *WithdrawFiatRequestParams) (string, error) {
 	params := url.Values{}
 	timestamp := strconv.Itoa(int(time.Now().UnixMilli()))
+	if arg == nil {
+		return "", errIncompleteArguments
+	}
 	params.Set("timestamp", timestamp)
 	if arg.PaymentChannel != "" {
 		params.Set("paymentChannel", arg.PaymentChannel)
@@ -1449,7 +1460,7 @@ func (bi *Binanceus) WithdrawFiat(ctx context.Context, arg *WithdrawFiatRequestP
 	if arg.PaymentMethod != "" {
 		params.Set("paymentMethod", arg.PaymentMethod)
 	}
-	if arg.PaymentAccount != "" {
+	if arg.PaymentAccount == "" {
 		return "", errMissingPaymentAccountInfo
 	}
 	if arg.FiatCurrency != "" {
@@ -1476,6 +1487,9 @@ func (bi *Binanceus) WithdrawFiat(ctx context.Context, arg *WithdrawFiatRequestP
 // GetDepositAddressForCurrency retrieves the wallet address for a given currency
 func (bi *Binanceus) GetDepositAddressForCurrency(ctx context.Context, currency, chain string) (*DepositAddress, error) {
 	params := url.Values{}
+	if currency == "" {
+		return nil, errMissingRequiredArgumentCoin
+	}
 	params.Set("coin", currency)
 	if chain != "" {
 		params.Set("network", chain)
@@ -1488,30 +1502,26 @@ func (bi *Binanceus) GetDepositAddressForCurrency(ctx context.Context, currency,
 
 // DepositHistory returns the deposit history based on the supplied params
 // status `param` used as string to prevent default value 0 (for int) interpreting as EmailSent status
-func (bi *Binanceus) DepositHistory(ctx context.Context, c currency.Code, status string, startTime, endTime time.Time, offset, limit int) ([]DepositHistory, error) {
+func (bi *Binanceus) DepositHistory(ctx context.Context, c currency.Code, status uint8, startTime, endTime time.Time, offset, limit int) ([]DepositHistory, error) {
 	var response []DepositHistory
 	params := url.Values{}
 	if !c.IsEmpty() {
 		params.Set("coin", c.String())
 	}
-	if status != "" {
-		i, err := strconv.Atoi(status)
-		if err != nil {
-			return nil, fmt.Errorf("wrong param (status): %s. Error: %v", status, err)
-		}
 
-		switch i {
-		case EmailSent, Cancelled, AwaitingApproval, Rejected, Processing, Failure, Completed:
+	if status > 0 {
+		switch status {
+		case 0 /*Pending*/, 1 /*Success*/, 6 /*Credited but cannot withdraw*/ :
+			params.Set("status", strconv.Itoa(int(status)))
 		default:
-			return nil, fmt.Errorf("wrong param (status): %s", status)
+			return nil, fmt.Errorf("wrong param (status) 0 Pending, 1 success, 6 credited but cannot withdraw are allowed: %d ", status)
 		}
-		params.Set("status", status)
 	}
-	if !startTime.IsZero() {
+	if !startTime.IsZero() && startTime.Unix() != 0 {
 		params.Set("startTime", strconv.FormatInt(startTime.UTC().Unix(), 10))
 	}
 
-	if !endTime.IsZero() {
+	if !endTime.IsZero() && endTime.Unix() != 0 {
 		params.Set("endTime", strconv.FormatInt(endTime.UTC().Unix(), 10))
 	}
 

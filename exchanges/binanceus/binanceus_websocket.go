@@ -75,6 +75,7 @@ func (bi *Binanceus) WsConnect() error {
 	}
 
 	if bi.Websocket.CanUseAuthenticatedEndpoints() {
+		bi.Websocket.Wg.Add(1)
 		go bi.KeepAuthKeyAlive()
 	}
 
@@ -94,7 +95,6 @@ func (bi *Binanceus) WsConnect() error {
 // KeepAuthKeyAlive will continuously send messages to
 // keep the WS auth key active
 func (bi *Binanceus) KeepAuthKeyAlive() {
-	bi.Websocket.Wg.Add(1)
 	defer bi.Websocket.Wg.Done()
 	// ClosUserDataStream closes the User data stream and remove the listen key when closing the websocket.
 	defer func() {

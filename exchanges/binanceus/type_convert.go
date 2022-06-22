@@ -453,28 +453,6 @@ func (a *wsAccountPosition) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// UnmarshalJSON deserialises the JSON info, including the (EventTime and LastUpdated) timestamp
-func (a *wsAccountInfo) UnmarshalJSON(data []byte) error {
-	type Alias wsAccountInfo
-	aux := &struct {
-		Data struct {
-			EventTime   int64 `json:"E"`
-			LastUpdated int64 `json:"u"`
-			*WsAccountInfoData
-		} `json:"data"`
-		*Alias
-	}{
-		Alias: (*Alias)(a),
-	}
-	if err := json.Unmarshal(data, &aux); err != nil {
-		return err
-	}
-	a.Data = *aux.Data.WsAccountInfoData
-	a.Data.EventTime = time.UnixMilli(aux.Data.EventTime)
-	a.Data.LastUpdated = time.UnixMilli(aux.Data.LastUpdated)
-	return nil
-}
-
 // UnmarshalJSON deserialises the JSON info, including the (Timestamp)timestamp
 func (a *WebsocketDepthStream) UnmarshalJSON(data []byte) error {
 	type Alias WebsocketDepthStream
