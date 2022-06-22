@@ -1160,9 +1160,9 @@ message GetMarginRatesHistoryResponse {
   repeated MarginRate rates = 1;
   int64 total_rates = 2;
   string sum_borrow_costs = 3;
-  string sum_borrow_size = 4;
+  string avg_borrow_size = 4;
   string sum_lending_payments = 5;
-  string sum_lending_size = 6;
+  string avg_lending_size = 6;
   MarginRate latest_rate = 7;
   MarginRate predicted_rate = 8;
   string taker_fee_rate = 9;

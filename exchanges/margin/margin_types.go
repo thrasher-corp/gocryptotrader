@@ -34,9 +34,9 @@ type RateHistoryRequest struct {
 type RateHistoryResponse struct {
 	Rates              []Rate
 	SumBorrowCosts     decimal.Decimal
-	SumBorrowSize      decimal.Decimal
+	AverageBorrowSize  decimal.Decimal
 	SumLendingPayments decimal.Decimal
-	SumLendingSize     decimal.Decimal
+	AverageLendingSize decimal.Decimal
 	PredictedRate      Rate
 	TakerFeeRate       decimal.Decimal
 }

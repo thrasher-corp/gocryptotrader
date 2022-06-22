@@ -113,9 +113,9 @@ func (f fExchange) GetMarginRatesHistory(context.Context, *margin.RateHistoryReq
 	resp := &margin.RateHistoryResponse{
 		Rates:              rates,
 		SumBorrowCosts:     leet,
-		SumBorrowSize:      leet,
+		AverageBorrowSize:  leet,
 		SumLendingPayments: leet,
-		SumLendingSize:     leet,
+		AverageLendingSize: leet,
 		PredictedRate:      rates[0],
 		TakerFeeRate:       leet,
 	}

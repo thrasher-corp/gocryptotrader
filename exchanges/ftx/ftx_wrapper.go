@@ -1707,11 +1707,15 @@ func (f *FTX) GetMarginRatesHistory(ctx context.Context, request *margin.RateHis
 		return nil, err
 	}
 
-	one := decimal.NewFromInt(1)
-	fiveHundred := decimal.NewFromInt(500)
-	twentyFour := decimal.NewFromInt(24)
-	threeSixFive := decimal.NewFromInt(365)
-	var takerFeeRate decimal.Decimal
+	var (
+		one                                              = decimal.NewFromInt(1)
+		fiveHundred                                      = decimal.NewFromInt(500)
+		twentyFour                                       = decimal.NewFromInt(24)
+		threeSixFive                                     = decimal.NewFromInt(365)
+		takerFeeRate, averageBorrowSize, averageLendSize decimal.Decimal
+		borrowSizeLen, lendSizeLen                       int64
+	)
+
 	switch {
 	case request.CalculateOffline:
 		takerFeeRate = request.TakeFeeRate
@@ -1806,7 +1810,8 @@ func (f *FTX) GetMarginRatesHistory(ctx context.Context, request *margin.RateHis
 			for i := range request.Rates {
 				response.Rates[i].LendingPayment.Payment = response.Rates[i].HourlyRate.Mul(response.Rates[i].LendingPayment.Size)
 				response.SumLendingPayments = response.SumLendingPayments.Add(response.Rates[i].LendingPayment.Payment)
-				response.SumLendingSize = response.SumLendingSize.Add(response.Rates[i].LendingPayment.Size)
+				averageLendSize = averageLendSize.Add(response.Rates[i].LendingPayment.Size)
+				lendSizeLen++
 			}
 		} else {
 			endDate := request.EndDate
@@ -1830,7 +1835,8 @@ func (f *FTX) GetMarginRatesHistory(ctx context.Context, request *margin.RateHis
 						response.Rates[j].LendingPayment.Payment = decimal.NewFromFloat(payments[i].Proceeds)
 						response.Rates[j].LendingPayment.Size = decimal.NewFromFloat(payments[i].Size)
 						response.SumLendingPayments = response.SumLendingPayments.Add(response.Rates[j].LendingPayment.Payment)
-						response.SumLendingSize = response.SumLendingSize.Add(response.Rates[j].LendingPayment.Size)
+						averageLendSize = averageLendSize.Add(response.Rates[j].LendingPayment.Size)
+						lendSizeLen++
 						break
 					}
 				}
@@ -1851,7 +1857,8 @@ func (f *FTX) GetMarginRatesHistory(ctx context.Context, request *margin.RateHis
 				response.Rates[i].YearlyBorrowRate = response.Rates[i].HourlyBorrowRate.Mul(one.Add(fiveHundred.Mul(takerFeeRate)))
 				response.Rates[i].BorrowCost.Cost = response.Rates[i].HourlyBorrowRate.Mul(response.Rates[i].BorrowCost.Size)
 				response.SumBorrowCosts = response.SumBorrowCosts.Add(response.Rates[i].BorrowCost.Cost)
-				response.SumBorrowSize = response.SumBorrowSize.Add(response.Rates[i].BorrowCost.Size)
+				averageBorrowSize = averageBorrowSize.Add(response.Rates[i].BorrowCost.Size)
+				borrowSizeLen++
 			}
 		} else {
 			endDate := request.EndDate
@@ -1875,7 +1882,8 @@ func (f *FTX) GetMarginRatesHistory(ctx context.Context, request *margin.RateHis
 						response.Rates[j].BorrowCost.Cost = decimal.NewFromFloat(costs[i].Cost)
 						response.Rates[j].BorrowCost.Size = decimal.NewFromFloat(costs[i].Size)
 						response.SumBorrowCosts = response.SumBorrowCosts.Add(response.Rates[j].BorrowCost.Cost)
-						response.SumBorrowSize = response.SumBorrowSize.Add(response.Rates[j].BorrowCost.Size)
+						averageBorrowSize = averageBorrowSize.Add(response.Rates[j].BorrowCost.Size)
+						borrowSizeLen++
 						break
 					}
 				}
@@ -1885,6 +1893,13 @@ func (f *FTX) GetMarginRatesHistory(ctx context.Context, request *margin.RateHis
 				endDate = costs[len(costs)-1].Time
 			}
 		}
+	}
+
+	if borrowSizeLen > 0 {
+		response.AverageBorrowSize = averageBorrowSize.Div(decimal.NewFromInt(borrowSizeLen))
+	}
+	if lendSizeLen > 0 {
+		response.AverageLendingSize = averageLendSize.Div(decimal.NewFromInt(lendSizeLen))
 	}
 
 	return response, nil

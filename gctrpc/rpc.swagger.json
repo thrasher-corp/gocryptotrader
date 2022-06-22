@@ -4971,13 +4971,13 @@
         "sumBorrowCosts": {
           "type": "string"
         },
-        "sumBorrowSize": {
+        "avgBorrowSize": {
           "type": "string"
         },
         "sumLendingPayments": {
           "type": "string"
         },
-        "sumLendingSize": {
+        "avgLendingSize": {
           "type": "string"
         },
         "latestRate": {
