@@ -59,7 +59,8 @@ const (
 	assetDeposits             = "asset/deposit-address"
 	pathToAssetDepositHistory = "asset/deposit-history"
 	//
-	assetWithdrawal = "asset/withdrawal"
+	assetWithdrawal          = "asset/withdrawal"
+	assetLightningWithdrawal = "asset/withdrawal-lightning"
 
 	// algo order routes
 	cancelAlgoOrder        = "trade/cancel-algos"
@@ -168,6 +169,7 @@ var (
 	errInvalidFundingAmount                    = errors.New("invalid funding amount")
 	errInvalidCurrencyValue                    = errors.New("invalid currency value")
 	errInvalidDepositAmount                    = errors.New("invalid deposit amount")
+	errMissingResponseBody                     = errors.New("error missing response body")
 )
 
 /************************************ MarketData Endpoints *************************************************/
@@ -1066,6 +1068,31 @@ func (ok *Okx) Withdrawal(ctx context.Context, input WithdrawalInput) (*Withdraw
 	return resp.Data[0], nil
 }
 
+/*
+ This API function service is only open to some users. If you need this function service, please send an email to `liz.jensen@okg.com` to apply
+*/
+func (ok *Okx) LightningWithdrawal(ctx context.Context, arg LightningWithdrawalRequestInput) (*LightningWithdrawalResponse, error) {
+
+	if arg.Currency == "" {
+		return nil, errInvalidCurrencyValue
+	} else if arg.Invoice == "" {
+		return nil, errors.New("error missing invoice text")
+	}
+	type response struct {
+		Code string                         `json:"code"`
+		Msg  string                         `json:"msg"`
+		Data []*LightningWithdrawalResponse `json:"data"`
+	}
+	var resp response
+	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, assetLightningWithdrawal, &arg, &resp, true)
+	if er != nil {
+		return nil, er
+	} else if er == nil && len(resp.Data) == 0 {
+		return nil, errMissingResponseBody
+	}
+	return resp.Data[0], nil
+}
+
 /***************************** Funding Endpoints Ends here ***************************/
 
 // GetTickers retrives the latest price snopshots best bid/ ask price, and tranding volume in the last 34 hours.
@@ -1167,14 +1194,12 @@ func (ok *Okx) GetIntervalEnum(interval kline.Interval) string {
 		return "12H"
 	case kline.OneDay:
 		return "1D"
+	case kline.TwoDay:
+		return "2D"
 	case kline.ThreeDay:
 		return "3D"
-	case kline.FifteenDay:
-		return "15D"
 	case kline.OneWeek:
 		return "1W"
-	case kline.TwoWeek:
-		return "2W"
 	case kline.OneMonth:
 		return "1M"
 	case kline.ThreeMonth:
@@ -1182,7 +1207,7 @@ func (ok *Okx) GetIntervalEnum(interval kline.Interval) string {
 	case kline.SixMonth:
 		return "6M"
 	case kline.OneYear:
-		return "1"
+		return "1Y"
 	default:
 		return ""
 	}

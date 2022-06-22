@@ -990,3 +990,16 @@ type WithdrawalResponse struct {
 	ClientID     string  `json:"clientId"`
 	Chain        string  `json:"chain"`
 }
+
+// LightningRequestInput to request Lightning Withdrawal requests.
+type LightningWithdrawalRequestInput struct {
+	Currency string `json:"ccy"`     // REQUIRED Token symbol. Currently only BTC is supported.
+	Invoice  string `json:"invoice"` // REQUIRED Invoice text
+	Memo     string `json:"memo"`    // Lightning withdrawal memo
+}
+
+// LightningWithdrawalResponse response item for holding lightning withdrawal requests.
+type LightningWithdrawalResponse struct {
+	WithdrawalID string    `json:"wdId"`
+	CreationTime time.Time `json:"cTime"`
+}

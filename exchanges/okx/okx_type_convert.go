@@ -440,3 +440,19 @@ func (a *DepositHistoryResponseItem) UnmarshalJSON(data []byte) error {
 	a.Timestamp = time.UnixMilli(chil.Timestamp)
 	return nil
 }
+
+// UnmarshalJSON a custom unmarshaling function to convert unix creation time n millisecond to built in golang time.Time instance.
+func (a *LightningWithdrawalResponse) UnmarshalJSON(data []byte) error {
+	type Alias LightningWithdrawalResponse
+	chil := &struct {
+		*Alias
+		CreationTime int64 `json:"cTime,string"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	a.CreationTime = time.UnixMilli(chil.CreationTime)
+	return nil
+}

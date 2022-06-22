@@ -16,9 +16,9 @@ import (
 
 // Please supply your own keys here to do authenticated endpoint testing
 const (
-	apiKey                  = "bcb7564b-c51d-4f1d-ab78-aea2cc12d6de"
-	apiSecret               = "B0D6A3AD35B13A2B3FB15C621D186404"
-	passphrase              = "1NM0qIKtJav88TKocmp2"
+	apiKey                  = ""
+	apiSecret               = ""
+	passphrase              = ""
 	canManipulateRealOrders = false
 )
 
@@ -1047,9 +1047,34 @@ func TestWithdrawal(t *testing.T) {
 	if er != nil {
 		t.Error("Okx WithdrawalResponse unmarshaling json error", er)
 	}
-	t.Skip()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.SkipNow()
+	}
 	_, er = ok.Withdrawal(context.Background(), WithdrawalInput{Amount: 0.1, TransactionFee: 0.00005, Currency: "BTC", WithdrawalDestination: "4", ToAddress: "17DKe3kkkkiiiiTvAKKi2vMPbm1Bz3CMKw"})
 	if er != nil {
 		t.Error("Okx Withdrawal error", er)
+	}
+}
+
+var lightningWithdrawalResponseJson = `{
+	"wdId": "121212",
+	"cTime": "1597026383085"
+}`
+
+func TestLightningWithdrawal(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.SkipNow()
+	}
+	var response LightningWithdrawalResponse
+	if er := json.Unmarshal([]byte(lightningWithdrawalResponseJson), &response); er != nil {
+		t.Error("Binanceus LightningWithdrawalResponse Json Conversion error ", er)
+	}
+	_, er := ok.LightningWithdrawal(context.Background(), LightningWithdrawalRequestInput{
+		Currency: currency.BTC.String(),
+		Invoice:  "lnbc100u1psnnvhtpp5yq2x3q5hhrzsuxpwx7ptphwzc4k4wk0j3stp0099968m44cyjg9sdqqcqzpgxqzjcsp5hz",
+	})
+	if !strings.Contains(er.Error(), `401 raw response: {"msg":"Invalid Authority","code":"50114"}`) {
+		t.Error("Binanceus LightningWithdrawal() error", er)
 	}
 }
