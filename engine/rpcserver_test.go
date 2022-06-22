@@ -2437,11 +2437,11 @@ func TestGetMarginRatesHistory(t *testing.T) {
 	if resp.SumLendingPayments != "1337" {
 		t.Errorf("received '%v' expected '%v'", resp.SumLendingPayments, "1337")
 	}
-	if resp.SumBorrowSize != "1337" {
-		t.Errorf("received '%v' expected '%v'", resp.SumBorrowSize, "1337")
+	if resp.AvgBorrowSize != "1337" {
+		t.Errorf("received '%v' expected '%v'", resp.AvgBorrowSize, "1337")
 	}
-	if resp.SumLendingSize != "1337" {
-		t.Errorf("received '%v' expected '%v'", resp.SumLendingSize, "1337")
+	if resp.AvgLendingSize != "1337" {
+		t.Errorf("received '%v' expected '%v'", resp.AvgLendingSize, "1337")
 	}
 	if resp.SumBorrowCosts != "1337" {
 		t.Errorf("received '%v' expected '%v'", resp.SumBorrowCosts, "1337")
