@@ -30,6 +30,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
@@ -91,25 +92,25 @@ func (f fExchange) GetHistoricCandlesExtended(ctx context.Context, p currency.Pa
 	}, nil
 }
 
-func (f fExchange) GetMarginRatesHistory(context.Context, *order.MarginRateHistoryRequest) (*order.MarginRateHistoryResponse, error) {
+func (f fExchange) GetMarginRatesHistory(context.Context, *margin.RateHistoryRequest) (*margin.RateHistoryResponse, error) {
 	leet := decimal.NewFromInt(1337)
-	rates := []order.MarginRate{
+	rates := []margin.Rate{
 		{
-			Time:              time.Now(),
-			TotalBorrowedSize: leet,
-			Rate:              leet,
-			BorrowRate:        leet,
-			LendingPayment: order.LendingPayment{
+			Time:             time.Now(),
+			MarketBorrowSize: leet,
+			HourlyRate:       leet,
+			HourlyBorrowRate: leet,
+			LendingPayment: margin.LendingPayment{
 				Payment: leet,
 				Size:    leet,
 			},
-			BorrowCost: order.BorrowCost{
+			BorrowCost: margin.BorrowCost{
 				Cost: leet,
 				Size: leet,
 			},
 		},
 	}
-	resp := &order.MarginRateHistoryResponse{
+	resp := &margin.RateHistoryResponse{
 		Rates:              rates,
 		SumBorrowCosts:     leet,
 		SumBorrowSize:      leet,
@@ -2464,10 +2465,10 @@ func TestGetMarginRatesHistory(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, common.ErrCannotCalculateOffline)
 	}
 
-	request.Rates = []*gctrpc.LendingRate{
+	request.Rates = []*gctrpc.MarginRate{
 		{
-			Time: time.Now().Format(common.SimpleTimeFormat),
-			Rate: "1337",
+			Time:       time.Now().Format(common.SimpleTimeFormat),
+			HourlyRate: "1337",
 		},
 	}
 	_, err = s.GetMarginRatesHistory(context.Background(), request)
@@ -2475,10 +2476,10 @@ func TestGetMarginRatesHistory(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 
-	request.Rates = []*gctrpc.LendingRate{
+	request.Rates = []*gctrpc.MarginRate{
 		{
 			Time:           time.Now().Format(common.SimpleTimeFormat),
-			Rate:           "1337",
+			HourlyRate:     "1337",
 			LendingPayment: &gctrpc.LendingPayment{Size: "1337"},
 			BorrowCost:     &gctrpc.BorrowCost{Size: "1337"},
 		},

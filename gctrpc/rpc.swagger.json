@@ -4961,7 +4961,7 @@
         "rates": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/gctrpcLendingRate"
+            "$ref": "#/definitions/gctrpcMarginRate"
           }
         },
         "totalRates": {
@@ -4981,10 +4981,10 @@
           "type": "string"
         },
         "latestRate": {
-          "$ref": "#/definitions/gctrpcLendingRate"
+          "$ref": "#/definitions/gctrpcMarginRate"
         },
         "predictedRate": {
-          "$ref": "#/definitions/gctrpcLendingRate"
+          "$ref": "#/definitions/gctrpcMarginRate"
         },
         "takerFeeRate": {
           "type": "string"
@@ -5168,22 +5168,22 @@
         }
       }
     },
-    "gctrpcLendingRate": {
+    "gctrpcMarginRate": {
       "type": "object",
       "properties": {
         "time": {
           "type": "string"
         },
-        "totalBorrowedSize": {
+        "marketBorrowSize": {
           "type": "string"
         },
-        "rate": {
+        "hourlyRate": {
           "type": "string"
         },
         "yearlyRate": {
           "type": "string"
         },
-        "borrowRate": {
+        "hourlyBorrowRate": {
           "type": "string"
         },
         "yearlyBorrowRate": {

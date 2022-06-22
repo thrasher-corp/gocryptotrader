@@ -34,6 +34,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -4350,7 +4351,7 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 		return nil, err
 	}
 
-	err = checkParams(r.Exchange, exch, a, currency.Pair{})
+	err = checkParams(r.Exchange, exch, a, currency.EMPTYPAIR)
 	if err != nil {
 		return nil, err
 	}
@@ -4591,7 +4592,7 @@ func (s *RPCServer) GetMarginRatesHistory(ctx context.Context, r *gctrpc.GetMarg
 		return nil, err
 	}
 
-	err = checkParams(r.Exchange, exch, a, currency.Pair{})
+	err = checkParams(r.Exchange, exch, a, currency.EMPTYPAIR)
 	if err != nil {
 		return nil, err
 	}
@@ -4624,7 +4625,7 @@ func (s *RPCServer) GetMarginRatesHistory(ctx context.Context, r *gctrpc.GetMarg
 		return nil, err
 	}
 
-	request := &order.MarginRateHistoryRequest{
+	request := &margin.RateHistoryRequest{
 		Exchange:           exch.GetName(),
 		Asset:              a,
 		Currency:           c,
@@ -4652,13 +4653,13 @@ func (s *RPCServer) GetMarginRatesHistory(ctx context.Context, r *gctrpc.GetMarg
 			return nil, fmt.Errorf("%w for offline calculations", common.ErrCannotCalculateOffline)
 		}
 		for i := range r.Rates {
-			var offlineRate order.MarginRate
+			var offlineRate margin.Rate
 			offlineRate.Time, err = time.Parse(common.SimpleTimeFormat, r.Rates[i].Time)
 			if err != nil {
 				return nil, err
 			}
 
-			offlineRate.Rate, err = decimal.NewFromString(r.Rates[i].Rate)
+			offlineRate.HourlyRate, err = decimal.NewFromString(r.Rates[i].HourlyRate)
 			if err != nil {
 				return nil, err
 			}
@@ -4688,15 +4689,16 @@ func (s *RPCServer) GetMarginRatesHistory(ctx context.Context, r *gctrpc.GetMarg
 		return nil, order.ErrNoRates
 	}
 	resp := &gctrpc.GetMarginRatesHistoryResponse{
-		LatestRate: &gctrpc.LendingRate{
-			Time:       lendingResp.Rates[len(lendingResp.Rates)-1].Time.Format(common.SimpleTimeFormatWithTimezone),
-			Rate:       lendingResp.Rates[len(lendingResp.Rates)-1].Rate.String(),
-			YearlyRate: lendingResp.Rates[len(lendingResp.Rates)-1].YearlyRate.String(),
+		LatestRate: &gctrpc.MarginRate{
+			Time:             lendingResp.Rates[len(lendingResp.Rates)-1].Time.Format(common.SimpleTimeFormatWithTimezone),
+			HourlyRate:       lendingResp.Rates[len(lendingResp.Rates)-1].HourlyRate.String(),
+			YearlyRate:       lendingResp.Rates[len(lendingResp.Rates)-1].YearlyRate.String(),
+			MarketBorrowSize: lendingResp.Rates[len(lendingResp.Rates)-1].MarketBorrowSize.String(),
 		},
 		TotalRates: int64(len(lendingResp.Rates)),
 	}
 	if r.GetBorrowRates {
-		resp.LatestRate.BorrowRate = lendingResp.Rates[len(lendingResp.Rates)-1].BorrowRate.String()
+		resp.LatestRate.HourlyBorrowRate = lendingResp.Rates[len(lendingResp.Rates)-1].HourlyBorrowRate.String()
 		resp.LatestRate.YearlyBorrowRate = lendingResp.Rates[len(lendingResp.Rates)-1].YearlyBorrowRate.String()
 	}
 	if r.GetBorrowRates || r.GetLendingPayments {
@@ -4711,26 +4713,26 @@ func (s *RPCServer) GetMarginRatesHistory(ctx context.Context, r *gctrpc.GetMarg
 		resp.SumBorrowSize = lendingResp.SumBorrowSize.String()
 	}
 	if r.GetPredictedRate {
-		resp.PredictedRate = &gctrpc.LendingRate{
+		resp.PredictedRate = &gctrpc.MarginRate{
 			Time:       lendingResp.PredictedRate.Time.Format(common.SimpleTimeFormatWithTimezone),
-			Rate:       lendingResp.PredictedRate.Rate.String(),
+			HourlyRate: lendingResp.PredictedRate.HourlyRate.String(),
 			YearlyRate: lendingResp.PredictedRate.YearlyRate.String(),
 		}
 		if r.GetBorrowRates {
-			resp.PredictedRate.BorrowRate = lendingResp.PredictedRate.BorrowRate.String()
+			resp.PredictedRate.HourlyBorrowRate = lendingResp.PredictedRate.HourlyBorrowRate.String()
 			resp.PredictedRate.YearlyBorrowRate = lendingResp.PredictedRate.YearlyBorrowRate.String()
 		}
 	}
 	if r.IncludeAllRates {
 		for i := range lendingResp.Rates {
-			rate := &gctrpc.LendingRate{
-				Time:       lendingResp.Rates[i].Time.Format(common.SimpleTimeFormatWithTimezone),
-				Rate:       lendingResp.Rates[i].Rate.String(),
-				YearlyRate: lendingResp.Rates[i].YearlyRate.String(),
+			rate := &gctrpc.MarginRate{
+				Time:             lendingResp.Rates[i].Time.Format(common.SimpleTimeFormatWithTimezone),
+				HourlyRate:       lendingResp.Rates[i].HourlyRate.String(),
+				YearlyRate:       lendingResp.Rates[i].YearlyRate.String(),
+				MarketBorrowSize: lendingResp.Rates[i].MarketBorrowSize.String(),
 			}
 			if r.GetBorrowRates {
-				rate.TotalBorrowedSize = lendingResp.Rates[i].TotalBorrowedSize.String()
-				rate.BorrowRate = lendingResp.Rates[i].BorrowRate.String()
+				rate.HourlyBorrowRate = lendingResp.Rates[i].HourlyBorrowRate.String()
 				rate.YearlyBorrowRate = lendingResp.Rates[i].YearlyBorrowRate.String()
 			}
 			if r.GetBorrowCosts {

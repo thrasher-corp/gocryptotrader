@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
-	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
@@ -348,62 +347,4 @@ type ClassificationError struct {
 	Exchange string
 	OrderID  string
 	Err      error
-}
-
-// MarginRateHistoryRequest is used to request a funding rate
-type MarginRateHistoryRequest struct {
-	Exchange           string
-	Asset              asset.Item
-	Currency           currency.Code
-	StartDate          time.Time
-	EndDate            time.Time
-	GetPredictedRate   bool
-	GetLendingPayments bool
-	GetBorrowRates     bool
-	GetBorrowCosts     bool
-
-	// CalculateOffline allows for the borrow rate, lending payment amount
-	// and borrow costs to be calculated offline. It requires the takerfeerate
-	// and existing rates
-	CalculateOffline bool
-	TakeFeeRate      decimal.Decimal
-	// Rates is used when calculating offline and determiningPayments
-	// Each MarginRate must have the Rate and Size fields populated
-	Rates []MarginRate
-}
-
-// MarginRateHistoryResponse has the funding rate details
-type MarginRateHistoryResponse struct {
-	Rates              []MarginRate
-	SumBorrowCosts     decimal.Decimal
-	SumBorrowSize      decimal.Decimal
-	SumLendingPayments decimal.Decimal
-	SumLendingSize     decimal.Decimal
-	PredictedRate      MarginRate
-	TakerFeeRate       decimal.Decimal
-}
-
-// MarginRate has the funding rate details
-// and optionally the borrow rate
-type MarginRate struct {
-	Time              time.Time
-	TotalBorrowedSize decimal.Decimal
-	Rate              decimal.Decimal
-	YearlyRate        decimal.Decimal
-	BorrowRate        decimal.Decimal
-	YearlyBorrowRate  decimal.Decimal
-	LendingPayment    LendingPayment
-	BorrowCost        BorrowCost
-}
-
-// LendingPayment contains a lending rate payment
-type LendingPayment struct {
-	Payment decimal.Decimal
-	Size    decimal.Decimal
-}
-
-// BorrowCost contains the borrow rate costs
-type BorrowCost struct {
-	Cost decimal.Decimal
-	Size decimal.Decimal
 }

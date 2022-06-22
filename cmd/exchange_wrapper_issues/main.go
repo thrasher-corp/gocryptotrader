@@ -24,6 +24,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -844,7 +845,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Response:   withdrawFiatFundsInternationalResponse,
 		})
 
-		marginRateHistoryRequest := &order.MarginRateHistoryRequest{
+		marginRateHistoryRequest := &margin.RateHistoryRequest{
 			Exchange:           e.GetName(),
 			Asset:              assetTypes[i],
 			Currency:           p.Base,

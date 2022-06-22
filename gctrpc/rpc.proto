@@ -1132,7 +1132,7 @@ message GetMarginRatesHistoryRequest {
   bool include_all_rates = 10;
   bool calculate_offline = 11;
   string taker_fee_rate = 12;
-  repeated LendingRate rates = 13;
+  repeated MarginRate rates = 13;
 }
 
 message LendingPayment {
@@ -1145,26 +1145,26 @@ message BorrowCost {
   string size = 2;
 }
 
-message LendingRate {
+message MarginRate {
   string time = 1;
-  string total_borrowed_size = 2;
-  string rate = 3;
+  string market_borrow_size = 2;
+  string hourly_rate = 3;
   string yearly_rate = 4;
-  string borrow_rate = 5;
+  string hourly_borrow_rate = 5;
   string yearly_borrow_rate = 6;
   LendingPayment lending_payment = 7;
   BorrowCost borrow_cost = 8;
 }
 
 message GetMarginRatesHistoryResponse {
-  repeated LendingRate rates = 1;
+  repeated MarginRate rates = 1;
   int64 total_rates = 2;
   string sum_borrow_costs = 3;
   string sum_borrow_size = 4;
   string sum_lending_payments = 5;
   string sum_lending_size = 6;
-  LendingRate latest_rate = 7;
-  LendingRate predicted_rate = 8;
+  MarginRate latest_rate = 7;
+  MarginRate predicted_rate = 8;
   string taker_fee_rate = 9;
 }
 

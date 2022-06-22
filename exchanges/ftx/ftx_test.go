@@ -17,6 +17,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -2203,7 +2204,7 @@ func TestGetMarginRatesHistory(t *testing.T) {
 	t.Parallel()
 	type testCase struct {
 		name         string
-		request      *order.MarginRateHistoryRequest
+		request      *margin.RateHistoryRequest
 		err          error
 		requiresAuth bool
 	}
@@ -2215,12 +2216,12 @@ func TestGetMarginRatesHistory(t *testing.T) {
 		},
 		{
 			name:    "empty request",
-			request: &order.MarginRateHistoryRequest{},
+			request: &margin.RateHistoryRequest{},
 			err:     currency.ErrCurrencyCodeEmpty,
 		},
 		{
 			name: "disabled currency request",
-			request: &order.MarginRateHistoryRequest{
+			request: &margin.RateHistoryRequest{
 				Asset:    asset.Futures,
 				Currency: currency.LUNA,
 			},
@@ -2228,7 +2229,7 @@ func TestGetMarginRatesHistory(t *testing.T) {
 		},
 		{
 			name: "empty date request",
-			request: &order.MarginRateHistoryRequest{
+			request: &margin.RateHistoryRequest{
 				Asset:    asset.Spot,
 				Currency: currency.USD,
 			},
@@ -2236,7 +2237,7 @@ func TestGetMarginRatesHistory(t *testing.T) {
 		},
 		{
 			name: "nice basic request",
-			request: &order.MarginRateHistoryRequest{
+			request: &margin.RateHistoryRequest{
 				Asset:     asset.Spot,
 				Currency:  currency.USD,
 				StartDate: time.Now().Add(-time.Hour * 24 * 7),
@@ -2246,7 +2247,7 @@ func TestGetMarginRatesHistory(t *testing.T) {
 		},
 		{
 			name: "include predicted rate",
-			request: &order.MarginRateHistoryRequest{
+			request: &margin.RateHistoryRequest{
 				Asset:            asset.Spot,
 				Currency:         currency.USD,
 				StartDate:        time.Now().Add(-time.Hour * 24 * 7),
@@ -2257,7 +2258,7 @@ func TestGetMarginRatesHistory(t *testing.T) {
 		},
 		{
 			name: "include borrowed rates",
-			request: &order.MarginRateHistoryRequest{
+			request: &margin.RateHistoryRequest{
 				Asset:          asset.Spot,
 				Currency:       currency.USD,
 				StartDate:      time.Now().Add(-time.Hour * 24 * 7),
@@ -2269,7 +2270,7 @@ func TestGetMarginRatesHistory(t *testing.T) {
 		},
 		{
 			name: "include predicted borrowed rates",
-			request: &order.MarginRateHistoryRequest{
+			request: &margin.RateHistoryRequest{
 				Asset:            asset.Spot,
 				Currency:         currency.USD,
 				StartDate:        time.Now().Add(-time.Hour * 24 * 7),
@@ -2282,7 +2283,7 @@ func TestGetMarginRatesHistory(t *testing.T) {
 		},
 		{
 			name: "all you can eat",
-			request: &order.MarginRateHistoryRequest{
+			request: &margin.RateHistoryRequest{
 				Asset:              asset.Spot,
 				Currency:           currency.USD,
 				StartDate:          time.Now().Add(-time.Hour * 24 * 365 * 2),
@@ -2297,7 +2298,7 @@ func TestGetMarginRatesHistory(t *testing.T) {
 		},
 		{
 			name: "offline failure, no rates",
-			request: &order.MarginRateHistoryRequest{
+			request: &margin.RateHistoryRequest{
 				Asset:            asset.Spot,
 				Currency:         currency.USD,
 				StartDate:        time.Now().Add(-time.Hour * 24 * 7),
@@ -2308,17 +2309,17 @@ func TestGetMarginRatesHistory(t *testing.T) {
 		},
 		{
 			name: "offline failure, no fee for lending",
-			request: &order.MarginRateHistoryRequest{
+			request: &margin.RateHistoryRequest{
 				Asset:              asset.Spot,
 				Currency:           currency.USD,
 				StartDate:          time.Now().Add(-time.Hour * 24 * 7),
 				EndDate:            time.Now(),
 				CalculateOffline:   true,
 				GetLendingPayments: true,
-				Rates: []order.MarginRate{
+				Rates: []margin.Rate{
 					{
-						Time: time.Now().Add(-time.Hour),
-						Rate: decimal.NewFromInt(1337),
+						Time:       time.Now().Add(-time.Hour),
+						HourlyRate: decimal.NewFromInt(1337),
 					},
 				},
 			},
@@ -2326,17 +2327,17 @@ func TestGetMarginRatesHistory(t *testing.T) {
 		},
 		{
 			name: "offline failure, no fee for borrow",
-			request: &order.MarginRateHistoryRequest{
+			request: &margin.RateHistoryRequest{
 				Asset:            asset.Spot,
 				Currency:         currency.USD,
 				StartDate:        time.Now().Add(-time.Hour * 24 * 7),
 				EndDate:          time.Now(),
 				CalculateOffline: true,
 				GetBorrowCosts:   true,
-				Rates: []order.MarginRate{
+				Rates: []margin.Rate{
 					{
-						Time: time.Now().Add(-time.Hour),
-						Rate: decimal.NewFromInt(1337),
+						Time:       time.Now().Add(-time.Hour),
+						HourlyRate: decimal.NewFromInt(1337),
 					},
 				},
 			},
@@ -2344,7 +2345,7 @@ func TestGetMarginRatesHistory(t *testing.T) {
 		},
 		{
 			name: "offline pass, lending w fee",
-			request: &order.MarginRateHistoryRequest{
+			request: &margin.RateHistoryRequest{
 				Asset:              asset.Spot,
 				Currency:           currency.USD,
 				StartDate:          time.Now().Add(-time.Hour * 24 * 7),
@@ -2352,10 +2353,10 @@ func TestGetMarginRatesHistory(t *testing.T) {
 				CalculateOffline:   true,
 				TakeFeeRate:        decimal.NewFromFloat(0.01),
 				GetLendingPayments: true,
-				Rates: []order.MarginRate{
+				Rates: []margin.Rate{
 					{
-						Time: time.Now().Add(-time.Hour),
-						Rate: decimal.NewFromInt(1337),
+						Time:       time.Now().Add(-time.Hour),
+						HourlyRate: decimal.NewFromInt(1337),
 					},
 				},
 			},
@@ -2363,7 +2364,7 @@ func TestGetMarginRatesHistory(t *testing.T) {
 		},
 		{
 			name: "offline pass, borrow w fee",
-			request: &order.MarginRateHistoryRequest{
+			request: &margin.RateHistoryRequest{
 				Asset:            asset.Spot,
 				Currency:         currency.USD,
 				StartDate:        time.Now().Add(-time.Hour * 24 * 7),
@@ -2371,11 +2372,11 @@ func TestGetMarginRatesHistory(t *testing.T) {
 				CalculateOffline: true,
 				TakeFeeRate:      decimal.NewFromFloat(0.01),
 				GetBorrowCosts:   true,
-				Rates: []order.MarginRate{
+				Rates: []margin.Rate{
 					{
 						Time:       time.Now().Add(-time.Hour),
-						Rate:       decimal.NewFromInt(1337),
-						BorrowCost: order.BorrowCost{Size: decimal.NewFromFloat(1337)},
+						HourlyRate: decimal.NewFromInt(1337),
+						BorrowCost: margin.BorrowCost{Size: decimal.NewFromFloat(1337)},
 					},
 				},
 			},
@@ -2383,7 +2384,7 @@ func TestGetMarginRatesHistory(t *testing.T) {
 		},
 		{
 			name: "offline pass, lending size",
-			request: &order.MarginRateHistoryRequest{
+			request: &margin.RateHistoryRequest{
 				Asset:              asset.Spot,
 				Currency:           currency.USD,
 				StartDate:          time.Now().Add(-time.Hour * 24 * 7),
@@ -2391,11 +2392,11 @@ func TestGetMarginRatesHistory(t *testing.T) {
 				CalculateOffline:   true,
 				TakeFeeRate:        decimal.NewFromFloat(0.01),
 				GetLendingPayments: true,
-				Rates: []order.MarginRate{
+				Rates: []margin.Rate{
 					{
 						Time:           time.Now().Add(-time.Hour),
-						Rate:           decimal.NewFromInt(1337),
-						LendingPayment: order.LendingPayment{Size: decimal.NewFromFloat(1337)},
+						HourlyRate:     decimal.NewFromInt(1337),
+						LendingPayment: margin.LendingPayment{Size: decimal.NewFromFloat(1337)},
 					},
 				},
 			},
@@ -2403,17 +2404,17 @@ func TestGetMarginRatesHistory(t *testing.T) {
 		},
 		{
 			name: "offline failure, cannot predict offline",
-			request: &order.MarginRateHistoryRequest{
+			request: &margin.RateHistoryRequest{
 				Asset:            asset.Spot,
 				Currency:         currency.USD,
 				StartDate:        time.Now().Add(-time.Hour * 24 * 7),
 				EndDate:          time.Now(),
 				CalculateOffline: true,
 				TakeFeeRate:      decimal.NewFromFloat(0.01),
-				Rates: []order.MarginRate{
+				Rates: []margin.Rate{
 					{
-						Time: time.Now().Add(-time.Hour),
-						Rate: decimal.NewFromInt(1337),
+						Time:       time.Now().Add(-time.Hour),
+						HourlyRate: decimal.NewFromInt(1337),
 					},
 				},
 				GetPredictedRate: true,
@@ -2440,7 +2441,7 @@ func TestGetMarginRatesHistory(t *testing.T) {
 	}
 
 	// test offline calculation against real data
-	online, err := f.GetMarginRatesHistory(context.Background(), &order.MarginRateHistoryRequest{
+	online, err := f.GetMarginRatesHistory(context.Background(), &margin.RateHistoryRequest{
 		Asset:          asset.Spot,
 		Currency:       currency.USD,
 		StartDate:      time.Now().Add(-time.Hour * 24 * 2),
@@ -2452,7 +2453,7 @@ func TestGetMarginRatesHistory(t *testing.T) {
 		t.Errorf("receieved '%v' expected '%v'", err, nil)
 	}
 
-	offline, err := f.GetMarginRatesHistory(context.Background(), &order.MarginRateHistoryRequest{
+	offline, err := f.GetMarginRatesHistory(context.Background(), &margin.RateHistoryRequest{
 		Asset:            asset.Spot,
 		Currency:         currency.USD,
 		StartDate:        time.Now().Add(-time.Hour * 24 * 2),

@@ -5070,12 +5070,12 @@ var getMarginRatesHistoryCommand = &cli.Command{
 		&cli.StringFlag{
 			Name:    "exchange",
 			Aliases: []string{"e"},
-			Usage:   "the exchange to retrieve futures positions from",
+			Usage:   "the exchange to retrieve margin rates from",
 		},
 		&cli.StringFlag{
 			Name:    "asset",
 			Aliases: []string{"a"},
-			Usage:   "the asset type of the currency pair, must be a futures type",
+			Usage:   "the asset type of the currency pair",
 		},
 		&cli.StringFlag{
 			Name:    "currency",
