@@ -3,6 +3,7 @@ package bybit
 import (
 	"encoding/json"
 	"errors"
+	"strconv"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -59,6 +60,30 @@ func (b bybitTimeSec) Time() time.Time {
 	return time.Time(b)
 }
 
+// bybitTimeSecStr provides an internal conversion helper
+type bybitTimeSecStr time.Time
+
+// UnmarshalJSON is custom json unmarshaller for bybitTimeSec
+func (b *bybitTimeSecStr) UnmarshalJSON(data []byte) error {
+	var timestamp string
+	err := json.Unmarshal(data, &timestamp)
+	if err != nil {
+		return err
+	}
+
+	t, err := strconv.ParseInt(timestamp, 10, 64)
+	if err != nil {
+		return err
+	}
+	*b = bybitTimeSecStr(time.Unix(t, 0))
+	return nil
+}
+
+// Time returns a time.Time object
+func (b bybitTimeSecStr) Time() time.Time {
+	return time.Time(b)
+}
+
 // bybitTimeMilliSec provides an internal conversion helper
 type bybitTimeMilliSec time.Time
 
@@ -75,6 +100,30 @@ func (b *bybitTimeMilliSec) UnmarshalJSON(data []byte) error {
 
 // Time returns a time.Time object
 func (b bybitTimeMilliSec) Time() time.Time {
+	return time.Time(b)
+}
+
+// bybitTimeMilliSecStr provides an internal conversion helper
+type bybitTimeMilliSecStr time.Time
+
+// UnmarshalJSON is custom type json unmarshaller for bybitTimeMilliSec
+func (b *bybitTimeMilliSecStr) UnmarshalJSON(data []byte) error {
+	var timestamp string
+	err := json.Unmarshal(data, &timestamp)
+	if err != nil {
+		return err
+	}
+
+	t, err := strconv.ParseInt(timestamp, 10, 64)
+	if err != nil {
+		return err
+	}
+	*b = bybitTimeMilliSecStr(time.UnixMilli(t))
+	return nil
+}
+
+// Time returns a time.Time object
+func (b bybitTimeMilliSecStr) Time() time.Time {
 	return time.Time(b)
 }
 
