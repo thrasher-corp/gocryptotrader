@@ -2150,6 +2150,16 @@ func TestUpdateTicker(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+
+	pair3, err := currency.NewPairFromString("BTCPERP")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = b.UpdateTicker(context.Background(), pair3, asset.USDCMarginedFutures)
+	if err != nil {
+		t.Error(err)
+	}
 }
 
 func TestUpdateOrderbook(t *testing.T) {
@@ -2178,6 +2188,16 @@ func TestUpdateOrderbook(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+
+	pair1, err := currency.NewPairFromString("BTCPERP")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = b.UpdateOrderbook(context.Background(), pair1, asset.USDCMarginedFutures)
+	if err != nil {
+		t.Error(err)
+	}
 }
 
 func TestFetchTradablePairs(t *testing.T) {
@@ -2198,6 +2218,11 @@ func TestFetchTradablePairs(t *testing.T) {
 	}
 
 	_, err = b.FetchTradablePairs(context.Background(), asset.Futures)
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = b.FetchTradablePairs(context.Background(), asset.USDCMarginedFutures)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2247,6 +2272,16 @@ func TestGetRecentTrades(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+
+	pair2, err := currency.NewPairFromString("BTCPERP")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = b.GetRecentTrades(context.Background(), pair2, asset.USDCMarginedFutures)
+	if err != nil {
+		t.Error(err)
+	}
 }
 
 func TestGetHistoricCandles(t *testing.T) {
@@ -2285,6 +2320,16 @@ func TestGetHistoricCandles(t *testing.T) {
 	}
 
 	_, err = b.GetHistoricCandles(context.Background(), pair2, asset.Futures, startTime, end, kline.OneMin)
+	if err != nil {
+		t.Error(err)
+	}
+
+	pair3, err := currency.NewPairFromString("BTCPERP")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = b.GetHistoricCandles(context.Background(), pair3, asset.USDCMarginedFutures, startTime, end, kline.OneDay)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2329,6 +2374,16 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+
+	pair3, err := currency.NewPairFromString("BTCPERP")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = b.GetHistoricCandlesExtended(context.Background(), pair3, asset.USDCMarginedFutures, startTime, end, kline.OneMin)
+	if err != nil {
+		t.Error(err)
+	}
 }
 
 func TestFetchAccountInfo(t *testing.T) {
@@ -2353,6 +2408,11 @@ func TestFetchAccountInfo(t *testing.T) {
 	}
 
 	_, err = b.FetchAccountInfo(context.Background(), asset.Futures)
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = b.FetchAccountInfo(context.Background(), asset.USDCMarginedFutures)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2435,6 +2495,25 @@ func TestSubmitOrder(t *testing.T) {
 		AssetType: asset.Futures,
 	}
 	_, err = b.SubmitOrder(context.Background(), oFutures)
+	if err != nil {
+		t.Error(err)
+	}
+
+	pair1, err := currency.NewPairFromString("BTCPERP")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var oUSDC = &order.Submit{
+		Pair:      pair1,
+		Side:      order.Buy,
+		Type:      order.Limit,
+		Price:     10000,
+		Amount:    1,
+		ClientID:  "newOrder",
+		AssetType: asset.Futures,
+	}
+	_, err = b.SubmitOrder(context.Background(), oUSDC)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2521,6 +2600,20 @@ func TestCancelOrder(t *testing.T) {
 	if err == nil {
 		t.Error("CancelOrder() Futures Expected error")
 	}
+
+	pair1, err := currency.NewPairFromString("BTCPERP")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = b.CancelOrder(context.Background(), &order.Cancel{
+		AssetType: asset.Futures,
+		Pair:      pair1,
+		ID:        "1234",
+	})
+	if err == nil {
+		t.Error("CancelOrder() USDC Expected error")
+	}
 }
 
 func TestCancelAllOrders(t *testing.T) {
@@ -2574,6 +2667,20 @@ func TestCancelAllOrders(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+
+	pair1, err := currency.NewPairFromString("BTCPERP")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = b.CancelAllOrders(context.Background(),
+		&order.Cancel{
+			AssetType: asset.USDCMarginedFutures,
+			Pair:      pair1,
+		})
+	if err != nil {
+		t.Error(err)
+	}
 }
 
 func TestGetOrderInfo(t *testing.T) {
@@ -2619,6 +2726,17 @@ func TestGetOrderInfo(t *testing.T) {
 		"12234", pair2, asset.Futures)
 	if err == nil {
 		t.Error("GetOrderInfo() Futures Expected error")
+	}
+
+	pair3, err := currency.NewPairFromString("BTCPERP")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = b.GetOrderInfo(context.Background(),
+		"12234", pair3, asset.USDCMarginedFutures)
+	if err == nil {
+		t.Error("GetOrderInfo() USDC Expected error")
 	}
 }
 
@@ -2679,6 +2797,21 @@ func TestGetActiveOrders(t *testing.T) {
 	}
 
 	_, err = b.GetActiveOrders(context.Background(), &getOrdersRequestFutures)
+	if err != nil {
+		t.Error(err)
+	}
+
+	pair3, err := currency.NewPairFromString("BTCPERP")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var getOrdersRequestUSDC = order.GetOrdersRequest{
+		Pairs:     currency.Pairs{pair3},
+		AssetType: asset.Futures,
+	}
+
+	_, err = b.GetActiveOrders(context.Background(), &getOrdersRequestUSDC)
 	if err != nil {
 		t.Error(err)
 	}

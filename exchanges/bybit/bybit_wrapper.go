@@ -62,7 +62,7 @@ func (by *Bybit) SetDefaults() {
 	requestFmt := &currency.PairFormat{Uppercase: true}
 
 	configFmt := &currency.PairFormat{Delimiter: currency.DashDelimiter, Uppercase: true}
-	err := by.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot, asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.Futures)
+	err := by.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot, asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.Futures, asset.USDCMarginedFutures)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
