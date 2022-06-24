@@ -1303,6 +1303,10 @@ func (by *Bybit) GetOrderInfo(ctx context.Context, orderID string, pair currency
 			return order.Detail{}, err
 		}
 
+		if len(resp) != 1 {
+			return order.Detail{}, fmt.Errorf("invalid order's count found")
+		}
+
 		return order.Detail{
 			Amount:         resp[0].Qty,
 			Exchange:       by.Name,

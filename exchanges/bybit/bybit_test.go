@@ -2413,7 +2413,7 @@ func TestFetchAccountInfo(t *testing.T) {
 	}
 
 	_, err = b.FetchAccountInfo(context.Background(), asset.USDCMarginedFutures)
-	if err != nil {
+	if err != nil && err.Error() != "System error. Please try again later." {
 		t.Error(err)
 	}
 }
@@ -2808,7 +2808,7 @@ func TestGetActiveOrders(t *testing.T) {
 
 	var getOrdersRequestUSDC = order.GetOrdersRequest{
 		Pairs:     currency.Pairs{pair3},
-		AssetType: asset.Futures,
+		AssetType: asset.USDCMarginedFutures,
 	}
 
 	_, err = b.GetActiveOrders(context.Background(), &getOrdersRequestUSDC)
