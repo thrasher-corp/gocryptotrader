@@ -526,7 +526,7 @@ func (ll *asks) insertUpdates(updts Items, stack *stack) error {
 	return ll.linkedList.insertUpdates(updts, stack, askCompare)
 }
 
-// getMovementByQuoteAmount lifts ask liquidy with quotation amount to acquire
+// getMovementByQuoteAmount lifts ask liquidity with quotation amount to acquire
 // base amount and returns movement details from reference price for this
 // simulation. This is market buying. (BID/BUY side).
 func (ll *asks) getMovementByQuoteAmount(amount, refPrice float64) (*Movement, error) {
