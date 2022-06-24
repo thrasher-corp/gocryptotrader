@@ -766,19 +766,19 @@ func TestGetFills(t *testing.T) {
 		t.Skip()
 	}
 	_, err := f.GetFills(context.Background(),
-		currency.Pair{}, asset.Futures, time.Now().Add(time.Hour*24*365), time.Now())
+		currency.EMPTYPAIR, asset.Futures, time.Now().Add(time.Hour*24*365), time.Now())
 	if !errors.Is(err, errStartTimeCannotBeAfterEndTime) {
 		t.Errorf("received '%v' expected '%v'", err, errStartTimeCannotBeAfterEndTime)
 	}
 
 	_, err = f.GetFills(context.Background(),
-		currency.Pair{}, asset.Futures, time.Time{}, time.Time{})
+		currency.EMPTYPAIR, asset.Futures, time.Time{}, time.Time{})
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 
 	_, err = f.GetFills(context.Background(),
-		currency.Pair{}, asset.Futures, time.Now().Add(-time.Hour*24*365), time.Now())
+		currency.EMPTYPAIR, asset.Futures, time.Now().Add(-time.Hour*24*365), time.Now())
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}

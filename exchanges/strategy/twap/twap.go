@@ -26,6 +26,8 @@ var (
 	errNoBalanceFound                 = errors.New("no balance found")
 	errVolumeToSellExceedsFreeBalance = errors.New("volume to sell exceeds free balance")
 	errConfigurationIsNil             = errors.New("strategy configuration is nil")
+
+	errExceedsFreeBalance = errors.New("amount exceeds current free balance")
 )
 
 // Strategy defines a TWAP strategy that handles the accumulation/de-accumulation
@@ -49,7 +51,57 @@ func New(ctx context.Context, p *Config) (*Strategy, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Strategy{Config: p, Reporter: make(chan Report), orderbook: depth}, nil
+
+	creds, err := p.Exchange.GetCredentials(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	baseAmount, err := account.GetBalance(p.Exchange.GetName(),
+		creds.SubAccount, creds, p.Asset, p.Pair.Base)
+	if err != nil {
+		return nil, err
+	}
+
+	quoteAmount, err := account.GetBalance(p.Exchange.GetName(),
+		creds.SubAccount, creds, p.Asset, p.Pair.Quote)
+	if err != nil {
+		return nil, err
+	}
+
+	if p.Accumulation {
+		freeQuote := quoteAmount.GetFree()
+		if p.Amount > freeQuote {
+			return nil, fmt.Errorf("cannot sell quote %s amount %f to buy base %s %w of %f",
+				p.Pair.Quote,
+				p.Amount,
+				p.Pair.Base,
+				errExceedsFreeBalance,
+				freeQuote)
+		}
+	} else {
+		freeBase := baseAmount.GetFree()
+		if p.Amount > freeBase {
+			return nil, fmt.Errorf("cannot sell base %s amount %f to buy quote %s %w of %f",
+				p.Pair.Base,
+				p.Amount,
+				p.Pair.Quote,
+				errExceedsFreeBalance,
+				freeBase)
+		}
+	}
+
+	monAmounts := map[currency.Code]*account.ProtectedBalance{
+		p.Pair.Base:  baseAmount,
+		p.Pair.Quote: quoteAmount,
+	}
+
+	return &Strategy{
+		Config:    p,
+		Reporter:  make(chan Report),
+		orderbook: depth,
+		holdings:  monAmounts,
+	}, nil
 }
 
 // Config defines the base elements required to undertake the TWAP strategy.
@@ -64,9 +116,9 @@ type Config struct {
 	// Interval between market orders
 	Interval kline.Interval
 
-	// Volume if accumulating refers to quotation if deaccum it will refer to
-	// the base amount
-	Volume float64
+	// Amount if accumulating refers to quotation used to buy, if deaccum it
+	// will refer to the base amount to sell
+	Amount float64
 
 	// MaxSlippage needed for protection in low liqudity environments.
 	// WARNING: 0 value == 100% slippage
@@ -109,16 +161,14 @@ func (cfg *Config) Check(ctx context.Context) error {
 		return err
 	}
 
-	if cfg.Volume <= 0 {
+	if cfg.Amount <= 0 {
 		return errInvalidVolume
 	}
 
 	if cfg.MaxSlippage < 0 || cfg.MaxSlippage > 100 {
 		return fmt.Errorf("'%v' %w", cfg.MaxSlippage, errInvalidMaxSlippageValue)
 	}
-
-	_, err = cfg.Exchange.GetCredentials(ctx)
-	return err
+	return nil
 }
 
 // Run inititates a TWAP allocation using the specified paramaters.
@@ -186,7 +236,7 @@ func (t *Strategy) fetchCurrentBalance(ctx context.Context) (float64, error) {
 				continue
 			}
 
-			if t.Volume > holdings.Accounts[x].Currencies[y].Free {
+			if t.Amount > holdings.Accounts[x].Currencies[y].Free {
 				return 0, fmt.Errorf("%s %w %v",
 					selling,
 					errVolumeToSellExceedsFreeBalance,

@@ -189,7 +189,7 @@ func GetBalance(exch, subAccount string, creds *Credentials, ai asset.Item, c cu
 
 	assetBalances, ok := subAccounts[subAccount]
 	if !ok {
-		return nil, fmt.Errorf("%s %s %w",
+		return nil, fmt.Errorf("%s [%s] %w",
 			exch, subAccount, errNoExchangeSubAccountBalances)
 	}
 

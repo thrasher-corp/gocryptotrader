@@ -149,6 +149,7 @@ func StartRPCServer(engine *Engine) {
 	opts := []grpc.ServerOption{
 		grpc.Creds(creds),
 		grpc.UnaryInterceptor(grpcauth.UnaryServerInterceptor(s.authenticateClient)),
+		grpc.StreamInterceptor(grpcauth.StreamServerInterceptor(s.authenticateClient)),
 	}
 	server := grpc.NewServer(opts...)
 	gctrpc.RegisterGoCryptoTraderServiceServer(server, &s)
@@ -5567,7 +5568,7 @@ func (s *RPCServer) GetOrderbookAmountByImpact(ctx context.Context, r *gctrpc.Ge
 	}, nil
 }
 
-// TWAPStream manages an externalling called TWAP strategy.
+// TWAPStream manages an externally called TWAP strategy.
 func (s *RPCServer) TWAPStream(r *gctrpc.TWAPRequest, stream gctrpc.GoCryptoTraderService_TWAPStreamServer) error {
 	exch, err := s.GetExchangeByName(r.Exchange)
 	if err != nil {
@@ -5584,14 +5585,12 @@ func (s *RPCServer) TWAPStream(r *gctrpc.TWAPRequest, stream gctrpc.GoCryptoTrad
 		return err
 	}
 
-	if !exch.SupportsAsset(as) {
-		return fmt.Errorf("%v %w on exchange: %s", r.Asset, asset.ErrNotSupported, exch.GetName())
-	}
-
-	err = exch.GetBase().SupportsPair(pair, false, as)
+	err = checkParams(r.Exchange, exch, as, pair)
 	if err != nil {
 		return err
 	}
+
+	fmt.Println("STREAM TWAPO:", r)
 
 	strategy, err := twap.New(stream.Context(), &twap.Config{
 		Exchange:                exch,
@@ -5599,8 +5598,8 @@ func (s *RPCServer) TWAPStream(r *gctrpc.TWAPRequest, stream gctrpc.GoCryptoTrad
 		Asset:                   as,
 		Start:                   r.Start.AsTime(),
 		End:                     r.End.AsTime(),
-		Interval:                kline.Interval(r.Interval),
-		Volume:                  r.Amount,
+		Interval:                kline.Interval(r.Interval * int64(time.Second)),
+		Amount:                  r.Amount,
 		MaxSlippage:             r.MaxSlippage,
 		Accumulation:            r.Accumulate,
 		AllowTradingPastEndTime: r.AllowTradingPastEnd,
@@ -5609,33 +5608,37 @@ func (s *RPCServer) TWAPStream(r *gctrpc.TWAPRequest, stream gctrpc.GoCryptoTrad
 		return err
 	}
 
-	err = strategy.Run(stream.Context())
-	if err != nil {
-		return err
-	}
+	fmt.Printf("strategy: %+v\n", strategy)
 
-	for report := range strategy.Reporter {
-		var twapError string
-		if report.Error != nil {
-			twapError = report.Error.Error()
-		}
-		balance := make(map[string]float64)
-		for k, v := range report.Balance {
-			balance[k.String()] = v
-		}
-		err := stream.Send(&gctrpc.TWAPResponse{
-			Order:    report.Order.OrderID,
-			Slippage: report.Slippage,
-			Error:    twapError,
-			Balance:  balance,
-			// Finished: report.Finished,
-		})
-		if err != nil {
-			return err
-		}
-		if report.Finished {
-			break
-		}
-	}
 	return nil
+
+	// err = strategy.Run(stream.Context())
+	// if err != nil {
+	// 	return err
+	// }
+
+	// for report := range strategy.Reporter {
+	// 	var twapError string
+	// 	if report.Error != nil {
+	// 		twapError = report.Error.Error()
+	// 	}
+	// 	balance := make(map[string]float64)
+	// 	for k, v := range report.Balance {
+	// 		balance[k.String()] = v
+	// 	}
+	// 	err := stream.Send(&gctrpc.TWAPResponse{
+	// 		Order:    report.Order.OrderID,
+	// 		Slippage: report.Slippage,
+	// 		Error:    twapError,
+	// 		Balance:  balance,
+	// 		Finished: report.Finished,
+	// 	})
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// 	if report.Finished {
+	// 		break
+	// 	}
+	// }
+	// return nil
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ftx"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -54,7 +55,7 @@ func TestCheck(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidVolume)
 	}
 
-	p.Volume = 100000
+	p.Amount = 100000
 	p.MaxSlippage = -1
 	err = p.Check(context.Background())
 	if !errors.Is(err, errInvalidMaxSlippageValue) {
@@ -87,8 +88,8 @@ func TestGetTWAP(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errParamsAreNil)
 	}
 
-	ctx := exchange.DeployCredentialsToContext(context.Background(),
-		&exchange.Credentials{Key: "smelly old man"})
+	ctx := account.DeployCredentialsToContext(context.Background(),
+		&account.Credentials{Key: "smelly old man"})
 
 	twap, err := New(ctx, &Config{
 		Exchange:                &ftx.FTX{},
@@ -97,7 +98,7 @@ func TestGetTWAP(t *testing.T) {
 		Start:                   time.Now(),
 		End:                     time.Now().AddDate(0, 0, 7),
 		Interval:                kline.OneDay,
-		Volume:                  100000,
+		Amount:                  100000,
 		Accumulation:            true,
 		AllowTradingPastEndTime: true,
 	})
