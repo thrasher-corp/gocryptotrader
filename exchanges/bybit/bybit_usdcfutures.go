@@ -797,15 +797,11 @@ func (by *Bybit) GetUSDCTransactionLog(ctx context.Context, startTime, endTime t
 	}{}
 
 	req := make(map[string]interface{})
-	if startTime.IsZero() {
-		return nil, errInvalidStartTime
-	} else {
+	if !startTime.IsZero() {
 		req["startTime"] = strconv.FormatInt(startTime.Unix(), 10)
 	}
 
-	if endTime.IsZero() {
-		return nil, errInvalidStartTime
-	} else {
+	if !endTime.IsZero() {
 		req["endTime"] = strconv.FormatInt(endTime.Unix(), 10)
 	}
 
