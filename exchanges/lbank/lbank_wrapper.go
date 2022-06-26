@@ -450,21 +450,20 @@ allTrades:
 }
 
 // SubmitOrder submits a new order
-func (l *Lbank) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
-	var resp order.SubmitResponse
+func (l *Lbank) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	if err := s.Validate(); err != nil {
-		return resp, err
+		return nil, err
 	}
 
 	if s.Side != order.Buy && s.Side != order.Sell {
-		return resp,
+		return nil,
 			fmt.Errorf("%s order side is not supported by the exchange",
 				s.Side)
 	}
 
 	fpair, err := l.FormatExchangeCurrency(s.Pair, asset.Spot)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 
 	tempResp, err := l.CreateOrder(ctx,
@@ -473,19 +472,14 @@ func (l *Lbank) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitR
 		s.Amount,
 		s.Price)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
-	resp.IsOrderPlaced = true
-	resp.OrderID = tempResp.OrderID
-	if s.Type == order.Market {
-		resp.FullyMatched = true
-	}
-	return resp, nil
+	return s.DeriveSubmitResponse(tempResp.OrderID)
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (l *Lbank) ModifyOrder(_ context.Context, _ *order.Modify) (*order.Modify, error) {
+func (l *Lbank) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -498,7 +492,7 @@ func (l *Lbank) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	if err != nil {
 		return err
 	}
-	_, err = l.RemoveOrder(ctx, fpair.String(), o.ID)
+	_, err = l.RemoveOrder(ctx, fpair.String(), o.OrderID)
 	return err
 }
 

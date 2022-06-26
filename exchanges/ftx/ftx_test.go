@@ -656,6 +656,7 @@ func TestSubmitOrder(t *testing.T) {
 	}
 
 	var orderSubmission = &order.Submit{
+		Exchange:      f.Name,
 		Pair:          currencyPair,
 		Side:          order.Sell,
 		Type:          order.Limit,
@@ -698,7 +699,7 @@ func TestCancelOrder(t *testing.T) {
 	}
 
 	c := order.Cancel{
-		ID:        "12366984218",
+		OrderID:   "12366984218",
 		Pair:      currencyPair,
 		AssetType: asset.Spot,
 	}
@@ -2040,7 +2041,7 @@ func TestCalculatePNL(t *testing.T) {
 		orders[i] = order.Detail{
 			Side:      positions[i].Side,
 			Pair:      pair,
-			ID:        positions[i].ID,
+			OrderID:   positions[i].OrderID,
 			Price:     positions[i].Price,
 			Amount:    positions[i].Amount,
 			AssetType: asset.Futures,

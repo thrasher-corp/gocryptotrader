@@ -142,11 +142,11 @@ func (c *CustomEx) GetFundingHistory(ctx context.Context) ([]exchange.FundHistor
 	return nil, nil
 }
 
-func (c *CustomEx) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
-	return order.SubmitResponse{}, nil
+func (c *CustomEx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
+	return nil, nil
 }
 
-func (c *CustomEx) ModifyOrder(_ context.Context, _ *order.Modify) (*order.Modify, error) {
+func (c *CustomEx) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
 	return nil, nil
 }
 
@@ -274,8 +274,8 @@ func (c *CustomEx) AuthenticateWebsocket(ctx context.Context) error {
 	return nil
 }
 
-func (c *CustomEx) GetOrderExecutionLimits(a asset.Item, cp currency.Pair) (*order.Limits, error) {
-	return nil, nil
+func (c *CustomEx) GetOrderExecutionLimits(a asset.Item, cp currency.Pair) (order.MinMaxLevel, error) {
+	return order.MinMaxLevel{}, nil
 }
 
 func (c *CustomEx) CheckOrderExecutionLimits(a asset.Item, cp currency.Pair, price, amount float64, orderType order.Type) error {

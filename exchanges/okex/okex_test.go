@@ -1846,6 +1846,7 @@ func TestSubmitOrder(t *testing.T) {
 	TestSetRealOrderDefaults(t)
 	t.Parallel()
 	var orderSubmission = &order.Submit{
+		Exchange: o.Name,
 		Pair: currency.Pair{
 			Base:  currency.BTC,
 			Quote: currency.USDT,
@@ -1858,7 +1859,7 @@ func TestSubmitOrder(t *testing.T) {
 		AssetType: asset.Spot,
 	}
 	response, err := o.SubmitOrder(context.Background(), orderSubmission)
-	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
+	if areTestAPIKeysSet() && (err != nil || response.Status != order.New) {
 		t.Errorf("Order failed to be placed: %v", err)
 	} else if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expecting an error when no keys are set")
@@ -1871,7 +1872,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 	t.Parallel()
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 	var orderCancellation = order.Cancel{
-		ID:            "1",
+		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		Pair:          currencyPair,
@@ -1887,7 +1888,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	t.Parallel()
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 	var orderCancellation = order.Cancel{
-		ID:            "1",
+		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		Pair:          currencyPair,

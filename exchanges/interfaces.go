@@ -52,7 +52,6 @@ type IBotExchange interface {
 	GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, accountID, chain string) (*deposit.Address, error)
 	GetAvailableTransferChains(ctx context.Context, cryptocurrency currency.Code) ([]string, error)
 	GetWithdrawalsHistory(ctx context.Context, code currency.Code, a asset.Item) ([]WithdrawalHistory, error)
-
 	WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error)
 	WithdrawFiatFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error)
 	WithdrawFiatFundsToInternationalBank(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error)
@@ -79,7 +78,7 @@ type IBotExchange interface {
 	FlushWebsocketChannels() error
 	AuthenticateWebsocket(ctx context.Context) error
 
-	GetOrderExecutionLimits(a asset.Item, cp currency.Pair) (*order.Limits, error)
+	GetOrderExecutionLimits(a asset.Item, cp currency.Pair) (order.MinMaxLevel, error)
 	CheckOrderExecutionLimits(a asset.Item, cp currency.Pair, price, amount float64, orderType order.Type) error
 	UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error
 
@@ -92,8 +91,8 @@ type IBotExchange interface {
 
 // OrderManagement defines functionality for order management
 type OrderManagement interface {
-	SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error)
-	ModifyOrder(ctx context.Context, action *order.Modify) (*order.Modify, error)
+	SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error)
+	ModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error)
 	CancelOrder(ctx context.Context, o *order.Cancel) error
 	CancelBatchOrders(ctx context.Context, o []order.Cancel) (order.CancelBatchResponse, error)
 	CancelAllOrders(ctx context.Context, orders *order.Cancel) (order.CancelAllResponse, error)

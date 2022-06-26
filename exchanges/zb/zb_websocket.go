@@ -196,7 +196,7 @@ func (z *ZB) wsHandleData(respRaw []byte) error {
 		}
 		z.Websocket.DataHandler <- &order.Detail{
 			Exchange:  z.Name,
-			ID:        strconv.FormatInt(o.Data.EntrustID, 10),
+			OrderID:   strconv.FormatInt(o.Data.EntrustID, 10),
 			Pair:      p,
 			AssetType: a,
 		}
@@ -219,9 +219,9 @@ func (z *ZB) wsHandleData(respRaw []byte) error {
 			return err
 		}
 
-		z.Websocket.DataHandler <- &order.Modify{
+		z.Websocket.DataHandler <- &order.Detail{
 			Exchange: z.Name,
-			ID:       strconv.FormatInt(o.Data.EntrustID, 10),
+			OrderID:  strconv.FormatInt(o.Data.EntrustID, 10),
 			Pair:     p,
 			Status:   order.Cancelled,
 		}

@@ -526,42 +526,31 @@ func (b *Bitstamp) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset
 }
 
 // SubmitOrder submits a new order
-func (b *Bitstamp) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
-	var submitOrderResponse order.SubmitResponse
+func (b *Bitstamp) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	if err := s.Validate(); err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
 	fPair, err := b.FormatExchangeCurrency(s.Pair, s.AssetType)
 	if err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
-	buy := s.Side == order.Buy
-	market := s.Type == order.Market
 	response, err := b.PlaceOrder(ctx,
 		fPair.String(),
 		s.Price,
 		s.Amount,
-		buy,
-		market)
+		s.Side == order.Buy,
+		s.Type == order.Market)
 	if err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
-	if response.ID > 0 {
-		submitOrderResponse.OrderID = strconv.FormatInt(response.ID, 10)
-	}
-
-	submitOrderResponse.IsOrderPlaced = true
-	if s.Type == order.Market {
-		submitOrderResponse.FullyMatched = true
-	}
-	return submitOrderResponse, nil
+	return s.DeriveSubmitResponse(strconv.FormatInt(response.ID, 10))
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (b *Bitstamp) ModifyOrder(_ context.Context, _ *order.Modify) (*order.Modify, error) {
+func (b *Bitstamp) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -571,7 +560,7 @@ func (b *Bitstamp) CancelOrder(ctx context.Context, o *order.Cancel) error {
 		return err
 	}
 
-	orderIDInt, err := strconv.ParseInt(o.ID, 10, 64)
+	orderIDInt, err := strconv.ParseInt(o.OrderID, 10, 64)
 	if err != nil {
 		return err
 	}
@@ -751,7 +740,7 @@ func (b *Bitstamp) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequ
 
 		orders[i] = order.Detail{
 			Amount:   resp[i].Amount,
-			ID:       strconv.FormatInt(resp[i].ID, 10),
+			OrderID:  strconv.FormatInt(resp[i].ID, 10),
 			Price:    resp[i].Price,
 			Type:     order.Limit,
 			Side:     orderSide,
@@ -841,7 +830,7 @@ func (b *Bitstamp) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequ
 		}
 
 		orders = append(orders, order.Detail{
-			ID:       strconv.FormatInt(resp[i].OrderID, 10),
+			OrderID:  strconv.FormatInt(resp[i].OrderID, 10),
 			Date:     tm,
 			Exchange: b.Name,
 			Pair:     currPair,
