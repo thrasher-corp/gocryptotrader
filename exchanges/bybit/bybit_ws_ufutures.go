@@ -472,15 +472,6 @@ func (by *Bybit) wsUSDTHandleData(respRaw []byte) error {
 				return err
 			}
 
-			var oStatus order.Status
-			oStatus, err = order.StringToOrderStatus(response.Data[i].ExecutionType)
-			if err != nil {
-				by.Websocket.DataHandler <- order.ClassificationError{
-					Exchange: by.Name,
-					OrderID:  response.Data[i].OrderID,
-					Err:      err,
-				}
-			}
 			var oSide order.Side
 			oSide, err = order.StringToOrderSide(response.Data[i].Side)
 			if err != nil {
@@ -492,21 +483,12 @@ func (by *Bybit) wsUSDTHandleData(respRaw []byte) error {
 			}
 			by.Websocket.DataHandler <- &order.Modify{
 				Exchange:  by.Name,
-				ID:        response.Data[i].OrderID,
+				OrderID:   response.Data[i].OrderID,
 				AssetType: asset.USDTMarginedFutures,
 				Pair:      p,
-				Status:    oStatus,
-				Trades: []order.TradeHistory{
-					{
-						Price:     response.Data[i].Price,
-						Amount:    response.Data[i].OrderQty,
-						Exchange:  by.Name,
-						TID:       response.Data[i].ExecutionID,
-						Side:      oSide,
-						Timestamp: response.Data[i].Time,
-						IsMaker:   response.Data[i].IsMaker,
-					},
-				},
+				Side:      oSide,
+				Price:     response.Data[i].Price,
+				Amount:    response.Data[i].OrderQty,
 			}
 		}
 
@@ -553,7 +535,7 @@ func (by *Bybit) wsUSDTHandleData(respRaw []byte) error {
 				Price:     response.Data[x].Price,
 				Amount:    response.Data[x].OrderQty,
 				Exchange:  by.Name,
-				ID:        response.Data[x].OrderID,
+				OrderID:   response.Data[x].OrderID,
 				Type:      oType,
 				Side:      oSide,
 				Status:    oStatus,
@@ -606,7 +588,7 @@ func (by *Bybit) wsUSDTHandleData(respRaw []byte) error {
 				Price:     response.Data[x].Price,
 				Amount:    response.Data[x].OrderQty,
 				Exchange:  by.Name,
-				ID:        response.Data[x].OrderID,
+				OrderID:   response.Data[x].OrderID,
 				AccountID: strconv.FormatInt(response.Data[x].UserID, 10),
 				Type:      oType,
 				Side:      oSide,
