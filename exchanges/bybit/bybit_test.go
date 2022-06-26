@@ -2526,10 +2526,10 @@ func TestModifyOrder(t *testing.T) {
 	}
 
 	_, err := b.ModifyOrder(context.Background(), &order.Modify{
-		ID:     "1337",
-		Price:  10000,
-		Amount: 10,
-		Side:   order.Sell,
+		OrderID: "1337",
+		Price:   10000,
+		Amount:  10,
+		Side:    order.Sell,
 		Pair: currency.Pair{
 			Delimiter: "-",
 			Base:      currency.BTC,
@@ -2555,7 +2555,7 @@ func TestCancelOrder(t *testing.T) {
 			Base:      currency.BTC,
 			Quote:     currency.USD,
 		},
-		ID: "1234",
+		OrderID: "1234",
 	})
 	if err == nil {
 		t.Error("CancelOrder() Spot Expected error")
@@ -2568,7 +2568,7 @@ func TestCancelOrder(t *testing.T) {
 			Base:      currency.BTC,
 			Quote:     currency.USD,
 		},
-		ID: "1234",
+		OrderID: "1234",
 	})
 	if err == nil {
 		t.Error("CancelOrder() CMF Expected error")
@@ -2581,7 +2581,7 @@ func TestCancelOrder(t *testing.T) {
 			Base:      currency.BTC,
 			Quote:     currency.USDT,
 		},
-		ID: "1234",
+		OrderID: "1234",
 	})
 	if err == nil {
 		t.Error("CancelOrder() USDT Expected error")
@@ -2595,7 +2595,7 @@ func TestCancelOrder(t *testing.T) {
 	err = b.CancelOrder(context.Background(), &order.Cancel{
 		AssetType: asset.Futures,
 		Pair:      pair,
-		ID:        "1234",
+		OrderID:   "1234",
 	})
 	if err == nil {
 		t.Error("CancelOrder() Futures Expected error")
@@ -2609,7 +2609,7 @@ func TestCancelOrder(t *testing.T) {
 	err = b.CancelOrder(context.Background(), &order.Cancel{
 		AssetType: asset.Futures,
 		Pair:      pair1,
-		ID:        "1234",
+		OrderID:   "1234",
 	})
 	if err == nil {
 		t.Error("CancelOrder() USDC Expected error")
