@@ -166,9 +166,8 @@ func (by *Bybit) GetUSDCKlines(ctx context.Context, symbol currency.Pair, period
 
 	if startTime.IsZero() {
 		return nil, errInvalidStartTime
-	} else {
-		params.Set("startTime", strconv.FormatInt(startTime.Unix(), 10))
 	}
+	params.Set("startTime", strconv.FormatInt(startTime.Unix(), 10))
 
 	if limit > 0 && limit <= 200 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
@@ -201,9 +200,8 @@ func (by *Bybit) GetUSDCMarkPriceKlines(ctx context.Context, symbol currency.Pai
 
 	if startTime.IsZero() {
 		return nil, errInvalidStartTime
-	} else {
-		params.Set("startTime", strconv.FormatInt(startTime.Unix(), 10))
 	}
+	params.Set("startTime", strconv.FormatInt(startTime.Unix(), 10))
 
 	if limit > 0 && limit <= 200 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
@@ -236,9 +234,8 @@ func (by *Bybit) GetUSDCIndexPriceKlines(ctx context.Context, symbol currency.Pa
 
 	if startTime.IsZero() {
 		return nil, errInvalidStartTime
-	} else {
-		params.Set("startTime", strconv.FormatInt(startTime.Unix(), 10))
 	}
+	params.Set("startTime", strconv.FormatInt(startTime.Unix(), 10))
 
 	if limit > 0 && limit <= 200 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
@@ -271,9 +268,8 @@ func (by *Bybit) GetUSDCPremiumIndexKlines(ctx context.Context, symbol currency.
 
 	if startTime.IsZero() {
 		return nil, errInvalidStartTime
-	} else {
-		params.Set("startTime", strconv.FormatInt(startTime.Unix(), 10))
 	}
+	params.Set("startTime", strconv.FormatInt(startTime.Unix(), 10))
 
 	if limit > 0 && limit <= 200 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
@@ -767,9 +763,8 @@ func (by *Bybit) GetUSDCTradeHistory(ctx context.Context, symbol currency.Pair, 
 
 	if startTime.IsZero() {
 		return nil, errInvalidStartTime
-	} else {
-		req["startTime"] = strconv.FormatInt(startTime.Unix(), 10)
 	}
+	req["startTime"] = strconv.FormatInt(startTime.Unix(), 10)
 
 	if direction != "" {
 		req["direction"] = direction
@@ -932,9 +927,8 @@ func (by *Bybit) SetUSDCLeverage(ctx context.Context, symbol currency.Pair, leve
 
 	if leverage <= 0 {
 		return 0, errInvalidLeverage
-	} else {
-		req["leverage"] = strconv.FormatFloat(leverage, 'f', -1, 64)
 	}
+	req["leverage"] = strconv.FormatFloat(leverage, 'f', -1, 64)
 
 	return resp.Result.Leverage, by.SendUSDCAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesSetLeverage, req, &resp, usdcSetLeverageRate)
 }
@@ -1019,9 +1013,8 @@ func (by *Bybit) SetUSDCRiskLimit(ctx context.Context, symbol currency.Pair, ris
 
 	if riskID <= 0 {
 		return resp.Result.RiskID, errInvalidRiskID
-	} else {
-		req["riskId"] = riskID
 	}
+	req["riskId"] = riskID
 
 	return resp.Result.RiskID, by.SendUSDCAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesSetRiskLimit, req, &resp, usdcSetRiskRate)
 }
@@ -1048,7 +1041,7 @@ func (by *Bybit) GetUSDCLastFundingRate(ctx context.Context, symbol currency.Pai
 }
 
 // GetUSDCPredictedFundingRate gets predicted funding rates and my predicted funding fee.
-func (by *Bybit) GetUSDCPredictedFundingRate(ctx context.Context, symbol currency.Pair) (float64, float64, error) {
+func (by *Bybit) GetUSDCPredictedFundingRate(ctx context.Context, symbol currency.Pair) (predictedFundingRate, predictedFundingFee float64, err error) {
 	resp := struct {
 		Result struct {
 			PredictedFundingRate float64 `json:"predictedFundingRate,string"`
@@ -1058,8 +1051,9 @@ func (by *Bybit) GetUSDCPredictedFundingRate(ctx context.Context, symbol currenc
 	}{}
 
 	req := make(map[string]interface{})
+	var symbolValue string
 	if !symbol.IsEmpty() {
-		symbolValue, err := by.FormatSymbol(symbol, asset.USDCMarginedFutures)
+		symbolValue, err = by.FormatSymbol(symbol, asset.USDCMarginedFutures)
 		if err != nil {
 			return resp.Result.PredictedFundingRate, resp.Result.PredictedFundingFee, err
 		}
@@ -1068,7 +1062,10 @@ func (by *Bybit) GetUSDCPredictedFundingRate(ctx context.Context, symbol currenc
 		return resp.Result.PredictedFundingRate, resp.Result.PredictedFundingFee, errSymbolMissing
 	}
 
-	return resp.Result.PredictedFundingRate, resp.Result.PredictedFundingFee, by.SendUSDCAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesGetPredictedFundingRate, req, &resp, usdcGetPredictedFundingRate)
+	err = by.SendUSDCAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesGetPredictedFundingRate, req, &resp, usdcGetPredictedFundingRate)
+	predictedFundingRate = resp.Result.PredictedFundingRate
+	predictedFundingFee = resp.Result.PredictedFundingFee
+	return
 }
 
 // SendUSDCAuthHTTPRequest sends an authenticated HTTP request
@@ -1090,10 +1087,7 @@ func (by *Bybit) SendUSDCAuthHTTPRequest(ctx context.Context, ePath exchange.URL
 	err = by.SendPayload(ctx, f, func() (*request.Item, error) {
 		nowTimeInMilli := strconv.FormatInt(time.Now().UnixMilli(), 10)
 		headers := make(map[string]string)
-		var (
-			payload, hmacSigned []byte
-			err                 error
-		)
+		var payload, hmacSigned []byte
 
 		if data != nil {
 			if d, ok := data.(map[string]interface{}); ok {

@@ -349,7 +349,7 @@ func (by *Bybit) FetchTradablePairs(ctx context.Context, a asset.Item) ([]string
 			symbol := allPairs[x].BaseCurrency + allPairs[x].QuoteCurrency
 			filter := strings.Split(allPairs[x].Name, symbol)
 
-			if len(filter) != 2 || len(filter[1]) == 0 {
+			if len(filter) != 2 || filter[1] == "" {
 				continue
 			}
 			pairs = append(pairs, symbol+currency.DashDelimiter+filter[1])
