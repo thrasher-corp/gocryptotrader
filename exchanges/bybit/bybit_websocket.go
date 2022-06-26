@@ -439,7 +439,7 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 						ExecutedAmount:  data[j].CumulativeFilledQuantity,
 						RemainingAmount: data[j].Quantity - data[j].CumulativeFilledQuantity,
 						Exchange:        by.Name,
-						ID:              data[j].OrderID,
+						OrderID:         data[j].OrderID,
 						Type:            oType,
 						Side:            oSide,
 						Status:          oStatus,
@@ -465,27 +465,13 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 						return err
 					}
 
-					oTimeInMilliSec, err := strconv.ParseInt(data[j].Timestamp, 10, 64)
-					if err != nil {
-						return err
-					}
-
 					by.Websocket.DataHandler <- order.Modify{
 						Exchange:  by.Name,
-						ID:        data[j].OrderID,
-						AccountID: data[j].AccountID,
+						OrderID:   data[j].OrderID,
 						AssetType: asset.Spot,
 						Pair:      p,
-						Trades: []order.TradeHistory{
-							{
-								Price:     data[j].Price,
-								Amount:    data[j].Quantity,
-								Exchange:  by.Name,
-								TID:       data[j].TradeID,
-								Timestamp: time.UnixMilli(oTimeInMilliSec),
-								IsMaker:   data[j].IsMaker,
-							},
-						},
+						Price:     data[j].Price,
+						Amount:    data[j].Quantity,
 					}
 				}
 				return nil
