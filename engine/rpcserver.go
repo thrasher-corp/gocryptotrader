@@ -4199,7 +4199,7 @@ func (s *RPCServer) buildFuturePosition(position *order.Position, getFundingPaym
 		}
 		fundingData.PaymentSum = sum.String()
 		response.FundingData = fundingData
-		if includePredictedRate {
+		if includePredictedRate && !position.FundingRates.PredictedUpcomingRate.Time.IsZero() {
 			fundingData.UpcomingRate = &gctrpc.FundingRate{
 				Date: position.FundingRates.PredictedUpcomingRate.Time.Format(common.SimpleTimeFormatWithTimezone),
 				Rate: position.FundingRates.PredictedUpcomingRate.Rate.String(),
@@ -4525,7 +4525,7 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 			if r.IncludeFullFundingRates {
 				fundingRates.LatestRate = funding[len(fundingRates.Rates)-1]
 			}
-			if r.IncludePredictedRate {
+			if r.IncludePredictedRate && !fundingDetails[0].PredictedUpcomingRate.Time.IsZero() {
 				fundingRates.UpcomingRate = &gctrpc.FundingRate{
 					Date: fundingDetails[0].PredictedUpcomingRate.Time.Format(common.SimpleTimeFormatWithTimezone),
 					Rate: fundingDetails[0].PredictedUpcomingRate.Rate.String(),
