@@ -865,3 +865,19 @@ func TestOther(t *testing.T) {
 		t.Fatal("unexpected value")
 	}
 }
+
+func TestKeyEqual(t *testing.T) {
+	t.Parallel()
+	cp1 := NewPair(BTC, USD)
+	cp2, err := NewPairFromString("BTC-USD")
+	if err != nil {
+		t.Error(err)
+	}
+	if !cp1.Key().Equal(cp2.Key()) {
+		t.Error("expected true")
+	}
+	cp3 := NewPair(USD, BTC)
+	if cp1.Key().Equal(cp3.Key()) {
+		t.Error("expected false")
+	}
+}

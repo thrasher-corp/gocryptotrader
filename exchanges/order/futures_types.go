@@ -140,7 +140,7 @@ type UsedCollateralBreakdown struct {
 // the position controller and its all tracked happily
 type PositionController struct {
 	m                     sync.Mutex
-	multiPositionTrackers map[string]map[asset.Item]map[currency.Pair]*MultiPositionTracker
+	multiPositionTrackers map[string]map[asset.Item]map[currency.PairKey]*MultiPositionTracker
 }
 
 // MultiPositionTracker will track the performance of

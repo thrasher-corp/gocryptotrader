@@ -131,3 +131,20 @@ func (p Pair) Other(c Code) (Code, error) {
 	}
 	return EMPTYCODE, ErrCurrencyCodeEmpty
 }
+
+// Key is a basic method to use in map based comparisons
+func (p Pair) Key() PairKey {
+	if p.key.isEmpty() {
+		p.key = PairKey(p.Base.Item.Symbol + p.Quote.Item.Symbol)
+	}
+	return p.key
+}
+
+func (k PairKey) isEmpty() bool {
+	return k == ""
+}
+
+// Equal verifies if keys are the same
+func (k PairKey) Equal(p PairKey) bool {
+	return k == p
+}

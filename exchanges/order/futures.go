@@ -18,7 +18,7 @@ import (
 // to track futures orders
 func SetupPositionController() *PositionController {
 	return &PositionController{
-		multiPositionTrackers: make(map[string]map[asset.Item]map[currency.Pair]*MultiPositionTracker),
+		multiPositionTrackers: make(map[string]map[asset.Item]map[currency.PairKey]*MultiPositionTracker),
 	}
 }
 
@@ -40,16 +40,16 @@ func (c *PositionController) TrackNewOrder(d *Detail) error {
 	defer c.m.Unlock()
 	exchM, ok := c.multiPositionTrackers[strings.ToLower(d.Exchange)]
 	if !ok {
-		exchM = make(map[asset.Item]map[currency.Pair]*MultiPositionTracker)
+		exchM = make(map[asset.Item]map[currency.PairKey]*MultiPositionTracker)
 		c.multiPositionTrackers[strings.ToLower(d.Exchange)] = exchM
 	}
 	itemM, ok := exchM[d.AssetType]
 	if !ok {
-		itemM = make(map[currency.Pair]*MultiPositionTracker)
+		itemM = make(map[currency.PairKey]*MultiPositionTracker)
 		exchM[d.AssetType] = itemM
 	}
 	var err error
-	multiPositionTracker, ok := itemM[d.Pair]
+	multiPositionTracker, ok := itemM[d.Pair.Key()]
 	if !ok {
 		multiPositionTracker, err = SetupMultiPositionTracker(&MultiPositionTrackerSetup{
 			Exchange:   strings.ToLower(d.Exchange),
@@ -60,7 +60,7 @@ func (c *PositionController) TrackNewOrder(d *Detail) error {
 		if err != nil {
 			return err
 		}
-		itemM[d.Pair] = multiPositionTracker
+		itemM[d.Pair.Key()] = multiPositionTracker
 	}
 	return multiPositionTracker.TrackNewOrder(d)
 }
@@ -122,7 +122,7 @@ func (c *PositionController) GetPositionsForExchange(exch string, item asset.Ite
 	if !ok {
 		return nil, fmt.Errorf("%v %v %v %w", exch, item, pair, ErrPositionsNotLoadedForAsset)
 	}
-	multiPositionTracker, ok := itemM[pair]
+	multiPositionTracker, ok := itemM[pair.Key()]
 	if !ok {
 		return nil, fmt.Errorf("%v %v %v %w", exch, item, pair, ErrPositionsNotLoadedForPair)
 	}
@@ -143,18 +143,18 @@ func (c *PositionController) TrackFundingDetails(d *FundingRates) error {
 	}
 	c.m.Lock()
 	defer c.m.Unlock()
-	exchM, ok := c.positionTrackerControllers[strings.ToLower(d.Exchange)]
+	exchM, ok := c.multiPositionTrackers[strings.ToLower(d.Exchange)]
 	if !ok {
-		exchM = make(map[asset.Item]map[currency.Pair]*MultiPositionTracker)
-		c.positionTrackerControllers[strings.ToLower(d.Exchange)] = exchM
+		exchM = make(map[asset.Item]map[currency.PairKey]*MultiPositionTracker)
+		c.multiPositionTrackers[strings.ToLower(d.Exchange)] = exchM
 	}
 	itemM, ok := exchM[d.Asset]
 	if !ok {
-		itemM = make(map[currency.Pair]*MultiPositionTracker)
+		itemM = make(map[currency.PairKey]*MultiPositionTracker)
 		exchM[d.Asset] = itemM
 	}
 	var err error
-	multiPositionTracker, ok := itemM[d.Pair]
+	multiPositionTracker, ok := itemM[d.Pair.Key()]
 	if !ok {
 		multiPositionTracker, err = SetupMultiPositionTracker(&MultiPositionTrackerSetup{
 			Exchange:   strings.ToLower(d.Exchange),
@@ -165,7 +165,7 @@ func (c *PositionController) TrackFundingDetails(d *FundingRates) error {
 		if err != nil {
 			return err
 		}
-		itemM[d.Pair] = multiPositionTracker
+		itemM[d.Pair.Key()] = multiPositionTracker
 	}
 	return multiPositionTracker.TrackFundingDetails(d)
 }
@@ -179,7 +179,7 @@ func (c *PositionController) GetOpenPosition(exch string, item asset.Item, pair 
 	defer c.m.Unlock()
 	exch = strings.ToLower(exch)
 loop:
-	for exchStr, exchM := range c.positionTrackerControllers {
+	for exchStr, exchM := range c.multiPositionTrackers {
 		if exch != "" && exch != exchStr {
 			continue
 		}
@@ -188,7 +188,7 @@ loop:
 				continue
 			}
 			for cp, multiPositionTracker := range itemM {
-				if !pair.IsEmpty() && !pair.Equal(cp) {
+				if !pair.IsEmpty() && !pair.Key().Equal(cp) {
 					continue
 				}
 				positions := multiPositionTracker.GetPositions()
@@ -214,7 +214,7 @@ func (c *PositionController) GetAllOpenPositions() ([]Position, error) {
 	c.m.Lock()
 	defer c.m.Unlock()
 	var openPositions []Position
-	for _, exchM := range c.positionTrackerControllers {
+	for _, exchM := range c.multiPositionTrackers {
 		for _, itemM := range exchM {
 			for _, multiPositionTracker := range itemM {
 				positions := multiPositionTracker.GetPositions()
@@ -253,7 +253,7 @@ func (c *PositionController) UpdateOpenPositionUnrealisedPNL(exch string, item a
 	if !ok {
 		return decimal.Zero, fmt.Errorf("%v %v %v %w", exch, item, pair, ErrPositionsNotLoadedForAsset)
 	}
-	multiPositionTracker, ok := itemM[pair]
+	multiPositionTracker, ok := itemM[pair.Key()]
 	if !ok {
 		return decimal.Zero, fmt.Errorf("%v %v %v %w", exch, item, pair, ErrPositionsNotLoadedForPair)
 	}
@@ -395,7 +395,7 @@ func (c *PositionController) ClearPositionsForExchange(exch string, item asset.I
 	if !ok {
 		return fmt.Errorf("%v %v %v %w", exch, item, pair, ErrPositionsNotLoadedForAsset)
 	}
-	multiPositionTracker, ok := itemM[pair]
+	multiPositionTracker, ok := itemM[pair.Key()]
 	if !ok {
 		return fmt.Errorf("%v %v %v %w", exch, item, pair, ErrPositionsNotLoadedForPair)
 	}
@@ -412,7 +412,7 @@ func (c *PositionController) ClearPositionsForExchange(exch string, item asset.I
 	if err != nil {
 		return err
 	}
-	itemM[pair] = newMPT
+	itemM[pair.Key()] = newMPT
 	return nil
 }
 
