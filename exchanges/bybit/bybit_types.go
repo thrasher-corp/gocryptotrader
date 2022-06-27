@@ -31,6 +31,7 @@ var (
 	errInvalidSellLeverage       = errors.New("sellLeverage can't be zero or less then it")
 	errInvalidOrderRequest       = errors.New("order request param can't be nil")
 	errInvalidOrderFilter        = errors.New("orderFilter can't be empty or missing")
+	errInvalidCategory           = errors.New("invalid category")
 
 	errStopOrderOrOrderLinkIDMissing = errors.New("atleast one should be present among stopOrderID and orderLinkID")
 	errOrderOrOrderLinkIDMissing     = errors.New("atleast one should be present among orderID and orderLinkID")

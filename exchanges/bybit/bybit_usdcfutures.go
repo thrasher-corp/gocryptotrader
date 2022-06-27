@@ -128,15 +128,14 @@ func (by *Bybit) GetUSDCSymbols(ctx context.Context, symbol currency.Pair) (USDC
 	}{}
 
 	params := url.Values{}
-	if !symbol.IsEmpty() {
-		symbolValue, err := by.FormatSymbol(symbol, asset.USDCMarginedFutures)
-		if err != nil {
-			return resp.Data, err
-		}
-		params.Set("symbol", symbolValue)
-	} else {
+	if symbol.IsEmpty() {
 		return USDCSymbol{}, errSymbolMissing
 	}
+	symbolValue, err := by.FormatSymbol(symbol, asset.USDCMarginedFutures)
+	if err != nil {
+		return resp.Data, err
+	}
+	params.Set("symbol", symbolValue)
 
 	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestUSDCMargined, common.EncodeURLValues(usdcfuturesGetSymbols, params), usdcPublicRate, &resp)
 }
@@ -149,15 +148,14 @@ func (by *Bybit) GetUSDCKlines(ctx context.Context, symbol currency.Pair, period
 	}{}
 
 	params := url.Values{}
-	if !symbol.IsEmpty() {
-		symbolValue, err := by.FormatSymbol(symbol, asset.USDCMarginedFutures)
-		if err != nil {
-			return resp.Data, err
-		}
-		params.Set("symbol", symbolValue)
-	} else {
+	if symbol.IsEmpty() {
 		return nil, errSymbolMissing
 	}
+	symbolValue, err := by.FormatSymbol(symbol, asset.USDCMarginedFutures)
+	if err != nil {
+		return resp.Data, err
+	}
+	params.Set("symbol", symbolValue)
 
 	if !common.StringDataCompare(validFuturesIntervals, period) {
 		return resp.Data, errInvalidPeriod
@@ -183,15 +181,14 @@ func (by *Bybit) GetUSDCMarkPriceKlines(ctx context.Context, symbol currency.Pai
 	}{}
 
 	params := url.Values{}
-	if !symbol.IsEmpty() {
-		symbolValue, err := by.FormatSymbol(symbol, asset.USDCMarginedFutures)
-		if err != nil {
-			return resp.Data, err
-		}
-		params.Set("symbol", symbolValue)
-	} else {
+	if symbol.IsEmpty() {
 		return nil, errSymbolMissing
 	}
+	symbolValue, err := by.FormatSymbol(symbol, asset.USDCMarginedFutures)
+	if err != nil {
+		return resp.Data, err
+	}
+	params.Set("symbol", symbolValue)
 
 	if !common.StringDataCompare(validFuturesIntervals, period) {
 		return resp.Data, errInvalidPeriod
@@ -217,15 +214,14 @@ func (by *Bybit) GetUSDCIndexPriceKlines(ctx context.Context, symbol currency.Pa
 	}{}
 
 	params := url.Values{}
-	if !symbol.IsEmpty() {
-		symbolValue, err := by.FormatSymbol(symbol, asset.USDCMarginedFutures)
-		if err != nil {
-			return resp.Data, err
-		}
-		params.Set("symbol", symbolValue)
-	} else {
+	if symbol.IsEmpty() {
 		return nil, errSymbolMissing
 	}
+	symbolValue, err := by.FormatSymbol(symbol, asset.USDCMarginedFutures)
+	if err != nil {
+		return resp.Data, err
+	}
+	params.Set("symbol", symbolValue)
 
 	if !common.StringDataCompare(validFuturesIntervals, period) {
 		return resp.Data, errInvalidPeriod
@@ -251,15 +247,14 @@ func (by *Bybit) GetUSDCPremiumIndexKlines(ctx context.Context, symbol currency.
 	}{}
 
 	params := url.Values{}
-	if !symbol.IsEmpty() {
-		symbolValue, err := by.FormatSymbol(symbol, asset.USDCMarginedFutures)
-		if err != nil {
-			return resp.Data, err
-		}
-		params.Set("symbol", symbolValue)
-	} else {
+	if symbol.IsEmpty() {
 		return nil, errSymbolMissing
 	}
+	symbolValue, err := by.FormatSymbol(symbol, asset.USDCMarginedFutures)
+	if err != nil {
+		return resp.Data, err
+	}
+	params.Set("symbol", symbolValue)
 
 	if !common.StringDataCompare(validFuturesIntervals, period) {
 		return resp.Data, errInvalidPeriod
@@ -285,15 +280,14 @@ func (by *Bybit) GetUSDCOpenInterest(ctx context.Context, symbol currency.Pair, 
 	}{}
 
 	params := url.Values{}
-	if !symbol.IsEmpty() {
-		symbolValue, err := by.FormatSymbol(symbol, asset.USDCMarginedFutures)
-		if err != nil {
-			return resp.Data, err
-		}
-		params.Set("symbol", symbolValue)
-	} else {
+	if symbol.IsEmpty() {
 		return nil, errSymbolMissing
 	}
+	symbolValue, err := by.FormatSymbol(symbol, asset.USDCMarginedFutures)
+	if err != nil {
+		return resp.Data, err
+	}
+	params.Set("symbol", symbolValue)
 
 	if !common.StringDataCompare(validFuturesPeriods, period) {
 		return resp.Data, errInvalidPeriod
@@ -314,15 +308,14 @@ func (by *Bybit) GetUSDCLargeOrders(ctx context.Context, symbol currency.Pair, l
 	}{}
 
 	params := url.Values{}
-	if !symbol.IsEmpty() {
-		symbolValue, err := by.FormatSymbol(symbol, asset.USDCMarginedFutures)
-		if err != nil {
-			return resp.Data, err
-		}
-		params.Set("symbol", symbolValue)
-	} else {
+	if symbol.IsEmpty() {
 		return nil, errSymbolMissing
 	}
+	symbolValue, err := by.FormatSymbol(symbol, asset.USDCMarginedFutures)
+	if err != nil {
+		return resp.Data, err
+	}
+	params.Set("symbol", symbolValue)
 
 	if limit > 0 && limit <= 100 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
@@ -338,15 +331,14 @@ func (by *Bybit) GetUSDCAccountRatio(ctx context.Context, symbol currency.Pair, 
 	}{}
 
 	params := url.Values{}
-	if !symbol.IsEmpty() {
-		symbolValue, err := by.FormatSymbol(symbol, asset.USDCMarginedFutures)
-		if err != nil {
-			return resp.Data, err
-		}
-		params.Set("symbol", symbolValue)
-	} else {
+	if symbol.IsEmpty() {
 		return nil, errSymbolMissing
 	}
+	symbolValue, err := by.FormatSymbol(symbol, asset.USDCMarginedFutures)
+	if err != nil {
+		return resp.Data, err
+	}
+	params.Set("symbol", symbolValue)
 
 	if !common.StringDataCompare(validFuturesPeriods, period) {
 		return resp.Data, errInvalidPeriod
@@ -371,11 +363,10 @@ func (by *Bybit) GetUSDCLatestTrades(ctx context.Context, symbol currency.Pair, 
 	}{}
 
 	params := url.Values{}
-	if category != "" {
-		params.Set("category", category)
-	} else {
-		return nil, errors.New("invalid category")
+	if category == "" {
+		return nil, errInvalidCategory
 	}
+	params.Set("category", category)
 
 	if !symbol.IsEmpty() {
 		symbolValue, err := by.FormatSymbol(symbol, asset.USDCMarginedFutures)
@@ -399,39 +390,34 @@ func (by *Bybit) PlaceUSDCOrder(ctx context.Context, symbol currency.Pair, order
 	}{}
 
 	req := make(map[string]interface{})
-	if !symbol.IsEmpty() {
-		symbolValue, err := by.FormatSymbol(symbol, asset.USDCMarginedFutures)
-		if err != nil {
-			return resp.Result, err
-		}
-		req["symbol"] = symbolValue
-	} else {
+	if symbol.IsEmpty() {
 		return USDCCreateOrderResp{}, errSymbolMissing
 	}
+	symbolValue, err := by.FormatSymbol(symbol, asset.USDCMarginedFutures)
+	if err != nil {
+		return resp.Result, err
+	}
+	req["symbol"] = symbolValue
 
-	if orderType != "" {
-		req["orderType"] = orderType
-	} else {
+	if orderType == "" {
 		return USDCCreateOrderResp{}, errInvalidOrderType
 	}
+	req["orderType"] = orderType
 
-	if orderFilter != "" {
-		req["orderFilter"] = orderFilter
-	} else {
+	if orderFilter == "" {
 		return USDCCreateOrderResp{}, errInvalidOrderFilter
 	}
+	req["orderFilter"] = orderFilter
 
-	if side != "" {
-		req["side"] = side
-	} else {
+	if side == "" {
 		return USDCCreateOrderResp{}, errInvalidSide
 	}
+	req["side"] = side
 
-	if orderQty != 0 {
-		req["orderQty"] = strconv.FormatFloat(orderQty, 'f', -1, 64)
-	} else {
+	if orderQty == 0 {
 		return USDCCreateOrderResp{}, errInvalidQuantity
 	}
+	req["orderQty"] = strconv.FormatFloat(orderQty, 'f', -1, 64)
 
 	if orderPrice != 0 {
 		req["orderPrice"] = strconv.FormatFloat(orderPrice, 'f', -1, 64)
@@ -500,21 +486,19 @@ func (by *Bybit) ModifyUSDCOrder(ctx context.Context, symbol currency.Pair, orde
 	}{}
 
 	req := make(map[string]interface{})
-	if !symbol.IsEmpty() {
-		symbolValue, err := by.FormatSymbol(symbol, asset.USDCMarginedFutures)
-		if err != nil {
-			return resp.Result.OrderID, err
-		}
-		req["symbol"] = symbolValue
-	} else {
+	if symbol.IsEmpty() {
 		return resp.Result.OrderID, errSymbolMissing
 	}
+	symbolValue, err := by.FormatSymbol(symbol, asset.USDCMarginedFutures)
+	if err != nil {
+		return resp.Result.OrderID, err
+	}
+	req["symbol"] = symbolValue
 
-	if orderFilter != "" {
-		req["orderFilter"] = orderFilter
-	} else {
+	if orderFilter == "" {
 		return resp.Result.OrderID, errInvalidOrderFilter
 	}
+	req["orderFilter"] = orderFilter
 
 	if orderID == "" && orderLinkID == "" {
 		return resp.Result.OrderID, errOrderOrOrderLinkIDMissing
@@ -568,21 +552,19 @@ func (by *Bybit) CancelUSDCOrder(ctx context.Context, symbol currency.Pair, orde
 	}{}
 
 	req := make(map[string]interface{})
-	if !symbol.IsEmpty() {
-		symbolValue, err := by.FormatSymbol(symbol, asset.USDCMarginedFutures)
-		if err != nil {
-			return resp.Result.OrderID, err
-		}
-		req["symbol"] = symbolValue
-	} else {
+	if symbol.IsEmpty() {
 		return resp.Result.OrderID, errSymbolMissing
 	}
+	symbolValue, err := by.FormatSymbol(symbol, asset.USDCMarginedFutures)
+	if err != nil {
+		return resp.Result.OrderID, err
+	}
+	req["symbol"] = symbolValue
 
-	if orderFilter != "" {
-		req["orderFilter"] = orderFilter
-	} else {
+	if orderFilter == "" {
 		return resp.Result.OrderID, errInvalidOrderFilter
 	}
+	req["orderFilter"] = orderFilter
 
 	if orderID == "" && orderLinkID == "" {
 		return resp.Result.OrderID, errOrderOrOrderLinkIDMissing
@@ -601,21 +583,19 @@ func (by *Bybit) CancelUSDCOrder(ctx context.Context, symbol currency.Pair, orde
 // CancelAllActiveUSDCOrder cancels all active USDC derivatives order.
 func (by *Bybit) CancelAllActiveUSDCOrder(ctx context.Context, symbol currency.Pair, orderFilter string) error {
 	req := make(map[string]interface{})
-	if !symbol.IsEmpty() {
-		symbolValue, err := by.FormatSymbol(symbol, asset.USDCMarginedFutures)
-		if err != nil {
-			return err
-		}
-		req["symbol"] = symbolValue
-	} else {
+	if symbol.IsEmpty() {
 		return errSymbolMissing
 	}
+	symbolValue, err := by.FormatSymbol(symbol, asset.USDCMarginedFutures)
+	if err != nil {
+		return err
+	}
+	req["symbol"] = symbolValue
 
-	if orderFilter != "" {
-		req["orderFilter"] = orderFilter
-	} else {
+	if orderFilter == "" {
 		return errInvalidOrderFilter
 	}
+	req["orderFilter"] = orderFilter
 	return by.SendUSDCAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesCancelAllActiveOrder, req, nil, usdcCancelAllOrderRate)
 }
 
@@ -639,11 +619,10 @@ func (by *Bybit) GetActiveUSDCOrder(ctx context.Context, symbol currency.Pair, c
 		req["symbol"] = symbolValue
 	}
 
-	if category != "" {
-		req["category"] = category
-	} else {
-		return nil, errors.New("invalid category")
+	if category == "" {
+		return nil, errInvalidCategory
 	}
+	req["category"] = category
 
 	if orderID != "" {
 		req["orderId"] = orderID
@@ -691,11 +670,10 @@ func (by *Bybit) GetUSDCOrderHistory(ctx context.Context, symbol currency.Pair, 
 		req["symbol"] = symbolValue
 	}
 
-	if category != "" {
-		req["category"] = category
-	} else {
-		return nil, errors.New("invalid category")
+	if category == "" {
+		return nil, errInvalidCategory
 	}
+	req["category"] = category
 
 	if orderID != "" {
 		req["orderId"] = orderID
@@ -743,11 +721,10 @@ func (by *Bybit) GetUSDCTradeHistory(ctx context.Context, symbol currency.Pair, 
 		req["symbol"] = symbolValue
 	}
 
-	if category != "" {
-		req["category"] = category
-	} else {
-		return nil, errors.New("invalid category")
+	if category == "" {
+		return nil, errInvalidCategory
 	}
+	req["category"] = category
 
 	if orderID == "" && orderLinkID == "" {
 		return nil, errOrderOrOrderLinkIDMissing
@@ -800,11 +777,10 @@ func (by *Bybit) GetUSDCTransactionLog(ctx context.Context, startTime, endTime t
 		req["endTime"] = strconv.FormatInt(endTime.Unix(), 10)
 	}
 
-	if txType != "" {
-		req["type"] = txType
-	} else {
+	if txType == "" {
 		return nil, errors.New("type missing")
 	}
+	req["type"] = txType
 
 	if category != "" {
 		req["category"] = category
@@ -884,11 +860,10 @@ func (by *Bybit) GetUSDCPosition(ctx context.Context, symbol currency.Pair, cate
 		req["symbol"] = symbolValue
 	}
 
-	if category != "" {
-		req["category"] = category
-	} else {
-		return nil, errors.New("invalid category")
+	if category == "" {
+		return nil, errInvalidCategory
 	}
+	req["category"] = category
 
 	if cursor != "" {
 		req["cursor"] = cursor
@@ -915,15 +890,14 @@ func (by *Bybit) SetUSDCLeverage(ctx context.Context, symbol currency.Pair, leve
 	}{}
 
 	req := make(map[string]interface{})
-	if !symbol.IsEmpty() {
-		symbolValue, err := by.FormatSymbol(symbol, asset.USDCMarginedFutures)
-		if err != nil {
-			return resp.Result.Leverage, err
-		}
-		req["symbol"] = symbolValue
-	} else {
+	if symbol.IsEmpty() {
 		return 0, errSymbolMissing
 	}
+	symbolValue, err := by.FormatSymbol(symbol, asset.USDCMarginedFutures)
+	if err != nil {
+		return resp.Result.Leverage, err
+	}
+	req["symbol"] = symbolValue
 
 	if leverage <= 0 {
 		return 0, errInvalidLeverage
@@ -945,15 +919,14 @@ func (by *Bybit) GetUSDCSettlementHistory(ctx context.Context, symbol currency.P
 	}{}
 
 	req := make(map[string]interface{})
-	if !symbol.IsEmpty() {
-		symbolValue, err := by.FormatSymbol(symbol, asset.USDCMarginedFutures)
-		if err != nil {
-			return resp.Result.Data, err
-		}
-		req["symbol"] = symbolValue
-	} else {
+	if symbol.IsEmpty() {
 		return resp.Result.Data, errSymbolMissing
 	}
+	symbolValue, err := by.FormatSymbol(symbol, asset.USDCMarginedFutures)
+	if err != nil {
+		return resp.Result.Data, err
+	}
+	req["symbol"] = symbolValue
 
 	if cursor != "" {
 		req["cursor"] = cursor
@@ -978,15 +951,14 @@ func (by *Bybit) GetUSDCRiskLimit(ctx context.Context, symbol currency.Pair) ([]
 	}{}
 
 	params := url.Values{}
-	if !symbol.IsEmpty() {
-		symbolValue, err := by.FormatSymbol(symbol, asset.USDCMarginedFutures)
-		if err != nil {
-			return resp.Result, err
-		}
-		params.Set("symbol", symbolValue)
-	} else {
+	if symbol.IsEmpty() {
 		return nil, errSymbolMissing
 	}
+	symbolValue, err := by.FormatSymbol(symbol, asset.USDCMarginedFutures)
+	if err != nil {
+		return resp.Result, err
+	}
+	params.Set("symbol", symbolValue)
 
 	return resp.Result, by.SendHTTPRequest(ctx, exchange.RestUSDCMargined, common.EncodeURLValues(usdcfuturesGetRiskLimit, params), usdcPublicRate, &resp)
 }
@@ -1001,15 +973,14 @@ func (by *Bybit) SetUSDCRiskLimit(ctx context.Context, symbol currency.Pair, ris
 	}{}
 
 	req := make(map[string]interface{})
-	if !symbol.IsEmpty() {
-		symbolValue, err := by.FormatSymbol(symbol, asset.USDCMarginedFutures)
-		if err != nil {
-			return resp.Result.RiskID, err
-		}
-		req["symbol"] = symbolValue
-	} else {
+	if symbol.IsEmpty() {
 		return resp.Result.RiskID, errSymbolMissing
 	}
+	symbolValue, err := by.FormatSymbol(symbol, asset.USDCMarginedFutures)
+	if err != nil {
+		return resp.Result.RiskID, err
+	}
+	req["symbol"] = symbolValue
 
 	if riskID <= 0 {
 		return resp.Result.RiskID, errInvalidRiskID
@@ -1027,15 +998,14 @@ func (by *Bybit) GetUSDCLastFundingRate(ctx context.Context, symbol currency.Pai
 	}{}
 
 	params := url.Values{}
-	if !symbol.IsEmpty() {
-		symbolValue, err := by.FormatSymbol(symbol, asset.USDCMarginedFutures)
-		if err != nil {
-			return resp.Result, err
-		}
-		params.Set("symbol", symbolValue)
-	} else {
+	if symbol.IsEmpty() {
 		return resp.Result, errSymbolMissing
 	}
+	symbolValue, err := by.FormatSymbol(symbol, asset.USDCMarginedFutures)
+	if err != nil {
+		return resp.Result, err
+	}
+	params.Set("symbol", symbolValue)
 
 	return resp.Result, by.SendHTTPRequest(ctx, exchange.RestUSDCMargined, common.EncodeURLValues(usdcfuturesGetLastFundingRate, params), usdcPublicRate, &resp)
 }
@@ -1052,15 +1022,14 @@ func (by *Bybit) GetUSDCPredictedFundingRate(ctx context.Context, symbol currenc
 
 	req := make(map[string]interface{})
 	var symbolValue string
-	if !symbol.IsEmpty() {
-		symbolValue, err = by.FormatSymbol(symbol, asset.USDCMarginedFutures)
-		if err != nil {
-			return resp.Result.PredictedFundingRate, resp.Result.PredictedFundingFee, err
-		}
-		req["symbol"] = symbolValue
-	} else {
+	if symbol.IsEmpty() {
 		return resp.Result.PredictedFundingRate, resp.Result.PredictedFundingFee, errSymbolMissing
 	}
+	symbolValue, err = by.FormatSymbol(symbol, asset.USDCMarginedFutures)
+	if err != nil {
+		return resp.Result.PredictedFundingRate, resp.Result.PredictedFundingFee, err
+	}
+	req["symbol"] = symbolValue
 
 	err = by.SendUSDCAuthHTTPRequest(ctx, exchange.RestUSDCMargined, http.MethodPost, usdcfuturesGetPredictedFundingRate, req, &resp, usdcGetPredictedFundingRate)
 	predictedFundingRate = resp.Result.PredictedFundingRate
