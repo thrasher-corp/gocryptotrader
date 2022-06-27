@@ -782,7 +782,7 @@ func (m *OrderManager) processFuturesPositions(exch exchange.IBotExchange, posit
 		IncludePayments:      true,
 		IncludePredictedRate: true,
 	})
-	if err != nil && !errors.Is(err, order.ErrNoRates) {
+	if err != nil {
 		return err
 	}
 	for i := range frp {

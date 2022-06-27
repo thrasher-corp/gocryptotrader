@@ -1930,7 +1930,7 @@ func (f *FTX) GetFundingRates(ctx context.Context, request *order.FundingRatesRe
 			endTime = rates[len(rates)-1].Time
 		}
 		if len(pairResponse.FundingRates) == 0 {
-			return nil, fmt.Errorf("%w for %v %v", order.ErrNoRates, request.Asset, request.Pairs[x])
+			continue
 		}
 		if request.IncludePredictedRate {
 			stats, err = f.GetFutureStats(ctx, fPair)

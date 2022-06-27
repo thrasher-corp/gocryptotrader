@@ -39,8 +39,6 @@ var (
 	ErrNotPerpetualFuture = errors.New("not a perpetual future")
 	// ErrNoPositionsFound returned when there is no positions returned
 	ErrNoPositionsFound = errors.New("no positions found")
-	// ErrNoRates returned when no funding rates are received
-	ErrNoRates = errors.New("no funding rates")
 	// ErrGetFundingDataRequired is returned when requesting funding rate data without the prerequisite
 	ErrGetFundingDataRequired = errors.New("getfundingdata is a prerequisite")
 
