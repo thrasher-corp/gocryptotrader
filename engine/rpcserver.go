@@ -4505,36 +4505,39 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 			if err != nil {
 				return nil, err
 			}
-			if len(fundingDetails) != 1 {
+			switch {
+			case len(fundingDetails) == 0:
+			case len(fundingDetails) == 1:
+				var funding []*gctrpc.FundingRate
+				if r.IncludeFullFundingRates {
+					for j := range fundingDetails[0].FundingRates {
+						funding = append(funding, &gctrpc.FundingRate{
+							Date:    fundingDetails[0].FundingRates[j].Time.Format(common.SimpleTimeFormatWithTimezone),
+							Rate:    fundingDetails[0].FundingRates[j].Rate.String(),
+							Payment: fundingDetails[0].FundingRates[j].Payment.String(),
+						})
+					}
+				}
+				fundingRates := &gctrpc.FundingData{
+					Rates:      funding,
+					PaymentSum: fundingDetails[0].PaymentSum.String(),
+				}
+				if r.IncludeFullFundingRates {
+					fundingRates.LatestRate = funding[len(fundingRates.Rates)-1]
+				}
+				if r.IncludePredictedRate && !fundingDetails[0].PredictedUpcomingRate.Time.IsZero() {
+					fundingRates.UpcomingRate = &gctrpc.FundingRate{
+						Date: fundingDetails[0].PredictedUpcomingRate.Time.Format(common.SimpleTimeFormatWithTimezone),
+						Rate: fundingDetails[0].PredictedUpcomingRate.Rate.String(),
+					}
+				}
+				details.FundingData = fundingRates
+				err = s.OrderManager.orderStore.futuresPositionController.TrackFundingDetails(&fundingDetails[0])
+				if err != nil {
+					return nil, err
+				}
+			default:
 				return nil, fmt.Errorf("%w expected 1 set of funding rates, got %d %v", errUnexpectedResponseSize, len(fundingDetails), subAccount)
-			}
-			var funding []*gctrpc.FundingRate
-			if r.IncludeFullFundingRates {
-				for j := range fundingDetails[0].FundingRates {
-					funding = append(funding, &gctrpc.FundingRate{
-						Date:    fundingDetails[0].FundingRates[j].Time.Format(common.SimpleTimeFormatWithTimezone),
-						Rate:    fundingDetails[0].FundingRates[j].Rate.String(),
-						Payment: fundingDetails[0].FundingRates[j].Payment.String(),
-					})
-				}
-			}
-			fundingRates := &gctrpc.FundingData{
-				Rates:      funding,
-				PaymentSum: fundingDetails[0].PaymentSum.String(),
-			}
-			if r.IncludeFullFundingRates {
-				fundingRates.LatestRate = funding[len(fundingRates.Rates)-1]
-			}
-			if r.IncludePredictedRate && !fundingDetails[0].PredictedUpcomingRate.Time.IsZero() {
-				fundingRates.UpcomingRate = &gctrpc.FundingRate{
-					Date: fundingDetails[0].PredictedUpcomingRate.Time.Format(common.SimpleTimeFormatWithTimezone),
-					Rate: fundingDetails[0].PredictedUpcomingRate.Rate.String(),
-				}
-			}
-			details.FundingData = fundingRates
-			err = s.OrderManager.orderStore.futuresPositionController.TrackFundingDetails(&fundingDetails[0])
-			if err != nil {
-				return nil, err
 			}
 		}
 		if !r.IncludeFullOrderData {

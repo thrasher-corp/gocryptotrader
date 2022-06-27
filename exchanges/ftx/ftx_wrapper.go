@@ -1790,12 +1790,15 @@ func (f *FTX) GetOpenPositions(ctx context.Context, item asset.Item, startDate t
 	if err != nil {
 		return nil, err
 	}
-	pairs := make([]currency.Pair, 0, len(positions))
+	var pairs currency.Pairs
 	for x := range positions {
 		if positions[x].OpenSize == 0 {
 			continue
 		}
 		pairs = append(pairs, positions[x].Future)
+	}
+	if len(pairs) == 0 {
+		return nil, nil
 	}
 	r := &order.GetOrdersRequest{
 		StartTime: startDate,
@@ -1810,7 +1813,7 @@ func (f *FTX) GetOpenPositions(ctx context.Context, item asset.Item, startDate t
 	sort.Slice(orders, func(i, j int) bool {
 		return orders[i].Date.Before(orders[j].Date)
 	})
-	response := make([]order.OpenPositionDetails, len(positions))
+	var response []order.OpenPositionDetails
 	for x := range positions {
 		if positions[x].OpenSize == 0 {
 			continue
@@ -1838,9 +1841,9 @@ func (f *FTX) GetOpenPositions(ctx context.Context, item asset.Item, startDate t
 			openPositionDetails.Orders = append(openPositionDetails.Orders, orders[y])
 		}
 		if len(openPositionDetails.Orders) == 0 {
-			return nil, fmt.Errorf("%w open order found for %v but no orders after %v-%v", order.ErrPositionNotFound, positions[x].Future, startDate, r.EndTime)
+			return nil, fmt.Errorf("%w open position found for %v but could not find opening order in time range %v-%v", order.ErrPositionNotFound, positions[x].Future, startDate, r.EndTime)
 		}
-		response[x] = openPositionDetails
+		response = append(response, openPositionDetails)
 	}
 	return response, nil
 }
