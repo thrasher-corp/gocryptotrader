@@ -4407,7 +4407,7 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 	}
 	var totalRealisedPNL, totalUnrealisedPNL decimal.Decimal
 	for i := range pos {
-		if pos[i].Status.String() != strings.ToUpper(r.Status) {
+		if r.Status != "" && pos[i].Status.String() != strings.ToUpper(r.Status) {
 			continue
 		}
 		if r.PositionLimit > 0 && len(response.Positions) >= int(r.PositionLimit) {

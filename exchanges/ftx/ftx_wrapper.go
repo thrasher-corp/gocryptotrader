@@ -1026,13 +1026,7 @@ func (f *FTX) GetOrderHistory(ctx context.Context, request *order.GetOrdersReque
 	var resp []order.Detail
 	for x := range request.Pairs {
 		var d order.Detail
-		a, err := f.GetPairAssetType(request.Pairs[x])
-		if err != nil {
-			return nil, err
-		}
-
-		fp, err := f.FormatExchangeCurrency(request.Pairs[x],
-			a)
+		fp, err := f.FormatExchangeCurrency(request.Pairs[x], request.AssetType)
 		if err != nil {
 			return nil, err
 		}
@@ -1053,7 +1047,7 @@ func (f *FTX) GetOrderHistory(ctx context.Context, request *order.GetOrdersReque
 			}
 			d.OrderID = strconv.FormatInt(history[y].ID, 10)
 			d.Amount = history[y].Size
-			d.AssetType = a
+			d.AssetType = request.AssetType
 			d.AverageExecutedPrice = history[y].AvgFillPrice
 			d.ClientOrderID = history[y].ClientID
 			d.Date = history[y].CreatedAt
@@ -1104,7 +1098,7 @@ func (f *FTX) GetOrderHistory(ctx context.Context, request *order.GetOrdersReque
 			}
 			d.OrderID = strconv.FormatInt(triggerOrderData[z].ID, 10)
 			d.Amount = triggerOrderData[z].Size
-			d.AssetType = a
+			d.AssetType = request.AssetType
 			d.Date = triggerOrderData[z].CreatedAt
 			d.Exchange = f.Name
 			d.ExecutedAmount = triggerOrderData[z].FilledSize
@@ -1796,9 +1790,12 @@ func (f *FTX) GetOpenPositions(ctx context.Context, item asset.Item, startDate t
 	if err != nil {
 		return nil, err
 	}
-	pairs := make([]currency.Pair, len(positions))
+	pairs := make([]currency.Pair, 0, len(positions))
 	for x := range positions {
-		pairs[x] = positions[x].Future
+		if positions[x].OpenSize == 0 {
+			continue
+		}
+		pairs = append(pairs, positions[x].Future)
 	}
 	r := &order.GetOrdersRequest{
 		StartTime: startDate,
@@ -1815,6 +1812,9 @@ func (f *FTX) GetOpenPositions(ctx context.Context, item asset.Item, startDate t
 	})
 	response := make([]order.OpenPositionDetails, len(positions))
 	for x := range positions {
+		if positions[x].OpenSize == 0 {
+			continue
+		}
 		openPositionDetails := order.OpenPositionDetails{
 			Exchange: f.Name,
 			Asset:    item,
@@ -1824,7 +1824,7 @@ func (f *FTX) GetOpenPositions(ctx context.Context, item asset.Item, startDate t
 			if !positions[x].Future.Equal(orders[y].Pair) {
 				continue
 			}
-			if len(openPositionDetails.Orders) == 0 && orders[y].Amount != positions[x].OpenSize && orders[y].Price != positions[x].RecentAverageOpenPrice {
+			if len(openPositionDetails.Orders) == 0 && (orders[y].Amount != positions[x].OpenSize || orders[y].Price != positions[x].RecentAverageOpenPrice) {
 				// this is not the opening order for tracking open positions
 				continue
 			}

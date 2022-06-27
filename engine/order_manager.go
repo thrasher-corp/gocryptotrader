@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -748,6 +749,9 @@ func (m *OrderManager) processFuturesPositions(exch exchange.IBotExchange, posit
 	if len(position.Orders) == 0 {
 		return fmt.Errorf("%w position for '%v' '%v' '%v' has no orders", errNilOrder, position.Exchange, position.Asset, position.Pair)
 	}
+	sort.Slice(position.Orders, func(i, j int) bool {
+		return position.Orders[i].Date.Before(position.Orders[j].Date)
+	})
 	var err error
 	for i := range position.Orders {
 		err = m.orderStore.futuresPositionController.TrackNewOrder(&position.Orders[i])

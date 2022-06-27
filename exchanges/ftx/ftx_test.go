@@ -2378,7 +2378,7 @@ func TestGetOpenPositions(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, order.ErrPositionNotFound)
 	}
 
-	resp, err := f.GetOpenPositions(context.Background(), asset.Futures, time.Now().Add(-time.Hour*24*31))
+	resp, err := f.GetOpenPositions(context.Background(), asset.Futures, time.Now().Add(-time.Hour*24*365))
 	if len(resp) == 0 {
 		// you have no open positions, that is okay
 		return
