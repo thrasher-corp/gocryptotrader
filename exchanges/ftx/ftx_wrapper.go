@@ -1654,6 +1654,15 @@ func (f *FTX) GetFuturesPositions(ctx context.Context, a asset.Item, cp currency
 	if !a.IsFutures() {
 		return nil, fmt.Errorf("%w futures asset type only", common.ErrFunctionNotSupported)
 	}
+	if err := f.CurrencyPairs.IsAssetEnabled(a); err != nil {
+		return nil, err
+	}
+	pairFmt, err := f.GetPairFormat(a, true)
+	if err != nil {
+		return nil, err
+	}
+	fPair := cp.Format(pairFmt.Delimiter, pairFmt.Uppercase)
+
 	fills, err := f.GetFills(ctx, cp, a, start, end)
 	if err != nil {
 		return nil, err
@@ -1662,13 +1671,14 @@ func (f *FTX) GetFuturesPositions(ctx context.Context, a asset.Item, cp currency
 	resp := make([]order.Detail, len(fills))
 	for i := range fills {
 		price := fills[i].Price
-		side, err := order.StringToOrderSide(fills[i].Side)
+		var side order.Side
+		side, err = order.StringToOrderSide(fills[i].Side)
 		if err != nil {
 			return nil, err
 		}
 		resp[i] = order.Detail{
 			Side:      side,
-			Pair:      cp,
+			Pair:      fPair,
 			OrderID:   strconv.FormatInt(fills[i].ID, 10),
 			Price:     price,
 			Amount:    fills[i].Size,
@@ -1704,6 +1714,10 @@ func (f *FTX) GetPositionSummary(ctx context.Context, request *order.PositionSum
 	if !request.Asset.IsFutures() {
 		return nil, fmt.Errorf("%w '%s' is not a futures asset", asset.ErrNotSupported, request.Asset)
 	}
+	if err := f.CurrencyPairs.IsAssetEnabled(request.Asset); err != nil {
+		return nil, err
+	}
+
 	if request.CalculateOffline {
 		one := decimal.NewFromInt(1)
 		positionSize := request.CurrentSize.Mul(request.CurrentPrice)
@@ -1786,16 +1800,26 @@ func (f *FTX) GetOpenPositions(ctx context.Context, item asset.Item, startDate t
 	if !item.IsFutures() {
 		return nil, fmt.Errorf("%w '%s'", order.ErrNotFuturesAsset, item)
 	}
+	if err := f.CurrencyPairs.IsAssetEnabled(item); err != nil {
+		return nil, err
+	}
 	positions, err := f.GetPositions(ctx, false)
 	if err != nil {
 		return nil, err
 	}
 	var pairs currency.Pairs
+	pairFmt, err := f.GetPairFormat(item, true)
+	if err != nil {
+		return nil, err
+	}
+	var positionsToProcess []PositionData
 	for x := range positions {
-		if positions[x].OpenSize == 0 {
+		if !f.CurrencyPairs.Pairs[item].Enabled.Contains(positions[x].Future, false) ||
+			positions[x].OpenSize == 0 {
 			continue
 		}
-		pairs = append(pairs, positions[x].Future)
+		pairs = append(pairs, positions[x].Future.Format(pairFmt.Delimiter, pairFmt.Uppercase))
+		positionsToProcess = append(positionsToProcess, positions[x])
 	}
 	if len(pairs) == 0 {
 		return nil, nil
@@ -1814,21 +1838,24 @@ func (f *FTX) GetOpenPositions(ctx context.Context, item asset.Item, startDate t
 		return orders[i].Date.Before(orders[j].Date)
 	})
 	var response []order.OpenPositionDetails
-	for x := range positions {
-		if positions[x].OpenSize == 0 {
+	for x := range positionsToProcess {
+		if positionsToProcess[x].OpenSize == 0 {
 			continue
 		}
 		openPositionDetails := order.OpenPositionDetails{
 			Exchange: f.Name,
 			Asset:    item,
-			Pair:     positions[x].Future,
+			Pair:     positionsToProcess[x].Future,
 		}
 		for y := range orders {
-			if !positions[x].Future.Equal(orders[y].Pair) {
+			if !positionsToProcess[x].Future.Equal(orders[y].Pair) {
 				continue
 			}
-			if len(openPositionDetails.Orders) == 0 && (orders[y].Amount != positions[x].OpenSize || orders[y].Price != positions[x].RecentAverageOpenPrice) {
+			if len(openPositionDetails.Orders) == 0 && orders[y].Amount != positionsToProcess[x].Size {
 				// this is not the opening order for tracking open positions
+				// FTX does not provide full means to track positions from when they open
+				// response may contain additional orders if amount is the same across multiple positions
+				// process via order.PositionController to determine accurate positions
 				continue
 			}
 			if orders[y].Date.Before(startDate) {
@@ -1838,10 +1865,11 @@ func (f *FTX) GetOpenPositions(ctx context.Context, item asset.Item, startDate t
 				// sometimes FTX sends a null price
 				orders[y].Price = orders[y].AverageExecutedPrice
 			}
+			orders[y].Pair = orders[y].Pair.Format(pairFmt.Delimiter, pairFmt.Uppercase)
 			openPositionDetails.Orders = append(openPositionDetails.Orders, orders[y])
 		}
 		if len(openPositionDetails.Orders) == 0 {
-			return nil, fmt.Errorf("%w open position found for %v but could not find opening order in time range %v-%v", order.ErrPositionNotFound, positions[x].Future, startDate, r.EndTime)
+			return nil, fmt.Errorf("%w open position found for %v but could not find opening order in time range %v-%v", order.ErrPositionNotFound, positionsToProcess[x].Future, startDate, r.EndTime)
 		}
 		response = append(response, openPositionDetails)
 	}
@@ -1856,6 +1884,7 @@ func (f *FTX) GetFundingRates(ctx context.Context, request *order.FundingRatesRe
 	if len(request.Pairs) == 0 {
 		return nil, currency.ErrCurrencyPairsEmpty
 	}
+
 	err := common.StartEndTimeCheck(request.StartDate, request.EndDate)
 	if err != nil {
 		return nil, err
@@ -1957,6 +1986,9 @@ func (f *FTX) GetFundingRates(ctx context.Context, request *order.FundingRatesRe
 
 // IsPerpetualFutureCurrency returns whether a currency is a perpetual future
 func (f *FTX) IsPerpetualFutureCurrency(a asset.Item, cp currency.Pair) (bool, error) {
+	if err := f.CurrencyPairs.IsAssetEnabled(a); err != nil {
+		return false, err
+	}
 	pairs, err := f.GetEnabledPairs(a)
 	if err != nil {
 		return false, err

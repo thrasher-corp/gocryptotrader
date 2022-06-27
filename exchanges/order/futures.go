@@ -762,7 +762,7 @@ func (p *PositionTracker) TrackFundingDetails(d *FundingRates) error {
 	if len(p.pnlHistory) == 0 {
 		return fmt.Errorf("%w for timeframe %v %v %v %v-%v", ErrNoPositionsFound, p.exchange, p.asset, p.contractPair, d.StartDate, d.EndDate)
 	}
-	if d.StartDate.Before(p.openingDate) || (d.EndDate.After(p.closingDate) && p.status == Closed) {
+	if d.StartDate.Before(p.openingDate) {
 		return fmt.Errorf("%w", errFundingRateOutOfRange)
 	}
 	if p.fundingRateDetails == nil {
@@ -771,6 +771,9 @@ func (p *PositionTracker) TrackFundingDetails(d *FundingRates) error {
 	}
 	for i := range p.fundingRateDetails.FundingRates {
 		for j := range d.FundingRates {
+			if d.FundingRates[j].Time.After(p.closingDate) {
+				continue
+			}
 			if !p.fundingRateDetails.FundingRates[i].Time.Equal(d.FundingRates[j].Time) {
 				continue
 			}
@@ -796,7 +799,18 @@ func (p *PositionTracker) TrackNewOrder(d *Detail, isInitialOrder bool) error {
 		return fmt.Errorf("%w received isInitialOrder = true with existing position", errCannotTrackInvalidParams)
 	}
 	if p.status.IsInactive() {
-		return ErrPositionClosed
+		for i := range p.longPositions {
+			if p.longPositions[i].OrderID == d.OrderID {
+				return nil
+			}
+		}
+		for i := range p.shortPositions {
+			if p.shortPositions[i].OrderID == d.OrderID {
+				return nil
+			}
+		}
+		// adding a new position to something that is already closed
+		return fmt.Errorf("%w cannot process new order %v", ErrPositionClosed, d.OrderID)
 	}
 	if d == nil {
 		return ErrSubmissionIsNil
