@@ -40,6 +40,7 @@ var (
 	errUnsupportedOrderType = errors.New("unsupported order type")
 	errEmptyOrderIDs        = errors.New("orderIDs can't be empty")
 	errMissingPrice         = errors.New("price should be present for Limit and LimitMaker orders")
+	errExpectedOneOrder     = errors.New("expected one order")
 )
 
 // bybitTimeSec provides an internal conversion helper

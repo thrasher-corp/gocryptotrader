@@ -2426,6 +2426,7 @@ func TestSubmitOrder(t *testing.T) {
 	}
 
 	var oSpot = &order.Submit{
+		Exchange: "Bybit",
 		Pair: currency.Pair{
 			Delimiter: "-",
 			Base:      currency.LTC,
@@ -2446,6 +2447,7 @@ func TestSubmitOrder(t *testing.T) {
 	}
 
 	var oCMF = &order.Submit{
+		Exchange: "Bybit",
 		Pair: currency.Pair{
 			Delimiter: "-",
 			Base:      currency.BTC,
@@ -2464,6 +2466,7 @@ func TestSubmitOrder(t *testing.T) {
 	}
 
 	var oUMF = &order.Submit{
+		Exchange: "Bybit",
 		Pair: currency.Pair{
 			Delimiter: "-",
 			Base:      currency.BTC,
@@ -2487,6 +2490,7 @@ func TestSubmitOrder(t *testing.T) {
 	}
 
 	var oFutures = &order.Submit{
+		Exchange:  "Bybit",
 		Pair:      pair,
 		Side:      order.Buy,
 		Type:      order.Limit,
@@ -2506,6 +2510,7 @@ func TestSubmitOrder(t *testing.T) {
 	}
 
 	var oUSDC = &order.Submit{
+		Exchange:  "Bybit",
 		Pair:      pair1,
 		Side:      order.Buy,
 		Type:      order.Limit,
@@ -2527,10 +2532,11 @@ func TestModifyOrder(t *testing.T) {
 	}
 
 	_, err := b.ModifyOrder(context.Background(), &order.Modify{
-		OrderID: "1337",
-		Price:   10000,
-		Amount:  10,
-		Side:    order.Sell,
+		Exchange: "Bybit",
+		OrderID:  "1337",
+		Price:    10000,
+		Amount:   10,
+		Side:     order.Sell,
 		Pair: currency.Pair{
 			Delimiter: "-",
 			Base:      currency.BTC,
@@ -2550,6 +2556,7 @@ func TestCancelOrder(t *testing.T) {
 	}
 
 	err := b.CancelOrder(context.Background(), &order.Cancel{
+		Exchange:  "Bybit",
 		AssetType: asset.Spot,
 		Pair: currency.Pair{
 			Delimiter: "-",
@@ -2563,6 +2570,7 @@ func TestCancelOrder(t *testing.T) {
 	}
 
 	err = b.CancelOrder(context.Background(), &order.Cancel{
+		Exchange:  "Bybit",
 		AssetType: asset.CoinMarginedFutures,
 		Pair: currency.Pair{
 			Delimiter: "-",
@@ -2576,6 +2584,7 @@ func TestCancelOrder(t *testing.T) {
 	}
 
 	err = b.CancelOrder(context.Background(), &order.Cancel{
+		Exchange:  "Bybit",
 		AssetType: asset.USDTMarginedFutures,
 		Pair: currency.Pair{
 			Delimiter: "-",
@@ -2594,6 +2603,7 @@ func TestCancelOrder(t *testing.T) {
 	}
 
 	err = b.CancelOrder(context.Background(), &order.Cancel{
+		Exchange:  "Bybit",
 		AssetType: asset.Futures,
 		Pair:      pair,
 		OrderID:   "1234",
@@ -2608,6 +2618,7 @@ func TestCancelOrder(t *testing.T) {
 	}
 
 	err = b.CancelOrder(context.Background(), &order.Cancel{
+		Exchange:  "Bybit",
 		AssetType: asset.Futures,
 		Pair:      pair1,
 		OrderID:   "1234",
@@ -2631,6 +2642,7 @@ func TestCancelAllOrders(t *testing.T) {
 
 	_, err = b.CancelAllOrders(context.Background(),
 		&order.Cancel{
+			Exchange:  "Bybit",
 			AssetType: asset.CoinMarginedFutures,
 			Pair: currency.Pair{
 				Delimiter: "-",
@@ -2644,6 +2656,7 @@ func TestCancelAllOrders(t *testing.T) {
 
 	_, err = b.CancelAllOrders(context.Background(),
 		&order.Cancel{
+			Exchange:  "Bybit",
 			AssetType: asset.USDTMarginedFutures,
 			Pair: currency.Pair{
 				Delimiter: "-",
@@ -2662,6 +2675,7 @@ func TestCancelAllOrders(t *testing.T) {
 
 	_, err = b.CancelAllOrders(context.Background(),
 		&order.Cancel{
+			Exchange:  "Bybit",
 			AssetType: asset.Futures,
 			Pair:      pair,
 		})
@@ -2676,6 +2690,7 @@ func TestCancelAllOrders(t *testing.T) {
 
 	_, err = b.CancelAllOrders(context.Background(),
 		&order.Cancel{
+			Exchange:  "Bybit",
 			AssetType: asset.USDCMarginedFutures,
 			Pair:      pair1,
 		})

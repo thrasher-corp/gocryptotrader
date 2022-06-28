@@ -1048,8 +1048,10 @@ func (by *Bybit) ModifyOrder(ctx context.Context, action *order.Modify) (*order.
 		return nil, err
 	}
 
-	var orderID string
-	var err error
+	var (
+		orderID string
+		err     error
+	)
 	switch action.AssetType {
 	case asset.CoinMarginedFutures:
 		orderID, err = by.ReplaceActiveCoinFuturesOrders(ctx, action.Pair, action.OrderID, action.ClientOrderID, "", "", int64(action.Amount), action.Price, 0, 0)
@@ -1062,6 +1064,9 @@ func (by *Bybit) ModifyOrder(ctx context.Context, action *order.Modify) (*order.
 		orderID, err = by.ModifyUSDCOrder(ctx, action.Pair, "Order", action.OrderID, action.ClientOrderID, action.Price, action.Amount, 0, 0, 0, 0, 0)
 	default:
 		err = fmt.Errorf("%s %w", action.AssetType, asset.ErrNotSupported)
+	}
+	if err != nil {
+		return nil, err
 	}
 
 	resp, err := action.DeriveModifyResponse()
@@ -1212,7 +1217,7 @@ func (by *Bybit) GetOrderInfo(ctx context.Context, orderID string, pair currency
 		}
 
 		if len(resp) != 1 {
-			return order.Detail{}, fmt.Errorf("invalid order's count found")
+			return order.Detail{}, fmt.Errorf("%w, received %v orders", errExpectedOneOrder, len(resp))
 		}
 
 		return order.Detail{
@@ -1239,7 +1244,7 @@ func (by *Bybit) GetOrderInfo(ctx context.Context, orderID string, pair currency
 		}
 
 		if len(resp) != 1 {
-			return order.Detail{}, fmt.Errorf("invalid order's count found")
+			return order.Detail{}, fmt.Errorf("%w, received %v orders", errExpectedOneOrder, len(resp))
 		}
 
 		return order.Detail{
@@ -1266,7 +1271,7 @@ func (by *Bybit) GetOrderInfo(ctx context.Context, orderID string, pair currency
 		}
 
 		if len(resp) != 1 {
-			return order.Detail{}, fmt.Errorf("invalid order's count found")
+			return order.Detail{}, fmt.Errorf("%w, received %v orders", errExpectedOneOrder, len(resp))
 		}
 
 		return order.Detail{
@@ -1293,7 +1298,7 @@ func (by *Bybit) GetOrderInfo(ctx context.Context, orderID string, pair currency
 		}
 
 		if len(resp) != 1 {
-			return order.Detail{}, fmt.Errorf("invalid order's count found")
+			return order.Detail{}, fmt.Errorf("%w, received %v orders", errExpectedOneOrder, len(resp))
 		}
 
 		return order.Detail{
