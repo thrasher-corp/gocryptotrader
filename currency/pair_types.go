@@ -5,7 +5,6 @@ type Pair struct {
 	Delimiter string `json:"delimiter,omitempty"`
 	Base      Code   `json:"base,omitempty"`
 	Quote     Code   `json:"quote,omitempty"`
-	key       PairKey
 }
 
 // Pairs defines a list of pairs

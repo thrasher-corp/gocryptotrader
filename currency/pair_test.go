@@ -906,12 +906,4 @@ func TestPairKey(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v", err, nil)
 	}
-	if cp1.key == "" {
-		t.Errorf("received '%v' expected '%v'", cp1.key, cp1.Base.Item.Symbol+cp1.Quote.Item.Symbol)
-	}
-
-	_, err = cp1.Key()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v", err, nil)
-	}
 }

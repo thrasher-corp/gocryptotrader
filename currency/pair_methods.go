@@ -135,16 +135,10 @@ func (p Pair) Other(c Code) (Code, error) {
 // Key is a basic method to use in map based comparisons
 // where delimiter or other formatting do not get considered
 func (p *Pair) Key() (PairKey, error) {
-	if p.key != "" {
-		return p.key, nil
-	}
 	if p.Base.IsEmpty() || p.Quote.IsEmpty() {
 		return "", ErrCurrencyPairEmpty
 	}
-	if p.key.isEmpty() {
-		p.key = PairKey(p.Base.Item.Symbol + p.Quote.Item.Symbol)
-	}
-	return p.key, nil
+	return PairKey(p.Base.Item.Symbol + p.Quote.Item.Symbol), nil
 }
 
 func (k PairKey) isEmpty() bool {
