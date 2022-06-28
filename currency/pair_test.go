@@ -870,14 +870,48 @@ func TestKeyEqual(t *testing.T) {
 	t.Parallel()
 	cp1 := NewPair(BTC, USD)
 	cp2, err := NewPairFromString("BTC-USD")
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v", err, nil)
 	}
-	if !cp1.Key().Equal(cp2.Key()) {
+	key1, err := cp1.Key()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v", err, nil)
+	}
+	key2, err := cp2.Key()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v", err, nil)
+	}
+	if !key1.Equal(key2) {
 		t.Error("expected true")
 	}
 	cp3 := NewPair(USD, BTC)
-	if cp1.Key().Equal(cp3.Key()) {
+	key3, err := cp3.Key()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v", err, nil)
+	}
+	if key1.Equal(key3) {
 		t.Error("expected false")
+	}
+}
+
+func TestPairKey(t *testing.T) {
+	t.Parallel()
+	_, err := EMPTYPAIR.Key()
+	if !errors.Is(err, ErrCurrencyPairEmpty) {
+		t.Errorf("received '%v' expected '%v", err, ErrCurrencyPairEmpty)
+	}
+
+	cp1 := NewPair(BTC, USD)
+	_, err = cp1.Key()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v", err, nil)
+	}
+	if cp1.key == "" {
+		t.Errorf("received '%v' expected '%v'", cp1.key, cp1.Base.Item.Symbol+cp1.Quote.Item.Symbol)
+	}
+
+	_, err = cp1.Key()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v", err, nil)
 	}
 }

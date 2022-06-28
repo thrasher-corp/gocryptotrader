@@ -4313,6 +4313,9 @@ func (s *RPCServer) GetAllManagedPositions(_ context.Context, r *gctrpc.GetAllMa
 		}
 		return nil, err
 	}
+	sort.Slice(positions, func(i, j int) bool {
+		return positions[i].OpeningDate.Before(positions[j].OpeningDate)
+	})
 	response := make([]*gctrpc.FuturePosition, len(positions))
 	for i := range positions {
 		response[i] = s.buildFuturePosition(&positions[i], r.GetFundingPayments, r.IncludeFullFundingRates, r.IncludeFullOrderData, r.IncludePredictedRate)
@@ -4381,9 +4384,7 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 	if err != nil {
 		return nil, fmt.Errorf("%w %v", err, subAccount)
 	}
-	sort.Slice(orders, func(i, j int) bool {
-		return orders[i].Date.Before(orders[j].Date)
-	})
+
 	if r.Overwrite {
 		err = s.OrderManager.ClearFuturesTracking(r.Exchange, ai, cp)
 		if err != nil {
@@ -4406,6 +4407,9 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 		SubAccount: creds.SubAccount,
 	}
 	var totalRealisedPNL, totalUnrealisedPNL decimal.Decimal
+	sort.Slice(pos, func(i, j int) bool {
+		return pos[i].OpeningDate.Before(pos[j].OpeningDate)
+	})
 	for i := range pos {
 		if r.Status != "" && pos[i].Status.String() != strings.ToUpper(r.Status) {
 			continue

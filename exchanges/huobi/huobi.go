@@ -89,7 +89,7 @@ func (h *HUOBI) GetMarginRates(ctx context.Context, symbol currency.Pair) (Margi
 
 // GetSpotKline returns kline data
 // KlinesRequestParams contains symbol currency.Pair, period and size
-func (h *HUOBI) GetSpotKline(ctx context.Context, arg KlinesRequestParams) ([]KlineItem, error) {
+func (h *HUOBI) GetSpotKline(ctx context.Context, arg *KlinesRequestParams) ([]KlineItem, error) {
 	vals := url.Values{}
 	symbolValue, err := h.FormatSymbol(arg.Symbol, asset.Spot)
 	if err != nil {

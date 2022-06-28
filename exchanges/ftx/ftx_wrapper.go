@@ -1667,7 +1667,9 @@ func (f *FTX) GetFuturesPositions(ctx context.Context, a asset.Item, cp currency
 	if err != nil {
 		return nil, err
 	}
-
+	sort.Slice(fills, func(i, j int) bool {
+		return fills[i].ID < (fills[j].ID)
+	})
 	resp := make([]order.Detail, len(fills))
 	for i := range fills {
 		price := fills[i].Price
@@ -1689,10 +1691,6 @@ func (f *FTX) GetFuturesPositions(ctx context.Context, a asset.Item, cp currency
 			Status:    order.Filled,
 		}
 	}
-
-	sort.Slice(resp, func(i, j int) bool {
-		return resp[i].Date.Before(resp[j].Date)
-	})
 
 	return resp, nil
 }
@@ -1812,18 +1810,19 @@ func (f *FTX) GetOpenPositions(ctx context.Context, item asset.Item, startDate t
 	if err != nil {
 		return nil, err
 	}
-	var positionsToProcess []PositionData
+	positionsToProcess := make([]PositionData, 0, len(positions))
 	for x := range positions {
 		if !f.CurrencyPairs.Pairs[item].Enabled.Contains(positions[x].Future, false) ||
 			positions[x].OpenSize == 0 {
 			continue
 		}
-		pairs = append(pairs, positions[x].Future.Format(pairFmt.Delimiter, pairFmt.Uppercase))
+		pairs = append(pairs, positions[x].Future)
 		positionsToProcess = append(positionsToProcess, positions[x])
 	}
 	if len(pairs) == 0 {
 		return nil, nil
 	}
+	pairs = pairs.Format(pairFmt.Delimiter, pairFmt.Index, pairFmt.Uppercase)
 	r := &order.GetOrdersRequest{
 		StartTime: startDate,
 		EndTime:   time.Now(),
@@ -1837,7 +1836,7 @@ func (f *FTX) GetOpenPositions(ctx context.Context, item asset.Item, startDate t
 	sort.Slice(orders, func(i, j int) bool {
 		return orders[i].Date.Before(orders[j].Date)
 	})
-	var response []order.OpenPositionDetails
+	response := make([]order.OpenPositionDetails, 0, len(positionsToProcess))
 	for x := range positionsToProcess {
 		if positionsToProcess[x].OpenSize == 0 {
 			continue
@@ -1889,6 +1888,11 @@ func (f *FTX) GetFundingRates(ctx context.Context, request *order.FundingRatesRe
 	if err != nil {
 		return nil, err
 	}
+	pairFmt, err := f.GetPairFormat(request.Asset, true)
+	if err != nil {
+		return nil, err
+	}
+	request.Pairs = request.Pairs.Format(pairFmt.Delimiter, pairFmt.Index, pairFmt.Uppercase)
 	response := make([]order.FundingRates, 0, len(request.Pairs))
 	for x := range request.Pairs {
 		var isPerp bool
@@ -1900,16 +1904,10 @@ func (f *FTX) GetFundingRates(ctx context.Context, request *order.FundingRatesRe
 			return nil, fmt.Errorf("%w '%v' '%v'", order.ErrNotPerpetualFuture, request.Asset, request.Pairs[x])
 		}
 		var (
-			fPair          string
 			rates          []FundingRatesData
 			fundingDetails []FundingPaymentsData
 			stats          FutureStatsData
 		)
-		fPair, err = f.FormatSymbol(request.Pairs[x], request.Asset)
-		if err != nil {
-			return nil, err
-		}
-
 		pairResponse := order.FundingRates{
 			Exchange:  f.Name,
 			Asset:     request.Asset,
@@ -1920,7 +1918,7 @@ func (f *FTX) GetFundingRates(ctx context.Context, request *order.FundingRatesRe
 		endTime := request.EndDate
 	allRates:
 		for {
-			rates, err = f.FundingRates(ctx, request.StartDate, endTime, fPair)
+			rates, err = f.FundingRates(ctx, request.StartDate, endTime, request.Pairs[x])
 			if err != nil {
 				return nil, err
 			}
@@ -1941,7 +1939,7 @@ func (f *FTX) GetFundingRates(ctx context.Context, request *order.FundingRatesRe
 				})
 			}
 			if request.IncludePayments {
-				fundingDetails, err = f.FundingPayments(ctx, request.StartDate, endTime, fPair)
+				fundingDetails, err = f.FundingPayments(ctx, request.StartDate, endTime, request.Pairs[x])
 				if err != nil {
 					return nil, err
 				}
@@ -1965,7 +1963,7 @@ func (f *FTX) GetFundingRates(ctx context.Context, request *order.FundingRatesRe
 			continue
 		}
 		if request.IncludePredictedRate {
-			stats, err = f.GetFutureStats(ctx, fPair)
+			stats, err = f.GetFutureStats(ctx, request.Pairs[x])
 			if err != nil {
 				return nil, err
 			}

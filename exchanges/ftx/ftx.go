@@ -306,11 +306,15 @@ func (f *FTX) GetFuture(ctx context.Context, futureName string) (FuturesData, er
 }
 
 // GetFutureStats gets data on a given future's stats
-func (f *FTX) GetFutureStats(ctx context.Context, futureName string) (FutureStatsData, error) {
+func (f *FTX) GetFutureStats(ctx context.Context, pair currency.Pair) (FutureStatsData, error) {
 	resp := struct {
 		Data FutureStatsData `json:"result"`
 	}{}
-	return resp.Data, f.SendHTTPRequest(ctx, exchange.RestSpot, fmt.Sprintf(getFutureStats, futureName), &resp)
+	p, err := f.FormatSymbol(pair, asset.Futures)
+	if err != nil {
+		return FutureStatsData{}, err
+	}
+	return resp.Data, f.SendHTTPRequest(ctx, exchange.RestSpot, fmt.Sprintf(getFutureStats, p), &resp)
 }
 
 // GetExpiredFuture returns information on an expired futures contract
@@ -340,20 +344,24 @@ func (f *FTX) GetExpiredFutures(ctx context.Context) ([]FuturesData, error) {
 }
 
 // FundingRates gets data on funding rates
-func (f *FTX) FundingRates(ctx context.Context, startTime, endTime time.Time, future string) ([]FundingRatesData, error) {
+func (f *FTX) FundingRates(ctx context.Context, startTime, endTime time.Time, pair currency.Pair) ([]FundingRatesData, error) {
 	resp := struct {
 		Data []FundingRatesData `json:"result"`
 	}{}
 	params := url.Values{}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if startTime.After(endTime) {
-			return resp.Data, errStartTimeCannotBeAfterEndTime
+			return nil, errStartTimeCannotBeAfterEndTime
 		}
 		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
 		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
 	}
-	if future != "" {
-		params.Set("future", future)
+	if !pair.IsEmpty() {
+		p, err := f.FormatSymbol(pair, asset.Futures)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("future", p)
 	}
 	endpoint := common.EncodeURLValues(getFundingRates, params)
 	return resp.Data, f.SendHTTPRequest(ctx, exchange.RestSpot, endpoint, &resp)
@@ -941,7 +949,7 @@ func (f *FTX) GetFills(ctx context.Context, market currency.Pair, item asset.Ite
 }
 
 // FundingPayments gets funding payments
-func (f *FTX) FundingPayments(ctx context.Context, startTime, endTime time.Time, future string) ([]FundingPaymentsData, error) {
+func (f *FTX) FundingPayments(ctx context.Context, startTime, endTime time.Time, future currency.Pair) ([]FundingPaymentsData, error) {
 	resp := struct {
 		Data []FundingPaymentsData `json:"result"`
 	}{}
@@ -953,8 +961,8 @@ func (f *FTX) FundingPayments(ctx context.Context, startTime, endTime time.Time,
 		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
 		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
 	}
-	if future != "" {
-		params.Set("future", future)
+	if !future.IsEmpty() {
+		params.Set("future", future.String())
 	}
 	endpoint := common.EncodeURLValues(getFundingPayments, params)
 	return resp.Data, f.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, endpoint, nil, &resp)

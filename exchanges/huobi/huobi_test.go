@@ -1587,7 +1587,7 @@ func TestGetSpotKline(t *testing.T) {
 		t.Error(err)
 	}
 	_, err = h.GetSpotKline(context.Background(),
-		KlinesRequestParams{
+		&KlinesRequestParams{
 			Symbol: cp,
 			Period: "1min",
 			Size:   0,

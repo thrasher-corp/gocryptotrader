@@ -3,7 +3,6 @@ package order
 import (
 	"context"
 	"errors"
-	"fmt"
 	"sync"
 	"time"
 
@@ -53,7 +52,6 @@ var (
 	errNilOrder                       = errors.New("nil order received")
 	errNoPNLHistory                   = errors.New("no pnl history")
 	errCannotCalculateUnrealisedPNL   = errors.New("cannot calculate unrealised PNL")
-	errFundingRateOutOfRange          = fmt.Errorf("funding rate out of range")
 	errDoesntMatch                    = errors.New("doesn't match")
 	errCannotTrackInvalidParams       = errors.New("parameters set incorrectly, cannot track")
 )

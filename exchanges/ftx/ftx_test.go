@@ -236,11 +236,11 @@ func TestGetFuture(t *testing.T) {
 
 func TestGetFutureStats(t *testing.T) {
 	t.Parallel()
-	_, err := f.GetFutureStats(context.Background(), "BTC-PERP")
+	_, err := f.GetFutureStats(context.Background(), currency.NewPair(currency.BTC, currency.PERP))
 	if err != nil {
 		t.Error(err)
 	}
-	future, err := f.GetFutureStats(context.Background(), "BTC-MOVE-2021Q4")
+	future, err := f.GetFutureStats(context.Background(), currency.NewPair(currency.BTC, currency.NewCode("MOVE-2021Q4")))
 	if err != nil {
 		t.Error(err)
 	}
@@ -252,12 +252,12 @@ func TestGetFutureStats(t *testing.T) {
 func TestFundingRates(t *testing.T) {
 	t.Parallel()
 	// optional params
-	_, err := f.FundingRates(context.Background(), time.Time{}, time.Time{}, "")
+	_, err := f.FundingRates(context.Background(), time.Time{}, time.Time{}, currency.EMPTYPAIR)
 	if err != nil {
 		t.Error(err)
 	}
 	_, err = f.FundingRates(context.Background(),
-		time.Now().Add(-time.Hour), time.Now(), "BTC-PERP")
+		time.Now().Add(-time.Hour), time.Now(), currency.NewPair(currency.BTC, currency.PERP))
 	if err != nil {
 		t.Error(err)
 	}
@@ -793,17 +793,17 @@ func TestFundingPayments(t *testing.T) {
 	}
 	// optional params
 	_, err := f.FundingPayments(context.Background(),
-		time.Time{}, time.Time{}, "")
+		time.Time{}, time.Time{}, currency.EMPTYPAIR)
 	if err != nil {
 		t.Error(err)
 	}
 	_, err = f.FundingPayments(context.Background(),
-		time.Unix(authStartTime, 0), time.Unix(authEndTime, 0), futuresPair)
+		time.Unix(authStartTime, 0), time.Unix(authEndTime, 0), currency.NewPair(currency.DOGE, currency.PERP))
 	if err != nil {
 		t.Error(err)
 	}
 	_, err = f.FundingPayments(context.Background(),
-		time.Unix(authEndTime, 0), time.Unix(authStartTime, 0), futuresPair)
+		time.Unix(authEndTime, 0), time.Unix(authStartTime, 0), currency.NewPair(currency.DOGE, currency.PERP))
 	if err != errStartTimeCannotBeAfterEndTime {
 		t.Errorf("should have thrown errStartTimeCannotBeAfterEndTime, got %v", err)
 	}
@@ -2321,7 +2321,7 @@ func TestGetFundingRates(t *testing.T) {
 	}
 
 	request.Pairs = currency.Pairs{
-		currency.NewPair(currency.BTC, currency.USD),
+		currency.NewPair(currency.DOGE, currency.USD),
 	}
 	_, err = f.GetFundingRates(context.Background(), request)
 	if !errors.Is(err, common.ErrDateUnset) {
@@ -2330,6 +2330,7 @@ func TestGetFundingRates(t *testing.T) {
 
 	request.StartDate = time.Now().Add(-time.Hour * 24 * 31)
 	request.EndDate = time.Now()
+	request.Asset = asset.Spot
 	_, err = f.GetFundingRates(context.Background(), request)
 	if !errors.Is(err, currency.ErrPairNotFound) {
 		t.Errorf("received '%v' expected '%v'", err, currency.ErrPairNotFound)

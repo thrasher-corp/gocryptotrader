@@ -186,8 +186,13 @@ func TestTrackNewOrder(t *testing.T) {
 	}
 
 	err = f.TrackNewOrder(od, false)
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v expected %v", err, nil)
+	}
+	od.OrderID = "hellomoto"
+	err = f.TrackNewOrder(od)
 	if !errors.Is(err, ErrPositionClosed) {
-		t.Error(err)
+		t.Errorf("received %v expected %v", err, ErrPositionClosed)
 	}
 	if f.latestDirection != UnknownSide {
 		t.Errorf("expected recognition that its unknown, received '%v'", f.latestDirection)
@@ -506,6 +511,10 @@ func TestGetPositionsForExchange(t *testing.T) {
 	t.Parallel()
 	c := &PositionController{}
 	p := currency.NewPair(currency.BTC, currency.USDT)
+	pKey, err := p.Key()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v", err, nil)
+	}
 	pos, err := c.GetPositionsForExchange(testExchange, asset.Futures, p)
 	if !errors.Is(err, ErrPositionsNotLoadedForExchange) {
 		t.Errorf("received '%v' expected '%v", err, ErrPositionsNotLoadedForExchange)
@@ -513,13 +522,13 @@ func TestGetPositionsForExchange(t *testing.T) {
 	if len(pos) != 0 {
 		t.Error("expected zero")
 	}
-	c.multiPositionTrackers = make(map[string]map[asset.Item]map[currency.Pair]*MultiPositionTracker)
+	c.multiPositionTrackers = make(map[string]map[asset.Item]map[currency.PairKey]*MultiPositionTracker)
 	c.multiPositionTrackers[testExchange] = nil
 	_, err = c.GetPositionsForExchange(testExchange, asset.Futures, p)
 	if !errors.Is(err, ErrPositionsNotLoadedForAsset) {
 		t.Errorf("received '%v' expected '%v", err, ErrPositionsNotLoadedForExchange)
 	}
-	c.multiPositionTrackers[testExchange] = make(map[asset.Item]map[currency.Pair]*MultiPositionTracker)
+	c.multiPositionTrackers[testExchange] = make(map[asset.Item]map[currency.PairKey]*MultiPositionTracker)
 	c.multiPositionTrackers[testExchange][asset.Futures] = nil
 	_, err = c.GetPositionsForExchange(testExchange, asset.Futures, p)
 	if !errors.Is(err, ErrPositionsNotLoadedForPair) {
@@ -530,8 +539,8 @@ func TestGetPositionsForExchange(t *testing.T) {
 		t.Errorf("received '%v' expected '%v", err, ErrNotFuturesAsset)
 	}
 
-	c.multiPositionTrackers[testExchange][asset.Futures] = make(map[currency.Pair]*MultiPositionTracker)
-	c.multiPositionTrackers[testExchange][asset.Futures][p] = &MultiPositionTracker{
+	c.multiPositionTrackers[testExchange][asset.Futures] = make(map[currency.PairKey]*MultiPositionTracker)
+	c.multiPositionTrackers[testExchange][asset.Futures][pKey] = &MultiPositionTracker{
 		exchange: testExchange,
 	}
 
@@ -542,7 +551,7 @@ func TestGetPositionsForExchange(t *testing.T) {
 	if len(pos) != 0 {
 		t.Fatal("expected zero")
 	}
-	c.multiPositionTrackers[testExchange][asset.Futures][p] = &MultiPositionTracker{
+	c.multiPositionTrackers[testExchange][asset.Futures][pKey] = &MultiPositionTracker{
 		exchange: testExchange,
 		positions: []*PositionTracker{
 			{
@@ -571,7 +580,11 @@ func TestClearPositionsForExchange(t *testing.T) {
 	t.Parallel()
 	c := &PositionController{}
 	p := currency.NewPair(currency.BTC, currency.USDT)
-	err := c.ClearPositionsForExchange(testExchange, asset.Futures, p)
+	pKey, err := p.Key()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v", err, nil)
+	}
+	err = c.ClearPositionsForExchange(testExchange, asset.Futures, p)
 	if !errors.Is(err, ErrPositionsNotLoadedForExchange) {
 		t.Errorf("received '%v' expected '%v", err, ErrPositionsNotLoadedForExchange)
 	}
@@ -581,7 +594,7 @@ func TestClearPositionsForExchange(t *testing.T) {
 	if !errors.Is(err, ErrPositionsNotLoadedForAsset) {
 		t.Errorf("received '%v' expected '%v", err, ErrPositionsNotLoadedForExchange)
 	}
-	c.multiPositionTrackers[testExchange] = make(map[asset.Item]map[currency.Pair]*MultiPositionTracker)
+	c.multiPositionTrackers[testExchange] = make(map[asset.Item]map[currency.PairKey]*MultiPositionTracker)
 	c.multiPositionTrackers[testExchange][asset.Futures] = nil
 	err = c.ClearPositionsForExchange(testExchange, asset.Futures, p)
 	if !errors.Is(err, ErrPositionsNotLoadedForPair) {
@@ -592,11 +605,11 @@ func TestClearPositionsForExchange(t *testing.T) {
 		t.Errorf("received '%v' expected '%v", err, ErrNotFuturesAsset)
 	}
 
-	c.multiPositionTrackers[testExchange][asset.Futures] = make(map[currency.Pair]*MultiPositionTracker)
-	c.multiPositionTrackers[testExchange][asset.Futures][p] = &MultiPositionTracker{
+	c.multiPositionTrackers[testExchange][asset.Futures] = make(map[currency.PairKey]*MultiPositionTracker)
+	c.multiPositionTrackers[testExchange][asset.Futures][pKey] = &MultiPositionTracker{
 		exchange: testExchange,
 	}
-	c.multiPositionTrackers[testExchange][asset.Futures][p] = &MultiPositionTracker{
+	c.multiPositionTrackers[testExchange][asset.Futures][pKey] = &MultiPositionTracker{
 		exchange:   testExchange,
 		underlying: currency.DOGE,
 		positions: []*PositionTracker{
@@ -609,7 +622,7 @@ func TestClearPositionsForExchange(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v", err, nil)
 	}
-	if len(c.multiPositionTrackers[testExchange][asset.Futures][p].positions) != 0 {
+	if len(c.multiPositionTrackers[testExchange][asset.Futures][pKey].positions) != 0 {
 		t.Fatal("expected 0")
 	}
 	c = nil
@@ -1141,6 +1154,10 @@ func TestPCTrackFundingDetails(t *testing.T) {
 	}
 
 	cp := currency.NewPair(currency.BTC, currency.PERP)
+	pKey, err := cp.Key()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v", err, nil)
+	}
 	rates := &FundingRates{
 		Exchange: testExchange,
 		Asset:    asset.Futures,
@@ -1175,8 +1192,8 @@ func TestPCTrackFundingDetails(t *testing.T) {
 			Payment: decimal.NewFromInt(1337),
 		},
 	}
-	pc.positionTrackerControllers[testExchange][asset.Futures][cp].orderPositions["lol"].openingDate = tn.Add(-time.Hour)
-	pc.positionTrackerControllers[testExchange][asset.Futures][cp].orderPositions["lol"].lastUpdated = tn
+	pc.positionTrackerControllers[testExchange][asset.Futures][pKey].orderPositions["lol"].openingDate = tn.Add(-time.Hour)
+	pc.positionTrackerControllers[testExchange][asset.Futures][pKey].orderPositions["lol"].lastUpdated = tn
 	err = pc.TrackFundingDetails(rates)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v", err, nil)
@@ -1311,8 +1328,8 @@ func TestPTTrackFundingDetails(t *testing.T) {
 
 	rates.StartDate = rates.StartDate.Add(-time.Hour)
 	err = p.TrackFundingDetails(rates)
-	if !errors.Is(err, errFundingRateOutOfRange) {
-		t.Errorf("received '%v' expected '%v", err, errFundingRateOutOfRange)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v", err, nil)
 	}
 }
 

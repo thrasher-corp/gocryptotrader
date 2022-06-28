@@ -48,8 +48,11 @@ func (c *PositionController) TrackNewOrder(d *Detail) error {
 		itemM = make(map[currency.PairKey]*MultiPositionTracker)
 		exchM[d.AssetType] = itemM
 	}
-	var err error
-	multiPositionTracker, ok := itemM[d.Pair.Key()]
+	pKey, err := d.Pair.Key()
+	if err != nil {
+		return err
+	}
+	multiPositionTracker, ok := itemM[pKey]
 	if !ok {
 		multiPositionTracker, err = SetupMultiPositionTracker(&MultiPositionTrackerSetup{
 			Exchange:   strings.ToLower(d.Exchange),
@@ -60,7 +63,7 @@ func (c *PositionController) TrackNewOrder(d *Detail) error {
 		if err != nil {
 			return err
 		}
-		itemM[d.Pair.Key()] = multiPositionTracker
+		itemM[pKey] = multiPositionTracker
 	}
 	return multiPositionTracker.TrackNewOrder(d)
 }
@@ -122,7 +125,11 @@ func (c *PositionController) GetPositionsForExchange(exch string, item asset.Ite
 	if !ok {
 		return nil, fmt.Errorf("%v %v %v %w", exch, item, pair, ErrPositionsNotLoadedForAsset)
 	}
-	multiPositionTracker, ok := itemM[pair.Key()]
+	pKey, err := pair.Key()
+	if err != nil {
+		return nil, err
+	}
+	multiPositionTracker, ok := itemM[pKey]
 	if !ok {
 		return nil, fmt.Errorf("%v %v %v %w", exch, item, pair, ErrPositionsNotLoadedForPair)
 	}
@@ -153,8 +160,11 @@ func (c *PositionController) TrackFundingDetails(d *FundingRates) error {
 		itemM = make(map[currency.PairKey]*MultiPositionTracker)
 		exchM[d.Asset] = itemM
 	}
-	var err error
-	multiPositionTracker, ok := itemM[d.Pair.Key()]
+	pKey, err := d.Pair.Key()
+	if err != nil {
+		return err
+	}
+	multiPositionTracker, ok := itemM[pKey]
 	if !ok {
 		multiPositionTracker, err = SetupMultiPositionTracker(&MultiPositionTrackerSetup{
 			Exchange:   strings.ToLower(d.Exchange),
@@ -165,7 +175,7 @@ func (c *PositionController) TrackFundingDetails(d *FundingRates) error {
 		if err != nil {
 			return err
 		}
-		itemM[d.Pair.Key()] = multiPositionTracker
+		itemM[pKey] = multiPositionTracker
 	}
 	return multiPositionTracker.TrackFundingDetails(d)
 }
@@ -178,6 +188,10 @@ func (c *PositionController) GetOpenPosition(exch string, item asset.Item, pair 
 	c.m.Lock()
 	defer c.m.Unlock()
 	exch = strings.ToLower(exch)
+	pKey, err := pair.Key()
+	if err != nil {
+		return nil, err
+	}
 loop:
 	for exchStr, exchM := range c.multiPositionTrackers {
 		if exch != "" && exch != exchStr {
@@ -188,7 +202,7 @@ loop:
 				continue
 			}
 			for cp, multiPositionTracker := range itemM {
-				if !pair.IsEmpty() && !pair.Key().Equal(cp) {
+				if !pair.IsEmpty() && !pKey.Equal(cp) {
 					continue
 				}
 				positions := multiPositionTracker.GetPositions()
@@ -237,23 +251,27 @@ func (c *PositionController) GetAllOpenPositions() ([]Position, error) {
 // using the latest ticker data
 func (c *PositionController) UpdateOpenPositionUnrealisedPNL(exch string, item asset.Item, pair currency.Pair, last float64, updated time.Time) (decimal.Decimal, error) {
 	if c == nil {
-		return decimal.Zero, fmt.Errorf("position controller %w", common.ErrNilPointer)
+		return decimal.Decimal{}, fmt.Errorf("position controller %w", common.ErrNilPointer)
 	}
 	if !item.IsFutures() {
-		return decimal.Zero, fmt.Errorf("%v %v %v %w", exch, item, pair, ErrNotFuturesAsset)
+		return decimal.Decimal{}, fmt.Errorf("%v %v %v %w", exch, item, pair, ErrNotFuturesAsset)
 	}
 
 	c.m.Lock()
 	defer c.m.Unlock()
 	exchM, ok := c.multiPositionTrackers[strings.ToLower(exch)]
 	if !ok {
-		return decimal.Zero, fmt.Errorf("%v %v %v %w", exch, item, pair, ErrPositionsNotLoadedForExchange)
+		return decimal.Decimal{}, fmt.Errorf("%v %v %v %w", exch, item, pair, ErrPositionsNotLoadedForExchange)
 	}
 	itemM, ok := exchM[item]
 	if !ok {
-		return decimal.Zero, fmt.Errorf("%v %v %v %w", exch, item, pair, ErrPositionsNotLoadedForAsset)
+		return decimal.Decimal{}, fmt.Errorf("%v %v %v %w", exch, item, pair, ErrPositionsNotLoadedForAsset)
 	}
-	multiPositionTracker, ok := itemM[pair.Key()]
+	pKey, err := pair.Key()
+	if err != nil {
+		return decimal.Decimal{}, err
+	}
+	multiPositionTracker, ok := itemM[pKey]
 	if !ok {
 		return decimal.Zero, fmt.Errorf("%v %v %v %w", exch, item, pair, ErrPositionsNotLoadedForPair)
 	}
@@ -266,11 +284,11 @@ func (c *PositionController) UpdateOpenPositionUnrealisedPNL(exch string, item a
 	}
 	latestPos := pos[len(pos)-1]
 	if latestPos.status != Open {
-		return decimal.Zero, fmt.Errorf("%v %v %v %w", exch, item, pair, ErrPositionClosed)
+		return decimal.Decimal{}, fmt.Errorf("%v %v %v %w", exch, item, pair, ErrPositionClosed)
 	}
-	err := latestPos.TrackPNLByTime(updated, last)
+	err = latestPos.TrackPNLByTime(updated, last)
 	if err != nil {
-		return decimal.Zero, fmt.Errorf("%w for position %v %v %v", err, exch, item, pair)
+		return decimal.Decimal{}, fmt.Errorf("%w for position %v %v %v", err, exch, item, pair)
 	}
 	latestPos.m.Lock()
 	defer latestPos.m.Unlock()
@@ -395,7 +413,11 @@ func (c *PositionController) ClearPositionsForExchange(exch string, item asset.I
 	if !ok {
 		return fmt.Errorf("%v %v %v %w", exch, item, pair, ErrPositionsNotLoadedForAsset)
 	}
-	multiPositionTracker, ok := itemM[pair.Key()]
+	pKey, err := pair.Key()
+	if err != nil {
+		return err
+	}
+	multiPositionTracker, ok := itemM[pKey]
 	if !ok {
 		return fmt.Errorf("%v %v %v %w", exch, item, pair, ErrPositionsNotLoadedForPair)
 	}
@@ -412,7 +434,7 @@ func (c *PositionController) ClearPositionsForExchange(exch string, item asset.I
 	if err != nil {
 		return err
 	}
-	itemM[pair.Key()] = newMPT
+	itemM[pKey] = newMPT
 	return nil
 }
 
@@ -457,7 +479,7 @@ func (m *MultiPositionTracker) TrackNewOrder(d *Detail) error {
 		}
 		if m.positions[len(m.positions)-1].status == Open {
 			err := m.positions[len(m.positions)-1].TrackNewOrder(d, false)
-			if err != nil && !errors.Is(err, ErrPositionClosed) {
+			if err != nil {
 				return err
 			}
 			m.orderPositions[d.OrderID] = m.positions[len(m.positions)-1]
@@ -762,16 +784,13 @@ func (p *PositionTracker) TrackFundingDetails(d *FundingRates) error {
 	if len(p.pnlHistory) == 0 {
 		return fmt.Errorf("%w for timeframe %v %v %v %v-%v", ErrNoPositionsFound, p.exchange, p.asset, p.contractPair, d.StartDate, d.EndDate)
 	}
-	if d.StartDate.Before(p.openingDate) {
-		return fmt.Errorf("%w", errFundingRateOutOfRange)
-	}
 	if p.fundingRateDetails == nil {
 		p.fundingRateDetails = d
 		return nil
 	}
 	for i := range p.fundingRateDetails.FundingRates {
 		for j := range d.FundingRates {
-			if d.FundingRates[j].Time.After(p.closingDate) {
+			if d.FundingRates[j].Time.After(p.closingDate) || d.FundingRates[j].Time.Before(p.openingDate) {
 				continue
 			}
 			if !p.fundingRateDetails.FundingRates[i].Time.Equal(d.FundingRates[j].Time) {
