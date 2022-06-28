@@ -481,7 +481,7 @@ func (by *Bybit) wsUSDTHandleData(respRaw []byte) error {
 					Err:      err,
 				}
 			}
-			by.Websocket.DataHandler <- &order.Modify{
+			by.Websocket.DataHandler <- &order.Detail{
 				Exchange:  by.Name,
 				OrderID:   response.Data[i].OrderID,
 				AssetType: asset.USDTMarginedFutures,

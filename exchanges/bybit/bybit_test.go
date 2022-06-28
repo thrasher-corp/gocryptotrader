@@ -531,7 +531,8 @@ func TestWSTickerInfo(t *testing.T) {
 		"O":"899062000118679808",
 		"a":"10043",
 		"A":"10024",
-		"m":true
+		"m":true,
+		"S":"BUY"
 	}]`)
 	err := b.wsHandleData(pressXToJSON)
 	if err != nil {

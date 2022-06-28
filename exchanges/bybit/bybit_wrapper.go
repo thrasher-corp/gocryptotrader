@@ -732,16 +732,14 @@ func (by *Bybit) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 			return info, err
 		}
 
-		var i int
-		currencyBalance := make([]account.Balance, 1)
-		currencyBalance[i] = account.Balance{
-			CurrencyName: currency.NewCode("USD"),
-			Total:        balance.WalletBalance,
-			Hold:         balance.WalletBalance - balance.AvailableBalance,
-			Free:         balance.AvailableBalance,
+		acc.Currencies = []account.Balance{
+			{
+				CurrencyName: currency.USD,
+				Total:        balance.WalletBalance,
+				Hold:         balance.WalletBalance - balance.AvailableBalance,
+				Free:         balance.AvailableBalance,
+			},
 		}
-
-		acc.Currencies = currencyBalance
 
 	default:
 		return info, fmt.Errorf("%s %w", assetType, asset.ErrNotSupported)
@@ -1066,14 +1064,12 @@ func (by *Bybit) ModifyOrder(ctx context.Context, action *order.Modify) (*order.
 		err = fmt.Errorf("%s %w", action.AssetType, asset.ErrNotSupported)
 	}
 
-	return &order.ModifyResponse{
-		Exchange:  action.Exchange,
-		AssetType: action.AssetType,
-		Pair:      action.Pair,
-		OrderID:   orderID,
-		Price:     action.Price,
-		Amount:    action.Amount,
-	}, err
+	resp, err := action.DeriveModifyResponse()
+	if err != nil {
+		return nil, err
+	}
+	resp.OrderID = orderID
+	return resp, nil
 }
 
 // CancelOrder cancels an order by its corresponding ID number

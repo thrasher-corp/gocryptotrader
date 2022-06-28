@@ -1059,11 +1059,13 @@ func (by *Bybit) SendUSDCAuthHTTPRequest(ctx context.Context, ePath exchange.URL
 		var payload, hmacSigned []byte
 
 		if data != nil {
-			if d, ok := data.(map[string]interface{}); ok {
-				payload, err = json.Marshal(d)
-				if err != nil {
-					return nil, err
-				}
+			d, ok := data.(map[string]interface{})
+			if !ok {
+				return nil, errors.New("invalid data found")
+			}
+			payload, err = json.Marshal(d)
+			if err != nil {
+				return nil, err
 			}
 		}
 

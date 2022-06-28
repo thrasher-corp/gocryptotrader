@@ -460,18 +460,30 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 				}
 
 				for j := range data {
+					var oSide order.Side
+					oSide, err = order.StringToOrderSide(data[j].Side)
+					if err != nil {
+						by.Websocket.DataHandler <- order.ClassificationError{
+							Exchange: by.Name,
+							OrderID:  data[j].OrderID,
+							Err:      err,
+						}
+					}
+
 					p, err := by.extractCurrencyPair(data[j].Symbol, asset.Spot)
 					if err != nil {
 						return err
 					}
 
-					by.Websocket.DataHandler <- order.Modify{
+					by.Websocket.DataHandler <- &order.Detail{
 						Exchange:  by.Name,
 						OrderID:   data[j].OrderID,
+						Side:      oSide,
 						AssetType: asset.Spot,
 						Pair:      p,
 						Price:     data[j].Price,
 						Amount:    data[j].Quantity,
+						Date:      data[j].Timestamp.Time(),
 					}
 				}
 				return nil

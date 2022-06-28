@@ -512,19 +512,20 @@ type wsOrderUpdate struct {
 
 // wsOrderFilled defines websocket account order filled data
 type wsOrderFilled struct {
-	EventType         string  `json:"e"`
-	EventTime         string  `json:"E"`
-	Symbol            string  `json:"s"`
-	Quantity          float64 `json:"q,string"`
-	Timestamp         string  `json:"t"`
-	Price             float64 `json:"p,string"`
-	TradeID           string  `json:"T"`
-	OrderID           string  `json:"o"`
-	UserGenOrderID    string  `json:"c"`
-	OpponentOrderID   string  `json:"O"`
-	AccountID         string  `json:"a"`
-	OpponentAccountID string  `json:"A"`
-	IsMaker           bool    `json:"m"`
+	EventType         string               `json:"e"`
+	EventTime         string               `json:"E"`
+	Symbol            string               `json:"s"`
+	Quantity          float64              `json:"q,string"`
+	Timestamp         bybitTimeMilliSecStr `json:"t"`
+	Price             float64              `json:"p,string"`
+	TradeID           string               `json:"T"`
+	OrderID           string               `json:"o"`
+	UserGenOrderID    string               `json:"c"`
+	OpponentOrderID   string               `json:"O"`
+	AccountID         string               `json:"a"`
+	OpponentAccountID string               `json:"A"`
+	IsMaker           bool                 `json:"m"`
+	Side              string               `json:"S"`
 }
 
 // WsFuturesOrderbookData stores ws futures orderbook data
