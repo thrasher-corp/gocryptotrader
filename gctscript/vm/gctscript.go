@@ -52,10 +52,11 @@ func (g *GctScriptManager) ShutdownAll() (err error) {
 	}
 
 	var shutdownErrors []error
-	AllVMSync.Range(func(k, v interface{}) bool {
+	AllVMSync.Range(func(_, v interface{}) bool {
 		vm, ok := v.(*VM)
 		if !ok {
 			shutdownErrors = append(shutdownErrors, errors.New("unable to type assert VM"))
+			return true
 		}
 		errShutdown := vm.Shutdown()
 		if err != nil {
@@ -73,7 +74,7 @@ func (g *GctScriptManager) ShutdownAll() (err error) {
 
 // RemoveVM remove VM from list
 func (g *GctScriptManager) RemoveVM(id uuid.UUID) error {
-	if _, f := AllVMSync.Load(id); !f {
+	if _, ok := AllVMSync.Load(id); !ok {
 		return fmt.Errorf(ErrNoVMFound, id.String())
 	}
 

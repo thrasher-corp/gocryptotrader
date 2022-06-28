@@ -56,22 +56,21 @@ func ExchangeOrderbook(args ...objects.Object) (objects.Object, error) {
 
 	pair, err := currency.NewPairDelimiter(currencyPair, delimiter)
 	if err != nil {
-		return nil, err
+		return errorResponse("%s", err)
 	}
 
 	assetType, err := asset.New(assetTypeParam)
 	if err != nil {
-		return nil, err
+		return errorResponse("%s", err)
 	}
 
 	ob, err := wrappers.GetWrapper().
 		Orderbook(context.TODO(), exchangeName, pair, assetType)
 	if err != nil {
-		return nil, err
+		return errorResponse("%s", err)
 	}
 
 	var asks, bids objects.Array
-
 	for x := range ob.Asks {
 		temp := make(map[string]objects.Object, 2)
 		temp["amount"] = &objects.Float{Value: ob.Asks[x].Amount}
@@ -128,13 +127,13 @@ func ExchangeTicker(args ...objects.Object) (objects.Object, error) {
 
 	assetType, err := asset.New(assetTypeParam)
 	if err != nil {
-		return nil, err
+		return errorResponse("%s", err)
 	}
 
 	tx, err := wrappers.GetWrapper().
 		Ticker(context.TODO(), exchangeName, pair, assetType)
 	if err != nil {
-		return nil, err
+		return errorResponse("%s", err)
 	}
 
 	data := make(map[string]objects.Object, 14)
@@ -170,9 +169,11 @@ func ExchangeExchanges(args ...objects.Object) (objects.Object, error) {
 	}
 	rtnValue := wrappers.GetWrapper().Exchanges(enabledOnly)
 
-	r := objects.Array{}
+	r := objects.Array{
+		Value: make([]objects.Object, len(rtnValue)),
+	}
 	for x := range rtnValue {
-		r.Value = append(r.Value, &objects.String{Value: rtnValue[x]})
+		r.Value[x] = &objects.String{Value: rtnValue[x]}
 	}
 
 	return &r, nil
@@ -198,18 +199,20 @@ func ExchangePairs(args ...objects.Object) (objects.Object, error) {
 	}
 	assetType, err := asset.New(assetTypeParam)
 	if err != nil {
-		return nil, err
+		return errorResponse("%s", err)
 	}
 
-	rtnValue, err := wrappers.GetWrapper().Pairs(exchangeName, enabledOnly, assetType)
+	pairs, err := wrappers.GetWrapper().Pairs(exchangeName, enabledOnly, assetType)
 	if err != nil {
-		return nil, err
+		return errorResponse("%s", err)
 	}
 
-	r := objects.Array{}
-	pairs := *(*[]currency.Pair)(rtnValue)
-	for x := range pairs {
-		r.Value = append(r.Value, &objects.String{Value: pairs[x].String()})
+	r := objects.Array{
+		Value: make([]objects.Object, len(*pairs)),
+	}
+
+	for x := range *pairs {
+		r.Value[x] = &objects.String{Value: (*pairs)[x].String()}
 	}
 	return &r, nil
 }
@@ -230,12 +233,12 @@ func ExchangeAccountInfo(args ...objects.Object) (objects.Object, error) {
 	}
 	assetType, err := asset.New(assetString)
 	if err != nil {
-		return nil, err
+		return errorResponse("%s", err)
 	}
 	rtnValue, err := wrappers.GetWrapper().
 		AccountInformation(context.TODO(), exchangeName, assetType)
 	if err != nil {
-		return nil, err
+		return errorResponse("%s", err)
 	}
 
 	var funds objects.Array
@@ -298,16 +301,17 @@ func ExchangeOrderQuery(args ...objects.Object) (objects.Object, error) {
 
 	assetType, err := asset.New(assetTypeString)
 	if err != nil {
-		return nil, err
+		return errorResponse("%s", err)
 	}
 
 	orderDetails, err := wrappers.GetWrapper().
 		QueryOrder(context.TODO(), exchangeName, orderID, pair, assetType)
 	if err != nil {
-		return nil, err
+		return errorResponse("%s", err)
 	}
 
 	var tradeHistory objects.Array
+	tradeHistory.Value = make([]objects.Object, len(orderDetails.Trades))
 	for x := range orderDetails.Trades {
 		temp := make(map[string]objects.Object, 7)
 		temp["timestamp"] = &objects.Time{Value: orderDetails.Trades[x].Timestamp}
@@ -317,7 +321,7 @@ func ExchangeOrderQuery(args ...objects.Object) (objects.Object, error) {
 		temp["type"] = &objects.String{Value: orderDetails.Trades[x].Type.String()}
 		temp["side"] = &objects.String{Value: orderDetails.Trades[x].Side.String()}
 		temp["description"] = &objects.String{Value: orderDetails.Trades[x].Description}
-		tradeHistory.Value = append(tradeHistory.Value, &objects.Map{Value: temp})
+		tradeHistory.Value[x] = &objects.Map{Value: temp}
 	}
 
 	data := make(map[string]objects.Object, 14)
@@ -336,9 +340,7 @@ func ExchangeOrderQuery(args ...objects.Object) (objects.Object, error) {
 	data["status"] = &objects.String{Value: orderDetails.Status.String()}
 	data["trades"] = &tradeHistory
 
-	return &objects.Map{
-		Value: data,
-	}, nil
+	return &objects.Map{Value: data}, nil
 }
 
 // ExchangeOrderCancel cancels order on requested exchange
@@ -372,7 +374,7 @@ func ExchangeOrderCancel(args ...objects.Object) (objects.Object, error) {
 		}
 		cp, err = currency.NewPairFromString(currencyPair)
 		if err != nil {
-			return nil, err
+			return errorResponse("%s", err)
 		}
 	}
 	var a asset.Item
@@ -384,7 +386,7 @@ func ExchangeOrderCancel(args ...objects.Object) (objects.Object, error) {
 		}
 		a, err = asset.New(assetType)
 		if err != nil {
-			return nil, err
+			return errorResponse("%s", err)
 		}
 	}
 
@@ -392,7 +394,7 @@ func ExchangeOrderCancel(args ...objects.Object) (objects.Object, error) {
 	isCancelled, err = wrappers.GetWrapper().
 		CancelOrder(context.TODO(), exchangeName, orderID, cp, a)
 	if err != nil {
-		return nil, err
+		return errorResponse("%s", err)
 	}
 
 	if isCancelled {
@@ -419,10 +421,6 @@ func ExchangeOrderSubmit(args ...objects.Object) (objects.Object, error) {
 	if !ok {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, delimiter)
 	}
-	pair, err := currency.NewPairDelimiter(currencyPair, delimiter)
-	if err != nil {
-		return nil, err
-	}
 	orderType, ok := objects.ToString(args[3])
 	if !ok {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, orderType)
@@ -447,19 +445,25 @@ func ExchangeOrderSubmit(args ...objects.Object) (objects.Object, error) {
 	if !ok {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, orderClientID)
 	}
+
+	pair, err := currency.NewPairDelimiter(currencyPair, delimiter)
+	if err != nil {
+		return errorResponse("%s", err)
+	}
+
 	a, err := asset.New(assetType)
 	if err != nil {
-		return nil, err
+		return errorResponse("%s", err)
 	}
 
 	side, err := order.StringToOrderSide(orderSide)
 	if err != nil {
-		return nil, err
+		return errorResponse("%s", err)
 	}
 
 	oType, err := order.StringToOrderType(orderType)
 	if err != nil {
-		return nil, err
+		return errorResponse("%s", err)
 	}
 
 	tempSubmit := &order.Submit{
@@ -475,16 +479,14 @@ func ExchangeOrderSubmit(args ...objects.Object) (objects.Object, error) {
 
 	rtn, err := wrappers.GetWrapper().SubmitOrder(context.TODO(), tempSubmit)
 	if err != nil {
-		return nil, err
+		return errorResponse("%s", err)
 	}
 
 	data := make(map[string]objects.Object, 2)
 	data["orderid"] = &objects.String{Value: rtn.OrderID}
 	data["isorderplaced"] = objects.TrueValue
 
-	return &objects.Map{
-		Value: data,
-	}, nil
+	return &objects.Map{Value: data}, nil
 }
 
 // ExchangeDepositAddress returns deposit address (if supported by exchange)
@@ -510,15 +512,13 @@ func ExchangeDepositAddress(args ...objects.Object) (objects.Object, error) {
 
 	rtn, err := wrappers.GetWrapper().DepositAddress(exchangeName, chain, currCode)
 	if err != nil {
-		return nil, err
+		return errorResponse("%s", err)
 	}
 
 	data := make(map[string]objects.Object, 2)
 	data["address"] = &objects.String{Value: rtn.Address}
 	data["tag"] = &objects.String{Value: rtn.Tag}
-	return &objects.Map{
-		Value: data,
-	}, nil
+	return &objects.Map{Value: data}, nil
 }
 
 // ExchangeWithdrawCrypto submit request to withdraw crypto assets
@@ -571,7 +571,7 @@ func ExchangeWithdrawCrypto(args ...objects.Object) (objects.Object, error) {
 	rtn, err := wrappers.GetWrapper().
 		WithdrawalCryptoFunds(context.TODO(), withdrawRequest)
 	if err != nil {
-		return nil, err
+		return errorResponse("%s", err)
 	}
 
 	return &objects.String{Value: rtn}, nil
@@ -614,7 +614,7 @@ func ExchangeWithdrawFiat(args ...objects.Object) (objects.Object, error) {
 	rtn, err := wrappers.GetWrapper().
 		WithdrawalFiatFunds(context.TODO(), bankAccountID, withdrawRequest)
 	if err != nil {
-		return nil, err
+		return errorResponse("%s", err)
 	}
 
 	return &objects.String{Value: rtn}, nil
@@ -668,15 +668,15 @@ func exchangeOHLCV(args ...objects.Object) (objects.Object, error) {
 	}
 	interval, err := parseInterval(intervalStr)
 	if err != nil {
-		return nil, err
+		return errorResponse("%s", err)
 	}
 	pair, err := currency.NewPairDelimiter(currencyPair, delimiter)
 	if err != nil {
-		return nil, err
+		return errorResponse("%s", err)
 	}
 	assetType, err := asset.New(assetTypeParam)
 	if err != nil {
-		return nil, err
+		return errorResponse("%s", err)
 	}
 
 	ret, err := wrappers.GetWrapper().
@@ -688,21 +688,21 @@ func exchangeOHLCV(args ...objects.Object) (objects.Object, error) {
 			endTime,
 			kline.Interval(interval))
 	if err != nil {
-		return nil, err
+		return errorResponse("%s", err)
 	}
 
-	var candles objects.Array
+	candles := objects.Array{Value: make([]objects.Object, len(ret.Candles))}
 	for x := range ret.Candles {
-		candle := &objects.Array{}
-		candle.Value = append(candle.Value, &objects.Int{Value: ret.Candles[x].Time.Unix()},
-			&objects.Float{Value: ret.Candles[x].Open},
-			&objects.Float{Value: ret.Candles[x].High},
-			&objects.Float{Value: ret.Candles[x].Low},
-			&objects.Float{Value: ret.Candles[x].Close},
-			&objects.Float{Value: ret.Candles[x].Volume},
-		)
-
-		candles.Value = append(candles.Value, candle)
+		candles.Value[x] = &objects.Array{
+			Value: []objects.Object{
+				&objects.Int{Value: ret.Candles[x].Time.Unix()},
+				&objects.Float{Value: ret.Candles[x].Open},
+				&objects.Float{Value: ret.Candles[x].High},
+				&objects.Float{Value: ret.Candles[x].Low},
+				&objects.Float{Value: ret.Candles[x].Close},
+				&objects.Float{Value: ret.Candles[x].Volume},
+			},
+		}
 	}
 
 	retValue := make(map[string]objects.Object, 5)

@@ -33,10 +33,7 @@ func (g *GctScriptManager) NewVM() *VM {
 	}
 	newUUID, err := uuid.NewV4()
 	if err != nil {
-		log.Error(log.GCTScriptMgr, Error{
-			Action: "New: UUID",
-			Cause:  err,
-		})
+		log.Error(log.GCTScriptMgr, Error{Action: "New: UUID", Cause: err})
 		return nil
 	}
 
@@ -82,11 +79,7 @@ func (vm *VM) Load(file string) error {
 
 	code, err := os.ReadFile(file)
 	if err != nil {
-		return &Error{
-			Action: "Load: ReadFile",
-			Script: file,
-			Cause:  err,
-		}
+		return &Error{Action: "Load: ReadFile", Script: file, Cause: err}
 	}
 
 	vm.File = file
@@ -113,7 +106,6 @@ func (vm *VM) Load(file string) error {
 
 // Compile compiles to byte code loaded copy of vm script
 func (vm *VM) Compile() (err error) {
-	vm.Compiled = new(tengo.Compiled)
 	vm.Compiled, err = vm.Script.Compile()
 	return
 }
@@ -133,10 +125,7 @@ func (vm *VM) RunCtx() (err error) {
 	err = vm.Compiled.RunContext(ctx)
 	if err != nil {
 		vm.event(StatusFailure, TypeExecute)
-		return Error{
-			Action: "RunCtx",
-			Cause:  err,
-		}
+		return Error{Action: "RunCtx", Cause: err}
 	}
 	vm.event(StatusSuccess, TypeExecute)
 	return
@@ -247,24 +236,23 @@ func (vm *VM) event(status, executionType string) {
 }
 
 func (vm *VM) scriptData() ([]byte, error) {
-	buf := new(bytes.Buffer)
-	w := zip.NewWriter(buf)
-
-	f, err := w.Create(vm.ShortName())
-	if err != nil {
-		return []byte{}, err
-	}
 	contents, err := vm.read()
 	if err != nil {
-		return []byte{}, err
+		return nil, err
+	}
+	buf := new(bytes.Buffer)
+	w := zip.NewWriter(buf)
+	f, err := w.Create(vm.ShortName())
+	if err != nil {
+		return nil, err
 	}
 	_, err = f.Write(contents)
 	if err != nil {
-		return []byte{}, err
+		return nil, err
 	}
 	err = w.Close()
 	if err != nil {
-		return []byte{}, err
+		return nil, err
 	}
 	return buf.Bytes(), nil
 }
