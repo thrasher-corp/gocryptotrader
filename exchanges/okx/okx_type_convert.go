@@ -456,3 +456,302 @@ func (a *LightningWithdrawalResponse) UnmarshalJSON(data []byte) error {
 	a.CreationTime = time.UnixMilli(chil.CreationTime)
 	return nil
 }
+
+// WithdrawalHistoryResponse a custom function to unmarshal timestamp json
+func (a *WithdrawalHistoryResponse) UnmarshalJSON(data []byte) error {
+	type Alias WithdrawalHistoryResponse
+	chil := &struct {
+		*Alias
+		Timestamp int64 `json:"ts,string"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	a.Timestamp = time.UnixMilli(chil.Timestamp)
+	return nil
+}
+
+// UnmsrhalJSON convert timestamp unix miliseconds to builtin time.
+func (a *LendingHistory) UnmarshalJSON(data []byte) error {
+	type Alias LendingHistory
+	chil := &struct {
+		*Alias
+		Timestamp int64 `json:"ts,string"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	a.Timestamp = time.UnixMilli(chil.Timestamp)
+	return nil
+}
+
+// UnmarshalJSON the unmarshal support method to convert the
+func (a *EstimateQuoteResponse) UnmarshalJSON(data []byte) error {
+	type Alias EstimateQuoteResponse
+	chil := &struct {
+		*Alias
+		QuoteTime int64 `json:"quoteTime,string"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	a.QuoteTime = time.UnixMilli(chil.QuoteTime)
+	return nil
+}
+
+// UnmarshalJSON convert timestamp unix millisecond to built in Time object
+func (a *ConvertHistory) UnmarshalJSON(data []byte) error {
+	type Alias ConvertHistory
+	chil := &struct {
+		*Alias
+		Timestamp int64 `json:"ts,string"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	a.Timestamp = time.UnixMilli(chil.Timestamp)
+	return nil
+}
+
+// UnmarshalJSON custome unmarshal method to convert the update time to built in time.Time instance.
+func (a *AccountDetail) UnmarshalJSON(data []byte) error {
+	type Alias AccountDetail
+	chil := &struct {
+		*Alias
+		UpdateTime int64 `json:"uTime,string"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	a.UpdateTime = time.UnixMilli(chil.UpdateTime)
+	return nil
+}
+
+// UnmarshalJSON custome unmarshal method to convert the update time to built in time.Time instance.
+func (a *Account) UnmarshalJSON(data []byte) error {
+	type Alias Account
+	chil := &struct {
+		*Alias
+		UpdateTime int64 `json:"uTime,string"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	a.UpdateTime = time.UnixMilli(chil.UpdateTime)
+	return nil
+}
+
+// UnmarshalJSON deserialises the JSON info, including the timestamp
+func (a *ConvertTradeResponse) UnmarshalJSON(data []byte) error {
+	type Alias ConvertTradeResponse
+	chil := &struct {
+		*Alias
+		Timestamp int64 `json:"ts,string"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	a.Timestamp = time.UnixMilli(chil.Timestamp)
+	return nil
+}
+
+// UnmarshalJSON deserialises the JSON info, including the timestamp (creation time and update time).
+func (a *AccountPosition) UnmarshalJSON(data []byte) error {
+	type Alias AccountPosition
+	chil := &struct {
+		*Alias
+		CreationTime int64 `json:"cTime,string"`
+		UpdatedTime  int64 `json:"uTime,string"` // Latest time position was adjusted,
+
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	a.CreationTime = time.UnixMilli(chil.CreationTime)
+	a.UpdatedTime = time.UnixMilli(chil.UpdatedTime)
+	return nil
+}
+
+// UnmarshalJSON deserialises the JSON info, including the timestamp
+func (a *AccountPositionHistory) UnmarshalJSON(data []byte) error {
+	type Alias AccountPositionHistory
+	chil := &struct {
+		*Alias
+		CreationTime int64 `json:"cTime,string"`
+		UpdateTime   int64 `json:"uTime,string"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	a.CreationTime = time.UnixMilli(chil.CreationTime)
+	a.UpdateTime = time.UnixMilli(chil.UpdateTime)
+	return nil
+}
+
+// UnmarshalJSON decerialize the account and position response.
+func (a *AccountAndPositionRisk) UnmarshalJSON(data []byte) error {
+	type Alias AccountAndPositionRisk
+	chil := &struct {
+		*Alias
+		Timestamp int64 `json:"ts,string"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	a.Timestamp = time.UnixMilli(chil.Timestamp)
+	return nil
+}
+
+// UnmarshalJSON decerialize the account and position response.
+func (a *BillsDetailResponse) UnmarshalJSON(data []byte) error {
+	type Alias BillsDetailResponse
+	chil := &struct {
+		*Alias
+		Timestamp int64 `json:"ts,string"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	a.Timestamp = time.UnixMilli(chil.Timestamp)
+	return nil
+}
+
+// UnmarshalJSON decerialize the account and position response.
+func (a *TradeFeeRate) UnmarshalJSON(data []byte) error {
+	type Alias TradeFeeRate
+	chil := &struct {
+		*Alias
+		Timestamp int64 `json:"ts,string"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	a.Timestamp = time.UnixMilli(chil.Timestamp)
+	return nil
+}
+
+// UnmarshalJSON decerialize the account and position response.
+func (a *InterestAccruedData) UnmarshalJSON(data []byte) error {
+	type Alias InterestAccruedData
+	chil := &struct {
+		*Alias
+		Timestamp int64 `json:"ts,string"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	a.Timestamp = time.UnixMilli(chil.Timestamp)
+	return nil
+}
+
+// UnmarshalJSON decerialize the account and position response.
+func (a *AccountRiskState) UnmarshalJSON(data []byte) error {
+	type Alias AccountRiskState
+	chil := &struct {
+		*Alias
+		Timestamp int64 `json:"ts,string"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	a.Timestamp = time.UnixMilli(chil.Timestamp)
+	return nil
+}
+
+// UnmarshalJSON decerialize the account and position response.
+func (a *BorrowRepayHistory) UnmarshalJSON(data []byte) error {
+	type Alias BorrowRepayHistory
+	chil := &struct {
+		*Alias
+		Timestamp int64 `json:"ts,string"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	a.Timestamp = time.UnixMilli(chil.Timestamp)
+	return nil
+}
+
+// UnmarshalJSON decerialize the account and position response.
+func (a *BorrowInterestAndLimitResponse) UnmarshalJSON(data []byte) error {
+	type Alias BorrowInterestAndLimitResponse
+	chil := &struct {
+		*Alias
+		NextDiscountTime int64 `json:"nextDiscountTime"`
+		NextInterestTime int64 `json:"nextInterestTime"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	a.NextDiscountTime = time.UnixMilli(chil.NextDiscountTime)
+	a.NextInterestTime = time.UnixMilli(chil.NextInterestTime)
+	return nil
+}
+
+// UnmarshalJSON decerialize the account and position response.
+func (a *PositionBuilderResponse) UnmarshalJSON(data []byte) error {
+	type Alias PositionBuilderResponse
+	chil := &struct {
+		*Alias
+		Timestamp int64 `json:"ts,string"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	a.Timestamp = time.UnixMilli(chil.Timestamp)
+	return nil
+}
+
+// UnmarshalJSON decerialize the account and position response.
+func (a *RFQCreateResponse) UnmarshalJSON(data []byte) error {
+	type Alias RFQCreateResponse
+	chil := &struct {
+		*Alias
+		CreateTime int64 `json:"cTime,string"`
+		UpdateTime int64 `json:"uTime,string"`
+		ValidUntil int64 `json:"validUntil,string"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	a.CreateTime = time.UnixMilli(chil.CreateTime)
+	a.UpdateTime = time.UnixMilli(chil.UpdateTime)
+	a.ValidUntil = time.UnixMilli(chil.ValidUntil)
+	return nil
+}

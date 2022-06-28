@@ -59,8 +59,17 @@ const (
 	assetDeposits             = "asset/deposit-address"
 	pathToAssetDepositHistory = "asset/deposit-history"
 	//
-	assetWithdrawal          = "asset/withdrawal"
-	assetLightningWithdrawal = "asset/withdrawal-lightning"
+	assetWithdrawal                     = "asset/withdrawal"
+	assetLightningWithdrawal            = "asset/withdrawal-lightning"
+	cancelWithdrawal                    = "asset/cancel-withdrawal"
+	withdrawalHistory                   = "asset/withdrawal-history"
+	smallAssetsConvert                  = "asset/convert-dust-assets"
+	assetSavingBalance                  = "asset/saving-balance"
+	assetSavingPurchaseOrRedemptionPath = "asset/purchase_redempt"
+	assetLendingRate                    = "asset/set-lending-rate"
+	assetsLendingHistory                = "asset/lending-history"
+	//
+	publicBorrowInfo = "asset/lending-rate-history"
 
 	// algo order routes
 	cancelAlgoOrder        = "trade/cancel-algos"
@@ -68,7 +77,6 @@ const (
 	canceAdvancedAlgoOrder = "trade/cancel-advance-algos"
 	getAlgoOrders          = "trade/orders-algo-pending"
 	algoOrderHistory       = "trade/orders-algo-history"
-	getAlgoOrdersHistory   = "trade/orders-algo-history"
 
 	// funding orders routes
 	assetCurrencies    = "asset/currencies"
@@ -122,7 +130,44 @@ const (
 	optionOpenInterestVolumeStrike = "rubik/stat/option/open-interest-volume-strike"
 	takerBlockVolume               = "rubik/stat/option/taker-block-volume"
 
-	// Authenticated endpoints
+	// Convert Currencies end points
+	assetConvertCurrencies   = "asset/convert/currencies"
+	convertCurrencyPairsPath = "asset/convert/currency-pair"
+	assetEstimateQuote       = "asset/convert/estimate-quote"
+	assetConvertTrade        = "asset/convert/trade"
+	assetConvertHistory      = "asset/convert/history"
+
+	// Account Endpints
+	accountBalance               = "account/balance"
+	accountPosition              = "account/positions"
+	accountPositionHistory       = "account/positions-history"
+	accountAndPositionRisk       = "account/account-position-risk"
+	accountBillsDetail           = "account/bills"
+	accountBillsDetailArchive    = "account/bills-archive"
+	accountConfiguration         = "account/config"
+	accountSetPositionMode       = "account/set-position-mode"
+	accountSetLeverage           = "account/set-leverage"
+	accountMaxSize               = "account/max-size"
+	accountMaxAvailSize          = "account/max-avail-size"
+	accountPositionMarginBalance = "account/position/margin-balance"
+	accountLeverageInfo          = "account/leverage-info"
+	accountMaxLoan               = "account/max-loan"
+	accountTradeFee              = "account/trade-fee"
+	accountInterestAccured       = "account/interest-accrued"
+	accountInterestRate          = "account/interest-rate"
+	accountSetGeeks              = "account/set-greeks"
+	accountSetIsolatedMode       = "account/set-isolated-mode"
+	accountMaxWithdrawal         = "account/max-withdrawal"
+	accountRiskState             = "account/risk-state"
+	accountBorrowReply           = "account/borrow-repay"
+	accountBorrowRepayHistory    = "account/borrow-repay-history"
+	accountInterestLimits        = "account/interest-limits"
+	accountSimulatedMargin       = "account/simulated_margin"
+	accountGeeks                 = "account/greeks"
+
+	// Block Trading
+	rfqCounterparties = "rfq/counterparties"
+	rfqCreateRFQ      = "rfq/create-rfq"
 )
 
 var (
@@ -166,10 +211,19 @@ var (
 	errInvalidPriceLimit                       = errors.New("invalid price limit value")
 	errMissingIntervalValue                    = errors.New("missing interval value")
 	errMissingEitherAlgoIDOrState              = errors.New("either algo id or order state is required")
-	errInvalidFundingAmount                    = errors.New("invalid funding amount")
-	errInvalidCurrencyValue                    = errors.New("invalid currency value")
-	errInvalidDepositAmount                    = errors.New("invalid deposit amount")
-	errMissingResponseBody                     = errors.New("error missing response body")
+	// errInvalidFundingAmount                    = errors.New("invalid funding amount")
+	errUnacceptableAmount                  = errors.New("amount must be greater than 0")
+	errInvalidCurrencyValue                = errors.New("invalid currency value")
+	errInvalidDepositAmount                = errors.New("invalid deposit amount")
+	errMissingResponseBody                 = errors.New("error missing response body")
+	errMissingValidWithdrawalID            = errors.New("missing valid withdrawal id")
+	errNoValidResponseFromServer           = errors.New("no valid response from server")
+	errInvalidInstrumentType               = errors.New("invlaid instrument type")
+	errMissingValidGeeskType               = errors.New("missing valid geeks type")
+	errMissingIsolatedMarginTradingSetting = errors.New("missing isolated margin trading setting, isolated margin trading settings automatic:Auto transfers autonomy:Manual transfers")
+	errInvalidOrderSide                    = errors.New(" invalid order side")
+	errInvalidCounterParties               = errors.New("missing counter parties")
+	errInvalidLegs                         = errors.New("no legs are provided")
 )
 
 /************************************ MarketData Endpoints *************************************************/
@@ -811,11 +865,55 @@ func (ok *Okx) GetAlgoOrderHistory(ctx context.Context, orderType, state, algoOr
 	if limit > 0 {
 		params.Set("limit", strconv.Itoa(int(limit)))
 	}
-	path := common.EncodeURLValues(getAlgoOrdersHistory, params)
+	path := common.EncodeURLValues(algoOrderHistory, params)
 	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, true)
 }
 
 /*************************************** Block trading ********************************/
+
+// GetCounterparties retrieves the list of counterparties that the user is permissioned to trade with.
+func (ok *Okx) GetCounterparties(ctx context.Context) ([]*CounterpartiesResponse, error) {
+	type response struct {
+		Code string                    `json:"code"`
+		Msg  string                    `json:"msg"`
+		Data []*CounterpartiesResponse `json:"data"`
+	}
+	var resp response
+	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, rfqCounterparties, nil, &resp, true)
+}
+
+// CreateRFQ Creates a new RFQ
+func (ok *Okx) CreateRFQ(ctx context.Context, arg CreateRFQInput) (*RFQCreateResponse, error) {
+	if len(arg.CounterParties) == 0 {
+		return nil, errInvalidCounterParties
+	}
+	if len(arg.Legs) == 0 {
+		return nil, errInvalidLegs
+	}
+	type response struct {
+		Code string               `json:"code"`
+		Msg  string               `json:"msg"`
+		Data []*RFQCreateResponse `json:"data"`
+	}
+	var resp response
+	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, rfqCreateRFQ, &arg, &resp, true)
+	if er != nil {
+		return nil, er
+	}
+	if len(resp.Data) == 0 {
+		if resp.Msg == "" {
+			return nil, errNoValidResponseFromServer
+		}
+		return nil, errors.New(resp.Msg)
+	}
+	return resp.Data[0], nil
+}
+
+// func (ok *Okx) CancelRFQ(ctx context.Context, arg CancelRFQRequestParam) (*CancelRFQResponse, error) {
+// }
+
+/********************************* Block Trading Order End ****************************/
+
 /*************************************** Funding Tradings ********************************/
 
 // GetCurrencies Retrieve a list of all currencies.
@@ -1072,7 +1170,6 @@ func (ok *Okx) Withdrawal(ctx context.Context, input WithdrawalInput) (*Withdraw
  This API function service is only open to some users. If you need this function service, please send an email to `liz.jensen@okg.com` to apply
 */
 func (ok *Okx) LightningWithdrawal(ctx context.Context, arg LightningWithdrawalRequestInput) (*LightningWithdrawalResponse, error) {
-
 	if arg.Currency == "" {
 		return nil, errInvalidCurrencyValue
 	} else if arg.Invoice == "" {
@@ -1093,7 +1190,977 @@ func (ok *Okx) LightningWithdrawal(ctx context.Context, arg LightningWithdrawalR
 	return resp.Data[0], nil
 }
 
+// CancelWithdrawal You can cancel normal withdrawal, but can not cancel the withdrawal on Lightning.
+func (ok *Okx) CancelWithdrawal(ctx context.Context, withdrawalID string) (string, error) {
+	if withdrawalID == "" {
+		return "", errMissingValidWithdrawalID
+	}
+	type inout struct {
+		WithdrawalID string `json:"wdId"` // Required
+	}
+	input := &inout{
+		WithdrawalID: withdrawalID,
+	}
+	type response struct {
+		Status string `json:"status"`
+		Msg    string `json:"msg"`
+		Data   inout  `json:"data"`
+	}
+	var output response
+	return output.Data.WithdrawalID, ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, cancelWithdrawal, input, &output, true)
+}
+
+// Retrieve the withdrawal records according to the currency, withdrawal status, and time range in reverse chronological order.
+// The 100 most recent records are returned by default.
+func (ok *Okx) GetWithdrawalHistory(ctx context.Context, currency, withdrawalID, clientID, transactionID string, state int, after, before time.Time, limit int) ([]*WithdrawalHistoryResponse, error) {
+	type response struct {
+		Code string                       `json:"code"`
+		Msg  string                       `json:"msg"`
+		Data []*WithdrawalHistoryResponse `json:"data"`
+	}
+	params := url.Values{}
+	if currency != "" {
+		params.Set("ccy", currency)
+	}
+	if withdrawalID != "" {
+		params.Set("wdId", withdrawalID)
+	}
+	if clientID != "" {
+		params.Set("clientId", clientID)
+	}
+	if transactionID != "" {
+		params.Set("txId", transactionID)
+	}
+	if state == -3 || state == -2 || state == -1 || state == 0 || state == 1 || state == 2 || state == 3 || state == 4 || state == 5 {
+		params.Set("state", strconv.Itoa(state))
+	}
+	if !after.IsZero() {
+		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))
+	}
+	if !before.IsZero() {
+		params.Set("before", strconv.FormatInt(before.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.Itoa(limit))
+	}
+	var resp response
+	path := common.EncodeURLValues(withdrawalHistory, params)
+	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, true)
+}
+
+// SmallAssetsConvert Convert small assets in funding account to OKB. Only one convert is allowed within 24 hours.
+func (ok *Okx) SmallAssetsConvert(ctx context.Context, currency []string) (*SmallAssetConvertResponse, error) {
+	type response struct {
+		Code string                       `json:"code"`
+		Msg  string                       `json:"msg"`
+		Data []*SmallAssetConvertResponse `json:"data"`
+	}
+	input := map[string][]string{"ccy": currency}
+	var resp response
+	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, smallAssetsConvert, input, &resp, true)
+	if er != nil {
+		return nil, er
+	}
+	if len(resp.Data) == 0 {
+		return nil, errors.New("no response data found")
+	}
+	return resp.Data[0], nil
+}
+
+// GetSavingBalance returns saving balance, and only assets in the funding account can be used for saving.
+func (ok *Okx) GetSavingBalance(ctx context.Context, currency string) ([]*SavingBalanceResponse, error) {
+	type response struct {
+		Code string                   `json:"code"`
+		Msg  string                   `json:"msg"`
+		Data []*SavingBalanceResponse `json:"data"`
+	}
+	var resp response
+	params := url.Values{}
+	if currency != "" {
+		params.Set("ccy", currency)
+	}
+	path := common.EncodeURLValues(assetSavingBalance, params)
+	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, true)
+}
+
+// SavingsPurchase posts a purchase
+func (ok *Okx) SavingsPurchase(ctx context.Context, arg *SavingsPurchaseRedemptionInput) (*SavingsPurchaseRedemptionResponse, error) {
+	if arg == nil {
+		return nil, errors.New("invalid argument, null argument")
+	}
+	arg.ActionType = "purchase" // purchase: purchase saving shares
+	return ok.savingsPurchaseOrRedemption(ctx, arg)
+}
+
+// SavingsRedemption posts a redemption
+func (ok *Okx) SavingsRedemption(ctx context.Context, arg *SavingsPurchaseRedemptionInput) (*SavingsPurchaseRedemptionResponse, error) {
+	if arg == nil {
+		return nil, errors.New("invalid argument, null argument")
+	}
+	arg.ActionType = "redempt" // redempt: redeem saving shares
+	return ok.savingsPurchaseOrRedemption(ctx, arg)
+}
+
+func (ok *Okx) savingsPurchaseOrRedemption(ctx context.Context, arg *SavingsPurchaseRedemptionInput) (*SavingsPurchaseRedemptionResponse, error) {
+	if arg.Currency == "" {
+		return nil, errInvalidCurrencyValue
+	} else if arg.Amount <= 0 {
+		return nil, errUnacceptableAmount
+	} else if !(strings.EqualFold(arg.ActionType, "purchase") || strings.EqualFold(arg.ActionType, "redempt")) {
+		return nil, errors.New("invalid side value, side has to be either \"redemption\" or \"purchase\"")
+	} else if strings.EqualFold(arg.ActionType, "purchase") && !(arg.Rate >= 1 && arg.Rate <= 365) {
+		return nil, errors.New("the rate value range is between 1% and 365%")
+	}
+	val, _ := json.Marshal(arg)
+	println(string(val))
+	type response struct {
+		Code string                               `json:"code"`
+		Msg  string                               `json:"msg"`
+		Data []*SavingsPurchaseRedemptionResponse `json:"data"`
+	}
+	var resp response
+	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, assetSavingPurchaseOrRedemptionPath, &arg, &resp, true)
+	if er != nil {
+		return nil, er
+	} else if len(resp.Data) == 0 {
+		return nil, errors.New("no response from the server")
+	}
+	return resp.Data[0], nil
+}
+
+// GetLendingHistory lending history
+func (ok *Okx) GetLendingHistory(ctx context.Context, currency string, before, after time.Time, limit uint) ([]*LendingHistory, error) {
+	params := url.Values{}
+	if currency != "" {
+		params.Set("ccy", currency)
+	}
+	if !before.IsZero() {
+		params.Set("before", strconv.FormatInt(before.UnixMilli(), 10))
+	}
+	if !after.IsZero() {
+		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.Itoa(int(limit)))
+	}
+	path := common.EncodeURLValues(assetsLendingHistory, params)
+	type response struct {
+		Code string            `json:"code"`
+		Msg  string            `json:"msg"`
+		Data []*LendingHistory `json:"data"`
+	}
+	var resp response
+	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, true)
+}
+
+// SetLendingRate assetLendingRate
+func (ok *Okx) SetLendingRate(ctx context.Context, arg LendingRate) (*LendingRate, error) {
+	if arg.Currency == "" {
+		return nil, errInvalidCurrencyValue
+	} else if !(arg.Rate >= 1 && arg.Rate <= 365) {
+		return nil, errors.New("invalid lending rate value, the  rate value range is between 1% and 365%")
+	}
+	type response struct {
+		Code string         `json:"code"`
+		Msg  string         `json:"msg"`
+		Data []*LendingRate `json:"data"`
+	}
+	var resp response
+	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "", &arg, &resp, true)
+	if er != nil {
+		return nil, er
+	}
+	if len(resp.Data) == 0 {
+		return nil, errors.New("no response from the server")
+	}
+	return resp.Data[0], nil
+}
+
+// GetPublicBorrowInfo return list of publix borrow history.
+func (ok *Okx) GetPublicBorrowInfo(ctx context.Context, currency string) ([]*PublicBorrowInfo, error) {
+	params := url.Values{}
+	if currency != "" {
+		params.Set("ccy", currency)
+	}
+	path := common.EncodeURLValues(publicBorrowInfo, params)
+	type response struct {
+		Code string              `json:"code"`
+		Msg  string              `json:"msg"`
+		Data []*PublicBorrowInfo `json:"data"`
+	}
+	var resp response
+	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, false)
+}
+
 /***************************** Funding Endpoints Ends here ***************************/
+
+/***********************************Convert Endpoints | Authenticated s*****************************************/
+
+func (ok *Okx) GetConvertCurrencies(ctx context.Context) ([]*ConvertCurrency, error) {
+	type response struct {
+		Code string             `json:"code"`
+		Msg  string             `json:"msg"`
+		Data []*ConvertCurrency `json:"data"`
+	}
+	var resp response
+	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, assetConvertCurrencies, nil, &resp, true)
+}
+
+// GetConvertCurrencyPair
+func (ok *Okx) GetConvertCurrencyPair(ctx context.Context, fromCurrency, toCurrency string) (*ConvertCurrencyPair, error) {
+	params := url.Values{}
+	if fromCurrency == "" {
+		return nil, errors.New("missing reference currency name \"fromCcy\"")
+	}
+	if toCurrency == "" {
+		return nil, errors.New("missing destination currency name \"toCcy\"")
+	}
+	type response struct {
+		Code string                 `json:"code"`
+		Msg  string                 `json:"msg"`
+		Data []*ConvertCurrencyPair `json:"data"`
+	}
+	var resp response
+	path := common.EncodeURLValues(convertCurrencyPairsPath, params)
+	if er := ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, true); er != nil {
+		return nil, er
+	}
+	if len(resp.Data) == 0 {
+		return nil, errors.New("invalid response from server")
+	}
+	return resp.Data[0], nil
+}
+
+// EstimateQuote
+func (ok *Okx) EstimateQuote(ctx context.Context, arg EstimateQuoteRequestInput) (*EstimateQuoteResponse, error) {
+	if arg.BaseCurrency == "" {
+		return nil, errors.New("missing base currency")
+	}
+	if arg.QuoteCurrency == "" {
+		return nil, errors.New("missing quote currency")
+	}
+	if strings.EqualFold(arg.Side.String(), "") {
+		return nil, errors.New("missing  order side")
+	}
+	if arg.RFQAmount <= 0 {
+		return nil, errors.New("missing rfq amount")
+	}
+	if arg.RFQSzCurrency == "" {
+		return nil, errors.New("missing rfq currency")
+	}
+	type response struct {
+		Code string                   `json:"code"`
+		Msg  string                   `json:"msg"`
+		Data []*EstimateQuoteResponse `json:"data"`
+	}
+	var resp response
+	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, assetEstimateQuote, &arg, &resp, true)
+	if er != nil {
+		return nil, er
+	}
+	if len(resp.Data) == 0 {
+		return nil, errNoValidResponseFromServer
+	}
+	return resp.Data[0], nil
+}
+
+// ConvertTrade converts a base currency to quote currency.
+func (ok *Okx) ConvertTrade(ctx context.Context, arg ConvertTradeInput) (*ConvertTradeResponse, error) {
+	if arg.BaseCurrency == "" {
+		return nil, errors.New("missing base currency")
+	}
+	if arg.QuoteCurrency == "" {
+		return nil, errors.New("missing quote currency")
+	}
+	if !(strings.EqualFold(arg.Side.String(), "buy") ||
+		strings.EqualFold(arg.Side.String(), "sell")) {
+		return nil, errors.New("missing  order side")
+	}
+	if arg.Size <= 0 {
+		return nil, errors.New("the quote amount should be more than 0 and RFQ amount")
+	}
+	if arg.SizeCurrency == "" {
+		return nil, errors.New("quote currency")
+	}
+	if arg.QuoteID == "" {
+		return nil, errors.New("quote id")
+	}
+	type response struct {
+		Code string                  `json:"code"`
+		Msg  string                  `json:"msg"`
+		Data []*ConvertTradeResponse `json:"data"`
+	}
+	var resp response
+	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, assetConvertTrade, &arg, &resp, true)
+	if er != nil {
+		return nil, er
+	}
+	if len(resp.Data) == 0 {
+		return nil, errNoValidResponseFromServer
+	}
+	return resp.Data[0], nil
+}
+
+// GetConvertHistory gets the recent history.
+func (ok *Okx) GetConvertHistory(ctx context.Context, before, after time.Time, limit uint, tag string) ([]*ConvertHistory, error) {
+	params := url.Values{}
+	if !before.IsZero() {
+		params.Set("before", strconv.FormatInt(before.UnixMilli(), 10))
+	}
+	if !after.IsZero() {
+		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.Itoa(int(limit)))
+	}
+	if tag != "" {
+		params.Set("tag", tag)
+	}
+	path := common.EncodeURLValues(assetConvertHistory, params)
+	type response struct {
+		Code string            `json:"code"`
+		Msg  string            `json:"msg"`
+		Data []*ConvertHistory `json:"data"`
+	}
+	var resp response
+	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, true)
+}
+
+/********************************** End of Convert endpoints ***************************************************/
+
+/********************************** Account endpoints ***************************************************/
+
+// GetBalance retrieve a list of assets (with non-zero balance), remaining balance, and available amount in the trading account.
+// Interest-free quota and discount rates are public data and not displayed on the account interface.
+func (ok *Okx) GetNonZeroBalances(ctx context.Context, currency string) ([]*Account, error) {
+	type response struct {
+		Code string     `json:"code"`
+		Msg  string     `json:"msg"`
+		Data []*Account `json:"data"`
+	}
+	var resp response
+	params := url.Values{}
+	if currency != "" {
+		params.Set("ccy", currency)
+	}
+	path := common.EncodeURLValues(accountBalance, params)
+	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, true)
+}
+
+// GetPositions retrieve information on your positions. When the account is in net mode, net positions will be displayed, and when the account is in long/short mode, long or short positions will be displayed.
+func (ok *Okx) GetPositions(ctx context.Context, instrumentType, instrumentID, positionID string) ([]*AccountPosition, error) {
+	params := url.Values{}
+	if instrumentType != "" {
+		params.Set("instType", instrumentType)
+	}
+	if instrumentID != "" {
+		params.Set("instId", instrumentID)
+	}
+	if positionID != "" {
+		params.Set("posId", positionID)
+	}
+	path := common.EncodeURLValues(accountPosition, params)
+	type response struct {
+		Code string             `json:"code"`
+		Msg  string             `json:"msg"`
+		Data []*AccountPosition `json:"data"`
+	}
+	var resp response
+	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, true)
+}
+
+// GetPositionsHistory  retrieve the updated position data for the last 3 months.
+func (ok *Okx) GetPositionsHistory(ctx context.Context, instrumentType, instrumentID, marginMode string, closePositionType uint, after, before time.Time, limit uint) ([]*AccountPositionHistory, error) {
+	params := url.Values{}
+	if strings.EqualFold(instrumentType, "MARGIN") || strings.EqualFold(instrumentType, "SWAP") || strings.EqualFold(instrumentType, "FUTURES") ||
+		strings.EqualFold(instrumentType, "OPTION") {
+		params.Set("instType", strings.ToUpper(instrumentType))
+	}
+	if instrumentID != "" {
+		params.Set("instId", instrumentID)
+	}
+	if strings.EqualFold(marginMode, "cross") || strings.EqualFold(marginMode, "isolated") {
+		params.Set("mgnMode", marginMode)
+	}
+	// The type of closing position
+	// 1：Close position partially;2：Close all;3：Liquidation;4：Partial liquidation; 5：ADL;
+	// It is the latest type if there are several types for the same position.
+	if closePositionType >= 1 && closePositionType <= 5 {
+		params.Set("type", strconv.Itoa(int(closePositionType)))
+	}
+	if !after.IsZero() {
+		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))
+	}
+	if !before.IsZero() {
+		params.Set("before", strconv.FormatInt(before.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.Itoa(int(limit)))
+	}
+	path := common.EncodeURLValues(accountPositionHistory, params)
+	type response struct {
+		Code string                    `json:"code"`
+		Msg  string                    `json:"msg"`
+		Data []*AccountPositionHistory `json:"data"`
+	}
+	var resp response
+	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, true)
+}
+
+// GetAccountAndPositionRisk  get account and position risks.
+func (ok *Okx) GetAccountAndPositionRisk(ctx context.Context, instrumentType string) ([]*AccountAndPositionRisk, error) {
+	params := url.Values{}
+	if instrumentType != "" {
+		params.Set("instType", instrumentType)
+	}
+	path := common.EncodeURLValues(accountAndPositionRisk, params)
+	type response struct {
+		Code string                    `json:"code"`
+		Msg  string                    `json:"msg"`
+		Data []*AccountAndPositionRisk `json:"data"`
+	}
+	var resp response
+	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, true)
+}
+
+// GetBillsDetailLast7Days The bill refers to all transaction records that result in changing the balance of an account. Pagination is supported, and the response is sorted with the most recent first. This endpoint can retrieve data from the last 7 days.
+func (ok *Okx) GetBillsDetailLast7Days(ctx context.Context, arg BillsDetailQueryParameter) ([]*BillsDetailResponse, error) {
+	return ok.GetBillsDetail(ctx, arg, accountBillsDetail)
+}
+
+// GetBillsDetail3Months retrieve the account’s bills.
+// The bill refers to all transaction records that result in changing the balance of an account.
+// Pagination is supported, and the response is sorted with most recent first.
+// This endpoint can retrieve data from the last 3 months.
+func (ok *Okx) GetBillsDetail3Months(ctx context.Context, arg BillsDetailQueryParameter) ([]*BillsDetailResponse, error) {
+	return ok.GetBillsDetail(ctx, arg, accountBillsDetailArchive)
+}
+
+// GetBillsDetail retrieve the bills of the account.
+func (ok *Okx) GetBillsDetail(ctx context.Context, arg BillsDetailQueryParameter, route string) ([]*BillsDetailResponse, error) {
+	params := url.Values{}
+	if strings.EqualFold(arg.InstrumentType, "MARGIN") || strings.EqualFold(arg.InstrumentType, "SWAP") || strings.EqualFold(arg.InstrumentType, "FUTURES") ||
+		strings.EqualFold(arg.InstrumentType, "OPTION") || strings.EqualFold(arg.InstrumentType, "FUTURES") {
+		params.Set("instType", strings.ToUpper(arg.InstrumentType))
+	}
+	if arg.Currency != "" {
+		params.Set("ccy", strings.ToUpper(arg.Currency))
+	}
+	if strings.EqualFold(arg.MarginMode, "isolated") || strings.EqualFold(arg.MarginMode, "cross") {
+		params.Set("mgnMode", strings.ToLower(arg.MarginMode))
+	}
+	if strings.EqualFold(arg.ContractType, "linear") || strings.EqualFold(arg.ContractType, "inverse") {
+		params.Set("ctType", arg.ContractType)
+	}
+	if arg.BillType >= 1 && arg.BillType <= 13 {
+		params.Set("type", strconv.Itoa(int(arg.BillType)))
+	}
+	billSubtypes := []int{1, 2, 3, 4, 5, 6, 9, 11, 12, 14, 160, 161, 162, 110, 111, 118, 119, 100, 101, 102, 103, 104, 105, 106, 110, 125, 126, 127, 128, 131, 132, 170, 171, 172, 112, 113, 117, 173, 174, 200, 201, 202, 203}
+	for x := range billSubtypes {
+		if int(arg.BillSubType) == billSubtypes[x] {
+			params.Set("subType", strconv.Itoa(int(arg.BillSubType)))
+		}
+	}
+	if arg.After != "" {
+		params.Set("after", arg.After)
+	}
+	if arg.Before != "" {
+		params.Set("before", arg.Before)
+	}
+	if !arg.BeginTime.IsZero() {
+		params.Set("begin", strconv.FormatInt(arg.BeginTime.UnixMilli(), 10))
+	}
+	if !arg.EndTime.IsZero() {
+		params.Set("end", strconv.FormatInt(arg.EndTime.UnixMilli(), 10))
+	}
+	if int(arg.Limit) > 0 {
+		params.Set("limit", strconv.Itoa(int(arg.Limit)))
+	}
+	path := common.EncodeURLValues(route, params)
+	type response struct {
+		Code string                 `json:"code"`
+		Msg  string                 `json:"msg"`
+		Data []*BillsDetailResponse `json:"data"`
+	}
+	var resp response
+	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, true)
+}
+
+// GetAccountConfiguration retrieve current account configuration.
+func (ok *Okx) GetAccountConfiguration(ctx context.Context) ([]*AccountConfigurationResponse, error) {
+	type response struct {
+		Code string                          `json:"code"`
+		Msg  string                          `json:"msg"`
+		Data []*AccountConfigurationResponse `json:"data"`
+	}
+	var resp response
+	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, accountConfiguration, nil, &resp, true)
+}
+
+// SetPositionMode FUTURES and SWAP support both long/short mode and net mode. In net mode, users can only have positions in one direction; In long/short mode, users can hold positions in long and short directions.
+func (ok *Okx) SetPositionMode(ctx context.Context, positionMode string) (string, error) {
+	if !(strings.EqualFold(positionMode, "long_short_mode") || strings.EqualFold(positionMode, "net_mode")) {
+		return "", errors.New("missing position mode, \"long_short_mode\": long/short, only applicable to FUTURES/SWAP \"net_mode\": net")
+	}
+	input := &PositionMode{
+		PositionMode: positionMode,
+	}
+	type response struct {
+		Code string          `json:"code"`
+		Msg  string          `json:"msg"`
+		Data []*PositionMode `json:"data"`
+	}
+	var resp response
+	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, accountSetPositionMode, input, &resp, true)
+	if er != nil {
+		return "", er
+	}
+	if len(resp.Data) == 0 {
+		return "", errors.New(resp.Msg)
+	}
+	return resp.Data[0].PositionMode, nil
+}
+
+// SetLeverage
+func (ok *Okx) SetLeverage(ctx context.Context, arg SetLeverageInput) (*SetLeverageResponse, error) {
+	if arg.InstrumentID == "" && arg.Currency == "" {
+		return nil, errors.New("either instrument id or currency is missing")
+	}
+	if arg.Leverage == "" {
+		return nil, errors.New("missing leverage")
+	}
+	if !(strings.EqualFold(arg.MarginMode, "isolated") || strings.EqualFold(arg.MarginMode, "cross")) {
+		return nil, errors.New("invalid margin mode")
+	}
+	if arg.InstrumentID == "" && strings.EqualFold(arg.MarginMode, "isolated") {
+		return nil, errors.New("only can be cross if ccy is passed")
+	}
+	if strings.EqualFold(arg.MarginMode, "isolated") {
+		return nil, errors.New("only applicable to \"isolated\" margin mode of FUTURES/SWAP")
+	}
+	if !(strings.EqualFold(arg.PositionSide, "long") ||
+		strings.EqualFold(arg.PositionSide, "short") ||
+		strings.EqualFold(arg.PositionSide, "net")) && strings.EqualFold(arg.MarginMode, "isolated") {
+		return nil, errors.New("only applicable to isolated margin mode of FUTURES/SWAP")
+	}
+	type response struct {
+		Code string                 `json:"code"`
+		Msg  string                 `json:"msg"`
+		Data []*SetLeverageResponse `json:"data"`
+	}
+	var resp response
+	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, accountSetLeverage, &arg, &resp, true)
+	if er != nil {
+		return nil, er
+	}
+	if len(resp.Data) == 0 {
+		return nil, errors.New(resp.Msg)
+	}
+	return resp.Data[0], nil
+}
+
+// GetMaximumBuySellAmountOROpenAmount
+func (ok *Okx) GetMaximumBuySellAmountOROpenAmount(ctx context.Context, instrumentID, tradeMode, currency, leverage string, price float64) ([]*MaximumBuyAndSell, error) {
+	params := url.Values{}
+	if instrumentID == "" {
+		return nil, errors.New("missing instrument id")
+	}
+	params.Set("instId", instrumentID)
+	if !(strings.EqualFold(tradeMode, "cross") || strings.EqualFold(tradeMode, "isolated") || strings.EqualFold(tradeMode, "cash")) {
+		return nil, errors.New("missing valid trade mode")
+	}
+	params.Set("tdMode", tradeMode)
+	if currency != "" {
+		params.Set("ccy", currency)
+	}
+	if price <= 0 {
+		params.Set("px", strconv.Itoa(int(price)))
+	}
+	if leverage != "" {
+		params.Set("leverage", leverage)
+	}
+	type response struct {
+		Code string               `json:"code"`
+		Msg  string               `json:"msg"`
+		Data []*MaximumBuyAndSell `json:"data"`
+	}
+	var resp response
+	path := common.EncodeURLValues(accountMaxSize, params)
+	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, true)
+}
+
+// GetMaximumAvailableTradableAmount
+func (ok *Okx) GetMaximumAvailableTradableAmount(ctx context.Context, instrumentID, currency, tradeMode string, reduceOnly bool, price float64) ([]*MaximumTradableAmount, error) {
+	params := url.Values{}
+	if instrumentID != "" {
+		params.Set("instId", instrumentID)
+	} else {
+		return nil, errors.New("missing instrument id")
+	}
+	if currency != "" {
+		params.Set("ccy", currency)
+	}
+	if !(strings.EqualFold(tradeMode, "isolated") ||
+		strings.EqualFold(tradeMode, "cross") ||
+		strings.EqualFold(tradeMode, "cash")) {
+		return nil, errors.New("missing trade mode")
+	}
+	params.Set("tdMode", tradeMode)
+	params.Set("px", strconv.FormatFloat(price, 'f', 0, 64))
+	path := common.EncodeURLValues(accountMaxAvailSize, params)
+	type response struct {
+		Code string                   `json:"code"`
+		Msg  string                   `json:"msg"`
+		Data []*MaximumTradableAmount `json:"data"`
+	}
+	var resp response
+	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, true)
+}
+
+// IncreaseDecreaseMargin Increase or decrease the margin of the isolated position. Margin reduction may result in the change of the actual leverage.
+func (ok *Okx) IncreaseDecreaseMargin(ctx context.Context, arg IncreaseDecreaseMarginInput) (*IncreaseDecreaseMargin, error) {
+	if arg.InstrumentID == "" {
+		return nil, errMissingInstrumentID
+	}
+	if !(strings.EqualFold(arg.PositionSide, "long") || strings.EqualFold(arg.PositionSide, "short") || strings.EqualFold(arg.PositionSide, "net")) {
+		return nil, errors.New("missing valid position side")
+	}
+	if !(strings.EqualFold(arg.Type, "add") || strings.EqualFold(arg.Type, "reduce")) {
+		return nil, errors.New("missing valid 'type', use 'add': add margin 'reduce': reduce margin")
+	}
+	if arg.Amount <= 0 {
+		return nil, errors.New("missing valid amount")
+	}
+	type response struct {
+		Code string                    `json:"code"`
+		Msg  string                    `json:"msg"`
+		Data []*IncreaseDecreaseMargin `json:"data"`
+	}
+	var resp response
+	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, accountPositionMarginBalance, &arg, &resp, true)
+	if er != nil {
+		return nil, er
+	}
+	if len(resp.Data) == 0 {
+		return nil, errors.New(resp.Msg)
+	}
+	return resp.Data[0], nil
+}
+
+// GetLeverage
+func (ok *Okx) GetLeverage(ctx context.Context, instrumentID, marginMode string) ([]*LeverageResponse, error) {
+	params := url.Values{}
+	if instrumentID != "" {
+		params.Set("instId", instrumentID)
+	} else {
+		return nil, errors.New("invalid instrument id \"instId\" ")
+	}
+	if strings.EqualFold(marginMode, "cross") || strings.EqualFold(marginMode, "isolated") {
+		params.Set("mgnMode", marginMode)
+	} else {
+		return nil, errors.New("missing margin mode \"mgnMode\"")
+	}
+	type response struct {
+		Code string              `json:"code"`
+		Msg  string              `json:"msg"`
+		Data []*LeverageResponse `json:"data"`
+	}
+	var resp response
+	path := common.EncodeURLValues(accountLeverageInfo, params)
+	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, true)
+}
+
+// GetMaximumLoanOfInstrument returns list of maximum loan of instruments.
+func (ok *Okx) GetMaximumLoanOfInstrument(ctx context.Context, instrumentID, marginMode, mgnCurrency string) ([]*MaximumLoanInstrument, error) {
+	params := url.Values{}
+	if instrumentID != "" {
+		params.Set("instId", instrumentID)
+	} else {
+		return nil, errors.New("invalid instrument id \"instId\"")
+	}
+	if strings.EqualFold(marginMode, "cross") || strings.EqualFold(marginMode, "isolated") {
+		params.Set("mgnMode", marginMode)
+	} else {
+		return nil, errors.New("missing margin mode \"mgnMode\"")
+	}
+	if mgnCurrency != "" {
+		params.Set("mgnCcy", mgnCurrency)
+	}
+	type response struct {
+		Code string                   `json:"code"`
+		Msg  string                   `json:"msg"`
+		Data []*MaximumLoanInstrument `json:"data"`
+	}
+	path := common.EncodeURLValues(accountMaxLoan, params)
+	var resp response
+	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, true)
+}
+
+// GetTradeFeeRate query trade fee rate of various instrument types and instrument ids.
+func (ok *Okx) GetTradeFeeRate(ctx context.Context, instrumentType, instrumentID, underlying string) ([]*TradeFeeRate, error) {
+	params := url.Values{}
+	if !(strings.EqualFold(instrumentType, "SPOT") || strings.EqualFold(instrumentType, "margin") || strings.EqualFold(instrumentType, "swap") || strings.EqualFold(instrumentType, "futures") || strings.EqualFold(instrumentType, "option")) {
+		return nil, errInvalidInstrumentType
+	}
+	params.Set("instType", strings.ToUpper(instrumentType))
+	if instrumentID != "" {
+		params.Set("instId", instrumentID)
+	}
+	if underlying != "" {
+		params.Set("uly", underlying)
+	}
+	path := common.EncodeURLValues(accountTradeFee, params)
+	type response struct {
+		Code string          `json:"code"`
+		Msg  string          `json:"msg"`
+		Data []*TradeFeeRate `json:"data"`
+	}
+	var resp response
+	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, true)
+}
+
+// GetInterestAccruedData account accred data.
+func (ok *Okx) GetInterestAccruedData(ctx context.Context, loanType int, currency, instrumentID, marginMode string, after, before time.Time, limit int) ([]*InterestAccruedData, error) {
+	params := url.Values{}
+	if loanType == 1 || loanType == 2 {
+		params.Set("type", strconv.Itoa(loanType))
+	}
+	if currency != "" {
+		params.Set("ccy", currency)
+	}
+	if instrumentID != "" {
+		params.Set("instId", instrumentID)
+	}
+	if strings.EqualFold(marginMode, "cross") || strings.EqualFold(marginMode, "isolated") {
+		params.Set("mgnMode", marginMode)
+	}
+	if !after.IsZero() {
+		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))
+	}
+	if !before.IsZero() {
+		params.Set("before", strconv.FormatInt(before.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.Itoa(limit))
+	}
+	type response struct {
+		Code string                 `json:"code"`
+		Msg  string                 `json:"msg"`
+		Data []*InterestAccruedData `json:"data"`
+	}
+	var resp response
+	path := common.EncodeURLValues(accountInterestAccured, params)
+	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, true)
+}
+
+// GetInterestRate get the user's current leveraged currency borrowing interest rate
+func (ok *Okx) GetInterestRate(ctx context.Context, currency string) ([]*InterestRateResponse, error) {
+	params := url.Values{}
+	if currency != "" {
+		params.Set("ccy", currency)
+	}
+	path := common.EncodeURLValues(accountInterestRate, params)
+	type response struct {
+		Code string                  `json:"code"`
+		Msg  string                  `json:"msg"`
+		Data []*InterestRateResponse `json:"data"`
+	}
+	var resp response
+	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, true)
+}
+
+// SetGeeks set the display type of Greeks.
+// PA: Greeks in coins BS: Black-Scholes Greeks in dollars
+func (ok *Okx) SetGeeks(ctx context.Context, greeksType string) (*GreeksType, error) {
+	if !(strings.EqualFold(greeksType, "PA") || strings.EqualFold(greeksType, "BS")) {
+		return nil, errMissingValidGeeskType
+	}
+	input := &GreeksType{
+		GreeksType: greeksType,
+	}
+	type response struct {
+		Code string        `json:"code"`
+		Msg  string        `json:"msg"`
+		Data []*GreeksType `json:"data"`
+	}
+	var resp response
+	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, accountSetGeeks, input, &resp, true)
+	if er != nil {
+		return nil, er
+	}
+	if len(resp.Data) == 0 {
+		return nil, errors.New(resp.Msg)
+	}
+	return resp.Data[0], nil
+}
+
+// IsolatedMarginTradingSettings to set the currency margin and futures/perpetual Isolated margin trading mode.
+func (ok *Okx) IsolatedMarginTradingSettings(ctx context.Context, arg IsolatedMode) (*IsolatedMode, error) {
+	if !(strings.EqualFold(arg.IsoMode, "automatic") || strings.EqualFold(arg.IsoMode, "autonomy")) {
+		return nil, errMissingIsolatedMarginTradingSetting
+	}
+	if !(strings.EqualFold(arg.InstrumentType, "MARGIN") || strings.EqualFold(arg.InstrumentType, "CONTRACTS")) {
+		return nil, errMissingInstrumentID
+	}
+	type response struct {
+		Code string          `json:"code"`
+		Msg  string          `json:"msg"`
+		Data []*IsolatedMode `json:"data"`
+	}
+	var resp response
+	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, accountSetIsolatedMode, &arg, &resp, true)
+	if er != nil {
+		return nil, er
+	}
+	if len(resp.Data) == 0 {
+		return nil, errors.New(resp.Msg)
+	}
+	return resp.Data[0], nil
+}
+
+// GetMaximumWithdrawals retrieve the maximum transferable amount from trading account to funding account.
+func (ok *Okx) GetMaximumWithdrawals(ctx context.Context, currency string) ([]*MaximumWithdrawal, error) {
+	params := url.Values{}
+	if currency != "" {
+		params.Set("ccy", currency)
+	}
+	path := common.EncodeURLValues(accountMaxWithdrawal, params)
+	type response struct {
+		Code string               `json:"code"`
+		Msg  string               `json:"msg"`
+		Data []*MaximumWithdrawal `json:"data"`
+	}
+	var resp response
+	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, true)
+}
+
+// GetAccountRiskState
+func (ok *Okx) GetAccountRiskState(ctx context.Context) ([]*AccountRiskState, error) {
+	type response struct {
+		Code string              `json:"code"`
+		Msg  string              `json:"msg"`
+		Data []*AccountRiskState `json:"data"`
+	}
+	var resp response
+	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, accountRiskState, nil, &resp, true)
+}
+
+// VIPLoansBorrowAndRepay
+func (ok *Okx) VIPLoansBorrowAndRepay(ctx context.Context, arg LoanBorrowAndReplayInput) (*LoanBorrowAndReplay, error) {
+	type response struct {
+		Code string                 `json:"code"`
+		Msg  string                 `json:"msg"`
+		Data []*LoanBorrowAndReplay `json:"data"`
+	}
+	if arg.Currency == "" {
+		return nil, errInvalidCurrencyValue
+	}
+	if arg.Side == "" {
+		return nil, errInvalidOrderSide
+	}
+	if arg.Amount <= 0 {
+		return nil, errors.New("amount must be greater than zero")
+	}
+	var resp response
+	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, accountBorrowReply, &arg, &resp, true)
+	if er != nil {
+		return nil, er
+	}
+	if len(resp.Data) == 0 {
+		return nil, errors.New(resp.Msg)
+	}
+	return resp.Data[0], nil
+}
+
+// GetBorrowAndRepayHistoryForVIPLoans retrives borrow and repay history for VIP loans.
+func (ok *Okx) GetBorrowAndRepayHistoryForVIPLoans(ctx context.Context, currency string, after, before time.Time, limit uint) ([]*BorrowRepayHistory, error) {
+	params := url.Values{}
+	if currency != "" {
+		params.Set("ccy", currency)
+	}
+	if !after.IsZero() {
+		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))
+	}
+	if !before.IsZero() {
+		params.Set("before", strconv.FormatInt(before.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.Itoa(int(limit)))
+	}
+	path := common.EncodeURLValues(accountBorrowRepayHistory, params)
+	type response struct {
+		Code string                `json:"code"`
+		Msg  string                `json:"msg"`
+		Data []*BorrowRepayHistory `json:"data"`
+	}
+	var resp response
+	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, true)
+}
+
+// GetBorrowInterestAndLimit borrow interest and limit
+func (ok *Okx) GetBorrowInterestAndLimit(ctx context.Context, loanType int, currency string) ([]*BorrowInterestAndLimitResponse, error) {
+	params := url.Values{}
+	if loanType == 1 || loanType == 2 {
+		params.Set("type", strconv.Itoa(loanType))
+	}
+	if currency != "" {
+		params.Set("ccy", currency)
+	}
+	type response struct {
+		Code string                            `json:"code"`
+		Msg  string                            `json:"msg"`
+		Data []*BorrowInterestAndLimitResponse `json:"data"`
+	}
+	var resp response
+	path := common.EncodeURLValues(accountInterestLimits, params)
+	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, true)
+}
+
+// PositionBuilder calculates portfolio margin information for simulated position or current position of the user. You can add up to 200 simulated positions in one request.
+func (ok *Okx) PositionBuilder(ctx context.Context, arg PositionBuilderInput) (*PositionBuilderResponse, error) {
+	if !(strings.EqualFold(arg.InstrumentType, "SWAP") || strings.EqualFold(arg.InstrumentType, "FUTURES") || strings.EqualFold(arg.InstrumentType, "OPTIONS")) {
+		arg.InstrumentType = ""
+	}
+	type response struct {
+		Code string                     `json:"code"`
+		Msg  string                     `json:"msg"`
+		Data []*PositionBuilderResponse `json:"data"`
+	}
+	var resp response
+	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, accountSimulatedMargin, &arg, &resp, true)
+	if er != nil {
+		return nil, er
+	}
+	if len(resp.Data) == 0 {
+		if resp.Msg == "" {
+			return nil, errNoValidResponseFromServer
+		}
+		return nil, errors.New(resp.Msg)
+	}
+	return resp.Data[0], nil
+}
+
+// GetGreeks retrieve a greeks list of all assets in the account.
+func (ok *Okx) GetGreeks(ctx context.Context, currency string) ([]*GreeksItem, error) {
+	params := url.Values{}
+	if currency != "" {
+		params.Set("ccy", currency)
+	}
+	path := common.EncodeURLValues(accountGeeks, params)
+	type response struct {
+		Code string        `json:"code"`
+		Msg  string        `json:"msg"`
+		Data []*GreeksItem `json:"data"`
+	}
+	var resp response
+	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, true)
+}
+
+/********************************** Account END ************************************************************/
+
+/********************************** Subaccount Endpoints ***************************************************/
+
+/*************************************** Subaccount End ***************************************************/
 
 // GetTickers retrives the latest price snopshots best bid/ ask price, and tranding volume in the last 34 hours.
 func (ok *Okx) GetTickers(ctx context.Context, instType, uly, instId string) ([]MarketDataResponse, error) {
