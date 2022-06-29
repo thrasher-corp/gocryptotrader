@@ -8,12 +8,14 @@ import (
 	"time"
 
 	objects "github.com/d5/tengo/v2"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/wrappers/validator"
 )
 
 var (
+	ctx  = &Context{}
 	exch = &objects.String{
 		Value: "BTC Markets",
 	}
@@ -48,7 +50,7 @@ func TestMain(m *testing.M) {
 
 func TestExchangeOrderbook(t *testing.T) {
 	t.Parallel()
-	_, err := ExchangeOrderbook(exch, currencyPair, delimiter, assetType)
+	_, err := ExchangeOrderbook(ctx, exch, currencyPair, delimiter, assetType)
 	if err != nil {
 		t.Error(err)
 	}
@@ -66,7 +68,7 @@ func TestExchangeOrderbook(t *testing.T) {
 
 func TestExchangeTicker(t *testing.T) {
 	t.Parallel()
-	_, err := ExchangeTicker(exch, currencyPair, delimiter, assetType)
+	_, err := ExchangeTicker(ctx, exch, currencyPair, delimiter, assetType)
 	if err != nil {
 		t.Error(err)
 	}
@@ -133,12 +135,12 @@ func TestAccountInfo(t *testing.T) {
 		t.Error(err)
 	}
 
-	_, err = ExchangeAccountInfo(exch, assetType)
+	_, err = ExchangeAccountInfo(ctx, exch, assetType)
 	if err != nil {
 		t.Error(err)
 	}
 
-	_, err = ExchangeAccountInfo(exchError, assetType)
+	_, err = ExchangeAccountInfo(ctx, exchError, assetType)
 	if err != nil && !errors.Is(err, errTestFailed) {
 		t.Error(err)
 	}
@@ -152,12 +154,12 @@ func TestExchangeOrderQuery(t *testing.T) {
 		t.Error(err)
 	}
 
-	_, err = ExchangeOrderQuery(exch, orderID)
+	_, err = ExchangeOrderQuery(ctx, exch, orderID)
 	if err != nil {
 		t.Error(err)
 	}
 
-	_, err = ExchangeOrderQuery(exchError, orderID)
+	_, err = ExchangeOrderQuery(ctx, exchError, orderID)
 	if err != nil && !errors.Is(err, errTestFailed) {
 		t.Error(err)
 	}
@@ -180,17 +182,17 @@ func TestExchangeOrderCancel(t *testing.T) {
 		t.Error("expecting error")
 	}
 
-	_, err = ExchangeOrderCancel(exch, orderID)
+	_, err = ExchangeOrderCancel(ctx, exch, orderID)
 	if err != nil {
 		t.Error(err)
 	}
 
-	_, err = ExchangeOrderCancel(exch, orderID, currencyPair)
+	_, err = ExchangeOrderCancel(ctx, exch, orderID, currencyPair)
 	if err != nil {
 		t.Error(err)
 	}
 
-	_, err = ExchangeOrderCancel(exch, orderID, currencyPair, assetType)
+	_, err = ExchangeOrderCancel(ctx, exch, orderID, currencyPair, assetType)
 	if err != nil {
 		t.Error(err)
 	}
@@ -209,19 +211,19 @@ func TestExchangeOrderSubmit(t *testing.T) {
 	orderAmount := &objects.Float{Value: 1}
 	orderAsset := &objects.String{Value: asset.Spot.String()}
 
-	_, err = ExchangeOrderSubmit(exch, currencyPair, delimiter,
+	_, err = ExchangeOrderSubmit(ctx, exch, currencyPair, delimiter,
 		orderType, orderSide, orderPrice, orderAmount, orderID, orderAsset)
 	if err != nil && !errors.Is(err, errTestFailed) {
 		t.Error(err)
 	}
 
-	_, err = ExchangeOrderSubmit(exch, currencyPair, delimiter,
+	_, err = ExchangeOrderSubmit(ctx, exch, currencyPair, delimiter,
 		orderType, orderSide, orderPrice, orderAmount, orderID, orderAsset)
 	if err != nil {
 		t.Error(err)
 	}
 
-	_, err = ExchangeOrderSubmit(objects.TrueValue, currencyPair, delimiter,
+	_, err = ExchangeOrderSubmit(ctx, objects.TrueValue, currencyPair, delimiter,
 		orderType, orderSide, orderPrice, orderAmount, orderID, orderAsset)
 	if err != nil {
 		t.Error(err)
@@ -269,7 +271,7 @@ func TestExchangeWithdrawCrypto(t *testing.T) {
 	address := &objects.String{Value: "0xTHISISALEGITBTCADDRESSS"}
 	amount := &objects.Float{Value: 1.0}
 
-	_, err = ExchangeWithdrawCrypto(exch, currCode, address, address, amount, amount, desc)
+	_, err = ExchangeWithdrawCrypto(ctx, exch, currCode, address, address, amount, amount, desc)
 	if err != nil {
 		t.Error(err)
 	}
@@ -286,7 +288,7 @@ func TestExchangeWithdrawFiat(t *testing.T) {
 	desc := &objects.String{Value: "Hello"}
 	amount := &objects.Float{Value: 1.0}
 	bankID := &objects.String{Value: "test-bank-01"}
-	_, err = ExchangeWithdrawFiat(exch, currCode, desc, amount, bankID)
+	_, err = ExchangeWithdrawFiat(ctx, exch, currCode, desc, amount, bankID)
 	if err != nil {
 		t.Error(err)
 	}
@@ -331,5 +333,148 @@ func TestParseInterval(t *testing.T) {
 		if !errors.Is(err, errInvalidInterval) {
 			t.Error(err)
 		}
+	}
+}
+
+func TestSetVerbose(t *testing.T) {
+	t.Parallel()
+	_, err := setVerbose()
+	if !errors.Is(err, objects.ErrWrongNumArguments) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, objects.ErrWrongNumArguments)
+	}
+
+	_, err = setVerbose(objects.TrueValue)
+	if !errors.Is(err, common.ErrTypeAssertFailure) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrTypeAssertFailure)
+	}
+
+	resp, err := setVerbose(&Context{})
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	ctx, ok := objects.ToInterface(resp).(*Context)
+	if !ok {
+		t.Fatal("should be of type *Context")
+	}
+
+	_, ok = ctx.Value["verbose"]
+	if !ok {
+		t.Fatal("should contain verbose string in map")
+	}
+}
+
+var dummyStr = &objects.String{Value: "xxxx"}
+
+func TestSetAccount(t *testing.T) {
+	t.Parallel()
+	_, err := setAccount()
+	if !errors.Is(err, objects.ErrWrongNumArguments) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, objects.ErrWrongNumArguments)
+	}
+
+	_, err = setAccount(objects.TrueValue, objects.TrueValue, objects.TrueValue)
+	if !errors.Is(err, common.ErrTypeAssertFailure) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrTypeAssertFailure)
+	}
+
+	_, err = setAccount(&Context{}, objects.TrueValue, objects.TrueValue)
+	if !errors.Is(err, common.ErrTypeAssertFailure) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrTypeAssertFailure)
+	}
+
+	_, err = setAccount(&Context{}, dummyStr, objects.TrueValue)
+	if !errors.Is(err, common.ErrTypeAssertFailure) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrTypeAssertFailure)
+	}
+
+	_, err = setAccount(&Context{}, dummyStr, dummyStr, objects.TrueValue)
+	if !errors.Is(err, common.ErrTypeAssertFailure) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrTypeAssertFailure)
+	}
+
+	_, err = setAccount(&Context{}, dummyStr, dummyStr, dummyStr, objects.TrueValue)
+	if !errors.Is(err, common.ErrTypeAssertFailure) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrTypeAssertFailure)
+	}
+
+	_, err = setAccount(&Context{}, dummyStr, dummyStr, dummyStr, dummyStr, objects.TrueValue)
+	if !errors.Is(err, common.ErrTypeAssertFailure) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrTypeAssertFailure)
+	}
+
+	_, err = setAccount(&Context{}, dummyStr, dummyStr, dummyStr, dummyStr, dummyStr, objects.TrueValue)
+	if !errors.Is(err, common.ErrTypeAssertFailure) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrTypeAssertFailure)
+	}
+
+	resp, err := setAccount(&Context{}, dummyStr, dummyStr, dummyStr, dummyStr, dummyStr, dummyStr)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	ctx, ok := objects.ToInterface(resp).(*Context)
+	if !ok {
+		t.Fatal("should be of type *Context")
+	}
+
+	_, ok = ctx.Value["apikey"]
+	if !ok {
+		t.Fatal("should contain apikey string in map")
+	}
+	_, ok = ctx.Value["apisecret"]
+	if !ok {
+		t.Fatal("should contain apisecret string in map")
+	}
+	_, ok = ctx.Value["subaccount"]
+	if !ok {
+		t.Fatal("should contain subaccount string in map")
+	}
+	_, ok = ctx.Value["clientid"]
+	if !ok {
+		t.Fatal("should contain clientid string in map")
+	}
+	_, ok = ctx.Value["pemkey"]
+	if !ok {
+		t.Fatal("should contain pemkey string in map")
+	}
+	_, ok = ctx.Value["otp"]
+	if !ok {
+		t.Fatal("should contain otp string in map")
+	}
+}
+
+func TestProcessScriptContext(t *testing.T) {
+	t.Parallel()
+	ctx := processScriptContext(nil)
+	if ctx == nil {
+		t.Fatal("should not be nil")
+	}
+
+	resp, err := setAccount(&Context{}, dummyStr, dummyStr, dummyStr, dummyStr, dummyStr, dummyStr)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	resp, err = setVerbose(resp)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	scriptCTX, ok := objects.ToInterface(resp).(*Context)
+	if !ok {
+		t.Fatal("should assert correctly")
+	}
+
+	ctx = processScriptContext(scriptCTX)
+	if ctx == nil {
+		t.Fatal("should not be nil")
+	}
+}
+
+func TestScriptCredentialTypeName(t *testing.T) {
+	t.Parallel()
+	if name := (&Context{}).TypeName(); name != "scriptContext" {
+		t.Fatal("unexpected value")
 	}
 }
