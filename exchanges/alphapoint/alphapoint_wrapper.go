@@ -116,7 +116,12 @@ func (a *Alphapoint) UpdateAccountInfo(ctx context.Context, assetType asset.Item
 		AssetType:  assetType,
 	})
 
-	err = account.Process(&response)
+	creds, err := a.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+
+	err = account.Process(&response, creds)
 	if err != nil {
 		return account.Holdings{}, err
 	}
@@ -127,7 +132,11 @@ func (a *Alphapoint) UpdateAccountInfo(ctx context.Context, assetType asset.Item
 // FetchAccountInfo retrieves balances for all enabled currencies on the
 // Alphapoint exchange
 func (a *Alphapoint) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	acc, err := account.GetHoldings(a.Name, assetType)
+	creds, err := a.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	acc, err := account.GetHoldings(a.Name, creds, assetType)
 	if err != nil {
 		return a.UpdateAccountInfo(ctx, assetType)
 	}

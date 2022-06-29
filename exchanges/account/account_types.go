@@ -26,8 +26,13 @@ type Service struct {
 
 // Accounts holds a stream ID and a map to the exchange holdings
 type Accounts struct {
-	ID          uuid.UUID
-	SubAccounts map[string]map[asset.Item]map[*currency.Item]*ProtectedBalance
+	ID uuid.UUID
+	// NOTE: Credentials is a place holder for a future interface type, which
+	// will need -
+	// TODO: Credential tracker to match to keys that are managed and return
+	// pointer.
+	// TODO: Have different cred struct for centralized verse DEFI exchanges.
+	SubAccounts map[Credentials]map[string]map[asset.Item]map[*currency.Item]*ProtectedBalance
 }
 
 // Holdings is a generic type to hold each exchange's holdings for all enabled
@@ -39,9 +44,10 @@ type Holdings struct {
 
 // SubAccount defines a singular account type with associated currency balances
 type SubAccount struct {
-	ID         string
-	AssetType  asset.Item
-	Currencies []Balance
+	Credentials Protected
+	ID          string
+	AssetType   asset.Item
+	Currencies  []Balance
 }
 
 // Balance is a sub type to store currency name and individual totals
@@ -75,4 +81,10 @@ type ProtectedBalance struct {
 	// notice alerts for when the balance changes for strategy inspection and
 	// usage.
 	notice alert.Notice
+}
+
+// Protected limits the access to the underlying credentials outside of this
+// package.
+type Protected struct {
+	creds Credentials
 }

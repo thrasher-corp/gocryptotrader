@@ -108,7 +108,7 @@ func (s *RPCServer) authenticateClient(ctx context.Context) (context.Context, er
 		password != s.Config.RemoteControl.Password {
 		return ctx, fmt.Errorf("username/password mismatch")
 	}
-	return exchange.ParseCredentialsMetadata(ctx, md)
+	return account.ParseCredentialsMetadata(ctx, md)
 }
 
 // StartRPCServer starts a gRPC server with TLS auth
@@ -606,7 +606,7 @@ func createAccountInfoRequest(h account.Holdings) (*gctrpc.GetAccountInfoRespons
 	accounts := make([]*gctrpc.Account, len(h.Accounts))
 	for x := range h.Accounts {
 		var a gctrpc.Account
-		a.Id = h.Accounts[x].ID
+		a.Id = h.Accounts[x].Credentials.String()
 		for _, y := range h.Accounts[x].Currencies {
 			if y.Total == 0 &&
 				y.Hold == 0 &&

@@ -368,6 +368,16 @@ func ({{.Variable}} *{{.CapitalName}}) UpdateAccountInfo(ctx context.Context, as
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func ({{.Variable}} *{{.CapitalName}}) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
+	// Example implementation below:
+	// 	creds, err := {{.Variable}}.GetCredentials(ctx)
+	// 	if err != nil {
+	// 		return account.Holdings{}, err
+	// 	}
+	// 	acc, err := account.GetHoldings({{.Variable}}.Name, creds, assetType)
+	// 	if err != nil {
+	// 		return {{.Variable}}.UpdateAccountInfo(ctx, assetType)
+	// 	}
+	// 	return acc, nil
 	return account.Holdings{}, common.ErrNotYetImplemented
 }
 

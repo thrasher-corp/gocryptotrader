@@ -808,7 +808,11 @@ func (h *HUOBI) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 	}
 	acc.AssetType = assetType
 	info.Accounts = append(info.Accounts, acc)
-	if err := account.Process(&info); err != nil {
+	creds, err := h.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	if err := account.Process(&info, creds); err != nil {
 		return info, err
 	}
 	return info, nil
@@ -816,7 +820,11 @@ func (h *HUOBI) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (h *HUOBI) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	acc, err := account.GetHoldings(h.Name, assetType)
+	creds, err := h.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	acc, err := account.GetHoldings(h.Name, creds, assetType)
 	if err != nil {
 		return h.UpdateAccountInfo(ctx, assetType)
 	}
