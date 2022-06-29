@@ -1304,7 +1304,7 @@ func TestGenerateFTXCashAndCarryStrategy(t *testing.T) {
 		t.Skip()
 	}
 	cfg := Config{
-		Nickname: "Example Cash and Carry",
+		Nickname: "ExampleCashAndCarry",
 		Goal:     "To demonstrate a cash and carry strategy",
 		StrategySettings: StrategySettings{
 			Name:                         "ftx-cash-carry",

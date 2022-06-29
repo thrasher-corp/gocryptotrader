@@ -43,32 +43,7 @@ func main() {
 	fmt.Print(common.ASCIILogo)
 	fmt.Println("Welcome to the config generator!")
 	reader := bufio.NewReader(os.Stdin)
-	cfg := config.Config{
-		StrategySettings: config.StrategySettings{
-			Name:                         "",
-			SimultaneousSignalProcessing: false,
-			CustomSettings:               nil,
-		},
-		FundingSettings: config.FundingSettings{
-			UseExchangeLevelFunding: false,
-			ExchangeLevelFunding:    nil,
-		},
-		CurrencySettings: []config.CurrencySettings{},
-		DataSettings: config.DataSettings{
-			Interval:     0,
-			DataType:     "",
-			APIData:      nil,
-			DatabaseData: nil,
-			LiveData:     nil,
-			CSVData:      nil,
-		},
-		PortfolioSettings: config.PortfolioSettings{
-			Leverage: config.Leverage{},
-			BuySide:  config.MinMax{},
-			SellSide: config.MinMax{},
-		},
-		StatisticSettings: config.StatisticSettings{},
-	}
+	var cfg config.Config
 	fmt.Println("-----Strategy Settings-----")
 	var err error
 	firstRun := true
@@ -337,7 +312,7 @@ func parseAPI(reader *bufio.Reader, cfg *config.Config) error {
 	fmt.Printf("What is the start date? Leave blank for \"%v\"\n", defaultStart.Format(gctcommon.SimpleTimeFormat))
 	startDate = quickParse(reader)
 	if startDate != "" {
-		cfg.DataSettings.APIData.StartDate, err = time.Parse(startDate, gctcommon.SimpleTimeFormat)
+		cfg.DataSettings.APIData.StartDate, err = time.Parse(gctcommon.SimpleTimeFormat, startDate)
 		if err != nil {
 			return err
 		}
@@ -348,7 +323,7 @@ func parseAPI(reader *bufio.Reader, cfg *config.Config) error {
 	fmt.Printf("What is the end date? Leave blank for \"%v\"\n", defaultStart.Format(gctcommon.SimpleTimeFormat))
 	endDate = quickParse(reader)
 	if endDate != "" {
-		cfg.DataSettings.APIData.EndDate, err = time.Parse(endDate, gctcommon.SimpleTimeFormat)
+		cfg.DataSettings.APIData.EndDate, err = time.Parse(gctcommon.SimpleTimeFormat, endDate)
 		if err != nil {
 			return err
 		}
@@ -377,7 +352,7 @@ func parseDatabase(reader *bufio.Reader, cfg *config.Config) error {
 	fmt.Printf("What is the start date? Leave blank for \"%v\"\n", defaultStart.Format(gctcommon.SimpleTimeFormat))
 	startDate := quickParse(reader)
 	if startDate != "" {
-		cfg.DataSettings.DatabaseData.StartDate, err = time.Parse(startDate, gctcommon.SimpleTimeFormat)
+		cfg.DataSettings.DatabaseData.StartDate, err = time.Parse(gctcommon.SimpleTimeFormat, startDate)
 		if err != nil {
 			return err
 		}
@@ -387,7 +362,7 @@ func parseDatabase(reader *bufio.Reader, cfg *config.Config) error {
 
 	fmt.Printf("What is the end date? Leave blank for \"%v\"\n", defaultStart.Format(gctcommon.SimpleTimeFormat))
 	if endDate := quickParse(reader); endDate != "" {
-		cfg.DataSettings.DatabaseData.EndDate, err = time.Parse(endDate, gctcommon.SimpleTimeFormat)
+		cfg.DataSettings.DatabaseData.EndDate, err = time.Parse(gctcommon.SimpleTimeFormat, endDate)
 		if err != nil {
 			return err
 		}

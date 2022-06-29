@@ -17,8 +17,9 @@ import (
 const maxChartLimit = 1100
 
 var (
-	errNoCandles       = errors.New("no candles to enhance")
-	errStatisticsUnset = errors.New("unable to proceed with unset Statistics property")
+	errNoCandles              = errors.New("no candles to enhance")
+	errStatisticsUnset        = errors.New("unable to proceed with unset Statistics property")
+	errCannotGenerateFileName = errors.New("cannot generate filename")
 )
 
 // Handler contains all functions required to generate statistical reporting for backtesting results
