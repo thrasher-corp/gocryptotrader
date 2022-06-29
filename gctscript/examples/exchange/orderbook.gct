@@ -5,7 +5,13 @@ name := "run"
 timer := "5s"
 
 load := func() {
-    tx := exch.orderbook("btc markets", "btc-aud", "-", "spot")
+    // 'ctx' is already defined when we construct our bytecode from file.
+    // We can add debugging info or account info see verbose.gct or account.gct
+    // for more details.
+    tx := exch.orderbook(ctx, "btc markets", "btc-aud", "-", "spot")
+    if is_error(tx) {
+        // handle error
+    }
 	fmt.println(tx)
 }
 

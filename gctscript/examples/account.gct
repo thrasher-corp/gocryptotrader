@@ -1,0 +1,26 @@
+global := import("global")
+exch := import("exchange")
+fmt := import("fmt")
+
+load := func() {
+    // 'ctx' is already defined when we construct our bytecode from file. 
+    // It contains script ID and shortname of file as save details to default
+    // script output directory.
+
+    // Set account func allows the setting of account details via script
+    // which can then be passed into auth functions to specifically target
+    // different subaccounts while trading or retrieving fund details. 
+    // Basic required implementation below:
+    ctx = global.set_account(ctx, "api_key_str", "api_secret_str")
+    // Full implementation:
+    // ctx = global.set_account(ctx, "api_key_str", "api_secret_str", "sub_account_str", "client_Id_str", "PEM_key_str", "OTP_Str")
+
+    info := exch.accountinfo(ctx, "ftx", "spot")
+    if is_error(info) {
+        // handle error 
+    }
+
+    fmt.println(info)
+}
+
+load()

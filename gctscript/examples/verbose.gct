@@ -1,0 +1,25 @@
+global := import("global")
+exch := import("exchange")
+fmt := import("fmt")
+
+load := func() {
+    // 'ctx' is already defined when we construct our bytecode from file. 
+    // It contains script ID and shortname of file as save details to default
+    // script output directory.
+
+    // Set verbosity func allows the setting of rest request verbosity to
+    // specifically log out this scripts interaction with any http outbound
+    // request for debugging purposes. 
+    ctx = global.set_verbose(ctx)
+
+    // If this request needs to send an http request to the exchange then the
+    // request details will be logged on the gct instance. 
+    info := exch.accountinfo(ctx, "ftx", "spot")
+    if is_error(info) {
+        // handle error 
+    }
+
+    fmt.println(info)
+}
+
+load()

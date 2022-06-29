@@ -2,7 +2,13 @@ fmt := import("fmt")
 exch := import("exchange")
 
 load := func() {
-  info := exch.ordercancel("binance","13371337", "btc-usdt", "spot")
+  // 'ctx' is already defined when we construct our bytecode from file.
+  // We can add debugging info or account info see verbose.gct or account.gct
+  // for more details. 
+  info := exch.ordercancel(ctx, "binance","13371337", "btc-usdt", "spot")
+  if is_error(info) {
+    // handle error
+  }
   fmt.println(info)
 }
 

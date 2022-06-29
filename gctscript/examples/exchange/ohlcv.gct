@@ -4,7 +4,13 @@ t := import("times")
 
 load := func() {
    start := t.add(t.now(), -t.hour*24)
-   ohlcvData := exch.ohlcv("coinbasepro", "BTC-USD", "-", "SPOT", start, t.now(), "1h")
+   // 'ctx' is already defined when we construct our bytecode from file.
+   // We can add debugging info or account info see verbose.gct or account.gct
+   // for more details.  
+   ohlcvData := exch.ohlcv(ctx, "coinbasepro", "BTC-USD", "-", "SPOT", start, t.now(), "1h")
+   if is_error(ohlcvData) {
+      // handle error
+   }
    fmt.println(ohlcvData)
 }
 

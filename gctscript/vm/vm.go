@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	scriptevent "github.com/thrasher-corp/gocryptotrader/database/repository/script"
+	"github.com/thrasher-corp/gocryptotrader/gctscript/modules/gct"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules/loader"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/wrappers/validator"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -85,8 +86,13 @@ func (vm *VM) Load(file string) error {
 	vm.File = file
 	vm.Path = filepath.Dir(file)
 	vm.Script = tengo.NewScript(code)
-	scriptctx := vm.ShortName() + "-" + vm.ID.String()
-	err = vm.Script.Add("ctx", scriptctx)
+
+	scriptCtx := &gct.Context{}
+	scriptCtx.Value = map[string]tengo.Object{
+		"script": &tengo.String{Value: vm.ShortName() + "-" + vm.ID.String()},
+	}
+
+	err = vm.Script.Add("ctx", scriptCtx)
 	if err != nil {
 		return err
 	}

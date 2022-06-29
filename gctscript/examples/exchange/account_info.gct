@@ -4,8 +4,14 @@ fmt := import("fmt")
 exch := import("exchange")
 
 load := func() {
-   // retrieve account information from exchange and store in info variable
-   info := exch.accountinfo("BTC Markets", "spot")
+   // Retrieve account information from exchange and store in info variable
+   // 'ctx' is already defined when we construct our bytecode from file.
+   // We can add debugging info or account info see verbose.gct or account.gct
+   // for more details.  
+   info := exch.accountinfo(ctx, "BTC Markets", "spot")
+   if is_error(info) {
+      // handle error
+   }
    // print out info
    fmt.println(info)
 }

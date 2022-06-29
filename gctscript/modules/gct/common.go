@@ -59,6 +59,26 @@ func WriteAsCSV(args ...objects.Object) (objects.Object, error) {
 		case indicators.OHLCV:
 			temp, err = convertOHLCV(args[i])
 			front = true
+		case "scriptContext":
+			if target != "" {
+				return nil, fmt.Errorf("filename already set, extra string %v cannot be processed", args[i])
+			}
+			scriptCtx, ok := objects.ToInterface(args[i]).(*Context)
+			if !ok {
+				return nil, common.GetAssertError("*gct.Context", args[i])
+			}
+
+			scriptDetails, ok := scriptCtx.Value["script"]
+			if !ok {
+				return nil, errors.New("no script details")
+			}
+
+			target, ok = objects.ToString(scriptDetails)
+			if !ok {
+				return nil, errors.New("failed to convert incoming output to string")
+			}
+
+			processTarget(&target)
 		case "string":
 			if target != "" {
 				return nil, fmt.Errorf("filename already set, extra string %v cannot be processed", args[i])
@@ -73,26 +93,7 @@ func WriteAsCSV(args ...objects.Object) (objects.Object, error) {
 				return nil, errors.New("script context details not specified")
 			}
 
-			// Removes file transversal
-			target = filepath.Base(target)
-
-			// checks to see if file is context defined, if not it will allow
-			// a client defined filename and append a date, forces the use of
-			// .csv file extension
-			switch {
-			case filepath.Ext(target) != ".csv" && strings.Contains(target, common.GctExt):
-				target += ".csv"
-			case filepath.Ext(target) == ".csv":
-				s := strings.Split(target, ".")
-				if len(s) == 2 {
-					target = s[0] + "-" + strconv.FormatInt(time.Now().UnixNano(), 10) + ".csv"
-				}
-			default:
-				target += "-" + strconv.FormatInt(time.Now().UnixNano(), 10) + ".csv"
-			}
-
-			target = filepath.Join(OutputDir, target)
-
+			processTarget(&target)
 		default:
 			err = fmt.Errorf("%s type is not handled", args[i].TypeName())
 		}
@@ -483,4 +484,26 @@ func convertOHLCV(a objects.Object) ([][]string, error) {
 		bucket = append(bucket, []string{date, volume, open, high, low, closed})
 	}
 	return bucket, nil
+}
+
+func processTarget(target *string) {
+	// Removes file transversal
+	*target = filepath.Base(*target)
+
+	// checks to see if file is context defined, if not it will allow
+	// a client defined filename and append a date, forces the use of
+	// .csv file extension
+	switch {
+	case filepath.Ext(*target) != ".csv" && strings.Contains(*target, common.GctExt):
+		*target += ".csv"
+	case filepath.Ext(*target) == ".csv":
+		s := strings.Split(*target, ".")
+		if len(s) == 2 {
+			*target = s[0] + "-" + strconv.FormatInt(time.Now().UnixNano(), 10) + ".csv"
+		}
+	default:
+		*target += "-" + strconv.FormatInt(time.Now().UnixNano(), 10) + ".csv"
+	}
+
+	*target = filepath.Join(OutputDir, *target)
 }

@@ -6,7 +6,13 @@ bbands := import("indicator/bbands")
 load := func() {
     start := t.date(2017, 8 , 17 , 0 , 0 , 0, 0)
     end := t.add_date(start, 0, 6 , 0)
-    ohlcvData := exch.ohlcv("binance", "BTC-USDT", "-", "SPOT", start, end, "1d")
+    // 'ctx' is already defined when we construct our bytecode from file.
+    // We can add debugging info or account info see verbose.gct or account.gct
+    // for more details. 
+    ohlcvData := exch.ohlcv(ctx, "binance", "BTC-USDT", "-", "SPOT", start, end, "1d")
+    if is_error(ohlcvData) {
+        // handle error
+    }
 
     ret := bbands.calculate("close", ohlcvData.candles, 20, 2.0, 2.0, "sma")
     fmt.println(ret)

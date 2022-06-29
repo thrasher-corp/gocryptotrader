@@ -2,7 +2,13 @@ fmt := import("fmt")
 exch := import("exchange")
 
 load := func() {
-  info := exch.ordersubmit("BTC Markets","BTC-AUD","-","LIMIT","SELL",1000000, 1,"", "spot")
+  // 'ctx' is already defined when we construct our bytecode from file.
+  // We can add debugging info or account info see verbose.gct or account.gct
+  // for more details.
+  info := exch.ordersubmit(ctx, "BTC Markets","BTC-AUD","-","LIMIT","SELL",1000000, 1,"", "spot")
+  if is_error(info) {
+    // handle error
+  }
   fmt.println(info)
 }
 

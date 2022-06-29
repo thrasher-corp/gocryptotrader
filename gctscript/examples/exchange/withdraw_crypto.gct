@@ -16,7 +16,13 @@ load := func() {
    // 7: trade password
    // 8: OTP
 
-   info := exch.withdrawcrypto("BTC Markets","BTC", "1234562362", "1231", 1.0, 0.0, "","" )
+   // 'ctx' is already defined when we construct our bytecode from file.
+   // We can add debugging info or account info see verbose.gct or account.gct
+   // for more details.
+   info := exch.withdrawcrypto(ctx, "BTC Markets","BTC", "1234562362", "1231", 1.0, 0.0, "","" )
+   if is_error(info) {
+      // handle error
+   }
    // print out info
    fmt.println(info)
 }

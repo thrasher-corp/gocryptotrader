@@ -1,7 +1,6 @@
 package gct
 
 import (
-	"context"
 	"fmt"
 	"time"
 
@@ -33,23 +32,27 @@ var exchangeModule = map[string]objects.Object{
 
 // ExchangeOrderbook returns orderbook for requested exchange & currencypair
 func ExchangeOrderbook(args ...objects.Object) (objects.Object, error) {
-	if len(args) != 4 {
+	if len(args) != 5 {
 		return nil, objects.ErrWrongNumArguments
 	}
 
-	exchangeName, ok := objects.ToString(args[0])
+	scriptCtx, ok := objects.ToInterface(args[0]).(*Context)
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, scriptCtx)
+	}
+	exchangeName, ok := objects.ToString(args[1])
 	if !ok {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, exchangeName)
 	}
-	currencyPair, ok := objects.ToString(args[1])
+	currencyPair, ok := objects.ToString(args[2])
 	if !ok {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, currencyPair)
 	}
-	delimiter, ok := objects.ToString(args[2])
+	delimiter, ok := objects.ToString(args[3])
 	if !ok {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, delimiter)
 	}
-	assetTypeParam, ok := objects.ToString(args[3])
+	assetTypeParam, ok := objects.ToString(args[4])
 	if !ok {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, assetTypeParam)
 	}
@@ -64,25 +67,26 @@ func ExchangeOrderbook(args ...objects.Object) (objects.Object, error) {
 		return errorResponse("%s", err)
 	}
 
-	ob, err := wrappers.GetWrapper().
-		Orderbook(context.TODO(), exchangeName, pair, assetType)
+	ctx := processScriptContext(scriptCtx)
+	ob, err := wrappers.GetWrapper().Orderbook(ctx, exchangeName, pair, assetType)
 	if err != nil {
 		return errorResponse("%s", err)
 	}
 
-	var asks, bids objects.Array
+	asks := objects.Array{Value: make([]objects.Object, len(ob.Asks))}
 	for x := range ob.Asks {
 		temp := make(map[string]objects.Object, 2)
 		temp["amount"] = &objects.Float{Value: ob.Asks[x].Amount}
 		temp["price"] = &objects.Float{Value: ob.Asks[x].Price}
-		asks.Value = append(asks.Value, &objects.Map{Value: temp})
+		asks.Value[x] = &objects.Map{Value: temp}
 	}
 
+	bids := objects.Array{Value: make([]objects.Object, len(ob.Bids))}
 	for x := range ob.Bids {
 		temp := make(map[string]objects.Object, 2)
 		temp["amount"] = &objects.Float{Value: ob.Bids[x].Amount}
 		temp["price"] = &objects.Float{Value: ob.Bids[x].Price}
-		bids.Value = append(bids.Value, &objects.Map{Value: temp})
+		bids.Value[x] = &objects.Map{Value: temp}
 	}
 
 	data := make(map[string]objects.Object, 5)
@@ -92,30 +96,33 @@ func ExchangeOrderbook(args ...objects.Object) (objects.Object, error) {
 	data["bids"] = &bids
 	data["asset"] = &objects.String{Value: ob.Asset.String()}
 
-	return &objects.Map{
-		Value: data,
-	}, nil
+	return &objects.Map{Value: data}, nil
 }
 
 // ExchangeTicker returns ticker data for requested exchange and currency pair
 func ExchangeTicker(args ...objects.Object) (objects.Object, error) {
-	if len(args) != 4 {
+	if len(args) != 5 {
 		return nil, objects.ErrWrongNumArguments
 	}
 
-	exchangeName, ok := objects.ToString(args[0])
+	scriptCtx, ok := objects.ToInterface(args[0]).(*Context)
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, scriptCtx)
+	}
+
+	exchangeName, ok := objects.ToString(args[1])
 	if !ok {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, exchangeName)
 	}
-	currencyPair, ok := objects.ToString(args[1])
+	currencyPair, ok := objects.ToString(args[2])
 	if !ok {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, currencyPair)
 	}
-	delimiter, ok := objects.ToString(args[2])
+	delimiter, ok := objects.ToString(args[3])
 	if !ok {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, delimiter)
 	}
-	assetTypeParam, ok := objects.ToString(args[3])
+	assetTypeParam, ok := objects.ToString(args[4])
 	if !ok {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, assetTypeParam)
 	}
@@ -130,8 +137,8 @@ func ExchangeTicker(args ...objects.Object) (objects.Object, error) {
 		return errorResponse("%s", err)
 	}
 
-	tx, err := wrappers.GetWrapper().
-		Ticker(context.TODO(), exchangeName, pair, assetType)
+	ctx := processScriptContext(scriptCtx)
+	tx, err := wrappers.GetWrapper().Ticker(ctx, exchangeName, pair, assetType)
 	if err != nil {
 		return errorResponse("%s", err)
 	}
@@ -219,15 +226,19 @@ func ExchangePairs(args ...objects.Object) (objects.Object, error) {
 
 // ExchangeAccountInfo returns account information for requested exchange
 func ExchangeAccountInfo(args ...objects.Object) (objects.Object, error) {
-	if len(args) != 2 {
+	if len(args) != 3 {
 		return nil, objects.ErrWrongNumArguments
 	}
 
-	exchangeName, ok := objects.ToString(args[0])
+	scriptCtx, ok := objects.ToInterface(args[0]).(*Context)
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, scriptCtx)
+	}
+	exchangeName, ok := objects.ToString(args[1])
 	if !ok {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, exchangeName)
 	}
-	assetString, ok := objects.ToString(args[1])
+	assetString, ok := objects.ToString(args[2])
 	if !ok {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, assetString)
 	}
@@ -235,8 +246,10 @@ func ExchangeAccountInfo(args ...objects.Object) (objects.Object, error) {
 	if err != nil {
 		return errorResponse("%s", err)
 	}
+
+	ctx := processScriptContext(scriptCtx)
 	rtnValue, err := wrappers.GetWrapper().
-		AccountInformation(context.TODO(), exchangeName, assetType)
+		AccountInformation(ctx, exchangeName, assetType)
 	if err != nil {
 		return errorResponse("%s", err)
 	}
@@ -255,23 +268,24 @@ func ExchangeAccountInfo(args ...objects.Object) (objects.Object, error) {
 	data := make(map[string]objects.Object, 2)
 	data["exchange"] = &objects.String{Value: rtnValue.Exchange}
 	data["currencies"] = &funds
-
-	return &objects.Map{
-		Value: data,
-	}, nil
+	return &objects.Map{Value: data}, nil
 }
 
 // ExchangeOrderQuery query order on exchange
 func ExchangeOrderQuery(args ...objects.Object) (objects.Object, error) {
-	if len(args) < 2 {
+	if len(args) < 3 {
 		return nil, objects.ErrWrongNumArguments
 	}
 
-	exchangeName, ok := objects.ToString(args[0])
+	scriptCtx, ok := objects.ToInterface(args[0]).(*Context)
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, scriptCtx)
+	}
+	exchangeName, ok := objects.ToString(args[1])
 	if !ok {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, exchangeName)
 	}
-	orderID, ok := objects.ToString(args[1])
+	orderID, ok := objects.ToString(args[2])
 	if !ok {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, orderID)
 	}
@@ -280,14 +294,14 @@ func ExchangeOrderQuery(args ...objects.Object) (objects.Object, error) {
 	assetTypeString := asset.Spot.String()
 
 	switch len(args) {
-	case 4:
-		assetTypeString, ok = objects.ToString(args[3])
+	case 5:
+		assetTypeString, ok = objects.ToString(args[4])
 		if !ok {
 			return nil, fmt.Errorf(ErrParameterConvertFailed, assetTypeString)
 		}
 		fallthrough
-	case 3:
-		currencyPairString, isOk := objects.ToString(args[2])
+	case 4:
+		currencyPairString, isOk := objects.ToString(args[3])
 		if !isOk {
 			return nil, fmt.Errorf(ErrParameterConvertFailed, currencyPairString)
 		}
@@ -304,8 +318,9 @@ func ExchangeOrderQuery(args ...objects.Object) (objects.Object, error) {
 		return errorResponse("%s", err)
 	}
 
+	ctx := processScriptContext(scriptCtx)
 	orderDetails, err := wrappers.GetWrapper().
-		QueryOrder(context.TODO(), exchangeName, orderID, pair, assetType)
+		QueryOrder(ctx, exchangeName, orderID, pair, assetType)
 	if err != nil {
 		return errorResponse("%s", err)
 	}
@@ -345,11 +360,15 @@ func ExchangeOrderQuery(args ...objects.Object) (objects.Object, error) {
 
 // ExchangeOrderCancel cancels order on requested exchange
 func ExchangeOrderCancel(args ...objects.Object) (objects.Object, error) {
-	if len(args) < 2 || len(args) > 4 {
+	if len(args) < 3 || len(args) > 5 {
 		return nil, objects.ErrWrongNumArguments
 	}
 
-	exchangeName, ok := objects.ToString(args[0])
+	scriptCtx, ok := objects.ToInterface(args[0]).(*Context)
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, scriptCtx)
+	}
+	exchangeName, ok := objects.ToString(args[1])
 	if !ok {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, exchangeName)
 	}
@@ -357,7 +376,7 @@ func ExchangeOrderCancel(args ...objects.Object) (objects.Object, error) {
 		return nil, fmt.Errorf(ErrEmptyParameter, "exchange name")
 	}
 	var orderID string
-	orderID, ok = objects.ToString(args[1])
+	orderID, ok = objects.ToString(args[2])
 	if !ok {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, orderID)
 	}
@@ -366,9 +385,9 @@ func ExchangeOrderCancel(args ...objects.Object) (objects.Object, error) {
 	}
 	var err error
 	var cp currency.Pair
-	if len(args) > 2 {
+	if len(args) > 3 {
 		var currencyPair string
-		currencyPair, ok = objects.ToString(args[2])
+		currencyPair, ok = objects.ToString(args[3])
 		if !ok {
 			return nil, fmt.Errorf(ErrParameterConvertFailed, currencyPair)
 		}
@@ -378,9 +397,9 @@ func ExchangeOrderCancel(args ...objects.Object) (objects.Object, error) {
 		}
 	}
 	var a asset.Item
-	if len(args) > 3 {
+	if len(args) > 4 {
 		var assetType string
-		assetType, ok = objects.ToString(args[3])
+		assetType, ok = objects.ToString(args[4])
 		if !ok {
 			return nil, fmt.Errorf(ErrParameterConvertFailed, assetType)
 		}
@@ -390,9 +409,9 @@ func ExchangeOrderCancel(args ...objects.Object) (objects.Object, error) {
 		}
 	}
 
-	var isCancelled bool
-	isCancelled, err = wrappers.GetWrapper().
-		CancelOrder(context.TODO(), exchangeName, orderID, cp, a)
+	ctx := processScriptContext(scriptCtx)
+	isCancelled, err := wrappers.GetWrapper().
+		CancelOrder(ctx, exchangeName, orderID, cp, a)
 	if err != nil {
 		return errorResponse("%s", err)
 	}
@@ -405,43 +424,47 @@ func ExchangeOrderCancel(args ...objects.Object) (objects.Object, error) {
 
 // ExchangeOrderSubmit submit order on exchange
 func ExchangeOrderSubmit(args ...objects.Object) (objects.Object, error) {
-	if len(args) != 9 {
+	if len(args) != 10 {
 		return nil, objects.ErrWrongNumArguments
 	}
 
-	exchangeName, ok := objects.ToString(args[0])
+	scriptCtx, ok := objects.ToInterface(args[0]).(*Context)
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, scriptCtx)
+	}
+	exchangeName, ok := objects.ToString(args[1])
 	if !ok {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, exchangeName)
 	}
-	currencyPair, ok := objects.ToString(args[1])
+	currencyPair, ok := objects.ToString(args[2])
 	if !ok {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, currencyPair)
 	}
-	delimiter, ok := objects.ToString(args[2])
+	delimiter, ok := objects.ToString(args[3])
 	if !ok {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, delimiter)
 	}
-	orderType, ok := objects.ToString(args[3])
+	orderType, ok := objects.ToString(args[4])
 	if !ok {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, orderType)
 	}
-	orderSide, ok := objects.ToString(args[4])
+	orderSide, ok := objects.ToString(args[5])
 	if !ok {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, orderSide)
 	}
-	orderPrice, ok := objects.ToFloat64(args[5])
+	orderPrice, ok := objects.ToFloat64(args[6])
 	if !ok {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, orderPrice)
 	}
-	orderAmount, ok := objects.ToFloat64(args[6])
+	orderAmount, ok := objects.ToFloat64(args[7])
 	if !ok {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, orderAmount)
 	}
-	orderClientID, ok := objects.ToString(args[7])
+	orderClientID, ok := objects.ToString(args[8])
 	if !ok {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, orderClientID)
 	}
-	assetType, ok := objects.ToString(args[8])
+	assetType, ok := objects.ToString(args[9])
 	if !ok {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, orderClientID)
 	}
@@ -477,7 +500,8 @@ func ExchangeOrderSubmit(args ...objects.Object) (objects.Object, error) {
 		Exchange:  exchangeName,
 	}
 
-	rtn, err := wrappers.GetWrapper().SubmitOrder(context.TODO(), tempSubmit)
+	ctx := processScriptContext(scriptCtx)
+	rtn, err := wrappers.GetWrapper().SubmitOrder(ctx, tempSubmit)
 	if err != nil {
 		return errorResponse("%s", err)
 	}
@@ -523,35 +547,39 @@ func ExchangeDepositAddress(args ...objects.Object) (objects.Object, error) {
 
 // ExchangeWithdrawCrypto submit request to withdraw crypto assets
 func ExchangeWithdrawCrypto(args ...objects.Object) (objects.Object, error) {
-	if len(args) != 7 {
+	if len(args) != 8 {
 		return nil, objects.ErrWrongNumArguments
 	}
 
-	exchangeName, ok := objects.ToString(args[0])
+	scriptCtx, ok := objects.ToInterface(args[0]).(*Context)
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, scriptCtx)
+	}
+	exchangeName, ok := objects.ToString(args[1])
 	if !ok {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, exchangeName)
 	}
-	cur, ok := objects.ToString(args[1])
+	cur, ok := objects.ToString(args[2])
 	if !ok {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, cur)
 	}
-	address, ok := objects.ToString(args[2])
+	address, ok := objects.ToString(args[3])
 	if !ok {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, address)
 	}
-	addressTag, ok := objects.ToString(args[3])
+	addressTag, ok := objects.ToString(args[4])
 	if !ok {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, addressTag)
 	}
-	amount, ok := objects.ToFloat64(args[4])
+	amount, ok := objects.ToFloat64(args[5])
 	if !ok {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, amount)
 	}
-	feeAmount, ok := objects.ToFloat64(args[5])
+	feeAmount, ok := objects.ToFloat64(args[6])
 	if !ok {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, feeAmount)
 	}
-	description, ok := objects.ToString(args[6])
+	description, ok := objects.ToString(args[7])
 	if !ok {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, description)
 	}
@@ -568,8 +596,8 @@ func ExchangeWithdrawCrypto(args ...objects.Object) (objects.Object, error) {
 		Amount:      amount,
 	}
 
-	rtn, err := wrappers.GetWrapper().
-		WithdrawalCryptoFunds(context.TODO(), withdrawRequest)
+	ctx := processScriptContext(scriptCtx)
+	rtn, err := wrappers.GetWrapper().WithdrawalCryptoFunds(ctx, withdrawRequest)
 	if err != nil {
 		return errorResponse("%s", err)
 	}
@@ -579,27 +607,31 @@ func ExchangeWithdrawCrypto(args ...objects.Object) (objects.Object, error) {
 
 // ExchangeWithdrawFiat submit request to withdraw fiat assets
 func ExchangeWithdrawFiat(args ...objects.Object) (objects.Object, error) {
-	if len(args) != 5 {
+	if len(args) != 6 {
 		return nil, objects.ErrWrongNumArguments
 	}
 
-	exchangeName, ok := objects.ToString(args[0])
+	scriptCtx, ok := objects.ToInterface(args[0]).(*Context)
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, scriptCtx)
+	}
+	exchangeName, ok := objects.ToString(args[1])
 	if !ok {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, exchangeName)
 	}
-	cur, ok := objects.ToString(args[1])
+	cur, ok := objects.ToString(args[2])
 	if !ok {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, cur)
 	}
-	description, ok := objects.ToString(args[2])
+	description, ok := objects.ToString(args[3])
 	if !ok {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, description)
 	}
-	amount, ok := objects.ToFloat64(args[3])
+	amount, ok := objects.ToFloat64(args[4])
 	if !ok {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, amount)
 	}
-	bankAccountID, ok := objects.ToString(args[4])
+	bankAccountID, ok := objects.ToString(args[5])
 	if !ok {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, bankAccountID)
 	}
@@ -611,8 +643,9 @@ func ExchangeWithdrawFiat(args ...objects.Object) (objects.Object, error) {
 		Amount:      amount,
 	}
 
+	ctx := processScriptContext(scriptCtx)
 	rtn, err := wrappers.GetWrapper().
-		WithdrawalFiatFunds(context.TODO(), bankAccountID, withdrawRequest)
+		WithdrawalFiatFunds(ctx, bankAccountID, withdrawRequest)
 	if err != nil {
 		return errorResponse("%s", err)
 	}
@@ -631,38 +664,42 @@ func (o *OHLCV) TypeName() string {
 }
 
 func exchangeOHLCV(args ...objects.Object) (objects.Object, error) {
-	if len(args) != 7 {
+	if len(args) != 8 {
 		return nil, objects.ErrWrongNumArguments
 	}
 
-	exchangeName, ok := objects.ToString(args[0])
+	scriptCtx, ok := objects.ToInterface(args[0]).(*Context)
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, scriptCtx)
+	}
+	exchangeName, ok := objects.ToString(args[1])
 	if !ok {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, exchangeName)
 	}
-	currencyPair, ok := objects.ToString(args[1])
+	currencyPair, ok := objects.ToString(args[2])
 	if !ok {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, currencyPair)
 	}
-	delimiter, ok := objects.ToString(args[2])
+	delimiter, ok := objects.ToString(args[3])
 	if !ok {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, delimiter)
 	}
-	assetTypeParam, ok := objects.ToString(args[3])
+	assetTypeParam, ok := objects.ToString(args[4])
 	if !ok {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, assetTypeParam)
 	}
 
-	startTime, ok := objects.ToTime(args[4])
+	startTime, ok := objects.ToTime(args[5])
 	if !ok {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, startTime)
 	}
 
-	endTime, ok := objects.ToTime(args[5])
+	endTime, ok := objects.ToTime(args[6])
 	if !ok {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, endTime)
 	}
 
-	intervalStr, ok := objects.ToString(args[6])
+	intervalStr, ok := objects.ToString(args[7])
 	if !ok {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, endTime)
 	}
@@ -679,8 +716,9 @@ func exchangeOHLCV(args ...objects.Object) (objects.Object, error) {
 		return errorResponse("%s", err)
 	}
 
+	ctx := processScriptContext(scriptCtx)
 	ret, err := wrappers.GetWrapper().
-		OHLCV(context.TODO(),
+		OHLCV(ctx,
 			exchangeName,
 			pair,
 			assetType,
