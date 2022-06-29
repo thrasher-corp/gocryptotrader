@@ -467,16 +467,15 @@ func (e *EXMO) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.Ite
 }
 
 // SubmitOrder submits a new order
-func (e *EXMO) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
-	var submitOrderResponse order.SubmitResponse
+func (e *EXMO) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	if err := s.Validate(); err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
 	var oT string
 	switch s.Type {
 	case order.Limit:
-		return submitOrderResponse, errors.New("unsupported order type")
+		return nil, errors.New("unsupported order type")
 	case order.Market:
 		if s.Side == order.Sell {
 			oT = "market_sell"
@@ -487,27 +486,20 @@ func (e *EXMO) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitRe
 
 	fPair, err := e.FormatExchangeCurrency(s.Pair, s.AssetType)
 	if err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
 	response, err := e.CreateOrder(ctx, fPair.String(), oT, s.Price, s.Amount)
 	if err != nil {
-		return submitOrderResponse, err
-	}
-	if response > 0 {
-		submitOrderResponse.OrderID = strconv.FormatInt(response, 10)
+		return nil, err
 	}
 
-	submitOrderResponse.IsOrderPlaced = true
-	if s.Type == order.Market {
-		submitOrderResponse.FullyMatched = true
-	}
-	return submitOrderResponse, nil
+	return s.DeriveSubmitResponse(strconv.FormatInt(response, 10))
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (e *EXMO) ModifyOrder(_ context.Context, _ *order.Modify) (*order.Modify, error) {
+func (e *EXMO) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -517,7 +509,7 @@ func (e *EXMO) CancelOrder(ctx context.Context, o *order.Cancel) error {
 		return err
 	}
 
-	orderIDInt, err := strconv.ParseInt(o.ID, 10, 64)
+	orderIDInt, err := strconv.ParseInt(o.OrderID, 10, 64)
 	if err != nil {
 		return err
 	}
@@ -663,7 +655,7 @@ func (e *EXMO) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest)
 			return nil, err
 		}
 		orders = append(orders, order.Detail{
-			ID:       strconv.FormatInt(resp[i].OrderID, 10),
+			OrderID:  strconv.FormatInt(resp[i].OrderID, 10),
 			Amount:   resp[i].Quantity,
 			Date:     orderDate,
 			Price:    resp[i].Price,
@@ -721,7 +713,7 @@ func (e *EXMO) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest)
 			return nil, err
 		}
 		detail := order.Detail{
-			ID:             strconv.FormatInt(allTrades[i].TradeID, 10),
+			OrderID:        strconv.FormatInt(allTrades[i].TradeID, 10),
 			Amount:         allTrades[i].Quantity,
 			ExecutedAmount: allTrades[i].Quantity,
 			Cost:           allTrades[i].Amount,

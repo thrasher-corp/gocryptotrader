@@ -75,9 +75,10 @@ supplied meet the requirements to make an authenticated request.
 
 
     o := &order.Submit{
+        Exchange:  b.Name, // or method GetName() if exchange.IBotInterface
         Pair:      currency.NewPair(currency.BTC, currency.USD),
-        OrderSide: order.Sell,
-        OrderType: order.Limit,
+        Side:      order.Sell,
+        Type:      order.Limit,
         Price:     1000000,
         Amount:    0.1,
         AssetType: asset.Spot,

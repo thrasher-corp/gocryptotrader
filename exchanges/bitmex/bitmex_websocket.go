@@ -313,9 +313,9 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 						Err:      err,
 					}
 				}
-				b.Websocket.DataHandler <- &order.Modify{
+				b.Websocket.DataHandler <- &order.Detail{
 					Exchange:  b.Name,
-					ID:        response.Data[i].OrderID,
+					OrderID:   response.Data[i].OrderID,
 					AccountID: strconv.FormatInt(response.Data[i].Account, 10),
 					AssetType: a,
 					Pair:      p,
@@ -379,7 +379,7 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 						Price:     response.Data[x].Price,
 						Amount:    response.Data[x].OrderQuantity,
 						Exchange:  b.Name,
-						ID:        response.Data[x].OrderID,
+						OrderID:   response.Data[x].OrderID,
 						AccountID: strconv.FormatInt(response.Data[x].Account, 10),
 						Type:      oType,
 						Side:      oSide,
@@ -424,11 +424,11 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 							Err:      err,
 						}
 					}
-					b.Websocket.DataHandler <- &order.Modify{
+					b.Websocket.DataHandler <- &order.Detail{
 						Price:     response.Data[x].Price,
 						Amount:    response.Data[x].OrderQuantity,
 						Exchange:  b.Name,
-						ID:        response.Data[x].OrderID,
+						OrderID:   response.Data[x].OrderID,
 						AccountID: strconv.FormatInt(response.Data[x].Account, 10),
 						Type:      oType,
 						Side:      oSide,

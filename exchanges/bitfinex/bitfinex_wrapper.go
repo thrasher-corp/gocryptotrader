@@ -627,20 +627,21 @@ allTrades:
 }
 
 // SubmitOrder submits a new order
-func (b *Bitfinex) SubmitOrder(ctx context.Context, o *order.Submit) (order.SubmitResponse, error) {
-	var submitOrderResponse order.SubmitResponse
+func (b *Bitfinex) SubmitOrder(ctx context.Context, o *order.Submit) (*order.SubmitResponse, error) {
 	err := o.Validate()
 	if err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
 	fpair, err := b.FormatExchangeCurrency(o.Pair, o.AssetType)
 	if err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
+	var orderID string
+	status := order.New
 	if b.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		submitOrderResponse.OrderID, err = b.WsNewOrder(&WsNewOrderRequest{
+		orderID, err = b.WsNewOrder(&WsNewOrderRequest{
 			CustomID: b.Websocket.AuthConn.GenerateMessageID(false),
 			Type:     o.Type.String(),
 			Symbol:   fpair.String(),
@@ -648,11 +649,10 @@ func (b *Bitfinex) SubmitOrder(ctx context.Context, o *order.Submit) (order.Subm
 			Price:    o.Price,
 		})
 		if err != nil {
-			return submitOrderResponse, err
+			return nil, err
 		}
 	} else {
 		var response Order
-		isBuying := o.Side == order.Buy
 		b.appendOptionalDelimiter(&fpair)
 		orderType := o.Type.Lower()
 		if o.AssetType == asset.Spot {
@@ -663,54 +663,54 @@ func (b *Bitfinex) SubmitOrder(ctx context.Context, o *order.Submit) (order.Subm
 			orderType,
 			o.Amount,
 			o.Price,
-			isBuying,
+			o.Side == order.Buy,
 			false)
 		if err != nil {
-			return submitOrderResponse, err
+			return nil, err
 		}
-		if response.ID > 0 {
-			submitOrderResponse.OrderID = strconv.FormatInt(response.ID, 10)
-		}
-		if response.RemainingAmount == 0 {
-			submitOrderResponse.FullyMatched = true
-		}
+		orderID = strconv.FormatInt(response.ID, 10)
 
-		submitOrderResponse.IsOrderPlaced = true
+		if response.RemainingAmount == 0 {
+			status = order.Filled
+		}
 	}
-	return submitOrderResponse, err
+	resp, err := o.DeriveSubmitResponse(orderID)
+	if err != nil {
+		return nil, err
+	}
+	resp.Status = status
+	return resp, nil
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (b *Bitfinex) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Modify, error) {
+func (b *Bitfinex) ModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
+	if !b.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		return nil, common.ErrNotYetImplemented
+	}
+
 	if err := action.Validate(); err != nil {
 		return nil, err
 	}
 
-	orderIDInt, err := strconv.ParseInt(action.ID, 10, 64)
+	orderIDInt, err := strconv.ParseInt(action.OrderID, 10, 64)
 	if err != nil {
-		return &order.Modify{ID: action.ID}, err
+		return &order.ModifyResponse{OrderID: action.OrderID}, err
 	}
-	if b.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		request := WsUpdateOrderRequest{
-			OrderID: orderIDInt,
-			Price:   action.Price,
-			Amount:  action.Amount,
-		}
-		if action.Side == order.Sell && action.Amount > 0 {
-			request.Amount *= -1
-		}
-		err = b.WsModifyOrder(&request)
-		return &order.Modify{
-			Exchange:  action.Exchange,
-			AssetType: action.AssetType,
-			Pair:      action.Pair,
-			ID:        action.ID,
-			Price:     action.Price,
-			Amount:    action.Amount,
-		}, err
+
+	wsRequest := WsUpdateOrderRequest{
+		OrderID: orderIDInt,
+		Price:   action.Price,
+		Amount:  action.Amount,
 	}
-	return nil, common.ErrNotYetImplemented
+	if action.Side == order.Sell && action.Amount > 0 {
+		wsRequest.Amount *= -1
+	}
+	err = b.WsModifyOrder(&wsRequest)
+	if err != nil {
+		return nil, err
+	}
+	return action.DeriveModifyResponse()
 }
 
 // CancelOrder cancels an order by its corresponding ID number
@@ -719,7 +719,7 @@ func (b *Bitfinex) CancelOrder(ctx context.Context, o *order.Cancel) error {
 		return err
 	}
 
-	orderIDInt, err := strconv.ParseInt(o.ID, 10, 64)
+	orderIDInt, err := strconv.ParseInt(o.OrderID, 10, 64)
 	if err != nil {
 		return err
 	}
@@ -925,7 +925,7 @@ func (b *Bitfinex) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequ
 			Amount:          resp[i].OriginalAmount,
 			Date:            time.Unix(int64(timestamp), 0),
 			Exchange:        b.Name,
-			ID:              strconv.FormatInt(resp[i].ID, 10),
+			OrderID:         strconv.FormatInt(resp[i].ID, 10),
 			Side:            side,
 			Price:           resp[i].Price,
 			RemainingAmount: resp[i].RemainingAmount,
@@ -1005,7 +1005,7 @@ func (b *Bitfinex) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequ
 			Amount:               resp[i].OriginalAmount,
 			Date:                 orderDate,
 			Exchange:             b.Name,
-			ID:                   strconv.FormatInt(resp[i].ID, 10),
+			OrderID:              strconv.FormatInt(resp[i].ID, 10),
 			Side:                 side,
 			Price:                resp[i].Price,
 			AverageExecutedPrice: resp[i].AverageExecutionPrice,

@@ -5037,3 +5037,26 @@ func getCollateral(c *cli.Context) error {
 	jsonOutput(result)
 	return nil
 }
+
+var shutdownCommand = &cli.Command{
+	Name:   "shutdown",
+	Usage:  "shuts down bot instance",
+	Action: shutdown,
+}
+
+func shutdown(c *cli.Context) error {
+	conn, cancel, err := setupClient(c)
+	if err != nil {
+		return err
+	}
+	defer closeConn(conn, cancel)
+
+	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
+	result, err := client.Shutdown(c.Context, &gctrpc.ShutdownRequest{})
+	if err != nil {
+		return err
+	}
+
+	jsonOutput(result)
+	return nil
+}

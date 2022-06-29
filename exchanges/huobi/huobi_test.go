@@ -505,11 +505,12 @@ func TestFPlaceBatchOrder(t *testing.T) {
 }
 
 func TestFCancelOrder(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
 	}
-	t.Parallel()
-	_, err := h.FCancelOrder(context.Background(), "BTC", "123", "")
+
+	_, err := h.FCancelOrder(context.Background(), currency.BTC, "123", "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -2039,6 +2040,7 @@ func TestSubmitOrder(t *testing.T) {
 	}
 
 	var orderSubmission = &order.Submit{
+		Exchange: h.Name,
 		Pair: currency.Pair{
 			Base:  currency.BTC,
 			Quote: currency.USDT,
@@ -2051,7 +2053,7 @@ func TestSubmitOrder(t *testing.T) {
 		AssetType: asset.Spot,
 	}
 	response, err := h.SubmitOrder(context.Background(), orderSubmission)
-	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
+	if areTestAPIKeysSet() && (err != nil || response.Status != order.New) {
 		t.Errorf("Order failed to be placed: %v", err)
 	}
 }
@@ -2063,7 +2065,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 	var orderCancellation = &order.Cancel{
-		ID:            "1",
+		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		Pair:          currencyPair,
@@ -2086,7 +2088,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	}
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 	var orderCancellation = order.Cancel{
-		ID:            "1",
+		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		Pair:          currencyPair,

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
@@ -12,6 +13,7 @@ import (
 var (
 	ErrSubmissionIsNil            = errors.New("order submission is nil")
 	ErrCancelOrderIsNil           = errors.New("cancel order is nil")
+	ErrOrderDetailIsNil           = errors.New("order detail is nil")
 	ErrGetOrdersRequestIsNil      = errors.New("get order request is nil")
 	ErrModifyOrderIsNil           = errors.New("modify order request is nil")
 	ErrPairIsEmpty                = errors.New("order pair is empty")
@@ -28,54 +30,63 @@ var (
 // Each exchange has their own requirements, so not all fields
 // are required to be populated
 type Submit struct {
-	ImmediateOrCancel bool
-	HiddenOrder       bool
-	FillOrKill        bool
-	PostOnly          bool
-	ReduceOnly        bool
-	Leverage          float64
-	Price             float64
+	Exchange  string
+	Type      Type
+	Side      Side
+	Pair      currency.Pair
+	AssetType asset.Item
 
+	// Time in force values ------ TODO: Time In Force uint8
+	ImmediateOrCancel bool
+	FillOrKill        bool
+
+	PostOnly bool
+	// ReduceOnly reduces a position instead of opening an opposing
+	// position; this also equates to closing the position in huobi_wrapper.go
+	// swaps.
+	ReduceOnly bool
+	// Leverage is the amount of leverage that will be used: see huobi_wrapper.go
+	Leverage float64
+	Price    float64
 	// Amount in base terms
 	Amount float64
 	// QuoteAmount is the max amount in quote currency when purchasing base.
 	// This is only used in Market orders.
 	QuoteAmount float64
-
-	StopPrice       float64
-	LimitPriceUpper float64
-	LimitPriceLower float64
-	TriggerPrice    float64
-	ExecutedAmount  float64
-	RemainingAmount float64
-	Fee             float64
-	Exchange        string
-	InternalOrderID string
-	ID              string
-	AccountID       string
-	ClientID        string
-	ClientOrderID   string
-	WalletAddress   string
-	Offset          string
-	Type            Type
-	Side            Side
-	Status          Status
-	AssetType       asset.Item
-	Date            time.Time
-	LastUpdated     time.Time
-	Pair            currency.Pair
-	Trades          []TradeHistory
+	// TriggerPrice is mandatory if order type `Stop, Stop Limit or Take Profit`
+	// See btcmarkets_wrapper.go.
+	TriggerPrice  float64
+	ClientID      string // TODO: Shift to credentials
+	ClientOrderID string
 }
 
 // SubmitResponse is what is returned after submitting an order to an exchange
 type SubmitResponse struct {
-	IsOrderPlaced bool
-	FullyMatched  bool
-	OrderID       string
-	Rate          float64
-	Fee           float64
-	Cost          float64
-	Trades        []TradeHistory
+	Exchange  string
+	Type      Type
+	Side      Side
+	Pair      currency.Pair
+	AssetType asset.Item
+
+	ImmediateOrCancel bool
+	FillOrKill        bool
+	PostOnly          bool
+	ReduceOnly        bool
+	Leverage          float64
+	Price             float64
+	Amount            float64
+	QuoteAmount       float64
+	TriggerPrice      float64
+	ClientID          string
+	ClientOrderID     string
+
+	LastUpdated time.Time
+	Date        time.Time
+	Status      Status
+	OrderID     string
+	Trades      []TradeHistory
+	Fee         float64
+	Cost        float64
 }
 
 // Modify contains all properties of an order
@@ -83,40 +94,47 @@ type SubmitResponse struct {
 // Each exchange has their own requirements, so not all fields
 // are required to be populated
 type Modify struct {
+	// Order Identifiers
+	Exchange      string
+	OrderID       string
+	ClientOrderID string
+	Type          Type
+	Side          Side
+	AssetType     asset.Item
+	Pair          currency.Pair
+
+	// Change fields
 	ImmediateOrCancel bool
-	HiddenOrder       bool
-	FillOrKill        bool
 	PostOnly          bool
-	Leverage          float64
 	Price             float64
 	Amount            float64
-	LimitPriceUpper   float64
-	LimitPriceLower   float64
 	TriggerPrice      float64
-	QuoteAmount       float64
-	ExecutedAmount    float64
-	RemainingAmount   float64
-	Fee               float64
-	Exchange          string
-	InternalOrderID   string
-	ID                string
-	ClientOrderID     string
-	AccountID         string
-	ClientID          string
-	WalletAddress     string
-	Type              Type
-	Side              Side
-	Status            Status
-	AssetType         asset.Item
-	Date              time.Time
-	LastUpdated       time.Time
-	Pair              currency.Pair
-	Trades            []TradeHistory
 }
 
 // ModifyResponse is an order modifying return type
 type ModifyResponse struct {
-	OrderID string
+	// Order Identifiers
+	Exchange      string
+	OrderID       string
+	ClientOrderID string
+	Pair          currency.Pair
+	Type          Type
+	Side          Side
+	Status        Status
+	AssetType     asset.Item
+
+	// Fields that will be copied over from Modify
+	ImmediateOrCancel bool
+	PostOnly          bool
+	Price             float64
+	Amount            float64
+	TriggerPrice      float64
+
+	// Fields that need to be handled in scope after DeriveModifyResponse()
+	// if applicable
+	RemainingAmount float64
+	Date            time.Time
+	LastUpdated     time.Time
 }
 
 // Detail contains all properties of an order
@@ -127,6 +145,7 @@ type Detail struct {
 	HiddenOrder          bool
 	FillOrKill           bool
 	PostOnly             bool
+	ReduceOnly           bool
 	Leverage             float64
 	Price                float64
 	Amount               float64
@@ -142,8 +161,8 @@ type Detail struct {
 	Fee                  float64
 	FeeAsset             currency.Code
 	Exchange             string
-	InternalOrderID      string
-	ID                   string
+	InternalOrderID      uuid.UUID
+	OrderID              string
 	ClientOrderID        string
 	AccountID            string
 	ClientID             string
@@ -163,8 +182,8 @@ type Detail struct {
 // empty strings indicate to ignore the property otherwise all need to match
 type Filter struct {
 	Exchange        string
-	InternalOrderID string
-	ID              string
+	InternalOrderID uuid.UUID
+	OrderID         string
 	ClientOrderID   string
 	AccountID       string
 	ClientID        string
@@ -181,22 +200,16 @@ type Filter struct {
 // Each exchange has their own requirements, so not all fields
 // are required to be populated
 type Cancel struct {
-	Price         float64
-	Amount        float64
 	Exchange      string
-	ID            string
+	OrderID       string
 	ClientOrderID string
 	AccountID     string
 	ClientID      string
 	WalletAddress string
 	Type          Type
 	Side          Side
-	Status        Status
 	AssetType     asset.Item
-	Date          time.Time
 	Pair          currency.Pair
-	Symbol        string
-	Trades        []TradeHistory
 }
 
 // CancelAllResponse returns the status from attempting to

@@ -89,7 +89,6 @@ func (b *Bithumb) SetDefaults() {
 				GetOrder:            true,
 				CancelOrder:         true,
 				SubmitOrder:         true,
-				ModifyOrder:         true,
 				DepositHistory:      true,
 				WithdrawalHistory:   true,
 				UserTradeHistory:    true,
@@ -481,15 +480,14 @@ func (b *Bithumb) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.
 
 // SubmitOrder submits a new order
 // TODO: Fill this out to support limit orders
-func (b *Bithumb) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
-	var submitOrderResponse order.SubmitResponse
+func (b *Bithumb) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	if err := s.Validate(); err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
 	fPair, err := b.FormatExchangeCurrency(s.Pair, s.AssetType)
 	if err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
 	var orderID string
@@ -497,52 +495,24 @@ func (b *Bithumb) SubmitOrder(ctx context.Context, s *order.Submit) (order.Submi
 		var result MarketBuy
 		result, err = b.MarketBuyOrder(ctx, fPair, s.Amount)
 		if err != nil {
-			return submitOrderResponse, err
+			return nil, err
 		}
 		orderID = result.OrderID
 	} else if s.Side == order.Sell {
 		var result MarketSell
 		result, err = b.MarketSellOrder(ctx, fPair, s.Amount)
 		if err != nil {
-			return submitOrderResponse, err
+			return nil, err
 		}
 		orderID = result.OrderID
 	}
-	if orderID != "" {
-		submitOrderResponse.OrderID = orderID
-		submitOrderResponse.FullyMatched = true
-	}
-	submitOrderResponse.IsOrderPlaced = true
-
-	return submitOrderResponse, nil
+	return s.DeriveSubmitResponse(orderID)
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (b *Bithumb) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Modify, error) {
-	if err := action.Validate(); err != nil {
-		return nil, err
-	}
-
-	o, err := b.ModifyTrade(ctx,
-		action.ID,
-		action.Pair.Base.String(),
-		action.Side.Lower(),
-		action.Amount,
-		int64(action.Price))
-	if err != nil {
-		return nil, err
-	}
-
-	return &order.Modify{
-		Exchange:  action.Exchange,
-		AssetType: action.AssetType,
-		Pair:      action.Pair,
-		ID:        o.Data[0].ContID,
-		Price:     float64(int64(action.Price)),
-		Amount:    action.Amount,
-		Side:      action.Side,
-	}, nil
+func (b *Bithumb) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number
@@ -551,9 +521,7 @@ func (b *Bithumb) CancelOrder(ctx context.Context, o *order.Cancel) error {
 		return err
 	}
 
-	_, err := b.CancelTrade(ctx, o.Side.String(),
-		o.ID,
-		o.Pair.Base.String())
+	_, err := b.CancelTrade(ctx, o.Side.String(), o.OrderID, o.Pair.Base.String())
 	return err
 }
 
@@ -722,7 +690,7 @@ func (b *Bithumb) GetActiveOrders(ctx context.Context, req *order.GetOrdersReque
 				Amount:          resp.Data[i].Units,
 				Exchange:        b.Name,
 				ExecutedAmount:  resp.Data[i].Units - resp.Data[i].UnitsRemaining,
-				ID:              resp.Data[i].OrderID,
+				OrderID:         resp.Data[i].OrderID,
 				Date:            resp.Data[i].OrderDate.Time(),
 				Price:           resp.Data[i].Price,
 				RemainingAmount: resp.Data[i].UnitsRemaining,
@@ -785,7 +753,7 @@ func (b *Bithumb) GetOrderHistory(ctx context.Context, req *order.GetOrdersReque
 				ExecutedAmount:  resp.Data[i].Units - resp.Data[i].UnitsRemaining,
 				RemainingAmount: resp.Data[i].UnitsRemaining,
 				Exchange:        b.Name,
-				ID:              resp.Data[i].OrderID,
+				OrderID:         resp.Data[i].OrderID,
 				Date:            resp.Data[i].OrderDate.Time(),
 				Price:           resp.Data[i].Price,
 				Pair: currency.NewPairWithDelimiter(resp.Data[i].OrderCurrency,

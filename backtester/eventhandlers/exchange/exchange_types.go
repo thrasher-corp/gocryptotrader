@@ -54,7 +54,7 @@ type Settings struct {
 	MinimumSlippageRate decimal.Decimal
 	MaximumSlippageRate decimal.Decimal
 
-	Limits                  *gctorder.Limits
+	Limits                  gctorder.MinMaxLevel
 	CanUseExchangeLimits    bool
 	SkipCandleVolumeFitting bool
 }

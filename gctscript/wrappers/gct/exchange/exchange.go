@@ -94,7 +94,14 @@ func (e Exchange) SubmitOrder(ctx context.Context, submit *order.Submit) (*order
 		return nil, err
 	}
 
-	return &r.SubmitResponse, nil
+	resp, err := submit.DeriveSubmitResponse(r.OrderID)
+	if err != nil {
+		return nil, err
+	}
+	resp.Status = r.Status
+	resp.Trades = make([]order.TradeHistory, len(r.Trades))
+	copy(resp.Trades, r.Trades)
+	return resp, nil
 }
 
 // CancelOrder wrapper to cancel order on exchange
@@ -106,7 +113,7 @@ func (e Exchange) CancelOrder(ctx context.Context, exch, orderID string, cp curr
 
 	cancel := &order.Cancel{
 		AccountID: orderDetails.AccountID,
-		ID:        orderDetails.ID,
+		OrderID:   orderDetails.OrderID,
 		Pair:      orderDetails.Pair,
 		Side:      orderDetails.Side,
 		AssetType: orderDetails.AssetType,

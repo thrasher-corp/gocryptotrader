@@ -53,22 +53,24 @@ import (
 )
 
 var (
-	errExchangeNotLoaded    = errors.New("exchange is not loaded/doesn't exist")
-	errExchangeNotEnabled   = errors.New("exchange is not enabled")
-	errExchangeBaseNotFound = errors.New("cannot get exchange base")
-	errInvalidArguments     = errors.New("invalid arguments received")
-	errExchangeNameUnset    = errors.New("exchange name unset")
-	errCurrencyPairUnset    = errors.New("currency pair unset")
-	errInvalidTimes         = errors.New("invalid start and end times")
-	errAssetTypeDisabled    = errors.New("asset type is disabled")
-	errAssetTypeUnset       = errors.New("asset type unset")
-	errDispatchSystem       = errors.New("dispatch system offline")
-	errCurrencyNotEnabled   = errors.New("currency not enabled")
-	errCurrencyNotSpecified = errors.New("a currency must be specified")
-	errCurrencyPairInvalid  = errors.New("currency provided is not found in the available pairs list")
-	errNoTrades             = errors.New("no trades returned from supplied params")
-	errNilRequestData       = errors.New("nil request data received, cannot continue")
-	errNoAccountInformation = errors.New("account information does not exist")
+	errExchangeNotLoaded       = errors.New("exchange is not loaded/doesn't exist")
+	errExchangeNotEnabled      = errors.New("exchange is not enabled")
+	errExchangeBaseNotFound    = errors.New("cannot get exchange base")
+	errInvalidArguments        = errors.New("invalid arguments received")
+	errExchangeNameUnset       = errors.New("exchange name unset")
+	errCurrencyPairUnset       = errors.New("currency pair unset")
+	errInvalidTimes            = errors.New("invalid start and end times")
+	errAssetTypeDisabled       = errors.New("asset type is disabled")
+	errAssetTypeUnset          = errors.New("asset type unset")
+	errDispatchSystem          = errors.New("dispatch system offline")
+	errCurrencyNotEnabled      = errors.New("currency not enabled")
+	errCurrencyNotSpecified    = errors.New("a currency must be specified")
+	errCurrencyPairInvalid     = errors.New("currency provided is not found in the available pairs list")
+	errNoTrades                = errors.New("no trades returned from supplied params")
+	errNilRequestData          = errors.New("nil request data received, cannot continue")
+	errNoAccountInformation    = errors.New("account information does not exist")
+	errShutdownNotAllowed      = errors.New("shutting down this bot instance is not allowed via gRPC, please enable by command line flag --grpcshutdown or config.json field grpcAllowBotShutdown")
+	errGRPCShutdownSignalIsNil = errors.New("cannot shutdown, gRPC shutdown channel is nil")
 )
 
 // RPCServer struct
@@ -968,7 +970,7 @@ func (s *RPCServer) GetOrders(ctx context.Context, r *gctrpc.GetOrdersRequest) (
 		}
 		o := &gctrpc.OrderDetails{
 			Exchange:      r.Exchange,
-			Id:            resp[x].ID,
+			Id:            resp[x].OrderID,
 			ClientOrderId: resp[x].ClientOrderID,
 			BaseCurrency:  resp[x].Pair.Base.String(),
 			QuoteCurrency: resp[x].Pair.Quote.String(),
@@ -1057,7 +1059,7 @@ func (s *RPCServer) GetManagedOrders(_ context.Context, r *gctrpc.GetOrdersReque
 		}
 		o := &gctrpc.OrderDetails{
 			Exchange:      r.Exchange,
-			Id:            resp[x].ID,
+			Id:            resp[x].OrderID,
 			ClientOrderId: resp[x].ClientOrderID,
 			BaseCurrency:  resp[x].Pair.Base.String(),
 			QuoteCurrency: resp[x].Pair.Quote.String(),
@@ -1148,7 +1150,7 @@ func (s *RPCServer) GetOrder(ctx context.Context, r *gctrpc.GetOrderRequest) (*g
 
 	return &gctrpc.OrderDetails{
 		Exchange:      result.Exchange,
-		Id:            result.ID,
+		Id:            result.OrderID,
 		ClientOrderId: result.ClientOrderID,
 		BaseCurrency:  result.Pair.Base.String(),
 		QuoteCurrency: result.Pair.Quote.String(),
@@ -1234,9 +1236,9 @@ func (s *RPCServer) SubmitOrder(ctx context.Context, r *gctrpc.SubmitOrderReques
 
 	return &gctrpc.SubmitOrderResponse{
 		OrderId:     resp.OrderID,
-		OrderPlaced: resp.IsOrderPlaced,
+		OrderPlaced: resp.WasOrderPlaced(),
 		Trades:      trades,
-	}, err
+	}, nil
 }
 
 // SimulateOrder simulates an order specified by exchange, currency pair and asset
@@ -1382,7 +1384,7 @@ func (s *RPCServer) CancelOrder(ctx context.Context, r *gctrpc.CancelOrderReques
 		&order.Cancel{
 			Exchange:      r.Exchange,
 			AccountID:     r.AccountId,
-			ID:            r.OrderId,
+			OrderID:       r.OrderId,
 			Side:          side,
 			WalletAddress: r.WalletAddress,
 			Pair:          p,
@@ -1432,7 +1434,7 @@ func (s *RPCServer) CancelBatchOrders(ctx context.Context, r *gctrpc.CancelBatch
 		status[orderID] = order.Cancelled.String()
 		request[x] = order.Cancel{
 			AccountID:     r.AccountId,
-			ID:            orderID,
+			OrderID:       orderID,
 			Side:          side,
 			WalletAddress: r.WalletAddress,
 			Pair:          pair,
@@ -1493,17 +1495,14 @@ func (s *RPCServer) ModifyOrder(ctx context.Context, r *gctrpc.ModifyOrderReques
 	if err != nil {
 		return nil, err
 	}
-
-	mod := order.Modify{
+	resp, err := s.OrderManager.Modify(ctx, &order.Modify{
 		Exchange:  r.Exchange,
 		AssetType: assetType,
 		Pair:      pair,
-		ID:        r.OrderId,
-
-		Amount: r.Amount,
-		Price:  r.Price,
-	}
-	resp, err := s.OrderManager.Modify(ctx, &mod)
+		OrderID:   r.OrderId,
+		Amount:    r.Amount,
+		Price:     r.Price,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -4302,7 +4301,7 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 			}
 			od := &gctrpc.OrderDetails{
 				Exchange:      pos[i].Orders[j].Exchange,
-				Id:            pos[i].Orders[j].ID,
+				Id:            pos[i].Orders[j].OrderID,
 				ClientOrderId: pos[i].Orders[j].ClientOrderID,
 				BaseCurrency:  pos[i].Orders[j].Pair.Base.String(),
 				QuoteCurrency: pos[i].Orders[j].Pair.Quote.String(),
@@ -4560,4 +4559,19 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 		}
 	}
 	return result, nil
+}
+
+// Shutdown terminates bot session externally
+func (s *RPCServer) Shutdown(_ context.Context, _ *gctrpc.ShutdownRequest) (*gctrpc.ShutdownResponse, error) {
+	if !s.Engine.Settings.EnableGRPCShutdown {
+		return nil, errShutdownNotAllowed
+	}
+
+	if s.Engine.GRPCShutdownSignal == nil {
+		return nil, errGRPCShutdownSignalIsNil
+	}
+
+	s.Engine.GRPCShutdownSignal <- struct{}{}
+	s.Engine.GRPCShutdownSignal = nil
+	return &gctrpc.ShutdownResponse{}, nil
 }

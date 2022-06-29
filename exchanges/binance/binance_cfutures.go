@@ -1499,22 +1499,22 @@ func (b *Binance) FetchCoinMarginExchangeLimits(ctx context.Context) ([]order.Mi
 		}
 
 		limits = append(limits, order.MinMaxLevel{
-			Pair:              cp,
-			Asset:             asset.CoinMarginedFutures,
-			MinPrice:          coinFutures.Symbols[x].Filters[0].MinPrice,
-			MaxPrice:          coinFutures.Symbols[x].Filters[0].MaxPrice,
-			StepPrice:         coinFutures.Symbols[x].Filters[0].TickSize,
-			MaxAmount:         coinFutures.Symbols[x].Filters[1].MaxQty,
-			MinAmount:         coinFutures.Symbols[x].Filters[1].MinQty,
-			StepAmount:        coinFutures.Symbols[x].Filters[1].StepSize,
-			MarketMinQty:      coinFutures.Symbols[x].Filters[2].MinQty,
-			MarketMaxQty:      coinFutures.Symbols[x].Filters[2].MaxQty,
-			MarketStepSize:    coinFutures.Symbols[x].Filters[2].StepSize,
-			MaxTotalOrders:    coinFutures.Symbols[x].Filters[3].Limit,
-			MaxAlgoOrders:     coinFutures.Symbols[x].Filters[4].Limit,
-			MultiplierUp:      coinFutures.Symbols[x].Filters[5].MultiplierUp,
-			MultiplierDown:    coinFutures.Symbols[x].Filters[5].MultiplierDown,
-			MultiplierDecimal: coinFutures.Symbols[x].Filters[5].MultiplierDecimal,
+			Pair:                    cp,
+			Asset:                   asset.CoinMarginedFutures,
+			MinPrice:                coinFutures.Symbols[x].Filters[0].MinPrice,
+			MaxPrice:                coinFutures.Symbols[x].Filters[0].MaxPrice,
+			PriceStepIncrementSize:  coinFutures.Symbols[x].Filters[0].TickSize,
+			MaxAmount:               coinFutures.Symbols[x].Filters[1].MaxQty,
+			MinAmount:               coinFutures.Symbols[x].Filters[1].MinQty,
+			AmountStepIncrementSize: coinFutures.Symbols[x].Filters[1].StepSize,
+			MarketMinQty:            coinFutures.Symbols[x].Filters[2].MinQty,
+			MarketMaxQty:            coinFutures.Symbols[x].Filters[2].MaxQty,
+			MarketStepIncrementSize: coinFutures.Symbols[x].Filters[2].StepSize,
+			MaxTotalOrders:          coinFutures.Symbols[x].Filters[3].Limit,
+			MaxAlgoOrders:           coinFutures.Symbols[x].Filters[4].Limit,
+			MultiplierUp:            coinFutures.Symbols[x].Filters[5].MultiplierUp,
+			MultiplierDown:          coinFutures.Symbols[x].Filters[5].MultiplierDown,
+			MultiplierDecimal:       coinFutures.Symbols[x].Filters[5].MultiplierDecimal,
 		})
 	}
 	return limits, nil
