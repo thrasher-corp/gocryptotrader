@@ -108,6 +108,7 @@ func main() {
 	yn := quickParse(reader)
 	if yn == y || yn == yes {
 		var fp, wd string
+		extension := "strat" // nolint:misspell // its shorthand for strategy
 		for {
 			wd, err = os.Getwd()
 			if err != nil {
@@ -123,7 +124,7 @@ func main() {
 			if cfg.Nickname != "" {
 				fn += "-" + cfg.Nickname
 			}
-			fn, err = common.GenerateFileName(fn, "start")
+			fn, err = common.GenerateFileName(fn, extension)
 			if err != nil {
 				log.Printf("could not write file, please try again. err: %v", err)
 				continue
@@ -131,7 +132,7 @@ func main() {
 			fmt.Printf("Enter output file. If blank, will default to \"%v\"\n", fn)
 			parsedFileName := quickParse(reader)
 			if parsedFileName != "" {
-				fn, err = common.GenerateFileName(parsedFileName, "start")
+				fn, err = common.GenerateFileName(parsedFileName, extension)
 				if err != nil {
 					log.Printf("could not write file, please try again. err: %v", err)
 					continue
