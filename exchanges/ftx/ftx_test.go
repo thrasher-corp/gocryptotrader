@@ -72,6 +72,7 @@ func TestMain(m *testing.M) {
 		log.Fatal(err)
 	}
 	err = f.CurrencyPairs.EnablePair(asset.Futures, currency.NewPair(currency.BTC, currency.PERP))
+	err = f.CurrencyPairs.EnablePair(asset.Futures, currency.NewPair(currency.OKB, currency.PERP))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -2374,11 +2375,7 @@ func TestGetOpenPositions(t *testing.T) {
 	if !errors.Is(err, order.ErrNotFuturesAsset) {
 		t.Errorf("received '%v' expected '%v'", err, order.ErrNotFuturesAsset)
 	}
-	_, err = f.GetOpenPositions(context.Background(), asset.Futures, time.Now())
-	if !errors.Is(err, order.ErrPositionNotFound) {
-		t.Errorf("received '%v' expected '%v'", err, order.ErrPositionNotFound)
-	}
-
+	f.Verbose = true
 	resp, err := f.GetOpenPositions(context.Background(), asset.Futures, time.Now().Add(-time.Hour*24*365))
 	if len(resp) == 0 {
 		// you have no open positions, that is okay
@@ -2387,6 +2384,7 @@ func TestGetOpenPositions(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
+	t.Log(resp)
 }
 
 func TestIsPerpetualFutureCurrency(t *testing.T) {

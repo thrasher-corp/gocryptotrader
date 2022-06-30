@@ -987,10 +987,10 @@ func (s *RPCServer) GetOrders(ctx context.Context, r *gctrpc.GetOrdersRequest) (
 			Trades:        trades,
 		}
 		if !resp[x].Date.IsZero() {
-			o.CreationTime = s.unixTimestamp(resp[x].Date)
+			o.CreationTime = resp[x].Date.Format(common.SimpleTimeFormatWithTimezone)
 		}
 		if !resp[x].LastUpdated.IsZero() {
-			o.UpdateTime = s.unixTimestamp(resp[x].LastUpdated)
+			o.UpdateTime = resp[x].LastUpdated.Format(common.SimpleTimeFormatWithTimezone)
 		}
 		orders[x] = o
 	}
@@ -1076,10 +1076,10 @@ func (s *RPCServer) GetManagedOrders(_ context.Context, r *gctrpc.GetOrdersReque
 			Trades:        trades,
 		}
 		if !resp[x].Date.IsZero() {
-			o.CreationTime = s.unixTimestamp(resp[x].Date)
+			o.CreationTime = resp[x].Date.Format(common.SimpleTimeFormatWithTimezone)
 		}
 		if !resp[x].LastUpdated.IsZero() {
-			o.UpdateTime = s.unixTimestamp(resp[x].LastUpdated)
+			o.UpdateTime = resp[x].LastUpdated.Format(common.SimpleTimeFormatWithTimezone)
 		}
 		orders[x] = o
 	}
@@ -1141,12 +1141,12 @@ func (s *RPCServer) GetOrder(ctx context.Context, r *gctrpc.GetOrderRequest) (*g
 		}
 	}
 
-	var creationTime, updateTime int64
+	var creationTime, updateTime string
 	if !result.Date.IsZero() {
-		creationTime = s.unixTimestamp(result.Date)
+		creationTime = result.Date.Format(common.SimpleTimeFormatWithTimezone)
 	}
 	if !result.LastUpdated.IsZero() {
-		updateTime = s.unixTimestamp(result.LastUpdated)
+		updateTime = result.LastUpdated.Format(common.SimpleTimeFormatWithTimezone)
 	}
 
 	return &gctrpc.OrderDetails{
@@ -4218,14 +4218,16 @@ func (s *RPCServer) buildFuturePosition(position *order.Position, getFundingPaym
 				AssetType:     position.Orders[i].AssetType.String(),
 				OrderSide:     position.Orders[i].Side.String(),
 				OrderType:     position.Orders[i].Type.String(),
-				CreationTime:  position.Orders[i].Date.Unix(),
-				UpdateTime:    position.Orders[i].LastUpdated.Unix(),
+				CreationTime:  position.Orders[i].Date.Format(common.SimpleTimeFormatWithTimezone),
 				Status:        position.Orders[i].Status.String(),
 				Price:         position.Orders[i].Price,
 				Amount:        position.Orders[i].Cost,
 				OpenVolume:    position.Orders[i].RemainingAmount,
 				Fee:           position.Orders[i].Fee,
 				Cost:          position.Orders[i].Cost,
+			}
+			if !position.Orders[i].LastUpdated.IsZero() {
+				od.UpdateTime = position.Orders[i].LastUpdated.Format(common.SimpleTimeFormatWithTimezone)
 			}
 			for j := range position.Orders[i].Trades {
 				od.Trades = append(od.Trades, &gctrpc.TradeHistory{
@@ -4392,7 +4394,7 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 		}
 	}
 	for i := range orders {
-		_, err = s.OrderManager.UpsertOrder(&orders[i])
+		err = s.OrderManager.orderStore.futuresPositionController.TrackNewOrder(&orders[i])
 		if err != nil {
 			if !errors.Is(err, order.ErrPositionClosed) {
 				return nil, err
@@ -4403,13 +4405,11 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 	if err != nil {
 		return nil, fmt.Errorf("cannot GetFuturesPositionsForExchange %w %v", err, subAccount)
 	}
+
 	response := &gctrpc.GetFuturesPositionsResponse{
 		SubAccount: creds.SubAccount,
 	}
 	var totalRealisedPNL, totalUnrealisedPNL decimal.Decimal
-	sort.Slice(pos, func(i, j int) bool {
-		return pos[i].OpeningDate.Before(pos[j].OpeningDate)
-	})
 	for i := range pos {
 		if r.Status != "" && pos[i].Status.String() != strings.ToUpper(r.Status) {
 			continue
@@ -4572,7 +4572,7 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 				AssetType:     pos[i].Orders[j].AssetType.String(),
 				OrderSide:     pos[i].Orders[j].Side.String(),
 				OrderType:     pos[i].Orders[j].Type.String(),
-				CreationTime:  pos[i].Orders[j].Date.Unix(),
+				CreationTime:  pos[i].Orders[j].Date.Format(common.SimpleTimeFormatWithTimezone),
 				Status:        pos[i].Orders[j].Status.String(),
 				Price:         pos[i].Orders[j].Price,
 				Amount:        pos[i].Orders[j].Amount,
@@ -4581,7 +4581,7 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 				Trades:        trades,
 			}
 			if pos[i].Orders[j].LastUpdated.After(pos[i].Orders[j].Date) {
-				od.UpdateTime = pos[i].Orders[j].LastUpdated.Unix()
+				od.UpdateTime = pos[i].Orders[j].LastUpdated.Format(common.SimpleTimeFormatWithTimezone)
 			}
 			details.Orders = append(details.Orders, od)
 		}

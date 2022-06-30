@@ -295,8 +295,8 @@ message OrderDetails {
   string asset_type = 6;
   string order_side = 7;
   string order_type = 8;
-  int64 creation_time = 9;
-  int64 update_time = 10;
+  string creation_time = 9;
+  string update_time = 10;
   string status = 11;
   double price = 12;
   double amount = 13;

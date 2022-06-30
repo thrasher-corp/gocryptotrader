@@ -330,22 +330,22 @@ type WithdrawItem struct {
 
 // OrderData stores open order data
 type OrderData struct {
-	CreatedAt     time.Time `json:"createdAt"`
-	FilledSize    float64   `json:"filledSize"`
-	Future        string    `json:"future"`
-	ID            int64     `json:"id"`
-	Market        string    `json:"market"`
-	Price         float64   `json:"price"`
-	AvgFillPrice  float64   `json:"avgFillPrice"`
-	RemainingSize float64   `json:"remainingSize"`
-	Side          string    `json:"side"`
-	Size          float64   `json:"size"`
-	Status        string    `json:"status"`
-	OrderType     string    `json:"type"`
-	ReduceOnly    bool      `json:"reduceOnly"`
-	IOC           bool      `json:"ioc"`
-	PostOnly      bool      `json:"postOnly"`
-	ClientID      string    `json:"clientId"`
+	AvgFillPrice  float64       `json:"avgFillPrice"`
+	ClientID      string        `json:"clientId"`
+	CreatedAt     time.Time     `json:"createdAt"`
+	FilledSize    float64       `json:"filledSize"`
+	Future        currency.Pair `json:"future"`
+	ID            int64         `json:"id"`
+	IOC           bool          `json:"ioc"`
+	Market        currency.Pair `json:"market"`
+	PostOnly      bool          `json:"postOnly"`
+	Price         float64       `json:"price"`
+	ReduceOnly    bool          `json:"reduceOnly"`
+	RemainingSize float64       `json:"remainingSize"`
+	Side          string        `json:"side"`
+	Size          float64       `json:"size"`
+	Status        string        `json:"status"`
+	Type          string        `json:"type"`
 }
 
 // TriggerOrderData stores trigger order data
@@ -383,22 +383,22 @@ type TriggerData struct {
 
 // FillsData stores fills' data
 type FillsData struct {
-	Fee           float64   `json:"fee"`
-	FeeCurrency   string    `json:"feeCurrency"`
-	FeeRate       float64   `json:"feeRate"`
-	Future        string    `json:"future"`
-	ID            int64     `json:"id"`
-	Liquidity     string    `json:"liquidity"`
-	Market        string    `json:"market"`
-	BaseCurrency  string    `json:"baseCurrency"`
-	QuoteCurrency string    `json:"quoteCurrency"`
-	OrderID       int64     `json:"orderId"`
-	TradeID       int64     `json:"tradeId"`
-	Price         float64   `json:"price"`
-	Side          string    `json:"side"`
-	Size          float64   `json:"size"`
-	Time          time.Time `json:"time"`
-	OrderType     string    `json:"type"`
+	Fee           float64       `json:"fee"`
+	FeeCurrency   currency.Code `json:"feeCurrency"`
+	FeeRate       float64       `json:"feeRate"`
+	Future        string        `json:"future"`
+	ID            int64         `json:"id"`
+	Liquidity     string        `json:"liquidity"`
+	Market        string        `json:"market"`
+	BaseCurrency  string        `json:"baseCurrency"`
+	QuoteCurrency string        `json:"quoteCurrency"`
+	OrderID       int64         `json:"orderId"`
+	TradeID       int64         `json:"tradeId"`
+	Price         float64       `json:"price"`
+	Side          string        `json:"side"`
+	Size          float64       `json:"size"`
+	Time          time.Time     `json:"time"`
+	OrderType     string        `json:"type"`
 }
 
 // FundingPaymentsData stores funding payments' data

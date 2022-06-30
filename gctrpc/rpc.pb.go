@@ -3199,8 +3199,8 @@ type OrderDetails struct {
 	AssetType     string          `protobuf:"bytes,6,opt,name=asset_type,json=assetType,proto3" json:"asset_type,omitempty"`
 	OrderSide     string          `protobuf:"bytes,7,opt,name=order_side,json=orderSide,proto3" json:"order_side,omitempty"`
 	OrderType     string          `protobuf:"bytes,8,opt,name=order_type,json=orderType,proto3" json:"order_type,omitempty"`
-	CreationTime  int64           `protobuf:"varint,9,opt,name=creation_time,json=creationTime,proto3" json:"creation_time,omitempty"`
-	UpdateTime    int64           `protobuf:"varint,10,opt,name=update_time,json=updateTime,proto3" json:"update_time,omitempty"`
+	CreationTime  string          `protobuf:"bytes,9,opt,name=creation_time,json=creationTime,proto3" json:"creation_time,omitempty"`
+	UpdateTime    string          `protobuf:"bytes,10,opt,name=update_time,json=updateTime,proto3" json:"update_time,omitempty"`
 	Status        string          `protobuf:"bytes,11,opt,name=status,proto3" json:"status,omitempty"`
 	Price         float64         `protobuf:"fixed64,12,opt,name=price,proto3" json:"price,omitempty"`
 	Amount        float64         `protobuf:"fixed64,13,opt,name=amount,proto3" json:"amount,omitempty"`
@@ -3298,18 +3298,18 @@ func (x *OrderDetails) GetOrderType() string {
 	return ""
 }
 
-func (x *OrderDetails) GetCreationTime() int64 {
+func (x *OrderDetails) GetCreationTime() string {
 	if x != nil {
 		return x.CreationTime
 	}
-	return 0
+	return ""
 }
 
-func (x *OrderDetails) GetUpdateTime() int64 {
+func (x *OrderDetails) GetUpdateTime() string {
 	if x != nil {
 		return x.UpdateTime
 	}
-	return 0
+	return ""
 }
 
 func (x *OrderDetails) GetStatus() string {
@@ -12995,10 +12995,10 @@ var file_rpc_proto_rawDesc = []byte{
 	0x6f, 0x72, 0x64, 0x65, 0x72, 0x53, 0x69, 0x64, 0x65, 0x12, 0x1d, 0x0a, 0x0a, 0x6f, 0x72, 0x64,
 	0x65, 0x72, 0x5f, 0x74, 0x79, 0x70, 0x65, 0x18, 0x08, 0x20, 0x01, 0x28, 0x09, 0x52, 0x09, 0x6f,
 	0x72, 0x64, 0x65, 0x72, 0x54, 0x79, 0x70, 0x65, 0x12, 0x23, 0x0a, 0x0d, 0x63, 0x72, 0x65, 0x61,
-	0x74, 0x69, 0x6f, 0x6e, 0x5f, 0x74, 0x69, 0x6d, 0x65, 0x18, 0x09, 0x20, 0x01, 0x28, 0x03, 0x52,
+	0x74, 0x69, 0x6f, 0x6e, 0x5f, 0x74, 0x69, 0x6d, 0x65, 0x18, 0x09, 0x20, 0x01, 0x28, 0x09, 0x52,
 	0x0c, 0x63, 0x72, 0x65, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x54, 0x69, 0x6d, 0x65, 0x12, 0x1f, 0x0a,
 	0x0b, 0x75, 0x70, 0x64, 0x61, 0x74, 0x65, 0x5f, 0x74, 0x69, 0x6d, 0x65, 0x18, 0x0a, 0x20, 0x01,
-	0x28, 0x03, 0x52, 0x0a, 0x75, 0x70, 0x64, 0x61, 0x74, 0x65, 0x54, 0x69, 0x6d, 0x65, 0x12, 0x16,
+	0x28, 0x09, 0x52, 0x0a, 0x75, 0x70, 0x64, 0x61, 0x74, 0x65, 0x54, 0x69, 0x6d, 0x65, 0x12, 0x16,
 	0x0a, 0x06, 0x73, 0x74, 0x61, 0x74, 0x75, 0x73, 0x18, 0x0b, 0x20, 0x01, 0x28, 0x09, 0x52, 0x06,
 	0x73, 0x74, 0x61, 0x74, 0x75, 0x73, 0x12, 0x14, 0x0a, 0x05, 0x70, 0x72, 0x69, 0x63, 0x65, 0x18,
 	0x0c, 0x20, 0x01, 0x28, 0x01, 0x52, 0x05, 0x70, 0x72, 0x69, 0x63, 0x65, 0x12, 0x16, 0x0a, 0x06,
@@ -15518,7 +15518,7 @@ var file_rpc_proto_depIdxs = []int32{
 	186, // 209: gctrpc.GoCryptoTraderService.Shutdown:input_type -> gctrpc.ShutdownRequest
 	174, // 210: gctrpc.GoCryptoTraderService.GetManagedPosition:input_type -> gctrpc.GetManagedPositionRequest
 	175, // 211: gctrpc.GoCryptoTraderService.GetAllManagedPositions:input_type -> gctrpc.GetAllManagedPositionsRequest
-	184, // 212: gctrpc.GoCryptoTraderService.FundingRates:input_type -> gctrpc.GetFundingRatesRequest
+	184, // 212: gctrpc.GoCryptoTraderService.GetFundingRates:input_type -> gctrpc.GetFundingRatesRequest
 	1,   // 213: gctrpc.GoCryptoTraderService.GetInfo:output_type -> gctrpc.GetInfoResponse
 	7,   // 214: gctrpc.GoCryptoTraderService.GetSubsystems:output_type -> gctrpc.GetSusbsytemsResponse
 	132, // 215: gctrpc.GoCryptoTraderService.EnableSubsystem:output_type -> gctrpc.GenericResponse
@@ -15618,7 +15618,7 @@ var file_rpc_proto_depIdxs = []int32{
 	187, // 309: gctrpc.GoCryptoTraderService.Shutdown:output_type -> gctrpc.ShutdownResponse
 	176, // 310: gctrpc.GoCryptoTraderService.GetManagedPosition:output_type -> gctrpc.GetManagedPositionsResponse
 	176, // 311: gctrpc.GoCryptoTraderService.GetAllManagedPositions:output_type -> gctrpc.GetManagedPositionsResponse
-	185, // 312: gctrpc.GoCryptoTraderService.FundingRates:output_type -> gctrpc.GetFundingRatesResponse
+	185, // 312: gctrpc.GoCryptoTraderService.GetFundingRates:output_type -> gctrpc.GetFundingRatesResponse
 	213, // [213:313] is the sub-list for method output_type
 	113, // [113:213] is the sub-list for method input_type
 	113, // [113:113] is the sub-list for extension type_name

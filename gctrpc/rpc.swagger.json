@@ -5463,12 +5463,10 @@
           "type": "string"
         },
         "creationTime": {
-          "type": "string",
-          "format": "int64"
+          "type": "string"
         },
         "updateTime": {
-          "type": "string",
-          "format": "int64"
+          "type": "string"
         },
         "status": {
           "type": "string"

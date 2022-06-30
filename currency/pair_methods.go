@@ -141,10 +141,6 @@ func (p *Pair) Key() (PairKey, error) {
 	return PairKey(p.Base.Item.Symbol + p.Quote.Item.Symbol), nil
 }
 
-func (k PairKey) isEmpty() bool {
-	return k == ""
-}
-
 // Equal verifies if keys are the same
 func (k PairKey) Equal(p PairKey) bool {
 	return k == p
