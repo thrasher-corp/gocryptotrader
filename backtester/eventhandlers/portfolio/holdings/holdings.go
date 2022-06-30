@@ -113,12 +113,10 @@ func (h *Holding) update(e fill.Event, f funding.IFundReader) error {
 	case order.Buy,
 		order.Bid:
 		h.BoughtAmount = h.BoughtAmount.Add(amount)
-		h.ScaledBoughtValue = h.BoughtAmount.Mul(price)
 		h.CommittedFunds = h.BaseSize.Mul(price)
 	case order.Sell,
 		order.Ask:
 		h.SoldAmount = h.SoldAmount.Add(amount)
-		h.ScaledSoldValue = h.SoldAmount.Mul(price)
 		h.CommittedFunds = h.BaseSize.Mul(price)
 	}
 
@@ -134,18 +132,12 @@ func (h *Holding) update(e fill.Event, f funding.IFundReader) error {
 
 func (h *Holding) scaleValuesToCurrentPrice(currentPrice decimal.Decimal) {
 	origPosValue := h.BaseValue
-	origBoughtValue := h.ScaledBoughtValue
-	origSoldValue := h.ScaledSoldValue
 	origTotalValue := h.TotalValue
 	h.BaseValue = h.BaseSize.Mul(currentPrice)
-	h.ScaledBoughtValue = h.BoughtAmount.Mul(currentPrice)
-	h.ScaledSoldValue = h.SoldAmount.Mul(currentPrice)
 	h.TotalValue = h.BaseValue.Add(h.QuoteSize)
 
 	h.TotalValueDifference = h.TotalValue.Sub(origTotalValue)
-	h.BoughtValueDifference = h.ScaledBoughtValue.Sub(origBoughtValue)
 	h.PositionsValueDifference = h.BaseValue.Sub(origPosValue)
-	h.SoldValueDifference = h.ScaledSoldValue.Sub(origSoldValue)
 
 	if !origTotalValue.IsZero() {
 		h.ChangeInTotalValuePercent = h.TotalValue.Sub(origTotalValue).Div(origTotalValue)

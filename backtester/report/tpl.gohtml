@@ -1271,20 +1271,12 @@
 										<td>{{ $.Prettify.Int $val.BuyOrders}}</td>
 									</tr>
 									<tr>
-										<td><b>Buy Value</b></td>
-										<td>{{ $.Prettify.Decimal8 $val.FinalHoldings.ScaledBoughtValue}} {{$val.FinalHoldings.Pair.Quote}}</td>
-									</tr>
-									<tr>
 										<td><b>Buy Amount</b></td>
 										<td>{{ $.Prettify.Decimal8 $val.FinalHoldings.BoughtAmount}} {{$val.FinalHoldings.Pair.Base}} </td>
 									</tr>
 									<tr>
 										<td><b>Sell Orders</b></td>
 										<td>{{ $.Prettify.Int $val.SellOrders}}</td>
-									</tr>
-									<tr>
-										<td><b>Sell Value</b></td>
-										<td>{{ $.Prettify.Decimal8 $val.FinalHoldings.ScaledSoldValue}} {{$val.FinalHoldings.Pair.Quote}}</td>
 									</tr>
 									<tr>
 										<td><b>Sell Amount</b></td>

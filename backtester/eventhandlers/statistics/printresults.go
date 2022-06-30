@@ -188,16 +188,15 @@ func (c *CurrencyPairStatistic) PrintResults(e string, a asset.Item, p currency.
 		log.Infof(common.CurrencyStatistics, "%s Lowest Unrealised PNL: %s at %v", sep, convert.DecimalToHumanFriendlyString(c.LowestUnrealisedPNL.Value, 8, ".", ","), c.LowestUnrealisedPNL.Time)
 		log.Infof(common.CurrencyStatistics, "%s Highest Realised PNL: %s at %v", sep, convert.DecimalToHumanFriendlyString(c.HighestRealisedPNL.Value, 8, ".", ","), c.HighestRealisedPNL.Time)
 		log.Infof(common.CurrencyStatistics, "%s Lowest Realised PNL: %s at %v", sep, convert.DecimalToHumanFriendlyString(c.LowestRealisedPNL.Value, 8, ".", ","), c.LowestRealisedPNL.Time)
+		log.Infof(common.CurrencyStatistics, "%s Highest committed funds: %s %s at %v", sep, convert.DecimalToHumanFriendlyString(c.HighestCommittedFunds.Value, 8, ".", ","), c.UnderlyingPair.Quote, c.HighestCommittedFunds.Time)
 	} else {
 		log.Infof(common.CurrencyStatistics, "%s Buy orders: %s", sep, convert.IntToHumanFriendlyString(c.BuyOrders, ","))
 		log.Infof(common.CurrencyStatistics, "%s Buy amount: %s %s", sep, convert.DecimalToHumanFriendlyString(last.Holdings.BoughtAmount, 8, ".", ","), last.Holdings.Pair.Base)
-		log.Infof(common.CurrencyStatistics, "%s Bought amount valued at last candle: %s", sep, convert.DecimalToHumanFriendlyString(last.Holdings.ScaledBoughtValue, 8, ".", ","))
 		log.Infof(common.CurrencyStatistics, "%s Sell orders: %s", sep, convert.IntToHumanFriendlyString(c.SellOrders, ","))
-		log.Infof(common.CurrencyStatistics, "%s Sell amount: %s", sep, convert.DecimalToHumanFriendlyString(last.Holdings.SoldAmount, 8, ".", ","))
-		log.Infof(common.CurrencyStatistics, "%s Sold amount valued at last candle: %s", sep, convert.DecimalToHumanFriendlyString(last.Holdings.ScaledSoldValue, 8, ".", ","))
+		log.Infof(common.CurrencyStatistics, "%s Sell amount: %s %s", sep, convert.DecimalToHumanFriendlyString(last.Holdings.SoldAmount, 8, ".", ","), last.Holdings.Pair.Base)
+		log.Infof(common.CurrencyStatistics, "%s Highest committed funds: %s %s at %v", sep, convert.DecimalToHumanFriendlyString(c.HighestCommittedFunds.Value, 8, ".", ","), last.Holdings.Pair.Quote, c.HighestCommittedFunds.Time)
 	}
 
-	log.Infof(common.CurrencyStatistics, "%s Highest committed funds: %s at %v", sep, convert.DecimalToHumanFriendlyString(c.HighestCommittedFunds.Value, 8, ".", ","), c.HighestCommittedFunds.Time)
 	log.Infof(common.CurrencyStatistics, "%s Total orders: %s", sep, convert.IntToHumanFriendlyString(c.TotalOrders, ","))
 
 	log.Info(common.CurrencyStatistics, common.ColourH2+"------------------Max Drawdown-------------------------------"+common.ColourDefault)
