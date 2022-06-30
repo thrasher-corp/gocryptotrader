@@ -2,6 +2,7 @@ package common
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -24,6 +25,24 @@ func DataTypeToInt(dataType string) (int64, error) {
 	default:
 		return 0, fmt.Errorf("unrecognised dataType '%v'", dataType)
 	}
+}
+
+// GenerateFileName will convert a proposed filename into something that is more
+// OS friendly
+func GenerateFileName(fileName, extension string) (string, error) {
+	if fileName == "" {
+		return "", fmt.Errorf("%w missing filename", errCannotGenerateFileName)
+	}
+	if extension == "" {
+		return "", fmt.Errorf("%w missing filename extension", errCannotGenerateFileName)
+	}
+
+	reg := regexp.MustCompile(`[\w-]`)
+	parsedFileName := reg.FindAllString(fileName, -1)
+	parsedExtension := reg.FindAllString(extension, -1)
+	fileName = strings.Join(parsedFileName, "") + "." + strings.Join(parsedExtension, "")
+
+	return strings.ToLower(fileName), nil
 }
 
 // FitStringToLimit ensures a string is of the length of the limit

@@ -1,6 +1,7 @@
 package common
 
 import (
+	"errors"
 	"fmt"
 	"testing"
 
@@ -210,5 +211,36 @@ func TestPurgeColours(t *testing.T) {
 	PurgeColours()
 	if ColourSuccess != "" {
 		t.Error("expected purged colour")
+	}
+}
+
+func TestGenerateFileName(t *testing.T) {
+	t.Parallel()
+	_, err := GenerateFileName("", "")
+	if !errors.Is(err, errCannotGenerateFileName) {
+		t.Errorf("received '%v' expected '%v'", err, errCannotGenerateFileName)
+	}
+
+	_, err = GenerateFileName("hello", "")
+	if !errors.Is(err, errCannotGenerateFileName) {
+		t.Errorf("received '%v' expected '%v'", err, errCannotGenerateFileName)
+	}
+
+	_, err = GenerateFileName("", "moto")
+	if !errors.Is(err, errCannotGenerateFileName) {
+		t.Errorf("received '%v' expected '%v'", err, errCannotGenerateFileName)
+	}
+
+	_, err = GenerateFileName("hello", "moto")
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+
+	name, err := GenerateFileName("......HELL0.  +  _", "moto.")
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	if name != "hell0_.moto" {
+		t.Errorf("received '%v' expected '%v'", name, "hell0_.moto")
 	}
 }

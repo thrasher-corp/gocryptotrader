@@ -44,54 +44,58 @@ func main() {
 	fmt.Println("Welcome to the config generator!")
 	reader := bufio.NewReader(os.Stdin)
 	var cfg config.Config
-	fmt.Println("-----Strategy Settings-----")
 	var err error
-	firstRun := true
-	for err != nil || firstRun {
-		firstRun = false
+
+	fmt.Println("-----Strategy Settings-----")
+	// loop in sections, so that if there is an error,
+	// a user only needs to redo that section
+	for {
 		err = parseStrategySettings(&cfg, reader)
 		if err != nil {
 			log.Println(err)
+		} else {
+			break
 		}
 	}
 
 	fmt.Println("-----Exchange Settings-----")
-	firstRun = true
-	for err != nil || firstRun {
-		firstRun = false
+
+	for {
 		err = parseExchangeSettings(reader, &cfg)
 		if err != nil {
 			log.Println(err)
+		} else {
+			break
 		}
 	}
 
 	fmt.Println("-----Portfolio Settings-----")
-	firstRun = true
-	for err != nil || firstRun {
-		firstRun = false
+	for {
 		err = parsePortfolioSettings(reader, &cfg)
 		if err != nil {
 			log.Println(err)
+		} else {
+			break
 		}
 	}
 
 	fmt.Println("-----Data Settings-----")
-	firstRun = true
-	for err != nil || firstRun {
-		firstRun = false
+	for {
 		err = parseDataSettings(&cfg, reader)
 		if err != nil {
 			log.Println(err)
+		} else {
+			break
 		}
 	}
 
 	fmt.Println("-----Statistics Settings-----")
-	firstRun = true
-	for err != nil || firstRun {
-		firstRun = false
+	for {
 		err = parseStatisticsSettings(&cfg, reader)
 		if err != nil {
 			log.Println(err)
+		} else {
+			break
 		}
 	}
 
@@ -103,26 +107,45 @@ func main() {
 	fmt.Println("Write strategy config to file? If no, the output will be on screen y/n")
 	yn := quickParse(reader)
 	if yn == y || yn == yes {
-		var wd string
-		wd, err = os.Getwd()
-		if err != nil {
-			log.Fatal(err)
+		var fp, wd string
+		for {
+			wd, err = os.Getwd()
+			if err != nil {
+				log.Fatal(err)
+			}
+			fmt.Printf("Enter output directory. If blank, will default to \"%v\"\n", wd)
+			parsedPath := quickParse(reader)
+			if parsedPath != "" {
+				wd = parsedPath
+			}
+
+			fn := cfg.StrategySettings.Name
+			if cfg.Nickname != "" {
+				fn += "-" + cfg.Nickname
+			}
+			fn, err = common.GenerateFileName(fn, "start")
+			if err != nil {
+				log.Printf("could not write file, please try again. err: %v", err)
+				continue
+			}
+			fmt.Printf("Enter output file. If blank, will default to \"%v\"\n", fn)
+			parsedFileName := quickParse(reader)
+			if parsedFileName != "" {
+				fn, err = common.GenerateFileName(parsedFileName, "start")
+				if err != nil {
+					log.Printf("could not write file, please try again. err: %v", err)
+					continue
+				}
+			}
+			fp = filepath.Join(wd, fn)
+			err = os.WriteFile(fp, resp, file.DefaultPermissionOctal)
+			if err != nil {
+				log.Printf("could not write file, please try again. err: %v", err)
+				continue
+			}
+			break
 		}
-		fn := cfg.StrategySettings.Name
-		if cfg.Nickname != "" {
-			fn += "-" + cfg.Nickname
-		}
-		fn += ".strat" // nolint:misspell // its shorthand for strategy
-		wd = filepath.Join(wd, fn)
-		fmt.Printf("Enter output file. If blank, will output to \"%v\"\n", wd)
-		path := quickParse(reader)
-		if path == "" {
-			path = wd
-		}
-		err = os.WriteFile(path, resp, file.DefaultPermissionOctal)
-		if err != nil {
-			log.Fatal(err)
-		}
+		fmt.Printf("Successfully output strategy to \"%v\"\n", fp)
 	} else {
 		log.Print(string(resp))
 	}
@@ -320,7 +343,7 @@ func parseAPI(reader *bufio.Reader, cfg *config.Config) error {
 		cfg.DataSettings.APIData.StartDate = defaultStart
 	}
 
-	fmt.Printf("What is the end date? Leave blank for \"%v\"\n", defaultStart.Format(gctcommon.SimpleTimeFormat))
+	fmt.Printf("What is the end date? Leave blank for \"%v\"\n", defaultEnd.Format(gctcommon.SimpleTimeFormat))
 	endDate = quickParse(reader)
 	if endDate != "" {
 		cfg.DataSettings.APIData.EndDate, err = time.Parse(gctcommon.SimpleTimeFormat, endDate)
@@ -360,7 +383,7 @@ func parseDatabase(reader *bufio.Reader, cfg *config.Config) error {
 		cfg.DataSettings.DatabaseData.StartDate = defaultStart
 	}
 
-	fmt.Printf("What is the end date? Leave blank for \"%v\"\n", defaultStart.Format(gctcommon.SimpleTimeFormat))
+	fmt.Printf("What is the end date? Leave blank for \"%v\"\n", defaultEnd.Format(gctcommon.SimpleTimeFormat))
 	if endDate := quickParse(reader); endDate != "" {
 		cfg.DataSettings.DatabaseData.EndDate, err = time.Parse(gctcommon.SimpleTimeFormat, endDate)
 		if err != nil {
@@ -563,7 +586,6 @@ func addCurrencySetting(reader *bufio.Reader, usingExchangeLevelFunding bool) (*
 	fmt.Println("Enter the currency base. eg BTC")
 	setting.Base = currency.NewCode(quickParse(reader))
 	if setting.Asset == asset.Spot {
-		setting.SpotDetails = &config.SpotDetails{}
 		if !usingExchangeLevelFunding {
 			fmt.Println("Enter the initial base funds. eg 0")
 			parseNum := quickParse(reader)
@@ -572,14 +594,15 @@ func addCurrencySetting(reader *bufio.Reader, usingExchangeLevelFunding bool) (*
 				if err != nil {
 					return nil, err
 				}
-				setting.SpotDetails.InitialBaseFunds = &d
+				setting.SpotDetails = &config.SpotDetails{
+					InitialBaseFunds: &d,
+				}
 			}
 		}
 	}
 
 	fmt.Println("Enter the currency quote. eg USDT")
 	setting.Quote = currency.NewCode(quickParse(reader))
-
 	if setting.Asset == asset.Spot && !usingExchangeLevelFunding {
 		fmt.Println("Enter the initial quote funds. eg 10000")
 		parseNum := quickParse(reader)
@@ -588,7 +611,13 @@ func addCurrencySetting(reader *bufio.Reader, usingExchangeLevelFunding bool) (*
 			if err != nil {
 				return nil, err
 			}
-			setting.SpotDetails.InitialQuoteFunds = &d
+			if setting.SpotDetails == nil {
+				setting.SpotDetails = &config.SpotDetails{
+					InitialQuoteFunds: &d,
+				}
+			} else {
+				setting.SpotDetails.InitialQuoteFunds = &d
+			}
 		}
 	}
 

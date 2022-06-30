@@ -5,7 +5,6 @@ import (
 	"html/template"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"time"
 
@@ -70,7 +69,14 @@ func (d *Data) GenerateReport() error {
 	tmpl := template.Must(
 		template.ParseFiles(d.TemplatePath),
 	)
-	fileName, err := generateFileName(d.Config.Nickname, d.Statistics.StrategyName)
+	fn := d.Config.Nickname
+	if fn != "" {
+		fn += "-"
+	}
+	fn += d.Statistics.StrategyName + "-"
+	fn += time.Now().Format("2006-01-02-15-04-05")
+
+	fileName, err := common.GenerateFileName(fn, "html")
 	if err != nil {
 		return err
 	}
@@ -96,25 +102,6 @@ func (d *Data) GenerateReport() error {
 	}
 	log.Infof(common.Report, "successfully saved report to %v", filepath.Join(d.OutputPath, fileName))
 	return nil
-}
-
-func generateFileName(configNickName, strategyName string) (string, error) {
-	if strategyName == "" {
-		return "", fmt.Errorf("%w missing strategy name", errCannotGenerateFileName)
-	}
-	if configNickName != "" {
-		configNickName += "-"
-	}
-	fileName := fmt.Sprintf(
-		"%v%v-%v",
-		configNickName,
-		strategyName,
-		time.Now().Format("2006-01-02-15-04-05"))
-
-	reg := regexp.MustCompile(`[\w-]`)
-	result := reg.FindAllString(fileName, -1)
-	fileName = strings.Join(result, "") + ".html"
-	return strings.ToLower(fileName), nil
 }
 
 // AddKlineItem appends a SET of candles for the report to enhance upon

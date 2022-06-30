@@ -2,7 +2,6 @@ package report
 
 import (
 	"errors"
-	"strings"
 	"testing"
 	"time"
 
@@ -514,41 +513,5 @@ func TestUseDarkMode(t *testing.T) {
 	d.UseDarkMode(true)
 	if !d.UseDarkTheme {
 		t.Error("expected true")
-	}
-}
-
-func TestGenerateFileName(t *testing.T) {
-	t.Parallel()
-	_, err := generateFileName("", "")
-	if !errors.Is(err, errCannotGenerateFileName) {
-		t.Errorf("received '%v' expected '%v'", err, errCannotGenerateFileName)
-	}
-
-	_, err = generateFileName("hello", "")
-	if !errors.Is(err, errCannotGenerateFileName) {
-		t.Errorf("received '%v' expected '%v'", err, errCannotGenerateFileName)
-	}
-
-	_, err = generateFileName("hello", "moto")
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-
-	_, err = generateFileName("", "moto")
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-
-	tt := time.Now().Format("2006-01-02-15-04-05")
-	name, err := generateFileName("......HELL0.  +  _", "moto")
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	if name != "hell0_-moto-"+tt+".html" {
-		// there's a chance that it's failing due to the second count
-		nameSplit := strings.Split(name, "-")
-		if nameSplit[0]+nameSplit[1] != "hell0_moto" {
-			t.Errorf("received '%v' expected '%v'", nameSplit[0]+nameSplit[1], "hell0_moto")
-		}
 	}
 }
