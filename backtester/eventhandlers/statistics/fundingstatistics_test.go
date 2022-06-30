@@ -10,6 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
@@ -20,7 +21,10 @@ func TestCalculateFundingStatistics(t *testing.T) {
 	if !errors.Is(err, common.ErrNilArguments) {
 		t.Errorf("received %v expected %v", err, common.ErrNilArguments)
 	}
-	f := funding.SetupFundingManager(true, true)
+	f, err := funding.SetupFundingManager(&engine.ExchangeManager{}, true, true)
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v expected %v", err, nil)
+	}
 	item, err := funding.CreateItem("binance", asset.Spot, currency.BTC, decimal.NewFromInt(1337), decimal.Zero)
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v expected %v", err, nil)
@@ -76,7 +80,10 @@ func TestCalculateFundingStatistics(t *testing.T) {
 		t.Errorf("received %v expected %v", err, errNoRelevantStatsFound)
 	}
 
-	f = funding.SetupFundingManager(true, false)
+	f, err = funding.SetupFundingManager(&engine.ExchangeManager{}, true, false)
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v expected %v", err, nil)
+	}
 	err = f.AddItem(item)
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v expected %v", err, nil)
@@ -127,9 +134,7 @@ func TestCalculateIndividualFundingStatistics(t *testing.T) {
 			{
 				USDValue: decimal.NewFromInt(1337),
 			},
-			{
-				USDValue: decimal.Zero,
-			},
+			{},
 		},
 	}
 	rs := []relatedCurrencyPairStatistics{
@@ -148,6 +153,8 @@ func TestCalculateIndividualFundingStatistics(t *testing.T) {
 	}
 
 	rs[0].stat = &CurrencyPairStatistic{}
+	ri.USDInitialFunds = decimal.NewFromInt(1000)
+	ri.USDFinalFunds = decimal.NewFromInt(1337)
 	_, err = CalculateIndividualFundingStatistics(false, ri, rs)
 	if !errors.Is(err, errMissingSnapshots) {
 		t.Errorf("received %v expected %v", err, errMissingSnapshots)
@@ -174,6 +181,18 @@ func TestCalculateIndividualFundingStatistics(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v expected %v", err, nil)
 	}
+
+	ri.Asset = asset.Futures
+	_, err = CalculateIndividualFundingStatistics(false, ri, rs)
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v expected %v", err, nil)
+	}
+
+	ri.IsCollateral = true
+	_, err = CalculateIndividualFundingStatistics(false, ri, rs)
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v expected %v", err, nil)
+	}
 }
 
 func TestFundingStatisticsPrintResults(t *testing.T) {
@@ -183,7 +202,10 @@ func TestFundingStatisticsPrintResults(t *testing.T) {
 		t.Errorf("received %v expected %v", err, common.ErrNilArguments)
 	}
 
-	funds := funding.SetupFundingManager(true, true)
+	funds, err := funding.SetupFundingManager(&engine.ExchangeManager{}, true, true)
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v expected %v", err, nil)
+	}
 	item1, err := funding.CreateItem("test", asset.Spot, currency.BTC, decimal.NewFromInt(1337), decimal.NewFromFloat(0.04))
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v expected %v", err, nil)

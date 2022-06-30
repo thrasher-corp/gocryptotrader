@@ -37,7 +37,8 @@ func (r *Risk) EvaluateOrder(o order.Event, latestHoldings []holdings.Holding, s
 		if ratio.GreaterThan(lookup.MaximumOrdersWithLeverageRatio) && lookup.MaximumOrdersWithLeverageRatio.GreaterThan(decimal.Zero) {
 			return nil, fmt.Errorf("proceeding with the order would put maximum orders using leverage ratio beyond its limit of %v to %v and %w", lookup.MaximumOrdersWithLeverageRatio, ratio, errCannotPlaceLeverageOrder)
 		}
-		if retOrder.GetLeverage().GreaterThan(lookup.MaxLeverageRate) && lookup.MaxLeverageRate.GreaterThan(decimal.Zero) {
+		lr := lookup.MaxLeverageRate
+		if retOrder.GetLeverage().GreaterThan(lr) && lr.GreaterThan(decimal.Zero) {
 			return nil, fmt.Errorf("proceeding with the order would put leverage rate beyond its limit of %v to %v and %w", lookup.MaxLeverageRate, retOrder.GetLeverage(), errCannotPlaceLeverageOrder)
 		}
 	}
@@ -59,7 +60,7 @@ func existingLeverageRatio(s compliance.Snapshot) decimal.Decimal {
 	}
 	var ordersWithLeverage decimal.Decimal
 	for o := range s.Orders {
-		if s.Orders[o].Leverage != 0 {
+		if s.Orders[o].Order.Leverage != 0 {
 			ordersWithLeverage = ordersWithLeverage.Add(decimal.NewFromInt(1))
 		}
 	}

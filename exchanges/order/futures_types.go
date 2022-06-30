@@ -44,18 +44,21 @@ var (
 	errNilOrder                       = errors.New("nil order received")
 	errNoPNLHistory                   = errors.New("no pnl history")
 	errCannotCalculateUnrealisedPNL   = errors.New("cannot calculate unrealised PNL")
+	errCannotTrackInvalidParams       = errors.New("parameters set incorrectly, cannot track")
 )
 
 // PNLCalculation is an interface to allow multiple
 // ways of calculating PNL to be used for futures positions
 type PNLCalculation interface {
 	CalculatePNL(context.Context, *PNLCalculatorRequest) (*PNLResult, error)
+	GetCurrencyForRealisedPNL(realisedAsset asset.Item, realisedPair currency.Pair) (currency.Code, asset.Item, error)
 }
 
 // CollateralManagement is an interface that allows
 // multiple ways of calculating the size of collateral
 // on an exchange
 type CollateralManagement interface {
+	GetCollateralCurrencyForContract(asset.Item, currency.Pair) (currency.Code, asset.Item, error)
 	ScaleCollateral(ctx context.Context, calculator *CollateralCalculator) (*CollateralByCurrency, error)
 	CalculateTotalCollateral(context.Context, *TotalCollateralCalculator) (*TotalCollateralResponse, error)
 }
@@ -125,8 +128,8 @@ type UsedCollateralBreakdown struct {
 // and so all you need to do is send all orders to
 // the position controller and its all tracked happily
 type PositionController struct {
-	m                          sync.Mutex
-	positionTrackerControllers map[string]map[asset.Item]map[currency.Pair]*MultiPositionTracker
+	m                     sync.Mutex
+	multiPositionTrackers map[string]map[asset.Item]map[currency.Pair]*MultiPositionTracker
 }
 
 // MultiPositionTracker will track the performance of
@@ -134,12 +137,13 @@ type PositionController struct {
 // is closed, then the position controller will create a new one
 // to track the current positions
 type MultiPositionTracker struct {
-	m          sync.Mutex
-	exchange   string
-	asset      asset.Item
-	pair       currency.Pair
-	underlying currency.Code
-	positions  []*PositionTracker
+	m                  sync.Mutex
+	exchange           string
+	asset              asset.Item
+	pair               currency.Pair
+	underlying         currency.Code
+	collateralCurrency currency.Code
+	positions          []*PositionTracker
 	// order positions allows for an easier time knowing which order is
 	// part of which position tracker
 	orderPositions             map[string]*PositionTracker
@@ -155,6 +159,7 @@ type MultiPositionTrackerSetup struct {
 	Asset                     asset.Item
 	Pair                      currency.Pair
 	Underlying                currency.Code
+	CollateralCurrency        currency.Code
 	OfflineCalculation        bool
 	UseExchangePNLCalculation bool
 	ExchangePNLCalculation    PNLCalculation
@@ -173,6 +178,7 @@ type PositionTracker struct {
 	asset                 asset.Item
 	contractPair          currency.Pair
 	underlyingAsset       currency.Code
+	collateralCurrency    currency.Code
 	exposure              decimal.Decimal
 	currentDirection      Side
 	openingDirection      Side
@@ -196,6 +202,7 @@ type PositionTrackerSetup struct {
 	Pair                      currency.Pair
 	EntryPrice                decimal.Decimal
 	Underlying                currency.Code
+	CollateralCurrency        currency.Code
 	Asset                     asset.Item
 	Side                      Side
 	UseExchangePNLCalculation bool
@@ -256,29 +263,36 @@ type PNLCalculatorRequest struct {
 
 // PNLResult stores a PNL result from a point in time
 type PNLResult struct {
+	Status                Status
 	Time                  time.Time
 	UnrealisedPNL         decimal.Decimal
 	RealisedPNLBeforeFees decimal.Decimal
+	RealisedPNL           decimal.Decimal
 	Price                 decimal.Decimal
 	Exposure              decimal.Decimal
+	Direction             Side
 	Fee                   decimal.Decimal
 	IsLiquidated          bool
+	// Is event is supposed to show that something has happened and it isnt just tracking in time
+	IsOrder bool
 }
 
 // PositionStats is a basic holder
 // for position information
 type PositionStats struct {
-	Exchange         string
-	Asset            asset.Item
-	Pair             currency.Pair
-	Underlying       currency.Code
-	Orders           []Detail
-	RealisedPNL      decimal.Decimal
-	UnrealisedPNL    decimal.Decimal
-	LatestDirection  Side
-	Status           Status
-	OpeningDirection Side
-	OpeningPrice     decimal.Decimal
-	LatestPrice      decimal.Decimal
-	PNLHistory       []PNLResult
+	Exchange           string
+	Asset              asset.Item
+	Pair               currency.Pair
+	Underlying         currency.Code
+	CollateralCurrency currency.Code
+	Orders             []Detail
+	RealisedPNL        decimal.Decimal
+	UnrealisedPNL      decimal.Decimal
+	Exposure           decimal.Decimal
+	LatestDirection    Side
+	Status             Status
+	OpeningDirection   Side
+	OpeningPrice       decimal.Decimal
+	LatestPrice        decimal.Decimal
+	PNLHistory         []PNLResult
 }

@@ -8,33 +8,61 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 var (
-	elite = decimal.NewFromInt(1337)
-	neg   = decimal.NewFromInt(-1)
-	one   = decimal.NewFromInt(1)
-	exch  = "exch"
-	a     = asset.Spot
-	base  = currency.DOGE
-	quote = currency.XRP
-	pair  = currency.NewPair(base, quote)
+	elite    = decimal.NewFromInt(1337)
+	neg      = decimal.NewFromInt(-1)
+	one      = decimal.NewFromInt(1)
+	exchName = "exchname"
+	a        = asset.Spot
+	base     = currency.DOGE
+	quote    = currency.XRP
+	pair     = currency.NewPair(base, quote)
 )
+
+// fakeEvent implements common.EventHandler without
+// caring about the response, or dealing with import cycles
+type fakeEvent struct{}
+
+func (f *fakeEvent) GetOffset() int64                         { return 0 }
+func (f *fakeEvent) SetOffset(int64)                          {}
+func (f *fakeEvent) IsEvent() bool                            { return true }
+func (f *fakeEvent) GetTime() time.Time                       { return time.Now() }
+func (f *fakeEvent) Pair() currency.Pair                      { return pair }
+func (f *fakeEvent) GetExchange() string                      { return exchName }
+func (f *fakeEvent) GetInterval() gctkline.Interval           { return gctkline.OneMin }
+func (f *fakeEvent) GetAssetType() asset.Item                 { return asset.Spot }
+func (f *fakeEvent) AppendReason(string)                      {}
+func (f *fakeEvent) GetClosePrice() decimal.Decimal           { return elite }
+func (f *fakeEvent) AppendReasonf(s string, i ...interface{}) {}
+func (f *fakeEvent) GetBase() *event.Base                     { return &event.Base{} }
+func (f *fakeEvent) GetUnderlyingPair() currency.Pair         { return pair }
+func (f *fakeEvent) GetConcatReasons() string                 { return "" }
+func (f *fakeEvent) GetReasons() []string                     { return nil }
 
 func TestSetupFundingManager(t *testing.T) {
 	t.Parallel()
-	f := SetupFundingManager(true, false)
+	f, err := SetupFundingManager(&engine.ExchangeManager{}, true, false)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
 	if !f.usingExchangeLevelFunding {
 		t.Errorf("expected '%v received '%v'", true, false)
 	}
 	if f.disableUSDTracking {
 		t.Errorf("expected '%v received '%v'", false, true)
 	}
-	f = SetupFundingManager(false, true)
+	f, err = SetupFundingManager(&engine.ExchangeManager{}, false, true)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
 	if f.usingExchangeLevelFunding {
 		t.Errorf("expected '%v received '%v'", false, true)
 	}
@@ -45,8 +73,11 @@ func TestSetupFundingManager(t *testing.T) {
 
 func TestReset(t *testing.T) {
 	t.Parallel()
-	f := SetupFundingManager(true, false)
-	baseItem, err := CreateItem(exch, a, base, decimal.Zero, decimal.Zero)
+	f, err := SetupFundingManager(&engine.ExchangeManager{}, true, false)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	baseItem, err := CreateItem(exchName, a, base, decimal.Zero, decimal.Zero)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -65,7 +96,10 @@ func TestReset(t *testing.T) {
 
 func TestIsUsingExchangeLevelFunding(t *testing.T) {
 	t.Parallel()
-	f := SetupFundingManager(true, false)
+	f, err := SetupFundingManager(&engine.ExchangeManager{}, true, false)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
 	if !f.IsUsingExchangeLevelFunding() {
 		t.Errorf("expected '%v received '%v'", true, false)
 	}
@@ -114,7 +148,7 @@ func TestTransfer(t *testing.T) {
 	if !item2.available.Equal(elite) {
 		t.Errorf("received '%v' expected '%v'", item2.available, elite)
 	}
-	if !item1.available.Equal(decimal.Zero) {
+	if !item1.available.IsZero() {
 		t.Errorf("received '%v' expected '%v'", item1.available, decimal.Zero)
 	}
 
@@ -136,7 +170,7 @@ func TestAddItem(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 
-	baseItem, err := CreateItem(exch, a, base, decimal.Zero, decimal.Zero)
+	baseItem, err := CreateItem(exchName, a, base, decimal.Zero, decimal.Zero)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -154,11 +188,10 @@ func TestAddItem(t *testing.T) {
 func TestExists(t *testing.T) {
 	t.Parallel()
 	f := FundManager{}
-	exists := f.Exists(nil)
-	if exists {
-		t.Errorf("received '%v' expected '%v'", exists, false)
+	if f.Exists(nil) {
+		t.Errorf("received '%v' expected '%v'", true, false)
 	}
-	conflictingSingleItem, err := CreateItem(exch, a, base, decimal.Zero, decimal.Zero)
+	conflictingSingleItem, err := CreateItem(exchName, a, base, decimal.Zero, decimal.Zero)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -166,15 +199,14 @@ func TestExists(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	exists = f.Exists(conflictingSingleItem)
-	if !exists {
-		t.Errorf("received '%v' expected '%v'", exists, true)
+	if !f.Exists(conflictingSingleItem) {
+		t.Errorf("received '%v' expected '%v'", false, true)
 	}
-	baseItem, err := CreateItem(exch, a, base, decimal.Zero, decimal.Zero)
+	baseItem, err := CreateItem(exchName, a, base, decimal.Zero, decimal.Zero)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	quoteItem, err := CreateItem(exch, a, quote, elite, decimal.Zero)
+	quoteItem, err := CreateItem(exchName, a, quote, elite, decimal.Zero)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -186,34 +218,51 @@ func TestExists(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	pairItems, err := f.GetFundingForEAP(exch, a, pair)
+	_, err = f.getFundingForEAP(exchName, a, pair)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	exists = f.Exists(pairItems.Base)
-	if !exists {
-		t.Errorf("received '%v' expected '%v'", exists, true)
-	}
-	exists = f.Exists(pairItems.Quote)
-	if !exists {
-		t.Errorf("received '%v' expected '%v'", exists, true)
-	}
 
-	funds, err := f.GetFundingForEAP(exch, a, pair)
+	_, err = f.getFundingForEAP(exchName, a, pair)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 	// demonstration that you don't need the original *Items
 	// to check for existence, just matching fields
-	baseCopy := *funds.Base
-	quoteCopy := *funds.Quote
+	baseCopy := Item{
+		exchange:          baseItem.exchange,
+		asset:             baseItem.asset,
+		currency:          baseItem.currency,
+		initialFunds:      baseItem.initialFunds,
+		available:         baseItem.available,
+		reserved:          baseItem.reserved,
+		transferFee:       baseItem.transferFee,
+		pairedWith:        baseItem.pairedWith,
+		trackingCandles:   baseItem.trackingCandles,
+		snapshot:          baseItem.snapshot,
+		isCollateral:      baseItem.isCollateral,
+		collateralCandles: baseItem.collateralCandles,
+	}
+	quoteCopy := Item{
+		exchange:          quoteItem.exchange,
+		asset:             quoteItem.asset,
+		currency:          quoteItem.currency,
+		initialFunds:      quoteItem.initialFunds,
+		available:         quoteItem.available,
+		reserved:          quoteItem.reserved,
+		transferFee:       quoteItem.transferFee,
+		pairedWith:        quoteItem.pairedWith,
+		trackingCandles:   quoteItem.trackingCandles,
+		snapshot:          quoteItem.snapshot,
+		isCollateral:      quoteItem.isCollateral,
+		collateralCandles: quoteItem.collateralCandles,
+	}
 	quoteCopy.pairedWith = &baseCopy
-	exists = f.Exists(&baseCopy)
-	if !exists {
-		t.Errorf("received '%v' expected '%v'", exists, true)
+	if !f.Exists(&baseCopy) {
+		t.Errorf("received '%v' expected '%v'", false, true)
 	}
 
-	currFunds, err := f.GetFundingForEAC(exch, a, base)
+	currFunds, err := f.getFundingForEAC(exchName, a, base)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -225,11 +274,11 @@ func TestExists(t *testing.T) {
 func TestAddPair(t *testing.T) {
 	t.Parallel()
 	f := FundManager{}
-	baseItem, err := CreateItem(exch, a, pair.Base, decimal.Zero, decimal.Zero)
+	baseItem, err := CreateItem(exchName, a, pair.Base, decimal.Zero, decimal.Zero)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	quoteItem, err := CreateItem(exch, a, pair.Quote, elite, decimal.Zero)
+	quoteItem, err := CreateItem(exchName, a, pair.Quote, elite, decimal.Zero)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -241,33 +290,10 @@ func TestAddPair(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	resp, err := f.GetFundingForEAP(exch, a, pair)
+	_, err = f.getFundingForEAP(exchName, a, pair)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	if resp.Base.exchange != exch ||
-		resp.Base.asset != a ||
-		!resp.Base.currency.Equal(pair.Base) {
-		t.Error("woah nelly")
-	}
-	if resp.Quote.exchange != exch ||
-		resp.Quote.asset != a ||
-		!resp.Quote.currency.Equal(pair.Quote) {
-		t.Error("woah nelly")
-	}
-	if resp.Quote.pairedWith != resp.Base {
-		t.Errorf("received '%v' expected '%v'", resp.Base, resp.Quote.pairedWith)
-	}
-	if resp.Base.pairedWith != resp.Quote {
-		t.Errorf("received '%v' expected '%v'", resp.Quote, resp.Base.pairedWith)
-	}
-	if !resp.Base.initialFunds.Equal(decimal.Zero) {
-		t.Errorf("received '%v' expected '%v'", resp.Base.initialFunds, decimal.Zero)
-	}
-	if !resp.Quote.initialFunds.Equal(elite) {
-		t.Errorf("received '%v' expected '%v'", resp.Quote.initialFunds, elite)
-	}
-
 	p, err = CreatePair(baseItem, quoteItem)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
@@ -278,21 +304,6 @@ func TestAddPair(t *testing.T) {
 	}
 }
 
-// fakeEvent implements common.EventHandler without
-// caring about the response, or dealing with import cycles
-type fakeEvent struct{}
-
-func (f *fakeEvent) GetOffset() int64               { return 0 }
-func (f *fakeEvent) SetOffset(int64)                {}
-func (f *fakeEvent) IsEvent() bool                  { return true }
-func (f *fakeEvent) GetTime() time.Time             { return time.Now() }
-func (f *fakeEvent) Pair() currency.Pair            { return pair }
-func (f *fakeEvent) GetExchange() string            { return exch }
-func (f *fakeEvent) GetInterval() gctkline.Interval { return gctkline.OneMin }
-func (f *fakeEvent) GetAssetType() asset.Item       { return asset.Spot }
-func (f *fakeEvent) GetReason() string              { return "" }
-func (f *fakeEvent) AppendReason(string)            {}
-
 func TestGetFundingForEvent(t *testing.T) {
 	t.Parallel()
 	e := &fakeEvent{}
@@ -301,11 +312,11 @@ func TestGetFundingForEvent(t *testing.T) {
 	if !errors.Is(err, ErrFundsNotFound) {
 		t.Errorf("received '%v' expected '%v'", err, ErrFundsNotFound)
 	}
-	baseItem, err := CreateItem(exch, a, pair.Base, decimal.Zero, decimal.Zero)
+	baseItem, err := CreateItem(exchName, a, pair.Base, decimal.Zero, decimal.Zero)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	quoteItem, err := CreateItem(exch, a, pair.Quote, elite, decimal.Zero)
+	quoteItem, err := CreateItem(exchName, a, pair.Quote, elite, decimal.Zero)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -326,11 +337,11 @@ func TestGetFundingForEvent(t *testing.T) {
 func TestGetFundingForEAC(t *testing.T) {
 	t.Parallel()
 	f := FundManager{}
-	_, err := f.GetFundingForEAC(exch, a, base)
+	_, err := f.getFundingForEAC(exchName, a, base)
 	if !errors.Is(err, ErrFundsNotFound) {
 		t.Errorf("received '%v' expected '%v'", err, ErrFundsNotFound)
 	}
-	baseItem, err := CreateItem(exch, a, pair.Base, decimal.Zero, decimal.Zero)
+	baseItem, err := CreateItem(exchName, a, pair.Base, decimal.Zero, decimal.Zero)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -339,7 +350,7 @@ func TestGetFundingForEAC(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 
-	fundo, err := f.GetFundingForEAC(exch, a, base)
+	fundo, err := f.getFundingForEAC(exchName, a, base)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -352,15 +363,15 @@ func TestGetFundingForEAC(t *testing.T) {
 func TestGetFundingForEAP(t *testing.T) {
 	t.Parallel()
 	f := FundManager{}
-	_, err := f.GetFundingForEAP(exch, a, pair)
+	_, err := f.getFundingForEAP(exchName, a, pair)
 	if !errors.Is(err, ErrFundsNotFound) {
 		t.Errorf("received '%v' expected '%v'", err, ErrFundsNotFound)
 	}
-	baseItem, err := CreateItem(exch, a, pair.Base, decimal.Zero, decimal.Zero)
+	baseItem, err := CreateItem(exchName, a, pair.Base, decimal.Zero, decimal.Zero)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	quoteItem, err := CreateItem(exch, a, pair.Quote, elite, decimal.Zero)
+	quoteItem, err := CreateItem(exchName, a, pair.Quote, elite, decimal.Zero)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -372,7 +383,7 @@ func TestGetFundingForEAP(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	_, err = f.GetFundingForEAP(exch, a, pair)
+	_, err = f.getFundingForEAP(exchName, a, pair)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -395,364 +406,6 @@ func TestGetFundingForEAP(t *testing.T) {
 	}
 }
 
-func TestBaseInitialFunds(t *testing.T) {
-	t.Parallel()
-	baseItem, err := CreateItem(exch, a, pair.Base, decimal.Zero, decimal.Zero)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	quoteItem, err := CreateItem(exch, a, pair.Quote, elite, decimal.Zero)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	baseItem.pairedWith = quoteItem
-	quoteItem.pairedWith = baseItem
-	pairItems := Pair{Base: baseItem, Quote: quoteItem}
-	funds := pairItems.BaseInitialFunds()
-	if !funds.IsZero() {
-		t.Errorf("received '%v' expected '%v'", funds, baseItem.available)
-	}
-}
-
-func TestQuoteInitialFunds(t *testing.T) {
-	t.Parallel()
-	baseItem, err := CreateItem(exch, a, pair.Base, decimal.Zero, decimal.Zero)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	quoteItem, err := CreateItem(exch, a, pair.Quote, elite, decimal.Zero)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	baseItem.pairedWith = quoteItem
-	quoteItem.pairedWith = baseItem
-	pairItems := Pair{Base: baseItem, Quote: quoteItem}
-	funds := pairItems.QuoteInitialFunds()
-	if !funds.Equal(elite) {
-		t.Errorf("received '%v' expected '%v'", funds, elite)
-	}
-}
-
-func TestBaseAvailable(t *testing.T) {
-	t.Parallel()
-	baseItem, err := CreateItem(exch, a, pair.Base, decimal.Zero, decimal.Zero)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	quoteItem, err := CreateItem(exch, a, pair.Quote, elite, decimal.Zero)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	baseItem.pairedWith = quoteItem
-	quoteItem.pairedWith = baseItem
-	pairItems := Pair{Base: baseItem, Quote: quoteItem}
-	funds := pairItems.BaseAvailable()
-	if !funds.IsZero() {
-		t.Errorf("received '%v' expected '%v'", funds, baseItem.available)
-	}
-}
-
-func TestQuoteAvailable(t *testing.T) {
-	t.Parallel()
-	baseItem, err := CreateItem(exch, a, pair.Base, decimal.Zero, decimal.Zero)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	quoteItem, err := CreateItem(exch, a, pair.Quote, elite, decimal.Zero)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	baseItem.pairedWith = quoteItem
-	quoteItem.pairedWith = baseItem
-	pairItems := Pair{Base: baseItem, Quote: quoteItem}
-	funds := pairItems.QuoteAvailable()
-	if !funds.Equal(elite) {
-		t.Errorf("received '%v' expected '%v'", funds, elite)
-	}
-}
-
-func TestReservePair(t *testing.T) {
-	t.Parallel()
-	baseItem, err := CreateItem(exch, a, pair.Base, decimal.Zero, decimal.Zero)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	quoteItem, err := CreateItem(exch, a, pair.Quote, elite, decimal.Zero)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	baseItem.pairedWith = quoteItem
-	quoteItem.pairedWith = baseItem
-	pairItems := Pair{Base: baseItem, Quote: quoteItem}
-	err = pairItems.Reserve(decimal.Zero, order.Buy)
-	if !errors.Is(err, errZeroAmountReceived) {
-		t.Errorf("received '%v' expected '%v'", err, errZeroAmountReceived)
-	}
-	err = pairItems.Reserve(elite, order.Buy)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	err = pairItems.Reserve(decimal.Zero, order.Sell)
-	if !errors.Is(err, errZeroAmountReceived) {
-		t.Errorf("received '%v' expected '%v'", err, errZeroAmountReceived)
-	}
-	err = pairItems.Reserve(elite, order.Sell)
-	if !errors.Is(err, errCannotAllocate) {
-		t.Errorf("received '%v' expected '%v'", err, errCannotAllocate)
-	}
-	err = pairItems.Reserve(elite, order.DoNothing)
-	if !errors.Is(err, errCannotAllocate) {
-		t.Errorf("received '%v' expected '%v'", err, errCannotAllocate)
-	}
-}
-
-func TestReleasePair(t *testing.T) {
-	t.Parallel()
-	baseItem, err := CreateItem(exch, a, pair.Base, decimal.Zero, decimal.Zero)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	quoteItem, err := CreateItem(exch, a, pair.Quote, elite, decimal.Zero)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	baseItem.pairedWith = quoteItem
-	quoteItem.pairedWith = baseItem
-	pairItems := Pair{Base: baseItem, Quote: quoteItem}
-	err = pairItems.Reserve(decimal.Zero, order.Buy)
-	if !errors.Is(err, errZeroAmountReceived) {
-		t.Errorf("received '%v' expected '%v'", err, errZeroAmountReceived)
-	}
-	err = pairItems.Reserve(elite, order.Buy)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	err = pairItems.Reserve(decimal.Zero, order.Sell)
-	if !errors.Is(err, errZeroAmountReceived) {
-		t.Errorf("received '%v' expected '%v'", err, errZeroAmountReceived)
-	}
-	err = pairItems.Reserve(elite, order.Sell)
-	if !errors.Is(err, errCannotAllocate) {
-		t.Errorf("received '%v' expected '%v'", err, errCannotAllocate)
-	}
-
-	err = pairItems.Release(decimal.Zero, decimal.Zero, order.Buy)
-	if !errors.Is(err, errZeroAmountReceived) {
-		t.Errorf("received '%v' expected '%v'", err, errZeroAmountReceived)
-	}
-	err = pairItems.Release(elite, decimal.Zero, order.Buy)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	err = pairItems.Release(elite, decimal.Zero, order.Buy)
-	if !errors.Is(err, errCannotAllocate) {
-		t.Errorf("received '%v' expected '%v'", err, errCannotAllocate)
-	}
-
-	err = pairItems.Release(elite, decimal.Zero, order.DoNothing)
-	if !errors.Is(err, errCannotAllocate) {
-		t.Errorf("received '%v' expected '%v'", err, errCannotAllocate)
-	}
-
-	err = pairItems.Release(elite, decimal.Zero, order.Sell)
-	if !errors.Is(err, errCannotAllocate) {
-		t.Errorf("received '%v' expected '%v'", err, errCannotAllocate)
-	}
-	err = pairItems.Release(decimal.Zero, decimal.Zero, order.Sell)
-	if !errors.Is(err, errZeroAmountReceived) {
-		t.Errorf("received '%v' expected '%v'", err, errZeroAmountReceived)
-	}
-}
-
-func TestIncreaseAvailablePair(t *testing.T) {
-	t.Parallel()
-	baseItem, err := CreateItem(exch, a, pair.Base, decimal.Zero, decimal.Zero)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	quoteItem, err := CreateItem(exch, a, pair.Quote, elite, decimal.Zero)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	baseItem.pairedWith = quoteItem
-	quoteItem.pairedWith = baseItem
-	pairItems := Pair{Base: baseItem, Quote: quoteItem}
-	pairItems.IncreaseAvailable(decimal.Zero, order.Buy)
-	if !pairItems.Quote.available.Equal(elite) {
-		t.Errorf("received '%v' expected '%v'", elite, pairItems.Quote.available)
-	}
-	pairItems.IncreaseAvailable(decimal.Zero, order.Sell)
-	if !pairItems.Base.available.Equal(decimal.Zero) {
-		t.Errorf("received '%v' expected '%v'", decimal.Zero, pairItems.Base.available)
-	}
-
-	pairItems.IncreaseAvailable(elite.Neg(), order.Sell)
-	if !pairItems.Quote.available.Equal(elite) {
-		t.Errorf("received '%v' expected '%v'", elite, pairItems.Quote.available)
-	}
-	pairItems.IncreaseAvailable(elite, order.Buy)
-	if !pairItems.Base.available.Equal(elite) {
-		t.Errorf("received '%v' expected '%v'", elite, pairItems.Base.available)
-	}
-
-	pairItems.IncreaseAvailable(elite, order.DoNothing)
-	if !pairItems.Base.available.Equal(elite) {
-		t.Errorf("received '%v' expected '%v'", elite, pairItems.Base.available)
-	}
-}
-
-func TestCanPlaceOrderPair(t *testing.T) {
-	t.Parallel()
-	p := Pair{
-		Base:  &Item{},
-		Quote: &Item{},
-	}
-	if p.CanPlaceOrder(order.DoNothing) {
-		t.Error("expected false")
-	}
-	if p.CanPlaceOrder(order.Buy) {
-		t.Error("expected false")
-	}
-	if p.CanPlaceOrder(order.Sell) {
-		t.Error("expected false")
-	}
-
-	p.Quote.available = decimal.NewFromInt(32)
-	if !p.CanPlaceOrder(order.Buy) {
-		t.Error("expected true")
-	}
-	p.Base.available = decimal.NewFromInt(32)
-	if !p.CanPlaceOrder(order.Sell) {
-		t.Error("expected true")
-	}
-}
-
-func TestIncreaseAvailable(t *testing.T) {
-	t.Parallel()
-	i := Item{}
-	i.IncreaseAvailable(elite)
-	if !i.available.Equal(elite) {
-		t.Errorf("expected %v", elite)
-	}
-	i.IncreaseAvailable(decimal.Zero)
-	i.IncreaseAvailable(neg)
-	if !i.available.Equal(elite) {
-		t.Errorf("expected %v", elite)
-	}
-}
-
-func TestRelease(t *testing.T) {
-	t.Parallel()
-	i := Item{}
-	err := i.Release(decimal.Zero, decimal.Zero)
-	if !errors.Is(err, errZeroAmountReceived) {
-		t.Errorf("received '%v' expected '%v'", err, errZeroAmountReceived)
-	}
-	err = i.Release(elite, decimal.Zero)
-	if !errors.Is(err, errCannotAllocate) {
-		t.Errorf("received '%v' expected '%v'", err, errCannotAllocate)
-	}
-	i.reserved = elite
-	err = i.Release(elite, decimal.Zero)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-
-	i.reserved = elite
-	err = i.Release(elite, one)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-
-	err = i.Release(neg, decimal.Zero)
-	if !errors.Is(err, errZeroAmountReceived) {
-		t.Errorf("received '%v' expected '%v'", err, errZeroAmountReceived)
-	}
-	err = i.Release(elite, neg)
-	if !errors.Is(err, errNegativeAmountReceived) {
-		t.Errorf("received '%v' expected '%v'", err, errNegativeAmountReceived)
-	}
-}
-
-func TestReserve(t *testing.T) {
-	t.Parallel()
-	i := Item{}
-	err := i.Reserve(decimal.Zero)
-	if !errors.Is(err, errZeroAmountReceived) {
-		t.Errorf("received '%v' expected '%v'", err, errZeroAmountReceived)
-	}
-	err = i.Reserve(elite)
-	if !errors.Is(err, errCannotAllocate) {
-		t.Errorf("received '%v' expected '%v'", err, errCannotAllocate)
-	}
-
-	i.reserved = elite
-	err = i.Reserve(elite)
-	if !errors.Is(err, errCannotAllocate) {
-		t.Errorf("received '%v' expected '%v'", err, errCannotAllocate)
-	}
-
-	i.available = elite
-	err = i.Reserve(elite)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-
-	err = i.Reserve(elite)
-	if !errors.Is(err, errCannotAllocate) {
-		t.Errorf("received '%v' expected '%v'", err, errCannotAllocate)
-	}
-
-	err = i.Reserve(neg)
-	if !errors.Is(err, errZeroAmountReceived) {
-		t.Errorf("received '%v' expected '%v'", err, errZeroAmountReceived)
-	}
-}
-
-func TestMatchesItemCurrency(t *testing.T) {
-	t.Parallel()
-	i := Item{}
-	if i.MatchesItemCurrency(nil) {
-		t.Errorf("received '%v' expected '%v'", true, false)
-	}
-	baseItem, err := CreateItem(exch, a, pair.Base, decimal.Zero, decimal.Zero)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	quoteItem, err := CreateItem(exch, a, pair.Quote, elite, decimal.Zero)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	if baseItem.MatchesItemCurrency(quoteItem) {
-		t.Errorf("received '%v' expected '%v'", true, false)
-	}
-	if !baseItem.MatchesItemCurrency(baseItem) {
-		t.Errorf("received '%v' expected '%v'", false, true)
-	}
-}
-
-func TestMatchesExchange(t *testing.T) {
-	t.Parallel()
-	i := Item{}
-	if i.MatchesExchange(nil) {
-		t.Errorf("received '%v' expected '%v'", true, false)
-	}
-	baseItem, err := CreateItem(exch, a, pair.Base, decimal.Zero, decimal.Zero)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	quoteItem, err := CreateItem(exch, a, pair.Quote, elite, decimal.Zero)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	if !baseItem.MatchesExchange(quoteItem) {
-		t.Errorf("received '%v' expected '%v'", false, true)
-	}
-	if !baseItem.MatchesExchange(baseItem) {
-		t.Errorf("received '%v' expected '%v'", false, true)
-	}
-}
-
 func TestGenerateReport(t *testing.T) {
 	t.Parallel()
 	f := FundManager{}
@@ -764,7 +417,7 @@ func TestGenerateReport(t *testing.T) {
 		t.Error("expected 0")
 	}
 	item := &Item{
-		exchange:     exch,
+		exchange:     exchName,
 		initialFunds: decimal.NewFromInt(100),
 		available:    decimal.NewFromInt(200),
 		currency:     currency.BTC,
@@ -784,7 +437,7 @@ func TestGenerateReport(t *testing.T) {
 
 	f.usingExchangeLevelFunding = true
 	err = f.AddItem(&Item{
-		exchange:     exch,
+		exchange:     exchName,
 		initialFunds: decimal.NewFromInt(100),
 		available:    decimal.NewFromInt(200),
 		currency:     currency.USD,
@@ -796,7 +449,7 @@ func TestGenerateReport(t *testing.T) {
 
 	dfk := &kline.DataFromKline{
 		Item: gctkline.Item{
-			Exchange: exch,
+			Exchange: exchName,
 			Pair:     currency.NewPair(currency.BTC, currency.USD),
 			Asset:    a,
 			Interval: gctkline.OneHour,
@@ -815,7 +468,7 @@ func TestGenerateReport(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	f.items[0].usdTrackingCandles = dfk
+	f.items[0].trackingCandles = dfk
 	f.CreateSnapshot(dfk.Item.Candles[0].Time)
 
 	report = f.GenerateReport()
@@ -830,26 +483,8 @@ func TestGenerateReport(t *testing.T) {
 	}
 }
 
-func TestMatchesCurrency(t *testing.T) {
-	t.Parallel()
-	i := Item{
-		currency: currency.BTC,
-	}
-	if i.MatchesCurrency(currency.USDT) {
-		t.Error("expected false")
-	}
-	if !i.MatchesCurrency(currency.BTC) {
-		t.Error("expected true")
-	}
-	if i.MatchesCurrency(currency.EMPTYCODE) {
-		t.Error("expected false")
-	}
-	if i.MatchesCurrency(currency.NewCode("")) {
-		t.Error("expected false")
-	}
-}
-
 func TestCreateSnapshot(t *testing.T) {
+	t.Parallel()
 	f := FundManager{}
 	f.CreateSnapshot(time.Time{})
 	f.items = append(f.items, &Item{})
@@ -868,19 +503,20 @@ func TestCreateSnapshot(t *testing.T) {
 		t.Error(err)
 	}
 	f.items = append(f.items, &Item{
-		exchange:           "test",
-		asset:              asset.Spot,
-		currency:           currency.BTC,
-		initialFunds:       decimal.NewFromInt(1337),
-		available:          decimal.NewFromInt(1337),
-		reserved:           decimal.NewFromInt(1337),
-		transferFee:        decimal.NewFromInt(1337),
-		usdTrackingCandles: dfk,
+		exchange:        "test",
+		asset:           asset.Spot,
+		currency:        currency.BTC,
+		initialFunds:    decimal.NewFromInt(1337),
+		available:       decimal.NewFromInt(1337),
+		reserved:        decimal.NewFromInt(1337),
+		transferFee:     decimal.NewFromInt(1337),
+		trackingCandles: dfk,
 	})
 	f.CreateSnapshot(dfk.Item.Candles[0].Time)
 }
 
 func TestAddUSDTrackingData(t *testing.T) {
+	t.Parallel()
 	f := FundManager{}
 	err := f.AddUSDTrackingData(nil)
 	if !errors.Is(err, common.ErrNilArguments) {
@@ -905,7 +541,7 @@ func TestAddUSDTrackingData(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	quoteItem, err := CreateItem(exch, a, pair.Quote, elite, decimal.Zero)
+	quoteItem, err := CreateItem(exchName, a, pair.Quote, elite, decimal.Zero)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -928,7 +564,7 @@ func TestAddUSDTrackingData(t *testing.T) {
 
 	dfk = &kline.DataFromKline{
 		Item: gctkline.Item{
-			Exchange: exch,
+			Exchange: exchName,
 			Pair:     currency.NewPair(pair.Quote, currency.USD),
 			Asset:    a,
 			Interval: gctkline.OneHour,
@@ -948,7 +584,7 @@ func TestAddUSDTrackingData(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 
-	usdtItem, err := CreateItem(exch, a, currency.USDT, elite, decimal.Zero)
+	usdtItem, err := CreateItem(exchName, a, currency.USDT, elite, decimal.Zero)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -963,6 +599,7 @@ func TestAddUSDTrackingData(t *testing.T) {
 }
 
 func TestUSDTrackingDisabled(t *testing.T) {
+	t.Parallel()
 	f := FundManager{}
 	if f.USDTrackingDisabled() {
 		t.Error("received true, expected false")
@@ -970,5 +607,261 @@ func TestUSDTrackingDisabled(t *testing.T) {
 	f.disableUSDTracking = true
 	if !f.USDTrackingDisabled() {
 		t.Error("received false, expected true")
+	}
+}
+
+func TestFundingLiquidate(t *testing.T) {
+	t.Parallel()
+	f := FundManager{}
+	f.Liquidate(nil)
+	f.items = append(f.items, &Item{
+		exchange:  "test",
+		asset:     asset.Spot,
+		currency:  currency.BTC,
+		available: decimal.NewFromInt(1337),
+	})
+
+	f.Liquidate(&signal.Signal{
+		Base: &event.Base{
+			Exchange:     "test",
+			AssetType:    asset.Spot,
+			CurrencyPair: currency.NewPair(currency.BTC, currency.USD),
+		},
+	})
+	if !f.items[0].available.IsZero() {
+		t.Errorf("received '%v' expected '%v'", f.items[0].available, "0")
+	}
+}
+
+func TestHasExchangeBeenLiquidated(t *testing.T) {
+	t.Parallel()
+	f := FundManager{}
+	f.Liquidate(nil)
+	f.items = append(f.items, &Item{
+		exchange:  "test",
+		asset:     asset.Spot,
+		currency:  currency.BTC,
+		available: decimal.NewFromInt(1337),
+	})
+	ev := &signal.Signal{
+		Base: &event.Base{
+			Exchange:     "test",
+			AssetType:    asset.Spot,
+			CurrencyPair: currency.NewPair(currency.BTC, currency.USD),
+		},
+	}
+	f.Liquidate(ev)
+	if !f.items[0].available.IsZero() {
+		t.Errorf("received '%v' expected '%v'", f.items[0].available, "0")
+	}
+	if has := f.HasExchangeBeenLiquidated(ev); !has {
+		t.Errorf("received '%v' expected '%v'", has, true)
+	}
+}
+
+func TestGetAllFunding(t *testing.T) {
+	t.Parallel()
+	f := FundManager{}
+	resp := f.GetAllFunding()
+	if len(resp) != 0 {
+		t.Errorf("received '%v' expected '%v'", len(resp), 0)
+	}
+
+	f.items = append(f.items, &Item{
+		exchange:  "test",
+		asset:     asset.Spot,
+		currency:  currency.BTC,
+		available: decimal.NewFromInt(1337),
+	})
+
+	resp = f.GetAllFunding()
+	if len(resp) != 1 {
+		t.Errorf("received '%v' expected '%v'", len(resp), 1)
+	}
+}
+
+func TestHasFutures(t *testing.T) {
+	t.Parallel()
+	f := FundManager{}
+	if has := f.HasFutures(); has {
+		t.Errorf("received '%v' expected '%v'", has, false)
+	}
+
+	f.items = append(f.items, &Item{
+		exchange:  "test",
+		asset:     asset.Futures,
+		currency:  currency.BTC,
+		available: decimal.NewFromInt(1337),
+	})
+	if has := f.HasFutures(); !has {
+		t.Errorf("received '%v' expected '%v'", has, true)
+	}
+}
+
+func TestRealisePNL(t *testing.T) {
+	t.Parallel()
+	f := FundManager{}
+	f.items = append(f.items, &Item{
+		exchange:     "test",
+		asset:        asset.Futures,
+		currency:     currency.BTC,
+		available:    decimal.NewFromInt(1336),
+		isCollateral: true,
+	})
+
+	var expectedError error
+	err := f.RealisePNL("test", asset.Futures, currency.BTC, decimal.NewFromInt(1))
+	if !errors.Is(err, expectedError) {
+		t.Errorf("recevied '%v' expected '%v'", err, expectedError)
+	}
+	if !f.items[0].available.Equal(decimal.NewFromInt(1337)) {
+		t.Errorf("recevied '%v' expected '%v'", f.items[0].available, decimal.NewFromInt(1337))
+	}
+
+	expectedError = ErrFundsNotFound
+	err = f.RealisePNL("test2", asset.Futures, currency.BTC, decimal.NewFromInt(1))
+	if !errors.Is(err, expectedError) {
+		t.Errorf("recevied '%v' expected '%v'", err, expectedError)
+	}
+}
+
+func TestCreateCollateral(t *testing.T) {
+	t.Parallel()
+	collat := &Item{
+		exchange:     "test",
+		asset:        asset.Futures,
+		currency:     currency.BTC,
+		available:    decimal.NewFromInt(1336),
+		isCollateral: true,
+	}
+	contract := &Item{
+		exchange:  "test",
+		asset:     asset.Futures,
+		currency:  currency.DOGE,
+		available: decimal.NewFromInt(1336),
+	}
+
+	var expectedError error
+	_, err := CreateCollateral(collat, contract)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("recevied '%v' expected '%v'", err, expectedError)
+	}
+
+	expectedError = common.ErrNilArguments
+	_, err = CreateCollateral(nil, contract)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("recevied '%v' expected '%v'", err, expectedError)
+	}
+
+	_, err = CreateCollateral(collat, nil)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("recevied '%v' expected '%v'", err, expectedError)
+	}
+}
+
+func TestUpdateCollateral(t *testing.T) {
+	t.Parallel()
+	f := &FundManager{}
+	expectedError := common.ErrNilEvent
+	err := f.UpdateCollateral(nil)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("recevied '%v' expected '%v'", err, expectedError)
+	}
+
+	ev := &signal.Signal{
+		Base: &event.Base{
+			Exchange:     "ftx",
+			AssetType:    asset.Futures,
+			CurrencyPair: currency.NewPair(currency.BTC, currency.USD),
+		},
+	}
+	f.items = append(f.items, &Item{
+		exchange:  "ftx",
+		asset:     asset.Spot,
+		currency:  currency.BTC,
+		available: decimal.NewFromInt(1336),
+	})
+	em := engine.SetupExchangeManager()
+	exch, err := em.NewExchangeByName("ftx")
+	if err != nil {
+		t.Fatal(err)
+	}
+	exch.SetDefaults()
+	cfg, err := exch.GetDefaultConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = exch.Setup(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	em.Add(exch)
+	f.exchangeManager = em
+
+	expectedError = ErrFundsNotFound
+	err = f.UpdateCollateral(ev)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("recevied '%v' expected '%v'", err, expectedError)
+	}
+
+	expectedError = nil
+	f.items = append(f.items, &Item{
+		exchange:     "ftx",
+		asset:        asset.Futures,
+		currency:     currency.USD,
+		available:    decimal.NewFromInt(1336),
+		isCollateral: true,
+	})
+	err = f.UpdateCollateral(ev)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("recevied '%v' expected '%v'", err, expectedError)
+	}
+}
+
+func TestCreateFuturesCurrencyCode(t *testing.T) {
+	t.Parallel()
+	if result := CreateFuturesCurrencyCode(currency.BTC, currency.USDT); result != currency.NewCode("BTC-USDT") {
+		t.Errorf("received '%v', expected  '%v'", result, "BTC-USDT")
+	}
+}
+
+func TestLinkCollateralCurrency(t *testing.T) {
+	t.Parallel()
+	f := FundManager{}
+	err := f.LinkCollateralCurrency(nil, currency.EMPTYCODE)
+	if !errors.Is(err, common.ErrNilArguments) {
+		t.Errorf("received '%v', expected  '%v'", err, common.ErrNilArguments)
+	}
+
+	item := &Item{}
+	err = f.LinkCollateralCurrency(item, currency.EMPTYCODE)
+	if !errors.Is(err, common.ErrNilArguments) {
+		t.Errorf("received '%v', expected  '%v'", err, common.ErrNilArguments)
+	}
+
+	err = f.LinkCollateralCurrency(item, currency.BTC)
+	if !errors.Is(err, errNotFutures) {
+		t.Errorf("received '%v', expected  '%v'", err, errNotFutures)
+	}
+
+	item.asset = asset.Futures
+	err = f.LinkCollateralCurrency(item, currency.BTC)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected  '%v'", err, nil)
+	}
+	if !item.pairedWith.currency.Equal(currency.BTC) {
+		t.Errorf("received '%v', expected  '%v'", currency.BTC, item.pairedWith.currency)
+	}
+
+	err = f.LinkCollateralCurrency(item, currency.LTC)
+	if !errors.Is(err, ErrAlreadyExists) {
+		t.Errorf("received '%v', expected  '%v'", err, ErrAlreadyExists)
+	}
+
+	f.items = append(f.items, item.pairedWith)
+	item.pairedWith = nil
+	err = f.LinkCollateralCurrency(item, currency.BTC)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected  '%v'", err, nil)
 	}
 }

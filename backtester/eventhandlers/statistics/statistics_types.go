@@ -6,6 +6,7 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
@@ -26,6 +27,7 @@ var (
 	errMissingSnapshots            = errors.New("funding report item missing USD snapshots")
 	errNoRelevantStatsFound        = errors.New("no relevant currency pair statistics found")
 	errReceivedNoData              = errors.New("received no data")
+	errNoDataAtOffset              = errors.New("no data found at offset")
 )
 
 // Statistic holds all statistical information for a backtester run, from drawdowns to ratios.
@@ -41,15 +43,17 @@ type Statistic struct {
 	RiskFreeRate                decimal.Decimal                                                    `json:"risk-free-rate"`
 	ExchangeAssetPairStatistics map[string]map[asset.Item]map[currency.Pair]*CurrencyPairStatistic `json:"exchange-asset-pair-statistics"`
 	TotalBuyOrders              int64                                                              `json:"total-buy-orders"`
+	TotalLongOrders             int64                                                              `json:"total-long-orders"`
+	TotalShortOrders            int64                                                              `json:"total-short-orders"`
 	TotalSellOrders             int64                                                              `json:"total-sell-orders"`
 	TotalOrders                 int64                                                              `json:"total-orders"`
 	BiggestDrawdown             *FinalResultsHolder                                                `json:"biggest-drawdown,omitempty"`
 	BestStrategyResults         *FinalResultsHolder                                                `json:"best-start-results,omitempty"`
 	BestMarketMovement          *FinalResultsHolder                                                `json:"best-market-movement,omitempty"`
-	CurrencyPairStatistics      []CurrencyPairStatistic                                            `json:"currency-pair-statistics"` // as ExchangeAssetPairStatistics cannot be rendered via json.Marshall, we append all result to this slice instead
 	WasAnyDataMissing           bool                                                               `json:"was-any-data-missing"`
 	FundingStatistics           *FundingStatistics                                                 `json:"funding-statistics"`
 	FundManager                 funding.IFundingManager                                            `json:"-"`
+	HasCollateral               bool                                                               `json:"has-collateral"`
 }
 
 // FinalResultsHolder holds important stats about a currency's performance
@@ -72,6 +76,7 @@ type Handler interface {
 	CalculateAllResults() error
 	Reset()
 	Serialise() (string, error)
+	AddPNLForTime(*portfolio.PNLSummary) error
 }
 
 // Results holds some statistics on results
@@ -113,33 +118,51 @@ type CurrencyStats interface {
 	SortinoRatio(decimal.Decimal) decimal.Decimal
 }
 
-// EventStore is used to hold all event information
+// DataAtOffset is used to hold all event information
 // at a time interval
-type EventStore struct {
+type DataAtOffset struct {
+	Offset       int64
+	ClosePrice   decimal.Decimal
+	Time         time.Time
 	Holdings     holdings.Holding
 	Transactions compliance.Snapshot
 	DataEvent    common.DataEventHandler
 	SignalEvent  signal.Event
 	OrderEvent   order.Event
 	FillEvent    fill.Event
+	PNL          portfolio.IPNL
 }
 
 // CurrencyPairStatistic Holds all events and statistics relevant to an exchange, asset type and currency pair
 type CurrencyPairStatistic struct {
+	Exchange       string
+	Asset          asset.Item
+	Currency       currency.Pair
+	UnderlyingPair currency.Pair `json:"linked-spot-currency"`
+
 	ShowMissingDataWarning       bool `json:"-"`
 	IsStrategyProfitable         bool `json:"is-strategy-profitable"`
 	DoesPerformanceBeatTheMarket bool `json:"does-performance-beat-the-market"`
 
 	BuyOrders   int64 `json:"buy-orders"`
+	LongOrders  int64 `json:"long-orders"`
+	ShortOrders int64 `json:"short-orders"`
 	SellOrders  int64 `json:"sell-orders"`
 	TotalOrders int64 `json:"total-orders"`
 
-	StartingClosePrice           decimal.Decimal `json:"starting-close-price"`
-	EndingClosePrice             decimal.Decimal `json:"ending-close-price"`
-	LowestClosePrice             decimal.Decimal `json:"lowest-close-price"`
-	HighestClosePrice            decimal.Decimal `json:"highest-close-price"`
+	StartingClosePrice   ValueAtTime `json:"starting-close-price"`
+	EndingClosePrice     ValueAtTime `json:"ending-close-price"`
+	LowestClosePrice     ValueAtTime `json:"lowest-close-price"`
+	HighestClosePrice    ValueAtTime `json:"highest-close-price"`
+	HighestUnrealisedPNL ValueAtTime `json:"highest-unrealised-pnl"`
+	LowestUnrealisedPNL  ValueAtTime `json:"lowest-unrealised-pnl"`
+	HighestRealisedPNL   ValueAtTime `json:"highest-realised-pnl"`
+	LowestRealisedPNL    ValueAtTime `json:"lowest-realised-pnl"`
+
 	MarketMovement               decimal.Decimal `json:"market-movement"`
 	StrategyMovement             decimal.Decimal `json:"strategy-movement"`
+	UnrealisedPNL                decimal.Decimal `json:"unrealised-pnl"`
+	RealisedPNL                  decimal.Decimal `json:"realised-pnl"`
 	CompoundAnnualGrowthRate     decimal.Decimal `json:"compound-annual-growth-rate"`
 	TotalAssetValue              decimal.Decimal
 	TotalFees                    decimal.Decimal
@@ -147,7 +170,7 @@ type CurrencyPairStatistic struct {
 	TotalValueLostToSlippage     decimal.Decimal
 	TotalValueLost               decimal.Decimal
 
-	Events []EventStore `json:"-"`
+	Events []DataAtOffset `json:"-"`
 
 	MaxDrawdown           Swing               `json:"max-drawdown,omitempty"`
 	HighestCommittedFunds ValueAtTime         `json:"highest-committed-funds"`
@@ -178,6 +201,7 @@ type Swing struct {
 type ValueAtTime struct {
 	Time  time.Time       `json:"time"`
 	Value decimal.Decimal `json:"value"`
+	Set   bool            `json:"-"`
 }
 
 type relatedCurrencyPairStatistics struct {
@@ -210,22 +234,28 @@ type FundingItemStatistics struct {
 	TotalOrders              int64
 	MaxDrawdown              Swing
 	HighestCommittedFunds    ValueAtTime
+	// CollateralPair stats
+	IsCollateral      bool
+	InitialCollateral ValueAtTime
+	FinalCollateral   ValueAtTime
+	HighestCollateral ValueAtTime
+	LowestCollateral  ValueAtTime
+	// Contracts
+	LowestHoldings  ValueAtTime
+	HighestHoldings ValueAtTime
+	InitialHoldings ValueAtTime
+	FinalHoldings   ValueAtTime
 }
 
-// TotalFundingStatistics holds values for overal statistics for funding items
+// TotalFundingStatistics holds values for overall statistics for funding items
 type TotalFundingStatistics struct {
 	HoldingValues            []ValueAtTime
-	InitialHoldingValue      ValueAtTime
-	FinalHoldingValue        ValueAtTime
 	HighestHoldingValue      ValueAtTime
 	LowestHoldingValue       ValueAtTime
 	BenchmarkMarketMovement  decimal.Decimal
 	StrategyMovement         decimal.Decimal
 	RiskFreeRate             decimal.Decimal
 	CompoundAnnualGrowthRate decimal.Decimal
-	BuyOrders                int64
-	SellOrders               int64
-	TotalOrders              int64
 	MaxDrawdown              Swing
 	GeometricRatios          *Ratios
 	ArithmeticRatios         *Ratios

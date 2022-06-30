@@ -60,7 +60,7 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
-	engine.Bot.OrderManager, err = engine.SetupOrderManager(em, &engine.CommunicationManager{}, &engine.Bot.ServicesWG, false)
+	engine.Bot.OrderManager, err = engine.SetupOrderManager(em, &engine.CommunicationManager{}, &engine.Bot.ServicesWG, false, false)
 	if err != nil {
 		log.Print(err)
 		os.Exit(1)
