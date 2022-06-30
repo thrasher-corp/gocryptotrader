@@ -583,7 +583,6 @@ func addCurrencySetting(reader *bufio.Reader, usingExchangeLevelFunding bool) (*
 		}
 	}
 
-	var d decimal.Decimal
 	fmt.Println("Enter the currency base. eg BTC")
 	setting.Base = currency.NewCode(quickParse(reader))
 	if setting.Asset == asset.Spot {
@@ -591,6 +590,7 @@ func addCurrencySetting(reader *bufio.Reader, usingExchangeLevelFunding bool) (*
 			fmt.Println("Enter the initial base funds. eg 0")
 			parseNum := quickParse(reader)
 			if parseNum != "" {
+				var d decimal.Decimal
 				d, err = decimal.NewFromString(parseNum)
 				if err != nil {
 					return nil, err
@@ -608,6 +608,7 @@ func addCurrencySetting(reader *bufio.Reader, usingExchangeLevelFunding bool) (*
 		fmt.Println("Enter the initial quote funds. eg 10000")
 		parseNum := quickParse(reader)
 		if parseNum != "" {
+			var d decimal.Decimal
 			d, err = decimal.NewFromString(parseNum)
 			if err != nil {
 				return nil, err
@@ -628,6 +629,7 @@ func addCurrencySetting(reader *bufio.Reader, usingExchangeLevelFunding bool) (*
 		fmt.Println("Enter the maker-fee. eg 0.001")
 		parseNum := quickParse(reader)
 		if parseNum != "" {
+			var d decimal.Decimal
 			d, err = decimal.NewFromString(parseNum)
 			if err != nil {
 				return nil, err
@@ -637,6 +639,7 @@ func addCurrencySetting(reader *bufio.Reader, usingExchangeLevelFunding bool) (*
 		fmt.Println("Enter the taker-fee. eg 0.01")
 		parseNum = quickParse(reader)
 		if parseNum != "" {
+			var d decimal.Decimal
 			d, err = decimal.NewFromString(parseNum)
 			if err != nil {
 				return nil, err
