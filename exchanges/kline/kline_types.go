@@ -82,6 +82,7 @@ var (
 type Item struct {
 	Exchange        string
 	Pair            currency.Pair
+	UnderlyingPair  currency.Pair
 	Asset           asset.Item
 	Interval        Interval
 	Candles         []Candle

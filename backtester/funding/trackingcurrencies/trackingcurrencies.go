@@ -41,9 +41,9 @@ var rankedUSDs = []currency.Code{
 // a USD equivalent
 type TrackingPair struct {
 	Exchange string
-	Asset    string
-	Base     string
-	Quote    string
+	Asset    asset.Item
+	Base     currency.Code
+	Quote    currency.Code
 }
 
 // CreateUSDTrackingPairs is responsible for loading exchanges,
@@ -63,17 +63,18 @@ func CreateUSDTrackingPairs(tp []TrackingPair, em *engine.ExchangeManager) ([]Tr
 		if err != nil {
 			return nil, err
 		}
-		pair, err := currency.NewPairFromStrings(tp[i].Base, tp[i].Quote)
-		if err != nil {
-			return nil, err
-		}
+		pair := currency.NewPair(tp[i].Base, tp[i].Quote)
 		if pairContainsUSD(pair) {
 			resp = append(resp, tp[i])
 		} else {
 			b := exch.GetBase()
-			a, err := asset.New(tp[i].Asset)
+			a := tp[i].Asset
 			if err != nil {
 				return nil, err
+			}
+			if a.IsFutures() {
+				// futures matches to spot, not like this
+				continue
 			}
 			pairs := b.CurrencyPairs.Pairs[a]
 			basePair, quotePair, err := findMatchingUSDPairs(pair, pairs)
@@ -85,14 +86,14 @@ func CreateUSDTrackingPairs(tp []TrackingPair, em *engine.ExchangeManager) ([]Tr
 				TrackingPair{
 					Exchange: tp[i].Exchange,
 					Asset:    tp[i].Asset,
-					Base:     basePair.Base.String(),
-					Quote:    basePair.Quote.String(),
+					Base:     basePair.Base,
+					Quote:    basePair.Quote,
 				},
 				TrackingPair{
 					Exchange: tp[i].Exchange,
 					Asset:    tp[i].Asset,
-					Base:     quotePair.Base.String(),
-					Quote:    quotePair.Quote.String(),
+					Base:     quotePair.Base,
+					Quote:    quotePair.Quote,
 				},
 			)
 		}

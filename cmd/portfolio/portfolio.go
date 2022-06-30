@@ -20,25 +20,26 @@ var (
 
 func printSummary(msg string, amount float64) {
 	log.Println()
-	log.Println(fmt.Sprintf("%s in USD: $%.2f", msg, amount))
+	log.Printf("%s in USD: $%.2f", msg, amount)
 
 	if !displayCurrency.Equal(currency.USD) {
 		conv, err := currency.ConvertFiat(amount, currency.USD, displayCurrency)
 		if err != nil {
 			log.Println(err)
 		} else {
-			symb, err := currency.GetSymbolByCurrencyName(displayCurrency)
+			var symb string
+			symb, err = currency.GetSymbolByCurrencyName(displayCurrency)
 			if err != nil {
-				log.Println(fmt.Sprintf("%s in %s: %.2f",
+				log.Printf("%s in %s: %.2f",
 					msg,
 					displayCurrency,
-					conv))
+					conv)
 			} else {
-				log.Println(fmt.Sprintf("%s in %s: %s%.2f",
+				log.Printf("%s in %s: %s%.2f",
 					msg,
 					displayCurrency,
 					symb,
-					conv))
+					conv)
 			}
 		}
 	}

@@ -1847,12 +1847,11 @@ func TestScaleCollateral(t *testing.T) {
 					Asset:              asset.Spot,
 					Side:               order.Buy,
 					FreeCollateral:     decimal.NewFromFloat(v[v2].Total),
-					USDPrice:           decimal.Zero,
 					IsLiquidating:      true,
 					CalculateOffline:   true,
 				})
 			if !errors.Is(err, order.ErrUSDValueRequired) {
-				t.Errorf("received '%v' exepected '%v'", err, order.ErrUSDValueRequired)
+				t.Errorf("received '%v' expected '%v'", err, order.ErrUSDValueRequired)
 			}
 
 			_, err = f.ScaleCollateral(

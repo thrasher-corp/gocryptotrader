@@ -3,7 +3,6 @@ package base
 import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 )
 
@@ -23,15 +22,7 @@ func (s *Strategy) GetBaseData(d data.Handler) (signal.Signal, error) {
 		return signal.Signal{}, common.ErrNilEvent
 	}
 	return signal.Signal{
-		Base: event.Base{
-			Offset:       latest.GetOffset(),
-			Exchange:     latest.GetExchange(),
-			Time:         latest.GetTime(),
-			CurrencyPair: latest.Pair(),
-			AssetType:    latest.GetAssetType(),
-			Interval:     latest.GetInterval(),
-			Reason:       latest.GetReason(),
-		},
+		Base:       latest.GetBase(),
 		ClosePrice: latest.GetClosePrice(),
 		HighPrice:  latest.GetHighPrice(),
 		OpenPrice:  latest.GetOpenPrice(),

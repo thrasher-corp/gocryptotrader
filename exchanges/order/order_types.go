@@ -23,6 +23,7 @@ var (
 	ErrAmountIsInvalid            = errors.New("order amount is equal or less than zero")
 	ErrPriceMustBeSetIfLimitOrder = errors.New("order price must be set if limit order type is desired")
 	ErrOrderIDNotSet              = errors.New("order id or client order id is not set")
+	errCannotLiquidate            = errors.New("cannot liquidate position")
 )
 
 // Submit contains all properties of an order that may be required
@@ -278,6 +279,7 @@ const (
 	Closed
 	Pending
 	Cancelling
+	Liquidated
 )
 
 // Type enforces a standard for order types across the code base
@@ -304,7 +306,7 @@ const (
 )
 
 // Side enforces a standard for order sides across the code base
-type Side uint16
+type Side uint32
 
 // Order side types
 const (
@@ -316,11 +318,16 @@ const (
 	AnySide
 	Long
 	Short
+	ClosePosition
 	// Backtester signal types
 	DoNothing
 	TransferredFunds
 	CouldNotBuy
 	CouldNotSell
+	CouldNotShort
+	CouldNotLong
+	CouldNotCloseShort
+	CouldNotCloseLong
 	MissingData
 )
 

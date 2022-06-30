@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
+	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -17,7 +18,7 @@ import (
 // GenerateReport sends final data from statistics to a template
 // to create a lovely final report for someone to view
 func (d *Data) GenerateReport() error {
-	log.Info(log.BackTester, "generating report")
+	log.Info(common.Report, "generating report")
 	err := d.enhanceCandles()
 	if err != nil {
 		return err
@@ -41,21 +42,44 @@ func (d *Data) GenerateReport() error {
 			d.EnhancedCandles[i].Candles = d.EnhancedCandles[i].Candles[:maxChartLimit]
 		}
 	}
-	d.USDTotalsChart = d.CreateUSDTotalsChart()
-	d.HoldingsOverTimeChart = d.CreateHoldingsOverTimeChart()
 
+	if d.Statistics.FundingStatistics != nil {
+		d.HoldingsOverTimeChart, err = createHoldingsOverTimeChart(d.Statistics.FundingStatistics.Items)
+		if err != nil {
+			return err
+		}
+		if !d.Statistics.FundingStatistics.Report.DisableUSDTracking {
+			d.USDTotalsChart, err = createUSDTotalsChart(d.Statistics.FundingStatistics.TotalUSDStatistics.HoldingValues, d.Statistics.FundingStatistics.Items)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	if d.Statistics.HasCollateral {
+		d.PNLOverTimeChart, err = createPNLCharts(d.Statistics.ExchangeAssetPairStatistics)
+		if err != nil {
+			return err
+		}
+		d.FuturesSpotDiffChart, err = createFuturesSpotDiffChart(d.Statistics.ExchangeAssetPairStatistics)
+		if err != nil {
+			return err
+		}
+	}
 	tmpl := template.Must(
 		template.ParseFiles(d.TemplatePath),
 	)
-	var nickName string
-	if d.Config.Nickname != "" {
-		nickName = d.Config.Nickname + "-"
+	fn := d.Config.Nickname
+	if fn != "" {
+		fn += "-"
 	}
-	fileName := fmt.Sprintf(
-		"%v%v-%v.html",
-		nickName,
-		d.Statistics.StrategyName,
-		time.Now().Format("2006-01-02-15-04-05"))
+	fn += d.Statistics.StrategyName + "-"
+	fn += time.Now().Format("2006-01-02-15-04-05")
+
+	fileName, err := common.GenerateFileName(fn, "html")
+	if err != nil {
+		return err
+	}
 	var f *os.File
 	f, err = os.Create(
 		filepath.Join(d.OutputPath,
@@ -68,7 +92,7 @@ func (d *Data) GenerateReport() error {
 	defer func() {
 		err = f.Close()
 		if err != nil {
-			log.Error(log.BackTester, err)
+			log.Error(common.Report, err)
 		}
 	}()
 
@@ -76,70 +100,8 @@ func (d *Data) GenerateReport() error {
 	if err != nil {
 		return err
 	}
-	log.Infof(log.BackTester, "successfully saved report to %v", filepath.Join(d.OutputPath, fileName))
+	log.Infof(common.Report, "successfully saved report to %v", filepath.Join(d.OutputPath, fileName))
 	return nil
-}
-
-// CreateUSDTotalsChart used for creating a chart in the HTML report
-// to show how much the overall assets are worth over time
-func (d *Data) CreateUSDTotalsChart() []TotalsChart {
-	if d.Statistics.FundingStatistics == nil || d.Statistics.FundingStatistics.Report.DisableUSDTracking {
-		return nil
-	}
-
-	usdTotalChartPlot := make([]ChartPlot, len(d.Statistics.FundingStatistics.TotalUSDStatistics.HoldingValues))
-	for i := range d.Statistics.FundingStatistics.TotalUSDStatistics.HoldingValues {
-		usdTotalChartPlot[i] = ChartPlot{
-			Value:     d.Statistics.FundingStatistics.TotalUSDStatistics.HoldingValues[i].Value.InexactFloat64(),
-			UnixMilli: d.Statistics.FundingStatistics.TotalUSDStatistics.HoldingValues[i].Time.UTC().UnixMilli(),
-		}
-	}
-
-	response := make([]TotalsChart, len(d.Statistics.FundingStatistics.Items)+1)
-	response[0] = TotalsChart{
-		Name:       "Total USD value",
-		DataPoints: usdTotalChartPlot,
-	}
-
-	for i := range d.Statistics.FundingStatistics.Items {
-		plots := make([]ChartPlot, len(d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots))
-		for j := range d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots {
-			plots[j] = ChartPlot{
-				Value:     d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots[j].USDValue.InexactFloat64(),
-				UnixMilli: d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots[j].Time.UTC().UnixMilli(),
-			}
-		}
-		response[i+1] = TotalsChart{
-			Name:       fmt.Sprintf("%v %v %v USD value", d.Statistics.FundingStatistics.Items[i].ReportItem.Exchange, d.Statistics.FundingStatistics.Items[i].ReportItem.Asset, d.Statistics.FundingStatistics.Items[i].ReportItem.Currency),
-			DataPoints: plots,
-		}
-	}
-
-	return response
-}
-
-// CreateHoldingsOverTimeChart used for creating a chart in the HTML report
-// to show how many holdings of each type was held over the time of backtesting
-func (d *Data) CreateHoldingsOverTimeChart() []TotalsChart {
-	if d.Statistics.FundingStatistics == nil {
-		return nil
-	}
-	response := make([]TotalsChart, len(d.Statistics.FundingStatistics.Items))
-	for i := range d.Statistics.FundingStatistics.Items {
-		plots := make([]ChartPlot, len(d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots))
-		for j := range d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots {
-			plots[j] = ChartPlot{
-				Value:     d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots[j].Available.InexactFloat64(),
-				UnixMilli: d.Statistics.FundingStatistics.Items[i].ReportItem.Snapshots[j].Time.UTC().UnixMilli(),
-			}
-		}
-		response[i] = TotalsChart{
-			Name:       fmt.Sprintf("%v %v %v holdings", d.Statistics.FundingStatistics.Items[i].ReportItem.Exchange, d.Statistics.FundingStatistics.Items[i].ReportItem.Asset, d.Statistics.FundingStatistics.Items[i].ReportItem.Currency),
-			DataPoints: plots,
-		}
-	}
-
-	return response
 }
 
 // AddKlineItem appends a SET of candles for the report to enhance upon
@@ -171,7 +133,7 @@ func (d *Data) enhanceCandles() error {
 
 	for intVal := range d.OriginalCandles {
 		lookup := d.OriginalCandles[intVal]
-		enhancedKline := DetailedKline{
+		enhancedKline := EnhancedKline{
 			Exchange:  lookup.Exchange,
 			Asset:     lookup.Asset,
 			Pair:      lookup.Pair,
@@ -207,8 +169,8 @@ func (d *Data) enhanceCandles() error {
 				}
 			}
 			if !requiresIteration {
-				if statsForCandles.Events[intVal].SignalEvent.GetTime().Equal(d.OriginalCandles[intVal].Candles[j].Time) &&
-					statsForCandles.Events[intVal].SignalEvent.GetDirection() == order.MissingData &&
+				if statsForCandles.Events[intVal].Time.Equal(d.OriginalCandles[intVal].Candles[j].Time) &&
+					(statsForCandles.Events[intVal].SignalEvent == nil || statsForCandles.Events[intVal].SignalEvent.GetDirection() == order.MissingData) &&
 					len(enhancedKline.Candles) > 0 {
 					enhancedCandle.copyCloseFromPreviousEvent(&enhancedKline)
 				}
@@ -222,15 +184,15 @@ func (d *Data) enhanceCandles() error {
 				}
 			}
 			for k := range statsForCandles.FinalOrders.Orders {
-				if statsForCandles.FinalOrders.Orders[k].Detail == nil ||
-					!statsForCandles.FinalOrders.Orders[k].Date.Equal(d.OriginalCandles[intVal].Candles[j].Time) {
+				if statsForCandles.FinalOrders.Orders[k].Order == nil ||
+					!statsForCandles.FinalOrders.Orders[k].Order.Date.Equal(d.OriginalCandles[intVal].Candles[j].Time) {
 					continue
 				}
 				// an order was placed here, can enhance chart!
 				enhancedCandle.MadeOrder = true
-				enhancedCandle.OrderAmount = decimal.NewFromFloat(statsForCandles.FinalOrders.Orders[k].Amount)
-				enhancedCandle.PurchasePrice = statsForCandles.FinalOrders.Orders[k].Price
-				enhancedCandle.OrderDirection = statsForCandles.FinalOrders.Orders[k].Side
+				enhancedCandle.OrderAmount = decimal.NewFromFloat(statsForCandles.FinalOrders.Orders[k].Order.Amount)
+				enhancedCandle.PurchasePrice = statsForCandles.FinalOrders.Orders[k].Order.Price
+				enhancedCandle.OrderDirection = statsForCandles.FinalOrders.Orders[k].Order.Side
 				if enhancedCandle.OrderDirection == order.Buy {
 					enhancedCandle.Colour = "green"
 					enhancedCandle.Position = "aboveBar"
@@ -251,12 +213,12 @@ func (d *Data) enhanceCandles() error {
 	return nil
 }
 
-func (d *DetailedCandle) copyCloseFromPreviousEvent(enhancedKline *DetailedKline) {
+func (d *DetailedCandle) copyCloseFromPreviousEvent(ek *EnhancedKline) {
 	// if the data is missing, ensure that all values just continue the previous candle's close price visually
-	d.Open = enhancedKline.Candles[len(enhancedKline.Candles)-1].Close
-	d.High = enhancedKline.Candles[len(enhancedKline.Candles)-1].Close
-	d.Low = enhancedKline.Candles[len(enhancedKline.Candles)-1].Close
-	d.Close = enhancedKline.Candles[len(enhancedKline.Candles)-1].Close
+	d.Open = ek.Candles[len(ek.Candles)-1].Close
+	d.High = ek.Candles[len(ek.Candles)-1].Close
+	d.Low = ek.Candles[len(ek.Candles)-1].Close
+	d.Close = ek.Candles[len(ek.Candles)-1].Close
 	d.Colour = "white"
 	d.Position = "aboveBar"
 	d.Shape = "arrowDown"

@@ -131,7 +131,7 @@ func TestWebsocketRoutineManagerHandleData(t *testing.T) {
 	exch.SetDefaults()
 	em.Add(exch)
 
-	om, err := SetupOrderManager(em, &CommunicationManager{}, &wg, false)
+	om, err := SetupOrderManager(em, &CommunicationManager{}, &wg, false, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}

@@ -19,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	dbPSQL "github.com/thrasher-corp/gocryptotrader/database/drivers/postgres"
 	dbsqlite3 "github.com/thrasher-corp/gocryptotrader/database/drivers/sqlite3"
@@ -42,78 +43,59 @@ func main() {
 	fmt.Print(common.ASCIILogo)
 	fmt.Println("Welcome to the config generator!")
 	reader := bufio.NewReader(os.Stdin)
-	cfg := config.Config{
-		StrategySettings: config.StrategySettings{
-			Name:                         "",
-			SimultaneousSignalProcessing: false,
-			UseExchangeLevelFunding:      false,
-			ExchangeLevelFunding:         nil,
-			CustomSettings:               nil,
-		},
-		CurrencySettings: []config.CurrencySettings{},
-		DataSettings: config.DataSettings{
-			Interval:     0,
-			DataType:     "",
-			APIData:      nil,
-			DatabaseData: nil,
-			LiveData:     nil,
-			CSVData:      nil,
-		},
-		PortfolioSettings: config.PortfolioSettings{
-			Leverage: config.Leverage{},
-			BuySide:  config.MinMax{},
-			SellSide: config.MinMax{},
-		},
-		StatisticSettings: config.StatisticSettings{},
-	}
-	fmt.Println("-----Strategy Settings-----")
+	var cfg config.Config
 	var err error
-	firstRun := true
-	for err != nil || firstRun {
-		firstRun = false
+
+	fmt.Println("-----Strategy Settings-----")
+	// loop in sections, so that if there is an error,
+	// a user only needs to redo that section
+	for {
 		err = parseStrategySettings(&cfg, reader)
 		if err != nil {
 			log.Println(err)
+		} else {
+			break
 		}
 	}
 
 	fmt.Println("-----Exchange Settings-----")
-	firstRun = true
-	for err != nil || firstRun {
-		firstRun = false
+
+	for {
 		err = parseExchangeSettings(reader, &cfg)
 		if err != nil {
 			log.Println(err)
+		} else {
+			break
 		}
 	}
 
 	fmt.Println("-----Portfolio Settings-----")
-	firstRun = true
-	for err != nil || firstRun {
-		firstRun = false
+	for {
 		err = parsePortfolioSettings(reader, &cfg)
 		if err != nil {
 			log.Println(err)
+		} else {
+			break
 		}
 	}
 
 	fmt.Println("-----Data Settings-----")
-	firstRun = true
-	for err != nil || firstRun {
-		firstRun = false
+	for {
 		err = parseDataSettings(&cfg, reader)
 		if err != nil {
 			log.Println(err)
+		} else {
+			break
 		}
 	}
 
 	fmt.Println("-----Statistics Settings-----")
-	firstRun = true
-	for err != nil || firstRun {
-		firstRun = false
+	for {
 		err = parseStatisticsSettings(&cfg, reader)
 		if err != nil {
 			log.Println(err)
+		} else {
+			break
 		}
 	}
 
@@ -125,26 +107,46 @@ func main() {
 	fmt.Println("Write strategy config to file? If no, the output will be on screen y/n")
 	yn := quickParse(reader)
 	if yn == y || yn == yes {
-		var wd string
-		wd, err = os.Getwd()
-		if err != nil {
-			log.Fatal(err)
+		var fp, wd string
+		extension := "strat" // nolint:misspell // its shorthand for strategy
+		for {
+			wd, err = os.Getwd()
+			if err != nil {
+				log.Fatal(err)
+			}
+			fmt.Printf("Enter output directory. If blank, will default to \"%v\"\n", wd)
+			parsedPath := quickParse(reader)
+			if parsedPath != "" {
+				wd = parsedPath
+			}
+
+			fn := cfg.StrategySettings.Name
+			if cfg.Nickname != "" {
+				fn += "-" + cfg.Nickname
+			}
+			fn, err = common.GenerateFileName(fn, extension)
+			if err != nil {
+				log.Printf("could not write file, please try again. err: %v", err)
+				continue
+			}
+			fmt.Printf("Enter output file. If blank, will default to \"%v\"\n", fn)
+			parsedFileName := quickParse(reader)
+			if parsedFileName != "" {
+				fn, err = common.GenerateFileName(parsedFileName, extension)
+				if err != nil {
+					log.Printf("could not write file, please try again. err: %v", err)
+					continue
+				}
+			}
+			fp = filepath.Join(wd, fn)
+			err = os.WriteFile(fp, resp, file.DefaultPermissionOctal)
+			if err != nil {
+				log.Printf("could not write file, please try again. err: %v", err)
+				continue
+			}
+			break
 		}
-		fn := cfg.StrategySettings.Name
-		if cfg.Nickname != "" {
-			fn += "-" + cfg.Nickname
-		}
-		fn += ".strat" // nolint:misspell // its shorthand for strategy
-		wd = filepath.Join(wd, fn)
-		fmt.Printf("Enter output file. If blank, will output to \"%v\"\n", wd)
-		path := quickParse(reader)
-		if path == "" {
-			path = wd
-		}
-		err = os.WriteFile(path, resp, file.DefaultPermissionOctal)
-		if err != nil {
-			log.Fatal(err)
-		}
+		fmt.Printf("Successfully output strategy to \"%v\"\n", fp)
 	} else {
 		log.Print(string(resp))
 	}
@@ -219,7 +221,7 @@ func parseExchangeSettings(reader *bufio.Reader, cfg *config.Config) error {
 	addCurrency := y
 	for strings.Contains(addCurrency, y) {
 		var currencySetting *config.CurrencySettings
-		currencySetting, err = addCurrencySetting(reader, cfg.StrategySettings.UseExchangeLevelFunding)
+		currencySetting, err = addCurrencySetting(reader, cfg.FundingSettings.UseExchangeLevelFunding)
 		if err != nil {
 			return err
 		}
@@ -266,8 +268,8 @@ func parseStrategySettings(cfg *config.Config, reader *bufio.Reader) error {
 	}
 	fmt.Println("Will this strategy be able to share funds at an exchange level? y/n")
 	yn = quickParse(reader)
-	cfg.StrategySettings.UseExchangeLevelFunding = strings.Contains(yn, y)
-	if !cfg.StrategySettings.UseExchangeLevelFunding {
+	cfg.FundingSettings.UseExchangeLevelFunding = strings.Contains(yn, y)
+	if !cfg.FundingSettings.UseExchangeLevelFunding {
 		return nil
 	}
 
@@ -288,21 +290,21 @@ func parseStrategySettings(cfg *config.Config, reader *bufio.Reader) error {
 			if intNum > len(supported) || intNum <= 0 {
 				return errors.New("unknown option")
 			}
-			fund.Asset = supported[intNum-1].String()
+			fund.Asset = supported[intNum-1]
 		} else {
 			for i := range supported {
 				if strings.EqualFold(response, supported[i].String()) {
-					fund.Asset = supported[i].String()
+					fund.Asset = supported[i]
 					break
 				}
 			}
-			if fund.Asset == "" {
+			if fund.Asset == asset.Empty {
 				return errors.New("unrecognised data option")
 			}
 		}
 
 		fmt.Println("What is the individual currency to add funding to? eg BTC")
-		fund.Currency = quickParse(reader)
+		fund.Currency = currency.NewCode(quickParse(reader))
 		fmt.Printf("How much funding for %v?\n", fund.Currency)
 		fund.InitialFunds, err = decimal.NewFromString(quickParse(reader))
 		if err != nil {
@@ -317,7 +319,7 @@ func parseStrategySettings(cfg *config.Config, reader *bufio.Reader) error {
 				return err
 			}
 		}
-		cfg.StrategySettings.ExchangeLevelFunding = append(cfg.StrategySettings.ExchangeLevelFunding, fund)
+		cfg.FundingSettings.ExchangeLevelFunding = append(cfg.FundingSettings.ExchangeLevelFunding, fund)
 		fmt.Println("Add another source of funds? y/n")
 		addFunding = quickParse(reader)
 	}
@@ -334,7 +336,7 @@ func parseAPI(reader *bufio.Reader, cfg *config.Config) error {
 	fmt.Printf("What is the start date? Leave blank for \"%v\"\n", defaultStart.Format(gctcommon.SimpleTimeFormat))
 	startDate = quickParse(reader)
 	if startDate != "" {
-		cfg.DataSettings.APIData.StartDate, err = time.Parse(startDate, gctcommon.SimpleTimeFormat)
+		cfg.DataSettings.APIData.StartDate, err = time.Parse(gctcommon.SimpleTimeFormat, startDate)
 		if err != nil {
 			return err
 		}
@@ -342,10 +344,10 @@ func parseAPI(reader *bufio.Reader, cfg *config.Config) error {
 		cfg.DataSettings.APIData.StartDate = defaultStart
 	}
 
-	fmt.Printf("What is the end date? Leave blank for \"%v\"\n", defaultStart.Format(gctcommon.SimpleTimeFormat))
+	fmt.Printf("What is the end date? Leave blank for \"%v\"\n", defaultEnd.Format(gctcommon.SimpleTimeFormat))
 	endDate = quickParse(reader)
 	if endDate != "" {
-		cfg.DataSettings.APIData.EndDate, err = time.Parse(endDate, gctcommon.SimpleTimeFormat)
+		cfg.DataSettings.APIData.EndDate, err = time.Parse(gctcommon.SimpleTimeFormat, endDate)
 		if err != nil {
 			return err
 		}
@@ -374,7 +376,7 @@ func parseDatabase(reader *bufio.Reader, cfg *config.Config) error {
 	fmt.Printf("What is the start date? Leave blank for \"%v\"\n", defaultStart.Format(gctcommon.SimpleTimeFormat))
 	startDate := quickParse(reader)
 	if startDate != "" {
-		cfg.DataSettings.DatabaseData.StartDate, err = time.Parse(startDate, gctcommon.SimpleTimeFormat)
+		cfg.DataSettings.DatabaseData.StartDate, err = time.Parse(gctcommon.SimpleTimeFormat, startDate)
 		if err != nil {
 			return err
 		}
@@ -382,9 +384,9 @@ func parseDatabase(reader *bufio.Reader, cfg *config.Config) error {
 		cfg.DataSettings.DatabaseData.StartDate = defaultStart
 	}
 
-	fmt.Printf("What is the end date? Leave blank for \"%v\"\n", defaultStart.Format(gctcommon.SimpleTimeFormat))
+	fmt.Printf("What is the end date? Leave blank for \"%v\"\n", defaultEnd.Format(gctcommon.SimpleTimeFormat))
 	if endDate := quickParse(reader); endDate != "" {
-		cfg.DataSettings.DatabaseData.EndDate, err = time.Parse(endDate, gctcommon.SimpleTimeFormat)
+		cfg.DataSettings.DatabaseData.EndDate, err = time.Parse(gctcommon.SimpleTimeFormat, endDate)
 		if err != nil {
 			return err
 		}
@@ -500,7 +502,7 @@ func parseDataChoice(reader *bufio.Reader, multiCurrency bool) (string, error) {
 	return "", errors.New("unrecognised data option")
 }
 
-func parseKlineInterval(reader *bufio.Reader) (time.Duration, error) {
+func parseKlineInterval(reader *bufio.Reader) (gctkline.Interval, error) {
 	allCandles := gctkline.SupportedIntervals
 	for i := range allCandles {
 		fmt.Printf("%v. %s\n", i+1, allCandles[i].Word())
@@ -512,11 +514,11 @@ func parseKlineInterval(reader *bufio.Reader) (time.Duration, error) {
 		if intNum > len(allCandles) || intNum <= 0 {
 			return 0, errors.New("unknown option")
 		}
-		return allCandles[intNum-1].Duration(), nil
+		return allCandles[intNum-1], nil
 	}
 	for i := range allCandles {
 		if strings.EqualFold(response, allCandles[i].Word()) {
-			return allCandles[i].Duration(), nil
+			return allCandles[i], nil
 		}
 	}
 	return 0, errors.New("unrecognised interval")
@@ -573,64 +575,81 @@ func addCurrencySetting(reader *bufio.Reader, usingExchangeLevelFunding bool) (*
 		if intNum > len(supported) || intNum <= 0 {
 			return nil, errors.New("unknown option")
 		}
-		setting.Asset = supported[intNum-1].String()
+		setting.Asset = supported[intNum-1]
 	}
 	for i := range supported {
 		if strings.EqualFold(response, supported[i].String()) {
-			setting.Asset = supported[i].String()
+			setting.Asset = supported[i]
 		}
 	}
 
-	var f float64
 	fmt.Println("Enter the currency base. eg BTC")
-	setting.Base = quickParse(reader)
-	if !usingExchangeLevelFunding {
-		fmt.Println("Enter the initial base funds. eg 0")
-		parseNum := quickParse(reader)
-		if parseNum != "" {
-			f, err = strconv.ParseFloat(parseNum, 64)
-			if err != nil {
-				return nil, err
+	setting.Base = currency.NewCode(quickParse(reader))
+	if setting.Asset == asset.Spot {
+		if !usingExchangeLevelFunding {
+			fmt.Println("Enter the initial base funds. eg 0")
+			parseNum := quickParse(reader)
+			if parseNum != "" {
+				var d decimal.Decimal
+				d, err = decimal.NewFromString(parseNum)
+				if err != nil {
+					return nil, err
+				}
+				setting.SpotDetails = &config.SpotDetails{
+					InitialBaseFunds: &d,
+				}
 			}
-			iqf := decimal.NewFromFloat(f)
-			setting.InitialBaseFunds = &iqf
 		}
 	}
+
 	fmt.Println("Enter the currency quote. eg USDT")
-	setting.Quote = quickParse(reader)
-	if !usingExchangeLevelFunding {
+	setting.Quote = currency.NewCode(quickParse(reader))
+	if setting.Asset == asset.Spot && !usingExchangeLevelFunding {
 		fmt.Println("Enter the initial quote funds. eg 10000")
 		parseNum := quickParse(reader)
 		if parseNum != "" {
-			f, err = strconv.ParseFloat(parseNum, 64)
+			var d decimal.Decimal
+			d, err = decimal.NewFromString(parseNum)
 			if err != nil {
 				return nil, err
 			}
-			iqf := decimal.NewFromFloat(f)
-			setting.InitialQuoteFunds = &iqf
+			if setting.SpotDetails == nil {
+				setting.SpotDetails = &config.SpotDetails{
+					InitialQuoteFunds: &d,
+				}
+			} else {
+				setting.SpotDetails.InitialQuoteFunds = &d
+			}
 		}
 	}
-	fmt.Println("Enter the maker-fee. eg 0.001")
-	parseNum := quickParse(reader)
-	if parseNum != "" {
-		f, err = strconv.ParseFloat(parseNum, 64)
-		if err != nil {
-			return nil, err
+
+	fmt.Println("Do you want to set custom fees? If no, Backtester will use default fees for exchange y/n")
+	yn := quickParse(reader)
+	if yn == y || yn == yes {
+		fmt.Println("Enter the maker-fee. eg 0.001")
+		parseNum := quickParse(reader)
+		if parseNum != "" {
+			var d decimal.Decimal
+			d, err = decimal.NewFromString(parseNum)
+			if err != nil {
+				return nil, err
+			}
+			setting.MakerFee = &d
 		}
-		setting.MakerFee = decimal.NewFromFloat(f)
-	}
-	fmt.Println("Enter the taker-fee. eg 0.01")
-	parseNum = quickParse(reader)
-	if parseNum != "" {
-		f, err = strconv.ParseFloat(parseNum, 64)
-		if err != nil {
-			return nil, err
+		fmt.Println("Enter the taker-fee. eg 0.01")
+		parseNum = quickParse(reader)
+		if parseNum != "" {
+			var d decimal.Decimal
+			d, err = decimal.NewFromString(parseNum)
+			if err != nil {
+				return nil, err
+			}
+			setting.TakerFee = &d
 		}
-		setting.TakerFee = decimal.NewFromFloat(f)
 	}
 
 	fmt.Println("Will there be buy-side limits? y/n")
-	yn := quickParse(reader)
+	yn = quickParse(reader)
 	if yn == y || yn == yes {
 		setting.BuySide, err = minMaxParse("buy", reader)
 		if err != nil {
@@ -665,18 +684,16 @@ func addCurrencySetting(reader *bufio.Reader, usingExchangeLevelFunding bool) (*
 		fmt.Println("If the upper bound is 100, then the price can be unaffected. A minimum of 80 and a maximum of 100 means that the price will randomly be set between those bounds as a way of emulating slippage")
 
 		fmt.Println("What is the lower bounds of slippage? eg 80")
-		f, err = strconv.ParseFloat(quickParse(reader), 64)
+		setting.MinimumSlippagePercent, err = decimal.NewFromString(quickParse(reader))
 		if err != nil {
 			return nil, err
 		}
-		setting.MinimumSlippagePercent = decimal.NewFromFloat(f)
 
 		fmt.Println("What is the upper bounds of slippage? eg 100")
-		f, err = strconv.ParseFloat(quickParse(reader), 64)
+		setting.MaximumSlippagePercent, err = decimal.NewFromString(quickParse(reader))
 		if err != nil {
 			return nil, err
 		}
-		setting.MaximumSlippagePercent = decimal.NewFromFloat(f)
 	}
 
 	return &setting, nil
