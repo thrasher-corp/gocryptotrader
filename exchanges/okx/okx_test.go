@@ -18,10 +18,10 @@ import (
 
 // Please supply your own keys here to do authenticated endpoint testing
 const (
-	apiKey                  = ""
-	apiSecret               = ""
-	passphrase              = ""
-	canManipulateRealOrders = false
+	apiKey                  = "bcb7564b-c51d-4f1d-ab78-aea2cc12d6de"
+	apiSecret               = "B0D6A3AD35B13A2B3FB15C621D186404"
+	passphrase              = "1NM0qIKtJav88TKocmp2"
+	canManipulateRealOrders = true
 )
 
 var ok Okx
@@ -848,6 +848,319 @@ func TestGetAlgoOrderHistory(t *testing.T) {
 	}
 	if _, er := ok.GetAlgoOrderHistory(context.Background(), "conditional", "effective", "", "", "", time.Time{}, time.Time{}, 20); er != nil {
 		t.Error("Okx GetAlgoOrderList() error", er)
+	}
+}
+
+func TestGetCounterparties(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, er := ok.GetCounterparties(context.Background()); er != nil {
+		t.Error("Okx GetCounterparties() error", er)
+	}
+}
+
+var createRFQInputJson = `
+{
+    "anonymous": true,
+    "counterparties":[
+        "Trader1",
+        "Trader2"
+    ],
+    "clRfqId":"rfq01",
+    "legs":[
+        {
+            "sz":"25",
+            "side":"buy",
+            "instId":"BTCUSD-221208-100000-C"
+        },
+        {
+            "sz":"150",
+            "side":"buy",
+            "instId":"ETH-USDT",
+            "tgtCcy":"base_ccy"
+        }
+    ]
+}`
+var createRFQOutputJson = `{
+	"cTime":"1611033737572",
+	"uTime":"1611033737572",
+	"traderCode":"SATOSHI",
+	"rfqId":"22534",
+	"clRfqId":"rfq01",
+	"state":"active",
+	"validUntil":"1611033857557",
+	"counterparties":[
+		"Trader1",
+		"Trader2"
+	],
+	"legs":[
+		{
+			"instId":"BTCUSD-221208-100000-C",
+			"sz":"25",
+			"side":"buy",
+			"tgtCcy":""
+		},
+		{
+			"instId":"ETH-USDT",
+			"sz":"150",
+			"side":"buy",
+			"tgtCcy":"base_ccy"     
+		}
+	]
+}`
+
+func TestCreateRFQ(t *testing.T) {
+	t.Parallel()
+	var input CreateRFQInput
+	if er := json.Unmarshal([]byte(createRFQInputJson), &input); er != nil {
+		t.Error("Okx Decerializing to CreateRFQInput", er)
+	}
+	var resp RFQResponse
+	if er := json.Unmarshal([]byte(createRFQOutputJson), &resp); er != nil {
+		t.Error("Okx Decerializing to CreateRFQResponse", er)
+	}
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.SkipNow()
+	}
+	if _, er := ok.CreateRFQ(context.Background(), input); er != nil {
+		t.Error("Okx CreateRFQ() error", er)
+	}
+}
+
+func TestCancelRFQ(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.SkipNow()
+	}
+	_, er := ok.CancelRFQ(context.Background(), CancelRFQRequestParam{})
+	if er != nil && !errors.Is(er, errMissingRFQIDANDClientSuppliedRFQID) {
+		t.Errorf("Okx CancelRFQ() expecting %v, but found %v", errMissingRFQIDANDClientSuppliedRFQID, er)
+	}
+	_, er = ok.CancelRFQ(context.Background(), CancelRFQRequestParam{
+		ClientSuppliedRFQID: "somersdjskfjsdkfj",
+	})
+	if er != nil {
+		t.Error("Okx CancelRFQ() error", er)
+	}
+}
+
+func TestMultipleCancelRFQ(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.SkipNow()
+	}
+	_, er := ok.CancelMultipleRFQs(context.Background(), CancelRFQRequestsParam{})
+	if er != nil && !errors.Is(er, errMissingRFQIDANDClientSuppliedRFQID) {
+		t.Errorf("Okx CancelMultipleRFQs() expecting %v, but found %v", errMissingRFQIDANDClientSuppliedRFQID, er)
+	}
+	_, er = ok.CancelMultipleRFQs(context.Background(), CancelRFQRequestsParam{
+		ClientSuppliedRFQID: []string{"somersdjskfjsdkfj"},
+	})
+	if er != nil && !strings.Contains(er.Error(), "Either parameter rfqIds or clRfqIds is required") {
+		t.Error("Okx CancelMultipleRFQs() error", er)
+	}
+}
+
+var executeQuoteJson = `{
+	"blockTdId":"180184",
+	"rfqId":"1419",
+	"clRfqId":"r0001",
+	"quoteId":"1046",
+	"clQuoteId":"q0001",
+	"tTraderCode":"Trader1",
+	"mTraderCode":"Trader2",
+	"cTime":"1649670009",
+	"legs":[
+		{
+			"px":"0.1",
+			"sz":"25",
+			"instId":"BTC-USD-20220114-13250-C",
+			"side":"sell",
+			"fee":"-1.001",
+			"feeCcy":"BTC",
+			"tradeId":"10211"
+		},
+		{
+			"px":"0.2",
+			"sz":"25",
+			"instId":"BTC-USDT",
+			"side":"buy",
+			"fee":"-1.001",
+			"feeCcy":"BTC",
+			"tradeId":"10212"
+		}
+	]
+}`
+
+func TestExecuteQuote(t *testing.T) {
+	t.Parallel()
+	var resp ExecuteQuoteResponse
+	if er := json.Unmarshal([]byte(executeQuoteJson), &resp); er != nil {
+		t.Error("Okx Decerialing error", er)
+	}
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.SkipNow()
+	}
+	if _, er := ok.ExecuteQuote(context.Background(), ExecuteQuoteParams{}); er != nil && !errors.Is(er, errMissingRfqIDOrQuoteID) {
+		t.Errorf("Okx ExecuteQuote() expected %v, but found %v", errMissingRfqIDOrQuoteID, er)
+	}
+	if _, er := ok.ExecuteQuote(context.Background(), ExecuteQuoteParams{
+		RfqID:   "22540",
+		QuoteID: "84073",
+	}); er != nil {
+		t.Error("Okx ExecuteQuote() error", er)
+	}
+}
+
+var createQuoteJson = `{
+	"cTime":"1611038342698",
+	"uTime":"1611038342698",
+	"quoteId":"84069", 
+	"clQuoteId":"q002",
+	"rfqId":"22537",
+	"quoteSide":"buy",
+	"state":"active",
+	"validUntil":"1611038442838",
+	"legs":[
+			{
+				"px":"39450.0",
+				"sz":"200000",
+				"instId":"BTC-USDT-SWAP",
+				"side":"buy",
+				"tgtCcy":""
+			}            
+	]
+}`
+
+func TestCreateQuote(t *testing.T) {
+	t.Parallel()
+	var resp QuoteResponse
+	if er := json.Unmarshal([]byte(createQuoteJson), &resp); er != nil {
+		t.Error("Okx Decerializing to CreateQuoteResponse error", er)
+	}
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, er := ok.CreateQuote(context.Background(), CreateQuoteParams{}); er != nil && !errors.Is(er, errMissingRfqID) {
+		t.Errorf("Okx CreateQuote() expecting %v, but found %v", errMissingRfqID, er)
+	}
+}
+
+func TestCancelQuote(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, er := ok.CancelQuote(context.Background(), CancelQuoteRequestParams{}); er != nil && !errors.Is(er, errMissingQuoteIDOrClientSuppliedQuoteID) {
+		t.Error("Okx CancelQuote() error", er)
+	}
+}
+
+func TestCancelMultipleQuote(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, er := ok.CancelMultipleQuote(context.Background(), CancelQuotesRequestParams{}); er != nil && !errors.Is(errMissingEitherQuoteIDAOrlientSuppliedQuoteIDs, er) {
+		t.Error("Okx CancelQuote() error", er)
+	}
+}
+
+func TestCancelAllQuotes(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if time, er := ok.CancelAllQuotes(context.Background()); er != nil && !strings.Contains(er.Error(), "Cancellation failed as you do not have any active Quotes.") {
+		t.Error("Okx CancelAllQuotes() error", er)
+	} else if er == nil && time.IsZero() {
+		t.Error("Okx CancelAllQuotes() zero timestamp message ")
+	}
+}
+
+func TestGetRFQs(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Parallel()
+	}
+	if _, er := ok.GetRfqs(context.Background(), RfqRequestParams{}); er != nil {
+		t.Error("Okx GetRfqs() error", er)
+	}
+}
+
+func TestGetQuotes(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, er := ok.GetQuotes(context.Background(), QuoteRequestParams{}); er != nil {
+		t.Error("Okx GetQuotes() error", er)
+	}
+}
+
+var rfqTradeResponseJson = `{
+	"rfqId": "1234567",
+	"clRfqId": "",
+	"quoteId": "0T533T0",
+	"clQuoteId": "",
+	"blockTdId": "439121886014849024",
+	"legs": [
+		{
+			"instId": "BTC-USDT",
+			"side": "sell",
+			"sz": "0.532",
+			"px": "100",
+			"tradeId": "439121886014849026",
+			"fee": "-0.0266",
+			"feeCcy": "USDT"
+		}
+	],
+	"cTime": "1650966816550",
+	"tTraderCode": "SATS",
+	"mTraderCode": "MIKE"
+}`
+
+func TestGetRFQTrades(t *testing.T) {
+	t.Parallel()
+	var resp RfqTradeResponse
+	if er := json.Unmarshal([]byte(rfqTradeResponseJson), &resp); er != nil {
+		t.Error("Okx Decerializing to RFQTradeResponse error", er)
+	}
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, er := ok.GetRFQTrades(context.Background(), RFQTradesRequestParams{}); er != nil {
+		t.Error("Okx GetRFQTrades() error", er)
+	}
+}
+
+var publicTradesResponseJson = `{
+	"blockTdId": "439161457415012352",
+	"legs": [
+		{
+			"instId": "BTC-USD-210826",
+			"side": "sell",
+			"sz": "100",
+			"px": "11000",
+			"tradeId": "439161457415012354"
+		}
+	],
+	"cTime": "1650976251241"
+}`
+
+func TestGetPublicTrades(t *testing.T) {
+	t.Parallel()
+	var resp PublicTradesResponse
+	if er := json.Unmarshal([]byte(publicTradesResponseJson), &resp); er != nil {
+		t.Error("Okx Decerializing to PublicTradesResponse error", er)
+	}
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, er := ok.GetPublicTrades(context.Background(), "", "", 10); er != nil {
+		t.Error("Okx GetPublicTrades() error", er)
 	}
 }
 
@@ -1842,80 +2155,154 @@ func TestGetGreeks(t *testing.T) {
 	}
 }
 
-func TestGetCounterparties(t *testing.T) {
+// Subaccount endpoint tests.
+
+var subaccountsResponseJson = `{
+	"enable":true,
+	"subAcct":"test-1",
+	"type":"1",
+	"label":"trade futures",
+	"mobile":"1818181",
+	"gAuth":true,
+	"canTransOut": true,
+	"ts":"1597026383085"
+ }`
+
+func TestViewSubaccountList(t *testing.T) {
 	t.Parallel()
+	var resp SubaccountInfo
+	if er := json.Unmarshal([]byte(subaccountsResponseJson), &resp); er != nil {
+		t.Error("Okx Decerializing to SubaccountInfo error", er)
+	}
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, er := ok.GetCounterparties(context.Background()); er != nil {
-		t.Error("Okx GetCounterparties() error", er)
+	if _, er := ok.ViewSubaccountList(context.Background(), true, "", time.Time{}, time.Time{}, 10); er != nil {
+		t.Error("Okx ViewSubaccountList() error", er)
 	}
 }
 
-var createRFQInputJson = `
-{
-    "anonymous": true,
-    "counterparties":[
-        "Trader1",
-        "Trader2"
-    ],
-    "clRfqId":"rfq01",
-    "legs":[
-        {
-            "sz":"25",
-            "side":"buy",
-            "instId":"BTCUSD-221208-100000-C"
-        },
-        {
-            "sz":"150",
-            "side":"buy",
-            "instId":"ETH-USDT",
-            "tgtCcy":"base_ccy"
-        }
-    ]
-}`
-var createRFQOutputJson = `{
-	"cTime":"1611033737572",
-	"uTime":"1611033737572",
-	"traderCode":"SATOSHI",
-	"rfqId":"22534",
-	"clRfqId":"rfq01",
-	"state":"active",
-	"validUntil":"1611033857557",
-	"counterparties":[
-		"Trader1",
-		"Trader2"
-	],
-	"legs":[
+var subaccountBalanceResponseJson = `{
+	"adjEq": "10679688.0460531643092577",
+	"details": [
 		{
-			"instId":"BTCUSD-221208-100000-C",
-			"sz":"25",
-			"side":"buy",
-			"tgtCcy":""
-		},
-		{
-			"instId":"ETH-USDT",
-			"sz":"150",
-			"side":"buy",
-			"tgtCcy":"base_ccy"     
+			"availBal": "",
+			"availEq": "9930359.9998",
+			"cashBal": "9930359.9998",
+			"ccy": "USDT",
+			"crossLiab": "0",
+			"disEq": "9439737.0772999514",
+			"eq": "9930359.9998",
+			"eqUsd": "9933041.196999946",
+			"frozenBal": "0",
+			"interest": "0",
+			"isoEq": "0",
+			"isoLiab": "0",
+			"liab": "0",
+			"maxLoan": "10000",
+			"mgnRatio": "",
+			"notionalLever": "",
+			"ordFrozen": "0",
+			"twap": "0",
+			"uTime": "1620722938250",
+			"upl": "0",
+			"uplLiab": "0"
 		}
-	]
+	],
+	"imr": "3372.2942371050594217",
+	"isoEq": "0",
+	"mgnRatio": "70375.35408747017",
+	"mmr": "134.8917694842024",
+	"notionalUsd": "33722.9423710505978888",
+	"ordFroz": "0",
+	"totalEq": "11172992.1657531589092577",
+	"uTime": "1623392334718"
 }`
 
-func TestCreateRFQ(t *testing.T) {
+func TestGetSubaccountTradingBalance(t *testing.T) {
 	t.Parallel()
-	var input CreateRFQInput
-	if er := json.Unmarshal([]byte(createRFQInputJson), &input); er != nil {
-		t.Error("Okx Decerializing to CreateRFQInput", er)
+	var resp SubaccountBalanceResponse
+	if er := json.Unmarshal([]byte(subaccountBalanceResponseJson), &resp); er != nil {
+		t.Error("Okx ", er)
 	}
-	var resp RFQCreateResponse
-	if er := json.Unmarshal([]byte(createRFQOutputJson), &resp); er != nil {
-		t.Error("Okx Decerializing to CreateRFQResponse", er)
+	if _, er := ok.GetSubaccountTradingBalance(context.Background(), ""); er != nil && !errors.Is(er, errMissingRequiredParameterSubaccountName) {
+		t.Errorf("Okx GetSubaccountTradingBalance() expecting \"%v\", but found \"%v\"", errMissingRequiredParameterSubaccountName, er)
+	}
+	if _, er := ok.GetSubaccountTradingBalance(context.Background(), "test1"); er != nil {
+		t.Error("Okx GetSubaccountTradingBalance() error", er)
+	}
+}
+
+var fundingBalanceJson = `{
+	"availBal": "37.11827078",
+	"bal": "37.11827078",
+	"ccy": "ETH",
+	"frozenBal": "0"
+}`
+
+func TestGetSubaccountFundingBalance(t *testing.T) {
+	t.Parallel()
+	var resp FundingBalance
+	if er := json.Unmarshal([]byte(fundingBalanceJson), &resp); er != nil {
+		t.Error("okx Decerializing to FundingBalance error", er)
 	}
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	if _, er := ok.CreateRFQ(context.Background(), input); er != nil {
-		t.Error("Okx CreateRFQ() error", er)
+	if _, er := ok.GetSubaccountFundingBalance(context.Background(), "test1", ""); er != nil && !strings.Contains(er.Error(), "\"msg\":\"Not Found\"") {
+		t.Error("Okx GetSubaccountFundingBalance() error", er)
+	}
+}
+
+var historyOfSubaccountTransfer = `{
+	"billId": "12344",
+	"type":"1",
+	"ccy": "BTC",
+	"amt":"2",
+	"subAcct":"test-1",
+	"ts":"1597026383085"
+}`
+
+func TestHistoryOfSubaccountTransfer(t *testing.T) {
+	t.Parallel()
+	var resp SubaccountBillItem
+	if er := json.Unmarshal([]byte(historyOfSubaccountTransfer), &resp); er != nil {
+		t.Error("Okx Decerializing to SubaccountBillItem error", er)
+	}
+	if _, er := ok.HistoryOfSubaccountTransfer(context.Background(), "", 0, "", time.Time{}, time.Time{}, 10); er != nil {
+		t.Error("Okx HistoryOfSubaccountTransfer() error", er)
+	}
+}
+
+func TestMasterAccountsManageTransfersBetweenSubaccounts(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, er := ok.MasterAccountsManageTransfersBetweenSubaccounts(context.Background(), "BTC", 1200, 9, 9, "", "", true); er != nil && !errors.Is(er, errInvalidInvalidSubaccount) {
+		t.Error("Okx MasterAccountsManageTransfersBetweenSubaccounts() error", er)
+	}
+	if _, er := ok.MasterAccountsManageTransfersBetweenSubaccounts(context.Background(), "BTC", 1200, 8, 8, "", "", true); er != nil && !errors.Is(er, errInvalidInvalidSubaccount) {
+		t.Error("Okx MasterAccountsManageTransfersBetweenSubaccounts() error", er)
+	}
+}
+
+func TestSetPermissionOfTransferOut(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, er := ok.SetPermissionOfTransferOut(context.Background(), PermissingOfTransfer{SubAcct: "Test1"}); er != nil && !strings.Contains(er.Error(), "Sub-account does not exist (transfer endpoint: sub-account does not exist") {
+		t.Error("Okx SetPermissionOfTransferOut() error", er)
+	}
+}
+
+func TestGetCustodyTradingSubaccountList(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, er := ok.GetCustodyTradingSubaccountList(context.Background(), ""); er != nil {
+		t.Error("Okx GetCustodyTradingSubaccountList() error", er)
 	}
 }

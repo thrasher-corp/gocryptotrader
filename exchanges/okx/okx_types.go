@@ -1623,8 +1623,127 @@ type CreateRFQInput struct {
 	} `json:"legs"`
 }
 
-// RFQCreateResponse
-type RFQCreateResponse struct {
+// CancelRFQRequestParam
+type CancelRFQRequestParam struct {
+	RfqID               string `json:"rfqId"`
+	ClientSuppliedRFQID string `json:"clRfqId"`
+}
+
+// CancelRFQRequestsParam
+type CancelRFQRequestsParam struct {
+	RfqID               []string `json:"rfqId"`
+	ClientSuppliedRFQID []string `json:"clRfqId"`
+}
+
+// CancelRFQResponse
+type CancelRFQResponse struct {
+	RfqID   string `json:"rfqId"`
+	ClRfqID string `json:"clRfqId"`
+	SCode   string `json:"sCode"`
+	SMsg    string `json:"sMsg"`
+}
+
+// TimestampResponse holds timestamp response only.
+type TimestampResponse struct {
+	Timestamp time.Time `json:"ts"`
+}
+
+// ExecuteQuoteParams
+type ExecuteQuoteParams struct {
+	RfqID   string `json:"rfqId"`
+	QuoteID string `json:"quoteId"`
+}
+
+// ExecuteQuoteResponse
+type ExecuteQuoteResponse struct {
+	BlockTradedID         string    `json:"blockTdId"`
+	RfqID                 string    `json:"rfqId"`
+	ClientSuppliedRfqID   string    `json:"clRfqId"`
+	QuoteID               string    `json:"quoteId"`
+	ClientSuppliedQuoteID string    `json:"clQuoteId"`
+	TraderCode            string    `json:"tTraderCode"`
+	MakerTraderCode       string    `json:"mTraderCode"`
+	CreationTime          time.Time `json:"cTime"`
+	Legs                  []struct {
+		Price        string `json:"px"`
+		Size         string `json:"sz"`
+		InstrumentID string `json:"instId"`
+		Side         string `json:"side"`
+		Fee          string `json:"fee"`
+		FeeCurrency  string `json:"feeCcy"`
+		TradeID      string `json:"tradeId"`
+	} `json:"legs"`
+}
+
+// CreateQuoteParams holds information related to create quote.
+type CreateQuoteParams struct {
+	RfqID                 string     `json:"rfqId"`
+	ClientSuppliedQuoteID string     `json:"clQuoteId"`
+	QuoteSide             order.Side `json:"quoteSide"`
+	Legs                  []struct {
+		Price          float64    `json:"px,string"`
+		SizeOfQuoteLeg float64    `json:"sz,string"`
+		InstrumentID   string     `json:"instId"`
+		Side           order.Side `json:"side"`
+	} `json:"legs"`
+}
+
+// QuoteLeg the legs of the Quote.
+type QuoteLeg struct {
+	Price        string `json:"px"`
+	Size         string `json:"sz"`
+	InstrumentID string `json:"instId"`
+	Side         string `json:"side"`
+	TgtCcy       string `json:"tgtCcy"`
+}
+
+// QuoteResponse holds create quote response variables.
+type QuoteResponse struct {
+	CreationTime          time.Time  `json:"cTime"`
+	UpdateTime            time.Time  `json:"uTime"`
+	ValidUntil            time.Time  `json:"validUntil"`
+	QuoteID               string     `json:"quoteId"`
+	ClientSuppliedQuoteID string     `json:"clQuoteId"`
+	RfqID                 string     `json:"rfqId"`
+	QuoteSide             string     `json:"quoteSide"`
+	ClientSuppliedRfqID   string     `json:"clRfqId"`
+	TraderCode            string     `json:"traderCode"`
+	State                 string     `json:"state"`
+	Legs                  []QuoteLeg `json:"legs"`
+}
+
+// CancelQuoteRequestParams
+type CancelQuoteRequestParams struct {
+	QuoteID               string `json:"quoteId"`
+	ClientSuppliedQuoteID string `json:"clQuoteId"`
+}
+
+// CancelQuotesRequestParams
+type CancelQuotesRequestParams struct {
+	QuoteIDs               []string `json:"quoteId"`
+	ClientSuppliedQuoteIDs []string `json:"clQuoteId"`
+}
+
+// CancelQuoteResponse
+type CancelQuoteResponse struct {
+	QuoteID               string `json:"quoteId"`
+	ClientSuppliedQuoteID string `json:"clQuoteId"`
+	SCode                 string `json:"sCode"`
+	SMsg                  string `json:"sMsg"`
+}
+
+// RfqRequestParams
+type RfqRequestParams struct {
+	RfqID               string
+	ClientSuppliedRfqID string
+	State               string
+	BeginingID          string
+	EndID               string
+	Limit               uint
+}
+
+// RFQResponse
+type RFQResponse struct {
 	CreateTime          time.Time `json:"cTime"`
 	UpdateTime          time.Time `json:"uTime"`
 	ValidUntil          time.Time `json:"validUntil"`
@@ -1641,16 +1760,156 @@ type RFQCreateResponse struct {
 	} `json:"legs"`
 }
 
-// CancelRFQRequestParam
-type CancelRFQRequestParam struct {
-	RfqID               string `json:"rfqId"`
-	ClientSuppliedRFQID string `json:"clRfqId"`
+// QuoteRequestParams request params.
+type QuoteRequestParams struct {
+	RfqID                 string
+	ClientSuppliedRfqID   string
+	QuoteID               string
+	ClientSuppliedQuoteID string
+	State                 string
+	BeginID               string
+	EndID                 string
+	Limit                 int
 }
 
-// CancelRFQResponse
-type CancelRFQResponse struct {
-	RfqID   string `json:"rfqId"`
-	ClRfqID string `json:"clRfqId"`
-	SCode   string `json:"sCode"`
-	SMsg    string `json:"sMsg"`
+// RFQTradesRequestParams
+type RFQTradesRequestParams struct {
+	RfqID                 string
+	ClientSuppliedRfqID   string
+	QuoteID               string
+	BlockTradeID          string
+	ClientSuppliedQuoteID string
+	State                 string
+	BeginID               string
+	EndID                 string
+	Limit                 uint
+}
+
+// RfqTradeResponse
+type RfqTradeResponse struct {
+	RfqID                 string        `json:"rfqId"`
+	ClientSuppliedRfqID   string        `json:"clRfqId"`
+	QuoteID               string        `json:"quoteId"`
+	ClientSuppliedQuoteID string        `json:"clQuoteId"`
+	BlockTradeID          string        `json:"blockTdId"`
+	Legs                  []RFQTradeLeg `json:"legs"`
+	CreationTime          time.Time     `json:"cTime"`
+	TakerTraderCode       string        `json:"tTraderCode"`
+	MakerTraderCode       string        `json:"mTraderCode"`
+}
+
+// RFQTradeLeg
+type RFQTradeLeg struct {
+	InstrumentID string  `json:"instId"`
+	Side         string  `json:"side"`
+	Size         string  `json:"sz"`
+	Price        float64 `json:"px,string"`
+	TradeID      string  `json:"tradeId"`
+	Fee          float64 `json:"fee,string,omitempty"`
+	FeeCurrency  string  `json:"feeCcy,omitempty"`
+}
+
+// PublicTradesResponse
+type PublicTradesResponse struct {
+	BlockTradeID string        `json:"blockTdId"`
+	Legs         []RFQTradeLeg `json:"legs"`
+	CreationTime time.Time     `json:"cTime"`
+}
+
+// SubaccountInfo
+type SubaccountInfo struct {
+	Enable          bool      `json:"enable"`
+	SubAccountName  string    `json:"subAcct"`
+	SubaccountType  string    `json:"type"` // sub-account note
+	SubaccountLabel string    `json:"label"`
+	MobileNumber    string    `json:"mobile"`      // Mobile number that linked with the sub-account.
+	GoogleAuth      bool      `json:"gAuth"`       // If the sub-account switches on the Google Authenticator for login authentication.
+	CanTransferOut  bool      `json:"canTransOut"` // If can tranfer out, false: can not tranfer out, true: can transfer.
+	Timestamp       time.Time `json:"ts"`
+}
+
+// SubaccountBalanceDetail
+type SubaccountBalanceDetail struct {
+	AvailableBalance               string    `json:"availBal"`
+	AvailableEquity                string    `json:"availEq"`
+	CashBalance                    string    `json:"cashBal"`
+	Currency                       string    `json:"ccy"`
+	CrossLiability                 string    `json:"crossLiab"`
+	DiscountEquity                 string    `json:"disEq"`
+	Equity                         string    `json:"eq"`
+	EquityUsd                      string    `json:"eqUsd"`
+	FrozenBalance                  string    `json:"frozenBal"`
+	Interest                       string    `json:"interest"`
+	IsoEquity                      string    `json:"isoEq"`
+	IsolatedLiabilities            string    `json:"isoLiab"`
+	LiabilitiesOfCurrency          string    `json:"liab"`
+	MaxLoan                        string    `json:"maxLoan"`
+	MarginRatio                    string    `json:"mgnRatio"`
+	NotionalLeverage               string    `json:"notionalLever"`
+	OrdFrozen                      string    `json:"ordFrozen"`
+	Twap                           string    `json:"twap"`
+	UpdateTime                     time.Time `json:"uTime"`
+	UnrealizedProfitAndLoss        string    `json:"upl"`
+	UnrealizedProfitAndLiabilities string    `json:"uplLiab"`
+}
+
+// SubaccountBalanceResponse
+type SubaccountBalanceResponse struct {
+	AdjustedEffectiveEquity       string                    `json:"adjEq"`
+	Details                       []SubaccountBalanceDetail `json:"details"`
+	Imr                           string                    `json:"imr"`
+	IsolatedMarginEquity          string                    `json:"isoEq"`
+	MarginRatio                   string                    `json:"mgnRatio"`
+	MaintainanceMarginRequirement string                    `json:"mmr"`
+	NotionalUsd                   string                    `json:"notionalUsd"`
+	OrdFroz                       string                    `json:"ordFroz"`
+	TotalEq                       string                    `json:"totalEq"`
+	UpdateTime                    time.Time                 `json:"uTime"`
+}
+
+// FundingBalance holds function balance.
+type FundingBalance struct {
+	AvailableBalance string `json:"availBal"`
+	Balance          string `json:"bal"`
+	Currency         string `json:"ccy"`
+	FrozenBalance    string `json:"frozenBal"`
+}
+
+// SubaccountBillItem
+type SubaccountBillItem struct {
+	BillID                 string    `json:"billId"`
+	Type                   string    `json:"type"`
+	AccountCurrencyBalance string    `json:"ccy"`
+	Amount                 string    `json:"amt"`
+	SubAccount             string    `json:"subAcct"`
+	Timestamp              time.Time `json:"ts"`
+}
+
+// TransferIDInfo
+type TransferIDInfo struct {
+	TransferID string `json:"transId"`
+}
+
+// PermissingOfTransfer
+type PermissingOfTransfer struct {
+	SubAcct     string `json:"subAcct"`
+	CanTransOut bool   `json:"canTransOut"`
+}
+
+// SubaccountName
+type SubaccountName struct {
+	SubaccountName string `json:"subAcct"`
+}
+
+// GridAlgoOrder
+type GridAlgoOrder struct {
+	InstrumentID string `json:"instId"`
+	AlgoOrdType  string `json:"algoOrdType"`
+	MaxPrice     string `json:"maxPx"`
+	MinPrice     string `json:"minPx"`
+	GridNumber   string `json:"gridNum"`
+	GridType     string `json:"runType"`
+	Size         string `json:"sz"`
+	Direction    string `json:"direction"`
+	Lever        string `json:"lever"`
 }

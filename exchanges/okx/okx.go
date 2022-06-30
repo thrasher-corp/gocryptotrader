@@ -20,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/okgroup"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
@@ -166,8 +167,31 @@ const (
 	accountGeeks                 = "account/greeks"
 
 	// Block Trading
-	rfqCounterparties = "rfq/counterparties"
-	rfqCreateRFQ      = "rfq/create-rfq"
+	rfqCounterparties    = "rfq/counterparties"
+	rfqCreateRFQ         = "rfq/create-rfq"
+	rfqCancelRfq         = "rfq/cancel-rfq"
+	rfqCancelRfqs        = "rfq/cancel-batch-rfqs"
+	rfqCancelAllRfqs     = "rfq/cancel-all-rfqs"
+	rfqExecuteQuote      = "rfq/execute-quote"
+	rfqCreateQuote       = "rfq/create-quote"
+	rfqCancelQuote       = "rfq/cancel-quote"
+	rfqCancelBatchQuotes = "rfq/cancel-batch-quotes"
+	rfqCancelAllQuotes   = "rfq/cancel-all-quotes"
+	rfqRfqs              = "rfq/rfqs"
+	rfqQuotes            = "rfq/quotes"
+	rfqTrades            = "rfq/trades"
+	rfqPublicTrades      = "rfq/public-trades"
+	// Subaccount endpoints
+	usersSubaccountList          = "users/subaccount/list"
+	accountSubaccountBalances    = "account/subaccount/balances"
+	assetSubaccountBalances      = "asset/subaccount/balances"
+	assetSubaccountBills         = "asset/subaccount/bills"
+	assetSubaccountTransfer      = "asset/subaccount/transfer"
+	userSubaccountSetTransferOut = "users/subaccount/set-transfer-out"
+	usersEntrustSubaccountList   = "users/entrust-subaccount-list"
+
+	// Grid Trading Endpoints
+
 )
 
 var (
@@ -212,18 +236,31 @@ var (
 	errMissingIntervalValue                    = errors.New("missing interval value")
 	errMissingEitherAlgoIDOrState              = errors.New("either algo id or order state is required")
 	// errInvalidFundingAmount                    = errors.New("invalid funding amount")
-	errUnacceptableAmount                  = errors.New("amount must be greater than 0")
-	errInvalidCurrencyValue                = errors.New("invalid currency value")
-	errInvalidDepositAmount                = errors.New("invalid deposit amount")
-	errMissingResponseBody                 = errors.New("error missing response body")
-	errMissingValidWithdrawalID            = errors.New("missing valid withdrawal id")
-	errNoValidResponseFromServer           = errors.New("no valid response from server")
-	errInvalidInstrumentType               = errors.New("invlaid instrument type")
-	errMissingValidGeeskType               = errors.New("missing valid geeks type")
-	errMissingIsolatedMarginTradingSetting = errors.New("missing isolated margin trading setting, isolated margin trading settings automatic:Auto transfers autonomy:Manual transfers")
-	errInvalidOrderSide                    = errors.New(" invalid order side")
-	errInvalidCounterParties               = errors.New("missing counter parties")
-	errInvalidLegs                         = errors.New("no legs are provided")
+	errUnacceptableAmount                           = errors.New("amount must be greater than 0")
+	errInvalidCurrencyValue                         = errors.New("invalid currency value")
+	errInvalidDepositAmount                         = errors.New("invalid deposit amount")
+	errMissingResponseBody                          = errors.New("error missing response body")
+	errMissingValidWithdrawalID                     = errors.New("missing valid withdrawal id")
+	errNoValidResponseFromServer                    = errors.New("no valid response from server")
+	errInvalidInstrumentType                        = errors.New("invlaid instrument type")
+	errMissingValidGeeskType                        = errors.New("missing valid geeks type")
+	errMissingIsolatedMarginTradingSetting          = errors.New("missing isolated margin trading setting, isolated margin trading settings automatic:Auto transfers autonomy:Manual transfers")
+	errInvalidOrderSide                             = errors.New(" invalid order side")
+	errInvalidCounterParties                        = errors.New("missing counter parties")
+	errInvalidLegs                                  = errors.New("no legs are provided")
+	errMissingRFQIDANDClientSuppliedRFQID           = errors.New("missing rfq id or client supplied rfq id")
+	errMissingRfqIDOrQuoteID                        = errors.New("either RFQ ID or Quote ID is missing")
+	errMissingRfqID                                 = errors.New("error missing rfq id")
+	errMissingLegs                                  = errors.New("missing legs")
+	errMissingSizeOfQuote                           = errors.New("missing size of quote leg")
+	errMossingLegsQuotePrice                        = errors.New("error missing quote price")
+	errMissingQuoteIDOrClientSuppliedQuoteID        = errors.New("missing quote id or client supplied quote id")
+	errMissingEitherQuoteIDAOrlientSuppliedQuoteIDs = errors.New("missing either quote ids or client supplied quote ids")
+	errMissingRequiredParameterSubaccountName       = errors.New("missing required parameter subaccount name")
+	errInvalidTransferAmount                        = errors.New("unacceptable transfer amount")
+	errInvalidInvalidSubaccount                     = errors.New("invalid account type")
+	errMissingDestinationSubaccountName             = errors.New("missing destination subaccount name")
+	errMissingInitialSubaccountName                 = errors.New("missing initial subaccount name")
 )
 
 /************************************ MarketData Endpoints *************************************************/
@@ -883,7 +920,7 @@ func (ok *Okx) GetCounterparties(ctx context.Context) ([]*CounterpartiesResponse
 }
 
 // CreateRFQ Creates a new RFQ
-func (ok *Okx) CreateRFQ(ctx context.Context, arg CreateRFQInput) (*RFQCreateResponse, error) {
+func (ok *Okx) CreateRFQ(ctx context.Context, arg CreateRFQInput) (*RFQResponse, error) {
 	if len(arg.CounterParties) == 0 {
 		return nil, errInvalidCounterParties
 	}
@@ -891,9 +928,9 @@ func (ok *Okx) CreateRFQ(ctx context.Context, arg CreateRFQInput) (*RFQCreateRes
 		return nil, errInvalidLegs
 	}
 	type response struct {
-		Code string               `json:"code"`
-		Msg  string               `json:"msg"`
-		Data []*RFQCreateResponse `json:"data"`
+		Code string         `json:"code"`
+		Msg  string         `json:"msg"`
+		Data []*RFQResponse `json:"data"`
 	}
 	var resp response
 	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, rfqCreateRFQ, &arg, &resp, true)
@@ -909,8 +946,338 @@ func (ok *Okx) CreateRFQ(ctx context.Context, arg CreateRFQInput) (*RFQCreateRes
 	return resp.Data[0], nil
 }
 
-// func (ok *Okx) CancelRFQ(ctx context.Context, arg CancelRFQRequestParam) (*CancelRFQResponse, error) {
-// }
+// CancelRFQ Cancel an existing active RFQ that you has previously created.
+func (ok *Okx) CancelRFQ(ctx context.Context, arg CancelRFQRequestParam) (*CancelRFQResponse, error) {
+	if arg.RfqID == "" && arg.ClientSuppliedRFQID == "" {
+		return nil, errMissingRFQIDANDClientSuppliedRFQID
+	}
+	type response struct {
+		Code string               `json:"code"`
+		Msg  string               `json:"msg"`
+		Data []*CancelRFQResponse `json:"data"`
+	}
+	var resp response
+	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, rfqCancelRfq, &arg, &resp, true)
+	if er != nil {
+		return nil, er
+	}
+	if len(resp.Data) == 0 {
+		if resp.Msg == "" {
+			return nil, errNoValidResponseFromServer
+		}
+		return nil, errors.New(resp.Msg)
+	}
+	return resp.Data[0], nil
+}
+
+// CancelMultipleRFQs cancel multiple active RFQs in a single batch. Maximum 100 RFQ orders can be canceled at a time.
+func (ok *Okx) CancelMultipleRFQs(ctx context.Context, arg CancelRFQRequestsParam) ([]*CancelRFQResponse, error) {
+	if len(arg.RfqID) == 0 && len(arg.ClientSuppliedRFQID) == 0 {
+		return nil, errMissingRFQIDANDClientSuppliedRFQID
+	}
+	type response struct {
+		Code string               `json:"code"`
+		Msg  string               `json:"msg"`
+		Data []*CancelRFQResponse `json:"data"`
+	}
+	var resp response
+	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, rfqCancelRfqs, &arg, &resp, true)
+}
+
+// CancelAllRFQs cancels all active RFQs.
+func (ok *Okx) CancelAllRFQs(ctx context.Context) (time.Time, error) {
+	type response struct {
+		Code string              `json:"code"`
+		Msg  string              `json:"msg"`
+		Data []TimestampResponse `json:"data"`
+	}
+	var resp response
+	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, rfqCancelAllRfqs, nil, &resp, true)
+	if er != nil {
+		return time.Time{}, er
+	}
+	if len(resp.Data) == 0 {
+		if resp.Msg == "" {
+			return time.Time{}, errNoValidResponseFromServer
+		}
+		return time.Time{}, errors.New(resp.Msg)
+	}
+	return resp.Data[0].Timestamp, nil
+}
+
+// ExecuteQuote ecxecutes a Quote. It is only used by the creator of the RFQ
+func (ok *Okx) ExecuteQuote(ctx context.Context, arg ExecuteQuoteParams) (*ExecuteQuoteResponse, error) {
+	if arg.RfqID == "" || arg.QuoteID == "" {
+		return nil, errMissingRfqIDOrQuoteID
+	}
+	type response struct {
+		Code string                  `json:"code"`
+		Msg  string                  `json:"msg"`
+		Data []*ExecuteQuoteResponse `json:"data"`
+	}
+	var resp response
+	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, rfqExecuteQuote, &arg, &resp, true)
+	if er != nil {
+		return nil, er
+	}
+	if len(resp.Data) == 0 {
+		if resp.Msg == "" {
+			return nil, errNoValidResponseFromServer
+		}
+		return nil, errors.New(resp.Msg)
+	}
+	return resp.Data[0], nil
+}
+
+// CreateQuote llows the user to Quote an RFQ that they are a counterparty to. The user MUST quote
+// the entire RFQ and not part of the legs or part of the quantity. Partial quoting or partial fills are not allowed.
+func (ok *Okx) CreateQuote(ctx context.Context, arg CreateQuoteParams) (*QuoteResponse, error) {
+	if arg.RfqID == "" {
+		return nil, errMissingRfqID
+	} else if !(strings.EqualFold(arg.QuoteSide.String(), order.Buy.String()) || strings.EqualFold(arg.QuoteSide.String(), order.Sell.String())) {
+		return nil, errMissingOrderSide
+	} else if len(arg.Legs) == 0 {
+		return nil, errMissingLegs
+	}
+	for x := range arg.Legs {
+		if arg.Legs[x].InstrumentID == "" {
+			return nil, errMissingInstrumentID
+		} else if arg.Legs[x].SizeOfQuoteLeg <= 0 {
+			return nil, errMissingSizeOfQuote
+		} else if arg.Legs[x].Price <= 0 {
+			return nil, errMossingLegsQuotePrice
+		} else if arg.Legs[x].Side == "" {
+			return nil, errMissingOrderSide
+		}
+	}
+	type response struct {
+		Code string           `json:"code"`
+		Msg  string           `json:"msg"`
+		Data []*QuoteResponse `json:"data"`
+	}
+	var resp response
+	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, rfqCreateQuote, &arg, &resp, true)
+	if er != nil {
+		return nil, er
+	}
+	if len(resp.Data) == 0 {
+		if resp.Msg == "" {
+			return nil, errNoValidResponseFromServer
+		}
+		return nil, errors.New(resp.Msg)
+	}
+	return resp.Data[0], nil
+}
+
+// CancelQuote cancels an existing active quote you have created in response to an RFQ.
+// rfqCancelQuote = "rfq/cancel-quote"
+func (ok *Okx) CancelQuote(ctx context.Context, arg CancelQuoteRequestParams) (*CancelQuoteResponse, error) {
+	type response struct {
+		Code string                 `json:"code"`
+		Msg  string                 `json:"msg"`
+		Data []*CancelQuoteResponse `json:"data"`
+	}
+	var resp response
+	if arg.ClientSuppliedQuoteID == "" && arg.QuoteID == "" {
+		return nil, errMissingQuoteIDOrClientSuppliedQuoteID
+	}
+	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, rfqCancelQuote, &arg, &resp, true)
+	if er != nil {
+		return nil, er
+	}
+	if len(resp.Data) == 0 {
+		if resp.Msg == "" {
+			return nil, errNoValidResponseFromServer
+		}
+		return nil, errors.New(resp.Msg)
+	}
+	return resp.Data[0], nil
+}
+
+// CancelMultipleQuote cancel multiple active Quotes in a single batch. Maximum 100 quote orders can be canceled at a time.
+func (ok *Okx) CancelMultipleQuote(ctx context.Context, arg CancelQuotesRequestParams) ([]*CancelQuoteResponse, error) {
+	if len(arg.QuoteIDs) == 0 && len(arg.ClientSuppliedQuoteIDs) == 0 {
+		return nil, errMissingEitherQuoteIDAOrlientSuppliedQuoteIDs
+	}
+	type response struct {
+		Code string                 `json:"code"`
+		Msg  string                 `json:"msg"`
+		Data []*CancelQuoteResponse `json:"data"`
+	}
+	var resp response
+	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, rfqCancelBatchQuotes, &arg, &resp, true)
+}
+
+// CancelAllQuotes cancels all active Quotes.
+func (ok *Okx) CancelAllQuotes(ctx context.Context) (time.Time, error) {
+	type response struct {
+		Code string               `json:"code"`
+		Msg  string               `json:"msg"`
+		Data []*TimestampResponse `json:"data"`
+	}
+	var resp response
+	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, rfqCancelAllQuotes, nil, &resp, true)
+	if er != nil {
+		return time.Time{}, er
+	}
+	if len(resp.Data) == 0 {
+		if resp.Msg == "" {
+			return time.Time{}, errNoValidResponseFromServer
+		}
+		return time.Time{}, errors.New(resp.Msg)
+	}
+	return resp.Data[0].Timestamp, nil
+}
+
+// GetRfqs retrieves details of RFQs that the user is a counterparty to (either as the creator or the receiver of the RFQ).
+func (ok *Okx) GetRfqs(ctx context.Context, arg RfqRequestParams) ([]*RFQResponse, error) {
+	params := url.Values{}
+	if arg.RfqID != "" {
+		params.Set("rfqId", arg.RfqID)
+	}
+	if arg.ClientSuppliedRfqID != "" {
+		params.Set("clRfqId", arg.ClientSuppliedRfqID)
+	}
+	if strings.EqualFold(arg.State, "active") ||
+		strings.EqualFold(arg.State, "canceled") ||
+		strings.EqualFold(arg.State, "pending_fill") ||
+		strings.EqualFold(arg.State, "filled") ||
+		strings.EqualFold(arg.State, "expired") ||
+		strings.EqualFold(arg.State, "traded_away") ||
+		strings.EqualFold(arg.State, "failed") ||
+		strings.EqualFold(arg.State, "traded_away") ||
+		strings.EqualFold(arg.State, "traded_away") {
+		params.Set("state", strings.ToLower(strings.Trim(arg.State, " ")))
+	}
+	if arg.BeginingID != "" {
+		params.Set("beginId", arg.BeginingID)
+	}
+	if arg.EndID != "" {
+		params.Set("endId", arg.EndID)
+	}
+	if arg.Limit > 0 {
+		params.Set("limit", strconv.Itoa(int(arg.Limit)))
+	}
+
+	path := common.EncodeURLValues(rfqRfqs, params)
+	type response struct {
+		Code string         `json:"code"`
+		Msg  string         `json:"msg"`
+		Data []*RFQResponse `json:"data"`
+	}
+	var resp response
+	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, true)
+}
+
+// GetQuotes retrieve all Quotes that the user is a counterparty to (either as the creator or the receiver).
+func (ok *Okx) GetQuotes(ctx context.Context, arg QuoteRequestParams) ([]*QuoteResponse, error) {
+	params := url.Values{}
+	if arg.RfqID != "" {
+		params.Set("rfqId", arg.RfqID)
+	}
+	if arg.ClientSuppliedRfqID != "" {
+		params.Set("clRfqId", arg.ClientSuppliedRfqID)
+	}
+	if arg.QuoteID != "" {
+		params.Set("quoteId", arg.QuoteID)
+	}
+	if arg.ClientSuppliedQuoteID != "" {
+		params.Set("clQuoteId", arg.ClientSuppliedQuoteID)
+	}
+	if strings.EqualFold(arg.State, "active") ||
+		strings.EqualFold(arg.State, "canceled") ||
+		strings.EqualFold(arg.State, "pending_fill") ||
+		strings.EqualFold(arg.State, "filled") ||
+		strings.EqualFold(arg.State, "expired") ||
+		strings.EqualFold(arg.State, "failed") {
+		params.Set("state", strings.ToLower(strings.Trim(arg.State, " ")))
+	}
+	if arg.BeginID != "" {
+		params.Set("beginId", arg.BeginID)
+	}
+	if arg.EndID != "" {
+		params.Set("endId", arg.EndID)
+	}
+	if arg.Limit > 0 {
+		params.Set("limit", strconv.Itoa(int(arg.Limit)))
+	}
+	type response struct {
+		Code string           `json:"code"`
+		Msg  string           `json:"msg"`
+		Data []*QuoteResponse `json:"data"`
+	}
+	var resp response
+	path := common.EncodeURLValues(rfqQuotes, params)
+	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, true)
+}
+
+// GetTrades retrieves the executed trades that the user is a counterparty to (either as the creator or the receiver).
+func (ok *Okx) GetRFQTrades(ctx context.Context, arg RFQTradesRequestParams) ([]*RfqTradeResponse, error) {
+	params := url.Values{}
+	if arg.RfqID != "" {
+		params.Set("rfqId", arg.RfqID)
+	}
+	if arg.ClientSuppliedRfqID != "" {
+		params.Set("clRfqId", arg.ClientSuppliedRfqID)
+	}
+	if arg.QuoteID != "" {
+		params.Set("quoteId", arg.QuoteID)
+	}
+	if arg.ClientSuppliedQuoteID != "" {
+		params.Set("clQuoteId", arg.ClientSuppliedQuoteID)
+	}
+	if strings.EqualFold(arg.State, "active") ||
+		strings.EqualFold(arg.State, "canceled") ||
+		strings.EqualFold(arg.State, "pending_fill") ||
+		strings.EqualFold(arg.State, "filled") ||
+		strings.EqualFold(arg.State, "expired") ||
+		strings.EqualFold(arg.State, "traded_away") ||
+		strings.EqualFold(arg.State, "failed") {
+		params.Set("state", strings.ToLower(strings.Trim(arg.State, " ")))
+	}
+	if arg.BlockTradeID != "" {
+		params.Set("blockTdId", arg.BlockTradeID)
+	}
+	if arg.BeginID != "" {
+		params.Set("beginId", arg.BeginID)
+	}
+	if arg.EndID != "" {
+		params.Set("endId", arg.EndID)
+	}
+	if arg.Limit > 0 {
+		params.Set("limit", strconv.Itoa(int(arg.Limit)))
+	}
+	type response struct {
+		Code string              `json:"code"`
+		Msg  string              `json:"msg"`
+		Data []*RfqTradeResponse `json:"data"`
+	}
+	var resp response
+	path := common.EncodeURLValues(rfqTrades, params)
+	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, true)
+}
+
+// GetPublicTrades retrieves the recent executed block trades.
+func (ok *Okx) GetPublicTrades(ctx context.Context, beginID, endID string, limit int) ([]*PublicTradesResponse, error) {
+	params := url.Values{}
+	if beginID != "" {
+		params.Set("beginId", beginID)
+	}
+	if endID != "" {
+		params.Set("endId", endID)
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.Itoa(limit))
+	}
+	path := common.EncodeURLValues(rfqPublicTrades, params)
+	type response struct {
+		Code string                  `json:"code"`
+		Msg  string                  `json:"msg"`
+		Data []*PublicTradesResponse `json:"data"`
+	}
+	var resp response
+	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, true)
+}
 
 /********************************* Block Trading Order End ****************************/
 
@@ -2160,8 +2527,190 @@ func (ok *Okx) GetGreeks(ctx context.Context, currency string) ([]*GreeksItem, e
 
 /********************************** Subaccount Endpoints ***************************************************/
 
+// ViewSubaccountList applies to master accounts only
+func (ok *Okx) ViewSubaccountList(ctx context.Context, enable bool, subaccountName string, after, before time.Time, limit int) ([]*SubaccountInfo, error) {
+	params := url.Values{}
+	params.Set("enable", strconv.FormatBool(enable))
+	if subaccountName != "" {
+		params.Set("subAcct", subaccountName)
+	}
+	if !after.IsZero() {
+		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))
+	}
+	if !before.IsZero() {
+		params.Set("before", strconv.FormatInt(after.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.Itoa(int(limit)))
+	}
+	type response struct {
+		Code string            `json:"code"`
+		Msg  string            `json:"msg"`
+		Data []*SubaccountInfo `json:"data"`
+	}
+	var resp response
+	path := common.EncodeURLValues(usersSubaccountList, params)
+	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, true)
+}
+
+// GetSubaccountTradingBalance query detailed balance info of Trading Account of a sub-account via the master account (applies to master accounts only)
+func (ok *Okx) GetSubaccountTradingBalance(ctx context.Context, subaccountName string) ([]*SubaccountBalanceResponse, error) {
+	params := url.Values{}
+	if subaccountName != "" {
+		params.Set("subAcct", subaccountName)
+	} else {
+		return nil, errMissingRequiredParameterSubaccountName
+	}
+	path := common.EncodeURLValues(accountSubaccountBalances, params)
+	type response struct {
+		Code string                       `json:"code"`
+		Msg  string                       `json:"msg"`
+		Data []*SubaccountBalanceResponse `json:"data"`
+	}
+	var resp response
+	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, true)
+}
+
+// GetSubaccountFundingBalance query detailed balance info of Funding Account of a sub-account via the master account (applies to master accounts only)
+func (ok *Okx) GetSubaccountFundingBalance(ctx context.Context, subaccountName, currency string) ([]*FundingBalance, error) {
+	params := url.Values{}
+	if subaccountName == "" {
+		return nil, errMissingRequiredParameterSubaccountName
+	} else {
+		params.Set("subAcct", subaccountName)
+	}
+	if currency != "" {
+		params.Set("ccy", currency)
+	}
+	type response struct {
+		Code string            `json:"code"`
+		Msg  string            `json:"msg"`
+		Data []*FundingBalance `json:"data"`
+	}
+	path := common.EncodeURLValues(assetSubaccountBalances, params)
+	var resp response
+	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, true)
+}
+
+// HistoryOfSubaccountTransfer retrives subaccount transfer histories; applies to master accounts only.
+// Retrieve the transfer data for the last 3 months.
+func (ok *Okx) HistoryOfSubaccountTransfer(ctx context.Context, currency string, subaccountType uint8, subaccountName string, before, after time.Time, limit int) ([]*SubaccountBillItem, error) {
+	params := url.Values{}
+	if currency != "" {
+		params.Set("ccy", currency)
+	}
+	if subaccountType == 0 || subaccountType == 1 {
+		params.Set("type", strconv.Itoa(int(subaccountType)))
+	}
+	if subaccountName != "" {
+		params.Set("subacct", subaccountName)
+	}
+	if !after.IsZero() {
+		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))
+	}
+	if !before.IsZero() {
+		params.Set("before", strconv.FormatInt(before.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.Itoa(limit))
+	}
+	path := common.EncodeURLValues(assetSubaccountBills, params)
+	type response struct {
+		Code string                `json:"code"`
+		Msg  string                `json:"msg"`
+		Data []*SubaccountBillItem `json:"data"`
+	}
+	var resp response
+	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, true)
+}
+
+// ManageAccountManageTransfersBetweenSubaccounts master accounts manage the transfers between sub-accounts applies to master accounts only
+func (ok *Okx) MasterAccountsManageTransfersBetweenSubaccounts(ctx context.Context, currency string, amount float64, from, to uint, fromSubaccount, toSubaccount string, loanTransfer bool) ([]*TransferIDInfo, error) {
+	params := url.Values{}
+	if currency == "" {
+		return nil, errInvalidCurrencyValue
+	}
+	params.Set("ccy", currency)
+	if amount <= 0 {
+		return nil, errInvalidTransferAmount
+	}
+	params.Set("amt", strconv.FormatFloat(amount, 'f', 2, 64))
+	if !(from == 6 || from == 18) {
+		return nil, errInvalidInvalidSubaccount
+	}
+	params.Set("from", strconv.Itoa(int(from)))
+	if !(to == 6 || to == 18) {
+		return nil, errInvalidInvalidSubaccount
+	}
+	params.Set("to", strconv.Itoa(int(to)))
+	if fromSubaccount == "" {
+		return nil, errMissingInitialSubaccountName
+	}
+	params.Set("fromSubAccount", fromSubaccount)
+	if toSubaccount == "" {
+		return nil, errMissingDestinationSubaccountName
+	}
+	params.Set("toSubAccount", fromSubaccount)
+	params.Set("loanTrans", strconv.FormatBool(loanTransfer))
+	path := common.EncodeURLValues(assetSubaccountTransfer, params)
+	type response struct {
+		Code string            `json:"code"`
+		Msg  string            `json:"msg"`
+		Data []*TransferIDInfo `json:"data"`
+	}
+	var resp response
+	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, true)
+}
+
+// SetPermissingOfTransfer set permission of transfer out for sub-account(only applicable to master account). Sub-account can transfer out to master account by default.
+func (ok *Okx) SetPermissionOfTransferOut(ctx context.Context, arg PermissingOfTransfer) ([]*PermissingOfTransfer, error) {
+	if arg.SubAcct == "" {
+		return nil, errMissingRequiredParameterSubaccountName
+	}
+	type response struct {
+		Code string                  `json:"code"`
+		Msg  string                  `json:"msg"`
+		Data []*PermissingOfTransfer `json:"data"`
+	}
+	var resp response
+	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, userSubaccountSetTransferOut, &arg, &resp, true)
+	if er != nil {
+		return nil, er
+	}
+	if len(resp.Data) == 0 {
+		if resp.Msg != "" {
+			return nil, errors.New(resp.Msg)
+		}
+		return nil, errNoValidResponseFromServer
+	}
+	return resp.Data, nil
+}
+
+// GetCustodyTradingSubaccountList the trading team uses this interface to view the list of sub-accounts currently under escrow
+// usersEntrustSubaccountList ="users/entrust-subaccount-list"
+func (ok *Okx) GetCustodyTradingSubaccountList(ctx context.Context, subaccountName string) ([]*SubaccountName, error) {
+	params := url.Values{}
+	if subaccountName != "" {
+		params.Set("setAcct", subaccountName)
+	}
+	type response struct {
+		Code string            `json:"code"`
+		Msg  string            `json:"msg"`
+		Data []*SubaccountName `json:"data"`
+	}
+	path := common.EncodeURLValues(usersEntrustSubaccountList, params)
+	var resp response
+	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, true)
+}
+
 /*************************************** Subaccount End ***************************************************/
 
+/*************************************** Grid Trading Endpoints ***************************************************/
+
+// PlaceGridAlgoOrder place spot grid algo order.
+// func (ok *Okx ) PlaceGridAlgoOrder(ctx context.Context, )
+
+/*************************************** Grid Trading End ***************************************************/
 // GetTickers retrives the latest price snopshots best bid/ ask price, and tranding volume in the last 34 hours.
 func (ok *Okx) GetTickers(ctx context.Context, instType, uly, instId string) ([]MarketDataResponse, error) {
 	params := url.Values{}
