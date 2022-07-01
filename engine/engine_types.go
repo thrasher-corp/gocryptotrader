@@ -60,17 +60,18 @@ type Settings struct {
 	EnableExchangeRateHost  bool
 
 	// Exchange tuning settings
-	EnableExchangeHTTPRateLimiter  bool
-	EnableExchangeHTTPDebugging    bool
-	EnableExchangeVerbose          bool
-	ExchangePurgeCredentials       bool
-	EnableExchangeAutoPairUpdates  bool
-	DisableExchangeAutoPairUpdates bool
-	EnableExchangeRESTSupport      bool
-	EnableExchangeWebsocketSupport bool
-	MaxHTTPRequestJobsLimit        int
-	TradeBufferProcessingInterval  time.Duration
-	RequestMaxRetryAttempts        int
+	EnableExchangeHTTPRateLimiter       bool
+	EnableExchangeHTTPDebugging         bool
+	EnableExchangeVerbose               bool
+	ExchangePurgeCredentials            bool
+	EnableExchangeAutoPairUpdates       bool
+	DisableExchangeAutoPairUpdates      bool
+	EnableExchangeRESTSupport           bool
+	EnableExchangeWebsocketSupport      bool
+	MaxHTTPRequestJobsLimit             int
+	TradeBufferProcessingInterval       time.Duration
+	RequestMaxRetryAttempts             int
+	AlertSystemPreAllocationCommsBuffer int // See exchanges/alert.go
 
 	// Global HTTP related settings
 	GlobalHTTPTimeout   time.Duration

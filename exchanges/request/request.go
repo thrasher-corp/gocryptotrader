@@ -385,14 +385,6 @@ func isVerbose(ctx context.Context, verbose bool) bool {
 		return true
 	}
 
-	val := ctx.Value(contextVerboseFlag)
-	if val == nil {
-		return false
-	}
-
-	isCtxVerbose, ok := val.(bool)
-	if !ok {
-		return false
-	}
+	isCtxVerbose, _ := ctx.Value(contextVerboseFlag).(bool)
 	return isCtxVerbose
 }
