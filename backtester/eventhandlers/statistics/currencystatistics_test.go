@@ -1,10 +1,12 @@
 package statistics
 
 import (
+	"errors"
 	"testing"
 	"time"
 
 	"github.com/shopspring/decimal"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
@@ -18,20 +20,26 @@ import (
 
 func TestCalculateResults(t *testing.T) {
 	t.Parallel()
-	cs := CurrencyPairStatistic{}
+	a := asset.Spot
+	cs := CurrencyPairStatistic{
+		Asset: a,
+	}
 	tt1 := time.Now()
 	tt2 := time.Now().Add(gctkline.OneDay.Duration())
 	exch := testExchange
-	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
-	even := event.Base{
+	even := &event.Base{
 		Exchange:     exch,
 		Time:         tt1,
 		Interval:     gctkline.OneDay,
 		CurrencyPair: p,
 		AssetType:    a,
+		Offset:       1,
 	}
-	ev := EventStore{
+	ev := DataAtOffset{
+		Offset:     1,
+		Time:       tt1,
+		ClosePrice: decimal.NewFromInt(2000),
 		Holdings: holdings.Holding{
 			ChangeInTotalValuePercent: decimal.NewFromFloat(0.1333),
 			Timestamp:                 tt1,
@@ -44,14 +52,14 @@ func TestCalculateResults(t *testing.T) {
 					VolumeAdjustedPrice: decimal.NewFromInt(1338),
 					SlippageRate:        decimal.NewFromInt(1338),
 					CostBasis:           decimal.NewFromInt(1338),
-					Detail:              &order.Detail{Side: order.Buy},
+					Order:               &order.Detail{Side: order.Buy},
 				},
 				{
 					ClosePrice:          decimal.NewFromInt(1337),
 					VolumeAdjustedPrice: decimal.NewFromInt(1337),
 					SlippageRate:        decimal.NewFromInt(1337),
 					CostBasis:           decimal.NewFromInt(1337),
-					Detail:              &order.Detail{Side: order.Sell},
+					Order:               &order.Detail{Side: order.Sell},
 				},
 			},
 		},
@@ -70,7 +78,11 @@ func TestCalculateResults(t *testing.T) {
 	}
 	even2 := even
 	even2.Time = tt2
-	ev2 := EventStore{
+	even2.Offset = 2
+	ev2 := DataAtOffset{
+		Offset:     2,
+		Time:       tt2,
+		ClosePrice: decimal.NewFromInt(1337),
 		Holdings: holdings.Holding{
 			ChangeInTotalValuePercent: decimal.NewFromFloat(0.1337),
 			Timestamp:                 tt2,
@@ -83,14 +95,14 @@ func TestCalculateResults(t *testing.T) {
 					VolumeAdjustedPrice: decimal.NewFromInt(1338),
 					SlippageRate:        decimal.NewFromInt(1338),
 					CostBasis:           decimal.NewFromInt(1338),
-					Detail:              &order.Detail{Side: order.Buy},
+					Order:               &order.Detail{Side: order.Buy},
 				},
 				{
 					ClosePrice:          decimal.NewFromInt(1337),
 					VolumeAdjustedPrice: decimal.NewFromInt(1337),
 					SlippageRate:        decimal.NewFromInt(1337),
 					CostBasis:           decimal.NewFromInt(1337),
-					Detail:              &order.Detail{Side: order.Sell},
+					Order:               &order.Detail{Side: order.Sell},
 				},
 			},
 		},
@@ -115,7 +127,7 @@ func TestCalculateResults(t *testing.T) {
 		t.Error(err)
 	}
 	if !cs.MarketMovement.Equal(decimal.NewFromFloat(-33.15)) {
-		t.Error("expected -33.15")
+		t.Errorf("expected -33.15 received '%v'", cs.MarketMovement)
 	}
 	ev3 := ev2
 	ev3.DataEvent = &kline.Kline{
@@ -128,12 +140,7 @@ func TestCalculateResults(t *testing.T) {
 	}
 	cs.Events = append(cs.Events, ev, ev3)
 	cs.Events[0].DataEvent = &kline.Kline{
-		Base:   even2,
-		Open:   decimal.Zero,
-		Close:  decimal.Zero,
-		Low:    decimal.Zero,
-		High:   decimal.Zero,
-		Volume: decimal.Zero,
+		Base: even2,
 	}
 	err = cs.CalculateResults(decimal.NewFromFloat(0.03))
 	if err != nil {
@@ -141,12 +148,7 @@ func TestCalculateResults(t *testing.T) {
 	}
 
 	cs.Events[1].DataEvent = &kline.Kline{
-		Base:   even2,
-		Open:   decimal.Zero,
-		Close:  decimal.Zero,
-		Low:    decimal.Zero,
-		High:   decimal.Zero,
-		Volume: decimal.Zero,
+		Base: even2,
 	}
 	err = cs.CalculateResults(decimal.NewFromFloat(0.03))
 	if err != nil {
@@ -161,14 +163,14 @@ func TestPrintResults(t *testing.T) {
 	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
-	even := event.Base{
+	even := &event.Base{
 		Exchange:     exch,
 		Time:         tt1,
 		Interval:     gctkline.OneDay,
 		CurrencyPair: p,
 		AssetType:    a,
 	}
-	ev := EventStore{
+	ev := DataAtOffset{
 		Holdings: holdings.Holding{
 			ChangeInTotalValuePercent: decimal.NewFromFloat(0.1333),
 			Timestamp:                 tt1,
@@ -181,14 +183,14 @@ func TestPrintResults(t *testing.T) {
 					VolumeAdjustedPrice: decimal.NewFromInt(1338),
 					SlippageRate:        decimal.NewFromInt(1338),
 					CostBasis:           decimal.NewFromInt(1338),
-					Detail:              &order.Detail{Side: order.Buy},
+					Order:               &order.Detail{Side: order.Buy},
 				},
 				{
 					ClosePrice:          decimal.NewFromInt(1337),
 					VolumeAdjustedPrice: decimal.NewFromInt(1337),
 					SlippageRate:        decimal.NewFromInt(1337),
 					CostBasis:           decimal.NewFromInt(1337),
-					Detail:              &order.Detail{Side: order.Sell},
+					Order:               &order.Detail{Side: order.Sell},
 				},
 			},
 		},
@@ -207,7 +209,7 @@ func TestPrintResults(t *testing.T) {
 	}
 	even2 := even
 	even2.Time = tt2
-	ev2 := EventStore{
+	ev2 := DataAtOffset{
 		Holdings: holdings.Holding{
 			ChangeInTotalValuePercent: decimal.NewFromFloat(0.1337),
 			Timestamp:                 tt2,
@@ -220,14 +222,14 @@ func TestPrintResults(t *testing.T) {
 					VolumeAdjustedPrice: decimal.NewFromInt(1338),
 					SlippageRate:        decimal.NewFromInt(1338),
 					CostBasis:           decimal.NewFromInt(1338),
-					Detail:              &order.Detail{Side: order.Buy},
+					Order:               &order.Detail{Side: order.Buy},
 				},
 				{
 					ClosePrice:          decimal.NewFromInt(1337),
 					VolumeAdjustedPrice: decimal.NewFromInt(1337),
 					SlippageRate:        decimal.NewFromInt(1337),
 					CostBasis:           decimal.NewFromInt(1337),
-					Detail:              &order.Detail{Side: order.Sell},
+					Order:               &order.Detail{Side: order.Sell},
 				},
 			},
 		},
@@ -251,8 +253,13 @@ func TestPrintResults(t *testing.T) {
 
 func TestCalculateHighestCommittedFunds(t *testing.T) {
 	t.Parallel()
-	c := CurrencyPairStatistic{}
-	c.calculateHighestCommittedFunds()
+	c := CurrencyPairStatistic{
+		Asset: asset.Spot,
+	}
+	err := c.calculateHighestCommittedFunds()
+	if !errors.Is(err, nil) {
+		t.Error(err)
+	}
 	if !c.HighestCommittedFunds.Time.IsZero() {
 		t.Error("expected no time with not committed funds")
 	}
@@ -260,12 +267,88 @@ func TestCalculateHighestCommittedFunds(t *testing.T) {
 	tt2 := time.Date(2021, 2, 1, 0, 0, 0, 0, time.UTC)
 	tt3 := time.Date(2021, 3, 1, 0, 0, 0, 0, time.UTC)
 	c.Events = append(c.Events,
-		EventStore{DataEvent: &kline.Kline{Close: decimal.NewFromInt(1337)}, Holdings: holdings.Holding{Timestamp: tt1, BaseSize: decimal.NewFromInt(10)}},
-		EventStore{DataEvent: &kline.Kline{Close: decimal.NewFromInt(1338)}, Holdings: holdings.Holding{Timestamp: tt2, BaseSize: decimal.NewFromInt(1337)}},
-		EventStore{DataEvent: &kline.Kline{Close: decimal.NewFromInt(1339)}, Holdings: holdings.Holding{Timestamp: tt3, BaseSize: decimal.NewFromInt(11)}},
+		DataAtOffset{DataEvent: &kline.Kline{Close: decimal.NewFromInt(1337)}, Time: tt1, Holdings: holdings.Holding{Timestamp: tt1, CommittedFunds: decimal.NewFromInt(10), BaseSize: decimal.NewFromInt(10)}},
+		DataAtOffset{DataEvent: &kline.Kline{Close: decimal.NewFromInt(1338)}, Time: tt2, Holdings: holdings.Holding{Timestamp: tt2, CommittedFunds: decimal.NewFromInt(1337), BaseSize: decimal.NewFromInt(1337)}},
+		DataAtOffset{DataEvent: &kline.Kline{Close: decimal.NewFromInt(1339)}, Time: tt3, Holdings: holdings.Holding{Timestamp: tt3, CommittedFunds: decimal.NewFromInt(11), BaseSize: decimal.NewFromInt(11)}},
 	)
-	c.calculateHighestCommittedFunds()
+	err = c.calculateHighestCommittedFunds()
+	if !errors.Is(err, nil) {
+		t.Error(err)
+	}
 	if c.HighestCommittedFunds.Time != tt2 {
 		t.Errorf("expected %v, received %v", tt2, c.HighestCommittedFunds.Time)
+	}
+
+	c.Asset = asset.Futures
+	c.HighestCommittedFunds = ValueAtTime{}
+	err = c.calculateHighestCommittedFunds()
+	if !errors.Is(err, nil) {
+		t.Error(err)
+	}
+
+	c.Asset = asset.Binary
+	err = c.calculateHighestCommittedFunds()
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Error(err)
+	}
+}
+
+func TestAnalysePNLGrowth(t *testing.T) {
+	t.Parallel()
+	c := CurrencyPairStatistic{}
+	c.analysePNLGrowth()
+	if !c.HighestUnrealisedPNL.Value.IsZero() ||
+		!c.LowestUnrealisedPNL.Value.IsZero() ||
+		!c.LowestRealisedPNL.Value.IsZero() ||
+		!c.HighestRealisedPNL.Value.IsZero() {
+		t.Error("expected unset")
+	}
+
+	e := testExchange
+	a := asset.Futures
+	p := currency.NewPair(currency.BTC, currency.USDT)
+	c.Asset = asset.Futures
+	c.Events = append(c.Events,
+		DataAtOffset{PNL: &portfolio.PNLSummary{
+			Exchange: e,
+			Item:     a,
+			Pair:     p,
+			Offset:   0,
+			Result: order.PNLResult{
+				Time:          time.Now(),
+				UnrealisedPNL: decimal.NewFromInt(1),
+				RealisedPNL:   decimal.NewFromInt(2),
+			},
+		}},
+	)
+
+	c.analysePNLGrowth()
+	if !c.HighestRealisedPNL.Value.Equal(decimal.NewFromInt(2)) {
+		t.Errorf("received %v expected 2", c.HighestRealisedPNL.Value)
+	}
+	if !c.LowestUnrealisedPNL.Value.Equal(decimal.NewFromInt(1)) {
+		t.Errorf("received %v expected 1", c.LowestUnrealisedPNL.Value)
+	}
+
+	c.Events = append(c.Events,
+		DataAtOffset{PNL: &portfolio.PNLSummary{
+			Exchange: e,
+			Item:     a,
+			Pair:     p,
+			Offset:   0,
+			Result: order.PNLResult{
+				Time:          time.Now(),
+				UnrealisedPNL: decimal.NewFromFloat(0.5),
+				RealisedPNL:   decimal.NewFromInt(1),
+			},
+		}},
+	)
+
+	c.analysePNLGrowth()
+	if !c.HighestRealisedPNL.Value.Equal(decimal.NewFromInt(2)) {
+		t.Errorf("received %v expected 2", c.HighestRealisedPNL.Value)
+	}
+	if !c.LowestUnrealisedPNL.Value.Equal(decimal.NewFromFloat(0.5)) {
+		t.Errorf("received %v expected 0.5", c.LowestUnrealisedPNL.Value)
 	}
 }

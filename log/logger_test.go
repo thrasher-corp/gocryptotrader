@@ -581,8 +581,8 @@ func TestNewSubLogger(t *testing.T) {
 	Debug(sl, "testerinos")
 
 	_, err = NewSubLogger("TESTERINOS")
-	if !errors.Is(err, errSubLoggerAlreadyregistered) {
-		t.Fatalf("received: %v but expected: %v", err, errSubLoggerAlreadyregistered)
+	if !errors.Is(err, ErrSubLoggerAlreadyRegistered) {
+		t.Fatalf("received: %v but expected: %v", err, ErrSubLoggerAlreadyRegistered)
 	}
 }
 

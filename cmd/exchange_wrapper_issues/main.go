@@ -556,6 +556,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		})
 
 		s := &order.Submit{
+			Exchange:  e.GetName(),
 			Pair:      p,
 			Side:      testOrderSide,
 			Type:      testOrderType,
@@ -564,7 +565,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			ClientID:  config.OrderSubmission.OrderID,
 			AssetType: assetTypes[i],
 		}
-		var submitOrderResponse order.SubmitResponse
+		var submitOrderResponse *order.SubmitResponse
 		submitOrderResponse, err = e.SubmitOrder(context.TODO(), s)
 		msg = ""
 		if err != nil {
@@ -579,12 +580,13 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		})
 
 		modifyRequest := order.Modify{
-			ID:     config.OrderSubmission.OrderID,
-			Type:   testOrderType,
-			Side:   testOrderSide,
-			Pair:   p,
-			Price:  config.OrderSubmission.Price,
-			Amount: config.OrderSubmission.Amount,
+			OrderID:   config.OrderSubmission.OrderID,
+			Type:      testOrderType,
+			Side:      testOrderSide,
+			Pair:      p,
+			Price:     config.OrderSubmission.Price,
+			Amount:    config.OrderSubmission.Amount,
+			AssetType: assetTypes[i],
 		}
 		modifyOrderResponse, err := e.ModifyOrder(context.TODO(), &modifyRequest)
 		msg = ""
@@ -602,7 +604,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		cancelRequest := order.Cancel{
 			Side:      testOrderSide,
 			Pair:      p,
-			ID:        config.OrderSubmission.OrderID,
+			OrderID:   config.OrderSubmission.OrderID,
 			AssetType: assetTypes[i],
 		}
 		err = e.CancelOrder(context.TODO(), &cancelRequest)
@@ -622,7 +624,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		request = append(request, order.Cancel{
 			Side:      testOrderSide,
 			Pair:      p,
-			ID:        config.OrderSubmission.OrderID,
+			OrderID:   config.OrderSubmission.OrderID,
 			AssetType: assetTypes[i],
 		})
 
@@ -669,9 +671,10 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		})
 
 		historyRequest := order.GetOrdersRequest{
-			Type:  testOrderType,
-			Side:  testOrderSide,
-			Pairs: []currency.Pair{p},
+			Type:      testOrderType,
+			Side:      testOrderSide,
+			Pairs:     []currency.Pair{p},
+			AssetType: assetTypes[i],
 		}
 		var getOrderHistoryResponse []order.Detail
 		getOrderHistoryResponse, err = e.GetOrderHistory(context.TODO(), &historyRequest)
@@ -688,9 +691,10 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		})
 
 		orderRequest := order.GetOrdersRequest{
-			Type:  testOrderType,
-			Side:  testOrderSide,
-			Pairs: []currency.Pair{p},
+			Type:      testOrderType,
+			Side:      testOrderSide,
+			Pairs:     []currency.Pair{p},
+			AssetType: assetTypes[i],
 		}
 		var getActiveOrdersResponse []order.Detail
 		getActiveOrdersResponse, err = e.GetActiveOrders(context.TODO(), &orderRequest)

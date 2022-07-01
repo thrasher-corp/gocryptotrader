@@ -372,16 +372,15 @@ func (i *ItBit) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.It
 }
 
 // SubmitOrder submits a new order
-func (i *ItBit) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitResponse, error) {
-	var submitOrderResponse order.SubmitResponse
+func (i *ItBit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	if err := s.Validate(); err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
 	var wallet string
 	wallets, err := i.GetWallets(ctx, url.Values{})
 	if err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
 	// Determine what wallet ID to use if there is any actual available currency to make the trade!
@@ -395,7 +394,7 @@ func (i *ItBit) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitR
 	}
 
 	if wallet == "" {
-		return submitOrderResponse,
+		return nil,
 			fmt.Errorf("no wallet found with currency: %s with amount >= %v",
 				s.Pair.Base,
 				s.Amount)
@@ -403,7 +402,7 @@ func (i *ItBit) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitR
 
 	fPair, err := i.FormatExchangeCurrency(s.Pair, s.AssetType)
 	if err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
 
 	response, err := i.PlaceOrder(ctx,
@@ -416,22 +415,21 @@ func (i *ItBit) SubmitOrder(ctx context.Context, s *order.Submit) (order.SubmitR
 		fPair.String(),
 		"")
 	if err != nil {
-		return submitOrderResponse, err
+		return nil, err
 	}
-	if response.ID != "" {
-		submitOrderResponse.OrderID = response.ID
+	subResp, err := s.DeriveSubmitResponse(response.ID)
+	if err != nil {
+		return nil, err
 	}
-
 	if response.AmountFilled == s.Amount {
-		submitOrderResponse.FullyMatched = true
+		subResp.Status = order.Filled
 	}
-	submitOrderResponse.IsOrderPlaced = true
-	return submitOrderResponse, nil
+	return subResp, nil
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (i *ItBit) ModifyOrder(_ context.Context, _ *order.Modify) (*order.Modify, error) {
+func (i *ItBit) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -440,7 +438,7 @@ func (i *ItBit) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	if err := o.Validate(o.StandardCancel()); err != nil {
 		return err
 	}
-	return i.CancelExistingOrder(ctx, o.WalletAddress, o.ID)
+	return i.CancelExistingOrder(ctx, o.WalletAddress, o.OrderID)
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
@@ -572,7 +570,7 @@ func (i *ItBit) GetActiveOrders(ctx context.Context, req *order.GetOrdersRequest
 		}
 
 		orders = append(orders, order.Detail{
-			ID:              allOrders[j].ID,
+			OrderID:         allOrders[j].ID,
 			Side:            side,
 			Amount:          allOrders[j].Amount,
 			ExecutedAmount:  allOrders[j].AmountFilled,
@@ -652,7 +650,7 @@ func (i *ItBit) GetOrderHistory(ctx context.Context, req *order.GetOrdersRequest
 		}
 
 		detail := order.Detail{
-			ID:                   allOrders[j].ID,
+			OrderID:              allOrders[j].ID,
 			Side:                 side,
 			Status:               status,
 			Amount:               allOrders[j].Amount,

@@ -1,6 +1,7 @@
 package data
 
 import (
+	"errors"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -8,6 +9,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
+
+// ErrHandlerNotFound returned when a handler is not found for specified exchange, asset, pair
+var ErrHandlerNotFound = errors.New("handler not found")
 
 // HandlerPerCurrency stores an event handler per exchange asset pair
 type HandlerPerCurrency struct {
@@ -19,7 +23,7 @@ type Holder interface {
 	Setup()
 	SetDataForCurrency(string, asset.Item, currency.Pair, Handler)
 	GetAllData() map[string]map[asset.Item]map[currency.Pair]Handler
-	GetDataForCurrency(string, asset.Item, currency.Pair) Handler
+	GetDataForCurrency(ev common.EventHandler) (Handler, error)
 	Reset()
 }
 
@@ -50,6 +54,7 @@ type Streamer interface {
 	History() []common.DataEventHandler
 	Latest() common.DataEventHandler
 	List() []common.DataEventHandler
+	IsLastEvent() bool
 	Offset() int
 
 	StreamOpen() []decimal.Decimal

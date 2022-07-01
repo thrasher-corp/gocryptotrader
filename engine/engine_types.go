@@ -24,6 +24,7 @@ type Settings struct {
 	PortfolioManagerDelay       time.Duration
 	EnableGRPC                  bool
 	EnableGRPCProxy             bool
+	EnableGRPCShutdown          bool
 	EnableWebsocketRPC          bool
 	EnableDeprecatedRPC         bool
 	EnableCommsRelayer          bool
@@ -38,6 +39,7 @@ type Settings struct {
 	EnableWebsocketRoutine      bool
 	EnableCurrencyStateManager  bool
 	EventManagerDelay           time.Duration
+	EnableFuturesTracking       bool
 	Verbose                     bool
 
 	// Exchange syncer settings
@@ -91,6 +93,9 @@ type Settings struct {
 
 	// Withdraw settings
 	WithdrawCacheSize uint64
+
+	// Main shutdown channel
+	Shutdown chan struct{}
 }
 
 const (

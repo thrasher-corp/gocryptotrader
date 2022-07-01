@@ -3042,6 +3042,28 @@
         ]
       }
     },
+    "/v1/shutdown": {
+      "get": {
+        "operationId": "GoCryptoTraderService_Shutdown",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcShutdownResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "GoCryptoTraderService"
+        ]
+      }
+    },
     "/v1/simulateorder": {
       "post": {
         "operationId": "GoCryptoTraderService_SimulateOrder",
@@ -5345,6 +5367,9 @@
           "type": "string"
         }
       }
+    },
+    "gctrpcShutdownResponse": {
+      "type": "object"
     },
     "gctrpcSimulateOrderRequest": {
       "type": "object",

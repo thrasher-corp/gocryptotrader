@@ -893,8 +893,8 @@ func TestConverters(t *testing.T) {
 		Result:            "test123",
 		Date:              time.Now(),
 	}
-	mapperino := make(map[time.Time][]DataHistoryJobResult)
-	mapperino[dhj.StartDate] = append(mapperino[dhj.StartDate], jr)
+	mapperino := make(map[int64][]DataHistoryJobResult)
+	mapperino[dhj.StartDate.Unix()] = append(mapperino[dhj.StartDate.Unix()], jr)
 	result := m.convertJobResultToDBResult(mapperino)
 	if jr.ID.String() != result[0].ID ||
 		jr.JobID.String() != result[0].JobID ||
@@ -910,13 +910,13 @@ func TestConverters(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
-	if jr.ID != andBackAgain[dhj.StartDate][0].ID ||
-		jr.JobID != andBackAgain[dhj.StartDate][0].JobID ||
-		jr.Result != andBackAgain[dhj.StartDate][0].Result ||
-		!jr.Date.Equal(andBackAgain[dhj.StartDate][0].Date) ||
-		!jr.IntervalStartDate.Equal(andBackAgain[dhj.StartDate][0].IntervalStartDate) ||
-		!jr.IntervalEndDate.Equal(andBackAgain[dhj.StartDate][0].IntervalEndDate) ||
-		jr.Status != andBackAgain[dhj.StartDate][0].Status {
+	if jr.ID != andBackAgain[dhj.StartDate.Unix()][0].ID ||
+		jr.JobID != andBackAgain[dhj.StartDate.Unix()][0].JobID ||
+		jr.Result != andBackAgain[dhj.StartDate.Unix()][0].Result ||
+		!jr.Date.Equal(andBackAgain[dhj.StartDate.Unix()][0].Date) ||
+		!jr.IntervalStartDate.Equal(andBackAgain[dhj.StartDate.Unix()][0].IntervalStartDate) ||
+		!jr.IntervalEndDate.Equal(andBackAgain[dhj.StartDate.Unix()][0].IntervalEndDate) ||
+		jr.Status != andBackAgain[dhj.StartDate.Unix()][0].Status {
 		t.Error("expected matching job")
 	}
 }

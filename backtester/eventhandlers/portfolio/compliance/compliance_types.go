@@ -21,9 +21,9 @@ type Manager struct {
 // Snapshot consists of the timestamp the snapshot is from, along with all orders made
 // up until that time
 type Snapshot struct {
-	Orders    []SnapshotOrder `json:"orders"`
-	Timestamp time.Time       `json:"timestamp"`
 	Offset    int64           `json:"offset"`
+	Timestamp time.Time       `json:"timestamp"`
+	Orders    []SnapshotOrder `json:"orders"`
 }
 
 // SnapshotOrder adds some additional data that's only relevant for backtesting
@@ -33,5 +33,5 @@ type SnapshotOrder struct {
 	VolumeAdjustedPrice decimal.Decimal `json:"volume-adjusted-price"`
 	SlippageRate        decimal.Decimal `json:"slippage-rate"`
 	CostBasis           decimal.Decimal `json:"cost-basis"`
-	*order.Detail       `json:"order-detail"`
+	Order               *order.Detail   `json:"order-detail"`
 }

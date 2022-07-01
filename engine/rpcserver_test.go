@@ -141,9 +141,8 @@ func (f fExchange) GetFuturesPositions(_ context.Context, a asset.Item, cp curre
 			Price:     1337,
 			Amount:    1337,
 			Fee:       1.337,
-			FeeAsset:  currency.Code{},
 			Exchange:  f.GetName(),
-			ID:        "test",
+			OrderID:   "test",
 			Side:      order.Long,
 			Status:    order.Open,
 			AssetType: a,
@@ -1139,7 +1138,7 @@ func TestGetOrders(t *testing.T) {
 		RequestFormat: &currency.PairFormat{Uppercase: true}}
 	em.Add(exch)
 	var wg sync.WaitGroup
-	om, err := SetupOrderManager(em, engerino.CommunicationsManager, &wg, false)
+	om, err := SetupOrderManager(em, engerino.CommunicationsManager, &wg, false, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
@@ -1246,7 +1245,7 @@ func TestGetOrder(t *testing.T) {
 		RequestFormat: &currency.PairFormat{Uppercase: true}}
 	em.Add(exch)
 	var wg sync.WaitGroup
-	om, err := SetupOrderManager(em, engerino.CommunicationsManager, &wg, false)
+	om, err := SetupOrderManager(em, engerino.CommunicationsManager, &wg, false, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
@@ -1775,7 +1774,7 @@ func TestGetManagedOrders(t *testing.T) {
 		RequestFormat: &currency.PairFormat{Uppercase: true}}
 	em.Add(exch)
 	var wg sync.WaitGroup
-	om, err := SetupOrderManager(em, engerino.CommunicationsManager, &wg, false)
+	om, err := SetupOrderManager(em, engerino.CommunicationsManager, &wg, false, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
@@ -1827,20 +1826,14 @@ func TestGetManagedOrders(t *testing.T) {
 	}
 
 	o := order.Detail{
-		Price:           100000,
-		Amount:          0.002,
-		Exchange:        "Binance",
-		InternalOrderID: "",
-		ID:              "",
-		ClientOrderID:   "",
-		AccountID:       "",
-		ClientID:        "",
-		WalletAddress:   "",
-		Type:            order.Limit,
-		Side:            order.Sell,
-		Status:          order.New,
-		AssetType:       asset.Spot,
-		Pair:            currency.NewPair(currency.BTC, currency.USDT),
+		Price:     100000,
+		Amount:    0.002,
+		Exchange:  "Binance",
+		Type:      order.Limit,
+		Side:      order.Sell,
+		Status:    order.New,
+		AssetType: asset.Spot,
+		Pair:      currency.NewPair(currency.BTC, currency.USDT),
 	}
 	err = om.Add(&o)
 	if err != nil {
@@ -2114,6 +2107,7 @@ func TestGetFuturesPositions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	cp.Delimiter = ""
 
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Futures] = &currency.PairStore{
@@ -2135,7 +2129,7 @@ func TestGetFuturesPositions(t *testing.T) {
 	}
 	em.Add(fakeExchange)
 	var wg sync.WaitGroup
-	om, err := SetupOrderManager(em, &CommunicationManager{}, &wg, false)
+	om, err := SetupOrderManager(em, &CommunicationManager{}, &wg, false, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
@@ -2170,7 +2164,37 @@ func TestGetFuturesPositions(t *testing.T) {
 		Secret: "super wow",
 	})
 
-	r, err := s.GetFuturesPositions(ctx, &gctrpc.GetFuturesPositionsRequest{
+	_, err = s.GetFuturesPositions(ctx, &gctrpc.GetFuturesPositionsRequest{
+		Exchange: fakeExchangeName,
+		Asset:    asset.Futures.String(),
+		Pair: &gctrpc.CurrencyPair{
+			Delimiter: currency.DashDelimiter,
+			Base:      cp.Base.String(),
+			Quote:     cp.Quote.String(),
+		},
+		Verbose: true,
+	})
+	if !errors.Is(err, order.ErrPositionsNotLoadedForExchange) {
+		t.Fatalf("received '%v', expected '%v'", err, order.ErrPositionsNotLoadedForExchange)
+	}
+
+	od := &order.Detail{
+		Price:     1337,
+		Amount:    1337,
+		Fee:       1.337,
+		Exchange:  fakeExchangeName,
+		OrderID:   "test",
+		Side:      order.Long,
+		Status:    order.Open,
+		AssetType: asset.Futures,
+		Date:      time.Now(),
+		Pair:      cp,
+	}
+	err = s.OrderManager.orderStore.futuresPositionController.TrackNewOrder(od)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received '%v', expected '%v'", err, nil)
+	}
+	_, err = s.GetFuturesPositions(ctx, &gctrpc.GetFuturesPositionsRequest{
 		Exchange: fakeExchangeName,
 		Asset:    asset.Futures.String(),
 		Pair: &gctrpc.CurrencyPair{
@@ -2182,15 +2206,6 @@ func TestGetFuturesPositions(t *testing.T) {
 	})
 	if !errors.Is(err, nil) {
 		t.Fatalf("received '%v', expected '%v'", err, nil)
-	}
-	if r == nil { //nolint:staticcheck,nolintlint // SA5011 Ignore the nil warnings
-		t.Fatal("expected not nil response")
-	}
-	if len(r.Positions) != 1 { //nolint:staticcheck,nolintlint // SA5011 Ignore the nil warnings
-		t.Fatal("expected 1 position")
-	}
-	if r.TotalOrders != 1 { //nolint:staticcheck,nolintlint // SA5011 Ignore the nil warnings
-		t.Fatal("expected 1 order")
 	}
 
 	_, err = s.GetFuturesPositions(ctx, &gctrpc.GetFuturesPositionsRequest{
@@ -2302,5 +2317,26 @@ func TestGetCollateral(t *testing.T) {
 	})
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
+	}
+}
+
+func TestShutdown(t *testing.T) {
+	t.Parallel()
+	s := RPCServer{Engine: &Engine{}}
+	_, err := s.Shutdown(context.Background(), &gctrpc.ShutdownRequest{})
+	if !errors.Is(err, errShutdownNotAllowed) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errShutdownNotAllowed)
+	}
+
+	s.Engine.Settings.EnableGRPCShutdown = true
+	_, err = s.Shutdown(context.Background(), &gctrpc.ShutdownRequest{})
+	if !errors.Is(err, errGRPCShutdownSignalIsNil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errGRPCShutdownSignalIsNil)
+	}
+
+	s.Engine.GRPCShutdownSignal = make(chan struct{}, 1)
+	_, err = s.Shutdown(context.Background(), &gctrpc.ShutdownRequest{})
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 }
