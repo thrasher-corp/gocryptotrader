@@ -85,18 +85,6 @@ func main() {
 		"displays logging subheader to track where activity originates")
 	flag.Parse()
 
-	for k := range common.SubLoggers {
-		common.SubLoggers[k], err = log.NewSubLogger(k)
-		if err != nil {
-			if errors.Is(err, log.ErrSubLoggerAlreadyRegistered) {
-				common.SubLoggers[k] = log.SubLoggers[strings.ToUpper(k)]
-				continue
-			}
-			fmt.Printf("Could not setup global logger. Error: %v.\n", err)
-			os.Exit(1)
-		}
-	}
-
 	if btConfigDir == "" {
 		btConfigDir = config.DefaultBTConfigDir
 		log.Infof(log.Global, "blank config received, using default path '%v'", btConfigDir)
