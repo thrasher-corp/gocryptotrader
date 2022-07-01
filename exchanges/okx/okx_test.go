@@ -18,9 +18,9 @@ import (
 
 // Please supply your own keys here to do authenticated endpoint testing
 const (
-	apiKey                  = "bcb7564b-c51d-4f1d-ab78-aea2cc12d6de"
-	apiSecret               = "B0D6A3AD35B13A2B3FB15C621D186404"
-	passphrase              = "1NM0qIKtJav88TKocmp2"
+	apiKey                  = ""
+	apiSecret               = ""
+	passphrase              = ""
 	canManipulateRealOrders = true
 )
 
@@ -2304,5 +2304,198 @@ func TestGetCustodyTradingSubaccountList(t *testing.T) {
 	}
 	if _, er := ok.GetCustodyTradingSubaccountList(context.Background(), ""); er != nil {
 		t.Error("Okx GetCustodyTradingSubaccountList() error", er)
+	}
+}
+
+var gridTradingPlaceOrder = `{
+    "instId": "BTC-USDT-SWAP",
+    "algoOrdType": "contract_grid",
+    "maxPx": "5000",
+    "minPx": "400",
+    "gridNum": "10",
+    "runType": "1",
+    "sz": "200", 
+    "direction": "long",
+    "lever": "2"
+}`
+
+// Grid Trading Endpoints
+func TestPlaceGridAlgoOrder(t *testing.T) {
+	t.Parallel()
+	var input GridAlgoOrder
+	if er := json.Unmarshal([]byte(gridTradingPlaceOrder), &input); er != nil {
+		t.Error("Okx Decerializing to GridALgoOrder error", er)
+	}
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, er := ok.PlaceGridAlgoOrder(context.Background(), input); er != nil {
+		t.Error("Okx PlaceGridAlgoOrder() error", er)
+	}
+}
+
+var gridOrderAmendAlgo = `{
+    "algoId":"448965992920907776",
+    "instId":"BTC-USDT",
+    "slTriggerPx":"1200",
+    "tpTriggerPx":""
+}`
+
+func TestAmendGridAlgoOrder(t *testing.T) {
+	t.Parallel()
+	var input GridAlgoOrderAmend
+	if er := json.Unmarshal([]byte(gridOrderAmendAlgo), &input); er != nil {
+		t.Error("Okx Decerializing to GridAlgoOrderAmend error", er)
+	}
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, er := ok.AmendGridAlgoOrder(context.Background(), input); er != nil {
+		t.Error("Okx AmendGridAlgoOrder() error", er)
+	}
+}
+
+func TestStopGridAlgoOrder(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, er := ok.StopGridAlgoOrder(context.Background(), []StopGridAlgoOrderRequest{}); er != nil {
+		t.Error("Okx StopGridAlgoOrder() error", er)
+	}
+}
+
+func TestGetGridAlgoOrdersList(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, er := ok.GetGridAlgoOrdersList(context.Background(), "grid", "", "", "", "", "", 100); er != nil {
+		t.Error("Okx GetGridAlgoOrdersList() error", er)
+	}
+}
+
+func TestGetGridAlgoOrderHistory(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, er := ok.GetGridAlgoOrderHistory(context.Background(), "contract_grid", "", "", "", "", "", 100); er != nil {
+		t.Error("Okx GetGridAlgoOrderHistory() error", er)
+	}
+}
+
+func TestGetGridAlgoOrderDetails(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, er := ok.GetGridAlgoOrderDetails(context.Background(), "grid", ""); er != nil && !errors.Is(er, errMissingAlgoOrderID) {
+		t.Errorf("Okx GetGridAlgoOrderDetails() expecting %v, but found %v error", errMissingAlgoOrderID, er)
+	}
+	if _, er := ok.GetGridAlgoOrderDetails(context.Background(), "grid", "7878"); er != nil && !errors.Is(er, errNoValidResponseFromServer) {
+		t.Error("Okx GetGridAlgoOrderDetails() error", er)
+	}
+}
+func TestGetGridAlgoSubOrders(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, er := ok.GetGridAlgoSubOrders(context.Background(), "", "", "", "", "", "", 10); er != nil && !errors.Is(er, errMissingAlgoOrderType) {
+		t.Errorf("Okx GetGridAlgoSubOrders() expecting %v, but found %v", er, errMissingAlgoOrderType)
+	}
+	if _, er := ok.GetGridAlgoSubOrders(context.Background(), "grid", "", "", "", "", "", 10); er != nil && !errors.Is(er, errMissingAlgoOrderID) {
+		t.Errorf("Okx GetGridAlgoSubOrders() expecting %v, but found %v", er, errMissingAlgoOrderID)
+	}
+	if _, er := ok.GetGridAlgoSubOrders(context.Background(), "grid", "1234", "", "", "", "", 10); er != nil && !errors.Is(er, errMissingSubOrderType) {
+		t.Errorf("Okx GetGridAlgoSubOrders() expecting %v, but found %v", er, errMissingSubOrderType)
+	}
+	if _, er := ok.GetGridAlgoSubOrders(context.Background(), "grid", "1234", "live", "", "", "", 10); er != nil && !errors.Is(er, errMissingSubOrderType) {
+		t.Errorf("Okx GetGridAlgoSubOrders() expecting %v, but found %v", er, errMissingSubOrderType)
+	}
+}
+
+var spotGridAlgoOrderPosition = `{
+	"adl": "1",
+	"algoId": "449327675342323712",
+	"avgPx": "29215.0142857142857149",
+	"cTime": "1653400065917",
+	"ccy": "USDT",
+	"imr": "2045.386",
+	"instId": "BTC-USDT-SWAP",
+	"instType": "SWAP",
+	"last": "29206.7",
+	"lever": "5",
+	"liqPx": "661.1684795867162",
+	"markPx": "29213.9",
+	"mgnMode": "cross",
+	"mgnRatio": "217.19370606167573",
+	"mmr": "40.907720000000005",
+	"notionalUsd": "10216.70307",
+	"pos": "35",
+	"posSide": "net",
+	"uTime": "1653400066938",
+	"upl": "1.674999999999818",
+	"uplRatio": "0.0008190504784478"
+}`
+
+func TestGetGridAlgoOrderPositions(t *testing.T) {
+	t.Parallel()
+	var resp AlgoOrderPosition
+	if er := json.Unmarshal([]byte(spotGridAlgoOrderPosition), &resp); er != nil {
+		t.Error("Okx Decerializing to AlgoOrderPosition error", er)
+	}
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, er := ok.GetGridAlgoOrderPositions(context.Background(), "", ""); er != nil && !errors.Is(er, errMissingAlgoOrderType) {
+		t.Errorf("Okx GetGridAlgoOrderPositions() expecting %v, but found %v", errMissingAlgoOrderType, er)
+	}
+	if _, er := ok.GetGridAlgoOrderPositions(context.Background(), "contract_grid", ""); er != nil && !errors.Is(er, errMissingAlgoOrderID) {
+		t.Errorf("Okx GetGridAlgoOrderPositions() expecting %v, but found %v", errMissingAlgoOrderID, er)
+	}
+	if _, er := ok.GetGridAlgoOrderPositions(context.Background(), "contract_grid", ""); er != nil && !errors.Is(er, errMissingAlgoOrderID) {
+		t.Errorf("Okx GetGridAlgoOrderPositions() expecting %v, but found %v", errMissingAlgoOrderID, er)
+	}
+}
+
+func TestSpotGridWithdrawProfit(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, er := ok.SpotGridWithdrawProfit(context.Background(), ""); er != nil && !errors.Is(er, errMissingAlgoOrderID) {
+		t.Errorf("Okx SpotGridWithdrawProfit() expecting %v, but found %v", errMissingAlgoOrderID, er)
+	}
+	if _, er := ok.SpotGridWithdrawProfit(context.Background(), "1234"); er != nil && strings.Contains(er.Error(), "Policy type is not grid policy") {
+		t.Skip("Policy type is not grid policy")
+	} else if er != nil {
+		t.Error("Okx SpotGridWithdrawProfit() error", er)
+	}
+}
+
+var systemStatusResponseJson = `{
+	"title": "Spot System Upgrade",
+	"state": "scheduled",
+	"begin": "1620723600000",
+	"end": "1620724200000",
+	"href": "",
+	"serviceType": "1",
+	"system": "classic",
+	"scheDesc": ""       
+}`
+
+func TestSystemStatusResponse(t *testing.T) {
+	t.Parallel()
+	var resp SystemStatusResponse
+	if er := json.Unmarshal([]byte(systemStatusResponseJson), &resp); er != nil {
+		t.Error("Okx Decerializing to SystemStatusResponse error", er)
+	}
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	if _, er := ok.SystemStatusResponse(context.Background(), ""); er != nil {
+		t.Error("Okx SystemStatusResponse() error", er)
 	}
 }

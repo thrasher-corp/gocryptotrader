@@ -865,6 +865,60 @@ func (a *SubaccountBalanceResponse) UnmarshalJSON(data []byte) error {
 }
 
 // UnmarshalJSON decerialize the account and position response.
+func (a *GridAlgoOrderResponse) UnmarshalJSON(data []byte) error {
+	type Alias GridAlgoOrderResponse
+	chil := &struct {
+		*Alias
+		UpdateTime   int64 `json:"uTime,string"`
+		CreationTime int64 `json:"cTime,string"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	a.UpdateTime = time.UnixMilli(chil.UpdateTime)
+	a.CreationTime = time.UnixMilli(chil.CreationTime)
+	return nil
+}
+
+// UnmarshalJSON decerialize the account and position response.
+func (a *AlgoOrderPosition) UnmarshalJSON(data []byte) error {
+	type Alias AlgoOrderPosition
+	chil := &struct {
+		*Alias
+		UpdateTime   int64 `json:"uTime,string"`
+		CreationTime int64 `json:"cTime,string"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	a.UpdateTime = time.UnixMilli(chil.UpdateTime)
+	a.CreationTime = time.UnixMilli(chil.CreationTime)
+	return nil
+}
+
+// UnmarshalJSON decerialize the account and position response.
+func (a *SystemStatusResponse) UnmarshalJSON(data []byte) error {
+	type Alias SystemStatusResponse
+	chil := &struct {
+		*Alias
+		Begin int64 `json:"begin,string"`
+		End   int64 `json:"end,string"`
+	}{
+		Alias: (*Alias)(a),
+	}
+	if er := json.Unmarshal(data, chil); er != nil {
+		return er
+	}
+	a.Begin = time.UnixMilli(chil.Begin)
+	a.End = time.UnixMilli(chil.End)
+	return nil
+}
+
+// UnmarshalJSON decerialize the account and position response.
 func (a *RFQResponse) UnmarshalJSON(data []byte) error {
 	type Alias RFQResponse
 	chil := &struct {

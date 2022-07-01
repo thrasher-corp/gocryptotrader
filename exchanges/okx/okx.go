@@ -72,14 +72,14 @@ const (
 	//
 	publicBorrowInfo = "asset/lending-rate-history"
 
-	// algo order routes
+	// Algo order routes
 	cancelAlgoOrder        = "trade/cancel-algos"
 	algoTradeOrder         = "trade/order-algo"
 	canceAdvancedAlgoOrder = "trade/cancel-advance-algos"
 	getAlgoOrders          = "trade/orders-algo-pending"
 	algoOrderHistory       = "trade/orders-algo-history"
 
-	// funding orders routes
+	// Funding orders routes
 	assetCurrencies    = "asset/currencies"
 	assetBalance       = "asset/balances"
 	assetValuation     = "asset/asset-valuation"
@@ -191,7 +191,19 @@ const (
 	usersEntrustSubaccountList   = "users/entrust-subaccount-list"
 
 	// Grid Trading Endpoints
+	gridOrderAlgo         = "tradingBot/grid/order-algo"
+	gridAmendOrderAlgo    = "tradingBot/grid/amend-order-algo"
+	gridAlgoOrderStop     = "tradingBot/grid/stop-order-algo"
+	gridAlgoOrders        = "tradingBot/grid/orders-algo-pending"
+	gridAlgoOrdersHistory = "tradingBot/grid/orders-algo-history"
+	gridOrdersAlgoDetails = "tradingBot/grid/orders-algo-details"
+	gridSuborders         = "tradingBot/grid/sub-orders"
+	gridPositions         = "tradingBot/grid/positions"
+	gridWithdrawalIncome  = "tradingBot/grid/withdraw-income"
 
+	// Status Endpoints
+
+	systemStatus = "system/status"
 )
 
 var (
@@ -261,6 +273,16 @@ var (
 	errInvalidInvalidSubaccount                     = errors.New("invalid account type")
 	errMissingDestinationSubaccountName             = errors.New("missing destination subaccount name")
 	errMissingInitialSubaccountName                 = errors.New("missing initial subaccount name")
+	errMissingAlgoOrderType                         = errors.New("missing algo order type \"grid\": Spot grid, \"contract_grid\": Contract grid")
+	errInvalidMaximumPrice                          = errors.New("invalid maximum price")
+	errInvalidMinimumPrice                          = errors.New("invalid minimum price")
+	errInvalidGridQuantity                          = errors.New("invalid grid quantity (grid number)")
+	errMissingSize                                  = errors.New("missing size")
+	errMissingRequiredArgumentDirection             = errors.New("missing required argument, direction")
+	errRequiredParameterMissingLeverage             = errors.New("missing required parameter, leverage")
+	errMissingAlgoOrderID                           = errors.New("missing algo order id")
+	errMissingValidStopType                         = errors.New("invalid grid order stop type, only valiues are \"1\" and \"2\" ")
+	errMissingSubOrderType                          = errors.New("missing sub order type")
 )
 
 /************************************ MarketData Endpoints *************************************************/
@@ -2708,7 +2730,284 @@ func (ok *Okx) GetCustodyTradingSubaccountList(ctx context.Context, subaccountNa
 /*************************************** Grid Trading Endpoints ***************************************************/
 
 // PlaceGridAlgoOrder place spot grid algo order.
-// func (ok *Okx ) PlaceGridAlgoOrder(ctx context.Context, )
+func (ok *Okx) PlaceGridAlgoOrder(ctx context.Context, arg GridAlgoOrder) (*GridAlgoOrderIDResponse, error) {
+	if arg.InstrumentID == "" {
+		return nil, errMissingInstrumentID
+	}
+	if !(strings.EqualFold(arg.AlgoOrdType, "grid") || strings.EqualFold(arg.AlgoOrdType, "contract_grid")) {
+		return nil, errMissingAlgoOrderType
+	}
+	if arg.MaxPrice <= 0 {
+		return nil, errInvalidMaximumPrice
+	}
+	if arg.MinPrice < 0 {
+		return nil, errInvalidMinimumPrice
+	}
+	if arg.GridQuantity < 0 {
+		return nil, errInvalidGridQuantity
+	}
+	isSpotGridOrder := false
+	if arg.QuoteSize > 0 || arg.BaseSize > 0 {
+		isSpotGridOrder = true
+	}
+	if !isSpotGridOrder {
+		if arg.Size <= 0 {
+			return nil, errMissingSize
+		}
+		if !(strings.EqualFold(arg.Direction, "long") || strings.EqualFold(arg.Direction, "short") || strings.EqualFold(arg.Direction, "neutral")) {
+			return nil, errMissingRequiredArgumentDirection
+		}
+		if arg.Lever == "" {
+			return nil, errRequiredParameterMissingLeverage
+		}
+	}
+	type response struct {
+		Code string                     `json:"code"`
+		Msg  string                     `json:"msg"`
+		Data []*GridAlgoOrderIDResponse `json:"data"`
+	}
+	var resp response
+	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, gridOrderAlgo, &arg, &resp, true)
+	if er != nil {
+		return nil, er
+	}
+	if len(resp.Data) == 0 {
+		if resp.Msg != "" {
+			return nil, errors.New(resp.Msg)
+		}
+		return nil, errNoValidResponseFromServer
+	}
+	return resp.Data[0], nil
+}
+
+// AmendGridAlgoOrder supported contract grid algo order amendment.
+func (ok *Okx) AmendGridAlgoOrder(ctx context.Context, arg GridAlgoOrderAmend) (*GridAlgoOrderIDResponse, error) {
+	if arg.AlgoID == "" {
+		return nil, errMissingAlgoOrderID
+	}
+	if arg.InstrumentID == "" {
+		return nil, errMissingInstrumentID
+	}
+	type response struct {
+		Code string                     `json:"code"`
+		Msg  string                     `json:"msg"`
+		Data []*GridAlgoOrderIDResponse `json:"data"`
+	}
+	var resp response
+	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, gridAmendOrderAlgo, &arg, &resp, true)
+	if er != nil {
+		return nil, er
+	}
+	if len(resp.Data) == 0 {
+		if resp.Msg != "" {
+			return nil, errors.New(resp.Msg)
+		}
+		return nil, errNoValidResponseFromServer
+	}
+	return resp.Data[0], nil
+}
+
+// StopGridAlgoOrder stop a batch of grid algo orders.
+func (ok *Okx) StopGridAlgoOrder(ctx context.Context, arg []StopGridAlgoOrderRequest) ([]*GridAlgoOrderIDResponse, error) {
+	for x := range arg {
+		if arg[x].AlgoID == "" {
+			return nil, errMissingAlgoOrderID
+		}
+		if arg[x].InstrumentID == "" {
+			return nil, errMissingInstrumentID
+		}
+		if !(strings.EqualFold(arg[x].AlgoOrderType, "grid") || strings.EqualFold(arg[x].AlgoOrderType, "contract_grid")) {
+			return nil, errMissingAlgoOrderType
+		}
+		if !(arg[x].StopType == 1 || arg[x].StopType == 2) {
+			return nil, errMissingValidStopType
+		}
+	}
+	type response struct {
+		Code string                     `json:"code"`
+		Msg  string                     `json:"msg"`
+		Data []*GridAlgoOrderIDResponse `json:"data"`
+	}
+	var resp response
+	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, gridAlgoOrderStop, arg, &resp, true)
+}
+
+// GetGridAlgoOrdersList retrives list of pending grid algo orders with the complete data.
+func (ok *Okx) GetGridAlgoOrdersList(ctx context.Context, algoOrderType, algoID,
+	instrumentID, instrumentType,
+	after, before string, limit uint) ([]*GridAlgoOrderResponse, error) {
+	return ok.getGridAlgoOrders(ctx, algoOrderType, algoID,
+		instrumentID, instrumentType,
+		after, before, limit, gridAlgoOrders)
+}
+
+// GetGridAlgoOrderHistory retrives list of grid algo orders with the complete data including the stoped orders.
+func (ok *Okx) GetGridAlgoOrderHistory(ctx context.Context, algoOrderType, algoID,
+	instrumentID, instrumentType,
+	after, before string, limit uint) ([]*GridAlgoOrderResponse, error) {
+	return ok.getGridAlgoOrders(ctx, algoOrderType, algoID,
+		instrumentID, instrumentType,
+		after, before, limit, gridAlgoOrdersHistory)
+}
+
+// getGridAlgoOrderList retrives list of grid algo orders with the complete data.
+func (ok *Okx) getGridAlgoOrders(ctx context.Context, algoOrderType, algoID,
+	instrumentID, instrumentType,
+	after, before string, limit uint, route string) ([]*GridAlgoOrderResponse, error) {
+	params := url.Values{}
+	if !(strings.EqualFold(algoOrderType, "grid") || strings.EqualFold(algoOrderType, "contract_grid")) {
+		return nil, errMissingAlgoOrderType
+	}
+	params.Set("algoOrdType", algoOrderType)
+	if algoID != "" {
+		params.Set("algoId", algoID)
+	}
+	if instrumentID != "" {
+		params.Set("instId", instrumentID)
+	}
+	if strings.EqualFold(instrumentType, "SPOT") || strings.EqualFold(instrumentType, "MARGIN") || strings.EqualFold(instrumentType, "FUTURES") ||
+		strings.EqualFold(instrumentType, "SWAP") {
+		params.Set("instType", strings.ToUpper(instrumentType))
+	}
+	if after != "" {
+		params.Set("after", after)
+	}
+	if before != "" {
+		params.Set("before", before)
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.Itoa(int(limit)))
+	}
+	path := common.EncodeURLValues(route, params)
+	type response struct {
+		Code string                   `json:"code"`
+		Msg  string                   `json:"msg"`
+		Data []*GridAlgoOrderResponse `json:"data"`
+	}
+	var resp response
+	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, true)
+}
+
+// GetGridAlgoOrderDetails retrives grid algo order details
+func (ok *Okx) GetGridAlgoOrderDetails(ctx context.Context, algoOrderType, algoID string) (*GridAlgoOrderResponse, error) {
+	params := url.Values{}
+	if !(strings.EqualFold(algoOrderType, "grid") ||
+		strings.EqualFold(algoOrderType, "contract_grid")) {
+		return nil, errMissingAlgoOrderType
+	}
+	if algoID == "" {
+		return nil, errMissingAlgoOrderID
+	}
+	params.Set("algoOrdType", algoOrderType)
+	params.Set("algoId", algoID)
+	type response struct {
+		Code string                   `json:"code"`
+		Msg  string                   `json:"msg"`
+		Data []*GridAlgoOrderResponse `json:"data"`
+	}
+	path := common.EncodeURLValues(gridOrdersAlgoDetails, params)
+	var resp response
+	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, true)
+	if er != nil {
+		return nil, er
+	}
+	if len(resp.Data) == 0 {
+		if resp.Msg == "" {
+			return nil, errors.New(resp.Msg)
+		}
+		return nil, errNoValidResponseFromServer
+	}
+	return resp.Data[0], nil
+}
+
+// GetGridAlgoSubOrders retrives grid algo sub orders
+func (ok *Okx) GetGridAlgoSubOrders(ctx context.Context, algoOrderType, algoID, subOrderType, groupID, after, before string, limit uint) ([]*GridAlgoOrderResponse, error) {
+	params := url.Values{}
+	if !(strings.EqualFold(algoOrderType, "grid") || strings.EqualFold(algoOrderType, "contract_grid")) {
+		return nil, errMissingAlgoOrderType
+	}
+	params.Set("algoOrdType", algoOrderType)
+	if algoID != "" {
+		params.Set("algoId", algoID)
+	} else {
+		return nil, errMissingAlgoOrderID
+	}
+	if strings.EqualFold(subOrderType, "live") || strings.EqualFold(subOrderType, "filled") {
+		params.Set("type", subOrderType)
+	} else {
+		return nil, errMissingSubOrderType
+	}
+	if groupID != "" {
+		params.Set("groupId", groupID)
+	}
+	if after != "" {
+		params.Set("after", after)
+	}
+	if before != "" {
+		params.Set("before", before)
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.Itoa(int(limit)))
+	}
+	path := common.EncodeURLValues(gridSuborders, params)
+	type response struct {
+		Code string                   `json:"code"`
+		Msg  string                   `json:"msg"`
+		Data []*GridAlgoOrderResponse `json:"data"`
+	}
+	var resp response
+	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, true)
+}
+
+// GetGridAlgoOrderPositions retrives grid algo order positions.
+func (ok *Okx) GetGridAlgoOrderPositions(ctx context.Context, algoOrderType, algoID string) ([]*AlgoOrderPosition, error) {
+	params := url.Values{}
+	if !(strings.EqualFold(algoOrderType, "grid") || strings.EqualFold(algoOrderType, "contract_grid")) {
+		return nil, errMissingAlgoOrderType
+	}
+	if algoID == "" {
+		return nil, errMissingAlgoOrderID
+	}
+	params.Set("algoOrdType", algoOrderType)
+	params.Set("algoId", algoID)
+	type response struct {
+		Code string               `json:"code"`
+		Msg  string               `json:"msg"`
+		Data []*AlgoOrderPosition `json:"data"`
+	}
+	var resp response
+	path := common.EncodeURLValues(gridPositions, params)
+	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, true)
+}
+
+// SpotGridWithdrawalncome returns the spot grid orders withdrawal profit given an instrument id.
+func (ok *Okx) SpotGridWithdrawProfit(ctx context.Context, algoID string) (*AlgoOrderWithdrawaProfit, error) {
+	if algoID == "" {
+		return nil, errMissingAlgoOrderID
+	}
+	input := &struct {
+		AlgoID string `json:"algoId"`
+	}{
+		AlgoID: algoID,
+	}
+	type response struct {
+		Code string                      `json:"code"`
+		Msg  string                      `json:"msg"`
+		Data []*AlgoOrderWithdrawaProfit `json:"data"`
+	}
+	var resp response
+	er := ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, gridWithdrawalIncome, input, &resp, true)
+	if er != nil {
+		return nil, er
+	}
+	if len(resp.Data) == 0 {
+		if resp.Msg == "" {
+			return nil, errNoValidResponseFromServer
+		}
+		return nil, errors.New(resp.Msg)
+	}
+	return resp.Data[0], nil
+}
 
 /*************************************** Grid Trading End ***************************************************/
 // GetTickers retrives the latest price snopshots best bid/ ask price, and tranding volume in the last 34 hours.
@@ -4058,4 +4357,22 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, httpMethod,
 		}
 	}
 	return json.Unmarshal(intermediary, result)
+}
+
+// Status
+
+// SystemStatusResponse retrives the system status.
+func (ok *Okx) SystemStatusResponse(ctx context.Context, state string) ([]*SystemStatusResponse, error) {
+	params := url.Values{}
+	if strings.EqualFold(state, "scheduled") || strings.EqualFold(state, "ongoing") || strings.EqualFold(state, "pre_open") || strings.EqualFold(state, "completed") || strings.EqualFold(state, "canceled") {
+		params.Set("state", state)
+	}
+	type response struct {
+		Code string                  `json:"code"`
+		Msg  string                  `json:"msg"`
+		Data []*SystemStatusResponse `json:"data"`
+	}
+	path := common.EncodeURLValues(systemStatus, params)
+	var resp response
+	return resp.Data, ok.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, true)
 }

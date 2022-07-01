@@ -1903,13 +1903,184 @@ type SubaccountName struct {
 
 // GridAlgoOrder
 type GridAlgoOrder struct {
-	InstrumentID string `json:"instId"`
-	AlgoOrdType  string `json:"algoOrdType"`
-	MaxPrice     string `json:"maxPx"`
-	MinPrice     string `json:"minPx"`
-	GridNumber   string `json:"gridNum"`
-	GridType     string `json:"runType"`
-	Size         string `json:"sz"`
-	Direction    string `json:"direction"`
-	Lever        string `json:"lever"`
+	InstrumentID string  `json:"instId"`
+	AlgoOrdType  string  `json:"algoOrdType"`
+	MaxPrice     float64 `json:"maxPx,string"`
+	MinPrice     float64 `json:"minPx,string"`
+	GridQuantity float64 `json:"gridNum,string"`
+	GridType     string  `json:"runType"` // "1": Arithmetic, "2": Geometric Default is Arithmetic
+	// Spot Grid Order
+	QuoteSize float64 `json:"quoteSz,string"` // Invest amount for quote currency Either "instId" or "ccy" is required
+	BaseSize  float64 `json:"baseSz,string"`  // nvest amount for base currency Either "instId" or "ccy" is required
+
+	// Contract Grid Order
+	BasePosition bool    `json:"basePos"` // Wether or not open a position when strategy actives Default is false Neutral contract grid should omit the parameter
+	Size         float64 `json:"sz,string"`
+	Direction    string  `json:"direction"`
+	Lever        string  `json:"lever"`
+}
+
+// GridAlgoOrderIDResponse
+type GridAlgoOrderIDResponse struct {
+	AlgoOrderID string `json:"algoId"`
+	SCode       string `json:"sCode"`
+	SMsg        string `json:"sMsg"`
+}
+
+// GridAlgoOrderAmend
+type GridAlgoOrderAmend struct {
+	AlgoID                 string `json:"algoId"`
+	InstrumentID           string `json:"instId"`
+	StopLossTriggerPrice   string `json:"slTriggerPx"`
+	TakeProfitTriggerPrice string `json:"tpTriggerPx"`
+}
+
+// StopGridAlgoOrderRequest
+type StopGridAlgoOrderRequest struct {
+	AlgoID        string `json:"algoId"`
+	InstrumentID  string `json:"instId"`
+	StopType      uint   `json:"stopType,string"` // Spot grid "1": Sell base currency "2": Keep base currency | Contract grid "1": Market Close All positions "2": Keep positions
+	AlgoOrderType string `json:"algoOrdType"`
+}
+
+// GridAlgoOrderResponse a complete information of grid algo order item response.
+type GridAlgoOrderResponse struct {
+	ActualLever               string    `json:"actualLever"`
+	AlgoID                    string    `json:"algoId"`
+	AlgoOrderType             string    `json:"algoOrdType"`
+	ArbitrageNumber           string    `json:"arbitrageNum"`
+	BasePosition              bool      `json:"basePos"`
+	BaseSize                  string    `json:"baseSz"`
+	CancelType                string    `json:"cancelType"`
+	Direction                 string    `json:"direction"`
+	FloatProfit               string    `json:"floatProfit"`
+	GridQuantity              string    `json:"gridNum"`
+	GridProfit                string    `json:"gridProfit"`
+	InstrumentID              string    `json:"instId"`
+	InstrumentType            string    `json:"instType"`
+	Investment                string    `json:"investment"`
+	Leverage                  string    `json:"lever"`
+	EstimatedLiquidationPrice string    `json:"liqPx"`
+	MaximumPrice              string    `json:"maxPx"`
+	MinimumPrice              string    `json:"minPx"`
+	ProfitAndLossRatio        string    `json:"pnlRatio"`
+	QuoteSize                 string    `json:"quoteSz"`
+	RunType                   string    `json:"runType"`
+	StopLossTriggerPx         string    `json:"slTriggerPx"`
+	State                     string    `json:"state"`
+	StopResult                string    `json:"stopResult,omitempty"`
+	StopType                  string    `json:"stopType"`
+	Size                      string    `json:"sz"`
+	Tag                       string    `json:"tag"`
+	TotalProfitAndLoss        string    `json:"totalPnl"`
+	TakeProfitTriggerPrice    string    `json:"tpTriggerPx"`
+	CreationTime              time.Time `json:"cTime"`
+	UpdateTime                time.Time `json:"uTime"`
+	Underlying                string    `json:"uly"`
+
+	// Added in Detail
+
+	EquityOfStrength    string `json:"eq,omitempty"`
+	PerMaxProfitRate    string `json:"perMaxProfitRate,omitempty"`
+	PerMinProfitRate    string `json:"perMinProfitRate,omitempty"`
+	Profit              string `json:"profit,omitempty"`
+	Runpx               string `json:"runpx,omitempty"`
+	SingleAmt           string `json:"singleAmt,omitempty"`
+	TotalAnnualizedRate string `json:"totalAnnualizedRate,omitempty"`
+	TradeNumber         string `json:"tradeNum,omitempty"`
+
+	// Suborders Detail
+
+	AnnualizedRate string `json:"annualizedRate,omitempty"`
+	CurBaseSz      string `json:"curBaseSz,omitempty"`
+	CurQuoteSz     string `json:"curQuoteSz,omitempty"`
+}
+
+// GridALgoSuborders
+type GridALgoSuborders struct {
+	ActualLeverage      string    `json:"actualLever"`
+	AlgoID              string    `json:"algoId"`
+	AlgoOrderType       string    `json:"algoOrdType"`
+	AnnualizedRate      string    `json:"annualizedRate"`
+	ArbitrageNum        string    `json:"arbitrageNum"`
+	BasePosition        bool      `json:"basePos"`
+	BaseSize            string    `json:"baseSz"`
+	CancelType          string    `json:"cancelType"`
+	CurBaseSz           string    `json:"curBaseSz"`
+	CurQuoteSz          string    `json:"curQuoteSz"`
+	Direction           string    `json:"direction"`
+	EquityOfStrength    string    `json:"eq"`
+	FloatProfit         string    `json:"floatProfit"`
+	GridQuantity        string    `json:"gridNum"`
+	GridProfit          string    `json:"gridProfit"`
+	InstrumentID        string    `json:"instId"`
+	InstrumentType      string    `json:"instType"`
+	Investment          string    `json:"investment"`
+	Leverage            string    `json:"lever"`
+	LiquidationPx       string    `json:"liqPx"`
+	MaximumPrice        string    `json:"maxPx"`
+	MinimumPrice        string    `json:"minPx"`
+	PerMaxProfitRate    string    `json:"perMaxProfitRate"`
+	PerMinProfitRate    string    `json:"perMinProfitRate"`
+	ProfitAndLossRatio  string    `json:"pnlRatio"`
+	Profit              string    `json:"profit"`
+	QuoteSize           string    `json:"quoteSz"`
+	RunType             string    `json:"runType"`
+	Runpx               string    `json:"runpx"`
+	SingleAmount        string    `json:"singleAmt"`
+	StopLossTriggerPx   string    `json:"slTriggerPx"`
+	State               string    `json:"state"`
+	StopResult          string    `json:"stopResult"`
+	StopType            string    `json:"stopType"`
+	Size                string    `json:"sz"`
+	Tag                 string    `json:"tag"`
+	TotalAnnualizedRate string    `json:"totalAnnualizedRate"`
+	TotalProfitAndLoss  string    `json:"totalPnl"`
+	TakeProfitTriggerPx string    `json:"tpTriggerPx"`
+	TradeNum            string    `json:"tradeNum"`
+	UpdateTime          time.Time `json:"uTime"`
+	CreationTime        time.Time `json:"cTime"`
+}
+
+// AlgoOrderPosition
+type AlgoOrderPosition struct {
+	AutoDecreasingLine            string    `json:"adl"`
+	AlgoID                        string    `json:"algoId"`
+	AveragePrice                  string    `json:"avgPx"`
+	Currency                      string    `json:"ccy"`
+	InitialMarginRequirement      string    `json:"imr"`
+	InstrumentID                  string    `json:"instId"`
+	InstrumentType                string    `json:"instType"`
+	LastTradedPrice               string    `json:"last"`
+	Leverage                      string    `json:"lever"`
+	LiquidationPrice              string    `json:"liqPx"`
+	MarkPrice                     string    `json:"markPx"`
+	MarginMode                    string    `json:"mgnMode"`
+	MarginRatio                   string    `json:"mgnRatio"`
+	MaintainanceMarginRequirement string    `json:"mmr"`
+	NotionalUSD                   string    `json:"notionalUsd"`
+	QuantityPosition              string    `json:"pos"`
+	PositionSide                  string    `json:"posSide"`
+	UnrealizedProfitAndLoss       string    `json:"upl"`
+	UnrealizedProfitAndLossRatio  string    `json:"uplRatio"`
+	UpdateTime                    time.Time `json:"uTime"`
+	CreationTime                  time.Time `json:"cTime"`
+}
+
+// AlgoOrderWithdrawaProfit
+type AlgoOrderWithdrawaProfit struct {
+	AlgoID         string `json:"algoId"`
+	WithdrawProfit string `json:"profit"`
+}
+
+// SystemStatusResponse
+type SystemStatusResponse struct {
+	Title               string    `json:"title"`
+	State               string    `json:"state"`
+	Begin               time.Time `json:"begin"` // Begin time of system maintenance,
+	End                 time.Time `json:"end"`   // Time of resuming trading totally.
+	Href                string    `json:"href"`  // Hyperlink for system maintenance details
+	ServiceType         string    `json:"serviceType"`
+	System              string    `json:"system"`
+	ScheduleDescription string    `json:"scheDesc"`
 }
