@@ -26,7 +26,7 @@ var (
 	// ErrNoRates is returned when no margin rates are returned when they are expected
 	ErrNoRates = errors.New("no rates")
 
-	errCannotLiquidate            = errors.New("cannot liquidate position")
+	errCannotLiquidate = errors.New("cannot liquidate position")
 )
 
 // Submit contains all properties of an order that may be required
