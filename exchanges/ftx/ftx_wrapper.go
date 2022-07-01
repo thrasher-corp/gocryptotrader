@@ -1291,7 +1291,8 @@ func (f *FTX) CalculatePNL(ctx context.Context, pnl *order.PNLCalculatorRequest)
 		return nil, fmt.Errorf("%v %w", f.Name, order.ErrNilPNLCalculator)
 	}
 	result := &order.PNLResult{
-		Time: pnl.Time,
+		Time:    pnl.Time,
+		IsOrder: true,
 	}
 	creds, err := f.GetCredentials(ctx)
 	if err != nil {
@@ -1311,7 +1312,7 @@ func (f *FTX) CalculatePNL(ctx context.Context, pnl *order.PNLCalculatorRequest)
 	if err != nil {
 		return nil, err
 	}
-	if info.Liquidating || info.Collateral == 0 {
+	if info.Liquidating || info.Collateral <= 0 {
 		result.IsLiquidated = true
 		return result, fmt.Errorf("%s %s %w", f.Name, creds.SubAccount, order.ErrPositionLiquidated)
 	}
@@ -1682,6 +1683,16 @@ func (f *FTX) GetFuturesPositions(ctx context.Context, a asset.Item, cp currency
 	})
 
 	return resp, nil
+}
+
+// GetCollateralCurrencyForContract returns the collateral currency for an asset and contract pair
+func (f *FTX) GetCollateralCurrencyForContract(_ asset.Item, _ currency.Pair) (currency.Code, asset.Item, error) {
+	return currency.USD, asset.Futures, nil
+}
+
+// GetCurrencyForRealisedPNL returns where to put realised PNL
+func (f *FTX) GetCurrencyForRealisedPNL(_ asset.Item, _ currency.Pair) (currency.Code, asset.Item, error) {
+	return currency.USD, asset.Spot, nil
 }
 
 // GetMarginRatesHistory gets the margin rate history for the given currency, asset, pair

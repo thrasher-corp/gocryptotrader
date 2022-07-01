@@ -1279,7 +1279,7 @@ func (b *Base) GetAvailableTransferChains(_ context.Context, _ currency.Code) ([
 // CalculatePNL is an overridable function to allow PNL to be calculated on an
 // open position
 // It will also determine whether the position is considered to be liquidated
-// For live trading, an overrided function may wish to confirm the liquidation by
+// For live trading, an overriding function may wish to confirm the liquidation by
 // requesting the status of the asset
 func (b *Base) CalculatePNL(context.Context, *order.PNLCalculatorRequest) (*order.PNLResult, error) {
 	return nil, common.ErrNotYetImplemented
@@ -1300,6 +1300,18 @@ func (b *Base) CalculateTotalCollateral(ctx context.Context, calculator *order.T
 // GetFuturesPositions returns futures positions according to the provided parameters
 func (b *Base) GetFuturesPositions(context.Context, asset.Item, currency.Pair, time.Time, time.Time) ([]order.Detail, error) {
 	return nil, common.ErrNotYetImplemented
+}
+
+// GetCollateralCurrencyForContract returns the collateral currency for an asset and contract pair
+func (b *Base) GetCollateralCurrencyForContract(asset.Item, currency.Pair) (currency.Code, asset.Item, error) {
+	return currency.Code{}, asset.Empty, common.ErrNotYetImplemented
+}
+
+// GetCurrencyForRealisedPNL returns where to put realised PNL
+// example 1: FTX PNL is paid out in USD to your spot wallet
+// example 2: Binance coin margined futures pays returns using the same currency eg BTC
+func (b *Base) GetCurrencyForRealisedPNL(_ asset.Item, _ currency.Pair) (currency.Code, asset.Item, error) {
+	return currency.Code{}, asset.Empty, common.ErrNotYetImplemented
 }
 
 // HasAssetTypeAccountSegregation returns if the accounts are divided into asset

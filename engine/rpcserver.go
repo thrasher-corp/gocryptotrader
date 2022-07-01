@@ -869,7 +869,7 @@ func (s *RPCServer) GetForexRates(_ context.Context, _ *gctrpc.GetForexRatesRequ
 			continue
 		}
 
-		// TODO
+		// TODO add inverse rate
 		// inverseRate, err := rates[x].GetInversionRate()
 		// if err != nil {
 		//	 continue
@@ -3376,10 +3376,10 @@ func (s *RPCServer) FindMissingSavedTradeIntervals(_ context.Context, r *gctrpc.
 	start = start.Truncate(time.Hour)
 	end = end.Truncate(time.Hour)
 
-	intervalMap := make(map[time.Time]bool)
+	intervalMap := make(map[int64]bool)
 	iterationTime := start
 	for iterationTime.Before(end) {
-		intervalMap[iterationTime] = false
+		intervalMap[iterationTime.Unix()] = false
 		iterationTime = iterationTime.Add(time.Hour)
 	}
 

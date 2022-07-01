@@ -85,6 +85,8 @@ func (b *BaseCodes) HasData() bool {
 // GetFullCurrencyData returns a type that is read to dump to file
 func (b *BaseCodes) GetFullCurrencyData() (File, error) {
 	var file File
+	b.mtx.Lock()
+	defer b.mtx.Unlock()
 	for i := range b.Items {
 		switch b.Items[i].Role {
 		case Unset:

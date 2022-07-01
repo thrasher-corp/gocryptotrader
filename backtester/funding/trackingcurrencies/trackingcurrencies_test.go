@@ -6,13 +6,14 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
 var (
 	exch = "binance"
-	a    = "spot"
-	b    = "BTC"
-	q    = "USDT"
+	a    = asset.Spot
+	b    = currency.BTC
+	q    = currency.USDT
 )
 
 func TestCreateUSDTrackingPairs(t *testing.T) {
@@ -56,8 +57,8 @@ func TestCreateUSDTrackingPairs(t *testing.T) {
 	if len(resp) != 1 {
 		t.Error("expected 1 currency setting as it contains a USD equiv")
 	}
-	s1.Base = "LTC"
-	s1.Quote = "BTC"
+	s1.Base = currency.LTC
+	s1.Quote = currency.BTC
 	resp, err = CreateUSDTrackingPairs([]TrackingPair{s1}, em)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
