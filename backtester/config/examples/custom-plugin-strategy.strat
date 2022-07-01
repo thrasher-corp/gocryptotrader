@@ -16,7 +16,7 @@
    "base": "BTC",
    "quote": "USDT",
    "spot-details": {
-    "initial-quote-funds": "100000"
+    "initial-quote-funds": "1000000"
    },
    "buy-side": {
     "minimum-size": "0.005",

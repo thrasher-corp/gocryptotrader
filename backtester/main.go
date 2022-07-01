@@ -51,6 +51,10 @@ func main() {
 
 	if strategyPluginPath != "" {
 		err = loadCustomStrategy(strategyPluginPath)
+		if err != nil {
+			fmt.Printf("Could not load custom strategy. Error: %v.\n", err)
+			os.Exit(1)
+		}
 	}
 
 	cfg, err = config.ReadConfigFromFile(configPath)
@@ -116,8 +120,7 @@ func loadCustomStrategy(strategyPluginPath string) error {
 	if !ok {
 		return fmt.Errorf("could not cast plugin to strategies.Handler")
 	}
-	strategies.AddStrategy(customStrategy())
-	return nil
+	return strategies.AddStrategy(customStrategy())
 }
 
 func parseFlags(wd string) {

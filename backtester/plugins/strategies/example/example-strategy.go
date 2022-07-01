@@ -14,6 +14,7 @@ func main() {
 	// required for plugin system
 }
 
+// CustomStrategy the type used to define custom strategy functions
 type CustomStrategy struct {
 	base.Strategy
 }
@@ -46,13 +47,13 @@ func (s *CustomStrategy) OnSignal(d data.Handler, _ funding.IFundingTransferer, 
 // OnSimultaneousSignals analyses multiple data points simultaneously, allowing flexibility
 // in allowing a strategy to only place an order for X currency if Y currency's price is Z
 func (s *CustomStrategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundingTransferer, p portfolio.Handler) ([]signal.Event, error) {
-	var response []signal.Event
+	response := make([]signal.Event, len(d))
 	for i := range d {
 		sig, err := s.createSignal(d[i])
 		if err != nil {
 			return nil, err
 		}
-		response = append(response, sig)
+		response[i] = sig
 	}
 	return response, nil
 }

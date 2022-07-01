@@ -1,8 +1,8 @@
 {
- "nickname": "Example Cash and Carry",
+ "nickname": "ExampleCashAndCarry",
  "goal": "To demonstrate a cash and carry strategy",
  "strategy-settings": {
-  "name": "hello",
+  "name": "ftx-cash-carry",
   "use-simultaneous-signal-processing": true,
   "disable-usd-tracking": false
  },
