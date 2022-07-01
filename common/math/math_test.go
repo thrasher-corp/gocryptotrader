@@ -36,7 +36,7 @@ func TestCalculatePercentageGainOrLoss(t *testing.T) {
 	actualResult := CalculatePercentageGainOrLoss(originalInput, secondInput)
 	if expectedOutput != actualResult {
 		t.Errorf(
-			"Expected '%f'. Actual '%f'.", expectedOutput, actualResult)
+			"Expected '%v'. Actual '%v'.", expectedOutput, actualResult)
 	}
 }
 
