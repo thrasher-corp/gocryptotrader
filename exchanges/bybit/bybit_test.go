@@ -167,7 +167,6 @@ func TestCreatePostOrder(t *testing.T) {
 		TradeType:   "LIMIT",
 		TimeInForce: "GTC",
 		Price:       100,
-		OrderLinkID: "linkID",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -190,7 +189,7 @@ func TestCancelExistingOrder(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
 	}
-	_, err := b.CancelExistingOrder(context.Background(), "", "linkID")
+	_, err := b.CancelExistingOrder(context.Background(), "", "")
 	if err != nil {
 		t.Fatal(err)
 	}

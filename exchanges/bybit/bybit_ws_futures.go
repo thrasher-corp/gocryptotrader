@@ -480,6 +480,17 @@ func (by *Bybit) wsFuturesHandleData(respRaw []byte) error {
 					Err:      err,
 				}
 			}
+
+			var oStatus order.Status
+			oStatus, err = order.StringToOrderStatus(response.Data[i].ExecutionType)
+			if err != nil {
+				by.Websocket.DataHandler <- order.ClassificationError{
+					Exchange: by.Name,
+					OrderID:  response.Data[i].OrderID,
+					Err:      err,
+				}
+			}
+
 			by.Websocket.DataHandler <- &order.Detail{
 				Exchange:  by.Name,
 				OrderID:   response.Data[i].OrderID,
@@ -488,6 +499,16 @@ func (by *Bybit) wsFuturesHandleData(respRaw []byte) error {
 				Price:     response.Data[i].Price,
 				Amount:    response.Data[i].OrderQty,
 				Side:      oSide,
+				Status:    oStatus,
+				Trades: []order.TradeHistory{
+					{
+						Price:     response.Data[i].Price,
+						Amount:    response.Data[i].OrderQty,
+						Exchange:  by.Name,
+						Side:      oSide,
+						Timestamp: response.Data[i].Time,
+					},
+				},
 			}
 		}
 
@@ -541,6 +562,15 @@ func (by *Bybit) wsFuturesHandleData(respRaw []byte) error {
 				AssetType: asset.Futures,
 				Date:      response.Data[x].Time,
 				Pair:      p,
+				Trades: []order.TradeHistory{
+					{
+						Price:     response.Data[x].Price,
+						Amount:    response.Data[x].OrderQty,
+						Exchange:  by.Name,
+						Side:      oSide,
+						Timestamp: response.Data[x].Time,
+					},
+				},
 			}
 		}
 
@@ -595,6 +625,15 @@ func (by *Bybit) wsFuturesHandleData(respRaw []byte) error {
 				AssetType: asset.Futures,
 				Date:      response.Data[x].Time,
 				Pair:      p,
+				Trades: []order.TradeHistory{
+					{
+						Price:     response.Data[x].Price,
+						Amount:    response.Data[x].OrderQty,
+						Exchange:  by.Name,
+						Side:      oSide,
+						Timestamp: response.Data[x].Time,
+					},
+				},
 			}
 		}
 

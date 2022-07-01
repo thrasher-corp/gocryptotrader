@@ -267,59 +267,59 @@ type PlaceOrderRequest struct {
 
 // PlaceOrderResponse store new order response type
 type PlaceOrderResponse struct {
-	OrderID     int64             `json:"orderId"`
-	OrderLinkID string            `json:"orderLinkId"`
-	Symbol      string            `json:"symbol"`
-	Time        bybitTimeMilliSec `json:"transactTime"` // Note: it is string in doc. ex
-	Price       float64           `json:"price,string"`
-	Quantity    float64           `json:"origQty,string"`
-	TradeType   string            `json:"type"`
-	Side        string            `json:"side"`
-	Status      string            `json:"status"`
-	TimeInForce string            `json:"timeInForce"`
-	AccountID   int64             `json:"accountId"`
-	SymbolName  string            `json:"symbolName"`
-	ExecutedQty float64           `json:"executedQty,string"`
+	OrderID     int64                `json:"orderId"`
+	OrderLinkID string               `json:"orderLinkId"`
+	Symbol      string               `json:"symbol"`
+	Time        bybitTimeMilliSecStr `json:"transactTime"`
+	Price       float64              `json:"price,string"`
+	Quantity    float64              `json:"origQty,string"`
+	TradeType   string               `json:"type"`
+	Side        string               `json:"side"`
+	Status      string               `json:"status"`
+	TimeInForce string               `json:"timeInForce"`
+	AccountID   int64                `json:"accountId"`
+	SymbolName  string               `json:"symbolName"`
+	ExecutedQty float64              `json:"executedQty,string"`
 }
 
 // QueryOrderResponse holds query order data
 type QueryOrderResponse struct {
-	AccountID           int64             `json:"accountId"`
-	ExchangeID          int64             `json:"exchangeId"`
-	Symbol              string            `json:"symbol"`
-	SymbolName          string            `json:"symbolName"`
-	OrderLinkID         string            `json:"orderLinkId"`
-	OrderID             int64             `json:"orderId"`
-	Price               float64           `json:"price,string"`
-	Quantity            float64           `json:"origQty,string"`
-	ExecutedQty         float64           `json:"executedQty,string"`
-	CummulativeQuoteQty float64           `json:"cummulativeQuoteQty,string"`
-	AveragePrice        float64           `json:"avgPrice,string"`
-	Status              string            `json:"status"`
-	TimeInForce         string            `json:"timeInForce"`
-	TradeType           string            `json:"type"`
-	Side                string            `json:"side"`
-	StopPrice           float64           `json:"stopPrice,string"`
-	IcebergQty          float64           `json:"icebergQty,string"`
-	Time                bybitTimeMilliSec `json:"time"`       // Note: it is string in doc. ex
-	UpdateTime          bybitTimeMilliSec `json:"updateTime"` // Note: it is string in doc. ex
-	IsWorking           bool              `json:"isWorking"`
+	AccountID           int64                `json:"accountId"`
+	ExchangeID          int64                `json:"exchangeId"`
+	Symbol              string               `json:"symbol"`
+	SymbolName          string               `json:"symbolName"`
+	OrderLinkID         string               `json:"orderLinkId"`
+	OrderID             int64                `json:"orderId"`
+	Price               float64              `json:"price,string"`
+	Quantity            float64              `json:"origQty,string"`
+	ExecutedQty         float64              `json:"executedQty,string"`
+	CummulativeQuoteQty float64              `json:"cummulativeQuoteQty,string"`
+	AveragePrice        float64              `json:"avgPrice,string"`
+	Status              string               `json:"status"`
+	TimeInForce         string               `json:"timeInForce"`
+	TradeType           string               `json:"type"`
+	Side                string               `json:"side"`
+	StopPrice           float64              `json:"stopPrice,string"`
+	IcebergQty          float64              `json:"icebergQty,string"`
+	Time                bybitTimeMilliSecStr `json:"time"`
+	UpdateTime          bybitTimeMilliSecStr `json:"updateTime"`
+	IsWorking           bool                 `json:"isWorking"`
 }
 
 // CancelOrderResponse is the return structured response from the exchange
 type CancelOrderResponse struct {
-	OrderID     int64             `json:"orderId"`
-	OrderLinkID string            `json:"orderLinkId"`
-	Symbol      string            `json:"symbol"`
-	Status      string            `json:"status"`
-	AccountID   int64             `json:"accountId"`
-	Time        bybitTimeMilliSec `json:"transactTime"` // Note: it is string in doc. ex
-	Price       float64           `json:"price,string"`
-	Quantity    float64           `json:"origQty,string"`
-	ExecutedQty float64           `json:"executedQty,string"`
-	TimeInForce string            `json:"timeInForce"`
-	TradeType   string            `json:"type"`
-	Side        string            `json:"side"`
+	OrderID     int64                `json:"orderId"`
+	OrderLinkID string               `json:"orderLinkId"`
+	Symbol      string               `json:"symbol"`
+	Status      string               `json:"status"`
+	AccountID   int64                `json:"accountId"`
+	Time        bybitTimeMilliSecStr `json:"transactTime"`
+	Price       float64              `json:"price,string"`
+	Quantity    float64              `json:"origQty,string"`
+	ExecutedQty float64              `json:"executedQty,string"`
+	TimeInForce string               `json:"timeInForce"`
+	TradeType   string               `json:"type"`
+	Side        string               `json:"side"`
 }
 
 // HistoricalTrade holds recent trade data
@@ -484,31 +484,31 @@ type Currencies struct {
 
 // wsOrderUpdate defines websocket account order update data
 type wsOrderUpdate struct {
-	EventType                         string  `json:"e"`
-	EventTime                         string  `json:"E"`
-	Symbol                            string  `json:"s"`
-	ClientOrderID                     string  `json:"c"`
-	Side                              string  `json:"S"`
-	OrderType                         string  `json:"o"`
-	TimeInForce                       string  `json:"f"`
-	Quantity                          float64 `json:"q,string"`
-	Price                             float64 `json:"p,string"`
-	OrderStatus                       string  `json:"X"`
-	OrderID                           string  `json:"i"`
-	OpponentOrderID                   string  `json:"M"`
-	LastExecutedQuantity              float64 `json:"l,string"`
-	CumulativeFilledQuantity          float64 `json:"z,string"`
-	LastExecutedPrice                 float64 `json:"L,string"`
-	Commission                        float64 `json:"n,string"`
-	CommissionAsset                   string  `json:"N"`
-	IsNormal                          bool    `json:"u"`
-	IsOnOrderBook                     bool    `json:"w"`
-	IsLimitMaker                      bool    `json:"m"`
-	OrderCreationTime                 string  `json:"O"`
-	CumulativeQuoteTransactedQuantity float64 `json:"Z,string"`
-	AccountID                         string  `json:"A"`
-	IsClose                           bool    `json:"C"`
-	Leverage                          float64 `json:"v,string"`
+	EventType                         string               `json:"e"`
+	EventTime                         string               `json:"E"`
+	Symbol                            string               `json:"s"`
+	ClientOrderID                     string               `json:"c"`
+	Side                              string               `json:"S"`
+	OrderType                         string               `json:"o"`
+	TimeInForce                       string               `json:"f"`
+	Quantity                          float64              `json:"q,string"`
+	Price                             float64              `json:"p,string"`
+	OrderStatus                       string               `json:"X"`
+	OrderID                           string               `json:"i"`
+	OpponentOrderID                   string               `json:"M"`
+	LastExecutedQuantity              float64              `json:"l,string"`
+	CumulativeFilledQuantity          float64              `json:"z,string"`
+	LastExecutedPrice                 float64              `json:"L,string"`
+	Commission                        float64              `json:"n,string"`
+	CommissionAsset                   string               `json:"N"`
+	IsNormal                          bool                 `json:"u"`
+	IsOnOrderBook                     bool                 `json:"w"`
+	IsLimitMaker                      bool                 `json:"m"`
+	OrderCreationTime                 bybitTimeMilliSecStr `json:"O"`
+	CumulativeQuoteTransactedQuantity float64              `json:"Z,string"`
+	AccountID                         string               `json:"A"`
+	IsClose                           bool                 `json:"C"`
+	Leverage                          float64              `json:"v,string"`
 }
 
 // wsOrderFilled defines websocket account order filled data

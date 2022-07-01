@@ -428,11 +428,6 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 						return err
 					}
 
-					oTimeInMilliSec, err := strconv.ParseInt(data[j].OrderCreationTime, 10, 64)
-					if err != nil {
-						return err
-					}
-
 					by.Websocket.DataHandler <- order.Detail{
 						Price:           data[j].Price,
 						Amount:          data[j].Quantity,
@@ -444,9 +439,17 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 						Side:            oSide,
 						Status:          oStatus,
 						AssetType:       asset.Spot,
-						Date:            time.UnixMilli(oTimeInMilliSec),
+						Date:            data[j].OrderCreationTime.Time(),
 						Pair:            p,
 						ClientOrderID:   data[j].ClientOrderID,
+						Trades: []order.TradeHistory{
+							{
+								Price:     data[j].Price,
+								Amount:    data[j].Quantity,
+								Exchange:  by.Name,
+								Timestamp: data[j].OrderCreationTime.Time(),
+							},
+						},
 					}
 				}
 				return nil
@@ -484,6 +487,16 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 						Price:     data[j].Price,
 						Amount:    data[j].Quantity,
 						Date:      data[j].Timestamp.Time(),
+						Trades: []order.TradeHistory{
+							{
+								Price:     data[j].Price,
+								Amount:    data[j].Quantity,
+								Exchange:  by.Name,
+								Timestamp: data[j].Timestamp.Time(),
+								TID:       data[j].TradeID,
+								IsMaker:   data[j].IsMaker,
+							},
+						},
 					}
 				}
 				return nil
