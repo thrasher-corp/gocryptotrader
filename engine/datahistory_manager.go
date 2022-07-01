@@ -192,7 +192,7 @@ func (m *DataHistoryManager) compareJobsToData(jobs ...*DataHistoryJob) error {
 			jobs[i].rangeHolder.SetHasDataFromCandles(candles.Candles)
 		case dataHistoryTradeDataType:
 			for x := range jobs[i].rangeHolder.Ranges {
-				results, ok := jobs[i].Results[jobs[i].rangeHolder.Ranges[x].Start.Time]
+				results, ok := jobs[i].Results[jobs[i].rangeHolder.Ranges[x].Start.Time.Unix()]
 				if !ok {
 					continue
 				}
@@ -358,7 +358,7 @@ ranges:
 			}
 		}
 		if skipProcessing {
-			_, ok := job.Results[job.rangeHolder.Ranges[i].Start.Time]
+			_, ok := job.Results[job.rangeHolder.Ranges[i].Start.Time.Unix()]
 			if !ok && !job.OverwriteExistingData {
 				// we have determined that data is there, however it is not reflected in
 				// this specific job's results, which is required for a job to be complete
@@ -367,7 +367,7 @@ ranges:
 				if err != nil {
 					return err
 				}
-				job.Results[job.rangeHolder.Ranges[i].Start.Time] = []DataHistoryJobResult{
+				job.Results[job.rangeHolder.Ranges[i].Start.Time.Unix()] = []DataHistoryJobResult{
 					{
 						ID:                id,
 						JobID:             job.ID,
@@ -397,7 +397,7 @@ ranges:
 
 		var failures int64
 		hasDataInRange := false
-		resultLookup, ok := job.Results[job.rangeHolder.Ranges[i].Start.Time]
+		resultLookup, ok := job.Results[job.rangeHolder.Ranges[i].Start.Time.Unix()]
 		if ok {
 			for x := range resultLookup {
 				switch resultLookup[x].Status {
@@ -419,7 +419,7 @@ ranges:
 				for x := range resultLookup {
 					resultLookup[x].Status = dataHistoryIntervalIssuesFound
 				}
-				job.Results[job.rangeHolder.Ranges[i].Start.Time] = resultLookup
+				job.Results[job.rangeHolder.Ranges[i].Start.Time.Unix()] = resultLookup
 				continue
 			}
 		}
@@ -451,16 +451,16 @@ ranges:
 			return errNilResult
 		}
 
-		lookup := job.Results[result.IntervalStartDate]
+		lookup := job.Results[result.IntervalStartDate.Unix()]
 		lookup = append(lookup, *result)
-		job.Results[result.IntervalStartDate] = lookup
+		job.Results[result.IntervalStartDate.Unix()] = lookup
 	}
 	completed := true // nolint:ifshort,nolintlint // false positive and triggers only on Windows
 	allResultsSuccessful := true
 	allResultsFailed := true
 completionCheck:
 	for i := range job.rangeHolder.Ranges {
-		result, ok := job.Results[job.rangeHolder.Ranges[i].Start.Time]
+		result, ok := job.Results[job.rangeHolder.Ranges[i].Start.Time.Unix()]
 		if !ok {
 			completed = false
 		}
@@ -503,21 +503,22 @@ func (m *DataHistoryManager) runValidationJob(job *DataHistoryJob, exch exchange
 	nextIntervalToProcess := job.StartDate
 timesToFetch:
 	for t, results := range job.Results {
+		tt := time.Unix(t, 0)
 		if len(results) < int(job.MaxRetryAttempts) {
 			for x := range results {
 				if results[x].Status == dataHistoryStatusComplete {
 					continue timesToFetch
 				}
 			}
-			intervalsToCheck = append(intervalsToCheck, t)
+			intervalsToCheck = append(intervalsToCheck, tt)
 		} else {
 			for x := range results {
 				results[x].Status = dataHistoryIntervalIssuesFound
 			}
 			job.Results[t] = results
 		}
-		if t.After(nextIntervalToProcess) {
-			nextIntervalToProcess = t.Add(intervalLength)
+		if tt.After(nextIntervalToProcess) {
+			nextIntervalToProcess = tt.Add(intervalLength)
 		}
 	}
 	for i := nextIntervalToProcess; i.Before(job.EndDate); i = i.Add(intervalLength) {
@@ -548,9 +549,9 @@ timesToFetch:
 		if err != nil {
 			return err
 		}
-		lookup := job.Results[result.IntervalStartDate]
+		lookup := job.Results[result.IntervalStartDate.Unix()]
 		lookup = append(lookup, *result)
-		job.Results[result.IntervalStartDate] = lookup
+		job.Results[result.IntervalStartDate.Unix()] = lookup
 	}
 
 	completed := true // nolint:ifshort,nolintlint // false positive and triggers only on Windows
@@ -558,7 +559,7 @@ timesToFetch:
 	allResultsFailed := true
 completionCheck:
 	for i := range jobIntervals {
-		results, ok := job.Results[jobIntervals[i]]
+		results, ok := job.Results[jobIntervals[i].Unix()]
 		if !ok {
 			completed = false
 			break
@@ -1198,7 +1199,7 @@ func (m *DataHistoryManager) validateJob(job *DataHistoryJob) error {
 		return fmt.Errorf("job %s exchange %s asset %s currency %s %w", job.Nickname, job.Exchange, job.Asset, job.Pair, errCurrencyNotEnabled)
 	}
 	if job.Results == nil {
-		job.Results = make(map[time.Time][]DataHistoryJobResult)
+		job.Results = make(map[int64][]DataHistoryJobResult)
 	}
 	if job.RunBatchLimit <= 0 {
 		log.Warnf(log.DataHistory, "job %s has unset batch limit, defaulting to %v", job.Nickname, defaultDataHistoryBatchLimit)
@@ -1520,11 +1521,11 @@ func (m *DataHistoryManager) convertDBModelToJob(dbModel *datahistoryjob.DataHis
 	return resp, nil
 }
 
-func (m *DataHistoryManager) convertDBResultToJobResult(dbModels []*datahistoryjobresult.DataHistoryJobResult) (map[time.Time][]DataHistoryJobResult, error) {
+func (m *DataHistoryManager) convertDBResultToJobResult(dbModels []*datahistoryjobresult.DataHistoryJobResult) (map[int64][]DataHistoryJobResult, error) {
 	if !m.IsRunning() {
 		return nil, ErrSubSystemNotStarted
 	}
-	result := make(map[time.Time][]DataHistoryJobResult)
+	result := make(map[int64][]DataHistoryJobResult)
 	for i := range dbModels {
 		id, err := uuid.FromString(dbModels[i].ID)
 		if err != nil {
@@ -1535,7 +1536,7 @@ func (m *DataHistoryManager) convertDBResultToJobResult(dbModels []*datahistoryj
 		if err != nil {
 			return nil, err
 		}
-		lookup := result[dbModels[i].IntervalStartDate]
+		lookup := result[dbModels[i].IntervalStartDate.Unix()]
 		lookup = append(lookup, DataHistoryJobResult{
 			ID:                id,
 			JobID:             jobID,
@@ -1545,13 +1546,13 @@ func (m *DataHistoryManager) convertDBResultToJobResult(dbModels []*datahistoryj
 			Result:            dbModels[i].Result,
 			Date:              dbModels[i].Date,
 		})
-		result[dbModels[i].IntervalStartDate] = lookup
+		result[dbModels[i].IntervalStartDate.Unix()] = lookup
 	}
 
 	return result, nil
 }
 
-func (m *DataHistoryManager) convertJobResultToDBResult(results map[time.Time][]DataHistoryJobResult) []*datahistoryjobresult.DataHistoryJobResult {
+func (m *DataHistoryManager) convertJobResultToDBResult(results map[int64][]DataHistoryJobResult) []*datahistoryjobresult.DataHistoryJobResult {
 	var response []*datahistoryjobresult.DataHistoryJobResult
 	for _, v := range results {
 		for i := range v {

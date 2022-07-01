@@ -1,8 +1,6 @@
 package dollarcostaverage
 
 import (
-	"fmt"
-
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
@@ -37,7 +35,7 @@ func (s *Strategy) Description() string {
 
 // OnSignal handles a data event and returns what action the strategy believes should occur
 // For dollarcostaverage, this means returning a buy signal on every event
-func (s *Strategy) OnSignal(d data.Handler, _ funding.IFundTransferer, _ portfolio.Handler) (signal.Event, error) {
+func (s *Strategy) OnSignal(d data.Handler, _ funding.IFundingTransferer, _ portfolio.Handler) (signal.Event, error) {
 	if d == nil {
 		return nil, common.ErrNilEvent
 	}
@@ -48,7 +46,7 @@ func (s *Strategy) OnSignal(d data.Handler, _ funding.IFundTransferer, _ portfol
 
 	if !d.HasDataAtTime(d.Latest().GetTime()) {
 		es.SetDirection(order.MissingData)
-		es.AppendReason(fmt.Sprintf("missing data at %v, cannot perform any actions", d.Latest().GetTime()))
+		es.AppendReasonf("missing data at %v, cannot perform any actions", d.Latest().GetTime())
 		return &es, nil
 	}
 
@@ -66,7 +64,7 @@ func (s *Strategy) SupportsSimultaneousProcessing() bool {
 // OnSimultaneousSignals analyses multiple data points simultaneously, allowing flexibility
 // in allowing a strategy to only place an order for X currency if Y currency's price is Z
 // For dollarcostaverage, the strategy is always "buy", so it uses the OnSignal function
-func (s *Strategy) OnSimultaneousSignals(d []data.Handler, _ funding.IFundTransferer, _ portfolio.Handler) ([]signal.Event, error) {
+func (s *Strategy) OnSimultaneousSignals(d []data.Handler, _ funding.IFundingTransferer, _ portfolio.Handler) ([]signal.Event, error) {
 	var resp []signal.Event
 	var errs gctcommon.Errors
 	for i := range d {

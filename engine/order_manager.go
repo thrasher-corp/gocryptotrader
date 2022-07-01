@@ -21,7 +21,7 @@ import (
 )
 
 // SetupOrderManager will boot up the OrderManager
-func SetupOrderManager(exchangeManager iExchangeManager, communicationsManager iCommsManager, wg *sync.WaitGroup, verbose bool) (*OrderManager, error) {
+func SetupOrderManager(exchangeManager iExchangeManager, communicationsManager iCommsManager, wg *sync.WaitGroup, enabledFuturesTracking, verbose bool) (*OrderManager, error) {
 	if exchangeManager == nil {
 		return nil, errNilExchangeManager
 	}
@@ -40,6 +40,7 @@ func SetupOrderManager(exchangeManager iExchangeManager, communicationsManager i
 			commsManager:              communicationsManager,
 			wg:                        wg,
 			futuresPositionController: order.SetupPositionController(),
+			trackFuturesPositions:     enabledFuturesTracking,
 		},
 		verbose: verbose,
 	}, nil
@@ -889,7 +890,7 @@ func (s *store) upsert(od *order.Detail) (*OrderUpsertResponse, error) {
 	}
 	s.m.Lock()
 	defer s.m.Unlock()
-	if od.AssetType.IsFutures() {
+	if s.trackFuturesPositions && od.AssetType.IsFutures() {
 		err = s.futuresPositionController.TrackNewOrder(od)
 		if err != nil && !errors.Is(err, order.ErrPositionClosed) {
 			return nil, err

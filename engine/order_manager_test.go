@@ -93,21 +93,21 @@ func (f omfExchange) ModifyOrder(ctx context.Context, action *order.Modify) (*or
 }
 
 func TestSetupOrderManager(t *testing.T) {
-	_, err := SetupOrderManager(nil, nil, nil, false)
+	_, err := SetupOrderManager(nil, nil, nil, false, false)
 	if !errors.Is(err, errNilExchangeManager) {
 		t.Errorf("error '%v', expected '%v'", err, errNilExchangeManager)
 	}
 
-	_, err = SetupOrderManager(SetupExchangeManager(), nil, nil, false)
+	_, err = SetupOrderManager(SetupExchangeManager(), nil, nil, false, false)
 	if !errors.Is(err, errNilCommunicationsManager) {
 		t.Errorf("error '%v', expected '%v'", err, errNilCommunicationsManager)
 	}
-	_, err = SetupOrderManager(SetupExchangeManager(), &CommunicationManager{}, nil, false)
+	_, err = SetupOrderManager(SetupExchangeManager(), &CommunicationManager{}, nil, false, false)
 	if !errors.Is(err, errNilWaitGroup) {
 		t.Errorf("error '%v', expected '%v'", err, errNilWaitGroup)
 	}
 	var wg sync.WaitGroup
-	_, err = SetupOrderManager(SetupExchangeManager(), &CommunicationManager{}, &wg, false)
+	_, err = SetupOrderManager(SetupExchangeManager(), &CommunicationManager{}, &wg, false, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -120,7 +120,7 @@ func TestOrderManagerStart(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
 	}
 	var wg sync.WaitGroup
-	m, err = SetupOrderManager(SetupExchangeManager(), &CommunicationManager{}, &wg, false)
+	m, err = SetupOrderManager(SetupExchangeManager(), &CommunicationManager{}, &wg, false, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -141,7 +141,7 @@ func TestOrderManagerIsRunning(t *testing.T) {
 	}
 
 	var wg sync.WaitGroup
-	m, err := SetupOrderManager(SetupExchangeManager(), &CommunicationManager{}, &wg, false)
+	m, err := SetupOrderManager(SetupExchangeManager(), &CommunicationManager{}, &wg, false, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -166,7 +166,7 @@ func TestOrderManagerStop(t *testing.T) {
 	}
 
 	var wg sync.WaitGroup
-	m, err = SetupOrderManager(SetupExchangeManager(), &CommunicationManager{}, &wg, false)
+	m, err = SetupOrderManager(SetupExchangeManager(), &CommunicationManager{}, &wg, false, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -209,7 +209,7 @@ func OrdersSetup(t *testing.T) *OrderManager {
 		IBotExchange: exch,
 	}
 	em.Add(fakeExchange)
-	m, err := SetupOrderManager(em, &CommunicationManager{}, &wg, false)
+	m, err := SetupOrderManager(em, &CommunicationManager{}, &wg, false, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -674,7 +674,7 @@ func TestProcessOrders(t *testing.T) {
 		IBotExchange: exch,
 	}
 	em.Add(fakeExchange)
-	m, err := SetupOrderManager(em, &CommunicationManager{}, &wg, false)
+	m, err := SetupOrderManager(em, &CommunicationManager{}, &wg, false, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -782,7 +782,7 @@ func TestProcessOrders(t *testing.T) {
 		t.Error(err)
 	}
 	if len(res) != 1 {
-		t.Errorf("Expected 3 result, got: %d", len(res))
+		t.Errorf("Expected 1 result, got: %d", len(res))
 	}
 	if res[0].Status != order.Active {
 		t.Errorf("Order 1 should be active, but status is %s", res[0].Status)
@@ -1285,6 +1285,7 @@ func TestUpdateExisting(t *testing.T) {
 	if !errors.Is(err, ErrOrderNotFound) {
 		t.Errorf("received '%v', expected '%v'", err, ErrOrderNotFound)
 	}
+	od.Exchange = testExchange
 	od.AssetType = asset.Futures
 	od.OrderID = "123"
 	od.Pair = currency.NewPair(currency.BTC, currency.USDT)
@@ -1296,6 +1297,10 @@ func TestUpdateExisting(t *testing.T) {
 		od,
 	}
 	s.futuresPositionController = order.SetupPositionController()
+	err = s.futuresPositionController.TrackNewOrder(od)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected '%v'", err, nil)
+	}
 	err = s.updateExisting(od)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
