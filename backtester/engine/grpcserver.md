@@ -20,8 +20,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 ## Grpcserver package overview
 
-The GRPC server is responsible for handling requests from the client. All GRPC functionality as defined in the proto file is implemented here
-
+The GRPC server is responsible for handling requests from the client. All GRPC functionality as defined in the proto file is implemented [here](/backtester/btrpc)
 
 ### Please click GoDocs chevron above to view current GoDoc information for this package
 

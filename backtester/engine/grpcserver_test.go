@@ -6,10 +6,12 @@ import (
 	"fmt"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/btrpc"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -236,5 +238,43 @@ func TestExecuteStrategyFromConfig(t *testing.T) {
 	})
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expecting '%v'", err, nil)
+	}
+
+	// coverage test to ensure the rest of the config can successfully be converted
+	// this will not have a successful response
+	cfg.FundingSettings.ExchangeLevelFunding = append(cfg.FundingSettings.ExchangeLevelFunding, &btrpc.ExchangeLevelFunding{
+		ExchangeName: defaultConfig.CurrencySettings[0].ExchangeName,
+		Asset:        defaultConfig.CurrencySettings[0].Asset.String(),
+		Currency:     defaultConfig.CurrencySettings[0].Base.String(),
+		InitialFunds: "1337",
+		TransferFee:  "1337",
+	})
+	cfg.CurrencySettings[0].FuturesDetails = &btrpc.FuturesDetails{Leverage: &btrpc.Leverage{
+		CanUseLeverage:                 false,
+		MaximumOrdersWithLeverageRatio: "1337",
+		MaximumLeverageRate:            "1337",
+		MaximumCollateralLeverageRate:  "1337",
+	}}
+	cfg.DataSettings.DatabaseData = &btrpc.DatabaseData{
+		StartDate: timestamppb.New(time.Now()),
+		EndDate:   timestamppb.New(time.Now()),
+		Config: &btrpc.DatabaseConfig{
+			Enabled: false,
+			Verbose: false,
+			Driver:  "",
+			Config:  &btrpc.DatabaseConnectionDetails{},
+		},
+		Path:             "test",
+		InclusiveEndDate: false,
+	}
+	cfg.DataSettings.LiveData = &btrpc.LiveData{}
+	cfg.DataSettings.CsvData = &btrpc.CSVData{
+		Path: "test",
+	}
+	_, err = s.ExecuteStrategyFromConfig(context.Background(), &btrpc.ExecuteStrategyFromConfigRequest{
+		Config: cfg,
+	})
+	if !errors.Is(err, gctcommon.ErrStartEqualsEnd) {
+		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrStartEqualsEnd)
 	}
 }

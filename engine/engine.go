@@ -149,7 +149,7 @@ func loadConfigWithSettings(settings *Settings, flagSet map[string]bool) (*confi
 // FlagSet defines set flags from command line args for comparison methods
 type FlagSet map[string]bool
 
-// WithBool checks the supplied flag. If set it will overide the config boolean
+// WithBool checks the supplied flag. If set it will override the config boolean
 // value as a command line takes precedence. If not set will fall back to config
 // options.
 func (f FlagSet) WithBool(key string, flagValue *bool, configValue bool) {

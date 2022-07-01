@@ -135,23 +135,13 @@ func (c *Config) validateStrategySettings() error {
 // validateDate checks whether someone has set a date poorly in their config
 func (c *Config) validateDate() error {
 	if c.DataSettings.DatabaseData != nil {
-		if c.DataSettings.DatabaseData.StartDate.IsZero() ||
-			c.DataSettings.DatabaseData.EndDate.IsZero() {
-			return errStartEndUnset
-		}
-		if c.DataSettings.DatabaseData.StartDate.After(c.DataSettings.DatabaseData.EndDate) ||
-			c.DataSettings.DatabaseData.StartDate.Equal(c.DataSettings.DatabaseData.EndDate) {
-			return errBadDate
+		if err := gctcommon.StartEndTimeCheck(c.DataSettings.DatabaseData.StartDate, c.DataSettings.DatabaseData.EndDate); err != nil {
+			return err
 		}
 	}
 	if c.DataSettings.APIData != nil {
-		if c.DataSettings.APIData.StartDate.IsZero() ||
-			c.DataSettings.APIData.EndDate.IsZero() {
-			return errStartEndUnset
-		}
-		if c.DataSettings.APIData.StartDate.After(c.DataSettings.APIData.EndDate) ||
-			c.DataSettings.APIData.StartDate.Equal(c.DataSettings.APIData.EndDate) {
-			return errBadDate
+		if err := gctcommon.StartEndTimeCheck(c.DataSettings.APIData.StartDate, c.DataSettings.APIData.EndDate); err != nil {
+			return err
 		}
 	}
 	return nil

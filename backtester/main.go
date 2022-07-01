@@ -10,20 +10,35 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	backtest "github.com/thrasher-corp/gocryptotrader/backtester/engine"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
+	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/signaler"
 )
 
 func main() {
-	var strategyConfigPath, templatePath, reportOutput, btConfigDir string
-	var generateReport, darkReport, verbose, colourOutput, logSubHeader, singleRun bool
+	var strategyConfigPath, templatePath, outputPath, btConfigDir string
+	var generateReport, darkReport, colourOutput, logSubHeader, singleRun, printLogo bool
+
 	wd, err := os.Getwd()
 	if err != nil {
 		fmt.Printf("Could not get working directory. Error: %v.\n", err)
 		os.Exit(1)
 	}
+	defaultStrategy := filepath.Join(
+		wd,
+		"config",
+		"strategyexamples",
+		"dca-api-candles.strat")
+	defaultTemplate := filepath.Join(
+		wd,
+		"report",
+		"tpl.gohtml")
+
+	defaultReportOutput := filepath.Join(
+		wd,
+		"results")
+
 	flag.BoolVar(
 		&singleRun,
 		"singlerun",
@@ -32,11 +47,7 @@ func main() {
 	flag.StringVar(
 		&strategyConfigPath,
 		"strategyconfigpath",
-		filepath.Join(
-			wd,
-			"config",
-			"strategyexamples",
-			"dca-api-candles.strat"),
+		defaultStrategy,
 		"the config containing strategy params, only used if --singlerun=true")
 	flag.StringVar(
 		&btConfigDir,
@@ -46,10 +57,7 @@ func main() {
 	flag.StringVar(
 		&templatePath,
 		"templatepath",
-		filepath.Join(
-			wd,
-			"report",
-			"tpl.gohtml"),
+		defaultTemplate,
 		"the report template to use")
 	flag.BoolVar(
 		&generateReport,
@@ -57,22 +65,15 @@ func main() {
 		true,
 		"whether to generate the report file")
 	flag.StringVar(
-		&reportOutput,
+		&outputPath,
 		"outputpath",
-		filepath.Join(
-			wd,
-			"results"),
+		defaultReportOutput,
 		"the path where to output results")
 	flag.BoolVar(
 		&darkReport,
 		"darkreport",
 		false,
 		"sets the output report to use a dark theme by default")
-	flag.BoolVar(
-		&verbose,
-		"verbose",
-		false,
-		"if enabled, will set exchange requests to verbose for debugging purposes")
 	flag.BoolVar(
 		&colourOutput,
 		"colouroutput",
@@ -83,7 +84,16 @@ func main() {
 		"logsubheader",
 		true,
 		"displays logging subheader to track where activity originates")
+	flag.BoolVar(
+		&printLogo,
+		"printlogo",
+		true,
+		"shows the stunning, profit inducing logo on startup")
 	flag.Parse()
+	// collect flags
+	flags := make(map[string]bool)
+	// Stores the set flags
+	flag.Visit(func(f *flag.Flag) { flags[f.Name] = true })
 
 	if btConfigDir == "" {
 		btConfigDir = config.DefaultBTConfigDir
@@ -125,27 +135,46 @@ func main() {
 		return
 	}
 
-	if !btCfg.UseCMDColours && colourOutput {
-		btCfg.UseCMDColours = colourOutput
+	flagSet := engine.FlagSet(flags)
+	flagSet.WithBool("singlerun", &singleRun, btCfg.SingleRun)
+	flagSet.WithBool("printlogo", &printLogo, btCfg.PrintLogo)
+	flagSet.WithBool("darkreport", &darkReport, btCfg.Report.DarkMode)
+	flagSet.WithBool("generatereport", &generateReport, btCfg.Report.GenerateReport)
+	flagSet.WithBool("logsubheaders", &logSubHeader, btCfg.LogSubheaders)
+	flagSet.WithBool("colouroutput", &colourOutput, btCfg.UseCMDColours)
+
+	if singleRun && strategyConfigPath != defaultStrategy {
+		btCfg.SingleRunStrategyConfig = strategyConfigPath
 	}
-	if !btCfg.Report.GenerateReport && generateReport {
-		btCfg.Report.GenerateReport = generateReport
-	}
-	if btCfg.Report.TemplatePath != templatePath && templatePath != filepath.Join(wd, "report", "tpl.gohtml") {
-		btCfg.Report.TemplatePath = templatePath
-	}
-	if btCfg.Report.OutputPath != reportOutput && reportOutput != filepath.Join(wd, "results") {
-		btCfg.Report.OutputPath = reportOutput
+	if singleRun && !file.Exists(btCfg.SingleRunStrategyConfig) {
+		fmt.Printf("strategy config path not found '%v'", strategyConfigPath)
+		os.Exit(1)
 	}
 
-	if btCfg.UseCMDColours {
+	if templatePath != defaultTemplate {
+		btCfg.Report.TemplatePath = templatePath
+	}
+	if !file.Exists(btCfg.Report.TemplatePath) {
+		fmt.Printf("report template path not found '%v'", btCfg.Report.TemplatePath)
+		os.Exit(1)
+	}
+
+	if outputPath != defaultReportOutput {
+		btCfg.Report.OutputPath = outputPath
+	}
+	if !file.Exists(btCfg.Report.OutputPath) {
+		fmt.Printf("report output path not found '%v'", btCfg.Report.OutputPath)
+		os.Exit(1)
+	}
+
+	if colourOutput {
 		common.SetColours(&btCfg.Colours)
 	} else {
 		common.PurgeColours()
 	}
 
 	log.GlobalLogConfig = log.GenDefaultSettings()
-	log.GlobalLogConfig.AdvancedSettings.ShowLogSystemName = convert.BoolPtr(logSubHeader)
+	log.GlobalLogConfig.AdvancedSettings.ShowLogSystemName = &logSubHeader
 	log.GlobalLogConfig.AdvancedSettings.Headers.Info = common.CMDColours.Info + "[INFO]" + common.CMDColours.Default
 	log.GlobalLogConfig.AdvancedSettings.Headers.Warn = common.CMDColours.Warn + "[WARN]" + common.CMDColours.Default
 	log.GlobalLogConfig.AdvancedSettings.Headers.Debug = common.CMDColours.Debug + "[DEBUG]" + common.CMDColours.Default
@@ -162,12 +191,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	if btCfg.PrintLogo {
+	if printLogo {
 		fmt.Println(common.Logo())
 	}
 
 	if singleRun {
-		dir := strategyConfigPath
+		dir := btCfg.SingleRunStrategyConfig
 		var cfg *config.Config
 		cfg, err = config.ReadStrategyConfigFromFile(dir)
 		if err != nil {
@@ -177,8 +206,8 @@ func main() {
 		err = backtest.ExecuteStrategy(cfg, &config.BacktesterConfig{
 			Report: config.Report{
 				GenerateReport: generateReport,
-				TemplatePath:   templatePath,
-				OutputPath:     reportOutput,
+				TemplatePath:   btCfg.Report.TemplatePath,
+				OutputPath:     btCfg.Report.OutputPath,
 				DarkMode:       darkReport,
 			},
 		})
@@ -188,6 +217,9 @@ func main() {
 		}
 		return
 	}
+
+	btCfg.Report.DarkMode = darkReport
+	btCfg.Report.GenerateReport = generateReport
 
 	go func(c *config.BacktesterConfig) {
 		log.Info(log.GRPCSys, "starting GRPC server")

@@ -3,9 +3,7 @@
 ## {{.CapitalName}} package overview
 
 The backtest package is responsible for handling all events. It is the engine which combines all elements.
-It is responsible for the following functionality
-- Analysing the data via the `handleEvent` function
-- Looping through all data
+Data is converted into candles which are then analysed via the strategyhandler. From there, events can be passed through to other handles such as the portfolio handler to determine whether or not to place an order
 
 
 A flow of the application is as follows:

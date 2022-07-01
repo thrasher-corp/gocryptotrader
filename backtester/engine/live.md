@@ -22,6 +22,8 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 Live trading has specific requirements separate from backtesting. Handling the looping of candle data and managing real orders and orderbooks will be handled here
 
+Live trading is only a proof of concept. Please do not risk your funds by using it with `realOrders` enabled
+
 
 A flow of the application is as follows:
 ![workflow](https://i.imgur.com/Kup6IA9.png)

@@ -60,8 +60,8 @@ func executeStrategyFromFile(c *cli.Context) error {
 
 var executeStrategyFromConfigCommand = &cli.Command{
 	Name:        "executestrategyfromconfig",
-	Usage:       "runs the default strategy config but via passing in as a struct instead of a filepath",
-	Description: "the cli is not a good place to manage this type of command with n variables. this command is just a demonstration that it works",
+	Usage:       "runs the default strategy config but via passing in as a struct instead of a filepath - this is a proof-of-concept implementation",
+	Description: "the cli is not a good place to manage this type of command with n variables to pass in from a command line",
 	Action:      executeStrategyFromConfig,
 }
 

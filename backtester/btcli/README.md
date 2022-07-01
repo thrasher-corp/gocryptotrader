@@ -1,38 +1,51 @@
-# GoCryptoTrader gRPC client
+# GoCryptoTrader Backtester: Btcli package
 
-<img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/page-logo.png?raw=true" width="350px" height="350px" hspace="70">
+<img src="/backtester/common/backtester.png?raw=true" width="350px" height="350px" hspace="70">
+
 
 [![Build Status](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
-[![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader)
+[![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader/backtester/btcli)
 [![Coverage Status](http://codecov.io/github/thrasher-corp/gocryptotrader/coverage.svg?branch=master)](http://codecov.io/github/thrasher-corp/gocryptotrader?branch=master)
 [![Go Report Card](https://goreportcard.com/badge/github.com/thrasher-corp/gocryptotrader)](https://goreportcard.com/report/github.com/thrasher-corp/gocryptotrader)
 
-A cryptocurrency trading bot supporting multiple exchanges written in Golang.
 
-**Please note that this bot is under development and is not ready for production!**
+This btcli package is part of the GoCryptoTrader codebase.
 
-## Community
+## This is still in active development
+
+You can track ideas, planned features and what's in progress on this Trello board: [https://trello.com/b/ZAhMhpOy/gocryptotrader](https://trello.com/b/ZAhMhpOy/gocryptotrader).
 
 Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://join.slack.com/t/gocryptotrader/shared_invite/enQtNTQ5NDAxMjA2Mjc5LTc5ZDE1ZTNiOGM3ZGMyMmY1NTAxYWZhODE0MWM5N2JlZDk1NDU0YTViYzk4NTk3OTRiMDQzNGQ1YTc4YmRlMTk)
 
-## Background
+## Btcli overview
 
-GoCryptoTrader utilises gRPC for client/server interaction. Authentication is done
-by a self signed TLS cert, which only supports connections from localhost and also
-through basic authorisation specified by the users config file.
+This folder contains the GoCryptoTrader Backtester CMD CLI application. It can be used to interact
+with the GoCryptoTrader Backtester's GRPC server and send commands to be processed server-side.
 
-## Usage
+For a list of commands, you can run the following
 
-GoCryptoTrader must be running with gRPC enabled in order to use the client features.
-
-```bash
-go build or go run .
+```
+go run .
 ```
 
-For a full list of commands, you can run `gctcli --help`. Alternatively, you can also
-visit our [GoCryptoTrader API reference.](https://api.gocryptotrader.app/)
+### Please click GoDocs chevron above to view current GoDoc information for this package
 
-## Autocomplete
+## Contribution
 
-Bash/ZSH autocomplete entries can be found [here](/contrib).
+Please feel free to submit any pull requests or suggest any desired features to be added.
+
+When submitting a PR, please abide by our coding guidelines:
+
++ Code must adhere to the official Go [formatting](https://golang.org/doc/effective_go.html#formatting) guidelines (i.e. uses [gofmt](https://golang.org/cmd/gofmt/)).
++ Code must be documented adhering to the official Go [commentary](https://golang.org/doc/effective_go.html#commentary) guidelines.
++ Code must adhere to our [coding style](https://github.com/thrasher-corp/gocryptotrader/blob/master/doc/coding_style.md).
++ Pull requests need to be based on and opened against the `master` branch.
+
+## Donations
+
+<img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/donate.png?raw=true" hspace="70">
+
+If this framework helped you in any way, or you would like to support the developers working on it, please donate Bitcoin to:
+
+***bc1qk0jareu4jytc0cfrhr5wgshsq8282awpavfahc***

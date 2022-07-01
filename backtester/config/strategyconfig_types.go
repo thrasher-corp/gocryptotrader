@@ -15,13 +15,11 @@ var (
 	// ErrFileNotFound returned when the file is not found
 	ErrFileNotFound = errors.New("file not found")
 
-	errBadDate                          = errors.New("start date >= end date, please check your config")
 	errNoCurrencySettings               = errors.New("no currency settings set in the config")
 	errBadInitialFunds                  = errors.New("initial funds set with invalid data, please check your config")
 	errUnsetExchange                    = errors.New("exchange name unset for currency settings, please check your config")
 	errUnsetCurrency                    = errors.New("currency unset for currency settings, please check your config")
 	errBadSlippageRates                 = errors.New("invalid slippage rates in currency settings, please check your config")
-	errStartEndUnset                    = errors.New("data start and end dates are invalid, please check your config")
 	errSimultaneousProcessingRequired   = errors.New("exchange level funding requires simultaneous processing, please check your config and view funding readme for details")
 	errExchangeLevelFundingRequired     = errors.New("invalid config, funding details set while exchange level funding is disabled")
 	errExchangeLevelFundingDataRequired = errors.New("invalid config, exchange level funding enabled with no funding data set")

@@ -883,10 +883,13 @@ func loadLiveData(cfg *config.Config, base *gctexchange.Base) error {
 // ExecuteStrategy executes the strategy using the provided configs
 func ExecuteStrategy(strategyCfg *config.Config, backtesterCfg *config.BacktesterConfig) error {
 	if err := strategyCfg.Validate(); err != nil {
+		log.Error(log.Global, err)
 		return err
 	}
 	if backtesterCfg == nil {
-		return fmt.Errorf("%w backtester config", common.ErrNilArguments)
+		err := fmt.Errorf("%w backtester config", common.ErrNilArguments)
+		log.Error(log.Global, err)
+		return err
 	}
 
 	bt, err := NewFromConfig(strategyCfg, backtesterCfg.Report.TemplatePath, backtesterCfg.Report.OutputPath, backtesterCfg.Verbose)
@@ -897,6 +900,7 @@ func ExecuteStrategy(strategyCfg *config.Config, backtesterCfg *config.Backteste
 		go func() {
 			err = bt.RunLive()
 			if err != nil {
+				log.Error(log.Global, err)
 				return
 			}
 		}()
@@ -909,6 +913,7 @@ func ExecuteStrategy(strategyCfg *config.Config, backtesterCfg *config.Backteste
 
 	err = bt.Statistic.CalculateAllResults()
 	if err != nil {
+		log.Error(log.Global, err)
 		return err
 	}
 
@@ -917,6 +922,7 @@ func ExecuteStrategy(strategyCfg *config.Config, backtesterCfg *config.Backteste
 		err = bt.Reports.GenerateReport()
 		if err != nil {
 			log.Error(log.Global, err)
+			return err
 		}
 	}
 
