@@ -1,0 +1,92 @@
+{{define "exchanges alert" -}}
+{{template "header" .}}
+## Alert
+
++ This package allows for multiple routines to wait for a state change on any required data.
+
+### Examples:
+
++ Implementation:
+
+```go
+// SomeChangingType defines an example struct with an embedded alert.Notice
+// type for easy access to the notice methods.
+type SomeChangingType struct {
+	ValueThatChanges int64
+	alert.Notice
+	mu sync.Mutex // Protection for routine shenanigans
+}
+
+// Update will update in a separate routine
+func (s *SomeChangingType) Update(newValue int64) {
+	// This simulates a changing variable or state
+	s.mu.Lock()
+	s.ValueThatChanges = newValue
+	// This will alert any routines that are currently waiting for a change
+	s.Alert()
+	s.mu.Unlock()
+}
+
+// WhatsTheValue will retrieve the value that was changed and should be
+// different from the past value. Efficiency++
+func (s *SomeChangingType) WhatsTheValue() int64 {
+	s.mu.Lock()
+	value := s.ValueThatChanges
+	s.mu.Unlock()
+	return value
+}
+```
+
++ Routine waiting for change:
+
+```go
+// ExampleRoutineThatWaits defines an exchange potential routine that will wait
+// for an impending change.
+func ExampleRoutineThatWaits(potentialChange *SomeChangingType) {
+	// Every iteration requires a Wait() call.
+	for range potentialChange.Wait(nil) {
+		val := potentialChange.WhatsTheValue()
+		fmt.Println("Value:", val)
+	}
+}
+
+// AnotherExampleRoutineThatWaits defines an exchange potential routine that 
+// will wait for an impending change.
+func AnotherExampleRoutineThatWaits(potentialChange *SomeChangingType) {
+	// Every iteration requires a Wait() call.
+	for {
+		select {
+			case <-potentialChange.Wait(nil):
+				val := potentialChange.WhatsTheValue()
+				fmt.Println("Value:", val)
+			case <-shutdownChannel:
+				fmt.Println("Good-Bye!")
+			return 
+		}
+	}
+}
+
+
+// WARNING: PLEASE DON'T DO THIS.
+// This will stop alerting for this specific data type due to the shared nature 
+// of the underlying channels using a sync.Pool.
+func ABadExampleRoutineThatWaits(potentialChange *SomeChangingType) {
+	capturedChannel := potentialChange.Wait(nil)
+	for {
+		select {
+			case <-capturedChannel:
+				// This will produce incorrect results or no change. 
+				val := potentialChange.WhatsTheValue()
+				fmt.Println("Value:", val)
+			case <-shutdownChannel:
+				fmt.Println("Good-Bye!")
+			return 
+		}
+	}
+}
+```
+
+### Please click GoDocs chevron above to view current GoDoc information for this package
+{{template "contributions"}}
+{{template "donations" .}}
+{{end}}
